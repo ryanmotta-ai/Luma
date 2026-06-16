@@ -1,0 +1,112 @@
+/**
+ * css/modules/live-preview.css
+ *
+ * Preview lateral em tempo real do franqueado (#f-right-body, .lp-*).
+ * Inclui @media queries para telas estreitas.
+ * Depende de: 00-tokens.css, 02-animations.css
+ */
+
+/* ══ LIVE PREVIEW (F-01) ══ */
+#f-right-body{flex:1;display:flex;min-height:0;overflow:hidden}
+#f-chat-col{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+#f-live-preview{
+  width:300px;flex-shrink:0;
+  background:var(--white);
+  border-left:1px solid var(--gray-light);
+  display:flex;flex-direction:column;
+  overflow-y:auto;
+}
+#f-live-preview::-webkit-scrollbar{width:3px}
+#f-live-preview::-webkit-scrollbar-thumb{background:var(--gray-mid);border-radius:3px}
+.lp-head{
+  padding:14px 18px 10px;
+  border-bottom:1px solid var(--gray-light);
+  flex-shrink:0;
+}
+.lp-title{
+  font-size:10px;font-weight:700;
+  letter-spacing:.14em;
+  color:var(--dm-orange-d);
+}
+.lp-sub{
+  font-size:11px;color:var(--text-3);
+  margin-top:3px;
+  transition:color .2s;
+}
+.lp-sub.ready{color:var(--green);font-weight:500}
+.lp-stage{
+  padding:18px 18px 14px;
+  display:flex;
+  justify-content:center;
+  flex-shrink:0;
+}
+/* #lp-canvas agora é um <canvas> que renderiza o template real (ver live-preview.js).
+   As dimensões de exibição são definidas inline pelo JS (escala única, sem distorção). */
+.lp-canvas{
+  display:block;
+  margin:0 auto;
+  max-width:100%;
+  border-radius:8px;
+  box-shadow:0 6px 20px rgba(0,0,0,.12);
+  background:var(--gray-light);
+}
+.lp-fields{
+  padding:8px 18px 18px;
+  display:flex;flex-direction:column;gap:6px;
+  flex-shrink:0;
+}
+.lp-field{
+  display:flex;align-items:center;gap:8px;
+  font-size:11px;
+  padding:5px 0;
+  border-bottom:1px solid var(--gray-light);
+}
+.lp-field:last-child{border-bottom:none}
+.lp-field-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--gray-mid);flex-shrink:0;
+  transition:background .2s;
+}
+.lp-field.filled .lp-field-dot{background:var(--green)}
+.lp-field.current .lp-field-dot{
+  background:var(--dm-orange);
+  box-shadow:0 0 0 3px rgba(255,144,0,.18);
+  animation:lpDotPulse 1.2s ease-in-out infinite;
+}
+@keyframes lpDotPulse{
+  0%,100%{box-shadow:0 0 0 3px rgba(255,144,0,.18)}
+  50%{box-shadow:0 0 0 5px rgba(255,144,0,.05)}
+}
+.lp-field-label{
+  color:var(--text-3);
+  flex:1;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.lp-field.filled .lp-field-label{color:var(--text)}
+.lp-field-val{
+  color:var(--text-3);font-weight:500;
+  max-width:55%;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  text-align:right;
+}
+.lp-field.filled .lp-field-val{color:var(--dm-orange-d);font-weight:700}
+
+/* Em telas estreitas, vira topo do chat */
+@media (max-width:1100px){
+  #f-right-body{flex-direction:column}
+  #f-live-preview{
+    width:100%;height:auto;
+    border-left:none;
+    border-bottom:1px solid var(--gray-light);
+    flex-direction:row;
+    align-items:stretch;
+  }
+  .lp-head{border-bottom:none;border-right:1px solid var(--gray-light);width:120px;display:flex;flex-direction:column;justify-content:center}
+  .lp-stage{flex:1;padding:10px}
+  .lp-fields{display:none}
+}
+@media (max-width:680px){
+  #f-live-preview{display:none}
+}
+/* ══ /LIVE PREVIEW ══ */
+

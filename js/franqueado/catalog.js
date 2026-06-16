@@ -1,0 +1,328 @@
+/**
+ * js/franqueado/catalog.js
+ *
+ * Catalogo de campanhas: fRenderCatalogs, fFilterCamps, fSelectCamp,
+ * fSwitchTab, fSetHistFilter, fRenderHist, fEditFromHist, fDuplicateInOtherFmt.
+ * Depende de: 00-config.js, 01-state.js
+ */
+
+/* ── TABS ESQUERDA ── */
+function fSwitchTab(tab,btn){
+  fState.tab=tab;
+  document.querySelectorAll('.f-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const cat=document.getElementById('f-catalog'),hist=document.getElementById('f-hist-tab');
+  const fmt=document.getElementById('f-fmt-wrap'),sr=document.getElementById('f-search-row');
+  if(tab==='historico'){cat.style.display='none';hist.style.display='flex';fmt.style.display='none';sr.style.display='none';fRenderHist();}
+  else{cat.style.display='block';hist.style.display='none';fmt.style.display='';sr.style.display='';}
+}
+
+// F-08: filtro por status dentro do histórico
+let fHistFilter = 'todos'; // 'todos' | 'rascunho' | 'baixada'
+function fSetHistFilter(f, btn){
+  fHistFilter = f;
+  document.querySelectorAll('.hist-filter-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  fRenderHist();
+}
+
+// M1.3 — CTA do empty state: leva o franqueado de volta ao catálogo de campanhas
+function fGoToCampaigns(){
+  const catBtn=document.querySelector('.f-tab');
+  fSwitchTab('catalogo', catBtn);
+}
+function fRenderHist(){
+  const all = fGetHist();
+  const el = document.getElementById('f-hist-tab');
+  const filtered = fHistFilter === 'todos' ? all : all.filter(h => (h.status||'rascunho') === fHistFilter);
+  const counts = {
+    todos: all.length,
+    rascunho: all.filter(h=>(h.status||'rascunho')==='rascunho').length,
+    baixada: all.filter(h=>h.status==='baixada').length,
+  };
+  const filterBar = `<div class="hist-filter-bar">
+    <button class="hist-filter-btn ${fHistFilter==='todos'?'active':''}" onclick="fSetHistFilter('todos',this)">Todas <span class="hist-filter-count">${counts.todos}</span></button>
+    <button class="hist-filter-btn ${fHistFilter==='rascunho'?'active':''}" onclick="fSetHistFilter('rascunho',this)">Rascunhos <span class="hist-filter-count">${counts.rascunho}</span></button>
+    <button class="hist-filter-btn ${fHistFilter==='baixada'?'active':''}" onclick="fSetHistFilter('baixada',this)">Baixadas <span class="hist-filter-count">${counts.baixada}</span></button>
+  </div>`;
+  if(!all.length){
+    // M1.3 — empty state empático com ícone + CTA de volta ao fluxo
+    el.innerHTML = filterBar + `<div class="empty-state">
+      <div class="empty-icon">
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>
+        </svg>
+      </div>
+      <div class="empty-title">Ainda não tens artes geradas</div>
+      <div class="empty-text">Escolhe uma campanha, responde umas perguntinhas e a tua primeira arte aparece aqui.</div>
+      <button class="empty-cta" onclick="fGoToCampaigns()">Ver campanhas sugeridas →</button>
+    </div>`;
+    return;
+  }
+  if(!filtered.length){
+    el.innerHTML = filterBar + `<div class="empty-state empty-state-sm">
+      <div class="empty-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h12"/></svg></div>
+      <div class="empty-title">Nenhuma arte ${fHistFilter==='rascunho'?'em rascunho':'baixada ainda'}</div>
+      <div class="empty-text">${fHistFilter==='rascunho'?'Os rascunhos que começares aparecem aqui.':'Baixa uma arte e ela fica registada aqui.'}</div>
+      <button class="empty-cta ghost" onclick="fSetHistFilter('todos',document.querySelector('.hist-filter-btn'))">Ver todas</button>
+    </div>`;
+    return;
+  }
+  el.innerHTML = filterBar + filtered.map(h=>{
+    const isRascunho = (h.status||'rascunho') === 'rascunho';
+    const statusBadge = isRascunho
+      ? `<span class="hist-badge-st rascunho">rascunho</span>`
+      : `<span class="hist-badge-st baixada">baixada</span>`;
+    const dateStr = fFormatHistDate(h.ts);
+    return `<div class="hist-card" data-status="${h.status||'rascunho'}">
+      <div class="hist-thumb" style="background:${h.campColor}">${gEsc((h.campName||'').toUpperCase().slice(0,8))}</div>
+      <div class="hist-info">
+        <div class="hist-name">${h.materialName ? gEsc(h.materialName) : (gEsc(h.prod) + ' · ' + gEsc(h.fmtName))}</div>
+        <div class="hist-meta">${statusBadge}<span class="hist-meta-sep">·</span>${gEsc(h.campName)}<span class="hist-meta-sep">·</span>${gEsc(h.fmtName)}<span class="hist-meta-sep">·</span>${dateStr}</div>
+        <div class="hist-actions">
+          <button class="hist-act-btn" onclick="fEditFromHist(${h.id})" title="Abrir e editar">✎ Editar</button>
+          <button class="hist-act-btn" onclick="fDuplicateInOtherFmt(${h.id})" title="Gerar em outro formato">⎘ Duplicar</button>
+          <button class="hist-act-btn pri" onclick="fDownloadHist(${h.id})" title="Baixar PNG">↓ Baixar</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function fDownloadHist(id){
+  const h=fGetHist().find(x=>x.id===id);if(!h)return;
+  const all=[...CAMPS_ATIVAS,...CAMPS_OUTRAS];
+  const c=all.find(x=>x.id===h.campId)||{id:h.campId,name:h.campName,color:h.campColor,perguntas:[]};
+  const f=FMTS.find(x=>x.id===h.fmtId)||FMTS[0];
+  // Carrega material original se ainda existir (pra renderer usar layers reais)
+  const prevMaterial = fState.material;
+  if(h.materialId && typeof dFolders !== 'undefined' && dFolders){
+    for(const folder of dFolders){
+      const t = folder.templates.find(x=>x.id===h.materialId);
+      if(t){ fState.material = t; break; }
+    }
+  }
+  try {
+    await fGenPNG(h.dados,c,f);
+  } finally {
+    fState.material = prevMaterial; // restaura sempre, mesmo se fGenPNG lançar
+  }
+  fMarkHistBaixada(id);
+  fRenderHist();
+  gToast('Arte baixada!');
+}
+
+// F-04: retomar uma entrada do histórico no chat, com dados pré-preenchidos
+function fEditFromHist(id){
+  const h = fGetHist().find(x=>x.id===id);
+  if(!h) return;
+  const all = [...CAMPS_ATIVAS, ...CAMPS_OUTRAS];
+  const c = all.find(x=>x.id===h.campId);
+  if(!c){ gToast('Campanha original não encontrada.'); return; }
+  const f = FMTS.find(x=>x.id===h.fmtId) || FMTS[0];
+  // Volta pra aba de catálogo pra mostrar o chat
+  const catTabBtn = document.querySelector('.f-tab');
+  if(catTabBtn) fSwitchTab('catalogo', catTabBtn);
+
+  // Se o histórico tem materialId, tenta carregar o material original
+  let material = null;
+  if(h.materialId && typeof dFolders !== 'undefined' && dFolders){
+    for(const folder of dFolders){
+      const t = folder.templates.find(x=>x.id===h.materialId);
+      if(t){ material = t; break; }
+    }
+  }
+
+  if(material){
+    // Carrega via fluxo de material (reconstrói perguntas das vars + permissões)
+    fState.camp = c;
+    fState.material = material;
+    fState.materialView = false;
+    fState.fmt = f;
+    fState.editIdx = null;
+    fState.done = false;
+    // Reconstrói perguntas via mesma lógica do fSelectMaterial
+    const vars = dExtractTemplateVars(material.layers);
+    const permissoes = material.publishMeta?.permissoes || {};
+    const imgVars = fMaterialImageVars(material.layers); // mesma detecção do fSelectMaterial (M14)
+    const perguntas=[];
+    vars.forEach(v=>{
+      const perm = permissoes[v];
+      if(perm && perm.edit === false) return;
+      const vDef = (typeof dVars !== 'undefined' && dVars) ? dVars.find(x=>x.name===v) : null;
+      const label = vDef ? vDef.label : v.replace(/_/g,' ');
+      const isImage = (vDef ? vDef.type==='image' : false) || imgVars.has(v);
+      if(isImage){
+        perguntas.push({id:v, texto:`Envie a <strong>${label.toLowerCase()}</strong>`, sugestoes:[], isImage:true, label, maxLen:0});
+      } else {
+        perguntas.push({id:v, texto:`Qual é o <strong>${label.toLowerCase()}</strong>?`, sugestoes:fGetSuggestionsForVar(v, c), maxLen:perm?.maxLen||32, label});
+      }
+    });
+    fState.camp = {...c, perguntas, materialName: material.name};
+    fState.dados = {...h.dados};
+    fState.stepIdx = perguntas.length;
+    fRenderCatalogs(CAMPS_ATIVAS, CAMPS_OUTRAS);
+    fRenderFmts();
+    fUpdateCtx();
+    document.getElementById('f-messages').innerHTML='';
+    fUpdateProg();
+    try { fUpdateLivePreview(); } catch(e){}
+    try { fAttachInputGuard(); } catch(e){}
+    fAddBot(`Reabri sua arte de <strong>${gEsc(material.name)}</strong> (${gEsc(f.name)}). Os campos editáveis foram restaurados.`, []);
+    setTimeout(()=>fMostrarConfirm(), 700);
+    return;
+  }
+
+  // Fallback: material não encontrado (despublicado/excluído). Reconstrói as perguntas
+  // a partir das CHAVES de h.dados (M13) — c.perguntas pode ter ids diferentes dos dados salvos.
+  fState.material = null;
+  fState.materialView = false;
+  fState.fmt = f;
+  fState.done = false;
+  fState.editIdx = null;
+  const fbLabels={produto:'Produto',precoDe:'Preço original',precoPor:'Preço promo',validade:'Validade',desconto:'Desconto',pedidoMin:'Pedido mínimo',bairros:'Cobertura',codigo:'Código',condicao:'Condição',brinde:'Brinde',categoria:'Categoria',oferta:'Oferta'};
+  const dadosKeys = Object.keys(h.dados||{});
+  let fbPerguntas;
+  if(dadosKeys.length){
+    fbPerguntas = dadosKeys.map(k=>{
+      const val = h.dados[k];
+      const isImg = typeof val==='string' && val.startsWith('data:image');
+      const vDef = (typeof dVars!=='undefined' && dVars) ? dVars.find(x=>x.name===k) : null;
+      const label = (vDef && vDef.label) || fbLabels[k] || k.replace(/_/g,' ');
+      if(isImg) return {id:k, texto:`Envie a <strong>${label.toLowerCase()}</strong>`, sugestoes:[], isImage:true, label, maxLen:0};
+      return {id:k, texto:`Qual é o <strong>${label.toLowerCase()}</strong>?`, sugestoes:fGetSuggestionsForVar(k, c), maxLen:32, label};
+    });
+  } else {
+    fbPerguntas = c.perguntas; // sem dados salvos → usa as perguntas da campanha
+  }
+  fState.camp = {...c, perguntas: fbPerguntas};
+  fState.dados = {...h.dados};
+  fState.stepIdx = fbPerguntas.length;
+  fRenderCatalogs(CAMPS_ATIVAS, CAMPS_OUTRAS);
+  fRenderFmts();
+  fUpdateCtx();
+  document.getElementById('f-messages').innerHTML='';
+  fUpdateProg();
+  try { fUpdateLivePreview(); } catch(e){}
+  try { fAttachInputGuard(); } catch(e){}
+  const msg = h.materialName
+    ? `Reabri sua arte (material original "${gEsc(h.materialName)}" não está mais disponível, usando estrutura padrão).`
+    : `Reabri sua arte de <strong>${gEsc(c.name)}</strong> (${gEsc(f.name)}). Você pode editar qualquer campo ou gerar de novo direto.`;
+  fAddBot(msg, []);
+  setTimeout(()=>fMostrarConfirm(), 700);
+}
+
+// F-04: duplicar a arte em outro formato sem refazer perguntas
+function fDuplicateInOtherFmt(id){
+  const h = fGetHist().find(x=>x.id===id);
+  if(!h) return;
+  const all = [...CAMPS_ATIVAS, ...CAMPS_OUTRAS];
+  const c = all.find(x=>x.id===h.campId) || {id:h.campId,name:h.campName,color:h.campColor,perguntas:[]};
+  // Sugere o próximo formato (rotaciona)
+  const idx = FMTS.findIndex(f=>f.id===h.fmtId);
+  const next = FMTS[(idx + 1) % FMTS.length];
+  // Confirmação inline na aba do histórico
+  const card = document.querySelector(`.hist-card [onclick*="fDuplicateInOtherFmt(${id})"]`)?.closest('.hist-card');
+  if(card && !card.querySelector('.hist-dup-bar')){
+    const bar = document.createElement('div');
+    bar.className = 'hist-dup-bar';
+    bar.innerHTML = `<span>Duplicar em qual formato?</span>` +
+      FMTS.filter(f=>f.id !== h.fmtId).map(f=>
+        `<button class="hist-dup-btn" onclick="fConfirmDuplicate(${id},'${f.id}')">${f.name}</button>`
+      ).join('') +
+      `<button class="hist-dup-cancel" onclick="this.parentElement.remove()">cancelar</button>`;
+    card.appendChild(bar);
+  }
+}
+async function fConfirmDuplicate(id, fmtId){
+  const h = fGetHist().find(x=>x.id===id);
+  if(!h) return;
+  const all = [...CAMPS_ATIVAS, ...CAMPS_OUTRAS];
+  const c = all.find(x=>x.id===h.campId) || {id:h.campId,name:h.campName,color:h.campColor,perguntas:[]};
+  const f = FMTS.find(x=>x.id===fmtId) || FMTS[0];
+  // Carrega material original se ainda existir
+  const prevMaterial = fState.material;
+  if(h.materialId && typeof dFolders !== 'undefined' && dFolders){
+    for(const folder of dFolders){
+      const t = folder.templates.find(x=>x.id===h.materialId);
+      if(t){ fState.material = t; break; }
+    }
+  }
+  fAddHist(h.dados, c, f, 'baixada');
+  try {
+    await fGenPNG(h.dados, c, f);
+  } finally {
+    fState.material = prevMaterial; // restaura sempre, mesmo se fGenPNG lançar
+  }
+  fRenderHist();
+  gToast(`Duplicada em ${f.name}!`);
+}
+
+/* ── CATÁLOGO ── */
+// Acha a pasta (dFolders) ligada a uma campanha — por campId ou nome
+function fFolderForCamp(c){
+  if(typeof dFolders==='undefined'||!dFolders||!c)return null;
+  return dFolders.find(f=>f.campId===c.id) || dFolders.find(f=>f.name===c.name) || null;
+}
+// Capa da pasta (se o designer enviou uma) — usada como fundo do card
+function fCampCover(c){
+  const f=fFolderForCamp(c);
+  const cv=f&&f.cover;
+  return (cv&&typeof cv==='string'&&cv!=='__local__'&&cv.length)?cv:'';
+}
+function fCampEl(c,isRec){
+  // F-06: thumb mostra prévia real com produto e preço
+  const previewProd = c.previewProd || c.name;
+  const previewPor = c.previewPor || '';
+  const previewDe = c.previewDe || '';
+  const cover = fCampCover(c);
+  // Com capa: imagem de fundo + scrim escuro pra manter o texto legível
+  const thumbStyle = cover
+    ? `background-image:linear-gradient(rgba(0,0,0,.32),rgba(0,0,0,.42)), url('${cover}');background-size:cover;background-position:center`
+    : `background:${c.color}`;
+  return `<div class="camp-card ${c.id===fState.camp.id?'selected':''} ${isRec?'recommended':''}" onclick="fSelectCamp('${c.id}')">
+    <div class="camp-prev-btn" onclick="fOpenPreview(event,'${c.id}')">PRÉVIA</div>
+    <div class="camp-thumb ${cover?'has-cover':''}" style="${thumbStyle}">
+      ${c.badge?`<div class="camp-badge">${c.badge}</div>`:''}
+      ${c.popular?`<div class="camp-popular">🔥 Popular</div>`:''}
+      ${c.expiraDias<=3?`<div class="camp-urgency">⏰ ${c.expiraDias}d restantes</div>`:''}
+      ${cover?'':`<div class="camp-thumb-prod">${previewProd}</div>
+      ${previewDe?`<div class="camp-thumb-de">${previewDe}</div>`:''}
+      ${previewPor?`<div class="camp-thumb-por">${previewPor}</div>`:''}
+      <div class="camp-thumb-logo" role="img" aria-label="Luma"></div>`}
+    </div>
+    <div class="camp-body"><div class="camp-name">${c.name}</div><div class="camp-sub">${c.count} materiais</div></div>
+  </div>`;
+}
+function fRenderCatalogs(a,o){
+  const rec=a.find(c=>c.popular)||a[0];
+  document.getElementById('camp-rec').innerHTML=fCampEl(rec,true);
+  document.getElementById('camp-main').innerHTML=a.filter(c=>c.id!==rec.id).map(c=>fCampEl(c,false)).join('');
+  document.getElementById('camp-other').innerHTML=o.map(c=>fCampEl(c,false)).join('');
+}
+function fFilterCamps(q){
+  const f1=q?CAMPS_ATIVAS.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())):CAMPS_ATIVAS;
+  const f2=q?CAMPS_OUTRAS.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())):CAMPS_OUTRAS;
+  document.getElementById('camp-rec').style.display=q?'none':'';
+  fRenderCatalogs(f1.length?f1:CAMPS_ATIVAS,f2);
+}
+function fSelectCamp(id){
+  const all=[...CAMPS_ATIVAS,...CAMPS_OUTRAS];
+  const c=all.find(x=>x.id===id);if(!c)return;
+  // Se mesma campanha já selecionada, ignora (mas reabre o catálogo se ainda estiver lá)
+  if(fState.camp && fState.camp.id===c.id) {
+    if(fState.materialView) return;
+  }
+  // Se há dados preenchidos e não está apenas iniciando, pergunta antes de descartar
+  const temDados = Object.keys(fState.dados).length > 0 && !fState.materialView;
+  if(temDados && !fState.done){
+    fAskCampSwitch(c);
+    return;
+  }
+  // Antes de aplicar, abre catálogo de materiais da pasta
+  fState.camp=c;
+  fRenderCatalogs(CAMPS_ATIVAS,CAMPS_OUTRAS);
+  fUpdateCtx();
+  fOpenMaterialCatalog(c);
+}
+// Encontra todos os materiais publicados de uma campanha

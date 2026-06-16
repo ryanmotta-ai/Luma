@@ -1,0 +1,707 @@
+/**
+ * css/components/tutorial.css
+ *
+ * TutorialEngine completo: stage overlay, spotlight, cursor virtual,
+ * tooltip, progress, controles play/pause.
+ * Depende de: 00-tokens.css, 02-animations.css
+ */
+
+/* ══════════════════════════════════════════════════════════════
+   TUTORIAL ENGINE — sistema de tutoriais interativos
+   ────────────────────────────────────────────────────────────── */
+
+/* ── Stage / Container raiz ── */
+.tut-stage{
+  position:fixed;inset:0;z-index:9999;
+  display:none;
+  align-items:center;justify-content:center;
+  padding:24px;
+  opacity:0;
+  transition:opacity .35s cubic-bezier(.2,.9,.4,1);
+}
+.tut-stage.open{display:flex;opacity:1}
+.tut-stage.closing{opacity:0}
+
+.tut-backdrop{
+  position:absolute;inset:0;
+  background:rgba(10,10,15,.72);
+  backdrop-filter:blur(20px) saturate(120%);
+  -webkit-backdrop-filter:blur(20px) saturate(120%);
+  cursor:pointer;
+}
+
+.tut-container{
+  position:relative;z-index:1;
+  width:100%;max-width:980px;
+  height:min(680px, calc(100vh - 48px));
+  background:#fff;
+  border-radius:20px;
+  box-shadow:
+    0 32px 80px -16px rgba(0,0,0,.4),
+    0 0 0 1px rgba(255,255,255,.06),
+    inset 0 1px 0 rgba(255,255,255,.8);
+  display:flex;flex-direction:column;
+  overflow:hidden;
+  transform:scale(.96) translateY(20px);
+  opacity:0;
+  transition:transform .45s cubic-bezier(.16,1,.3,1), opacity .35s ease-out;
+}
+.tut-stage.open .tut-container{transform:scale(1) translateY(0);opacity:1}
+
+/* ── Header ── */
+.tut-header{
+  padding:18px 22px;
+  display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid rgba(0,0,0,.06);
+  flex-shrink:0;
+  background:linear-gradient(180deg, rgba(255,255,255,1), rgba(250,250,250,.6));
+}
+.tut-header-left{display:flex;align-items:center;gap:12px}
+.tut-badge{
+  font-size:10px;font-weight:700;
+  letter-spacing:.1em;text-transform:uppercase;
+  padding:4px 10px;border-radius:999px;
+  background:#FF9000;
+  color:#fff;
+  box-shadow:0 2px 8px rgba(255,144,0,.3);
+}
+.tut-title{
+  font-family:'Roboto',sans-serif;font-weight:900;
+  font-size:20px;letter-spacing:.02em;
+  color:var(--text);
+  font-weight:normal;
+}
+.tut-close{
+  width:36px;height:36px;border-radius:50%;
+  background:rgba(0,0,0,.04);border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--text-2);
+  transition:all .2s cubic-bezier(.2,.9,.4,1);
+}
+.tut-close:hover{
+  background:var(--dm-red);color:#fff;
+  transform:rotate(90deg);
+}
+
+/* ── Stage area (onde rolam as cenas) ── */
+.tut-stage-area{
+  flex:1;
+  position:relative;
+  overflow:hidden;
+  background:linear-gradient(135deg, #fafafa 0%, #f4f4f5 100%);
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(255,144,0,.06) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(255,185,0,.05) 0%, transparent 50%);
+}
+
+.tut-scene{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  padding:40px;
+}
+.tut-scene-content{
+  position:relative;
+  width:100%;height:100%;
+  display:flex;align-items:center;justify-content:center;
+}
+
+/* Crossfade entre cenas */
+.tut-scene-enter{
+  animation:tutSceneEnter .55s cubic-bezier(.16,1,.3,1) both;
+}
+.tut-scene-exit{
+  animation:tutSceneExit .35s cubic-bezier(.2,.9,.4,1) both;
+}
+@keyframes tutSceneEnter{
+  from{opacity:0;transform:translateY(16px) scale(.97)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+@keyframes tutSceneExit{
+  from{opacity:1;transform:translateY(0) scale(1)}
+  to{opacity:0;transform:translateY(-8px) scale(.99)}
+}
+
+/* ── Cursor virtual ── */
+.tut-cursor{
+  position:absolute;
+  top:50%;left:50%;
+  width:24px;height:24px;
+  pointer-events:none;
+  z-index:50;
+  filter:drop-shadow(0 4px 12px rgba(0,0,0,.25));
+  opacity:0;
+  transition:opacity .3s ease;
+}
+.tut-cursor.show{opacity:1}
+.tut-cursor.clicking svg{
+  animation:tutCursorClick .25s cubic-bezier(.2,.9,.4,1);
+}
+@keyframes tutCursorClick{
+  0%,100%{transform:scale(1)}
+  50%{transform:scale(.85)}
+}
+.tut-cursor-ripple{
+  position:absolute;
+  top:6px;left:6px;
+  width:8px;height:8px;border-radius:50%;
+  pointer-events:none;
+  opacity:0;
+}
+.tut-cursor.clicking .tut-cursor-ripple{
+  animation:tutRipple .6s cubic-bezier(.2,.9,.4,1);
+}
+@keyframes tutRipple{
+  0%{transform:scale(1);opacity:.6;background:rgba(255,144,0,.6);box-shadow:0 0 0 0 rgba(255,144,0,.4)}
+  100%{transform:scale(8);opacity:0;background:rgba(255,144,0,0);box-shadow:0 0 0 30px rgba(255,144,0,0)}
+}
+
+/* ── Tooltip ── */
+.tut-tooltip{
+  position:absolute;
+  max-width:280px;
+  background:#0a0a0f;
+  color:#fff;
+  padding:14px 16px;
+  border-radius:12px;
+  box-shadow:0 12px 32px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.08);
+  z-index:60;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .35s cubic-bezier(.2,.9,.4,1), transform .35s cubic-bezier(.2,.9,.4,1);
+  transform:translateY(8px) scale(.96);
+}
+.tut-tooltip.show{
+  opacity:1;
+  transform:translateY(0) scale(1);
+}
+.tut-tooltip-step{
+  font-size:10px;font-weight:700;
+  letter-spacing:.1em;text-transform:uppercase;
+  color:var(--dm-yellow);
+  margin-bottom:4px;
+}
+.tut-tooltip-text{
+  font-size:13px;line-height:1.5;
+  font-weight:500;
+}
+.tut-tooltip-arrow{
+  position:absolute;
+  width:12px;height:12px;
+  background:#0a0a0f;
+  transform:rotate(45deg);
+  z-index:-1;
+}
+.tut-tooltip[data-arrow="top"] .tut-tooltip-arrow{top:-6px;left:50%;margin-left:-6px}
+.tut-tooltip[data-arrow="bottom"] .tut-tooltip-arrow{bottom:-6px;left:50%;margin-left:-6px}
+.tut-tooltip[data-arrow="left"] .tut-tooltip-arrow{left:-6px;top:50%;margin-top:-6px}
+.tut-tooltip[data-arrow="right"] .tut-tooltip-arrow{right:-6px;top:50%;margin-top:-6px}
+
+/* ── Controles ── */
+.tut-controls{
+  padding:16px 22px 18px;
+  border-top:1px solid rgba(0,0,0,.06);
+  display:flex;flex-direction:column;gap:12px;
+  flex-shrink:0;
+  background:#fff;
+}
+.tut-progress{
+  display:flex;gap:6px;align-items:center;
+}
+.tut-progress-dot{
+  flex:1;
+  height:4px;
+  background:rgba(0,0,0,.08);
+  border-radius:99px;
+  position:relative;
+  cursor:pointer;
+  transition:background .2s;
+  overflow:hidden;
+}
+.tut-progress-dot:hover{background:rgba(0,0,0,.14)}
+.tut-progress-dot.done{background:var(--dm-orange)}
+.tut-progress-dot.current{background:rgba(0,0,0,.12)}
+.tut-progress-dot.current::after{
+  content:'';
+  position:absolute;inset:0;
+  background:var(--dm-orange);
+  border-radius:99px;
+  animation:tutProgressFill var(--scene-duration, 4s) linear forwards;
+  transform-origin:left center;
+}
+.tut-progress-dot.current.paused::after{animation-play-state:paused}
+@keyframes tutProgressFill{
+  from{transform:scaleX(0)}
+  to{transform:scaleX(1)}
+}
+
+.tut-buttons{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.tut-btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:10px 18px;
+  font-size:13px;font-weight:600;
+  border-radius:10px;
+  border:none;
+  cursor:pointer;
+  font-family:'Roboto',sans-serif;
+  transition:all .2s cubic-bezier(.2,.9,.4,1);
+}
+.tut-btn-ghost{
+  background:rgba(0,0,0,.04);
+  color:var(--text-2);
+  padding:10px 14px;
+}
+.tut-btn-ghost:hover{background:rgba(0,0,0,.08);color:var(--text)}
+.tut-btn-ghost:active{transform:scale(.95)}
+.tut-btn-ghost:disabled{opacity:.35;cursor:not-allowed}
+.tut-btn-ghost:disabled:hover{background:rgba(0,0,0,.04)}
+.tut-btn-primary{
+  background:#FF9000;
+  color:#fff;
+  box-shadow:0 4px 14px rgba(255,144,0,.35), inset 0 1px 0 rgba(255,255,255,.2);
+}
+.tut-btn-primary:hover{
+  background:#F85400;
+  transform:translateY(-1px);
+  box-shadow:0 6px 18px rgba(255,144,0,.45), inset 0 1px 0 rgba(255,255,255,.25);
+}
+.tut-btn-primary:active{transform:translateY(0) scale(.97)}
+
+/* ── Finale (tela final) ── */
+.tut-finale{
+  position:absolute;inset:0;
+  background:#fff;
+  display:none;
+  flex-direction:column;align-items:center;justify-content:center;
+  padding:40px;text-align:center;gap:18px;
+  z-index:100;
+  border-radius:20px;
+}
+.tut-finale.show{display:flex;animation:tutSceneEnter .5s cubic-bezier(.16,1,.3,1) both}
+.tut-finale-icon{
+  width:80px;height:80px;
+  border-radius:50%;
+  background:linear-gradient(135deg, rgba(34,197,94,.15), rgba(34,197,94,.05));
+  color:#15803D;
+  display:flex;align-items:center;justify-content:center;
+  animation:tutFinaleIconPop .6s cubic-bezier(.16,1,.3,1) both .15s;
+  transform:scale(0);
+}
+@keyframes tutFinaleIconPop{
+  0%{transform:scale(0)}
+  60%{transform:scale(1.15)}
+  100%{transform:scale(1)}
+}
+.tut-finale-title{
+  font-family:'Roboto',sans-serif;font-weight:900;
+  font-size:32px;letter-spacing:.02em;
+  color:var(--text);
+  animation:tutFinaleFadeUp .5s cubic-bezier(.16,1,.3,1) both .25s;
+  opacity:0;
+}
+.tut-finale-desc{
+  font-size:14px;color:var(--text-3);
+  max-width:400px;line-height:1.6;
+  animation:tutFinaleFadeUp .5s cubic-bezier(.16,1,.3,1) both .35s;
+  opacity:0;
+}
+@keyframes tutFinaleFadeUp{
+  from{opacity:0;transform:translateY(12px)}
+  to{opacity:1;transform:translateY(0)}
+}
+.tut-finale-actions{
+  display:flex;gap:10px;margin-top:12px;
+  animation:tutFinaleFadeUp .5s cubic-bezier(.16,1,.3,1) both .5s;
+  opacity:0;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   COMPONENTES DAS CENAS (mocks da interface)
+   ────────────────────────────────────────────────────────────── */
+
+/* Spotlight com cutout */
+.tut-spotlight{
+  position:absolute;
+  border-radius:14px;
+  pointer-events:none;
+  box-shadow:
+    0 0 0 9999px rgba(10,10,15,.55),
+    0 0 0 3px rgba(255,144,0,.8),
+    0 0 24px 8px rgba(255,144,0,.4);
+  transition:all .55s cubic-bezier(.16,1,.3,1);
+  z-index:40;
+}
+.tut-spotlight.pulse::before{
+  content:'';
+  position:absolute;inset:-3px;
+  border-radius:inherit;
+  box-shadow:0 0 0 3px rgba(255,144,0,.6);
+  animation:tutSpotlightPulse 2s ease-out infinite;
+}
+@keyframes tutSpotlightPulse{
+  0%{box-shadow:0 0 0 0 rgba(255,144,0,.6)}
+  100%{box-shadow:0 0 0 16px rgba(255,144,0,0)}
+}
+
+/* Mock cards (campanha) */
+.tut-mock-camp{
+  width:170px;
+  background:#fff;
+  border-radius:10px;
+  overflow:hidden;
+  border:1.5px solid #f0f0f0;
+  box-shadow:0 4px 14px rgba(0,0,0,.06);
+  transition:all .35s cubic-bezier(.2,.9,.4,1);
+}
+.tut-mock-camp.highlighted{
+  border-color:var(--dm-orange);
+  transform:translateY(-4px);
+  box-shadow:0 12px 28px rgba(255,144,0,.2);
+}
+.tut-mock-camp-thumb{
+  height:88px;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  font-family:'Roboto',sans-serif;font-weight:900;
+  color:#fff;
+  text-align:center;
+  padding:8px;
+  position:relative;
+  overflow:hidden;
+}
+.tut-mock-camp-thumb::before{
+  content:'';position:absolute;
+  bottom:-15px;right:-15px;
+  width:50px;height:50px;border-radius:50%;
+  background:rgba(255,255,255,.1);
+}
+.tut-mock-camp-prod{font-size:13px;letter-spacing:.03em;line-height:1.05;text-transform:uppercase;z-index:1}
+.tut-mock-camp-por{font-size:18px;color:var(--dm-yellow);z-index:1;line-height:1.05;margin-top:2px}
+.tut-mock-camp-body{padding:8px 10px;background:#fff}
+.tut-mock-camp-name{font-size:12px;font-weight:600;color:var(--text)}
+.tut-mock-camp-sub{font-size:10px;color:var(--text-3);margin-top:2px}
+
+/* Mock chat bubbles */
+.tut-mock-chat{
+  width:340px;max-width:100%;
+  background:#fff;
+  border-radius:14px;
+  padding:18px;
+  box-shadow:0 8px 24px rgba(0,0,0,.08), 0 0 0 1px rgba(0,0,0,.04);
+  display:flex;flex-direction:column;gap:10px;
+}
+.tut-mock-msg{
+  display:flex;align-items:flex-start;gap:8px;
+  opacity:0;
+  transform:translateY(8px);
+}
+.tut-mock-msg.show{
+  animation:tutMockMsgIn .4s cubic-bezier(.16,1,.3,1) forwards;
+}
+@keyframes tutMockMsgIn{
+  to{opacity:1;transform:translateY(0)}
+}
+.tut-mock-msg.user{flex-direction:row-reverse}
+.tut-mock-av{
+  width:26px;height:26px;border-radius:50%;
+  background:var(--dm-orange);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;flex-shrink:0;
+}
+.tut-mock-msg.user .tut-mock-av{background:var(--dm-yellow);color:var(--dm-red);font-size:9px;font-weight:700}
+.tut-mock-bbl{
+  padding:8px 12px;
+  font-size:12px;line-height:1.5;
+  border-radius:14px;
+  max-width:240px;
+}
+.tut-mock-msg.bot .tut-mock-bbl{
+  background:#f5f5f5;color:var(--text);
+  border-radius:4px 14px 14px 14px;
+}
+.tut-mock-msg.user .tut-mock-bbl{
+  background:var(--dm-orange);color:#fff;
+  border-radius:14px 4px 14px 14px;
+  font-weight:500;
+}
+.tut-mock-step-badge{
+  display:inline-block;
+  font-size:9px;font-weight:700;
+  letter-spacing:.08em;text-transform:uppercase;
+  color:var(--dm-orange-d);
+  background:var(--dm-orange-bg);
+  padding:2px 6px;border-radius:3px;
+  margin-right:6px;
+}
+
+/* Mock upload zone */
+.tut-mock-upload{
+  width:280px;
+  padding:22px 16px;
+  background:#fafafa;
+  border:2px dashed #d4d4d4;
+  border-radius:10px;
+  text-align:center;
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  transition:all .3s cubic-bezier(.2,.9,.4,1);
+}
+.tut-mock-upload.highlighted{
+  border-color:var(--dm-orange);
+  background:var(--dm-orange-bg);
+  transform:scale(1.03);
+  box-shadow:0 8px 22px rgba(255,144,0,.15);
+}
+.tut-mock-upload-icon{
+  width:48px;height:48px;
+  background:#fff;
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--dm-orange);
+  box-shadow:0 4px 12px rgba(255,144,0,.15);
+  transition:transform .3s;
+}
+.tut-mock-upload.highlighted .tut-mock-upload-icon{transform:scale(1.1) translateY(-2px)}
+.tut-mock-upload-title{font-size:13px;font-weight:600;color:var(--text)}
+.tut-mock-upload-sub{font-size:11px;color:var(--text-3)}
+
+/* Mock arte gerada (preview final) */
+.tut-mock-arte{
+  width:200px;
+  border-radius:10px;
+  overflow:hidden;
+  border:1px solid #f0f0f0;
+  background:#fff;
+  box-shadow:0 8px 24px rgba(0,0,0,.1);
+}
+.tut-mock-arte-canvas{
+  aspect-ratio:9/16;
+  background:linear-gradient(135deg, var(--dm-red), var(--dm-orange-d));
+  position:relative;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  padding:18px 14px;
+  gap:6px;
+  color:#fff;
+  font-family:'Roboto',sans-serif;font-weight:900;
+  text-align:center;
+  overflow:hidden;
+}
+.tut-mock-arte-canvas::before{
+  content:'';position:absolute;
+  bottom:-30px;right:-30px;
+  width:90px;height:90px;border-radius:50%;
+  background:rgba(255,255,255,.08);
+}
+.tut-mock-arte-prod{font-size:18px;letter-spacing:.03em;text-transform:uppercase;z-index:1}
+.tut-mock-arte-por{font-size:30px;color:var(--dm-yellow);z-index:1;letter-spacing:.02em;line-height:1}
+
+/* Mock formato cards */
+.tut-mock-fmt-grid{display:flex;gap:14px;align-items:flex-end}
+.tut-mock-fmt-card{
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  transition:transform .3s cubic-bezier(.2,.9,.4,1);
+}
+.tut-mock-fmt-card.highlighted{transform:translateY(-6px) scale(1.05)}
+.tut-mock-fmt-canvas{
+  background:linear-gradient(135deg, var(--dm-orange), var(--dm-red));
+  border-radius:8px;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  padding:8px;
+  color:#fff;
+  font-family:'Roboto',sans-serif;font-weight:900;
+  position:relative;overflow:hidden;
+  box-shadow:0 6px 16px rgba(0,0,0,.12);
+}
+.tut-mock-fmt-canvas::before{
+  content:'';position:absolute;
+  bottom:-12px;right:-12px;
+  width:36px;height:36px;border-radius:50%;
+  background:rgba(255,255,255,.12);
+}
+.tut-mock-fmt-canvas.story{width:54px;height:96px}
+.tut-mock-fmt-canvas.feed{width:80px;height:80px}
+.tut-mock-fmt-canvas.wide{width:120px;height:62px}
+.tut-mock-fmt-label{font-size:11px;font-weight:600;color:var(--text-2)}
+.tut-mock-fmt-dim{font-size:9px;color:var(--text-3)}
+
+/* Mock cor swatches */
+.tut-mock-palette{display:flex;gap:14px;align-items:center;justify-content:center}
+.tut-mock-color{
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  opacity:0;
+  transform:translateY(12px);
+}
+.tut-mock-color.show{
+  animation:tutColorIn .5s cubic-bezier(.16,1,.3,1) forwards;
+}
+@keyframes tutColorIn{
+  to{opacity:1;transform:translateY(0)}
+}
+.tut-mock-color-swatch{
+  width:64px;height:64px;border-radius:14px;
+  box-shadow:0 8px 20px rgba(0,0,0,.12);
+  position:relative;overflow:hidden;
+}
+.tut-mock-color-swatch::before{
+  content:'';position:absolute;
+  top:0;left:-100%;width:100%;height:100%;
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,.3), transparent);
+  animation:tutColorShine 2s infinite;
+}
+@keyframes tutColorShine{
+  to{left:100%}
+}
+.tut-mock-color-hex{
+  font-size:11px;font-family:'Roboto Mono',monospace;
+  color:var(--text-2);font-weight:500;
+}
+.tut-mock-color-name{font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em}
+
+/* Mock histórico card */
+.tut-mock-hist{
+  width:340px;
+  background:#fff;
+  border:1px solid #f0f0f0;
+  border-left:3px solid var(--green);
+  border-radius:10px;
+  padding:12px 14px;
+  display:flex;align-items:center;gap:12px;
+  box-shadow:0 6px 18px rgba(0,0,0,.06);
+  transition:all .3s cubic-bezier(.2,.9,.4,1);
+}
+.tut-mock-hist.highlighted{
+  border-color:var(--dm-orange);
+  border-left-color:var(--dm-orange);
+  transform:translateY(-3px);
+  box-shadow:0 12px 28px rgba(255,144,0,.2);
+}
+.tut-mock-hist-thumb{
+  width:48px;height:48px;
+  background:linear-gradient(135deg, var(--dm-red), var(--dm-orange-d));
+  border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-family:'Roboto',sans-serif;font-weight:900;
+  font-size:9px;letter-spacing:.04em;
+  flex-shrink:0;
+}
+.tut-mock-hist-info{flex:1;min-width:0}
+.tut-mock-hist-name{font-size:12px;font-weight:600;color:var(--text)}
+.tut-mock-hist-meta{font-size:10px;color:var(--text-3);margin-top:3px;display:flex;align-items:center;gap:5px}
+.tut-mock-hist-badge{
+  font-size:8px;font-weight:700;
+  padding:1px 5px;border-radius:3px;
+  background:rgba(34,197,94,.15);color:#15803D;
+  letter-spacing:.04em;text-transform:uppercase;
+}
+.tut-mock-hist-actions{display:flex;gap:4px}
+.tut-mock-hist-btn{
+  font-size:10px;padding:4px 8px;
+  background:#fff;border:1px solid #e4e4e4;
+  border-radius:5px;color:var(--text-2);
+  font-weight:500;cursor:default;
+  transition:all .2s;
+}
+.tut-mock-hist-btn.highlighted{
+  background:var(--dm-orange-bg);border-color:var(--dm-orange);color:var(--dm-orange-d);
+  transform:scale(1.08);
+}
+
+/* Caption do passo (texto grande no centro da cena) */
+.tut-caption{
+  position:absolute;
+  bottom:32px;left:50%;
+  transform:translateX(-50%);
+  max-width:80%;
+  text-align:center;
+  pointer-events:none;
+}
+.tut-caption-step{
+  font-size:10px;font-weight:700;
+  letter-spacing:.12em;text-transform:uppercase;
+  color:var(--dm-orange-d);
+  margin-bottom:6px;
+}
+.tut-caption-title{
+  font-family:'Roboto',sans-serif;font-weight:900;
+  font-size:22px;letter-spacing:.02em;
+  color:var(--text);
+  line-height:1.15;
+}
+
+/* ── Responsivo ── */
+@media (max-width:720px){
+  .tut-stage{padding:0}
+  .tut-container{
+    height:100vh;
+    max-width:100%;
+    border-radius:0;
+  }
+  .tut-title{font-size:16px}
+  .tut-scene{padding:20px}
+  .tut-tooltip{max-width:240px;font-size:12px}
+  .tut-mock-camp{width:140px}
+  .tut-mock-chat{width:100%}
+  .tut-mock-upload{width:240px}
+  .tut-mock-arte{width:160px}
+  .tut-buttons .tut-btn-ghost{padding:8px 10px}
+  .tut-btn-primary{padding:10px 14px}
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion:reduce){
+  .tut-cursor,.tut-spotlight,.tut-mock-camp,.tut-mock-fmt-card,.tut-mock-color-swatch::before{
+    animation:none!important;
+    transition:none!important;
+  }
+  .tut-cursor{display:none}
+  .tut-scene-enter,.tut-scene-exit{animation:none!important;opacity:1!important;transform:none!important}
+}
+
+/* ══ /TUTORIAL ENGINE ══ */
+
+
+/* ════════════════════════════════════════
+   MOCKS "STUDIO" (designer, dark) — usados pelos tutoriais do estúdio
+════════════════════════════════════════ */
+.tut-studio{display:flex;background:#161616;border:1px solid rgba(255,255,255,.1);border-radius:12px;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,.45)}
+.tut-studio-toolbar{display:flex;flex-direction:column;gap:4px;padding:10px 6px;background:#1A1A1A;border-right:1px solid rgba(255,255,255,.08)}
+.tut-studio-tool{position:relative;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:6px;color:#A0A0A0;font-size:15px;transition:all .25s}
+.tut-studio-tool.active{background:rgba(255,144,0,.16);color:#FF9000}
+.tut-studio-tool.highlighted{background:rgba(255,144,0,.25);color:#FF9000;box-shadow:0 0 0 2px rgba(255,144,0,.55);animation:tutStudioPulse 1.4s ease-in-out infinite}
+.tut-studio-tool-key{position:absolute;bottom:-1px;right:1px;font-size:7px;font-weight:700;color:#666;letter-spacing:.02em}
+.tut-studio-tool.active .tut-studio-tool-key,.tut-studio-tool.highlighted .tut-studio-tool-key{color:rgba(255,144,0,.8)}
+.tut-studio-canvas{flex:1;display:flex;align-items:center;justify-content:center;padding:18px;background:repeating-conic-gradient(#111 0% 25%,#0D0D0D 0% 50%) 0 0/16px 16px;min-width:200px}
+.tut-studio-panel{width:170px;background:#1A1A1A;border-left:1px solid rgba(255,255,255,.08);padding:10px 8px;display:flex;flex-direction:column;gap:6px}
+@keyframes tutStudioPulse{0%,100%{box-shadow:0 0 0 2px rgba(255,144,0,.55)}50%{box-shadow:0 0 0 5px rgba(255,144,0,.2)}}
+
+/* mini arte DM dentro do canvas */
+.tut-art{position:relative;background:#C8102E;border-radius:6px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.5);flex-shrink:0}
+.tut-art-frame{position:absolute;top:6%;left:6%;right:6%;height:38%;background:rgba(255,255,255,.14);border:1.5px dashed rgba(255,255,255,.45);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;opacity:.9}
+.tut-art-band{position:absolute;left:0;right:0;bottom:0;height:30%;background:#FF9000}
+.tut-art-title{position:absolute;left:7%;top:50%;color:#fff;font-family:'Roboto',sans-serif;font-weight:900;font-size:13px;letter-spacing:.02em;text-shadow:0 1px 2px rgba(0,0,0,.35)}
+.tut-art-badge{position:absolute;right:6%;bottom:8%;background:#fff;color:#C8102E;font-family:'Roboto',sans-serif;font-weight:900;font-size:10px;padding:8px 7px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,.3)}
+.tut-art .highlighted{outline:2.5px solid #FFB900;outline-offset:2px;animation:tutStudioPulse 1.4s ease-in-out infinite}
+.tut-art-selected{outline:2px solid #FF9000;outline-offset:1px}
+
+/* painel de camadas mock */
+.tut-layer-row{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:5px;background:#222;color:#E8E8E8;font-size:10.5px;font-family:'Roboto',sans-serif;transition:all .25s}
+.tut-layer-row.active{background:rgba(255,144,0,.14);box-shadow:inset 2px 0 0 #FF9000}
+.tut-layer-row.highlighted{box-shadow:0 0 0 2px rgba(255,144,0,.55)}
+.tut-layer-ico{width:17px;height:17px;display:flex;align-items:center;justify-content:center;background:#333;border-radius:4px;font-size:9px;flex-shrink:0}
+.tut-layer-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tut-layer-badge{font-size:8px;font-weight:700;color:#7C6EFF;background:rgba(124,110,255,.15);padding:1px 5px;border-radius:6px}
+.tut-layer-eye{font-size:9px;opacity:.5}
+
+/* cartão de painel, pill de variável, tecla, chip */
+.tut-panel-card{background:#222;border:1px solid rgba(255,255,255,.09);border-radius:8px;padding:10px;min-width:170px}
+.tut-panel-card-title{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#888;margin-bottom:7px;font-family:'Roboto',sans-serif}
+.tut-panel-card-body{display:flex;flex-direction:column;gap:6px;color:#E8E8E8;font-size:11px;font-family:'Roboto',sans-serif}
+.tut-panel-card.highlighted{box-shadow:0 0 0 2px rgba(255,144,0,.55);animation:tutStudioPulse 1.4s ease-in-out infinite}
+.tut-var-pill{display:inline-flex;align-items:center;gap:6px;background:rgba(124,110,255,.13);border:1px solid rgba(124,110,255,.35);border-radius:14px;padding:4px 10px;font-family:'Roboto Mono',monospace}
+.tut-var-pill-name{font-size:11px;font-weight:600;color:#9D92FF}
+.tut-var-pill-type{font-size:9px;color:#888;background:#2A2A2A;padding:1px 6px;border-radius:8px;font-family:'Roboto',sans-serif}
+.tut-var-pill.highlighted{box-shadow:0 0 0 2px rgba(124,110,255,.6);animation:tutStudioPulse 1.4s ease-in-out infinite}
+.tut-key{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;padding:0 7px;background:linear-gradient(#2E2E2E,#222);border:1px solid #444;border-bottom-width:2.5px;border-radius:6px;color:#F0F0F0;font-size:11px;font-weight:700;font-family:'Roboto',sans-serif;margin:0 2px;box-shadow:0 2px 4px rgba(0,0,0,.35)}
+.tut-chip{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;border-radius:14px;font-size:11px;font-weight:600;font-family:'Roboto',sans-serif;background:#2A2A2A;color:#D0D0D0;border:1px solid rgba(255,255,255,.12)}
+.tut-chip.primary{background:#FF9000;color:#fff;border-color:#FF9000;box-shadow:0 2px 10px rgba(255,144,0,.35)}
+.tut-chip.highlighted{box-shadow:0 0 0 2px rgba(255,144,0,.6);animation:tutStudioPulse 1.4s ease-in-out infinite}

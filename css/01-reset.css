@@ -1,0 +1,26 @@
+/**
+ * css/01-reset.css
+ *
+ * Reset global: body, html, modo ativo (franqueado/designer), acessibilidade.
+ */
+
+/* ══ MODO ATIVO ══ */
+body.mode-franqueado #view-designer { display:none!important }
+body.mode-designer #view-franqueado { display:none!important }
+
+
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;font-family:'Roboto',sans-serif}
+
+/* ══ M3.3 — ACESSIBILIDADE DE FOCO (keyboard navigation) ══
+   Mouse/touch não mostram outline; navegação por Tab mostra um anel claro.
+   O !important garante o anel mesmo onde havia `outline:none` herdado. */
+:focus:not(:focus-visible){outline:none}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,
+textarea:focus-visible,[tabindex]:focus-visible,[contenteditable]:focus-visible{
+  outline:2px solid var(--dm-orange,#FF9000)!important;
+  outline-offset:2px;
+  border-radius:inherit;
+}
+

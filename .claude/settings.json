@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/usr/bin/perl -e \"print 'perl ok'\")",
+      "Bash(/usr/bin/perl \"/Users/mucher/Downloads/Modulo Yungas/extract-css.pl\")",
+      "Bash(/usr/bin/perl -ne 'if \\(/\\\\\\)\\(.*\\)$/\\) { print \"After closing paren: [\" . $1 . \"]\\\\n\" }')",
+      "PowerShell(\\(Get-Content \"css/modules/designer.css\" | Measure-Object -Line\\).Lines)"
+    ]
+  }
+}

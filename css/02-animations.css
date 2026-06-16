@@ -1,0 +1,83 @@
+/**
+ * css/02-animations.css
+ *
+ * Keyframes globais prefixados g* (gFadeIn, gScaleIn, gShimmer, etc).
+ * Depende de: 00-tokens.css
+ */
+
+/* ══════════════════════════════
+   ANIMAÇÕES GLOBAIS
+   Microinterações + transições reutilizáveis
+══════════════════════════════ */
+@keyframes gFadeIn{
+  from{opacity:0}
+  to{opacity:1}
+}
+@keyframes gFadeInUp{
+  from{opacity:0;transform:translateY(8px)}
+  to{opacity:1;transform:translateY(0)}
+}
+@keyframes gFadeInDown{
+  from{opacity:0;transform:translateY(-8px)}
+  to{opacity:1;transform:translateY(0)}
+}
+@keyframes gFadeInRight{
+  from{opacity:0;transform:translateX(-12px)}
+  to{opacity:1;transform:translateX(0)}
+}
+@keyframes gFadeInLeft{
+  from{opacity:0;transform:translateX(12px)}
+  to{opacity:1;transform:translateX(0)}
+}
+@keyframes gScaleIn{
+  from{opacity:0;transform:scale(.94)}
+  to{opacity:1;transform:scale(1)}
+}
+@keyframes gScaleInPunch{
+  0%{opacity:0;transform:scale(.85)}
+  60%{opacity:1;transform:scale(1.03)}
+  100%{transform:scale(1)}
+}
+@keyframes gSlideInRight{
+  from{opacity:0;transform:translateX(20px)}
+  to{opacity:1;transform:translateX(0)}
+}
+@keyframes gPulse{
+  0%,100%{transform:scale(1)}
+  50%{transform:scale(1.05)}
+}
+@keyframes gShake{
+  0%,100%{transform:translateX(0)}
+  20%,60%{transform:translateX(-4px)}
+  40%,80%{transform:translateX(4px)}
+}
+@keyframes gShimmer{
+  0%{background-position:-200% 0}
+  100%{background-position:200% 0}
+}
+@keyframes gRipple{
+  0%{box-shadow:0 0 0 0 rgba(255,144,0,.45)}
+  100%{box-shadow:0 0 0 12px rgba(255,144,0,0)}
+}
+/* Splash — preenchimento da barra de progresso de entrada */
+@keyframes spBarFill{
+  0%{width:0%}
+  60%{width:70%}
+  85%{width:90%}
+  100%{width:100%}
+}
+
+/* Respeita preferência do sistema por menos movimento */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms!important;
+    animation-iteration-count:1!important;
+    transition-duration:.01ms!important;
+  }
+}
+
+
+/* M1.2 — spinner minimalista para botões de ação assíncrona */
+.mini-spinner{display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;vertical-align:middle;animation:gSpin .6s linear infinite}
+.is-loading{cursor:progress!important}
+@keyframes gSpin{to{transform:rotate(360deg)}}

@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Luma · Creative Automation</title>
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon.svg">
+<meta name="theme-color" content="#FF9000">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;0,700;0,900;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/03-fonts.css">
+<link rel="stylesheet" href="css/00-tokens.css">
+<link rel="stylesheet" href="css/01-reset.css">
+<link rel="stylesheet" href="css/02-animations.css">
+<link rel="stylesheet" href="css/components/splash.css">
+<link rel="stylesheet" href="css/components/topbar.css">
+<link rel="stylesheet" href="css/components/help-modal.css">
+<link rel="stylesheet" href="css/components/tutorial.css">
+<link rel="stylesheet" href="css/modules/franqueado.css">
+<link rel="stylesheet" href="css/modules/chat.css">
+<link rel="stylesheet" href="css/modules/live-preview.css">
+<link rel="stylesheet" href="css/modules/catalog.css">
+<link rel="stylesheet" href="css/modules/publish-modal.css">
+<link rel="stylesheet" href="css/modules/designer.css">
+<link rel="stylesheet" href="css/modules/layers-panel.css">
+<link rel="stylesheet" href="css/modules/toolbar.css">
+<link rel="stylesheet" href="css/modules/dados.css">
+</head>
+<body class="mode-franqueado theme-light">
+
+<!-- ══ SPLASH SCREEN (entrada) ══ -->
+<div id="sp-overlay" role="status" aria-label="Carregando Luma" style="position:fixed;inset:0;z-index:9999;background:#FF9000;display:flex;flex-direction:column;align-items:center;justify-content:center">
+  <div class="sp-content">
+    <div class="sp-logo-wrap">
+      <img class="sp-luma-logo" src="assets/logos/luma-h-branca.png" alt="Luma">
+      <div class="sp-sheen"></div>
+    </div>
+    <div class="sp-bar-wrap"><div class="sp-bar"></div></div>
+  </div>
+  <div class="sp-disclaimer">
+    <span>Um produto</span>
+    <div class="sp-dm-logo" role="img" aria-label="Delivery Much"></div>
+  </div>
+</div>
+<script src="js/core/splash.js"></script>
+
+<!-- ══ TOPBAR GLOBAL ══ -->
+<div id="global-topbar">
+  <div class="dm-logo dm-logo--h-branca top-dm-logo" role="img" aria-label="Luma"></div>
+  <div class="top-sep"></div>
+  <div class="mode-tabs">
+    <button class="mode-tab active" id="tab-fran" onclick="setMode('franqueado')">Franqueado</button>
+    <button class="mode-tab" id="tab-design" onclick="setMode('designer')">Designer</button>
+    <button class="mode-tab" id="tab-dados" onclick="setMode('dados')">Dados</button>
+  </div>
+  <button id="top-help-btn" class="top-help-btn" onclick="gOpenHelp()" aria-label="Ajuda e suporte" title="Ajuda e suporte">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    <span>Ajuda</span>
+  </button>
+  <div class="top-right" id="topbar-right-fran">
+    <div class="top-av">FR</div>
+    <span class="top-name">Franqueado</span>
+    <div class="top-pill" id="top-camp-pill">Hamburguer Fest · Story</div>
+  </div>
+  <div class="top-right" id="topbar-right-design" style="display:none">
+    <div class="admin-badge">ADMIN</div>
+    <div class="top-av" style="background:var(--dm-red)">RY</div>
+    <span class="top-name">Ryan</span>
+    <span id="d-save-indicator" style="font-size:11px;color:rgba(255,255,255,.5)">Não salvo</span>
+  </div>
+</div>
+
+<!-- ══ MODAL DE AJUDA / SUPORTE ══ -->
+<div id="g-help-modal" class="g-help-modal" onclick="if(event.target===this)gCloseHelp()">
+  <div class="g-help-box">
+    <div class="g-help-head">
+      <div class="g-help-title">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <span>Como podemos ajudar?</span>
+      </div>
+      <button class="g-help-close" onclick="gCloseHelp()" aria-label="Fechar">×</button>
+    </div>
+    <div class="g-help-body">
+      <div class="g-help-intro">Tutoriais animados de toda a plataforma. Clique para assistir — ou fale com o time de design.</div>
+
+      <div class="g-help-section">
+        <input class="g-help-search" id="g-help-search" type="text" placeholder="🔎 Buscar tutorial (ex.: variáveis, pincel, publicar)..." oninput="gHelpRenderCatalog(this.value)">
+        <div id="g-help-tut-catalog"></div>
+      </div>
+
+      <div class="g-help-section">
+        <div class="g-help-section-title">Falar com o time</div>
+        <div class="g-help-channels">
+          <button class="g-help-channel" onclick="gHelpAction('slack')" disabled>
+            <div class="g-help-channel-icon" style="background:#4A154B;color:#fff">#</div>
+            <div class="g-help-channel-info">
+              <div class="g-help-channel-name">Slack do time de design</div>
+              <div class="g-help-channel-sub">Em breve · integração em desenvolvimento</div>
+            </div>
+            <div class="g-help-channel-arrow">→</div>
+          </button>
+          <button class="g-help-channel" onclick="gHelpAction('email')" disabled>
+            <div class="g-help-channel-icon" style="background:var(--dm-orange);color:#fff">@</div>
+            <div class="g-help-channel-info">
+              <div class="g-help-channel-name">E-mail do suporte</div>
+              <div class="g-help-channel-sub">Em breve · vai disparar um chamado</div>
+            </div>
+            <div class="g-help-channel-arrow">→</div>
+          </button>
+        </div>
+      </div>
+
+      <div class="g-help-foot">
+        <span>Luma · piloto interno</span>
+        <span class="g-help-foot-sep">·</span>
+        <span>v0.4</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TUTORIAL STAGE ══ -->
+<div id="tut-stage" class="tut-stage" role="dialog" aria-modal="true" aria-labelledby="tut-title">
+  <div class="tut-backdrop" onclick="tutAskClose()"></div>
+  <div class="tut-container">
+    <header class="tut-header">
+      <div class="tut-header-left">
+        <div class="tut-badge">Tutorial</div>
+        <h2 id="tut-title" class="tut-title">Como criar minha primeira arte</h2>
+      </div>
+      <button class="tut-close" onclick="tutAskClose()" aria-label="Fechar tutorial">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </header>
+    <div class="tut-stage-area" id="tut-stage-area">
+      <div class="tut-scene" id="tut-scene"></div>
+      <div class="tut-cursor" id="tut-cursor" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1.5" stroke-linejoin="round">
+          <path d="M3 2l7 18 2.5-7.5L20 10 3 2z"/>
+        </svg>
+        <div class="tut-cursor-ripple"></div>
+      </div>
+      <div class="tut-tooltip" id="tut-tooltip" aria-live="polite">
+        <div class="tut-tooltip-arrow" id="tut-tooltip-arrow"></div>
+        <div class="tut-tooltip-step" id="tut-tooltip-step">Passo 1</div>
+        <div class="tut-tooltip-text" id="tut-tooltip-text">...</div>
+      </div>
+    </div>
+    <footer class="tut-controls">
+      <div class="tut-progress" id="tut-progress" role="progressbar" aria-label="Progresso do tutorial"></div>
+      <div class="tut-buttons">
+        <button class="tut-btn tut-btn-ghost" onclick="tutPrev()" id="tut-btn-prev" aria-label="Voltar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <button class="tut-btn tut-btn-ghost" onclick="tutTogglePlay()" id="tut-btn-play" aria-label="Pausar ou tocar">
+          <svg id="tut-icon-pause" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+          <svg id="tut-icon-play" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <button class="tut-btn tut-btn-primary" onclick="tutNext()" id="tut-btn-next">
+          <span id="tut-btn-next-label">Próximo</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </div>
+    </footer>
+  </div>
+  <div class="tut-finale" id="tut-finale">
+    <div class="tut-finale-icon">
+      <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+    </div>
+    <h3 class="tut-finale-title">Tutorial concluído!</h3>
+    <p class="tut-finale-desc" id="tut-finale-desc">Agora você sabe como criar sua primeira arte na Luma.</p>
+    <div class="tut-finale-actions">
+      <button class="tut-btn tut-btn-ghost" onclick="tutReplay()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+        Repetir
+      </button>
+      <button class="tut-btn tut-btn-primary" onclick="tutClose()">
+        Concluir
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ VIEW FRANQUEADO ══ -->
+<div id="view-franqueado">
+  <div id="prog-bar"><div id="prog-fill"></div></div>
+  <div id="fran-main">
+
+    <!-- LEFT catalog -->
+    <div id="fran-left">
+      <div id="fran-left-head">
+        <h2>CAMPANHAS</h2>
+        <div class="f-tabs">
+          <button class="f-tab active" onclick="fSwitchTab('catalogo',this)">Catálogo</button>
+          <button class="f-tab" onclick="fSwitchTab('historico',this)">Minhas artes <span id="hist-badge"></span></button>
+        </div>
+        <div id="f-search-row">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input id="f-search" placeholder="Buscar campanha..." oninput="fFilterCamps(this.value)"/>
+        </div>
+      </div>
+      <div id="f-catalog">
+        <div class="sec-title">⭐ Recomendada agora</div>
+        <div class="camp-grid" id="camp-rec"></div>
+        <div class="sec-title">Ativas agora</div>
+        <div class="camp-grid" id="camp-main"></div>
+        <div class="sec-title">Outras campanhas</div>
+        <div class="camp-grid" id="camp-other"></div>
+      </div>
+      <div id="f-hist-tab"></div>
+      <div id="f-fmt-wrap">
+        <div class="sec-title" style="margin-bottom:8px">Formato</div>
+        <div class="fmt-row" id="f-fmt-row"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT chat -->
+    <div id="fran-right">
+      <div id="f-chat-head">
+        <div class="bot-circle">🤖<div class="bot-online"></div></div>
+        <div>
+          <div class="bot-info-name">ASSISTENTE DE ARTES</div>
+          <div class="bot-info-status">● online agora</div>
+        </div>
+        <div id="f-ctx-tag">Hamburguer Fest · Story</div>
+        <div id="f-head-actions">
+          <button id="f-bulk-head-btn" onclick="fBulkOpen()" title="Gerar muitas artes de uma vez a partir de uma planilha CSV">⚡ Gerar vários</button>
+          <button id="f-reset-btn" onclick="fResetFlow()">↺ Reiniciar</button>
+        </div>
+      </div>
+      <div id="f-right-body">
+        <div id="f-chat-col">
+          <div id="f-messages"></div>
+          <div id="f-input-row">
+            <div id="f-input-wrap">
+              <input id="f-msg-box" placeholder="Digite sua resposta ou use os botões acima..." onkeydown="if(event.key==='Enter')fSend()"/>
+              <span id="f-char-count" aria-hidden="true"></span>
+            </div>
+            <button id="f-snd" onclick="fSend()" aria-label="Enviar">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m22 2-7 20-4-9-9-4 20-7z"/></svg>
+            </button>
+          </div>
+        </div>
+        <aside id="f-live-preview" aria-label="Prévia em tempo real">
+          <div class="lp-head">
+            <div class="lp-title">PRÉVIA AO VIVO</div>
+            <div class="lp-sub" id="lp-sub">aguardando dados...</div>
+          </div>
+          <div class="lp-stage">
+            <canvas class="lp-canvas" id="lp-canvas" aria-label="Prévia do template"></canvas>
+          </div>
+          <div class="lp-fields" id="lp-fields"></div>
+        </aside>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PREVIEW FRANQUEADO -->
+<div id="f-preview-modal">
+  <div class="preview-box">
+    <div class="preview-box-head">
+      <span id="pv-title">Preview</span>
+      <button class="preview-close" onclick="fClosePreview()">×</button>
+    </div>
+    <div class="pv-multi" id="pv-multi">
+      <!-- preenchido por fOpenPreview -->
+    </div>
+    <div class="preview-note" id="pv-note"></div>
+    <div class="preview-hint">Toque no formato que deseja gerar</div>
+  </div>
+</div>
+
+<!-- ══ VIEW DESIGNER ══ -->
+<div id="view-designer">
+
+  <!-- ══ DESIGNER LAYOUT ══ -->
+  <!-- Topbar minimalista: só info + undo/redo + formato + preview + publicar -->
+  <div id="d-topbar">
+    <div id="d-topbar-left">
+      <!-- Undo/Redo -->
+      <button class="dt-btn" id="dbtn-undo" aria-label="Desfazer (Ctrl+Z)" title="Desfazer (Ctrl+Z)" onclick="dUndo()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"/></svg>
+      </button>
+      <button class="dt-btn" id="dbtn-redo" aria-label="Refazer (Ctrl+Shift+Z)" title="Refazer (Ctrl+Shift+Z)" onclick="dRedo()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 019-9 9 9 0 016 2.3L21 13"/></svg>
+      </button>
+      <div class="dt-sep"></div>
+      <!-- Formato -->
+      <div class="dt-fmt-group">
+        <button class="dt-fmt active" data-fmt="story" onclick="dSetFormat('story',this)" title="Story 1080×1920">
+          <svg width="10" height="14" viewBox="0 0 10 14"><rect x="1" y="1" width="8" height="12" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+          Story
+        </button>
+        <button class="dt-fmt" data-fmt="feed" onclick="dSetFormat('feed',this)" title="Feed 1080×1080">
+          <svg width="12" height="12" viewBox="0 0 12 12"><rect x="1" y="1" width="10" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+          Feed
+        </button>
+        <button class="dt-fmt" data-fmt="wide" onclick="dSetFormat('wide',this)" title="Wide 1200×628">
+          <svg width="14" height="8" viewBox="0 0 14 8"><rect x="1" y="1" width="12" height="6" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+          Wide
+        </button>
+      </div>
+      <div class="dt-sep"></div>
+      <!-- Zoom -->
+      <button class="dt-btn" onclick="dZoom(-10)" title="Reduzir zoom">−</button>
+      <span id="d-zoom-val" style="font-size:11px;color:var(--d-text2);min-width:38px;text-align:center;cursor:pointer" onclick="dFitToScreen()" title="Fit to screen (Ctrl+0)">100%</span>
+      <button class="dt-btn" onclick="dZoom(10)" title="Aumentar zoom">+</button>
+      <div class="dt-sep"></div>
+      <button class="dt-btn" id="dt-rulers-btn" onclick="dToggleRulers()" title="Mostrar/ocultar réguas" aria-label="Mostrar réguas">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17 17 3l4 4L7 21z"/><path d="m7.5 10.5 2 2M10.5 7.5l2 2M13.5 4.5l2 2M4.5 13.5l2 2"/></svg>
+      </button>
+      <button class="dt-btn active" id="dt-snap-btn" onclick="dToggleSnap()" title="Guias inteligentes e snap" aria-label="Guias inteligentes e snap">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h6M4 4v6M20 4h-6M20 4v6M4 20h6M4 20v-6M20 20h-6M20 20v-6"/></svg>
+      </button>
+    </div>
+    <div id="d-topbar-center">
+      <!-- Barra contextual — muda com o layer selecionado -->
+      <div id="d-ctx-bar"></div>
+    </div>
+    <div id="d-topbar-right">
+      <button class="dt-btn" id="dt-theme-btn" onclick="dToggleTheme()" title="Alternar tema claro/escuro" aria-label="Alternar tema">
+        <svg id="theme-icon-dark" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg id="theme-icon-light" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      </button>
+      <button class="dt-btn" id="dt-help-btn" onclick="dOpenCheat()" title="Atalhos de teclado (?)" aria-label="Atalhos de teclado">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      </button>
+      <div class="dt-sep"></div>
+      <span id="d-dim-label" style="font-size:10px;color:var(--d-text3)">1080 × 1920</span>
+      <div class="dt-sep"></div>
+      <span id="d-save-indicator2" style="font-size:11px;color:rgba(255,255,255,.35)">—</span>
+      <button class="dt-btn-outline" onclick="dOpenSimModal()" title="Simular dados reais">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+        Simular
+      </button>
+      <span id="d-sim-indicator" style="display:none;align-items:center;gap:4px;font-size:10px;color:#22C55E;background:rgba(34,197,94,.1);padding:3px 6px;border-radius:4px;cursor:pointer" onclick="dResetSim()" title="Limpar simulação">
+        ● simulando
+      </span>
+      <button class="dt-btn-outline" onclick="dPreview()" title="Preview (P)">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        Preview
+      </button>
+      <button class="dt-btn-outline" onclick="dSave()" title="Salvar rascunho (Ctrl+S)">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>
+        Salvar
+      </button>
+      <button class="dt-btn-primary" onclick="dPublishOpen()" title="Publicar para os franqueados">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        Publicar
+      </button>
+    </div>
+  </div>
+
+
+  <div id="d-main">
+
+    <!-- (Campanhas & Templates + Biblioteca migraram para as abas do painel direito #d-right) -->
+
+    <!-- TOOLBAR VERTICAL DE FERRAMENTAS (estilo Photoshop) -->
+    <div id="d-vtoolbar" role="toolbar" aria-label="Ferramentas de design">
+      <!-- Grupo: Seleção e criação -->
+      <div class="vt-group">
+        <button class="vt-btn active" id="dtool-select" data-tool="select" aria-label="Mover (V)" title="Mover&#10;V" onclick="dSetTool('select')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-7 1-4 7z"/></svg>
+        </button>
+        <button class="vt-btn" id="dtool-text" data-tool="text" aria-label="Texto (T)" title="Texto&#10;T" onclick="dSetTool('text')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
+        </button>
+      </div>
+      <div class="vt-sep"></div>
+      <!-- Grupo: Formas -->
+      <div class="vt-group">
+        <button class="vt-btn" id="dtool-rect" data-tool="rect" aria-label="Retângulo (R)" title="Retângulo&#10;R" onclick="dSetTool('rect')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+        </button>
+        <button class="vt-btn" id="dtool-frame" data-tool="frame" aria-label="Moldura (F)" title="Moldura de foto&#10;F" onclick="dSetTool('frame')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+        </button>
+        <button class="vt-btn" id="dtool-img" data-tool="img" aria-label="Imagem (M)" title="Imagem URL&#10;M" onclick="dSetTool('img')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </button>
+      </div>
+      <div class="vt-sep"></div>
+      <!-- Grupo: Pintura -->
+      <div class="vt-group">
+        <button class="vt-btn" id="dtool-brush" data-tool="brush" aria-label="Pincel (B)" title="Pincel&#10;B" onclick="dSetTool('brush')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l4-4 4 4-4 4-4-4z"/><path d="M7 13l9-9 4 4-9 9"/></svg>
+        </button>
+        <button class="vt-btn" id="dtool-eraser" data-tool="eraser" aria-label="Borracha (E)" title="Borracha&#10;E" onclick="dSetTool('eraser')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16l12-12 5 5-4.5 4.5"/><line x1="6" y1="20" x2="20" y2="20"/></svg>
+        </button>
+      </div>
+      <div class="vt-sep"></div>
+      <!-- Grupo: Amostra & preenchimento -->
+      <div class="vt-group">
+        <button class="vt-btn" id="dtool-eyedrop" data-tool="eyedrop" aria-label="Conta-gotas (I)" title="Conta-gotas&#10;I" onclick="dSetTool('eyedrop')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m2 22 1-1h3l9-9"/><path d="M3 21v-3l9-9"/><path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z"/></svg>
+        </button>
+        <button class="vt-btn" id="dtool-bucket" data-tool="bucket" aria-label="Balde de tinta (G)" title="Balde de tinta&#10;G" onclick="dSetTool('bucket')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m19 11-8-8-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2c.8.8 2 .8 2.8 0L19 11Z"/><path d="m5 2 5 5"/><path d="M2 13h15"/><path d="M22 20a2 2 0 1 1-4 0c0-1.6 1.7-2.4 2-4 .3 1.6 2 2.4 2 4Z"/></svg>
+        </button>
+      </div>
+      <div class="vt-sep"></div>
+      <!-- Grupo: Ferramentas avançadas de pintura -->
+      <div class="vt-group">
+        <button class="vt-btn" id="dtool-stamp" data-tool="stamp" aria-label="Carimbo (S)" title="Carimbo / Clonar&#10;S" onclick="dSetTool('stamp')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="2" width="12" height="8" rx="2"/><path d="M4 22h16"/><path d="M12 10v12"/></svg>
+        </button>
+        <button class="vt-btn" id="dtool-gradient" data-tool="gradient" aria-label="Gradiente" title="Gradiente" onclick="dSetTool('gradient')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
+        </button>
+        <button class="vt-btn" id="dtool-smudge" data-tool="smudge" aria-label="Borrar/Smudge" title="Borrar / Smudge" onclick="dSetTool('smudge')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11h.01M7 6h.01M11 3h.01M15 3h.01M19 6h.01M21 11h.01M19 16c-2 3-7 3-9-1-1-2-3-2-4-1-1 1-1 3 0 4 2 2 7 0 13-2Z"/></svg>
+        </button>
+        <button class="vt-btn" id="dtool-blur" data-tool="blur" aria-label="Desfocar" title="Desfocar / Blur" onclick="dSetTool('blur')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3" fill="currentColor" opacity=".3"/><circle cx="12" cy="12" r="6" opacity=".5"/><circle cx="12" cy="12" r="9" opacity=".7"/></svg>
+        </button>
+      </div>
+      <div class="vt-sep"></div>
+      <!-- Recursos: biblioteca de assets + blocos/fontes (drawer flutuante) -->
+      <div class="vt-group">
+        <button class="vt-btn" id="dtool-resources" aria-label="Recursos: biblioteca e assets" title="Recursos&#10;Biblioteca e assets" onclick="dToggleResources()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="3" width="14" height="14" rx="2"/><path d="M3 7v12a2 2 0 0 0 2 2h12"/></svg>
+        </button>
+      </div>
+      <div style="flex:1"></div>
+      <!-- Opções de pincel (expandem abaixo do ícone ativo) -->
+      <div id="d-brush-opts" style="display:none;flex-direction:column;align-items:center;gap:6px;padding:6px 0">
+        <input type="range" id="d-brush-size" min="2" max="40" value="8" style="width:36px;writing-mode:vertical-lr;direction:rtl;height:60px" oninput="document.getElementById('d-brush-val').textContent=this.value;if(typeof dUpdateBrushCursor==='function')dUpdateBrushCursor()" title="Tamanho">
+        <span id="d-brush-val" style="font-size:9px;color:var(--d-text2)">8</span>
+        <div id="d-brush-color-sw" style="width:24px;height:24px;border-radius:4px;background:#FF9000;border:2px solid var(--d-border2);cursor:pointer" onclick="document.getElementById('d-brush-color-pick').click()" title="Cor"></div>
+        <input type="color" id="d-brush-color-pick" value="#FF9000" style="display:none" oninput="document.getElementById('d-brush-color-sw').style.background=this.value">
+      </div>
+    </div>
+    <!-- CENTER canvas -->
+    <div id="d-center">
+      <!-- (Barra flutuante de adicionar layers removida — usar a toolbar vertical ou os botões "+" do painel de Layers) -->
+
+      <!-- Brush options bar (aparece quando ferramenta de pintura ativa) -->
+      <div id="d-brush-bar">
+        <div class="bb-group">
+          <span class="bb-label" id="bb-tool-label">Pincel</span>
+        </div>
+        <div class="bb-sep"></div>
+        <!-- Presets de ponta -->
+        <div class="bb-group">
+          <span class="bb-label">Ponta</span>
+          <div class="bb-preset-row">
+            <button class="bb-preset active" data-preset="round" onclick="dBrushSetPreset('round')" title="Redonda">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6"/></svg>
+            </button>
+            <button class="bb-preset" data-preset="soft" onclick="dBrushSetPreset('soft')" title="Suave">
+              <svg width="14" height="14" viewBox="0 0 24 24"><defs><radialGradient id="sg"><stop offset="0" stop-color="currentColor"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></radialGradient></defs><circle cx="12" cy="12" r="8" fill="url(#sg)"/></svg>
+            </button>
+            <button class="bb-preset" data-preset="square" onclick="dBrushSetPreset('square')" title="Quadrada">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>
+            </button>
+            <button class="bb-preset" data-preset="calligraphy" onclick="dBrushSetPreset('calligraphy')" title="Caligráfica">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" transform="rotate(15 12 12)"/></svg>
+            </button>
+            <button class="bb-preset" data-preset="dotted" onclick="dBrushSetPreset('dotted')" title="Pontilhado">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="18" cy="12" r="1.5"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="bb-sep"></div>
+        <!-- Tamanho -->
+        <div class="bb-group">
+          <span class="bb-label">Tam.</span>
+          <input type="range" class="bb-slider" id="bb-size" min="1" max="200" value="8" oninput="dBrushUpdate('size',this.value)">
+          <span class="bb-num" id="bb-size-num">8</span>
+          <span class="bb-label" style="font-size:8px">px</span>
+        </div>
+        <div class="bb-sep"></div>
+        <!-- Dureza -->
+        <div class="bb-group">
+          <span class="bb-label">Dureza</span>
+          <input type="range" class="bb-slider" id="bb-hardness" min="0" max="100" value="100" oninput="dBrushUpdate('hardness',this.value)">
+          <span class="bb-num" id="bb-hardness-num">100</span>
+        </div>
+        <div class="bb-sep"></div>
+        <!-- Opacidade -->
+        <div class="bb-group">
+          <span class="bb-label">Opac.</span>
+          <input type="range" class="bb-slider" id="bb-opacity" min="1" max="100" value="100" oninput="dBrushUpdate('opacity',this.value)">
+          <span class="bb-num" id="bb-opacity-num">100</span>
+          <span class="bb-label" style="font-size:8px">%</span>
+        </div>
+        <div class="bb-sep"></div>
+        <!-- Flow -->
+        <div class="bb-group">
+          <span class="bb-label">Flow</span>
+          <input type="range" class="bb-slider" id="bb-flow" min="1" max="100" value="100" oninput="dBrushUpdate('flow',this.value)" style="width:60px">
+          <span class="bb-num" id="bb-flow-num">100</span>
+        </div>
+        <div class="bb-sep"></div>
+        <!-- Modo -->
+        <div class="bb-group">
+          <span class="bb-label">Modo</span>
+          <select class="bb-select" id="bb-mode" onchange="dBrushUpdate('mode',this.value)">
+            <option value="source-over">Normal</option>
+            <option value="multiply">Multiply</option>
+            <option value="overlay">Overlay</option>
+            <option value="screen">Screen</option>
+            <option value="darken">Darken</option>
+            <option value="lighten">Lighten</option>
+            <option value="color-dodge">Color Dodge</option>
+            <option value="difference">Difference</option>
+          </select>
+        </div>
+        <div class="bb-sep"></div>
+        <!-- Cor -->
+        <div class="bb-group">
+          <span class="bb-label">Cor</span>
+          <div class="bb-swatch" id="bb-color-sw" style="background:#FF9000" onclick="document.getElementById('bb-color-pick').click()" title="Cor do pincel"></div>
+          <input type="color" id="bb-color-pick" value="#FF9000" style="display:none" oninput="dBrushUpdate('color',this.value)">
+        </div>
+        <div class="bb-sep"></div>
+        <!-- Limpar pintura -->
+        <button class="bb-preset" onclick="dClearPaint()" title="Limpar toda a pintura" style="width:auto;padding:0 8px;font-size:10px;color:var(--dm-red)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+        </button>
+      </div>
+      <div class="ruler-corner" style="display:none" id="d-ruler-corner"></div>
+      <div id="d-ruler-h" style="display:none"></div>
+      <div id="d-ruler-v" style="display:none"></div>
+      <div id="d-canvas-wrapper">
+        <div id="d-workspace" onclick="dDeselect(event)">
+          <div id="d-canvas-container">
+            <div id="d-canvas-bg"></div>
+            <div id="d-canvas-frame"><div id="d-marquee" aria-hidden="true"></div></div>
+          </div>
+        </div>
+      </div>
+      <div id="d-layers-panel">
+        <div id="d-layers-resize-handle" onmousedown="dLayersPanelResizeStart(event)"></div>
+        <div id="d-layers-header">
+          <div class="lyr-hdr-row">
+            <span title="As camadas/peças do template">Peças</span>
+            <button class="d-lyr-add" onclick="dAddText()">+ Texto</button>
+            <button class="d-lyr-add" onclick="dAddShape()">+ Shape</button>
+            <button class="d-lyr-add" onclick="dAddShapeKind('circle')">+ Círculo</button>
+            <button class="d-lyr-add" onclick="dAddShapeKind('star')">+ Estrela</button>
+            <button class="d-lyr-add" onclick="dAddFrame()">+ Moldura</button>
+            <button class="d-lyr-add" onclick="dAddImage()">+ Img</button>
+            <button class="d-lyr-add" onclick="dAddIcon()">+ Ícone</button>
+            <button class="d-lyr-add" onclick="dAddLine()">+ Linha</button>
+          </div>
+        </div>
+        <div id="d-layers-list"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT properties -->
+    <div id="d-right">
+      <div class="rpanel-tabs d-rp-tabs">
+        <button class="rpanel-tab d-rp-tab active" id="rtab-campaigns" data-panel="conteudo" onclick="dActivatePanel('conteudo')" title="Campanhas e templates">Conteúdo</button>
+        <button class="rpanel-tab d-rp-tab" id="rtab-props" data-panel="camada" onclick="dActivatePanel('camada')" title="Propriedades da peça selecionada">Camada</button>
+        <button class="rpanel-tab d-rp-tab" data-panel="publicar" onclick="dActivatePanel('publicar')" title="Publicar para os franqueados">Publicar</button>
+      </div>
+      <!-- Indicador contextual: nome+tipo da peça selecionada (visível só no painel Camada) -->
+      <div class="d-rp-ctx" id="d-rp-ctx" style="display:none"></div>
+      <!-- Campanhas & Templates (migrado da antiga sidebar esquerda) -->
+      <div class="rpanel-content" id="dtab-campaigns">
+        <div class="folder-list" id="d-folder-list"></div>
+        <div class="d-side-actions">
+          <button class="add-folder-btn" onclick="dOpenNewFolder()">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Nova pasta
+          </button>
+          <button class="add-tmpl-btn" onclick="dOpenNewTemplate()">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Novo template
+          </button>
+          <button class="add-tmpl-btn add-psd-btn" onclick="document.getElementById('d-psd-input').click()" title="Importar um .psd e transformar as camadas em template editável">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Importar PSD
+          </button>
+          <input type="file" id="d-psd-input" accept=".psd,image/vnd.adobe.photoshop" style="display:none" onchange="dImportPSD(this)">
+          <button class="add-tmpl-btn add-svg-btn" onclick="dSvgImport()" title="Importar um .svg/.ai (Illustrator) e transformar os elementos em template editável">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Importar SVG
+          </button>
+        </div>
+      </div>
+      <!-- Biblioteca de assets (migrado da antiga sidebar esquerda) -->
+      <div class="rpanel-content hidden" id="dtab-library">
+        <div style="padding:8px 12px 0">
+          <input id="d-lib-search" class="d-lib-search" placeholder="Buscar asset..." oninput="dLibFilter(this.value)"/>
+        </div>
+        <div class="d-lib-drop" onclick="document.getElementById('d-lib-upload').click()" id="d-lib-dropzone">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <span>Arraste ou clique<br><small>PNG · JPG · SVG</small></span>
+          <input type="file" id="d-lib-upload" accept=".png,.jpg,.jpeg,.svg,image/png,image/jpeg,image/svg+xml" multiple style="display:none" onchange="dLibUpload(this)">
+        </div>
+        <div style="padding:4px 12px 4px;display:flex;align-items:center;justify-content:space-between;gap:6px">
+          <div class="d-lib-cats" id="d-lib-cats"></div>
+          <button class="d-lyr-add" onclick="dLibNewCat()" style="white-space:nowrap;flex-shrink:0">+ cat</button>
+        </div>
+        <div class="d-lib-grid" id="d-lib-grid"></div>
+      </div>
+      <!-- Painel CAMADA: propriedades da peça + catálogo de variáveis do template -->
+      <div class="rpanel-content hidden" id="d-panel-camada">
+      <div id="dtab-props" class="d-rp-sub">
+        <div class="stats-row">
+          <div class="stat-box"><div class="stat-val" id="d-stat-layers">0</div><div class="stat-lbl">Layers</div></div>
+          <div class="stat-box"><div class="stat-val" id="d-stat-vars">0</div><div class="stat-lbl">Variáveis</div></div>
+        </div>
+        <div class="prop-divider"></div>
+        <div id="d-no-sel" style="text-align:center;padding:20px 0;color:var(--d-text3);font-size:12px;line-height:1.8">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:.3;display:block;margin:0 auto 6px"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Clique numa peça<br>para editar
+        </div>
+        <div id="d-props-ctx" style="display:none">
+          <div id="d-props-ctx-icon">T</div>
+          <div style="flex:1;min-width:0">
+            <div id="d-props-ctx-name">—</div>
+            <div id="d-props-ctx-type">texto</div>
+          </div>
+        </div>
+        <div id="d-props-form" style="display:none;flex-direction:column;gap:10px">
+          <div class="d-acc-sec">
+          <div class="section-head" onclick="dToggleSection(this)">Posição &amp; Tamanho</div>
+          <div class="prop-group">
+            <div class="prop-row">
+              <span style="font-size:11px;color:var(--d-text3);width:14px">X</span>
+              <input class="prop-input prop-input-sm" type="number" id="dp-x" oninput="dUpdateProp('x',this.value)">
+              <span style="font-size:11px;color:var(--d-text3);width:14px">Y</span>
+              <input class="prop-input prop-input-sm" type="number" id="dp-y" oninput="dUpdateProp('y',this.value)">
+            </div>
+            <div class="prop-row">
+              <span style="font-size:11px;color:var(--d-text3);width:14px">W</span>
+              <input class="prop-input prop-input-sm" type="number" id="dp-w" oninput="dUpdateProp('w',this.value)">
+              <span style="font-size:11px;color:var(--d-text3);width:14px">H</span>
+              <input class="prop-input prop-input-sm" type="number" id="dp-h" oninput="dUpdateProp('h',this.value)">
+            </div>
+          </div>
+          </div>
+          <div id="d-text-props" class="d-acc-sec" style="display:none">
+            <div class="section-head" onclick="dToggleSection(this)">Texto</div>
+            <div class="prop-group">
+              <input class="prop-input" type="text" id="dp-content" placeholder="Conteúdo (use {{var}})" oninput="dUpdateProp('content',this.value)">
+              <div class="prop-row">
+                <select class="prop-input" id="dp-font" onchange="dUpdateProp('font',this.value)">
+                  <option value="'Roboto Black'">Roboto Black</option>
+                  <option value="'Roboto'">Roboto</option>
+                  <option value="'Roboto',bold">Roboto Bold</option>
+                </select>
+                <input class="prop-input prop-input-sm" type="number" id="dp-fsize" value="24" oninput="dUpdateProp('fontSize',this.value)">
+              </div>
+              <div class="prop-row">
+                <select class="prop-input" id="dp-align" onchange="dUpdateProp('textAlign',this.value)">
+                  <option>left</option><option>center</option><option>right</option>
+                </select>
+                <div class="color-swatch" id="dp-color-sw" style="background:#fff;cursor:pointer" onclick="document.getElementById('dp-color-pick').click()"></div>
+                <input type="color" id="dp-color-pick" style="display:none" oninput="dHexSync('dp-color-hex',this.value);dUpdateProp('color',this.value)">
+                <input class="hex-input" id="dp-color-hex" maxlength="7" placeholder="#FFFFFF" oninput="dHexInput('dp-color-pick','dp-color-sw',this.value,'color')">
+              </div>
+              <div class="prop-row" style="gap:6px;align-items:center">
+                <select class="prop-input" id="d-var-insert" style="font-size:11px;flex:1">
+                  <option value="">— inserir var —</option>
+                </select>
+                <button class="d-btn-sec" style="padding:4px 8px;font-size:11px" onclick="dInsertVar()">+</button>
+              </div>
+              <div class="prop-row" style="gap:6px">
+                <span class="prop-bind-label">Visível se</span>
+                <select class="prop-input" id="dp-bind-visible-text" style="font-size:11px;flex:1" onchange="dSetBinding('visible',this.value)"></select>
+              </div>
+            </div>
+          </div>
+          <div id="d-shape-props" class="d-acc-sec" style="display:none">
+            <div class="section-head" onclick="dToggleSection(this)">Aparência</div>
+            <div class="prop-group">
+              <div class="prop-row">
+                <span style="font-size:11px;color:var(--d-text3);min-width:30px">Fill</span>
+                <div class="color-swatch" id="dp-fill-sw" style="background:#FF9000;cursor:pointer" onclick="document.getElementById('dp-fill-pick').click()"></div>
+                <input type="color" id="dp-fill-pick" style="display:none" oninput="dHexSync('dp-fill-hex',this.value);dUpdateProp('fill',this.value)">
+                <input class="hex-input" id="dp-fill-hex" maxlength="7" placeholder="#FF9000" oninput="dHexInput('dp-fill-pick','dp-fill-sw',this.value,'fill')">
+              </div>
+              <div class="prop-row">
+                <span style="font-size:11px;color:var(--d-text3);min-width:30px">Opac.</span>
+                <input class="prop-input prop-input-sm" type="number" id="dp-opacity" min="0" max="100" value="100" oninput="dUpdateProp('opacity',this.value)">
+                <span style="font-size:10px;color:var(--d-text3)">%</span>
+              </div>
+              <div class="prop-row" style="align-items:flex-start">
+                <span style="font-size:11px;color:var(--d-text3);min-width:40px;padding-top:7px">Radius</span>
+                <div class="dp-radius-widget">
+                  <div class="dp-radius-head">
+                    <span class="dp-radius-preview" id="dp-radius-preview"></span>
+                    <input type="range" id="dp-radius-slider" min="0" max="200" step="1" value="0" oninput="dUpdatePropFromRadius(this.value)">
+                    <input class="prop-input prop-input-sm" type="number" id="dp-radius" min="0" max="999" value="0" oninput="dSyncRadiusUI(this.value);dUpdateProp('radius',this.value)">
+                  </div>
+                  <button type="button" class="dp-radius-circle-btn" onclick="dSetRadiusCircle()" title="Cantos totalmente arredondados">○ Círculo</button>
+                </div>
+              </div>
+              <div class="prop-row" style="gap:6px">
+                <span class="prop-bind-label">Cor da var</span>
+                <select class="prop-input" id="dp-bind-fill" style="font-size:11px;flex:1" onchange="dSetBinding('fill',this.value)"></select>
+              </div>
+              <div class="prop-row" style="gap:6px">
+                <span class="prop-bind-label">Visível se</span>
+                <select class="prop-input" id="dp-bind-visible-shape" style="font-size:11px;flex:1" onchange="dSetBinding('visible',this.value)"></select>
+              </div>
+            </div>
+          </div>
+          <div id="d-image-props" class="d-acc-sec" style="display:none">
+            <div class="section-head" onclick="dToggleSection(this)">Imagem / Moldura</div>
+            <div class="prop-group">
+              <select class="prop-input" id="dp-imgvar" onchange="dUpdateProp('imgVar',this.value)" style="font-size:11px"></select>
+              <input class="prop-input" type="text" id="dp-imgurl" placeholder="URL da imagem" oninput="dUpdateProp('imgUrl',this.value)" style="font-size:11px">
+              <select class="prop-input" id="dp-imgfit" onchange="dUpdateProp('objectFit',this.value)" style="font-size:11px">
+                <option value="cover">cover</option><option value="contain">contain</option><option value="fill">fill</option>
+              </select>
+              <button id="dp-frame-upload" class="d-btn-sec" style="display:none;font-size:11px;padding:6px;width:100%;justify-content:center">📁 Carregar foto do computador</button>
+              <div id="dp-frame-shape-row" class="prop-row" style="display:none">
+                <span style="font-size:11px;color:var(--d-text3);min-width:50px">Forma</span>
+                <select class="prop-input" id="dp-frame-shape" onchange="dUpdateProp('frameShape',this.value);dUpdateProp('radius',this.value==='circle'?999:8)" style="font-size:11px">
+                  <option value="rect">Retângulo</option>
+                  <option value="rounded">Arredondado</option>
+                  <option value="circle">Círculo</option>
+                </select>
+              </div>
+              <div id="dp-frame-radius-row" class="prop-row" style="display:none">
+                <span style="font-size:11px;color:var(--d-text3);min-width:50px">Radius</span>
+                <input class="prop-input prop-input-sm" type="number" id="dp-frame-radius" min="0" max="999" value="8" oninput="dUpdateProp('radius',this.value)" style="font-size:11px">
+              </div>
+              <div class="prop-row" style="gap:6px">
+                <span class="prop-bind-label">Visível se</span>
+                <select class="prop-input" id="dp-bind-visible-image" style="font-size:11px;flex:1" onchange="dSetBinding('visible',this.value)"></select>
+              </div>
+            </div>
+          </div>
+          <div id="d-rules-props" class="d-acc-sec">
+            <div class="section-head" style="display:flex;align-items:center;justify-content:space-between" onclick="dToggleSection(this)">
+              <span>Regras condicionais</span>
+              <button class="d-btn-sec" style="padding:3px 8px;font-size:11px" onclick="event.stopPropagation();dAddRule()">+ Regra</button>
+            </div>
+            <div id="d-rules-list"></div>
+            <div style="font-size:10px;color:var(--d-text3);line-height:1.5;margin-top:4px">Ex.: quando <code style="color:var(--var-color)">precoDe</code> estiver vazio → ocultar este elemento.</div>
+          </div>
+          <div id="d-mask-section" class="d-acc-sec" style="display:none">
+            <div class="section-head" onclick="dToggleSection(this)">Máscara</div>
+            <div id="d-mask-actions" class="prop-row" style="flex-wrap:wrap;gap:6px"></div>
+            <div style="font-size:10px;color:var(--d-text3);line-height:1.5;margin-top:4px">Pinte pra esconder/revelar partes da camada. Máscaras do PSD entram aqui automaticamente.</div>
+          </div>
+        </div>
+      </div>
+      <div id="dtab-vars" class="d-rp-sub">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <span class="prop-label">Campos variáveis</span>
+          <button class="d-btn-sec" style="padding:4px 10px;font-size:11px" onclick="dOpenVarModal()">+ Novo</button>
+        </div>
+        <div id="d-vars-list" style="display:flex;flex-direction:column;gap:5px"></div>
+        <div class="prop-divider"></div>
+        <div style="font-size:11px;color:var(--d-text3);line-height:1.7">Use <code style="background:var(--var-bg);color:var(--var-color);padding:1px 4px;border-radius:3px">{{nome}}</code> nos campos de texto para marcar variáveis que o franqueado vai preencher.</div>
+      </div>
+      </div><!-- /#d-panel-camada -->
+      <div class="rpanel-content hidden" id="dtab-assets">
+        <div class="upload-drop" onclick="document.getElementById('d-asset-upload').click()">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <span>Arraste ou clique para enviar assets</span>
+          <input type="file" id="d-asset-upload" accept="image/*" multiple style="display:none" onchange="dHandleUpload(this)">
+        </div>
+        <div class="section-head" style="margin-top:4px">Assets do projeto</div>
+        <div class="asset-grid" id="d-assets-grid"></div>
+        <div class="prop-divider"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <span class="section-head" style="margin:0">Blocos reutilizáveis</span>
+          <button class="d-lyr-add" onclick="dSaveSnippet()" title="Salvar os layers selecionados como bloco">💾 Salvar bloco</button>
+        </div>
+        <div id="d-snippets-list"></div>
+        <div class="prop-divider"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <span class="section-head" style="margin:0">Fontes da marca</span>
+          <button class="d-lyr-add" onclick="document.getElementById('d-font-upload').click()" title="Enviar arquivo de fonte (.ttf, .otf, .woff, .woff2)">⬆ Enviar fonte</button>
+        </div>
+        <input type="file" id="d-font-upload" accept=".ttf,.otf,.woff,.woff2,font/*" multiple style="display:none" onchange="dFontUpload(this)">
+        <div id="d-fonts-list"></div>
+        <div style="font-size:11px;color:var(--d-text3);line-height:1.6;margin-top:4px">As fontes enviadas ficam disponíveis no seletor de fonte dos textos e são embutidas no SVG exportado.</div>
+      </div>
+      <!-- Tutorial: guia de cada ferramenta -->
+      <div class="rpanel-content hidden" id="dtab-tutorial">
+        <div class="d-tut-hero">
+          <div class="d-tut-hero-title">🎓 Aprenda o Studio</div>
+          <div class="d-tut-hero-sub">Guia rápido de cada ferramenta. Comece abrindo o modelo de exemplo e mexendo nele.</div>
+          <button class="d-btn-pri" onclick="gOpenHelp()" style="width:100%;justify-content:center;margin-top:8px">▶ Ver tutoriais animados</button>
+          <button class="d-btn-sec" onclick="dTutLoadExample()" style="width:100%;justify-content:center;margin-top:6px">📂 Abrir modelo de exemplo</button>
+          <button class="d-btn-sec" onclick="dOpenCheat()" style="width:100%;justify-content:center;margin-top:6px">⌨ Ver todos os atalhos</button>
+        </div>
+        <div id="d-tutorial-body"></div>
+      </div>
+      <!-- Painel PUBLICAR (fluxo híbrido: resumo no painel + modal completo) -->
+      <div class="rpanel-content hidden" id="d-panel-publicar">
+        <div class="section-head">Publicar template</div>
+        <p style="font-size:11.5px;color:var(--d-text2);line-height:1.6;margin:0">Revise pasta, validade, variáveis editáveis e instruções, depois envie ao catálogo dos franqueados.</p>
+        <div id="d-pub-panel-summary" style="display:flex;flex-direction:column;gap:8px"></div>
+        <div style="flex:1"></div>
+        <button class="d-btn-pri d-pub-panel-btn" onclick="dPublishOpen()" style="width:100%;justify-content:center">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          Publicar template
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAIS DESIGNER -->
+<div class="modal-overlay" id="d-var-modal">
+  <div class="modal">
+    <div class="modal-title">Nova Variável</div>
+    <div class="modal-field">
+      <label class="modal-label">Nome da variável</label>
+      <input class="modal-input" id="dv-name" placeholder="ex: nome_loja" oninput="this.value=this.value.replace(/[^a-z0-9_]/gi,'_').toLowerCase()">
+      <span style="font-size:10px;color:var(--d-text3);margin-top:2px">Aparece como <code style="color:var(--var-color)">{{nome_loja}}</code></span>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Tipo</label>
+      <select class="modal-select" id="dv-type" onchange="dVarTypeFields()">
+        <option value="text">Texto livre</option>
+        <option value="number">Número</option>
+        <option value="currency">Moeda (R$)</option>
+        <option value="image">Imagem (URL)</option>
+        <option value="select">Seleção fixa</option>
+        <option value="date">Data</option>
+        <option value="color">Cor (paleta)</option>
+        <option value="boolean">Sim / Não</option>
+      </select>
+    </div>
+    <div class="modal-field" id="dv-options-field" style="display:none">
+      <label class="modal-label">Opções (uma por linha)</label>
+      <textarea class="modal-input" id="dv-options" rows="3" placeholder="Pequena&#10;Média&#10;Grande"></textarea>
+    </div>
+    <div class="modal-field" id="dv-palette-field" style="display:none">
+      <label class="modal-label">Paleta (cores hex, vírgula ou linha)</label>
+      <input class="modal-input" id="dv-palette" placeholder="#C8102E, #FF9000, #FFFFFF">
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Rótulo (para o franqueado)</label>
+      <input class="modal-input" id="dv-label" placeholder="ex: Nome da loja">
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Valor padrão (opcional)</label>
+      <input class="modal-input" id="dv-default" placeholder="ex: Promoção por tempo limitado">
+      <span style="font-size:10px;color:var(--d-text3);margin-top:2px">Usado quando o franqueado não preenche (ou o campo não é editável).</span>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label" style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="dv-req"> Campo obrigatório
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button class="d-btn-sec" onclick="dCloseVarModal()">Cancelar</button>
+      <button class="d-btn-pri" onclick="dConfirmVar()">Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<!-- 4.3 — Geração em lote (CSV) -->
+<div class="modal-overlay" id="f-bulk-modal">
+  <div class="modal" style="max-width:680px;width:92vw">
+    <div class="modal-title">⚡ Gerar vários (CSV)</div>
+    <p style="font-size:12px;color:var(--d-text3,#888);line-height:1.5;margin:0 0 12px">Baixe o modelo, preencha 1 linha por produto (colunas = variáveis) e reenvie. Imagens só por URL pública.</p>
+    <div class="f-bulk-toolbar">
+      <button class="d-btn-sec" onclick="fBulkTemplateCSV()">⬇ Baixar modelo CSV</button>
+      <label class="d-btn-sec" style="cursor:pointer">📄 Enviar CSV
+        <input type="file" id="f-bulk-file" accept=".csv,text/csv" style="display:none" onchange="fBulkHandleCSV(this)">
+      </label>
+      <span id="f-bulk-status" style="font-size:12px;color:var(--d-text3,#888);margin-left:auto"></span>
+    </div>
+    <div class="f-ai-prompt-block" id="f-ai-prompt-block">
+      <button class="f-ai-prompt-toggle" onclick="fToggleAIPrompt()" aria-expanded="false" aria-controls="f-ai-prompt-body">
+        <span class="f-ai-prompt-icon">✨</span>
+        <span>Gerar a planilha com IA</span>
+        <span class="f-ai-prompt-chevron">›</span>
+      </button>
+      <div class="f-ai-prompt-body" id="f-ai-prompt-body" style="display:none">
+        <p class="f-ai-prompt-desc">Cole esse prompt no ChatGPT, mande as fotos dos seus produtos e importe o CSV gerado aqui.</p>
+        <div class="f-ai-prompt-box"><pre id="f-ai-prompt-text" class="f-ai-prompt-pre"></pre></div>
+        <div class="f-ai-prompt-actions">
+          <button class="f-ai-prompt-copy" onclick="fCopyAIPrompt()">📋 Copiar prompt</button>
+          <a class="f-ai-prompt-open" href="https://chat.openai.com" target="_blank" rel="noopener">Abrir ChatGPT →</a>
+        </div>
+      </div>
+    </div>
+    <div id="f-bulk-preview" class="f-bulk-preview"></div>
+    <div class="modal-actions">
+      <button class="d-btn-sec" onclick="fBulkClose()">Fechar</button>
+      <button class="d-btn-pri" id="f-bulk-dl-btn" onclick="fBulkDownloadAll()">Baixar todos</button>
+    </div>
+  </div>
+</div>
+
+<!-- Importação de PSD: tela de revisão/mapeamento -->
+<div class="modal-overlay" id="d-psd-modal">
+  <div class="modal" style="width:580px;max-height:88vh;display:flex;flex-direction:column;gap:12px">
+    <div class="modal-title">Importar PSD</div>
+    <div id="d-psd-meta" style="font-size:12px;color:var(--d-text2)"></div>
+    <div class="psd-fmt-row">
+      <label class="modal-label" style="margin:0">Formato</label>
+      <select class="modal-select" id="d-psd-fmt" style="flex:1">
+        <option value="orig">Tamanho original do PSD</option>
+        <option value="story">Story (1080×1920)</option>
+        <option value="feed">Feed (1080×1080)</option>
+        <option value="wide">Wide (1200×628)</option>
+      </select>
+      <label class="modal-label" style="margin:0;display:flex;align-items:center;gap:6px;white-space:nowrap;cursor:pointer" title="Marque se as camadas vierem na ordem trocada (fundo na frente)">
+        <input type="checkbox" id="d-psd-invert"> Inverter ordem
+      </label>
+    </div>
+    <div style="font-size:11px;color:var(--d-text3);line-height:1.5">Revise cada camada: vire textos em <code style="color:var(--var-color)">{{variáveis}}</code>, mantenha cor sólida como shape editável, ou imagem fiel. Camadas nomeadas <code style="color:var(--var-color)">{{nome}}</code> já entram como variável.</div>
+    <div id="d-psd-rows" style="overflow-y:auto;flex:1;min-height:120px;display:flex;flex-direction:column;gap:4px"></div>
+    <div class="modal-actions">
+      <button class="d-btn-sec" onclick="dPsdCancel()">Cancelar</button>
+      <button class="d-btn-pri" onclick="dPsdConfirmImport()">Importar <span id="d-psd-count"></span></button>
+    </div>
+  </div>
+</div>
+
+<!-- PSD Artboard Selector (PSD com múltiplas pranchetas) -->
+<div id="d-psd-ab-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:10000; align-items:center; justify-content:center;"></div>
+
+<!-- SVG Review Modal (import do Illustrator) -->
+<div id="d-svg-review-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:10000; align-items:center; justify-content:center;"></div>
+
+<div class="modal-overlay" id="d-folder-modal">
+  <div class="modal" style="width:460px;max-height:88vh;overflow-y:auto">
+    <div class="modal-title" id="df-modal-title">Nova Pasta</div>
+    <!-- Capa -->
+    <div class="modal-field">
+      <div class="df-cover-drop" id="df-cover-drop" onclick="document.getElementById('df-cover-input').click()">
+        <div class="df-cover-thumb" id="df-cover-thumb"></div>
+        <div class="df-cover-info">
+          <div class="df-cover-title">Miniatura da pasta</div>
+          <div class="df-cover-sub">Adicione uma capa para a pasta.</div>
+          <div class="df-cover-hint">Tamanho ideal: 750 × 400 px</div>
+          <button type="button" class="df-cover-remove" id="df-cover-remove" style="display:none" onclick="event.stopPropagation();dFolderClearCover()">Remover capa</button>
+        </div>
+        <input type="file" id="df-cover-input" accept="image/*" style="display:none" onchange="dFolderCoverUpload(this)">
+      </div>
+    </div>
+    <!-- Título -->
+    <div class="modal-field">
+      <label class="modal-label">Título</label>
+      <input class="modal-input" id="df-name" placeholder="ex: Hamburguer Fest">
+    </div>
+    <!-- Cor (fallback quando não há capa) -->
+    <div class="modal-field">
+      <label class="modal-label">Cor da pasta (usada quando não há capa)</label>
+      <input type="color" class="modal-input" id="df-color" value="#FF9000" style="padding:3px 6px;height:36px;cursor:pointer">
+    </div>
+    <!-- Vincular campanha -->
+    <div class="modal-field">
+      <label class="modal-label">Vincular a uma campanha</label>
+      <select class="modal-select" id="df-campaign"></select>
+      <span style="font-size:10px;color:var(--d-text3);margin-top:2px">Mantém os materiais organizados na campanha da qual fazem parte (e leva a capa para o catálogo do franqueado).</span>
+    </div>
+    <!-- Configurações avançadas -->
+    <div class="df-adv">
+      <button type="button" class="df-adv-toggle" id="df-adv-toggle" onclick="dFolderToggleAdv()">
+        <span class="df-adv-chevron">▸</span> Configurações avançadas
+      </button>
+      <div class="df-adv-body" id="df-adv-body" style="display:none">
+        <div class="modal-field">
+          <label class="modal-label">Segmentar por grupos</label>
+          <span style="font-size:10px;color:var(--d-text3)">Limite o acesso desta pasta a grupos de usuários.</span>
+          <div class="df-groups" id="df-groups"></div>
+        </div>
+        <div class="modal-field">
+          <label class="modal-label" style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" id="df-schedule-toggle" onchange="dFolderToggleSchedule()"> Agendar disponibilização
+          </label>
+          <input class="modal-input" type="date" id="df-schedule-date" style="display:none">
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="d-btn-sec" onclick="dCloseFolderModal()">Cancelar</button>
+      <button class="d-btn-pri" id="df-save-btn" onclick="dConfirmFolder()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="d-tmpl-modal">
+  <div class="modal">
+    <div class="modal-title">Novo Template</div>
+    <div class="modal-field">
+      <label class="modal-label">Nome do template</label>
+      <input class="modal-input" id="dt-name" placeholder="ex: Story Principal">
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Pasta (campanha)</label>
+      <select class="modal-select" id="dt-folder"></select>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Formato</label>
+      <select class="modal-select" id="dt-fmt">
+        <option value="story">Story (1080×1920) · 9:16</option>
+        <option value="feed">Feed (1080×1080) · 1:1</option>
+        <option value="wide">Wide (1200×628) · 12:6.28</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="d-btn-sec" onclick="document.getElementById('d-tmpl-modal').classList.remove('open')">Cancelar</button>
+      <button class="d-btn-pri" onclick="dConfirmTemplate()">Criar template</button>
+    </div>
+  </div>
+</div>
+
+<div id="g-toast"></div>
+
+
+
+<!-- ══ VIEW DADOS (Módulo 3 — analytics) ══ -->
+<div id="view-dados">
+  <nav id="p-sidenav" aria-label="Navegação do módulo Dados">
+    <div id="p-nav-list"><!-- botões gerados por pBuildNav() a partir de P_SECOES --></div>
+    <button class="p-nav-btn p-theme-toggle" id="p-theme-btn" onclick="pToggleTheme()" aria-label="Alternar tema claro/escuro" title="Alternar tema">
+      <span class="p-nav-ico" id="p-theme-ico">🌙</span><span class="p-nav-label" id="p-theme-lbl">Tema escuro</span>
+    </button>
+  </nav>
+  <main id="p-main" aria-live="polite"></main>
+</div>
+
+<script src="js/dados/state.js"></script>
+<script src="js/dados/overview.js"></script>
+<script src="js/dados/templates.js"></script>
+<script src="js/dados/heatmap.js"></script>
+<script src="js/dados/franqueados.js"></script>
+<script src="js/dados/timeline.js"></script>
+<script src="js/dados/comparador.js"></script>
+<script src="js/dados/funil.js"></script>
+<script src="js/dados/geo.js"></script>
+<script src="js/dados/index.js"></script>
+
+<script src="js/00-config.js"></script>
+<script src="js/01-state.js"></script>
+<script src="js/core/toast.js"></script>
+<script src="js/core/layout.js"></script>
+<script src="js/core/help.js"></script>
+<script src="js/tutorial/catalog.js"></script>
+<script src="js/tutorial/mocks.js"></script>
+<script src="js/tutorial/mocks-studio.js"></script>
+<script src="js/tutorial/catalog-studio.js"></script>
+<script src="js/tutorial/engine.js"></script>
+<script src="js/franqueado/history.js"></script>
+<script src="js/franqueado/catalog.js"></script>
+<script src="js/franqueado/materials.js"></script>
+<script src="js/franqueado/chat.js"></script>
+<script src="js/franqueado/live-preview.js"></script>
+<script src="js/franqueado/chat-input.js"></script>
+<script src="js/franqueado/png-generator.js"></script>
+<script src="js/designer/templates.js"></script>
+<script src="js/designer/canvas.js"></script>
+<script src="js/designer/brush.js"></script>
+<script src="js/designer/layers.js"></script>
+<script src="js/designer/publish.js"></script>
+<script src="js/designer/preview.js"></script>
+<script src="js/designer/library.js"></script>
+<script src="js/designer/undo-redo.js"></script>
+<script src="js/designer/tools.js"></script>
+<script src="js/designer/fonts.js"></script>
+<script src="js/designer/psd-import.js"></script>
+<script src="js/designer/mask.js"></script>
+<script src="js/designer/tutorial-panel.js"></script>
+<script src="js/main.js"></script>
+
+
+
+
+
+<!-- ══ CHEATSHEET MODAL ══ -->
+<div id="d-cheat-modal" onclick="if(event.target===this)dCloseCheat()">
+  <div class="cheat-box">
+    <div class="cheat-head">
+      <h3>ATALHOS DE TECLADO</h3>
+      <button class="pv-close-btn" onclick="dCloseCheat()">×</button>
+    </div>
+    <div class="cheat-body">
+      <div class="cheat-section">
+        <h4>Ferramentas</h4>
+        <div class="cheat-row"><span>Mover</span><span class="cheat-key">V</span></div>
+        <div class="cheat-row"><span>Texto</span><span class="cheat-key">T</span></div>
+        <div class="cheat-row"><span>Retângulo</span><span class="cheat-key">R</span></div>
+        <div class="cheat-row"><span>Moldura de foto</span><span class="cheat-key">F</span></div>
+        <div class="cheat-row"><span>Imagem URL</span><span class="cheat-key">M</span></div>
+        <div class="cheat-row"><span>Pincel</span><span class="cheat-key">B</span></div>
+        <div class="cheat-row"><span>Borracha</span><span class="cheat-key">E</span></div>
+        <div class="cheat-row"><span>Carimbo / clonar</span><span class="cheat-key">S</span></div>
+      </div>
+      <div class="cheat-section">
+        <h4>Histórico</h4>
+        <div class="cheat-row"><span>Desfazer</span><span class="cheat-key">Ctrl + Z</span></div>
+        <div class="cheat-row"><span>Refazer</span><span class="cheat-key">Ctrl + Shift + Z</span></div>
+        <h4 style="margin-top:14px">Layers</h4>
+        <div class="cheat-row"><span>Duplicar</span><span class="cheat-key">Ctrl + D</span></div>
+        <div class="cheat-row"><span>Deletar</span><span class="cheat-key">Del</span></div>
+        <div class="cheat-row"><span>Agrupar</span><span class="cheat-key">Ctrl + G</span></div>
+        <div class="cheat-row"><span>Desagrupar</span><span class="cheat-key">Ctrl + Shift + G</span></div>
+        <div class="cheat-row"><span>Multi-seleção</span><span class="cheat-key">Shift + clique</span></div>
+        <div class="cheat-row"><span>Renomear</span><span class="cheat-key">duplo clique na lista</span></div>
+      </div>
+      <div class="cheat-section">
+        <h4>Movimento</h4>
+        <div class="cheat-row"><span>Mover 1px</span><span class="cheat-key">setas</span></div>
+        <div class="cheat-row"><span>Mover 10px</span><span class="cheat-key">Shift + setas</span></div>
+        <div class="cheat-row"><span>Edição inline</span><span class="cheat-key">duplo clique no texto</span></div>
+        <div class="cheat-row"><span>Cancelar / fechar</span><span class="cheat-key">Esc</span></div>
+      </div>
+      <div class="cheat-section">
+        <h4>Zoom</h4>
+        <div class="cheat-row"><span>Fit to screen</span><span class="cheat-key">Ctrl + 0</span></div>
+        <div class="cheat-row"><span>Zoom 100%</span><span class="cheat-key">Ctrl + 1</span></div>
+        <div class="cheat-row"><span>Zoom no cursor</span><span class="cheat-key">Ctrl + scroll</span></div>
+        <h4 style="margin-top:14px">Geral</h4>
+        <div class="cheat-row"><span>Publicar</span><span class="cheat-key">Ctrl + S</span></div>
+        <div class="cheat-row"><span>Preview</span><span class="cheat-key">P</span></div>
+        <div class="cheat-row"><span>Mostrar atalhos</span><span class="cheat-key">?</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL SIMULAR DADOS ══ -->
+<div id="d-sim-modal">
+  <div class="sim-box">
+    <div class="sim-head">
+      <h3>SIMULAR DADOS REAIS</h3>
+      <button class="pv-close-btn" onclick="dCloseSimModal()">×</button>
+    </div>
+    <div class="sim-body" id="d-sim-body"></div>
+    <div class="sim-foot">
+      <button class="sim-btn secondary" onclick="dCloseSimModal()">Cancelar</button>
+      <button class="sim-btn secondary" onclick="dResetSim()">Limpar variáveis</button>
+      <button class="sim-btn primary" onclick="dApplySim()">Aplicar simulação</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ DRAWER DE RECURSOS (Biblioteca + Assets) ══ -->
+<div id="d-resources-backdrop" onclick="dToggleResources(false)"></div>
+<div id="d-resources-drawer" aria-label="Recursos: biblioteca e assets">
+  <div class="d-res-head">
+    <div class="d-res-tabs">
+      <button class="d-res-tab active" data-res="lib" onclick="dResourcesTab('lib')">Biblioteca</button>
+      <button class="d-res-tab" data-res="assets" onclick="dResourcesTab('assets')">Assets &amp; Blocos</button>
+    </div>
+    <button class="pv-close-btn" onclick="dToggleResources(false)" aria-label="Fechar recursos">×</button>
+  </div>
+  <div class="d-res-body">
+    <div id="d-res-slot-lib"></div>
+    <div id="d-res-slot-assets" style="display:none"></div>
+  </div>
+</div>
+
+<!-- ══ MODAL DE PUBLICAÇÃO DO DESIGNER ══ -->
+<!-- Preview flutuante da prancheta (aparece no hover dos cards) -->
+<div id="pub-ab-preview-popup">
+  <div class="pub-preview-inner" id="pub-preview-inner"></div>
+  <div class="pub-preview-footer" id="pub-preview-footer"></div>
+</div>
+
+<div id="d-publish-modal" onclick="if(event.target===this)dPublishClose()">
+  <div class="pub-box">
+    <div class="pub-head">
+      <div class="pub-head-title">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        <span>Publicar template</span>
+      </div>
+      <div class="pub-current-state" id="pub-current-state"></div>
+      <button class="pub-close" onclick="dPublishClose()" aria-label="Fechar">×</button>
+    </div>
+
+    <div class="pub-tabs">
+      <button class="pub-tab active" onclick="dPublishSwitchTab('artboards',this)">Pranchetas</button>
+      <button class="pub-tab" onclick="dPublishSwitchTab('pasta',this)">Pasta &amp; Nome</button>
+      <button class="pub-tab" onclick="dPublishSwitchTab('validade',this)">Validade</button>
+      <button class="pub-tab" onclick="dPublishSwitchTab('permissoes',this)">Permissões</button>
+      <button class="pub-tab" onclick="dPublishSwitchTab('instrucoes',this)">Instruções</button>
+    </div>
+
+    <div class="pub-body">
+      <!-- ABA 0: Seleção de pranchetas -->
+      <div class="pub-panel active" id="pub-panel-artboards">
+        <div class="pub-ab-header">
+          <span class="pub-section-intro" style="margin:0">Selecione as pranchetas para publicar. Cada uma vira um material separado no catálogo do franqueado.</span>
+          <div class="pub-ab-sel-btns">
+            <button class="pub-ab-sel-btn" onclick="dPubSelectAllAB(true)">Todas</button>
+            <button class="pub-ab-sel-btn" onclick="dPubSelectAllAB(false)">Nenhuma</button>
+          </div>
+        </div>
+        <div id="pub-ab-grid" class="pub-ab-grid"></div>
+      </div>
+
+      <!-- ABA 1: Pasta + destino -->
+      <div class="pub-panel" id="pub-panel-pasta">
+        <div class="pub-field">
+          <label>Em qual campanha publicar?</label>
+          <select id="pub-folder" class="pub-input"></select>
+          <div class="pub-help">A pasta da campanha onde os materiais vão aparecer pros franqueados.</div>
+        </div>
+        <div class="pub-field">
+          <label>Formato</label>
+          <div class="pub-fmt-pill" id="pub-fmt-display">—</div>
+          <div class="pub-help">Definido pelo tamanho de cada prancheta.</div>
+        </div>
+      </div>
+
+      <!-- ABA 2: Validade -->
+      <div class="pub-panel" id="pub-panel-validade">
+        <div class="pub-field">
+          <label>Até quando este material pode ser usado?</label>
+          <input type="date" id="pub-validade" class="pub-input">
+          <div class="pub-help">Depois desta data, o material some do catálogo do franqueado. Material expirado ainda aparece no histórico de quem já usou.</div>
+        </div>
+      </div>
+
+      <!-- ABA 3: Permissões e limites -->
+      <div class="pub-panel" id="pub-panel-permissoes">
+        <div class="pub-section-intro">Para cada variável <code>{{nome}}</code> do template, defina se o franqueado pode editar e qual o limite de caracteres.</div>
+        <div id="pub-perm-list"></div>
+      </div>
+
+      <!-- ABA 4: Instruções -->
+      <div class="pub-panel" id="pub-panel-instrucoes">
+        <div class="pub-field">
+          <label>Instruções de uso para o franqueado</label>
+          <textarea id="pub-instrucoes" class="pub-input pub-textarea" rows="6" placeholder="Ex: Use este template para promoções de fim de semana. Sempre mencione o preço de e por. Não usar emojis no produto."></textarea>
+          <div class="pub-help">Aparece pro franqueado quando ele seleciona este material no catálogo. Use pra orientar tom de voz, regras de uso, exemplos.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pub-foot">
+      <button class="pub-btn pub-btn-cancel" onclick="dPublishClose()">Cancelar</button>
+      <button class="pub-btn pub-btn-confirm" onclick="dPublishConfirm()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        Publicar agora
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PREVIEW MODAL DESIGNER ══ -->
+<div id="d-preview-overlay" onclick="dPreviewClose(event)">
+  <div id="d-preview-modal">
+
+    <!-- header -->
+    <div id="d-preview-header">
+      <h3 id="d-pv-title">PREVIEW</h3>
+      <div class="pv-fmt-tabs" id="pv-fmt-tabs">
+        <button class="pv-fmt-tab active" data-fmt="story" onclick="dPreviewSetFmt('story',this)">Story</button>
+        <button class="pv-fmt-tab" data-fmt="feed" onclick="dPreviewSetFmt('feed',this)">Feed</button>
+        <button class="pv-fmt-tab" data-fmt="wide" onclick="dPreviewSetFmt('wide',this)">Wide</button>
+      </div>
+      <div class="pv-device-wrap">
+        <button class="pv-device-btn active" id="pvdev-none" title="Sem moldura" onclick="dPreviewSetDevice('none',this)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+        </button>
+        <button class="pv-device-btn" id="pvdev-phone" title="Celular" onclick="dPreviewSetDevice('phone',this)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><circle cx="12" cy="18" r="1"/></svg>
+        </button>
+        <button class="pv-device-btn" id="pvdev-desktop" title="Feed desktop" onclick="dPreviewSetDevice('desktop',this)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        </button>
+      </div>
+      <button class="pv-close-btn" onclick="dPreviewClose()">×</button>
+    </div>
+
+    <!-- body -->
+    <div id="d-preview-body">
+
+      <!-- stage -->
+      <div id="d-preview-stage" class="pv-device-none">
+        <div id="pv-device-shell"></div>
+        <div id="pv-canvas-wrap">
+          <canvas id="pv-canvas-el"></canvas>
+        </div>
+      </div>
+
+      <!-- sidebar -->
+      <div id="d-preview-sidebar">
+        <div class="pv-sidebar-section">
+          <div class="pv-sidebar-title">Informações</div>
+          <div class="pv-info-row"><span class="pv-info-label">Formato</span><span class="pv-info-val" id="pv-info-fmt">—</span></div>
+          <div class="pv-info-row"><span class="pv-info-label">Dimensão</span><span class="pv-info-val" id="pv-info-dim">—</span></div>
+          <div class="pv-info-row"><span class="pv-info-label">Layers</span><span class="pv-info-val" id="pv-info-layers">—</span></div>
+          <div class="pv-info-row"><span class="pv-info-label">Variáveis</span><span class="pv-info-val" id="pv-info-vars">—</span></div>
+          <div class="pv-info-row"><span class="pv-info-label">Molduras</span><span class="pv-info-val" id="pv-info-frames">—</span></div>
+        </div>
+        <div class="pv-sidebar-section">
+          <div class="pv-sidebar-title">Layers</div>
+          <div id="pv-layers-list"></div>
+        </div>
+        <div class="pv-sidebar-section">
+          <div class="pv-sidebar-title">Checklist</div>
+          <div id="pv-checklist"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- footer -->
+    <div id="d-preview-footer">
+      <label style="font-size:11px;color:var(--d-text2);display:flex;align-items:center;gap:5px">Escala
+        <select id="pv-scale" class="prop-input" style="width:52px" onchange="dPreviewSetScale(this.value)">
+          <option value="1">1×</option><option value="2" selected>2×</option><option value="3">3×</option>
+        </select>
+      </label>
+      <label style="font-size:11px;color:var(--d-text2);display:flex;align-items:center;gap:5px">Formato
+        <select id="pv-type" class="prop-input" style="width:62px" onchange="dPreviewSetType(this.value)">
+          <option value="image/png" selected>PNG</option><option value="image/jpeg">JPG</option>
+        </select>
+      </label>
+      <button class="pv-dl-btn primary" onclick="dPreviewDownload(this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Baixar
+      </button>
+      <button class="pv-dl-btn secondary" onclick="dPreviewDownloadAll()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Baixar todos os formatos
+      </button>
+      <button class="pv-dl-btn secondary" onclick="dExportSVGTemplate()" title="SVG editável com {{variáveis}} literais (Illustrator/Figma)">⬡ SVG template</button>
+      <button class="pv-dl-btn secondary" onclick="dExportSVGFilled()" title="SVG com os valores simulados preenchidos">⬡ SVG preenchido</button>
+      <span class="pv-render-note" id="pv-render-note">Renderizado em canvas</span>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

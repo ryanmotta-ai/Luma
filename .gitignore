@@ -1,0 +1,27 @@
+# Dependências (não usamos, mas por precaução)
+node_modules/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Editores
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
+# Variáveis de ambiente (nunca commitar)
+.env
+.env.local

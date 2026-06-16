@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -v \"^/Users/mucher/Downloads/Modulo Yungas$\")",
+      "Bash(python3)",
+      "Bash(/usr/bin/python3 --version)",
+      "Bash(/usr/bin/perl \"/Users/mucher/Downloads/Modulo Yungas/extract-js.pl\")",
+      "Bash(grep -c \"^<script>$\\\\|^</script>$\" \"/Users/mucher/Downloads/Modulo Yungas/index.html\")",
+      "PowerShell(node --check js/designer/layers.js)",
+      "PowerShell(if \\($?\\) { \"layers.js OK\" })",
+      "PowerShell(node --check js/designer/publish.js)",
+      "PowerShell(node --check js/designer/library.js)",
+      "PowerShell(if\\($?\\){\"publish.js OK\"})",
+      "PowerShell(if\\($?\\){\"library.js OK\"})",
+      "PowerShell(if\\($?\\){\"layers.js OK\"})",
+      "PowerShell(node --check js/designer/canvas.js)",
+      "PowerShell(if\\($?\\){\"canvas.js OK\"})",
+      "PowerShell(node --check \"js/franqueado/live-preview.js\")",
+      "PowerShell(if \\($?\\) { \"OK: live-preview.js sem erros de sintaxe\" })",
+      "PowerShell(node --check \"js/designer/canvas.js\")",
+      "PowerShell(if \\($?\\) { \"OK fase 2/3\" })"
+    ]
+  }
+}
