@@ -128,6 +128,16 @@ function gPackImgUrl(url){
   if(approxBytes <= G_IMG_KEEP_MAX) return {url:url, dropped:false};
   return {url:'__local__', dropped:true};
 }
+// Empacota uma MÁSCARA (dataURL alpha) para persistência. Máscaras são downscaladas no
+// import do PSD, mas máscaras pintadas à mão (mask.js) podem ser grandes. Diferente de
+// imgUrl: NÃO há placeholder '__local__' p/ máscara — se não couber, retorna url:null e o
+// caller remove o campo (camada volta sem máscara), em vez de gravar uma referência quebrada.
+const G_MASK_KEEP_MAX = 120 * 1024; // alpha PNG comprime bem; teto um pouco maior que imagem
+function gPackMask(url){
+  if(!url || typeof url!=='string' || !url.startsWith('data:')) return {url:url, dropped:false};
+  if(url.length * 0.75 <= G_MASK_KEEP_MAX) return {url:url, dropped:false};
+  return {url:null, dropped:true};
+}
 // Substitui {{nome}} por dados[nome]. onEmpty: 'remove' (default) → ''; 'keep' → mantém o token.
 // opts.defaults: mapa {nome:valor} usado quando o dado está vazio (3.3 — defaultValue da var).
 function gInterpolate(content, dados, opts){

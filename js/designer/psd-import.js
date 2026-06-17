@@ -147,6 +147,19 @@ function _dPsdClipMaskCanvas(node, base){
   for(let i=0;i<d.length;i+=4){ d[i]=0;d[i+1]=0;d[i+2]=0; } // mantém alpha (cobertura), zera rgb
   tctx.putImageData(id,0,0); return tmp;
 }
+// Downscale de um canvas (mantém proporção) → dataURL PNG. Usado p/ máscaras: elas são
+// esticadas pro box no render (maskSize 100% 100% / preserveAspectRatio none), então perder
+// resolução é seguro e evita máscaras gigantes furando a quota do localStorage.
+function _dPsdDownscaleMaskURL(canvas, max){
+  try{
+    const w=canvas.width, h=canvas.height, scale=Math.min(1, max/Math.max(w,h));
+    if(scale>=1) return canvas.toDataURL('image/png');
+    const tw=Math.max(1,Math.round(w*scale)), th=Math.max(1,Math.round(h*scale));
+    const c=document.createElement('canvas'); c.width=tw; c.height=th;
+    const cx=c.getContext('2d'); cx.imageSmoothingQuality='high'; cx.drawImage(canvas,0,0,tw,th);
+    return c.toDataURL('image/png');
+  }catch(e){ try{ return canvas.toDataURL('image/png'); }catch(_){ return null; } }
+}
 // Compõe máscara de camada + clipping (multiplica alphas) → dataURL alpha (ou null)
 function _dPsdComputeMask(node, base){
   try{
@@ -162,7 +175,7 @@ function _dPsdComputeMask(node, base){
       for(let i=3;i<ad.length;i+=4){ ad[i]=Math.round(ad[i]*cd[i]/255); ad[i-1]=0;ad[i-2]=0;ad[i-3]=0; }
       octx.putImageData(a,0,0);
     } else { octx.drawImage((lm||cm),0,0); }
-    return out.toDataURL('image/png');
+    return _dPsdDownscaleMaskURL(out, 700);
   }catch(e){ return null; }
 }
 // #1 — sugere variável pelo nome ({{x}}) ou heurística
@@ -254,6 +267,21 @@ function dPsdDetectFmt(w, h){
   return 'feed';                    // quadrado — 1:1
 }
 
+// Tenta mapear um nome de fonte do PSD para uma fonte já enviada (dCustomFonts).
+// Normaliza ambos (lowercase, só alfanum) e aceita correspondência exata ou por prefixo.
+// Retorna 'custom:Family' (formato do seletor de fonte) ou null se não encontrar.
+function _dPsdRemapFont(fontName){
+  if(!fontName||typeof dCustomFonts==='undefined'||!dCustomFonts.length) return null;
+  const norm=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+  const t=norm(fontName); if(!t) return null;
+  const exact=dCustomFonts.find(f=>norm(f.name)===t||norm(f.family)===t);
+  if(exact) return 'custom:'+exact.family;
+  // correspondência por prefixo (ex: "MontserratBold" bate "Montserrat")
+  const partial=dCustomFonts.find(f=>{ const fn=norm(f.name),ff=norm(f.family);
+    return t.startsWith(fn)||fn.startsWith(t)||t.startsWith(ff)||ff.startsWith(t); });
+  return partial?'custom:'+partial.family:null;
+}
+
 /* ── PSD → itens intermediários (modo escolhível na revisão) ── */
 let dPsdItems=[]; let dPsdMeta=null;
 // Callback opcional da revisão (fluxo multi-prancheta). Quando setado, dPsdConfirmImport
@@ -263,22 +291,28 @@ let _dPsdReviewOnConfirm=null;
 function dPsdParseItems(psd, res, ox, oy){
   ox=ox||0; oy=oy||0;
   const items=[]; let n=0; let prevLeaf=null;
-  (function walk(nodes){
+  // parentOp: opacidade acumulada dos grupos-pai (0–1); parentHidden: grupo-pai oculto.
+  (function walk(nodes, parentOp, parentHidden){
     (nodes||[]).forEach(node=>{
-      if(node.children && node.children.length){ walk(node.children); return; }
+      const nodeOp=node.opacity!=null?node.opacity:1;
+      const accOp=parentOp*nodeOp;
+      const accHidden=parentHidden||(node.hidden?true:false);
+      if(node.children && node.children.length){ walk(node.children, accOp, accHidden); return; }
       const x=Math.round((node.left||0)-ox), y=Math.round((node.top||0)-oy);
       const w=Math.max(1,Math.round((node.right||0)-(node.left||0)));
       const h=Math.max(1,Math.round((node.bottom||0)-(node.top||0)));
       const it={ n:++n, name:(node.name||('Camada '+n)).toString().slice(0,48),
-        x,y,w,h, visible:node.hidden?false:true, opacity:Math.round((node.opacity!=null?node.opacity:1)*100),
-        include:node.hidden?false:true, mask:_dPsdComputeMask(node, prevLeaf) }; // máscara + clipping
+        x,y,w,h, visible:!accHidden, opacity:Math.round(accOp*100),
+        include:!accHidden, mask:_dPsdComputeMask(node, prevLeaf) }; // máscara + clipping
       prevLeaf=node; // base p/ a próxima camada com clipping
       if(node.text && node.text.text!=null && String(node.text.text).trim()!==''){
         const t=node.text, st=_dPsdTextStyle(t), sv=_dPsdSuggestVar(node.name, t.text);
         it.kind='text';
         it.content=String(t.text).replace(/\r\n?/g,'\n');
-        it.font=/black|900|heavy/i.test(st.font&&st.font.name||'')?"'Roboto Black'":/bold|700/i.test(st.font&&st.font.name||'')?"'Roboto',bold":"'Roboto'";
         it.fontName=(st.font&&st.font.name)||'';
+        const _fRemap=_dPsdRemapFont(it.fontName);
+        it.font=_fRemap||(/black|900|heavy/i.test(it.fontName)?"'Roboto Black'":/bold|700/i.test(it.fontName)?"'Roboto',bold":"'Roboto'");
+        it.fontRemapped=!!_fRemap;
         it.fontSize=_dPsdFontSize(t,h,it.content,res);
         it.color=_dPsdHex(st.fillColor||st.color)||'#000000';
         it.textAlign=_dPsdAlign(t);
@@ -293,7 +327,7 @@ function dPsdParseItems(psd, res, ox, oy){
       } else { return; }
       items.push(it);
     });
-  })(psd.children);
+  })(psd.children, 1, false);
   return items;
 }
 
@@ -314,13 +348,34 @@ function dItemToLayer(it){
   return Object.assign(base,{type:'image',imgUrl:it.imgUrl,imgVar:'',objectFit:'cover',frameShape:'rect'});
 }
 
+// Heurística de z-order: retorna true se a lista de itens precisar ser invertida.
+// ag-psd devolve filhos topo-primeiro (como o painel do Photoshop), mas dLayers[0] é
+// o fundo visual em Luma. Logo: se o ÚLTIMO item da lista parece um fundo (nome ou área),
+// o array veio topo-primeiro e precisa ser invertido. Se o PRIMEIRO item parece fundo,
+// veio em ordem inversa e está correto.
+function _dPsdShouldInvert(items, w, h){
+  if(!items||items.length<2) return false;
+  const first=items[0], last=items[items.length-1];
+  const bgRe=/^(background|fundo|bg|base|backdrop|plano[\s\-]*de[\s\-]*fundo)$/i;
+  const canvasArea=Math.max(1,w*h);
+  const firstCov=(first.w*first.h)/canvasArea;
+  const lastCov=(last.w*last.h)/canvasArea;
+  const bgKinds=new Set(['shape','raster']);
+  const firstIsBg=bgRe.test((first.name||'').trim())||(firstCov>=0.7&&bgKinds.has(first.kind));
+  const lastIsBg =bgRe.test((last.name||'').trim()) ||(lastCov >=0.7&&bgKinds.has(last.kind));
+  if(lastIsBg &&!firstIsBg) return true;  // fundo no final → topo-primeiro → precisa inverter
+  if(firstIsBg&&!lastIsBg)  return false; // fundo no início → já está na ordem certa
+  return false; // sem sinal claro → mantém padrão (sem inversão)
+}
+
 /* ── tela de revisão ── */
 function dPsdOpenReview(){
   const modal=document.getElementById('d-psd-modal'); if(!modal) return;
   document.getElementById('d-psd-meta').textContent=(dPsdMeta.name||'PSD')+' · '+dPsdMeta.w+'×'+dPsdMeta.h+' · '+dPsdItems.length+' camadas'+(dPsdMeta.worker?' · worker':'');
   const fmt=Object.keys(DFMT_SIZES).find(k=>DFMT_SIZES[k].w===dPsdMeta.w&&DFMT_SIZES[k].h===dPsdMeta.h)||'orig';
   const sel=document.getElementById('d-psd-fmt'); if(sel) sel.value=fmt;
-  const inv=document.getElementById('d-psd-invert'); if(inv) inv.checked=false;
+  const inv=document.getElementById('d-psd-invert');
+  if(inv) inv.checked=_dPsdShouldInvert(dPsdItems, dPsdMeta.w, dPsdMeta.h);
   dPsdRenderRows();
   modal.classList.add('open');
 }
@@ -341,7 +396,12 @@ function dPsdRenderRows(){
     } else { modeSel=`<span class="psd-mode-fixed">Imagem</span>`; }
     const swatch=it.kind==='shape'?`<span class="psd-swatch" style="background:${it.fill}"></span>`:'';
     const varIn=`<input class="psd-var-input" value="${it.varName||''}" placeholder="nome_da_var" oninput="dPsdSetVar(${i},this.value)" style="display:${it.kind==='text'&&it.mode==='var'?'inline-block':'none'}">`;
-    const fontWarn=(it.kind==='text'&&it.fontName&&!/roboto/i.test(it.fontName))?`<span class="psd-fontwarn" title="Fonte '${it.fontName}' não disponível — usando Roboto. Envie a fonte na aba Assets.">⚠ ${it.fontName}</span>`:'';
+    let fontWarn='';
+    if(it.kind==='text'&&it.fontName&&!/roboto/i.test(it.fontName)){
+      const fn=_dPsdEsc(it.fontName);
+      if(it.fontRemapped) fontWarn=`<span class="psd-fontok" title="Fonte '${fn}' mapeada para fonte enviada">✓ ${fn}</span>`;
+      else fontWarn=`<span class="psd-fontwarn">⚠ ${fn} <label class="psd-font-upload-btn" title="Enviar '${fn}' agora">↑ enviar<input type="file" accept=".ttf,.otf,.woff,.woff2" style="display:none" onchange="dPsdUploadFont(${i},this)"></label></span>`;
+    }
     return `<div class="psd-row ${it.include?'':'psd-row-off'}">
       <input type="checkbox" ${it.include?'checked':''} onchange="dPsdSetInclude(${i},this.checked)">
       <span class="psd-row-ico">${swatch||ico[it.kind]||'▣'}</span>
@@ -353,6 +413,31 @@ function dPsdRenderRows(){
 function dPsdSetMode(i,v){ if(dPsdItems[i]){ dPsdItems[i].mode=v; dPsdRenderRows(); } }
 function dPsdSetVar(i,v){ if(dPsdItems[i]) dPsdItems[i].varName=v.trim().replace(/[^a-zA-Z0-9_]/g,''); }
 function dPsdSetInclude(i,on){ if(dPsdItems[i]){ dPsdItems[i].include=on; dPsdRenderRows(); } }
+// Upload de fonte direto da tela de revisão: registra no sistema de fontes e remapeia
+// automaticamente todas as camadas do PSD que usam o mesmo fontName.
+function dPsdUploadFont(layerIdx, input){
+  const file=input.files&&input.files[0]; input.value='';
+  if(!file) return;
+  if(!/\.(ttf|otf|woff2?|woff)$/i.test(file.name)){ gToast('⚠ Use .ttf, .otf, .woff ou .woff2','error'); return; }
+  if(file.size>3*1024*1024){ gToast('⚠ Fonte muito grande (máx 3MB). Prefira .woff2.','error'); return; }
+  const r=new FileReader();
+  r.onload=e=>{
+    const base=file.name.replace(/\.[^.]+$/,'');
+    const family=(typeof dFontUniqueFamily==='function')?dFontUniqueFamily(base):base;
+    const f={name:base,family,dataUrl:e.target.result,weight:400};
+    if(typeof dCustomFonts!=='undefined') dCustomFonts.push(f);
+    if(typeof dFontRegister==='function') dFontRegister(f);
+    if(typeof dFontsPersist==='function') dFontsPersist();
+    if(typeof dFontsRenderList==='function') dFontsRenderList();
+    if(typeof dPopFontSelects==='function') dPopFontSelects();
+    const mapped='custom:'+family;
+    const fname=(dPsdItems[layerIdx]||{}).fontName||'';
+    dPsdItems.forEach(it=>{ if(it.kind==='text'&&it.fontName===fname){ it.font=mapped; it.fontRemapped=true; } });
+    dPsdRenderRows();
+    gToast('✓ Fonte "'+base+'" enviada e aplicada às camadas');
+  };
+  r.readAsDataURL(file);
+}
 function dPsdUpdateCount(){ const c=document.getElementById('d-psd-count'); if(c) c.textContent='('+dPsdItems.filter(it=>it.include).length+')'; }
 function dPsdCancel(){
   const m=document.getElementById('d-psd-modal'); if(m)m.classList.remove('open');

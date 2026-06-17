@@ -955,7 +955,10 @@ body.theme-light #d-preview-stage{background:repeating-conic-gradient(#E8E8E8 0%
 .psd-mode{font-size:11px;padding:4px 6px;background:var(--d-surf2,#2A2A2A);color:var(--d-text);border:1px solid var(--d-border2);border-radius:5px;flex-shrink:0}
 .psd-mode-fixed{font-size:11px;color:var(--d-text3);flex-shrink:0;padding:0 6px}
 .psd-var-input{width:120px;font-size:11px;padding:4px 7px;background:var(--var-bg);border:1px solid rgba(124,110,255,.4);color:var(--var-color);border-radius:5px;font-family:monospace;flex-shrink:0}
-.psd-fontwarn{font-size:9px;font-weight:700;color:var(--dm-yellow);background:rgba(255,185,0,.12);padding:1px 6px;border-radius:8px;flex-shrink:0}
+.psd-fontwarn{font-size:9px;font-weight:700;color:var(--dm-yellow);background:rgba(255,185,0,.12);padding:1px 6px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;gap:4px}
+.psd-fontok{font-size:9px;font-weight:700;color:#5cb85c;background:rgba(92,184,92,.12);padding:1px 6px;border-radius:8px;flex-shrink:0}
+.psd-font-upload-btn{cursor:pointer;font-size:9px;font-weight:700;text-decoration:underline;opacity:.75;white-space:nowrap}
+.psd-font-upload-btn:hover{opacity:1}
 /* overlay de leitura */
 #d-psd-busy{position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center}
 .d-psd-busy-box{display:flex;align-items:center;gap:10px;background:var(--d-dark,#1A1A1A);color:var(--d-text,#F0F0F0);border:1px solid var(--d-border2);border-radius:10px;padding:14px 20px;font-size:13px;font-family:'Roboto',sans-serif;box-shadow:0 12px 32px rgba(0,0,0,.5)}

@@ -282,7 +282,10 @@ function dPersistArtboards(){
       // TODO(Fase 5): mover blobs grandes para IndexedDB/Storage.
       const packed=gPackImgUrl(l.imgUrl);
       if(packed.dropped)droppedImg=true;
-      return {...l,imgUrl:packed.url};
+      const out={...l,imgUrl:packed.url};
+      // Máscara (alpha) também conta pra quota — empacota; se não couber, sai sem máscara.
+      if(l.mask){ const pm=gPackMask(l.mask); if(pm.dropped){ delete out.mask; droppedImg=true; } else out.mask=pm.url; }
+      return out;
     })}));
     localStorage.setItem('yngs_artboards_v1',JSON.stringify(saveable));
     if(droppedImg&&typeof gWarnImagesNotPersisted==='function')gWarnImagesNotPersisted();
