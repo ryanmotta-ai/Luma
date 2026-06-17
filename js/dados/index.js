@@ -22,7 +22,11 @@ const P_THEME_KEY = 'luma.dados.tema';
 function pApplyTheme(){
   let t = 'dark';
   try { t = localStorage.getItem(P_THEME_KEY) || 'dark'; } catch(e){}
+  const body = document.body;
   const v = document.getElementById('view-dados');
+  
+  // Aplica classe no body para alcançar tooltips órfãos
+  if(body) body.classList.toggle('p-light-theme', t === 'light');
   if(v) v.classList.toggle('p-light', t === 'light');
   pSyncThemeBtn();
 }
@@ -30,6 +34,7 @@ function pToggleTheme(){
   const v = document.getElementById('view-dados');
   if(!v) return;
   const light = v.classList.toggle('p-light');
+  document.body.classList.toggle('p-light-theme', light);
   try { localStorage.setItem(P_THEME_KEY, light ? 'light' : 'dark'); } catch(e){}
   pSyncThemeBtn();
 }

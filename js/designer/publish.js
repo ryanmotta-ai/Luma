@@ -41,7 +41,17 @@ function dPublishOpen(){
   document.getElementById('d-publish-modal').classList.add('open');
 }
 function dPublishClose(){
-  document.getElementById('d-publish-modal').classList.remove('open');
+  const modal = document.getElementById('d-publish-modal');
+  if (modal) {
+    modal.classList.remove('open');
+    const box = modal.querySelector('.pub-box');
+    if (box && box._originalHTML) {
+      setTimeout(() => {
+        box.innerHTML = box._originalHTML;
+        delete box._originalHTML;
+      }, 300);
+    }
+  }
 }
 function dPublishSwitchTab(tab, btn){
   document.querySelectorAll('.pub-tab').forEach(t=>t.classList.remove('active'));
@@ -337,10 +347,32 @@ function dPublishConfirm(){
   dRenderFolders();
   if(!ok)return; // quota cheia: erro já exibido, mantém o modal aberto para o usuário ajustar
   dDirty=false; // publicar persistiu tudo
-  document.getElementById('d-save-indicator').innerHTML='<span style="color:rgba(34,197,94,.95);font-weight:600">✓ Publicado</span>';
-  if(!(gImgPersistWarned&&!hadImgWarn))
-    gToast('🚀 '+count+' prancheta'+(count!==1?'s':'')+' publicada'+(count!==1?'s':'')+' com sucesso!');
-  dPublishClose();
+  document.getElementById('d-save-indicator').innerHTML='<span style="color:rgba(34,197,94,.95);font-weight:600;display:inline-flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg>Publicado</span>';
+  
+  // Exibe a tela celebratória de sucesso com animação de checkmark em SVG
+  const box = document.querySelector('#d-publish-modal .pub-box');
+  if (box) {
+    box._originalHTML = box.innerHTML;
+    box.innerHTML = `
+      <div class="pub-success-state">
+        <div class="pub-success-icon-wrap">
+          <svg class="checkmark-svg" viewBox="0 0 52 52">
+            <circle class="checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
+            <path class="checkmark-check" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+          </svg>
+        </div>
+        <h3 style="font-size:18px;color:var(--d-text);font-weight:700;margin:0 0 8px;font-family:'Roboto',sans-serif;">Publicado com sucesso!</h3>
+        <p style="font-size:12.5px;color:var(--d-text2);margin:0 0 24px;line-height:1.5;font-family:'Roboto',sans-serif;">
+          ${count} prancheta${count !== 1 ? 's' : ''} publicada${count !== 1 ? 's' : ''} e disponível${count !== 1 ? 's' : ''} no Franqueado.
+        </p>
+        <button class="pub-btn pub-btn-confirm" onclick="dPublishClose()" style="padding: 8px 24px; font-size:12.5px;">Entendido</button>
+      </div>
+    `;
+  } else {
+    if(!(gImgPersistWarned&&!hadImgWarn))
+      gToast('🚀 '+count+' prancheta'+(count!==1?'s':'')+' publicada'+(count!==1?'s':'')+' com sucesso!');
+    dPublishClose();
+  }
 }
 /* ── M2.2 — Safety net: estado de gravação + proteção contra fecho acidental ── */
 let dDirty=false;
@@ -358,8 +390,8 @@ function dSetSaveState(state){
     html2='<span style="color:rgba(255,185,0,.7);font-size:10px">● não guardado</span>';
   }else{ // saved
     dDirty=false;
-    html='<span style="color:rgba(34,197,94,.9)">✓ Guardado</span>';
-    html2='<span style="color:rgba(34,197,94,.8);font-size:10px">✓ guardado</span>';
+    html='<span style="color:rgba(34,197,94,.9);display:inline-flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg>Guardado</span>';
+    html2='<span style="color:rgba(34,197,94,.8);font-size:10px;display:inline-flex;align-items:center;gap:3px"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg>guardado</span>';
   }
   if(ind)ind.innerHTML=html;
   if(s2)s2.innerHTML=html2;

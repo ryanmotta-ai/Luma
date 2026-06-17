@@ -23,6 +23,21 @@
   // Disponibiliza globalmente (chamável de qualquer módulo no futuro)
   window.spDismiss = spDismiss;
 
+  // Permite pular o carregamento com clique duplo no overlay ou ao apertar Esc
+  try {
+    window.addEventListener('DOMContentLoaded', function() {
+      var overlay = document.getElementById('sp-overlay');
+      if (overlay) {
+        overlay.addEventListener('dblclick', spDismiss);
+        overlay.style.cursor = 'pointer';
+        overlay.title = 'Clique duplo para pular';
+      }
+      document.addEventListener('keydown', function(ev) {
+        if (ev.key === 'Escape') spDismiss();
+      });
+    });
+  } catch (e) {}
+
   try {
     // 2.8s = fim da barra (1s de delay + 1.8s de preenchimento); a animação refinada
     // toca por completo antes da saída com fade+zoom.

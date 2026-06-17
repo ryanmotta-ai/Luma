@@ -48,7 +48,7 @@ function pRenderComparador(){
   }
 
   return head + `
-    <div class="p-chart-card p-cmp-chart" onmouseleave="pHideTip()">
+    <div class="p-chart-card p-cmp-chart" onmouseleave="pHideTip(); pCmpLeave()">
       <div class="p-cmp-chart-top">
         <div>
           <div class="p-chart-title">Artes por dia</div>
@@ -131,17 +131,46 @@ function pCmpLineSVG(serieCur, seriePrev){
     var sp = seriePrev[c] ? seriePrev[c] : null;
     var lbl = sc ? sc.label : (sp ? sp.label : ('dia ' + (c + 1)));
     var vc = sc ? sc.count : 0, vp = sp ? sp.count : 0;
-    var cx = X(c) - step / 2;
+    var cx = X(c);
+    var cyCur = Y(vc);
+    var cyPrev = Y(vp);
     var tip = `<span class='p-tt-date'>${pEsc(lbl)}</span><br>atual <b>${vc}</b> / anterior <b>${vp}</b>`;
-    caps += `<rect class="p-cmp-cap" x="${Math.max(0, cx).toFixed(1)}" y="${padT}" width="${step.toFixed(1)}" height="${innerH.toFixed(1)}" data-tip="${tip}" onmousemove="pChartTip(event)"></rect>`;
+    caps += `<rect class="p-cmp-cap" x="${Math.max(0, cx - step/2).toFixed(1)}" y="${padT}" width="${step.toFixed(1)}" height="${innerH.toFixed(1)}" data-tip="${tip}" onmousemove="pCmpHover(event, ${cx.toFixed(1)}, ${cyCur.toFixed(1)}, ${cyPrev.toFixed(1)})"></rect>`;
   }
+
+  var hoverElements = `
+    <line id="p-cmp-crosshair" x1="0" y1="${padT}" x2="0" y2="${(padT + innerH).toFixed(1)}"/>
+    <circle id="p-cmp-dot-cur" class="p-hover-dot-cmp cur" cx="0" cy="0" r="5"/>
+    <circle id="p-cmp-dot-prev" class="p-hover-dot-cmp prev" cx="0" cy="0" r="4.5"/>
+  `;
 
   return `<svg class="p-chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Artes por dia — período atual vs. anterior">
     ${grid}${yLabels}
     <path class="p-cmp-line prev" d="${linePrev}"/>
     <path class="p-cmp-line cur" d="${lineCur}"/>
-    ${dots}${xLabels}${caps}
+    ${dots}${xLabels}${hoverElements}${caps}
   </svg>`;
+}
+
+/* ── Handlers do Cursor Dinâmico (Hover) ── */
+function pCmpHover(ev, x, yCur, yPrev){
+  if(typeof pChartTip === 'function') pChartTip(ev);
+  var ch = document.getElementById('p-cmp-crosshair');
+  var dotCur = document.getElementById('p-cmp-dot-cur');
+  var dotPrev = document.getElementById('p-cmp-dot-prev');
+  
+  if(ch){ ch.setAttribute('x1', x); ch.setAttribute('x2', x); ch.classList.add('visible'); }
+  if(dotCur){ dotCur.setAttribute('cx', x); dotCur.setAttribute('cy', yCur); dotCur.classList.add('visible'); }
+  if(dotPrev){ dotPrev.setAttribute('cx', x); dotPrev.setAttribute('cy', yPrev); dotPrev.classList.add('visible'); }
+}
+
+function pCmpLeave(){
+  var ch = document.getElementById('p-cmp-crosshair');
+  var dotCur = document.getElementById('p-cmp-dot-cur');
+  var dotPrev = document.getElementById('p-cmp-dot-prev');
+  if(ch) ch.classList.remove('visible');
+  if(dotCur) dotCur.classList.remove('visible');
+  if(dotPrev) dotPrev.classList.remove('visible');
 }
 
 /* ── 4 cards de delta ── */

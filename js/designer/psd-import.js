@@ -55,13 +55,16 @@ function _dPsdFontSize(t,h,content,res){
   let fs=s.fontSize||s.size||0;
   if(fs && t.transform && t.transform.length>=4) fs*=Math.abs(t.transform[3]||1);
   const nLines=Math.max(1, String(content||'').split('\n').filter(x=>x.trim()).length);
-  const boxFs=h/(nLines*1.25); // estimativa pela caixa (independe de DPI)
+  // boxFs: quanto de altura cabe por linha; cap de 180px evita caixas muito altas gerarem fs gigante
+  const boxFs=Math.min(h/(nLines*1.25), 180);
   if(fs>=4 && fs<=4000){
     if(res>90 && fs < boxFs*0.55) fs=fs*(res/72);      // style em pontos + doc hi-res → escala
-    if(fs < boxFs*0.4 || fs > boxFs*2.5) fs=boxFs;       // ainda incoerente → usa a caixa
-    return Math.round(Math.max(6,fs));
+    if(fs < boxFs*0.4 || fs > boxFs*2.5) fs=boxFs;     // ainda incoerente → usa a caixa
+    return Math.round(Math.max(8,fs));
   }
-  return Math.round(Math.max(6,boxFs));
+  // Se a caixa é muito pequena (h < 12px) usa mínimo razoável
+  if(h < 12) return 12;
+  return Math.round(Math.max(8,boxFs));
 }
 // #2 — sombra + contorno a partir de layer.effects
 function _dPsdEffects(node){
@@ -299,15 +302,26 @@ function _dPsdDominantStyle(t){
 // Se os cantos forem transparentes e o centro opaco → é circular/elíptico.
 function _dPsdDetectShapeKind(canvas){
   try{
-    const w=canvas.width, h=canvas.height; if(w<8||h<8) return 'rect';
+    const w=canvas.width, h=canvas.height; if(w<8||h<8) return {kind:'rect',radius:0};
     const ctx=canvas.getContext('2d');
-    if(ctx.getImageData(Math.floor(w/2),Math.floor(h/2),1,1).data[3]<200) return 'rect';
-    const corners=[[1,1],[w-2,1],[1,h-2],[w-2,h-2]];
-    const nTransp=corners.filter(([x,y])=>ctx.getImageData(x,y,1,1).data[3]<80).length;
-    if(nTransp<3) return 'rect';
+    if(ctx.getImageData(Math.floor(w/2),Math.floor(h/2),1,1).data[3]<200) return {kind:'rect',radius:0};
+    const data=ctx.getImageData(0,0,w,h).data;
+    let d=0;
+    const limit=Math.min(w,h);
+    for(let i=0;i<limit;i++){
+      if(data[(i*w+i)*4+3]>=128){
+        d=i;
+        break;
+      }
+    }
     const ratio=w/h;
-    return (ratio>0.85&&ratio<1.18)?'circle':'ellipse';
-  }catch(e){ return 'rect'; }
+    if(d>=limit*0.12){
+      const kind=(ratio>0.85&&ratio<1.18)?'circle':'ellipse';
+      return {kind,radius:0};
+    }else{
+      return {kind:'rect',radius:Math.round(d*3.4)};
+    }
+  }catch(e){ return {kind:'rect',radius:0}; }
 }
 
 /* ── PSD → itens intermediários (modo escolhível na revisão) ── */
@@ -354,7 +368,14 @@ function dPsdParseItems(psd, res, ox, oy){
         if(node.canvas && node.canvas.width>0){ it.imgUrl=_dPsdRasterURL(node.canvas); } // p/ "imagem fiel"
       } else if(node.canvas && node.canvas.width>0 && node.canvas.height>0){
         const solid=_dPsdSolidColor(node.canvas);
-        if(solid){ it.kind='shape'; it.fill=solid; it.mode='shape'; it.shapeKind=_dPsdDetectShapeKind(node.canvas); }
+        if(solid){
+          const shapeInfo=_dPsdDetectShapeKind(node.canvas);
+          it.kind='shape';
+          it.fill=solid;
+          it.mode='shape';
+          it.shapeKind=shapeInfo.kind;
+          it.radius=shapeInfo.radius;
+        }
         else { it.kind='raster'; it.mode='raster'; it.imgUrl=_dPsdRasterURL(node.canvas); if(!it.imgUrl) return; }
       } else { return; }
       items.push(it);
@@ -377,7 +398,7 @@ function dItemToLayer(it){
     if(it.strokeW){ L.strokeW=it.strokeW; L.strokeColor=it.strokeColor; }
     return L;
   }
-  if(it.kind==='shape' && it.mode==='shape') return Object.assign(base,{type:'shape',fill:it.fill||'#FF9000',radius:0,shapeKind:it.shapeKind||'rect'});
+  if(it.kind==='shape' && it.mode==='shape') return Object.assign(base,{type:'shape',fill:it.fill||'#FF9000',radius:it.radius||0,shapeKind:it.shapeKind||'rect'});
   return Object.assign(base,{type:'image',imgUrl:it.imgUrl,imgVar:'',objectFit:'cover',frameShape:'rect'});
 }
 

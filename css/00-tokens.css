@@ -7,26 +7,59 @@
 
 /* ══ BRANDBOOK LUMA ══ (paleta: #FF9000 #FFB900 #F85400 #C81818 #FFFFFF) */
 :root {
-  --dm-orange:#FF9000; --dm-orange-d:#F85400; --dm-orange-l:#FFA533;
-  --dm-red:#C81818; --dm-yellow:#FFB900;
-  --dm-orange-bg:#FFF2E0; --dm-orange-tint:#FFE0BD;
-  --white:#FFFFFF; --off-white:#FAFAFA;
-  --gray-light:#F2F2F2; --gray-mid:#D4D4D4;
-  --text:#0A0A0A; --text-2:#3A3A3A; --text-3:#6B6B6B;
-  --r:10px; --r-sm:6px; --r-pill:999px;
-  --green:#22C55E;
+  --dm-orange: #FF9000;
+  --dm-orange-d: #F85400;
+  --dm-orange-l: #FFA533;
+  --dm-red: #C81818;
+  --dm-yellow: #FFB900;
+  --dm-orange-bg: #FFF2E0;
+  --dm-orange-tint: #FFE0BD;
+  --white: #FFFFFF;
+  --off-white: #FAFAFA;
+  --gray-light: #F2F2F2;
+  --gray-mid: #D4D4D4;
+  --text: #0A0A0A;
+  --text-2: #3A3A3A;
+  --text-3: #6B6B6B;
+  --r: 10px;
+  --r-sm: 6px;
+  --r-pill: 999px;
+  --green: #22C55E;
   /* designer dark */
-  --d-bg:#111111; --d-dark:#1A1A1A; --d-surf:#222222;
-  --d-surf2:#2A2A2A; --d-surf3:#333333;
-  --d-border:rgba(255,255,255,.08); --d-border2:rgba(255,255,255,.14);
-  --d-text:#F0F0F0; --d-text2:#A0A0A0; --d-text3:#666666;
-  --var-color:#7C6EFF; --var-bg:rgba(124,110,255,.12);
+  --d-bg: #111111;
+  --d-dark: #1A1A1A;
+  --d-surf: #222222;
+  --d-surf2: #2A2A2A;
+  --d-surf3: #333333;
+  --d-border: rgba(255, 255, 255, .08);
+  --d-border2: rgba(255, 255, 255, .14);
+  --d-text: #F0F0F0;
+  --d-text2: #A0A0A0;
+  --d-text3: #666666;
+  --var-color: #7C6EFF;
+  --var-bg: rgba(124, 110, 255, .12);
+
+  /* Premium Design System Tokens */
+  --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-fast: 0.15s var(--ease-smooth);
+  --transition-normal: 0.3s var(--ease-smooth);
+  --transition-slow: 0.5s var(--ease-smooth);
+
+  --gradient-orange: linear-gradient(135deg, var(--dm-orange-l) 0%, var(--dm-orange) 50%, var(--dm-orange-d) 100%);
+  --gradient-dark: linear-gradient(180deg, #1A1A1A 0%, #0D0D0D 100%);
+  --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
+  --gradient-glow: radial-gradient(circle at top left, rgba(255, 144, 0, 0.15), transparent 60%);
+
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.5);
+  --glass-blur: blur(16px);
+  --glass-shadow: 0 8px 32px 0 rgba(15, 23, 42, 0.08);
 }
 
 /* ══ LOGOS LUMA ══
    branca (Ativo 1) → fundos laranja/coloridos/escuros
    cor   (Ativo 2) → fundos claros/brancos */
-:root{
+:root {
   --logo-h-branca: url('../assets/logos/luma-h-branca.png');
   --logo-h-cor: url('../assets/logos/luma-h-cor.png');
   /* aliases mantidos por compatibilidade apontando para as novas logos */
@@ -38,19 +71,46 @@
 }
 
 /* Sistema de classes reutilizáveis */
-.dm-logo{
-  display:inline-block;
-  background-repeat:no-repeat;
-  background-position:center;
-  background-size:contain;
-  vertical-align:middle;
-  flex-shrink:0;
+.dm-logo {
+  display: inline-block;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  vertical-align: middle;
+  flex-shrink: 0;
 }
-.dm-logo--h-branca    { background-image:var(--logo-h-branca); aspect-ratio: 2163 / 706; }
-.dm-logo--h-cor       { background-image:var(--logo-h-cor); aspect-ratio: 2163 / 706; }
-.dm-logo--h-preta     { background-image:var(--logo-h-preta); aspect-ratio: 2163 / 706; }
-.dm-logo--h-laranja   { background-image:var(--logo-h-laranja); aspect-ratio: 2163 / 706; }
-.dm-logo--h-principal { background-image:var(--logo-h-principal); aspect-ratio: 2163 / 706; }
-.dm-logo--v-branca    { background-image:var(--logo-v-branca); aspect-ratio: 1 / 1; }
-.dm-logo--v-principal { background-image:var(--logo-v-principal); aspect-ratio: 1 / 1; }
 
+.dm-logo--h-branca {
+  background-image: var(--logo-h-branca);
+  aspect-ratio: 2163 / 706;
+}
+
+.dm-logo--h-cor {
+  background-image: var(--logo-h-cor);
+  aspect-ratio: 2163 / 706;
+}
+
+.dm-logo--h-preta {
+  background-image: var(--logo-h-preta);
+  aspect-ratio: 2163 / 706;
+}
+
+.dm-logo--h-laranja {
+  background-image: var(--logo-h-laranja);
+  aspect-ratio: 2163 / 706;
+}
+
+.dm-logo--h-principal {
+  background-image: var(--logo-h-principal);
+  aspect-ratio: 2163 / 706;
+}
+
+.dm-logo--v-branca {
+  background-image: var(--logo-v-branca);
+  aspect-ratio: 1 / 1;
+}
+
+.dm-logo--v-principal {
+  background-image: var(--logo-v-principal);
+  aspect-ratio: 1 / 1;
+}

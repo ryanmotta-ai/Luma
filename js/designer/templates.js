@@ -367,8 +367,8 @@ function dRenderFolders(){
     const coverStyle=cover
       ? `background-image:url('${cover}');background-size:cover;background-position:center`
       : `background:linear-gradient(135deg, ${f.color||'#FF9000'}, ${f.color||'#FF9000'}cc)`;
-    const sched=f.agendamento?`<span class="folder-card-sched" title="Agendada para ${gEsc(f.agendamento)}">📅</span>`:'';
-    const restrita=(f.grupos&&f.grupos.length&&!f.grupos.includes('Todos os usuários'))?`<span class="folder-card-lock" title="Restrita a: ${gEsc(f.grupos.join(', '))}">🔒</span>`:'';
+    const sched=f.agendamento?`<span class="folder-card-sched" title="Agendada para ${gEsc(f.agendamento)}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>`:'';
+    const restrita=(f.grupos&&f.grupos.length&&!f.grupos.includes('Todos os usuários'))?`<span class="folder-card-lock" title="Restrita a: ${gEsc(f.grupos.join(', '))}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>`:'';
     const card=`
       <div class="folder-card ${open?'open':''} ${f.id===dActiveTmplFolderId?'active':''}" id="fi-${f.id}">
         <div class="folder-card-cover" style="${coverStyle}" onclick="dToggleFolder('${f.id}')">
@@ -378,9 +378,9 @@ function dRenderFolders(){
           <button class="folder-card-menu" onclick="event.stopPropagation();dFolderMenu(event,'${f.id}')" aria-label="Opções da pasta">⋯</button>
         </div>
         <div class="folder-card-foot" onclick="dToggleFolder('${f.id}')">
-          <span class="folder-card-ico">📁</span>
+          <span class="folder-card-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><path d="M2 10h20"/></svg></span>
           <span class="folder-card-name" ondblclick="event.stopPropagation();dRenameFolder('${f.id}')" title="${gEsc(f.name)}">${gEsc(f.name)}</span>
-          <span class="folder-card-chev">${open?'▾':'▸'}</span>
+          <span class="folder-card-chev">${open?'<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:middle"><polygon points="3 5 21 5 12 19 3 5"/></svg>':'<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:middle"><polygon points="5 3 19 12 5 21 5 3"/></svg>'}</span>
         </div>
       </div>`;
     // Bloco de templates expandido (ocupa a linha inteira da grade)
@@ -424,18 +424,18 @@ function dTemplateMenuOpen(ev, folderId, tmplId){
   menu.className = 'tmpl-context-menu';
   menu.innerHTML = `
     <button class="tmpl-ctx-item" onclick="dQuickEditValidade('${folderId}','${tmplId}')">
-      <span class="tmpl-ctx-icon">📅</span>Editar validade
+      <span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>Editar validade
     </button>
     <button class="tmpl-ctx-item" onclick="dQuickEditPerms('${folderId}','${tmplId}')">
-      <span class="tmpl-ctx-icon">🔒</span>Editar permissões
+      <span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>Editar permissões
     </button>
     ${isPublished
-      ? `<button class="tmpl-ctx-item" onclick="dToggleTemplatePublish('${folderId}','${tmplId}',false)"><span class="tmpl-ctx-icon">🚫</span>Despublicar</button>`
-      : `<button class="tmpl-ctx-item" onclick="dToggleTemplatePublish('${folderId}','${tmplId}',true)"><span class="tmpl-ctx-icon">🚀</span>Publicar agora</button>`
+      ? `<button class="tmpl-ctx-item" onclick="dToggleTemplatePublish('${folderId}','${tmplId}',false)"><span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></span>Despublicar</button>`
+      : `<button class="tmpl-ctx-item" onclick="dToggleTemplatePublish('${folderId}','${tmplId}',true)"><span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M4.5 16.5c-1.5 1.25-2.5 3.5-2.5 3.5s2.25-1 3.5-2.5L18.5 4.5 19.5 5.5zm11-11l-3 3M9 12l-3 3"/></svg></span>Publicar agora</button>`
     }
     <div class="tmpl-ctx-sep"></div>
     <button class="tmpl-ctx-item tmpl-ctx-danger" onclick="dDeleteTemplate('${folderId}','${tmplId}')">
-      <span class="tmpl-ctx-icon">🗑</span>Excluir
+      <span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></span>Excluir
     </button>
   `;
   document.body.appendChild(menu);
@@ -709,10 +709,10 @@ function dFolderMenu(ev,id){
   const menu=document.createElement('div');
   menu.className='folder-ctx-menu tmpl-context-menu';
   menu.innerHTML=`
-    <button class="tmpl-ctx-item" onclick="dEditFolder('${id}')"><span class="tmpl-ctx-icon">✎</span>Editar pasta</button>
-    <button class="tmpl-ctx-item" onclick="dRenameFolder('${id}')"><span class="tmpl-ctx-icon">↻</span>Renomear</button>
+    <button class="tmpl-ctx-item" onclick="dEditFolder('${id}')"><span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></span>Editar pasta</button>
+    <button class="tmpl-ctx-item" onclick="dRenameFolder('${id}')"><span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></span>Renomear</button>
     <div class="tmpl-ctx-sep"></div>
-    <button class="tmpl-ctx-item tmpl-ctx-danger" onclick="dDeleteFolder('${id}')"><span class="tmpl-ctx-icon">🗑</span>Excluir pasta</button>`;
+    <button class="tmpl-ctx-item tmpl-ctx-danger" onclick="dDeleteFolder('${id}')"><span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></span>Excluir pasta</button>`;
   document.body.appendChild(menu);
   const rect=ev.target.getBoundingClientRect();
   menu.style.left=Math.min(rect.left,window.innerWidth-220)+'px';
@@ -1271,11 +1271,11 @@ function dSvgBuildReviewHTML(elements, meta){
   const rows=elements.map((el,i)=>{
     const modeOpts=dSvgModesForType(el.detectedType).map(m=>
       `<option value="${m.value}" ${el.mode===m.value?'selected':''}>${m.label}</option>`).join('');
-    const warning=el._warning?`<div class="svg-rev-warn">⚠ ${_dSvgEsc(el._warning)}</div>`:'';
+    const warning=el._warning?`<div class="svg-rev-warn" style="display:inline-flex;align-items:center;gap:4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>${_dSvgEsc(el._warning)}</div>`:'';
     const typeIcon={text:'T',shape:'□',image:'⊞','path-complex':'~'}[el.detectedType]||'?';
     const previewTxt=el.detectedType==='text'
       ? `<span class="svg-rev-preview-text">"${_dSvgEsc((el.content||'').substring(0,30))}"</span>` : '';
-    const groupTag=el.groupName?`<span class="svg-rev-group">← ${_dSvgEsc(el.groupName)}</span>`:'';
+    const groupTag=el.groupName?`<span class="svg-rev-group" style="display:inline-flex;align-items:center;gap:3px"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>${_dSvgEsc(el.groupName)}</span>`:'';
     return `
       <div class="svg-rev-row" id="svg-rev-row-${i}">
         <div class="svg-rev-type-badge">${typeIcon}</div>
@@ -1309,7 +1309,7 @@ function dSvgBuildReviewHTML(elements, meta){
       <div class="svg-rev-list">${rows}</div>
       <div class="svg-rev-footer">
         <button class="svg-rev-btn cancel" onclick="dSvgRevCancel()">Cancelar</button>
-        <button class="svg-rev-btn confirm" onclick="dSvgRevConfirm()">Criar template →</button>
+        <button class="svg-rev-btn confirm" onclick="dSvgRevConfirm()">Criar template <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-left:4px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
       </div>
     </div>`;
 }

@@ -97,6 +97,8 @@ function dZoom(delta){
 function dSetZoom(z, clientX, clientY){
   const wrapper=document.getElementById('d-canvas-wrapper');
   const container=document.getElementById('d-canvas-container');
+  const frame=document.getElementById('d-canvas-frame');
+  
   let ax=null, ay=null, fx=0.5, fy=0.5;
   if(wrapper){
     const wr=wrapper.getBoundingClientRect();
@@ -108,15 +110,31 @@ function dSetZoom(z, clientX, clientY){
       fy=cr.height?(ay-cr.top)/cr.height:0.5;
     }
   }
+  
   dZoomLevel=Math.min(400,Math.max(10,Math.round(z)));
   document.getElementById('d-zoom-val').textContent=dZoomLevel+'%';
-  dApplyFormat(true);
+
+  // Habilita transições suaves apenas durante a escala do zoom
+  if (container) container.style.transition = 'width 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94), height 0.2s, left 0.2s, top 0.2s';
+  if (frame) frame.style.transition = 'width 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94), height 0.2s, transform 0.2s';
+
+  dApplyFormat();
   if(typeof dRenderWorkspace==='function')dRenderWorkspace();
-  // Reposiciona o scroll para manter o mesmo ponto da prancheta sob a âncora
+
+  // Limpa as transições após a conclusão da animação para não causar atraso no drag de elementos
+  setTimeout(() => {
+    if (container) container.style.transition = 'none';
+    if (frame) frame.style.transition = 'none';
+  }, 220);
+
+  // Reposiciona o scroll suavemente para manter o mesmo ponto da prancheta sob a âncora
   if(wrapper&&container){
     const wr=wrapper.getBoundingClientRect();
-    wrapper.scrollLeft=Math.max(0, container.offsetLeft + fx*container.offsetWidth - (ax-wr.left));
-    wrapper.scrollTop =Math.max(0, container.offsetTop  + fy*container.offsetHeight - (ay-wr.top));
+    wrapper.scrollTo({
+      left: Math.max(0, container.offsetLeft + fx*container.offsetWidth - (ax-wr.left)),
+      top: Math.max(0, container.offsetTop  + fy*container.offsetHeight - (ay-wr.top)),
+      behavior: 'smooth'
+    });
   }
 }
 
@@ -173,6 +191,7 @@ function dABAddResizeHandles(){
 }
 
 let dABResizeState=null;
+let dABResizeTicking=false;
 
 function dABResizeStart(e,pos){
   const ab=dGetActiveAB();if(!ab)return;
@@ -180,11 +199,24 @@ function dABResizeStart(e,pos){
   dABResizeState={pos,ab,scale,
     startX:e.clientX,startY:e.clientY,
     origX:ab.x,origY:ab.y,origW:ab.w,origH:ab.h};
-  document.addEventListener('mousemove',dABResizeMove);
+  const container = document.getElementById('d-canvas-container');
+  if (container) container.classList.add('resizing-artboard');
+  document.addEventListener('mousemove',dABResizeMoveThrottled);
   document.addEventListener('mouseup',dABResizeUp);
 }
 
-function dABResizeMove(e){
+function dABResizeMoveThrottled(e){
+  if(!dABResizeState)return;
+  if(!dABResizeTicking){
+    window.requestAnimationFrame(()=>{
+      dUpdateABResizeLayout(e);
+      dABResizeTicking=false;
+    });
+    dABResizeTicking=true;
+  }
+}
+
+function dUpdateABResizeLayout(e){
   if(!dABResizeState)return;
   const {pos,ab,scale,startX,startY,origX,origY,origW,origH}=dABResizeState;
   const dx=Math.round((e.clientX-startX)/scale);
@@ -205,12 +237,26 @@ function dABResizeMove(e){
     container.style.left=ab.x*scale+'px';
     container.style.top=ab.y*scale+'px';
   }
+  // Atualiza as dimensões de fundo (Shape de Fundo) dinamicamente para evitar fundo preto exposto
+  const bgLyr=dLayers.find(l=>l.type==='shape'&&l.x===0&&l.y===0&&l.name==='Fundo');
+  if(bgLyr){
+    bgLyr.w=ab.w;
+    bgLyr.h=ab.h;
+    const bgDom=document.querySelector(`.canvas-layer[data-id="${bgLyr.id}"]`);
+    if(bgDom){
+      bgDom.style.width=ab.w+'px';
+      bgDom.style.height=ab.h+'px';
+    }
+  }
+  if(typeof dRenderRulers==='function') dRenderRulers();
   document.getElementById('d-dim-label').textContent=ab.w+' × '+ab.h+'  '+Math.round(dZoomLevel)+'%';
 }
 
 function dABResizeUp(){
-  document.removeEventListener('mousemove',dABResizeMove);
+  document.removeEventListener('mousemove',dABResizeMoveThrottled);
   document.removeEventListener('mouseup',dABResizeUp);
+  const container = document.getElementById('d-canvas-container');
+  if (container) container.classList.remove('resizing-artboard');
   if(!dABResizeState)return;
   const {ab}=dABResizeState;dABResizeState=null;
   // Ajusta layer de fundo para cobrir o novo tamanho
@@ -545,7 +591,7 @@ function dRenderCanvas(){
     if(typeof gApplyRules==='function')eff=gApplyRules(eff,dSimValues,{defaults:_simDefs});
     return eff;
   });
-  _renderLayers.filter(l=>l.visible).forEach(l=>{
+  _renderLayers.filter(l=>l.visible && l.type !== 'group').forEach(l=>{
     const el=document.createElement('div');
     el.className='canvas-layer'+(l.id===dSelId?' selected':'')+(l.locked?' layer-locked':'')+(dMultiSel.includes(l.id)?' multi-sel':'');
     el.dataset.id=l.id;
@@ -598,7 +644,7 @@ function dRenderCanvas(){
         el.appendChild(lbl);
       }
       const textNode=document.createElement('div');
-      textNode.style.cssText='width:100%;height:100%;display:flex;align-items:center;overflow:hidden;';
+      textNode.style.cssText='width:100%;height:100%;display:flex;align-items:center;overflow:visible;';
       // sim: valor do usuário vai como texto puro (sem HTML → sem XSS); edição: escapa o
       // conteúdo do designer e só os tokens {{var}} viram badge.
       if(dSimActive){ textNode.textContent=dInterpolate(l.content||''); }
@@ -713,7 +759,15 @@ function dRenderCanvas(){
         // pro mouseup — só acontece se o usuário NÃO arrastar (dStopDrag em layers.js).
         const _inMulti = dMultiSel.length>0 && dMultiSel.includes(l.id);
         if(dMultiSel.length && !_inMulti) dClearMultiSel();
-        dSelLayer(l.id);
+        
+        let shouldSelect = true;
+        if (dSelId && dSelId.startsWith('g-') && l.parentId === dSelId) {
+          shouldSelect = false;
+        }
+        if (shouldSelect) {
+          dSelLayer(l.id);
+        }
+        
         if(!l.locked){
           dPendingIsolate = (_inMulti && dMultiSel.length>1) ? l.id : null;
           dStartDrag(e,l);
@@ -739,6 +793,55 @@ function dRenderCanvas(){
   dAttachMarquee(); // garante o listener de marquee no frame (guarda interna evita duplicar)
 }
 
+/* ── EDIÇÃO INLINE DE TEXTO (dblclick na camada) ── */
+function dStartInlineEdit(l, el) {
+  if(!l || l.type !== 'text') return;
+  if(el.dataset.editing === '1') return;
+  el.dataset.editing = '1';
+
+  const prev = l.content || '';
+  const ta = document.createElement('textarea');
+  ta.value = prev;
+  // A textarea espelha o visual da camada para o usuário saber o que está editando
+  ta.style.cssText = [
+    'position:absolute;inset:0;z-index:200;',
+    'box-sizing:border-box;width:100%;height:100%;min-height:24px;',
+    'background:rgba(10,10,20,.82);',
+    'border:2px solid var(--dm-orange);border-radius:3px;outline:none;',
+    'resize:none;padding:2px 4px;margin:0;',
+    'color:' + (l.color || '#fff') + ';',
+    'font-family:' + el.style.fontFamily + ';',
+    'font-weight:' + el.style.fontWeight + ';',
+    'font-size:' + el.style.fontSize + ';',
+    'line-height:1.2;text-align:' + (l.textAlign || 'left') + ';',
+    'white-space:pre-wrap;overflow:hidden;',
+  ].join('');
+
+  el.appendChild(ta);
+  ta.focus();
+  ta.setSelectionRange(0, ta.value.length);
+
+  function commit() {
+    const val = ta.value;
+    if(ta.parentNode === el) el.removeChild(ta);
+    delete el.dataset.editing;
+    if(val !== prev) {
+      l.content = val;
+      if(typeof dSyncVarsFromContent === 'function') dSyncVarsFromContent(val);
+      dMarkUnsaved();
+    }
+    dRenderCanvas();
+  }
+
+  ta.addEventListener('blur', commit, { once: true });
+  ta.addEventListener('keydown', function(e) {
+    // Shift+Enter = quebra de linha; Enter sozinho = confirmar
+    if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ta.blur(); }
+    else if(e.key === 'Escape') { ta.value = prev; ta.blur(); }
+    e.stopPropagation(); // impede atalhos do canvas durante a edição
+  });
+}
+
 /* ── PAINT CANVAS (pincel/borracha) ── */
 let dPainting=false,dPaintLast={x:0,y:0};
 
@@ -748,6 +851,10 @@ function dUpdateCtxBar(){
   if(!bar)return;
   const l = dLayers.find(x=>x.id===dSelId);
   if(!l){bar.innerHTML='<span style="font-size:11px;color:var(--d-text3)">Nenhum layer selecionado — clique no canvas para criar</span>';return;}
+  if (l.type === 'group') {
+    bar.innerHTML = `<span style="font-size:11px;color:var(--d-text3)">Grupo selecionado: <strong>${gEsc(l.name)}</strong></span>`;
+    return;
+  }
   const f = DFMT_SIZES[dFmt]||DFMT_SIZES.story;
 
   let html = '';

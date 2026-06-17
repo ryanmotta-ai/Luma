@@ -7,7 +7,28 @@
  * Depende de: designer/canvas.js
  */
 
-function dSelLayer(id){dSelId=id;dRenderCanvas();dRenderLayersList();const l=dLayers.find(x=>x.id===id);if(l){try{dShowProps(l);}catch(err){console.warn('[dSelLayer] erro em dShowProps — seleção preservada:',err);}dUpdateCtxBar();}}
+function dSelLayer(id){
+  dSelId=id;
+  const l=dLayers.find(x=>x.id===id);
+  if(l){
+    if (l.type !== 'group') {
+      dMultiSel = [];
+    } else if (l.type === 'group') {
+      const children = dLayers.filter(x => x.parentId === l.id);
+      dMultiSel = children.map(x => x.id);
+    }
+  }
+  dRenderCanvas();
+  dRenderLayersList();
+  if(l){
+    try{
+      dShowProps(l);
+    }catch(err){
+      console.warn('[dSelLayer] erro em dShowProps — seleção preservada:',err);
+    }
+    dUpdateCtxBar();
+  }
+}
 
 // M2.1 — espelha hover entre a lista de layers e o elemento no canvas (e vice-versa)
 function dHoverLayer(id,on){
@@ -43,8 +64,9 @@ function dStartDrag(e,l){
   // Salvar posição inicial dos siblings do grupo
   dDragGroup=dGetGroupSiblings(l).filter(x=>x.id!==l.id);
   dDragGroupStart=dDragGroup.map(s=>({id:s.id,x:s.x,y:s.y}));
-  // Salvar posição inicial dos multi-sel
-  dDragMulti=dMultiSel.filter(id=>id!==l.id).map(id=>{const sl=dLayers.find(x=>x.id===id);return sl?{id,x:sl.x,y:sl.y,layer:sl}:null;}).filter(Boolean);
+  // Salvar posição inicial dos multi-sel (evitando duplicar os que já estão no grupo)
+  const siblingIds = dDragGroup.map(x => x.id);
+  dDragMulti=dMultiSel.filter(id=>id!==l.id && !siblingIds.includes(id)).map(id=>{const sl=dLayers.find(x=>x.id===id);return sl?{id,x:sl.x,y:sl.y,layer:sl}:null;}).filter(Boolean);
   // Cachear referências DOM de todos os layers envolvidos — evita querySelector no hot path
   dDragEls = {};
   const involved = [l.id, ...dDragGroupStart.map(s=>s.id), ...dDragMulti.map(s=>s.id)];
@@ -103,22 +125,113 @@ function dStopDrag(){
 /* ── RESIZE ── */
 // Elemento DOM cacheado para o resize atual
 let dResizeEl = null;
+let dResizePos = null;
+let dResizeLyrX = 0;
+let dResizeLyrY = 0;
 
 function dStartResize(e,l,pos){
-  e.preventDefault();dResize=l;dResizeSX=e.clientX;dResizeSY=e.clientY;dResizeW=l.w;dResizeH=l.h;
+  e.preventDefault();
+  dResize=l;
+  dResizeSX=e.clientX;
+  dResizeSY=e.clientY;
+  dResizeW=l.w;
+  dResizeH=l.h;
+  dResizePos=pos;
+  dResizeLyrX=l.x;
+  dResizeLyrY=l.y;
   dResizeEl = document.querySelector(`[data-id="${l.id}"]`);
-  document.addEventListener('mousemove',dOnResize);document.addEventListener('mouseup',dStopResize);
+  document.addEventListener('mousemove',dOnResize);
+  document.addEventListener('mouseup',dStopResize);
 }
 function dOnResize(e){
   if(!dResize)return;
   const scale=dZoomLevel/100;
   const dx=(e.clientX-dResizeSX)/scale,dy=(e.clientY-dResizeSY)/scale;
-  dResize.w=Math.max(20,Math.round(dResizeW+dx));
-  dResize.h=Math.max(10,Math.round(dResizeH+dy));
-  if(dResizeEl){dResizeEl.style.width=dResize.w+'px';dResizeEl.style.height=dResize.h+'px';}
+
+  let factor_x = 1;
+  let factor_y = 1;
+  if (dResizePos === 'tl') {
+    factor_x = -1;
+    factor_y = -1;
+  } else if (dResizePos === 'tr') {
+    factor_x = 1;
+    factor_y = -1;
+  } else if (dResizePos === 'bl') {
+    factor_x = -1;
+    factor_y = 1;
+  } else if (dResizePos === 'br') {
+    factor_x = 1;
+    factor_y = 1;
+  }
+
+  const isShift = e.shiftKey;
+  const isAlt = e.altKey;
+  const altMultiplier = isAlt ? 2 : 1;
+
+  let w, h;
+  if (isShift) {
+    const distSq = dResizeW * dResizeW + dResizeH * dResizeH;
+    let s = 1;
+    if (distSq > 0) {
+      const proj = (dx * factor_x * dResizeW + dy * factor_y * dResizeH) / distSq;
+      s = 1 + proj * altMultiplier;
+    }
+    const sMin = Math.max(20 / dResizeW, 10 / dResizeH);
+    if (s < sMin) s = sMin;
+    w = Math.round(dResizeW * s);
+    h = Math.round(dResizeH * s);
+  } else {
+    w = dResizeW + dx * factor_x * altMultiplier;
+    h = dResizeH + dy * factor_y * altMultiplier;
+    w = Math.max(20, Math.round(w));
+    h = Math.max(10, Math.round(h));
+  }
+
+  dResize.w = w;
+  dResize.h = h;
+
+  if (isAlt) {
+    const cx = dResizeLyrX + dResizeW / 2;
+    const cy = dResizeLyrY + dResizeH / 2;
+    dResize.x = Math.round(cx - w / 2);
+    dResize.y = Math.round(cy - h / 2);
+  } else {
+    if (dResizePos === 'br') {
+      dResize.x = dResizeLyrX;
+      dResize.y = dResizeLyrY;
+    } else if (dResizePos === 'tl') {
+      dResize.x = Math.round(dResizeLyrX + dResizeW - w);
+      dResize.y = Math.round(dResizeLyrY + dResizeH - h);
+    } else if (dResizePos === 'tr') {
+      dResize.x = dResizeLyrX;
+      dResize.y = Math.round(dResizeLyrY + dResizeH - h);
+    } else if (dResizePos === 'bl') {
+      dResize.x = Math.round(dResizeLyrX + dResizeW - w);
+      dResize.y = dResizeLyrY;
+    }
+  }
+
+  if (dResizeEl) {
+    dResizeEl.style.width=dResize.w+'px';
+    dResizeEl.style.height=dResize.h+'px';
+    dResizeEl.style.left=dResize.x+'px';
+    dResizeEl.style.top=dResize.y+'px';
+  }
   if(document.getElementById('dp-w')){document.getElementById('dp-w').value=dResize.w;document.getElementById('dp-h').value=dResize.h;}
+  if(document.getElementById('dp-x')){document.getElementById('dp-x').value=dResize.x;}
+  if(document.getElementById('dp-y')){document.getElementById('dp-y').value=dResize.y;}
 }
-function dStopResize(){if(dResize){dHistoryPush();dMarkUnsaved();}dResize=null;dResizeEl=null;document.removeEventListener('mousemove',dOnResize);document.removeEventListener('mouseup',dStopResize);}
+function dStopResize(){
+  if(dResize){
+    dHistoryPush();
+    dMarkUnsaved();
+    if(typeof dRenderCanvas==='function')dRenderCanvas();
+  }
+  dResize=null;
+  dResizeEl=null;
+  document.removeEventListener('mousemove',dOnResize);
+  document.removeEventListener('mouseup',dStopResize);
+}
 
 /* ── ADD LAYERS ── */
 // Tamanho da prancheta ATIVA (não o preset do formato): evita posicionar layers em
@@ -158,11 +271,27 @@ function dAddFrameAt(x,y){  dHistoryPush();
 /* ── DELETE / REORDER / ALIGN ── */
 function dDeleteLayer(){
   if(!dSelId)return;
+  const l=dLayers.find(x=>x.id===dSelId);
   dHistoryPush();
-  dLayers=dLayers.filter(x=>x.id!==dSelId);dSelId=null;
+  if (l && l.type === 'group') {
+    const deleteChildren = confirm('Deseja excluir também todos os layers deste grupo?');
+    if (deleteChildren) {
+      dLayers = dLayers.filter(x => x.id !== dSelId && x.parentId !== dSelId);
+    } else {
+      dLayers.forEach(x => {
+        if (x.parentId === dSelId) {
+          delete x.parentId;
+        }
+      });
+      dLayers = dLayers.filter(x => x.id !== dSelId);
+    }
+  } else {
+    dLayers = dLayers.filter(x => x.id !== dSelId);
+  }
+  dSelId=null;
   dRenderCanvas();dRenderLayersList();dStats();dMarkUnsaved();
   document.getElementById('d-no-sel').style.display='';document.getElementById('d-props-form').style.display='none';
-  gToast('Layer removido');
+  gToast('Removido');
 }
 function dReorder(dir){
   if(!dSelId)return;
@@ -231,33 +360,91 @@ function dDistribute(axis){
 }
 
 /* ── LAYERS LIST ── */
+function dToggleGroupCollapse(e, id) {
+  if (e) e.stopPropagation();
+  const l = dLayers.find(x => x.id === id);
+  if (l && l.type === 'group') {
+    dHistoryPush();
+    l.collapsed = !l.collapsed;
+    dRenderLayersList();
+    dMarkUnsaved();
+  }
+}
+
 function dRenderLayersList(){
   const el=document.getElementById('d-layers-list');
   el.innerHTML=[...dLayers].reverse().map(l=>{
+    // Check if any ancestor is collapsed
+    let parentId = l.parentId;
+    let isHidden = false;
+    while (parentId) {
+      const parent = dLayers.find(x => x.id === parentId);
+      if (parent) {
+        if (parent.collapsed) {
+          isHidden = true;
+          break;
+        }
+        parentId = parent.parentId;
+      } else {
+        break;
+      }
+    }
+    if (isHidden) return '';
+
+    if (l.type === 'group') {
+      const toggleIcon = l.collapsed
+        ? `<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:middle"><polygon points="5 3 19 12 5 21 5 3"/></svg>`
+        : `<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:middle"><polygon points="3 5 21 5 12 19 3 5"/></svg>`;
+      const locked = l.locked ? `<span style="margin-left:4px;display:inline-flex;align-items:center;color:var(--d-text3);vertical-align:middle"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>` : '';
+      return `<div class="layer-row group-row ${l.id === dSelId ? 'active' : ''}"
+        data-lid="${l.id}"
+        draggable="true"
+        onclick="event.shiftKey?dToggleMultiSel('${l.id}'):dSelLayer('${l.id}')"
+        ondragstart="dLyrDragStart(event,'${l.id}')"
+        ondragover="dLyrDragOver(event)"
+        ondragleave="dLyrDragLeave(event)"
+        ondragend="dLyrDragEnd(event)"
+        ondrop="dLyrDrop(event,'${l.id}')">
+        <span class="layer-drag-handle" title="Arrastar para reordenar">⠿</span>
+        <span class="group-collapse-toggle" onclick="dToggleGroupCollapse(event, '${l.id}')">${toggleIcon}</span>
+        <span class="layer-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><path d="M2 10h20"/></svg></span>
+        <span class="layer-label group-label" style="opacity:${l.visible?1:.4}" ondblclick="dRenameLayer('${l.id}',event)" title="Duplo clique para renomear">${gEsc(l.name)}</span>
+        ${locked}
+        <button class="layer-lock ${l.locked?'locked':''}" onclick="dToggleLock(event,'${l.id}')" title="${l.locked?'Desbloquear':'Bloquear grupo'}">${l.locked?'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>':'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>'}</button>
+        <button class="layer-vis" onclick="dToggleVis(event,'${l.id}')">${l.visible?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'}</button>
+      </div>`;
+    }
+
+    const isChild = !!l.parentId;
+    const indentStyle = isChild ? 'style="padding-left: 28px;"' : '';
+    const childClass = isChild ? 'child-row' : '';
+
     const icon=l.type==='text'?'T':l.type==='image'?'▣':l.type==='frame'?'⬜':'■';
     const hasVar=l.type==='text'&&/\{\{/.test(l.content||'');
-    const locked=l.locked?'🔒':'';
-    return `<div class="layer-row ${l.id===dSelId?'active':''}"
+    const locked = l.locked ? `<span style="margin-left:4px;display:inline-flex;align-items:center;color:var(--d-text3);vertical-align:middle"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>` : '';
+    return `<div class="layer-row ${childClass} ${l.id===dSelId||dMultiSel.includes(l.id)?'active':''}"
+      ${indentStyle}
       data-lid="${l.id}"
       draggable="true"
       onmouseenter="dHoverLayer('${l.id}',true)"
       onmouseleave="dHoverLayer('${l.id}',false)"
-      onclick="dSelLayer('${l.id}')"
+      onclick="event.shiftKey?dToggleMultiSel('${l.id}'):dSelLayer('${l.id}')"
       ondragstart="dLyrDragStart(event,'${l.id}')"
       ondragover="dLyrDragOver(event)"
       ondragleave="dLyrDragLeave(event)"
+      ondragend="dLyrDragEnd(event)"
       ondrop="dLyrDrop(event,'${l.id}')">
       <span class="layer-drag-handle" title="Arrastar para reordenar">⠿</span>
       <span class="layer-icon">${icon}</span>
-      <span class="layer-label" style="opacity:${l.visible?1:.4}" ondblclick="dRenameLayer('${l.id}',event)" title="Duplo clique para renomear">${gEsc(l.name)}${l.groupId?'<span class="group-badge">G</span>':''}</span>
+      <span class="layer-label" style="opacity:${l.visible?1:.4}" ondblclick="dRenameLayer('${l.id}',event)" title="Duplo clique para renomear">${gEsc(l.name)}</span>
       ${hasVar?'<span class="lyr-badge lyr-var">var</span>':''}
       ${l.type==='image'?'<span class="lyr-badge lyr-img">img</span>':''}
       ${l.type==='frame'?'<span class="lyr-badge lyr-img">frame</span>':''}
       ${l.type==='shape'?'<span class="lyr-badge lyr-shp">shape</span>':''}
-      ${l.mask?`<span class="lyr-badge lyr-mask" title="Máscara aplicada — clique para remover" onclick="event.stopPropagation();dRemoveMask('${l.id}')">🎭</span>`:''}
+      ${l.mask?`<span class="lyr-badge lyr-mask" title="Máscara aplicada — clique para remover" onclick="event.stopPropagation();dRemoveMask('${l.id}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:2px"><rect x="2" y="7" width="20" height="10" rx="5"/><circle cx="7" cy="12" r="1.5"/><circle cx="17" cy="12" r="1.5"/><path d="M12 10v4"/></svg></span>`:''}
       ${locked}
-      <button class="layer-lock ${l.locked?'locked':''}" onclick="dToggleLock(event,'${l.id}')" title="${l.locked?'Desbloquear':'Bloquear layer'}">${l.locked?'🔒':'🔓'}</button>
-      <button class="layer-vis" onclick="dToggleVis(event,'${l.id}')">${l.visible?'👁':'—'}</button>
+      <button class="layer-lock ${l.locked?'locked':''}" onclick="dToggleLock(event,'${l.id}')" title="${l.locked?'Desbloquear':'Bloquear layer'}">${l.locked?'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>':'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>'}</button>
+      <button class="layer-vis" onclick="dToggleVis(event,'${l.id}')">${l.visible?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'}</button>
     </div>`;
   }).join('');
 }
@@ -274,26 +461,111 @@ function dLyrDragOver(e){
   e.currentTarget.classList.add('drag-over');
 }
 function dLyrDragLeave(e){e.currentTarget.classList.remove('drag-over');}
+function dLyrDragEnd(e){
+  e.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('.layer-row').forEach(row => row.classList.remove('drag-over', 'dragging'));
+  dLyrDragId=null;
+}
 function dLyrDrop(e,targetId){
   e.preventDefault();
   e.currentTarget.classList.remove('drag-over','dragging');
   if(!dLyrDragId||dLyrDragId===targetId)return;
-  // A lista está reversed, então a ordem visual é inversa do array
-  const fromIdx=dLayers.findIndex(x=>x.id===dLyrDragId);
-  const toIdx=dLayers.findIndex(x=>x.id===targetId);
-  if(fromIdx<0||toIdx<0)return;
-  const [moved]=dLayers.splice(fromIdx,1);
-  dLayers.splice(toIdx,0,moved);
-  dLyrDragId=null;
+
+  const dragLayer=dLayers.find(x=>x.id===dLyrDragId);
+  const targetLayer=dLayers.find(x=>x.id===targetId);
+  if(!dragLayer||!targetLayer)return;
+
   dHistoryPush();
+
+  const movingIds = [];
+  if (dragLayer.type === 'group') {
+    movingIds.push(dragLayer.id);
+    dLayers.forEach(l => {
+      if (l.parentId === dragLayer.id) {
+        movingIds.push(l.id);
+      }
+    });
+  } else {
+    movingIds.push(dragLayer.id);
+  }
+
+  const movingLayers = dLayers.filter(l => movingIds.includes(l.id));
+  dLayers = dLayers.filter(l => !movingIds.includes(l.id));
+
+  let insertIdx = dLayers.findIndex(l => l.id === targetId);
+  if (insertIdx < 0) {
+    insertIdx = dLayers.length;
+  }
+
+  if (dragLayer.type !== 'group') {
+    if (targetLayer.type === 'group') {
+      dragLayer.parentId = targetLayer.id;
+    } else if (targetLayer.parentId) {
+      dragLayer.parentId = targetLayer.parentId;
+    } else {
+      delete dragLayer.parentId;
+    }
+  }
+
+  dLayers.splice(insertIdx, 0, ...movingLayers);
+
+  dLyrDragId = null;
   dRenderCanvas();dRenderLayersList();dMarkUnsaved();
 }
-function dToggleVis(e,id){e.stopPropagation();const l=dLayers.find(x=>x.id===id);if(l){dHistoryPush();l.visible=!l.visible;dRenderCanvas();dRenderLayersList();dMarkUnsaved();}}
+function dToggleVis(e,id){
+  e.stopPropagation();
+  const l=dLayers.find(x=>x.id===id);
+  if(l){
+    dHistoryPush();
+    l.visible=!l.visible;
+    if (l.type === 'group') {
+      dLayers.forEach(x => {
+        if (x.parentId === l.id) {
+          x.visible = l.visible;
+        }
+      });
+    }
+    dRenderCanvas();dRenderLayersList();dMarkUnsaved();
+  }
+}
+
+function dToggleLock(e,id){
+  e.stopPropagation();
+  const l=dLayers.find(x=>x.id===id);
+  if(l){
+    dHistoryPush();
+    l.locked=!l.locked;
+    if(l.type==='group'){
+      dLayers.forEach(x=>{ if(x.parentId===l.id) x.locked=l.locked; });
+    }
+    dRenderCanvas();dRenderLayersList();dMarkUnsaved();
+  }
+}
 
 /* ── PROPS ── */
 function dShowProps(l){
   document.getElementById('d-no-sel').style.display='none';
   const pf=document.getElementById('d-props-form');pf.style.display='flex';
+  if (l.type === 'group') {
+    if(document.getElementById('dp-x')) document.getElementById('dp-x').value = '';
+    if(document.getElementById('dp-y')) document.getElementById('dp-y').value = '';
+    if(document.getElementById('dp-w')) document.getElementById('dp-w').value = '';
+    if(document.getElementById('dp-h')) document.getElementById('dp-h').value = '';
+    document.getElementById('d-text-props').style.display = 'none';
+    document.getElementById('d-shape-props').style.display = 'none';
+    document.getElementById('d-image-props').style.display = 'none';
+    const ctx=document.getElementById('d-props-ctx');
+    if(ctx){
+      ctx.style.display='flex';
+      const iconEl=document.getElementById('d-props-ctx-icon');
+      if(iconEl){iconEl.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><path d="M2 10h20"/></svg>';iconEl.style.background='var(--d-text3)';}
+      const nameEl=document.getElementById('d-props-ctx-name');
+      if(nameEl)nameEl.textContent=l.name;
+      const typeEl=document.getElementById('d-props-ctx-type');
+      if(typeEl)typeEl.textContent='grupo';
+    }
+    return;
+  }
   // Atualizar header de contexto
   const ctx=document.getElementById('d-props-ctx');
   if(ctx){
@@ -600,11 +872,11 @@ function dVarsRender(){
       ${defBadge}
       ${usageBadge}
       <span class="var-actions">
-        <button onclick="dMoveVar(${i},-1)" title="Mover pra cima" ${i===0?'disabled':''}>▲</button>
-        <button onclick="dMoveVar(${i},1)" title="Mover pra baixo" ${i===dVars.length-1?'disabled':''}>▼</button>
-        <button onclick="dEditVar(${i})" title="Editar variável">✎</button>
-        <button onclick="dRenameVar(${i})" title="Renomear (atualiza os layers)">↻</button>
-        <button onclick="dRemoveVar(${i})" title="Remover variável">×</button>
+        <button onclick="dMoveVar(${i},-1)" title="Mover pra cima" ${i===0?'disabled':''}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:block"><polyline points="18 15 12 9 6 15"/></svg></button>
+        <button onclick="dMoveVar(${i},1)" title="Mover pra baixo" ${i===dVars.length-1?'disabled':''}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:block"><polyline points="6 9 12 15 18 9"/></svg></button>
+        <button onclick="dEditVar(${i})" title="Editar variável"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button>
+        <button onclick="dRenameVar(${i})" title="Renomear (atualiza os layers)"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
+        <button onclick="dRemoveVar(${i})" title="Remover variável"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:block"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </span>
     </div>`;
   }).join('')||'<div style="font-size:12px;color:var(--d-text3);text-align:center;padding:10px">Nenhuma variável</div>';
@@ -787,7 +1059,7 @@ function dVarAcOnInput(el, onCommit){
 function dVarAcRender(el){
   const b=dVarAcBox();
   b.innerHTML=_vacItems.map((it,i)=>it.create
-    ? `<div class="var-ac-item ac-create ${i===_vacActive?'active':''}" data-i="${i}">➕ criar <span class="ac-name">{{${it.name}}}</span></div>`
+    ? `<div class="var-ac-item ac-create ${i===_vacActive?'active':''}" data-i="${i}"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:2px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> criar <span class="ac-name">{{${it.name}}}</span></div>`
     : `<div class="var-ac-item ${i===_vacActive?'active':''}" data-i="${i}"><span class="ac-name">{{${it.name}}}</span><span>${_dEsc(it.label||'')}</span><span class="ac-type">${it.type}</span></div>`
   ).join('');
   b.querySelectorAll('.var-ac-item').forEach(node=>{
@@ -932,27 +1204,104 @@ function dClearMultiSel(){
 function dGroupSelected(){
   const ids=dSelId?[dSelId,...dMultiSel.filter(x=>x!==dSelId)]:dMultiSel;
   if(ids.length<2){gToast('⚠ Selecione 2+ layers (Shift+click) pra agrupar');return;}
+  
+  const childIds = ids.filter(id => {
+    const l = dLayers.find(x => x.id === id);
+    return l && l.type !== 'group';
+  });
+  if(childIds.length < 2) {
+    gToast('⚠ Selecione 2+ layers normais para agrupar');
+    return;
+  }
+
   const groupId='g-'+Date.now();
   dHistoryPush();
-  ids.forEach(id=>{
+
+  childIds.forEach(id=>{
     const l=dLayers.find(x=>x.id===id);
-    if(l)l.groupId=groupId;
+    if(l) {
+      l.parentId=groupId;
+      delete l.groupId;
+    }
   });
-  gToast('✓ '+ids.length+' layers agrupados — agora movem juntos');
+
+  const groupLayer = {
+    id: groupId,
+    type: 'group',
+    name: 'Grupo ' + (++dLyrCnt),
+    visible: true,
+    locked: false,
+    collapsed: false
+  };
+
+  const groupedLayers = dLayers.filter(l => childIds.includes(l.id));
+  const indices = childIds.map(id => dLayers.findIndex(l => l.id === id)).filter(idx => idx !== -1);
+  const maxIndex = Math.max(...indices);
+
+  const otherLayersBefore = [];
+  const otherLayersAfter = [];
+  dLayers.forEach((l, idx) => {
+    if (!childIds.includes(l.id)) {
+      if (idx < maxIndex) {
+        otherLayersBefore.push(l);
+      } else {
+        otherLayersAfter.push(l);
+      }
+    }
+  });
+
+  dLayers = [
+    ...otherLayersBefore,
+    ...groupedLayers,
+    groupLayer,
+    ...otherLayersAfter
+  ];
+
+  gToast('✓ '+childIds.length+' layers agrupados');
+  dSelId = groupId;
+  dMultiSel = childIds;
   dRenderCanvas();dRenderLayersList();dMarkUnsaved();
 }
 function dUngroupSelected(){
-  const l=dLayers.find(x=>x.id===dSelId);
-  if(!l||!l.groupId){gToast('⚠ Layer não está em grupo');return;}
-  const gid=l.groupId;
+  let gid = null;
+  const l = dLayers.find(x => x.id === dSelId);
+  if (l) {
+    if (l.type === 'group') {
+      gid = l.id;
+    } else if (l.parentId) {
+      gid = l.parentId;
+    }
+  }
+  if (!gid) {
+    gToast('⚠ Selecione um grupo ou um layer dentro de um grupo para desmembrar');
+    return;
+  }
   dHistoryPush();
-  dLayers.forEach(x=>{if(x.groupId===gid)delete x.groupId;});
+  dLayers.forEach(x => {
+    if (x.parentId === gid) {
+      delete x.parentId;
+    }
+  });
+  dLayers = dLayers.filter(x => x.id !== gid);
+  if (dSelId === gid) {
+    dSelId = null;
+    dMultiSel = [];
+  }
   gToast('✓ Grupo desfeito');
   dRenderCanvas();dRenderLayersList();dMarkUnsaved();
 }
 function dGetGroupSiblings(layer){
-  if(!layer||!layer.groupId)return [layer];
-  return dLayers.filter(x=>x.groupId===layer.groupId);
+  if(!layer)return [];
+  if(layer.type==='group'){
+    return dLayers.filter(x=>x.parentId===layer.id);
+  }
+  if(layer.parentId){
+    return dLayers.filter(x=>x.parentId===layer.parentId);
+  }
+  if(layer.groupId){
+    return dLayers.filter(x=>x.groupId===layer.groupId);
+  }
+  return [layer];
 }
 
 

@@ -31,7 +31,7 @@ function fStartChatComMaterial(material){
   let intro = `Você escolheu o material <strong>${material.name}</strong>. `;
   // Se tem instruções do designer, mostra
   if(material.publishMeta?.instrucoes){
-    intro += `<br><br><em style="display:block;margin-top:6px;padding:8px 10px;background:var(--dm-orange-bg);border-left:3px solid var(--dm-orange);font-size:12px;color:var(--text-2);border-radius:4px">📋 ${material.publishMeta.instrucoes}</em><br>`;
+    intro += `<br><br><em style="display:block;margin-top:6px;padding:8px 10px;background:var(--dm-orange-bg);border-left:3px solid var(--dm-orange);font-size:12px;color:var(--text-2);border-radius:4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg> ${material.publishMeta.instrucoes}</em><br>`;
   }
   intro += `Vou te fazer <strong>${total} pergunta${total>1?'s':''} rápida${total>1?'s':''}</strong> e gerar a arte. Leva ~1 minuto.`;
   fAddBot(intro, []);
@@ -41,7 +41,7 @@ function fAskCampSwitch(c){
   const msgs=document.getElementById('f-messages');
   const existing=document.getElementById('switch-confirm-msg');if(existing)existing.remove();
   const w=document.createElement('div');w.className='msg bot';w.id='switch-confirm-msg';
-  w.innerHTML=`<div class="av">🤖</div><div>
+  w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div>
     <div class="bbl">Trocar pra <strong>${c.name}</strong>? Você vai perder o progresso atual e poderá escolher um material da nova campanha.</div>
     <div class="qr-wrap">
       <div class="qr" onclick="fApplyCampSwitch(${JSON.stringify(c.id).replace(/"/g,'&quot;')},false)">Sim, trocar</div>
@@ -178,12 +178,12 @@ function fAddBotImageUpload(stepLabel, pergunta, canGoBack){
   const msgs=document.getElementById('f-messages');
   const w=document.createElement('div');w.className='msg bot';
   const uploadId='f-upload-'+Date.now();
-  const fieldHint = `<div class="field-hint"><span class="field-hint-type">📷</span><span class="field-hint-text">${pergunta.label} · imagem (PNG/JPG, máx 4MB)</span></div>`;
+  const fieldHint = `<div class="field-hint"><span class="field-hint-type"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span><span class="field-hint-text">${pergunta.label} · imagem (PNG/JPG, máx 4MB)</span></div>`;
   let back='';
   if(canGoBack){
-    back = `<div class="qr-back-wrap"><button class="qr-back" onclick="fGoBack()" title="Voltar uma pergunta">↶ Voltar uma pergunta</button></div>`;
+    back = `<div class="qr-back-wrap"><button class="qr-back" onclick="fGoBack()" title="Voltar uma pergunta"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>Voltar uma pergunta</button></div>`;
   }
-  w.innerHTML=`<div class="av">🤖</div><div>
+  w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div>
     <div class="bbl">${stepLabel}${pergunta.texto}${fieldHint}</div>
     <div class="f-upload-zone" id="${uploadId}-zone" onclick="document.getElementById('${uploadId}-input').click()">
       <input type="file" id="${uploadId}-input" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="fHandleImageUpload(event,'${pergunta.id}','${uploadId}')">
@@ -249,7 +249,7 @@ function fProcessImageFile(file, varId, uploadId){
         zone.outerHTML=`<div class="f-upload-preview">
           <img src="${resizedUrl}" alt="Foto enviada"/>
           <div class="f-upload-preview-overlay">
-            <span>✓ Foto enviada</span>
+            <span style="display:inline-flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg>Foto enviada</span>
             <button class="f-upload-replace" onclick="fReplaceImage('${varId}',this)">Trocar</button>
           </div>
         </div>`;
@@ -362,16 +362,16 @@ function fMostrarConfirm(){
   }).join('');
   const msgs=document.getElementById('f-messages');
   const w=document.createElement('div');w.className='msg bot';w.id='confirm-msg';
-  w.innerHTML=`<div class="av">🤖</div><div>
+  w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div>
     <div class="bbl" style="padding-bottom:6px">Confere tudo antes de eu gerar a arte:</div>
     <div class="confirm-card">
       <div class="confirm-header">Resumo · ${c.name}</div>
       <div class="confirm-fields">${rows}</div>
       <div class="confirm-actions">
-        <button class="confirm-btn cancel" onclick="fEditarTudo()">↺ Alterar</button>
-        <button class="confirm-btn ok" onclick="fConfirmarGerar()">✓ Confirmar e gerar</button>
+        <button class="confirm-btn cancel" onclick="fEditarTudo()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Alterar</button>
+        <button class="confirm-btn ok" onclick="fConfirmarGerar()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><polyline points="20 6 9 17 4 12"/></svg>Confirmar e gerar</button>
       </div>
-      ${(fState.material&&fState.material.layers)?`<button class="confirm-bulk" onclick="fBulkOpen()" title="Gerar muitas artes de uma vez a partir de uma planilha CSV">⚡ Gerar vários (CSV)</button>`:''}
+      ${(fState.material&&fState.material.layers)?`<button class="confirm-bulk" onclick="fBulkOpen()" title="Gerar muitas artes de uma vez a partir de uma planilha CSV"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Gerar vários (CSV)</button>`:''}
     </div>
   </div>`;
   msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;
@@ -381,7 +381,26 @@ function fEditCampo(idx){
   const p=fState.camp.perguntas[idx];
   const labels={produto:'Produto',precoDe:'Preço original',precoPor:'Preço promo',validade:'Validade',desconto:'Desconto',pedidoMin:'Pedido mínimo',bairros:'Cobertura',codigo:'Código',condicao:'Condição',brinde:'Brinde',categoria:'Categoria',oferta:'Oferta'};
   const label = labels[p.id] || p.label || p.id;
-  const m=document.getElementById('confirm-msg');if(m)m.remove();
+  
+  // Em vez de remover o card inteiro, aplicamos classes de opacidade parcial
+  const confirmMsg = document.getElementById('confirm-msg');
+  if (confirmMsg) {
+    confirmMsg.classList.add('editing-mode');
+    const confirmCard = confirmMsg.querySelector('.confirm-card');
+    if (confirmCard) confirmCard.classList.add('editing-mode');
+    
+    const rows = confirmMsg.querySelectorAll('.confirm-row');
+    rows.forEach((row, i) => {
+      if (i === idx) {
+        row.classList.remove('row-dimmed');
+        row.classList.add('row-highlight');
+      } else {
+        row.classList.remove('row-highlight');
+        row.classList.add('row-dimmed');
+      }
+    });
+  }
+  
   if(p.isImage){
     const stepLabel = `<span class="step-label">Editando</span>`;
     const editPergunta = {...p, texto: `Envie uma nova <strong>${label.toLowerCase()}</strong>`};
@@ -441,19 +460,19 @@ function fGerarArte(){
         <div class="art-brand-logo" role="img" aria-label="Luma"></div>
       </div>`;
     }
-    w.innerHTML=`<div class="av">🤖</div><div>
-      <div class="bbl" style="padding-bottom:6px">Arte gerada! ✅</div>
+    w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div>
+      <div class="bbl" style="padding-bottom:6px;display:inline-flex;align-items:center;gap:4px">Arte gerada! <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="color:#22c55e"><polyline points="20 6 9 17 4 12"/></svg></div>
       <div class="art-wrap">
         ${canvasBlock}
         <div class="multi-fmt-row">
           ${FMTS.map(f=>`<div class="fmt-mini ${f.id===fState.fmt.id?'current':''}" onclick="fOutroFormato('${f.id}')">
             <div class="fmt-mini-thumb" style="background:${c.color}">${f.name.toUpperCase()}</div>
-            <div class="fmt-mini-label">${f.name}${f.id===fState.fmt.id?' ✓':''}</div>
+            <div class="fmt-mini-label" style="display:flex;align-items:center;justify-content:center;gap:3px">${f.name}${f.id===fState.fmt.id?' <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':''}</div>
           </div>`).join('')}
         </div>
         <div class="art-footer">
-          <div class="art-btn" onclick="fRefazer()">↺ Refazer</div>
-          <div class="art-btn pri" onclick="fBaixar(this)">↓ Baixar PNG</div>
+          <div class="art-btn" onclick="fRefazer()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Refazer</div>
+          <div class="art-btn pri" onclick="fBaixar(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>Baixar PNG</div>
         </div>
       </div>
     </div>`;
@@ -503,7 +522,7 @@ function fResetFlow(){
   // Evita empilhar múltiplas confirmações
   const existing=document.getElementById('reset-confirm-msg');if(existing)existing.remove();
   const w=document.createElement('div');w.className='msg bot';w.id='reset-confirm-msg';
-  w.innerHTML=`<div class="av">🤖</div><div>
+  w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div>
     <div class="bbl">Tem certeza que quer recomeçar? Você vai perder as respostas dadas até aqui.</div>
     <div class="qr-wrap">
       <div class="qr" onclick="fConfirmReset()">Sim, recomeçar</div>
@@ -531,9 +550,9 @@ function fAddBot(html,qrs,canGoBack){
   // F-07: botão Voltar quando habilitado
   let back = '';
   if(canGoBack){
-    back = `<div class="qr-back-wrap"><button class="qr-back" onclick="fGoBack()" title="Voltar uma pergunta">↶ Voltar uma pergunta</button></div>`;
+    back = `<div class="qr-back-wrap"><button class="qr-back" onclick="fGoBack()" title="Voltar uma pergunta"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>Voltar uma pergunta</button></div>`;
   }
-  w.innerHTML=`<div class="av">🤖</div><div><div class="bbl">${html}</div>${q}${back}</div>`;
+  w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div><div class="bbl">${html}</div>${q}${back}</div>`;
   msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;
 }
 function fAddUser(txt){
@@ -545,7 +564,7 @@ function fAddUser(txt){
 function fTyping(cb){
   const msgs=document.getElementById('f-messages');
   const w=document.createElement('div');w.className='msg bot';w.id='typing-el';
-  w.innerHTML=`<div class="av">🤖</div><div class="bbl"><div class="typing-row"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>`;
+  w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div class="bbl"><div class="typing-row"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>`;
   msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;
   setTimeout(()=>{const t=document.getElementById('typing-el');if(t)t.remove();cb();},900);
 }

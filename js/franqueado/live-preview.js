@@ -214,9 +214,40 @@ function fLpUpdateMeta(hasTemplate){
     else { subEl.textContent = `${preenchidos} de ${total} preenchido${preenchidos > 1 ? 's' : ''}`; subEl.classList.remove('ready'); }
   }
 }
+function fInitMobilePreviewEvents() {
+  if (!document.getElementById('mobile-preview-toggle')) {
+    const btn = document.createElement('button');
+    btn.id = 'mobile-preview-toggle';
+    btn.setAttribute('aria-label', 'Ver prévia da arte');
+    btn.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="12" cy="12" r="3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    `;
+    document.body.appendChild(btn);
+    
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const previewEl = document.getElementById('f-live-preview');
+      if (previewEl) {
+        previewEl.classList.toggle('open');
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      const previewEl = document.getElementById('f-live-preview');
+      if (previewEl && previewEl.classList.contains('open') && !previewEl.contains(e.target)) {
+        previewEl.classList.remove('open');
+      }
+    });
+  }
+}
+
 // Update inicial assim que DOM tá pronto
 document.addEventListener('DOMContentLoaded', () => {
   try { dPreloadFolders(); } catch(e){}
   try { fUpdateLivePreview(); } catch(e){}
+  try { fInitMobilePreviewEvents(); } catch(e){}
 });
 

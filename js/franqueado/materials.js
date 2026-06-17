@@ -28,7 +28,6 @@ function fIsMaterialValid(material){
 function fOpenMaterialCatalog(camp){
   fState.materialView=true;
   fState.material=null;
-  // Esconde o chat e mostra a view de materiais
   const chatCol=document.getElementById('f-chat-col');
   let matView=document.getElementById('f-material-view');
   if(!matView){
@@ -36,9 +35,26 @@ function fOpenMaterialCatalog(camp){
     matView.id='f-material-view';
     chatCol.parentNode.insertBefore(matView, chatCol);
   }
-  chatCol.style.display='none';
-  matView.style.display='flex';
-  fRenderMaterialCatalog(camp, matView);
+  
+  chatCol.classList.add('fade-exit');
+  
+  setTimeout(() => {
+    chatCol.style.display='none';
+    chatCol.classList.remove('fade-exit');
+
+    matView.style.display='flex';
+    matView.classList.add('fade-enter');
+    
+    fRenderMaterialCatalog(camp, matView);
+
+    matView.getBoundingClientRect(); // force reflow
+    matView.classList.remove('fade-enter');
+    matView.classList.add('fade-enter-active');
+
+    setTimeout(() => {
+      matView.classList.remove('fade-enter-active');
+    }, 250);
+  }, 200);
 }
 function fRenderMaterialCatalog(camp, container){
   const materials = fGetMaterialsForCamp(camp.id);
@@ -47,14 +63,14 @@ function fRenderMaterialCatalog(camp, container){
   if(!validMat.length){
     container.innerHTML=`
       <div class="f-mat-head">
-        <button class="f-mat-back" onclick="fCloseMaterialCatalog()">←</button>
+        <button class="f-mat-back" onclick="fCloseMaterialCatalog()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></button>
         <div class="f-mat-head-title">
           <div class="f-mat-camp-name">${camp.name}</div>
           <div class="f-mat-camp-sub">Materiais disponíveis</div>
         </div>
       </div>
       <div class="f-mat-empty">
-        <div class="f-mat-empty-icon">⏳</div>
+        <div class="f-mat-empty-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2h14M5 22h14M19 2v6.34a2 2 0 0 1-.586 1.414L13.828 14.4a2 2 0 0 0 0 2.828l4.586 4.586a2 2 0 0 1 .586 1.414V22M5 2v6.34a2 2 0 0 0 .586 1.414L10.172 14.4a2 2 0 0 1 0 2.828l-4.586 4.586A2 2 0 0 0 5 23.23V22"/></svg></div>
         <div class="f-mat-empty-title">Nosso time está trabalhando!</div>
         <div class="f-mat-empty-text">${expired ? 'Os materiais desta campanha expiraram. ' : ''}Em breve haverá novos materiais disponíveis para <strong>${camp.name}</strong>. Volte em alguns instantes ou escolha outra campanha.</div>
       </div>`;
@@ -62,7 +78,7 @@ function fRenderMaterialCatalog(camp, container){
   }
   container.innerHTML=`
     <div class="f-mat-head">
-      <button class="f-mat-back" onclick="fCloseMaterialCatalog()">←</button>
+      <button class="f-mat-back" onclick="fCloseMaterialCatalog()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></button>
       <div class="f-mat-head-title">
         <div class="f-mat-camp-name">${camp.name}</div>
         <div class="f-mat-camp-sub">${validMat.length} material${validMat.length>1?'is':''} disponível${validMat.length>1?'is':''}</div>
@@ -80,7 +96,7 @@ function fRenderMaterialCard(material, camp){
   if(validade){
     const v=new Date(validade+'T23:59:59');
     const diff=Math.ceil((v.getTime()-Date.now())/(24*60*60*1000));
-    if(diff<=3) validadeLabel=`<span class="f-mat-urgency">⏰ ${diff}d restantes</span>`;
+    if(diff<=3) validadeLabel=`<span class="f-mat-urgency" style="display:inline-flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${diff}d restantes</span>`;
     else validadeLabel=`<span class="f-mat-validade">válido até ${new Date(validade).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}</span>`;
   }
   // Mini-prévia: usa fmt do template
@@ -106,13 +122,32 @@ function fCloseMaterialCatalog(){
   fState.camp={id:'',name:'',color:'#FF9000',perguntas:[]};
   const chatCol=document.getElementById('f-chat-col');
   const matView=document.getElementById('f-material-view');
-  if(matView) matView.style.display='none';
-  chatCol.style.display='';
-  fRenderCatalogs(CAMPS_ATIVAS,CAMPS_OUTRAS);
-  fUpdateCtx();
-  // Reset chat pra estado inicial vazio
-  document.getElementById('f-messages').innerHTML='';
-  fAddBot('Escolha uma campanha no painel à esquerda pra começar.',[]);
+  if(matView) {
+    matView.classList.add('fade-exit');
+  }
+
+  setTimeout(() => {
+    if(matView) {
+      matView.style.display='none';
+      matView.classList.remove('fade-exit');
+    }
+
+    chatCol.style.display='';
+    chatCol.classList.add('fade-enter');
+
+    fRenderCatalogs(CAMPS_ATIVAS,CAMPS_OUTRAS);
+    fUpdateCtx();
+    document.getElementById('f-messages').innerHTML='';
+    fAddBot('Escolha uma campanha no painel à esquerda pra começar.',[]);
+
+    chatCol.getBoundingClientRect(); // force reflow
+    chatCol.classList.remove('fade-enter');
+    chatCol.classList.add('fade-enter-active');
+
+    setTimeout(() => {
+      chatCol.classList.remove('fade-enter-active');
+    }, 250);
+  }, 200);
 }
 // Conjunto de variáveis usadas como IMAGEM num template (layers frame/image com imgVar).
 // Helper único usado por fSelectMaterial e fEditFromHist para detecção consistente (M14).

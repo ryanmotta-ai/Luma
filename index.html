@@ -21,6 +21,7 @@
 <link rel="stylesheet" href="css/modules/chat.css">
 <link rel="stylesheet" href="css/modules/live-preview.css">
 <link rel="stylesheet" href="css/modules/catalog.css">
+<link rel="stylesheet" href="css/modules/franqueado_effects.css">
 <link rel="stylesheet" href="css/modules/publish-modal.css">
 <link rel="stylesheet" href="css/modules/designer.css">
 <link rel="stylesheet" href="css/modules/layers-panel.css">
@@ -50,6 +51,7 @@
   <div class="dm-logo dm-logo--h-branca top-dm-logo" role="img" aria-label="Luma"></div>
   <div class="top-sep"></div>
   <div class="mode-tabs">
+    <div class="mode-tab-pill" id="mode-tab-pill"></div>
     <button class="mode-tab active" id="tab-fran" onclick="setMode('franqueado')">Franqueado</button>
     <button class="mode-tab" id="tab-design" onclick="setMode('designer')">Designer</button>
     <button class="mode-tab" id="tab-dados" onclick="setMode('dados')">Dados</button>
@@ -186,7 +188,7 @@
 </div>
 
 <!-- ══ VIEW FRANQUEADO ══ -->
-<div id="view-franqueado">
+<div id="view-franqueado" class="view-container">
   <div id="prog-bar"><div id="prog-fill"></div></div>
   <div id="fran-main">
 
@@ -204,7 +206,7 @@
         </div>
       </div>
       <div id="f-catalog">
-        <div class="sec-title">⭐ Recomendada agora</div>
+        <div class="sec-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:middle;margin-right:4px"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9" /></svg>Recomendada agora</div>
         <div class="camp-grid" id="camp-rec"></div>
         <div class="sec-title">Ativas agora</div>
         <div class="camp-grid" id="camp-main"></div>
@@ -221,15 +223,15 @@
     <!-- RIGHT chat -->
     <div id="fran-right">
       <div id="f-chat-head">
-        <div class="bot-circle">🤖<div class="bot-online"></div></div>
+        <div class="bot-circle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg><div class="bot-online"></div></div>
         <div>
           <div class="bot-info-name">ASSISTENTE DE ARTES</div>
           <div class="bot-info-status">● online agora</div>
         </div>
         <div id="f-ctx-tag">Hamburguer Fest · Story</div>
         <div id="f-head-actions">
-          <button id="f-bulk-head-btn" onclick="fBulkOpen()" title="Gerar muitas artes de uma vez a partir de uma planilha CSV">⚡ Gerar vários</button>
-          <button id="f-reset-btn" onclick="fResetFlow()">↺ Reiniciar</button>
+          <button id="f-bulk-head-btn" onclick="fBulkOpen()" title="Gerar muitas artes de uma vez a partir de uma planilha CSV"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Gerar vários</button>
+          <button id="f-reset-btn" onclick="fResetFlow()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><polyline points="3 3 3 8 8 8"/></svg>Reiniciar</button>
         </div>
       </div>
       <div id="f-right-body">
@@ -276,7 +278,7 @@
 </div>
 
 <!-- ══ VIEW DESIGNER ══ -->
-<div id="view-designer">
+<div id="view-designer" class="view-container">
 
   <!-- ══ DESIGNER LAYOUT ══ -->
   <!-- Topbar minimalista: só info + undo/redo + formato + preview + publicar -->
@@ -521,6 +523,14 @@
           <input type="color" id="bb-color-pick" value="#FF9000" style="display:none" oninput="dBrushUpdate('color',this.value)">
         </div>
         <div class="bb-sep"></div>
+        <!-- Prévia do Pincel -->
+        <div class="bb-group" style="margin-left: 5px; margin-right: 5px;">
+          <span class="bb-label">Prévia</span>
+          <div style="background: rgba(0,0,0,0.2); border-radius: 4px; padding: 2px; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;">
+            <canvas id="bb-brush-preview" width="24" height="24"></canvas>
+          </div>
+        </div>
+        <div class="bb-sep"></div>
         <!-- Limpar pintura -->
         <button class="bb-preset" onclick="dClearPaint()" title="Limpar toda a pintura" style="width:auto;padding:0 8px;font-size:10px;color:var(--dm-red)">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
@@ -541,7 +551,7 @@
         <div id="d-layers-resize-handle" onmousedown="dLayersPanelResizeStart(event)"></div>
         <div id="d-layers-header">
           <div class="lyr-hdr-row">
-            <span title="As camadas/peças do template">Peças</span>
+            <span title="As camadas do template">Camadas</span>
             <button class="d-lyr-add" onclick="dAddText()">+ Texto</button>
             <button class="d-lyr-add" onclick="dAddShape()">+ Shape</button>
             <button class="d-lyr-add" onclick="dAddShapeKind('circle')">+ Círculo</button>
@@ -560,7 +570,7 @@
     <div id="d-right">
       <div class="rpanel-tabs d-rp-tabs">
         <button class="rpanel-tab d-rp-tab active" id="rtab-campaigns" data-panel="conteudo" onclick="dActivatePanel('conteudo')" title="Campanhas e templates">Conteúdo</button>
-        <button class="rpanel-tab d-rp-tab" id="rtab-props" data-panel="camada" onclick="dActivatePanel('camada')" title="Propriedades da peça selecionada">Camada</button>
+        <button class="rpanel-tab d-rp-tab" id="rtab-props" data-panel="camada" onclick="dActivatePanel('camada')" title="Propriedades da peça selecionada">Propriedades</button>
         <button class="rpanel-tab d-rp-tab" data-panel="publicar" onclick="dActivatePanel('publicar')" title="Publicar para os franqueados">Publicar</button>
       </div>
       <!-- Indicador contextual: nome+tipo da peça selecionada (visível só no painel Camada) -->
@@ -577,15 +587,44 @@
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Novo template
           </button>
-          <button class="add-tmpl-btn add-psd-btn" onclick="document.getElementById('d-psd-input').click()" title="Importar um .psd e transformar as camadas em template editável">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            Importar PSD
-          </button>
-          <input type="file" id="d-psd-input" accept=".psd,image/vnd.adobe.photoshop" style="display:none" onchange="dImportPSD(this)">
-          <button class="add-tmpl-btn add-svg-btn" onclick="dSvgImport()" title="Importar um .svg/.ai (Illustrator) e transformar os elementos em template editável">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            Importar SVG
-          </button>
+          <div class="d-import-section">
+            <span class="d-import-title">Importar Arquivo</span>
+            <div class="d-import-grid">
+              <button class="d-import-card psd-card" onclick="document.getElementById('d-psd-input').click()" title="Importar um .psd e transformar as camadas em template editável">
+                <div class="d-import-card-content">
+                  <div class="d-import-icon-box">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                      <polyline points="2 17 12 22 22 17"></polyline>
+                      <polyline points="2 12 12 17 22 12"></polyline>
+                    </svg>
+                  </div>
+                  <div class="d-import-card-info">
+                    <span class="d-import-card-name">Photoshop</span>
+                    <span class="d-import-card-ext">PSD</span>
+                  </div>
+                </div>
+              </button>
+              <input type="file" id="d-psd-input" accept=".psd,image/vnd.adobe.photoshop" style="display:none" onchange="dImportPSD(this)">
+
+              <button class="d-import-card svg-card" onclick="dSvgImport()" title="Importar um .svg/.ai (Illustrator) e transformar os elementos em template editável">
+                <div class="d-import-card-content">
+                  <div class="d-import-icon-box">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M4.5 16.5c1.5-6 6-9 11-6" />
+                      <rect x="2" y="14" width="5" height="5" rx="1" fill="currentColor" />
+                      <rect x="14" y="8" width="5" height="5" rx="1" fill="currentColor" />
+                      <circle cx="12" cy="11.5" r="2" />
+                    </svg>
+                  </div>
+                  <div class="d-import-card-info">
+                    <span class="d-import-card-name">Vetor / AI</span>
+                    <span class="d-import-card-ext">SVG</span>
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
       <!-- Biblioteca de assets (migrado da antiga sidebar esquerda) -->
@@ -608,7 +647,7 @@
       <div class="rpanel-content hidden" id="d-panel-camada">
       <div id="dtab-props" class="d-rp-sub">
         <div class="stats-row">
-          <div class="stat-box"><div class="stat-val" id="d-stat-layers">0</div><div class="stat-lbl">Layers</div></div>
+          <div class="stat-box"><div class="stat-val" id="d-stat-layers">0</div><div class="stat-lbl">Camadas</div></div>
           <div class="stat-box"><div class="stat-val" id="d-stat-vars">0</div><div class="stat-lbl">Variáveis</div></div>
         </div>
         <div class="prop-divider"></div>
@@ -716,7 +755,7 @@
               <select class="prop-input" id="dp-imgfit" onchange="dUpdateProp('objectFit',this.value)" style="font-size:11px">
                 <option value="cover">cover</option><option value="contain">contain</option><option value="fill">fill</option>
               </select>
-              <button id="dp-frame-upload" class="d-btn-sec" style="display:none;font-size:11px;padding:6px;width:100%;justify-content:center">📁 Carregar foto do computador</button>
+              <button id="dp-frame-upload" class="d-btn-sec" style="display:none;font-size:11px;padding:6px;width:100%;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Carregar foto do computador</button>
               <div id="dp-frame-shape-row" class="prop-row" style="display:none">
                 <span style="font-size:11px;color:var(--d-text3);min-width:50px">Forma</span>
                 <select class="prop-input" id="dp-frame-shape" onchange="dUpdateProp('frameShape',this.value);dUpdateProp('radius',this.value==='circle'?999:8)" style="font-size:11px">
@@ -771,13 +810,13 @@
         <div class="prop-divider"></div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
           <span class="section-head" style="margin:0">Blocos reutilizáveis</span>
-          <button class="d-lyr-add" onclick="dSaveSnippet()" title="Salvar os layers selecionados como bloco">💾 Salvar bloco</button>
+          <button class="d-lyr-add" onclick="dSaveSnippet()" title="Salvar os layers selecionados como bloco"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Salvar bloco</button>
         </div>
         <div id="d-snippets-list"></div>
         <div class="prop-divider"></div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
           <span class="section-head" style="margin:0">Fontes da marca</span>
-          <button class="d-lyr-add" onclick="document.getElementById('d-font-upload').click()" title="Enviar arquivo de fonte (.ttf, .otf, .woff, .woff2)">⬆ Enviar fonte</button>
+          <button class="d-lyr-add" onclick="document.getElementById('d-font-upload').click()" title="Enviar arquivo de fonte (.ttf, .otf, .woff, .woff2)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>Enviar fonte</button>
         </div>
         <input type="file" id="d-font-upload" accept=".ttf,.otf,.woff,.woff2,font/*" multiple style="display:none" onchange="dFontUpload(this)">
         <div id="d-fonts-list"></div>
@@ -786,10 +825,10 @@
       <!-- Tutorial: guia de cada ferramenta -->
       <div class="rpanel-content hidden" id="dtab-tutorial">
         <div class="d-tut-hero">
-          <div class="d-tut-hero-title">🎓 Aprenda o Studio</div>
+          <div class="d-tut-hero-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:6px"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5"/></svg>Aprenda o Studio</div>
           <div class="d-tut-hero-sub">Guia rápido de cada ferramenta. Comece abrindo o modelo de exemplo e mexendo nele.</div>
-          <button class="d-btn-pri" onclick="gOpenHelp()" style="width:100%;justify-content:center;margin-top:8px">▶ Ver tutoriais animados</button>
-          <button class="d-btn-sec" onclick="dTutLoadExample()" style="width:100%;justify-content:center;margin-top:6px">📂 Abrir modelo de exemplo</button>
+          <button class="d-btn-pri" onclick="gOpenHelp()" style="width:100%;justify-content:center;margin-top:8px"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:middle;margin-right:4px"><polygon points="5 3 19 12 5 21 5 3"/></svg>Ver tutoriais animados</button>
+          <button class="d-btn-sec" onclick="dTutLoadExample()" style="width:100%;justify-content:center;margin-top:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><path d="M2 10h20"/></svg>Abrir modelo de exemplo</button>
           <button class="d-btn-sec" onclick="dOpenCheat()" style="width:100%;justify-content:center;margin-top:6px">⌨ Ver todos os atalhos</button>
         </div>
         <div id="d-tutorial-body"></div>
@@ -863,18 +902,18 @@
 <!-- 4.3 — Geração em lote (CSV) -->
 <div class="modal-overlay" id="f-bulk-modal">
   <div class="modal" style="max-width:680px;width:92vw">
-    <div class="modal-title">⚡ Gerar vários (CSV)</div>
-    <p style="font-size:12px;color:var(--d-text3,#888);line-height:1.5;margin:0 0 12px">Baixe o modelo, preencha 1 linha por produto (colunas = variáveis) e reenvie. Imagens só por URL pública.</p>
+    <div class="modal-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:6px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Gerar vários (CSV)</div>
+    <p style="font-size:12px;color:var(--d-text3,#888);line-height:1.5;margin:0 0 12px">Baixe o modelo, preencha 1 linha por produto (colunas = variables) e reenvie. Imagens só por URL pública.</p>
     <div class="f-bulk-toolbar">
-      <button class="d-btn-sec" onclick="fBulkTemplateCSV()">⬇ Baixar modelo CSV</button>
-      <label class="d-btn-sec" style="cursor:pointer">📄 Enviar CSV
+      <button class="d-btn-sec" onclick="fBulkTemplateCSV()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>Baixar modelo CSV</button>
+      <label class="d-btn-sec" style="cursor:pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Enviar CSV
         <input type="file" id="f-bulk-file" accept=".csv,text/csv" style="display:none" onchange="fBulkHandleCSV(this)">
       </label>
       <span id="f-bulk-status" style="font-size:12px;color:var(--d-text3,#888);margin-left:auto"></span>
     </div>
     <div class="f-ai-prompt-block" id="f-ai-prompt-block">
       <button class="f-ai-prompt-toggle" onclick="fToggleAIPrompt()" aria-expanded="false" aria-controls="f-ai-prompt-body">
-        <span class="f-ai-prompt-icon">✨</span>
+        <span class="f-ai-prompt-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M3 12h3M18 12h3M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12"/></svg></span>
         <span>Gerar a planilha com IA</span>
         <span class="f-ai-prompt-chevron">›</span>
       </button>
@@ -882,7 +921,7 @@
         <p class="f-ai-prompt-desc">Cole esse prompt no ChatGPT, mande as fotos dos seus produtos e importe o CSV gerado aqui.</p>
         <div class="f-ai-prompt-box"><pre id="f-ai-prompt-text" class="f-ai-prompt-pre"></pre></div>
         <div class="f-ai-prompt-actions">
-          <button class="f-ai-prompt-copy" onclick="fCopyAIPrompt()">📋 Copiar prompt</button>
+          <button class="f-ai-prompt-copy" onclick="fCopyAIPrompt()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>Copiar prompt</button>
           <a class="f-ai-prompt-open" href="https://chat.openai.com" target="_blank" rel="noopener">Abrir ChatGPT →</a>
         </div>
       </div>
@@ -1011,16 +1050,16 @@
   </div>
 </div>
 
-<div id="g-toast"></div>
+<div id="g-toast-container"></div>
 
 
 
 <!-- ══ VIEW DADOS (Módulo 3 — analytics) ══ -->
-<div id="view-dados">
+<div id="view-dados" class="view-container">
   <nav id="p-sidenav" aria-label="Navegação do módulo Dados">
     <div id="p-nav-list"><!-- botões gerados por pBuildNav() a partir de P_SECOES --></div>
     <button class="p-nav-btn p-theme-toggle" id="p-theme-btn" onclick="pToggleTheme()" aria-label="Alternar tema claro/escuro" title="Alternar tema">
-      <span class="p-nav-ico" id="p-theme-ico">🌙</span><span class="p-nav-label" id="p-theme-lbl">Tema escuro</span>
+      <span class="p-nav-ico" id="p-theme-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span><span class="p-nav-label" id="p-theme-lbl">Tema escuro</span>
     </button>
   </nav>
   <main id="p-main" aria-live="polite"></main>
@@ -1096,7 +1135,7 @@
         <h4>Histórico</h4>
         <div class="cheat-row"><span>Desfazer</span><span class="cheat-key">Ctrl + Z</span></div>
         <div class="cheat-row"><span>Refazer</span><span class="cheat-key">Ctrl + Shift + Z</span></div>
-        <h4 style="margin-top:14px">Layers</h4>
+        <h4 style="margin-top:14px">Camadas</h4>
         <div class="cheat-row"><span>Duplicar</span><span class="cheat-key">Ctrl + D</span></div>
         <div class="cheat-row"><span>Deletar</span><span class="cheat-key">Del</span></div>
         <div class="cheat-row"><span>Agrupar</span><span class="cheat-key">Ctrl + G</span></div>
@@ -1288,12 +1327,12 @@
           <div class="pv-sidebar-title">Informações</div>
           <div class="pv-info-row"><span class="pv-info-label">Formato</span><span class="pv-info-val" id="pv-info-fmt">—</span></div>
           <div class="pv-info-row"><span class="pv-info-label">Dimensão</span><span class="pv-info-val" id="pv-info-dim">—</span></div>
-          <div class="pv-info-row"><span class="pv-info-label">Layers</span><span class="pv-info-val" id="pv-info-layers">—</span></div>
+          <div class="pv-info-row"><span class="pv-info-label">Camadas</span><span class="pv-info-val" id="pv-info-layers">—</span></div>
           <div class="pv-info-row"><span class="pv-info-label">Variáveis</span><span class="pv-info-val" id="pv-info-vars">—</span></div>
           <div class="pv-info-row"><span class="pv-info-label">Molduras</span><span class="pv-info-val" id="pv-info-frames">—</span></div>
         </div>
         <div class="pv-sidebar-section">
-          <div class="pv-sidebar-title">Layers</div>
+          <div class="pv-sidebar-title">Camadas</div>
           <div id="pv-layers-list"></div>
         </div>
         <div class="pv-sidebar-section">

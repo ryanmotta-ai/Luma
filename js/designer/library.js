@@ -339,6 +339,13 @@ function dToggleLock(e,id){
   e.stopPropagation();
   const l=dLayers.find(x=>x.id===id);if(!l)return;
   l.locked=!l.locked;
+  if (l.type === 'group') {
+    dLayers.forEach(x => {
+      if (x.parentId === l.id) {
+        x.locked = l.locked;
+      }
+    });
+  }
   dRenderCanvas();dRenderLayersList();dMarkUnsaved();
   gToast(l.locked?'🔒 Layer bloqueado':'🔓 Layer desbloqueado');
 }

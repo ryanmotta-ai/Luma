@@ -144,16 +144,52 @@
 
 
 /* ── Layer DnD ── */
-.layer-row{transition:background .1s,transform .12s;}
-.layer-drag-handle{
-  width:16px;height:28px;cursor:grab;
-  display:flex;align-items:center;justify-content:center;
-  color:var(--d-text3);font-size:11px;flex-shrink:0;
-  opacity:0;transition:opacity .15s;
+.layer-row {
+  position: relative;
+  transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), 
+              transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              padding-left 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, background-color;
 }
-.layer-row:hover .layer-drag-handle{opacity:1;}
-.layer-row.dragging{opacity:.4;background:var(--d-surf)!important;}
-.layer-row.drag-over{background:rgba(255,144,0,.12)!important;border-top:2px solid var(--dm-orange);}
+
+.layer-row.active {
+  background: rgba(255, 144, 0, 0.08) !important;
+  box-shadow: inset 3px 0 0 var(--dm-orange);
+  padding-left: 15px; /* Ajuste sutil para acomodar o marcador lateral */
+}
+
+.layer-drag-handle {
+  width: 16px;
+  height: 28px;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--d-text3);
+  font-size: 11px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity .15s;
+}
+
+.layer-row:hover .layer-drag-handle {
+  opacity: 1;
+}
+
+.layer-row.dragging {
+  opacity: 0.5;
+  transform: scale(0.97);
+  background: var(--d-surf) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 10;
+}
+
+.layer-row.drag-over {
+  background: rgba(255, 144, 0, 0.05) !important;
+  border-top: 2px solid var(--dm-orange);
+  transform: translateY(2px);
+}
 
 
 /* ── Canvas feedback ── */
@@ -253,3 +289,35 @@
   border-radius:4px;cursor:pointer;font-family:'Roboto',sans-serif;transition:all .12s;
 }
 .dp-radius-circle-btn:hover{border-color:var(--dm-orange);color:var(--dm-orange)}
+
+/* ── Nested Groups & Folders style ── */
+.group-row {
+  background: var(--d-surf2);
+  font-weight: bold;
+}
+.group-row .layer-icon {
+  font-size: 14px;
+}
+.group-collapse-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  color: var(--d-text3);
+  font-size: 10px;
+  margin-right: 2px;
+  user-select: none;
+  transition: color 0.15s;
+}
+.group-collapse-toggle:hover {
+  color: var(--dm-orange);
+}
+.child-row {
+  border-left: 2px solid var(--d-border2);
+}
+.group-label {
+  color: var(--d-text);
+}
+

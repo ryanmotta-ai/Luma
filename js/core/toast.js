@@ -6,20 +6,29 @@
  */
 
 function gToast(msg, type){
-  const t=document.getElementById('g-toast');
-  if(!t)return;
-  t.textContent=msg;
-  t.classList.toggle('g-toast-error', type==='error');
-  t.style.display='block';
-  // Re-trigger animação removendo e re-adicionando a classe
-  t.classList.remove('show');
-  void t.offsetWidth;
-  t.classList.add('show');
-  clearTimeout(t._t);
-  t._t=setTimeout(()=>{
-    t.style.display='none';
-    t.classList.remove('show');
-  }, type==='error'?4200:2800); // erro fica mais tempo na tela
+  const container = document.getElementById('g-toast-container');
+  if (!container) return;
+  
+  const item = document.createElement('div');
+  item.className = 'g-toast-item';
+  if (type === 'error') item.classList.add('g-toast-error');
+  
+  // Acessibilidade (a11y)
+  item.setAttribute('role', type === 'error' ? 'alert' : 'status');
+  item.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
+  
+  item.textContent = msg;
+  container.appendChild(item);
+  
+  const duration = type === 'error' ? 4200 : 2800;
+  
+  // Configura a remoção com transição de fade-out
+  setTimeout(() => {
+    item.classList.add('hide');
+    setTimeout(() => {
+      item.remove();
+    }, 300); // tempo correspondente ao transition no CSS
+  }, duration);
 }
 
 // gEsc(s) — escapa HTML. Use SEMPRE que dado do usuário (resposta do chat, nome de

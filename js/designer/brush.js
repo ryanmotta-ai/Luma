@@ -273,6 +273,7 @@ function dShowBrushBar(toolName){
   if(isPaint){
     const label = document.getElementById('bb-tool-label');
     if(label)label.textContent = {brush:'Pincel',eraser:'Borracha',smudge:'Borrar',blur:'Desfocar',gradient:'Gradiente'}[toolName] || 'Pincel';
+    setTimeout(dRenderBrushPreview, 10);
   }
 }
 
@@ -300,6 +301,7 @@ function dBrushUpdate(prop, val){
     const sizeNum = document.getElementById('d-brush-val');
     if(sizeNum)sizeNum.textContent = val;
   }
+  dRenderBrushPreview();
 }
 
 function dBrushSetPreset(preset){
@@ -312,6 +314,7 @@ function dBrushSetPreset(preset){
   else if(preset === 'round'){dBrush.hardness = 100; document.getElementById('bb-hardness').value = 100; document.getElementById('bb-hardness-num').textContent = 100;}
   else if(preset === 'calligraphy'){dBrush.hardness = 100;}
   else if(preset === 'dotted'){/* spacing maior tratado no draw */}
+  dRenderBrushPreview();
 }
 
 /* Atualizar dPaintStart, dPaintMove para usar dBrush */
@@ -325,5 +328,67 @@ function dGetBrushStyle(){
     preset: dBrush.preset,
     hardness: dBrush.hardness / 100,
   };
+}
+
+function dRenderBrushPreview() {
+  const canvas = document.getElementById('bb-brush-preview');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const bs = dGetBrushStyle();
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  
+  // Normaliza o tamanho do preview (limita o raio visual para caber no box de 24px)
+  const maxRadius = 10;
+  const scale = bs.size > 0 ? Math.min(1, maxRadius / (bs.size / 2)) : 1;
+  const visualRadius = Math.max(1.5, (bs.size / 2) * scale);
+
+  ctx.save();
+  ctx.globalAlpha = bs.alpha;
+
+  if (bs.preset === 'soft') {
+    // Gradiente radial para simular dureza (hardness)
+    const hard = Math.min(0.99, Math.max(0.01, bs.hardness));
+    const transp = bs.color.startsWith('#') ? bs.color + '00' : 'rgba(0,0,0,0)';
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, visualRadius);
+    g.addColorStop(0, bs.color);
+    g.addColorStop(hard, bs.color);
+    g.addColorStop(1, transp);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(cx, cy, visualRadius, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (bs.preset === 'square') {
+    ctx.fillStyle = bs.color;
+    ctx.fillRect(cx - visualRadius, cy - visualRadius, visualRadius * 2, visualRadius * 2);
+  } else if (bs.preset === 'calligraphy') {
+    ctx.fillStyle = bs.color;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(15 * Math.PI / 180);
+    ctx.fillRect(-visualRadius, -visualRadius / 3, visualRadius * 2, visualRadius * 2 / 3);
+    ctx.restore();
+  } else if (bs.preset === 'dotted') {
+    ctx.strokeStyle = bs.color;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, visualRadius, 0, Math.PI * 2);
+    ctx.stroke();
+    // Ponto central
+    ctx.fillStyle = bs.color;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    // Normal / Hard round
+    ctx.fillStyle = bs.color;
+    ctx.beginPath();
+    ctx.arc(cx, cy, visualRadius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.restore();
 }
 

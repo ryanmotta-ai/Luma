@@ -110,13 +110,61 @@ function pTemplateRow(t){
     <td class="num"><span class="p-score ${scoreClass}">${t._score}</span></td>
   </tr>`;
 
-  if(expanded) html += `<tr><td class="p-expand-cell" colspan="${P_COLS.length}">${pExpandPanel(t)}</td></tr>`;
+  html += `<tr class="p-expand-row" style="${expanded ? 'display:table-row;' : 'display:none;'}" id="p-exp-row-${t.id}">
+    <td class="p-expand-cell" colspan="${P_COLS.length}">
+      <div class="p-expand-wrapper ${expanded ? 'p-expand-wrapper-open' : ''}" id="p-exp-wrap-${t.id}">
+        <div class="p-expand-panel-anim">
+          ${pExpandPanel(t)}
+        </div>
+      </div>
+    </td>
+  </tr>`;
   return html;
 }
 
 function pToggleExpand(id){
-  pState.tabelaExpandida = pState.tabelaExpandida === id ? null : id;
-  pRender();
+  const row = document.querySelector(`.p-row[onclick*="${id}"]`);
+  const expRow = document.getElementById(`p-exp-row-${id}`);
+  const expWrap = document.getElementById(`p-exp-wrap-${id}`);
+  if(!row || !expRow || !expWrap) return;
+
+  const isOpening = !row.classList.contains('expanded');
+
+  // Fecha qualquer linha expandida anteriormente
+  const prevExpRow = document.querySelector('.p-row.expanded');
+  if(prevExpRow && prevExpRow !== row){
+    const clickAttr = prevExpRow.getAttribute('onclick') || '';
+    const match = clickAttr.match(/'([^']+)'/);
+    if(match && match[1]) {
+      const prevId = match[1];
+      const prevExp = document.getElementById(`p-exp-row-${prevId}`);
+      const prevWrap = document.getElementById(`p-exp-wrap-${prevId}`);
+      prevExpRow.classList.remove('expanded');
+      if(prevWrap) prevWrap.classList.remove('p-expand-wrapper-open');
+      setTimeout(() => {
+        if(prevExp && !prevExpRow.classList.contains('expanded')) {
+          prevExp.style.display = 'none';
+        }
+      }, 300);
+    }
+  }
+
+  if(isOpening){
+    row.classList.add('expanded');
+    expRow.style.display = 'table-row';
+    void expWrap.offsetWidth; // force reflow
+    expWrap.classList.add('p-expand-wrapper-open');
+    pState.tabelaExpandida = id;
+  } else {
+    row.classList.remove('expanded');
+    expWrap.classList.remove('p-expand-wrapper-open');
+    pState.tabelaExpandida = null;
+    setTimeout(() => {
+      if(!row.classList.contains('expanded')) {
+        expRow.style.display = 'none';
+      }
+    }, 300);
+  }
 }
 
 /* ── painel de histórico (expand) ── */
