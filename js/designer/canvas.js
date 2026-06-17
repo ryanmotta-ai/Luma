@@ -297,6 +297,10 @@ const dToolCursors = {
   select: 'default',
 
   text: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230A0A0A' stroke-width='2' stroke-linecap='round'><line x1='12' y1='2' x2='12' y2='6'/><line x1='12' y1='18' x2='12' y2='22'/><line x1='8' y1='4' x2='16' y2='4'/><line x1='8' y1='20' x2='16' y2='20'/><line x1='12' y1='6' x2='12' y2='18'/></svg>") 12 12, text`,
+  'text-h': `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230A0A0A' stroke-width='2' stroke-linecap='round'><line x1='12' y1='2' x2='12' y2='6'/><line x1='12' y1='18' x2='12' y2='22'/><line x1='8' y1='4' x2='16' y2='4'/><line x1='8' y1='20' x2='16' y2='20'/><line x1='12' y1='6' x2='12' y2='18'/></svg>") 12 12, text`,
+  'text-v': `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230A0A0A' stroke-width='2' stroke-linecap='round'><line x1='2' y1='12' x2='6' y2='12'/><line x1='18' y1='12' x2='22' y2='12'/><line x1='4' y1='8' x2='4' y2='16'/><line x1='20' y1='8' x2='20' y2='16'/><line x1='6' y1='12' x2='18' y2='12'/></svg>") 12 12, vertical-text`,
+  'mask-text-h': `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230A0A0A' stroke-width='2' stroke-dasharray='2 2' stroke-linecap='round'><line x1='12' y1='2' x2='12' y2='6'/><line x1='12' y1='18' x2='12' y2='22'/><line x1='8' y1='4' x2='16' y2='4'/><line x1='8' y1='20' x2='16' y2='20'/><line x1='12' y1='6' x2='12' y2='18'/></svg>") 12 12, text`,
+  'mask-text-v': `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230A0A0A' stroke-width='2' stroke-dasharray='2 2' stroke-linecap='round'><line x1='2' y1='12' x2='6' y2='12'/><line x1='18' y1='12' x2='22' y2='12'/><line x1='4' y1='8' x2='4' y2='16'/><line x1='20' y1='8' x2='20' y2='16'/><line x1='6' y1='12' x2='18' y2='12'/></svg>") 12 12, vertical-text`,
 
   rect: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230A0A0A' stroke-width='2'><line x1='12' y1='2' x2='12' y2='22'/><line x1='2' y1='12' x2='22' y2='12'/><rect x='8' y='8' width='8' height='8' rx='1' stroke='%23FF9000' stroke-width='1.5' fill='rgba(255,144,0,0.1)'/></svg>") 12 12, crosshair`,
 
@@ -307,6 +311,10 @@ const dToolCursors = {
   eraser: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230A0A0A' stroke-width='2' stroke-linecap='round'><path d='M20 20H7L3 16l10-10 7 7-2.5 2.5'/><path d='M6 11L13 18' stroke='%23FF9000' stroke-width='1.5'/><line x1='3' y1='20' x2='20' y2='20'/></svg>") 4 20, cell`,
 
   eyedrop: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230A0A0A' stroke-width='2' stroke-linecap='round'><path d='m2 22 1-1h3l9-9'/><path d='M3 21v-3l9-9'/><path d='m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z'/></svg>") 0 24, crosshair`,
+  'color-sampler': 'crosshair',
+  'ruler': 'crosshair',
+  'note': 'cell',
+  'count': 'cell',
 
   bucket: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230A0A0A' stroke-width='2' stroke-linecap='round'><path d='M3 21.3a1 1 0 0 0 1 .7h1a1 1 0 0 0 1-.7l1-4h4l1 4a1 1 0 0 0 1 .7h1a1 1 0 0 0 1-.7L21 7.3a1 1 0 0 0-.7-1.3L4.7 3A1 1 0 0 0 3.3 4L3 21.3Z'/><path d='M19 17c0 0 2 0.5 2 2.5S19 22 19 22s-2-.5-2-2.5 2-2.5 2-2.5Z' fill='%23FF9000' stroke='%23FF9000'/></svg>") 4 20, crosshair`,
 
@@ -317,6 +325,12 @@ const dToolCursors = {
   blur: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230A0A0A' stroke-linecap='round'><circle cx='12' cy='12' r='3' stroke-width='2.5'/><circle cx='12' cy='12' r='6' stroke-width='1.5' opacity='0.6'/><circle cx='12' cy='12' r='9' stroke-width='1' opacity='0.3'/></svg>") 12 12, cell`,
 
   gradient: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230A0A0A' stroke-width='2' stroke-linecap='round'><line x1='12' y1='2' x2='12' y2='22'/><line x1='2' y1='12' x2='22' y2='12'/><line x1='5' y1='5' x2='19' y2='19' stroke='%23FF9000' stroke-width='1.5' opacity='0.6'/></svg>") 12 12, crosshair`,
+
+  'obj-select': `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230A0A0A' stroke-width='2'><line x1='12' y1='2' x2='12' y2='22'/><line x1='2' y1='12' x2='22' y2='12'/><rect x='7' y='7' width='10' height='10' rx='1' stroke='%23FF9000' stroke-width='1.5' fill='rgba(255,144,0,0.1)'/></svg>") 12 12, crosshair`,
+
+  'quick-select': `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230A0A0A' stroke-width='2'><line x1='12' y1='2' x2='12' y2='22'/><line x1='2' y1='12' x2='22' y2='12'/><line x1='18' y1='14' x2='18' y2='20' stroke='%23FF9000' stroke-width='2'/><line x1='15' y1='17' x2='21' y2='17' stroke='%23FF9000' stroke-width='2'/></svg>") 12 12, crosshair`,
+
+  'magic-wand': `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230A0A0A' stroke-width='2' stroke-linecap='round'><line x1='3' y1='21' x2='13' y2='11'/><path d='M13 3l1.5 3 3 1.5-3 1.5L13 12l-1.5-3-3-1.5 3-1.5z' stroke='%23FF9000'/></svg>") 3 21, crosshair`,
 };
 
 // Cursor circular dinâmico do pincel/borracha — tamanho acompanha #d-brush-size + zoom.
@@ -335,7 +349,7 @@ function dUpdateBrushCursor(){
 
 function dSetTool(t){
   dTool=t;
-  ['select','text','rect','frame','img','brush','eraser','stamp','eyedrop','smudge','blur','sharpen','bucket','gradient'].forEach(x=>{
+  ['select','obj-select','quick-select','magic-wand','text','rect','frame','img','brush','eraser','stamp','eyedrop','smudge','blur','sharpen','bucket','gradient','text-h','text-v','mask-text-h','mask-text-v','color-sampler','ruler','note','count'].forEach(x=>{
     const b=document.getElementById('dtool-'+x);
     if(b){b.classList.toggle('active',x===t);}
   });
@@ -356,6 +370,33 @@ function dSetTool(t){
     const _fIcon=document.getElementById('dtool-forma-icon');
     if(_fIcon&&typeof _dFormaIcons!=='undefined') _fIcon.innerHTML=_dFormaIcons['rect']||'';
   }
+  // Proxy do grupo Texto — marca ativo e atualiza ícone
+  const _textGroup=['text','text-h','text-v','mask-text-h','mask-text-v'];
+  const _tProxy=document.getElementById('dtool-text-proxy');
+  if(_tProxy) _tProxy.classList.toggle('active',_textGroup.includes(t));
+  if(_textGroup.includes(t)){
+    if(typeof dTextLast!=='undefined') dTextLast=t;
+    const _tIcon=document.getElementById('dtool-text-icon');
+    if(_tIcon&&typeof _dTextIcons!=='undefined') _tIcon.innerHTML=_dTextIcons[t]||'';
+  }
+  // Proxy do grupo Seleção — marca ativo e sincroniza ícone
+  const _selectGroup=['select','obj-select','quick-select','magic-wand'];
+  const _sProxy=document.getElementById('dtool-select-proxy');
+  if(_sProxy) _sProxy.classList.toggle('active',_selectGroup.includes(t));
+  if(_selectGroup.includes(t)){
+    if(typeof dSelectLast!=='undefined') dSelectLast=t;
+    const _sIcon=document.getElementById('dtool-select-icon');
+    if(_sIcon&&typeof _dSelectIcons!=='undefined') _sIcon.innerHTML=_dSelectIcons[t]||'';
+  }
+  // Proxy do grupo Eyedrop/Medição — marca ativo e atualiza ícone
+  const _eyedropGroup=['eyedrop','color-sampler','ruler','note','count'];
+  const _eProxy=document.getElementById('dtool-eyedrop-proxy');
+  if(_eProxy) _eProxy.classList.toggle('active',_eyedropGroup.includes(t));
+  if(_eyedropGroup.includes(t)){
+    if(typeof dEyedropLast!=='undefined') dEyedropLast=t;
+    const _eIcon=document.getElementById('dtool-eyedrop-icon');
+    if(_eIcon&&typeof _dEyedropIcons!=='undefined') _eIcon.innerHTML=_dEyedropIcons[t]||'';
+  }
   const frame=document.getElementById('d-canvas-frame');
   const ws=document.getElementById('d-workspace');
   const brushOpts=document.getElementById('d-brush-opts');
@@ -365,9 +406,12 @@ function dSetTool(t){
     else frame.style.cursor=dToolCursors[t]||'default';
   }
   if(brushOpts){brushOpts.style.display=['brush','eraser','blur','smudge','sharpen'].includes(t)?'flex':'none';brushOpts.style.flexDirection='column';}
+  const wandOpts=document.getElementById('d-wand-opts');
+  if(wandOpts) wandOpts.style.display=(t==='magic-wand')?'flex':'none';
   dShowBrushBar(t);
   dEnsurePaintCanvas();
   dSyncPaintPointer();
+  if(typeof dRenderMeasureOverlay==='function') dRenderMeasureOverlay();
 }
 
 /* ══ MARQUEE SELECTION (rubber band) ══
@@ -399,9 +443,28 @@ function dAttachMarquee(){
   if(!frame || frame._marqueeBound)return;
   frame._marqueeBound=true;
   frame.addEventListener('mousedown',dStartMarquee);
+  frame.addEventListener('mousedown', function(e) {
+    if (typeof dTool !== 'undefined' && dTool === 'ruler') {
+      e.preventDefault();
+      if (typeof dRulerStart === 'function') {
+        dRulerStart(e, this);
+      }
+    }
+  });
 }
 
 function dStartMarquee(e){
+  // Ferramentas de seleção avançada — roteadas antes do guard canvas-layer
+  if(dTool==='obj-select'){
+    const frame=document.getElementById('d-canvas-frame');
+    if(frame&&typeof dObjSelectStart==='function') dObjSelectStart(e,frame);
+    return;
+  }
+  if(dTool==='quick-select'||dTool==='magic-wand'){
+    if(!e.target.classList.contains('canvas-layer')&&!e.target.classList.contains('layer-handle'))
+      _dAdvSelFromEvent(e);
+    return;
+  }
   if(dTool!=='select')return;
   if(e.target.classList.contains('canvas-layer'))return;
   if(e.target.classList.contains('layer-handle'))return;
@@ -486,6 +549,36 @@ function dLayerIntersects(l,x1,y1,x2,y2){
   return !(l.x+l.w<x1 || l.x>x2 || l.y+l.h<y1 || l.y>y2);
 }
 
+/* Helper — converte evento de mouse para coordenadas de design e despacha para a
+   ferramenta de seleção avançada ativa (quick-select ou magic-wand). */
+function _dAdvSelFromEvent(e){
+  const frame=document.getElementById('d-canvas-frame');
+  if(!frame)return;
+  const rect=frame.getBoundingClientRect();
+  const scale=dZoomLevel/100;
+  const x=(e.clientX-rect.left)/scale;
+  const y=(e.clientY-rect.top)/scale;
+  if(dTool==='quick-select'){
+    if(typeof dQuickSelectAt==='function') dQuickSelectAt(x,y,e.shiftKey,e.altKey);
+  }else if(dTool==='magic-wand'){
+    if(typeof dMagicWandSelect!=='function')return;
+    const tolEl=document.getElementById('d-wand-tol-input');
+    const tol=parseInt((tolEl&&tolEl.value)||'32',10);
+    const ids=dMagicWandSelect(x,y,tol);
+    if(ids.length){
+      dSelId=ids[0];
+      dMultiSel=ids.slice(1);
+      dRenderCanvas();
+      dRenderLayersList();
+      gToast('✓ Varinha: '+ids.length+' layer'+(ids.length>1?'s':'')+' selecionado'+(ids.length>1?'s':''));
+    }else{
+      dSelId=null;dMultiSel=[];
+      dRenderCanvas();dRenderLayersList();
+      gToast('⚠ Nenhum layer correspondente');
+    }
+  }
+}
+
 /* ══ FERRAMENTA PRANCHETA ══
    Click+drag no workspace → nova prancheta com dimensões desenhadas
    Click em ghost existente → ativa essa prancheta
@@ -502,6 +595,11 @@ function dABToolAttach(){
 
 function dABWorkspaceDown(e){
   if(dTool!=='artboard')return;
+  if(typeof dUseArtboards !== 'undefined' && !dUseArtboards){
+    gToast('⚠ Não é permitido adicionar pranchetas no modo de Documento Único. Ative "Usar Pranchetas" ao criar o arquivo.', 'error');
+    dSetTool('select');
+    return;
+  }
   // Só reagir a cliques direto no workspace ou no container (fundo), não em ghosts/layers
   const directTargets=['d-workspace','d-canvas-container','d-canvas-bg'];
   const onGhostBody=e.target.classList.contains('ab-ghost-body');
@@ -650,6 +748,11 @@ function dRenderCanvas(){
       el.style.fontSize=(l.fontSize||24)+'px';
       el.style.textAlign=l.textAlign||'left';
       el.style.lineHeight='1.2';el.style.overflow='visible';el.style.pointerEvents='auto';el.style.whiteSpace='pre-wrap';
+      if(l.vertical){
+        el.style.writingMode='vertical-rl';
+      } else {
+        el.style.writingMode='';
+      }
       // Se é campo variável, mostrar label acima + borda estilo Deskfy
       if(l.isVar){
         el.style.border='1.5px dashed rgba(124,110,255,0.6)';
@@ -767,6 +870,8 @@ function dRenderCanvas(){
     }
     el.addEventListener('mousedown',e=>{
       e.stopPropagation();
+      if(dTool==='obj-select'){const _oFr=document.getElementById('d-canvas-frame');if(_oFr&&typeof dObjSelectStart==='function')dObjSelectStart(e,_oFr);return;}
+      if(dTool==='quick-select'||dTool==='magic-wand'){_dAdvSelFromEvent(e);return;}
       if(dTool==='eyedrop'){dEyedropFromLayer(l);return;}
       if(dTool==='bucket'){dBucketFillLayer(l);return;}
       if(dTool==='select'){
@@ -832,6 +937,7 @@ function dStartInlineEdit(l, el) {
     'font-size:' + el.style.fontSize + ';',
     'line-height:1.2;text-align:' + (l.textAlign || 'left') + ';',
     'white-space:pre-wrap;overflow:hidden;',
+    l.vertical ? 'writing-mode:vertical-rl;' : '',
   ].join('');
 
   el.appendChild(ta);
@@ -842,12 +948,93 @@ function dStartInlineEdit(l, el) {
     const val = ta.value;
     if(ta.parentNode === el) el.removeChild(ta);
     delete el.dataset.editing;
+    
+    if (l.isTempMaskText) {
+      const targetLayer = (typeof dLayers !== 'undefined') && dLayers.find(x => x.id === l.targetMaskLayerId);
+      if (targetLayer && val.trim() !== '') {
+        const mCanvas = document.createElement('canvas');
+        mCanvas.width = targetLayer.w;
+        mCanvas.height = targetLayer.h;
+        const mCtx = mCanvas.getContext('2d');
+        mCtx.clearRect(0, 0, mCanvas.width, mCanvas.height);
+
+        const localX = l.x - targetLayer.x;
+        const localY = l.y - targetLayer.y;
+
+        const fp = (typeof dTextFontParts === 'function') ? dTextFontParts(l.font) : {family: "'Roboto', sans-serif", weight: 900};
+        mCtx.font = `${fp.weight} ${l.fontSize || 32}px ${fp.family}`;
+        mCtx.fillStyle = '#FFFFFF';
+
+        const lines = val.split('\n');
+        if (l.vertical) {
+          mCtx.textAlign = 'center';
+          mCtx.textBaseline = 'middle';
+          const fontSize = l.fontSize || 32;
+          const charStep = fontSize * 1.1;
+          const colStep = fontSize * 1.2;
+          const numCols = lines.length;
+          const totalTextW = numCols * colStep;
+          const startX = localX + l.w / 2 + totalTextW / 2 - colStep / 2;
+
+          lines.forEach((line, i) => {
+            const tx = startX - i * colStep;
+            const chars = [...line];
+            const numChars = chars.length;
+            const colH = numChars * charStep;
+            
+            let ty;
+            if(l.textAlign === 'center') {
+              ty = localY + l.h / 2 - colH / 2 + charStep / 2;
+            } else if(l.textAlign === 'right') {
+              ty = localY + l.h - colH + charStep / 2;
+            } else {
+              ty = localY + charStep / 2;
+            }
+
+            chars.forEach((char, j) => {
+              const cy = ty + j * charStep;
+              mCtx.fillText(char, tx, cy);
+            });
+          });
+        } else {
+          mCtx.textAlign = l.textAlign || 'left';
+          mCtx.textBaseline = 'top';
+          lines.forEach((line, i) => {
+            const tx = l.textAlign === 'center' ? localX + l.w / 2
+                     : l.textAlign === 'right' ? localX + l.w
+                     : localX;
+            const ty = localY + i * (l.fontSize || 32) * 1.25;
+            mCtx.fillText(line, tx, ty);
+          });
+        }
+
+        const maskDataUrl = mCanvas.toDataURL('image/png');
+        if (typeof dHistoryPush === 'function') dHistoryPush();
+        targetLayer.mask = maskDataUrl;
+        if (typeof dMarkUnsaved === 'function') dMarkUnsaved();
+        if (typeof gToast === 'function') gToast('✓ Máscara de texto aplicada à camada');
+      }
+
+      // Limpar camada temporária e restaurar estado
+      if (typeof dLayers !== 'undefined') {
+        dLayers = dLayers.filter(lyr => lyr.id !== l.id);
+      }
+      if (typeof dSelId !== 'undefined' && targetLayer) {
+        dSelId = targetLayer.id;
+      }
+      if (typeof dSetTool === 'function') dSetTool('select');
+      if (typeof dRenderCanvas === 'function') dRenderCanvas();
+      if (typeof dRenderLayersList === 'function') dRenderLayersList();
+      if (targetLayer && typeof dShowProps === 'function') dShowProps(targetLayer);
+      return;
+    }
+
     if(val !== prev) {
       l.content = val;
       if(typeof dSyncVarsFromContent === 'function') dSyncVarsFromContent(val);
-      dMarkUnsaved();
+      if(typeof dMarkUnsaved === 'function') dMarkUnsaved();
     }
-    dRenderCanvas();
+    if (typeof dRenderCanvas === 'function') dRenderCanvas();
   }
 
   ta.addEventListener('blur', commit, { once: true });

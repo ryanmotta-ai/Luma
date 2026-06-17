@@ -464,7 +464,7 @@ document.addEventListener('keydown',e=>{
     if(e.key==='Delete'&&(dTool==='brush'||dTool==='eraser'))dClearPaint();
     if(e.key==='Escape')dStampSource=null; // Esc limpa stamp source
     if(e.key==='v'||e.key==='V')dSetTool('select');   // V = Mover
-    if(e.key==='t'||e.key==='T')dSetTool('text');     // T = Texto
+    if(e.key==='t'||e.key==='T'){ if(typeof dTextActivate==='function') dTextActivate(); else dSetTool('text'); }     // T = Texto
     if(e.key==='r'||e.key==='R')dSetTool('rect');     // R = Retângulo
     if(e.key==='f'||e.key==='F')dSetTool('frame');    // F = Moldura
     if(e.key==='m'||e.key==='M')dSetTool('img');      // M = Imagem

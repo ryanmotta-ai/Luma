@@ -244,11 +244,36 @@ function dCanvasSize(){ const ab=(typeof dGetActiveAB==='function')&&dGetActiveA
 function dAddText(){const f=dCanvasSize();dAddTextAt(20,Math.round(f.h/2));}
 function dAddShape(){const f=dCanvasSize();dAddShapeAt(40,40);}
 function dAddImage(){const f=dCanvasSize();dAddImageAt(40,100);}
-function dAddTextAt(x,y){  dHistoryPush();
+function dAddTextAt(x,y,vertical){  if (typeof dHistoryPush === 'function') dHistoryPush();
   const id='l-'+(++dLyrCnt);
-  dLayers.push({id,name:'Texto '+dLyrCnt,type:'text',x,y,w:200,h:50,content:'Novo texto {{variavel}}',font:"'Roboto Black'",fontSize:32,color:'#FFFFFF',textAlign:'left',visible:true});
-  dSelLayerState(id);dRenderCanvas();dRenderLayersList();dStats();dMarkUnsaved();dSetTool('select');gToast('Layer de texto adicionado');
-  setTimeout(()=>dFlashLayer(id),30);
+  const isVert = !!vertical;
+  const layer = {
+    id,
+    name: (isVert ? 'Texto V ' : 'Texto ') + dLyrCnt,
+    type: 'text',
+    x,
+    y,
+    w: isVert ? 50 : 200,
+    h: isVert ? 200 : 50,
+    content: 'Novo texto {{variavel}}',
+    font: "'Roboto Black'",
+    fontSize: 32,
+    color: '#FFFFFF',
+    textAlign: 'left',
+    visible: true
+  };
+  if (isVert) {
+    layer.vertical = true;
+  }
+  if (typeof dLayers !== 'undefined') dLayers.push(layer);
+  if (typeof dSelLayerState === 'function') dSelLayerState(id);
+  if (typeof dRenderCanvas === 'function') dRenderCanvas();
+  if (typeof dRenderLayersList === 'function') dRenderLayersList();
+  if (typeof dStats === 'function') dStats();
+  if (typeof dMarkUnsaved === 'function') dMarkUnsaved();
+  if (typeof dSetTool === 'function') dSetTool('select');
+  if (typeof gToast === 'function') gToast(isVert ? 'Layer de texto vertical adicionado' : 'Layer de texto adicionado');
+  if (typeof dFlashLayer === 'function') setTimeout(()=>dFlashLayer(id),30);
 }
 function dAddShapeAt(x,y){  dHistoryPush();
   const id='l-'+(++dLyrCnt);
@@ -441,6 +466,7 @@ function dRenderLayersList(){
       <span class="layer-icon">${icon}</span>
       <span class="layer-label" style="opacity:${l.visible?1:.4}" ondblclick="dRenameLayer('${l.id}',event)" title="Duplo clique para renomear">${gEsc(l.name)}</span>
       ${hasVar?'<span class="lyr-badge lyr-var">var</span>':''}
+      ${(l.blendMode&&l.blendMode!=='normal'&&typeof dBlendModeLabel==='function')?'<span class="lyr-badge lyr-blend" title="Mesclagem: '+dBlendModeLabel(l.blendMode)+'">'+dBlendModeLabel(l.blendMode)+'</span>':''}
       ${l.type==='image'?'<span class="lyr-badge lyr-img">img</span>':''}
       ${l.type==='frame'?'<span class="lyr-badge lyr-img">frame</span>':''}
       ${l.type==='shape'?'<span class="lyr-badge lyr-shp">shape</span>':''}
@@ -591,6 +617,25 @@ function dShowProps(l){
   if(typeof dPopBindingSelects==='function')dPopBindingSelects(l); // 4.1 — vínculos de propriedade
   if(typeof dRenderRules==='function')dRenderRules(l); // 4.2 — regras condicionais
   if(typeof dMaskRenderProps==='function')dMaskRenderProps(l); // máscaras de camada
+  // Blend mode — universal para todos os tipos de layer
+  var _blendSel=document.getElementById('dp-blend');
+  if(_blendSel){
+    if(!_blendSel.options.length&&typeof DBLEND_GROUPS!=='undefined'&&typeof dBlendModeLabel==='function'){
+      DBLEND_GROUPS.forEach(function(g){
+        var og=document.createElement('optgroup');og.label=g.label;
+        g.modes.forEach(function(m){var o=document.createElement('option');o.value=m;o.textContent=dBlendModeLabel(m);og.appendChild(o);});
+        _blendSel.appendChild(og);
+      });
+    }
+    _blendSel.value=l.blendMode||'normal';
+    _blendSel.onchange=function(){
+      var _lid=l.id;
+      var _lay=dLayers.find(function(x){return x.id===_lid;});
+      if(!_lay)return;
+      _lay.blendMode=this.value==='normal'?undefined:this.value;
+      dRenderCanvas();dMarkUnsaved();
+    };
+  }
   if(isText){
     document.getElementById('dp-content').value=l.content||'';
     dAttachVarAutocomplete(document.getElementById('dp-content'), v=>dUpdateProp('content',v)); // V1/V2

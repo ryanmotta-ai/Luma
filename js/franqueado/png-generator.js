@@ -173,20 +173,40 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
   // Renderiza só layers visíveis (geometria já está no formato alvo → escala 1:1)
   const visible = effective.filter(l => l.visible !== false);
   for(const l of visible){
-    if(l.mask){
-      // máscara de camada: renderiza o layer num canvas isolado, aplica a máscara
-      // (destination-in com alpha) e composita o resultado no canvas principal.
-      const oc=document.createElement('canvas'); oc.width=ctx.canvas.width; oc.height=ctx.canvas.height;
+    const _bm=l.blendMode&&l.blendMode!=='normal'?l.blendMode:'normal';
+    const _native=(typeof dBlendToComposite==='function')?dBlendToComposite(_bm):null;
+    // Modos sem equivalente nativo no Canvas 2D → fallback pixel-a-pixel via dBlendImageData
+    const _needsSw=_bm!=='normal'&&_native===null&&typeof dBlendImageData==='function';
+    if(l.mask||_needsSw){
+      // Ambos os casos precisam de offscreen: máscara e/ou blend software
+      const oc=document.createElement('canvas'); oc.width=W; oc.height=H;
       const octx=oc.getContext('2d');
       try{ octx.setTransform(ctx.getTransform()); }catch(e){}
       octx.imageSmoothingEnabled=true; octx.imageSmoothingQuality='high';
-      await fRenderOneLayer(octx, l, dados, 1, 1);
-      try{
-        const mimg=await fLoadImageDataUrl(l.mask);
-        if(mimg){ octx.save(); octx.globalCompositeOperation='destination-in'; octx.drawImage(mimg, l.x, l.y, l.w, l.h); octx.restore(); }
-      }catch(e){}
-      ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.drawImage(oc,0,0); ctx.restore();
-    } else {
+      // Renderiza no offscreen sem blend (source-over) — blend aplicado abaixo
+      const _lNoBm=_needsSw?Object.assign({},l,{blendMode:'normal'}):l;
+      await fRenderOneLayer(octx, _lNoBm, dados, 1, 1);
+      if(l.mask){
+        try{
+          const mimg=await fLoadImageDataUrl(l.mask);
+          if(mimg){ octx.save(); octx.globalCompositeOperation='destination-in'; octx.drawImage(mimg,l.x,l.y,l.w,l.h); octx.restore(); }
+        }catch(e){}
+      }
+      if(_needsSw){
+        // Blend pixel-a-pixel restrito à bbox do layer
+        const bx=Math.max(0,Math.round(l.x)), by=Math.max(0,Math.round(l.y));
+        const bw=Math.min(W-bx,Math.max(1,Math.round(l.w)));
+        const bh=Math.min(H-by,Math.max(1,Math.round(l.h)));
+        if(bw>0&&bh>0){
+          const topData=octx.getImageData(bx,by,bw,bh);
+          const botData=ctx.getImageData(bx,by,bw,bh);
+          dBlendImageData(_bm,topData,botData);
+          ctx.putImageData(botData,bx,by);
+        }
+      }else{
+        ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.drawImage(oc,0,0); ctx.restore();
+      }
+    }else{
       await fRenderOneLayer(ctx, l, dados, 1, 1);
     }
   }
@@ -196,9 +216,9 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
 async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
   ctx.save();
   ctx.globalAlpha = (l.opacity != null ? l.opacity : 100) / 100;
-  ctx.globalCompositeOperation = (l.blendMode && l.blendMode !== 'normal')
-    ? l.blendMode.replace(/([A-Z])/g,c=>'-'+c.toLowerCase())
-    : 'source-over';
+  var _bmComp=(l.blendMode&&l.blendMode!=='normal'&&typeof dBlendToComposite==='function')
+    ?dBlendToComposite(l.blendMode):null;
+  ctx.globalCompositeOperation=_bmComp||'source-over';
   const x = Math.round(l.x * scaleX);
   const y = Math.round(l.y * scaleY);
   const w = Math.round(l.w * scaleX);
@@ -242,91 +262,170 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     const fwt = String(_fp.weight);
     const isDisplayFont = _fp.weight >= 900; // peso black ganha um leve respiro entre letras
 
-    // Auto-fit: começa com fontSize do designer e reduz se texto exceder l.w
     let fontSize = Math.round((l.fontSize || 24) * Math.min(scaleX, scaleY));
     const minFontSize = Math.max(8, Math.round(fontSize * 0.5));
-    // Mede pra ver se cabe; se não, reduz proporcionalmente
-    ctx.font = `${fwt} ${fontSize}px ${ff}`;
-    // letterSpacing precisa estar ativo ANTES de medir (senão o auto-fit subestima a largura
-    // de fontes display e o texto vaza a caixa). Espelha o valor usado no desenho.
-    ctx.letterSpacing = isDisplayFont ? `${Math.max(0.5, fontSize * 0.02)}px` : '0px';
-    let maxLineW = 0;
-    for(const line of lines){
-      const lw = ctx.measureText(line).width;
-      if(lw > maxLineW) maxLineW = lw;
-    }
-    // Aplica padding pra não ficar colado na borda do layer
-    const innerPad = Math.round(fontSize * 0.08);
-    const availableW = Math.max(10, w - innerPad * 2);
-    if(maxLineW > availableW){
-      const shrinkRatio = availableW / maxLineW;
-      fontSize = Math.max(minFontSize, Math.floor(fontSize * shrinkRatio));
+
+    if (l.vertical) {
+      // Auto-fit vertical
+      let maxColChars = 0;
+      lines.forEach(ln => { const chars = [...ln]; if(chars.length > maxColChars) maxColChars = chars.length; });
+      
+      let charStep = fontSize * 1.1;
+      let colStep = fontSize * 1.2;
+      let maxColH = maxColChars * charStep;
+      let totalW = lines.length * colStep;
+
+      // Se estourar a caixa da camada (w, h), encolhe
+      if (maxColH > h || totalW > w) {
+        const ratioH = h / Math.max(1, maxColH);
+        const ratioW = w / Math.max(1, totalW);
+        const shrinkRatio = Math.min(ratioH, ratioW);
+        fontSize = Math.max(minFontSize, Math.floor(fontSize * shrinkRatio));
+      }
+
+      charStep = fontSize * 1.1;
+      colStep = fontSize * 1.2;
+      maxColH = maxColChars * charStep;
+      totalW = lines.length * colStep;
+
       ctx.font = `${fwt} ${fontSize}px ${ff}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      // Realce: caixa atrás do texto
+      if(l.bg){
+        ctx.save();
+        ctx.fillStyle = l.bgColor || '#000';
+        const br = Math.min(Math.round(fontSize*0.2), w/2, h/2);
+        roundedRect(ctx, x, y, w, h, br); ctx.fill();
+        ctx.restore();
+      }
+
+      const startX = x + w/2 + totalW/2 - colStep/2;
+
+      lines.forEach((line, i) => {
+        const tx = startX - i * colStep;
+        const chars = [...line];
+        const numChars = chars.length;
+        const colH = numChars * charStep;
+        
+        let ty;
+        if(l.textAlign === 'center') {
+          ty = y + h/2 - colH/2 + charStep/2;
+        } else if(l.textAlign === 'right') {
+          ty = y + h - colH + charStep/2;
+        } else {
+          ty = y + charStep/2;
+        }
+
+        chars.forEach((char, j) => {
+          const cy = ty + j * charStep;
+          if(isDisplayFont){
+            ctx.letterSpacing = `${Math.max(0.5, fontSize * 0.02)}px`;
+          } else {
+            ctx.letterSpacing = '0px';
+          }
+          if(l.shadow){
+            ctx.shadowColor=l.shadowColor||'rgba(0,0,0,.5)';
+            ctx.shadowBlur=Math.max(1,fontSize*0.12);
+            ctx.shadowOffsetX=fontSize*0.05; ctx.shadowOffsetY=fontSize*0.05;
+          }
+          ctx.fillText(char, tx, cy);
+          if(l.shadow){ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;}
+          if(l.strokeW>0){
+            ctx.lineWidth=Math.max(1, l.strokeW*Math.min(scaleX,scaleY));
+            ctx.strokeStyle=l.strokeColor||'#000';
+            ctx.lineJoin='round';
+            ctx.strokeText(char, tx, cy);
+          }
+        });
+
+        if(l.strikethrough){
+          ctx.strokeStyle = l.color || '#fff';
+          ctx.lineWidth = Math.max(2, fontSize * 0.05);
+          ctx.beginPath();
+          ctx.moveTo(tx, ty - charStep/2);
+          ctx.lineTo(tx, ty + colH - charStep/2);
+          ctx.stroke();
+        }
+      });
+
+      ctx.letterSpacing = '0px';
+    } else {
+      // Auto-fit horizontal: começa com fontSize do designer e reduz se texto exceder l.w
+      ctx.font = `${fwt} ${fontSize}px ${ff}`;
+      ctx.letterSpacing = isDisplayFont ? `${Math.max(0.5, fontSize * 0.02)}px` : '0px';
+      let maxLineW = 0;
+      for(const line of lines){
+        const lw = ctx.measureText(line).width;
+        if(lw > maxLineW) maxLineW = lw;
+      }
+      const innerPad = Math.round(fontSize * 0.08);
+      const availableW = Math.max(10, w - innerPad * 2);
+      if(maxLineW > availableW){
+        const shrinkRatio = availableW / maxLineW;
+        fontSize = Math.max(minFontSize, Math.floor(fontSize * shrinkRatio));
+        ctx.font = `${fwt} ${fontSize}px ${ff}`;
+      }
+
+      const lineHeight = fontSize * 1.2;
+      const totalTextH = lineHeight * lines.length;
+
+      ctx.fillStyle = l.color || '#fff';
+      ctx.textAlign = l.textAlign || 'left';
+      ctx.textBaseline = 'middle';
+
+      const blockStartY = y + h/2 - totalTextH/2 + lineHeight/2;
+
+      if(l.bg){
+        ctx.save();
+        ctx.fillStyle = l.bgColor || '#000';
+        const br = Math.min(Math.round(fontSize*0.2), w/2, h/2);
+        roundedRect(ctx, x, y, w, h, br); ctx.fill();
+        ctx.restore();
+      }
+
+      lines.forEach((line, i) => {
+        const tx = l.textAlign === 'center' ? x + w/2
+                 : l.textAlign === 'right' ? x + w - innerPad
+                 : x + innerPad;
+        const ty = blockStartY + i * lineHeight;
+
+        if(isDisplayFont){
+          ctx.letterSpacing = `${Math.max(0.5, fontSize * 0.02)}px`;
+        } else {
+          ctx.letterSpacing = '0px';
+        }
+
+        if(l.shadow){
+          ctx.shadowColor=l.shadowColor||'rgba(0,0,0,.5)';
+          ctx.shadowBlur=Math.max(1,fontSize*0.12);
+          ctx.shadowOffsetX=fontSize*0.05; ctx.shadowOffsetY=fontSize*0.05;
+        }
+        ctx.fillText(line, tx, ty);
+        if(l.shadow){ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;}
+        if(l.strokeW>0){
+          ctx.lineWidth=Math.max(1, l.strokeW*Math.min(scaleX,scaleY));
+          ctx.strokeStyle=l.strokeColor||'#000';
+          ctx.lineJoin='round';
+          ctx.strokeText(line, tx, ty);
+        }
+
+        if(l.strikethrough){
+          const textW = ctx.measureText(line).width;
+          const lx = l.textAlign === 'center' ? tx - textW/2
+                   : l.textAlign === 'right' ? tx - textW
+                   : tx;
+          ctx.strokeStyle = l.color || '#fff';
+          ctx.lineWidth = Math.max(2, fontSize * 0.05);
+          ctx.beginPath();
+          ctx.moveTo(lx, ty);
+          ctx.lineTo(lx + textW, ty);
+          ctx.stroke();
+        }
+      });
+      ctx.letterSpacing = '0px';
     }
-
-    const lineHeight = fontSize * 1.2;
-    const totalTextH = lineHeight * lines.length;
-
-    ctx.fillStyle = l.color || '#fff';
-    ctx.textAlign = l.textAlign || 'left';
-    // Alinhamento vertical CENTRADO (como o designer faz via flex align-items:center)
-    ctx.textBaseline = 'middle';
-
-    // Posição Y inicial: meio do layer menos metade do bloco de texto, com offset pra centralizar primeira linha
-    const blockStartY = y + h/2 - totalTextH/2 + lineHeight/2;
-
-    // Realce: caixa atrás do texto (espelha o designer — preenche a caixa do layer)
-    if(l.bg){
-      ctx.save();
-      ctx.fillStyle = l.bgColor || '#000';
-      const br = Math.min(Math.round(fontSize*0.2), w/2, h/2);
-      roundedRect(ctx, x, y, w, h, br); ctx.fill();
-      ctx.restore();
-    }
-
-    lines.forEach((line, i) => {
-      const tx = l.textAlign === 'center' ? x + w/2
-               : l.textAlign === 'right' ? x + w - innerPad
-               : x + innerPad;
-      const ty = blockStartY + i * lineHeight;
-
-      // Letter-spacing pra fontes display (Realce/Bebas precisam de respiro)
-      if(isDisplayFont){
-        ctx.letterSpacing = `${Math.max(0.5, fontSize * 0.02)}px`;
-      } else {
-        ctx.letterSpacing = '0px';
-      }
-
-      // Sombra (aplicada só no fill); contorno desenhado por cima (espelha CSS text-stroke)
-      if(l.shadow){
-        ctx.shadowColor=l.shadowColor||'rgba(0,0,0,.5)';
-        ctx.shadowBlur=Math.max(1,fontSize*0.12);
-        ctx.shadowOffsetX=fontSize*0.05; ctx.shadowOffsetY=fontSize*0.05;
-      }
-      ctx.fillText(line, tx, ty);
-      if(l.shadow){ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;}
-      if(l.strokeW>0){
-        ctx.lineWidth=Math.max(1, l.strokeW*Math.min(scaleX,scaleY));
-        ctx.strokeStyle=l.strokeColor||'#000';
-        ctx.lineJoin='round';
-        ctx.strokeText(line, tx, ty);
-      }
-
-      if(l.strikethrough){
-        const textW = ctx.measureText(line).width;
-        const lx = l.textAlign === 'center' ? tx - textW/2
-                 : l.textAlign === 'right' ? tx - textW
-                 : tx;
-        ctx.strokeStyle = l.color || '#fff';
-        ctx.lineWidth = Math.max(2, fontSize * 0.05);
-        ctx.beginPath();
-        ctx.moveTo(lx, ty);
-        ctx.lineTo(lx + textW, ty);
-        ctx.stroke();
-      }
-    });
-    // Reset letter-spacing pra não vazar pra próximas renderizações
-    ctx.letterSpacing = '0px';
 
   } else if(l.type === 'frame' || l.type === 'image'){
     // Se tem imgVar e o franqueado enviou foto, usa essa foto

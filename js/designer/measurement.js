@@ -243,7 +243,7 @@ function dColorSamplerRemove(idx){
  * Cada pino é um crosshair com número (1-4) e tooltip com valores RGBA.
  */
 function dColorSamplerRender(){
-  var frame=document.getElementById('d-canvas-frame');
+  var frame=document.getElementById('d-measure-overlay')||document.getElementById('d-canvas-frame');
   if(!frame) return;
   var scale=(typeof dZoomLevel!=='undefined'?dZoomLevel:100)/100;
 
@@ -336,7 +336,7 @@ var dRulerState=null; // {startX, startY, endX, endY, lineEl, labelEl}
  * @param {HTMLElement} frame — o d-canvas-frame
  */
 function dRulerStart(e, frame){
-  if(!frame) frame=document.getElementById('d-canvas-frame');
+  if(!frame) frame=document.getElementById('d-measure-overlay')||document.getElementById('d-canvas-frame');
   var pos=_dScreenToCanvas(e.clientX, e.clientY, frame);
   // Limpar régua anterior
   dRulerClear();
@@ -383,7 +383,7 @@ function dRulerStart(e, frame){
  */
 function dRulerMove(e){
   if(!dRulerState) return;
-  var frame=dRulerState.frame||document.getElementById('d-canvas-frame');
+  var frame=dRulerState.frame||document.getElementById('d-measure-overlay')||document.getElementById('d-canvas-frame');
   var pos=_dScreenToCanvas(e.clientX, e.clientY, frame);
   var scale=(typeof dZoomLevel!=='undefined'?dZoomLevel:100)/100;
 
@@ -504,7 +504,7 @@ function dNoteAdd(x, y){
  * Notas não aparecem em exportação (são overlays DOM).
  */
 function dNoteRender(){
-  var frame=document.getElementById('d-canvas-frame');
+  var frame=document.getElementById('d-measure-overlay')||document.getElementById('d-canvas-frame');
   if(!frame) return;
   var scale=(typeof dZoomLevel!=='undefined'?dZoomLevel:100)/100;
 
@@ -637,11 +637,11 @@ function dCountAdd(x, y){
 }
 
 /**
- * Renderiza todos os marcadores numerados no canvas frame.
+ * Renderiza todos os marcadores numerados no canvas frame ou overlay.
  * Marcadores não aparecem em exportação (são overlays DOM).
  */
 function dCountRender(){
-  var frame=document.getElementById('d-canvas-frame');
+  var frame=document.getElementById('d-measure-overlay')||document.getElementById('d-canvas-frame');
   if(!frame) return;
   var scale=(typeof dZoomLevel!=='undefined'?dZoomLevel:100)/100;
 
@@ -690,7 +690,7 @@ function dCountRemove(id){
  * Remove todos os marcadores e reseta o contador.
  */
 function dCountClear(){
-  var frame=document.getElementById('d-canvas-frame');
+  var frame=document.getElementById('d-measure-overlay')||document.getElementById('d-canvas-frame');
   if(frame){
     var existing=frame.querySelectorAll('.d-count-marker');
     existing.forEach(function(el){el.parentNode.removeChild(el);});
@@ -702,15 +702,47 @@ function dCountClear(){
 
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   RE-RENDER HOOK
+   RE-RENDER HOOK & OVERLAY MANAGER
    Re-renderiza overlays após dRenderCanvas (pois este limpa innerHTML do frame).
    ══════════════════════════════════════════════════════════════════════════════ */
 
+function dRenderMeasureOverlay() {
+  const overlay = document.getElementById('d-measure-overlay');
+  const activeTool = typeof dTool !== 'undefined' ? dTool : '';
+  if (overlay) {
+    const isMeasureTool = ['color-sampler', 'ruler', 'note', 'count'].includes(activeTool);
+    overlay.style.pointerEvents = isMeasureTool ? 'auto' : 'none';
+  }
+
+  // Re-renderizar overlays persistentes
+  try { if (typeof dColorSamplerRender === 'function') dColorSamplerRender(); } catch(e){}
+  try { if (typeof dNoteRender === 'function') dNoteRender(); } catch(e){}
+  try { if (typeof dCountRender === 'function') dCountRender(); } catch(e){}
+
+  // Atualizar a linha e label da régua sob pan/zoom, se dRulerState existir
+  if (typeof dRulerState !== 'undefined' && dRulerState) {
+    const scale = (typeof dZoomLevel !== 'undefined' ? dZoomLevel : 100) / 100;
+    const dx = dRulerState.endX - dRulerState.startX;
+    const dy = dRulerState.endY - dRulerState.startY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+    if (dRulerState.lineEl) {
+      dRulerState.lineEl.style.left = (dRulerState.startX * scale) + 'px';
+      dRulerState.lineEl.style.top = (dRulerState.startY * scale) + 'px';
+      dRulerState.lineEl.style.width = (dist * scale) + 'px';
+      dRulerState.lineEl.style.transform = 'rotate(' + angle + 'deg)';
+    }
+    if (dRulerState.labelEl) {
+      const midX = ((dRulerState.startX + dRulerState.endX) / 2) * scale;
+      const midY = ((dRulerState.startY + dRulerState.endY) / 2) * scale;
+      dRulerState.labelEl.style.left = (midX + 10) + 'px';
+      dRulerState.labelEl.style.top = (midY - 30) + 'px';
+    }
+  }
+}
+
 // Patching do dRenderCanvas para re-inserir overlays que persistem.
-// O frame.innerHTML='' dentro de dRenderCanvas() remove nossos overlays,
-// então reinstalamos após cada render.
 (function(){
-  // Aguardar o DOM carregar para garantir que dRenderCanvas já existe
   var _patchApplied=false;
   function _applyPatch(){
     if(_patchApplied) return;
@@ -719,20 +751,137 @@ function dCountClear(){
     var _origRender=dRenderCanvas;
     dRenderCanvas=function(){
       _origRender.apply(this, arguments);
-      // Re-renderizar overlays persistentes
-      try{ dColorSamplerRender(); }catch(e){}
-      try{ dNoteRender(); }catch(e){}
-      try{ dCountRender(); }catch(e){}
+      try{ dRenderMeasureOverlay(); }catch(e){}
     };
   }
-  // Tentar aplicar imediatamente (se o script for carregado depois de canvas.js)
   if(typeof dRenderCanvas==='function'){
     _applyPatch();
   }else{
-    // Fallback: tentar quando o DOM carregar
     document.addEventListener('DOMContentLoaded', function(){
-      // Pequeno delay para dar tempo de outros scripts carregarem
       setTimeout(_applyPatch, 100);
     });
   }
 })();
+
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   SERIALIZAÇÃO — Snapshot & Restore (P1.4 Logic Layer)
+   Para persistência em localStorage, PSD v2, etc.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Captura o estado completo de todas as 4 ferramentas de medição.
+ * Retorna um objeto serializável (sem referências a DOM ou funções).
+ * Útil para localStorage, export PSD v2, undo/redo, etc.
+ * @returns {object}
+ */
+function dMeasurementSnapshot(){
+  return {
+    colorSamplers: dColorSamplers.map(function(s){
+      return {
+        x: s.x,
+        y: s.y,
+        color: {r: s.color.r, g: s.color.g, b: s.color.b, a: s.color.a}
+      };
+    }),
+    ruler: (dRulerState && dRulerState.startX !== null) ? {
+      startX: dRulerState.startX,
+      startY: dRulerState.startY,
+      endX: dRulerState.endX,
+      endY: dRulerState.endY
+    } : null,
+    notes: dNotes.map(function(n){
+      return {
+        id: n.id,
+        x: n.x,
+        y: n.y,
+        text: n.text,
+        collapsed: n.collapsed
+      };
+    }),
+    countMarkers: dCountMarkers.map(function(m){
+      return {
+        id: m.id,
+        x: m.x,
+        y: m.y,
+        number: m.number
+      };
+    }),
+    countNext: dCountNext
+  };
+}
+
+/**
+ * Restaura o estado de todas as 4 ferramentas a partir de um snapshot.
+ * Limpa o estado anterior e carrega completamente do snapshot.
+ * Não re-renderiza DOM — chame dColorSamplerRender(), dNoteRender(), dCountRender()
+ * após restaurar se precisar sincronizar a tela.
+ *
+ * @param {object} snap  Objeto retornado por dMeasurementSnapshot()
+ */
+function dMeasurementRestore(snap){
+  if(!snap || typeof snap !== 'object') return;
+
+  // Restaurar Color Samplers
+  if(snap.colorSamplers && Array.isArray(snap.colorSamplers)){
+    dColorSamplers = snap.colorSamplers.map(function(s){
+      return {
+        x: s.x,
+        y: s.y,
+        color: {r: s.color.r, g: s.color.g, b: s.color.b, a: s.color.a},
+        el: null  // re-renderizar para reconstruir DOM
+      };
+    });
+  }else{
+    dColorSamplers = [];
+  }
+
+  // Restaurar Ruler
+  if(snap.ruler && typeof snap.ruler === 'object'){
+    if(!dRulerState) dRulerState = {};
+    dRulerState.startX = snap.ruler.startX;
+    dRulerState.startY = snap.ruler.startY;
+    dRulerState.endX = snap.ruler.endX;
+    dRulerState.endY = snap.ruler.endY;
+  }else{
+    dRulerClear();
+  }
+
+  // Restaurar Notes
+  if(snap.notes && Array.isArray(snap.notes)){
+    dNotes = snap.notes.map(function(n){
+      return {
+        id: n.id,
+        x: n.x,
+        y: n.y,
+        text: n.text,
+        collapsed: n.collapsed !== false  // default true
+      };
+    });
+  }else{
+    dNotes = [];
+  }
+
+  // Restaurar Count Markers
+  if(snap.countMarkers && Array.isArray(snap.countMarkers)){
+    dCountMarkers = snap.countMarkers.map(function(m){
+      return {
+        id: m.id,
+        x: m.x,
+        y: m.y,
+        number: m.number
+      };
+    });
+  }else{
+    dCountMarkers = [];
+  }
+
+  // Restaurar próximo número sequencial
+  if(typeof snap.countNext === 'number'){
+    dCountNext = snap.countNext;
+  }else{
+    dCountNext = (dCountMarkers.length > 0)
+      ? Math.max.apply(null, dCountMarkers.map(function(m){return m.number;})) + 1
+      : 1;
+  }
+}

@@ -212,7 +212,8 @@ function dQuickSelectAt(x, y, additive, subtractive) {
       // Clique simples → selecionar somente este layer
       dSelLayer(l.id);
     }
-    return;
+    dSelResult.ids = [l.id];
+    return l.id;
   }
 
   // Nenhum layer atingido — desselecionar (se não estiver adicionando/removendo)
@@ -222,6 +223,8 @@ function dQuickSelectAt(x, y, additive, subtractive) {
     dRenderCanvas();
     dRenderLayersList();
   }
+  dSelResult.ids = [];
+  return null;
 }
 
 /**
@@ -519,4 +522,259 @@ function _dEnsureMarchingAntsCSS() {
     '@keyframes d-marching-ants{to{stroke-dashoffset:-10;}}' +
     '.d-sel-overlay svg rect{will-change:stroke-dashoffset;}';
   document.head.appendChild(style);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════
+ *  API DE LÓGICA PURA — P1.2
+ *  Funções sem efeito colateral que retornam ids.
+ *  A fiação com eventos é tarefa P1.3.
+ * ═══════════════════════════════════════════════════════════════════ */
+
+/**
+ * Estado de resultado das seleções puras.
+ * A fiação (P1.3) lê este objeto após cada chamada.
+ */
+var dSelResult = { ids: [], rect: null };
+
+
+/* ─── 1. dObjSelectInRect ─────────────────────────────────────────── */
+
+/**
+ * Retorna o id do layer com maior IOU em relação ao retângulo de arrasto.
+ * Ignora layers locked/invisible/group.
+ *
+ * @param {{x:number, y:number, w:number, h:number}} rect  Retângulo de seleção
+ * @returns {string|null}  id do melhor layer, ou null
+ */
+function dObjSelectInRect(rect) {
+    if (typeof dLayers === 'undefined') { dSelResult.ids = []; return null; }
+
+    var best = null;
+    var bestIou = 0;
+
+    for (var i = 0; i < dLayers.length; i++) {
+        var l = dLayers[i];
+        if (!l.visible || l.locked || l.type === 'group') continue;
+
+        var iou = _dIOU(rect, { x: l.x, y: l.y, w: l.w, h: l.h });
+        if (iou > bestIou) {
+            bestIou = iou;
+            best = l.id;
+        }
+    }
+
+    dSelResult.ids  = best ? [best] : [];
+    dSelResult.rect = { x: rect.x, y: rect.y, w: rect.w, h: rect.h };
+    return best;
+}
+
+/**
+ * Intersection-over-Union entre dois retângulos {x,y,w,h}.
+ * @param {{x,y,w,h}} a
+ * @param {{x,y,w,h}} b
+ * @returns {number} 0–1
+ * @private
+ */
+function _dIOU(a, b) {
+    var ix  = Math.max(a.x, b.x);
+    var iy  = Math.max(a.y, b.y);
+    var ix2 = Math.min(a.x + a.w, b.x + b.w);
+    var iy2 = Math.min(a.y + a.h, b.y + b.h);
+
+    if (ix2 <= ix || iy2 <= iy) return 0;
+
+    var inter = (ix2 - ix) * (iy2 - iy);
+    var union = a.w * a.h + b.w * b.h - inter;
+    return union > 0 ? inter / union : 0;
+}
+
+
+/* ─── 2. _dCompositeOffscreen ─────────────────────────────────────── */
+
+/**
+ * Cria e retorna um canvas offscreen com todos os layers visíveis renderizados
+ * sincronamente (shapes geométricos; image/frame como rect opaco).
+ * Não vaza nenhum nó no DOM — o canvas não é appendado a lugar nenhum.
+ *
+ * Usos principais:
+ *   - Amostragem de cor (dMagicWandSelect)
+ *   - Verificação de transparência em dQuickSelectAt para image/frame
+ *
+ * @param {number} w  Largura do canvas (px)
+ * @param {number} h  Altura do canvas (px)
+ * @returns {{cv: HTMLCanvasElement, ctx: CanvasRenderingContext2D}}
+ */
+function _dCompositeOffscreen(w, h) {
+    var cv = document.createElement('canvas');
+    cv.width  = Math.max(1, w | 0);
+    cv.height = Math.max(1, h | 0);
+    var ctx = cv.getContext('2d');
+
+    if (typeof dLayers === 'undefined') return { cv: cv, ctx: ctx };
+
+    for (var i = 0; i < dLayers.length; i++) {
+        var l = dLayers[i];
+        if (!l.visible || l.type === 'group') continue;
+
+        ctx.save();
+        ctx.globalAlpha = (l.opacity != null ? l.opacity : 100) / 100;
+
+        if (l.type === 'shape') {
+            ctx.fillStyle = l.fill || '#000000';
+
+            if (l.shapeKind === 'circle' || l.shapeKind === 'ellipse') {
+                var rx = l.w / 2;
+                var ry = l.h / 2;
+                ctx.beginPath();
+                ctx.ellipse(l.x + rx, l.y + ry, rx, ry, 0, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                var rd = Math.min(l.radius || 0, Math.floor(l.w / 2), Math.floor(l.h / 2));
+                if (rd > 0 && typeof ctx.roundRect === 'function') {
+                    ctx.beginPath();
+                    ctx.roundRect(l.x, l.y, l.w, l.h, rd);
+                    ctx.fill();
+                } else {
+                    ctx.fillRect(l.x, l.y, l.w, l.h);
+                }
+            }
+        } else {
+            // text, image, frame → bounding box com a cor dominante disponível
+            ctx.fillStyle = l.color || l.fill || 'rgba(128,128,128,0.9)';
+            ctx.fillRect(l.x, l.y, l.w, l.h);
+        }
+
+        ctx.restore();
+    }
+
+    return { cv: cv, ctx: ctx };
+}
+
+
+/* ─── 3. dMagicWandSelect ─────────────────────────────────────────── */
+
+/**
+ * Amostra a cor do layer mais ao topo em (x, y) e retorna os ids de todos
+ * os layers cuja cor representativa (fill para shape, color para text) esteja
+ * dentro da tolerância (distância Euclidiana RGB).
+ *
+ * Se o layer-fonte for image/frame (sem cor hex direta), usa o pixel composto
+ * do _dCompositeOffscreen para amostrar a cor do canvas renderizado.
+ *
+ * @param {number} x
+ * @param {number} y
+ * @param {number} [tolerance=32]  0–441 (distância Euclidiana máx ≈ 441)
+ * @returns {string[]}  Array de ids correspondentes (pode ser vazio)
+ */
+function dMagicWandSelect(x, y, tolerance) {
+    if (typeof tolerance !== 'number') tolerance = 32;
+    if (typeof dLayers === 'undefined') { dSelResult.ids = []; return []; }
+
+    var px = Math.round(x);
+    var py = Math.round(y);
+
+    // 1. Encontrar layer-fonte no topo do ponto
+    var srcLayer = null;
+    for (var i = dLayers.length - 1; i >= 0; i--) {
+        var l = dLayers[i];
+        if (!l.visible || l.locked || l.type === 'group') continue;
+        var hit = (typeof _dQuickSelectHitTest !== 'undefined')
+            ? _dQuickSelectHitTest(l, x, y)
+            : (x >= l.x && x <= l.x + l.w && y >= l.y && y <= l.y + l.h);
+        if (hit) { srcLayer = l; break; }
+    }
+
+    if (!srcLayer) {
+        dSelResult.ids = [];
+        return [];
+    }
+
+    // 2. Obter cor do layer-fonte
+    var srcHex = (srcLayer.type === 'text') ? (srcLayer.color || null)
+               : (srcLayer.type === 'shape') ? (srcLayer.fill  || null)
+               : null;
+
+    // Para image/frame sem cor hex: amostrar pixel do canvas composto
+    if (!srcHex) {
+        var artW = (typeof dArtboards !== 'undefined' && dArtboards && dArtboards[0])
+            ? dArtboards[0].w : 1080;
+        var artH = (typeof dArtboards !== 'undefined' && dArtboards && dArtboards[0])
+            ? dArtboards[0].h : 1920;
+        var ofc = _dCompositeOffscreen(artW, artH);
+        try {
+            var pd = ofc.ctx.getImageData(px, py, 1, 1).data;
+            if (pd[3] > 0) {
+                srcHex = '#'
+                    + ('0' + pd[0].toString(16)).slice(-2)
+                    + ('0' + pd[1].toString(16)).slice(-2)
+                    + ('0' + pd[2].toString(16)).slice(-2);
+            }
+        } catch (e) {}
+    }
+
+    if (!srcHex) {
+        dSelResult.ids = [];
+        return [];
+    }
+
+    // 3. Comparar cor de todos os layers com a cor-fonte
+    var srcRgb = _dHexToRgb(srcHex);
+    var matched = [];
+
+    for (var j = 0; j < dLayers.length; j++) {
+        var lj = dLayers[j];
+        if (!lj.visible || lj.locked || lj.type === 'group') continue;
+
+        var lHex = (lj.type === 'text')  ? (lj.color || null)
+                 : (lj.type === 'shape') ? (lj.fill  || null)
+                 : null;
+        if (!lHex) continue;
+
+        var lRgb = _dHexToRgb(lHex);
+        if (_dColorDist(srcRgb, lRgb) <= tolerance) {
+            matched.push(lj.id);
+        }
+    }
+
+    dSelResult.ids  = matched;
+    dSelResult.rect = null;
+    return matched;
+}
+
+/**
+ * Converte string hex (#RGB, #RRGGBB, sem #) para array [r, g, b].
+ * @param {string} hex
+ * @returns {number[]|null}  [r, g, b] em 0–255, ou null se inválido
+ * @private
+ */
+function _dHexToRgb(hex) {
+    if (!hex || typeof hex !== 'string') return null;
+
+    var h = hex.replace(/^#/, '');
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    if (h.length !== 6) return null;
+
+    var r = parseInt(h.substring(0, 2), 16);
+    var g = parseInt(h.substring(2, 4), 16);
+    var b = parseInt(h.substring(4, 6), 16);
+
+    if (isNaN(r) || isNaN(g) || isNaN(b)) return null;
+    return [r, g, b];
+}
+
+/**
+ * Distância Euclidiana RGB entre dois arrays [r, g, b].
+ * Retorna 999 se algum array for inválido.
+ * @param {number[]} c1
+ * @param {number[]} c2
+ * @returns {number}  0 (iguais) – ~441 (preto vs branco)
+ * @private
+ */
+function _dColorDist(c1, c2) {
+    if (!c1 || !c2) return 999;
+    var dr = c1[0] - c2[0];
+    var dg = c1[1] - c2[1];
+    var db = c1[2] - c2[2];
+    return Math.sqrt(dr * dr + dg * dg + db * db);
 }

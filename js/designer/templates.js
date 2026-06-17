@@ -15,7 +15,7 @@ let dDrag=null,dDragSX,dDragSY,dLyrSX,dLyrSY,dDragGroup=[],dDragGroupStart=[],dD
 let dResize=null,dResizeSX,dResizeSY,dResizeW,dResizeH;
 let dVars=[],dAssets=[],dLyrCnt=100,dActiveTab='campaigns';
 let dFolders=[],dActiveTmplId=null,dFolderOpen={};
-let dArtboards=[],dActiveABId=null;
+let dArtboards=[],dActiveABId=null,dUseArtboards=true;
 
 function dDefaultFolders(){
   const camps=[...CAMPS_ATIVAS,...CAMPS_OUTRAS];
@@ -187,6 +187,10 @@ function dSyncLayersToAB(){
 }
 
 function dNewArtboard(fmt,posX,posY){
+  if (typeof dUseArtboards !== 'undefined' && !dUseArtboards && dArtboards.length >= 1) {
+    gToast('⚠ Não é permitido adicionar pranchetas no modo de Documento Único. Ative "Usar Pranchetas" ao criar o arquivo.', 'error');
+    return;
+  }
   dSyncLayersToAB();
   fmt=fmt||dFmt||'story';
   const f=DFMT_SIZES[fmt]||DFMT_SIZES.story;
@@ -248,6 +252,10 @@ function dRenameAB(id,evt){
 }
 
 function dDuplicateAB(id){
+  if (typeof dUseArtboards !== 'undefined' && !dUseArtboards) {
+    gToast('⚠ Não é permitido duplicar pranchetas no modo de Documento Único.', 'error');
+    return;
+  }
   const src=dArtboards.find(ab=>ab.id===id);if(!src)return;
   dSyncLayersToAB();
   const newId='ab-'+Date.now();
@@ -780,56 +788,139 @@ function dNewArtboardCustom(w,h,bg,dpi,fmt){
   setTimeout(dFitToScreen,60);
   return ab;
 }
+const DNEWDOC_PRESETS = {
+  social: [
+    { id: 'story', name: 'Story', w: 1080, h: 1920, unit: 'px', dpi: 72 },
+    { id: 'feed', name: 'Feed', w: 1080, h: 1080, unit: 'px', dpi: 72 },
+    { id: 'reels', name: 'Reels', w: 1080, h: 1920, unit: 'px', dpi: 72 },
+    { id: 'post', name: 'Post', w: 1200, h: 628, unit: 'px', dpi: 72 }
+  ],
+  web: [
+    { id: 'fhd', name: 'Full HD', w: 1920, h: 1080, unit: 'px', dpi: 72 },
+    { id: 'hd', name: 'HD', w: 1366, h: 768, unit: 'px', dpi: 72 }
+  ],
+  mobile: [
+    { id: 'iphone', name: 'iPhone', w: 1170, h: 2532, unit: 'px', dpi: 72 },
+    { id: 'android', name: 'Android', w: 1080, h: 2400, unit: 'px', dpi: 72 }
+  ],
+  print: [
+    { id: 'a4', name: 'A4', w: 210, h: 297, unit: 'mm', dpi: 300 },
+    { id: 'a5', name: 'A5', w: 148, h: 210, unit: 'mm', dpi: 300 }
+  ],
+  custom: []
+};
+
 function dNewDocOpen(){
   document.getElementById('nd-unit').value='px';
-  document.getElementById('nd-dpi').value=72; // presets sociais usam 72 DPI
+  document.getElementById('nd-dpi').value=72;
   document.getElementById('nd-bg').value='white';
   document.getElementById('nd-bg-color').style.display='none';
-  dNewDocPickPreset('story');
+  if (document.getElementById('nd-use-artboards')) {
+    document.getElementById('nd-use-artboards').checked = dUseArtboards;
+  }
+  
+  const firstTab = document.querySelector('.newdoc-tab');
+  dNewDocSelectTab('social', firstTab);
+  
   document.getElementById('d-newdoc-modal').classList.add('open');
 }
-function dNewDocPickPreset(fmt,btn){
-  const f=DFMT_SIZES[fmt]||DFMT_SIZES.story;
-  document.getElementById('nd-unit').value='px';
-  document.getElementById('nd-dpi').value=72;
-  document.getElementById('nd-w').value=f.w;
-  document.getElementById('nd-h').value=f.h;
-  document.querySelectorAll('.newdoc-preset').forEach(b=>{b.style.outline='';});
-  if(btn)btn.style.outline='2px solid var(--dm-orange)';
+
+function dNewDocSelectTab(category, tabEl){
+  document.querySelectorAll('.newdoc-tab').forEach(btn => btn.classList.remove('active'));
+  if(tabEl) tabEl.classList.add('active');
+
+  const container = document.getElementById('nd-presets-container');
+  if(!container) return;
+
+  const presets = DNEWDOC_PRESETS[category] || [];
+  if(presets.length === 0){
+    container.innerHTML = `
+      <div style="grid-column: span 2; text-align: center; color: var(--d-text3); font-size: 12px; padding: 40px 0;">
+        Defina dimensões customizadas no painel ao lado.
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = presets.map(p => `
+    <button type="button" class="newdoc-preset-btn" data-preset-id="${p.id}" onclick="dNewDocApplyPreset('${category}', '${p.id}', this)">
+      <span style="font-weight: bold; font-size: 13px;">${p.name}</span>
+      <span style="font-size: 11px; opacity: 0.7;">${p.w} × ${p.h} ${p.unit}</span>
+      <span style="font-size: 10px; opacity: 0.5;">${p.dpi} DPI</span>
+    </button>
+  `).join('');
+
+  // Auto-selecionar o primeiro preset
+  const firstPresetBtn = container.querySelector('.newdoc-preset-btn');
+  if(firstPresetBtn){
+    dNewDocApplyPreset(category, presets[0].id, firstPresetBtn);
+  }
+}
+
+function dNewDocApplyPreset(category, id, btnEl){
+  const presets = DNEWDOC_PRESETS[category] || [];
+  const p = presets.find(x => x.id === id);
+  if(!p) return;
+
+  document.querySelectorAll('.newdoc-preset-btn').forEach(btn => btn.classList.remove('active'));
+  if(btnEl) btnEl.classList.add('active');
+
+  document.getElementById('nd-unit').value = p.unit;
+  document.getElementById('nd-dpi').value = p.dpi;
+  document.getElementById('nd-w').value = p.w;
+  document.getElementById('nd-h').value = p.h;
+
   dNewDocUpdate();
 }
+
 // Converte os campos do modal para pixels usando a unidade + DPI
 function _dNewDocPx(){
   const unit=document.getElementById('nd-unit').value;
   const dpi=Math.max(1,parseFloat(document.getElementById('nd-dpi').value)||72);
   const wv=parseFloat(document.getElementById('nd-w').value)||0;
   const hv=parseFloat(document.getElementById('nd-h').value)||0;
-  const toPx=v=>unit==='in'?Math.round(v*dpi):unit==='cm'?Math.round(v/2.54*dpi):Math.round(v);
+  const toPx=v=>unit==='in'?Math.round(v*dpi):unit==='cm'?Math.round(v/2.54*dpi):unit==='mm'?Math.round((v/10)/2.54*dpi):Math.round(v);
   return {w:toPx(wv),h:toPx(hv),dpi};
 }
+
 function dNewDocUpdate(){
   const {w,h}=_dNewDocPx();
   const el=document.getElementById('nd-px-preview');
   if(el)el.textContent=(w||'—')+' × '+(h||'—')+' px';
 }
+
 function dNewDocSwapOrientation(){
   const w=document.getElementById('nd-w'),h=document.getElementById('nd-h');
   const t=w.value;w.value=h.value;h.value=t;
   dNewDocUpdate();
 }
+
 function dNewDocBgChange(){
   const v=document.getElementById('nd-bg').value;
   document.getElementById('nd-bg-color').style.display=(v==='color')?'inline-block':'none';
 }
+
 function dNewDocConfirm(){
   const {w,h,dpi}=_dNewDocPx();
   if(w<16||h<16){gToast('⚠ Dimensões muito pequenas (mín. 16px)','error');return;}
   if(w>8000||h>8000){gToast('⚠ Dimensões muito grandes (máx. 8000px)','error');return;}
   const bgSel=document.getElementById('nd-bg').value;
   const bg=(bgSel==='color')?document.getElementById('nd-bg-color').value:bgSel;
+  
+  if (document.getElementById('nd-use-artboards')) {
+    dUseArtboards = document.getElementById('nd-use-artboards').checked;
+  }
+  
+  dArtboards = [];
+  dActiveABId = null;
+  
   dNewArtboardCustom(w,h,bg,dpi);
   document.getElementById('d-newdoc-modal').classList.remove('open');
-  gToast('✓ Novo arquivo '+w+'×'+h+'px criado — adicione elementos pelas ferramentas (T, R, F, M)');
+  
+  const msg = dUseArtboards 
+    ? '✓ Novo workspace multi-prancheta criado com prancheta de ' + w + '×' + h + 'px'
+    : '✓ Novo documento único de ' + w + '×' + h + 'px criado';
+  gToast(msg);
 }
 
 /* ── FORMATO / CANVAS ── */

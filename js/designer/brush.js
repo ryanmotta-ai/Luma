@@ -205,8 +205,10 @@ document.getElementById('d-canvas-frame').addEventListener('click',function(e){
   // Ferramentas de criação precisam funcionar mesmo quando o clique cai sobre um layer.
   // Ex.: o layer "Fundo" cobre o canvas inteiro e interceptaria todos os cliques, fazendo
   // texto/forma/moldura/imagem não dispararem quando esse layer existe.
-  const creationTool=(dTool==='text'||dTool==='rect'||dTool==='frame'||dTool==='img'||dTool==='stamp');
-  const onFrame=(e.target===this||e.target.id==='d-canvas-frame'||e.target.id==='d-paint-canvas');
+  const isTextTool=(dTool==='text'||dTool==='text-h'||dTool==='text-v'||dTool==='mask-text-h'||dTool==='mask-text-v');
+  const isMeasureTool=(dTool==='color-sampler'||dTool==='note'||dTool==='count');
+  const creationTool=(isTextTool||isMeasureTool||dTool==='rect'||dTool==='frame'||dTool==='img'||dTool==='stamp');
+  const onFrame=(e.target===this||e.target.id==='d-canvas-frame'||e.target.id==='d-paint-canvas'||e.target.id==='d-measure-overlay'||e.target.closest('#d-measure-overlay'));
   if(!creationTool){
     // Demais ferramentas (select etc.) só reagem ao clique direto no frame/paint canvas.
     if(!onFrame)return;
@@ -218,7 +220,19 @@ document.getElementById('d-canvas-frame').addEventListener('click',function(e){
   const f=DFMT_SIZES[dFmt];
   const rect=this.getBoundingClientRect();const scale=dZoomLevel/100;
   const x=Math.round((e.clientX-rect.left)/scale);const y=Math.round((e.clientY-rect.top)/scale);
-  if(dTool==='text')dAddTextAt(x,y);
+  if(dTool==='text'||dTool==='text-h')dAddTextAt(x,y,false);
+  else if(dTool==='text-v')dAddTextAt(x,y,true);
+  else if(dTool==='mask-text-h')dAddTextMaskAt(x,y,false);
+  else if(dTool==='mask-text-v')dAddTextMaskAt(x,y,true);
+  else if(dTool==='color-sampler'){
+    if(typeof dColorSamplerAdd==='function') dColorSamplerAdd(x,y);
+  }
+  else if(dTool==='note'){
+    if(typeof dNoteAdd==='function') dNoteAdd(x,y);
+  }
+  else if(dTool==='count'){
+    if(typeof dCountAdd==='function') dCountAdd(x,y);
+  }
   else if(dTool==='rect')dAddShapeAt(x,y);
   else if(dTool==='frame')dAddFrameAt(x,y);
   else if(dTool==='img')dAddImageAt(x,y);
@@ -511,5 +525,181 @@ function dFormaPick(kind, e) {
   if(kind==='line') { dAddLine(); return; }
   if(kind==='rect') { dSetTool('rect'); return; }
   dAddShapeKind(kind);
+}
+
+/* ══ GRUPO TEXTO — flyout Photoshop-style ══ */
+let dTextLast = 'text-h';
+
+const _dTextIcons = {
+  'text-h': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>`,
+  'text-v': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 4v16M5 4h8M17 6l2 2 2-2M19 8v10M17 16l2 2 2-2"/></svg>`,
+  'mask-text-h': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="2 2"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>`,
+  'mask-text-v': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="2 2"><path d="M9 4v16M5 4h8M17 6l2 2 2-2M19 8v10M17 16l2 2 2-2"/></svg>`,
+};
+
+function dTextActivate() {
+  if (typeof dSetTool === 'function') {
+    dSetTool(dTextLast);
+  }
+}
+
+function dTextFlyout(e) {
+  if (e) { e.preventDefault(); e.stopPropagation(); }
+  const flyout = document.getElementById('vt-text-flyout');
+  if(!flyout) return;
+  const isOpen = flyout.classList.contains('open');
+  document.querySelectorAll('.vt-flyout').forEach(f => f.classList.remove('open'));
+  if(!isOpen){
+    flyout.classList.add('open');
+    setTimeout(() => {
+      document.addEventListener('click', function _closeFlyout(){
+        document.querySelectorAll('.vt-flyout').forEach(f => f.classList.remove('open'));
+        document.removeEventListener('click', _closeFlyout);
+      });
+    }, 0);
+  }
+}
+
+function dTextPick(tool, e) {
+  if(e) e.stopPropagation();
+  dTextLast = tool;
+  document.querySelectorAll('.vt-flyout').forEach(f => f.classList.remove('open'));
+  const icon = document.getElementById('dtool-text-icon');
+  if(icon && typeof _dTextIcons !== 'undefined') {
+    icon.innerHTML = _dTextIcons[tool] || '';
+  }
+  if (typeof dSetTool === 'function') {
+    dSetTool(tool);
+  }
+}
+
+function dAddTextMaskAt(x, y, vertical) {
+  if (typeof dLayers === 'undefined' || typeof dSelId === 'undefined') return;
+  const targetLayer = dLayers.find(lyr => lyr.id === dSelId);
+  if (!targetLayer) {
+    if (typeof gToast === 'function') gToast('Selecione uma camada primeiro para aplicar a máscara de texto');
+    return;
+  }
+  
+  const tempId = 'l-temp-mask-text';
+  // Garante remoção de temporário antigo
+  dLayers = dLayers.filter(lyr => lyr.id !== tempId);
+
+  const isVert = !!vertical;
+  const tempLayer = {
+    id: tempId,
+    name: 'Temp Mask Text',
+    type: 'text',
+    x, y,
+    w: isVert ? 60 : 250,
+    h: isVert ? 250 : 60,
+    content: 'Texto Máscara',
+    font: targetLayer.font || "'Roboto Black'",
+    fontSize: targetLayer.fontSize || 32,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    visible: true,
+    vertical: isVert,
+    isTempMaskText: true,
+    targetMaskLayerId: targetLayer.id
+  };
+
+  dLayers.push(tempLayer);
+  if (typeof dSelLayerState === 'function') dSelLayerState(tempId);
+  if (typeof dRenderCanvas === 'function') dRenderCanvas();
+  if (typeof dRenderLayersList === 'function') dRenderLayersList();
+
+  const frame = document.getElementById('d-canvas-frame');
+  if (frame) {
+    const tempEl = frame.querySelector(`[data-id="${tempId}"]`);
+    if (tempEl && typeof dStartInlineEdit === 'function') {
+      dStartInlineEdit(tempLayer, tempEl);
+    }
+  }
+}
+
+/* ══ GRUPO MEDIÇÃO — flyout Photoshop-style ══ */
+let dEyedropLast = 'eyedrop';
+
+const _dEyedropIcons = {
+  'eyedrop': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m2 22 1-1h3l9-9"/><path d="M3 21v-3l9-9"/><path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z"/></svg>`,
+  'color-sampler': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="2" x2="12" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>`,
+  'ruler': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="5" x2="19" y2="19"/><circle cx="5" cy="5" r="1.5"/><circle cx="19" cy="19" r="1.5"/><path d="M9 5l2 2M13 9l2 2"/></svg>`,
+  'note': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,
+  'count': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>`,
+};
+
+function dEyedropActivate() {
+  if (typeof dSetTool === 'function') {
+    dSetTool(dEyedropLast);
+  }
+}
+
+function dEyedropFlyout(e) {
+  if (e) { e.preventDefault(); e.stopPropagation(); }
+  const flyout = document.getElementById('vt-eyedrop-flyout');
+  if(!flyout) return;
+  const isOpen = flyout.classList.contains('open');
+  document.querySelectorAll('.vt-flyout').forEach(f => f.classList.remove('open'));
+  if(!isOpen){
+    flyout.classList.add('open');
+    setTimeout(() => {
+      document.addEventListener('click', function _closeFlyout(){
+        document.querySelectorAll('.vt-flyout').forEach(f => f.classList.remove('open'));
+        document.removeEventListener('click', _closeFlyout);
+      });
+    }, 0);
+  }
+}
+
+function dEyedropPick(tool, e) {
+  if(e) e.stopPropagation();
+  dEyedropLast = tool;
+  document.querySelectorAll('.vt-flyout').forEach(f => f.classList.remove('open'));
+  const icon = document.getElementById('dtool-eyedrop-icon');
+  if(icon && typeof _dEyedropIcons !== 'undefined') {
+    icon.innerHTML = _dEyedropIcons[tool] || '';
+  }
+  if (typeof dSetTool === 'function') {
+    dSetTool(tool);
+  }
+}
+
+/* ══ GRUPO SELEÇÃO — flyout Photoshop-style ══ */
+let dSelectLast = 'select';
+
+const _dSelectIcons = {
+  'select':       `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-7 1-4 7z"/></svg>`,
+  'obj-select':   `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="4,2"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>`,
+  'quick-select': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-7 1-4 7z"/><line x1="18" y1="14" x2="18" y2="20" stroke-width="2.5"/><line x1="15" y1="17" x2="21" y2="17" stroke-width="2.5"/></svg>`,
+  'magic-wand':   `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="21" x2="13" y2="11"/><path d="M13 3l1.5 3 3 1.5-3 1.5L13 12l-1.5-3-3-1.5 3-1.5z"/><line x1="19" y1="9" x2="21" y2="7"/><line x1="15" y1="5" x2="17" y2="3"/></svg>`,
+};
+
+function dSelectActivate() { dSetTool(dSelectLast); }
+
+function dSelectFlyout(e) {
+  e.preventDefault(); e.stopPropagation();
+  const flyout = document.getElementById('vt-select-flyout');
+  if(!flyout) return;
+  const isOpen = flyout.classList.contains('open');
+  document.querySelectorAll('.vt-flyout').forEach(function(f) { f.classList.remove('open'); });
+  if(!isOpen) {
+    flyout.classList.add('open');
+    setTimeout(function() {
+      document.addEventListener('click', function _closeFlyout(){
+        document.querySelectorAll('.vt-flyout').forEach(function(f) { f.classList.remove('open'); });
+        document.removeEventListener('click', _closeFlyout);
+      });
+    }, 0);
+  }
+}
+
+function dSelectPick(tool, e) {
+  if(e) e.stopPropagation();
+  dSelectLast = tool;
+  document.querySelectorAll('.vt-flyout').forEach(function(f) { f.classList.remove('open'); });
+  const icon = document.getElementById('dtool-select-icon');
+  if(icon && typeof _dSelectIcons !== 'undefined') icon.innerHTML = _dSelectIcons[tool] || '';
+  dSetTool(tool);
 }
 

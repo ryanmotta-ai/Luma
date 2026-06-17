@@ -104,16 +104,37 @@ function pvRenderLayers(ctx, layers, W, H, idx, done){
   if(idx>=layers.length){done();return;}
   const l=layers[idx];
   const cont=()=>pvRenderLayers(ctx,layers,W,H,idx+1,done);
-  if(l.mask){
-    // máscara: renderiza isolado, aplica alpha (destination-in) e composita
+  const _bm=l.blendMode&&l.blendMode!=='normal'?l.blendMode:'normal';
+  const _native=(typeof dBlendToComposite==='function')?dBlendToComposite(_bm):null;
+  const _needsSw=_bm!=='normal'&&_native===null&&typeof dBlendImageData==='function';
+  if(l.mask||_needsSw){
+    // offscreen necessário para: máscara e/ou blend software
     const oc=document.createElement('canvas'); oc.width=ctx.canvas.width; oc.height=ctx.canvas.height;
     const octx=oc.getContext('2d'); try{octx.setTransform(ctx.getTransform());}catch(e){}
-    pvRenderLayer(octx,l,W,H,()=>{
-      const m=new Image();
-      const composite=()=>{ ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.drawImage(oc,0,0); ctx.restore(); cont(); };
-      m.onload=()=>{ octx.save(); octx.globalCompositeOperation='destination-in'; octx.drawImage(m,l.x,l.y,l.w,l.h); octx.restore(); composite(); };
-      m.onerror=composite;
-      m.src=l.mask;
+    const _lNoBm=_needsSw?Object.assign({},l,{blendMode:'normal'}):l;
+    pvRenderLayer(octx,_lNoBm,W,H,()=>{
+      const doBlend=()=>{
+        if(_needsSw){
+          const bx=Math.max(0,Math.round(l.x)), by=Math.max(0,Math.round(l.y));
+          const bw=Math.min(ctx.canvas.width-bx,Math.max(1,Math.round(l.w)));
+          const bh=Math.min(ctx.canvas.height-by,Math.max(1,Math.round(l.h)));
+          if(bw>0&&bh>0){
+            const topData=octx.getImageData(bx,by,bw,bh);
+            const botData=ctx.getImageData(bx,by,bw,bh);
+            dBlendImageData(_bm,topData,botData);
+            ctx.putImageData(botData,bx,by);
+          }
+          cont();
+        }else{
+          ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.drawImage(oc,0,0); ctx.restore(); cont();
+        }
+      };
+      if(l.mask){
+        const m=new Image();
+        m.onload=()=>{ octx.save(); octx.globalCompositeOperation='destination-in'; octx.drawImage(m,l.x,l.y,l.w,l.h); octx.restore(); doBlend(); };
+        m.onerror=doBlend;
+        m.src=l.mask;
+      }else doBlend();
     });
   } else pvRenderLayer(ctx,l,W,H,cont);
 }
@@ -121,6 +142,10 @@ function pvRenderLayers(ctx, layers, W, H, idx, done){
 function pvRenderLayer(ctx, l, W, H, next){
   ctx.save();
   ctx.globalAlpha=(l.opacity!=null?l.opacity:100)/100;
+  if(l.blendMode&&l.blendMode!=='normal'&&typeof dBlendToComposite==='function'){
+    var _pvComp=dBlendToComposite(l.blendMode);
+    if(_pvComp) ctx.globalCompositeOperation=_pvComp;
+  }
 
   if(l.type==='shape'){
     ctx.fillStyle=l.fill||'#FF9000';
@@ -151,25 +176,66 @@ function pvRenderLayer(ctx, l, W, H, next){
     const _fp=(typeof dTextFontParts==='function')?dTextFontParts(l.font):{family:"'Roboto', sans-serif",weight:900};
     ctx.font=`${_fp.weight} ${l.fontSize||24}px ${_fp.family}`;
     ctx.fillStyle=l.color||'#fff';
-    ctx.textAlign=l.textAlign||'left';
-    ctx.textBaseline='top';
-    if(l.strikethrough){
-      // desenhar texto + linha
-      lines.forEach((line,i)=>{
-        const tx=l.textAlign==='center'?l.x+l.w/2:l.textAlign==='right'?l.x+l.w:l.x;
-        const ty=l.y+i*(l.fontSize||24)*1.25;
-        ctx.fillText(line,tx,ty);
-        const tw=ctx.measureText(line).width;
-        const lx=l.textAlign==='center'?tx-tw/2:l.textAlign==='right'?tx-tw:tx;
-        ctx.strokeStyle=l.color||'#fff';ctx.lineWidth=2;
-        ctx.beginPath();ctx.moveTo(lx,ty+(l.fontSize||24)*0.55);ctx.lineTo(lx+tw,ty+(l.fontSize||24)*0.55);ctx.stroke();
+
+    if(l.vertical){
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      const fontSize = l.fontSize||24;
+      const charStep = fontSize * 1.1;
+      const colStep = fontSize * 1.2;
+      const numCols = lines.length;
+      const totalTextW = numCols * colStep;
+      const startX = l.x + l.w / 2 + totalTextW / 2 - colStep / 2;
+
+      lines.forEach((line, i) => {
+        const tx = startX - i * colStep;
+        const chars = [...line];
+        const numChars = chars.length;
+        const colH = numChars * charStep;
+        
+        let ty;
+        if(l.textAlign === 'center') {
+          ty = l.y + l.h / 2 - colH / 2 + charStep / 2;
+        } else if(l.textAlign === 'right') {
+          ty = l.y + l.h - colH + charStep / 2;
+        } else {
+          ty = l.y + charStep / 2;
+        }
+
+        chars.forEach((char, j) => {
+          const cy = ty + j * charStep;
+          ctx.fillText(char, tx, cy);
+        });
+
+        if(l.strikethrough){
+          ctx.strokeStyle=l.color||'#fff';ctx.lineWidth=2;
+          ctx.beginPath();
+          ctx.moveTo(tx, ty - charStep/2);
+          ctx.lineTo(tx, ty + colH - charStep/2);
+          ctx.stroke();
+        }
       });
-    }else{
-      lines.forEach((line,i)=>{
-        const tx=l.textAlign==='center'?l.x+l.w/2:l.textAlign==='right'?l.x+l.w:l.x;
-        const ty=l.y+i*(l.fontSize||24)*1.25;
-        ctx.fillText(line,tx,ty);
-      });
+    } else {
+      ctx.textAlign=l.textAlign||'left';
+      ctx.textBaseline='top';
+      if(l.strikethrough){
+        // desenhar texto + linha
+        lines.forEach((line,i)=>{
+          const tx=l.textAlign==='center'?l.x+l.w/2:l.textAlign==='right'?l.x+l.w:l.x;
+          const ty=l.y+i*(l.fontSize||24)*1.25;
+          ctx.fillText(line,tx,ty);
+          const tw=ctx.measureText(line).width;
+          const lx=l.textAlign==='center'?tx-tw/2:l.textAlign==='right'?tx-tw:tx;
+          ctx.strokeStyle=l.color||'#fff';ctx.lineWidth=2;
+          ctx.beginPath();ctx.moveTo(lx,ty+(l.fontSize||24)*0.55);ctx.lineTo(lx+tw,ty+(l.fontSize||24)*0.55);ctx.stroke();
+        });
+      }else{
+        lines.forEach((line,i)=>{
+          const tx=l.textAlign==='center'?l.x+l.w/2:l.textAlign==='right'?l.x+l.w:l.x;
+          const ty=l.y+i*(l.fontSize||24)*1.25;
+          ctx.fillText(line,tx,ty);
+        });
+      }
     }
     ctx.restore();next();
 
@@ -481,22 +547,92 @@ function dSvgText(l, mctx, fillVars, dados, defaults){
   mctx.font=`${weight} ${fontSize}px ${fp.family}`;
   let maxW=0; lines.forEach(ln=>{const w=mctx.measureText(ln).width;if(w>maxW)maxW=w;});
   const innerPad=Math.round(fontSize*0.08);
-  const availW=Math.max(10, l.w-innerPad*2);
-  if(maxW>availW){ fontSize=Math.max(8, Math.floor(fontSize*(availW/maxW))); }
-  const lineHeight=fontSize*1.2;
-  const totalH=lineHeight*lines.length;
-  const blockStartY=l.y + l.h/2 - totalH/2 + lineHeight/2;
-  const align=l.textAlign||'left';
-  const anchor=align==='center'?'middle':align==='right'?'end':'start';
-  const tx=align==='center'?l.x+l.w/2:align==='right'?l.x+l.w-innerPad:l.x+innerPad;
+
   const {fill,op}=dSvgColor(l.color||'#ffffff');
-  const deco=l.strikethrough?' text-decoration="line-through"':'';
   const stroke=(l.strokeW>0)?` stroke="${dSvgColor(l.strokeColor||'#000').fill}" stroke-width="${l.strokeW}" paint-order="stroke"`:'';
+  
   // Realce (caixa de fundo) — espelha o png-generator
   let bgRect='';
   if(l.bg){ const bg=dSvgColor(l.bgColor||'#000'); const br=Math.min(Math.round(fontSize*0.2), l.w/2, l.h/2); bgRect=`<rect x="${l.x}" y="${l.y}" width="${l.w}" height="${l.h}" rx="${br}" ry="${br}" fill="${bg.fill}" fill-opacity="${bg.op.toFixed(3)}"/>`; }
-  const tspans=lines.map((ln,i)=>`<tspan x="${tx.toFixed(1)}" y="${(blockStartY+i*lineHeight).toFixed(1)}">${gXmlEsc(ln)}</tspan>`).join('');
-  return bgRect+`<text font-family="${gXmlEsc(svgFamily)}" font-weight="${weight}" font-size="${fontSize}" text-anchor="${anchor}" dominant-baseline="middle" fill="${fill}" fill-opacity="${op.toFixed(3)}"${deco}${stroke}>${tspans}</text>`;
+
+  if (l.vertical) {
+    let maxColChars = 0;
+    lines.forEach(ln => { const chars = [...ln]; if(chars.length > maxColChars) maxColChars = chars.length; });
+    
+    let charStep = fontSize * 1.1;
+    let colStep = fontSize * 1.2;
+    let maxColH = maxColChars * charStep;
+    let totalW = lines.length * colStep;
+
+    if (maxColH > l.h || totalW > l.w) {
+      const ratioH = l.h / Math.max(1, maxColH);
+      const ratioW = l.w / Math.max(1, totalW);
+      const shrinkRatio = Math.min(ratioH, ratioW);
+      fontSize = Math.max(8, Math.floor(fontSize * shrinkRatio));
+    }
+
+    charStep = fontSize * 1.1;
+    colStep = fontSize * 1.2;
+    maxColH = maxColChars * charStep;
+    totalW = lines.length * colStep;
+
+    const startX = l.x + l.w/2 + totalW/2 - colStep/2;
+    const tspans = [];
+
+    lines.forEach((line, i) => {
+      const tx = startX - i * colStep;
+      const chars = [...line];
+      const numChars = chars.length;
+      const colH = numChars * charStep;
+      
+      let ty;
+      if(l.textAlign === 'center') {
+        ty = l.y + l.h / 2 - colH / 2 + charStep / 2;
+      } else if(l.textAlign === 'right') {
+        ty = l.y + l.h - colH + charStep / 2;
+      } else {
+        ty = l.y + charStep / 2;
+      }
+
+      chars.forEach((char, j) => {
+        const cy = ty + j * charStep;
+        tspans.push(`<tspan x="${tx.toFixed(1)}" y="${cy.toFixed(1)}">${gXmlEsc(char)}</tspan>`);
+      });
+    });
+
+    let linesSvg = '';
+    if (l.strikethrough) {
+      lines.forEach((line, i) => {
+        const tx = startX - i * colStep;
+        const chars = [...line];
+        const numChars = chars.length;
+        const colH = numChars * charStep;
+        let ty;
+        if(l.textAlign === 'center') {
+          ty = l.y + l.h / 2 - colH / 2 + charStep / 2;
+        } else if(l.textAlign === 'right') {
+          ty = l.y + l.h - colH + charStep / 2;
+        } else {
+          ty = l.y + charStep / 2;
+        }
+        linesSvg += `<line x1="${tx.toFixed(1)}" y1="${(ty - charStep/2).toFixed(1)}" x2="${tx.toFixed(1)}" y2="${(ty + colH - charStep/2).toFixed(1)}" stroke="${fill}" stroke-width="${Math.max(2, fontSize * 0.05)}" />`;
+      });
+    }
+
+    return bgRect + `<text font-family="${gXmlEsc(svgFamily)}" font-weight="${weight}" font-size="${fontSize}" text-anchor="middle" dominant-baseline="middle" fill="${fill}" fill-opacity="${op.toFixed(3)}"${stroke}>${tspans.join('')}</text>` + linesSvg;
+  } else {
+    const availW=Math.max(10, l.w-innerPad*2);
+    if(maxW>availW){ fontSize=Math.max(8, Math.floor(fontSize*(availW/maxW))); }
+    const lineHeight=fontSize*1.2;
+    const totalH=lineHeight*lines.length;
+    const blockStartY=l.y + l.h/2 - totalH/2 + lineHeight/2;
+    const align=l.textAlign||'left';
+    const anchor=align==='center'?'middle':align==='right'?'end':'start';
+    const tx=align==='center'?l.x+l.w/2:align==='right'?l.x+l.w-innerPad:l.x+innerPad;
+    const deco=l.strikethrough?' text-decoration="line-through"':'';
+    const tspans=lines.map((ln,i)=>`<tspan x="${tx.toFixed(1)}" y="${(blockStartY+i*lineHeight).toFixed(1)}">${gXmlEsc(ln)}</tspan>`).join('');
+    return bgRect+`<text font-family="${gXmlEsc(svgFamily)}" font-weight="${weight}" font-size="${fontSize}" text-anchor="${anchor}" dominant-baseline="middle" fill="${fill}" fill-opacity="${op.toFixed(3)}"${deco}${stroke}>${tspans}</text>`;
+  }
 }
 function dSvgImage(l, dados, cid){
   let src=null;
@@ -575,6 +711,14 @@ async function dExportSVG(opts){
       const mid='mk'+(++cid);
       defs+=`<mask id="${mid}" maskUnits="userSpaceOnUse" style="mask-type:alpha"><image x="${l.x}" y="${l.y}" width="${l.w}" height="${l.h}" preserveAspectRatio="none" href="${l.mask}"/></mask>`;
       frag=`<g mask="url(#${mid})">${frag}</g>`;
+    }
+    // Blend mode: usa mix-blend-mode quando há equivalente CSS (DBLEND_TO_CSS).
+    // Modos sem CSS (linearBurn, vividLight, linearLight, pinLight, hardMix,
+    // subtract, divide, darkerColor, lighterColor, linearDodge) são exportados
+    // sem blend no SVG — limitação do formato; use PNG para esses modos.
+    if(frag&&l.blendMode&&l.blendMode!=='normal'&&typeof DBLEND_TO_CSS!=='undefined'){
+      const _svgBlend=DBLEND_TO_CSS[l.blendMode];
+      if(_svgBlend) frag=`<g style="mix-blend-mode:${_svgBlend}">${frag}</g>`;
     }
     body+=frag;
   }

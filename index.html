@@ -372,12 +372,60 @@
     <div id="d-vtoolbar" role="toolbar" aria-label="Ferramentas de design">
       <!-- Grupo: Seleção e criação -->
       <div class="vt-group">
-        <button class="vt-btn active" id="dtool-select" data-tool="select" aria-label="Mover (V)" title="Mover&#10;V" onclick="dSetTool('select')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-7 1-4 7z"/></svg>
-        </button>
-        <button class="vt-btn" id="dtool-text" data-tool="text" aria-label="Texto (T)" title="Texto&#10;T" onclick="dSetTool('text')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
-        </button>
+        <div class="vt-group-wrap" id="vt-select-wrap">
+          <button class="vt-btn active has-flyout" id="dtool-select-proxy"
+                  onclick="dSelectActivate()"
+                  oncontextmenu="dSelectFlyout(event)"
+                  title="Grupo Seleção&#10;V — Botão direito: mais ferramentas">
+            <span id="dtool-select-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-7 1-4 7z"/></svg></span>
+            <span class="vt-sub-arrow"></span>
+          </button>
+          <div class="vt-flyout" id="vt-select-flyout">
+            <button id="dtool-select" class="vt-flyout-item active" onclick="dSelectPick('select',event)" title="Mover/Selecionar&#10;V">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-7 1-4 7z"/></svg>
+              <span>Mover / Selecionar</span>
+            </button>
+            <button id="dtool-obj-select" class="vt-flyout-item" onclick="dSelectPick('obj-select',event)" title="Seleção de Objeto">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="4,2"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>
+              <span>Seleção de Objeto</span>
+            </button>
+            <button id="dtool-quick-select" class="vt-flyout-item" onclick="dSelectPick('quick-select',event)" title="Seleção Rápida">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-7 1-4 7z"/><line x1="18" y1="14" x2="18" y2="20" stroke-width="2.5"/><line x1="15" y1="17" x2="21" y2="17" stroke-width="2.5"/></svg>
+              <span>Seleção Rápida</span>
+            </button>
+            <button id="dtool-magic-wand" class="vt-flyout-item" onclick="dSelectPick('magic-wand',event)" title="Varinha Mágica">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="21" x2="13" y2="11"/><path d="M13 3l1.5 3 3 1.5-3 1.5L13 12l-1.5-3-3-1.5 3-1.5z"/><line x1="19" y1="9" x2="21" y2="7"/><line x1="15" y1="5" x2="17" y2="3"/></svg>
+              <span>Varinha Mágica</span>
+            </button>
+          </div>
+        </div>
+        <div class="vt-group-wrap" id="vt-text-wrap">
+          <button class="vt-btn has-flyout" id="dtool-text-proxy"
+                  onclick="dTextActivate()"
+                  oncontextmenu="dTextFlyout(event)"
+                  title="Grupo Texto&#10;T — Botão direito: mais ferramentas">
+            <span id="dtool-text-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg></span>
+            <span class="vt-sub-arrow"></span>
+          </button>
+          <div class="vt-flyout" id="vt-text-flyout">
+            <button id="dtool-text-h" class="vt-flyout-item active" onclick="dTextPick('text-h',event)" title="Texto Horizontal&#10;T">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
+              <span>Texto Horizontal</span>
+            </button>
+            <button id="dtool-text-v" class="vt-flyout-item" onclick="dTextPick('text-v',event)" title="Texto Vertical">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 4v16M5 4h8M17 6l2 2 2-2M19 8v10M17 16l2 2 2-2"/></svg>
+              <span>Texto Vertical</span>
+            </button>
+            <button id="dtool-mask-text-h" class="vt-flyout-item" onclick="dTextPick('mask-text-h',event)" title="Máscara de Texto Horizontal">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="2 2"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
+              <span>Máscara Horiz.</span>
+            </button>
+            <button id="dtool-mask-text-v" class="vt-flyout-item" onclick="dTextPick('mask-text-v',event)" title="Máscara de Texto Vertical">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="2 2"><path d="M9 4v16M5 4h8M17 6l2 2 2-2M19 8v10M17 16l2 2 2-2"/></svg>
+              <span>Máscara Vertical</span>
+            </button>
+          </div>
+        </div>
       </div>
       <div class="vt-sep"></div>
       <!-- Grupo: Formas -->
@@ -437,9 +485,37 @@
       <div class="vt-sep"></div>
       <!-- Grupo: Amostra & preenchimento -->
       <div class="vt-group">
-        <button class="vt-btn" id="dtool-eyedrop" data-tool="eyedrop" aria-label="Conta-gotas (I)" title="Conta-gotas&#10;I" onclick="dSetTool('eyedrop')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m2 22 1-1h3l9-9"/><path d="M3 21v-3l9-9"/><path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z"/></svg>
-        </button>
+        <div class="vt-group-wrap" id="vt-eyedrop-wrap">
+          <button class="vt-btn has-flyout" id="dtool-eyedrop-proxy"
+                  onclick="dEyedropActivate()"
+                  oncontextmenu="dEyedropFlyout(event)"
+                  title="Grupo Medição&#10;I — Botão direito: mais ferramentas">
+            <span id="dtool-eyedrop-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m2 22 1-1h3l9-9"/><path d="M3 21v-3l9-9"/><path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z"/></svg></span>
+            <span class="vt-sub-arrow"></span>
+          </button>
+          <div class="vt-flyout" id="vt-eyedrop-flyout">
+            <button id="dtool-eyedrop" class="vt-flyout-item active" onclick="dEyedropPick('eyedrop',event)" title="Conta-gotas&#10;I">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m2 22 1-1h3l9-9"/><path d="M3 21v-3l9-9"/><path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z"/></svg>
+              <span>Conta-gotas</span>
+            </button>
+            <button id="dtool-color-sampler" class="vt-flyout-item" onclick="dEyedropPick('color-sampler',event)" title="Classificador de Cores">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="2" x2="12" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
+              <span>Classificador Cores</span>
+            </button>
+            <button id="dtool-ruler" class="vt-flyout-item" onclick="dEyedropPick('ruler',event)" title="Ferramenta Régua">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="5" x2="19" y2="19"/><circle cx="5" cy="5" r="1.5"/><circle cx="19" cy="19" r="1.5"/><path d="M9 5l2 2M13 9l2 2"/></svg>
+              <span>Ferramenta Régua</span>
+            </button>
+            <button id="dtool-note" class="vt-flyout-item" onclick="dEyedropPick('note',event)" title="Ferramenta Nota">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              <span>Ferramenta Nota</span>
+            </button>
+            <button id="dtool-count" class="vt-flyout-item" onclick="dEyedropPick('count',event)" title="Ferramenta Contagem">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+              <span>Ferramenta Contagem</span>
+            </button>
+          </div>
+        </div>
         <button class="vt-btn" id="dtool-bucket" data-tool="bucket" aria-label="Balde de tinta (G)" title="Balde de tinta&#10;G" onclick="dSetTool('bucket')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m19 11-8-8-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2c.8.8 2 .8 2.8 0L19 11Z"/><path d="m5 2 5 5"/><path d="M2 13h15"/><path d="M22 20a2 2 0 1 1-4 0c0-1.6 1.7-2.4 2-4 .3 1.6 2 2.4 2 4Z"/></svg>
         </button>
@@ -497,6 +573,11 @@
         <span id="d-brush-val" style="font-size:9px;color:var(--d-text2)">8</span>
         <div id="d-brush-color-sw" style="width:24px;height:24px;border-radius:4px;background:#FF9000;border:2px solid var(--d-border2);cursor:pointer" onclick="document.getElementById('d-brush-color-pick').click()" title="Cor"></div>
         <input type="color" id="d-brush-color-pick" value="#FF9000" style="display:none" oninput="document.getElementById('d-brush-color-sw').style.background=this.value">
+      </div>
+      <!-- Opções da Varinha Mágica -->
+      <div id="d-wand-opts" style="display:none;flex-direction:column;align-items:center;gap:6px;padding:6px 0">
+        <input type="range" id="d-wand-tol-input" min="0" max="200" value="32" style="width:36px;writing-mode:vertical-lr;direction:rtl;height:60px" oninput="document.getElementById('d-wand-tol-val').textContent=this.value;if(typeof dSelectionTolerance!=='undefined')dSelectionTolerance=parseInt(this.value,10)" title="Tolerância">
+        <span id="d-wand-tol-val" style="font-size:9px;color:var(--d-text2)">32</span>
       </div>
     </div>
     <!-- CENTER canvas -->
@@ -603,7 +684,10 @@
         <div id="d-workspace" onclick="dDeselect(event)">
           <div id="d-canvas-container">
             <div id="d-canvas-bg"></div>
-            <div id="d-canvas-frame"><div id="d-marquee" aria-hidden="true"></div></div>
+            <div id="d-canvas-frame">
+              <div id="d-marquee" aria-hidden="true"></div>
+              <div id="d-measure-overlay" style="position:absolute;inset:0;z-index:400;pointer-events:none;"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -740,6 +824,14 @@
               <input class="prop-input prop-input-sm" type="number" id="dp-h" oninput="dUpdateProp('h',this.value)">
             </div>
           </div>
+          </div>
+          <div id="dp-blend-row" class="d-acc-sec">
+            <div class="section-head" onclick="dToggleSection(this)">Mesclagem</div>
+            <div class="prop-group">
+              <div class="prop-row">
+                <select class="prop-input" id="dp-blend" style="width:100%"></select>
+              </div>
+            </div>
           </div>
           <div id="d-text-props" class="d-acc-sec" style="display:none">
             <div class="section-head" onclick="dToggleSection(this)">Texto</div>
@@ -1112,52 +1204,127 @@
 </div>
 
 <!-- Modal "Novo arquivo" — prancheta nova com dimensões/DPI personalizados (estilo "New Document") -->
+<style>
+  .newdoc-tab {
+    background: none;
+    border: none;
+    color: var(--d-text2);
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    font-weight: bold;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+  }
+  .newdoc-tab:hover {
+    background: var(--d-border2);
+    color: var(--d-text1);
+  }
+  .newdoc-tab.active {
+    background: var(--dm-orange);
+    color: #fff;
+  }
+  .newdoc-preset-btn {
+    background: var(--d-bg2);
+    border: 1px solid var(--d-border2);
+    border-radius: 6px;
+    padding: 12px;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    color: var(--d-text1);
+  }
+  .newdoc-preset-btn:hover {
+    border-color: var(--dm-orange);
+    background: var(--d-border2);
+  }
+  .newdoc-preset-btn.active {
+    border-color: var(--dm-orange);
+    outline: 2px solid var(--dm-orange);
+  }
+</style>
 <div class="modal-overlay" id="d-newdoc-modal">
-  <div class="modal" style="max-width:480px">
-    <div class="modal-title">Novo arquivo</div>
-    <div class="modal-field">
-      <label class="modal-label">Começar de um preset</label>
-      <div class="newdoc-presets" style="display:flex;gap:8px">
-        <button type="button" class="d-btn-sec newdoc-preset" style="flex:1;display:flex;flex-direction:column;line-height:1.3;padding:8px 4px" onclick="dNewDocPickPreset('story',this)">Story<small style="opacity:.6">1080×1920</small></button>
-        <button type="button" class="d-btn-sec newdoc-preset" style="flex:1;display:flex;flex-direction:column;line-height:1.3;padding:8px 4px" onclick="dNewDocPickPreset('feed',this)">Feed<small style="opacity:.6">1080×1080</small></button>
-        <button type="button" class="d-btn-sec newdoc-preset" style="flex:1;display:flex;flex-direction:column;line-height:1.3;padding:8px 4px" onclick="dNewDocPickPreset('wide',this)">Wide<small style="opacity:.6">1200×628</small></button>
-      </div>
+  <div class="modal" style="max-width:680px; width:90%">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--d-border2);padding-bottom:12px">
+      <span style="font-size:18px;font-weight:bold;color:var(--d-text1)">Novo Documento</span>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--d-text1);cursor:pointer;user-select:none">
+        <input type="checkbox" id="nd-use-artboards" checked style="cursor:pointer">
+        Usar Pranchetas (Artboards)
+      </label>
     </div>
-    <div class="modal-field">
-      <label class="modal-label">Dimensões</label>
-      <div class="prop-row" style="display:flex;gap:8px;align-items:center">
-        <input class="modal-input" type="number" id="nd-w" min="1" style="flex:1" placeholder="Largura" oninput="dNewDocUpdate()">
-        <span style="color:var(--d-text3)">×</span>
-        <input class="modal-input" type="number" id="nd-h" min="1" style="flex:1" placeholder="Altura" oninput="dNewDocUpdate()">
-        <select class="modal-select" id="nd-unit" style="flex:0 0 70px" onchange="dNewDocUpdate()">
-          <option value="px">px</option>
-          <option value="in">pol</option>
-          <option value="cm">cm</option>
-        </select>
-        <button type="button" class="d-btn-sec" style="padding:6px 9px" onclick="dNewDocSwapOrientation()" title="Inverter orientação (retrato/paisagem)">⇄</button>
-      </div>
-    </div>
-    <div class="modal-field">
-      <div style="display:flex;gap:8px;align-items:flex-end">
-        <div style="flex:1">
-          <label class="modal-label">Resolução (DPI)</label>
-          <input class="modal-input" type="number" id="nd-dpi" min="1" value="300" oninput="dNewDocUpdate()">
+
+    <div style="display:flex;gap:20px;min-height:360px">
+      <!-- Coluna da Esquerda: Abas e Grid de Presets -->
+      <div style="flex:1;display:flex;flex-direction:column;border-right:1px solid var(--d-border2);padding-right:20px">
+        <!-- Abas no topo -->
+        <div style="display:flex;gap:4px;border-bottom:1px solid var(--d-border2);padding-bottom:8px;margin-bottom:16px;overflow-x:auto">
+          <button type="button" class="newdoc-tab active" onclick="dNewDocSelectTab('social', this)">Redes Sociais</button>
+          <button type="button" class="newdoc-tab" onclick="dNewDocSelectTab('web', this)">Web</button>
+          <button type="button" class="newdoc-tab" onclick="dNewDocSelectTab('mobile', this)">Mobile</button>
+          <button type="button" class="newdoc-tab" onclick="dNewDocSelectTab('print', this)">Impressão</button>
+          <button type="button" class="newdoc-tab" onclick="dNewDocSelectTab('custom', this)">Custom</button>
         </div>
-        <div style="flex:1">
-          <label class="modal-label">Fundo</label>
-          <select class="modal-select" id="nd-bg" onchange="dNewDocBgChange()">
-            <option value="white">Branco</option>
-            <option value="transparent">Transparente</option>
-            <option value="color">Cor…</option>
-          </select>
+        <!-- Grid de presets que muda conforme a aba ativa -->
+        <div id="nd-presets-container" style="display:grid;grid-template-columns:repeat(2, 1fr);gap:8px;flex:1;overflow-y:auto;max-height:280px;align-content:start">
+          <!-- Inserido dinamicamente via JS -->
         </div>
-        <input type="color" id="nd-bg-color" value="#FF9000" style="display:none;width:38px;height:36px;padding:0;border:none;background:none;cursor:pointer">
+      </div>
+
+      <!-- Coluna da Direita: Painel de Configurações -->
+      <div style="width:220px;display:flex;flex-direction:column;gap:12px">
+        <div style="font-size:12px;font-weight:bold;color:var(--d-text2);margin-bottom:4px">Detalhes do Documento</div>
+        
+        <div>
+          <label class="modal-label" style="margin-bottom:4px;display:block">Largura</label>
+          <input class="modal-input" type="number" id="nd-w" min="1" style="width:100%" placeholder="Largura" oninput="dNewDocUpdate()">
+        </div>
+        
+        <div>
+          <label class="modal-label" style="margin-bottom:4px;display:block">Altura</label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input class="modal-input" type="number" id="nd-h" min="1" style="flex:1" placeholder="Altura" oninput="dNewDocUpdate()">
+            <button type="button" class="d-btn-sec" style="padding:6px 9px;height:34px;display:flex;align-items:center;justify-content:center" onclick="dNewDocSwapOrientation()" title="Inverter orientação (retrato/paisagem)">⇄</button>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px">
+          <div style="flex:1">
+            <label class="modal-label" style="margin-bottom:4px;display:block">Unidade</label>
+            <select class="modal-select" id="nd-unit" style="width:100%" onchange="dNewDocUpdate()">
+              <option value="px">px</option>
+              <option value="in">pol</option>
+              <option value="cm">cm</option>
+              <option value="mm">mm</option>
+            </select>
+          </div>
+          <div style="flex:1">
+            <label class="modal-label" style="margin-bottom:4px;display:block">Resolução (DPI)</label>
+            <input class="modal-input" type="number" id="nd-dpi" min="1" value="72" oninput="dNewDocUpdate()">
+          </div>
+        </div>
+
+        <div>
+          <label class="modal-label" style="margin-bottom:4px;display:block">Fundo</label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <select class="modal-select" id="nd-bg" style="flex:1;height:34px" onchange="dNewDocBgChange()">
+              <option value="white">Branco</option>
+              <option value="transparent">Transparente</option>
+              <option value="color">Cor…</option>
+            </select>
+            <input type="color" id="nd-bg-color" value="#FFFFFF" style="display:none;width:34px;height:34px;padding:0;border:none;background:none;cursor:pointer">
+          </div>
+        </div>
+
+        <div style="margin-top:auto;border-top:1px solid var(--d-border2);padding-top:12px">
+          <div id="nd-px-preview" style="font-size:12px;color:var(--d-text2);font-weight:bold;margin-bottom:8px">— × — px</div>
+        </div>
       </div>
     </div>
-    <div class="modal-field">
-      <div id="nd-px-preview" style="font-size:12px;color:var(--d-text2)">— × — px</div>
-    </div>
-    <div class="modal-actions">
+
+    <div class="modal-actions" style="margin-top:20px;border-top:1px solid var(--d-border2);padding-top:16px">
       <button class="d-btn-sec" onclick="document.getElementById('d-newdoc-modal').classList.remove('open')">Cancelar</button>
       <button class="d-btn-pri" onclick="dNewDocConfirm()">Criar</button>
     </div>
@@ -1206,11 +1373,15 @@
 <script src="js/franqueado/chat.js"></script>
 <script src="js/franqueado/live-preview.js"></script>
 <script src="js/franqueado/chat-input.js"></script>
+<script src="js/designer/blending.js"></script>
 <script src="js/franqueado/png-generator.js"></script>
 <script src="js/designer/templates.js"></script>
 <script src="js/designer/canvas.js"></script>
+<script src="js/designer/selection.js"></script>
 <script src="js/designer/brush.js"></script>
+<script src="js/designer/eraser-tools.js"></script>
 <script src="js/designer/layers.js"></script>
+<script src="js/designer/measurement.js"></script>
 <script src="js/designer/publish.js"></script>
 <script src="js/designer/preview.js"></script>
 <script src="js/designer/library.js"></script>
