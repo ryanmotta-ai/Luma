@@ -196,6 +196,9 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
 async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
   ctx.save();
   ctx.globalAlpha = (l.opacity != null ? l.opacity : 100) / 100;
+  ctx.globalCompositeOperation = (l.blendMode && l.blendMode !== 'normal')
+    ? l.blendMode.replace(/([A-Z])/g,c=>'-'+c.toLowerCase())
+    : 'source-over';
   const x = Math.round(l.x * scaleX);
   const y = Math.round(l.y * scaleY);
   const w = Math.round(l.w * scaleX);

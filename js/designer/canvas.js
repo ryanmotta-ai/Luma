@@ -552,6 +552,8 @@ function dRenderCanvas(){
     el.style.cssText=`left:${l.x}px;top:${l.y}px;width:${l.w}px;height:${l.h}px;position:absolute;`;
     // Máscara de camada (alpha) — espelha o PSD; aplica via CSS mask no elemento
     if(l.mask){ const mu='url("'+l.mask+'")'; el.style.webkitMaskImage=mu; el.style.maskImage=mu; el.style.webkitMaskSize=el.style.maskSize='100% 100%'; el.style.webkitMaskRepeat=el.style.maskRepeat='no-repeat'; }
+    // Blend mode importado do PSD (camelCase → CSS kebab-case)
+    if(l.blendMode) el.style.mixBlendMode=l.blendMode.replace(/([A-Z])/g,c=>'-'+c.toLowerCase());
     // M2.1 — hover no canvas destaca a linha na lista de layers (e vice-versa)
     if(typeof dHoverLayer==='function'){
       el.addEventListener('mouseenter',()=>dHoverLayer(l.id,true));

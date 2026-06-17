@@ -753,23 +753,181 @@ function dConfirmTemplate(){
 const DFMT_SIZES={story:{w:1080,h:1920},feed:{w:1080,h:1080},wide:{w:1200,h:628}};
 
 /* ══════════════════════════════════════════════════════════════
-   IMPORT DE SVG (Illustrator) — mesma filosofia do PSD: revisa por
-   elemento e cria layers reais. SVG é XML puro → DOMParser, sem libs.
-   Reusa dPsdDetectFmt / dDefaultPublishMeta / dRenderFolders /
-   dPersistFolders / dLoadTemplate (globais já existentes).
-══════════════════════════════════════════════════════════════ */
+   NOVO MOTOR DE IMPORTAÇÃO DE SVG (ILLUSTRATOR COMPATIBLE)
+   Suporta: Matrizes de Transformação, viewBox Deslocado,
+   Classes CSS em <style>, TSPANS Multilinha e Custom Fonts.
+   ══════════════════════════════════════════════════════════════ */
 
-// Lê uma propriedade de apresentação: atributo OU style="" inline.
-// O Illustrator frequentemente exporta estilo inline (fill, font-size...) em vez
-// de atributos — sem isso, cores/fontes sairiam erradas. (Classes <style> não cobertas.)
-function _dSvgProp(el, name){
-  const a = el.getAttribute && el.getAttribute(name);
-  if(a!=null && a!=='') return a;
-  try{ const s = el.style && el.style.getPropertyValue(name); if(s) return s.trim(); }catch(e){}
+// Multiplica duas matrizes afins 2D representadas como arrays [a, b, c, d, e, f]
+function _dSvgMultiplyMatrices(m1, m2) {
+  const a = m1[0] * m2[0] + m1[2] * m2[1];
+  const b = m1[1] * m2[0] + m1[3] * m2[1];
+  const c = m1[0] * m2[2] + m1[2] * m2[3];
+  const d = m1[1] * m2[2] + m1[3] * m2[3];
+  const e = m1[0] * m2[4] + m1[2] * m2[5] + m1[4];
+  const f = m1[1] * m2[4] + m1[3] * m2[5] + m1[5];
+  return [a, b, c, d, e, f];
+}
+
+// Analisa a string de transformações do SVG e constrói a matriz consolidada
+function _dSvgParseTransform(transformStr) {
+  let matrix = [1, 0, 0, 1, 0, 0]; // Matriz identidade
+  if (!transformStr) return matrix;
+
+  const transformRegex = /(\w+)\(([^)]+)\)/g;
+  let match;
+  while ((match = transformRegex.exec(transformStr)) !== null) {
+    const type = match[1].toLowerCase();
+    const args = match[2].split(/[\s,]+/).map(parseFloat).filter(n => !isNaN(n));
+    let m = [1, 0, 0, 1, 0, 0];
+
+    if (type === 'matrix' && args.length === 6) {
+      m = args;
+    } else if (type === 'translate') {
+      const tx = args[0] || 0;
+      const ty = args[1] !== undefined ? args[1] : 0;
+      m = [1, 0, 0, 1, tx, ty];
+    } else if (type === 'scale') {
+      const sx = args[0] !== undefined ? args[0] : 1;
+      const sy = args[1] !== undefined ? args[1] : sx;
+      m = [sx, 0, 0, sy, 0, 0];
+    } else if (type === 'rotate') {
+      const angle = (args[0] || 0) * Math.PI / 180;
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      if (args.length === 3) {
+        const cx = args[1];
+        const cy = args[2];
+        m = [
+          cos, sin, -sin, cos,
+          -cx * cos + cy * sin + cx,
+          -cx * sin - cos * cos + cy
+        ];
+      } else {
+        m = [cos, sin, -sin, cos, 0, 0];
+      }
+    }
+    matrix = _dSvgMultiplyMatrices(matrix, m);
+  }
+  return matrix;
+}
+
+// Transforma os 4 cantos de uma caixa limitadora e retorna a caixa alinhada resultante (AABB)
+function _dSvgApplyMatrixToBBox(x, y, w, h, m) {
+  const pts = [
+    { x: x, y: y },
+    { x: x + w, y: y },
+    { x: x, y: y + h },
+    { x: x + w, y: y + h }
+  ];
+  let minX = Infinity, minY = Infinity;
+  let maxX = -Infinity, maxY = -Infinity;
+
+  pts.forEach(p => {
+    const tx = m[0] * p.x + m[2] * p.y + m[4];
+    const ty = m[1] * p.x + m[3] * p.y + m[5];
+    if (tx < minX) minX = tx;
+    if (tx > maxX) maxX = tx;
+    if (ty < minY) minY = ty;
+    if (ty > maxY) maxY = ty;
+  });
+
+  return {
+    x: Math.round(minX),
+    y: Math.round(minY),
+    w: Math.max(1, Math.round(maxX - minX)),
+    h: Math.max(1, Math.round(maxY - minY))
+  };
+}
+
+// Extrai e mapeia seletores de classe CSS dos blocos <style> do SVG
+function _dSvgParseStyles(doc) {
+  const styles = {};
+  doc.querySelectorAll('style').forEach(styleEl => {
+    const cssText = styleEl.textContent;
+    const ruleRegex = /\.([a-zA-Z0-9_-]+)\s*\{([^}]+)\}/g;
+    let match;
+    while ((match = ruleRegex.exec(cssText)) !== null) {
+      const className = match[1].trim();
+      const propertiesStr = match[2];
+      styles[className] = styles[className] || {};
+      const propRegex = /([\w-]+)\s*:\s*([^;]+)/g;
+      let propMatch;
+      while ((propMatch = propRegex.exec(propertiesStr)) !== null) {
+        styles[className][propMatch[1].trim()] = propMatch[2].trim();
+      }
+    }
+  });
+  return styles;
+}
+
+// Resoluções de propriedades com prioridade (Inline > CSS Class > Atributo > Herança do Pai)
+function _dSvgProp(el, name, cssStyles) {
+  if (!el) return null;
+
+  // 1. Estilo inline (el.style)
+  if (el.style) {
+    try {
+      const val = el.style.getPropertyValue(name);
+      if (val) return val.trim();
+    } catch (e) {}
+  }
+
+  // 2. Classes de folha de estilo externa/interna (<style>)
+  const classAttr = el.getAttribute && el.getAttribute('class');
+  if (classAttr) {
+    const classes = classAttr.trim().split(/\s+/);
+    for (const cls of classes) {
+      if (cssStyles && cssStyles[cls] && cssStyles[cls][name] !== undefined) {
+        return cssStyles[cls][name];
+      }
+    }
+  }
+
+  // 3. Atributo direto do elemento
+  if (el.getAttribute) {
+    const val = el.getAttribute(name);
+    if (val !== null && val !== '') return val;
+  }
+
+  // 4. Herança de nós superiores (para propriedades aplicáveis)
+  const inheritableProps = ['fill', 'font-family', 'font-size', 'font-weight', 'opacity', 'text-anchor', 'stroke', 'stroke-width'];
+  if (inheritableProps.includes(name) && el.parentElement && el.parentElement.tagName.toLowerCase() !== 'svg') {
+    return _dSvgProp(el.parentElement, name, cssStyles);
+  }
+
   return null;
 }
 
-// Entry point — chamado pelo botão "↑ Importar SVG"
+// Mapeia fontes do Illustrator usando dicionário estático e base de fontes customizadas do Luma
+function dSvgMapFont(fontFamily) {
+  if (!fontFamily) return "'Roboto'";
+  const cleanFamily = fontFamily.replace(/['"]/g, '').split(',')[0].trim();
+  const lowerFamily = cleanFamily.toLowerCase();
+
+  // 1. Verifica no banco de fontes registradas do Luma (dCustomFonts)
+  if (typeof dCustomFonts !== 'undefined' && Array.isArray(dCustomFonts)) {
+    const matched = dCustomFonts.find(cf => cf.family.toLowerCase() === lowerFamily || cf.name.toLowerCase() === lowerFamily);
+    if (matched) return `'${matched.family}'`;
+  }
+
+  // 2. Fallbacks e mapeamento para fontes padrões
+  if (lowerFamily === 'roboto' || lowerFamily === 'sans-serif') return "'Roboto'";
+  if (lowerFamily === 'roboto black' || lowerFamily === 'roboto-black') return "'Roboto Black'";
+  if (/black|heavy|display|900/.test(lowerFamily)) return "'Roboto Black'";
+  if (/bold|700/.test(lowerFamily)) return "'Roboto',bold";
+
+  // 3. Permite preservar fontes conhecidas da web para o navegador resolver
+  const commonWebFonts = ['montserrat', 'lato', 'poppins', 'open sans', 'inter', 'helvetica', 'arial', 'times new roman', 'georgia'];
+  if (commonWebFonts.some(f => lowerFamily.includes(f))) {
+    const suffix = /bold|700/.test(lowerFamily) ? ',bold' : '';
+    return `'${cleanFamily}'${suffix}`;
+  }
+
+  return "'Roboto'";
+}
+
+// Lê o arquivo selecionado e inicia a importação
 function dSvgImport(){
   const inp=document.createElement('input');
   inp.type='file'; inp.accept='.svg,.ai';
@@ -783,50 +941,92 @@ function dSvgImport(){
   inp.click();
 }
 
-// Parseia o texto SVG e abre a tela de revisão
+// Processa o arquivo SVG cru
 function dSvgHandleFile(svgText, fileName){
   try{
     const doc=new DOMParser().parseFromString(svgText,'image/svg+xml');
     if(doc.querySelector('parsererror')){ gToast('⚠ Erro ao ler o SVG — verifique o arquivo','error'); return; }
     const svgEl=doc.querySelector('svg');
     if(!svgEl){ gToast('⚠ Arquivo SVG inválido','error'); return; }
-    // Dimensões do documento (viewBox tem prioridade; senão width/height)
+
+    const cssStyles = _dSvgParseStyles(doc);
+
+    // Dimensões nativas do documento (viewBox prioritário)
     let docW, docH;
     const vb=svgEl.getAttribute('viewBox');
-    if(vb){ const p=vb.trim().split(/[\s,]+/); docW=parseFloat(p[2]); docH=parseFloat(p[3]); }
-    if(!docW||!docH){ docW=parseFloat(svgEl.getAttribute('width'))||1080; docH=parseFloat(svgEl.getAttribute('height'))||1920; }
-    const elements=dSvgExtractElements(svgEl, docW, docH);
+    if(vb){
+      const p=vb.trim().split(/[\s,]+/);
+      docW=parseFloat(p[2]); docH=parseFloat(p[3]);
+    }
+    if(!docW||!docH){
+      docW=parseFloat(svgEl.getAttribute('width'))||1080;
+      docH=parseFloat(svgEl.getAttribute('height'))||1920;
+    }
+
+    const elements=dSvgExtractElements(svgEl, docW, docH, cssStyles);
     if(!elements.length){ gToast('⚠ Nenhum elemento reconhecido no SVG','error'); return; }
     const fmt=(typeof dPsdDetectFmt==='function')?dPsdDetectFmt(docW,docH):'story';
     dSvgShowReviewModal(elements, {w:docW, h:docH, fmt, fileName});
   }catch(e){ console.error('[svg] erro ao parsear:',e); gToast('⚠ Erro ao processar o SVG','error'); }
 }
 
-// Extrai elementos do SVG (achata grupos 1 nível, como layers do Illustrator)
-function dSvgExtractElements(svgEl, docW, docH){
-  const elements=[]; let idCounter=0;
+// Extrai recursivamente os elementos do SVG aplicando a pilha de transformações afins (DFS)
+function dSvgExtractElements(svgEl, docW, docH, cssStyles){
+  const elements=[];
+  let idCounter=0;
   const RECOG=['rect','circle','ellipse','text','image','path'];
-  Array.from(svgEl.children).forEach(node=>{
-    const tag=node.tagName.toLowerCase();
-    const name=dSvgGetName(node) || (tag+'_'+(++idCounter));
-    if(tag==='g'){
-      const children=Array.from(node.children).filter(c=>RECOG.includes(c.tagName.toLowerCase()));
-      if(!children.length) return;            // grupo vazio (ou só com sub-grupos)
-      if(children.length===1){
-        const el=dSvgParseElement(children[0], name, docW, docH);
-        if(el) elements.push(el);
-      }else{
-        children.forEach((child,i)=>{
-          const childName=dSvgGetName(child) || (name+'_'+(i+1));
-          const el=dSvgParseElement(child, childName, docW, docH);
-          if(el){ el.groupName=name; elements.push(el); }
-        });
+
+  // Determinar matriz de transformação inicial para o viewBox (corrige deslocamento de origem)
+  let viewBoxMatrix = [1, 0, 0, 1, 0, 0];
+  const vbAttr = svgEl.getAttribute('viewBox');
+  const vpW = parseFloat(svgEl.getAttribute('width')) || docW;
+  const vpH = parseFloat(svgEl.getAttribute('height')) || docH;
+  if (vbAttr) {
+    const p = vbAttr.trim().split(/[\s,]+/);
+    if (p.length === 4) {
+      const vbX = parseFloat(p[0]);
+      const vbY = parseFloat(p[1]);
+      const vbW = parseFloat(p[2]);
+      const vbH = parseFloat(p[3]);
+      if (vbW > 0 && vbH > 0) {
+        const sx = vpW / vbW;
+        const sy = vpH / vbH;
+        viewBoxMatrix = [sx, 0, 0, sy, -vbX * sx, -vbY * sy];
       }
-    }else if(RECOG.includes(tag)){
-      const el=dSvgParseElement(node, name, docW, docH);
-      if(el) elements.push(el);
     }
+  }
+
+  // Travessia profunda recursiva (DFS)
+  function traverse(node, accumulatedMatrix, groupPath) {
+    const tag = node.tagName ? node.tagName.toLowerCase() : '';
+    if (!tag) return;
+
+    // Concatena matriz local
+    const localTransformStr = node.getAttribute ? node.getAttribute('transform') : null;
+    const localMatrix = _dSvgParseTransform(localTransformStr);
+    const newMatrix = _dSvgMultiplyMatrices(accumulatedMatrix, localMatrix);
+
+    if (tag === 'g') {
+      const gName = dSvgGetName(node) || ('grupo_' + (++idCounter));
+      const newPath = groupPath ? groupPath + '/' + gName : gName;
+      Array.from(node.children).forEach(child => {
+        traverse(child, newMatrix, newPath);
+      });
+    } else if (RECOG.includes(tag)) {
+      const name = dSvgGetName(node) || (tag + '_' + (++idCounter));
+      const el = dSvgParseElement(node, name, docW, docH, newMatrix, cssStyles);
+      if (el) {
+        el.groupName = groupPath || '';
+        elements.push(el);
+      }
+    }
+  }
+
+  // Disparar travessia a partir do nível raiz do SVG
+  Array.from(svgEl.children).forEach(child => {
+    traverse(child, viewBoxMatrix, '');
   });
+
   return elements;
 }
 
@@ -834,91 +1034,169 @@ function dSvgGetName(el){
   return el.getAttribute('inkscape:label') || el.getAttribute('data-name') || el.getAttribute('id') || null;
 }
 
-function dSvgParseElement(el, name, docW, docH){
+// Direciona o parser de acordo com o elemento
+function dSvgParseElement(el, name, docW, docH, matrix, cssStyles){
   const tag=el.tagName.toLowerCase();
-  if(tag==='text'||tag==='tspan') return dSvgParseText(el, name, docW, docH);
-  if(tag==='rect') return dSvgParseRect(el, name, docW, docH);
-  if(tag==='circle'||tag==='ellipse') return dSvgParseCircle(el, name, docW, docH);
-  if(tag==='image') return dSvgParseImage(el, name, docW, docH);
-  if(tag==='path') return dSvgParsePath(el, name, docW, docH);
+  if(tag==='text'||tag==='tspan') return dSvgParseText(el, name, docW, docH, matrix, cssStyles);
+  if(tag==='rect') return dSvgParseRect(el, name, docW, docH, matrix, cssStyles);
+  if(tag==='circle'||tag==='ellipse') return dSvgParseCircle(el, name, docW, docH, matrix, cssStyles);
+  if(tag==='image') return dSvgParseImage(el, name, docW, docH, matrix, cssStyles);
+  if(tag==='path') return dSvgParsePath(el, name, docW, docH, matrix, cssStyles);
   return null;
 }
 
-function dSvgParseText(el, name, docW, docH){
-  const content=(el.textContent||'').trim();
-  const x=parseFloat(_dSvgProp(el,'x')||0);
-  const y=parseFloat(_dSvgProp(el,'y')||0);
-  const fontSize=parseFloat(_dSvgProp(el,'font-size')||48)||48;
-  const fontFamily=_dSvgProp(el,'font-family')||'Roboto';
-  const fill=_dSvgProp(el,'fill')||'#000000';
-  const textAnchor=_dSvgProp(el,'text-anchor')||'start';
-  const alignMap={start:'left',middle:'center',end:'right'};
-  const isVarHint=/^\{\{.+\}\}$/.test(content) || /^[A-ZÀ-Ý0-9\s$.,!?-]{2,}$/.test(content);
+// Analisa elementos de texto, concatenando <tspan> e calculando tamanho/baseline transformados
+function dSvgParseText(el, name, docW, docH, matrix, cssStyles){
+  const tspans = el.querySelectorAll('tspan');
+  let content = '';
+  
+  if (tspans.length > 0) {
+    const lines = [];
+    let currentLine = '';
+    let lastY = null;
+    tspans.forEach(tspan => {
+      const txt = tspan.textContent.trim();
+      if (!txt) return;
+      // Distingue quebra de linha se a variação no Y for maior que 5 pixels
+      const ty = parseFloat(tspan.getAttribute('y') || _dSvgProp(tspan, 'y', cssStyles) || 0);
+      if (lastY !== null && Math.abs(ty - lastY) > 5) {
+        lines.push(currentLine);
+        currentLine = txt;
+      } else {
+        currentLine = currentLine ? currentLine + ' ' + txt : txt;
+      }
+      lastY = ty;
+    });
+    if (currentLine) lines.push(currentLine);
+    content = lines.join('\n');
+  } else {
+    content = (el.textContent || '').trim();
+  }
+
+  const tx = parseFloat(_dSvgProp(el, 'x', cssStyles) || 0);
+  const ty = parseFloat(_dSvgProp(el, 'y', cssStyles) || 0);
+  const fontSize = parseFloat(_dSvgProp(el, 'font-size', cssStyles) || 48) || 48;
+  const fontFamily = _dSvgProp(el, 'font-family', cssStyles) || 'Roboto';
+  const fill = _dSvgProp(el, 'fill', cssStyles) || '#000000';
+  const textAnchor = _dSvgProp(el, 'text-anchor', cssStyles) || 'start';
+  const alignMap = { start: 'left', middle: 'center', end: 'right' };
+
+  // Extrai o fator de escala vertical e horizontal da matriz afim
+  const scaleX = Math.sqrt(matrix[0] * matrix[0] + matrix[1] * matrix[1]);
+  const scaleY = Math.sqrt(matrix[2] * matrix[2] + matrix[3] * matrix[3]);
+  const finalFontSize = Math.round(fontSize * scaleY);
+
+  // Estimar dimensões da caixa de texto no espaço local
+  const longestLine = content.split('\n').reduce((max, line) => Math.max(max, line.length), 0);
+  const estimatedW = Math.max(40, longestLine * fontSize * 0.55);
+  const estimatedH = fontSize * 1.35 * (content.split('\n').length || 1);
+
+  // Ajuste do ponto de ancoragem horizontal (text-anchor)
+  let localXOffset = 0;
+  if (textAnchor === 'middle') localXOffset = -estimatedW / 2;
+  else if (textAnchor === 'end') localXOffset = -estimatedW;
+
+  const localX = tx + localXOffset;
+  const localY = ty - fontSize; // Sobem o y do baseline para o topo do bloco de texto
+
+  const bbox = _dSvgApplyMatrixToBBox(localX, localY, estimatedW, estimatedH, matrix);
+  const isVarHint = /^\{\{.+\}\}$/.test(content) || /^[A-ZÀ-Ý0-9\s$.,!?-]{2,}$/.test(content);
+
   return {
-    _id:'svg-'+Math.random().toString(36).slice(2),
-    name, svgTag:'text', detectedType:'text',
-    mode:isVarHint?'variable':'text',
-    varName:dSvgSuggestVarName(content, name),
+    _id: 'svg-' + Math.random().toString(36).slice(2),
+    name, svgTag: 'text', detectedType: 'text',
+    mode: isVarHint ? 'variable' : 'text',
+    varName: dSvgSuggestVarName(content, name),
     content,
-    x:Math.round(x),
-    y:Math.round(y-fontSize),                       // SVG text y é baseline → topo
-    w:Math.max(40, Math.min(Math.round(docW*0.8), Math.round(docW-x))),
-    h:Math.round(fontSize*1.4),
-    fontSize:Math.round(fontSize),
-    font:dSvgMapFont(fontFamily),
-    color:fill,
-    textAlign:alignMap[textAnchor]||'left',
-    opacity:Math.round((parseFloat(_dSvgProp(el,'opacity')||1)||1)*100),
+    x: bbox.x,
+    y: bbox.y,
+    w: bbox.w,
+    h: bbox.h,
+    fontSize: finalFontSize,
+    font: dSvgMapFont(fontFamily),
+    color: fill,
+    textAlign: alignMap[textAnchor] || 'left',
+    opacity: Math.round((parseFloat(_dSvgProp(el, 'opacity', cssStyles) || 1) || 1) * 100),
   };
 }
 
-function dSvgParseRect(el, name, docW, docH){
+// Analisa retângulos
+function dSvgParseRect(el, name, docW, docH, matrix, cssStyles){
+  const rx = parseFloat(_dSvgProp(el, 'x', cssStyles) || 0);
+  const ry = parseFloat(_dSvgProp(el, 'y', cssStyles) || 0);
+  const rw = parseFloat(_dSvgProp(el, 'width', cssStyles) || 100);
+  const rh = parseFloat(_dSvgProp(el, 'height', cssStyles) || 100);
+
+  const bbox = _dSvgApplyMatrixToBBox(rx, ry, rw, rh, matrix);
+
+  let rxVal = parseFloat(_dSvgProp(el, 'rx', cssStyles) || 0);
+  const scaleX = Math.sqrt(matrix[0] * matrix[0] + matrix[1] * matrix[1]);
+  rxVal = Math.round(rxVal * scaleX);
+
   return {
-    _id:'svg-'+Math.random().toString(36).slice(2),
-    name, svgTag:'rect', detectedType:'shape', mode:'shape',
-    x:Math.round(parseFloat(_dSvgProp(el,'x')||0)),
-    y:Math.round(parseFloat(_dSvgProp(el,'y')||0)),
-    w:Math.round(parseFloat(_dSvgProp(el,'width')||100)),
-    h:Math.round(parseFloat(_dSvgProp(el,'height')||100)),
-    fill:_dSvgProp(el,'fill')||'#FF9000',
-    radius:Math.round(parseFloat(_dSvgProp(el,'rx')||0)),
-    opacity:Math.round((parseFloat(_dSvgProp(el,'opacity')||1)||1)*100),
+    _id: 'svg-' + Math.random().toString(36).slice(2),
+    name, svgTag: 'rect', detectedType: 'shape', mode: 'shape',
+    x: bbox.x,
+    y: bbox.y,
+    w: bbox.w,
+    h: bbox.h,
+    fill: _dSvgProp(el, 'fill', cssStyles) || '#FF9000',
+    radius: rxVal,
+    opacity: Math.round((parseFloat(_dSvgProp(el, 'opacity', cssStyles) || 1) || 1) * 100),
   };
 }
 
-function dSvgParseCircle(el, name, docW, docH){
-  const tag=el.tagName.toLowerCase();
-  const cx=parseFloat(_dSvgProp(el,'cx')||0);
-  const cy=parseFloat(_dSvgProp(el,'cy')||0);
-  const r=parseFloat(_dSvgProp(el,'r')||_dSvgProp(el,'rx')||50)||50;
+// Analisa círculos e elipses preservando as propriedades nativas
+function dSvgParseCircle(el, name, docW, docH, matrix, cssStyles){
+  const tag = el.tagName.toLowerCase();
+  const cx = parseFloat(_dSvgProp(el, 'cx', cssStyles) || 0);
+  const cy = parseFloat(_dSvgProp(el, 'cy', cssStyles) || 0);
+  const r = parseFloat(_dSvgProp(el, 'r', cssStyles) || _dSvgProp(el, 'rx', cssStyles) || 50) || 50;
+
+  const rx = parseFloat(_dSvgProp(el, 'rx', cssStyles) || r);
+  const ry = parseFloat(_dSvgProp(el, 'ry', cssStyles) || r);
+
+  const bbox = _dSvgApplyMatrixToBBox(cx - rx, cy - ry, rx * 2, ry * 2, matrix);
+
   return {
-    _id:'svg-'+Math.random().toString(36).slice(2),
-    name, svgTag:tag, detectedType:'shape', mode:'shape',
-    x:Math.round(cx-r), y:Math.round(cy-r), w:Math.round(r*2), h:Math.round(r*2),
-    fill:_dSvgProp(el,'fill')||'#FF9000',
-    radius:999,                                     // círculo
-    opacity:Math.round((parseFloat(_dSvgProp(el,'opacity')||1)||1)*100),
+    _id: 'svg-' + Math.random().toString(36).slice(2),
+    name, svgTag: tag, detectedType: 'shape', mode: 'shape',
+    x: bbox.x,
+    y: bbox.y,
+    w: bbox.w,
+    h: bbox.h,
+    fill: _dSvgProp(el, 'fill', cssStyles) || '#FF9000',
+    radius: tag === 'circle' ? 999 : 0,
+    opacity: Math.round((parseFloat(_dSvgProp(el, 'opacity', cssStyles) || 1) || 1) * 100),
   };
 }
 
-function dSvgParseImage(el, name, docW, docH){
-  const href=el.getAttribute('href')||el.getAttribute('xlink:href')||'';
-  const isBase64=href.startsWith('data:image');
+// Analisa imagens fixas ou embutidas em base64
+function dSvgParseImage(el, name, docW, docH, matrix, cssStyles){
+  const href = el.getAttribute('href') || el.getAttribute('xlink:href') || '';
+  const isBase64 = href.startsWith('data:image');
+
+  const ix = parseFloat(_dSvgProp(el, 'x', cssStyles) || 0);
+  const iy = parseFloat(_dSvgProp(el, 'y', cssStyles) || 0);
+  const iw = parseFloat(_dSvgProp(el, 'width', cssStyles) || 300);
+  const ih = parseFloat(_dSvgProp(el, 'height', cssStyles) || 300);
+
+  const bbox = _dSvgApplyMatrixToBBox(ix, iy, iw, ih, matrix);
+
   return {
-    _id:'svg-'+Math.random().toString(36).slice(2),
-    name, svgTag:'image', detectedType:'image', mode:'frame',
-    x:Math.round(parseFloat(_dSvgProp(el,'x')||0)),
-    y:Math.round(parseFloat(_dSvgProp(el,'y')||0)),
-    w:Math.round(parseFloat(_dSvgProp(el,'width')||300)),
-    h:Math.round(parseFloat(_dSvgProp(el,'height')||300)),
-    imgUrl:isBase64?href:'',
-    imgVar:dSvgSuggestImgVar(name),
-    opacity:Math.round((parseFloat(_dSvgProp(el,'opacity')||1)||1)*100),
+    _id: 'svg-' + Math.random().toString(36).slice(2),
+    name, svgTag: 'image', detectedType: 'image', mode: 'frame',
+    x: bbox.x,
+    y: bbox.y,
+    w: bbox.w,
+    h: bbox.h,
+    imgUrl: isBase64 ? href : '',
+    imgVar: dSvgSuggestImgVar(name),
+    opacity: Math.round((parseFloat(_dSvgProp(el, 'opacity', cssStyles) || 1) || 1) * 100),
   };
 }
 
-// Estima bounding box de um path pelos números do atributo `d` (getBBox não funciona
-// em DOM destacado do DOMParser). Aproximado: trata os números como pares x,y.
+// Helper para bounding box aproximado de caminhos complexos
 function _dSvgPathBBox(d){
   const nums=(String(d||'').match(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi)||[]).map(parseFloat).filter(n=>isFinite(n));
   if(nums.length<2) return null;
@@ -932,22 +1210,30 @@ function _dSvgPathBBox(d){
   return {x:minX, y:minY, w:Math.max(1,maxX-minX), h:Math.max(1,maxY-minY)};
 }
 
-function dSvgParsePath(el, name, docW, docH){
-  const d=el.getAttribute('d')||'';
-  let x=0,y=0,w=100,h=100;
-  const bb=_dSvgPathBBox(d);
-  if(bb){ x=bb.x; y=bb.y; w=bb.w; h=bb.h; }
-  const fill=_dSvgProp(el,'fill');
-  const isComplex=d.split(/[Mm]/).length>3;          // múltiplos sub-paths → complexo
+// Analisa caminhos vetoriais fechados ou abertos
+function dSvgParsePath(el, name, docW, docH, matrix, cssStyles){
+  const d = el.getAttribute('d') || '';
+  let x = 0, y = 0, w = 100, h = 100;
+  const bb = _dSvgPathBBox(d);
+  if (bb) { x = bb.x; y = bb.y; w = bb.w; h = bb.h; }
+
+  const bbox = _dSvgApplyMatrixToBBox(x, y, w, h, matrix);
+  const fill = _dSvgProp(el, 'fill', cssStyles);
+  const isComplex = d.split(/[Mm]/).length > 3;
+
   return {
-    _id:'svg-'+Math.random().toString(36).slice(2),
-    name, svgTag:'path',
-    detectedType:isComplex?'path-complex':'shape',
-    mode:isComplex?'ignore':'shape',
-    x:Math.round(x), y:Math.round(y),
-    w:Math.round(w)||100, h:Math.round(h)||100,
-    fill:fill||'#000000', radius:0, opacity:100,
-    _warning:isComplex?'Path vetorial complexo — fidelidade parcial como shape':null,
+    _id: 'svg-' + Math.random().toString(36).slice(2),
+    name, svgTag: 'path',
+    detectedType: isComplex ? 'path-complex' : 'shape',
+    mode: isComplex ? 'ignore' : 'shape',
+    x: bbox.x,
+    y: bbox.y,
+    w: bbox.w,
+    h: bbox.h,
+    fill: fill || '#000000',
+    radius: 0,
+    opacity: Math.round((parseFloat(_dSvgProp(el, 'opacity', cssStyles) || 1) || 1) * 100),
+    _warning: isComplex ? 'Path vetorial complexo — fidelidade parcial como shape' : null,
   };
 }
 
@@ -968,15 +1254,7 @@ function dSvgSuggestImgVar(name){
   return 'imagem';
 }
 
-// Mapeia fonte do Illustrator p/ um preset reconhecido pelo Luma (dTextFontParts)
-function dSvgMapFont(fontFamily){
-  const f=(fontFamily||'').toLowerCase();
-  if(/realce|black|heavy|display|900/.test(f)) return "'Roboto Black'";
-  if(/bold|700/.test(f)) return "'Roboto',bold";
-  return "'Roboto'";
-}
-
-/* ── tela de revisão do SVG ── */
+/* ── UI / Tela de revisão de SVG ── */
 function _dSvgEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 function dSvgShowReviewModal(elements, meta){
@@ -1085,34 +1363,61 @@ function dSvgRevConfirm(){
   dSvgCreateTemplate(elements, meta, fmt);
 }
 
-// Cria os layers a partir dos elementos revisados e abre como template novo (rascunho).
+// Cria os layers finais no Luma com escalonamento de tela inteligente
 function dSvgCreateTemplate(elements, meta, fmt){
   const layers=[];
+  const targetSize = DFMT_SIZES[fmt] || { w: 1080, h: 1920 };
+
+  // Escalonamento uniforme para preservar o aspecto original centralizando a composição no canvas final
+  const uScale = Math.min(targetSize.w / meta.w, targetSize.h / meta.h);
+  const dx = Math.round((targetSize.w - meta.w * uScale) / 2);
+  const dy = Math.round((targetSize.h - meta.h * uScale) / 2);
+
   elements.forEach(el=>{
     if(el.mode==='ignore') return;
+
+    const scaledX = Math.round(el.x * uScale + dx);
+    const scaledY = Math.round(el.y * uScale + dy);
+    const scaledW = Math.max(1, Math.round(el.w * uScale));
+    const scaledH = Math.max(1, Math.round(el.h * uScale));
+
     const base={
       id:'d-lyr-'+Date.now()+'-'+Math.random().toString(36).slice(2),
       name:el.name, visible:true, locked:false, opacity:el.opacity||100,
     };
+
     if(el.mode==='text' || el.mode==='variable'){
       const isVar=el.mode==='variable';
       const varName=el.varName||'variavel';
+      const scaledFontSize = Math.max(10, Math.round((el.fontSize || 48) * uScale));
+
       layers.push(Object.assign(base,{
-        type:'text', x:el.x, y:el.y, w:el.w, h:el.h,
+        type:'text', x:scaledX, y:scaledY, w:scaledW, h:scaledH,
         content:isVar?('{{'+varName+'}}'):el.content,
-        font:el.font||"'Roboto'", fontSize:el.fontSize||48,
+        font:el.font||"'Roboto'", fontSize:scaledFontSize,
         color:el.color||'#000000', textAlign:el.textAlign||'left', isVar:isVar,
       }));
     }else if(el.mode==='shape'){
-      layers.push(Object.assign(base,{ type:'shape', x:el.x, y:el.y, w:el.w, h:el.h,
-        fill:el.fill||'#FF9000', radius:el.radius||0 }));
+      // Corrige bug de perda do shapeKind (círculos viravam retângulos)
+      const shapeKind = (el.svgTag === 'circle' || el.svgTag === 'ellipse') ? el.svgTag : 'rect';
+      const scaledRadius = el.radius === 999 ? 999 : Math.round((el.radius || 0) * uScale);
+
+      layers.push(Object.assign(base,{
+        type:'shape', shapeKind:shapeKind, x:scaledX, y:scaledY, w:scaledW, h:scaledH,
+        fill:el.fill||'#FF9000', radius:scaledRadius
+      }));
     }else if(el.mode==='frame'){
-      layers.push(Object.assign(base,{ type:'frame', x:el.x, y:el.y, w:el.w, h:el.h,
-        imgUrl:el.imgUrl||'', imgVar:el.imgVar||'foto_produto', objectFit:'cover', frameShape:'rect' }));
+      layers.push(Object.assign(base,{
+        type:'frame', x:scaledX, y:scaledY, w:scaledW, h:scaledH,
+        imgUrl:el.imgUrl||'', imgVar:el.imgVar||'foto_produto', objectFit:'cover', frameShape:'rect'
+      }));
     }else if(el.mode==='image'){
-      layers.push(Object.assign(base,{ type:'image', x:el.x, y:el.y, w:el.w, h:el.h, imgUrl:el.imgUrl||'' }));
+      layers.push(Object.assign(base,{
+        type:'image', x:scaledX, y:scaledY, w:scaledW, h:scaledH, imgUrl:el.imgUrl||''
+      }));
     }
   });
+
   if(!layers.length){ gToast('Nenhum elemento selecionado para importar'); return; }
   const folder=(typeof dFolders!=='undefined'&&dFolders)?dFolders[0]:null;
   if(!folder){ gToast('⚠ Crie uma pasta antes de importar','error'); return; }

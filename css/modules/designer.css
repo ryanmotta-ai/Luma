@@ -957,6 +957,12 @@ body.theme-light #d-preview-stage{background:repeating-conic-gradient(#E8E8E8 0%
 .psd-var-input{width:120px;font-size:11px;padding:4px 7px;background:var(--var-bg);border:1px solid rgba(124,110,255,.4);color:var(--var-color);border-radius:5px;font-family:monospace;flex-shrink:0}
 .psd-fontwarn{font-size:9px;font-weight:700;color:var(--dm-yellow);background:rgba(255,185,0,.12);padding:1px 6px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;gap:4px}
 .psd-fontok{font-size:9px;font-weight:700;color:#5cb85c;background:rgba(92,184,92,.12);padding:1px 6px;border-radius:8px;flex-shrink:0}
+.psd-multistyle{font-size:9px;font-weight:700;color:#64b5f6;background:rgba(100,181,246,.12);padding:1px 6px;border-radius:8px;flex-shrink:0}
+.psd-blend{font-size:9px;font-weight:700;color:#ce93d8;background:rgba(206,147,216,.12);padding:1px 6px;border-radius:8px;flex-shrink:0}
+.psd-search-input{width:100%;padding:6px 10px;font-size:12px;background:var(--d-surf2,#2A2A2A);color:var(--d-text);border:1px solid var(--d-border2);border-radius:6px;outline:none;box-sizing:border-box}
+.psd-search-input:focus{border-color:var(--dm-red,#af101a)}
+.psd-group-header{font-size:10px;font-weight:700;color:var(--d-text3);text-transform:uppercase;letter-spacing:.5px;padding:6px 2px 2px;display:flex;align-items:center;gap:6px}
+.psd-group-count{font-size:10px;font-weight:400;color:var(--d-text3);background:var(--d-surf3);border-radius:8px;padding:0 5px}
 .psd-font-upload-btn{cursor:pointer;font-size:9px;font-weight:700;text-decoration:underline;opacity:.75;white-space:nowrap}
 .psd-font-upload-btn:hover{opacity:1}
 /* overlay de leitura */

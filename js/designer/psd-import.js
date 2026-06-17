@@ -199,7 +199,7 @@ const _DPSD_WORKER_SRC = ""
   + "try{importScripts(e.data.lib);}catch(_){importScripts(e.data.cdn);}"
   + "var psd=self.agPsd.readPsd(e.data.buffer,{useImageData:true,skipLayerImaging:false});"
   + "var transfers=[];"
-  + "function strip(n){var o={name:n.name,left:n.left,top:n.top,right:n.right,bottom:n.bottom,hidden:n.hidden,opacity:n.opacity,text:n.text,effects:n.effects,artboard:n.artboard,clipping:n.clipping};"
+  + "function strip(n){var o={name:n.name,left:n.left,top:n.top,right:n.right,bottom:n.bottom,hidden:n.hidden,opacity:n.opacity,blendMode:n.blendMode,text:n.text,effects:n.effects,artboard:n.artboard,clipping:n.clipping};"
   + "if(n.imageData&&n.imageData.data){o._img={w:n.imageData.width,h:n.imageData.height,buf:n.imageData.data.buffer};transfers.push(n.imageData.data.buffer);}"
   + "if(n.mask&&n.mask.imageData&&n.mask.imageData.data){o._mask={w:n.mask.imageData.width,h:n.mask.imageData.height,buf:n.mask.imageData.data.buffer,left:n.mask.left,top:n.mask.top,defaultColor:n.mask.defaultColor,disabled:n.mask.disabled};transfers.push(n.mask.imageData.data.buffer);}"
   + "if(n.children)o.children=n.children.map(strip);return o;}"
@@ -209,7 +209,7 @@ const _DPSD_WORKER_SRC = ""
   + "}catch(err){self.postMessage({ok:false,error:String(err)});}};";
 
 function _dPsdRebuildNode(node){
-  const n={name:node.name,left:node.left,top:node.top,right:node.right,bottom:node.bottom,hidden:node.hidden,opacity:node.opacity,text:node.text,effects:node.effects,artboard:node.artboard,clipping:node.clipping};
+  const n={name:node.name,left:node.left,top:node.top,right:node.right,bottom:node.bottom,hidden:node.hidden,opacity:node.opacity,blendMode:node.blendMode,text:node.text,effects:node.effects,artboard:node.artboard,clipping:node.clipping};
   if(node._img && node._img.buf){
     try{
       const c=document.createElement('canvas'); c.width=node._img.w; c.height=node._img.h;
@@ -282,6 +282,34 @@ function _dPsdRemapFont(fontName){
   return partial?'custom:'+partial.family:null;
 }
 
+// Extrai o estilo DOMINANTE de um nó de texto considerando todos os styleRuns.
+// Run dominante = maior comprimento de texto. isMultiStyle=true quando há cores ou
+// tamanhos distintos entre runs (indica ao usuário que o layer era estilo misto).
+function _dPsdDominantStyle(t){
+  if(!t) return {style:{}, isMultiStyle:false};
+  const runs=Array.isArray(t.styleRuns)&&t.styleRuns.length?t.styleRuns:null;
+  if(!runs) return {style:_dPsdTextStyle(t), isMultiStyle:false};
+  const dominant=runs.reduce((best,r)=>(r.length||0)>(best.length||0)?r:best, runs[0]);
+  const colors=new Set(runs.map(r=>{const c=r.style&&(r.style.fillColor||r.style.color);
+    return c?Math.round(c.r||0)+','+Math.round(c.g||0)+','+Math.round(c.b||0):null;}));
+  const sizes=new Set(runs.map(r=>Math.round((r.style&&(r.style.fontSize||r.style.size))||0)));
+  return {style:dominant.style||{}, isMultiStyle:colors.size>1||sizes.size>1};
+}
+// Detecta o tipo de shape a partir do canvas rasterizado.
+// Se os cantos forem transparentes e o centro opaco → é circular/elíptico.
+function _dPsdDetectShapeKind(canvas){
+  try{
+    const w=canvas.width, h=canvas.height; if(w<8||h<8) return 'rect';
+    const ctx=canvas.getContext('2d');
+    if(ctx.getImageData(Math.floor(w/2),Math.floor(h/2),1,1).data[3]<200) return 'rect';
+    const corners=[[1,1],[w-2,1],[1,h-2],[w-2,h-2]];
+    const nTransp=corners.filter(([x,y])=>ctx.getImageData(x,y,1,1).data[3]<80).length;
+    if(nTransp<3) return 'rect';
+    const ratio=w/h;
+    return (ratio>0.85&&ratio<1.18)?'circle':'ellipse';
+  }catch(e){ return 'rect'; }
+}
+
 /* ── PSD → itens intermediários (modo escolhível na revisão) ── */
 let dPsdItems=[]; let dPsdMeta=null;
 // Callback opcional da revisão (fluxo multi-prancheta). Quando setado, dPsdConfirmImport
@@ -301,14 +329,18 @@ function dPsdParseItems(psd, res, ox, oy){
       const x=Math.round((node.left||0)-ox), y=Math.round((node.top||0)-oy);
       const w=Math.max(1,Math.round((node.right||0)-(node.left||0)));
       const h=Math.max(1,Math.round((node.bottom||0)-(node.top||0)));
+      const bm=node.blendMode;
       const it={ n:++n, name:(node.name||('Camada '+n)).toString().slice(0,48),
         x,y,w,h, visible:!accHidden, opacity:Math.round(accOp*100),
-        include:!accHidden, mask:_dPsdComputeMask(node, prevLeaf) }; // máscara + clipping
+        include:!accHidden, mask:_dPsdComputeMask(node, prevLeaf),
+        blendMode:(bm&&bm!=='normal'&&bm!=='passThrough')?bm:undefined }; // máscara + clipping
       prevLeaf=node; // base p/ a próxima camada com clipping
       if(node.text && node.text.text!=null && String(node.text.text).trim()!==''){
-        const t=node.text, st=_dPsdTextStyle(t), sv=_dPsdSuggestVar(node.name, t.text);
+        const t=node.text, sv=_dPsdSuggestVar(node.name, t.text);
+        const {style:st, isMultiStyle}=_dPsdDominantStyle(t);
         it.kind='text';
         it.content=String(t.text).replace(/\r\n?/g,'\n');
+        it.multiStyle=isMultiStyle;
         it.fontName=(st.font&&st.font.name)||'';
         const _fRemap=_dPsdRemapFont(it.fontName);
         it.font=_fRemap||(/black|900|heavy/i.test(it.fontName)?"'Roboto Black'":/bold|700/i.test(it.fontName)?"'Roboto',bold":"'Roboto'");
@@ -322,7 +354,7 @@ function dPsdParseItems(psd, res, ox, oy){
         if(node.canvas && node.canvas.width>0){ it.imgUrl=_dPsdRasterURL(node.canvas); } // p/ "imagem fiel"
       } else if(node.canvas && node.canvas.width>0 && node.canvas.height>0){
         const solid=_dPsdSolidColor(node.canvas);
-        if(solid){ it.kind='shape'; it.fill=solid; it.mode='shape'; }
+        if(solid){ it.kind='shape'; it.fill=solid; it.mode='shape'; it.shapeKind=_dPsdDetectShapeKind(node.canvas); }
         else { it.kind='raster'; it.mode='raster'; it.imgUrl=_dPsdRasterURL(node.canvas); if(!it.imgUrl) return; }
       } else { return; }
       items.push(it);
@@ -333,7 +365,8 @@ function dPsdParseItems(psd, res, ox, oy){
 
 function dItemToLayer(it){
   const base={ id:'l-psd-'+it.n+'-'+(it.x+it.y), name:it.name, x:it.x,y:it.y,w:it.w,h:it.h, visible:it.visible, opacity:it.opacity };
-  if(it.mask) base.mask=it.mask;   // máscara de camada (alpha) trazida do PSD
+  if(it.mask) base.mask=it.mask;
+  if(it.blendMode) base.blendMode=it.blendMode;
   if(it.kind==='text'){
     if(it.mode==='raster' && it.imgUrl) return Object.assign(base,{type:'image',imgUrl:it.imgUrl,imgVar:'',objectFit:'cover',frameShape:'rect'});
     const isVar=it.mode==='var';
@@ -344,8 +377,30 @@ function dItemToLayer(it){
     if(it.strokeW){ L.strokeW=it.strokeW; L.strokeColor=it.strokeColor; }
     return L;
   }
-  if(it.kind==='shape' && it.mode==='shape') return Object.assign(base,{type:'shape',fill:it.fill||'#FF9000',radius:0});
+  if(it.kind==='shape' && it.mode==='shape') return Object.assign(base,{type:'shape',fill:it.fill||'#FF9000',radius:0,shapeKind:it.shapeKind||'rect'});
   return Object.assign(base,{type:'image',imgUrl:it.imgUrl,imgVar:'',objectFit:'cover',frameShape:'rect'});
+}
+
+/* ── Memória de mapeamento (Fase D) ──
+   Persiste {layerName → {mode, varName}} em localStorage para reusar entre sessões.
+   Limite de 500 entradas (nomes de camada) para não estourar a quota.           ── */
+const _PSD_MEM_KEY='yngs_psd_mem_v1';
+function _dPsdMemLoad(){ try{ return JSON.parse(localStorage.getItem(_PSD_MEM_KEY)||'{}'); }catch(e){ return {}; } }
+function _dPsdMemApply(items){
+  const mem=_dPsdMemLoad(); if(!Object.keys(mem).length) return;
+  items.forEach(it=>{
+    const key=it.name.toLowerCase().trim().slice(0,48);
+    const s=mem[key]; if(!s) return;
+    const validText=['text','var','raster'], validShape=['shape','raster'];
+    if(s.mode&&((it.kind==='text'&&validText.includes(s.mode))||(it.kind==='shape'&&validShape.includes(s.mode)))) it.mode=s.mode;
+    if(s.varName&&it.kind==='text') it.varName=s.varName;
+  });
+}
+function _dPsdMemSave(items){
+  const mem=_dPsdMemLoad();
+  items.forEach(it=>{ const key=it.name.toLowerCase().trim().slice(0,48); mem[key]={mode:it.mode}; if(it.kind==='text'&&it.varName) mem[key].varName=it.varName; });
+  const keys=Object.keys(mem); if(keys.length>500) keys.slice(0,keys.length-500).forEach(k=>delete mem[k]);
+  try{ localStorage.setItem(_PSD_MEM_KEY,JSON.stringify(mem)); }catch(e){}
 }
 
 // Heurística de z-order: retorna true se a lista de itens precisar ser invertida.
@@ -376,13 +431,37 @@ function dPsdOpenReview(){
   const sel=document.getElementById('d-psd-fmt'); if(sel) sel.value=fmt;
   const inv=document.getElementById('d-psd-invert');
   if(inv) inv.checked=_dPsdShouldInvert(dPsdItems, dPsdMeta.w, dPsdMeta.h);
+  // Campo de busca (injetado dinamicamente, acima de #d-psd-rows)
+  const rowsEl=document.getElementById('d-psd-rows');
+  if(rowsEl&&!document.getElementById('d-psd-search')){
+    const si=document.createElement('input'); si.id='d-psd-search'; si.type='search';
+    si.placeholder='Filtrar camadas…'; si.className='psd-search-input';
+    si.oninput=()=>dPsdRenderRows(si.value.trim().toLowerCase());
+    rowsEl.parentNode.insertBefore(si,rowsEl);
+  }
+  const sf=document.getElementById('d-psd-search'); if(sf) sf.value='';
+  // Aplica memória de mapeamentos anteriores
+  _dPsdMemApply(dPsdItems);
   dPsdRenderRows();
   modal.classList.add('open');
 }
-function dPsdRenderRows(){
+// Converte blend mode do ag-psd (camelCase) → CSS (kebab-case); 'normal'→'' (sem propriedade)
+function _dPsdBlendModeCSS(bm){ return bm?bm.replace(/([A-Z])/g,c=>'-'+c.toLowerCase()):''; }
+function dPsdRenderRows(filter){
   const wrap=document.getElementById('d-psd-rows'); if(!wrap) return;
   const ico={text:'T',shape:'■',raster:'▣'};
-  wrap.innerHTML=dPsdItems.map((it,i)=>{
+  const kindOrder={text:0,shape:1,raster:2};
+  const kindLabel={text:'Textos',shape:'Formas',raster:'Imagens'};
+  // Indexar, filtrar por busca e agrupar por tipo (preserva índice original p/ handlers)
+  const indexed=dPsdItems.map((it,i)=>({it,i}));
+  const visible=filter?indexed.filter(({it})=>it.name.toLowerCase().includes(filter)):indexed;
+  const grouped=[...visible].sort((a,b)=>(kindOrder[a.it.kind]||0)-(kindOrder[b.it.kind]||0));
+  const count={}; visible.forEach(({it})=>{ count[it.kind]=(count[it.kind]||0)+1; });
+  let lastKind=null;
+  wrap.innerHTML=grouped.map(({it,i})=>{
+    let header='';
+    if(it.kind!==lastKind){ lastKind=it.kind;
+      header=`<div class="psd-group-header">${kindLabel[it.kind]||'Outros'} <span class="psd-group-count">${count[it.kind]||0}</span></div>`; }
     let modeSel='';
     if(it.kind==='text'){
       modeSel=`<select class="psd-mode" onchange="dPsdSetMode(${i},this.value)">
@@ -394,25 +473,28 @@ function dPsdRenderRows(){
         <option value="shape" ${it.mode==='shape'?'selected':''}>Cor (editável)</option>
         <option value="raster" ${it.mode==='raster'?'selected':''}>Imagem</option></select>`;
     } else { modeSel=`<span class="psd-mode-fixed">Imagem</span>`; }
-    const swatch=it.kind==='shape'?`<span class="psd-swatch" style="background:${it.fill}"></span>`:'';
+    const swatchRadius=it.shapeKind==='circle'||it.shapeKind==='ellipse'?'50%':'3px';
+    const swatch=it.kind==='shape'?`<span class="psd-swatch" style="background:${it.fill};border-radius:${swatchRadius}"></span>`:'';
     const varIn=`<input class="psd-var-input" value="${it.varName||''}" placeholder="nome_da_var" oninput="dPsdSetVar(${i},this.value)" style="display:${it.kind==='text'&&it.mode==='var'?'inline-block':'none'}">`;
+    const multiStyleBadge=(it.kind==='text'&&it.multiStyle)?`<span class="psd-multistyle" title="Texto com múltiplos estilos — importando estilo dominante">↕ misto</span>`:'';
+    const blendBadge=it.blendMode?`<span class="psd-blend" title="Blend mode: ${_dPsdEsc(it.blendMode)}">⊕ ${_dPsdEsc(_dPsdBlendModeCSS(it.blendMode))}</span>`:'';
     let fontWarn='';
     if(it.kind==='text'&&it.fontName&&!/roboto/i.test(it.fontName)){
       const fn=_dPsdEsc(it.fontName);
       if(it.fontRemapped) fontWarn=`<span class="psd-fontok" title="Fonte '${fn}' mapeada para fonte enviada">✓ ${fn}</span>`;
       else fontWarn=`<span class="psd-fontwarn">⚠ ${fn} <label class="psd-font-upload-btn" title="Enviar '${fn}' agora">↑ enviar<input type="file" accept=".ttf,.otf,.woff,.woff2" style="display:none" onchange="dPsdUploadFont(${i},this)"></label></span>`;
     }
-    return `<div class="psd-row ${it.include?'':'psd-row-off'}">
+    return header+`<div class="psd-row ${it.include?'':'psd-row-off'}">
       <input type="checkbox" ${it.include?'checked':''} onchange="dPsdSetInclude(${i},this.checked)">
       <span class="psd-row-ico">${swatch||ico[it.kind]||'▣'}</span>
-      <span class="psd-row-name" title="${it.name}">${it.name}${fontWarn}</span>
+      <span class="psd-row-name" title="${it.name}">${it.name}${multiStyleBadge}${blendBadge}${fontWarn}</span>
       ${modeSel}${varIn}</div>`;
   }).join('');
   dPsdUpdateCount();
 }
-function dPsdSetMode(i,v){ if(dPsdItems[i]){ dPsdItems[i].mode=v; dPsdRenderRows(); } }
+function dPsdSetMode(i,v){ if(dPsdItems[i]){ dPsdItems[i].mode=v; dPsdRenderRows(document.getElementById('d-psd-search')&&document.getElementById('d-psd-search').value.trim().toLowerCase()||''); } }
 function dPsdSetVar(i,v){ if(dPsdItems[i]) dPsdItems[i].varName=v.trim().replace(/[^a-zA-Z0-9_]/g,''); }
-function dPsdSetInclude(i,on){ if(dPsdItems[i]){ dPsdItems[i].include=on; dPsdRenderRows(); } }
+function dPsdSetInclude(i,on){ if(dPsdItems[i]){ dPsdItems[i].include=on; const f=document.getElementById('d-psd-search'); dPsdRenderRows(f&&f.value.trim().toLowerCase()||''); } }
 // Upload de fonte direto da tela de revisão: registra no sistema de fontes e remapeia
 // automaticamente todas as camadas do PSD que usam o mesmo fontName.
 function dPsdUploadFont(layerIdx, input){
@@ -448,6 +530,7 @@ function dPsdCancel(){
 function dPsdConfirmImport(){
   const chosen=dPsdItems.filter(it=>it.include);
   if(!chosen.length){ gToast('Selecione ao menos uma camada','error'); return; }
+  _dPsdMemSave(dPsdItems); // persiste mapeamentos para próximas importações
   let layers=chosen.map(dItemToLayer).filter(Boolean);
   // #4a — inverter z-order se a ordem do PSD vier trocada
   const inv=document.getElementById('d-psd-invert'); if(inv&&inv.checked) layers=layers.reverse();
