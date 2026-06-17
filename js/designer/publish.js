@@ -481,6 +481,7 @@ document.addEventListener('keydown',e=>{
       dSetTool('stamp');
     }
     if(e.key==='p'||e.key==='P')dPreviewOpen();
+    if(e.key==='o'||e.key==='O'){if(typeof dNitidezActivate==='function')dNitidezActivate();} // O = Grupo Nitidez
     if(e.key==='?'||(e.shiftKey&&e.key==='/')){e.preventDefault();dOpenCheat();}
     // (dClearPaint já tratado acima)
     // Mover layer com setas

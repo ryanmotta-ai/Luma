@@ -9,7 +9,7 @@
 :root {
   --dm-orange: #FF9000;
   --dm-orange-d: #F85400;
-  --dm-orange-l: #FFA533;
+  --dm-orange-l: #FF9000;
   --dm-red: #C81818;
   --dm-yellow: #FFB900;
   --dm-orange-bg: #FFF2E0;
@@ -36,8 +36,8 @@
   --d-text: #F0F0F0;
   --d-text2: #A0A0A0;
   --d-text3: #666666;
-  --var-color: #7C6EFF;
-  --var-bg: rgba(124, 110, 255, .12);
+  --var-color: #FFB900;
+  --var-bg: rgba(255, 185, 0, .12);
 
   /* Premium Design System Tokens */
   --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
@@ -45,7 +45,7 @@
   --transition-normal: 0.3s var(--ease-smooth);
   --transition-slow: 0.5s var(--ease-smooth);
 
-  --gradient-orange: linear-gradient(135deg, var(--dm-orange-l) 0%, var(--dm-orange) 50%, var(--dm-orange-d) 100%);
+  --gradient-orange: linear-gradient(135deg, var(--dm-orange) 0%, var(--dm-orange-d) 100%);
   --gradient-dark: linear-gradient(180deg, #1A1A1A 0%, #0D0D0D 100%);
   --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
   --gradient-glow: radial-gradient(circle at top left, rgba(255, 144, 0, 0.15), transparent 60%);

@@ -95,7 +95,7 @@
         <div class="g-help-section-title">Falar com o time</div>
         <div class="g-help-channels">
           <button class="g-help-channel" onclick="gHelpAction('slack')" disabled>
-            <div class="g-help-channel-icon" style="background:#4A154B;color:#fff">#</div>
+            <div class="g-help-channel-icon" style="background:var(--dm-orange-d);color:#fff">#</div>
             <div class="g-help-channel-info">
               <div class="g-help-channel-name">Slack do time de design</div>
               <div class="g-help-channel-sub">Em breve · integração em desenvolvimento</div>
@@ -292,6 +292,11 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 019-9 9 9 0 016 2.3L21 13"/></svg>
       </button>
       <div class="dt-sep"></div>
+      <!-- Novo arquivo: prancheta nova com tamanho/DPI personalizados -->
+      <button class="dt-btn" id="dt-newdoc-btn" onclick="dNewDocOpen()" title="Novo arquivo (tamanho e DPI personalizados)" aria-label="Novo arquivo">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+      </button>
+      <div class="dt-sep"></div>
       <!-- Formato -->
       <div class="dt-fmt-group">
         <button class="dt-fmt active" data-fmt="story" onclick="dSetFormat('story',this)" title="Story 1080×1920">
@@ -377,9 +382,41 @@
       <div class="vt-sep"></div>
       <!-- Grupo: Formas -->
       <div class="vt-group">
-        <button class="vt-btn" id="dtool-rect" data-tool="rect" aria-label="Retângulo (R)" title="Retângulo&#10;R" onclick="dSetTool('rect')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
-        </button>
+        <div class="vt-group-wrap" id="vt-forma-wrap">
+          <button class="vt-btn has-flyout" id="dtool-forma-proxy"
+                  onclick="dFormaActivate()"
+                  oncontextmenu="dFormaFlyout(event)"
+                  title="Grupo Forma&#10;R — Botão direito: mais ferramentas">
+            <span id="dtool-forma-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg></span>
+            <span class="vt-sub-arrow"></span>
+          </button>
+          <div class="vt-flyout" id="vt-forma-flyout">
+            <button id="dtool-rect" class="vt-flyout-item" onclick="dFormaPick('rect',event)" title="Retângulo&#10;R">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+              <span>Retângulo</span>
+            </button>
+            <button class="vt-flyout-item" onclick="dFormaPick('ellipse',event)" title="Elipse">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="10" ry="7"/></svg>
+              <span>Elipse</span>
+            </button>
+            <button class="vt-flyout-item" onclick="dFormaPick('triangle',event)" title="Triângulo">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 3 22 21 2 21"/></svg>
+              <span>Triângulo</span>
+            </button>
+            <button class="vt-flyout-item" onclick="dFormaPick('polygon',event)" title="Polígono">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 20.7 7 20.7 17 12 22 3.3 17 3.3 7"/></svg>
+              <span>Polígono</span>
+            </button>
+            <button class="vt-flyout-item" onclick="dFormaPick('line',event)" title="Linha">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="20" x2="20" y2="4"/></svg>
+              <span>Linha</span>
+            </button>
+            <button class="vt-flyout-item" onclick="dFormaPick('star',event)" title="Forma Personalizada (Estrela)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              <span>Forma Personalizada</span>
+            </button>
+          </div>
+        </div>
         <button class="vt-btn" id="dtool-frame" data-tool="frame" aria-label="Moldura (F)" title="Moldura de foto&#10;F" onclick="dSetTool('frame')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
         </button>
@@ -416,12 +453,35 @@
         <button class="vt-btn" id="dtool-gradient" data-tool="gradient" aria-label="Gradiente" title="Gradiente" onclick="dSetTool('gradient')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
         </button>
-        <button class="vt-btn" id="dtool-smudge" data-tool="smudge" aria-label="Borrar/Smudge" title="Borrar / Smudge" onclick="dSetTool('smudge')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11h.01M7 6h.01M11 3h.01M15 3h.01M19 6h.01M21 11h.01M19 16c-2 3-7 3-9-1-1-2-3-2-4-1-1 1-1 3 0 4 2 2 7 0 13-2Z"/></svg>
-        </button>
-        <button class="vt-btn" id="dtool-blur" data-tool="blur" aria-label="Desfocar" title="Desfocar / Blur" onclick="dSetTool('blur')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3" fill="currentColor" opacity=".3"/><circle cx="12" cy="12" r="6" opacity=".5"/><circle cx="12" cy="12" r="9" opacity=".7"/></svg>
-        </button>
+      </div>
+      <div class="vt-sep"></div>
+      <!-- Grupo Nitidez: Desfoque · Nitidez · Dedo — flyout Photoshop-style (botão direito) -->
+      <div class="vt-group">
+        <div class="vt-group-wrap" id="vt-nitidez-wrap">
+          <button class="vt-btn has-flyout" id="dtool-nitidez-proxy"
+                  onclick="dNitidezActivate()"
+                  oncontextmenu="dNitidezFlyout(event)"
+                  title="Grupo Nitidez&#10;O — Botão direito: mais ferramentas">
+            <span id="dtool-nitidez-icon" style="display:flex;align-items:center;justify-content:center">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3" fill="currentColor" opacity=".3"/><circle cx="12" cy="12" r="6" opacity=".5"/><circle cx="12" cy="12" r="9" opacity=".7"/></svg>
+            </span>
+            <span class="vt-sub-arrow"></span>
+          </button>
+          <div class="vt-flyout" id="vt-nitidez-flyout">
+            <button id="dtool-blur" class="vt-flyout-item" onclick="dNitidezPick('blur',event)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3" fill="currentColor" opacity=".3"/><circle cx="12" cy="12" r="6" opacity=".5"/><circle cx="12" cy="12" r="9" opacity=".7"/></svg>
+              <span>Desfoque</span>
+            </button>
+            <button id="dtool-sharpen" class="vt-flyout-item" onclick="dNitidezPick('sharpen',event)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 22 12 12 22 2 12"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+              <span>Nitidez</span>
+            </button>
+            <button id="dtool-smudge" class="vt-flyout-item" onclick="dNitidezPick('smudge',event)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11h.01M7 6h.01M11 3h.01M15 3h.01M19 6h.01M21 11h.01M19 16c-2 3-7 3-9-1-1-2-3-2-4-1-1 1-1 3 0 4 2 2 7 0 13-2Z"/></svg>
+              <span>Dedo</span>
+            </button>
+          </div>
+        </div>
       </div>
       <div class="vt-sep"></div>
       <!-- Recursos: biblioteca de assets + blocos/fontes (drawer flutuante) -->
@@ -571,7 +631,8 @@
       <div class="rpanel-tabs d-rp-tabs">
         <button class="rpanel-tab d-rp-tab active" id="rtab-campaigns" data-panel="conteudo" onclick="dActivatePanel('conteudo')" title="Campanhas e templates">Conteúdo</button>
         <button class="rpanel-tab d-rp-tab" id="rtab-props" data-panel="camada" onclick="dActivatePanel('camada')" title="Propriedades da peça selecionada">Propriedades</button>
-        <button class="rpanel-tab d-rp-tab" data-panel="publicar" onclick="dActivatePanel('publicar')" title="Publicar para os franqueados">Publicar</button>
+        <!-- Aba "Publicar" removida daqui: não pertence à tira de Conteúdo/Propriedades.
+             Publicar continua acessível pelo botão da topbar (dPublishOpen). -->
       </div>
       <!-- Indicador contextual: nome+tipo da peça selecionada (visível só no painel Camada) -->
       <div class="d-rp-ctx" id="d-rp-ctx" style="display:none"></div>
@@ -1046,6 +1107,59 @@
     <div class="modal-actions">
       <button class="d-btn-sec" onclick="document.getElementById('d-tmpl-modal').classList.remove('open')">Cancelar</button>
       <button class="d-btn-pri" onclick="dConfirmTemplate()">Criar template</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal "Novo arquivo" — prancheta nova com dimensões/DPI personalizados (estilo "New Document") -->
+<div class="modal-overlay" id="d-newdoc-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-title">Novo arquivo</div>
+    <div class="modal-field">
+      <label class="modal-label">Começar de um preset</label>
+      <div class="newdoc-presets" style="display:flex;gap:8px">
+        <button type="button" class="d-btn-sec newdoc-preset" style="flex:1;display:flex;flex-direction:column;line-height:1.3;padding:8px 4px" onclick="dNewDocPickPreset('story',this)">Story<small style="opacity:.6">1080×1920</small></button>
+        <button type="button" class="d-btn-sec newdoc-preset" style="flex:1;display:flex;flex-direction:column;line-height:1.3;padding:8px 4px" onclick="dNewDocPickPreset('feed',this)">Feed<small style="opacity:.6">1080×1080</small></button>
+        <button type="button" class="d-btn-sec newdoc-preset" style="flex:1;display:flex;flex-direction:column;line-height:1.3;padding:8px 4px" onclick="dNewDocPickPreset('wide',this)">Wide<small style="opacity:.6">1200×628</small></button>
+      </div>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Dimensões</label>
+      <div class="prop-row" style="display:flex;gap:8px;align-items:center">
+        <input class="modal-input" type="number" id="nd-w" min="1" style="flex:1" placeholder="Largura" oninput="dNewDocUpdate()">
+        <span style="color:var(--d-text3)">×</span>
+        <input class="modal-input" type="number" id="nd-h" min="1" style="flex:1" placeholder="Altura" oninput="dNewDocUpdate()">
+        <select class="modal-select" id="nd-unit" style="flex:0 0 70px" onchange="dNewDocUpdate()">
+          <option value="px">px</option>
+          <option value="in">pol</option>
+          <option value="cm">cm</option>
+        </select>
+        <button type="button" class="d-btn-sec" style="padding:6px 9px" onclick="dNewDocSwapOrientation()" title="Inverter orientação (retrato/paisagem)">⇄</button>
+      </div>
+    </div>
+    <div class="modal-field">
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <div style="flex:1">
+          <label class="modal-label">Resolução (DPI)</label>
+          <input class="modal-input" type="number" id="nd-dpi" min="1" value="300" oninput="dNewDocUpdate()">
+        </div>
+        <div style="flex:1">
+          <label class="modal-label">Fundo</label>
+          <select class="modal-select" id="nd-bg" onchange="dNewDocBgChange()">
+            <option value="white">Branco</option>
+            <option value="transparent">Transparente</option>
+            <option value="color">Cor…</option>
+          </select>
+        </div>
+        <input type="color" id="nd-bg-color" value="#FF9000" style="display:none;width:38px;height:36px;padding:0;border:none;background:none;cursor:pointer">
+      </div>
+    </div>
+    <div class="modal-field">
+      <div id="nd-px-preview" style="font-size:12px;color:var(--d-text2)">— × — px</div>
+    </div>
+    <div class="modal-actions">
+      <button class="d-btn-sec" onclick="document.getElementById('d-newdoc-modal').classList.remove('open')">Cancelar</button>
+      <button class="d-btn-pri" onclick="dNewDocConfirm()">Criar</button>
     </div>
   </div>
 </div>

@@ -749,6 +749,89 @@ function dConfirmTemplate(){
   gToast('✓ Template "'+name+'" criado em "'+folder.name+'" — comece adicionando elementos pelas ferramentas (T, R, F, M)');
 }
 
+/* ══════════════════════════════════════════════════════════════
+   NOVO ARQUIVO (estilo "New Document") — prancheta com tamanho/DPI custom.
+   Reaproveita o motor de pranchetas: dApplyFormat/dFitToScreen/dPaintTargetSize
+   já honram ab.w/ab.h, então dimensões arbitrárias funcionam sem mexer no render.
+══════════════════════════════════════════════════════════════ */
+// Cria uma prancheta nova com dimensões explícitas (px), fundo e DPI escolhidos.
+function dNewArtboardCustom(w,h,bg,dpi,fmt){
+  dSyncLayersToAB();
+  w=Math.max(16,Math.min(8000,Math.round(w)||1080));
+  h=Math.max(16,Math.min(8000,Math.round(h)||1080));
+  // fmt é só metadado (âncoras/reflow/tag): infere o preset mais próximo pela proporção
+  fmt=fmt||((typeof dPsdDetectFmt==='function')?dPsdDetectFmt(w,h):'story');
+  const id='ab-'+Date.now();
+  const n=dArtboards.length;
+  let x,y;
+  if(n===0){x=80;y=60;}
+  else{const last=dArtboards[n-1];x=last.x+last.w+140;y=last.y;}
+  // Fundo: 'transparent' → sem layer de fundo; 'white' → branco; senão a cor hex escolhida
+  const layers=(bg==='transparent')?[]:
+    [{id:'l-bg-'+Date.now(),name:'Fundo',type:'shape',x:0,y:0,w,h,fill:(bg==='white'?'#FFFFFF':bg),opacity:100,radius:0,visible:true,locked:false}];
+  const ab={id,name:'Prancheta '+(n+1),x,y,w,h,fmt,dpi:dpi||72,layers};
+  dArtboards.push(ab);
+  dActiveABId=id;
+  dLayers=JSON.parse(JSON.stringify(ab.layers));
+  dFmt=fmt;dSelId=null;dMultiSel=[];
+  dHistoryReset();
+  if(typeof dRenderWorkspace==='function')dRenderWorkspace();
+  dApplyFormat();dRenderCanvas();dRenderLayersList();dRenderABList();
+  setTimeout(dFitToScreen,60);
+  return ab;
+}
+function dNewDocOpen(){
+  document.getElementById('nd-unit').value='px';
+  document.getElementById('nd-dpi').value=72; // presets sociais usam 72 DPI
+  document.getElementById('nd-bg').value='white';
+  document.getElementById('nd-bg-color').style.display='none';
+  dNewDocPickPreset('story');
+  document.getElementById('d-newdoc-modal').classList.add('open');
+}
+function dNewDocPickPreset(fmt,btn){
+  const f=DFMT_SIZES[fmt]||DFMT_SIZES.story;
+  document.getElementById('nd-unit').value='px';
+  document.getElementById('nd-dpi').value=72;
+  document.getElementById('nd-w').value=f.w;
+  document.getElementById('nd-h').value=f.h;
+  document.querySelectorAll('.newdoc-preset').forEach(b=>{b.style.outline='';});
+  if(btn)btn.style.outline='2px solid var(--dm-orange)';
+  dNewDocUpdate();
+}
+// Converte os campos do modal para pixels usando a unidade + DPI
+function _dNewDocPx(){
+  const unit=document.getElementById('nd-unit').value;
+  const dpi=Math.max(1,parseFloat(document.getElementById('nd-dpi').value)||72);
+  const wv=parseFloat(document.getElementById('nd-w').value)||0;
+  const hv=parseFloat(document.getElementById('nd-h').value)||0;
+  const toPx=v=>unit==='in'?Math.round(v*dpi):unit==='cm'?Math.round(v/2.54*dpi):Math.round(v);
+  return {w:toPx(wv),h:toPx(hv),dpi};
+}
+function dNewDocUpdate(){
+  const {w,h}=_dNewDocPx();
+  const el=document.getElementById('nd-px-preview');
+  if(el)el.textContent=(w||'—')+' × '+(h||'—')+' px';
+}
+function dNewDocSwapOrientation(){
+  const w=document.getElementById('nd-w'),h=document.getElementById('nd-h');
+  const t=w.value;w.value=h.value;h.value=t;
+  dNewDocUpdate();
+}
+function dNewDocBgChange(){
+  const v=document.getElementById('nd-bg').value;
+  document.getElementById('nd-bg-color').style.display=(v==='color')?'inline-block':'none';
+}
+function dNewDocConfirm(){
+  const {w,h,dpi}=_dNewDocPx();
+  if(w<16||h<16){gToast('⚠ Dimensões muito pequenas (mín. 16px)','error');return;}
+  if(w>8000||h>8000){gToast('⚠ Dimensões muito grandes (máx. 8000px)','error');return;}
+  const bgSel=document.getElementById('nd-bg').value;
+  const bg=(bgSel==='color')?document.getElementById('nd-bg-color').value:bgSel;
+  dNewArtboardCustom(w,h,bg,dpi);
+  document.getElementById('d-newdoc-modal').classList.remove('open');
+  gToast('✓ Novo arquivo '+w+'×'+h+'px criado — adicione elementos pelas ferramentas (T, R, F, M)');
+}
+
 /* ── FORMATO / CANVAS ── */
 const DFMT_SIZES={story:{w:1080,h:1920},feed:{w:1080,h:1080},wide:{w:1200,h:628}};
 

@@ -290,7 +290,13 @@ function dStartInlineEdit(l,elDiv){
 }
 function dEndInlineEdit(e,cancel){
   if(!dInlineEl||!dInlineLayer)return;
-  if(!cancel){
+  // Editor "fantasma": dRenderCanvas() faz frame.innerHTML='' e remove o textarea do DOM
+  // sem limpar dInlineEl/dInlineLayer. Se isso aconteceu (ex.: o conteúdo foi editado pelo
+  // painel via dInsertVar/dUpdateProp), o valor do textarea está DESATUALIZADO — gravá-lo
+  // sobrescreveria a edição feita no painel (era isso que fazia a {{var}} "sumir").
+  // Detecta pelo isConnected e descarta o valor stale; l.content já é a fonte da verdade.
+  const stale = dInlineEl.isConnected===false;
+  if(!cancel && !stale){
     dHistoryPush();
     dInlineLayer.content=dInlineEl.value;
     if(typeof dSyncVarsFromContent==='function')dSyncVarsFromContent(dInlineLayer.content); // auto-cria vars (3.1)
@@ -299,10 +305,10 @@ function dEndInlineEdit(e,cancel){
     if(inp&&document.getElementById('d-props-form').style.display!=='none')inp.value=dInlineLayer.content;
     dMarkUnsaved();
   }
-  dInlineEl.remove();
+  if(dInlineEl.isConnected)dInlineEl.remove();
   dInlineEl=null;
   dInlineLayer=null;
-  dRenderCanvas();
+  if(!stale)dRenderCanvas();
 }
 
 /* ── Layers panel resize ── */

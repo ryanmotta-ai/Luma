@@ -689,7 +689,7 @@
 .tut-layer-row.highlighted{box-shadow:0 0 0 2px rgba(255,144,0,.55)}
 .tut-layer-ico{width:17px;height:17px;display:flex;align-items:center;justify-content:center;background:#333;border-radius:4px;font-size:9px;flex-shrink:0}
 .tut-layer-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tut-layer-badge{font-size:8px;font-weight:700;color:#7C6EFF;background:rgba(124,110,255,.15);padding:1px 5px;border-radius:6px}
+.tut-layer-badge{font-size:8px;font-weight:700;color:var(--dm-yellow);background:rgba(255,185,0,.15);padding:1px 5px;border-radius:6px}
 .tut-layer-eye{font-size:9px;opacity:.5}
 
 /* cartão de painel, pill de variável, tecla, chip */
@@ -697,10 +697,10 @@
 .tut-panel-card-title{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#888;margin-bottom:7px;font-family:'Roboto',sans-serif}
 .tut-panel-card-body{display:flex;flex-direction:column;gap:6px;color:#E8E8E8;font-size:11px;font-family:'Roboto',sans-serif}
 .tut-panel-card.highlighted{box-shadow:0 0 0 2px rgba(255,144,0,.55);animation:tutStudioPulse 1.4s ease-in-out infinite}
-.tut-var-pill{display:inline-flex;align-items:center;gap:6px;background:rgba(124,110,255,.13);border:1px solid rgba(124,110,255,.35);border-radius:14px;padding:4px 10px;font-family:'Roboto Mono',monospace}
-.tut-var-pill-name{font-size:11px;font-weight:600;color:#9D92FF}
+.tut-var-pill{display:inline-flex;align-items:center;gap:6px;background:rgba(255,185,0,.13);border:1px solid rgba(255,185,0,.35);border-radius:14px;padding:4px 10px;font-family:'Roboto Mono',monospace}
+.tut-var-pill-name{font-size:11px;font-weight:600;color:var(--dm-yellow)}
 .tut-var-pill-type{font-size:9px;color:#888;background:#2A2A2A;padding:1px 6px;border-radius:8px;font-family:'Roboto',sans-serif}
-.tut-var-pill.highlighted{box-shadow:0 0 0 2px rgba(124,110,255,.6);animation:tutStudioPulse 1.4s ease-in-out infinite}
+.tut-var-pill.highlighted{box-shadow:0 0 0 2px rgba(255,185,0,.6);animation:tutStudioPulse 1.4s ease-in-out infinite}
 .tut-key{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;padding:0 7px;background:linear-gradient(#2E2E2E,#222);border:1px solid #444;border-bottom-width:2.5px;border-radius:6px;color:#F0F0F0;font-size:11px;font-weight:700;font-family:'Roboto',sans-serif;margin:0 2px;box-shadow:0 2px 4px rgba(0,0,0,.35)}
 .tut-chip{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;border-radius:14px;font-size:11px;font-weight:600;font-family:'Roboto',sans-serif;background:#2A2A2A;color:#D0D0D0;border:1px solid rgba(255,255,255,.12)}
 .tut-chip.primary{background:#FF9000;color:#fff;border-color:#FF9000;box-shadow:0 2px 10px rgba(255,144,0,.35)}

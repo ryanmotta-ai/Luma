@@ -335,19 +335,36 @@ function dUpdateBrushCursor(){
 
 function dSetTool(t){
   dTool=t;
-  ['select','text','rect','frame','img','brush','eraser','stamp','eyedrop','smudge','blur','bucket','gradient'].forEach(x=>{
+  ['select','text','rect','frame','img','brush','eraser','stamp','eyedrop','smudge','blur','sharpen','bucket','gradient'].forEach(x=>{
     const b=document.getElementById('dtool-'+x);
     if(b){b.classList.toggle('active',x===t);}
   });
+  // Proxy do grupo Nitidez — marca ativo e atualiza ícone
+  const _nitidezGroup=['blur','sharpen','smudge'];
+  const _nProxy=document.getElementById('dtool-nitidez-proxy');
+  if(_nProxy) _nProxy.classList.toggle('active',_nitidezGroup.includes(t));
+  if(_nitidezGroup.includes(t)){
+    if(typeof dNitidezLast!=='undefined') dNitidezLast=t;
+    const _nIcon=document.getElementById('dtool-nitidez-icon');
+    if(_nIcon&&typeof _dNitidezIcons!=='undefined') _nIcon.innerHTML=_dNitidezIcons[t]||'';
+  }
+  // Proxy do grupo Forma — marca ativo quando rect está ativo e sincroniza ícone
+  const _fProxy=document.getElementById('dtool-forma-proxy');
+  if(_fProxy) _fProxy.classList.toggle('active', t==='rect');
+  if(t==='rect'){
+    if(typeof dFormaLast!=='undefined') dFormaLast='rect';
+    const _fIcon=document.getElementById('dtool-forma-icon');
+    if(_fIcon&&typeof _dFormaIcons!=='undefined') _fIcon.innerHTML=_dFormaIcons['rect']||'';
+  }
   const frame=document.getElementById('d-canvas-frame');
   const ws=document.getElementById('d-workspace');
   const brushOpts=document.getElementById('d-brush-opts');
   if(ws)ws.style.cursor='';
   if(frame){
-    if(t==='brush'||t==='eraser')dUpdateBrushCursor(); // cursor dinâmico (tamanho do pincel)
+    if(['brush','eraser','blur','smudge','sharpen'].includes(t))dUpdateBrushCursor(); // cursor circular dinâmico
     else frame.style.cursor=dToolCursors[t]||'default';
   }
-  if(brushOpts){brushOpts.style.display=(t==='brush'||t==='eraser')?'flex':'none';brushOpts.style.flexDirection='column';}
+  if(brushOpts){brushOpts.style.display=['brush','eraser','blur','smudge','sharpen'].includes(t)?'flex':'none';brushOpts.style.flexDirection='column';}
   dShowBrushBar(t);
   dEnsurePaintCanvas();
   dSyncPaintPointer();

@@ -23,6 +23,9 @@ function dSelLayer(id){
   if(l){
     try{
       dShowProps(l);
+      // Auto-switch: ao selecionar um layer, traz o painel de Propriedades (camada) à frente.
+      // Sem isso, dShowProps preenche o #d-props-form mas ele fica escondido sob a aba Conteúdo.
+      if(typeof dActivatePanel==='function') dActivatePanel('camada');
     }catch(err){
       console.warn('[dSelLayer] erro em dShowProps — seleção preservada:',err);
     }
@@ -40,7 +43,7 @@ function dHoverLayer(id,on){
 
 // Versão sem render — apenas atualiza dSelId e o painel de props.
 // Usar nos dAdd* para evitar double-render (o chamador já fez dRenderCanvas).
-function dSelLayerState(id){dSelId=id;const l=dLayers.find(x=>x.id===id);if(l){dShowProps(l);dUpdateCtxBar();}}
+function dSelLayerState(id){dSelId=id;const l=dLayers.find(x=>x.id===id);if(l){dShowProps(l);if(typeof dActivatePanel==='function')dActivatePanel('camada');dUpdateCtxBar();}}
 function dDeselect(e){
   const ws=document.getElementById('d-workspace');
   const wr=document.getElementById('d-canvas-wrapper');
@@ -717,8 +720,11 @@ function dRemoveRule(i){
 function dInsertVar(){
   const sel=document.getElementById('d-var-insert');const vn=sel.value;if(!vn)return;
   const inp=document.getElementById('dp-content');
+  inp.focus(); // garante caret válido e deixa o token inserido visível
   const pos=(inp.selectionStart!=null)?inp.selectionStart:inp.value.length; // 0 é posição válida (não cair no fim)
-  inp.value=inp.value.substring(0,pos)+'{{'+vn+'}}'+inp.value.substring(pos);
+  const token='{{'+vn+'}}';
+  inp.value=inp.value.substring(0,pos)+token+inp.value.substring(pos);
+  const caret=pos+token.length; try{inp.setSelectionRange(caret,caret);}catch(e){}
   dUpdateProp('content',inp.value);sel.value='';
 }
 /* ── Widget de radius (props de shape): slider + input + preview SVG + botão círculo ── */

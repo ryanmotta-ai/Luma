@@ -30,20 +30,20 @@ function dEnsurePaintCanvas(){
 function dSyncPaintPointer(){
   const cv=document.getElementById('d-paint-canvas');
   if(!cv)return;
-  cv.style.pointerEvents=['brush','eraser','smudge','blur','gradient'].includes(dTool)?'auto':'none';
+  cv.style.pointerEvents=['brush','eraser','smudge','blur','sharpen','gradient'].includes(dTool)?'auto':'none';
 }
 function dGetPaintCtx(){
   const cv=document.getElementById('d-paint-canvas');
   return cv?cv.getContext('2d'):null;
 }
 function dPaintStart(e){
-  if(!['brush','eraser','smudge','blur','gradient'].includes(dTool))return;
+  if(!['brush','eraser','smudge','blur','sharpen','gradient'].includes(dTool))return;
   e.preventDefault();
   dPainting=true;
   const pos=dCanvasPos(e);dPaintLast=pos;
   // Smudge/Blur/Gradiente operam sobre os pixels existentes — não pintam cor no clique
   if(dTool==='gradient'){dGradStart=pos;return;}
-  if(dTool==='smudge'||dTool==='blur')return;
+  if(dTool==='smudge'||dTool==='blur'||dTool==='sharpen')return;
   const ctx=dGetPaintCtx();if(!ctx)return;
   const bs=dGetBrushStyle();
   ctx.globalAlpha = bs.alpha;
@@ -76,7 +76,7 @@ function dPaintStart(e){
   ctx.globalAlpha=1;
 }
 function dPaintMove(e){
-  if(!dPainting||!['brush','eraser','smudge','blur','gradient'].includes(dTool))return;
+  if(!dPainting||!['brush','eraser','smudge','blur','sharpen','gradient'].includes(dTool))return;
   const pos=dCanvasPos(e);
   const ctx=dGetPaintCtx();if(!ctx)return;
   const bs=dGetBrushStyle();
@@ -85,6 +85,7 @@ function dPaintMove(e){
   if(dTool==='gradient'){dPaintLast=pos;return;}                       // aplicado no mouseup
   if(dTool==='smudge'){dSmudgeStep(ctx,dPaintLast,pos,sz,bs);dPaintLast=pos;return;}
   if(dTool==='blur'){dBlurRegion(ctx,pos,sz);dPaintLast=pos;return;}
+  if(dTool==='sharpen'){dSharpenRegion(ctx,pos,sz);dPaintLast=pos;return;}
   // Pontilhado: skipa frames
   if(bs.preset==='dotted'){
     const dx=pos.x-dPaintLast.x, dy=pos.y-dPaintLast.y;
@@ -115,7 +116,7 @@ function dPaintEnd(){
   const wasPainting=dPainting;
   if(dTool==='gradient'&&dPainting&&dGradStart)dApplyGradient(dGradStart,dPaintLast);
   dPainting=false;dGradStart=null;
-  if(wasPainting && ['brush','eraser','smudge','blur','gradient'].includes(dTool)){
+  if(wasPainting && ['brush','eraser','smudge','blur','sharpen','gradient'].includes(dTool)){
     dMarkUnsaved();
     dPaintDirty=true;   // marca a pintura como alterada → próximo commit captura o PNG
     dHistoryPush();     // pintura entra no histórico de undo/redo (A4)
@@ -268,11 +269,11 @@ let dBrush = {
 function dShowBrushBar(toolName){
   const bar = document.getElementById('d-brush-bar');
   if(!bar)return;
-  const isPaint = ['brush','eraser','smudge','blur','gradient'].includes(toolName);
+  const isPaint = ['brush','eraser','smudge','blur','sharpen','gradient'].includes(toolName);
   bar.classList.toggle('visible', isPaint);
   if(isPaint){
     const label = document.getElementById('bb-tool-label');
-    if(label)label.textContent = {brush:'Pincel',eraser:'Borracha',smudge:'Borrar',blur:'Desfocar',gradient:'Gradiente'}[toolName] || 'Pincel';
+    if(label)label.textContent = {brush:'Pincel',eraser:'Borracha',smudge:'Dedo',blur:'Desfoque',sharpen:'Nitidez',gradient:'Gradiente'}[toolName] || 'Pincel';
     setTimeout(dRenderBrushPreview, 10);
   }
 }
@@ -390,5 +391,125 @@ function dRenderBrushPreview() {
   }
 
   ctx.restore();
+}
+
+// ── Nitidez (Unsharp Mask): amplifica bordas subtraindo versão desfocada ──
+function dSharpenRegion(ctx, pos, sz) {
+  const cv = ctx.canvas;
+  const r = Math.max(4, sz);
+  const sx = Math.max(0, Math.round(pos.x - r));
+  const sy = Math.max(0, Math.round(pos.y - r));
+  const w  = Math.min(r * 2, cv.width  - sx);
+  const h  = Math.min(r * 2, cv.height - sy);
+  if(w <= 0 || h <= 0) return;
+
+  const orig = ctx.getImageData(sx, sy, w, h);
+
+  const tmp = document.createElement('canvas');
+  tmp.width = w; tmp.height = h;
+  tmp.getContext('2d').putImageData(orig, 0, 0);
+
+  const tmp2 = document.createElement('canvas');
+  tmp2.width = w; tmp2.height = h;
+  const tctx2 = tmp2.getContext('2d');
+  tctx2.filter = 'blur(1.5px)';
+  tctx2.drawImage(tmp, 0, 0);
+  const blurred = tctx2.getImageData(0, 0, w, h);
+
+  // result = orig + (orig - blurred) * amount  →  realça bordas
+  const result = ctx.createImageData(w, h);
+  const amount = 1.6;
+  for(let i = 0; i < orig.data.length; i += 4){
+    for(let c = 0; c < 3; c++){
+      result.data[i+c] = Math.min(255, Math.max(0,
+        orig.data[i+c] + (orig.data[i+c] - blurred.data[i+c]) * amount
+      ));
+    }
+    result.data[i+3] = orig.data[i+3];
+  }
+  ctx.putImageData(result, sx, sy);
+}
+
+/* ══ GRUPO NITIDEZ — flyout Photoshop-style ══ */
+let dNitidezLast = 'blur';
+
+const _dNitidezIcons = {
+  blur:    `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3" fill="currentColor" opacity=".3"/><circle cx="12" cy="12" r="6" opacity=".5"/><circle cx="12" cy="12" r="9" opacity=".7"/></svg>`,
+  sharpen: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 22 12 12 22 2 12"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`,
+  smudge:  `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11h.01M7 6h.01M11 3h.01M15 3h.01M19 6h.01M21 11h.01M19 16c-2 3-7 3-9-1-1-2-3-2-4-1-1 1-1 3 0 4 2 2 7 0 13-2Z"/></svg>`,
+};
+
+function dNitidezActivate() { dSetTool(dNitidezLast); }
+
+function dNitidezFlyout(e) {
+  e.preventDefault(); e.stopPropagation();
+  const flyout = document.getElementById('vt-nitidez-flyout');
+  if(!flyout) return;
+  const isOpen = flyout.classList.contains('open');
+  document.querySelectorAll('.vt-flyout').forEach(f => f.classList.remove('open'));
+  if(!isOpen){
+    flyout.classList.add('open');
+    setTimeout(() => {
+      document.addEventListener('click', function _closeFlyout(){
+        document.querySelectorAll('.vt-flyout').forEach(f => f.classList.remove('open'));
+        document.removeEventListener('click', _closeFlyout);
+      });
+    }, 0);
+  }
+}
+
+function dNitidezPick(tool, e) {
+  if(e) e.stopPropagation();
+  dNitidezLast = tool;
+  document.querySelectorAll('.vt-flyout').forEach(f => f.classList.remove('open'));
+  const icon = document.getElementById('dtool-nitidez-icon');
+  if(icon) icon.innerHTML = _dNitidezIcons[tool] || '';
+  dSetTool(tool);
+}
+
+/* ══ GRUPO FORMA — flyout Photoshop-style ══ */
+let dFormaLast = 'rect';
+
+const _dFormaIcons = {
+  rect:     `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>`,
+  ellipse:  `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="10" ry="7"/></svg>`,
+  triangle: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 3 22 21 2 21"/></svg>`,
+  polygon:  `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 20.7 7 20.7 17 12 22 3.3 17 3.3 7"/></svg>`,
+  line:     `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="20" x2="20" y2="4"/></svg>`,
+  star:     `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`,
+};
+
+function dFormaActivate() {
+  if(dFormaLast==='line') { dAddLine(); return; }
+  if(dFormaLast==='rect') { dSetTool('rect'); return; }
+  dAddShapeKind(dFormaLast);
+}
+
+function dFormaFlyout(e) {
+  e.preventDefault(); e.stopPropagation();
+  const flyout = document.getElementById('vt-forma-flyout');
+  if(!flyout) return;
+  const isOpen = flyout.classList.contains('open');
+  document.querySelectorAll('.vt-flyout').forEach(f => f.classList.remove('open'));
+  if(!isOpen){
+    flyout.classList.add('open');
+    setTimeout(() => {
+      document.addEventListener('click', function _closeFlyout(){
+        document.querySelectorAll('.vt-flyout').forEach(f => f.classList.remove('open'));
+        document.removeEventListener('click', _closeFlyout);
+      });
+    }, 0);
+  }
+}
+
+function dFormaPick(kind, e) {
+  if(e) e.stopPropagation();
+  dFormaLast = kind;
+  document.querySelectorAll('.vt-flyout').forEach(f => f.classList.remove('open'));
+  const icon = document.getElementById('dtool-forma-icon');
+  if(icon) icon.innerHTML = _dFormaIcons[kind] || '';
+  if(kind==='line') { dAddLine(); return; }
+  if(kind==='rect') { dSetTool('rect'); return; }
+  dAddShapeKind(kind);
 }
 

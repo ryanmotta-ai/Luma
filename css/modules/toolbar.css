@@ -65,6 +65,56 @@
 .d-tool-grp:not(.vt-group){display:none!important;}
 .zoom-ctrl{display:none!important;}
 
+/* ══ GRUPO DE FERRAMENTAS COM FLYOUT (Photoshop-style) ══ */
+.vt-group-wrap{
+  position:relative;
+  display:flex;flex-direction:column;align-items:center;
+}
+/* Triângulo no canto inferior-direito indica sub-ferramentas */
+.vt-sub-arrow{
+  position:absolute;bottom:3px;right:3px;
+  width:0;height:0;
+  border-left:4px solid transparent;
+  border-bottom:4px solid currentColor;
+  opacity:.55;
+  pointer-events:none;
+}
+/* Tooltip do proxy não pode usar ::after (seria sobrescrito) — usa title normalmente */
+.vt-btn.has-flyout::after{white-space:pre;}
+
+/* Flyout panel — aparece à direita do botão */
+.vt-flyout{
+  position:absolute;
+  left:calc(100% + 8px);top:0;
+  background:var(--d-dark);
+  border:1px solid var(--d-border2);
+  border-radius:8px;
+  padding:4px;
+  display:none;flex-direction:column;gap:1px;
+  z-index:600;
+  min-width:148px;
+  box-shadow:0 8px 28px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.04);
+}
+.vt-flyout.open{display:flex;}
+
+/* Item dentro do flyout */
+.vt-flyout-item{
+  display:flex;align-items:center;gap:9px;
+  padding:7px 10px;
+  background:transparent;border:none;
+  color:var(--d-text2);
+  font-size:11px;font-family:'Roboto',sans-serif;font-weight:500;
+  border-radius:5px;cursor:pointer;
+  width:100%;text-align:left;
+  transition:background .1s,color .1s;
+  white-space:nowrap;
+}
+.vt-flyout-item:hover{background:var(--d-surf);color:var(--d-text);}
+.vt-flyout-item.active,
+.vt-flyout-item[data-tool].active{color:var(--dm-orange);background:rgba(255,144,0,.08);}
+.vt-flyout-item svg{flex-shrink:0;opacity:.8;}
+.vt-flyout-item:hover svg{opacity:1;}
+
 /* Ajuste: d-view-designer sem o topbar de 44px antigo */
 #view-designer{height:calc(100vh - 52px);}
 
@@ -121,7 +171,7 @@ body.simulating .var-badge{background:transparent!important;color:inherit!import
 .layer-row.multi-sel{background:rgba(255,144,0,.08);}
 .group-badge{
   display:inline-block;padding:1px 5px;border-radius:3px;
-  background:rgba(124,110,255,.2);color:#7C6EFF;
+  background:rgba(255,185,0,.2);color:var(--dm-yellow);
   font-size:9px;font-weight:700;letter-spacing:.04em;
   margin-left:3px;
 }

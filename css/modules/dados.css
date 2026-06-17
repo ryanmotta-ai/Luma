@@ -290,7 +290,7 @@ body.mode-dados #view-designer{display:none!important}
 .p-badge{font-size:9px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; padding:3px 7px; border-radius:5px; flex-shrink:0; line-height:1}
 .p-badge.story{background:rgba(255,144,0,.18); color:var(--dm-orange-l)}
 .p-badge.feed{background:rgba(255,185,0,.18); color:var(--dm-yellow)}
-.p-badge.wide{background:rgba(124,110,255,.22); color:#B3A8FF}
+.p-badge.wide{background:rgba(248,84,0,.18); color:var(--dm-orange-d)}
 
 /* barra de conclusão — fina e elegante */
 .p-conc{display:flex; align-items:center; gap:9px; min-width:128px}

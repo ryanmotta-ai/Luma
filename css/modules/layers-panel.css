@@ -267,8 +267,8 @@
 
 
 /* badge de máscara (camada importada do PSD com máscara) */
-.lyr-mask{cursor:pointer;font-size:10px;background:rgba(124,110,255,.15);border:1px solid rgba(124,110,255,.35);border-radius:8px;padding:0 4px}
-.lyr-mask:hover{background:rgba(124,110,255,.3)}
+.lyr-mask{cursor:pointer;font-size:10px;background:rgba(255,185,0,.15);border:1px solid rgba(255,185,0,.35);border-radius:8px;padding:0 4px}
+.lyr-mask:hover{background:rgba(255,185,0,.3)}
 
 
 /* ── Widget de radius (props de shape) ── */
