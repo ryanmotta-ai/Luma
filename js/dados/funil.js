@@ -25,7 +25,7 @@ function pRenderFunil(){
     </div>`;
 
   if(!P_MOCK_FUNIL || !P_MOCK_FUNIL.length || !P_MOCK_FUNIL[0].n){
-    return head + pEmpty('🔻', 'Sem dados de funil',
+    return head + pEmpty('<svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>', 'Sem dados de funil',
       'Nenhuma interação registrada no chat. Gere artes pelo módulo Franqueado para popular o funil.',
       'Ir para Franqueado', 'franqueado');
   }
@@ -62,7 +62,6 @@ function pFnFaixa(pos){
   return 'c';                        // tende ao vermelho
 }
 
-/* barras decrescentes + taxa de avanço entre etapas (com badge de alto abandono) */
 function pFnBars(){
   var topo = P_MOCK_FUNIL[0].n || 1;
   var ultimo = P_MOCK_FUNIL.length - 1;
@@ -72,9 +71,10 @@ function pFnBars(){
     var pctTopo = e.n / topo * 100;                       // % relativo ao topo
     var pctTopoTxt = (Math.round(pctTopo * 10) / 10).toString().replace('.', ',') + '%';
     var faixa = pFnFaixa(i / Math.max(1, ultimo));
-    var tip = `<span class='p-tt-date'>${pEsc(e.etapa)}</span><br><b>${pFmtNum(e.n)}</b> pessoas · ${pctTopoTxt} do topo`;
+    var tempoTip = e.tempo ? `<br>Tempo médio: <b>${e.tempo}s</b>` : '';
+    var tip = `<span class='p-tt-date'>${pEsc(e.etapa)}</span><br><b>${pFmtNum(e.n)}</b> pessoas · ${pctTopoTxt} do topo${tempoTip}`;
 
-    html += `<div class="p-fn-row">
+    html += `<div class="p-fn-row" style="margin-bottom:8px;">
       <div class="p-fn-row-head">
         <span class="p-fn-etapa">${pEsc(e.etapa)}</span>
         <span class="p-fn-nums"><span class="p-fn-abs">${pFmtNum(e.n)}</span><span class="p-fn-pct">${pctTopoTxt} do topo</span></span>
@@ -82,6 +82,7 @@ function pFnBars(){
       <div class="p-fn-track" data-tip="${tip}" onmousemove="pChartTip(event)">
         <div class="p-fn-fill ${faixa}" style="width:0" data-grow="${pctTopo.toFixed(2)}%"></div>
       </div>
+      ${e.tempo ? `<div class="p-fn-friction-txt">Tempo médio na etapa: <b style="color:${e.tempo > 120 ? 'var(--p-neg)' : 'var(--p-text-mut)'};">${e.tempo} segundos</b></div>` : ''}
     </div>`;
 
     // conector entre esta etapa e a próxima (taxa de avanço + badge se queda > 20%)
@@ -94,7 +95,7 @@ function pFnBars(){
       html += `<div class="p-fn-conn${alto ? ' alto' : ''}">
         <span class="p-fn-conn-arrow">→</span>
         <span class="p-fn-conn-rate">${avancoTxt} avançaram</span>
-        ${alto ? `<span class="p-fn-badge">⚠ Alto abandono</span>` : ''}
+        ${alto ? `<span class="p-fn-badge"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>Alto abandono</span>` : ''}
       </div>`;
     }
   });
@@ -116,7 +117,7 @@ function pFnDonut(){
   var total = geradas;
 
   if(!total){
-    return pEmpty('🍩', 'Sem artes geradas', 'Nenhuma arte foi gerada ainda no período.', null);
+    return pEmpty('<svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>', 'Sem artes geradas', 'Nenhuma arte foi gerada ainda no período.', null);
   }
 
   var cx = 60, cy = 60, rMid = 42, sw = 20;
@@ -161,7 +162,7 @@ function pFnInsightBox(){
   var pctTxt = Math.round(ins.pct) + '%';
   var pessoas = pFmtNum(ins.perdidos) + (ins.perdidos === 1 ? ' pessoa' : ' pessoas');
   return `<div class="p-fn-insight">
-    <span class="p-fn-insight-ico">💡</span>
+    <span class="p-fn-insight-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px;"><path d="M9 18h6m-5 4h4m1.3-17.7a7.5 7.5 0 1 0-8.6 0c1.7 1.3 2.7 3.3 2.7 5.5h4c0-2.2 1-4.2 2.7-5.5z"></path></svg></span>
     <span class="p-fn-insight-txt">A maior queda está entre <b>${pEsc(ins.de)}</b> e <b>${pEsc(ins.para)}</b> — <b class="p-fn-insight-hl">${pctTxt}</b> de perda (${pessoas}).</span>
   </div>`;
 }

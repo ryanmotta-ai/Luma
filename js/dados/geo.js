@@ -55,7 +55,7 @@ function pRenderGeo(){
 
   var ranking = pGeoRanking(regiao);
   if(!ranking.length){
-    return head + pGeoFiltros(regiao) + pEmpty('🗺️', 'Sem dados na região',
+    return head + pGeoFiltros(regiao) + pEmpty('<svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"></polygon><line x1="9" y1="3" x2="9" y2="18"></line><line x1="15" y1="6" x2="15" y2="21"></line></svg>', 'Sem dados na região',
       'Nenhuma arte registrada nos estados desta região. Selecione "Todas" acima.');
   }
 
@@ -117,49 +117,155 @@ function pGeoMapa(regiao){
 
 /* ── DIREITA: tabela ranking dos top 10 estados da região ── */
 function pGeoTabela(regiao, ranking){
+  pState.geoSearch = pState.geoSearch || '';
   var totalGeral = pGeoTotal('all') || 1;
-  var top = ranking.slice(0, 10);
-  var maxN = top.length ? top[0].n : 1;
+  var cap = regiao === 'all' ? 'Top 10 estados' : 'Estados · ' + pEsc(regiao);
+  
+  // Controls bar
+  var controlsHtml = `
+    <div class="p-franq-controls" style="margin-bottom: 12px; padding: 6px 10px;">
+      <div class="p-search-wrap" style="max-width: 100%;">
+        <svg class="p-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" class="p-input-search" placeholder="Buscar estado por nome ou UF..." value="${pEsc(pState.geoSearch)}" oninput="pSearchGeo(this.value)">
+      </div>
+    </div>`;
 
+  // Lógica de Pódio (layout horizontal compacto)
+  var mostrarPodio = !pState.geoSearch && ranking.filter(e => e.n > 0).length >= 3;
+  var podiumHtml = '';
+  if(mostrarPodio){
+    var f1 = ranking[0], f2 = ranking[1], f3 = ranking[2];
+    podiumHtml = `
+    <div class="p-podium-row p-geo-podium" style="margin-bottom:14px">
+      <!-- 2º Lugar -->
+      <div class="p-podium-card silver" data-tip="${pEsc(f2.nome)} · ${pEsc(f2.regiao)}<br><b>${f2.n}</b> artes" onmousemove="pChartTip(event)">
+        <div class="p-podium-badge">2º</div>
+        <div class="p-podium-avatar-wrap">
+          <span class="p-podium-avatar" style="background:#475569">${pEsc(f2.uf)}</span>
+        </div>
+        <div class="p-podium-info">
+          <div class="p-podium-name">${pEsc(f2.nome)}</div>
+          <div class="p-podium-artes"><b>${f2.n}</b> artes</div>
+          <div class="p-podium-camps">${pEsc(f2.regiao)}</div>
+        </div>
+      </div>
+      
+      <!-- 1º Lugar -->
+      <div class="p-podium-card gold" data-tip="${pEsc(f1.nome)} · ${pEsc(f1.regiao)}<br><b>${f1.n}</b> artes" onmousemove="pChartTip(event)">
+        <div class="p-podium-crown">👑</div>
+        <div class="p-podium-badge">1º</div>
+        <div class="p-podium-avatar-wrap">
+          <span class="p-podium-avatar" style="background:var(--p-accent)">${pEsc(f1.uf)}</span>
+        </div>
+        <div class="p-podium-info">
+          <div class="p-podium-name">${pEsc(f1.nome)}</div>
+          <div class="p-podium-artes"><b>${f1.n}</b> artes</div>
+          <div class="p-podium-camps">${pEsc(f1.regiao)}</div>
+        </div>
+      </div>
+      
+      <!-- 3º Lugar -->
+      <div class="p-podium-card bronze" data-tip="${pEsc(f3.nome)} · ${pEsc(f3.regiao)}<br><b>${f3.n}</b> artes" onmousemove="pChartTip(event)">
+        <div class="p-podium-badge">3º</div>
+        <div class="p-podium-avatar-wrap">
+          <span class="p-podium-avatar" style="background:#9A3412">${pEsc(f3.uf)}</span>
+        </div>
+        <div class="p-podium-info">
+          <div class="p-podium-name">${pEsc(f3.nome)}</div>
+          <div class="p-podium-artes"><b>${f3.n}</b> artes</div>
+          <div class="p-podium-camps">${pEsc(f3.regiao)}</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // Filtragem local
+  var filtered = ranking;
+  if(pState.geoSearch){
+    var q = pState.geoSearch.toLowerCase().trim();
+    filtered = filtered.filter(function(e){
+      return e.nome.toLowerCase().includes(q) || e.uf.toLowerCase().includes(q);
+    });
+  }
+
+  // Se busca der vazia
+  if(!filtered.length){
+    return `<div class="p-geo-tab-card">
+      <div class="p-geo-tab-cap">${cap}</div>
+      ${controlsHtml}
+      <div class="p-empty" style="margin-top:14px">
+        <div class="p-empty-ico">
+          <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        </div>
+        <div class="p-empty-title">Nenhum resultado</div>
+        <div class="p-empty-text">Não encontramos estados correspondentes à sua busca.</div>
+        <button class="p-empty-cta" onclick="pClearGeoSearch()">Limpar busca</button>
+      </div>
+    </div>`;
+  }
+
+  var top = filtered.slice(0, 10);
   var rows = top.map(function(e, i){
-    var pct = e.n / totalGeral * 100;
-    var w = Math.round(e.n / maxN * 100);
+    var meta = P_GEO_METAS[e.uf] || 0.5;
+    // Calculation relative to regional campaign meta
+    var adocao = Math.min(100, Math.round((e.n / (totalGeral * meta * 0.22 || 1)) * 100));
+    var w = adocao;
     var isSC = (e.uf === 'SC');
-    var pin = isSC ? `<span class="p-geo-sc-pin" title="Sede DM · Florianópolis">📍</span>` : '';
+    var pin = isSC ? `<span class="p-geo-sc-pin" title="Sede DM · Florianópolis"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-left:4px;color:var(--p-accent);"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></span>` : '';
+
+    // Metal medals or simple numbers aligned centered
+    var posHtml = '';
+    if (i === 0 && !pState.geoSearch) posHtml = `<span class="p-fr-badge-medal gold">1º</span>`;
+    else if (i === 1 && !pState.geoSearch) posHtml = `<span class="p-fr-badge-medal silver">2º</span>`;
+    else if (i === 2 && !pState.geoSearch) posHtml = `<span class="p-fr-badge-medal bronze">3º</span>`;
+    else posHtml = `<span class="p-geo-pos">${i + 1}</span>`;
+
+    // Dynamic performance-based colors for progress bar fills
+    var fillCol = 'var(--p-accent)';
+    if (adocao >= 80) fillCol = '#22C55E';
+    else if (adocao >= 50) fillCol = '#F59E0B';
+    else fillCol = '#EF4444';
+
     return `<tr class="p-row ${isSC ? 'p-geo-sc' : ''}">
-      <td class="num"><span class="p-geo-pos">${i + 1}</span></td>
+      <td style="text-align:center;">${posHtml}</td>
       <td>
-        <span class="p-geo-uf-cell">
-          <span class="p-geo-uf">${pEsc(e.uf)}</span>
-          <span class="p-geo-uf-nome">${pEsc(e.nome)}${pin}</span>
-          <span class="p-geo-uf-reg">${pEsc(e.regiao)}</span>
-        </span>
+        <div class="p-geo-state-row">
+          <span class="p-geo-uf-badge">${pEsc(e.uf)}</span>
+          <div class="p-geo-state-names">
+            <span class="p-geo-state-name">${pEsc(e.nome)}${pin}</span>
+            <span class="p-geo-state-reg">${pEsc(e.regiao)}</span>
+          </div>
+        </div>
       </td>
-      <td class="num">${pFmtNum(e.n)}</td>
+      <td class="num" style="font-weight:700; color:var(--p-text);">${pFmtNum(e.n)} <span style="font-size:10.5px;font-weight:500;color:var(--p-text-mut)">(${Math.round(e.n/totalGeral*100)}%)</span></td>
       <td>
         <span class="p-geo-barwrap">
-          <span class="p-geo-bartrack"><span class="p-geo-barfill" data-grow="${w}%" style="width:0"></span></span>
-          <span class="p-geo-pct">${pFmtPct(pct)}</span>
+          <span class="p-geo-bartrack"><span class="p-geo-barfill" style="width:0; background:${fillCol}" data-grow="${w}%"></span></span>
+          <span class="p-geo-pct">${adocao}% da meta</span>
         </span>
       </td>
     </tr>`;
   }).join('');
 
-  var cap = regiao === 'all' ? 'Top 10 estados' : 'Estados · ' + pEsc(regiao);
   var totReg = pGeoTotal(regiao);
   var foot = regiao === 'all'
     ? `${pFmtNum(ranking.length)} estados com atividade`
-    : `${pEsc(regiao)} · ${pFmtNum(totReg)} arte${totReg === 1 ? '' : 's'} (${pFmtPct(totReg / totalGeral * 100)} do total)`;
+    : `${pEsc(regiao)} · ${pFmtNum(totReg)} arte${totReg === 1 ? '' : 's'} (${Math.round(totReg / totalGeral * 100)}% do total)`;
 
   return `<div class="p-geo-tab-card">
     <div class="p-geo-tab-cap">${cap}</div>
+    ${controlsHtml}
+    ${podiumHtml}
     <div class="p-table-wrap p-geo-tab-wrap">
       <table class="p-table">
         <thead><tr>
-          <th class="num">#</th>
+          <th style="text-align:center; width:60px;">#</th>
           <th>Estado</th>
-          <th class="num">Artes</th>
-          <th>% do total</th>
+          <th class="num">Artes (%)</th>
+          <th>Adoção da Campanha</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -174,3 +280,16 @@ function pSetGeoRegiao(r){
   pState.geoRegiao = (pState.geoRegiao === r) ? 'all' : r;
   pRender();
 }
+
+// Manipuladores globais
+function pSearchGeo(val){
+  pState.geoSearch = val;
+  pRender();
+}
+function pClearGeoSearch(){
+  pState.geoSearch = '';
+  pRender();
+}
+window.pSearchGeo = pSearchGeo;
+window.pClearGeoSearch = pClearGeoSearch;
+window.pSetGeoRegiao = pSetGeoRegiao;

@@ -231,3 +231,53 @@ function gAllVarsEmpty(content, dados, defaults){
   });
   return any && allEmpty;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   CAMPOS (variáveis) — metadados de UI do redesign "Dados"
+   O modelo interno (dVars, {{name}}, gInterpolate) NÃO muda. Estas
+   constantes só dão nome/ícone/categoria amigáveis pra interface.
+══════════════════════════════════════════════════════════════ */
+// Categorias dos campos. `id` é gravado em dVars[].category.
+const DFIELD_CATS=[
+  {id:'produto', label:'Produto',  icon:'🏷'},
+  {id:'preco',   label:'Preço',    icon:'💲'},
+  {id:'campanha',label:'Campanha', icon:'📣'},
+  {id:'midia',   label:'Mídia',    icon:'🖼'},
+  {id:'outros',  label:'Outros',   icon:'▫️'},
+];
+// Metadados de cada tipo: rótulo humano + ícone (nada de "text"/"currency" cru na tela).
+const DFIELD_TYPES={
+  text:    {label:'Texto',   icon:'🔤'},
+  number:  {label:'Número',  icon:'#️⃣'},
+  currency:{label:'Preço',   icon:'💲'},
+  date:    {label:'Data',    icon:'📅'},
+  image:   {label:'Imagem',  icon:'🖼'},
+  select:  {label:'Lista',   icon:'☰'},
+  color:   {label:'Cor',     icon:'🎨'},
+  boolean: {label:'Sim/Não', icon:'🔘'},
+};
+function gFieldTypeMeta(type){ return DFIELD_TYPES[type] || {label:type||'Texto', icon:'🔤'}; }
+function gFieldCatMeta(id){ return DFIELD_CATS.find(c=>c.id===id) || DFIELD_CATS[DFIELD_CATS.length-1]; }
+
+// Infere a categoria de um campo pelo tipo e pelo nome/rótulo (heurística da spec).
+function gFieldGuessCategory(name, type){
+  const s=String(name||'').toLowerCase();
+  if(type==='image') return 'midia';
+  if(type==='currency' || type==='number') return 'preco';
+  if(/(preco|preço|desconto|valor|cupom|off|frete)/.test(s)) return 'preco';
+  if(/(produto|marca|categoria|brinde|sabor|item)/.test(s)) return 'produto';
+  if(/(validade|codigo|código|link|regra|campanha|bairro|condic)/.test(s)) return 'campanha';
+  return 'outros';
+}
+
+// Gera um nome técnico (slug) único a partir do rótulo amigável. Nunca exibido ao usuário.
+function gFieldSlugify(label, existingNames){
+  let base=String(label||'').normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/[^a-zA-Z0-9]+/g,'_').replace(/^_+|_+$/g,'').toLowerCase();
+  if(!base) base='campo';
+  if(/^[0-9]/.test(base)) base='c_'+base;
+  const taken=new Set((existingNames||[]).map(n=>String(n).toLowerCase()));
+  if(!taken.has(base)) return base;
+  let i=2; while(taken.has(base+'_'+i)) i++;
+  return base+'_'+i;
+}

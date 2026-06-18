@@ -38,7 +38,7 @@ function pRenderTimeline(){
   var todas = pPubsFiltradas(camp);
 
   if(!todas.length){
-    return head + pEmpty('📰', 'Sem publicações', 'Nenhuma publicação para esse filtro.', null);
+    return head + pEmpty('<svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"></path><path d="M18 14h-8M15 18h-5M10 6h8v4h-8V6Z"></path></svg>', 'Sem publicações', 'Nenhuma publicação para esse filtro.', null);
   }
 
   var pagina = Math.max(1, pState.timelinePagina || 1);
@@ -46,7 +46,56 @@ function pRenderTimeline(){
   var visiveis = todas.slice(0, limite);
   var restantes = todas.length - visiveis.length;
 
-  var itens = visiveis.map(pTlItem).join('');
+  var batchGroups = {};
+  visiveis.forEach(function(p) {
+    if(p.batchId) {
+      if(!batchGroups[p.batchId]) batchGroups[p.batchId] = [];
+      batchGroups[p.batchId].push(p);
+    }
+  });
+
+  var renderedBatches = new Set();
+  var itens = visiveis.map(function(p) {
+    if(p.batchId) {
+      if(renderedBatches.has(p.batchId)) return '';
+      renderedBatches.add(p.batchId);
+      var group = batchGroups[p.batchId];
+      var hora = pTlHora(p.ts);
+      var cor = P_CAMP_COLOR[p.campId] || 'var(--p-accent)';
+      
+      var itemsListHTML = group.map(function(item) {
+        return `<div class="p-tl-batch-item" style="margin-top:6px;">
+          <span>📄 ${pEsc(item.templateNome)} (${P_FMT_LABEL[item.fmt] || item.fmt})</span>
+          <span class="p-tl-batch-item-meta" style="color:var(--p-text-mut);">Gerações: <b style="color:var(--p-text);">${pFmtNum(item.usosDesde)}</b></span>
+        </div>`;
+      }).join('');
+      
+      var campPill = `<span class="p-tl-camp" style="background:${pTlRgba(cor, 0.16)}; color:${cor}; border-color:${pTlRgba(cor, 0.40)}">${pEsc(p.campNome)}</span>`;
+
+      return `<div class="p-tl-item p-tl-batch" style="border-left-color:${cor};">
+        <span class="p-tl-dot" style="background:${cor}"></span>
+        <div class="p-tl-batch-header">
+          <span class="p-tl-batch-title" style="font-weight:700;">Lote de Geração em Massa (Planilha CSV)</span>
+          <span class="p-tl-batch-badge" style="background:${pTlRgba(cor, 0.12)};color:${cor};">Lote #${p.batchId.split('-')[1]}</span>
+        </div>
+        <div class="p-tl-when" style="margin-bottom:8px;font-size:11px;color:var(--p-text-mut);">
+          <span class="p-tl-rel" style="color:var(--p-text-2);font-weight:600;">${pEsc(pHaTempo(p.ts))}</span>
+          <span class="p-tl-sep">·</span>
+          <span class="p-tl-hora">${hora}</span>
+          <span class="p-tl-date" style="margin-left:4px;">${pEsc(pFmtDM(p.ts))}</span>
+        </div>
+        <div class="p-tl-batch-list" style="border-left:1px dashed var(--p-border);padding-left:10px;margin-bottom:8px;">
+          ${itemsListHTML}
+        </div>
+        <div class="p-tl-meta" style="font-size:11px;color:var(--p-text-mut);">
+          ${campPill}
+          <span class="p-tl-by" style="margin-left:8px;">Publicado por <b>${pEsc(p.autor)}</b></span>
+        </div>
+      </div>`;
+    } else {
+      return pTlItem(p);
+    }
+  }).join('');
 
   var verMais = restantes > 0
     ? `<div class="p-tl-more-wrap">

@@ -28,10 +28,10 @@ function fStartChatComMaterial(material){
   try { fUpdateLivePreview(); } catch(e){}
   try { fAttachInputGuard(); } catch(e){}
   const total = fState.camp.perguntas.length;
-  let intro = `Você escolheu o material <strong>${material.name}</strong>. `;
-  // Se tem instruções do designer, mostra
+  let intro = `Você escolheu o material <strong>${gEsc(material.name)}</strong>. `;
+  // Se tem instruções do designer, mostra (escapado — texto livre do designer)
   if(material.publishMeta?.instrucoes){
-    intro += `<br><br><em style="display:block;margin-top:6px;padding:8px 10px;background:var(--dm-orange-bg);border-left:3px solid var(--dm-orange);font-size:12px;color:var(--text-2);border-radius:4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg> ${material.publishMeta.instrucoes}</em><br>`;
+    intro += `<br><br><em style="display:block;margin-top:6px;padding:8px 10px;background:var(--dm-orange-bg);border-left:3px solid var(--dm-orange);font-size:12px;color:var(--text-2);border-radius:4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg> ${gEsc(material.publishMeta.instrucoes)}</em><br>`;
   }
   intro += `Vou te fazer <strong>${total} pergunta${total>1?'s':''} rápida${total>1?'s':''}</strong> e gerar a arte. Leva ~1 minuto.`;
   fAddBot(intro, []);
@@ -52,8 +52,8 @@ function fAskCampSwitch(c){
 }
 function fApplyCampSwitch(cId, keepData){
   const m=document.getElementById('switch-confirm-msg');if(m)m.remove();
-  const all=[...CAMPS_ATIVAS,...CAMPS_OUTRAS];
-  const c=all.find(x=>x.id===cId);if(!c)return;
+  const c=(typeof fResolveCamp==='function')?fResolveCamp(cId):[...CAMPS_ATIVAS,...CAMPS_OUTRAS].find(x=>x.id===cId);
+  if(!c)return;
   // Limpa estado (a troca via catálogo de materiais é nova arquitetura)
   fState.camp=c;fState.stepIdx=-1;fState.done=false;
   fState.dados={};
@@ -67,7 +67,6 @@ function fCancelSwitch(){
 function fSelectFmt(id){
   const novoFmt=FMTS.find(f=>f.id===id);
   if(!novoFmt || (fState.fmt && fState.fmt.id===novoFmt.id)) return;
-  const erafmtAntigo = fState.fmt ? fState.fmt.name : '';
   fState.fmt=novoFmt;
   fRenderFmts();fUpdateCtx();
   // Se há dados, mantém — só reseta progresso visual; se já finalizou, regera com novo formato
@@ -87,31 +86,6 @@ function fSelectFmt(id){
   }
   // Sem dados: comportamento original
   fState.stepIdx=-1;fState.dados={};fState.done=false;fStartChat();
-}
-// Versão do fStartChat que respeita fState.dados já preenchidos e pula direto pra próxima pergunta não respondida
-function fStartChatPreservandoDados(){
-  document.getElementById('f-messages').innerHTML='';
-  fUpdateProg();
-  const pergs=fState.camp.perguntas;
-  // Encontra primeiro índice ainda não respondido
-  let firstEmpty=-1;
-  for(let i=0;i<pergs.length;i++){
-    if(fState.dados[pergs[i].id]==null || fState.dados[pergs[i].id]===''){firstEmpty=i;break;}
-  }
-  const camposReaproveitados = Object.keys(fState.dados).length;
-  if(camposReaproveitados > 0){
-    fAddBot(`Beleza! Reaproveitei <strong>${camposReaproveitados} resposta(s)</strong> da campanha anterior. ${firstEmpty<0?'Tudo já tá preenchido, vou pra confirmação.':'Continuo de onde paramos.'}`,[]);
-  } else {
-    fAddBot(`Vamos criar a arte da campanha <strong>${fState.camp.name}</strong> no formato <strong>${fState.fmt.name}</strong>. 🎨`,[]);
-  }
-  if(firstEmpty < 0){
-    // Tudo preenchido: vai pra confirmação
-    fState.stepIdx = pergs.length;
-    setTimeout(()=>fMostrarConfirm(), 700);
-  } else {
-    fState.stepIdx = firstEmpty - 1;
-    setTimeout(()=>fNextStep(),700);
-  }
 }
 function fRenderFmts(){
   document.getElementById('f-fmt-row').innerHTML=FMTS.map(f=>`
@@ -237,6 +211,18 @@ function fProcessImageFile(file, varId, uploadId){
   // Lê como dataURL
   const reader=new FileReader();
   reader.onprogress=(ev)=>{ if(_bar&&ev.lengthComputable){_bar.style.width=Math.round(ev.loaded/ev.total*70)+'%';} };
+  // Falha de leitura: restaura a zona clicável (com o input) em vez de travar no skeleton.
+  reader.onerror=()=>{
+    fShowFieldError('Não consegui ler essa imagem. Tente outra.');
+    const zEl=document.getElementById(uploadId+'-zone');
+    if(zEl){
+      zEl.classList.remove('f-upload-loading');
+      zEl.innerHTML=`<input type="file" id="${uploadId}-input" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="fHandleImageUpload(event,'${varId}','${uploadId}')">
+        <div class="f-upload-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+        <div class="f-upload-title">Toque pra tentar de novo</div>
+        <div class="f-upload-sub">PNG ou JPG, até 4MB</div>`;
+    }
+  };
   reader.onload=(e)=>{
     if(_bar)_bar.style.width='85%';
     const dataUrl=e.target.result;
@@ -347,7 +333,7 @@ function fMostrarConfirm(){
     let valDisplay;
     if(p.isImage){
       if(valor && valor.startsWith('data:image')){
-        valDisplay = `<img class="confirm-thumb" src="${valor}" alt="${label}"/>`;
+        valDisplay = `<img class="confirm-thumb" src="${valor}" alt="${gEsc(label)}"/>`;
       } else {
         valDisplay = `<span class="confirm-val confirm-val-empty">— sem foto —</span>`;
       }
@@ -355,7 +341,7 @@ function fMostrarConfirm(){
       valDisplay = `<span class="confirm-val">${gEsc(valor||'—')}</span>`;
     }
     return `<div class="confirm-row">
-      <span class="confirm-label">${label}</span>
+      <span class="confirm-label">${gEsc(label)}</span>
       ${valDisplay}
       <button class="confirm-edit" onclick="fEditCampo(${i})">editar</button>
     </div>`;
@@ -365,7 +351,7 @@ function fMostrarConfirm(){
   w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div>
     <div class="bbl" style="padding-bottom:6px">Confere tudo antes de eu gerar a arte:</div>
     <div class="confirm-card">
-      <div class="confirm-header">Resumo · ${c.name}</div>
+      <div class="confirm-header">Resumo · ${gEsc(c.name)}</div>
       <div class="confirm-fields">${rows}</div>
       <div class="confirm-actions">
         <button class="confirm-btn cancel" onclick="fEditarTudo()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Alterar</button>
@@ -408,7 +394,7 @@ function fEditCampo(idx){
     const box=document.getElementById('f-msg-box');
     if(box){box.disabled=true;box.placeholder='Use o botão de upload acima';}
   } else {
-    fAddBot(`Qual é o novo valor para <strong>${label}</strong>?`,p.sugestoes);
+    fAddBot(`Qual é o novo valor para <strong>${gEsc(label)}</strong>?`,p.sugestoes);
     const box=document.getElementById('f-msg-box');
     if(box){box.disabled=false;}
     try { fUpdateInputPlaceholder(p.id); } catch(e){}
@@ -417,6 +403,10 @@ function fEditCampo(idx){
 }
 function fEditarTudo(){const m=document.getElementById('confirm-msg');if(m)m.remove();fState.stepIdx=-1;fState.dados={};fState.editIdx=null;fStartChat();}
 function fConfirmarGerar(){const m=document.getElementById('confirm-msg');if(m)m.remove();fGerarArte();}
+// Snapshot por bolha de arte gerada: como editar+confirmar de novo empilha outra
+// bolha, cada "Baixar"/"Outro formato" precisa operar sobre os dados DAQUELA arte,
+// não sobre fState (que reflete só a última). Chaveado pelo id do canvas da bolha.
+let _fArtSnapshots={};
 function fGerarArte(){
   fState.done=true;fUpdateProg();
   const d=fState.dados,c=fState.camp;
@@ -431,6 +421,8 @@ function fGerarArte(){
     const w=document.createElement('div');w.className='msg bot';
     // ID único pro canvas thumbnail
     const previewCanvasId = 'art-preview-'+Date.now();
+    // Congela os dados desta arte pra os botões da bolha não usarem o estado futuro.
+    _fArtSnapshots[previewCanvasId] = {dados:{...d}, camp:c, fmt:fState.fmt, histId:fState._lastHistId};
     // Se há material publicado, renderiza preview real via canvas; senão, fallback HTML
     const hasMaterial = fState.material && fState.material.layers && fState.material.layers.length;
     let canvasBlock = '';
@@ -452,11 +444,11 @@ function fGerarArte(){
       canvasBlock = `<div class="art-canvas ${fotoProduto?'has-foto':''}" style="background:${c.color}">
         ${logoBlock}
         ${fotoBlock}
-        <div class="art-tag">${c.name.toUpperCase()} · ${fState.fmt.name.toUpperCase()}</div>
-        <div class="art-prod">${prod.toUpperCase()}</div>
-        ${de?`<div class="art-de">${de}</div>`:''}
-        <div class="art-por">${por}</div>
-        ${val?`<div class="art-logo" style="font-size:7px;opacity:.5">${val}</div>`:''}
+        <div class="art-tag">${gEsc(c.name.toUpperCase())} · ${gEsc(fState.fmt.name.toUpperCase())}</div>
+        <div class="art-prod">${gEsc(prod.toUpperCase())}</div>
+        ${de?`<div class="art-de">${gEsc(de)}</div>`:''}
+        <div class="art-por">${gEsc(por)}</div>
+        ${val?`<div class="art-logo" style="font-size:7px;opacity:.5">${gEsc(val)}</div>`:''}
         <div class="art-brand-logo" role="img" aria-label="Luma"></div>
       </div>`;
     }
@@ -465,14 +457,14 @@ function fGerarArte(){
       <div class="art-wrap">
         ${canvasBlock}
         <div class="multi-fmt-row">
-          ${FMTS.map(f=>`<div class="fmt-mini ${f.id===fState.fmt.id?'current':''}" onclick="fOutroFormato('${f.id}')">
+          ${FMTS.map(f=>`<div class="fmt-mini ${f.id===fState.fmt.id?'current':''}" onclick="fOutroFormato('${f.id}','${previewCanvasId}')">
             <div class="fmt-mini-thumb" style="background:${c.color}">${f.name.toUpperCase()}</div>
             <div class="fmt-mini-label" style="display:flex;align-items:center;justify-content:center;gap:3px">${f.name}${f.id===fState.fmt.id?' <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':''}</div>
           </div>`).join('')}
         </div>
         <div class="art-footer">
           <div class="art-btn" onclick="fRefazer()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Refazer</div>
-          <div class="art-btn pri" onclick="fBaixar(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>Baixar PNG</div>
+          <div class="art-btn pri" onclick="fBaixar(this,'${previewCanvasId}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>Baixar PNG</div>
         </div>
       </div>
     </div>`;
@@ -492,20 +484,28 @@ function fGerarArte(){
     setTimeout(()=>fAddBot('Arte salva em <strong>Minhas artes</strong>! Clique em outro formato para gerar variações.',[]),500);
   },800);
 }
-async function fOutroFormato(id){
+async function fOutroFormato(id, snapId){
   const f=FMTS.find(x=>x.id===id);if(!f||f.id===fState.fmt.id)return;
+  const snap=(snapId&&_fArtSnapshots[snapId])||{dados:fState.dados,camp:fState.camp};
   fState.fmt=f;fRenderFmts();fUpdateCtx();
-  fAddHist(fState.dados,fState.camp,f,'baixada');
-  await fGenPNG(fState.dados,fState.camp,f);
+  // Só registra como "baixada" se o PNG saiu de fato (evita histórico mentindo em falha).
+  await fGenPNG(snap.dados,snap.camp,f);
+  fAddHist(snap.dados,snap.camp,f,'baixada');
   gToast(`${f.name} baixado!`);
 }
-async function fBaixar(btn){
+async function fBaixar(btn, snapId){
+  // Usa o snapshot da própria bolha (não o estado atual, que pode ser de outra arte).
+  const snap=(snapId&&_fArtSnapshots[snapId])||{dados:fState.dados,camp:fState.camp,fmt:fState.fmt,histId:fState._lastHistId};
   const restore=gBtnLoading(btn,'Gerando…');
   try{
-    if(fState._lastHistId){ fMarkHistBaixada(fState._lastHistId); }
-    else { fAddHist(fState.dados,fState.camp,fState.fmt,'baixada'); }
-    await fGenPNG(fState.dados,fState.camp,fState.fmt);
+    // Gera primeiro; só marca "baixada" se não lançar (canvas tainted, quota, etc.).
+    await fGenPNG(snap.dados,snap.camp,snap.fmt);
+    if(snap.histId){ fMarkHistBaixada(snap.histId); }
+    else { fAddHist(snap.dados,snap.camp,snap.fmt,'baixada'); }
     gToast('Arte baixada!');
+  }catch(e){
+    console.warn('Falha ao gerar PNG:', e);
+    gToast('Não consegui gerar o PNG. Se a arte usa imagem por URL, ela precisa ser pública (com CORS).','error');
   }finally{ restore(); }
 }
 function fRefazer(){fState.stepIdx=-1;fState.dados={};fState.done=false;fClearImgCache();document.getElementById('f-messages').innerHTML='';fUpdateProg();fAddBot(`Vamos refazer a arte da <strong>${fState.camp.name}</strong>.`,[]);setTimeout(()=>fNextStep(),500);}

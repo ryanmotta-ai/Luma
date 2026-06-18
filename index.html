@@ -16,6 +16,7 @@
 <link rel="stylesheet" href="css/components/splash.css">
 <link rel="stylesheet" href="css/components/topbar.css">
 <link rel="stylesheet" href="css/components/help-modal.css">
+<link rel="stylesheet" href="css/components/user-profile.css">
 <link rel="stylesheet" href="css/components/tutorial.css">
 <link rel="stylesheet" href="css/modules/franqueado.css">
 <link rel="stylesheet" href="css/modules/chat.css">
@@ -245,16 +246,21 @@ input:focus:-webkit-autofill {
   <button class="top-help-btn" onclick="gLogout()" aria-label="Sair" title="Sair do Luma" style="margin-left:4px;color:#ff4d4d;">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
   </button>
-  <div class="top-right" id="topbar-right-fran">
-    <div class="top-av">FR</div>
-    <span class="top-name">Franqueado</span>
-    <div class="top-pill" id="top-camp-pill">Hamburguer Fest · Story</div>
-  </div>
-  <div class="top-right" id="topbar-right-design" style="display:none">
-    <div class="admin-badge">ADMIN</div>
-    <div class="top-av" style="background:var(--dm-red)">RY</div>
-    <span class="top-name">Ryan</span>
-    <span id="d-save-indicator" style="font-size:11px;color:rgba(255,255,255,.5)">Não salvo</span>
+  <div class="top-right" id="topbar-right-global" style="margin-left: auto; display: flex; align-items: center; gap: 10px;">
+    <!-- Elementos de Contexto (específicos de cada modo) -->
+    <div id="topbar-context-fran" style="display: flex; align-items: center;">
+      <div class="top-pill" id="top-camp-pill">Hamburguer Fest · Story</div>
+    </div>
+    <div id="topbar-context-design" style="display: none; align-items: center;">
+      <span id="d-save-indicator" style="font-size:11px;color:rgba(255,255,255,.5)">Não salvo</span>
+    </div>
+    
+    <!-- Perfil de Usuário Unificado -->
+    <div class="top-profile-badge" id="topbar-user-profile" onclick="if(typeof gOpenUserProfileModal === 'function') gOpenUserProfileModal()" title="Configurações de Perfil">
+      <span class="admin-badge" id="topbar-user-role">ADMIN</span>
+      <div class="top-av" id="topbar-user-av" style="background:var(--dm-red)">RY</div>
+      <span class="top-name" id="topbar-user-name">Ryan</span>
+    </div>
   </div>
 </div>
 
@@ -303,7 +309,182 @@ input:focus:-webkit-autofill {
         <span class="g-help-foot-sep">·</span>
         <span>v0.4</span>
       </div>
+      </div>
     </div>
+  </div>
+</div>
+
+<!-- ══ MODAL DE PERFIL DE USUÁRIO ══ -->
+<div id="g-profile-modal" class="g-profile-modal" onclick="if(event.target===this)gCloseUserProfileModal()">
+  <div class="prof-box">
+    
+    <!-- Sidebar -->
+    <div class="prof-sidebar">
+      <div class="prof-sidebar-user">
+        <div class="prof-sidebar-av-wrap">
+          <div class="prof-sidebar-av" id="prof-sidebar-avatar">RY</div>
+        </div>
+        <div class="prof-sidebar-name" id="prof-sidebar-name">Ryan</div>
+        <span class="admin-badge" id="prof-sidebar-role" style="font-size: 9px; padding: 2px 6px;">ADMIN</span>
+      </div>
+      
+      <div class="prof-nav">
+        <button class="prof-nav-btn active" id="prof-nav-dados" onclick="gProfileSwitchTab('dados')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>Dados Pessoais</span>
+        </button>
+        <button class="prof-nav-btn" id="prof-nav-seguranca" onclick="gProfileSwitchTab('seguranca')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span>Segurança</span>
+        </button>
+        <button class="prof-nav-btn" id="prof-nav-estatisticas" onclick="gProfileSwitchTab('estatisticas')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          <span>Estatísticas</span>
+        </button>
+      </div>
+      
+      <button class="prof-nav-btn prof-logout-btn" onclick="gLogout()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        <span>Sair da conta</span>
+      </button>
+    </div>
+    
+    <!-- Content Area -->
+    <div class="prof-content">
+      <!-- Modal Header -->
+      <div class="prof-header">
+        <div class="prof-title-area">
+          <h3 id="prof-modal-title">Dados Pessoais</h3>
+          <p id="prof-modal-subtitle">Gerencie suas informações básicas de exibição.</p>
+        </div>
+        <button class="prof-close" onclick="gCloseUserProfileModal()" aria-label="Fechar">×</button>
+      </div>
+      
+      <!-- Modal Body -->
+      <div class="prof-body">
+        
+        <!-- PANE: DADOS PESSOAIS -->
+        <div class="prof-pane active" id="prof-pane-dados">
+          <form id="prof-form-dados" onsubmit="gProfileSaveData(event)">
+            <!-- Avatar Edit box -->
+            <div class="prof-avatar-edit-box">
+              <div class="prof-avatar-editor" onclick="gProfileTriggerUpload()">
+                <div class="prof-avatar-editor-img" id="prof-avatar-editor-img">RY</div>
+                <div class="prof-avatar-overlay">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                  <span>Alterar</span>
+                </div>
+                <input type="file" id="prof-avatar-input" accept="image/*" style="display: none;" onchange="gProfileHandleUpload(this)">
+              </div>
+              <div class="prof-avatar-edit-info">
+                <h4>Sua foto de perfil</h4>
+                <p>Arraste uma nova imagem ou clique no avatar para selecionar um arquivo. Formato recomendado: JPG/PNG quadrado, máx. 1MB.</p>
+              </div>
+            </div>
+            
+            <div class="prof-grid prof-grid-2">
+              <div class="prof-field">
+                <label class="prof-label">Nome de Exibição</label>
+                <input type="text" class="prof-input" id="prof-input-name" placeholder="Ex: Pedro Moraes" required>
+              </div>
+              <div class="prof-field">
+                <label class="prof-label">E-mail</label>
+                <input type="email" class="prof-input" id="prof-input-email" placeholder="nome@deliverymuch.com.br" required>
+              </div>
+              <div class="prof-field">
+                <label class="prof-label">Telefone / WhatsApp</label>
+                <input type="text" class="prof-input" id="prof-input-phone" placeholder="(55) 99999-9999">
+              </div>
+              <div class="prof-field">
+                <label class="prof-label">Preferência de Tema</label>
+                <select class="prof-input" id="prof-input-theme" onchange="gProfileApplyTheme(this.value)">
+                  <option value="light">Tema Claro ☀</option>
+                  <option value="dark">Tema Escuro 🌙</option>
+                </select>
+              </div>
+            </div>
+            
+            <div class="prof-actions">
+              <button type="button" class="prof-btn prof-btn-secondary" onclick="gCloseUserProfileModal()">Cancelar</button>
+              <button type="submit" class="prof-btn prof-btn-primary" id="prof-btn-save-dados">Salvar Alterações</button>
+            </div>
+          </form>
+        </div>
+        
+        <!-- PANE: SEGURANÇA -->
+        <div class="prof-pane" id="prof-pane-seguranca">
+          <form id="prof-form-seguranca" onsubmit="gProfileChangePassword(event)">
+            <div class="prof-grid">
+              <div class="prof-field">
+                <label class="prof-label">Senha Atual</label>
+                <input type="password" class="prof-input" id="prof-input-password-current" placeholder="Digite sua senha atual" required>
+              </div>
+              <div class="prof-field">
+                <label class="prof-label">Nova Senha</label>
+                <input type="password" class="prof-input" id="prof-input-password-new" placeholder="Nova senha (min. 8 caracteres)" oninput="gProfileCheckPasswordStrength(this.value)" required>
+                <div class="pass-strength-container">
+                  <div class="pass-strength-bar">
+                    <div class="pass-strength-segment" id="pass-seg-1"></div>
+                    <div class="pass-strength-segment" id="pass-seg-2"></div>
+                    <div class="pass-strength-segment" id="pass-seg-3"></div>
+                  </div>
+                  <span class="pass-strength-text" id="pass-strength-text">Senha muito curta</span>
+                </div>
+              </div>
+              <div class="prof-field">
+                <label class="prof-label">Confirmar Nova Senha</label>
+                <input type="password" class="prof-input" id="prof-input-password-confirm" placeholder="Confirme a nova senha" required>
+              </div>
+            </div>
+            
+            <div class="prof-actions">
+              <button type="button" class="prof-btn prof-btn-secondary" onclick="gCloseUserProfileModal()">Cancelar</button>
+              <button type="submit" class="prof-btn prof-btn-primary" id="prof-btn-save-password">Redefinir Senha</button>
+            </div>
+          </form>
+        </div>
+        
+        <!-- PANE: ESTATÍSTICAS -->
+        <div class="prof-pane" id="prof-pane-estatisticas">
+          <div class="prof-stats-grid">
+            <div class="prof-stat-card">
+              <div class="prof-stat-icon" style="background: rgba(255, 144, 0, 0.1); color: var(--dm-orange);">🎨</div>
+              <div class="prof-stat-info">
+                <div class="prof-stat-value" id="prof-stat-templates">0</div>
+                <div class="prof-stat-label">Artes no Portfólio</div>
+              </div>
+            </div>
+            <div class="prof-stat-card">
+              <div class="prof-stat-icon" style="background: rgba(34, 197, 94, 0.1); color: #22c55e;">⚡</div>
+              <div class="prof-stat-info">
+                <div class="prof-stat-value" id="prof-stat-campaigns">0</div>
+                <div class="prof-stat-label">Campanhas Ativas</div>
+              </div>
+            </div>
+            <div class="prof-stat-card">
+              <div class="prof-stat-icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">⏱️</div>
+              <div class="prof-stat-info">
+                <div class="prof-stat-value" id="prof-stat-session-time">0 min</div>
+                <div class="prof-stat-label">Tempo em Sessão</div>
+              </div>
+            </div>
+            <div class="prof-stat-card">
+              <div class="prof-stat-icon" style="background: rgba(124, 58, 237, 0.1); color: #7c3aed;">👑</div>
+              <div class="prof-stat-info">
+                <div class="prof-stat-value" id="prof-stat-level">Designer Principal</div>
+                <div class="prof-stat-label">Nível da Conta</div>
+              </div>
+            </div>
+          </div>
+          
+          <div style="background: rgba(0, 0, 0, 0.02); border: 1px solid var(--gray-light); border-radius: 12px; padding: 16px; font-size: 12.5px; color: var(--text-2); line-height: 1.5;">
+            <strong>💡 Dica do Designer:</strong> Você pode exportar relatórios de desempenho e ver estatísticas agregadas de conversão acessando a aba <strong>Dados</strong> na barra de navegação superior.
+          </div>
+        </div>
+        
+      </div>
+    </div>
+    
   </div>
 </div>
 
@@ -417,6 +598,10 @@ input:focus:-webkit-autofill {
         <div id="f-head-actions">
           <button id="f-bulk-head-btn" onclick="fBulkOpen()" title="Gerar muitas artes de uma vez a partir de uma planilha CSV"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Gerar vários</button>
           <button id="f-reset-btn" onclick="fResetFlow()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><polyline points="3 3 3 8 8 8"/></svg>Reiniciar</button>
+          <button id="f-theme-btn" onclick="fToggleTheme()" title="Alternar tema claro/escuro" aria-label="Alternar tema" style="margin-left: 4px; padding: 6px 10px;">
+            <svg id="f-theme-icon-dark" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:none; vertical-align:middle;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            <svg id="f-theme-icon-light" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle;"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          </button>
         </div>
       </div>
       <div id="f-right-body">
@@ -1004,6 +1189,7 @@ input:focus:-webkit-autofill {
     <div id="d-right" class="show-layers">
       <div class="rpanel-tabs d-rp-tabs">
         <button class="rpanel-tab d-rp-tab active" id="rtab-layers" data-panel="camadas" onclick="dActivatePanel('camadas')" title="Camadas">Camadas</button>
+        <button class="rpanel-tab d-rp-tab" id="rtab-dados" data-panel="dados" onclick="dActivatePanel('dados')" title="Campos que o franqueado preenche">Dados</button>
         <button class="rpanel-tab d-rp-tab" id="rtab-campaigns" data-panel="campaigns" onclick="dActivatePanel('campaigns')" title="Modelos e Campanhas">Campanhas</button>
       </div>
       <!-- Indicador contextual: nome+tipo da peça selecionada (visível só no painel Camada) -->
@@ -1037,7 +1223,7 @@ input:focus:-webkit-autofill {
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="12" cy="12" r="5"/></svg>
           </button>
 
-          <button class="d-lyr-tb-btn" onclick="dDeleteSelectedLayer()" title="Excluir selecionados" style="color: var(--dm-red);">
+          <button class="d-lyr-tb-btn d-lyr-tb-btn-del" onclick="dDeleteSelectedLayer()" title="Excluir selecionados">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
           </button>
         </div>
@@ -1147,6 +1333,9 @@ input:focus:-webkit-autofill {
 
         <div id="d-props-form" style="display:none;flex-direction:column">
 
+          <!-- ── BREADCRUMB ── -->
+          <div id="dp-breadcrumb" class="dp-breadcrumb"></div>
+
           <!-- ── HEADER ── -->
           <div class="dp-hdr">
             <div class="dp-hdr-icon" id="d-props-ctx-icon">T</div>
@@ -1164,7 +1353,6 @@ input:focus:-webkit-autofill {
             <button class="dp-nav-btn" onclick="dPropScrollTo('dp-sec-pos')" title="Posição e Tamanho"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><line x1="12" y1="5" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="19"/><line x1="5" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="19" y2="12"/></svg></button>
             <button class="dp-nav-btn" onclick="dPropScrollTo('dp-sec-appear')" title="Aparência"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></button>
             <button class="dp-nav-btn" onclick="dPropScrollTo('dp-sec-rules')" title="Regras Condicionais"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></button>
-            <button class="dp-nav-btn" onclick="dPropScrollTo('dp-sec-vars')" title="Campos Variáveis"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49"/></svg></button>
           </nav>
 
           <!-- ── SEÇÃO: CONTEÚDO ── -->
@@ -1176,11 +1364,13 @@ input:focus:-webkit-autofill {
             <div class="dp-sec-body">
               <div id="d-text-props" style="display:none">
                 <div style="margin-bottom:6px">
-                  <input class="prop-input" type="text" id="dp-content" placeholder="Conteúdo (use {{var}})" oninput="dUpdateProp('content',this.value)">
+                  <div class="prop-input dp-content-editable" id="dp-content" contenteditable="true" data-ph="Escreva o texto. Use “+ Inserir campo” para dados." oninput="dFieldContentSync(this)" onpaste="dFieldContentPaste(event)"></div>
                 </div>
                 <div class="dp-insert-var-row">
-                  <select class="prop-input" id="d-var-insert" style="font-size:11px;flex:1"><option value="">— inserir var —</option></select>
-                  <button class="d-btn-sec" style="padding:4px 8px;font-size:11px" onclick="dInsertVar()">+</button>
+                  <button class="d-btn-sec dp-insert-field-btn" onclick="dFieldInsertPickerOpen(event)">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Inserir campo
+                  </button>
                 </div>
               </div>
               <div id="d-image-props" style="display:none;flex-direction:column;gap:4px">
@@ -1342,24 +1532,32 @@ input:focus:-webkit-autofill {
             </div>
           </section>
 
-          <!-- ── SEÇÃO: CAMPOS VARIÁVEIS ── -->
-          <section class="dp-section" id="dp-sec-vars">
-            <button class="dp-sec-head" onclick="dPropToggleSection(this)">
-              <span class="dp-sec-label">CAMPOS VARIÁVEIS</span>
-              <button class="dp-sec-action-btn" onclick="event.stopPropagation();dOpenVarModal()" title="Novo campo">+ Novo</button>
-              <svg class="dp-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <div class="dp-sec-body">
-              <div id="d-vars-list" style="display:flex;flex-direction:column;gap:5px"></div>
-              <div class="prop-divider"></div>
-              <div style="font-size:11px;color:var(--d-text3);line-height:1.7">Use <code style="background:var(--var-bg);color:var(--var-color);padding:1px 4px;border-radius:3px">{{nome}}</code> nos campos de texto para marcar variáveis que o franqueado vai preencher.</div>
-            </div>
-          </section>
+          <!-- A gestão de campos variáveis migrou para a aba "Dados" (#d-panel-dados). -->
 
         </div><!-- /d-props-form -->
       </div><!-- /dtab-props -->
       <div id="dtab-vars" class="d-rp-sub" style="display:none"></div>
       </div><!-- /#d-panel-camada -->
+
+      <!-- Painel DADOS: centro de campos que o franqueado preenche (redesign de variáveis) -->
+      <div class="rpanel-content hidden" id="d-panel-dados">
+        <div class="dados-subnav">
+          <button class="dados-subnav-btn active" id="dados-sub-campos">Campos</button>
+          <button class="dados-subnav-btn" disabled title="Em breve">Regras</button>
+          <button class="dados-subnav-btn" disabled title="Em breve">Fontes</button>
+        </div>
+        <div class="dados-toolbar">
+          <div class="dados-search-wrap">
+            <svg class="search-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="d-fields-search" placeholder="Buscar campo..." oninput="dFieldsFilter(this.value)">
+          </div>
+          <button class="d-btn-pri dados-new-btn" onclick="dOpenVarModal()" title="Criar novo campo">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Novo
+          </button>
+        </div>
+        <div id="d-fields-list" class="dados-fields-list"></div>
+      </div>
       <div class="rpanel-content hidden" id="dtab-assets">
         <div class="upload-drop" onclick="document.getElementById('d-asset-upload').click()">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -1432,52 +1630,77 @@ input:focus:-webkit-autofill {
 </div>
 
 <!-- MODAIS DESIGNER -->
+<!-- Wizard de campo (2 passos): "o que" → "que tipo". Nada de sintaxe na cara do usuário. -->
 <div class="modal-overlay" id="d-var-modal">
-  <div class="modal">
-    <div class="modal-title">Nova Variável</div>
-    <div class="modal-field">
-      <label class="modal-label">Nome da variável</label>
-      <input class="modal-input" id="dv-name" placeholder="ex: nome_loja" oninput="this.value=this.value.replace(/[^a-z0-9_]/gi,'_').toLowerCase()">
-      <span style="font-size:10px;color:var(--d-text3);margin-top:2px">Aparece como <code style="color:var(--var-color)">{{nome_loja}}</code></span>
+  <div class="modal field-wizard">
+    <div class="modal-title" id="dv-title">Novo campo</div>
+
+    <!-- PASSO 1 — o que -->
+    <div class="field-step" id="dv-step-1">
+      <div class="field-q">O que você quer que seja preenchido?</div>
+      <input class="modal-input field-q-input" id="dv-label" placeholder="Ex.: Produto, Preço, Cupom…" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();dFieldWizardNext()}">
+      <div class="field-q-hint">Esse é o nome que o franqueado vê. Você não precisa pensar em código.</div>
+      <div class="modal-actions">
+        <button class="d-btn-sec" onclick="dCloseVarModal()">Cancelar</button>
+        <button class="d-btn-pri" onclick="dFieldWizardNext()">Continuar</button>
+      </div>
     </div>
-    <div class="modal-field">
-      <label class="modal-label">Tipo</label>
-      <select class="modal-select" id="dv-type" onchange="dVarTypeFields()">
-        <option value="text">Texto livre</option>
-        <option value="number">Número</option>
-        <option value="currency">Moeda (R$)</option>
-        <option value="image">Imagem (URL)</option>
-        <option value="select">Seleção fixa</option>
-        <option value="date">Data</option>
-        <option value="color">Cor (paleta)</option>
-        <option value="boolean">Sim / Não</option>
-      </select>
-    </div>
-    <div class="modal-field" id="dv-options-field" style="display:none">
-      <label class="modal-label">Opções (uma por linha)</label>
-      <textarea class="modal-input" id="dv-options" rows="3" placeholder="Pequena&#10;Média&#10;Grande"></textarea>
-    </div>
-    <div class="modal-field" id="dv-palette-field" style="display:none">
-      <label class="modal-label">Paleta (cores hex, vírgula ou linha)</label>
-      <input class="modal-input" id="dv-palette" placeholder="#C8102E, #FF9000, #FFFFFF">
-    </div>
-    <div class="modal-field">
-      <label class="modal-label">Rótulo (para o franqueado)</label>
-      <input class="modal-input" id="dv-label" placeholder="ex: Nome da loja">
-    </div>
-    <div class="modal-field">
-      <label class="modal-label">Valor padrão (opcional)</label>
-      <input class="modal-input" id="dv-default" placeholder="ex: Promoção por tempo limitado">
-      <span style="font-size:10px;color:var(--d-text3);margin-top:2px">Usado quando o franqueado não preenche (ou o campo não é editável).</span>
-    </div>
-    <div class="modal-field">
-      <label class="modal-label" style="display:flex;align-items:center;gap:8px">
-        <input type="checkbox" id="dv-req"> Campo obrigatório
-      </label>
-    </div>
-    <div class="modal-actions">
-      <button class="d-btn-sec" onclick="dCloseVarModal()">Cancelar</button>
-      <button class="d-btn-pri" onclick="dConfirmVar()">Adicionar</button>
+
+    <!-- PASSO 2 — que tipo -->
+    <div class="field-step" id="dv-step-2" style="display:none">
+      <div class="field-q" id="dv-q2">Que tipo de informação é?</div>
+      <div class="field-type-grid" id="dv-type-grid"></div>
+      <input type="hidden" id="dv-type" value="text">
+
+      <div class="modal-field" id="dv-options-field" style="display:none">
+        <label class="modal-label">Quais opções? (uma por linha)</label>
+        <textarea class="modal-input" id="dv-options" rows="3" placeholder="Pequena&#10;Média&#10;Grande"></textarea>
+      </div>
+      <div class="modal-field" id="dv-palette-field" style="display:none">
+        <label class="modal-label">Cores sugeridas (hex, separadas por vírgula)</label>
+        <input class="modal-input" id="dv-palette" placeholder="#C8102E, #FF9000, #FFFFFF">
+      </div>
+
+      <button class="field-details-toggle" id="dv-details-toggle" onclick="dFieldToggleDetails()">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="field-details-chev"><polyline points="6 9 12 15 18 9"/></svg>
+        Detalhes (opcional)
+      </button>
+      <div class="field-details" id="dv-details" style="display:none">
+        <div class="modal-field">
+          <label class="modal-label">Exemplo</label>
+          <input class="modal-input" id="dv-example" placeholder="ex: iPhone 17">
+          <span style="font-size:10px;color:var(--d-text3);margin-top:2px">Mostrado no cartão do campo e como dica para o franqueado.</span>
+        </div>
+        <div class="modal-field">
+          <label class="modal-label">Categoria</label>
+          <select class="modal-select" id="dv-cat">
+            <option value="">Automática</option>
+            <option value="produto">Produto</option>
+            <option value="preco">Preço</option>
+            <option value="campanha">Campanha</option>
+            <option value="midia">Mídia</option>
+            <option value="outros">Outros</option>
+          </select>
+        </div>
+        <div class="modal-field">
+          <label class="modal-label">Valor padrão (avançado)</label>
+          <input class="modal-input" id="dv-default" placeholder="ex: Promoção por tempo limitado">
+          <span style="font-size:10px;color:var(--d-text3);margin-top:2px">Usado quando o franqueado não preenche.</span>
+        </div>
+        <div class="modal-field">
+          <label class="modal-label" style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" id="dv-req"> Campo obrigatório
+          </label>
+        </div>
+      </div>
+
+      <!-- nome técnico (slug): gerado automático no create, travado no edit -->
+      <input type="hidden" id="dv-name">
+
+      <div class="modal-actions">
+        <button class="d-btn-sec" id="dv-back-btn" onclick="dFieldWizardBack()">Voltar</button>
+        <button class="d-btn-pri" id="dv-confirm-btn" onclick="dConfirmVar()">Criar campo</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1819,6 +2042,7 @@ input:focus:-webkit-autofill {
 <script src="js/designer/mask.js"></script>
 <script src="js/designer/tutorial-panel.js"></script>
 <script src="js/core/auth.js"></script>
+<script src="js/core/user-profile.js"></script>
 <script src="js/main.js"></script>
 
 

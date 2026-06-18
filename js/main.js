@@ -28,8 +28,10 @@ function setMode(m){
   
   dUpdateTabPill();
 
-  document.getElementById('topbar-right-fran').style.display = m==='franqueado'?'':'none';
-  document.getElementById('topbar-right-design').style.display = m==='designer'?'':'none';
+  const ctxFran = document.getElementById('topbar-context-fran');
+  const ctxDesign = document.getElementById('topbar-context-design');
+  if(ctxFran) ctxFran.style.display = m==='franqueado'?'':'none';
+  if(ctxDesign) ctxDesign.style.display = m==='designer'?'':'none';
   if(m==='designer') dInit();
   if(m==='dados' && typeof pInit==='function') pInit();
 }
@@ -40,6 +42,8 @@ function setMode(m){
 function gOnLoginSuccess() {
   document.getElementById('g-login-screen').style.display = 'none';
   dUpdateTabPill();
+  
+  if(typeof gUpdateUserTopbar === 'function') gUpdateUserTopbar();
   
   // INIT FRANQUEADO
   fRenderCatalogs(CAMPS_ATIVAS,CAMPS_OUTRAS);

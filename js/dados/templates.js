@@ -30,16 +30,36 @@ function pRenderTemplates(){
   const filtros = pTemplatesFiltros();
 
   if(!rows.length){
-    return head + filtros + pEmpty('🏆', 'Nenhum template',
+    return head + filtros + pEmpty('<svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.45 1-1 1H4v2h16v-2h-5c-.55 0-1-.45-1-1v-2.34"></path><path d="M12 2a6 6 0 0 1 6 6c0 3.27-2 6-6 6S6 11.27 6 8a6 6 0 0 1 6-6z"></path></svg>', 'Nenum template',
       'Nenhum template bate os filtros selecionados. Ajuste a campanha ou o formato.', null);
   }
 
   pSortRows(rows);
 
+  const unused = P_TEMPLATES.filter(t => t.usos === 0);
+  let unusedHTML = '';
+  if(unused.length > 0){
+    unusedHTML = `
+      <div class="p-unused-templates-section">
+        <div class="p-unused-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+          <span>Desperdício Criativo (Templates sem uso nos últimos 30 dias)</span>
+        </div>
+        <div class="p-unused-grid">
+          ${unused.map(t => `
+            <div class="p-unused-item">
+              <span class="p-unused-name">${pEsc(t.nome)}</span>
+              <span class="p-unused-meta" style="color:var(--p-text-mut);">${pEsc(t.campNome)} · ${pEsc(P_FMT_LABEL[t.fmt] || t.fmt)}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>`;
+  }
+
   return head + filtros + `<div class="p-table-wrap"><table class="p-table">
     <thead><tr>${P_COLS.map(pColHeader).join('')}</tr></thead>
     <tbody>${rows.map(pTemplateRow).join('')}</tbody>
-  </table></div>`;
+  </table></div>` + unusedHTML;
 }
 
 /* ── filtros ── */
@@ -189,7 +209,7 @@ function pExpandPanel(t){
 /* mini gráfico de linha (sem eixos) com tooltip por ponto */
 function pMiniLineSVG(vals, cls, unidade){
   const W = 280, H = 70, pad = 6;
-  if(!vals || !vals.length) return pEmpty('📈', 'Sem histórico', 'Sem dados diários.', null);
+  if(!vals || !vals.length) return pEmpty('<svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>', 'Sem histórico', 'Sem dados diários.', null);
   const n = vals.length;
   const max = Math.max(1, ...vals);
   const step = n > 1 ? (W - 2 * pad) / (n - 1) : (W - 2 * pad);

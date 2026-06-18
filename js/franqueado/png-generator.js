@@ -829,7 +829,9 @@ async function fBulkDownloadAll(){
     await new Promise(res=>(window.requestIdleCallback||setTimeout)(res, 120));
   }
   if(btn){btn.textContent='Baixar todos';btn.disabled=false;}
-  gToast('✓ '+ok+' de '+valid.length+' artes geradas');
+  const _fail=valid.length-ok;
+  if(_fail>0) gToast(`${ok}/${valid.length} geradas — ${_fail} falhou(ram). Imagens por URL precisam ser públicas (com CORS).`,'error');
+  else gToast('✓ '+ok+' de '+valid.length+' artes geradas');
 }
 
 /* Sistema de nomenclatura padronizado para downloads

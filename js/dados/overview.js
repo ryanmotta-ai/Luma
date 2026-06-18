@@ -20,12 +20,65 @@ function pRenderOverview(){
     </div>`;
 
   if(!artes.length){
-    return head + pEmpty('📭', 'Sem artes no período',
+    return head + pEmpty('<svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"></path><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg>', 'Sem artes no período',
       'Nenhuma arte foi gerada nesta janela de tempo. Experimente um período maior ou gere artes no módulo Franqueado.',
       'Ir para Franqueado', 'franqueado');
   }
 
-  return head + pOverviewKPIs(artes, prev) + pOverviewCharts(artes);
+  // 1) Insights Feed
+  const insights = pGetInsightsFeed(periodo);
+  const insightsHTML = `
+    <div class="p-overview-insights-row">
+      <div class="p-overview-insights-title">Insights de Performance</div>
+      <div class="p-insight-feed">
+        ${insights.map(ins => {
+          let ico = '';
+          if(ins.type === 'success') ico = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+          else if(ins.type === 'warning') ico = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
+          else ico = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--p-accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M9 18h6m-5 4h4m1.3-17.7a7.5 7.5 0 1 0-8.6 0c1.7 1.3 2.7 3.3 2.7 5.5h4c0-2.2 1-4.2 2.7-5.5z"></path></svg>';
+          return `<div class="p-insight-card ${ins.type}">
+            <div class="p-insight-card-ico">${ico}</div>
+            <div class="p-insight-card-txt">${pEsc(ins.text)}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+
+  // 2) Health Score Gauge + KPIs Grid
+  const healthVal = pGetHealthScore(periodo);
+  const strokeOffset = 339.292 - (339.292 * healthVal / 100);
+  
+  const healthHTML = `
+    <div class="p-chart-card p-health-card">
+      <div class="p-chart-title">Saúde Geral da Rede</div>
+      <div class="p-chart-note" style="margin-bottom:8px">Adoção e Consistência de Marca</div>
+      <div class="p-health-gauge-wrap">
+        <svg class="p-health-gauge-svg" viewBox="0 0 120 120">
+          <circle class="p-health-gauge-bg" cx="60" cy="60" r="54" stroke-width="10" />
+          <circle class="p-health-gauge-fill" cx="60" cy="60" r="54" stroke-width="10" stroke-dashoffset="${strokeOffset.toFixed(2)}" transform="rotate(-90 60 60)" />
+        </svg>
+        <div class="p-health-gauge-center">
+          <span class="p-health-val">${healthVal}%</span>
+          <span class="p-health-lbl">Saudável</span>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--p-text-mut);line-height:1.45;margin-top:6px;text-align:center;">
+        Tempo Médio de Criação: <b style="color:var(--p-text)">${pGetTempoMedioCriacao(periodo)}s</b><br>
+        Latência de Geração: <b style="color:var(--p-text)">${pGetLatenciaFila()}s</b>
+      </div>
+    </div>`;
+
+  const kpiGridHTML = pOverviewKPIs(artes, prev);
+  
+  const mainGridHTML = `
+    <div class="p-overview-main-grid">
+      ${healthHTML}
+      <div style="display:flex; flex-direction:column; gap:14px; justify-content:center;">
+        ${kpiGridHTML}
+      </div>
+    </div>`;
+
+  return head + insightsHTML + mainGridHTML + pOverviewCharts(artes);
 }
 
 /* ══ KPIs ══ */
@@ -55,7 +108,7 @@ function pOverviewKPIs(artes, prev){
   const d4 = { pct: Math.abs(diff4), dir: diff4 > 0.5 ? 'up' : diff4 < -0.5 ? 'down' : 'flat' };
   const spark4 = g7.map(g => g.artes.length ? g.artes.filter(a => a.status === 'baixada').length / g.artes.length * 100 : 0);
 
-  return `<div class="p-kpi-grid">
+  return `<div class="p-kpi-grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 0;">
     ${pKpiCard('Artes geradas', pFmtNum(cur1), d1, 'vs. período anterior', spark1, true, false, { raw: cur1, mode: 'num' })}
     ${pKpiCard('Franqueados ativos', pFmtNum(cur2), d2, cur2 + ' de ' + P_FRANQUEADOS.length + ' geraram artes', spark2, false, false, { raw: cur2, mode: 'num' })}
     ${pKpiCardText('Campanha top', topNome, d3, curTop + ' artes no período', spark3)}
@@ -188,23 +241,25 @@ function pLineSVG(serie){
 
 /* barras horizontais */
 function pBarsSVG(camps){
-  if(!camps.length) return pEmpty('📊', 'Sem dados', 'Nenhuma campanha no período.', null);
-  const rowH = 30, gap = 10, labelW = 132, trackX = labelW + 6, trackW = 300, valX = trackX + trackW + 8;
-  const W = valX + 36, H = camps.length * (rowH + gap);
+  if(!camps.length) return pEmpty('<svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>', 'Sem dados', 'Nenhuma campanha no período.', null);
   const max = Math.max(1, ...camps.map(c => c.count));
-  let rows = '';
-  camps.forEach((c, i) => {
-    const y = i * (rowH + gap);
-    const cy = y + rowH / 2;
-    const fillW = Math.max(2, (c.count / max) * trackW);
-    rows += `<g class="p-hbar-row" data-tip="${pEsc(c.nome)}<br><b>${c.count}</b> arte(s)" onmousemove="pChartTip(event)">
-      <text class="p-hbar-name" x="0" y="${(cy + 4).toFixed(1)}">${pEsc(c.nome.length > 20 ? c.nome.slice(0, 19) + '…' : c.nome)}</text>
-      <rect class="p-hbar-track" x="${trackX}" y="${y + 6}" width="${trackW}" height="${rowH - 12}" rx="4"/>
-      <rect class="p-hbar-fill" x="${trackX}" y="${y + 6}" width="0" data-grow="${fillW.toFixed(1)}px" height="${rowH - 12}" rx="4"/>
-      <text class="p-hbar-val" x="${W}" y="${(cy + 4).toFixed(1)}" text-anchor="end">${c.count}</text>
-    </g>`;
+  let html = `<div class="p-hbar-list">`;
+  camps.forEach(c => {
+    const pct = (c.count / max) * 100;
+    const color = P_CAMP_COLOR[c.id] || 'var(--p-accent)';
+    html += `
+    <div class="p-hbar-row-html" data-tip="${pEsc(c.nome)}<br><b>${c.count}</b> arte(s)" onmousemove="pChartTip(event)">
+      <div class="p-hbar-info">
+        <span class="p-hbar-name-html">${pEsc(c.nome)}</span>
+        <span class="p-hbar-val-html">${c.count}</span>
+      </div>
+      <div class="p-hbar-track-html">
+        <div class="p-hbar-fill-html" style="width:0; background:${color}" data-grow="${pct.toFixed(1)}%"></div>
+      </div>
+    </div>`;
   });
-  return `<svg class="p-chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMinYMin meet" role="img" aria-label="Artes por campanha">${rows}</svg>`;
+  html += `</div>`;
+  return html;
 }
 
 /* donut de formatos */
@@ -212,9 +267,9 @@ function pDonutSVG(fmts){
   const order = ['story','feed','wide'];
   const data = order.map(k => ({ k, label: P_FMT_LABEL[k], color: P_FMT_COLOR[k], count: fmts[k] || 0 }));
   const total = data.reduce((s, d) => s + d.count, 0);
-  if(!total) return pEmpty('🍩', 'Sem dados', 'Nenhuma arte no período.', null);
+  if(!total) return pEmpty('<svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>', 'Sem dados', 'Nenhuma arte no período.', null);
 
-  const cx = 60, cy = 60, rMid = 42, sw = 20;
+  const cx = 75, cy = 75, rMid = 52, sw = 14;
   const C = 2 * Math.PI * rMid;
   let acc = 0, segs = '';
   data.forEach(d => {
@@ -232,22 +287,34 @@ function pDonutSVG(fmts){
     acc += frac;
   });
 
+  const track = `<circle cx="${cx}" cy="${cy}" r="${rMid}" fill="none" stroke="var(--p-track)" stroke-width="${sw}"></circle>`;
+
   const legend = data.map(d => {
     const pct = total ? Math.round(d.count / total * 1000) / 10 : 0;
-    return `<div class="p-legend-item">
-      <span class="p-legend-dot" style="background:${d.color}"></span>
-      <span class="p-legend-name">${d.label}</span>
-      <span class="p-legend-val">${d.count}<span class="p-legend-pct">${pct.toString().replace('.', ',')}%</span></span>
+    return `<div class="p-legend-card ${d.k}">
+      <div class="p-legend-card-header">
+        <span class="p-legend-dot" style="background:${d.color}"></span>
+        <span class="p-legend-name">${d.label}</span>
+      </div>
+      <div class="p-legend-card-body">
+        <span class="p-legend-val">${d.count}</span>
+        <span class="p-legend-pct">${pct.toString().replace('.', ',')}%</span>
+      </div>
     </div>`;
   }).join('');
 
   return `<div class="p-donut-wrap" onmouseleave="pHideTip()">
-    <svg width="120" height="120" viewBox="0 0 120 120" role="img" aria-label="Distribuição por formato" style="flex-shrink:0">
-      <g transform="rotate(-90 ${cx} ${cy})">${segs}</g>
-      <text class="p-donut-center-num" x="${cx}" y="${cy - 1}" text-anchor="middle" dominant-baseline="middle">${total}</text>
-      <text class="p-donut-center-lbl" x="${cx}" y="${cy + 13}" text-anchor="middle">ARTES</text>
-    </svg>
-    <div class="p-legend">${legend}</div>
+    <div class="p-donut-chart-container">
+      <svg width="150" height="150" viewBox="0 0 150 150" role="img" aria-label="Distribuição por formato" style="flex-shrink:0">
+        <g transform="rotate(-90 ${cx} ${cy})">
+          ${track}
+          ${segs}
+        </g>
+        <text class="p-donut-center-num" x="${cx}" y="${cy - 2}" text-anchor="middle" dominant-baseline="middle">${total}</text>
+        <text class="p-donut-center-lbl" x="${cx}" y="${cy + 15}" text-anchor="middle">ARTES</text>
+      </svg>
+    </div>
+    <div class="p-legend-grid">${legend}</div>
   </div>`;
 }
 
@@ -333,4 +400,20 @@ function pLineHover(ev, x, y){
   if(ch){ ch.setAttribute('x1', x); ch.setAttribute('x2', x); ch.classList.add('visible'); }
   const dot = document.getElementById('p-hover-dot');
   if(dot){ dot.setAttribute('cx', x); dot.setAttribute('cy', y); dot.classList.add('visible'); }
+}
+
+function pAnimateHealth(){
+  const circle = document.querySelector('#p-main .p-health-gauge-fill');
+  if(!circle) return;
+  const targetOffset = parseFloat(circle.getAttribute('stroke-dashoffset'));
+  const fullLength = 339.292; // 2 * PI * 54
+  if(typeof pReduceMotion === 'function' && pReduceMotion()){
+    circle.style.strokeDashoffset = targetOffset;
+    return;
+  }
+  circle.style.transition = 'none';
+  circle.style.strokeDashoffset = fullLength; // start empty
+  void circle.getBoundingClientRect(); // reflow
+  circle.style.transition = 'stroke-dashoffset 1.1s cubic-bezier(0.16, 1, 0.3, 1) 0.1s';
+  circle.style.strokeDashoffset = targetOffset; // animate to target
 }

@@ -702,7 +702,11 @@ function dRenderCanvas(){
       // sim: valor do usuário vai como texto puro (sem HTML → sem XSS); edição: escapa o
       // conteúdo do designer e só os tokens {{var}} viram badge.
       if(dSimActive){ textNode.textContent=dInterpolate(l.content||''); }
-      else { textNode.innerHTML=gEsc(l.content||'').replace(gVarRegex(),'<span class="var-badge">{{$1}}</span>'); }
+      else { textNode.innerHTML=gEsc(l.content||'').replace(gVarRegex(),(m,n)=>{
+        const v=(typeof dVars!=='undefined')&&dVars.find(x=>x.name===n);
+        const lab=v?(v.label||n):n;
+        return '<span class="field-chip" data-var="'+n+'">'+gEsc(lab)+'</span>';
+      }); }
       if(l.strikethrough)textNode.style.textDecoration='line-through';
       // Efeitos de legibilidade (espelham o png-generator)
       const _fs=l.fontSize||24;

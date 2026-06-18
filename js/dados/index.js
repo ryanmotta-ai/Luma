@@ -43,7 +43,7 @@ function pSyncThemeBtn(){
   const light = !!(v && v.classList.contains('p-light'));
   const ico = document.getElementById('p-theme-ico');
   const lbl = document.getElementById('p-theme-lbl');
-  if(ico) ico.textContent = light ? '☀️' : '🌙';
+  if(ico) ico.innerHTML = light ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>` : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
   if(lbl) lbl.textContent = light ? 'Tema claro' : 'Tema escuro';
 }
 
@@ -72,14 +72,13 @@ function pSetPeriodo(periodo){
 
 /* ── registry de seções (sub-nav data-driven; escala p/ as 8 seções) ── */
 const P_SECOES = [
-  { id:'overview',    label:'Visão Geral', ico:'📊', fn:'pRenderOverview' },
-  { id:'templates',   label:'Templates',   ico:'🏆', fn:'pRenderTemplates' },
-  { id:'heatmap',     label:'Horários',    ico:'🕒', fn:'pRenderHeatmap',    grupo:'Análises' },
-  { id:'franqueados', label:'Franqueados', ico:'👥', fn:'pRenderFranqueados' },
-  { id:'timeline',    label:'Publicações', ico:'📰', fn:'pRenderTimeline' },
-  { id:'comparador',  label:'Comparar',    ico:'📈', fn:'pRenderComparador' },
-  { id:'funil',       label:'Funil',       ico:'🔻', fn:'pRenderFunil' },
-  { id:'geo',         label:'Regiões',     ico:'📍', fn:'pRenderGeo' },
+  { id:'overview',    label:'Visão Geral', ico:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>', fn:'pRenderOverview' },
+  { id:'templates',   label:'Templates',   ico:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.45 1-1 1H4v2h16v-2h-5c-.55 0-1-.45-1-1v-2.34"></path><path d="M12 2a6 6 0 0 1 6 6c0 3.27-2 6-6 6S6 11.27 6 8a6 6 0 0 1 6-6z"></path></svg>', fn:'pRenderTemplates' },
+  { id:'franqueados', label:'Franqueados', ico:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>', fn:'pRenderFranqueados', grupo:'Análises' },
+  { id:'timeline',    label:'Publicações', ico:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"></path><path d="M18 14h-8M15 18h-5M10 6h8v4h-8V6Z"></path></svg>', fn:'pRenderTimeline' },
+  { id:'comparador',  label:'Comparar',    ico:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>', fn:'pRenderComparador' },
+  { id:'funil',       label:'Funil',       ico:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>', fn:'pRenderFunil' },
+  { id:'geo',         label:'Regiões',     ico:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>', fn:'pRenderGeo' },
 ];
 // gera os botões do rail uma única vez (separador "Análises" antes das seções novas)
 function pBuildNav(){
@@ -120,6 +119,7 @@ function pRender(){
       if(typeof pAnimateCounters === 'function') pAnimateCounters();
       if(typeof pAnimateLineChart === 'function') pAnimateLineChart();
       if(typeof pAnimateDonut === 'function') pAnimateDonut();
+      if(typeof pAnimateHealth === 'function') pAnimateHealth();
     }
     // hook pós-render opcional por seção (ex.: desenho de linha do comparador)
     if(sec && sec.after && typeof window[sec.after] === 'function') window[sec.after]();

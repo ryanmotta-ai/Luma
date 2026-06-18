@@ -300,9 +300,12 @@ function dEndInlineEdit(e,cancel){
     dHistoryPush();
     dInlineLayer.content=dInlineEl.value;
     if(typeof dSyncVarsFromContent==='function')dSyncVarsFromContent(dInlineLayer.content); // auto-cria vars (3.1)
-    // atualizar painel de props se visível
+    // atualizar painel de props se visível (Fase 3: renderiza chips, não a sintaxe crua)
     const inp=document.getElementById('dp-content');
-    if(inp&&document.getElementById('d-props-form').style.display!=='none')inp.value=dInlineLayer.content;
+    if(inp&&document.getElementById('d-props-form').style.display!=='none'){
+      if(typeof dFieldTokensToChips==='function') inp.innerHTML=dFieldTokensToChips(dInlineLayer.content);
+      else inp.textContent=dInlineLayer.content;
+    }
     dMarkUnsaved();
   }
   if(dInlineEl.isConnected)dInlineEl.remove();

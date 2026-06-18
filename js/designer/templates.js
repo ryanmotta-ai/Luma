@@ -96,6 +96,7 @@ function dPreloadFolders(){
       ];
     }
   }
+  if(typeof dFieldsEnsureMeta==='function') dFieldsEnsureMeta();
   // Restaura/registra fontes enviadas (também no boot, pra o PNG do franqueado usá-las)
   if(typeof dFontsRestore==='function') dFontsRestore();
   if(dFolders && dFolders.length) return; // já carregado
@@ -365,6 +366,7 @@ function dInit(){
       ];
     }
   }
+  if(typeof dFieldsEnsureMeta==='function') dFieldsEnsureMeta();
   if(!dAssets || !dAssets.length){
     dAssets=[{name:'logo-dm.png',url:'',emoji:'◆'},{name:'bg-laranja.jpg',url:'',emoji:'◇'}];
   }

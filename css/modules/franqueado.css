@@ -116,3 +116,168 @@
 /* Capa de pasta (definida pelo designer) como fundo do card de campanha */
 .camp-thumb.has-cover{background-size:cover;background-position:center}
 .camp-thumb.has-cover .camp-badge,.camp-thumb.has-cover .camp-popular,.camp-thumb.has-cover .camp-urgency{z-index:2}
+
+/* ══ TEMA ESCURO DO FRANQUEADO ══ */
+body:not(.theme-light) #view-franqueado {
+  background-color: #121212 !important;
+}
+body:not(.theme-light) #fran-left {
+  background: #1c1c1e !important;
+  border-right-color: #2c2c2e !important;
+}
+body:not(.theme-light) #fran-left-head {
+  border-bottom-color: #2c2c2e !important;
+}
+body:not(.theme-light) #fran-left-head h2 {
+  color: var(--dm-orange) !important;
+}
+body:not(.theme-light) .f-tab {
+  background: #252529 !important;
+  border-color: #38383a !important;
+  color: #8e8e93 !important;
+}
+body:not(.theme-light) .f-tab.active {
+  background: rgba(255, 144, 0, 0.12) !important;
+  color: var(--dm-orange) !important;
+  border-color: var(--dm-orange) !important;
+}
+body:not(.theme-light) #f-search-row svg {
+  color: #8e8e93 !important;
+}
+body:not(.theme-light) #f-search {
+  background: #2c2c2e !important;
+  border-color: #38383a !important;
+  color: #ffffff !important;
+}
+body:not(.theme-light) #f-search:focus {
+  border-color: var(--dm-orange) !important;
+}
+body:not(.theme-light) .camp-card {
+  background: #2c2c2e !important;
+  border-color: #38383a !important;
+}
+body:not(.theme-light) .camp-name {
+  color: #ffffff !important;
+}
+body:not(.theme-light) .camp-sub {
+  color: #8e8e93 !important;
+}
+body:not(.theme-light) .camp-card.recommended {
+  border-color: var(--dm-orange) !important;
+  background: rgba(255, 144, 0, 0.08) !important;
+}
+body:not(.theme-light) .camp-card.recommended .camp-name {
+  color: var(--dm-orange) !important;
+}
+body:not(.theme-light) #f-fmt-wrap {
+  border-top-color: #2c2c2e !important;
+}
+body:not(.theme-light) .fmt-btn {
+  background: #2c2c2e !important;
+  border-color: #38383a !important;
+}
+body:not(.theme-light) .fmt-btn-name {
+  color: #ffffff !important;
+}
+body:not(.theme-light) .fmt-btn:hover {
+  border-color: var(--dm-orange) !important;
+}
+body:not(.theme-light) .fmt-btn.selected {
+  border-color: var(--dm-orange) !important;
+  background: rgba(255, 144, 0, 0.12) !important;
+}
+body:not(.theme-light) .fmt-btn.selected .fmt-btn-name {
+  color: var(--dm-orange) !important;
+}
+body:not(.theme-light) .fmt-btn-dim {
+  color: #8e8e93 !important;
+}
+body:not(.theme-light) #f-chat-head {
+  background: #1c1c1e !important;
+  border-bottom: 1px solid #2c2c2e !important;
+}
+body:not(.theme-light) .bot-info-name {
+  color: #ffffff !important;
+}
+body:not(.theme-light) #f-right-body {
+  background: #121212 !important;
+}
+body:not(.theme-light) #f-messages {
+  background: #121212 !important;
+}
+body:not(.theme-light) .chat-bubble.bot {
+  background: #1c1c1e !important;
+  color: #f2f2f7 !important;
+  border-color: #2c2c2e !important;
+}
+body:not(.theme-light) #f-input-row {
+  background: #1c1c1e !important;
+  border-top: 1px solid #2c2c2e !important;
+}
+body:not(.theme-light) #f-input-wrap {
+  background: #2c2c2e !important;
+  border-color: #38383a !important;
+}
+body:not(.theme-light) #f-msg-box {
+  color: #ffffff !important;
+}
+body:not(.theme-light) #f-live-preview {
+  background: #1c1c1e !important;
+  border-left: 1px solid #2c2c2e !important;
+}
+body:not(.theme-light) .lp-head {
+  border-bottom-color: #2c2c2e !important;
+}
+body:not(.theme-light) .lp-title {
+  color: #ffffff !important;
+}
+body:not(.theme-light) .lp-stage {
+  background: #121212 !important;
+}
+body:not(.theme-light) .f-field-card {
+  background: #2c2c2e !important;
+  border-color: #38383a !important;
+  color: #f2f2f7 !important;
+}
+body:not(.theme-light) .f-field-label {
+  color: #8e8e93 !important;
+}
+body:not(.theme-light) .f-field-input {
+  background: #1c1c1e !important;
+  color: #ffffff !important;
+  border-color: #38383a !important;
+}
+body:not(.theme-light) #f-preview-modal .preview-box {
+  background: #1c1c1e !important;
+  color: #ffffff !important;
+}
+body:not(.theme-light) .preview-box-head {
+  border-bottom-color: #2c2c2e !important;
+  color: #ffffff !important;
+}
+body:not(.theme-light) .hist-card {
+  background: #2c2c2e !important;
+  border-color: #38383a !important;
+}
+body:not(.theme-light) .hist-name {
+  color: #ffffff !important;
+}
+body:not(.theme-light) .hist-act-btn {
+  background: #2c2c2e !important;
+  border-color: #38383a !important;
+  color: #8e8e93 !important;
+}
+body:not(.theme-light) .hist-act-btn:hover {
+  background: rgba(255, 144, 0, 0.1) !important;
+  border-color: var(--dm-orange) !important;
+  color: var(--dm-orange) !important;
+}
+body:not(.theme-light) .hist-act-btn.pri {
+  background: var(--dm-orange) !important;
+  border-color: var(--dm-orange) !important;
+  color: #fff !important;
+}
+body:not(.theme-light) .empty-title {
+  color: #ffffff !important;
+}
+

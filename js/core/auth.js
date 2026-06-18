@@ -193,3 +193,51 @@ function gTogglePass() {
   const inp = document.getElementById('gl-pass');
   inp.type = inp.type === 'password' ? 'text' : 'password';
 }
+
+function gUpdateUserTopbar() {
+  const user = gCurrentUser();
+  const roleEl = document.getElementById('topbar-user-role');
+  const avEl = document.getElementById('topbar-user-av');
+  const nameEl = document.getElementById('topbar-user-name');
+  
+  const displayName = user ? user.displayName : 'Ryan';
+  const role = user ? user.role : 'admin';
+  const email = user ? user.email : 'ryan@deliverymuch.com.br';
+  
+  if (nameEl) nameEl.textContent = displayName;
+  
+  if (roleEl) {
+    roleEl.textContent = role.toUpperCase();
+    if (role === 'admin') {
+      roleEl.style.background = 'var(--dm-yellow)';
+      roleEl.style.color = 'var(--dm-red)';
+    } else {
+      roleEl.style.background = 'rgba(255,255,255,0.2)';
+      roleEl.style.color = 'var(--white)';
+    }
+  }
+  
+  if (avEl) {
+    const savedPhoto = localStorage.getItem('__luma_user_photo_' + email);
+    if (savedPhoto) {
+      avEl.innerHTML = `<img src="${savedPhoto}" alt="${displayName}">`;
+      avEl.style.background = 'transparent';
+    } else {
+      const names = displayName.trim().split(/\s+/);
+      const initials = names.length > 1 
+        ? (names[0][0] + names[names.length - 1][0]).toUpperCase()
+        : names[0].substring(0, 2).toUpperCase();
+      avEl.innerHTML = initials;
+      
+      const hash = Array.from(displayName).reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      const colors = ['#e11d48', '#2563eb', '#16a34a', '#d97706', '#7c3aed', '#db2777', '#0284c7'];
+      avEl.style.background = colors[hash % colors.length];
+      avEl.style.color = '#fff';
+    }
+  }
+  
+  if (typeof fSyncThemeIcon === 'function') {
+    fSyncThemeIcon(document.body.classList.contains('theme-light') ? 'light' : 'dark');
+  }
+}
+

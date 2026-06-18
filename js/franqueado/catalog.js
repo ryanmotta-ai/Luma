@@ -248,9 +248,9 @@ async function fConfirmDuplicate(id, fmtId){
       if(t){ fState.material = t; break; }
     }
   }
-  fAddHist(h.dados, c, f, 'baixada');
   try {
     await fGenPNG(h.dados, c, f);
+    fAddHist(h.dados, c, f, 'baixada'); // só registra se o PNG saiu (material ainda carregado aqui)
   } finally {
     fState.material = prevMaterial; // restaura sempre, mesmo se fGenPNG lançar
   }
@@ -302,11 +302,25 @@ function fGetCampaigns(){
   const outras=dFolders.filter(f=>!f.popular);
   return {ativas:ativas.length?ativas:dFolders,outras:outras};
 }
+// Fonte ÚNICA de resolução de campanha por id. Os cards podem carregar id de pasta
+// ('f0') OU id de campanha ('hf'), e o catálogo pode estar vindo de dFolders ou das
+// constantes CAMPS_*. Casa por id direto, por campId da pasta, e cai nas constantes.
+// Usado por fSelectCamp / fApplyCampSwitch / fOpenPreview pra não dar no-op silencioso.
+function fResolveCamp(id){
+  const {ativas,outras}=fGetCampaigns();
+  const pool=[...ativas,...outras];
+  return pool.find(x=>x.id===id)
+      || pool.find(x=>x.campId===id)
+      || [...CAMPS_ATIVAS,...CAMPS_OUTRAS].find(x=>x.id===id)
+      || null;
+}
 function fRenderCatalogs(a,o){
   a=a||[];o=o||[];
   const rec=a.find(c=>c.popular)||a[0];
-  if(rec) document.getElementById('camp-rec').innerHTML=fCampEl(rec,true);
-  document.getElementById('camp-main').innerHTML=a.filter(c=>c.id!==rec.id).map(c=>fCampEl(c,false)).join('');
+  const recEl=document.getElementById('camp-rec');
+  if(recEl) recEl.innerHTML = rec ? fCampEl(rec,true) : '';
+  // !rec → lista vazia; evita TypeError em rec.id quando não há nenhuma campanha
+  document.getElementById('camp-main').innerHTML=a.filter(c=>!rec||c.id!==rec.id).map(c=>fCampEl(c,false)).join('');
   if(document.getElementById('camp-other')) document.getElementById('camp-other').innerHTML=o.map(c=>fCampEl(c,false)).join('');
 }
 function fFilterCamps(q){
@@ -317,9 +331,7 @@ function fFilterCamps(q){
   fRenderCatalogs(f1.length?f1:ativas,f2);
 }
 function fSelectCamp(id){
-  const {ativas,outras}=fGetCampaigns();
-  const all=[...ativas,...outras];
-  const c=all.find(x=>x.id===id);if(!c)return;
+  const c=fResolveCamp(id);if(!c)return;
   // Se mesma campanha já selecionada, ignora (mas reabre o catálogo se ainda estiver lá)
   if(fState.camp && fState.camp.id===c.id) {
     if(fState.materialView) return;
@@ -336,4 +348,3 @@ function fSelectCamp(id){
   fUpdateCtx();
   fOpenMaterialCatalog(c);
 }
-// Encontra todos os materiais publicados de uma campanha

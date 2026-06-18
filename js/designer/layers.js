@@ -561,9 +561,16 @@ function dRenderLayersList(){
     }
     if (isHiddenByParent) return;
 
-    const isChild = !!l.parentId;
-    const indentStyle = isChild ? 'style="padding-left: 28px;"' : 'style="padding-left: 18px;"';
-    const childClass = isChild ? 'child-row' : '';
+    let depth = 0;
+    let currP = l.parentId;
+    while(currP) {
+      depth++;
+      const p = dLayers.find(x => x.id === currP);
+      currP = p ? p.parentId : null;
+    }
+    const indent = 18 + (depth * 14);
+    const indentStyle = `style="padding-left: ${indent}px;"`;
+    const childClass = depth > 0 ? 'child-row' : '';
     const isSelected = (l.id === dSelId || dMultiSel.includes(l.id));
 
     const visIcon = l.visible
@@ -575,13 +582,13 @@ function dRenderLayersList(){
       : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>`;
 
     const hasVar = l.type === 'text' && /\{\{/.test(l.content || '');
-    const varBadge = hasVar ? `<span class="lyr-badge lyr-var">var</span>` : '';
+    const varBadge = hasVar ? `<span class="lyr-badge lyr-var" title="Dado Vinculado"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;color:var(--var-color, #a855f7)"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>` : '';
 
-    let typeIcon = '■';
-    if (l.type === 'text') typeIcon = 'T';
-    else if (l.type === 'image') typeIcon = '▣';
-    else if (l.type === 'frame') typeIcon = '⬜';
-    else if (l.type === 'group') typeIcon = '📁';
+    let typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="10" height="10" rx="1"/><circle cx="16" cy="16" r="5"/></svg>`; // shape default
+    if (l.type === 'text') typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>`;
+    else if (l.type === 'image') typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
+    else if (l.type === 'frame') typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>`;
+    else if (l.type === 'group') typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`;
 
     const dndAttrs = `draggable="true"
       ondragstart="dLyrDragStart(event,'${l.id}')"
@@ -599,7 +606,7 @@ function dRenderLayersList(){
     }
 
     html += `
-      <div class="layer-row ${childClass} ${isSelected ? 'active' : ''} ${l.type === 'group' ? 'group-row' : ''}"
+      <div class="layer-row ${childClass} ${isSelected ? 'active' : ''} ${l.type === 'group' ? 'group-row' : ''} ${!l.visible ? 'layer-hidden' : ''}"
            ${indentStyle}
            data-lid="${l.id}"
            ${dndAttrs}
@@ -609,12 +616,12 @@ function dRenderLayersList(){
         <span class="layer-drag-handle" title="Arrastar para reordenar">⠿</span>
         ${groupToggleHtml}
         <span class="layer-icon">${typeIcon}</span>
-        <span class="layer-label ${l.type === 'group' ? 'group-label' : ''}" style="opacity:${l.visible ? 1 : .4}" ondblclick="dRenameLayer('${l.id}',event)" title="Duplo clique para renomear">${gEsc(l.name)}</span>
+        <span class="layer-label ${l.type === 'group' ? 'group-label' : ''}" ondblclick="dRenameLayer('${l.id}',event)" title="Duplo clique para renomear">${gEsc(l.name)}</span>
         ${varBadge}
         ${(l.blendMode && l.blendMode !== 'normal' && typeof dBlendModeLabel === 'function') ? `<span class="lyr-badge lyr-blend" title="Mesclagem: ${dBlendModeLabel(l.blendMode)}">${dBlendModeLabel(l.blendMode)}</span>` : ''}
         ${l.mask ? `<span class="lyr-badge lyr-mask" title="Máscara aplicada — clique para remover" onclick="event.stopPropagation();dRemoveMask('${l.id}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:2px"><rect x="2" y="7" width="20" height="10" rx="5"/><circle cx="7" cy="12" r="1.5"/><circle cx="17" cy="12" r="1.5"/><path d="M12 10v4"/></svg></span>` : ''}
-        <button class="layer-lock ${l.locked ? 'locked' : ''}" onclick="dToggleLayerLock(event, 'ab-single', '${l.id}')" title="${l.locked ? 'Desbloquear' : 'Bloquear'}">${lockIcon}</button>
-        <button class="layer-vis" onclick="dToggleLayerVis(event, 'ab-single', '${l.id}')" title="Visibilidade">${visIcon}</button>
+        <button class="layer-vis ${l.locked ? 'layer-is-hidden' : ''}" onclick="dToggleLayerLock(event, 'ab-single', '${l.id}')" title="${l.locked ? 'Desbloquear' : 'Bloquear'}">${lockIcon}</button>
+        <button class="layer-vis ${!l.visible ? 'layer-is-hidden' : ''}" onclick="dToggleLayerVis(event, 'ab-single', '${l.id}')" title="Visibilidade">${visIcon}</button>
       </div>
     `;
   });
@@ -739,14 +746,48 @@ function dShowProps(l){
     }
     return;
   }
+  
+  // Atualizar breadcrumb
+  const bcEl=document.getElementById('dp-breadcrumb');
+  if(bcEl){
+    let path = [];
+    let curr = l;
+    while(curr){
+      path.unshift({id: curr.id, name: curr.name});
+      if(curr.parentId){
+        curr = dLayers.find(x => x.id === curr.parentId);
+      } else {
+        // Encontrar artboard se não for filho de ninguem
+        const ab = dArtboards.find(x => x.id === curr.abId);
+        if (ab && curr.type !== 'frame') {
+            path.unshift({id: null, name: ab.name || 'Artboard'});
+        }
+        break;
+      }
+    }
+    bcEl.innerHTML = path.map((p, i) => {
+      const isLast = i === path.length - 1;
+      return `<span class="dp-bc-item" ${!isLast && p.id ? `onclick="dSelLayer('${p.id}')"` : ''}>${gEsc(p.name)}</span>`;
+    }).join('<span class="dp-bc-sep">›</span>');
+  }
+
   // Atualizar header de contexto
   const ctx=document.getElementById('d-props-ctx');
   if(ctx){
     ctx.style.display='flex';
-    const icons={text:'T',shape:'■',frame:'⬜',image:'▣'};
+    const icons = {
+      text: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>`,
+      shape: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="10" height="10" rx="1"/><circle cx="16" cy="16" r="5"/></svg>`,
+      frame: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>`,
+      image: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`
+    };
     const typeLabels={text:'texto',shape:'shape',frame:'moldura',image:'imagem'};
     const iconEl=document.getElementById('d-props-ctx-icon');
-    if(iconEl){iconEl.textContent=icons[l.type]||'?';iconEl.style.background=l.type==='text'?'var(--var-color)':l.type==='frame'?'var(--dm-orange)':l.type==='shape'?'var(--dm-red)':'var(--green)';}
+    if(iconEl){
+      iconEl.innerHTML=icons[l.type]||'?';
+      iconEl.style.background='transparent';
+      iconEl.style.color='var(--d-text3)';
+    }
     const nameEl=document.getElementById('d-props-ctx-name');
     if(nameEl)nameEl.textContent=l.name;
     const typeEl=document.getElementById('d-props-ctx-type');
@@ -782,8 +823,8 @@ function dShowProps(l){
     };
   }
   if(isText){
-    document.getElementById('dp-content').value=l.content||'';
-    dAttachVarAutocomplete(document.getElementById('dp-content'), v=>dUpdateProp('content',v)); // V1/V2
+    const ce=document.getElementById('dp-content');
+    if(ce) ce.innerHTML=dFieldTokensToChips(l.content||''); // Fase 3: tokens → chips [Campo]
     if(typeof dPopFontSelects==='function')dPopFontSelects(); // inclui fontes enviadas (#dp-font)
     document.getElementById('dp-font').value=l.font||"'Roboto Black'";
     document.getElementById('dp-fsize').value=l.fontSize||24;
@@ -880,7 +921,8 @@ function dToggleQuickLock(lockType) {
 }
 function dPopVarSel(){
   const sel=document.getElementById('d-var-insert');
-  sel.innerHTML='<option value="">— inserir var —</option>'+dVars.map(v=>`<option value="${v.name}">${v.label} ({{${v.name}}})</option>`).join('');
+  if(!sel) return;
+  sel.innerHTML='<option value="">+ inserir campo…</option>'+dVars.map(v=>`<option value="${v.name}">${_dEsc(v.label||v.name)}</option>`).join('');
 }
 /* ── BINDINGS de propriedade (4.1) ── */
 function dBindOptions(filterFn, current){
@@ -961,6 +1003,112 @@ function dInsertVar(){
   const caret=pos+token.length; try{inp.setSelectionRange(caret,caret);}catch(e){}
   dUpdateProp('content',inp.value);sel.value='';
 }
+
+/* ══════════════════════════════════════════════════════════════
+   FASE 3 — Editor de conteúdo com chips [Campo]
+   O dado em l.content continua sendo a string "{{nome}}"; o usuário
+   nunca vê a sintaxe — só o chip com o rótulo amigável.
+══════════════════════════════════════════════════════════════ */
+// string "{{nome}}" → HTML do contentEditable (chips atômicos, contenteditable=false).
+function dFieldTokensToChips(str){
+  return _dEsc(String(str==null?'':str)).replace(gVarRegex(),(m,n)=>{
+    const v=(typeof dVars!=='undefined')&&dVars.find(x=>x.name===n);
+    const lab=v?(v.label||n):n;
+    return `<span class="field-chip" contenteditable="false" data-var="${n}">${_dEsc(lab)}</span>`;
+  });
+}
+// contentEditable → string com "{{nome}}" (chips viram tokens; <br>/<div> viram \n).
+function dFieldReadContent(el){
+  let out='';
+  el.childNodes.forEach(node=>{
+    if(node.nodeType===3){ out+=node.nodeValue; }
+    else if(node.nodeType===1){
+      if(node.classList && node.classList.contains('field-chip')){ out+='{{'+(node.dataset.var||'')+'}}'; }
+      else if(node.tagName==='BR'){ out+='\n'; }
+      else if(node.tagName==='DIV'||node.tagName==='P'){ if(out&&!out.endsWith('\n'))out+='\n'; out+=dFieldReadContent(node); }
+      else { out+=node.textContent||''; }
+    }
+  });
+  return out;
+}
+// oninput do editor: lê chips→tokens e aplica em l.content.
+function dFieldContentSync(el){
+  if(!el) return;
+  dUpdateProp('content', dFieldReadContent(el).replace(/ /g,' '));
+}
+// paste como texto puro (evita HTML colado quebrando o editor).
+function dFieldContentPaste(e){
+  e.preventDefault();
+  const text=((e.clipboardData||window.clipboardData)||{}).getData ? (e.clipboardData||window.clipboardData).getData('text/plain') : '';
+  try{ document.execCommand('insertText', false, text); }catch(_){ }
+}
+
+// Insere um chip do campo na posição do caret (ou no fim) do #dp-content.
+let _dFieldSavedRange=null;
+function dFieldInsertChipAtCaret(name){
+  const host=document.getElementById('dp-content'); if(!host) return;
+  const v=(typeof dVars!=='undefined')&&dVars.find(x=>x.name===name);
+  const lab=v?(v.label||name):name;
+  const chip=document.createElement('span');
+  chip.className='field-chip'; chip.setAttribute('contenteditable','false');
+  chip.dataset.var=name; chip.textContent=lab;
+  host.focus();
+  const sel=window.getSelection();
+  let range=null;
+  if(_dFieldSavedRange && host.contains(_dFieldSavedRange.startContainer)){ range=_dFieldSavedRange; }
+  else if(sel && sel.rangeCount && host.contains(sel.anchorNode)){ range=sel.getRangeAt(0); }
+  if(!range){ range=document.createRange(); range.selectNodeContents(host); range.collapse(false); }
+  range.deleteContents();
+  range.insertNode(chip);
+  const sp=document.createTextNode(' '); chip.after(sp);
+  const after=document.createRange(); after.setStartAfter(sp); after.collapse(true);
+  sel.removeAllRanges(); sel.addRange(after);
+  _dFieldSavedRange=null;
+  dFieldContentSync(host);
+}
+
+// Picker amigável de inserção (substitui o antigo <select>).
+function dFieldInsertPickerOpen(ev){
+  document.querySelectorAll('.field-pick-pop').forEach(p=>p.remove());
+  if(!dVars.length){ gToast('Crie um campo primeiro na aba Dados.'); return; }
+  // captura o caret atual do editor antes de abrir (o foco vai pro popover).
+  const host=document.getElementById('dp-content');
+  const s=window.getSelection();
+  _dFieldSavedRange=(s && s.rangeCount && host && host.contains(s.anchorNode)) ? s.getRangeAt(0).cloneRange() : null;
+
+  const pop=document.createElement('div'); pop.className='field-pick-pop';
+  pop.innerHTML=`<input class="field-pick-search" placeholder="Buscar campo...">
+    <div class="field-pick-list"></div>
+    <button class="field-pick-new" type="button">+ Criar um campo novo</button>`;
+  document.body.appendChild(pop);
+  const listEl=pop.querySelector('.field-pick-list');
+  const searchEl=pop.querySelector('.field-pick-search');
+  function renderList(q){
+    q=(q||'').trim().toLowerCase();
+    let html='';
+    DFIELD_CATS.forEach(cat=>{
+      const group=dVars.filter(v=>(v.category||'outros')===cat.id && (!q||(v.label||'').toLowerCase().includes(q)||(v.name||'').toLowerCase().includes(q)));
+      if(!group.length) return;
+      html+=`<div class="field-pick-cat">${cat.icon} ${cat.label}</div>`;
+      html+=group.map(v=>{
+        const tm=gFieldTypeMeta(v.type);
+        return `<button type="button" class="field-pick-item cat-${cat.id}" data-var="${v.name}"><span class="field-pick-ico">${tm.icon}</span><span class="field-pick-name">${_dEsc(v.label||v.name)}</span></button>`;
+      }).join('');
+    });
+    listEl.innerHTML=html||'<div class="field-pick-empty">Nenhum campo encontrado</div>';
+    listEl.querySelectorAll('.field-pick-item').forEach(b=>{
+      b.onmousedown=(e)=>{ e.preventDefault(); const n=b.dataset.var; pop.remove(); document.removeEventListener('mousedown',closeP); dFieldInsertChipAtCaret(n); };
+    });
+  }
+  renderList('');
+  searchEl.oninput=()=>renderList(searchEl.value);
+  pop.querySelector('.field-pick-new').onmousedown=(e)=>{ e.preventDefault(); pop.remove(); document.removeEventListener('mousedown',closeP); dOpenVarModal(); };
+  const r=ev.currentTarget.getBoundingClientRect();
+  pop.style.top=(r.bottom+4)+'px';
+  pop.style.left=Math.min(r.left, window.innerWidth-260)+'px';
+  function closeP(e){ if(!pop.contains(e.target)){ pop.remove(); document.removeEventListener('mousedown',closeP); } }
+  setTimeout(()=>{ document.addEventListener('mousedown',closeP); searchEl.focus(); },0);
+}
 /* ── Widget de radius (props de shape): slider + input + preview SVG + botão círculo ── */
 function dRadiusPreviewSVG(num){
   // mapeia 0..200 → rx 0..18 num quadrado 34×34 (o SVG já clampa rx a metade do lado)
@@ -1024,9 +1172,10 @@ function dActivatePanel(name){
   // Map old panel names to our simplified set
   if(name==='conteudo' || name==='campaigns') name='campaigns';
   if(name==='camada' || name==='propriedades') name='camadas';
-  
+  if(name==='vars' || name==='variaveis') name='dados';
+
   dActivePanel=name; dActiveTab=name; // dActiveTab mantido sincronizado p/ compat
-  
+
   document.querySelectorAll('.d-rp-tab').forEach(t=>{
     const p = t.dataset.panel;
     t.classList.toggle('active', p===name);
@@ -1037,6 +1186,7 @@ function dActivatePanel(name){
   const blendSection=document.getElementById('d-blend-section');
   const propsPanel=document.getElementById('d-panel-camada');
   const campaignsPanel=document.getElementById('d-panel-campaigns');
+  const dadosPanel=document.getElementById('d-panel-dados');
   const publicar=document.getElementById('d-panel-publicar');
 
   if(name==='camadas'){
@@ -1048,7 +1198,19 @@ function dActivatePanel(name){
     if(blendSection) blendSection.style.display='block';
     if(propsPanel) propsPanel.classList.remove('hidden');
     if(campaignsPanel) campaignsPanel.classList.add('hidden');
+    if(dadosPanel) dadosPanel.classList.add('hidden');
     if(publicar) publicar.classList.add('hidden');
+  } else if(name==='dados'){
+    if(rightEl){
+      rightEl.classList.remove('show-layers', 'show-campaigns');
+    }
+    if(layersSection) layersSection.style.display='none';
+    if(blendSection) blendSection.style.display='none';
+    if(propsPanel) propsPanel.classList.add('hidden');
+    if(campaignsPanel) campaignsPanel.classList.add('hidden');
+    if(dadosPanel) dadosPanel.classList.remove('hidden');
+    if(publicar) publicar.classList.add('hidden');
+    if(typeof dFieldsRender==='function') dFieldsRender();
   } else if(name==='campaigns'){
     if(rightEl){
       rightEl.classList.add('show-campaigns');
@@ -1058,8 +1220,9 @@ function dActivatePanel(name){
     if(blendSection) blendSection.style.display='none';
     if(propsPanel) propsPanel.classList.add('hidden');
     if(campaignsPanel) campaignsPanel.classList.remove('hidden');
+    if(dadosPanel) dadosPanel.classList.add('hidden');
     if(publicar) publicar.classList.add('hidden');
-    
+
     if(typeof dRenderFolders==='function') dRenderFolders();
   } else if(name==='publicar'){
     if(rightEl){
@@ -1069,6 +1232,7 @@ function dActivatePanel(name){
     if(blendSection) blendSection.style.display='none';
     if(propsPanel) propsPanel.classList.add('hidden');
     if(campaignsPanel) campaignsPanel.classList.add('hidden');
+    if(dadosPanel) dadosPanel.classList.add('hidden');
     if(publicar) publicar.classList.remove('hidden');
   }
 
@@ -1116,6 +1280,16 @@ function dRestoreVars(){
   }catch(e){}
   return false;
 }
+// Redesign "Dados": garante que todo campo tenha `category` (inferida). Idempotente.
+// `example` fica opcional (ausente = "—"). Cobre seeds e catálogo restaurado.
+function dFieldsEnsureMeta(){
+  if(typeof dVars==='undefined'||!Array.isArray(dVars))return false;
+  let changed=false;
+  dVars.forEach(v=>{
+    if(!v.category){ v.category=gFieldGuessCategory(v.name,v.type); changed=true; }
+  });
+  return changed;
+}
 
 // Layers que usam a variável (token {{name}} no content OU imgVar). (V3)
 function dVarUsage(name){
@@ -1139,32 +1313,157 @@ function dHighlightVarLayers(name){
   gToast('Destacando '+ids.length+' layer(s) que usam {{'+name+'}}');
 }
 
-function dVarsRender(){
-  const el=document.getElementById('d-vars-list');
-  el.innerHTML=dVars.map((v,i)=>{
-    const usage=dVarUsage(v.name).length;
-    const usageBadge=usage>0
-      ? `<span class="var-usage" onclick="event.stopPropagation();dHighlightVarLayers('${v.name}')" title="Usada em ${usage} layer(s) — clique para destacar">${usage}×</span>`
-      : `<span class="var-usage var-unused" title="Não usada em nenhum layer">0×</span>`;
-    const hasDefault=(v.defaultValue!=null&&v.defaultValue!=='');
-    const defBadge=hasDefault?`<span class="var-default" title="Valor padrão: ${_dEsc(v.defaultValue)}">padrão</span>`:'';
-    return `<div class="var-item" title="{{${v.name}}}">
-      <span class="var-name">{{${v.name}}}</span>
-      <span class="var-type">${v.type}</span>
-      <span class="${v.required?'tag-required':'tag-optional'} tag-pill">${v.required?'obrig.':'opt.'}</span>
-      ${defBadge}
-      ${usageBadge}
-      <span class="var-actions">
-        <button onclick="dMoveVar(${i},-1)" title="Mover pra cima" ${i===0?'disabled':''}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:block"><polyline points="18 15 12 9 6 15"/></svg></button>
-        <button onclick="dMoveVar(${i},1)" title="Mover pra baixo" ${i===dVars.length-1?'disabled':''}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:block"><polyline points="6 9 12 15 18 9"/></svg></button>
-        <button onclick="dEditVar(${i})" title="Editar variável"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button>
-        <button onclick="dRenameVar(${i})" title="Renomear (atualiza os layers)"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
-        <button onclick="dRemoveVar(${i})" title="Remover variável"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:block"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-      </span>
-    </div>`;
-  }).join('')||'<div style="font-size:12px;color:var(--d-text3);text-align:center;padding:10px">Nenhuma variável</div>';
+/* ══════════════════════════════════════════════════════════════
+   DADOS · Centro de Campos (redesign de variáveis — Fase 1)
+   Lê dVars e renderiza cartões agrupados por categoria em #d-fields-list.
+   Nada de {{name}} cru na tela: só rótulo, ícone e tipo amigável.
+══════════════════════════════════════════════════════════════ */
+let _dFieldsQuery='';
+let _dFieldsCatCollapsed={}; // {catId:true} = categoria recolhida
 
+function dFieldsFilter(q){ _dFieldsQuery=(q||'').trim().toLowerCase(); dFieldsRender(); }
+function dFieldToggleCat(catId){ _dFieldsCatCollapsed[catId]=!_dFieldsCatCollapsed[catId]; dFieldsRender(); }
+
+// Nomes amigáveis dos layers que usam o campo (regra 4: "onde é usada").
+function dFieldUsageNames(name){
+  return dVarUsage(name).map(id=>{const l=dLayers.find(x=>x.id===id);return l?(l.name||gFieldTypeMeta(l.type).label):null;}).filter(Boolean);
+}
+
+function dFieldCardHTML(v,i){
+  const tm=gFieldTypeMeta(v.type);
+  const cat=gFieldCatMeta(v.category);
+  const names=dFieldUsageNames(v.name);
+  const req=v.required?'Obrigatório':'Opcional';
+  const exVal=(v.example!=null&&v.example!=='')?v.example:((v.defaultValue!=null&&v.defaultValue!=='')?v.defaultValue:'');
+  const exLine=exVal
+    ? `<div class="field-card-ex">Ex.: ${_dEsc(exVal)}</div>`
+    : `<div class="field-card-ex field-card-ex-empty">Sem exemplo</div>`;
+  let usageLine;
+  if(names.length){
+    const shown=names.slice(0,3).map(_dEsc).join(', ');
+    const extra=names.length>3?` +${names.length-3}`:'';
+    usageLine=`<div class="field-card-usage" onclick="event.stopPropagation();dHighlightVarLayers('${v.name}')" title="Clique para destacar no canvas"><span class="field-dot field-dot-on"></span>Usada em: ${shown}${extra}</div>`;
+  } else {
+    usageLine=`<div class="field-card-usage field-card-unused"><span class="field-dot"></span>Ainda não usada<button class="field-use-btn" onclick="event.stopPropagation();dFieldUse(${i})">usar</button></div>`;
+  }
+  return `<div class="field-card cat-${cat.id}" data-field="${v.name}" onclick="dEditVar(${i})" title="Editar campo">
+    <div class="field-card-head">
+      <span class="field-card-icon">${tm.icon}</span>
+      <span class="field-card-name">${_dEsc(v.label||v.name)}</span>
+      <button class="field-card-menu" onclick="event.stopPropagation();dFieldMenu(event,${i})" title="Mais ações">⋯</button>
+    </div>
+    <div class="field-card-meta">${_dEsc(tm.label)} · ${req}</div>
+    ${exLine}
+    ${usageLine}
+  </div>`;
+}
+
+function dFieldsEmptyHTML(){
+  return `<div class="field-empty">
+    <div class="field-empty-icon">🪄</div>
+    <div class="field-empty-title">Campos trocam a informação sem mexer no layout.</div>
+    <div class="field-empty-exs">
+      <div class="field-empty-ex"><span>Produto</span><span class="field-empty-arrow">→</span><b>Nike Air Max</b></div>
+      <div class="field-empty-ex"><span>Preço</span><span class="field-empty-arrow">→</span><b>R$ 399</b></div>
+    </div>
+    <button class="d-btn-pri" onclick="dOpenVarModal()" style="justify-content:center">+ Criar meu primeiro campo</button>
+  </div>`;
+}
+
+function dFieldsRender(){
+  const el=document.getElementById('d-fields-list');
+  if(!el){ dPopVarSel(); return; }
+  dFieldsEnsureMeta();
+  if(!dVars.length){ el.innerHTML=dFieldsEmptyHTML(); dPopVarSel(); return; }
+
+  const q=_dFieldsQuery;
+  const items=dVars.map((v,i)=>({v,i})).filter(({v})=>{
+    if(!q) return true;
+    return (v.label||'').toLowerCase().includes(q)
+      || (v.name||'').toLowerCase().includes(q)
+      || (gFieldCatMeta(v.category).label||'').toLowerCase().includes(q)
+      || (gFieldTypeMeta(v.type).label||'').toLowerCase().includes(q);
+  });
+  if(!items.length){
+    el.innerHTML=`<div class="field-noresult">Nenhum campo encontrado.<br><button class="field-create-q" onclick="dFieldCreateFromQuery()">Criar “${_dEsc(_dFieldsQuery)}”</button></div>`;
+    dPopVarSel(); return;
+  }
+  let html='';
+  DFIELD_CATS.forEach(cat=>{
+    const group=items.filter(({v})=>(v.category||'outros')===cat.id);
+    if(!group.length) return;
+    const collapsed=!!_dFieldsCatCollapsed[cat.id];
+    html+=`<div class="field-cat">
+      <div class="field-cat-head" onclick="dFieldToggleCat('${cat.id}')">
+        <span class="field-cat-icon">${cat.icon}</span>
+        <span class="field-cat-label">${cat.label.toUpperCase()}</span>
+        <span class="field-cat-count">${group.length}</span>
+        <svg class="field-cat-chev${collapsed?' collapsed':''}" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="field-cat-body"${collapsed?' style="display:none"':''}>
+        ${group.map(({v,i})=>dFieldCardHTML(v,i)).join('')}
+      </div>
+    </div>`;
+  });
+  el.innerHTML=html;
   dPopVarSel();
+}
+
+// Compat: vários fluxos chamam dVarsRender() ao criar/editar/remover campos.
+// Agora ela alimenta o centro de campos (cartões) + o select de inserção.
+function dVarsRender(){ dFieldsRender(); }
+
+// Insere o campo no texto selecionado (ação "usar" do cartão não-usado).
+function dFieldUse(i){
+  const v=dVars[i]; if(!v) return;
+  const l=dLayers.find(x=>x.id===dSelId);
+  if(l && l.type==='text'){
+    if(typeof dHistoryPush==='function') dHistoryPush();
+    l.content=((l.content||'')+' {{'+v.name+'}}').replace(/^\s+/,'');
+    dActivatePanel('camadas');
+    dSelLayer(l.id);
+    dRenderCanvas(); dMarkUnsaved();
+    gToast('✓ Campo “'+(v.label||v.name)+'” inserido no texto');
+  } else {
+    gToast('Selecione um texto na aba Camadas e clique em “usar”.');
+  }
+}
+
+// Abre o modal de novo campo já preenchido com o termo buscado.
+function dFieldCreateFromQuery(){
+  const q=_dFieldsQuery;
+  dOpenVarModal();
+  if(q){
+    const lab=document.getElementById('dv-label'); if(lab) lab.value=q.charAt(0).toUpperCase()+q.slice(1);
+    const nm=document.getElementById('dv-name'); if(nm) nm.value=gFieldSlugify(q, dVars.map(v=>v.name));
+  }
+}
+
+// Onboarding (regra 6): após criar o 1º campo, ensina a usá-lo (1×, persistido).
+function dFieldOnboardMaybe(){
+  try{
+    if(localStorage.getItem('yngs_fields_onboard_v1')) return;
+    localStorage.setItem('yngs_fields_onboard_v1','1');
+    setTimeout(()=>gToast('💡 Agora selecione um texto na aba Camadas e clique em “usar” para inserir o campo.'),900);
+  }catch(e){}
+}
+
+// Menu "⋯" do cartão: editar / renomear / onde é usada / remover.
+function dFieldMenu(ev,i){
+  const v=dVars[i]; if(!v) return;
+  document.querySelectorAll('.field-menu-pop').forEach(p=>p.remove());
+  const pop=document.createElement('div'); pop.className='field-menu-pop';
+  const mk=(label,fn,cls)=>{const b=document.createElement('button');b.textContent=label;if(cls)b.className=cls;b.onmousedown=(e)=>{e.preventDefault();e.stopPropagation();pop.remove();document.removeEventListener('mousedown',close);fn();};return b;};
+  pop.appendChild(mk('Editar',()=>dEditVar(i)));
+  pop.appendChild(mk('Renomear',()=>dRenameVar(i)));
+  pop.appendChild(mk('Onde é usada',()=>dHighlightVarLayers(v.name)));
+  pop.appendChild(mk('Remover',()=>dRemoveVar(i),'field-menu-del'));
+  document.body.appendChild(pop);
+  const r=ev.currentTarget.getBoundingClientRect();
+  pop.style.top=(r.bottom+4)+'px';
+  pop.style.left=Math.min(r.left, window.innerWidth-pop.offsetWidth-8)+'px';
+  function close(e){ if(!pop.contains(e.target)){ pop.remove(); document.removeEventListener('mousedown',close); } }
+  setTimeout(()=>document.addEventListener('mousedown',close),0);
 }
 // Mostra/oculta os campos de opções (select) e paleta (color) conforme o tipo escolhido (4.1)
 function dVarTypeFields(){
@@ -1174,10 +1473,50 @@ function dVarTypeFields(){
   if(of)of.style.display=(t==='select')?'':'none';
   if(pf)pf.style.display=(t==='color')?'':'none';
 }
+/* ── Wizard de campo (Fase 2): 2 passos conversacionais ── */
+// Grade de tipos com ícone + rótulo humano (data-driven de DFIELD_TYPES).
+function dFieldRenderTypeGrid(activeType){
+  const grid=document.getElementById('dv-type-grid'); if(!grid) return;
+  grid.innerHTML=Object.keys(DFIELD_TYPES).map(t=>{
+    const m=DFIELD_TYPES[t];
+    return `<button type="button" class="field-type-card${t===activeType?' active':''}" data-type="${t}" onclick="dFieldPickType('${t}',this)">
+      <span class="field-type-ico">${m.icon}</span>
+      <span class="field-type-lbl">${_dEsc(m.label)}</span>
+    </button>`;
+  }).join('');
+}
+function dFieldPickType(type, el){
+  const hid=document.getElementById('dv-type'); if(hid) hid.value=type;
+  document.querySelectorAll('#dv-type-grid .field-type-card').forEach(c=>c.classList.toggle('active', c===el));
+  dVarTypeFields(); // revela opções (lista) / paleta (cor)
+}
+function dFieldWizardGoStep(n){
+  const s1=document.getElementById('dv-step-1'), s2=document.getElementById('dv-step-2');
+  if(s1) s1.style.display=(n===1)?'':'none';
+  if(s2) s2.style.display=(n===2)?'':'none';
+}
+function dFieldWizardNext(){
+  const labEl=document.getElementById('dv-label');
+  const label=(labEl.value||'').trim();
+  if(!label){ gToast('⚠ Dê um nome ao campo'); labEl.focus(); return; }
+  const q2=document.getElementById('dv-q2'); if(q2) q2.textContent='Que tipo de informação é “'+label+'”?';
+  dFieldWizardGoStep(2);
+}
+function dFieldWizardBack(){
+  dFieldWizardGoStep(1);
+  setTimeout(()=>{const el=document.getElementById('dv-label'); if(el){el.focus();el.select();}},60);
+}
+function dFieldToggleDetails(){
+  const d=document.getElementById('dv-details'), t=document.getElementById('dv-details-toggle');
+  if(!d) return;
+  const open=(d.style.display==='none');
+  d.style.display=open?'':'none';
+  if(t) t.classList.toggle('open', open);
+}
 function dOpenVarModal(){
   dEditingVarName=null;
   const m=document.getElementById('d-var-modal');
-  m.querySelector('.modal-title').textContent='Nova Variável';
+  document.getElementById('dv-title').textContent='Novo campo';
   document.getElementById('dv-name').value='';
   document.getElementById('dv-name').disabled=false;
   document.getElementById('dv-type').value='text';
@@ -1186,16 +1525,22 @@ function dOpenVarModal(){
   document.getElementById('dv-req').checked=false;
   document.getElementById('dv-options').value='';
   document.getElementById('dv-palette').value='';
+  const catEl=document.getElementById('dv-cat'); if(catEl)catEl.value='';
+  const exEl=document.getElementById('dv-example'); if(exEl)exEl.value='';
+  dFieldRenderTypeGrid('text');
   dVarTypeFields();
-  m.querySelector('.d-btn-pri').textContent='Adicionar';
+  const det=document.getElementById('dv-details'); if(det) det.style.display='none';
+  const dt=document.getElementById('dv-details-toggle'); if(dt) dt.classList.remove('open');
+  document.getElementById('dv-confirm-btn').textContent='Criar campo';
+  dFieldWizardGoStep(1);
   m.classList.add('open');
-  setTimeout(()=>document.getElementById('dv-name').focus(),100);
+  setTimeout(()=>document.getElementById('dv-label').focus(),100);
 }
 function dEditVar(i){
   const v=dVars[i];if(!v)return;
   dEditingVarName=v.name;
   const m=document.getElementById('d-var-modal');
-  m.querySelector('.modal-title').textContent='Editar Variável';
+  document.getElementById('dv-title').textContent='Editar campo';
   const nameInp=document.getElementById('dv-name');
   nameInp.value=v.name;
   nameInp.disabled=true; // nome muda só via renomear (find/replace nos layers)
@@ -1205,10 +1550,19 @@ function dEditVar(i){
   document.getElementById('dv-req').checked=!!v.required;
   document.getElementById('dv-options').value=(v.options||[]).join('\n');
   document.getElementById('dv-palette').value=(v.palette||[]).join(', ');
+  const catEl=document.getElementById('dv-cat'); if(catEl)catEl.value=v.category||'';
+  const exEl=document.getElementById('dv-example'); if(exEl)exEl.value=v.example||'';
+  dFieldRenderTypeGrid(v.type||'text');
   dVarTypeFields();
-  m.querySelector('.d-btn-pri').textContent='Salvar';
+  // Abre os "Detalhes" só se já houver algo preenchido lá.
+  const hasDetails=(!!v.example&&v.example!=='')||(!!v.defaultValue&&v.defaultValue!=='')||!!v.required;
+  const det=document.getElementById('dv-details'); if(det) det.style.display=hasDetails?'':'none';
+  const dt=document.getElementById('dv-details-toggle'); if(dt) dt.classList.toggle('open', hasDetails);
+  const q2=document.getElementById('dv-q2'); if(q2) q2.textContent='Que tipo de informação é “'+(v.label||v.name)+'”?';
+  document.getElementById('dv-confirm-btn').textContent='Salvar';
+  dFieldWizardGoStep(2); // edição entra direto no tipo; "Voltar" permite ajustar o rótulo
   m.classList.add('open');
-  setTimeout(()=>document.getElementById('dv-label').focus(),100);
+  setTimeout(()=>{const el=document.getElementById('dv-example'); if(el) el.focus();},100);
 }
 function dCloseVarModal(){dEditingVarName=null;document.getElementById('dv-name').disabled=false;document.getElementById('d-var-modal').classList.remove('open');}
 // Lê opções (select) e paleta (color) dos campos do modal
@@ -1225,30 +1579,38 @@ function dConfirmVar(){
   const req=document.getElementById('dv-req').checked;
   const options=dReadVarOptions();
   const palette=dReadVarPalette();
+  const catSel=(document.getElementById('dv-cat')||{}).value||'';
+  const example=((document.getElementById('dv-example')||{}).value||'').trim();
   // Edição: nome travado, atualiza só os atributos
   if(dEditingVarName){
     const v=dVars.find(x=>x.name===dEditingVarName);
     if(v){
       v.type=type;v.label=label||v.name;v.required=req;
+      v.category=catSel||gFieldGuessCategory(v.name,type);
+      if(example!=='')v.example=example;else delete v.example;
       if(def!=='')v.defaultValue=def;else delete v.defaultValue;
       if(type==='select')v.options=options;else delete v.options;
       if(type==='color')v.palette=palette;else delete v.palette;
     }
     dCloseVarModal();dVarsRender();dPersistVars();dRenderCanvas();
-    gToast('✓ Variável {{'+(v?v.name:'')+'}} atualizada');
+    gToast('✓ Campo “'+(v?(v.label||v.name):'')+'” atualizado');
     return;
   }
-  // Criação
-  const name=document.getElementById('dv-name').value.trim();
-  if(!name){gToast('⚠ Digite um nome');return;}
+  // Criação — o nome técnico (slug) é derivado do rótulo se não for informado.
+  let name=document.getElementById('dv-name').value.trim();
+  if(!name && label) name=gFieldSlugify(label, dVars.map(v=>v.name));
+  if(!name){gToast('⚠ Dê um nome ao campo');return;}
   if(!gValidVarName(name)){gToast('⚠ Use só letras, números e _ (sem espaço/acento)');return;}
-  if(dVars.find(v=>v.name.toLowerCase()===name.toLowerCase())){gToast('⚠ Variável já existe');return;}
-  const nv={name,type,label:label||name,required:req};
+  if(dVars.find(v=>v.name.toLowerCase()===name.toLowerCase())){gToast('⚠ Já existe um campo com esse nome');return;}
+  const nv={name,type,label:label||name,required:req,category:catSel||gFieldGuessCategory(name,type)};
+  if(example!=='')nv.example=example;
   if(def!=='')nv.defaultValue=def;
   if(type==='select')nv.options=options;
   if(type==='color')nv.palette=palette;
   dVars.push(nv);
-  dCloseVarModal();dVarsRender();dPersistVars();gToast('✓ Variável {{'+name+'}} criada');
+  dCloseVarModal();dVarsRender();dPersistVars();
+  gToast('✓ Campo “'+(label||name)+'” criado');
+  dFieldOnboardMaybe();
 }
 function dRemoveVar(i){
   const v=dVars[i];if(!v)return;

@@ -81,6 +81,8 @@ const P_TEMPLATES = [
   { id:'tmpl-012', nome:'Combão Wide Promo',     campId:'combao',          campNome:'Combão com Desconto', fmt:'wide',  usos:23, downloads:16, usos7d:3,  downloads7d:2,  usos7d_anterior:8  },
   { id:'tmpl-013', nome:'Hamburguer Story Mega', campId:'hamburguer-fest', campNome:'Hamburguer Fest',     fmt:'story', usos:55, downloads:46, usos7d:16, downloads7d:14, usos7d_anterior:15 },
   { id:'tmpl-014', nome:'Cupom Wide Banner',     campId:'cupons',          campNome:'Aqui Tem Cupons',     fmt:'wide',  usos:16, downloads:9,  usos7d:4,  downloads7d:3,  usos7d_anterior:3  },
+  { id:'tmpl-015', nome:'Banner Desconto Inativo', campId:'combao',          campNome:'Combão com Desconto', fmt:'wide',  usos:0,  downloads:0,  usos7d:0,  downloads7d:0,  usos7d_anterior:0  },
+  { id:'tmpl-016', nome:'Black Friday Flyer',      campId:'promo-turbinada', campNome:'Promo Turbinada',     fmt:'feed',  usos:0,  downloads:0,  usos7d:0,  downloads7d:0,  usos7d_anterior:0  },
 ];
 
 /* ══ ARTES GERADAS (≈200) — geradas no boot ══ */
@@ -171,8 +173,13 @@ function pSerieDiaria(artes, days, endTs){
 }
 function pPorCampanha(artes){
   const m = {};
-  artes.forEach(a => { m[a.campNome] = (m[a.campNome] || 0) + 1; });
-  return Object.keys(m).map(nome => ({ nome, count: m[nome] })).sort((a, b) => b.count - a.count);
+  artes.forEach(a => {
+    if(!m[a.campNome]){
+      m[a.campNome] = { count: 0, id: a.campId };
+    }
+    m[a.campNome].count++;
+  });
+  return Object.keys(m).map(nome => ({ nome, id: m[nome].id, count: m[nome].count })).sort((a, b) => b.count - a.count);
 }
 function pPorFormato(artes){
   const m = { story:0, feed:0, wide:0 };
@@ -313,6 +320,33 @@ function pHeatDetalhe(d, h){
   return { total, camps, franqs };
 }
 
+// agrega estatísticas gerais dos últimos 30 dias para o estado inicial
+function pHeatOverallDetail(){
+  const artes = pArtesNoPeriodo('30d');
+  const total = artes.length;
+  
+  const campMap = {};
+  const franqMap = {};
+  
+  artes.forEach(a => {
+    campMap[a.campNome] = (campMap[a.campNome] || 0) + 1;
+    franqMap[a.franqueadoNome] = (franqMap[a.franqueadoNome] || 0) + 1;
+  });
+  
+  const camps = Object.keys(campMap).map(nome => ({
+    nome: nome,
+    n: campMap[nome]
+  })).sort((a, b) => b.n - a.n).slice(0, 5);
+  
+  const franqs = Object.keys(franqMap).map(nome => ({
+    nome: nome,
+    n: franqMap[nome]
+  })).sort((a, b) => b.n - a.n).slice(0, 5);
+  
+  return { total, camps, franqs };
+}
+
+
 /* ── SEÇÃO 4 · RANKING DE FRANQUEADOS (derivado do P_MOCK_ARTES) ── */
 function pFranqStats(periodo){
   const artes = pArtesNoPeriodo(periodo);
@@ -358,6 +392,24 @@ function pBuildPubs(){
     const usosDesde = Math.max(1, Math.round(t.usos * (0.3 + rnd() * 0.7) * (1 - diasAtras / 90)));
     const temVal = rnd() < 0.4;
     const expiraTs = temVal ? ts + Math.floor(3 + rnd() * 22) * P_DAY : null;
+
+    // Simula lote de tempos em tempos (ex: i = 5 vira um lote de 4 peças idênticas)
+    if(i === 5) {
+      const batchId = 'batch-101';
+      for(let k = 0; k < 4; k++) {
+        arr.push({
+          id: 'pub-' + i + '-' + k, ts, templateNome: t.nome, fmt: t.fmt,
+          campId: t.campId, campNome: t.campNome,
+          autor: P_DESIGNERS[Math.floor(rnd() * P_DESIGNERS.length)],
+          usosDesde: Math.round(usosDesde * (0.8 + rnd() * 0.4)), expiraTs,
+          batchId,
+          batchNum: k + 1,
+          batchTotal: 4
+        });
+      }
+      continue;
+    }
+
     arr.push({
       id: 'pub-' + i, ts, templateNome: t.nome, fmt: t.fmt,
       campId: t.campId, campNome: t.campNome,
@@ -384,13 +436,13 @@ function pSerieDownloads(artes, days){
 
 /* ── SEÇÃO 7 · FUNIL DE CONVERSÃO (mock fixo; insight calculado) ── */
 const P_MOCK_FUNIL = [
-  { etapa: 'Campanha selecionada', n: 847 },
-  { etapa: 'Material escolhido',   n: 791 },
-  { etapa: 'Respondeu pergunta 1', n: 756 },
-  { etapa: 'Respondeu tudo',       n: 634 },
-  { etapa: 'Confirmou os dados',   n: 601 },
-  { etapa: 'Arte gerada',          n: 589 },
-  { etapa: 'Arte baixada',         n: 498 },
+  { etapa: 'Campanha selecionada', n: 847, tempo: 12 },
+  { etapa: 'Material escolhido',   n: 791, tempo: 18 },
+  { etapa: 'Respondeu pergunta 1', n: 756, tempo: 29 },
+  { etapa: 'Respondeu tudo',       n: 634, tempo: 41 },
+  { etapa: 'Confirmou os dados',   n: 601, tempo: 15 },
+  { etapa: 'Arte gerada',          n: 589, tempo: 204 }, // Alto tempo gasto na edição do canvas (Fricção)
+  { etapa: 'Arte baixada',         n: 498, tempo: 8 },
 ];
 // maior queda relativa entre etapas consecutivas (insight automático)
 function pFunilInsight(){
@@ -422,6 +474,12 @@ const P_MOCK_GEO = {
   SC:142, RS:96, PR:88, SP:81, MG:54, RJ:37, GO:29, BA:24, ES:21, PE:18,
   CE:15, MS:13, DF:12, MT:10, RN:8, MA:7, AM:6, PA:5, TO:4,
 };
+// Metas/Adoção Esperada por Região (Exemplo: Festival de Inverno alta no Sul, Verão no Nordeste)
+const P_GEO_METAS = {
+  SC: 0.95, RS: 0.90, PR: 0.88, SP: 0.82, MG: 0.78, RJ: 0.75, GO: 0.70, ES: 0.68, MS: 0.65, DF: 0.62, MT: 0.60, PR_n: 0.80,
+  BA: 0.40, PE: 0.38, CE: 0.35, RN: 0.30, MA: 0.28, AM: 0.20, PA: 0.18, TO: 0.15
+};
+
 function pGeoUFRegiao(uf){
   for(const r in P_REGIOES) if(P_REGIOES[r].indexOf(uf) >= 0) return r;
   return '—';
@@ -440,4 +498,23 @@ function pGeoPorRegiao(){
   const m = {}; Object.keys(P_REGIOES).forEach(r => m[r] = 0);
   Object.keys(P_MOCK_GEO).forEach(uf => { const r = pGeoUFRegiao(uf); if(m[r] != null) m[r] += P_MOCK_GEO[uf]; });
   return m;
+}
+
+/* ── NOVAS MÉTRICAS E MOCKS DO MÓDULO DE DADOS ── */
+function pGetTempoMedioCriacao(periodo) {
+  return periodo === '7d' ? 98 : periodo === '90d' ? 114 : 105; // em segundos
+}
+function pGetHealthScore(periodo) {
+  return periodo === '7d' ? 91 : periodo === '90d' ? 84 : 88; // em %
+}
+function pGetLatenciaFila() {
+  return 1.2; // em segundos
+}
+function pGetInsightsFeed(periodo) {
+  return [
+    { type: 'success', text: 'Campanha "Lançamento Novo App" atingiu 100% de adoção nas praças ativas.' },
+    { type: 'warning', text: 'Taxa de abandono de 38% detectada nos templates de story da região Sudeste.' },
+    { type: 'info', text: 'Volume de publicações diárias aumentou 14,2% em relação aos últimos 30 dias.' },
+    { type: 'info', text: 'Templates do tipo Feed são os preferidos para ações rápidas de WhatsApp.' }
+  ];
 }

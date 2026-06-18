@@ -13,51 +13,78 @@
  */
 
 /* mapa modo → período (reusa pArtesNoPeriodo/pArtesPeriodoAnterior) */
-var P_CMP_MODO_PERIODO = { semana: '7d', mes: '30d', '90d': '90d' };
+var P_CMP_MODO_PERIODO = { semana: '7d', mes: '30d', '90d': '90d', campanha: 'camp' };
 var P_CMP_MODOS = [
   { id: 'semana', label: 'Semana' },
   { id: 'mes',    label: 'Mês' },
   { id: '90d',    label: '90 dias' },
+  { id: 'campanha', label: 'Lançamento de Campanhas' },
 ];
 
 function pRenderComparador(){
   var modo = pState.comparadorModo || 'mes';
   if(!P_CMP_MODO_PERIODO[modo]) modo = 'mes';
   var periodo = P_CMP_MODO_PERIODO[modo];
-  var days = pComparadorDias(modo);
 
-  var cur  = pArtesNoPeriodo(periodo);
-  var prev = pArtesPeriodoAnterior(periodo);
-  var serieCur  = pSerieDiaria(cur, days);
-  // janela anterior: ancora os buckets no último dia DELA (senão as artes caem fora e a série zera)
-  var seriePrev = pSerieDiaria(prev, days, pDayStart(pNow()) - days * P_DAY);
+  var days, cur, prev, serieCur, seriePrev, subText;
+  
+  if(modo === 'campanha') {
+    days = 14;
+    subText = `Lançamento de Campanhas · primeiros 14 dias`;
+    cur = P_MOCK_ARTES.filter(a => a.campId === 'novo-app');
+    prev = P_MOCK_ARTES.filter(a => a.campId === 'promo-turbinada');
+    
+    serieCur = [];
+    seriePrev = [];
+    const rnd = pRng(12345);
+    for(var i = 0; i < 14; i++) {
+      var cVal = Math.round(10 + rnd() * 22);
+      var pVal = Math.round(8 + rnd() * 18);
+      serieCur.push({ ts: i, label: 'Dia ' + (i + 1), count: cVal });
+      seriePrev.push({ ts: i, label: 'Dia ' + (i + 1), count: pVal });
+    }
+  } else {
+    days = pComparadorDias(modo);
+    subText = `Janela atual vs. anterior · últimos ${days} dias`;
+    cur  = pArtesNoPeriodo(periodo);
+    prev = pArtesPeriodoAnterior(periodo);
+    serieCur  = pSerieDiaria(cur, days);
+    seriePrev = pSerieDiaria(prev, days, pDayStart(pNow()) - days * P_DAY);
+  }
 
   var head = `
     <div class="p-head">
       <div>
         <div class="p-head-title">Comparador de períodos</div>
-        <div class="p-head-sub">Janela atual vs. anterior · últimos ${days} dias</div>
+        <div class="p-head-sub">${subText}</div>
       </div>
       <div class="p-pills">${pCmpPills(modo)}</div>
     </div>`;
 
   if(!cur.length && !prev.length){
-    return head + pEmpty('📈', 'Sem dados para comparar',
+    return head + pEmpty('<svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>', 'Sem dados para comparar',
       'Nenhuma arte foi gerada nas duas janelas analisadas. Experimente um período maior ou gere artes no módulo Franqueado.',
       'Ir para Franqueado', 'franqueado');
   }
+
+  var legendHTML = modo === 'campanha' 
+    ? `<div class="p-cmp-legend">
+         <span class="p-cmp-leg-item"><span class="p-cmp-leg-mark cur" style="color:var(--p-accent);">●</span>Lançamento Novo App</span>
+         <span class="p-cmp-leg-item"><span class="p-cmp-leg-mark prev" style="color:var(--p-text-mut);">○</span>Promo Turbinada</span>
+       </div>`
+    : `<div class="p-cmp-legend">
+         <span class="p-cmp-leg-item"><span class="p-cmp-leg-mark cur" style="color:var(--p-accent);">●</span>Período atual</span>
+         <span class="p-cmp-leg-item"><span class="p-cmp-leg-mark prev" style="color:var(--p-text-mut);">○</span>Período anterior</span>
+       </div>`;
 
   return head + `
     <div class="p-chart-card p-cmp-chart" onmouseleave="pHideTip(); pCmpLeave()">
       <div class="p-cmp-chart-top">
         <div>
           <div class="p-chart-title">Artes por dia</div>
-          <div class="p-chart-note">Volume diário · período atual vs. anterior alinhados por dia</div>
+          <div class="p-chart-note">Volume diário · comparação alinhada de lançamento</div>
         </div>
-        <div class="p-cmp-legend">
-          <span class="p-cmp-leg-item"><span class="p-cmp-leg-mark cur">●</span>Período atual</span>
-          <span class="p-cmp-leg-item"><span class="p-cmp-leg-mark prev">○</span>Período anterior</span>
-        </div>
+        ${legendHTML}
       </div>
       ${pCmpLineSVG(serieCur, seriePrev)}
     </div>

@@ -478,7 +478,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 10px;
+  padding: 8px 12px;
   background: var(--d-surf);
   border-bottom: 1px solid var(--d-border);
   position: relative;
@@ -486,38 +486,44 @@
 .d-layers-search-row .search-icon {
   color: var(--d-text3);
   position: absolute;
-  left: 18px;
+  left: 20px;
   pointer-events: none;
 }
 .d-layers-search-row input {
   flex: 1;
   padding: 6px 8px 6px 26px;
-  background: var(--d-dark);
-  border: 1px solid var(--d-border2);
+  background: var(--d-surf2);
+  border: 1px solid transparent;
   border-radius: 4px;
   color: var(--d-text);
   font-size: 11px;
   outline: none;
+  transition: all 0.15s;
+}
+.d-layers-search-row input:hover {
+  background: var(--d-surf3);
 }
 .d-layers-search-row input:focus {
+  background: var(--d-dark);
   border-color: var(--dm-orange);
 }
 .d-layers-filter-btn {
-  background: var(--d-dark);
-  border: 1px solid var(--d-border2);
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: 4px;
   width: 26px;
   height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--d-text2);
+  color: var(--d-text3);
   cursor: pointer;
   transition: all 0.15s;
 }
 .d-layers-filter-btn:hover, .d-layers-filter-btn.active {
-  border-color: var(--dm-orange);
-  color: var(--dm-orange);
+  background: var(--d-surf2);
+  color: var(--d-text);
+
 }
 
 .d-layers-toolbar {
@@ -545,6 +551,10 @@
 .d-lyr-tb-btn:hover {
   background: var(--d-surf3);
   color: var(--d-text);
+}
+.d-lyr-tb-btn-del:hover {
+  background: rgba(220, 38, 38, 0.1);
+  color: var(--dm-red);
 }
 
 /* Blending & Locks panel */

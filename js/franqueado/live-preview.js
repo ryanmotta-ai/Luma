@@ -9,10 +9,13 @@
 /* ── PREVIEW MODAL ── */
 function fOpenPreview(e,id){
   e.stopPropagation();
-  const all=[...CAMPS_ATIVAS,...CAMPS_OUTRAS];
-  const c=all.find(x=>x.id===id);if(!c)return;
+  const c=(typeof fResolveCamp==='function')?fResolveCamp(id):[...CAMPS_ATIVAS,...CAMPS_OUTRAS].find(x=>x.id===id);
+  if(!c)return;
   document.getElementById('pv-title').textContent=c.name;
-  document.getElementById('pv-note').textContent=`${c.count} materiais · Expira em ${c.expiraDias} dias`;
+  // pastas (dFolders) não têm count/expiraDias — cai pra templates.length / oculta o "Expira"
+  const _count=(c.count!=null)?c.count:(c.templates?c.templates.length:0);
+  const _exp=(c.expiraDias!=null)?` · Expira em ${c.expiraDias} dias`:'';
+  document.getElementById('pv-note').textContent=`${_count} materiais${_exp}`;
   // F-09: monta os 3 formatos lado a lado, cada um clicável
   const multi = document.getElementById('pv-multi');
   multi.innerHTML = FMTS.map(f=>{
