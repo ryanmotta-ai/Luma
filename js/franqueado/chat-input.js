@@ -141,9 +141,20 @@ function fShowFieldError(msg){
   const msgs = document.getElementById('f-messages');
   const w = document.createElement('div');
   w.className = 'msg bot';
+  w.id = 'field-err-msg';
   w.innerHTML = `<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div><div class="bbl bbl-err"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>${msg}</div></div>`;
   msgs.appendChild(w);
   msgs.scrollTop = msgs.scrollHeight;
+
+  // Vibra a barra de entrada do chat para alertar o usuário
+  const inputRow = document.getElementById('f-input-row');
+  if (inputRow) {
+    inputRow.classList.remove('g-shake');
+    void inputRow.offsetWidth; // Força reflow para reiniciar animação
+    inputRow.classList.add('g-shake');
+    setTimeout(() => inputRow.classList.remove('g-shake'), 400);
+  }
+
   // Auto-remove depois de 4s
   setTimeout(()=>{const e=document.getElementById('field-err-msg');if(e)e.remove();}, 4000);
 }

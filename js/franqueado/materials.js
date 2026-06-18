@@ -135,7 +135,7 @@ function fCloseMaterialCatalog(){
     chatCol.style.display='';
     chatCol.classList.add('fade-enter');
 
-    const {ativas:_a,outras:_o}=fGetCampaigns();fRenderCatalogs(_a,_o);
+    fRestoreCatalog();
     fUpdateCtx();
     document.getElementById('f-messages').innerHTML='';
     fAddBot('Escolha uma campanha no painel à esquerda pra começar.',[]);

@@ -245,6 +245,43 @@
 
 ---
 
+## Integração de Bibliotecas Utilitárias (Fase 5.1/Refinos)
+
+### Redimensionamento de Imagem com Pica (Lanczos3)
+- Substituição do redimensionamento básico via canvas no chat do franqueado (`fResizeImageIfNeeded` em `js/franqueado/chat.js`) pela biblioteca **Pica.js**.
+- Utilização do filtro Lanczos3 para garantir a nitidez e evitar pixelamento de fotos de produtos em uploads pesados.
+- Fallback robusto nativo em JS Canvas caso o script da biblioteca falhe.
+
+### Extração Dinâmica de Cores com Color Thief
+- Extração automática da cor primária da imagem do produto no upload via **ColorThief** em `chat.js`.
+- Injeção automática da cor extraída como sugestão rápida (swatch) quando o chatbot pergunta pela cor da arte.
+- Amostras de cores rápidas (chips) renderizadas com fundo dinâmico e cálculo automático do contraste do texto (preto/branco) usando a fórmula de luminância YIQ.
+
+### Exportação Client-Side para PDF com pdf-lib
+- Novo botão de ação vermelho **"Baixar PDF"** no painel de download final do chat do franqueado.
+- Geração instantânea do arquivo PDF localmente (client-side) utilizando a biblioteca **pdf-lib.js**, embutindo a imagem PNG renderizada na proporção exata e disparando o download do arquivo `.pdf`.
+
+### Parser de CSV Robusto com PapaParse
+- Reestruturação da função `fBulkParseCSV` no modal de geração em lote em `js/franqueado/png-generator.js` utilizando **PapaParse.js**.
+- Suporte correto a aspas, vírgulas escapadas e quebras de linha dentro das células do arquivo CSV.
+
+---
+
+## Widget de Ajuda e Chatbot (Fase 5.1/Refinos)
+
+### Botão de Suporte Flutuante
+- Botão fixo no canto inferior direito (`bottom: 24px; right: 24px;`) com ícone SVG de balão de chat sorridente personalizado.
+- Transições de escala e cor (laranja DM no hover) e rotação de 90 graus para fechar (`×`) quando a janela está aberta.
+
+### Janela de Chat Glassmorphic
+- Backdrop filter blur de 16px, cantos arredondados, sombreamento premium e suporte nativo aos temas claro e escuro.
+
+### Chatbot Interativo por Persona
+- Fluxo dinâmico de perguntas e respostas rápidas mapeado para Franqueados e Designers/Admins.
+- Simulação de suporte humano em tempo real, ativando uma caixa de entrada para envio de mensagens personalizadas.
+
+---
+
 ## Fluxo de Commits
 
 | Hash | Mensagem | Escopo Principal |

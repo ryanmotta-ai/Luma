@@ -413,7 +413,7 @@ function dInit(){
   if(!loaded){dLayers=dBuildBlankLayers(dFmt);}
   if(typeof dRenderWorkspace==='function')dRenderWorkspace();
   dApplyFormat();dRenderCanvas();dRenderLayersList();
-  setTimeout(dFitToScreen,100);
+  setTimeout(() => { if (typeof dSetZoom === 'function') dSetZoom(28); else dFitToScreen(); }, 100);
   setTimeout(dEnsurePaintCanvas,100);
   // Campanhas/Biblioteca agora são abas do painel direito (#d-right); a aba Campanhas já abre por padrão
 }

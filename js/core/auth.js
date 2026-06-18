@@ -7,6 +7,7 @@
  */
 
 const AUTH_USERS = [
+  { email: 'ryan.motta@deliverymuch.com.br', hash: '847c6bd10efb303516b1248b6b1b9246b66fd9ad460731716d7e31855e8112cb', role: 'superadmin', displayName: 'Ryan Motta' },
   { email: 'pedro.moraes@deliverymuch.com.br', hash: '847c6bd10efb303516b1248b6b1b9246b66fd9ad460731716d7e31855e8112cb', role: 'admin', displayName: 'Pedro Moraes' },
   { email: 'laura.ferrari@deliverymuch.com.br', hash: '847c6bd10efb303516b1248b6b1b9246b66fd9ad460731716d7e31855e8112cb', role: 'admin', displayName: 'Laura Ferrari' },
   { email: 'ricardo.moreira@deliverymuch.com.br', hash: '847c6bd10efb303516b1248b6b1b9246b66fd9ad460731716d7e31855e8112cb', role: 'admin', displayName: 'Ricardo Moreira' },
@@ -18,6 +19,9 @@ const AUTH_USERS = [
   { email: 'pedro@deliverymuch.com.br', hash: '847c6bd10efb303516b1248b6b1b9246b66fd9ad460731716d7e31855e8112cb', role: 'admin', displayName: 'Pedro' },
   { email: 'guilherme@deliverymuch.com.br', hash: '847c6bd10efb303516b1248b6b1b9246b66fd9ad460731716d7e31855e8112cb', role: 'admin', displayName: 'Guilherme' }
 ];
+
+const ROLE_HIERARCHY = { franqueado:1, admin:2, superadmin:3 };
+function gRoleLevel(role){ return ROLE_HIERARCHY[role]||0; }
 
 let gAuthState = { user: null, sessionToken: null };
 
@@ -59,7 +63,9 @@ function gLogout() {
 
 function gCurrentUser() { return gAuthState.user; }
 function gCurrentRole() { return gAuthState.user ? gAuthState.user.role : null; }
-function gIsAdmin() { return gCurrentRole() === 'admin'; }
+function gIsAdmin(){ return gRoleLevel(gCurrentRole()) >= ROLE_HIERARCHY.admin; }
+function gIsSuperAdmin(){ return gCurrentRole()==='superadmin'; }
+function gCanManageUsers(){ return gIsSuperAdmin(); }
 
 async function gForgotPassword(email) {
   if (!email) return { ok: false, error: 'Digite seu e-mail.' };
@@ -90,6 +96,55 @@ async function gResetPassword(token, newPassword) {
   } catch(e) {
     return { ok: false, error: 'Falha ao processar o token.' };
   }
+}
+
+function gLoadRoleOverrides(){ try{return JSON.parse(localStorage.getItem('luma_role_overrides')||'{}');}catch(e){return{};} }
+function gSaveRoleOverrides(obj){ try{localStorage.setItem('luma_role_overrides',JSON.stringify(obj));}catch(e){} }
+function gLoadManagedUsers(){ try{return JSON.parse(localStorage.getItem('luma_managed_users')||'[]');}catch(e){return[];} }
+function gSaveManagedUsers(arr){ try{localStorage.setItem('luma_managed_users',JSON.stringify(arr));}catch(e){} }
+
+function gGetAllUsers(){
+  const overrides=gLoadRoleOverrides();
+  const managed=gLoadManagedUsers();
+  const base=AUTH_USERS.map(u=>({email:u.email,displayName:u.displayName,role:overrides[u.email]||u.role,isBase:true}));
+  const extra=managed.filter(m=>!base.find(b=>b.email===m.email));
+  return [...base,...extra.map(m=>({...m,isBase:false}))];
+}
+
+function gSetUserRole(email,newRole){
+  if(!gCanManageUsers()) return {ok:false,error:'Sem permissão.'};
+  const target=gGetAllUsers().find(u=>u.email===email);
+  if(!target) return {ok:false,error:'Usuário não encontrado.'};
+  if(target.role==='superadmin'&&gCurrentUser().email!==email) return {ok:false,error:'Não é possível alterar outro superadmin.'};
+  const base=AUTH_USERS.find(u=>u.email===email);
+  if(base){
+    const ov=gLoadRoleOverrides();
+    if(newRole===base.role) delete ov[email]; else ov[email]=newRole;
+    gSaveRoleOverrides(ov);
+  } else {
+    const mg=gLoadManagedUsers(); const i=mg.findIndex(u=>u.email===email);
+    if(i>=0){mg[i].role=newRole;gSaveManagedUsers(mg);}
+  }
+  return {ok:true};
+}
+
+function gAddManagedUser(email,displayName,role){
+  if(!gCanManageUsers()) return {ok:false,error:'Sem permissão.'};
+  if(!email||!displayName) return {ok:false,error:'E-mail e nome são obrigatórios.'};
+  if(gGetAllUsers().find(u=>u.email===email.toLowerCase().trim())) return {ok:false,error:'Usuário já existe.'};
+  const mg=gLoadManagedUsers();
+  mg.push({email:email.toLowerCase().trim(),displayName:displayName.trim(),role:role||'admin',addedAt:Date.now(),isBase:false});
+  gSaveManagedUsers(mg);
+  return {ok:true};
+}
+
+function gRemoveManagedUser(email){
+  if(!gCanManageUsers()) return {ok:false,error:'Sem permissão.'};
+  if(AUTH_USERS.find(u=>u.email===email)) return {ok:false,error:'Usuários base não podem ser removidos.'};
+  const mg=gLoadManagedUsers(); const i=mg.findIndex(u=>u.email===email);
+  if(i<0) return {ok:false,error:'Usuário não encontrado.'};
+  mg.splice(i,1); gSaveManagedUsers(mg);
+  return {ok:true};
 }
 
 // UI HANDLERS DO MODAL (Atrelados ao index.html)
@@ -207,8 +262,11 @@ function gUpdateUserTopbar() {
   if (nameEl) nameEl.textContent = displayName;
   
   if (roleEl) {
-    roleEl.textContent = role.toUpperCase();
-    if (role === 'admin') {
+    roleEl.textContent = role === 'superadmin' ? 'SUPER ADMIN' : role.toUpperCase();
+    if (role === 'superadmin') {
+      roleEl.style.background = '#7c3aed';
+      roleEl.style.color = '#fff';
+    } else if (role === 'admin') {
       roleEl.style.background = 'var(--dm-yellow)';
       roleEl.style.color = 'var(--dm-red)';
     } else {

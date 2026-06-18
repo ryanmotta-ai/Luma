@@ -115,6 +115,7 @@
 
 /* Capa de pasta (definida pelo designer) como fundo do card de campanha */
 .camp-thumb.has-cover{background-size:cover;background-position:center}
+.camp-thumb.has-cover::before,.camp-thumb.has-cover::after{display:none}
 .camp-thumb.has-cover .camp-badge,.camp-thumb.has-cover .camp-popular,.camp-thumb.has-cover .camp-urgency{z-index:2}
 
 /* ══ TEMA ESCURO DO FRANQUEADO ══ */

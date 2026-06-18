@@ -22,7 +22,7 @@ function fLoadLogoBranca(){
     img.src = m[1];
   });
 }
-async function fGenPNG(d,c,fmt){
+async function fRenderCanvasHelper(d,c,fmt){
   const fmtMap={story:[1080,1920],feed:[1080,1080],post:[1200,628],wide:[1200,628]};
   const [w,h]=fmtMap[fmt.id]||[1080,1920];
 
@@ -44,11 +44,7 @@ async function fGenPNG(d,c,fmt){
     finalCtx.imageSmoothingEnabled = true;
     finalCtx.imageSmoothingQuality = 'high';
     finalCtx.drawImage(renderCv, 0, 0, w, h);
-    const a=document.createElement('a');
-    a.download=fBuildFilename(c,fmt,d);
-    a.href=finalCv.toDataURL('image/png');
-    a.click();
-    return;
+    return finalCv;
   }
 
   // ─── FALLBACK: renderer programático antigo (quando não há material) ───
@@ -63,7 +59,6 @@ async function fGenPNG(d,c,fmt){
   ctx.strokeStyle='rgba(255,185,0,.3)';ctx.lineWidth=w*.024;
   ctx.beginPath();ctx.arc(w*.5,h*.07,w*.38,0,Math.PI);ctx.stroke();
   const cx=w/2;
-  // A10: fontes proporcionais à MENOR dimensão p/ não estourar formatos baixos (feed/wide)
   const U=Math.min(w,h);
 
   const fotoProduto = d.foto_produto;
@@ -122,7 +117,51 @@ async function fGenPNG(d,c,fmt){
   }
 
   await fDrawDMLogo(ctx, w, h);
-  const a=document.createElement('a');a.download=fBuildFilename(c,fmt,d);a.href=cv.toDataURL('image/png');a.click();
+  return cv;
+}
+
+async function fGenPNG(d,c,fmt){
+  const canvas = await fRenderCanvasHelper(d,c,fmt);
+  const a=document.createElement('a');
+  a.download=fBuildFilename(c,fmt,d);
+  a.href=canvas.toDataURL('image/png');
+  a.click();
+}
+
+async function fGenPDF(d,c,fmt){
+  if(!window.PDFLib) {
+    throw new Error('Biblioteca pdf-lib não está disponível.');
+  }
+  const canvas = await fRenderCanvasHelper(d,c,fmt);
+  const pngDataUrl = canvas.toDataURL('image/png');
+  
+  // Cria documento PDF
+  const pdfDoc = await PDFLib.PDFDocument.create();
+  
+  // Adiciona página com tamanho exato do canvas em pontos (pixels mapeados 1:1 para pontos PDF)
+  const page = pdfDoc.addPage([canvas.width, canvas.height]);
+  
+  // Embutir a imagem PNG gerada
+  const pngImage = await pdfDoc.embedPng(pngDataUrl);
+  
+  // Desenhar a imagem na página
+  page.drawImage(pngImage, {
+    x: 0,
+    y: 0,
+    width: canvas.width,
+    height: canvas.height
+  });
+  
+  // Salva o PDF
+  const pdfBytes = await pdfDoc.save();
+  const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+  
+  // Download
+  const a = document.createElement('a');
+  a.download = fBuildFilename(c,fmt,d).replace(/\.png$/i, '') + '.pdf';
+  a.href = URL.createObjectURL(blob);
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
 }
 
 // Renderiza a logo Luma branca no rodapé (compartilhado entre os dois caminhos)
@@ -688,31 +727,25 @@ function fBulkTemplateCSV(){
 }
 // Parser CSV simples com suporte a aspas e vírgula escapada
 function fBulkParseCSV(text){
-  // Scan caractere-a-caractere sobre o texto INTEIRO: trata \n e , dentro de aspas como
-  // conteúdo da célula, e só inicia citação quando a aspa abre o campo (aspas no meio = literal).
-  // Remove BOM inicial (Excel grava UTF-8 com BOM) e normaliza CRLF.
-  const src=String(text).replace(/^﻿/,'').replace(/\r\n?/g,'\n');
-  const rows=[]; let row=[]; let cur=''; let inq=false; let fieldStart=true;
-  for(let i=0;i<src.length;i++){
-    const ch=src[i];
-    if(inq){
-      if(ch==='"'){ if(src[i+1]==='"'){cur+='"';i++;} else inq=false; }
-      else cur+=ch;
-    }else{
-      if(ch==='"' && fieldStart){ inq=true; fieldStart=false; }
-      else if(ch===','){ row.push(cur); cur=''; fieldStart=true; }
-      else if(ch==='\n'){ row.push(cur); rows.push(row); row=[]; cur=''; fieldStart=true; }
-      else { cur+=ch; fieldStart=false; }
-    }
+  if(window.Papa){
+    const res = Papa.parse(text, {
+      header: true,
+      skipEmptyLines: 'greedy'
+    });
+    return res.data;
   }
-  if(cur!=='' || row.length){ row.push(cur); rows.push(row); } // último campo/linha sem \n final
-  const nonEmpty=rows.filter(r=>r.some(c=>String(c).trim()!==''));
-  if(!nonEmpty.length) return [];
-  const header=nonEmpty[0].map(h=>String(h).trim());
+  // Fallback case
+  const src=String(text).replace(/^﻿/,'').replace(/\r\n?/g,'\n');
+  const lines=src.split('\n');
+  if(!lines.length) return [];
+  const header=lines[0].split(',').map(h=>h.trim());
   const out=[];
-  for(let i=1;i<nonEmpty.length;i++){
-    const cells=nonEmpty[i];
-    const obj={}; header.forEach((h,j)=>obj[h]=String(cells[j]||'').trim());
+  for(let i=1;i<lines.length;i++){
+    const line=lines[i].trim();
+    if(!line)continue;
+    const cells=line.split(',');
+    const obj={};
+    header.forEach((h,j)=>obj[h]=String(cells[j]||'').trim());
     out.push(obj);
   }
   return out;

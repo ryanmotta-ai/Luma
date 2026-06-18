@@ -761,6 +761,7 @@ body.theme-light #d-preview-stage{background:repeating-conic-gradient(#E8E8E8 0%
   transition:all .12s;box-shadow:0 2px 6px rgba(255,144,0,.3);
 }
 .dt-btn-primary:hover{background:#F85400;box-shadow:0 4px 12px rgba(255,144,0,.45);}
+.dt-btn-primary:active{transform:scale(0.975);box-shadow:0 2px 6px rgba(255,144,0,.3);}
 
 
 /* ══ PREVIEW MODAL ══ */

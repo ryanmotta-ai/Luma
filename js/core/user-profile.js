@@ -38,10 +38,18 @@ function gOpenUserProfileModal() {
   const sidebarName = document.getElementById('prof-sidebar-name');
   const sidebarRole = document.getElementById('prof-sidebar-role');
   if (sidebarName) sidebarName.textContent = displayName;
-  if (sidebarRole) sidebarRole.textContent = role.toUpperCase();
+  if (sidebarRole) {
+    if(role==='superadmin'){sidebarRole.style.background='#7c3aed';sidebarRole.style.color='#fff';sidebarRole.textContent='SUPER ADMIN';}
+    else if(role==='admin'){sidebarRole.style.background='var(--dm-yellow)';sidebarRole.style.color='var(--dm-red)';sidebarRole.textContent='ADMIN';}
+    else{sidebarRole.style.background='rgba(255,144,0,.15)';sidebarRole.style.color='var(--dm-orange-d)';sidebarRole.textContent='FRANQUEADO';}
+  }
 
   // Resetar abas
   gProfileSwitchTab('dados');
+
+  // Mostrar aba Equipe apenas para superadmin
+  const equipeBtn = document.getElementById('prof-nav-equipe');
+  if(equipeBtn) equipeBtn.style.display = gIsSuperAdmin() ? '' : 'none';
 
   // Atualizar avatares do modal
   gProfileUpdateModalAvatars(displayName, email);
@@ -86,11 +94,15 @@ function gProfileSwitchTab(tabName) {
   } else if (tabName === 'estatisticas') {
     if (title) title.textContent = 'Minhas Estatísticas';
     if (subtitle) subtitle.textContent = 'Resumo da sua atividade nesta sessão e portfólio no Luma.';
-    
+
     // Atualizar tempo de sessão dinamicamente ao abrir a aba
     const elapsedMinutes = Math.floor((Date.now() - gSessionStartTime) / 60000);
     const sessionEl = document.getElementById('prof-stat-session-time');
     if (sessionEl) sessionEl.textContent = `${elapsedMinutes} min`;
+  } else if (tabName === 'equipe') {
+    if (title) title.textContent = 'Gerenciar Equipe';
+    if (subtitle) subtitle.textContent = 'Adicione membros e gerencie as permissões de acesso.';
+    gProfileRenderEquipe();
   }
 }
 
@@ -348,7 +360,9 @@ function gProfileRenderStats(role) {
 
   // 2. Nível baseado no papel e na quantidade de templates
   if (levelVal) {
-    if (role === 'admin') {
+    if (role === 'superadmin') {
+      levelVal.textContent = 'Dono da Plataforma 👑';
+    } else if (role === 'admin') {
       levelVal.textContent = templateCount > 15 ? 'Diretor de Design 👑' : 'Administrador Luma ⚙️';
     } else {
       levelVal.textContent = templateCount > 5 ? 'Designer Avançado ⚡' : 'Franqueado Ativo 🚀';
@@ -374,4 +388,185 @@ function fSyncThemeIcon(theme) {
   if (iconDark) iconDark.style.display = theme === 'dark' ? 'inline-block' : 'none';
   if (iconLight) iconLight.style.display = theme === 'light' ? 'inline-block' : 'none';
 }
+
+/* ══ GESTÃO DE EQUIPE ══ */
+
+const _EQUIPE_ROLE_CFG={
+  superadmin:{label:'Super Admin',emoji:'👑',bg:'rgba(124,58,237,.1)',color:'#7c3aed',desc:'Gestão completa da plataforma'},
+  admin:     {label:'Admin',      emoji:'⚙️',bg:'rgba(255,185,0,.14)',color:'#C81818',desc:'Acesso ao estúdio de design'},
+  franqueado:{label:'Franqueado', emoji:'🏪',bg:'rgba(255,144,0,.1)', color:'#F85400',desc:'Acesso ao chat e geração de artes'},
+};
+
+const _ICO_TRASH=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`;
+const _ICO_CHEVRON=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
+const _ICO_CHECK=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+function _profAvBg(name){
+  const colors=['#e11d48','#2563eb','#16a34a','#d97706','#7c3aed','#db2777','#0284c7'];
+  const h=Array.from(name).reduce((a,c)=>a+c.charCodeAt(0),0);
+  return colors[h%colors.length];
+}
+function _profInitials(name){
+  const p=name.trim().split(/\s+/);
+  return p.length>1?(p[0][0]+p[p.length-1][0]).toUpperCase():name.substring(0,2).toUpperCase();
+}
+
+function gProfileRenderEquipe(){
+  // limpa pickers que foram movidos para o body via portal
+  document.querySelectorAll('body>.prof-role-picker').forEach(p=>p.remove());
+  const pane=document.getElementById('prof-pane-equipe'); if(!pane)return;
+  const users=gGetAllUsers();
+  const me=gCurrentUser();
+
+  const rows=users.map((u,idx)=>{
+    const isMe=u.email===me.email;
+    const photo=localStorage.getItem('__luma_user_photo_'+u.email);
+    const avBg=photo?'transparent':_profAvBg(u.displayName);
+    const avContent=photo
+      ?`<img src="${photo}" alt="${u.displayName}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+      :_profInitials(u.displayName);
+    const canEdit=!isMe&&gRoleLevel(me.role)>gRoleLevel(u.role);
+    const rcfg=_EQUIPE_ROLE_CFG[u.role]||_EQUIPE_ROLE_CFG.franqueado;
+    const pid='prof-rp-'+idx;
+
+    const pill=`<button class="prof-role-pill" data-role="${u.role}" ${canEdit?`onclick="gProfileToggleRolePicker('${u.email}','${pid}',this,event)"`:'disabled'} title="${rcfg.desc}">
+      <span class="prof-role-dot"></span>${rcfg.label}${canEdit?_ICO_CHEVRON:''}
+    </button>`;
+
+    const pickerOpts=['franqueado','admin','superadmin']
+      .filter(r=>gRoleLevel(r)<gRoleLevel(me.role))
+      .map(r=>{
+        const rc=_EQUIPE_ROLE_CFG[r];
+        const cur=r===u.role;
+        return `<button class="prof-role-picker-opt${cur?' is-current':''}" onclick="gProfilePickRole('${u.email}','${r}','${pid}',event)">
+          <span class="prof-role-picker-opt-ico" style="background:${rc.bg};color:${rc.color}">${rc.emoji}</span>
+          <span class="prof-role-picker-opt-text">
+            <span class="prof-role-picker-opt-label">${rc.label}</span>
+            <span class="prof-role-picker-opt-desc">${rc.desc}</span>
+          </span>
+          ${cur?`<span class="prof-role-picker-check">${_ICO_CHECK}</span>`:''}
+        </button>`;
+      }).join('');
+    const picker=canEdit?`<div class="prof-role-picker" id="${pid}">${pickerOpts}</div>`:'';
+
+    const invitedTag=!u.isBase?`<span class="prof-user-tag invited">convidado</span>`:'';
+    const youTag=isMe?`<span class="prof-user-you">(você)</span>`:'';
+    const removeBtn=!u.isBase&&!isMe&&canEdit
+      ?`<button class="prof-user-remove" onclick="gProfileRemoveUser('${u.email}')" title="Remover acesso">${_ICO_TRASH}</button>`:'';
+
+    return `<div class="prof-user-row${isMe?' is-me':''}">
+      <div class="prof-user-av" style="background:${avBg}">${avContent}</div>
+      <div class="prof-user-info">
+        <div class="prof-user-name">${u.displayName}${youTag}${invitedTag}</div>
+        <div class="prof-user-email">${u.email}</div>
+      </div>
+      ${pill}${picker}
+      ${removeBtn}
+    </div>`;
+  }).join('');
+
+  pane.innerHTML=`
+    <div class="prof-equipe-toolbar">
+      <div class="prof-equipe-search-wrap">
+        <span class="prof-equipe-search-ico"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+        <input class="prof-equipe-search" placeholder="Buscar membro…" oninput="gProfileFilterEquipe(this.value)">
+      </div>
+      <button class="prof-invite-btn" onclick="gProfileShowInviteForm()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Convidar
+      </button>
+    </div>
+    <div id="prof-invite-form" style="display:none"></div>
+    <div class="prof-equipe-count">${users.length} membro${users.length!==1?'s':''}</div>
+    <div class="prof-user-list" id="prof-user-list">${rows}</div>`;
+}
+
+function gProfileShowInviteForm(){
+  const form=document.getElementById('prof-invite-form'); if(!form)return;
+  if(form.style.display!=='none'){form.style.display='none';return;}
+  const meRole=gCurrentUser().role;
+  const roleOpts=['franqueado','admin']
+    .filter(r=>gRoleLevel(r)<gRoleLevel(meRole))
+    .map(r=>{const rc=_EQUIPE_ROLE_CFG[r];return `<option value="${r}"${r==='admin'?' selected':''}>${rc.emoji} ${rc.label}</option>`;}).join('');
+  form.innerHTML=`<div class="prof-invite-box">
+    <div class="prof-invite-title">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+      Novo membro
+    </div>
+    <div class="prof-grid prof-grid-2" style="gap:10px">
+      <div class="prof-field"><label class="prof-label">Nome completo</label><input class="prof-input" id="prof-inv-name" placeholder="Ex: João Silva"></div>
+      <div class="prof-field"><label class="prof-label">E-mail</label><input class="prof-input" id="prof-inv-email" type="email" placeholder="joao@deliverymuch.com.br"></div>
+      <div class="prof-field"><label class="prof-label">Permissão</label><select class="prof-input" id="prof-inv-role">${roleOpts}</select></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="prof-btn prof-btn-primary" style="font-size:12px;padding:8px 16px" onclick="gProfileInviteUser()">Adicionar membro</button>
+      <button class="prof-btn prof-btn-secondary" style="font-size:12px;padding:8px 16px" onclick="document.getElementById('prof-invite-form').style.display='none'">Cancelar</button>
+    </div>
+  </div>`;
+  form.style.display='block';
+  document.getElementById('prof-inv-name')?.focus();
+}
+
+function gProfileInviteUser(){
+  const name=document.getElementById('prof-inv-name')?.value.trim();
+  const email=document.getElementById('prof-inv-email')?.value.trim();
+  const role=document.getElementById('prof-inv-role')?.value;
+  const res=gAddManagedUser(email,name,role);
+  if(!res.ok){gToast('⚠️ '+res.error);return;}
+  gToast('✅ Membro adicionado!');
+  gProfileRenderEquipe();
+}
+
+function gProfileToggleRolePicker(email,pid,btn,ev){
+  if(ev) ev.stopPropagation();
+  // fecha outros pickers abertos
+  document.querySelectorAll('.prof-role-picker.open').forEach(p=>{if(p.id!==pid)p.classList.remove('open');});
+  const picker=document.getElementById(pid); if(!picker)return;
+  if(picker.classList.contains('open')){picker.classList.remove('open');return;}
+  // portal: move para body para escapar do overflow:hidden + transform do modal
+  if(picker.parentElement!==document.body) document.body.appendChild(picker);
+  const rect=btn.getBoundingClientRect();
+  picker.style.top=(rect.bottom+4)+'px';
+  picker.style.right=(window.innerWidth-rect.right)+'px';
+  picker.style.left='auto';
+  picker.classList.add('open');
+}
+
+function gProfilePickRole(email,newRole,pid,ev){
+  if(ev) ev.stopPropagation();
+  document.getElementById(pid)?.classList.remove('open');
+  const res=gSetUserRole(email,newRole);
+  if(!res.ok){gToast('⚠️ '+res.error);return;}
+  gToast('✅ Permissão atualizada!');
+  gProfileRenderEquipe();
+}
+
+function gProfileFilterEquipe(query){
+  const q=query.toLowerCase();
+  document.querySelectorAll('#prof-user-list .prof-user-row').forEach(row=>{
+    const name=row.querySelector('.prof-user-name')?.textContent.toLowerCase()||'';
+    const email=row.querySelector('.prof-user-email')?.textContent.toLowerCase()||'';
+    row.style.display=(!q||name.includes(q)||email.includes(q))?'':'none';
+  });
+}
+
+function gProfileSetUserRole(email,newRole){
+  const res=gSetUserRole(email,newRole);
+  if(!res.ok){gToast('⚠️ '+res.error);gProfileRenderEquipe();return;}
+  gToast('✅ Permissão atualizada!');
+}
+
+function gProfileRemoveUser(email){
+  const res=gRemoveManagedUser(email);
+  if(!res.ok){gToast('⚠️ '+res.error);return;}
+  gToast('✅ Acesso removido.');
+  gProfileRenderEquipe();
+}
+
+// Fecha role picker ao clicar fora do painel
+document.addEventListener('click',function(e){
+  if(!e.target.closest('.prof-role-pill')&&!e.target.closest('.prof-role-picker')){
+    document.querySelectorAll('.prof-role-picker.open').forEach(p=>p.classList.remove('open'));
+  }
+});
 

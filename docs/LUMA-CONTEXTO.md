@@ -22,7 +22,7 @@ A ponte entre os dois é o sistema de **variáveis** (`{{produto}}`, `foto_produ
 
 | Aspecto | Decisão |
 |---|---|
-| Stack | Vanilla JS puro, sem framework, sem bundler, sem npm |
+| Stack | Vanilla JS puro, sem framework, sem bundler, sem npm (libs utilitárias locais Color Thief, Pica, PapaParse, pdf-lib, ag-psd) |
 | Carregamento | `index.html` carrega ~30 `<script>` em ordem; tudo global |
 | Estado | variáveis globais (`dLayers`, `dFolders`, `dVars`, `fState`...) |
 | Persistência | `localStorage` (6 chaves) — sem backend ainda |
@@ -89,6 +89,7 @@ luma-piloto/
 │   │   ├── buttons.css
 │   │   ├── tutorial.css
 │   │   ├── help-modal.css
+│   │   ├── help-chat.css         # widget de ajuda/chatbot flutuante (Intercom-style)
 │   │   └── splash.css            # splash screen de entrada
 │   └── modules/
 │       ├── franqueado.css
@@ -109,6 +110,7 @@ luma-piloto/
 │   │   ├── storage.js
 │   │   ├── toast.js              # gToast
 │   │   ├── help.js               # gOpenHelp, gCloseHelp
+│   │   ├── help-chat.js          # chatbot & widget de ajuda flutuante
 │   │   ├── utils.js
 │   │   ├── layout.js             # motor smart resize 5.2
 │   │   └── splash.js             # splash screen (a criar)
@@ -155,15 +157,20 @@ luma-piloto/
 │   └── main.js                   # bootstrap: setMode(), inits
 ├── assets/
 │   ├── fonts/realce-black.woff2
-│   └── logos/
-│       ├── dm-h-branca.png
-│       ├── dm-h-preta.png
-│       ├── dm-h-laranja.png
-│       ├── dm-h-principal.png
-│       ├── dm-v-branca.png
-│       ├── dm-v-principal.png
-│       ├── luma-h-branca.png     # logo Luma versão branca
-│       └── luma-h-cor.png        # logo Luma versão colorida
+│   ├── logos/
+│   │   ├── dm-h-branca.png
+│   │   ├── dm-h-preta.png
+│   │   ├── dm-h-laranja.png
+│   │   ├── dm-h-principal.png
+│   │   ├── dm-v-branca.png
+│   │   ├── dm-v-principal.png
+│   │   ├── luma-h-branca.png     # logo Luma versão branca
+│   │   └── luma-h-cor.png        # logo Luma versão colorida
+│   └── vendor/                   # bibliotecas utilitárias locais
+│       ├── colorthief.js         # extração de paleta de cores
+│       ├── papaparse.js          # parser de planilhas CSV
+│       ├── pdf-lib.js            # geração de PDF client-side
+│       └── pica.js               # redimensionador Lanczos3 de alta fidelidade
 └── docs/
     └── LUMA-CONTEXTO.md          # este arquivo
 ```
@@ -385,6 +392,8 @@ localStorage.clear(); location.reload();                     // reset total
 - Upload de fontes da marca (TTF/OTF/WOFF)
 - 18 tutoriais animados na Central de Ajuda
 - Template-modelo de exemplo (showcase)
+- Integração de bibliotecas utilitárias locais: **Pica.js** (redimensionamento Lanczos3 de alta fidelidade), **Color Thief** (sugestão dinâmica de paleta de cores a partir de fotos de produtos), **PapaParse** (leitura robusta de planilhas CSV) e **pdf-lib** (geração de PDF client-side em alta definição)
+- Widget flutuante de ajuda no canto inferior direito (estilo Intercom) com chatbot de autoatendimento contendo árvores de decisão customizadas por persona (Franqueado, Designer, Outros) e fluxo interativo simulado para o Suporte Humano.
 
 **Redesign da UI do Designer** — Painel lateral reestruturado para focar em hierarquia visual de nível profissional:
 - Aba "Propriedades" removida e integrada à aba **Camadas** (painel de propriedades de layer/prancheta aparece dinamicamente na mesma aba ao selecionar).

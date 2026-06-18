@@ -84,6 +84,9 @@ async function fUpdateLivePreview(opts){
   if(_lpRendering){ _lpPendingRender = true; return; }
   _lpRendering = true;
 
+  const stage = document.querySelector('.lp-stage');
+  if(stage) stage.classList.add('loading');
+
   try {
     const fmtId = (fState.fmt && fState.fmt.id) || fState.material.fmt || 'story';
     const sz = F_LP_SIZES[fmtId] || F_LP_SIZES.story;
@@ -112,7 +115,13 @@ async function fUpdateLivePreview(opts){
     fLpUpdateMeta(true);
   } finally {
     _lpRendering = false;
-    if(_lpPendingRender){ _lpPendingRender = false; setTimeout(()=>fUpdateLivePreview(), 50); }
+    if(_lpPendingRender){
+      _lpPendingRender = false;
+      setTimeout(()=>fUpdateLivePreview(), 50);
+    } else {
+      const stage = document.querySelector('.lp-stage');
+      if(stage) stage.classList.remove('loading');
+    }
   }
 }
 

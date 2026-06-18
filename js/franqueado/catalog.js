@@ -161,7 +161,7 @@ function fEditFromHist(id){
     fState.camp = {...c, perguntas, materialName: material.name};
     fState.dados = {...h.dados};
     fState.stepIdx = perguntas.length;
-    fRenderCatalogs(CAMPS_ATIVAS, CAMPS_OUTRAS);
+    fRenderCategorias();
     fRenderFmts();
     fUpdateCtx();
     document.getElementById('f-messages').innerHTML='';
@@ -265,10 +265,12 @@ function fFolderForCamp(c){
   return dFolders.find(f=>f.campId===c.id) || dFolders.find(f=>f.name===c.name) || null;
 }
 // Capa da pasta (se o designer enviou uma) — usada como fundo do card
+// Prioridade: dFolders.cover (designer upload) > c.cover (estático no config)
 function fCampCover(c){
   const f=fFolderForCamp(c);
   const cv=f&&f.cover;
-  return (cv&&typeof cv==='string'&&cv!=='__local__'&&cv.length)?cv:'';
+  if(cv&&typeof cv==='string'&&cv!=='__local__'&&cv.length) return cv;
+  return (c&&c.cover&&typeof c.cover==='string'&&c.cover.length)?c.cover:'';
 }
 function fCampEl(c,isRec){
   // F-06: thumb mostra prévia real com produto e preço
@@ -276,10 +278,11 @@ function fCampEl(c,isRec){
   const previewPor = c.previewPor || '';
   const previewDe = c.previewDe || '';
   const cover = fCampCover(c);
-  // Com capa: imagem de fundo + scrim escuro pra manter o texto legível
   const thumbStyle = cover
-    ? `background-image:linear-gradient(rgba(0,0,0,.32),rgba(0,0,0,.42)), url('${cover}');background-size:cover;background-position:center`
+    ? `background-image:url('${cover}');background-size:cover;background-position:center`
     : `background:${c.color}`;
+  const mats = (typeof fGetMaterialsForCamp==='function') ? fGetMaterialsForCamp(c.id) : [];
+  const countLabel = mats.length ? `${mats.length} material${mats.length!==1?'is':''}` : 'Sem materiais';
   return `<div class="camp-card ${c.id===fState.camp.id?'selected':''} ${isRec?'recommended':''}" onclick="fSelectCamp('${c.id}')">
     <div class="camp-prev-btn" onclick="fOpenPreview(event,'${c.id}')">PRÉVIA</div>
     <div class="camp-thumb ${cover?'has-cover':''}" style="${thumbStyle}">
@@ -291,60 +294,123 @@ function fCampEl(c,isRec){
       ${previewPor?`<div class="camp-thumb-por">${previewPor}</div>`:''}
       <div class="camp-thumb-logo" role="img" aria-label="Luma"></div>`}
     </div>
-    <div class="camp-body"><div class="camp-name">${c.name}</div><div class="camp-sub">${(c.count||c.templates?.length||0)} materiais</div></div>
+    <div class="camp-body"><div class="camp-name">${c.name}</div><div class="camp-sub">${countLabel}</div></div>
   </div>`;
 }
 function fGetCampaigns(){
-  if(typeof dFolders==='undefined'||!dFolders||!dFolders.length){
-    return {ativas:CAMPS_ATIVAS,outras:CAMPS_OUTRAS};
-  }
-  const ativas=dFolders.filter(f=>f.popular);
-  const outras=dFolders.filter(f=>!f.popular);
-  return {ativas:ativas.length?ativas:dFolders,outras:outras};
+  // As constantes CAMPS_* são sempre a fonte da lista — dFolders só serve
+  // para capa e templates publicados (consultado por fCampCover / fFolderForCamp).
+  return {ativas:CAMPS_ATIVAS,outras:CAMPS_OUTRAS};
 }
-// Fonte ÚNICA de resolução de campanha por id. Os cards podem carregar id de pasta
-// ('f0') OU id de campanha ('hf'), e o catálogo pode estar vindo de dFolders ou das
-// constantes CAMPS_*. Casa por id direto, por campId da pasta, e cai nas constantes.
-// Usado por fSelectCamp / fApplyCampSwitch / fOpenPreview pra não dar no-op silencioso.
 function fResolveCamp(id){
   const {ativas,outras}=fGetCampaigns();
   const pool=[...ativas,...outras];
+  const allConst=[...CAMPS_ATIVAS,...CAMPS_OUTRAS,...CAMPS_IMPLEMENTACAO];
   return pool.find(x=>x.id===id)
       || pool.find(x=>x.campId===id)
-      || [...CAMPS_ATIVAS,...CAMPS_OUTRAS].find(x=>x.id===id)
+      || allConst.find(x=>x.id===id)
       || null;
 }
+
+/* ── CATEGORIAS (CAMPANHAS / IMPLEMENTAÇÃO) ── */
+const _ICO_BACK=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>`;
+const _ICO_CHEV=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
+
+function fRenderCategorias(){
+  const cat=document.getElementById('f-catalog'); if(!cat)return;
+  fState.categoria=null;
+  const nCamps=CAMPS_ATIVAS.length+CAMPS_OUTRAS.length;
+  const nImpl=CAMPS_IMPLEMENTACAO.length;
+  cat.innerHTML=`<div class="cat-grid">
+    <div class="cat-card" onclick="fSelectCategoria('campanhas')">
+      <div class="cat-card-thumb" style="background:linear-gradient(135deg,#FF9000,#C84B00)">📣</div>
+      <div class="cat-card-body">
+        <div class="cat-card-title">Campanhas</div>
+        <div class="cat-card-sub">${nCamps} campanhas disponíveis</div>
+      </div>
+      <div class="cat-card-chevron">${_ICO_CHEV}</div>
+    </div>
+    <div class="cat-card" onclick="fSelectCategoria('implementacao')">
+      <div class="cat-card-thumb" style="background:linear-gradient(135deg,#2563eb,#1565C0)">🚀</div>
+      <div class="cat-card-body">
+        <div class="cat-card-title">Implementação</div>
+        <div class="cat-card-sub">Para novos franqueados · ${nImpl} materiais</div>
+      </div>
+      <div class="cat-card-chevron">${_ICO_CHEV}</div>
+    </div>
+  </div>`;
+}
+function fSelectCategoria(cat){
+  fState.categoria=cat;
+  if(cat==='campanhas'){
+    const {ativas,outras}=fGetCampaigns();
+    fRenderCatalogs(ativas,outras);
+  } else {
+    fRenderImplementacao();
+  }
+}
+function fVoltarCategoria(){
+  fRenderCategorias();
+}
+function fRenderImplementacao(){
+  const cat=document.getElementById('f-catalog'); if(!cat)return;
+  cat.innerHTML=`
+    <div class="cat-back-row">
+      <button class="cat-back-btn" onclick="fVoltarCategoria()">${_ICO_BACK} Todas as categorias</button>
+      <span class="cat-back-label">Implementação</span>
+    </div>
+    <div class="sec-title">Etapas de lançamento</div>
+    <div class="camp-grid">${CAMPS_IMPLEMENTACAO.map(c=>fCampEl(c,false)).join('')}</div>`;
+}
+function fRestoreCatalog(){
+  if(fState.categoria==='campanhas'){
+    const {ativas,outras}=fGetCampaigns();
+    fRenderCatalogs(ativas,outras);
+  } else if(fState.categoria==='implementacao'){
+    fRenderImplementacao();
+  } else {
+    fRenderCategorias();
+  }
+}
+
 function fRenderCatalogs(a,o){
   a=a||[];o=o||[];
-  const rec=a.find(c=>c.popular)||a[0];
-  const recEl=document.getElementById('camp-rec');
-  if(recEl) recEl.innerHTML = rec ? fCampEl(rec,true) : '';
-  // !rec → lista vazia; evita TypeError em rec.id quando não há nenhuma campanha
+  const cat=document.getElementById('f-catalog'); if(!cat)return;
+  const rec=a.find(c=>c.popular)||null;
+  cat.innerHTML=`
+    <div class="cat-back-row">
+      <button class="cat-back-btn" onclick="fVoltarCategoria()">${_ICO_BACK} Todas as categorias</button>
+      <span class="cat-back-label">Campanhas</span>
+    </div>
+    ${rec?`<div class="sec-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:middle;margin-right:4px"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9"/></svg>Recomendada agora</div>
+    <div class="camp-grid" id="camp-rec"></div>`:''}
+    <div class="sec-title">Ativas agora</div>
+    <div class="camp-grid" id="camp-main"></div>
+    ${o.length?`<div class="sec-title">Outras campanhas</div><div class="camp-grid" id="camp-other"></div>`:''}`;
+  if(rec) document.getElementById('camp-rec')?.insertAdjacentHTML('beforeend',fCampEl(rec,true));
   document.getElementById('camp-main').innerHTML=a.filter(c=>!rec||c.id!==rec.id).map(c=>fCampEl(c,false)).join('');
-  if(document.getElementById('camp-other')) document.getElementById('camp-other').innerHTML=o.map(c=>fCampEl(c,false)).join('');
+  if(o.length) document.getElementById('camp-other')?.insertAdjacentHTML('beforeend',o.map(c=>fCampEl(c,false)).join(''));
 }
 function fFilterCamps(q){
+  if(fState.categoria!=='campanhas') return;
   const {ativas,outras}=fGetCampaigns();
   const f1=q?ativas.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())):ativas;
   const f2=q?outras.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())):outras;
-  document.getElementById('camp-rec').style.display=q?'none':'';
   fRenderCatalogs(f1.length?f1:ativas,f2);
+  if(q) document.getElementById('camp-rec')?.style && (document.getElementById('camp-rec').style.display='none');
 }
 function fSelectCamp(id){
   const c=fResolveCamp(id);if(!c)return;
-  // Se mesma campanha já selecionada, ignora (mas reabre o catálogo se ainda estiver lá)
   if(fState.camp && fState.camp.id===c.id) {
     if(fState.materialView) return;
   }
-  // Se há dados preenchidos e não está apenas iniciando, pergunta antes de descartar
   const temDados = Object.keys(fState.dados).length > 0 && !fState.materialView;
   if(temDados && !fState.done){
     fAskCampSwitch(c);
     return;
   }
-  // Antes de aplicar, abre catálogo de materiais da pasta
   fState.camp=c;
-  const {ativas:_a,outras:_o}=fGetCampaigns();fRenderCatalogs(_a,_o);
+  fRestoreCatalog();
   fUpdateCtx();
   fOpenMaterialCatalog(c);
 }

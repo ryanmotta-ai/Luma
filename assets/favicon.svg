@@ -1,5 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Background -->
   <rect width="32" height="32" rx="7" fill="#FF9000"/>
-  <path d="M8 10L16 18L24 10" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-  <path d="M11 18L16 23L21 18" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.6"/>
+  
+  <!-- Content Scaled Down for Padding -->
+  <g transform="translate(16, 16) scale(0.8) translate(-16, -16)">
+    <!-- Magic Wand -->
+    <!-- Handle -->
+    <path d="M8 24 L15.5 16.5" stroke="white" stroke-width="3" stroke-linecap="round"/>
+    <!-- Tip -->
+    <path d="M17.5 14.5 L23 9" stroke="white" stroke-width="3" stroke-linecap="round"/>
+    
+    <!-- Sparkles (4-pointed stars) -->
+    <!-- Top Left Star -->
+    <path d="M12 5.5 Q12 9 15.5 9 Q12 9 12 12.5 Q12 9 8.5 9 Q12 9 12 5.5 Z" fill="white"/>
+    <!-- Bottom Right Star -->
+    <path d="M20 19.5 Q20 23 23.5 23 Q20 23 20 26.5 Q20 23 16.5 23 Q20 23 20 19.5 Z" fill="white"/>
+    <!-- Mid Right Star (Smaller) -->
+    <path d="M24 15 Q24 17 26 17 Q24 17 24 19 Q24 17 22 17 Q24 17 24 15 Z" fill="white"/>
+    
+    <!-- Ray lines from tip -->
+    <line x1="25.5" y1="6.5" x2="27.5" y2="4.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="23.5" y1="5.5" x2="23.5" y2="3" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="26" y1="8.5" x2="28.5" y2="8.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+  </g>
 </svg>

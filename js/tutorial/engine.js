@@ -68,6 +68,7 @@ function tutOpen(id){
 }
 
 function tutClose(){
+  document.getElementById('tut-exit-bar')?.classList.remove('show');
   const stage = document.getElementById('tut-stage');
   stage.classList.add('closing');
   tutPause();
@@ -82,15 +83,16 @@ function tutClose(){
 }
 
 function tutAskClose(){
-  // Se tá na primeira cena ou no finale, fecha direto
   if(tutState.sceneIdx <= 0 || document.getElementById('tut-finale').classList.contains('show')){
-    tutClose();
-    return;
+    tutClose(); return;
   }
-  // Senão confirma
-  if(confirm('Sair do tutorial? Você pode reabrir depois.')){
-    tutClose();
-  }
+  tutPause();
+  document.getElementById('tut-exit-bar').classList.add('show');
+}
+
+function tutExitCancel(){
+  document.getElementById('tut-exit-bar').classList.remove('show');
+  tutPlay();
 }
 
 function tutGoToScene(idx){

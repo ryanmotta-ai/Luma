@@ -1,0 +1,340 @@
+/* css/components/help-chat.css
+   Widget flutuante de ajuda e chatbot integrado */
+
+.g-chat-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #FF9000;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 18px rgba(255, 144, 0, 0.35);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s, box-shadow 0.2s;
+}
+.g-chat-btn:hover {
+  transform: scale(1.08);
+  background: #F85400; /* ligeiramente mais escuro no hover para feedback visual */
+  box-shadow: 0 6px 20px rgba(255, 144, 0, 0.5);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+.g-chat-btn:active {
+  transform: scale(0.95);
+}
+.g-chat-btn-icon {
+  width: 24px;
+  height: 24px;
+  color: #ffffff;
+  transition: transform 0.2s;
+}
+.g-chat-btn.active .g-chat-btn-icon {
+  transform: rotate(90deg);
+}
+
+/* Janela de Chat */
+.g-chat-window {
+  position: fixed;
+  bottom: 92px;
+  right: 24px;
+  width: 360px;
+  height: 500px;
+  background: rgba(26, 26, 26, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  z-index: 9998;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(20px) scale(0.95);
+  pointer-events: none;
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.g-chat-window.open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+/* Cabeçalho */
+.g-chat-header {
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.g-chat-header-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.g-chat-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #FF9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+}
+.g-chat-avatar::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 9px;
+  height: 9px;
+  background: #22C55E;
+  border: 1.5px solid #1e1e1e;
+  border-radius: 50%;
+}
+.g-chat-header-text {
+  display: flex;
+  flex-direction: column;
+}
+.g-chat-title {
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+}
+.g-chat-status {
+  font-family: 'Roboto', sans-serif;
+  font-size: 11px;
+  color: #22C55E;
+  font-weight: 500;
+}
+.g-chat-close {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  font-size: 20px;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.2s, color 0.2s;
+}
+.g-chat-close:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+}
+
+/* Corpo da Conversa */
+.g-chat-body {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  scroll-behavior: smooth;
+}
+.g-chat-msg {
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+  animation: gFadeInUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.g-chat-msg.bot {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  color: #f0f0f0;
+  align-self: flex-start;
+  border-top-left-radius: 4px;
+}
+.g-chat-msg.user {
+  background: #FF9000;
+  color: #ffffff;
+  align-self: flex-end;
+  border-top-right-radius: 4px;
+  font-weight: 500;
+}
+
+/* Chips de Opções */
+.g-chat-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+  width: 100%;
+}
+.g-chat-chip {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 12.5px;
+  color: #e0e0e0;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s;
+  font-weight: 500;
+  animation: gScaleIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.g-chat-chip:hover {
+  background: rgba(255, 144, 0, 0.08);
+  border-color: #FF9000;
+  color: #FF9000;
+  transform: translateX(2px);
+}
+
+/* Rodapé / Input de Suporte */
+.g-chat-footer {
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  gap: 8px;
+}
+.g-chat-input-box {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 13px;
+  color: #ffffff;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.g-chat-input-box:focus {
+  border-color: #FF9000;
+}
+.g-chat-input-box:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: rgba(0, 0, 0, 0.1);
+}
+.g-chat-send-btn {
+  background: #FF9000;
+  border: none;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+}
+.g-chat-send-btn:hover:not(:disabled) {
+  background: #F85400;
+}
+.g-chat-send-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+.g-chat-send-btn:disabled {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.2);
+  cursor: not-allowed;
+}
+
+/* --- ADAPTAÇÃO PARA TEMA CLARO --- */
+body.theme-light .g-chat-window {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+body.theme-light .g-chat-header {
+  background: rgba(0, 0, 0, 0.02);
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+body.theme-light .g-chat-title {
+  color: #0A0A0A;
+}
+body.theme-light .g-chat-close {
+  color: rgba(0, 0, 0, 0.4);
+}
+body.theme-light .g-chat-close:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: #0a0a0a;
+}
+body.theme-light .g-chat-msg.bot {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.03);
+  color: #222222;
+}
+body.theme-light .g-chat-chip {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #333333;
+}
+body.theme-light .g-chat-chip:hover {
+  background: rgba(255, 144, 0, 0.05);
+  border-color: #FF9000;
+  color: #FF9000;
+}
+body.theme-light .g-chat-footer {
+  background: rgba(0, 0, 0, 0.01);
+  border-top-color: rgba(0, 0, 0, 0.06);
+}
+body.theme-light .g-chat-input-box {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #0A0A0A;
+}
+body.theme-light .g-chat-input-box:focus {
+  border-color: #FF9000;
+}
+body.theme-light .g-chat-avatar::after {
+  border-color: #ffffff;
+}
+
+/* Indicador de Digitação (Bouncing Dots) */
+.g-chat-typing {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 18px;
+}
+.g-chat-typing-dot {
+  width: 6px;
+  height: 6px;
+  background: currentColor;
+  opacity: 0.45;
+  border-radius: 50%;
+  animation: gChatDotWave 1.2s ease-in-out infinite;
+}
+.g-chat-typing-dot:nth-child(2) {
+  animation-delay: 0.16s;
+}
+.g-chat-typing-dot:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
+@keyframes gChatDotWave {
+  0%, 100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  50% {
+    transform: translateY(-4px);
+    opacity: 0.9;
+  }
+}
+

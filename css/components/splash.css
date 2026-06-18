@@ -61,7 +61,7 @@
 
 /* ── Disclaimer "Um produto [DM]" ancorado no rodapé ── */
 .sp-disclaimer{
-  position:absolute; bottom:42px; left:0; right:0;
+  position:absolute; bottom:24px; left:0; right:0;
   display:flex; align-items:center; justify-content:center; gap:9px;
   z-index:2;
   animation:gFadeIn .6s ease-out 1.25s both !important;
@@ -72,7 +72,7 @@
 }
 /* logo DM branca real (var(--logo-h-branca) neste projeto aponta pra logo do Luma) */
 .sp-dm-logo{
-  width:76px; height:auto; aspect-ratio:3.38 / 1;
+  width:108px; height:32px;
   background:url('../../assets/logos/dm-h-branca.png') center/contain no-repeat;
   opacity:0.9;
 }

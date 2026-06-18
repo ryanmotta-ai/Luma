@@ -40,6 +40,27 @@
   justify-content:center;
   flex-shrink:0;
 }
+.lp-stage.loading {
+  position: relative;
+}
+.lp-stage.loading::after {
+  content: '';
+  position: absolute;
+  top: 18px;
+  bottom: 14px;
+  left: 18px;
+  right: 18px;
+  border-radius: 8px;
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0) 30%, rgba(255, 255, 255, 0.4) 50%, rgba(255, 255, 255, 0) 70%);
+  background-size: 200% 100%;
+  animation: gShimmer 1.5s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 10;
+}
+body:not(.theme-light) .lp-stage.loading::after {
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0) 30%, rgba(255, 255, 255, 0.12) 50%, rgba(255, 255, 255, 0) 70%);
+  background-size: 200% 100%;
+}
 /* #lp-canvas agora é um <canvas> que renderiza o template real (ver live-preview.js).
    As dimensões de exibição são definidas inline pelo JS (escala única, sem distorção). */
 .lp-canvas{

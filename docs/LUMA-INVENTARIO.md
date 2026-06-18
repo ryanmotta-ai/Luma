@@ -11,7 +11,7 @@
 
 | Aspecto | Realidade |
 |---|---|
-| Stack | Vanilla JS puro, sem framework, sem build, sem npm |
+| Stack | Vanilla JS puro, sem framework, sem build, sem npm (com bibliotecas utilitárias locais Color Thief, Pica, PapaParse, pdf-lib, ag-psd) |
 | Carregamento | `index.html` carrega ~31 `<script>` em ordem; tudo global |
 | Estado | variáveis `let` globais (`fState`, `dLayers`, `dFolders`, `dArtboards`, `dVars`, `dMultiSel`...) |
 | Persistência | `localStorage` (7 chaves) — sem backend |
@@ -32,14 +32,15 @@ O franqueado entra na aba "catalogo" e vê o catálogo de campanhas (`fRenderCat
 - Catálogo de materiais: "pasta" da campanha com materiais publicados, filtrando os expirados por validade
 - Chat guiado: uma pergunta por vez, derivada das variáveis do template, com "Passo X de Y" e dica de tipo/maxLen
 - Quick replies (sugestões): chips clicáveis que aplicam máscara + validação igual ao envio manual (`fQR`)
-- Upload de imagem: clique ou drag&drop, valida tipo/tamanho (máx 4MB), redimensiona (>1500px) e mostra prévia com "Trocar"
+- Upload de imagem: clique ou drag&drop, valida tipo/tamanho (máx 4MB), redimensiona de forma nítida via **Pica.js** (Lanczos3), extrai cores dominantes com **Color Thief** (swatches) e mostra prévia com "Trocar"
 - Máscara/validação por tipo: preço (R$ BR), desconto (% ou R$), código (alfanumérico maiúsculo), texto, select/boolean/color/date
 - Live preview em tempo real: canvas lateral que renderiza o template real com placeholders `{{var}}` nos campos vazios
 - Confirmação editável: card-resumo com edição campo a campo e botão "Alterar tudo"
 - Voltar uma pergunta: navegação para trás no fluxo linear (`fGoBack`)
-- Geração em lote (CSV): baixa modelo CSV, importa, valida por célula e baixa N PNGs em fila (`fBulk*`)
+- Geração em lote (CSV): baixa modelo CSV, importa usando **PapaParse** (compatível com aspas/vírgulas escapadas), valida por célula e baixa N PNGs em fila (`fBulk*`)
 - Histórico: lista com filtro por status (todas/rascunho/baixada), badge de contagem, empty states
 - Download PNG: super-sampling 2× + logo Luma, nome padronizado `DM_<Campanha>_<Produto>_<Formato>_<data>.png`
+- Download PDF: geração client-side embutindo o canvas na proporção exata (`fGenPDF` / `fBaixarPDF` via `pdf-lib`)
 - "Gerar outro formato": gera variação em outro formato sem refazer perguntas (`fOutroFormato`/`fDuplicateInOtherFmt`)
 - Reabrir/editar do histórico: restaura material original (ou fallback por chaves dos dados) e volta ao confirm (`fEditFromHist`)
 - Trocar campanha/formato no meio do fluxo: pede confirmação se há dados (`fAskCampSwitch`, `fSelectFmt`)
@@ -58,7 +59,10 @@ O franqueado entra na aba "catalogo" e vê o catálogo de campanhas (`fRenderCat
 | fMostrarConfirm | chat.js | Monta o card de resumo editável antes de gerar |
 | fGerarArte | chat.js | Marca done, salva rascunho no histórico e renderiza thumbnail + opções de formato/baixar |
 | fBaixar / fOutroFormato | chat.js | Gera o PNG final (`fGenPNG`) e marca/insere no histórico como "baixada" |
+| fBaixarPDF | chat.js | (async) Dispara a geração de PDF final via `fGenPDF` e registra o download no histórico |
+| fGetContrastColor | chat.js | Calcula contraste do texto (preto/branco) para cores hex via luminância YIQ |
 | fGenPNG | png-generator.js | Renderiza o PNG (layers do template em 2× ou fallback programático) e dispara o download |
+| fGenPDF | png-generator.js | (async) Cria o documento PDF com pdf-lib, insere a arte renderizada e baixa |
 | fRenderTemplateLayers | png-generator.js | Motor de render dos layers (reflow, bindings, regras, texto/shape/imagem) — usado por PNG e preview |
 | fUpdateLivePreview | live-preview.js | Renderiza o template real no canvas lateral com placeholders nos campos vazios |
 | fAddHist / fMarkHistBaixada | history.js | Persiste/atualiza entradas do histórico (com dedup por assinatura) em localStorage |
@@ -263,7 +267,8 @@ Nenhum mock de analytics existe. (A chave `dm_asset_tags_v1` citada no CONTEXTO 
 `splash.js` (IIFE). Overlay `#sp-overlay` no carregamento (1º script do `<body>`). `spDismiss()` (em `window.spDismiss`) adiciona `.sp-done` (fade) e esconde após 450ms. No `DOMContentLoaded` agenda o dismiss respeitando o mínimo `SP_MIN`=2800ms (alinhado à barra de progresso). Tudo em try/catch para nunca travar o app.
 
 ### Favicon
-SVG vetorial em `assets/favicon.svg` (quadrado laranja `#FF9000` com border-radius + duas chevrons brancas, a inferior com opacity 0.6 — mesmo ícone da splash/topbar). Linkado no `<head>` (`rel="icon" type="image/svg+xml"` + fallback PNG apontando pro SVG) com `<meta name="theme-color" content="#FF9000">`. Script `scripts/gen-favicon.js` gera o PNG 180×180 (Apple Touch) se o pacote `canvas` estiver disponível (não foi gerado — `canvas` ausente no ambiente).
+SVG vetorial em `assets/favicon.svg` (quadrado laranja `#FF9000` com border-radius + varinha mágica branca com estrelas e faíscas ao redor). Linkado no `<head>` (`rel="icon" type="image/svg+xml"` + fallback PNG apontando pro SVG) com `<meta name="theme-color" content="#FF9000">`. Script `scripts/gen-favicon.js` gera o PNG 180×180 (Apple Touch) se o pacote `canvas` estiver disponível.
+
 
 ### Bootstrap (`main.js`)
 Define `setMode(m)` e, na carga, inicializa o franqueado em ordem: `fRenderCatalogs(CAMPS_ATIVAS, CAMPS_OUTRAS)` → `fRenderFmts()` → `fUpdateHistBadge()` → `fStartChat()`. `setMode(m)` troca body class para `mode-<m>` (preserva `theme-light`), alterna abas `#tab-fran`/`#tab-design`, mostra/esconde topbars e chama `dInit()` ao entrar no designer (lazy: só na 1ª vez). ⚠ Toast/help/splash/tutorial se auto-registram via listeners — não há init explícito no `main.js`.
@@ -384,6 +389,19 @@ Radii: `--r:10px`, `--r-sm:6px`, `--r-pill:999px`.
 | spDismiss | — | (em IIFE; `window.spDismiss`) Fade-out e esconde `#sp-overlay` após 450ms |
 | (IIFE init) | — | No `DOMContentLoaded` agenda o dismiss respeitando `SP_MIN`=2800ms |
 
+### js/core/help-chat.js
+| Função | Parâmetros | O que faz |
+|---|---|---|
+| gInitHelpChat | — | Cria e insere no `body` o botão flutuante e o container de chat (`#g-chat-btn` e `#g-chat-window`), e inicializa o fluxo |
+| gToggleHelpChat | — | Alterna o estado de exibição do chat (abre/fecha com efeito CSS transition e troca o ícone do botão) |
+| gChatReset | — | Reseta a conversa para o menu inicial do bot e desabilita entrada manual de texto |
+| gAddChatBubbleBot | htmlText, options | Injeta uma bolha de mensagem do robô no corpo do chat com chips de opções clicáveis |
+| gAddChatBubbleUser | text | Injeta uma bolha de mensagem do usuário (direita, cor laranja) no corpo do chat |
+| gChatSelectOption | id, label | Manipula a escolha de uma opção pelo usuário, mostra indicador de digitação ("Digitando...") e avança na árvore de decisão |
+| gChatSendMessage | — | Envia a mensagem manual digitada no input para o modo Suporte Humano, simulando resposta do time comercial após delay |
+| gCheckHelpChatVisibility | — | Verifica a visibilidade do botão flutuante com base na presença de usuário logado e ocultação do splash e tela de login |
+
+
 ### js/core/layout.js
 | Função | Parâmetros | O que faz |
 |---|---|---|
@@ -443,7 +461,7 @@ Radii: `--r:10px`, `--r-sm:6px`, `--r-pill:999px`.
 | fAddBotImageUpload | stepLabel, pergunta, canGoBack | Bolha de upload de imagem |
 | fHandleImageUpload | event, varId, uploadId | Handler do `<input file>` |
 | fProcessImageFile | file, varId, uploadId | Valida (4MB), skeleton, lê dataURL, redimensiona, salva |
-| fResizeImageIfNeeded | dataUrl, maxDim, cb | Redimensiona imagem via canvas (JPEG 0.88) |
+| fResizeImageIfNeeded | dataUrl, maxDim, cb | Redimensiona imagem de forma nítida via **Pica.js** (com fallback nativo canvas) |
 | fReplaceImage | varId, btn | Apaga imagem e re-pergunta |
 | fGoBack | — | Volta uma pergunta (remove bolhas, limpa dados) |
 | fUpdateInputPlaceholder | id | Placeholder conforme tipo do campo |
@@ -454,6 +472,8 @@ Radii: `--r:10px`, `--r-sm:6px`, `--r-pill:999px`.
 | fGerarArte | — | Marca done, salva rascunho, thumbnail + opções ⚠ fallback usa nomes mágicos `foto_produto`/`logo_loja` |
 | fOutroFormato | id | (async) Variação em outro formato |
 | fBaixar | btn | (async) Baixa o PNG do formato atual |
+| fBaixarPDF | btn, snapId | (async) Dispara fGenPDF, atualiza histórico e mostra toast |
+| fGetContrastColor | hex | Calcula cor de contraste (#000000 ou #ffffff) via luminância YIQ |
 | fRefazer | — | Reinicia o fluxo da campanha atual |
 | fResetFlow | — | Reset com confirmação inline |
 | fConfirmReset / fCancelReset | — | Confirma / cancela o reset |
@@ -492,6 +512,7 @@ Radii: `--r:10px`, `--r-sm:6px`, `--r-pill:999px`.
 |---|---|---|
 | fLoadLogoBranca | — | Carrega/cacheia a logo Luma branca da CSS var |
 | fGenPNG | d, c, fmt | (async) Gera e baixa o PNG (layers 2× ou fallback programático) |
+| fGenPDF | d, c, fmt | (async) Cria documento PDF com pdf-lib, insere a arte renderizada e baixa |
 | fDrawDMLogo | ctx, w, h | (async) Desenha a logo no rodapé |
 | fRenderTemplateLayers | ctx, layers, W, H, dados, camp | (async) Motor de render: reflow, bindings/regras, fundo, layers |
 | fRenderOneLayer | ctx, l, dados, scaleX, scaleY | (async) Desenha 1 layer (auto-fit, sombra, contorno, clip de imagem) |
@@ -502,7 +523,7 @@ Radii: `--r:10px`, `--r-sm:6px`, `--r-pill:999px`.
 | fBulkOpen / fBulkClose | — | Abre/fecha o modal de geração em lote |
 | fBulkVars | — | Variáveis do material ordenadas por `dVars` |
 | fBulkTemplateCSV | — | Gera/baixa CSV-modelo |
-| fBulkParseCSV | text | Parser CSV (aspas + vírgula escapada) |
+| fBulkParseCSV | text | Parser CSV usando **PapaParse** (com fallback) |
 | fBulkHandleCSV | input | Lê CSV, aplica máscara/validação por célula |
 | fBulkRenderPreview | — | Preview das linhas (chips + erros) |
 | fBulkDownloadAll | — | (async) Baixa 1 PNG por linha válida, em fila |

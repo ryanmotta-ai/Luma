@@ -47,12 +47,10 @@
 }
 .g-help-close:hover{background:var(--gray-light);color:var(--dm-red)}
 .g-help-body{
-  padding:20px 22px 22px;
+  padding:18px 22px 22px;
   overflow-y:auto;
-}
-.g-help-intro{
-  font-size:14px;color:var(--text-2);
-  margin-bottom:22px;line-height:1.5;
+  flex:1;
+  min-height:0;
 }
 .g-help-section{margin-bottom:24px}
 .g-help-section:last-child{margin-bottom:0}
@@ -177,3 +175,139 @@
 .g-help-tut-play{position:absolute;top:10px;right:10px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;background:var(--dm-orange);color:#fff;border-radius:50%;font-size:10px;opacity:0;transform:scale(.7);transition:all .2s;box-shadow:0 3px 10px rgba(255,144,0,.4)}
 .g-help-search{width:100%;padding:9px 13px;font-size:13px;border:1.5px solid var(--gray-mid);border-radius:8px;font-family:'Roboto',sans-serif;background:var(--off-white);color:var(--text);outline:none;margin-bottom:14px}
 .g-help-search:focus{border-color:var(--dm-orange)}
+
+/* ══ ABAS ══ */
+.g-help-tabs{
+  display:flex;
+  border-bottom:1px solid var(--gray-light);
+  padding:0 22px;
+  gap:4px;
+  flex-shrink:0;
+}
+.g-help-tab{
+  background:none;border:none;cursor:pointer;
+  padding:10px 14px;
+  font-size:13px;font-weight:700;font-family:'Roboto',sans-serif;
+  color:var(--text-3);
+  border-bottom:2px solid transparent;
+  margin-bottom:-1px;
+  transition:color .15s,border-color .15s;
+}
+.g-help-tab:hover{color:var(--text-2)}
+.g-help-tab.active{color:var(--dm-orange-d);border-bottom-color:var(--dm-orange)}
+
+/* ══ PANES ══ */
+.g-help-pane{display:none}
+.g-help-pane.active{display:block;animation:gFadeIn .2s ease-out}
+
+/* ══ BARRA DE PROGRESSO (reutilizada) ══ */
+.g-help-prog-labels{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
+.g-help-prog-label{font-size:11px;font-weight:700;color:var(--text-2)}
+.g-help-prog-pct{font-size:11px;font-weight:700;color:var(--dm-orange-d)}
+.g-help-prog-track{height:5px;background:var(--gray-light);border-radius:3px;overflow:hidden}
+.g-help-prog-fill{height:100%;background:linear-gradient(90deg,var(--dm-orange),var(--dm-orange-d));border-radius:3px;transition:width .6s cubic-bezier(.16,1,.3,1)}
+
+/* ══ TRILHA — header com progresso ══ */
+.g-help-trail-prog{margin-bottom:16px}
+
+/* ══ TRILHA — primeiro acesso ══ */
+.g-help-trail-welcome{
+  background:linear-gradient(135deg,rgba(255,144,0,.06),rgba(255,185,0,.08));
+  border:1.5px solid rgba(255,144,0,.2);
+  border-radius:12px;padding:20px;
+  text-align:center;margin-bottom:16px;
+}
+.g-help-trail-welcome-emoji{font-size:32px;margin-bottom:8px}
+.g-help-trail-welcome-title{font-size:15px;font-weight:800;color:var(--text);margin-bottom:6px}
+.g-help-trail-welcome-sub{font-size:12px;color:var(--text-3);line-height:1.55;margin-bottom:14px}
+.g-help-trail-cta{
+  background:var(--dm-orange);color:#fff;border:none;cursor:pointer;
+  padding:10px 22px;border-radius:8px;font-size:13px;font-weight:700;
+  font-family:'Roboto',sans-serif;
+  box-shadow:0 4px 14px rgba(255,144,0,.3);
+  transition:background .15s,transform .15s,box-shadow .15s;
+}
+.g-help-trail-cta:hover{background:var(--dm-orange-d);transform:translateY(-1px);box-shadow:0 6px 18px rgba(255,144,0,.4)}
+
+/* ══ TRILHA — próxima aula CTA ══ */
+.g-help-trail-next{
+  background:var(--off-white);border:1.5px solid var(--gray-light);
+  border-radius:10px;padding:12px 14px;
+  cursor:pointer;margin-bottom:16px;
+  transition:border-color .15s,box-shadow .15s,transform .15s;
+}
+.g-help-trail-next:hover{
+  border-color:var(--dm-orange);
+  box-shadow:0 4px 16px rgba(255,144,0,.14);
+  transform:translateY(-1px);
+}
+.g-help-trail-next-label{
+  font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--dm-orange-d);display:block;margin-bottom:8px;
+}
+.g-help-trail-next-row{display:flex;align-items:center;gap:10px}
+.g-help-trail-next-info{flex:1;min-width:0}
+.g-help-trail-next-title{font-size:13px;font-weight:700;color:var(--text)}
+.g-help-trail-next-dur{font-size:11px;color:var(--text-3);margin-top:2px}
+.g-help-trail-next-play{
+  width:30px;height:30px;border-radius:50%;flex-shrink:0;
+  background:var(--dm-orange);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;
+  box-shadow:0 3px 10px rgba(255,144,0,.4);
+}
+
+/* ══ TRILHA — conclusão ══ */
+.g-help-trail-complete{
+  text-align:center;padding:18px;
+  background:rgba(34,197,94,.06);border:1.5px solid rgba(34,197,94,.2);
+  border-radius:10px;margin-bottom:16px;
+}
+.g-help-trail-complete-title{font-size:14px;font-weight:800;color:var(--text);margin-top:6px}
+.g-help-trail-complete-sub{font-size:11px;color:var(--text-3);margin-top:4px}
+
+/* ══ TRILHA — lista de passos ══ */
+.g-help-trail-steps{display:flex;flex-direction:column;gap:4px}
+.g-help-trail-step{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 10px;border-radius:8px;
+  cursor:pointer;
+  transition:background .12s,box-shadow .12s;
+  border:1px solid transparent;
+}
+.g-help-trail-step:hover{background:rgba(0,0,0,.03)}
+
+/* Número / check badge */
+.g-help-trail-step-num{
+  width:22px;height:22px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:800;
+}
+
+/* Done */
+.g-help-trail-step.done .g-help-trail-step-num{background:rgba(34,197,94,.15);color:#15803D}
+.g-help-trail-step.done .g-help-trail-step-title{color:var(--text-3);text-decoration:line-through;text-decoration-color:rgba(100,116,139,.4)}
+.g-help-trail-step.done .g-help-trail-step-play{opacity:0}
+.g-help-trail-step.done:hover .g-help-trail-step-play{opacity:.5}
+
+/* Current (próximo a fazer) */
+.g-help-trail-step.current{
+  background:rgba(255,144,0,.06);
+  border-color:rgba(255,144,0,.2);
+}
+.g-help-trail-step.current .g-help-trail-step-num{background:var(--dm-orange);color:#fff;box-shadow:0 2px 8px rgba(255,144,0,.4)}
+.g-help-trail-step.current .g-help-trail-step-title{color:var(--text);font-weight:700}
+.g-help-trail-step.current .g-help-trail-step-play{color:var(--dm-orange-d);opacity:1}
+
+/* Upcoming */
+.g-help-trail-step.upcoming .g-help-trail-step-num{background:var(--gray-light);color:var(--text-3)}
+.g-help-trail-step.upcoming .g-help-trail-step-title{color:var(--text-2)}
+
+.g-help-trail-step-info{flex:1;min-width:0}
+.g-help-trail-step-title{font-size:12.5px;font-weight:600;line-height:1.3}
+.g-help-trail-step-dur{font-size:10px;color:var(--text-3);margin-top:1px}
+.g-help-trail-step-play{font-size:10px;color:var(--text-3);flex-shrink:0;transition:opacity .15s;opacity:.35}
+.g-help-trail-step:hover .g-help-trail-step-play{opacity:1}
+
+/* Catalog pane search spacing */
+#g-help-pane-catalogo .g-help-search{margin-bottom:14px}

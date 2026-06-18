@@ -118,8 +118,8 @@ Object.assign(TUTORIALS, {
         build: ()=>`<div class="tut-scene-content">${tutStudio(tutArtCanvas({w:130,h:175,highlight:'canvas'}), {})}</div>`,
         tooltip:{ text:'No centro é a prancheta. Você tem zoom (Ctrl +/-) e pode ter várias pranchetas.', target:'.tut-art', placement:'left' } },
       { id:'painel', duration:4500,
-        build: ()=>`<div class="tut-scene-content">${tutStudio(tutArtCanvas({w:110,h:150}), { panel: tutPanelCard('Abas do painel', 'Campanhas · Biblioteca<br>Propriedades · Variáveis<br>Assets · Tutorial', true) })}</div>`,
-        tooltip:{ text:'À direita estão os painéis: propriedades do elemento, variáveis, assets e este tutorial.', target:'.tut-panel-card.highlighted', placement:'left' } },
+        build: ()=>`<div class="tut-scene-content">${tutStudio(tutArtCanvas({w:110,h:150}), { panel: tutPanelCard('Abas do painel', 'Camadas · Campanhas<br>Dados · Biblioteca<br>Assets', true) })}</div>`,
+        tooltip:{ text:'À direita: Camadas (propriedades do layer selecionado), Campanhas, Dados (campos variáveis) e Assets.', target:'.tut-panel-card.highlighted', placement:'left' } },
       { id:'topbar', duration:4500,
         build: ()=>`<div class="tut-scene-content"><div style="display:flex;gap:10px;align-items:center">
             ${tutChip('💾 Salvar')}${tutChip('👁 Simular')}${tutChip('🔍 Preview')}${tutChip('🚀 Publicar',{primary:true,highlight:true,id:'tut-st-pub'})}
@@ -137,7 +137,7 @@ Object.assign(TUTORIALS, {
           'Os blocos de uma arte', 'Toda arte é feita de textos, formas e molduras de foto. Veja como criar cada um.', 'linear-gradient(135deg,#1A1A1A,#333)') },
       { id:'texto', duration:4500,
         build: ()=>`<div class="tut-scene-content">${tutStudio(tutArtCanvas({w:120,h:160,highlight:'title'}), { tools:[{icon:'⌖',key:'V'},{icon:'T',key:'T',active:true,highlight:true},{icon:'▭',key:'R'},{icon:'🖼',key:'F'}] })}</div>`,
-        tooltip:{ text:'Ferramenta Texto (T): clique no canvas e digite. Escreva {{variavel}} pra criar um campo editável.', target:'.tut-art-title', placement:'right' } },
+        tooltip:{ text:'Ferramenta Texto (T): clique no canvas e digite. Use "Inserir campo" no painel lateral para vincular uma variável ao texto.', target:'.tut-art-title', placement:'right' } },
       { id:'formas', duration:4500,
         build: ()=>`<div class="tut-scene-content">${tutStudio(tutArtCanvas({w:120,h:160,highlight:'band'}), { tools:[{icon:'⌖',key:'V'},{icon:'T',key:'T'},{icon:'▭',key:'R',active:true,highlight:true},{icon:'🖼',key:'F'}], panel: tutPanelCard('Adicionar forma','● Círculo<br>★ Estrela<br>⬡ Polígono<br>— Linha') })}</div>`,
         tooltip:{ text:'Retângulo (R) e, no painel, círculo, estrela, polígono e linha — pra fundos, faixas e selos.', target:'.tut-art-band', placement:'right' } },
@@ -198,30 +198,35 @@ Object.assign(TUTORIALS, {
       { id:'intro', duration:3200, tooltip:null,
         build: ()=>_tutIntro('<path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5a2 2 0 0 0 2 2h1"/><path d="M16 3h1a2 2 0 0 1 2 2v5a2 2 0 0 0 2 2 2 2 0 0 0-2 2v5a2 2 0 0 1-2 2h-1"/>',
           'Tudo gira em variáveis', 'O que o franqueado preenche (produto, preço, foto...) vem das variáveis que você cria aqui.', 'linear-gradient(135deg,#1A1A1A,#333)') },
-      { id:'criar', duration:4500,
-        build: ()=>`<div class="tut-scene-content">${tutStudio(tutArtCanvas({w:100,h:140}), { panel: tutPanelCard('Variáveis', tutVarPill('produto','texto')+' '+tutVarPill('precoPor','moeda')+' '+tutVarPill('foto_produto','imagem',true)+'<br>'+tutChip('+ Novo',{primary:true}), true) })}</div>`,
-        tooltip:{ text:'Na aba Variáveis você lista e cria os campos. Cada um tem nome, rótulo e tipo.', target:'.tut-panel-card.highlighted', placement:'left' } },
-      { id:'autocomplete', duration:4500,
-        build: ()=>`<div class="tut-scene-content"><div style="display:flex;flex-direction:column;align-items:center;gap:0">
-            <div style="background:#222;border:1px solid #444;border-radius:6px;padding:8px 12px;color:#E8E8E8;font-family:'Roboto Mono',monospace;font-size:13px;width:240px">Combo {{pro<span style="background:#FF9000;color:#fff">|</span></div>
-            <div style="background:#1A1A1A;border:1px solid #444;border-top:none;border-radius:0 0 6px 6px;width:240px" id="tut-var-drop">
-              <div style="padding:7px 12px;background:rgba(255,144,0,.16);color:#FF9000;font-family:'Roboto Mono',monospace;font-size:12px">{{produto}} <span style="float:right;color:#888;font-size:10px">texto</span></div>
-              <div style="padding:7px 12px;color:#aaa;font-size:11px">➕ criar variável</div>
+      { id:'dados-tab', duration:4500,
+        build: ()=>`<div class="tut-scene-content">${tutStudio(tutArtCanvas({w:100,h:140}), { panel: tutPanelCard('Aba Dados', '🏷 produto · texto<br>💲 precoPor · preço<br>🖼 foto_produto · imagem<br><br>'+tutChip('+ Novo campo',{primary:true,id:'tut-var-novo'}), true) })}</div>`,
+        tooltip:{ text:'Na aba "Dados" ficam todos os campos do template, organizados por categoria. Clique "+ Novo campo" para criar.', target:'.tut-panel-card.highlighted', placement:'left' },
+        after: ()=>{ tutSceneTimeout(()=>tutMoveCursor('#tut-var-novo','click'), 1400); } },
+      { id:'wizard', duration:5500,
+        build: ()=>`<div class="tut-scene-content">
+          <div style="display:flex;flex-direction:column;gap:14px;width:320px">
+            <div style="background:#fff;border:1.5px solid rgba(255,144,0,.45);border-radius:10px;padding:14px;font-family:'Roboto',sans-serif">
+              <div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--dm-orange-d);margin-bottom:10px">Passo 1 — Que tipo de campo?</div>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+                ${[['🔤','Texto'],['💲','Preço'],['🖼','Imagem'],['☰','Lista'],['📅','Data'],['🎨','Cor'],['#️⃣','Número'],['🔘','Sim/Não']].map((t,i)=>`<div style="padding:8px 4px;background:${i===1?'rgba(255,144,0,.12)':'#f8f8f8'};border:1.5px solid ${i===1?'var(--dm-orange)':'#eee'};border-radius:7px;text-align:center;font-size:10px;font-weight:600;color:var(--text-2)">${t[0]}<br>${t[1]}</div>`).join('')}
+              </div>
+            </div>
+            <div style="background:#fff;border:1.5px solid #e8e8e8;border-radius:10px;padding:14px;font-family:'Roboto',sans-serif;opacity:0;animation:tutFinaleFadeUp .4s .5s both">
+              <div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--dm-orange-d);margin-bottom:10px">Passo 2 — Nome do campo</div>
+              <input readonly value="Preço promocional" style="width:100%;border:1.5px solid var(--dm-orange);border-radius:6px;padding:8px 10px;font-size:13px;font-family:'Roboto',sans-serif;box-sizing:border-box;outline:none">
+              <div style="font-size:10px;color:var(--text-3);margin-top:6px">Chave gerada automaticamente: <strong style="color:var(--text-2)">precoPor</strong></div>
             </div>
           </div></div>`,
-        tooltip:{ text:'Digite {{ em qualquer texto e escolha — ou crie uma nova variável na hora.', target:'#tut-var-drop', placement:'right' } },
+        tooltip:{ text:'2 passos: escolha o tipo e dê um nome claro. O sistema gera a chave técnica (ex: precoPor) sozinho.', target:null, placement:'bottom' } },
       { id:'tipos', duration:4500,
         build: ()=>`<div class="tut-scene-content"><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:380px">
-            ${[['texto','texto'],['preço','moeda'],['nº','número'],['foto','imagem'],['lista','seleção'],['data','data'],['cor','cor'],['sim/não','booleano']].map((t,i)=>`<span class="tut-var-pill" style="opacity:0;animation:tutFinaleFadeUp .4s ${0.1+i*0.07}s both"><span class="tut-var-pill-name">${t[0]}</span><span class="tut-var-pill-type">${t[1]}</span></span>`).join('')}
+            ${[['🔤','texto'],['💲','preço'],['#️⃣','número'],['🖼','imagem'],['☰','lista'],['📅','data'],['🎨','cor'],['🔘','sim/não']].map((t,i)=>`<div style="display:flex;align-items:center;gap:5px;padding:6px 12px;background:#f4f4f4;border:1px solid #e4e4e4;border-radius:20px;opacity:0;animation:tutFinaleFadeUp .4s ${0.1+i*0.07}s both"><span>${t[0]}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${t[1]}</span></div>`).join('')}
           </div></div>`,
         tooltip:null },
-      { id:'extras', duration:4000,
-        build: ()=>`<div class="tut-scene-content"><div style="max-width:340px;text-align:center;color:#E8E8E8;font-family:Roboto;font-size:13px;line-height:1.7">
-            <p style="opacity:0;animation:tutFinaleFadeUp .4s .15s both"><strong>Valor padrão</strong>: preenche quando o franqueado deixa vazio.</p>
-            <p style="opacity:0;animation:tutFinaleFadeUp .4s .35s both"><strong>Obrigatório</strong>: trava o avanço se ficar em branco.</p>
-            <p style="opacity:0;animation:tutFinaleFadeUp .4s .55s both">▲▼ <strong>Reordenar</strong>: muda a ordem das perguntas no chat.</p>
-          </div></div>`,
-        tooltip:null },
+      { id:'inserir', duration:4500,
+        build: ()=>`<div class="tut-scene-content">${tutStudio(tutArtCanvas({w:100,h:140,highlight:'title'}), { panel: tutPanelCard('Inserir campo no texto','Campo selecionado na lista:<br><br>'+tutChip('+ Inserir campo',{primary:true,id:'tut-var-ins'})+'<br><br>Resultado no texto:<br><span style="display:inline-flex;align-items:center;gap:3px;background:rgba(124,110,255,.12);color:#7C6EFF;border:1px solid rgba(124,110,255,.3);border-radius:4px;padding:1px 7px;font-size:11px;font-weight:600">[precoPor]</span>', true) })}</div>`,
+        tooltip:{ text:'"Inserir campo" coloca um chip [precoPor] no texto. No PNG final, o chip vira o valor real preenchido pelo franqueado.', target:'.tut-panel-card.highlighted', placement:'left' },
+        after: ()=>{ tutSceneTimeout(()=>tutMoveCursor('#tut-var-ins','click'), 1600); } },
     ],
   },
 
@@ -385,6 +390,148 @@ Object.assign(TUTORIALS, {
       { id:'navegacao', duration:4500,
         build: ()=>_tutKeyRows([['Ctrl+0','Encaixar na tela'],['Ctrl+1','Zoom 100%'],['Ctrl + / −','Aumentar / diminuir zoom'],['P','Preview / Exportar'],['?','Ver todos os atalhos']]),
         tooltip:null },
+    ],
+  },
+
+
+  'smart-resize': {
+    title: 'Smart Resize: um template, três formatos',
+    description: 'deixar a Luma adaptar seu template pra Story, Feed e Wide automaticamente.',
+    scenes: [
+      { id:'intro', duration:3200, tooltip:null,
+        build: ()=>_tutIntro('<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+          'Um template, três formatos', 'Você desenha no formato nativo e a Luma gera Story, Feed e Wide sem distorcer nada.', 'linear-gradient(135deg,#0f172a,#1e293b)') },
+      { id:'formatos', duration:5000,
+        build: ()=>`<div class="tut-scene-content">
+          <div style="display:flex;align-items:flex-end;justify-content:center;gap:18px">
+            ${[
+              ['Story','9:16','70px','124px','rgba(255,144,0,.15)','var(--dm-orange-d)','0s'],
+              ['Feed','1:1','100px','100px','rgba(34,197,94,.12)','#15803D','0.12s'],
+              ['Wide','19:10','130px','68px','rgba(59,130,246,.12)','#2563EB','0.24s'],
+            ].map(([name,ratio,w,h,bg,color,delay])=>`
+              <div style="display:flex;flex-direction:column;align-items:center;gap:8px;opacity:0;animation:tutFinaleFadeUp .5s ${delay} both">
+                <div style="width:${w};height:${h};background:${bg};border:2px solid ${color};border-radius:6px;display:flex;align-items:center;justify-content:center">
+                  <span style="font-size:9px;font-weight:700;color:${color}">${ratio}</span>
+                </div>
+                <span style="font-size:11px;font-weight:700;color:var(--text-2)">${name}</span>
+                <span style="font-size:9px;color:var(--text-3)">${name==='Story'?'1080×1920':name==='Feed'?'1080×1080':'1200×628'}</span>
+              </div>`).join('')}
+          </div></div>`,
+        tooltip:{ text:'O mesmo template é salvo em Story (9:16), Feed (1:1) e Wide (19:10). O franqueado escolhe o formato ao gerar.', target:null, placement:'bottom' } },
+      { id:'ancoras', duration:5500,
+        build: ()=>`<div class="tut-scene-content">
+          <div style="display:flex;gap:20px;align-items:center">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+              <div style="background:#1A1A1A;border-radius:6px;width:90px;height:150px;position:relative;overflow:hidden">
+                <div style="position:absolute;top:16px;left:8px;right:8px;height:28px;background:var(--dm-orange);border-radius:4px;display:flex;align-items:center;justify-content:center"><span style="font-size:9px;font-weight:700;color:#fff">TÍTULO</span></div>
+                <div style="position:absolute;bottom:12px;right:8px;width:40px;height:22px;background:#3b82f6;border-radius:3px;display:flex;align-items:center;justify-content:center"><span style="font-size:8px;color:#fff">R$19</span></div>
+                <div style="position:absolute;top:2px;right:4px;font-size:8px;color:rgba(255,255,255,.3);font-weight:600">Story</div>
+              </div>
+              <span style="font-size:10px;color:var(--text-3)">Formato original</span>
+            </div>
+            <div style="font-size:22px;color:var(--text-3);animation:tutFinaleFadeUp .4s .6s both;opacity:0">→</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;opacity:0;animation:tutFinaleFadeUp .5s .7s both">
+              <div style="background:#1A1A1A;border-radius:6px;width:110px;height:110px;position:relative;overflow:hidden">
+                <div style="position:absolute;top:12px;left:8px;right:8px;height:24px;background:var(--dm-orange);border-radius:4px;display:flex;align-items:center;justify-content:center"><span style="font-size:8px;font-weight:700;color:#fff">TÍTULO</span></div>
+                <div style="position:absolute;bottom:10px;right:8px;width:36px;height:20px;background:#3b82f6;border-radius:3px;display:flex;align-items:center;justify-content:center"><span style="font-size:7px;color:#fff">R$19</span></div>
+                <div style="position:absolute;top:2px;right:4px;font-size:7px;color:rgba(255,255,255,.3);font-weight:600">Feed</div>
+              </div>
+              <span style="font-size:10px;color:var(--text-3)">Adaptado</span>
+            </div>
+          </div></div>`,
+        tooltip:{ text:'A âncora de cada elemento é inferida automaticamente: encostado à esquerda fica à esquerda, centralizado fica centralizado.', target:null, placement:'bottom' } },
+      { id:'girar', duration:4500,
+        build: ()=>`<div class="tut-scene-content">${tutStudio(tutArtCanvas({w:100,h:140}), { panel: tutPanelCard('Orientação',
+          '<div style="display:flex;gap:6px;margin-top:4px">'
+          +'<span style="padding:5px 8px;background:#1A1A1A;border:1px solid rgba(255,255,255,.15);border-radius:4px;display:flex;align-items:center;justify-content:center"><svg width="10" height="14" viewBox="0 0 10 14" fill="none" stroke="#FF9000" stroke-width="1.5"><rect x="1" y="1" width="8" height="12" rx="1"/></svg></span>'
+          +'<span style="padding:5px 8px;background:#1A1A1A;border:1px solid rgba(255,255,255,.08);border-radius:4px;display:flex;align-items:center;justify-content:center"><svg width="14" height="10" viewBox="0 0 14 10" fill="none" stroke="rgba(255,255,255,.4)" stroke-width="1.5"><rect x="1" y="1" width="12" height="8" rx="1"/></svg></span>'
+          +'<span id="tut-girar-btn" style="flex:1;padding:5px 8px;background:rgba(255,144,0,.12);border:1px solid rgba(255,144,0,.3);border-radius:4px;color:var(--dm-orange);font-size:10px;font-weight:700;text-align:center">↔ Girar</span>'
+          +'</div>', true) })}</div>`,
+        tooltip:{ text:'"↔ Girar" no painel de prancheta troca portrait↔landscape aplicando smart-resize nas camadas.', target:'.tut-panel-card.highlighted', placement:'left' },
+        after: ()=>{ tutSceneTimeout(()=>tutMoveCursor('#tut-girar-btn','click'), 1600); } },
+      { id:'franqueado', duration:4000,
+        build: ()=>`<div class="tut-scene-content">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+            <div style="font-size:11px;font-weight:700;color:var(--text-2);margin-bottom:4px">O franqueado escolhe o formato no momento de gerar</div>
+            <div style="display:flex;gap:10px">
+              ${[['Story','70px','124px'],['Feed','100px','100px'],['Wide','130px','68px']].map(([name,w,h],i)=>`
+                <div style="display:flex;flex-direction:column;align-items:center;gap:6px;opacity:0;animation:tutFinaleFadeUp .4s ${0.1+i*0.1}s both">
+                  <div style="width:${w};height:${h};background:#1A1A1A;border:2px solid ${i===0?'var(--dm-orange)':'rgba(255,255,255,.1)'};border-radius:6px;position:relative;overflow:hidden">
+                    <div style="position:absolute;top:15%;left:10%;right:10%;height:20%;background:var(--dm-orange);border-radius:3px"></div>
+                    <div style="position:absolute;bottom:10%;right:10%;width:35%;height:15%;background:#3b82f6;border-radius:2px"></div>
+                    ${i===0?'<div style="position:absolute;inset:0;border-radius:4px;box-shadow:inset 0 0 0 2px var(--dm-orange)"></div>':''}
+                  </div>
+                  <span style="font-size:10px;font-weight:${i===0?'700':'500'};color:${i===0?'var(--dm-orange-d)':'var(--text-3)'}">${name}</span>
+                </div>`).join('')}
+            </div>
+          </div></div>`,
+        tooltip:{ text:'No preview, o franqueado toca no formato desejado. A Luma gera o PNG já adaptado para aquele tamanho.', target:null, placement:'bottom' } },
+    ],
+  },
+
+  'importar-psd': {
+    title: 'Importar um PSD do Photoshop',
+    description: 'transformar um arquivo .psd em template editável na Luma.',
+    scenes: [
+      { id:'intro', duration:3200, tooltip:null,
+        build: ()=>_tutIntro('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="12" x2="12" y2="18"/><line x1="9" y1="15" x2="15" y2="15"/>',
+          'PSD vira template', 'Traga seu layout do Photoshop direto pra Luma. Em minutos ele vira um template vivo com variáveis.', 'linear-gradient(135deg,#001b35,#31A8FF22)') },
+      { id:'botao', duration:4500,
+        build: ()=>`<div class="tut-scene-content">${tutStudio(tutArtCanvas({w:100,h:140}), { panel: tutPanelCard('Templates',
+          '<div style="display:flex;gap:6px;align-items:center;margin-top:4px">'
+          +'<span id="tut-psd-btn" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:#31A8FF;color:#fff;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer">'
+          +'<span style="background:#fff;color:#31A8FF;border-radius:2px;font-size:7px;padding:1px 3px;font-weight:900">PSD</span>Importar</span>'
+          +'<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:#FF9A00;color:#fff;border-radius:5px;font-size:11px;font-weight:700">'
+          +'<span style="background:#fff;color:#FF9A00;border-radius:2px;font-size:7px;padding:1px 3px;font-weight:900">SVG</span>Importar</span>'
+          +'</div>', true) })}</div>`,
+        tooltip:{ text:'No painel de Templates, clique no botão azul "PSD Importar" e selecione seu arquivo .psd.', target:'.tut-panel-card.highlighted', placement:'left' },
+        after: ()=>{ tutSceneTimeout(()=>tutMoveCursor('#tut-psd-btn','click'), 1400); } },
+      { id:'revisao', duration:5000,
+        build: ()=>`<div class="tut-scene-content">
+          <div style="background:#fff;border:1.5px solid #e4e4e4;border-radius:10px;width:340px;font-family:'Roboto',sans-serif;overflow:hidden">
+            <div style="background:#31A8FF;color:#fff;padding:10px 14px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:8px">
+              <span style="background:#fff;color:#31A8FF;border-radius:2px;font-size:8px;padding:1px 4px;font-weight:900">PSD</span>
+              Revisar camadas · combo_smash.psd
+            </div>
+            ${[
+              ['texto','Título produto','COMBO SMASH','editável'],
+              ['imagem','Foto produto','(raster)','imagem'],
+              ['var','Preço','{{precoPor}}','variável'],
+              ['forma','Fundo laranja','(shape)','forma'],
+            ].map((r,i)=>`
+              <div style="display:flex;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid #f0f0f0;opacity:0;animation:tutFinaleFadeUp .3s ${0.1+i*0.1}s both">
+                <span style="font-size:10px;flex:1;color:var(--text-2);font-weight:600">${r[1]}</span>
+                <span style="font-size:9px;color:var(--text-3);max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r[2]}</span>
+                <span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;background:${r[0]==='var'?'rgba(255,144,0,.12)':r[0]==='texto'?'rgba(34,197,94,.12)':'rgba(100,116,139,.1)'};color:${r[0]==='var'?'var(--dm-orange-d)':r[0]==='texto'?'#15803D':'var(--text-3)'}">${r[3]}</span>
+              </div>`).join('')}
+            <div style="padding:8px 12px;font-size:10px;color:var(--text-3);opacity:0;animation:tutFinaleFadeUp .3s .55s both">+ 3 camadas ocultas por padrão</div>
+          </div></div>`,
+        tooltip:{ text:'A tela de revisão lista cada camada com o modo sugerido pela Luma. Você pode ajustar antes de confirmar.', target:null, placement:'bottom' } },
+      { id:'modos', duration:5000,
+        build: ()=>`<div class="tut-scene-content">
+          <div style="display:flex;flex-direction:column;gap:8px;width:340px">
+            ${[
+              ['🔤','Texto editável','O franqueado pode editar o conteúdo diretamente.','rgba(34,197,94,.12)','#15803D'],
+              ['{}','Variável','Conecta a camada a um campo de dado (ex: preço).','rgba(255,144,0,.12)','var(--dm-orange-d)'],
+              ['🖼','Imagem fiel','Mantém o raster original sem edição.','rgba(59,130,246,.12)','#2563EB'],
+              ['◼','Forma (cor)','Shape recolorável pela paleta ou por vínculo.','rgba(124,110,255,.12)','#7C6EFF'],
+              ['👁','Ocultar','Remove a camada do template final.','rgba(100,116,139,.08)','var(--text-3)'],
+            ].map((m,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:${m[3]};border-radius:8px;opacity:0;animation:tutFinaleFadeUp .35s ${0.1+i*0.08}s both">
+              <span style="font-size:16px;width:24px;text-align:center">${m[0]}</span>
+              <span style="flex:1"><span style="font-size:12px;font-weight:700;color:${m[4]}">${m[1]}</span><br><span style="font-size:10px;color:var(--text-3)">${m[2]}</span></span>
+            </div>`).join('')}
+          </div></div>`,
+        tooltip:null },
+      { id:'confirmar', duration:4000,
+        build: ()=>`<div class="tut-scene-content">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:14px;width:320px">
+            <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:14px 18px;width:100%;font-family:'Roboto',sans-serif;text-align:center;opacity:0;animation:tutFinaleFadeUp .4s .1s both">
+              <div style="font-size:13px;font-weight:700;color:#15803D;margin-bottom:4px">Template criado com sucesso</div>
+              <div style="font-size:11px;color:var(--text-3)">combo_smash · Story · 1080×1920</div>
+            </div>
+            ${tutStudio(tutArtCanvas({w:90,h:130,titleText:'COMBO SMASH',priceText:'R$ 19,90'}),{})}
+          </div></div>`,
+        tooltip:{ text:'Confirmar importa todas as camadas selecionadas. O template aparece na pasta com variáveis prontas para usar.', target:null, placement:'bottom' } },
     ],
   },
 

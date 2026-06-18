@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Luma · Creative Automation</title>
+<title>Luma</title>
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon.svg">
 <meta name="theme-color" content="#FF9000">
@@ -17,6 +17,7 @@
 <link rel="stylesheet" href="css/components/topbar.css">
 <link rel="stylesheet" href="css/components/help-modal.css">
 <link rel="stylesheet" href="css/components/user-profile.css">
+<link rel="stylesheet" href="css/components/help-chat.css">
 <link rel="stylesheet" href="css/components/tutorial.css">
 <link rel="stylesheet" href="css/modules/franqueado.css">
 <link rel="stylesheet" href="css/modules/chat.css">
@@ -223,7 +224,6 @@ input:focus:-webkit-autofill {
     <div class="sp-bar-wrap"><div class="sp-bar"></div></div>
   </div>
   <div class="sp-disclaimer">
-    <span>Um produto</span>
     <div class="sp-dm-logo" role="img" aria-label="Delivery Much"></div>
   </div>
 </div>
@@ -274,41 +274,25 @@ input:focus:-webkit-autofill {
       </div>
       <button class="g-help-close" onclick="gCloseHelp()" aria-label="Fechar">×</button>
     </div>
+    <div class="g-help-tabs">
+      <button class="g-help-tab active" id="g-help-tab-trilha" onclick="gHelpSwitchTab('trilha')">📚 Trilha</button>
+      <button class="g-help-tab" id="g-help-tab-catalogo" onclick="gHelpSwitchTab('catalogo')">🔍 Catálogo</button>
+    </div>
     <div class="g-help-body">
-      <div class="g-help-intro">Tutoriais animados de toda a plataforma. Clique para assistir — ou fale com o time de design.</div>
 
-      <div class="g-help-section">
-        <input class="g-help-search" id="g-help-search" type="text" placeholder="🔎 Buscar tutorial (ex.: variáveis, pincel, publicar)..." oninput="gHelpRenderCatalog(this.value)">
-        <div id="g-help-tut-catalog"></div>
+      <div id="g-help-pane-trilha" class="g-help-pane active">
+        <div id="g-help-trail-content"></div>
       </div>
 
-      <div class="g-help-section">
-        <div class="g-help-section-title">Falar com o time</div>
-        <div class="g-help-channels">
-          <button class="g-help-channel" onclick="gHelpAction('slack')" disabled>
-            <div class="g-help-channel-icon" style="background:var(--dm-orange-d);color:#fff">#</div>
-            <div class="g-help-channel-info">
-              <div class="g-help-channel-name">Slack do time de design</div>
-              <div class="g-help-channel-sub">Em breve · integração em desenvolvimento</div>
-            </div>
-            <div class="g-help-channel-arrow">→</div>
-          </button>
-          <button class="g-help-channel" onclick="gHelpAction('email')" disabled>
-            <div class="g-help-channel-icon" style="background:var(--dm-orange);color:#fff">@</div>
-            <div class="g-help-channel-info">
-              <div class="g-help-channel-name">E-mail do suporte</div>
-              <div class="g-help-channel-sub">Em breve · vai disparar um chamado</div>
-            </div>
-            <div class="g-help-channel-arrow">→</div>
-          </button>
-        </div>
+      <div id="g-help-pane-catalogo" class="g-help-pane">
+        <input class="g-help-search" id="g-help-search" type="text" placeholder="🔎 Buscar tutorial (ex.: variáveis, pincel, publicar)..." oninput="gHelpRenderCatalog(this.value)">
+        <div id="g-help-tut-catalog"></div>
       </div>
 
       <div class="g-help-foot">
         <span>Luma · piloto interno</span>
         <span class="g-help-foot-sep">·</span>
         <span>v0.4</span>
-      </div>
       </div>
     </div>
   </div>
@@ -343,6 +327,10 @@ input:focus:-webkit-autofill {
         </button>
       </div>
       
+        <button class="prof-nav-btn" id="prof-nav-equipe" onclick="gProfileSwitchTab('equipe')" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Equipe</span>
+        </button>
       <button class="prof-nav-btn prof-logout-btn" onclick="gLogout()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         <span>Sair da conta</span>
@@ -368,18 +356,19 @@ input:focus:-webkit-autofill {
           <form id="prof-form-dados" onsubmit="gProfileSaveData(event)">
             <!-- Avatar Edit box -->
             <div class="prof-avatar-edit-box">
-              <div class="prof-avatar-editor" onclick="gProfileTriggerUpload()">
-                <div class="prof-avatar-editor-img" id="prof-avatar-editor-img">RY</div>
-                <div class="prof-avatar-overlay">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                  <span>Alterar</span>
+              <div class="prof-avatar-wrap">
+                <div class="prof-avatar-editor" onclick="gProfileTriggerUpload()" title="Alterar foto de perfil">
+                  <div class="prof-avatar-editor-img" id="prof-avatar-editor-img">RY</div>
+                  <div class="prof-avatar-overlay">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                  </div>
                 </div>
+                <button class="prof-avatar-badge" onclick="gProfileTriggerUpload()" title="Alterar foto" type="button">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                </button>
                 <input type="file" id="prof-avatar-input" accept="image/*" style="display: none;" onchange="gProfileHandleUpload(this)">
               </div>
-              <div class="prof-avatar-edit-info">
-                <h4>Sua foto de perfil</h4>
-                <p>Arraste uma nova imagem ou clique no avatar para selecionar um arquivo. Formato recomendado: JPG/PNG quadrado, máx. 1MB.</p>
-              </div>
+              <p class="prof-avatar-hint">Toque para alterar · JPG ou PNG · máx. 1MB</p>
             </div>
             
             <div class="prof-grid prof-grid-2">
@@ -481,10 +470,13 @@ input:focus:-webkit-autofill {
             <strong>💡 Dica do Designer:</strong> Você pode exportar relatórios de desempenho e ver estatísticas agregadas de conversão acessando a aba <strong>Dados</strong> na barra de navegação superior.
           </div>
         </div>
-        
+
+        <!-- PANE: EQUIPE (apenas superadmin) -->
+        <div class="prof-pane" id="prof-pane-equipe"></div>
+
       </div>
     </div>
-    
+
   </div>
 </div>
 
@@ -501,6 +493,13 @@ input:focus:-webkit-autofill {
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
       </button>
     </header>
+    <div class="tut-exit-bar" id="tut-exit-bar">
+      <span>Sair do tutorial agora?</span>
+      <div style="display:flex;gap:8px">
+        <button class="tut-btn tut-btn-ghost" onclick="tutExitCancel()">Continuar</button>
+        <button class="tut-btn tut-btn-primary" onclick="tutClose()">Sair</button>
+      </div>
+    </div>
     <div class="tut-stage-area" id="tut-stage-area">
       <div class="tut-scene" id="tut-scene"></div>
       <div class="tut-cursor" id="tut-cursor" aria-hidden="true">
@@ -571,14 +570,7 @@ input:focus:-webkit-autofill {
           <input id="f-search" placeholder="Buscar campanha..." oninput="fFilterCamps(this.value)"/>
         </div>
       </div>
-      <div id="f-catalog">
-        <div class="sec-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:middle;margin-right:4px"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9" /></svg>Recomendada agora</div>
-        <div class="camp-grid" id="camp-rec"></div>
-        <div class="sec-title">Ativas agora</div>
-        <div class="camp-grid" id="camp-main"></div>
-        <div class="sec-title">Outras campanhas</div>
-        <div class="camp-grid" id="camp-other"></div>
-      </div>
+      <div id="f-catalog"></div>
       <div id="f-hist-tab"></div>
       <div id="f-fmt-wrap">
         <div class="sec-title" style="margin-bottom:8px">Formato</div>
@@ -2041,8 +2033,13 @@ input:focus:-webkit-autofill {
 <script src="js/designer/psd-import.js"></script>
 <script src="js/designer/mask.js"></script>
 <script src="js/designer/tutorial-panel.js"></script>
+<script src="assets/vendor/colorthief.js"></script>
+<script src="assets/vendor/pica.js"></script>
+<script src="assets/vendor/papaparse.js"></script>
+<script src="assets/vendor/pdf-lib.js"></script>
 <script src="js/core/auth.js"></script>
 <script src="js/core/user-profile.js"></script>
+<script src="js/core/help-chat.js"></script>
 <script src="js/main.js"></script>
 
 

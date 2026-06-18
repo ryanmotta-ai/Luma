@@ -251,3 +251,131 @@
 .f-upload-progress-bar{width:8%;height:100%;background:var(--dm-orange);border-radius:3px;transition:width .25s ease}
 .f-upload-skel-label{font-size:11px;color:var(--text-3);font-weight:500}
 @keyframes skelShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* ==========================================================================
+   ══ ASSISTENTE DE LEGENDAS (COPY HELPER) ══
+   ========================================================================== */
+.caption-assistant-panel {
+  padding: 12px;
+  border-top: 1px solid var(--gray-light);
+  background: var(--white);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.caption-assistant-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-3);
+  letter-spacing: .04em;
+}
+
+.caption-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.caption-tabs::-webkit-scrollbar {
+  height: 3px;
+}
+
+.caption-tabs::-webkit-scrollbar-thumb {
+  background: var(--gray-mid);
+  border-radius: 3px;
+}
+
+.caption-tab-btn {
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1.5px solid var(--gray-mid);
+  background: var(--off-white);
+  color: var(--text-2);
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  transition: all .15s var(--ease-smooth);
+  white-space: nowrap;
+  font-family: 'Roboto', sans-serif;
+}
+
+.caption-tab-btn:hover {
+  border-color: var(--dm-orange);
+  color: var(--dm-orange);
+}
+
+.caption-tab-btn.active {
+  background: var(--gradient-orange);
+  border-color: var(--dm-orange-d);
+  color: var(--white);
+  box-shadow: 0 2px 6px rgba(255, 144, 0, 0.2);
+}
+
+.caption-content-box-wrap {
+  position: relative;
+  border-radius: var(--r-sm);
+  background: var(--off-white);
+  border: 1px solid var(--gray-light);
+  overflow: hidden;
+}
+
+.caption-content-box {
+  padding: 10px 10px 32px 10px; /* espacinho inferior para o botão flutuante */
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-2);
+  max-height: 110px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: 'Roboto', sans-serif;
+}
+
+.caption-content-box::-webkit-scrollbar {
+  width: 3px;
+}
+
+.caption-content-box::-webkit-scrollbar-thumb {
+  background: var(--gray-mid);
+  border-radius: 3px;
+}
+
+.caption-copy-btn {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--dm-orange);
+  background: var(--white);
+  border: 1px solid var(--dm-orange-tint);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all .15s var(--ease-smooth);
+  font-family: 'Roboto', sans-serif;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.caption-copy-btn:hover {
+  background: var(--dm-orange-bg);
+  border-color: var(--dm-orange);
+}
+
+.caption-copy-btn:active {
+  transform: scale(0.95);
+}
+
+.caption-copy-btn.copied {
+  background: var(--green);
+  border-color: var(--green);
+  color: var(--white);
+  box-shadow: 0 2px 6px rgba(34, 197, 150, 0.2);
+}
+

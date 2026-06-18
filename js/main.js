@@ -46,7 +46,7 @@ function gOnLoginSuccess() {
   if(typeof gUpdateUserTopbar === 'function') gUpdateUserTopbar();
   
   // INIT FRANQUEADO
-  fRenderCatalogs(CAMPS_ATIVAS,CAMPS_OUTRAS);
+  fRenderCategorias();
   fRenderFmts();
   fUpdateHistBadge();
   if (typeof fStartChat === 'function') fStartChat();
@@ -54,6 +54,7 @@ function gOnLoginSuccess() {
 
 // Inicializa a aba no startup e checa a autenticação
 window.addEventListener('DOMContentLoaded', () => {
+  if (typeof gInitHelpChat === 'function') gInitHelpChat();
   setTimeout(dUpdateTabPill, 100);
   
   if (!gCurrentUser()) {

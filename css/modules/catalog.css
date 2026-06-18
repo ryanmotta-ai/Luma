@@ -6,6 +6,51 @@
  * Depende de: 00-tokens.css
  */
 
+/* ══ SELEÇÃO DE CATEGORIAS ══ */
+
+.cat-grid{display:flex;flex-direction:column;gap:10px;padding:4px 0}
+
+.cat-card{
+  display:flex;align-items:center;gap:14px;
+  padding:14px 16px;border-radius:14px;
+  background:var(--white,#fff);
+  border:1.5px solid var(--gray-light,#e9ecef);
+  cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .12s;
+}
+.cat-card:hover{
+  border-color:var(--dm-orange,#FF9000);
+  box-shadow:0 4px 16px rgba(255,144,0,.12);
+  transform:translateY(-1px);
+}
+
+.cat-card-thumb{
+  width:52px;height:52px;border-radius:12px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:24px;box-shadow:0 2px 8px rgba(0,0,0,.12);
+}
+
+.cat-card-body{flex:1;min-width:0}
+.cat-card-title{font-size:15px;font-weight:800;color:var(--text,#0A0A0A);margin-bottom:3px}
+.cat-card-sub{font-size:12px;color:var(--text-3,#6B6B6B)}
+
+.cat-card-chevron{color:var(--text-3,#6B6B6B);flex-shrink:0;display:flex;align-items:center}
+
+/* Back row dentro de campanhas / implementação */
+.cat-back-row{
+  display:flex;align-items:center;gap:10px;
+  margin-bottom:14px;
+}
+.cat-back-btn{
+  display:flex;align-items:center;gap:5px;
+  background:none;border:none;cursor:pointer;
+  font-size:12px;font-weight:600;color:var(--text-3,#6B6B6B);
+  padding:6px 10px 6px 6px;border-radius:8px;
+  font-family:'Roboto',sans-serif;
+  transition:background .12s,color .12s;
+}
+.cat-back-btn:hover{background:var(--gray-light,#F2F2F2);color:var(--text,#0A0A0A)}
+.cat-back-label{font-size:14px;font-weight:800;color:var(--text,#0A0A0A)}
+
 /* ══ CATÁLOGO DE MATERIAIS DO FRANQUEADO ══ */
 #f-material-view{
   flex:1;

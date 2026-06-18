@@ -25,6 +25,7 @@ function fGetSuggestionsForVar(varName, camp){
 function fStartChatComMaterial(material){
   document.getElementById('f-messages').innerHTML='';
   fState.stepIdx=-1;fState.done=false;fUpdateProg();
+  fState.extractedColors={};
   try { fUpdateLivePreview(); } catch(e){}
   try { fAttachInputGuard(); } catch(e){}
   const total = fState.camp.perguntas.length;
@@ -58,7 +59,7 @@ function fApplyCampSwitch(cId, keepData){
   fState.camp=c;fState.stepIdx=-1;fState.done=false;
   fState.dados={};
   fState.material=null;
-  const {ativas:_a,outras:_o}=fGetCampaigns();fRenderCatalogs(_a,_o);fUpdateCtx();
+  fRestoreCatalog();fUpdateCtx();
   fOpenMaterialCatalog(c);
 }
 function fCancelSwitch(){
@@ -110,6 +111,7 @@ function fUpdateProg(){
 function fStartChat(){
   document.getElementById('f-messages').innerHTML='';
   fState.stepIdx=-1;fState.dados={};fState.done=false;fUpdateProg();
+  fState.extractedColors={};
   try { fUpdateLivePreview(); } catch(e){}
   try { fAttachInputGuard(); } catch(e){}
   // F-05: mensagem inicial com contexto (quantas perguntas, tempo estimado)
@@ -142,7 +144,19 @@ function fNextStep(){
   const cfg = fGetFieldType(p.id);
   const typeIcon = {price:'R$', discount:'%', code:'#', text:'Aa'}[cfg.type] || 'Aa';
   const fieldHint = `<div class="field-hint"><span class="field-hint-type">${typeIcon}</span><span class="field-hint-text">${cfg.label} · até ${cfg.maxLen} caracteres</span></div>`;
-  fAddBot(`${stepLabel}${p.texto}${fieldHint}`, p.sugestoes, canGoBack);
+  
+  // Sugestão inteligente de cores a partir da foto do produto
+  let sugestoes = p.sugestoes ? p.sugestoes.slice() : [];
+  if (cfg.type === 'color') {
+    const fotoColor = fState.extractedColors && (fState.extractedColors['foto_produto'] || Object.values(fState.extractedColors)[0]);
+    if (fotoColor) {
+      if (!sugestoes.includes(fotoColor)) {
+        sugestoes.unshift(fotoColor);
+      }
+    }
+  }
+
+  fAddBot(`${stepLabel}${p.texto}${fieldHint}`, sugestoes, canGoBack);
   // Atualiza placeholder do input com dica do tipo
   fUpdateInputPlaceholder(p.id);
 }
@@ -229,6 +243,34 @@ function fProcessImageFile(file, varId, uploadId){
     // Redimensiona se for muito grande (>1500px) pra economizar storage
     fResizeImageIfNeeded(dataUrl, 1500, (resizedUrl)=>{
       fState.dados[varId]=resizedUrl;
+
+      // EXTRAÇÃO DE CORES COM COLOR THIEF
+      try {
+        if(window.ColorThief) {
+          const imgTemp = new Image();
+          imgTemp.onload = () => {
+            try {
+              const thief = new ColorThief();
+              const rgb = thief.getColor(imgTemp);
+              if (rgb && rgb.length === 3) {
+                const hex = '#' + rgb.map(x => {
+                  const s = x.toString(16);
+                  return s.length === 1 ? '0' + s : s;
+                }).join('');
+                if(!fState.extractedColors) fState.extractedColors = {};
+                fState.extractedColors[varId] = hex;
+                console.log(`[ColorThief] Cor extraída para ${varId}:`, hex);
+              }
+            } catch(thiefErr) {
+              console.warn('[ColorThief] Erro ao extrair cor:', thiefErr);
+            }
+          };
+          imgTemp.src = resizedUrl;
+        }
+      } catch(colorThiefErr) {
+        console.warn('[ColorThief] Falha ao ler imagem:', colorThiefErr);
+      }
+
       // Substitui a zona de upload pela prévia da foto
       const zone=document.getElementById(uploadId+'-zone');
       if(zone){
@@ -261,6 +303,25 @@ function fResizeImageIfNeeded(dataUrl, maxDim, cb){
     const scale = Math.min(maxDim/w, maxDim/h);
     const cv=document.createElement('canvas');
     cv.width=Math.round(w*scale); cv.height=Math.round(h*scale);
+    
+    if(window.pica){
+      try {
+        const pInstance = window.pica();
+        pInstance.resize(img, cv, { quality: 3, alpha: true })
+          .then(res => cb(res.toDataURL('image/jpeg', 0.88)))
+          .catch(err => {
+            console.warn('[Pica] Erro de render, fallback nativo:', err);
+            const ctx=cv.getContext('2d');
+            ctx.imageSmoothingQuality='high';
+            ctx.drawImage(img,0,0,cv.width,cv.height);
+            cb(cv.toDataURL('image/jpeg',0.88));
+          });
+        return;
+      } catch(e) {
+        console.warn('[Pica] Falha ao iniciar, fallback nativo:', e);
+      }
+    }
+    
     const ctx=cv.getContext('2d');
     ctx.imageSmoothingQuality='high';
     ctx.drawImage(img,0,0,cv.width,cv.height);
@@ -407,6 +468,176 @@ function fConfirmarGerar(){const m=document.getElementById('confirm-msg');if(m)m
 // bolha, cada "Baixar"/"Outro formato" precisa operar sobre os dados DAQUELA arte,
 // não sobre fState (que reflete só a última). Chaveado pelo id do canvas da bolha.
 let _fArtSnapshots={};
+let _fArtCaptions={}; // Cache das legendas geradas indexadas pelo canvasId/snapId
+
+/**
+ * Constrói 3 variações de texto em formato estruturado seguindo as diretrizes
+ * de branding da Delivery Much (voz simples, amigável, direta, próxima).
+ */
+function fGenCaptionSuggestions(dados, camp, formato) {
+  const prod = dados.produto || dados.categoria || dados.brinde || dados.oferta || camp.name;
+  const por = dados.precoPor || dados.desconto || 'Ver no app';
+  const de = dados.precoDe ? `De ${dados.precoDe}` : '';
+  const val = dados.validade || '';
+  const cupom = dados.codigo || '';
+  const condicao = dados.condicao || '';
+  const pedidoMin = dados.pedidoMin || '';
+  const bairros = dados.bairros || '';
+  const detalhes = dados.detalhes || '';
+
+  // CTAs adaptados ao formato de arte (Feed/Instagram, Stories, Wide)
+  let ctaText = "Corre pro app da Delivery Much e pede o seu! Link na bio! 📲";
+  let hashFmt = "#feed";
+  if (formato.id === 'story') {
+    ctaText = "Acesse o link aqui nos Stories e faça seu pedido rápido! 📲";
+    hashFmt = "#stories";
+  } else if (formato.id === 'wide') {
+    ctaText = "Confira no link do site ou app da Delivery Much! 📲";
+    hashFmt = "#wide";
+  }
+
+  // Hashtags baseadas no produto
+  const cleanProd = prod.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const hashtags = `#deliverymuch #pedircomida #${cleanProd} #comidaemcasa #oferta ${hashFmt}`;
+
+  // 1. Variação Promoção (Foco em vendas e cupom)
+  let promoText = `🚨 Bateu aquela fome? A gente resolve! 🚨\n\n`;
+  promoText += `Olha só o que preparamos pra você hoje: *${prod}* por um precinho especial! 😋\n\n`;
+  if (de) promoText += `💸 ~${de}~ | 👉 *Por apenas ${por}!*\n\n`;
+  else promoText += `💸 *Por apenas ${por}!* 🤑\n\n`;
+  if (cupom) promoText += `🎟️ Use o cupom *${cupom}* pra garantir aquele desconto extra no app!\n\n`;
+  if (pedidoMin) promoText += `⚠️ Pedido mínimo: ${pedidoMin}.\n`;
+  if (condicao) promoText += `*Condição:* ${condicao}\n`;
+  if (bairros) promoText += `📍 Válido para a entrega em: ${bairros}\n`;
+  if (detalhes) promoText += `📝 ${detalhes}\n`;
+  if (val) promoText += `📅 Aproveita que essa oferta é válida ${val}!\n\n`;
+  promoText += `${ctaText}\n\n${hashtags}`;
+
+  // 2. Variação Engajamento (Foco em redes sociais, interação e comentários)
+  let engajarText = `Quem também concorda que a vida fica bem melhor com ${prod}? 😍👇\n\n`;
+  engajarText += `A nossa equipe preparou essa promoção especial pensando em você. `;
+  if (de) engajarText += `Pra comer muito gastando pouco: de ~${de}~ por apenas *${por}*! 😱\n\n`;
+  else engajarText += `Precinho super camarada de *${por}* pra alegrar seu dia! 🎉\n\n`;
+  if (cupom) {
+    engajarText += `🎟️ Cupom da vez: *${cupom}*\n`;
+    engajarText += `Comente "QUERO" que a gente te manda o link direto no Direct! 💬👇\n\n`;
+  } else {
+    engajarText += `Qual é o seu acompanhamento ideal pra hoje? Comente aqui embaixo! 👇💬\n\n`;
+  }
+  if (val) engajarText += `🏃‍♂️ Mas ó, não vacila: vale ${val}.\n\n`;
+  engajarText += `Marque aqui aquele amigo que vai pagar esse pra você hoje! 👇\n\n`;
+  engajarText += `${ctaText}\n\n${hashtags}`;
+
+  // 3. Variação WhatsApp (Foco em conversão direta)
+  let whatsappText = `Olá! Tudo bem? Passando pra te dar uma notícia deliciosa! 🌟\n\n`;
+  whatsappText += `Hoje tem *${prod}* na Delivery Much com um preço especial!\n\n`;
+  if (de) whatsappText += `❌ ~${de}~\n✅ *Por apenas ${por}!*\n\n`;
+  else whatsappText += `✅ *Por apenas ${por}!* 😍\n\n`;
+  if (cupom) whatsappText += `🎟️ Use o cupom *${cupom}* no app!\n\n`;
+  if (pedidoMin) whatsappText += `• Pedido mínimo: ${pedidoMin}\n`;
+  if (bairros) whatsappText += `• Entrega em: ${bairros}\n`;
+  if (val) whatsappText += `⏳ *Corre que é válido:* ${val}!\n\n`;
+  whatsappText += `Quer garantir o seu? É só abrir o app da Delivery Much no link abaixo ou responder a essa mensagem que te ajudo!\n`;
+  whatsappText += `👉 [Inserir Link do App/WhatsApp]`;
+
+  return [
+    { id: 'promo', label: '📢 Promo', text: promoText },
+    { id: 'engajar', label: '🔥 Engajar', text: engajarText },
+    { id: 'whatsapp', label: '💬 WhatsApp', text: whatsappText }
+  ];
+}
+
+/**
+ * Ponto de integração do Backend. Pedro/Equipe podem plugar uma requisição
+ * a uma API de IA (LLM) nesta função no futuro.
+ */
+async function fFetchAICaptionSuggestions(dados, camp, formato) {
+  return fGenCaptionSuggestions(dados, camp, formato);
+}
+
+/**
+ * Alterna a aba de legenda selecionada e atualiza o conteúdo da caixa de texto.
+ */
+function fSwitchCaptionTab(btn, tabId, canvasId) {
+  const container = btn.closest('.caption-assistant-panel');
+  if (!container) return;
+  
+  const buttons = container.querySelectorAll('.caption-tab-btn');
+  buttons.forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  
+  const box = document.getElementById('caption-content-' + canvasId);
+  const caps = _fArtCaptions[canvasId];
+  if (box && caps) {
+    const selected = caps.find(c => c.id === tabId);
+    if (selected) {
+      box.innerHTML = gEsc(selected.text).replace(/\n/g, '<br>');
+      container.dataset.activeTab = tabId;
+    }
+  }
+}
+
+/**
+ * Copia o texto da legenda ativa para a área de transferência com feedback tátil.
+ */
+function fCopyCaption(canvasId) {
+  const container = document.querySelector(`.caption-assistant-panel[data-canvas-id="${canvasId}"]`);
+  if (!container) return;
+  
+  const activeTabId = container.dataset.activeTab || 'promo';
+  const caps = _fArtCaptions[canvasId];
+  if (!caps) return;
+  
+  const selected = caps.find(c => c.id === activeTabId);
+  if (!selected) return;
+  
+  const textToCopy = selected.text;
+  
+  const success = () => {
+    const copyBtn = container.querySelector('.caption-copy-btn');
+    if (copyBtn) {
+      const originalHTML = copyBtn.innerHTML;
+      copyBtn.classList.add('copied');
+      copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:2px"><polyline points="20 6 9 17 4 12"/></svg> Copiado!`;
+      
+      gToast('Legenda copiada com sucesso!');
+      
+      setTimeout(() => {
+        copyBtn.classList.remove('copied');
+        copyBtn.innerHTML = originalHTML;
+      }, 1500);
+    }
+  };
+  
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(textToCopy)
+      .then(success)
+      .catch(err => {
+        console.warn('Clipboard API falhou, usando fallback...', err);
+        fCopyFallback(textToCopy, success);
+      });
+  } else {
+    fCopyFallback(textToCopy, success);
+  }
+}
+
+function fCopyFallback(text, cb) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    cb();
+  } catch (e) {
+    console.error('Erro ao copiar no fallback:', e);
+    gToast('Não consegui copiar o texto automaticamente.', 'error');
+  }
+  document.body.removeChild(ta);
+}
+
 function fGerarArte(){
   fState.done=true;fUpdateProg();
   const d=fState.dados,c=fState.camp;
@@ -423,6 +654,34 @@ function fGerarArte(){
     const previewCanvasId = 'art-preview-'+Date.now();
     // Congela os dados desta arte pra os botões da bolha não usarem o estado futuro.
     _fArtSnapshots[previewCanvasId] = {dados:{...d}, camp:c, fmt:fState.fmt, histId:fState._lastHistId};
+    
+    // Gera as legendas da arte
+    const suggestions = await fFetchAICaptionSuggestions(d, c, fState.fmt);
+    _fArtCaptions[previewCanvasId] = suggestions;
+
+    const captionHtml = `<div class="caption-assistant-panel" data-canvas-id="${previewCanvasId}" data-active-tab="promo">
+      <div class="caption-assistant-title">Legenda do Post ✍️</div>
+      <div class="caption-tabs">
+        ${suggestions.map((s, idx) => `
+          <button class="caption-tab-btn ${idx === 0 ? 'active' : ''}" onclick="fSwitchCaptionTab(this, '${s.id}', '${previewCanvasId}')">
+            ${s.label}
+          </button>
+        `).join('')}
+      </div>
+      <div class="caption-content-box-wrap">
+        <div class="caption-content-box" id="caption-content-${previewCanvasId}">
+          ${gEsc(suggestions[0].text).replace(/\n/g, '<br>')}
+        </div>
+        <button class="caption-copy-btn" onclick="fCopyCaption('${previewCanvasId}')" title="Copiar legenda">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:2px">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+          Copiar
+        </button>
+      </div>
+    </div>`;
+
     // Se há material publicado, renderiza preview real via canvas; senão, fallback HTML
     const hasMaterial = fState.material && fState.material.layers && fState.material.layers.length;
     let canvasBlock = '';
@@ -462,9 +721,11 @@ function fGerarArte(){
             <div class="fmt-mini-label" style="display:flex;align-items:center;justify-content:center;gap:3px">${f.name}${f.id===fState.fmt.id?' <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':''}</div>
           </div>`).join('')}
         </div>
-        <div class="art-footer">
-          <div class="art-btn" onclick="fRefazer()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Refazer</div>
-          <div class="art-btn pri" onclick="fBaixar(this,'${previewCanvasId}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>Baixar PNG</div>
+        ${captionHtml}
+        <div class="art-footer" style="display:flex;gap:6px;">
+          <div class="art-btn" onclick="fRefazer()" style="flex:1;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Refazer</div>
+          <div class="art-btn pri" onclick="fBaixar(this,'${previewCanvasId}')" style="flex:1.2;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>Baixar PNG</div>
+          <div class="art-btn pri" onclick="fBaixarPDF(this,'${previewCanvasId}')" style="flex:1.2; background:#dc2626; border-color:#dc2626; box-shadow:0 2px 8px rgba(220,38,38,.35);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>Baixar PDF</div>
         </div>
       </div>
     </div>`;
@@ -488,6 +749,55 @@ async function fOutroFormato(id, snapId){
   const f=FMTS.find(x=>x.id===id);if(!f||f.id===fState.fmt.id)return;
   const snap=(snapId&&_fArtSnapshots[snapId])||{dados:fState.dados,camp:fState.camp};
   fState.fmt=f;fRenderFmts();fUpdateCtx();
+
+  // Atualiza as sugestões de legenda para o novo formato
+  const suggestions = await fFetchAICaptionSuggestions(snap.dados, snap.camp, f);
+  _fArtCaptions[snapId] = suggestions;
+
+  // Atualiza a UI se o card correspondente estiver no DOM
+  const panel = document.querySelector(`.caption-assistant-panel[data-canvas-id="${snapId}"]`);
+  if (panel) {
+    const activeTabId = panel.dataset.activeTab || 'promo';
+    
+    // Atualiza os botões de abas
+    const tabsContainer = panel.querySelector('.caption-tabs');
+    if (tabsContainer) {
+      tabsContainer.innerHTML = suggestions.map((s) => `
+        <button class="caption-tab-btn ${s.id === activeTabId ? 'active' : ''}" onclick="fSwitchCaptionTab(this, '${s.id}', '${snapId}')">
+          ${s.label}
+        </button>
+      `).join('');
+    }
+    
+    // Atualiza a caixa de texto
+    const box = document.getElementById('caption-content-' + snapId);
+    if (box) {
+      const selected = suggestions.find(s => s.id === activeTabId) || suggestions[0];
+      box.innerHTML = gEsc(selected.text).replace(/\n/g, '<br>');
+    }
+
+    // Atualiza a fileira de formatos secundários (.fmt-mini) no card correspondente
+    const card = panel.closest('.art-wrap');
+    if (card) {
+      const miniRows = card.querySelectorAll('.fmt-mini');
+      miniRows.forEach(item => {
+        if (item.getAttribute('onclick')?.includes(`'${id}'`)) {
+          item.classList.add('current');
+          const label = item.querySelector('.fmt-mini-label');
+          if (label && !label.innerHTML.includes('svg')) {
+            label.innerHTML = `${f.name} <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+          }
+        } else {
+          item.classList.remove('current');
+          const label = item.querySelector('.fmt-mini-label');
+          if (label) {
+            label.innerHTML = label.textContent.trim();
+          }
+        }
+      });
+    }
+  }
+
   // Só registra como "baixada" se o PNG saiu de fato (evita histórico mentindo em falha).
   await fGenPNG(snap.dados,snap.camp,f);
   fAddHist(snap.dados,snap.camp,f,'baixada');
@@ -545,7 +855,13 @@ function fAddBot(html,qrs,canGoBack){
   const w=document.createElement('div');w.className='msg bot';
   let q='';
   if(qrs&&qrs.length){
-    q=`<div class="qr-wrap">${qrs.map(x=>`<div class="qr" data-qr="${gEsc(x)}" onclick="fQR(this.dataset.qr,this)">${gEsc(x)}</div>`).join('')}</div>`;
+    q=`<div class="qr-wrap">${qrs.map(x=>{
+      const isColor = /^#[0-9A-F]{6}$/i.test(x.trim());
+      if(isColor) {
+        return `<div class="qr qr-color" data-qr="${gEsc(x)}" onclick="fQR(this.dataset.qr,this)" style="background:${gEsc(x)} !important; color:${fGetContrastColor(x)} !important; border-color:${gEsc(x)} !important; font-family:monospace; display:inline-flex; align-items:center; gap:6px;"><span style="width:10px; height:10px; border-radius:50%; background:#fff; border:1px solid rgba(0,0,0,0.25); display:inline-block;"></span>${gEsc(x)}</div>`;
+      }
+      return `<div class="qr" data-qr="${gEsc(x)}" onclick="fQR(this.dataset.qr,this)">${gEsc(x)}</div>`;
+    }).join('')}</div>`;
   }
   // F-07: botão Voltar quando habilitado
   let back = '';
@@ -554,6 +870,29 @@ function fAddBot(html,qrs,canGoBack){
   }
   w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div><div class="bbl">${html}</div>${q}${back}</div>`;
   msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;
+}
+
+function fGetContrastColor(hex) {
+  const cleanHex = hex.replace('#', '');
+  const r = parseInt(cleanHex.substring(0, 2), 16);
+  const g = parseInt(cleanHex.substring(2, 4), 16);
+  const b = parseInt(cleanHex.substring(4, 6), 16);
+  const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+  return (yiq >= 128) ? '#000000' : '#ffffff';
+}
+
+async function fBaixarPDF(btn, snapId){
+  const snap=(snapId&&_fArtSnapshots[snapId])||{dados:fState.dados,camp:fState.camp,fmt:fState.fmt,histId:fState._lastHistId};
+  const restore=gBtnLoading(btn,'Gerando…');
+  try{
+    await fGenPDF(snap.dados, snap.camp, snap.fmt);
+    if(snap.histId){ fMarkHistBaixada(snap.histId); }
+    else { fAddHist(snap.dados,snap.camp,snap.fmt,'baixada'); }
+    gToast('PDF baixado!');
+  }catch(e){
+    console.error('Falha ao gerar PDF:', e);
+    gToast('Não consegui gerar o PDF. Se a arte usa imagem por URL, ela precisa ser pública.','error');
+  }finally{ restore(); }
 }
 function fAddUser(txt){
   const msgs=document.getElementById('f-messages');
