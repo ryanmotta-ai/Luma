@@ -9,6 +9,7 @@
 /* ══ ESTADO DA PUBLICAÇÃO ══ */
 let dPubSelectedABs = new Set();   // IDs das pranchetas selecionadas
 let dPubPermissoes  = {};          // permissões compartilhadas
+let dPrevToolForSpace = null;      // ferramenta anterior ao pressionar Espaço
 
 function dGetActiveTemplate(){
   for(const f of dFolders){
@@ -21,9 +22,9 @@ function dGetActiveTemplate(){
 /* ── PAINEL PUBLICAR (sidebar) — resumo + gatilho do modal completo (fluxo híbrido) ── */
 function dPublishPanelRender(){
   const el=document.getElementById('d-pub-panel-summary'); if(!el)return;
-  const nAb=(typeof dArtboards!=='undefined'&&dArtboards)?dArtboards.length:0;
+  const nAb=(typeof dLayers!=='undefined'&&dLayers&&dLayers.length)?1:0;
   const nVars=(typeof dVars!=='undefined'&&dVars)?dVars.length:0;
-  if(!nAb){ el.innerHTML='<div style="font-size:11.5px;color:var(--d-text3)">Crie uma prancheta para publicar.</div>'; return; }
+  if(!nAb){ el.innerHTML='<div style="font-size:11.5px;color:var(--d-text3)">Adicione layers para publicar.</div>'; return; }
   const meta=(typeof dDefaultPublishMeta==='function')?dDefaultPublishMeta():{};
   const val=meta&&meta.validade?('até '+meta.validade):'sem validade definida';
   const row=(k,v)=>`<div style="display:flex;justify-content:space-between;gap:8px;font-size:11.5px;padding:5px 0;border-bottom:1px solid var(--d-border)"><span style="color:var(--d-text3)">${k}</span><span style="color:var(--d-text);font-weight:600;text-align:right">${v}</span></div>`;
@@ -33,9 +34,9 @@ function dPublishPanelRender(){
 /* ── ABRIR MODAL ── */
 function dPublishOpen(){
   if(typeof dSyncLayersToAB==='function') dSyncLayersToAB();
-  if(!dArtboards||!dArtboards.length){gToast('Crie uma prancheta primeiro.');return;}
-  // Seleciona todas por padrão
-  dPubSelectedABs=new Set(dArtboards.map(ab=>ab.id));
+  const _ab=dGetActiveAB();
+  if(!dLayers||!dLayers.length){gToast('Adicione layers antes de publicar.');return;}
+  dPubSelectedABs=new Set([_ab.id]);
   dPubPermissoes={};
   dPublishRender();
   document.getElementById('d-publish-modal').classList.add('open');
@@ -68,9 +69,7 @@ function dPublishRender(){
   const folderSel=document.getElementById('pub-folder');
   folderSel.innerHTML=dFolders.map(f=>`<option value="${f.id}">${f.name}</option>`).join('');
   const fmtEl=document.getElementById('pub-fmt-display');
-  const selAbs=dArtboards.filter(ab=>dPubSelectedABs.has(ab.id));
-  const fmts=[...new Set(selAbs.map(ab=>ab.fmt||'—'))];
-  if(fmtEl) fmtEl.textContent=fmts.map(f=>f.toUpperCase()).join(' · ')||'—';
+  if(fmtEl) fmtEl.textContent=(dFmt||'custom').toUpperCase();
 
   // Aba Validade
   const meta=dDefaultPublishMeta();
@@ -101,45 +100,41 @@ function dPublishRender(){
 /* ── GRID DE PRANCHETAS ── */
 function dPublishRenderArtboards(){
   const grid=document.getElementById('pub-ab-grid');if(!grid)return;
-  if(!dArtboards||!dArtboards.length){
-    grid.innerHTML='<div class="pub-empty">Nenhuma prancheta criada ainda.</div>';return;
+  const ab=dGetActiveAB();
+  if(!ab||!dLayers.length){
+    grid.innerHTML='<div class="pub-empty">Adicione layers antes de publicar.</div>';return;
   }
   dPubHidePreview();
-  grid.innerHTML=dArtboards.map(ab=>{
-    const checked=dPubSelectedABs.has(ab.id);
-    const bgLyr=ab.layers.find(l=>l.type==='shape'&&l.x===0&&l.y===0);
-    const bgColor=bgLyr?bgLyr.fill:'#e8e8e8';
-    const isLight=dPubIsLight(bgColor);
-    const txtColor=isLight?'rgba(0,0,0,.6)':'rgba(255,255,255,.85)';
-    const ratio=ab.w&&ab.h?Math.min(1,ab.h/ab.w):1.78;
-    const fmtLabel=(ab.fmt||'custom').toUpperCase();
-    // Busca nome do template já publicado
-    const tid='tmpl-ab-'+ab.id;
-    let existingName=ab.name;
-    for(const f of dFolders){const t=f.templates.find(x=>x.id===tid);if(t){existingName=t.name;break;}}
-    return `<div class="pub-ab-card ${checked?'selected':''}" id="pub-ab-card-${ab.id}" onclick="dPubToggleAB('${ab.id}')">
-      <div class="pub-ab-check-wrap">
-        <input type="checkbox" class="pub-ab-chk" id="pub-ab-chk-${ab.id}" ${checked?'checked':''} onclick="event.stopPropagation();dPubToggleAB('${ab.id}')">
+  const checked=dPubSelectedABs.has(ab.id);
+  const bgLyr=dLayers.find(l=>l.type==='shape'&&l.x===0&&l.y===0);
+  const bgColor=bgLyr?bgLyr.fill:'#e8e8e8';
+  const isLight=dPubIsLight(bgColor);
+  const txtColor=isLight?'rgba(0,0,0,.6)':'rgba(255,255,255,.85)';
+  const ratio=ab.w&&ab.h?Math.min(1,ab.h/ab.w):1.78;
+  const fmtLabel=(ab.fmt||'custom').toUpperCase();
+  const tid='tmpl-ab-'+ab.id;
+  let existingName=ab.name;
+  for(const f of dFolders){const t=f.templates.find(x=>x.id===tid);if(t){existingName=t.name;break;}}
+  grid.innerHTML=`<div class="pub-ab-card ${checked?'selected':''}" id="pub-ab-card-${ab.id}" onclick="dPubToggleAB('${ab.id}')">
+    <div class="pub-ab-check-wrap">
+      <input type="checkbox" class="pub-ab-chk" id="pub-ab-chk-${ab.id}" ${checked?'checked':''} onclick="event.stopPropagation();dPubToggleAB('${ab.id}')">
+    </div>
+    <div class="pub-ab-thumb" style="background:${bgColor};padding-top:${Math.min(ratio,2)*100}%">
+      <div class="pub-ab-thumb-inner" style="color:${txtColor}">
+        <span class="pub-ab-thumb-fmt">${fmtLabel}</span>
+        <span class="pub-ab-thumb-dim">${ab.w}×${ab.h}</span>
       </div>
-      <div class="pub-ab-thumb" style="background:${bgColor};padding-top:${Math.min(ratio,2)*100}%">
-        <div class="pub-ab-thumb-inner" style="color:${txtColor}">
-          <span class="pub-ab-thumb-fmt">${fmtLabel}</span>
-          <span class="pub-ab-thumb-dim">${ab.w}×${ab.h}</span>
-        </div>
-      </div>
-      <div class="pub-ab-info">
-        <input class="pub-ab-name-inp" id="pub-ab-name-${ab.id}" value="${existingName.replace(/"/g,'&quot;')}" placeholder="Nome do material" onclick="event.stopPropagation()" title="Nome que aparecerá no catálogo do franqueado">
-      </div>
-    </div>`;
-  }).join('');
-  // Ligar hover depois do render
+    </div>
+    <div class="pub-ab-info">
+      <input class="pub-ab-name-inp" id="pub-ab-name-${ab.id}" value="${existingName.replace(/"/g,'&quot;')}" placeholder="Nome do material" onclick="event.stopPropagation()" title="Nome que aparecerá no catálogo do franqueado">
+    </div>
+  </div>`;
   setTimeout(()=>{
-    grid.querySelectorAll('.pub-ab-card').forEach(card=>{
-      const abId=card.id.replace('pub-ab-card-','');
-      const ab=dArtboards.find(a=>a.id===abId);if(!ab)return;
+    const card=document.getElementById('pub-ab-card-'+ab.id);
+    if(card){
       card.addEventListener('mouseenter',()=>dPubRenderPreview(ab,card));
       card.addEventListener('mouseleave',dPubHidePreview);
-    });
+    }
   },0);
 }
 // Determina se cor hex é clara (para contraste de texto)
@@ -250,7 +245,8 @@ function dPubToggleAB(id){
   dPublishRenderPerms();
 }
 function dPubSelectAllAB(sel){
-  dArtboards.forEach(ab=>{sel?dPubSelectedABs.add(ab.id):dPubSelectedABs.delete(ab.id);});
+  const _ab=dGetActiveAB();
+  if(sel) dPubSelectedABs.add(_ab.id); else dPubSelectedABs.delete(_ab.id);
   dPublishRenderArtboards();
   dPublishRenderPerms();
 }
@@ -258,11 +254,8 @@ function dPubSelectAllAB(sel){
 /* ── PERMISSÕES ── */
 function dPublishRenderPerms(){
   const permList=document.getElementById('pub-perm-list');if(!permList)return;
-  // Coleta variáveis de todas as pranchetas selecionadas
   const allVars=new Set();
-  dArtboards.filter(ab=>dPubSelectedABs.has(ab.id)).forEach(ab=>{
-    dExtractTemplateVars(ab.layers).forEach(v=>allVars.add(v));
-  });
+  dExtractTemplateVars(dLayers).forEach(v=>allVars.add(v));
   const vars=[...allVars];
   if(!vars.length){
     permList.innerHTML='<div class="pub-empty">As pranchetas selecionadas não têm variáveis editáveis ({{nome}}).</div>';return;
@@ -299,7 +292,8 @@ function dPublishUpdatePerm(varName, key, value){
 /* ── CONFIRMAR PUBLICAÇÃO ── */
 function dPublishConfirm(){
   const selected=[...dPubSelectedABs];
-  if(!selected.length){gToast('⚠ Selecione pelo menos uma prancheta');return;}
+  if(!selected.length){gToast('⚠ Selecione a prancheta para publicar');return;}
+  dGetActiveAB();
   if(typeof dSyncLayersToAB==='function') dSyncLayersToAB();
   const folderId=document.getElementById('pub-folder').value;
   const validade=document.getElementById('pub-validade').value;
@@ -380,21 +374,18 @@ let dDirty=false;
 function dSetSaveState(state){
   const ind=document.getElementById('d-save-indicator');
   const s2=document.getElementById('d-save-indicator2');
-  let html, html2;
+  let html;
   if(state==='saving'){
-    html='<span style="color:rgba(255,255,255,.75);display:inline-flex;align-items:center;gap:6px"><span class="mini-spinner" style="width:11px;height:11px;border-width:2px"></span>A gravar…</span>';
-    html2='<span style="color:rgba(255,255,255,.6);font-size:10px">a gravar…</span>';
+    html='<span style="color:var(--d-text3);display:inline-flex;align-items:center;gap:6px"><svg class="spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;animation:spin 1s linear infinite"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>Salvando...</span>';
   }else if(state==='unsaved'){
     dDirty=true;
-    html='<span style="color:rgba(255,185,0,.9)">● Alterações não guardadas</span>';
-    html2='<span style="color:rgba(255,185,0,.7);font-size:10px">● não guardado</span>';
+    html='<span style="color:var(--dm-orange);display:inline-flex;align-items:center;gap:6px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Não salvo</span>';
   }else{ // saved
     dDirty=false;
-    html='<span style="color:rgba(34,197,94,.9);display:inline-flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg>Guardado</span>';
-    html2='<span style="color:rgba(34,197,94,.8);font-size:10px;display:inline-flex;align-items:center;gap:3px"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg>guardado</span>';
+    html='<span style="color:#22c55e;display:inline-flex;align-items:center;gap:6px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Salvo</span>';
   }
   if(ind)ind.innerHTML=html;
-  if(s2)s2.innerHTML=html2;
+  if(s2)s2.innerHTML=html;
 }
 function dMarkUnsaved(){ dSetSaveState('unsaved'); }
 // Previne fechar/recarregar a aba com trabalho não guardado (back-end real → medo de perder)
@@ -402,7 +393,7 @@ window.addEventListener('beforeunload', (e)=>{
   if(dDirty){ e.preventDefault(); e.returnValue=''; return ''; }
 });
 function dPreview(){dPreviewOpen();}
-function dStats(){document.getElementById('d-stat-layers').textContent=dLayers.length;}
+function dStats(){}
 
 /* ── COPIAR / COLAR layers (clipboard interno, estilo Photoshop) ── */
 let dClipboard=null; // null | { layers:[...] }
@@ -463,7 +454,37 @@ document.addEventListener('keydown',e=>{
     if((e.key==='Delete'||e.key==='Backspace')&&dTool!=='brush'&&dTool!=='eraser')dDeleteLayer();
     if(e.key==='Delete'&&(dTool==='brush'||dTool==='eraser'))dClearPaint();
     if(e.key==='Escape')dStampSource=null; // Esc limpa stamp source
-    if(e.key==='v'||e.key==='V')dSetTool('select');   // V = Mover
+    if(e.key==='v'||e.key==='V'){
+      if(e.shiftKey){
+        dSetTool(dTool==='artboard'?'select':'artboard');
+      } else {
+        dSetTool('select');
+      }
+    }
+    if(e.key==='F2'){
+      if(typeof dActiveABId!=='undefined'&&dActiveABId&&dSelId===null&&(!dMultiSel||dMultiSel.length===0)){
+        e.preventDefault();
+        if(typeof dRenameAB==='function')dRenameAB(dActiveABId);
+        return;
+      }
+    }
+    if(e.key===' '){
+      if(dTool!=='hand'){
+        dPrevToolForSpace = dTool;
+        dSetTool('hand');
+      }
+      e.preventDefault();
+      return;
+    }
+    if(e.key==='h'||e.key==='H')dSetTool('hand');     // H = Hand/Mão
+    if(e.key==='o'||e.key==='O')dSetTool('ellipse');  // O = Elipse
+    if(e.key==='x'||e.key==='X'){
+      if (typeof dDataActivate === 'function') dDataActivate(); else dSetTool('var-data');
+    }
+    if(e.key==='q'||e.key==='Q')dSetTool('qr-code');  // Q = QR Code
+    if(e.key==='l'||e.key==='L'){
+      if (typeof dToggleResources === 'function') dToggleResources();
+    }
     if(e.key==='t'||e.key==='T'){ if(typeof dTextActivate==='function') dTextActivate(); else dSetTool('text'); }     // T = Texto
     if(e.key==='r'||e.key==='R')dSetTool('rect');     // R = Retângulo
     if(e.key==='f'||e.key==='F')dSetTool('frame');    // F = Moldura
@@ -476,12 +497,11 @@ document.addEventListener('keydown',e=>{
       // Se já tem layer selecionado, capturar como source ANTES de ativar a tool
       if(dSelId){
         const l=dLayers.find(x=>x.id===dSelId);
-        if(l){dStampSource=l;gToast('🔖 Source: "'+l.name+'" — agora clique em outro layer para clonar');}
+        if(l){dStampSource=l;gToast('Source: "'+l.name+'" — agora clique em outro layer para clonar');}
       }
       dSetTool('stamp');
     }
     if(e.key==='p'||e.key==='P')dPreviewOpen();
-    if(e.key==='o'||e.key==='O'){if(typeof dNitidezActivate==='function')dNitidezActivate();} // O = Grupo Nitidez
     if(e.key==='?'||(e.shiftKey&&e.key==='/')){e.preventDefault();dOpenCheat();}
     // (dClearPaint já tratado acima)
     // Mover layer com setas
@@ -496,6 +516,18 @@ document.addEventListener('keydown',e=>{
       dRenderCanvas();
       if(document.getElementById('dp-x')){document.getElementById('dp-x').value=l.x;document.getElementById('dp-y').value=l.y;}
       dMarkUnsaved();
+    }
+  }
+});
+
+// Listener keyup para restaurar a ferramenta anterior após soltar a Barra de Espaço
+document.addEventListener('keyup', e => {
+  if (document.body.classList.contains('mode-designer')) {
+    if (e.key === ' ') {
+      if (dTool === 'hand' && dPrevToolForSpace !== null) {
+        dSetTool(dPrevToolForSpace);
+        dPrevToolForSpace = null;
+      }
     }
   }
 });

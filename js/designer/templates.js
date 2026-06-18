@@ -20,8 +20,12 @@ let dArtboards=[],dActiveABId=null,dUseArtboards=true;
 function dDefaultFolders(){
   const camps=[...CAMPS_ATIVAS,...CAMPS_OUTRAS];
   // Pastas das campanhas começam VAZIAS — o designer cria os materiais de cada uma.
+  // Inclui metadados de cada campanha: perguntas, preview, badge, etc.
   dFolders=camps.map((c,i)=>({
     id:'f'+i,name:c.name,color:c.color,campId:c.id,cover:'',grupos:['Todos os usuários'],agendamento:null,
+    badge:c.badge||'',expiraDias:c.expiraDias||7,popular:c.popular||false,
+    previewProd:c.previewProd||'',previewDe:c.previewDe||'',previewPor:c.previewPor||'',
+    perguntas:c.perguntas||[],
     templates:[]
   }));
   // ÚNICA exceção: uma pasta de exemplo com UM template-modelo pronto, que demonstra
@@ -103,6 +107,21 @@ function dPreloadFolders(){
       if(parsed&&parsed.length) dFolders=parsed;
     }
   }catch(e){}
+  // Merge com CAMPS pra preencher campos faltantes (perguntas, badge, etc)
+  const campsMap={};
+  [...CAMPS_ATIVAS,...CAMPS_OUTRAS].forEach(c=>{campsMap[c.id]=c;});
+  dFolders.forEach(f=>{
+    if(f.campId && campsMap[f.campId]){
+      const c=campsMap[f.campId];
+      if(!f.perguntas) f.perguntas=c.perguntas||[];
+      if(!f.badge) f.badge=c.badge||'';
+      if(!f.expiraDias) f.expiraDias=c.expiraDias||7;
+      if(f.popular===undefined) f.popular=c.popular||false;
+      if(!f.previewProd) f.previewProd=c.previewProd||'';
+      if(!f.previewDe) f.previewDe=c.previewDe||'';
+      if(!f.previewPor) f.previewPor=c.previewPor||'';
+    }
+  });
   // Migração: garante que templates antigos tenham permissões pra fotos
   dFolders.forEach(f=>{
     if(!Array.isArray(f.templates)) f.templates=[]; // pasta legada/corrompida sem 'templates' não derruba o boot
@@ -177,125 +196,139 @@ function dBuildBlankLayersWH(w,h){
 
 
 /* ══════════════════════════════════════════════════════════════
-   ARTBOARDS (PRANCHETAS)
+   CANVAS ÚNICO — substituiu múltiplas pranchetas
+   dArtboards é mantido como array de 1 elemento para retrocompatibilidade.
 ══════════════════════════════════════════════════════════════ */
-function dGetActiveAB(){return dArtboards.find(ab=>ab.id===dActiveABId);}
+let dCanvasBg='',dCustomFmt=null; // dCustomFmt={w,h} para dimensões ad-hoc
+
+function dGetActiveAB(){
+  const f=dCustomFmt||(DFMT_SIZES[dFmt]||DFMT_SIZES.story);
+  if(dArtboards.length){
+    dArtboards[0].w=f.w;dArtboards[0].h=f.h;dArtboards[0].fmt=dFmt;
+    dArtboards[0].bg=dCanvasBg;dArtboards[0].layers=dLayers;
+    return dArtboards[0];
+  }
+  return {id:'ab-single',name:'Prancheta',x:80,y:60,w:f.w,h:f.h,fmt:dFmt,bg:dCanvasBg,layers:dLayers};
+}
 
 function dSyncLayersToAB(){
-  const ab=dGetActiveAB();
-  if(ab)ab.layers=JSON.parse(JSON.stringify(dLayers));
+  if(dArtboards.length) dArtboards[0].layers=dLayers;
 }
 
-function dNewArtboard(fmt,posX,posY){
-  if (typeof dUseArtboards !== 'undefined' && !dUseArtboards && dArtboards.length >= 1) {
-    gToast('⚠ Não é permitido adicionar pranchetas no modo de Documento Único. Ative "Usar Pranchetas" ao criar o arquivo.', 'error');
-    return;
-  }
-  dSyncLayersToAB();
+function dSetActiveAB(){}  // no-op — canvas único
+
+function dNewArtboard(fmt){
   fmt=fmt||dFmt||'story';
+  dFmt=fmt;dCustomFmt=null;
+  dLayers=dBuildBlankLayers(fmt);
+  dSelId=null;if(typeof dMultiSel!=='undefined')dMultiSel=[];
+  dHistoryReset();
   const f=DFMT_SIZES[fmt]||DFMT_SIZES.story;
-  const id='ab-'+Date.now();
-  const n=dArtboards.length;
-  let x=posX,y=posY;
-  if(x===undefined){
-    if(n===0){x=80;y=60;}
-    else{const last=dArtboards[n-1];x=last.x+last.w+140;y=last.y;}
-  }
-  const ab={id,name:'Prancheta '+(n+1),x,y,w:f.w,h:f.h,fmt,layers:dBuildBlankLayers(fmt)};
-  dArtboards.push(ab);
-  dActiveABId=id;
-  dLayers=JSON.parse(JSON.stringify(ab.layers));
-  dFmt=fmt;dSelId=null;dMultiSel=[];
-  dHistoryReset();
+  dArtboards=[{id:'ab-single',name:'Prancheta',x:80,y:60,w:f.w,h:f.h,fmt,bg:dCanvasBg,layers:dLayers}];
+  dActiveABId='ab-single';
   if(typeof dRenderWorkspace==='function')dRenderWorkspace();
-  dApplyFormat();dRenderCanvas();dRenderLayersList();dRenderABList();
-  setTimeout(dFitToScreen,60);
-  return ab;
+  dApplyFormat();dRenderCanvas();dRenderLayersList();
+  return dArtboards[0];
 }
 
-function dSetActiveAB(id){
-  if(id===dActiveABId)return;
-  dSyncLayersToAB();
-  dActiveABId=id;
+function dDeleteAB(){}    // no-op
+function dDuplicateAB(){gToast('⚠ Modo canvas único: operação não disponível');}
+function dRenameAB(){}    // no-op
+function dRenderABList(){} // no-op — sem lista de pranchetas
+function dArrangeGrid(){}  // no-op
+
+function dRenderABProps(){
   const ab=dGetActiveAB();if(!ab)return;
-  dLayers=JSON.parse(JSON.stringify(ab.layers));
-  dFmt=ab.fmt;dSelId=null;dMultiSel=[];
-  dHistoryReset();
-  if(typeof dRenderWorkspace==='function')dRenderWorkspace();
-  dApplyFormat();dRenderCanvas();dRenderLayersList();dRenderABList();
-  gToast('"'+ab.name+'" ativa');
+  const wi=document.getElementById('d-ab-w-inp');if(wi)wi.value=ab.w;
+  const hi=document.getElementById('d-ab-h-inp');if(hi)hi.value=ab.h;
+  const bg=ab.bg||'transparent';
+  const isCustom=bg!=='transparent'&&bg!=='white';
+  const tBtn=document.getElementById('d-ab-bg-transparent');
+  const wBtn=document.getElementById('d-ab-bg-white');
+  const cBtn=document.getElementById('d-ab-bg-custom');
+  if(tBtn)tBtn.classList.toggle('active',bg==='transparent');
+  if(wBtn)wBtn.classList.toggle('active',bg==='white');
+  if(cBtn){cBtn.classList.toggle('active',isCustom);cBtn.style.background=isCustom?bg:'';}
+  const picker=document.getElementById('d-ab-bg-picker');
+  if(picker&&isCustom)picker.value=bg;
+  const hexEl=document.getElementById('d-ab-bg-hex');
+  if(hexEl)hexEl.textContent=isCustom?bg.toUpperCase():'';
+  const isPortrait=ab.h>=ab.w;
+  const pBtn=document.getElementById('d-ab-orient-port');
+  const lBtn=document.getElementById('d-ab-orient-land');
+  if(pBtn)pBtn.classList.toggle('active',isPortrait);
+  if(lBtn)lBtn.classList.toggle('active',!isPortrait);
 }
 
-function dDeleteAB(id){
-  if(dArtboards.length<=1){gToast('⚠ Mantenha pelo menos uma prancheta');return;}
-  if(!confirm('Excluir esta prancheta e todos os seus layers?'))return;
-  dArtboards=dArtboards.filter(ab=>ab.id!==id);
-  if(dActiveABId===id){
-    const ab=dArtboards[0];
-    dActiveABId=ab.id;
-    dLayers=JSON.parse(JSON.stringify(ab.layers));
-    dFmt=ab.fmt;dSelId=null;dMultiSel=[];
-    if(typeof dHistoryReset==='function')dHistoryReset(); // senão Ctrl+Z aplica layers da prancheta excluída na ativa
+function dSetABBg(bg){
+  dCanvasBg=bg;
+  if(typeof dApplyBg==='function')dApplyBg(dGetActiveAB());
+  dRenderABProps();
+  if(typeof dPersistArtboards==='function')dPersistArtboards();
+  if(typeof dMarkUnsaved==='function')dMarkUnsaved();
+}
+
+function dToggleOrientation(){
+  const ab=dGetActiveAB();
+  const hasContent=dLayers.length>1;
+  if(hasContent&&!confirm('Girar a prancheta? As camadas serão adaptadas (smart-resize).'))return;
+  if(typeof dHistoryPush==='function')dHistoryPush();
+  const oldW=ab.w,oldH=ab.h;
+  const newW=oldH,newH=oldW;
+  if(hasContent&&typeof gReflowLayers==='function'){
+    dLayers=gReflowLayers(dLayers,{w:oldW,h:oldH},{w:newW,h:newH});
   }
-  if(typeof dRenderWorkspace==='function')dRenderWorkspace();
-  dApplyFormat();dRenderCanvas();dRenderLayersList();dRenderABList();
+  dCustomFmt={w:newW,h:newH};
+  dApplyFormat();dRenderCanvas();dRenderLayersList();
+  dRenderABProps();
+  if(typeof dPersistArtboards==='function')dPersistArtboards();
+  if(typeof dMarkUnsaved==='function')dMarkUnsaved();
+  gToast('↔ Prancheta: '+newW+'×'+newH+'px');
 }
 
-function dRenameAB(id,evt){
-  if(evt)evt.stopPropagation();
-  const ab=dArtboards.find(x=>x.id===id);if(!ab)return;
-  const n=prompt('Nome da prancheta:',ab.name);
-  if(!n||!n.trim())return;
-  ab.name=n.trim();
-  if(typeof dRenderWorkspace==='function')dRenderWorkspace();
-  dRenderABList();
+function dSetOrientation(orient){
+  const ab=dGetActiveAB();
+  if(orient==='portrait'&&ab.w>ab.h)dToggleOrientation();
+  else if(orient==='landscape'&&ab.h>ab.w)dToggleOrientation();
 }
 
-function dDuplicateAB(id){
-  if (typeof dUseArtboards !== 'undefined' && !dUseArtboards) {
-    gToast('⚠ Não é permitido duplicar pranchetas no modo de Documento Único.', 'error');
-    return;
+function dABNameUpdate(){}  // no-op
+function dABPosUpdate(){}   // no-op
+
+function dABDimUpdate(){
+  const wEl=document.getElementById('d-ab-w-inp');
+  const hEl=document.getElementById('d-ab-h-inp');
+  if(!wEl||!hEl)return;
+  const w=parseInt(wEl.value,10),h=parseInt(hEl.value,10);
+  if(!w||!h||w<80||h<80||w>8000||h>8000)return;
+  const ab=dGetActiveAB();if(ab.w===w&&ab.h===h)return;
+  const oldW=ab.w,oldH=ab.h;
+  if(dLayers.length>1&&typeof gReflowLayers==='function'){
+    if(confirm('Adaptar camadas ao novo tamanho? (smart-resize)')){
+      if(typeof dHistoryPush==='function')dHistoryPush();
+      dLayers=gReflowLayers(dLayers,{w:oldW,h:oldH},{w,h});
+    }
   }
-  const src=dArtboards.find(ab=>ab.id===id);if(!src)return;
-  dSyncLayersToAB();
-  const newId='ab-'+Date.now();
-  const ab={...JSON.parse(JSON.stringify(src)),id:newId,name:src.name+' (cópia)',x:src.x+src.w+140,y:src.y};
-  dArtboards.push(ab);
-  dActiveABId=newId;
-  dLayers=JSON.parse(JSON.stringify(ab.layers));
-  dFmt=ab.fmt;dSelId=null;dMultiSel=[];
-  dHistoryReset();
-  if(typeof dRenderWorkspace==='function')dRenderWorkspace();
-  dApplyFormat();dRenderCanvas();dRenderLayersList();dRenderABList();
-  gToast('✓ Prancheta duplicada');
-}
-
-function dRenderABList(){
-  const el=document.getElementById('d-ab-list');if(!el)return;
-  el.innerHTML=dArtboards.map(ab=>`
-    <div class="ab-item ${ab.id===dActiveABId?'active':''}" onclick="dSetActiveAB('${ab.id}')">
-      <span class="ab-dot"></span>
-      <span class="ab-name" ondblclick="dRenameAB('${ab.id}',event)" title="Duplo clique para renomear">${ab.name}</span>
-      <span class="ab-fmt-tag">${ab.fmt}</span>
-      <button class="ab-dup" onclick="event.stopPropagation();dDuplicateAB('${ab.id}')" title="Duplicar prancheta">⎘</button>
-      <button class="ab-del" onclick="event.stopPropagation();dDeleteAB('${ab.id}')" title="Excluir prancheta">×</button>
-    </div>`).join('');
+  dCustomFmt={w,h};
+  dApplyFormat();dRenderCanvas();
+  dRenderABProps();
+  if(typeof dMarkUnsaved==='function')dMarkUnsaved();
+  if(typeof dPersistArtboards==='function')dPersistArtboards();
 }
 
 function dPersistArtboards(){
   let droppedImg=false;
   try{
-    const saveable=dArtboards.map(ab=>({...ab,layers:ab.layers.map(l=>{
-      // Mantém imagens pequenas (sobrevivem ao reload); descarta grandes p/ não estourar quota.
-      // TODO(Fase 5): mover blobs grandes para IndexedDB/Storage.
+    const saveable=dLayers.map(l=>{
       const packed=gPackImgUrl(l.imgUrl);
       if(packed.dropped)droppedImg=true;
       const out={...l,imgUrl:packed.url};
-      // Máscara (alpha) também conta pra quota — empacota; se não couber, sai sem máscara.
       if(l.mask){ const pm=gPackMask(l.mask); if(pm.dropped){ delete out.mask; droppedImg=true; } else out.mask=pm.url; }
       return out;
-    })}));
-    localStorage.setItem('yngs_artboards_v1',JSON.stringify(saveable));
+    });
+    localStorage.setItem('yngs_layers_v1',JSON.stringify(saveable));
+    localStorage.setItem('yngs_fmt_v1',dFmt);
+    localStorage.setItem('yngs_bg_v1',dCanvasBg||'');
     if(droppedImg&&typeof gWarnImagesNotPersisted==='function')gWarnImagesNotPersisted();
     return true;
   }catch(e){
@@ -340,27 +373,45 @@ function dInit(){
   dVarsRender();dAssetsRender();
   if(typeof dLoadSnippets==='function'){dLoadSnippets();dRenderSnippets();}
   if(typeof dFontsRestore==='function'){dFontsRestore();dFontsRenderList();}
-  // Restaurar pranchetas salvas ou começar com uma em branco
+  // Canvas único: restaurar layers/formato ou começar em branco
   let loaded=false;
   try{
-    const saved=localStorage.getItem('yngs_artboards_v1');
-    if(saved){
-      const parsed=JSON.parse(saved);
-      if(parsed&&parsed.length){
-        dArtboards=parsed;dActiveABId=parsed[0].id;
-        dLayers=JSON.parse(JSON.stringify(parsed[0].layers));
-        dFmt=parsed[0].fmt;dSelId=null;dMultiSel=[];
-        dHistoryReset();
+    const savedLayers=localStorage.getItem('yngs_layers_v1');
+    if(savedLayers){
+      const parsed=JSON.parse(savedLayers);
+      if(parsed&&Array.isArray(parsed)&&parsed.length){
+        dLayers=parsed;
+        dFmt=localStorage.getItem('yngs_fmt_v1')||'story';
+        dCanvasBg=localStorage.getItem('yngs_bg_v1')||'';
         loaded=true;
       }
     }
   }catch(e){}
-  if(!loaded){dArtboards=[];dActiveABId=null;dNewArtboard('story');}
-  else{
-    if(typeof dRenderWorkspace==='function')dRenderWorkspace();
-    dApplyFormat();dRenderCanvas();dRenderLayersList();dRenderABList();
-    setTimeout(dFitToScreen,100);
+  // Migração do formato legado yngs_artboards_v1
+  if(!loaded){
+    try{
+      const savedABs=localStorage.getItem('yngs_artboards_v1');
+      if(savedABs){
+        const parsed=JSON.parse(savedABs);
+        if(parsed&&parsed.length){
+          const ab=parsed[0];
+          dLayers=JSON.parse(JSON.stringify(ab.layers||[]));
+          dFmt=ab.fmt||'story';dCanvasBg=ab.bg||'';
+          loaded=true;
+          dPersistArtboards();
+          localStorage.removeItem('yngs_artboards_v1');
+        }
+      }
+    }catch(e){}
   }
+  const _initF=DFMT_SIZES[dFmt]||DFMT_SIZES.story;
+  dArtboards=[{id:'ab-single',name:'Prancheta',x:80,y:60,w:_initF.w,h:_initF.h,fmt:dFmt,bg:dCanvasBg,layers:dLayers}];
+  dActiveABId='ab-single';
+  dHistoryReset();
+  if(!loaded){dLayers=dBuildBlankLayers(dFmt);}
+  if(typeof dRenderWorkspace==='function')dRenderWorkspace();
+  dApplyFormat();dRenderCanvas();dRenderLayersList();
+  setTimeout(dFitToScreen,100);
   setTimeout(dEnsurePaintCanvas,100);
   // Campanhas/Biblioteca agora são abas do painel direito (#d-right); a aba Campanhas já abre por padrão
 }
@@ -368,50 +419,81 @@ function dInit(){
 /* ── PASTAS (grade estilo Deskfy: card com capa + menu, expande templates inline) ── */
 function dRenderFolders(){
   const el=document.getElementById('d-folder-list');
-  el.classList.add('folder-grid');
+  el.className = 'd-campaign-tree';
   el.innerHTML=dFolders.map(f=>{
     const open=dFolderOpen[f.id];
     const cover=(f.cover&&f.cover!=='__local__')?f.cover:'';
     const coverStyle=cover
-      ? `background-image:url('${cover}');background-size:cover;background-position:center`
+      ? `background-image:url('${cover}')`
       : `background:linear-gradient(135deg, ${f.color||'#FF9000'}, ${f.color||'#FF9000'}cc)`;
-    const sched=f.agendamento?`<span class="folder-card-sched" title="Agendada para ${gEsc(f.agendamento)}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>`:'';
-    const restrita=(f.grupos&&f.grupos.length&&!f.grupos.includes('Todos os usuários'))?`<span class="folder-card-lock" title="Restrita a: ${gEsc(f.grupos.join(', '))}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>`:'';
-    const card=`
-      <div class="folder-card ${open?'open':''} ${f.id===dActiveTmplFolderId?'active':''}" id="fi-${f.id}">
-        <div class="folder-card-cover" style="${coverStyle}" onclick="dToggleFolder('${f.id}')">
-          ${!cover?`<span class="folder-card-coverlabel">${gEsc(f.name)}</span>`:''}
-          <span class="folder-card-count">${f.templates.length}</span>
-          <div class="folder-card-badges">${sched}${restrita}</div>
-          <button class="folder-card-menu" onclick="event.stopPropagation();dFolderMenu(event,'${f.id}')" aria-label="Opções da pasta">⋯</button>
-        </div>
-        <div class="folder-card-foot" onclick="dToggleFolder('${f.id}')">
-          <span class="folder-card-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><path d="M2 10h20"/></svg></span>
-          <span class="folder-card-name" ondblclick="event.stopPropagation();dRenameFolder('${f.id}')" title="${gEsc(f.name)}">${gEsc(f.name)}</span>
-          <span class="folder-card-chev">${open?'<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:middle"><polygon points="3 5 21 5 12 19 3 5"/></svg>':'<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:middle"><polygon points="5 3 19 12 5 21 5 3"/></svg>'}</span>
-        </div>
+    
+    // The main row (Header)
+    const headerRow = `
+      <div class="tree-campaign-header ${open?'open':''} ${f.id===dActiveTmplFolderId?'active':''}" id="fi-${f.id}" onclick="dToggleFolder('${f.id}')">
+        <span class="tree-chev">
+          ${open?'<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="3 5 21 5 12 19 3 5"/></svg>':'<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>'}
+        </span>
+        <div class="tree-thumb" style="${coverStyle}" onmouseenter="dHoverPreview(event, '${cover}', '${f.color||'#FF9000'}')" onmouseleave="dHoverPreviewHide()"></div>
+        <span class="tree-name" title="${gEsc(f.name)}">${gEsc(f.name)}</span>
+        <span class="tree-count">(${f.templates.length})</span>
+        <button class="tree-menu-btn" onclick="event.stopPropagation();dFolderMenu(event,'${f.id}')" title="Opções da campanha">⋯</button>
       </div>`;
-    // Bloco de templates expandido (ocupa a linha inteira da grade)
-    const expanded=open?`
-      <div class="folder-templates-row" id="ft-${f.id}">
+
+    // The expanded content
+    const expanded = open ? `
+      <div class="tree-campaign-body" id="ft-${f.id}">
+        <div class="tree-quick-actions" style="display:flex; gap:6px; margin-bottom:8px;">
+          <button class="tree-action-btn" onclick="document.getElementById('d-psd-input').click()" title="Importar PSD para esta campanha">
+            <span style="background:#31A8FF; color:#fff; border-radius:2px; font-size:8px; padding:1px 3px; font-weight:bold; margin-right:4px;">PSD</span> Importar
+          </button>
+          <button class="tree-action-btn" onclick="dSvgImport()" title="Importar SVG para esta campanha">
+            <span style="background:#FF9A00; color:#fff; border-radius:2px; font-size:8px; padding:1px 3px; font-weight:bold; margin-right:4px;">SVG</span> Importar
+          </button>
+        </div>
         ${f.templates.length?f.templates.map(t=>{
           const meta=t.publishMeta||{};
           const pubStatus=meta.publicado
             ?`<span class="tmpl-status pub" title="Publicado">●</span>`
             :`<span class="tmpl-status draft" title="Rascunho">○</span>`;
-          return `<div class="template-item ${t.id===dActiveTmplId?'active':''}">
-            <div class="template-row" onclick="dLoadTemplateById('${f.id}','${t.id}')">
+          return `<div class="tree-template-item ${t.id===dActiveTmplId?'active':''}">
+            <div class="tree-template-row" onclick="dLoadTemplateById('${f.id}','${t.id}')">
               ${pubStatus}
-              <div class="template-name">${gEsc(t.name)}</div>
-              <div class="template-fmt">${t.fmt}</div>
+              <div class="tree-template-name">${gEsc(t.name)}</div>
+              <div class="tree-template-fmt">${t.fmt}</div>
             </div>
             <button class="tmpl-menu-btn" onclick="event.stopPropagation();dTemplateMenuOpen(event,'${f.id}','${t.id}')" aria-label="Mais opções">⋯</button>
           </div>`;
-        }).join(''):'<div class="folder-templates-empty">Nenhum material nesta pasta ainda.</div>'}
-      </div>`:'';
-    return card+expanded;
+        }).join(''):'<div class="tree-empty-msg">Nenhum template nesta campanha.</div>'}
+      </div>` : '';
+
+    return `<div class="tree-campaign-item">${headerRow}${expanded}</div>`;
   }).join('');
+  
   dFolders.forEach(f=>{ const node=document.getElementById('fi-'+f.id); if(node) node.__folder=f; });
+}
+
+function dHoverPreview(e, coverUrl, fallbackColor) {
+  const popover = document.getElementById('d-hover-preview');
+  const img = document.getElementById('d-hover-preview-img');
+  if (!popover || !img) return;
+
+  if (coverUrl) {
+    img.style.backgroundImage = `url('${coverUrl}')`;
+  } else {
+    img.style.backgroundImage = 'none';
+    img.style.backgroundColor = fallbackColor;
+  }
+  
+  // Position popover relative to the mouse or the row
+  const rect = e.target.getBoundingClientRect();
+  popover.style.display = 'block';
+  popover.style.top = Math.min(rect.top - 10, window.innerHeight - 220) + 'px';
+  popover.style.left = (rect.right + 10) + 'px';
+}
+
+function dHoverPreviewHide() {
+  const popover = document.getElementById('d-hover-preview');
+  if (popover) popover.style.display = 'none';
 }
 let dActiveTmplFolderId=null;
 function dLoadTemplateById(folderId, tmplId){
@@ -537,6 +619,8 @@ function dLoadTemplate(tmpl,folder){
   dApplyFormat();
   setTimeout(dFitToScreen,50);
   dRenderCanvas();dRenderLayersList();dStats();dMarkUnsaved();dRenderABList();
+  const projNameEl = document.getElementById('dt-project-name');
+  if(projNameEl && tmpl) projNameEl.textContent = tmpl.name;
   document.querySelectorAll('.dt-fmt').forEach(b=>b.classList.toggle('active',b.dataset.fmt===dFmt));
   gToast('Template "'+tmpl.name+'" carregado na prancheta ativa');
 }
@@ -676,7 +760,7 @@ function dConfirmFolder(){
     if(!dPersistFolders()){dRenderFolders();return;} // persiste antes de fechar; se falhar, mantém modal aberto
     dRenderFolders();
     dCloseFolderModal();
-    if(typeof fRenderCatalogs==='function')try{fRenderCatalogs(CAMPS_ATIVAS,CAMPS_OUTRAS);}catch(e){}
+    if(typeof fGetCampaigns==='function'&&typeof fRenderCatalogs==='function')try{const{ativas,outras}=fGetCampaigns();fRenderCatalogs(ativas,outras);}catch(e){}
     gToast('✓ Pasta "'+name+'" atualizada');
     return;
   }
@@ -686,7 +770,7 @@ function dConfirmFolder(){
   dRenderFolders();
   dPersistFolders();
   dCloseFolderModal();
-  if(typeof fRenderCatalogs==='function')try{fRenderCatalogs(CAMPS_ATIVAS,CAMPS_OUTRAS);}catch(e){}
+  if(typeof fGetCampaigns==='function'&&typeof fRenderCatalogs==='function')try{const{ativas,outras}=fGetCampaigns();fRenderCatalogs(ativas,outras);}catch(e){}
   gToast('✓ Pasta "'+name+'" criada');
 }
 // Renomear rápido (sem abrir o modal todo)
@@ -697,7 +781,7 @@ function dRenameFolder(id){
   if(!n||!n.trim())return;
   f.name=n.trim();
   dRenderFolders();dPersistFolders();
-  if(typeof fRenderCatalogs==='function')try{fRenderCatalogs(CAMPS_ATIVAS,CAMPS_OUTRAS);}catch(e){}
+  if(typeof fGetCampaigns==='function'&&typeof fRenderCatalogs==='function')try{const{ativas,outras}=fGetCampaigns();fRenderCatalogs(ativas,outras);}catch(e){}
   gToast('✓ Pasta renomeada');
 }
 function dDeleteFolder(id){
@@ -707,7 +791,7 @@ function dDeleteFolder(id){
   if(!confirm(`Excluir a pasta "${f.name}"${n?` e seus ${n} template(s)`:''}? Esta ação não pode ser desfeita.`))return;
   dFolders=dFolders.filter(x=>x.id!==id);
   dRenderFolders();dPersistFolders();
-  if(typeof fRenderCatalogs==='function')try{fRenderCatalogs(CAMPS_ATIVAS,CAMPS_OUTRAS);}catch(e){}
+  if(typeof fGetCampaigns==='function'&&typeof fRenderCatalogs==='function')try{const{ativas,outras}=fGetCampaigns();fRenderCatalogs(ativas,outras);}catch(e){}
   gToast('Pasta "'+f.name+'" excluída');
 }
 // Menu "..." de cada card de pasta na grade
@@ -1611,4 +1695,12 @@ function dSvgCreateTemplate(elements, meta, fmt){
   dLoadTemplate(tmpl, folder);
   dPersistFolders();
   gToast('✓ '+layers.length+' layer(s) importado(s) de '+(meta.fileName||'SVG'));
+}
+
+function dToggleCampaignsDrawer(open) {
+  if (open === false) {
+    if (typeof dActivatePanel === 'function') dActivatePanel('camadas');
+  } else {
+    if (typeof dActivatePanel === 'function') dActivatePanel('campaigns');
+  }
 }

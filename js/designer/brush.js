@@ -669,10 +669,12 @@ function dEyedropPick(tool, e) {
 let dSelectLast = 'select';
 
 const _dSelectIcons = {
-  'select':       `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-7 1-4 7z"/></svg>`,
-  'obj-select':   `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="4,2"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>`,
-  'quick-select': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-7 1-4 7z"/><line x1="18" y1="14" x2="18" y2="20" stroke-width="2.5"/><line x1="15" y1="17" x2="21" y2="17" stroke-width="2.5"/></svg>`,
-  'magic-wand':   `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="21" x2="13" y2="11"/><path d="M13 3l1.5 3 3 1.5-3 1.5L13 12l-1.5-3-3-1.5 3-1.5z"/><line x1="19" y1="9" x2="21" y2="7"/><line x1="15" y1="5" x2="17" y2="3"/></svg>`,
+  'select':       `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3l14 9-7 1-4 7z"/></svg>`,
+  'hand':         `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v11a4 4 0 0 0 4 4h3a5 5 0 0 0 5-5v-6M8 11V8.5a1.5 1.5 0 0 1 3 0V11"/></svg>`,
+  'obj-select':   `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="4 2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>`,
+  'quick-select': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3l14 9-7 1-4 7z"/><path d="M18 14v6M15 17h6"/></svg>`,
+  'magic-wand':   `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21l10-10M13 3l1.5 3 3 1.5-3 1.5L13 12l-1.5-3-3-1.5 3-1.5zM19 9l2-2M15 5l2-2"/></svg>`,
+  'artboard':     `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="5" width="14" height="14" rx="1"/><line x1="2" y1="5" x2="5" y2="5"/><line x1="5" y1="2" x2="5" y2="5"/><line x1="19" y1="2" x2="19" y2="5"/><line x1="19" y1="5" x2="22" y2="5"/><line x1="2" y1="19" x2="5" y2="19"/><line x1="5" y1="19" x2="5" y2="22"/><line x1="19" y1="19" x2="19" y2="22"/><line x1="19" y1="19" x2="22" y2="19"/></svg>`,
 };
 
 function dSelectActivate() { dSetTool(dSelectLast); }
@@ -701,5 +703,207 @@ function dSelectPick(tool, e) {
   const icon = document.getElementById('dtool-select-icon');
   if(icon && typeof _dSelectIcons !== 'undefined') icon.innerHTML = _dSelectIcons[tool] || '';
   dSetTool(tool);
+}
+
+/* ══ GRUPO MÍDIA — flyout Photoshop-style ══ */
+let dFrameLast = 'frame';
+
+const _dFrameIcons = {
+  'frame': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>`,
+  'img': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`
+};
+
+function dFrameActivate() {
+  if (typeof dSetTool === 'function') {
+    dSetTool(dFrameLast);
+  }
+}
+
+function dFrameFlyout(e) {
+  if (e) { e.preventDefault(); e.stopPropagation(); }
+  const flyout = document.getElementById('vt-frame-flyout');
+  if(!flyout) return;
+  const isOpen = flyout.classList.contains('open');
+  document.querySelectorAll('.vt-flyout').forEach(f => f.classList.remove('open'));
+  if(!isOpen){
+    flyout.classList.add('open');
+    setTimeout(() => {
+      document.addEventListener('click', function _closeFlyout(){
+        document.querySelectorAll('.vt-flyout').forEach(f => f.classList.remove('open'));
+        document.removeEventListener('click', _closeFlyout);
+      });
+    }, 0);
+  }
+}
+
+function dFramePick(tool, e) {
+  if(e) e.stopPropagation();
+  dFrameLast = tool;
+  document.querySelectorAll('.vt-flyout').forEach(f => f.classList.remove('open'));
+  const icon = document.getElementById('dtool-frame-icon');
+  if(icon && typeof _dFrameIcons !== 'undefined') {
+    icon.innerHTML = _dFrameIcons[tool] || '';
+  }
+  if (typeof dSetTool === 'function') {
+    dSetTool(tool);
+  }
+}
+
+/* ══ GRUPO DADOS — flyout Photoshop-style ══ */
+let dDataLast = 'var-data';
+
+const _dDataIcons = {
+  'var-data': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7" stroke-width="3"/></svg>`,
+  'qr-code': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M7 17h.01M17 17h.01M17 7h.01M7 7h.01"/></svg>`
+};
+
+function dDataActivate() {
+  if (dDataLast === 'var-data') {
+    if (typeof dActivatePanel === 'function') dActivatePanel('camada');
+  }
+  if (typeof dSetTool === 'function') {
+    dSetTool(dDataLast);
+  }
+}
+
+function dDataFlyout(e) {
+  if (e) { e.preventDefault(); e.stopPropagation(); }
+  const flyout = document.getElementById('vt-data-flyout');
+  if(!flyout) return;
+  const isOpen = flyout.classList.contains('open');
+  document.querySelectorAll('.vt-flyout').forEach(f => f.classList.remove('open'));
+  if(!isOpen){
+    flyout.classList.add('open');
+    setTimeout(() => {
+      document.addEventListener('click', function _closeFlyout(){
+        document.querySelectorAll('.vt-flyout').forEach(f => f.classList.remove('open'));
+        document.removeEventListener('click', _closeFlyout);
+      });
+    }, 0);
+  }
+}
+
+function dDataPick(tool, e) {
+  if(e) e.stopPropagation();
+  dDataLast = tool;
+  document.querySelectorAll('.vt-flyout').forEach(f => f.classList.remove('open'));
+  const icon = document.getElementById('dtool-data-icon');
+  if(icon && typeof _dDataIcons !== 'undefined') {
+    icon.innerHTML = _dDataIcons[tool] || '';
+  }
+  if (tool === 'var-data') {
+    if (typeof dActivatePanel === 'function') dActivatePanel('camada');
+  }
+  if (typeof dSetTool === 'function') {
+    dSetTool(tool);
+  }
+}
+
+/* ══ GRUPO PINCEL — flyout Photoshop-style ══ */
+let dBrushLast = 'brush';
+
+const _dBrushIcons = {
+  'brush': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l4-4 4 4-4 4-4-4z"/><path d="M7 13l9-9 4 4-9 9"/></svg>`,
+  'eraser': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H7L3 16l12-12 5 5-4.5 4.5"/><line x1="6" y1="20" x2="20" y2="20"/></svg>`,
+  'stamp': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="8" rx="2"/><path d="M4 22h16M12 10v12"/></svg>`
+};
+
+function dBrushActivate() {
+  if (typeof dSetTool === 'function') {
+    dSetTool(dBrushLast);
+  }
+}
+
+// Para manter compatibilidade com antigos clicks diretos em eraser e stamp
+if (typeof window !== 'undefined') {
+  window.dEraserActivate = function() { dSetTool('eraser'); };
+  window.dStampActivate = function() { dSetTool('stamp'); };
+}
+
+function dBrushFlyout(e) {
+  if (e) { e.preventDefault(); e.stopPropagation(); }
+  const flyout = document.getElementById('vt-brush-flyout');
+  if(!flyout) return;
+  const isOpen = flyout.classList.contains('open');
+  document.querySelectorAll('.vt-flyout').forEach(f => f.classList.remove('open'));
+  if(!isOpen){
+    flyout.classList.add('open');
+    setTimeout(() => {
+      document.addEventListener('click', function _closeFlyout(){
+        document.querySelectorAll('.vt-flyout').forEach(f => f.classList.remove('open'));
+        document.removeEventListener('click', _closeFlyout);
+      });
+    }, 0);
+  }
+}
+
+function dBrushPick(tool, e) {
+  if(e) e.stopPropagation();
+  dBrushLast = tool;
+  document.querySelectorAll('.vt-flyout').forEach(f => f.classList.remove('open'));
+  const icon = document.getElementById('dtool-brush-icon');
+  if(icon && typeof _dBrushIcons !== 'undefined') {
+    icon.innerHTML = _dBrushIcons[tool] || '';
+  }
+  if (typeof dSetTool === 'function') {
+    dSetTool(tool);
+  }
+}
+
+/* ══ GRUPO PREENCHIMENTO — flyout Photoshop-style ══ */
+let dFillLast = 'bucket';
+
+const _dFillIcons = {
+  'bucket': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 11-8-8-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2c.8.8 2 .8 2.8 0L19 11Z"/><path d="m5 2 5 5M2 13h15M22 20a2 2 0 1 1-4 0c0-1.6 1.7-2.4 2-4 .3 1.6 2 2.4 2 4Z"/></svg>`,
+  'gradient': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="12" x2="21" y2="12"/></svg>`
+};
+
+function dFillActivate() {
+  if (typeof dSetTool === 'function') {
+    dSetTool(dFillLast === 'bucket' ? 'bucket' : 'gradient');
+  }
+}
+
+function dFillFlyout(e) {
+  if (e) { e.preventDefault(); e.stopPropagation(); }
+  const flyout = document.getElementById('vt-fill-flyout');
+  if(!flyout) return;
+  const isOpen = flyout.classList.contains('open');
+  document.querySelectorAll('.vt-flyout').forEach(f => f.classList.remove('open'));
+  if(!isOpen){
+    flyout.classList.add('open');
+    setTimeout(() => {
+      document.addEventListener('click', function _closeFlyout(){
+        document.querySelectorAll('.vt-flyout').forEach(f => f.classList.remove('open'));
+        document.removeEventListener('click', _closeFlyout);
+      });
+    }, 0);
+  }
+}
+
+function dFillPick(tool, e) {
+  if(e) e.stopPropagation();
+  dFillLast = tool;
+  document.querySelectorAll('.vt-flyout').forEach(f => f.classList.remove('open'));
+  const icon = document.getElementById('dtool-fill-icon');
+  if(icon && typeof _dFillIcons !== 'undefined') {
+    icon.innerHTML = _dFillIcons[tool] || '';
+  }
+  if (typeof dSetTool === 'function') {
+    dSetTool(tool === 'bucket' ? 'bucket' : 'gradient');
+  }
+}
+
+// Expondo os mapas de ícones globais no objeto window para o dSetTool
+if (typeof window !== 'undefined') {
+  window._dSelectIcons = _dSelectIcons;
+  window._dTextIcons = _dTextIcons;
+  window._dFormaIcons = _dFormaIcons;
+  window._dFrameIcons = _dFrameIcons;
+  window._dDataIcons = _dDataIcons;
+  window._dBrushIcons = _dBrushIcons;
+  window._dFillIcons = _dFillIcons;
+  window._dNitidezIcons = _dNitidezIcons;
+  window._dEyedropIcons = _dEyedropIcons;
 }
 

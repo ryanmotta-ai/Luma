@@ -146,11 +146,14 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
   // Quality flags pra anti-aliasing e renderização nítida
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
-  // Fundo da campanha (caso não haja layer de background)
-  const hasBackground = layers.some(l=>l.type==='shape' && l.x===0 && l.y===0 && l.w>=W*0.9 && l.h>=H*0.9);
-  if(!hasBackground){
-    ctx.fillStyle = camp.color || '#FF9000';
-    ctx.fillRect(0, 0, W, H);
+  // Fundo da prancheta/campanha
+  const _matBg=typeof fState!=='undefined'&&fState.material&&fState.material.bg&&fState.material.bg!=='transparent'?fState.material.bg:null;
+  if(_matBg){
+    ctx.fillStyle=_matBg==='white'?'#ffffff':_matBg;
+    ctx.fillRect(0,0,W,H);
+  }else{
+    const hasBackground=layers.some(l=>l.type==='shape'&&l.x===0&&l.y===0&&l.w>=W*0.9&&l.h>=H*0.9);
+    if(!hasBackground){ctx.fillStyle=camp.color||'#FF9000';ctx.fillRect(0,0,W,H);}
   }
   // Os layers do designer foram criados num canvas com tamanho fixo (fmt do template).
   // 5.2: formato diferente → SMART RESIZE (gReflowLayers re-ancora sem distorcer),

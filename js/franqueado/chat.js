@@ -58,7 +58,7 @@ function fApplyCampSwitch(cId, keepData){
   fState.camp=c;fState.stepIdx=-1;fState.done=false;
   fState.dados={};
   fState.material=null;
-  fRenderCatalogs(CAMPS_ATIVAS,CAMPS_OUTRAS);fUpdateCtx();
+  const {ativas:_a,outras:_o}=fGetCampaigns();fRenderCatalogs(_a,_o);fUpdateCtx();
   fOpenMaterialCatalog(c);
 }
 function fCancelSwitch(){

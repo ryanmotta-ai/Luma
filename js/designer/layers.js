@@ -48,7 +48,7 @@ function dDeselect(e){
   const ws=document.getElementById('d-workspace');
   const wr=document.getElementById('d-canvas-wrapper');
   if(e.target===wr||e.target===ws){
-    if(dTool==='select'){dSelId=null;dRenderCanvas();dRenderLayersList();document.getElementById('d-no-sel').style.display='';document.getElementById('d-props-form').style.display='none';dUpdateCtxBar();}
+    if(dTool==='select'){dSelId=null;dRenderCanvas();dRenderLayersList();document.getElementById('d-no-sel').style.display='';document.getElementById('d-props-form').style.display='none';if(typeof dRenderABProps==='function')dRenderABProps();dUpdateCtxBar();}
   }
 }
 
@@ -62,6 +62,7 @@ let dPendingIsolate = null;
 let dDragMoved = false;
 
 function dStartDrag(e,l){
+  if (l.locked || l.lockPosition) return;
   e.preventDefault();dDrag=l;dDragSX=e.clientX;dDragSY=e.clientY;dLyrSX=l.x;dLyrSY=l.y;
   dDragMoved=false;
   // Salvar posição inicial dos siblings do grupo
@@ -112,6 +113,10 @@ function dOnDrag(e){
     });
   }
   if(document.getElementById('dp-x')){document.getElementById('dp-x').value=dDrag.x;document.getElementById('dp-y').value=dDrag.y;}
+  const topX = document.getElementById('d-top-x');
+  const topY = document.getElementById('d-top-y');
+  if(topX) topX.value = Math.round(dDrag.x);
+  if(topY) topY.value = Math.round(dDrag.y);
 }
 function dStopDrag(){
   if(dDrag){dHistoryPush();dMarkUnsaved();}
@@ -133,6 +138,7 @@ let dResizeLyrX = 0;
 let dResizeLyrY = 0;
 
 function dStartResize(e,l,pos){
+  if (l.locked || l.lockPosition) return;
   e.preventDefault();
   dResize=l;
   dResizeSX=e.clientX;
@@ -223,6 +229,14 @@ function dOnResize(e){
   if(document.getElementById('dp-w')){document.getElementById('dp-w').value=dResize.w;document.getElementById('dp-h').value=dResize.h;}
   if(document.getElementById('dp-x')){document.getElementById('dp-x').value=dResize.x;}
   if(document.getElementById('dp-y')){document.getElementById('dp-y').value=dResize.y;}
+  const topX = document.getElementById('d-top-x');
+  const topY = document.getElementById('d-top-y');
+  const topW = document.getElementById('d-top-w');
+  const topH = document.getElementById('d-top-h');
+  if(topW) topW.value = Math.round(dResize.w);
+  if(topH) topH.value = Math.round(dResize.h);
+  if(topX) topX.value = Math.round(dResize.x);
+  if(topY) topY.value = Math.round(dResize.y);
 }
 function dStopResize(){
   if(dResize){
@@ -399,83 +413,213 @@ function dToggleGroupCollapse(e, id) {
   }
 }
 
+let dLayersSearchQuery = '';
+let dLayersFilterType = '';
+
+function dLayersSearchFilter(query) {
+  dLayersSearchQuery = (query || '').toLowerCase();
+  dRenderLayersList();
+}
+
+function dToggleLayersFilterMenu(e) {
+  e.stopPropagation();
+  let menu = document.getElementById('d-layers-filter-menu');
+  if (!menu) {
+    menu = document.createElement('div');
+    menu.id = 'd-layers-filter-menu';
+    menu.className = 'd-filter-menu-popover';
+    menu.innerHTML = `
+      <div class="d-filter-menu-item" onclick="dSetLayersFilterType('')">Mostrar todos</div>
+      <div class="d-filter-menu-item" onclick="dSetLayersFilterType('text')">Apenas Texto (T)</div>
+      <div class="d-filter-menu-item" onclick="dSetLayersFilterType('image')">Apenas Imagens (▣)</div>
+      <div class="d-filter-menu-item" onclick="dSetLayersFilterType('shape')">Apenas Formas (■)</div>
+    `;
+    document.body.appendChild(menu);
+  }
+  
+  const rect = e.currentTarget.getBoundingClientRect();
+  menu.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+  menu.style.left = (rect.left + window.scrollX - 80) + 'px';
+  
+  const isOpen = menu.classList.contains('open');
+  document.querySelectorAll('.d-filter-menu-popover').forEach(m => m.classList.remove('open'));
+  
+  if (!isOpen) {
+    menu.classList.add('open');
+    const closeMenu = (evt) => {
+      if (!menu.contains(evt.target) && evt.target !== e.currentTarget) {
+        menu.classList.remove('open');
+        document.removeEventListener('click', closeMenu);
+      }
+    };
+    setTimeout(() => document.addEventListener('click', closeMenu), 0);
+  }
+}
+
+function dSetLayersFilterType(type) {
+  dLayersFilterType = type;
+  const btn = document.querySelector('.d-layers-filter-btn');
+  if (btn) {
+    btn.classList.toggle('active', !!type);
+  }
+  dRenderLayersList();
+  const menu = document.getElementById('d-layers-filter-menu');
+  if (menu) menu.classList.remove('open');
+}
+
+function dToggleABCollapse(){}  // no-op — canvas único
+function dToggleABLock(){}       // no-op — canvas único
+
+function dToggleLayerLock(e, abId, layerId) {
+  e.stopPropagation();
+  const l = dLayers.find(x => x.id === layerId);
+  if (l) {
+    dHistoryPush();
+    l.locked = !l.locked;
+    if (l.type === 'group') {
+      dLayers.forEach(x => { if (x.parentId === l.id) x.locked = l.locked; });
+    }
+    dRenderCanvas();
+    dRenderLayersList();
+    dMarkUnsaved();
+  }
+}
+
+function dToggleLayerVis(e, abId, layerId) {
+  e.stopPropagation();
+  const l = dLayers.find(x => x.id === layerId);
+  if (l) {
+    dHistoryPush();
+    l.visible = !l.visible;
+    dRenderCanvas();
+    dRenderLayersList();
+    dMarkUnsaved();
+  }
+}
+
+function dSelectInactiveLayer(abId, layerId) {
+  dSelLayer(layerId);
+}
+
+function dDeleteSelectedLayer() {
+  if (dMultiSel.length) {
+    dHistoryPush();
+    dLayers = dLayers.filter(x => !dMultiSel.includes(x.id));
+    dMultiSel = [];
+    dSelId = null;
+    dRenderCanvas(); dRenderLayersList(); dStats(); dMarkUnsaved();
+    document.getElementById('d-no-sel').style.display=''; document.getElementById('d-props-form').style.display='none';
+    gToast('Camadas removidas');
+  } else {
+    dDeleteLayer();
+  }
+}
+
+function dDuplicateSelectedLayer() {
+  dDuplicateLayer();
+}
+
+function dAddEffect() {
+  const appearSec = document.getElementById('dp-sec-appear');
+  if (appearSec) {
+    appearSec.classList.remove('collapsed');
+    if (typeof dPropScrollTo === 'function') {
+      dPropScrollTo('dp-sec-appear');
+    }
+  }
+  gToast('Selecione Aparência para ajustar bordas e sombras');
+}
+
 function dRenderLayersList(){
   const el=document.getElementById('d-layers-list');
-  el.innerHTML=[...dLayers].reverse().map(l=>{
-    // Check if any ancestor is collapsed
+  if(!el) return;
+
+  let html = '';
+  const reversedLayers = [...dLayers].reverse();
+
+  reversedLayers.forEach(l => {
+    if (dLayersSearchQuery) {
+      const nameMatch = l.name && l.name.toLowerCase().includes(dLayersSearchQuery);
+      const contentMatch = l.content && l.content.toLowerCase().includes(dLayersSearchQuery);
+      if (!nameMatch && !contentMatch) return;
+    }
+
+    if (dLayersFilterType) {
+      if (dLayersFilterType === 'text' && l.type !== 'text') return;
+      if (dLayersFilterType === 'image' && (l.type !== 'image' && l.type !== 'frame')) return;
+      if (dLayersFilterType === 'shape' && l.type !== 'shape') return;
+    }
+
     let parentId = l.parentId;
-    let isHidden = false;
+    let isHiddenByParent = false;
     while (parentId) {
       const parent = dLayers.find(x => x.id === parentId);
       if (parent) {
-        if (parent.collapsed) {
-          isHidden = true;
-          break;
-        }
+        if (parent.collapsed) { isHiddenByParent = true; break; }
         parentId = parent.parentId;
-      } else {
-        break;
-      }
+      } else { break; }
     }
-    if (isHidden) return '';
-
-    if (l.type === 'group') {
-      const toggleIcon = l.collapsed
-        ? `<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:middle"><polygon points="5 3 19 12 5 21 5 3"/></svg>`
-        : `<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:middle"><polygon points="3 5 21 5 12 19 3 5"/></svg>`;
-      const locked = l.locked ? `<span style="margin-left:4px;display:inline-flex;align-items:center;color:var(--d-text3);vertical-align:middle"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>` : '';
-      return `<div class="layer-row group-row ${l.id === dSelId ? 'active' : ''}"
-        data-lid="${l.id}"
-        draggable="true"
-        onclick="event.shiftKey?dToggleMultiSel('${l.id}'):dSelLayer('${l.id}')"
-        ondragstart="dLyrDragStart(event,'${l.id}')"
-        ondragover="dLyrDragOver(event)"
-        ondragleave="dLyrDragLeave(event)"
-        ondragend="dLyrDragEnd(event)"
-        ondrop="dLyrDrop(event,'${l.id}')">
-        <span class="layer-drag-handle" title="Arrastar para reordenar">⠿</span>
-        <span class="group-collapse-toggle" onclick="dToggleGroupCollapse(event, '${l.id}')">${toggleIcon}</span>
-        <span class="layer-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><path d="M2 10h20"/></svg></span>
-        <span class="layer-label group-label" style="opacity:${l.visible?1:.4}" ondblclick="dRenameLayer('${l.id}',event)" title="Duplo clique para renomear">${gEsc(l.name)}</span>
-        ${locked}
-        <button class="layer-lock ${l.locked?'locked':''}" onclick="dToggleLock(event,'${l.id}')" title="${l.locked?'Desbloquear':'Bloquear grupo'}">${l.locked?'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>':'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>'}</button>
-        <button class="layer-vis" onclick="dToggleVis(event,'${l.id}')">${l.visible?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'}</button>
-      </div>`;
-    }
+    if (isHiddenByParent) return;
 
     const isChild = !!l.parentId;
-    const indentStyle = isChild ? 'style="padding-left: 28px;"' : '';
+    const indentStyle = isChild ? 'style="padding-left: 28px;"' : 'style="padding-left: 18px;"';
     const childClass = isChild ? 'child-row' : '';
+    const isSelected = (l.id === dSelId || dMultiSel.includes(l.id));
 
-    const icon=l.type==='text'?'T':l.type==='image'?'▣':l.type==='frame'?'⬜':'■';
-    const hasVar=l.type==='text'&&/\{\{/.test(l.content||'');
-    const locked = l.locked ? `<span style="margin-left:4px;display:inline-flex;align-items:center;color:var(--d-text3);vertical-align:middle"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>` : '';
-    return `<div class="layer-row ${childClass} ${l.id===dSelId||dMultiSel.includes(l.id)?'active':''}"
-      ${indentStyle}
-      data-lid="${l.id}"
-      draggable="true"
-      onmouseenter="dHoverLayer('${l.id}',true)"
-      onmouseleave="dHoverLayer('${l.id}',false)"
-      onclick="event.shiftKey?dToggleMultiSel('${l.id}'):dSelLayer('${l.id}')"
+    const visIcon = l.visible
+      ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`
+      : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
+
+    const lockIcon = l.locked
+      ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`
+      : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>`;
+
+    const hasVar = l.type === 'text' && /\{\{/.test(l.content || '');
+    const varBadge = hasVar ? `<span class="lyr-badge lyr-var">var</span>` : '';
+
+    let typeIcon = '■';
+    if (l.type === 'text') typeIcon = 'T';
+    else if (l.type === 'image') typeIcon = '▣';
+    else if (l.type === 'frame') typeIcon = '⬜';
+    else if (l.type === 'group') typeIcon = '📁';
+
+    const dndAttrs = `draggable="true"
       ondragstart="dLyrDragStart(event,'${l.id}')"
       ondragover="dLyrDragOver(event)"
       ondragleave="dLyrDragLeave(event)"
       ondragend="dLyrDragEnd(event)"
-      ondrop="dLyrDrop(event,'${l.id}')">
-      <span class="layer-drag-handle" title="Arrastar para reordenar">⠿</span>
-      <span class="layer-icon">${icon}</span>
-      <span class="layer-label" style="opacity:${l.visible?1:.4}" ondblclick="dRenameLayer('${l.id}',event)" title="Duplo clique para renomear">${gEsc(l.name)}</span>
-      ${hasVar?'<span class="lyr-badge lyr-var">var</span>':''}
-      ${(l.blendMode&&l.blendMode!=='normal'&&typeof dBlendModeLabel==='function')?'<span class="lyr-badge lyr-blend" title="Mesclagem: '+dBlendModeLabel(l.blendMode)+'">'+dBlendModeLabel(l.blendMode)+'</span>':''}
-      ${l.type==='image'?'<span class="lyr-badge lyr-img">img</span>':''}
-      ${l.type==='frame'?'<span class="lyr-badge lyr-img">frame</span>':''}
-      ${l.type==='shape'?'<span class="lyr-badge lyr-shp">shape</span>':''}
-      ${l.mask?`<span class="lyr-badge lyr-mask" title="Máscara aplicada — clique para remover" onclick="event.stopPropagation();dRemoveMask('${l.id}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:2px"><rect x="2" y="7" width="20" height="10" rx="5"/><circle cx="7" cy="12" r="1.5"/><circle cx="17" cy="12" r="1.5"/><path d="M12 10v4"/></svg></span>`:''}
-      ${locked}
-      <button class="layer-lock ${l.locked?'locked':''}" onclick="dToggleLock(event,'${l.id}')" title="${l.locked?'Desbloquear':'Bloquear layer'}">${l.locked?'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>':'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>'}</button>
-      <button class="layer-vis" onclick="dToggleVis(event,'${l.id}')">${l.visible?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'}</button>
-    </div>`;
-  }).join('');
+      ondrop="dLyrDrop(event,'${l.id}')"`;
+
+    let groupToggleHtml = '';
+    if (l.type === 'group') {
+      const gIcon = l.collapsed
+        ? `<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:middle"><polygon points="5 3 19 12 5 21 5 3"/></svg>`
+        : `<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:middle"><polygon points="3 5 21 5 12 19 3 5"/></svg>`;
+      groupToggleHtml = `<span class="group-collapse-toggle" onclick="event.stopPropagation(); dToggleGroupCollapse(event, '${l.id}')">${gIcon}</span>`;
+    }
+
+    html += `
+      <div class="layer-row ${childClass} ${isSelected ? 'active' : ''} ${l.type === 'group' ? 'group-row' : ''}"
+           ${indentStyle}
+           data-lid="${l.id}"
+           ${dndAttrs}
+           onmouseenter="dHoverLayer('${l.id}',true)"
+           onmouseleave="dHoverLayer('${l.id}',false)"
+           onclick="event.shiftKey ? dToggleMultiSel('${l.id}') : dSelLayer('${l.id}')">
+        <span class="layer-drag-handle" title="Arrastar para reordenar">⠿</span>
+        ${groupToggleHtml}
+        <span class="layer-icon">${typeIcon}</span>
+        <span class="layer-label ${l.type === 'group' ? 'group-label' : ''}" style="opacity:${l.visible ? 1 : .4}" ondblclick="dRenameLayer('${l.id}',event)" title="Duplo clique para renomear">${gEsc(l.name)}</span>
+        ${varBadge}
+        ${(l.blendMode && l.blendMode !== 'normal' && typeof dBlendModeLabel === 'function') ? `<span class="lyr-badge lyr-blend" title="Mesclagem: ${dBlendModeLabel(l.blendMode)}">${dBlendModeLabel(l.blendMode)}</span>` : ''}
+        ${l.mask ? `<span class="lyr-badge lyr-mask" title="Máscara aplicada — clique para remover" onclick="event.stopPropagation();dRemoveMask('${l.id}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:2px"><rect x="2" y="7" width="20" height="10" rx="5"/><circle cx="7" cy="12" r="1.5"/><circle cx="17" cy="12" r="1.5"/><path d="M12 10v4"/></svg></span>` : ''}
+        <button class="layer-lock ${l.locked ? 'locked' : ''}" onclick="dToggleLayerLock(event, 'ab-single', '${l.id}')" title="${l.locked ? 'Desbloquear' : 'Bloquear'}">${lockIcon}</button>
+        <button class="layer-vis" onclick="dToggleLayerVis(event, 'ab-single', '${l.id}')" title="Visibilidade">${visIcon}</button>
+      </div>
+    `;
+  });
+
+  el.innerHTML = html;
 }
 
 /* DnD layers */
@@ -612,8 +756,9 @@ function dShowProps(l){
   document.getElementById('dp-w').value=l.w;document.getElementById('dp-h').value=l.h;
   const isText=l.type==='text',isImg=l.type==='image'||l.type==='frame',isShp=l.type==='shape';
   document.getElementById('d-text-props').style.display=isText?'':'none';
-  document.getElementById('d-shape-props').style.display=isShp?'':'none';
-  document.getElementById('d-image-props').style.display=isImg?'':'none';
+  var _shpEl=document.getElementById('d-shape-props');if(_shpEl)_shpEl.style.display=isShp?'':'none';
+  document.getElementById('d-image-props').style.display=isImg?'flex':'none';
+  if(typeof dPropShowSections==='function')dPropShowSections(l.type);
   if(typeof dPopBindingSelects==='function')dPopBindingSelects(l); // 4.1 — vínculos de propriedade
   if(typeof dRenderRules==='function')dRenderRules(l); // 4.2 — regras condicionais
   if(typeof dMaskRenderProps==='function')dMaskRenderProps(l); // máscaras de camada
@@ -643,6 +788,7 @@ function dShowProps(l){
     document.getElementById('dp-font').value=l.font||"'Roboto Black'";
     document.getElementById('dp-fsize').value=l.fontSize||24;
     document.getElementById('dp-align').value=l.textAlign||'left';
+    if(typeof dPropSyncAlign==='function')dPropSyncAlign(l.textAlign||'left');
     const col=l.color||'#ffffff';
     document.getElementById('dp-color-sw').style.background=col;
     const safeCol=col.startsWith('rgba')?'#ffffff':col;
@@ -688,6 +834,49 @@ function dShowProps(l){
       };
     }
   }
+  
+  // Universal opacity, fill opacity and locks sync for any active layer properties
+  const opacEl = document.getElementById('dp-opacity');
+  if (opacEl) opacEl.value = l.opacity !== undefined ? l.opacity : 100;
+  
+  const fillOpacEl = document.getElementById('dp-fill-opacity');
+  if (fillOpacEl) fillOpacEl.value = l.fillOpacity !== undefined ? l.fillOpacity : 100;
+  
+  dUpdateQuickLocksUI(l);
+}
+
+function dUpdateQuickLocksUI(l) {
+  const btnTrans = document.getElementById('lock-transparency');
+  const btnEdit = document.getElementById('lock-edit');
+  const btnPos = document.getElementById('lock-position');
+  const btnAll = document.getElementById('lock-all');
+  
+  if(btnTrans) btnTrans.classList.toggle('active', !!l.lockTransparency);
+  if(btnEdit) btnEdit.classList.toggle('active', !!l.lockEdit);
+  if(btnPos) btnPos.classList.toggle('active', !!l.lockPosition);
+  if(btnAll) btnAll.classList.toggle('active', !!l.locked);
+}
+
+function dToggleQuickLock(lockType) {
+  const l = dLayers.find(x => x.id === dSelId);
+  if (!l) return;
+  dHistoryPush();
+  if (lockType === 'all') {
+    l.locked = !l.locked;
+    if (l.type === 'group') {
+      dLayers.forEach(x => { if (x.parentId === l.id) x.locked = l.locked; });
+    }
+  } else if (lockType === 'transparency') {
+    l.lockTransparency = !l.lockTransparency;
+  } else if (lockType === 'edit') {
+    l.lockEdit = !l.lockEdit;
+  } else if (lockType === 'position') {
+    l.lockPosition = !l.lockPosition;
+  }
+  dRenderCanvas();
+  dRenderLayersList();
+  dUpdateQuickLocksUI(l);
+  dMarkUnsaved();
 }
 function dPopVarSel(){
   const sel=document.getElementById('d-var-insert');
@@ -801,10 +990,10 @@ function dSetRadiusCircle(){
 }
 function dUpdateProp(prop,val){
   const l=dLayers.find(x=>x.id===dSelId);if(!l)return;
-  if(['x','y','w','h','fontSize','opacity','radius','sides','points','strokeW'].includes(prop))val=parseFloat(val)||0;
+  if(['x','y','w','h','fontSize','opacity','fillOpacity','radius','sides','points','strokeW'].includes(prop))val=parseFloat(val)||0;
   // Props editadas via oninput contínuo usam debounce — evita serializar dLayers a cada tecla.
   // Props de seleção discreta (font, textAlign, frameShape, etc.) usam push imediato.
-  const _continuousProps=['fontSize','opacity','radius','color','fill','content','sides','points','strokeW','strokeColor','shadowColor','bgColor','imgScale','imgOffsetX','imgOffsetY'];
+  const _continuousProps=['fontSize','opacity','fillOpacity','radius','color','fill','content','sides','points','strokeW','strokeColor','shadowColor','bgColor','imgScale','imgOffsetX','imgOffsetY'];
   if(!['x','y','w','h'].includes(prop)){
     if(_continuousProps.includes(prop)) dHistoryPushDebounced();
     else dHistoryPush();
@@ -830,22 +1019,65 @@ function dUpdateProp(prop,val){
  * Camada    = propriedades da peça + catálogo de variáveis do template
  * Publicar  = resumo + gatilho do modal completo (fluxo híbrido)
  * Biblioteca/Assets/Tutorial deixaram de ser abas fixas (drawer/Ajuda). */
-let dActivePanel='conteudo';
+let dActivePanel='camadas';
 function dActivatePanel(name){
+  // Map old panel names to our simplified set
+  if(name==='conteudo' || name==='campaigns') name='campaigns';
+  if(name==='camada' || name==='propriedades') name='camadas';
+  
   dActivePanel=name; dActiveTab=name; // dActiveTab mantido sincronizado p/ compat
-  document.querySelectorAll('.d-rp-tab').forEach(t=>t.classList.toggle('active',t.dataset.panel===name));
-  const conteudo=document.getElementById('dtab-campaigns');
-  const camada=document.getElementById('d-panel-camada');
+  
+  document.querySelectorAll('.d-rp-tab').forEach(t=>{
+    const p = t.dataset.panel;
+    t.classList.toggle('active', p===name);
+  });
+
+  const rightEl=document.getElementById('d-right');
+  const layersSection=document.getElementById('d-layers-section');
+  const blendSection=document.getElementById('d-blend-section');
+  const propsPanel=document.getElementById('d-panel-camada');
+  const campaignsPanel=document.getElementById('d-panel-campaigns');
   const publicar=document.getElementById('d-panel-publicar');
-  if(conteudo)conteudo.classList.toggle('hidden',name!=='conteudo');
-  if(camada)camada.classList.toggle('hidden',name!=='camada');
-  if(publicar)publicar.classList.toggle('hidden',name!=='publicar');
+
+  if(name==='camadas'){
+    if(rightEl){
+      rightEl.classList.add('show-layers');
+      rightEl.classList.remove('show-campaigns');
+    }
+    if(layersSection) layersSection.style.display='flex';
+    if(blendSection) blendSection.style.display='block';
+    if(propsPanel) propsPanel.classList.remove('hidden');
+    if(campaignsPanel) campaignsPanel.classList.add('hidden');
+    if(publicar) publicar.classList.add('hidden');
+  } else if(name==='campaigns'){
+    if(rightEl){
+      rightEl.classList.add('show-campaigns');
+      rightEl.classList.remove('show-layers');
+    }
+    if(layersSection) layersSection.style.display='none';
+    if(blendSection) blendSection.style.display='none';
+    if(propsPanel) propsPanel.classList.add('hidden');
+    if(campaignsPanel) campaignsPanel.classList.remove('hidden');
+    if(publicar) publicar.classList.add('hidden');
+    
+    if(typeof dRenderFolders==='function') dRenderFolders();
+  } else if(name==='publicar'){
+    if(rightEl){
+      rightEl.classList.remove('show-layers', 'show-campaigns');
+    }
+    if(layersSection) layersSection.style.display='none';
+    if(blendSection) blendSection.style.display='none';
+    if(propsPanel) propsPanel.classList.add('hidden');
+    if(campaignsPanel) campaignsPanel.classList.add('hidden');
+    if(publicar) publicar.classList.remove('hidden');
+  }
+
   // Tutorial não é mais aba (acessado via Ajuda). Biblioteca/Assets migram para o drawer de Recursos.
   const tut=document.getElementById('dtab-tutorial');if(tut)tut.classList.add('hidden');
   if(name==='publicar'&&typeof dPublishPanelRender==='function')dPublishPanelRender();
 }
-function dSwitchPanelToLayer(){dActivatePanel('camada');}
-function dSwitchPanelToConteudo(){dActivatePanel('conteudo');}
+function dSwitchPanelToLayer(){dActivatePanel('camadas');}
+function dSwitchPanelToConteudo(){dActivatePanel('campaigns');}
 
 // Acordeão leve do painel Camada: clicar no cabeçalho colapsa/expande a seção.
 function dToggleSection(head){
@@ -931,7 +1163,7 @@ function dVarsRender(){
       </span>
     </div>`;
   }).join('')||'<div style="font-size:12px;color:var(--d-text3);text-align:center;padding:10px">Nenhuma variável</div>';
-  document.getElementById('d-stat-vars').textContent=dVars.length;
+
   dPopVarSel();
 }
 // Mostra/oculta os campos de opções (select) e paleta (color) conforme o tipo escolhido (4.1)
@@ -1451,3 +1683,46 @@ function dAddShapeKind(kind){
   setTimeout(()=>dFlashLayer(id),30);
   gToast((names[kind]||'Forma')+' adicionada');
 }
+
+/* ── Resize handle: arrasta para ajustar altura do painel de camadas ── */
+(function(){
+  const KEY='dp-lyr-h';
+  const MIN_H=80,MAX_RATIO=0.72;
+
+  function _applyH(h){
+    const r=document.getElementById('d-right');
+    if(r) r.style.setProperty('--d-lyr-h',h+'px');
+  }
+
+  document.addEventListener('DOMContentLoaded',function(){
+    const saved=parseInt(sessionStorage.getItem(KEY)||'0',10);
+    if(saved>=MIN_H) _applyH(saved);
+
+    const handle=document.getElementById('d-layers-resize-handle');
+    if(!handle)return;
+    let drag=false,startY=0,startH=0;
+
+    handle.addEventListener('mousedown',function(e){
+      e.preventDefault();
+      const sec=document.getElementById('d-layers-section');
+      if(!sec)return;
+      drag=true; startY=e.clientY; startH=sec.offsetHeight;
+      document.body.style.cursor='ns-resize';
+      document.body.style.userSelect='none';
+    });
+    document.addEventListener('mousemove',function(e){
+      if(!drag)return;
+      const r=document.getElementById('d-right');
+      const maxH=r?Math.round(r.offsetHeight*MAX_RATIO):500;
+      _applyH(Math.min(maxH,Math.max(MIN_H,startH+(e.clientY-startY))));
+    });
+    document.addEventListener('mouseup',function(){
+      if(!drag)return;
+      drag=false;
+      document.body.style.cursor='';
+      document.body.style.userSelect='';
+      const sec=document.getElementById('d-layers-section');
+      if(sec) sessionStorage.setItem(KEY,sec.offsetHeight);
+    });
+  });
+})();

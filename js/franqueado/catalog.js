@@ -291,23 +291,34 @@ function fCampEl(c,isRec){
       ${previewPor?`<div class="camp-thumb-por">${previewPor}</div>`:''}
       <div class="camp-thumb-logo" role="img" aria-label="Luma"></div>`}
     </div>
-    <div class="camp-body"><div class="camp-name">${c.name}</div><div class="camp-sub">${c.count} materiais</div></div>
+    <div class="camp-body"><div class="camp-name">${c.name}</div><div class="camp-sub">${(c.count||c.templates?.length||0)} materiais</div></div>
   </div>`;
 }
+function fGetCampaigns(){
+  if(typeof dFolders==='undefined'||!dFolders||!dFolders.length){
+    return {ativas:CAMPS_ATIVAS,outras:CAMPS_OUTRAS};
+  }
+  const ativas=dFolders.filter(f=>f.popular);
+  const outras=dFolders.filter(f=>!f.popular);
+  return {ativas:ativas.length?ativas:dFolders,outras:outras};
+}
 function fRenderCatalogs(a,o){
+  a=a||[];o=o||[];
   const rec=a.find(c=>c.popular)||a[0];
-  document.getElementById('camp-rec').innerHTML=fCampEl(rec,true);
+  if(rec) document.getElementById('camp-rec').innerHTML=fCampEl(rec,true);
   document.getElementById('camp-main').innerHTML=a.filter(c=>c.id!==rec.id).map(c=>fCampEl(c,false)).join('');
-  document.getElementById('camp-other').innerHTML=o.map(c=>fCampEl(c,false)).join('');
+  if(document.getElementById('camp-other')) document.getElementById('camp-other').innerHTML=o.map(c=>fCampEl(c,false)).join('');
 }
 function fFilterCamps(q){
-  const f1=q?CAMPS_ATIVAS.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())):CAMPS_ATIVAS;
-  const f2=q?CAMPS_OUTRAS.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())):CAMPS_OUTRAS;
+  const {ativas,outras}=fGetCampaigns();
+  const f1=q?ativas.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())):ativas;
+  const f2=q?outras.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())):outras;
   document.getElementById('camp-rec').style.display=q?'none':'';
-  fRenderCatalogs(f1.length?f1:CAMPS_ATIVAS,f2);
+  fRenderCatalogs(f1.length?f1:ativas,f2);
 }
 function fSelectCamp(id){
-  const all=[...CAMPS_ATIVAS,...CAMPS_OUTRAS];
+  const {ativas,outras}=fGetCampaigns();
+  const all=[...ativas,...outras];
   const c=all.find(x=>x.id===id);if(!c)return;
   // Se mesma campanha já selecionada, ignora (mas reabre o catálogo se ainda estiver lá)
   if(fState.camp && fState.camp.id===c.id) {
@@ -321,7 +332,7 @@ function fSelectCamp(id){
   }
   // Antes de aplicar, abre catálogo de materiais da pasta
   fState.camp=c;
-  fRenderCatalogs(CAMPS_ATIVAS,CAMPS_OUTRAS);
+  const {ativas:_a,outras:_o}=fGetCampaigns();fRenderCatalogs(_a,_o);
   fUpdateCtx();
   fOpenMaterialCatalog(c);
 }

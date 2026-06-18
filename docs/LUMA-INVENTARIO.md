@@ -110,7 +110,7 @@ Como o sistema de tipos funciona:
 | `blur` | — | Desfoca pixels pintados numa região (`dBlurRegion`). Cursor `cell`. |
 | `bucket` | G | Balde: preenche cor sólida em texto/shape clicado (`dBucketFillLayer`). ⚠ só texto/shape, não pinta área do canvas. |
 | `gradient` | — | Arrasta para preencher o paint canvas com gradiente linear cor→transparente (`dApplyGradient`, no mouseup). |
-| `artboard` | — | (Extra, fora de `dSetTool`) Ferramenta prancheta: arrasto no workspace cria novo artboard, clique em ghost ativa (`dABWorkspaceDown`/`dABDrawUp`). |
+| ~~`artboard`~~ | — | **[REMOVIDA]** Ferramenta prancheta (arrasto no workspace para criar/ativar) foi removida da barra de ferramentas; planejado substituição futura por um sistema de páginas estilo Canva. |
 
 Cursores customizados: cada ferramenta troca o cursor do `#d-canvas-frame` por um SVG inline (mapa `dToolCursors`). Brush/eraser usam cursor circular gerado dinamicamente (`dUpdateBrushCursor`) cujo raio acompanha `#d-brush-size` × zoom.
 
@@ -132,7 +132,7 @@ Há **dois** lugares de edição:
 - **shape**: select Forma (`shapeKind`), Lados/Pontas, Fill, Opac., Rx (`radius`).
 - **frame**: Forma (`frameShape`), Rx, objectFit, upload/limpar foto; 2º grupo: Zoom (`imgScale`), X/Y (`imgOffset`), "Testar foto" (`dSetPhTest`).
 
-**2. Painel lateral `dShowProps(l)`** (mostra `#d-props-form`, esconde `#d-no-sel`): header de contexto por tipo; sempre `dp-x/y/w/h`; toggla `#d-text-props`/`#d-shape-props`/`#d-image-props`. Inclui autocomplete de var no `dp-content`, selects de binding (`dPopBindingSelects`), rule builder (`dRenderRules`) e seção de máscara (`dMaskRenderProps`).
+**2. Painel lateral `dShowProps(l)`** (mostra `#d-props-form`, esconde `#d-no-sel`): Integrado diretamente na aba **Camadas** (Layers) no painel lateral direito, abaixo da lista de camadas. Exibe header de contexto por tipo; sempre `dp-x/y/w/h`; toggla `#d-text-props`/`#d-shape-props`/`#d-image-props`. Inclui autocomplete de var no `dp-content`, selects de binding (`dPopBindingSelects`), rule builder (`dRenderRules`) e seção de máscara (`dMaskRenderProps`).
 
 ### Marquee selection e multi-seleção
 - **Marquee (rubber band)** — só com `select`, listener no `#d-canvas-frame` (anexado 1× por `dAttachMarquee`). `dStartMarquee` aborta se o alvo é `.canvas-layer`/`.layer-handle` (drag normal). `dEndMarquee`: se retângulo > 6px, seleciona todos os layers `visible && !locked` cuja bbox intersecta (`dLayerIntersects` = overlap AABB). Sem shift limpa antes; com shift acumula.
@@ -682,13 +682,13 @@ Radii: `--r:10px`, `--r-sm:6px`, `--r-pill:999px`.
 | dDefaultPublishMeta | — | Meta padrão de publicação (rascunho, validade +30d) |
 | dExtractTemplateVars | layers | Extrai variáveis usadas (`{{}}` + `imgVar`) |
 | dBuildLayers / dBuildBlankLayers / dBuildBlankLayersWH | fmt / fmt / w,h | Layers de template promo / em branco |
-| dGetActiveAB / dSyncLayersToAB | — | Artboard ativo / sincroniza `dLayers` → AB |
-| dNewArtboard | fmt, posX, posY | Cria nova prancheta ao lado e ativa |
-| dSetActiveAB / dDeleteAB / dRenameAB / dDuplicateAB | id | Troca/exclui/renomeia/duplica prancheta |
-| dRenderABList | — | Lista de pranchetas (`#d-ab-list`) |
-| dPersistArtboards | — | Salva `dArtboards` (`yngs_artboards_v1`) |
-| dInit | — | Inicializa o designer (idempotente) |
-| dRenderFolders | — | Grade de pastas (cards + templates inline) |
+| dGetActiveAB / dSyncLayersToAB | — | Canvas ativo / sincroniza `dLayers` → estrutura de Canvas Único |
+| ~~dNewArtboard~~ | fmt, posX, posY | **[OBSOLETA/REMOVIDA]** (Substituída por Novo Documento no Canvas Único) |
+| ~~dSetActiveAB / dDeleteAB / dRenameAB / dDuplicateAB~~ | id | **[OBSOLETAS/REMOVIDAS]** (Controles de múltiplos artboards removidos) |
+| ~~dRenderABList~~ | — | **[OBSOLETA/REMOVIDA]** (Aba de lista de pranchetas removida) |
+| dPersistArtboards | — | Salva o canvas atual (`yngs_artboards_v1`) |
+| dInit | — | Inicializa o designer (idempotente, configurando o canvas único) |
+| dRenderFolders | — | Árvore de campanhas/pastas (exibe pastas e templates compactos com suporte a hover preview de capa e botões de importação contextual) |
 | dLoadTemplateById | folderId, tmplId | Acha e chama `dLoadTemplate` |
 | dTemplateMenuOpen | ev, folderId, tmplId | Menu de contexto do template |
 | dToggleTemplatePublish | folderId, tmplId, publicar | Marca `publicado` e persiste |
@@ -883,8 +883,10 @@ IDs referenciados diretamente por JS (`getElementById`) — "sagrados", renomear
 ### Designer — dados/modais
 | ID | Usado por | O que é |
 |---|---|---|
-| `d-folder-list` | dRenderFolders | Grade de pastas |
-| `d-ab-list` | dRenderABList | Lista de pranchetas |
+| `d-panel-campaigns` | templates.js / main.js | Painel lateral de Campanhas |
+| `d-folder-list` | dRenderFolders | Contêiner da árvore de campanhas/pastas |
+| `d-hover-preview` | templates.js | Elemento flutuante de hover preview para capas |
+| ~~`d-ab-list`~~ | dRenderABList | **[REMOVIDO]** Lista de pranchetas |
 | `d-folder-modal` / `df-*` | templates.js | Modal de pasta (nome, cor, campanha, grupos, capa) |
 | `d-tmpl-modal` / `dt-name` / `dt-folder` / `dt-fmt` | templates.js | Modal de novo template |
 | `d-publish-modal` / `pub-folder` / `pub-validade` / `pub-instrucoes` / `pub-ab-grid` / `pub-perm-list` | publish.js | Modal de publicação |
@@ -892,7 +894,7 @@ IDs referenciados diretamente por JS (`getElementById`) — "sagrados", renomear
 | `d-var-modal` / `dv-name` / `dv-type` / `dv-label` / `dv-default` / `dv-options` / `dv-palette` | layers.js | Modal de variável |
 | `d-var-ac` / `d-var-insert` / `d-vars-list` | layers.js | Autocomplete / inserir / lista de variáveis |
 | `d-psd-modal` / `d-psd-rows` / `d-psd-fmt` / `d-psd-invert` / `d-psd-count` | psd-import.js | Revisão por camada do PSD |
-| `d-psd-ab-overlay` / `d-psd-busy` | psd-import.js | Seletor multi-prancheta / overlay "Lendo PSD" |
+| ~~`d-psd-ab-overlay`~~ / `d-psd-busy` | psd-import.js | Seletor de prancheta removido / overlay "Lendo PSD" |
 | `d-svg-review-overlay` / `svg-rev-fmt` | templates.js | Revisão do import de SVG |
 | `d-resources-drawer` / `d-lib-grid` / `d-lib-upload` / `d-snippets-list` | library.js | Drawer de recursos, biblioteca, blocos |
 | `d-fonts-list` | fonts.js | Lista de fontes enviadas |

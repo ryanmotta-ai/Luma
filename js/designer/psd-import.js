@@ -241,7 +241,7 @@ function _dPsdReadPsd(buffer, agPsd){
   return new Promise((resolve)=>{
     let done=false;
     const mainParse=()=>{ if(done)return; done=true;
-      try{ const psd=agPsd.readPsd(buffer,{useImageData:false,skipLayerImaging:false}); resolve({psd:psd, res:_dPsdResolution(psd)}); }
+      try{ const psd=agPsd.readPsd(buffer,{useImageData:false,skipLayerImaging:false}); resolve({psd:psd, res:_dPsdResolution(psd), worker:false}); }
       catch(e){ resolve({error:e}); } };
     let worker, to;
     try{
@@ -252,7 +252,7 @@ function _dPsdReadPsd(buffer, agPsd){
         if(done) return;
         if(ev.data&&ev.data.ok&&ev.data.tree){ done=true;
           const tree=ev.data.tree;
-          resolve({psd:{width:tree.width,height:tree.height,children:(tree.children||[]).map(_dPsdRebuildNode)}, res:(+tree.res)||72});
+          resolve({psd:{width:tree.width,height:tree.height,children:(tree.children||[]).map(_dPsdRebuildNode)}, res:(+tree.res)||72, worker:true});
         } else mainParse();
       };
       worker.onerror=()=>{ clearTimeout(to); try{worker.terminate();}catch(e){} mainParse(); };
@@ -447,7 +447,11 @@ function _dPsdShouldInvert(items, w, h){
 /* ── tela de revisão ── */
 function dPsdOpenReview(){
   const modal=document.getElementById('d-psd-modal'); if(!modal) return;
-  document.getElementById('d-psd-meta').textContent=(dPsdMeta.name||'PSD')+' · '+dPsdMeta.w+'×'+dPsdMeta.h+' · '+dPsdItems.length+' camadas'+(dPsdMeta.worker?' · worker':'');
+  const _nT=dPsdItems.filter(i=>i.kind==='text').length;
+  const _nS=dPsdItems.filter(i=>i.kind==='shape').length;
+  const _nI=dPsdItems.filter(i=>i.kind==='raster').length;
+  const _dpiLabel=(dPsdMeta.res&&dPsdMeta.res!==72)?' · '+Math.round(dPsdMeta.res)+'dpi':'';
+  document.getElementById('d-psd-meta').textContent=(dPsdMeta.name||'PSD')+' · '+dPsdMeta.w+'×'+dPsdMeta.h+_dpiLabel+' · '+_nT+'T '+_nS+'S '+_nI+'I'+(dPsdMeta.worker?' · worker':'');
   const fmt=Object.keys(DFMT_SIZES).find(k=>DFMT_SIZES[k].w===dPsdMeta.w&&DFMT_SIZES[k].h===dPsdMeta.h)||'orig';
   const sel=document.getElementById('d-psd-fmt'); if(sel) sel.value=fmt;
   const inv=document.getElementById('d-psd-invert');
@@ -473,9 +477,16 @@ function dPsdRenderRows(filter){
   const ico={text:'T',shape:'■',raster:'▣'};
   const kindOrder={text:0,shape:1,raster:2};
   const kindLabel={text:'Textos',shape:'Formas',raster:'Imagens'};
-  // Indexar, filtrar por busca e agrupar por tipo (preserva índice original p/ handlers)
+  // Indexar, filtrar por busca (nome, conteúdo, fontName, tipo em PT-BR) e agrupar por tipo
   const indexed=dPsdItems.map((it,i)=>({it,i}));
-  const visible=filter?indexed.filter(({it})=>it.name.toLowerCase().includes(filter)):indexed;
+  const visible=filter?indexed.filter(({it})=>{
+    return it.name.toLowerCase().includes(filter)||
+      (it.content&&it.content.toLowerCase().includes(filter))||
+      (it.fontName&&it.fontName.toLowerCase().includes(filter))||
+      (it.kind==='shape'&&'forma'.includes(filter))||
+      (it.kind==='raster'&&'imagem'.includes(filter))||
+      (it.kind==='text'&&'texto'.includes(filter));
+  }):indexed;
   const grouped=[...visible].sort((a,b)=>(kindOrder[a.it.kind]||0)-(kindOrder[b.it.kind]||0));
   const count={}; visible.forEach(({it})=>{ count[it.kind]=(count[it.kind]||0)+1; });
   let lastKind=null;
@@ -505,10 +516,19 @@ function dPsdRenderRows(filter){
       if(it.fontRemapped) fontWarn=`<span class="psd-fontok" title="Fonte '${fn}' mapeada para fonte enviada">✓ ${fn}</span>`;
       else fontWarn=`<span class="psd-fontwarn">⚠ ${fn} <label class="psd-font-upload-btn" title="Enviar '${fn}' agora">↑ enviar<input type="file" accept=".ttf,.otf,.woff,.woff2" style="display:none" onchange="dPsdUploadFont(${i},this)"></label></span>`;
     }
+    const opacityBadge=it.opacity<95?`<span class="psd-opacity-badge">α ${it.opacity}%</span>`:'';
+    const textInfoBadge=it.kind==='text'?`<span class="psd-textinfo">${it.fontSize}px · ${it.textAlign}</span>`:'';
+    const thumb=it.kind==='raster'&&it.imgUrl?`<img class="psd-thumb" src="${it.imgUrl}" alt="" loading="lazy">`:'';
+    const textPrev=it.kind==='text'&&it.content
+      ?`<span class="psd-text-prev" style="color:${it.color||'#aaa'}">${_dPsdEsc(it.content.replace(/\n/g,' ').slice(0,60))}</span>`:'';
     return header+`<div class="psd-row ${it.include?'':'psd-row-off'}">
       <input type="checkbox" ${it.include?'checked':''} onchange="dPsdSetInclude(${i},this.checked)">
       <span class="psd-row-ico">${swatch||ico[it.kind]||'▣'}</span>
-      <span class="psd-row-name" title="${it.name}">${it.name}${multiStyleBadge}${blendBadge}${fontWarn}</span>
+      ${thumb}
+      <span class="psd-row-name" title="${_dPsdEsc(it.name)}">
+        <span class="psd-row-name-top">${_dPsdEsc(it.name)}${multiStyleBadge}${blendBadge}${fontWarn}${opacityBadge}${textInfoBadge}</span>
+        ${textPrev}
+      </span>
       ${modeSel}${varIn}</div>`;
   }).join('');
   dPsdUpdateCount();
@@ -566,14 +586,14 @@ function dPsdConfirmImport(){
     cb(layers, fmtChoice, w, h);
     return;
   }
-  dImportLayersAsArtboard(dPsdMeta.w, dPsdMeta.h, layers, dPsdMeta.name, fmtChoice);
+  dImportLayersAsArtboard(dPsdMeta.w, dPsdMeta.h, layers, dPsdMeta.name, fmtChoice, dPsdMeta.res||72);
   const nVar=layers.filter(l=>l.isVar).length, nTxt=layers.filter(l=>l.type==='text').length;
   gToast('✓ PSD importado: '+layers.length+' camadas · '+nTxt+' texto · '+nVar+' variável(is)');
   dPsdItems=[]; dPsdMeta=null;
 }
 
 /* ── cria a prancheta (com reflow opcional pro formato — 5.2) ── */
-function dImportLayersAsArtboard(w,h,layers,name,fmtChoice){
+function dImportLayersAsArtboard(w,h,layers,name,fmtChoice,dpi){
   if(typeof dSyncLayersToAB==='function') dSyncLayersToAB();
   let outW=w, outH=h, fmt=Object.keys(DFMT_SIZES).find(k=>DFMT_SIZES[k].w===w&&DFMT_SIZES[k].h===h)||'story';
   let clone=JSON.parse(JSON.stringify(layers));
@@ -586,7 +606,7 @@ function dImportLayersAsArtboard(w,h,layers,name,fmtChoice){
   const id='ab-'+Date.now();
   const nAb=dArtboards.length, last=dArtboards[nAb-1];
   const x=last?last.x+last.w+140:80, y=last?last.y:60;
-  const ab={id,name:(name||'PSD').slice(0,30),x,y,w:outW,h:outH,fmt,layers:JSON.parse(JSON.stringify(clone))};
+  const ab={id,name:(name||'PSD').slice(0,30),x,y,w:outW,h:outH,fmt,dpi:dpi||72,layers:JSON.parse(JSON.stringify(clone))};
   dArtboards.push(ab); dActiveABId=id;
   dLayers=JSON.parse(JSON.stringify(clone)); dFmt=fmt; dSelId=null;
   if(typeof dMultiSel!=='undefined') dMultiSel=[];
@@ -793,7 +813,7 @@ async function dImportPSD(input){
     }
     // Fluxo original — uma prancheta ou PSD simples.
     dPsdItems=dPsdParseItems(result.psd, result.res||72);
-    dPsdMeta={w:result.psd.width, h:result.psd.height, name:baseName};
+    dPsdMeta={w:result.psd.width, h:result.psd.height, name:baseName, res:result.res||72, worker:result.worker===true};
     _dPsdBusy(false);
     if(!dPsdItems.length){ gToast('⚠ Não encontrei camadas utilizáveis nesse PSD','error'); return; }
     dPsdOpenReview();

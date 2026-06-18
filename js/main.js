@@ -34,14 +34,29 @@ function setMode(m){
   if(m==='dados' && typeof pInit==='function') pInit();
 }
 
-// Inicializa a aba no startup
+/* ══ INIT Lógica de Inicialização Global e Auth Gate ══ */
+
+// Função chamada após um login bem-sucedido ou quando a sessão já está ativa
+function gOnLoginSuccess() {
+  document.getElementById('g-login-screen').style.display = 'none';
+  dUpdateTabPill();
+  
+  // INIT FRANQUEADO
+  fRenderCatalogs(CAMPS_ATIVAS,CAMPS_OUTRAS);
+  fRenderFmts();
+  fUpdateHistBadge();
+  if (typeof fStartChat === 'function') fStartChat();
+}
+
+// Inicializa a aba no startup e checa a autenticação
 window.addEventListener('DOMContentLoaded', () => {
   setTimeout(dUpdateTabPill, 100);
+  
+  if (!gCurrentUser()) {
+    // Não tem sessão ativa, bloqueia a UI
+    document.getElementById('g-login-screen').style.display = 'flex';
+  } else {
+    // Usuário logado, init normal
+    gOnLoginSuccess();
+  }
 });
-
-
-/* ══ INIT FRANQUEADO ══ */
-fRenderCatalogs(CAMPS_ATIVAS,CAMPS_OUTRAS);
-fRenderFmts();
-fUpdateHistBadge();
-fStartChat();

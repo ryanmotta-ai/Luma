@@ -165,7 +165,7 @@ luma-piloto/
 │       ├── luma-h-branca.png     # logo Luma versão branca
 │       └── luma-h-cor.png        # logo Luma versão colorida
 └── docs/
-    └── CONTEXTO.md               # este arquivo
+    └── LUMA-CONTEXTO.md          # este arquivo
 ```
 
 ---
@@ -368,6 +368,7 @@ localStorage.clear(); location.reload();                     // reset total
 
 ## 9. STATUS DAS FASES
 
+
 ### ✅ Concluído
 
 **Refatoração modular** — de 1 arquivo 9.300 linhas para 44 arquivos organizados. 15 CSS + 24 JS + assets físicos. Zero mudança de comportamento.
@@ -385,6 +386,14 @@ localStorage.clear(); location.reload();                     // reset total
 - 18 tutoriais animados na Central de Ajuda
 - Template-modelo de exemplo (showcase)
 
+**Redesign da UI do Designer** — Painel lateral reestruturado para focar em hierarquia visual de nível profissional:
+- Aba "Propriedades" removida e integrada à aba **Camadas** (painel de propriedades de layer/prancheta aparece dinamicamente na mesma aba ao selecionar).
+- Nova aba **Campanhas** dedicada no painel lateral direito, substituindo os cards grandes por um explorador em árvore compacto e denso (Figma/Photoshop-style), com suporte a busca e hover preview de capas.
+- Botões de importação de PSD e SVG integrados de forma contextual dentro do item expandido de cada campanha (mantendo 1 nível de hierarquia Pasta/Campanha -> Templates).
+- Remoção da logo "Luma" da topbar e de contadores estatísticos secundários no painel.
+- **Remoção da ferramenta prancheta**: removido o botão e a funcionalidade manual de desenhar pranchetas no workspace da barra de ferramentas (planejado substituição futura por um sistema de páginas no estilo Canva).
+- **Migração para Canvas Único**: Transição do editor para uma arquitetura baseada em canvas único no workspace, removendo loops por múltiplos artboards. A lista de camadas (`dRenderLayersList` em `layers.js`) foi reescrita para renderizar `dLayers` direto como lista plana com DnD sempre ativo. Fluxo de publicação (`publish.js`) simplificado para o canvas único. Removidos inputs X/Y de prancheta, checkbox de multi-prancheta e organização de grade do workspace em `index.html`, além de ~100 linhas de CSS morto. A área correspondente foi renomeada de "Workspace" para "Canvas".
+
 **Smart resize 5.2** — núcleo implementado (`js/core/layout.js`). Motor de âncoras com `gInferAnchor`, `gEnsureAnchors`, `gReflowLayers`. PNG do franqueado sem distorção. Preview multi-formato. Troca de formato no editor com reflow + confirm.
 
 **PSD import** — ag-psd vendorizado, Web Worker com fallback, tela de revisão por camada, fidelidade parcial (cor sólida, sombra/contorno, fontSize corrigido por DPI), máscaras + clipping masks, quota com compressão.
@@ -399,7 +408,7 @@ localStorage.clear(); location.reload();                     // reset total
 ### 🟡 Em andamento
 
 **Smart resize 5.2 — UI pendente:**
-- UI de âncora (9 pontos) no painel Propriedades
+- UI de âncora (9 pontos) integrada ao painel de propriedades dentro da aba Camadas
 - UI de overrides por formato (`l.overrides[fmt]`)
 - Publicação multi-formato explícita no modal de publicação
 
@@ -414,7 +423,6 @@ localStorage.clear(); location.reload();                     // reset total
 | Tarefa | Arquivo do prompt |
 |--------|------------------|
 | Splash screen animada | `luma-prompt-splash-screen.md` |
-| Redesign UI do Designer | `luma-prompt-redesign-designer.md` |
 | Módulo Analytics (front completo) | `luma-prompt-modulo-dados.md` |
 
 ### 💡 Planejado (sem prompt ainda)

@@ -414,3 +414,15 @@ select option{background:#222}
   }
 }
 
+/* Cursor de Mão (Pan) */
+body.tool-hand-active #d-canvas-wrapper,
+body.tool-hand-active #d-canvas-frame,
+body.tool-hand-active #d-workspace {
+  cursor: grab !important;
+}
+body.tool-hand-dragging #d-canvas-wrapper,
+body.tool-hand-dragging #d-canvas-frame,
+body.tool-hand-dragging #d-workspace {
+  cursor: grabbing !important;
+}
+

@@ -44,7 +44,8 @@ function dApplyFormat(animate){
     container.style.width=Math.round(f.w*scale)+'px';
     container.style.height=Math.round(f.h*scale)+'px';
   }
-  dPositionArtboard(); // centraliza a prancheta no workspace
+  if(typeof _dSyncAllPositions==='function')_dSyncAllPositions();
+  if(typeof dApplyBg==='function')dApplyBg(ab);
   document.getElementById('d-dim-label').textContent=f.w+' × '+f.h+'  '+Math.round(dZoomLevel)+'%';
   // Atualiza label do artboard ativo
   const abl=document.getElementById('d-ab-active-label');
@@ -52,40 +53,22 @@ function dApplyFormat(animate){
 }
 function dFitToScreen(){
   const wrapper=document.getElementById('d-canvas-wrapper');
+  const pw=wrapper.clientWidth-80,ph=wrapper.clientHeight-80;
+  if(!pw||!ph)return;
   const ab=dGetActiveAB&&dGetActiveAB();
   const f=ab?{w:ab.w,h:ab.h}:(DFMT_SIZES[dFmt]||DFMT_SIZES.story);
-  const pw=wrapper.clientWidth-80, ph=wrapper.clientHeight-80;
-  if(!pw||!ph)return;
-  const s=Math.min(pw/f.w, ph/f.h, 1)*100;
+  const s=Math.min(pw/f.w,ph/f.h,1)*100;
   dZoomLevel=Math.max(10,Math.round(s));
   document.getElementById('d-zoom-val').textContent=dZoomLevel+'%';
   dApplyFormat(true);
-  if(typeof dRenderWorkspace==='function')dRenderWorkspace();
-  // Scroll para centrar a prancheta na viewport
   const container=document.getElementById('d-canvas-container');
   if(container){
-    wrapper.scrollLeft=Math.max(0,(container.offsetLeft+container.offsetWidth/2)-wrapper.clientWidth/2);
-    wrapper.scrollTop=Math.max(0,(container.offsetTop+container.offsetHeight/2)-wrapper.clientHeight/2);
+    wrapper.scrollLeft=Math.max(0,container.offsetLeft-(wrapper.clientWidth-container.offsetWidth)/2);
+    wrapper.scrollTop=Math.max(0,container.offsetTop-(wrapper.clientHeight-container.offsetHeight)/2);
   }
 }
-// Centraliza a prancheta ativa no workspace e dimensiona o workspace pela viewport
-// (com margem ao redor). Substitui o antigo posicionamento por coordenada (multi-prancheta).
 function dPositionArtboard(){
-  const ws=document.getElementById('d-workspace');
-  const wrapper=document.getElementById('d-canvas-wrapper');
-  const container=document.getElementById('d-canvas-container');
-  const ab=dGetActiveAB&&dGetActiveAB();
-  if(!ws||!container||!ab)return;
-  const scale=dZoomLevel/100;
-  const aw=ab.w*scale, ah=ab.h*scale, margin=120;
-  const vw=wrapper?wrapper.clientWidth:aw, vh=wrapper?wrapper.clientHeight:ah;
-  // Se a prancheta cabe na viewport → workspace = viewport (centraliza, sem scroll).
-  // Se é maior → workspace = prancheta + margem (centraliza com respiro e scroll).
-  const wW = aw<=vw ? vw : aw+margin*2;
-  const wH = ah<=vh ? vh : ah+margin*2;
-  ws.style.width=wW+'px';ws.style.height=wH+'px';
-  container.style.left=Math.round((wW-aw)/2)+'px';
-  container.style.top=Math.round((wH-ah)/2)+'px';
+  if(typeof _dSyncAllPositions==='function')_dSyncAllPositions();
 }
 function dZoom(delta){
   // Passo multiplicativo → mesmo "feel" em qualquer nível (10%→400%)
@@ -99,41 +82,38 @@ function dSetZoom(z, clientX, clientY){
   const container=document.getElementById('d-canvas-container');
   const frame=document.getElementById('d-canvas-frame');
   
-  let ax=null, ay=null, fx=0.5, fy=0.5;
+  let ax=null,ay=null,fx=0.5,fy=0.5;
+  const refEl=container;
   if(wrapper){
     const wr=wrapper.getBoundingClientRect();
     ax=(clientX!=null)?clientX:wr.left+wrapper.clientWidth/2;
     ay=(clientY!=null)?clientY:wr.top+wrapper.clientHeight/2;
-    if(container){
-      const cr=container.getBoundingClientRect();
+    if(refEl){
+      const cr=refEl.getBoundingClientRect();
       fx=cr.width?(ax-cr.left)/cr.width:0.5;
       fy=cr.height?(ay-cr.top)/cr.height:0.5;
     }
   }
-  
+
   dZoomLevel=Math.min(400,Math.max(10,Math.round(z)));
   document.getElementById('d-zoom-val').textContent=dZoomLevel+'%';
 
-  // Habilita transições suaves apenas durante a escala do zoom
-  if (container) container.style.transition = 'width 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94), height 0.2s, left 0.2s, top 0.2s';
-  if (frame) frame.style.transition = 'width 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94), height 0.2s, transform 0.2s';
+  if(container)container.style.transition='width 0.2s cubic-bezier(0.25,0.46,0.45,0.94),height 0.2s';
+  if(frame)frame.style.transition='width 0.2s cubic-bezier(0.25,0.46,0.45,0.94),height 0.2s,transform 0.2s';
 
   dApplyFormat();
-  if(typeof dRenderWorkspace==='function')dRenderWorkspace();
 
-  // Limpa as transições após a conclusão da animação para não causar atraso no drag de elementos
-  setTimeout(() => {
-    if (container) container.style.transition = 'none';
-    if (frame) frame.style.transition = 'none';
-  }, 220);
+  setTimeout(()=>{
+    if(container)container.style.transition='none';
+    if(frame)frame.style.transition='none';
+  },220);
 
-  // Reposiciona o scroll suavemente para manter o mesmo ponto da prancheta sob a âncora
-  if(wrapper&&container){
+  if(wrapper&&refEl){
     const wr=wrapper.getBoundingClientRect();
     wrapper.scrollTo({
-      left: Math.max(0, container.offsetLeft + fx*container.offsetWidth - (ax-wr.left)),
-      top: Math.max(0, container.offsetTop  + fy*container.offsetHeight - (ay-wr.top)),
-      behavior: 'smooth'
+      left:Math.max(0,refEl.offsetLeft+fx*refEl.offsetWidth-(ax-wr.left)),
+      top:Math.max(0,refEl.offsetTop+fy*refEl.offsetHeight-(ay-wr.top)),
+      behavior:'smooth'
     });
   }
 }
@@ -161,140 +141,89 @@ function dSampleImg(ar){
 }
 function dSetPhTest(ar){ dPhTestAR=ar||null; dRenderCanvas(); }
 
-function dRenderWorkspace(){
-  const ws=document.getElementById('d-workspace');if(!ws)return;
-  // UI de pranchetas removida: limpa resquícios e centraliza a prancheta ativa.
-  ws.querySelectorAll('.ab-ghost').forEach(el=>el.remove());
+/* ── helpers de tamanho e posicionamento — canvas único ── */
+function _dSyncAllPositions(){
+  const scale=dZoomLevel/100;
   const container=document.getElementById('d-canvas-container');
-  if(container)container.querySelectorAll('.ab-rh').forEach(h=>h.remove());
-  dPositionArtboard();
+  const ws=document.getElementById('d-workspace');
+  const wrapper=document.getElementById('d-canvas-wrapper');
+  if(!container||!ws)return;
+  const ab=dGetActiveAB&&dGetActiveAB();
+  const f=ab?{w:ab.w,h:ab.h}:(DFMT_SIZES[dFmt]||DFMT_SIZES.story);
+  const cw=Math.round(f.w*scale);
+  const ch=Math.round(f.h*scale);
+  const vw=wrapper?wrapper.clientWidth:1200;
+  const vh=wrapper?wrapper.clientHeight:800;
+  const margin=200;
+  const wsW=Math.max(vw,cw+2*margin);
+  const wsH=Math.max(vh,ch+2*margin);
+  ws.style.width=wsW+'px';
+  ws.style.height=wsH+'px';
+  if(container.parentElement===ws){
+    container.style.left=Math.round((wsW-cw)/2)+'px';
+    container.style.top=Math.round((wsH-ch)/2)+'px';
+  }
 }
-
-/* ══ RESIZE DO ARTBOARD ══
-   Handles nas 8 posições (N S E W NE NW SE SW) no #d-canvas-container.
-   Arrastar redimensiona o artboard ativo.
-══════════════════════════════════════════════════════════════ */
-const AB_RESIZE_POSITIONS=['nw','n','ne','e','se','s','sw','w'];
-const AB_RESIZE_CURSORS={nw:'nwse-resize',n:'ns-resize',ne:'nesw-resize',e:'ew-resize',se:'nwse-resize',s:'ns-resize',sw:'nesw-resize',w:'ew-resize'};
-
-function dABAddResizeHandles(){
-  const container=document.getElementById('d-canvas-container');if(!container)return;
-  container.querySelectorAll('.ab-rh').forEach(h=>h.remove());
-  AB_RESIZE_POSITIONS.forEach(pos=>{
-    const h=document.createElement('div');
-    h.className='ab-rh ab-rh-'+pos;
-    h.style.cursor=AB_RESIZE_CURSORS[pos]||'default';
-    h.title='Redimensionar prancheta';
-    h.addEventListener('mousedown',e=>{e.preventDefault();e.stopPropagation();dABResizeStart(e,pos);});
-    container.appendChild(h);
+function _dSizeWorkspace(){ _dSyncAllPositions(); }
+function _dRenderPreview(frame,ab){
+  frame.innerHTML='';
+  const bg=ab&&ab.bg;
+  frame.style.background=(bg&&bg!=='transparent')?(bg==='white'?'#ffffff':bg):'';
+  const layers=ab.layers||[];
+  layers.filter(l=>l.visible!==false&&l.type!=='group').forEach(l=>{
+    const el=document.createElement('div');
+    el.style.cssText='position:absolute;left:'+l.x+'px;top:'+l.y+'px;width:'+l.w+'px;height:'+l.h+'px;overflow:hidden;';
+    el.style.opacity=(typeof l.opacity==='number'?l.opacity:100)/100;
+    if(l.blendMode)el.style.mixBlendMode=l.blendMode.replace(/([A-Z])/g,c=>'-'+c.toLowerCase());
+    if(l.type==='shape'){
+      const kind=l.shapeKind||'rect';
+      el.style.background=l.fill||'#FF9000';
+      if(kind==='circle'||kind==='ellipse'){el.style.borderRadius='50%';}
+      else{el.style.borderRadius=(l.radius||0)+'px';}
+      if(l.stroke&&l.strokeWidth){el.style.outline=l.strokeWidth+'px solid '+l.stroke;el.style.outlineOffset='-'+l.strokeWidth+'px';}
+    } else if(l.type==='text'){
+      el.style.color=l.color||'#fff';
+      el.style.fontSize=(l.fontSize||24)+'px';
+      el.style.fontFamily="'Roboto',sans-serif";
+      el.style.fontWeight=l.fontWeight||'400';
+      el.style.textAlign=l.textAlign||'left';
+      el.style.lineHeight='1.2';
+      el.style.whiteSpace='pre-wrap';
+      el.textContent=l.content||'';
+    } else if(l.type==='image'||l.type==='frame'){
+      if(l.imgUrl){
+        const img=document.createElement('img');
+        img.src=l.imgUrl;
+        img.style.cssText='width:100%;height:100%;object-fit:cover;display:block;';
+        el.appendChild(img);
+      }
+    }
+    frame.appendChild(el);
   });
 }
 
-let dABResizeState=null;
-let dABResizeTicking=false;
-
-function dABResizeStart(e,pos){
-  const ab=dGetActiveAB();if(!ab)return;
-  const scale=dZoomLevel/100;
-  dABResizeState={pos,ab,scale,
-    startX:e.clientX,startY:e.clientY,
-    origX:ab.x,origY:ab.y,origW:ab.w,origH:ab.h};
-  const container = document.getElementById('d-canvas-container');
-  if (container) container.classList.add('resizing-artboard');
-  document.addEventListener('mousemove',dABResizeMoveThrottled);
-  document.addEventListener('mouseup',dABResizeUp);
-}
-
-function dABResizeMoveThrottled(e){
-  if(!dABResizeState)return;
-  if(!dABResizeTicking){
-    window.requestAnimationFrame(()=>{
-      dUpdateABResizeLayout(e);
-      dABResizeTicking=false;
-    });
-    dABResizeTicking=true;
-  }
-}
-
-function dUpdateABResizeLayout(e){
-  if(!dABResizeState)return;
-  const {pos,ab,scale,startX,startY,origX,origY,origW,origH}=dABResizeState;
-  const dx=Math.round((e.clientX-startX)/scale);
-  const dy=Math.round((e.clientY-startY)/scale);
-  const MIN=80;
-  // Lados e cantos
-  if(pos.includes('e')){ab.w=Math.max(MIN,origW+dx);}
-  if(pos.includes('s')){ab.h=Math.max(MIN,origH+dy);}
-  if(pos.includes('w')){const nw=Math.max(MIN,origW-dx);ab.x=origX+(origW-nw);ab.w=nw;}
-  if(pos.includes('n')){const nh=Math.max(MIN,origH-dy);ab.y=origY+(origH-nh);ab.h=nh;}
-  // Atualiza visualmente sem re-render completo
-  const frame=document.getElementById('d-canvas-frame');
+function dRenderWorkspace(){
+  const ws=document.getElementById('d-workspace');if(!ws)return;
   const container=document.getElementById('d-canvas-container');
-  if(frame){frame.style.width=ab.w+'px';frame.style.height=ab.h+'px';}
-  if(container){
-    container.style.width=Math.round(ab.w*scale)+'px';
-    container.style.height=Math.round(ab.h*scale)+'px';
-    container.style.left=ab.x*scale+'px';
-    container.style.top=ab.y*scale+'px';
-  }
-  // Atualiza as dimensões de fundo (Shape de Fundo) dinamicamente para evitar fundo preto exposto
-  const bgLyr=dLayers.find(l=>l.type==='shape'&&l.x===0&&l.y===0&&l.name==='Fundo');
-  if(bgLyr){
-    bgLyr.w=ab.w;
-    bgLyr.h=ab.h;
-    const bgDom=document.querySelector(`.canvas-layer[data-id="${bgLyr.id}"]`);
-    if(bgDom){
-      bgDom.style.width=ab.w+'px';
-      bgDom.style.height=ab.h+'px';
-    }
-  }
-  if(typeof dRenderRulers==='function') dRenderRulers();
-  document.getElementById('d-dim-label').textContent=ab.w+' × '+ab.h+'  '+Math.round(dZoomLevel)+'%';
+  ws.querySelectorAll('.ab-wrap,.ab-ghost').forEach(el=>el.remove());
+  if(container&&container.parentElement!==ws) ws.appendChild(container);
+  _dSyncAllPositions();
+  if(typeof dAttachMarquee==='function')dAttachMarquee();
 }
 
-function dABResizeUp(){
-  document.removeEventListener('mousemove',dABResizeMoveThrottled);
-  document.removeEventListener('mouseup',dABResizeUp);
-  const container = document.getElementById('d-canvas-container');
-  if (container) container.classList.remove('resizing-artboard');
-  if(!dABResizeState)return;
-  const {ab}=dABResizeState;dABResizeState=null;
-  // Ajusta layer de fundo para cobrir o novo tamanho
-  const bgLyr=dLayers.find(l=>l.type==='shape'&&l.x===0&&l.y===0&&l.name==='Fundo');
-  if(bgLyr){bgLyr.w=ab.w;bgLyr.h=ab.h;}
-  dApplyFormat();dRenderCanvas();dRenderWorkspace();dMarkUnsaved();
-  gToast('Prancheta '+ab.w+'×'+ab.h+'px');
-}
-
-let dABDrag=null,dABDragSX=0,dABDragSY=0,dABStartX=0,dABStartY=0,dABDragEl=null;
-
-function dABDragStart(e,ab){
-  e.preventDefault();
-  dABDrag=ab;dABDragSX=e.clientX;dABDragSY=e.clientY;
-  dABStartX=ab.x;dABStartY=ab.y;
-  if(ab.id===dActiveABId){dABDragEl=document.getElementById('d-canvas-container');}
-  else{dABDragEl=document.querySelector(`.ab-ghost[data-abid="${ab.id}"]`);}
-  document.addEventListener('mousemove',dABOnDrag);
-  document.addEventListener('mouseup',dABStopDrag);
-}
-function dABOnDrag(e){
-  if(!dABDrag)return;
-  const scale=dZoomLevel/100;
-  dABDrag.x=Math.max(40,Math.round(dABStartX+(e.clientX-dABDragSX)/scale));
-  dABDrag.y=Math.max(40,Math.round(dABStartY+(e.clientY-dABDragSY)/scale));
-  if(dABDragEl){dABDragEl.style.left=dABDrag.x*scale+'px';dABDragEl.style.top=dABDrag.y*scale+'px';}
-}
-function dABStopDrag(){
-  dABDrag=null;dABDragEl=null;
-  document.removeEventListener('mousemove',dABOnDrag);
-  document.removeEventListener('mouseup',dABStopDrag);
-}
+// Stubs para compatibilidade com código que chama estas funções
+function dABAddResizeHandles(){}
+function dABToolAttach(){}
 
 /* ── TOOL ── */
 // Cursores customizados por ferramenta (SVG inline, estilo Photoshop). brush/eraser
 // usam cursor dinâmico (dUpdateBrushCursor) que segue o tamanho do pincel + zoom.
 const dToolCursors = {
   select: 'default',
+  hand: 'grab',
+  'var-data': 'default',
+  'qr-code': 'crosshair',
+  artboard: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230A0A0A' stroke-width='2' stroke-linecap='round'><rect x='5' y='5' width='14' height='14' rx='1'/><line x1='2' y1='5' x2='5' y2='5'/><line x1='5' y1='2' x2='5' y2='5'/><line x1='19' y1='2' x2='19' y2='5'/><line x1='19' y1='5' x2='22' y2='5'/><line x1='2' y1='19' x2='5' y2='19'/><line x1='5' y1='19' x2='5' y2='22'/><line x1='19' y1='19' x2='19' y2='22'/><line x1='19' y1='19' x2='22' y2='19'/></svg>") 5 5, cell`,
 
   text: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230A0A0A' stroke-width='2' stroke-linecap='round'><line x1='12' y1='2' x2='12' y2='6'/><line x1='12' y1='18' x2='12' y2='22'/><line x1='8' y1='4' x2='16' y2='4'/><line x1='8' y1='20' x2='16' y2='20'/><line x1='12' y1='6' x2='12' y2='18'/></svg>") 12 12, text`,
   'text-h': `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230A0A0A' stroke-width='2' stroke-linecap='round'><line x1='12' y1='2' x2='12' y2='6'/><line x1='12' y1='18' x2='12' y2='22'/><line x1='8' y1='4' x2='16' y2='4'/><line x1='8' y1='20' x2='16' y2='20'/><line x1='12' y1='6' x2='12' y2='18'/></svg>") 12 12, text`,
@@ -349,58 +278,53 @@ function dUpdateBrushCursor(){
 
 function dSetTool(t){
   dTool=t;
-  ['select','obj-select','quick-select','magic-wand','text','rect','frame','img','brush','eraser','stamp','eyedrop','smudge','blur','sharpen','bucket','gradient','text-h','text-v','mask-text-h','mask-text-v','color-sampler','ruler','note','count'].forEach(x=>{
+  // Registra as tools possíveis no dSetTool loop de active toggle
+  ['select','obj-select','quick-select','magic-wand','hand','text','rect','ellipse','triangle','polygon','star','line','frame','img','var-data','qr-code','brush','eraser','stamp','bucket','gradient','blur','sharpen','smudge','eyedrop','color-sampler','ruler','note','count','text-h','text-v','mask-text-h','mask-text-v'].forEach(x=>{
     const b=document.getElementById('dtool-'+x);
     if(b){b.classList.toggle('active',x===t);}
   });
-  // Proxy do grupo Nitidez — marca ativo e atualiza ícone
-  const _nitidezGroup=['blur','sharpen','smudge'];
-  const _nProxy=document.getElementById('dtool-nitidez-proxy');
-  if(_nProxy) _nProxy.classList.toggle('active',_nitidezGroup.includes(t));
-  if(_nitidezGroup.includes(t)){
-    if(typeof dNitidezLast!=='undefined') dNitidezLast=t;
-    const _nIcon=document.getElementById('dtool-nitidez-icon');
-    if(_nIcon&&typeof _dNitidezIcons!=='undefined') _nIcon.innerHTML=_dNitidezIcons[t]||'';
-  }
-  // Proxy do grupo Forma — marca ativo quando rect está ativo e sincroniza ícone
-  const _fProxy=document.getElementById('dtool-forma-proxy');
-  if(_fProxy) _fProxy.classList.toggle('active', t==='rect');
-  if(t==='rect'){
-    if(typeof dFormaLast!=='undefined') dFormaLast='rect';
-    const _fIcon=document.getElementById('dtool-forma-icon');
-    if(_fIcon&&typeof _dFormaIcons!=='undefined') _fIcon.innerHTML=_dFormaIcons['rect']||'';
-  }
-  // Proxy do grupo Texto — marca ativo e atualiza ícone
-  const _textGroup=['text','text-h','text-v','mask-text-h','mask-text-v'];
-  const _tProxy=document.getElementById('dtool-text-proxy');
-  if(_tProxy) _tProxy.classList.toggle('active',_textGroup.includes(t));
-  if(_textGroup.includes(t)){
-    if(typeof dTextLast!=='undefined') dTextLast=t;
-    const _tIcon=document.getElementById('dtool-text-icon');
-    if(_tIcon&&typeof _dTextIcons!=='undefined') _tIcon.innerHTML=_dTextIcons[t]||'';
-  }
-  // Proxy do grupo Seleção — marca ativo e sincroniza ícone
-  const _selectGroup=['select','obj-select','quick-select','magic-wand'];
-  const _sProxy=document.getElementById('dtool-select-proxy');
-  if(_sProxy) _sProxy.classList.toggle('active',_selectGroup.includes(t));
-  if(_selectGroup.includes(t)){
-    if(typeof dSelectLast!=='undefined') dSelectLast=t;
-    const _sIcon=document.getElementById('dtool-select-icon');
-    if(_sIcon&&typeof _dSelectIcons!=='undefined') _sIcon.innerHTML=_dSelectIcons[t]||'';
-  }
-  // Proxy do grupo Eyedrop/Medição — marca ativo e atualiza ícone
-  const _eyedropGroup=['eyedrop','color-sampler','ruler','note','count'];
-  const _eProxy=document.getElementById('dtool-eyedrop-proxy');
-  if(_eProxy) _eProxy.classList.toggle('active',_eyedropGroup.includes(t));
-  if(_eyedropGroup.includes(t)){
-    if(typeof dEyedropLast!=='undefined') dEyedropLast=t;
-    const _eIcon=document.getElementById('dtool-eyedrop-icon');
-    if(_eIcon&&typeof _dEyedropIcons!=='undefined') _eIcon.innerHTML=_dEyedropIcons[t]||'';
-  }
+
+  // Helper para atualizar proxies
+  const groups = [
+    { name: 'select', proxy: 'dtool-select-proxy', iconId: 'dtool-select-icon', tools: ['select', 'hand', 'obj-select', 'quick-select', 'magic-wand'], lastVar: 'dSelectLast', iconMap: '_dSelectIcons' },
+    { name: 'text', proxy: 'dtool-text-proxy', iconId: 'dtool-text-icon', tools: ['text', 'text-h', 'text-v', 'mask-text-h', 'mask-text-v'], lastVar: 'dTextLast', iconMap: '_dTextIcons' },
+    { name: 'forma', proxy: 'dtool-forma-proxy', iconId: 'dtool-forma-icon', tools: ['rect', 'ellipse', 'triangle', 'polygon', 'star', 'line'], lastVar: 'dFormaLast', iconMap: '_dFormaIcons' },
+    { name: 'frame', proxy: 'dtool-frame-proxy', iconId: 'dtool-frame-icon', tools: ['frame', 'img'], lastVar: 'dFrameLast', iconMap: '_dFrameIcons' },
+    { name: 'data', proxy: 'dtool-data-proxy', iconId: 'dtool-data-icon', tools: ['var-data', 'qr-code'], lastVar: 'dDataLast', iconMap: '_dDataIcons' },
+    { name: 'brush', proxy: 'dtool-brush-proxy', iconId: 'dtool-brush-icon', tools: ['brush', 'eraser', 'stamp'], lastVar: 'dBrushLast', iconMap: '_dBrushIcons' },
+    { name: 'fill', proxy: 'dtool-fill-proxy', iconId: 'dtool-fill-icon', tools: ['bucket', 'gradient'], lastVar: 'dFillLast', iconMap: '_dFillIcons' },
+    { name: 'nitidez', proxy: 'dtool-nitidez-proxy', iconId: 'dtool-nitidez-icon', tools: ['blur', 'sharpen', 'smudge'], lastVar: 'dNitidezLast', iconMap: '_dNitidezIcons' },
+    { name: 'eyedrop', proxy: 'dtool-eyedrop-proxy', iconId: 'dtool-eyedrop-icon', tools: ['eyedrop', 'color-sampler', 'ruler', 'note', 'count'], lastVar: 'dEyedropLast', iconMap: '_dEyedropIcons' }
+  ];
+
+  groups.forEach(g => {
+    const proxyEl = document.getElementById(g.proxy);
+    const isActive = g.tools.includes(t);
+    if(proxyEl) proxyEl.classList.toggle('active', isActive);
+    
+    if(isActive) {
+      // Atualiza a variável que guarda o último item usado no grupo
+      window[g.lastVar] = t;
+      
+      // Atualiza o ícone do proxy
+      const iconEl = document.getElementById(g.iconId);
+      if(iconEl && window[g.iconMap]) {
+        iconEl.innerHTML = window[g.iconMap][t] || '';
+      }
+    }
+  });
+
   const frame=document.getElementById('d-canvas-frame');
   const ws=document.getElementById('d-workspace');
   const brushOpts=document.getElementById('d-brush-opts');
   if(ws)ws.style.cursor='';
+  
+  // Hand/Pan tool class toggles
+  document.body.classList.toggle('tool-hand-active', t === 'hand');
+  if (t !== 'hand') {
+    document.body.classList.remove('tool-hand-dragging');
+  }
+
   if(frame){
     if(['brush','eraser','blur','smudge','sharpen'].includes(t))dUpdateBrushCursor(); // cursor circular dinâmico
     else frame.style.cursor=dToolCursors[t]||'default';
@@ -530,6 +454,7 @@ function dEndMarquee(e){
       dRenderCanvas();dRenderLayersList();
       const ns=document.getElementById('d-no-sel'); if(ns)ns.style.display='';
       const pf=document.getElementById('d-props-form'); if(pf)pf.style.display='none';
+      if(typeof dRenderABProps==='function')dRenderABProps();
       dUpdateCtxBar();
     }
   }else if(!shiftKey){
@@ -689,7 +614,16 @@ function dTextFontParts(fv){
   return {family:"'Roboto', sans-serif", weight};
 }
 
+function dApplyBg(ab){
+  const bgEl=document.getElementById('d-canvas-bg');
+  if(!bgEl)return;
+  const bg=ab&&ab.bg;
+  bgEl.style.background=(bg&&bg!=='transparent')?(bg==='white'?'#ffffff':bg):'';
+}
+
 function dRenderCanvas(){
+  const ab=typeof dGetActiveAB==='function'?dGetActiveAB():null;
+  dApplyBg(ab);
   const frame=document.getElementById('d-canvas-frame');
   // Detach paint canvas ANTES do innerHTML='' para preservar pixels sem toDataURL.
   // Canvas retém seu backing buffer enquanto a referência DOM existir — reinsere após render.
@@ -913,6 +847,7 @@ function dRenderCanvas(){
   else dEnsurePaintCanvas();
   dSyncPaintPointer();
   dAttachMarquee(); // garante o listener de marquee no frame (guarda interna evita duplicar)
+  if(typeof dABAddResizeHandles==='function') dABAddResizeHandles();
 }
 
 /* ── EDIÇÃO INLINE DE TEXTO (dblclick na camada) ── */
@@ -1050,148 +985,45 @@ function dStartInlineEdit(l, el) {
 let dPainting=false,dPaintLast={x:0,y:0};
 
 /* ══ BARRA CONTEXTUAL DINÂMICA ══ */
+/* ══ BARRA CONTEXTUAL DINÂMICA ══ */
 function dUpdateCtxBar(){
-  const bar = document.getElementById('d-ctx-bar');
-  if(!bar)return;
-  const l = dLayers.find(x=>x.id===dSelId);
-  if(!l){bar.innerHTML='<span style="font-size:11px;color:var(--d-text3)">Nenhum layer selecionado — clique no canvas para criar</span>';return;}
-  if (l.type === 'group') {
-    bar.innerHTML = `<span style="font-size:11px;color:var(--d-text3)">Grupo selecionado: <strong>${gEsc(l.name)}</strong></span>`;
+  const noSelEl = document.getElementById('dt-no-selection');
+  const layerSelEl = document.getElementById('dt-layer-selection');
+  
+  const l = dLayers.find(x => x.id === dSelId);
+  
+  if (!l) {
+    if (noSelEl) noSelEl.style.display = 'flex';
+    if (layerSelEl) layerSelEl.style.display = 'none';
     return;
   }
-  const f = DFMT_SIZES[dFmt]||DFMT_SIZES.story;
-
-  let html = '';
-  // Posição e tamanho — sempre visíveis
-  html += `<div class="ctx-group">
-    <span class="ctx-label">X</span>
-    <input class="ctx-input" type="number" value="${l.x}" oninput="dUpdateProp('x',this.value)" aria-label="Posição X">
-    <span class="ctx-label">Y</span>
-    <input class="ctx-input" type="number" value="${l.y}" oninput="dUpdateProp('y',this.value)" aria-label="Posição Y">
-    <span class="ctx-label">W</span>
-    <input class="ctx-input" type="number" value="${l.w}" oninput="dUpdateProp('w',this.value)" aria-label="Largura">
-    <span class="ctx-label">H</span>
-    <input class="ctx-input" type="number" value="${l.h}" oninput="dUpdateProp('h',this.value)" aria-label="Altura">
-  </div>`;
-  html += '<div class="ctx-sep"></div>';
-
-  // Alinhamento rápido
-  html += `<div class="ctx-group" title="Alinhar (1 layer = ao canvas; 2+ selecionados = entre si)">
-    <button class="ctx-btn" title="Esquerda" onclick="dAlign('left')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="18" y2="18"/></svg></button>
-    <button class="ctx-btn" title="Centro H" onclick="dAlign('center')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
-    <button class="ctx-btn" title="Direita" onclick="dAlign('right')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="9" y1="12" x2="21" y2="12"/><line x1="6" y1="18" x2="21" y2="18"/></svg></button>
-    <button class="ctx-btn" title="Topo" onclick="dAlign('top')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="3" x2="21" y2="3"/><line x1="9" y1="3" x2="9" y2="15"/><line x1="15" y1="3" x2="15" y2="21"/></svg></button>
-    <button class="ctx-btn" title="Centro V" onclick="dAlign('vmid')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="7" x2="15" y2="17"/></svg></button>
-    <button class="ctx-btn" title="Base" onclick="dAlign('bottom')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="21" x2="21" y2="21"/><line x1="9" y1="9" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg></button>
-    <button class="ctx-btn" title="Distribuir horizontal (3+ selecionados)" onclick="dDistribute('h')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="4" x2="4" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/><line x1="20" y1="4" x2="20" y2="20"/></svg></button>
-    <button class="ctx-btn" title="Distribuir vertical (3+ selecionados)" onclick="dDistribute('v')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="4" x2="20" y2="4"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="20" x2="20" y2="20"/></svg></button>
-  </div>`;
-  html += '<div class="ctx-sep"></div>';
-
-  // Ordem de layer
-  html += `<div class="ctx-group">
-    <button class="ctx-btn" title="Para frente" onclick="dReorder(1)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg></button>
-    <button class="ctx-btn" title="Para trás" onclick="dReorder(-1)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></button>
-    <button class="ctx-btn" title="Duplicar (Ctrl+D)" onclick="dDuplicateLayer()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
-    <button class="ctx-btn" title="Deletar (Del)" onclick="dDeleteLayer()" style="color:var(--dm-red)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg></button>
-  </div>`;
-
-  // Propriedades por tipo
-  if(l.type==='text'){
-    html += '<div class="ctx-sep"></div>';
-    const safeCol=(l.color||'#ffffff').startsWith('rgba')?'#ffffff':(l.color||'#ffffff');
-    html += `<div class="ctx-group">
-      <select class="ctx-select" onchange="dUpdateProp('font',this.value)" aria-label="Fonte">
-        ${(typeof dFontOptionsHTML==='function')?dFontOptionsHTML(l.font):`<option value="'Roboto Black'">Roboto Black</option><option value="'Roboto'">Roboto</option><option value="'Roboto',bold">Roboto Bold</option>`}
-      </select>
-      <input class="ctx-input" type="number" value="${l.fontSize||24}" style="width:40px" oninput="dUpdateProp('fontSize',this.value)" aria-label="Tamanho da fonte">
-      <select class="ctx-select" onchange="dUpdateProp('textAlign',this.value)" aria-label="Alinhamento de texto">
-        <option value="left" ${l.textAlign==='left'?'selected':''}>⬅</option>
-        <option value="center" ${l.textAlign==='center'?'selected':''}>⬛</option>
-        <option value="right" ${l.textAlign==='right'?'selected':''}>➡</option>
-      </select>
-      <div class="ctx-swatch" style="background:${safeCol}" onclick="document.getElementById('ctx-color-pick').click()" title="Cor do texto"></div>
-      <input type="color" id="ctx-color-pick" value="${safeCol}" style="display:none" oninput="document.getElementById('ctx-color-sw-val').value=this.value.toUpperCase();document.querySelector('.ctx-swatch').style.background=this.value;dUpdateProp('color',this.value)">
-      <input class="ctx-hex" id="ctx-color-sw-val" value="${safeCol.toUpperCase()}" maxlength="7" aria-label="Hex da cor" oninput="if(/^#[0-9A-Fa-f]{6}$/.test(this.value)){document.getElementById('ctx-color-pick').value=this.value;document.querySelector('.ctx-swatch').style.background=this.value;dUpdateProp('color',this.value);}">
-    </div>`;
-    // Efeitos de legibilidade: contorno, sombra e realce (caixa atrás do texto)
-    html += `<div class="ctx-sep"></div>
-    <div class="ctx-group">
-      <span class="ctx-label">Contorno</span>
-      <input class="ctx-input" type="number" min="0" max="20" value="${l.strokeW||0}" style="width:36px" oninput="dUpdateProp('strokeW',this.value)" title="Espessura do contorno (0 = off)">
-      <input type="color" value="${l.strokeColor||'#000000'}" style="width:24px;height:22px;border:none;background:none;cursor:pointer" oninput="dUpdateProp('strokeColor',this.value)" title="Cor do contorno">
-      <span class="ctx-label">Sombra</span>
-      <button class="ctx-btn ${l.shadow?'active':''}" onclick="dUpdateProp('shadow',${l.shadow?'false':'true'})" title="Liga/desliga sombra">${l.shadow?'on':'off'}</button>
-      <input type="color" value="${(l.shadowColor||'#000000').slice(0,7)}" style="width:24px;height:22px;border:none;background:none;cursor:pointer" oninput="dUpdateProp('shadowColor',this.value)" title="Cor da sombra">
-      <span class="ctx-label">Realce</span>
-      <button class="ctx-btn ${l.bg?'active':''}" onclick="dUpdateProp('bg',${l.bg?'false':'true'})" title="Caixa de realce atrás do texto">${l.bg?'on':'off'}</button>
-      <input type="color" value="${l.bgColor||'#000000'}" style="width:24px;height:22px;border:none;background:none;cursor:pointer" oninput="dUpdateProp('bgColor',this.value)" title="Cor do realce">
-    </div>`;
-  }else if(l.type==='shape'){
-    html += '<div class="ctx-sep"></div>';
-    const kind=l.shapeKind||'rect';
-    const sopt=(v,t)=>`<option value="${v}" ${kind===v?'selected':''}>${t}</option>`;
-    html += `<div class="ctx-group">
-      <span class="ctx-label">Forma</span>
-      <select class="ctx-input" style="width:96px" onchange="dUpdateProp('shapeKind',this.value)" aria-label="Tipo de forma">
-        ${sopt('rect','Retângulo')}${sopt('circle','Círculo')}${sopt('ellipse','Elipse')}${sopt('triangle','Triângulo')}${sopt('polygon','Polígono')}${sopt('star','Estrela')}
-      </select>
-      ${kind==='polygon'?`<span class="ctx-label">Lados</span><input class="ctx-input" type="number" min="3" max="12" value="${l.sides||6}" style="width:40px" oninput="dUpdateProp('sides',this.value)" aria-label="Lados">`:''}
-      ${kind==='star'?`<span class="ctx-label">Pontas</span><input class="ctx-input" type="number" min="3" max="12" value="${l.points||5}" style="width:40px" oninput="dUpdateProp('points',this.value)" aria-label="Pontas">`:''}
-    </div>`;
-    const fill=l.fill||'#FF9000';
-    html += `<div class="ctx-group">
-      <span class="ctx-label">Fill</span>
-      <div class="ctx-swatch" style="background:${fill}" onclick="document.getElementById('ctx-fill-pick').click()" title="Cor de preenchimento"></div>
-      <input type="color" id="ctx-fill-pick" value="${fill}" style="display:none" oninput="document.getElementById('ctx-fill-hex').value=this.value.toUpperCase();document.querySelectorAll('.ctx-swatch')[0].style.background=this.value;dUpdateProp('fill',this.value)">
-      <input class="ctx-hex" id="ctx-fill-hex" value="${fill.toUpperCase()}" maxlength="7" aria-label="Hex do fill" oninput="if(/^#[0-9A-Fa-f]{6}$/.test(this.value)){document.getElementById('ctx-fill-pick').value=this.value;dUpdateProp('fill',this.value);}">
-      <span class="ctx-label">Opac.</span>
-      <input class="ctx-input" type="number" value="${l.opacity||100}" min="0" max="100" style="width:40px" oninput="dUpdateProp('opacity',this.value)" aria-label="Opacidade">
-      <span class="ctx-label">%</span>
-      <span class="ctx-label">Rx</span>
-      <input class="ctx-input" type="number" value="${l.radius||0}" min="0" style="width:40px" oninput="dUpdateProp('radius',this.value)" aria-label="Border radius">
-    </div>`;
-  }else if(l.type==='frame'){
-    html += '<div class="ctx-sep"></div>';
-    html += `<div class="ctx-group">
-      <span class="ctx-label">Forma</span>
-      <select class="ctx-select" onchange="dUpdateProp('frameShape',this.value)" aria-label="Forma da moldura">
-        <option value="rect" ${l.frameShape==='rect'?'selected':''}>Retângulo</option>
-        <option value="rounded" ${l.frameShape==='rounded'?'selected':''}>Arredondado</option>
-        <option value="circle" ${l.frameShape==='circle'?'selected':''}>Círculo</option>
-      </select>
-      <span class="ctx-label">Rx</span>
-      <input class="ctx-input" type="number" value="${l.radius||8}" min="0" max="999" style="width:40px" oninput="dUpdateProp('radius',this.value)" aria-label="Radius da moldura">
-      <select class="ctx-select" onchange="dUpdateProp('objectFit',this.value)" aria-label="Modo de encaixe">
-        <option value="cover" ${l.objectFit==='cover'?'selected':''}>cover</option>
-        <option value="contain" ${l.objectFit==='contain'?'selected':''}>contain</option>
-      </select>
-      <button class="ctx-btn" title="Carregar foto" onclick="document.getElementById('ctx-frame-upload').click()" style="color:var(--dm-orange)">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-      </button>
-      <input type="file" id="ctx-frame-upload" accept="image/*" style="display:none" onchange="(function(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=re=>{const l=dLayers.find(x=>x.id===dSelId);if(l){l.imgUrl=re.result;dRenderCanvas();dMarkUnsaved();dUpdateCtxBar();gToast('✓ Foto aplicada!');}};r.readAsDataURL(f);})(event)">
-      ${l.imgUrl?`<button class="ctx-btn" title="Limpar foto" onclick="dUpdateProp('imgUrl','');dUpdateCtxBar()" style="color:var(--dm-red)">✕</button>`:''}
-    </div>`;
-    // Enquadramento da foto dentro da moldura + teste de proporção (pior caso)
-    html += `<div class="ctx-sep"></div>
-    <div class="ctx-group">
-      <span class="ctx-label">Zoom</span>
-      <input class="ctx-input" type="number" min="100" max="400" step="5" value="${Math.round((l.imgScale||1)*100)}" style="width:46px" oninput="dUpdateProp('imgScale',this.value/100)" title="Zoom da foto na moldura (%)">
-      <span class="ctx-label">X</span>
-      <input class="ctx-input" type="number" min="-50" max="50" value="${Math.round((l.imgOffsetX||0)*100)}" style="width:40px" oninput="dUpdateProp('imgOffsetX',this.value/100)" title="Deslocar foto na horizontal (%)">
-      <span class="ctx-label">Y</span>
-      <input class="ctx-input" type="number" min="-50" max="50" value="${Math.round((l.imgOffsetY||0)*100)}" style="width:40px" oninput="dUpdateProp('imgOffsetY',this.value/100)" title="Deslocar foto na vertical (%)">
-      <span class="ctx-label">Testar foto</span>
-      <select class="ctx-select" onchange="dSetPhTest(this.value)" aria-label="Testar proporção de foto">
-        <option value="" ${!dPhTestAR?'selected':''}>—</option>
-        <option value="portrait" ${dPhTestAR==='portrait'?'selected':''}>Retrato</option>
-        <option value="landscape" ${dPhTestAR==='landscape'?'selected':''}>Paisagem</option>
-        <option value="square" ${dPhTestAR==='square'?'selected':''}>Quadrado</option>
-      </select>
-    </div>`;
+  
+  if (noSelEl) noSelEl.style.display = 'none';
+  if (layerSelEl) {
+    layerSelEl.style.display = 'flex';
+    
+    const inpX = document.getElementById('d-top-x');
+    const inpY = document.getElementById('d-top-y');
+    const inpW = document.getElementById('d-top-w');
+    const inpH = document.getElementById('d-top-h');
+    const lockBtn = document.getElementById('d-top-lock');
+    
+    if (inpX && document.activeElement !== inpX) inpX.value = Math.round(l.x);
+    if (inpY && document.activeElement !== inpY) inpY.value = Math.round(l.y);
+    if (inpW && document.activeElement !== inpW) inpW.value = Math.round(l.w);
+    if (inpH && document.activeElement !== inpH) inpH.value = Math.round(l.h);
+    if (lockBtn) lockBtn.classList.toggle('active', !!l.lockRatio);
   }
+}
 
-  bar.innerHTML = html;
+function dToggleLockRatio() {
+  const l = dLayers.find(x => x.id === dSelId);
+  if (!l) return;
+  dHistoryPush();
+  l.lockRatio = !l.lockRatio;
+  const lockBtn = document.getElementById('d-top-lock');
+  if (lockBtn) lockBtn.classList.toggle('active', !!l.lockRatio);
+  dMarkUnsaved();
 }
 
 
@@ -1451,4 +1283,52 @@ function dRenderRulers(){
     }
   }
 }
+
+// Eventos de Panning (ferramenta Mão) no wrapper
+document.addEventListener('DOMContentLoaded', () => {
+  const wrapper = document.getElementById('d-canvas-wrapper');
+  if (wrapper) {
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let scrollLeft = 0;
+    let scrollTop = 0;
+
+    wrapper.addEventListener('mousedown', (e) => {
+      // Panning só ativa se a tool for 'hand'
+      if (typeof dTool !== 'undefined' && dTool === 'hand') {
+        isDragging = true;
+        document.body.classList.add('tool-hand-dragging');
+        startX = e.clientX;
+        startY = e.clientY;
+        scrollLeft = wrapper.scrollLeft;
+        scrollTop = wrapper.scrollTop;
+        e.preventDefault();
+      }
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (isDragging) {
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        wrapper.scrollLeft = scrollLeft - dx;
+        wrapper.scrollTop = scrollTop - dy;
+      }
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        document.body.classList.remove('tool-hand-dragging');
+      }
+    });
+    
+    wrapper.addEventListener('mouseleave', () => {
+      if (isDragging) {
+        isDragging = false;
+        document.body.classList.remove('tool-hand-dragging');
+      }
+    });
+  }
+});
 

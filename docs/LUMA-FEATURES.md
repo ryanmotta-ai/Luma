@@ -95,13 +95,32 @@
 
 ---
 
-## Designer — Painel Lateral (`index.html`)
+## Designer — Painel Lateral e Ferramentas (`index.html` + `js/designer/templates.js` + `css/modules/designer.css` + `js/designer/tools.js`)
 
-### Remoção da aba "Publicar" do painel lateral
-- Botão da aba `data-panel="publicar"` removido da tira Conteúdo/Propriedades.
-- Publicação continua acessível pelo botão da topbar (`dPublishOpen()`) e Ctrl+S.
+### Reestruturação de Abas e Fusão de Propriedades
+- Aba "Propriedades" foi removida e integrada de forma contextual na aba **Camadas** (Layers).
+- Ao selecionar uma camada ou a própria prancheta, o painel de propriedades correspondente (`#d-props-form`) aparece dinamicamente abaixo da lista de camadas na mesma aba, sem necessidade de navegar para outra aba.
 
-> Working directory (não commitado) — `index.html`
+### Nova Aba "Campanhas" em Árvore Compacta
+- A aba "Campanhas" substitui o antigo painel lateral e exibe a lista de campanhas e seus templates em formato de árvore compacto (Figma-style).
+- **Hover Preview**: ao passar o mouse sobre as pastas de campanha ou templates na árvore, é exibido um popover flutuante com a imagem/cor de capa ampliada (`#d-hover-preview`).
+- **Importação Contextual**: botões de importação de PSD e SVG foram movidos do header principal para dentro do item expandido de cada campanha na árvore, permitindo a importação direta para uma campanha específica.
+- **Redução de Ruído**: a logo Luma na barra superior e os contadores estatísticos redundantes do painel lateral foram removidos para otimizar espaço e hierarquia visual.
+
+### Remoção da Ferramenta Prancheta (Artboard Tool)
+- A ferramenta manual de desenho e criação de pranchetas foi removida da barra de ferramentas. A decisão simplifica a hierarquia do editor, preparando o terreno para uma futura transição para o sistema de páginas integrado (estilo Canva).
+
+### Migração para Canvas Único (Single Canvas)
+- **Arquitetura simplificada**: Transição de múltiplos artboards simultâneos para um modelo focado em canvas único por template no workspace.
+- **Lista de Camadas Plana**: `dRenderLayersList` (em `layers.js`) foi reescrito. Camadas são exibidas diretamente como uma lista plana única baseada em `dLayers`, sem a necessidade de loops complexos por artboards. A funcionalidade de Drag and Drop (DnD) para reordenação de camadas está sempre ativa.
+- **Simplificação de Fluxos**:
+  - `publish.js` foi adaptado para ler o canvas único via `dGetActiveAB()`. Os modais e a renderização do preview exibem apenas o canvas selecionado.
+  - A lógica de permissões (`dPublishRenderPerms`) extrai as variáveis diretamente da lista global `dLayers`.
+- **Limpeza de Componentes e Interface**:
+  - `index.html` teve removidos os inputs de coordenadas X/Y e de nome da prancheta, a opção "Usar Pranchetas" do modal de Novo Documento e as opções de grade/organização de workspace. A seção correspondente foi renomeada de "Workspace" para "Canvas".
+  - `designer.css` teve cerca de 100 linhas de estilos legados e seletores inativos removidos (como `.ab-wrap`, `.ab-inactive-container`, `.ab-item`, `.ab-ghost`, entre outros).
+
+> Working directory — `index.html`, `js/designer/templates.js`, `js/designer/layers.js`, `js/designer/publish.js`, `js/designer/tools.js`, `css/modules/designer.css`
 
 ---
 
