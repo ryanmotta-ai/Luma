@@ -22,7 +22,7 @@ function dDefaultFolders(){
   // Pastas das campanhas começam VAZIAS — o designer cria os materiais de cada uma.
   // Inclui metadados de cada campanha: perguntas, preview, badge, etc.
   dFolders=camps.map((c,i)=>({
-    id:'f'+i,name:c.name,color:c.color,campId:c.id,cover:'',grupos:['Todos os usuários'],agendamento:null,
+    id:'f'+i,name:c.name,color:c.color,campId:c.id,cover:c.cover||'',grupos:['Todos os usuários'],agendamento:null,
     badge:c.badge||'',expiraDias:c.expiraDias||7,popular:c.popular||false,
     previewProd:c.previewProd||'',previewDe:c.previewDe||'',previewPor:c.previewPor||'',
     perguntas:c.perguntas||[],
@@ -114,6 +114,8 @@ function dPreloadFolders(){
   dFolders.forEach(f=>{
     if(f.campId && campsMap[f.campId]){
       const c=campsMap[f.campId];
+      // Capa oficial da campanha (constantes) preenche pastas que ainda não têm capa própria
+      if(!f.cover && c.cover) f.cover=c.cover;
       if(!f.perguntas) f.perguntas=c.perguntas||[];
       if(!f.badge) f.badge=c.badge||'';
       if(!f.expiraDias) f.expiraDias=c.expiraDias||7;
@@ -418,84 +420,106 @@ function dInit(){
   // Campanhas/Biblioteca agora são abas do painel direito (#d-right); a aba Campanhas já abre por padrão
 }
 
-/* ── PASTAS (grade estilo Deskfy: card com capa + menu, expande templates inline) ── */
+/* ── PASTAS (árvore de campanhas: card com capa + menu, expande templates inline) ── */
+let dCampaignQuery='';            // filtro de busca de campanhas
+let dImportTargetFolderId=null;   // pasta-alvo de um import disparado pelo card
+
+// Logos reais do Adobe (em assets/adobe-logos)
+const D_LOGO_PS='assets/adobe-logos/Adobe_Photoshop_CC_2026_icon.svg.png';
+const D_LOGO_AI='assets/adobe-logos/novo-logo-adobe-ai-2020.jpg';
+
+// Ícones reutilizáveis (chevron / kebab) — desenhados, nada de emoji que renderiza torto no Windows
+const _DC_CHEV=`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>`;
+const _DC_KEBAB=`<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>`;
+
+// Busca: filtra campanhas pelo nome e re-renderiza
+function dFilterCampaigns(q){
+  dCampaignQuery=(q||'').trim().toLowerCase();
+  dRenderFolders();
+}
+
+// Dispara importação já mirando uma campanha específica
+function dImportToFolder(folderId, kind){
+  dImportTargetFolderId=folderId;
+  if(kind==='psd'){ const inp=document.getElementById('d-psd-input'); if(inp) inp.click(); }
+  else { dSvgImport(); }
+}
+
 function dRenderFolders(){
   const el=document.getElementById('d-folder-list');
-  el.className = 'd-campaign-tree';
-  el.innerHTML=dFolders.map(f=>{
+  if(!el) return;
+  el.className='d-campaign-tree';
+  const q=dCampaignQuery;
+  const list=q ? dFolders.filter(f=>(f.name||'').toLowerCase().includes(q)) : dFolders;
+
+  // Empty states
+  if(!dFolders.length){
+    el.innerHTML=`<div class="dc-empty">
+      <div class="dc-empty-ico"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg></div>
+      <div class="dc-empty-title">Nenhuma campanha ainda</div>
+      <div class="dc-empty-text">Crie sua primeira campanha para organizar os materiais.</div>
+      <button class="dc-empty-cta" onclick="dOpenNewFolder()">+ Nova campanha</button>
+    </div>`;
+    return;
+  }
+  if(!list.length){
+    el.innerHTML=`<div class="dc-empty">
+      <div class="dc-empty-ico"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+      <div class="dc-empty-title">Nada encontrado</div>
+      <div class="dc-empty-text">Nenhuma campanha com “${gEsc(q)}”.</div>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML=list.map(f=>{
     const open=dFolderOpen[f.id];
     const cover=(f.cover&&f.cover!=='__local__')?f.cover:'';
-    const coverStyle=cover
+    const total=f.templates.length;
+    const pub=f.templates.filter(t=>t.publishMeta&&t.publishMeta.publicado).length;
+    const thumbStyle=cover
       ? `background-image:url('${cover}')`
-      : `background:linear-gradient(135deg, ${f.color||'#FF9000'}, ${f.color||'#FF9000'}cc)`;
-    
-    // The main row (Header)
-    const headerRow = `
-      <div class="tree-campaign-header ${open?'open':''} ${f.id===dActiveTmplFolderId?'active':''}" id="fi-${f.id}" onclick="dToggleFolder('${f.id}')">
-        <span class="tree-chev">
-          ${open?'<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="3 5 21 5 12 19 3 5"/></svg>':'<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>'}
-        </span>
-        <div class="tree-thumb" style="${coverStyle}" onmouseenter="dHoverPreview(event, '${cover}', '${f.color||'#FF9000'}')" onmouseleave="dHoverPreviewHide()"></div>
-        <span class="tree-name" title="${gEsc(f.name)}">${gEsc(f.name)}</span>
-        <span class="tree-count">(${f.templates.length})</span>
-        <button class="tree-menu-btn" onclick="event.stopPropagation();dFolderMenu(event,'${f.id}')" title="Opções da campanha">⋯</button>
+      : `background:linear-gradient(135deg, ${f.color||'#FF9000'}, ${(f.color||'#FF9000')}99)`;
+    const thumbInner=cover ? '' : `<span class="dc-thumb-letter">${gEsc(((f.name||'?').trim()[0]||'?')).toUpperCase()}</span>`;
+    const metaTxt = total ? `${total} material${total!==1?'is':''}${pub?` · ${pub} no ar`:''}` : 'Vazia';
+
+    const header=`
+      <div class="dc-camp ${open?'open':''} ${f.id===dActiveTmplFolderId?'active':''}" id="fi-${f.id}" onclick="dToggleFolder('${f.id}')" title="${gEsc(f.name)}">
+        <span class="dc-chev">${_DC_CHEV}</span>
+        <div class="dc-thumb" style="${thumbStyle}">${thumbInner}</div>
+        <div class="dc-camp-info">
+          <span class="dc-camp-name">${gEsc(f.name)}</span>
+          <span class="dc-camp-meta">${metaTxt}</span>
+        </div>
+        <button class="dc-menu" onclick="event.stopPropagation();dFolderMenu(event,'${f.id}')" title="Opções da campanha" aria-label="Opções da campanha">${_DC_KEBAB}</button>
       </div>`;
 
-    // The expanded content
-    const expanded = open ? `
-      <div class="tree-campaign-body" id="ft-${f.id}">
-        <div class="tree-quick-actions" style="display:flex; gap:6px; margin-bottom:8px;">
-          <button class="tree-action-btn" onclick="document.getElementById('d-psd-input').click()" title="Importar PSD para esta campanha">
-            <span style="background:#31A8FF; color:#fff; border-radius:2px; font-size:8px; padding:1px 3px; font-weight:bold; margin-right:4px;">PSD</span> Importar
+    const body = open ? `
+      <div class="dc-body">
+        <div class="dc-import-row">
+          <button class="dc-import" onclick="dImportToFolder('${f.id}','psd')" title="Importar PSD nesta campanha">
+            <img src="${D_LOGO_PS}" alt="" class="dc-import-logo"> Importar PSD
           </button>
-          <button class="tree-action-btn" onclick="dSvgImport()" title="Importar SVG para esta campanha">
-            <span style="background:#FF9A00; color:#fff; border-radius:2px; font-size:8px; padding:1px 3px; font-weight:bold; margin-right:4px;">SVG</span> Importar
+          <button class="dc-import" onclick="dImportToFolder('${f.id}','svg')" title="Importar SVG/AI nesta campanha">
+            <img src="${D_LOGO_AI}" alt="" class="dc-import-logo"> Importar SVG
           </button>
         </div>
-        ${f.templates.length?f.templates.map(t=>{
-          const meta=t.publishMeta||{};
-          const pubStatus=meta.publicado
-            ?`<span class="tmpl-status pub" title="Publicado">●</span>`
-            :`<span class="tmpl-status draft" title="Rascunho">○</span>`;
-          return `<div class="tree-template-item ${t.id===dActiveTmplId?'active':''}">
-            <div class="tree-template-row" onclick="dLoadTemplateById('${f.id}','${t.id}')">
-              ${pubStatus}
-              <div class="tree-template-name">${gEsc(t.name)}</div>
-              <div class="tree-template-fmt">${t.fmt}</div>
-            </div>
-            <button class="tmpl-menu-btn" onclick="event.stopPropagation();dTemplateMenuOpen(event,'${f.id}','${t.id}')" aria-label="Mais opções">⋯</button>
+        ${total?f.templates.map(t=>{
+          const isPub=t.publishMeta&&t.publishMeta.publicado;
+          return `<div class="dc-tmpl ${t.id===dActiveTmplId?'active':''}">
+            <button class="dc-tmpl-main" onclick="dLoadTemplateById('${f.id}','${t.id}')">
+              <span class="dc-tmpl-dot ${isPub?'pub':'draft'}" title="${isPub?'Publicado':'Rascunho'}"></span>
+              <span class="dc-tmpl-name" title="${gEsc(t.name)}">${gEsc(t.name)}</span>
+              <span class="dc-tmpl-fmt">${gEsc(t.fmt)}</span>
+            </button>
+            <button class="dc-tmpl-menu" onclick="event.stopPropagation();dTemplateMenuOpen(event,'${f.id}','${t.id}')" aria-label="Mais opções">${_DC_KEBAB}</button>
           </div>`;
-        }).join(''):'<div class="tree-empty-msg">Nenhum template nesta campanha.</div>'}
+        }).join(''):`<div class="dc-tmpl-empty">Sem materiais — importe um PSD/SVG acima.</div>`}
       </div>` : '';
 
-    return `<div class="tree-campaign-item">${headerRow}${expanded}</div>`;
+    return `<div class="dc-item">${header}${body}</div>`;
   }).join('');
-  
+
   dFolders.forEach(f=>{ const node=document.getElementById('fi-'+f.id); if(node) node.__folder=f; });
-}
-
-function dHoverPreview(e, coverUrl, fallbackColor) {
-  const popover = document.getElementById('d-hover-preview');
-  const img = document.getElementById('d-hover-preview-img');
-  if (!popover || !img) return;
-
-  if (coverUrl) {
-    img.style.backgroundImage = `url('${coverUrl}')`;
-  } else {
-    img.style.backgroundImage = 'none';
-    img.style.backgroundColor = fallbackColor;
-  }
-  
-  // Position popover relative to the mouse or the row
-  const rect = e.target.getBoundingClientRect();
-  popover.style.display = 'block';
-  popover.style.top = Math.min(rect.top - 10, window.innerHeight - 220) + 'px';
-  popover.style.left = (rect.right + 10) + 'px';
-}
-
-function dHoverPreviewHide() {
-  const popover = document.getElementById('d-hover-preview');
-  if (popover) popover.style.display = 'none';
 }
 let dActiveTmplFolderId=null;
 function dLoadTemplateById(folderId, tmplId){
@@ -602,7 +626,13 @@ function dQuickEditPerms(folderId, tmplId){
     }, 100);
   }, 100);
 }
-function dToggleFolder(id){dFolderOpen[id]=!dFolderOpen[id];dRenderFolders();}
+function dToggleFolder(id){
+  const willOpen=!dFolderOpen[id];
+  // Comportamento acordeão: ao abrir uma campanha, fecha as outras (painel estreito fica limpo)
+  if(willOpen) Object.keys(dFolderOpen).forEach(k=>{dFolderOpen[k]=false;});
+  dFolderOpen[id]=willOpen;
+  dRenderFolders();
+}
 
 function dLoadTemplate(tmpl,folder){
   if(!tmpl)return;
@@ -1679,7 +1709,8 @@ function dSvgCreateTemplate(elements, meta, fmt){
   });
 
   if(!layers.length){ gToast('Nenhum elemento selecionado para importar'); return; }
-  const folder=(typeof dFolders!=='undefined'&&dFolders)?dFolders[0]:null;
+  const folder=(typeof dFolders!=='undefined'&&dFolders)
+    ? (dFolders.find(x=>x.id===dImportTargetFolderId)||dFolders[0]) : null;
   if(!folder){ gToast('⚠ Crie uma pasta antes de importar','error'); return; }
   // Registra variáveis no catálogo (mesma lógica do import de PSD).
   if(typeof dSyncVarsFromContent==='function')

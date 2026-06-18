@@ -643,7 +643,8 @@ function dPsdShowArtboardSelector(psd, artboards, res, baseName){
 
 function dPsdBuildArtboardSelectorHTML(items){
   const folders=(typeof dFolders!=='undefined'&&dFolders)?dFolders:[];
-  const folderOptions=folders.map(f=>`<option value="${_dPsdEsc(f.id)}">${_dPsdEsc(f.name)}</option>`).join('');
+  const _tgt=(typeof dImportTargetFolderId!=='undefined')?dImportTargetFolderId:null;
+  const folderOptions=folders.map(f=>`<option value="${_dPsdEsc(f.id)}" ${f.id===_tgt?'selected':''}>${_dPsdEsc(f.name)}</option>`).join('');
   const rows=items.map((item,i)=>`
     <div class="psd-ab-row" id="psd-ab-row-${i}">
       <label class="psd-ab-check">

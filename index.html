@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Luma</title>
-<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon.svg">
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=2">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon.svg?v=2">
 <meta name="theme-color" content="#FF9000">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;0,700;0,900;1,400&display=swap" rel="stylesheet">
@@ -1597,22 +1597,20 @@ input:focus:-webkit-autofill {
       </div>
       <!-- Painel CAMPANHAS (Modelos & Campanhas) -->
       <div class="rpanel-content hidden" id="d-panel-campaigns">
-        <div class="d-campaigns-container" style="display: flex; flex-direction: column; height: 100%;">
-          <div class="d-campaigns-header" style="padding: 12px 12px 8px; border-bottom: 1px solid var(--d-border); display: flex; flex-direction: column; gap: 8px;">
-            <button class="add-folder-btn" onclick="dOpenNewFolder()" style="width: 100%; justify-content: center; display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: bold; padding: 8px; background: var(--d-surf); border: 1px dashed var(--d-text3); border-radius: 6px; cursor: pointer; color: var(--d-text);">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Nova Campanha
+        <div class="dc-wrap">
+          <div class="dc-toolbar">
+            <button class="dc-new-btn" onclick="dOpenNewFolder()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Nova campanha
             </button>
-            <div style="position: relative;">
-              <svg style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: var(--d-text3);" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <input type="text" id="d-campaign-search" placeholder="Buscar campanha..." oninput="dFilterCampaigns(this.value)" style="width: 100%; background: var(--d-bg); border: 1px solid var(--d-border); border-radius: 4px; padding: 6px 8px 6px 26px; color: var(--d-text); font-size: 11px; outline: none;">
+            <div class="dc-search">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="d-campaign-search" placeholder="Buscar campanha…" oninput="dFilterCampaigns(this.value)">
             </div>
           </div>
-          <!-- Hidden inputs for PSD/SVG import since they were removed from the header -->
+          <!-- Input oculto para import de PSD (disparado pelos botões de cada campanha) -->
           <input type="file" id="d-psd-input" accept=".psd,image/vnd.adobe.photoshop" style="display:none" onchange="dImportPSD(this)">
-
-
-          <div id="d-folder-list-container" style="padding: 0 12px; overflow-y: auto; flex: 1;">
+          <div class="dc-scroll" id="d-folder-list-container">
             <div class="folder-list" id="d-folder-list"></div>
           </div>
         </div>
@@ -2128,11 +2126,6 @@ input:focus:-webkit-autofill {
     <div id="d-res-slot-lib"></div>
     <div id="d-res-slot-assets" style="display:none"></div>
   </div>
-</div>
-
-<!-- ══ HOVER PREVIEW POPOVER ══ -->
-<div id="d-hover-preview" style="display:none; position:fixed; z-index:9999; width:200px; height:200px; background-color:var(--d-surf); border:1px solid var(--d-border); border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,0.3); pointer-events:none; overflow:hidden;">
-  <div id="d-hover-preview-img" style="width:100%; height:100%; background-size:cover; background-position:center;"></div>
 </div>
 
 <!-- ══ MODAL DE PUBLICAÇÃO DO DESIGNER ══ -->
