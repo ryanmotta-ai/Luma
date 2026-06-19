@@ -39,8 +39,8 @@ function gOpenUserProfileModal() {
   const sidebarRole = document.getElementById('prof-sidebar-role');
   if (sidebarName) sidebarName.textContent = displayName;
   if (sidebarRole) {
-    if(role==='superadmin'){sidebarRole.style.background='#7c3aed';sidebarRole.style.color='#fff';sidebarRole.textContent='SUPER ADMIN';}
-    else if(role==='admin'){sidebarRole.style.background='var(--dm-yellow)';sidebarRole.style.color='var(--dm-red)';sidebarRole.textContent='ADMIN';}
+    if(role==='gestao'||role==='superadmin'){sidebarRole.style.background='#7c3aed';sidebarRole.style.color='#fff';sidebarRole.textContent= role==='gestao'?'GESTÃO':'SUPER ADMIN';}
+    else if(role==='equipe_dm'||role==='admin'){sidebarRole.style.background='var(--dm-yellow)';sidebarRole.style.color='var(--dm-red)';sidebarRole.textContent= role==='equipe_dm'?'EQUIPE DM':'ADMIN';}
     else{sidebarRole.style.background='rgba(255,144,0,.15)';sidebarRole.style.color='var(--dm-orange-d)';sidebarRole.textContent='FRANQUEADO';}
   }
 
@@ -360,9 +360,9 @@ function gProfileRenderStats(role) {
 
   // 2. Nível baseado no papel e na quantidade de templates
   if (levelVal) {
-    if (role === 'superadmin') {
+    if (role === 'gestao' || role === 'superadmin') {
       levelVal.textContent = 'Dono da Plataforma 👑';
-    } else if (role === 'admin') {
+    } else if (role === 'equipe_dm' || role === 'admin') {
       levelVal.textContent = templateCount > 15 ? 'Diretor de Design 👑' : 'Administrador Luma ⚙️';
     } else {
       levelVal.textContent = templateCount > 5 ? 'Designer Avançado ⚡' : 'Franqueado Ativo 🚀';

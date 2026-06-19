@@ -50,13 +50,19 @@ function gOnLoginSuccess() {
   fRenderFmts();
   fUpdateHistBadge();
   if (typeof fStartChat === 'function') fStartChat();
+
+  // Sincroniza o catálogo de variáveis com o Supabase (offline-first).
+  if (typeof dSyncVarsFromBackend === 'function') dSyncVarsFromBackend();
 }
 
 // Inicializa a aba no startup e checa a autenticação
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
   if (typeof gInitHelpChat === 'function') gInitHelpChat();
   setTimeout(dUpdateTabPill, 100);
-  
+
+  // Checa a sessão REAL do Supabase (assíncrono) antes de decidir login vs app.
+  if (typeof gLoadProfile === 'function') { try { await gLoadProfile(); } catch(e){} }
+
   if (!gCurrentUser()) {
     // Não tem sessão ativa, bloqueia a UI
     document.getElementById('g-login-screen').style.display = 'flex';

@@ -1,9 +1,17 @@
 /**
  * js/core/auth.js
- * 
- * AUTH CLIENT-SIDE — gate de experiência, não segurança. Qualquer DevTools burla isso.
- * A função gForgotPassword e gResetPassword têm assinatura definitiva para plugar no
- * backend Supabase (P5.1) sem reescrita. Veja comentários FUTURO: em cada função.
+ *
+ * AUTH via Supabase (Fase 5.1). Login/logout/recuperação usam supabase.auth
+ * (window.sb, criado em js/core/supabase.js). gLoadProfile() carrega a sessão +
+ * o role do profile e popula gAuthState, pra que gCurrentUser/gCurrentRole sigam
+ * SÍNCRONOS no resto do app.
+ *
+ * Roles (espelham o DM CRM): franqueado | equipe_dm | gestao.
+ *   Persona Franqueado = franqueado · Persona Designer = equipe_dm/gestao (gIsAdmin)
+ *   gestao = topo (gerencia usuários).
+ *
+ * OBS: a gestão de usuários (gGetAllUsers/gSetUserRole/...) ainda é MOCK
+ * (localStorage + AUTH_USERS). Migrar pra Supabase Admin (Edge Function) é trabalho futuro.
  */
 
 const AUTH_USERS = [
@@ -20,82 +28,90 @@ const AUTH_USERS = [
   { email: 'guilherme@deliverymuch.com.br', hash: '847c6bd10efb303516b1248b6b1b9246b66fd9ad460731716d7e31855e8112cb', role: 'admin', displayName: 'Guilherme' }
 ];
 
-const ROLE_HIERARCHY = { franqueado:1, admin:2, superadmin:3 };
+// Roles do banco (espelham o DM CRM). gIsAdmin = persona Designer (equipe_dm+gestao).
+const ROLE_HIERARCHY = { franqueado:1, equipe_dm:2, gestao:3 };
 function gRoleLevel(role){ return ROLE_HIERARCHY[role]||0; }
 
-let gAuthState = { user: null, sessionToken: null };
+// Cache em memória do usuário logado. A SESSÃO em si é gerenciada pelo supabase-js
+// (persiste em localStorage e renova o token sozinho) — isto é só um espelho do profile.
+let gAuthState = { user: null };
 
-try {
-  const cached = sessionStorage.getItem('__luma_session');
-  if (cached) gAuthState = JSON.parse(cached);
-} catch (e) {}
+function _gSb(){ return (typeof gSupabase === 'function') ? gSupabase() : window.sb; }
 
-async function gHashPassword(plain) {
-  const msgUint8 = new TextEncoder().encode(plain);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+// Carrega a sessão atual do Supabase + o profile (role) do banco. Idempotente.
+async function gLoadProfile() {
+  const sb = _gSb();
+  if (!sb) { gAuthState = { user: null }; return null; }
+  try {
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) { gAuthState = { user: null }; return null; }
+    const { data: prof } = await sb
+      .from('profiles')
+      .select('role, nome, departamento')
+      .eq('id', user.id)
+      .maybeSingle();
+    gAuthState = { user: {
+      id: user.id,
+      email: user.email,
+      role: (prof && prof.role) || 'franqueado',
+      displayName: (prof && prof.nome) || (user.email || '').split('@')[0],
+      departamento: (prof && prof.departamento) || null,
+    } };
+    return gAuthState.user;
+  } catch (e) {
+    gAuthState = { user: null };
+    return null;
+  }
 }
 
 async function gLogin(email, password) {
   if (!email || !password) return { ok: false, error: 'E-mail e senha são obrigatórios.' };
-  
-  const user = AUTH_USERS.find(u => u.email === email.trim().toLowerCase());
-  if (!user) return { ok: false, error: 'E-mail incorreto ou não cadastrado.' };
-  
-  const hash = await gHashPassword(password);
-  if (hash !== user.hash) return { ok: false, error: 'Senha incorreta.' };
-  
-  gAuthState = {
-    user: { email: user.email, role: user.role, displayName: user.displayName },
-    sessionToken: 'tk_' + Date.now()
-  };
-  sessionStorage.setItem('__luma_session', JSON.stringify(gAuthState));
-  
+  const sb = _gSb();
+  if (!sb) return { ok: false, error: 'Backend indisponível. Recarregue a página.' };
+  const { error } = await sb.auth.signInWithPassword({
+    email: String(email).trim().toLowerCase(),
+    password
+  });
+  if (error) {
+    const msg = /invalid login|invalid_credentials/i.test(error.message || '')
+      ? 'E-mail ou senha incorretos.'
+      : (error.message || 'Falha no login.');
+    return { ok: false, error: msg };
+  }
+  await gLoadProfile();
   return { ok: true };
 }
 
-function gLogout() {
-  gAuthState = { user: null, sessionToken: null };
-  sessionStorage.removeItem('__luma_session');
+async function gLogout() {
+  const sb = _gSb();
+  try { if (sb) await sb.auth.signOut(); } catch (e) {}
+  gAuthState = { user: null };
   location.reload();
 }
 
 function gCurrentUser() { return gAuthState.user; }
 function gCurrentRole() { return gAuthState.user ? gAuthState.user.role : null; }
-function gIsAdmin(){ return gRoleLevel(gCurrentRole()) >= ROLE_HIERARCHY.admin; }
-function gIsSuperAdmin(){ return gCurrentRole()==='superadmin'; }
+function gIsAdmin(){ return gRoleLevel(gCurrentRole()) >= ROLE_HIERARCHY.equipe_dm; } // equipe_dm + gestao = Designer
+function gIsSuperAdmin(){ return gCurrentRole()==='gestao'; }
 function gCanManageUsers(){ return gIsSuperAdmin(); }
 
 async function gForgotPassword(email) {
   if (!email) return { ok: false, error: 'Digite seu e-mail.' };
-  const user = AUTH_USERS.find(u => u.email === email.trim().toLowerCase());
-  if (!user) return { ok: false, error: 'E-mail não cadastrado.' };
-  
-  // FUTURO: await supabase.auth.resetPasswordForEmail(email)
-  const token = crypto.randomUUID ? crypto.randomUUID() : 'simulated-uuid-token';
-  const expires = Date.now() + 15 * 60 * 1000; 
-  localStorage.setItem('__luma_reset_token', JSON.stringify({ email: user.email, token, expires }));
-  
-  console.log(`[AUTH] Email de recuperação seria enviado para <${user.email}>`);
+  const sb = _gSb();
+  if (!sb) return { ok: false, error: 'Backend indisponível.' };
+  const redirectTo = location.origin + location.pathname;
+  const { error } = await sb.auth.resetPasswordForEmail(String(email).trim().toLowerCase(), { redirectTo });
+  if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
 
-async function gResetPassword(token, newPassword) {
-  // FUTURO: await supabase.auth.updateUser({ password: newPassword })
-  try {
-    const data = JSON.parse(localStorage.getItem('__luma_reset_token'));
-    if (!data || data.token !== token) return { ok: false, error: 'Token inválido.' };
-    if (Date.now() > data.expires) return { ok: false, error: 'Token expirado.' };
-    
-    const user = AUTH_USERS.find(u => u.email === data.email);
-    if (user) user.hash = await gHashPassword(newPassword);
-    
-    localStorage.removeItem('__luma_reset_token');
-    return { ok: true };
-  } catch(e) {
-    return { ok: false, error: 'Falha ao processar o token.' };
-  }
+// Roda sobre a sessão de recovery materializada pelo supabase-js ao abrir o link do e-mail.
+async function gResetPassword(newPassword) {
+  const sb = _gSb();
+  if (!sb) return { ok: false, error: 'Backend indisponível.' };
+  const { error } = await sb.auth.updateUser({ password: newPassword });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
 }
 
 function gLoadRoleOverrides(){ try{return JSON.parse(localStorage.getItem('luma_role_overrides')||'{}');}catch(e){return{};} }
@@ -154,7 +170,7 @@ async function gDoLogin(e) {
   const email = document.getElementById('gl-email').value;
   const pass = document.getElementById('gl-pass').value;
   const errEl = document.getElementById('gl-error');
-  
+
   btn.disabled = true;
   if (btn.querySelector('.gl-btn-text')) {
     btn.querySelector('.gl-btn-text').style.display = 'none';
@@ -163,9 +179,6 @@ async function gDoLogin(e) {
     btn.textContent = 'Autenticando...';
   }
   errEl.style.display = 'none';
-  
-  // Fake delay to show spinner/loading realistically
-  await new Promise(r => setTimeout(r, 600));
 
   const res = await gLogin(email, pass);
   if(res.ok) {
@@ -194,7 +207,7 @@ function gShowLoginView() {
   document.getElementById('gl-step-login').style.display = 'flex';
   document.getElementById('gf-error').style.display = 'none';
   document.getElementById('gf-success').style.display = 'none';
-  
+
   const btn = document.getElementById('gf-btn');
   btn.style.display = 'flex';
   btn.disabled = false;
@@ -212,7 +225,7 @@ async function gDoForgot(e) {
   const email = document.getElementById('gf-email').value;
   const errEl = document.getElementById('gf-error');
   const succEl = document.getElementById('gf-success');
-  
+
   btn.disabled = true;
   if (btn.querySelector('.gl-btn-text')) {
     btn.querySelector('.gl-btn-text').style.display = 'none';
@@ -220,17 +233,15 @@ async function gDoForgot(e) {
   } else {
     btn.textContent = 'Enviando...';
   }
-  
+
   errEl.style.display = 'none';
   succEl.style.display = 'none';
-  
-  await new Promise(r => setTimeout(r, 600));
-  
+
   const res = await gForgotPassword(email);
   if (res.ok) {
     succEl.textContent = 'Link enviado! Verifique seu e-mail.';
     succEl.style.display = 'block';
-    btn.style.display = 'none'; 
+    btn.style.display = 'none';
   } else {
     errEl.textContent = res.error;
     errEl.style.display = 'block';
@@ -254,19 +265,20 @@ function gUpdateUserTopbar() {
   const roleEl = document.getElementById('topbar-user-role');
   const avEl = document.getElementById('topbar-user-av');
   const nameEl = document.getElementById('topbar-user-name');
-  
-  const displayName = user ? user.displayName : 'Ryan';
-  const role = user ? user.role : 'admin';
-  const email = user ? user.email : 'ryan@deliverymuch.com.br';
-  
+
+  const displayName = user ? user.displayName : 'Usuário';
+  const role = user ? user.role : 'franqueado';
+  const email = user ? user.email : '';
+
   if (nameEl) nameEl.textContent = displayName;
-  
+
   if (roleEl) {
-    roleEl.textContent = role === 'superadmin' ? 'SUPER ADMIN' : role.toUpperCase();
-    if (role === 'superadmin') {
+    const labels = { gestao:'GESTÃO', equipe_dm:'EQUIPE DM', franqueado:'FRANQUEADO' };
+    roleEl.textContent = labels[role] || String(role||'').toUpperCase();
+    if (role === 'gestao') {
       roleEl.style.background = '#7c3aed';
       roleEl.style.color = '#fff';
-    } else if (role === 'admin') {
+    } else if (role === 'equipe_dm') {
       roleEl.style.background = 'var(--dm-yellow)';
       roleEl.style.color = 'var(--dm-red)';
     } else {
@@ -274,7 +286,7 @@ function gUpdateUserTopbar() {
       roleEl.style.color = 'var(--white)';
     }
   }
-  
+
   if (avEl) {
     const savedPhoto = localStorage.getItem('__luma_user_photo_' + email);
     if (savedPhoto) {
@@ -282,20 +294,19 @@ function gUpdateUserTopbar() {
       avEl.style.background = 'transparent';
     } else {
       const names = displayName.trim().split(/\s+/);
-      const initials = names.length > 1 
+      const initials = names.length > 1
         ? (names[0][0] + names[names.length - 1][0]).toUpperCase()
         : names[0].substring(0, 2).toUpperCase();
       avEl.innerHTML = initials;
-      
+
       const hash = Array.from(displayName).reduce((acc, char) => acc + char.charCodeAt(0), 0);
       const colors = ['#e11d48', '#2563eb', '#16a34a', '#d97706', '#7c3aed', '#db2777', '#0284c7'];
       avEl.style.background = colors[hash % colors.length];
       avEl.style.color = '#fff';
     }
   }
-  
+
   if (typeof fSyncThemeIcon === 'function') {
     fSyncThemeIcon(document.body.classList.contains('theme-light') ? 'light' : 'dark');
   }
 }
-

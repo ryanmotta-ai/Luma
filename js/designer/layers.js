@@ -1266,12 +1266,86 @@ let dEditingVarName=null; // nome da var em edição no modal (null = criação)
 // Persistência do catálogo de variáveis (sobrevive ao reload — sem isso defaultValue/
 // ordem/tipo de vars custom se perderiam, já que dVars era recriado dos defaults).
 function dPersistVars(){
-  try{ localStorage.setItem('yngs_vars_v1', JSON.stringify(dVars)); return true; }
+  let ok=true;
+  try{ localStorage.setItem('yngs_vars_v1', JSON.stringify(dVars)); }
   catch(e){
+    ok=false;
     if(e&&(e.name==='QuotaExceededError'||e.code===22))
       gToast('⚠ Não foi possível salvar as variáveis: armazenamento cheio.','error');
-    return false;
   }
+  // Sincroniza com o Supabase em background (só designer; não bloqueia a UI).
+  if(typeof dPushVarsToBackend==='function') dPushVarsToBackend();
+  return ok;
+}
+
+/* ── Sync do catálogo de variáveis com o Supabase (luma.variaveis) ──
+   Offline-first: localStorage é cache (boot rápido); o Supabase é a fonte
+   compartilhada. dVars (memória) ↔ luma.variaveis (banco). */
+function _dVarToRow(v, i){
+  return {
+    name: v.name,
+    label: v.label || null,
+    type: v.type || 'text',
+    default_value: (v.defaultValue!=null && v.defaultValue!=='') ? String(v.defaultValue) : null,
+    required: !!v.required,
+    options: (v.type==='select' && Array.isArray(v.options)) ? v.options : null,
+    palette: (v.type==='color' && Array.isArray(v.palette)) ? v.palette : null,
+    max_len: (v.maxLen!=null) ? v.maxLen : null,
+    category: v.category || null,
+    ordem: i,
+  };
+}
+function _dRowToVar(r){
+  const v={ name:r.name, label:r.label||r.name, type:r.type||'text', required:!!r.required };
+  if(r.default_value!=null && r.default_value!=='') v.defaultValue=r.default_value;
+  if(Array.isArray(r.options)) v.options=r.options;
+  if(Array.isArray(r.palette)) v.palette=r.palette;
+  if(r.max_len!=null) v.maxLen=r.max_len;
+  if(r.category) v.category=r.category;
+  return v;
+}
+// Empurra dVars pro Supabase (upsert por name + remove as que sumiram). Só designer.
+async function dPushVarsToBackend(){
+  const sb = (typeof gSupabase==='function') ? gSupabase() : window.sb;
+  if(!sb || typeof gIsAdmin!=='function' || !gIsAdmin()) return;
+  try{
+    const rows=(dVars||[]).map(_dVarToRow);
+    if(!rows.length) return;
+    // NÃO-DESTRUTIVO: só adiciona/atualiza. A remoção do banco é EXPLÍCITA
+    // (dDeleteVarFromBackend) — assim um designer não apaga variáveis criadas por outro.
+    await sb.schema('luma').from('variaveis').upsert(rows, { onConflict:'name' });
+  }catch(e){ /* silencioso: o cache local já guardou */ }
+}
+
+// Remove UMA variável do Supabase (chamado na remoção/renomeação explícita). Só designer.
+async function dDeleteVarFromBackend(name){
+  const sb = (typeof gSupabase==='function') ? gSupabase() : window.sb;
+  if(!sb || !name || typeof gIsAdmin!=='function' || !gIsAdmin()) return;
+  try{ await sb.schema('luma').from('variaveis').delete().eq('name', name); }catch(e){}
+}
+// Carrega o catálogo do Supabase pro dVars (boot). Banco vazio + designer + catálogo
+// local → faz a migração inicial (push).
+async function dSyncVarsFromBackend(){
+  const sb = (typeof gSupabase==='function') ? gSupabase() : window.sb;
+  if(!sb) return;
+  try{
+    const { data, error }=await sb.schema('luma').from('variaveis').select('*').order('ordem',{ascending:true});
+    if(error) return;
+    if(Array.isArray(data) && data.length){
+      // merge: o banco é a fonte, mas preserva (e sobe) vars locais ainda não sincronizadas
+      const remote=data.map(_dRowToVar);
+      const rnames=new Set(remote.map(v=>v.name));
+      const extras=(dVars||[]).filter(v=>v&&v.name&&!rnames.has(v.name));
+      dVars=[...remote, ...extras];
+      if(typeof dFieldsEnsureMeta==='function') dFieldsEnsureMeta();
+      try{ localStorage.setItem('yngs_vars_v1', JSON.stringify(dVars)); }catch(e){}
+      if(extras.length && typeof gIsAdmin==='function' && gIsAdmin()) dPushVarsToBackend();
+      if(typeof dVarsRender==='function') dVarsRender();
+      if(typeof dRenderCanvas==='function' && document.body.classList.contains('mode-designer')) dRenderCanvas();
+    } else if(typeof gIsAdmin==='function' && gIsAdmin() && Array.isArray(dVars) && dVars.length){
+      await dPushVarsToBackend();
+    }
+  }catch(e){}
 }
 function dRestoreVars(){
   try{
@@ -1617,6 +1691,7 @@ function dRemoveVar(i){
   // V3: avisa/bloqueia remoção de var em uso
   const usage=dVarUsage(v.name);
   if(usage.length && !confirm(`A variável {{${v.name}}} está em uso em ${usage.length} layer(s). Remover do catálogo mesmo assim? (os tokens {{${v.name}}} continuam nos layers como texto)`))return;
+  if(typeof dDeleteVarFromBackend==='function') dDeleteVarFromBackend(v.name);
   dVars.splice(i,1);dVarsRender();dPersistVars();gToast('Variável {{'+v.name+'}} removida');
 }
 // Reordena a variável — reflete na ordem das perguntas do franqueado (V7)
@@ -1641,6 +1716,7 @@ function dRenameVar(i){
   });
   v.name=novo;
   dVarsRender();dRenderCanvas();dMarkUnsaved();dPersistVars();
+  if(typeof dDeleteVarFromBackend==='function') dDeleteVarFromBackend(old); // remove o nome antigo do banco
   gToast('✓ Renomeada para {{'+novo+'}} (layers atualizados)');
 }
 
