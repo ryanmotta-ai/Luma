@@ -1883,6 +1883,8 @@ function dPersistFolders(){
     })}))}));
     localStorage.setItem('yngs_folders_v1',JSON.stringify(saveable));
     if(droppedImg)gWarnImagesNotPersisted();
+    // Sincroniza pastas/templates + imagens com o Supabase em background (só designer).
+    if(typeof dPushFoldersToBackend==='function') dPushFoldersToBackend();
     return true;
   }catch(e){
     if(e&&(e.name==='QuotaExceededError'||e.code===22))
@@ -1890,6 +1892,75 @@ function dPersistFolders(){
     else gToast('⚠ Erro ao salvar o template.','error');
     return false;
   }
+}
+
+/* ── Sync de pastas/templates com o Supabase (luma.pastas + luma.templates) ──
+   Offline-first: localStorage é cache; o Supabase é a fonte. Imagens (capa + layers)
+   sobem pro Storage e viram URL no JSON. Cada pasta/template ganha um `remoteId` (UUID)
+   usado como PK no banco — sem mexer no `id` interno nem nas referências do app. */
+let _dFoldersPushTimer=null;
+function dPushFoldersToBackend(){
+  // debounce: agrupa saves rápidos num único sync
+  if(_dFoldersPushTimer) clearTimeout(_dFoldersPushTimer);
+  _dFoldersPushTimer=setTimeout(()=>{ _dFoldersPushTimer=null; _dPushFoldersNow(); }, 1200);
+}
+// Sobe um data:URL pro Storage e devolve a URL pública (ou null em falha).
+async function _dUploadDataUrl(bucket, path, dataUrl){
+  const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
+  if(!sb || typeof dataUrl!=='string' || !dataUrl.startsWith('data:')) return null;
+  try{
+    const blob=await (await fetch(dataUrl)).blob();
+    const ext=((blob.type.split('/')[1]||'png').split('+')[0]).replace(/[^a-z0-9]/gi,'')||'png';
+    const full=path+'.'+ext;
+    const { error }=await sb.storage.from(bucket).upload(full, blob, {upsert:true, contentType:blob.type||'image/png'});
+    if(error) return null;
+    return sb.storage.from(bucket).getPublicUrl(full).data.publicUrl;
+  }catch(e){ return null; }
+}
+// Sobe as imagens base64 dos layers pro Storage, trocando por URL no próprio objeto.
+async function _dUploadLayerImages(layers, tid){
+  if(!Array.isArray(layers)) return layers||[];
+  for(const l of layers){
+    if(l && typeof l.imgUrl==='string' && l.imgUrl.startsWith('data:')){
+      const url=await _dUploadDataUrl('luma-template-assets', tid+'/'+(l.id!=null?l.id:Math.random().toString(36).slice(2)), l.imgUrl);
+      if(url) l.imgUrl=url; // troca no objeto local também → não re-sobe e sobrevive ao reload
+    }
+  }
+  return layers;
+}
+function _dUuid(p){ return (crypto&&crypto.randomUUID)?crypto.randomUUID():(p+'-'+Date.now()+Math.random().toString(36).slice(2)); }
+async function _dPushFoldersNow(){
+  const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
+  if(!sb || typeof gIsAdmin!=='function' || !gIsAdmin()) return;
+  try{
+    for(const f of (dFolders||[])){
+      if(!f.remoteId) f.remoteId=_dUuid('p');
+      if(typeof f.cover==='string' && f.cover.startsWith('data:')){
+        const cu=await _dUploadDataUrl('luma-covers', f.remoteId+'/cover', f.cover);
+        if(cu) f.cover=cu;
+      }
+      const coverUrl=(typeof f.cover==='string' && !f.cover.startsWith('data:') && f.cover!=='__local__') ? f.cover : null;
+      await sb.schema('luma').from('pastas').upsert({
+        id:f.remoteId, nome:f.name||'(sem nome)', cor:f.color||null, camp_id:f.campId||null,
+        cover_url:coverUrl, badge:f.badge||'', expira_dias:f.expiraDias||7, popular:!!f.popular,
+        preview_prod:f.previewProd||'', preview_de:f.previewDe||'', preview_por:f.previewPor||'',
+        perguntas:f.perguntas||[], grupos:f.grupos||['Todos os usuários'], ativa:true
+      }, {onConflict:'id'});
+      for(const t of (f.templates||[])){
+        if(!t.remoteId) t.remoteId=_dUuid('t');
+        await _dUploadLayerImages(t.layers, t.remoteId);
+        const pm=t.publishMeta||{};
+        await sb.schema('luma').from('templates').upsert({
+          id:t.remoteId, pasta_id:f.remoteId, nome:t.name||'(sem nome)', fmt:t.fmt||'story',
+          formats:t.formats||['story','feed','wide'], layers:t.layers||[],
+          publicado:!!pm.publicado, publicado_em:pm.publicadoEm?new Date(pm.publicadoEm).toISOString():null,
+          validade:pm.validade||null, instrucoes:pm.instrucoes||'', permissoes:pm.permissoes||{}
+        }, {onConflict:'id'});
+      }
+    }
+    // re-salva o cache local com os remoteId/URLs recém-atribuídos (imagens já são URLs → leve)
+    try{ localStorage.setItem('yngs_folders_v1', JSON.stringify(dFolders)); }catch(e){}
+  }catch(e){ /* silencioso: o cache local já guardou */ }
 }
 
 
