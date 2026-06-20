@@ -1148,7 +1148,7 @@ function dPsdSaveArtboardTemplates(results, folderId, baseName){
   if(!results.length){ gToast('Nenhuma prancheta importada'); return; }
   const folder=(typeof dFolders!=='undefined'&&dFolders)
     ? (dFolders.find(f=>f.id===folderId)||dFolders[0]) : null;
-  if(!folder){ gToast('⚠ Pasta não encontrada','error'); return; }
+  if(!folder){ gToast('⚠ Pasta não encontrada — selecione outra campanha','error'); return; }
   results.forEach((r,i)=>{
     const fmt=DFMT_SIZES[r.fmt]?r.fmt:'story';
     const layers=_dPsdReflowToFmt(r.layers, r.nativeW, r.nativeH, fmt);
@@ -1191,15 +1191,15 @@ async function dImportPSD(input){
   if(file.size > 200*1024*1024){ gToast('⚠ PSD muito grande (máx ~200MB)','error'); return; }
   _dPsdBusy(true);
   let agPsd;
-  try{ agPsd=await dLoadAgPsd(); }catch(e){ _dPsdBusy(false); gToast('⚠ '+e.message,'error'); return; }
+  try{ agPsd=await dLoadAgPsd(); }catch(e){ _dPsdBusy(false); console.error('PSD lib:',e); gToast('⚠ Não foi possível carregar o leitor de PSD — recarregue a página','error'); return; }
   let buf;
-  try{ buf=await file.arrayBuffer(); }catch(e){ _dPsdBusy(false); gToast('⚠ Não consegui ler o arquivo','error'); return; }
+  try{ buf=await file.arrayBuffer(); }catch(e){ _dPsdBusy(false); gToast('⚠ Não foi possível ler o arquivo — verifique se é um .psd válido','error'); return; }
   let usedWorker=true;
   let result;
   try{ result=await _dPsdReadPsd(buf, agPsd); }
   catch(e){ result={error:e}; }
   if(!result || result.error || !result.psd || !result.psd.width){
-    _dPsdBusy(false); console.error('PSD:',result&&result.error); gToast('⚠ Não consegui ler esse PSD (formato/compressão não suportado)','error'); return;
+    _dPsdBusy(false); console.error('PSD:',result&&result.error); gToast('⚠ Não foi possível ler este PSD (formato não suportado)','error'); return;
   }
   try{
     const baseName=file.name.replace(/\.psd$/i,'');
@@ -1214,7 +1214,7 @@ async function dImportPSD(input){
     dPsdItems=dPsdParseItems(result.psd, result.res||72);
     dPsdMeta={w:result.psd.width, h:result.psd.height, name:baseName, res:result.res||72, worker:result.worker===true};
     _dPsdBusy(false);
-    if(!dPsdItems.length){ gToast('⚠ Não encontrei camadas utilizáveis nesse PSD','error'); return; }
+    if(!dPsdItems.length){ gToast('⚠ Nenhuma camada utilizável neste PSD','error'); return; }
     dPsdOpenReview();
-  }catch(e){ _dPsdBusy(false); console.error('PSD parse:',e); gToast('⚠ Falha ao interpretar as camadas do PSD','error'); }
+  }catch(e){ _dPsdBusy(false); console.error('PSD parse:',e); gToast('⚠ Não foi possível interpretar as camadas do PSD','error'); }
 }

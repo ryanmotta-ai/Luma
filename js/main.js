@@ -63,6 +63,21 @@ window.addEventListener('DOMContentLoaded', async () => {
   // Checa a sessão REAL do Supabase (assíncrono) antes de decidir login vs app.
   if (typeof gLoadProfile === 'function') { try { await gLoadProfile(); } catch(e){} }
 
+  // ╔═══════════════════════════════════════════════════════════════════════════╗
+  // ║  🚨🚨🚨  BYPASS DE LOGIN — DEV LOCAL APENAS — REMOVER ANTES DE COMMITAR  🚨🚨🚨  ║
+  // ║  Injeta usuário fake em localhost/file:// quando não há sessão real do       ║
+  // ║  Supabase. Só destrava a UI p/ dev de frontend (backend NÃO funciona).       ║
+  // ║  ❌ NÃO COMMITAR. Apague TUDO entre os marcadores 🚨 antes do commit.         ║
+  // ╚═══════════════════════════════════════════════════════════════════════════╝
+  const _DEV_isLocal = ['localhost','127.0.0.1','[::1]','::1',''].includes(location.hostname)
+                    || location.protocol === 'file:';
+  if (!gCurrentUser() && _DEV_isLocal) {
+    console.warn('🚨 [DEV] Bypass de login ATIVO — usuário fake injetado. REMOVER antes de commitar (js/main.js).');
+    gAuthState = { user: { id:'dev-local', email:'ryan.motta@deliverymuch.com.br',
+      role:'gestao', displayName:'Ryan Motta (DEV)', departamento:null } };
+  }
+  // ╚═══ 🚨 FIM DO BYPASS DE LOGIN — REMOVER ATÉ AQUI ANTES DE COMMITAR 🚨 ═══╝
+
   if (!gCurrentUser()) {
     // Não tem sessão ativa, bloqueia a UI
     document.getElementById('g-login-screen').style.display = 'flex';

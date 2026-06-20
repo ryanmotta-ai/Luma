@@ -72,7 +72,7 @@ function dCheckTextOverflow(layer){
 
 function dAutoFitText(layerId){
   const l = dLayers.find(x=>x.id===layerId);
-  if(!l||l.type!=='text'){gToast('Só funciona em layers de texto');return;}
+  if(!l||l.type!=='text'){gToast('Só funciona em camadas de texto');return;}
   // Encolher fontSize até caber
   const originalSize = l.fontSize||24;
   let size = originalSize;
@@ -107,10 +107,10 @@ function dEyedropFromLayer(sourceLayer){
   if(sourceLayer.type==='text')color=sourceLayer.color;
   else if(sourceLayer.type==='shape')color=sourceLayer.fill;
   else if(sourceLayer.type==='frame'){
-    gToast('⚠ Eyedrop não funciona em moldura — escolha texto ou shape');
+    gToast('O conta-gotas funciona em texto e forma');
     return;
   }
-  if(!color){gToast('⚠ Layer sem cor');return;}
+  if(!color){gToast('⚠ Camada sem cor');return;}
   // Atualiza a cor do PINCEL e exibe num seletor
   dEyedropLastColor = color;
   // Atualizar swatch do pincel
@@ -126,24 +126,122 @@ function dEyedropFromLayer(sourceLayer){
       if(target.type==='text')target.color=color;
       else if(target.type==='shape')target.fill=color;
       dRenderCanvas();dMarkUnsaved();dUpdateCtxBar();
-      gToast('🎯 Cor aplicada: '+color+' → '+target.name);
+      gToast('Cor aplicada: '+color+' → '+target.name);
       return;
     }
   }
-  gToast('🎯 Cor coletada: '+color+' (selecione um layer e clique aqui para aplicar)');
+  gToast('Cor coletada: '+color+' (selecione uma camada e clique aqui)');
 }
 let dEyedropLastColor='#FF9000';
 
 
-/* ══ BUCKET FILL ══ */
-function dBucketFillLayer(targetLayer){
-  if(targetLayer.locked){gToast('🔒 Layer bloqueado');return;}
-  const color = dEyedropLastColor || document.getElementById('d-brush-color-pick').value || '#FF9000';
-  dHistoryPush();
-  if(targetLayer.type==='text')targetLayer.color=color;
-  else if(targetLayer.type==='shape')targetLayer.fill=color;
-  else{gToast('⚠ Bucket só funciona em texto e shape');return;}
-  dRenderCanvas();dMarkUnsaved();dUpdateCtxBar();
-  gToast('🪣 Preenchido com '+color);
+/* ══ CORES GLOBAIS (Foreground / Background) ══ */
+let dColorFG = '#FF9000';
+let dColorBG = '#FFFFFF';
+
+function dUpdateBgColor(hex) {
+  dColorBG = hex;
+  const bgSw = document.getElementById('dtool-color-bg');
+  if (bgSw) bgSw.style.backgroundColor = hex;
 }
 
+function dSwapColors() {
+  const fgPick = document.getElementById('d-color-fg-pick');
+  const bgPick = document.getElementById('d-color-bg-pick');
+  if(!fgPick || !bgPick) return;
+  
+  const tempFG = fgPick.value;
+  const tempBG = bgPick.value;
+  
+  // Atualiza input e dispara dBrushUpdate para atualizar todo o sistema do Brush
+  fgPick.value = tempBG;
+  if(typeof dBrushUpdate === 'function') dBrushUpdate('color', tempBG);
+  
+  // Atualiza BG
+  bgPick.value = tempFG;
+  dUpdateBgColor(tempFG);
+}
+
+function dResetColors() {
+  const fgPick = document.getElementById('d-color-fg-pick');
+  const bgPick = document.getElementById('d-color-bg-pick');
+  
+  if(fgPick) {
+    fgPick.value = '#FF9000'; // Default Luma Primary
+    if(typeof dBrushUpdate === 'function') dBrushUpdate('color', '#FF9000');
+  }
+  if(bgPick) {
+    bgPick.value = '#FFFFFF'; // Default BG
+    dUpdateBgColor('#FFFFFF');
+  }
+}
+
+/* ══ BUCKET FILL ══ */
+// Balde: preenche a COR do objeto clicado (texto/shape) — não é flood fill de pixels.
+function dBucketFillLayer(targetLayer){
+  if(targetLayer.locked){gToast('🔒 Camada bloqueada');return;}
+  const _pk=document.getElementById('d-brush-color-pick'); // guard: pode não existir
+  const color = dEyedropLastColor || (_pk && _pk.value) || '#FF9000';
+  if(targetLayer.type!=='text' && targetLayer.type!=='shape'){ gToast('⚠ Balde preenche a cor de texto/forma — clique num desses'); return; }
+  dHistoryPush();
+  if(targetLayer.type==='text')targetLayer.color=color;
+  else targetLayer.fill=color;
+  dRenderCanvas();dMarkUnsaved();dUpdateCtxBar();
+  gToast('🪣 Cor preenchida: '+color);
+}
+
+/* ══ TOOLBAR COLUMNS (Photoshop style) ══ */
+function dToggleToolbarCols() {
+  const tb = document.getElementById('d-vtoolbar');
+  if(!tb) return;
+  if(tb.classList.contains('cols-2')) {
+    tb.classList.remove('cols-2');
+    tb.classList.add('cols-1');
+    localStorage.setItem('luma_tb_cols', '1');
+  } else {
+    tb.classList.remove('cols-1');
+    tb.classList.add('cols-2');
+    localStorage.setItem('luma_tb_cols', '2');
+  }
+}
+
+function dToggleAllTools(forceState) {
+  const panel = document.getElementById('d-all-tools-panel');
+  if(!panel) return;
+  if(typeof forceState === 'boolean') {
+    if(forceState) panel.classList.add('open');
+    else panel.classList.remove('open');
+  } else {
+    panel.classList.toggle('open');
+  }
+}
+
+// Fechar All Tools ao clicar fora
+document.addEventListener('mousedown', (e) => {
+  const panel = document.getElementById('d-all-tools-panel');
+  const btn = document.getElementById('dtool-all-tools');
+  if(panel && panel.classList.contains('open')) {
+    if(!panel.contains(e.target) && (!btn || !btn.contains(e.target))) {
+      panel.classList.remove('open');
+    }
+  }
+});
+
+// Auto-detectar e aplicar ao iniciar (telas baixinhas usam 2 colunas para caber, telas altas podem usar 1.
+// Ou apenas respeita a preferência do usuário).
+document.addEventListener('DOMContentLoaded', () => {
+  const tb = document.getElementById('d-vtoolbar');
+  if(tb) {
+    const pref = localStorage.getItem('luma_tb_cols');
+    if(pref === '1') {
+      tb.classList.remove('cols-2');
+      tb.classList.add('cols-1');
+    } else if (pref === '2') {
+      tb.classList.remove('cols-1');
+      tb.classList.add('cols-2');
+    } else {
+      // Default: se a tela for menor que 800px, 2 colunas para poupar altura. Se for grande, também 2 colunas porque o usuário gostou.
+      tb.classList.add('cols-2');
+    }
+  }
+});

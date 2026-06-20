@@ -119,7 +119,8 @@ function dOnDrag(e){
   if(topY) topY.value = Math.round(dDrag.y);
 }
 function dStopDrag(){
-  if(dDrag){dHistoryPush();dMarkUnsaved();}
+  // Só registra no histórico se HOUVE arrasto real — clique simples não polui o undo.
+  if(dDrag && dDragMoved){dHistoryPush();dMarkUnsaved();}
   dDrag=null;dDragEls={};dClearGuides();
   document.removeEventListener('mousemove',dOnDrag);document.removeEventListener('mouseup',dStopDrag);
   // Clique simples (sem arrasto) num membro da multi-seleção → isola aquele layer (M21).
@@ -256,8 +257,8 @@ function dStopResize(){
 // quando dFmt não está em DFMT_SIZES (ex.: 'orig'). Mesmo padrão de canvas.js/brush.js.
 function dCanvasSize(){ const ab=(typeof dGetActiveAB==='function')&&dGetActiveAB(); return ab?{w:ab.w,h:ab.h}:(DFMT_SIZES[dFmt]||DFMT_SIZES.story); }
 function dAddText(){const f=dCanvasSize();dAddTextAt(20,Math.round(f.h/2));}
-function dAddShape(){const f=dCanvasSize();dAddShapeAt(40,40);}
-function dAddImage(){const f=dCanvasSize();dAddImageAt(40,100);}
+function dAddShape(){dAddShapeAt(40,40);}
+function dAddImage(){dAddImageAt(40,100);}
 function dAddTextAt(x,y,vertical){  if (typeof dHistoryPush === 'function') dHistoryPush();
   const id='l-'+(++dLyrCnt);
   const isVert = !!vertical;
@@ -286,19 +287,19 @@ function dAddTextAt(x,y,vertical){  if (typeof dHistoryPush === 'function') dHis
   if (typeof dStats === 'function') dStats();
   if (typeof dMarkUnsaved === 'function') dMarkUnsaved();
   if (typeof dSetTool === 'function') dSetTool('select');
-  if (typeof gToast === 'function') gToast(isVert ? 'Layer de texto vertical adicionado' : 'Layer de texto adicionado');
+  if (typeof gToast === 'function') gToast(isVert ? 'Camada de texto vertical adicionada' : 'Camada de texto adicionada');
   if (typeof dFlashLayer === 'function') setTimeout(()=>dFlashLayer(id),30);
 }
 function dAddShapeAt(x,y){  dHistoryPush();
   const id='l-'+(++dLyrCnt);
-  dLayers.push({id,name:'Shape '+dLyrCnt,type:'shape',x,y,w:200,h:80,fill:'#FF9000',opacity:100,radius:0,visible:true});
-  dSelLayerState(id);dRenderCanvas();dRenderLayersList();dStats();dMarkUnsaved();dSetTool('select');gToast('Shape adicionado');
+  dLayers.push({id,name:'Shape '+dLyrCnt,type:'shape',shapeKind:'rect',x,y,w:200,h:80,fill:'#FF9000',opacity:100,radius:0,visible:true});
+  dSelLayerState(id);dRenderCanvas();dRenderLayersList();dStats();dMarkUnsaved();dSetTool('select');gToast('Forma adicionada');
   setTimeout(()=>dFlashLayer(id),30);
 }
 function dAddImageAt(x,y){  dHistoryPush();
   const id='l-'+(++dLyrCnt);
   dLayers.push({id,name:'Imagem '+dLyrCnt,type:'image',x,y,w:120,h:120,imgUrl:'',imgVar:'',objectFit:'cover',visible:true});
-  dSelLayerState(id);dRenderCanvas();dRenderLayersList();dStats();dMarkUnsaved();dSetTool('select');gToast('Layer de imagem adicionado');
+  dSelLayerState(id);dRenderCanvas();dRenderLayersList();dStats();dMarkUnsaved();dSetTool('select');gToast('Camada de imagem adicionada');
   setTimeout(()=>dFlashLayer(id),30);
 }
 function dAddFrame(){const f=dCanvasSize();dAddFrameAt(Math.round(f.w*.05),Math.round(f.h*.04));}
@@ -381,7 +382,7 @@ function dAlign(dir){
 // Distribui 3+ layers selecionados com espaçamento (gap) igual entre eles
 function dDistribute(axis){
   const sel=dMultiSel.map(id=>dLayers.find(x=>x.id===id)).filter(Boolean);
-  if(sel.length<3){gToast('Selecione 3 ou mais layers para distribuir');return;}
+  if(sel.length<3){gToast('Selecione 3 ou mais camadas para distribuir');return;}
   dHistoryPush();
   if(axis==='h'){
     sel.sort((a,b)=>a.x-b.x);
@@ -555,6 +556,24 @@ function dFxPopulate(l){
   set('dp-fx-overlay-op', l.overlayOpacity!=null?Math.round(l.overlayOpacity*100):'');
 }
 
+// Miniatura da camada (estilo Photoshop): imagem real, swatch da forma, "T" do texto ou pasta.
+function _dLayerThumb(l){
+  if(l.type==='group') return '<span class="lyr-th-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>';
+  if(l.type==='image'||l.type==='frame'){
+    const u=l.imgUrl;
+    if(u && /^(data:|https?:|blob:)/.test(u)) return '<img src="'+u+'" alt="" loading="lazy">';
+    return '<span class="lyr-th-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span>';
+  }
+  if(l.type==='shape'){
+    const bg=(l.gradient&&l.gradient.stops&&l.gradient.stops.length&&typeof gGradientCss==='function')?gGradientCss(l.gradient):(l.fill||'#FF9000');
+    const rad=(l.shapeKind==='circle'||l.shapeKind==='ellipse')?'50%':'3px';
+    return '<span class="lyr-th-fill" style="background:'+bg+';border-radius:'+rad+'"></span>';
+  }
+  if(l.type==='text') return '<span class="lyr-th-text" style="color:'+(l.color||'#fff')+'">T</span>';
+  return '';
+}
+// Indicador "fx" quando a camada tem qualquer efeito aplicado.
+function _dLayerHasFx(l){ return !!(l.shadow||l.innerShadow||l.glow||l.bevel||l.overlay||l.strokeW||l.gradient); }
 function dRenderLayersList(){
   const el=document.getElementById('d-layers-list');
   if(!el) return;
@@ -880,6 +899,15 @@ function dShowProps(l){
     const _scSw=document.getElementById('dp-shape-stroke-sw'); if(_scSw)_scSw.style.background=l.strokeColor||'#000000';
     const _scPick=document.getElementById('dp-shape-stroke-pick'); if(_scPick)_scPick.value=l.strokeColor||'#000000';
     const _saEl=document.getElementById('dp-shape-strokeAlign'); if(_saEl)_saEl.value=l.strokeAlign||'inside';
+    // Geometria (lados/pontas/raio interno) — só polígono/estrela
+    const _geo=document.getElementById('dp-shape-geo');
+    if(_geo){
+      const isPoly=l.shapeKind==='polygon', isStar=l.shapeKind==='star';
+      _geo.style.display=(isPoly||isStar)?'':'none';
+      const sEl=document.getElementById('dp-shape-sides'); if(sEl){ sEl.style.display=isPoly?'':'none'; sEl.value=l.sides||6; }
+      const pEl=document.getElementById('dp-shape-points'); if(pEl){ pEl.style.display=isStar?'':'none'; pEl.value=l.points||5; }
+      const iEl=document.getElementById('dp-shape-inner'); if(iEl){ iEl.style.display=isStar?'':'none'; iEl.value=Math.round((l.inner!=null?l.inner:0.5)*100); }
+    }
   }
   if(isImg){
     document.getElementById('dp-imgurl').value=l.imgUrl||'';
@@ -1009,7 +1037,7 @@ function dRenderRules(l){
     </div>`).join('')||'<div style="font-size:11px;color:var(--d-text3);padding:2px 0">Nenhuma regra.</div>';
 }
 function dAddRule(){
-  const l=dLayers.find(x=>x.id===dSelId); if(!l){gToast('Selecione um layer');return;}
+  const l=dLayers.find(x=>x.id===dSelId); if(!l){gToast('Selecione uma camada');return;}
   dHistoryPush();
   if(!l.rules)l.rules=[];
   l.rules.push({when:'empty',var:(dVars[0]?dVars[0].name:''),then:'hide'});
@@ -1211,6 +1239,9 @@ function dUpdateProp(prop,val){
   }
   l[prop]=val;
   if(prop==='radius') delete l.radii; // raio uniforme manda → limpa cantos por canto
+  if(prop==='sides') l.sides=Math.max(3,Math.min(20,Math.round(val)));   // polígono
+  if(prop==='points') l.points=Math.max(3,Math.min(20,Math.round(val))); // estrela
+  if(prop==='inner') l.inner=Math.max(0.05,Math.min(0.95,parseFloat(val)||0.5)); // raio interno estrela
   if(prop==='content')dSyncVarsFromContent(val); // auto-cria variáveis digitadas (3.1)
   // frameShape → radius automático
   if(prop==='frameShape'){
@@ -1344,7 +1375,7 @@ function dPersistVars(){
 
 /* ── Sync do catálogo de variáveis com o Supabase (luma.variaveis) ──
    Offline-first: localStorage é cache (boot rápido); o Supabase é a fonte
-   compartilhada. dVars (memória) ↔ luma.variaveis (banco). */
+   compartilhada. dVars (memória) luma.variaveis (banco). */
 function _dVarToRow(v, i){
   return {
     name: v.name,
@@ -1448,7 +1479,7 @@ function dHighlightVarLayers(name){
     const el=document.querySelector(`.canvas-layer[data-id="${id}"]`);
     if(el){el.classList.remove('var-flash');void el.offsetWidth;el.classList.add('var-flash');setTimeout(()=>el.classList.remove('var-flash'),900);}
   });
-  gToast('Destacando '+ids.length+' layer(s) que usam {{'+name+'}}');
+  gToast('Destacando '+ids.length+' camada(s) que usam {{'+name+'}}');
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1582,7 +1613,7 @@ function dFieldOnboardMaybe(){
   try{
     if(localStorage.getItem('yngs_fields_onboard_v1')) return;
     localStorage.setItem('yngs_fields_onboard_v1','1');
-    setTimeout(()=>gToast('💡 Agora selecione um texto na aba Camadas e clique em “usar” para inserir o campo.'),900);
+    setTimeout(()=>gToast('Agora selecione um texto na aba Camadas e clique em “usar” para inserir o campo.'),900);
   }catch(e){}
 }
 
@@ -1781,7 +1812,7 @@ function dRenameVar(i){
   v.name=novo;
   dVarsRender();dRenderCanvas();dMarkUnsaved();dPersistVars();
   if(typeof dDeleteVarFromBackend==='function') dDeleteVarFromBackend(old); // remove o nome antigo do banco
-  gToast('✓ Renomeada para {{'+novo+'}} (layers atualizados)');
+  gToast('✓ Renomeada para {{'+novo+'}} (camadas atualizadas)');
 }
 
 // Remove a máscara de uma camada (importada do PSD)
@@ -1908,7 +1939,7 @@ function dHandleUpload(inp){ dLibUpload(inp); }
 function dUseAsset(i){
   const a=dAssets[i];if(!a.url){gToast('Asset sem URL');return;}
   const l=dLayers.find(x=>x.id===dSelId&&(x.type==='image'||x.type==='frame'));
-  if(!l){gToast('Selecione um layer de imagem ou moldura primeiro');return;}
+  if(!l){gToast('Selecione uma camada de imagem ou moldura primeiro');return;}
   l.imgUrl=a.url;dRenderCanvas();
   const urlInp=document.getElementById('dp-imgurl');if(urlInp)urlInp.value=a.url;
   gToast('✓ "'+a.name+'" aplicado');
@@ -2059,14 +2090,14 @@ function dClearMultiSel(){
 }
 function dGroupSelected(){
   const ids=dSelId?[dSelId,...dMultiSel.filter(x=>x!==dSelId)]:dMultiSel;
-  if(ids.length<2){gToast('⚠ Selecione 2+ layers (Shift+click) pra agrupar');return;}
+  if(ids.length<2){gToast('⚠ Selecione 2 ou mais camadas para agrupar');return;}
   
   const childIds = ids.filter(id => {
     const l = dLayers.find(x => x.id === id);
     return l && l.type !== 'group';
   });
   if(childIds.length < 2) {
-    gToast('⚠ Selecione 2+ layers normais para agrupar');
+    gToast('⚠ Selecione 2 ou mais camadas para agrupar');
     return;
   }
 
@@ -2113,7 +2144,7 @@ function dGroupSelected(){
     ...otherLayersAfter
   ];
 
-  gToast('✓ '+childIds.length+' layers agrupados');
+  gToast('✓ '+childIds.length+' camadas agrupadas');
   dSelId = groupId;
   dMultiSel = childIds;
   dRenderCanvas();dRenderLayersList();dMarkUnsaved();
@@ -2129,7 +2160,7 @@ function dUngroupSelected(){
     }
   }
   if (!gid) {
-    gToast('⚠ Selecione um grupo ou um layer dentro de um grupo para desmembrar');
+    gToast('⚠ Selecione um grupo ou uma camada dentro de um grupo para desagrupar');
     return;
   }
   dHistoryPush();
@@ -2230,12 +2261,12 @@ function dShapePoints(l){
   const kind=(l&&l.shapeKind)||'rect';
   if(kind==='triangle')return [[0.5,0],[1,1],[0,1]];
   if(kind==='polygon'){
-    const n=Math.max(3,Math.round(l.sides||6)),pts=[];
+    const n=Math.max(3,Math.min(20,Math.round(l.sides||6))),pts=[];
     for(let i=0;i<n;i++){const a=-Math.PI/2+i*2*Math.PI/n;pts.push([0.5+0.5*Math.cos(a),0.5+0.5*Math.sin(a)]);}
     return pts;
   }
   if(kind==='star'){
-    const n=Math.max(3,Math.round(l.points||5)),inner=(l.inner!=null?l.inner:0.5),pts=[];
+    const n=Math.max(3,Math.min(20,Math.round(l.points||5))),inner=Math.max(0.05,Math.min(0.95,(l.inner!=null?l.inner:0.5))),pts=[];
     for(let i=0;i<n*2;i++){const r=(i%2===0)?0.5:0.5*inner;const a=-Math.PI/2+i*Math.PI/n;pts.push([0.5+r*Math.cos(a),0.5+r*Math.sin(a)]);}
     return pts;
   }
@@ -2247,8 +2278,9 @@ function dAddShapeKind(kind){
   const names={circle:'Círculo',ellipse:'Elipse',triangle:'Triângulo',polygon:'Polígono',star:'Estrela'};
   dHistoryPush();
   const sz=Math.round(Math.min(f.w,f.h)*.22);
+  const w=(kind==='ellipse')?Math.round(sz*1.5):sz, h=sz; // elipse nasce oval (não círculo)
   const base={id,name:(names[kind]||'Forma')+' '+dLyrCnt,type:'shape',shapeKind:kind,
-    x:Math.round(f.w/2-sz/2),y:Math.round(f.h/2-sz/2),w:sz,h:sz,fill:'#FF9000',opacity:100,radius:0,visible:true};
+    x:Math.round(f.w/2-w/2),y:Math.round(f.h/2-h/2),w,h,fill:'#FF9000',opacity:100,radius:0,visible:true};
   if(kind==='polygon')base.sides=6;
   if(kind==='star'){base.points=5;base.inner=0.5;}
   dLayers.push(base);

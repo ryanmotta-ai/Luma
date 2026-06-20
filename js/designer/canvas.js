@@ -500,7 +500,7 @@ function _dAdvSelFromEvent(e){
     }else{
       dSelId=null;dMultiSel=[];
       dRenderCanvas();dRenderLayersList();
-      gToast('⚠ Nenhum layer correspondente');
+      gToast('⚠ Nenhuma camada correspondente');
     }
   }
 }
@@ -865,7 +865,7 @@ function dRenderCanvas(){
     if(l.id===dSelId){
       ['br','bl','tr','tl'].forEach(pos=>{
         const h=document.createElement('div');h.className='layer-handle handle-'+pos;
-        if(l.locked){h.style.opacity='0.3';h.style.cursor='not-allowed';h.addEventListener('mousedown',e=>{e.stopPropagation();gToast('🔒 Layer bloqueado');});}
+        if(l.locked){h.style.opacity='0.3';h.style.cursor='not-allowed';h.addEventListener('mousedown',e=>{e.stopPropagation();gToast('🔒 Camada bloqueada');});}
         else h.addEventListener('mousedown',e=>{e.stopPropagation();dStartResize(e,l,pos);});
         el.appendChild(h);
       });
@@ -895,7 +895,7 @@ function dRenderCanvas(){
         if(!l.locked){
           dPendingIsolate = (_inMulti && dMultiSel.length>1) ? l.id : null;
           dStartDrag(e,l);
-        } else gToast('🔒 Layer bloqueado. Clique no 🔓 para desbloquear.');
+        } else gToast('🔒 Camada bloqueada. Clique no 🔓 para desbloquear.');
       }
       else if(dTool==='stamp'&&dStampSource){dDoStamp(l);}
     });
@@ -923,7 +923,6 @@ function dRenderCanvas(){
 let dPainting=false,dPaintLast={x:0,y:0};
 
 /* ══ BARRA CONTEXTUAL DINÂMICA ══ */
-/* ══ BARRA CONTEXTUAL DINÂMICA ══ */
 function dUpdateCtxBar(){
   const noSelEl = document.getElementById('dt-no-selection');
   const layerSelEl = document.getElementById('dt-layer-selection');
@@ -931,14 +930,15 @@ function dUpdateCtxBar(){
   const l = dLayers.find(x => x.id === dSelId);
   
   if (!l) {
-    if (noSelEl) noSelEl.style.display = 'flex';
-    if (layerSelEl) layerSelEl.style.display = 'none';
+    if (noSelEl) { noSelEl.style.display=''; noSelEl.classList.add('active'); }
+    if (layerSelEl) { layerSelEl.style.display=''; layerSelEl.classList.remove('active'); }
     return;
   }
   
-  if (noSelEl) noSelEl.style.display = 'none';
+  if (noSelEl) { noSelEl.style.display=''; noSelEl.classList.remove('active'); }
   if (layerSelEl) {
-    layerSelEl.style.display = 'flex';
+    layerSelEl.style.display='';
+    layerSelEl.classList.add('active');
     
     const inpX = document.getElementById('d-top-x');
     const inpY = document.getElementById('d-top-y');

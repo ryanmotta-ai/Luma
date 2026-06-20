@@ -223,7 +223,7 @@ function dColorSamplerAdd(x, y){
   dColorSamplers.push({x:x, y:y, color:color, el:null});
   dColorSamplerRender();
   var hex=_dRgbaToHex(color.r, color.g, color.b);
-  gToast('📌 Sampler #'+dColorSamplers.length+': '+hex);
+  gToast('Sampler #'+dColorSamplers.length+': '+hex);
 }
 
 /**
@@ -260,9 +260,9 @@ function dColorSamplerRender(){
       'position:absolute','z-index:900','pointer-events:auto','cursor:pointer',
       'width:0','height:0'
     ].join(';')+';';
-    // Posicionar considerando zoom
-    el.style.left=(s.x*scale)+'px';
-    el.style.top=(s.y*scale)+'px';
+    // Coords cruas: o overlay vive DENTRO do #d-canvas-frame (transform:scale) — o frame já escala.
+    el.style.left=s.x+'px';
+    el.style.top=s.y+'px';
 
     var hex=_dRgbaToHex(s.color.r, s.color.g, s.color.b);
 
@@ -303,7 +303,7 @@ function dColorSamplerRender(){
       e.preventDefault();
       e.stopPropagation();
       dColorSamplerRemove(i);
-      gToast('📌 Sampler #'+(i+1)+' removido');
+      gToast('Sampler #'+(i+1)+' removido');
     });
 
     frame.appendChild(el);
@@ -319,7 +319,7 @@ function dColorSamplerClear(){
     if(s.el&&s.el.parentNode) s.el.parentNode.removeChild(s.el);
   });
   dColorSamplers=[];
-  gToast('📌 Todos os samplers removidos');
+  gToast('Todos os samplers removidos');
 }
 
 
@@ -349,7 +349,7 @@ function dRulerStart(e, frame){
   lineEl.style.cssText=[
     'position:absolute','z-index:800','pointer-events:none',
     'transform-origin:0 0','height:0','border-top:2px dashed #FF00FF',
-    'left:'+(pos.x*scale)+'px','top:'+(pos.y*scale)+'px','width:0'
+    'left:'+pos.x+'px','top:'+pos.y+'px','width:0'
   ].join(';')+';';
 
   var labelEl=document.createElement('div');
@@ -398,7 +398,7 @@ function dRulerMove(e){
   // Atualizar linha: usar CSS transform para rotacionar
   var line=dRulerState.lineEl;
   if(line){
-    line.style.width=(dist*scale)+'px';
+    line.style.width=dist+'px'; // coords cruas (frame já escala)
     line.style.transform='rotate('+angle+'deg)';
   }
 
@@ -406,8 +406,8 @@ function dRulerMove(e){
   var label=dRulerState.labelEl;
   if(label){
     label.style.display='block';
-    var midX=((dRulerState.startX+dRulerState.endX)/2)*scale;
-    var midY=((dRulerState.startY+dRulerState.endY)/2)*scale;
+    var midX=(dRulerState.startX+dRulerState.endX)/2;
+    var midY=(dRulerState.startY+dRulerState.endY)/2;
     label.style.left=(midX+10)+'px';
     label.style.top=(midY-30)+'px';
     label.innerHTML=
@@ -438,7 +438,7 @@ function dRulerEnd(e){
     return;
   }
 
-  gToast('📏 '+Math.round(dist)+' px (ΔX:'+Math.round(dx)+' ΔY:'+Math.round(dy)+')');
+  gToast(''+Math.round(dist)+' px (ΔX:'+Math.round(dx)+' ΔY:'+Math.round(dy)+')');
 }
 
 /**
@@ -486,7 +486,7 @@ var _dNoteSvg='<svg width="20" height="20" viewBox="0 0 24 24" fill="#FFD600" st
  * @param {number} y — coordenada Y no espaço do canvas
  */
 function dNoteAdd(x, y){
-  var text=prompt('📝 Texto da nota:');
+  var text=prompt('Texto da nota:');
   if(!text||!text.trim()) return;
   dNotes.push({
     id:_dMeasureId(),
@@ -496,7 +496,7 @@ function dNoteAdd(x, y){
     collapsed:true
   });
   dNoteRender();
-  gToast('📝 Nota adicionada');
+  gToast('Nota adicionada');
 }
 
 /**
@@ -518,7 +518,7 @@ function dNoteRender(){
     el.dataset.noteId=note.id;
     el.style.cssText=[
       'position:absolute','z-index:850','pointer-events:auto','cursor:pointer',
-      'left:'+(note.x*scale)+'px','top:'+(note.y*scale)+'px',
+      'left:'+note.x+'px','top:'+note.y+'px',
       'transform:translate(-10px,-10px)'
     ].join(';')+';';
 
@@ -588,7 +588,7 @@ function dNoteRender(){
 function dNoteRemove(id){
   dNotes=dNotes.filter(function(n){return n.id!==id;});
   dNoteRender();
-  gToast('📝 Nota removida');
+  gToast('Nota removida');
 }
 
 /**
@@ -607,7 +607,7 @@ function dNoteEdit(id){
   }
   note.text=newText.trim();
   dNoteRender();
-  gToast('📝 Nota atualizada');
+  gToast('Nota atualizada');
 }
 
 
@@ -633,7 +633,7 @@ function dCountAdd(x, y){
   });
   dCountNext++;
   dCountRender();
-  gToast('🔢 Marcador #'+(dCountNext-1)+' adicionado');
+  gToast('Marcador #'+(dCountNext-1)+' adicionado');
 }
 
 /**
@@ -661,7 +661,7 @@ function dCountRender(){
       'font-family:Roboto,sans-serif','font-size:11px','font-weight:700',
       'color:#fff','box-shadow:0 2px 6px rgba(0,0,0,.35)',
       'transform:translate(-50%,-50%)',
-      'left:'+(marker.x*scale)+'px','top:'+(marker.y*scale)+'px'
+      'left:'+marker.x+'px','top:'+marker.y+'px'
     ].join(';')+';';
     el.textContent=marker.number;
 
@@ -683,7 +683,7 @@ function dCountRender(){
 function dCountRemove(id){
   dCountMarkers=dCountMarkers.filter(function(m){return m.id!==id;});
   dCountRender();
-  gToast('🔢 Marcador removido');
+  gToast('Marcador removido');
 }
 
 /**
@@ -697,7 +697,7 @@ function dCountClear(){
   }
   dCountMarkers=[];
   dCountNext=1;
-  gToast('🔢 Todos os marcadores removidos');
+  gToast('Todos os marcadores removidos');
 }
 
 
@@ -721,20 +721,20 @@ function dRenderMeasureOverlay() {
 
   // Atualizar a linha e label da régua sob pan/zoom, se dRulerState existir
   if (typeof dRulerState !== 'undefined' && dRulerState) {
-    const scale = (typeof dZoomLevel !== 'undefined' ? dZoomLevel : 100) / 100;
     const dx = dRulerState.endX - dRulerState.startX;
     const dy = dRulerState.endY - dRulerState.startY;
     const dist = Math.sqrt(dx * dx + dy * dy);
     const angle = Math.atan2(dy, dx) * (180 / Math.PI);
     if (dRulerState.lineEl) {
-      dRulerState.lineEl.style.left = (dRulerState.startX * scale) + 'px';
-      dRulerState.lineEl.style.top = (dRulerState.startY * scale) + 'px';
-      dRulerState.lineEl.style.width = (dist * scale) + 'px';
+      // coords cruas: o overlay vive dentro do #d-canvas-frame escalado
+      dRulerState.lineEl.style.left = dRulerState.startX + 'px';
+      dRulerState.lineEl.style.top = dRulerState.startY + 'px';
+      dRulerState.lineEl.style.width = dist + 'px';
       dRulerState.lineEl.style.transform = 'rotate(' + angle + 'deg)';
     }
     if (dRulerState.labelEl) {
-      const midX = ((dRulerState.startX + dRulerState.endX) / 2) * scale;
-      const midY = ((dRulerState.startY + dRulerState.endY) / 2) * scale;
+      const midX = (dRulerState.startX + dRulerState.endX) / 2;
+      const midY = (dRulerState.startY + dRulerState.endY) / 2;
       dRulerState.labelEl.style.left = (midX + 10) + 'px';
       dRulerState.labelEl.style.top = (midY - 30) + 'px';
     }

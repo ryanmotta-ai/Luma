@@ -185,7 +185,7 @@ function dDoStamp(targetLayer){
   clone.x=targetLayer.x+20;clone.y=targetLayer.y+20;
   dLayers.push(clone);
   dRenderCanvas();dRenderLayersList();dStats();dMarkUnsaved();
-  gToast('Layer clonado: '+clone.name);
+  gToast('Camada duplicada: '+clone.name);
   dStampSource=null;dSetTool('select');
 }
 
@@ -304,6 +304,12 @@ function dShowBrushBar(toolName){
   });
   const label = document.getElementById('bb-tool-label');
   if(label)label.textContent = {brush:'Pincel',eraser:'Borracha',smudge:'Dedo',blur:'Desfoque',sharpen:'Nitidez',gradient:'Gradiente',stamp:'Carimbo'}[toolName] || 'Pincel';
+  
+  // Força atualização visual inicial de todos os sliders ativos
+  ['size','hardness','opacity','flow','strength'].forEach(prop => {
+    if(dBrush[prop] !== undefined) dBrushUpdate(prop, dBrush[prop]);
+  });
+
   if(toolName==='stamp'){ dStampUpdateStatus(); }
   else { setTimeout(dRenderBrushPreview, 10); }
 }
@@ -313,17 +319,30 @@ function dBrushUpdate(prop, val){
     dBrush[prop] = parseInt(val);
     const num = document.getElementById('bb-'+prop+'-num');
     if(num)num.value = val;
+    const slider = document.getElementById('bb-'+prop);
+    if(slider){
+      const min = slider.min || 0;
+      const max = slider.max || 100;
+      const pct = ((val - min) / (max - min)) * 100;
+      slider.style.background = `linear-gradient(to right, var(--dm-orange) ${pct}%, rgba(255,255,255,0.15) ${pct}%)`;
+    }
   }else{
     dBrush[prop] = val;
   }
   if(prop === 'color'){
     const sw = document.getElementById('bb-color-sw');
     if(sw)sw.style.background = val;
-    // Sync com o swatch antigo
+    // Sync com o swatch antigo e com o global FG
     const swOld = document.getElementById('d-brush-color-sw');
     if(swOld)swOld.style.background = val;
     const pkOld = document.getElementById('d-brush-color-pick');
     if(pkOld)pkOld.value = val;
+    
+    // Sync Foreground Tool
+    const swFg = document.getElementById('dtool-color-fg');
+    if(swFg)swFg.style.backgroundColor = val;
+    const pkFg = document.getElementById('d-color-fg-pick');
+    if(pkFg && pkFg.value !== val) pkFg.value = val;
   }
   if(prop === 'size'){
     // Sync com slider antigo
@@ -341,28 +360,24 @@ function dBrushSetPreset(preset){
     b.classList.toggle('active', b.dataset.preset === preset);
   });
   // Mapear preset para dureza default
-  const _setHard=v=>{ dBrush.hardness=v; const sl=document.getElementById('bb-hardness'); if(sl)sl.value=v; const n=document.getElementById('bb-hardness-num'); if(n)n.value=v; };
+  const _setHard=v=>{ const sl=document.getElementById('bb-hardness'); if(sl)sl.value=v; dBrushUpdate('hardness', v); };
   if(preset === 'soft'){ _setHard(30); }
   else if(preset === 'round'){ _setHard(100); }
-  else if(preset === 'calligraphy'){ dBrush.hardness = 100; }
+  else if(preset === 'calligraphy'){ _setHard(100); }
   dRenderBrushPreview();
 }
 // Input numérico digitado → estado + slider (clampa ao range)
 function dBrushNumInput(prop, val){
   const max = (prop==='size') ? 200 : 100;
   let n = Math.max(prop==='hardness'?0:1, Math.min(max, parseInt(val)||0));
-  dBrush[prop] = n;
   const sl = document.getElementById('bb-'+prop); if(sl) sl.value = n;
-  const num = document.getElementById('bb-'+prop+'-num'); if(num) num.value = n;
-  dRenderBrushPreview();
+  dBrushUpdate(prop, n);
 }
 // Ajuste de tamanho por teclado ([ diminui, ] aumenta)
 function dBrushNudgeSize(delta){
   const n = Math.max(1, Math.min(200, dBrush.size + delta));
-  dBrush.size = n;
   const sl=document.getElementById('bb-size'); if(sl)sl.value=n;
-  const num=document.getElementById('bb-size-num'); if(num)num.value=n;
-  dRenderBrushPreview();
+  dBrushUpdate('size', n);
 }
 
 /* ── CARIMBO: estado + opções da barra ── */
@@ -371,17 +386,17 @@ function dStampUpdateStatus(){
   const s=document.getElementById('bb-stamp-status');
   if(s){ s.textContent = dStampSource ? (dStampSource.name||'camada') : 'nenhuma'; s.classList.toggle('on', !!dStampSource); }
   const a=document.getElementById('bb-stamp-aligned');
-  if(a){ a.textContent = 'Alinhado: '+(dStampAligned?'on':'off'); a.classList.toggle('active', dStampAligned); }
+  if(a){ a.textContent = 'Alinhado: '+(dStampAligned?'sim':'não'); a.classList.toggle('active', dStampAligned); }
 }
 function dStampMarkSource(){
   const l = (typeof dLayers!=='undefined') ? dLayers.find(x=>x.id===dSelId) : null;
   if(!l){ gToast('Selecione uma camada para marcar como fonte'); return; }
   dStampSource = l; dStampOffset = null;
-  gToast('✓ Fonte do carimbo: '+(l.name||'camada'));
+  gToast('✓ Origem do carimbo: '+(l.name||'camada'));
   dStampUpdateStatus();
 }
 function dStampToggleAligned(){ dStampAligned=!dStampAligned; dStampOffset=null; dStampUpdateStatus(); }
-function dStampClearSource(){ dStampSource=null; dStampOffset=null; dStampUpdateStatus(); gToast('Fonte do carimbo limpa'); }
+function dStampClearSource(){ dStampSource=null; dStampOffset=null; dStampUpdateStatus(); gToast('Origem do carimbo limpa'); }
 
 /* Atualizar dPaintStart, dPaintMove para usar dBrush */
 function dGetBrushStyle(){
@@ -546,11 +561,13 @@ const _dFormaIcons = {
   star:     `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`,
 };
 
-function dFormaActivate() {
-  if(dFormaLast==='line') { dAddLine(); return; }
-  if(dFormaLast==='rect') { dSetTool('rect'); return; }
-  dAddShapeKind(dFormaLast);
+// Despacho único de forma: line → dAddLine, rect → ferramenta de clique, demais → inserir
+function _dFormaDispatch(kind){
+  if(kind==='line') { dAddLine(); return; }
+  if(kind==='rect') { dSetTool('rect'); return; }
+  dAddShapeKind(kind);
 }
+function dFormaActivate() { _dFormaDispatch(dFormaLast); }
 
 function dFormaFlyout(e) {
   e.preventDefault(); e.stopPropagation();
@@ -575,9 +592,7 @@ function dFormaPick(kind, e) {
   document.querySelectorAll('.vt-flyout').forEach(f => f.classList.remove('open'));
   const icon = document.getElementById('dtool-forma-icon');
   if(icon) icon.innerHTML = _dFormaIcons[kind] || '';
-  if(kind==='line') { dAddLine(); return; }
-  if(kind==='rect') { dSetTool('rect'); return; }
-  dAddShapeKind(kind);
+  _dFormaDispatch(kind);
 }
 
 /* ══ GRUPO TEXTO — flyout Photoshop-style ══ */
@@ -810,14 +825,14 @@ const _dDataIcons = {
   'qr-code': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M7 17h.01M17 17h.01M17 7h.01M7 7h.01"/></svg>`
 };
 
-function dDataActivate() {
-  if (dDataLast === 'var-data') {
-    if (typeof dActivatePanel === 'function') dActivatePanel('camada');
-  }
-  if (typeof dSetTool === 'function') {
-    dSetTool(dDataLast);
-  }
+// Despacho único do grupo Dados. var-data abre o painel; qr-code ainda não tem gerador
+// (sem lib de QR no projeto) → feedback honesto em vez de ferramenta morta silenciosa.
+function _dDataDispatch(tool){
+  if (tool === 'qr-code') { gToast('Gerador de QR Code em breve'); return; }
+  if (tool === 'var-data' && typeof dActivatePanel === 'function') dActivatePanel('camada');
+  if (typeof dSetTool === 'function') dSetTool(tool);
 }
+function dDataActivate() { _dDataDispatch(dDataLast); }
 
 function dDataFlyout(e) {
   if (e) { e.preventDefault(); e.stopPropagation(); }
@@ -844,12 +859,7 @@ function dDataPick(tool, e) {
   if(icon && typeof _dDataIcons !== 'undefined') {
     icon.innerHTML = _dDataIcons[tool] || '';
   }
-  if (tool === 'var-data') {
-    if (typeof dActivatePanel === 'function') dActivatePanel('camada');
-  }
-  if (typeof dSetTool === 'function') {
-    dSetTool(tool);
-  }
+  _dDataDispatch(tool);
 }
 
 /* ══ GRUPO PINCEL — flyout Photoshop-style ══ */

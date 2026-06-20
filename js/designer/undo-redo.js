@@ -95,7 +95,7 @@ function dUndo(){
   dApplyHistoryEntry(dHistory[dHistoryIdx]);
   dRenderCanvas();dRenderLayersList();dStats();dMarkUnsaved();
   dUpdateUndoButtons();
-  gToast('↩ Desfeito');
+  gToast('Desfeito');
 }
 function dRedo(){
   if(dHistoryIdx>=dHistory.length-1){gToast('Nada para refazer');return;}
@@ -103,7 +103,7 @@ function dRedo(){
   dApplyHistoryEntry(dHistory[dHistoryIdx]);
   dRenderCanvas();dRenderLayersList();dStats();dMarkUnsaved();
   dUpdateUndoButtons();
-  gToast('↪ Refeito');
+  gToast('Refeito');
 }
 function dUpdateUndoButtons(){
   const u=document.getElementById('dbtn-undo'),r=document.getElementById('dbtn-redo');
