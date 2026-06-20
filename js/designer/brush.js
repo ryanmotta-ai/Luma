@@ -47,31 +47,11 @@ function dPaintStart(e){
   const ctx=dGetPaintCtx();if(!ctx)return;
   const bs=dGetBrushStyle();
   ctx.globalAlpha = bs.alpha;
-  if(dTool==='eraser'){
-    ctx.globalCompositeOperation='destination-out';
-    ctx.fillStyle='rgba(0,0,0,1)';
-  }else{
-    ctx.globalCompositeOperation = bs.composite;
-    ctx.fillStyle = bs.color;
-  }
-  // Aplicar preset
-  if(bs.preset === 'dotted'){
-    ctx.beginPath();ctx.arc(pos.x,pos.y,bs.size/2,0,Math.PI*2);ctx.fill();
-  }else if(bs.preset === 'square'){
-    ctx.fillRect(pos.x-bs.size/2, pos.y-bs.size/2, bs.size, bs.size);
-  }else if(bs.preset === 'soft'){
-    // Soft = gradiente radial; hardness controla onde começa o fade (clampado p/ sempre suavizar)
-    const hard = Math.min(0.99, Math.max(0.01, bs.hardness));
-    const transp = /^#([0-9a-f]{6})$/i.test(bs.color) ? bs.color+'00' : 'rgba(0,0,0,0)';
-    const g = ctx.createRadialGradient(pos.x,pos.y,0,pos.x,pos.y,bs.size/2);
-    g.addColorStop(0, bs.color);
-    g.addColorStop(hard, bs.color);
-    g.addColorStop(1, transp);
-    ctx.fillStyle = g;
-    ctx.beginPath();ctx.arc(pos.x,pos.y,bs.size/2,0,Math.PI*2);ctx.fill();
-  }else{
-    ctx.beginPath();ctx.arc(pos.x,pos.y,bs.size/2,0,Math.PI*2);ctx.fill();
-  }
+  const col = (dTool==='eraser') ? '#000000' : bs.color;
+  if(dTool==='eraser'){ ctx.globalCompositeOperation='destination-out'; }
+  else{ ctx.globalCompositeOperation = bs.composite; }
+  if(bs.preset==='calligraphy'){ ctx.fillStyle=col; ctx.save(); ctx.translate(pos.x,pos.y); ctx.rotate(15*Math.PI/180); ctx.fillRect(-bs.size/2,-bs.size/6,bs.size,bs.size/3); ctx.restore(); }
+  else { _dBrushDab(ctx, pos.x, pos.y, bs, col); } // round/soft/square/dotted (dureza honrada)
   ctx.filter='none';
   ctx.globalAlpha=1;
 }
@@ -97,16 +77,21 @@ function dPaintMove(e){
     ctx.globalAlpha=1;
     dPaintLast=pos;return;
   }
-  ctx.lineWidth=sz;ctx.lineCap=bs.preset==='square'||bs.preset==='calligraphy'?'square':'round';
-  ctx.lineJoin='round';
+  const col=(dTool==='eraser')?'#000000':bs.color;
   ctx.globalAlpha=bs.alpha*bs.flow;
-  if(dTool==='eraser'){
-    ctx.globalCompositeOperation='destination-out';
-    ctx.strokeStyle='rgba(0,0,0,1)';
-  }else{
-    ctx.globalCompositeOperation=bs.composite;
-    ctx.strokeStyle=bs.color;
+  ctx.globalCompositeOperation=(dTool==='eraser')?'destination-out':bs.composite;
+  // Pincel SUAVE (soft, ou redonda com dureza<100): carimba dabs interpolados ao longo do traço
+  // (linha sólida não tem borda macia). Dureza agora vale para a redonda também.
+  const isSoft = bs.preset==='soft' || (bs.preset==='round' && bs.hardness<0.99);
+  if(isSoft){
+    const dx=pos.x-dPaintLast.x, dy=pos.y-dPaintLast.y, dist=Math.sqrt(dx*dx+dy*dy);
+    const step=Math.max(1, sz*0.2), n=Math.max(1, Math.ceil(dist/step));
+    for(let i=1;i<=n;i++){ _dBrushDab(ctx, dPaintLast.x+dx*i/n, dPaintLast.y+dy*i/n, bs, col); }
+    ctx.filter='none'; ctx.globalAlpha=1; dPaintLast=pos; return;
   }
+  // Redonda dura / quadrada / caligráfica: traço sólido (rápido e contínuo)
+  ctx.lineWidth=sz; ctx.lineCap=(bs.preset==='square'||bs.preset==='calligraphy')?'square':'round'; ctx.lineJoin='round';
+  ctx.strokeStyle=col;
   ctx.beginPath();ctx.moveTo(dPaintLast.x,dPaintLast.y);ctx.lineTo(pos.x,pos.y);ctx.stroke();
   ctx.filter='none';
   ctx.globalAlpha=1;
@@ -133,7 +118,7 @@ function dBlurRegion(ctx,pos,sz){
   const tmp=document.createElement('canvas');tmp.width=w;tmp.height=h;
   tmp.getContext('2d').drawImage(cv,sx,sy,w,h,0,0,w,h);
   ctx.save();
-  ctx.filter='blur('+Math.max(1,Math.round(sz/6))+'px)';
+  ctx.filter='blur('+Math.max(1,Math.round((sz/6)*(dBrush.strength/50)))+'px)'; // Força controla intensidade
   ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';
   ctx.drawImage(tmp,sx,sy,w,h);
   ctx.restore();
@@ -150,7 +135,7 @@ function dSmudgeStep(ctx,from,to,sz,bs){
   tmp.getContext('2d').drawImage(cv,sx,sy,w,h,0,0,w,h);
   ctx.save();
   ctx.filter='none';
-  ctx.globalAlpha=Math.min(0.5,(bs.alpha||1)*0.5);
+  ctx.globalAlpha=Math.min(0.95, (dBrush.strength/100)); // Força = quanto arrasta
   ctx.globalCompositeOperation='source-over';
   ctx.drawImage(tmp,Math.round(to.x-r),Math.round(to.y-r));
   ctx.restore();
@@ -163,7 +148,10 @@ function dApplyGradient(p0,p1){
   let x1=p1.x,y1=p1.y;
   if(p0.x===x1&&p0.y===y1)y1=y1+1; // evita gradiente degenerado (mesmo ponto)
   const transp=/^#([0-9a-f]{6})$/i.test(bs.color)?bs.color+'00':'rgba(0,0,0,0)';
-  const g=ctx.createLinearGradient(p0.x,p0.y,x1,y1);
+  const dx=x1-p0.x, dy=y1-p0.y, len=Math.max(1,Math.sqrt(dx*dx+dy*dy));
+  const g=(bs.gradType==='radial')
+    ? ctx.createRadialGradient(p0.x,p0.y,0, p0.x,p0.y,len)
+    : ctx.createLinearGradient(p0.x,p0.y,x1,y1);
   g.addColorStop(0,bs.color);g.addColorStop(1,transp);
   ctx.save();
   ctx.filter='none';ctx.globalAlpha=bs.alpha;ctx.globalCompositeOperation='source-over';
@@ -186,6 +174,7 @@ function dClearPaint(){
 
 /* ── CARIMBO (stamp/clone) ── */
 let dStampSource=null;
+let dStampOffset=null; // offset fixo entre cliques quando "Alinhado" está ligado
 let dGradStart=null; // ponto inicial do arraste da ferramenta Gradiente
 function dDoStamp(targetLayer){
   if(!dStampSource)return;
@@ -237,19 +226,23 @@ document.getElementById('d-canvas-frame').addEventListener('click',function(e){
   else if(dTool==='frame')dAddFrameAt(x,y);
   else if(dTool==='img')dAddImageAt(x,y);
   else if(dTool==='stamp'){
-    if(!dStampSource){gToast('Primeiro selecione um layer e pressione S para marcar o source');}
+    if(!dStampSource){gToast('Marque uma fonte primeiro (botão "Marcar fonte" ou tecla S)');}
     else{
-      // Clonar na posição do clique
       dHistoryPush();
       const clone=JSON.parse(JSON.stringify(dStampSource));
       clone.id='l-'+(++dLyrCnt);
       clone.name=dStampSource.name+' (cópia)';
-      clone.x=x-Math.round(clone.w/2);
-      clone.y=y-Math.round(clone.h/2);
+      if(dStampAligned){
+        // Alinhado: mantém o mesmo deslocamento relativo à fonte entre cliques
+        if(!dStampOffset) dStampOffset={dx:x-dStampSource.x, dy:y-dStampSource.y};
+        clone.x=x-dStampOffset.dx; clone.y=y-dStampOffset.dy;
+      } else {
+        clone.x=x-Math.round(clone.w/2); clone.y=y-Math.round(clone.h/2);
+      }
       dLayers.push(clone);
       dRenderCanvas();dRenderLayersList();dStats();dMarkUnsaved();
       gToast('✓ "'+clone.name+'" carimbado!');
-      // manter source para múltiplos carimbos, Esc limpa
+      // mantém a fonte p/ múltiplos carimbos; "Limpar"/Esc reseta
     }
   }
 });
@@ -275,28 +268,51 @@ let dBrush = {
   hardness: 100,
   opacity: 100,
   flow: 100,
+  strength: 50,      // dedo/desfoque/nitidez
   mode: 'source-over',
+  gradType: 'linear', // gradiente: linear|radial
   color: '#FF9000',
   preset: 'round',
 };
+
+// Um "carimbo" (dab) do pincel honrando preset + dureza. col = cor efetiva (eraser usa preto).
+// Suave = gradiente radial (dureza controla onde começa o fade). Quadrada = retângulo.
+function _dBrushDab(ctx, x, y, bs, col){
+  const r = bs.size/2;
+  if(bs.preset==='square'){ ctx.fillStyle=col; ctx.fillRect(x-r, y-r, bs.size, bs.size); return; }
+  const soft = bs.preset==='soft' || (bs.preset==='round' && bs.hardness < 0.99);
+  if(soft){
+    const hard = Math.min(0.99, Math.max(0.01, bs.hardness));
+    const transp = /^#([0-9a-f]{6})$/i.test(col) ? col+'00' : 'rgba(0,0,0,0)';
+    const g = ctx.createRadialGradient(x,y,0, x,y,r);
+    g.addColorStop(0, col); g.addColorStop(hard, col); g.addColorStop(1, transp);
+    ctx.fillStyle = g;
+  } else { ctx.fillStyle = col; }
+  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+}
 
 function dShowBrushBar(toolName){
   const bar = document.getElementById('d-brush-bar');
   if(!bar)return;
   const isPaint = ['brush','eraser','smudge','blur','sharpen','gradient'].includes(toolName);
-  bar.classList.toggle('visible', isPaint);
-  if(isPaint){
-    const label = document.getElementById('bb-tool-label');
-    if(label)label.textContent = {brush:'Pincel',eraser:'Borracha',smudge:'Dedo',blur:'Desfoque',sharpen:'Nitidez',gradient:'Gradiente'}[toolName] || 'Pincel';
-    setTimeout(dRenderBrushPreview, 10);
-  }
+  const show = isPaint || toolName==='stamp';
+  bar.classList.toggle('visible', show);
+  if(!show) return;
+  // Mostra só os grupos relevantes para a ferramenta atual (contextual)
+  bar.querySelectorAll('[data-tools]').forEach(el=>{
+    el.style.display = el.dataset.tools.split(' ').includes(toolName) ? '' : 'none';
+  });
+  const label = document.getElementById('bb-tool-label');
+  if(label)label.textContent = {brush:'Pincel',eraser:'Borracha',smudge:'Dedo',blur:'Desfoque',sharpen:'Nitidez',gradient:'Gradiente',stamp:'Carimbo'}[toolName] || 'Pincel';
+  if(toolName==='stamp'){ dStampUpdateStatus(); }
+  else { setTimeout(dRenderBrushPreview, 10); }
 }
 
 function dBrushUpdate(prop, val){
-  if(['size','hardness','opacity','flow'].includes(prop)){
+  if(['size','hardness','opacity','flow','strength'].includes(prop)){
     dBrush[prop] = parseInt(val);
     const num = document.getElementById('bb-'+prop+'-num');
-    if(num)num.textContent = val;
+    if(num)num.value = val;
   }else{
     dBrush[prop] = val;
   }
@@ -324,13 +340,48 @@ function dBrushSetPreset(preset){
   document.querySelectorAll('.bb-preset[data-preset]').forEach(b=>{
     b.classList.toggle('active', b.dataset.preset === preset);
   });
-  // Mapear preset para hardness/spacing default
-  if(preset === 'soft'){dBrush.hardness = 30; document.getElementById('bb-hardness').value = 30; document.getElementById('bb-hardness-num').textContent = 30;}
-  else if(preset === 'round'){dBrush.hardness = 100; document.getElementById('bb-hardness').value = 100; document.getElementById('bb-hardness-num').textContent = 100;}
-  else if(preset === 'calligraphy'){dBrush.hardness = 100;}
-  else if(preset === 'dotted'){/* spacing maior tratado no draw */}
+  // Mapear preset para dureza default
+  const _setHard=v=>{ dBrush.hardness=v; const sl=document.getElementById('bb-hardness'); if(sl)sl.value=v; const n=document.getElementById('bb-hardness-num'); if(n)n.value=v; };
+  if(preset === 'soft'){ _setHard(30); }
+  else if(preset === 'round'){ _setHard(100); }
+  else if(preset === 'calligraphy'){ dBrush.hardness = 100; }
   dRenderBrushPreview();
 }
+// Input numérico digitado → estado + slider (clampa ao range)
+function dBrushNumInput(prop, val){
+  const max = (prop==='size') ? 200 : 100;
+  let n = Math.max(prop==='hardness'?0:1, Math.min(max, parseInt(val)||0));
+  dBrush[prop] = n;
+  const sl = document.getElementById('bb-'+prop); if(sl) sl.value = n;
+  const num = document.getElementById('bb-'+prop+'-num'); if(num) num.value = n;
+  dRenderBrushPreview();
+}
+// Ajuste de tamanho por teclado ([ diminui, ] aumenta)
+function dBrushNudgeSize(delta){
+  const n = Math.max(1, Math.min(200, dBrush.size + delta));
+  dBrush.size = n;
+  const sl=document.getElementById('bb-size'); if(sl)sl.value=n;
+  const num=document.getElementById('bb-size-num'); if(num)num.value=n;
+  dRenderBrushPreview();
+}
+
+/* ── CARIMBO: estado + opções da barra ── */
+let dStampAligned = false;
+function dStampUpdateStatus(){
+  const s=document.getElementById('bb-stamp-status');
+  if(s){ s.textContent = dStampSource ? (dStampSource.name||'camada') : 'nenhuma'; s.classList.toggle('on', !!dStampSource); }
+  const a=document.getElementById('bb-stamp-aligned');
+  if(a){ a.textContent = 'Alinhado: '+(dStampAligned?'on':'off'); a.classList.toggle('active', dStampAligned); }
+}
+function dStampMarkSource(){
+  const l = (typeof dLayers!=='undefined') ? dLayers.find(x=>x.id===dSelId) : null;
+  if(!l){ gToast('Selecione uma camada para marcar como fonte'); return; }
+  dStampSource = l; dStampOffset = null;
+  gToast('✓ Fonte do carimbo: '+(l.name||'camada'));
+  dStampUpdateStatus();
+}
+function dStampToggleAligned(){ dStampAligned=!dStampAligned; dStampOffset=null; dStampUpdateStatus(); }
+function dStampClearSource(){ dStampSource=null; dStampOffset=null; dStampUpdateStatus(); gToast('Fonte do carimbo limpa'); }
 
 /* Atualizar dPaintStart, dPaintMove para usar dBrush */
 function dGetBrushStyle(){
@@ -342,6 +393,8 @@ function dGetBrushStyle(){
     composite: dBrush.mode,
     preset: dBrush.preset,
     hardness: dBrush.hardness / 100,
+    strength: dBrush.strength / 100,
+    gradType: dBrush.gradType,
   };
 }
 
@@ -432,7 +485,7 @@ function dSharpenRegion(ctx, pos, sz) {
 
   // result = orig + (orig - blurred) * amount  →  realça bordas
   const result = ctx.createImageData(w, h);
-  const amount = 1.6;
+  const amount = Math.max(0.2, (dBrush.strength/100)*3); // Força = intensidade da nitidez
   for(let i = 0; i < orig.data.length; i += 4){
     for(let c = 0; c < 3; c++){
       result.data[i+c] = Math.min(255, Math.max(0,

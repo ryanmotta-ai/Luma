@@ -111,8 +111,9 @@ function dLibRender(filter) {
   if (filter) assets = assets.filter(a => a.name.toLowerCase().includes(filter.toLowerCase()));
   if (!assets.length) {
     grid.innerHTML = `<div class="lib-empty">
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:.3;margin:0 auto 6px;display:block"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-      Nenhum asset aqui.<br>Faça upload acima.
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+      <div style="color:var(--d-text2); font-weight:500; font-size:12px; margin-bottom:4px;">Sua biblioteca está vazia.</div>
+      <span style="opacity:0.8;">Suba suas imagens e logotipos para<br>tê-los sempre à mão durante a criação.</span>
     </div>`;
     return;
   }
@@ -162,11 +163,11 @@ function dLibUpload(inp) {
 document.addEventListener('DOMContentLoaded', () => {
   const dz = document.getElementById('d-lib-dropzone');
   if (!dz) return;
-  dz.addEventListener('dragover', e => { e.preventDefault(); dz.style.borderColor = 'var(--dm-orange)'; });
-  dz.addEventListener('dragleave', () => { dz.style.borderColor = ''; });
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+  dz.addEventListener('dragleave', () => { dz.classList.remove('dragover'); });
   dz.addEventListener('drop', e => {
     e.preventDefault();
-    dz.style.borderColor = '';
+    dz.classList.remove('dragover');
     const inp = document.getElementById('d-lib-upload');
     // simular arquivos via DataTransfer
     const dt = e.dataTransfer;
@@ -266,6 +267,7 @@ function dStartInlineEdit(l,elDiv){
     z-index:200;
     background:rgba(0,0,0,0.2);
   `;
+  if(l.vertical) ta.style.writingMode='vertical-rl'; // texto vertical: textarea acompanha
   const frame=document.getElementById('d-canvas-frame');
   frame.appendChild(ta);
   dInlineEl=ta;
@@ -280,16 +282,52 @@ function dStartInlineEdit(l,elDiv){
   });
   ta.addEventListener('blur',dEndInlineEdit);
   ta.addEventListener('keydown',e=>{
+    e.stopPropagation(); // não dispara atalhos do canvas durante a edição
     if(e.key==='Escape'){e.preventDefault();dEndInlineEdit(null,true);}
-    if(e.key==='Enter'&&!e.shiftKey&&l.font&&l.font.includes('Realce')){
-      // Realce Black não tem Shift+Enter intuitivo, manter comportamento padrão
-    }
+    else if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();dEndInlineEdit();} // Enter confirma; Shift+Enter = nova linha
   });
   // esconder o layer original visualmente enquanto edita
   elDiv.style.opacity='0.1';
 }
 function dEndInlineEdit(e,cancel){
   if(!dInlineEl||!dInlineLayer)return;
+  // ── Máscara de texto (ferramenta mask-text): aplica o texto digitado como máscara alpha
+  // da camada-alvo, remove o layer temporário e sai. (Consolidado da versão antiga de canvas.js.)
+  if(dInlineLayer.isTempMaskText){
+    const l=dInlineLayer, val=dInlineEl.value;
+    const target=(typeof dLayers!=='undefined')?dLayers.find(x=>x.id===l.targetMaskLayerId):null;
+    if(!cancel && target && val.trim()!=='' && target.w>0 && target.h>0){
+      try{
+        const mC=document.createElement('canvas'); mC.width=target.w; mC.height=target.h;
+        const mx=mC.getContext('2d'); mx.clearRect(0,0,mC.width,mC.height);
+        const lx=l.x-target.x, ly=l.y-target.y;
+        const fp=(typeof dTextFontParts==='function')?dTextFontParts(l.font):{family:"'Roboto',sans-serif",weight:900};
+        mx.font=`${fp.weight} ${l.fontSize||32}px ${fp.family}`; mx.fillStyle='#FFFFFF';
+        const lines=val.split('\n');
+        if(l.vertical){
+          mx.textAlign='center'; mx.textBaseline='middle';
+          const fs=l.fontSize||32, charStep=fs*1.1, colStep=fs*1.2, startX=lx+l.w/2+(lines.length*colStep)/2-colStep/2;
+          lines.forEach((line,i)=>{ const tx=startX-i*colStep, chars=[...line], colH=chars.length*charStep;
+            let ty = l.textAlign==='center'? ly+l.h/2-colH/2+charStep/2 : l.textAlign==='right'? ly+l.h-colH+charStep/2 : ly+charStep/2;
+            chars.forEach((ch,j)=>mx.fillText(ch, tx, ty+j*charStep)); });
+        } else {
+          mx.textAlign=l.textAlign||'left'; mx.textBaseline='top';
+          lines.forEach((line,i)=>{ const tx=l.textAlign==='center'?lx+l.w/2:l.textAlign==='right'?lx+l.w:lx; mx.fillText(line, tx, ly+i*(l.fontSize||32)*1.25); });
+        }
+        dHistoryPush(); target.mask=mC.toDataURL('image/png'); dMarkUnsaved();
+        gToast('✓ Máscara de texto aplicada à camada');
+      }catch(err){ gToast('⚠ Não consegui gerar a máscara de texto','error'); }
+    } else if(!cancel && target && (!(target.w>0)||!(target.h>0))){
+      gToast('⚠ Camada-alvo sem dimensões válidas para máscara','error');
+    }
+    if(typeof dLayers!=='undefined') dLayers=dLayers.filter(x=>x.id!==l.id); // remove o temp
+    if(target) dSelId=target.id;
+    if(dInlineEl.isConnected)dInlineEl.remove(); dInlineEl=null; dInlineLayer=null;
+    if(typeof dSetTool==='function')dSetTool('select');
+    dRenderCanvas(); if(typeof dRenderLayersList==='function')dRenderLayersList();
+    if(target&&typeof dShowProps==='function')dShowProps(target);
+    return;
+  }
   // Editor "fantasma": dRenderCanvas() faz frame.innerHTML='' e remove o textarea do DOM
   // sem limpar dInlineEl/dInlineLayer. Se isso aconteceu (ex.: o conteúdo foi editado pelo
   // painel via dInsertVar/dUpdateProp), o valor do textarea está DESATUALIZADO — gravá-lo
@@ -399,3 +437,59 @@ function dRenderSnippets(){
   </div>`).join('');
 }
 
+/**
+ * Abre o color picker nativo posicionado exatamente sobre o elemento swatch
+ * para que o popover de cor do navegador apareça no local correto.
+ * Usa position: fixed e getBoundingClientRect() para ignorar zoom/escala.
+ * @param {HTMLElement} swatchEl — o elemento swatch clicado
+ * @param {string} pickId — o ID do <input type="color"> correspondente
+ */
+function dOpenColorPicker(swatchEl, pickId) {
+  const pick = document.getElementById(pickId);
+  if (!pick) return;
+
+  const rect = swatchEl.getBoundingClientRect();
+  
+  // Salva os estilos originais para restaurar depois
+  const origParent = pick.parentNode;
+  const origNextSibling = pick.nextSibling;
+  const origPosition = pick.style.position;
+  const origLeft = pick.style.left;
+  const origTop = pick.style.top;
+  const origWidth = pick.style.width;
+  const origHeight = pick.style.height;
+  const origOpacity = pick.style.opacity;
+  const origDisplay = pick.style.display;
+  const origPointerEvents = pick.style.pointerEvents;
+
+  // Move para o body para evitar problemas com containers com transform
+  document.body.appendChild(pick);
+
+  // Posiciona o input exatamente sobre o swatch
+  pick.style.position = 'fixed';
+  pick.style.left = rect.left + 'px';
+  pick.style.top = rect.top + 'px';
+  pick.style.width = rect.width + 'px';
+  pick.style.height = rect.height + 'px';
+  pick.style.opacity = '0';
+  pick.style.display = 'block';
+  pick.style.pointerEvents = 'none';
+
+  // Aciona o clique nativo
+  pick.click();
+
+  // Restaura o estado oculto/original após um curto período
+  setTimeout(() => {
+    pick.style.position = origPosition;
+    pick.style.left = origLeft;
+    pick.style.top = origTop;
+    pick.style.width = origWidth;
+    pick.style.height = origHeight;
+    pick.style.opacity = origOpacity;
+    pick.style.display = origDisplay;
+    pick.style.pointerEvents = origPointerEvents;
+    if (origParent) {
+      origParent.insertBefore(pick, origNextSibling);
+    }
+  }, 1000);
+}

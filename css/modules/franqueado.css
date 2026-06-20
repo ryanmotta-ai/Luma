@@ -170,6 +170,7 @@ body:not(.theme-light) .camp-card.recommended {
 body:not(.theme-light) .camp-card.recommended .camp-name {
   color: var(--dm-orange) !important;
 }
+
 body:not(.theme-light) #f-fmt-wrap {
   border-top-color: #2c2c2e !important;
 }

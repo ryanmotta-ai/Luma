@@ -32,6 +32,22 @@ function dPublishPanelRender(){
 }
 
 /* ── ABRIR MODAL ── */
+/* ── M2.0 — TOPBAR DROPDOWN MENU ── */
+function dToggleMainMenu(e) {
+  if (e) { e.preventDefault(); e.stopPropagation(); }
+  const menu = document.getElementById('dt-main-menu');
+  if (menu) {
+    menu.style.display = (menu.style.display === 'none' || menu.style.display === '') ? 'flex' : 'none';
+  }
+}
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('dt-main-menu');
+  const btn = document.getElementById('dt-main-menu-btn');
+  if (menu && btn && e.target !== btn && !btn.contains(e.target) && e.target !== menu && !menu.contains(e.target)) {
+    menu.style.display = 'none';
+  }
+});
+
 function dPublishOpen(){
   if(typeof dSyncLayersToAB==='function') dSyncLayersToAB();
   const _ab=dGetActiveAB();
@@ -376,13 +392,13 @@ function dSetSaveState(state){
   const s2=document.getElementById('d-save-indicator2');
   let html;
   if(state==='saving'){
-    html='<span style="color:var(--d-text3);display:inline-flex;align-items:center;gap:6px"><svg class="spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;animation:spin 1s linear infinite"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>Salvando...</span>';
+    html='<svg class="spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 1s linear infinite"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg><span>Salvando...</span>';
   }else if(state==='unsaved'){
     dDirty=true;
-    html='<span style="color:var(--dm-orange);display:inline-flex;align-items:center;gap:6px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Não salvo</span>';
+    html='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--dm-orange)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span style="color:var(--dm-orange)">Não salvo</span>';
   }else{ // saved
     dDirty=false;
-    html='<span style="color:#22c55e;display:inline-flex;align-items:center;gap:6px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Salvo</span>';
+    html='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/><polyline points="9 15 12 18 16 13"/></svg><span>Salvo na nuvem</span>';
   }
   if(ind)ind.innerHTML=html;
   if(s2)s2.innerHTML=html;
@@ -427,94 +443,336 @@ function dPaste(samePlace){
   gToast(n+' layer'+(n>1?'s':'')+' colado'+(n>1?'s':'')+(samePlace?' (no lugar)':''));
 }
 
+/*
+  TABELA DE ATALHOS DE TECLADO — Luma Designer
+  ===========================================
+  [Atalhos com modificadores (funcionam sempre, exceto Ctrl+A em input)]
+  - Ctrl+Z / Cmd+Z          : Desfazer (Undo)
+  - Ctrl+Shift+Z / Cmd+Sh+Z : Refazer (Redo)
+  - Ctrl+Y / Cmd+Y          : Refazer (Redo)
+  - Ctrl+S / Cmd+S          : Salvar Documento
+  - Ctrl+D / Cmd+D          : Duplicar Camada(s)
+  - Ctrl+G / Cmd+G          : Agrupar Camada(s)
+  - Ctrl+Shift+G / Cmd+Sh+G : Desagrupar Camada(s)
+  - Ctrl+0 / Cmd+0          : Ajustar à Tela
+  - Ctrl+1 / Cmd+1          : Zoom 100%
+  - Ctrl+"+" / Ctrl+"="     : Ampliar Zoom
+  - Ctrl+"-"                : Reduzir Zoom
+  - Ctrl+C / Cmd+C          : Copiar Camada(s) (bloqueado em campos de texto)
+  - Ctrl+V / Cmd+V          : Colar Camada(s) (bloqueado em campos de texto)
+
+  [Atalhos de Ferramenta (bloqueados em campos de texto/inputs)]
+  - Esc                     : Selecionar e fechar modais / Limpar origem de carimbo
+  - Del / Backspace         : Deletar camada selecionada (ou limpar pintura se Pincel/Borracha ativo)
+  - V                       : Ferramenta Mover / Seleção (dSelectActivate)
+  - Shift+V                 : Alternar ferramentas de seleção (Select, Hand, Obj-Select, Quick-Select, Magic-Wand)
+  - H                       : Ferramenta Mão (Pan)
+  - T                       : Ferramenta Texto (dTextActivate)
+  - Shift+T                 : Alternar ferramentas de texto (Text-H, Text-V, Mask-Text-H, Mask-Text-V)
+  - U                       : Ferramenta Forma (dFormaActivate)
+  - Shift+U                 : Alternar ferramentas de forma (Rect, Ellipse, Triangle, Polygon, Line, Star)
+  - R                       : Forma Retângulo direto
+  - O                       : Forma Elipse direto
+  - F                       : Ferramenta Moldura (dFrameActivate)
+  - Shift+F                 : Alternar imagem/moldura (Frame, Img)
+  - M                       : Adicionar Imagem direto
+  - B                       : Ferramenta Pincel (dBrushActivate)
+  - Shift+B                 : Alternar pincel/borracha/carimbo (Brush, Eraser, Stamp)
+  - E                       : Borracha direto
+  - S                       : Carimbo (Stamp) direto / Define origem se houver layer selecionado
+  - G                       : Ferramenta Preenchimento (dFillActivate)
+  - Shift+G                 : Alternar preenchimento (Bucket, Gradient)
+  - I                       : Ferramenta Conta-gotas (dEyedropActivate)
+  - Shift+I                 : Alternar conta-gotas (Eyedrop, Color-Sampler, Ruler, Note, Count)
+  - N                       : Ferramenta Nitidez / Blur / Smudge (dNitidezActivate)
+  - Shift+N                 : Alternar nitidez (Blur, Sharpen, Smudge)
+  - K                       : Modo Máscara de Camada (dMaskPaintStart/dMaskAdd se inativo; alterna Hide/Reveal se ativo)
+  - Q                       : QR Code direto
+  - X                       : Vincular Variável / Dados (dDataActivate)
+  - Shift+X                 : Alternar dados (Var-Data, QR-Code)
+  - L                       : Abrir Recursos / Assets
+  - P                       : Abrir Prévia de Impressão/Publicação
+  - ? / Shift+/             : Abrir Guia de Atalhos
+  - Setas (Up/Down/L/R)     : Mover camada selecionada (1px, ou 10px com Shift)
+
+  [No Modo de Máscara Ativo]
+  - Esc                     : Cancelar e sair sem salvar
+  - Enter                   : Concluir e aplicar máscara
+*/
+
 /* ── KEYBOARD SHORTCUTS (estilo Photoshop) ── */
-document.addEventListener('keydown',e=>{
-  const inField = e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT'||e.target.isContentEditable;
-  if(document.body.classList.contains('mode-designer')){
-    // Atalhos CTRL/CMD funcionam sempre (mesmo em inputs) — exceto Ctrl+A em input que faria selectAll
-    if(e.ctrlKey||e.metaKey){
-      if(e.shiftKey&&(e.key==='z'||e.key==='Z')){e.preventDefault();dRedo();return;}
-      if(e.key==='z'||e.key==='Z'){e.preventDefault();dUndo();return;}
-      if(e.key==='y'||e.key==='Y'){e.preventDefault();dRedo();return;}
-      if(e.key==='s'||e.key==='S'){if(!e.shiftKey){e.preventDefault();dSave();return;}}
-      if(e.key==='0'){e.preventDefault();dFitToScreen();return;}
-      if(e.key==='1'){e.preventDefault();dSetZoom(100);return;}
-      if(e.key==='='||e.key==='+'){e.preventDefault();dZoom(1);return;}
-      if(e.key==='-'||e.key==='_'){e.preventDefault();dZoom(-1);return;}
-      if(e.key==='d'||e.key==='D'){e.preventDefault();dDuplicateLayer();return;}
-      if(!e.shiftKey&&(e.key==='g'||e.key==='G')){e.preventDefault();dGroupSelected();return;}
-      if(e.shiftKey&&(e.key==='g'||e.key==='G')){e.preventDefault();dUngroupSelected();return;}
-    }
-    if(inField)return; // resto bloqueia se em input
-    // Ctrl+C / Ctrl+V — copiar/colar layers (só no canvas, nunca dentro de campos de texto)
-    if((e.ctrlKey||e.metaKey)&&(e.key==='c'||e.key==='C')){e.preventDefault();dCopy();return;}
-    if((e.ctrlKey||e.metaKey)&&(e.key==='v'||e.key==='V')){e.preventDefault();dPaste(e.altKey||e.shiftKey);return;} // Alt/Shift = colar no mesmo lugar
-    if(e.ctrlKey||e.metaKey||e.altKey)return; // outros combos com modificador NÃO disparam atalhos de ferramenta (evita Ctrl+R/T/P/M... trocarem a tool)
-    if(e.key==='Escape'){dCloseVarModal();dSetTool('select');}
-    if((e.key==='Delete'||e.key==='Backspace')&&dTool!=='brush'&&dTool!=='eraser')dDeleteLayer();
-    if(e.key==='Delete'&&(dTool==='brush'||dTool==='eraser'))dClearPaint();
-    if(e.key==='Escape')dStampSource=null; // Esc limpa stamp source
-    if(e.key==='v'||e.key==='V'){
-      if(e.shiftKey){
-        dSetTool(dTool==='artboard'?'select':'artboard');
-      } else {
-        dSetTool('select');
-      }
-    }
-    if(e.key==='F2'){
-      if(typeof dActiveABId!=='undefined'&&dActiveABId&&dSelId===null&&(!dMultiSel||dMultiSel.length===0)){
+document.addEventListener('keydown', e => {
+  const inField = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT' || e.target.isContentEditable;
+  
+  if (document.body.classList.contains('mode-designer')) {
+    // Se o modo máscara estiver ativo, interceptar Enter/Escape antes de qualquer coisa
+    if (typeof _dMaskState !== 'undefined' && _dMaskState) {
+      if (e.key === 'Escape') {
         e.preventDefault();
-        if(typeof dRenameAB==='function')dRenameAB(dActiveABId);
+        if (typeof dMaskExit === 'function') dMaskExit(false);
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (typeof dMaskExit === 'function') dMaskExit(true);
         return;
       }
     }
-    if(e.key===' '){
-      if(dTool!=='hand'){
+
+    // Atalhos CTRL/CMD funcionam sempre (mesmo em inputs) — exceto Ctrl+A em input que faria selectAll
+    if (e.ctrlKey || e.metaKey) {
+      if (e.shiftKey && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); dRedo(); return; }
+      if (e.key === 'z' || e.key === 'Z') { e.preventDefault(); dUndo(); return; }
+      if (e.key === 'y' || e.key === 'Y') { e.preventDefault(); dRedo(); return; }
+      if (e.key === 's' || e.key === 'S') { if (!e.shiftKey) { e.preventDefault(); dSave(); return; } }
+      if (e.key === '0') { e.preventDefault(); dFitToScreen(); return; }
+      if (e.key === '1') { e.preventDefault(); dSetZoom(100); return; }
+      if (e.key === '=' || e.key === '+') { e.preventDefault(); dZoom(1); return; }
+      if (e.key === '-' || e.key === '_') { e.preventDefault(); dZoom(-1); return; }
+      if (e.key === 'd' || e.key === 'D') { e.preventDefault(); dDuplicateLayer(); return; }
+      if (!e.shiftKey && (e.key === 'g' || e.key === 'G')) { e.preventDefault(); dGroupSelected(); return; }
+      if (e.shiftKey && (e.key === 'g' || e.key === 'G')) { e.preventDefault(); dUngroupSelected(); return; }
+    }
+
+    if (inField) return; // resto bloqueia se em input
+
+    // Ctrl+C / Ctrl+V — copiar/colar layers (só no canvas, nunca dentro de campos de texto)
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) { e.preventDefault(); dCopy(); return; }
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) { e.preventDefault(); dPaste(e.altKey || e.shiftKey); return; } // Alt/Shift = colar no mesmo lugar
+    if (e.ctrlKey || e.metaKey || e.altKey) return; // outros combos com modificador NÃO disparam atalhos de ferramenta
+
+    if (e.key === 'Escape') { dCloseVarModal(); dSetTool('select'); }
+    if ((e.key === 'Delete' || e.key === 'Backspace') && dTool !== 'brush' && dTool !== 'eraser') dDeleteLayer();
+    if (e.key === 'Delete' && (dTool === 'brush' || dTool === 'eraser')) dClearPaint();
+    if (e.key === 'Escape') { dStampSource = null; if(typeof dStampUpdateStatus==='function') dStampUpdateStatus(); } // Esc limpa stamp source
+    // [ e ] ajustam o tamanho do pincel (Shift = passo 10) quando ferramenta de pintura ativa
+    if ((e.key === '[' || e.key === ']') && ['brush','eraser','smudge','blur','sharpen'].includes(dTool) && typeof dBrushNudgeSize === 'function') {
+      e.preventDefault(); dBrushNudgeSize(e.key === ']' ? (e.shiftKey?10:1) : (e.shiftKey?-10:-1)); return;
+    }
+
+    // V - Seleção / Mover (com alternância Shift+V)
+    if (e.key === 'v' || e.key === 'V') {
+      if (e.shiftKey) {
+        const order = ['select', 'hand', 'obj-select', 'quick-select', 'magic-wand'];
+        let idx = order.indexOf(dTool);
+        if (idx === -1) idx = 0;
+        let nIdx = (idx + 1) % order.length;
+        if (typeof dSelectPick === 'function') dSelectPick(order[nIdx]);
+      } else {
+        if (typeof dSelectActivate === 'function') dSelectActivate(); else dSetTool('select');
+      }
+    }
+
+    // F2 - Renomeação
+    if (e.key === 'F2') {
+      e.preventDefault();
+      if (dSelId !== null) {
+        if (typeof dRenameLayer === 'function') dRenameLayer(dSelId, e);
+      } else if (typeof dActiveABId !== 'undefined' && dActiveABId) {
+        if (typeof dRenameAB === 'function') dRenameAB(dActiveABId);
+      }
+      return;
+    }
+
+    // Barra de Espaço - Hand
+    if (e.key === ' ') {
+      if (dTool !== 'hand') {
         dPrevToolForSpace = dTool;
         dSetTool('hand');
       }
       e.preventDefault();
       return;
     }
-    if(e.key==='h'||e.key==='H')dSetTool('hand');     // H = Hand/Mão
-    if(e.key==='o'||e.key==='O')dSetTool('ellipse');  // O = Elipse
-    if(e.key==='x'||e.key==='X'){
-      if (typeof dDataActivate === 'function') dDataActivate(); else dSetTool('var-data');
+
+    // H - Hand
+    if (e.key === 'h' || e.key === 'H') {
+      dSetTool('hand');
     }
-    if(e.key==='q'||e.key==='Q')dSetTool('qr-code');  // Q = QR Code
-    if(e.key==='l'||e.key==='L'){
+
+    // T - Texto (com alternância Shift+T)
+    if (e.key === 't' || e.key === 'T') {
+      if (e.shiftKey) {
+        const order = ['text-h', 'text-v', 'mask-text-h', 'mask-text-v'];
+        let idx = order.indexOf(dTool);
+        if (idx === -1) idx = 0;
+        let nIdx = (idx + 1) % order.length;
+        if (typeof dTextPick === 'function') dTextPick(order[nIdx]);
+      } else {
+        if (typeof dTextActivate === 'function') dTextActivate(); else dSetTool('text');
+      }
+    }
+
+    // U - Forma (com alternância Shift+U)
+    if (e.key === 'u' || e.key === 'U') {
+      if (e.shiftKey) {
+        const order = ['rect', 'ellipse', 'triangle', 'polygon', 'line', 'star'];
+        let idx = order.indexOf(dFormaLast);
+        if (idx === -1) idx = 0;
+        let nIdx = (idx + 1) % order.length;
+        if (typeof dFormaPick === 'function') dFormaPick(order[nIdx]);
+      } else {
+        if (typeof dFormaActivate === 'function') dFormaActivate(); else dSetTool('rect');
+      }
+    }
+
+    // R - Retângulo direto
+    if (e.key === 'r' || e.key === 'R') {
+      if (typeof dFormaPick === 'function') dFormaPick('rect'); else dSetTool('rect');
+    }
+
+    // O - Elipse direto
+    if (e.key === 'o' || e.key === 'O') {
+      if (typeof dFormaPick === 'function') dFormaPick('ellipse'); else dSetTool('ellipse');
+    }
+
+    // F - Moldura (com alternância Shift+F)
+    if (e.key === 'f' || e.key === 'F') {
+      if (e.shiftKey) {
+        const order = ['frame', 'img'];
+        let idx = order.indexOf(dTool);
+        if (idx === -1) idx = 0;
+        let nIdx = (idx + 1) % order.length;
+        if (typeof dFramePick === 'function') dFramePick(order[nIdx]);
+      } else {
+        if (typeof dFrameActivate === 'function') dFrameActivate(); else dSetTool('frame');
+      }
+    }
+
+    // M - Imagem URL direto
+    if (e.key === 'm' || e.key === 'M') {
+      if (typeof dFramePick === 'function') dFramePick('img'); else dSetTool('img');
+    }
+
+    // B - Pincel (com alternância Shift+B)
+    if (e.key === 'b' || e.key === 'B') {
+      if (e.shiftKey) {
+        const order = ['brush', 'eraser', 'stamp'];
+        let idx = order.indexOf(dTool);
+        if (idx === -1) idx = 0;
+        let nIdx = (idx + 1) % order.length;
+        if (typeof dBrushPick === 'function') dBrushPick(order[nIdx]);
+      } else {
+        if (typeof dBrushActivate === 'function') dBrushActivate(); else dSetTool('brush');
+      }
+    }
+
+    // E - Borracha direto
+    if (e.key === 'e' || e.key === 'E') {
+      if (typeof dBrushPick === 'function') dBrushPick('eraser'); else dSetTool('eraser');
+    }
+
+    // S - Carimbo direto
+    if (e.key === 's' || e.key === 'S') {
+      if (dSelId) {
+        const l = dLayers.find(x => x.id === dSelId);
+        if (l) { dStampSource = l; if(typeof dStampOffset!=='undefined') dStampOffset=null; gToast('Fonte do carimbo: "' + l.name + '" — clique no canvas para clonar'); }
+      }
+      if (typeof dBrushPick === 'function') dBrushPick('stamp'); else dSetTool('stamp');
+      if (typeof dStampUpdateStatus === 'function') dStampUpdateStatus();
+    }
+
+    // G - Balde de Tinta / Gradiente (com alternância Shift+G)
+    if (e.key === 'g' || e.key === 'G') {
+      if (e.shiftKey) {
+        const order = ['bucket', 'gradient'];
+        let idx = order.indexOf(dTool);
+        if (idx === -1) idx = 0;
+        let nIdx = (idx + 1) % order.length;
+        if (typeof dFillPick === 'function') dFillPick(order[nIdx]);
+      } else {
+        if (typeof dFillActivate === 'function') dFillActivate(); else dSetTool('bucket');
+      }
+    }
+
+    // I - Conta-gotas (com alternância Shift+I)
+    if (e.key === 'i' || e.key === 'I') {
+      if (e.shiftKey) {
+        const order = ['eyedrop', 'color-sampler', 'ruler', 'note', 'count'];
+        let idx = order.indexOf(dTool);
+        if (idx === -1) idx = 0;
+        let nIdx = (idx + 1) % order.length;
+        if (typeof dEyedropPick === 'function') dEyedropPick(order[nIdx]);
+      } else {
+        if (typeof dEyedropActivate === 'function') dEyedropActivate(); else dSetTool('eyedrop');
+      }
+    }
+
+    // N - Nitidez / Blur / Smudge (com alternância Shift+N)
+    if (e.key === 'n' || e.key === 'N') {
+      if (e.shiftKey) {
+        const order = ['blur', 'sharpen', 'smudge'];
+        let idx = order.indexOf(dNitidezLast);
+        if (idx === -1) idx = 0;
+        let nIdx = (idx + 1) % order.length;
+        if (typeof dNitidezPick === 'function') dNitidezPick(order[nIdx]);
+      } else {
+        if (typeof dNitidezActivate === 'function') dNitidezActivate(); else dSetTool('blur');
+      }
+    }
+
+    // K - Máscara (adicionar/pintar ou alternar esconder/revelar)
+    if (e.key === 'k' || e.key === 'K') {
+      if (typeof _dMaskState !== 'undefined' && _dMaskState) {
+        if (typeof dMaskSetMode === 'function') dMaskSetMode(_dMaskState.mode === 'hide' ? 'reveal' : 'hide');
+      } else {
+        const l = dLayers.find(x => x.id === dSelId);
+        if (l) {
+          if (l.mask) {
+            if (typeof dMaskPaintStart === 'function') dMaskPaintStart();
+          } else {
+            if (typeof dMaskAdd === 'function') dMaskAdd();
+          }
+        } else {
+          gToast('Selecione uma camada primeiro');
+        }
+      }
+    }
+
+    // Q - QR Code direto
+    if (e.key === 'q' || e.key === 'Q') {
+      if (typeof dDataPick === 'function') dDataPick('qr-code'); else dSetTool('qr-code');
+    }
+
+    // X - Dados / Vínculo (com alternância Shift+X)
+    if (e.key === 'x' || e.key === 'X') {
+      if (e.shiftKey) {
+        const order = ['var-data', 'qr-code'];
+        let idx = order.indexOf(dTool);
+        if (idx === -1) idx = 0;
+        let nIdx = (idx + 1) % order.length;
+        if (typeof dDataPick === 'function') dDataPick(order[nIdx]);
+      } else {
+        if (typeof dDataActivate === 'function') dDataActivate(); else dSetTool('var-data');
+      }
+    }
+
+    // L - Recursos/Assets
+    if (e.key === 'l' || e.key === 'L') {
       if (typeof dToggleResources === 'function') dToggleResources();
     }
-    if(e.key==='t'||e.key==='T'){ if(typeof dTextActivate==='function') dTextActivate(); else dSetTool('text'); }     // T = Texto
-    if(e.key==='r'||e.key==='R')dSetTool('rect');     // R = Retângulo
-    if(e.key==='f'||e.key==='F')dSetTool('frame');    // F = Moldura
-    if(e.key==='m'||e.key==='M')dSetTool('img');      // M = Imagem
-    if(e.key==='b'||e.key==='B')dSetTool('brush');    // B = Pincel
-    if(e.key==='i'||e.key==='I')dSetTool('eyedrop');  // I = Eyedropper
-    if(e.key==='g'&&!e.ctrlKey)dSetTool('bucket');    // G = Bucket (paint bucket)
-    if(e.key==='e'||e.key==='E')dSetTool('eraser');   // E = Borracha
-    if(e.key==='s'||e.key==='S'){
-      // Se já tem layer selecionado, capturar como source ANTES de ativar a tool
-      if(dSelId){
-        const l=dLayers.find(x=>x.id===dSelId);
-        if(l){dStampSource=l;gToast('Source: "'+l.name+'" — agora clique em outro layer para clonar');}
-      }
-      dSetTool('stamp');
+
+    // P - Prévia
+    if (e.key === 'p' || e.key === 'P') {
+      dPreviewOpen();
     }
-    if(e.key==='p'||e.key==='P')dPreviewOpen();
-    if(e.key==='?'||(e.shiftKey&&e.key==='/')){e.preventDefault();dOpenCheat();}
-    // (dClearPaint já tratado acima)
-    // Mover layer com setas
-    if(dSelId&&['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){
+
+    // ? - Ajuda / Atalhos Cheat Sheet
+    if (e.key === '?' || (e.shiftKey && e.key === '/')) {
       e.preventDefault();
-      const l=dLayers.find(x=>x.id===dSelId);if(!l)return;
-      const step=e.shiftKey?10:1;
-      if(e.key==='ArrowUp')l.y-=step;
-      if(e.key==='ArrowDown')l.y+=step;
-      if(e.key==='ArrowLeft')l.x-=step;
-      if(e.key==='ArrowRight')l.x+=step;
+      dOpenCheat();
+    }
+
+    // Mover layer com as setas
+    if (dSelId && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      e.preventDefault();
+      const l = dLayers.find(x => x.id === dSelId); if (!l) return;
+      const step = e.shiftKey ? 10 : 1;
+      if (e.key === 'ArrowUp') l.y -= step;
+      if (e.key === 'ArrowDown') l.y += step;
+      if (e.key === 'ArrowLeft') l.x -= step;
+      if (e.key === 'ArrowRight') l.x += step;
       dRenderCanvas();
-      if(document.getElementById('dp-x')){document.getElementById('dp-x').value=l.x;document.getElementById('dp-y').value=l.y;}
+      if (document.getElementById('dp-x')) { document.getElementById('dp-x').value = l.x; document.getElementById('dp-y').value = l.y; }
       dMarkUnsaved();
     }
   }
@@ -533,3 +791,36 @@ document.addEventListener('keyup', e => {
 });
 
 
+
+/* -- TOOLBAR COLOR WIDGET (FG/BG) -- */
+function dSwapColors() {
+  const fgInp = document.getElementById('vt-color-fg-input');
+  const bgInp = document.getElementById('vt-color-bg-input');
+  if(!fgInp || !bgInp) return;
+  const temp = fgInp.value;
+  fgInp.value = bgInp.value;
+  bgInp.value = temp;
+  document.getElementById('vt-color-fg-ui').style.background = fgInp.value;
+  document.getElementById('vt-color-bg-ui').style.background = bgInp.value;
+  if(typeof dOnFgColorChange === 'function') dOnFgColorChange(fgInp.value);
+}
+function dDefaultColors() {
+  const fgInp = document.getElementById('vt-color-fg-input');
+  const bgInp = document.getElementById('vt-color-bg-input');
+  if(!fgInp || !bgInp) return;
+  fgInp.value = '#000000';
+  bgInp.value = '#ffffff';
+  document.getElementById('vt-color-fg-ui').style.background = '#000000';
+  document.getElementById('vt-color-bg-ui').style.background = '#ffffff';
+  if(typeof dOnFgColorChange === 'function') dOnFgColorChange('#000000');
+}
+// Sync tools that use color (like brush) when FG changes
+function dOnFgColorChange(color) {
+  // If brush tool is active and it has a color, maybe update it?
+  // We removed d-brush-color-pick from brush opts since we use global FG color now.
+  // We'll just define global variables if needed.
+  window.dGlobalFgColor = color;
+}
+function dOnBgColorChange(color) {
+  window.dGlobalBgColor = color;
+}

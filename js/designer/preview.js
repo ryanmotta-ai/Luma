@@ -515,24 +515,88 @@ function dSvgColor(c){
   }
   return {fill:String(c), op:1};
 }
+// Extrai cor sólida e opacidade de um rgba()/hex p/ flood-color + flood-opacity do SVG.
+function _svgFloodColor(c){ if(!c) return '#000'; const m=String(c).match(/rgba?\(([^)]+)\)/i); if(m){ const p=m[1].split(','); return 'rgb('+(+p[0])+','+(+p[1])+','+(+p[2])+')'; } return c; }
+function _svgFloodOp(c){ const m=String(c||'').match(/rgba\(([^)]+)\)/i); return (m&&m[1].split(',')[3]!=null)?(+m[1].split(',')[3]).toFixed(2):'1'; }
+// Filtro SVG de efeitos: sombra projetada + brilho externo + sombra interna. {defs, attr}.
+function dSvgFx(l, id){
+  if(!(l.shadow||l.glow||l.innerShadow||l.innerGlow||l.bevel)) return {defs:'', attr:''};
+  const prims=[]; const merges=[]; let inner='';
+  if(l.glow){ const g=(l.glowSize!=null?l.glowSize:8)/2;
+    prims.push(`<feGaussianBlur in="SourceAlpha" stdDeviation="${g}" result="gb${id}"/>`
+      +`<feFlood flood-color="${_svgFloodColor(l.glowColor||'rgba(255,255,255,.7)')}" flood-opacity="${_svgFloodOp(l.glowColor)}"/>`
+      +`<feComposite in2="gb${id}" operator="in" result="gl${id}"/>`);
+    merges.push(`<feMergeNode in="gl${id}"/>`); }
+  if(l.shadow){ const o=gFxOffset(l.shadowDist!=null?l.shadowDist:4,l.shadowAngle); const b=(l.shadowBlur!=null?l.shadowBlur:6)/2;
+    prims.push(`<feGaussianBlur in="SourceAlpha" stdDeviation="${b}" result="sb${id}"/>`
+      +`<feOffset in="sb${id}" dx="${o.x}" dy="${o.y}" result="so${id}"/>`
+      +`<feFlood flood-color="${_svgFloodColor(l.shadowColor)}" flood-opacity="${_svgFloodOp(l.shadowColor)}"/>`
+      +`<feComposite in2="so${id}" operator="in" result="ds${id}"/>`);
+    merges.push(`<feMergeNode in="ds${id}"/>`); }
+  merges.push(`<feMergeNode in="SourceGraphic"/>`);
+  // Efeitos INTERNOS (recortados na forma): sombra interna, brilho interno, chanfro (realce+sombra).
+  let _ic=0;
+  const innerPrim=(color, blur, o)=>{ const k=id+'i'+(_ic++); const b=(blur||6)/2;
+    inner+=`<feComponentTransfer in="SourceAlpha" result="ia${k}"><feFuncA type="table" tableValues="1 0"/></feComponentTransfer>`
+      +`<feGaussianBlur in="ia${k}" stdDeviation="${b}" result="ib${k}"/>`
+      +`<feOffset in="ib${k}" dx="${o?o.x:0}" dy="${o?o.y:0}" result="io${k}"/>`
+      +`<feFlood flood-color="${_svgFloodColor(color)}" flood-opacity="${_svgFloodOp(color)}"/>`
+      +`<feComposite in2="io${k}" operator="in" result="ish${k}"/>`
+      +`<feComposite in="ish${k}" in2="SourceGraphic" operator="in" result="isc${k}"/>`;
+    merges.push(`<feMergeNode in="isc${k}"/>`); };
+  if(l.innerShadow) innerPrim(l.innerShadowColor, l.innerShadowBlur!=null?l.innerShadowBlur:6, gFxOffset(l.innerShadowDist!=null?l.innerShadowDist:4,l.innerShadowAngle));
+  if(l.innerGlow) innerPrim(l.innerGlowColor||'rgba(255,255,255,.7)', l.innerGlowSize!=null?l.innerGlowSize:8, null);
+  if(l.bevel){ const o=gFxOffset(l.bevelSize!=null?l.bevelSize:4,l.bevelAngle), b=l.bevelSize!=null?l.bevelSize:4;
+    innerPrim(l.bevelHighlight||'rgba(255,255,255,.7)', b, o); innerPrim(l.bevelShadow||'rgba(0,0,0,.5)', b, {x:-o.x,y:-o.y}); }
+  const defs=`<filter id="fx${id}" x="-50%" y="-50%" width="200%" height="200%">${prims.join('')}${inner}<feMerge>${merges.join('')}</feMerge></filter>`;
+  return {defs, attr:` filter="url(#fx${id})"`};
+}
+// Path SVG de retângulo com raio POR CANTO. Raio 0 → o arco vira linha reta (spec SVG).
+function _dSvgRoundRectPath(x,y,w,h,tl,tr,br,bl){
+  const m=Math.min(w,h)/2;
+  tl=Math.max(0,Math.min(tl,m)); tr=Math.max(0,Math.min(tr,m));
+  br=Math.max(0,Math.min(br,m)); bl=Math.max(0,Math.min(bl,m));
+  return `M${x+tl},${y} H${x+w-tr} A${tr},${tr} 0 0 1 ${x+w},${y+tr} V${y+h-br} A${br},${br} 0 0 1 ${x+w-br},${y+h} H${x+bl} A${bl},${bl} 0 0 1 ${x},${y+h-bl} V${y+tl} A${tl},${tl} 0 0 1 ${x+tl},${y} Z`;
+}
 function dSvgShape(l){
   const layerOp=(l.opacity!=null?l.opacity:100)/100;
-  const {fill,op}=dSvgColor(l.fill||'#FF9000');
-  const totalOp=(layerOp*op).toFixed(3);
+  const _c=dSvgColor(l.fill||'#FF9000');
+  let fill=_c.fill; let totalOp=(layerOp*_c.op).toFixed(3);
+  if(l.overlay&&l.overlayColor){ fill=dSvgColor(l.overlayColor).fill; totalOp=(layerOp*(l.overlayOpacity!=null?l.overlayOpacity:1)).toFixed(3); } // color overlay
+  // gradiente (prevalece sobre fill sólido) — def embutido + fill=url(#id)
+  let gradDef='';
+  if(l.gradient&&l.gradient.stops&&l.gradient.stops.length&&typeof gGradientSvg==='function'){
+    const gid='grd-'+String(l.id||'x').replace(/[^a-z0-9]/gi,'')+'-'+Math.round(l.x)+'-'+Math.round(l.y);
+    gradDef=gGradientSvg(l.gradient, gid); fill='url(#'+gid+')'; totalOp=layerOp.toFixed(3);
+  } else if(l.gradientOverlay&&l.gradientOverlay.stops&&l.gradientOverlay.stops.length&&typeof gGradientSvg==='function'){ // gradient overlay (aprox.: vira o fill no preview)
+    const gid='grdo-'+String(l.id||'x').replace(/[^a-z0-9]/gi,'')+'-'+Math.round(l.x)+'-'+Math.round(l.y);
+    gradDef=gGradientSvg(l.gradientOverlay, gid); fill='url(#'+gid+')'; totalOp=(layerOp*(l.gradientOverlay.opacity!=null?l.gradientOverlay.opacity:1)).toFixed(3);
+  }
   const kind=l.shapeKind||'rect';
+  // traçado (Tool 1) — atributos comuns a todas as formas (+ dash/cap/join)
+  let strokeAttr='';
+  if(l.strokeW>0){ strokeAttr=` stroke="${dSvgColor(l.strokeColor||'#000').fill}" stroke-width="${l.strokeW}"`;
+    if(l.strokeDash&&l.strokeDash.length) strokeAttr+=` stroke-dasharray="${l.strokeDash.join(' ')}"`;
+    if(l.strokeCap) strokeAttr+=` stroke-linecap="${l.strokeCap}"`;
+    if(l.strokeJoin) strokeAttr+=` stroke-linejoin="${l.strokeJoin}"`; }
   if(kind==='circle'||kind==='ellipse')
-    return `<ellipse cx="${l.x+l.w/2}" cy="${l.y+l.h/2}" rx="${l.w/2}" ry="${l.h/2}" fill="${fill}" fill-opacity="${totalOp}"/>`;
+    return gradDef+`<ellipse cx="${l.x+l.w/2}" cy="${l.y+l.h/2}" rx="${l.w/2}" ry="${l.h/2}" fill="${fill}" fill-opacity="${totalOp}"${strokeAttr}/>`;
   const pts=(typeof dShapePoints==='function')?dShapePoints(l):null;
   if(pts){
     const abs=pts.map(p=>[l.x+p[0]*l.w, l.y+p[1]*l.h]);
     const r=Math.min(l.radius||0, l.w/2, l.h/2);
     if(r>0 && typeof gRoundPolyD==='function'){
-      return `<path d="${gRoundPolyD(abs,r)}" fill="${fill}" fill-opacity="${totalOp}"/>`;
+      return gradDef+`<path d="${gRoundPolyD(abs,r)}" fill="${fill}" fill-opacity="${totalOp}"${strokeAttr}/>`;
     }
-    return `<polygon points="${abs.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ')}" fill="${fill}" fill-opacity="${totalOp}"/>`;
+    return gradDef+`<polygon points="${abs.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ')}" fill="${fill}" fill-opacity="${totalOp}"${strokeAttr}/>`;
+  }
+  // cantos por canto (Tool 2): l.radii → path; senão <rect rx> uniforme
+  if(l.radii){
+    const d=_dSvgRoundRectPath(l.x,l.y,l.w,l.h, +l.radii.tl||0, +l.radii.tr||0, +l.radii.br||0, +l.radii.bl||0);
+    return gradDef+`<path d="${d}" fill="${fill}" fill-opacity="${totalOp}"${strokeAttr}/>`;
   }
   const r=Math.min(l.radius||0, l.w/2, l.h/2);
-  return `<rect x="${l.x}" y="${l.y}" width="${l.w}" height="${l.h}" rx="${r}" ry="${r}" fill="${fill}" fill-opacity="${totalOp}"/>`;
+  return gradDef+`<rect x="${l.x}" y="${l.y}" width="${l.w}" height="${l.h}" rx="${r}" ry="${r}" fill="${fill}" fill-opacity="${totalOp}"${strokeAttr}/>`;
 }
 function dSvgText(l, mctx, fillVars, dados, defaults){
   const content = fillVars ? gInterpolate(l.content, dados, {onEmpty:'remove', defaults}) : (l.content||'');
@@ -548,7 +612,16 @@ function dSvgText(l, mctx, fillVars, dados, defaults){
   let maxW=0; lines.forEach(ln=>{const w=mctx.measureText(ln).width;if(w>maxW)maxW=w;});
   const innerPad=Math.round(fontSize*0.08);
 
-  const {fill,op}=dSvgColor(l.color||'#ffffff');
+  const _tc=dSvgColor(l.color||'#ffffff');
+  let fill=_tc.fill, op=_tc.op;
+  if(l.overlay&&l.overlayColor){ fill=dSvgColor(l.overlayColor).fill; op=(l.overlayOpacity!=null?+l.overlayOpacity:1); } // color overlay
+  // gradiente no texto: def embutido + fill=url(#id)
+  let gradDef='';
+  if(l.gradient&&l.gradient.stops&&l.gradient.stops.length&&typeof gGradientSvg==='function'){
+    const gid='grdt-'+String(l.id||'x').replace(/[^a-z0-9]/gi,'')+'-'+Math.round(l.x)+'-'+Math.round(l.y);
+    gradDef=gGradientSvg(l.gradient, gid); fill='url(#'+gid+')'; op=1;
+  }
+  const lsAttr=(l.letterSpacing!=null)?` letter-spacing="${l.letterSpacing}"`:''; // tracking
   const stroke=(l.strokeW>0)?` stroke="${dSvgColor(l.strokeColor||'#000').fill}" stroke-width="${l.strokeW}" paint-order="stroke"`:'';
   
   // Realce (caixa de fundo) — espelha o png-generator
@@ -619,11 +692,11 @@ function dSvgText(l, mctx, fillVars, dados, defaults){
       });
     }
 
-    return bgRect + `<text font-family="${gXmlEsc(svgFamily)}" font-weight="${weight}" font-size="${fontSize}" text-anchor="middle" dominant-baseline="middle" fill="${fill}" fill-opacity="${op.toFixed(3)}"${stroke}>${tspans.join('')}</text>` + linesSvg;
+    return gradDef + bgRect + `<text font-family="${gXmlEsc(svgFamily)}" font-weight="${weight}" font-size="${fontSize}" text-anchor="middle" dominant-baseline="middle" fill="${fill}" fill-opacity="${op.toFixed(3)}"${lsAttr}${stroke}>${tspans.join('')}</text>` + linesSvg;
   } else {
     const availW=Math.max(10, l.w-innerPad*2);
     if(maxW>availW){ fontSize=Math.max(8, Math.floor(fontSize*(availW/maxW))); }
-    const lineHeight=fontSize*1.2;
+    const lineHeight=fontSize*(l.lineHeight||1.2);
     const totalH=lineHeight*lines.length;
     const blockStartY=l.y + l.h/2 - totalH/2 + lineHeight/2;
     const align=l.textAlign||'left';
@@ -631,7 +704,7 @@ function dSvgText(l, mctx, fillVars, dados, defaults){
     const tx=align==='center'?l.x+l.w/2:align==='right'?l.x+l.w-innerPad:l.x+innerPad;
     const deco=l.strikethrough?' text-decoration="line-through"':'';
     const tspans=lines.map((ln,i)=>`<tspan x="${tx.toFixed(1)}" y="${(blockStartY+i*lineHeight).toFixed(1)}">${gXmlEsc(ln)}</tspan>`).join('');
-    return bgRect+`<text font-family="${gXmlEsc(svgFamily)}" font-weight="${weight}" font-size="${fontSize}" text-anchor="${anchor}" dominant-baseline="middle" fill="${fill}" fill-opacity="${op.toFixed(3)}"${deco}${stroke}>${tspans}</text>`;
+    return gradDef+bgRect+`<text font-family="${gXmlEsc(svgFamily)}" font-weight="${weight}" font-size="${fontSize}" text-anchor="${anchor}" dominant-baseline="middle" fill="${fill}" fill-opacity="${op.toFixed(3)}"${lsAttr}${deco}${stroke}>${tspans}</text>`;
   }
 }
 function dSvgImage(l, dados, cid){
@@ -706,6 +779,8 @@ async function dExportSVG(opts){
     if(l.type==='shape') frag=dSvgShape(l);
     else if(l.type==='text') frag=dSvgText(l, mctx, fillVars, dados, defaults);
     else if(l.type==='frame'||l.type==='image'){ const r=dSvgImage(l, dados, ++cid); defs+=r.defs; frag=r.body; }
+    // Efeitos (sombra projetada/interna, brilho ext/int, chanfro) via <filter>
+    if(frag && (l.shadow||l.glow||l.innerShadow||l.innerGlow||l.bevel)){ const fx=dSvgFx(l, ++cid); if(fx.attr){ defs+=fx.defs; frag=`<g${fx.attr}>${frag}</g>`; } }
     // máscara de camada → <mask type alpha> envolvendo o fragmento
     if(l.mask && frag){
       const mid='mk'+(++cid);

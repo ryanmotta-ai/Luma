@@ -54,6 +54,10 @@ function _dPsdFontSize(t,h,content,res){
   const s=_dPsdTextStyle(t);
   let fs=s.fontSize||s.size||0;
   if(fs && t.transform && t.transform.length>=4) fs*=Math.abs(t.transform[3]||1);
+  // PARAGRAPH (box) text: o tamanho da fonte é o que o designer definiu e a caixa é fixa/alta.
+  // Ancorar na caixa (abaixo) INFLAVA a fonte e estourava o texto — pois nLines só conta quebras
+  // explícitas (\n), não o wrap por largura. Aqui confiamos no tamanho real. Point text segue igual.
+  if(t && t.shapeType==='box' && fs>=6 && fs<=2000) return Math.round(fs);
   const nLines=Math.max(1, String(content||'').split('\n').filter(x=>x.trim()).length);
   // boxFs: quanto de altura cabe por linha; cap de 180px evita caixas muito altas gerarem fs gigante
   const boxFs=Math.min(h/(nLines*1.25), 180);
@@ -66,20 +70,104 @@ function _dPsdFontSize(t,h,content,res){
   if(h < 12) return 12;
   return Math.round(Math.max(8,boxFs));
 }
-// #2 — sombra + contorno a partir de layer.effects
+// Caixa de PARÁGRAFO (box text): deriva {x,y,w,h} em px ABSOLUTOS do doc a partir de
+// node.text.boxBounds/bounds. O espaço dessas coords é ambíguo entre versões do ag-psd, então
+// testamos 2 hipóteses (text-space→transform e px-absoluto cru) e só aceitamos a que CONTÉM o
+// bbox de glifos do layer (node.left/top/right/bottom) e não explode. Retorna null se nenhuma servir.
+function _dPsdParagraphBox(node){
+  try{
+    const t=node.text; if(!t) return null;
+    let bb=t.boxBounds||t.bounds; if(!bb) return null;
+    if(Array.isArray(bb)) bb={left:bb[0],top:bb[1],right:bb[2],bottom:bb[3]};
+    if(bb.left==null||bb.right==null||bb.top==null||bb.bottom==null) return null;
+    const tr=(t.transform&&t.transform.length>=6)?t.transform:[1,0,0,1,0,0];
+    const a=tr[0],b=tr[1],c=tr[2],d=tr[3],e=tr[4],f=tr[5];
+    const gx0=node.left||0, gy0=node.top||0, gx1=node.right||0, gy1=node.bottom||0;
+    const tol=Math.max(4, Math.round(Math.min(gx1-gx0,gy1-gy0)*0.3));
+    const corners=(map)=>{
+      const p=[map(bb.left,bb.top),map(bb.right,bb.top),map(bb.right,bb.bottom),map(bb.left,bb.bottom)];
+      let mnX=Infinity,mnY=Infinity,mxX=-Infinity,mxY=-Infinity;
+      p.forEach(q=>{ if(q[0]<mnX)mnX=q[0]; if(q[0]>mxX)mxX=q[0]; if(q[1]<mnY)mnY=q[1]; if(q[1]>mxY)mxY=q[1]; });
+      return {x:mnX,y:mnY,w:mxX-mnX,h:mxY-mnY};
+    };
+    const valid=(box)=>box && isFinite(box.w) && isFinite(box.h) && box.w>1 && box.h>1
+      && box.x<=gx0+tol && box.y<=gy0+tol && (box.x+box.w)>=gx1-tol && (box.y+box.h)>=gy1-tol
+      && box.w<=Math.max((gx1-gx0)*6,4000) && box.h<=Math.max((gy1-gy0)*6,4000);
+    const cands=[ corners((x,y)=>[a*x+c*y+e, b*x+d*y+f]), corners((x,y)=>[x,y]) ];
+    for(const box of cands){ if(valid(box)) return {x:Math.round(box.x),y:Math.round(box.y),w:Math.round(box.w),h:Math.round(box.h)}; }
+    return null;
+  }catch(e){ return null; }
+}
+// #2 — efeitos de camada (layer.effects) → props da Luma. Lê sombra projetada, sombra interna,
+// brilho externo, sobreposição de cor e contorno (com alinhamento). _u: parseUnits → {value} ou número.
 function _dPsdEffects(node){
   const fx=node.effects||{}; const out={};
+  const _u=v=>{ if(v==null) return 0; return (v.value!=null)?+v.value:+v; };
+  // Sombra projetada
   let ds=fx.dropShadow; if(Array.isArray(ds)) ds=ds[0];
   if(ds && ds.enabled!==false){
-    const hex=_dPsdHex(ds.color)||'#000000';
-    const op=ds.opacity!=null?ds.opacity:.5;
     out.shadow=true;
-    out.shadowColor='rgba('+parseInt(hex.slice(1,3),16)+','+parseInt(hex.slice(3,5),16)+','+parseInt(hex.slice(5,7),16)+','+(+op).toFixed(2)+')';
+    out.shadowColor=gFxRgba(_dPsdHex(ds.color)||'#000000', ds.opacity!=null?ds.opacity:.5);
+    out.shadowBlur=Math.round(_u(ds.size));
+    out.shadowDist=Math.round(_u(ds.distance));
+    if(ds.angle!=null) out.shadowAngle=Math.round(ds.angle);
   }
+  // Sombra interna
+  let is=fx.innerShadow; if(Array.isArray(is)) is=is[0];
+  if(is && is.enabled!==false){
+    out.innerShadow=true;
+    out.innerShadowColor=gFxRgba(_dPsdHex(is.color)||'#000000', is.opacity!=null?is.opacity:.5);
+    out.innerShadowBlur=Math.round(_u(is.size));
+    out.innerShadowDist=Math.round(_u(is.distance));
+    if(is.angle!=null) out.innerShadowAngle=Math.round(is.angle);
+  }
+  // Brilho externo
+  let og=fx.outerGlow; if(Array.isArray(og)) og=og[0];
+  if(og && og.enabled!==false){
+    out.glow=true;
+    out.glowColor=gFxRgba(_dPsdHex(og.color)||'#ffffff', og.opacity!=null?og.opacity:.6);
+    out.glowSize=Math.max(1,Math.round(_u(og.size)));
+  }
+  // Brilho interno (inner glow)
+  let ig=fx.innerGlow; if(Array.isArray(ig)) ig=ig[0];
+  if(ig && ig.enabled!==false){
+    out.innerGlow=true;
+    out.innerGlowColor=gFxRgba(_dPsdHex(ig.color)||'#ffffff', ig.opacity!=null?ig.opacity:.6);
+    out.innerGlowSize=Math.max(1,Math.round(_u(ig.size)));
+  }
+  // Chanfro/relevo (bevel & emboss) → aprox.: realce + sombra internos
+  let bv=fx.bevel; if(Array.isArray(bv)) bv=bv[0];
+  if(bv && bv.enabled!==false){
+    out.bevel=true;
+    out.bevelSize=Math.max(1,Math.round(_u(bv.size)));
+    if(bv.angle!=null) out.bevelAngle=Math.round(bv.angle);
+    out.bevelHighlight=gFxRgba(_dPsdHex(bv.highlightColor)||'#ffffff', bv.highlightOpacity!=null?bv.highlightOpacity:.75);
+    out.bevelShadow=gFxRgba(_dPsdHex(bv.shadowColor)||'#000000', bv.shadowOpacity!=null?bv.shadowOpacity:.75);
+  }
+  // Sobreposição de cor (color overlay / solidFill)
+  let so=fx.solidFill; if(Array.isArray(so)) so=so[0];
+  if(so && so.enabled!==false && so.color){
+    out.overlay=true;
+    out.overlayColor=_dPsdHex(so.color)||'#000000';
+    out.overlayOpacity=(so.opacity!=null?+so.opacity:1);
+  }
+  // Sobreposição de gradiente (gradient overlay)
+  let go2=fx.gradientOverlay; if(Array.isArray(go2)) go2=go2[0];
+  if(go2 && go2.enabled!==false && go2.gradient && go2.gradient.colorStops){
+    const src=go2.gradient; const opAt=loc=>{ const os=src.opacityStops||[]; if(!os.length) return 1; let b=os[0]; os.forEach(s=>{ if(Math.abs((s.location||0)-loc)<Math.abs((b.location||0)-loc)) b=s; }); return b.opacity!=null?b.opacity:1; };
+    out.gradientOverlay={
+      type:String(go2.type||src.style||'linear').toLowerCase().includes('radial')?'radial':'linear',
+      angle:(go2.angle!=null?Math.round(go2.angle):90),
+      opacity:(go2.opacity!=null?+go2.opacity:1),
+      stops:src.colorStops.map(s=>({color:_dPsdHex(s.color)||'#000000', pos:Math.max(0,Math.min(1,s.location||0)), opacity:opAt(s.location||0)}))
+    };
+  }
+  // Contorno (frame FX) + alinhamento
   let st=fx.stroke; if(Array.isArray(st)) st=st[0];
   if(st && st.enabled!==false){
     out.strokeW=Math.max(1,Math.round((st.size&&st.size.value)||st.size||2));
     out.strokeColor=_dPsdHex((st.color&&(st.color.color||st.color)))||'#000000';
+    if(st.position) out.strokeAlign=({inside:'inside',insetFrame:'inside',center:'center',centeredFrame:'center',outside:'outside',outsetFrame:'outside'}[st.position])||'outside';
   }
   return out;
 }
@@ -181,6 +269,115 @@ function _dPsdComputeMask(node, base){
     return _dPsdDownscaleMaskURL(out, 700);
   }catch(e){ return null; }
 }
+// Máscara VETORIAL (node.vectorMask): rasteriza os paths bézier num canvas alpha do tamanho
+// do layer → dataURL (opaco dentro do recorte). Ex.: fundo com mordida/onda nas bordas.
+// Os knots vêm em pixels ABSOLUTOS do documento (ag-psd multiplica por width/height do PSD),
+// então deslocamos pela origem da caixa do layer. Retorna null em qualquer falha (fallback seguro).
+function _dPsdVectorMaskURL(node){
+  try{
+    const vm=node.vectorMask;
+    if(!vm || vm.disable || !vm.paths || !vm.paths.length || typeof Path2D==='undefined') return null;
+    const b=_dPsdBox(node);
+    const p2d=new Path2D(); let drew=false; let rule='nonzero';
+    vm.paths.forEach(path=>{
+      const k=path&&path.knots; if(!k||k.length<2) return;
+      if(path.fillRule==='even-odd') rule='evenodd';
+      const px=(i,o)=>k[i].points[o]-b.x, py=(i,o)=>k[i].points[o+1]-b.y; // o=0 in-handle, 2 âncora, 4 out-handle
+      p2d.moveTo(px(0,2), py(0,2));
+      const last=path.open?k.length-1:k.length;
+      for(let i=0;i<last;i++){
+        const j=(i+1)%k.length;
+        p2d.bezierCurveTo(px(i,4),py(i,4), px(j,0),py(j,0), px(j,2),py(j,2));
+      }
+      if(!path.open) p2d.closePath();
+      drew=true;
+    });
+    if(!drew) return null;
+    const c=document.createElement('canvas'); c.width=b.w; c.height=b.h;
+    const ctx=c.getContext('2d'); ctx.fillStyle='#000';
+    if(vm.invert){ // inverte: tudo opaco, depois fura o recorte (path vira transparente)
+      ctx.fillRect(0,0,b.w,b.h);
+      ctx.globalCompositeOperation='destination-out'; ctx.fill(p2d, rule);
+      ctx.globalCompositeOperation='source-over';
+    } else {       // padrão: dentro do path → alpha 255 (visível), fora → transparente
+      ctx.fill(p2d, rule);
+    }
+    return _dPsdDownscaleMaskURL(c, 700);
+  }catch(e){ return null; }
+}
+// Traçado vetorial (node.vectorStroke) → {strokeW, strokeColor} ou {} (sem traçado).
+function _dPsdShapeStroke(node){
+  const vs=node.vectorStroke; const out={};
+  try{
+    if(vs && vs.strokeEnabled!==false){
+      const lwRaw=vs.lineWidth; const lw=(lwRaw&&lwRaw.value!=null)?lwRaw.value:lwRaw;
+      if(lw>0){
+        out.strokeW=Math.max(1,Math.round(lw));
+        const c=vs.content&&(vs.content.color||vs.content);
+        out.strokeColor=_dPsdHex(c)||'#000000';
+        if(vs.lineAlignment) out.strokeAlign=({inside:'inside',center:'center',outside:'outside'}[vs.lineAlignment])||'center';
+        if(vs.lineCapType) out.strokeCap=({butt:'butt',round:'round',square:'square'}[vs.lineCapType])||'butt';
+        if(vs.lineJoinType) out.strokeJoin=({miter:'miter',round:'round',bevel:'bevel'}[vs.lineJoinType])||'miter';
+        if(Array.isArray(vs.lineDashSet)&&vs.lineDashSet.length){ // dash em múltiplos da espessura → px
+          const dash=vs.lineDashSet.map(d=>Math.max(0,Math.round(((d&&d.value!=null)?d.value:d)*(out.strokeW||1))));
+          if(dash.some(x=>x>0)) out.strokeDash=dash;
+        }
+      }
+    }
+  }catch(e){}
+  return out;
+}
+// Raios por canto (node.vectorOrigination.keyOriginRRectRadii) → {tl,tr,br,bl} ou null.
+// Valores vêm em px; clampamos a min(w,h)/2. Se todos forem 0, retorna null (usa raio uniforme).
+function _dPsdCornerRadii(node, w, h){
+  try{
+    const vo=node.vectorOrigination; const list=vo&&vo.keyDescriptorList; if(!list||!list.length) return null;
+    let rr=null; for(let i=0;i<list.length;i++){ if(list[i]&&list[i].keyOriginRRectRadii){ rr=list[i].keyOriginRRectRadii; break; } }
+    if(!rr) return null;
+    const m=Math.max(0,Math.min(w,h)/2);
+    const v=u=>{ const n=(u&&u.value!=null)?u.value:u; return Math.min(m, Math.max(0, Math.round(+n||0))); };
+    const out={ tl:v(rr.topLeft), tr:v(rr.topRight), br:v(rr.bottomRight), bl:v(rr.bottomLeft) };
+    if(!(out.tl||out.tr||out.br||out.bl)) return null;
+    return out;
+  }catch(e){ return null; }
+}
+// Gradiente do PSD (vectorFill de GdFl, ou effects.gradientOverlay) → modelo Luma l.gradient.
+function _dPsdGradient(node){
+  try{
+    let src=null;
+    if(node.vectorFill && node.vectorFill.colorStops) src=node.vectorFill;            // camada de gradiente (GdFl)
+    else { let go=node.effects&&node.effects.gradientOverlay; if(Array.isArray(go)) go=go[0];
+      if(go && go.enabled!==false && go.gradient && go.gradient.colorStops){ src=go.gradient; src.angle=go.angle; src.style=go.type||src.style; } }
+    if(!src||!src.colorStops||!src.colorStops.length) return null;
+    const style=String(src.style||'linear').toLowerCase();
+    const opAt=loc=>{ const os=src.opacityStops||[]; if(!os.length) return 1;
+      let best=os[0]; os.forEach(s=>{ if(Math.abs((s.location||0)-loc)<Math.abs((best.location||0)-loc)) best=s; }); return best.opacity!=null?best.opacity:1; };
+    const stops=src.colorStops.map(s=>({ color:_dPsdHex(s.color)||'#000000', pos:Math.max(0,Math.min(1,s.location||0)), opacity:opAt(s.location||0) }));
+    return { type: style.includes('radial')?'radial':'linear', angle: (src.angle!=null?Math.round(src.angle):90), stops };
+  }catch(e){ return null; }
+}
+// Rich text: styleRuns do PSD → l.runs[{text,color,fontSize,font,letterSpacing}]. Só quando há >1 estilo.
+function _dPsdRichRuns(t, res, h){
+  try{
+    const runs=Array.isArray(t.styleRuns)?t.styleRuns:null; if(!runs||runs.length<2) return null;
+    const full=String(t.text||'').replace(/\r\n?/g,'\n');
+    const out=[]; let pos=0;
+    for(const r of runs){
+      const len=r.length||0; const seg=full.substr(pos,len); pos+=len; if(!seg) continue;
+      const st=r.style||{};
+      const fname=(st.font&&st.font.name)||'';
+      const remap=_dPsdRemapFont(fname);
+      out.push({
+        text:seg,
+        color:_dPsdHex(st.fillColor||st.color)||'#000000',
+        fontSize:_dPsdFontSize({style:st,transform:t.transform}, h, seg, res),
+        font: remap||(/black|900|heavy/i.test(fname)?"'Roboto Black'":/bold|700/i.test(fname)?"'Roboto',bold":"'Roboto'"),
+        letterSpacing: st.tracking? Math.round((st.tracking/1000)*((st.fontSize||12))) : 0
+      });
+    }
+    return out.length>1?out:null;
+  }catch(e){ return null; }
+}
 // #1 — sugere variável pelo nome ({{x}}) ou heurística
 function _dPsdSuggestVar(name, content){
   const raw=String(name||'');
@@ -202,7 +399,7 @@ const _DPSD_WORKER_SRC = ""
   + "try{importScripts(e.data.lib);}catch(_){importScripts(e.data.cdn);}"
   + "var psd=self.agPsd.readPsd(e.data.buffer,{useImageData:true,skipLayerImaging:false});"
   + "var transfers=[];"
-  + "function strip(n){var o={name:n.name,left:n.left,top:n.top,right:n.right,bottom:n.bottom,hidden:n.hidden,opacity:n.opacity,blendMode:n.blendMode,text:n.text,effects:n.effects,artboard:n.artboard,clipping:n.clipping};"
+  + "function strip(n){var o={name:n.name,left:n.left,top:n.top,right:n.right,bottom:n.bottom,hidden:n.hidden,opacity:n.opacity,blendMode:n.blendMode,text:n.text,effects:n.effects,artboard:n.artboard,clipping:n.clipping,clippingLayer:n.clippingLayer||n.clipping,vectorMask:n.vectorMask,vectorStroke:n.vectorStroke,vectorOrigination:n.vectorOrigination,vectorFill:n.vectorFill};"
   + "if(n.imageData&&n.imageData.data){o._img={w:n.imageData.width,h:n.imageData.height,buf:n.imageData.data.buffer};transfers.push(n.imageData.data.buffer);}"
   + "if(n.mask&&n.mask.imageData&&n.mask.imageData.data){o._mask={w:n.mask.imageData.width,h:n.mask.imageData.height,buf:n.mask.imageData.data.buffer,left:n.mask.left,top:n.mask.top,defaultColor:n.mask.defaultColor,disabled:n.mask.disabled};transfers.push(n.mask.imageData.data.buffer);}"
   + "if(n.children)o.children=n.children.map(strip);return o;}"
@@ -212,7 +409,7 @@ const _DPSD_WORKER_SRC = ""
   + "}catch(err){self.postMessage({ok:false,error:String(err)});}};";
 
 function _dPsdRebuildNode(node){
-  const n={name:node.name,left:node.left,top:node.top,right:node.right,bottom:node.bottom,hidden:node.hidden,opacity:node.opacity,blendMode:node.blendMode,text:node.text,effects:node.effects,artboard:node.artboard,clipping:node.clipping};
+  const n={name:node.name,left:node.left,top:node.top,right:node.right,bottom:node.bottom,hidden:node.hidden,opacity:node.opacity,blendMode:node.blendMode,text:node.text,effects:node.effects,artboard:node.artboard,clipping:node.clipping,clippingLayer:node.clippingLayer||node.clipping,vectorMask:node.vectorMask,vectorStroke:node.vectorStroke,vectorOrigination:node.vectorOrigination,vectorFill:node.vectorFill};
   if(node._img && node._img.buf){
     try{
       const c=document.createElement('canvas'); c.width=node._img.w; c.height=node._img.h;
@@ -347,8 +544,16 @@ function dPsdParseItems(psd, res, ox, oy){
       const it={ n:++n, name:(node.name||('Camada '+n)).toString().slice(0,48),
         x,y,w,h, visible:!accHidden, opacity:Math.round(accOp*100),
         include:!accHidden, mask:_dPsdComputeMask(node, prevLeaf),
+        clippingLayer: node.clippingLayer || node.clipping,
         blendMode:(bm&&bm!=='normal'&&bm!=='passThrough')?bm:undefined }; // máscara + clipping
       prevLeaf=node; // base p/ a próxima camada com clipping
+      // Recorte vetorial (vectorMask) — ex.: fundo com mordida/onda. Só quando NÃO há máscara
+      // raster/clipping (preserva _dPsdComputeMask intacto). l.fill segue com a cor original.
+      if(!it.mask && node.vectorMask && !node.vectorMask.disable){
+        const vmURL=_dPsdVectorMaskURL(node);
+        if(vmURL) it.mask=vmURL;
+        else { it.vectorMaskFailed=true; console.warn('[psd] vectorMask não rasterizável, importando shape simplificado:', it.name); }
+      }
       if(node.text && node.text.text!=null && String(node.text.text).trim()!==''){
         const t=node.text, sv=_dPsdSuggestVar(node.name, t.text);
         const {style:st, isMultiStyle}=_dPsdDominantStyle(t);
@@ -361,45 +566,143 @@ function dPsdParseItems(psd, res, ox, oy){
         it.fontRemapped=!!_fRemap;
         it.fontSize=_dPsdFontSize(t,h,it.content,res);
         it.color=_dPsdHex(st.fillColor||st.color)||'#000000';
+        it.strikethrough=st.strikethrough===true; // tachado (DE: R$..) — render já suportado
         it.textAlign=_dPsdAlign(t);
+        if(st.tracking) it.letterSpacing=Math.round((st.tracking/1000)*(st.fontSize||it.fontSize||12)); // tracking → px
+        if(st.leading)  it.lineHeight=+(st.leading/(st.fontSize||it.fontSize||12)).toFixed(3);          // leading → multiplicador
+        const _runs=_dPsdRichRuns(t,res,h); if(_runs) it.runs=_runs;   // texto multi-estilo
+        const _tg=_dPsdGradient(node); if(_tg) it.gradient=_tg;        // preenchimento por gradiente no texto
         Object.assign(it,_dPsdEffects(node));
         it.varName=sv.name;
         it.mode=sv.auto?'var':'text';
+        // Tipo de caixa. Campo real desta versão do ag-psd: text.shapeType ('box'|'point').
+        // Ausente → POINT (retrocompatível: mantém bbox de glifos atual). Só PARAGRAPH altera x/y/w/h.
+        it.textBox=(t.shapeType==='box')?'box':'point';
+        if(it.textBox==='box'){
+          const pb=_dPsdParagraphBox(node); // caixa do designer (já validada contra o bbox de glifos)
+          if(pb){ it.x=Math.round(pb.x-ox); it.y=Math.round(pb.y-oy); it.w=Math.max(1,pb.w); it.h=Math.max(1,pb.h); }
+          else { it.textBoxApprox=true; console.warn('[psd] caixa de parágrafo não derivável — usando bbox de glifos:', it.name); }
+        }
         if(node.canvas && node.canvas.width>0){ it.imgUrl=_dPsdRasterURL(node.canvas); } // p/ "imagem fiel"
       } else if(node.canvas && node.canvas.width>0 && node.canvas.height>0){
+        // Camada de GRADIENTE (GdFl: tem vectorFill com colorStops) → shape com gradiente editável,
+        // mesmo não sendo cor sólida (senão cairia em raster).
+        const grad=(node.vectorFill && node.vectorFill.colorStops)?_dPsdGradient(node):null;
         const solid=_dPsdSolidColor(node.canvas);
-        if(solid){
+        if(grad || solid){
           const shapeInfo=_dPsdDetectShapeKind(node.canvas);
           it.kind='shape';
-          it.fill=solid;
+          it.fill=solid || (grad && grad.stops[0] && grad.stops[0].color) || '#FF9000';
+          if(grad) it.gradient=grad;
           it.mode='shape';
           it.shapeKind=shapeInfo.kind;
           it.radius=shapeInfo.radius;
+          Object.assign(it,_dPsdEffects(node));        // sombra/glow/overlay/contorno-fx
+          Object.assign(it,_dPsdShapeStroke(node));    // traçado do shape (vectorStroke) — prevalece
+          const _rr=_dPsdCornerRadii(node,w,h); if(_rr) it.radii=_rr; // cantos por canto
         }
         else { it.kind='raster'; it.mode='raster'; it.imgUrl=_dPsdRasterURL(node.canvas); if(!it.imgUrl) return; }
       } else { return; }
       items.push(it);
     });
   })(psd.children, 1, false);
-  return items;
+  // Dedupe defensivo (NÃO altera grupos): 1 layer no Photoshop deve virar 1 item.
+  // Assinatura exata (tipo+nome+caixa+conteúdo) repetida → duplicata de parsing: descarta + avisa.
+  const _seen=new Set(); const out=[];
+  items.forEach(it=>{
+    const sig=it.kind+'|'+it.name+'|'+it.x+'|'+it.y+'|'+it.w+'|'+it.h+'|'+(it.content||'');
+    if(_seen.has(sig)){ console.warn('[psd] layer duplicada descartada (assinatura idêntica):', it.name); return; }
+    _seen.add(sig); out.push(it);
+  });
+  // Aviso (NÃO remove): textos com mesmo nome+conteúdo em caixas diferentes — pode ser sombra/contorno
+  // manual do designer (2 layers reais) ou duplicação inesperada. Mantém ambas para decisão na revisão.
+  const _soft={};
+  out.forEach(it=>{ if(it.kind==='text'&&it.content){ const k=it.name+'|'+it.content; _soft[k]=(_soft[k]||0)+1; } });
+  Object.keys(_soft).forEach(k=>{ if(_soft[k]>1) console.warn('[psd] possível layer de texto duplicada mantida (nome+conteúdo iguais, caixas diferentes):', k.split('|')[0]); });
+
+  // Detecção de clipping mask e rasterização de shapes-base (MVP)
+  for(let i=0; i<out.length; i++) {
+    if(out[i].clippingLayer) {
+      let baseIdx = i + 1;
+      while(baseIdx < out.length && out[baseIdx].clippingLayer) baseIdx++; // Pula múltiplas camadas
+      if(baseIdx < out.length) {
+        const base = out[baseIdx];
+        const b = out[i];
+        if(!b.mask) { // Se o Luma não gerou máscara via layerMaskCanvas
+          const c = document.createElement('canvas');
+          c.width = Math.max(1, b.w); c.height = Math.max(1, b.h);
+          const ctx = c.getContext('2d');
+          ctx.fillStyle = base.fill || '#000000';
+          const ox = base.x - b.x, oy = base.y - b.y;
+          let success = false;
+          if (base.kind === 'shape' && (base.shapeKind === 'ellipse' || base.shapeKind === 'circle')) {
+            ctx.beginPath();
+            ctx.ellipse(ox + base.w/2, oy + base.h/2, base.w/2, base.h/2, 0, 0, 2*Math.PI);
+            ctx.fill();
+            success = true;
+          } else if (base.kind === 'shape') {
+            ctx.fillRect(ox, oy, base.w, base.h);
+            success = true;
+          }
+          if(success) {
+            try { b.mask = c.toDataURL('image/png'); base.isMaskBase = true; } 
+            catch(e) { b.maskFallback = true; }
+          } else {
+            b.maskFallback = true;
+          }
+        } else {
+          base.isMaskBase = true; // Mesmo se já tem mask nativa de canvas (cm/lm), ocultamos o base
+        }
+      }
+    }
+  }
+
+  return out;
 }
 
+// Copia efeitos do item intermediário → layer (sombra/inner/glow/overlay/contorno+align).
+// Só grava o que existe, p/ não inflar o layer nem mudar camadas sem efeito.
+function _dPsdApplyFx(L, it){
+  if(it.shadow){ L.shadow=true; L.shadowColor=it.shadowColor;
+    if(it.shadowBlur!=null) L.shadowBlur=it.shadowBlur; if(it.shadowDist!=null) L.shadowDist=it.shadowDist; if(it.shadowAngle!=null) L.shadowAngle=it.shadowAngle; }
+  if(it.innerShadow){ L.innerShadow=true; L.innerShadowColor=it.innerShadowColor;
+    if(it.innerShadowBlur!=null) L.innerShadowBlur=it.innerShadowBlur; if(it.innerShadowDist!=null) L.innerShadowDist=it.innerShadowDist; if(it.innerShadowAngle!=null) L.innerShadowAngle=it.innerShadowAngle; }
+  if(it.glow){ L.glow=true; L.glowColor=it.glowColor; if(it.glowSize!=null) L.glowSize=it.glowSize; }
+  if(it.overlay){ L.overlay=true; L.overlayColor=it.overlayColor; if(it.overlayOpacity!=null) L.overlayOpacity=it.overlayOpacity; }
+  if(it.innerGlow){ L.innerGlow=true; L.innerGlowColor=it.innerGlowColor; if(it.innerGlowSize!=null) L.innerGlowSize=it.innerGlowSize; }
+  if(it.bevel){ L.bevel=true; L.bevelSize=it.bevelSize; L.bevelHighlight=it.bevelHighlight; L.bevelShadow=it.bevelShadow; if(it.bevelAngle!=null) L.bevelAngle=it.bevelAngle; }
+  if(it.gradientOverlay){ L.gradientOverlay=it.gradientOverlay; }
+  if(it.strokeW){ L.strokeW=it.strokeW; L.strokeColor=it.strokeColor||'#000000'; if(it.strokeAlign) L.strokeAlign=it.strokeAlign;
+    if(it.strokeDash) L.strokeDash=it.strokeDash; if(it.strokeCap) L.strokeCap=it.strokeCap; if(it.strokeJoin) L.strokeJoin=it.strokeJoin; }
+  return L;
+}
 function dItemToLayer(it){
   const base={ id:'l-psd-'+it.n+'-'+(it.x+it.y), name:it.name, x:it.x,y:it.y,w:it.w,h:it.h, visible:it.visible, opacity:it.opacity };
   if(it.mask) base.mask=it.mask;
   if(it.blendMode) base.blendMode=it.blendMode;
   if(it.kind==='text'){
-    if(it.mode==='raster' && it.imgUrl) return Object.assign(base,{type:'image',imgUrl:it.imgUrl,imgVar:'',objectFit:'cover',frameShape:'rect'});
+    if(it.mode==='raster' && it.imgUrl) return _dPsdApplyFx(Object.assign(base,{type:'image',imgUrl:it.imgUrl,imgVar:'',objectFit:'cover',frameShape:'rect'}), it);
     const isVar=it.mode==='var';
     const L=Object.assign(base,{ type:'text',
       content: isVar ? '{{'+(it.varName||'variavel')+'}}' : it.content,
       font:it.font, fontSize:it.fontSize, color:it.color, textAlign:it.textAlign, isVar:isVar });
-    if(it.shadow){ L.shadow=true; L.shadowColor=it.shadowColor; }
-    if(it.strokeW){ L.strokeW=it.strokeW; L.strokeColor=it.strokeColor; }
+    _dPsdApplyFx(L, it);
+    if(it.strikethrough){ L.strikethrough=true; }
+    if(it.textBox==='box'){ L.textBox='box'; } // paragraph → editor encaixa na caixa
+    if(it.letterSpacing) L.letterSpacing=it.letterSpacing;
+    if(it.lineHeight) L.lineHeight=it.lineHeight;
+    if(it.runs && !isVar) L.runs=it.runs;       // texto multi-estilo (não p/ variável)
+    if(it.gradient) L.gradient=it.gradient;     // preenchimento por gradiente no texto
     return L;
   }
-  if(it.kind==='shape' && it.mode==='shape') return Object.assign(base,{type:'shape',fill:it.fill||'#FF9000',radius:it.radius||0,shapeKind:it.shapeKind||'rect'});
-  return Object.assign(base,{type:'image',imgUrl:it.imgUrl,imgVar:'',objectFit:'cover',frameShape:'rect'});
+  if(it.kind==='shape' && it.mode==='shape'){
+    const S=Object.assign(base,{type:'shape',fill:it.fill||'#FF9000',radius:it.radius||0,shapeKind:it.shapeKind||'rect'});
+    if(it.radii) S.radii=it.radii;                                  // cantos por canto
+    if(it.gradient) S.gradient=it.gradient;                         // gradiente
+    _dPsdApplyFx(S, it);                                            // traçado(+align)/sombra/glow/overlay
+    return S;
+  }
+  return _dPsdApplyFx(Object.assign(base,{type:'image',imgUrl:it.imgUrl,imgVar:'',objectFit:'cover',frameShape:'rect'}), it);
 }
 
 /* ── Memória de mapeamento (Fase D) ──
@@ -478,7 +781,7 @@ function dPsdRenderRows(filter){
   const kindOrder={text:0,shape:1,raster:2};
   const kindLabel={text:'Textos',shape:'Formas',raster:'Imagens'};
   // Indexar, filtrar por busca (nome, conteúdo, fontName, tipo em PT-BR) e agrupar por tipo
-  const indexed=dPsdItems.map((it,i)=>({it,i}));
+  const indexed=dPsdItems.map((it,i)=>({it,i})).filter(({it})=>!it.isMaskBase);
   const visible=filter?indexed.filter(({it})=>{
     return it.name.toLowerCase().includes(filter)||
       (it.content&&it.content.toLowerCase().includes(filter))||
@@ -517,21 +820,24 @@ function dPsdRenderRows(filter){
       else fontWarn=`<span class="psd-fontwarn">⚠ ${fn} <label class="psd-font-upload-btn" title="Enviar '${fn}' agora">↑ enviar<input type="file" accept=".ttf,.otf,.woff,.woff2" style="display:none" onchange="dPsdUploadFont(${i},this)"></label></span>`;
     }
     const opacityBadge=it.opacity<95?`<span class="psd-opacity-badge">α ${it.opacity}%</span>`:'';
+    const vecWarn=it.vectorMaskFailed?`<span class="psd-fontwarn" title="Recorte vetorial não pôde ser rasterizado — shape importado sem máscara">⚠ Shape vetorial simplificado</span>`:'';
+    const clipWarn=it.maskFallback?`<span class="psd-fontwarn" title="Forma complexa de base não pôde ser rasterizada">⚠ Clipping mask não preservada</span>`:'';
     const textInfoBadge=it.kind==='text'?`<span class="psd-textinfo">${it.fontSize}px · ${it.textAlign}</span>`:'';
     const thumb=it.kind==='raster'&&it.imgUrl?`<img class="psd-thumb" src="${it.imgUrl}" alt="" loading="lazy">`:'';
     const textPrev=it.kind==='text'&&it.content
       ?`<span class="psd-text-prev" style="color:${it.color||'#aaa'}">${_dPsdEsc(it.content.replace(/\n/g,' ').slice(0,60))}</span>`:'';
-    return header+`<div class="psd-row ${it.include?'':'psd-row-off'}">
+    return header+`<div class="psd-row ${it.include?'':'psd-row-off'}" onmouseenter="typeof dPsdHoverLayer==='function'&&dPsdHoverLayer(${i})" onmouseleave="typeof dPsdHoverLayer==='function'&&dPsdHoverLayer(-1)">
       <input type="checkbox" ${it.include?'checked':''} onchange="dPsdSetInclude(${i},this.checked)">
       <span class="psd-row-ico">${swatch||ico[it.kind]||'▣'}</span>
       ${thumb}
       <span class="psd-row-name" title="${_dPsdEsc(it.name)}">
-        <span class="psd-row-name-top">${_dPsdEsc(it.name)}${multiStyleBadge}${blendBadge}${fontWarn}${opacityBadge}${textInfoBadge}</span>
+        <span class="psd-row-name-top">${_dPsdEsc(it.name)}${multiStyleBadge}${blendBadge}${fontWarn}${opacityBadge}${vecWarn}${clipWarn}${textInfoBadge}</span>
         ${textPrev}
       </span>
       ${modeSel}${varIn}</div>`;
   }).join('');
   dPsdUpdateCount();
+  if(typeof dPsdRenderPreview === 'function') dPsdRenderPreview();
 }
 function dPsdSetMode(i,v){ if(dPsdItems[i]){ dPsdItems[i].mode=v; dPsdRenderRows(document.getElementById('d-psd-search')&&document.getElementById('d-psd-search').value.trim().toLowerCase()||''); } }
 function dPsdSetVar(i,v){ if(dPsdItems[i]) dPsdItems[i].varName=v.trim().replace(/[^a-zA-Z0-9_]/g,''); }
@@ -566,10 +872,12 @@ function dPsdCancel(){
   const m=document.getElementById('d-psd-modal'); if(m)m.classList.remove('open');
   const wasSeq=!!_dPsdReviewOnConfirm; // cancelar no meio da sequência aborta tudo
   dPsdItems=[]; dPsdMeta=null; _dPsdReviewOnConfirm=null;
+  const cv=document.getElementById('d-psd-preview-canvas'); if(cv){ cv.width=0; cv.height=0; cv._renderId=(cv._renderId||0)+1; }
+  const ov=document.getElementById('d-psd-preview-overlay'); if(ov){ ov.width=0; ov.height=0; }
   if(wasSeq) gToast('Importação de pranchetas cancelada');
 }
 function dPsdConfirmImport(){
-  const chosen=dPsdItems.filter(it=>it.include);
+  const chosen=dPsdItems.filter(it=>it.include && !it.isMaskBase);
   if(!chosen.length){ gToast('Selecione ao menos uma camada','error'); return; }
   _dPsdMemSave(dPsdItems); // persiste mapeamentos para próximas importações
   let layers=chosen.map(dItemToLayer).filter(Boolean);
@@ -578,6 +886,8 @@ function dPsdConfirmImport(){
   if(typeof dSyncVarsFromContent==='function') layers.forEach(l=>{ if(l.type==='text'&&l.isVar) dSyncVarsFromContent(l.content); });
   const fmtChoice=(document.getElementById('d-psd-fmt')||{}).value||'orig';
   document.getElementById('d-psd-modal').classList.remove('open');
+  const cv=document.getElementById('d-psd-preview-canvas'); if(cv){ cv.width=0; cv.height=0; cv._renderId=(cv._renderId||0)+1; }
+  const ov=document.getElementById('d-psd-preview-overlay'); if(ov){ ov.width=0; ov.height=0; }
   // Fluxo multi-prancheta: encaminha as layers pro callback (cria template) e não cria prancheta.
   if(_dPsdReviewOnConfirm){
     const cb=_dPsdReviewOnConfirm; _dPsdReviewOnConfirm=null;
@@ -617,6 +927,94 @@ function dImportLayersAsArtboard(w,h,layers,name,fmtChoice,dpi){
   if(typeof dStats==='function') dStats();
   if(typeof dMarkUnsaved==='function') dMarkUnsaved();
   setTimeout(()=>{ if(typeof dFitToScreen==='function') dFitToScreen(); },80);
+}
+
+/* ── Renderização do Preview no Modal (PARTE A) ── */
+async function dPsdRenderPreview(){
+  const canvas=document.getElementById('d-psd-preview-canvas');
+  if(!canvas || !dPsdMeta) return;
+
+  // Gerenciamento de sobreposição de renders async
+  const renderId=++canvas._renderId || (canvas._renderId=1);
+
+  canvas.width=dPsdMeta.w;
+  canvas.height=dPsdMeta.h;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  const inv=document.getElementById('d-psd-invert');
+  const shouldInvert=inv && inv.checked;
+  
+  let itemsToRender=dPsdItems.filter(it=>it.include);
+  if(shouldInvert) itemsToRender=itemsToRender.slice().reverse();
+
+  for(const it of itemsToRender){
+    if(canvas._renderId!==renderId) return; // abortado por render mais recente
+
+    ctx.save();
+    ctx.globalAlpha=(it.opacity!=null?it.opacity:100)/100;
+    
+    if(it.imgUrl){
+      await new Promise(resolve=>{
+        const img=new Image();
+        img.onload=()=>{ ctx.drawImage(img, it.x, it.y, it.w, it.h); resolve(); };
+        img.onerror=resolve;
+        img.src=it.imgUrl;
+      });
+    } else if(it.kind==='shape' && it.fill){
+      ctx.fillStyle=it.fill;
+      if(it.shapeKind==='circle' || it.shapeKind==='ellipse'){
+        ctx.beginPath();
+        ctx.ellipse(it.x+it.w/2, it.y+it.h/2, it.w/2, it.h/2, 0, 0, Math.PI*2);
+        ctx.fill();
+      } else {
+        if(it.radius && ctx.roundRect){
+          ctx.beginPath();
+          ctx.roundRect(it.x, it.y, it.w, it.h, it.radius);
+          ctx.fill();
+        } else {
+          ctx.fillRect(it.x, it.y, it.w, it.h);
+        }
+      }
+    } else if(it.kind==='text'){
+      ctx.fillStyle=it.color||'#000000';
+      ctx.font=`${it.fontSize||20}px sans-serif`;
+      ctx.textBaseline='top';
+      ctx.textAlign=it.textAlign==='center'?'center':(it.textAlign==='right'?'right':'left');
+      const tx=it.textAlign==='center'?it.x+it.w/2:(it.textAlign==='right'?it.x+it.w:it.x);
+      ctx.fillText(it.content||'', tx, it.y);
+    }
+    ctx.restore();
+  }
+}
+
+/* ── Hover Tracking no Modal (PARTE B) ── */
+function dPsdHoverLayer(idx) {
+  const overlay = document.getElementById('d-psd-preview-overlay');
+  if (!overlay || !dPsdMeta) return;
+  
+  // Sincroniza dimensões nativas
+  if (overlay.width !== dPsdMeta.w || overlay.height !== dPsdMeta.h) {
+    overlay.width = dPsdMeta.w;
+    overlay.height = dPsdMeta.h;
+  }
+  
+  const ctx = overlay.getContext('2d');
+  ctx.clearRect(0, 0, overlay.width, overlay.height);
+  
+  if (idx >= 0 && dPsdItems[idx]) {
+    const it = dPsdItems[idx];
+    if (it.include) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(255, 144, 0, 0.2)';
+      ctx.strokeStyle = '#FF9000';
+      const lw = Math.max(2, Math.min(overlay.width, overlay.height) * 0.003);
+      ctx.lineWidth = lw;
+      ctx.fillRect(it.x, it.y, it.w, it.h);
+      ctx.strokeRect(it.x - lw/2, it.y - lw/2, it.w + lw, it.h + lw); // stroke por fora para n sobrepor as bordas diretas
+      ctx.restore();
+    }
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════

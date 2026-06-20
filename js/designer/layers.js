@@ -527,7 +527,32 @@ function dAddEffect() {
       dPropScrollTo('dp-sec-appear');
     }
   }
-  gToast('Selecione Aparência para ajustar bordas e sombras');
+  gToast('Selecione Aparência para ajustar bordas, sombras e efeitos');
+}
+
+// <input type=color> só aceita #rrggbb; converte rgba()→hex (descarta alpha) p/ exibir no picker.
+function _dFxHex(c){
+  if(!c) return null;
+  const m=String(c).match(/rgba?\(([^)]+)\)/i);
+  if(m){ const p=m[1].split(','); const h=n=>('0'+Math.max(0,Math.min(255,Math.round(+n))).toString(16)).slice(-2); return '#'+h(p[0])+h(p[1])+h(p[2]); }
+  return c;
+}
+// Popula os campos de efeitos (sombra/inner/glow/overlay) a partir do layer selecionado.
+function dFxPopulate(l){
+  const set=(id,v)=>{ const e=document.getElementById(id); if(e) e.value=v; };
+  const chk=(id,v)=>{ const e=document.getElementById(id); if(e) e.checked=!!v; };
+  chk('dp-fx-shadow', l.shadow);
+  set('dp-fx-shadow-color', _dFxHex(l.shadowColor)||'#000000');
+  set('dp-fx-shadow-blur', l.shadowBlur!=null?l.shadowBlur:''); set('dp-fx-shadow-dist', l.shadowDist!=null?l.shadowDist:''); set('dp-fx-shadow-angle', l.shadowAngle!=null?l.shadowAngle:'');
+  chk('dp-fx-inner', l.innerShadow);
+  set('dp-fx-inner-color', _dFxHex(l.innerShadowColor)||'#000000');
+  set('dp-fx-inner-blur', l.innerShadowBlur!=null?l.innerShadowBlur:''); set('dp-fx-inner-dist', l.innerShadowDist!=null?l.innerShadowDist:''); set('dp-fx-inner-angle', l.innerShadowAngle!=null?l.innerShadowAngle:'');
+  chk('dp-fx-glow', l.glow);
+  set('dp-fx-glow-color', _dFxHex(l.glowColor)||'#ffffff');
+  set('dp-fx-glow-size', l.glowSize!=null?l.glowSize:'');
+  chk('dp-fx-overlay', l.overlay);
+  set('dp-fx-overlay-color', _dFxHex(l.overlayColor)||'#000000');
+  set('dp-fx-overlay-op', l.overlayOpacity!=null?Math.round(l.overlayOpacity*100):'');
 }
 
 function dRenderLayersList(){
@@ -803,6 +828,7 @@ function dShowProps(l){
   if(typeof dPopBindingSelects==='function')dPopBindingSelects(l); // 4.1 — vínculos de propriedade
   if(typeof dRenderRules==='function')dRenderRules(l); // 4.2 — regras condicionais
   if(typeof dMaskRenderProps==='function')dMaskRenderProps(l); // máscaras de camada
+  if(typeof dFxPopulate==='function')dFxPopulate(l); // efeitos (sombra/inner/glow/overlay) — universal
   // Blend mode — universal para todos os tipos de layer
   var _blendSel=document.getElementById('dp-blend');
   if(_blendSel){
@@ -845,6 +871,15 @@ function dShowProps(l){
     document.getElementById('dp-opacity').value=l.opacity||100;
     document.getElementById('dp-radius').value=l.radius||0;
     dSyncRadiusUI(l.radius||0); // sincroniza slider + preview do widget de radius
+    // Cantos por canto + traçado (reaplicado)
+    const _cr=dCornerRadii(l);
+    ['tl','tr','br','bl'].forEach(k=>{ const el=document.getElementById('dp-corner-'+k); if(el)el.value=_cr[k]; });
+    dCornerLinked=!l.radii; const _lk=document.getElementById('dp-corner-link'); if(_lk){ _lk.classList.toggle('active',dCornerLinked); _lk.textContent=dCornerLinked?'🔗':'🔓'; }
+    const _swEl=document.getElementById('dp-shape-strokeW'); if(_swEl)_swEl.value=l.strokeW||0;
+    const _scHex=document.getElementById('dp-shape-strokeColor'); if(_scHex)_scHex.value=(l.strokeColor||'#000000').toUpperCase();
+    const _scSw=document.getElementById('dp-shape-stroke-sw'); if(_scSw)_scSw.style.background=l.strokeColor||'#000000';
+    const _scPick=document.getElementById('dp-shape-stroke-pick'); if(_scPick)_scPick.value=l.strokeColor||'#000000';
+    const _saEl=document.getElementById('dp-shape-strokeAlign'); if(_saEl)_saEl.value=l.strokeAlign||'inside';
   }
   if(isImg){
     document.getElementById('dp-imgurl').value=l.imgUrl||'';
@@ -1136,17 +1171,46 @@ function dSetRadiusCircle(){
   dSyncRadiusUI(999);
   dUpdateProp('radius',999);
 }
+/* ── Cantos arredondados por canto ── l.radii={tl,tr,br,bl} sobrescreve l.radius (uniforme/legado). */
+function dCornerRadii(l){
+  if(l && l.radii && typeof l.radii==='object'){
+    return { tl:+l.radii.tl||0, tr:+l.radii.tr||0, br:+l.radii.br||0, bl:+l.radii.bl||0 };
+  }
+  const u=Math.max(0,(l&&+l.radius)||0);
+  return { tl:u, tr:u, br:u, bl:u };
+}
+let dCornerLinked=true; // cadeado: edição replica nos 4 cantos (= raio uniforme)
+function dToggleCornerLink(){
+  dCornerLinked=!dCornerLinked;
+  const b=document.getElementById('dp-corner-link');
+  if(b){ b.classList.toggle('active',dCornerLinked); b.textContent=dCornerLinked?'🔗':'🔓'; }
+}
+function dSetCorner(which,val){
+  const l=dLayers.find(x=>x.id===dSelId); if(!l)return;
+  const num=Math.max(0,parseInt(val)||0);
+  dHistoryPushDebounced();
+  if(dCornerLinked){
+    l.radius=num; delete l.radii;
+    ['tl','tr','br','bl'].forEach(k=>{ const el=document.getElementById('dp-corner-'+k); if(el)el.value=num; });
+    dSyncRadiusUI(num); const rEl=document.getElementById('dp-radius'); if(rEl)rEl.value=num;
+  } else {
+    if(!l.radii) l.radii=dCornerRadii(l);
+    l.radii[which]=num;
+  }
+  dMarkUnsaved(); dRenderCanvas();
+}
 function dUpdateProp(prop,val){
   const l=dLayers.find(x=>x.id===dSelId);if(!l)return;
-  if(['x','y','w','h','fontSize','opacity','fillOpacity','radius','sides','points','strokeW'].includes(prop))val=parseFloat(val)||0;
+  if(['x','y','w','h','fontSize','opacity','fillOpacity','radius','sides','points','strokeW','shadowBlur','shadowDist','shadowAngle','innerShadowBlur','innerShadowDist','innerShadowAngle','glowSize'].includes(prop))val=parseFloat(val)||0;
   // Props editadas via oninput contínuo usam debounce — evita serializar dLayers a cada tecla.
   // Props de seleção discreta (font, textAlign, frameShape, etc.) usam push imediato.
-  const _continuousProps=['fontSize','opacity','fillOpacity','radius','color','fill','content','sides','points','strokeW','strokeColor','shadowColor','bgColor','imgScale','imgOffsetX','imgOffsetY'];
+  const _continuousProps=['fontSize','opacity','fillOpacity','radius','color','fill','content','sides','points','strokeW','strokeColor','shadowColor','bgColor','imgScale','imgOffsetX','imgOffsetY','shadowBlur','shadowDist','shadowAngle','innerShadowColor','innerShadowBlur','innerShadowDist','innerShadowAngle','glowColor','glowSize','overlayColor','overlayOpacity'];
   if(!['x','y','w','h'].includes(prop)){
     if(_continuousProps.includes(prop)) dHistoryPushDebounced();
     else dHistoryPush();
   }
   l[prop]=val;
+  if(prop==='radius') delete l.radii; // raio uniforme manda → limpa cantos por canto
   if(prop==='content')dSyncVarsFromContent(val); // auto-cria variáveis digitadas (3.1)
   // frameShape → radius automático
   if(prop==='frameShape'){

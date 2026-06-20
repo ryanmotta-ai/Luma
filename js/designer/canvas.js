@@ -177,10 +177,11 @@ function _dRenderPreview(frame,ab){
     if(l.blendMode)el.style.mixBlendMode=l.blendMode.replace(/([A-Z])/g,c=>'-'+c.toLowerCase());
     if(l.type==='shape'){
       const kind=l.shapeKind||'rect';
-      el.style.background=l.fill||'#FF9000';
+      el.style.background=(typeof dFxShapeBg==='function')?dFxShapeBg(l):(l.fill||'#FF9000');
       if(kind==='circle'||kind==='ellipse'){el.style.borderRadius='50%';}
-      else{el.style.borderRadius=(l.radius||0)+'px';}
-      if(l.stroke&&l.strokeWidth){el.style.outline=l.strokeWidth+'px solid '+l.stroke;el.style.outlineOffset='-'+l.strokeWidth+'px';}
+      else{ const _cr=(typeof dCornerRadii==='function')?dCornerRadii(l):{tl:l.radius||0,tr:l.radius||0,br:l.radius||0,bl:l.radius||0}; el.style.borderRadius=_cr.tl+'px '+_cr.tr+'px '+_cr.br+'px '+_cr.bl+'px'; }
+      const _bs=(typeof dFxStrokeParts==='function')?dFxStrokeParts(l).concat(dFxShadowParts(l)):[];
+      if(_bs.length) el.style.boxShadow=_bs.join(', ');
     } else if(l.type==='text'){
       el.style.color=l.color||'#fff';
       el.style.fontSize=(l.fontSize||24)+'px';
@@ -621,6 +622,41 @@ function dApplyBg(ab){
   bgEl.style.background=(bg&&bg!=='transparent')?(bg==='white'?'#ffffff':bg):'';
 }
 
+/* ── Efeitos de camada (sombra projetada/interna, glow) → partes de box-shadow ──
+   Compartilhado pelo render do canvas e pelo thumbnail. Sem efeito → []. */
+function dFxShadowParts(l){
+  const parts=[];
+  if(l.shadow){ const o=gFxOffset(l.shadowDist!=null?l.shadowDist:4, l.shadowAngle); const b=l.shadowBlur!=null?l.shadowBlur:6;
+    parts.push(o.x+'px '+o.y+'px '+b+'px '+(l.shadowColor||'rgba(0,0,0,.5)')); }
+  if(l.glow){ parts.push('0 0 '+(l.glowSize!=null?l.glowSize:8)+'px '+(l.glowColor||'rgba(255,255,255,.7)')); }
+  if(l.innerShadow){ const o=gFxOffset(l.innerShadowDist!=null?l.innerShadowDist:4, l.innerShadowAngle); const b=l.innerShadowBlur!=null?l.innerShadowBlur:6;
+    parts.push('inset '+o.x+'px '+o.y+'px '+b+'px '+(l.innerShadowColor||'rgba(0,0,0,.5)')); }
+  if(l.innerGlow){ parts.push('inset 0 0 '+(l.innerGlowSize!=null?l.innerGlowSize:8)+'px '+(l.innerGlowColor||'rgba(255,255,255,.7)')); }
+  if(l.bevel){ const o=gFxOffset(l.bevelSize!=null?l.bevelSize:4, l.bevelAngle), b=l.bevelSize!=null?l.bevelSize:4; // realce (luz) + sombra opostos, internos
+    parts.push('inset '+o.x+'px '+o.y+'px '+b+'px '+(l.bevelHighlight||'rgba(255,255,255,.7)'));
+    parts.push('inset '+(-o.x)+'px '+(-o.y)+'px '+b+'px '+(l.bevelShadow||'rgba(0,0,0,.5)')); }
+  return parts;
+}
+// Traçado de shape como box-shadow, respeitando o alinhamento (inside/center/outside).
+function dFxStrokeParts(l){
+  if(!(l.strokeW>0) || l.strokeDash) return []; // dash é tratado via border no editor
+  const w=l.strokeW, c=l.strokeColor||'#000', a=l.strokeAlign||'inside';
+  if(a==='outside') return ['0 0 0 '+w+'px '+c];
+  if(a==='center')  return ['0 0 0 '+(w/2)+'px '+c, 'inset 0 0 0 '+(w/2)+'px '+c];
+  return ['inset 0 0 0 '+w+'px '+c];
+}
+// Fundo do shape: gradiente (l.gradient) ou cor sólida, com color overlay por cima.
+function dFxShapeBg(l){
+  const base = (l.gradient && l.gradient.stops && l.gradient.stops.length) ? gGradientCss(l.gradient) : (l.fill||'#FF9000');
+  const layers=[];
+  if(l.gradientOverlay && l.gradientOverlay.stops && l.gradientOverlay.stops.length){ // gradient overlay (efeito)
+    const g=Object.assign({}, l.gradientOverlay);
+    if(g.opacity!=null && g.opacity<1) g.stops=g.stops.map(s=>({color:s.color,pos:s.pos,opacity:(s.opacity!=null?s.opacity:1)*g.opacity}));
+    layers.push(gGradientCss(g));
+  }
+  if(l.overlay && l.overlayColor){ const o=gFxRgba(l.overlayColor, l.overlayOpacity!=null?l.overlayOpacity:1); layers.push('linear-gradient('+o+','+o+')'); }
+  return layers.length? layers.join(',')+','+base : base;
+}
 function dRenderCanvas(){
   const ab=typeof dGetActiveAB==='function'?dGetActiveAB():null;
   dApplyBg(ab);
@@ -665,11 +701,16 @@ function dRenderCanvas(){
         inner.style.cssText='position:absolute;inset:0;';
         const abs=pts.map(p=>[p[0]*l.w, p[1]*l.h]);
         const d=gRoundPolyD(abs, l.radius||0);
-        inner.innerHTML='<svg width="100%" height="100%" viewBox="0 0 '+l.w+' '+l.h+'" preserveAspectRatio="none" style="display:block;overflow:visible"><path d="'+d+'" fill="'+(l.fill||'#FF9000')+'"/></svg>';
+        const _st=(l.strokeW>0)?' stroke="'+(l.strokeColor||'#000')+'" stroke-width="'+l.strokeW+'"':''; // traçado no polígono
+        inner.innerHTML='<svg width="100%" height="100%" viewBox="0 0 '+l.w+' '+l.h+'" preserveAspectRatio="none" style="display:block;overflow:visible"><path d="'+d+'" fill="'+(l.fill||'#FF9000')+'"'+_st+'/></svg>';
         el.appendChild(inner);
       }else{
-        el.style.background=l.fill||'#FF9000';
-        el.style.borderRadius=(kind==='circle'||kind==='ellipse')?'50%':(l.radius||0)+'px';
+        el.style.background=dFxShapeBg(l); // fill + color overlay
+        if(kind==='circle'||kind==='ellipse'){ el.style.borderRadius='50%'; }
+        else { const _cr=dCornerRadii(l); el.style.borderRadius=_cr.tl+'px '+_cr.tr+'px '+_cr.br+'px '+_cr.bl+'px'; } // cantos por canto
+        if(l.strokeW>0 && l.strokeDash){ el.style.border=l.strokeW+'px dashed '+(l.strokeColor||'#000'); el.style.boxSizing='border-box'; } // traçado tracejado
+        const _bs=dFxStrokeParts(l).concat(dFxShadowParts(l)); // traçado(+align) + sombra/glow/inner/bevel
+        if(_bs.length) el.style.boxShadow=_bs.join(', ');
       }
     }else if(l.type==='text'){
       // Política de var vazia (3.3): na simulação, layer cujos tokens ficaram todos vazios
@@ -677,11 +718,21 @@ function dRenderCanvas(){
       if(dSimActive && /\{\{/.test(l.content||'') && gAllVarsEmpty(l.content, dSimValues, gVarDefaults())){
         el.style.display='none';
       }
-      el.style.color=l.color||'#fff';
+      el.style.color=(l.overlay&&l.overlayColor)?gFxRgba(l.overlayColor,l.overlayOpacity!=null?l.overlayOpacity:1):(l.color||'#fff'); // color overlay
       const _fp=dTextFontParts(l.font);el.style.fontFamily=_fp.family;el.style.fontWeight=_fp.weight;
-      el.style.fontSize=(l.fontSize||24)+'px';
+      // Encaixe na caixa p/ texto de PARÁGRAFO importado do PSD (espelha png-generator/preview):
+      // se a fonte trocada (Roboto) fizer o texto estourar a altura, reduz só o tamanho de EXIBIÇÃO
+      // — NÃO altera l.fontSize (tamanho real do PSD). Point text e demais layers ficam intactos.
+      let _renderFs=l.fontSize||24;
+      if(l.textBox==='box' && !l.vertical && typeof dMeasureText==='function'){
+        const _measContent=dSimActive?dInterpolate(l.content||''):(l.content||'');
+        const _m=dMeasureText(_measContent, l.font||"'Roboto'", _renderFs, l.w);
+        if(_m && _m.height > l.h+2){ _renderFs=Math.max(8, Math.floor(_renderFs*(l.h/_m.height))); }
+      }
+      el.style.fontSize=_renderFs+'px';
       el.style.textAlign=l.textAlign||'left';
-      el.style.lineHeight='1.2';el.style.overflow='visible';el.style.pointerEvents='auto';el.style.whiteSpace='pre-wrap';
+      el.style.lineHeight=(l.lineHeight?String(l.lineHeight):'1.2');el.style.overflow='visible';el.style.pointerEvents='auto';el.style.whiteSpace='pre-wrap';
+      el.style.letterSpacing=(l.letterSpacing?l.letterSpacing+'px':''); // tracking
       if(l.vertical){
         el.style.writingMode='vertical-rl';
       } else {
@@ -702,26 +753,39 @@ function dRenderCanvas(){
       // sim: valor do usuário vai como texto puro (sem HTML → sem XSS); edição: escapa o
       // conteúdo do designer e só os tokens {{var}} viram badge.
       if(dSimActive){ textNode.textContent=dInterpolate(l.content||''); }
+      else if(l.runs && l.runs.length && !l.isVar){ // texto multi-estilo (rich text)
+        textNode.innerHTML=l.runs.map(r=>`<span style="color:${r.color||'inherit'};font-size:${r.fontSize||_renderFs}px;font-family:${dTextFontParts(r.font).family};font-weight:${dTextFontParts(r.font).weight};${r.letterSpacing?'letter-spacing:'+r.letterSpacing+'px;':''}">${gEsc(r.text||'').replace(/\n/g,'<br>')}</span>`).join(''); }
       else { textNode.innerHTML=gEsc(l.content||'').replace(gVarRegex(),(m,n)=>{
         const v=(typeof dVars!=='undefined')&&dVars.find(x=>x.name===n);
         const lab=v?(v.label||n):n;
         return '<span class="field-chip" data-var="'+n+'">'+gEsc(lab)+'</span>';
       }); }
+      // Preenchimento por gradiente no texto (clip) — não para rich text (que tem cor por trecho)
+      if(l.gradient && l.gradient.stops && l.gradient.stops.length && !(l.runs&&l.runs.length)){
+        textNode.style.backgroundImage=gGradientCss(l.gradient);
+        textNode.style.webkitBackgroundClip='text'; textNode.style.backgroundClip='text';
+        textNode.style.webkitTextFillColor='transparent';
+      }
       if(l.strikethrough)textNode.style.textDecoration='line-through';
-      // Efeitos de legibilidade (espelham o png-generator)
-      const _fs=l.fontSize||24;
+      // Efeitos de legibilidade (espelham o png-generator) — usam o tamanho EXIBIDO (_renderFs)
+      const _fs=_renderFs;
       if(l.bg){textNode.style.background=l.bgColor||'#000';textNode.style.borderRadius=Math.round(_fs*0.2)+'px';}
       if(l.strokeW>0){const sv=l.strokeW+'px '+(l.strokeColor||'#000');textNode.style.webkitTextStroke=sv;textNode.style.textStroke=sv;}
-      if(l.shadow){const sb=Math.max(1,_fs*0.12),so=_fs*0.05;textNode.style.textShadow=`${so}px ${so}px ${sb}px ${l.shadowColor||'rgba(0,0,0,.5)'}`;}
+      // Sombra projetada + glow (texto). Sem blur/dist explícitos → mantém o default antigo (fs-based).
+      {
+        const _ts=[];
+        if(l.shadow){
+          if(l.shadowBlur!=null||l.shadowDist!=null){ const o=gFxOffset(l.shadowDist!=null?l.shadowDist:_fs*0.07, l.shadowAngle); _ts.push(`${o.x}px ${o.y}px ${(l.shadowBlur!=null?l.shadowBlur:_fs*0.12)}px ${l.shadowColor||'rgba(0,0,0,.5)'}`); }
+          else { const sb=Math.max(1,_fs*0.12),so=_fs*0.05; _ts.push(`${so}px ${so}px ${sb}px ${l.shadowColor||'rgba(0,0,0,.5)'}`); }
+        }
+        if(l.glow){ _ts.push(`0 0 ${(l.glowSize!=null?l.glowSize:_fs*0.3)}px ${l.glowColor||'rgba(255,255,255,.7)'}`); }
+        if(_ts.length) textNode.style.textShadow=_ts.join(', ');
+      }
       el.appendChild(textNode);
-      // Indicador de overflow
-      if(dCheckTextOverflow(dSimActive?{...l,content:dInterpolate(l.content||'')}:l)){ // na simulação mede o valor real, não os tokens {{}}
+      // Indicador de overflow — mede com o tamanho EXIBIDO (_renderFs); se o encaixe já
+      // resolveu, não acende o selo. Na simulação mede o valor real, não os tokens {{}}.
+      if(dCheckTextOverflow(dSimActive?{...l,content:dInterpolate(l.content||''),fontSize:_renderFs}:{...l,fontSize:_renderFs})){
         el.classList.add('text-overflow');
-        const ovBadge=document.createElement('div');
-        ovBadge.className='text-overflow-badge';
-        ovBadge.innerHTML=`<span>OVERFLOW</span><button style="background:rgba(0,0,0,.2);border:none;color:#1A1A1A;font-size:8px;padding:0 3px;border-radius:2px;cursor:pointer;font-weight:700;pointer-events:auto" onclick="event.stopPropagation();dAutoFitText('${l.id}')">⊟ Fit</button>`;
-        ovBadge.style.pointerEvents='auto';
-        el.appendChild(ovBadge);
       }
     }else if(l.type==='frame'){
       // Moldura de foto — estilo Deskfy
@@ -854,136 +918,6 @@ function dRenderCanvas(){
   if(typeof dABAddResizeHandles==='function') dABAddResizeHandles();
 }
 
-/* ── EDIÇÃO INLINE DE TEXTO (dblclick na camada) ── */
-function dStartInlineEdit(l, el) {
-  if(!l || l.type !== 'text') return;
-  if(el.dataset.editing === '1') return;
-  el.dataset.editing = '1';
-
-  const prev = l.content || '';
-  const ta = document.createElement('textarea');
-  ta.value = prev;
-  // A textarea espelha o visual da camada para o usuário saber o que está editando
-  ta.style.cssText = [
-    'position:absolute;inset:0;z-index:200;',
-    'box-sizing:border-box;width:100%;height:100%;min-height:24px;',
-    'background:rgba(10,10,20,.82);',
-    'border:2px solid var(--dm-orange);border-radius:3px;outline:none;',
-    'resize:none;padding:2px 4px;margin:0;',
-    'color:' + (l.color || '#fff') + ';',
-    'font-family:' + el.style.fontFamily + ';',
-    'font-weight:' + el.style.fontWeight + ';',
-    'font-size:' + el.style.fontSize + ';',
-    'line-height:1.2;text-align:' + (l.textAlign || 'left') + ';',
-    'white-space:pre-wrap;overflow:hidden;',
-    l.vertical ? 'writing-mode:vertical-rl;' : '',
-  ].join('');
-
-  el.appendChild(ta);
-  ta.focus();
-  ta.setSelectionRange(0, ta.value.length);
-
-  function commit() {
-    const val = ta.value;
-    if(ta.parentNode === el) el.removeChild(ta);
-    delete el.dataset.editing;
-    
-    if (l.isTempMaskText) {
-      const targetLayer = (typeof dLayers !== 'undefined') && dLayers.find(x => x.id === l.targetMaskLayerId);
-      if (targetLayer && val.trim() !== '') {
-        const mCanvas = document.createElement('canvas');
-        mCanvas.width = targetLayer.w;
-        mCanvas.height = targetLayer.h;
-        const mCtx = mCanvas.getContext('2d');
-        mCtx.clearRect(0, 0, mCanvas.width, mCanvas.height);
-
-        const localX = l.x - targetLayer.x;
-        const localY = l.y - targetLayer.y;
-
-        const fp = (typeof dTextFontParts === 'function') ? dTextFontParts(l.font) : {family: "'Roboto', sans-serif", weight: 900};
-        mCtx.font = `${fp.weight} ${l.fontSize || 32}px ${fp.family}`;
-        mCtx.fillStyle = '#FFFFFF';
-
-        const lines = val.split('\n');
-        if (l.vertical) {
-          mCtx.textAlign = 'center';
-          mCtx.textBaseline = 'middle';
-          const fontSize = l.fontSize || 32;
-          const charStep = fontSize * 1.1;
-          const colStep = fontSize * 1.2;
-          const numCols = lines.length;
-          const totalTextW = numCols * colStep;
-          const startX = localX + l.w / 2 + totalTextW / 2 - colStep / 2;
-
-          lines.forEach((line, i) => {
-            const tx = startX - i * colStep;
-            const chars = [...line];
-            const numChars = chars.length;
-            const colH = numChars * charStep;
-            
-            let ty;
-            if(l.textAlign === 'center') {
-              ty = localY + l.h / 2 - colH / 2 + charStep / 2;
-            } else if(l.textAlign === 'right') {
-              ty = localY + l.h - colH + charStep / 2;
-            } else {
-              ty = localY + charStep / 2;
-            }
-
-            chars.forEach((char, j) => {
-              const cy = ty + j * charStep;
-              mCtx.fillText(char, tx, cy);
-            });
-          });
-        } else {
-          mCtx.textAlign = l.textAlign || 'left';
-          mCtx.textBaseline = 'top';
-          lines.forEach((line, i) => {
-            const tx = l.textAlign === 'center' ? localX + l.w / 2
-                     : l.textAlign === 'right' ? localX + l.w
-                     : localX;
-            const ty = localY + i * (l.fontSize || 32) * 1.25;
-            mCtx.fillText(line, tx, ty);
-          });
-        }
-
-        const maskDataUrl = mCanvas.toDataURL('image/png');
-        if (typeof dHistoryPush === 'function') dHistoryPush();
-        targetLayer.mask = maskDataUrl;
-        if (typeof dMarkUnsaved === 'function') dMarkUnsaved();
-        if (typeof gToast === 'function') gToast('✓ Máscara de texto aplicada à camada');
-      }
-
-      // Limpar camada temporária e restaurar estado
-      if (typeof dLayers !== 'undefined') {
-        dLayers = dLayers.filter(lyr => lyr.id !== l.id);
-      }
-      if (typeof dSelId !== 'undefined' && targetLayer) {
-        dSelId = targetLayer.id;
-      }
-      if (typeof dSetTool === 'function') dSetTool('select');
-      if (typeof dRenderCanvas === 'function') dRenderCanvas();
-      if (typeof dRenderLayersList === 'function') dRenderLayersList();
-      if (targetLayer && typeof dShowProps === 'function') dShowProps(targetLayer);
-      return;
-    }
-
-    if(val !== prev) {
-      l.content = val;
-      if(typeof dSyncVarsFromContent === 'function') dSyncVarsFromContent(val);
-      if(typeof dMarkUnsaved === 'function') dMarkUnsaved();
-    }
-    if (typeof dRenderCanvas === 'function') dRenderCanvas();
-  }
-
-  ta.addEventListener('blur', commit, { once: true });
-  ta.addEventListener('keydown', function(e) {
-    // Shift+Enter = quebra de linha; Enter sozinho = confirmar
-    if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ta.blur(); }
-    else if(e.key === 'Escape') { ta.value = prev; ta.blur(); }
-    e.stopPropagation(); // impede atalhos do canvas durante a edição
-  });
-}
 
 /* ── PAINT CANVAS (pincel/borracha) ── */
 let dPainting=false,dPaintLast={x:0,y:0};
