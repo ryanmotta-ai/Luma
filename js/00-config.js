@@ -196,6 +196,45 @@ function gRoundPolyPath2D(ctx, points, r){
   ctx.lineTo(c[0].p1[0], c[0].p1[1]); ctx.quadraticCurveTo(c[0].cur[0], c[0].cur[1], c[0].p2[0], c[0].p2[1]);
   ctx.closePath();
 }
+// ── Efeitos de camada (sombra/glow): helpers compartilhados (designer + franqueado) ──
+// Offset px a partir de distância + ângulo (convenção Photoshop: luz vem do ângulo,
+// sombra cai no oposto). angle padrão 135°. dist em px.
+function gFxOffset(dist, angle){
+  const a=(angle==null?135:+angle)*Math.PI/180, d=+dist||0;
+  return { x: Math.round(-d*Math.cos(a)), y: Math.round(d*Math.sin(a)) };
+}
+// color (#rrggbb ou rgb/rgba já pronto) + alpha(0..1) → rgba(). Se já vier rgb/rgba, retorna como está.
+function gFxRgba(color, a){
+  if(!color) return 'rgba(0,0,0,'+(a==null?1:a)+')';
+  if(/^rgb/i.test(color)) return color;
+  const h=String(color).replace('#',''); if(h.length<6) return color;
+  return 'rgba('+parseInt(h.slice(0,2),16)+','+parseInt(h.slice(2,4),16)+','+parseInt(h.slice(4,6),16)+','+(a==null?1:+a).toFixed(2)+')';
+}
+// ── Gradientes: modelo Luma l.gradient = {type:'linear'|'radial', angle(°: 0=→, 90=↓), stops:[{color,pos:0..1,opacity}]}
+// Convenção de ângulo (tela): 0=esquerda→direita, 90=cima→baixo. Compartilhado pelos 3 renderizadores.
+function gGradStopsCss(g){
+  return (g.stops||[]).map(s=>gFxRgba(s.color, s.opacity!=null?s.opacity:1)+' '+Math.round((s.pos||0)*100)+'%').join(',');
+}
+function gGradientCss(g){
+  if(!g||!g.stops||!g.stops.length) return '';
+  if(g.type==='radial') return 'radial-gradient(circle, '+gGradStopsCss(g)+')';
+  return 'linear-gradient('+Math.round((g.angle!=null?g.angle:90)+90)+'deg, '+gGradStopsCss(g)+')'; // +90: ângulo de tela → ângulo CSS
+}
+function gGradientCanvas(ctx, g, x, y, w, h){
+  let grad;
+  if(g.type==='radial'){ grad=ctx.createRadialGradient(x+w/2,y+h/2,0, x+w/2,y+h/2, Math.max(w,h)/2); }
+  else { const a=(g.angle!=null?g.angle:90)*Math.PI/180, cx=x+w/2, cy=y+h/2, dx=Math.cos(a)*w/2, dy=Math.sin(a)*h/2;
+    grad=ctx.createLinearGradient(cx-dx,cy-dy,cx+dx,cy+dy); }
+  (g.stops||[]).forEach(s=>{ try{ grad.addColorStop(Math.max(0,Math.min(1,s.pos||0)), gFxRgba(s.color, s.opacity!=null?s.opacity:1)); }catch(e){} });
+  return grad;
+}
+function gGradientSvg(g, id){
+  const stops=(g.stops||[]).map(s=>{ const c=gFxRgba(s.color,1).replace(/rgba?\(([^)]+)\)/i,(m,p)=>{const a=p.split(',');return 'rgb('+(+a[0])+','+(+a[1])+','+(+a[2])+')';});
+    return `<stop offset="${Math.round((s.pos||0)*100)}%" stop-color="${c}" stop-opacity="${s.opacity!=null?s.opacity:1}"/>`; }).join('');
+  if(g.type==='radial') return `<radialGradient id="${id}">${stops}</radialGradient>`;
+  const a=(g.angle!=null?g.angle:90)*Math.PI/180;
+  return `<linearGradient id="${id}" x1="${(0.5-Math.cos(a)/2).toFixed(4)}" y1="${(0.5-Math.sin(a)/2).toFixed(4)}" x2="${(0.5+Math.cos(a)/2).toFixed(4)}" y2="${(0.5+Math.sin(a)/2).toFixed(4)}">${stops}</linearGradient>`;
+}
 // Empacota um imgUrl para persistência: mantém data URLs PEQUENAS (sobrevivem ao reload)
 // e descarta as grandes pra não estourar a quota → '__local__' (com aviso). (Robustez PSD/quota)
 const G_IMG_KEEP_MAX = 70 * 1024; // ~70KB de bytes aproximados

@@ -8,50 +8,41 @@
 
 /* ══ TOOLBAR VERTICAL (Photoshop style) ══ */
 #d-vtoolbar{
-  width:44px;flex-shrink:0;
+  width:52px;flex-shrink:0;
   background:var(--d-dark);
   border-right:1px solid var(--d-border);
   display:flex;flex-direction:column;
   align-items:center;
-  padding:8px 0;
-  gap:1px;
+  padding:12px 0;
+  gap:2px;
   z-index:5;
   overflow:visible;
 }
-.vt-group{display:flex;flex-direction:column;align-items:center;gap:1px;}
+.vt-group{display:flex;flex-direction:column;align-items:center;gap:2px;}
 .vt-sep{
-  width:24px;height:1px;background:var(--d-border);
-  margin:4px 0;
+  width:32px;height:1px;background:var(--d-border2);
+  margin:10px 0;
 }
 .vt-btn{
-  width:36px;height:36px;border-radius:6px;
+  width:40px;height:40px;border-radius:8px;
   border:none;background:transparent;cursor:pointer;
   display:flex;align-items:center;justify-content:center;
   color:var(--d-text3);
-  transition:all .12s;position:relative;
+  transition:all .15s ease-out;position:relative;
 }
-.vt-btn:hover{background:var(--d-surf);color:var(--d-text);}
+.vt-btn:hover{background:var(--d-surf2);color:var(--d-text);}
 .vt-btn.active{
-  background:rgba(255,144,0,.14);color:var(--dm-orange);
+  background:rgba(255,144,0,.1);color:var(--dm-orange);
 }
 .vt-btn.active::before{
-  content:'';position:absolute;left:2px;top:50%;transform:translateY(-50%);
-  width:3px;height:20px;background:var(--dm-orange);border-radius:0 2px 2px 0;
+  content:'';position:absolute;left:-4px;top:50%;transform:translateY(-50%);
+  width:4px;height:18px;background:var(--dm-orange);border-radius:2px;
+  box-shadow: 0 0 6px rgba(255,144,0,0.5);
 }
-/* Tooltip do shortcut */
-.vt-btn::after{
-  content:attr(title);
-  position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%);
-  background:#111;color:#fff;font-size:10px;font-family:'Roboto',sans-serif;
-  padding:4px 8px;border-radius:4px;white-space:pre;
-  opacity:0;pointer-events:none;transition:opacity .15s;z-index:100;
-  border:1px solid rgba(255,255,255,.1);
-  box-shadow:0 4px 12px rgba(0,0,0,.5);
-}
-.vt-btn:hover::after{opacity:1;}
-
 /* #d-main ajustado para nova estrutura */
 #d-main{display:flex;flex:1;overflow:hidden;}
+
+/* Tooltip antigo removido (Substituído por JS Rich Tooltip) */
 
 /* d-left sem afectar vtoolbar */
 #d-left{order:0;}
@@ -70,48 +61,54 @@
   position:relative;
   display:flex;flex-direction:column;align-items:center;
 }
-/* Triângulo no canto inferior-direito indica sub-ferramentas */
+/* Recipiente do triângulo no canto inferior-direito */
 .vt-sub-arrow{
-  position:absolute;bottom:3px;right:3px;
-  width:0;height:0;
-  border-left:4px solid transparent;
-  border-bottom:4px solid currentColor;
-  opacity:.55;
-  pointer-events:none;
+  position:absolute;bottom:4px;right:4px;
+  display:flex;align-items:center;justify-content:center;
+  opacity:.5; pointer-events:none;
 }
-/* Tooltip do proxy não pode usar ::after (seria sobrescrito) — usa title normalmente */
-.vt-btn.has-flyout::after{white-space:pre;}
+.vt-btn:hover .vt-sub-arrow { opacity: 1; }
+
+
 
 /* Flyout panel — aparece à direita do botão */
 .vt-flyout{
   position:absolute;
-  left:calc(100% + 8px);top:0;
+  left:calc(100% + 10px);top:-4px;
   background:var(--d-dark);
   border:1px solid var(--d-border2);
   border-radius:8px;
-  padding:4px;
-  display:none;flex-direction:column;gap:1px;
+  padding:6px;
+  display:none;flex-direction:column;gap:2px;
   z-index:600;
-  min-width:148px;
-  box-shadow:0 8px 28px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.04);
+  min-width:160px;
+  box-shadow:0 12px 32px rgba(0,0,0,.4),0 0 0 1px rgba(255,255,255,.04);
+  /* Animação suave de entrada */
+  transform: translateX(-6px);
+  opacity: 0;
+  transition: transform 0.15s ease-out, opacity 0.15s ease-out;
 }
-.vt-flyout.open{display:flex;}
+.vt-flyout.open{
+  display:flex;
+  transform: translateX(0);
+  opacity: 1;
+}
 
 /* Item dentro do flyout */
 .vt-flyout-item{
-  display:flex;align-items:center;gap:9px;
-  padding:7px 10px;
+  display:flex;align-items:center;gap:10px;
+  padding:8px 12px;
   background:transparent;border:none;
   color:var(--d-text2);
   font-size:11px;font-family:'Roboto',sans-serif;font-weight:500;
-  border-radius:5px;cursor:pointer;
+  border-radius:6px;cursor:pointer;
   width:100%;text-align:left;
-  transition:background .1s,color .1s;
+  transition:background .12s,color .12s;
   white-space:nowrap;
 }
-.vt-flyout-item:hover{background:var(--d-surf);color:var(--d-text);}
+.vt-flyout-item:hover{background:var(--d-surf2);color:var(--d-text);}
 .vt-flyout-item.active,
-.vt-flyout-item[data-tool].active{color:var(--dm-orange);background:rgba(255,144,0,.08);}
+.vt-flyout-item[data-tool].active{color:var(--dm-orange);background:rgba(255,144,0,.1);}
 .vt-flyout-item svg{flex-shrink:0;opacity:.8;}
 .vt-flyout-item:hover svg{opacity:1;}
 
@@ -353,6 +350,24 @@ body.theme-light .add-dock-btn:hover{color:var(--dm-orange);background:rgba(255,
 .bb-preset.active{background:rgba(255,144,0,.2);border-color:var(--dm-orange);}
 .bb-preset svg{stroke:#fff;}
 .bb-num{font-size:11px;color:#F0F0F0;min-width:24px;text-align:right;font-family:monospace;}
+/* ── refino da barra (contextual + carimbo) ── */
+.bb-toolname{font-size:12px;font-weight:700;color:var(--dm-orange);letter-spacing:.02em;}
+.bb-preview-box{width:38px;height:38px;border-radius:8px;background:rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.08);}
+.bb-num-input{width:42px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#F0F0F0;font-size:11px;font-family:monospace;text-align:center;border-radius:4px;padding:3px 2px;outline:none;}
+.bb-num-input:focus{border-color:var(--dm-orange);}
+.bb-num-input::-webkit-inner-spin-button,.bb-num-input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
+.bb-unit{font-size:8px;color:rgba(255,255,255,.35);text-transform:uppercase;font-weight:700;margin-left:1px;}
+.bb-btn{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:#EDEDED;font-size:10.5px;font-weight:600;padding:5px 9px;border-radius:5px;cursor:pointer;font-family:'Roboto',sans-serif;display:flex;align-items:center;gap:4px;transition:all .12s;white-space:nowrap;}
+.bb-btn:hover{border-color:var(--dm-orange);background:rgba(255,144,0,.12);}
+.bb-btn.active{background:rgba(255,144,0,.22);border-color:var(--dm-orange);color:#fff;}
+.bb-btn-ghost{background:transparent;color:rgba(255,255,255,.5);}
+.bb-btn-danger{color:var(--dm-red);border-color:rgba(200,24,24,.35);}
+.bb-btn-danger:hover{background:rgba(200,24,24,.15);border-color:var(--dm-red);}
+.bb-stamp-status{font-size:11px;font-weight:600;color:rgba(255,255,255,.45);font-style:italic;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bb-stamp-status.on{color:#22C55E;font-style:normal;}
+body.theme-light .bb-num-input{background:#F5F5F5;color:#0A0A0A;border-color:rgba(0,0,0,.12);}
+body.theme-light .bb-btn{background:#F0F0F0;color:#0A0A0A;border-color:rgba(0,0,0,.12);}
+body.theme-light .bb-toolname{color:var(--dm-orange);}
 body.theme-light #d-brush-bar{background:rgba(255,255,255,.96);border-color:rgba(0,0,0,.1);color:#3A3A3A;}
 body.theme-light .bb-label{color:#6B6B6B;}
 body.theme-light .bb-input,body.theme-light .bb-select{background:#F5F5F5;color:#0A0A0A;border-color:rgba(0,0,0,.1);}
@@ -425,4 +440,60 @@ body.tool-hand-dragging #d-canvas-frame,
 body.tool-hand-dragging #d-workspace {
   cursor: grabbing !important;
 }
+
+/* ── Cores Foreground / Background (Photoshop style) ── */
+.vt-colors{
+  padding:12px 0 20px 0;
+  display:flex;justify-content:center;
+  position:relative;
+}
+.vt-colors-wrap{
+  position:relative;width:30px;height:30px;
+}
+.vt-color-bg, .vt-color-fg{
+  position:absolute;
+  width:18px;height:18px;
+  border-radius:4px;
+  border:2px solid var(--d-dark); /* Borda para separar visualmente do fundo e do outro swatch */
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.15), 0 2px 4px rgba(0,0,0,.2);
+  cursor:pointer;
+  transition: transform 0.1s, border-color 0.1s;
+}
+.vt-color-bg{
+  bottom:0;right:0;
+  background:#ffffff;
+}
+.vt-color-fg{
+  top:0;left:0;
+  background:#000000;
+  z-index:2;
+}
+.vt-color-bg:hover, .vt-color-fg:hover{
+  transform:scale(1.05);
+}
+.vt-color-switch{
+  position:absolute;top:-6px;right:-6px;
+  background:transparent;border:none;color:var(--d-text3);
+  padding:2px;cursor:pointer;border-radius:3px;
+  transition:color 0.15s, transform 0.15s;
+}
+.vt-color-switch:hover{color:var(--d-text); transform:scale(1.1);}
+.vt-color-default{
+  position:absolute;bottom:-4px;left:-4px;
+  width:12px;height:12px;
+  background:transparent;border:none;cursor:pointer;
+  padding:0;display:block;
+}
+.vt-cd-bg, .vt-cd-fg{
+  position:absolute;width:8px;height:8px;
+  border:1px solid var(--d-text3);border-radius:2px;
+  transition:border-color 0.15s;
+}
+.vt-cd-bg{bottom:0;right:0;background:#fff;}
+.vt-cd-fg{top:0;left:0;background:#000;z-index:2;}
+.vt-color-default:hover .vt-cd-bg, .vt-color-default:hover .vt-cd-fg {
+  border-color:var(--d-text);
+}
+
+
 

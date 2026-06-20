@@ -267,22 +267,52 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
   const h = Math.round(l.h * scaleY);
 
   if(l.type === 'shape'){
-    ctx.fillStyle = l.fill || '#FF9000';
+    const _fill = l.fill || '#FF9000';
     const kind = l.shapeKind || 'rect';
-    if(kind==='circle' || kind==='ellipse'){
-      ctx.beginPath(); ctx.ellipse(x+w/2, y+h/2, w/2, h/2, 0, 0, Math.PI*2); ctx.fill();
-    } else {
-      const pts = (typeof dShapePoints==='function') ? dShapePoints(l) : null;
-      if(pts){
-        const abs=pts.map(p=>[x+p[0]*w, y+p[1]*h]);
-        const r=Math.min((l.radius||0)*scaleX, w/2, h/2);
-        if(r>0 && typeof gRoundPolyPath2D==='function'){ gRoundPolyPath2D(ctx, abs, r); }
-        else { ctx.beginPath(); abs.forEach((p,i)=>{ i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]); }); ctx.closePath(); }
-        ctx.fill();
-      } else {
-        const r = Math.min((l.radius||0) * scaleX, w/2, h/2);
-        roundedRect(ctx, x, y, w, h, r); ctx.fill();
-      }
+    const _sc=Math.min(scaleX,scaleY);
+    // gradiente (l.gradient) → CanvasGradient na caixa; senão cor sólida
+    const _fillStyle = (l.gradient&&l.gradient.stops&&l.gradient.stops.length&&typeof gGradientCanvas==='function') ? gGradientCanvas(ctx,l.gradient,x,y,w,h) : _fill;
+    // cantos por canto (l.radii sobrescreve l.radius uniforme) — inline p/ não depender do designer
+    const _ru=l.radius||0, _rr=l.radii;
+    const _ctl=(_rr?(+_rr.tl||0):_ru)*scaleX, _ctr=(_rr?(+_rr.tr||0):_ru)*scaleX,
+          _cbr=(_rr?(+_rr.br||0):_ru)*scaleX, _cbl=(_rr?(+_rr.bl||0):_ru)*scaleX;
+    const _pts = (kind!=='circle'&&kind!=='ellipse'&&typeof dShapePoints==='function') ? dShapePoints(l) : null;
+    // traça a forma no path atual (reutilizável p/ sombras/overlay/traçado)
+    const _trace = ()=>{
+      if(kind==='circle'||kind==='ellipse'){ ctx.beginPath(); ctx.ellipse(x+w/2,y+h/2,w/2,h/2,0,0,Math.PI*2); }
+      else if(_pts){ const abs=_pts.map(p=>[x+p[0]*w,y+p[1]*h]); const r=Math.min((l.radius||0)*scaleX,w/2,h/2);
+        if(r>0 && typeof gRoundPolyPath2D==='function'){ gRoundPolyPath2D(ctx,abs,r); }
+        else { ctx.beginPath(); abs.forEach((p,i)=>{ i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]); }); ctx.closePath(); } }
+      else { roundedRectPath(ctx,x,y,w,h,_ctl,_ctr,_cbr,_cbl); }
+    };
+    const _overlay = (l.overlay&&l.overlayColor) ? gFxRgba(l.overlayColor, l.overlayOpacity!=null?l.overlayOpacity:1) : null;
+    // 1) sombra projetada + brilho externo (atrás do fill)
+    if(l.shadow){ ctx.save(); _trace(); const o=gFxOffset(l.shadowDist!=null?l.shadowDist:4,l.shadowAngle);
+      ctx.shadowColor=l.shadowColor||'rgba(0,0,0,.5)'; ctx.shadowBlur=(l.shadowBlur!=null?l.shadowBlur:6)*_sc; ctx.shadowOffsetX=o.x*_sc; ctx.shadowOffsetY=o.y*_sc;
+      ctx.fillStyle=_fill; ctx.fill(); ctx.restore(); }
+    if(l.glow){ ctx.save(); _trace(); ctx.shadowColor=l.glowColor||'rgba(255,255,255,.7)'; ctx.shadowBlur=(l.glowSize!=null?l.glowSize:8)*_sc; ctx.fillStyle=_fill; ctx.fill(); ctx.restore(); }
+    // 2) fill principal (gradiente/sólido) (+ overlays por cima)
+    _trace(); ctx.fillStyle=_fillStyle; ctx.fill();
+    if(l.gradientOverlay && l.gradientOverlay.stops && l.gradientOverlay.stops.length && typeof gGradientCanvas==='function'){ // gradient overlay
+      _trace(); ctx.save(); ctx.globalAlpha=(l.gradientOverlay.opacity!=null?l.gradientOverlay.opacity:1); ctx.fillStyle=gGradientCanvas(ctx,l.gradientOverlay,x,y,w,h); ctx.fill(); ctx.restore(); }
+    if(_overlay){ _trace(); ctx.fillStyle=_overlay; ctx.fill(); }
+    // 3) sombra interna / brilho interno (aprox.: traço borrado recortado p/ dentro)
+    const _innerStroke=(color,blur,o)=>{ ctx.save(); _trace(); ctx.clip(); _trace();
+      ctx.shadowColor=color; ctx.shadowBlur=blur*_sc; ctx.shadowOffsetX=(o?o.x:0)*_sc; ctx.shadowOffsetY=(o?o.y:0)*_sc;
+      ctx.lineWidth=Math.max(2,blur*_sc); ctx.strokeStyle=color; ctx.stroke(); ctx.restore(); };
+    if(l.innerShadow) _innerStroke(l.innerShadowColor||'rgba(0,0,0,.5)', (l.innerShadowBlur!=null?l.innerShadowBlur:6), gFxOffset(l.innerShadowDist!=null?l.innerShadowDist:4,l.innerShadowAngle));
+    if(l.innerGlow) _innerStroke(l.innerGlowColor||'rgba(255,255,255,.7)', (l.innerGlowSize!=null?l.innerGlowSize:8), null);
+    if(l.bevel){ const o=gFxOffset(l.bevelSize!=null?l.bevelSize:4,l.bevelAngle), b=l.bevelSize!=null?l.bevelSize:4;
+      _innerStroke(l.bevelHighlight||'rgba(255,255,255,.7)', b, o); _innerStroke(l.bevelShadow||'rgba(0,0,0,.5)', b, {x:-o.x,y:-o.y}); }
+    // 4) traçado com alinhamento (inside/center/outside) + dash/cap/join
+    if(l.strokeW>0){ const a=l.strokeAlign||'inside'; _trace();
+      ctx.lineWidth=Math.max(1,l.strokeW*_sc)*(a==='center'?1:2); ctx.strokeStyle=l.strokeColor||'#000';
+      ctx.lineJoin=l.strokeJoin||'round'; ctx.lineCap=l.strokeCap||'butt';
+      if(l.strokeDash && l.strokeDash.length) ctx.setLineDash(l.strokeDash.map(d=>d*_sc)); else ctx.setLineDash([]);
+      if(a==='inside'){ ctx.save(); ctx.clip(); ctx.stroke(); ctx.restore(); }
+      else if(a==='outside'){ ctx.stroke(); ctx.setLineDash([]); _trace(); ctx.fillStyle=_overlay||_fillStyle; ctx.fill(); }
+      else { ctx.stroke(); }
+      ctx.setLineDash([]);
     }
 
   } else if(l.type === 'text'){
@@ -306,6 +336,32 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
 
     let fontSize = Math.round((l.fontSize || 24) * Math.min(scaleX, scaleY));
     const minFontSize = Math.max(8, Math.round(fontSize * 0.5));
+    const _scTxt = Math.min(scaleX, scaleY);
+    // color overlay → cor efetiva do texto; senão l.color
+    const _txtColor = (l.overlay&&l.overlayColor) ? gFxRgba(l.overlayColor, l.overlayOpacity!=null?l.overlayOpacity:1) : (l.color || '#fff');
+    // parâmetros de sombra projetada (configurável; sem blur/dist → mantém default fs-based antigo)
+    const _shUsesCfg = (l.shadowBlur!=null || l.shadowDist!=null || l.shadowAngle!=null);
+    const _shOff = l.shadow ? (_shUsesCfg ? gFxOffset((l.shadowDist!=null?l.shadowDist:fontSize*0.07/_scTxt)*_scTxt, l.shadowAngle) : {x:fontSize*0.05, y:fontSize*0.05}) : {x:0,y:0};
+    const _shBlur = l.shadow ? (l.shadowBlur!=null ? l.shadowBlur*_scTxt : Math.max(1,fontSize*0.12)) : 0;
+    // gradiente no texto (preenchimento) → CanvasGradient; senão a cor efetiva
+    const _txtFill = (l.gradient&&l.gradient.stops&&l.gradient.stops.length&&typeof gGradientCanvas==='function') ? gGradientCanvas(ctx,l.gradient,x,y,w,h) : _txtColor;
+    const _lsTxt = (l.letterSpacing!=null) ? (l.letterSpacing*_scTxt)+'px' : null; // tracking
+
+    // ── RICH TEXT (multi-estilo) — render horizontal de linha única (trechos sequenciais) ──
+    if(l.runs && l.runs.length && !l.vertical){
+      let total=0; const segs=l.runs.map(r=>{ const fp=(typeof dTextFontParts==='function')?dTextFontParts(r.font):{family:"'Roboto',sans-serif",weight:700};
+        const fs=Math.round((r.fontSize||l.fontSize||24)*_scTxt); ctx.font=`${fp.weight} ${fs}px ${fp.family}`;
+        const ww=ctx.measureText(r.text||'').width; total+=ww; return {r,fp,fs,ww}; });
+      let tx = l.textAlign==='center'? x+w/2-total/2 : l.textAlign==='right'? x+w-total : x;
+      const ty = y+h/2; ctx.textAlign='left'; ctx.textBaseline='middle';
+      segs.forEach(s=>{ ctx.font=`${s.fp.weight} ${s.fs}px ${s.fp.family}`; ctx.fillStyle=s.r.color||_txtColor;
+        if(l.shadow){ ctx.shadowColor=l.shadowColor||'rgba(0,0,0,.5)'; ctx.shadowBlur=_shBlur; ctx.shadowOffsetX=_shOff.x; ctx.shadowOffsetY=_shOff.y; }
+        ctx.fillText(s.r.text||'', tx, ty);
+        if(l.shadow){ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;}
+        if(l.strokeW>0){ ctx.lineWidth=Math.max(1,l.strokeW*_scTxt); ctx.strokeStyle=l.strokeColor||'#000'; ctx.lineJoin='round'; ctx.strokeText(s.r.text||'', tx, ty); }
+        tx+=s.ww; });
+      ctx.restore(); return;
+    }
 
     if (l.vertical) {
       // Auto-fit vertical
@@ -344,6 +400,7 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
       }
 
       const startX = x + w/2 + totalW/2 - colStep/2;
+      ctx.fillStyle = _txtFill; // gradiente/overlay/cor (vertical)
 
       lines.forEach((line, i) => {
         const tx = startX - i * colStep;
@@ -369,8 +426,7 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
           }
           if(l.shadow){
             ctx.shadowColor=l.shadowColor||'rgba(0,0,0,.5)';
-            ctx.shadowBlur=Math.max(1,fontSize*0.12);
-            ctx.shadowOffsetX=fontSize*0.05; ctx.shadowOffsetY=fontSize*0.05;
+            ctx.shadowBlur=_shBlur; ctx.shadowOffsetX=_shOff.x; ctx.shadowOffsetY=_shOff.y;
           }
           ctx.fillText(char, tx, cy);
           if(l.shadow){ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;}
@@ -396,7 +452,7 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     } else {
       // Auto-fit horizontal: começa com fontSize do designer e reduz se texto exceder l.w
       ctx.font = `${fwt} ${fontSize}px ${ff}`;
-      ctx.letterSpacing = isDisplayFont ? `${Math.max(0.5, fontSize * 0.02)}px` : '0px';
+      ctx.letterSpacing = _lsTxt || (isDisplayFont ? `${Math.max(0.5, fontSize * 0.02)}px` : '0px'); // tracking do PSD tem prioridade
       let maxLineW = 0;
       for(const line of lines){
         const lw = ctx.measureText(line).width;
@@ -410,10 +466,10 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
         ctx.font = `${fwt} ${fontSize}px ${ff}`;
       }
 
-      const lineHeight = fontSize * 1.2;
+      const lineHeight = fontSize * (l.lineHeight||1.2);
       const totalTextH = lineHeight * lines.length;
 
-      ctx.fillStyle = l.color || '#fff';
+      ctx.fillStyle = _txtFill; // gradiente/overlay/cor (horizontal)
       ctx.textAlign = l.textAlign || 'left';
       ctx.textBaseline = 'middle';
 
@@ -441,8 +497,7 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
 
         if(l.shadow){
           ctx.shadowColor=l.shadowColor||'rgba(0,0,0,.5)';
-          ctx.shadowBlur=Math.max(1,fontSize*0.12);
-          ctx.shadowOffsetX=fontSize*0.05; ctx.shadowOffsetY=fontSize*0.05;
+          ctx.shadowBlur=_shBlur; ctx.shadowOffsetX=_shOff.x; ctx.shadowOffsetY=_shOff.y;
         }
         ctx.fillText(line, tx, ty);
         if(l.shadow){ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;}
@@ -534,6 +589,19 @@ function roundedRect(ctx, x, y, w, h, r){
   ctx.quadraticCurveTo(x, y+h, x, y+h-r);
   ctx.lineTo(x, y+r);
   ctx.quadraticCurveTo(x, y, x+r, y);
+  ctx.closePath();
+}
+// Helper: retângulo com raio POR CANTO (tl,tr,br,bl). Clampa cada raio a min(w,h)/2.
+function roundedRectPath(ctx, x, y, w, h, tl, tr, br, bl){
+  const m=Math.min(w,h)/2;
+  tl=Math.max(0,Math.min(tl,m)); tr=Math.max(0,Math.min(tr,m));
+  br=Math.max(0,Math.min(br,m)); bl=Math.max(0,Math.min(bl,m));
+  ctx.beginPath();
+  ctx.moveTo(x+tl, y);
+  ctx.lineTo(x+w-tr, y);            ctx.quadraticCurveTo(x+w, y, x+w, y+tr);
+  ctx.lineTo(x+w, y+h-br);          ctx.quadraticCurveTo(x+w, y+h, x+w-br, y+h);
+  ctx.lineTo(x+bl, y+h);            ctx.quadraticCurveTo(x, y+h, x, y+h-bl);
+  ctx.lineTo(x, y+tl);              ctx.quadraticCurveTo(x, y, x+tl, y);
   ctx.closePath();
 }
 // Cache de imagens já decodificadas. Evita re-decodificar o mesmo base64

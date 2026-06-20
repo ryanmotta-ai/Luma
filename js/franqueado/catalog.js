@@ -284,7 +284,7 @@ function fCampEl(c,isRec){
   const mats = (typeof fGetMaterialsForCamp==='function') ? fGetMaterialsForCamp(c.id) : [];
   const countLabel = mats.length ? `${mats.length} material${mats.length!==1?'is':''}` : 'Sem materiais';
   return `<div class="camp-card ${c.id===fState.camp.id?'selected':''} ${isRec?'recommended':''}" onclick="fSelectCamp('${c.id}')">
-    <div class="camp-prev-btn" onclick="fOpenPreview(event,'${c.id}')">PRÉVIA</div>
+    <div class="camp-prev-btn" onclick="event.stopPropagation();fOpenPreview(event,'${c.id}')">PRÉVIA</div>
     <div class="camp-thumb ${cover?'has-cover':''}" style="${thumbStyle}">
       ${c.badge?`<div class="camp-badge">${c.badge}</div>`:''}
       ${c.popular?`<div class="camp-popular">🔥 Popular</div>`:''}
@@ -323,7 +323,9 @@ function fRenderCategorias(){
   const nImpl=CAMPS_IMPLEMENTACAO.length;
   cat.innerHTML=`<div class="cat-grid">
     <div class="cat-card" onclick="fSelectCategoria('campanhas')">
-      <div class="cat-card-thumb" style="background:linear-gradient(135deg,#FF9000,#C84B00)">📣</div>
+      <div class="cat-card-thumb" style="background:linear-gradient(135deg,#FF9000,#C84B00)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+      </div>
       <div class="cat-card-body">
         <div class="cat-card-title">Campanhas</div>
         <div class="cat-card-sub">${nCamps} campanhas disponíveis</div>
@@ -331,7 +333,9 @@ function fRenderCategorias(){
       <div class="cat-card-chevron">${_ICO_CHEV}</div>
     </div>
     <div class="cat-card" onclick="fSelectCategoria('implementacao')">
-      <div class="cat-card-thumb" style="background:linear-gradient(135deg,#2563eb,#1565C0)">🚀</div>
+      <div class="cat-card-thumb" style="background:linear-gradient(135deg,#2563eb,#1565C0)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>
+      </div>
       <div class="cat-card-body">
         <div class="cat-card-title">Implementação</div>
         <div class="cat-card-sub">Para novos franqueados · ${nImpl} materiais</div>

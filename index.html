@@ -1069,12 +1069,13 @@ input:focus:-webkit-autofill {
 
       <!-- Brush options bar (aparece quando ferramenta de pintura ativa) -->
       <div id="d-brush-bar">
-        <div class="bb-group">
-          <span class="bb-label" id="bb-tool-label">Pincel</span>
-        </div>
+        <div class="bb-group"><span class="bb-toolname" id="bb-tool-label">Pincel</span></div>
         <div class="bb-sep"></div>
+        <div class="bb-group" data-tools="brush eraser">
+          <div class="bb-preview-box"><canvas id="bb-brush-preview" width="34" height="34"></canvas></div>
+        </div>
         <!-- Presets de ponta -->
-        <div class="bb-group">
+        <div class="bb-group" data-tools="brush eraser">
           <span class="bb-label">Ponta</span>
           <div class="bb-preset-row">
             <button class="bb-preset active" data-preset="round" onclick="dBrushSetPreset('round')" title="Redonda">
@@ -1094,39 +1095,39 @@ input:focus:-webkit-autofill {
             </button>
           </div>
         </div>
-        <div class="bb-sep"></div>
+        <div class="bb-sep" data-tools="brush eraser"></div>
         <!-- Tamanho -->
-        <div class="bb-group">
+        <div class="bb-group" data-tools="brush eraser smudge blur sharpen">
           <span class="bb-label">Tam.</span>
           <input type="range" class="bb-slider" id="bb-size" min="1" max="200" value="8" oninput="dBrushUpdate('size',this.value)">
-          <span class="bb-num" id="bb-size-num">8</span>
-          <span class="bb-label" style="font-size:8px">px</span>
+          <input class="bb-num-input" id="bb-size-num" value="8" onchange="dBrushNumInput('size',this.value)" title="Tamanho px — [ e ] ajustam"><span class="bb-unit">px</span>
         </div>
-        <div class="bb-sep"></div>
         <!-- Dureza -->
-        <div class="bb-group">
+        <div class="bb-group" data-tools="brush eraser">
           <span class="bb-label">Dureza</span>
           <input type="range" class="bb-slider" id="bb-hardness" min="0" max="100" value="100" oninput="dBrushUpdate('hardness',this.value)">
-          <span class="bb-num" id="bb-hardness-num">100</span>
+          <input class="bb-num-input" id="bb-hardness-num" value="100" onchange="dBrushNumInput('hardness',this.value)"><span class="bb-unit">%</span>
         </div>
-        <div class="bb-sep"></div>
         <!-- Opacidade -->
-        <div class="bb-group">
+        <div class="bb-group" data-tools="brush eraser gradient">
           <span class="bb-label">Opac.</span>
           <input type="range" class="bb-slider" id="bb-opacity" min="1" max="100" value="100" oninput="dBrushUpdate('opacity',this.value)">
-          <span class="bb-num" id="bb-opacity-num">100</span>
-          <span class="bb-label" style="font-size:8px">%</span>
+          <input class="bb-num-input" id="bb-opacity-num" value="100" onchange="dBrushNumInput('opacity',this.value)"><span class="bb-unit">%</span>
         </div>
-        <div class="bb-sep"></div>
         <!-- Flow -->
-        <div class="bb-group">
+        <div class="bb-group" data-tools="brush eraser">
           <span class="bb-label">Flow</span>
-          <input type="range" class="bb-slider" id="bb-flow" min="1" max="100" value="100" oninput="dBrushUpdate('flow',this.value)" style="width:60px">
-          <span class="bb-num" id="bb-flow-num">100</span>
+          <input type="range" class="bb-slider" id="bb-flow" min="1" max="100" value="100" oninput="dBrushUpdate('flow',this.value)">
+          <input class="bb-num-input" id="bb-flow-num" value="100" onchange="dBrushNumInput('flow',this.value)"><span class="bb-unit">%</span>
         </div>
-        <div class="bb-sep"></div>
-        <!-- Modo -->
-        <div class="bb-group">
+        <!-- Força — dedo/nitidez/desfoque -->
+        <div class="bb-group" data-tools="smudge sharpen blur">
+          <span class="bb-label">Força</span>
+          <input type="range" class="bb-slider" id="bb-strength" min="1" max="100" value="50" oninput="dBrushUpdate('strength',this.value)">
+          <input class="bb-num-input" id="bb-strength-num" value="50" onchange="dBrushNumInput('strength',this.value)"><span class="bb-unit">%</span>
+        </div>
+        <!-- Modo — só pincel -->
+        <div class="bb-group" data-tools="brush">
           <span class="bb-label">Modo</span>
           <select class="bb-select" id="bb-mode" onchange="dBrushUpdate('mode',this.value)">
             <option value="source-over">Normal</option>
@@ -1139,24 +1140,32 @@ input:focus:-webkit-autofill {
             <option value="difference">Difference</option>
           </select>
         </div>
-        <div class="bb-sep"></div>
-        <!-- Cor -->
-        <div class="bb-group">
+        <!-- Tipo — só gradiente -->
+        <div class="bb-group" data-tools="gradient">
+          <span class="bb-label">Tipo</span>
+          <select class="bb-select" id="bb-gradtype" onchange="dBrushUpdate('gradType',this.value)">
+            <option value="linear">Linear</option>
+            <option value="radial">Radial</option>
+          </select>
+        </div>
+        <!-- Cor — pincel/gradiente -->
+        <div class="bb-group" data-tools="brush gradient">
           <span class="bb-label">Cor</span>
-          <div class="bb-swatch" id="bb-color-sw" style="background:#FF9000" onclick="document.getElementById('bb-color-pick').click()" title="Cor do pincel"></div>
+          <div class="bb-swatch" id="bb-color-sw" style="background:#FF9000" onclick="document.getElementById('bb-color-pick').click()" title="Cor"></div>
           <input type="color" id="bb-color-pick" value="#FF9000" style="display:none" oninput="dBrushUpdate('color',this.value)">
         </div>
-        <div class="bb-sep"></div>
-        <!-- Prévia do Pincel -->
-        <div class="bb-group" style="margin-left: 5px; margin-right: 5px;">
-          <span class="bb-label">Prévia</span>
-          <div style="background: rgba(0,0,0,0.2); border-radius: 4px; padding: 2px; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;">
-            <canvas id="bb-brush-preview" width="24" height="24"></canvas>
-          </div>
+        <!-- ── CARIMBO ── -->
+        <div class="bb-group" data-tools="stamp">
+          <span class="bb-label">Fonte</span><span class="bb-stamp-status" id="bb-stamp-status">nenhuma</span>
         </div>
-        <div class="bb-sep"></div>
+        <div class="bb-group" data-tools="stamp">
+          <button class="bb-btn" onclick="dStampMarkSource()" title="Marca a camada selecionada como fonte (S)">Marcar fonte</button>
+          <button class="bb-btn" id="bb-stamp-aligned" onclick="dStampToggleAligned()" title="Mantém o deslocamento entre cliques">Alinhado: off</button>
+          <button class="bb-btn bb-btn-ghost" onclick="dStampClearSource()" title="Limpar fonte (Esc)">Limpar</button>
+        </div>
         <!-- Limpar pintura -->
-        <button class="bb-preset" onclick="dClearPaint()" title="Limpar toda a pintura" style="width:auto;padding:0 8px;font-size:10px;color:var(--dm-red)">
+        <div class="bb-sep" data-tools="brush eraser smudge blur sharpen gradient"></div>
+        <button class="bb-btn bb-btn-danger" data-tools="brush eraser smudge blur sharpen gradient" onclick="dClearPaint()" title="Limpar toda a pintura">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
         </button>
       </div>
@@ -1486,12 +1495,74 @@ input:focus:-webkit-autofill {
                   </div>
                 </div>
                 <div class="dp-field">
+                  <label class="dp-field-label">Cantos
+                    <button type="button" id="dp-corner-link" class="active" onclick="dToggleCornerLink()" title="Travar/destravar os 4 cantos" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 4px;color:inherit">🔗</button>
+                  </label>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+                    <input class="prop-input prop-input-sm" type="number" id="dp-corner-tl" min="0" value="0" title="Superior esquerdo" oninput="dSetCorner('tl',this.value)">
+                    <input class="prop-input prop-input-sm" type="number" id="dp-corner-tr" min="0" value="0" title="Superior direito" oninput="dSetCorner('tr',this.value)">
+                    <input class="prop-input prop-input-sm" type="number" id="dp-corner-bl" min="0" value="0" title="Inferior esquerdo" oninput="dSetCorner('bl',this.value)">
+                    <input class="prop-input prop-input-sm" type="number" id="dp-corner-br" min="0" value="0" title="Inferior direito" oninput="dSetCorner('br',this.value)">
+                  </div>
+                </div>
+                <div class="dp-field">
+                  <label class="dp-field-label">Traçado</label>
+                  <div class="dp-color-row">
+                    <div class="color-swatch" id="dp-shape-stroke-sw" style="background:#000000;cursor:pointer" onclick="document.getElementById('dp-shape-stroke-pick').click()"></div>
+                    <input type="color" id="dp-shape-stroke-pick" style="display:none" oninput="dHexSync('dp-shape-strokeColor',this.value);dUpdateProp('strokeColor',this.value)">
+                    <input class="hex-input" id="dp-shape-strokeColor" maxlength="7" placeholder="#000000" oninput="dHexInput('dp-shape-stroke-pick','dp-shape-stroke-sw',this.value,'strokeColor')">
+                    <input class="prop-input prop-input-sm" type="number" id="dp-shape-strokeW" min="0" max="200" value="0" title="Espessura px" oninput="dUpdateProp('strokeW',this.value)">
+                    <span class="dp-unit">px</span>
+                  </div>
+                </div>
+                <div class="dp-field">
+                  <label class="dp-field-label">Alinh. traçado</label>
+                  <select class="prop-input" id="dp-shape-strokeAlign" style="font-size:11px" onchange="dUpdateProp('strokeAlign',this.value)">
+                    <option value="inside">Dentro</option><option value="center">Centro</option><option value="outside">Fora</option>
+                  </select>
+                </div>
+                <div class="dp-field">
                   <label class="dp-field-label">Cor da var</label>
                   <select class="prop-input" id="dp-bind-fill" style="font-size:11px" onchange="dSetBinding('fill',this.value)"></select>
                 </div>
                 <div class="dp-field">
                   <label class="dp-field-label">Visível se</label>
                   <select class="prop-input" id="dp-bind-visible-shape" style="font-size:11px" onchange="dSetBinding('visible',this.value)"></select>
+                </div>
+              </div>
+              <!-- ── EFEITOS (universal: shape/texto/imagem) ── -->
+              <div id="d-fx-props" style="border-top:1px solid var(--d-border,#333);margin-top:6px;padding-top:6px">
+                <div class="dp-field">
+                  <label class="dp-field-label"><input type="checkbox" id="dp-fx-shadow" onchange="dUpdateProp('shadow',this.checked)" style="vertical-align:middle"> Sombra</label>
+                  <div style="display:flex;gap:4px;align-items:center">
+                    <input type="color" id="dp-fx-shadow-color" title="Cor" oninput="dUpdateProp('shadowColor',this.value)" style="width:28px;height:24px;padding:0;border:none;background:none;cursor:pointer">
+                    <input class="prop-input prop-input-sm" type="number" id="dp-fx-shadow-blur" min="0" placeholder="blur" title="Desfoque (px)" oninput="dUpdateProp('shadowBlur',this.value)">
+                    <input class="prop-input prop-input-sm" type="number" id="dp-fx-shadow-dist" min="0" placeholder="dist" title="Distância (px)" oninput="dUpdateProp('shadowDist',this.value)">
+                    <input class="prop-input prop-input-sm" type="number" id="dp-fx-shadow-angle" placeholder="âng" title="Ângulo (°)" oninput="dUpdateProp('shadowAngle',this.value)">
+                  </div>
+                </div>
+                <div class="dp-field">
+                  <label class="dp-field-label"><input type="checkbox" id="dp-fx-inner" onchange="dUpdateProp('innerShadow',this.checked)" style="vertical-align:middle"> Sombra interna</label>
+                  <div style="display:flex;gap:4px;align-items:center">
+                    <input type="color" id="dp-fx-inner-color" title="Cor" oninput="dUpdateProp('innerShadowColor',this.value)" style="width:28px;height:24px;padding:0;border:none;background:none;cursor:pointer">
+                    <input class="prop-input prop-input-sm" type="number" id="dp-fx-inner-blur" min="0" placeholder="blur" oninput="dUpdateProp('innerShadowBlur',this.value)">
+                    <input class="prop-input prop-input-sm" type="number" id="dp-fx-inner-dist" min="0" placeholder="dist" oninput="dUpdateProp('innerShadowDist',this.value)">
+                    <input class="prop-input prop-input-sm" type="number" id="dp-fx-inner-angle" placeholder="âng" oninput="dUpdateProp('innerShadowAngle',this.value)">
+                  </div>
+                </div>
+                <div class="dp-field">
+                  <label class="dp-field-label"><input type="checkbox" id="dp-fx-glow" onchange="dUpdateProp('glow',this.checked)" style="vertical-align:middle"> Brilho</label>
+                  <div style="display:flex;gap:4px;align-items:center">
+                    <input type="color" id="dp-fx-glow-color" title="Cor" oninput="dUpdateProp('glowColor',this.value)" style="width:28px;height:24px;padding:0;border:none;background:none;cursor:pointer">
+                    <input class="prop-input prop-input-sm" type="number" id="dp-fx-glow-size" min="0" placeholder="tam" title="Tamanho (px)" oninput="dUpdateProp('glowSize',this.value)">
+                  </div>
+                </div>
+                <div class="dp-field">
+                  <label class="dp-field-label"><input type="checkbox" id="dp-fx-overlay" onchange="dUpdateProp('overlay',this.checked)" style="vertical-align:middle"> Sobrepor cor</label>
+                  <div style="display:flex;gap:4px;align-items:center">
+                    <input type="color" id="dp-fx-overlay-color" title="Cor" oninput="dUpdateProp('overlayColor',this.value)" style="width:28px;height:24px;padding:0;border:none;background:none;cursor:pointer">
+                    <input class="prop-input prop-input-sm" type="number" id="dp-fx-overlay-op" min="0" max="100" placeholder="%" title="Opacidade %" oninput="dUpdateProp('overlayOpacity',(parseFloat(this.value)||0)/100)">
+                  </div>
                 </div>
               </div>
             </div>
