@@ -19,10 +19,10 @@
 #fran-left-head{padding:14px 16px 10px;flex-shrink:0;border-bottom:1px solid var(--gray-light)}
 #fran-left-head h2{font-family:'Roboto',sans-serif;font-weight:900;font-size:20px;letter-spacing:.05em;color:var(--dm-orange);margin-bottom:10px}
 .f-tabs{display:flex;gap:0;margin-bottom:12px}
-.f-tab{flex:1;padding:7px 4px;font-size:12px;font-weight:700;border:1.5px solid var(--gray-mid);background:var(--white);color:var(--text-3);cursor:pointer;transition:all .15s;font-family:'Roboto',sans-serif}
+.f-tab{flex:1;padding:7px 4px;font-size:12px;font-weight:500;border:1.5px solid var(--gray-mid);background:var(--white);color:var(--text-3);cursor:pointer;transition:all .15s;font-family:'Roboto',sans-serif}
 .f-tab:first-child{border-radius:var(--r-sm) 0 0 var(--r-sm)}
 .f-tab:last-child{border-radius:0 var(--r-sm) var(--r-sm) 0;border-left:none}
-.f-tab.active{background:var(--dm-orange-bg);color:var(--dm-red);border-color:var(--dm-orange)}
+.f-tab.active{background:var(--dm-orange-bg);color:var(--dm-red);border-color:var(--dm-orange);font-weight:700}
 #f-search-row{position:relative}
 #f-search-row svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-3)}
 #f-search{width:100%;padding:8px 12px 8px 32px;border:1px solid var(--gray-mid);border-radius:var(--r-sm);font-size:13px;font-family:'Roboto',sans-serif;background:var(--off-white);color:var(--text);outline:none}
@@ -67,7 +67,7 @@
 
 /* Filtros de status */
 .hist-filter-bar{display:flex;gap:4px;margin-bottom:6px;flex-shrink:0}
-.hist-filter-btn{flex:1;padding:6px 8px;font-size:11px;font-weight:600;border:1px solid var(--gray-mid);background:var(--white);color:var(--text-2);border-radius:var(--r-sm);cursor:pointer;font-family:'Roboto',sans-serif;display:flex;align-items:center;justify-content:center;gap:5px;transition:all .12s}
+.hist-filter-btn{flex:1;padding:6px 8px;font-size:11px;font-weight:500;border:1px solid var(--gray-mid);background:var(--white);color:var(--text-2);border-radius:var(--r-sm);cursor:pointer;font-family:'Roboto',sans-serif;display:flex;align-items:center;justify-content:center;gap:5px;transition:all .12s}
 .hist-filter-btn:hover{border-color:var(--dm-orange);color:var(--dm-orange-d)}
 .hist-filter-btn.active{background:var(--dm-orange-bg);border-color:var(--dm-orange);color:var(--dm-red)}
 .hist-filter-count{font-size:10px;background:var(--gray-light);color:var(--text-3);padding:1px 5px;border-radius:8px;font-weight:700}
@@ -80,7 +80,7 @@
 .hist-card[data-status="rascunho"]{border-left:3px solid var(--dm-yellow)}
 .hist-thumb{width:56px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'Roboto',sans-serif;font-weight:900;color:#fff;font-size:10px;letter-spacing:.04em;line-height:1.1;text-align:center;padding:4px}
 .hist-info{flex:1;padding:8px 10px;min-width:0}
-.hist-name{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hist-name{font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hist-meta{font-size:10px;color:var(--text-3);margin-top:3px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
 .hist-meta-sep{opacity:.4}
 .hist-badge-st{display:inline-block;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:1px 5px;border-radius:3px}
@@ -89,7 +89,7 @@
 
 /* Ações */
 .hist-actions{display:flex;gap:4px;margin-top:8px;flex-wrap:wrap}
-.hist-act-btn{padding:4px 9px;font-size:10px;font-weight:600;border:1px solid var(--gray-mid);background:var(--white);color:var(--text-2);border-radius:var(--r-sm);cursor:pointer;font-family:'Roboto',sans-serif;transition:all .12s;white-space:nowrap}
+.hist-act-btn{padding:4px 9px;font-size:10px;font-weight:500;border:1px solid var(--gray-mid);background:var(--white);color:var(--text-2);border-radius:var(--r-sm);cursor:pointer;font-family:'Roboto',sans-serif;transition:all .12s;white-space:nowrap}
 .hist-act-btn:hover{border-color:var(--dm-orange);color:var(--dm-orange-d);background:var(--dm-orange-bg)}
 .hist-act-btn.pri{background:var(--dm-orange);color:var(--white);border-color:var(--dm-orange)}
 .hist-act-btn.pri:hover{background:var(--dm-orange-d);color:var(--white)}

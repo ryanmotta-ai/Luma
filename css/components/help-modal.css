@@ -159,7 +159,7 @@
 .g-help-cat-ico{width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:7px;font-size:13px}
 .g-help-cat-ico.fra{background:var(--dm-orange-bg);color:var(--dm-orange-d)}
 .g-help-cat-ico.des{background:#1A1A1A;color:#FF9000}
-.g-help-cat-name{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--text-2)}
+.g-help-cat-name{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-2)}
 .g-help-cat-count{font-size:10px;color:var(--text-3);background:var(--gray-light);padding:1px 8px;border-radius:10px;font-weight:700}
 .g-help-tut-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
 .g-help-tut-card{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;background:var(--white);border:1.5px solid var(--gray-light);border-radius:10px;padding:12px;cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .2s;font-family:'Roboto',sans-serif}
@@ -218,7 +218,7 @@
   text-align:center;margin-bottom:16px;
 }
 .g-help-trail-welcome-emoji{font-size:32px;margin-bottom:8px}
-.g-help-trail-welcome-title{font-size:15px;font-weight:800;color:var(--text);margin-bottom:6px}
+.g-help-trail-welcome-title{font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px}
 .g-help-trail-welcome-sub{font-size:12px;color:var(--text-3);line-height:1.55;margin-bottom:14px}
 .g-help-trail-cta{
   background:var(--dm-orange);color:#fff;border:none;cursor:pointer;
@@ -263,7 +263,7 @@
   background:rgba(34,197,94,.06);border:1.5px solid rgba(34,197,94,.2);
   border-radius:10px;margin-bottom:16px;
 }
-.g-help-trail-complete-title{font-size:14px;font-weight:800;color:var(--text);margin-top:6px}
+.g-help-trail-complete-title{font-size:14px;font-weight:700;color:var(--text);margin-top:6px}
 .g-help-trail-complete-sub{font-size:11px;color:var(--text-3);margin-top:4px}
 
 /* ══ TRILHA — lista de passos ══ */
@@ -304,7 +304,7 @@
 .g-help-trail-step.upcoming .g-help-trail-step-title{color:var(--text-2)}
 
 .g-help-trail-step-info{flex:1;min-width:0}
-.g-help-trail-step-title{font-size:12.5px;font-weight:600;line-height:1.3}
+.g-help-trail-step-title{font-size:12.5px;font-weight:500;line-height:1.3}
 .g-help-trail-step-dur{font-size:10px;color:var(--text-3);margin-top:1px}
 .g-help-trail-step-play{font-size:10px;color:var(--text-3);flex-shrink:0;transition:opacity .15s;opacity:.35}
 .g-help-trail-step:hover .g-help-trail-step-play{opacity:1}

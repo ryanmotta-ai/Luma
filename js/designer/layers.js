@@ -521,14 +521,82 @@ function dDuplicateSelectedLayer() {
 }
 
 function dAddEffect() {
-  const appearSec = document.getElementById('dp-sec-appear');
-  if (appearSec) {
-    appearSec.classList.remove('collapsed');
-    if (typeof dPropScrollTo === 'function') {
-      dPropScrollTo('dp-sec-appear');
-    }
+  const modal = document.getElementById('d-fx-modal');
+  if (modal) {
+    modal.classList.add('open');
+    dSelectFxTab('shadow'); // default tab
   }
-  gToast('Selecione Aparência para ajustar bordas, sombras e efeitos');
+}
+
+function dCloseFxModal() {
+  const modal = document.getElementById('d-fx-modal');
+  if (modal) modal.classList.remove('open');
+}
+
+function dSelectFxTab(tab) {
+  // Update sidebar tabs
+  const tabs = document.querySelectorAll('.fx-tab-item');
+  tabs.forEach(t => t.classList.remove('active'));
+  tabs.forEach(t => {
+    if (t.getAttribute('onclick') && t.getAttribute('onclick').includes(tab)) t.classList.add('active');
+  });
+
+  // Update content panels
+  const panels = document.querySelectorAll('.fx-panel');
+  panels.forEach(p => p.style.display = 'none');
+  const activePanel = document.getElementById('fx-panel-' + tab);
+  if (activePanel) activePanel.style.display = 'flex';
+
+  // Update title
+  const titles = {
+    'shadow': 'Sombra Projetada',
+    'inner': 'Sombra Interna',
+    'glow': 'Brilho Externo',
+    'overlay': 'Sobreposição de Cor'
+  };
+  const titleEl = document.getElementById('fx-modal-title');
+  if (titleEl && titles[tab]) titleEl.innerText = titles[tab];
+}
+
+// ── Angle dial interaction ─────────────────────────────────
+function dFxDialStart(e, propName, inputId, dialId) {
+  e.preventDefault();
+  const input = document.getElementById(inputId);
+  const dial  = document.getElementById(dialId);
+  const needle = dial ? dial.querySelector('.fx-dial-needle') : null;
+  if (!dial) return;
+
+  const rect = dial.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+
+  function onMove(ev) {
+    const dx = ev.clientX - cx;
+    const dy = ev.clientY - cy;
+    let angle = Math.round(Math.atan2(dy, dx) * 180 / Math.PI);
+    if (angle < 0) angle += 360;
+    if (input) input.value = angle;
+    if (needle) needle.style.transform = 'rotate(' + angle + 'deg)';
+    dUpdateProp(propName, angle);
+  }
+  function onUp() {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    document.body.style.cursor = '';
+  }
+  document.body.style.cursor = 'crosshair';
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+// ── Reset all effects ──────────────────────────────────────
+function dFxReset() {
+  ['shadow','innerShadow','glow','overlay'].forEach(key => dUpdateProp(key, false));
+  ['dp-fx-shadow','dp-fx-inner','dp-fx-glow','dp-fx-overlay'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.checked = false;
+  });
+  gToast('Efeitos removidos');
 }
 
 // <input type=color> só aceita #rrggbb; converte rgba()→hex (descarta alpha) p/ exibir no picker.
@@ -612,7 +680,7 @@ function dRenderLayersList(){
       const p = dLayers.find(x => x.id === currP);
       currP = p ? p.parentId : null;
     }
-    const indent = 18 + (depth * 14);
+    const indent = 6 + (depth * 14);
     const indentStyle = `style="padding-left: ${indent}px;"`;
     const childClass = depth > 0 ? 'child-row' : '';
     const isSelected = (l.id === dSelId || dMultiSel.includes(l.id));
@@ -663,7 +731,8 @@ function dRenderLayersList(){
         <span class="layer-label ${l.type === 'group' ? 'group-label' : ''}" ondblclick="dRenameLayer('${l.id}',event)" title="Duplo clique para renomear">${gEsc(l.name)}</span>
         ${varBadge}
         ${(l.blendMode && l.blendMode !== 'normal' && typeof dBlendModeLabel === 'function') ? `<span class="lyr-badge lyr-blend" title="Mesclagem: ${dBlendModeLabel(l.blendMode)}">${dBlendModeLabel(l.blendMode)}</span>` : ''}
-        ${l.mask ? `<span class="lyr-badge lyr-mask" title="Máscara aplicada — clique para remover" onclick="event.stopPropagation();dRemoveMask('${l.id}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:2px"><rect x="2" y="7" width="20" height="10" rx="5"/><circle cx="7" cy="12" r="1.5"/><circle cx="17" cy="12" r="1.5"/><path d="M12 10v4"/></svg></span>` : ''}
+        ${_dLayerHasFx(l) ? `<span class="lyr-badge lyr-fx" title="Efeitos ativos: ${[l.shadow?'Sombra':'',l.innerShadow?'S.Interna':'',l.glow?'Brilho':'',l.overlay?'Sobreposição':''].filter(Boolean).join(', ')}">fx</span>` : ''}
+        ${l.mask ? `<span class="lyr-badge lyr-mask" title="Máscara aplicada — clique para remover" onclick="event.stopPropagation();dRemoveMask('${l.id}')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="display:inline-block;vertical-align:middle"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="12" cy="12" r="5"/></svg></span>` : ''}
         <button class="layer-vis ${l.locked ? 'layer-is-hidden' : ''}" onclick="dToggleLayerLock(event, 'ab-single', '${l.id}')" title="${l.locked ? 'Desbloquear' : 'Bloquear'}">${lockIcon}</button>
         <button class="layer-vis ${!l.visible ? 'layer-is-hidden' : ''}" onclick="dToggleLayerVis(event, 'ab-single', '${l.id}')" title="Visibilidade">${visIcon}</button>
       </div>
@@ -816,27 +885,6 @@ function dShowProps(l){
   }
 
   // Atualizar header de contexto
-  const ctx=document.getElementById('d-props-ctx');
-  if(ctx){
-    ctx.style.display='flex';
-    const icons = {
-      text: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>`,
-      shape: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="10" height="10" rx="1"/><circle cx="16" cy="16" r="5"/></svg>`,
-      frame: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>`,
-      image: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`
-    };
-    const typeLabels={text:'texto',shape:'shape',frame:'moldura',image:'imagem'};
-    const iconEl=document.getElementById('d-props-ctx-icon');
-    if(iconEl){
-      iconEl.innerHTML=icons[l.type]||'?';
-      iconEl.style.background='transparent';
-      iconEl.style.color='var(--d-text3)';
-    }
-    const nameEl=document.getElementById('d-props-ctx-name');
-    if(nameEl)nameEl.textContent=l.name;
-    const typeEl=document.getElementById('d-props-ctx-type');
-    if(typeEl)typeEl.textContent=typeLabels[l.type]||l.type;
-  }
   document.getElementById('dp-x').value=l.x;document.getElementById('dp-y').value=l.y;
   document.getElementById('dp-w').value=l.w;document.getElementById('dp-h').value=l.h;
   const isText=l.type==='text',isImg=l.type==='image'||l.type==='frame',isShp=l.type==='shape';
@@ -2319,7 +2367,8 @@ function dAddShapeKind(kind){
       if(!drag)return;
       const r=document.getElementById('d-right');
       const maxH=r?Math.round(r.offsetHeight*MAX_RATIO):500;
-      _applyH(Math.min(maxH,Math.max(MIN_H,startH+(e.clientY-startY))));
+      // Painel de camadas agora está embaixo, então descer o mouse (e.clientY > startY) diminui a altura
+      _applyH(Math.min(maxH,Math.max(MIN_H,startH-(e.clientY-startY))));
     });
     document.addEventListener('mouseup',function(){
       if(!drag)return;

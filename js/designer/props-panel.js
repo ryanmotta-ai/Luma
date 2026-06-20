@@ -65,6 +65,15 @@ function dPropScrollTo(sectionId) {
   }
   var form = document.getElementById('d-props-form');
   if (form) form.scrollTo({ top: sec.offsetTop - 4, behavior: 'smooth' });
+
+  // ── Mark active nav button ──────────────────────────────
+  var subnav = document.querySelector('.dp-subnav');
+  if (subnav) {
+    subnav.querySelectorAll('.dp-nav-btn').forEach(function(b) {
+      var onclick = b.getAttribute('onclick') || '';
+      b.classList.toggle('dp-nav-active', onclick.includes(sectionId));
+    });
+  }
 }
 
 function dPropSetAlign(val, btn) {
@@ -96,6 +105,13 @@ function dPropShowSections(layerType) {
   if (secContent) secContent.style.display = (isText || isImg) ? '' : 'none';
   if (secText)    secText.style.display    = isText ? '' : 'none';
   if (secAppear)  secAppear.style.display  = isShp  ? '' : 'none';
+
+  // Auto-expand the primary section for the layer type
+  var targetOpen = isText ? secText : (isShp ? secAppear : secContent);
+  if (targetOpen && !targetOpen.classList.contains('dp-section-open')) {
+    var btn = targetOpen.querySelector('.dp-sec-head');
+    if (btn) dPropToggleSection(btn);
+  }
 }
 
 document.addEventListener('DOMContentLoaded', function() {

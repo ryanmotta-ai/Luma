@@ -229,7 +229,6 @@
 .layer-row.active {
   background: rgba(255, 144, 0, 0.08) !important;
   box-shadow: inset 3px 0 0 var(--dm-orange);
-  padding-left: 15px; /* Ajuste sutil para acomodar o marcador lateral */
 }
 
 .layer-drag-handle {
@@ -340,9 +339,63 @@
 
 
 /* badge de máscara (camada importada do PSD com máscara) */
-.lyr-mask{cursor:pointer;font-size:10px;background:rgba(255,185,0,.15);border:1px solid rgba(255,185,0,.35);border-radius:8px;padding:0 4px}
-.lyr-mask:hover{background:rgba(255,185,0,.3)}
+.lyr-mask{
+  cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;
+  width:18px;height:18px;
+  background:rgba(255,185,0,0.12);
+  border:1px solid rgba(255,185,0,0.3);
+  border-radius:5px;
+  color:var(--dm-yellow);
+  flex-shrink:0;
+  transition:background 0.12s, border-color 0.12s;
+}
+.lyr-mask:hover{background:rgba(255,185,0,.25);border-color:rgba(255,185,0,.55)}
 
+
+/* ── Mask panel in properties ── */
+.mask-status-card{
+  display:flex;align-items:center;gap:10px;
+  padding:10px;
+  background:var(--d-surf2);
+  border:1px solid var(--d-border);
+  border-radius:8px;
+  margin-bottom:10px;
+}
+.mask-status-card.has-mask{
+  border-color:rgba(255,185,0,0.3);
+  background:rgba(255,185,0,0.05);
+}
+.mask-status-icon{
+  width:34px;height:34px;
+  border-radius:7px;
+  background:var(--d-dark);
+  border:1px solid var(--d-border2);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--d-text3);
+  flex-shrink:0;
+}
+.mask-status-card.has-mask .mask-status-icon{color:var(--dm-yellow);border-color:rgba(255,185,0,0.3);background:rgba(255,185,0,0.08)}
+.mask-status-info{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.mask-status-label{font-size:11px;font-weight:700;color:var(--d-text)}
+.mask-status-hint{font-size:10px;color:var(--d-text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mask-actions-row{
+  display:flex;gap:6px;flex-wrap:wrap;
+  margin-bottom:8px;
+}
+.mask-actions-row .d-btn-sec{
+  flex:1;font-size:10px;padding:5px 8px;
+  display:flex;align-items:center;justify-content:center;gap:5px;
+}
+.mask-tip{
+  display:flex;align-items:flex-start;gap:5px;
+  font-size:10px;color:var(--d-text3);line-height:1.4;
+  padding:6px 8px;
+  background:rgba(255,255,255,0.03);
+  border:1px solid var(--d-border);
+  border-radius:6px;
+}
+.mask-tip svg{flex-shrink:0;margin-top:1px;color:var(--d-text3)}
 
 /* ── Widget de radius (props de shape) ── */
 .dp-radius-widget{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
@@ -630,27 +683,97 @@
   color: var(--dm-red);
 }
 
-/* Blending & Locks panel */
-#d-blend-section {
-  padding: 8px 10px;
-}
-.d-blend-body {
+/* PS-Style Blending & Locks panel */
+.ps-blend-bar {
+  padding: 6px 8px;
+  background: var(--d-surf);
+  border-bottom: 1px solid var(--d-border);
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 8px 4px 4px;
+  gap: 6px;
 }
-.d-lock-group {
+.ps-blend-row {
   display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: space-between;
+  gap: 6px;
 }
-.d-lock-btn {
-  background: var(--d-dark);
-  border: 1px solid var(--d-border2);
+.ps-select {
+  flex: 1;
+  min-width: 0;
+  height: 22px;
+  background: var(--d-surf2);
+  border: 1px solid transparent;
   border-radius: 4px;
-  width: 24px;
-  height: 24px;
+  color: var(--d-text);
+  font-size: 11px;
+  padding: 0 4px;
+  outline: none;
+  transition: all 0.15s;
+  cursor: pointer;
+}
+.ps-select:hover, .ps-select:focus {
+  background: var(--d-dark);
+  border-color: var(--d-border);
+}
+.ps-input-wrap {
+  display: flex;
+  align-items: center;
+  background: var(--d-surf2);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  height: 22px;
+  padding: 0 6px;
+  transition: all 0.15s;
+  flex: 0 0 auto;
+}
+.ps-input-wrap:focus-within {
+  background: var(--d-dark);
+  border-color: var(--dm-orange);
+}
+.ps-input-wrap:hover:not(:focus-within) {
+  background: var(--d-surf3);
+}
+.ps-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--d-text3);
+  margin-right: 4px;
+  cursor: ew-resize; /* Indicador de scrub */
+  user-select: none;
+}
+.ps-input {
+  width: 28px;
+  background: transparent;
+  border: none;
+  color: var(--d-text);
+  font-size: 11px;
+  text-align: right;
+  outline: none;
+  -moz-appearance: textfield;
+}
+.ps-input::-webkit-outer-spin-button,
+.ps-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.ps-unit {
+  font-size: 11px;
+  color: var(--d-text3);
+  margin-left: 2px;
+}
+.ps-lock-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+}
+.ps-lock-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -658,13 +781,16 @@
   cursor: pointer;
   transition: all 0.15s;
 }
-.d-lock-btn:hover {
-  border-color: var(--d-border);
+.ps-lock-btn svg {
+  width: 12px;
+  height: 12px;
+}
+.ps-lock-btn:hover {
+  background: var(--d-surf3);
   color: var(--d-text);
 }
-.d-lock-btn.active {
+.ps-lock-btn.active {
   background: rgba(255, 144, 0, 0.12) !important;
-  border-color: var(--dm-orange) !important;
   color: var(--dm-orange) !important;
 }
 

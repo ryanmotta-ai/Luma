@@ -1332,188 +1332,67 @@ input:focus:-webkit-autofill {
       <!-- Indicador contextual: nome+tipo da peça selecionada (visível só no painel Camada) -->
       <div class="d-rp-ctx" id="d-rp-ctx" style="display:none"></div>
 
-      <!-- Seção de Camadas (Topo) -->
-      <div id="d-layers-section" style="display: flex; flex-direction: column;">
-        <div class="d-layers-search-row">
-          <svg class="search-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="d-layers-search" placeholder="Buscar camadas..." oninput="dLayersSearchFilter(this.value)">
-          <button class="d-layers-filter-btn" onclick="dToggleLayersFilterMenu(event)" title="Filtros">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-          </button>
-        </div>
-        
-        <div id="d-layers-tree-wrapper">
-          <div id="d-layers-list"></div>
-        </div>
-
-        <div class="d-layers-toolbar">
-          <button class="d-lyr-tb-btn" onclick="dAddText()" title="Novo Texto">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          </button>
-          <button class="d-lyr-tb-btn" onclick="dDuplicateSelectedLayer()" title="Duplicar selecionados">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-          </button>
-          <button class="d-lyr-tb-btn" onclick="dAddEffect()" title="fx (Efeitos)">
-            <span style="font-size:10px; font-weight:bold; font-family:'Roboto',sans-serif; line-height:1;">fx</span>
-          </button>
-          <button class="d-lyr-tb-btn" onclick="dMaskAdd()" title="Adicionar Máscara">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="12" cy="12" r="5"/></svg>
-          </button>
-
-          <button class="d-lyr-tb-btn d-lyr-tb-btn-del" onclick="dDeleteSelectedLayer()" title="Excluir selecionados">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-          </button>
-        </div>
-      </div>
-
-      <!-- Handle redimensionável entre camadas e propriedades -->
-      <div id="d-layers-resize-handle"></div>
-
-      <!-- Seção de Mesclagem (Meio) -->
-      <div id="d-blend-section" class="d-acc-sec">
-        <div class="section-head" onclick="dToggleSection(this)">
-          <span>Mesclagem</span>
-        </div>
-        <div class="prop-group d-blend-body">
-          <div class="prop-row align-center" style="display: flex; align-items: center; justify-content: space-between;">
-            <select class="prop-input" id="dp-blend" style="flex: 1.5; font-size:11px;"></select>
-            <span style="font-size:11px;color:var(--d-text3);margin-left:8px;margin-right:4px;">Opacidade</span>
-            <div class="dp-input-unit" style="flex: 1; display: flex; align-items: center;">
-              <input class="prop-input prop-input-sm" type="number" id="dp-opacity" min="0" max="100" value="100" oninput="dUpdateProp('opacity',this.value)" style="width: 100%;">
-              <span class="dp-unit" style="margin-left: 2px;">%</span>
-            </div>
-          </div>
-          <div class="prop-row align-center" style="display: flex; align-items: center; justify-content: space-between;">
-            <span style="font-size:11px;color:var(--d-text3);margin-right:8px;flex: 1.5;">Preenchimento</span>
-            <div class="dp-input-unit" style="flex: 1; display: flex; align-items: center;">
-              <input class="prop-input prop-input-sm" type="number" id="dp-fill-opacity" min="0" max="100" value="100" oninput="dUpdateProp('fillOpacity',this.value)" style="width: 100%;">
-              <span class="dp-unit" style="margin-left: 2px;">%</span>
-            </div>
-          </div>
-          <div class="prop-row align-center" style="display: flex; align-items: center; gap:8px; margin-top:6px;">
-            <span style="font-size:11px;color:var(--d-text3);">Bloquear:</span>
-            <div class="d-lock-group" style="display: flex; gap: 4px;">
-              <button class="d-lock-btn" id="lock-transparency" onclick="dToggleQuickLock('transparency')" title="Bloquear transparência">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>
-              </button>
-              <button class="d-lock-btn" id="lock-edit" onclick="dToggleQuickLock('edit')" title="Bloquear pixels da imagem">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-              </button>
-              <button class="d-lock-btn" id="lock-position" onclick="dToggleQuickLock('position')" title="Bloquear posição">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5v14M12 5l-3 3M12 5l3 3M12 19l-3-3M12 19l3-3M5 12l3-3M5 12l3 3M19 12l-3-3M19 12l3 3"/></svg>
-              </button>
-              <button class="d-lock-btn" id="lock-all" onclick="dToggleQuickLock('all')" title="Bloquear tudo">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- Biblioteca de assets (migrado da antiga sidebar esquerda) -->
-      <div class="rpanel-content hidden" id="dtab-library">
-        
-        <!-- Header da Biblioteca -->
-        <div style="padding:12px 12px 4px; display:flex; flex-direction:column; gap:12px;">
-          
-          <!-- Barra de Busca -->
-          <div style="position:relative;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute; left:10px; top:10px; pointer-events:none; z-index:2;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            <input id="d-lib-search" class="d-lib-search" placeholder="Buscar na biblioteca..." oninput="dLibFilter(this.value)" style="padding-left:32px; margin-bottom:0;" />
-          </div>
-
-          <!-- Dropzone -->
-          <div class="d-lib-drop" onclick="document.getElementById('d-lib-upload').click()" id="d-lib-dropzone" style="margin:0;">
-            <div style="width:36px; height:36px; border-radius:10px; background:rgba(255,144,0,0.1); color:var(--dm-orange); display:flex; align-items:center; justify-content:center; margin-bottom:4px; transition:transform 0.2s;">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-            </div>
-            <span style="font-weight:600; color:var(--d-text); font-size:12px;">Fazer upload de assets</span>
-            <small style="color:var(--d-text3); margin-top:2px;">Arraste para cá ou clique (JPG, PNG, SVG)</small>
-            <input type="file" id="d-lib-upload" accept=".png,.jpg,.jpeg,.svg,.webp,image/png,image/jpeg,image/svg+xml,image/webp" multiple style="display:none" onchange="dLibUpload(this)">
-          </div>
-
-        </div>
-
-        <!-- Categorias / Coleções -->
-        <div style="padding:8px 12px 4px; display:flex; flex-direction:column; gap:8px;">
-          <div style="display:flex; align-items:center; justify-content:space-between;">
-            <span style="font-size:10px; font-weight:700; color:var(--d-text3); text-transform:uppercase; letter-spacing:0.06em;">Coleções</span>
-            <button class="lib-cat" onclick="dLibNewCat()" title="Criar nova coleção" style="display:flex; align-items:center; gap:4px; padding:3px 8px; font-size:10px; background:transparent;">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-              Nova
-            </button>
-          </div>
-          <div class="d-lib-cats" id="d-lib-cats"></div>
-        </div>
-        
-        <!-- Grid de Assets -->
-        <div class="d-lib-grid" id="d-lib-grid"></div>
-      </div>
       <!-- Painel CAMADA: propriedades da peça + catálogo de variáveis do template -->
       <div class="rpanel-content hidden" id="d-panel-camada">
       <div id="dtab-props" class="d-rp-sub">
 
         <div class="prop-divider" style="display:none"></div>
         <!-- Painel Prancheta — visível quando nenhuma camada está selecionada -->
-        <div id="d-no-sel">
-          <div class="d-acc-sec">
-            <div class="section-head" onclick="dToggleSection(this)">Prancheta</div>
-            <div class="prop-group">
-              <div class="prop-row">
-                <span style="font-size:11px;color:var(--d-text3);width:14px">W</span>
-                <input class="prop-input prop-input-sm" type="number" id="d-ab-w-inp" min="80" max="8000" onchange="dABDimUpdate()">
-                <span style="font-size:11px;color:var(--d-text3);width:14px">H</span>
-                <input class="prop-input prop-input-sm" type="number" id="d-ab-h-inp" min="80" max="8000" onchange="dABDimUpdate()">
+        <div id="d-no-sel" style="display:flex;flex-direction:column">
+          
+          <section class="dp-section dp-section-open" id="dp-sec-ab-size">
+            <button class="dp-sec-head" onclick="dPropToggleSection(this)">
+              <span class="dp-sec-label">PRANCHETA</span>
+              <svg class="dp-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="dp-sec-body">
+              <div class="dp-xywh-grid">
+                <div class="dp-xywh-field">
+                  <label>W</label>
+                  <input class="prop-input" type="number" id="d-ab-w-inp" min="80" max="8000" onchange="dABDimUpdate()">
+                </div>
+                <div class="dp-xywh-field">
+                  <label>H</label>
+                  <input class="prop-input" type="number" id="d-ab-h-inp" min="80" max="8000" onchange="dABDimUpdate()">
+                </div>
               </div>
             </div>
-          </div>
-          <div class="d-acc-sec">
-            <div class="section-head" onclick="dToggleSection(this)">Fundo</div>
-            <div class="prop-group">
-              <div class="prop-row" style="gap:6px;align-items:center;flex-wrap:wrap">
-                <button class="ab-bg-btn" id="d-ab-bg-transparent" title="Transparente" onclick="dSetABBg('transparent')"><svg width="16" height="16" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="8" height="8" fill="#bbb"/><rect x="8" y="8" width="8" height="8" fill="#bbb"/><rect x="0" y="8" width="8" height="8" fill="#e8e8e8"/><rect x="8" y="0" width="8" height="8" fill="#e8e8e8"/></svg></button>
-                <button class="ab-bg-btn" id="d-ab-bg-white" title="Branco" onclick="dSetABBg('white')" style="background:#fff;border-color:rgba(0,0,0,.15)"></button>
-                <label class="ab-bg-btn ab-bg-custom-lbl" id="d-ab-bg-custom" title="Cor personalizada" style="position:relative"><input type="color" id="d-ab-bg-picker" style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none" oninput="dSetABBg(this.value)"></label>
-                <span id="d-ab-bg-hex" style="font-size:10px;color:var(--d-text3);font-family:monospace;flex:1"></span>
-              </div>
-            </div>
-          </div>
-          <div class="d-acc-sec">
-            <div class="section-head" onclick="dToggleSection(this)">Orientação</div>
-            <div class="prop-group">
-              <div class="prop-row" style="gap:6px">
-                <button class="ab-bg-btn" id="d-ab-orient-port" title="Retrato" onclick="dSetOrientation('portrait')"><svg width="10" height="14" viewBox="0 0 10 14" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="8" height="12" rx="1"/></svg></button>
-                <button class="ab-bg-btn" id="d-ab-orient-land" title="Paisagem" onclick="dSetOrientation('landscape')"><svg width="14" height="10" viewBox="0 0 14 10" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="12" height="8" rx="1"/></svg></button>
-                <button class="d-btn-ghost" onclick="dToggleOrientation(dActiveABId)" style="flex:1;font-size:11px;padding:3px 6px" title="Troca W↔H com smart-resize">↔ Girar</button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <!-- compat shim: dShowProps ainda faz ctx.style.display='flex', ignoramos -->
-        <div id="d-props-ctx" style="display:none"></div>
+          </section>
 
+          <section class="dp-section dp-section-open" id="dp-sec-ab-bg">
+            <button class="dp-sec-head" onclick="dPropToggleSection(this)">
+              <span class="dp-sec-label">FUNDO</span>
+              <svg class="dp-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="dp-sec-body">
+              <div class="prop-row" style="gap:8px;align-items:center;padding:4px;background:var(--d-surf);border:1px solid var(--d-border);border-radius:8px">
+                <button class="ab-bg-btn" id="d-ab-bg-transparent" title="Transparente" onclick="dSetABBg('transparent')" style="flex:1;height:28px;border-radius:6px;border:none"><svg width="16" height="16" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="8" height="8" fill="#bbb"/><rect x="8" y="8" width="8" height="8" fill="#bbb"/><rect x="0" y="8" width="8" height="8" fill="#e8e8e8"/><rect x="8" y="0" width="8" height="8" fill="#e8e8e8"/></svg></button>
+                <button class="ab-bg-btn" id="d-ab-bg-white" title="Branco" onclick="dSetABBg('white')" style="flex:1;height:28px;background:#fff;border-radius:6px;border:1px solid rgba(0,0,0,0.1)"></button>
+                <label class="ab-bg-btn ab-bg-custom-lbl" id="d-ab-bg-custom" title="Cor personalizada" style="flex:1;height:28px;position:relative;border-radius:6px;border:none"><input type="color" id="d-ab-bg-picker" style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none" oninput="dSetABBg(this.value)"></label>
+                <span id="d-ab-bg-hex" style="font-size:11px;color:var(--d-text);font-family:var(--font-mono);flex:1;text-align:center;font-weight:600"></span>
+              </div>
+            </div>
+          </section>
+
+          <section class="dp-section dp-section-open" id="dp-sec-ab-orient">
+            <button class="dp-sec-head" onclick="dPropToggleSection(this)">
+              <span class="dp-sec-label">ORIENTAÇÃO</span>
+              <svg class="dp-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="dp-sec-body">
+              <div class="prop-row" style="gap:8px">
+                <div style="display:flex;background:var(--d-surf);border:1px solid var(--d-border);border-radius:6px;padding:2px">
+                  <button class="dp-btn-icon" id="d-ab-orient-port" title="Retrato" onclick="dSetOrientation('portrait')" style="width:36px;height:28px;border-radius:4px"><svg width="12" height="16" viewBox="0 0 10 14" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="8" height="12" rx="1"/></svg></button>
+                  <button class="dp-btn-icon" id="d-ab-orient-land" title="Paisagem" onclick="dSetOrientation('landscape')" style="width:36px;height:28px;border-radius:4px"><svg width="16" height="12" viewBox="0 0 14 10" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="12" height="8" rx="1"/></svg></button>
+                </div>
+                <button class="dp-btn-secondary" onclick="dToggleOrientation(dActiveABId)" style="flex:1" title="Troca W↔H com smart-resize">↔ Girar proporção</button>
+              </div>
+            </div>
+          </section>
+
+        </div>
         <div id="d-props-form" style="display:none;flex-direction:column">
 
-          <!-- ── BREADCRUMB ── -->
-          <div id="dp-breadcrumb" class="dp-breadcrumb"></div>
-
-          <!-- ── HEADER ── -->
-          <div class="dp-hdr">
-            <div class="dp-hdr-icon" id="d-props-ctx-icon">T</div>
-            <div class="dp-hdr-meta">
-              <div class="dp-hdr-name" id="d-props-ctx-name">—</div>
-              <div class="dp-hdr-type" id="d-props-ctx-type">texto</div>
-            </div>
-            <div class="dp-hdr-id" id="dp-hdr-id"></div>
-          </div>
-
-          <!-- ── SUB-NAV ── -->
-          <nav class="dp-subnav">
-            <button class="dp-nav-btn" onclick="dPropScrollTo('dp-sec-content')" title="Conteúdo"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-            <button class="dp-nav-btn" onclick="dPropScrollTo('dp-sec-text')" title="Tipografia"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg></button>
-            <button class="dp-nav-btn" onclick="dPropScrollTo('dp-sec-pos')" title="Posição e Tamanho"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><line x1="12" y1="5" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="19"/><line x1="5" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="19" y2="12"/></svg></button>
-            <button class="dp-nav-btn" onclick="dPropScrollTo('dp-sec-appear')" title="Aparência"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></button>
-            <button class="dp-nav-btn" onclick="dPropScrollTo('dp-sec-rules')" title="Regras Condicionais"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></button>
-          </nav>
 
           <!-- ── SEÇÃO: CONTEÚDO ── -->
           <section class="dp-section dp-section-open" id="dp-sec-content">
@@ -1612,14 +1491,22 @@ input:focus:-webkit-autofill {
             </button>
             <div class="dp-sec-body">
               <div class="dp-xywh-grid">
-                <span class="dp-xywh-label">X</span>
-                <input class="prop-input prop-input-sm" type="number" id="dp-x" oninput="dUpdateProp('x',this.value)">
-                <span class="dp-xywh-label">Y</span>
-                <input class="prop-input prop-input-sm" type="number" id="dp-y" oninput="dUpdateProp('y',this.value)">
-                <span class="dp-xywh-label">W</span>
-                <input class="prop-input prop-input-sm" type="number" id="dp-w" oninput="dUpdateProp('w',this.value)">
-                <span class="dp-xywh-label">H</span>
-                <input class="prop-input prop-input-sm" type="number" id="dp-h" oninput="dUpdateProp('h',this.value)">
+                <div class="dp-xywh-field">
+                  <span class="dp-xywh-label">X</span>
+                  <input class="dp-xywh-input" type="number" id="dp-x" oninput="dUpdateProp('x',this.value)">
+                </div>
+                <div class="dp-xywh-field">
+                  <span class="dp-xywh-label">Y</span>
+                  <input class="dp-xywh-input" type="number" id="dp-y" oninput="dUpdateProp('y',this.value)">
+                </div>
+                <div class="dp-xywh-field">
+                  <span class="dp-xywh-label">W</span>
+                  <input class="dp-xywh-input" type="number" id="dp-w" oninput="dUpdateProp('w',this.value)">
+                </div>
+                <div class="dp-xywh-field">
+                  <span class="dp-xywh-label">H</span>
+                  <input class="dp-xywh-input" type="number" id="dp-h" oninput="dUpdateProp('h',this.value)">
+                </div>
               </div>
             </div>
           </section>
@@ -1697,70 +1584,10 @@ input:focus:-webkit-autofill {
                   <select class="prop-input" id="dp-bind-visible-shape" style="font-size:11px" onchange="dSetBinding('visible',this.value)"></select>
                 </div>
               </div>
-              <!-- ── EFEITOS (universal: shape/texto/imagem) ── -->
-              <div id="d-fx-props" style="border-top:1px solid var(--d-border,#333);margin-top:6px;padding-top:6px">
-                <div class="dp-field">
-                  <label class="dp-field-label"><input type="checkbox" id="dp-fx-shadow" onchange="dUpdateProp('shadow',this.checked)" style="vertical-align:middle"> Sombra</label>
-                  <div style="display:flex;gap:4px;align-items:center">
-                    <input type="color" id="dp-fx-shadow-color" title="Cor" oninput="dUpdateProp('shadowColor',this.value)" style="width:28px;height:24px;padding:0;border:none;background:none;cursor:pointer">
-                    <input class="prop-input prop-input-sm" type="number" id="dp-fx-shadow-blur" min="0" placeholder="blur" title="Desfoque (px)" oninput="dUpdateProp('shadowBlur',this.value)">
-                    <input class="prop-input prop-input-sm" type="number" id="dp-fx-shadow-dist" min="0" placeholder="dist" title="Distância (px)" oninput="dUpdateProp('shadowDist',this.value)">
-                    <input class="prop-input prop-input-sm" type="number" id="dp-fx-shadow-angle" placeholder="âng" title="Ângulo (°)" oninput="dUpdateProp('shadowAngle',this.value)">
-                  </div>
-                </div>
-                <div class="dp-field">
-                  <label class="dp-field-label"><input type="checkbox" id="dp-fx-inner" onchange="dUpdateProp('innerShadow',this.checked)" style="vertical-align:middle"> Sombra interna</label>
-                  <div style="display:flex;gap:4px;align-items:center">
-                    <input type="color" id="dp-fx-inner-color" title="Cor" oninput="dUpdateProp('innerShadowColor',this.value)" style="width:28px;height:24px;padding:0;border:none;background:none;cursor:pointer">
-                    <input class="prop-input prop-input-sm" type="number" id="dp-fx-inner-blur" min="0" placeholder="blur" oninput="dUpdateProp('innerShadowBlur',this.value)">
-                    <input class="prop-input prop-input-sm" type="number" id="dp-fx-inner-dist" min="0" placeholder="dist" oninput="dUpdateProp('innerShadowDist',this.value)">
-                    <input class="prop-input prop-input-sm" type="number" id="dp-fx-inner-angle" placeholder="âng" oninput="dUpdateProp('innerShadowAngle',this.value)">
-                  </div>
-                </div>
-                <div class="dp-field">
-                  <label class="dp-field-label"><input type="checkbox" id="dp-fx-glow" onchange="dUpdateProp('glow',this.checked)" style="vertical-align:middle"> Brilho</label>
-                  <div style="display:flex;gap:4px;align-items:center">
-                    <input type="color" id="dp-fx-glow-color" title="Cor" oninput="dUpdateProp('glowColor',this.value)" style="width:28px;height:24px;padding:0;border:none;background:none;cursor:pointer">
-                    <input class="prop-input prop-input-sm" type="number" id="dp-fx-glow-size" min="0" placeholder="tam" title="Tamanho (px)" oninput="dUpdateProp('glowSize',this.value)">
-                  </div>
-                </div>
-                <div class="dp-field">
-                  <label class="dp-field-label"><input type="checkbox" id="dp-fx-overlay" onchange="dUpdateProp('overlay',this.checked)" style="vertical-align:middle"> Sobrepor cor</label>
-                  <div style="display:flex;gap:4px;align-items:center">
-                    <input type="color" id="dp-fx-overlay-color" title="Cor" oninput="dUpdateProp('overlayColor',this.value)" style="width:28px;height:24px;padding:0;border:none;background:none;cursor:pointer">
-                    <input class="prop-input prop-input-sm" type="number" id="dp-fx-overlay-op" min="0" max="100" placeholder="%" title="Opacidade %" oninput="dUpdateProp('overlayOpacity',(parseFloat(this.value)||0)/100)">
-                  </div>
-                </div>
-              </div>
+              <!-- EFEITOS movidos para d-fx-modal -->
             </div>
           </section>
 
-
-
-          <!-- ── SEÇÃO: REGRAS CONDICIONAIS ── -->
-          <section class="dp-section" id="dp-sec-rules">
-            <button class="dp-sec-head" onclick="dPropToggleSection(this)">
-              <span class="dp-sec-label">REGRAS CONDICIONAIS</span>
-              <button class="dp-sec-action-btn" onclick="event.stopPropagation();dAddRule()" title="Adicionar regra">+ Regra</button>
-              <svg class="dp-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <div class="dp-sec-body" id="d-rules-props">
-              <div id="d-rules-list"></div>
-              <div style="font-size:10px;color:var(--d-text3);line-height:1.5;margin-top:4px">Ex.: quando <code style="color:var(--var-color)">precoDe</code> estiver vazio → ocultar este elemento.</div>
-            </div>
-          </section>
-
-          <!-- ── SEÇÃO: MÁSCARA ── -->
-          <section class="dp-section" id="d-mask-section" style="display:none">
-            <button class="dp-sec-head" onclick="dPropToggleSection(this)">
-              <span class="dp-sec-label">MÁSCARA</span>
-              <svg class="dp-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <div class="dp-sec-body">
-              <div id="d-mask-actions" class="prop-row" style="flex-wrap:wrap;gap:6px"></div>
-              <div style="font-size:10px;color:var(--d-text3);line-height:1.5;margin-top:4px">Pinte pra esconder/revelar partes da camada. Máscaras do PSD entram aqui automaticamente.</div>
-            </div>
-          </section>
 
           <!-- A gestão de campos variáveis migrou para a aba "Dados" (#d-panel-dados). -->
 
@@ -1769,6 +1596,115 @@ input:focus:-webkit-autofill {
       <div id="dtab-vars" class="d-rp-sub" style="display:none"></div>
       </div><!-- /#d-panel-camada -->
 
+      <!-- Handle redimensionável entre camadas e propriedades -->
+      <div id="d-layers-resize-handle"></div>
+
+      <!-- Seção de Camadas (Topo) -->
+      <div id="d-layers-section" style="display: flex; flex-direction: column;">
+        <div class="d-layers-search-row">
+          <svg class="search-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="d-layers-search" placeholder="Buscar camadas..." oninput="dLayersSearchFilter(this.value)">
+          <button class="d-layers-filter-btn" onclick="dToggleLayersFilterMenu(event)" title="Filtros">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+          </button>
+        </div>
+        
+      <!-- Seção de Mesclagem (Meio) -->
+      <div id="d-blend-section" class="ps-blend-bar">
+        <div class="ps-blend-row">
+          <select class="ps-select" id="dp-blend"></select>
+          <div class="ps-input-wrap">
+            <label class="ps-label" title="Opacidade">Opac.</label>
+            <input class="ps-input" type="number" id="dp-opacity" min="0" max="100" value="100" oninput="dUpdateProp('opacity',this.value)">
+            <span class="ps-unit">%</span>
+          </div>
+        </div>
+        <div class="ps-blend-row">
+          <div class="ps-lock-group">
+            <span class="ps-label" style="margin-right:4px;">Bloq:</span>
+            <button class="ps-lock-btn" id="lock-transparency" onclick="dToggleQuickLock('transparency')" title="Bloquear transparência">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>
+            </button>
+            <button class="ps-lock-btn" id="lock-edit" onclick="dToggleQuickLock('edit')" title="Bloquear pixels">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            </button>
+            <button class="ps-lock-btn" id="lock-position" onclick="dToggleQuickLock('position')" title="Bloquear posição">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5v14M12 5l-3 3M12 5l3 3M12 19l-3-3M12 19l3-3M5 12l3-3M5 12l3 3M19 12l-3-3M19 12l3 3"/></svg>
+            </button>
+            <button class="ps-lock-btn" id="lock-all" onclick="dToggleQuickLock('all')" title="Bloquear tudo">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </button>
+          </div>
+          <div class="ps-input-wrap">
+            <label class="ps-label" title="Preenchimento">Preen.</label>
+            <input class="ps-input" type="number" id="dp-fill-opacity" min="0" max="100" value="100" oninput="dUpdateProp('fillOpacity',this.value)">
+            <span class="ps-unit">%</span>
+          </div>
+        </div>
+      </div>
+        <div id="d-layers-tree-wrapper">
+          <div id="d-layers-list"></div>
+        </div>
+
+        <div class="d-layers-toolbar">
+          <button class="d-lyr-tb-btn" onclick="dAddText()" title="Novo Texto">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          <button class="d-lyr-tb-btn" onclick="dDuplicateSelectedLayer()" title="Duplicar selecionados">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+          <button class="d-lyr-tb-btn" onclick="dAddEffect()" title="fx (Efeitos)">
+            <span style="font-size:10px; font-weight:bold; font-family:'Roboto',sans-serif; line-height:1;">fx</span>
+          </button>
+          <button class="d-lyr-tb-btn" onclick="dMaskAdd()" title="Adicionar Máscara">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="12" cy="12" r="5"/></svg>
+          </button>
+
+          <button class="d-lyr-tb-btn d-lyr-tb-btn-del" onclick="dDeleteSelectedLayer()" title="Excluir selecionados">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Biblioteca de assets (migrado da antiga sidebar esquerda) -->
+      <div class="rpanel-content hidden" id="dtab-library">
+        
+        <!-- Header da Biblioteca -->
+        <div style="padding:12px 12px 4px; display:flex; flex-direction:column; gap:12px;">
+          
+          <!-- Barra de Busca -->
+          <div style="position:relative;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute; left:10px; top:10px; pointer-events:none; z-index:2;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input id="d-lib-search" class="d-lib-search" placeholder="Buscar na biblioteca..." oninput="dLibFilter(this.value)" style="padding-left:32px; margin-bottom:0;" />
+          </div>
+
+          <!-- Dropzone -->
+          <div class="d-lib-drop" onclick="document.getElementById('d-lib-upload').click()" id="d-lib-dropzone" style="margin:0;">
+            <div style="width:36px; height:36px; border-radius:10px; background:rgba(255,144,0,0.1); color:var(--dm-orange); display:flex; align-items:center; justify-content:center; margin-bottom:4px; transition:transform 0.2s;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            </div>
+            <span style="font-weight:600; color:var(--d-text); font-size:12px;">Fazer upload de assets</span>
+            <small style="color:var(--d-text3); margin-top:2px;">Arraste para cá ou clique (JPG, PNG, SVG)</small>
+            <input type="file" id="d-lib-upload" accept=".png,.jpg,.jpeg,.svg,.webp,image/png,image/jpeg,image/svg+xml,image/webp" multiple style="display:none" onchange="dLibUpload(this)">
+          </div>
+
+        </div>
+
+        <!-- Categorias / Coleções -->
+        <div style="padding:8px 12px 4px; display:flex; flex-direction:column; gap:8px;">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <span style="font-size:10px; font-weight:700; color:var(--d-text3); text-transform:uppercase; letter-spacing:0.06em;">Coleções</span>
+            <button class="lib-cat" onclick="dLibNewCat()" title="Criar nova coleção" style="display:flex; align-items:center; gap:4px; padding:3px 8px; font-size:10px; background:transparent;">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              Nova
+            </button>
+          </div>
+          <div class="d-lib-cats" id="d-lib-cats"></div>
+        </div>
+        
+        <!-- Grid de Assets -->
+        <div class="d-lib-grid" id="d-lib-grid"></div>
+      </div>
       <!-- Painel DADOS: centro de campos que o franqueado preenche (redesign de variáveis) -->
       <div class="rpanel-content hidden" id="d-panel-dados">
         <div class="dados-subnav">
@@ -1970,7 +1906,7 @@ input:focus:-webkit-autofill {
 
 <!-- Importação de PSD: tela de revisão/mapeamento -->
 <div class="modal-overlay" id="d-psd-modal">
-  <div class="modal" style="width:580px;max-height:88vh;display:flex;flex-direction:column;gap:12px">
+  <div class="modal psd-modal" style="width:860px;max-width:96vw;max-height:88vh;display:flex;flex-direction:column;gap:10px">
     <div class="modal-title">Importar PSD</div>
     <div id="d-psd-meta" style="font-size:12px;color:var(--d-text2)"></div>
     <div class="psd-fmt-row">
@@ -1980,13 +1916,29 @@ input:focus:-webkit-autofill {
         <option value="story">Story (1080×1920)</option>
         <option value="feed">Feed (1080×1080)</option>
         <option value="wide">Wide (1200×628)</option>
+        <option value="horizontal">Horizontal (1920×1080)</option>
       </select>
       <label class="modal-label" style="margin:0;display:flex;align-items:center;gap:6px;white-space:nowrap;cursor:pointer" title="Marque se as camadas vierem na ordem trocada (fundo na frente)">
         <input type="checkbox" id="d-psd-invert"> Inverter ordem
       </label>
     </div>
-    <div style="font-size:11px;color:var(--d-text3);line-height:1.5">Revise cada camada: vire textos em <code style="color:var(--var-color)">{{variáveis}}</code>, mantenha cor sólida como forma editável, ou imagem fiel. Camadas nomeadas <code style="color:var(--var-color)">{{nome}}</code> já entram como variável.</div>
-    <div id="d-psd-rows" style="overflow-y:auto;flex:1;min-height:120px;display:flex;flex-direction:column;gap:4px"></div>
+    <!-- Corpo em duas colunas: preview (esq) + lista de camadas (dir) -->
+    <div class="psd-modal-cols">
+      <!-- Preview à esquerda -->
+      <div class="psd-preview-panel">
+        <div class="psd-preview-label">Pré-visualização</div>
+        <div class="psd-preview-canvases">
+          <canvas id="d-psd-preview-canvas"></canvas>
+          <canvas id="d-psd-preview-overlay"></canvas>
+        </div>
+        <div class="psd-preview-hint">Passe o mouse sobre uma camada para destacá-la</div>
+      </div>
+      <!-- Lista de camadas à direita -->
+      <div class="psd-rows-panel">
+        <div style="font-size:11px;color:var(--d-text3);line-height:1.5;margin-bottom:6px">Revise cada camada: vire textos em <code style="color:var(--var-color)">{{variáveis}}</code>, mantenha cor sólida como forma editável, ou imagem fiel. Camadas nomeadas <code style="color:var(--var-color)">{{nome}}</code> já entram como variável.</div>
+        <div id="d-psd-rows" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:4px"></div>
+      </div>
+    </div>
     <div class="modal-actions">
       <button class="d-btn-sec" onclick="dPsdCancel()">Cancelar</button>
       <button class="d-btn-pri" onclick="dPsdConfirmImport()">Importar <span id="d-psd-count"></span></button>
@@ -2541,6 +2493,243 @@ input:focus:-webkit-autofill {
       <span class="pv-render-note" id="pv-render-note">Renderizado na prancheta</span>
     </div>
 
+  </div>
+</div>
+
+<!-- MODAL ESTILO DE CAMADA (Layer Style) -->
+<div class="modal-overlay" id="d-fx-modal" onclick="if(event.target===this)dCloseFxModal()">
+  <div class="fx-modal-dialog">
+
+    <!-- ── Sidebar ── -->
+    <aside class="fx-sidebar">
+      <div class="fx-sidebar-header">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        Estilo de Camada
+      </div>
+      <div class="fx-sidebar-list">
+        <label class="fx-tab-item active" id="fx-tab-shadow" onclick="dSelectFxTab('shadow')">
+          <span class="fx-tab-check">
+            <input type="checkbox" id="dp-fx-shadow" onclick="event.stopPropagation()" onchange="dUpdateProp('shadow',this.checked)">
+          </span>
+          <span class="fx-tab-icon">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9l4 4 4-4"/></svg>
+          </span>
+          <span class="fx-tab-label">Sombra Projetada</span>
+        </label>
+        <label class="fx-tab-item" id="fx-tab-inner" onclick="dSelectFxTab('inner')">
+          <span class="fx-tab-check">
+            <input type="checkbox" id="dp-fx-inner" onclick="event.stopPropagation()" onchange="dUpdateProp('innerShadow',this.checked)">
+          </span>
+          <span class="fx-tab-icon">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
+          </span>
+          <span class="fx-tab-label">Sombra Interna</span>
+        </label>
+        <label class="fx-tab-item" id="fx-tab-glow" onclick="dSelectFxTab('glow')">
+          <span class="fx-tab-check">
+            <input type="checkbox" id="dp-fx-glow" onclick="event.stopPropagation()" onchange="dUpdateProp('glow',this.checked)">
+          </span>
+          <span class="fx-tab-icon">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+          </span>
+          <span class="fx-tab-label">Brilho Externo</span>
+        </label>
+        <label class="fx-tab-item" id="fx-tab-overlay" onclick="dSelectFxTab('overlay')">
+          <span class="fx-tab-check">
+            <input type="checkbox" id="dp-fx-overlay" onclick="event.stopPropagation()" onchange="dUpdateProp('overlay',this.checked)">
+          </span>
+          <span class="fx-tab-icon">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="18" height="18" rx="2" opacity="0.5"/><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+          </span>
+          <span class="fx-tab-label">Sobrepor Cor</span>
+        </label>
+      </div>
+    </aside>
+
+    <!-- ── Content Area ── -->
+    <div class="fx-content">
+
+      <!-- Header com título e fechar -->
+      <div class="fx-content-header">
+        <span id="fx-modal-title" class="fx-content-title">Sombra Projetada</span>
+        <button class="fx-close-btn" onclick="dCloseFxModal()" title="Fechar">&times;</button>
+      </div>
+
+      <!-- Panels -->
+      <div id="fx-panels" class="fx-panels-area">
+
+        <!-- ── Shadow ── -->
+        <div class="fx-panel" id="fx-panel-shadow">
+          <div class="fx-row">
+            <label class="fx-label">Cor</label>
+            <div class="fx-color-row">
+              <div class="fx-color-swatch" id="fx-shadow-sw" onclick="document.getElementById('dp-fx-shadow-color').click()" style="background:#000000;"></div>
+              <input type="color" id="dp-fx-shadow-color" style="display:none" oninput="dUpdateProp('shadowColor',this.value);document.getElementById('fx-shadow-sw').style.background=this.value;">
+              <span class="fx-color-label" id="fx-shadow-hex">#000000</span>
+            </div>
+          </div>
+          <div class="fx-row">
+            <label class="fx-label">Desfoque</label>
+            <div class="fx-input-group">
+              <input class="fx-input" type="number" id="dp-fx-shadow-blur" min="0" value="4" oninput="dUpdateProp('shadowBlur',this.value)">
+              <span class="fx-unit">px</span>
+            </div>
+          </div>
+          <div class="fx-row">
+            <label class="fx-label">Distância</label>
+            <div class="fx-input-group">
+              <input class="fx-input" type="number" id="dp-fx-shadow-dist" min="0" value="4" oninput="dUpdateProp('shadowDist',this.value)">
+              <span class="fx-unit">px</span>
+            </div>
+          </div>
+          <div class="fx-row">
+            <label class="fx-label">Expansão</label>
+            <div class="fx-input-group">
+              <input class="fx-input" type="number" id="dp-fx-shadow-spread" min="0" value="0" oninput="dUpdateProp('shadowSpread',this.value)">
+              <span class="fx-unit">px</span>
+            </div>
+          </div>
+          <div class="fx-row">
+            <label class="fx-label">Ângulo</label>
+            <div class="fx-angle-row">
+              <div class="fx-dial" id="fx-shadow-dial" onmousedown="dFxDialStart(event,'shadowAngle','dp-fx-shadow-angle','fx-shadow-dial')">
+                <div class="fx-dial-needle" id="fx-shadow-needle" style="transform:rotate(135deg)"></div>
+              </div>
+              <div class="fx-input-group">
+                <input class="fx-input" type="number" id="dp-fx-shadow-angle" value="135" oninput="dUpdateProp('shadowAngle',this.value);document.getElementById('fx-shadow-needle').style.transform='rotate('+this.value+'deg)'">
+                <span class="fx-unit">°</span>
+              </div>
+            </div>
+          </div>
+          <div class="fx-row">
+            <label class="fx-label">Opacidade</label>
+            <div class="fx-input-group">
+              <input class="fx-input" type="number" id="dp-fx-shadow-opacity" min="0" max="100" value="75" oninput="dUpdateProp('shadowOpacity',(parseFloat(this.value)||0)/100)">
+              <span class="fx-unit">%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Inner Shadow ── -->
+        <div class="fx-panel" id="fx-panel-inner" style="display:none">
+          <div class="fx-row">
+            <label class="fx-label">Cor</label>
+            <div class="fx-color-row">
+              <div class="fx-color-swatch" id="fx-inner-sw" onclick="document.getElementById('dp-fx-inner-color').click()" style="background:#000000;"></div>
+              <input type="color" id="dp-fx-inner-color" style="display:none" oninput="dUpdateProp('innerShadowColor',this.value);document.getElementById('fx-inner-sw').style.background=this.value;">
+              <span class="fx-color-label" id="fx-inner-hex">#000000</span>
+            </div>
+          </div>
+          <div class="fx-row">
+            <label class="fx-label">Desfoque</label>
+            <div class="fx-input-group">
+              <input class="fx-input" type="number" id="dp-fx-inner-blur" min="0" value="5" oninput="dUpdateProp('innerShadowBlur',this.value)">
+              <span class="fx-unit">px</span>
+            </div>
+          </div>
+          <div class="fx-row">
+            <label class="fx-label">Distância</label>
+            <div class="fx-input-group">
+              <input class="fx-input" type="number" id="dp-fx-inner-dist" min="0" value="0" oninput="dUpdateProp('innerShadowDist',this.value)">
+              <span class="fx-unit">px</span>
+            </div>
+          </div>
+          <div class="fx-row">
+            <label class="fx-label">Ângulo</label>
+            <div class="fx-angle-row">
+              <div class="fx-dial" id="fx-inner-dial" onmousedown="dFxDialStart(event,'innerShadowAngle','dp-fx-inner-angle','fx-inner-dial')">
+                <div class="fx-dial-needle" id="fx-inner-needle" style="transform:rotate(135deg)"></div>
+              </div>
+              <div class="fx-input-group">
+                <input class="fx-input" type="number" id="dp-fx-inner-angle" value="135" oninput="dUpdateProp('innerShadowAngle',this.value);document.getElementById('fx-inner-needle').style.transform='rotate('+this.value+'deg)'">
+                <span class="fx-unit">°</span>
+              </div>
+            </div>
+          </div>
+          <div class="fx-row">
+            <label class="fx-label">Opacidade</label>
+            <div class="fx-input-group">
+              <input class="fx-input" type="number" id="dp-fx-inner-opacity" min="0" max="100" value="75" oninput="dUpdateProp('innerShadowOpacity',(parseFloat(this.value)||0)/100)">
+              <span class="fx-unit">%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Glow ── -->
+        <div class="fx-panel" id="fx-panel-glow" style="display:none">
+          <div class="fx-row">
+            <label class="fx-label">Cor</label>
+            <div class="fx-color-row">
+              <div class="fx-color-swatch" id="fx-glow-sw" onclick="document.getElementById('dp-fx-glow-color').click()" style="background:#ffff00;"></div>
+              <input type="color" id="dp-fx-glow-color" style="display:none" value="#ffff00" oninput="dUpdateProp('glowColor',this.value);document.getElementById('fx-glow-sw').style.background=this.value;">
+              <span class="fx-color-label" id="fx-glow-hex">#ffff00</span>
+            </div>
+          </div>
+          <div class="fx-row">
+            <label class="fx-label">Opacidade</label>
+            <div class="fx-input-group">
+              <input class="fx-input" type="number" id="dp-fx-glow-opacity" min="0" max="100" value="75" oninput="dUpdateProp('glowOpacity',(parseFloat(this.value)||0)/100)">
+              <span class="fx-unit">%</span>
+            </div>
+          </div>
+          <div class="fx-row">
+            <label class="fx-label">Tamanho</label>
+            <div class="fx-input-group">
+              <input class="fx-input" type="number" id="dp-fx-glow-size" min="0" value="5" oninput="dUpdateProp('glowSize',this.value)">
+              <span class="fx-unit">px</span>
+            </div>
+          </div>
+          <div class="fx-row">
+            <label class="fx-label">Expansão</label>
+            <div class="fx-input-group">
+              <input class="fx-input" type="number" id="dp-fx-glow-spread" min="0" value="0" oninput="dUpdateProp('glowSpread',this.value)">
+              <span class="fx-unit">px</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Overlay ── -->
+        <div class="fx-panel" id="fx-panel-overlay" style="display:none">
+          <div class="fx-row">
+            <label class="fx-label">Cor</label>
+            <div class="fx-color-row">
+              <div class="fx-color-swatch" id="fx-overlay-sw" onclick="document.getElementById('dp-fx-overlay-color').click()" style="background:#ff0000;"></div>
+              <input type="color" id="dp-fx-overlay-color" style="display:none" value="#ff0000" oninput="dUpdateProp('overlayColor',this.value);document.getElementById('fx-overlay-sw').style.background=this.value;">
+              <span class="fx-color-label" id="fx-overlay-hex">#ff0000</span>
+            </div>
+          </div>
+          <div class="fx-row">
+            <label class="fx-label">Opacidade</label>
+            <div class="fx-input-group">
+              <input class="fx-input" type="number" id="dp-fx-overlay-op" min="0" max="100" value="100" oninput="dUpdateProp('overlayOpacity',(parseFloat(this.value)||0)/100)">
+              <span class="fx-unit">%</span>
+            </div>
+          </div>
+          <div class="fx-row">
+            <label class="fx-label">Mesclagem</label>
+            <select class="fx-select" id="dp-fx-overlay-blend" onchange="dUpdateProp('overlayBlend',this.value)">
+              <option value="normal">Normal</option>
+              <option value="multiply">Multiplicar</option>
+              <option value="screen">Tela</option>
+              <option value="overlay">Sobrepor</option>
+              <option value="darken">Escurecer</option>
+              <option value="lighten">Clarear</option>
+            </select>
+          </div>
+        </div>
+
+      </div><!-- /fx-panels-area -->
+
+      <!-- Footer -->
+      <div class="fx-footer">
+        <button class="fx-btn-reset" onclick="dFxReset()" title="Desativar todos os efeitos">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3"/></svg>
+          Resetar
+        </button>
+        <button class="fx-btn-ok" onclick="dCloseFxModal()">OK</button>
+      </div>
+
+    </div><!-- /fx-content -->
   </div>
 </div>
 

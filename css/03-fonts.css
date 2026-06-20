@@ -1,6 +1,55 @@
 /**
  * css/03-fonts.css
  *
- * Tipografia da marca Luma: Roboto (carregada via Google Fonts no index.html,
- * incluindo o peso 900 = "Roboto Black"). A antiga Realce Black foi aposentada.
+ * Fontes bundled em assets/fonts/. Roboto continua vindo do Google Fonts (index.html)
+ * como fonte primária; os arquivos locais servem de fallback offline.
+ * Fontes display (Realce, Obviously, Nek Salma, Dirty Weather) são exclusivamente locais.
  */
+
+/* ── Roboto – fallback offline ─────────────────────────────────────────── */
+@font-face { font-family:'Roboto'; src:url('../assets/fonts/Roboto-Thin.ttf') format('truetype'); font-weight:100; font-style:normal; font-display:swap; }
+@font-face { font-family:'Roboto'; src:url('../assets/fonts/Roboto-ThinItalic.ttf') format('truetype'); font-weight:100; font-style:italic; font-display:swap; }
+@font-face { font-family:'Roboto'; src:url('../assets/fonts/Roboto-Light.ttf') format('truetype'); font-weight:300; font-style:normal; font-display:swap; }
+@font-face { font-family:'Roboto'; src:url('../assets/fonts/Roboto-LightItalic.ttf') format('truetype'); font-weight:300; font-style:italic; font-display:swap; }
+@font-face { font-family:'Roboto'; src:url('../assets/fonts/Roboto-Regular.ttf') format('truetype'); font-weight:400; font-style:normal; font-display:swap; }
+@font-face { font-family:'Roboto'; src:url('../assets/fonts/Roboto-Italic.ttf') format('truetype'); font-weight:400; font-style:italic; font-display:swap; }
+@font-face { font-family:'Roboto'; src:url('../assets/fonts/Roboto-Bold.ttf') format('truetype'); font-weight:700; font-style:normal; font-display:swap; }
+@font-face { font-family:'Roboto'; src:url('../assets/fonts/Roboto-BoldItalic.ttf') format('truetype'); font-weight:700; font-style:italic; font-display:swap; }
+@font-face { font-family:'Roboto'; src:url('../assets/fonts/Roboto-Black.ttf') format('truetype'); font-weight:900; font-style:normal; font-display:swap; }
+@font-face { font-family:'Roboto'; src:url('../assets/fonts/Roboto-BlackItalic.ttf') format('truetype'); font-weight:900; font-style:italic; font-display:swap; }
+/* Alias 'Roboto Black' usado internamente pelo picker (valor legado) */
+@font-face { font-family:'Roboto Black'; src:url('../assets/fonts/Roboto-Black.ttf') format('truetype'); font-weight:900; font-style:normal; font-display:swap; }
+
+/* ── Realce ─────────────────────────────────────────────────────────────── */
+@font-face {
+  font-family:'Realce';
+  src:url('../assets/fonts/realce-black.woff2') format('woff2'),
+      url('../assets/fonts/Realce-Black-v0.006.otf') format('opentype');
+  font-weight:900; font-style:normal; font-display:swap;
+}
+
+/* ── Obviously ──────────────────────────────────────────────────────────── */
+@font-face {
+  font-family:'Obviously Wide';
+  src:url('../assets/fonts/fonnts.com-Obviously_Wide_Bold_Bold.otf') format('opentype');
+  font-weight:700; font-style:normal; font-display:swap;
+}
+@font-face {
+  font-family:'Obviously Black';
+  src:url('../assets/fonts/obviously-black-italic.otf') format('opentype');
+  font-weight:900; font-style:italic; font-display:swap;
+}
+
+/* ── Nek Salma ──────────────────────────────────────────────────────────── */
+@font-face {
+  font-family:'Nek Salma';
+  src:url('../assets/fonts/Nek%20Salma.otf') format('opentype');
+  font-weight:400; font-style:normal; font-display:swap;
+}
+
+/* ── Dirty Weather ──────────────────────────────────────────────────────── */
+@font-face {
+  font-family:'Dirty Weather';
+  src:url('../assets/fonts/dirtyweatherfont.ttf') format('truetype');
+  font-weight:400; font-style:normal; font-display:swap;
+}

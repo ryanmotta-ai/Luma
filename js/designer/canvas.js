@@ -608,9 +608,14 @@ function dTextFontParts(fv){
   if(raw.startsWith('custom:')){
     const fam=raw.slice(7);
     const cf=(typeof dCustomFonts!=='undefined'&&dCustomFonts)?dCustomFonts.find(f=>f.family===fam):null;
-    return {family:`'${fam}', 'Roboto', sans-serif`, weight:(cf&&cf.weight)?cf.weight:400, custom:true, familyName:fam};
+    const bf=(typeof dBuiltinFonts!=='undefined'&&dBuiltinFonts)?dBuiltinFonts.find(f=>f.family===fam):null;
+    const w=(cf&&cf.weight)||(bf&&bf.weight)||400;
+    return {family:`'${fam}', 'Roboto', sans-serif`, weight:w, custom:true, familyName:fam};
   }
   const s=raw.toLowerCase();
+  // Roboto com peso explícito (ex: "'Roboto',300")
+  const explicit=raw.match(/,\s*(\d{3})$/);
+  if(explicit) return {family:"'Roboto', sans-serif", weight:parseInt(explicit[1],10)};
   const weight=(s.includes('black')||s.includes('realce'))?900:(s.includes('bold')?700:400);
   return {family:"'Roboto', sans-serif", weight};
 }
@@ -719,7 +724,10 @@ function dRenderCanvas(){
         el.style.display='none';
       }
       el.style.color=(l.overlay&&l.overlayColor)?gFxRgba(l.overlayColor,l.overlayOpacity!=null?l.overlayOpacity:1):(l.color||'#fff'); // color overlay
-      const _fp=dTextFontParts(l.font);el.style.fontFamily=_fp.family;el.style.fontWeight=_fp.weight;
+      const _fp=dTextFontParts(l.font);
+      el.style.fontFamily=_fp.family;
+      el.style.fontWeight=l.fontWeightOverride||_fp.weight;
+      if(l.textTransform) el.style.textTransform=l.textTransform;
       // Encaixe na caixa p/ texto de PARÁGRAFO importado do PSD (espelha png-generator/preview):
       // se a fonte trocada (Roboto) fizer o texto estourar a altura, reduz só o tamanho de EXIBIÇÃO
       // — NÃO altera l.fontSize (tamanho real do PSD). Point text e demais layers ficam intactos.

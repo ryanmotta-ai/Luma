@@ -325,6 +325,10 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     }
     // Substitui {{var}} pelo valor real do franqueado (interpolador único — 3.1)
     let raw = gInterpolate(l.content, dados, {onEmpty:'remove', defaults:_defaults});
+    // text-transform importado do PSD (All Caps, etc.) — aplicado no conteúdo pois o
+    // canvas 2D API não tem textTransform nativo
+    if(l.textTransform==='uppercase') raw=raw.toUpperCase();
+    else if(l.textTransform==='lowercase') raw=raw.toLowerCase();
     const lines = raw.split('\n').filter(line => line.trim() !== '');
     if(lines.length === 0){ ctx.restore(); return; }
 

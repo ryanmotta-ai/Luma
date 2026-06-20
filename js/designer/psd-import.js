@@ -57,7 +57,12 @@ function _dPsdFontSize(t,h,content,res){
   // PARAGRAPH (box) text: o tamanho da fonte é o que o designer definiu e a caixa é fixa/alta.
   // Ancorar na caixa (abaixo) INFLAVA a fonte e estourava o texto — pois nLines só conta quebras
   // explícitas (\n), não o wrap por largura. Aqui confiamos no tamanho real. Point text segue igual.
-  if(t && t.shapeType==='box' && fs>=6 && fs<=2000) return Math.round(fs);
+  if(t && t.shapeType==='box' && fs>=6 && fs<=2000){
+    // ag-psd reporta fontSize em pontos; em docs hi-res o valor precisa ser escalado para px.
+    // Guard fs<200: se já chegou grande (raro mas possível), não dobrar.
+    if(res>90 && fs<200) fs=fs*(res/72);
+    return Math.round(Math.max(8,Math.min(fs,2000)));
+  }
   const nLines=Math.max(1, String(content||'').split('\n').filter(x=>x.trim()).length);
   // boxFs: quanto de altura cabe por linha; cap de 180px evita caixas muito altas gerarem fs gigante
   const boxFs=Math.min(h/(nLines*1.25), 180);
@@ -459,25 +464,37 @@ function _dPsdReadPsd(buffer, agPsd){
   });
 }
 
-/* ── detecção de formato pela proporção da prancheta (story/feed/wide) ── */
+/* ── detecção de formato pela proporção da prancheta ── */
 function dPsdDetectFmt(w, h){
-  const ratio = w / h;
-  if (ratio < 0.7) return 'story'; // retrato — 9:16
-  if (ratio > 1.4) return 'wide';  // paisagem — 1.9:1
-  return 'feed';                    // quadrado — 1:1
+  // Match exato (±2px) tem prioridade sobre proporção — distingue wide de horizontal etc.
+  const _tol=2;
+  const exact=Object.keys(DFMT_SIZES).find(k=>Math.abs(DFMT_SIZES[k].w-w)<=_tol&&Math.abs(DFMT_SIZES[k].h-h)<=_tol);
+  if(exact) return exact;
+  const ratio=w/h;
+  if(ratio<0.7) return 'story';
+  if(ratio>1.4) return 'wide';
+  return 'feed';
 }
 
-// Tenta mapear um nome de fonte do PSD para uma fonte já enviada (dCustomFonts).
-// Normaliza ambos (lowercase, só alfanum) e aceita correspondência exata ou por prefixo.
-// Retorna 'custom:Family' (formato do seletor de fonte) ou null se não encontrar.
+// Tenta mapear um nome de fonte do PSD para fontes bundled (dBuiltinFonts) ou enviadas
+// (dCustomFonts). Normaliza ambos (lowercase, só alfanum) e aceita correspondência
+// exata ou por prefixo. Retorna 'custom:Family' ou null se não encontrar.
 function _dPsdRemapFont(fontName){
-  if(!fontName||typeof dCustomFonts==='undefined'||!dCustomFonts.length) return null;
+  if(!fontName) return null;
   const norm=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
   const t=norm(fontName); if(!t) return null;
-  const exact=dCustomFonts.find(f=>norm(f.name)===t||norm(f.family)===t);
+  // Fontes bundled (dBuiltinFonts) têm prioridade pois não requerem upload do usuário
+  const builtin=(typeof dBuiltinFonts!=='undefined'&&dBuiltinFonts)||[];
+  const custom=(typeof dCustomFonts!=='undefined'&&dCustomFonts)||[];
+  const all=[
+    ...builtin.map(f=>({name:f.family,family:f.family})),
+    ...custom
+  ];
+  if(!all.length) return null;
+  const exact=all.find(f=>norm(f.name)===t||norm(f.family)===t);
   if(exact) return 'custom:'+exact.family;
-  // correspondência por prefixo (ex: "MontserratBold" bate "Montserrat")
-  const partial=dCustomFonts.find(f=>{ const fn=norm(f.name),ff=norm(f.family);
+  // correspondência por prefixo (ex: "ObviouslyWideBold" bate "Obviously Wide")
+  const partial=all.find(f=>{ const fn=norm(f.name),ff=norm(f.family);
     return t.startsWith(fn)||fn.startsWith(t)||t.startsWith(ff)||ff.startsWith(t); });
   return partial?'custom:'+partial.family:null;
 }
@@ -531,12 +548,16 @@ function dPsdParseItems(psd, res, ox, oy){
   ox=ox||0; oy=oy||0;
   const items=[]; let n=0; let prevLeaf=null;
   // parentOp: opacidade acumulada dos grupos-pai (0–1); parentHidden: grupo-pai oculto.
-  (function walk(nodes, parentOp, parentHidden){
+  (function walk(nodes, parentOp, parentHidden, parentName){
     (nodes||[]).forEach(node=>{
       const nodeOp=node.opacity!=null?node.opacity:1;
       const accOp=parentOp*nodeOp;
       const accHidden=parentHidden||(node.hidden?true:false);
-      if(node.children && node.children.length){ walk(node.children, accOp, accHidden); return; }
+      if(node.children && node.children.length){
+        // Artboards não propagam nome como grupo (são a raiz); grupos regulares sim.
+        walk(node.children, accOp, accHidden, node.artboard?'':node.name||parentName||'');
+        return;
+      }
       const x=Math.round((node.left||0)-ox), y=Math.round((node.top||0)-oy);
       const w=Math.max(1,Math.round((node.right||0)-(node.left||0)));
       const h=Math.max(1,Math.round((node.bottom||0)-(node.top||0)));
@@ -545,7 +566,8 @@ function dPsdParseItems(psd, res, ox, oy){
         x,y,w,h, visible:!accHidden, opacity:Math.round(accOp*100),
         include:!accHidden, mask:_dPsdComputeMask(node, prevLeaf),
         clippingLayer: node.clippingLayer || node.clipping,
-        blendMode:(bm&&bm!=='normal'&&bm!=='passThrough')?bm:undefined }; // máscara + clipping
+        blendMode:(bm&&bm!=='normal'&&bm!=='passThrough')?bm:undefined,
+        group:parentName||'' }; // máscara + clipping
       prevLeaf=node; // base p/ a próxima camada com clipping
       // Recorte vetorial (vectorMask) — ex.: fundo com mordida/onda. Só quando NÃO há máscara
       // raster/clipping (preserva _dPsdComputeMask intacto). l.fill segue com a cor original.
@@ -564,6 +586,11 @@ function dPsdParseItems(psd, res, ox, oy){
         const _fRemap=_dPsdRemapFont(it.fontName);
         it.font=_fRemap||(/black|900|heavy/i.test(it.fontName)?"'Roboto Black'":/bold|700/i.test(it.fontName)?"'Roboto',bold":"'Roboto'");
         it.fontRemapped=!!_fRemap;
+        // fontCaps: 0=normal, 1=small-caps, 2=all-caps (PS "All Caps" character style)
+        if(st.fontCaps===2) it.textTransform='uppercase';
+        else if(st.fontCaps===1) it.textTransform='lowercase'; // small-caps → aproximação
+        // fauxBold: PS "Faux Bold" — eleva o peso quando a fonte não tem variante bold
+        if(st.fauxBold) it.fontWeightOverride=700;
         it.fontSize=_dPsdFontSize(t,h,it.content,res);
         it.color=_dPsdHex(st.fillColor||st.color)||'#000000';
         it.strikethrough=st.strikethrough===true; // tachado (DE: R$..) — render já suportado
@@ -605,7 +632,7 @@ function dPsdParseItems(psd, res, ox, oy){
       } else { return; }
       items.push(it);
     });
-  })(psd.children, 1, false);
+  })(psd.children, 1, false, '');
   // Dedupe defensivo (NÃO altera grupos): 1 layer no Photoshop deve virar 1 item.
   // Assinatura exata (tipo+nome+caixa+conteúdo) repetida → duplicata de parsing: descarta + avisa.
   const _seen=new Set(); const out=[];
@@ -688,6 +715,8 @@ function dItemToLayer(it){
       font:it.font, fontSize:it.fontSize, color:it.color, textAlign:it.textAlign, isVar:isVar });
     _dPsdApplyFx(L, it);
     if(it.strikethrough){ L.strikethrough=true; }
+    if(it.textTransform) L.textTransform=it.textTransform;
+    if(it.fontWeightOverride) L.fontWeightOverride=it.fontWeightOverride;
     if(it.textBox==='box'){ L.textBox='box'; } // paragraph → editor encaixa na caixa
     if(it.letterSpacing) L.letterSpacing=it.letterSpacing;
     if(it.lineHeight) L.lineHeight=it.lineHeight;
@@ -753,12 +782,19 @@ function dPsdOpenReview(){
   const _nT=dPsdItems.filter(i=>i.kind==='text').length;
   const _nS=dPsdItems.filter(i=>i.kind==='shape').length;
   const _nI=dPsdItems.filter(i=>i.kind==='raster').length;
-  const _dpiLabel=(dPsdMeta.res&&dPsdMeta.res!==72)?' · '+Math.round(dPsdMeta.res)+'dpi':'';
-  document.getElementById('d-psd-meta').textContent=(dPsdMeta.name||'PSD')+' · '+dPsdMeta.w+'×'+dPsdMeta.h+_dpiLabel+' · '+_nT+'T '+_nS+'S '+_nI+'I'+(dPsdMeta.worker?' · worker':'');
-  const fmt=Object.keys(DFMT_SIZES).find(k=>DFMT_SIZES[k].w===dPsdMeta.w&&DFMT_SIZES[k].h===dPsdMeta.h)||'orig';
+  // Badge DPI: aviso visual quando o doc não é 72dpi (fontes em pontos serão escaladas)
+  const _hiDpi=dPsdMeta.res&&dPsdMeta.res>90;
+  const _dpiHtml=_hiDpi
+    ?` <span class="psd-dpi-warn" title="Fontes em pontos serão escaladas automaticamente (${Math.round(dPsdMeta.res)}dpi → 72dpi)">⚠ ${Math.round(dPsdMeta.res)}dpi</span>`
+    :(dPsdMeta.res&&dPsdMeta.res!==72?` · ${Math.round(dPsdMeta.res)}dpi`:'');
+  const _metaEl=document.getElementById('d-psd-meta');
+  if(_metaEl) _metaEl.innerHTML=_dPsdEsc((dPsdMeta.name||'PSD')+' · '+dPsdMeta.w+'×'+dPsdMeta.h)+_dpiHtml+_dPsdEsc(' · '+_nT+'T '+_nS+'S '+_nI+'I'+(dPsdMeta.worker?' · worker':''));
+  // Detecção de formato com tolerância ±2px (PSDs com 1079×1921 ainda mapeiam para 'story')
+  const _fmtTol=2;
+  const fmt=Object.keys(DFMT_SIZES).find(k=>Math.abs(DFMT_SIZES[k].w-dPsdMeta.w)<=_fmtTol&&Math.abs(DFMT_SIZES[k].h-dPsdMeta.h)<=_fmtTol)||'orig';
   const sel=document.getElementById('d-psd-fmt'); if(sel) sel.value=fmt;
   const inv=document.getElementById('d-psd-invert');
-  if(inv) inv.checked=_dPsdShouldInvert(dPsdItems, dPsdMeta.w, dPsdMeta.h);
+  if(inv){ inv.checked=_dPsdShouldInvert(dPsdItems, dPsdMeta.w, dPsdMeta.h); inv.onchange=()=>dPsdRenderPreview(); }
   // Campo de busca (injetado dinamicamente, acima de #d-psd-rows)
   const rowsEl=document.getElementById('d-psd-rows');
   if(rowsEl&&!document.getElementById('d-psd-search')){
@@ -767,7 +803,21 @@ function dPsdOpenReview(){
     si.oninput=()=>dPsdRenderRows(si.value.trim().toLowerCase());
     rowsEl.parentNode.insertBefore(si,rowsEl);
   }
+  // Botões Todas / Nenhuma (injetados uma vez; ficam acima da lista)
+  if(rowsEl&&!document.getElementById('d-psd-sel-btns')){
+    const tb=document.createElement('div'); tb.id='d-psd-sel-btns'; tb.className='psd-sel-btns';
+    tb.innerHTML='<button class="psd-sel-btn" onclick="dPsdSelectAll()">Todas</button><button class="psd-sel-btn" onclick="dPsdSelectNone()">Nenhuma</button><span id="d-psd-sel-info" class="psd-sel-info"></span>';
+    rowsEl.parentNode.insertBefore(tb,rowsEl);
+  }
   const sf=document.getElementById('d-psd-search'); if(sf) sf.value='';
+  // Canvas hover: hover sobre preview canvas → destaca camada + scroll na lista
+  const _pCv=document.getElementById('d-psd-preview-canvas');
+  if(_pCv&&!_pCv._psdHoverBound){
+    _pCv._psdHoverBound=true;
+    _pCv.addEventListener('mousemove',_dPsdCanvasHover);
+    _pCv.addEventListener('mouseleave',()=>{ _dPsdLastHoverIdx=-1; dPsdHoverLayer(-1); });
+  }
+  _dPsdLastHoverIdx=-1;
   // Aplica memória de mapeamentos anteriores
   _dPsdMemApply(dPsdItems);
   dPsdRenderRows();
@@ -826,13 +876,14 @@ function dPsdRenderRows(filter){
     const thumb=it.kind==='raster'&&it.imgUrl?`<img class="psd-thumb" src="${it.imgUrl}" alt="" loading="lazy">`:'';
     const textPrev=it.kind==='text'&&it.content
       ?`<span class="psd-text-prev" style="color:${it.color||'#aaa'}">${_dPsdEsc(it.content.replace(/\n/g,' ').slice(0,60))}</span>`:'';
-    return header+`<div class="psd-row ${it.include?'':'psd-row-off'}" onmouseenter="typeof dPsdHoverLayer==='function'&&dPsdHoverLayer(${i})" onmouseleave="typeof dPsdHoverLayer==='function'&&dPsdHoverLayer(-1)">
+    const groupCrumb=it.group?`<span class="psd-group-crumb" title="Grupo: ${_dPsdEsc(it.group)}">${_dPsdEsc(it.group.slice(0,28))}</span>`:'';
+    return header+`<div class="psd-row ${it.include?'':'psd-row-off'}" data-psd-idx="${i}" onmouseenter="typeof dPsdHoverLayer==='function'&&dPsdHoverLayer(${i})" onmouseleave="typeof dPsdHoverLayer==='function'&&dPsdHoverLayer(-1)">
       <input type="checkbox" ${it.include?'checked':''} onchange="dPsdSetInclude(${i},this.checked)">
       <span class="psd-row-ico">${swatch||ico[it.kind]||'▣'}</span>
       ${thumb}
       <span class="psd-row-name" title="${_dPsdEsc(it.name)}">
         <span class="psd-row-name-top">${_dPsdEsc(it.name)}${multiStyleBadge}${blendBadge}${fontWarn}${opacityBadge}${vecWarn}${clipWarn}${textInfoBadge}</span>
-        ${textPrev}
+        ${groupCrumb}${textPrev}
       </span>
       ${modeSel}${varIn}</div>`;
   }).join('');
@@ -842,6 +893,29 @@ function dPsdRenderRows(filter){
 function dPsdSetMode(i,v){ if(dPsdItems[i]){ dPsdItems[i].mode=v; dPsdRenderRows(document.getElementById('d-psd-search')&&document.getElementById('d-psd-search').value.trim().toLowerCase()||''); } }
 function dPsdSetVar(i,v){ if(dPsdItems[i]) dPsdItems[i].varName=v.trim().replace(/[^a-zA-Z0-9_]/g,''); }
 function dPsdSetInclude(i,on){ if(dPsdItems[i]){ dPsdItems[i].include=on; const f=document.getElementById('d-psd-search'); dPsdRenderRows(f&&f.value.trim().toLowerCase()||''); } }
+function dPsdSelectAll(){ dPsdItems.forEach(it=>{ if(!it.isMaskBase) it.include=true; }); const f=document.getElementById('d-psd-search'); dPsdRenderRows(f&&f.value.trim().toLowerCase()||''); }
+function dPsdSelectNone(){ dPsdItems.forEach(it=>{ it.include=false; }); const f=document.getElementById('d-psd-search'); dPsdRenderRows(f&&f.value.trim().toLowerCase()||''); }
+// Hover interativo sobre o canvas de preview: destaca a camada sob o cursor e rola a lista até ela.
+let _dPsdLastHoverIdx=-1;
+function _dPsdCanvasHover(e){
+  const canvas=document.getElementById('d-psd-preview-canvas');
+  if(!canvas||!dPsdMeta) return;
+  const rect=canvas.getBoundingClientRect();
+  const sx=dPsdMeta.w/Math.max(1,rect.width), sy=dPsdMeta.h/Math.max(1,rect.height);
+  const cx=(e.clientX-rect.left)*sx, cy=(e.clientY-rect.top)*sy;
+  let found=-1;
+  for(let i=dPsdItems.length-1;i>=0;i--){
+    const it=dPsdItems[i]; if(!it.include||it.isMaskBase) continue;
+    if(cx>=it.x&&cx<=it.x+it.w&&cy>=it.y&&cy<=it.y+it.h){ found=i; break; }
+  }
+  if(found===_dPsdLastHoverIdx) return;
+  _dPsdLastHoverIdx=found;
+  dPsdHoverLayer(found);
+  if(found>=0){
+    const row=document.querySelector('#d-psd-rows [data-psd-idx="'+found+'"]');
+    if(row) row.scrollIntoView({block:'nearest',behavior:'smooth'});
+  }
+}
 // Upload de fonte direto da tela de revisão: registra no sistema de fontes e remapeia
 // automaticamente todas as camadas do PSD que usam o mesmo fontName.
 function dPsdUploadFont(layerIdx, input){
@@ -867,7 +941,11 @@ function dPsdUploadFont(layerIdx, input){
   };
   r.readAsDataURL(file);
 }
-function dPsdUpdateCount(){ const c=document.getElementById('d-psd-count'); if(c) c.textContent='('+dPsdItems.filter(it=>it.include).length+')'; }
+function dPsdUpdateCount(){
+  const n=dPsdItems.filter(it=>it.include).length, total=dPsdItems.filter(it=>!it.isMaskBase).length;
+  const c=document.getElementById('d-psd-count'); if(c) c.textContent='('+n+')';
+  const info=document.getElementById('d-psd-sel-info'); if(info) info.textContent=n+' / '+total+' selecionadas';
+}
 function dPsdCancel(){
   const m=document.getElementById('d-psd-modal'); if(m)m.classList.remove('open');
   const wasSeq=!!_dPsdReviewOnConfirm; // cancelar no meio da sequência aborta tudo
@@ -905,7 +983,7 @@ function dPsdConfirmImport(){
 /* ── cria a prancheta (com reflow opcional pro formato — 5.2) ── */
 function dImportLayersAsArtboard(w,h,layers,name,fmtChoice,dpi){
   if(typeof dSyncLayersToAB==='function') dSyncLayersToAB();
-  let outW=w, outH=h, fmt=Object.keys(DFMT_SIZES).find(k=>DFMT_SIZES[k].w===w&&DFMT_SIZES[k].h===h)||'story';
+  let outW=w, outH=h, fmt=Object.keys(DFMT_SIZES).find(k=>DFMT_SIZES[k].w===w&&DFMT_SIZES[k].h===h)||fmtChoice||'orig';
   let clone=JSON.parse(JSON.stringify(layers));
   if(typeof gEnsureAnchors==='function') gEnsureAnchors(clone,w,h);
   if(fmtChoice && fmtChoice!=='orig' && DFMT_SIZES[fmtChoice] && (DFMT_SIZES[fmtChoice].w!==w||DFMT_SIZES[fmtChoice].h!==h)){
@@ -1037,27 +1115,31 @@ function dPsdShowArtboardSelector(psd, artboards, res, baseName){
   overlay.innerHTML=dPsdBuildArtboardSelectorHTML(items);
   overlay.style.display='flex';
   overlay._psdData={ psd, items, res:res||72, baseName:baseName||'PSD' };
+  // Preview da primeira prancheta na abertura (timeout dá tempo ao DOM renderizar)
+  setTimeout(()=>dPsdAbSelectPreview(0), 80);
 }
 
 function dPsdBuildArtboardSelectorHTML(items){
   const folders=(typeof dFolders!=='undefined'&&dFolders)?dFolders:[];
   const _tgt=(typeof dImportTargetFolderId!=='undefined')?dImportTargetFolderId:null;
   const folderOptions=folders.map(f=>`<option value="${_dPsdEsc(f.id)}" ${f.id===_tgt?'selected':''}>${_dPsdEsc(f.name)}</option>`).join('');
-  const rows=items.map((item,i)=>`
-    <div class="psd-ab-row" id="psd-ab-row-${i}">
-      <label class="psd-ab-check">
+  // Opções de formato geradas dinamicamente a partir de DFMT_SIZES + 'orig'
+  const _fmtKeys=typeof DFMT_SIZES!=='undefined'?Object.keys(DFMT_SIZES):['story','feed','wide','horizontal'];
+  const _fmtLabel={story:'Story',feed:'Feed',wide:'Wide',horizontal:'Horizontal',orig:'Original'};
+  const rows=items.map((item,i)=>{
+    const fmtOpts=_fmtKeys.map(k=>`<option value="${k}" ${item.fmt===k?'selected':''}>${_fmtLabel[k]||k}</option>`).join('')
+      +`<option value="orig" ${item.fmt==='orig'?'selected':''}>Original</option>`;
+    return `<div class="psd-ab-row" id="psd-ab-row-${i}" onclick="dPsdAbSelectPreview(${i})">
+      <label class="psd-ab-check" onclick="event.stopPropagation()">
         <input type="checkbox" ${item.selected?'checked':''} onchange="dPsdAbToggle(${i}, this.checked)">
       </label>
       <div class="psd-ab-info">
         <span class="psd-ab-name" title="${_dPsdEsc(item.name)}">${_dPsdEsc(item.name)}</span>
         <span class="psd-ab-dim">${item.w} × ${item.h}px</span>
       </div>
-      <select class="psd-ab-fmt" id="psd-ab-fmt-${i}" onchange="dPsdAbSetFmt(${i}, this.value)">
-        <option value="story" ${item.fmt==='story'?'selected':''}>Story</option>
-        <option value="feed"  ${item.fmt==='feed' ?'selected':''}>Feed</option>
-        <option value="wide"  ${item.fmt==='wide' ?'selected':''}>Wide</option>
-      </select>
-    </div>`).join('');
+      <select class="psd-ab-fmt" id="psd-ab-fmt-${i}" onchange="dPsdAbSetFmt(${i}, this.value)">${fmtOpts}</select>
+    </div>`;
+  }).join('');
   const dest = folders.length
     ? `<div class="psd-ab-dest"><label>Importar para a pasta:</label>
         <select id="psd-ab-folder-sel" class="psd-ab-fmt">${folderOptions}</select></div>`
@@ -1068,8 +1150,18 @@ function dPsdBuildArtboardSelectorHTML(items){
         <span class="psd-ab-title">Pranchetas encontradas</span>
         <span class="psd-ab-subtitle">${items.length} prancheta(s) no arquivo PSD</span>
       </div>
-      <div class="psd-ab-list">${rows}</div>
-      ${dest}
+      <div class="psd-ab-body">
+        <div class="psd-ab-left">
+          <div class="psd-ab-list">${rows}</div>
+          ${dest}
+        </div>
+        <div class="psd-ab-right">
+          <div class="psd-ab-prev-label" id="d-psd-ab-preview-label">Passe o mouse para visualizar</div>
+          <div class="psd-ab-prev-wrap">
+            <canvas id="d-psd-ab-preview-canvas"></canvas>
+          </div>
+        </div>
+      </div>
       <div class="psd-ab-footer">
         <button class="psd-ab-btn cancel" onclick="dPsdAbCancel()">Cancelar</button>
         <button class="psd-ab-btn confirm" onclick="dPsdAbConfirm()">Revisar selecionadas →</button>
@@ -1077,6 +1169,74 @@ function dPsdBuildArtboardSelectorHTML(items){
     </div>`;
 }
 
+// Preview de prancheta no seletor de artboards.
+// Acionado por CLICK (não hover) para evitar renders espásticos.
+// Usa dPsdParseItems lazy (parseado na 1ª seleção, cacheado em item._parsedItems)
+// para cobrir shapes, texto e imagens — igual ao dPsdRenderPreview.
+// Canvas usa escala fixa (máx 360px) para não causar reflow de layout.
+let _dPsdAbPreviewRenderId=0;
+async function dPsdAbSelectPreview(itemIdx){
+  const canvas=document.getElementById('d-psd-ab-preview-canvas');
+  const overlay=document.getElementById('d-psd-ab-overlay');
+  if(!canvas||!overlay||!overlay._psdData) return;
+  const {items,res}=overlay._psdData;
+  const item=items[itemIdx]; if(!item) return;
+
+  // Highlight row ativa
+  document.querySelectorAll('.psd-ab-row').forEach((r,i)=>r.classList.toggle('active',i===itemIdx));
+  const lbl=document.getElementById('d-psd-ab-preview-label');
+  if(lbl) lbl.textContent=item.name+' · '+item.w+'×'+item.h+'px';
+
+  // Parse lazy: só na primeira seleção desta prancheta
+  if(!item._parsedItems){
+    item._parsedItems=dPsdParseItems(
+      {children:(item.layer&&item.layer.children)||[]},
+      res||72, item.left, item.top
+    );
+  }
+  const parsed=item._parsedItems;
+
+  // Canvas de tamanho fixo (360px no maior lado) para evitar reflow de layout
+  const MAX=360;
+  const sc=Math.min(MAX/Math.max(1,item.w), MAX/Math.max(1,item.h), 1);
+  const pw=Math.max(1,Math.round(item.w*sc)), ph=Math.max(1,Math.round(item.h*sc));
+  if(canvas.width!==pw||canvas.height!==ph){ canvas.width=pw; canvas.height=ph; }
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,pw,ph);
+
+  if(!parsed.length) return;
+
+  // Rende em ordem invertida (bg primeiro) — mesma lógica do dPsdRenderPreview
+  const rid=++_dPsdAbPreviewRenderId;
+  const toRender=[...parsed].reverse();
+  ctx.save(); ctx.scale(sc,sc);
+  for(const it of toRender){
+    if(rid!==_dPsdAbPreviewRenderId){ ctx.restore(); return; }
+    ctx.save();
+    ctx.globalAlpha=(it.opacity!=null?it.opacity:100)/100;
+    if(it.imgUrl){
+      await new Promise(resolve=>{
+        const img=new Image();
+        img.onload=()=>{ try{ctx.drawImage(img,it.x,it.y,it.w,it.h);}catch(e){} resolve(); };
+        img.onerror=resolve; img.src=it.imgUrl;
+      });
+    } else if(it.kind==='shape'&&it.fill){
+      ctx.fillStyle=it.fill;
+      if(it.shapeKind==='circle'||it.shapeKind==='ellipse'){
+        ctx.beginPath(); ctx.ellipse(it.x+it.w/2,it.y+it.h/2,it.w/2,it.h/2,0,0,Math.PI*2); ctx.fill();
+      } else { ctx.fillRect(it.x,it.y,it.w,it.h); }
+    } else if(it.kind==='text'&&it.content){
+      ctx.fillStyle=it.color||'#fff';
+      ctx.font=(it.fontSize||16)+'px sans-serif';
+      ctx.textBaseline='top';
+      ctx.textAlign=it.textAlign==='center'?'center':(it.textAlign==='right'?'right':'left');
+      const tx=it.textAlign==='center'?it.x+it.w/2:(it.textAlign==='right'?it.x+it.w:it.x);
+      ctx.fillText(it.content.replace(/\n/g,' '),tx,it.y);
+    }
+    ctx.restore();
+  }
+  ctx.restore();
+}
 function dPsdAbToggle(index, checked){
   const o=document.getElementById('d-psd-ab-overlay');
   if(o&&o._psdData&&o._psdData.items[index]) o._psdData.items[index].selected=checked;
@@ -1210,9 +1370,20 @@ async function dImportPSD(input){
       dPsdShowArtboardSelector(result.psd, artboards, result.res||72, baseName);
       return;
     }
-    // Fluxo original — uma prancheta ou PSD simples.
-    dPsdItems=dPsdParseItems(result.psd, result.res||72);
-    dPsdMeta={w:result.psd.width, h:result.psd.height, name:baseName, res:result.res||72, worker:result.worker===true};
+    if(artboards.length===1){
+      // Prancheta única: usa rect da artboard como dimensões e offset.
+      // Sem isso, PSDs exportados de docs multi-artboard herdariam o tamanho do doc inteiro.
+      const abNode=artboards[0], r=abNode.artboard.rect;
+      const abL=Math.round(r.left||0), abT=Math.round(r.top||0);
+      const abW=Math.max(1,Math.round((r.right||0)-(r.left||0)));
+      const abH=Math.max(1,Math.round((r.bottom||0)-(r.top||0)));
+      dPsdItems=dPsdParseItems(result.psd, result.res||72, abL, abT);
+      dPsdMeta={w:abW, h:abH, name:baseName, res:result.res||72, worker:result.worker===true};
+    } else {
+      // PSD simples sem artboards.
+      dPsdItems=dPsdParseItems(result.psd, result.res||72);
+      dPsdMeta={w:result.psd.width, h:result.psd.height, name:baseName, res:result.res||72, worker:result.worker===true};
+    }
     _dPsdBusy(false);
     if(!dPsdItems.length){ gToast('⚠ Nenhuma camada utilizável neste PSD','error'); return; }
     dPsdOpenReview();

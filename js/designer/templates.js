@@ -1040,7 +1040,7 @@ function dNewDocConfirm(){
 }
 
 /* ── FORMATO / CANVAS ── */
-const DFMT_SIZES={story:{w:1080,h:1920},feed:{w:1080,h:1080},wide:{w:1200,h:628}};
+const DFMT_SIZES={story:{w:1080,h:1920},feed:{w:1080,h:1080},wide:{w:1200,h:628},horizontal:{w:1920,h:1080}};
 
 /* ══════════════════════════════════════════════════════════════
    NOVO MOTOR DE IMPORTAÇÃO DE SVG (ILLUSTRATOR COMPATIBLE)

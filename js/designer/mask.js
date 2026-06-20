@@ -107,27 +107,83 @@ function dMaskShowToolbar(){
   let tb=document.getElementById('d-mask-toolbar');
   if(!tb){ tb=document.createElement('div'); tb.id='d-mask-toolbar'; document.body.appendChild(tb); }
   const s=_dMaskState; if(!s) return;
+  const sz = s.size;
+  const previewSize = Math.max(8, Math.min(sz, 46));
   tb.innerHTML=`
-    <span class="d-mask-tb-title">🎭 Máscara</span>
-    <button class="d-mask-tb-btn ${s.mode==='hide'?'active':''}" onclick="dMaskSetMode('hide')" title="Pintar pra esconder">Esconder</button>
-    <button class="d-mask-tb-btn ${s.mode==='reveal'?'active':''}" onclick="dMaskSetMode('reveal')" title="Pintar pra revelar">Revelar</button>
-    <label class="d-mask-tb-size">Pincel <input type="range" min="6" max="400" value="${s.size}" oninput="dMaskSetSize(this.value)"></label>
-    <button class="d-mask-tb-btn" onclick="dMaskInvert()">Inverter</button>
-    <button class="d-mask-tb-btn cancel" onclick="dMaskExit(false)">Cancelar</button>
-    <button class="d-mask-tb-btn ok" onclick="dMaskExit(true)">Concluir</button>`;
+    <span class="d-mask-tb-title">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="12" cy="12" r="5"/></svg>
+      Máscara
+    </span>
+    <span class="d-mask-tb-divider"></span>
+    <button class="d-mask-tb-btn ${s.mode==='hide'?'active':''}" onclick="dMaskSetMode('hide')" title="Pintar para esconder (H)">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+      Esconder
+    </button>
+    <button class="d-mask-tb-btn ${s.mode==='reveal'?'active':''}" onclick="dMaskSetMode('reveal')" title="Pintar para revelar (R)">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      Revelar
+    </button>
+    <span class="d-mask-tb-divider"></span>
+    <label class="d-mask-tb-size">
+      <div class="d-mask-tb-preview" id="d-mask-preview" style="width:${previewSize}px;height:${previewSize}px"></div>
+      <input type="range" min="6" max="300" value="${sz}" oninput="dMaskSetSize(this.value);const p=document.getElementById('d-mask-preview');if(p){const s=Math.max(8,Math.min(parseInt(this.value),46));p.style.width=s+'px';p.style.height=s+'px';}">
+    </label>
+    <span class="d-mask-tb-divider"></span>
+    <button class="d-mask-tb-btn" onclick="dMaskInvert()" title="Inverter máscara">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 12h18M12 3v18"/></svg>
+      Inverter
+    </button>
+    <button class="d-mask-tb-btn cancel" onclick="dMaskExit(false)" title="Cancelar">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      Cancelar
+    </button>
+    <button class="d-mask-tb-btn ok" onclick="dMaskExit(true)" title="Confirmar">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      OK
+    </button>`;
 }
 
 /* ── seção no painel de Propriedades ── */
 function dMaskRenderProps(l){
-  const box=document.getElementById('d-mask-actions'); const sec=document.getElementById('d-mask-section');
+  const box=document.getElementById('d-mask-actions');
+  const sec=document.getElementById('d-mask-section');
+  const card=document.getElementById('d-mask-status-card');
+  const lbl=document.getElementById('d-mask-status-label');
+  const hint=document.getElementById('d-mask-status-hint');
   if(!box||!sec) return;
   if(!l || l.type==='paint'){ sec.style.display='none'; return; }
   sec.style.display='';
+
   if(l.mask){
-    box.innerHTML=`<button class="d-btn-sec" onclick="dMaskPaintStart()">✎ Pintar</button>
-      <button class="d-btn-sec" onclick="dMaskInvert()">⇄ Inverter</button>
-      <button class="d-btn-sec" onclick="dRemoveMask()">✕ Remover</button>`;
+    // Status: máscara ativa
+    if(card) card.classList.add('has-mask');
+    if(lbl) lbl.textContent = 'Máscara ativa';
+    if(hint) hint.textContent = 'Clique em Pintar para editar a máscara';
+
+    box.innerHTML=`
+      <button class="d-btn-sec" onclick="dMaskPaintStart()">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        Pintar
+      </button>
+      <button class="d-btn-sec" onclick="dMaskInvert()">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 12h18M12 3v18"/></svg>
+        Inverter
+      </button>
+      <button class="d-btn-sec" onclick="dRemoveMask()" style="color:var(--dm-red,#e03)">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        Remover
+      </button>`;
   } else {
-    box.innerHTML=`<button class="d-btn-sec" onclick="dMaskAdd()">+ Adicionar máscara</button>`;
+    // Status: sem máscara
+    if(card) card.classList.remove('has-mask');
+    if(lbl) lbl.textContent = 'Sem máscara';
+    if(hint) hint.textContent = 'Adicione uma para recortar a camada';
+
+    box.innerHTML=`
+      <button class="d-btn-sec" onclick="dMaskAdd()" style="width:100%;justify-content:center;gap:6px">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="12" cy="12" r="5"/><line x1="12" y1="9" x2="12" y2="15"/><line x1="9" y1="12" x2="15" y2="12"/></svg>
+        Adicionar máscara
+      </button>`;
   }
 }
+

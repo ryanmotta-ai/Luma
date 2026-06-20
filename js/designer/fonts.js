@@ -10,6 +10,16 @@
 // [{name, family, dataUrl, weight}] — family é o nome usado em font-family / FontFace
 let dCustomFonts = [];
 
+// Fontes bundled em assets/fonts/ — registradas via @font-face em css/03-fonts.css.
+// Usam o mesmo prefixo "custom:" no picker para aproveitar dTextFontParts.
+const dBuiltinFonts = [
+  { family:'Realce',         weight:900, label:'Realce Black'    },
+  { family:'Obviously Wide', weight:700, label:'Obviously Wide'  },
+  { family:'Obviously Black',weight:900, label:'Obviously Black' },
+  { family:'Nek Salma',      weight:400, label:'Nek Salma'       },
+  { family:'Dirty Weather',  weight:400, label:'Dirty Weather'   },
+];
+
 /* ── persistência ── */
 function dFontsPersist(){
   try{ localStorage.setItem('yngs_fonts_v1', JSON.stringify(dCustomFonts)); return true; }
@@ -106,20 +116,28 @@ function dFontsRenderList(){
 }
 
 /* ── opções para os seletores de fonte ──
-   value: presets Roboto como antes; custom como "custom:Família". */
+   value: presets Roboto como antes; "custom:Família" para bundled e enviadas. */
 function dFontOptionsHTML(currentVal){
   const cur=String(currentVal||'');
   const isBlack = !cur || /black|realce/i.test(cur);
   const presets=[
     `<option value="'Roboto Black'" ${isBlack?'selected':''}>Roboto Black</option>`,
     `<option value="'Roboto'" ${cur==="'Roboto'"?'selected':''}>Roboto</option>`,
-    `<option value="'Roboto',bold" ${cur.includes('bold')?'selected':''}>Roboto Bold</option>`,
+    `<option value="'Roboto',bold" ${cur==="'Roboto',bold"?'selected':''}>Roboto Bold</option>`,
+    `<option value="'Roboto',300" ${cur==="'Roboto',300"?'selected':''}>Roboto Light</option>`,
+    `<option value="'Roboto',100" ${cur==="'Roboto',100"?'selected':''}>Roboto Thin</option>`,
   ];
+  const builtin=dBuiltinFonts.map(f=>{
+    const v='custom:'+f.family;
+    return `<option value="${v}" ${cur===v?'selected':''}>${gEsc(f.label)}</option>`;
+  });
   const custom=dCustomFonts.map(f=>{
     const v='custom:'+f.family;
     return `<option value="${v}" ${cur===v?'selected':''}>${gEsc(f.name)}</option>`;
   });
-  return presets.join('')+(custom.length?`<option disabled>──── enviadas ────</option>`+custom.join(''):'');
+  return presets.join('')
+    +(builtin.length?`<option disabled>──── incluídas ────</option>`+builtin.join(''):'')
+    +(custom.length?`<option disabled>──── enviadas ────</option>`+custom.join(''):'');
 }
 // Repovoa o seletor do painel de props (#dp-font). O da barra de contexto é
 // reconstruído a cada dUpdateCtxBar via dFontOptionsHTML.

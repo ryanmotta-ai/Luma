@@ -40,8 +40,8 @@ body.mode-dados .mode-tab-pill {
   box-shadow: none;
 }
 
-.mode-tab{position:relative;z-index:2;padding:4px 14px;font-size:12px;font-weight:700;border-radius:4px;cursor:pointer;color:rgba(255,255,255,.65);transition:color .15s;border:none;background:transparent;font-family:'Roboto',sans-serif;letter-spacing:.03em}
-.mode-tab.active{color:#F85400;}
+.mode-tab{position:relative;z-index:2;padding:4px 14px;font-size:12px;font-weight:500;border-radius:4px;cursor:pointer;color:rgba(255,255,255,.65);transition:color .15s;border:none;background:transparent;font-family:'Roboto',sans-serif;letter-spacing:.03em}
+.mode-tab.active{color:#F85400;font-weight:700;}
 body.mode-designer .mode-tab.active,
 body.mode-dados .mode-tab.active {
   color: var(--white);
