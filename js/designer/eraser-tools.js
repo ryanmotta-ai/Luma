@@ -203,7 +203,7 @@ function dMagicEraseAt(ctx, x, y, tolerance) {
   }
 
   if (count >= MAX_PIXELS) {
-    if (typeof gToast === 'function') gToast('Magic Eraser: limite de 2M pixels atingido');
+    if (typeof gToast === 'function') gToast('Área grande demais para apagar — reduza a seleção');
   }
 
   // putImageData apenas na bbox modificada

@@ -396,8 +396,8 @@ function pvUpdateSidebar(){
 
   // Checklist
   const checks=[];
-  if(dLayers.length===0)checks.push({ok:false,msg:'Nenhum layer criado'});
-  else checks.push({ok:true,msg:dLayers.length+' layers no template'});
+  if(dLayers.length===0)checks.push({ok:false,msg:'Nenhuma camada criada'});
+  else checks.push({ok:true,msg:dLayers.length+' camada(s) no material'});
   if(emptyFrames.length)checks.push({ok:false,msg:emptyFrames.length+' moldura(s) sem foto'});
   else if(frames.length)checks.push({ok:true,msg:'Todas as molduras com foto'});
   if(varsInUse.length)checks.push({ok:true,msg:varsInUse.length+' variável(is) configurada(s)'});
@@ -434,7 +434,7 @@ function dPreviewDownload(btn){
   const restore=(typeof gBtnLoading==='function')?gBtnLoading(btn,'Gerando…'):()=>{};
   pvRenderToBlob(fmtKey, blob=>{
     restore();
-    if(!blob){gToast('⚠ Falha ao gerar o arquivo','error');return;}
+    if(!blob){gToast('⚠ Não foi possível gerar o arquivo — tente novamente','error');return;}
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');
     a.href=url;a.download=dExportFilename(fmtKey);

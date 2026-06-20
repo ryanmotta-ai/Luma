@@ -24,7 +24,7 @@ function dPublishPanelRender(){
   const el=document.getElementById('d-pub-panel-summary'); if(!el)return;
   const nAb=(typeof dLayers!=='undefined'&&dLayers&&dLayers.length)?1:0;
   const nVars=(typeof dVars!=='undefined'&&dVars)?dVars.length:0;
-  if(!nAb){ el.innerHTML='<div style="font-size:11.5px;color:var(--d-text3)">Adicione layers para publicar.</div>'; return; }
+  if(!nAb){ el.innerHTML='<div style="font-size:11.5px;color:var(--d-text3)">Adicione camadas para publicar.</div>'; return; }
   const meta=(typeof dDefaultPublishMeta==='function')?dDefaultPublishMeta():{};
   const val=meta&&meta.validade?('até '+meta.validade):'sem validade definida';
   const row=(k,v)=>`<div style="display:flex;justify-content:space-between;gap:8px;font-size:11.5px;padding:5px 0;border-bottom:1px solid var(--d-border)"><span style="color:var(--d-text3)">${k}</span><span style="color:var(--d-text);font-weight:600;text-align:right">${v}</span></div>`;
@@ -51,7 +51,7 @@ document.addEventListener('click', (e) => {
 function dPublishOpen(){
   if(typeof dSyncLayersToAB==='function') dSyncLayersToAB();
   const _ab=dGetActiveAB();
-  if(!dLayers||!dLayers.length){gToast('Adicione layers antes de publicar.');return;}
+  if(!dLayers||!dLayers.length){gToast('Adicione camadas antes de publicar.');return;}
   dPubSelectedABs=new Set([_ab.id]);
   dPubPermissoes={};
   dPublishRender();
@@ -118,7 +118,7 @@ function dPublishRenderArtboards(){
   const grid=document.getElementById('pub-ab-grid');if(!grid)return;
   const ab=dGetActiveAB();
   if(!ab||!dLayers.length){
-    grid.innerHTML='<div class="pub-empty">Adicione layers antes de publicar.</div>';return;
+    grid.innerHTML='<div class="pub-empty">Adicione camadas antes de publicar.</div>';return;
   }
   dPubHidePreview();
   const checked=dPubSelectedABs.has(ab.id);
@@ -380,7 +380,7 @@ function dPublishConfirm(){
     `;
   } else {
     if(!(gImgPersistWarned&&!hadImgWarn))
-      gToast('🚀 '+count+' prancheta'+(count!==1?'s':'')+' publicada'+(count!==1?'s':'')+' com sucesso!');
+      gToast(''+count+' prancheta'+(count!==1?'s':'')+' publicada'+(count!==1?'s':'')+' com sucesso!');
     dPublishClose();
   }
 }
@@ -488,7 +488,7 @@ function dPaste(samePlace){
   - Shift+N                 : Alternar nitidez (Blur, Sharpen, Smudge)
   - K                       : Modo Máscara de Camada (dMaskPaintStart/dMaskAdd se inativo; alterna Hide/Reveal se ativo)
   - Q                       : QR Code direto
-  - X                       : Vincular Variável / Dados (dDataActivate)
+  - X                       : Vincular campo / Dados (dDataActivate)
   - Shift+X                 : Alternar dados (Var-Data, QR-Code)
   - L                       : Abrir Recursos / Assets
   - P                       : Abrir Prévia de Impressão/Publicação
@@ -665,7 +665,7 @@ document.addEventListener('keydown', e => {
     if (e.key === 's' || e.key === 'S') {
       if (dSelId) {
         const l = dLayers.find(x => x.id === dSelId);
-        if (l) { dStampSource = l; if(typeof dStampOffset!=='undefined') dStampOffset=null; gToast('Fonte do carimbo: "' + l.name + '" — clique no canvas para clonar'); }
+        if (l) { dStampSource = l; if(typeof dStampOffset!=='undefined') dStampOffset=null; gToast('Origem do carimbo: "' + l.name + '" — clique no canvas para clonar'); }
       }
       if (typeof dBrushPick === 'function') dBrushPick('stamp'); else dSetTool('stamp');
       if (typeof dStampUpdateStatus === 'function') dStampUpdateStatus();

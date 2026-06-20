@@ -84,7 +84,7 @@ function dToggleTheme() {
     o.style.background = dTheme === 'light' ? '#fff' : '#222';
     o.style.color = dTheme === 'light' ? '#0A0A0A' : '#F0F0F0';
   });
-  gToast(dTheme === 'light' ? '☀ Tema claro' : '🌙 Tema escuro');
+  gToast(dTheme === 'light' ? 'Tema claro' : 'Tema escuro');
 }
 
 /* ── BIBLIOTECA ── */
@@ -111,9 +111,8 @@ function dLibRender(filter) {
   if (filter) assets = assets.filter(a => a.name.toLowerCase().includes(filter.toLowerCase()));
   if (!assets.length) {
     grid.innerHTML = `<div class="lib-empty">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-      <div style="color:var(--d-text2); font-weight:500; font-size:12px; margin-bottom:4px;">Sua biblioteca está vazia.</div>
-      <span style="opacity:0.8;">Suba suas imagens e logotipos para<br>tê-los sempre à mão durante a criação.</span>
+      <div style="color:var(--d-text); font-weight:600; font-size:13px; margin-bottom:2px;">Nenhum asset encontrado</div>
+      <span style="opacity:0.6; font-size:11px;">Faça upload de imagens e logos para turbinar seus designs e tê-los sempre à mão.</span>
     </div>`;
     return;
   }
@@ -185,7 +184,7 @@ function dLibUse(id) {
   const a = dLibAssets.find(x => x.id === id);
   if (!a) return;
   const l = dLayers.find(x => x.id === dSelId && (x.type === 'image' || x.type === 'frame'));
-  if (!l) { gToast('Selecione um layer de imagem ou moldura primeiro'); return; }
+  if (!l) { gToast('Selecione uma camada de imagem ou moldura primeiro'); return; }
   l.imgUrl = a.url;
   dRenderCanvas();
   const urlInp = document.getElementById('dp-imgurl');
@@ -316,7 +315,7 @@ function dEndInlineEdit(e,cancel){
         }
         dHistoryPush(); target.mask=mC.toDataURL('image/png'); dMarkUnsaved();
         gToast('✓ Máscara de texto aplicada à camada');
-      }catch(err){ gToast('⚠ Não consegui gerar a máscara de texto','error'); }
+      }catch(err){ gToast('⚠ Não foi possível gerar a máscara de texto','error'); }
     } else if(!cancel && target && (!(target.w>0)||!(target.h>0))){
       gToast('⚠ Camada-alvo sem dimensões válidas para máscara','error');
     }
@@ -394,7 +393,7 @@ function dToggleLock(e,id){
     });
   }
   dRenderCanvas();dRenderLayersList();dMarkUnsaved();
-  gToast(l.locked?'🔒 Layer bloqueado':'🔓 Layer desbloqueado');
+  gToast(l.locked?'🔒 Camada bloqueada':'🔓 Camada desbloqueada');
 }
 
 /* ── BLOCOS REUTILIZÁVEIS (snippets) ── */
@@ -408,7 +407,7 @@ function dSaveSnippetsStore(){
 function dSaveSnippet(){
   const ids = dMultiSel.length ? dMultiSel.slice() : (dSelId?[dSelId]:[]);
   const layers = ids.map(id=>dLayers.find(l=>l.id===id)).filter(Boolean);
-  if(!layers.length){gToast('Selecione 1+ layers para salvar como bloco');return;}
+  if(!layers.length){gToast('Selecione 1 ou mais camadas para salvar como bloco');return;}
   const name=(prompt('Nome do bloco:', 'Bloco '+(dSnippets.length+1))||'').trim();
   if(!name)return;
   // Normaliza para o canto sup-esq do conjunto e remove ids
@@ -429,7 +428,7 @@ function dInsertSnippet(id){
 function dDeleteSnippet(id){ dSnippets=dSnippets.filter(x=>x.id!==id); dSaveSnippetsStore(); dRenderSnippets(); }
 function dRenderSnippets(){
   const el=document.getElementById('d-snippets-list');if(!el)return;
-  if(!dSnippets.length){ el.innerHTML='<div style="font-size:11px;color:var(--d-text3);padding:6px 0">Nenhum bloco salvo. Selecione layers e clique em "Salvar bloco".</div>'; return; }
+  if(!dSnippets.length){ el.innerHTML='<div style="font-size:11px;color:var(--d-text3);padding:6px 0">Nenhum bloco salvo. Selecione camadas e clique em "Salvar bloco".</div>'; return; }
   el.innerHTML=dSnippets.map(s=>`<div style="display:flex;align-items:center;gap:6px;padding:5px 6px;border:1px solid var(--d-border);border-radius:6px;margin-bottom:5px">
     <span style="flex:1;font-size:12px;color:var(--d-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_dEsc(s.name)} <span style="color:var(--d-text3);font-size:10px">(${s.layers.length})</span></span>
     <button class="d-lyr-add" onclick="dInsertSnippet('${s.id}')">Inserir</button>

@@ -58,6 +58,14 @@ const LumaColorPicker = (function() {
       if(!val.startsWith('#')) val = '#' + val;
       setHex(val);
     });
+
+    // Global interception of native color pickers
+    document.addEventListener('click', (e) => {
+      if(e.target && e.target.tagName === 'INPUT' && e.target.type === 'color') {
+        e.preventDefault();
+        open(e.target, e.target.id);
+      }
+    }, true); // Capture phase to prevent native picker
   }
 
   function onDocMouseDown(e) {
@@ -198,13 +206,23 @@ const LumaColorPicker = (function() {
     
     updateUI();
 
-    const rect = swatchEl.getBoundingClientRect();
+    let rect = swatchEl.getBoundingClientRect();
+    if(rect.width === 0 && rect.height === 0) {
+      // Input está oculto, tentar pegar o elemento visual irmão (swatch) ou o pai
+      const sibling = swatchEl.previousElementSibling;
+      if(sibling && sibling.getBoundingClientRect().width > 0) {
+        rect = sibling.getBoundingClientRect();
+      } else {
+        rect = swatchEl.parentElement.getBoundingClientRect();
+      }
+    }
     
     // Calcula posição para não vazar da tela
     let left = rect.left + rect.width + 12;
     let top = rect.top;
 
     elPicker.style.display = 'flex';
+    elPicker.style.flexDirection = 'column';
     
     const pickerRect = elPicker.getBoundingClientRect();
     if(left + pickerRect.width > window.innerWidth) {

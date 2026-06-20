@@ -22,6 +22,9 @@
 <link rel="stylesheet" href="css/modules/franqueado.css">
 <link rel="stylesheet" href="css/modules/chat.css">
 <link rel="stylesheet" href="css/modules/live-preview.css">
+<link rel="stylesheet" href="css/modules/color-picker.css">
+<link rel="stylesheet" href="css/modules/all-tools.css">
+<link rel="stylesheet" href="css/modules/topbar.css">
 <link rel="stylesheet" href="css/modules/catalog.css">
 <link rel="stylesheet" href="css/modules/franqueado_effects.css">
 <link rel="stylesheet" href="css/modules/publish-modal.css">
@@ -252,7 +255,6 @@ input:focus:-webkit-autofill {
       <div class="top-pill" id="top-camp-pill">Hamburguer Fest · Story</div>
     </div>
     <div id="topbar-context-design" style="display: none; align-items: center;">
-      <span id="d-save-indicator" style="font-size:11px;color:rgba(255,255,255,.5)">Não salvo</span>
     </div>
     
     <!-- Perfil de Usuário Unificado -->
@@ -647,109 +649,90 @@ input:focus:-webkit-autofill {
   <div id="d-topbar">
     <!-- Zona 1: Nome do Projeto -->
     <div class="dt-zone" id="dt-zone-1">
-      <div class="dt-project-selector" style="color: var(--d-text2); font-size: 11px; font-weight: 500;">
+      <div class="dt-project-wrap" title="Renomear Projeto">
         <span id="dt-project-name">Projeto Principal</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dt-chevron"><polyline points="6 9 12 15 18 9"/></svg>
       </div>
     </div>
 
     <!-- Zona 2: Histórico (Undo / Redo) -->
-    <div class="dt-zone" id="dt-zone-2" style="display: flex; gap: 4px;">
-      <button class="dt-btn" id="dbtn-undo" aria-label="Desfazer (Ctrl+Z)" title="Desfazer (Ctrl+Z)" onclick="dUndo()">
+    <div class="dt-zone" id="dt-zone-2">
+      <div class="dt-divider"></div>
+      <button class="dt-btn" id="dbtn-undo" aria-label="Desfazer Ação (Ctrl+Z)" title="Desfazer Ação (Ctrl+Z)" onclick="dUndo()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"/></svg>
       </button>
-      <button class="dt-btn" id="dbtn-redo" aria-label="Refazer (Ctrl+Shift+Z)" title="Refazer (Ctrl+Shift+Z)" onclick="dRedo()">
+      <button class="dt-btn" id="dbtn-redo" aria-label="Refazer Ação (Ctrl+Shift+Z)" title="Refazer Ação (Ctrl+Shift+Z)" onclick="dRedo()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 019-9 9 9 0 016 2.3L21 13"/></svg>
       </button>
+      <div class="dt-divider"></div>
     </div>
 
     <!-- Zona 3 & 4: Propriedades Contextuais & Alinhamento (Centro) -->
-    <div class="dt-zone" id="dt-zone-center" style="flex: 1; display: flex; justify-content: center; min-width: 0;">
-      <!-- Estado "Nenhum elemento selecionado" -->
-      <div id="dt-no-selection" style="display: flex; align-items: center; gap: 8px; color: var(--d-text3); font-size: 11px;">
-        <span>Nenhum elemento selecionado</span>
-        <div class="dt-sep"></div>
-        <span id="d-dim-label" style="font-family: monospace; font-size: 10px;">1080 × 1920</span>
-        <div class="dt-sep"></div>
-        <span id="d-zoom-val" onclick="dFitToScreen()" title="Enquadrar na tela (Ctrl+0)" style="cursor: pointer; padding: 2px 4px; border-radius: 3px; background: rgba(255,255,255,0.03);">100%</span>
-      </div>
-
-      <!-- Estado "Camada selecionada" (Campos X, Y, W, H e Alinhamento) -->
-      <div id="dt-layer-selection" style="display: none; align-items: center; gap: 10px;">
-        <!-- Inputs de Transformação -->
-        <div class="dt-transform-inputs" style="display: flex; align-items: center; gap: 6px;">
-          <div class="dt-input-group" style="display: flex; align-items: center; gap: 4px; background: var(--d-surf2); border: 1px solid var(--d-border2); border-radius: 4px; padding: 2px 6px; height: 22px; box-sizing: border-box;">
-            <span class="dt-input-label" style="font-size: 9px; color: var(--d-text3); font-weight: 700;">X</span>
-            <input type="number" id="d-top-x" class="dt-input-sm" oninput="dUpdateProp('x',this.value)" style="width: 42px; border: none; background: transparent; color: var(--d-text); font-size: 11px; outline: none; text-align: center; padding: 0;">
-          </div>
-          <div class="dt-input-group" style="display: flex; align-items: center; gap: 4px; background: var(--d-surf2); border: 1px solid var(--d-border2); border-radius: 4px; padding: 2px 6px; height: 22px; box-sizing: border-box;">
-            <span class="dt-input-label" style="font-size: 9px; color: var(--d-text3); font-weight: 700;">Y</span>
-            <input type="number" id="d-top-y" class="dt-input-sm" oninput="dUpdateProp('y',this.value)" style="width: 42px; border: none; background: transparent; color: var(--d-text); font-size: 11px; outline: none; text-align: center; padding: 0;">
-          </div>
-          <div class="dt-input-group" style="display: flex; align-items: center; gap: 4px; background: var(--d-surf2); border: 1px solid var(--d-border2); border-radius: 4px; padding: 2px 6px; height: 22px; box-sizing: border-box;">
-            <span class="dt-input-label" style="font-size: 9px; color: var(--d-text3); font-weight: 700;">W</span>
-            <input type="number" id="d-top-w" class="dt-input-sm" oninput="dUpdateProp('w',this.value)" style="width: 42px; border: none; background: transparent; color: var(--d-text); font-size: 11px; outline: none; text-align: center; padding: 0;">
-          </div>
-          <div class="dt-input-group" style="display: flex; align-items: center; gap: 4px; background: var(--d-surf2); border: 1px solid var(--d-border2); border-radius: 4px; padding: 2px 6px; height: 22px; box-sizing: border-box;">
-            <span class="dt-input-label" style="font-size: 9px; color: var(--d-text3); font-weight: 700;">H</span>
-            <input type="number" id="d-top-h" class="dt-input-sm" oninput="dUpdateProp('h',this.value)" style="width: 42px; border: none; background: transparent; color: var(--d-text); font-size: 11px; outline: none; text-align: center; padding: 0;">
-          </div>
-          <button class="dt-lock-ratio-btn" id="d-top-lock" onclick="dToggleLockRatio()" title="Manter proporção" style="width: 22px; height: 22px; border-radius: 4px; border: none; background: transparent; color: var(--d-text3); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.12s;">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          </button>
+    <div class="dt-zone" id="dt-zone-center">
+      
+      <div class="dt-context-wrapper">
+        <!-- Estado "Nenhum elemento selecionado" -->
+        <div id="dt-no-selection" class="dt-context-panel active">
+          <span class="dt-status-text">Selecione uma camada</span>
+          <div class="dt-divider"></div>
+          <span id="d-dim-label" class="dt-mono-text">1080 × 1920</span>
+          <div class="dt-divider"></div>
+          <button id="d-zoom-val" class="dt-zoom-btn" onclick="dFitToScreen()" title="Enquadrar na tela (Ctrl+0)">100%</button>
         </div>
 
-        <div class="dt-sep"></div>
+        <!-- Estado "Camada selecionada" (Campos X, Y, W, H e Alinhamento) -->
+        <div id="dt-layer-selection" class="dt-context-panel">
+          <div class="dt-input-modern">
+            <span class="dt-lbl">X</span>
+            <input type="number" id="d-top-x" oninput="dUpdateProp('x',this.value)">
+          </div>
+          <div class="dt-input-modern">
+            <span class="dt-lbl">Y</span>
+            <input type="number" id="d-top-y" oninput="dUpdateProp('y',this.value)">
+          </div>
+          <div class="dt-divider"></div>
+          <div class="dt-input-modern">
+            <span class="dt-lbl">W</span>
+            <input type="number" id="d-top-w" oninput="dUpdateProp('w',this.value)">
+          </div>
+          <div class="dt-input-modern">
+            <span class="dt-lbl">H</span>
+            <input type="number" id="d-top-h" oninput="dUpdateProp('h',this.value)">
+          </div>
+          <button class="dt-lock-ratio-btn" id="d-top-lock" onclick="dToggleLockRatio()" title="Manter proporção">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </button>
+          <div class="dt-divider"></div>
 
-        <!-- Ferramentas Rápidas de Alinhamento -->
-        <div class="dt-align-tools" style="display: flex; align-items: center; gap: 4px;">
-          <button class="dt-align-btn" onclick="dAlign('left')" title="Alinhar à esquerda" style="width: 22px; height: 22px; border-radius: 4px; border: none; background: transparent; color: var(--d-text3); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.12s;">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="3" x2="3" y2="21"/><rect x="7" y="5" width="14" height="6" rx="1"/><rect x="7" y="13" width="10" height="6" rx="1"/></svg>
-          </button>
-          <button class="dt-align-btn" onclick="dAlign('center')" title="Alinhar ao centro horizontal" style="width: 22px; height: 22px; border-radius: 4px; border: none; background: transparent; color: var(--d-text3); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.12s;">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="3" x2="12" y2="21"/><rect x="5" y="6" width="14" height="4" rx="1"/><rect x="7" y="14" width="10" height="4" rx="1"/></svg>
-          </button>
-          <button class="dt-align-btn" onclick="dAlign('right')" title="Alinhar à direita" style="width: 22px; height: 22px; border-radius: 4px; border: none; background: transparent; color: var(--d-text3); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.12s;">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="21" y1="3" x2="21" y2="21"/><rect x="3" y="5" width="14" height="6" rx="1"/><rect x="7" y="13" width="10" height="6" rx="1"/></svg>
-          </button>
-          <button class="dt-align-btn" onclick="dAlign('top')" title="Alinhar ao topo" style="width: 22px; height: 22px; border-radius: 4px; border: none; background: transparent; color: var(--d-text3); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.12s;">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="3" x2="21" y2="3"/><rect x="5" y="7" width="6" height="14" rx="1"/><rect x="13" y="7" width="6" height="10" rx="1"/></svg>
-          </button>
-          <button class="dt-align-btn" onclick="dAlign('vmid')" title="Alinhar ao centro vertical" style="width: 22px; height: 22px; border-radius: 4px; border: none; background: transparent; color: var(--d-text3); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.12s;">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"/><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="7" width="4" height="10" rx="1"/></svg>
-          </button>
-          <button class="dt-align-btn" onclick="dAlign('bottom')" title="Alinhar à base" style="width: 22px; height: 22px; border-radius: 4px; border: none; background: transparent; color: var(--d-text3); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.12s;">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="21" x2="21" y2="21"/><rect x="5" y="3" width="6" height="14" rx="1"/><rect x="13" y="7" width="6" height="10" rx="1"/></svg>
-          </button>
+          <button class="dt-align-btn" onclick="dAlign('left')" title="Esquerda"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="3" x2="3" y2="21"/><rect x="7" y="5" width="14" height="6" rx="1"/><rect x="7" y="13" width="10" height="6" rx="1"/></svg></button>
+          <button class="dt-align-btn" onclick="dAlign('center')" title="Centro H"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="3" x2="12" y2="21"/><rect x="5" y="6" width="14" height="4" rx="1"/><rect x="7" y="14" width="10" height="4" rx="1"/></svg></button>
+          <button class="dt-align-btn" onclick="dAlign('right')" title="Direita"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="21" y1="3" x2="21" y2="21"/><rect x="3" y="5" width="14" height="6" rx="1"/><rect x="7" y="13" width="10" height="6" rx="1"/></svg></button>
+          <div class="dt-divider"></div>
+          <button class="dt-align-btn" onclick="dAlign('top')" title="Topo"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="3" x2="21" y2="3"/><rect x="5" y="7" width="6" height="14" rx="1"/><rect x="13" y="7" width="6" height="10" rx="1"/></svg></button>
+          <button class="dt-align-btn" onclick="dAlign('vmid')" title="Centro V"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"/><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="7" width="4" height="10" rx="1"/></svg></button>
+          <button class="dt-align-btn" onclick="dAlign('bottom')" title="Base"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="21" x2="21" y2="21"/><rect x="5" y="3" width="6" height="14" rx="1"/><rect x="13" y="7" width="6" height="10" rx="1"/></svg></button>
         </div>
       </div>
     </div>
 
     <!-- Zona 5: Status e Ações Finais -->
-    <div class="dt-zone" id="dt-zone-5" style="display: flex; align-items: center; gap: 8px;">
-      <!-- Status de Gravação -->
-      <div id="d-save-indicator" style="font-size: 11px; display: flex; align-items: center; gap: 4px;"></div>
+    <div class="dt-zone" id="dt-zone-5">
+      <div id="d-save-indicator" class="dt-status-save"></div>
       <div id="d-save-indicator2" style="display: none;"></div>
 
-      <div class="dt-sep"></div>
+      <div class="dt-divider"></div>
 
-      <!-- Simulação -->
-      <button class="dt-btn-outline" onclick="dOpenSimModal()" title="Simular dados reais">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
-        Simular
+      <button class="dt-btn-action" onclick="dOpenSimModal()" title="Testar layout">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        <span>Simular</span>
       </button>
-
-      <span id="d-sim-indicator" style="display:none;align-items:center;gap:4px;font-size:10px;color:#22C55E;background:rgba(34,197,94,.1);padding:3px 6px;border-radius:4px;cursor:pointer" onclick="dResetSim()" title="Limpar simulação">
-        <span style="width: 6px; height: 6px; background: #22c55e; border-radius: 50%; display: inline-block;"></span>
-        Simulando
-      </span>
-
-      <!-- Publicar -->
-      <button class="dt-btn-primary" onclick="dPublishOpen()" title="Publicar para os franqueados">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle;"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-        Publicar
+      <div id="d-sim-indicator" class="dt-sim-active" onclick="dResetSim()" title="Sair da simulação" style="display:none;">
+        <span class="dt-sim-dot"></span> Ativa
+      </div>
+      <button class="dt-btn-primary" onclick="dPublishOpen()" title="Publicar">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        <span>Publicar</span>
       </button>
-
-      <div class="dt-sep"></div>
 
       <!-- Outros controles secundários -->
       <button class="dt-btn" id="dt-theme-btn" onclick="dToggleTheme()" title="Alternar tema claro/escuro" aria-label="Alternar tema">
@@ -768,32 +751,38 @@ input:focus:-webkit-autofill {
     <!-- (Campanhas & Templates + Biblioteca migraram para as abas do painel direito #d-right) -->
 
     <!-- TOOLBAR VERTICAL DE FERRAMENTAS (Redesenhada) -->
-    <div id="d-vtoolbar" role="toolbar" aria-label="Ferramentas de design">
+    <div id="d-vtoolbar" role="toolbar" aria-label="Ferramentas de design" class="cols-2">
+      <!-- Botão estilo Photoshop para alternar 1 ou 2 colunas -->
+      <button class="vt-toggle" onclick="dToggleToolbarCols()" title="Alternar colunas">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M13 17l5-5-5-5M6 17l5-5-5-5"/></svg>
+      </button>
+
+      <div class="vt-tools-grid">
       <!-- Categoria 1: Navegação & Seleção -->
       <div class="vt-group">
         <div class="vt-group-wrap" id="vt-select-wrap">
           <button class="vt-btn active has-flyout" id="dtool-select-proxy"
                   onclick="dSelectActivate()"
                   oncontextmenu="dSelectFlyout(event)"
-                  title="Grupo Seleção&#10;V — Botão direito: mais ferramentas">
-            <span id="dtool-select-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3l14 9-7 1-4 7z"/></svg></span>
+                  title="Seleção (V)&#10;Clique direito para opções">
+            <span id="dtool-select-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg></span>
             <span class="vt-sub-arrow"></span>
           </button>
           <div class="vt-flyout" id="vt-select-flyout">
-            <button id="dtool-select" class="vt-flyout-item active" onclick="dSelectPick('select',event)" title="Mover / Selecionar&#10;V">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3l14 9-7 1-4 7z"/></svg>
-              <span>Mover / Selecionar</span>
+            <button id="dtool-select" class="vt-flyout-item active" onclick="dSelectPick('select',event)" title="Selecionar / Mover (V)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg>
+              <span>Selecionar / Mover (V)</span>
             </button>
-            <button id="dtool-hand" class="vt-flyout-item" onclick="dSelectPick('hand',event)" title="Mão (Pan)&#10;H">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v11a4 4 0 0 0 4 4h3a5 5 0 0 0 5-5v-6M8 11V8.5a1.5 1.5 0 0 1 3 0V11"/></svg>
-              <span>Mão (Pan)</span>
+            <button id="dtool-hand" class="vt-flyout-item" onclick="dSelectPick('hand',event)" title="Ferramenta Mão (H)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0a2 2 0 0 0-2-2v0a2 2 0 0 0-2-2v0a2 2 0 0 0-2-2v11a4 4 0 0 0 4 4h3a5 5 0 0 0 5-5v-6M8 11V8.5a1.5 1.5 0 0 1 3 0V11"/></svg>
+              <span>Ferramenta Mão (H)</span>
             </button>
             <button id="dtool-obj-select" class="vt-flyout-item" onclick="dSelectPick('obj-select',event)" title="Seleção de Objeto">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="4 2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
               <span>Seleção de Objeto</span>
             </button>
             <button id="dtool-quick-select" class="vt-flyout-item" onclick="dSelectPick('quick-select',event)" title="Seleção Rápida">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3l14 9-7 1-4 7z"/><path d="M18 14v6M15 17h6"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="M18 14v6M15 17h6"/></svg>
               <span>Seleção Rápida</span>
             </button>
             <button id="dtool-magic-wand" class="vt-flyout-item" onclick="dSelectPick('magic-wand',event)" title="Varinha Mágica">
@@ -813,13 +802,13 @@ input:focus:-webkit-autofill {
           <button class="vt-btn has-flyout" id="dtool-text-proxy"
                   onclick="dTextActivate()"
                   oncontextmenu="dTextFlyout(event)"
-                  title="Grupo Texto&#10;T — Botão direito: mais ferramentas">
-            <span id="dtool-text-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg></span>
+                  title="Texto (T)&#10;Clique direito para opções">
+            <span id="dtool-text-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg></span>
             <span class="vt-sub-arrow"></span>
           </button>
           <div class="vt-flyout" id="vt-text-flyout">
             <button id="dtool-text-h" class="vt-flyout-item active" onclick="dTextPick('text-h',event)" title="Texto Horizontal&#10;T">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
               <span>Texto Horizontal</span>
             </button>
             <button id="dtool-text-v" class="vt-flyout-item" onclick="dTextPick('text-v',event)" title="Texto Vertical">
@@ -827,7 +816,7 @@ input:focus:-webkit-autofill {
               <span>Texto Vertical</span>
             </button>
             <button id="dtool-mask-text-h" class="vt-flyout-item" onclick="dTextPick('mask-text-h',event)" title="Máscara de Texto Horizontal">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="2 2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="2 2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
               <span>Máscara Horiz.</span>
             </button>
             <button id="dtool-mask-text-v" class="vt-flyout-item" onclick="dTextPick('mask-text-v',event)" title="Máscara de Texto Vertical">
@@ -885,11 +874,11 @@ input:focus:-webkit-autofill {
           </button>
           <div class="vt-flyout" id="vt-frame-flyout">
             <button id="dtool-frame" class="vt-flyout-item active" onclick="dFramePick('frame',event)" title="Moldura de foto&#10;F">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 3l18 18M21 3L3 21"/></svg>
               <span>Moldura de Foto</span>
             </button>
             <button id="dtool-img" class="vt-flyout-item" onclick="dFramePick('img',event)" title="Imagem URL&#10;M">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
               <span>Imagem URL</span>
             </button>
           </div>
@@ -909,9 +898,9 @@ input:focus:-webkit-autofill {
             <span class="vt-sub-arrow"></span>
           </button>
           <div class="vt-flyout" id="vt-data-flyout">
-            <button id="dtool-var-data" class="vt-flyout-item active" onclick="dDataPick('var-data',event)" title="Vincular Variável&#10;X">
+            <button id="dtool-var-data" class="vt-flyout-item active" onclick="dDataPick('var-data',event)" title="Vincular campo&#10;X">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7" stroke-width="3"/></svg>
-              <span>Vincular Variável</span>
+              <span>Vincular campo</span>
             </button>
             <button id="dtool-qr-code" class="vt-flyout-item" onclick="dDataPick('qr-code',event)" title="Gerador QR Code&#10;Q">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M7 17h.01M17 17h.01M17 7h.01M7 7h.01"/></svg>
@@ -931,16 +920,16 @@ input:focus:-webkit-autofill {
                   onclick="dBrushActivate()"
                   oncontextmenu="dBrushFlyout(event)"
                   title="Grupo Pintura&#10;B — Botão direito: mais ferramentas">
-            <span id="dtool-brush-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l4-4 4 4-4 4-4-4z"/><path d="M7 13l9-9 4 4-9 9"/></svg></span>
+            <span id="dtool-brush-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9.06 11.9 8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08"/><path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.35 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z"/></svg></span>
             <span class="vt-sub-arrow"></span>
           </button>
           <div class="vt-flyout" id="vt-brush-flyout">
             <button id="dtool-brush" class="vt-flyout-item active" onclick="dBrushPick('brush',event)" title="Pincel&#10;B">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l4-4 4 4-4 4-4-4z"/><path d="M7 13l9-9 4 4-9 9"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9.06 11.9 8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08"/><path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.35 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z"/></svg>
               <span>Pincel</span>
             </button>
             <button id="dtool-eraser" class="vt-flyout-item" onclick="dBrushPick('eraser',event)" title="Borracha&#10;E">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H7L3 16l12-12 5 5-4.5 4.5"/><line x1="6" y1="20" x2="20" y2="20"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>
               <span>Borracha</span>
             </button>
             <button id="dtool-stamp" class="vt-flyout-item" onclick="dBrushPick('stamp',event)" title="Carimbo / Clonar&#10;S">
@@ -965,7 +954,7 @@ input:focus:-webkit-autofill {
               <span>Balde de Tinta</span>
             </button>
             <button id="dtool-gradient" class="vt-flyout-item" onclick="dFillPick('gradient',event)" title="Gradiente">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="7"/><circle cx="15" cy="15" r="7"/></svg>
               <span>Gradiente</span>
             </button>
           </div>
@@ -978,13 +967,13 @@ input:focus:-webkit-autofill {
                   oncontextmenu="dNitidezFlyout(event)"
                   title="Grupo Efeitos&#10;O — Botão direito: mais ferramentas">
             <span id="dtool-nitidez-icon" style="display:flex;align-items:center;justify-content:center">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3" fill="currentColor" opacity=".3"/><circle cx="12" cy="12" r="6" opacity=".5"/><circle cx="12" cy="12" r="9" opacity=".7"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>
             </span>
             <span class="vt-sub-arrow"></span>
           </button>
           <div class="vt-flyout" id="vt-nitidez-flyout">
             <button id="dtool-blur" class="vt-flyout-item active" onclick="dNitidezPick('blur',event)" title="Desfoque">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3" fill="currentColor" opacity=".3"/><circle cx="12" cy="12" r="6" opacity=".5"/><circle cx="12" cy="12" r="9" opacity=".7"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>
               <span>Desfoque</span>
             </button>
             <button id="dtool-sharpen" class="vt-flyout-item" onclick="dNitidezPick('sharpen',event)" title="Nitidez&#10;O">
@@ -1007,7 +996,7 @@ input:focus:-webkit-autofill {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="3" width="14" height="14" rx="2"/><path d="M3 7v12a2 2 0 0 0 2 2h12"/></svg>
         </button>
         <button class="vt-btn" id="dtool-ia-assist" aria-label="Assistente de IA" title="Assistente de IA&#10;Z — Recursos inteligentes" onclick="gToast('Recurso em breve: Assistente de IA')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.5 5.5l3 3M15.5 15.5l3 3M5.5 15.5l3-3M15.5 5.5l3 3"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.8 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.8a2 2 0 0 1 1.29-1.29L21 12l-5.8-1.9a2 2 0 0 1-1.29-1.29L12 3Z"/><path d="M5 3v4M3 5h4"/></svg>
         </button>
       </div>
 
@@ -1041,14 +1030,161 @@ input:focus:-webkit-autofill {
               <span>Ferramenta Nota</span>
             </button>
             <button id="dtool-count" class="vt-flyout-item" onclick="dEyedropPick('count',event)" title="Ferramenta Contagem">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
               <span>Ferramenta Contagem</span>
             </button>
           </div>
         </div>
       </div>
+      
+      <button class="vt-btn" id="dtool-all-tools" onclick="dToggleAllTools()" title="Todas as Ferramentas">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="none"><circle cx="5" cy="12" r="2.5" fill="currentColor"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/><circle cx="19" cy="12" r="2.5" fill="currentColor"/></svg>
+      </button>
+      </div><!-- fechar vt-tools-grid -->
+      
+      <!-- Painel de Todas as Ferramentas -->
+      <div id="d-all-tools-panel" class="vt-all-tools-panel">
+        <div class="vat-header">
+          Todas as ferramentas
+          <button class="vat-close" onclick="dToggleAllTools()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        <div class="vat-content">
+          <div class="vat-category">
+            <div class="vat-cat-title">Selecionar</div>
+            <button class="vat-item" onclick="dSelectPick('select',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg> Ferramenta Seleção <span class="vat-shortcut">V</span>
+            </button>
+            <button class="vat-item" onclick="dSelectPick('hand',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0a2 2 0 0 0-2-2v0a2 2 0 0 0-2-2v0a2 2 0 0 0-2-2v11a4 4 0 0 0 4 4h3a5 5 0 0 0 5-5v-6M8 11V8.5a1.5 1.5 0 0 1 3 0V11"/></svg> Ferramenta Mão <span class="vat-shortcut">H</span>
+            </button>
+            <button class="vat-item" onclick="dSelectPick('obj-select',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="4 2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg> Seleção de Objeto
+            </button>
+            <button class="vat-item" onclick="dSelectPick('quick-select',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" stroke-dasharray="4 4"/><path d="M12 8v8M8 12h8"/></svg> Seleção Rápida
+            </button>
+            <button class="vat-item" onclick="dSelectPick('magic-wand',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21l10-10M13 3l1.5 3 3 1.5-3 1.5L13 12l-1.5-3-3-1.5 3-1.5zM19 9l2-2M15 5l2-2"/></svg> Varinha Mágica <span class="vat-shortcut">Y</span>
+            </button>
+          </div>
+          <div class="vat-category">
+            <div class="vat-cat-title">Desenhar</div>
+            <button class="vat-item" onclick="dFormaPick('rect',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg> Ferramenta Retângulo <span class="vat-shortcut">R</span>
+            </button>
+            <button class="vat-item" onclick="dFormaPick('ellipse',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="10" ry="7"/></svg> Ferramenta Elipse <span class="vat-shortcut">O</span>
+            </button>
+            <button class="vat-item" onclick="dFormaPick('triangle',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l10 18H2L12 2z"/></svg> Triângulo
+            </button>
+            <button class="vat-item" onclick="dFormaPick('polygon',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 20.7 7 20.7 17 12 22 3.3 17 3.3 7"/></svg> Ferramenta Polígono
+            </button>
+            <button class="vat-item" onclick="dFormaPick('star',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Estrela
+            </button>
+            <button class="vat-item" onclick="dFormaPick('line',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="20" x2="20" y2="4"/></svg> Linha
+            </button>
+          </div>
+          <div class="vat-category">
+            <div class="vat-cat-title">Texto & Mídia</div>
+            <button class="vat-item" onclick="dTextPick('text-h',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg> Texto Horizontal <span class="vat-shortcut">T</span>
+            </button>
+            <button class="vat-item" onclick="dTextPick('text-v',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v16M8 4h8M8 20h8"/></svg> Texto Vertical
+            </button>
+            <button class="vat-item" onclick="dTextPick('mask-text-h',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="2 2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg> Máscara de Texto Horizontal
+            </button>
+            <button class="vat-item" onclick="dTextPick('mask-text-v',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="2 2"><path d="M12 4v16M8 4h8M8 20h8"/></svg> Máscara de Texto Vertical
+            </button>
+            <button class="vat-item" onclick="dFramePick('frame',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 3l18 18M21 3L3 21"/></svg> Moldura de Foto <span class="vat-shortcut">F</span>
+            </button>
+            <button class="vat-item" onclick="dFramePick('img',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg> Imagem URL <span class="vat-shortcut">M</span>
+            </button>
+          </div>
+          <div class="vat-category">
+            <div class="vat-cat-title">Dados & Automação</div>
+            <button class="vat-item" onclick="dDataPick('var-data',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7" stroke-width="3"/></svg> Vincular Campo <span class="vat-shortcut">X</span>
+            </button>
+            <button class="vat-item" onclick="dDataPick('qr-code',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> Gerador QR Code <span class="vat-shortcut">Q</span>
+            </button>
+          </div>
+          <div class="vat-category">
+            <div class="vat-cat-title">Pintura & Efeitos</div>
+            <button class="vat-item" onclick="dBrushPick('brush',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9.06 11.9 8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08"/><path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.35 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z"/></svg> Pincel <span class="vat-shortcut">B</span>
+            </button>
+            <button class="vat-item" onclick="dBrushPick('eraser',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg> Borracha <span class="vat-shortcut">E</span>
+            </button>
+            <button class="vat-item" onclick="dBrushPick('stamp',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M12 2v6"/><rect x="4" y="8" width="16" height="9" rx="2"/></svg> Carimbo / Clonar <span class="vat-shortcut">S</span>
+            </button>
+            <button class="vat-item" onclick="dFillPick('bucket',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m19 11-8-8-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2c.8.8 2 .8 2.8 0L19 11Z"/><path d="m5 2 5 5M2 13h15M22 20a2 2 0 1 1-4 0c0-1.6 1.7-2.4 2-4 .3 1.6 2 2.4 2 4Z"/></svg> Lata de Tinta <span class="vat-shortcut">G</span>
+            </button>
+            <button class="vat-item" onclick="dFillPick('gradient',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 12h18"/><path d="M12 3v18"/></svg> Gradiente
+            </button>
+            <button class="vat-item" onclick="dNitidezPick('blur',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg> Desfoque
+            </button>
+            <button class="vat-item" onclick="dNitidezPick('sharpen',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 22 12 12 22 2 12"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> Nitidez <span class="vat-shortcut">O</span>
+            </button>
+            <button class="vat-item" onclick="dNitidezPick('smudge',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11h.01M7 6h.01M11 3h.01M15 3h.01M19 6h.01M21 11h.01M19 16c-2 3-7 3-9-1-1-2-3-2-4-1-1 1-1 3 0 4 2 2 7 0 13-2Z"/></svg> Dedo
+            </button>
+          </div>
+          <div class="vat-category">
+            <div class="vat-cat-title">Utilitários</div>
+            <button class="vat-item" onclick="dEyedropPick('eyedrop',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m2 22 1-1h3l9-9"/><path d="M3 21v-3l9-9"/><path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z"/></svg> Conta-gotas <span class="vat-shortcut">I</span>
+            </button>
+            <button class="vat-item" onclick="dEyedropPick('color-sampler',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="2" x2="12" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg> Classificador de Cores
+            </button>
+            <button class="vat-item" onclick="dEyedropPick('ruler',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="5" x2="19" y2="19"/><circle cx="5" cy="5" r="1.5"/><circle cx="19" cy="19" r="1.5"/><path d="M9 5l2 2M13 9l2 2"/></svg> Régua
+            </button>
+            <button class="vat-item" onclick="dEyedropPick('note',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Nota
+            </button>
+            <button class="vat-item" onclick="dEyedropPick('count',event);dToggleAllTools()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg> Contagem
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Separação elegante antes das cores -->
+      <div class="vt-color-sep"></div>
+      
+      <!-- Foreground / Background Colors -->
+      <div class="vt-color-picker">
+        <div class="vcp-swatches">
+          <div class="vcp-bg" id="dtool-color-bg" onclick="document.getElementById('d-color-bg-pick').click()" title="Cor de fundo (Background)"></div>
+          <div class="vcp-fg" id="dtool-color-fg" onclick="document.getElementById('d-color-fg-pick').click()" title="Cor de primeiro plano (Foreground)"></div>
+          <input type="color" id="d-color-bg-pick" style="display:none" value="#FFFFFF" oninput="dUpdateBgColor(this.value)">
+          <input type="color" id="d-color-fg-pick" style="display:none" value="#FF9000" oninput="dBrushUpdate('color', this.value)">
+        </div>
+        <button class="vcp-swap" onclick="dSwapColors()" title="Alternar cores (X)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+        </button>
+        <button class="vcp-reset" onclick="dResetColors()" title="Cores padrão (D)">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="10" height="10" fill="currentColor"/><rect x="10" y="10" width="10" height="10" fill="none"/></svg>
+        </button>
+      </div>
 
-      <div style="flex:1"></div>
       <!-- Opções de pincel (expandem abaixo do ícone ativo) -->
       <div id="d-brush-opts" style="display:none;flex-direction:column;align-items:center;gap:6px;padding:6px 0">
         <input type="range" id="d-brush-size" min="2" max="40" value="8" style="width:36px;writing-mode:vertical-lr;direction:rtl;height:60px" oninput="document.getElementById('d-brush-val').textContent=this.value;if(typeof dUpdateBrushCursor==='function')dUpdateBrushCursor()" title="Tamanho">
@@ -1116,7 +1252,7 @@ input:focus:-webkit-autofill {
         </div>
         <!-- Flow -->
         <div class="bb-group" data-tools="brush eraser">
-          <span class="bb-label">Flow</span>
+          <span class="bb-label">Fluxo</span>
           <input type="range" class="bb-slider" id="bb-flow" min="1" max="100" value="100" oninput="dBrushUpdate('flow',this.value)">
           <input class="bb-num-input" id="bb-flow-num" value="100" onchange="dBrushNumInput('flow',this.value)"><span class="bb-unit">%</span>
         </div>
@@ -1156,12 +1292,12 @@ input:focus:-webkit-autofill {
         </div>
         <!-- ── CARIMBO ── -->
         <div class="bb-group" data-tools="stamp">
-          <span class="bb-label">Fonte</span><span class="bb-stamp-status" id="bb-stamp-status">nenhuma</span>
+          <span class="bb-label">Origem</span><span class="bb-stamp-status" id="bb-stamp-status">nenhuma</span>
         </div>
         <div class="bb-group" data-tools="stamp">
-          <button class="bb-btn" onclick="dStampMarkSource()" title="Marca a camada selecionada como fonte (S)">Marcar fonte</button>
-          <button class="bb-btn" id="bb-stamp-aligned" onclick="dStampToggleAligned()" title="Mantém o deslocamento entre cliques">Alinhado: off</button>
-          <button class="bb-btn bb-btn-ghost" onclick="dStampClearSource()" title="Limpar fonte (Esc)">Limpar</button>
+          <button class="bb-btn" onclick="dStampMarkSource()" title="Marca a camada selecionada como origem (S)">Marcar origem</button>
+          <button class="bb-btn" id="bb-stamp-aligned" onclick="dStampToggleAligned()" title="Mantém o deslocamento entre cliques">Alinhado: não</button>
+          <button class="bb-btn bb-btn-ghost" onclick="dStampClearSource()" title="Limpar origem (Esc)">Limpar</button>
         </div>
         <!-- Limpar pintura -->
         <div class="bb-sep" data-tools="brush eraser smudge blur sharpen gradient"></div>
@@ -1275,18 +1411,41 @@ input:focus:-webkit-autofill {
       </div>
       <!-- Biblioteca de assets (migrado da antiga sidebar esquerda) -->
       <div class="rpanel-content hidden" id="dtab-library">
-        <div style="padding:8px 12px 0">
-          <input id="d-lib-search" class="d-lib-search" placeholder="Buscar asset..." oninput="dLibFilter(this.value)"/>
+        
+        <!-- Header da Biblioteca -->
+        <div style="padding:12px 12px 4px; display:flex; flex-direction:column; gap:12px;">
+          
+          <!-- Barra de Busca -->
+          <div style="position:relative;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute; left:10px; top:10px; pointer-events:none; z-index:2;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input id="d-lib-search" class="d-lib-search" placeholder="Buscar na biblioteca..." oninput="dLibFilter(this.value)" style="padding-left:32px; margin-bottom:0;" />
+          </div>
+
+          <!-- Dropzone -->
+          <div class="d-lib-drop" onclick="document.getElementById('d-lib-upload').click()" id="d-lib-dropzone" style="margin:0;">
+            <div style="width:36px; height:36px; border-radius:10px; background:rgba(255,144,0,0.1); color:var(--dm-orange); display:flex; align-items:center; justify-content:center; margin-bottom:4px; transition:transform 0.2s;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            </div>
+            <span style="font-weight:600; color:var(--d-text); font-size:12px;">Fazer upload de assets</span>
+            <small style="color:var(--d-text3); margin-top:2px;">Arraste para cá ou clique (JPG, PNG, SVG)</small>
+            <input type="file" id="d-lib-upload" accept=".png,.jpg,.jpeg,.svg,.webp,image/png,image/jpeg,image/svg+xml,image/webp" multiple style="display:none" onchange="dLibUpload(this)">
+          </div>
+
         </div>
-        <div class="d-lib-drop" onclick="document.getElementById('d-lib-upload').click()" id="d-lib-dropzone">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          <span>Arraste ou clique<br><small>PNG · JPG · SVG</small></span>
-          <input type="file" id="d-lib-upload" accept=".png,.jpg,.jpeg,.svg,image/png,image/jpeg,image/svg+xml" multiple style="display:none" onchange="dLibUpload(this)">
-        </div>
-        <div style="padding:4px 12px 4px;display:flex;align-items:center;justify-content:space-between;gap:6px">
+
+        <!-- Categorias / Coleções -->
+        <div style="padding:8px 12px 4px; display:flex; flex-direction:column; gap:8px;">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <span style="font-size:10px; font-weight:700; color:var(--d-text3); text-transform:uppercase; letter-spacing:0.06em;">Coleções</span>
+            <button class="lib-cat" onclick="dLibNewCat()" title="Criar nova coleção" style="display:flex; align-items:center; gap:4px; padding:3px 8px; font-size:10px; background:transparent;">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              Nova
+            </button>
+          </div>
           <div class="d-lib-cats" id="d-lib-cats"></div>
-          <button class="d-lyr-add" onclick="dLibNewCat()" style="white-space:nowrap;flex-shrink:0">+ cat</button>
         </div>
+        
+        <!-- Grid de Assets -->
         <div class="d-lib-grid" id="d-lib-grid"></div>
       </div>
       <!-- Painel CAMADA: propriedades da peça + catálogo de variáveis do template -->
@@ -1297,7 +1456,7 @@ input:focus:-webkit-autofill {
         <!-- Painel Prancheta — visível quando nenhuma camada está selecionada -->
         <div id="d-no-sel">
           <div class="d-acc-sec">
-            <div class="section-head" onclick="dToggleSection(this)">Canvas</div>
+            <div class="section-head" onclick="dToggleSection(this)">Prancheta</div>
             <div class="prop-group">
               <div class="prop-row">
                 <span style="font-size:11px;color:var(--d-text3);width:14px">W</span>
@@ -1308,7 +1467,7 @@ input:focus:-webkit-autofill {
             </div>
           </div>
           <div class="d-acc-sec">
-            <div class="section-head" onclick="dToggleSection(this)">Background</div>
+            <div class="section-head" onclick="dToggleSection(this)">Fundo</div>
             <div class="prop-group">
               <div class="prop-row" style="gap:6px;align-items:center;flex-wrap:wrap">
                 <button class="ab-bg-btn" id="d-ab-bg-transparent" title="Transparente" onclick="dSetABBg('transparent')"><svg width="16" height="16" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="8" height="8" fill="#bbb"/><rect x="8" y="8" width="8" height="8" fill="#bbb"/><rect x="0" y="8" width="8" height="8" fill="#e8e8e8"/><rect x="8" y="0" width="8" height="8" fill="#e8e8e8"/></svg></button>
@@ -1322,8 +1481,8 @@ input:focus:-webkit-autofill {
             <div class="section-head" onclick="dToggleSection(this)">Orientação</div>
             <div class="prop-group">
               <div class="prop-row" style="gap:6px">
-                <button class="ab-bg-btn" id="d-ab-orient-port" title="Portrait" onclick="dSetOrientation('portrait')"><svg width="10" height="14" viewBox="0 0 10 14" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="8" height="12" rx="1"/></svg></button>
-                <button class="ab-bg-btn" id="d-ab-orient-land" title="Landscape" onclick="dSetOrientation('landscape')"><svg width="14" height="10" viewBox="0 0 14 10" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="12" height="8" rx="1"/></svg></button>
+                <button class="ab-bg-btn" id="d-ab-orient-port" title="Retrato" onclick="dSetOrientation('portrait')"><svg width="10" height="14" viewBox="0 0 10 14" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="8" height="12" rx="1"/></svg></button>
+                <button class="ab-bg-btn" id="d-ab-orient-land" title="Paisagem" onclick="dSetOrientation('landscape')"><svg width="14" height="10" viewBox="0 0 14 10" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="12" height="8" rx="1"/></svg></button>
                 <button class="d-btn-ghost" onclick="dToggleOrientation(dActiveABId)" style="flex:1;font-size:11px;padding:3px 6px" title="Troca W↔H com smart-resize">↔ Girar</button>
               </div>
             </div>
@@ -1384,7 +1543,7 @@ input:focus:-webkit-autofill {
                   <select class="prop-input" id="dp-frame-shape" onchange="dUpdateProp('frameShape',this.value);dUpdateProp('radius',this.value==='circle'?999:8)" style="font-size:11px"><option value="rect">Retângulo</option><option value="rounded">Arredondado</option><option value="circle">Círculo</option></select>
                 </div>
                 <div id="dp-frame-radius-row" class="prop-row" style="display:none">
-                  <span style="font-size:11px;color:var(--d-text3);min-width:50px">Radius</span>
+                  <span style="font-size:11px;color:var(--d-text3);min-width:50px">Raio</span>
                   <input class="prop-input prop-input-sm" type="number" id="dp-frame-radius" min="0" max="999" value="8" oninput="dUpdateProp('radius',this.value)" style="font-size:11px">
                 </div>
                 <div class="prop-row" style="gap:6px">
@@ -1505,6 +1664,14 @@ input:focus:-webkit-autofill {
                     <input class="prop-input prop-input-sm" type="number" id="dp-corner-br" min="0" value="0" title="Inferior direito" oninput="dSetCorner('br',this.value)">
                   </div>
                 </div>
+                <div class="dp-field" id="dp-shape-geo" style="display:none">
+                  <label class="dp-field-label">Geometria</label>
+                  <div style="display:flex;gap:4px;align-items:center">
+                    <input class="prop-input prop-input-sm" type="number" id="dp-shape-sides" min="3" max="20" value="6" title="Lados (polígono)" oninput="dUpdateProp('sides',this.value)">
+                    <input class="prop-input prop-input-sm" type="number" id="dp-shape-points" min="3" max="20" value="5" title="Pontas (estrela)" oninput="dUpdateProp('points',this.value)">
+                    <input class="prop-input prop-input-sm" type="number" id="dp-shape-inner" min="5" max="95" value="50" title="Raio interno % (estrela)" oninput="dUpdateProp('inner',(parseFloat(this.value)||50)/100)">
+                  </div>
+                </div>
                 <div class="dp-field">
                   <label class="dp-field-label">Traçado</label>
                   <div class="dp-color-row">
@@ -1522,7 +1689,7 @@ input:focus:-webkit-autofill {
                   </select>
                 </div>
                 <div class="dp-field">
-                  <label class="dp-field-label">Cor da var</label>
+                  <label class="dp-field-label">Cor do campo</label>
                   <select class="prop-input" id="dp-bind-fill" style="font-size:11px" onchange="dSetBinding('fill',this.value)"></select>
                 </div>
                 <div class="dp-field">
@@ -1632,7 +1799,7 @@ input:focus:-webkit-autofill {
         <div class="prop-divider"></div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
           <span class="section-head" style="margin:0">Blocos reutilizáveis</span>
-          <button class="d-lyr-add" onclick="dSaveSnippet()" title="Salvar os layers selecionados como bloco"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Salvar bloco</button>
+          <button class="d-lyr-add" onclick="dSaveSnippet()" title="Salvar as camadas selecionadas como bloco"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Salvar bloco</button>
         </div>
         <div id="d-snippets-list"></div>
         <div class="prop-divider"></div>
@@ -1818,7 +1985,7 @@ input:focus:-webkit-autofill {
         <input type="checkbox" id="d-psd-invert"> Inverter ordem
       </label>
     </div>
-    <div style="font-size:11px;color:var(--d-text3);line-height:1.5">Revise cada camada: vire textos em <code style="color:var(--var-color)">{{variáveis}}</code>, mantenha cor sólida como shape editável, ou imagem fiel. Camadas nomeadas <code style="color:var(--var-color)">{{nome}}</code> já entram como variável.</div>
+    <div style="font-size:11px;color:var(--d-text3);line-height:1.5">Revise cada camada: vire textos em <code style="color:var(--var-color)">{{variáveis}}</code>, mantenha cor sólida como forma editável, ou imagem fiel. Camadas nomeadas <code style="color:var(--var-color)">{{nome}}</code> já entram como variável.</div>
     <div id="d-psd-rows" style="overflow-y:auto;flex:1;min-height:120px;display:flex;flex-direction:column;gap:4px"></div>
     <div class="modal-actions">
       <button class="d-btn-sec" onclick="dPsdCancel()">Cancelar</button>
@@ -2163,7 +2330,7 @@ input:focus:-webkit-autofill {
         <div class="cheat-row"><span>Zoom no cursor</span><span class="cheat-key">Ctrl + scroll</span></div>
         <h4 style="margin-top:14px">Geral</h4>
         <div class="cheat-row"><span>Publicar</span><span class="cheat-key">Ctrl + S</span></div>
-        <div class="cheat-row"><span>Preview</span><span class="cheat-key">P</span></div>
+        <div class="cheat-row"><span>Pré-visualização</span><span class="cheat-key">P</span></div>
         <div class="cheat-row"><span>Mostrar atalhos</span><span class="cheat-key">?</span></div>
       </div>
     </div>
@@ -2296,7 +2463,7 @@ input:focus:-webkit-autofill {
 
     <!-- header -->
     <div id="d-preview-header">
-      <h3 id="d-pv-title">PREVIEW</h3>
+      <h3 id="d-pv-title">PRÉ-VISUALIZAÇÃO</h3>
       <div class="pv-fmt-tabs" id="pv-fmt-tabs">
         <button class="pv-fmt-tab active" data-fmt="story" onclick="dPreviewSetFmt('story',this)">Story</button>
         <button class="pv-fmt-tab" data-fmt="feed" onclick="dPreviewSetFmt('feed',this)">Feed</button>
@@ -2371,11 +2538,33 @@ input:focus:-webkit-autofill {
       </button>
       <button class="pv-dl-btn secondary" onclick="dExportSVGTemplate()" title="SVG editável com {{variáveis}} literais (Illustrator/Figma)">⬡ SVG template</button>
       <button class="pv-dl-btn secondary" onclick="dExportSVGFilled()" title="SVG com os valores simulados preenchidos">⬡ SVG preenchido</button>
-      <span class="pv-render-note" id="pv-render-note">Renderizado em canvas</span>
+      <span class="pv-render-note" id="pv-render-note">Renderizado na prancheta</span>
     </div>
 
   </div>
 </div>
 
+<!-- Luma Premium Color Picker -->
+<div id="d-color-picker">
+  <div id="dcp-sv-area">
+    <div id="dcp-sv-cursor"></div>
+  </div>
+  <div class="dcp-controls">
+    <div class="dcp-preview-wrap"><div id="dcp-preview"></div></div>
+    <div class="dcp-sliders">
+      <div id="dcp-hue-area"><div id="dcp-hue-cursor"></div></div>
+    </div>
+  </div>
+  <div class="dcp-hex-row">
+    <span>Hex</span>
+    <input type="text" id="dcp-hex-input" maxlength="7">
+  </div>
+  <div id="dcp-swatches"></div>
+</div>
+
+<script src="js/designer/color-picker.js"></script>
+<script src="js/designer/tooltip.js"></script>
+  <!-- Tooltip Educativo Global -->
+  <div id="d-rich-tooltip" class="d-rich-tooltip" style="display:none; opacity:0;"></div>
 </body>
 </html>

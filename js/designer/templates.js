@@ -286,7 +286,7 @@ function dToggleOrientation(){
   dRenderABProps();
   if(typeof dPersistArtboards==='function')dPersistArtboards();
   if(typeof dMarkUnsaved==='function')dMarkUnsaved();
-  gToast('↔ Prancheta: '+newW+'×'+newH+'px');
+  gToast('Prancheta: '+newW+'×'+newH+'px');
 }
 
 function dSetOrientation(orient){
@@ -337,7 +337,7 @@ function dPersistArtboards(){
   }catch(e){
     if(e&&(e.name==='QuotaExceededError'||e.code===22))
       gToast('⚠ Não foi possível salvar: armazenamento cheio.','error');
-    else gToast('⚠ Erro ao salvar a prancheta.','error');
+    else gToast('⚠ Não foi possível salvar a prancheta — tente de novo.','error');
     return false;
   }
 }
@@ -579,7 +579,7 @@ function dToggleTemplatePublish(folderId, tmplId, publicar){
   dPersistFolders();
   dRenderFolders();
   document.querySelectorAll('.tmpl-context-menu').forEach(m=>m.remove());
-  gToast(publicar ? '🚀 Material publicado!' : 'Material despublicado.');
+  gToast(publicar ? 'Material publicado!' : 'Material despublicado.');
 }
 function dDeleteTemplate(folderId, tmplId){
   if(!confirm('Excluir este template? Ação não pode ser desfeita.')) return;
@@ -1225,7 +1225,7 @@ function dSvgImport(){
     const file=e.target.files && e.target.files[0]; if(!file) return;
     const reader=new FileReader();
     reader.onload=ev=>dSvgHandleFile(ev.target.result, file.name);
-    reader.onerror=()=>gToast('⚠ Não consegui ler o arquivo','error');
+    reader.onerror=()=>gToast('⚠ Não foi possível ler o arquivo — verifique se é um .psd válido','error');
     reader.readAsText(file);
   };
   inp.click();
@@ -1237,7 +1237,7 @@ function dSvgHandleFile(svgText, fileName){
     const doc=new DOMParser().parseFromString(svgText,'image/svg+xml');
     if(doc.querySelector('parsererror')){ gToast('⚠ Erro ao ler o SVG — verifique o arquivo','error'); return; }
     const svgEl=doc.querySelector('svg');
-    if(!svgEl){ gToast('⚠ Arquivo SVG inválido','error'); return; }
+    if(!svgEl){ gToast('⚠ Arquivo SVG inválido — verifique o arquivo','error'); return; }
 
     const cssStyles = _dSvgParseStyles(doc);
 
@@ -1257,7 +1257,7 @@ function dSvgHandleFile(svgText, fileName){
     if(!elements.length){ gToast('⚠ Nenhum elemento reconhecido no SVG','error'); return; }
     const fmt=(typeof dPsdDetectFmt==='function')?dPsdDetectFmt(docW,docH):'story';
     dSvgShowReviewModal(elements, {w:docW, h:docH, fmt, fileName});
-  }catch(e){ console.error('[svg] erro ao parsear:',e); gToast('⚠ Erro ao processar o SVG','error'); }
+  }catch(e){ console.error('[svg] erro ao parsear:',e); gToast('⚠ Não foi possível processar o SVG','error'); }
 }
 
 // Extrai recursivamente os elementos do SVG aplicando a pilha de transformações afins (DFS)
@@ -1727,7 +1727,7 @@ function dSvgCreateTemplate(elements, meta, fmt){
   dRenderFolders();
   dLoadTemplate(tmpl, folder);
   dPersistFolders();
-  gToast('✓ '+layers.length+' layer(s) importado(s) de '+(meta.fileName||'SVG'));
+  gToast('✓ '+layers.length+' camada(s) importada(s) de '+(meta.fileName||'SVG'));
 }
 
 function dToggleCampaignsDrawer(open) {

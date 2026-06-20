@@ -326,7 +326,7 @@ function dMagicWandAt(x, y) {
   }
 
   if (!sourceLayer) {
-    gToast('⚠ Nenhum layer sob o ponto clicado');
+    gToast('⚠ Nenhuma camada sob o ponto');
     dSelId = null;
     dMultiSel = [];
     dRenderCanvas();
@@ -337,7 +337,7 @@ function dMagicWandAt(x, y) {
   // 2. Obter cor dominante do layer-fonte
   const sourceColor = _dMagicWandGetLayerColor(sourceLayer);
   if (!sourceColor) {
-    gToast('⚠ Layer sem cor dominante (imagem/frame)');
+    gToast('⚠ Camada sem cor dominante (imagem/frame)');
     return;
   }
 
@@ -359,7 +359,7 @@ function dMagicWandAt(x, y) {
   }
 
   if (matched.length === 0) {
-    gToast('⚠ Nenhum layer correspondente');
+    gToast('⚠ Nenhuma camada correspondente');
     return;
   }
 
@@ -369,7 +369,7 @@ function dMagicWandAt(x, y) {
 
   dRenderCanvas();
   dRenderLayersList();
-  gToast('✓ Magic Wand: ' + matched.length + ' layer(s) selecionado(s) (cor: ' + sourceColor + ')');
+  gToast('✓ Magic Wand: ' + matched.length + ' camada(s) selecionada(s) (cor: ' + sourceColor + ')');
 }
 
 /**
