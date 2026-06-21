@@ -20,7 +20,7 @@ function tutMockCampaign(name, gradient, prod, price, highlight){
 }
 function tutMockMaterial(fmt, name, highlight){
   const fmtClass = fmt==='story' ? 'tut-mock-fmt-canvas story' : fmt==='feed' ? 'tut-mock-fmt-canvas feed' : 'tut-mock-fmt-canvas wide';
-  const dim = fmt==='story' ? '1080×1920' : fmt==='feed' ? '1080×1080' : '1200×628';
+  const dim = fmt==='story' ? '1080×1920' : fmt==='feed' ? '1080×1350' : '1200×628';
   return `<div class="tut-mock-camp tut-mock-mat ${highlight?'highlight-target highlighted':''}">
     <div class="${fmtClass}" style="width:100%;height:100px;border-radius:0">
       <div style="font-size:7px;letter-spacing:.08em;text-transform:uppercase;opacity:.7;font-family:'Roboto',sans-serif;font-weight:700;z-index:1">${name.split(' — ')[0]||name}</div>

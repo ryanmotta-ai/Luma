@@ -2008,6 +2008,7 @@ function dSave(){
   const saveBtn=document.querySelector('.d-btn-pri[onclick="dSave()"]');
   if(saveBtn){saveBtn.classList.add('save-success');setTimeout(()=>saveBtn.classList.remove('save-success'),2000);}
   if(typeof dSetSaveState==='function')dSetSaveState('saved'); // limpa dDirty + mostra "Guardado"
+  if(typeof dRenderPagesTray==='function')dRenderPagesTray();
   // Não sobrescreve o aviso de imagens se ele acabou de aparecer neste save
   if(!(gImgPersistWarned&&!hadImgWarn))gToast('✓ Rascunho salvo!');
 }

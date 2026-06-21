@@ -234,7 +234,7 @@ const TUTORIALS = {
                   <div style="font-size:14px;color:var(--dm-yellow);z-index:1">R$ 0</div>
                 </div>
                 <div class="tut-mock-fmt-label">Feed</div>
-                <div class="tut-mock-fmt-dim">1080 × 1080</div>
+                <div class="tut-mock-fmt-dim">1080 × 1350</div>
               </div>
               <div class="tut-mock-fmt-card" data-fmt="wide">
                 <div class="tut-mock-fmt-canvas wide">

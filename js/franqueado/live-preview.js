@@ -63,7 +63,7 @@ const F_FIELD_LABELS = {
 };
 // Dimensões por formato — espelha o png-generator (cobre 'post' e 'wide', que o
 // DFMT_SIZES do designer não tem). fState.fmt.id pode ser 'post'.
-const F_LP_SIZES = {story:[1080,1920], feed:[1080,1080], wide:[1200,628], post:[1200,628]};
+const F_LP_SIZES = {story:[1080,1920], feed:[1080,1350], wide:[1200,628], post:[1200,628]};
 
 let _lpRendering = false;
 let _lpPendingRender = false;

@@ -414,10 +414,10 @@ Object.assign(TUTORIALS, {
                   <span style="font-size:9px;font-weight:700;color:${color}">${ratio}</span>
                 </div>
                 <span style="font-size:11px;font-weight:700;color:var(--text-2)">${name}</span>
-                <span style="font-size:9px;color:var(--text-3)">${name==='Story'?'1080×1920':name==='Feed'?'1080×1080':'1200×628'}</span>
+                <span style="font-size:9px;color:var(--text-3)">${name==='Story'?'1080×1920':name==='Feed'?'1080×1350':'1200×628'}</span>
               </div>`).join('')}
           </div></div>`,
-        tooltip:{ text:'O mesmo template é salvo em Story (9:16), Feed (1:1) e Wide (19:10). O franqueado escolhe o formato ao gerar.', target:null, placement:'bottom' } },
+        tooltip:{ text:'O mesmo template é salvo em Story (9:16), Feed (4:5) e Wide (19:10). O franqueado escolhe o formato ao gerar.', target:null, placement:'bottom' } },
       { id:'ancoras', duration:5500,
         build: ()=>`<div class="tut-scene-content">
           <div style="display:flex;gap:20px;align-items:center">

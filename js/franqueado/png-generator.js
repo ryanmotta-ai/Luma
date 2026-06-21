@@ -23,7 +23,7 @@ function fLoadLogoBranca(){
   });
 }
 async function fRenderCanvasHelper(d,c,fmt){
-  const fmtMap={story:[1080,1920],feed:[1080,1080],post:[1200,628],wide:[1200,628]};
+  const fmtMap={story:[1080,1920],feed:[1080,1350],post:[1200,628],wide:[1200,628]};
   const [w,h]=fmtMap[fmt.id]||[1080,1920];
 
   // ─── CAMINHO NOVO: renderiza layers do template publicado pelo designer ───
@@ -197,7 +197,7 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
   // Os layers do designer foram criados num canvas com tamanho fixo (fmt do template).
   // 5.2: formato diferente → SMART RESIZE (gReflowLayers re-ancora sem distorcer),
   // em vez do antigo scaleX/scaleY que esticava shapes e textos.
-  const fmtSizes = {story:[1080,1920], feed:[1080,1080], wide:[1200,628], post:[1200,628]};
+  const fmtSizes = {story:[1080,1920], feed:[1080,1350], wide:[1200,628], post:[1200,628]};
   const tmplFmt = fState.material?.fmt || 'story';
   const [tw, th] = fmtSizes[tmplFmt] || [1080,1920];
   let geomLayers = layers;
@@ -637,7 +637,7 @@ let fBulkRows=[];
 // Renderiza o material atual num canvas e devolve o dataURL — SEM disparar download.
 // Reaproveita o mesmo caminho de super-sampling 2× do fGenPNG.
 async function fRenderMaterialToDataURL(dados, camp, fmt){
-  const fmtMap={story:[1080,1920],feed:[1080,1080],post:[1200,628],wide:[1200,628]};
+  const fmtMap={story:[1080,1920],feed:[1080,1350],post:[1200,628],wide:[1200,628]};
   const [w,h]=fmtMap[fmt.id]||[1080,1920];
   const SCALE=2;
   const renderCv=document.createElement('canvas');
@@ -854,7 +854,7 @@ function fBulkRenderPreview(){
   if(dlBtn)dlBtn.textContent='Baixar todos'+(fBulkRows.length?` (${fBulkRows.length})`:'');
   if(!fBulkRows.length){wrap.innerHTML='<div class="f-bulk-empty">Nenhum CSV carregado ainda. Baixe o modelo, preencha e reenvie.</div>';return;}
   // Proporção do thumbnail conforme o formato do material
-  const fmtMap={story:[1080,1920],feed:[1080,1080],post:[1200,628],wide:[1200,628]};
+  const fmtMap={story:[1080,1920],feed:[1080,1350],post:[1200,628],wide:[1200,628]};
   const [nw,nh]=fmtMap[(fState.fmt&&fState.fmt.id)||'story']||[1080,1920];
   const cw=96, ch=Math.max(40,Math.round(cw*nh/nw));
   wrap.innerHTML=fBulkRows.map((r,i)=>{
@@ -886,7 +886,7 @@ async function fBulkRenderCardPreview(row, index){
   const badge=document.getElementById('f-bulk-badge-'+index);
   if(!cv)return;
   try{
-    const fmtMap={story:[1080,1920],feed:[1080,1080],post:[1200,628],wide:[1200,628]};
+    const fmtMap={story:[1080,1920],feed:[1080,1350],post:[1200,628],wide:[1200,628]};
     const [w,h]=fmtMap[(fState.fmt&&fState.fmt.id)||'story']||[1080,1920];
     // Render no tamanho nativo (sem super-sampling — é thumbnail) e desenha reduzido.
     const off=document.createElement('canvas');off.width=w;off.height=h;

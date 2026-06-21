@@ -1,0 +1,334 @@
+/* ── css/components/pages-tray.css ── */
+
+#d-pages-tray {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 500; /* above canvas but below modals */
+  display: flex;
+  align-items: flex-end;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none; /* Let clicks pass through empty space */
+}
+
+#d-pages-tray.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 30px);
+}
+
+.ptray-inner {
+  pointer-events: auto;
+  background: rgba(26, 26, 31, 0.85); /* glass dark */
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  max-width: calc(100vw - 320px); /* Leave room for sidebars */
+  overflow: hidden;
+  transition: height 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  height: 128px;
+}
+
+/* Collapsed state */
+#d-pages-tray.collapsed .ptray-inner {
+  height: 32px;
+  padding: 4px 8px;
+}
+#d-pages-tray.collapsed .ptray-list,
+#d-pages-tray.collapsed .ptray-add {
+  display: none !important;
+}
+#d-pages-tray.collapsed .ptray-toggle svg {
+  transform: rotate(180deg);
+}
+
+/* Toggle button styling */
+.ptray-toggle {
+  background: transparent;
+  border: none;
+  color: #a0a0ab;
+  padding: 4px;
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  align-self: center;
+}
+.ptray-toggle:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+.ptray-toggle svg {
+  transition: transform 0.3s ease;
+}
+
+/* List container */
+.ptray-list {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 100%;
+  padding-bottom: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.ptray-list::-webkit-scrollbar {
+  height: 4px;
+}
+.ptray-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+.ptray-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Card item */
+.ptray-item {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+  width: 90px;
+  transition: all 0.2s ease;
+}
+
+.ptray-item:hover {
+  transform: translateY(-2px);
+}
+
+/* Preview Box (Uniform Square) */
+.ptray-preview-container {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  transition: all 0.2s ease;
+}
+
+.ptray-item.active .ptray-preview-container {
+  border-color: var(--dm-orange, #FF9000);
+  box-shadow: 0 0 0 2px var(--dm-orange, #FF9000), 0 4px 16px rgba(255,144,0,0.3);
+}
+
+.ptray-dom-wrapper {
+  position: relative;
+  overflow: hidden;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  background: #000000;
+  display: block;
+}
+
+.ptray-dom-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none !important;
+  user-select: none !important;
+  transform-origin: top left;
+}
+
+.ptray-dom-canvas * {
+  pointer-events: none !important;
+  user-select: none !important;
+  cursor: default !important;
+  outline: none !important;
+  box-shadow: none !important;
+  animation: none !important;
+  transition: none !important;
+}
+
+/* Page Index Badge */
+.ptray-item-num {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  background: rgba(0, 0, 0, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 9px;
+  color: #ffffff;
+  font-weight: 700;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Hover Actions inside Preview */
+.ptray-item-actions {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 5;
+}
+
+.ptray-preview-container:hover .ptray-item-actions {
+  opacity: 1;
+}
+
+.ptray-act-btn {
+  background: rgba(30, 30, 35, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e4e4e7;
+  border-radius: 6px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+.ptray-act-btn:hover {
+  background: var(--dm-orange, #FF9000);
+  color: #ffffff;
+  border-color: transparent;
+  transform: scale(1.1);
+}
+.ptray-act-btn.danger:hover {
+  background: #ef4444;
+}
+
+/* Label below preview */
+.ptray-item-label {
+  font-size: 10px;
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+  color: #a0a0ab;
+  width: 100%;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 2px;
+}
+.ptray-item.active .ptray-item-label {
+  color: var(--dm-orange, #FF9000);
+  font-weight: 600;
+}
+
+/* Add page button */
+.ptray-add {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  color: #a0a0ab;
+  width: 84px;
+  height: 84px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s;
+  font-family: 'Roboto', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+.ptray-add:hover {
+  border-color: var(--dm-orange, #FF9000);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* ==========================================
+   LIGHT MODE OVERRIDES (.theme-light)
+   ========================================== */
+body.theme-light .ptray-inner {
+  background: rgba(255, 255, 255, 0.85); /* transparent light */
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+}
+
+body.theme-light .ptray-toggle {
+  color: #71717a;
+}
+body.theme-light .ptray-toggle:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #09090b;
+}
+
+body.theme-light .ptray-list::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+body.theme-light .ptray-preview-container {
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+body.theme-light .ptray-item.active .ptray-preview-container {
+  box-shadow: 0 0 0 2px var(--dm-orange, #FF9000), 0 4px 16px rgba(255,144,0,0.18);
+}
+
+body.theme-light .ptray-dom-wrapper {
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+body.theme-light .ptray-item-label {
+  color: #71717a;
+}
+body.theme-light .ptray-item.active .ptray-item-label {
+  color: var(--dm-orange, #FF9000);
+}
+
+body.theme-light .ptray-add {
+  background: rgba(0, 0, 0, 0.01);
+  border: 1px dashed rgba(0, 0, 0, 0.12);
+  color: #71717a;
+}
+body.theme-light .ptray-add:hover {
+  border-color: var(--dm-orange, #FF9000);
+  color: #09090b;
+  background: rgba(0, 0, 0, 0.03);
+}
+
+body.theme-light .ptray-act-btn {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #27272a;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+}
+body.theme-light .ptray-act-btn:hover {
+  background: var(--dm-orange, #FF9000);
+  color: #ffffff;
+}
+body.theme-light .ptray-act-btn.danger:hover {
+  background: #ef4444;
+}

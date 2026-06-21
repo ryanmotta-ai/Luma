@@ -638,6 +638,7 @@ function dLoadTemplate(tmpl,folder){
   if(!tmpl)return;
   dActiveTmplId=tmpl.id;
   if(folder)dActiveTmplFolderId=folder.id; // destaca a pasta da arte ativa na grade
+  else dActiveTmplFolderId=null;
   dFmt=tmpl.fmt;
   // Carrega no artboard ativo (substitui layers e formato)
   const f=DFMT_SIZES[tmpl.fmt]||DFMT_SIZES.story;
@@ -654,6 +655,7 @@ function dLoadTemplate(tmpl,folder){
   const projNameEl = document.getElementById('dt-project-name');
   if(projNameEl && tmpl) projNameEl.textContent = tmpl.name;
   document.querySelectorAll('.dt-fmt').forEach(b=>b.classList.toggle('active',b.dataset.fmt===dFmt));
+  dRenderPagesTray();
   gToast('Template "'+tmpl.name+'" carregado na prancheta ativa');
 }
 
@@ -907,7 +909,7 @@ function dNewArtboardCustom(w,h,bg,dpi,fmt){
 const DNEWDOC_PRESETS = {
   social: [
     { id: 'story', name: 'Story', w: 1080, h: 1920, unit: 'px', dpi: 72 },
-    { id: 'feed', name: 'Feed', w: 1080, h: 1080, unit: 'px', dpi: 72 },
+    { id: 'feed', name: 'Feed', w: 1080, h: 1350, unit: 'px', dpi: 72 },
     { id: 'reels', name: 'Reels', w: 1080, h: 1920, unit: 'px', dpi: 72 },
     { id: 'post', name: 'Post', w: 1200, h: 628, unit: 'px', dpi: 72 }
   ],
@@ -951,20 +953,32 @@ function dNewDocSelectTab(category, tabEl){
   const presets = DNEWDOC_PRESETS[category] || [];
   if(presets.length === 0){
     container.innerHTML = `
-      <div style="grid-column: span 2; text-align: center; color: var(--d-text3); font-size: 12px; padding: 40px 0;">
+      <div style="grid-column: 1 / -1; text-align: center; color: var(--d-text3); font-size: 13px; padding: 40px 0;">
         Defina dimensões customizadas no painel ao lado.
       </div>
     `;
     return;
   }
 
-  container.innerHTML = presets.map(p => `
-    <button type="button" class="newdoc-preset-btn" data-preset-id="${p.id}" onclick="dNewDocApplyPreset('${category}', '${p.id}', this)">
-      <span style="font-weight: bold; font-size: 13px;">${p.name}</span>
-      <span style="font-size: 11px; opacity: 0.7;">${p.w} × ${p.h} ${p.unit}</span>
-      <span style="font-size: 10px; opacity: 0.5;">${p.dpi} DPI</span>
-    </button>
-  `).join('');
+  container.innerHTML = presets.map(p => {
+    // Calcular proporção para a caixinha visual
+    const maxDim = Math.max(p.w, p.h);
+    const boxW = Math.max((p.w / maxDim) * 44, 8);
+    const boxH = Math.max((p.h / maxDim) * 44, 8);
+    
+    return `
+      <button type="button" class="newdoc-preset-btn" data-preset-id="${p.id}" onclick="dNewDocApplyPreset('${category}', '${p.id}', this)" style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;padding:16px 8px;">
+        <div style="height: 50px; display:flex; align-items:center; justify-content:center; width:100%;">
+          <div style="width: ${boxW}px; height: ${boxH}px; background: #fff; border: 1px solid #ccc; box-shadow: 2px 2px 5px rgba(0,0,0,0.08); border-radius:1px;"></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px;">
+          <span style="font-weight: bold; font-size: 13px; line-height:1.2;">${p.name}</span>
+          <span style="font-size: 11px; opacity: 0.7; line-height:1.2;">${p.w} × ${p.h} ${p.unit}</span>
+          <span style="font-size: 10px; opacity: 0.5; line-height:1.2;">${p.dpi} ppi</span>
+        </div>
+      </button>
+    `;
+  }).join('');
 
   // Auto-selecionar o primeiro preset
   const firstPresetBtn = container.querySelector('.newdoc-preset-btn');
@@ -1040,7 +1054,7 @@ function dNewDocConfirm(){
 }
 
 /* ── FORMATO / CANVAS ── */
-const DFMT_SIZES={story:{w:1080,h:1920},feed:{w:1080,h:1080},wide:{w:1200,h:628},horizontal:{w:1920,h:1080}};
+const DFMT_SIZES={story:{w:1080,h:1920},feed:{w:1080,h:1350},wide:{w:1200,h:628},horizontal:{w:1920,h:1080}};
 
 /* ══════════════════════════════════════════════════════════════
    NOVO MOTOR DE IMPORTAÇÃO DE SVG (ILLUSTRATOR COMPATIBLE)
@@ -1736,4 +1750,352 @@ function dToggleCampaignsDrawer(open) {
   } else {
     if (typeof dActivatePanel === 'function') dActivatePanel('campaigns');
   }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PAGES TRAY (Bandeja de Páginas estilo Canva)
+══════════════════════════════════════════════════════════════ */
+
+let dPagesTrayCollapsed = false;
+
+function dTogglePagesTray() {
+  dPagesTrayCollapsed = !dPagesTrayCollapsed;
+  const tray = document.getElementById('d-pages-tray');
+  if(tray) tray.classList.toggle('collapsed', dPagesTrayCollapsed);
+}
+
+function dRenderTemplateToDOM(container, tmpl) {
+  if (!container || !tmpl) return;
+  container.innerHTML = '';
+
+  const layers = tmpl.layers || [];
+  
+  // Define background
+  const bg = tmpl.bg || 'transparent';
+  if (bg && bg !== 'transparent') {
+    container.style.background = bg === 'white' ? '#ffffff' : bg;
+  } else {
+    container.style.background = document.body.classList.contains('theme-light') ? '#E8E8E8' : '#1A1A1F';
+  }
+
+  // Render layers
+  layers.filter(l => l.visible !== false && l.type !== 'group').forEach(l => {
+    const el = document.createElement('div');
+    el.className = 'canvas-layer';
+    el.style.cssText = `left:${l.x}px;top:${l.y}px;width:${l.w}px;height:${l.h}px;position:absolute;pointer-events:none;`;
+    
+    // Mask / blend mode
+    if (l.mask) {
+      const mu = `url("${l.mask}")`;
+      el.style.webkitMaskImage = mu; el.style.maskImage = mu;
+      el.style.webkitMaskSize = el.style.maskSize = '100% 100%';
+      el.style.webkitMaskRepeat = el.style.maskRepeat = 'no-repeat';
+    }
+    if (l.blendMode) {
+      el.style.mixBlendMode = l.blendMode.replace(/([A-Z])/g, c => '-' + c.toLowerCase());
+    }
+
+    if (l.type === 'shape') {
+      el.style.opacity = (l.opacity || 100) / 100;
+      const kind = l.shapeKind || 'rect';
+      const pts = (kind !== 'circle' && kind !== 'ellipse' && typeof dShapePoints === 'function') ? dShapePoints(l) : null;
+      if (pts) {
+        const inner = document.createElement('div');
+        inner.style.cssText = 'position:absolute;inset:0;';
+        const abs = pts.map(p => [p[0] * l.w, p[1] * l.h]);
+        const d = gRoundPolyD(abs, l.radius || 0);
+        const _st = (l.strokeW > 0) ? ' stroke="' + (l.strokeColor || '#000') + '" stroke-width="' + l.strokeW + '"' : '';
+        inner.innerHTML = '<svg width="100%" height="100%" viewBox="0 0 ' + l.w + ' ' + l.h + '" preserveAspectRatio="none" style="display:block;overflow:visible"><path d="' + d + '" fill="' + (l.fill || '#FF9000') + '"' + _st + '/></svg>';
+        el.appendChild(inner);
+      } else {
+        el.style.background = dFxShapeBg(l);
+        if (kind === 'circle' || kind === 'ellipse') {
+          el.style.borderRadius = '50%';
+        } else {
+          const _cr = dCornerRadii(l);
+          el.style.borderRadius = _cr.tl + 'px ' + _cr.tr + 'px ' + _cr.br + 'px ' + _cr.bl + 'px';
+        }
+        if (l.strokeW > 0 && l.strokeDash) {
+          el.style.border = l.strokeW + 'px dashed ' + (l.strokeColor || '#000');
+          el.style.boxSizing = 'border-box';
+        }
+        const _bs = dFxStrokeParts(l).concat(dFxShadowParts(l));
+        if (_bs.length) el.style.boxShadow = _bs.join(', ');
+      }
+    } else if (l.type === 'text') {
+      el.style.color = (l.overlay && l.overlayColor) ? gFxRgba(l.overlayColor, l.overlayOpacity != null ? l.overlayOpacity : 1) : (l.color || '#fff');
+      const _fp = dTextFontParts(l.font);
+      el.style.fontFamily = _fp.family;
+      el.style.fontWeight = l.fontWeightOverride || _fp.weight;
+      if (l.textTransform) el.style.textTransform = l.textTransform;
+      
+      let _renderFs = l.fontSize || 24;
+      if (l.textBox === 'box' && !l.vertical && typeof dMeasureText === 'function') {
+        const _m = dMeasureText(l.content || '', l.font || "'Roboto'", _renderFs, l.w);
+        if (_m && _m.height > l.h + 2) {
+          _renderFs = Math.max(8, Math.floor(_renderFs * (l.h / _m.height)));
+        }
+      }
+      el.style.fontSize = _renderFs + 'px';
+      el.style.textAlign = l.textAlign || 'left';
+      el.style.lineHeight = (l.lineHeight ? String(l.lineHeight) : '1.2');
+      el.style.overflow = 'visible';
+      el.style.whiteSpace = 'pre-wrap';
+      el.style.letterSpacing = (l.letterSpacing ? l.letterSpacing + 'px' : '');
+      if (l.vertical) el.style.writingMode = 'vertical-rl';
+      
+      const textNode = document.createElement('div');
+      textNode.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;overflow:visible;';
+      if (l.runs && l.runs.length) {
+        textNode.innerHTML = l.runs.map(r => `<span style="color:${r.color || 'inherit'};font-size:${r.fontSize || _renderFs}px;font-family:${dTextFontParts(r.font).family};font-weight:${dTextFontParts(r.font).weight};${r.letterSpacing ? 'letter-spacing:' + r.letterSpacing + 'px;' : ''}">${gEsc(r.text || '').replace(/\n/g, '<br>')}</span>`).join('');
+      } else {
+        textNode.innerHTML = gEsc(l.content || '').replace(gVarRegex(), (m, n) => {
+          const v = (typeof dVars !== 'undefined') && dVars.find(x => x.name === n);
+          return v ? (v.label || n) : n;
+        });
+      }
+      if (l.gradient && l.gradient.stops && l.gradient.stops.length && !(l.runs && l.runs.length)) {
+        textNode.style.backgroundImage = gGradientCss(l.gradient);
+        textNode.style.webkitBackgroundClip = 'text'; textNode.style.backgroundClip = 'text';
+        textNode.style.webkitTextFillColor = 'transparent';
+      }
+      if (l.strikethrough) textNode.style.textDecoration = 'line-through';
+      const _fs = _renderFs;
+      if (l.bg) {
+        textNode.style.background = l.bgColor || '#000';
+        textNode.style.borderRadius = Math.round(_fs * 0.2) + 'px';
+      }
+      if (l.strokeW > 0) {
+        const sv = l.strokeW + 'px ' + (l.strokeColor || '#000');
+        textNode.style.webkitTextStroke = sv; textNode.style.textStroke = sv;
+      }
+      {
+        const _ts = [];
+        if (l.shadow) {
+          if (l.shadowBlur != null || l.shadowDist != null) {
+            const o = gFxOffset(l.shadowDist != null ? l.shadowDist : _fs * 0.07, l.shadowAngle);
+            _ts.push(`${o.x}px ${o.y}px ${(l.shadowBlur != null ? l.shadowBlur : _fs * 0.12)}px ${l.shadowColor || 'rgba(0,0,0,.5)'}`);
+          } else {
+            const sb = Math.max(1, _fs * 0.12), so = _fs * 0.05;
+            _ts.push(`${so}px ${so}px ${sb}px ${l.shadowColor || 'rgba(0,0,0,.5)'}`);
+          }
+        }
+        if (l.glow) {
+          _ts.push(`0 0 ${(l.glowSize != null ? l.glowSize : _fs * 0.3)}px ${l.glowColor || 'rgba(255,255,255,.7)'}`);
+        }
+        if (_ts.length) textNode.style.textShadow = _ts.join(', ');
+      }
+      el.appendChild(textNode);
+    } else if (l.type === 'frame') {
+      el.style.position = 'relative';
+      el.style.overflow = 'visible';
+      const borderR = (l.frameShape === 'circle' ? '50%' : (l.radius || 8) + 'px');
+      const inner = document.createElement('div');
+      inner.style.cssText = `position:absolute;inset:0;overflow:hidden;border-radius:${borderR};`;
+      if (l.imgUrl) {
+        const img = document.createElement('img');
+        img.src = l.imgUrl;
+        const posX = (0.5 + (l.imgOffsetX || 0)) * 100, posY = (0.5 + (l.imgOffsetY || 0)) * 100;
+        img.style.cssText = `width:100%;height:100%;object-fit:${l.objectFit || 'cover'};object-position:${posX}% ${posY}%;display:block;border-radius:${borderR};`;
+        if (l.imgScale && l.imgScale !== 1) {
+          img.style.transform = `scale(${l.imgScale})`;
+          img.style.transformOrigin = 'center';
+        }
+        inner.appendChild(img);
+      } else {
+        inner.style.cssText += `background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;`;
+        inner.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>`;
+      }
+      el.appendChild(inner);
+    } else if (l.type === 'image') {
+      el.style.overflow = 'hidden';
+      if (l.imgUrl) {
+        const img = document.createElement('img');
+        img.src = l.imgUrl;
+        img.style.cssText = `width:100%;height:100%;object-fit:${l.objectFit || 'cover'};`;
+        el.appendChild(img);
+      } else {
+        el.style.cssText += `background:rgba(255,255,255,.06);border:1px dashed rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;`;
+        el.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>`;
+      }
+    }
+    
+    container.appendChild(el);
+  });
+}
+
+function dRenderPagesTray() {
+  const tray = document.getElementById('d-pages-tray');
+  if (!tray) return;
+
+  // Se não tem pasta ativa (ex: tá na prancheta default avulsa)
+  if (!dActiveTmplFolderId) {
+    tray.classList.add('hidden');
+    return;
+  }
+
+  const folder = dFolders.find(f => f.id === dActiveTmplFolderId);
+  if (!folder || !folder.templates || folder.templates.length === 0) {
+    tray.classList.add('hidden');
+    return;
+  }
+
+  tray.classList.remove('hidden');
+  const list = document.getElementById('ptray-list');
+  if (!list) return;
+
+  list.innerHTML = folder.templates.map((t, idx) => {
+    const isActive = t.id === dActiveTmplId;
+    
+    // Calcula proporções do canvas para caber no box de 84x84
+    const sizes = { story: [9, 16], feed: [4, 5], wide: [16, 9], post: [16, 9] };
+    const [aspectW, aspectH] = sizes[t.fmt] || [9, 16];
+    
+    let cw = 84;
+    let ch = 84;
+    if (aspectW > aspectH) {
+      ch = Math.round(84 * aspectH / aspectW);
+    } else if (aspectW < aspectH) {
+      cw = Math.round(84 * aspectW / aspectH);
+    }
+
+    // Dimensões do template original
+    const tmplSizes = { story: [1080, 1920], feed: [1080, 1350], wide: [1200, 628], post: [1200, 628] };
+    const [tw, th] = tmplSizes[t.fmt] || [1080, 1920];
+    const scale = cw / tw;
+
+    return `
+      <div class="ptray-item ${isActive ? 'active' : ''}" onclick="dSwitchPage('${t.id}')">
+        <div class="ptray-preview-container">
+          <span class="ptray-item-num">${idx + 1}</span>
+          
+          <div class="ptray-dom-wrapper" style="width:${cw}px; height:${ch}px;">
+            <div class="ptray-dom-canvas" data-tmpl-id="${t.id}" style="width:${tw}px; height:${th}px; transform: scale(${scale}); transform-origin: top left;">
+              <!-- Elementos de layer inseridos dinamicamente -->
+            </div>
+          </div>
+          
+          <div class="ptray-item-actions">
+            <button class="ptray-act-btn" onclick="dDuplicatePageInTray(event, '${t.id}')" title="Duplicar">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </button>
+            <button class="ptray-act-btn danger" onclick="dDeletePageInTray(event, '${t.id}')" title="Excluir">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="ptray-item-label" title="${t.name}">${t.name}</div>
+      </div>
+    `;
+  }).join('');
+
+  // Renderiza cada template no seu respectivo contêiner DOM
+  folder.templates.forEach(t => {
+    const container = list.querySelector(`.ptray-dom-canvas[data-tmpl-id="${t.id}"]`);
+    if (container) {
+      dRenderTemplateToDOM(container, t);
+    }
+  });
+}
+
+function dSwitchPage(tmplId) {
+  if (tmplId === dActiveTmplId) return; // Já está na página
+  
+  // Salva a página atual automaticamente antes de trocar
+  if (typeof dSave === 'function') dSave();
+  
+  // Carrega a nova
+  dLoadTemplateById(dActiveTmplFolderId, tmplId);
+}
+
+function dAddPageToCurrentFolder() {
+  if (!dActiveTmplFolderId) return;
+  const folder = dFolders.find(f => f.id === dActiveTmplFolderId);
+  if (!folder) return;
+
+  // Salva a atual
+  if (typeof dSave === 'function') dSave();
+
+  const id = 't' + Date.now();
+  const n = folder.templates.length + 1;
+  const name = 'Página ' + n;
+  
+  // Copia o formato/tamanho da prancheta ativa se existir, senão usa 'story'
+  const ab = dGetActiveAB && dGetActiveAB();
+  const fmt = ab ? (ab.fmt || 'story') : 'story';
+
+  const newTmpl = {
+    id, 
+    name, 
+    fmt, 
+    layers: dBuildBlankLayers(fmt), 
+    publishMeta: dDefaultPublishMeta()
+  };
+  
+  // Se o active AB tem W e H customizados e formato livre, poderíamos setar no layers de setup, 
+  // mas o dLoadTemplate já puxa do fmt. Para garantir que novas páginas tenham o mesmo custom,
+  // precisaremos adaptar dLoadTemplate futuramente para ler W/H do template, por ora herda fmt.
+
+  folder.templates.push(newTmpl);
+  dPersistFolders();
+  dLoadTemplate(newTmpl, folder);
+  dRenderPagesTray();
+  gToast('Nova página adicionada!');
+}
+
+function dDuplicatePageInTray(ev, tmplId) {
+  ev.stopPropagation();
+  const folder = dFolders.find(f => f.id === dActiveTmplFolderId);
+  if (!folder) return;
+  
+  const orig = folder.templates.find(t => t.id === tmplId);
+  if (!orig) return;
+
+  // Garante salvar estado se estivermos duplicando a página ATUAL
+  if (tmplId === dActiveTmplId && typeof dSave === 'function') dSave();
+
+  const id = 't' + Date.now();
+  const clone = JSON.parse(JSON.stringify(orig));
+  clone.id = id;
+  clone.name = clone.name + ' cópia';
+  // Reset metadados de publicação para a cópia (não sai publicada de cara)
+  clone.publishMeta = dDefaultPublishMeta();
+
+  // Insere logo após o original
+  const idx = folder.templates.indexOf(orig);
+  folder.templates.splice(idx + 1, 0, clone);
+
+  dPersistFolders();
+  
+  // Troca direto pra duplicata
+  dLoadTemplate(clone, folder);
+  dRenderPagesTray();
+  gToast('Página duplicada!');
+}
+
+function dDeletePageInTray(ev, tmplId) {
+  ev.stopPropagation();
+  const folder = dFolders.find(f => f.id === dActiveTmplFolderId);
+  if (!folder) return;
+
+  if (!confirm('Excluir esta página?')) return;
+
+  const idx = folder.templates.findIndex(t => t.id === tmplId);
+  if (idx === -1) return;
+
+  folder.templates.splice(idx, 1);
+  dPersistFolders();
+
+  if (folder.templates.length === 0) {
+    // Apagou a última página da pasta. 
+    // Vamos criar uma página em branco pra pasta não ficar vazia (ou fechar a pasta).
+    dAddPageToCurrentFolder(); 
+  } else if (tmplId === dActiveTmplId) {
+    // Apagou a que tava ativa, carrega a anterior ou a próxima
+    const nextIdx = Math.min(idx, folder.templates.length - 1);
+    dLoadTemplate(folder.templates[nextIdx], folder);
+  } else {
+    dRenderPagesTray();
+  }
+  dRenderFolders(); // atualiza a contagem na lista lateral
 }

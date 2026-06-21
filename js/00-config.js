@@ -143,7 +143,7 @@ const CAMPS_IMPLEMENTACAO=[
     {id:'validade',texto:'Qual a validade dessa comunicação?',sugestoes:['Esta semana','Este mês','Primeiros 30 dias','Sem validade']},
    ]},
 ];
-const FMTS=[{id:'story',name:'Story',dim:'1080×1920'},{id:'feed',name:'Feed',dim:'1080×1080'},{id:'post',name:'Post wide',dim:'1200×628'}];
+const FMTS=[{id:'story',name:'Story',dim:'1080×1920'},{id:'feed',name:'Feed',dim:'1080×1350'},{id:'post',name:'Post wide',dim:'1200×628'}];
 
 /* ══════════════════════════════════════════════════════════════
    VARIÁVEIS — fonte de verdade única (3.1)

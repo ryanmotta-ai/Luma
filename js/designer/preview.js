@@ -820,3 +820,162 @@ async function dExportSVG(opts){
 
 /* Atalho P para abrir preview */
 
+// --- NOVA MODAL DE EXPORTAÇÃO EM LOTE ---
+
+let dExportSelectedFmt = 'image/png';
+
+function dOpenExportModal() {
+  const modal = document.getElementById('d-export-modal');
+  if(!modal) return;
+  modal.classList.add('open');
+  dRenderExportArtboardsList();
+}
+
+function dSetExportFmt(fmt, btn) {
+  dExportSelectedFmt = fmt;
+  document.querySelectorAll('.d-export-fmt-btn').forEach(b => b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  
+  // Se for SVG, desabilitar escala
+  const scaleSelect = document.getElementById('d-export-scale');
+  if(scaleSelect) {
+    if(fmt === 'svg') {
+      scaleSelect.disabled = true;
+      scaleSelect.style.opacity = '0.5';
+    } else {
+      scaleSelect.disabled = false;
+      scaleSelect.style.opacity = '1';
+    }
+  }
+}
+
+function dRenderExportArtboardsList() {
+  const container = document.getElementById('d-export-artboards-list');
+  if(!container) return;
+  container.innerHTML = '';
+  
+  if(typeof dArtboards === 'undefined' || !dArtboards || dArtboards.length === 0) {
+    document.getElementById('d-export-count').textContent = 'Nenhuma prancheta';
+    return;
+  }
+  
+  document.getElementById('d-export-count').textContent = dArtboards.length + (dArtboards.length === 1 ? ' prancheta' : ' pranchetas');
+  
+  dArtboards.forEach((ab, idx) => {
+    const div = document.createElement('div');
+    div.style.cssText = 'background:#2A2A2A; border:1px solid #444; border-radius:8px; padding:10px; display:flex; align-items:center; gap:10px; cursor:pointer;';
+    div.onclick = function(e) {
+      if(e.target.tagName !== 'INPUT') {
+        const cb = this.querySelector('input[type="checkbox"]');
+        if(cb) {
+          cb.checked = !cb.checked;
+          dUpdateExportSelectAllState();
+        }
+      }
+    };
+    
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = 'd-export-ab-cb';
+    cb.value = ab.id;
+    cb.checked = true;
+    cb.style.accentColor = '#FF9000';
+    cb.style.width = '16px';
+    cb.style.height = '16px';
+    cb.style.cursor = 'pointer';
+    cb.onchange = dUpdateExportSelectAllState;
+    
+    const label = document.createElement('span');
+    label.textContent = ab.name || ('Prancheta ' + (idx+1));
+    label.style.color = '#fff';
+    label.style.fontSize = '13px';
+    label.style.whiteSpace = 'nowrap';
+    label.style.overflow = 'hidden';
+    label.style.textOverflow = 'ellipsis';
+    
+    div.appendChild(cb);
+    div.appendChild(label);
+    container.appendChild(div);
+  });
+  
+  const checkAll = document.getElementById('d-export-check-all');
+  if(checkAll) checkAll.checked = true;
+}
+
+function dToggleAllExportArtboards(checkbox) {
+  const cbs = document.querySelectorAll('.d-export-ab-cb');
+  cbs.forEach(cb => cb.checked = checkbox.checked);
+}
+
+function dUpdateExportSelectAllState() {
+  const cbs = document.querySelectorAll('.d-export-ab-cb');
+  const allChecked = Array.from(cbs).every(cb => cb.checked);
+  const checkAll = document.getElementById('d-export-check-all');
+  if(checkAll) checkAll.checked = allChecked;
+}
+
+async function dConfirmExport() {
+  const cbs = document.querySelectorAll('.d-export-ab-cb:checked');
+  if(cbs.length === 0) {
+    if(typeof gToast === 'function') gToast('Selecione pelo menos uma prancheta.');
+    return;
+  }
+  
+  const scaleSelect = document.getElementById('d-export-scale');
+  const scale = scaleSelect ? (parseInt(scaleSelect.value, 10) || 2) : 2;
+  const fmt = dExportSelectedFmt;
+  
+  const modal = document.getElementById('d-export-modal');
+  if(modal) modal.classList.remove('open');
+  
+  if(typeof gToast === 'function') gToast(`Iniciando exportação de ${cbs.length} prancheta(s)...`);
+  
+  // Salva estado atual se estiver em modo pranchetas
+  if (typeof dSyncLayersToAB === 'function') dSyncLayersToAB();
+  const originalAbId = typeof dActiveABId !== 'undefined' ? dActiveABId : null;
+  
+  for(let i = 0; i < cbs.length; i++) {
+    const abId = cbs[i].value;
+    
+    // Troca para a prancheta atual se dArtboards e variáveis relacionadas existirem
+    if (typeof dArtboards !== 'undefined' && dArtboards) {
+       const ab = dArtboards.find(a => a.id === abId);
+       if(ab && dActiveABId !== abId) {
+          dActiveABId = ab.id;
+          dLayers = JSON.parse(JSON.stringify(ab.layers || []));
+          if(typeof dFmt !== 'undefined') dFmt = ab.fmt || dFmt;
+          if(typeof dApplyFormat === 'function') dApplyFormat();
+          if(typeof dRenderCanvas === 'function') dRenderCanvas();
+          await new Promise(r => setTimeout(r, 200)); // dar tempo de renderizar / carregar imgs
+       }
+    }
+    
+    // Configura formato e escala para a preview/SVG
+    if(fmt === 'svg') {
+      if(typeof dExportSVGFilled === 'function') {
+         dExportSVGFilled(); 
+      }
+    } else {
+      if(typeof dPreviewSetScale === 'function') dPreviewSetScale(scale);
+      if(typeof dPreviewSetType === 'function') dPreviewSetType(fmt);
+      if(typeof dPreviewDownload === 'function') {
+         dPreviewDownload(null);
+      }
+    }
+    await new Promise(r => setTimeout(r, 600)); // Tempo razoável para download e processamento
+  }
+  
+  // Restaura a prancheta original
+  if (typeof dArtboards !== 'undefined' && originalAbId && originalAbId !== dActiveABId) {
+       const ab = dArtboards.find(a => a.id === originalAbId);
+       if(ab) {
+          dActiveABId = ab.id;
+          dLayers = JSON.parse(JSON.stringify(ab.layers || []));
+          if(typeof dFmt !== 'undefined') dFmt = ab.fmt || dFmt;
+          if(typeof dApplyFormat === 'function') dApplyFormat();
+          if(typeof dRenderCanvas === 'function') dRenderCanvas();
+       }
+  }
+  
+  if(typeof gToast === 'function') gToast('Exportação concluída!');
+}

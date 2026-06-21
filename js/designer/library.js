@@ -84,6 +84,7 @@ function dToggleTheme() {
     o.style.background = dTheme === 'light' ? '#fff' : '#222';
     o.style.color = dTheme === 'light' ? '#0A0A0A' : '#F0F0F0';
   });
+  if (typeof dRenderPagesTray === 'function') dRenderPagesTray();
   gToast(dTheme === 'light' ? 'Tema claro' : 'Tema escuro');
 }
 
