@@ -242,6 +242,16 @@ function gPackImgUrl(url){
   if(!url || typeof url!=='string' || !url.startsWith('data:')) return {url:url, dropped:false};
   const approxBytes = url.length * 0.75; // base64 → bytes
   if(approxBytes <= G_IMG_KEEP_MAX) return {url:url, dropped:false};
+  // Imagem grande → guarda no IndexedDB e persiste só a referência curta 'idb://<chave>'.
+  // Sobrevive ao reload (re-hidratada por gHydrateLayers/gHydrateFolders no boot) em vez de
+  // virar '__local__' e sumir. Fallback p/ '__local__' só se o IndexedDB não estiver disponível.
+  if(typeof gImgHash==='function' && typeof gIdbPut==='function' && typeof indexedDB!=='undefined'){
+    try{
+      const key = gImgHash(url);
+      gIdbPut(key, url); // fire-and-forget: a cópia em memória segue com o dataURL real
+      return {url:'idb://'+key, dropped:false};
+    }catch(e){ /* cai no fallback abaixo */ }
+  }
   return {url:'__local__', dropped:true};
 }
 // Empacota uma MÁSCARA (dataURL alpha) para persistência. Máscaras são downscaladas no

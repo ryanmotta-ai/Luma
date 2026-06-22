@@ -90,7 +90,9 @@ async function fUpdateLivePreview(opts){
   try {
     const fmtId = (fState.fmt && fState.fmt.id) || fState.material.fmt || 'story';
     const sz = F_LP_SIZES[fmtId] || F_LP_SIZES.story;
-    const W = sz[0], H = sz[1];
+    // Template 1:1 do PSD guarda w/h reais → preview no tamanho exato; senão o preset por formato.
+    const W = (fState.material.w>0) ? fState.material.w : sz[0];
+    const H = (fState.material.h>0) ? fState.material.h : sz[1];
     canvas.width = W; canvas.height = H;
     fLpSizeCanvas(canvas, W, H);
 
@@ -180,7 +182,9 @@ function fLpInjectPlaceholders(layers, dadosPreview, defaults){
 // Só quando NÃO houve smart-resize: com reflow as coords mudam e o véu desalinharia.
 function fLpHighlightEmpty(ctx, layers, pendentes, W, H){
   if(!pendentes || !pendentes.size) return;
-  const src = F_LP_SIZES[(fState.material && fState.material.fmt)] || F_LP_SIZES.story;
+  const src = (fState.material && fState.material.w>0 && fState.material.h>0)
+    ? [fState.material.w, fState.material.h]
+    : (F_LP_SIZES[(fState.material && fState.material.fmt)] || F_LP_SIZES.story);
   if(src[0] !== W || src[1] !== H) return; // houve reflow → omite o véu
   ctx.save();
   ctx.globalAlpha = 0.10;

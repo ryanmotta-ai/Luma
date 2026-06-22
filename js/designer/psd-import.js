@@ -108,8 +108,11 @@ function _dPsdParagraphBox(node){
 function _dPsdEffects(node){
   const fx=node.effects||{}; const out={};
   const _u=v=>{ if(v==null) return 0; return (v.value!=null)?+v.value:+v; };
+  // Pega o 1º efeito de um array e marca _fxOverflow quando há vários do mesmo tipo
+  // (PS CC permite 2+ sombras/traços; o modelo Luma só representa um → P3 rasteriza o resto fiel).
+  const _first=x=>{ if(Array.isArray(x)){ if(x.length>1) out._fxOverflow=true; return x[0]; } return x; };
   // Sombra projetada
-  let ds=fx.dropShadow; if(Array.isArray(ds)) ds=ds[0];
+  let ds=_first(fx.dropShadow);
   if(ds && ds.enabled!==false){
     out.shadow=true;
     out.shadowColor=gFxRgba(_dPsdHex(ds.color)||'#000000', ds.opacity!=null?ds.opacity:.5);
@@ -118,7 +121,7 @@ function _dPsdEffects(node){
     if(ds.angle!=null) out.shadowAngle=Math.round(ds.angle);
   }
   // Sombra interna
-  let is=fx.innerShadow; if(Array.isArray(is)) is=is[0];
+  let is=_first(fx.innerShadow);
   if(is && is.enabled!==false){
     out.innerShadow=true;
     out.innerShadowColor=gFxRgba(_dPsdHex(is.color)||'#000000', is.opacity!=null?is.opacity:.5);
@@ -127,21 +130,21 @@ function _dPsdEffects(node){
     if(is.angle!=null) out.innerShadowAngle=Math.round(is.angle);
   }
   // Brilho externo
-  let og=fx.outerGlow; if(Array.isArray(og)) og=og[0];
+  let og=_first(fx.outerGlow);
   if(og && og.enabled!==false){
     out.glow=true;
     out.glowColor=gFxRgba(_dPsdHex(og.color)||'#ffffff', og.opacity!=null?og.opacity:.6);
     out.glowSize=Math.max(1,Math.round(_u(og.size)));
   }
   // Brilho interno (inner glow)
-  let ig=fx.innerGlow; if(Array.isArray(ig)) ig=ig[0];
+  let ig=_first(fx.innerGlow);
   if(ig && ig.enabled!==false){
     out.innerGlow=true;
     out.innerGlowColor=gFxRgba(_dPsdHex(ig.color)||'#ffffff', ig.opacity!=null?ig.opacity:.6);
     out.innerGlowSize=Math.max(1,Math.round(_u(ig.size)));
   }
   // Chanfro/relevo (bevel & emboss) → aprox.: realce + sombra internos
-  let bv=fx.bevel; if(Array.isArray(bv)) bv=bv[0];
+  let bv=_first(fx.bevel);
   if(bv && bv.enabled!==false){
     out.bevel=true;
     out.bevelSize=Math.max(1,Math.round(_u(bv.size)));
@@ -150,25 +153,29 @@ function _dPsdEffects(node){
     out.bevelShadow=gFxRgba(_dPsdHex(bv.shadowColor)||'#000000', bv.shadowOpacity!=null?bv.shadowOpacity:.75);
   }
   // Sobreposição de cor (color overlay / solidFill)
-  let so=fx.solidFill; if(Array.isArray(so)) so=so[0];
+  let so=_first(fx.solidFill);
   if(so && so.enabled!==false && so.color){
     out.overlay=true;
     out.overlayColor=_dPsdHex(so.color)||'#000000';
     out.overlayOpacity=(so.opacity!=null?+so.opacity:1);
+    // blendMode do efeito (multiply/screen/etc). O renderer ainda não aplica → guarda p/ P3
+    // decidir rasterizar quando for um modo que o overlay simples (substituição de cor) falsearia.
+    if(so.blendMode && so.blendMode!=='normal') out.overlayBlend=so.blendMode;
   }
   // Sobreposição de gradiente (gradient overlay)
-  let go2=fx.gradientOverlay; if(Array.isArray(go2)) go2=go2[0];
+  let go2=_first(fx.gradientOverlay);
   if(go2 && go2.enabled!==false && go2.gradient && go2.gradient.colorStops){
-    const src=go2.gradient; const opAt=loc=>{ const os=src.opacityStops||[]; if(!os.length) return 1; let b=os[0]; os.forEach(s=>{ if(Math.abs((s.location||0)-loc)<Math.abs((b.location||0)-loc)) b=s; }); return b.opacity!=null?b.opacity:1; };
+    const src=go2.gradient;
     out.gradientOverlay={
       type:String(go2.type||src.style||'linear').toLowerCase().includes('radial')?'radial':'linear',
       angle:(go2.angle!=null?Math.round(go2.angle):90),
       opacity:(go2.opacity!=null?+go2.opacity:1),
-      stops:src.colorStops.map(s=>({color:_dPsdHex(s.color)||'#000000', pos:Math.max(0,Math.min(1,s.location||0)), opacity:opAt(s.location||0)}))
+      stops:src.colorStops.map(s=>({color:_dPsdHex(s.color)||'#000000', pos:Math.max(0,Math.min(1,s.location||0)), opacity:_dPsdOpacityAt(src.opacityStops, s.location||0)}))
     };
+    if(go2.blendMode && go2.blendMode!=='normal') out.gradientOverlay.blendMode=go2.blendMode;
   }
   // Contorno (frame FX) + alinhamento
-  let st=fx.stroke; if(Array.isArray(st)) st=st[0];
+  let st=_first(fx.stroke);
   if(st && st.enabled!==false){
     out.strokeW=Math.max(1,Math.round((st.size&&st.size.value)||st.size||2));
     out.strokeColor=_dPsdHex((st.color&&(st.color.color||st.color)))||'#000000';
@@ -202,9 +209,13 @@ function _dPsdHasAlpha(canvas){
     return false;
   }catch(e){ return true; }
 }
-function _dPsdRasterURL(canvas){
+// opts opcional {maxPx, q}: camadas que SÓ existem como raster fiel (warp, smart object, padrão)
+// pedem mais resolução/qualidade. Default 1600/0.82 mantém as chamadas existentes intactas.
+// O peso extra é absorvido pelo IndexedDB (idb://), então não estoura o localStorage.
+function _dPsdRasterURL(canvas, opts){
   try{
-    const MAX=1600, w=canvas.width, h=canvas.height;
+    opts=opts||{};
+    const MAX=opts.maxPx||1600, q=(opts.q!=null?opts.q:0.82), w=canvas.width, h=canvas.height;
     const scale=Math.min(1, MAX/Math.max(w,h));
     const hasAlpha=_dPsdHasAlpha(canvas);
     let src=canvas;
@@ -213,7 +224,7 @@ function _dPsdRasterURL(canvas){
       const c=document.createElement('canvas'); c.width=tw; c.height=th;
       const cx=c.getContext('2d'); cx.imageSmoothingQuality='high'; cx.drawImage(canvas,0,0,tw,th); src=c;
     }
-    return hasAlpha ? src.toDataURL('image/png') : src.toDataURL('image/jpeg',0.82);
+    return hasAlpha ? src.toDataURL('image/png') : src.toDataURL('image/jpeg',q);
   }catch(e){ try{ return canvas.toDataURL('image/png'); }catch(_){ return null; } }
 }
 // Dimensões/origem da caixa de um node
@@ -347,6 +358,22 @@ function _dPsdCornerRadii(node, w, h){
   }catch(e){ return null; }
 }
 // Gradiente do PSD (vectorFill de GdFl, ou effects.gradientOverlay) → modelo Luma l.gradient.
+// Opacidade de um gradiente na posição loc (0..1), INTERPOLADA linearmente entre os dois
+// opacityStops vizinhos (antes pegava o vizinho mais próximo, o que serrilhava a transição).
+function _dPsdOpacityAt(opacityStops, loc){
+  const os=opacityStops||[];
+  if(!os.length) return 1;
+  const sorted=os.slice().sort((a,b)=>(a.location||0)-(b.location||0));
+  const op=s=>s.opacity!=null?s.opacity:1;
+  if(loc<=(sorted[0].location||0)) return op(sorted[0]);
+  const last=sorted[sorted.length-1];
+  if(loc>=(last.location||0)) return op(last);
+  for(let i=0;i<sorted.length-1;i++){
+    const a=sorted[i], b=sorted[i+1], la=a.location||0, lb=b.location||0;
+    if(loc>=la && loc<=lb){ if(lb===la) return op(a); return op(a)+(op(b)-op(a))*((loc-la)/(lb-la)); }
+  }
+  return 1;
+}
 function _dPsdGradient(node){
   try{
     let src=null;
@@ -355,9 +382,7 @@ function _dPsdGradient(node){
       if(go && go.enabled!==false && go.gradient && go.gradient.colorStops){ src=go.gradient; src.angle=go.angle; src.style=go.type||src.style; } }
     if(!src||!src.colorStops||!src.colorStops.length) return null;
     const style=String(src.style||'linear').toLowerCase();
-    const opAt=loc=>{ const os=src.opacityStops||[]; if(!os.length) return 1;
-      let best=os[0]; os.forEach(s=>{ if(Math.abs((s.location||0)-loc)<Math.abs((best.location||0)-loc)) best=s; }); return best.opacity!=null?best.opacity:1; };
-    const stops=src.colorStops.map(s=>({ color:_dPsdHex(s.color)||'#000000', pos:Math.max(0,Math.min(1,s.location||0)), opacity:opAt(s.location||0) }));
+    const stops=src.colorStops.map(s=>({ color:_dPsdHex(s.color)||'#000000', pos:Math.max(0,Math.min(1,s.location||0)), opacity:_dPsdOpacityAt(src.opacityStops, s.location||0) }));
     return { type: style.includes('radial')?'radial':'linear', angle: (src.angle!=null?Math.round(src.angle):90), stops };
   }catch(e){ return null; }
 }
@@ -404,7 +429,7 @@ const _DPSD_WORKER_SRC = ""
   + "try{importScripts(e.data.lib);}catch(_){importScripts(e.data.cdn);}"
   + "var psd=self.agPsd.readPsd(e.data.buffer,{useImageData:true,skipLayerImaging:false});"
   + "var transfers=[];"
-  + "function strip(n){var o={name:n.name,left:n.left,top:n.top,right:n.right,bottom:n.bottom,hidden:n.hidden,opacity:n.opacity,blendMode:n.blendMode,text:n.text,effects:n.effects,artboard:n.artboard,clipping:n.clipping,clippingLayer:n.clippingLayer||n.clipping,vectorMask:n.vectorMask,vectorStroke:n.vectorStroke,vectorOrigination:n.vectorOrigination,vectorFill:n.vectorFill};"
+  + "function strip(n){var o={name:n.name,left:n.left,top:n.top,right:n.right,bottom:n.bottom,hidden:n.hidden,opacity:n.opacity,fillOpacity:n.fillOpacity,blendMode:n.blendMode,text:n.text,effects:n.effects,artboard:n.artboard,clipping:n.clipping,clippingLayer:n.clippingLayer||n.clipping,vectorMask:n.vectorMask,vectorStroke:n.vectorStroke,vectorOrigination:n.vectorOrigination,vectorFill:n.vectorFill,adjustment:n.adjustment,placedLayer:n.placedLayer};"
   + "if(n.imageData&&n.imageData.data){o._img={w:n.imageData.width,h:n.imageData.height,buf:n.imageData.data.buffer};transfers.push(n.imageData.data.buffer);}"
   + "if(n.mask&&n.mask.imageData&&n.mask.imageData.data){o._mask={w:n.mask.imageData.width,h:n.mask.imageData.height,buf:n.mask.imageData.data.buffer,left:n.mask.left,top:n.mask.top,defaultColor:n.mask.defaultColor,disabled:n.mask.disabled};transfers.push(n.mask.imageData.data.buffer);}"
   + "if(n.children)o.children=n.children.map(strip);return o;}"
@@ -414,7 +439,7 @@ const _DPSD_WORKER_SRC = ""
   + "}catch(err){self.postMessage({ok:false,error:String(err)});}};";
 
 function _dPsdRebuildNode(node){
-  const n={name:node.name,left:node.left,top:node.top,right:node.right,bottom:node.bottom,hidden:node.hidden,opacity:node.opacity,blendMode:node.blendMode,text:node.text,effects:node.effects,artboard:node.artboard,clipping:node.clipping,clippingLayer:node.clippingLayer||node.clipping,vectorMask:node.vectorMask,vectorStroke:node.vectorStroke,vectorOrigination:node.vectorOrigination,vectorFill:node.vectorFill};
+  const n={name:node.name,left:node.left,top:node.top,right:node.right,bottom:node.bottom,hidden:node.hidden,opacity:node.opacity,fillOpacity:node.fillOpacity,blendMode:node.blendMode,text:node.text,effects:node.effects,artboard:node.artboard,clipping:node.clipping,clippingLayer:node.clippingLayer||node.clipping,vectorMask:node.vectorMask,vectorStroke:node.vectorStroke,vectorOrigination:node.vectorOrigination,vectorFill:node.vectorFill,adjustment:node.adjustment,placedLayer:node.placedLayer};
   if(node._img && node._img.buf){
     try{
       const c=document.createElement('canvas'); c.width=node._img.w; c.height=node._img.h;
@@ -474,6 +499,13 @@ function dPsdDetectFmt(w, h){
   if(ratio<0.7) return 'story';
   if(ratio>1.4) return 'wide';
   return 'feed';
+}
+// Formato APENAS por match exato (±2px) → senão 'orig' (preserva o tamanho REAL do PSD, 1:1).
+// Diferente de dPsdDetectFmt (que faz snap por proporção, usado em prancheta custom/SVG):
+// aqui não queremos forçar uma prancheta 1080×1350 a virar 'feed' (1080×1080).
+function _dPsdExactFmt(w, h){
+  const _tol=2;
+  return Object.keys(DFMT_SIZES).find(k=>Math.abs(DFMT_SIZES[k].w-w)<=_tol&&Math.abs(DFMT_SIZES[k].h-h)<=_tol)||'orig';
 }
 
 // Tenta mapear um nome de fonte do PSD para fontes bundled (dBuiltinFonts) ou enviadas
@@ -538,18 +570,50 @@ function _dPsdDetectShapeKind(canvas){
   }catch(e){ return {kind:'rect',radius:0}; }
 }
 
+// P3 — decisão CENTRAL de fidelidade: a camada NÃO é representável de forma editável no Luma
+// e deve virar uma IMAGEM pixel-perfeita (do node.canvas que o ag-psd já compõe), mantendo o
+// visual 1:1 mesmo sem ser editável. Gatilhos determinísticos (passo 1):
+//  • smart object (placedLayer): ag-psd só entrega o composto achatado → raster fiel evita
+//    a mis-detecção como "shape sólida" e preserva o pixel.
+//  • preenchimento/sobreposição por PADRÃO (vectorFill pattern, effects.patternOverlay): não há
+//    modelo de padrão no Luma → raster do tile já renderizado.
+//  • camada de ajuste (adjustment): não tem pixels próprios; retorna true para sinalizar, mas só
+//    rasteriza se houver node.canvas (a fidelidade de COR via composite do doc é o passo 5).
+// Só força raster quando há node.canvas utilizável; senão devolve false e o fluxo normal segue.
+function _dPsdNeedsRaster(node){
+  if(!node) return false;
+  if(node.placedLayer || node.smartObject) return true;                 // smart object
+  if(node.adjustment) return true;                                      // camada de ajuste
+  if(node.vectorFill && node.vectorFill.type==='pattern') return true;  // preenchimento por padrão (PtFl)
+  let po=node.effects && node.effects.patternOverlay; if(Array.isArray(po)) po=po[0];
+  if(po && po.enabled!==false) return true;                             // sobreposição de padrão
+  // texto com WARP (arco/onda/bandeira/etc): a deformação faz parte dos PIXELS do node.canvas,
+  // não dá pra reproduzir como texto editável → raster preserva o visual deformado 1:1.
+  if(node.text && node.text.warp){
+    const ws=node.text.warp.style;                       // ag-psd DECODIFICA: sem warp = 'none' (não 'warpNone')
+    const bent=(node.text.warp.value||0)!==0 || (node.text.warp.perspective||0)!==0; // bend 0% = sem deformação visível
+    if(ws && ws!=='none' && ws!=='warpNone' && bent) return true;
+  }
+  return false;
+}
+
 /* ── PSD → itens intermediários (modo escolhível na revisão) ── */
 let dPsdItems=[]; let dPsdMeta=null;
+// Nº de camadas de ajuste (Levels/Curves/Hue…) vistas no último parse. O Luma não tem pipeline
+// de ajuste, então elas são dropadas e as cores podem diferir do PSD → vira aviso na revisão.
+let _dPsdAdjustCount=0;
 // Callback opcional da revisão (fluxo multi-prancheta). Quando setado, dPsdConfirmImport
 // encaminha as layers pra ele em vez de criar uma prancheta solta no editor.
 let _dPsdReviewOnConfirm=null;
 // ox/oy: offset de origem (usado em artboards p/ normalizar coords pra (0,0) da prancheta).
 function dPsdParseItems(psd, res, ox, oy){
   ox=ox||0; oy=oy||0;
+  _dPsdAdjustCount=0;
   const items=[]; let n=0; let prevLeaf=null;
   // parentOp: opacidade acumulada dos grupos-pai (0–1); parentHidden: grupo-pai oculto.
   (function walk(nodes, parentOp, parentHidden, parentName){
     (nodes||[]).forEach(node=>{
+      if(node.adjustment) _dPsdAdjustCount++; // camada de ajuste (dropada; afeta cor → aviso na revisão)
       const nodeOp=node.opacity!=null?node.opacity:1;
       const accOp=parentOp*nodeOp;
       const accHidden=parentHidden||(node.hidden?true:false);
@@ -569,12 +633,28 @@ function dPsdParseItems(psd, res, ox, oy){
         blendMode:(bm&&bm!=='normal'&&bm!=='passThrough')?bm:undefined,
         group:parentName||'' }; // máscara + clipping
       prevLeaf=node; // base p/ a próxima camada com clipping
+      // fillOpacity (preenchimento) ≠ opacity: PS atenua só o fill, não os efeitos. Guardado p/
+      // dobrar na opacity quando não há efeitos (dItemToLayer); com efeitos, P3 rasteriza fiel.
+      if(node.fillOpacity!=null && node.fillOpacity<1) it.fillOpacity=node.fillOpacity;
       // Recorte vetorial (vectorMask) — ex.: fundo com mordida/onda. Só quando NÃO há máscara
       // raster/clipping (preserva _dPsdComputeMask intacto). l.fill segue com a cor original.
       if(!it.mask && node.vectorMask && !node.vectorMask.disable){
         const vmURL=_dPsdVectorMaskURL(node);
         if(vmURL) it.mask=vmURL;
         else { it.vectorMaskFailed=true; console.warn('[psd] vectorMask não rasterizável, importando shape simplificado:', it.name); }
+      }
+      // P3: recurso não-representável editavelmente (smart object / padrão / ajuste / texto warp) →
+      // vira imagem pixel-perfeita do que o PS compôs, preservando o visual 1:1 (evita drop/mis-detecção).
+      if(_dPsdNeedsRaster(node) && node.canvas && node.canvas.width>0 && node.canvas.height>0){
+        it.kind='raster'; it.mode='raster';
+        it.imgUrl=_dPsdRasterURL(node.canvas,{maxPx:2400,q:0.92}); // única fonte de fidelidade → alta qualidade
+        if(it.imgUrl){
+          // node.canvas NÃO traz os efeitos de camada (são vetoriais no PS) → re-aplica os simples
+          // (sombra/glow/contorno/overlay — 1º de cada) sobre o pixel, p/ a sombra do smart object etc.
+          Object.assign(it,_dPsdEffects(node));
+          items.push(it); return;
+        }
+        // sem raster utilizável → segue o fluxo normal (pode virar texto/shape ou ser dropado)
       }
       if(node.text && node.text.text!=null && String(node.text.text).trim()!==''){
         const t=node.text, sv=_dPsdSuggestVar(node.name, t.text);
@@ -594,6 +674,7 @@ function dPsdParseItems(psd, res, ox, oy){
         it.fontSize=_dPsdFontSize(t,h,it.content,res);
         it.color=_dPsdHex(st.fillColor||st.color)||'#000000';
         it.strikethrough=st.strikethrough===true; // tachado (DE: R$..) — render já suportado
+        it.underline=st.underline===true;          // sublinhado — render espelha o strikethrough
         it.textAlign=_dPsdAlign(t);
         if(st.tracking) it.letterSpacing=Math.round((st.tracking/1000)*(st.fontSize||it.fontSize||12)); // tracking → px
         if(st.leading)  it.lineHeight=+(st.leading/(st.fontSize||it.fontSize||12)).toFixed(3);          // leading → multiplicador
@@ -705,6 +786,13 @@ function _dPsdApplyFx(L, it){
 }
 function dItemToLayer(it){
   const base={ id:'l-psd-'+it.n+'-'+(it.x+it.y), name:it.name, x:it.x,y:it.y,w:it.w,h:it.h, visible:it.visible, opacity:it.opacity };
+  // fillOpacity sem efeitos ≡ opacity; com efeitos, só o fill deveria atenuar (não os efeitos) →
+  // não é representável no modelo atual, marca p/ P3 rasterizar fiel.
+  if(it.fillOpacity!=null && it.fillOpacity<1){
+    const _hasFx=it.shadow||it.innerShadow||it.glow||it.innerGlow||it.bevel||it.overlay||it.gradientOverlay||it.strokeW;
+    if(!_hasFx) base.opacity=Math.round((it.opacity!=null?it.opacity:100)*it.fillOpacity);
+    else it.needsRaster=true;
+  }
   if(it.mask) base.mask=it.mask;
   if(it.blendMode) base.blendMode=it.blendMode;
   if(it.kind==='text'){
@@ -715,6 +803,7 @@ function dItemToLayer(it){
       font:it.font, fontSize:it.fontSize, color:it.color, textAlign:it.textAlign, isVar:isVar });
     _dPsdApplyFx(L, it);
     if(it.strikethrough){ L.strikethrough=true; }
+    if(it.underline){ L.underline=true; }
     if(it.textTransform) L.textTransform=it.textTransform;
     if(it.fontWeightOverride) L.fontWeightOverride=it.fontWeightOverride;
     if(it.textBox==='box'){ L.textBox='box'; } // paragraph → editor encaixa na caixa
@@ -787,11 +876,16 @@ function dPsdOpenReview(){
   const _dpiHtml=_hiDpi
     ?` <span class="psd-dpi-warn" title="Fontes em pontos serão escaladas automaticamente (${Math.round(dPsdMeta.res)}dpi → 72dpi)">⚠ ${Math.round(dPsdMeta.res)}dpi</span>`
     :(dPsdMeta.res&&dPsdMeta.res!==72?` · ${Math.round(dPsdMeta.res)}dpi`:'');
+  // Aviso de camadas de ajuste: o Luma não aplica ajustes de cor/tom (Levels/Curves/Hue…),
+  // então as cores podem diferir levemente do PSD. (Fidelidade total exigiria achatar — futuro.)
+  const _adjHtml=(_dPsdAdjustCount>0)
+    ?` <span class="psd-dpi-warn" title="O Photoshop tem ${_dPsdAdjustCount} camada(s) de ajuste de cor/tom que o Luma não reproduz — as cores podem diferir levemente do original.">⚠ ${_dPsdAdjustCount} ajuste(s) de cor</span>`
+    :'';
   const _metaEl=document.getElementById('d-psd-meta');
-  if(_metaEl) _metaEl.innerHTML=_dPsdEsc((dPsdMeta.name||'PSD')+' · '+dPsdMeta.w+'×'+dPsdMeta.h)+_dpiHtml+_dPsdEsc(' · '+_nT+'T '+_nS+'S '+_nI+'I'+(dPsdMeta.worker?' · worker':''));
-  // Detecção de formato com tolerância ±2px (PSDs com 1079×1921 ainda mapeiam para 'story')
-  const _fmtTol=2;
-  const fmt=Object.keys(DFMT_SIZES).find(k=>Math.abs(DFMT_SIZES[k].w-dPsdMeta.w)<=_fmtTol&&Math.abs(DFMT_SIZES[k].h-dPsdMeta.h)<=_fmtTol)||'orig';
+  if(_metaEl) _metaEl.innerHTML=_dPsdEsc((dPsdMeta.name||'PSD')+' · '+dPsdMeta.w+'×'+dPsdMeta.h)+_dpiHtml+_adjHtml+_dPsdEsc(' · '+_nT+'T '+_nS+'S '+_nI+'I'+(dPsdMeta.worker?' · worker':''));
+  // Detecção de formato com tolerância ±2px (PSDs com 1079×1921 ainda mapeiam para 'story').
+  // Sem match exato → 'orig': preserva o tamanho real do PSD (1:1) em vez de forçar um preset.
+  const fmt=_dPsdExactFmt(dPsdMeta.w, dPsdMeta.h);
   const sel=document.getElementById('d-psd-fmt'); if(sel) sel.value=fmt;
   const inv=document.getElementById('d-psd-invert');
   if(inv){ inv.checked=_dPsdShouldInvert(dPsdItems, dPsdMeta.w, dPsdMeta.h); inv.onchange=()=>dPsdRenderPreview(); }
@@ -1108,7 +1202,7 @@ function dPsdShowArtboardSelector(psd, artboards, res, baseName){
     const h=Math.max(1,Math.round((r.bottom||0)-(r.top||0)));
     return { index:i, name:(ab.name||('Prancheta '+(i+1))).toString().slice(0,48),
       w, h, left:Math.round(r.left||0), top:Math.round(r.top||0),
-      fmt:dPsdDetectFmt(w,h), selected:true, layer:ab };
+      fmt:_dPsdExactFmt(w,h), selected:true, layer:ab };
   });
   const overlay=document.getElementById('d-psd-ab-overlay');
   if(!overlay){ console.error('[psd] overlay d-psd-ab-overlay não encontrado'); return; }
@@ -1172,9 +1266,7 @@ function dPsdBuildArtboardSelectorHTML(items){
 // Preview de prancheta no seletor de artboards.
 // Acionado por CLICK (não hover) para evitar renders espásticos.
 // Usa dPsdParseItems lazy (parseado na 1ª seleção, cacheado em item._parsedItems)
-// para cobrir shapes, texto e imagens — igual ao dPsdRenderPreview.
-// Canvas usa escala fixa (máx 360px) para não causar reflow de layout.
-let _dPsdAbPreviewRenderId=0;
+// para cobrir shapes, texto e imagens — render em tamanho nativo, igual ao dPsdRenderPreview.
 async function dPsdAbSelectPreview(itemIdx){
   const canvas=document.getElementById('d-psd-ab-preview-canvas');
   const overlay=document.getElementById('d-psd-ab-overlay');
@@ -1196,22 +1288,16 @@ async function dPsdAbSelectPreview(itemIdx){
   }
   const parsed=item._parsedItems;
 
-  // Canvas de tamanho fixo (360px no maior lado) para evitar reflow de layout
-  const MAX=360;
-  const sc=Math.min(MAX/Math.max(1,item.w), MAX/Math.max(1,item.h), 1);
-  const pw=Math.max(1,Math.round(item.w*sc)), ph=Math.max(1,Math.round(item.h*sc));
-  if(canvas.width!==pw||canvas.height!==ph){ canvas.width=pw; canvas.height=ph; }
+  // Render em tamanho NATIVO (o CSS do canvas escala via object-fit:contain) — mesma lógica
+  // comprovada do dPsdRenderPreview. Evita o bug de ctx.scale composto ao reclicar a mesma row.
+  if(!parsed.length){ canvas.width=item.w; canvas.height=item.h; canvas.getContext('2d').clearRect(0,0,item.w,item.h); return; }
+  const renderId=++canvas._renderId || (canvas._renderId=1);
+  canvas.width=item.w; canvas.height=item.h;
   const ctx=canvas.getContext('2d');
-  ctx.clearRect(0,0,pw,ph);
-
-  if(!parsed.length) return;
-
-  // Rende em ordem invertida (bg primeiro) — mesma lógica do dPsdRenderPreview
-  const rid=++_dPsdAbPreviewRenderId;
-  const toRender=[...parsed].reverse();
-  ctx.save(); ctx.scale(sc,sc);
+  ctx.clearRect(0,0,item.w,item.h);
+  const toRender=[...parsed].reverse(); // bg primeiro (fundo da pilha), topo por último
   for(const it of toRender){
-    if(rid!==_dPsdAbPreviewRenderId){ ctx.restore(); return; }
+    if(canvas._renderId!==renderId) return; // abortado por uma seleção mais recente
     ctx.save();
     ctx.globalAlpha=(it.opacity!=null?it.opacity:100)/100;
     if(it.imgUrl){
@@ -1220,22 +1306,23 @@ async function dPsdAbSelectPreview(itemIdx){
         img.onload=()=>{ try{ctx.drawImage(img,it.x,it.y,it.w,it.h);}catch(e){} resolve(); };
         img.onerror=resolve; img.src=it.imgUrl;
       });
-    } else if(it.kind==='shape'&&it.fill){
+    } else if(it.kind==='shape' && it.fill){
       ctx.fillStyle=it.fill;
       if(it.shapeKind==='circle'||it.shapeKind==='ellipse'){
         ctx.beginPath(); ctx.ellipse(it.x+it.w/2,it.y+it.h/2,it.w/2,it.h/2,0,0,Math.PI*2); ctx.fill();
+      } else if(it.radius && ctx.roundRect){
+        ctx.beginPath(); ctx.roundRect(it.x,it.y,it.w,it.h,it.radius); ctx.fill();
       } else { ctx.fillRect(it.x,it.y,it.w,it.h); }
-    } else if(it.kind==='text'&&it.content){
-      ctx.fillStyle=it.color||'#fff';
-      ctx.font=(it.fontSize||16)+'px sans-serif';
+    } else if(it.kind==='text'){
+      ctx.fillStyle=it.color||'#000000';
+      ctx.font=(it.fontSize||20)+'px sans-serif';
       ctx.textBaseline='top';
       ctx.textAlign=it.textAlign==='center'?'center':(it.textAlign==='right'?'right':'left');
       const tx=it.textAlign==='center'?it.x+it.w/2:(it.textAlign==='right'?it.x+it.w:it.x);
-      ctx.fillText(it.content.replace(/\n/g,' '),tx,it.y);
+      ctx.fillText((it.content||'').replace(/\n/g,' '),tx,it.y);
     }
     ctx.restore();
   }
-  ctx.restore();
 }
 function dPsdAbToggle(index, checked){
   const o=document.getElementById('d-psd-ab-overlay');
@@ -1310,12 +1397,17 @@ function dPsdSaveArtboardTemplates(results, folderId, baseName){
     ? (dFolders.find(f=>f.id===folderId)||dFolders[0]) : null;
   if(!folder){ gToast('⚠ Pasta não encontrada — selecione outra campanha','error'); return; }
   results.forEach((r,i)=>{
-    const fmt=DFMT_SIZES[r.fmt]?r.fmt:'story';
+    // 'orig' (sem match exato) preserva o tamanho REAL do PSD — 1:1. Era forçado a 'story'.
+    const fmt=DFMT_SIZES[r.fmt]?r.fmt:'orig';
+    // _dPsdReflowToFmt só reflua quando DFMT_SIZES[fmt] existe; p/ 'orig' mantém coords nativas.
     const layers=_dPsdReflowToFmt(r.layers, r.nativeW, r.nativeH, fmt);
+    // Tamanho do espaço de coordenadas das layers = onde elas vivem (preset reflua, ou nativo p/ orig).
+    const sz=DFMT_SIZES[fmt]||{w:r.nativeW, h:r.nativeH};
     const tmpl={
       id:'tmpl-psd-'+Date.now()+'-'+i+'-'+Math.random().toString(36).slice(2,7),
       name:(r.name||baseName||'Prancheta').toString().slice(0,30),
       fmt:fmt,
+      w:sz.w, h:sz.h, // tamanho real do template — o gerador do franqueado renderiza 1:1 quando presente
       layers:JSON.parse(JSON.stringify(layers)),
       publishMeta:(typeof dDefaultPublishMeta==='function')?dDefaultPublishMeta():{publicado:false,permissoes:{}}
     };

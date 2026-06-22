@@ -49,9 +49,7 @@ function fRenderHist(){
     // M1.3 — empty state empático com ícone + CTA de volta ao fluxo
     el.innerHTML = filterBar + `<div class="empty-state">
       <div class="empty-icon">
-        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>
-        </svg>
+        <img src="assets/illustrations/empty_arts.png" style="width: 180px; height: auto;" alt="Empty Canvas">
       </div>
       <div class="empty-title">Ainda não tens artes geradas</div>
       <div class="empty-text">Escolhe uma campanha, responde umas perguntinhas e a tua primeira arte aparece aqui.</div>
@@ -61,7 +59,9 @@ function fRenderHist(){
   }
   if(!filtered.length){
     el.innerHTML = filterBar + `<div class="empty-state empty-state-sm">
-      <div class="empty-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h12"/></svg></div>
+      <div class="empty-icon">
+        <img src="assets/illustrations/empty_filtered.png" style="width: 140px; height: auto;" alt="Empty Results">
+      </div>
       <div class="empty-title">Nenhuma arte ${fHistFilter==='rascunho'?'em rascunho':'baixada ainda'}</div>
       <div class="empty-text">${fHistFilter==='rascunho'?'Os rascunhos que começares aparecem aqui.':'Baixa uma arte e ela fica registada aqui.'}</div>
       <button class="empty-cta ghost" onclick="fSetHistFilter('todos',document.querySelector('.hist-filter-btn'))">Ver todas</button>

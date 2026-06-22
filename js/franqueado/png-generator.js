@@ -22,9 +22,17 @@ function fLoadLogoBranca(){
     img.src = m[1];
   });
 }
+// Tamanho de renderização do material. Templates importados 1:1 do PSD guardam w/h reais
+// → renderiza no tamanho EXATO da prancheta. Templates legados (sem w/h) caem no preset por
+// formato. fmt = formato escolhido no franqueado ({id,...}); ignorado quando há w/h reais.
+function fMaterialSize(material, fmt){
+  const fmtMap={story:[1080,1920],feed:[1080,1350],wide:[1200,628],post:[1200,628],horizontal:[1920,1080]};
+  if(material && material.w>0 && material.h>0) return [material.w, material.h];
+  const id=(fmt&&fmt.id)||(material&&material.fmt)||'story';
+  return fmtMap[id]||[1080,1920];
+}
 async function fRenderCanvasHelper(d,c,fmt){
-  const fmtMap={story:[1080,1920],feed:[1080,1350],post:[1200,628],wide:[1200,628]};
-  const [w,h]=fmtMap[fmt.id]||[1080,1920];
+  const [w,h]=fMaterialSize(fState.material, fmt);
 
   // ─── CAMINHO NOVO: renderiza layers do template publicado pelo designer ───
   if(fState.material && fState.material.layers && fState.material.layers.length){
@@ -198,8 +206,9 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
   // 5.2: formato diferente → SMART RESIZE (gReflowLayers re-ancora sem distorcer),
   // em vez do antigo scaleX/scaleY que esticava shapes e textos.
   const fmtSizes = {story:[1080,1920], feed:[1080,1350], wide:[1200,628], post:[1200,628]};
-  const tmplFmt = fState.material?.fmt || 'story';
-  const [tw, th] = fmtSizes[tmplFmt] || [1080,1920];
+  // Espaço nativo das coords do template: w/h reais (1:1 do PSD) ou o preset do formato (legado).
+  // Quando o material tem w/h reais e está sendo renderizado no próprio tamanho, tw/th==W/H → sem reflow.
+  const [tw, th] = fMaterialSize(fState.material);
   let geomLayers = layers;
   if((tw !== W || th !== H) && typeof gReflowLayers === 'function'){
     const fmtKey = Object.keys(fmtSizes).find(k => fmtSizes[k][0]===W && fmtSizes[k][1]===H);
@@ -512,17 +521,16 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
           ctx.strokeText(line, tx, ty);
         }
 
-        if(l.strikethrough){
+        if(l.strikethrough || l.underline){
           const textW = ctx.measureText(line).width;
           const lx = l.textAlign === 'center' ? tx - textW/2
                    : l.textAlign === 'right' ? tx - textW
                    : tx;
           ctx.strokeStyle = l.color || '#fff';
           ctx.lineWidth = Math.max(2, fontSize * 0.05);
-          ctx.beginPath();
-          ctx.moveTo(lx, ty);
-          ctx.lineTo(lx + textW, ty);
-          ctx.stroke();
+          if(l.strikethrough){ ctx.beginPath(); ctx.moveTo(lx, ty); ctx.lineTo(lx + textW, ty); ctx.stroke(); }
+          // sublinhado: logo abaixo dos glifos (textBaseline='middle' → ~0.42*fontSize abaixo do centro)
+          if(l.underline){ const uy=ty+fontSize*0.42; ctx.beginPath(); ctx.moveTo(lx, uy); ctx.lineTo(lx + textW, uy); ctx.stroke(); }
         }
       });
       ctx.letterSpacing = '0px';
@@ -614,6 +622,19 @@ const _fImgCache = new Map();
 
 function fLoadImageDataUrl(dataUrl){
   if(_fImgCache.has(dataUrl)) return Promise.resolve(_fImgCache.get(dataUrl));
+  // Referência 'idb://' (imagem grande no IndexedDB) → resolve pro dataURL real antes de carregar.
+  if(typeof dataUrl==='string' && dataUrl.indexOf('idb://')===0 && typeof gResolveImgUrl==='function'){
+    const _ref=dataUrl;
+    return gResolveImgUrl(_ref).then(real=>{
+      if(!real) return null;
+      return new Promise((resolve)=>{
+        const img=new Image();
+        img.onload=()=>{ _fImgCache.set(_ref, img); resolve(img); };
+        img.onerror=()=>resolve(null);
+        img.src=real;
+      });
+    });
+  }
   return new Promise((resolve)=>{
     const img=new Image();
     // URLs http(s) (bulk CSV): tenta CORS pra não "tingir" o canvas ao exportar
@@ -637,8 +658,7 @@ let fBulkRows=[];
 // Renderiza o material atual num canvas e devolve o dataURL — SEM disparar download.
 // Reaproveita o mesmo caminho de super-sampling 2× do fGenPNG.
 async function fRenderMaterialToDataURL(dados, camp, fmt){
-  const fmtMap={story:[1080,1920],feed:[1080,1350],post:[1200,628],wide:[1200,628]};
-  const [w,h]=fmtMap[fmt.id]||[1080,1920];
+  const [w,h]=fMaterialSize(fState.material, fmt);
   const SCALE=2;
   const renderCv=document.createElement('canvas');
   renderCv.width=w*SCALE;renderCv.height=h*SCALE;
@@ -853,9 +873,8 @@ function fBulkRenderPreview(){
   const dlBtn=document.getElementById('f-bulk-dl-btn');
   if(dlBtn)dlBtn.textContent='Baixar todos'+(fBulkRows.length?` (${fBulkRows.length})`:'');
   if(!fBulkRows.length){wrap.innerHTML='<div class="f-bulk-empty">Nenhum CSV carregado ainda. Baixe o modelo, preencha e reenvie.</div>';return;}
-  // Proporção do thumbnail conforme o formato do material
-  const fmtMap={story:[1080,1920],feed:[1080,1350],post:[1200,628],wide:[1200,628]};
-  const [nw,nh]=fmtMap[(fState.fmt&&fState.fmt.id)||'story']||[1080,1920];
+  // Proporção do thumbnail conforme o tamanho real do material (ou o preset, p/ legados)
+  const [nw,nh]=fMaterialSize(fState.material, fState.fmt);
   const cw=96, ch=Math.max(40,Math.round(cw*nh/nw));
   wrap.innerHTML=fBulkRows.map((r,i)=>{
     const titulo=r.dados.produto||r.dados.categoria||r.dados.brinde||Object.values(r.dados)[0]||('Linha '+(i+1));
@@ -886,8 +905,7 @@ async function fBulkRenderCardPreview(row, index){
   const badge=document.getElementById('f-bulk-badge-'+index);
   if(!cv)return;
   try{
-    const fmtMap={story:[1080,1920],feed:[1080,1350],post:[1200,628],wide:[1200,628]};
-    const [w,h]=fmtMap[(fState.fmt&&fState.fmt.id)||'story']||[1080,1920];
+    const [w,h]=fMaterialSize(fState.material, fState.fmt);
     // Render no tamanho nativo (sem super-sampling — é thumbnail) e desenha reduzido.
     const off=document.createElement('canvas');off.width=w;off.height=h;
     await fRenderTemplateLayers(off.getContext('2d'), fState.material.layers, w, h, row.dados, fState.camp);

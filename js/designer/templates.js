@@ -140,13 +140,23 @@ function dPreloadFolders(){
       });
       // 5.2 — migração absoluto→relativo: infere a âncora de cada layer a partir do
       // formato nativo do template; o template passa a poder gerar todos os formatos.
+      // Template 1:1 do PSD (fmt sem preset) usa o w/h real guardado no template.
       if(typeof gEnsureAnchors==='function'){
-        const sz=DFMT_SIZES[t.fmt]||DFMT_SIZES.story;
+        const sz=DFMT_SIZES[t.fmt]||((t.w>0&&t.h>0)?{w:t.w,h:t.h}:DFMT_SIZES.story);
         gEnsureAnchors(t.layers||[], sz.w, sz.h);
       }
       if(!t.formats) t.formats=['story','feed','wide']; // smart resize cobre os 3
     });
   });
+  // Re-hidrata imagens grandes (fundos PSD) guardadas no IndexedDB como 'idb://...' → dataURL real,
+  // depois re-renderiza pra mostrar os fundos (some o reload sem fundo). Fire-and-forget.
+  if(typeof gHydrateFolders==='function'){
+    gHydrateFolders(dFolders).then(changed=>{
+      if(!changed) return;
+      if(typeof dRenderFolders==='function') dRenderFolders();
+      if(typeof fUpdateLivePreview==='function') try{ fUpdateLivePreview(); }catch(e){}
+    });
+  }
 }
 function dDefaultPublishMeta(){
   // Validade default = +30 dias do hoje
@@ -332,6 +342,9 @@ function dPersistArtboards(){
     localStorage.setItem('yngs_layers_v1',JSON.stringify(saveable));
     localStorage.setItem('yngs_fmt_v1',dFmt);
     localStorage.setItem('yngs_bg_v1',dCanvasBg||'');
+    // Tamanho real da prancheta ativa — preserva dimensões custom (PSD 1:1) no reload.
+    const _ab=(typeof dGetActiveAB==='function')?dGetActiveAB():null;
+    if(_ab&&_ab.w>0&&_ab.h>0) localStorage.setItem('yngs_wh_v1', _ab.w+'x'+_ab.h);
     if(droppedImg&&typeof gWarnImagesNotPersisted==='function')gWarnImagesNotPersisted();
     return true;
   }catch(e){
@@ -408,9 +421,20 @@ function dInit(){
       }
     }catch(e){}
   }
-  const _initF=DFMT_SIZES[dFmt]||DFMT_SIZES.story;
+  let _initF=DFMT_SIZES[dFmt]||DFMT_SIZES.story;
+  // Tamanho custom (PSD 1:1, fmt sem preset) salvo em yngs_wh_v1 → restaura as dimensões reais.
+  if(!DFMT_SIZES[dFmt]){
+    try{ const _wh=localStorage.getItem('yngs_wh_v1'); if(_wh){ const p=_wh.split('x'); const cw=+p[0],ch=+p[1]; if(cw>0&&ch>0) _initF={w:cw,h:ch}; } }catch(e){}
+  }
   dArtboards=[{id:'ab-single',name:'Prancheta',x:80,y:60,w:_initF.w,h:_initF.h,fmt:dFmt,bg:dCanvasBg,layers:dLayers}];
   dActiveABId='ab-single';
+  // Re-hidrata fundos grandes (idb://) da prancheta ativa e das pastas; re-renderiza quando prontos.
+  if(typeof gHydrateLayers==='function'){
+    gHydrateLayers(dLayers).then(changed=>{ if(changed && typeof dRenderCanvas==='function') dRenderCanvas(); });
+  }
+  if(typeof gHydrateFolders==='function'){
+    gHydrateFolders(dFolders).then(changed=>{ if(changed && typeof dRenderFolders==='function') dRenderFolders(); });
+  }
   dHistoryReset();
   if(!loaded){dLayers=dBuildBlankLayers(dFmt);}
   if(typeof dRenderWorkspace==='function')dRenderWorkspace();
@@ -640,11 +664,21 @@ function dLoadTemplate(tmpl,folder){
   if(folder)dActiveTmplFolderId=folder.id; // destaca a pasta da arte ativa na grade
   else dActiveTmplFolderId=null;
   dFmt=tmpl.fmt;
-  // Carrega no artboard ativo (substitui layers e formato)
+  // Carrega no artboard ativo (substitui layers e formato).
+  // Template 1:1 do PSD guarda w/h reais (fmt 'orig' não tem DFMT_SIZES) → usa o tamanho real.
   const f=DFMT_SIZES[tmpl.fmt]||DFMT_SIZES.story;
+  const _w=(tmpl.w>0)?tmpl.w:f.w, _h=(tmpl.h>0)?tmpl.h:f.h;
   const ab=dGetActiveAB();
-  if(ab){ab.layers=JSON.parse(JSON.stringify(tmpl.layers||[]));ab.fmt=tmpl.fmt;ab.name=tmpl.name;ab.w=f.w;ab.h=f.h;}
+  if(ab){ab.layers=JSON.parse(JSON.stringify(tmpl.layers||[]));ab.fmt=tmpl.fmt;ab.name=tmpl.name;ab.w=_w;ab.h=_h;}
   dLayers=JSON.parse(JSON.stringify(tmpl.layers||[]));
+  // Re-hidrata fundos grandes (idb://) → dataURL real, e re-renderiza quando prontos.
+  if(typeof gHydrateLayers==='function'){
+    gHydrateLayers(dLayers).then(changed=>{
+      if(!changed) return;
+      const _ab=dGetActiveAB(); if(_ab) _ab.layers=JSON.parse(JSON.stringify(dLayers));
+      if(typeof dRenderCanvas==='function') dRenderCanvas();
+    });
+  }
   dSelId=null;dMultiSel=[];
   dHistoryReset();
   dRenderFolders();
@@ -2023,18 +2057,18 @@ function dAddPageToCurrentFolder() {
   // Copia o formato/tamanho da prancheta ativa se existir, senão usa 'story'
   const ab = dGetActiveAB && dGetActiveAB();
   const fmt = ab ? (ab.fmt || 'story') : 'story';
+  // Prancheta de tamanho custom (fmt sem preset DFMT, ex.: PSD 1:1) → herda w/h reais.
+  const isCustom = !!(ab && !DFMT_SIZES[fmt] && ab.w>0 && ab.h>0);
 
   const newTmpl = {
-    id, 
-    name, 
-    fmt, 
-    layers: dBuildBlankLayers(fmt), 
+    id,
+    name,
+    fmt,
+    layers: isCustom ? dBuildBlankLayersWH(ab.w, ab.h) : dBuildBlankLayers(fmt),
     publishMeta: dDefaultPublishMeta()
   };
-  
-  // Se o active AB tem W e H customizados e formato livre, poderíamos setar no layers de setup, 
-  // mas o dLoadTemplate já puxa do fmt. Para garantir que novas páginas tenham o mesmo custom,
-  // precisaremos adaptar dLoadTemplate futuramente para ler W/H do template, por ora herda fmt.
+  // dLoadTemplate lê tmpl.w/h quando presente → novas páginas mantêm o tamanho custom 1:1.
+  if(isCustom){ newTmpl.w=ab.w; newTmpl.h=ab.h; }
 
   folder.templates.push(newTmpl);
   dPersistFolders();

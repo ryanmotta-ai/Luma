@@ -1998,7 +1998,14 @@ function dSave(){
   // Sincronizar layers editados de volta pro artboard ativo antes de salvar
   if(typeof dSyncLayersToAB==='function')dSyncLayersToAB();
   if(dActiveTmplId){
-    dFolders.forEach(f=>f.templates.forEach(t=>{if(t.id===dActiveTmplId)t.layers=JSON.parse(JSON.stringify(dLayers));}));
+    // Sincroniza w/h/fmt SÓ p/ pranchetas de tamanho custom (1:1 do PSD, fmt sem preset DFMT),
+    // pra não mexer no dimensionamento de templates padrão (preserva comportamento legado).
+    const _ab=(typeof dGetActiveAB==='function')?dGetActiveAB():null;
+    const _custom=!!(_ab && typeof DFMT_SIZES!=='undefined' && !DFMT_SIZES[_ab.fmt] && _ab.w>0 && _ab.h>0);
+    dFolders.forEach(f=>f.templates.forEach(t=>{if(t.id===dActiveTmplId){
+      t.layers=JSON.parse(JSON.stringify(dLayers));
+      if(_custom){ t.fmt=_ab.fmt; t.w=_ab.w; t.h=_ab.h; }
+    }}));
   }
   const hadImgWarn=gImgPersistWarned;
   if(typeof dSetSaveState==='function')dSetSaveState('saving'); // M2.2
@@ -2065,9 +2072,18 @@ async function _dUploadDataUrl(bucket, path, dataUrl){
 async function _dUploadLayerImages(layers, tid){
   if(!Array.isArray(layers)) return layers||[];
   for(const l of layers){
-    if(l && typeof l.imgUrl==='string' && l.imgUrl.startsWith('data:')){
-      const url=await _dUploadDataUrl('luma-template-assets', tid+'/'+(l.id!=null?l.id:Math.random().toString(36).slice(2)), l.imgUrl);
-      if(url) l.imgUrl=url; // troca no objeto local também → não re-sobe e sobrevive ao reload
+    if(!l || typeof l.imgUrl!=='string') continue;
+    // Resolve a fonte real: data: direto, ou 'idb://' (imagem grande no IndexedDB) → dataURL.
+    // Sem isso, após o reload a layer carrega 'idb://' e a Storage receberia uma ref quebrada.
+    let dataUrl=null;
+    if(l.imgUrl.startsWith('data:')) dataUrl=l.imgUrl;
+    else if(l.imgUrl.indexOf('idb://')===0 && typeof gResolveImgUrl==='function'){
+      const real=await gResolveImgUrl(l.imgUrl);
+      if(real && typeof real==='string' && real.startsWith('data:')) dataUrl=real;
+    }
+    if(dataUrl){
+      const url=await _dUploadDataUrl('luma-template-assets', tid+'/'+(l.id!=null?l.id:Math.random().toString(36).slice(2)), dataUrl);
+      if(url) l.imgUrl=url; // sucesso → URL pública (leve, cross-device); falha → mantém idb:///data: original
     }
   }
   return layers;

@@ -774,7 +774,7 @@ function dRenderCanvas(){
         textNode.style.webkitBackgroundClip='text'; textNode.style.backgroundClip='text';
         textNode.style.webkitTextFillColor='transparent';
       }
-      if(l.strikethrough)textNode.style.textDecoration='line-through';
+      if(l.strikethrough||l.underline){ const _dec=[]; if(l.underline)_dec.push('underline'); if(l.strikethrough)_dec.push('line-through'); textNode.style.textDecoration=_dec.join(' '); }
       // Efeitos de legibilidade (espelham o png-generator) — usam o tamanho EXIBIDO (_renderFs)
       const _fs=_renderFs;
       if(l.bg){textNode.style.background=l.bgColor||'#000';textNode.style.borderRadius=Math.round(_fs*0.2)+'px';}
