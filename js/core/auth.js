@@ -114,53 +114,49 @@ async function gResetPassword(newPassword) {
   return { ok: true };
 }
 
-function gLoadRoleOverrides(){ try{return JSON.parse(localStorage.getItem('luma_role_overrides')||'{}');}catch(e){return{};} }
-function gSaveRoleOverrides(obj){ try{localStorage.setItem('luma_role_overrides',JSON.stringify(obj));}catch(e){} }
-function gLoadManagedUsers(){ try{return JSON.parse(localStorage.getItem('luma_managed_users')||'[]');}catch(e){return[];} }
-function gSaveManagedUsers(arr){ try{localStorage.setItem('luma_managed_users',JSON.stringify(arr));}catch(e){} }
-
-function gGetAllUsers(){
-  const overrides=gLoadRoleOverrides();
-  const managed=gLoadManagedUsers();
-  const base=AUTH_USERS.map(u=>({email:u.email,displayName:u.displayName,role:overrides[u.email]||u.role,isBase:true}));
-  const extra=managed.filter(m=>!base.find(b=>b.email===m.email));
-  return [...base,...extra.map(m=>({...m,isBase:false}))];
+/* ── GESTÃO DE USUÁRIOS — Supabase (Fase 1: listar + role + ativo via RLS) ──
+   Listar/mudar-role/ativar rodam via supabase-js + RLS (só gestão escreve role).
+   Criar/excluir usuário em auth.users precisa de Edge Function (service_role) — Fase 2. */
+async function gGetAllUsers(){
+  const sb=_gSb();
+  if(!sb) return [];
+  try{
+    const { data, error }=await sb.from('profiles')
+      .select('id,nome,email,role,departamento,ativo')
+      .order('role',{ascending:false}).order('nome',{ascending:true});
+    if(error || !Array.isArray(data)) return [];
+    return data.map(p=>({ id:p.id, email:p.email, displayName:p.nome||p.email, role:p.role,
+      departamento:p.departamento||null, ativo:p.ativo!==false, isBase:true }));
+  }catch(e){ return []; }
 }
-
-function gSetUserRole(email,newRole){
-  if(!gCanManageUsers()) return {ok:false,error:'Sem permissão.'};
-  const target=gGetAllUsers().find(u=>u.email===email);
-  if(!target) return {ok:false,error:'Usuário não encontrado.'};
-  if(target.role==='superadmin'&&gCurrentUser().email!==email) return {ok:false,error:'Não é possível alterar outro superadmin.'};
-  const base=AUTH_USERS.find(u=>u.email===email);
-  if(base){
-    const ov=gLoadRoleOverrides();
-    if(newRole===base.role) delete ov[email]; else ov[email]=newRole;
-    gSaveRoleOverrides(ov);
-  } else {
-    const mg=gLoadManagedUsers(); const i=mg.findIndex(u=>u.email===email);
-    if(i>=0){mg[i].role=newRole;gSaveManagedUsers(mg);}
-  }
-  return {ok:true};
+async function gSetUserRole(idOrEmail, newRole){
+  if(!gCanManageUsers()) return {ok:false,error:'Sem permissão (só gestão muda permissões).'};
+  if(['franqueado','equipe_dm','gestao'].indexOf(newRole)<0) return {ok:false,error:'Permissão inválida.'};
+  const sb=_gSb(); if(!sb) return {ok:false,error:'Backend indisponível.'};
+  try{
+    const col=/@/.test(String(idOrEmail))?'email':'id';
+    const { error }=await sb.from('profiles').update({role:newRole}).eq(col, idOrEmail);
+    if(error) return {ok:false,error:error.message};
+    return {ok:true};
+  }catch(e){ return {ok:false,error:String((e&&e.message)||e)}; }
 }
-
-function gAddManagedUser(email,displayName,role){
-  if(!gCanManageUsers()) return {ok:false,error:'Sem permissão.'};
-  if(!email||!displayName) return {ok:false,error:'E-mail e nome são obrigatórios.'};
-  if(gGetAllUsers().find(u=>u.email===email.toLowerCase().trim())) return {ok:false,error:'Usuário já existe.'};
-  const mg=gLoadManagedUsers();
-  mg.push({email:email.toLowerCase().trim(),displayName:displayName.trim(),role:role||'admin',addedAt:Date.now(),isBase:false});
-  gSaveManagedUsers(mg);
-  return {ok:true};
+async function gSetUserAtivo(idOrEmail, ativo){
+  if(!gCanManageUsers()) return {ok:false,error:'Sem permissão (só gestão).'};
+  const sb=_gSb(); if(!sb) return {ok:false,error:'Backend indisponível.'};
+  try{
+    const col=/@/.test(String(idOrEmail))?'email':'id';
+    const { error }=await sb.from('profiles').update({ativo:!!ativo}).eq(col, idOrEmail);
+    if(error) return {ok:false,error:error.message};
+    return {ok:true};
+  }catch(e){ return {ok:false,error:String((e&&e.message)||e)}; }
 }
-
-function gRemoveManagedUser(email){
-  if(!gCanManageUsers()) return {ok:false,error:'Sem permissão.'};
-  if(AUTH_USERS.find(u=>u.email===email)) return {ok:false,error:'Usuários base não podem ser removidos.'};
-  const mg=gLoadManagedUsers(); const i=mg.findIndex(u=>u.email===email);
-  if(i<0) return {ok:false,error:'Usuário não encontrado.'};
-  mg.splice(i,1); gSaveManagedUsers(mg);
-  return {ok:true};
+// Criar usuário pelo app exige Edge Function (service_role) — Fase 2. Por ora, orienta o painel.
+function gAddManagedUser(){
+  return {ok:false, error:'Para criar usuário: painel do Supabase → Authentication → Users → Add user (marque Auto Confirm). A criação pelo app vem na próxima fase.'};
+}
+// "Remover" na Fase 1 = desativar (exclusão definitiva de auth.users precisa de Edge Function).
+async function gRemoveManagedUser(idOrEmail){
+  return gSetUserAtivo(idOrEmail, false);
 }
 
 // UI HANDLERS DO MODAL (Atrelados ao index.html)

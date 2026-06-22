@@ -6,6 +6,17 @@
 
 ---
 
+## 2026-06-19 — Gestão de usuários real no Supabase (Fase 1)
+
+A tela de **Equipe** (modal de perfil) deixou de usar o mock (`AUTH_USERS`) e passou a usar o Supabase via RLS.
+- `auth.js`: `gGetAllUsers` (SELECT `public.profiles` — gestão lê todos), `gSetUserRole` (UPDATE `role` — só gestão; guard garante), **nova** `gSetUserAtivo` (ativar/desativar). `gAddManagedUser` orienta o Dashboard (criar usuário precisa Edge Function — Fase 2). `gRemoveManagedUser` = desativar (`ativo=false`). Removidas as funções mock (`luma_role_overrides`/`luma_managed_users`).
+- `user-profile.js`: `gProfileRenderEquipe`/`gProfilePickRole`/`gProfileSetUserRole`/`gProfileRemoveUser` viraram **async**; `_EQUIPE_ROLE_CFG` e os seletores de role alinhados aos roles reais (`franqueado`/`equipe_dm`/`gestao`).
+- **Validado:** gestão lista todos os profiles via RLS. Escrita (role/ativo) não testada mutativamente (pra não mexer na conta real do Ryan); garantida pela policy (gestao atualiza todos) + guard (bloqueia não-gestão).
+
+**Falta (Fase 2):** criar/convidar/excluir usuário pelo app via Edge Function (`service_role`).
+
+---
+
 ## 2026-06-19 — Persistência: fontes, snippets, biblioteca (B) + histórico de artes (C1)
 
 Mesmo padrão offline-first (localStorage cache + push background só designer + sync no boot).
@@ -147,9 +158,9 @@ Mesmo padrão offline-first (localStorage cache + push background só designer +
 ## Pendências / próximos passos
 
 - [x] **Login real testado no navegador** — funciona (login + promoção a `gestao` OK, 2026-06-19).
-- [~] `js/core/user-profile.js`: badges do perfil próprio reconciliados (`gestao`/`equipe_dm`, 2026-06-19). Tela de *Gestão de Equipe* ainda é MOCK (lista `AUTH_USERS`, não os profiles) — migrar junto com a gestão de usuários.
+- [x] `js/core/user-profile.js`: badges + tela de *Gestão de Equipe* migrados pro Supabase (lista profiles reais via RLS; Fase 1).
 - [x] **Persistência do designer**: ✅ variáveis, ✅ pastas + templates + Storage, ✅ fontes, ✅ snippets, ✅ biblioteca de assets (todas via API; falta exercer no navegador).
 - [x] **Persistência do franqueado**: ✅ histórico de artes (`luma.artes`) + ✅ fotos do chat → bucket `luma-user-uploads` (tornado público).
 - [ ] **Analytics**: emitir eventos em `analytics.fct_eventos` nos pontos-chave.
 - [ ] **XSS (H.1)**: `gEsc()` global antes de produção (achado §11.3 do CRM).
-- [ ] Migrar a gestão de usuários mock (`AUTH_USERS`) pra Supabase Admin (Edge Function).
+- [~] Gestão de usuários: ✅ Fase 1 (listar/role/ativo via RLS). Falta Fase 2 — criar/convidar/excluir via Edge Function (`service_role`).

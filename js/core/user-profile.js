@@ -392,8 +392,8 @@ function fSyncThemeIcon(theme) {
 /* ══ GESTÃO DE EQUIPE ══ */
 
 const _EQUIPE_ROLE_CFG={
-  superadmin:{label:'Super Admin',emoji:'👑',bg:'rgba(124,58,237,.1)',color:'#7c3aed',desc:'Gestão completa da plataforma'},
-  admin:     {label:'Admin',      emoji:'⚙️',bg:'rgba(255,185,0,.14)',color:'#C81818',desc:'Acesso ao estúdio de design'},
+  gestao:    {label:'Gestão',     emoji:'👑',bg:'rgba(124,58,237,.1)',color:'#7c3aed',desc:'Gestão completa da plataforma'},
+  equipe_dm: {label:'Equipe DM',  emoji:'⚙️',bg:'rgba(255,185,0,.14)',color:'#C81818',desc:'Acesso ao estúdio de design'},
   franqueado:{label:'Franqueado', emoji:'🏪',bg:'rgba(255,144,0,.1)', color:'#F85400',desc:'Acesso ao chat e geração de artes'},
 };
 
@@ -411,11 +411,11 @@ function _profInitials(name){
   return p.length>1?(p[0][0]+p[p.length-1][0]).toUpperCase():name.substring(0,2).toUpperCase();
 }
 
-function gProfileRenderEquipe(){
+async function gProfileRenderEquipe(){
   // limpa pickers que foram movidos para o body via portal
   document.querySelectorAll('body>.prof-role-picker').forEach(p=>p.remove());
   const pane=document.getElementById('prof-pane-equipe'); if(!pane)return;
-  const users=gGetAllUsers();
+  const users=await gGetAllUsers();
   const me=gCurrentUser();
 
   const rows=users.map((u,idx)=>{
@@ -433,7 +433,7 @@ function gProfileRenderEquipe(){
       <span class="prof-role-dot"></span>${rcfg.label}${canEdit?_ICO_CHEVRON:''}
     </button>`;
 
-    const pickerOpts=['franqueado','admin','superadmin']
+    const pickerOpts=['franqueado','equipe_dm','gestao']
       .filter(r=>gRoleLevel(r)<gRoleLevel(me.role))
       .map(r=>{
         const rc=_EQUIPE_ROLE_CFG[r];
@@ -485,9 +485,9 @@ function gProfileShowInviteForm(){
   const form=document.getElementById('prof-invite-form'); if(!form)return;
   if(form.style.display!=='none'){form.style.display='none';return;}
   const meRole=gCurrentUser().role;
-  const roleOpts=['franqueado','admin']
+  const roleOpts=['franqueado','equipe_dm']
     .filter(r=>gRoleLevel(r)<gRoleLevel(meRole))
-    .map(r=>{const rc=_EQUIPE_ROLE_CFG[r];return `<option value="${r}"${r==='admin'?' selected':''}>${rc.emoji} ${rc.label}</option>`;}).join('');
+    .map(r=>{const rc=_EQUIPE_ROLE_CFG[r];return `<option value="${r}"${r==='equipe_dm'?' selected':''}>${rc.emoji} ${rc.label}</option>`;}).join('');
   form.innerHTML=`<div class="prof-invite-box">
     <div class="prof-invite-title">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
@@ -532,10 +532,10 @@ function gProfileToggleRolePicker(email,pid,btn,ev){
   picker.classList.add('open');
 }
 
-function gProfilePickRole(email,newRole,pid,ev){
+async function gProfilePickRole(email,newRole,pid,ev){
   if(ev) ev.stopPropagation();
   document.getElementById(pid)?.classList.remove('open');
-  const res=gSetUserRole(email,newRole);
+  const res=await gSetUserRole(email,newRole);
   if(!res.ok){gToast('⚠️ '+res.error);return;}
   gToast('✅ Permissão atualizada!');
   gProfileRenderEquipe();
@@ -550,16 +550,17 @@ function gProfileFilterEquipe(query){
   });
 }
 
-function gProfileSetUserRole(email,newRole){
-  const res=gSetUserRole(email,newRole);
+async function gProfileSetUserRole(email,newRole){
+  const res=await gSetUserRole(email,newRole);
   if(!res.ok){gToast('⚠️ '+res.error);gProfileRenderEquipe();return;}
   gToast('✅ Permissão atualizada!');
 }
 
-function gProfileRemoveUser(email){
-  const res=gRemoveManagedUser(email);
+async function gProfileRemoveUser(email){
+  if(!confirm('Desativar o acesso de '+email+'? Ele não conseguirá mais usar o app. (A exclusão definitiva é feita no painel do Supabase.)')) return;
+  const res=await gRemoveManagedUser(email);
   if(!res.ok){gToast('⚠️ '+res.error);return;}
-  gToast('✅ Acesso removido.');
+  gToast('✅ Usuário desativado.');
   gProfileRenderEquipe();
 }
 
