@@ -6,6 +6,27 @@
 
 ---
 
+## 2026-06-22 — Rotina de backup (GitHub Actions, diário)
+
+Backup automatizado, **fora** do Supabase (o free tier tem retenção curta e PITR é pago). Doc completa: [docs/LUMA-BACKUP.md](LUMA-BACKUP.md).
+
+**Arquivos novos:**
+- `.github/workflows/backup.yml` — workflow diário (`cron 0 6 * * *` = 03:00 BRT) + `workflow_dispatch`. Dois jobs independentes (um não derruba o outro):
+  - **db-backup**: Supabase CLI (`supabase db dump`) → `schema.sql.gz` + `data.sql.gz` dos schemas `public,luma,analytics`. CLI escolhida em vez de `pg_dump` cru porque casa sozinha com o Postgres **17.6** do projeto.
+  - **storage-backup**: `node scripts/backup-storage.js` baixa todos os objetos dos 5 buckets `luma-*` (inclusive o privado `luma-renders`) — o `pg_dump` só guarda as URLs, não os arquivos.
+  - Saída como **artifacts** (retenção 90 dias).
+- `scripts/backup-storage.js` — varre buckets recursivamente (paginado), baixa objetos, gera `manifest.json` (com visibilidade de cada bucket). Falha parcial não aborta (exit 2). CommonJS, usa `@supabase/supabase-js` (já no `package.json`).
+- `scripts/restore-storage.js` — caminho de volta: cria buckets que faltarem (visibilidade do manifest) e faz upsert dos arquivos. Backup sem restore testado não é backup.
+- `docs/LUMA-BACKUP.md` — o que entra/não entra, setup dos 3 secrets (com onde achar no dashboard), restore (3 cenários: mesmo projeto, projeto novo, Storage), backup local no Windows, notas (3-2-1, `auth.users`).
+
+**Secrets a configurar no GitHub** (Pedro faz, não passam por mim): `SUPABASE_DB_URL` (Session pooler — IPv4; a Direct é IPv6-only e não conecta do Actions), `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
+
+**`.gitignore`:** adicionados `backup/`, `storage-backup/`, `*.sql.gz`.
+
+**Validado:** sintaxe dos 2 scripts (`node --check`). Falta o Pedro configurar os secrets e rodar o primeiro `workflow_dispatch` pra exercício end-to-end.
+
+---
+
 ## 2026-06-22 — Performance: índice de FK + RLS initplan (guiado pelo advisor)
 
 Rodada de performance baseada no **advisor do Supabase** (`get_advisors performance`). Só banco — front intocado.

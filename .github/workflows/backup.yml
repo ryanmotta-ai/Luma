@@ -1,0 +1,90 @@
+name: Backup LUMA (Supabase)
+
+# Backup diário do banco (schema + dados) e do Storage (todos os buckets luma-*).
+# Os backups ficam como artifacts deste workflow (retenção 90 dias).
+# Secrets necessários (Settings > Secrets and variables > Actions):
+#   SUPABASE_DB_URL            -> Connection string do Session Pooler (IPv4). Dashboard: Project Settings > Database > Connection string > Session pooler.
+#   SUPABASE_URL               -> https://uqrqzjafhigjuvtjqzid.supabase.co
+#   SUPABASE_SERVICE_ROLE_KEY  -> Project Settings > API > service_role (secreta!). Só vive aqui, nunca no front nem no repo.
+# Detalhes e procedimento de restore: docs/LUMA-BACKUP.md
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # 06:00 UTC = 03:00 BRT, todo dia
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: luma-backup
+  cancel-in-progress: false
+
+jobs:
+  db-backup:
+    name: Banco (schema + dados)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Dump schema + dados
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_DB_URL:-}" ]; then
+            echo "::error::Secret SUPABASE_DB_URL ausente. Veja docs/LUMA-BACKUP.md."
+            exit 1
+          fi
+          mkdir -p backup
+          supabase db dump --db-url "$SUPABASE_DB_URL" --schema public,luma,analytics -f backup/schema.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" --schema public,luma,analytics --data-only --use-copy -f backup/data.sql
+          gzip -f backup/schema.sql backup/data.sql
+          {
+            echo "### Backup do banco"
+            echo "| arquivo | tamanho |"
+            echo "| --- | --- |"
+            echo "| schema.sql.gz | $(du -h backup/schema.sql.gz | cut -f1) |"
+            echo "| data.sql.gz | $(du -h backup/data.sql.gz | cut -f1) |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: luma-db-backup-${{ github.run_number }}
+          path: backup/
+          retention-days: 90
+          if-no-files-found: error
+
+  storage-backup:
+    name: Storage (buckets luma-*)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar dependências
+        run: npm install --no-audit --no-fund
+
+      - name: Baixar objetos dos buckets
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OUT_DIR: storage-backup
+        run: node scripts/backup-storage.js
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: luma-storage-backup-${{ github.run_number }}
+          path: storage-backup/
+          retention-days: 90
+          if-no-files-found: error

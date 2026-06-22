@@ -22,6 +22,11 @@ Desktop.ini
 # Logs
 *.log
 
+# Saídas de backup (geradas por scripts/backup-storage.js e pela CLI; nunca versionar)
+backup/
+storage-backup/
+*.sql.gz
+
 # Variáveis de ambiente (nunca commitar)
 .env
 .env.local
