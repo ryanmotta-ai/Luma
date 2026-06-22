@@ -6,6 +6,21 @@
 
 ---
 
+## 2026-06-22 — Hardening pós-incidente: views SECURITY INVOKER + revoke de funções de trigger
+
+**Contexto:** ao mexer em **Settings › API › Exposed schemas**, o schema `analytics` foi exposto pela Data API. Isso disparou **6 ERROR** de segurança (`security_definer_view` — view `SECURITY DEFINER` exposta fura RLS) + WARN de funções `SECURITY DEFINER` chamáveis via `/rest/v1/rpc/`. **Os dados não vazaram:** as views já estavam sem grant de `SELECT` pra `anon`/`authenticated`.
+
+**Correções no banco:**
+- `20260622140000_luma_analytics_views_security_invoker`: as 6 views `analytics.vw_*` viraram `security_invoker = on` → respeitam a permissão de quem consulta (remediação oficial do lint 0010). Extração admin (SQL Editor / service_role) segue intacta. **6 ERROR zerados.**
+- `20260622150000_luma_sec_revoke_trigger_funcs`: `REVOKE EXECUTE` de `PUBLIC`/`anon`/`authenticated` nas 4 funções de **trigger** (`handle_new_user`, `guard_profile_role`, `rls_auto_enable`, `evt_forca_identidade`). Trigger dispara independente desse grant → não quebra nada. **8 WARN zerados.**
+- **NÃO mexido:** `get_user_role`/`is_designer` mantêm `EXECUTE` — são usadas nas RLS policies; revogar quebraria o RLS (lição da Fase 5.1). Os 4 WARN delas são inerentes ao modelo e inofensivos (retornam só dado do próprio usuário logado).
+
+**Ação no Dashboard (Pedro):** Exposed schemas = só `public`, `graphql_public`, `luma`. Tirar `analytics` (extração não vai pela API) e qualquer schema interno (`auth`/`storage`/`vault`/…).
+
+**Estado de segurança:** 0 ERROR. WARN restantes e aceitos: `get_user_role`/`is_designer` (necessárias ao RLS) + Leaked Password Protection (toggle do Dashboard).
+
+---
+
 ## 2026-06-22 — Rotina de backup (GitHub Actions, diário)
 
 Backup automatizado, **fora** do Supabase (o free tier tem retenção curta e PITR é pago). Doc completa: [docs/LUMA-BACKUP.md](LUMA-BACKUP.md).
