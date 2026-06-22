@@ -24,6 +24,19 @@ function fSaveHist(a){
    Offline-first: localStorage é cache; o banco é a fonte por usuário (cross-device).
    Fotos no `dados` vão inline por ora (C2 sobe pro Storage). */
 function _fSbArtes(){ return (typeof gSupabase==='function')?gSupabase():window.sb; }
+// Sobe uma foto base64 do franqueado pro bucket público luma-user-uploads → URL pública.
+async function _fUploadUserImg(uid, sub, dataUrl){
+  const sb=_fSbArtes();
+  if(!sb || !uid || typeof dataUrl!=='string' || !dataUrl.startsWith('data:')) return null;
+  try{
+    const blob=await (await fetch(dataUrl)).blob();
+    const ext=((blob.type.split('/')[1]||'png').split('+')[0]).replace(/[^a-z0-9]/gi,'')||'png';
+    const path=uid+'/'+String(sub).replace(/[^a-zA-Z0-9_\/-]/g,'_')+'.'+ext;
+    const { error }=await sb.storage.from('luma-user-uploads').upload(path, blob, {upsert:true, contentType:blob.type||'image/png'});
+    if(error) return null;
+    return sb.storage.from('luma-user-uploads').getPublicUrl(path).data.publicUrl;
+  }catch(e){ return null; }
+}
 async function fPushArtesToBackend(){
   const sb=_fSbArtes();
   const user=(typeof gCurrentUser==='function')?gCurrentUser():null;
@@ -32,12 +45,21 @@ async function fPushArtesToBackend(){
   for(const h of hist){
     if(h._synced) continue; // já no banco (status muda via fMarkBaixadaBackend)
     if(!h.remoteId) h.remoteId=(crypto&&crypto.randomUUID)?crypto.randomUUID():('a-'+(h.id||Date.now()));
+    // sobe fotos ENVIADAS (base64) do dados pro Storage (bucket público); URLs externas ficam como estão
+    const dados={...(h.dados||{})};
+    for(const k in dados){
+      if(typeof dados[k]==='string' && dados[k].startsWith('data:')){
+        const url=await _fUploadUserImg(user.id, h.remoteId+'/'+k, dados[k]);
+        if(url) dados[k]=url;
+      }
+    }
+    h.dados=dados;
     const { error }=await sb.schema('luma').from('artes').upsert({
       id:h.remoteId, user_id:user.id,
       camp_id:h.campId||null, camp_name:h.campName||null, camp_color:h.campColor||null,
       fmt_id:h.fmtId||null, fmt_name:h.fmtName||null,
       template_id:null, material_name:h.materialName||null,
-      dados:h.dados||{}, prod:h.prod||null, por:h.por||null, de:h.de||null,
+      dados:dados, prod:h.prod||null, por:h.por||null, de:h.de||null,
       status:h.status||'rascunho', sig:h._sig||null,
       baixada_em:h.tsBaixada?new Date(h.tsBaixada).toISOString():null,
       created_at:h.ts?new Date(h.ts).toISOString():undefined

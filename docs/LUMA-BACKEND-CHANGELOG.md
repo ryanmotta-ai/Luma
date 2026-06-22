@@ -20,7 +20,9 @@ Mesmo padrão offline-first (localStorage cache + push background só designer +
 
 `main.js`: o boot agora dispara **6 syncs** (variaveis, folders, fontes, snippets, biblioteca, artes). Shapes todos validados via MCP. **Teste no navegador pendente.**
 
-**Falta (C2):** subir as fotos do chat do franqueado pro Storage (decidir bucket `luma-user-uploads` público vs privado+signed URL).
+**C2 (feito):** fotos **enviadas** (base64) no `dados` sobem pro bucket `luma-user-uploads` (tornado **PÚBLICO** — viram arte pública) → URL pública no histórico. `_fUploadUserImg` em `history.js`. URLs externas (ex.: coladas de um site) ficam como estão.
+
+**Teste no navegador (2026-06-19):** template "Hambug" publicado com imagem por **URL externa** (gstatic) → foi pro banco. Upload de **arquivo** pro Storage (base64 → bucket) ainda não exercido no browser (só via API).
 
 ---
 
@@ -147,7 +149,7 @@ Mesmo padrão offline-first (localStorage cache + push background só designer +
 - [x] **Login real testado no navegador** — funciona (login + promoção a `gestao` OK, 2026-06-19).
 - [~] `js/core/user-profile.js`: badges do perfil próprio reconciliados (`gestao`/`equipe_dm`, 2026-06-19). Tela de *Gestão de Equipe* ainda é MOCK (lista `AUTH_USERS`, não os profiles) — migrar junto com a gestão de usuários.
 - [x] **Persistência do designer**: ✅ variáveis, ✅ pastas + templates + Storage, ✅ fontes, ✅ snippets, ✅ biblioteca de assets (todas via API; falta exercer no navegador).
-- [~] **Persistência do franqueado**: ✅ histórico de artes (`luma.artes`). Falta: C2 — fotos do chat pro Storage.
+- [x] **Persistência do franqueado**: ✅ histórico de artes (`luma.artes`) + ✅ fotos do chat → bucket `luma-user-uploads` (tornado público).
 - [ ] **Analytics**: emitir eventos em `analytics.fct_eventos` nos pontos-chave.
 - [ ] **XSS (H.1)**: `gEsc()` global antes de produção (achado §11.3 do CRM).
 - [ ] Migrar a gestão de usuários mock (`AUTH_USERS`) pra Supabase Admin (Edge Function).

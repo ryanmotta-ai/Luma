@@ -12,7 +12,7 @@
 --   luma-covers          (PÚBLICO)  capas de pasta + thumbs de template
 --   luma-template-assets (PÚBLICO)  imagens fixas em templates + biblioteca
 --   luma-fontes          (PÚBLICO)  arquivos de fonte (via FontFace por URL)
---   luma-user-uploads    (PRIVADO)  fotos do franqueado (foto_produto, logo_loja)
+--   luma-user-uploads    (PÚBLICO)  fotos do franqueado (foto_produto, logo_loja) — viram arte pública; escrita ainda owner-scoped
 --   luma-renders         (PRIVADO)  PNG/PDF finais (podem conter foto do franqueado)
 --
 -- Públicos: leitura aberta (getPublicUrl → URL estável p/ <img>/canvas/FontFace),
@@ -24,7 +24,7 @@ VALUES
   ('luma-covers',          'luma-covers',          TRUE,   5 * 1024 * 1024),
   ('luma-template-assets', 'luma-template-assets', TRUE,  10 * 1024 * 1024),
   ('luma-fontes',          'luma-fontes',          TRUE,   3 * 1024 * 1024),
-  ('luma-user-uploads',    'luma-user-uploads',    FALSE,  8 * 1024 * 1024),
+  ('luma-user-uploads',    'luma-user-uploads',    TRUE,   8 * 1024 * 1024),  -- PÚBLICO (2026-06-19): fotos do franqueado viram arte pública
   ('luma-renders',         'luma-renders',         FALSE, 15 * 1024 * 1024)
 ON CONFLICT (id) DO NOTHING;
 
