@@ -6,13 +6,33 @@
 
 ---
 
+## 2026-06-19 — Persistência: fontes, snippets, biblioteca (B) + histórico de artes (C1)
+
+Mesmo padrão offline-first (localStorage cache + push background só designer + sync no boot).
+
+**B — designer:**
+- **Fontes** (`fonts.js` → `luma.fontes` + bucket `luma-fontes`): o arquivo da fonte sobe pro Storage e o FontFace carrega da URL. Colunas `nome`/`weight` adicionadas (migration `luma_fontes_extra_cols`). Remoção explícita (`dDeleteFontFromBackend`).
+- **Snippets** (`library.js` → `luma.snippets`): blocos reutilizáveis. Remoção explícita.
+- **Biblioteca de assets** (`library.js` → `luma.biblioteca_assets` + bucket `luma-template-assets`): **antes nem persistia** (só memória) — agora sobe imagens e cataloga. Remoção explícita.
+
+**C1 — franqueado:**
+- **Histórico de artes** (`history.js` → `luma.artes`, **escopo por usuário**): push das artes novas (upsert), sync no boot (merge cross-device), propagação rascunho→baixada (`fMarkBaixadaBackend`). Fotos do `dados` ainda inline (C2 sobe pro Storage).
+
+`main.js`: o boot agora dispara **6 syncs** (variaveis, folders, fontes, snippets, biblioteca, artes). Shapes todos validados via MCP. **Teste no navegador pendente.**
+
+**Falta (C2):** subir as fotos do chat do franqueado pro Storage (decidir bucket `luma-user-uploads` público vs privado+signed URL).
+
+---
+
 ## 2026-06-19 — Persistência: Pastas + Templates (LEITURA) — ciclo fechado
 
 **Arquivos:** `js/designer/layers.js` + `js/main.js`.
 - **novas:** `dSyncFoldersFromBackend()` (2 queries: `SELECT luma.pastas` + `luma.templates`, monta `dFolders` com **merge** que preserva pastas locais não sincronizadas, por `remoteId`/`campId`); `_dRowToFolder`/`_dRowToTemplate` (banco→objeto, publishMeta remontado).
 - `main.js`: `gOnLoginSuccess` chama `dSyncFoldersFromBackend()` no boot (junto com as variáveis). Re-hidrata `idb://` (cache local) depois.
 
-**Validado via API (REST autenticado, RLS designer):** ciclo **escrita→leitura OK** (insert pasta+template → 201; leitura traz ambos com defaults). ⚠️ **Teste no navegador ainda pendente** (criar no designer → recarregar → vir do banco).
+**Validado via API (REST autenticado, RLS designer):** ciclo **escrita→leitura OK** (insert pasta+template → 201; leitura traz ambos com defaults).
+
+**✅ Escrita validada no NAVEGADOR (2026-06-19):** o Pedro publicou um template no designer → gravou em `luma.templates` ("Prancheta 1", Copa do Mundo, feed, publicado) + as 16 pastas do catálogo sincronizadas. Falta exercer: upload de **imagem real** pro Storage (templates testados não tinham foto) e confirmar a **leitura cross-device** (outro device/localStorage limpo).
 
 **Decisão de arquitetura:** backend = **Supabase é a fonte** (cross-device). O **IndexedDB (`img-store` do Ryan) fica como cache local complementar** — não passamos por cima: já está integrado (no push, imagens `idb://`/`data:` são resolvidas e sobem pro Storage; o banco guarda a URL).
 
@@ -126,8 +146,8 @@
 
 - [x] **Login real testado no navegador** — funciona (login + promoção a `gestao` OK, 2026-06-19).
 - [~] `js/core/user-profile.js`: badges do perfil próprio reconciliados (`gestao`/`equipe_dm`, 2026-06-19). Tela de *Gestão de Equipe* ainda é MOCK (lista `AUTH_USERS`, não os profiles) — migrar junto com a gestão de usuários.
-- [~] **Persistência do designer**: ✅ variáveis (`dVars` → `luma.variaveis`); ✅ pastas + templates + Storage (escrita+leitura, validado via API — falta exercer no navegador). Falta: `dFontsPersist` (fontes), `snippets`, `biblioteca_assets`.
-- [ ] **Persistência do franqueado**: `fSaveHist`/`fAddHist` + upload de fotos do chat → `luma.artes` + Storage.
+- [x] **Persistência do designer**: ✅ variáveis, ✅ pastas + templates + Storage, ✅ fontes, ✅ snippets, ✅ biblioteca de assets (todas via API; falta exercer no navegador).
+- [~] **Persistência do franqueado**: ✅ histórico de artes (`luma.artes`). Falta: C2 — fotos do chat pro Storage.
 - [ ] **Analytics**: emitir eventos em `analytics.fct_eventos` nos pontos-chave.
 - [ ] **XSS (H.1)**: `gEsc()` global antes de produção (achado §11.3 do CRM).
 - [ ] Migrar a gestão de usuários mock (`AUTH_USERS`) pra Supabase Admin (Edge Function).

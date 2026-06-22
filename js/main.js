@@ -54,6 +54,10 @@ function gOnLoginSuccess() {
   // Sincroniza variáveis e catálogo (pastas/templates) com o Supabase (offline-first).
   if (typeof dSyncVarsFromBackend === 'function') dSyncVarsFromBackend();
   if (typeof dSyncFoldersFromBackend === 'function') dSyncFoldersFromBackend();
+  if (typeof dSyncFontsFromBackend === 'function') dSyncFontsFromBackend();
+  if (typeof dSyncSnippetsFromBackend === 'function') dSyncSnippetsFromBackend();
+  if (typeof dSyncLibFromBackend === 'function') dSyncLibFromBackend();
+  if (typeof fSyncArtesFromBackend === 'function') fSyncArtesFromBackend();
 }
 
 // Inicializa a aba no startup e checa a autenticação

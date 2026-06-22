@@ -10,11 +10,74 @@
 /* ── HISTÓRICO ── */
 function fGetHist(){try{return JSON.parse(localStorage.getItem(HIST_KEY)||'[]');}catch(e){return[];}}
 function fSaveHist(a){
-  try{localStorage.setItem(HIST_KEY,JSON.stringify(a.slice(0,50)));return true;}
+  let ok=true;
+  try{localStorage.setItem(HIST_KEY,JSON.stringify(a.slice(0,50)));}
   catch(e){
+    ok=false;
     if(typeof gToast==='function')gToast('⚠ Não foi possível salvar no histórico: armazenamento cheio.','error');
-    return false;
   }
+  if(typeof fPushArtesToBackend==='function') fPushArtesToBackend(); // sync Supabase (background, por usuário)
+  return ok;
+}
+
+/* ── Sync do histórico de artes com o Supabase (luma.artes — escopo do usuário) ──
+   Offline-first: localStorage é cache; o banco é a fonte por usuário (cross-device).
+   Fotos no `dados` vão inline por ora (C2 sobe pro Storage). */
+function _fSbArtes(){ return (typeof gSupabase==='function')?gSupabase():window.sb; }
+async function fPushArtesToBackend(){
+  const sb=_fSbArtes();
+  const user=(typeof gCurrentUser==='function')?gCurrentUser():null;
+  if(!sb || !user || !user.id) return;
+  const hist=fGetHist(); let changed=false;
+  for(const h of hist){
+    if(h._synced) continue; // já no banco (status muda via fMarkBaixadaBackend)
+    if(!h.remoteId) h.remoteId=(crypto&&crypto.randomUUID)?crypto.randomUUID():('a-'+(h.id||Date.now()));
+    const { error }=await sb.schema('luma').from('artes').upsert({
+      id:h.remoteId, user_id:user.id,
+      camp_id:h.campId||null, camp_name:h.campName||null, camp_color:h.campColor||null,
+      fmt_id:h.fmtId||null, fmt_name:h.fmtName||null,
+      template_id:null, material_name:h.materialName||null,
+      dados:h.dados||{}, prod:h.prod||null, por:h.por||null, de:h.de||null,
+      status:h.status||'rascunho', sig:h._sig||null,
+      baixada_em:h.tsBaixada?new Date(h.tsBaixada).toISOString():null,
+      created_at:h.ts?new Date(h.ts).toISOString():undefined
+    }, {onConflict:'id'});
+    if(!error){ h._synced=true; changed=true; }
+  }
+  if(changed){ try{localStorage.setItem(HIST_KEY, JSON.stringify(hist.slice(0,50)));}catch(e){} } // setItem direto (não fSaveHist) p/ não recursar
+}
+async function fMarkBaixadaBackend(remoteId, tsBaixada){
+  const sb=_fSbArtes();
+  if(!sb || !remoteId) return;
+  try{ await sb.schema('luma').from('artes').update({ status:'baixada', baixada_em:new Date(tsBaixada||Date.now()).toISOString() }).eq('id', remoteId); }catch(e){}
+}
+function _fRowToArte(r){
+  const t=r.created_at?new Date(r.created_at).getTime():Date.now();
+  return {
+    id:t, ts:t, remoteId:r.id, _synced:true,
+    tsBaixada:r.baixada_em?new Date(r.baixada_em).getTime():null,
+    status:r.status||'rascunho', _sig:r.sig||'',
+    campId:r.camp_id, campName:r.camp_name, campColor:r.camp_color,
+    fmtId:r.fmt_id, fmtName:r.fmt_name, materialId:null, materialName:r.material_name,
+    dados:(r.dados&&typeof r.dados==='object')?r.dados:{},
+    prod:r.prod||'', por:r.por||'', de:r.de||''
+  };
+}
+async function fSyncArtesFromBackend(){
+  const sb=_fSbArtes();
+  const user=(typeof gCurrentUser==='function')?gCurrentUser():null;
+  if(!sb || !user || !user.id) return;
+  try{
+    const { data, error }=await sb.schema('luma').from('artes').select('*').order('created_at',{ascending:false}).limit(50);
+    if(error || !Array.isArray(data)) return;
+    const remote=data.map(_fRowToArte);
+    const rIds=new Set(remote.map(a=>a.remoteId));
+    const extras=fGetHist().filter(h=>!h.remoteId || !rIds.has(h.remoteId)); // locais ainda não sincronizadas
+    const merged=[...extras, ...remote].sort((a,b)=>(b.ts||0)-(a.ts||0)).slice(0,50);
+    try{ localStorage.setItem(HIST_KEY, JSON.stringify(merged)); }catch(e){}
+    if(typeof fUpdateHistBadge==='function') fUpdateHistBadge();
+    if(typeof fRenderHist==='function') fRenderHist();
+  }catch(e){}
 }
 
 // F-08: status pode ser 'rascunho' (gerou mas não baixou) ou 'baixada' (clicou em baixar de verdade)
@@ -31,6 +94,7 @@ function fAddHist(d,c,f,status){
     if(status === 'baixada' && recent.status !== 'baixada'){
       recent.status = 'baixada';
       recent.tsBaixada = now;
+      if(recent.remoteId && typeof fMarkBaixadaBackend==='function') fMarkBaixadaBackend(recent.remoteId, now);
     }
     fSaveHist(h); fUpdateHistBadge();
     return recent.id;
@@ -63,6 +127,7 @@ function fMarkHistBaixada(id){
     item.status = 'baixada';
     item.tsBaixada = Date.now();
     fSaveHist(h);
+    if(item.remoteId && typeof fMarkBaixadaBackend==='function') fMarkBaixadaBackend(item.remoteId, item.tsBaixada);
   }
 }
 

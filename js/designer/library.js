@@ -152,6 +152,7 @@ function dLibUpload(inp) {
         gToast('✓ ' + done + ' asset(s) adicionado(s) à biblioteca');
         // também sincronizar com dAssets para compatibilidade
         dAssets = dLibAssets.map(a => ({name: a.name, url: a.url, emoji: '🖼'}));
+        if(typeof dPushLibToBackend==='function') dPushLibToBackend(); // sync Supabase (background, só designer)
       }
     };
     r.readAsDataURL(file);
@@ -194,9 +195,55 @@ function dLibUse(id) {
 }
 
 function dLibDelete(id) {
+  const _a=dLibAssets.find(x=>x.id===id);
+  if(_a&&_a.remoteId&&typeof dDeleteLibFromBackend==='function') dDeleteLibFromBackend(_a.remoteId);
   dLibAssets = dLibAssets.filter(a => a.id !== id);
   dLibRender();
   gToast('Asset removido da biblioteca');
+}
+/* ── Sync da biblioteca de assets com o Supabase (luma.biblioteca_assets + Storage) ──
+   A biblioteca não persistia (só memória); agora sobe imagens pro bucket e cataloga no banco. */
+function _gSbLib(){ return (typeof gSupabase==='function')?gSupabase():window.sb; }
+async function dPushLibToBackend(){
+  const sb=_gSbLib(); if(!sb || typeof gIsAdmin!=='function' || !gIsAdmin()) return;
+  try{
+    for(const a of dLibAssets){
+      if(!a || !a.url) continue;
+      if(!a.remoteId) a.remoteId=(crypto&&crypto.randomUUID)?crypto.randomUUID():('lib-'+Date.now()+Math.random().toString(36).slice(2));
+      if(typeof a.url==='string' && a.url.startsWith('data:')){
+        try{
+          const blob=await (await fetch(a.url)).blob();
+          const ext=a.isSvg?'svg':((blob.type.split('/')[1]||'png').replace(/[^a-z0-9]/gi,'')||'png');
+          const path='biblioteca/'+a.remoteId+'.'+ext;
+          const { error }=await sb.storage.from('luma-template-assets').upload(path, blob, {upsert:true, contentType:blob.type||'image/png'});
+          if(!error) a.url=sb.storage.from('luma-template-assets').getPublicUrl(path).data.publicUrl;
+        }catch(e){}
+      }
+      if(typeof a.url!=='string' || a.url.startsWith('data:')) continue;
+      await sb.schema('luma').from('biblioteca_assets').upsert({
+        id:a.remoteId, nome:a.name||'asset', categoria:a.cat||'Geral', url:a.url, tipo:a.isSvg?'svg':'image'
+      }, {onConflict:'id'});
+    }
+  }catch(e){}
+}
+async function dDeleteLibFromBackend(remoteId){
+  const sb=_gSbLib(); if(!sb || !remoteId || typeof gIsAdmin!=='function' || !gIsAdmin()) return;
+  try{ await sb.schema('luma').from('biblioteca_assets').delete().eq('id', remoteId); }catch(e){}
+}
+async function dSyncLibFromBackend(){
+  const sb=_gSbLib(); if(!sb) return;
+  try{
+    const { data, error }=await sb.schema('luma').from('biblioteca_assets').select('*').order('created_at',{ascending:false});
+    if(error || !Array.isArray(data) || !data.length) return;
+    const have=new Set(dLibAssets.map(a=>a.remoteId).filter(Boolean));
+    data.forEach(r=>{
+      if(!r.url || have.has(r.id)) return;
+      dLibAssets.push({id:'lib-'+r.id, remoteId:r.id, name:r.nome||'asset', url:r.url, cat:r.categoria||'Geral', isSvg:r.tipo==='svg'});
+      if(r.categoria && typeof dLibCats!=='undefined' && Array.isArray(dLibCats) && !dLibCats.includes(r.categoria)) dLibCats.push(r.categoria);
+    });
+    if(typeof dLibRenderCats==='function') dLibRenderCats();
+    if(typeof dLibRender==='function') dLibRender();
+  }catch(e){}
 }
 
 function dLibNewCat() {
@@ -402,8 +449,39 @@ let dSnippets=[];
 function _dEsc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function dLoadSnippets(){ try{const s=localStorage.getItem('yngs_snippets_v1');dSnippets=s?JSON.parse(s):[];}catch(e){dSnippets=[];} }
 function dSaveSnippetsStore(){
-  try{ localStorage.setItem('yngs_snippets_v1',JSON.stringify(dSnippets)); return true; }
-  catch(e){ if(e&&(e.name==='QuotaExceededError'||e.code===22))gToast('⚠ Sem espaço para salvar o bloco.','error'); return false; }
+  let ok=true;
+  try{ localStorage.setItem('yngs_snippets_v1',JSON.stringify(dSnippets)); }
+  catch(e){ ok=false; if(e&&(e.name==='QuotaExceededError'||e.code===22))gToast('⚠ Sem espaço para salvar o bloco.','error'); }
+  if(typeof dPushSnippetsToBackend==='function') dPushSnippetsToBackend(); // sync Supabase (background, só designer)
+  return ok;
+}
+/* ── Sync de snippets com o Supabase (luma.snippets) ── */
+function _gSbSnip(){ return (typeof gSupabase==='function')?gSupabase():window.sb; }
+async function dPushSnippetsToBackend(){
+  const sb=_gSbSnip(); if(!sb || typeof gIsAdmin!=='function' || !gIsAdmin()) return;
+  try{
+    for(const s of dSnippets){
+      if(!s.remoteId) s.remoteId=(crypto&&crypto.randomUUID)?crypto.randomUUID():('s-'+Date.now()+Math.random().toString(36).slice(2));
+      await sb.schema('luma').from('snippets').upsert({ id:s.remoteId, nome:s.name||'Bloco', layers:s.layers||[] }, {onConflict:'id'});
+    }
+    try{ localStorage.setItem('yngs_snippets_v1', JSON.stringify(dSnippets)); }catch(e){}
+  }catch(e){}
+}
+async function dDeleteSnippetFromBackend(remoteId){
+  const sb=_gSbSnip(); if(!sb || !remoteId || typeof gIsAdmin!=='function' || !gIsAdmin()) return;
+  try{ await sb.schema('luma').from('snippets').delete().eq('id', remoteId); }catch(e){}
+}
+async function dSyncSnippetsFromBackend(){
+  const sb=_gSbSnip(); if(!sb) return;
+  try{
+    const { data, error }=await sb.schema('luma').from('snippets').select('*').order('created_at',{ascending:false});
+    if(error || !Array.isArray(data)) return;
+    const remote=data.map(r=>({id:'snip-'+r.id, remoteId:r.id, name:r.nome||'Bloco', layers:Array.isArray(r.layers)?r.layers:[]}));
+    const extras=dSnippets.filter(s=>!s.remoteId || !data.some(r=>r.id===s.remoteId));
+    dSnippets=[...remote, ...extras];
+    try{ localStorage.setItem('yngs_snippets_v1', JSON.stringify(dSnippets)); }catch(e){}
+    if(typeof dRenderSnippets==='function') dRenderSnippets();
+  }catch(e){}
 }
 function dSaveSnippet(){
   const ids = dMultiSel.length ? dMultiSel.slice() : (dSelId?[dSelId]:[]);
@@ -426,7 +504,7 @@ function dInsertSnippet(id){
   dRenderCanvas();dRenderLayersList();dStats();dMarkUnsaved();dSetTool('select');
   gToast('Bloco "'+s.name+'" inserido');
 }
-function dDeleteSnippet(id){ dSnippets=dSnippets.filter(x=>x.id!==id); dSaveSnippetsStore(); dRenderSnippets(); }
+function dDeleteSnippet(id){ const s=dSnippets.find(x=>x.id===id); if(s&&s.remoteId&&typeof dDeleteSnippetFromBackend==='function')dDeleteSnippetFromBackend(s.remoteId); dSnippets=dSnippets.filter(x=>x.id!==id); dSaveSnippetsStore(); dRenderSnippets(); }
 function dRenderSnippets(){
   const el=document.getElementById('d-snippets-list');if(!el)return;
   if(!dSnippets.length){ el.innerHTML='<div style="font-size:11px;color:var(--d-text3);padding:6px 0">Nenhum bloco salvo. Selecione camadas e clique em "Salvar bloco".</div>'; return; }

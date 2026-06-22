@@ -22,12 +22,15 @@ const dBuiltinFonts = [
 
 /* ── persistência ── */
 function dFontsPersist(){
-  try{ localStorage.setItem('yngs_fonts_v1', JSON.stringify(dCustomFonts)); return true; }
+  let ok=true;
+  try{ localStorage.setItem('yngs_fonts_v1', JSON.stringify(dCustomFonts)); }
   catch(e){
+    ok=false;
     if(e&&(e.name==='QuotaExceededError'||e.code===22))
       gToast('⚠ Não foi possível salvar a fonte: armazenamento cheio.','error');
-    return false;
   }
+  if(typeof dPushFontsToBackend==='function') dPushFontsToBackend(); // sync Supabase (background, só designer)
+  return ok;
 }
 function dFontsRestore(){
   try{
@@ -35,6 +38,60 @@ function dFontsRestore(){
     if(s){ const p=JSON.parse(s); if(Array.isArray(p)) dCustomFonts=p; }
   }catch(e){ dCustomFonts=[]; }
   dCustomFonts.forEach(dFontRegister);
+}
+
+/* ── Sync de fontes com o Supabase (luma.fontes + bucket luma-fontes) ──
+   Offline-first; o arquivo da fonte sobe pro Storage e o FontFace carrega da URL. */
+function _gSbFont(){ return (typeof gSupabase==='function')?gSupabase():window.sb; }
+async function dPushFontsToBackend(){
+  const sb=_gSbFont();
+  if(!sb || typeof gIsAdmin!=='function' || !gIsAdmin()) return;
+  try{
+    for(const f of dCustomFonts){
+      if(!f || !f.dataUrl) continue;
+      if(!f.remoteId) f.remoteId=(crypto&&crypto.randomUUID)?crypto.randomUUID():('f-'+Date.now()+Math.random().toString(36).slice(2));
+      // sobe o arquivo da fonte pro Storage se ainda é base64
+      if(typeof f.dataUrl==='string' && f.dataUrl.startsWith('data:')){
+        try{
+          const blob=await (await fetch(f.dataUrl)).blob();
+          const ext=((blob.type.split('/')[1]||'ttf').replace(/[^a-z0-9]/gi,''))||'ttf';
+          const path=f.remoteId+'/'+String(f.family||'fonte').replace(/[^a-zA-Z0-9_-]/g,'_')+'.'+ext;
+          const { error }=await sb.storage.from('luma-fontes').upload(path, blob, {upsert:true, contentType:blob.type||'font/ttf'});
+          if(!error) f.dataUrl=sb.storage.from('luma-fontes').getPublicUrl(path).data.publicUrl;
+        }catch(e){}
+      }
+      if(typeof f.dataUrl!=='string' || f.dataUrl.startsWith('data:')) continue; // upload falhou → tenta no próximo save
+      await sb.schema('luma').from('fontes').upsert({
+        id:f.remoteId, family:f.family, nome:f.name||f.family, weight:f.weight||400,
+        formato:(/\.([a-z0-9]+)(\?|$)/i.exec(f.dataUrl)||[])[1]||null, arquivo_url:f.dataUrl
+      }, {onConflict:'id'});
+    }
+    try{ localStorage.setItem('yngs_fonts_v1', JSON.stringify(dCustomFonts)); }catch(e){}
+  }catch(e){}
+}
+async function dDeleteFontFromBackend(remoteId){
+  const sb=_gSbFont();
+  if(!sb || !remoteId || typeof gIsAdmin!=='function' || !gIsAdmin()) return;
+  try{ await sb.schema('luma').from('fontes').delete().eq('id', remoteId); }catch(e){}
+}
+async function dSyncFontsFromBackend(){
+  const sb=_gSbFont(); if(!sb) return;
+  try{
+    const { data, error }=await sb.schema('luma').from('fontes').select('*');
+    if(error || !Array.isArray(data) || !data.length) return;
+    const have=new Set(dCustomFonts.map(f=>f.family&&f.family.toLowerCase()));
+    let added=false;
+    data.forEach(r=>{
+      if(!r.arquivo_url || !r.family || have.has(r.family.toLowerCase())) return;
+      const f={name:r.nome||r.family, family:r.family, dataUrl:r.arquivo_url, weight:r.weight||400, remoteId:r.id};
+      dCustomFonts.push(f); dFontRegister(f); added=true;
+    });
+    if(added){
+      try{ localStorage.setItem('yngs_fonts_v1', JSON.stringify(dCustomFonts)); }catch(e){}
+      if(typeof dFontsRenderList==='function') dFontsRenderList();
+      if(typeof dPopFontSelects==='function') dPopFontSelects();
+    }
+  }catch(e){}
 }
 
 /* ── registro no navegador (FontFace API) ── */
@@ -92,6 +149,7 @@ function dFontUpload(input){
 function dFontRemove(i){
   const f=dCustomFonts[i]; if(!f) return;
   if(!confirm(`Remover a fonte "${f.name}"? Textos que a usam voltam pra Roboto.`)) return;
+  if(f.remoteId && typeof dDeleteFontFromBackend==='function') dDeleteFontFromBackend(f.remoteId);
   dCustomFonts.splice(i,1);
   dFontsPersist();
   dFontsRenderList();
