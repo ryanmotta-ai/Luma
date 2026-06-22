@@ -163,4 +163,4 @@ Mesmo padrão offline-first (localStorage cache + push background só designer +
 - [x] **Persistência do franqueado**: ✅ histórico de artes (`luma.artes`) + ✅ fotos do chat → bucket `luma-user-uploads` (tornado público).
 - [ ] **Analytics**: emitir eventos em `analytics.fct_eventos` nos pontos-chave.
 - [ ] **XSS (H.1)**: `gEsc()` global antes de produção (achado §11.3 do CRM).
-- [~] Gestão de usuários: ✅ Fase 1 (listar/role/ativo via RLS). Falta Fase 2 — criar/convidar/excluir via Edge Function (`service_role`).
+- [~] Gestão de usuários: ✅ Fase 1 (listar/role/ativo via RLS). **Fase 2 (criar via Edge Function) ADIADA** — por ora criar/excluir usuário é feito direto no Dashboard do Supabase (decisão 2026-06-19).
