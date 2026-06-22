@@ -6,6 +6,24 @@
 
 ---
 
+## 2026-06-22 — Analytics por extração: views SQL (schema `analytics`)
+
+Decisão: o analytics **não vira dashboard no app** — os estudos saem por **extração** (SQL Editor / BI), em cima dos dados transacionais (`luma.artes`, `luma.templates`, `luma.pastas`, `public.profiles`). Sem event-sourcing, sem peso no front.
+
+**Migration:** `supabase/migrations/20260619120000_luma_analytics_views.sql` (aplicada no banco). **6 views** no schema `analytics`:
+- `vw_artes_por_dia` — artes/baixadas/franqueados por dia.
+- `vw_uso_por_campanha` — uso agregado por campanha (`camp_id`/`camp_name`).
+- `vw_uso_por_formato` — uso por formato (`fmt_id`/`fmt_name`).
+- `vw_taxa_download` — total de artes, baixadas e **% de download**.
+- `vw_franqueados_ativos` — por franqueado: nº de artes, baixadas e última atividade.
+- `vw_templates_publicados` — por pasta: nº de templates, publicados e última publicação.
+
+**Segurança validada:** as views **não têm grant** pra `anon`/`authenticated` (query em `role_table_grants` voltou vazia) → **não expostas via PostgREST/REST**. Acesso só com credencial admin (SQL Editor / service_role). São de **extração**, não da aplicação.
+
+**Estado dos dados:** `vw_templates_publicados` já retorna 15 pastas; as views de artes estão zeradas porque nenhum franqueado gerou arte real ainda — vão popular sozinhas conforme o uso.
+
+---
+
 ## 2026-06-19 — Gestão de usuários real no Supabase (Fase 1)
 
 A tela de **Equipe** (modal de perfil) deixou de usar o mock (`AUTH_USERS`) e passou a usar o Supabase via RLS.
