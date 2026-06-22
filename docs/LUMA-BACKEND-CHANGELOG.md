@@ -6,6 +6,22 @@
 
 ---
 
+## 2026-06-22 — Performance: índice de FK + RLS initplan (guiado pelo advisor)
+
+Rodada de performance baseada no **advisor do Supabase** (`get_advisors performance`). Só banco — front intocado.
+
+**1) Índice na FK `artes.template_id`** (migration `20260622120000_luma_perf_indexes`): `artes` é a única tabela que cresce de verdade; sem índice na FK, remover um template antigo causaria seq scan na tabela inteira. Criado `idx_artes_template`.
+
+**2) RLS `initplan`** (migration `20260622130000_luma_perf_rls_initplan`): as policies chamavam `auth.uid()` / `is_designer()` / `get_user_role()` **reavaliando por linha**. Envolvidas em `(select …)` → avaliadas **uma vez por query** (recomendação oficial do Supabase). Semântica idêntica; aplicado via `ALTER POLICY` (atômico, sem janela de exposição). Cobre `luma.artes` (4 policies), `pastas`, `templates`, `fontes`, `variaveis`, `biblioteca_assets`, `snippets`, `public.profiles` (2) e `analytics.fct_eventos` (2). **Resultado: os 9 WARN de `auth_rls_initplan` foram zerados.**
+
+**Decisões conscientes (NÃO feito, com motivo):**
+- **Sem índices em `criado_por`** (6 tabelas): nenhuma query filtra por essa coluna e profile quase nunca é apagado → nasceriam como `unused_index`. Índice morto só custa escrita.
+- **`multiple_permissive_policies`** (WARN, em `fontes`/`pastas`/`templates`/`variaveis`): cada SELECT avalia 2 policies permissivas (a de leitura + a `FOR ALL` de designer). Resolver exige fatiar o `FOR ALL` em 3 policies (INSERT/UPDATE/DELETE) por tabela. Ganho desprezível na escala atual (tabelas de dezenas de linhas) e mexer em RLS com o sistema em uso tem risco desproporcional → **deixado como dívida**; revisitar na fusão com o CRM ou se as tabelas crescerem.
+
+**Validado:** `pg_policies` confirma `(SELECT auth.uid())` nas expressões (lógica preservada); advisor sem nenhum lint de `initplan`; `idx_artes_template` presente.
+
+---
+
 ## 2026-06-22 — Analytics por extração: views SQL (schema `analytics`)
 
 Decisão: o analytics **não vira dashboard no app** — os estudos saem por **extração** (SQL Editor / BI), em cima dos dados transacionais (`luma.artes`, `luma.templates`, `luma.pastas`, `public.profiles`). Sem event-sourcing, sem peso no front.
