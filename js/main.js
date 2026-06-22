@@ -51,8 +51,9 @@ function gOnLoginSuccess() {
   fUpdateHistBadge();
   if (typeof fStartChat === 'function') fStartChat();
 
-  // Sincroniza o catálogo de variáveis com o Supabase (offline-first).
+  // Sincroniza variáveis e catálogo (pastas/templates) com o Supabase (offline-first).
   if (typeof dSyncVarsFromBackend === 'function') dSyncVarsFromBackend();
+  if (typeof dSyncFoldersFromBackend === 'function') dSyncFoldersFromBackend();
 }
 
 // Inicializa a aba no startup e checa a autenticação

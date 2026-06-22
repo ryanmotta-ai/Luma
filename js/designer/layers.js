@@ -2123,6 +2123,60 @@ async function _dPushFoldersNow(){
   }catch(e){ /* silencioso: o cache local já guardou */ }
 }
 
+/* ── LEITURA: carrega o catálogo (pastas + templates) do Supabase no boot ──
+   Banco é a fonte; preserva pastas locais ainda não sincronizadas (merge). */
+function _dRowToTemplate(t){
+  return {
+    id:t.id, remoteId:t.id, name:t.nome||'(sem nome)', fmt:t.fmt||'story',
+    formats:Array.isArray(t.formats)?t.formats:['story','feed','wide'],
+    layers:Array.isArray(t.layers)?t.layers:[],
+    publishMeta:{
+      publicado:!!t.publicado,
+      publicadoEm:t.publicado_em?new Date(t.publicado_em).getTime():null,
+      validade:t.validade||'',
+      instrucoes:t.instrucoes||'',
+      permissoes:(t.permissoes&&typeof t.permissoes==='object')?t.permissoes:{}
+    }
+  };
+}
+function _dRowToFolder(p, templates){
+  return {
+    id:p.id, remoteId:p.id, name:p.nome||'(sem nome)', color:p.cor||'', campId:p.camp_id||'',
+    cover:p.cover_url||'', badge:p.badge||'', expiraDias:p.expira_dias||7, popular:!!p.popular,
+    previewProd:p.preview_prod||'', previewDe:p.preview_de||'', previewPor:p.preview_por||'',
+    perguntas:Array.isArray(p.perguntas)?p.perguntas:[],
+    grupos:Array.isArray(p.grupos)?p.grupos:['Todos os usuários'],
+    agendamento:null, templates:templates||[]
+  };
+}
+async function dSyncFoldersFromBackend(){
+  const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
+  if(!sb) return;
+  try{
+    const { data:rp, error:e1 }=await sb.schema('luma').from('pastas').select('*').order('ordem',{ascending:true});
+    if(e1 || !Array.isArray(rp) || !rp.length) return; // banco vazio → mantém local (push migra)
+    const { data:rt }=await sb.schema('luma').from('templates').select('*');
+    const byPasta={};
+    (rt||[]).forEach(t=>{ (byPasta[t.pasta_id]=byPasta[t.pasta_id]||[]).push(_dRowToTemplate(t)); });
+    const remote=rp.map(p=>_dRowToFolder(p, byPasta[p.id]||[]));
+    // merge: banco manda; preserva pastas locais sem correspondente (por remoteId ou campId)
+    const rIds=new Set(remote.map(f=>f.remoteId));
+    const rCamps=new Set(remote.map(f=>f.campId).filter(Boolean));
+    const extras=(dFolders||[]).filter(f=>{
+      if(f.remoteId && rIds.has(f.remoteId)) return false;
+      if(f.campId && rCamps.has(f.campId)) return false;
+      return true;
+    });
+    dFolders=[...remote, ...extras];
+    try{ localStorage.setItem('yngs_folders_v1', JSON.stringify(dFolders)); }catch(e){}
+    if(typeof dRenderFolders==='function') dRenderFolders();
+    if(typeof fGetCampaigns==='function' && typeof fRenderCatalogs==='function'){
+      try{ const{ativas,outras}=fGetCampaigns(); fRenderCatalogs(ativas,outras); }catch(e){}
+    }
+    if(typeof gHydrateFolders==='function') gHydrateFolders(dFolders); // re-hidrata idb:// (cache local)
+  }catch(e){}
+}
+
 
 /* ══ MULTI-SELECT & GROUPS ══ */
 let dMultiSel = []; // array de layer IDs

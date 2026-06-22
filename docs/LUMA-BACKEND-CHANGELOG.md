@@ -6,6 +6,18 @@
 
 ---
 
+## 2026-06-19 — Persistência: Pastas + Templates (LEITURA) — ciclo fechado
+
+**Arquivos:** `js/designer/layers.js` + `js/main.js`.
+- **novas:** `dSyncFoldersFromBackend()` (2 queries: `SELECT luma.pastas` + `luma.templates`, monta `dFolders` com **merge** que preserva pastas locais não sincronizadas, por `remoteId`/`campId`); `_dRowToFolder`/`_dRowToTemplate` (banco→objeto, publishMeta remontado).
+- `main.js`: `gOnLoginSuccess` chama `dSyncFoldersFromBackend()` no boot (junto com as variáveis). Re-hidrata `idb://` (cache local) depois.
+
+**Validado via API (REST autenticado, RLS designer):** ciclo **escrita→leitura OK** (insert pasta+template → 201; leitura traz ambos com defaults). ⚠️ **Teste no navegador ainda pendente** (criar no designer → recarregar → vir do banco).
+
+**Decisão de arquitetura:** backend = **Supabase é a fonte** (cross-device). O **IndexedDB (`img-store` do Ryan) fica como cache local complementar** — não passamos por cima: já está integrado (no push, imagens `idb://`/`data:` são resolvidas e sobem pro Storage; o banco guarda a URL).
+
+---
+
 ## 2026-06-19 — Persistência: Pastas + Templates + Storage (ESCRITA)
 
 **Arquivo:** `js/designer/layers.js`.
@@ -114,7 +126,7 @@
 
 - [x] **Login real testado no navegador** — funciona (login + promoção a `gestao` OK, 2026-06-19).
 - [~] `js/core/user-profile.js`: badges do perfil próprio reconciliados (`gestao`/`equipe_dm`, 2026-06-19). Tela de *Gestão de Equipe* ainda é MOCK (lista `AUTH_USERS`, não os profiles) — migrar junto com a gestão de usuários.
-- [~] **Persistência do designer**: ✅ variáveis (`dVars` → `luma.variaveis`). Falta: `dPersistFolders`/`dPreloadFolders` (pastas + templates) + Storage; `dFontsPersist` (fontes).
+- [~] **Persistência do designer**: ✅ variáveis (`dVars` → `luma.variaveis`); ✅ pastas + templates + Storage (escrita+leitura, validado via API — falta exercer no navegador). Falta: `dFontsPersist` (fontes), `snippets`, `biblioteca_assets`.
 - [ ] **Persistência do franqueado**: `fSaveHist`/`fAddHist` + upload de fotos do chat → `luma.artes` + Storage.
 - [ ] **Analytics**: emitir eventos em `analytics.fct_eventos` nos pontos-chave.
 - [ ] **XSS (H.1)**: `gEsc()` global antes de produção (achado §11.3 do CRM).
