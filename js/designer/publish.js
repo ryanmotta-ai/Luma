@@ -331,6 +331,7 @@ function dPublishConfirm(){
       // Atualiza template existente, move de pasta se necessário
       tmpl.name=tmplName;
       tmpl.fmt=ab.fmt||'story';
+      tmpl.w=ab.w; tmpl.h=ab.h; tmpl.bg=ab.bg; // tamanho/fundo nativos → franqueado renderiza 1:1
       tmpl.layers=JSON.parse(JSON.stringify(ab.layers));
       if(tmplFolder&&tmplFolder.id!==folderId){
         tmplFolder.templates=tmplFolder.templates.filter(t=>t.id!==tmplId);
@@ -339,6 +340,7 @@ function dPublishConfirm(){
     }else{
       // Cria template novo
       tmpl={id:tmplId,name:tmplName,fmt:ab.fmt||'story',
+        w:ab.w,h:ab.h,bg:ab.bg, // tamanho/fundo nativos → franqueado renderiza 1:1
         layers:JSON.parse(JSON.stringify(ab.layers)),publishMeta:dDefaultPublishMeta()};
       folder.templates.unshift(tmpl);
     }

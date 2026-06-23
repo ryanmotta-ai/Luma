@@ -9,6 +9,7 @@
 function dSetFormat(fmt,btn){
   const prevFmt=dFmt;
   dFmt=fmt;
+  dCustomFmt=null; // troca pra um preset nomeado → descarta qualquer override ad-hoc de tamanho
   document.querySelectorAll('.dt-fmt').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   // Atualiza dimensões do artboard ativo
@@ -696,7 +697,7 @@ function dRenderCanvas(){
       el.addEventListener('mouseleave',()=>dHoverLayer(l.id,false));
     }
     if(l.type==='shape'){
-      el.style.opacity=(l.opacity||100)/100;
+      el.style.opacity=(l.opacity!=null?l.opacity:100)/100; // opacity:0 é válido (||100 transformava 0 em 100)
       const kind=l.shapeKind||'rect';
       const pts=(kind!=='circle'&&kind!=='ellipse'&&typeof dShapePoints==='function')?dShapePoints(l):null;
       if(pts){
@@ -765,8 +766,11 @@ function dRenderCanvas(){
         textNode.innerHTML=l.runs.map(r=>`<span style="color:${r.color||'inherit'};font-size:${r.fontSize||_renderFs}px;font-family:${dTextFontParts(r.font).family};font-weight:${dTextFontParts(r.font).weight};${r.letterSpacing?'letter-spacing:'+r.letterSpacing+'px;':''}">${gEsc(r.text||'').replace(/\n/g,'<br>')}</span>`).join(''); }
       else { textNode.innerHTML=gEsc(l.content||'').replace(gVarRegex(),(m,n)=>{
         const v=(typeof dVars!=='undefined')&&dVars.find(x=>x.name===n);
-        const lab=v?(v.label||n):n;
-        return '<span class="field-chip" data-var="'+n+'">'+gEsc(lab)+'</span>';
+        // Mostra um valor de exemplo realista (não o nome do campo gigante). A borda
+        // tracejada + etiqueta roxa (l.isVar) já sinalizam que é variável; aqui só um
+        // sublinhado leve (.field-fill) marca o trecho dinâmico sem virar bloco.
+        const sample=(typeof gFieldSampleValue==='function')?gFieldSampleValue(v||{name:n}):((v&&(v.label||n))||n);
+        return '<span class="field-fill" data-var="'+n+'">'+gEsc(sample)+'</span>';
       }); }
       // Preenchimento por gradiente no texto (clip) — não para rich text (que tem cor por trecho)
       if(l.gradient && l.gradient.stops && l.gradient.stops.length && !(l.runs&&l.runs.length)){
@@ -978,7 +982,8 @@ function dToggleLockRatio() {
 const SNAP_THRESHOLD = 6; // pixels do canvas
 function dCalculateSnap(movingLayer, newX, newY){
   if(!dSnapEnabled)return {x:newX, y:newY, guides:[]};
-  const f=DFMT_SIZES[dFmt]||DFMT_SIZES.story;
+  const _abS=(typeof dGetActiveAB==='function')?dGetActiveAB():null;
+  const f=_abS?{w:_abS.w,h:_abS.h}:(DFMT_SIZES[dFmt]||DFMT_SIZES.story); // tamanho real (custom/'orig'), não o preset
   const guides=[];
   const movEdges={
     x:[newX, newX+movingLayer.w/2, newX+movingLayer.w],
@@ -1052,7 +1057,8 @@ function dShowGuides(guides){
   dClearGuides();
   const frame=document.getElementById('d-canvas-frame');
   if(!frame)return;
-  const f=DFMT_SIZES[dFmt]||DFMT_SIZES.story;
+  const _abG=(typeof dGetActiveAB==='function')?dGetActiveAB():null;
+  const f=_abG?{w:_abG.w,h:_abG.h}:(DFMT_SIZES[dFmt]||DFMT_SIZES.story); // tamanho real (custom/'orig')
   guides.forEach(g=>{
     const el=document.createElement('div');
     el.className='smart-guide '+g.type+' yng-guide';
@@ -1190,7 +1196,8 @@ function dToggleRulers(){
 }
 function dRenderRulers(){
   if(!dRulersOn)return;
-  const f=DFMT_SIZES[dFmt]||DFMT_SIZES.story;
+  const _abR=(typeof dGetActiveAB==='function')?dGetActiveAB():null;
+  const f=_abR?{w:_abR.w,h:_abR.h}:(DFMT_SIZES[dFmt]||DFMT_SIZES.story); // tamanho real (custom/'orig')
   const scale=dZoomLevel/100;
   const step= f.w>1500 ? 100 : (f.w>800 ? 50 : 25);
   const rh=document.getElementById('d-ruler-h');

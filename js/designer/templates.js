@@ -215,7 +215,12 @@ function dBuildBlankLayersWH(w,h){
 let dCanvasBg='',dCustomFmt=null; // dCustomFmt={w,h} para dimensões ad-hoc
 
 function dGetActiveAB(){
-  const f=dCustomFmt||(DFMT_SIZES[dFmt]||DFMT_SIZES.story);
+  // Tamanho: override ad-hoc (dCustomFmt) > preset do formato. Para formatos SEM preset
+  // ('orig' = PSD/custom 1:1), preserva o w/h real já gravado no artboard em vez de
+  // colapsar pra 'story' — senão templates importados perdem as dimensões nativas.
+  const preset=DFMT_SIZES[dFmt];
+  let f=dCustomFmt||preset;
+  if(!f) f=(dArtboards.length && dArtboards[0].w>0) ? {w:dArtboards[0].w,h:dArtboards[0].h} : DFMT_SIZES.story;
   if(dArtboards.length){
     dArtboards[0].w=f.w;dArtboards[0].h=f.h;dArtboards[0].fmt=dFmt;
     dArtboards[0].bg=dCanvasBg;dArtboards[0].layers=dLayers;
@@ -668,6 +673,7 @@ function dLoadTemplate(tmpl,folder){
   // Template 1:1 do PSD guarda w/h reais (fmt 'orig' não tem DFMT_SIZES) → usa o tamanho real.
   const f=DFMT_SIZES[tmpl.fmt]||DFMT_SIZES.story;
   const _w=(tmpl.w>0)?tmpl.w:f.w, _h=(tmpl.h>0)?tmpl.h:f.h;
+  dCustomFmt=null; // limpa override ad-hoc de um "Novo arquivo" anterior; o tamanho real vem de ab.w/h abaixo
   const ab=dGetActiveAB();
   if(ab){ab.layers=JSON.parse(JSON.stringify(tmpl.layers||[]));ab.fmt=tmpl.fmt;ab.name=tmpl.name;ab.w=_w;ab.h=_h;}
   dLayers=JSON.parse(JSON.stringify(tmpl.layers||[]));
@@ -933,7 +939,7 @@ function dNewArtboardCustom(w,h,bg,dpi,fmt){
   dArtboards.push(ab);
   dActiveABId=id;
   dLayers=JSON.parse(JSON.stringify(ab.layers));
-  dFmt=fmt;dSelId=null;dMultiSel=[];
+  dFmt=fmt;dCustomFmt={w,h};dSelId=null;dMultiSel=[]; // tamanho ad-hoc explícito (fmt é só metadado ratio-snap)
   dHistoryReset();
   if(typeof dRenderWorkspace==='function')dRenderWorkspace();
   dApplyFormat();dRenderCanvas();dRenderLayersList();dRenderABList();

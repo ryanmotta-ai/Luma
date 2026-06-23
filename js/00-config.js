@@ -384,6 +384,23 @@ const DFIELD_TYPES={
 };
 function gFieldTypeMeta(type){ return DFIELD_TYPES[type] || {label:type||'Texto', icon:'🔤'}; }
 function gFieldCatMeta(id){ return DFIELD_CATS.find(c=>c.id===id) || DFIELD_CATS[DFIELD_CATS.length-1]; }
+// Valor de exemplo p/ exibir um campo no canvas (modo edição, sem simulação ativa).
+// Mostra algo realista no lugar do nome do campo em caixa-alta gigante — mesma
+// prioridade do card de campo (example → defaultValue), com fallback por tipo.
+function gFieldSampleValue(v){
+  if(!v) return 'exemplo';
+  if(v.example!=null && v.example!=='') return String(v.example);
+  if(v.defaultValue!=null && v.defaultValue!=='') return String(v.defaultValue);
+  switch(v.type){
+    case 'currency': return 'R$ 19,90';
+    case 'number':   return '99';
+    case 'date':     return '31/12/2026';
+    case 'color':    return '#FF9000';
+    case 'boolean':  return 'Sim';
+    case 'select':   return (Array.isArray(v.options)&&v.options.length)?String(v.options[0]):'Opção';
+    default:         return v.label||v.name||'exemplo';
+  }
+}
 
 // Infere a categoria de um campo pelo tipo e pelo nome/rótulo (heurística da spec).
 function gFieldGuessCategory(name, type){

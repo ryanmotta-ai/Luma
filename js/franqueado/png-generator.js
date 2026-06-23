@@ -172,17 +172,11 @@ async function fGenPDF(d,c,fmt){
   setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
 }
 
-// Renderiza a logo Luma branca no rodapé (compartilhado entre os dois caminhos)
+// Rodapé de marca da ferramenta (Luma) — DESATIVADO: a arte gerada é da loja do
+// franqueado, então a marca do Luma não deve ser queimada no PNG/PDF final. Mantido
+// como no-op pra não quebrar os pontos de chamada (download, resultado, fallback).
 async function fDrawDMLogo(ctx, w, h){
-  const logoImg = await fLoadLogoBranca();
-  const cx = w/2;
-  if(logoImg && logoImg.width){
-    const logoW = w * 0.22;
-    const logoH = logoW / 3.065; // proporção da logo Luma (540.65 / 176.37)
-    ctx.globalAlpha = 0.9;
-    ctx.drawImage(logoImg, cx - logoW/2, h*.93 - logoH/2, logoW, logoH);
-    ctx.globalAlpha = 1.0;
-  }
+  return; // não desenha nenhuma logo de marca no resultado final
 }
 
 // Renderiza os layers do template, substituindo {{var}} pelos dados reais do franqueado
@@ -229,10 +223,17 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
     // Modos sem equivalente nativo no Canvas 2D → fallback pixel-a-pixel via dBlendImageData
     const _needsSw=_bm!=='normal'&&_native===null&&typeof dBlendImageData==='function';
     if(l.mask||_needsSw){
-      // Ambos os casos precisam de offscreen: máscara e/ou blend software
-      const oc=document.createElement('canvas'); oc.width=W; oc.height=H;
+      // Ambos os casos precisam de offscreen: máscara e/ou blend software.
+      // ATENÇÃO: o ctx pai pode estar com super-sampling (scale 2×) no download. O
+      // offscreen precisa ter a resolução de DISPOSITIVO (W*sx × H*sy) e a mesma
+      // transform — senão o conteúdo sai em meia escala no canto (bug: prévia 1× ok,
+      // download 2× quebrado).
+      const _tf=(typeof ctx.getTransform==='function')?ctx.getTransform():{a:1,d:1};
+      const _sx=_tf.a||1, _sy=_tf.d||1;
+      const oc=document.createElement('canvas');
+      oc.width=Math.max(1,Math.round(W*_sx)); oc.height=Math.max(1,Math.round(H*_sy));
       const octx=oc.getContext('2d');
-      try{ octx.setTransform(ctx.getTransform()); }catch(e){}
+      try{ octx.setTransform(_tf); }catch(e){}
       octx.imageSmoothingEnabled=true; octx.imageSmoothingQuality='high';
       // Renderiza no offscreen sem blend (source-over) — blend aplicado abaixo
       const _lNoBm=_needsSw?Object.assign({},l,{blendMode:'normal'}):l;
@@ -244,10 +245,11 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
         }catch(e){}
       }
       if(_needsSw){
-        // Blend pixel-a-pixel restrito à bbox do layer
-        const bx=Math.max(0,Math.round(l.x)), by=Math.max(0,Math.round(l.y));
-        const bw=Math.min(W-bx,Math.max(1,Math.round(l.w)));
-        const bh=Math.min(H-by,Math.max(1,Math.round(l.h)));
+        // Blend pixel-a-pixel restrito à bbox do layer, em coords de DISPOSITIVO
+        // (getImageData/putImageData ignoram a transform → multiplica pela escala).
+        const bx=Math.max(0,Math.round(l.x*_sx)), by=Math.max(0,Math.round(l.y*_sy));
+        const bw=Math.min(oc.width-bx,Math.max(1,Math.round(l.w*_sx)));
+        const bh=Math.min(oc.height-by,Math.max(1,Math.round(l.h*_sy)));
         if(bw>0&&bh>0){
           const topData=octx.getImageData(bx,by,bw,bh);
           const botData=ctx.getImageData(bx,by,bw,bh);

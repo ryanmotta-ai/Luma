@@ -259,7 +259,6 @@ function fProcessImageFile(file, varId, uploadId){
                 }).join('');
                 if(!fState.extractedColors) fState.extractedColors = {};
                 fState.extractedColors[varId] = hex;
-                console.log(`[ColorThief] Cor extraída para ${varId}:`, hex);
               }
             } catch(thiefErr) {
               console.warn('[ColorThief] Erro ao extrair cor:', thiefErr);
@@ -686,12 +685,14 @@ function fGerarArte(){
     const hasMaterial = fState.material && fState.material.layers && fState.material.layers.length;
     let canvasBlock = '';
     if(hasMaterial){
-      // Reserva espaço pro canvas thumbnail
-      const fmtMap={story:[9,16],feed:[1,1],post:[12,6.28],wide:[12,6.28]};
-      const [aw, ah] = fmtMap[fState.fmt.id] || [9,16];
+      // Tamanho NATIVO do material (1:1 do PSD) → o thumbnail tem o MESMO aspecto e a
+      // MESMA geometria do download (sem reflow). Antes usava o aspecto do formato
+      // (fmtMap 9:16) e o render reflowava os layers, deixando este preview inconsistente
+      // com a prévia ao vivo e com a arte final baixada.
+      const [mw, mh] = (typeof fMaterialSize==='function') ? fMaterialSize(fState.material, fState.fmt) : [1080,1920];
       const previewH = 280;
-      const previewW = Math.round(previewH * (aw/ah));
-      canvasBlock = `<div class="art-canvas-real" style="background:${c.color};width:${previewW}px;height:${previewH}px"><canvas id="${previewCanvasId}" width="${previewW}" height="${previewH}" style="display:block;width:100%;height:100%"></canvas></div>`;
+      const previewW = Math.round(previewH * (mw/mh));
+      canvasBlock = `<div class="art-canvas-real" style="background:${c.color};width:${previewW}px;height:${previewH}px"><canvas id="${previewCanvasId}" width="${mw}" height="${mh}" style="display:block;width:100%;height:100%"></canvas></div>`;
     } else {
       // Fallback HTML antigo
       const fotoProduto = d.foto_produto;
@@ -818,7 +819,7 @@ async function fBaixar(btn, snapId){
     gToast('Não consegui gerar o PNG. Se a arte usa imagem por URL, ela precisa ser pública (com CORS).','error');
   }finally{ restore(); }
 }
-function fRefazer(){fState.stepIdx=-1;fState.dados={};fState.done=false;fClearImgCache();document.getElementById('f-messages').innerHTML='';fUpdateProg();fAddBot(`Vamos refazer a arte da <strong>${fState.camp.name}</strong>.`,[]);setTimeout(()=>fNextStep(),500);}
+function fRefazer(){fState.stepIdx=-1;fState.dados={};fState.done=false;fClearImgCache();_fArtSnapshots={};_fArtCaptions={};document.getElementById('f-messages').innerHTML='';fUpdateProg();fAddBot(`Vamos refazer a arte da <strong>${fState.camp.name}</strong>.`,[]);setTimeout(()=>fNextStep(),500);}
 function fResetFlow(){
   // Se não há nada preenchido, reseta direto sem perguntar
   const temDados = Object.keys(fState.dados).length > 0 || fState.stepIdx >= 0;
@@ -844,6 +845,7 @@ function fResetFlow(){
 function fConfirmReset(){
   const m=document.getElementById('reset-confirm-msg');if(m)m.remove();
   fState.stepIdx=-1;fState.dados={};fState.done=false;fClearImgCache();
+  _fArtSnapshots={};_fArtCaptions={}; // evita acúmulo de snapshots/legendas de artes antigas
   document.getElementById('f-messages').innerHTML='';fUpdateProg();fStartChat();
 }
 function fCancelReset(){
