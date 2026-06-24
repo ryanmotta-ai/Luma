@@ -685,14 +685,13 @@ function fGerarArte(){
     const hasMaterial = fState.material && fState.material.layers && fState.material.layers.length;
     let canvasBlock = '';
     if(hasMaterial){
-      // Tamanho NATIVO do material (1:1 do PSD) → o thumbnail tem o MESMO aspecto e a
-      // MESMA geometria do download (sem reflow). Antes usava o aspecto do formato
-      // (fmtMap 9:16) e o render reflowava os layers, deixando este preview inconsistente
-      // com a prévia ao vivo e com a arte final baixada.
+      // Aspecto NATIVO do material (1:1 do PSD) — o thumbnail usa a mesma geometria do
+      // download. O canvas VISÍVEL fica pequeno (display size); o render nativo acontece
+      // num offscreen reduzido depois (evita guardar um backing nativo gigante por bolha).
       const [mw, mh] = (typeof fMaterialSize==='function') ? fMaterialSize(fState.material, fState.fmt) : [1080,1920];
       const previewH = 280;
       const previewW = Math.round(previewH * (mw/mh));
-      canvasBlock = `<div class="art-canvas-real" style="background:${c.color};width:${previewW}px;height:${previewH}px"><canvas id="${previewCanvasId}" width="${mw}" height="${mh}" style="display:block;width:100%;height:100%"></canvas></div>`;
+      canvasBlock = `<div class="art-canvas-real" style="background:${c.color};width:${previewW}px;height:${previewH}px"><canvas id="${previewCanvasId}" width="${previewW}" height="${previewH}" style="display:block;width:100%;height:100%"></canvas></div>`;
     } else {
       // Fallback HTML antigo
       const fotoProduto = d.foto_produto;
@@ -736,9 +735,17 @@ function fGerarArte(){
       try {
         const cv = document.getElementById(previewCanvasId);
         if(cv){
+          const [mw, mh] = (typeof fMaterialSize==='function') ? fMaterialSize(fState.material, fState.fmt) : [1080,1920];
+          // Render no tamanho NATIVO num offscreen (mesma geometria do download) e desenha
+          // reduzido no canvas visível — não guarda um backing nativo por bolha de resultado.
+          const off = document.createElement('canvas'); off.width=mw; off.height=mh;
+          const octx = off.getContext('2d');
+          await fRenderTemplateLayers(octx, fState.material.layers, mw, mh, d, c);
+          await fDrawDMLogo(octx, mw, mh);
           const ctx = cv.getContext('2d');
-          await fRenderTemplateLayers(ctx, fState.material.layers, cv.width, cv.height, d, c);
-          await fDrawDMLogo(ctx, cv.width, cv.height);
+          ctx.clearRect(0,0,cv.width,cv.height);
+          ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+          ctx.drawImage(off, 0,0,mw,mh, 0,0,cv.width,cv.height);
         }
       } catch(e){ console.warn('Erro ao renderizar preview:', e); }
     }

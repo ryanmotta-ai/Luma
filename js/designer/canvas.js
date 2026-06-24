@@ -8,13 +8,16 @@
 
 function dSetFormat(fmt,btn){
   const prevFmt=dFmt;
+  // Captura o tamanho ATUAL (antes de trocar fmt/dCustomFmt) — é a origem do smart-resize.
+  // Tem que vir antes, senão dGetActiveAB já reescreve ab.w/h pro tamanho novo e from===to.
+  const _abFrom=dGetActiveAB&&dGetActiveAB();
+  const from=_abFrom?{w:_abFrom.w,h:_abFrom.h}:(DFMT_SIZES[prevFmt]||DFMT_SIZES.story);
   dFmt=fmt;
   dCustomFmt=null; // troca pra um preset nomeado → descarta qualquer override ad-hoc de tamanho
   document.querySelectorAll('.dt-fmt').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   // Atualiza dimensões do artboard ativo
   const ab=dGetActiveAB&&dGetActiveAB();
-  const from=ab?{w:ab.w,h:ab.h}:(DFMT_SIZES[prevFmt]||DFMT_SIZES.story);
   const to=DFMT_SIZES[fmt]||DFMT_SIZES.story;
   if(ab){ab.fmt=fmt;ab.w=to.w;ab.h=to.h;}
   // 5.2 — Smart resize: oferece adaptar os elementos ao novo formato (re-ancora sem distorcer)
@@ -794,9 +797,16 @@ function dRenderCanvas(){
         if(_ts.length) textNode.style.textShadow=_ts.join(', ');
       }
       el.appendChild(textNode);
-      // Indicador de overflow — mede com o tamanho EXIBIDO (_renderFs); se o encaixe já
-      // resolveu, não acende o selo. Na simulação mede o valor real, não os tokens {{}}.
-      if(dCheckTextOverflow(dSimActive?{...l,content:dInterpolate(l.content||''),fontSize:_renderFs}:{...l,fontSize:_renderFs})){
+      // Indicador de overflow — mede com o tamanho EXIBIDO (_renderFs) e o TEXTO exibido:
+      // simulação usa o valor real; edição usa o mesmo valor de exemplo que aparece no canvas
+      // (gFieldSampleValue), não os tokens {{}} crus — senão o selo discorda do que se vê.
+      let _ovContent;
+      if(dSimActive){ _ovContent=dInterpolate(l.content||''); }
+      else { _ovContent=(l.content||'').replace(gVarRegex(),(m,n)=>{
+        const v=(typeof dVars!=='undefined')&&dVars.find(x=>x.name===n);
+        return (typeof gFieldSampleValue==='function')?gFieldSampleValue(v||{name:n}):((v&&(v.label||n))||n);
+      }); }
+      if(dCheckTextOverflow({...l,content:_ovContent,fontSize:_renderFs})){
         el.classList.add('text-overflow');
       }
     }else if(l.type==='frame'){

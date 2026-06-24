@@ -431,6 +431,7 @@ function dInit(){
   if(!DFMT_SIZES[dFmt]){
     try{ const _wh=localStorage.getItem('yngs_wh_v1'); if(_wh){ const p=_wh.split('x'); const cw=+p[0],ch=+p[1]; if(cw>0&&ch>0) _initF={w:cw,h:ch}; } }catch(e){}
   }
+  dCustomFmt=null; // limpa override ad-hoc de uma sessão anterior; o tamanho real ('orig') fica em dArtboards[0].w/h
   dArtboards=[{id:'ab-single',name:'Prancheta',x:80,y:60,w:_initF.w,h:_initF.h,fmt:dFmt,bg:dCanvasBg,layers:dLayers}];
   dActiveABId='ab-single';
   // Re-hidrata fundos grandes (idb://) da prancheta ativa e das pastas; re-renderiza quando prontos.
