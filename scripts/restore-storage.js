@@ -14,7 +14,7 @@ const fs = require('fs');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 
-const URL = process.env.SUPABASE_URL;
+let URL = process.env.SUPABASE_URL;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const IN = process.env.IN_DIR || path.join(process.cwd(), 'storage-backup');
 
@@ -22,6 +22,9 @@ if (!URL || !KEY) {
   console.error('Faltam as variáveis SUPABASE_URL e/ou SUPABASE_SERVICE_ROLE_KEY.');
   process.exit(1);
 }
+// Tolera URL colada sem esquema, com espaços ou barra no fim.
+URL = URL.trim().replace(/\/+$/, '');
+if (!/^https?:\/\//i.test(URL)) URL = 'https://' + URL;
 if (!fs.existsSync(IN)) {
   console.error(`Pasta de backup não encontrada: ${IN}`);
   process.exit(1);
