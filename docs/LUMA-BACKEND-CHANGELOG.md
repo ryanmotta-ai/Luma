@@ -38,7 +38,10 @@ Backup automatizado, **fora** do Supabase (o free tier tem retenção curta e PI
 
 **`.gitignore`:** adicionados `backup/`, `storage-backup/`, `*.sql.gz`.
 
-**Validado:** sintaxe dos 2 scripts (`node --check`). Falta o Pedro configurar os secrets e rodar o primeiro `workflow_dispatch` pra exercício end-to-end.
+**Validado end-to-end (2026-06-25):** os 2 jobs rodaram **verdes** via `workflow_dispatch`, gerando os artifacts. Ajustes que apareceram no primeiro run real:
+1. **Node 22** no runner — `supabase-js` recente exige WebSocket nativo, ausente no Node 20 (`Node.js 20 detected without native WebSocket support`).
+2. **`SUPABASE_DB_URL` = Session pooler** (IPv4, host `…pooler.supabase.com:5432`). A *Direct connection* (`db.<ref>.supabase.co`) é **IPv6** e o GitHub Actions não tem IPv6 (`Network is unreachable`).
+3. Scripts de Storage normalizam a URL (trim + prefixo `https://`) pra tolerar secret colado sem esquema.
 
 ---
 
