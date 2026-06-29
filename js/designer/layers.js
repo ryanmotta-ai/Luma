@@ -962,7 +962,7 @@ function dShowProps(l){
     document.getElementById('dp-imgfit').value=l.objectFit||'cover';
     const imgSel=document.getElementById('dp-imgvar');
     const imgVars=dVars.filter(v=>v.type==='image');
-    imgSel.innerHTML='<option value="">URL fixa</option>'+imgVars.map(v=>`<option value="${v.name}" ${v.name===l.imgVar?'selected':''}>${v.label}</option>`).join('');
+    imgSel.innerHTML='<option value="">URL fixa</option>'+imgVars.map(v=>`<option value="${v.name}" ${v.name===l.imgVar?'selected':''}>${gEsc(v.label)}</option>`).join('');
     // Para frames: mostrar opção de shape e radius
     const fsRow=document.getElementById('dp-frame-shape-row');
     const frRow=document.getElementById('dp-frame-radius-row');
@@ -1037,7 +1037,7 @@ function dPopVarSel(){
 }
 /* ── BINDINGS de propriedade (4.1) ── */
 function dBindOptions(filterFn, current){
-  return '<option value="">— nenhuma —</option>'+dVars.filter(filterFn).map(v=>`<option value="${v.name}" ${v.name===current?'selected':''}>${v.label} ({{${v.name}}})</option>`).join('');
+  return '<option value="">— nenhuma —</option>'+dVars.filter(filterFn).map(v=>`<option value="${v.name}" ${v.name===current?'selected':''}>${gEsc(v.label)} ({{${v.name}}})</option>`).join('');
 }
 function dPopBindingSelects(l){
   const b=l.bindings||{};
@@ -1978,9 +1978,9 @@ function dVarTypePopover(name, anchorEl){
 /* ── ASSETS ── */
 function dAssetsRender(){
   document.getElementById('d-assets-grid').innerHTML=dAssets.map((a,i)=>`
-    <div class="asset-thumb" onclick="dUseAsset(${i})" title="${a.name}">
-      ${a.url?`<img src="${a.url}" alt="${a.name}">`:`<span style="font-size:26px">${a.emoji}</span>`}
-      <span class="asset-name">${a.name}</span>
+    <div class="asset-thumb" onclick="dUseAsset(${i})" title="${gEsc(a.name)}">
+      ${a.url?`<img src="${gEsc(a.url)}" alt="${gEsc(a.name)}">`:`<span style="font-size:26px">${a.emoji}</span>`}
+      <span class="asset-name">${gEsc(a.name)}</span>
     </div>`).join('');
 }
 function dHandleUpload(inp){ dLibUpload(inp); }

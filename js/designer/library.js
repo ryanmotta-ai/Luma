@@ -94,7 +94,7 @@ function dLibRenderCats() {
   if (!el) return;
   const all = ['Todos', ...dLibCats];
   el.innerHTML = all.map(cat =>
-    `<button class="lib-cat ${cat === dLibActiveCat ? 'active' : ''}" onclick="dLibSetCat('${cat}')">${cat}</button>`
+    `<button class="lib-cat ${cat === dLibActiveCat ? 'active' : ''}" data-cat="${gEsc(cat)}" onclick="dLibSetCat(this.dataset.cat)">${gEsc(cat)}</button>`
   ).join('');
 }
 

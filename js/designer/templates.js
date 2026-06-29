@@ -710,7 +710,7 @@ function dPopFolderCampaignSelect(sel){
   const el=document.getElementById('df-campaign');if(!el)return;
   const camps=[...CAMPS_ATIVAS,...CAMPS_OUTRAS];
   el.innerHTML='<option value="">Sem campanha vinculada</option>'+
-    camps.map(c=>`<option value="${c.id}" ${c.id===sel?'selected':''}>${c.name}</option>`).join('');
+    camps.map(c=>`<option value="${c.id}" ${c.id===sel?'selected':''}>${gEsc(c.name)}</option>`).join('');
 }
 // Renderiza os checkboxes de grupos
 function dFolderRenderGroups(selected){
@@ -892,7 +892,7 @@ function dFolderMenu(ev,id){
 function dOpenNewTemplate(){
   // populate folder select
   const sel=document.getElementById('dt-folder');
-  sel.innerHTML=dFolders.map(f=>`<option value="${f.id}">${f.name}</option>`).join('');
+  sel.innerHTML=dFolders.map(f=>`<option value="${f.id}">${gEsc(f.name)}</option>`).join('');
   document.getElementById('dt-name').value='';
   document.getElementById('d-tmpl-modal').classList.add('open');
   setTimeout(()=>document.getElementById('dt-name').focus(),100);
