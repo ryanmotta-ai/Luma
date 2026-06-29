@@ -31,6 +31,6 @@ storage-backup/
 .env
 .env.local
 
-# Config local do Supabase — as credenciais ficam DENTRO deste arquivo
-# (que é ignorado), nunca no próprio .gitignore (que É versionado).
-js/core/supabase-config.js
+# NOTA: js/core/supabase-config.js é versionado DE PROPÓSITO — contém só a
+# Project URL e a anon/publishable key (públicas, protegidas pela RLS).
+# A chave service_role JAMAIS deve ser commitada (em nenhum arquivo).
