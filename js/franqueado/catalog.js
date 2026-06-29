@@ -153,9 +153,9 @@ function fEditFromHist(id){
       const label = vDef ? vDef.label : v.replace(/_/g,' ');
       const isImage = (vDef ? vDef.type==='image' : false) || imgVars.has(v);
       if(isImage){
-        perguntas.push({id:v, texto:`Envie a <strong>${label.toLowerCase()}</strong>`, sugestoes:[], isImage:true, label, maxLen:0});
+        perguntas.push({id:v, texto:`Envie a <strong>${gEsc(label.toLowerCase())}</strong>`, sugestoes:[], isImage:true, label, maxLen:0});
       } else {
-        perguntas.push({id:v, texto:`Qual é o <strong>${label.toLowerCase()}</strong>?`, sugestoes:fGetSuggestionsForVar(v, c), maxLen:perm?.maxLen||32, label});
+        perguntas.push({id:v, texto:`Qual é o <strong>${gEsc(label.toLowerCase())}</strong>?`, sugestoes:fGetSuggestionsForVar(v, c), maxLen:perm?.maxLen||32, label});
       }
     });
     fState.camp = {...c, perguntas, materialName: material.name};
@@ -189,8 +189,8 @@ function fEditFromHist(id){
       const isImg = typeof val==='string' && val.startsWith('data:image');
       const vDef = (typeof dVars!=='undefined' && dVars) ? dVars.find(x=>x.name===k) : null;
       const label = (vDef && vDef.label) || fbLabels[k] || k.replace(/_/g,' ');
-      if(isImg) return {id:k, texto:`Envie a <strong>${label.toLowerCase()}</strong>`, sugestoes:[], isImage:true, label, maxLen:0};
-      return {id:k, texto:`Qual é o <strong>${label.toLowerCase()}</strong>?`, sugestoes:fGetSuggestionsForVar(k, c), maxLen:32, label};
+      if(isImg) return {id:k, texto:`Envie a <strong>${gEsc(label.toLowerCase())}</strong>`, sugestoes:[], isImage:true, label, maxLen:0};
+      return {id:k, texto:`Qual é o <strong>${gEsc(label.toLowerCase())}</strong>?`, sugestoes:fGetSuggestionsForVar(k, c), maxLen:32, label};
     });
   } else {
     fbPerguntas = c.perguntas; // sem dados salvos → usa as perguntas da campanha
@@ -286,15 +286,15 @@ function fCampEl(c,isRec){
   return `<div class="camp-card ${c.id===fState.camp.id?'selected':''} ${isRec?'recommended':''}" onclick="fSelectCamp('${c.id}')">
     <div class="camp-prev-btn" onclick="event.stopPropagation();fOpenPreview(event,'${c.id}')">PRÉVIA</div>
     <div class="camp-thumb ${cover?'has-cover':''}" style="${thumbStyle}">
-      ${c.badge?`<div class="camp-badge">${c.badge}</div>`:''}
+      ${c.badge?`<div class="camp-badge">${gEsc(c.badge)}</div>`:''}
       ${c.popular?`<div class="camp-popular">🔥 Popular</div>`:''}
       ${c.expiraDias<=3?`<div class="camp-urgency">⏰ ${c.expiraDias}d restantes</div>`:''}
-      ${cover?'':`<div class="camp-thumb-prod">${previewProd}</div>
-      ${previewDe?`<div class="camp-thumb-de">${previewDe}</div>`:''}
-      ${previewPor?`<div class="camp-thumb-por">${previewPor}</div>`:''}
+      ${cover?'':`<div class="camp-thumb-prod">${gEsc(previewProd)}</div>
+      ${previewDe?`<div class="camp-thumb-de">${gEsc(previewDe)}</div>`:''}
+      ${previewPor?`<div class="camp-thumb-por">${gEsc(previewPor)}</div>`:''}
       <div class="camp-thumb-logo" role="img" aria-label="Luma"></div>`}
     </div>
-    <div class="camp-body"><div class="camp-name">${c.name}</div><div class="camp-sub">${countLabel}</div></div>
+    <div class="camp-body"><div class="camp-name">${gEsc(c.name)}</div><div class="camp-sub">${countLabel}</div></div>
   </div>`;
 }
 function fGetCampaigns(){

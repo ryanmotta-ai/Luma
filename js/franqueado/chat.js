@@ -43,7 +43,7 @@ function fAskCampSwitch(c){
   const existing=document.getElementById('switch-confirm-msg');if(existing)existing.remove();
   const w=document.createElement('div');w.className='msg bot';w.id='switch-confirm-msg';
   w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div>
-    <div class="bbl">Trocar pra <strong>${c.name}</strong>? Você vai perder o progresso atual e poderá escolher um material da nova campanha.</div>
+    <div class="bbl">Trocar pra <strong>${gEsc(c.name)}</strong>? Você vai perder o progresso atual e poderá escolher um material da nova campanha.</div>
     <div class="qr-wrap">
       <div class="qr" onclick="fApplyCampSwitch(${JSON.stringify(c.id).replace(/"/g,'&quot;')},false)">Sim, trocar</div>
       <div class="qr" onclick="fCancelSwitch()" style="background:var(--gray-light);border-color:var(--gray-mid);color:var(--text-2)">Cancelar</div>
@@ -116,7 +116,7 @@ function fStartChat(){
   try { fAttachInputGuard(); } catch(e){}
   // F-05: mensagem inicial com contexto (quantas perguntas, tempo estimado)
   const total = fState.camp.perguntas.length;
-  fAddBot(`Oi! Vou te fazer <strong>${total} pergunta${total>1?'s':''} rápida${total>1?'s':''}</strong> sobre <strong>${fState.camp.name}</strong> (formato ${fState.fmt.name}) e gerar a arte. Leva ~1 minuto. Pode clicar nas sugestões pra responder mais rápido.`,[]);
+  fAddBot(`Oi! Vou te fazer <strong>${total} pergunta${total>1?'s':''} rápida${total>1?'s':''}</strong> sobre <strong>${gEsc(fState.camp.name)}</strong> (formato ${fState.fmt.name}) e gerar a arte. Leva ~1 minuto. Pode clicar nas sugestões pra responder mais rápido.`,[]);
   setTimeout(()=>fNextStep(),900);
 }
 function fNextStep(){
@@ -143,7 +143,7 @@ function fNextStep(){
   if(box){box.disabled=false;}
   const cfg = fGetFieldType(p.id);
   const typeIcon = {price:'R$', discount:'%', code:'#', text:'Aa'}[cfg.type] || 'Aa';
-  const fieldHint = `<div class="field-hint"><span class="field-hint-type">${typeIcon}</span><span class="field-hint-text">${cfg.label} · até ${cfg.maxLen} caracteres</span></div>`;
+  const fieldHint = `<div class="field-hint"><span class="field-hint-type">${typeIcon}</span><span class="field-hint-text">${gEsc(cfg.label)} · até ${cfg.maxLen} caracteres</span></div>`;
   
   // Sugestão inteligente de cores a partir da foto do produto
   let sugestoes = p.sugestoes ? p.sugestoes.slice() : [];
@@ -166,7 +166,7 @@ function fAddBotImageUpload(stepLabel, pergunta, canGoBack){
   const msgs=document.getElementById('f-messages');
   const w=document.createElement('div');w.className='msg bot';
   const uploadId='f-upload-'+Date.now();
-  const fieldHint = `<div class="field-hint"><span class="field-hint-type"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span><span class="field-hint-text">${pergunta.label} · imagem (PNG/JPG, máx 4MB)</span></div>`;
+  const fieldHint = `<div class="field-hint"><span class="field-hint-type"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span><span class="field-hint-text">${gEsc(pergunta.label)} · imagem (PNG/JPG, máx 4MB)</span></div>`;
   let back='';
   if(canGoBack){
     back = `<div class="qr-back-wrap"><button class="qr-back" onclick="fGoBack()" title="Voltar uma pergunta"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>Voltar uma pergunta</button></div>`;
@@ -449,7 +449,7 @@ function fEditCampo(idx){
   
   if(p.isImage){
     const stepLabel = `<span class="step-label">Editando</span>`;
-    const editPergunta = {...p, texto: `Envie uma nova <strong>${label.toLowerCase()}</strong>`};
+    const editPergunta = {...p, texto: `Envie uma nova <strong>${gEsc(label.toLowerCase())}</strong>`};
     fAddBotImageUpload(stepLabel, editPergunta, false);
     const box=document.getElementById('f-msg-box');
     if(box){box.disabled=true;box.placeholder='Use o botão de upload acima';}
@@ -826,7 +826,7 @@ async function fBaixar(btn, snapId){
     gToast('Não consegui gerar o PNG. Se a arte usa imagem por URL, ela precisa ser pública (com CORS).','error');
   }finally{ restore(); }
 }
-function fRefazer(){fState.stepIdx=-1;fState.dados={};fState.done=false;fClearImgCache();_fArtSnapshots={};_fArtCaptions={};document.getElementById('f-messages').innerHTML='';fUpdateProg();fAddBot(`Vamos refazer a arte da <strong>${fState.camp.name}</strong>.`,[]);setTimeout(()=>fNextStep(),500);}
+function fRefazer(){fState.stepIdx=-1;fState.dados={};fState.done=false;fClearImgCache();_fArtSnapshots={};_fArtCaptions={};document.getElementById('f-messages').innerHTML='';fUpdateProg();fAddBot(`Vamos refazer a arte da <strong>${gEsc(fState.camp.name)}</strong>.`,[]);setTimeout(()=>fNextStep(),500);}
 function fResetFlow(){
   // Se não há nada preenchido, reseta direto sem perguntar
   const temDados = Object.keys(fState.dados).length > 0 || fState.stepIdx >= 0;

@@ -22,10 +22,10 @@ function fOpenPreview(e,id){
     const cls = `pv-multi-canvas pv-fmt-${f.id}`;
     return `<div class="pv-multi-item" onclick="fStartFromPreview('${c.id}','${f.id}')" role="button" tabindex="0">
       <div class="${cls}" style="background:${c.color}">
-        <div class="pv-multi-tag">${c.name.toUpperCase()}</div>
-        <div class="pv-multi-prod">${c.previewProd||c.name}</div>
-        ${c.previewDe?`<div class="pv-multi-de">${c.previewDe}</div>`:''}
-        ${c.previewPor?`<div class="pv-multi-por">${c.previewPor}</div>`:''}
+        <div class="pv-multi-tag">${gEsc(c.name.toUpperCase())}</div>
+        <div class="pv-multi-prod">${gEsc(c.previewProd||c.name)}</div>
+        ${c.previewDe?`<div class="pv-multi-de">${gEsc(c.previewDe)}</div>`:''}
+        ${c.previewPor?`<div class="pv-multi-por">${gEsc(c.previewPor)}</div>`:''}
         <div class="pv-multi-logo" role="img" aria-label="Luma"></div>
       </div>
       <div class="pv-multi-label">
@@ -215,7 +215,7 @@ function fLpUpdateMeta(hasTemplate){
         : (filled ? gEsc(d[p.id]) : (isCurrent ? 'aguardando...' : '—'));
       return `<div class="${cls}">
         <div class="lp-field-dot"></div>
-        <div class="lp-field-label">${F_FIELD_LABELS[p.id] || p.label || p.id}</div>
+        <div class="lp-field-label">${gEsc(F_FIELD_LABELS[p.id] || p.label || p.id)}</div>
         <div class="lp-field-val">${valDisplay}</div>
       </div>`;
     }).join('');
