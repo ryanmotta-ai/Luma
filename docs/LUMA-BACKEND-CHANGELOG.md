@@ -6,6 +6,16 @@
 
 ---
 
+## 2026-06-25 — Acesso por role: franqueado restrito à própria área
+
+Franqueado deixou de ver as abas **Designer** e **Dados** ([js/main.js](../js/main.js)). Defesa dupla:
+1. `gApplyModeAccess()` no boot (dentro de `gOnLoginSuccess`) esconde `tab-design`/`tab-dados` pra quem não é `gIsAdmin()` (equipe_dm/gestao) e força o modo franqueado.
+2. `setMode()` ignora `'designer'`/`'dados'` pra não-admin → trava mesmo se chamado via DOM/console.
+
+O RLS já era a proteção real dos dados no backend (franqueado não escreve pastas/templates, não lê artes de outros, só vê pasta ativa/template publicado). Isto é o **gate de navegação** no front. Sem impacto pros designers (veem as 3 abas normalmente).
+
+---
+
 ## 2026-06-25 — Segurança: blindagem XSS (gEsc) em ~53 pontos
 
 Auditoria de XSS (stored) no front inteiro e aplicação da peneira `gEsc()` onde dado de usuário/banco entrava cru em `innerHTML`. **Risco real:** texto salvo por um usuário (nome, campanha, rótulo, e-mail) executando script no navegador de outro — ex.: roubo da sessão de um gestor. **Sem mudança visual.**
