@@ -256,7 +256,7 @@ input:focus:-webkit-autofill {
   <div class="top-right" id="topbar-right-global" style="margin-left: auto; display: flex; align-items: center; gap: 10px;">
     <!-- Elementos de Contexto (específicos de cada modo) -->
     <div id="topbar-context-fran" style="display: flex; align-items: center;">
-      <div class="top-pill" id="top-camp-pill">Hamburguer Fest · Story</div>
+      <div class="top-pill" id="top-camp-pill">Escolha uma campanha</div>
     </div>
     <div id="topbar-context-design" style="display: none; align-items: center;">
     </div>
@@ -573,7 +573,7 @@ input:focus:-webkit-autofill {
         </div>
         <div id="f-search-row">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          <input id="f-search" placeholder="Buscar campanha..." oninput="fFilterCamps(this.value)"/>
+          <input id="f-search" type="search" aria-label="Buscar campanha" placeholder="Buscar campanha..." oninput="fFilterCamps(this.value)"/>
         </div>
       </div>
       <div id="f-catalog"></div>
@@ -587,12 +587,15 @@ input:focus:-webkit-autofill {
     <!-- RIGHT chat -->
     <div id="fran-right">
       <div id="f-chat-head">
+        <button id="f-mobile-back" onclick="fMobileBackToCatalog()" aria-label="Voltar ao catálogo" title="Voltar ao catálogo">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
         <div class="bot-circle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg><div class="bot-online"></div></div>
         <div>
-          <div class="bot-info-name">ASSISTENTE DE ARTES</div>
-          <div class="bot-info-status">● online agora</div>
+          <div class="bot-info-name">Luma</div>
+          <div class="bot-info-status">online agora</div>
         </div>
-        <div id="f-ctx-tag">Hamburguer Fest · Story</div>
+        <div id="f-ctx-tag">Escolha uma campanha</div>
         <div id="f-head-actions">
           <button id="f-bulk-head-btn" onclick="fBulkOpen()" title="Gerar muitas artes de uma vez a partir de uma planilha CSV"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Gerar vários</button>
           <button id="f-reset-btn" onclick="fResetFlow()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><polyline points="3 3 3 8 8 8"/></svg>Reiniciar</button>
@@ -607,7 +610,7 @@ input:focus:-webkit-autofill {
           <div id="f-messages"></div>
           <div id="f-input-row">
             <div id="f-input-wrap">
-              <input id="f-msg-box" placeholder="Digite sua resposta ou use os botões acima..." onkeydown="if(event.key==='Enter')fSend()"/>
+              <input id="f-msg-box" aria-label="Digite sua resposta" enterkeyhint="send" placeholder="Digite sua resposta ou use os botões acima..." onkeydown="if(event.key==='Enter')fSend()"/>
               <span id="f-char-count" aria-hidden="true"></span>
             </div>
             <button id="f-snd" onclick="fSend()" aria-label="Enviar">
@@ -1432,9 +1435,11 @@ input:focus:-webkit-autofill {
             <div class="dp-sec-body">
               <div id="d-text-props" style="display:none">
                 <div style="margin-bottom:6px">
-                  <div class="prop-input dp-content-editable" id="dp-content" contenteditable="true" data-ph="Escreva o texto. Use “+ Inserir campo” para dados." oninput="dFieldContentSync(this)" onpaste="dFieldContentPaste(event)"></div>
+                  <div class="prop-input dp-content-editable" id="dp-content" contenteditable="true" data-ph="Escreva o texto fixo. Para dado dinâmico, use “Dado” no topo." oninput="dFieldContentSync(this)" onpaste="dFieldContentPaste(event)"></div>
                 </div>
-                <div class="dp-insert-var-row">
+                <!-- "+ Inserir campo" (campo embutido numa frase) escondido: o controle "Dado" no
+                     topo cobre o caso comum (camada inteira = 1 campo). Reexibir = tirar o display:none. -->
+                <div class="dp-insert-var-row" style="display:none">
                   <button class="d-btn-sec dp-insert-field-btn" onclick="dFieldInsertPickerOpen(event)">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     Inserir campo
@@ -1442,7 +1447,8 @@ input:focus:-webkit-autofill {
                 </div>
               </div>
               <div id="d-image-props" style="display:none;flex-direction:column;gap:4px">
-                <select class="prop-input" id="dp-imgvar" onchange="dUpdateProp('imgVar',this.value)" style="font-size:11px"></select>
+                <!-- dp-imgvar escondido: o controle "Dado" no topo liga a imagem a um campo. -->
+                <select class="prop-input" id="dp-imgvar" onchange="dUpdateProp('imgVar',this.value)" style="display:none"></select>
                 <input class="prop-input" type="text" id="dp-imgurl" placeholder="URL da imagem" oninput="dUpdateProp('imgUrl',this.value)" style="font-size:11px">
                 <select class="prop-input" id="dp-imgfit" onchange="dUpdateProp('objectFit',this.value)" style="font-size:11px"><option value="cover">cover</option><option value="contain">contain</option><option value="fill">fill</option></select>
                 <button id="dp-frame-upload" class="d-btn-sec" style="display:none;font-size:11px;padding:6px;width:100%;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Carregar foto do computador</button>
@@ -1454,6 +1460,7 @@ input:focus:-webkit-autofill {
                   <span style="font-size:11px;color:var(--d-text3);min-width:50px">Raio</span>
                   <input class="prop-input prop-input-sm" type="number" id="dp-frame-radius" min="0" max="999" value="8" oninput="dUpdateProp('radius',this.value)" style="font-size:11px">
                 </div>
+                <button id="dp-convert-frame-btn" class="d-btn-sec dp-convert-btn" style="display:none"></button>
                 <div class="prop-row" style="gap:6px">
                   <span class="prop-bind-label">Visível se</span>
                   <select class="prop-input" id="dp-bind-visible-image" style="font-size:11px;flex:1" onchange="dSetBinding('visible',this.value)"></select>
@@ -1611,6 +1618,12 @@ input:focus:-webkit-autofill {
                 <div class="dp-field">
                   <label class="dp-field-label">Visível se</label>
                   <select class="prop-input" id="dp-bind-visible-shape" style="font-size:11px" onchange="dSetBinding('visible',this.value)"></select>
+                </div>
+                <div class="dp-field">
+                  <button class="d-btn-sec dp-convert-btn" onclick="dConvertLayerToFrame(dSelId)" title="Vira um espaço de foto que o franqueado preenche">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                    Transformar em moldura de foto
+                  </button>
                 </div>
               </div>
               <!-- EFEITOS movidos para d-fx-modal -->

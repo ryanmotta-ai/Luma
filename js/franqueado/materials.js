@@ -65,14 +65,14 @@ function fRenderMaterialCatalog(camp, container){
       <div class="f-mat-head">
         <button class="f-mat-back" onclick="fCloseMaterialCatalog()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></button>
         <div class="f-mat-head-title">
-          <div class="f-mat-camp-name">${gEsc(camp.name)}</div>
+          <div class="f-mat-camp-name">${camp.name}</div>
           <div class="f-mat-camp-sub">Materiais disponíveis</div>
         </div>
       </div>
       <div class="f-mat-empty">
         <div class="f-mat-empty-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2h14M5 22h14M19 2v6.34a2 2 0 0 1-.586 1.414L13.828 14.4a2 2 0 0 0 0 2.828l4.586 4.586a2 2 0 0 1 .586 1.414V22M5 2v6.34a2 2 0 0 0 .586 1.414L10.172 14.4a2 2 0 0 1 0 2.828l-4.586 4.586A2 2 0 0 0 5 23.23V22"/></svg></div>
         <div class="f-mat-empty-title">Nosso time está trabalhando!</div>
-        <div class="f-mat-empty-text">${expired ? 'Os materiais desta campanha expiraram. ' : ''}Em breve haverá novos materiais disponíveis para <strong>${gEsc(camp.name)}</strong>. Volte em alguns instantes ou escolha outra campanha.</div>
+        <div class="f-mat-empty-text">${expired ? 'Os materiais desta campanha expiraram. ' : ''}Em breve haverá novos materiais disponíveis para <strong>${camp.name}</strong>. Volte em alguns instantes ou escolha outra campanha.</div>
       </div>`;
     return;
   }
@@ -80,7 +80,7 @@ function fRenderMaterialCatalog(camp, container){
     <div class="f-mat-head">
       <button class="f-mat-back" onclick="fCloseMaterialCatalog()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></button>
       <div class="f-mat-head-title">
-        <div class="f-mat-camp-name">${gEsc(camp.name)}</div>
+        <div class="f-mat-camp-name">${camp.name}</div>
         <div class="f-mat-camp-sub">${validMat.length} material${validMat.length>1?'is':''} disponível${validMat.length>1?'is':''}</div>
       </div>
     </div>
@@ -104,8 +104,8 @@ function fRenderMaterialCard(material, camp){
   return `<div class="f-mat-card" onclick="fSelectMaterial('${material.id}')">
     <div class="f-mat-thumb f-mat-thumb-${material.fmt||'story'}" style="background:${camp.color}">
       <div class="f-mat-thumb-tag">${material.fmt==='feed'?'FEED':material.fmt==='wide'||material.fmt==='post'?'POST':'STORY'}</div>
-      <div class="f-mat-thumb-prod">${gEsc(camp.previewProd||camp.name)}</div>
-      ${camp.previewPor?`<div class="f-mat-thumb-por">${gEsc(camp.previewPor)}</div>`:''}
+      <div class="f-mat-thumb-prod">${camp.previewProd||camp.name}</div>
+      ${camp.previewPor?`<div class="f-mat-thumb-por">${camp.previewPor}</div>`:''}
       <div class="f-mat-thumb-logo" role="img" aria-label="DM"></div>
     </div>
     <div class="f-mat-info">
@@ -197,7 +197,7 @@ function fSelectMaterial(materialId){
       // Pergunta especial de upload de imagem
       perguntas.push({
         id: v,
-        texto: `Envie a <strong>${gEsc(label.toLowerCase())}</strong>`,
+        texto: `Envie a <strong>${label.toLowerCase()}</strong>`,
         sugestoes: [],
         isImage: true,
         label: label,
@@ -212,7 +212,7 @@ function fSelectMaterial(materialId){
       else sugestoes=fGetSuggestionsForVar(v, fState.camp);
       perguntas.push({
         id: v,
-        texto: `Qual é o <strong>${gEsc(label.toLowerCase())}</strong> que você quer usar?`,
+        texto: `Qual é o <strong>${label.toLowerCase()}</strong> que você quer usar?`,
         sugestoes,
         maxLen: perm?.maxLen || 32,
         label: label

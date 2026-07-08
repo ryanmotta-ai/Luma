@@ -38,6 +38,16 @@
   60%{opacity:1;transform:scale(1.03)}
   100%{transform:scale(1)}
 }
+/* Pop com mola (entrada de modais/toasts/badges) — pareie com var(--ease-spring[-soft]).
+   O overshoot vem da CURVA, não do keyframe, pra ficar orgânico. */
+@keyframes gPopIn{
+  from{opacity:0;transform:scale(.92) translateY(6px)}
+  to{opacity:1;transform:scale(1) translateY(0)}
+}
+@keyframes gPopOut{
+  from{opacity:1;transform:scale(1) translateY(0)}
+  to{opacity:0;transform:scale(.96) translateY(4px)}
+}
 @keyframes gSlideInRight{
   from{opacity:0;transform:translateX(20px)}
   to{opacity:1;transform:translateX(0)}
@@ -77,6 +87,21 @@
 }
 
 
+/* ── Feedback de PRESS global (tátil, feel de mola) ──────────────────────────
+   Elementos acionáveis afundam levemente ao clicar e voltam com overshoot.
+   Só toca :active → compõe com as transições que cada botão já tem (não sobrescreve
+   hovers de cor/fundo). Botões sem transição própria ganham a base leve abaixo.
+   Opt-out por elemento: [data-no-press].                                        */
+/* Base de baixa especificidade (seletor de TAG): botões com 'transition' própria (via classe)
+   a sobrescrevem — logo NÃO quebramos hovers existentes. Botões sem transição ganham a mola. */
+button, [role="button"]{ transition: transform var(--dur-fast) var(--ease-spring); }
+button:not(:disabled):not([data-no-press]):active,
+[role="button"]:not([data-no-press]):active{
+  transform: scale(.955);
+  transition-duration: var(--dur-micro);
+  transition-timing-function: var(--ease-standard);
+}
+
 /* M1.2 — spinner minimalista para botões de ação assíncrona */
 .mini-spinner{display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;vertical-align:middle;animation:gSpin .6s linear infinite}
 .is-loading{cursor:progress!important}
@@ -100,7 +125,7 @@ body.mode-franqueado #view-franqueado,
 body.mode-designer #view-designer,
 body.mode-dados #view-dados {
   display: flex !important;
-  animation: viewEntrance 0.5s var(--ease-smooth) forwards;
+  animation: viewEntrance var(--dur-slow) var(--ease-spring-soft) forwards;
 }
 
 @keyframes viewEntrance {
@@ -116,14 +141,14 @@ body.mode-dados #view-dados {
   }
 }
 
+/* Saída suave da tela de login (fade + leve zoom) — encadeia com a entrada da view */
+#g-login-screen{transition:opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out)}
+#g-login-screen.gl-out{opacity:0;transform:scale(1.02);pointer-events:none}
+
 /* Vibração lateral em erros de input */
 .g-shake {
   animation: gShake 0.4s ease-in-out both;
 }
-
-/* Brilho reflexivo para skeleton load */
-@keyframes gShimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
+/* (gShimmer é definido uma única vez no topo — a duplicata com direção oposta foi removida
+   pra não sobrescrever silenciosamente o sweep do skeleton.) */
 

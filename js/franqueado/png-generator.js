@@ -347,6 +347,7 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
               : {family:"'Roboto', sans-serif", weight:/black|realce/i.test(l.font||'')?900:/bold/i.test(l.font||'')?700:900};
     const ff = _fp.family;
     const fwt = String(_fp.weight);
+    const _ital = l.italic ? 'italic ' : ''; // font-style itálico (prefixo do shorthand de fonte do canvas)
     const isDisplayFont = _fp.weight >= 900; // peso black ganha um leve respiro entre letras
 
     let fontSize = Math.round((l.fontSize || 24) * Math.min(scaleX, scaleY));
@@ -365,11 +366,11 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     // ── RICH TEXT (multi-estilo) — render horizontal de linha única (trechos sequenciais) ──
     if(l.runs && l.runs.length && !l.vertical){
       let total=0; const segs=l.runs.map(r=>{ const fp=(typeof dTextFontParts==='function')?dTextFontParts(r.font):{family:"'Roboto',sans-serif",weight:700};
-        const fs=Math.round((r.fontSize||l.fontSize||24)*_scTxt); ctx.font=`${fp.weight} ${fs}px ${fp.family}`;
+        const fs=Math.round((r.fontSize||l.fontSize||24)*_scTxt); ctx.font=`${_ital}${fp.weight} ${fs}px ${fp.family}`;
         const ww=ctx.measureText(r.text||'').width; total+=ww; return {r,fp,fs,ww}; });
       let tx = l.textAlign==='center'? x+w/2-total/2 : l.textAlign==='right'? x+w-total : x;
       const ty = y+h/2; ctx.textAlign='left'; ctx.textBaseline='middle';
-      segs.forEach(s=>{ ctx.font=`${s.fp.weight} ${s.fs}px ${s.fp.family}`; ctx.fillStyle=s.r.color||_txtColor;
+      segs.forEach(s=>{ ctx.font=`${_ital}${s.fp.weight} ${s.fs}px ${s.fp.family}`; ctx.fillStyle=s.r.color||_txtColor;
         if(l.shadow){ ctx.shadowColor=l.shadowColor||'rgba(0,0,0,.5)'; ctx.shadowBlur=_shBlur; ctx.shadowOffsetX=_shOff.x; ctx.shadowOffsetY=_shOff.y; }
         ctx.fillText(s.r.text||'', tx, ty);
         if(l.shadow){ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;}
@@ -401,7 +402,7 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
       maxColH = maxColChars * charStep;
       totalW = lines.length * colStep;
 
-      ctx.font = `${fwt} ${fontSize}px ${ff}`;
+      ctx.font = `${_ital}${fwt} ${fontSize}px ${ff}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
@@ -466,7 +467,7 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
       ctx.letterSpacing = '0px';
     } else {
       // Auto-fit horizontal: começa com fontSize do designer e reduz se texto exceder l.w
-      ctx.font = `${fwt} ${fontSize}px ${ff}`;
+      ctx.font = `${_ital}${fwt} ${fontSize}px ${ff}`;
       ctx.letterSpacing = _lsTxt || (isDisplayFont ? `${Math.max(0.5, fontSize * 0.02)}px` : '0px'); // tracking do PSD tem prioridade
       let maxLineW = 0;
       for(const line of lines){
@@ -475,10 +476,13 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
       }
       const innerPad = Math.round(fontSize * 0.08);
       const availableW = Math.max(10, w - innerPad * 2);
-      if(maxLineW > availableW){
+      // Auto-fit horizontal SÓ p/ texto de PARÁGRAFO (tem caixa de largura). Point text não tem
+      // caixa no PSD: encolher pela largura do bbox justo (fonte trocada p/ Roboto) quebrava a
+      // hierarquia 1:1 — deixa transbordar em vez de reduzir a fonte.
+      if(l.textBox==='box' && maxLineW > availableW){
         const shrinkRatio = availableW / maxLineW;
         fontSize = Math.max(minFontSize, Math.floor(fontSize * shrinkRatio));
-        ctx.font = `${fwt} ${fontSize}px ${ff}`;
+        ctx.font = `${_ital}${fwt} ${fontSize}px ${ff}`;
       }
 
       const lineHeight = fontSize * (l.lineHeight||1.2);
@@ -486,9 +490,19 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
 
       ctx.fillStyle = _txtFill; // gradiente/overlay/cor (horizontal)
       ctx.textAlign = l.textAlign || 'left';
-      ctx.textBaseline = 'middle';
-
-      const blockStartY = y + h/2 - totalTextH/2 + lineHeight/2;
+      // Ancoragem vertical: 'top' (PSD) → topo da tinta encosta no topo da caixa (baseline 1:1 com
+      // o node.top do Photoshop). Demais → centralização vertical (comportamento antigo).
+      const _vTop = (l.vAlign==='top');
+      let blockStartY;
+      if(_vTop){
+        ctx.textBaseline='alphabetic';
+        let _ia=fontSize*0.8; // fallback (~ascent de caixa-alta) se measureText não trouxer métricas
+        try{ const _m0=ctx.measureText(lines[0]||'H'); if(_m0.actualBoundingBoxAscent) _ia=_m0.actualBoundingBoxAscent; }catch(e){}
+        blockStartY = y + _ia; // baseline da 1ª linha
+      } else {
+        ctx.textBaseline='middle';
+        blockStartY = y + h/2 - totalTextH/2 + lineHeight/2;
+      }
 
       if(l.bg){
         ctx.save();
@@ -530,9 +544,11 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
                    : tx;
           ctx.strokeStyle = l.color || '#fff';
           ctx.lineWidth = Math.max(2, fontSize * 0.05);
-          if(l.strikethrough){ ctx.beginPath(); ctx.moveTo(lx, ty); ctx.lineTo(lx + textW, ty); ctx.stroke(); }
-          // sublinhado: logo abaixo dos glifos (textBaseline='middle' → ~0.42*fontSize abaixo do centro)
-          if(l.underline){ const uy=ty+fontSize*0.42; ctx.beginPath(); ctx.moveTo(lx, uy); ctx.lineTo(lx + textW, uy); ctx.stroke(); }
+          // Posições relativas ao baseline em uso: 'top' → alphabetic (ty=baseline); senão middle (ty=centro).
+          const _strikeY = _vTop ? (ty - fontSize*0.30) : ty;
+          const _underY  = _vTop ? (ty + fontSize*0.10) : (ty + fontSize*0.42);
+          if(l.strikethrough){ ctx.beginPath(); ctx.moveTo(lx, _strikeY); ctx.lineTo(lx + textW, _strikeY); ctx.stroke(); }
+          if(l.underline){ ctx.beginPath(); ctx.moveTo(lx, _underY); ctx.lineTo(lx + textW, _underY); ctx.stroke(); }
         }
       });
       ctx.letterSpacing = '0px';

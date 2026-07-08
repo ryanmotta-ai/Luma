@@ -710,7 +710,7 @@ function dPopFolderCampaignSelect(sel){
   const el=document.getElementById('df-campaign');if(!el)return;
   const camps=[...CAMPS_ATIVAS,...CAMPS_OUTRAS];
   el.innerHTML='<option value="">Sem campanha vinculada</option>'+
-    camps.map(c=>`<option value="${c.id}" ${c.id===sel?'selected':''}>${gEsc(c.name)}</option>`).join('');
+    camps.map(c=>`<option value="${c.id}" ${c.id===sel?'selected':''}>${c.name}</option>`).join('');
 }
 // Renderiza os checkboxes de grupos
 function dFolderRenderGroups(selected){
@@ -892,7 +892,7 @@ function dFolderMenu(ev,id){
 function dOpenNewTemplate(){
   // populate folder select
   const sel=document.getElementById('dt-folder');
-  sel.innerHTML=dFolders.map(f=>`<option value="${f.id}">${gEsc(f.name)}</option>`).join('');
+  sel.innerHTML=dFolders.map(f=>`<option value="${f.id}">${f.name}</option>`).join('');
   document.getElementById('dt-name').value='';
   document.getElementById('d-tmpl-modal').classList.add('open');
   setTimeout(()=>document.getElementById('dt-name').focus(),100);
@@ -1868,25 +1868,29 @@ function dRenderTemplateToDOM(container, tmpl) {
       const _fp = dTextFontParts(l.font);
       el.style.fontFamily = _fp.family;
       el.style.fontWeight = l.fontWeightOverride || _fp.weight;
+      el.style.fontStyle = l.italic ? 'italic' : '';
       if (l.textTransform) el.style.textTransform = l.textTransform;
       
+      // Tamanho SEMPRE 1:1 do PSD — sem auto-encolhimento (preserva a hierarquia dos textos).
       let _renderFs = l.fontSize || 24;
-      if (l.textBox === 'box' && !l.vertical && typeof dMeasureText === 'function') {
-        const _m = dMeasureText(l.content || '', l.font || "'Roboto'", _renderFs, l.w);
-        if (_m && _m.height > l.h + 2) {
-          _renderFs = Math.max(8, Math.floor(_renderFs * (l.h / _m.height)));
-        }
-      }
       el.style.fontSize = _renderFs + 'px';
       el.style.textAlign = l.textAlign || 'left';
       el.style.lineHeight = (l.lineHeight ? String(l.lineHeight) : '1.2');
       el.style.overflow = 'visible';
-      el.style.whiteSpace = 'pre-wrap';
+      // Point text não quebra automático (só \n); só parágrafo quebra por largura.
+      el.style.whiteSpace = (l.textBox === 'box') ? 'pre-wrap' : 'pre';
       el.style.letterSpacing = (l.letterSpacing ? l.letterSpacing + 'px' : '');
       if (l.vertical) el.style.writingMode = 'vertical-rl';
       
       const textNode = document.createElement('div');
-      textNode.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;overflow:visible;';
+      // vAlign 'top' (PSD): topo da tinta no topo da caixa (1:1). Demais: centralização vertical.
+      if (l.vAlign === 'top') {
+        textNode.style.cssText = 'width:100%;overflow:visible;';
+        const _gap = (typeof dTextInkTopGap === 'function') ? dTextInkTopGap(l.font, _renderFs, (l.lineHeight || 1.2)) : 0;
+        if (_gap) textNode.style.transform = 'translateY(' + (-_gap).toFixed(2) + 'px)';
+      } else {
+        textNode.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;overflow:visible;';
+      }
       if (l.runs && l.runs.length) {
         textNode.innerHTML = l.runs.map(r => `<span style="color:${r.color || 'inherit'};font-size:${r.fontSize || _renderFs}px;font-family:${dTextFontParts(r.font).family};font-weight:${dTextFontParts(r.font).weight};${r.letterSpacing ? 'letter-spacing:' + r.letterSpacing + 'px;' : ''}">${gEsc(r.text || '').replace(/\n/g, '<br>')}</span>`).join('');
       } else {

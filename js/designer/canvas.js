@@ -226,7 +226,7 @@ function dABToolAttach(){}
 const dToolCursors = {
   select: 'default',
   hand: 'grab',
-  'var-data': 'default',
+  'var-data': `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23FFB900' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71'/><path d='M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'/></svg>") 4 4, crosshair`,
   'qr-code': 'crosshair',
   artboard: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230A0A0A' stroke-width='2' stroke-linecap='round'><rect x='5' y='5' width='14' height='14' rx='1'/><line x1='2' y1='5' x2='5' y2='5'/><line x1='5' y1='2' x2='5' y2='5'/><line x1='19' y1='2' x2='19' y2='5'/><line x1='19' y1='5' x2='22' y2='5'/><line x1='2' y1='19' x2='5' y2='19'/><line x1='5' y1='19' x2='5' y2='22'/><line x1='19' y1='19' x2='19' y2='22'/><line x1='19' y1='19' x2='22' y2='19'/></svg>") 5 5, cell`,
 
@@ -692,8 +692,13 @@ function dRenderCanvas(){
     el.style.cssText=`left:${l.x}px;top:${l.y}px;width:${l.w}px;height:${l.h}px;position:absolute;`;
     // Máscara de camada (alpha) — espelha o PSD; aplica via CSS mask no elemento
     if(l.mask){ const mu='url("'+l.mask+'")'; el.style.webkitMaskImage=mu; el.style.maskImage=mu; el.style.webkitMaskSize=el.style.maskSize='100% 100%'; el.style.webkitMaskRepeat=el.style.maskRepeat='no-repeat'; }
-    // Blend mode importado do PSD (camelCase → CSS kebab-case)
-    if(l.blendMode) el.style.mixBlendMode=l.blendMode.replace(/([A-Z])/g,c=>'-'+c.toLowerCase());
+    // Blend mode → CSS mix-blend-mode. Usa o mapa oficial (DBLEND_TO_CSS); modos sem equivalente
+    // CSS (linearBurn/vividLight/…) ficam como normal no canvas do designer (o gerador/preview
+    // aplicam via software). Fallback: camelCase → kebab.
+    if(l.blendMode){
+      const _css=(typeof DBLEND_TO_CSS!=='undefined')?DBLEND_TO_CSS[l.blendMode]:null;
+      el.style.mixBlendMode=_css||l.blendMode.replace(/([A-Z])/g,c=>'-'+c.toLowerCase());
+    }
     // M2.1 — hover no canvas destaca a linha na lista de layers (e vice-versa)
     if(typeof dHoverLayer==='function'){
       el.addEventListener('mouseenter',()=>dHoverLayer(l.id,true));
@@ -731,37 +736,47 @@ function dRenderCanvas(){
       const _fp=dTextFontParts(l.font);
       el.style.fontFamily=_fp.family;
       el.style.fontWeight=l.fontWeightOverride||_fp.weight;
+      el.style.fontStyle=l.italic?'italic':'';
       if(l.textTransform) el.style.textTransform=l.textTransform;
-      // Encaixe na caixa p/ texto de PARÁGRAFO importado do PSD (espelha png-generator/preview):
-      // se a fonte trocada (Roboto) fizer o texto estourar a altura, reduz só o tamanho de EXIBIÇÃO
-      // — NÃO altera l.fontSize (tamanho real do PSD). Point text e demais layers ficam intactos.
+      // Tamanho SEMPRE 1:1 do PSD (l.fontSize). NÃO auto-encolhe para caber na caixa: encolher
+      // cada texto por um fator diferente destruía a hierarquia (título/subtítulo/corpo). Se o
+      // texto não couber, o indicador de overflow (por linhas) avisa — sem redimensionar.
       let _renderFs=l.fontSize||24;
-      if(l.textBox==='box' && !l.vertical && typeof dMeasureText==='function'){
-        const _measContent=dSimActive?dInterpolate(l.content||''):(l.content||'');
-        const _m=dMeasureText(_measContent, l.font||"'Roboto'", _renderFs, l.w);
-        if(_m && _m.height > l.h+2){ _renderFs=Math.max(8, Math.floor(_renderFs*(l.h/_m.height))); }
-      }
       el.style.fontSize=_renderFs+'px';
       el.style.textAlign=l.textAlign||'left';
-      el.style.lineHeight=(l.lineHeight?String(l.lineHeight):'1.2');el.style.overflow='visible';el.style.pointerEvents='auto';el.style.whiteSpace='pre-wrap';
+      el.style.lineHeight=(l.lineHeight?String(l.lineHeight):'1.2');el.style.overflow='visible';el.style.pointerEvents='auto';
+      // Point text (sem caixa no PSD) NÃO quebra automaticamente — só em \n explícito ('pre').
+      // Quebrar dentro do bbox justo (fonte trocada p/ Roboto, mais larga) empilhava/sobrepunha o
+      // texto. Só PARÁGRAFO (textBox==='box') quebra por largura ('pre-wrap').
+      el.style.whiteSpace=(l.textBox==='box')?'pre-wrap':'pre';
       el.style.letterSpacing=(l.letterSpacing?l.letterSpacing+'px':''); // tracking
       if(l.vertical){
         el.style.writingMode='vertical-rl';
       } else {
         el.style.writingMode='';
       }
-      // Se é campo variável, mostrar label acima + borda estilo Deskfy
+      // Se é campo variável, mostrar label acima + borda. Cor de DADO = amarelo (--var-color),
+      // coerente com o controle "Dado" e o selo na lista de camadas (antes era roxo solto).
       if(l.isVar){
-        el.style.border='1.5px dashed rgba(124,110,255,0.6)';
+        el.style.border='1.5px dashed rgba(255,185,0,0.75)';
         el.style.padding='2px 4px';
         el.style.position='relative'; // necessário para label absoluto funcionar
         const lbl=document.createElement('div');
-        lbl.style.cssText='position:absolute;top:-18px;left:0;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#7C6EFF;background:rgba(124,110,255,.15);padding:1px 6px;border-radius:3px;font-family:Roboto,sans-serif;white-space:nowrap;';
-        lbl.textContent=l.name;
+        lbl.style.cssText='position:absolute;top:-18px;left:0;font-size:9px;font-weight:800;letter-spacing:.06em;color:#241a00;background:#FFB900;padding:1px 7px;border-radius:4px;font-family:Roboto,sans-serif;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.25);';
+        lbl.textContent='◆ '+l.name;
         el.appendChild(lbl);
       }
       const textNode=document.createElement('div');
-      textNode.style.cssText='width:100%;height:100%;display:flex;align-items:center;overflow:visible;';
+      // vAlign 'top' (texto importado do PSD): ancora pelo TOPO com o topo da tinta encostando no
+      // topo da caixa (== node.top do PSD) → posição vertical 1:1. Demais textos: centralização
+      // vertical (comportamento antigo do editor).
+      if(l.vAlign==='top'){
+        textNode.style.cssText='width:100%;overflow:visible;';
+        const _gap=(typeof dTextInkTopGap==='function')?dTextInkTopGap(l.font, _renderFs, (l.lineHeight||1.2)):0;
+        if(_gap) textNode.style.transform='translateY('+(-_gap).toFixed(2)+'px)';
+      } else {
+        textNode.style.cssText='width:100%;height:100%;display:flex;align-items:center;overflow:visible;';
+      }
       // sim: valor do usuário vai como texto puro (sem HTML → sem XSS); edição: escapa o
       // conteúdo do designer e só os tokens {{var}} viram badge.
       if(dSimActive){ textNode.textContent=dInterpolate(l.content||''); }
@@ -893,11 +908,22 @@ function dRenderCanvas(){
       });
     }
     el.addEventListener('mousedown',e=>{
+      if(e.button && e.button!==0) return; // botão direito/meio → deixa o contextmenu agir, sem iniciar drag
       e.stopPropagation();
       if(dTool==='obj-select'){const _oFr=document.getElementById('d-canvas-frame');if(_oFr&&typeof dObjSelectStart==='function')dObjSelectStart(e,_oFr);return;}
       if(dTool==='quick-select'||dTool==='magic-wand'){_dAdvSelFromEvent(e);return;}
       if(dTool==='eyedrop'){dEyedropFromLayer(l);return;}
       if(dTool==='bucket'){dBucketFillLayer(l);return;}
+      if(dTool==='var-data'){ // Vincular campo: clicou no elemento → abre o seletor ancorado nele
+        if(typeof dLayerIsBindable==='function' && !dLayerIsBindable(l)){ gToast('Essa camada não recebe Dado (só texto/imagem)'); return; }
+        const _rect=el.getBoundingClientRect();           // captura ANTES do re-render (el fica órfão depois)
+        dSelLayer(l.id);
+        if(typeof dFieldBindPickerOpen==='function'){
+          const _anchor={getBoundingClientRect:()=>_rect};
+          setTimeout(()=>dFieldBindPickerOpen({currentTarget:_anchor, stopPropagation:function(){}}), 0);
+        }
+        return;
+      }
       if(dTool==='select'){
         if(e.shiftKey){dToggleMultiSel(l.id);return;}
         // Clicar FORA da multi-seleção isola já; clicar num MEMBRO mantém o grupo pra
@@ -921,6 +947,8 @@ function dRenderCanvas(){
       }
       else if(dTool==='stamp'&&dStampSource){dDoStamp(l);}
     });
+    // Botão direito → menu de contexto da camada (vincular dado, converter forma⇄moldura, etc.)
+    el.addEventListener('contextmenu',e=>{ if(typeof dLayerContextMenu==='function') dLayerContextMenu(e,l.id); });
     // Double click = edição inline de texto
     if(l.type==='text'){
       el.addEventListener('dblclick',e=>{

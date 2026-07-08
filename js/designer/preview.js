@@ -174,7 +174,8 @@ function pvRenderLayer(ctx, l, W, H, next){
     const raw=gInterpolate(l.content,_lbl,{onEmpty:'keep'});
     const lines=raw.split('\n');
     const _fp=(typeof dTextFontParts==='function')?dTextFontParts(l.font):{family:"'Roboto', sans-serif",weight:900};
-    ctx.font=`${_fp.weight} ${l.fontSize||24}px ${_fp.family}`;
+    const _ital=l.italic?'italic ':'';
+    ctx.font=`${_ital}${_fp.weight} ${l.fontSize||24}px ${_fp.family}`;
     ctx.fillStyle=l.color||'#fff';
 
     if(l.vertical){
@@ -217,25 +218,24 @@ function pvRenderLayer(ctx, l, W, H, next){
       });
     } else {
       ctx.textAlign=l.textAlign||'left';
-      ctx.textBaseline='top';
-      if(l.strikethrough){
-        // desenhar texto + linha
-        lines.forEach((line,i)=>{
-          const tx=l.textAlign==='center'?l.x+l.w/2:l.textAlign==='right'?l.x+l.w:l.x;
-          const ty=l.y+i*(l.fontSize||24)*1.25;
-          ctx.fillText(line,tx,ty);
+      const _fs=l.fontSize||24, _lh=_fs*(l.lineHeight||1.25);
+      // vAlign 'top' (PSD): baseline alfabético com o TOPO DA TINTA em l.y (1:1). Senão: topo do em.
+      let _useAlpha=(l.vAlign==='top'), _ia=_fs*0.8;
+      if(_useAlpha){ ctx.textBaseline='alphabetic';
+        try{ const _m=ctx.measureText(lines[0]||'H'); if(_m.actualBoundingBoxAscent) _ia=_m.actualBoundingBoxAscent; }catch(e){}
+      } else { ctx.textBaseline='top'; }
+      lines.forEach((line,i)=>{
+        const tx=l.textAlign==='center'?l.x+l.w/2:l.textAlign==='right'?l.x+l.w:l.x;
+        const ty=_useAlpha ? (l.y+_ia+i*_lh) : (l.y+i*_lh);
+        ctx.fillText(line,tx,ty);
+        if(l.strikethrough){
           const tw=ctx.measureText(line).width;
           const lx=l.textAlign==='center'?tx-tw/2:l.textAlign==='right'?tx-tw:tx;
+          const sy=_useAlpha ? (ty-_fs*0.30) : (ty+_fs*0.55);
           ctx.strokeStyle=l.color||'#fff';ctx.lineWidth=2;
-          ctx.beginPath();ctx.moveTo(lx,ty+(l.fontSize||24)*0.55);ctx.lineTo(lx+tw,ty+(l.fontSize||24)*0.55);ctx.stroke();
-        });
-      }else{
-        lines.forEach((line,i)=>{
-          const tx=l.textAlign==='center'?l.x+l.w/2:l.textAlign==='right'?l.x+l.w:l.x;
-          const ty=l.y+i*(l.fontSize||24)*1.25;
-          ctx.fillText(line,tx,ty);
-        });
-      }
+          ctx.beginPath();ctx.moveTo(lx,sy);ctx.lineTo(lx+tw,sy);ctx.stroke();
+        }
+      });
     }
     ctx.restore();next();
 
@@ -604,6 +604,7 @@ function dSvgText(l, mctx, fillVars, dados, defaults){
   if(!lines.length) return '';
   const fp=(typeof dTextFontParts==='function')?dTextFontParts(l.font):{family:"'Roboto',sans-serif",weight:900};
   const weight=fp.weight;
+  const _itAttr=l.italic?' font-style="italic"':''; // itálico no SVG
   // família para o atributo SVG (custom usa o nome da fonte enviada; senão Roboto)
   const svgFamily = fp.familyName ? `'${fp.familyName}', 'Roboto', sans-serif` : 'Roboto, sans-serif';
   // Auto-fit: mesmo algoritmo do png-generator (mede em canvas off-screen e encolhe)
@@ -692,19 +693,23 @@ function dSvgText(l, mctx, fillVars, dados, defaults){
       });
     }
 
-    return gradDef + bgRect + `<text font-family="${gXmlEsc(svgFamily)}" font-weight="${weight}" font-size="${fontSize}" text-anchor="middle" dominant-baseline="middle" fill="${fill}" fill-opacity="${op.toFixed(3)}"${lsAttr}${stroke}>${tspans.join('')}</text>` + linesSvg;
+    return gradDef + bgRect + `<text font-family="${gXmlEsc(svgFamily)}" font-weight="${weight}"${_itAttr} font-size="${fontSize}" text-anchor="middle" dominant-baseline="middle" fill="${fill}" fill-opacity="${op.toFixed(3)}"${lsAttr}${stroke}>${tspans.join('')}</text>` + linesSvg;
   } else {
     const availW=Math.max(10, l.w-innerPad*2);
-    if(maxW>availW){ fontSize=Math.max(8, Math.floor(fontSize*(availW/maxW))); }
+    // Auto-fit horizontal só p/ parágrafo — point text (sem caixa no PSD) não encolhe (1:1).
+    if(l.textBox==='box' && maxW>availW){ fontSize=Math.max(8, Math.floor(fontSize*(availW/maxW))); }
     const lineHeight=fontSize*(l.lineHeight||1.2);
     const totalH=lineHeight*lines.length;
-    const blockStartY=l.y + l.h/2 - totalH/2 + lineHeight/2;
+    // vAlign 'top' (PSD): ancora o topo do texto em l.y; senão centraliza no bloco.
+    const _vTop=(l.vAlign==='top');
+    const _domBase=_vTop?'text-before-edge':'middle';
+    const blockStartY=_vTop ? l.y : (l.y + l.h/2 - totalH/2 + lineHeight/2);
     const align=l.textAlign||'left';
     const anchor=align==='center'?'middle':align==='right'?'end':'start';
     const tx=align==='center'?l.x+l.w/2:align==='right'?l.x+l.w-innerPad:l.x+innerPad;
     const deco=l.strikethrough?' text-decoration="line-through"':'';
     const tspans=lines.map((ln,i)=>`<tspan x="${tx.toFixed(1)}" y="${(blockStartY+i*lineHeight).toFixed(1)}">${gXmlEsc(ln)}</tspan>`).join('');
-    return gradDef+bgRect+`<text font-family="${gXmlEsc(svgFamily)}" font-weight="${weight}" font-size="${fontSize}" text-anchor="${anchor}" dominant-baseline="middle" fill="${fill}" fill-opacity="${op.toFixed(3)}"${lsAttr}${deco}${stroke}>${tspans}</text>`;
+    return gradDef+bgRect+`<text font-family="${gXmlEsc(svgFamily)}" font-weight="${weight}"${_itAttr} font-size="${fontSize}" text-anchor="${anchor}" dominant-baseline="${_domBase}" fill="${fill}" fill-opacity="${op.toFixed(3)}"${lsAttr}${deco}${stroke}>${tspans}</text>`;
   }
 }
 function dSvgImage(l, dados, cid){

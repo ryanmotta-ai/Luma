@@ -11,7 +11,9 @@
 //  dEyedropFromLayer / dTool==='eyedrop' — continua funcionando normalmente.)
 
 /* ══ AUTO-FIT DE TEXTO ══ */
-function dMeasureText(text, font, fontSize, maxWidth){
+// lhFactor: multiplicador de line-height (default 1.2). Passe l.lineHeight (leading do PSD)
+// para a altura medida bater com o que o render realmente usa.
+function dMeasureText(text, font, fontSize, maxWidth, lhFactor){
   // Cria canvas escondido para medir
   if(!dMeasureCanvas){
     dMeasureCanvas=document.createElement('canvas');
@@ -43,7 +45,7 @@ function dMeasureText(text, font, fontSize, maxWidth){
     return visual;
   });
   // calcular altura total
-  const lineHeight = fontSize * 1.2;
+  const lineHeight = fontSize * (lhFactor || 1.2);
   let totalLines = 0;
   lines.forEach(line=>{
     const words = line.split(' ');
@@ -64,10 +66,45 @@ function dMeasureText(text, font, fontSize, maxWidth){
 }
 let dMeasureCanvas=null, dMeasureCtx=null;
 
+// Métricas de glifo da fonte (substituída) no tamanho dado, via canvas measureText.
+// { inkAscent, inkDescent, fontAscent, fontDescent } em px, ou null se indisponível.
+// Usado para alinhar o TOPO DA TINTA ao topo da caixa (baseline 1:1 do PSD).
+function dTextGlyphMetrics(font, fontSize, sample){
+  try{
+    if(!dMeasureCanvas){ dMeasureCanvas=document.createElement('canvas'); dMeasureCtx=dMeasureCanvas.getContext('2d'); }
+    const fp=(typeof dTextFontParts==='function')?dTextFontParts(font):{family:"'Roboto', sans-serif",weight:900};
+    dMeasureCtx.font=`${fp.weight} ${fontSize}px ${fp.family}`;
+    const m=dMeasureCtx.measureText(sample||'Hg');
+    const ia=m.actualBoundingBoxAscent, id=m.actualBoundingBoxDescent;
+    if(ia==null||!isFinite(ia)) return null;
+    return {
+      inkAscent:ia, inkDescent:(id!=null?id:0),
+      fontAscent:(m.fontBoundingBoxAscent!=null?m.fontBoundingBoxAscent:ia),
+      fontDescent:(m.fontBoundingBoxDescent!=null?m.fontBoundingBoxDescent:(id||0))
+    };
+  }catch(e){ return null; }
+}
+// Deslocamento (px) do topo da line-box CSS até o TOPO DA TINTA, dado line-height. Ao subtrair
+// esse gap, o topo dos glifos encosta no topo da caixa (== node.top do PSD). 0 se indisponível.
+function dTextInkTopGap(font, fontSize, lineHeightFactor, sample){
+  const gm=dTextGlyphMetrics(font, fontSize, sample); if(!gm) return 0;
+  const lh=(lineHeightFactor||1.2)*fontSize;
+  const halfLeading=(lh-(gm.fontAscent+gm.fontDescent))/2;
+  return halfLeading + (gm.fontAscent-gm.inkAscent);
+}
+
 function dCheckTextOverflow(layer){
   if(layer.type!=='text')return false;
-  const m = dMeasureText(layer.content||'', layer.font||"'Roboto Black'", layer.fontSize||24, layer.w);
-  return m.height > layer.h + 2; // tolerância
+  // Point text (sem caixa) NUNCA transborda — no Photoshop cresce sozinho a partir de uma âncora.
+  // Só texto de PARÁGRAFO (textBox==='box') tem caixa fixa que o conteúdo pode estourar.
+  if(layer.textBox!=='box') return false;
+  const fs=layer.fontSize||24, lh=layer.lineHeight||1.2;
+  const m = dMeasureText(layer.content||'', layer.font||"'Roboto Black'", fs, layer.w, lh);
+  // Comparação por LINHAS, não por pixel: o bbox de glifos do PSD é justo (~1× fontSize),
+  // mas a line-box CSS é ~1.2×. Comparar pixel marcava overflow em quase tudo (falso positivo).
+  // Aqui: transborda só se o texto precisa de MAIS linhas do que a caixa comporta.
+  const available = Math.max(1, Math.round(layer.h / (fs * lh)));
+  return m.lines > available;
 }
 
 function dAutoFitText(layerId){

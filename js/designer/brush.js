@@ -825,11 +825,17 @@ const _dDataIcons = {
   'qr-code': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M7 17h.01M17 17h.01M17 7h.01M7 7h.01"/></svg>`
 };
 
-// Despacho único do grupo Dados. var-data abre o painel; qr-code ainda não tem gerador
-// (sem lib de QR no projeto) → feedback honesto em vez de ferramenta morta silenciosa.
+// Despacho único do grupo Dados. var-data entra no MODO VINCULAR (ferramenta ativa):
+// o usuário clica num elemento da arte → o seletor abre ali e liga o Dado (ver canvas.js).
+// (Antes só abria o painel e não fazia nada — o "engodo".) qr-code sem lib.
 function _dDataDispatch(tool){
   if (tool === 'qr-code') { gToast('Gerador de QR Code em breve'); return; }
-  if (tool === 'var-data' && typeof dActivatePanel === 'function') dActivatePanel('camada');
+  if (tool === 'var-data') {
+    if (typeof dSetTool === 'function') dSetTool('var-data');
+    if (typeof dActivatePanel === 'function') dActivatePanel('camada');
+    gToast('Clique num texto ou imagem para vincular um dado');
+    return;
+  }
   if (typeof dSetTool === 'function') dSetTool(tool);
 }
 function dDataActivate() { _dDataDispatch(dDataLast); }

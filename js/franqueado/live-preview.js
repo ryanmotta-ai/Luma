@@ -22,10 +22,10 @@ function fOpenPreview(e,id){
     const cls = `pv-multi-canvas pv-fmt-${f.id}`;
     return `<div class="pv-multi-item" onclick="fStartFromPreview('${c.id}','${f.id}')" role="button" tabindex="0">
       <div class="${cls}" style="background:${c.color}">
-        <div class="pv-multi-tag">${gEsc(c.name.toUpperCase())}</div>
-        <div class="pv-multi-prod">${gEsc(c.previewProd||c.name)}</div>
-        ${c.previewDe?`<div class="pv-multi-de">${gEsc(c.previewDe)}</div>`:''}
-        ${c.previewPor?`<div class="pv-multi-por">${gEsc(c.previewPor)}</div>`:''}
+        <div class="pv-multi-tag">${c.name.toUpperCase()}</div>
+        <div class="pv-multi-prod">${c.previewProd||c.name}</div>
+        ${c.previewDe?`<div class="pv-multi-de">${c.previewDe}</div>`:''}
+        ${c.previewPor?`<div class="pv-multi-por">${c.previewPor}</div>`:''}
         <div class="pv-multi-logo" role="img" aria-label="Luma"></div>
       </div>
       <div class="pv-multi-label">
@@ -144,14 +144,18 @@ function fLpShowEmpty(canvas){
   canvas.width = W; canvas.height = H;
   fLpSizeCanvas(canvas, W, H);
   const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = 'rgba(0,0,0,0.05)';
-  ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = 'rgba(0,0,0,0.30)';
-  ctx.font = '28px Roboto, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('aguardando template...', W / 2, H / 2);
+  ctx.clearRect(0, 0, W, H); // transparente → herda o fundo do tema (claro OU escuro) via CSS
+  // Cinza médio: legível tanto no tema claro quanto no escuro (antes era preto → sumia no dark).
+  const g = 'rgba(150,150,158,0.85)';
+  ctx.strokeStyle = 'rgba(150,150,158,0.55)'; ctx.fillStyle = g;
+  ctx.lineWidth = 4; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  const cx = W/2, cy = H/2 - 40, s = 74;
+  // Ícone de imagem (moldura + sol + montanha)
+  ctx.strokeRect(cx - s, cy - s*0.72, s*2, s*1.44);
+  ctx.beginPath(); ctx.arc(cx - s*0.45, cy - s*0.3, 12, 0, Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx - s + 10, cy + s*0.55); ctx.lineTo(cx - s*0.2, cy - s*0.05); ctx.lineTo(cx + s*0.25, cy + s*0.28); ctx.lineTo(cx + s - 10, cy - s*0.15); ctx.stroke();
+  ctx.font = '600 26px Roboto, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('Sua arte aparece aqui', W/2, cy + s + 46);
 }
 
 // Injeta placeholder {{var}} nos layers de texto com variável vazia e sem default.
@@ -215,13 +219,13 @@ function fLpUpdateMeta(hasTemplate){
         : (filled ? gEsc(d[p.id]) : (isCurrent ? 'aguardando...' : '—'));
       return `<div class="${cls}">
         <div class="lp-field-dot"></div>
-        <div class="lp-field-label">${gEsc(F_FIELD_LABELS[p.id] || p.label || p.id)}</div>
+        <div class="lp-field-label">${F_FIELD_LABELS[p.id] || p.label || p.id}</div>
         <div class="lp-field-val">${valDisplay}</div>
       </div>`;
     }).join('');
   }
   if(subEl){
-    if(!hasTemplate){ subEl.textContent = 'selecione um material...'; subEl.classList.remove('ready'); return; }
+    if(!hasTemplate){ subEl.textContent = 'Selecione um material'; subEl.classList.remove('ready'); return; }
     const total = perguntas.length;
     const preenchidos = perguntas.filter(p => d[p.id] != null && d[p.id] !== '').length;
     if(fState.done){ subEl.textContent = 'arte pronta ✓'; subEl.classList.add('ready'); }

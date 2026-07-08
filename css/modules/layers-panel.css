@@ -219,10 +219,10 @@
 /* ── Layer DnD ── */
 .layer-row {
   position: relative;
-  transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), 
-              transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-              box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-              padding-left 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color var(--dur-fast) var(--ease-standard),
+              transform var(--dur-base) var(--ease-spring),
+              box-shadow var(--dur-fast) var(--ease-standard),
+              padding-left var(--dur-base) var(--ease-spring);
   will-change: transform, background-color;
 }
 

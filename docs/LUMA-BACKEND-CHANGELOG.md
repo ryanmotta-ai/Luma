@@ -6,35 +6,6 @@
 
 ---
 
-## 2026-06-25 — Acesso por role: franqueado restrito à própria área
-
-Franqueado deixou de ver as abas **Designer** e **Dados** ([js/main.js](../js/main.js)). Defesa dupla:
-1. `gApplyModeAccess()` no boot (dentro de `gOnLoginSuccess`) esconde `tab-design`/`tab-dados` pra quem não é `gIsAdmin()` (equipe_dm/gestao) e força o modo franqueado.
-2. `setMode()` ignora `'designer'`/`'dados'` pra não-admin → trava mesmo se chamado via DOM/console.
-
-O RLS já era a proteção real dos dados no backend (franqueado não escreve pastas/templates, não lê artes de outros, só vê pasta ativa/template publicado). Isto é o **gate de navegação** no front. Sem impacto pros designers (veem as 3 abas normalmente).
-
----
-
-## 2026-06-25 — Segurança: blindagem XSS (gEsc) em ~53 pontos
-
-Auditoria de XSS (stored) no front inteiro e aplicação da peneira `gEsc()` onde dado de usuário/banco entrava cru em `innerHTML`. **Risco real:** texto salvo por um usuário (nome, campanha, rótulo, e-mail) executando script no navegador de outro — ex.: roubo da sessão de um gestor. **Sem mudança visual.**
-
-**Auditoria:** varredura dos 187 `innerHTML` em 28 arquivos → **~53 pontos de risco**; o restante é HTML do próprio sistema (ícones, enums, números). `FMTS` confirmado estático ([00-config.js](../js/00-config.js)).
-
-**Aplicado em 3 commits:**
-- **core** (`17ce15f`): `user-profile.js` (tela de Equipe — nome/email/avatar, inclusive dentro de `onclick`) + `auth.js` (avatar da topbar). Iniciais migradas pra `textContent`.
-- **franqueado** (`69e2e22`): nome/preview/badge de campanha (`catalog`, `materials`, `live-preview`), rótulos das perguntas do chat e mensagens de validação (`chat`, `chat-input`).
-- **designer**: nomes em `<option>` (`templates`, `publish`, `layers` — campanha/pasta/variável), categoria da biblioteca (`library` — passada via `data-cat`+`dataset`, segura no onclick), nome/URL de assets (`layers`).
-
-**Critérios:** rótulo dentro de `<strong>` escapado **na origem** (sem dupla-escapar no render); `gEsc` só em dado de usuário/banco — nunca em ícones/enums/ids regex-safe/números.
-
-**Dívida (2ª camada, baixo risco):** cores (`l.fill`…) e URLs (`cover`, `src` de img) em atributos `style`/`url()` — vêm de seletor de cor/Storage (já normalizados); `gEsc` ali quebraria URL com `&`. Tratar com validação dedicada se necessário. DÚVIDAS dependentes de arquivos fora do escopo: `tutorial/catalog.js` (`scene.build`), `dados/index.js` (`data-tip`).
-
-**Validado:** `node --check` em todos os arquivos tocados. **Falta:** teste visual no navegador (Ryan rodar e confirmar que as telas seguem normais).
-
----
-
 ## 2026-06-22 — Hardening pós-incidente: views SECURITY INVOKER + revoke de funções de trigger
 
 **Contexto:** ao mexer em **Settings › API › Exposed schemas**, o schema `analytics` foi exposto pela Data API. Isso disparou **6 ERROR** de segurança (`security_definer_view` — view `SECURITY DEFINER` exposta fura RLS) + WARN de funções `SECURITY DEFINER` chamáveis via `/rest/v1/rpc/`. **Os dados não vazaram:** as views já estavam sem grant de `SELECT` pra `anon`/`authenticated`.

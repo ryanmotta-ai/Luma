@@ -35,11 +35,13 @@
 .sec-title{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:8px;margin-top:4px}
 .camp-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:18px}
 .camp-card{border:1.5px solid var(--gray-light);border-radius:var(--r);overflow:hidden;cursor:pointer;transition:transform .2s cubic-bezier(.2,.9,.4,1), border-color .15s, box-shadow .2s;background:var(--white);position:relative}
-.camp-card:hover{border-color:var(--dm-orange);transform:translateY(-4px) scale(1.02);box-shadow:var(--gradient-glow), 0 12px 24px rgba(255,144,0,.25)}
+.camp-card:hover{border-color:var(--dm-orange);transform:translateY(-5px) scale(1.02);box-shadow:0 12px 24px rgba(255,144,0,.25)}
 .camp-card:active{transform:translateY(-1px) scale(.98)}
 .camp-card.selected{border:2px solid var(--dm-orange);box-shadow:0 0 0 3px rgba(255,144,0,.12), 0 4px 14px rgba(255,144,0,.15)}
 .camp-card:hover .camp-prev-btn{opacity:1}
-.camp-prev-btn{position:absolute;top:4px;left:4px;background:rgba(0,0,0,.45);color:#fff;font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px;opacity:0;transition:opacity .15s;z-index:2;cursor:pointer;letter-spacing:.04em}
+/* PRÉVIA no canto inferior-direito → não colide mais com o badge "Popular" (topo-esq). */
+.camp-prev-btn{position:absolute;bottom:6px;right:6px;background:rgba(0,0,0,.55);color:#fff;font-size:9px;font-weight:700;padding:3px 9px;border-radius:var(--r-pill);opacity:0;transition:opacity var(--dur-fast) var(--ease-standard);z-index:3;cursor:pointer;letter-spacing:.04em}
+@media (hover:none){.camp-prev-btn{opacity:.85}} /* touch: sempre visível (não há hover) */
 .camp-thumb{height:96px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-family:'Roboto',sans-serif;font-weight:900;color:var(--white);text-align:center;padding:8px 6px;position:relative;overflow:hidden}
 .camp-thumb::before{content:'';position:absolute;bottom:-20px;right:-20px;width:60px;height:60px;border-radius:50%;background:rgba(255,255,255,.1);z-index:0}
 .camp-thumb::after{content:'';position:absolute;top:-15px;left:-15px;width:45px;height:45px;border-radius:50%;background:rgba(255,255,255,.06);z-index:0}
@@ -48,11 +50,15 @@
 .camp-thumb-por{font-size:18px;color:var(--dm-yellow);z-index:1;line-height:1.05;letter-spacing:.02em}
 .camp-thumb-logo{height:9px;width:30px;margin-top:3px;z-index:1;background:var(--logo-h-branca) center/contain no-repeat;opacity:.75}
 .camp-thumb-name{font-size:13px;letter-spacing:.04em;line-height:1.1;z-index:1}
-.camp-badge{position:absolute;top:5px;right:5px;background:var(--dm-yellow);color:var(--dm-red);font-size:8px;font-weight:700;padding:2px 5px;border-radius:3px;letter-spacing:.03em;z-index:2}
-.camp-urgency{position:absolute;bottom:5px;left:5px;background:rgba(200,24,24,.85);color:#fff;font-size:8px;font-weight:700;padding:2px 6px;border-radius:3px;letter-spacing:.03em;z-index:2}
-.camp-popular{position:absolute;top:5px;left:5px;background:rgba(34,197,94,.85);color:#fff;font-size:8px;font-weight:700;padding:2px 6px;border-radius:3px;letter-spacing:.03em;z-index:2}
+/* Badges unificados: mesma família de pill, peso e tamanho; cores semânticas. */
+.camp-badge,.camp-urgency,.camp-popular{position:absolute;display:inline-flex;align-items:center;font-size:9px;font-weight:700;padding:2px 7px;border-radius:var(--r-pill);letter-spacing:.03em;z-index:2;box-shadow:0 2px 6px rgba(0,0,0,.18)}
+.camp-badge{top:6px;right:6px;background:var(--dm-yellow);color:var(--dm-red)}
+.camp-popular{top:6px;left:6px;background:var(--green,#22C55E);color:#fff}
+.camp-urgency{bottom:6px;left:6px;background:var(--dm-red);color:#fff}
+/* Sobre capas (foto), os círculos decorativos do thumb atrapalham → some com eles. */
+.camp-thumb.has-cover::before,.camp-thumb.has-cover::after{content:none}
 .camp-body{padding:7px 9px}
-.camp-name{font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.camp-name{font-size:12px;font-weight:600;color:var(--text);line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.5em}
 .camp-sub{font-size:11px;color:var(--text-3)}
 .camp-card.recommended{border-color:var(--dm-orange);background:var(--dm-orange-bg)}
 .camp-card.recommended .camp-name{color:var(--dm-red)}
@@ -586,5 +592,28 @@ body:not(.theme-light) #f-live-preview::-webkit-scrollbar-thumb:hover {
     border-right: 1px solid var(--d-border);
     border-bottom: none;
   }
+}
+
+/* Botão "voltar ao catálogo" — só aparece no mobile (ver media query abaixo). */
+#f-mobile-back{display:none;background:transparent;border:none;color:var(--text-2);cursor:pointer;padding:6px 8px;margin-right:2px;align-items:center;justify-content:center;border-radius:8px;flex-shrink:0}
+#f-mobile-back:hover{background:var(--gray-light)}
+
+/* ── MOBILE: layout de 1 coluna por vez (catálogo OU chat) ──────────────────
+   O layout de 2 colunas do desktop colapsa: por padrão mostra o CATÁLOGO;
+   quando o chat começa (body.f-mobile-chat), mostra o CHAT full-width com o
+   botão de voltar. Alinhado ao breakpoint do drawer de prévia (franqueado_effects). */
+@media (max-width: 680px){
+  #fran-left{width:100%;flex-shrink:1;border-right:none}
+  #fran-right{display:none}
+  body.f-mobile-chat #fran-left{display:none}
+  body.f-mobile-chat #fran-right{display:flex;width:100%}
+  #f-chat-col{width:100%}
+  #f-mobile-back{display:flex}
+  /* 16px evita o auto-zoom do iOS ao focar inputs */
+  #f-msg-box,#f-search{font-size:16px}
+  /* Alvos de toque ≥44px */
+  #f-snd{width:44px;height:44px}
+  .fmt-btn{min-height:44px}
+  .f-tab{min-height:40px}
 }
 

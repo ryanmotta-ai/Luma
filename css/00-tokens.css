@@ -40,11 +40,25 @@
   --var-color: #FFB900;
   --var-bg: rgba(255, 185, 0, .12);
 
-  /* Premium Design System Tokens */
+  /* ── Motion system (feel: vivo & com mola) ──────────────────────────────
+     Poucas curvas nomeadas + escala de duração. Use SEMPRE estes tokens em vez
+     de cubic-bezier/ms na mão — mantém o movimento coeso no app inteiro.       */
+  --ease-standard: cubic-bezier(.2,.9,.4,1);      /* padrão: decelera, ágil (transições gerais) */
+  --ease-out:      cubic-bezier(.16,1,.3,1);      /* saída forte: entradas suaves */
+  --ease-in:       cubic-bezier(.5,0,.9,.4);      /* aceleração: saídas/desaparecer */
+  --ease-spring:   cubic-bezier(.34,1.56,.64,1);  /* mola: overshoot p/ pops (botões, badges) */
+  --ease-spring-soft: cubic-bezier(.22,1.2,.36,1);/* mola suave: overshoot leve p/ modais/cards */
+
+  --dur-micro: 140ms;   /* hover, press, toggles */
+  --dur-fast:  180ms;   /* botões, chips, tooltips */
+  --dur-base:  260ms;   /* modais, painéis, cards */
+  --dur-slow:  420ms;   /* entradas grandes, transição de view */
+
+  /* Legado (mantido p/ compat — não remover; muitos arquivos referenciam) */
   --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
-  --transition-fast: 0.15s var(--ease-smooth);
-  --transition-normal: 0.3s var(--ease-smooth);
-  --transition-slow: 0.5s var(--ease-smooth);
+  --transition-fast: var(--dur-micro) var(--ease-standard);
+  --transition-normal: var(--dur-base) var(--ease-standard);
+  --transition-slow: var(--dur-slow) var(--ease-out);
 
   --gradient-orange: linear-gradient(135deg, var(--dm-orange) 0%, var(--dm-orange-d) 100%);
   --gradient-dark: linear-gradient(180deg, #1A1A1A 0%, #0D0D0D 100%);

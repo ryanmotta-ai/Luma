@@ -51,8 +51,8 @@ function fRenderHist(){
       <div class="empty-icon">
         <img src="assets/illustrations/empty_arts.png" style="width: 180px; height: auto;" alt="Empty Canvas">
       </div>
-      <div class="empty-title">Ainda não tens artes geradas</div>
-      <div class="empty-text">Escolhe uma campanha, responde umas perguntinhas e a tua primeira arte aparece aqui.</div>
+      <div class="empty-title">Você ainda não gerou nenhuma arte</div>
+      <div class="empty-text">Escolha uma campanha, responda umas perguntinhas e sua primeira arte aparece aqui.</div>
       <button class="empty-cta" onclick="fGoToCampaigns()">Ver campanhas sugeridas →</button>
     </div>`;
     return;
@@ -63,7 +63,7 @@ function fRenderHist(){
         <img src="assets/illustrations/empty_filtered.png" style="width: 140px; height: auto;" alt="Empty Results">
       </div>
       <div class="empty-title">Nenhuma arte ${fHistFilter==='rascunho'?'em rascunho':'baixada ainda'}</div>
-      <div class="empty-text">${fHistFilter==='rascunho'?'Os rascunhos que começares aparecem aqui.':'Baixa uma arte e ela fica registada aqui.'}</div>
+      <div class="empty-text">${fHistFilter==='rascunho'?'Os rascunhos que você começar aparecem aqui.':'Baixe uma arte e ela fica registrada aqui.'}</div>
       <button class="empty-cta ghost" onclick="fSetHistFilter('todos',document.querySelector('.hist-filter-btn'))">Ver todas</button>
     </div>`;
     return;
@@ -75,14 +75,14 @@ function fRenderHist(){
       : `<span class="hist-badge-st baixada">baixada</span>`;
     const dateStr = fFormatHistDate(h.ts);
     return `<div class="hist-card" data-status="${h.status||'rascunho'}">
-      <div class="hist-thumb" style="background:${h.campColor}">${gEsc((h.campName||'').toUpperCase().slice(0,8))}</div>
+      <div class="hist-thumb" style="background:${h.campColor||'var(--dm-orange)'}">${gEsc((h.campName||'').toUpperCase().slice(0,8))}</div>
       <div class="hist-info">
         <div class="hist-name">${h.materialName ? gEsc(h.materialName) : (gEsc(h.prod) + ' · ' + gEsc(h.fmtName))}</div>
         <div class="hist-meta">${statusBadge}<span class="hist-meta-sep">·</span>${gEsc(h.campName)}<span class="hist-meta-sep">·</span>${gEsc(h.fmtName)}<span class="hist-meta-sep">·</span>${dateStr}</div>
         <div class="hist-actions">
-          <button class="hist-act-btn" onclick="fEditFromHist(${h.id})" title="Abrir e editar">✎ Editar</button>
-          <button class="hist-act-btn" onclick="fDuplicateInOtherFmt(${h.id})" title="Gerar em outro formato">⎘ Duplicar</button>
-          <button class="hist-act-btn pri" onclick="fDownloadHist(${h.id})" title="Baixar PNG">↓ Baixar</button>
+          <button class="hist-act-btn" onclick="fEditFromHist(${h.id})" title="Abrir e editar"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Editar</button>
+          <button class="hist-act-btn" onclick="fDuplicateInOtherFmt(${h.id})" title="Gerar em outro formato"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplicar</button>
+          <button class="hist-act-btn pri" onclick="fDownloadHist(${h.id})" title="Baixar PNG"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M5 21h14"/></svg>Baixar</button>
         </div>
       </div>
     </div>`;
@@ -153,9 +153,9 @@ function fEditFromHist(id){
       const label = vDef ? vDef.label : v.replace(/_/g,' ');
       const isImage = (vDef ? vDef.type==='image' : false) || imgVars.has(v);
       if(isImage){
-        perguntas.push({id:v, texto:`Envie a <strong>${gEsc(label.toLowerCase())}</strong>`, sugestoes:[], isImage:true, label, maxLen:0});
+        perguntas.push({id:v, texto:`Envie a <strong>${label.toLowerCase()}</strong>`, sugestoes:[], isImage:true, label, maxLen:0});
       } else {
-        perguntas.push({id:v, texto:`Qual é o <strong>${gEsc(label.toLowerCase())}</strong>?`, sugestoes:fGetSuggestionsForVar(v, c), maxLen:perm?.maxLen||32, label});
+        perguntas.push({id:v, texto:`Qual é o <strong>${label.toLowerCase()}</strong>?`, sugestoes:fGetSuggestionsForVar(v, c), maxLen:perm?.maxLen||32, label});
       }
     });
     fState.camp = {...c, perguntas, materialName: material.name};
@@ -189,8 +189,8 @@ function fEditFromHist(id){
       const isImg = typeof val==='string' && val.startsWith('data:image');
       const vDef = (typeof dVars!=='undefined' && dVars) ? dVars.find(x=>x.name===k) : null;
       const label = (vDef && vDef.label) || fbLabels[k] || k.replace(/_/g,' ');
-      if(isImg) return {id:k, texto:`Envie a <strong>${gEsc(label.toLowerCase())}</strong>`, sugestoes:[], isImage:true, label, maxLen:0};
-      return {id:k, texto:`Qual é o <strong>${gEsc(label.toLowerCase())}</strong>?`, sugestoes:fGetSuggestionsForVar(k, c), maxLen:32, label};
+      if(isImg) return {id:k, texto:`Envie a <strong>${label.toLowerCase()}</strong>`, sugestoes:[], isImage:true, label, maxLen:0};
+      return {id:k, texto:`Qual é o <strong>${label.toLowerCase()}</strong>?`, sugestoes:fGetSuggestionsForVar(k, c), maxLen:32, label};
     });
   } else {
     fbPerguntas = c.perguntas; // sem dados salvos → usa as perguntas da campanha
@@ -278,23 +278,28 @@ function fCampEl(c,isRec){
   const previewPor = c.previewPor || '';
   const previewDe = c.previewDe || '';
   const cover = fCampCover(c);
+  // Degradação graciosa: a cor da campanha fica POR BAIXO da imagem — se a capa faltar (404),
+  // o card mostra a cor da marca em vez de um retângulo branco.
+  // Scrim (gradiente topo+base) por cima da capa → badges legíveis mesmo em fotos claras.
   const thumbStyle = cover
-    ? `background-image:url('${cover}');background-size:cover;background-position:center`
+    ? `background-color:${c.color};background-image:linear-gradient(180deg,rgba(0,0,0,.34),rgba(0,0,0,0) 32%,rgba(0,0,0,0) 60%,rgba(0,0,0,.42)),url('${cover}');background-size:cover;background-position:center`
     : `background:${c.color}`;
   const mats = (typeof fGetMaterialsForCamp==='function') ? fGetMaterialsForCamp(c.id) : [];
   const countLabel = mats.length ? `${mats.length} material${mats.length!==1?'is':''}` : 'Sem materiais';
-  return `<div class="camp-card ${c.id===fState.camp.id?'selected':''} ${isRec?'recommended':''}" onclick="fSelectCamp('${c.id}')">
+  const _icoFlame='<svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:-1px;margin-right:3px"><path d="M12 2s5 4 5 9a5 5 0 0 1-10 0c0-1 .3-2 .8-2.8C8 10 9 12 10 12c0-3 2-7 2-10z"/></svg>';
+  const _icoClock='<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-1px;margin-right:3px"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+  return `<div class="camp-card ${fState.camp&&c.id===fState.camp.id?'selected':''} ${isRec?'recommended':''}" onclick="fSelectCamp('${c.id}')">
     <div class="camp-prev-btn" onclick="event.stopPropagation();fOpenPreview(event,'${c.id}')">PRÉVIA</div>
     <div class="camp-thumb ${cover?'has-cover':''}" style="${thumbStyle}">
-      ${c.badge?`<div class="camp-badge">${gEsc(c.badge)}</div>`:''}
-      ${c.popular?`<div class="camp-popular">🔥 Popular</div>`:''}
-      ${c.expiraDias<=3?`<div class="camp-urgency">⏰ ${c.expiraDias}d restantes</div>`:''}
-      ${cover?'':`<div class="camp-thumb-prod">${gEsc(previewProd)}</div>
-      ${previewDe?`<div class="camp-thumb-de">${gEsc(previewDe)}</div>`:''}
-      ${previewPor?`<div class="camp-thumb-por">${gEsc(previewPor)}</div>`:''}
+      ${c.badge?`<div class="camp-badge">${c.badge}</div>`:''}
+      ${c.popular?`<div class="camp-popular">${_icoFlame}Popular</div>`:''}
+      ${c.expiraDias<=3?`<div class="camp-urgency">${_icoClock}${c.expiraDias}d</div>`:''}
+      ${cover?'':`<div class="camp-thumb-prod">${previewProd}</div>
+      ${previewDe?`<div class="camp-thumb-de">${previewDe}</div>`:''}
+      ${previewPor?`<div class="camp-thumb-por">${previewPor}</div>`:''}
       <div class="camp-thumb-logo" role="img" aria-label="Luma"></div>`}
     </div>
-    <div class="camp-body"><div class="camp-name">${gEsc(c.name)}</div><div class="camp-sub">${countLabel}</div></div>
+    <div class="camp-body"><div class="camp-name">${c.name}</div><div class="camp-sub">${countLabel}</div></div>
   </div>`;
 }
 function fGetCampaigns(){
@@ -377,31 +382,51 @@ function fRestoreCatalog(){
   }
 }
 
-function fRenderCatalogs(a,o){
-  a=a||[];o=o||[];
+// Empty state do catálogo (busca sem resultado ou nenhuma campanha ativa). Reusa .empty-state.
+function _fCampEmptyState(query){
+  const ico='<div class="empty-icon"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></div>';
+  if(query){
+    return `<div class="empty-state empty-state-sm">${ico}
+      <div class="empty-title">Nenhuma campanha encontrada</div>
+      <div class="empty-text">Não achamos nada para “${gEsc(query)}”. Tente outro termo.</div>
+      <button class="empty-cta ghost" onclick="var s=document.getElementById('f-search');if(s)s.value='';fFilterCamps('')">Limpar busca</button>
+    </div>`;
+  }
+  return `<div class="empty-state empty-state-sm">${ico}
+    <div class="empty-title">Nenhuma campanha ativa no momento</div>
+    <div class="empty-text">Assim que houver campanhas disponíveis, elas aparecem aqui.</div>
+  </div>`;
+}
+function fRenderCatalogs(a,o,opts){
+  a=a||[];o=o||[];opts=opts||{};
   const cat=document.getElementById('f-catalog'); if(!cat)return;
-  const rec=a.find(c=>c.popular)||null;
-  cat.innerHTML=`
-    <div class="cat-back-row">
+  const searching=!!opts.search;
+  const backRow=`<div class="cat-back-row">
       <button class="cat-back-btn" onclick="fVoltarCategoria()">${_ICO_BACK} Todas as categorias</button>
       <span class="cat-back-label">Campanhas</span>
-    </div>
+    </div>`;
+  // Sem nenhuma campanha → empty state (nunca títulos sobre grid vazio)
+  if(!a.length && !o.length){ cat.innerHTML=backRow+_fCampEmptyState(searching?opts.search:null); return; }
+  // "Recomendada agora" só fora da busca (senão fica um título órfão)
+  const rec=searching?null:(a.find(c=>c.popular)||null);
+  cat.innerHTML=backRow+`
     ${rec?`<div class="sec-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:middle;margin-right:4px"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9"/></svg>Recomendada agora</div>
     <div class="camp-grid" id="camp-rec"></div>`:''}
-    <div class="sec-title">Ativas agora</div>
-    <div class="camp-grid" id="camp-main"></div>
-    ${o.length?`<div class="sec-title">Outras campanhas</div><div class="camp-grid" id="camp-other"></div>`:''}`;
+    ${a.length?`<div class="sec-title">${searching?'Resultados':'Ativas agora'}</div><div class="camp-grid" id="camp-main"></div>`:''}
+    ${o.length?`<div class="sec-title">${searching?'Outros resultados':'Outras campanhas'}</div><div class="camp-grid" id="camp-other"></div>`:''}`;
   if(rec) document.getElementById('camp-rec')?.insertAdjacentHTML('beforeend',fCampEl(rec,true));
-  document.getElementById('camp-main').innerHTML=a.filter(c=>!rec||c.id!==rec.id).map(c=>fCampEl(c,false)).join('');
+  const main=document.getElementById('camp-main'); if(main) main.innerHTML=a.filter(c=>!rec||c.id!==rec.id).map(c=>fCampEl(c,false)).join('');
   if(o.length) document.getElementById('camp-other')?.insertAdjacentHTML('beforeend',o.map(c=>fCampEl(c,false)).join(''));
 }
 function fFilterCamps(q){
   if(fState.categoria!=='campanhas') return;
   const {ativas,outras}=fGetCampaigns();
-  const f1=q?ativas.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())):ativas;
-  const f2=q?outras.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())):outras;
-  fRenderCatalogs(f1.length?f1:ativas,f2);
-  if(q) document.getElementById('camp-rec')?.style && (document.getElementById('camp-rec').style.display='none');
+  const qq=(q||'').trim().toLowerCase();
+  if(!qq){ fRenderCatalogs(ativas,outras); return; }
+  const f1=ativas.filter(c=>c.name.toLowerCase().includes(qq));
+  const f2=outras.filter(c=>c.name.toLowerCase().includes(qq));
+  // NÃO cai de volta em "ativas" quando não há match — mostra empty state honesto.
+  fRenderCatalogs(f1,f2,{search:q});
 }
 function fSelectCamp(id){
   const c=fResolveCamp(id);if(!c)return;

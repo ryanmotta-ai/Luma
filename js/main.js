@@ -18,8 +18,6 @@ function dUpdateTabPill() {
 }
 
 function setMode(m){
-  // Gate por role: franqueado NÃO acessa Designer nem Dados (trava no clique e via DOM/console).
-  if((m==='designer'||m==='dados') && (typeof gIsAdmin!=='function' || !gIsAdmin())) m='franqueado';
   // Troca só a classe de modo, preservando as demais (theme-light, rulers-on, simulating...)
   document.body.classList.remove('mode-franqueado','mode-designer','mode-dados');
   document.body.classList.add('mode-'+m);
@@ -38,36 +36,27 @@ function setMode(m){
   if(m==='dados' && typeof pInit==='function') pInit();
 }
 
-// Mostra as abas Designer/Dados só pra persona Designer (equipe_dm/gestao).
-// Franqueado fica restrito à própria área. A RLS já protege os dados no backend;
-// isto é o gate de navegação no front.
-function gApplyModeAccess(){
-  const isAdmin = (typeof gIsAdmin==='function') && gIsAdmin();
-  const tabDesign = document.getElementById('tab-design');
-  const tabDados = document.getElementById('tab-dados');
-  if(tabDesign) tabDesign.style.display = isAdmin ? '' : 'none';
-  if(tabDados) tabDados.style.display = isAdmin ? '' : 'none';
-  if(!isAdmin) setMode('franqueado'); // garante que o franqueado fica na própria área
-  dUpdateTabPill();
-}
-
 /* ══ INIT Lógica de Inicialização Global e Auth Gate ══ */
 
 // Função chamada após um login bem-sucedido ou quando a sessão já está ativa
 function gOnLoginSuccess() {
-  document.getElementById('g-login-screen').style.display = 'none';
+  // Saída suave do login (fade+zoom) em vez de corte seco, encadeando com a entrada da view.
+  const _login = document.getElementById('g-login-screen');
+  if (_login) {
+    _login.classList.add('gl-out');
+    setTimeout(() => { _login.style.display = 'none'; _login.classList.remove('gl-out'); }, 320);
+  }
   dUpdateTabPill();
-  
-  if(typeof gUpdateUserTopbar === 'function') gUpdateUserTopbar();
 
-  // Gate de navegação por role: franqueado só vê a própria área (esconde abas Designer/Dados).
-  gApplyModeAccess();
+  if(typeof gUpdateUserTopbar === 'function') gUpdateUserTopbar();
 
   // INIT FRANQUEADO
   fRenderCategorias();
   fRenderFmts();
   fUpdateHistBadge();
-  if (typeof fStartChat === 'function') fStartChat();
+  // Boot honesto: recebe com boas-vindas em vez de interrogar sobre uma campanha não escolhida.
+  if (typeof fShowWelcome === 'function') fShowWelcome();
+  else if (typeof fStartChat === 'function') fStartChat();
 
   // Sincroniza variáveis e catálogo (pastas/templates) com o Supabase (offline-first).
   if (typeof dSyncVarsFromBackend === 'function') dSyncVarsFromBackend();

@@ -15,13 +15,14 @@
   padding:14px 16px;border-radius:14px;
   background:var(--white,#fff);
   border:1.5px solid var(--gray-light,#e9ecef);
-  cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .12s;
+  cursor:pointer;transition:border-color var(--dur-fast) var(--ease-standard),box-shadow var(--dur-base) var(--ease-standard),transform var(--dur-base) var(--ease-spring);
 }
 .cat-card:hover{
   border-color:var(--dm-orange,#FF9000);
-  box-shadow:0 4px 16px rgba(255,144,0,.12);
-  transform:translateY(-1px);
+  box-shadow:0 6px 18px rgba(255,144,0,.14);
+  transform:translateY(-2px);
 }
+.cat-card:active{transform:translateY(0) scale(.995)}
 
 .cat-card-thumb{
   width:52px;height:52px;border-radius:12px;flex-shrink:0;
@@ -106,13 +107,24 @@
   border-radius:var(--r);
   overflow:hidden;
   cursor:pointer;
-  transition:transform .2s cubic-bezier(.2,.9,.4,1), border-color .15s, box-shadow .2s;
-  animation:gFadeInUp .35s cubic-bezier(.2,.9,.4,1) both;
+  transition:transform var(--dur-base) var(--ease-spring), border-color var(--dur-fast) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard);
+  animation:gPopIn var(--dur-base) var(--ease-spring-soft) both;
 }
+/* Stagger de entrada: cada card entra logo após o anterior (efeito cascata).
+   Cobre as ~10 primeiras posições; a partir daí todos usam o último atraso. */
+.f-mat-card:nth-child(1){animation-delay:.02s}
+.f-mat-card:nth-child(2){animation-delay:.06s}
+.f-mat-card:nth-child(3){animation-delay:.10s}
+.f-mat-card:nth-child(4){animation-delay:.14s}
+.f-mat-card:nth-child(5){animation-delay:.18s}
+.f-mat-card:nth-child(6){animation-delay:.22s}
+.f-mat-card:nth-child(7){animation-delay:.26s}
+.f-mat-card:nth-child(8){animation-delay:.30s}
+.f-mat-card:nth-child(n+9){animation-delay:.34s}
 .f-mat-card:hover{
   border-color:var(--dm-orange);
-  transform:translateY(-4px);
-  box-shadow:0 12px 28px rgba(255,144,0,.2);
+  transform:translateY(-5px) scale(1.015);
+  box-shadow:0 14px 32px rgba(255,144,0,.22);
 }
 .f-mat-card:active{transform:translateY(-1px) scale(.99)}
 .f-mat-thumb{

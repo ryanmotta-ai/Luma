@@ -83,7 +83,7 @@ function dPublishRender(){
 
   // Aba Pasta & Nome
   const folderSel=document.getElementById('pub-folder');
-  folderSel.innerHTML=dFolders.map(f=>`<option value="${f.id}">${gEsc(f.name)}</option>`).join('');
+  folderSel.innerHTML=dFolders.map(f=>`<option value="${f.id}">${f.name}</option>`).join('');
   const fmtEl=document.getElementById('pub-fmt-display');
   if(fmtEl) fmtEl.textContent=(dFmt||'custom').toUpperCase();
 

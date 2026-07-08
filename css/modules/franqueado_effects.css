@@ -1,31 +1,24 @@
 /* ==========================================================================
    TRANSITIONS & ANIMATIONS TOKENS
    ========================================================================== */
+/* Vars PRÓPRIAS deste módulo (sombras/glass). NÃO redefinir --transition-fast/--transition-smooth
+   aqui: eles vêm do 00-tokens (fonte única). Este arquivo carrega por último; redefini-los
+   sobrescrevia o sistema de motion do app inteiro. */
 :root {
+  /* --transition-smooth é PRÓPRIO deste módulo (não existe no 00-tokens → não há colisão).
+     NÃO redefinir --transition-fast aqui: esse é do 00-tokens e sobrescrevê-lo quebrava o app. */
   --transition-smooth: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-  --transition-fast: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
-  --shadow-premium: 0 10px 30px -10px rgba(0, 0, 0, 0.08), 
+  --shadow-premium: 0 10px 30px -10px rgba(0, 0, 0, 0.08),
                     0 1px 3px rgba(0, 0, 0, 0.02);
   --shadow-glow: 0 12px 24px -6px rgba(255, 144, 0, 0.15);
   --glass-bg: rgba(255, 255, 255, 0.85);
   --glass-border: rgba(255, 144, 0, 0.18);
 }
 
-/* Staggered Fade-In para Grids */
-@keyframes fadeInUpStagger {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
+/* Entrada dos cards: usa o keyframe de mola do sistema (gPopIn + --ease-spring-soft). */
 .camp-card, .f-mat-card {
   opacity: 0;
-  animation: fadeInUpStagger 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: gPopIn var(--dur-base) var(--ease-spring-soft) forwards;
 }
 
 /* Delays dinâmicos para cards */
@@ -42,11 +35,14 @@
 .camp-card, .f-mat-card {
   border: 1px solid var(--gray-light);
   background: var(--white);
-  transition: var(--transition-smooth) !important;
+  /* transição tokenizada (mola no transform) — SEM !important, pra respeitar prefers-reduced-motion */
+  transition: transform var(--dur-base) var(--ease-spring),
+              border-color var(--dur-fast) var(--ease-standard),
+              box-shadow var(--dur-base) var(--ease-standard);
 }
 
 .camp-card:hover, .f-mat-card:hover {
-  transform: translateY(-5px) scale(1.01);
+  transform: translateY(-5px) scale(1.02);
   border-color: var(--dm-orange);
   box-shadow: var(--shadow-premium), var(--shadow-glow);
 }
@@ -113,17 +109,8 @@
   animation: shakeCharLimit 0.35s ease-in-out !important;
 }
 
-/* Quick Replies Animadas */
-.qr {
-  transform: translateY(0);
-  transition: var(--transition-fast) !important;
-}
-
-.qr:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(255, 144, 0, 0.22);
-}
-
+/* (.qr agora é dono do chat.css, tokenizado com mola — a duplicata daqui foi removida
+   pra não sobrescrever a versão do sistema, já que este arquivo carrega por último.) */
 .qr-wrap-collapsing {
   opacity: 0;
   max-height: 0;
@@ -183,7 +170,7 @@
   #mobile-preview-toggle {
     display: flex;
     position: fixed;
-    bottom: 80px;
+    bottom: calc(80px + env(safe-area-inset-bottom, 0px));
     right: 20px;
     width: 54px;
     height: 54px;

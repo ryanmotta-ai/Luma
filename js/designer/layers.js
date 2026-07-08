@@ -311,6 +311,83 @@ function dAddFrameAt(x,y){  dHistoryPush();
   setTimeout(()=>dFlashLayer(id),30);
 }
 
+/* ── Conversão FORMA ⇄ MOLDURA DE FOTO (e imagem → moldura) ──
+   Uma moldura é um espaço de foto que o franqueado preenche. Preserva posição/tamanho e herda
+   o formato (retângulo/arredondado/círculo) da forma de origem. ── */
+function dConvertLayerToFrame(id){
+  const l=dLayers.find(x=>x.id===id); if(!l) return;
+  if(l.type==='frame') return; // já é
+  if(l.type!=='shape' && l.type!=='image'){ gToast('Só formas ou imagens viram moldura de foto'); return; }
+  if(typeof dHistoryPush==='function') dHistoryPush();
+  const fs=(l.shapeKind==='circle'||l.shapeKind==='ellipse')?'circle':((l.radius||l.radii)?'rounded':'rect');
+  l.type='frame';
+  l.frameShape=fs;
+  if(l.imgVar==null||l.imgVar==='') l.imgVar='foto_produto';
+  l.objectFit=l.objectFit||'cover';
+  if(l.imgUrl==null) l.imgUrl='';
+  // props exclusivas de forma não fazem sentido na moldura
+  delete l.fill; delete l.shapeKind; delete l.gradient; delete l.radii; delete l.sides; delete l.points; delete l.inner;
+  dRenderCanvas(); if(typeof dRenderLayersList==='function') dRenderLayersList(); dShowProps(l); dMarkUnsaved();
+  gToast('✓ Virou moldura de foto — o franqueado preenche com a imagem');
+}
+function dConvertLayerToShape(id){
+  const l=dLayers.find(x=>x.id===id); if(!l||l.type!=='frame') return;
+  if(typeof dHistoryPush==='function') dHistoryPush();
+  l.type='shape';
+  l.shapeKind=(l.frameShape==='circle')?'circle':'rect';
+  if(l.fill==null) l.fill='#FF9000';
+  if(l.frameShape==='rect') l.radius=l.radius||0;
+  delete l.imgUrl; delete l.imgVar; delete l.objectFit; delete l.frameShape;
+  dRenderCanvas(); if(typeof dRenderLayersList==='function') dRenderLayersList(); dShowProps(l); dMarkUnsaved();
+  gToast('✓ Virou forma');
+}
+
+/* ── Menu de botão-direito na camada (canvas ou lista) ──
+   Ações contextuais por tipo: vincular dado, converter forma⇄moldura, duplicar, excluir.
+   Reusa o estilo .tmpl-context-menu. ── */
+const _DLYR_ICO={
+  link:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
+  frame:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>',
+  shape:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>',
+  dup:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+  del:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>'
+};
+function dLayerContextMenu(e, layerId){
+  if(e){ e.preventDefault(); e.stopPropagation(); }
+  document.querySelectorAll('.tmpl-context-menu,.layer-ctx-menu,.folder-ctx-menu').forEach(m=>m.remove());
+  const l=dLayers.find(x=>x.id===layerId); if(!l) return;
+  dSelLayer(layerId); // seleciona → as ações operam nela
+  const cx=(e&&e.clientX)||120, cy=(e&&e.clientY)||120;
+  const items=[];
+  if(typeof dLayerIsBindable==='function' && dLayerIsBindable(l)){
+    items.push({label:'Vincular dado…', ico:_DLYR_ICO.link, fn:()=>{ const anchor={getBoundingClientRect:()=>({bottom:cy,left:cx,right:cx,top:cy,width:0,height:0})}; if(typeof dFieldBindPickerOpen==='function') dFieldBindPickerOpen({currentTarget:anchor, stopPropagation:function(){}}); }});
+  }
+  if(l.type==='shape'||l.type==='image'){
+    items.push({label:'Transformar em moldura de foto', ico:_DLYR_ICO.frame, fn:()=>dConvertLayerToFrame(layerId)});
+  } else if(l.type==='frame'){
+    items.push({label:'Transformar em forma', ico:_DLYR_ICO.shape, fn:()=>dConvertLayerToShape(layerId)});
+  }
+  items.push({sep:true});
+  if(typeof dDuplicateLayer==='function') items.push({label:'Duplicar', ico:_DLYR_ICO.dup, fn:()=>dDuplicateLayer()});
+  if(typeof dDeleteLayer==='function') items.push({label:'Excluir', ico:_DLYR_ICO.del, danger:true, fn:()=>dDeleteLayer()});
+
+  const menu=document.createElement('div');
+  menu.className='tmpl-context-menu layer-ctx-menu';
+  menu.innerHTML=items.map((it,idx)=> it.sep
+    ? '<div class="tmpl-ctx-sep"></div>'
+    : `<button class="tmpl-ctx-item ${it.danger?'tmpl-ctx-danger':''}" data-idx="${idx}"><span class="tmpl-ctx-icon">${it.ico||''}</span>${it.label}</button>`).join('');
+  document.body.appendChild(menu);
+  const mw=Math.max(200, menu.offsetWidth), mh=menu.offsetHeight||220;
+  menu.style.left=Math.min(cx, window.innerWidth-mw-8)+'px';
+  menu.style.top=Math.min(cy, window.innerHeight-mh-8)+'px';
+  menu.querySelectorAll('.tmpl-ctx-item').forEach(btn=>{
+    const it=items[+btn.dataset.idx];
+    btn.addEventListener('click',(ev)=>{ ev.stopPropagation(); menu.remove(); document.removeEventListener('mousedown',_closeC); if(it&&it.fn) setTimeout(it.fn,0); });
+  });
+  function _closeC(ev){ if(!menu.contains(ev.target)){ menu.remove(); document.removeEventListener('mousedown',_closeC); } }
+  setTimeout(()=>document.addEventListener('mousedown',_closeC),0);
+}
+
 /* ── DELETE / REORDER / ALIGN ── */
 function dDeleteLayer(){
   if(!dSelId)return;
@@ -693,8 +770,14 @@ function dRenderLayersList(){
       ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`
       : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>`;
 
-    const hasVar = l.type === 'text' && /\{\{/.test(l.content || '');
-    const varBadge = hasVar ? `<span class="lyr-badge lyr-var" title="Dado Vinculado"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;color:var(--var-color, #a855f7)"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>` : '';
+    // Estado do Dado: camada inteira ligada a 1 campo → selo com o RÓTULO ("◆ Preço");
+    // texto com campo embutido numa frase → só o ícone de corrente.
+    const _boundFn = (typeof dLayerBoundField==='function') ? dLayerBoundField(l) : null;
+    const _boundV = _boundFn ? dVars.find(v=>v.name===_boundFn) : null;
+    const hasVarEmbedded = l.type === 'text' && /\{\{/.test(l.content || '');
+    const varBadge = _boundV
+      ? `<span class="lyr-badge lyr-var lyr-dado" title="Dado: ${gEsc(_boundV.label||_boundV.name)}">◆ ${gEsc(_boundV.label||_boundV.name)}</span>`
+      : (hasVarEmbedded ? `<span class="lyr-badge lyr-var" title="Contém um campo"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;color:var(--var-color, #a855f7)"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>` : '');
 
     let typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="10" height="10" rx="1"/><circle cx="16" cy="16" r="5"/></svg>`; // shape default
     if (l.type === 'text') typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>`;
@@ -724,6 +807,7 @@ function dRenderLayersList(){
            ${dndAttrs}
            onmouseenter="dHoverLayer('${l.id}',true)"
            onmouseleave="dHoverLayer('${l.id}',false)"
+           oncontextmenu="dLayerContextMenu(event,'${l.id}')"
            onclick="event.shiftKey ? dToggleMultiSel('${l.id}') : dSelLayer('${l.id}')">
         <span class="layer-drag-handle" title="Arrastar para reordenar">⠿</span>
         ${groupToggleHtml}
@@ -840,6 +924,7 @@ function dShowProps(l){
   document.getElementById('d-no-sel').style.display='none';
   const pf=document.getElementById('d-props-form');pf.style.display='flex';
   if (l.type === 'group') {
+    const _dd=document.getElementById('dp-dado'); if(_dd)_dd.style.display='none'; // grupo não recebe Dado
     if(document.getElementById('dp-x')) document.getElementById('dp-x').value = '';
     if(document.getElementById('dp-y')) document.getElementById('dp-y').value = '';
     if(document.getElementById('dp-w')) document.getElementById('dp-w').value = '';
@@ -888,6 +973,7 @@ function dShowProps(l){
   document.getElementById('dp-x').value=l.x;document.getElementById('dp-y').value=l.y;
   document.getElementById('dp-w').value=l.w;document.getElementById('dp-h').value=l.h;
   const isText=l.type==='text',isImg=l.type==='image'||l.type==='frame',isShp=l.type==='shape';
+  if(typeof dRenderDadoControl==='function') dRenderDadoControl(l); // controle "Dado" (topo)
   document.getElementById('d-text-props').style.display=isText?'':'none';
   var _shpEl=document.getElementById('d-shape-props');if(_shpEl)_shpEl.style.display=isShp?'':'none';
   document.getElementById('d-image-props').style.display=isImg?'flex':'none';
@@ -962,7 +1048,7 @@ function dShowProps(l){
     document.getElementById('dp-imgfit').value=l.objectFit||'cover';
     const imgSel=document.getElementById('dp-imgvar');
     const imgVars=dVars.filter(v=>v.type==='image');
-    imgSel.innerHTML='<option value="">URL fixa</option>'+imgVars.map(v=>`<option value="${v.name}" ${v.name===l.imgVar?'selected':''}>${gEsc(v.label)}</option>`).join('');
+    imgSel.innerHTML='<option value="">URL fixa</option>'+imgVars.map(v=>`<option value="${v.name}" ${v.name===l.imgVar?'selected':''}>${v.label}</option>`).join('');
     // Para frames: mostrar opção de shape e radius
     const fsRow=document.getElementById('dp-frame-shape-row');
     const frRow=document.getElementById('dp-frame-radius-row');
@@ -974,6 +1060,18 @@ function dShowProps(l){
       if(fsEl)fsEl.value=l.frameShape||'rect';
       const frEl=document.getElementById('dp-frame-radius');
       if(frEl)frEl.value=l.radius||8;
+    }
+    // Botão de conversão: frame → forma; imagem → moldura de foto.
+    const cvBtn=document.getElementById('dp-convert-frame-btn');
+    if(cvBtn){
+      cvBtn.style.display='';
+      if(l.type==='frame'){
+        cvBtn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg> Transformar em forma';
+        cvBtn.onclick=()=>dConvertLayerToShape(l.id);
+      } else {
+        cvBtn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg> Transformar em moldura de foto';
+        cvBtn.onclick=()=>dConvertLayerToFrame(l.id);
+      }
     }
     // Botão de upload direto no painel
     const upPanelBtn=document.getElementById('dp-frame-upload');
@@ -1037,7 +1135,7 @@ function dPopVarSel(){
 }
 /* ── BINDINGS de propriedade (4.1) ── */
 function dBindOptions(filterFn, current){
-  return '<option value="">— nenhuma —</option>'+dVars.filter(filterFn).map(v=>`<option value="${v.name}" ${v.name===current?'selected':''}>${gEsc(v.label)} ({{${v.name}}})</option>`).join('');
+  return '<option value="">— nenhuma —</option>'+dVars.filter(filterFn).map(v=>`<option value="${v.name}" ${v.name===current?'selected':''}>${v.label} ({{${v.name}}})</option>`).join('');
 }
 function dPopBindingSelects(l){
   const b=l.bindings||{};
@@ -1219,6 +1317,145 @@ function dFieldInsertPickerOpen(ev){
   pop.style.left=Math.min(r.left, window.innerWidth-260)+'px';
   function closeP(e){ if(!pop.contains(e.target)){ pop.remove(); document.removeEventListener('mousedown',closeP); } }
   setTimeout(()=>{ document.addEventListener('mousedown',closeP); searchEl.focus(); },0);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   VINCULAR DADO (camada inteira → 1 campo) — o fluxo principal.
+   Uma camada "tem um Dado": texto vira o token único + isVar; imagem vira imgVar.
+   O canvas já renderiza {{}} com o valor de EXEMPLO (gFieldSampleValue), então o
+   template nasce bonito no preview do franqueado. Chip-no-texto (dFieldInsertPicker)
+   segue existindo só pro caso de FRASE com campo embutido.
+══════════════════════════════════════════════════════════════ */
+// Campo que a camada mostra HOJE quando ela inteira = 1 campo (senão null).
+function dLayerBoundField(l){
+  if(!l) return null;
+  if(l.type==='image'||l.type==='frame') return l.imgVar||null;
+  if(l.type==='text'){ const m=(l.content||'').match(/^\s*\{\{\s*([a-zA-Z0-9_]+)\s*\}\}\s*$/); return m?m[1]:null; }
+  return null;
+}
+function dLayerIsBindable(l){ return !!(l && (l.type==='text'||l.type==='image'||l.type==='frame')); }
+// Liga a camada inteira ao campo.
+function dLayerBindField(layerId, fieldName){
+  const l=dLayers.find(x=>x.id===layerId); if(!l||!fieldName) return;
+  const v=dVars.find(x=>x.name===fieldName); if(!v){ gToast('Campo não encontrado'); return; }
+  if(typeof dHistoryPush==='function') dHistoryPush();
+  if(l.type==='image'||l.type==='frame'){ l.imgVar=fieldName; }
+  else if(l.type==='text'){ l.content='{{'+fieldName+'}}'; l.isVar=true; }
+  else { gToast('Essa camada não recebe Dado'); return; }
+  dRenderCanvas(); if(typeof dRenderLayersList==='function') dRenderLayersList();
+  dShowProps(l); dMarkUnsaved();
+  gToast('✓ '+(l.name||'Camada')+' agora mostra “'+(v.label||v.name)+'”');
+}
+// Desvincula: texto volta a ser fixo (usa o rótulo do campo como exemplo); imagem limpa imgVar.
+function dLayerUnbindField(layerId){
+  const l=dLayers.find(x=>x.id===layerId); if(!l) return;
+  if(typeof dHistoryPush==='function') dHistoryPush();
+  if(l.type==='image'||l.type==='frame'){ l.imgVar=''; }
+  else if(l.type==='text'){
+    l.isVar=false;
+    const m=(l.content||'').match(/^\s*\{\{\s*([a-zA-Z0-9_]+)\s*\}\}\s*$/);
+    if(m){ const v=dVars.find(x=>x.name===m[1]); l.content=v?(v.label||v.name):(l.content||''); }
+  }
+  dRenderCanvas(); if(typeof dRenderLayersList==='function') dRenderLayersList();
+  dShowProps(l); dMarkUnsaved();
+}
+// Define o valor de EXEMPLO do campo (variável) a partir do controle "Dado". Atualiza o preview
+// ao vivo e persiste no campo — NÃO chama dShowProps (pra não recriar o input e perder o foco).
+function dDadoSetExample(varName, value){
+  const v=dVars.find(x=>x.name===varName); if(!v) return;
+  const val=String(value==null?'':value);
+  if(val.trim()!=='') v.example=val; else delete v.example;
+  if(typeof dPersistVars==='function') dPersistVars();
+  if(typeof dRenderCanvas==='function') dRenderCanvas();
+}
+// Controle "Dado" no topo das propriedades — injetado 1× e atualizado a cada seleção.
+function dRenderDadoControl(l){
+  const pf=document.getElementById('d-props-form'); if(!pf) return;
+  let box=document.getElementById('dp-dado');
+  if(!dLayerIsBindable(l)){ if(box) box.style.display='none'; return; }
+  if(!box){
+    box=document.createElement('div'); box.id='dp-dado'; box.className='dp-dado';
+    // IMPORTANTE: inserir como filho DIRETO do #d-props-form (topo). #d-text-props é NETO
+    // (fica dentro de .dp-sec-body), então insertBefore com ele lançava DOMException e
+    // quebrava dShowProps → o auto-switch (dActivatePanel) na sequência não rodava.
+    pf.insertBefore(box, pf.firstChild);
+  }
+  box.style.display='';
+  const fn=dLayerBoundField(l); const v=fn?dVars.find(x=>x.name===fn):null;
+  box.classList.toggle('bound', !!v);
+  let h='<div class="dp-dado-lbl">'+(v?'<span class="hl">◆ Dado ligado</span>':'Dado')+'</div>';
+  h+='<button type="button" class="dp-dado-pick" id="dp-dado-pick" onclick="dFieldBindPickerOpen(event)">';
+  if(v){ const tm=gFieldTypeMeta(v.type); h+='<span class="dp-dado-chip"><span class="dp-dado-ico">'+tm.icon+'</span>'+_dEsc(v.label||v.name)+'</span>'; }
+  else { h+='<span class="dp-dado-none">— nenhum (conteúdo fixo)</span>'; }
+  h+='<span class="dp-dado-car">▾</span></button>';
+  if(v){
+    if(v.type==='image'){
+      h+='<div class="dp-dado-sample">Exemplo: <b>imagem enviada pelo franqueado</b><button type="button" class="dp-dado-clear" onclick="dLayerUnbindField(dSelId)">desvincular</button></div>';
+    } else {
+      // Exemplo EDITÁVEL: o que aparece no preview e como placeholder pro franqueado. Fica no
+      // CAMPO (variável), então vale onde ele for usado. Placeholder = fallback genérico por tipo.
+      const ph=_dEsc(gFieldSampleValue({type:v.type})||'ex.: valor');
+      h+='<div class="dp-dado-ex-row">'
+        +'<span class="dp-dado-ex-lbl">Exemplo</span>'
+        +'<input type="text" class="dp-dado-ex" value="'+_dEsc(v.example||'')+'" placeholder="'+ph+'" oninput="dDadoSetExample(\''+fn+'\', this.value)">'
+        +'<button type="button" class="dp-dado-clear" onclick="dLayerUnbindField(dSelId)" title="Desvincular">✕</button>'
+        +'</div>'
+        +'<div class="dp-dado-ex-hint">Vale para o campo “'+_dEsc(v.label||v.name)+'” em todo lugar (inclusive o chat do franqueado).</div>';
+    }
+  }
+  box.innerHTML=h;
+}
+// Seletor de bind (camada inteira). Espelha o picker de inserção, mas LIGA a camada.
+function dFieldBindPickerOpen(ev){
+  if(ev){ ev.stopPropagation(); }
+  document.querySelectorAll('.field-pick-pop').forEach(p=>p.remove());
+  const l=dLayers.find(x=>x.id===dSelId); if(!dLayerIsBindable(l)){ gToast('Selecione uma camada de texto ou imagem'); return; }
+  const isImg=(l.type==='image'||l.type==='frame');
+  const cur=dLayerBoundField(l);
+  if(!dVars.length){ gToast('Crie um campo primeiro na aba Dados.'); return; }
+  const pop=document.createElement('div'); pop.className='field-pick-pop';
+  pop.innerHTML=`<input class="field-pick-search" placeholder="Buscar campo...">
+    <div class="field-pick-list"></div>
+    <button class="field-pick-new" type="button">+ Criar um campo novo</button>`;
+  document.body.appendChild(pop);
+  const listEl=pop.querySelector('.field-pick-list');
+  const searchEl=pop.querySelector('.field-pick-search');
+  function compatible(v){ return isImg ? (v.type==='image') : (v.type!=='image'); }
+  function renderList(q){
+    q=(q||'').trim().toLowerCase();
+    let html='';
+    DFIELD_CATS.forEach(cat=>{
+      const group=dVars.filter(v=>compatible(v) && (v.category||'outros')===cat.id && (!q||(v.label||'').toLowerCase().includes(q)||(v.name||'').toLowerCase().includes(q)));
+      if(!group.length) return;
+      html+=`<div class="field-pick-cat">${cat.icon} ${cat.label}</div>`;
+      html+=group.map(v=>{
+        const tm=gFieldTypeMeta(v.type);
+        const sm=(v.type==='image')?'foto':_dEsc(gFieldSampleValue(v));
+        return `<button type="button" class="field-pick-item${v.name===cur?' cur':''}" data-var="${v.name}"><span class="field-pick-ico">${tm.icon}</span><span class="field-pick-name">${_dEsc(v.label||v.name)}</span><span class="field-pick-sample">${sm}</span></button>`;
+      }).join('');
+    });
+    listEl.innerHTML=html||'<div class="field-pick-empty">Nenhum campo compatível</div>';
+    listEl.querySelectorAll('.field-pick-item').forEach(b=>{
+      b.onmousedown=(e)=>{ e.preventDefault(); const n=b.dataset.var; pop.remove(); document.removeEventListener('mousedown',closeP); dLayerBindField(dSelId, n); };
+    });
+  }
+  renderList('');
+  searchEl.oninput=()=>renderList(searchEl.value);
+  pop.querySelector('.field-pick-new').onmousedown=(e)=>{ e.preventDefault(); pop.remove(); document.removeEventListener('mousedown',closeP); if(typeof dOpenVarModal==='function') dOpenVarModal(); };
+  const anchor=(ev&&ev.currentTarget&&ev.currentTarget.getBoundingClientRect)?ev.currentTarget:document.getElementById('dp-dado-pick');
+  const r=anchor?anchor.getBoundingClientRect():{bottom:120,left:window.innerWidth-280};
+  pop.style.top=(r.bottom+4)+'px';
+  pop.style.left=Math.min(r.left, window.innerWidth-260)+'px';
+  function closeP(e){ if(!pop.contains(e.target)){ pop.remove(); document.removeEventListener('mousedown',closeP); } }
+  setTimeout(()=>{ document.addEventListener('mousedown',closeP); searchEl.focus(); },0);
+}
+// Ponto de entrada da ferramenta/atalho "Vincular campo" (X) e do menu de contexto.
+function dOpenBindForSelected(){
+  const l=dLayers.find(x=>x.id===dSelId);
+  if(!l){ gToast('Selecione uma camada e clique em Vincular campo'); return; }
+  if(!dLayerIsBindable(l)){ gToast('Essa camada não recebe Dado (só texto/imagem)'); return; }
+  if(typeof dActivatePanel==='function') dActivatePanel('camada');
+  setTimeout(()=>{ const btn=document.getElementById('dp-dado-pick'); if(btn) btn.click(); }, 90);
 }
 /* ── Widget de radius (props de shape): slider + input + preview SVG + botão círculo ── */
 function dRadiusPreviewSVG(num){
@@ -1978,9 +2215,9 @@ function dVarTypePopover(name, anchorEl){
 /* ── ASSETS ── */
 function dAssetsRender(){
   document.getElementById('d-assets-grid').innerHTML=dAssets.map((a,i)=>`
-    <div class="asset-thumb" onclick="dUseAsset(${i})" title="${gEsc(a.name)}">
-      ${a.url?`<img src="${gEsc(a.url)}" alt="${gEsc(a.name)}">`:`<span style="font-size:26px">${a.emoji}</span>`}
-      <span class="asset-name">${gEsc(a.name)}</span>
+    <div class="asset-thumb" onclick="dUseAsset(${i})" title="${a.name}">
+      ${a.url?`<img src="${a.url}" alt="${a.name}">`:`<span style="font-size:26px">${a.emoji}</span>`}
+      <span class="asset-name">${a.name}</span>
     </div>`).join('');
 }
 function dHandleUpload(inp){ dLibUpload(inp); }

@@ -31,6 +31,15 @@ function dLoadAgPsd(){
 }
 
 /* ── helpers de leitura ── */
+// ag-psd devolve o blend mode como chave separada por ESPAÇO ('color burn', 'soft light',
+// 'linear dodge'…). O motor de blend (blending.js) e o CSS usam camelCase ('colorBurn'). Sem
+// normalizar, modos de 2+ palavras não eram aplicados (nem na arte final nem no preview) —
+// dBlendToComposite('color burn') caía em undefined. DBLEND_PSD_MAP faz a ponte.
+function _dPsdBlendMode(bm){
+  if(!bm || bm==='normal' || bm==='passThrough') return undefined;
+  if(typeof DBLEND_PSD_MAP!=='undefined' && DBLEND_PSD_MAP[bm]) return DBLEND_PSD_MAP[bm];
+  return bm; // já camelCase ou modo de uma palavra conhecido
+}
 function _dPsdHex(c){
   if(!c||c.r==null) return null;
   const h=v=>('0'+Math.max(0,Math.min(255,Math.round(v))).toString(16)).slice(-2);
@@ -49,58 +58,87 @@ function _dPsdAlign(t){
   if(j.includes('right')) return 'right';
   return 'left';
 }
-// #4b — fontSize robusto: parte do style (corrigido por transform e DPI) e ancora na caixa
+// Escala vertical do transform de texto. Robusta a rotação/cisalhamento: usa a magnitude do
+// vetor-y da matriz (c,d) em vez de só |d|. Fallback 1.
+function _dPsdFontScale(tr){
+  if(!tr || tr.length<4) return 1;
+  const c=+tr[2]||0, d=+tr[3]||0, s=Math.sqrt(c*c+d*d);
+  return (isFinite(s)&&s>0)?s : (Math.abs(d)||1);
+}
+// #4b — fontSize robusto e DETERMINÍSTICO: fontSize(pt) × escala(transform) × DPI(res/72),
+// aplicado de forma CONSISTENTE para box e point (antes divergiam). Só cai na caixa quando o
+// tamanho real é ausente/implausível — preservando o tamanho 1:1 do Photoshop.
 function _dPsdFontSize(t,h,content,res){
   const s=_dPsdTextStyle(t);
-  let fs=s.fontSize||s.size||0;
-  if(fs && t.transform && t.transform.length>=4) fs*=Math.abs(t.transform[3]||1);
-  // PARAGRAPH (box) text: o tamanho da fonte é o que o designer definiu e a caixa é fixa/alta.
-  // Ancorar na caixa (abaixo) INFLAVA a fonte e estourava o texto — pois nLines só conta quebras
-  // explícitas (\n), não o wrap por largura. Aqui confiamos no tamanho real. Point text segue igual.
-  if(t && t.shapeType==='box' && fs>=6 && fs<=2000){
-    // ag-psd reporta fontSize em pontos; em docs hi-res o valor precisa ser escalado para px.
-    // Guard fs<200: se já chegou grande (raro mas possível), não dobrar.
-    if(res>90 && fs<200) fs=fs*(res/72);
-    return Math.round(Math.max(8,Math.min(fs,2000)));
-  }
+  let fs=(s.fontSize||s.size||0)*_dPsdFontScale(t&&t.transform);
+  // DPI: o fontSize vem em pontos; em doc hi-res (res≠72) escala p/ px. Guard fs<200: se o
+  // transform já trouxe um valor grande em px, não dobra. Mesmo critério p/ box e point.
+  if(res>90 && fs>0 && fs<200) fs*=(res/72);
+  // PARÁGRAFO (box): a caixa é fixa/alta → confia sempre no tamanho real do designer.
+  if(t && t.shapeType==='box' && fs>=6 && fs<=2000) return Math.round(Math.max(8,Math.min(fs,2000)));
+  // POINT: confia no tamanho real; só ancora na caixa (bbox de glifos) se o valor for implausível.
   const nLines=Math.max(1, String(content||'').split('\n').filter(x=>x.trim()).length);
-  // boxFs: quanto de altura cabe por linha; cap de 180px evita caixas muito altas gerarem fs gigante
-  const boxFs=Math.min(h/(nLines*1.25), 180);
+  const boxFs=Math.min(h/(nLines*1.25), 180); // cap 180px evita caixas altas gerarem fs gigante
   if(fs>=4 && fs<=4000){
-    if(res>90 && fs < boxFs*0.55) fs=fs*(res/72);      // style em pontos + doc hi-res → escala
-    if(fs < boxFs*0.4 || fs > boxFs*2.5) fs=boxFs;     // ainda incoerente → usa a caixa
+    if(fs < boxFs*0.4 || fs > boxFs*2.5) fs=boxFs; // real incoerente vs bbox → usa a caixa
     return Math.round(Math.max(8,fs));
   }
-  // Se a caixa é muito pequena (h < 12px) usa mínimo razoável
-  if(h < 12) return 12;
+  if(h < 12) return 12; // caixa muito pequena → mínimo razoável
   return Math.round(Math.max(8,boxFs));
 }
-// Caixa de PARÁGRAFO (box text): deriva {x,y,w,h} em px ABSOLUTOS do doc a partir de
-// node.text.boxBounds/bounds. O espaço dessas coords é ambíguo entre versões do ag-psd, então
-// testamos 2 hipóteses (text-space→transform e px-absoluto cru) e só aceitamos a que CONTÉM o
-// bbox de glifos do layer (node.left/top/right/bottom) e não explode. Retorna null se nenhuma servir.
+// Caixa de PARÁGRAFO (box text): deriva {x,y,w,h} em px ABSOLUTOS do doc — a caixa 1:1 que o
+// designer desenhou no Photoshop, para NÃO reencaixar/encolher o texto na importação.
+// ag-psd expõe a caixa em text-space por duas vias (boxBounds via EngineData e bounds via
+// descriptor TySh), mais o transform afim. O espaço de cada uma varia entre versões/arquivos,
+// então geramos TODOS os candidatos (cada fonte × {transform, cru}) e escolhemos por SCORE
+// (o quão bem a caixa "abraça" o bbox de glifos do layer) em vez de aceitar/rejeitar no grito.
+// Isso recupera a caixa real mesmo quando ela é maior que os glifos (caso comum) — o antigo
+// teste de contenção estrita rejeitava e caía no bbox apertado, quebrando a hierarquia textual.
 function _dPsdParagraphBox(node){
   try{
     const t=node.text; if(!t) return null;
-    let bb=t.boxBounds||t.bounds; if(!bb) return null;
-    if(Array.isArray(bb)) bb={left:bb[0],top:bb[1],right:bb[2],bottom:bb[3]};
-    if(bb.left==null||bb.right==null||bb.top==null||bb.bottom==null) return null;
     const tr=(t.transform&&t.transform.length>=6)?t.transform:[1,0,0,1,0,0];
     const a=tr[0],b=tr[1],c=tr[2],d=tr[3],e=tr[4],f=tr[5];
     const gx0=node.left||0, gy0=node.top||0, gx1=node.right||0, gy1=node.bottom||0;
-    const tol=Math.max(4, Math.round(Math.min(gx1-gx0,gy1-gy0)*0.3));
-    const corners=(map)=>{
+    const gw=Math.max(1,gx1-gx0), gh=Math.max(1,gy1-gy0), gArea=gw*gh;
+    // Normaliza as fontes de caixa em {left,top,right,bottom}
+    const norm=bb=>{
+      if(!bb) return null;
+      if(Array.isArray(bb)) bb={left:bb[0],top:bb[1],right:bb[2],bottom:bb[3]};
+      if(bb.left==null||bb.right==null||bb.top==null||bb.bottom==null) return null;
+      return bb;
+    };
+    const sources=[norm(t.boxBounds), norm(t.bounds)].filter(Boolean);
+    if(!sources.length) return null;
+    const corners=(bb,map)=>{
       const p=[map(bb.left,bb.top),map(bb.right,bb.top),map(bb.right,bb.bottom),map(bb.left,bb.bottom)];
       let mnX=Infinity,mnY=Infinity,mxX=-Infinity,mxY=-Infinity;
       p.forEach(q=>{ if(q[0]<mnX)mnX=q[0]; if(q[0]>mxX)mxX=q[0]; if(q[1]<mnY)mnY=q[1]; if(q[1]>mxY)mxY=q[1]; });
       return {x:mnX,y:mnY,w:mxX-mnX,h:mxY-mnY};
     };
-    const valid=(box)=>box && isFinite(box.w) && isFinite(box.h) && box.w>1 && box.h>1
-      && box.x<=gx0+tol && box.y<=gy0+tol && (box.x+box.w)>=gx1-tol && (box.y+box.h)>=gy1-tol
-      && box.w<=Math.max((gx1-gx0)*6,4000) && box.h<=Math.max((gy1-gy0)*6,4000);
-    const cands=[ corners((x,y)=>[a*x+c*y+e, b*x+d*y+f]), corners((x,y)=>[x,y]) ];
-    for(const box of cands){ if(valid(box)) return {x:Math.round(box.x),y:Math.round(box.y),w:Math.round(box.w),h:Math.round(box.h)}; }
-    return null;
+    const cands=[];
+    sources.forEach(bb=>{
+      cands.push(corners(bb,(x,y)=>[a*x+c*y+e, b*x+d*y+f])); // text-space → doc (transform)
+      cands.push(corners(bb,(x,y)=>[x,y]));                   // já em px de doc (cru)
+    });
+    const maxW=Math.max(gw*8,6000), maxH=Math.max(gh*8,6000);
+    // Score: exige dimensão sã e que a caixa contenha ao menos metade do bbox de glifos
+    // (glifos vivem DENTRO da caixa). Prefere caixa colada no canto sup-esq dos glifos e
+    // penaliza levemente área — desempata a favor da caixa justa, não de uma inflada.
+    const score=box=>{
+      if(!box||!isFinite(box.w)||!isFinite(box.h)||box.w<=1||box.h<=1) return -Infinity;
+      if(box.w>maxW||box.h>maxH) return -Infinity;
+      const ix=Math.max(0, Math.min(box.x+box.w,gx1)-Math.max(box.x,gx0));
+      const iy=Math.max(0, Math.min(box.y+box.h,gy1)-Math.max(box.y,gy0));
+      const cover=(ix*iy)/gArea;             // 1.0 = contém todo o bbox de glifos
+      if(cover<0.5) return -Infinity;        // caixa longe/torta dos glifos → descarta
+      const dCorner=Math.abs(box.x-gx0)+Math.abs(box.y-gy0);
+      return cover*1000 - dCorner*0.01 - (box.w*box.h)*1e-7;
+    };
+    let best=null,bestScore=-Infinity;
+    cands.forEach(box=>{ const s=score(box); if(s>bestScore){ bestScore=s; best=box; } });
+    if(!best || bestScore===-Infinity) return null;
+    return {x:Math.round(best.x),y:Math.round(best.y),w:Math.round(best.w),h:Math.round(best.h)};
   }catch(e){ return null; }
 }
 // #2 — efeitos de camada (layer.effects) → props da Luma. Lê sombra projetada, sombra interna,
@@ -166,11 +204,13 @@ function _dPsdEffects(node){
   let go2=_first(fx.gradientOverlay);
   if(go2 && go2.enabled!==false && go2.gradient && go2.gradient.colorStops){
     const src=go2.gradient;
+    let goStops=src.colorStops.map(s=>({color:_dPsdHex(s.color)||'#000000', pos:Math.max(0,Math.min(1,s.location||0)), opacity:_dPsdOpacityAt(src.opacityStops, s.location||0)}));
+    if(src.reverse){ goStops=goStops.map(s=>({...s,pos:1-s.pos})).reverse(); }
     out.gradientOverlay={
       type:String(go2.type||src.style||'linear').toLowerCase().includes('radial')?'radial':'linear',
-      angle:(go2.angle!=null?Math.round(go2.angle):90),
+      angle:Math.round(-(go2.angle!=null?go2.angle:90)), // PS anti-horário → Luma horário
       opacity:(go2.opacity!=null?+go2.opacity:1),
-      stops:src.colorStops.map(s=>({color:_dPsdHex(s.color)||'#000000', pos:Math.max(0,Math.min(1,s.location||0)), opacity:_dPsdOpacityAt(src.opacityStops, s.location||0)}))
+      stops:goStops
     };
     if(go2.blendMode && go2.blendMode!=='normal') out.gradientOverlay.blendMode=go2.blendMode;
   }
@@ -182,6 +222,26 @@ function _dPsdEffects(node){
     if(st.position) out.strokeAlign=({inside:'inside',insetFrame:'inside',center:'center',centeredFrame:'center',outside:'outside',outsetFrame:'outside'}[st.position])||'outside';
   }
   return out;
+}
+// Cor sólida EXATA de uma camada de forma/preenchimento (vectorFill type='color').
+// É a cor que o designer definiu — fiel 1:1, sem o erro de amostrar pixels (anti-aliasing,
+// opacidade, blend). Retorna hex ou null (aí cai na amostragem de pixels como fallback).
+function _dPsdVectorSolidColor(node){
+  try{ const vf=node&&node.vectorFill; if(vf && vf.type==='color' && vf.color) return _dPsdHex(vf.color); }catch(e){}
+  return null;
+}
+// Tipo de forma EXATO via vectorOrigination.keyOriginType (1=retângulo, 2=retângulo arredondado,
+// 4=elipse). Mais fiel que inferir por pixels. Retorna {kind,radius} ou null (cai no heurístico).
+function _dPsdVectorShapeKind(node, w, h){
+  try{
+    const list=node&&node.vectorOrigination&&node.vectorOrigination.keyDescriptorList;
+    if(!list||!list.length) return null;
+    let ot=null; for(let i=0;i<list.length;i++){ if(list[i]&&list[i].keyOriginType!=null){ ot=list[i].keyOriginType; break; } }
+    if(ot==null) return null;
+    if(ot===4){ const r=w/h; return {kind:(r>0.85&&r<1.18)?'circle':'ellipse', radius:0}; } // elipse/círculo
+    if(ot===1||ot===2) return {kind:'rect', radius:0}; // retângulo (raio por-canto vem de _dPsdCornerRadii)
+    return null; // linha/custom → deixa o heurístico de pixel decidir
+  }catch(e){ return null; }
 }
 // #2 — detecta cor sólida uniforme num canvas → hex (ou null)
 function _dPsdSolidColor(canvas){
@@ -382,8 +442,12 @@ function _dPsdGradient(node){
       if(go && go.enabled!==false && go.gradient && go.gradient.colorStops){ src=go.gradient; src.angle=go.angle; src.style=go.type||src.style; } }
     if(!src||!src.colorStops||!src.colorStops.length) return null;
     const style=String(src.style||'linear').toLowerCase();
-    const stops=src.colorStops.map(s=>({ color:_dPsdHex(s.color)||'#000000', pos:Math.max(0,Math.min(1,s.location||0)), opacity:_dPsdOpacityAt(src.opacityStops, s.location||0) }));
-    return { type: style.includes('radial')?'radial':'linear', angle: (src.angle!=null?Math.round(src.angle):90), stops };
+    let stops=src.colorStops.map(s=>({ color:_dPsdHex(s.color)||'#000000', pos:Math.max(0,Math.min(1,s.location||0)), opacity:_dPsdOpacityAt(src.opacityStops, s.location||0) }));
+    if(src.reverse){ stops=stops.map(s=>({...s,pos:1-s.pos})).reverse(); } // PS "Reverse" → espelha os stops
+    // Convenção de ângulo: o Photoshop mede o ângulo do gradiente no sentido ANTI-horário; o
+    // renderizador do Luma (gGradientCanvas/Css) progride em (cos θ, sin θ) = sentido HORÁRIO.
+    // Negar o ângulo do PS converte para a convenção do Luma (θ=0 e horizontais ficam iguais).
+    return { type: style.includes('radial')?'radial':'linear', angle: Math.round(-(src.angle!=null?src.angle:90)), stops };
   }catch(e){ return null; }
 }
 // Rich text: styleRuns do PSD → l.runs[{text,color,fontSize,font,letterSpacing}]. Só quando há >1 estilo.
@@ -397,12 +461,13 @@ function _dPsdRichRuns(t, res, h){
       const st=r.style||{};
       const fname=(st.font&&st.font.name)||'';
       const remap=_dPsdRemapFont(fname);
+      const _rfs=_dPsdFontSize({style:st,transform:t.transform}, h, seg, res);
       out.push({
         text:seg,
         color:_dPsdHex(st.fillColor||st.color)||'#000000',
-        fontSize:_dPsdFontSize({style:st,transform:t.transform}, h, seg, res),
+        fontSize:_rfs,
         font: remap||(/black|900|heavy/i.test(fname)?"'Roboto Black'":/bold|700/i.test(fname)?"'Roboto',bold":"'Roboto'"),
-        letterSpacing: st.tracking? Math.round((st.tracking/1000)*((st.fontSize||12))) : 0
+        letterSpacing: st.tracking? Math.round((st.tracking/1000)*(_rfs||12)) : 0 // tracking sobre o tamanho final do trecho
       });
     }
     return out.length>1?out:null;
@@ -570,6 +635,27 @@ function _dPsdDetectShapeKind(canvas){
   }catch(e){ return {kind:'rect',radius:0}; }
 }
 
+// Detecta ROTAÇÃO significativa da camada. O modelo do Luma não tem rotação, então uma camada
+// rotacionada, se importada como texto/shape editável, viria eixo-alinhada (torta/errada). Detectar
+// aqui permite rasterizar o pixel já rotacionado (1:1). Texto: ângulo do transform (a,b). Forma:
+// cantos da caixa de origem (keyOriginBoxCorners) fora do eixo. Threshold ~1.5° evita falso positivo.
+function _dPsdIsRotatedLayer(node){
+  try{
+    const tt=node.text&&node.text.transform;
+    if(tt&&tt.length>=2 && Math.abs(Math.atan2(+tt[1]||0, +tt[0]||1))>0.0262) return true; // texto rotacionado
+    const list=node.vectorOrigination&&node.vectorOrigination.keyDescriptorList;
+    if(list) for(let i=0;i<list.length;i++){
+      const c=list[i]&&list[i].keyOriginBoxCorners;
+      if(c&&c.length===4){
+        const dyTop=Math.abs((c[0].y||0)-(c[1].y||0));   // aresta superior deveria ser horizontal
+        const dxLeft=Math.abs((c[0].x||0)-(c[3].x||0));  // aresta esquerda deveria ser vertical
+        const wRef=Math.abs((c[1].x||0)-(c[0].x||0))||1, hRef=Math.abs((c[3].y||0)-(c[0].y||0))||1;
+        if(dyTop>Math.max(2,wRef*0.02) || dxLeft>Math.max(2,hRef*0.02)) return true; // caixa girada
+      }
+    }
+  }catch(e){}
+  return false;
+}
 // P3 — decisão CENTRAL de fidelidade: a camada NÃO é representável de forma editável no Luma
 // e deve virar uma IMAGEM pixel-perfeita (do node.canvas que o ag-psd já compõe), mantendo o
 // visual 1:1 mesmo sem ser editável. Gatilhos determinísticos (passo 1):
@@ -587,6 +673,7 @@ function _dPsdNeedsRaster(node){
   if(node.vectorFill && node.vectorFill.type==='pattern') return true;  // preenchimento por padrão (PtFl)
   let po=node.effects && node.effects.patternOverlay; if(Array.isArray(po)) po=po[0];
   if(po && po.enabled!==false) return true;                             // sobreposição de padrão
+  if(_dPsdIsRotatedLayer(node)) return true;                            // camada rotacionada → raster fiel (1:1)
   // texto com WARP (arco/onda/bandeira/etc): a deformação faz parte dos PIXELS do node.canvas,
   // não dá pra reproduzir como texto editável → raster preserva o visual deformado 1:1.
   if(node.text && node.text.warp){
@@ -625,12 +712,11 @@ function dPsdParseItems(psd, res, ox, oy){
       const x=Math.round((node.left||0)-ox), y=Math.round((node.top||0)-oy);
       const w=Math.max(1,Math.round((node.right||0)-(node.left||0)));
       const h=Math.max(1,Math.round((node.bottom||0)-(node.top||0)));
-      const bm=node.blendMode;
       const it={ n:++n, name:(node.name||('Camada '+n)).toString().slice(0,48),
         x,y,w,h, visible:!accHidden, opacity:Math.round(accOp*100),
         include:!accHidden, mask:_dPsdComputeMask(node, prevLeaf),
         clippingLayer: node.clippingLayer || node.clipping,
-        blendMode:(bm&&bm!=='normal'&&bm!=='passThrough')?bm:undefined,
+        blendMode:_dPsdBlendMode(node.blendMode),
         group:parentName||'' }; // máscara + clipping
       prevLeaf=node; // base p/ a próxima camada com clipping
       // fillOpacity (preenchimento) ≠ opacity: PS atenua só o fill, não os efeitos. Guardado p/
@@ -662,6 +748,9 @@ function dPsdParseItems(psd, res, ox, oy){
         it.kind='text';
         it.content=String(t.text).replace(/\r\n?/g,'\n');
         it.multiStyle=isMultiStyle;
+        // Ancoragem vertical pelo TOPO (origem do texto no Photoshop): o topo da tinta encosta no
+        // node.top. Substitui a centralização genérica do editor → posição vertical 1:1 com o PS.
+        it.vAlign='top';
         it.fontName=(st.font&&st.font.name)||'';
         const _fRemap=_dPsdRemapFont(it.fontName);
         it.font=_fRemap||(/black|900|heavy/i.test(it.fontName)?"'Roboto Black'":/bold|700/i.test(it.fontName)?"'Roboto',bold":"'Roboto'");
@@ -671,23 +760,26 @@ function dPsdParseItems(psd, res, ox, oy){
         else if(st.fontCaps===1) it.textTransform='lowercase'; // small-caps → aproximação
         // fauxBold: PS "Faux Bold" — eleva o peso quando a fonte não tem variante bold
         if(st.fauxBold) it.fontWeightOverride=700;
+        // Itálico: faux italic do PS ou variante itálica/oblíqua no nome da fonte → font-style:italic
+        if(st.fauxItalic || /italic|oblique|it[aá]lico/i.test(it.fontName)) it.italic=true;
         it.fontSize=_dPsdFontSize(t,h,it.content,res);
         it.color=_dPsdHex(st.fillColor||st.color)||'#000000';
         it.strikethrough=st.strikethrough===true; // tachado (DE: R$..) — render já suportado
         it.underline=st.underline===true;          // sublinhado — render espelha o strikethrough
         it.textAlign=_dPsdAlign(t);
-        if(st.tracking) it.letterSpacing=Math.round((st.tracking/1000)*(st.fontSize||it.fontSize||12)); // tracking → px
+        if(st.tracking) it.letterSpacing=Math.round((st.tracking/1000)*(it.fontSize||12)); // tracking (1/1000 em) → px, sobre o tamanho final
         if(st.leading)  it.lineHeight=+(st.leading/(st.fontSize||it.fontSize||12)).toFixed(3);          // leading → multiplicador
         const _runs=_dPsdRichRuns(t,res,h); if(_runs) it.runs=_runs;   // texto multi-estilo
         const _tg=_dPsdGradient(node); if(_tg) it.gradient=_tg;        // preenchimento por gradiente no texto
         Object.assign(it,_dPsdEffects(node));
         it.varName=sv.name;
         it.mode=sv.auto?'var':'text';
-        // Tipo de caixa. Campo real desta versão do ag-psd: text.shapeType ('box'|'point').
-        // Ausente → POINT (retrocompatível: mantém bbox de glifos atual). Só PARAGRAPH altera x/y/w/h.
+        // Tipo de caixa. Campo real do ag-psd: text.shapeType ('box'|'point'). Só PARAGRAPH (box)
+        // substitui x/y/w/h pela caixa do designer; POINT mantém o bbox de glifos 1:1 (posição real).
         it.textBox=(t.shapeType==='box')?'box':'point';
         if(it.textBox==='box'){
-          const pb=_dPsdParagraphBox(node); // caixa do designer (já validada contra o bbox de glifos)
+          // Caixa 1:1 do Photoshop → NÃO reencaixa/encolhe o texto na importação.
+          const pb=_dPsdParagraphBox(node);
           if(pb){ it.x=Math.round(pb.x-ox); it.y=Math.round(pb.y-oy); it.w=Math.max(1,pb.w); it.h=Math.max(1,pb.h); }
           else { it.textBoxApprox=true; console.warn('[psd] caixa de parágrafo não derivável — usando bbox de glifos:', it.name); }
         }
@@ -696,9 +788,11 @@ function dPsdParseItems(psd, res, ox, oy){
         // Camada de GRADIENTE (GdFl: tem vectorFill com colorStops) → shape com gradiente editável,
         // mesmo não sendo cor sólida (senão cairia em raster).
         const grad=(node.vectorFill && node.vectorFill.colorStops)?_dPsdGradient(node):null;
-        const solid=_dPsdSolidColor(node.canvas);
+        // Cor: preferir a EXATA do vetor (vectorFill), cair na amostragem de pixels só se faltar.
+        const solid=_dPsdVectorSolidColor(node)||_dPsdSolidColor(node.canvas);
         if(grad || solid){
-          const shapeInfo=_dPsdDetectShapeKind(node.canvas);
+          // Forma: preferir o tipo EXATO do vetor (keyOriginType), cair no heurístico de pixel.
+          const shapeInfo=_dPsdVectorShapeKind(node,w,h)||_dPsdDetectShapeKind(node.canvas);
           it.kind='shape';
           it.fill=solid || (grad && grad.stops[0] && grad.stops[0].color) || '#FF9000';
           if(grad) it.gradient=grad;
@@ -795,6 +889,14 @@ function dItemToLayer(it){
   }
   if(it.mask) base.mask=it.mask;
   if(it.blendMode) base.blendMode=it.blendMode;
+  // Modo MOLDURA DE FOTO (escolhido na revisão): a camada — forma ou imagem — vira um frame que o
+  // franqueado preenche com foto. Preserva x/y/w/h; formato do frame herdado da forma original.
+  if(it.mode==='frame'){
+    const fs=(it.shapeKind==='circle'||it.shapeKind==='ellipse')?'circle':((it.radius||it.radii)?'rounded':'rect');
+    const F=Object.assign(base,{type:'frame', imgUrl:'', imgVar:'foto_produto', objectFit:'cover', frameShape:fs});
+    if(it.radius) F.radius=it.radius;
+    return _dPsdApplyFx(F, it);
+  }
   if(it.kind==='text'){
     if(it.mode==='raster' && it.imgUrl) return _dPsdApplyFx(Object.assign(base,{type:'image',imgUrl:it.imgUrl,imgVar:'',objectFit:'cover',frameShape:'rect'}), it);
     const isVar=it.mode==='var';
@@ -807,6 +909,8 @@ function dItemToLayer(it){
     if(it.textTransform) L.textTransform=it.textTransform;
     if(it.fontWeightOverride) L.fontWeightOverride=it.fontWeightOverride;
     if(it.textBox==='box'){ L.textBox='box'; } // paragraph → editor encaixa na caixa
+    if(it.vAlign) L.vAlign=it.vAlign;           // ancoragem vertical (top) importada do PSD
+    if(it.italic) L.italic=true;                // font-style itálico
     if(it.letterSpacing) L.letterSpacing=it.letterSpacing;
     if(it.lineHeight) L.lineHeight=it.lineHeight;
     if(it.runs && !isVar) L.runs=it.runs;       // texto multi-estilo (não p/ variável)
@@ -950,8 +1054,13 @@ function dPsdRenderRows(filter){
     } else if(it.kind==='shape'){
       modeSel=`<select class="psd-mode" onchange="dPsdSetMode(${i},this.value)">
         <option value="shape" ${it.mode==='shape'?'selected':''}>Cor (editável)</option>
+        <option value="frame" ${it.mode==='frame'?'selected':''}>Moldura de foto</option>
         <option value="raster" ${it.mode==='raster'?'selected':''}>Imagem</option></select>`;
-    } else { modeSel=`<span class="psd-mode-fixed">Imagem</span>`; }
+    } else { // raster/imagem: pode virar Imagem fiel OU moldura de foto (o franqueado preenche)
+      modeSel=`<select class="psd-mode" onchange="dPsdSetMode(${i},this.value)">
+        <option value="raster" ${it.mode!=='frame'?'selected':''}>Imagem</option>
+        <option value="frame" ${it.mode==='frame'?'selected':''}>Moldura de foto</option></select>`;
+    }
     const swatchRadius=it.shapeKind==='circle'||it.shapeKind==='ellipse'?'50%':'3px';
     const swatch=it.kind==='shape'?`<span class="psd-swatch" style="background:${it.fill};border-radius:${swatchRadius}"></span>`:'';
     const varIn=`<input class="psd-var-input" value="${it.varName||''}" placeholder="nome_da_var" oninput="dPsdSetVar(${i},this.value)" style="display:${it.kind==='text'&&it.mode==='var'?'inline-block':'none'}">`;
@@ -1295,7 +1404,10 @@ async function dPsdAbSelectPreview(itemIdx){
   canvas.width=item.w; canvas.height=item.h;
   const ctx=canvas.getContext('2d');
   ctx.clearRect(0,0,item.w,item.h);
-  const toRender=[...parsed].reverse(); // bg primeiro (fundo da pilha), topo por último
+  // Z-order: dPsdParseItems devolve topo-primeiro, mas nem sempre (depende do PSD). Em vez de
+  // reverter de forma fixa (quebrava desenhando o fundo por último → bloco sólido), usa a MESMA
+  // heurística do preview principal (_dPsdShouldInvert): só inverte quando o fundo está no final.
+  const toRender=_dPsdShouldInvert(parsed, item.w, item.h) ? [...parsed].reverse() : parsed;
   for(const it of toRender){
     if(canvas._renderId!==renderId) return; // abortado por uma seleção mais recente
     ctx.save();

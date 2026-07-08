@@ -24,6 +24,9 @@ function fGetSuggestionsForVar(varName, camp){
 }
 function fStartChatComMaterial(material){
   document.getElementById('f-messages').innerHTML='';
+  // Mobile: ao começar o chat, traz o painel do chat pra frente (o layout de 2 colunas colapsa).
+  try{ document.body.classList.add('f-mobile-chat'); }catch(e){}
+  const _b=document.getElementById('f-msg-box'); if(_b){ _b.disabled=false; }
   fState.stepIdx=-1;fState.done=false;fUpdateProg();
   fState.extractedColors={};
   try { fUpdateLivePreview(); } catch(e){}
@@ -43,7 +46,7 @@ function fAskCampSwitch(c){
   const existing=document.getElementById('switch-confirm-msg');if(existing)existing.remove();
   const w=document.createElement('div');w.className='msg bot';w.id='switch-confirm-msg';
   w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div>
-    <div class="bbl">Trocar pra <strong>${gEsc(c.name)}</strong>? Você vai perder o progresso atual e poderá escolher um material da nova campanha.</div>
+    <div class="bbl">Trocar pra <strong>${c.name}</strong>? Você vai perder o progresso atual e poderá escolher um material da nova campanha.</div>
     <div class="qr-wrap">
       <div class="qr" onclick="fApplyCampSwitch(${JSON.stringify(c.id).replace(/"/g,'&quot;')},false)">Sim, trocar</div>
       <div class="qr" onclick="fCancelSwitch()" style="background:var(--gray-light);border-color:var(--gray-mid);color:var(--text-2)">Cancelar</div>
@@ -96,27 +99,41 @@ function fRenderFmts(){
     </div>`).join('');
 }
 function fUpdateCtx(){
-  const t=fState.camp.name+' · '+fState.fmt.name;
-  document.getElementById('f-ctx-tag').textContent=t;
-  document.getElementById('top-camp-pill').textContent=t;
+  // Sem campanha escolhida (boot) → rótulo neutro, não um contexto fantasma.
+  const t=fState.camp?(fState.camp.name+' · '+fState.fmt.name):'Escolha uma campanha';
+  const ctx=document.getElementById('f-ctx-tag'); if(ctx) ctx.textContent=t;
+  const pill=document.getElementById('top-camp-pill'); if(pill) pill.textContent=t;
   try { fUpdateLivePreview(); } catch(e){}
 }
 function fUpdateProg(){
-  const tot=fState.camp.perguntas.length,done=Math.max(0,fState.stepIdx);
-  document.getElementById('prog-fill').style.width=(tot>0?Math.round(done/tot*100):0)+'%';
+  const tot=(fState.camp&&fState.camp.perguntas)?fState.camp.perguntas.length:0, done=Math.max(0,fState.stepIdx);
+  const el=document.getElementById('prog-fill'); if(el) el.style.width=(tot>0?Math.round(done/tot*100):0)+'%';
+}
+// Boas-vindas no boot: NÃO interroga sobre campanha nenhuma — só recebe o franqueado e o convida
+// a escolher uma campanha. O chat real (fStartChat) só dispara após a escolha.
+function fShowWelcome(){
+  const msgs=document.getElementById('f-messages'); if(msgs) msgs.innerHTML='';
+  fState.stepIdx=-1; fState.dados={}; fState.done=false; fState.material=null;
+  try{ fUpdateProg(); }catch(e){}
+  try{ fUpdateCtx(); }catch(e){}
+  const box=document.getElementById('f-msg-box');
+  if(box){ box.disabled=true; box.placeholder='Escolha uma campanha ao lado para começar 👈'; }
+  try{ fAddBot('Oi! Eu sou a <strong>Luma</strong> 👋 Escolha uma campanha aqui do lado que eu monto a arte com você — leva ~1 minutinho.',[]); }catch(e){}
 }
 
 
 /* ── CHAT ── */
 function fStartChat(){
+  if(!fState.camp){ fShowWelcome(); return; } // sem campanha → boas-vindas, nunca interroga
   document.getElementById('f-messages').innerHTML='';
+  const _b=document.getElementById('f-msg-box'); if(_b){ _b.disabled=false; } // reabilita (welcome desabilitou)
   fState.stepIdx=-1;fState.dados={};fState.done=false;fUpdateProg();
   fState.extractedColors={};
   try { fUpdateLivePreview(); } catch(e){}
   try { fAttachInputGuard(); } catch(e){}
   // F-05: mensagem inicial com contexto (quantas perguntas, tempo estimado)
   const total = fState.camp.perguntas.length;
-  fAddBot(`Oi! Vou te fazer <strong>${total} pergunta${total>1?'s':''} rápida${total>1?'s':''}</strong> sobre <strong>${gEsc(fState.camp.name)}</strong> (formato ${fState.fmt.name}) e gerar a arte. Leva ~1 minuto. Pode clicar nas sugestões pra responder mais rápido.`,[]);
+  fAddBot(`Oi! Vou te fazer <strong>${total} pergunta${total>1?'s':''} rápida${total>1?'s':''}</strong> sobre <strong>${fState.camp.name}</strong> (formato ${fState.fmt.name}) e gerar a arte. Leva ~1 minuto. Pode clicar nas sugestões pra responder mais rápido.`,[]);
   setTimeout(()=>fNextStep(),900);
 }
 function fNextStep(){
@@ -143,7 +160,7 @@ function fNextStep(){
   if(box){box.disabled=false;}
   const cfg = fGetFieldType(p.id);
   const typeIcon = {price:'R$', discount:'%', code:'#', text:'Aa'}[cfg.type] || 'Aa';
-  const fieldHint = `<div class="field-hint"><span class="field-hint-type">${typeIcon}</span><span class="field-hint-text">${gEsc(cfg.label)} · até ${cfg.maxLen} caracteres</span></div>`;
+  const fieldHint = `<div class="field-hint"><span class="field-hint-type">${typeIcon}</span><span class="field-hint-text">${cfg.label} · até ${cfg.maxLen} caracteres</span></div>`;
   
   // Sugestão inteligente de cores a partir da foto do produto
   let sugestoes = p.sugestoes ? p.sugestoes.slice() : [];
@@ -166,7 +183,7 @@ function fAddBotImageUpload(stepLabel, pergunta, canGoBack){
   const msgs=document.getElementById('f-messages');
   const w=document.createElement('div');w.className='msg bot';
   const uploadId='f-upload-'+Date.now();
-  const fieldHint = `<div class="field-hint"><span class="field-hint-type"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span><span class="field-hint-text">${gEsc(pergunta.label)} · imagem (PNG/JPG, máx 4MB)</span></div>`;
+  const fieldHint = `<div class="field-hint"><span class="field-hint-type"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span><span class="field-hint-text">${pergunta.label} · imagem (PNG/JPG, máx 4MB)</span></div>`;
   let back='';
   if(canGoBack){
     back = `<div class="qr-back-wrap"><button class="qr-back" onclick="fGoBack()" title="Voltar uma pergunta"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>Voltar uma pergunta</button></div>`;
@@ -376,6 +393,10 @@ function fUpdateInputPlaceholder(id){
   const box = document.getElementById('f-msg-box');
   if(!box) return;
   const cfg = fGetFieldType(id);
+  // Exemplo definido pelo designer (no campo) tem prioridade — é o que ele escolheu mostrar aqui.
+  const vDef = (typeof dVars!=='undefined' && dVars) ? dVars.find(x=>x.name===id) : null;
+  const ex = (vDef && vDef.example!=null && String(vDef.example).trim()!=='') ? String(vDef.example).trim() : '';
+  if(ex){ box.placeholder = 'Ex: '+ex; return; }
   const hints = {
     price:    'Ex: R$ 9,90',
     discount: 'Ex: 20% off ou R$ 5,00 off',
@@ -449,7 +470,7 @@ function fEditCampo(idx){
   
   if(p.isImage){
     const stepLabel = `<span class="step-label">Editando</span>`;
-    const editPergunta = {...p, texto: `Envie uma nova <strong>${gEsc(label.toLowerCase())}</strong>`};
+    const editPergunta = {...p, texto: `Envie uma nova <strong>${label.toLowerCase()}</strong>`};
     fAddBotImageUpload(stepLabel, editPergunta, false);
     const box=document.getElementById('f-msg-box');
     if(box){box.disabled=true;box.placeholder='Use o botão de upload acima';}
@@ -725,7 +746,7 @@ function fGerarArte(){
         <div class="art-footer" style="display:flex;gap:6px;">
           <div class="art-btn" onclick="fRefazer()" style="flex:1;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Refazer</div>
           <div class="art-btn pri" onclick="fBaixar(this,'${previewCanvasId}')" style="flex:1.2;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>Baixar PNG</div>
-          <div class="art-btn pri" onclick="fBaixarPDF(this,'${previewCanvasId}')" style="flex:1.2; background:#dc2626; border-color:#dc2626; box-shadow:0 2px 8px rgba(220,38,38,.35);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>Baixar PDF</div>
+          <div class="art-btn pri" onclick="fBaixarPDF(this,'${previewCanvasId}')" style="flex:1.2; background:var(--dm-red); border-color:var(--dm-red); box-shadow:0 2px 8px rgba(200,24,24,.35);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>Baixar PDF</div>
         </div>
       </div>
     </div>`;
@@ -823,10 +844,14 @@ async function fBaixar(btn, snapId){
     gToast('Arte baixada!');
   }catch(e){
     console.warn('Falha ao gerar PNG:', e);
-    gToast('Não consegui gerar o PNG. Se a arte usa imagem por URL, ela precisa ser pública (com CORS).','error');
+    gToast('Não consegui gerar o arquivo. Tente enviar a foto de novo pelo botão de upload, ou escolha outra imagem.','error');
   }finally{ restore(); }
 }
-function fRefazer(){fState.stepIdx=-1;fState.dados={};fState.done=false;fClearImgCache();_fArtSnapshots={};_fArtCaptions={};document.getElementById('f-messages').innerHTML='';fUpdateProg();fAddBot(`Vamos refazer a arte da <strong>${gEsc(fState.camp.name)}</strong>.`,[]);setTimeout(()=>fNextStep(),500);}
+function fRefazer(){fState.stepIdx=-1;fState.dados={};fState.done=false;fClearImgCache();_fArtSnapshots={};_fArtCaptions={};document.getElementById('f-messages').innerHTML='';fUpdateProg();fAddBot(`Vamos refazer a arte da <strong>${fState.camp.name}</strong>.`,[]);setTimeout(()=>fNextStep(),500);}
+// Mobile: volta do chat para o catálogo (desfaz o colapso de colunas).
+function fMobileBackToCatalog(){
+  try{ document.body.classList.remove('f-mobile-chat'); }catch(e){}
+}
 function fResetFlow(){
   // Se não há nada preenchido, reseta direto sem perguntar
   const temDados = Object.keys(fState.dados).length > 0 || fState.stepIdx >= 0;
@@ -903,10 +928,20 @@ async function fBaixarPDF(btn, snapId){
     gToast('Não consegui gerar o PDF. Se a arte usa imagem por URL, ela precisa ser pública.','error');
   }finally{ restore(); }
 }
+// Iniciais reais do usuário logado (nome/loja) — em vez do "FR" fixo (cheiro de protótipo).
+function _fUserInitials(){
+  try{
+    const n=(typeof gAuthState!=='undefined'&&gAuthState&&gAuthState.displayName)||(fState&&fState.loja)||'';
+    const parts=String(n).trim().split(/\s+/).filter(Boolean);
+    if(!parts.length) return 'EU';
+    if(parts.length===1) return parts[0].slice(0,2).toUpperCase();
+    return (parts[0][0]+parts[parts.length-1][0]).toUpperCase();
+  }catch(e){ return 'EU'; }
+}
 function fAddUser(txt){
   const msgs=document.getElementById('f-messages');
   const w=document.createElement('div');w.className='msg user';
-  w.innerHTML=`<div><div class="bbl">${gEsc(txt)}</div></div><div class="av u">FR</div>`;
+  w.innerHTML=`<div><div class="bbl">${gEsc(txt)}</div></div><div class="av u">${_fUserInitials()}</div>`;
   msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;
 }
 function fTyping(cb){
