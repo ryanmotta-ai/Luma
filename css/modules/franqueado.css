@@ -617,3 +617,171 @@ body:not(.theme-light) #f-live-preview::-webkit-scrollbar-thumb:hover {
   .f-tab{min-height:40px}
 }
 
+
+/* ══════════════════════════════════════════════════════════════
+   HOME DO FRANQUEADO (#f-home) — estado inicial em tela cheia.
+   body.f-home-mode esconde as colunas; sair do modo devolve o
+   layout de 3 colunas exatamente como era. Preenchida por fRenderHome.
+══════════════════════════════════════════════════════════════ */
+#f-home{display:none;flex:1;min-width:0;overflow-y:auto;background:var(--off-white)}
+body.f-home-mode #f-home{display:block}
+body.f-home-mode #fran-left,
+body.f-home-mode #fran-right{display:none}
+
+.fh-inner{max-width:1400px;margin:0 auto;padding:40px 60px;display:flex;flex-direction:column;gap:18px}
+
+/* Cabeçalho: saudação + atalho Minhas artes */
+.fh-head{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.fh-greet{font-family:'Roboto',sans-serif;font-weight:900;font-size:28px;letter-spacing:-.02em;color:var(--text);margin:0}
+.fh-sub{font-size:14px;color:var(--text-3);margin:4px 0 0}
+.fh-mine{
+  margin-left:auto;display:inline-flex;align-items:center;gap:7px;flex-shrink:0;
+  background:var(--white);border:1.5px solid var(--gray-mid);border-radius:var(--r-pill);
+  padding:8px 16px;font-size:13px;font-weight:700;color:var(--text-2);cursor:pointer;
+  font-family:'Roboto',sans-serif;transition:border-color .15s,box-shadow .15s;
+}
+.fh-mine:hover{border-color:var(--dm-orange);box-shadow:0 3px 12px rgba(255,144,0,.15)}
+.fh-mine-badge{background:var(--dm-orange);color:#fff;border-radius:var(--r-pill);padding:1px 7px;font-size:11px;font-weight:800}
+
+/* Busca */
+.fh-search-row{
+  display:flex;align-items:center;gap:9px;background:var(--white);
+  border:1.5px solid var(--gray-mid);border-radius:var(--r);padding:11px 15px;color:var(--text-3);
+  transition:border-color .15s,box-shadow .15s;
+}
+.fh-search-row:focus-within{border-color:var(--dm-orange);box-shadow:0 0 0 3px rgba(255,144,0,.12)}
+#fh-search{flex:1;border:none;outline:none;background:transparent;font-size:14px;color:var(--text);font-family:'Roboto',sans-serif}
+#fh-search::placeholder{color:var(--text-3)}
+
+#fh-body{display:flex;flex-direction:column;gap:18px}
+
+/* Títulos de seção */
+.fh-sec{
+  font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--text-3);display:flex;align-items:center;gap:6px;
+}
+.fh-sec em{font-style:normal;font-weight:600;letter-spacing:0;text-transform:none;color:var(--gray-mid)}
+
+/* Continuar de onde parou */
+.fh-cont{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.fh-draft{
+  display:flex;align-items:center;gap:11px;background:var(--white);
+  border:1.5px solid var(--gray-light);border-radius:var(--r);padding:10px 12px;
+  cursor:pointer;transition:border-color .15s,transform .15s,box-shadow .15s;text-align:left;
+  font-family:'Roboto',sans-serif;
+}
+.fh-draft:hover{border-color:var(--dm-orange);transform:translateY(-2px);box-shadow:0 6px 16px rgba(255,144,0,.14)}
+.fh-draft-th{width:34px;height:44px;border-radius:6px;flex-shrink:0}
+.fh-draft-info{min-width:0;flex:1}
+.fh-draft-name{font-size:12.5px;font-weight:700;color:var(--text);line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fh-draft-meta{font-size:11px;color:var(--text-3);margin-top:2px}
+.fh-draft-go{color:var(--dm-orange-d);font-size:12px;font-weight:800;flex-shrink:0;white-space:nowrap}
+
+/* Hero — recomendada */
+.fh-hero{
+  display:flex;background:var(--white);border:1.5px solid var(--gray-light);
+  border-radius:14px;overflow:hidden;cursor:pointer;min-height:150px;
+  transition:border-color .15s,transform .15s,box-shadow .2s;
+}
+.fh-hero:hover{border-color:var(--dm-orange);transform:translateY(-3px);box-shadow:0 14px 30px rgba(255,144,0,.18)}
+.fh-hero-cover{
+  width:36%;min-width:220px;position:relative;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;color:#fff;background-size:cover;background-position:center;
+}
+.fh-hero-prod{font-family:'Roboto',sans-serif;font-weight:900;font-size:24px;letter-spacing:.02em;text-align:center;line-height:1.08;text-transform:uppercase;padding:0 16px;z-index:1}
+.fh-hero-badge{position:absolute;top:10px;left:10px;background:var(--dm-yellow);color:var(--dm-red);border-radius:var(--r-pill);padding:3px 9px;font-size:10px;font-weight:800;letter-spacing:.03em;z-index:2}
+.fh-hero-pop{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.4);color:#fff;border-radius:var(--r-pill);padding:3px 9px;font-size:10px;font-weight:800;display:inline-flex;align-items:center;gap:4px;z-index:2}
+.fh-hero-body{flex:1;padding:20px 26px;display:flex;flex-direction:column;justify-content:center;gap:5px}
+.fh-hero-eyebrow{font-size:10.5px;font-weight:800;letter-spacing:.1em;color:var(--dm-orange-d);display:inline-flex;align-items:center;gap:5px}
+.fh-hero-name{font-family:'Roboto',sans-serif;font-weight:900;font-size:21px;letter-spacing:-.01em;color:var(--text)}
+.fh-hero-meta{font-size:13px;color:var(--text-3)}
+.fh-hero-cta{
+  margin-top:9px;align-self:flex-start;background:var(--dm-orange);color:#fff;
+  border-radius:var(--r-pill);padding:9px 20px;font-size:13.5px;font-weight:800;
+  font-family:'Roboto',sans-serif;box-shadow:0 4px 14px rgba(248,84,0,.3);
+  transition:background .15s,transform .12s;
+}
+.fh-hero:hover .fh-hero-cta{background:var(--dm-orange-d)}
+
+/* Grids de campanha — reutilizam .camp-card do rail com cards maiores */
+.fh-grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:0}
+.fh-grid .camp-thumb{height:120px}
+.fh-grid .camp-thumb-prod{font-size:15px}
+.fh-empty{
+  text-align:center;padding:34px 20px;color:var(--text-3);font-size:13.5px;
+  background:var(--white);border:1.5px dashed var(--gray-mid);border-radius:var(--r);
+}
+
+/* Botão Início no rail esquerdo */
+.fran-left-title-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.fran-left-title-row h2{margin-bottom:0 !important}
+#f-home-btn{
+  display:inline-flex;align-items:center;gap:5px;background:transparent;
+  border:1px solid var(--gray-mid);border-radius:var(--r-pill);padding:4px 11px;
+  font-size:11px;font-weight:700;color:var(--text-2);cursor:pointer;font-family:'Roboto',sans-serif;
+  transition:border-color .15s,color .15s;
+}
+#f-home-btn:hover{border-color:var(--dm-orange);color:var(--dm-orange-d)}
+
+/* ── Tema escuro ── */
+body:not(.theme-light) #f-home{background:#141210}
+body:not(.theme-light) .fh-greet{color:#F0EDE9}
+body:not(.theme-light) .fh-sub,body:not(.theme-light) .fh-sec{color:#8F8880}
+body:not(.theme-light) .fh-sec em{color:#5A554F}
+body:not(.theme-light) .fh-mine,
+body:not(.theme-light) .fh-search-row,
+body:not(.theme-light) .fh-draft,
+body:not(.theme-light) .fh-hero{background:#1E1B18;border-color:#33302B}
+body:not(.theme-light) .fh-mine{color:#C9C2BA}
+body:not(.theme-light) #fh-search{color:#F0EDE9}
+body:not(.theme-light) .fh-draft-name,body:not(.theme-light) .fh-hero-name{color:#F0EDE9}
+body:not(.theme-light) .fh-draft-meta,body:not(.theme-light) .fh-hero-meta{color:#8F8880}
+body:not(.theme-light) .fh-empty{background:#1E1B18;border-color:#33302B;color:#8F8880}
+body:not(.theme-light) #f-home-btn{border-color:#3A3733;color:#C9C2BA}
+
+/* ── Mobile ── */
+@media (max-width:680px){
+  .fh-inner{padding:20px 16px 40px;gap:14px}
+  .fh-greet{font-size:22px}
+  .fh-hero{flex-direction:column}
+  .fh-hero-cover{width:100%;min-width:0;height:130px}
+  .fh-grid{grid-template-columns:repeat(2,1fr)}
+  #fh-search{font-size:16px} /* evita auto-zoom iOS */
+}
+
+/* ══════════════════════════════════════════════════════════════
+   HOME — COREOGRAFIA DE ENTRADA E MICROINTERAÇÕES (premium feel).
+   Usa os tokens de motion (00-tokens) e keyframes g* (02-animations).
+   A cascata só roda quando #f-home tem .fh-anim (fRenderHome decide;
+   refresh silencioso do sync não re-anima). Reduced-motion já é
+   respeitado pela guarda global de 02-animations.css.
+══════════════════════════════════════════════════════════════ */
+/* Blocos estruturais sobem em sequência (--fi = índice do bloco) */
+#f-home.fh-anim .fh-head,
+#f-home.fh-anim .fh-search-row,
+#f-home.fh-anim .fh-sec,
+#f-home.fh-anim .fh-hero,
+#f-home.fh-anim .fh-empty{
+  animation:gFadeInUp var(--dur-base) var(--ease-out) both;
+  animation-delay:calc(var(--fi,0) * 48ms);
+}
+/* Cards pop com mola suave, herdando o atraso do bloco pai (+ --ci por card) */
+#f-home.fh-anim .camp-card,
+#f-home.fh-anim .fh-draft{
+  animation:gPopIn var(--dur-base) var(--ease-spring-soft) both;
+  animation-delay:calc(var(--fi,0) * 48ms + var(--ci,0) * 36ms);
+}
+
+/* Hero: zoom sutil da capa + CTA que avança (a curva faz o charme) */
+.fh-hero-cover{transition:transform var(--dur-slow) var(--ease-out)}
+.fh-hero:hover .fh-hero-cover{transform:scale(1.035)}
+.fh-hero-cta{transition:background var(--dur-fast) var(--ease-standard),transform var(--dur-fast) var(--ease-spring)}
+.fh-hero:hover .fh-hero-cta{transform:translateX(3px)}
+
+/* Rascunhos: seta desliza no hover */
+.fh-draft-go{transition:transform var(--dur-fast) var(--ease-spring)}
+.fh-draft:hover .fh-draft-go{transform:translateX(3px)}
+
+/* Saída da home → colunas entram com direção (rail desliza, conteúdo funde) */
+body.f-cols-enter #fran-left{animation:gFadeInRight var(--dur-base) var(--ease-out) both}
+body.f-cols-enter #fran-right{animation:gFadeIn var(--dur-base) var(--ease-out) both}

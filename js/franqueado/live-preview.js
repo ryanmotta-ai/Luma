@@ -73,11 +73,15 @@ async function fUpdateLivePreview(opts){
   const canvas = document.getElementById('lp-canvas');
   if(!canvas || canvas.tagName !== 'CANVAS') return;
 
-  // Sem template selecionado → estado vazio
+  // Sem template selecionado (ou camadas vazias) → Tenta fallback renderer, ou mostra estado vazio
   if(!fState.material || !fState.material.layers || !fState.material.layers.length){
-    fLpShowEmpty(canvas);
-    fLpUpdateMeta(false);
-    return;
+    if (fState.material && fState.material.bg) {
+      // Tem background ou programmatic, invoca o helper!
+    } else {
+      fLpShowEmpty(canvas);
+      fLpUpdateMeta(false);
+      return;
+    }
   }
 
   // Render em andamento → agenda só mais um (coalesce de digitação rápida)
@@ -105,10 +109,15 @@ async function fUpdateLivePreview(opts){
     const dadosPreview = Object.assign({}, fState.dados || {});
     const pendentes = fLpInjectPlaceholders(fState.material.layers, dadosPreview, _defaults);
 
-    await fRenderTemplateLayers(ctx, fState.material.layers, W, H, dadosPreview, fState.camp);
-
-    // Véu sutil sobre os campos ainda não preenchidos (tom mais suave)
-    fLpHighlightEmpty(ctx, fState.material.layers, pendentes, W, H);
+    if (!fState.material.layers || !fState.material.layers.length) {
+      if (typeof fRenderCanvasHelper === 'function') {
+        await fRenderCanvasHelper(canvas, fState.material, W, H, dadosPreview, fState.camp);
+      }
+    } else {
+      await fRenderTemplateLayers(ctx, fState.material.layers, W, H, dadosPreview, fState.camp);
+      // Véu sutil sobre os campos ainda não preenchidos (tom mais suave)
+      fLpHighlightEmpty(ctx, fState.material.layers, pendentes, W, H);
+    }
 
     fLpUpdateMeta(true);
   } catch(e){
@@ -127,10 +136,20 @@ async function fUpdateLivePreview(opts){
   }
 }
 
+let _fLpStageWidthCache = 264;
 // Dimensiona o canvas para caber no .lp-stage sem distorcer (escala única).
 function fLpSizeCanvas(canvas, W, H){
   const stage = canvas.closest('.lp-stage') || canvas.parentElement;
-  const csW = (stage && stage.clientWidth) ? stage.clientWidth : 264;
+  if (stage && !stage._hasResizeObserver && typeof ResizeObserver !== 'undefined') {
+    stage._hasResizeObserver = true;
+    new ResizeObserver(entries => {
+      if(entries && entries.length) {
+        _fLpStageWidthCache = entries[0].contentRect.width;
+      }
+    }).observe(stage);
+    _fLpStageWidthCache = stage.clientWidth;
+  }
+  const csW = stage ? _fLpStageWidthCache : 264;
   const availW = Math.max(120, csW - 36); // desconta o padding lateral do .lp-stage (18+18)
   const maxH = 380;
   const scale = Math.min(availW / W, maxH / H);
@@ -202,36 +221,37 @@ function fLpHighlightEmpty(ctx, layers, pendentes, W, H){
   ctx.restore();
 }
 
-// Atualiza a lista de campos (#lp-fields) e o sub-header (#lp-sub).
+// Atualiza o sub-header (#lp-sub).
 function fLpUpdateMeta(hasTemplate){
-  const fieldsEl = document.getElementById('lp-fields');
   const subEl = document.getElementById('lp-sub');
+  const syncParent = subEl ? subEl.closest('.lp-sync') : null;
   const c = fState.camp, d = fState.dados || {};
   const perguntas = (hasTemplate && c && c.perguntas) ? c.perguntas : [];
-  if(fieldsEl){
-    const currentIdx = (fState.stepIdx >= 0 && fState.stepIdx < perguntas.length) ? fState.stepIdx : -1;
-    fieldsEl.innerHTML = perguntas.map((p, i) => {
-      const filled = d[p.id] != null && d[p.id] !== '';
-      const isCurrent = i === currentIdx && !filled && !fState.done;
-      const cls = 'lp-field' + (filled ? ' filled' : '') + (isCurrent ? ' current' : '');
-      const valDisplay = p.isImage
-        ? (filled ? '✓ foto enviada' : (isCurrent ? 'aguardando...' : '—'))
-        : (filled ? gEsc(d[p.id]) : (isCurrent ? 'aguardando...' : '—'));
-      return `<div class="${cls}">
-        <div class="lp-field-dot"></div>
-        <div class="lp-field-label">${F_FIELD_LABELS[p.id] || p.label || p.id}</div>
-        <div class="lp-field-val">${valDisplay}</div>
-      </div>`;
-    }).join('');
-  }
+  
   if(subEl){
-    if(!hasTemplate){ subEl.textContent = 'Selecione um material'; subEl.classList.remove('ready'); return; }
+    if(!hasTemplate){ 
+      subEl.textContent = 'Selecione um material'; 
+      if(syncParent) syncParent.classList.remove('ready'); 
+      return; 
+    }
     const total = perguntas.length;
     const preenchidos = perguntas.filter(p => d[p.id] != null && d[p.id] !== '').length;
-    if(fState.done){ subEl.textContent = 'arte pronta ✓'; subEl.classList.add('ready'); }
-    else if(preenchidos === 0){ subEl.textContent = 'aguardando respostas...'; subEl.classList.remove('ready'); }
-    else if(preenchidos === total){ subEl.textContent = 'tudo pronto · confirme pra gerar'; subEl.classList.add('ready'); }
-    else { subEl.textContent = `${preenchidos} de ${total} preenchido${preenchidos > 1 ? 's' : ''}`; subEl.classList.remove('ready'); }
+    if(fState.done){ 
+      subEl.textContent = 'arte pronta'; 
+      if(syncParent) syncParent.classList.add('ready'); 
+    }
+    else if(preenchidos === 0){ 
+      subEl.textContent = 'aguardando respostas...'; 
+      if(syncParent) syncParent.classList.remove('ready'); 
+    }
+    else if(preenchidos === total){ 
+      subEl.textContent = 'tudo pronto, gerar arte'; 
+      if(syncParent) syncParent.classList.add('ready'); 
+    }
+    else { 
+      subEl.textContent = `${preenchidos} de ${total} preenchidos`; 
+      if(syncParent) syncParent.classList.remove('ready'); 
+    }
   }
 }
 function fInitMobilePreviewEvents() {

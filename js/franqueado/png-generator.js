@@ -71,7 +71,7 @@ async function fRenderCanvasHelper(d,c,fmt){
 
   const fotoProduto = d.foto_produto;
   let topOffset = 0.22;
-  if(fotoProduto && fotoProduto.startsWith && fotoProduto.startsWith('data:image')){
+  if(fotoProduto && fotoProduto.startsWith && (fotoProduto.startsWith('data:image') || fotoProduto.startsWith('blob:') || /^https?:\/\//.test(fotoProduto))){
     try {
       const fotoImg = await fLoadImageDataUrl(fotoProduto);
       if(fotoImg && fotoImg.width){
@@ -110,7 +110,7 @@ async function fRenderCanvasHelper(d,c,fmt){
   if(d.validade){ctx.fillStyle='rgba(255,255,255,.45)';ctx.font=`300 ${Math.round(U*.024)}px sans-serif`;ctx.fillText('*'+d.validade+'. Consulte a loja.',cx,h*.83);}
 
   const logoLoja = d.logo_loja;
-  if(logoLoja && logoLoja.startsWith && logoLoja.startsWith('data:image')){
+  if(logoLoja && logoLoja.startsWith && (logoLoja.startsWith('data:image') || logoLoja.startsWith('blob:') || /^https?:\/\//.test(logoLoja))){
     try {
       const logoLojaImg = await fLoadImageDataUrl(logoLoja);
       if(logoLojaImg && logoLojaImg.width){
@@ -559,7 +559,7 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     let imgSource = null;
     const varVal = l.imgVar ? dados[l.imgVar] : null;
     // Aceita data URL (upload do franqueado) OU URL http(s) pública (4.3 — bulk CSV)
-    if(varVal && typeof varVal === 'string' && (varVal.startsWith('data:image') || /^https?:\/\//.test(varVal))){
+    if(varVal && typeof varVal === 'string' && (varVal.startsWith('data:image') || varVal.startsWith('blob:') || /^https?:\/\//.test(varVal))){
       imgSource = varVal;
     } else if(l.imgUrl && l.imgUrl !== '__local__' && l.imgUrl.length > 0){
       imgSource = l.imgUrl;
@@ -647,6 +647,7 @@ function fLoadImageDataUrl(dataUrl){
       if(!real) return null;
       return new Promise((resolve)=>{
         const img=new Image();
+        img.crossOrigin = 'anonymous';
         img.onload=()=>{ _fImgCache.set(_ref, img); resolve(img); };
         img.onerror=()=>resolve(null);
         img.src=real;
@@ -973,6 +974,8 @@ async function fBulkDownloadAll(){
   const _fail=valid.length-ok;
   if(_fail>0) gToast(`${ok}/${valid.length} geradas — ${_fail} falhou(ram). Imagens por URL precisam ser públicas (com CORS).`,'error');
   else gToast('✓ '+ok+' de '+valid.length+' artes geradas');
+  
+  if(typeof fClearImgCache === 'function') fClearImgCache();
 }
 
 /* Sistema de nomenclatura padronizado para downloads

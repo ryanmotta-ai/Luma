@@ -57,14 +57,19 @@ function gOnLoginSuccess() {
   // Boot honesto: recebe com boas-vindas em vez de interrogar sobre uma campanha não escolhida.
   if (typeof fShowWelcome === 'function') fShowWelcome();
   else if (typeof fStartChat === 'function') fStartChat();
+  // Estado inicial = HOME em tela cheia (vitrine de campanhas). O welcome acima
+  // fica como fallback por trás; escolher uma campanha sai do modo home sozinho.
+  if (typeof fGoHome === 'function') fGoHome();
 
   // Sincroniza variáveis e catálogo (pastas/templates) com o Supabase (offline-first).
+  // Pastas (capas/materiais) e artes (rascunhos) refrescam a home quando chegam.
+  const _fhRefresh = () => { if (typeof fHomeRefreshIfIdle === 'function') fHomeRefreshIfIdle(); };
   if (typeof dSyncVarsFromBackend === 'function') dSyncVarsFromBackend();
-  if (typeof dSyncFoldersFromBackend === 'function') dSyncFoldersFromBackend();
+  if (typeof dSyncFoldersFromBackend === 'function') Promise.resolve(dSyncFoldersFromBackend()).then(_fhRefresh).catch(()=>{});
   if (typeof dSyncFontsFromBackend === 'function') dSyncFontsFromBackend();
   if (typeof dSyncSnippetsFromBackend === 'function') dSyncSnippetsFromBackend();
   if (typeof dSyncLibFromBackend === 'function') dSyncLibFromBackend();
-  if (typeof fSyncArtesFromBackend === 'function') fSyncArtesFromBackend();
+  if (typeof fSyncArtesFromBackend === 'function') Promise.resolve(fSyncArtesFromBackend()).then(_fhRefresh).catch(()=>{});
 }
 
 // Inicializa a aba no startup e checa a autenticação

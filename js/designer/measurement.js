@@ -51,7 +51,7 @@ function _dMeasureId(){
  * @param {number} y — coordenada Y no espaço do canvas (sem zoom)
  * @returns {{r:number, g:number, b:number, a:number}|null}
  */
-function dEyedropPixel(x, y){
+async function dEyedropPixel(x, y){
   var sz=_dMeasureCanvasSize();
   // Clampar coordenadas dentro dos limites do canvas
   if(x<0||y<0||x>=sz.w||y>=sz.h) return null;
@@ -61,8 +61,27 @@ function dEyedropPixel(x, y){
   offscreen.height=sz.h;
   var ctx=offscreen.getContext('2d');
 
-  // Renderizar cada camada visível na ordem (de trás para frente)
+  var promises = [];
   var layers=(typeof dLayers!=='undefined')?dLayers:[];
+  layers.filter(function(l){return l.visible&&l.type!=='group';}).forEach(function(l){
+    if(l.type==='image'||l.type==='frame'){
+      if(l._imgCache&&l._imgCache.complete){
+        // ok
+      }else if(l.imgUrl){
+        var img=new Image();
+        img.crossOrigin = 'anonymous';
+        img.src=l.imgUrl;
+        promises.push(new Promise(res => {
+          img.onload = () => { l._imgCache=img; res(); };
+          img.onerror = () => res();
+          if (img.complete) res();
+        }));
+      }
+    }
+  });
+
+  await Promise.all(promises);
+
   layers.filter(function(l){return l.visible&&l.type!=='group';}).forEach(function(l){
     ctx.save();
     ctx.globalAlpha=(l.opacity||100)/100;
@@ -78,21 +97,19 @@ function dEyedropPixel(x, y){
       }else{
         var r=l.radius||0;
         if(r>0){
-          // Retângulo arredondado
           _dFillRoundRect(ctx, l.x, l.y, l.w, l.h, r);
         }else{
           ctx.fillRect(l.x, l.y, l.w, l.h);
         }
       }
     }else if(l.type==='text'){
-      // Texto: renderiza com fillText
+      // Texto
       var _fp=(typeof dTextFontParts==='function')?dTextFontParts(l.font):{family:"'Roboto', sans-serif",weight:900};
       var fontSize=l.fontSize||24;
       ctx.font=_fp.weight+' '+fontSize+'px '+_fp.family;
       ctx.fillStyle=l.color||'#fff';
       ctx.textAlign=l.textAlign||'left';
       ctx.textBaseline='top';
-      // Quebrar texto em linhas simples
       var lines=(l.content||'').split('\n');
       var lineH=fontSize*1.2;
       var textX=l.x;
@@ -102,21 +119,10 @@ function dEyedropPixel(x, y){
         ctx.fillText(line, textX, l.y+i*lineH);
       });
     }else if(l.type==='image'||l.type==='frame'){
-      // Imagens: tenta desenhar se já há um cache ou URL carregada
-      // Nota: imagens assíncronas podem não estar no cache — retornamos a cor do fundo
       if(l._imgCache&&l._imgCache.complete){
         ctx.drawImage(l._imgCache, l.x, l.y, l.w, l.h);
-      }else if(l.imgUrl){
-        // Tentar criar imagem síncrona (funciona para data URLs já carregadas)
-        var img=new Image();
-        img.src=l.imgUrl;
-        if(img.complete&&img.naturalWidth>0){
-          ctx.drawImage(img, l.x, l.y, l.w, l.h);
-          l._imgCache=img; // cache para uso futuro
-        }
       }
     }
-
     ctx.restore();
   });
 
@@ -210,12 +216,12 @@ var dColorSamplers=[]; // [{x, y, color:{r,g,b,a}, el:HTMLElement}] — máximo 
  * @param {number} x — coordenada X no espaço do canvas
  * @param {number} y — coordenada Y no espaço do canvas
  */
-function dColorSamplerAdd(x, y){
+async function dColorSamplerAdd(x, y){
   if(dColorSamplers.length>=4){
     // Remove o primeiro (mais antigo)
     dColorSamplerRemove(0);
   }
-  var color=dEyedropPixel(x, y);
+  var color=await dEyedropPixel(x, y);
   if(!color){
     gToast('⚠ Posição fora do canvas');
     return;
@@ -390,31 +396,32 @@ function dRulerMove(e){
   dRulerState.endX=pos.x;
   dRulerState.endY=pos.y;
 
-  var dx=dRulerState.endX-dRulerState.startX;
-  var dy=dRulerState.endY-dRulerState.startY;
-  var dist=Math.sqrt(dx*dx+dy*dy);
-  var angle=Math.atan2(dy, dx)*(180/Math.PI);
+  if (dRulerState._af) cancelAnimationFrame(dRulerState._af);
+  dRulerState._af = requestAnimationFrame(() => {
+    var dx=dRulerState.endX-dRulerState.startX;
+    var dy=dRulerState.endY-dRulerState.startY;
+    var dist=Math.sqrt(dx*dx+dy*dy);
+    var angle=Math.atan2(dy, dx)*(180/Math.PI);
 
   // Atualizar linha: usar CSS transform para rotacionar
   var line=dRulerState.lineEl;
-  if(line){
-    line.style.width=dist+'px'; // coords cruas (frame já escala)
-    line.style.transform='rotate('+angle+'deg)';
-  }
+    // Atualizar linha: usar CSS transform para rotacionar
+    var line=dRulerState.lineEl;
+    if(line){
+      line.style.width=dist+'px'; // coords cruas (frame já escala)
+      line.style.transform='rotate('+angle+'deg)';
+    }
 
-  // Atualizar label
-  var label=dRulerState.labelEl;
-  if(label){
-    label.style.display='block';
-    var midX=(dRulerState.startX+dRulerState.endX)/2;
-    var midY=(dRulerState.startY+dRulerState.endY)/2;
-    label.style.left=(midX+10)+'px';
-    label.style.top=(midY-30)+'px';
-    label.innerHTML=
-      '<div style="font-weight:700;font-size:12px">'+Math.round(dist)+' px</div>'+
-      '<div>Ângulo: '+angle.toFixed(1)+'°</div>'+
-      '<div>ΔX: '+Math.round(dx)+' ΔY: '+Math.round(dy)+'</div>';
-  }
+    var label=dRulerState.labelEl;
+    if(label){
+      label.style.display='block';
+      var midX=(dRulerState.startX+dRulerState.endX)/2;
+      var midY=(dRulerState.startY+dRulerState.endY)/2;
+      label.style.left=(midX+10)+'px';
+      label.style.top=(midY-30)+'px';
+      label.textContent = Math.round(dist) + ' px | Ângulo: ' + angle.toFixed(1) + '° | ΔX: ' + Math.round(dx) + ' ΔY: ' + Math.round(dy);
+    }
+  });
 }
 
 /**

@@ -58,7 +58,7 @@ body.theme-light .vt-color-sep { background: rgba(0,0,0,0.1); }
   justify-content: center;
 }
 .vt-tools-grid + .vt-color-sep {
-  margin-top: auto; /* Empurra o color picker e o separador para o fim da tela */
+  margin-top: 12px; /* Espaço fixo em vez de auto para não criar um vão gigante */
 }
 .vt-group{display:contents;}
 .vt-sep{display:none;}

@@ -6,6 +6,8 @@
  * Depende de: 00-config.js, 01-state.js, franqueado/chat-input.js
  */
 
+let fNextTimeout = null;
+
 function fGetSuggestionsForVar(varName, camp){
   // Tenta achar sugestões nas perguntas da campanha original
   const orig = camp.perguntas?.find(p=>p.id===varName);
@@ -39,7 +41,8 @@ function fStartChatComMaterial(material){
   }
   intro += `Vou te fazer <strong>${total} pergunta${total>1?'s':''} rápida${total>1?'s':''}</strong> e gerar a arte. Leva ~1 minuto.`;
   fAddBot(intro, []);
-  setTimeout(()=>fNextStep(),900);
+  clearTimeout(fNextTimeout);
+  fNextTimeout = setTimeout(()=>fNextStep(),900);
 }
 function fAskCampSwitch(c){
   const msgs=document.getElementById('f-messages');
@@ -134,7 +137,8 @@ function fStartChat(){
   // F-05: mensagem inicial com contexto (quantas perguntas, tempo estimado)
   const total = fState.camp.perguntas.length;
   fAddBot(`Oi! Vou te fazer <strong>${total} pergunta${total>1?'s':''} rápida${total>1?'s':''}</strong> sobre <strong>${fState.camp.name}</strong> (formato ${fState.fmt.name}) e gerar a arte. Leva ~1 minuto. Pode clicar nas sugestões pra responder mais rápido.`,[]);
-  setTimeout(()=>fNextStep(),900);
+  clearTimeout(fNextTimeout);
+  fNextTimeout = setTimeout(()=>fNextStep(),900);
 }
 function fNextStep(){
   fState.stepIdx++;fUpdateProg();
@@ -357,8 +361,9 @@ function fReplaceImage(varId, btn){
   // Remove a bolha atual (que tem a preview)
   const msg = btn.closest('.msg');
   if(msg){
-    const next = msg.nextElementSibling;
-    if(next) next.remove();
+    while (msg.nextElementSibling) {
+      msg.nextElementSibling.remove();
+    }
     msg.remove();
   }
   // Se o fluxo já terminou (ou está no card de confirmação), tratar como EDIÇÃO:
@@ -379,9 +384,17 @@ function fGoBack(){
   const msgs = document.getElementById('f-messages');
   // Remove primeiro as bolhas transitórias (erro/typing) — elas é que quebravam a contagem
   ['field-err-msg','typing-el'].forEach(id=>{const e=document.getElementById(id);if(e)e.remove();});
-  // Remove a pergunta atual (bot) e a resposta anterior (user) — as 2 últimas .msg reais
   const bubbles = Array.from(msgs.querySelectorAll('.msg'));
-  for(let i=bubbles.length-1, removed=0; i>=0 && removed<2; i--, removed++){bubbles[i].remove();}
+  if (bubbles.length) {
+    bubbles.pop().remove(); // Remove current question
+    if (bubbles.length) {
+      const prev = bubbles.pop();
+      prev.remove();
+      if (prev.classList.contains('user') && bubbles.length) {
+        bubbles.pop().remove(); // Remove the actual previous bot question if previous was user text
+      }
+    }
+  }
   // Volta um passo: limpa o dado de TODOS os passos a partir do alvo (evita valor velho na preview)
   const target = fState.stepIdx - 1;
   fState.camp.perguntas.forEach((p,idx)=>{ if(idx>=target) delete fState.dados[p.id]; });
@@ -410,7 +423,8 @@ function fMostrarConfirm(){
   const labels={produto:'Produto',precoDe:'Preço original',precoPor:'Preço promo',validade:'Validade',desconto:'Desconto',pedidoMin:'Pedido mínimo',bairros:'Cobertura',codigo:'Código',condicao:'Condição',brinde:'Brinde',categoria:'Categoria',oferta:'Oferta'};
   const rows=c.perguntas.map((p,i)=>{
     const valor = d[p.id];
-    const label = labels[p.id] || p.label || p.id;
+    let labelRaw = labels[p.id] || p.label || p.id;
+    const label = labelRaw.charAt(0).toUpperCase() + labelRaw.slice(1);
     let valDisplay;
     if(p.isImage){
       if(valor && valor.startsWith('data:image')){
@@ -419,12 +433,12 @@ function fMostrarConfirm(){
         valDisplay = `<span class="confirm-val confirm-val-empty">— sem foto —</span>`;
       }
     } else {
-      valDisplay = `<span class="confirm-val">${gEsc(valor||'—')}</span>`;
+      valDisplay = `<span class="confirm-val" title="${gEsc(valor||'')}">${gEsc(valor||'—')}</span>`;
     }
     return `<div class="confirm-row">
-      <span class="confirm-label">${gEsc(label)}</span>
-      ${valDisplay}
-      <button class="confirm-edit" onclick="fEditCampo(${i})">editar</button>
+      <span class="confirm-label" title="${gEsc(label)}">${gEsc(label)}</span>
+      <div class="confirm-val-wrap">${valDisplay}</div>
+      <button class="confirm-edit" onclick="fEditCampo(${i})" title="Editar ${gEsc(label)}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:3px;vertical-align:-1px"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>Editar</button>
     </div>`;
   }).join('');
   const msgs=document.getElementById('f-messages');
@@ -847,7 +861,7 @@ async function fBaixar(btn, snapId){
     gToast('Não consegui gerar o arquivo. Tente enviar a foto de novo pelo botão de upload, ou escolha outra imagem.','error');
   }finally{ restore(); }
 }
-function fRefazer(){fState.stepIdx=-1;fState.dados={};fState.done=false;fClearImgCache();_fArtSnapshots={};_fArtCaptions={};document.getElementById('f-messages').innerHTML='';fUpdateProg();fAddBot(`Vamos refazer a arte da <strong>${fState.camp.name}</strong>.`,[]);setTimeout(()=>fNextStep(),500);}
+function fRefazer(){fState.stepIdx=-1;fState.dados={};fState.done=false;fClearImgCache();_fArtSnapshots={};_fArtCaptions={};const msgs=document.getElementById('f-messages');if(msgs)msgs.innerHTML='';fUpdateProg();fAddBot(`Vamos refazer a arte da <strong>${fState.camp.name}</strong>.`,[]);clearTimeout(fNextTimeout);fNextTimeout=setTimeout(()=>fNextStep(),500);}
 // Mobile: volta do chat para o catálogo (desfaz o colapso de colunas).
 function fMobileBackToCatalog(){
   try{ document.body.classList.remove('f-mobile-chat'); }catch(e){}
@@ -886,6 +900,7 @@ function fCancelReset(){
 
 function fAddBot(html,qrs,canGoBack){
   const msgs=document.getElementById('f-messages');
+  if(!msgs) return;
   const w=document.createElement('div');w.className='msg bot';
   let q='';
   if(qrs&&qrs.length){
@@ -940,6 +955,7 @@ function _fUserInitials(){
 }
 function fAddUser(txt){
   const msgs=document.getElementById('f-messages');
+  if(!msgs) return;
   const w=document.createElement('div');w.className='msg user';
   w.innerHTML=`<div><div class="bbl">${gEsc(txt)}</div></div><div class="av u">${_fUserInitials()}</div>`;
   msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;

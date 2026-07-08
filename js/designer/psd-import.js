@@ -535,19 +535,21 @@ function _dPsdReadPsd(buffer, agPsd){
     const mainParse=()=>{ if(done)return; done=true;
       try{ const psd=agPsd.readPsd(buffer,{useImageData:false,skipLayerImaging:false}); resolve({psd:psd, res:_dPsdResolution(psd), worker:false}); }
       catch(e){ resolve({error:e}); } };
-    let worker, to;
+    let worker, to, workerUrl;
     try{
       const blob=new Blob([_DPSD_WORKER_SRC],{type:'application/javascript'});
-      worker=new Worker(URL.createObjectURL(blob));
-      to=setTimeout(()=>{ try{worker.terminate();}catch(e){} mainParse(); }, 25000);
-      worker.onmessage=(ev)=>{ clearTimeout(to); try{worker.terminate();}catch(e){}
+      workerUrl = URL.createObjectURL(blob);
+      worker=new Worker(workerUrl);
+      const cleanup = () => { if(workerUrl){URL.revokeObjectURL(workerUrl);workerUrl=null;} try{worker.terminate();}catch(e){} };
+      to=setTimeout(()=>{ cleanup(); mainParse(); }, 25000);
+      worker.onmessage=(ev)=>{ clearTimeout(to); cleanup();
         if(done) return;
         if(ev.data&&ev.data.ok&&ev.data.tree){ done=true;
           const tree=ev.data.tree;
           resolve({psd:{width:tree.width,height:tree.height,children:(tree.children||[]).map(_dPsdRebuildNode)}, res:(+tree.res)||72, worker:true});
         } else mainParse();
       };
-      worker.onerror=()=>{ clearTimeout(to); try{worker.terminate();}catch(e){} mainParse(); };
+      worker.onerror=()=>{ clearTimeout(to); cleanup(); mainParse(); };
       const copy=buffer.slice(0); // transfere a CÓPIA; original fica pro fallback
       worker.postMessage({buffer:copy, lib:new URL('assets/vendor/ag-psd.js',location.href).href, cdn:'https://cdn.jsdelivr.net/npm/ag-psd/dist/bundle.js'}, [copy]);
     }catch(e){ if(to)clearTimeout(to); mainParse(); }
@@ -1238,7 +1240,7 @@ async function dPsdRenderPreview(){
     if(it.imgUrl){
       await new Promise(resolve=>{
         const img=new Image();
-        img.onload=()=>{ ctx.drawImage(img, it.x, it.y, it.w, it.h); resolve(); };
+        img.onload=()=>{ try{ctx.drawImage(img, it.x, it.y, it.w, it.h);}catch(e){} resolve(); };
         img.onerror=resolve;
         img.src=it.imgUrl;
       });

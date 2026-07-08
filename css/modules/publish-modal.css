@@ -258,6 +258,11 @@
   align-items:center;justify-content:center;
   gap:4px;pointer-events:none;
 }
+/* Render da arte real dentro da miniatura (camadas escaladas p/ caber) */
+.pub-ab-thumb-render{
+  position:absolute;inset:0;
+  overflow:hidden;pointer-events:none;
+}
 .pub-ab-thumb-fmt{
   font-family:'Roboto',sans-serif;font-weight:900;
   font-size:13px;letter-spacing:.06em;

@@ -9,6 +9,7 @@
 /* ══ ESTADO DA PUBLICAÇÃO ══ */
 let dPubSelectedABs = new Set();   // IDs das pranchetas selecionadas
 let dPubPermissoes  = {};          // permissões compartilhadas
+let dPubObservers   = [];          // cleanup de observers
 let dPrevToolForSpace = null;      // ferramenta anterior ao pressionar Espaço
 
 function dGetActiveTemplate(){
@@ -115,6 +116,8 @@ function dPublishRender(){
 
 /* ── GRID DE PRANCHETAS ── */
 function dPublishRenderArtboards(){
+  dPubObservers.forEach(obs=>obs.disconnect());
+  dPubObservers=[];
   const grid=document.getElementById('pub-ab-grid');if(!grid)return;
   const ab=dGetActiveAB();
   if(!ab||!dLayers.length){
@@ -124,10 +127,8 @@ function dPublishRenderArtboards(){
   const checked=dPubSelectedABs.has(ab.id);
   const bgLyr=dLayers.find(l=>l.type==='shape'&&l.x===0&&l.y===0);
   const bgColor=bgLyr?bgLyr.fill:'#e8e8e8';
-  const isLight=dPubIsLight(bgColor);
-  const txtColor=isLight?'rgba(0,0,0,.6)':'rgba(255,255,255,.85)';
-  const ratio=ab.w&&ab.h?Math.min(1,ab.h/ab.w):1.78;
-  const fmtLabel=(ab.fmt||'custom').toUpperCase();
+  // Proporção real da prancheta (cap 2.2 p/ não gerar cards absurdamente altos)
+  const ratio=ab.w&&ab.h?Math.min(2.2,ab.h/ab.w):1.78;
   const tid='tmpl-ab-'+ab.id;
   let existingName=ab.name;
   for(const f of dFolders){const t=f.templates.find(x=>x.id===tid);if(t){existingName=t.name;break;}}
@@ -135,11 +136,8 @@ function dPublishRenderArtboards(){
     <div class="pub-ab-check-wrap">
       <input type="checkbox" class="pub-ab-chk" id="pub-ab-chk-${ab.id}" ${checked?'checked':''} onclick="event.stopPropagation();dPubToggleAB('${ab.id}')">
     </div>
-    <div class="pub-ab-thumb" style="background:${bgColor};padding-top:${Math.min(ratio,2)*100}%">
-      <div class="pub-ab-thumb-inner" style="color:${txtColor}">
-        <span class="pub-ab-thumb-fmt">${fmtLabel}</span>
-        <span class="pub-ab-thumb-dim">${ab.w}×${ab.h}</span>
-      </div>
+    <div class="pub-ab-thumb" style="background:${bgColor};padding-top:${ratio*100}%">
+      <div class="pub-ab-thumb-render" id="pub-ab-render-${ab.id}"></div>
     </div>
     <div class="pub-ab-info">
       <input class="pub-ab-name-inp" id="pub-ab-name-${ab.id}" value="${existingName.replace(/"/g,'&quot;')}" placeholder="Nome do material" onclick="event.stopPropagation()" title="Nome que aparecerá no catálogo do franqueado">
@@ -147,6 +145,23 @@ function dPublishRenderArtboards(){
   </div>`;
   setTimeout(()=>{
     const card=document.getElementById('pub-ab-card-'+ab.id);
+    // Renderiza a arte real dentro da miniatura
+    const renderBox=document.getElementById('pub-ab-render-'+ab.id);
+    if(renderBox){
+      const inner=document.createElement('div');
+      inner.style.cssText='position:absolute;left:0;top:0;transform-origin:top left;';
+      inner.style.width=ab.w+'px';
+      inner.style.height=ab.h+'px';
+      dPubPaintLayers(inner, ab);
+      renderBox.appendChild(inner);
+      dPubFitThumbRender(renderBox, inner, ab);
+      // Reescala se o grid mudar de largura (responsivo)
+      if(typeof ResizeObserver!=='undefined'){
+        const obs = new ResizeObserver(()=>dPubFitThumbRender(renderBox, inner, ab));
+        obs.observe(renderBox);
+        dPubObservers.push(obs);
+      }
+    }
     if(card){
       card.addEventListener('mouseenter',()=>dPubRenderPreview(ab,card));
       card.addEventListener('mouseleave',dPubHidePreview);
@@ -164,29 +179,12 @@ function dPubIsLight(hex){
 /* ── PREVIEW POPUP ── */
 const PUB_PREVIEW_W = 220; // largura fixa da prévia em px
 
-function dPubRenderPreview(ab, cardEl){
-  const popup=document.getElementById('pub-ab-preview-popup');
-  const inner=document.getElementById('pub-preview-inner');
-  const footer=document.getElementById('pub-preview-footer');
-  if(!popup||!inner)return;
-
-  const scale=PUB_PREVIEW_W/ab.w;
-  const previewH=Math.round(ab.h*scale);
-
-  // Redimensiona o container do popup
-  popup.style.width=PUB_PREVIEW_W+'px';
-  popup.style.height=(previewH+32)+'px'; // +32 para o footer
-
-  // Renderiza layers
-  inner.innerHTML='';
-  inner.style.width=ab.w+'px';
-  inner.style.height=ab.h+'px';
-  inner.style.transform=`scale(${scale})`;
-  inner.style.transformOrigin='top left';
-  // (não sobrescrever height com previewH: o inner mantém a altura lógica ab.h e o
-  //  transform:scale já reduz para previewH — senão a altura escalava duas vezes)
-
-  ab.layers.filter(l=>l.visible).forEach(l=>{
+// Desenha as camadas da prancheta dentro de `container` em tamanho lógico
+// (ab.w × ab.h). O caller aplica o transform:scale. Reutilizado pela miniatura
+// do card e pelo popup de hover.
+function dPubPaintLayers(container, ab){
+  container.innerHTML='';
+  (ab.layers||[]).filter(l=>l.visible).forEach(l=>{
     const el=document.createElement('div');
     el.style.position='absolute';
     el.style.left=l.x+'px';el.style.top=l.y+'px';
@@ -226,8 +224,37 @@ function dPubRenderPreview(ab, cardEl){
         el.textContent=l.imgVar||'foto';
       }
     }
-    inner.appendChild(el);
+    container.appendChild(el);
   });
+}
+
+// Escala o inner (tamanho lógico ab.w×ab.h) para caber na largura do box de render.
+function dPubFitThumbRender(renderBox, inner, ab){
+  const w=renderBox.clientWidth;
+  if(w>0 && ab.w) inner.style.transform='scale('+(w/ab.w)+')';
+}
+
+function dPubRenderPreview(ab, cardEl){
+  const popup=document.getElementById('pub-ab-preview-popup');
+  const inner=document.getElementById('pub-preview-inner');
+  const footer=document.getElementById('pub-preview-footer');
+  if(!popup||!inner)return;
+
+  const scale=PUB_PREVIEW_W/ab.w;
+  const previewH=Math.round(ab.h*scale);
+
+  // Redimensiona o container do popup
+  popup.style.width=PUB_PREVIEW_W+'px';
+  popup.style.height=(previewH+32)+'px'; // +32 para o footer
+
+  // Renderiza layers
+  inner.style.width=ab.w+'px';
+  inner.style.height=ab.h+'px';
+  inner.style.transform=`scale(${scale})`;
+  inner.style.transformOrigin='top left';
+  // (não sobrescrever height com previewH: o inner mantém a altura lógica ab.h e o
+  //  transform:scale já reduz para previewH — senão a altura escalava duas vezes)
+  dPubPaintLayers(inner, ab);
 
   // Footer com info da prancheta
   if(footer){
@@ -271,7 +298,15 @@ function dPubSelectAllAB(sel){
 function dPublishRenderPerms(){
   const permList=document.getElementById('pub-perm-list');if(!permList)return;
   const allVars=new Set();
-  dExtractTemplateVars(dLayers).forEach(v=>allVars.add(v));
+  if (typeof dArtboards !== 'undefined' && dArtboards && dArtboards.length) {
+    dArtboards.forEach(ab => {
+      if(dPubSelectedABs.has(ab.id)) {
+        dExtractTemplateVars(ab.layers).forEach(v=>allVars.add(v));
+      }
+    });
+  } else {
+    dExtractTemplateVars(dLayers).forEach(v=>allVars.add(v));
+  }
   const vars=[...allVars];
   if(!vars.length){
     permList.innerHTML='<div class="pub-empty">As pranchetas selecionadas não têm variáveis editáveis ({{nome}}).</div>';return;

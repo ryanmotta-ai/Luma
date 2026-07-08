@@ -175,8 +175,8 @@ function dDefaultPublishMeta(){
 function dExtractTemplateVars(layers){
   const vars=new Set();
   (layers||[]).forEach(l=>{
-    if(l.content){ const re=gVarRegex(); let m; while((m=re.exec(l.content))) vars.add(m[1]); }
-    if(l.imgVar) vars.add(l.imgVar);
+    if(l.content){ const re=gVarRegex(); let m; while((m=re.exec(l.content))) vars.add(m[1].trim()); }
+    if(l.imgVar) vars.add(l.imgVar.trim());
   });
   return Array.from(vars);
 }
@@ -700,6 +700,44 @@ function dLoadTemplate(tmpl,folder){
   gToast('Template "'+tmpl.name+'" carregado na prancheta ativa');
 }
 
+/* ══ RENOMEAR O DOCUMENTO/ARTE ATIVA (rótulo da topbar) ══
+   Canvas único: o nome do projeto = nome da arte. É o que vai pro card de
+   publicação e pro catálogo do franqueado. Edição inline no próprio rótulo. */
+function dProjectRename(){
+  const span=document.getElementById('dt-project-name');
+  if(!span||span.dataset.editing==='1')return;
+  const wrap=span.closest('.dt-project-wrap');if(!wrap)return;
+  span.dataset.editing='1';
+  const cur=(span.textContent||'').trim();
+  const inp=document.createElement('input');
+  inp.type='text';inp.value=cur;inp.className='dt-project-name-input';
+  inp.maxLength=60;inp.setAttribute('aria-label','Nome do projeto');
+  span.style.display='none';
+  wrap.insertBefore(inp,span);
+  inp.focus();inp.select();
+  let done=false;
+  const finish=(save)=>{
+    if(done)return;done=true;
+    const val=inp.value.trim();
+    if(save&&val){
+      span.textContent=val;
+      const ab=(typeof dGetActiveAB==='function')?dGetActiveAB():null;
+      if(ab) ab.name=val;
+      if(typeof dArtboards!=='undefined'&&dArtboards.length) dArtboards[0].name=val;
+      if(typeof dMarkUnsaved==='function') dMarkUnsaved();
+      if(typeof dPersistArtboards==='function') dPersistArtboards();
+    }
+    inp.remove();span.style.display='';delete span.dataset.editing;
+  };
+  inp.addEventListener('keydown',e=>{
+    e.stopPropagation(); // não dispara os atalhos de ferramenta do designer
+    if(e.key==='Enter'){e.preventDefault();finish(true);}
+    else if(e.key==='Escape'){e.preventDefault();finish(false);}
+  });
+  inp.addEventListener('click',e=>e.stopPropagation());
+  inp.addEventListener('blur',()=>finish(true));
+}
+
 /* ══ MODAL "EDITANDO PASTA" (capa, campanha, grupos, agendamento) ══ */
 const FOLDER_GROUPS=['Todos os usuários','Franquias SP','Franquias RJ','Novas unidades','Região Sul'];
 let dEditingFolderId=null;     // null = criação; id = edição
@@ -944,6 +982,8 @@ function dNewArtboardCustom(w,h,bg,dpi,fmt){
   dHistoryReset();
   if(typeof dRenderWorkspace==='function')dRenderWorkspace();
   dApplyFormat();dRenderCanvas();dRenderLayersList();dRenderABList();
+  const projNameEl=document.getElementById('dt-project-name');
+  if(projNameEl) projNameEl.textContent=ab.name;
   setTimeout(dFitToScreen,60);
   return ab;
 }
@@ -1895,8 +1935,9 @@ function dRenderTemplateToDOM(container, tmpl) {
         textNode.innerHTML = l.runs.map(r => `<span style="color:${r.color || 'inherit'};font-size:${r.fontSize || _renderFs}px;font-family:${dTextFontParts(r.font).family};font-weight:${dTextFontParts(r.font).weight};${r.letterSpacing ? 'letter-spacing:' + r.letterSpacing + 'px;' : ''}">${gEsc(r.text || '').replace(/\n/g, '<br>')}</span>`).join('');
       } else {
         textNode.innerHTML = gEsc(l.content || '').replace(gVarRegex(), (m, n) => {
-          const v = (typeof dVars !== 'undefined') && dVars.find(x => x.name === n);
-          return v ? (v.label || n) : n;
+          const varName = n.trim();
+          const v = (typeof dVars !== 'undefined') && dVars.find(x => x.name === varName);
+          return v ? (v.label || varName) : varName;
         });
       }
       if (l.gradient && l.gradient.stops && l.gradient.stops.length && !(l.runs && l.runs.length)) {

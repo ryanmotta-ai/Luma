@@ -524,9 +524,8 @@
 }
 #d-right.show-layers #d-layers-section {
   display: flex !important;
-  flex: none;
-  height: var(--d-lyr-h, 240px);
-  min-height: 80px;
+  flex: 1 1 50%; /* Ocupa 50% dividindo com propriedades */
+  min-height: 200px;
   flex-direction: column;
   overflow: hidden;
 }
@@ -537,16 +536,8 @@
   padding: 4px 8px;
 }
 #d-layers-resize-handle{
-  flex-shrink: 0;
-  height: 6px;
-  cursor: ns-resize;
-  background: transparent;
-  border-top: 1px solid var(--d-border);
-  border-bottom: 1px solid var(--d-border);
-  position: relative;
-  transition: background .15s;
+  display: none !important; /* Desabilitado, pois agora o layout se modula automaticamente 50/50 */
 }
-#d-layers-resize-handle:hover{ background: rgba(255,144,0,.12); }
 #d-layers-resize-handle::after{
   content:'';
   position: absolute;
@@ -559,14 +550,14 @@
 }
 #d-layers-resize-handle:hover::after{ background: var(--dm-orange); }
 #d-right.show-layers #d-blend-section {
-  display: block !important;
+  display: flex !important;
   flex-shrink: 0;
   border-bottom: 1px solid var(--d-border);
 }
 #d-right.show-layers #d-panel-camada {
   display: flex !important;
-  flex: 1;
-  min-height: 0;
+  flex: 1 1 50%; /* Ocupa os outros 50% */
+  min-height: 200px;
   overflow-y: auto;
   flex-direction: column;
 }
@@ -617,21 +608,22 @@
 }
 .d-layers-search-row input {
   flex: 1;
-  padding: 6px 8px 6px 26px;
-  background: var(--d-surf2);
-  border: 1px solid transparent;
-  border-radius: 4px;
+  padding: 6px 8px 6px 30px;
+  background: transparent;
+  border: 1px solid var(--d-border2);
+  border-radius: 6px;
   color: var(--d-text);
-  font-size: 11px;
+  font-size: 12px;
   outline: none;
   transition: all 0.15s;
 }
 .d-layers-search-row input:hover {
-  background: var(--d-surf3);
+  background: var(--d-surf2);
 }
 .d-layers-search-row input:focus {
-  background: var(--d-dark);
+  background: var(--d-surf);
   border-color: var(--dm-orange);
+  box-shadow: 0 0 0 2px rgba(255, 144, 0, 0.1);
 }
 .d-layers-filter-btn {
   background: transparent;
@@ -656,18 +648,23 @@
   display: flex;
   align-items: center;
   justify-content: space-around;
-  padding: 6px 10px;
-  background: var(--d-dark);
-  border-top: 1px solid var(--d-border);
+  padding: 10px 12px;
+  background: var(--d-surf);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-top: 1px solid var(--d-border2);
   flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
 }
 .d-lyr-tb-btn {
   background: transparent;
   border: none;
   color: var(--d-text3);
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -685,54 +682,54 @@
 
 /* PS-Style Blending & Locks panel */
 .ps-blend-bar {
-  padding: 6px 8px;
-  background: var(--d-surf);
+  padding: 10px 12px;
+  background: transparent;
   border-bottom: 1px solid var(--d-border);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
 }
 .ps-blend-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: 12px;
 }
 .ps-select {
   flex: 1;
   min-width: 0;
-  height: 22px;
-  background: var(--d-surf2);
-  border: 1px solid transparent;
+  height: 26px;
+  background: transparent;
+  border: 1px solid var(--d-border2);
   border-radius: 4px;
   color: var(--d-text);
   font-size: 11px;
-  padding: 0 4px;
+  padding: 0 6px;
   outline: none;
   transition: all 0.15s;
   cursor: pointer;
 }
 .ps-select:hover, .ps-select:focus {
-  background: var(--d-dark);
+  background: var(--d-surf2);
   border-color: var(--d-border);
 }
 .ps-input-wrap {
   display: flex;
   align-items: center;
-  background: var(--d-surf2);
-  border: 1px solid transparent;
+  background: transparent;
+  border: 1px solid var(--d-border2);
   border-radius: 4px;
-  height: 22px;
+  height: 26px;
   padding: 0 6px;
   transition: all 0.15s;
   flex: 0 0 auto;
 }
 .ps-input-wrap:focus-within {
-  background: var(--d-dark);
+  background: var(--d-surf);
   border-color: var(--dm-orange);
 }
 .ps-input-wrap:hover:not(:focus-within) {
-  background: var(--d-surf3);
+  background: var(--d-surf2);
 }
 .ps-label {
   font-size: 10px;

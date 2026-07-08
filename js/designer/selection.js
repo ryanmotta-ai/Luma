@@ -44,7 +44,10 @@ function dObjSelectStart(e, frame) {
   const x = (e.clientX - rect.left) / scale;
   const y = (e.clientY - rect.top) / scale;
 
-  // Criar div de preview (rubber band)
+  // Criar div de preview (rubber band) e limpar anteriores
+  const oldPreviews = frame.querySelectorAll('.d-objsel-preview');
+  oldPreviews.forEach(p => p.remove());
+
   const preview = document.createElement('div');
   preview.className = 'd-objsel-preview';
   preview.style.cssText =
@@ -126,7 +129,7 @@ function dObjSelectEnd(e) {
   for (let i = 0; i < dLayers.length; i++) {
     const l = dLayers[i];
     // Pular layers invisíveis, travados e grupos
-    if (!l.visible || l.locked || l.type === 'group') continue;
+    if (!dIsLayerVisible(l) || l.locked || l.type === 'group') continue;
 
     const iou = _dObjSelectIOU(rx, ry, rw, rh, l.x, l.y, l.w, l.h);
     if (iou > bestIOU) {
@@ -194,7 +197,7 @@ function dQuickSelectAt(x, y, additive, subtractive) {
     const l = dLayers[i];
 
     // Pular invisíveis, travados e grupos
-    if (!l.visible || l.locked || l.type === 'group') continue;
+    if (!dIsLayerVisible(l) || l.locked || l.type === 'group') continue;
 
     // Hit-test: verificar se (x,y) está dentro da bounding box do layer
     if (!_dQuickSelectHitTest(l, x, y)) continue;
@@ -233,9 +236,18 @@ function dQuickSelectAt(x, y, additive, subtractive) {
  * @private
  */
 function _dQuickSelectHitTest(layer, px, py) {
+  let hx = px, hy = py;
+  if (layer.rotation) {
+    const cx = layer.x + layer.w / 2;
+    const cy = layer.y + layer.h / 2;
+    const rad = -layer.rotation * Math.PI / 180;
+    hx = cx + (px - cx) * Math.cos(rad) - (py - cy) * Math.sin(rad);
+    hy = cy + (px - cx) * Math.sin(rad) + (py - cy) * Math.cos(rad);
+  }
+
   // Verificar bounding box primeiro (descarta rápido)
-  if (px < layer.x || px > layer.x + layer.w) return false;
-  if (py < layer.y || py > layer.y + layer.h) return false;
+  if (hx < layer.x || hx > layer.x + layer.w) return false;
+  if (hy < layer.y || hy > layer.y + layer.h) return false;
 
   // Para shapes com forma de elipse/círculo, fazer hit-test preciso
   if (layer.type === 'shape' && (layer.shapeKind === 'circle' || layer.shapeKind === 'ellipse')) {
@@ -247,9 +259,9 @@ function _dQuickSelectHitTest(layer, px, py) {
 
     if (rx <= 0 || ry <= 0) return false;
 
-    // Equação da elipse: ((px-cx)/rx)^2 + ((py-cy)/ry)^2 <= 1
-    const dx = (px - cx) / rx;
-    const dy = (py - cy) / ry;
+    // Equação da elipse: ((hx-cx)/rx)^2 + ((hy-cy)/ry)^2 <= 1
+    const dx = (hx - cx) / rx;
+    const dy = (hy - cy) / ry;
     return (dx * dx + dy * dy) <= 1;
   }
 
@@ -318,7 +330,7 @@ function dMagicWandAt(x, y) {
   let sourceLayer = null;
   for (let i = dLayers.length - 1; i >= 0; i--) {
     const l = dLayers[i];
-    if (!l.visible || l.locked || l.type === 'group') continue;
+    if (!dIsLayerVisible(l) || l.locked || l.type === 'group') continue;
     if (_dQuickSelectHitTest(l, x, y)) {
       sourceLayer = l;
       break;
@@ -347,7 +359,7 @@ function dMagicWandAt(x, y) {
 
   for (let i = 0; i < dLayers.length; i++) {
     const l = dLayers[i];
-    if (!l.visible || l.locked || l.type === 'group') continue;
+    if (!dIsLayerVisible(l) || l.locked || l.type === 'group') continue;
 
     const lColor = _dMagicWandGetLayerColor(l);
     if (!lColor) continue;
@@ -471,7 +483,7 @@ function dRenderSelectionOverlay() {
 
   for (let i = 0; i < selectedIds.length; i++) {
     const l = dLayers.find(function (layer) { return layer.id === selectedIds[i]; });
-    if (!l || !l.visible) continue;
+    if (!l || !dIsLayerVisible(l)) continue;
 
     // Criar overlay SVG com borda tracejada animada (marching ants)
     const overlay = document.createElement('div');
@@ -555,7 +567,7 @@ function dObjSelectInRect(rect) {
 
     for (var i = 0; i < dLayers.length; i++) {
         var l = dLayers[i];
-        if (!l.visible || l.locked || l.type === 'group') continue;
+        if (!dIsLayerVisible(l) || l.locked || l.type === 'group') continue;
 
         var iou = _dIOU(rect, { x: l.x, y: l.y, w: l.w, h: l.h });
         if (iou > bestIou) {
@@ -615,7 +627,7 @@ function _dCompositeOffscreen(w, h) {
 
     for (var i = 0; i < dLayers.length; i++) {
         var l = dLayers[i];
-        if (!l.visible || l.type === 'group') continue;
+        if (!dIsLayerVisible(l) || l.type === 'group') continue;
 
         ctx.save();
         ctx.globalAlpha = (l.opacity != null ? l.opacity : 100) / 100;
@@ -678,7 +690,7 @@ function dMagicWandSelect(x, y, tolerance) {
     var srcLayer = null;
     for (var i = dLayers.length - 1; i >= 0; i--) {
         var l = dLayers[i];
-        if (!l.visible || l.locked || l.type === 'group') continue;
+        if (!dIsLayerVisible(l) || l.locked || l.type === 'group') continue;
         var hit = (typeof _dQuickSelectHitTest !== 'undefined')
             ? _dQuickSelectHitTest(l, x, y)
             : (x >= l.x && x <= l.x + l.w && y >= l.y && y <= l.y + l.h);

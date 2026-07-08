@@ -155,7 +155,8 @@ function fMarkHistBaixada(id){
 
 function fUpdateHistBadge(){
   const n=fGetHist().length;
-  document.getElementById('hist-badge').textContent = n>0 ? `(${n})` : '';
+  const badge = document.getElementById('hist-badge');
+  if(badge) badge.textContent = n>0 ? `(${n})` : '';
 }
 
 // Data relativa em pt-BR: "agora", "5min", "Hoje 14:32", "Ontem 09:15", "12/05 18:40"

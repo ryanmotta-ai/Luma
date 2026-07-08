@@ -476,6 +476,7 @@ function dRenderBrushPreview() {
 }
 
 // ── Nitidez (Unsharp Mask): amplifica bordas subtraindo versão desfocada ──
+let _dSharpenC1, _dSharpenC2;
 function dSharpenRegion(ctx, pos, sz) {
   const cv = ctx.canvas;
   const r = Math.max(4, sz);
@@ -487,15 +488,14 @@ function dSharpenRegion(ctx, pos, sz) {
 
   const orig = ctx.getImageData(sx, sy, w, h);
 
-  const tmp = document.createElement('canvas');
-  tmp.width = w; tmp.height = h;
-  tmp.getContext('2d').putImageData(orig, 0, 0);
+  if(!_dSharpenC1) { _dSharpenC1 = document.createElement('canvas'); _dSharpenC2 = document.createElement('canvas'); }
+  _dSharpenC1.width = w; _dSharpenC1.height = h;
+  _dSharpenC2.width = w; _dSharpenC2.height = h;
 
-  const tmp2 = document.createElement('canvas');
-  tmp2.width = w; tmp2.height = h;
-  const tctx2 = tmp2.getContext('2d');
+  _dSharpenC1.getContext('2d').putImageData(orig, 0, 0);
+  const tctx2 = _dSharpenC2.getContext('2d');
   tctx2.filter = 'blur(1.5px)';
-  tctx2.drawImage(tmp, 0, 0);
+  tctx2.drawImage(_dSharpenC1, 0, 0);
   const blurred = tctx2.getImageData(0, 0, w, h);
 
   // result = orig + (orig - blurred) * amount  →  realça bordas

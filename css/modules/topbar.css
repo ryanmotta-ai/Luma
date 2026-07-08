@@ -35,6 +35,12 @@
 #dt-project-name { font-size: 12px; font-weight: 500; color: #E0E0E0; letter-spacing: -0.2px; }
 .dt-chevron { color: rgba(255, 255, 255, 0.3); transition: transform 0.2s ease; }
 .dt-project-wrap:hover .dt-chevron { transform: translateY(1px); color: rgba(255, 255, 255, 0.6); }
+.dt-project-name-input {
+  font-size: 12px; font-weight: 500; letter-spacing: -0.2px;
+  color: #fff; background: rgba(255,255,255,0.1);
+  border: 1px solid var(--dm-orange); border-radius: 4px;
+  padding: 2px 6px; width: 160px; outline: none; font-family: inherit;
+}
 
 /* Botões base (undo/redo, lock, align) */
 .dt-btn {
@@ -104,8 +110,8 @@
 
 /* Lock Ratio & Align */
 .dt-lock-ratio-btn, .dt-align-btn {
-  width: 26px; height: 26px; border-radius: 4px; border: none; background: transparent;
-  color: #A0A0A0; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 4px; border: none; background: rgba(255,255,255,0.05);
+  color: #FFF; cursor: pointer; display: flex; align-items: center; justify-content: center;
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .dt-lock-ratio-btn:hover, .dt-align-btn:hover { background: rgba(255,255,255,0.1); color: #FFF; }
@@ -150,8 +156,9 @@ body.theme-light .dt-project-wrap:active { background: rgba(0,0,0,0.08); }
 body.theme-light #dt-project-name { color: #222; font-weight: 600; }
 body.theme-light .dt-chevron { color: #888; }
 body.theme-light .dt-project-wrap:hover .dt-chevron { color: #444; }
+body.theme-light .dt-project-name-input { color: #222; background: #fff; }
 
-body.theme-light .dt-btn, body.theme-light .dt-zoom-btn, body.theme-light .dt-lock-ratio-btn, body.theme-light .dt-align-btn { color: #555; }
+body.theme-light .dt-btn, body.theme-light .dt-zoom-btn, body.theme-light .dt-lock-ratio-btn, body.theme-light .dt-align-btn { color: #555; background: rgba(0,0,0,0.04); }
 body.theme-light .dt-btn:hover, body.theme-light .dt-zoom-btn:hover, body.theme-light .dt-lock-ratio-btn:hover, body.theme-light .dt-align-btn:hover { background: rgba(0,0,0,0.06); color: #000; }
 body.theme-light .dt-btn:active, body.theme-light .dt-zoom-btn:active, body.theme-light .dt-align-btn:active { background: rgba(0,0,0,0.1); }
 

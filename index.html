@@ -255,9 +255,8 @@ input:focus:-webkit-autofill {
   </button>
   <div class="top-right" id="topbar-right-global" style="margin-left: auto; display: flex; align-items: center; gap: 10px;">
     <!-- Elementos de Contexto (específicos de cada modo) -->
-    <div id="topbar-context-fran" style="display: flex; align-items: center;">
-      <div class="top-pill" id="top-camp-pill">Escolha uma campanha</div>
-    </div>
+    <!-- Pill de contexto removida: duplicava o f-ctx-tag do header do chat (fUpdateCtx guarda com if(pill)) -->
+    <div id="topbar-context-fran" style="display: flex; align-items: center;"></div>
     <div id="topbar-context-design" style="display: none; align-items: center;">
     </div>
     
@@ -563,10 +562,19 @@ input:focus:-webkit-autofill {
   <div id="prog-bar"><div id="prog-fill"></div></div>
   <div id="fran-main">
 
+    <!-- HOME (estado inicial em tela cheia — preenchido por fRenderHome) -->
+    <div id="f-home"></div>
+
     <!-- LEFT catalog -->
     <div id="fran-left">
       <div id="fran-left-head">
-        <h2>CAMPANHAS</h2>
+        <div class="fran-left-title-row">
+          <h2>CAMPANHAS</h2>
+          <button id="f-home-btn" onclick="fGoHome()" title="Voltar ao início" aria-label="Voltar ao início">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            Início
+          </button>
+        </div>
         <div class="f-tabs">
           <button class="f-tab active" onclick="fSwitchTab('catalogo',this)">Catálogo</button>
           <button class="f-tab" onclick="fSwitchTab('historico',this)">Minhas artes <span id="hist-badge"></span></button>
@@ -620,13 +628,32 @@ input:focus:-webkit-autofill {
         </div>
         <aside id="f-live-preview" aria-label="Prévia em tempo real">
           <div class="lp-head">
-            <div class="lp-title">PRÉVIA AO VIVO</div>
-            <div class="lp-sub" id="lp-sub">aguardando dados...</div>
+            <div class="lp-title">Prévia ao Vivo</div>
+            <div class="lp-sync">
+              <span class="lp-sync-dot"></span><span class="lp-sync-text" id="lp-sub">aguardando dados...</span>
+            </div>
           </div>
           <div class="lp-stage">
-            <canvas class="lp-canvas" id="lp-canvas" aria-label="Prévia do template"></canvas>
+            <div class="lp-canvas-wrap">
+              <canvas class="lp-canvas" id="lp-canvas" aria-label="Prévia do template"></canvas>
+            </div>
           </div>
-          <div class="lp-fields" id="lp-fields"></div>
+          <div class="lp-toolbar">
+            <div class="lp-tool-left">
+              <button class="lp-tool-btn" title="Ajustar à tela">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14v4a2 2 0 0 0 2 2h4"/><path d="M4 10V6a2 2 0 0 1 2-2h4"/><path d="M14 4h4a2 2 0 0 1 2 2v4"/><path d="M20 14v4a2 2 0 0 1-2 2h-4"/></svg>
+                <span class="lp-tool-label">Auto</span>
+              </button>
+              <div class="lp-tool-divider"></div>
+              <span class="lp-tool-text">100%</span>
+            </div>
+            <div class="lp-tool-right">
+              <span class="lp-tool-text">Ver guias</span>
+              <div class="lp-toggle">
+                <div class="lp-toggle-knob"></div>
+              </div>
+            </div>
+          </div>
         </aside>
       </div>
     </div>
@@ -660,7 +687,7 @@ input:focus:-webkit-autofill {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
         <span style="color: white;">Novo Projeto</span>
       </button>
-      <div class="dt-project-wrap" title="Renomear Projeto">
+      <div class="dt-project-wrap" title="Renomear projeto" onclick="if(typeof dProjectRename==='function')dProjectRename()">
         <span id="dt-project-name">Projeto Principal</span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dt-chevron"><polyline points="6 9 12 15 18 9"/></svg>
       </div>
@@ -756,7 +783,7 @@ input:focus:-webkit-autofill {
         <svg id="theme-icon-light" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
       </button>
       <button class="dt-btn" id="dt-help-btn" onclick="dOpenCheat()" title="Atalhos de teclado (?)" aria-label="Atalhos de teclado">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
       </button>
     </div>
   </div>
@@ -1873,9 +1900,9 @@ input:focus:-webkit-autofill {
       </button>
       <div class="field-details" id="dv-details" style="display:none">
         <div class="modal-field">
-          <label class="modal-label">Exemplo</label>
+          <label class="modal-label">Exemplo <span style="font-weight:400;opacity:.7">(só demonstração)</span></label>
           <input class="modal-input" id="dv-example" placeholder="ex: iPhone 17">
-          <span style="font-size:10px;color:var(--d-text3);margin-top:2px">Mostrado no cartão do campo e como dica para o franqueado.</span>
+          <span style="font-size:10px;color:var(--d-text3);margin-top:2px">Aparece na prancheta e como dica no chat do franqueado. Nunca sai na arte final.</span>
         </div>
         <div class="modal-field">
           <label class="modal-label">Categoria</label>
@@ -1891,7 +1918,7 @@ input:focus:-webkit-autofill {
         <div class="modal-field">
           <label class="modal-label">Valor padrão (avançado)</label>
           <input class="modal-input" id="dv-default" placeholder="ex: Promoção por tempo limitado">
-          <span style="font-size:10px;color:var(--d-text3);margin-top:2px">Usado quando o franqueado não preenche.</span>
+          <span style="font-size:10px;color:var(--d-text3);margin-top:2px">⚠ Este valor <strong>entra na arte final</strong> se o franqueado deixar em branco — diferente do Exemplo, que é só demonstração.</span>
         </div>
         <div class="modal-field">
           <label class="modal-label" style="display:flex;align-items:center;gap:8px">

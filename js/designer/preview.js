@@ -265,9 +265,14 @@ function pvRenderLayer(ctx, l, W, H, next){
           if(ir>fr){sh=l.h;sw=l.h*ir;sy=l.y;sx=l.x-(sw-l.w)/2;}
           else{sw=l.w;sh=l.w/ir;sx=l.x;sy=l.y-(sh-l.h)/2;}
         }
-        ctx.drawImage(img,sx,sy,sw,sh);
-        ctx.restore();
-        next();
+        try{
+          ctx.drawImage(img,sx,sy,sw,sh);
+        }catch(e){
+          console.warn('Erro ao desenhar imagem:', e);
+        }finally{
+          ctx.restore();
+          next();
+        }
       };
       img.onerror=()=>{pvRenderFramePlaceholder(ctx,l,r);ctx.restore();next();};
       img.src=l.imgUrl;

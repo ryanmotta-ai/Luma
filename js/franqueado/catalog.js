@@ -282,7 +282,7 @@ function fCampEl(c,isRec){
   // o card mostra a cor da marca em vez de um retângulo branco.
   // Scrim (gradiente topo+base) por cima da capa → badges legíveis mesmo em fotos claras.
   const thumbStyle = cover
-    ? `background-color:${c.color};background-image:linear-gradient(180deg,rgba(0,0,0,.34),rgba(0,0,0,0) 32%,rgba(0,0,0,0) 60%,rgba(0,0,0,.42)),url('${cover}');background-size:cover;background-position:center`
+    ? `background-color:${c.color};background-image:url('${cover}');background-size:cover;background-position:center`
     : `background:${c.color}`;
   const mats = (typeof fGetMaterialsForCamp==='function') ? fGetMaterialsForCamp(c.id) : [];
   const countLabel = mats.length ? `${mats.length} material${mats.length!==1?'is':''}` : 'Sem materiais';
@@ -430,6 +430,7 @@ function fFilterCamps(q){
 }
 function fSelectCamp(id){
   const c=fResolveCamp(id);if(!c)return;
+  fExitHome(); // vindo da home → devolve o layout de 3 colunas antes de seguir o fluxo normal
   if(fState.camp && fState.camp.id===c.id) {
     if(fState.materialView) return;
   }
@@ -439,7 +440,174 @@ function fSelectCamp(id){
     return;
   }
   fState.camp=c;
+  // Vindo da home (categoria ainda null): abre o rail na lista certa, não nos cards de categoria
+  if(!fState.categoria){
+    const isImpl=(typeof CAMPS_IMPLEMENTACAO!=='undefined')&&CAMPS_IMPLEMENTACAO.some(x=>x.id===c.id);
+    fState.categoria=isImpl?'implementacao':'campanhas';
+  }
   fRestoreCatalog();
   fUpdateCtx();
   fOpenMaterialCatalog(c);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   HOME DO FRANQUEADO — estado inicial em tela cheia (vitrine).
+   fGoHome/fExitHome ligam/desligam o modo via body.f-home-mode;
+   os fluxos existentes (materiais → chat → prévia) ficam intactos.
+══════════════════════════════════════════════════════════════ */
+function fGoHome(){
+  document.body.classList.add('f-home-mode');
+  document.body.classList.remove('f-mobile-chat');
+  fRenderHome(); // com coreografia de entrada
+}
+function fExitHome(){
+  // Ao sair da home, as colunas entram com direção (rail desliza da esquerda,
+  // conteúdo funde) — classe one-shot removida após a animação.
+  const was=document.body.classList.contains('f-home-mode');
+  document.body.classList.remove('f-home-mode');
+  if(was){
+    document.body.classList.add('f-cols-enter');
+    setTimeout(()=>document.body.classList.remove('f-cols-enter'),560);
+  }
+}
+
+// Índices de stagger da cascata: --fi por bloco estrutural (herdado pelos cards
+// via custom property), --ci por card dentro do bloco. Caps evitam cauda longa.
+function _fhApplyStagger(root){
+  let fi=0;
+  root.querySelectorAll('.fh-head,.fh-search-row,#fh-body>*').forEach(n=>{
+    n.style.setProperty('--fi',Math.min(fi++,10));
+  });
+  root.querySelectorAll('.fh-grid,.fh-cont').forEach(g=>{
+    Array.prototype.forEach.call(g.children,(c,ci)=>c.style.setProperty('--ci',Math.min(ci,8)));
+  });
+}
+
+// Saudação por hora do dia + primeiro nome do perfil (escapado — vem do backend)
+function fHomeGreeting(){
+  const h=new Date().getHours();
+  const g=(h>=5&&h<12)?'Bom dia':(h>=12&&h<18)?'Boa tarde':'Boa noite';
+  let n='';
+  try{
+    const dn=(typeof gAuthState!=='undefined'&&gAuthState.user&&gAuthState.user.displayName)||'';
+    n=dn.trim().split(/\s+/)[0]||'';
+  }catch(e){}
+  return g+(n?', '+gEsc(n):'')+' 👋';
+}
+
+// Card de rascunho da fila "Continuar de onde parou" (dados vêm do usuário → escapar)
+function _fHomeDraftEl(hEntry){
+  const name=gEsc(hEntry.prod||hEntry.campName||'Arte');
+  const fmt=gEsc(hEntry.fmtName||'');
+  const when=(typeof fFormatHistDate==='function')?fFormatHistDate(hEntry.ts):'';
+  return `<button class="fh-draft" onclick="fHomeResume(${hEntry.id})">
+    <div class="fh-draft-th" style="background:linear-gradient(155deg,${gEsc(hEntry.campColor||'#FF9000')},rgba(0,0,0,.35)),${gEsc(hEntry.campColor||'#FF9000')}"></div>
+    <div class="fh-draft-info">
+      <div class="fh-draft-name">${name}${fmt?' — '+fmt:''}</div>
+      <div class="fh-draft-meta">Rascunho · ${when}</div>
+    </div>
+    <span class="fh-draft-go">Retomar →</span>
+  </button>`;
+}
+function fHomeResume(id){
+  fExitHome();
+  fEditFromHist(id);
+}
+function fHomeOpenHist(){
+  fExitHome();
+  const tabs=document.querySelectorAll('.f-tab');
+  if(tabs.length>1) fSwitchTab('historico', tabs[1]);
+}
+
+// Hero da campanha recomendada (mesma regra do rail: a "popular" das ativas)
+function _fHomeHeroEl(rec){
+  const cover=fCampCover(rec);
+  const mats=(typeof fGetMaterialsForCamp==='function')?fGetMaterialsForCamp(rec.id):[];
+  const matLabel=mats.length?`${mats.length} material${mats.length!==1?'is':''}`:'Materiais em breve';
+  const coverStyle=cover
+    ?`background-color:${rec.color};background-image:linear-gradient(180deg,rgba(0,0,0,.30),rgba(0,0,0,0) 35%,rgba(0,0,0,0) 65%,rgba(0,0,0,.38)),url('${cover}')`
+    :`background:linear-gradient(155deg,${rec.color},rgba(0,0,0,.45)),${rec.color}`;
+  const _flame='<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:-1px"><path d="M12 2s5 4 5 9a5 5 0 0 1-10 0c0-1 .3-2 .8-2.8C8 10 9 12 10 12c0-3 2-7 2-10z"/></svg>';
+  const _star='<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:-1.5px"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9"/></svg>';
+  return `<div class="fh-hero" onclick="fSelectCamp('${rec.id}')">
+    <div class="fh-hero-cover" style="${coverStyle}">
+      ${rec.badge?`<span class="fh-hero-badge">${gEsc(rec.badge)}</span>`:''}
+      ${rec.popular?`<span class="fh-hero-pop">${_flame} Popular</span>`:''}
+      ${cover?'':`<div class="fh-hero-prod">${gEsc(rec.previewProd||rec.name)}</div>`}
+    </div>
+    <div class="fh-hero-body">
+      <span class="fh-hero-eyebrow">${_star} RECOMENDADA AGORA</span>
+      <span class="fh-hero-name">${gEsc(rec.name)}</span>
+      <span class="fh-hero-meta">${matLabel}${rec.expiraDias?` · válida por ${rec.expiraDias} dias`:''}</span>
+      <span class="fh-hero-cta">Criar arte agora →</span>
+    </div>
+  </div>`;
+}
+
+// Corpo da home (seções). query preenchida = modo busca (lista achatada de resultados).
+function _fHomeBodyHTML(query){
+  const q=(query||'').trim().toLowerCase();
+  const {ativas,outras}=fGetCampaigns();
+  if(q){
+    const match=[...ativas,...outras,...(typeof CAMPS_IMPLEMENTACAO!=='undefined'?CAMPS_IMPLEMENTACAO:[])]
+      .filter(c=>c.name.toLowerCase().includes(q));
+    if(!match.length) return `<div class="fh-empty">Nenhuma campanha encontrada para “${gEsc(query)}”. Tente outro termo.</div>`;
+    return `<div class="fh-sec">Resultados <em>· ${match.length}</em></div>
+      <div class="camp-grid fh-grid">${match.map(c=>fCampEl(c,false)).join('')}</div>`;
+  }
+  const rec=ativas.find(c=>c.popular)||null;
+  const gridAtivas=ativas.filter(c=>!rec||c.id!==rec.id);
+  // Rascunhos mais recentes (máx 3) — atalho de retomada
+  let drafts=[];
+  try{ drafts=fGetHist().filter(x=>x.status==='rascunho').slice(0,3); }catch(e){}
+  const impl=(typeof CAMPS_IMPLEMENTACAO!=='undefined')?CAMPS_IMPLEMENTACAO:[];
+  return `
+    ${drafts.length?`<div class="fh-sec">Continuar de onde parou</div>
+    <div class="fh-cont">${drafts.map(_fHomeDraftEl).join('')}</div>`:''}
+    ${rec?_fHomeHeroEl(rec):''}
+    ${gridAtivas.length?`<div class="fh-sec">Ativas agora <em>· ${gridAtivas.length} campanha${gridAtivas.length!==1?'s':''}</em></div>
+    <div class="camp-grid fh-grid">${gridAtivas.map(c=>fCampEl(c,false)).join('')}</div>`:''}
+    ${outras.length?`<div class="fh-sec">Outras campanhas</div>
+    <div class="camp-grid fh-grid">${outras.map(c=>fCampEl(c,false)).join('')}</div>`:''}
+    ${impl.length?`<div class="fh-sec">Implementação <em>· para o lançamento da sua unidade</em></div>
+    <div class="camp-grid fh-grid">${impl.map(c=>fCampEl(c,false)).join('')}</div>`:''}`;
+}
+
+function fRenderHome(opts){
+  opts=opts||{};
+  const el=document.getElementById('f-home'); if(!el)return;
+  // silent=true (refresh do sync): atualiza o conteúdo sem re-rodar a cascata
+  el.classList.toggle('fh-anim', !opts.silent);
+  const nHist=(function(){try{return fGetHist().length;}catch(e){return 0;}})();
+  el.innerHTML=`<div class="fh-inner">
+    <div class="fh-head">
+      <div>
+        <h1 class="fh-greet">${fHomeGreeting()}</h1>
+        <p class="fh-sub">Escolha uma campanha e eu monto a arte com você — leva ~1 minuto.</p>
+      </div>
+      <button class="fh-mine" onclick="fHomeOpenHist()">Minhas artes${nHist?` <span class="fh-mine-badge">${nHist}</span>`:''}</button>
+    </div>
+    <div class="fh-search-row">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input id="fh-search" type="search" aria-label="Buscar campanha" placeholder="Buscar campanha…" oninput="fHomeFilter(this.value)"/>
+    </div>
+    <div id="fh-body">${_fHomeBodyHTML('')}</div>
+  </div>`;
+  _fhApplyStagger(el);
+}
+function fHomeFilter(q){
+  const body=document.getElementById('fh-body'); if(!body)return;
+  // Busca é digitação: resultados instantâneos, sem re-rodar a cascata a cada tecla
+  const home=document.getElementById('f-home');
+  if(home) home.classList.remove('fh-anim');
+  body.innerHTML=_fHomeBodyHTML(q);
+}
+// Re-renderiza a home quando o sync do backend traz capas/artes novas —
+// só se ela está visível e o usuário não está no meio de uma busca.
+// silent: atualização de dados não deve piscar/re-animar a tela.
+function fHomeRefreshIfIdle(){
+  if(!document.body.classList.contains('f-home-mode'))return;
+  const s=document.getElementById('fh-search');
+  if(s&&s.value)return;
+  fRenderHome({silent:true});
 }

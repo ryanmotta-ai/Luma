@@ -283,6 +283,7 @@ function dUpdateBrushCursor(){
 
 function dSetTool(t){
   dTool=t;
+  window.dPainting = false; // Reset seguro para pincéis
   // Registra as tools possíveis no dSetTool loop de active toggle
   ['select','obj-select','quick-select','magic-wand','hand','text','rect','ellipse','triangle','polygon','star','line','frame','img','var-data','qr-code','brush','eraser','stamp','bucket','gradient','blur','sharpen','smudge','eyedrop','color-sampler','ruler','note','count','text-h','text-v','mask-text-h','mask-text-v'].forEach(x=>{
     const b=document.getElementById('dtool-'+x);
@@ -394,6 +395,10 @@ function dStartMarquee(e){
       _dAdvSelFromEvent(e);
     return;
   }
+  if(['rect','ellipse','triangle','polygon','star','text','text-h','text-v','img','frame'].includes(dTool)){
+    dStartDrawShape(e);
+    return;
+  }
   if(dTool!=='select')return;
   if(e.target.classList.contains('canvas-layer'))return;
   if(e.target.classList.contains('layer-handle'))return;
@@ -473,6 +478,101 @@ function dEndMarquee(e){
   // Esconde/limpa o retângulo (se o dRenderCanvas não tiver removido)
   const el=document.getElementById('d-marquee');
   if(el)el.style.display='none';
+}
+
+let dDrawShapeState = null;
+
+function dStartDrawShape(e) {
+  const frame=document.getElementById('d-canvas-frame');
+  if(!frame)return;
+  e.preventDefault();
+  const rect=frame.getBoundingClientRect();
+  const scale=dZoomLevel/100;
+  const x=(e.clientX-rect.left)/scale;
+  const y=(e.clientY-rect.top)/scale;
+  dDrawShapeState = {startX:x, startY:y, tool: dTool};
+  const el = dEnsureMarqueeEl();
+  if(el){
+    el.style.left=x+'px';el.style.top=y+'px';
+    el.style.width='0px';el.style.height='0px';
+    el.style.display='block';
+    el.style.borderStyle='solid';
+    el.style.borderColor='var(--dm-orange)';
+  }
+  document.addEventListener('mousemove', dUpdateDrawShape);
+  document.addEventListener('mouseup', dEndDrawShape);
+}
+
+function dUpdateDrawShape(e) {
+  if(!dDrawShapeState)return;
+  const frame=document.getElementById('d-canvas-frame');
+  if(!frame)return;
+  const rect=frame.getBoundingClientRect();
+  const scale=dZoomLevel/100;
+  const x=(e.clientX-rect.left)/scale;
+  const y=(e.clientY-rect.top)/scale;
+  
+  let w = Math.abs(x - dDrawShapeState.startX);
+  let h = Math.abs(y - dDrawShapeState.startY);
+  let left = Math.min(dDrawShapeState.startX, x);
+  let top = Math.min(dDrawShapeState.startY, y);
+  
+  if (e.shiftKey) { // Proportional drawing
+    const max = Math.max(w, h);
+    w = max; h = max;
+    left = dDrawShapeState.startX < x ? dDrawShapeState.startX : dDrawShapeState.startX - w;
+    top = dDrawShapeState.startY < y ? dDrawShapeState.startY : dDrawShapeState.startY - h;
+  }
+
+  const el=document.getElementById('d-marquee');
+  if(el){el.style.left=left+'px';el.style.top=top+'px';el.style.width=w+'px';el.style.height=h+'px';}
+}
+
+function dEndDrawShape(e) {
+  document.removeEventListener('mousemove', dUpdateDrawShape);
+  document.removeEventListener('mouseup', dEndDrawShape);
+  if(!dDrawShapeState)return;
+  
+  const frame=document.getElementById('d-canvas-frame');
+  const rect=frame.getBoundingClientRect();
+  const scale=dZoomLevel/100;
+  const x=(e.clientX-rect.left)/scale;
+  const y=(e.clientY-rect.top)/scale;
+  
+  let w = Math.abs(x - dDrawShapeState.startX);
+  let h = Math.abs(y - dDrawShapeState.startY);
+  let left = Math.min(dDrawShapeState.startX, x);
+  let top = Math.min(dDrawShapeState.startY, y);
+
+  if (e.shiftKey) {
+    const max = Math.max(w, h);
+    w = max; h = max;
+    left = dDrawShapeState.startX < x ? dDrawShapeState.startX : dDrawShapeState.startX - w;
+    top = dDrawShapeState.startY < y ? dDrawShapeState.startY : dDrawShapeState.startY - h;
+  }
+  
+  const tool = dDrawShapeState.tool;
+  dDrawShapeState = null;
+  const el=document.getElementById('d-marquee');
+  if(el) { el.style.display='none'; el.style.borderStyle=''; el.style.borderColor=''; }
+  
+  if (w < 10 || h < 10) {
+    w = null; h = null;
+    left = dDrawShapeState.startX; top = dDrawShapeState.startY;
+  }
+  
+  if (tool === 'rect') {
+    if(typeof dAddShapeAt === 'function') dAddShapeAt(left, top, w, h);
+  } else if (['circle','ellipse','triangle','polygon','star'].includes(tool)) {
+    if(typeof dAddShapeKind === 'function') dAddShapeKind(tool, left, top, w, h);
+  } else if (tool === 'img') {
+    if(typeof dAddImageAt === 'function') dAddImageAt(left, top, w, h);
+  } else if (tool === 'frame') {
+    if(typeof dAddFrameAt === 'function') dAddFrameAt(left, top, w, h);
+  } else if (tool.startsWith('text')) {
+    const isVert = tool === 'text-v';
+    if(typeof dAddTextAt === 'function') dAddTextAt(left, top, isVert, w, h);
+  }
 }
 
 function dLayerIntersects(l,x1,y1,x2,y2){

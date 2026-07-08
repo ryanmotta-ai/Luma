@@ -98,6 +98,7 @@ function dMagicEraseAt(ctx, x, y, tolerance) {
   var tol = Math.max(0, tolerance !== undefined ? tolerance : 30);
   var MAX_PIXELS = 2000000;
 
+  if(window.dMagicEraseRunning) return;
   var ix = Math.round(x);
   var iy = Math.round(y);
   if (ix < 0 || ix >= W || iy < 0 || iy >= H) return;
@@ -126,98 +127,42 @@ function dMagicEraseAt(ctx, x, y, tolerance) {
   queue[tail] = startLi;
   tail = (tail + 1) % qCap;
 
-  var count = 0;
+  window.dMagicEraseRunning = true;
+  var bMinX = ix, bMaxX = ix, bMinY = iy, bMaxY = iy;
 
-  while (head !== tail && count < MAX_PIXELS) {
-    var li = queue[head];
-    head = (head + 1) % qCap;
-    count++;
+  function doChunk() {
+    var chunkLimit = count + 25000;
+    while (head !== tail && count < Math.min(MAX_PIXELS, chunkLimit)) {
+      var li = queue[head]; head = (head + 1) % qCap; count++;
+      var py = (li / W) | 0; var px = li % W; var idx = li * 4;
+      d[idx + 3] = 0; // apaga
+      if (px < bMinX) bMinX = px; if (px > bMaxX) bMaxX = px;
+      if (py < bMinY) bMinY = py; if (py > bMaxY) bMaxY = py;
 
-    var py = (li / W) | 0;
-    var px = li % W;
-    var idx = li * 4;
-
-    d[idx + 3] = 0; // apaga o pixel
-
-    // Atualiza bbox
-    if (px < minX) minX = px;
-    if (px > maxX) maxX = px;
-    if (py < minY) minY = py;
-    if (py > maxY) maxY = py;
-
-    // Verifica 4 vizinhos
-    var nx, ny, nli, nidx;
-
-    // esquerda
-    if (px > 0) {
-      nx = px - 1; ny = py; nli = ny * W + nx;
-      if (!visited[nli]) {
-        visited[nli] = 1;
-        nidx = nli * 4;
-        if (d[nidx + 3] > 0 && _dColorWithinTol(
-            [d[nidx], d[nidx+1], d[nidx+2], d[nidx+3]], seed, tol)) {
-          queue[tail] = nli;
-          tail = (tail + 1) % qCap;
-        }
-      }
+      var nx, ny, nli, nidx;
+      if (px > 0) { nx = px - 1; ny = py; nli = ny * W + nx; if (!visited[nli]) { visited[nli] = 1; nidx = nli * 4; if (d[nidx + 3] > 0 && _dColorWithinTol([d[nidx], d[nidx+1], d[nidx+2], d[nidx+3]], seed, tol)) { queue[tail] = nli; tail = (tail + 1) % qCap; } } }
+      if (px < W - 1) { nx = px + 1; ny = py; nli = ny * W + nx; if (!visited[nli]) { visited[nli] = 1; nidx = nli * 4; if (d[nidx + 3] > 0 && _dColorWithinTol([d[nidx], d[nidx+1], d[nidx+2], d[nidx+3]], seed, tol)) { queue[tail] = nli; tail = (tail + 1) % qCap; } } }
+      if (py > 0) { nx = px; ny = py - 1; nli = ny * W + nx; if (!visited[nli]) { visited[nli] = 1; nidx = nli * 4; if (d[nidx + 3] > 0 && _dColorWithinTol([d[nidx], d[nidx+1], d[nidx+2], d[nidx+3]], seed, tol)) { queue[tail] = nli; tail = (tail + 1) % qCap; } } }
+      if (py < H - 1) { nx = px; ny = py + 1; nli = ny * W + nx; if (!visited[nli]) { visited[nli] = 1; nidx = nli * 4; if (d[nidx + 3] > 0 && _dColorWithinTol([d[nidx], d[nidx+1], d[nidx+2], d[nidx+3]], seed, tol)) { queue[tail] = nli; tail = (tail + 1) % qCap; } } }
     }
-    // direita
-    if (px < W - 1) {
-      nx = px + 1; ny = py; nli = ny * W + nx;
-      if (!visited[nli]) {
-        visited[nli] = 1;
-        nidx = nli * 4;
-        if (d[nidx + 3] > 0 && _dColorWithinTol(
-            [d[nidx], d[nidx+1], d[nidx+2], d[nidx+3]], seed, tol)) {
-          queue[tail] = nli;
-          tail = (tail + 1) % qCap;
+    
+    if (head !== tail && count < MAX_PIXELS) {
+      setTimeout(doChunk, 0);
+    } else {
+      window.dMagicEraseRunning = false;
+      if (count >= MAX_PIXELS) { if (typeof gToast === 'function') gToast('Área grande demais para apagar — reduza a seleção'); }
+      var bx = Math.max(0, bMinX), by = Math.max(0, bMinY);
+      var bw = Math.min(W, bMaxX + 1) - bx, bh = Math.min(H, bMaxY + 1) - by;
+      if (bw > 0 && bh > 0) {
+        var patch = ctx.createImageData(bw, bh);
+        for (var row = 0; row < bh; row++) {
+          var srcOff = ((by + row) * W + bx) * 4; var dstOff = row * bw * 4;
+          patch.data.set(d.subarray(srcOff, srcOff + bw * 4), dstOff);
         }
-      }
-    }
-    // cima
-    if (py > 0) {
-      nx = px; ny = py - 1; nli = ny * W + nx;
-      if (!visited[nli]) {
-        visited[nli] = 1;
-        nidx = nli * 4;
-        if (d[nidx + 3] > 0 && _dColorWithinTol(
-            [d[nidx], d[nidx+1], d[nidx+2], d[nidx+3]], seed, tol)) {
-          queue[tail] = nli;
-          tail = (tail + 1) % qCap;
-        }
-      }
-    }
-    // baixo
-    if (py < H - 1) {
-      nx = px; ny = py + 1; nli = ny * W + nx;
-      if (!visited[nli]) {
-        visited[nli] = 1;
-        nidx = nli * 4;
-        if (d[nidx + 3] > 0 && _dColorWithinTol(
-            [d[nidx], d[nidx+1], d[nidx+2], d[nidx+3]], seed, tol)) {
-          queue[tail] = nli;
-          tail = (tail + 1) % qCap;
-        }
+        ctx.putImageData(patch, bx, by);
+        if(typeof dMarkUnsaved==='function') dMarkUnsaved();
       }
     }
   }
-
-  if (count >= MAX_PIXELS) {
-    if (typeof gToast === 'function') gToast('Área grande demais para apagar — reduza a seleção');
-  }
-
-  // putImageData apenas na bbox modificada
-  var bx = Math.max(0, minX);
-  var by = Math.max(0, minY);
-  var bw = Math.min(W, maxX + 1) - bx;
-  var bh = Math.min(H, maxY + 1) - by;
-  if (bw <= 0 || bh <= 0) return;
-
-  var patch = ctx.createImageData(bw, bh);
-  for (var row = 0; row < bh; row++) {
-    var srcOff = ((by + row) * W + bx) * 4;
-    var dstOff = row * bw * 4;
-    patch.data.set(d.subarray(srcOff, srcOff + bw * 4), dstOff);
-  }
-  ctx.putImageData(patch, bx, by);
+  doChunk();
 }

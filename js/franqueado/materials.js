@@ -137,8 +137,11 @@ function fCloseMaterialCatalog(){
 
     fRestoreCatalog();
     fUpdateCtx();
-    document.getElementById('f-messages').innerHTML='';
-    fAddBot('Escolha uma campanha no painel à esquerda pra começar.',[]);
+    // Voltar dos materiais → HOME (vitrine). O chat por trás fica no estado
+    // de boas-vindas (fallback caso o modo home seja desligado).
+    if(typeof fShowWelcome==='function') fShowWelcome();
+    else { document.getElementById('f-messages').innerHTML=''; fAddBot('Escolha uma campanha no painel à esquerda pra começar.',[]); }
+    if(typeof fGoHome==='function') fGoHome();
 
     chatCol.getBoundingClientRect(); // force reflow
     chatCol.classList.remove('fade-enter');

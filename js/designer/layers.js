@@ -259,7 +259,7 @@ function dCanvasSize(){ const ab=(typeof dGetActiveAB==='function')&&dGetActiveA
 function dAddText(){const f=dCanvasSize();dAddTextAt(20,Math.round(f.h/2));}
 function dAddShape(){dAddShapeAt(40,40);}
 function dAddImage(){dAddImageAt(40,100);}
-function dAddTextAt(x,y,vertical){  if (typeof dHistoryPush === 'function') dHistoryPush();
+function dAddTextAt(x,y,vertical,w,h){  if (typeof dHistoryPush === 'function') dHistoryPush();
   const id='l-'+(++dLyrCnt);
   const isVert = !!vertical;
   const layer = {
@@ -268,8 +268,8 @@ function dAddTextAt(x,y,vertical){  if (typeof dHistoryPush === 'function') dHis
     type: 'text',
     x,
     y,
-    w: isVert ? 50 : 200,
-    h: isVert ? 200 : 50,
+    w: w || (isVert ? 50 : 200),
+    h: h || (isVert ? 200 : 50),
     content: 'Novo texto {{variavel}}',
     font: "'Roboto Black'",
     fontSize: 32,
@@ -290,23 +290,23 @@ function dAddTextAt(x,y,vertical){  if (typeof dHistoryPush === 'function') dHis
   if (typeof gToast === 'function') gToast(isVert ? 'Camada de texto vertical adicionada' : 'Camada de texto adicionada');
   if (typeof dFlashLayer === 'function') setTimeout(()=>dFlashLayer(id),30);
 }
-function dAddShapeAt(x,y){  dHistoryPush();
+function dAddShapeAt(x,y,w,h){  dHistoryPush();
   const id='l-'+(++dLyrCnt);
-  dLayers.push({id,name:'Shape '+dLyrCnt,type:'shape',shapeKind:'rect',x,y,w:200,h:80,fill:'#FF9000',opacity:100,radius:0,visible:true});
+  dLayers.push({id,name:'Shape '+dLyrCnt,type:'shape',shapeKind:'rect',x,y,w:w||200,h:h||80,fill:'#FF9000',opacity:100,radius:0,visible:true});
   dSelLayerState(id);dRenderCanvas();dRenderLayersList();dStats();dMarkUnsaved();dSetTool('select');gToast('Forma adicionada');
   setTimeout(()=>dFlashLayer(id),30);
 }
-function dAddImageAt(x,y){  dHistoryPush();
+function dAddImageAt(x,y,w,h){  dHistoryPush();
   const id='l-'+(++dLyrCnt);
-  dLayers.push({id,name:'Imagem '+dLyrCnt,type:'image',x,y,w:120,h:120,imgUrl:'',imgVar:'',objectFit:'cover',visible:true});
+  dLayers.push({id,name:'Imagem '+dLyrCnt,type:'image',x,y,w:w||120,h:h||120,imgUrl:'',imgVar:'',objectFit:'cover',visible:true});
   dSelLayerState(id);dRenderCanvas();dRenderLayersList();dStats();dMarkUnsaved();dSetTool('select');gToast('Camada de imagem adicionada');
   setTimeout(()=>dFlashLayer(id),30);
 }
 function dAddFrame(){const f=dCanvasSize();dAddFrameAt(Math.round(f.w*.05),Math.round(f.h*.04));}
-function dAddFrameAt(x,y){  dHistoryPush();
+function dAddFrameAt(x,y,w,h){  dHistoryPush();
   const f=dCanvasSize();
   const id='l-'+(++dLyrCnt);
-  dLayers.push({id,name:'Moldura '+dLyrCnt,type:'frame',x,y,w:Math.round(f.w*.6),h:Math.round(f.h*.35),imgUrl:'',imgVar:'foto_produto',objectFit:'cover',frameShape:'rect',visible:true});
+  dLayers.push({id,name:'Moldura '+dLyrCnt,type:'frame',x,y,w:w||Math.round(f.w*.6),h:h||Math.round(f.h*.35),imgUrl:'',imgVar:'foto_produto',objectFit:'cover',frameShape:'rect',visible:true});
   dSelLayerState(id);dRenderCanvas();dRenderLayersList();dStats();dMarkUnsaved();dSetTool('select');gToast('Moldura adicionada — clique em + FOTO para inserir imagem');
   setTimeout(()=>dFlashLayer(id),30);
 }
@@ -582,7 +582,7 @@ function dSelectInactiveLayer(abId, layerId) {
 function dDeleteSelectedLayer() {
   if (dMultiSel.length) {
     dHistoryPush();
-    dLayers = dLayers.filter(x => !dMultiSel.includes(x.id));
+    dLayers = dLayers.filter(x => !dMultiSel.includes(x.id) && x.id !== dSelId);
     dMultiSel = [];
     dSelId = null;
     dRenderCanvas(); dRenderLayersList(); dStats(); dMarkUnsaved();
@@ -753,9 +753,13 @@ function dRenderLayersList(){
     let depth = 0;
     let currP = l.parentId;
     while(currP) {
-      depth++;
       const p = dLayers.find(x => x.id === currP);
-      currP = p ? p.parentId : null;
+      if (p) {
+        depth++;
+        currP = p.parentId;
+      } else {
+        currP = null;
+      }
     }
     const indent = 6 + (depth * 14);
     const indentStyle = `style="padding-left: ${indent}px;"`;
@@ -779,11 +783,11 @@ function dRenderLayersList(){
       ? `<span class="lyr-badge lyr-var lyr-dado" title="Dado: ${gEsc(_boundV.label||_boundV.name)}">◆ ${gEsc(_boundV.label||_boundV.name)}</span>`
       : (hasVarEmbedded ? `<span class="lyr-badge lyr-var" title="Contém um campo"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;color:var(--var-color, #a855f7)"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>` : '');
 
-    let typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="10" height="10" rx="1"/><circle cx="16" cy="16" r="5"/></svg>`; // shape default
-    if (l.type === 'text') typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>`;
-    else if (l.type === 'image') typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
-    else if (l.type === 'frame') typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>`;
-    else if (l.type === 'group') typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`;
+    let typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="10" height="10" rx="1"/><circle cx="16" cy="16" r="5"/></svg>`; // shape default
+    if (l.type === 'text') typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>`;
+    else if (l.type === 'image') typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
+    else if (l.type === 'frame') typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>`;
+    else if (l.type === 'group') typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`;
 
     const dndAttrs = `draggable="true"
       ondragstart="dLyrDragStart(event,'${l.id}')"
@@ -1334,6 +1338,15 @@ function dLayerBoundField(l){
   return null;
 }
 function dLayerIsBindable(l){ return !!(l && (l.type==='text'||l.type==='image'||l.type==='frame')); }
+// Campos EMBUTIDOS num texto misto ("DE R$ {{precoDe}} POR {{precoPor}}") — únicos, em ordem.
+// Diferente de dLayerBoundField (camada INTEIRA ligada a 1 campo), aqui o texto mistura
+// conteúdo fixo com 1+ dados. O controle "Dado" precisa reconhecer esse estado.
+function dLayerEmbeddedFields(l){
+  if(!l||l.type!=='text'||!l.content) return [];
+  const out=[]; const re=gVarRegex(); let m;
+  while((m=re.exec(l.content))){ if(out.indexOf(m[1])<0) out.push(m[1]); }
+  return out;
+}
 // Liga a camada inteira ao campo.
 function dLayerBindField(layerId, fieldName){
   const l=dLayers.find(x=>x.id===layerId); if(!l||!fieldName) return;
@@ -1382,7 +1395,30 @@ function dRenderDadoControl(l){
   }
   box.style.display='';
   const fn=dLayerBoundField(l); const v=fn?dVars.find(x=>x.name===fn):null;
-  box.classList.toggle('bound', !!v);
+  // Texto MISTO (fixo + {{dados}}): não é "nenhum" nem bind de camada inteira — estado próprio.
+  const emb=(!v)?dLayerEmbeddedFields(l):[];
+  box.classList.toggle('bound', !!v||emb.length>0);
+  if(!v && emb.length){
+    let h='<div class="dp-dado-lbl"><span class="hl">◆ '+(emb.length===1?'Dado neste texto':emb.length+' dados neste texto')+'</span></div>';
+    let warnRS=false;
+    emb.forEach(name=>{
+      const ev=dVars.find(x=>x.name===name);
+      const tm=gFieldTypeMeta(ev?ev.type:'text');
+      const ph=_dEsc(gFieldSampleValue({type:ev?ev.type:'text'})||'ex.: valor');
+      h+='<div class="dp-dado-ex-row">'
+        +'<span class="dp-dado-mixchip" title="{{'+_dEsc(name)+'}}"><span class="dp-dado-ico">'+tm.icon+'</span>'+_dEsc(ev?(ev.label||name):name)+'</span>'
+        +(ev
+          ?'<input type="text" class="dp-dado-ex" value="'+_dEsc(ev.example||'')+'" placeholder="'+ph+'" oninput="dDadoSetExample(\''+name+'\', this.value)">'
+          :'<span class="dp-dado-none" style="font-size:10.5px">campo novo — salve o texto pra criar</span>')
+        +'</div>';
+      // Lint: campo de preço já formata com "R$" — "R$ {{precoPor}}" sairia "R$ R$ 9,90"
+      if(ev&&ev.type==='currency'&&new RegExp('R\\$\\s*\\{\\{\\s*'+name+'\\s*\\}\\}','i').test(l.content||'')) warnRS=true;
+    });
+    if(warnRS) h+='<div class="dp-dado-warn">⚠ Campo de preço já sai formatado com “R$” — apague o “R$” escrito no texto para não sair “R$ R$ 9,90”.</div>';
+    h+='<div class="dp-dado-ex-hint">Este texto mistura conteúdo fixo com dados. O exemplo de cada campo aparece no lugar do dado — aqui e no chat do franqueado.</div>';
+    box.innerHTML=h;
+    return;
+  }
   let h='<div class="dp-dado-lbl">'+(v?'<span class="hl">◆ Dado ligado</span>':'Dado')+'</div>';
   h+='<button type="button" class="dp-dado-pick" id="dp-dado-pick" onclick="dFieldBindPickerOpen(event)">';
   if(v){ const tm=gFieldTypeMeta(v.type); h+='<span class="dp-dado-chip"><span class="dp-dado-ico">'+tm.icon+'</span>'+_dEsc(v.label||v.name)+'</span>'; }
@@ -1412,7 +1448,9 @@ function dFieldBindPickerOpen(ev){
   const l=dLayers.find(x=>x.id===dSelId); if(!dLayerIsBindable(l)){ gToast('Selecione uma camada de texto ou imagem'); return; }
   const isImg=(l.type==='image'||l.type==='frame');
   const cur=dLayerBoundField(l);
-  if(!dVars.length){ gToast('Crie um campo primeiro na aba Dados.'); return; }
+  // Sem nenhum campo no catálogo: nada de beco sem saída — abre direto o wizard
+  // de criação já apontando pra esta camada (cria e vincula em um passo).
+  if(!dVars.length){ if(typeof dOpenVarModal==='function') dOpenVarModal({forLayer:dSelId}); return; }
   const pop=document.createElement('div'); pop.className='field-pick-pop';
   pop.innerHTML=`<input class="field-pick-search" placeholder="Buscar campo...">
     <div class="field-pick-list"></div>
@@ -1441,7 +1479,7 @@ function dFieldBindPickerOpen(ev){
   }
   renderList('');
   searchEl.oninput=()=>renderList(searchEl.value);
-  pop.querySelector('.field-pick-new').onmousedown=(e)=>{ e.preventDefault(); pop.remove(); document.removeEventListener('mousedown',closeP); if(typeof dOpenVarModal==='function') dOpenVarModal(); };
+  pop.querySelector('.field-pick-new').onmousedown=(e)=>{ e.preventDefault(); pop.remove(); document.removeEventListener('mousedown',closeP); if(typeof dOpenVarModal==='function') dOpenVarModal({forLayer:dSelId}); };
   const anchor=(ev&&ev.currentTarget&&ev.currentTarget.getBoundingClientRect)?ev.currentTarget:document.getElementById('dp-dado-pick');
   const r=anchor?anchor.getBoundingClientRect():{bottom:120,left:window.innerWidth-280};
   pop.style.top=(r.bottom+4)+'px';
@@ -1967,28 +2005,56 @@ function dFieldToggleDetails(){
   d.style.display=open?'':'none';
   if(t) t.classList.toggle('open', open);
 }
-function dOpenVarModal(){
+// Tipo provável a partir do texto de exemplo da camada ("R$ 19,90" → preço, "99" → número)
+function _dGuessTypeFromText(s){
+  s=String(s||'').trim();
+  if(/^r\$\s*[\d.,]+$/i.test(s)||/^\d{1,4},\d{2}$/.test(s)) return 'currency';
+  if(/^\d+$/.test(s)) return 'number';
+  return 'text';
+}
+// opts.forLayer: fluxo "criar E vincular" — o wizard nasce pré-preenchido com o texto
+// da camada (rótulo/tipo/exemplo) e, ao confirmar, liga o campo novo à camada.
+// É o modelo mental do designer: escreve o exemplo na arte → marca como editável.
+let dVarBindAfterCreate=null;
+function dOpenVarModal(opts){
+  opts=opts||{};
   dEditingVarName=null;
+  dVarBindAfterCreate=opts.forLayer||null;
+  // Pré-preenchimento a partir da camada apontada
+  let preLabel='', preExample='', preType='text';
+  if(opts.forLayer){
+    const l=dLayers.find(x=>x.id===opts.forLayer);
+    if(l&&l.type==='text'){
+      const txt=(l.content||'').trim();
+      if(txt && !gVarRegex().test(txt)){ // texto puro (sem tokens) vira exemplo + rótulo
+        preExample=txt.replace(/\s+/g,' ').slice(0,60);
+        preLabel=txt.split('\n')[0].trim().slice(0,28);
+        preType=_dGuessTypeFromText(txt);
+      }
+    } else if(l&&(l.type==='image'||l.type==='frame')){ preType='image'; }
+  }
   const m=document.getElementById('d-var-modal');
   document.getElementById('dv-title').textContent='Novo campo';
   document.getElementById('dv-name').value='';
   document.getElementById('dv-name').disabled=false;
-  document.getElementById('dv-type').value='text';
-  document.getElementById('dv-label').value='';
+  document.getElementById('dv-type').value=preType;
+  document.getElementById('dv-label').value=preLabel;
   document.getElementById('dv-default').value='';
   document.getElementById('dv-req').checked=false;
   document.getElementById('dv-options').value='';
   document.getElementById('dv-palette').value='';
   const catEl=document.getElementById('dv-cat'); if(catEl)catEl.value='';
-  const exEl=document.getElementById('dv-example'); if(exEl)exEl.value='';
-  dFieldRenderTypeGrid('text');
+  const exEl=document.getElementById('dv-example'); if(exEl)exEl.value=preExample;
+  dFieldRenderTypeGrid(preType);
   dVarTypeFields();
-  const det=document.getElementById('dv-details'); if(det) det.style.display='none';
-  const dt=document.getElementById('dv-details-toggle'); if(dt) dt.classList.remove('open');
-  document.getElementById('dv-confirm-btn').textContent='Criar campo';
+  // Com exemplo pré-preenchido, mostra os "Detalhes" — o designer vê o que veio da camada
+  const hasPre=preExample!=='';
+  const det=document.getElementById('dv-details'); if(det) det.style.display=hasPre?'':'none';
+  const dt=document.getElementById('dv-details-toggle'); if(dt) dt.classList.toggle('open',hasPre);
+  document.getElementById('dv-confirm-btn').textContent=dVarBindAfterCreate?'Criar e ligar à camada':'Criar campo';
   dFieldWizardGoStep(1);
   m.classList.add('open');
-  setTimeout(()=>document.getElementById('dv-label').focus(),100);
+  setTimeout(()=>{const el=document.getElementById('dv-label');if(el){el.focus();el.select();}},100);
 }
 function dEditVar(i){
   const v=dVars[i];if(!v)return;
@@ -2018,7 +2084,7 @@ function dEditVar(i){
   m.classList.add('open');
   setTimeout(()=>{const el=document.getElementById('dv-example'); if(el) el.focus();},100);
 }
-function dCloseVarModal(){dEditingVarName=null;document.getElementById('dv-name').disabled=false;document.getElementById('d-var-modal').classList.remove('open');}
+function dCloseVarModal(){dEditingVarName=null;dVarBindAfterCreate=null;document.getElementById('dv-name').disabled=false;document.getElementById('d-var-modal').classList.remove('open');}
 // Lê opções (select) e paleta (color) dos campos do modal
 function dReadVarOptions(){
   return document.getElementById('dv-options').value.split('\n').map(s=>s.trim()).filter(Boolean);
@@ -2062,8 +2128,13 @@ function dConfirmVar(){
   if(type==='select')nv.options=options;
   if(type==='color')nv.palette=palette;
   dVars.push(nv);
+  const bindTo=dVarBindAfterCreate; // captura antes do close (que zera o stash)
   dCloseVarModal();dVarsRender();dPersistVars();
-  gToast('✓ Campo “'+(label||name)+'” criado');
+  if(bindTo&&typeof dLayerBindField==='function'){
+    dLayerBindField(bindTo,name); // já dá o toast "camada agora mostra X"
+  } else {
+    gToast('✓ Campo “'+(label||name)+'” criado');
+  }
   dFieldOnboardMaybe();
 }
 function dRemoveVar(i){
@@ -2424,11 +2495,18 @@ function dToggleMultiSel(id){
   // multi-seleção via Shift, o primário atual entra no conjunto antes de alternar.
   if(dSelId!=null && dSelId!==id && !dMultiSel.includes(dSelId)) dMultiSel.push(dSelId);
   const i=dMultiSel.indexOf(id);
+  const l=dLayers.find(x=>x.id===id);
   if(i>-1){
     dMultiSel.splice(i,1);                                   // Shift+click num já-selecionado → remove
+    if(l && l.type==='group'){
+      dLayers.forEach(x=>{if(x.parentId===id){ const ci=dMultiSel.indexOf(x.id); if(ci>-1)dMultiSel.splice(ci,1); }});
+    }
     if(dSelId===id) dSelId = dMultiSel.length ? dMultiSel[dMultiSel.length-1] : null;
   } else {
     dMultiSel.push(id);
+    if(l && l.type==='group'){
+      dLayers.forEach(x=>{if(x.parentId===id && !dMultiSel.includes(x.id)) dMultiSel.push(x.id);});
+    }
     dSelId=id;                                               // novo membro vira o primário
   }
   // Sobrou 0 ou 1 → não é mais multi-seleção: colapsa pro modelo de seleção simples.
@@ -2629,14 +2707,17 @@ function dShapePoints(l){
   return null;
 }
 // Cria uma forma nativa editável (círculo/elipse/triângulo/polígono/estrela)
-function dAddShapeKind(kind){
+function dAddShapeKind(kind, x, y, customW, customH){
   const f=dCanvasSize();const id='l-'+(++dLyrCnt);
   const names={circle:'Círculo',ellipse:'Elipse',triangle:'Triângulo',polygon:'Polígono',star:'Estrela'};
   dHistoryPush();
   const sz=Math.round(Math.min(f.w,f.h)*.22);
-  const w=(kind==='ellipse')?Math.round(sz*1.5):sz, h=sz; // elipse nasce oval (não círculo)
+  const w=(customW!=null)?customW:((kind==='ellipse')?Math.round(sz*1.5):sz);
+  const h=(customH!=null)?customH:sz;
+  const cx = (x!=null)?x:Math.round(f.w/2-w/2);
+  const cy = (y!=null)?y:Math.round(f.h/2-h/2);
   const base={id,name:(names[kind]||'Forma')+' '+dLyrCnt,type:'shape',shapeKind:kind,
-    x:Math.round(f.w/2-w/2),y:Math.round(f.h/2-h/2),w,h,fill:'#FF9000',opacity:100,radius:0,visible:true};
+    x:cx,y:cy,w,h,fill:'#FF9000',opacity:100,radius:0,visible:true};
   if(kind==='polygon')base.sides=6;
   if(kind==='star'){base.points=5;base.inner=0.5;}
   dLayers.push(base);
