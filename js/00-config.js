@@ -372,17 +372,20 @@ const DFIELD_CATS=[
   {id:'outros',  label:'Outros',   icon:'▫️'},
 ];
 // Metadados de cada tipo: rótulo humano + ícone (nada de "text"/"currency" cru na tela).
+// `svg` = ícone vetorial do painel Campos (herda cor via currentColor);
+// `icon` (emoji) mantido por compat com os pickers antigos.
+const _gFieldSvg=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const DFIELD_TYPES={
-  text:    {label:'Texto',   icon:'🔤'},
-  number:  {label:'Número',  icon:'#️⃣'},
-  currency:{label:'Preço',   icon:'💲'},
-  date:    {label:'Data',    icon:'📅'},
-  image:   {label:'Imagem',  icon:'🖼'},
-  select:  {label:'Lista',   icon:'☰'},
-  color:   {label:'Cor',     icon:'🎨'},
-  boolean: {label:'Sim/Não', icon:'🔘'},
+  text:    {label:'Texto',   icon:'🔤', svg:_gFieldSvg('<polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/>')},
+  number:  {label:'Número',  icon:'#️⃣', svg:_gFieldSvg('<line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/>')},
+  currency:{label:'Preço',   icon:'💲', svg:_gFieldSvg('<line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>')},
+  date:    {label:'Data',    icon:'📅', svg:_gFieldSvg('<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>')},
+  image:   {label:'Imagem',  icon:'🖼', svg:_gFieldSvg('<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>')},
+  select:  {label:'Lista',   icon:'☰', svg:_gFieldSvg('<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>')},
+  color:   {label:'Cor',     icon:'🎨', svg:_gFieldSvg('<path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>')},
+  boolean: {label:'Sim/Não', icon:'🔘', svg:_gFieldSvg('<rect x="2" y="6" width="20" height="12" rx="6"/><circle cx="16" cy="12" r="3"/>')},
 };
-function gFieldTypeMeta(type){ return DFIELD_TYPES[type] || {label:type||'Texto', icon:'🔤'}; }
+function gFieldTypeMeta(type){ return DFIELD_TYPES[type] || Object.assign({}, DFIELD_TYPES.text, {label:type||'Texto'}); }
 function gFieldCatMeta(id){ return DFIELD_CATS.find(c=>c.id===id) || DFIELD_CATS[DFIELD_CATS.length-1]; }
 // Valor de exemplo p/ exibir um campo no canvas (modo edição, sem simulação ativa).
 // Mostra algo realista no lugar do nome do campo em caixa-alta gigante — mesma

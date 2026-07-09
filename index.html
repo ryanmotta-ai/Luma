@@ -1776,11 +1776,6 @@ input:focus:-webkit-autofill {
       </div>
       <!-- Painel DADOS: centro de campos que o franqueado preenche (redesign de variáveis) -->
       <div class="rpanel-content hidden" id="d-panel-dados">
-        <div class="dados-subnav">
-          <button class="dados-subnav-btn active" id="dados-sub-campos">Campos</button>
-          <button class="dados-subnav-btn" disabled title="Em breve">Regras</button>
-          <button class="dados-subnav-btn" disabled title="Em breve">Fontes</button>
-        </div>
         <div class="dados-toolbar">
           <div class="dados-search-wrap">
             <svg class="search-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -1791,7 +1786,9 @@ input:focus:-webkit-autofill {
             Novo
           </button>
         </div>
+        <div class="dados-chipbar" id="d-fields-chipbar"></div>
         <div id="d-fields-list" class="dados-fields-list"></div>
+        <div class="dados-inventory" id="d-fields-inventory"></div>
       </div>
       <div class="rpanel-content hidden" id="dtab-assets">
         <div class="upload-drop" onclick="document.getElementById('d-asset-upload').click()">

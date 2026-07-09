@@ -1812,41 +1812,87 @@ function dHighlightVarLayers(name){
 ══════════════════════════════════════════════════════════════ */
 let _dFieldsQuery='';
 let _dFieldsCatCollapsed={}; // {catId:true} = categoria recolhida
+let _dFieldsStatusFilter='all'; // 'all' | 'used' | 'free'
+let _dFieldsOpen=null;          // name do campo com detalhe expandido (acordeão)
+let _dFieldsDup={};             // name → rótulo do outro campo (possível duplicata)
 
 function dFieldsFilter(q){ _dFieldsQuery=(q||'').trim().toLowerCase(); dFieldsRender(); }
 function dFieldToggleCat(catId){ _dFieldsCatCollapsed[catId]=!_dFieldsCatCollapsed[catId]; dFieldsRender(); }
+function dFieldSetStatusFilter(f){ _dFieldsStatusFilter=f; dFieldsRender(); }
+function dFieldToggleOpen(name){ _dFieldsOpen=(_dFieldsOpen===name)?null:name; dFieldsRender(); }
 
 // Nomes amigáveis dos layers que usam o campo (regra 4: "onde é usada").
 function dFieldUsageNames(name){
   return dVarUsage(name).map(id=>{const l=dLayers.find(x=>x.id===id);return l?(l.name||gFieldTypeMeta(l.type).label):null;}).filter(Boolean);
 }
+// Versão com id: alimenta os chips de uso (clique → pisca a camada no canvas).
+function dFieldUsageLayers(name){
+  return dVarUsage(name).map(id=>{const l=dLayers.find(x=>x.id===id);return l?{id:id,name:(l.name||gFieldTypeMeta(l.type).label)}:null;}).filter(Boolean);
+}
+// Pisca UMA camada no canvas (chip de uso do detalhe).
+function dFieldFlashLayer(id){
+  const el=document.querySelector(`.canvas-layer[data-id="${id}"]`);
+  if(!el){gToast('Camada não está visível no canvas');return;}
+  el.classList.remove('var-flash');void el.offsetWidth;el.classList.add('var-flash');
+  setTimeout(()=>el.classList.remove('var-flash'),900);
+}
+// Higiene: campos cujos rótulos colidem ignorando caixa/acentos ("produto" × "Produto").
+function _dFieldNorm(s){return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/gi,'').toLowerCase();}
+function _dFieldsBuildDup(){
+  _dFieldsDup={};
+  const map={};
+  (dVars||[]).forEach(v=>{const k=_dFieldNorm(v.label||v.name);if(!k)return;(map[k]=map[k]||[]).push(v);});
+  Object.keys(map).forEach(k=>{
+    const g=map[k]; if(g.length<2)return;
+    g.forEach(v=>{const other=g.find(x=>x!==v);if(other)_dFieldsDup[v.name]=other.label||other.name;});
+  });
+}
 
+const _D_FIELD_WARN='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+
+// Linha compacta (fechada: nome + tipo + status) + detalhe sob demanda
+// (aberto: exemplo, chips de uso clicáveis e ações). Acordeão de 1 aberto.
 function dFieldCardHTML(v,i){
   const tm=gFieldTypeMeta(v.type);
-  const cat=gFieldCatMeta(v.category);
-  const names=dFieldUsageNames(v.name);
-  const req=v.required?'Obrigatório':'Opcional';
-  const exVal=(v.example!=null&&v.example!=='')?v.example:((v.defaultValue!=null&&v.defaultValue!=='')?v.defaultValue:'');
-  const exLine=exVal
-    ? `<div class="field-card-ex">Ex.: ${_dEsc(exVal)}</div>`
-    : `<div class="field-card-ex field-card-ex-empty">Sem exemplo</div>`;
-  let usageLine;
-  if(names.length){
-    const shown=names.slice(0,3).map(_dEsc).join(', ');
-    const extra=names.length>3?` +${names.length-3}`:'';
-    usageLine=`<div class="field-card-usage" onclick="event.stopPropagation();dHighlightVarLayers('${v.name}')" title="Clique para destacar no canvas"><span class="field-dot field-dot-on"></span>Usada em: ${shown}${extra}</div>`;
-  } else {
-    usageLine=`<div class="field-card-usage field-card-unused"><span class="field-dot"></span>Ainda não usada<button class="field-use-btn" onclick="event.stopPropagation();dFieldUse(${i})">usar</button></div>`;
+  const usage=dFieldUsageLayers(v.name);
+  const used=usage.length>0;
+  const open=_dFieldsOpen===v.name;
+  const dupOf=_dFieldsDup[v.name];
+  const metaParts=[_dEsc(tm.label)];
+  if(v.required)metaParts.push('<b>Obrigatório</b>');
+  metaParts.push(used?`<b>${usage.length} uso${usage.length>1?'s':''}</b>`:'Não usada');
+  const warn=dupOf?`<span class="field-row-warn" title="Possível duplicata de “${_dEsc(dupOf)}”">${_D_FIELD_WARN}</span>`:'';
+  let det='';
+  if(open){
+    const exVal=(v.example!=null&&v.example!=='')?v.example:((v.defaultValue!=null&&v.defaultValue!=='')?v.defaultValue:'');
+    const dupNote=dupOf?`<div class="field-dup-note">${_D_FIELD_WARN}<span>Possível duplicata de <b>“${_dEsc(dupOf)}”</b> — considere excluir este campo ou usar o outro.</span></div>`:'';
+    const exLine=exVal?`<div class="field-det-ex">Ex.: <b>${_dEsc(exVal)}</b></div>`:'';
+    const usoBlock=used
+      ?`<div class="field-det-lbl">Usada em</div><div class="field-det-chips">${usage.map(u=>`<button class="field-uchip" onclick="event.stopPropagation();dFieldFlashLayer(${u.id})" title="Destacar no canvas">${_dEsc(u.name)}</button>`).join('')}</div>`
+      :`<div class="field-det-free">Ainda não aparece em nenhuma camada deste template.</div>`;
+    const insLbl=(v.type==='image')?'＋ Usar em moldura':'＋ Inserir no texto';
+    det=`<div class="field-det">
+      ${dupNote}${exLine}${usoBlock}
+      <div class="field-det-acts">
+        <button class="field-act pri" onclick="event.stopPropagation();dFieldUse(${i})">${insLbl}</button>
+        <button class="field-act" onclick="event.stopPropagation();dEditVar(${i})">Editar</button>
+        <button class="field-act danger" onclick="event.stopPropagation();dRemoveVar(${i})">Excluir</button>
+      </div>
+    </div>`;
   }
-  return `<div class="field-card cat-${cat.id}" data-field="${v.name}" onclick="dEditVar(${i})" title="Editar campo">
-    <div class="field-card-head">
-      <span class="field-card-icon">${tm.icon}</span>
-      <span class="field-card-name">${_dEsc(v.label||v.name)}</span>
-      <button class="field-card-menu" onclick="event.stopPropagation();dFieldMenu(event,${i})" title="Mais ações">⋯</button>
+  return `<div class="field-item${open?' open':''}" data-field="${v.name}">
+    <div class="field-row" onclick="dFieldToggleOpen('${v.name}')" title="${open?'Fechar detalhes':'Ver detalhes'}">
+      <span class="field-tico ft-${v.type||'text'}">${tm.svg||tm.icon}</span>
+      <span class="field-row-mid">
+        <span class="field-row-name"><span class="nm">${_dEsc(v.label||v.name)}</span>${warn}</span>
+        <span class="field-row-meta">${metaParts.join(' · ')}</span>
+      </span>
+      <span class="field-row-end">
+        <span class="field-sdot ${used?'used':'free'}"></span>
+        <button class="field-card-menu" onclick="event.stopPropagation();dFieldMenu(event,${i})" title="Mais ações">⋯</button>
+      </span>
     </div>
-    <div class="field-card-meta">${_dEsc(tm.label)} · ${req}</div>
-    ${exLine}
-    ${usageLine}
+    ${det}
   </div>`;
 }
 
@@ -1862,14 +1908,43 @@ function dFieldsEmptyHTML(){
   </div>`;
 }
 
+// Chips de status (Todos / Em uso / Livres) — a pergunta pré-publicação.
+function _dFieldsRenderChipbar(counts){
+  const cb=document.getElementById('d-fields-chipbar');
+  if(!cb) return;
+  if(!counts){ cb.innerHTML=''; return; }
+  const chip=(f,lbl,n)=>`<button class="field-chip${_dFieldsStatusFilter===f?' on':''}" onclick="dFieldSetStatusFilter('${f}')">${lbl} <span>${n}</span></button>`;
+  cb.innerHTML=chip('all','Todos',counts.total)+chip('used','Em uso',counts.used)+chip('free','Livres',counts.free);
+}
+// Rodapé de inventário: o pulso do catálogo sem contar cartão.
+function _dFieldsRenderInventory(counts){
+  const inv=document.getElementById('d-fields-inventory');
+  if(!inv) return;
+  if(!counts){ inv.innerHTML=''; inv.style.display='none'; return; }
+  inv.style.display='';
+  inv.innerHTML=`<b>${counts.total} campo${counts.total!==1?'s':''}</b> · <span class="inv-dot used"></span> <b>${counts.used} em uso</b> · <span class="inv-dot free"></span> ${counts.free} livre${counts.free!==1?'s':''}`;
+}
+
 function dFieldsRender(){
   const el=document.getElementById('d-fields-list');
   if(!el){ dPopVarSel(); return; }
   dFieldsEnsureMeta();
-  if(!dVars.length){ el.innerHTML=dFieldsEmptyHTML(); dPopVarSel(); return; }
+  _dFieldsBuildDup();
+  if(!dVars.length){
+    el.innerHTML=dFieldsEmptyHTML();
+    _dFieldsRenderChipbar(null); _dFieldsRenderInventory(null);
+    dPopVarSel(); return;
+  }
+
+  const usedNames=new Set(dVars.filter(v=>dVarUsage(v.name).length>0).map(v=>v.name));
+  const counts={total:dVars.length, used:usedNames.size, free:dVars.length-usedNames.size};
+  _dFieldsRenderChipbar(counts);
+  _dFieldsRenderInventory(counts);
 
   const q=_dFieldsQuery;
   const items=dVars.map((v,i)=>({v,i})).filter(({v})=>{
+    if(_dFieldsStatusFilter==='used'&&!usedNames.has(v.name)) return false;
+    if(_dFieldsStatusFilter==='free'&&usedNames.has(v.name)) return false;
     if(!q) return true;
     return (v.label||'').toLowerCase().includes(q)
       || (v.name||'').toLowerCase().includes(q)
@@ -1877,7 +1952,11 @@ function dFieldsRender(){
       || (gFieldTypeMeta(v.type).label||'').toLowerCase().includes(q);
   });
   if(!items.length){
-    el.innerHTML=`<div class="field-noresult">Nenhum campo encontrado.<br><button class="field-create-q" onclick="dFieldCreateFromQuery()">Criar “${_dEsc(_dFieldsQuery)}”</button></div>`;
+    let msg;
+    if(q) msg=`Nenhum campo encontrado.<br><button class="field-create-q" onclick="dFieldCreateFromQuery()">Criar “${_dEsc(_dFieldsQuery)}”</button>`;
+    else if(_dFieldsStatusFilter==='used') msg='Nenhum campo em uso neste template ainda.';
+    else msg='Nenhum campo livre — todos estão em uso.';
+    el.innerHTML=`<div class="field-noresult">${msg}</div>`;
     dPopVarSel(); return;
   }
   let html='';
@@ -1887,7 +1966,6 @@ function dFieldsRender(){
     const collapsed=!!_dFieldsCatCollapsed[cat.id];
     html+=`<div class="field-cat">
       <div class="field-cat-head" onclick="dFieldToggleCat('${cat.id}')">
-        <span class="field-cat-icon">${cat.icon}</span>
         <span class="field-cat-label">${cat.label.toUpperCase()}</span>
         <span class="field-cat-count">${group.length}</span>
         <svg class="field-cat-chev${collapsed?' collapsed':''}" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
@@ -1905,10 +1983,24 @@ function dFieldsRender(){
 // Agora ela alimenta o centro de campos (cartões) + o select de inserção.
 function dVarsRender(){ dFieldsRender(); }
 
-// Insere o campo no texto selecionado (ação "usar" do cartão não-usado).
+// Ação primária do detalhe: insere o campo no texto selecionado — ou, para
+// campos de imagem, aplica como imgVar da moldura/imagem selecionada.
 function dFieldUse(i){
   const v=dVars[i]; if(!v) return;
   const l=dLayers.find(x=>x.id===dSelId);
+  if(v.type==='image'){
+    if(l && (l.type==='frame' || l.type==='image')){
+      if(typeof dHistoryPush==='function') dHistoryPush();
+      l.imgVar=v.name;
+      dActivatePanel('camadas');
+      dSelLayer(l.id);
+      dRenderCanvas(); dMarkUnsaved();
+      gToast('✓ Campo “'+(v.label||v.name)+'” aplicado na moldura');
+    } else {
+      gToast('Selecione uma moldura ou imagem na aba Camadas e tente de novo.');
+    }
+    return;
+  }
   if(l && l.type==='text'){
     if(typeof dHistoryPush==='function') dHistoryPush();
     l.content=((l.content||'')+' {{'+v.name+'}}').replace(/^\s+/,'');
@@ -1917,7 +2009,7 @@ function dFieldUse(i){
     dRenderCanvas(); dMarkUnsaved();
     gToast('✓ Campo “'+(v.label||v.name)+'” inserido no texto');
   } else {
-    gToast('Selecione um texto na aba Camadas e clique em “usar”.');
+    gToast('Selecione um texto na aba Camadas e tente de novo.');
   }
 }
 
