@@ -10,18 +10,19 @@
 ══════════════════════════════ */
 #global-topbar{
   height:52px;flex-shrink:0;
-  background:#FF9000;
-  display:flex;align-items:center;gap:12px;padding:0 20px;
+  /* Degradê sutil (~6% em direção ao laranja escuro): profundidade sem trair a marca */
+  background:linear-gradient(180deg,#FF9400 0%,#FA8200 100%);
+  display:flex;align-items:center;gap:16px;padding:0 24px;
   position:relative;z-index:200;
-  transition: background-color 0.3s var(--ease-smooth);
 }
 #global-topbar::after{content:'';position:absolute;bottom:-8px;left:0;right:0;height:8px;background:linear-gradient(to bottom,rgba(248,84,0,.20),transparent);pointer-events:none;transition: opacity 0.3s var(--ease-smooth);}
 .top-dm-logo{height:30px;width:112px}
 .top-brand{font-family:'Roboto',sans-serif;font-weight:900;font-size:22px;letter-spacing:.08em;color:var(--white);line-height:1}
 .top-sep{width:1px;height:22px;background:rgba(255,255,255,.3)}
 
-/* tabs de modo */
-.mode-tabs{display:flex;gap:2px;background:rgba(0,0,0,.2);border-radius:6px;padding:3px;position:relative;}
+/* tabs de modo — pill branca com texto laranja em TODOS os modos
+   (o contraste do estado ativo não muda conforme a view) */
+.mode-tabs{display:flex;gap:2px;background:rgba(0,0,0,.16);border-radius:6px;padding:3px;position:relative;}
 .mode-tab-pill {
   position: absolute;
   top: 3px;
@@ -34,18 +35,9 @@
   z-index: 1;
   pointer-events: none;
 }
-body.mode-designer .mode-tab-pill,
-body.mode-dados .mode-tab-pill {
-  background: rgba(255, 255, 255, 0.1);
-  box-shadow: none;
-}
 
-.mode-tab{position:relative;z-index:2;padding:4px 14px;font-size:12px;font-weight:500;border-radius:4px;cursor:pointer;color:rgba(255,255,255,.65);transition:color .15s;border:none;background:transparent;font-family:'Roboto',sans-serif;letter-spacing:.03em}
+.mode-tab{position:relative;z-index:2;padding:4px 14px;font-size:12px;font-weight:500;border-radius:4px;cursor:pointer;color:rgba(255,255,255,.85);transition:color .15s;border:none;background:transparent;font-family:'Roboto',sans-serif;letter-spacing:.03em}
 .mode-tab.active{color:#F85400;font-weight:700;}
-body.mode-designer .mode-tab.active,
-body.mode-dados .mode-tab.active {
-  color: var(--white);
-}
 .mode-tab:hover:not(.active){color:#fff;}
 
 /* Botão de Ajuda na topbar */
@@ -57,7 +49,6 @@ body.mode-dados .mode-tab.active {
   border-radius:var(--r-pill);cursor:pointer;
   font-family:'Roboto',sans-serif;
   transition:all .2s cubic-bezier(.2,.9,.4,1);
-  margin-left:6px;
 }
 .top-help-btn:hover{
   background:var(--white);color:var(--dm-orange);
@@ -69,7 +60,7 @@ body.mode-dados .mode-tab.active {
 .top-help-btn svg{flex-shrink:0;transition:transform .2s}
 .top-help-btn:hover svg{transform:rotate(-8deg) scale(1.1)}
 
-.top-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:14px}
 .top-av{width:28px;height:28px;border-radius:50%;background:var(--white);color:#F85400;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;overflow:hidden;background-size:cover;background-position:center;transition:transform 0.2s var(--ease-smooth);}
 .top-av img{width:100%;height:100%;object-fit:cover;}
 .top-name{font-size:13px;color:rgba(255,255,255,.9);font-weight:500}
@@ -84,14 +75,14 @@ body.mode-dados .mode-tab.active {
   cursor: pointer;
   padding: 4px 10px;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
 }
 .top-profile-badge:hover {
-  background: rgba(255, 255, 255, 0.16);
-  border-color: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
@@ -101,5 +92,20 @@ body.mode-dados .mode-tab.active {
 .top-profile-badge:active {
   transform: translateY(0) scale(0.97);
 }
+
+/* Sair — ícone discreto no fim do cluster direito; o vermelho (perigo)
+   só aparece no hover, não compete com a barra em repouso. */
+.top-exit-btn{
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  width:30px;height:30px;border-radius:50%;
+  background:rgba(255,255,255,.12);color:var(--white);
+  border:1px solid rgba(255,255,255,.18);cursor:pointer;
+  transition:all .2s cubic-bezier(.2,.9,.4,1);
+}
+.top-exit-btn:hover{
+  background:var(--dm-red);border-color:var(--dm-red);color:#fff;
+  transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,.22);
+}
+.top-exit-btn:active{transform:translateY(0) scale(.94)}
 
 

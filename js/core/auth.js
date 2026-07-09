@@ -271,8 +271,9 @@ function gUpdateUserTopbar() {
   if (roleEl) {
     const labels = { gestao:'GESTÃO', equipe_dm:'EQUIPE DM', franqueado:'FRANQUEADO' };
     roleEl.textContent = labels[role] || String(role||'').toUpperCase();
+    // Cores sempre do brandbook (tokens de 00-tokens.css) — nada de hex solto.
     if (role === 'gestao') {
-      roleEl.style.background = '#7c3aed';
+      roleEl.style.background = 'var(--dm-red)';
       roleEl.style.color = '#fff';
     } else if (role === 'equipe_dm') {
       roleEl.style.background = 'var(--dm-yellow)';
@@ -295,10 +296,10 @@ function gUpdateUserTopbar() {
         : names[0].substring(0, 2).toUpperCase();
       avEl.innerHTML = initials;
 
-      const hash = Array.from(displayName).reduce((acc, char) => acc + char.charCodeAt(0), 0);
-      const colors = ['#e11d48', '#2563eb', '#16a34a', '#d97706', '#7c3aed', '#db2777', '#0284c7'];
-      avEl.style.background = colors[hash % colors.length];
-      avEl.style.color = '#fff';
+      // Sem foto → avatar branco com iniciais em laranja escuro (identidade da
+      // marca sobre a barra laranja; cores de fora da paleta destoavam).
+      avEl.style.background = 'var(--white)';
+      avEl.style.color = 'var(--dm-orange-d)';
     }
   }
 
