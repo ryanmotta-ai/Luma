@@ -272,12 +272,87 @@ function fCampCover(c){
   if(cv&&typeof cv==='string'&&cv!=='__local__'&&cv.length) return cv;
   return (c&&c.cover&&typeof c.cover==='string'&&c.cover.length)?c.cover:'';
 }
-function fCampEl(c,isRec){
+/* ── MINIATURAS REAIS DOS MATERIAIS ──────────────────────────────
+   O card da campanha mostra o material publicado de verdade: o 1º material
+   válido é renderizado em miniatura pelo MESMO motor do PNG final
+   (fRenderTemplateLayers) e cacheado por campanha. O HTML sai na hora com a
+   cor da marca; a fila assíncrona pinta a capa real quando o render termina.
+   Prioridade de capa: upload do designer > miniatura renderizada > cor. */
+let _fCampThumbs={};      // campId → {mid: id do material renderizado, url: dataURL}
+let _fCampThumbBusy=false;
+
+function _fCampThumbMaterial(c){
+  if(typeof fGetMaterialsForCamp!=='function'||!c)return null;
+  const mats=fGetMaterialsForCamp(c.id).filter(t=>fIsMaterialValid(t)&&t.layers&&t.layers.length);
+  return mats[0]||null;
+}
+function _fCampThumbURL(id){
+  const e=_fCampThumbs[id];
+  return (e&&e.url&&e.url!=='__fail__')?e.url:'';
+}
+// Precisa renderizar? (sem cache, ou o material publicado mudou desde o cache)
+function _fCampThumbNeeded(c){
+  const t=_fCampThumbMaterial(c); if(!t)return false;
+  const e=_fCampThumbs[c.id];
+  return !e||e.mid!==t.id;
+}
+async function _fRenderCampThumb(c,t){
+  const [tw,th]=fMaterialSize(t);
+  const s=Math.min(1,360/tw); // miniatura ~360px de largura — nítida no card, leve na memória
+  const cv=document.createElement('canvas');
+  cv.width=Math.max(1,Math.round(tw*s));cv.height=Math.max(1,Math.round(th*s));
+  const ctx=cv.getContext('2d');
+  ctx.scale(s,s);
+  ctx.fillStyle=c.color||'#FF9000';ctx.fillRect(0,0,tw,th); // JPEG não tem alpha — nunca fundo preto
+  const prev=fState.material;
+  fState.material=t; // o motor lê bg/tamanho do fState (mesmo padrão do fDownloadHist)
+  try{ await fRenderTemplateLayers(ctx,t.layers,tw,th,{},c); }
+  finally{ if(fState.material===t)fState.material=prev; } // não sobrescreve escolha feita no meio
+  return cv.toDataURL('image/jpeg',.85);
+}
+// Fila: pinta as capas pendentes uma a uma (só enquanto a home está aberta)
+async function fHomeFillThumbs(){
+  if(_fCampThumbBusy)return;
+  _fCampThumbBusy=true;
+  try{
+    let node;
+    while((node=document.querySelector('#f-home [data-thumb-camp]'))){
+      if(!document.body.classList.contains('f-home-mode'))break;
+      const id=node.getAttribute('data-thumb-camp');
+      const c=fResolveCamp(id);
+      const t=c&&_fCampThumbMaterial(c);
+      if(t&&_fCampThumbNeeded(c)){
+        let url='__fail__';
+        try{ url=await _fRenderCampThumb(c,t); }catch(e){}
+        _fCampThumbs[id]={mid:t.id,url};
+        await new Promise(r=>setTimeout(r,40)); // respiro entre renders — não trava a aba
+      }
+      document.querySelectorAll(`#f-home [data-thumb-camp="${id}"]`).forEach(n=>_fPaintCampThumb(n,id));
+    }
+  } finally { _fCampThumbBusy=false; }
+}
+function _fPaintCampThumb(node,id){
+  node.removeAttribute('data-thumb-camp'); // sempre limpa — a fila não pode girar em falso
+  const url=_fCampThumbURL(id);
+  if(!url)return;
+  if(node.classList.contains('fh-hero-cover')){
+    // preserva o scrim do hero (badges legíveis sobre a arte)
+    node.style.backgroundImage=`linear-gradient(180deg,rgba(0,0,0,.30),rgba(0,0,0,0) 35%,rgba(0,0,0,0) 65%,rgba(0,0,0,.38)),url('${url}')`;
+  }else{
+    node.style.backgroundImage=`url('${url}')`;
+  }
+  node.style.backgroundSize='cover';
+  node.style.backgroundPosition='center';
+  node.classList.add('has-cover','thumb-real');
+}
+
+function fCampEl(c,isRec,ghost){
   // F-06: thumb mostra prévia real com produto e preço
   const previewProd = c.previewProd || c.name;
   const previewPor = c.previewPor || '';
   const previewDe = c.previewDe || '';
-  const cover = fCampCover(c);
+  // Capa: upload do designer > miniatura renderizada em cache > cor da marca
+  const cover = fCampCover(c) || _fCampThumbURL(c.id);
   // Degradação graciosa: a cor da campanha fica POR BAIXO da imagem — se a capa faltar (404),
   // o card mostra a cor da marca em vez de um retângulo branco.
   // Scrim (gradiente topo+base) por cima da capa → badges legíveis mesmo em fotos claras.
@@ -285,15 +360,16 @@ function fCampEl(c,isRec){
     ? `background-color:${c.color};background-image:url('${cover}');background-size:cover;background-position:center`
     : `background:${c.color}`;
   const mats = (typeof fGetMaterialsForCamp==='function') ? fGetMaterialsForCamp(c.id) : [];
-  const countLabel = mats.length ? `${mats.length} material${mats.length!==1?'is':''}` : 'Sem materiais';
+  const countLabel = ghost ? 'Materiais em breve' : (mats.length ? `${mats.length} material${mats.length!==1?'is':''}` : 'Sem materiais');
+  const thumbAttr = (!cover && !ghost && _fCampThumbNeeded(c)) ? ` data-thumb-camp="${c.id}"` : '';
   const _icoFlame='<svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:-1px;margin-right:3px"><path d="M12 2s5 4 5 9a5 5 0 0 1-10 0c0-1 .3-2 .8-2.8C8 10 9 12 10 12c0-3 2-7 2-10z"/></svg>';
   const _icoClock='<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-1px;margin-right:3px"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
-  return `<div class="camp-card ${fState.camp&&c.id===fState.camp.id?'selected':''} ${isRec?'recommended':''}" onclick="fSelectCamp('${c.id}')">
-    <div class="camp-prev-btn" onclick="event.stopPropagation();fOpenPreview(event,'${c.id}')">PRÉVIA</div>
-    <div class="camp-thumb ${cover?'has-cover':''}" style="${thumbStyle}">
+  return `<div class="camp-card ${!ghost&&fState.camp&&c.id===fState.camp.id?'selected':''} ${isRec?'recommended':''}${ghost?' ghost':''}"${ghost?' aria-disabled="true"':` onclick="fSelectCamp('${c.id}')"`}>
+    ${ghost?'':`<div class="camp-prev-btn" onclick="event.stopPropagation();fOpenPreview(event,'${c.id}')">PRÉVIA</div>`}
+    <div class="camp-thumb ${cover?'has-cover':''}"${thumbAttr} style="${thumbStyle}">
       ${c.badge?`<div class="camp-badge">${c.badge}</div>`:''}
-      ${c.popular?`<div class="camp-popular">${_icoFlame}Popular</div>`:''}
-      ${c.expiraDias<=3?`<div class="camp-urgency">${_icoClock}${c.expiraDias}d</div>`:''}
+      ${!ghost&&c.popular?`<div class="camp-popular">${_icoFlame}Popular</div>`:''}
+      ${!ghost&&c.expiraDias<=3?`<div class="camp-urgency">${_icoClock}${c.expiraDias}d</div>`:''}
       ${cover?'':`<div class="camp-thumb-prod">${previewProd}</div>
       ${previewDe?`<div class="camp-thumb-de">${previewDe}</div>`:''}
       ${previewPor?`<div class="camp-thumb-por">${previewPor}</div>`:''}
@@ -519,18 +595,19 @@ function fHomeOpenHist(){
   if(tabs.length>1) fSwitchTab('historico', tabs[1]);
 }
 
-// Hero da campanha recomendada (mesma regra do rail: a "popular" das ativas)
+// Hero da campanha recomendada (a "popular" entre as que têm material pronto)
 function _fHomeHeroEl(rec){
-  const cover=fCampCover(rec);
+  const cover=fCampCover(rec)||_fCampThumbURL(rec.id);
   const mats=(typeof fGetMaterialsForCamp==='function')?fGetMaterialsForCamp(rec.id):[];
   const matLabel=mats.length?`${mats.length} material${mats.length!==1?'is':''}`:'Materiais em breve';
   const coverStyle=cover
-    ?`background-color:${rec.color};background-image:linear-gradient(180deg,rgba(0,0,0,.30),rgba(0,0,0,0) 35%,rgba(0,0,0,0) 65%,rgba(0,0,0,.38)),url('${cover}')`
+    ?`background-color:${rec.color};background-image:linear-gradient(180deg,rgba(0,0,0,.30),rgba(0,0,0,0) 35%,rgba(0,0,0,0) 65%,rgba(0,0,0,.38)),url('${cover}');background-size:cover;background-position:center`
     :`background:linear-gradient(155deg,${rec.color},rgba(0,0,0,.45)),${rec.color}`;
+  const heroThumbAttr=(!cover&&_fCampThumbNeeded(rec))?` data-thumb-camp="${rec.id}"`:'';
   const _flame='<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:-1px"><path d="M12 2s5 4 5 9a5 5 0 0 1-10 0c0-1 .3-2 .8-2.8C8 10 9 12 10 12c0-3 2-7 2-10z"/></svg>';
   const _star='<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:-1.5px"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9"/></svg>';
   return `<div class="fh-hero" onclick="fSelectCamp('${rec.id}')">
-    <div class="fh-hero-cover" style="${coverStyle}">
+    <div class="fh-hero-cover"${heroThumbAttr} style="${coverStyle}">
       ${rec.badge?`<span class="fh-hero-badge">${gEsc(rec.badge)}</span>`:''}
       ${rec.popular?`<span class="fh-hero-pop">${_flame} Popular</span>`:''}
       ${cover?'':`<div class="fh-hero-prod">${gEsc(rec.previewProd||rec.name)}</div>`}
@@ -544,33 +621,84 @@ function _fHomeHeroEl(rec){
   </div>`;
 }
 
+// Campanha tem material publicado e válido? (vitrine honesta: prontas vs em breve)
+function _fCampHasMats(c){
+  try{ return fGetMaterialsForCamp(c.id).filter(fIsMaterialValid).length>0; }catch(e){ return false; }
+}
+
 // Corpo da home (seções). query preenchida = modo busca (lista achatada de resultados).
 function _fHomeBodyHTML(query){
   const q=(query||'').trim().toLowerCase();
   const {ativas,outras}=fGetCampaigns();
+  const impl=(typeof CAMPS_IMPLEMENTACAO!=='undefined')?CAMPS_IMPLEMENTACAO:[];
   if(q){
-    const match=[...ativas,...outras,...(typeof CAMPS_IMPLEMENTACAO!=='undefined'?CAMPS_IMPLEMENTACAO:[])]
-      .filter(c=>c.name.toLowerCase().includes(q));
+    const match=[...ativas,...outras,...impl].filter(c=>c.name.toLowerCase().includes(q));
     if(!match.length) return `<div class="fh-empty">Nenhuma campanha encontrada para “${gEsc(query)}”. Tente outro termo.</div>`;
+    const isImpl=c=>impl.some(x=>x.id===c.id);
     return `<div class="fh-sec">Resultados <em>· ${match.length}</em></div>
-      <div class="camp-grid fh-grid">${match.map(c=>fCampEl(c,false)).join('')}</div>`;
+      <div class="camp-grid fh-grid">${match.map(c=>fCampEl(c,false,!isImpl(c)&&!_fCampHasMats(c))).join('')}</div>`;
   }
-  const rec=ativas.find(c=>c.popular)||null;
-  const gridAtivas=ativas.filter(c=>!rec||c.id!==rec.id);
+  // Vitrine honesta: só entra em "Prontas pra usar" quem tem material publicado
+  // e válido; o resto vai pra "Em breve" (cards menores, sem clique). A recomendada
+  // NUNCA é uma campanha vazia.
+  const pool=[...ativas,...outras];
+  const prontas=pool.filter(_fCampHasMats);
+  const embreve=pool.filter(c=>!_fCampHasMats(c));
+  const rec=prontas.find(c=>c.popular)||prontas[0]||null;
+  const gridProntas=prontas.filter(c=>!rec||c.id!==rec.id);
   // Rascunhos mais recentes (máx 3) — atalho de retomada
   let drafts=[];
   try{ drafts=fGetHist().filter(x=>x.status==='rascunho').slice(0,3); }catch(e){}
-  const impl=(typeof CAMPS_IMPLEMENTACAO!=='undefined')?CAMPS_IMPLEMENTACAO:[];
   return `
     ${drafts.length?`<div class="fh-sec">Continuar de onde parou</div>
     <div class="fh-cont">${drafts.map(_fHomeDraftEl).join('')}</div>`:''}
     ${rec?_fHomeHeroEl(rec):''}
-    ${gridAtivas.length?`<div class="fh-sec">Ativas agora <em>· ${gridAtivas.length} campanha${gridAtivas.length!==1?'s':''}</em></div>
-    <div class="camp-grid fh-grid">${gridAtivas.map(c=>fCampEl(c,false)).join('')}</div>`:''}
-    ${outras.length?`<div class="fh-sec">Outras campanhas</div>
-    <div class="camp-grid fh-grid">${outras.map(c=>fCampEl(c,false)).join('')}</div>`:''}
+    ${gridProntas.length?`<div class="fh-sec">Prontas pra usar <em>· ${gridProntas.length} campanha${gridProntas.length!==1?'s':''}</em></div>
+    <div class="camp-grid fh-grid">${gridProntas.map(c=>fCampEl(c,false)).join('')}</div>`:''}
     ${impl.length?`<div class="fh-sec">Implementação <em>· para o lançamento da sua unidade</em></div>
-    <div class="camp-grid fh-grid">${impl.map(c=>fCampEl(c,false)).join('')}</div>`:''}`;
+    <div class="camp-grid fh-grid">${impl.map(c=>fCampEl(c,false)).join('')}</div>`:''}
+    ${embreve.length?`<div class="fh-sec">Em breve <em>· materiais em preparação</em></div>
+    <div class="camp-grid fh-grid fh-grid-ghost">${embreve.map(c=>fCampEl(c,false,true)).join('')}</div>`:''}`;
+}
+
+/* ── Revelação por rolagem ─────────────────────────────────────
+   Cada bloco do corpo da home (#fh-body>*) entra quando aparece no viewport
+   (IntersectionObserver com root no próprio #f-home). --bi = índice dentro do
+   lote revelado junto (stagger); os cards herdam via --ci. Sem .fh-anim
+   (refresh silencioso, busca) ou com reduced-motion, tudo fica visível na hora. */
+let _fhRevealIO=null;
+function _fhSetupReveal(){
+  const home=document.getElementById('f-home'); if(!home)return;
+  if(_fhRevealIO){_fhRevealIO.disconnect();_fhRevealIO=null;}
+  const blocks=home.querySelectorAll('#fh-body>*');
+  const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(!home.classList.contains('fh-anim')||reduce||!('IntersectionObserver' in window)){
+    blocks.forEach(b=>b.classList.add('in'));
+    return;
+  }
+  _fhRevealIO=new IntersectionObserver(entries=>{
+    let bi=0;
+    entries.forEach(en=>{
+      if(!en.isIntersecting)return;
+      en.target.style.setProperty('--bi',Math.min(bi++,6));
+      en.target.classList.add('in');
+      _fhRevealIO.unobserve(en.target);
+    });
+  },{root:home,rootMargin:'0px 0px -60px 0px',threshold:0});
+  blocks.forEach(b=>_fhRevealIO.observe(b));
+}
+
+// Busca gruda no topo ao rolar e ganha vidro (.is-stuck) — bind único no #f-home
+let _fhStickyBound=false;
+function _fhBindSticky(){
+  if(_fhStickyBound)return;
+  const home=document.getElementById('f-home'); if(!home)return;
+  _fhStickyBound=true;
+  home.addEventListener('scroll',()=>{
+    const s=home.querySelector('.fh-search-row'); if(!s)return;
+    const stuck=s.getBoundingClientRect().top<=home.getBoundingClientRect().top+12;
+    s.classList.toggle('is-stuck',stuck);
+  },{passive:true});
 }
 
 function fRenderHome(opts){
@@ -594,6 +722,10 @@ function fRenderHome(opts){
     <div id="fh-body">${_fHomeBodyHTML('')}</div>
   </div>`;
   _fhApplyStagger(el);
+  // Se o observer falhar por qualquer motivo, ninguém pode ficar invisível
+  try{ _fhSetupReveal(); }catch(e){ el.querySelectorAll('#fh-body>*').forEach(b=>b.classList.add('in')); }
+  _fhBindSticky();
+  setTimeout(fHomeFillThumbs,0); // capas reais pintam em background
 }
 function fHomeFilter(q){
   const body=document.getElementById('fh-body'); if(!body)return;
@@ -601,6 +733,8 @@ function fHomeFilter(q){
   const home=document.getElementById('f-home');
   if(home) home.classList.remove('fh-anim');
   body.innerHTML=_fHomeBodyHTML(q);
+  try{ _fhSetupReveal(); }catch(e){ body.querySelectorAll(':scope>*').forEach(b=>b.classList.add('in')); }
+  setTimeout(fHomeFillThumbs,0);
 }
 // Re-renderiza a home quando o sync do backend traz capas/artes novas —
 // só se ela está visível e o usuário não está no meio de uma busca.

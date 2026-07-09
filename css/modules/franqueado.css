@@ -623,47 +623,69 @@ body:not(.theme-light) #f-live-preview::-webkit-scrollbar-thumb:hover {
    body.f-home-mode esconde as colunas; sair do modo devolve o
    layout de 3 colunas exatamente como era. Preenchida por fRenderHome.
 ══════════════════════════════════════════════════════════════ */
-#f-home{display:none;flex:1;min-width:0;overflow-y:auto;background:var(--off-white)}
+#f-home{
+  display:none;flex:1;min-width:0;overflow-y:auto;
+  /* Ambiente da marca: glow laranja suave no topo — as margens laterais
+     deixam de ler como branco sobrando e viram respiro intencional. */
+  background:
+    radial-gradient(56% 44% at 50% -8%, rgba(255,144,0,.09), transparent 70%),
+    radial-gradient(34% 30% at 98% 4%, rgba(255,185,0,.06), transparent 70%),
+    var(--off-white);
+}
 body.f-home-mode #f-home{display:block}
 body.f-home-mode #fran-left,
 body.f-home-mode #fran-right{display:none}
 
-.fh-inner{max-width:1400px;margin:0 auto;padding:40px 60px;display:flex;flex-direction:column;gap:18px}
+/* Container fluido: escala com a resolução do monitor (clamp) em vez de
+   travar em largura fixa — sem faixas brancas gigantes em telas largas. */
+.fh-inner{
+  max-width:2000px;margin:0 auto;
+  padding:clamp(28px,2.6vw,52px) clamp(24px,4.2vw,96px) clamp(48px,5vw,96px);
+  display:flex;flex-direction:column;gap:clamp(16px,1.2vw,24px);
+}
 
 /* Cabeçalho: saudação + atalho Minhas artes */
 .fh-head{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap}
-.fh-greet{font-family:'Roboto',sans-serif;font-weight:900;font-size:28px;letter-spacing:-.02em;color:var(--text);margin:0}
-.fh-sub{font-size:14px;color:var(--text-3);margin:4px 0 0}
+.fh-greet{font-family:'Roboto',sans-serif;font-weight:900;font-size:clamp(26px,1.9vw,40px);letter-spacing:-.02em;color:var(--text);margin:0}
+.fh-sub{font-size:clamp(13.5px,.75vw,15.5px);color:var(--text-3);margin:5px 0 0}
 .fh-mine{
   margin-left:auto;display:inline-flex;align-items:center;gap:7px;flex-shrink:0;
   background:var(--white);border:1.5px solid var(--gray-mid);border-radius:var(--r-pill);
-  padding:8px 16px;font-size:13px;font-weight:700;color:var(--text-2);cursor:pointer;
+  padding:9px 18px;font-size:13.5px;font-weight:700;color:var(--text-2);cursor:pointer;
   font-family:'Roboto',sans-serif;transition:border-color .15s,box-shadow .15s;
 }
 .fh-mine:hover{border-color:var(--dm-orange);box-shadow:0 3px 12px rgba(255,144,0,.15)}
 .fh-mine-badge{background:var(--dm-orange);color:#fff;border-radius:var(--r-pill);padding:1px 7px;font-size:11px;font-weight:800}
 
-/* Busca */
+/* Busca — sticky: gruda no topo ao rolar e ganha vidro (.is-stuck via JS) */
 .fh-search-row{
-  display:flex;align-items:center;gap:9px;background:var(--white);
-  border:1.5px solid var(--gray-mid);border-radius:var(--r);padding:11px 15px;color:var(--text-3);
-  transition:border-color .15s,box-shadow .15s;
+  position:sticky;top:10px;z-index:40;
+  display:flex;align-items:center;gap:10px;background:var(--white);
+  border:1.5px solid var(--gray-mid);border-radius:var(--r-pill);padding:13px 20px;color:var(--text-3);
+  box-shadow:0 1px 4px rgba(10,10,10,.03);
+  transition:border-color .15s,box-shadow .2s,background .2s;
 }
 .fh-search-row:focus-within{border-color:var(--dm-orange);box-shadow:0 0 0 3px rgba(255,144,0,.12)}
+.fh-search-row.is-stuck{
+  background:var(--glass-bg);
+  -webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);
+  border-color:rgba(255,144,0,.30);box-shadow:var(--glass-shadow);
+}
 #fh-search{flex:1;border:none;outline:none;background:transparent;font-size:14px;color:var(--text);font-family:'Roboto',sans-serif}
 #fh-search::placeholder{color:var(--text-3)}
 
-#fh-body{display:flex;flex-direction:column;gap:18px}
+#fh-body{display:flex;flex-direction:column;gap:clamp(16px,1.2vw,24px)}
 
-/* Títulos de seção */
+/* Títulos de seção — hairline que se estende até a margem (editorial) */
 .fh-sec{
   font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
   color:var(--text-3);display:flex;align-items:center;gap:6px;
 }
 .fh-sec em{font-style:normal;font-weight:600;letter-spacing:0;text-transform:none;color:var(--gray-mid)}
+.fh-sec::after{content:'';flex:1;height:1px;margin-left:6px;background:linear-gradient(90deg,var(--gray-mid),transparent);opacity:.55}
 
 /* Continuar de onde parou */
-.fh-cont{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.fh-cont{display:grid;grid-template-columns:repeat(auto-fill,minmax(clamp(250px,17vw,320px),1fr));gap:clamp(10px,.8vw,14px)}
 .fh-draft{
   display:flex;align-items:center;gap:11px;background:var(--white);
   border:1.5px solid var(--gray-light);border-radius:var(--r);padding:10px 12px;
@@ -677,36 +699,54 @@ body.f-home-mode #fran-right{display:none}
 .fh-draft-meta{font-size:11px;color:var(--text-3);margin-top:2px}
 .fh-draft-go{color:var(--dm-orange-d);font-size:12px;font-weight:800;flex-shrink:0;white-space:nowrap}
 
-/* Hero — recomendada */
+/* Hero — recomendada (escala junto com o monitor) */
 .fh-hero{
   display:flex;background:var(--white);border:1.5px solid var(--gray-light);
-  border-radius:14px;overflow:hidden;cursor:pointer;min-height:150px;
+  border-radius:16px;overflow:hidden;cursor:pointer;min-height:clamp(150px,11vw,214px);
   transition:border-color .15s,transform .15s,box-shadow .2s;
 }
-.fh-hero:hover{border-color:var(--dm-orange);transform:translateY(-3px);box-shadow:0 14px 30px rgba(255,144,0,.18)}
+.fh-hero:hover{border-color:var(--dm-orange);transform:translateY(-3px);box-shadow:0 18px 40px rgba(255,144,0,.20)}
 .fh-hero-cover{
-  width:36%;min-width:220px;position:relative;display:flex;flex-direction:column;
+  width:clamp(220px,34%,620px);min-width:220px;position:relative;display:flex;flex-direction:column;
   align-items:center;justify-content:center;color:#fff;background-size:cover;background-position:center;
 }
-.fh-hero-prod{font-family:'Roboto',sans-serif;font-weight:900;font-size:24px;letter-spacing:.02em;text-align:center;line-height:1.08;text-transform:uppercase;padding:0 16px;z-index:1}
+.fh-hero-prod{font-family:'Roboto',sans-serif;font-weight:900;font-size:clamp(24px,1.9vw,34px);letter-spacing:.02em;text-align:center;line-height:1.08;text-transform:uppercase;padding:0 16px;z-index:1}
 .fh-hero-badge{position:absolute;top:10px;left:10px;background:var(--dm-yellow);color:var(--dm-red);border-radius:var(--r-pill);padding:3px 9px;font-size:10px;font-weight:800;letter-spacing:.03em;z-index:2}
 .fh-hero-pop{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.4);color:#fff;border-radius:var(--r-pill);padding:3px 9px;font-size:10px;font-weight:800;display:inline-flex;align-items:center;gap:4px;z-index:2}
-.fh-hero-body{flex:1;padding:20px 26px;display:flex;flex-direction:column;justify-content:center;gap:5px}
+.fh-hero-body{flex:1;padding:clamp(20px,1.7vw,32px) clamp(26px,2.3vw,44px);display:flex;flex-direction:column;justify-content:center;gap:6px}
 .fh-hero-eyebrow{font-size:10.5px;font-weight:800;letter-spacing:.1em;color:var(--dm-orange-d);display:inline-flex;align-items:center;gap:5px}
-.fh-hero-name{font-family:'Roboto',sans-serif;font-weight:900;font-size:21px;letter-spacing:-.01em;color:var(--text)}
-.fh-hero-meta{font-size:13px;color:var(--text-3)}
+.fh-hero-name{font-family:'Roboto',sans-serif;font-weight:900;font-size:clamp(21px,1.5vw,30px);letter-spacing:-.01em;color:var(--text)}
+.fh-hero-meta{font-size:clamp(13px,.75vw,14.5px);color:var(--text-3)}
 .fh-hero-cta{
-  margin-top:9px;align-self:flex-start;background:var(--dm-orange);color:#fff;
-  border-radius:var(--r-pill);padding:9px 20px;font-size:13.5px;font-weight:800;
+  margin-top:10px;align-self:flex-start;background:var(--dm-orange);color:#fff;
+  border-radius:var(--r-pill);padding:10px 22px;font-size:clamp(13.5px,.75vw,15px);font-weight:800;
   font-family:'Roboto',sans-serif;box-shadow:0 4px 14px rgba(248,84,0,.3);
   transition:background .15s,transform .12s;
 }
 .fh-hero:hover .fh-hero-cta{background:var(--dm-orange-d)}
 
-/* Grids de campanha — reutilizam .camp-card do rail com cards maiores */
-.fh-grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:0}
-.fh-grid .camp-thumb{height:120px}
-.fh-grid .camp-thumb-prod{font-size:15px}
+/* Grids de campanha — reutilizam .camp-card do rail; a densidade e o tamanho
+   dos cards acompanham a resolução (auto-fill + minmax fluido). */
+.fh-grid{grid-template-columns:repeat(auto-fill,minmax(clamp(180px,12vw,236px),1fr));gap:clamp(12px,1vw,18px);margin-bottom:0}
+.fh-grid .camp-thumb{height:auto;aspect-ratio:3/2}
+.fh-grid .camp-thumb-prod{font-size:clamp(15px,.95vw,18px)}
+.fh-grid .camp-body{padding:9px 12px}
+.fh-grid .camp-name{font-size:13px}
+.fh-grid .camp-sub{font-size:11.5px}
+
+/* "Em breve" — campanhas sem material publicado: presentes, mas honestas.
+   Cards menores, dessaturados e sem interação (nada de clique em beco sem saída). */
+.camp-card.ghost{pointer-events:none;opacity:.62;filter:saturate(.35)}
+.fh-grid-ghost{grid-template-columns:repeat(auto-fill,minmax(clamp(148px,9.5vw,188px),1fr))}
+.fh-grid-ghost .camp-thumb{aspect-ratio:16/9}
+.fh-grid-ghost .camp-thumb-prod{font-size:13px}
+
+/* Capa real renderizada do material (pintada async pela fila de thumbs) —
+   esconde o fallback programático de produto/preço e funde suave. */
+.camp-thumb.thumb-real{animation:gFadeIn var(--dur-base) var(--ease-out)}
+.camp-thumb.thumb-real .camp-thumb-prod,.camp-thumb.thumb-real .camp-thumb-de,
+.camp-thumb.thumb-real .camp-thumb-por,.camp-thumb.thumb-real .camp-thumb-logo{display:none}
+.fh-hero-cover.thumb-real .fh-hero-prod{display:none}
 .fh-empty{
   text-align:center;padding:34px 20px;color:var(--text-3);font-size:13.5px;
   background:var(--white);border:1.5px dashed var(--gray-mid);border-radius:var(--r);
@@ -724,14 +764,21 @@ body.f-home-mode #fran-right{display:none}
 #f-home-btn:hover{border-color:var(--dm-orange);color:var(--dm-orange-d)}
 
 /* ── Tema escuro ── */
-body:not(.theme-light) #f-home{background:#141210}
+body:not(.theme-light) #f-home{
+  background:
+    radial-gradient(56% 44% at 50% -8%, rgba(255,144,0,.07), transparent 70%),
+    radial-gradient(34% 30% at 98% 4%, rgba(255,185,0,.04), transparent 70%),
+    #141210;
+}
 body:not(.theme-light) .fh-greet{color:#F0EDE9}
 body:not(.theme-light) .fh-sub,body:not(.theme-light) .fh-sec{color:#8F8880}
 body:not(.theme-light) .fh-sec em{color:#5A554F}
+body:not(.theme-light) .fh-sec::after{background:linear-gradient(90deg,rgba(255,255,255,.12),transparent)}
 body:not(.theme-light) .fh-mine,
 body:not(.theme-light) .fh-search-row,
 body:not(.theme-light) .fh-draft,
 body:not(.theme-light) .fh-hero{background:#1E1B18;border-color:#33302B}
+body:not(.theme-light) .fh-search-row.is-stuck{background:rgba(30,27,24,.78);border-color:rgba(255,144,0,.28)}
 body:not(.theme-light) .fh-mine{color:#C9C2BA}
 body:not(.theme-light) #fh-search{color:#F0EDE9}
 body:not(.theme-light) .fh-draft-name,body:not(.theme-light) .fh-hero-name{color:#F0EDE9}
@@ -746,6 +793,7 @@ body:not(.theme-light) #f-home-btn{border-color:#3A3733;color:#C9C2BA}
   .fh-hero{flex-direction:column}
   .fh-hero-cover{width:100%;min-width:0;height:130px}
   .fh-grid{grid-template-columns:repeat(2,1fr)}
+  .fh-grid .camp-thumb{aspect-ratio:4/3}
   #fh-search{font-size:16px} /* evita auto-zoom iOS */
 }
 
@@ -756,20 +804,25 @@ body:not(.theme-light) #f-home-btn{border-color:#3A3733;color:#C9C2BA}
    refresh silencioso do sync não re-anima). Reduced-motion já é
    respeitado pela guarda global de 02-animations.css.
 ══════════════════════════════════════════════════════════════ */
-/* Blocos estruturais sobem em sequência (--fi = índice do bloco) */
+/* Cabeçalho e busca (sempre acima da dobra) sobem na carga (--fi = índice) */
 #f-home.fh-anim .fh-head,
-#f-home.fh-anim .fh-search-row,
-#f-home.fh-anim .fh-sec,
-#f-home.fh-anim .fh-hero,
-#f-home.fh-anim .fh-empty{
+#f-home.fh-anim .fh-search-row{
   animation:gFadeInUp var(--dur-base) var(--ease-out) both;
   animation-delay:calc(var(--fi,0) * 48ms);
 }
-/* Cards pop com mola suave, herdando o atraso do bloco pai (+ --ci por card) */
-#f-home.fh-anim .camp-card,
-#f-home.fh-anim .fh-draft{
+/* Blocos do corpo: revelação por rolagem — escondidos até o IntersectionObserver
+   marcar .in (--bi = índice dentro do lote revelado junto). O que está acima da
+   dobra recebe .in imediatamente → reproduz a cascata original no load. */
+#f-home.fh-anim #fh-body>*{opacity:0}
+#f-home.fh-anim #fh-body>.in{
+  animation:gFadeInUp var(--dur-base) var(--ease-out) both;
+  animation-delay:calc(var(--bi,0) * 70ms);
+}
+/* Cards pop com mola suave dentro do bloco revelado (+ --ci por card) */
+#f-home.fh-anim #fh-body>.in .camp-card,
+#f-home.fh-anim #fh-body>.in .fh-draft{
   animation:gPopIn var(--dur-base) var(--ease-spring-soft) both;
-  animation-delay:calc(var(--fi,0) * 48ms + var(--ci,0) * 36ms);
+  animation-delay:calc(var(--bi,0) * 70ms + var(--ci,0) * 36ms);
 }
 
 /* Hero: zoom sutil da capa + CTA que avança (a curva faz o charme) */
