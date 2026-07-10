@@ -12,7 +12,7 @@
 .bot-circle{width:36px;height:36px;border-radius:50%;background:var(--dm-orange);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;position:relative;box-shadow:0 2px 8px rgba(255,144,0,.3)}
 .bot-online{width:10px;height:10px;background:var(--green);border-radius:50%;border:2px solid var(--white);position:absolute;bottom:0;right:0;animation:gPulse 2s var(--ease-standard) infinite}
 .bot-info-name{font-family:'Roboto',sans-serif;font-weight:900;font-size:15px;letter-spacing:.04em;color:var(--text)}
-.bot-info-status{font-size:11px;color:var(--green);font-weight:500}
+.bot-info-status{font-size:11px;color:var(--green-text);font-weight:500}
 #f-ctx-tag{font-size:11px;padding:4px 12px;border-radius:var(--r-pill);background:var(--dm-orange-bg);color:var(--dm-red);font-weight:700;border:1px solid var(--dm-orange-tint);letter-spacing:.02em;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #f-reset-btn{margin-left:auto;padding:5px 12px;font-size:11px;font-weight:500;border:1px solid var(--gray-mid);border-radius:var(--r-pill);background:var(--white);color:var(--text-2);cursor:pointer;font-family:'Roboto',sans-serif;transition:all .1s;white-space:nowrap}
 #f-reset-btn:hover{border-color:var(--dm-orange);color:var(--dm-orange)}
@@ -225,7 +225,7 @@
 .f-bulk-field span{font-weight:600;color:var(--text)}
 .f-bulk-card-status{margin-top:5px}
 .f-bulk-badge{font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px}
-.f-bulk-badge.ok{background:rgba(34,197,94,.15);color:var(--green,#0f7a3d)}
+.f-bulk-badge.ok{background:rgba(34,197,94,.15);color:var(--green-text)}
 .f-bulk-badge.warning{background:rgba(255,185,0,.18);color:#92400E}
 .f-bulk-badge.error{background:rgba(200,24,24,.12);color:var(--dm-red)}
 .f-bulk-badge.loading{background:var(--gray-light);color:var(--text-3,#9CA3AF)}
