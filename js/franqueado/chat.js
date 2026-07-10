@@ -94,8 +94,12 @@ function fSelectFmt(id){
   // Sem dados: comportamento original
   fState.stepIdx=-1;fState.dados={};fState.done=false;fStartChat();
 }
+// Seletor de formato do rail foi removido (o formato vem do material, via fSelectMaterial;
+// e o resultado ainda oferece "outro formato"). Mantida como no-op defensivo pois vários
+// pontos (boot, preview, troca de campanha) ainda chamam — não quebrar nenhum caller.
 function fRenderFmts(){
-  document.getElementById('f-fmt-row').innerHTML=FMTS.map(f=>`
+  const row=document.getElementById('f-fmt-row'); if(!row) return;
+  row.innerHTML=FMTS.map(f=>`
     <div class="fmt-btn ${f.id===fState.fmt.id?'selected':''}" onclick="fSelectFmt('${f.id}')">
       <div class="fmt-btn-name">${f.name}</div>
       <div class="fmt-btn-dim">${f.dim}</div>

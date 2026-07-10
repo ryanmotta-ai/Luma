@@ -12,9 +12,9 @@ function fSwitchTab(tab,btn){
   document.querySelectorAll('.f-tab').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   const cat=document.getElementById('f-catalog'),hist=document.getElementById('f-hist-tab');
-  const fmt=document.getElementById('f-fmt-wrap'),sr=document.getElementById('f-search-row');
-  if(tab==='historico'){cat.style.display='none';hist.style.display='flex';fmt.style.display='none';sr.style.display='none';fRenderHist();}
-  else{cat.style.display='block';hist.style.display='none';fmt.style.display='';sr.style.display='';}
+  const sr=document.getElementById('f-search-row'); // #f-fmt-wrap removido (seletor de formato aposentado)
+  if(tab==='historico'){cat.style.display='none';hist.style.display='flex';sr.style.display='none';fRenderHist();}
+  else{cat.style.display='block';hist.style.display='none';sr.style.display='';}
 }
 
 // F-08: filtro por status dentro do histórico
