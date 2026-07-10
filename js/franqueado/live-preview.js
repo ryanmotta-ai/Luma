@@ -12,8 +12,15 @@ function fOpenPreview(e,id){
   const c=(typeof fResolveCamp==='function')?fResolveCamp(id):[...CAMPS_ATIVAS,...CAMPS_OUTRAS].find(x=>x.id===id);
   if(!c)return;
   document.getElementById('pv-title').textContent=c.name;
-  // pastas (dFolders) não têm count/expiraDias — cai pra templates.length / oculta o "Expira"
-  const _count=(c.count!=null)?c.count:(c.templates?c.templates.length:0);
+  // Contagem HONESTA: materiais realmente publicados e válidos (não o count estático do
+  // config). Fallback: count do config → templates.length.
+  let _count;
+  try{
+    _count=(typeof fGetMaterialsForCamp==='function')
+      ? fGetMaterialsForCamp(c.id).filter(m=>(typeof fIsMaterialValid!=='function')||fIsMaterialValid(m)).length
+      : null;
+  }catch(e){ _count=null; }
+  if(_count==null||_count===0) _count=(c.count!=null)?c.count:(c.templates?c.templates.length:0);
   const _exp=(c.expiraDias!=null)?` · Expira em ${c.expiraDias} dias`:'';
   document.getElementById('pv-note').textContent=`${_count} materiais${_exp}`;
   // F-09: monta os 3 formatos lado a lado, cada um clicável
@@ -194,8 +201,14 @@ function fLpInjectPlaceholders(layers, dadosPreview, defaults){
       if(!vazio) continue;
       pendentes.add(l.id);
       const def = defaults ? defaults[name] : undefined;
-      // Só injeta token literal se NÃO houver default — com default o motor já preenche.
-      if(def == null || def === ''){ dadosPreview[name] = '{{' + name + '}}'; }
+      // Placeholder AMIGÁVEL quando não há default: exemplo do campo → [Rótulo].
+      // O token cru '{{produto}}' aparecia gigante na prévia ("{{PRODUTO" com o
+      // uppercase do PSD) — jargão de código na cara do franqueado.
+      if(def == null || def === ''){
+        const vDef=(typeof dVars!=='undefined'&&dVars)?dVars.find(v=>v.name===name):null;
+        const ex=(vDef&&vDef.example!=null&&String(vDef.example).trim()!=='')?String(vDef.example).trim():'';
+        dadosPreview[name] = ex || '['+((vDef&&vDef.label)||name)+']';
+      }
     }
   });
   return pendentes;

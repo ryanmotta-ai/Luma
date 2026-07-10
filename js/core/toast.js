@@ -37,6 +37,30 @@ function gEsc(s){
   return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+/* ── HANDLER GLOBAL DE ERRO (H.3) ──
+   Erro assíncrono não tratado morria em silêncio: o usuário clicava e "nada acontecia".
+   Agora todo throw/rejeição não capturados viram UM toast honesto (+ console p/ debug).
+   Throttle de 8s: um loop de erros não vira metralhadora de toasts.                  */
+let _gLastErrToast=0;
+function _gGlobalErrToast(){
+  const now=Date.now();
+  if(now-_gLastErrToast<8000) return;
+  _gLastErrToast=now;
+  try{ gToast('⚠ Algo deu errado — tente de novo. Se persistir, recarregue a página.','error'); }catch(e){}
+}
+window.addEventListener('error',(e)=>{
+  // Erros de carregamento de recurso (img/script) não são falha de fluxo → só console
+  if(e && e.target && e.target!==window && (e.target.tagName==='IMG'||e.target.tagName==='SCRIPT'||e.target.tagName==='LINK')){
+    console.warn('[recurso falhou]', e.target.src||e.target.href||''); return;
+  }
+  console.error('[erro global]', (e&&e.error)||(e&&e.message)||e);
+  _gGlobalErrToast();
+}, true);
+window.addEventListener('unhandledrejection',(e)=>{
+  console.error('[rejeição não tratada]', e&&e.reason);
+  _gGlobalErrToast();
+});
+
 // M1.2 — estado de loading num botão de ação assíncrona: troca o conteúdo por um
 // spinner minimalista, deixa opacity 0.7 e bloqueia cliques. Retorna função de restore.
 function gBtnLoading(btn, label){

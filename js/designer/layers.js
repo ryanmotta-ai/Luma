@@ -1052,7 +1052,7 @@ function dShowProps(l){
     document.getElementById('dp-imgfit').value=l.objectFit||'cover';
     const imgSel=document.getElementById('dp-imgvar');
     const imgVars=dVars.filter(v=>v.type==='image');
-    imgSel.innerHTML='<option value="">URL fixa</option>'+imgVars.map(v=>`<option value="${v.name}" ${v.name===l.imgVar?'selected':''}>${v.label}</option>`).join('');
+    imgSel.innerHTML='<option value="">URL fixa</option>'+imgVars.map(v=>`<option value="${gEsc(v.name)}" ${v.name===l.imgVar?'selected':''}>${gEsc(v.label)}</option>`).join('');
     // Para frames: mostrar opção de shape e radius
     const fsRow=document.getElementById('dp-frame-shape-row');
     const frRow=document.getElementById('dp-frame-radius-row');
@@ -1139,7 +1139,7 @@ function dPopVarSel(){
 }
 /* ── BINDINGS de propriedade (4.1) ── */
 function dBindOptions(filterFn, current){
-  return '<option value="">— nenhuma —</option>'+dVars.filter(filterFn).map(v=>`<option value="${v.name}" ${v.name===current?'selected':''}>${v.label} ({{${v.name}}})</option>`).join('');
+  return '<option value="">— nenhuma —</option>'+dVars.filter(filterFn).map(v=>`<option value="${gEsc(v.name)}" ${v.name===current?'selected':''}>${gEsc(v.label)} ({{${gEsc(v.name)}}})</option>`).join('');
 }
 function dPopBindingSelects(l){
   const b=l.bindings||{};
@@ -2404,6 +2404,9 @@ function dSave(){
     const _custom=!!(_ab && typeof DFMT_SIZES!=='undefined' && !DFMT_SIZES[_ab.fmt] && _ab.w>0 && _ab.h>0);
     dFolders.forEach(f=>f.templates.forEach(t=>{if(t.id===dActiveTmplId){
       t.layers=JSON.parse(JSON.stringify(dLayers));
+      // Fundo do canvas acompanha o save — mudar o bg no editor não chegava na arte
+      // final (o franqueado renderiza t.bg) até uma republicação.
+      if(_ab && _ab.bg!==undefined) t.bg=_ab.bg;
       if(_custom){ t.fmt=_ab.fmt; t.w=_ab.w; t.h=_ab.h; }
     }}));
   }
@@ -2472,18 +2475,26 @@ async function _dUploadDataUrl(bucket, path, dataUrl){
 async function _dUploadLayerImages(layers, tid){
   if(!Array.isArray(layers)) return layers||[];
   for(const l of layers){
-    if(!l || typeof l.imgUrl!=='string') continue;
-    // Resolve a fonte real: data: direto, ou 'idb://' (imagem grande no IndexedDB) → dataURL.
-    // Sem isso, após o reload a layer carrega 'idb://' e a Storage receberia uma ref quebrada.
-    let dataUrl=null;
-    if(l.imgUrl.startsWith('data:')) dataUrl=l.imgUrl;
-    else if(l.imgUrl.indexOf('idb://')===0 && typeof gResolveImgUrl==='function'){
-      const real=await gResolveImgUrl(l.imgUrl);
-      if(real && typeof real==='string' && real.startsWith('data:')) dataUrl=real;
+    if(!l) continue;
+    
+    // 1. Upload imgUrl (se existir)
+    if(typeof l.imgUrl==='string'){
+      let dataUrl=null;
+      if(l.imgUrl.startsWith('data:')) dataUrl=l.imgUrl;
+      else if(l.imgUrl.indexOf('idb://')===0 && typeof gResolveImgUrl==='function'){
+        const real=await gResolveImgUrl(l.imgUrl);
+        if(real && typeof real==='string' && real.startsWith('data:')) dataUrl=real;
+      }
+      if(dataUrl){
+        const url=await _dUploadDataUrl('luma-template-assets', tid+'/'+(l.id!=null?l.id:Math.random().toString(36).slice(2)), dataUrl);
+        if(url) l.imgUrl=url; // sucesso → URL pública (leve, cross-device); falha → mantém idb:///data: original
+      }
     }
-    if(dataUrl){
-      const url=await _dUploadDataUrl('luma-template-assets', tid+'/'+(l.id!=null?l.id:Math.random().toString(36).slice(2)), dataUrl);
-      if(url) l.imgUrl=url; // sucesso → URL pública (leve, cross-device); falha → mantém idb:///data: original
+
+    // 2. Upload mask (se existir)
+    if(typeof l.mask==='string' && l.mask.startsWith('data:')){
+      const url=await _dUploadDataUrl('luma-template-assets', tid+'/mask_'+(l.id!=null?l.id:Math.random().toString(36).slice(2)), l.mask);
+      if(url) l.mask=url; // substitui a pesada string Base64 pela URL levinha da nuvem
     }
   }
   return layers;
@@ -2530,6 +2541,7 @@ function _dRowToTemplate(t){
     id:t.id, remoteId:t.id, name:t.nome||'(sem nome)', fmt:t.fmt||'story',
     formats:Array.isArray(t.formats)?t.formats:['story','feed','wide'],
     layers:Array.isArray(t.layers)?t.layers:[],
+    _needsLayersFetch: t.layers===undefined,
     publishMeta:{
       publicado:!!t.publicado,
       publicadoEm:t.publicado_em?new Date(t.publicado_em).getTime():null,
@@ -2555,7 +2567,8 @@ async function dSyncFoldersFromBackend(){
   try{
     const { data:rp, error:e1 }=await sb.schema('luma').from('pastas').select('*').order('ordem',{ascending:true});
     if(e1 || !Array.isArray(rp) || !rp.length) return; // banco vazio → mantém local (push migra)
-    const { data:rt }=await sb.schema('luma').from('templates').select('*');
+    // Lazy Load: exclui propositalmente a coluna `layers` pesada do download em lote no boot.
+    const { data:rt }=await sb.schema('luma').from('templates').select('id, pasta_id, nome, fmt, formats, publicado, publicado_em, validade, instrucoes, permissoes');
     const byPasta={};
     (rt||[]).forEach(t=>{ (byPasta[t.pasta_id]=byPasta[t.pasta_id]||[]).push(_dRowToTemplate(t)); });
     const remote=rp.map(p=>_dRowToFolder(p, byPasta[p.id]||[]));

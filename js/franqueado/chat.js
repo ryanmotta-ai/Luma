@@ -419,6 +419,11 @@ function fUpdateInputPlaceholder(id){
   box.placeholder = hints[cfg.type] || hints.text;
 }
 function fMostrarConfirm(){
+  // Nunca empilha 2 cards (digitar+Enter no confirm re-disparava fNextStep→fMostrarConfirm)
+  const existing=document.getElementById('confirm-msg'); if(existing) existing.remove();
+  // Input pausado enquanto o resumo está na tela — Editar/Alterar reabilitam.
+  const _box=document.getElementById('f-msg-box');
+  if(_box){ _box.disabled=true; _box.placeholder='Confira o resumo acima e confirme 👆'; }
   const d=fState.dados,c=fState.camp;
   const labels={produto:'Produto',precoDe:'Preço original',precoPor:'Preço promo',validade:'Validade',desconto:'Desconto',pedidoMin:'Pedido mínimo',bairros:'Cobertura',codigo:'Código',condicao:'Condição',brinde:'Brinde',categoria:'Categoria',oferta:'Oferta'};
   const rows=c.perguntas.map((p,i)=>{
@@ -682,12 +687,15 @@ function fGerarArte(){
     const de=d.precoDe?`De ${d.precoDe}`:'';
     const val=d.validade||'';
     fState._lastHistId = fAddHist(d,c,fState.fmt,'rascunho'); // id correto mesmo com dedup (C8)
+    if(typeof gTrackEvent==='function') gTrackEvent('arte_gerada',{camp_id:c.id,camp_name:c.name,fmt:fState.fmt.id,material_id:fState.material?.id||null});
     const msgs=document.getElementById('f-messages');
     const w=document.createElement('div');w.className='msg bot';
     // ID único pro canvas thumbnail
     const previewCanvasId = 'art-preview-'+Date.now();
     // Congela os dados desta arte pra os botões da bolha não usarem o estado futuro.
-    _fArtSnapshots[previewCanvasId] = {dados:{...d}, camp:c, fmt:fState.fmt, histId:fState._lastHistId};
+    // Inclui o MATERIAL: fRenderCanvasHelper lê fState.material — sem congelar, baixar
+    // de uma bolha antiga após trocar de material renderizava o template errado.
+    _fArtSnapshots[previewCanvasId] = {dados:{...d}, camp:c, fmt:fState.fmt, histId:fState._lastHistId, material:fState.material};
     
     // Gera as legendas da arte
     const suggestions = await fFetchAICaptionSuggestions(d, c, fState.fmt);
@@ -789,8 +797,10 @@ function fGerarArte(){
   },800);
 }
 async function fOutroFormato(id, snapId){
-  const f=FMTS.find(x=>x.id===id);if(!f||f.id===fState.fmt.id)return;
-  const snap=(snapId&&_fArtSnapshots[snapId])||{dados:fState.dados,camp:fState.camp};
+  const f=FMTS.find(x=>x.id===id);if(!f)return;
+  const snap=(snapId&&_fArtSnapshots[snapId])||{dados:fState.dados,camp:fState.camp,fmt:fState.fmt,material:fState.material};
+  // Guarda por BOLHA: compara com o formato desta arte, não com o global (outra bolha pode ter outro fmt)
+  if(snap.fmt && f.id===snap.fmt.id) return;
   fState.fmt=f;fRenderFmts();fUpdateCtx();
 
   // Atualiza as sugestões de legenda para o novo formato
@@ -841,25 +851,64 @@ async function fOutroFormato(id, snapId){
     }
   }
 
-  // Só registra como "baixada" se o PNG saiu de fato (evita histórico mentindo em falha).
-  await fGenPNG(snap.dados,snap.camp,f);
-  fAddHist(snap.dados,snap.camp,f,'baixada');
-  gToast(`${f.name} baixado!`);
+  // Gera com o MATERIAL da bolha (fRenderCanvasHelper lê fState.material) e só registra
+  // como "baixada" se o PNG saiu de fato. Falha antes era rejeição async silenciosa.
+  const prevMat=fState.material;
+  if(snap.material) fState.material=snap.material;
+  try{
+    await fGenPNG(snap.dados,snap.camp,f);
+    fAddHist(snap.dados,snap.camp,f,'baixada');
+    if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt:f.id,tipo:'png',outro_formato:true});
+    snap.fmt=f; // a bolha agora "é" deste formato — o Baixar PNG dela acompanha
+    gToast(`${f.name} baixado!`);
+    await _fRerenderArtThumb(snapId, snap, f); // thumb acompanha a nova geometria
+  }catch(e){
+    console.warn('Falha ao gerar no formato '+f.name+':', e);
+    gToast('Não consegui gerar nesse formato. Tente de novo.','error');
+  }finally{
+    fState.material=prevMat;
+  }
+}
+// Re-renderiza o thumbnail de uma bolha de arte na geometria do formato dado —
+// sem isso, trocar o formato atualizava o download mas o thumb ficava na proporção velha.
+async function _fRerenderArtThumb(canvasId, snap, f){
+  const cv=canvasId?document.getElementById(canvasId):null; if(!cv) return;
+  const mat=snap.material||fState.material;
+  if(!(mat&&mat.layers&&mat.layers.length)) return; // bolha fallback (sem material) não usa canvas
+  const [mw,mh]=(typeof fMaterialSize==='function')?fMaterialSize(mat,f):[1080,1920];
+  const previewH=280, previewW=Math.round(previewH*(mw/mh));
+  const wrap=cv.closest('.art-canvas-real');
+  if(wrap){ wrap.style.width=previewW+'px'; wrap.style.height=previewH+'px'; }
+  cv.width=previewW; cv.height=previewH;
+  const off=document.createElement('canvas'); off.width=mw; off.height=mh;
+  const octx=off.getContext('2d');
+  const prevMat=fState.material; fState.material=mat; // motor lê fState.material (bg + espaço nativo)
+  try{
+    await fRenderTemplateLayers(octx, mat.layers, mw, mh, snap.dados, snap.camp);
+    const ctx=cv.getContext('2d');
+    ctx.clearRect(0,0,cv.width,cv.height);
+    ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+    ctx.drawImage(off, 0,0,mw,mh, 0,0,cv.width,cv.height);
+  }catch(e){ console.warn('Thumb re-render falhou:', e); }
+  finally{ fState.material=prevMat; }
 }
 async function fBaixar(btn, snapId){
   // Usa o snapshot da própria bolha (não o estado atual, que pode ser de outra arte).
-  const snap=(snapId&&_fArtSnapshots[snapId])||{dados:fState.dados,camp:fState.camp,fmt:fState.fmt,histId:fState._lastHistId};
+  const snap=(snapId&&_fArtSnapshots[snapId])||{dados:fState.dados,camp:fState.camp,fmt:fState.fmt,histId:fState._lastHistId,material:fState.material};
   const restore=gBtnLoading(btn,'Gerando…');
+  const prevMat=fState.material;
+  if(snap.material) fState.material=snap.material; // gera com o material DESTA arte
   try{
     // Gera primeiro; só marca "baixada" se não lançar (canvas tainted, quota, etc.).
     await fGenPNG(snap.dados,snap.camp,snap.fmt);
     if(snap.histId){ fMarkHistBaixada(snap.histId); }
     else { fAddHist(snap.dados,snap.camp,snap.fmt,'baixada'); }
+    if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt:snap.fmt.id,tipo:'png'});
     gToast('Arte baixada!');
   }catch(e){
     console.warn('Falha ao gerar PNG:', e);
     gToast('Não consegui gerar o arquivo. Tente enviar a foto de novo pelo botão de upload, ou escolha outra imagem.','error');
-  }finally{ restore(); }
+  }finally{ fState.material=prevMat; restore(); }
 }
 function fRefazer(){fState.stepIdx=-1;fState.dados={};fState.done=false;fClearImgCache();_fArtSnapshots={};_fArtCaptions={};const msgs=document.getElementById('f-messages');if(msgs)msgs.innerHTML='';fUpdateProg();fAddBot(`Vamos refazer a arte da <strong>${fState.camp.name}</strong>.`,[]);clearTimeout(fNextTimeout);fNextTimeout=setTimeout(()=>fNextStep(),500);}
 // Mobile: volta do chat para o catálogo (desfaz o colapso de colunas).
@@ -931,22 +980,27 @@ function fGetContrastColor(hex) {
 }
 
 async function fBaixarPDF(btn, snapId){
-  const snap=(snapId&&_fArtSnapshots[snapId])||{dados:fState.dados,camp:fState.camp,fmt:fState.fmt,histId:fState._lastHistId};
+  const snap=(snapId&&_fArtSnapshots[snapId])||{dados:fState.dados,camp:fState.camp,fmt:fState.fmt,histId:fState._lastHistId,material:fState.material};
   const restore=gBtnLoading(btn,'Gerando…');
+  const prevMat=fState.material;
+  if(snap.material) fState.material=snap.material; // gera com o material DESTA arte
   try{
     await fGenPDF(snap.dados, snap.camp, snap.fmt);
     if(snap.histId){ fMarkHistBaixada(snap.histId); }
     else { fAddHist(snap.dados,snap.camp,snap.fmt,'baixada'); }
+    if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt:snap.fmt.id,tipo:'pdf'});
     gToast('PDF baixado!');
   }catch(e){
     console.error('Falha ao gerar PDF:', e);
     gToast('Não consegui gerar o PDF. Se a arte usa imagem por URL, ela precisa ser pública.','error');
-  }finally{ restore(); }
+  }finally{ fState.material=prevMat; restore(); }
 }
 // Iniciais reais do usuário logado (nome/loja) — em vez do "FR" fixo (cheiro de protótipo).
 function _fUserInitials(){
   try{
-    const n=(typeof gAuthState!=='undefined'&&gAuthState&&gAuthState.displayName)||(fState&&fState.loja)||'';
+    // displayName vive em gAuthState.user (auth.js) — o caminho antigo (gAuthState.displayName)
+    // era sempre undefined e o avatar caía no genérico "EU".
+    const n=(typeof gAuthState!=='undefined'&&gAuthState&&gAuthState.user&&gAuthState.user.displayName)||(fState&&fState.loja)||'';
     const parts=String(n).trim().split(/\s+/).filter(Boolean);
     if(!parts.length) return 'EU';
     if(parts.length===1) return parts[0].slice(0,2).toUpperCase();

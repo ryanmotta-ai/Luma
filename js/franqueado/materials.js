@@ -89,6 +89,15 @@ function fRenderMaterialCatalog(camp, container){
     </div>
     <div class="f-mat-foot">Selecione um material acima para começar a personalizar.</div>
   `;
+  // Thumbs FIÉIS: renderiza a arte real de cada material (mesmo motor do PNG) por cima
+  // do placeholder colorido — que permanece como fallback se o render falhar.
+  if(typeof fRenderPreviewToCanvas==='function'){
+    validMat.forEach(m=>{
+      if(!(m.layers&&m.layers.length)) return;
+      const cv=document.getElementById('f-mat-cv-'+m.id);
+      if(cv) fRenderPreviewToCanvas(cv, m, {maxPx:520, camp:{color:camp.color||'#FF9000'}});
+    });
+  }
 }
 function fRenderMaterialCard(material, camp){
   const validade = material.publishMeta.validade;
@@ -103,10 +112,11 @@ function fRenderMaterialCard(material, camp){
   const fmtName = {story:'Story 9:16',feed:'Feed 1:1',wide:'Post wide',post:'Post wide'}[material.fmt] || 'Story';
   return `<div class="f-mat-card" onclick="fSelectMaterial('${material.id}')">
     <div class="f-mat-thumb f-mat-thumb-${material.fmt||'story'}" style="background:${camp.color}">
-      <div class="f-mat-thumb-tag">${material.fmt==='feed'?'FEED':material.fmt==='wide'||material.fmt==='post'?'POST':'STORY'}</div>
       <div class="f-mat-thumb-prod">${camp.previewProd||camp.name}</div>
       ${camp.previewPor?`<div class="f-mat-thumb-por">${camp.previewPor}</div>`:''}
       <div class="f-mat-thumb-logo" role="img" aria-label="DM"></div>
+      <canvas class="f-mat-cv" id="f-mat-cv-${material.id}" aria-hidden="true"></canvas>
+      <div class="f-mat-thumb-tag">${material.fmt==='feed'?'FEED':material.fmt==='wide'||material.fmt==='post'?'POST':'STORY'}</div>
     </div>
     <div class="f-mat-info">
       <div class="f-mat-name">${gEsc(material.name)}</div>
@@ -159,8 +169,21 @@ function fMaterialImageVars(layers){
   (layers||[]).forEach(l=>{ if(l.imgVar && (l.type==='frame'||l.type==='image')) set.add(l.imgVar); });
   return set;
 }
+// Garante as layers de um template sincronizado do backend (o sync de pastas não traz
+// layers — lazy). O designer já faz isso em dLoadTemplate; sem o mesmo fetch AQUI,
+// cross-device o chat nascia sem perguntas e a prévia mostrava um snapshot velho/vazio.
+async function fEnsureMaterialLayers(t){
+  if(!t || !t._needsLayersFetch || !t.remoteId) return t;
+  const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
+  if(!sb) return t;
+  try{
+    const {data}=await sb.schema('luma').from('templates').select('layers').eq('id',t.remoteId).single();
+    if(data){ t.layers=Array.isArray(data.layers)?data.layers:[]; t._needsLayersFetch=false; }
+  }catch(e){ console.warn('[material] fetch de layers falhou:', e); }
+  return t;
+}
 // Usuário clicou num material — entra no chat com perguntas geradas das variáveis do template
-function fSelectMaterial(materialId){
+async function fSelectMaterial(materialId){
   // Acha o material em qualquer pasta
   let found=null, folderFound=null;
   if(typeof dFolders !== 'undefined' && dFolders){
@@ -170,6 +193,7 @@ function fSelectMaterial(materialId){
     }
   }
   if(!found){ gToast('Material não encontrado.'); return; }
+  await fEnsureMaterialLayers(found);
   // Sincroniza formato com o do template (story/feed/wide → mapeia pra FMTS)
   const fmtMap = {story:'story', feed:'feed', wide:'post', post:'post'};
   const targetFmtId = fmtMap[found.fmt] || 'story';

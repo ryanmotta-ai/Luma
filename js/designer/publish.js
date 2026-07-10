@@ -84,7 +84,7 @@ function dPublishRender(){
 
   // Aba Pasta & Nome
   const folderSel=document.getElementById('pub-folder');
-  folderSel.innerHTML=dFolders.map(f=>`<option value="${f.id}">${f.name}</option>`).join('');
+  folderSel.innerHTML=dFolders.map(f=>`<option value="${gEsc(f.id)}">${gEsc(f.name)}</option>`).join('');
   const fmtEl=document.getElementById('pub-fmt-display');
   if(fmtEl) fmtEl.textContent=(dFmt||'custom').toUpperCase();
 
@@ -145,22 +145,15 @@ function dPublishRenderArtboards(){
   </div>`;
   setTimeout(()=>{
     const card=document.getElementById('pub-ab-card-'+ab.id);
-    // Renderiza a arte real dentro da miniatura
+    // Miniatura FIEL: mesmo motor da arte final (máscaras, cantos por canto, gradientes,
+    // efeitos, blend). O renderizador DOM antigo divergia do PNG — canto arredondado
+    // virava retângulo, máscara sumia, etc.
     const renderBox=document.getElementById('pub-ab-render-'+ab.id);
     if(renderBox){
-      const inner=document.createElement('div');
-      inner.style.cssText='position:absolute;left:0;top:0;transform-origin:top left;';
-      inner.style.width=ab.w+'px';
-      inner.style.height=ab.h+'px';
-      dPubPaintLayers(inner, ab);
-      renderBox.appendChild(inner);
-      dPubFitThumbRender(renderBox, inner, ab);
-      // Reescala se o grid mudar de largura (responsivo)
-      if(typeof ResizeObserver!=='undefined'){
-        const obs = new ResizeObserver(()=>dPubFitThumbRender(renderBox, inner, ab));
-        obs.observe(renderBox);
-        dPubObservers.push(obs);
-      }
+      const cv=document.createElement('canvas');
+      cv.className='pub-ab-thumb-cv';
+      renderBox.appendChild(cv);
+      if(typeof fRenderPreviewToCanvas==='function') fRenderPreviewToCanvas(cv, ab, {maxPx:720});
     }
     if(card){
       card.addEventListener('mouseenter',()=>dPubRenderPreview(ab,card));
@@ -168,71 +161,9 @@ function dPublishRenderArtboards(){
     }
   },0);
 }
-// Determina se cor hex é clara (para contraste de texto)
-function dPubIsLight(hex){
-  try{
-    const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
-    return (r*299+g*587+b*114)/1000>160;
-  }catch(e){return true;}
-}
 
 /* ── PREVIEW POPUP ── */
 const PUB_PREVIEW_W = 220; // largura fixa da prévia em px
-
-// Desenha as camadas da prancheta dentro de `container` em tamanho lógico
-// (ab.w × ab.h). O caller aplica o transform:scale. Reutilizado pela miniatura
-// do card e pelo popup de hover.
-function dPubPaintLayers(container, ab){
-  container.innerHTML='';
-  (ab.layers||[]).filter(l=>l.visible).forEach(l=>{
-    const el=document.createElement('div');
-    el.style.position='absolute';
-    el.style.left=l.x+'px';el.style.top=l.y+'px';
-    el.style.width=l.w+'px';el.style.height=l.h+'px';
-    if(l.type==='shape'){
-      el.style.background=l.fill||'#FF9000';
-      el.style.opacity=(l.opacity||100)/100;
-      el.style.borderRadius=(l.radius||0)+'px';
-    }else if(l.type==='text'){
-      el.style.color=l.color||'#fff';
-      const _fp=dTextFontParts(l.font);el.style.fontFamily=_fp.family;el.style.fontWeight=_fp.weight;
-      el.style.fontSize=(l.fontSize||24)+'px';
-      el.style.textAlign=l.textAlign||'left';
-      el.style.lineHeight='1.2';el.style.whiteSpace='pre-wrap';
-      el.style.overflow='hidden';el.style.display='flex';el.style.alignItems='center';
-      if(l.strikethrough)el.style.textDecoration='line-through';
-      const txt=document.createElement('div');
-      txt.style.width='100%';
-      // Mostra cada variável como [Rótulo] usando a regex/interpolador únicos (3.1)
-      const labelMap={};
-      (l.content||'').replace(gVarRegex(),(_,v)=>{const vd=(dVars||[]).find(x=>x.name===v);labelMap[v]='['+(vd?vd.label:v)+']';return _;});
-      txt.textContent=gInterpolate(l.content, labelMap, {onEmpty:'keep'});
-      el.appendChild(txt);
-    }else if(l.type==='frame'||l.type==='image'){
-      const borderR=l.type==='frame'?(l.frameShape==='circle'?'50%':(l.radius||8)+'px'):'0';
-      el.style.overflow='hidden';el.style.borderRadius=borderR;
-      if(l.imgUrl&&l.imgUrl!=='__local__'){
-        const img=document.createElement('img');
-        img.src=l.imgUrl;img.style.cssText=`width:100%;height:100%;object-fit:${l.objectFit||'cover'};display:block;`;
-        el.appendChild(img);
-      }else{
-        el.style.background='rgba(255,255,255,.08)';
-        el.style.border='1px dashed rgba(255,144,0,.4)';
-        el.style.display='flex';el.style.alignItems='center';el.style.justifyContent='center';
-        el.style.fontSize='10px';el.style.color='rgba(255,144,0,.7)';
-        el.style.fontFamily='Roboto,sans-serif';
-        el.textContent=l.imgVar||'foto';
-      }
-    }
-    container.appendChild(el);
-  });
-}
-
-// Escala o inner (tamanho lógico ab.w×ab.h) para caber na largura do box de render.
-function dPubFitThumbRender(renderBox, inner, ab){
-  const w=renderBox.clientWidth;
-  if(w>0 && ab.w) inner.style.transform='scale('+(w/ab.w)+')';
-}
 
 function dPubRenderPreview(ab, cardEl){
   const popup=document.getElementById('pub-ab-preview-popup');
@@ -247,14 +178,15 @@ function dPubRenderPreview(ab, cardEl){
   popup.style.width=PUB_PREVIEW_W+'px';
   popup.style.height=(previewH+32)+'px'; // +32 para o footer
 
-  // Renderiza layers
-  inner.style.width=ab.w+'px';
-  inner.style.height=ab.h+'px';
-  inner.style.transform=`scale(${scale})`;
-  inner.style.transformOrigin='top left';
-  // (não sobrescrever height com previewH: o inner mantém a altura lógica ab.h e o
-  //  transform:scale já reduz para previewH — senão a altura escalava duas vezes)
-  dPubPaintLayers(inner, ab);
+  // Preview FIEL via motor da arte final (o DOM antigo perdia máscara/cantos/gradiente)
+  inner.innerHTML='';
+  inner.style.width='100%';
+  inner.style.height=previewH+'px';
+  inner.style.transform='none';
+  const cv=document.createElement('canvas');
+  cv.style.cssText='display:block;width:100%;height:100%';
+  inner.appendChild(cv);
+  if(typeof fRenderPreviewToCanvas==='function') fRenderPreviewToCanvas(cv, ab, {maxPx:720});
 
   // Footer com info da prancheta
   if(footer){

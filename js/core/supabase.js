@@ -43,3 +43,23 @@
 // Helpers globais (prefixo g*, padrão do projeto).
 function gSupabase() { return window.sb; }
 function gHasBackend() { return !!window.sb; }
+
+/* ── ANALYTICS (backlog 5.1): eventos de uso em analytics.fct_eventos ──
+   Fire-and-forget e à prova de falha: analytics NUNCA quebra o fluxo do usuário.
+   RLS exige user_id = auth.uid() (anti-spoofing) → só emite logado.
+   ATENÇÃO (Pedro): requer o schema `analytics` em Settings › API › Exposed schemas;
+   se não estiver exposto, o insert falha em silêncio (console.warn) — decisão de
+   dashboard, não de código. Nomes de evento: objeto_acao_passada (snake_case). */
+function gTrackEvent(evento, payload){
+  try{
+    const sb=gSupabase(); if(!sb) return;
+    const user=(typeof gAuthState!=='undefined'&&gAuthState&&gAuthState.user)||null;
+    if(!user||!user.id) return;
+    sb.schema('analytics').from('fct_eventos').insert({
+      evento:String(evento||'').slice(0,64),
+      user_id:user.id,
+      role:user.role||null,
+      payload:payload||null,
+    }).then(({error})=>{ if(error) console.warn('[analytics]', evento, error.message||error); });
+  }catch(e){ console.warn('[analytics]', e); }
+}

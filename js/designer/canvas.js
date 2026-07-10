@@ -925,32 +925,55 @@ function dRenderCanvas(){
         el.classList.add('text-overflow');
       }
     }else if(l.type==='frame'){
-      // Moldura de foto — estilo Deskfy
-      // el raiz: position:relative, overflow:visible (para botões e labels externos)
+      // Moldura de foto — estilo Deskfy com suporte avançado a SVG clip-path
       el.style.position='relative';
       el.style.overflow='visible';
-      const borderR=(l.frameShape==='circle'?'50%':(l.radius||8)+'px');
+      
+      const kind = l.shapeKind || l.frameShape || 'rect';
+      let clipCss = '';
+      let dashSvg = '';
+      
+      const pts = (kind !== 'circle' && kind !== 'ellipse' && typeof dShapePoints === 'function') ? dShapePoints(l) : null;
+      if (pts) {
+        const abs = pts.map(p => [p[0] * l.w, p[1] * l.h]);
+        const d = (typeof gRoundPolyD === 'function') ? gRoundPolyD(abs, l.radius || 0) : '';
+        clipCss = `clip-path: path('${d}'); -webkit-clip-path: path('${d}');`;
+        dashSvg = `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"><path d="${d}" fill="none" stroke="rgba(255,144,0,.6)" stroke-width="2" stroke-dasharray="4,4" vector-effect="non-scaling-stroke"/></svg>`;
+      } else if (kind === 'circle' || kind === 'ellipse') {
+        clipCss = `border-radius: 50%;`;
+      } else {
+        const _cr = typeof dCornerRadii === 'function' ? dCornerRadii(l) : {tl: l.radius||0, tr: l.radius||0, br: l.radius||0, bl: l.radius||0};
+        clipCss = `border-radius: ${_cr.tl}px ${_cr.tr}px ${_cr.br}px ${_cr.bl}px;`;
+      }
+      
       // inner: clip real da imagem
       const inner=document.createElement('div');
-      inner.style.cssText=`position:absolute;inset:0;overflow:hidden;border-radius:${borderR};border:2px dashed rgba(255,144,0,0.6);`;
+      inner.style.cssText=`position:absolute;inset:0;overflow:hidden;${clipCss}`;
+      
       const simImg=dSimActive&&l.imgVar&&dSimValues[l.imgVar];
-      // Placeholder de teste: foto-amostra na proporção escolhida p/ ver o pior caso (só no editor)
       const testSrc=(!simImg&&!l.imgUrl&&dPhTestAR&&typeof dSampleImg==='function')?dSampleImg(dPhTestAR):null;
       const src=simImg||l.imgUrl||testSrc;
+      
       if(src){
         if(simImg)l._simImgUrl=simImg;
         const img=document.createElement('img');
         img.src=src;
         const posX=(0.5+(l.imgOffsetX||0))*100, posY=(0.5+(l.imgOffsetY||0))*100;
-        img.style.cssText=`width:100%;height:100%;object-fit:${l.objectFit||'cover'};object-position:${posX}% ${posY}%;display:block;border-radius:${borderR};`;
+        img.style.cssText=`width:100%;height:100%;object-fit:${l.objectFit||'cover'};object-position:${posX}% ${posY}%;display:block;`;
         if(l.imgScale&&l.imgScale!==1){img.style.transform=`scale(${l.imgScale})`;img.style.transformOrigin='center';}
-        if(testSrc)img.style.opacity='.75';
-        inner.style.border=testSrc?'2px dashed rgba(255,144,0,.6)':'none';
+        if(testSrc){
+          img.style.opacity='.75';
+          if(dashSvg) inner.innerHTML = dashSvg;
+          else inner.style.border = '2px dashed rgba(255,144,0,.6)';
+        }
         inner.appendChild(img);
       }else{
         inner.style.cssText+=`background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;`;
+        if(dashSvg) inner.innerHTML = dashSvg;
+        else inner.style.border = '2px dashed rgba(255,144,0,0.6)';
+        
         const ph=document.createElement('div');
-        ph.style.cssText='display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;';
+        ph.style.cssText='display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;z-index:2;';
         ph.innerHTML=`<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg><span style="font-size:10px;color:rgba(255,255,255,.35);font-family:Roboto,sans-serif;letter-spacing:.04em">${l.imgVar||'foto'}</span>`;
         inner.appendChild(ph);
       }

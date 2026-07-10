@@ -237,3 +237,7 @@
 }
 /* ══ /CATÁLOGO DE MATERIAIS ══ */
 
+
+/* Thumb FIEL do material: a arte real renderizada pelo motor do PNG cobre o
+   placeholder colorido (que permanece por baixo como fallback de render). */
+.f-mat-cv{position:absolute;inset:0;width:100%;height:100%;z-index:2;display:block;pointer-events:none}

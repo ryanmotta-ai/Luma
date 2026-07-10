@@ -664,8 +664,25 @@ function dToggleFolder(id){
   dRenderFolders();
 }
 
-function dLoadTemplate(tmpl,folder){
+async function dLoadTemplate(tmpl,folder){
   if(!tmpl)return;
+
+  // -- LAZY LOAD DOS LAYERS --
+  if(tmpl._needsLayersFetch && tmpl.remoteId){
+    const sb = (typeof gSupabase==='function') ? gSupabase() : window.sb;
+    if(sb){
+      gToast('Baixando material...');
+      try {
+        const {data, error} = await sb.schema('luma').from('templates').select('layers').eq('id', tmpl.remoteId).single();
+        if(!error && data){
+          tmpl.layers = Array.isArray(data.layers) ? data.layers : [];
+          tmpl._needsLayersFetch = false;
+          if(typeof dPersistFolders === 'function') dPersistFolders();
+        }
+      } catch(e) {}
+    }
+  }
+
   dActiveTmplId=tmpl.id;
   if(folder)dActiveTmplFolderId=folder.id; // destaca a pasta da arte ativa na grade
   else dActiveTmplFolderId=null;
@@ -930,7 +947,7 @@ function dFolderMenu(ev,id){
 function dOpenNewTemplate(){
   // populate folder select
   const sel=document.getElementById('dt-folder');
-  sel.innerHTML=dFolders.map(f=>`<option value="${f.id}">${f.name}</option>`).join('');
+  sel.innerHTML=dFolders.map(f=>`<option value="${gEsc(f.id)}">${gEsc(f.name)}</option>`).join('');
   document.getElementById('dt-name').value='';
   document.getElementById('d-tmpl-modal').classList.add('open');
   setTimeout(()=>document.getElementById('dt-name').focus(),100);
@@ -2070,7 +2087,7 @@ function dRenderPagesTray() {
             </button>
           </div>
         </div>
-        <div class="ptray-item-label" title="${t.name}">${t.name}</div>
+        <div class="ptray-item-label" title="${gEsc(t.name)}">${gEsc(t.name)}</div>
       </div>
     `;
   }).join('');

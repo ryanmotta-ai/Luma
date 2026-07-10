@@ -118,13 +118,13 @@ function _dPsdParagraphBox(node){
     };
     const cands=[];
     sources.forEach(bb=>{
-      cands.push(corners(bb,(x,y)=>[a*x+c*y+e, b*x+d*y+f])); // text-space → doc (transform)
-      cands.push(corners(bb,(x,y)=>[x,y]));                   // já em px de doc (cru)
+      cands.push(Object.assign(corners(bb,(x,y)=>[a*x+c*y+e, b*x+d*y+f]), {isTransformed:true})); // text-space → doc (transform)
+      cands.push(Object.assign(corners(bb,(x,y)=>[x,y]), {isTransformed:false})); // já em px de doc (cru)
     });
     const maxW=Math.max(gw*8,6000), maxH=Math.max(gh*8,6000);
-    // Score: exige dimensão sã e que a caixa contenha ao menos metade do bbox de glifos
-    // (glifos vivem DENTRO da caixa). Prefere caixa colada no canto sup-esq dos glifos e
-    // penaliza levemente área — desempata a favor da caixa justa, não de uma inflada.
+    // Score: exige dimensão sã e que a caixa contenha ao menos metade do bbox de glifos.
+    // Prefere caixa transformada (com escala) se cobrir a mesma área que a crua,
+    // desempata priorizando o canto superior-esquerdo, ignorando a penalidade pura de área.
     const score=box=>{
       if(!box||!isFinite(box.w)||!isFinite(box.h)||box.w<=1||box.h<=1) return -Infinity;
       if(box.w>maxW||box.h>maxH) return -Infinity;
@@ -133,7 +133,7 @@ function _dPsdParagraphBox(node){
       const cover=(ix*iy)/gArea;             // 1.0 = contém todo o bbox de glifos
       if(cover<0.5) return -Infinity;        // caixa longe/torta dos glifos → descarta
       const dCorner=Math.abs(box.x-gx0)+Math.abs(box.y-gy0);
-      return cover*1000 - dCorner*0.01 - (box.w*box.h)*1e-7;
+      return cover*1000 - dCorner*0.01 + (box.isTransformed ? 50 : 0);
     };
     let best=null,bestScore=-Infinity;
     cands.forEach(box=>{ const s=score(box); if(s>bestScore){ bestScore=s; best=box; } });
@@ -217,7 +217,9 @@ function _dPsdEffects(node){
   // Contorno (frame FX) + alinhamento
   let st=_first(fx.stroke);
   if(st && st.enabled!==false){
-    out.strokeW=Math.max(1,Math.round((st.size&&st.size.value)||st.size||2));
+    // +_sv||2: size pode vir {value:0}/unidade estranha — sem o guard, Math.round(objeto)=NaN
+    const _sv=(st.size&&st.size.value!=null)?st.size.value:st.size;
+    out.strokeW=Math.max(1,Math.round(+_sv||2));
     out.strokeColor=_dPsdHex((st.color&&(st.color.color||st.color)))||'#000000';
     if(st.position) out.strokeAlign=({inside:'inside',insetFrame:'inside',center:'center',centeredFrame:'center',outside:'outside',outsetFrame:'outside'}[st.position])||'outside';
   }
@@ -467,6 +469,7 @@ function _dPsdRichRuns(t, res, h){
         color:_dPsdHex(st.fillColor||st.color)||'#000000',
         fontSize:_rfs,
         font: remap||(/black|900|heavy/i.test(fname)?"'Roboto Black'":/bold|700/i.test(fname)?"'Roboto',bold":"'Roboto'"),
+        _fontName:fname, // nome original — permite remap posterior (upload de fonte na revisão)
         letterSpacing: st.tracking? Math.round((st.tracking/1000)*(_rfs||12)) : 0 // tracking sobre o tamanho final do trecho
       });
     }
@@ -698,7 +701,7 @@ let _dPsdReviewOnConfirm=null;
 function dPsdParseItems(psd, res, ox, oy){
   ox=ox||0; oy=oy||0;
   _dPsdAdjustCount=0;
-  const items=[]; let n=0; let prevLeaf=null;
+  const items=[]; let n=0;
   // parentOp: opacidade acumulada dos grupos-pai (0–1); parentHidden: grupo-pai oculto.
   (function walk(nodes, parentOp, parentHidden, parentName){
     (nodes||[]).forEach(node=>{
@@ -716,11 +719,10 @@ function dPsdParseItems(psd, res, ox, oy){
       const h=Math.max(1,Math.round((node.bottom||0)-(node.top||0)));
       const it={ n:++n, name:(node.name||('Camada '+n)).toString().slice(0,48),
         x,y,w,h, visible:!accHidden, opacity:Math.round(accOp*100),
-        include:!accHidden, mask:_dPsdComputeMask(node, prevLeaf),
+        include:!accHidden, mask:null, // resolvido no pós-processamento 
         clippingLayer: node.clippingLayer || node.clipping,
         blendMode:_dPsdBlendMode(node.blendMode),
-        group:parentName||'' }; // máscara + clipping
-      prevLeaf=node; // base p/ a próxima camada com clipping
+        group:parentName||'', _psdNode:node }; // guarda p/ recorte correto
       // fillOpacity (preenchimento) ≠ opacity: PS atenua só o fill, não os efeitos. Guardado p/
       // dobrar na opacity quando não há efeitos (dItemToLayer); com efeitos, P3 rasteriza fiel.
       if(node.fillOpacity!=null && node.fillOpacity<1) it.fillOpacity=node.fillOpacity;
@@ -761,7 +763,7 @@ function dPsdParseItems(psd, res, ox, oy){
         if(st.fontCaps===2) it.textTransform='uppercase';
         else if(st.fontCaps===1) it.textTransform='lowercase'; // small-caps → aproximação
         // fauxBold: PS "Faux Bold" — eleva o peso quando a fonte não tem variante bold
-        if(st.fauxBold) it.fontWeightOverride=700;
+        if(st.fauxBold || /bold|black|heavy|700|900/i.test(it.fontName)) it.fontWeightOverride=700;
         // Itálico: faux italic do PS ou variante itálica/oblíqua no nome da fonte → font-style:italic
         if(st.fauxItalic || /italic|oblique|it[aá]lico/i.test(it.fontName)) it.italic=true;
         it.fontSize=_dPsdFontSize(t,h,it.content,res);
@@ -770,7 +772,14 @@ function dPsdParseItems(psd, res, ox, oy){
         it.underline=st.underline===true;          // sublinhado — render espelha o strikethrough
         it.textAlign=_dPsdAlign(t);
         if(st.tracking) it.letterSpacing=Math.round((st.tracking/1000)*(it.fontSize||12)); // tracking (1/1000 em) → px, sobre o tamanho final
-        if(st.leading)  it.lineHeight=+(st.leading/(st.fontSize||it.fontSize||12)).toFixed(3);          // leading → multiplicador
+        if(st.leading) {
+          const fPts = st.fontSize;
+          if(fPts){ it.lineHeight=+(st.leading/fPts).toFixed(3); } // pts / pts
+          else {
+            const lPx = (res>90 && st.leading<200) ? st.leading*(res/72) : st.leading;
+            it.lineHeight=+(lPx/(it.fontSize||12)).toFixed(3); // px / px
+          }
+        }
         const _runs=_dPsdRichRuns(t,res,h); if(_runs) it.runs=_runs;   // texto multi-estilo
         const _tg=_dPsdGradient(node); if(_tg) it.gradient=_tg;        // preenchimento por gradiente no texto
         Object.assign(it,_dPsdEffects(node));
@@ -824,6 +833,18 @@ function dPsdParseItems(psd, res, ox, oy){
   out.forEach(it=>{ if(it.kind==='text'&&it.content){ const k=it.name+'|'+it.content; _soft[k]=(_soft[k]||0)+1; } });
   Object.keys(_soft).forEach(k=>{ if(_soft[k]>1) console.warn('[psd] possível layer de texto duplicada mantida (nome+conteúdo iguais, caixas diferentes):', k.split('|')[0]); });
 
+  // Resolve clipping masks garantindo a base correta
+  for(let i=0; i<out.length; i++){
+    if(out[i].clippingLayer){
+      let baseIdx = i + 1;
+      while(baseIdx < out.length && out[baseIdx].clippingLayer) baseIdx++;
+      if(baseIdx < out.length) out[i].mask = _dPsdComputeMask(out[i]._psdNode, out[baseIdx]._psdNode);
+    } else {
+      out[i].mask = _dPsdComputeMask(out[i]._psdNode, null);
+    }
+    delete out[i]._psdNode;
+  }
+
   // Detecção de clipping mask e rasterização de shapes-base (MVP)
   for(let i=0; i<out.length; i++) {
     if(out[i].clippingLayer) {
@@ -861,6 +882,13 @@ function dPsdParseItems(psd, res, ox, oy){
     }
   }
 
+  // Photoshop = Top-Down; Luma = Bottom-Up
+  out.reverse();
+
+  // Modo PADRÃO do parser (antes da memória/usuário) — referência p/ _dPsdMemSave
+  // distinguir decisão real de default e só persistir o que o usuário mudou.
+  out.forEach(it=>{ it._defaultMode=it.mode; });
+
   return out;
 }
 
@@ -894,10 +922,16 @@ function dItemToLayer(it){
   // Modo MOLDURA DE FOTO (escolhido na revisão): a camada — forma ou imagem — vira um frame que o
   // franqueado preenche com foto. Preserva x/y/w/h; formato do frame herdado da forma original.
   if(it.mode==='frame'){
-    const fs=(it.shapeKind==='circle'||it.shapeKind==='ellipse')?'circle':((it.radius||it.radii)?'rounded':'rect');
-    const F=Object.assign(base,{type:'frame', imgUrl:'', imgVar:'foto_produto', objectFit:'cover', frameShape:fs});
+    const F=Object.assign(base,{type:'frame', imgUrl:'', imgVar:'foto_produto', objectFit:'cover', shapeKind:it.shapeKind||'rect'});
     if(it.radius) F.radius=it.radius;
+    if(it.radii) F.radii=it.radii;
+    if(it.points) F.points=it.points;
+    if(it.sides) F.sides=it.sides;
+    if(it.inner) F.inner=it.inner;
     return _dPsdApplyFx(F, it);
+  }
+  if(it.needsRaster && it.imgUrl){
+    return _dPsdApplyFx(Object.assign(base,{type:'image',imgUrl:it.imgUrl,imgVar:'',objectFit:'cover',frameShape:'rect'}), it);
   }
   if(it.kind==='text'){
     if(it.mode==='raster' && it.imgUrl) return _dPsdApplyFx(Object.assign(base,{type:'image',imgUrl:it.imgUrl,imgVar:'',objectFit:'cover',frameShape:'rect'}), it);
@@ -931,22 +965,47 @@ function dItemToLayer(it){
 
 /* ── Memória de mapeamento (Fase D) ──
    Persiste {layerName → {mode, varName}} em localStorage para reusar entre sessões.
-   Limite de 500 entradas (nomes de camada) para não estourar a quota.           ── */
-const _PSD_MEM_KEY='yngs_psd_mem_v1';
+   REGRAS (a v1 salvava o modo de TODAS as camadas e contaminava PSDs diferentes):
+   • só guarda DECISÃO real do usuário (modo ≠ padrão do parser);
+   • nomes genéricos do Photoshop ("Retângulo 2", "Camada 5"…) nunca entram nem
+     são aplicados — o "Retângulo 2" de um PSD não é o de outro;
+   • reverter pro padrão APAGA a memória daquele nome.
+   Chave v2 = começa limpa (a v1 estava poluída por defaults).                    ── */
+const _PSD_MEM_KEY='yngs_psd_mem_v2';
+// Nome default/genérico do Photoshop (pt/en) — não identifica a camada entre arquivos.
+function _dPsdMemIsGeneric(key){
+  return !key || /^(camada|layer|ret[âa]ngulo|rectangle|elipse|ellipse|oval|forma|shape|pol[íi]gono|polygon|linha|line|grupo|group|texto|text|imagem|image|smart\s?object|objeto\s?inteligente|frame|fundo|background)?\s*\d*(\s+c[óo]pia(\s*\d+)?|\s+copy(\s*\d+)?)?$/i.test(key);
+}
 function _dPsdMemLoad(){ try{ return JSON.parse(localStorage.getItem(_PSD_MEM_KEY)||'{}'); }catch(e){ return {}; } }
 function _dPsdMemApply(items){
   const mem=_dPsdMemLoad(); if(!Object.keys(mem).length) return;
   items.forEach(it=>{
     const key=it.name.toLowerCase().trim().slice(0,48);
+    if(_dPsdMemIsGeneric(key)) return;
     const s=mem[key]; if(!s) return;
-    const validText=['text','var','raster'], validShape=['shape','raster'];
-    if(s.mode&&((it.kind==='text'&&validText.includes(s.mode))||(it.kind==='shape'&&validShape.includes(s.mode)))) it.mode=s.mode;
+    const validText=['text','var','raster'], validShape=['shape','raster','frame'], validRaster=['raster','frame'];
+    if(s.mode&&(
+      (it.kind==='text'&&validText.includes(s.mode))||
+      (it.kind==='shape'&&validShape.includes(s.mode))||
+      (it.kind==='raster'&&validRaster.includes(s.mode))
+    )) it.mode=s.mode;
     if(s.varName&&it.kind==='text') it.varName=s.varName;
   });
 }
 function _dPsdMemSave(items){
   const mem=_dPsdMemLoad();
-  items.forEach(it=>{ const key=it.name.toLowerCase().trim().slice(0,48); mem[key]={mode:it.mode}; if(it.kind==='text'&&it.varName) mem[key].varName=it.varName; });
+  items.forEach(it=>{
+    const key=it.name.toLowerCase().trim().slice(0,48);
+    if(_dPsdMemIsGeneric(key)) return;
+    const isDecision=(it._defaultMode!=null && it.mode!==it._defaultMode);
+    const hasVar=(it.kind==='text' && it.mode==='var' && it.varName);
+    if(isDecision||hasVar){
+      mem[key]={mode:it.mode};
+      if(hasVar) mem[key].varName=it.varName;
+    } else if(mem[key]){
+      delete mem[key]; // voltou pro padrão → esquece a decisão antiga
+    }
+  });
   const keys=Object.keys(mem); if(keys.length>500) keys.slice(0,keys.length-500).forEach(k=>delete mem[k]);
   try{ localStorage.setItem(_PSD_MEM_KEY,JSON.stringify(mem)); }catch(e){}
 }
@@ -1132,7 +1191,10 @@ function dPsdUploadFont(layerIdx, input){
   r.onload=e=>{
     const base=file.name.replace(/\.[^.]+$/,'');
     const family=(typeof dFontUniqueFamily==='function')?dFontUniqueFamily(base):base;
-    const f={name:base,family,dataUrl:e.target.result,weight:400};
+    // Peso inferido do nome do arquivo — registrar "Obviously-Black.woff2" como 400
+    // fazia o navegador sintetizar o peso errado no render.
+    const weight=/black|heavy|900/i.test(base)?900:/extra\s?bold|800/i.test(base)?800:/bold|700/i.test(base)?700:/medium|500/i.test(base)?500:/light|300/i.test(base)?300:400;
+    const f={name:base,family,dataUrl:e.target.result,weight};
     if(typeof dCustomFonts!=='undefined') dCustomFonts.push(f);
     if(typeof dFontRegister==='function') dFontRegister(f);
     if(typeof dFontsPersist==='function') dFontsPersist();
@@ -1140,14 +1202,21 @@ function dPsdUploadFont(layerIdx, input){
     if(typeof dPopFontSelects==='function') dPopFontSelects();
     const mapped='custom:'+family;
     const fname=(dPsdItems[layerIdx]||{}).fontName||'';
-    dPsdItems.forEach(it=>{ if(it.kind==='text'&&it.fontName===fname){ it.font=mapped; it.fontRemapped=true; } });
+    dPsdItems.forEach(it=>{
+      if(it.kind!=='text') return;
+      if(it.fontName===fname){ it.font=mapped; it.fontRemapped=true; }
+      // Texto rico: remapeia também os trechos (runs) que usam a mesma fonte
+      if(Array.isArray(it.runs)) it.runs.forEach(run=>{ if(run._fontName===fname) run.font=mapped; });
+    });
     dPsdRenderRows();
     gToast('✓ Fonte "'+base+'" enviada e aplicada às camadas');
   };
   r.readAsDataURL(file);
 }
 function dPsdUpdateCount(){
-  const n=dPsdItems.filter(it=>it.include).length, total=dPsdItems.filter(it=>!it.isMaskBase).length;
+  // n e total no MESMO universo (sem mask-bases, que são ocultas da lista) —
+  // senão o contador podia mostrar "13/12 selecionadas".
+  const n=dPsdItems.filter(it=>it.include&&!it.isMaskBase).length, total=dPsdItems.filter(it=>!it.isMaskBase).length;
   const c=document.getElementById('d-psd-count'); if(c) c.textContent='('+n+')';
   const info=document.getElementById('d-psd-sel-info'); if(info) info.textContent=n+' / '+total+' selecionadas';
 }
@@ -1166,7 +1235,9 @@ function dPsdConfirmImport(){
   let layers=chosen.map(dItemToLayer).filter(Boolean);
   // #4a — inverter z-order se a ordem do PSD vier trocada
   const inv=document.getElementById('d-psd-invert'); if(inv&&inv.checked) layers=layers.reverse();
-  if(typeof dSyncVarsFromContent==='function') layers.forEach(l=>{ if(l.type==='text'&&l.isVar) dSyncVarsFromContent(l.content); });
+  // Auto-cria no catálogo TODAS as vars dos textos — inclusive tokens {{}} digitados no
+  // conteúdo do PSD (texto misto), não só as camadas inteiramente ligadas (isVar).
+  if(typeof dSyncVarsFromContent==='function') layers.forEach(l=>{ if(l.type==='text'&&l.content&&gVarRegex().test(l.content)) dSyncVarsFromContent(l.content); });
   const fmtChoice=(document.getElementById('d-psd-fmt')||{}).value||'orig';
   document.getElementById('d-psd-modal').classList.remove('open');
   const cv=document.getElementById('d-psd-preview-canvas'); if(cv){ cv.width=0; cv.height=0; cv._renderId=(cv._renderId||0)+1; }
@@ -1197,10 +1268,15 @@ function dImportLayersAsArtboard(w,h,layers,name,fmtChoice,dpi){
     outW=to.w; outH=to.h; fmt=fmtChoice;
   }
   const id='ab-'+Date.now();
-  const nAb=dArtboards.length, last=dArtboards[nAb-1];
-  const x=last?last.x+last.w+140:80, y=last?last.y:60;
-  const ab={id,name:(name||'PSD').slice(0,30),x,y,w:outW,h:outH,fmt,dpi:dpi||72,layers:JSON.parse(JSON.stringify(clone))};
-  dArtboards.push(ab); dActiveABId=id;
+  const ab={id,name:(name||'PSD').slice(0,30),x:80,y:60,w:outW,h:outH,fmt,dpi:dpi||72,layers:JSON.parse(JSON.stringify(clone))};
+  // CANVAS ÚNICO: substitui a prancheta (como dNewArtboardCustom) — push acumulava
+  // pranchetas órfãs e dGetActiveAB (que só usa dArtboards[0]) mantinha o TAMANHO antigo.
+  dArtboards=[ab]; dActiveABId=id;
+  // dCustomFmt: fonte da verdade do tamanho em dGetActiveAB. Sem isso, um dCustomFmt
+  // velho (de um "Novo documento" anterior) vencia o formato do PSD importado; e um
+  // PSD 'orig' caía nas dimensões da prancheta antiga.
+  const _preset=DFMT_SIZES[fmt];
+  dCustomFmt=(_preset && _preset.w===outW && _preset.h===outH) ? null : {w:outW,h:outH};
   dLayers=JSON.parse(JSON.stringify(clone)); dFmt=fmt; dSelId=null;
   if(typeof dMultiSel!=='undefined') dMultiSel=[];
   if(typeof dHistoryReset==='function') dHistoryReset();
@@ -1213,30 +1289,25 @@ function dImportLayersAsArtboard(w,h,layers,name,fmtChoice,dpi){
 }
 
 /* ── Renderização do Preview no Modal (PARTE A) ── */
-async function dPsdRenderPreview(){
-  const canvas=document.getElementById('d-psd-preview-canvas');
-  if(!canvas || !dPsdMeta) return;
-
-  // Gerenciamento de sobreposição de renders async
+// Itens do PSD → layers Luma pra PREVIEW: mesma conversão do import (dItemToLayer —
+// máscaras, radii, gradientes, efeitos, blend), exceto que texto marcado como
+// variável mostra o TEXTO ORIGINAL do PSD (não o token {{}}), fiel ao arquivo fonte.
+function _dPsdItemsToPreviewLayers(items){
+  return items.map(it=>{
+    const src=(it.kind==='text'&&it.mode==='var')?Object.assign({},it,{mode:'text'}):it;
+    try{ return dItemToLayer(src); }catch(e){ return null; }
+  }).filter(Boolean);
+}
+// Fallback simplificado (caixas/cores/1ª linha) — só quando o motor fiel não está disponível.
+async function _dPsdDrawItemsBasic(canvas, items, w, h){
   const renderId=++canvas._renderId || (canvas._renderId=1);
-
-  canvas.width=dPsdMeta.w;
-  canvas.height=dPsdMeta.h;
+  canvas.width=w; canvas.height=h;
   const ctx=canvas.getContext('2d');
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-
-  const inv=document.getElementById('d-psd-invert');
-  const shouldInvert=inv && inv.checked;
-  
-  let itemsToRender=dPsdItems.filter(it=>it.include);
-  if(shouldInvert) itemsToRender=itemsToRender.slice().reverse();
-
-  for(const it of itemsToRender){
+  ctx.clearRect(0,0,w,h);
+  for(const it of items){
     if(canvas._renderId!==renderId) return; // abortado por render mais recente
-
     ctx.save();
     ctx.globalAlpha=(it.opacity!=null?it.opacity:100)/100;
-    
     if(it.imgUrl){
       await new Promise(resolve=>{
         const img=new Image();
@@ -1247,28 +1318,45 @@ async function dPsdRenderPreview(){
     } else if(it.kind==='shape' && it.fill){
       ctx.fillStyle=it.fill;
       if(it.shapeKind==='circle' || it.shapeKind==='ellipse'){
-        ctx.beginPath();
-        ctx.ellipse(it.x+it.w/2, it.y+it.h/2, it.w/2, it.h/2, 0, 0, Math.PI*2);
-        ctx.fill();
-      } else {
-        if(it.radius && ctx.roundRect){
-          ctx.beginPath();
-          ctx.roundRect(it.x, it.y, it.w, it.h, it.radius);
-          ctx.fill();
-        } else {
-          ctx.fillRect(it.x, it.y, it.w, it.h);
-        }
-      }
+        ctx.beginPath(); ctx.ellipse(it.x+it.w/2, it.y+it.h/2, it.w/2, it.h/2, 0, 0, Math.PI*2); ctx.fill();
+      } else if(it.radius && ctx.roundRect){
+        ctx.beginPath(); ctx.roundRect(it.x, it.y, it.w, it.h, it.radius); ctx.fill();
+      } else { ctx.fillRect(it.x, it.y, it.w, it.h); }
     } else if(it.kind==='text'){
       ctx.fillStyle=it.color||'#000000';
       ctx.font=`${it.fontSize||20}px sans-serif`;
       ctx.textBaseline='top';
       ctx.textAlign=it.textAlign==='center'?'center':(it.textAlign==='right'?'right':'left');
       const tx=it.textAlign==='center'?it.x+it.w/2:(it.textAlign==='right'?it.x+it.w:it.x);
-      ctx.fillText(it.content||'', tx, it.y);
+      _dPsdFillTextLines(ctx, it, tx);
     }
     ctx.restore();
   }
+}
+async function dPsdRenderPreview(){
+  const canvas=document.getElementById('d-psd-preview-canvas');
+  if(!canvas || !dPsdMeta) return;
+  const inv=document.getElementById('d-psd-invert');
+  // Mesmo universo do import: sem mask-bases (a máscara já está composta nos itens)
+  let items=dPsdItems.filter(it=>it.include && !it.isMaskBase);
+  if(inv && inv.checked) items=items.slice().reverse();
+  // Caminho FIEL: converte pra layers Luma e renderiza com o motor da arte final —
+  // o preview mostra exatamente o que o import vai produzir.
+  if(typeof fRenderPreviewToCanvas==='function'){
+    const layers=_dPsdItemsToPreviewLayers(items);
+    if(layers.length){
+      const ok=await fRenderPreviewToCanvas(canvas, {layers, w:dPsdMeta.w, h:dPsdMeta.h}, {maxPx:1100});
+      if(ok!==false) return;
+    }
+  }
+  await _dPsdDrawItemsBasic(canvas, items, dPsdMeta.w, dPsdMeta.h);
+}
+// Texto multilinha nos previews: canvas fillText ignora '\n' (glifos colados numa linha).
+// Desenha linha a linha com o lineHeight do item (fallback 1.2).
+function _dPsdFillTextLines(ctx, it, tx){
+  const lines=String(it.content||'').split('\n');
+  const lh=(it.fontSize||20)*(it.lineHeight||1.2);
+  lines.forEach((ln,li)=>ctx.fillText(ln, tx, it.y+li*lh));
 }
 
 /* ── Hover Tracking no Modal (PARTE B) ── */
@@ -1399,44 +1487,22 @@ async function dPsdAbSelectPreview(itemIdx){
   }
   const parsed=item._parsedItems;
 
-  // Render em tamanho NATIVO (o CSS do canvas escala via object-fit:contain) — mesma lógica
-  // comprovada do dPsdRenderPreview. Evita o bug de ctx.scale composto ao reclicar a mesma row.
   if(!parsed.length){ canvas.width=item.w; canvas.height=item.h; canvas.getContext('2d').clearRect(0,0,item.w,item.h); return; }
-  const renderId=++canvas._renderId || (canvas._renderId=1);
-  canvas.width=item.w; canvas.height=item.h;
-  const ctx=canvas.getContext('2d');
-  ctx.clearRect(0,0,item.w,item.h);
   // Z-order: dPsdParseItems devolve topo-primeiro, mas nem sempre (depende do PSD). Em vez de
   // reverter de forma fixa (quebrava desenhando o fundo por último → bloco sólido), usa a MESMA
   // heurística do preview principal (_dPsdShouldInvert): só inverte quando o fundo está no final.
   const toRender=_dPsdShouldInvert(parsed, item.w, item.h) ? [...parsed].reverse() : parsed;
-  for(const it of toRender){
-    if(canvas._renderId!==renderId) return; // abortado por uma seleção mais recente
-    ctx.save();
-    ctx.globalAlpha=(it.opacity!=null?it.opacity:100)/100;
-    if(it.imgUrl){
-      await new Promise(resolve=>{
-        const img=new Image();
-        img.onload=()=>{ try{ctx.drawImage(img,it.x,it.y,it.w,it.h);}catch(e){} resolve(); };
-        img.onerror=resolve; img.src=it.imgUrl;
-      });
-    } else if(it.kind==='shape' && it.fill){
-      ctx.fillStyle=it.fill;
-      if(it.shapeKind==='circle'||it.shapeKind==='ellipse'){
-        ctx.beginPath(); ctx.ellipse(it.x+it.w/2,it.y+it.h/2,it.w/2,it.h/2,0,0,Math.PI*2); ctx.fill();
-      } else if(it.radius && ctx.roundRect){
-        ctx.beginPath(); ctx.roundRect(it.x,it.y,it.w,it.h,it.radius); ctx.fill();
-      } else { ctx.fillRect(it.x,it.y,it.w,it.h); }
-    } else if(it.kind==='text'){
-      ctx.fillStyle=it.color||'#000000';
-      ctx.font=(it.fontSize||20)+'px sans-serif';
-      ctx.textBaseline='top';
-      ctx.textAlign=it.textAlign==='center'?'center':(it.textAlign==='right'?'right':'left');
-      const tx=it.textAlign==='center'?it.x+it.w/2:(it.textAlign==='right'?it.x+it.w:it.x);
-      ctx.fillText((it.content||'').replace(/\n/g,' '),tx,it.y);
+  const usable=toRender.filter(it=>!it.isMaskBase); // máscara já composta nos itens
+  // Caminho FIEL: motor da arte final (máscaras, radii, gradientes, efeitos, blend) —
+  // o preview da prancheta fica idêntico ao que o import produz.
+  if(typeof fRenderPreviewToCanvas==='function'){
+    const layers=_dPsdItemsToPreviewLayers(usable);
+    if(layers.length){
+      const ok=await fRenderPreviewToCanvas(canvas, {layers, w:item.w, h:item.h}, {maxPx:1100});
+      if(ok!==false) return;
     }
-    ctx.restore();
   }
+  await _dPsdDrawItemsBasic(canvas, usable, item.w, item.h);
 }
 function dPsdAbToggle(index, checked){
   const o=document.getElementById('d-psd-ab-overlay');
@@ -1479,7 +1545,7 @@ function dPsdProcessArtboardsSequence(psd, items, res, baseName, folderId, idx, 
     dPsdProcessArtboardsSequence(psd, items, res, baseName, folderId, idx+1, results);
     return;
   }
-  dPsdMeta={w:item.w, h:item.h, name:item.name};
+  dPsdMeta={w:item.w, h:item.h, name:item.name, res:res||72}; // res → badge de DPI na revisão
   // Ao confirmar a revisão desta prancheta → guarda o resultado e vai pra próxima.
   _dPsdReviewOnConfirm=function(layers, fmtChoice, w, h){
     const fmt=(fmtChoice && fmtChoice!=='orig') ? fmtChoice : item.fmt;
@@ -1510,6 +1576,11 @@ function dPsdSaveArtboardTemplates(results, folderId, baseName){
   const folder=(typeof dFolders!=='undefined'&&dFolders)
     ? (dFolders.find(f=>f.id===folderId)||dFolders[0]) : null;
   if(!folder){ gToast('⚠ Pasta não encontrada — selecione outra campanha','error'); return; }
+  // Pranchetas com o MESMO nome viram templates indistinguíveis — o designer edita um
+  // variante achando que é o outro. Sufixa o formato só quando o nome colide.
+  const _nameCount={};
+  results.forEach(r=>{ const k=(r.name||'').toLowerCase().trim(); _nameCount[k]=(_nameCount[k]||0)+1; });
+  const _fmtSuffix={story:'Story',feed:'Feed',wide:'Wide',horizontal:'Horizontal',orig:'Original'};
   results.forEach((r,i)=>{
     // 'orig' (sem match exato) preserva o tamanho REAL do PSD — 1:1. Era forçado a 'story'.
     const fmt=DFMT_SIZES[r.fmt]?r.fmt:'orig';
@@ -1517,9 +1588,11 @@ function dPsdSaveArtboardTemplates(results, folderId, baseName){
     const layers=_dPsdReflowToFmt(r.layers, r.nativeW, r.nativeH, fmt);
     // Tamanho do espaço de coordenadas das layers = onde elas vivem (preset reflua, ou nativo p/ orig).
     const sz=DFMT_SIZES[fmt]||{w:r.nativeW, h:r.nativeH};
+    let _tname=(r.name||baseName||'Prancheta').toString();
+    if(_nameCount[(_tname||'').toLowerCase().trim()]>1) _tname+=' — '+(_fmtSuffix[fmt]||fmt);
     const tmpl={
       id:'tmpl-psd-'+Date.now()+'-'+i+'-'+Math.random().toString(36).slice(2,7),
-      name:(r.name||baseName||'Prancheta').toString().slice(0,30),
+      name:_tname.slice(0,30),
       fmt:fmt,
       w:sz.w, h:sz.h, // tamanho real do template — o gerador do franqueado renderiza 1:1 quando presente
       layers:JSON.parse(JSON.stringify(layers)),
@@ -1560,7 +1633,6 @@ async function dImportPSD(input){
   try{ agPsd=await dLoadAgPsd(); }catch(e){ _dPsdBusy(false); console.error('PSD lib:',e); gToast('⚠ Não foi possível carregar o leitor de PSD — recarregue a página','error'); return; }
   let buf;
   try{ buf=await file.arrayBuffer(); }catch(e){ _dPsdBusy(false); gToast('⚠ Não foi possível ler o arquivo — verifique se é um .psd válido','error'); return; }
-  let usedWorker=true;
   let result;
   try{ result=await _dPsdReadPsd(buf, agPsd); }
   catch(e){ result={error:e}; }

@@ -49,6 +49,7 @@ function gOnLoginSuccess() {
   dUpdateTabPill();
 
   if(typeof gUpdateUserTopbar === 'function') gUpdateUserTopbar();
+  if(typeof gTrackEvent === 'function') gTrackEvent('sessao_iniciada', {rota:'app'});
 
   // INIT FRANQUEADO
   fRenderCategorias();

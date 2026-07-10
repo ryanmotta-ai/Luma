@@ -109,11 +109,12 @@ async function fDownloadHist(id){
   }
   fMarkHistBaixada(id);
   fRenderHist();
+  if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:h.campId,fmt:h.fmtId,tipo:'png',origem:'historico'});
   gToast('Arte baixada!');
 }
 
 // F-04: retomar uma entrada do histórico no chat, com dados pré-preenchidos
-function fEditFromHist(id){
+async function fEditFromHist(id){
   const h = fGetHist().find(x=>x.id===id);
   if(!h) return;
   const all = [...CAMPS_ATIVAS, ...CAMPS_OUTRAS];
@@ -132,6 +133,8 @@ function fEditFromHist(id){
       if(t){ material = t; break; }
     }
   }
+  // Template sincronizado do backend pode estar sem layers (lazy) — baixa antes de montar as perguntas
+  if(material && typeof fEnsureMaterialLayers==='function') await fEnsureMaterialLayers(material);
 
   if(material){
     // Carrega via fluxo de material (reconstrói perguntas das vars + permissões)
@@ -283,7 +286,8 @@ let _fCampThumbBusy=false;
 
 function _fCampThumbMaterial(c){
   if(typeof fGetMaterialsForCamp!=='function'||!c)return null;
-  const mats=fGetMaterialsForCamp(c.id).filter(t=>fIsMaterialValid(t)&&t.layers&&t.layers.length);
+  // Agora permite templates que ainda não fizeram fetch das layers (_needsLayersFetch)
+  const mats=fGetMaterialsForCamp(c.id).filter(t=>fIsMaterialValid(t)&&(t._needsLayersFetch || (t.layers&&t.layers.length)));
   return mats[0]||null;
 }
 function _fCampThumbURL(id){
@@ -297,6 +301,20 @@ function _fCampThumbNeeded(c){
   return !e||e.mid!==t.id;
 }
 async function _fRenderCampThumb(c,t){
+  // Faz o Lazy Load discreto da nuvem se o template for virgem de layers
+  if(t._needsLayersFetch && t.remoteId){
+    const sb = (typeof gSupabase==='function') ? gSupabase() : window.sb;
+    if(sb){
+      try {
+        const {data} = await sb.schema('luma').from('templates').select('layers').eq('id', t.remoteId).single();
+        if(data){
+          t.layers = Array.isArray(data.layers) ? data.layers : [];
+          t._needsLayersFetch = false;
+        }
+      } catch(e) {}
+    }
+  }
+  
   const [tw,th]=fMaterialSize(t);
   const s=Math.min(1,360/tw); // miniatura ~360px de largura — nítida no card, leve na memória
   const cv=document.createElement('canvas');
@@ -306,7 +324,7 @@ async function _fRenderCampThumb(c,t){
   ctx.fillStyle=c.color||'#FF9000';ctx.fillRect(0,0,tw,th); // JPEG não tem alpha — nunca fundo preto
   const prev=fState.material;
   fState.material=t; // o motor lê bg/tamanho do fState (mesmo padrão do fDownloadHist)
-  try{ await fRenderTemplateLayers(ctx,t.layers,tw,th,{},c); }
+  try{ await fRenderTemplateLayers(ctx,t.layers||[],tw,th,{},c); }
   finally{ if(fState.material===t)fState.material=prev; } // não sobrescreve escolha feita no meio
   return cv.toDataURL('image/jpeg',.85);
 }

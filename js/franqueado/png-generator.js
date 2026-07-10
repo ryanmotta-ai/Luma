@@ -346,7 +346,9 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     const _fp = (typeof dTextFontParts==='function') ? dTextFontParts(l.font)
               : {family:"'Roboto', sans-serif", weight:/black|realce/i.test(l.font||'')?900:/bold/i.test(l.font||'')?700:900};
     const ff = _fp.family;
-    const fwt = String(_fp.weight);
+    // fontWeightOverride (faux bold do PSD) tem prioridade — o editor aplica (canvas.js);
+    // sem espelhar aqui, o texto saía negrito no editor e regular na arte final.
+    const fwt = String(l.fontWeightOverride||_fp.weight);
     const _ital = l.italic ? 'italic ' : ''; // font-style itálico (prefixo do shorthand de fonte do canvas)
     const isDisplayFont = _fp.weight >= 900; // peso black ganha um leve respiro entre letras
 
@@ -363,19 +365,59 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     const _txtFill = (l.gradient&&l.gradient.stops&&l.gradient.stops.length&&typeof gGradientCanvas==='function') ? gGradientCanvas(ctx,l.gradient,x,y,w,h) : _txtColor;
     const _lsTxt = (l.letterSpacing!=null) ? (l.letterSpacing*_scTxt)+'px' : null; // tracking
 
-    // ── RICH TEXT (multi-estilo) — render horizontal de linha única (trechos sequenciais) ──
+    // ── RICH TEXT (multi-estilo) — MULTILINHA, fiel ao editor (spans + <br> no DOM):
+    // divide os trechos pelas quebras '\n' do PSD, mede cada linha, aplica textTransform,
+    // ancora pelo topo (vAlign) ou centraliza o bloco. O render antigo desenhava tudo
+    // numa linha única no meio da caixa — a arte final divergia do editor.
     if(l.runs && l.runs.length && !l.vertical){
-      let total=0; const segs=l.runs.map(r=>{ const fp=(typeof dTextFontParts==='function')?dTextFontParts(r.font):{family:"'Roboto',sans-serif",weight:700};
-        const fs=Math.round((r.fontSize||l.fontSize||24)*_scTxt); ctx.font=`${_ital}${fp.weight} ${fs}px ${fp.family}`;
-        const ww=ctx.measureText(r.text||'').width; total+=ww; return {r,fp,fs,ww}; });
-      let tx = l.textAlign==='center'? x+w/2-total/2 : l.textAlign==='right'? x+w-total : x;
-      const ty = y+h/2; ctx.textAlign='left'; ctx.textBaseline='middle';
-      segs.forEach(s=>{ ctx.font=`${_ital}${s.fp.weight} ${s.fs}px ${s.fp.family}`; ctx.fillStyle=s.r.color||_txtColor;
-        if(l.shadow){ ctx.shadowColor=l.shadowColor||'rgba(0,0,0,.5)'; ctx.shadowBlur=_shBlur; ctx.shadowOffsetX=_shOff.x; ctx.shadowOffsetY=_shOff.y; }
-        ctx.fillText(s.r.text||'', tx, ty);
-        if(l.shadow){ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;}
-        if(l.strokeW>0){ ctx.lineWidth=Math.max(1,l.strokeW*_scTxt); ctx.strokeStyle=l.strokeColor||'#000'; ctx.lineJoin='round'; ctx.strokeText(s.r.text||'', tx, ty); }
-        tx+=s.ww; });
+      const _xf=t=>l.textTransform==='uppercase'?t.toUpperCase():l.textTransform==='lowercase'?t.toLowerCase():t;
+      // Trechos → linhas (preserva segmentos vazios de linhas em branco)
+      const linesRuns=[[]];
+      l.runs.forEach(r=>{
+        String(r.text||'').split('\n').forEach((part,pi)=>{
+          if(pi>0) linesRuns.push([]);
+          if(part!=='') linesRuns[linesRuns.length-1].push(Object.assign({},r,{text:part}));
+        });
+      });
+      // Mede cada linha (fonte/tracking por trecho)
+      const fallbackFs=Math.round((l.fontSize||24)*_scTxt);
+      const measured=linesRuns.map(segs=>{
+        let wsum=0, maxFs=segs.length?0:fallbackFs;
+        const ms=segs.map(r=>{
+          const fp=(typeof dTextFontParts==='function')?dTextFontParts(r.font):{family:"'Roboto',sans-serif",weight:700};
+          const fs=Math.round((r.fontSize||l.fontSize||24)*_scTxt);
+          ctx.font=`${_ital}${fp.weight} ${fs}px ${fp.family}`;
+          ctx.letterSpacing=r.letterSpacing?(r.letterSpacing*_scTxt)+'px':'0px';
+          const t=_xf(r.text||'');
+          const ww=ctx.measureText(t).width;
+          wsum+=ww; if(fs>maxFs)maxFs=fs;
+          return {t,fp,fs,ww,ls:r.letterSpacing||0,color:r.color};
+        });
+        return {ms,wsum,maxFs};
+      });
+      const _lhF=(l.lineHeight||1.2);
+      const lineHs=measured.map(li=>li.maxFs*_lhF);
+      const totalH=lineHs.reduce((a,b)=>a+b,0);
+      ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+      // vAlign 'top' → bloco encosta no topo da caixa; senão centraliza (espelha o editor)
+      let cy=(l.vAlign==='top')? y : y+(h-totalH)/2;
+      measured.forEach((li,idx)=>{
+        const lineH=lineHs[idx];
+        const baseline=cy + li.maxFs*0.8 + (lineH-li.maxFs)/2; // baseline ≈ line-box CSS (half-leading)
+        let tx = l.textAlign==='center'? x+w/2-li.wsum/2 : l.textAlign==='right'? x+w-li.wsum : x;
+        li.ms.forEach(s=>{
+          ctx.font=`${_ital}${s.fp.weight} ${s.fs}px ${s.fp.family}`;
+          ctx.letterSpacing=s.ls?(s.ls*_scTxt)+'px':'0px';
+          ctx.fillStyle=s.color||_txtColor;
+          if(l.shadow){ ctx.shadowColor=l.shadowColor||'rgba(0,0,0,.5)'; ctx.shadowBlur=_shBlur; ctx.shadowOffsetX=_shOff.x; ctx.shadowOffsetY=_shOff.y; }
+          ctx.fillText(s.t, tx, baseline);
+          if(l.shadow){ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;}
+          if(l.strokeW>0){ ctx.lineWidth=Math.max(1,l.strokeW*_scTxt); ctx.strokeStyle=l.strokeColor||'#000'; ctx.lineJoin='round'; ctx.strokeText(s.t, tx, baseline); }
+          tx+=s.ww;
+        });
+        cy+=lineH;
+      });
+      ctx.letterSpacing='0px';
       ctx.restore(); return;
     }
 
@@ -518,11 +560,9 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
                  : x + innerPad;
         const ty = blockStartY + i * lineHeight;
 
-        if(isDisplayFont){
-          ctx.letterSpacing = `${Math.max(0.5, fontSize * 0.02)}px`;
-        } else {
-          ctx.letterSpacing = '0px';
-        }
+        // Tracking do designer (l.letterSpacing) tem prioridade — era medido no auto-fit
+        // mas descartado aqui no desenho, divergindo do editor.
+        ctx.letterSpacing = _lsTxt || (isDisplayFont ? `${Math.max(0.5, fontSize * 0.02)}px` : '0px');
 
         if(l.shadow){
           ctx.shadowColor=l.shadowColor||'rgba(0,0,0,.5)';
@@ -564,17 +604,30 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     } else if(l.imgUrl && l.imgUrl !== '__local__' && l.imgUrl.length > 0){
       imgSource = l.imgUrl;
     }
-    const r = l.frameShape === 'circle' ? Math.min(w, h)/2 : Math.round((l.radius||0) * scaleX);
     if(imgSource){
       try {
         const img = await fLoadImageDataUrl(imgSource);
         if(img && img.width){
           ctx.save();
           ctx.beginPath();
-          if(l.frameShape === 'circle'){
-            ctx.arc(x + w/2, y + h/2, Math.min(w, h)/2, 0, Math.PI*2);
+          const kind = l.shapeKind || l.frameShape || 'rect';
+          const _pts = (kind !== 'circle' && kind !== 'ellipse' && typeof dShapePoints === 'function') ? dShapePoints(l) : null;
+          if(kind === 'circle' || kind === 'ellipse'){
+            ctx.ellipse(x + w/2, y + h/2, w/2, h/2, 0, 0, Math.PI*2);
+          } else if(_pts){
+            const abs = _pts.map(p => [x + p[0]*w, y + p[1]*h]);
+            const pathRadius = Math.min((l.radius||0)*scaleX, w/2, h/2);
+            if(pathRadius > 0 && typeof gRoundPolyPath2D === 'function'){
+              gRoundPolyPath2D(ctx, abs, pathRadius);
+            } else {
+              abs.forEach((p, i) => { i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); });
+              ctx.closePath();
+            }
           } else {
-            roundedRect(ctx, x, y, w, h, r);
+            const _ru = l.radius || 0, _rr = l.radii;
+            const _ctl = (_rr ? (+_rr.tl||0) : _ru) * scaleX, _ctr = (_rr ? (+_rr.tr||0) : _ru) * scaleX,
+                  _cbr = (_rr ? (+_rr.br||0) : _ru) * scaleX, _cbl = (_rr ? (+_rr.bl||0) : _ru) * scaleX;
+            roundedRectPath(ctx, x, y, w, h, _ctl, _ctr, _cbr, _cbl);
           }
           ctx.clip();
           const imgAR = img.width / img.height, frameAR = w / h;
@@ -600,7 +653,26 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     } else {
       // Placeholder visual leve (não chamativo no PNG final)
       ctx.fillStyle = 'rgba(255,255,255,0.06)';
-      roundedRect(ctx, x, y, w, h, r);
+      ctx.beginPath();
+      const kind = l.shapeKind || l.frameShape || 'rect';
+      const _pts = (kind !== 'circle' && kind !== 'ellipse' && typeof dShapePoints === 'function') ? dShapePoints(l) : null;
+      if(kind === 'circle' || kind === 'ellipse'){
+        ctx.ellipse(x + w/2, y + h/2, w/2, h/2, 0, 0, Math.PI*2);
+      } else if(_pts){
+        const abs = _pts.map(p => [x + p[0]*w, y + p[1]*h]);
+        const pathRadius = Math.min((l.radius||0)*scaleX, w/2, h/2);
+        if(pathRadius > 0 && typeof gRoundPolyPath2D === 'function'){
+          gRoundPolyPath2D(ctx, abs, pathRadius);
+        } else {
+          abs.forEach((p, i) => { i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); });
+          ctx.closePath();
+        }
+      } else {
+        const _ru = l.radius || 0, _rr = l.radii;
+        const _ctl = (_rr ? (+_rr.tl||0) : _ru) * scaleX, _ctr = (_rr ? (+_rr.tr||0) : _ru) * scaleX,
+              _cbr = (_rr ? (+_rr.br||0) : _ru) * scaleX, _cbl = (_rr ? (+_rr.bl||0) : _ru) * scaleX;
+        roundedRectPath(ctx, x, y, w, h, _ctl, _ctr, _cbr, _cbl);
+      }
       ctx.fill();
     }
   }
@@ -1002,3 +1074,61 @@ function fBuildFilename(c, fmt, d){
   return `DM_${camp}_${prod}_${fmtName}_${date}.png`;
 }
 
+
+/* ══════════════════════════════════════════════════════════════
+   PREVIEW FIEL — fonte única de verdade visual dos thumbnails.
+   Renderiza um template/prancheta num canvas usando o MESMO motor
+   da arte final (fRenderTemplateLayers): máscaras, cantos por canto,
+   gradientes, efeitos, blend modes, texto rico — tudo igual ao PNG.
+   Substitui os renderizadores DOM próprios (e infiéis) dos previews
+   de publicação e dos cards de material.
+══════════════════════════════════════════════════════════════ */
+// Fila serializada: o motor lê fState.material (fundo + espaço nativo) DEPOIS de um
+// await interno (document.fonts.ready) — dois renders concorrentes trocariam o shim
+// um do outro no meio. Um por vez elimina a corrida (e o burst de CPU em grids).
+let _fpvQueue=Promise.resolve();
+function fRenderPreviewToCanvas(canvas, tmpl, opts){
+  const job=_fpvQueue.then(()=>_fpvRun(canvas, tmpl, opts));
+  _fpvQueue=job.catch(()=>{}); // falha de um render não trava a fila
+  return job;
+}
+async function _fpvRun(canvas, tmpl, opts){
+  if(!canvas || !tmpl || !tmpl.layers || !tmpl.layers.length) return false;
+  opts=opts||{};
+  const [W,H]=fMaterialSize(tmpl, null);
+  const maxPx=opts.maxPx||900; // resolução do backing — suficiente p/ thumbs nítidos
+  const scale=Math.min(1, maxPx/Math.max(W,H));
+  const bw=Math.max(1,Math.round(W*scale)), bh=Math.max(1,Math.round(H*scale));
+  // Guard de concorrência POR CANVAS: hover repetido re-renderiza; só o mais novo desenha.
+  const renderId=(canvas._fpvId=(canvas._fpvId||0)+1);
+  const off=document.createElement('canvas'); off.width=bw; off.height=bh;
+  const octx=off.getContext('2d');
+  octx.scale(scale,scale);
+  const dados=opts.dados||fSampleDadosForLayers(tmpl.layers);
+  const camp=opts.camp||{color:'#e8e8e8'};
+  // Shim do material: o motor lê fState.material p/ fundo e espaço nativo das coords.
+  const prevMat=(typeof fState!=='undefined')?fState.material:null;
+  try{
+    if(typeof fState!=='undefined') fState.material={layers:tmpl.layers, w:W, h:H, bg:tmpl.bg, fmt:tmpl.fmt};
+    await fRenderTemplateLayers(octx, tmpl.layers, W, H, dados, camp);
+  }catch(e){ console.warn('[preview] render falhou:', e); return false; }
+  finally{ if(typeof fState!=='undefined') fState.material=prevMat; }
+  if(canvas._fpvId!==renderId) return false; // um render mais novo assumiu este canvas
+  canvas.width=bw; canvas.height=bh;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,bw,bh);
+  ctx.drawImage(off,0,0);
+  return true;
+}
+// Dados de amostra p/ preview: exemplo → valor padrão → [Rótulo], por campo do catálogo.
+// Campos de imagem ficam vazios → o motor desenha o placeholder de moldura (igual à arte real).
+function fSampleDadosForLayers(layers){
+  const out={};
+  const names=(typeof dExtractTemplateVars==='function')?dExtractTemplateVars(layers):[];
+  names.forEach(n=>{
+    const v=(typeof dVars!=='undefined'&&dVars)?dVars.find(x=>x.name===n):null;
+    if(v&&v.type==='image') return;
+    out[n]=(typeof gFieldSampleValue==='function')?gFieldSampleValue(v||{name:n}):((v&&(v.label||n))||n);
+  });
+  return out;
+}
