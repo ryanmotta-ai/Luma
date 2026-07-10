@@ -109,3 +109,49 @@
 .top-exit-btn:active{transform:translateY(0) scale(.94)}
 
 
+
+/* ══════════════════════════════════════════════════════════════
+   TOPBAR RESPONSIVA — safe-area (notch) + colapso progressivo.
+   O shell aparece em todos os modos, então adaptá-lo cobre tudo.
+══════════════════════════════════════════════════════════════ */
+/* Safe-area do notch/status bar em qualquer largura (iOS standalone/landscape) */
+#global-topbar{
+  padding-top:var(--safe-top);
+  padding-left:calc(24px + var(--safe-left));
+  padding-right:calc(24px + var(--safe-right));
+  height:calc(52px + var(--safe-top));
+  box-sizing:border-box;
+}
+
+/* ≤ tablet: aperta espaçamentos, tabs menores */
+@media (max-width:768px){
+  #global-topbar{
+    gap:10px;
+    padding-left:calc(14px + var(--safe-left));
+    padding-right:calc(14px + var(--safe-right));
+  }
+  .top-right{gap:9px}
+  .mode-tab{padding:5px 11px;min-height:var(--tap-min);display:flex;align-items:center}
+  .top-help-btn span{display:none}            /* só o ícone de ajuda */
+  .top-help-btn{padding:0;width:var(--tap-min);height:var(--tap-min);justify-content:center;border-radius:50%}
+  .top-exit-btn{width:var(--tap-min);height:var(--tap-min)}
+  .top-profile-badge{min-height:var(--tap-min)}
+}
+
+/* ≤ celular: só o essencial — logo compacta, tabs, avatar. Nome/badge saem
+   (o modal de perfil já mostra tudo). */
+@media (max-width:480px){
+  .top-dm-logo{width:78px;height:22px}
+  .top-sep{display:none}
+  .top-name,.admin-badge{display:none}
+  .top-profile-badge{padding:0;background:none;border:none;gap:0}
+  .top-profile-badge:hover{background:none;border:none;transform:none;box-shadow:none}
+  .top-av{width:var(--tap-min);height:var(--tap-min)}
+  .mode-tab{padding:5px 9px;font-size:11px;letter-spacing:.01em}
+}
+
+/* Celular MUITO estreito: encolhe as tabs mais um degrau pra não vazar */
+@media (max-width:360px){
+  #global-topbar{gap:6px}
+  .mode-tab{padding:5px 7px;font-size:10.5px}
+}

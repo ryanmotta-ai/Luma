@@ -175,7 +175,7 @@ body.theme-light .vt-color-sep { background: rgba(0,0,0,0.1); }
 .vt-flyout-item:hover svg{opacity:1; transform:scale(1.1);}
 
 /* Ajuste: d-view-designer sem o topbar de 44px antigo */
-#view-designer{height:calc(100vh - 52px);}
+#view-designer{height:calc(100vh - 52px);height:calc(100dvh - 52px - var(--safe-top));}
 
 
 /* ── Smart guides ── */

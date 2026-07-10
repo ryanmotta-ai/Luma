@@ -338,3 +338,23 @@ body.theme-light .g-chat-avatar::after {
   }
 }
 
+
+/* ══════════════════════════════════════════════════════════════
+   HELP-CHAT MOBILE — safe-area + não colidir com a barra de input
+   do franqueado (que fica no rodapé no modo chat) + janela fullscreen.
+══════════════════════════════════════════════════════════════ */
+.g-chat-btn{ bottom: calc(24px + var(--safe-bottom)); right: calc(20px + var(--safe-right)); }
+.g-chat-window{ bottom: calc(92px + var(--safe-bottom)); }
+
+@media (max-width:680px){
+  /* No modo chat do franqueado a barra de input ocupa o rodapé → sobe o botão */
+  body.f-mobile-chat .g-chat-btn{ bottom: calc(78px + var(--safe-bottom)); }
+  /* Janela ocupa a tela toda (menos a topbar) no celular */
+  .g-chat-window{
+    width:auto; height:auto;
+    left:calc(10px + var(--safe-left)); right:calc(10px + var(--safe-right));
+    bottom:calc(84px + var(--safe-bottom));
+    top:calc(62px + var(--safe-top));
+    max-height:none;
+  }
+}

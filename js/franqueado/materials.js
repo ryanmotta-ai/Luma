@@ -28,6 +28,10 @@ function fIsMaterialValid(material){
 function fOpenMaterialCatalog(camp){
   fState.materialView=true;
   fState.material=null;
+  // Mobile: o catálogo de materiais vive no #fran-right (escondido por padrão no
+  // celular). Sem trazer o painel pra frente, tocar numa campanha caía numa tela
+  // vazia. O "voltar" (fCloseMaterialCatalog) remove a classe e devolve o catálogo.
+  try{ document.body.classList.add('f-mobile-chat'); }catch(e){}
   const chatCol=document.getElementById('f-chat-col');
   let matView=document.getElementById('f-material-view');
   if(!matView){

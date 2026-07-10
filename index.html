@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Luma</title>
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=2">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon.svg?v=2">
@@ -147,6 +147,14 @@ input:focus:-webkit-autofill {
 }
 .gl-link:hover {
   color: var(--dm-orange, #FF9000);
+}
+/* ── LOGIN MOBILE ── card fluido + inputs 16px (sem auto-zoom iOS) + safe-area */
+@media (max-width: 480px){
+  #g-login-screen{ padding: calc(16px + var(--safe-top)) calc(16px + var(--safe-right)) calc(16px + var(--safe-bottom)) calc(16px + var(--safe-left)); align-items: flex-start; overflow-y: auto; }
+  .gl-wrap{ width: 100%; margin-top: 8vh; }
+  .gl-inner{ width: 100%; padding: 28px 22px; animation: glFadeUp 0.8s cubic-bezier(0.16,1,0.3,1) forwards; }  /* sem float infinito no celular */
+  .gl-input-wrap input{ font-size: 16px !important; padding: 15px 16px !important; }
+  .gl-btn{ padding: 15px !important; font-size: 15px !important; min-height: var(--tap-min); }
 }
 </style>
 
@@ -679,6 +687,20 @@ input:focus:-webkit-autofill {
 
 <!-- ══ VIEW DESIGNER ══ -->
 <div id="view-designer" class="view-container">
+
+  <!-- Gate desktop-only: o editor exige tela grande. Abaixo de 1024px (celular/tablet)
+       este aviso cobre o editor e convida a voltar pro Franqueado. Só CSS (media query). -->
+  <div id="d-desktop-gate">
+    <div class="ddg-card">
+      <div class="ddg-icon" aria-hidden="true">
+        <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      </div>
+      <h2 class="ddg-title">O editor abre no computador</h2>
+      <p class="ddg-text">O Designer precisa de uma tela grande pra você montar as artes com precisão. Abra o Luma no computador para criar e publicar templates.</p>
+      <p class="ddg-hint">No celular você continua gerando e baixando artes normalmente pelo Franqueado.</p>
+      <button class="ddg-btn" onclick="setMode('franqueado')">Voltar para o Franqueado</button>
+    </div>
+  </div>
 
   <!-- ══ DESIGNER LAYOUT ══ -->
   <!-- Topbar minimalista: só info + undo/redo + formato + preview + publicar -->

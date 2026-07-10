@@ -58,6 +58,7 @@ body.mode-dados #view-designer{display:none!important}
   --p-card-grad: linear-gradient(180deg, rgba(20, 20, 20, 0.6) 0%, rgba(13, 13, 13, 0.8) 100%);
   --p-glow-accent: rgba(255, 144, 0, 0.15);
   height:calc(100vh - 52px);
+  height:calc(100dvh - 52px - var(--safe-top));
   background:var(--p-bg);
   color:var(--p-text);
   font-family:'Roboto',sans-serif;

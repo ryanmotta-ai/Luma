@@ -9,7 +9,9 @@
 /* ══════════════════════════════
    VIEW FRANQUEADO
 ══════════════════════════════ */
-#view-franqueado{display:flex;flex-direction:column;height:calc(100vh - 52px);background:var(--off-white)}
+/* 100dvh (não 100vh) → acompanha a barra de URL do mobile; desconta o safe-area do
+   notch (a topbar cresceu +safe-top). Fallback vh p/ navegadores sem dvh. */
+#view-franqueado{display:flex;flex-direction:column;height:calc(100vh - 52px);height:calc(100dvh - 52px - var(--safe-top));background:var(--off-white)}
 #prog-bar{height:3px;background:var(--gray-light);flex-shrink:0}
 #prog-fill{height:100%;background:var(--dm-orange);transition:width .4s ease;width:0%}
 #fran-main{display:flex;flex:1;overflow:hidden}
@@ -609,13 +611,20 @@ body:not(.theme-light) #f-live-preview::-webkit-scrollbar-thumb:hover {
   body.f-mobile-chat #fran-left{display:none}
   body.f-mobile-chat #fran-right{display:flex;width:100%}
   #f-chat-col{width:100%}
-  #f-mobile-back{display:flex}
+  #f-mobile-back{display:flex;width:var(--tap-min);height:var(--tap-min)}
   /* 16px evita o auto-zoom do iOS ao focar inputs */
   #f-msg-box,#f-search{font-size:16px}
   /* Alvos de toque ≥44px */
-  #f-snd{width:44px;height:44px}
-  .fmt-btn{min-height:44px}
-  .f-tab{min-height:40px}
+  #f-snd{width:var(--tap-min);height:var(--tap-min)}
+  .fmt-btn{min-height:var(--tap-min)}
+  .f-tab{min-height:var(--tap-min)}
+  /* Últimos itens do catálogo/histórico não somem sob o home indicator */
+  #f-catalog,#f-hist-tab{padding-bottom:calc(16px + var(--safe-bottom))}
+  #f-fmt-wrap{padding-bottom:calc(14px + var(--safe-bottom))}
+  /* Catálogo de materiais ocupa a tela toda no mobile (vive no #fran-right) */
+  #f-material-view{padding-bottom:calc(20px + var(--safe-bottom))}
+  .f-mat-back{min-width:var(--tap-min);min-height:var(--tap-min)}
+  .f-head-actions button{min-height:var(--tap-min)}
 }
 
 
@@ -789,13 +798,24 @@ body:not(.theme-light) #f-home-btn{border-color:#3A3733;color:#C9C2BA}
 
 /* ── Mobile ── */
 @media (max-width:680px){
-  .fh-inner{padding:20px 16px 40px;gap:14px}
+  /* padding-bottom com safe-area → últimos cards não somem sob o home indicator */
+  .fh-inner{padding:18px 16px calc(36px + var(--safe-bottom));gap:16px}
   .fh-greet{font-size:22px}
+  .fh-head{gap:10px}
+  .fh-mine{padding:0 16px;min-height:var(--tap-min)}     /* alvo de toque */
+  .fh-search-row{padding:0 16px;min-height:var(--tap-min);top:6px}
+  #fh-search{font-size:16px}                              /* 16px = sem auto-zoom iOS */
   .fh-hero{flex-direction:column}
   .fh-hero-cover{width:100%;min-width:0;height:130px}
+  .fh-hero-cta{min-height:var(--tap-min);display:inline-flex;align-items:center}
   .fh-grid{grid-template-columns:repeat(2,1fr)}
   .fh-grid .camp-thumb{aspect-ratio:4/3}
-  #fh-search{font-size:16px} /* evita auto-zoom iOS */
+  .fh-draft{padding:12px}                                 /* mais área tocável */
+}
+/* Celular estreito: 1 coluna de campanhas (cards maiores, capa legível) */
+@media (max-width:400px){
+  .fh-grid{grid-template-columns:1fr}
+  .fh-grid .camp-thumb{aspect-ratio:16/9}
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -839,3 +859,11 @@ body:not(.theme-light) #f-home-btn{border-color:#3A3733;color:#C9C2BA}
 /* Saída da home → colunas entram com direção (rail desliza, conteúdo funde) */
 body.f-cols-enter #fran-left{animation:gFadeInRight var(--dur-base) var(--ease-out) both}
 body.f-cols-enter #fran-right{animation:gFadeIn var(--dur-base) var(--ease-out) both}
+
+/* Histórico — botões de ação tocáveis no celular (eram 10px/4px, difícil de tocar) */
+@media (max-width:680px){
+  .hist-act-btn{padding:9px 12px;font-size:12px;min-height:var(--tap-min);display:inline-flex;align-items:center}
+  .hist-actions{gap:6px}
+  .hist-thumb{width:64px}
+  .hist-filter-btn{min-height:var(--tap-min)}
+}

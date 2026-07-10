@@ -389,3 +389,22 @@
   box-shadow: 0 2px 6px rgba(34, 197, 150, 0.2);
 }
 
+
+/* ══════════════════════════════════════════════════════════════
+   CHAT MOBILE — safe-area (home indicator do iOS) + toque.
+══════════════════════════════════════════════════════════════ */
+@media (max-width:680px){
+  /* O botão Enviar não pode ficar sob o home indicator do iPhone */
+  #f-input-row{padding:12px 16px calc(12px + var(--safe-bottom));}
+  #f-msg-box{font-size:16px;padding-top:11px;padding-bottom:11px} /* 16px = sem auto-zoom iOS */
+  #f-snd{width:var(--tap-min);height:var(--tap-min);flex-shrink:0}
+  /* Bolhas de chat mais largas no celular (menos margem lateral desperdiçada) */
+  #f-messages{padding-left:14px;padding-right:14px}
+  .qr{min-height:38px;display:inline-flex;align-items:center} /* quick-replies tocáveis */
+  .confirm-btn{min-height:var(--tap-min)}
+  /* Resultado da arte: botões de download/formato tocáveis */
+  .art-btn{min-height:var(--tap-min);font-size:13px}
+  .fmt-mini-thumb{height:38px}
+  .fmt-mini-label{padding:5px 0}
+  .confirm-edit{min-height:34px}
+}

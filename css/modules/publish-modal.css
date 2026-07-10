@@ -373,3 +373,13 @@
 
 /* Miniatura fiel do card de publicação (canvas renderizado pelo motor da arte final) */
 .pub-ab-thumb-cv{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+/* Modal de prévia multi-formato do franqueado — cabe no celular + safe-area */
+@media (max-width:560px){
+  #f-preview-modal{padding:calc(12px + var(--safe-top)) 12px calc(12px + var(--safe-bottom));align-items:flex-start}
+  .preview-box{margin-top:6vh;max-height:calc(100dvh - 12vh - var(--safe-top) - var(--safe-bottom))}
+  .pv-multi{gap:8px;padding:14px}
+  .pv-multi-item{min-height:var(--tap-min)}
+  .preview-box-head{padding:14px 16px}
+  .preview-close{width:var(--tap-min);height:var(--tap-min)}
+}

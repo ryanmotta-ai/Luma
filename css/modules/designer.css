@@ -12,8 +12,10 @@
 #view-designer{
   display:flex;flex-direction:column;
   height:calc(100vh - 52px);
+  height:calc(100dvh - 52px - var(--safe-top));
   background:var(--d-bg);
   color:var(--d-text);
+  position:relative; /* âncora do gate desktop-only (#d-desktop-gate) */
 }
 #d-main{display:flex;flex:1;overflow:hidden}
 
@@ -2522,3 +2524,35 @@ body.theme-light .drt-example {
 .fx-btn-ok:hover { opacity: 0.9; transform: scale(1.02); }
 .fx-btn-ok:active { transform: scale(0.98); }
 
+
+/* ══════════════════════════════════════════════════════════════
+   GATE DESKTOP-ONLY — o editor exige tela grande. Abaixo de 1024px
+   este aviso cobre o editor (celular + tablet). Só CSS.
+══════════════════════════════════════════════════════════════ */
+#d-desktop-gate{ display:none; }
+@media (max-width:1023px){
+  body.mode-designer #d-desktop-gate{
+    display:flex; align-items:center; justify-content:center;
+    position:absolute; inset:0; z-index:500;
+    padding:calc(24px + var(--safe-top)) 24px calc(24px + var(--safe-bottom));
+    background:
+      radial-gradient(60% 50% at 50% 0%, rgba(255,144,0,.14), transparent 70%),
+      var(--d-bg,#111);
+  }
+  /* Esconde o editor quebrado por trás do gate (evita scroll horizontal fantasma) */
+  body.mode-designer #d-topbar,
+  body.mode-designer #d-main{ display:none; }
+}
+.ddg-card{ max-width:400px; text-align:center; color:var(--d-text,#f0f0f0); font-family:'Roboto',sans-serif; }
+.ddg-icon{ color:var(--dm-orange); margin-bottom:16px; display:flex; justify-content:center; }
+.ddg-title{ font-size:20px; font-weight:900; letter-spacing:-.01em; margin:0 0 10px; color:#fff; }
+.ddg-text{ font-size:14px; line-height:1.55; color:var(--d-text2,#a0a0a0); margin:0 0 12px; }
+.ddg-hint{ font-size:12.5px; line-height:1.5; color:var(--d-text3,#8a8a8a); margin:0 0 24px; }
+.ddg-btn{
+  min-height:var(--tap-min); padding:0 22px;
+  background:var(--dm-orange); color:#fff; border:none; border-radius:var(--r-pill);
+  font-family:'Roboto',sans-serif; font-weight:700; font-size:14px; cursor:pointer;
+  box-shadow:0 4px 16px rgba(248,84,0,.32); transition:background .15s,transform .12s;
+}
+.ddg-btn:hover{ background:var(--dm-orange-d); }
+.ddg-btn:active{ transform:scale(.97); }
