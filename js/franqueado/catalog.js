@@ -375,7 +375,7 @@ function fCampEl(c,isRec,ghost){
   // o card mostra a cor da marca em vez de um retângulo branco.
   // Scrim (gradiente topo+base) por cima da capa → badges legíveis mesmo em fotos claras.
   const thumbStyle = cover
-    ? `background-color:${c.color};background-image:url('${cover}');background-size:cover;background-position:center`
+    ? `background-color:${c.color};background-image:url('${gEsc(cover)}');background-size:cover;background-position:center`
     : `background:${c.color}`;
   const mats = (typeof fGetMaterialsForCamp==='function') ? fGetMaterialsForCamp(c.id) : [];
   const countLabel = ghost ? 'Materiais em breve' : (mats.length ? `${mats.length} material${mats.length!==1?'is':''}` : 'Sem materiais');
@@ -385,15 +385,15 @@ function fCampEl(c,isRec,ghost){
   return `<div class="camp-card ${!ghost&&fState.camp&&c.id===fState.camp.id?'selected':''} ${isRec?'recommended':''}${ghost?' ghost':''}"${ghost?' aria-disabled="true"':` onclick="fSelectCamp('${c.id}')"`}>
     ${ghost?'':`<div class="camp-prev-btn" onclick="event.stopPropagation();fOpenPreview(event,'${c.id}')">PRÉVIA</div>`}
     <div class="camp-thumb ${cover?'has-cover':''}"${thumbAttr} style="${thumbStyle}">
-      ${c.badge?`<div class="camp-badge">${c.badge}</div>`:''}
+      ${c.badge?`<div class="camp-badge">${gEsc(c.badge)}</div>`:''}
       ${!ghost&&c.popular?`<div class="camp-popular">${_icoFlame}Popular</div>`:''}
       ${!ghost&&c.expiraDias<=3?`<div class="camp-urgency">${_icoClock}${c.expiraDias}d</div>`:''}
-      ${cover?'':`<div class="camp-thumb-prod">${previewProd}</div>
-      ${previewDe?`<div class="camp-thumb-de">${previewDe}</div>`:''}
-      ${previewPor?`<div class="camp-thumb-por">${previewPor}</div>`:''}
+      ${cover?'':`<div class="camp-thumb-prod">${gEsc(previewProd)}</div>
+      ${previewDe?`<div class="camp-thumb-de">${gEsc(previewDe)}</div>`:''}
+      ${previewPor?`<div class="camp-thumb-por">${gEsc(previewPor)}</div>`:''}
       <div class="camp-thumb-logo" role="img" aria-label="Luma"></div>`}
     </div>
-    <div class="camp-body"><div class="camp-name">${c.name}</div><div class="camp-sub">${countLabel}</div></div>
+    <div class="camp-body"><div class="camp-name">${gEsc(c.name)}</div><div class="camp-sub">${countLabel}</div></div>
   </div>`;
 }
 function fGetCampaigns(){

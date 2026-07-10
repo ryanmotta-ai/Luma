@@ -94,7 +94,7 @@ function dLibRenderCats() {
   if (!el) return;
   const all = ['Todos', ...dLibCats];
   el.innerHTML = all.map(cat =>
-    `<button class="lib-cat ${cat === dLibActiveCat ? 'active' : ''}" onclick="dLibSetCat('${cat}')">${cat}</button>`
+    `<button class="lib-cat ${cat === dLibActiveCat ? 'active' : ''}" data-cat="${gEsc(cat)}" onclick="dLibSetCat(this.dataset.cat)">${gEsc(cat)}</button>`
   ).join('');
 }
 
@@ -119,8 +119,8 @@ function dLibRender(filter) {
   }
   grid.innerHTML = assets.map(a => {
     const preview = a.isSvg
-      ? `<img src="${a.url}" alt="${gEsc(a.name)}" style="width:70%;height:70%;object-fit:contain">`
-      : `<img src="${a.url}" alt="${gEsc(a.name)}" style="width:100%;height:100%;object-fit:cover">`;
+      ? `<img src="${gEsc(a.url)}" alt="${gEsc(a.name)}" style="width:70%;height:70%;object-fit:contain">`
+      : `<img src="${gEsc(a.url)}" alt="${gEsc(a.name)}" style="width:100%;height:100%;object-fit:cover">`;
     return `<div class="lib-item" onclick="dLibUse('${a.id}')" title="${gEsc(a.name)}">
       ${preview}
       <span class="lib-item-name">${gEsc(a.name)}</span>

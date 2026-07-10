@@ -287,14 +287,14 @@ function gUpdateUserTopbar() {
   if (avEl) {
     const savedPhoto = localStorage.getItem('__luma_user_photo_' + email);
     if (savedPhoto) {
-      avEl.innerHTML = `<img src="${savedPhoto}" alt="${displayName}">`;
+      avEl.innerHTML = `<img src="${gEsc(savedPhoto)}" alt="${gEsc(displayName)}">`;
       avEl.style.background = 'transparent';
     } else {
       const names = displayName.trim().split(/\s+/);
       const initials = names.length > 1
         ? (names[0][0] + names[names.length - 1][0]).toUpperCase()
         : names[0].substring(0, 2).toUpperCase();
-      avEl.innerHTML = initials;
+      avEl.textContent = initials;
 
       // Sem foto → avatar branco com iniciais em laranja escuro (identidade da
       // marca sobre a barra laranja; cores de fora da paleta destoavam).

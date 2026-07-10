@@ -116,7 +116,7 @@ function gProfileUpdateModalAvatars(displayName, email) {
     if (!el) return;
 
     if (savedPhoto) {
-      el.innerHTML = `<img src="${savedPhoto}" alt="${displayName}">`;
+      el.innerHTML = `<img src="${gEsc(savedPhoto)}" alt="${gEsc(displayName)}">`;
       el.style.background = 'transparent';
     } else {
       // Iniciais do usuário
@@ -124,7 +124,7 @@ function gProfileUpdateModalAvatars(displayName, email) {
       const initials = names.length > 1 
         ? (names[0][0] + names[names.length - 1][0]).toUpperCase()
         : names[0].substring(0, 2).toUpperCase();
-      el.innerHTML = initials;
+      el.textContent = initials;
       
       // Cor baseada no hash do nome
       const hash = Array.from(displayName).reduce((acc, char) => acc + char.charCodeAt(0), 0);
@@ -423,13 +423,13 @@ async function gProfileRenderEquipe(){
     const photo=localStorage.getItem('__luma_user_photo_'+u.email);
     const avBg=photo?'transparent':_profAvBg(u.displayName);
     const avContent=photo
-      ?`<img src="${photo}" alt="${u.displayName}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
-      :_profInitials(u.displayName);
+      ?`<img src="${gEsc(photo)}" alt="${gEsc(u.displayName)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+      :gEsc(_profInitials(u.displayName));
     const canEdit=!isMe&&gRoleLevel(me.role)>gRoleLevel(u.role);
     const rcfg=_EQUIPE_ROLE_CFG[u.role]||_EQUIPE_ROLE_CFG.franqueado;
     const pid='prof-rp-'+idx;
 
-    const pill=`<button class="prof-role-pill" data-role="${u.role}" ${canEdit?`onclick="gProfileToggleRolePicker('${u.email}','${pid}',this,event)"`:'disabled'} title="${rcfg.desc}">
+    const pill=`<button class="prof-role-pill" data-role="${u.role}" ${canEdit?`onclick="gProfileToggleRolePicker('${gEsc(u.email)}','${pid}',this,event)"`:'disabled'} title="${rcfg.desc}">
       <span class="prof-role-dot"></span>${rcfg.label}${canEdit?_ICO_CHEVRON:''}
     </button>`;
 
@@ -438,7 +438,7 @@ async function gProfileRenderEquipe(){
       .map(r=>{
         const rc=_EQUIPE_ROLE_CFG[r];
         const cur=r===u.role;
-        return `<button class="prof-role-picker-opt${cur?' is-current':''}" onclick="gProfilePickRole('${u.email}','${r}','${pid}',event)">
+        return `<button class="prof-role-picker-opt${cur?' is-current':''}" onclick="gProfilePickRole('${gEsc(u.email)}','${r}','${pid}',event)">
           <span class="prof-role-picker-opt-ico" style="background:${rc.bg};color:${rc.color}">${rc.emoji}</span>
           <span class="prof-role-picker-opt-text">
             <span class="prof-role-picker-opt-label">${rc.label}</span>
@@ -452,13 +452,13 @@ async function gProfileRenderEquipe(){
     const invitedTag=!u.isBase?`<span class="prof-user-tag invited">convidado</span>`:'';
     const youTag=isMe?`<span class="prof-user-you">(você)</span>`:'';
     const removeBtn=!u.isBase&&!isMe&&canEdit
-      ?`<button class="prof-user-remove" onclick="gProfileRemoveUser('${u.email}')" title="Remover acesso">${_ICO_TRASH}</button>`:'';
+      ?`<button class="prof-user-remove" onclick="gProfileRemoveUser('${gEsc(u.email)}')" title="Remover acesso">${_ICO_TRASH}</button>`:'';
 
     return `<div class="prof-user-row${isMe?' is-me':''}">
       <div class="prof-user-av" style="background:${avBg}">${avContent}</div>
       <div class="prof-user-info">
-        <div class="prof-user-name">${u.displayName}${youTag}${invitedTag}</div>
-        <div class="prof-user-email">${u.email}</div>
+        <div class="prof-user-name">${gEsc(u.displayName)}${youTag}${invitedTag}</div>
+        <div class="prof-user-email">${gEsc(u.email)}</div>
       </div>
       ${pill}${picker}
       ${removeBtn}
