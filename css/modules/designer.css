@@ -40,7 +40,7 @@
 .template-item.active{background:rgba(255,144,0,.08)}
 .template-row{display:flex;align-items:center;gap:8px;padding:6px 0;flex:1;min-width:0}
 .tmpl-status{font-size:10px;flex-shrink:0;line-height:1;width:10px;text-align:center}
-.tmpl-status.pub{color:#22C55E}
+.tmpl-status.pub{color:var(--green-text)}
 .tmpl-status.draft{color:#FFB900}
 .template-name{font-size:11px;color:var(--d-text2);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .template-item.active .template-name{color:var(--d-text)}
@@ -618,8 +618,10 @@ body.theme-light .field-chip.on span{color:var(--dm-orange-d)}
 .d-fmt-btn{padding:5px 10px;font-size:11px;font-weight:500;border-radius:4px;border:1px solid var(--d-border2);background:transparent;color:var(--d-text2);cursor:pointer;transition:all .15s;letter-spacing:.5px;font-family:'Roboto',sans-serif}
 .d-fmt-btn:hover{background:var(--d-surf3);color:var(--d-text)}
 .d-fmt-btn.active{border-color:var(--dm-orange);background:rgba(255,144,0,.12);color:var(--dm-orange)}
-.d-btn-pri{padding:7px 16px;background:var(--dm-orange);color:white;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;letter-spacing:.3px;transition:all .15s;display:flex;align-items:center;gap:6px;font-family:'Roboto',sans-serif;box-shadow:0 2px 8px rgba(255,144,0,.3)}
-.d-btn-pri:hover{background:#F85400;box-shadow:0 4px 14px rgba(255,144,0,.45);transform:translateY(-1px)}
+/* CTA primário: laranja escuro (--dm-orange-d) para o texto branco passar
+   AA-large (3.35:1); o #FF9000 puro dava só 2.27:1. Hover escurece + eleva. */
+.d-btn-pri{padding:7px 16px;background:var(--dm-orange-d);color:white;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;letter-spacing:.3px;transition:all .15s;display:flex;align-items:center;gap:6px;font-family:'Roboto',sans-serif;box-shadow:0 2px 8px rgba(248,84,0,.3)}
+.d-btn-pri:hover{filter:brightness(.92);box-shadow:0 4px 14px rgba(248,84,0,.45);transform:translateY(-1px)}
 .d-btn-sec{padding:7px 14px;background:transparent;color:var(--d-text2);border:1px solid var(--d-border2);border-radius:5px;font-size:13px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px;font-family:'Roboto',sans-serif}
 .d-btn-sec:hover{background:var(--d-surf);color:var(--d-text)}
 
@@ -651,6 +653,9 @@ body.theme-light {
   --d-bg:#F5F5F5; --d-dark:#FFFFFF; --d-surf:#F2F2F2; --d-surf2:#E8E8E8;
   --d-surf3:#D4D4D4; --d-border:rgba(0,0,0,.08); --d-border2:rgba(0,0,0,.14);
   --d-text:#0A0A0A; --d-text2:#3A3A3A; --d-text3:#6B6B6B;
+  /* Amarelo (#FFB900) como texto sobre claro dá 1.7:1 — no tema claro do
+     estúdio a identidade "campo" vira o dourado AA (mesmo tom do badge). */
+  --var-color:#8A6500;
 }
 body.theme-light #d-canvas-bg{background:repeating-conic-gradient(#E8E8E8 0% 25%,#EEE9E2 0% 50%) 0 0/16px 16px}
 body.theme-light .prop-input{background:#fff;color:var(--d-text);border-color:var(--d-border2)}
@@ -914,7 +919,7 @@ body.theme-light .dp-xywh-input{color:#0A0A0A}
 .pv-info-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
 .pv-info-label{font-size:11px;color:#666;}
 .pv-info-val{font-size:11px;font-weight:500;color:#A0A0A0;}
-.pv-info-val.ok{color:#22C55E;}
+.pv-info-val.ok{color:var(--green-text);}
 .pv-info-val.warn{color:#FFB900;}
 .pv-layer-preview{
   display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:5px;
@@ -927,7 +932,7 @@ body.theme-light .dp-xywh-input{color:#0A0A0A}
 .pv-type-text{background:rgba(255,185,0,.12);color:#FFB900;}
 .pv-type-frame{background:rgba(255,144,0,.1);color:#FF9000;}
 .pv-type-shape{background:rgba(200,24,24,.1);color:#C81818;}
-.pv-type-image{background:rgba(34,197,94,.1);color:#22C55E;}
+.pv-type-image{background:rgba(34,197,94,.1);color:var(--green-text);}
 
 #d-preview-footer{
   display:flex;gap:8px;align-items:center;padding:12px 20px;
@@ -1334,7 +1339,7 @@ body.theme-light .dp-xywh-input{color:#0A0A0A}
 .psd-mode-fixed{font-size:11px;color:var(--d-text3);flex-shrink:0;padding:0 6px}
 .psd-var-input{width:120px;font-size:11px;padding:4px 7px;background:var(--var-bg);border:1px solid rgba(255,185,0,.4);color:var(--var-color);border-radius:5px;font-family:monospace;flex-shrink:0}
 .psd-fontwarn{font-size:9px;font-weight:700;color:var(--dm-yellow);background:rgba(255,185,0,.12);padding:1px 6px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;gap:4px}
-.psd-fontok{font-size:9px;font-weight:700;color:var(--green);background:rgba(34,197,94,.12);padding:1px 6px;border-radius:8px;flex-shrink:0}
+.psd-fontok{font-size:9px;font-weight:700;color:var(--green-text);background:rgba(34,197,94,.12);padding:1px 6px;border-radius:8px;flex-shrink:0}
 .psd-multistyle{font-size:9px;font-weight:700;color:var(--dm-yellow);background:rgba(255,185,0,.12);padding:1px 6px;border-radius:8px;flex-shrink:0}
 #d-mask-toolbar{
   position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
@@ -1629,7 +1634,7 @@ body.theme-light .dp-xywh-input{color:#0A0A0A}
   align-items: center;
   justify-content: center;
   margin-bottom: 24px;
-  color: #22C55E;
+  color: var(--green-text);
 }
 
 .checkmark-svg {

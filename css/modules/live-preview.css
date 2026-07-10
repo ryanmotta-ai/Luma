@@ -58,7 +58,7 @@
   box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
 }
 .lp-sync.ready {
-  color:var(--green);
+  color:var(--green-text);
 }
 
 /* STAGE */

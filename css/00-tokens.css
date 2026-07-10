@@ -25,6 +25,10 @@
   --r-sm: 6px;
   --r-pill: 999px;
   --green: #22C55E;
+  /* verde para TEXTO: vivo (#22C55E) sobre fundo escuro; escuro (#15803D, AA)
+     sobre fundo claro. O flip é feito em body.theme-light logo abaixo.
+     Use --green para pontos/bordas/fundos; --green-text para texto legível. */
+  --green-text: #22C55E;
   /* designer dark */
   --d-bg: #111111;
   --d-dark: #1A1A1A;
@@ -35,7 +39,7 @@
   --d-border2: rgba(255, 255, 255, .14);
   --d-text: #F0F0F0;
   --d-text2: #A0A0A0;
-  --d-text3: #666666;
+  --d-text3: #8A8A8A;
   --d-error: #FF6B6B;
   --var-color: #FFB900;
   --var-bg: rgba(255, 185, 0, .12);
@@ -70,6 +74,10 @@
   --glass-blur: blur(16px);
   --glass-shadow: 0 8px 32px 0 rgba(15, 23, 42, 0.08);
 }
+
+/* Flip do verde-texto por tema (theme-light = claro em TODOS os módulos).
+   Sobre fundo claro o verde vivo dá só 2.3:1 — cai para o verde escuro AA. */
+body.theme-light { --green-text: #15803D; }
 
 /* ══ LOGOS LUMA ══
    branca (Ativo 1) → fundos laranja/coloridos/escuros
