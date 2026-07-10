@@ -2518,6 +2518,9 @@ async function _dPushFoldersNow(){
         perguntas:f.perguntas||[], grupos:f.grupos||['Todos os usuários'], ativa:true
       }, {onConflict:'id'});
       for(const t of (f.templates||[])){
+        // Catálogo leve: template sem layers baixados (cache de sessão franqueado) —
+        // upsert aqui gravaria layers:[] no banco e DESTRUIRIA o template. Nunca subir.
+        if(t._needsLayersFetch) continue;
         if(!t.remoteId) t.remoteId=_dUuid('t');
         await _dUploadLayerImages(t.layers, t.remoteId);
         const pm=t.publishMeta||{};
@@ -2541,7 +2544,7 @@ function _dRowToTemplate(t){
     id:t.id, remoteId:t.id, name:t.nome||'(sem nome)', fmt:t.fmt||'story',
     formats:Array.isArray(t.formats)?t.formats:['story','feed','wide'],
     layers:Array.isArray(t.layers)?t.layers:[],
-    _needsLayersFetch: t.layers===undefined,
+    _needsLayersFetch: t.layers===undefined, // lazy: a coluna não veio no sync — fetch sob demanda
     publishMeta:{
       publicado:!!t.publicado,
       publicadoEm:t.publicado_em?new Date(t.publicado_em).getTime():null,
@@ -2568,6 +2571,7 @@ async function dSyncFoldersFromBackend(){
     const { data:rp, error:e1 }=await sb.schema('luma').from('pastas').select('*').order('ordem',{ascending:true});
     if(e1 || !Array.isArray(rp) || !rp.length) return; // banco vazio → mantém local (push migra)
     // Lazy Load: exclui propositalmente a coluna `layers` pesada do download em lote no boot.
+    // Os layers descem sob demanda: dLoadTemplate (designer) / fEnsureMaterialLayers (franqueado).
     const { data:rt }=await sb.schema('luma').from('templates').select('id, pasta_id, nome, fmt, formats, publicado, publicado_em, validade, instrucoes, permissoes');
     const byPasta={};
     (rt||[]).forEach(t=>{ (byPasta[t.pasta_id]=byPasta[t.pasta_id]||[]).push(_dRowToTemplate(t)); });

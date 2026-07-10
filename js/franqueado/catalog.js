@@ -102,6 +102,7 @@ async function fDownloadHist(id){
       if(t){ fState.material = t; break; }
     }
   }
+  if(fState.material && typeof fEnsureMaterialLayers==='function') await fEnsureMaterialLayers(fState.material);
   try {
     await fGenPNG(h.dados,c,f);
   } finally {
@@ -134,7 +135,10 @@ async function fEditFromHist(id){
     }
   }
   // Template sincronizado do backend pode estar sem layers (lazy) — baixa antes de montar as perguntas
-  if(material && typeof fEnsureMaterialLayers==='function') await fEnsureMaterialLayers(material);
+  if(material && typeof fEnsureMaterialLayers==='function'){
+    await fEnsureMaterialLayers(material);
+    if(material._needsLayersFetch) material = null; // fetch falhou → segue pro fallback (estrutura padrão)
+  }
 
   if(material){
     // Carrega via fluxo de material (reconstrói perguntas das vars + permissões)
@@ -251,6 +255,7 @@ async function fConfirmDuplicate(id, fmtId){
       if(t){ fState.material = t; break; }
     }
   }
+  if(fState.material && typeof fEnsureMaterialLayers==='function') await fEnsureMaterialLayers(fState.material);
   try {
     await fGenPNG(h.dados, c, f);
     fAddHist(h.dados, c, f, 'baixada'); // só registra se o PNG saiu (material ainda carregado aqui)
@@ -281,8 +286,9 @@ function fCampCover(c){
    (fRenderTemplateLayers) e cacheado por campanha. O HTML sai na hora com a
    cor da marca; a fila assíncrona pinta a capa real quando o render termina.
    Prioridade de capa: upload do designer > miniatura renderizada > cor. */
-let _fCampThumbs={};      // campId → {mid: id do material renderizado, url: dataURL}
+let _fCampThumbs={};      // campId → {mid: chave do material renderizado, url: dataURL}
 let _fCampThumbBusy=false;
+let _fCampThumbsLoaded=false; // cache persistido (IndexedDB) já carregado?
 
 function _fCampThumbMaterial(c){
   if(typeof fGetMaterialsForCamp!=='function'||!c)return null;
@@ -294,27 +300,31 @@ function _fCampThumbURL(id){
   const e=_fCampThumbs[id];
   return (e&&e.url&&e.url!=='__fail__')?e.url:'';
 }
+// Chave de frescor do thumb: id + data de publicação. Republicar o material muda a
+// chave → thumb re-renderiza. Permite persistir o cache entre sessões sem servir capa velha.
+function _fCampThumbMid(t){
+  return t.id+':'+((t.publishMeta&&t.publishMeta.publicadoEm)||0);
+}
 // Precisa renderizar? (sem cache, ou o material publicado mudou desde o cache)
 function _fCampThumbNeeded(c){
   const t=_fCampThumbMaterial(c); if(!t)return false;
   const e=_fCampThumbs[c.id];
-  return !e||e.mid!==t.id;
+  return !e||e.mid!==_fCampThumbMid(t);
+}
+// Persiste no IndexedDB só os thumbs que renderizaram ('__fail__' fica de fora — re-tenta
+// na próxima sessão). Sem isso, cada abertura do app re-baixaria os layers pros thumbs.
+function _fCampThumbsPersist(){
+  if(typeof gIdbPut!=='function')return;
+  try{
+    const ok={};
+    for(const k in _fCampThumbs){ const e=_fCampThumbs[k]; if(e&&e.url&&e.url!=='__fail__') ok[k]=e; }
+    gIdbPut('__f_camp_thumbs__', ok);
+  }catch(e){}
 }
 async function _fRenderCampThumb(c,t){
-  // Faz o Lazy Load discreto da nuvem se o template for virgem de layers
-  if(t._needsLayersFetch && t.remoteId){
-    const sb = (typeof gSupabase==='function') ? gSupabase() : window.sb;
-    if(sb){
-      try {
-        const {data} = await sb.schema('luma').from('templates').select('layers').eq('id', t.remoteId).single();
-        if(data){
-          t.layers = Array.isArray(data.layers) ? data.layers : [];
-          t._needsLayersFetch = false;
-        }
-      } catch(e) {}
-    }
-  }
-  
+  // Lazy Load discreto se o template for virgem de layers (mesmo helper do clique, com dedup)
+  if(typeof fEnsureMaterialLayers==='function') await fEnsureMaterialLayers(t);
+
   const [tw,th]=fMaterialSize(t);
   const s=Math.min(1,360/tw); // miniatura ~360px de largura — nítida no card, leve na memória
   const cv=document.createElement('canvas');
@@ -333,7 +343,14 @@ async function fHomeFillThumbs(){
   if(_fCampThumbBusy)return;
   _fCampThumbBusy=true;
   try{
-    let node;
+    // 1º uso na sessão: recupera thumbs renderizados em sessões anteriores (IndexedDB)
+    if(!_fCampThumbsLoaded){
+      _fCampThumbsLoaded=true;
+      if(typeof gIdbGet==='function'){
+        try{ const saved=await gIdbGet('__f_camp_thumbs__'); if(saved&&typeof saved==='object') _fCampThumbs={...saved,..._fCampThumbs}; }catch(e){}
+      }
+    }
+    let node, rendered=false;
     while((node=document.querySelector('#f-home [data-thumb-camp]'))){
       if(!document.body.classList.contains('f-home-mode'))break;
       const id=node.getAttribute('data-thumb-camp');
@@ -341,12 +358,17 @@ async function fHomeFillThumbs(){
       const t=c&&_fCampThumbMaterial(c);
       if(t&&_fCampThumbNeeded(c)){
         let url='__fail__';
-        try{ url=await _fRenderCampThumb(c,t); }catch(e){}
-        _fCampThumbs[id]={mid:t.id,url};
+        try{
+          if(typeof fEnsureMaterialLayers==='function') await fEnsureMaterialLayers(t); // catálogo leve
+          if(t.layers&&t.layers.length) url=await _fRenderCampThumb(c,t);
+        }catch(e){}
+        _fCampThumbs[id]={mid:_fCampThumbMid(t),url};
+        if(url!=='__fail__')rendered=true;
         await new Promise(r=>setTimeout(r,40)); // respiro entre renders — não trava a aba
       }
       document.querySelectorAll(`#f-home [data-thumb-camp="${id}"]`).forEach(n=>_fPaintCampThumb(n,id));
     }
+    if(rendered)_fCampThumbsPersist();
   } finally { _fCampThumbBusy=false; }
 }
 function _fPaintCampThumb(node,id){

@@ -176,14 +176,23 @@ function fMaterialImageVars(layers){
 // Garante as layers de um template sincronizado do backend (o sync de pastas não traz
 // layers — lazy). O designer já faz isso em dLoadTemplate; sem o mesmo fetch AQUI,
 // cross-device o chat nascia sem perguntas e a prévia mostrava um snapshot velho/vazio.
+// Dedup: fetches concorrentes do mesmo template compartilham a mesma Promise
+// (fila de thumbs da home + clique do usuário não baixam o mesmo JSON duas vezes).
+const _fLayersFetch={}; // remoteId → Promise em andamento
 async function fEnsureMaterialLayers(t){
   if(!t || !t._needsLayersFetch || !t.remoteId) return t;
   const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
   if(!sb) return t;
-  try{
-    const {data}=await sb.schema('luma').from('templates').select('layers').eq('id',t.remoteId).single();
-    if(data){ t.layers=Array.isArray(data.layers)?data.layers:[]; t._needsLayersFetch=false; }
-  }catch(e){ console.warn('[material] fetch de layers falhou:', e); }
+  if(!_fLayersFetch[t.remoteId]){
+    _fLayersFetch[t.remoteId]=(async()=>{
+      try{
+        const {data}=await sb.schema('luma').from('templates').select('layers').eq('id',t.remoteId).single();
+        if(data){ t.layers=Array.isArray(data.layers)?data.layers:[]; t._needsLayersFetch=false; }
+      }catch(e){ console.warn('[material] fetch de layers falhou:', e); }
+      finally{ delete _fLayersFetch[t.remoteId]; }
+    })();
+  }
+  await _fLayersFetch[t.remoteId];
   return t;
 }
 // Usuário clicou num material — entra no chat com perguntas geradas das variáveis do template
@@ -197,7 +206,12 @@ async function fSelectMaterial(materialId){
     }
   }
   if(!found){ gToast('Material não encontrado.'); return; }
+  // Catálogo leve: baixa os layers deste template agora (1ª vez neste aparelho)
   await fEnsureMaterialLayers(found);
+  if(found._needsLayersFetch){ // fetch falhou (sem rede?) — não entra no chat com material vazio
+    gToast('Não consegui carregar este material. Verifique sua conexão e tente de novo.','error');
+    return;
+  }
   // Sincroniza formato com o do template (story/feed/wide → mapeia pra FMTS)
   const fmtMap = {story:'story', feed:'feed', wide:'post', post:'post'};
   const targetFmtId = fmtMap[found.fmt] || 'story';
