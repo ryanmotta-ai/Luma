@@ -2523,18 +2523,55 @@ async function _dPushFoldersNow(){
         if(t._needsLayersFetch) continue;
         if(!t.remoteId) t.remoteId=_dUuid('t');
         await _dUploadLayerImages(t.layers, t.remoteId);
+        // Se alguma imagem/máscara AINDA está local (upload falhou: bucket/RLS/sem rede),
+        // NÃO grava no banco — base64 vira MB por linha e todo mundo re-baixa. O template
+        // fica marcado pendente (badge na topbar) e re-tenta no próximo save ou clique.
+        const localBin=(t.layers||[]).some(l=>l&&(
+          (typeof l.imgUrl==='string'&&(l.imgUrl.startsWith('data:')||l.imgUrl.indexOf('idb://')===0))||
+          (typeof l.mask==='string'&&l.mask.startsWith('data:'))
+        ));
+        if(localBin){ t._syncPending=true; continue; }
         const pm=t.publishMeta||{};
-        await sb.schema('luma').from('templates').upsert({
+        const { error }=await sb.schema('luma').from('templates').upsert({
           id:t.remoteId, pasta_id:f.remoteId, nome:t.name||'(sem nome)', fmt:t.fmt||'story',
           formats:t.formats||['story','feed','wide'], layers:t.layers||[],
           publicado:!!pm.publicado, publicado_em:pm.publicadoEm?new Date(pm.publicadoEm).toISOString():null,
           validade:pm.validade||null, instrucoes:pm.instrucoes||'', permissoes:pm.permissoes||{}
         }, {onConflict:'id'});
+        t._syncPending=!!error; // erro de rede/RLS no upsert também conta como pendente
       }
     }
     // re-salva o cache local com os remoteId/URLs recém-atribuídos (imagens já são URLs → leve)
     try{ localStorage.setItem('yngs_folders_v1', JSON.stringify(dFolders)); }catch(e){}
   }catch(e){ /* silencioso: o cache local já guardou */ }
+  finally{ if(typeof gSyncBadgeUpdate==='function') gSyncBadgeUpdate(); }
+}
+
+/* ── Badge "não sincronizado" (topbar do designer) ──
+   Conta templates com _syncPending (imagem não subiu pro Storage ou upsert falhou).
+   O trabalho existe SÓ neste navegador até sincronizar — sem este aviso, o designer
+   descobria semanas depois (ou nunca). Clique = tentar de novo na hora. */
+let _dLastPendCount=0;
+function gSyncBadgeUpdate(){
+  const n=(typeof dFolders!=='undefined'&&dFolders||[]).reduce((a,f)=>a+((f.templates||[]).filter(t=>t&&t._syncPending).length),0);
+  let el=document.getElementById('g-sync-pending');
+  if(!el){
+    if(!n){ _dLastPendCount=0; return; }
+    const anchor=document.getElementById('d-save-indicator');
+    if(!anchor||!anchor.parentNode) return;
+    el=document.createElement('button');
+    el.id='g-sync-pending';
+    el.type='button';
+    el.title='Estes materiais ainda NÃO subiram para o servidor — existem só neste navegador e os franqueados não os veem. Clique para tentar sincronizar de novo.';
+    el.style.cssText='margin-left:8px;padding:2px 10px;border-radius:999px;border:1px solid rgba(245,158,11,.55);background:rgba(245,158,11,.14);color:#b45309;font-size:11px;font-weight:700;cursor:pointer;vertical-align:middle';
+    el.onclick=()=>{ gToast('Tentando sincronizar de novo…'); _dPushFoldersNow(); };
+    anchor.parentNode.insertBefore(el, anchor.nextSibling);
+  }
+  el.style.display=n?'':'none';
+  if(n) el.textContent='⟳ '+n+' não sincronizado'+(n>1?'s':'');
+  // Avisa em voz alta quando ALGO NOVO deixou de subir (não repete a cada save)
+  if(n>_dLastPendCount) gToast('⚠ '+n+' material(is) não subiram pro servidor — os franqueados não os veem. Veja o aviso laranja na barra.','error');
+  _dLastPendCount=n;
 }
 
 /* ── LEITURA: carrega o catálogo (pastas + templates) do Supabase no boot ──
@@ -2584,6 +2621,18 @@ async function dSyncFoldersFromBackend(){
       if(f.campId && rCamps.has(f.campId)) return false;
       return true;
     });
+    // Trabalho local ainda NÃO sincronizado (_syncPending) não pode ser engolido pelo
+    // "banco manda": sem isto, um reload descartaria o template que falhou em subir.
+    (dFolders||[]).forEach(lf=>{
+      const pend=(lf.templates||[]).filter(t=>t&&t._syncPending);
+      if(!pend.length) return;
+      const rf=remote.find(f=>f.remoteId===lf.remoteId)||remote.find(f=>f.campId&&f.campId===lf.campId);
+      if(!rf) return; // pasta local-only já sobrevive via extras
+      pend.forEach(pt=>{
+        const i=rf.templates.findIndex(x=>x&&(x.id===pt.id||(pt.remoteId&&x.remoteId===pt.remoteId)));
+        if(i>=0) rf.templates[i]=pt; else rf.templates.push(pt);
+      });
+    });
     dFolders=[...remote, ...extras];
     try{ localStorage.setItem('yngs_folders_v1', JSON.stringify(dFolders)); }catch(e){}
     if(typeof dRenderFolders==='function') dRenderFolders();
@@ -2591,6 +2640,7 @@ async function dSyncFoldersFromBackend(){
       try{ const{ativas,outras}=fGetCampaigns(); fRenderCatalogs(ativas,outras); }catch(e){}
     }
     if(typeof gHydrateFolders==='function') gHydrateFolders(dFolders); // re-hidrata idb:// (cache local)
+    if(typeof gSyncBadgeUpdate==='function') gSyncBadgeUpdate(); // pendências persistidas reaparecem no boot
   }catch(e){}
 }
 
