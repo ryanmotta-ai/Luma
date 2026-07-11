@@ -36,6 +36,14 @@ const LumaColorPicker = (function() {
     elSwatches.innerHTML = defaultSwatches.map(color => 
       `<div style="width:100%; aspect-ratio:1; border-radius:3px; background:${color}; cursor:pointer; box-shadow:inset 0 0 0 1px rgba(0,0,0,0.1);" onclick="LumaColorPicker.setHex('${color}')"></div>`
     ).join('');
+    // Botão EyeDropper do sistema (conta-gotas universal — captura cor fora do navegador)
+    if(typeof window.EyeDropper!=='undefined'){
+      const edBtn=document.createElement('div');
+      edBtn.style.cssText='grid-column:1/-1;display:flex;align-items:center;gap:6px;padding:4px 0;cursor:pointer;font-size:10px;color:rgba(255,255,255,.6);font-family:Roboto,sans-serif;letter-spacing:.03em;';
+      edBtn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m2 22 1-1h3l9-9"/><path d="M3 21v-3l9-9"/><path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z"/></svg> Capturar cor da tela';
+      edBtn.addEventListener('click',()=>LumaColorPicker.eyedrop());
+      elSwatches.appendChild(edBtn);
+    }
 
     // Events
     document.addEventListener('mousedown', onDocMouseDown);
@@ -243,10 +251,27 @@ const LumaColorPicker = (function() {
     isOpen = false;
   }
 
+  // EyeDropper do sistema — captura cor de qualquer lugar da tela (fora do
+  // navegador inclusive). Usa a API nativa EyeDropper (Chrome 95+/Edge 95+).
+  function eyedrop(){
+    if(typeof window.EyeDropper==='undefined'){
+      gToast('⚠ Conta-gotas do sistema não suportado neste navegador (use Chrome ou Edge)');
+      return;
+    }
+    const dropper=new window.EyeDropper();
+    dropper.open().then(result=>{
+      if(result&&result.sRGBHex){
+        setHex(result.sRGBHex);
+        gToast('✓ Cor capturada: '+result.sRGBHex);
+      }
+    }).catch(()=>{/* usuário cancelou (Esc) — silencia */});
+  }
+
   return {
     open,
     close,
     setHex,
+    eyedrop,
     init
   };
 })();

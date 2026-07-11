@@ -280,6 +280,20 @@ function dDuplicateLayer(){
 
 // Ctrl/Cmd + wheel = zoom suave ancorado no cursor (delega a dSetZoom)
 document.getElementById('d-canvas-wrapper').addEventListener('wheel',function(e){
+  // Zoom no crop mode (imagem in-line)
+  if (typeof dCropState !== 'undefined' && dCropState) {
+    e.preventDefault();
+    const factor = e.deltaY > 0 ? 0.95 : 1.05;
+    const l = dLayers.find(x => x.id === dCropState.id);
+    if(l) {
+      l.imgScale = (l.imgScale || 1) * factor;
+      if (l.imgScale < 0.1) l.imgScale = 0.1;
+      if (l.imgScale > 10) l.imgScale = 10;
+      if(typeof dRenderCanvas==='function') dRenderCanvas();
+    }
+    return;
+  }
+
   if(!e.ctrlKey&&!e.metaKey)return;
   e.preventDefault();
   const factor = e.deltaY>0 ? 0.9 : 1.1; // passos suaves

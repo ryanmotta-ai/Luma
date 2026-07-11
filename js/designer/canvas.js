@@ -971,7 +971,13 @@ function dRenderCanvas(){
       
       // inner: clip real da imagem
       const inner=document.createElement('div');
-      inner.style.cssText=`position:absolute;inset:0;overflow:hidden;${clipCss}`;
+      const isCropMode = (typeof dCropState !== 'undefined' && dCropState && dCropState.id === l.id);
+      inner.style.cssText=`position:absolute;inset:0;overflow:${isCropMode ? 'visible' : 'hidden'};${clipCss}`;
+      if (isCropMode) {
+        // Se estiver em modo recorte, diminui a opacidade e adiciona um outline para destacar a moldura
+        inner.style.outline = '2px solid #FF2D55';
+        inner.style.zIndex = '9999';
+      }
       
       const simImg=dSimActive&&l.imgVar&&dSimValues[l.imgVar];
       const testSrc=(!simImg&&!l.imgUrl&&dPhTestAR&&typeof dSampleImg==='function')?dSampleImg(dPhTestAR):null;
@@ -983,13 +989,29 @@ function dRenderCanvas(){
         img.src=src;
         const posX=(0.5+(l.imgOffsetX||0))*100, posY=(0.5+(l.imgOffsetY||0))*100;
         img.style.cssText=`width:100%;height:100%;object-fit:${l.objectFit||'cover'};object-position:${posX}% ${posY}%;display:block;`;
+        if (isCropMode) {
+          img.style.opacity = '0.5';
+          img.style.cursor = 'move';
+        }
         if(l.imgScale&&l.imgScale!==1){img.style.transform=`scale(${l.imgScale})`;img.style.transformOrigin='center';}
         if(testSrc){
-          img.style.opacity='.75';
+          if(!isCropMode) img.style.opacity='.75';
           if(dashSvg) inner.innerHTML = dashSvg;
           else inner.style.border = '2px dashed rgba(255,144,0,.6)';
         }
         inner.appendChild(img);
+        // Em modo de crop, para facilitar a visualização, desenhamos a imagem DUAS vezes:
+        // A primeira (vazando, opacity 0.5) e a segunda (dentro do frame, clipada, full opacity).
+        if (isCropMode) {
+          const imgSolid=document.createElement('img');
+          imgSolid.src=src;
+          imgSolid.style.cssText=`position:absolute;top:0;left:0;width:100%;height:100%;object-fit:${l.objectFit||'cover'};object-position:${posX}% ${posY}%;display:block;pointer-events:none;`;
+          if(l.imgScale&&l.imgScale!==1){imgSolid.style.transform=`scale(${l.imgScale})`;imgSolid.style.transformOrigin='center';}
+          const solidWrap=document.createElement('div');
+          solidWrap.style.cssText=`position:absolute;inset:0;overflow:hidden;${clipCss};pointer-events:none;`;
+          solidWrap.appendChild(imgSolid);
+          inner.appendChild(solidWrap);
+        }
       }else{
         inner.style.cssText+=`background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;`;
         if(dashSvg) inner.innerHTML = dashSvg;
@@ -1095,11 +1117,16 @@ function dRenderCanvas(){
     });
     // Botão direito → menu de contexto da camada (vincular dado, converter forma⇄moldura, etc.)
     el.addEventListener('contextmenu',e=>{ if(typeof dLayerContextMenu==='function') dLayerContextMenu(e,l.id); });
-    // Double click = edição inline de texto
+    // Double click = edição inline de texto ou crop inline de imagem
     if(l.type==='text'){
       el.addEventListener('dblclick',e=>{
         e.stopPropagation();
         dStartInlineEdit(lReal,el); // lReal: na simulação 'l' pode ser clone (bindings/rules)
+      });
+    } else if(l.type==='image'||l.type==='frame') {
+      el.addEventListener('dblclick',e=>{
+        e.stopPropagation();
+        if(typeof dStartCrop==='function') dStartCrop(lReal);
       });
     }
     frame.appendChild(el);
@@ -1167,63 +1194,103 @@ const SNAP_THRESHOLD = 6; // pixels do canvas
 function dCalculateSnap(movingLayer, newX, newY){
   if(!dSnapEnabled)return {x:newX, y:newY, guides:[]};
   const _abS=(typeof dGetActiveAB==='function')?dGetActiveAB():null;
-  const f=_abS?{w:_abS.w,h:_abS.h}:(DFMT_SIZES[dFmt]||DFMT_SIZES.story); // tamanho real (custom/'orig'), não o preset
+  const f=_abS?{w:_abS.w,h:_abS.h}:(DFMT_SIZES[dFmt]||DFMT_SIZES.story);
   const guides=[];
   const movEdges={
     x:[newX, newX+movingLayer.w/2, newX+movingLayer.w],
     y:[newY, newY+movingLayer.h/2, newY+movingLayer.h]
   };
-  // Edges do canvas
   const canvasEdges={x:[0, f.w/2, f.w], y:[0, f.h/2, f.h]};
-  // Edges dos outros layers
   const layerEdges={x:[], y:[]};
-  dLayers.forEach(l=>{
-    if(l.id===movingLayer.id||!l.visible)return;
+  const others = dLayers.filter(l => l.id !== movingLayer.id && l.visible);
+
+  others.forEach(l=>{
     layerEdges.x.push(l.x, l.x+l.w/2, l.x+l.w);
     layerEdges.y.push(l.y, l.y+l.h/2, l.y+l.h);
   });
-  // Buscar snap para X
+
+  // SMART GAPS: Encontrar distâncias (gaps) repetidas
+  const gapSnapX = []; // possíveis posições de newX
+  const gapSnapY = []; // possíveis posições de newY
+  for (let i = 0; i < others.length; i++) {
+    for (let j = i + 1; j < others.length; j++) {
+      const a = others[i], b = others[j];
+      if (Math.max(a.y, b.y) < Math.min(a.y + a.h, b.y + b.h)) {
+        let gapX = Math.round(Math.abs(a.x > b.x ? a.x - (b.x + b.w) : b.x - (a.x + a.w)));
+        if (gapX > 0 && gapX < 300) {
+          gapSnapX.push({ x: a.x + a.w + gapX, gap: gapX, refLayer: a });
+          gapSnapX.push({ x: a.x - gapX - movingLayer.w, gap: gapX, refLayer: a });
+          gapSnapX.push({ x: b.x + b.w + gapX, gap: gapX, refLayer: b });
+          gapSnapX.push({ x: b.x - gapX - movingLayer.w, gap: gapX, refLayer: b });
+        }
+      }
+      if (Math.max(a.x, b.x) < Math.min(a.x + a.w, b.x + b.w)) {
+        let gapY = Math.round(Math.abs(a.y > b.y ? a.y - (b.y + b.h) : b.y - (a.y + a.h)));
+        if (gapY > 0 && gapY < 300) {
+          gapSnapY.push({ y: a.y + a.h + gapY, gap: gapY, refLayer: a });
+          gapSnapY.push({ y: a.y - gapY - movingLayer.h, gap: gapY, refLayer: a });
+          gapSnapY.push({ y: b.y + b.h + gapY, gap: gapY, refLayer: b });
+          gapSnapY.push({ y: b.y - gapY - movingLayer.h, gap: gapY, refLayer: b });
+        }
+      }
+    }
+  }
+
   let bestDx=0, bestDxAbs=SNAP_THRESHOLD+1;
+  let gapMatchedX = null;
   movEdges.x.forEach((mx,mi)=>{
     [...canvasEdges.x, ...layerEdges.x].forEach(ox=>{
       const d=ox-mx;
-      if(Math.abs(d)<bestDxAbs){
-        bestDxAbs=Math.abs(d);
-        bestDx=d;
-      }
+      if(Math.abs(d)<bestDxAbs){ bestDxAbs=Math.abs(d); bestDx=d; gapMatchedX=null; }
     });
   });
-  // Buscar snap para Y
+  // Tentar snap por gap se for mais forte ou igual
+  gapSnapX.forEach(g => {
+    const d = g.x - newX;
+    if (Math.abs(d) <= bestDxAbs && Math.abs(d) <= SNAP_THRESHOLD) {
+      bestDxAbs = Math.abs(d); bestDx = d; gapMatchedX = g;
+    }
+  });
+
   let bestDy=0, bestDyAbs=SNAP_THRESHOLD+1;
+  let gapMatchedY = null;
   movEdges.y.forEach((my,mi)=>{
     [...canvasEdges.y, ...layerEdges.y].forEach(oy=>{
       const d=oy-my;
-      if(Math.abs(d)<bestDyAbs){
-        bestDyAbs=Math.abs(d);
-        bestDy=d;
-      }
+      if(Math.abs(d)<bestDyAbs){ bestDyAbs=Math.abs(d); bestDy=d; gapMatchedY=null; }
     });
   });
+  gapSnapY.forEach(g => {
+    const d = g.y - newY;
+    if (Math.abs(d) <= bestDyAbs && Math.abs(d) <= SNAP_THRESHOLD) {
+      bestDyAbs = Math.abs(d); bestDy = d; gapMatchedY = g;
+    }
+  });
+
   const finalX=bestDxAbs<=SNAP_THRESHOLD?newX+bestDx:newX;
   const finalY=bestDyAbs<=SNAP_THRESHOLD?newY+bestDy:newY;
-  // Gerar guias visuais para os alinhamentos detectados
+
   if(bestDxAbs<=SNAP_THRESHOLD){
-    const snappedX=finalX;
-    const matchEdges=[snappedX, snappedX+movingLayer.w/2, snappedX+movingLayer.w];
-    [...canvasEdges.x, ...layerEdges.x].forEach(ox=>{
-      if(matchEdges.some(me=>Math.abs(me-ox)<0.5)){
-        guides.push({type:'v', pos:ox});
-      }
-    });
+    if (gapMatchedX) {
+      guides.push({type:'gap-x', pos: gapMatchedX.x, gap: gapMatchedX.gap, ref: gapMatchedX.refLayer, movW: movingLayer.w });
+    } else {
+      const snappedX=finalX;
+      const matchEdges=[snappedX, snappedX+movingLayer.w/2, snappedX+movingLayer.w];
+      [...canvasEdges.x, ...layerEdges.x].forEach(ox=>{
+        if(matchEdges.some(me=>Math.abs(me-ox)<0.5)) guides.push({type:'v', pos:ox});
+      });
+    }
   }
   if(bestDyAbs<=SNAP_THRESHOLD){
-    const snappedY=finalY;
-    const matchEdges=[snappedY, snappedY+movingLayer.h/2, snappedY+movingLayer.h];
-    [...canvasEdges.y, ...layerEdges.y].forEach(oy=>{
-      if(matchEdges.some(me=>Math.abs(me-oy)<0.5)){
-        guides.push({type:'h', pos:oy});
-      }
-    });
+    if (gapMatchedY) {
+      guides.push({type:'gap-y', pos: gapMatchedY.y, gap: gapMatchedY.gap, ref: gapMatchedY.refLayer, movH: movingLayer.h });
+    } else {
+      const snappedY=finalY;
+      const matchEdges=[snappedY, snappedY+movingLayer.h/2, snappedY+movingLayer.h];
+      [...canvasEdges.y, ...layerEdges.y].forEach(oy=>{
+        if(matchEdges.some(me=>Math.abs(me-oy)<0.5)) guides.push({type:'h', pos:oy});
+      });
+    }
   }
   return {x:Math.round(finalX), y:Math.round(finalY), guides};
 }
@@ -1242,20 +1309,45 @@ function dShowGuides(guides){
   const frame=document.getElementById('d-canvas-frame');
   if(!frame)return;
   const _abG=(typeof dGetActiveAB==='function')?dGetActiveAB():null;
-  const f=_abG?{w:_abG.w,h:_abG.h}:(DFMT_SIZES[dFmt]||DFMT_SIZES.story); // tamanho real (custom/'orig')
+  const f=_abG?{w:_abG.w,h:_abG.h}:(DFMT_SIZES[dFmt]||DFMT_SIZES.story);
   guides.forEach(g=>{
-    const el=document.createElement('div');
-    el.className='smart-guide '+g.type+' yng-guide';
-    if(g.type==='v'){el.style.cssText=`left:${g.pos}px;top:0;height:${f.h}px;`;}
-    else{el.style.cssText=`top:${g.pos}px;left:0;width:${f.w}px;`;}
-    frame.appendChild(el);
-    // M2.3 — medida em px junto da guia (feedback tangível do snap)
-    const tag=document.createElement('div');
-    tag.className='snap-tag yng-guide';
-    tag.textContent=Math.round(g.pos)+' px';
-    if(g.type==='v'){tag.style.cssText=`left:${g.pos+4}px;top:8px;`;}
-    else{tag.style.cssText=`top:${g.pos+4}px;left:8px;`;}
-    frame.appendChild(tag);
+    if (g.type === 'gap-x') {
+      // Cria guia de espaçamento horizontal (rosa com setas)
+      const el=document.createElement('div');
+      el.className='smart-guide gap-x yng-guide';
+      const gapMidX = (g.pos > g.ref.x) ? g.pos - g.gap/2 : g.pos + g.movW + g.gap/2;
+      el.style.cssText=`left:${gapMidX}px; top:0; height:${f.h}px; border-left: 1px dashed #FF2D55;`;
+      frame.appendChild(el);
+      const tag=document.createElement('div');
+      tag.className='snap-tag yng-guide';
+      tag.textContent=`↕ ${g.gap}px`; // Símbolo de gap
+      tag.style.cssText=`left:${gapMidX+4}px; top:50%; background:#FF2D55; transform:translateY(-50%);`;
+      frame.appendChild(tag);
+    } else if (g.type === 'gap-y') {
+      // Cria guia de espaçamento vertical
+      const el=document.createElement('div');
+      el.className='smart-guide gap-y yng-guide';
+      const gapMidY = (g.pos > g.ref.y) ? g.pos - g.gap/2 : g.pos + g.movH + g.gap/2;
+      el.style.cssText=`top:${gapMidY}px; left:0; width:${f.w}px; border-top: 1px dashed #FF2D55;`;
+      frame.appendChild(el);
+      const tag=document.createElement('div');
+      tag.className='snap-tag yng-guide';
+      tag.textContent=`↔ ${g.gap}px`; 
+      tag.style.cssText=`top:${gapMidY+4}px; left:50%; background:#FF2D55; transform:translateX(-50%);`;
+      frame.appendChild(tag);
+    } else {
+      const el=document.createElement('div');
+      el.className='smart-guide '+g.type+' yng-guide';
+      if(g.type==='v'){el.style.cssText=`left:${g.pos}px;top:0;height:${f.h}px;`;}
+      else{el.style.cssText=`top:${g.pos}px;left:0;width:${f.w}px;`;}
+      frame.appendChild(el);
+      const tag=document.createElement('div');
+      tag.className='snap-tag yng-guide';
+      tag.textContent=Math.round(g.pos)+' px';
+      if(g.type==='v'){tag.style.cssText=`left:${g.pos+4}px;top:8px;`;}
+      else{tag.style.cssText=`top:${g.pos+4}px;left:8px;`;}
+      frame.appendChild(tag);
+    }
   });
 }
 function dClearGuides(){

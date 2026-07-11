@@ -535,6 +535,10 @@ document.addEventListener('keydown', e => {
     const _modalIds=['d-publish-modal','d-preview-overlay','d-var-modal','d-folder-modal','d-tmpl-modal','d-newdoc-modal','d-psd-modal','d-sim-modal','d-cheat-modal','d-svg-review-overlay'];
     if (e.key!=='Escape' && _modalIds.some(id=>{const m=document.getElementById(id);return m&&m.classList.contains('open');})) return;
 
+    // Ctrl+Alt+C / Ctrl+Alt+V — copiar/colar ESTILO (propriedades visuais, não o layer)
+    if ((e.ctrlKey || e.metaKey) && e.altKey && (e.key === 'c' || e.key === 'C')) { e.preventDefault(); if(typeof dCopyStyle==='function') dCopyStyle(); return; }
+    if ((e.ctrlKey || e.metaKey) && e.altKey && (e.key === 'v' || e.key === 'V')) { e.preventDefault(); if(typeof dPasteStyle==='function') dPasteStyle(); return; }
+
     // Ctrl+C / Ctrl+V — copiar/colar layers (só no canvas, nunca dentro de campos de texto)
     if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) { e.preventDefault(); dCopy(); return; }
     if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) { e.preventDefault(); dPaste(e.altKey || e.shiftKey); return; } // Alt/Shift = colar no mesmo lugar
