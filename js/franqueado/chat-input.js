@@ -50,25 +50,23 @@ function fGetFieldType(id){
   return {type, maxLen, label, required, vDef, options:vDef?.options, palette:vDef?.palette};
 }
 
-// Converte números básicos por extenso para algarismos em português
-function fCleanTextNumber(v) {
-  const low = String(v).toLowerCase();
+// Converte um número básico por extenso para algarismo (PT-BR). Só converte quando o
+// valor é UMA palavra-número isolada (ex.: "vinte" → "20"); frases compostas como
+// "vinte e cinco" ficam intactas — antes viravam "20 e 5" e o mask extraía 20 (preço
+// errado silencioso). Melhor falhar limpo do que inventar. `meio`/`metade` (=50) só
+// fazem sentido como PERCENTUAL, então só valem para desconto.
+function fCleanTextNumber(v, type) {
+  const s = String(v).trim();
+  if (!s || /\s/.test(s)) return v; // vazio ou mais de uma palavra → não mexe
   const numbers = {
     'zero': '0', 'um': '1', 'dois': '2', 'tres': '3', 'três': '3',
     'quatro': '4', 'cinco': '5', 'seis': '6', 'sete': '7', 'oito': '8',
     'nove': '9', 'dez': '10', 'quinze': '15', 'vinte': '20', 'trinta': '30',
-    'quarenta': '40', 'cinquenta': '50', 'cem': '100', 'meio': '50', 'metade': '50'
+    'quarenta': '40', 'cinquenta': '50', 'cem': '100'
   };
-  let words = low.split(/\s+/);
-  let changed = false;
-  words = words.map(w => {
-    if (numbers[w]) {
-      changed = true;
-      return numbers[w];
-    }
-    return w;
-  });
-  return changed ? words.join(' ') : v;
+  if (type === 'discount') { numbers['meio'] = '50'; numbers['metade'] = '50'; }
+  const key = s.toLowerCase();
+  return Object.prototype.hasOwnProperty.call(numbers, key) ? numbers[key] : v;
 }
 
 // Máscara aplicada no valor antes de salvar — formata sem rejeitar
@@ -78,7 +76,7 @@ function fApplyMask(id, raw){
   // Limpa números por extenso para apoiar digitação livre do usuário
   let rawCleaned = raw;
   if(cfg.type === 'price' || cfg.type === 'discount') {
-    rawCleaned = fCleanTextNumber(raw);
+    rawCleaned = fCleanTextNumber(raw, cfg.type);
   }
   // Tipos não-texto (imagem e tipos ricos da 4.1) não passam por máscara de texto:
   // o valor (ex.: data URL, opção de select) deve ser preservado como veio.

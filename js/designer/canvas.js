@@ -975,7 +975,7 @@ function dRenderCanvas(){
       inner.style.cssText=`position:absolute;inset:0;overflow:${isCropMode ? 'visible' : 'hidden'};${clipCss}`;
       if (isCropMode) {
         // Se estiver em modo recorte, diminui a opacidade e adiciona um outline para destacar a moldura
-        inner.style.outline = '2px solid #FF2D55';
+        inner.style.outline = '2px solid var(--dm-orange)';
         inner.style.zIndex = '9999';
       }
       
@@ -1316,24 +1316,24 @@ function dShowGuides(guides){
       const el=document.createElement('div');
       el.className='smart-guide gap-x yng-guide';
       const gapMidX = (g.pos > g.ref.x) ? g.pos - g.gap/2 : g.pos + g.movW + g.gap/2;
-      el.style.cssText=`left:${gapMidX}px; top:0; height:${f.h}px; border-left: 1px dashed #FF2D55;`;
+      el.style.cssText=`left:${gapMidX}px; top:0; height:${f.h}px; border-left: 1px dashed var(--dm-orange);`;
       frame.appendChild(el);
       const tag=document.createElement('div');
       tag.className='snap-tag yng-guide';
       tag.textContent=`↕ ${g.gap}px`; // Símbolo de gap
-      tag.style.cssText=`left:${gapMidX+4}px; top:50%; background:#FF2D55; transform:translateY(-50%);`;
+      tag.style.cssText=`left:${gapMidX+4}px; top:50%; background:var(--dm-orange); transform:translateY(-50%);`;
       frame.appendChild(tag);
     } else if (g.type === 'gap-y') {
       // Cria guia de espaçamento vertical
       const el=document.createElement('div');
       el.className='smart-guide gap-y yng-guide';
       const gapMidY = (g.pos > g.ref.y) ? g.pos - g.gap/2 : g.pos + g.movH + g.gap/2;
-      el.style.cssText=`top:${gapMidY}px; left:0; width:${f.w}px; border-top: 1px dashed #FF2D55;`;
+      el.style.cssText=`top:${gapMidY}px; left:0; width:${f.w}px; border-top: 1px dashed var(--dm-orange);`;
       frame.appendChild(el);
       const tag=document.createElement('div');
       tag.className='snap-tag yng-guide';
       tag.textContent=`↔ ${g.gap}px`; 
-      tag.style.cssText=`top:${gapMidY+4}px; left:50%; background:#FF2D55; transform:translateX(-50%);`;
+      tag.style.cssText=`top:${gapMidY+4}px; left:50%; background:var(--dm-orange); transform:translateX(-50%);`;
       frame.appendChild(tag);
     } else {
       const el=document.createElement('div');
