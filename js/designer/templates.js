@@ -692,22 +692,63 @@ function dToggleFolder(id){
   dRenderFolders();
 }
 
+// Overlay de download do template (o "catálogo leve" baixa os layers sob demanda).
+// state: 'show' | 'error' | 'hide'. Barra indeterminada (um fetch de 1 linha não tem
+// progresso real). Auto-contido: injeta o próprio keyframe e usa tokens com fallback.
+function dTmplLoading(state, msg){
+  let el=document.getElementById('d-tmpl-loading');
+  if(state==='hide'){ if(el) el.remove(); return; }
+  if(!el){
+    el=document.createElement('div'); el.id='d-tmpl-loading';
+    el.innerHTML='<style>@keyframes dTmplBar{0%{left:-40%}100%{left:100%}}</style>'
+      +'<div class="d-tmpl-loading-card"><div class="d-tmpl-loading-row"><span class="mini-spinner"></span><span id="d-tmpl-loading-msg"></span></div>'
+      +'<div class="d-tmpl-loading-track"><div class="d-tmpl-loading-fill"></div></div></div>';
+    el.style.cssText='position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;background:rgba(10,10,10,.45)';
+    document.body.appendChild(el);
+    el.querySelector('.d-tmpl-loading-card').style.cssText='background:var(--d-surf,#222);color:var(--d-text,#f0f0f0);border:1px solid var(--d-border2,rgba(255,255,255,.14));border-radius:12px;padding:18px 22px;min-width:260px;box-shadow:0 18px 44px rgba(0,0,0,.45);font-family:Roboto,sans-serif;font-size:13px';
+    el.querySelector('.d-tmpl-loading-row').style.cssText='display:flex;align-items:center;gap:10px;font-weight:600';
+    el.querySelector('.d-tmpl-loading-track').style.cssText='margin-top:12px;height:4px;border-radius:4px;background:rgba(255,255,255,.12);overflow:hidden;position:relative';
+    el.querySelector('.d-tmpl-loading-fill').style.cssText='position:absolute;top:0;left:-40%;height:100%;width:40%;border-radius:4px;background:var(--dm-orange,#FF9000);animation:dTmplBar 1s ease-in-out infinite';
+  }
+  const m=el.querySelector('#d-tmpl-loading-msg'), fill=el.querySelector('.d-tmpl-loading-fill'), sp=el.querySelector('.mini-spinner');
+  if(state==='error'){
+    if(m) m.textContent=msg||'Não foi possível baixar o material';
+    if(sp) sp.style.display='none';
+    if(fill){ fill.style.animation='none'; fill.style.left='0'; fill.style.width='100%'; fill.style.background='var(--dm-red,#C81818)'; }
+    setTimeout(()=>{ const e2=document.getElementById('d-tmpl-loading'); if(e2) e2.remove(); }, 2800);
+  } else {
+    if(m) m.textContent=msg||'Baixando material do banco…';
+  }
+}
+
 async function dLoadTemplate(tmpl,folder){
   if(!tmpl)return;
 
-  // -- LAZY LOAD DOS LAYERS --
+  // -- LAZY LOAD DOS LAYERS (catálogo leve: layers descem sob demanda) --
   if(tmpl._needsLayersFetch && tmpl.remoteId){
     const sb = (typeof gSupabase==='function') ? gSupabase() : window.sb;
     if(sb){
-      gToast('Baixando material...');
+      dTmplLoading('show');
       try {
         const {data, error} = await sb.schema('luma').from('templates').select('layers').eq('id', tmpl.remoteId).single();
-        if(!error && data){
-          tmpl.layers = Array.isArray(data.layers) ? data.layers : [];
-          tmpl._needsLayersFetch = false;
-          if(typeof dPersistFolders === 'function') dPersistFolders();
+        if(error || !data){
+          // Antes: erro engolido (catch vazio) → canvas em branco silencioso. Agora avisa
+          // e ABORTA (mantém o canvas atual) em vez de fingir que carregou um template vazio.
+          dTmplLoading('error', 'Não foi possível baixar o material — verifique a conexão e tente de novo.');
+          return;
         }
-      } catch(e) {}
+        tmpl.layers = Array.isArray(data.layers) ? data.layers : [];
+        tmpl._needsLayersFetch = false;
+        if(typeof dPersistFolders === 'function') dPersistFolders();
+        dTmplLoading('hide');
+      } catch(e) {
+        dTmplLoading('error', 'Falha ao baixar o material — '+((e&&e.message)?e.message:'erro de rede.'));
+        return;
+      }
+    } else {
+      // Sem backend configurado e sem layers locais: não há o que carregar.
+      gToast('⚠ Sem conexão com o banco — material não disponível offline.');
+      return;
     }
   }
 

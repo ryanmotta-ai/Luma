@@ -8,13 +8,39 @@
  */
 
 function dSelLayer(id){
+  // Se mudarmos de seleção, saímos do modo recorte (se ativo)
+  if (typeof dCropState !== 'undefined' && dCropState && dCropState.id !== id) {
+    if (typeof dStopCrop === 'function') dStopCrop();
+  }
+
+  // Se clicamos num item da sub-árvore de um GRUPO fechado, selecionamos o grupo root
+  const l = dLayers.find(x => x.id === id);
+  if (l && l.parentId) {
+    let topId = l.parentId;
+    let curr = dLayers.find(x => x.id === topId);
+    let forceSelectChild = false;
+    // Se o grupo ou o root group estiver _aberto_, permite selecionar o filho
+    while (curr) {
+      if (curr._open) { forceSelectChild = true; break; }
+      if (curr.parentId) {
+        topId = curr.parentId;
+        curr = dLayers.find(x => x.id === topId);
+      } else {
+        break;
+      }
+    }
+    if (!forceSelectChild && topId) {
+      id = topId;
+    }
+  }
+
   dSelId=id;
-  const l=dLayers.find(x=>x.id===id);
-  if(l){
-    if (l.type !== 'group') {
+  const l2=dLayers.find(x=>x.id===id);
+  if(l2){
+    if (l2.type !== 'group') {
       dMultiSel = [];
-    } else if (l.type === 'group') {
-      const children = dLayers.filter(x => x.parentId === l.id);
+    } else if (l2.type === 'group') {
+      const children = dLayers.filter(x => x.parentId === l2.id);
       dMultiSel = children.map(x => x.id);
     }
   }
@@ -61,8 +87,63 @@ let dDragEls = {};
 let dPendingIsolate = null;
 let dDragMoved = false;
 
+/* ── CROP TOOL (IN-LINE) ── */
+let dCropState = null;
+let dDragCrop = null;
+function dStartCrop(l) {
+  if (l.type !== 'image' && l.type !== 'frame') return;
+  dCropState = { id: l.id };
+  dRenderCanvas();
+  gToast('Modo recorte ativo. Arraste a imagem para reposicionar. Esc para sair.');
+}
+function dStopCrop() {
+  dCropState = null;
+  dRenderCanvas();
+}
+function dOnCropDrag(e) {
+  if (!dDragCrop) return;
+  const scale = dZoomLevel / 100;
+  // offsetX/Y vão de -0.5 a 0.5 (relativo ao tamanho da moldura/imagem)
+  // O movimento do mouse altera esses valores proporcionalmente
+  const dx = (e.clientX - dDragSX) / scale;
+  const dy = (e.clientY - dDragSY) / scale;
+  // A taxa de conversão depende do tamanho da moldura:
+  dDragCrop.imgOffsetX = dLyrSX - (dx / dDragCrop.w);
+  dDragCrop.imgOffsetY = dLyrSY - (dy / dDragCrop.h);
+  // Re-renderizar o canvas para mostrar a imagem movendo (apenas styles no img seria mais rápido, mas dRenderCanvas garante sync com props panel)
+  dRenderCanvas();
+}
+function dStopCropDrag() {
+  if (dDragCrop) { dHistoryPush(); dMarkUnsaved(); }
+  dDragCrop = null;
+  document.removeEventListener('mousemove', dOnCropDrag);
+  document.removeEventListener('mouseup', dStopCropDrag);
+}
+
 function dStartDrag(e,l){
   if (l.locked || l.lockPosition) return;
+  if (typeof dCropState !== 'undefined' && dCropState && dCropState.id === l.id) {
+    e.preventDefault();
+    dDragCrop = l;
+    dDragSX = e.clientX; dDragSY = e.clientY;
+    dLyrSX = l.imgOffsetX || 0; dLyrSY = l.imgOffsetY || 0;
+    document.addEventListener('mousemove', dOnCropDrag);
+    document.addEventListener('mouseup', dStopCropDrag);
+    return;
+  }
+  // Alt+Drag = clonagem imediata: duplica a camada e arrasta o clone,
+  // deixando o original intacto na posição de origem (UX Figma/Illustrator).
+  if(e.altKey){
+    dHistoryPush();
+    const clone=JSON.parse(JSON.stringify(l));
+    clone.id='l-'+(++dLyrCnt);
+    clone.name=l.name+' cópia';
+    dLayers.push(clone);
+    dSelId=clone.id;
+    dMultiSel=[];
+    l=clone; // a partir daqui, arrasta o clone
+    dRenderCanvas();dRenderLayersList();dMarkUnsaved();
+  }
   e.preventDefault();dDrag=l;dDragSX=e.clientX;dDragSY=e.clientY;dLyrSX=l.x;dLyrSY=l.y;
   dDragMoved=false;
   // Salvar posição inicial dos siblings do grupo
@@ -1018,6 +1099,7 @@ function dShowProps(l){
     const safeCol=col.startsWith('rgba')?'#ffffff':col;
     document.getElementById('dp-color-pick').value=safeCol;
     const hexC=document.getElementById('dp-color-hex');if(hexC)hexC.value=safeCol.toUpperCase();
+    const curveEl=document.getElementById('dp-text-curve');if(curveEl)curveEl.value=l.textCurve||0;
     dPopVarSel();
   }
   if(isShp){
@@ -1280,15 +1362,25 @@ function dFieldInsertChipAtCaret(name){
   dFieldContentSync(host);
 }
 
-// Picker amigável de inserção (substitui o antigo <select>).
-function dFieldInsertPickerOpen(ev){
-  document.querySelectorAll('.field-pick-pop').forEach(p=>p.remove());
-  if(!dVars.length){ gToast('Crie um campo primeiro na aba Dados.'); return; }
-  // captura o caret atual do editor antes de abrir (o foco vai pro popover).
-  const host=document.getElementById('dp-content');
-  const s=window.getSelection();
-  _dFieldSavedRange=(s && s.rangeCount && host && host.contains(s.anchorNode)) ? s.getRangeAt(0).cloneRange() : null;
+// Escapa o texto e destaca (bold+underline) o trecho que casa com a busca.
+// Seguro: escapa CADA fatia crua separadamente (nunca parte uma entidade &amp;).
+function _dHiMatch(text, q){
+  text=text||''; q=(q||'').trim();
+  if(!q) return _dEsc(text);
+  const i=text.toLowerCase().indexOf(q.toLowerCase());
+  if(i<0) return _dEsc(text);
+  return _dEsc(text.slice(0,i))+'<span class="fp-hi">'+_dEsc(text.slice(i,i+q.length))+'</span>'+_dEsc(text.slice(i+q.length));
+}
 
+/* ══ PICKER UNIFICADO DE CAMPOS ══
+   Um só motor pros dois fluxos (inserir chip no texto / vincular a camada inteira).
+   Antes eram duas funções quase idênticas → toda melhoria tinha que ser feita 2×.
+   Recursos: ícone SVG (não emoji), navegação por teclado (↑↓/Enter/Esc), destaque do
+   trecho buscado, contador de uso por campo, criar-com-o-texto-digitado.
+   opts: { mode, anchor, current, filter(v)?, emptyMsg?, onPick(name), onNew(query) } */
+function _dFieldPickerOpen(opts){
+  document.querySelectorAll('.field-pick-pop').forEach(p=>p.remove());
+  const filter=opts.filter||(()=>true);
   const pop=document.createElement('div'); pop.className='field-pick-pop';
   pop.innerHTML=`<input class="field-pick-search" placeholder="Buscar campo...">
     <div class="field-pick-list"></div>
@@ -1296,31 +1388,90 @@ function dFieldInsertPickerOpen(ev){
   document.body.appendChild(pop);
   const listEl=pop.querySelector('.field-pick-list');
   const searchEl=pop.querySelector('.field-pick-search');
+  const newBtn=pop.querySelector('.field-pick-new');
+  let items=[], activeIdx=-1, curQuery='';
+
+  function close(){ pop.remove(); document.removeEventListener('mousedown',closeP); }
+  function closeP(e){ if(!pop.contains(e.target)) close(); }
+  function pick(name){ close(); opts.onPick(name); }
+  function doNew(){ close(); opts.onNew(curQuery); }
+  function setActive(i){
+    if(!items.length){ activeIdx=-1; return; }
+    activeIdx=(i+items.length)%items.length;
+    items.forEach((b,k)=>b.classList.toggle('active',k===activeIdx));
+    if(items[activeIdx]) items[activeIdx].scrollIntoView({block:'nearest'});
+  }
   function renderList(q){
-    q=(q||'').trim().toLowerCase();
+    curQuery=(q||'').trim();
+    const ql=curQuery.toLowerCase();
     let html='';
     DFIELD_CATS.forEach(cat=>{
-      const group=dVars.filter(v=>(v.category||'outros')===cat.id && (!q||(v.label||'').toLowerCase().includes(q)||(v.name||'').toLowerCase().includes(q)));
+      const group=dVars.filter(v=>filter(v) && (v.category||'outros')===cat.id
+        && (!ql||(v.label||'').toLowerCase().includes(ql)||(v.name||'').toLowerCase().includes(ql)));
       if(!group.length) return;
-      html+=`<div class="field-pick-cat">${cat.icon} ${cat.label}</div>`;
+      html+=`<div class="field-pick-cat">${_dEsc(cat.label)}</div>`;
       html+=group.map(v=>{
         const tm=gFieldTypeMeta(v.type);
-        return `<button type="button" class="field-pick-item cat-${cat.id}" data-var="${v.name}"><span class="field-pick-ico">${tm.icon}</span><span class="field-pick-name">${_dEsc(v.label||v.name)}</span></button>`;
+        const sm=(v.type==='image')?'foto':_dEsc(gFieldSampleValue(v));
+        const use=(typeof dVarUsage==='function')?dVarUsage(v.name).length:0;
+        const cnt=use?`<span class="field-pick-count" title="Em uso em ${use} camada(s)">${use}</span>`:'';
+        return `<button type="button" class="field-pick-item cat-${cat.id}${v.name===opts.current?' cur':''}" data-var="${_dEsc(v.name)}">`
+          +`<span class="field-pick-ico">${tm.svg||tm.icon}</span>`
+          +`<span class="field-pick-name">${_dHiMatch(v.label||v.name, curQuery)}</span>`
+          +cnt+`<span class="field-pick-sample">${sm}</span></button>`;
       }).join('');
     });
-    listEl.innerHTML=html||'<div class="field-pick-empty">Nenhum campo encontrado</div>';
-    listEl.querySelectorAll('.field-pick-item').forEach(b=>{
-      b.onmousedown=(e)=>{ e.preventDefault(); const n=b.dataset.var; pop.remove(); document.removeEventListener('mousedown',closeP); dFieldInsertChipAtCaret(n); };
-    });
+    if(!html){
+      const hasAny=dVars.some(filter);
+      const msg = curQuery ? 'Nenhum campo encontrado'
+                : (!hasAny && opts.emptyMsg) ? opts.emptyMsg : 'Nenhum campo';
+      listEl.innerHTML=`<div class="field-pick-empty">${_dEsc(msg)}</div>`;
+      items=[]; activeIdx=-1;
+    } else {
+      listEl.innerHTML=html;
+      items=Array.from(listEl.querySelectorAll('.field-pick-item'));
+      items.forEach(b=>{
+        b.onmousedown=(e)=>{ e.preventDefault(); pick(b.dataset.var); };
+        b.onmouseenter=()=>{ setActive(items.indexOf(b)); };
+      });
+      const curEl=items.find(b=>b.classList.contains('cur'));
+      if(curEl) setActive(items.indexOf(curEl));
+      else if(curQuery) setActive(0);
+      else activeIdx=-1;
+    }
+    // O botão criar reflete a busca → cria já com o texto digitado como rótulo.
+    newBtn.textContent = curQuery ? ('+ Criar “'+curQuery+'”') : '+ Criar um campo novo';
   }
   renderList('');
   searchEl.oninput=()=>renderList(searchEl.value);
-  pop.querySelector('.field-pick-new').onmousedown=(e)=>{ e.preventDefault(); pop.remove(); document.removeEventListener('mousedown',closeP); dOpenVarModal(); };
-  const r=ev.currentTarget.getBoundingClientRect();
+  searchEl.onkeydown=(e)=>{
+    if(e.key==='ArrowDown'){ e.preventDefault(); setActive(activeIdx+1); }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); setActive(activeIdx-1); }
+    else if(e.key==='Enter'){ e.preventDefault(); if(activeIdx>=0&&items[activeIdx]) pick(items[activeIdx].dataset.var); else doNew(); }
+    else if(e.key==='Escape'){ e.preventDefault(); close(); }
+  };
+  newBtn.onmousedown=(e)=>{ e.preventDefault(); doNew(); };
+  const a=opts.anchor;
+  const r=(a&&a.getBoundingClientRect)?a.getBoundingClientRect():{bottom:120,left:window.innerWidth-280};
   pop.style.top=(r.bottom+4)+'px';
   pop.style.left=Math.min(r.left, window.innerWidth-260)+'px';
-  function closeP(e){ if(!pop.contains(e.target)){ pop.remove(); document.removeEventListener('mousedown',closeP); } }
   setTimeout(()=>{ document.addEventListener('mousedown',closeP); searchEl.focus(); },0);
+}
+
+// Picker amigável de inserção de chip no texto (substitui o antigo <select>).
+function dFieldInsertPickerOpen(ev){
+  if(!dVars.length){ gToast('Crie um campo primeiro na aba Dados.'); return; }
+  // captura o caret atual do editor antes de abrir (o foco vai pro popover).
+  const host=document.getElementById('dp-content');
+  const s=window.getSelection();
+  _dFieldSavedRange=(s && s.rangeCount && host && host.contains(s.anchorNode)) ? s.getRangeAt(0).cloneRange() : null;
+  _dFieldPickerOpen({
+    mode:'insert',
+    anchor:(ev&&ev.currentTarget)?ev.currentTarget:null,
+    current:null,
+    onPick:(n)=>dFieldInsertChipAtCaret(n),
+    onNew:(q)=>dOpenVarModal(q?{label:q}:{})
+  });
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1441,51 +1592,25 @@ function dRenderDadoControl(l){
   }
   box.innerHTML=h;
 }
-// Seletor de bind (camada inteira). Espelha o picker de inserção, mas LIGA a camada.
+// Seletor de bind (camada inteira). Mesmo motor do picker de inserção, mas LIGA a camada
+// e filtra por compatibilidade (imagem só aceita campo de imagem, e vice-versa).
 function dFieldBindPickerOpen(ev){
   if(ev){ ev.stopPropagation(); }
-  document.querySelectorAll('.field-pick-pop').forEach(p=>p.remove());
   const l=dLayers.find(x=>x.id===dSelId); if(!dLayerIsBindable(l)){ gToast('Selecione uma camada de texto ou imagem'); return; }
   const isImg=(l.type==='image'||l.type==='frame');
   const cur=dLayerBoundField(l);
   // Sem nenhum campo no catálogo: nada de beco sem saída — abre direto o wizard
   // de criação já apontando pra esta camada (cria e vincula em um passo).
   if(!dVars.length){ if(typeof dOpenVarModal==='function') dOpenVarModal({forLayer:dSelId}); return; }
-  const pop=document.createElement('div'); pop.className='field-pick-pop';
-  pop.innerHTML=`<input class="field-pick-search" placeholder="Buscar campo...">
-    <div class="field-pick-list"></div>
-    <button class="field-pick-new" type="button">+ Criar um campo novo</button>`;
-  document.body.appendChild(pop);
-  const listEl=pop.querySelector('.field-pick-list');
-  const searchEl=pop.querySelector('.field-pick-search');
-  function compatible(v){ return isImg ? (v.type==='image') : (v.type!=='image'); }
-  function renderList(q){
-    q=(q||'').trim().toLowerCase();
-    let html='';
-    DFIELD_CATS.forEach(cat=>{
-      const group=dVars.filter(v=>compatible(v) && (v.category||'outros')===cat.id && (!q||(v.label||'').toLowerCase().includes(q)||(v.name||'').toLowerCase().includes(q)));
-      if(!group.length) return;
-      html+=`<div class="field-pick-cat">${cat.icon} ${cat.label}</div>`;
-      html+=group.map(v=>{
-        const tm=gFieldTypeMeta(v.type);
-        const sm=(v.type==='image')?'foto':_dEsc(gFieldSampleValue(v));
-        return `<button type="button" class="field-pick-item${v.name===cur?' cur':''}" data-var="${v.name}"><span class="field-pick-ico">${tm.icon}</span><span class="field-pick-name">${_dEsc(v.label||v.name)}</span><span class="field-pick-sample">${sm}</span></button>`;
-      }).join('');
-    });
-    listEl.innerHTML=html||'<div class="field-pick-empty">Nenhum campo compatível</div>';
-    listEl.querySelectorAll('.field-pick-item').forEach(b=>{
-      b.onmousedown=(e)=>{ e.preventDefault(); const n=b.dataset.var; pop.remove(); document.removeEventListener('mousedown',closeP); dLayerBindField(dSelId, n); };
-    });
-  }
-  renderList('');
-  searchEl.oninput=()=>renderList(searchEl.value);
-  pop.querySelector('.field-pick-new').onmousedown=(e)=>{ e.preventDefault(); pop.remove(); document.removeEventListener('mousedown',closeP); if(typeof dOpenVarModal==='function') dOpenVarModal({forLayer:dSelId}); };
-  const anchor=(ev&&ev.currentTarget&&ev.currentTarget.getBoundingClientRect)?ev.currentTarget:document.getElementById('dp-dado-pick');
-  const r=anchor?anchor.getBoundingClientRect():{bottom:120,left:window.innerWidth-280};
-  pop.style.top=(r.bottom+4)+'px';
-  pop.style.left=Math.min(r.left, window.innerWidth-260)+'px';
-  function closeP(e){ if(!pop.contains(e.target)){ pop.remove(); document.removeEventListener('mousedown',closeP); } }
-  setTimeout(()=>{ document.addEventListener('mousedown',closeP); searchEl.focus(); },0);
+  _dFieldPickerOpen({
+    mode:'bind',
+    anchor:(ev&&ev.currentTarget&&ev.currentTarget.getBoundingClientRect)?ev.currentTarget:document.getElementById('dp-dado-pick'),
+    current:cur,
+    filter:(v)=> isImg ? (v.type==='image') : (v.type!=='image'),
+    emptyMsg: isImg ? 'Nenhum campo de imagem — crie um' : 'Nenhum campo de texto — crie um',
+    onPick:(n)=>dLayerBindField(dSelId, n),
+    onNew:(q)=>dOpenVarModal(q?{forLayer:dSelId,label:q}:{forLayer:dSelId})
+  });
 }
 // Ponto de entrada da ferramenta/atalho "Vincular campo" (X) e do menu de contexto.
 function dOpenBindForSelected(){
@@ -1552,7 +1677,7 @@ function dSetCorner(which,val){
 }
 function dUpdateProp(prop,val){
   const l=dLayers.find(x=>x.id===dSelId);if(!l)return;
-  if(['x','y','w','h','fontSize','opacity','fillOpacity','radius','sides','points','strokeW','shadowBlur','shadowDist','shadowAngle','innerShadowBlur','innerShadowDist','innerShadowAngle','glowSize'].includes(prop)){
+  if(['x','y','w','h','fontSize','opacity','fillOpacity','radius','sides','points','strokeW','shadowBlur','shadowDist','shadowAngle','innerShadowBlur','innerShadowDist','innerShadowAngle','glowSize','textCurve'].includes(prop)){
     // oninput dispara a cada tecla: campo momentaneamente vazio NÃO pode virar 0
     // (w=0/fontSize=0 fazia a camada sumir na hora e o 0 persistia no histórico)
     const _n=parseFloat(val);
@@ -1561,7 +1686,7 @@ function dUpdateProp(prop,val){
   }
   // Props editadas via oninput contínuo usam debounce — evita serializar dLayers a cada tecla.
   // Props de seleção discreta (font, textAlign, frameShape, etc.) usam push imediato.
-  const _continuousProps=['fontSize','opacity','fillOpacity','radius','color','fill','content','sides','points','strokeW','strokeColor','shadowColor','bgColor','imgScale','imgOffsetX','imgOffsetY','shadowBlur','shadowDist','shadowAngle','innerShadowColor','innerShadowBlur','innerShadowDist','innerShadowAngle','glowColor','glowSize','overlayColor','overlayOpacity'];
+  const _continuousProps=['fontSize','opacity','fillOpacity','radius','color','fill','content','sides','points','strokeW','strokeColor','shadowColor','bgColor','imgScale','imgOffsetX','imgOffsetY','shadowBlur','shadowDist','shadowAngle','innerShadowColor','innerShadowBlur','innerShadowDist','innerShadowAngle','glowColor','glowSize','overlayColor','overlayOpacity','textCurve'];
   if(!['x','y','w','h'].includes(prop)){
     if(_continuousProps.includes(prop)) dHistoryPushDebounced();
     else dHistoryPush();
@@ -2135,6 +2260,8 @@ function dOpenVarModal(opts){
       }
     } else if(l&&(l.type==='image'||l.type==='frame')){ preType='image'; }
   }
+  // Texto digitado na busca do picker vira o rótulo inicial (vence o derivado da camada).
+  if(opts.label) preLabel=String(opts.label).slice(0,28);
   const m=document.getElementById('d-var-modal');
   document.getElementById('dv-title').textContent='Novo campo';
   document.getElementById('dv-name').value='';
@@ -2551,6 +2678,8 @@ async function _dPushFoldersNow(){
         const { error }=await sb.schema('luma').from('templates').upsert({
           id:t.remoteId, pasta_id:f.remoteId, nome:t.name||'(sem nome)', fmt:t.fmt||'story',
           formats:t.formats||['story','feed','wide'], layers:t.layers||[],
+          // Tamanho real do template (essencial p/ PSD 'orig', que não tem preset em DFMT_SIZES):
+          w:(t.w>0?t.w:null), h:(t.h>0?t.h:null), bg:t.bg||null,
           publicado:!!pm.publicado, publicado_em:pm.publicadoEm?new Date(pm.publicadoEm).toISOString():null,
           validade:pm.validade||null, instrucoes:pm.instrucoes||'', permissoes:pm.permissoes||{}
         }, {onConflict:'id'});
@@ -2596,6 +2725,11 @@ function _dRowToTemplate(t){
   return {
     id:t.id, remoteId:t.id, name:t.nome||'(sem nome)', fmt:t.fmt||'story',
     formats:Array.isArray(t.formats)?t.formats:['story','feed','wide'],
+    // Tamanho real vem do banco (sync leve). Templates antigos têm NULL → dLoadTemplate
+    // cai no preset do fmt (comportamento atual); republicar grava o tamanho correto.
+    w:(typeof t.w==='number'&&t.w>0)?t.w:undefined,
+    h:(typeof t.h==='number'&&t.h>0)?t.h:undefined,
+    bg:t.bg||undefined,
     layers:Array.isArray(t.layers)?t.layers:[],
     _needsLayersFetch: t.layers===undefined, // lazy: a coluna não veio no sync — fetch sob demanda
     publishMeta:{
@@ -2625,7 +2759,7 @@ async function dSyncFoldersFromBackend(){
     if(e1 || !Array.isArray(rp) || !rp.length) return; // banco vazio → mantém local (push migra)
     // Lazy Load: exclui propositalmente a coluna `layers` pesada do download em lote no boot.
     // Os layers descem sob demanda: dLoadTemplate (designer) / fEnsureMaterialLayers (franqueado).
-    const { data:rt }=await sb.schema('luma').from('templates').select('id, pasta_id, nome, fmt, formats, publicado, publicado_em, validade, instrucoes, permissoes');
+    const { data:rt }=await sb.schema('luma').from('templates').select('id, pasta_id, nome, fmt, formats, w, h, bg, publicado, publicado_em, validade, instrucoes, permissoes');
     const byPasta={};
     (rt||[]).forEach(t=>{ (byPasta[t.pasta_id]=byPasta[t.pasta_id]||[]).push(_dRowToTemplate(t)); });
     const remote=rp.map(p=>_dRowToFolder(p, byPasta[p.id]||[]));
@@ -2948,3 +3082,41 @@ function dAddShapeKind(kind, x, y, customW, customH){
     });
   });
 })();
+
+/* ══ COPIAR / COLAR ESTILO (Ctrl+Alt+C / Ctrl+Alt+V) ══
+   Copia as propriedades visuais de uma camada (cor, fonte, sombra, borda,
+   opacidade, gradiente, blend mode) e cola em outra — sem alterar conteúdo,
+   posição ou tamanho. Atalhos registrados em publish.js. */
+let dStyleClipboard = null;
+
+// Props visuais que fazem sentido copiar entre camadas do mesmo tipo
+const _DSTYLE_COMMON = ['opacity','blendMode','shadow','shadowColor','shadowBlur','shadowDist','shadowAngle','glow','glowColor','glowSize','innerShadow','innerShadowColor','innerShadowBlur','innerShadowDist','innerShadowAngle','bevel','bevelSize','bevelAngle','bevelHighlight','bevelShadow','innerGlow','innerGlowColor','innerGlowSize','overlay','overlayColor','overlayOpacity','strokeW','strokeColor','strokeAlign','strokeDash'];
+const _DSTYLE_TEXT = ['color','font','fontSize','fontWeightOverride','italic','textTransform','letterSpacing','lineHeight','textAlign','underline','strikethrough','bg','bgColor','gradient','vAlign','textCurve'];
+const _DSTYLE_SHAPE = ['fill','gradient','radius','radii'];
+
+function dCopyStyle(){
+  const l=dLayers.find(x=>x.id===dSelId);
+  if(!l){gToast('⚠ Selecione uma camada para copiar o estilo');return;}
+  const clip={type:l.type};
+  _DSTYLE_COMMON.forEach(k=>{ if(l[k]!=null) clip[k]=JSON.parse(JSON.stringify(l[k])); });
+  if(l.type==='text') _DSTYLE_TEXT.forEach(k=>{ if(l[k]!=null) clip[k]=JSON.parse(JSON.stringify(l[k])); });
+  if(l.type==='shape') _DSTYLE_SHAPE.forEach(k=>{ if(l[k]!=null) clip[k]=JSON.parse(JSON.stringify(l[k])); });
+  dStyleClipboard=clip;
+  gToast('✓ Estilo copiado de "'+gEsc(l.name)+'"');
+}
+
+function dPasteStyle(){
+  if(!dStyleClipboard){gToast('⚠ Copie um estilo primeiro (Ctrl+Alt+C)');return;}
+  const l=dLayers.find(x=>x.id===dSelId);
+  if(!l){gToast('⚠ Selecione a camada destino');return;}
+  dHistoryPush();
+  // Aplica props comuns sempre
+  _DSTYLE_COMMON.forEach(k=>{ if(dStyleClipboard[k]!=null) l[k]=JSON.parse(JSON.stringify(dStyleClipboard[k])); });
+  // Aplica props de tipo quando compatível
+  if(l.type==='text' && dStyleClipboard.type==='text')
+    _DSTYLE_TEXT.forEach(k=>{ if(dStyleClipboard[k]!=null) l[k]=JSON.parse(JSON.stringify(dStyleClipboard[k])); });
+  if(l.type==='shape' && dStyleClipboard.type==='shape')
+    _DSTYLE_SHAPE.forEach(k=>{ if(dStyleClipboard[k]!=null) l[k]=JSON.parse(JSON.stringify(dStyleClipboard[k])); });
+  dRenderCanvas();dRenderLayersList();dShowProps(l);dMarkUnsaved();
+  gToast('✓ Estilo colado em "'+gEsc(l.name)+'"');
+}

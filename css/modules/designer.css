@@ -534,13 +534,20 @@ body.theme-light .field-chip.on span{color:var(--dm-orange-d)}
 .field-pick-cat{font-size:9.5px;font-weight:700;letter-spacing:.6px;color:var(--d-text3);padding:7px 6px 3px;text-transform:uppercase}
 .field-pick-item{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:transparent;border:none;
   border-left:3px solid var(--cat,var(--var-color));color:var(--d-text);font-size:12px;padding:7px 9px;border-radius:5px;cursor:pointer;font-family:'Roboto',sans-serif}
-.field-pick-item:hover{background:var(--d-surf3)}
+.field-pick-item:hover,.field-pick-item.active{background:var(--d-surf3)}
 .field-pick-item.cat-produto{--cat:#7C6EFF}
 .field-pick-item.cat-preco{--cat:#22C55E}
 .field-pick-item.cat-campanha{--cat:#FF9000}
 .field-pick-item.cat-midia{--cat:#3BA7FF}
 .field-pick-item.cat-outros{--cat:#9aa0a6}
-.field-pick-ico{font-size:14px;flex-shrink:0}
+/* Ícone vetorial (herda a cor da categoria via --cat); emoji legado usa font-size de fallback */
+.field-pick-ico{width:15px;height:15px;flex-shrink:0;font-size:14px;line-height:1;color:var(--cat,var(--d-text2));display:inline-flex;align-items:center;justify-content:center}
+.field-pick-ico svg{width:15px;height:15px;display:block}
+/* Destaque do trecho buscado no rótulo */
+.fp-hi{font-weight:800;text-decoration:underline;text-underline-offset:2px}
+/* Contador de uso do campo (em quantas camadas ele aparece) */
+.field-pick-count{flex:none;min-width:16px;height:16px;padding:0 4px;border-radius:999px;font-size:9.5px;font-weight:700;
+  display:inline-flex;align-items:center;justify-content:center;background:var(--d-surf);color:var(--d-text3);font-variant-numeric:tabular-nums}
 .field-pick-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .field-pick-empty{font-size:11px;color:var(--d-text3);text-align:center;padding:14px}
 .field-pick-new{margin-top:4px;font-size:11px;font-weight:700;color:var(--var-color);background:var(--var-bg);
