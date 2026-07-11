@@ -511,6 +511,13 @@ document.addEventListener('keydown', e => {
       }
     }
 
+    // Esc sai do modo recorte inline (o toast promete isso; sem esta saída ficava preso)
+    if (typeof dCropState !== 'undefined' && dCropState && e.key === 'Escape') {
+      e.preventDefault();
+      if (typeof dStopCrop === 'function') dStopCrop();
+      return;
+    }
+
     // Atalhos CTRL/CMD funcionam sempre (mesmo em inputs) — exceto Ctrl+A em input que faria selectAll
     if (e.ctrlKey || e.metaKey) {
       if (e.shiftKey && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); dRedo(); return; }
