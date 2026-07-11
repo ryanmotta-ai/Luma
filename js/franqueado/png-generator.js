@@ -1408,13 +1408,16 @@ function fBulkRenderPreview(){
             </div>
           </td>`;
         }
-        
-        ret      return `<tr>
+
+        return `<td style="padding:6px 4px;border-bottom:1px solid var(--gray-light, #F2F2F2)">
+          <input type="text" id="f-bulk-edit-${i}-${k}" value="${safeV}" style="width:100%;min-width:120px;font-size:12px;padding:6px 8px;border:1px solid ${isFieldErr?'var(--dm-red,#C81818)':'var(--gray-mid, #D4D4D4)'};border-radius:4px;background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);outline:none;transition:all 0.15s ease" onfocus="this.style.borderColor='var(--dm-orange,#FF9000)';this.style.boxShadow='0 0 0 2px rgba(255,144,0,0.15)'" onblur="this.style.borderColor='${isFieldErr?'var(--dm-red,#C81818)':'var(--gray-mid, #D4D4D4)'}';this.style.boxShadow='';fBulkSaveRow(${i}, true)">
+        </td>`;
+      }).join('');
+
+      return `<tr>
         <td style="padding:6px 4px;border-bottom:1px solid var(--gray-light, #F2F2F2);text-align:center;display:flex;align-items:center;justify-content:center;gap:4px">
           <button class="d-btn-sec" style="padding:0;width:20px;height:20px;border-radius:50%;color:var(--text-3,#6B6B6B);background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s" onmouseover="this.style.color='var(--dm-orange,#FF9000)';this.style.background='var(--dm-orange-bg,rgba(255,144,0,.1))'" onmouseout="this.style.color='';this.style.background=''" onclick="fBulkShowCopyModal(${i})" title="Ver legendas geradas"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
           <button class="d-btn-sec" style="padding:0;width:20px;height:20px;border-radius:50%;color:var(--text-3,#6B6B6B);background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s" onmouseover="this.style.color='var(--dm-orange,#FF9000)';this.style.background='var(--dm-orange-bg,rgba(255,144,0,.1))'" onmouseout="this.style.color='';this.style.background=''" onclick="fBulkCloneRow(${i})" title="Duplicar linha"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
-          <button class="d-btn-sec" style="padding:0;width:20px;height:20px;border-radius:50%;color:var(--text-3,#6B6B6B);background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s" onmouseover="this.style.color='var(--dm-red,#C81818)';this.style.background='rgba(200,24,24,0.1)'" onmouseout="this.style.color='';this.style.background=''" onclick="fBulkRemoveCard(${i})" title="Remover linha"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-        </td>/></svg></button>
           <button class="d-btn-sec" style="padding:0;width:20px;height:20px;border-radius:50%;color:var(--text-3,#6B6B6B);background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s" onmouseover="this.style.color='var(--dm-red,#C81818)';this.style.background='rgba(200,24,24,0.1)'" onmouseout="this.style.color='';this.style.background=''" onclick="fBulkRemoveCard(${i})" title="Remover linha"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </td>
         <td style="padding:6px 4px;border-bottom:1px solid var(--gray-light, #F2F2F2);text-align:center;cursor:help" onmouseenter="fBulkShowHoverPreview(event, ${i})" onmouseleave="fBulkHideHoverPreview()"><span class="f-bulk-num-chip">${i+1}</span></td>
@@ -1661,17 +1664,7 @@ function fBulkRemoveCard(index){
   fBulkRenderPreview();
   gToast('Arte removida do lote');
 }
-// Duplica a linha logo abaixo dela (o botão 📋 da tabela chamava esta função, que não existia).
-function fBulkCloneRow(index){
-  if(index<0||index>=fBulkRows.length)return;
-  fBulkCollectCurrentInputs();
-  const src=fBulkRows[index]||{dados:{},erros:[]};
-  fBulkRows.splice(index+1,0,{ dados:{...src.dados}, erros:[...(src.erros||[])] });
-  const st=document.getElementById('f-bulk-status');
-  if(st)st.textContent=`${fBulkRows.length} linha(s) carregada(s)`;
-  fBulkRenderPreview();
-  gToast('✓ Linha duplicada');
-}
+// (fBulkCloneRow definido mais abaixo — versão única mantida para evitar duplicata)
 async function fBulkDownloadAll(){
   if(!fBulkRows.length){gToast('Envie um CSV primeiro');return;}
   if(typeof JSZip === 'undefined'){gToast('JSZip não carregado','error');return;}
