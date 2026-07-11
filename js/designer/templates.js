@@ -622,9 +622,26 @@ function dToggleTemplatePublish(folderId, tmplId, publicar){
   document.querySelectorAll('.tmpl-context-menu').forEach(m=>m.remove());
   gToast(publicar ? 'Material publicado!' : 'Material despublicado.');
 }
+/* ── Deleção no Supabase (fire-and-forget, mesmo padrão de fonts.js) ── */
+function _dSbTmpl(){ return (typeof gSupabase==='function')?gSupabase():window.sb; }
+async function dDeleteTemplateFromBackend(remoteId){
+  const sb=_dSbTmpl();
+  if(!sb || !remoteId || typeof gIsAdmin!=='function' || !gIsAdmin()) return;
+  try{ await sb.schema('luma').from('templates').delete().eq('id', remoteId); }catch(e){}
+}
+async function dDeleteFolderFromBackend(remoteId){
+  const sb=_dSbTmpl();
+  if(!sb || !remoteId || typeof gIsAdmin!=='function' || !gIsAdmin()) return;
+  try{
+    await sb.schema('luma').from('templates').delete().eq('pasta_id', remoteId);
+    await sb.schema('luma').from('pastas').delete().eq('id', remoteId);
+  }catch(e){}
+}
 function dDeleteTemplate(folderId, tmplId){
   if(!confirm('Excluir este template? Ação não pode ser desfeita.')) return;
   const f=dFolders.find(x=>x.id===folderId); if(!f) return;
+  const tmpl=f.templates.find(t=>t.id===tmplId);
+  if(tmpl&&tmpl.remoteId) dDeleteTemplateFromBackend(tmpl.remoteId);
   f.templates = f.templates.filter(t=>t.id!==tmplId);
   if(dActiveTmplId === tmplId){
     dActiveTmplId = f.templates[0]?.id || null;
@@ -926,11 +943,24 @@ function dRenameFolder(id){
   if(typeof fGetCampaigns==='function'&&typeof fRenderCatalogs==='function')try{const{ativas,outras}=fGetCampaigns();fRenderCatalogs(ativas,outras);}catch(e){}
   gToast('✓ Pasta renomeada');
 }
+function dClearFolder(id){
+  document.querySelectorAll('.folder-ctx-menu').forEach(m=>m.remove());
+  const f=dFolders.find(x=>x.id===id);if(!f)return;
+  const n=(f.templates||[]).length;
+  if(n===0){ gToast('A pasta já está vazia'); return; }
+  if(!confirm(`Excluir TODOS os ${n} template(s) da pasta "${f.name}"? A pasta será mantida, mas as artes serão excluídas permanentemente.`))return;
+  (f.templates||[]).forEach(t=>{ if(t.remoteId) dDeleteTemplateFromBackend(t.remoteId); });
+  f.templates=[];
+  dRenderFolders();dPersistFolders();
+  if(typeof fGetCampaigns==='function'&&typeof fRenderCatalogs==='function')try{const{ativas,outras}=fGetCampaigns();fRenderCatalogs(ativas,outras);}catch(e){}
+  gToast(`✓ ${n} template(s) excluído(s) da pasta "${f.name}"`);
+}
 function dDeleteFolder(id){
   document.querySelectorAll('.folder-ctx-menu').forEach(m=>m.remove());
   const f=dFolders.find(x=>x.id===id);if(!f)return;
   const n=(f.templates||[]).length;
   if(!confirm(`Excluir a pasta "${f.name}"${n?` e seus ${n} template(s)`:''}? Esta ação não pode ser desfeita.`))return;
+  if(f.remoteId) dDeleteFolderFromBackend(f.remoteId);
   dFolders=dFolders.filter(x=>x.id!==id);
   dRenderFolders();dPersistFolders();
   if(typeof fGetCampaigns==='function'&&typeof fRenderCatalogs==='function')try{const{ativas,outras}=fGetCampaigns();fRenderCatalogs(ativas,outras);}catch(e){}
@@ -946,6 +976,7 @@ function dFolderMenu(ev,id){
     <button class="tmpl-ctx-item" onclick="dEditFolder('${id}')"><span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></span>Editar pasta</button>
     <button class="tmpl-ctx-item" onclick="dRenameFolder('${id}')"><span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></span>Renomear</button>
     <div class="tmpl-ctx-sep"></div>
+    <button class="tmpl-ctx-item tmpl-ctx-danger" onclick="dClearFolder('${id}')"><span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></span>Esvaziar pasta</button>
     <button class="tmpl-ctx-item tmpl-ctx-danger" onclick="dDeleteFolder('${id}')"><span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></span>Excluir pasta</button>`;
   document.body.appendChild(menu);
   const rect=ev.target.getBoundingClientRect();
@@ -2203,7 +2234,8 @@ function dDeletePageInTray(ev, tmplId) {
 
   const idx = folder.templates.findIndex(t => t.id === tmplId);
   if (idx === -1) return;
-
+  const _dtmpl=folder.templates[idx];
+  if(_dtmpl&&_dtmpl.remoteId) dDeleteTemplateFromBackend(_dtmpl.remoteId);
   folder.templates.splice(idx, 1);
   dPersistFolders();
 
