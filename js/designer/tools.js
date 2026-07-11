@@ -41,8 +41,7 @@ function dMeasureText(text, font, fontSize, maxWidth, lhFactor){
       const lw = dMeasureCtx.measureText(v).width;
       if(lw>maxW)maxW=lw;
     });
-    if(!visual.length)visual=[''];
-    return visual;
+    // (este loop calcula maxW; a contagem de linhas é feita no loop abaixo)
   });
   // calcular altura total
   const lineHeight = fontSize * (lhFactor || 1.2);
