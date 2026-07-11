@@ -234,6 +234,7 @@ const dToolCursors = {
   hand: 'grab',
   'var-data': `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23FFB900' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71'/><path d='M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'/></svg>") 4 4, crosshair`,
   'qr-code': 'crosshair',
+  'magic-eraser': 'crosshair',
   artboard: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230A0A0A' stroke-width='2' stroke-linecap='round'><rect x='5' y='5' width='14' height='14' rx='1'/><line x1='2' y1='5' x2='5' y2='5'/><line x1='5' y1='2' x2='5' y2='5'/><line x1='19' y1='2' x2='19' y2='5'/><line x1='19' y1='5' x2='22' y2='5'/><line x1='2' y1='19' x2='5' y2='19'/><line x1='5' y1='19' x2='5' y2='22'/><line x1='19' y1='19' x2='19' y2='22'/><line x1='19' y1='19' x2='22' y2='19'/></svg>") 5 5, cell`,
 
   text: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230A0A0A' stroke-width='2' stroke-linecap='round'><line x1='12' y1='2' x2='12' y2='6'/><line x1='12' y1='18' x2='12' y2='22'/><line x1='8' y1='4' x2='16' y2='4'/><line x1='8' y1='20' x2='16' y2='20'/><line x1='12' y1='6' x2='12' y2='18'/></svg>") 12 12, text`,
@@ -276,13 +277,13 @@ const dToolCursors = {
 // Cursor circular dinâmico do pincel/borracha — tamanho acompanha #d-brush-size + zoom.
 // Inclui blur/smudge/sharpen: dSetTool delega o cursor deles pra cá (senão fica o cursor stale).
 function dUpdateBrushCursor(){
-  if(!['brush','eraser','blur','smudge','sharpen'].includes(dTool))return;
+  if(!['brush','eraser','blur','smudge','sharpen','bg-eraser'].includes(dTool))return;
   const sizeEl=document.getElementById('d-brush-size');
   const size=parseInt((sizeEl&&sizeEl.value)||'8',10);
   const scale=dZoomLevel/100;
   const displaySize=Math.max(8,Math.round(size*scale));
   const half=Math.round(displaySize/2);
-  const color=dTool==='eraser'?'%23aaaaaa':'%23FF9000';
+  const color=(dTool==='eraser'||dTool==='bg-eraser')?'%23aaaaaa':'%23FF9000';
   const cursor=`url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='${displaySize}' height='${displaySize}' viewBox='0 0 ${displaySize} ${displaySize}'><circle cx='${half}' cy='${half}' r='${half-1}' fill='none' stroke='${color}' stroke-width='1.5' opacity='0.85'/><circle cx='${half}' cy='${half}' r='1' fill='${color}'/></svg>") ${half} ${half}, crosshair`;
   const frame=document.getElementById('d-canvas-frame');
   if(frame)frame.style.cursor=cursor;
@@ -292,7 +293,7 @@ function dSetTool(t){
   dTool=t;
   window.dPainting = false; // Reset seguro para pincéis
   // Registra as tools possíveis no dSetTool loop de active toggle
-  ['select','obj-select','quick-select','magic-wand','hand','text','rect','ellipse','triangle','polygon','star','line','frame','img','var-data','qr-code','brush','eraser','stamp','bucket','gradient','blur','sharpen','smudge','eyedrop','color-sampler','ruler','note','count','text-h','text-v','mask-text-h','mask-text-v'].forEach(x=>{
+  ['select','obj-select','quick-select','magic-wand','hand','text','rect','ellipse','triangle','polygon','star','line','frame','img','var-data','qr-code','brush','eraser','stamp','bg-eraser','magic-eraser','bucket','gradient','blur','sharpen','smudge','eyedrop','color-sampler','ruler','note','count','text-h','text-v','mask-text-h','mask-text-v'].forEach(x=>{
     const b=document.getElementById('dtool-'+x);
     if(b){b.classList.toggle('active',x===t);}
   });
@@ -304,7 +305,7 @@ function dSetTool(t){
     { name: 'forma', proxy: 'dtool-forma-proxy', iconId: 'dtool-forma-icon', tools: ['rect', 'ellipse', 'triangle', 'polygon', 'star', 'line'], lastVar: 'dFormaLast', iconMap: '_dFormaIcons' },
     { name: 'frame', proxy: 'dtool-frame-proxy', iconId: 'dtool-frame-icon', tools: ['frame', 'img'], lastVar: 'dFrameLast', iconMap: '_dFrameIcons' },
     { name: 'data', proxy: 'dtool-data-proxy', iconId: 'dtool-data-icon', tools: ['var-data', 'qr-code'], lastVar: 'dDataLast', iconMap: '_dDataIcons' },
-    { name: 'brush', proxy: 'dtool-brush-proxy', iconId: 'dtool-brush-icon', tools: ['brush', 'eraser', 'stamp'], lastVar: 'dBrushLast', iconMap: '_dBrushIcons' },
+    { name: 'brush', proxy: 'dtool-brush-proxy', iconId: 'dtool-brush-icon', tools: ['brush', 'eraser', 'stamp', 'bg-eraser', 'magic-eraser'], lastVar: 'dBrushLast', iconMap: '_dBrushIcons' },
     { name: 'fill', proxy: 'dtool-fill-proxy', iconId: 'dtool-fill-icon', tools: ['bucket', 'gradient'], lastVar: 'dFillLast', iconMap: '_dFillIcons' },
     { name: 'nitidez', proxy: 'dtool-nitidez-proxy', iconId: 'dtool-nitidez-icon', tools: ['blur', 'sharpen', 'smudge'], lastVar: 'dNitidezLast', iconMap: '_dNitidezIcons' },
     { name: 'eyedrop', proxy: 'dtool-eyedrop-proxy', iconId: 'dtool-eyedrop-icon', tools: ['eyedrop', 'color-sampler', 'ruler', 'note', 'count'], lastVar: 'dEyedropLast', iconMap: '_dEyedropIcons' }
@@ -339,10 +340,10 @@ function dSetTool(t){
   }
 
   if(frame){
-    if(['brush','eraser','blur','smudge','sharpen'].includes(t))dUpdateBrushCursor(); // cursor circular dinâmico
+    if(['brush','eraser','blur','smudge','sharpen','bg-eraser'].includes(t))dUpdateBrushCursor(); // cursor circular dinâmico (bg-eraser tem raio)
     else frame.style.cursor=dToolCursors[t]||'default';
   }
-  if(brushOpts){brushOpts.style.display=['brush','eraser','blur','smudge','sharpen'].includes(t)?'flex':'none';brushOpts.style.flexDirection='column';}
+  if(brushOpts){brushOpts.style.display=['brush','eraser','blur','smudge','sharpen','bg-eraser'].includes(t)?'flex':'none';brushOpts.style.flexDirection='column';}
   const wandOpts=document.getElementById('d-wand-opts');
   if(wandOpts) wandOpts.style.display=(t==='magic-wand')?'flex':'none';
   dShowBrushBar(t);

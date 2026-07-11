@@ -37,17 +37,21 @@ function dEnsurePaintCanvas(){
 function dSyncPaintPointer(){
   const cv=document.getElementById('d-paint-canvas');
   if(!cv)return;
-  cv.style.pointerEvents=['brush','eraser','smudge','blur','sharpen','gradient'].includes(dTool)?'auto':'none';
+  cv.style.pointerEvents=['brush','eraser','smudge','blur','sharpen','gradient','bg-eraser','magic-eraser'].includes(dTool)?'auto':'none';
 }
 function dGetPaintCtx(){
   const cv=document.getElementById('d-paint-canvas');
   return cv?cv.getContext('2d'):null;
 }
 function dPaintStart(e){
-  if(!['brush','eraser','smudge','blur','sharpen','gradient'].includes(dTool))return;
+  if(!['brush','eraser','smudge','blur','sharpen','gradient','bg-eraser','magic-eraser'].includes(dTool))return;
   e.preventDefault();
   dPainting=true;
   const pos=dCanvasPos(e);dPaintLast=pos;
+  // Borrachas avançadas sobre os pixels do paint canvas: mágica = flood-fill num clique;
+  // fundo = apaga por cor ao arrastar (raio = tamanho do pincel). Tolerância fixa (v1).
+  if(dTool==='magic-eraser'){ const c=dGetPaintCtx(); if(c&&typeof dMagicEraseAt==='function') dMagicEraseAt(c,Math.round(pos.x),Math.round(pos.y),30); return; }
+  if(dTool==='bg-eraser'){ const c=dGetPaintCtx(); if(c&&typeof dBgEraseAt==='function') dBgEraseAt(c,Math.round(pos.x),Math.round(pos.y),Math.max(1,dGetBrushStyle().size/2),30); return; }
   // Smudge/Blur/Gradiente operam sobre os pixels existentes — não pintam cor no clique
   if(dTool==='gradient'){dGradStart=pos;return;}
   if(dTool==='smudge'||dTool==='blur'||dTool==='sharpen')return;
@@ -63,7 +67,7 @@ function dPaintStart(e){
   ctx.globalAlpha=1;
 }
 function dPaintMove(e){
-  if(!dPainting||!['brush','eraser','smudge','blur','sharpen','gradient'].includes(dTool))return;
+  if(!dPainting||!['brush','eraser','smudge','blur','sharpen','gradient','bg-eraser','magic-eraser'].includes(dTool))return;
   const pos=dCanvasPos(e);
   const ctx=dGetPaintCtx();if(!ctx)return;
   const bs=dGetBrushStyle();
@@ -73,6 +77,8 @@ function dPaintMove(e){
   if(dTool==='smudge'){dSmudgeStep(ctx,dPaintLast,pos,sz,bs);dPaintLast=pos;return;}
   if(dTool==='blur'){dBlurRegion(ctx,pos,sz);dPaintLast=pos;return;}
   if(dTool==='sharpen'){dSharpenRegion(ctx,pos,sz);dPaintLast=pos;return;}
+  if(dTool==='bg-eraser'){ if(typeof dBgEraseAt==='function') dBgEraseAt(ctx,Math.round(pos.x),Math.round(pos.y),Math.max(1,sz/2),30); dPaintLast=pos; return; }
+  if(dTool==='magic-eraser'){ return; } // flood-fill só no clique (dPaintStart), não no arrasto
   // Pontilhado: skipa frames
   if(bs.preset==='dotted'){
     const dx=pos.x-dPaintLast.x, dy=pos.y-dPaintLast.y;
@@ -108,7 +114,7 @@ function dPaintEnd(){
   const wasPainting=dPainting;
   if(dTool==='gradient'&&dPainting&&dGradStart)dApplyGradient(dGradStart,dPaintLast);
   dPainting=false;dGradStart=null;
-  if(wasPainting && ['brush','eraser','smudge','blur','sharpen','gradient'].includes(dTool)){
+  if(wasPainting && ['brush','eraser','smudge','blur','sharpen','gradient','bg-eraser','magic-eraser'].includes(dTool)){
     dMarkUnsaved();
     dPaintDirty=true;   // marca a pintura como alterada → próximo commit captura o PNG
     dHistoryPush();     // pintura entra no histórico de undo/redo (A4)
@@ -313,7 +319,8 @@ function _dBrushDab(ctx, x, y, bs, col){
 function dShowBrushBar(toolName){
   const bar = document.getElementById('d-brush-bar');
   if(!bar)return;
-  const isPaint = ['brush','eraser','smudge','blur','sharpen','gradient'].includes(toolName);
+  // bg-eraser usa o tamanho do pincel (raio) → mostra a barra; magic-eraser é clique (sem barra).
+  const isPaint = ['brush','eraser','smudge','blur','sharpen','gradient','bg-eraser'].includes(toolName);
   const show = isPaint || toolName==='stamp';
   bar.classList.toggle('visible', show);
   if(!show) return;
@@ -322,7 +329,7 @@ function dShowBrushBar(toolName){
     el.style.display = el.dataset.tools.split(' ').includes(toolName) ? '' : 'none';
   });
   const label = document.getElementById('bb-tool-label');
-  if(label)label.textContent = {brush:'Pincel',eraser:'Borracha',smudge:'Dedo',blur:'Desfoque',sharpen:'Nitidez',gradient:'Gradiente',stamp:'Carimbo'}[toolName] || 'Pincel';
+  if(label)label.textContent = {brush:'Pincel',eraser:'Borracha',smudge:'Dedo',blur:'Desfoque',sharpen:'Nitidez',gradient:'Gradiente',stamp:'Carimbo','bg-eraser':'Borracha de fundo','magic-eraser':'Borracha mágica'}[toolName] || 'Pincel';
   
   // Força atualização visual inicial de todos os sliders ativos
   ['size','hardness','opacity','flow','strength'].forEach(prop => {
@@ -583,8 +590,10 @@ const _dFormaIcons = {
 // Despacho único de forma: line → dAddLine, rect → ferramenta de clique, demais → inserir
 function _dFormaDispatch(kind){
   if(kind==='line') { dAddLine(); return; }
-  if(kind==='rect') { dSetTool('rect'); return; }
-  dAddShapeKind(kind);
+  // TODAS as formas entram no modo clique-e-desenha (não só o retângulo) — consistente
+  // e sem "forma morta no centro". O gate de desenho (canvas.js:405) e dEndDrawShape já
+  // criam ellipse/triangle/polygon/star por coordenada; dSetTool trata todas no grupo 'forma'.
+  dSetTool(kind);
 }
 function dFormaActivate() { _dFormaDispatch(dFormaLast); }
 
@@ -893,7 +902,9 @@ let dBrushLast = 'brush';
 const _dBrushIcons = {
   'brush': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l4-4 4 4-4 4-4-4z"/><path d="M7 13l9-9 4 4-9 9"/></svg>`,
   'eraser': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H7L3 16l12-12 5 5-4.5 4.5"/><line x1="6" y1="20" x2="20" y2="20"/></svg>`,
-  'stamp': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="8" rx="2"/><path d="M4 22h16M12 10v12"/></svg>`
+  'stamp': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="8" rx="2"/><path d="M4 22h16M12 10v12"/></svg>`,
+  'bg-eraser': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H7L3 16l12-12 5 5-4.5 4.5"/><line x1="6" y1="20" x2="20" y2="20"/><circle cx="17" cy="7" r="1.6" fill="currentColor" stroke="none"/></svg>`,
+  'magic-eraser': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H7L3 16l12-12 5 5-4.5 4.5"/><line x1="6" y1="20" x2="20" y2="20"/><path d="M18 2l.7 1.8L20.5 4.5l-1.8.7L18 7l-.7-1.8L15.5 4.5l1.8-.7z" fill="currentColor" stroke="none"/></svg>`
 };
 
 function dBrushActivate() {

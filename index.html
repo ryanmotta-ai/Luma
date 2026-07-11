@@ -1005,6 +1005,14 @@ input:focus:-webkit-autofill {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="8" rx="2"/><path d="M4 22h16M12 10v12"/></svg>
               <span>Carimbo / Clonar</span>
             </button>
+            <button id="dtool-bg-eraser" class="vt-flyout-item" onclick="dBrushPick('bg-eraser',event)" title="Borracha de fundo&#10;Apaga por cor ao arrastar (raio = tamanho)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H7L3 16l12-12 5 5-4.5 4.5"/><line x1="6" y1="20" x2="20" y2="20"/><circle cx="17" cy="7" r="1.6" fill="currentColor" stroke="none"/></svg>
+              <span>Borracha de fundo</span>
+            </button>
+            <button id="dtool-magic-eraser" class="vt-flyout-item" onclick="dBrushPick('magic-eraser',event)" title="Borracha mágica&#10;Apaga a região de cor contígua num clique">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H7L3 16l12-12 5 5-4.5 4.5"/><line x1="6" y1="20" x2="20" y2="20"/><path d="M18 2l.7 1.8L20.5 4.5l-1.8.7L18 7l-.7-1.8L15.5 4.5l1.8-.7z" fill="currentColor" stroke="none"/></svg>
+              <span>Borracha mágica</span>
+            </button>
           </div>
         </div>
 
@@ -1302,7 +1310,7 @@ input:focus:-webkit-autofill {
         </div>
         <div class="bb-sep" data-tools="brush eraser"></div>
         <!-- Tamanho -->
-        <div class="bb-group" data-tools="brush eraser smudge blur sharpen">
+        <div class="bb-group" data-tools="brush eraser smudge blur sharpen bg-eraser">
           <span class="bb-label">Tam.</span>
           <input type="range" class="bb-slider" id="bb-size" min="1" max="200" value="8" oninput="dBrushUpdate('size',this.value)">
           <input class="bb-num-input" id="bb-size-num" value="8" onchange="dBrushNumInput('size',this.value)" title="Tamanho px — [ e ] ajustam"><span class="bb-unit">px</span>
