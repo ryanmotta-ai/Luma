@@ -34,7 +34,7 @@ Mínimo por tarefa: `06` + o arquivo do assunto. Código → some `03`. UI → `
 
 ### FASE 2 — PLANEJA
 
-- Foque no **resultado**, não no pedido literal.
+- Foque no **resultado** — mas **proponha, não imponha**: entregue o pedido do usuário bem-feito (patch cirúrgico) e **ofereça** o passo maior; só faça a mudança ampla com o OK dele. Redesenhar o que não foi pedido vira "tava melhor antes". Palavra do usuário > tudo (ver `design-role.md`).
 - **Arquitetura confere?** Não proponha solução para camada que não existe (sem servidor de aplicação, sem build, sem multi-tenant; RLS é a única fronteira de segurança).
 - **Mapeie 1–2 arquivos.** Mais de 3 = quase sempre há caminho mais simples.
 - **Grep antes de criar.** Há UM interpolador, UM motor de render, UM `gEsc`. Reutilize, não clone.
