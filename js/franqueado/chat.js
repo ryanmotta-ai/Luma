@@ -39,7 +39,13 @@ function fStartChatComMaterial(material){
   if(material.publishMeta?.instrucoes){
     intro += `<br><br><em style="display:block;margin-top:6px;padding:8px 10px;background:var(--dm-orange-bg);border-left:3px solid var(--dm-orange);font-size:12px;color:var(--text-2);border-radius:4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg> ${gEsc(material.publishMeta.instrucoes)}</em><br>`;
   }
-  intro += `Vou te fazer <strong>${total} pergunta${total>1?'s':''} rápida${total>1?'s':''}</strong> e gerar a arte. Leva ~1 minuto.`;
+  intro += `Vou te fazer <strong>${total} pergunta${total>1?'s':''} rápida${total>1?'s':''}</strong> e gerar a arte. Leva ~1 minuto.<br>
+  <div style="margin-top:8px;border-top:1px dashed var(--gray-mid);padding-top:6px;display:flex;align-items:center;justify-content:space-between;gap:8px">
+    <span style="font-size:11px;color:var(--text-3)">Quer pular as perguntas?</span>
+    <button onclick="fBulkOpen()" style="background:var(--dm-orange-bg);border:1px solid var(--dm-orange-tint);color:var(--dm-orange-d);font-size:11px;font-weight:600;padding:4px 10px;border-radius:var(--r-pill);cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:all 0.15s ease" onmouseover="this.style.background='var(--dm-orange-tint)'" onmouseout="this.style.background='var(--dm-orange-bg)'">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Gerar em Lote
+    </button>
+  </div>`;
   fAddBot(intro, []);
   clearTimeout(fNextTimeout);
   fNextTimeout = setTimeout(()=>fNextStep(),900);
@@ -140,7 +146,13 @@ function fStartChat(){
   try { fAttachInputGuard(); } catch(e){}
   // F-05: mensagem inicial com contexto (quantas perguntas, tempo estimado)
   const total = fState.camp.perguntas.length;
-  fAddBot(`Oi! Vou te fazer <strong>${total} pergunta${total>1?'s':''} rápida${total>1?'s':''}</strong> sobre <strong>${gEsc(fState.camp.name)}</strong> (formato ${gEsc(fState.fmt.name)}) e gerar a arte. Leva ~1 minuto. Pode clicar nas sugestões pra responder mais rápido.`,[]);
+  fAddBot(`Oi! Vou te fazer <strong>${total} pergunta${total>1?'s':''} rápida${total>1?'s':''}</strong> sobre <strong>${gEsc(fState.camp.name)}</strong> (formato ${gEsc(fState.fmt.name)}) e gerar a arte. Leva ~1 minuto.<br>
+  <div style="margin-top:8px;border-top:1px dashed var(--gray-mid);padding-top:6px;display:flex;align-items:center;justify-content:space-between;gap:8px">
+    <span style="font-size:11px;color:var(--text-3)">Quer pular as perguntas?</span>
+    <button onclick="fBulkOpen()" style="background:var(--dm-orange-bg);border:1px solid var(--dm-orange-tint);color:var(--dm-orange-d);font-size:11px;font-weight:600;padding:4px 10px;border-radius:var(--r-pill);cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:all 0.15s ease" onmouseover="this.style.background='var(--dm-orange-tint)'" onmouseout="this.style.background='var(--dm-orange-bg)'">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Gerar em Lote
+    </button>
+  </div>`,[]);
   clearTimeout(fNextTimeout);
   fNextTimeout = setTimeout(()=>fNextStep(),900);
 }
@@ -461,7 +473,7 @@ function fMostrarConfirm(){
         <button class="confirm-btn cancel" onclick="fEditarTudo()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Alterar</button>
         <button class="confirm-btn ok" onclick="fConfirmarGerar()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><polyline points="20 6 9 17 4 12"/></svg>Confirmar e gerar</button>
       </div>
-      ${(fState.material&&fState.material.layers)?`<button class="confirm-bulk" onclick="fBulkOpen()" title="Gerar muitas artes de uma vez a partir de uma planilha CSV"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Gerar vários (CSV)</button>`:''}
+      ${(fState.material&&fState.material.layers)?`<button class="confirm-bulk" onclick="fBulkOpen()" title="Gerar muitas artes de uma vez com o Luma Sheets"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Gerar em Lote (Luma Sheets)</button>`:''}
     </div>
   </div>`;
   msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;

@@ -50,16 +50,42 @@ function fGetFieldType(id){
   return {type, maxLen, label, required, vDef, options:vDef?.options, palette:vDef?.palette};
 }
 
+// Converte números básicos por extenso para algarismos em português
+function fCleanTextNumber(v) {
+  const low = String(v).toLowerCase();
+  const numbers = {
+    'zero': '0', 'um': '1', 'dois': '2', 'tres': '3', 'três': '3',
+    'quatro': '4', 'cinco': '5', 'seis': '6', 'sete': '7', 'oito': '8',
+    'nove': '9', 'dez': '10', 'quinze': '15', 'vinte': '20', 'trinta': '30',
+    'quarenta': '40', 'cinquenta': '50', 'cem': '100', 'meio': '50', 'metade': '50'
+  };
+  let words = low.split(/\s+/);
+  let changed = false;
+  words = words.map(w => {
+    if (numbers[w]) {
+      changed = true;
+      return numbers[w];
+    }
+    return w;
+  });
+  return changed ? words.join(' ') : v;
+}
+
 // Máscara aplicada no valor antes de salvar — formata sem rejeitar
 function fApplyMask(id, raw){
   if(raw==null) return '';
   const cfg = fGetFieldType(id);
+  // Limpa números por extenso para apoiar digitação livre do usuário
+  let rawCleaned = raw;
+  if(cfg.type === 'price' || cfg.type === 'discount') {
+    rawCleaned = fCleanTextNumber(raw);
+  }
   // Tipos não-texto (imagem e tipos ricos da 4.1) não passam por máscara de texto:
   // o valor (ex.: data URL, opção de select) deve ser preservado como veio.
   if(cfg.type === 'image' || cfg.type === 'date' || cfg.type === 'select' || cfg.type === 'color' || cfg.type === 'boolean'){
-    return String(raw);
+    return String(rawCleaned);
   }
-  let v = String(raw).replace(/[\r\n\t]/g,' ').replace(/\s+/g,' ').trim();
+  let v = String(rawCleaned).replace(/[\r\n\t]/g,' ').replace(/\s+/g,' ').trim();
 
   if(cfg.type === 'price'){
     // Aceita "9,90", "9.90", "R$ 9,90", "R$9,90", "qualquer valor" etc.
