@@ -49,6 +49,20 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// Template-alvo da publicação da arte atual: o template CARREGADO (dActiveTmplId),
+// com fallback pro id legado 'tmpl-ab-'+abId (artes publicadas antes do fix de
+// colisão — abId é sempre 'ab-single', então aquele id era compartilhado por tudo).
+function _dPubFindTmpl(){
+  const ids=[];
+  if(typeof dActiveTmplId!=='undefined'&&dActiveTmplId) ids.push(dActiveTmplId);
+  const _ab=(typeof dGetActiveAB==='function')?dGetActiveAB():null;
+  if(_ab) ids.push('tmpl-ab-'+_ab.id);
+  for(const id of ids){
+    for(const f of dFolders){ const t=f.templates.find(x=>x.id===id); if(t) return {tmpl:t, folder:f}; }
+  }
+  return null;
+}
+
 function dPublishOpen(){
   if(typeof dSyncLayersToAB==='function') dSyncLayersToAB();
   const _ab=dGetActiveAB();
@@ -82,29 +96,33 @@ function dPublishSwitchTab(tab, btn){
 function dPublishRender(){
   dPublishRenderArtboards();
 
+  // REPUBLICAÇÃO: pré-carrega a configuração já salva do template (permissões,
+  // validade, instruções, pasta) — antes, republicar resetava tudo pro default
+  // silenciosamente (permissão travada voltava a editável, instruções sumiam).
+  const _t=_dPubFindTmpl();
+  const _meta=(_t&&_t.tmpl.publishMeta)||null;
+  if(_meta&&_meta.permissoes) dPubPermissoes=JSON.parse(JSON.stringify(_meta.permissoes));
+
   // Aba Pasta & Nome
   const folderSel=document.getElementById('pub-folder');
   folderSel.innerHTML=dFolders.map(f=>`<option value="${gEsc(f.id)}">${gEsc(f.name)}</option>`).join('');
+  if(_t&&_t.folder) folderSel.value=_t.folder.id;
   const fmtEl=document.getElementById('pub-fmt-display');
   if(fmtEl) fmtEl.textContent=(dFmt||'custom').toUpperCase();
 
   // Aba Validade
   const meta=dDefaultPublishMeta();
-  document.getElementById('pub-validade').value=meta.validade||'';
+  document.getElementById('pub-validade').value=(_meta&&_meta.validade)||meta.validade||'';
 
   // Aba Permissões (variáveis de TODAS as pranchetas selecionadas)
   dPublishRenderPerms();
 
   // Aba Instruções
-  document.getElementById('pub-instrucoes').value='';
+  document.getElementById('pub-instrucoes').value=(_meta&&_meta.instrucoes)||'';
 
   // Estado
   const stateEl=document.getElementById('pub-current-state');
-  const anyPublished=dArtboards.some(ab=>{
-    const tid='tmpl-ab-'+ab.id;
-    for(const f of dFolders){const t=f.templates.find(x=>x.id===tid);if(t&&t.publishMeta&&t.publishMeta.publicado)return true;}
-    return false;
-  });
+  const anyPublished=!!(_meta&&_meta.publicado);
   stateEl.innerHTML=anyPublished
     ?`<span class="pub-pill pub-pill-on">● Publicado anteriormente</span>`
     :`<span class="pub-pill pub-pill-off">○ Não publicado</span>`;
@@ -129,9 +147,8 @@ function dPublishRenderArtboards(){
   const bgColor=bgLyr?bgLyr.fill:'#e8e8e8';
   // Proporção real da prancheta (cap 2.2 p/ não gerar cards absurdamente altos)
   const ratio=ab.w&&ab.h?Math.min(2.2,ab.h/ab.w):1.78;
-  const tid='tmpl-ab-'+ab.id;
-  let existingName=ab.name;
-  for(const f of dFolders){const t=f.templates.find(x=>x.id===tid);if(t){existingName=t.name;break;}}
+  const _tEx=_dPubFindTmpl();
+  const existingName=(_tEx&&_tEx.tmpl.name)||ab.name;
   grid.innerHTML=`<div class="pub-ab-card ${checked?'selected':''}" id="pub-ab-card-${ab.id}" onclick="dPubToggleAB('${ab.id}')">
     <div class="pub-ab-check-wrap">
       <input type="checkbox" class="pub-ab-chk" id="pub-ab-chk-${ab.id}" ${checked?'checked':''} onclick="event.stopPropagation();dPubToggleAB('${ab.id}')">
@@ -289,7 +306,11 @@ function dPublishConfirm(){
     // Nome pode ter sido editado no card
     const nameInp=document.getElementById('pub-ab-name-'+abId);
     const tmplName=(nameInp?nameInp.value.trim():'')||ab.name;
-    const tmplId='tmpl-ab-'+abId;
+    // ID do template: o template CARREGADO quando existe; senão um id ÚNICO por arte.
+    // O antigo 'tmpl-ab-'+abId colidia (abId é sempre 'ab-single'): publicar a arte B
+    // sobrescrevia silenciosamente a arte A publicada antes.
+    const _target=_dPubFindTmpl();
+    const tmplId=_target?_target.tmpl.id:('tmpl-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7));
     // Procura template existente (em qualquer pasta) para reutilizar publishMeta
     let tmpl=null;
     let tmplFolder=null;
@@ -318,6 +339,8 @@ function dPublishConfirm(){
     tmpl.publishMeta.validade=validade;
     tmpl.publishMeta.instrucoes=instrucoes;
     tmpl.publishMeta.permissoes=JSON.parse(JSON.stringify(dPubPermissoes));
+    // Vincula a arte aberta ao template publicado: republicar atualiza ESTE template.
+    if(typeof dActiveTmplId!=='undefined') dActiveTmplId=tmpl.id;
     count++;
   });
   dFolderOpen[folderId]=true;
@@ -504,6 +527,13 @@ document.addEventListener('keydown', e => {
     }
 
     if (inField) return; // resto bloqueia se em input
+
+    // Com um MODAL do designer aberto, atalhos de tecla única não podem vazar pro
+    // canvas (Delete apagava camada atrás do modal, Espaço trocava de ferramenta em
+    // vez de acionar o botão focado, P abria o preview por cima). Esc passa — fecha
+    // o contexto. Ctrl/Cmd (undo/save/zoom) continuam acima deste guard.
+    const _modalIds=['d-publish-modal','d-preview-overlay','d-var-modal','d-folder-modal','d-tmpl-modal','d-newdoc-modal','d-psd-modal','d-sim-modal','d-cheat-modal','d-svg-review-overlay'];
+    if (e.key!=='Escape' && _modalIds.some(id=>{const m=document.getElementById(id);return m&&m.classList.contains('open');})) return;
 
     // Ctrl+C / Ctrl+V — copiar/colar layers (só no canvas, nunca dentro de campos de texto)
     if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) { e.preventDefault(); dCopy(); return; }

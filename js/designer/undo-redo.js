@@ -67,14 +67,17 @@ function dHistoryReset(){
   if(typeof dUpdateUndoButtons==='function')dUpdateUndoButtons();
 }
 // Redesenha o paint canvas a partir de um dataURL (ou limpa se null)
+let _dPaintGen=0; // token de geração: onloads de undos/redos rápidos podiam
+                  // terminar fora de ordem e ressuscitar a pintura de um estado antigo
 function dApplyPaintSnapshot(dataUrl){
   const cv=document.getElementById('d-paint-canvas');
   if(!cv)return;
   const ctx=cv.getContext('2d');
+  const gen=++_dPaintGen;
   ctx.clearRect(0,0,cv.width,cv.height);
   if(dataUrl){
     const img=new Image();
-    img.onload=()=>{ try{ ctx.clearRect(0,0,cv.width,cv.height); ctx.drawImage(img,0,0,cv.width,cv.height); }catch(e){} };
+    img.onload=()=>{ if(gen!==_dPaintGen)return; try{ ctx.clearRect(0,0,cv.width,cv.height); ctx.drawImage(img,0,0,cv.width,cv.height); }catch(e){} };
     img.src=dataUrl;
   }
 }

@@ -19,11 +19,18 @@ function dEnsurePaintCanvas(){
   let cv=document.getElementById('d-paint-canvas');
   // Se já existe com tamanho correto, não recriar
   if(cv&&cv.width===f.w&&cv.height===f.h)return;
-  // Remover antigo se existir
-  if(cv)cv.remove();
+  const old=cv; // prancheta mudou de tamanho → preserva os pixels pintados
   cv=document.createElement('canvas');
   cv.id='d-paint-canvas';cv.width=f.w;cv.height=f.h;
   cv.style.cssText='position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:50;';
+  if(old){
+    // Copia a pintura antiga (ancorada no topo-esquerdo, sem esticar) e marca dirty —
+    // descartar sem capturar fazia a pintura sumir E o histórico reciclar o dataURL
+    // antigo, ressuscitando pintura esticada num undo posterior.
+    try{ cv.getContext('2d').drawImage(old,0,0); }catch(e){}
+    if(typeof dPaintDirty!=='undefined') dPaintDirty=true;
+    old.remove();
+  }
   frame.appendChild(cv);
   dAttachPaintListeners();
 }
@@ -162,7 +169,10 @@ function dApplyGradient(p0,p1){
 function dCanvasPos(e){
   const frame=document.getElementById('d-canvas-frame');
   const rect=frame.getBoundingClientRect();
-  const scale=dZoomLevel/100;
+  // Escala REAL do DOM (rect reflete a transform corrente): durante os ~220ms da
+  // transição de zoom, dZoomLevel já é o valor final mas o frame ainda está numa
+  // escala intermediária — traços logo após o zoom caíam deslocados do cursor.
+  const scale=(rect.width&&frame.offsetWidth)?(rect.width/frame.offsetWidth):(dZoomLevel/100);
   return{x:Math.round((e.clientX-rect.left)/scale),y:Math.round((e.clientY-rect.top)/scale)};
 }
 function dClearPaint(){
@@ -178,10 +188,19 @@ let dStampOffset=null; // offset fixo entre cliques quando "Alinhado" está liga
 let dGradStart=null; // ponto inicial do arraste da ferramenta Gradiente
 function dDoStamp(targetLayer){
   if(!dStampSource)return;
+  // Re-resolve a origem pelo id: undo/redo troca dLayers por clones e a referência
+  // guardada vira um objeto morto (carimbava estado antigo; deletar a origem não invalidava)
+  const src=dLayers.find(x=>x.id===dStampSource.id);
+  if(!src){
+    dStampSource=null;
+    if(typeof dStampUpdateStatus==='function')dStampUpdateStatus();
+    gToast('A origem do carimbo não existe mais — marque outra com S');
+    return;
+  }
   dHistoryPush();
-  const clone=JSON.parse(JSON.stringify(dStampSource));
+  const clone=JSON.parse(JSON.stringify(src));
   clone.id='l-'+(++dLyrCnt);
-  clone.name=dStampSource.name+' (cópia)';
+  clone.name=src.name+' (cópia)';
   clone.x=targetLayer.x+20;clone.y=targetLayer.y+20;
   dLayers.push(clone);
   dRenderCanvas();dRenderLayersList();dStats();dMarkUnsaved();

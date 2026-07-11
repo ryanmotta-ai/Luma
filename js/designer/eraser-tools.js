@@ -129,8 +129,11 @@ function dMagicEraseAt(ctx, x, y, tolerance) {
 
   window.dMagicEraseRunning = true;
   var bMinX = ix, bMaxX = ix, bMinY = iy, bMaxY = iy;
+  var count = 0; // sem esta declaração, 'count' era um ReferenceError no 1º uso
+                 // e dMagicEraseRunning ficava true pra sempre (ferramenta morta)
 
   function doChunk() {
+    try {
     var chunkLimit = count + 25000;
     while (head !== tail && count < Math.min(MAX_PIXELS, chunkLimit)) {
       var li = queue[head]; head = (head + 1) % qCap; count++;
@@ -162,6 +165,11 @@ function dMagicEraseAt(ctx, x, y, tolerance) {
         ctx.putImageData(patch, bx, by);
         if(typeof dMarkUnsaved==='function') dMarkUnsaved();
       }
+    }
+    } catch(err) {
+      // Qualquer erro no chunk NÃO pode deixar a flag travada (ferramenta morta até reload)
+      window.dMagicEraseRunning = false;
+      console.warn('[magic-eraser]', err);
     }
   }
   doChunk();

@@ -10,7 +10,7 @@
 /* ══════════════════════════════════════════════════════════════
    PREVIEW ENGINE
 ══════════════════════════════════════════════════════════════ */
-let pvFmt=null, pvDevice='none', pvRendering=false;
+let pvFmt=null, pvDevice='none', pvRendering=false, pvRenderQueued=false;
 // Opções de exportação (2.6)
 let pvExportScale=2, pvExportType='image/png', pvExportQuality=0.92;
 function dPreviewSetScale(v){ pvExportScale=parseInt(v,10)||1; }
@@ -54,7 +54,9 @@ function dPreviewSetDevice(dev,btn){
 
 /* ── Renderização principal via canvas ── */
 function pvRender(){
-  if(pvRendering)return;
+  // Render em andamento → enfileira UM re-render (descartar deixava o canvas
+  // mostrando o formato anterior quando o usuário trocava de aba no meio do render)
+  if(pvRendering){pvRenderQueued=true;return;}
   pvRendering=true;
   const note=document.getElementById('pv-render-note');
   if(note)note.textContent='Renderizando...';
@@ -97,6 +99,7 @@ function pvRender(){
     pvRendering=false;
     if(note)note.textContent=`${W}×${H}px · escala ${Math.round(scale*100)}%`;
     pvApplyDevice();
+    if(pvRenderQueued){pvRenderQueued=false;pvRender();}
   });
 }
 
@@ -471,6 +474,15 @@ function dPreviewDownloadAll(){
 }
 
 function pvRenderToBlob(fmt, cb){
+  // Espera as fontes (Roboto + custom) antes de rasterizar — sem isso o primeiro
+  // export sai com a fonte fallback do sistema, silenciosamente (o SVG já esperava).
+  if(document.fonts&&document.fonts.ready&&document.fonts.status!=='loaded'){
+    document.fonts.ready.then(()=>_pvRenderToBlobNow(fmt,cb),()=>_pvRenderToBlobNow(fmt,cb));
+    return;
+  }
+  _pvRenderToBlobNow(fmt,cb);
+}
+function _pvRenderToBlobNow(fmt, cb){
   const sz=DFMT_SIZES[fmt]||DFMT_SIZES.story;
   const scale=pvExportScale||1;
   const offscreen=document.createElement('canvas');
@@ -771,14 +783,22 @@ async function dExportSVG(opts){
   const fillVars=!!opts.fillVars;
   const includeFont=opts.includeFont!==false;
   const includePaint=opts.includePaint!==false;
-  const f=DFMT_SIZES[fmt]||DFMT_SIZES.story;
+  // Tamanho real da prancheta (fmt sem preset, ex. PSD 1:1 'orig', caía em story
+  // 1080×1920 com as camadas posicionadas pro tamanho real → arte deslocada/cortada)
+  const _ab=(typeof dGetActiveAB==='function')?dGetActiveAB():null;
+  const _cur=_ab?{w:_ab.w,h:_ab.h}:(DFMT_SIZES[dFmt]||DFMT_SIZES.story);
+  const f=DFMT_SIZES[fmt]||_cur;
   const W=f.w, H=f.h;
   gToast('Gerando SVG…');
   if(document.fonts&&document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
   const defaults=(typeof gVarDefaults==='function')?gVarDefaults():null;
   const mctx=document.createElement('canvas').getContext('2d');
+  // Export num formato ≠ prancheta atual → smart resize (igual ao PNG em pvRenderToBlob)
+  let _srcLayers=dLayers;
+  if((_cur.w!==W||_cur.h!==H)&&typeof gReflowLayers==='function')
+    _srcLayers=gReflowLayers(dLayers,_cur,{w:W,h:H},{fmtKey:(typeof gFmtKey==='function')?gFmtKey(fmt):null});
   // bindings (4.1) + regras (4.2) com os dados (vazio no modo template)
-  const layers=dLayers.map(l=>{
+  const layers=_srcLayers.map(l=>{
     let e=(typeof gApplyBindings==='function')?gApplyBindings(l,dados,{defaults}):l;
     e=(typeof gApplyRules==='function')?gApplyRules(e,dados,{defaults}):e;
     return e;
@@ -821,7 +841,7 @@ async function dExportSVG(opts){
   const blob=new Blob([svg],{type:'image/svg+xml;charset=utf-8'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
-  const base=(typeof dBuildTemplateFilename==='function')?dBuildTemplateFilename(fmt):'arte';
+  const base=((typeof dBuildTemplateFilename==='function')?dBuildTemplateFilename(fmt):'arte').replace(/\.png$/i,'');
   a.download=base+(fillVars?'_preenchido':'_template')+'.svg';
   a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),1500);

@@ -95,7 +95,7 @@ const LumaColorPicker = (function() {
     x = Math.max(0, Math.min(x, rect.width));
 
     h = (x / rect.width) * 360;
-    if(h >= 360) h = 359;
+    if(h >= 360) h = 0; // 360≡0 (vermelho puro); o clamp antigo em 359 gerava #FF0004
 
     updateUI();
     triggerChange();

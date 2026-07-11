@@ -21,9 +21,15 @@ const dBuiltinFonts = [
 ];
 
 /* ── persistência ── */
+// Serializa SEM as flags de runtime (_registered/_ff): se `_registered:true` vai
+// pro localStorage, o dFontRegister early-returna no próximo boot e a fonte
+// nunca mais é registrada — textos custom caíam em Roboto pra sempre.
+function _dFontsJson(){
+  return JSON.stringify(dCustomFonts.map(f=>{ const c=Object.assign({},f); delete c._registered; delete c._ff; return c; }));
+}
 function dFontsPersist(){
   let ok=true;
-  try{ localStorage.setItem('yngs_fonts_v1', JSON.stringify(dCustomFonts)); }
+  try{ localStorage.setItem('yngs_fonts_v1', _dFontsJson()); }
   catch(e){
     ok=false;
     if(e&&(e.name==='QuotaExceededError'||e.code===22))
@@ -37,6 +43,7 @@ function dFontsRestore(){
     const s=localStorage.getItem('yngs_fonts_v1');
     if(s){ const p=JSON.parse(s); if(Array.isArray(p)) dCustomFonts=p; }
   }catch(e){ dCustomFonts=[]; }
+  dCustomFonts.forEach(f=>{ delete f._registered; delete f._ff; }); // sane­amento de storage antigo com a flag gravada
   dCustomFonts.forEach(dFontRegister);
 }
 
@@ -66,7 +73,7 @@ async function dPushFontsToBackend(){
         formato:(/\.([a-z0-9]+)(\?|$)/i.exec(f.dataUrl)||[])[1]||null, arquivo_url:f.dataUrl
       }, {onConflict:'id'});
     }
-    try{ localStorage.setItem('yngs_fonts_v1', JSON.stringify(dCustomFonts)); }catch(e){}
+    try{ localStorage.setItem('yngs_fonts_v1', _dFontsJson()); }catch(e){}
   }catch(e){}
 }
 async function dDeleteFontFromBackend(remoteId){
@@ -83,11 +90,15 @@ async function dSyncFontsFromBackend(){
     let added=false;
     data.forEach(r=>{
       if(!r.arquivo_url || !r.family || have.has(r.family.toLowerCase())) return;
-      const f={name:r.nome||r.family, family:r.family, dataUrl:r.arquivo_url, weight:r.weight||400, remoteId:r.id};
+      // family vem do banco → mesmo saneamento do upload local (senão uma linha
+      // maliciosa injeta HTML nos selects/lista de fontes de quem sincroniza)
+      const _fam=String(r.family).replace(/[^a-zA-Z0-9 _-]/g,'').trim();
+      if(!_fam || have.has(_fam.toLowerCase())) return;
+      const f={name:r.nome||_fam, family:_fam, dataUrl:r.arquivo_url, weight:r.weight||400, remoteId:r.id};
       dCustomFonts.push(f); dFontRegister(f); added=true;
     });
     if(added){
-      try{ localStorage.setItem('yngs_fonts_v1', JSON.stringify(dCustomFonts)); }catch(e){}
+      try{ localStorage.setItem('yngs_fonts_v1', _dFontsJson()); }catch(e){}
       if(typeof dFontsRenderList==='function') dFontsRenderList();
       if(typeof dPopFontSelects==='function') dPopFontSelects();
     }
@@ -103,6 +114,7 @@ function dFontRegister(f){
     ff.load().then(loaded=>{
       document.fonts.add(loaded);
       f._registered=true;
+      f._ff=loaded; // referência p/ desregistrar em dFontRemove
       // re-render pra aplicar a fonte assim que ela carrega
       if(typeof dRenderCanvas==='function') dRenderCanvas();
     }).catch(()=>{ /* arquivo inválido — ignora silenciosamente */ });
@@ -151,6 +163,15 @@ function dFontRemove(i){
   if(!confirm(`Remover a fonte "${f.name}"? Textos que a usam voltam pra Roboto.`)) return;
   if(f.remoteId && typeof dDeleteFontFromBackend==='function') dDeleteFontFromBackend(f.remoteId);
   dCustomFonts.splice(i,1);
+  // Cumpre a promessa do confirm: desregistra do navegador e devolve as camadas
+  // pra Roboto AGORA (antes nada mudava até o reload, e mudava sem aviso)
+  try{ if(f._ff&&document.fonts) document.fonts.delete(f._ff); }catch(e){}
+  const _fv='custom:'+f.family;
+  if(typeof dLayers!=='undefined'&&dLayers.some(l=>l.font===_fv)){
+    if(typeof dHistoryPush==='function') dHistoryPush();
+    dLayers.forEach(l=>{ if(l.font===_fv) l.font="'Roboto Black'"; });
+    if(typeof dMarkUnsaved==='function') dMarkUnsaved();
+  }
   dFontsPersist();
   dFontsRenderList();
   dPopFontSelects();
@@ -167,7 +188,7 @@ function dFontsRenderList(){
   }
   el.innerHTML=dCustomFonts.map((f,i)=>`
     <div class="font-item">
-      <span class="font-preview" style="font-family:'${f.family}','Roboto',sans-serif">Aa</span>
+      <span class="font-preview" style="font-family:'${gEsc(f.family)}','Roboto',sans-serif">Aa</span>
       <span class="font-name" title="${gEsc(f.name)}">${gEsc(f.name)}</span>
       <button class="font-del" onclick="dFontRemove(${i})" title="Remover fonte">×</button>
     </div>`).join('');

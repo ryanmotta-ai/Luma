@@ -66,14 +66,24 @@ async function dEyedropPixel(x, y){
   layers.filter(function(l){return l.visible&&l.type!=='group';}).forEach(function(l){
     if(l.type==='image'||l.type==='frame'){
       if(l._imgCache&&l._imgCache.complete){
-        // ok
+        // ok — imagem pronta no cache
+      }else if(l._imgCache){
+        // cache existe mas AINDA está carregando → espera (antes caía num limbo:
+        // nem promise nem cache pronto, e o 1º clique lia a cor sem a imagem)
+        var pend=l._imgCache;
+        promises.push(new Promise(function(res){
+          pend.addEventListener('load',function(){res();},{once:true});
+          pend.addEventListener('error',function(){res();},{once:true});
+          if(pend.complete) res();
+        }));
       }else if(l.imgUrl){
         var img=new Image();
         img.crossOrigin = 'anonymous';
-        img.src=l.imgUrl;
-        promises.push(new Promise(res => {
-          img.onload = () => { l._imgCache=img; res(); };
-          img.onerror = () => res();
+        l._imgCache=img; // grava JÁ — o onload sozinho perdia a corrida com img.complete
+        promises.push(new Promise(function(res){
+          img.onload = function(){ res(); };
+          img.onerror = function(){ res(); };
+          img.src=l.imgUrl; // src DEPOIS dos handlers (cache síncrono dispara onload imediato)
           if (img.complete) res();
         }));
       }

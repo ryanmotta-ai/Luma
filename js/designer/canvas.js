@@ -114,9 +114,15 @@ function dSetZoom(z, clientX, clientY){
 
   if(wrapper&&refEl){
     const wr=wrapper.getBoundingClientRect();
+    // Tamanho ALVO calculado analiticamente (mesma conta do dApplyFormat): ler
+    // offsetWidth/offsetHeight aqui retorna o valor ANTIGO — a transição CSS de
+    // width/height acabou de começar — e o ponto sob o cursor derivava a cada zoom.
+    const _ab=(typeof dGetActiveAB==='function')?dGetActiveAB():null;
+    const _f=_ab?{w:_ab.w,h:_ab.h}:(DFMT_SIZES[dFmt]||DFMT_SIZES.story);
+    const _tw=Math.round(_f.w*dZoomLevel/100), _th=Math.round(_f.h*dZoomLevel/100);
     wrapper.scrollTo({
-      left:Math.max(0,refEl.offsetLeft+fx*refEl.offsetWidth-(ax-wr.left)),
-      top:Math.max(0,refEl.offsetTop+fy*refEl.offsetHeight-(ay-wr.top)),
+      left:Math.max(0,refEl.offsetLeft+fx*_tw-(ax-wr.left)),
+      top:Math.max(0,refEl.offsetTop+fy*_th-(ay-wr.top)),
       behavior:'smooth'
     });
   }
@@ -268,8 +274,9 @@ const dToolCursors = {
 };
 
 // Cursor circular dinâmico do pincel/borracha — tamanho acompanha #d-brush-size + zoom.
+// Inclui blur/smudge/sharpen: dSetTool delega o cursor deles pra cá (senão fica o cursor stale).
 function dUpdateBrushCursor(){
-  if(dTool!=='brush' && dTool!=='eraser')return;
+  if(!['brush','eraser','blur','smudge','sharpen'].includes(dTool))return;
   const sizeEl=document.getElementById('d-brush-size');
   const size=parseInt((sizeEl&&sizeEl.value)||'8',10);
   const scale=dZoomLevel/100;
@@ -552,13 +559,15 @@ function dEndDrawShape(e) {
   }
   
   const tool = dDrawShapeState.tool;
+  const startX = dDrawShapeState.startX, startY = dDrawShapeState.startY; // capturar ANTES de anular
   dDrawShapeState = null;
   const el=document.getElementById('d-marquee');
   if(el) { el.style.display='none'; el.style.borderStyle=''; el.style.borderColor=''; }
-  
+
   if (w < 10 || h < 10) {
+    // Clique simples (sem arrasto): cria no ponto do clique com tamanho default
     w = null; h = null;
-    left = dDrawShapeState.startX; top = dDrawShapeState.startY;
+    left = startX; top = startY;
   }
   
   if (tool === 'rect') {
@@ -776,6 +785,11 @@ function dRenderCanvas(){
   const f=(typeof dPaintTargetSize==='function')?dPaintTargetSize():(DFMT_SIZES[dFmt]||{w:1080,h:1920});
   const paintOk=existingPaint&&existingPaint.width===f.w&&existingPaint.height===f.h;
   if(paintOk) frame.removeChild(existingPaint);
+  // Sessão de máscara ativa: preserva view/cap (mesmo padrão do paint canvas).
+  // innerHTML='' os destruiria — toolbar ficava órfã e a pintura da máscara morria
+  // em qualquer re-render (undo, clique na lista, fonte async carregando).
+  const _maskEls=(typeof _dMaskState!=='undefined'&&_dMaskState)?[_dMaskState.view,_dMaskState.cap].filter(n=>n&&n.parentNode===frame):[];
+  _maskEls.forEach(n=>frame.removeChild(n));
   frame.innerHTML='';
   // Na simulação, aplica bindings (4.1) e regras (4.2) com os valores simulados — espelha o PNG.
   const _simDefs=dSimActive?gVarDefaults():null;
@@ -786,6 +800,10 @@ function dRenderCanvas(){
     return eff;
   });
   _renderLayers.filter(l=>l.visible && l.type !== 'group').forEach(l=>{
+    // Na simulação, 'l' pode ser um CLONE efetivo (gApplyBindings/gApplyRules retornam
+    // cópia). Handlers que MUTAM estado precisam do original em dLayers — senão a
+    // mudança (drag, foto, cor) é perdida no próximo render. Render usa 'l'; mutação usa 'lReal'.
+    const lReal=dLayers.find(x=>x.id===l.id)||l;
     const el=document.createElement('div');
     el.className='canvas-layer'+(l.id===dSelId?' selected':'')+(l.locked?' layer-locked':'')+(dMultiSel.includes(l.id)?' multi-sel':'');
     el.dataset.id=l.id;
@@ -860,7 +878,8 @@ function dRenderCanvas(){
       if(l.isVar){
         el.style.border='1.5px dashed rgba(255,185,0,0.75)';
         el.style.padding='2px 4px';
-        el.style.position='relative'; // necessário para label absoluto funcionar
+        // el já é position:absolute (contexto de posicionamento para o label abaixo).
+        // NÃO trocar para relative: reinsere no fluxo e desloca outros layers relativos.
         const lbl=document.createElement('div');
         lbl.style.cssText='position:absolute;top:-18px;left:0;font-size:9px;font-weight:800;letter-spacing:.06em;color:#241a00;background:#FFB900;padding:1px 7px;border-radius:4px;font-family:Roboto,sans-serif;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.25);';
         lbl.textContent='◆ '+l.name;
@@ -925,8 +944,11 @@ function dRenderCanvas(){
         el.classList.add('text-overflow');
       }
     }else if(l.type==='frame'){
-      // Moldura de foto — estilo Deskfy com suporte avançado a SVG clip-path
-      el.style.position='relative';
+      // Moldura de foto — estilo Deskfy com suporte avançado a SVG clip-path.
+      // NÃO forçar position:relative: o layer já é absolute (fora do fluxo). Trocar
+      // para relative o reinsere no fluxo normal e empilha com outros layers relativos
+      // (outras molduras / textos-variável), deslocando tudo. Absolute já é contexto de
+      // posicionamento para os decorativos (+FOTO, X, label) abaixo.
       el.style.overflow='visible';
       
       const kind = l.shapeKind || l.frameShape || 'rect';
@@ -989,7 +1011,7 @@ function dRenderCanvas(){
         inp.onchange=ev=>{
           const file=ev.target.files[0];if(!file)return;
           const r=new FileReader();
-          r.onload=re=>{l.imgUrl=re.result;dRenderCanvas();dMarkUnsaved();gToast('✓ Foto aplicada na moldura!');};
+          r.onload=re=>{lReal.imgUrl=re.result;dRenderCanvas();dMarkUnsaved();gToast('✓ Foto aplicada na moldura!');};
           r.readAsDataURL(file);
         };
         inp.click();
@@ -1001,7 +1023,7 @@ function dRenderCanvas(){
         clrBtn.style.cssText='position:absolute;top:-10px;left:-10px;background:#C81818;border:2px solid #1A1A1A;color:#fff;font-size:10px;font-weight:700;width:22px;height:22px;border-radius:50%;cursor:pointer;z-index:10;display:flex;align-items:center;justify-content:center;';
         clrBtn.textContent='×';
         clrBtn.addEventListener('mousedown',e=>e.stopPropagation());
-        clrBtn.addEventListener('click',e=>{e.stopPropagation();l.imgUrl='';dRenderCanvas();dMarkUnsaved();});
+        clrBtn.addEventListener('click',e=>{e.stopPropagation();lReal.imgUrl='';dRenderCanvas();dMarkUnsaved();});
         el.appendChild(clrBtn);
       }
       // Label do nome da moldura (fora do clip, abaixo)
@@ -1026,7 +1048,7 @@ function dRenderCanvas(){
       ['br','bl','tr','tl'].forEach(pos=>{
         const h=document.createElement('div');h.className='layer-handle handle-'+pos;
         if(l.locked){h.style.opacity='0.3';h.style.cursor='not-allowed';h.addEventListener('mousedown',e=>{e.stopPropagation();gToast('🔒 Camada bloqueada');});}
-        else h.addEventListener('mousedown',e=>{e.stopPropagation();dStartResize(e,l,pos);});
+        else h.addEventListener('mousedown',e=>{e.stopPropagation();dStartResize(e,lReal,pos);});
         el.appendChild(h);
       });
     }
@@ -1035,8 +1057,8 @@ function dRenderCanvas(){
       e.stopPropagation();
       if(dTool==='obj-select'){const _oFr=document.getElementById('d-canvas-frame');if(_oFr&&typeof dObjSelectStart==='function')dObjSelectStart(e,_oFr);return;}
       if(dTool==='quick-select'||dTool==='magic-wand'){_dAdvSelFromEvent(e);return;}
-      if(dTool==='eyedrop'){dEyedropFromLayer(l);return;}
-      if(dTool==='bucket'){dBucketFillLayer(l);return;}
+      if(dTool==='eyedrop'){dEyedropFromLayer(lReal);return;}
+      if(dTool==='bucket'){dBucketFillLayer(lReal);return;}
       if(dTool==='var-data'){ // Vincular campo: clicou no elemento → abre o seletor ancorado nele
         if(typeof dLayerIsBindable==='function' && !dLayerIsBindable(l)){ gToast('Essa camada não recebe Dado (só texto/imagem)'); return; }
         const _rect=el.getBoundingClientRect();           // captura ANTES do re-render (el fica órfão depois)
@@ -1065,10 +1087,10 @@ function dRenderCanvas(){
         
         if(!l.locked){
           dPendingIsolate = (_inMulti && dMultiSel.length>1) ? l.id : null;
-          dStartDrag(e,l);
+          dStartDrag(e,lReal);
         } else gToast('🔒 Camada bloqueada. Clique no 🔓 para desbloquear.');
       }
-      else if(dTool==='stamp'&&dStampSource){dDoStamp(l);}
+      else if(dTool==='stamp'&&dStampSource){dDoStamp(lReal);}
     });
     // Botão direito → menu de contexto da camada (vincular dado, converter forma⇄moldura, etc.)
     el.addEventListener('contextmenu',e=>{ if(typeof dLayerContextMenu==='function') dLayerContextMenu(e,l.id); });
@@ -1076,8 +1098,7 @@ function dRenderCanvas(){
     if(l.type==='text'){
       el.addEventListener('dblclick',e=>{
         e.stopPropagation();
-        const real=dLayers.find(x=>x.id===l.id)||l; // na simulação 'l' pode ser clone (bindings/rules) → edita o original
-        dStartInlineEdit(real,el);
+        dStartInlineEdit(lReal,el); // lReal: na simulação 'l' pode ser clone (bindings/rules)
       });
     }
     frame.appendChild(el);
@@ -1086,6 +1107,7 @@ function dRenderCanvas(){
   // (pixels intactos, sem nenhuma serialização). Senão, criar via dEnsurePaintCanvas.
   if(paintOk) frame.appendChild(existingPaint);
   else dEnsurePaintCanvas();
+  _maskEls.forEach(n=>frame.appendChild(n)); // devolve a sessão de máscara por cima
   dSyncPaintPointer();
   dAttachMarquee(); // garante o listener de marquee no frame (guarda interna evita duplicar)
   if(typeof dABAddResizeHandles==='function') dABAddResizeHandles();

@@ -402,6 +402,11 @@ function dBlendPixel(mode, base, blend) {
         br = [fn(cs[0], cb[0]), fn(cs[1], cb[1]), fn(cs[2], cb[2])];
     }
 
+    // Spec Adobe/W3C: contribuição da fonte = (1−ab)·Cs + ab·B(Cb,Cs).
+    // Sem o termo (1−ab)·Cs, backdrop semi-transparente saía escuro/errado
+    // vs Photoshop e vs mix-blend-mode nativo. Com ab=1 é no-op.
+    br = [cs[0] + ab * (br[0] - cs[0]), cs[1] + ab * (br[1] - cs[1]), cs[2] + ab * (br[2] - cs[2])];
+
     // Porter-Duff source-over
     var ao = as + ab * (1 - as);
     if (ao === 0) return [0, 0, 0, 0];
@@ -498,6 +503,10 @@ function dBlendImageData(mode, topData, botData) {
         var aB = bD[i + 3] / 255;
 
         if (aT === 0) continue;
+        // Backdrop 100% transparente: resultado = pixel da camada (como no Photoshop).
+        // Sem este fast-path, o RGB indefinido do fundo (0,0,0) entrava na fórmula e
+        // multiply/darken pintavam franjas pretas sobre áreas transparentes.
+        if (aB === 0) { bD[i]=tD[i]; bD[i+1]=tD[i+1]; bD[i+2]=tD[i+2]; bD[i+3]=tD[i+3]; continue; }
 
         var rR, gR, bR;
 
@@ -535,6 +544,11 @@ function dBlendImageData(mode, topData, botData) {
             gR = useFn(tGn, bGn) * 255;
             bR = useFn(tBn, bBn) * 255;
         }
+
+        // Termo (1−aB)·Cs da spec (ver dBlendPixel) — no-op com backdrop opaco
+        rR = tD[i]     + aB * (rR - tD[i]);
+        gR = tD[i + 1] + aB * (gR - tD[i + 1]);
+        bR = tD[i + 2] + aB * (bR - tD[i + 2]);
 
         // Porter-Duff source-over
         var aOut = aT + aB * (1 - aT);

@@ -114,15 +114,16 @@ function dAutoFitText(layerId){
   const originalSize = l.fontSize||24;
   let size = originalSize;
   const min = 8;
+  const _lh = l.lineHeight||1.2; // mesmo leading do render/overflow — sem ele o fit convergia errado
   while(size > min){
-    const m = dMeasureText(l.content||'', l.font||"'Roboto Black'", size, l.w);
+    const m = dMeasureText(l.content||'', l.font||"'Roboto Black'", size, l.w, _lh);
     if(m.height <= l.h)break;
     size--;
   }
   if(size === originalSize){
     // Tentar aumentar até quase encostar
     while(size < 200){
-      const m = dMeasureText(l.content||'', l.font||"'Roboto Black'", size+1, l.w);
+      const m = dMeasureText(l.content||'', l.font||"'Roboto Black'", size+1, l.w, _lh);
       if(m.height > l.h)break;
       size++;
     }
@@ -218,7 +219,9 @@ function dResetColors() {
 function dBucketFillLayer(targetLayer){
   if(targetLayer.locked){gToast('🔒 Camada bloqueada');return;}
   const _pk=document.getElementById('d-brush-color-pick'); // guard: pode não existir
-  const color = dEyedropLastColor || (_pk && _pk.value) || '#FF9000';
+  // Cor ATUAL do seletor primeiro — dEyedropLastColor é sempre truthy (nasce laranja),
+  // então na ordem antiga a cor escolhida no picker nunca era usada pelo balde.
+  const color = (_pk && _pk.value) || dEyedropLastColor || '#FF9000';
   if(targetLayer.type!=='text' && targetLayer.type!=='shape'){ gToast('⚠ Balde preenche a cor de texto/forma — clique num desses'); return; }
   dHistoryPush();
   if(targetLayer.type==='text')targetLayer.color=color;

@@ -17,6 +17,16 @@ let dVars=[],dAssets=[],dLyrCnt=100,dActiveTab='campaigns';
 let dFolders=[],dActiveTmplId=null,dFolderOpen={};
 let dArtboards=[],dActiveABId=null,dUseArtboards=true;
 
+// Garante que o contador de ids nunca fique atrás dos ids 'l-N' já existentes
+// (layers restaurados do localStorage / carregados de template) — senão ++dLyrCnt
+// gera id duplicado e find(x=>x.id===…) passa a acertar sempre a primeira camada.
+function dSyncLyrCnt(layers){
+  (layers||[]).forEach(l=>{
+    const m=/^l-(\d+)$/.exec(l&&l.id||'');
+    if(m) dLyrCnt=Math.max(dLyrCnt, parseInt(m[1],10));
+  });
+}
+
 function dDefaultFolders(){
   const camps=[...CAMPS_ATIVAS,...CAMPS_OUTRAS];
   // Pastas das campanhas começam VAZIAS — o designer cria os materiais de cada uma.
@@ -426,6 +436,7 @@ function dInit(){
       }
     }catch(e){}
   }
+  dSyncLyrCnt(dLayers); // sem isso, dLyrCnt=100 recria ids 'l-101'… que já existem nos layers restaurados
   let _initF=DFMT_SIZES[dFmt]||DFMT_SIZES.story;
   // Tamanho custom (PSD 1:1, fmt sem preset) salvo em yngs_wh_v1 → restaura as dimensões reais.
   if(!DFMT_SIZES[dFmt]){
@@ -687,6 +698,7 @@ async function dLoadTemplate(tmpl,folder){
   if(folder)dActiveTmplFolderId=folder.id; // destaca a pasta da arte ativa na grade
   else dActiveTmplFolderId=null;
   dFmt=tmpl.fmt;
+  dSyncLyrCnt(tmpl.layers); // ids 'l-N' do template não podem colidir com os próximos ++dLyrCnt
   // Carrega no artboard ativo (substitui layers e formato).
   // Template 1:1 do PSD guarda w/h reais (fmt 'orig' não tem DFMT_SIZES) → usa o tamanho real.
   const f=DFMT_SIZES[tmpl.fmt]||DFMT_SIZES.story;
@@ -1203,7 +1215,7 @@ function _dSvgParseTransform(transformStr) {
         m = [
           cos, sin, -sin, cos,
           -cx * cos + cy * sin + cx,
-          -cx * sin - cos * cos + cy
+          -cx * sin - cy * cos + cy
         ];
       } else {
         m = [cos, sin, -sin, cos, 0, 0];
@@ -1361,8 +1373,11 @@ function dSvgHandleFile(svgText, fileName){
       docW=parseFloat(p[2]); docH=parseFloat(p[3]);
     }
     if(!docW||!docH){
-      docW=parseFloat(svgEl.getAttribute('width'))||1080;
-      docH=parseFloat(svgEl.getAttribute('height'))||1920;
+      // width/height percentuais ("100%") não são dimensões: parseFloat('100%')→100
+      // encolheria o documento — ignora e usa o fallback.
+      const _wA=svgEl.getAttribute('width')||'', _hA=svgEl.getAttribute('height')||'';
+      docW=(_wA.indexOf('%')<0?parseFloat(_wA):0)||1080;
+      docH=(_hA.indexOf('%')<0?parseFloat(_hA):0)||1920;
     }
 
     const elements=dSvgExtractElements(svgEl, docW, docH, cssStyles);
@@ -1381,8 +1396,11 @@ function dSvgExtractElements(svgEl, docW, docH, cssStyles){
   // Determinar matriz de transformação inicial para o viewBox (corrige deslocamento de origem)
   let viewBoxMatrix = [1, 0, 0, 1, 0, 0];
   const vbAttr = svgEl.getAttribute('viewBox');
-  const vpW = parseFloat(svgEl.getAttribute('width')) || docW;
-  const vpH = parseFloat(svgEl.getAttribute('height')) || docH;
+  // width/height percentuais ("100%") → viewport = viewBox (senão parseFloat('100%')=100
+  // criaria escala 100/1080 e as camadas sairiam ~10× menores).
+  const _vwA = svgEl.getAttribute('width')||'', _vhA = svgEl.getAttribute('height')||'';
+  const vpW = (_vwA.indexOf('%')<0 ? parseFloat(_vwA) : 0) || docW;
+  const vpH = (_vhA.indexOf('%')<0 ? parseFloat(_vhA) : 0) || docH;
   if (vbAttr) {
     const p = vbAttr.trim().split(/[\s,]+/);
     if (p.length === 4) {

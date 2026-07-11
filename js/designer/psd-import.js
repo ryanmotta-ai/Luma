@@ -833,15 +833,19 @@ function dPsdParseItems(psd, res, ox, oy){
   out.forEach(it=>{ if(it.kind==='text'&&it.content){ const k=it.name+'|'+it.content; _soft[k]=(_soft[k]||0)+1; } });
   Object.keys(_soft).forEach(k=>{ if(_soft[k]>1) console.warn('[psd] possível layer de texto duplicada mantida (nome+conteúdo iguais, caixas diferentes):', k.split('|')[0]); });
 
-  // Resolve clipping masks garantindo a base correta
+  // Resolve clipping masks garantindo a base correta. Atribuição CONDICIONAL:
+  // sobrescrever com null apagava a máscara VETORIAL já gravada no walk
+  // (vectorMask rasterizada) — camadas com recorte vetorial importavam cheias.
   for(let i=0; i<out.length; i++){
+    let _m=null;
     if(out[i].clippingLayer){
       let baseIdx = i + 1;
       while(baseIdx < out.length && out[baseIdx].clippingLayer) baseIdx++;
-      if(baseIdx < out.length) out[i].mask = _dPsdComputeMask(out[i]._psdNode, out[baseIdx]._psdNode);
+      if(baseIdx < out.length) _m = _dPsdComputeMask(out[i]._psdNode, out[baseIdx]._psdNode);
     } else {
-      out[i].mask = _dPsdComputeMask(out[i]._psdNode, null);
+      _m = _dPsdComputeMask(out[i]._psdNode, null);
     }
+    if(_m) out[i].mask = _m;
     delete out[i]._psdNode;
   }
 

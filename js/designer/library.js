@@ -187,7 +187,9 @@ function dLibUse(id) {
   if (!a) return;
   const l = dLayers.find(x => x.id === dSelId && (x.type === 'image' || x.type === 'frame'));
   if (!l) { gToast('Selecione uma camada de imagem ou moldura primeiro'); return; }
+  if (typeof dHistoryPush === 'function') dHistoryPush(); // trocar a imagem é desfazível
   l.imgUrl = a.url;
+  if (typeof dMarkUnsaved === 'function') dMarkUnsaved();
   dRenderCanvas();
   const urlInp = document.getElementById('dp-imgurl');
   if (urlInp) urlInp.value = '[' + a.name + ']';
@@ -342,8 +344,11 @@ function dEndInlineEdit(e,cancel){
   // da camada-alvo, remove o layer temporário e sai. (Consolidado da versão antiga de canvas.js.)
   if(dInlineLayer.isTempMaskText){
     const l=dInlineLayer, val=dInlineEl.value;
+    // Textarea removido por re-render assíncrono (ex.: fonte carregou) → valor stale;
+    // trata como cancel — o ramo normal já faz esse guard, este não fazia.
+    const _staleMask=dInlineEl.isConnected===false;
     const target=(typeof dLayers!=='undefined')?dLayers.find(x=>x.id===l.targetMaskLayerId):null;
-    if(!cancel && target && val.trim()!=='' && target.w>0 && target.h>0){
+    if(!cancel && !_staleMask && target && val.trim()!=='' && target.w>0 && target.h>0){
       try{
         const mC=document.createElement('canvas'); mC.width=target.w; mC.height=target.h;
         const mx=mC.getContext('2d'); mx.clearRect(0,0,mC.width,mC.height);

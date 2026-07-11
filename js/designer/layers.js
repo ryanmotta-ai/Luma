@@ -93,11 +93,11 @@ function dOnDrag(e){
   if(snap.guides.length)dShowGuides(snap.guides);else dClearGuides();
   const el=dDragEls[dDrag.id];
   if(el){el.style.left=dDrag.x+'px';el.style.top=dDrag.y+'px';}
-  // Mover siblings do grupo
+  // Mover siblings do grupo (lockPosition também trava aqui, não só na camada agarrada)
   if(dDragGroupStart&&dDragGroupStart.length){
     dDragGroupStart.forEach(s=>{
       const sl=dLayers.find(x=>x.id===s.id);
-      if(!sl||sl.locked)return;
+      if(!sl||sl.locked||sl.lockPosition)return;
       sl.x=s.x+dx;sl.y=s.y+dy;
       const sEl=dDragEls[s.id];
       if(sEl){sEl.style.left=sl.x+'px';sEl.style.top=sl.y+'px';}
@@ -106,7 +106,7 @@ function dOnDrag(e){
   // Mover multi-sel
   if(dDragMulti&&dDragMulti.length){
     dDragMulti.forEach(s=>{
-      if(!s.layer||s.layer.locked)return;
+      if(!s.layer||s.layer.locked||s.layer.lockPosition)return;
       s.layer.x=s.x+dx;s.layer.y=s.y+dy;
       const mEl=dDragEls[s.id];
       if(mEl){mEl.style.left=s.layer.x+'px';mEl.style.top=s.layer.y+'px';}
@@ -1552,7 +1552,13 @@ function dSetCorner(which,val){
 }
 function dUpdateProp(prop,val){
   const l=dLayers.find(x=>x.id===dSelId);if(!l)return;
-  if(['x','y','w','h','fontSize','opacity','fillOpacity','radius','sides','points','strokeW','shadowBlur','shadowDist','shadowAngle','innerShadowBlur','innerShadowDist','innerShadowAngle','glowSize'].includes(prop))val=parseFloat(val)||0;
+  if(['x','y','w','h','fontSize','opacity','fillOpacity','radius','sides','points','strokeW','shadowBlur','shadowDist','shadowAngle','innerShadowBlur','innerShadowDist','innerShadowAngle','glowSize'].includes(prop)){
+    // oninput dispara a cada tecla: campo momentaneamente vazio NÃO pode virar 0
+    // (w=0/fontSize=0 fazia a camada sumir na hora e o 0 persistia no histórico)
+    const _n=parseFloat(val);
+    if(isNaN(_n)) return;
+    val=_n;
+  }
   // Props editadas via oninput contínuo usam debounce — evita serializar dLayers a cada tecla.
   // Props de seleção discreta (font, textAlign, frameShape, etc.) usam push imediato.
   const _continuousProps=['fontSize','opacity','fillOpacity','radius','color','fill','content','sides','points','strokeW','strokeColor','shadowColor','bgColor','imgScale','imgOffsetX','imgOffsetY','shadowBlur','shadowDist','shadowAngle','innerShadowColor','innerShadowBlur','innerShadowDist','innerShadowAngle','glowColor','glowSize','overlayColor','overlayOpacity'];
@@ -1783,13 +1789,17 @@ function dFieldsEnsureMeta(){
   return changed;
 }
 
-// Layers que usam a variável (token {{name}} no content OU imgVar). (V3)
+// Layers que usam a variável: token {{name}} no content, imgVar, bindings ou regras. (V3)
+// Sem bindings/rules na conta, "Remover" excluía sem aviso um campo que ainda
+// controlava visibilidade/cor de camadas.
 function dVarUsage(name){
   const ids=[];
   dLayers.forEach(l=>{
     let used=false;
     if(l.content){const re=gVarRegex();let m;while((m=re.exec(l.content))){if(m[1]===name){used=true;break;}}}
     if(l.imgVar===name)used=true;
+    if(!used&&l.bindings&&Object.values(l.bindings).includes(name))used=true;
+    if(!used&&Array.isArray(l.rules)&&l.rules.some(r=>r&&r.var===name))used=true;
     if(used)ids.push(l.id);
   });
   return ids;
@@ -1868,7 +1878,7 @@ function dFieldCardHTML(v,i){
     const dupNote=dupOf?`<div class="field-dup-note">${_D_FIELD_WARN}<span>Possível duplicata de <b>“${_dEsc(dupOf)}”</b> — considere excluir este campo ou usar o outro.</span></div>`:'';
     const exLine=exVal?`<div class="field-det-ex">Ex.: <b>${_dEsc(exVal)}</b></div>`:'';
     const usoBlock=used
-      ?`<div class="field-det-lbl">Usada em</div><div class="field-det-chips">${usage.map(u=>`<button class="field-uchip" onclick="event.stopPropagation();dFieldFlashLayer(${u.id})" title="Destacar no canvas">${_dEsc(u.name)}</button>`).join('')}</div>`
+      ?`<div class="field-det-lbl">Usada em</div><div class="field-det-chips">${usage.map(u=>`<button class="field-uchip" onclick="event.stopPropagation();dFieldFlashLayer('${u.id}')" title="Destacar no canvas">${_dEsc(u.name)}</button>`).join('')}</div>`
       :`<div class="field-det-free">Ainda não aparece em nenhuma camada deste template.</div>`;
     const insLbl=(v.type==='image')?'＋ Usar em moldura':'＋ Inserir no texto';
     det=`<div class="field-det">
@@ -2251,11 +2261,14 @@ function dRenameVar(i){
   if(!gValidVarName(novo)){gToast('⚠ Nome inválido — use só letras, números e _');return;}
   if(dVars.some(x=>x.name.toLowerCase()===novo.toLowerCase())){gToast('⚠ Já existe uma variável com esse nome');return;}
   const old=v.name;
-  // find/replace nos layers (tokens {{old}} → {{novo}} e imgVar)
+  // find/replace nos layers (tokens {{old}} → {{novo}}, imgVar, bindings e regras —
+  // sem bindings/rules, renomear deixava vínculos apontando pra um nome morto)
   const reTok=new RegExp('\\{\\{\\s*'+old.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*\\}\\}','g');
   dLayers.forEach(l=>{
     if(l.content)l.content=l.content.replace(reTok,'{{'+novo+'}}');
     if(l.imgVar===old)l.imgVar=novo;
+    if(l.bindings)Object.keys(l.bindings).forEach(k=>{if(l.bindings[k]===old)l.bindings[k]=novo;});
+    if(Array.isArray(l.rules))l.rules.forEach(r=>{if(r&&r.var===old)r.var=novo;});
   });
   v.name=novo;
   dVarsRender();dRenderCanvas();dMarkUnsaved();dPersistVars();
@@ -2377,10 +2390,13 @@ function dVarTypePopover(name, anchorEl){
 
 /* ── ASSETS ── */
 function dAssetsRender(){
+  // nome/url vêm do usuário (e do sync) → escape obrigatório; url restrita a
+  // protocolos de imagem seguros (nada de javascript: em src)
+  const _safeUrl=u=>(typeof u==='string'&&/^(data:image\/|blob:|https?:\/\/|assets\/)/i.test(u))?u:'';
   document.getElementById('d-assets-grid').innerHTML=dAssets.map((a,i)=>`
-    <div class="asset-thumb" onclick="dUseAsset(${i})" title="${a.name}">
-      ${a.url?`<img src="${a.url}" alt="${a.name}">`:`<span style="font-size:26px">${a.emoji}</span>`}
-      <span class="asset-name">${a.name}</span>
+    <div class="asset-thumb" onclick="dUseAsset(${i})" title="${_dEsc(a.name||'')}">
+      ${_safeUrl(a.url)?`<img src="${_dEsc(_safeUrl(a.url))}" alt="${_dEsc(a.name||'')}">`:`<span style="font-size:26px">${_dEsc(a.emoji||'')}</span>`}
+      <span class="asset-name">${_dEsc(a.name||'')}</span>
     </div>`).join('');
 }
 function dHandleUpload(inp){ dLibUpload(inp); }
@@ -2736,6 +2752,10 @@ function dGroupSelected(){
     groupLayer,
     ...otherLayersAfter
   ];
+
+  // Grupos antigos cujos filhos migraram pro grupo novo ficam vazios → remove
+  // (senão o "Grupo N" órfão sobrevive na lista e no save)
+  dLayers = dLayers.filter(g => g.type!=='group' || g.id===groupId || dLayers.some(c=>c.parentId===g.id));
 
   gToast('✓ '+childIds.length+' camadas agrupadas');
   dSelId = groupId;
