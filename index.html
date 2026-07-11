@@ -1969,37 +1969,173 @@ input:focus:-webkit-autofill {
   </div>
 </div>
 
-<!-- 4.3 — Geração em lote (CSV) -->
+<!-- Prévia flutuante ao passar o mouse na linha da tabela -->
+<div id="f-bulk-hover-preview" style="display:none;position:absolute;z-index:10000;pointer-events:none;background:var(--white,#FFFFFF);border:1px solid var(--gray-mid,#D4D4D4);border-radius:8px;box-shadow:0 12px 28px rgba(0,0,0,.14);padding:8px;width:180px">
+  <canvas id="f-bulk-hover-preview-canvas" style="width:100%;height:auto;border-radius:4px;display:block;border:1px solid var(--gray-light,#F2F2F2)"></canvas>
+</div>
+
+<!-- 4.3 — Luma Sheets: geração em lote -->
 <div class="modal-overlay" id="f-bulk-modal">
-  <div class="modal" style="max-width:680px;width:92vw">
-    <div class="modal-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:6px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Gerar vários (CSV)</div>
-    <p style="font-size:12px;color:var(--d-text3,#888);line-height:1.5;margin:0 0 12px">Baixe o modelo, preencha 1 linha por produto (colunas = variables) e reenvie. Imagens só por URL pública.</p>
-    <div class="f-bulk-toolbar">
-      <button class="d-btn-sec" onclick="fBulkTemplateCSV()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>Baixar modelo CSV</button>
-      <label class="d-btn-sec" style="cursor:pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Enviar CSV
-        <input type="file" id="f-bulk-file" accept=".csv,text/csv" style="display:none" onchange="fBulkHandleCSV(this)">
-      </label>
-      <span id="f-bulk-status" style="font-size:12px;color:var(--d-text3,#888);margin-left:auto"></span>
-    </div>
-    <div class="f-ai-prompt-block" id="f-ai-prompt-block">
-      <button class="f-ai-prompt-toggle" onclick="fToggleAIPrompt()" aria-expanded="false" aria-controls="f-ai-prompt-body">
-        <span class="f-ai-prompt-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M3 12h3M18 12h3M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12"/></svg></span>
-        <span>Gerar a planilha com IA</span>
-        <span class="f-ai-prompt-chevron">›</span>
+  <div class="modal f-bulk-modal-box" style="max-width:1120px;width:96vw;max-height:92vh;display:flex;flex-direction:column;padding:20px;border-radius:12px;overflow:hidden;position:relative">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:4px">
+      <div class="modal-title" style="display:flex;align-items:center;gap:8px;margin:0"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Luma Sheets <span class="f-bulk-title-tag">Geração em lote</span></div>
+      <button type="button" class="f-bulk-faq-btn" onclick="fBulkToggleFaq()" title="Dúvidas frequentes">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Dúvidas frequentes
       </button>
-      <div class="f-ai-prompt-body" id="f-ai-prompt-body" style="display:none">
-        <p class="f-ai-prompt-desc">Cole esse prompt no ChatGPT, mande as fotos dos seus produtos e importe o CSV gerado aqui.</p>
-        <div class="f-ai-prompt-box"><pre id="f-ai-prompt-text" class="f-ai-prompt-pre"></pre></div>
-        <div class="f-ai-prompt-actions">
-          <button class="f-ai-prompt-copy" onclick="fCopyAIPrompt()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>Copiar prompt</button>
-          <a class="f-ai-prompt-open" href="https://chat.openai.com" target="_blank" rel="noopener">Abrir ChatGPT →</a>
+    </div>
+    <p style="font-size:12px;color:var(--text-3,#6B6B6B);line-height:1.5;margin:0 0 16px">Preencha a planilha integrada abaixo, cole do Excel ou suba um CSV para gerar dezenas de artes ao mesmo tempo.</p>
+
+    <!-- Duas colunas: controles à esquerda, planilha à direita -->
+    <div style="display:flex;gap:20px;flex:1;min-height:0;overflow:hidden;margin-bottom:12px">
+
+      <!-- Coluna esquerda: assistente + formatos -->
+      <div style="width:380px;flex-shrink:0;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding-right:12px;border-right:1px solid var(--gray-mid,#E2E2E2)">
+
+        <!-- Assistente de IA + exemplos -->
+        <div class="f-ai-prompt-block f-bulk-sec f-bulk-sec--ai" id="f-ai-prompt-block" style="margin-bottom:0">
+          <div style="font-size:12px;color:var(--text-2);margin-bottom:6px;display:flex;align-items:center;gap:5px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+            <strong>Assistente de Preenchimento por IA</strong>
+          </div>
+          <textarea id="f-bulk-ai-raw-text" placeholder="Escreva ou dite suas ofertas… Ex: 'Hambúrguer clássico por R$ 25 hoje. Amanhã pizza de calabresa de 50 por 39.'" style="width:100%;height:60px;font-size:11px;padding:8px;border:1px solid var(--gray-mid);border-radius:6px;background:var(--white);color:var(--text);resize:none;margin-bottom:6px"></textarea>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="d-btn-pri" style="font-size:11px;padding:6px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:5px" onclick="fBulkFillWithAI()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v4M3 5h4M6 17v4M4 19h4M13 3l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5z"/></svg>Preencher Tabela</button>
+            <button class="d-btn-sec" id="f-bulk-mic-btn" onclick="fStartSpeech(event, 'f-bulk-ai-raw-text')" style="padding:0;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0" title="Ditar ofertas (voz)">
+              <svg class="mic-svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+            </button>
+            <button class="d-btn-sec" style="font-size:11px;padding:6px 12px;margin-left:auto;cursor:pointer" onclick="fToggleAIPrompt()">Ver prompt</button>
+          </div>
+
+          <!-- Exemplos por tipo (DEMONSTRAÇÃO — não lê o cardápio real) -->
+          <div style="margin-top:12px;padding:10px 12px;border-radius:8px;background:rgba(124,110,255,.06);border:1px dashed rgba(124,110,255,.35)">
+            <div style="font-size:12px;color:var(--text-2);margin-bottom:2px;display:flex;align-items:center;gap:5px">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#7C6EFF"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              <strong>Começar com exemplos prontos</strong>
+              <span style="font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#7C6EFF;border:1px solid #7C6EFF;border-radius:999px;padding:1px 6px">Demonstração</span>
+            </div>
+            <div style="font-size:10.5px;color:var(--text-3,#6B6B6B);line-height:1.4;margin-bottom:6px">Gera uma planilha de <strong>exemplo</strong> conforme o tipo (pizza, sushi, burger…). <strong>Não lê o cardápio real</strong> — é só um ponto de partida pra você editar.</div>
+            <div style="display:flex;gap:8px">
+              <input type="text" id="f-bulk-import-url" placeholder="Ex.: pizza, sushi, burger… (ou cole um link)" style="flex:1;font-size:11px;padding:6px 8px;border:1px solid var(--gray-mid);border-radius:6px;background:var(--white);color:var(--text);outline:none">
+              <button class="d-btn-pri" style="font-size:11px;padding:6px 12px;cursor:pointer;font-weight:600;white-space:nowrap" onclick="fBulkImportFromLink()">Gerar exemplos</button>
+            </div>
+          </div>
+
+          <div class="f-ai-prompt-body" id="f-ai-prompt-body" style="display:none;margin-top:10px;border-top:1px dashed var(--gray-mid);padding-top:10px">
+            <p class="f-ai-prompt-desc" style="font-size:10px;color:var(--text-3)">Se preferir usar o ChatGPT externo:</p>
+            <div class="f-ai-prompt-box"><pre id="f-ai-prompt-text" class="f-ai-prompt-pre" style="font-size:9px;color:var(--text);white-space:pre-wrap;word-break:break-all"></pre></div>
+            <div class="f-ai-prompt-actions" style="margin-top:4px">
+              <button class="f-ai-prompt-copy" onclick="fCopyAIPrompt()" style="font-size:10px;padding:4px 8px;cursor:pointer">Copiar prompt</button>
+              <a class="f-ai-prompt-open" href="https://chat.openai.com" target="_blank" rel="noopener" style="font-size:10px;color:var(--text)">Abrir ChatGPT →</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mapeamento de CSV (aparece só quando as colunas não batem) -->
+        <div id="f-bulk-mapper-wrap" class="f-bulk-sec f-bulk-sec--demo" style="display:none">
+          <div style="font-size:12px;font-weight:bold;margin-bottom:8px">Mapear Colunas do CSV</div>
+          <p style="font-size:11px;color:var(--text-2);margin-bottom:12px">Escolha qual coluna corresponde a cada variável da arte:</p>
+          <div id="f-bulk-mapper-fields" style="display:flex;flex-direction:column;gap:8px"></div>
+          <div style="margin-top:12px;display:flex;gap:8px">
+            <button class="d-btn-pri" style="font-size:11px;cursor:pointer" onclick="fBulkConfirmMapping()">Confirmar</button>
+            <button class="d-btn-sec" style="font-size:11px;cursor:pointer" onclick="fBulkCancelMapping()">Cancelar</button>
+          </div>
+        </div>
+
+        <!-- Formatos para exportar -->
+        <div id="f-bulk-fmts-wrap" class="f-bulk-sec f-bulk-sec--fmt">
+          <div style="font-size:12px;color:var(--text-2);margin-bottom:8px;font-weight:bold;display:flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>Formatos para Exportar:</div>
+          <div id="f-bulk-fmts-list" style="display:flex;gap:8px;flex-wrap:wrap"></div>
         </div>
       </div>
+
+      <!-- Coluna direita: toolbar + planilha -->
+      <div style="flex:1;min-width:0;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding-left:4px">
+
+        <!-- Toolbar (agrupada por função) -->
+        <div class="f-bulk-toolbar" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <span class="f-bulk-tbar-label">Dados</span>
+          <button class="d-btn-sec" onclick="fBulkTemplateCSV()" title="Baixar um CSV de exemplo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>CSV Modelo</button>
+          <label class="d-btn-sec" style="cursor:pointer;margin:0" title="Subir um arquivo CSV"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Subir CSV
+            <input type="file" id="f-bulk-file" accept=".csv,text/csv" style="display:none" onchange="fBulkHandleCSV(this)">
+          </label>
+          <button class="d-btn-sec" onclick="fBulkTogglePaste()" title="Colar dados do Excel/Planilhas"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>Colar do Excel</button>
+
+          <span class="f-bulk-tbar-div"></span>
+          <span class="f-bulk-tbar-label">Visão</span>
+          <button class="d-btn-sec" onclick="fBulkToggleTableView()" title="Alternar entre tabela e cartões"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>Tabela / Cartões</button>
+
+          <span class="f-bulk-tbar-div"></span>
+          <span class="f-bulk-tbar-label">Modelos</span>
+          <button class="d-btn-sec" onclick="fBulkSaveTemplate()" title="Salvar a planilha atual como modelo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Salvar</button>
+          <div id="f-bulk-saved-wrap" style="display:none;align-items:center;gap:4px">
+            <select id="f-bulk-saved-select" onchange="fBulkLoadTemplate()" style="font-size:11px;padding:5px;border:1px solid var(--gray-mid,#D4D4D4);border-radius:4px;background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);outline:none;cursor:pointer"></select>
+            <button class="d-btn-sec" onclick="fBulkDeleteTemplate()" style="padding:4px 7px;color:var(--dm-red,#C81818);cursor:pointer;display:inline-flex;align-items:center" title="Excluir modelo"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+          </div>
+
+          <!-- Ferramentas + busca (empurrados à direita) -->
+          <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <button class="d-btn-sec" onclick="fBulkRemoveDuplicates()" title="Remover linhas duplicadas" style="display:inline-flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplicados</button>
+            <select id="f-bulk-sort-select" onchange="fBulkSortTable(this.value)" style="font-size:11px;padding:6px;border:1px solid var(--gray-mid,#D4D4D4);border-radius:4px;background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);outline:none;cursor:pointer">
+              <option value="">Ordenar…</option>
+              <option value="name">Nome (A-Z)</option>
+              <option value="price">Preço</option>
+            </select>
+            <label style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--text-2,#3A3A3A)" title="Formato das legendas no arquivo de copy do ZIP">Copy:
+              <select id="f-bulk-copy-format" style="font-size:11px;padding:6px;border:1px solid var(--gray-mid,#D4D4D4);border-radius:4px;background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);outline:none;cursor:pointer">
+                <option value="feed">Feed</option>
+                <option value="stories">Stories</option>
+              </select>
+            </label>
+            <label style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--text-2,#3A3A3A)" title="Sua Cidade ou Região para hashtags locais">Cidade:
+              <input type="text" id="f-bulk-city" placeholder="Ex: Passo Fundo" style="font-size:11px;padding:6px;border:1px solid var(--gray-mid,#D4D4D4);border-radius:4px;background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);width:100px;outline:none" oninput="try{localStorage.setItem('luma_bulk_city', this.value);}catch(e){}">
+            </label>
+            <input type="text" id="f-bulk-search" oninput="fBulkRenderPreview()" placeholder="Buscar…" style="font-size:11px;padding:6px 8px;border:1px solid var(--gray-mid,#D4D4D4);border-radius:4px;background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);width:110px;outline:none">
+            <span id="f-bulk-status" style="font-size:11px;color:var(--text-3,#6B6B6B)"></span>
+          </div>
+        </div>
+
+        <!-- Caixa de colar do Excel -->
+        <div id="f-bulk-paste-wrap" class="f-bulk-sec f-bulk-sec--fmt" style="display:none;padding:10px">
+          <textarea id="f-bulk-paste-ta" placeholder="Cole aqui os dados copiados do Excel ou Planilhas (Ctrl+V)…" style="width:100%;height:60px;font-size:11px;padding:8px;border:1px solid var(--gray-mid);border-radius:6px;background:var(--white);color:var(--text);resize:vertical"></textarea>
+          <button class="d-btn-pri" style="margin-top:6px;font-size:11px" onclick="fBulkHandlePaste()">Processar dados colados</button>
+        </div>
+
+        <!-- Planilha / cartões -->
+        <div id="f-bulk-preview" class="f-bulk-preview" style="flex:1;min-height:0"></div>
+
+        <!-- Progresso da geração -->
+        <div id="f-bulk-progress-wrap" style="display:none;margin-top:8px">
+          <div style="font-size:12px;margin-bottom:6px;display:flex;justify-content:space-between">
+            <span id="f-bulk-progress-text">Gerando ZIP…</span>
+            <span id="f-bulk-progress-pct">0%</span>
+          </div>
+          <div style="background:var(--gray-light);border-radius:4px;height:6px;overflow:hidden">
+            <div id="f-bulk-progress-bar" style="width:0%;height:100%;transition:width 0.1s linear"></div>
+          </div>
+        </div>
+
+      </div>
     </div>
-    <div id="f-bulk-preview" class="f-bulk-preview"></div>
-    <div class="modal-actions">
+
+    <!-- Rodapé -->
+    <div class="modal-actions" id="f-bulk-actions" style="margin-top:0;padding-top:12px;border-top:1px solid var(--gray-mid,#E2E2E2)">
       <button class="d-btn-sec" onclick="fBulkClose()">Fechar</button>
-      <button class="d-btn-pri" id="f-bulk-dl-btn" onclick="fBulkDownloadAll()">Baixar todos</button>
+      <button class="d-btn-pri" id="f-bulk-dl-btn" onclick="fBulkDownloadAll()" style="font-weight:bold">Baixar todos (ZIP)</button>
+    </div>
+
+    <!-- Painel de Dúvidas Frequentes (overlay dentro do modal) -->
+    <div id="f-bulk-faq" class="f-bulk-faq">
+      <div class="f-bulk-faq-head">
+        <div class="f-bulk-faq-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Dúvidas frequentes
+        </div>
+        <button type="button" class="f-bulk-faq-close" onclick="fBulkToggleFaq()" title="Fechar" aria-label="Fechar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div id="f-bulk-faq-body" class="f-bulk-faq-body"></div>
     </div>
   </div>
 </div>
@@ -2051,6 +2187,29 @@ input:focus:-webkit-autofill {
 
 <!-- SVG Review Modal (import do Illustrator) -->
 <div id="d-svg-review-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:10000; align-items:center; justify-content:center;"></div>
+
+<!-- Modal de Copiar Legendas (Luma Sheets) -->
+<div class="modal-overlay" id="f-copy-modal" style="z-index:500">
+  <div class="modal" style="max-width:500px;width:90vw;display:flex;flex-direction:column;gap:12px;background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);padding:20px;border-radius:12px;box-shadow:0 10px 25px rgba(0,0,0,0.15)">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="modal-title" style="margin:0;font-size:16px;font-weight:700;display:flex;align-items:center;gap:6px;color:var(--text,#0A0A0A)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--dm-orange,#FF9000)">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+        Legendas do Post
+      </div>
+      <button onclick="fCloseCopyModal()" style="border:none;background:transparent;cursor:pointer;color:var(--text-3,#6B6B6B);padding:4px;display:flex;align-items:center;justify-content:center;transition:color 0.15s" onmouseover="this.style.color='var(--dm-red,#C81818)'" onmouseout="this.style.color=''">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    
+    <div style="font-size:12px;color:var(--text-2,#3A3A3A);line-height:1.4" id="f-copy-modal-product-info"></div>
+    
+    <div style="display:flex;flex-direction:column;gap:16px;max-height:60vh;overflow-y:auto;padding-right:4px" id="f-copy-modal-options">
+      <!-- Inserido dinamicamente -->
+    </div>
+  </div>
+</div>
 
 <div class="modal-overlay" id="d-folder-modal">
   <div class="modal" style="width:460px;max-height:88vh;overflow-y:auto">
@@ -2326,6 +2485,7 @@ input:focus:-webkit-autofill {
 <script src="assets/vendor/colorthief.js"></script>
 <script src="assets/vendor/pica.js"></script>
 <script src="assets/vendor/papaparse.js"></script>
+<script src="assets/vendor/jszip.min.js"></script>
 <script src="assets/vendor/pdf-lib.js"></script>
 <script src="assets/vendor/supabase.js"></script>
 <script src="js/core/supabase-config.js"></script>

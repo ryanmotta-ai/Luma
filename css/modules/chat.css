@@ -236,6 +236,29 @@
 .f-bulk-chips{display:flex;flex-wrap:wrap;gap:4px;justify-content:center}
 .f-bulk-chip{font-size:10px;color:var(--text-2);background:var(--gray-light);padding:1px 6px;border-radius:8px}
 .f-bulk-err{font-size:11px;color:var(--dm-red);font-weight:600;margin-top:4px}
+.f-bulk-fmt-chip {
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 6px 12px;
+  border: 1px solid var(--gray-mid);
+  border-radius: var(--r-pill);
+  background: var(--white);
+  color: var(--text-2);
+  transition: all 0.15s ease;
+  user-select: none;
+}
+.f-bulk-fmt-chip:hover {
+  background: var(--gray-light);
+  border-color: var(--dm-orange);
+}
+.f-bulk-fmt-chip:has(input:checked) {
+  background: var(--dm-orange-bg) !important;
+  border-color: var(--dm-orange) !important;
+  color: var(--dm-orange-d) !important;
+}
 
 /* Bloco de sugestão de IA (gerar planilha com ChatGPT) */
 .f-ai-prompt-block{border:1px solid var(--gray-light);border-radius:10px;margin:0 0 12px;overflow:hidden}
@@ -252,6 +275,82 @@
 .f-ai-prompt-copy:hover{opacity:.9}
 .f-ai-prompt-open{font-size:12px;padding:7px 12px;background:transparent;color:var(--text-2);border:1px solid var(--gray-light);border-radius:6px;text-decoration:none;display:inline-flex;align-items:center;font-weight:500}
 .f-ai-prompt-open:hover{color:var(--text);border-color:var(--gray-mid)}
+
+/* ── Luma Sheets: microfone (gravando), FAQ e acabamento premium ── */
+#f-bulk-mic-btn{border:1px solid var(--gray-mid);background:var(--white);color:var(--text-2);transition:all .15s var(--ease-standard)}
+#f-bulk-mic-btn:hover{border-color:var(--dm-orange);color:var(--dm-orange)}
+#f-bulk-mic-btn.is-recording{background:var(--dm-red);border-color:var(--dm-red);color:#fff;animation:gPulse 1s infinite}
+
+.f-bulk-title-tag{font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--dm-orange);background:var(--dm-orange-bg,rgba(255,144,0,.12));border-radius:var(--r-pill);padding:2px 9px}
+
+.f-bulk-faq-btn{display:inline-flex;align-items:center;gap:6px;flex-shrink:0;font-size:12px;font-weight:600;font-family:'Roboto',sans-serif;color:var(--text-2);background:var(--white);border:1px solid var(--gray-mid);border-radius:var(--r-pill);padding:6px 13px;cursor:pointer;transition:all .15s var(--ease-standard)}
+.f-bulk-faq-btn:hover{border-color:var(--dm-orange);color:var(--dm-orange);background:var(--dm-orange-bg,rgba(255,144,0,.08))}
+
+.f-bulk-faq{position:absolute;inset:0;z-index:20;background:var(--white);display:flex;flex-direction:column;padding:20px 22px;border-radius:12px;opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .2s var(--ease-standard),transform .2s var(--ease-standard),visibility .2s}
+.f-bulk-faq.open{opacity:1;visibility:visible;transform:none}
+.f-bulk-faq-head{display:flex;align-items:center;justify-content:space-between;padding-bottom:14px;margin-bottom:8px;border-bottom:1px solid var(--gray-light)}
+.f-bulk-faq-title{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:700;color:var(--text)}
+.f-bulk-faq-title svg{color:var(--dm-orange)}
+.f-bulk-faq-close{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:1px solid var(--gray-mid);background:var(--white);color:var(--text-2);cursor:pointer;transition:all .15s var(--ease-standard)}
+.f-bulk-faq-close:hover{background:var(--gray-light);color:var(--text)}
+.f-bulk-faq-body{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-right:4px}
+.f-bulk-faq-item{border:1px solid var(--gray-light);border-radius:var(--r-sm);background:var(--white);overflow:hidden;transition:border-color .15s var(--ease-standard)}
+.f-bulk-faq-item[open]{border-color:var(--gray-mid)}
+.f-bulk-faq-item summary{list-style:none;cursor:pointer;padding:13px 16px;font-size:13px;font-weight:600;color:var(--text);display:flex;align-items:center;justify-content:space-between;gap:10px}
+.f-bulk-faq-item summary::-webkit-details-marker{display:none}
+.f-bulk-faq-item summary::after{content:'';width:7px;height:7px;border-right:2px solid var(--text-3);border-bottom:2px solid var(--text-3);transform:rotate(45deg);transition:transform .2s var(--ease-standard);flex-shrink:0;margin-top:-3px}
+.f-bulk-faq-item[open] summary::after{transform:rotate(-135deg);margin-top:3px}
+.f-bulk-faq-item summary:hover{color:var(--dm-orange)}
+.f-bulk-faq-a{padding:0 16px 14px;font-size:12.5px;line-height:1.6;color:var(--text-2)}
+
+/* ═══ Luma Sheets — acabamento premium (cor, profundidade, movimento) ═══ */
+/* Faixa de destaque no topo do modal */
+.f-bulk-modal-box::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:var(--gradient-orange);border-radius:12px 12px 0 0;z-index:2}
+/* Ícone do título vira um badge com gradiente da marca */
+.f-bulk-modal-box .modal-title svg{background:var(--gradient-orange);color:#fff;padding:5px;border-radius:8px;width:30px;height:30px;box-shadow:0 4px 12px rgba(248,84,0,.30)}
+
+/* Cartões de seção (coluna esquerda): fundo branco, barra de acento colorida, sombra */
+.f-bulk-sec{background:var(--white);border:1px solid var(--gray-light);border-left:3px solid var(--sec-accent,var(--dm-orange));border-radius:10px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.05);transition:box-shadow .18s var(--ease-standard),transform .18s var(--ease-standard)}
+.f-bulk-sec:hover{box-shadow:0 6px 20px rgba(0,0,0,.09)}
+.f-bulk-sec--ai{--sec-accent:var(--dm-orange)}
+.f-bulk-sec--fmt{--sec-accent:#3BA7FF}
+.f-bulk-sec--demo{--sec-accent:#7C6EFF}
+.f-bulk-sec--demo{border:1px dashed var(--gray-mid);border-left:3px solid var(--sec-accent)}
+
+/* Botões — primário com gradiente e elevação; secundário com hover laranja */
+/* Botão primário: cor CHAPADA (sem gradiente), com leve elevação no hover */
+#f-bulk-modal .d-btn-pri{background:var(--dm-orange)!important;border:1px solid var(--dm-orange)!important;color:#fff!important;box-shadow:0 2px 6px rgba(248,84,0,.20);transition:transform .15s var(--ease-spring),box-shadow .15s var(--ease-standard),background .15s}
+#f-bulk-modal .d-btn-pri:hover{background:var(--dm-orange-d,#F85400)!important;border-color:var(--dm-orange-d,#F85400)!important;transform:translateY(-1px);box-shadow:0 5px 14px rgba(248,84,0,.30)}
+#f-bulk-modal .d-btn-pri:active{transform:translateY(0)}
+
+/* Toolbar reorganizada: rótulos de grupo + divisores */
+.f-bulk-tbar-label{font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3,#6B6B6B);align-self:center}
+.f-bulk-tbar-div{width:1px;height:22px;background:var(--gray-mid,#D4D4D4);opacity:.7;align-self:center}
+#f-bulk-modal .d-btn-sec{transition:all .15s var(--ease-standard)}
+#f-bulk-modal .d-btn-sec:hover{border-color:var(--dm-orange);color:var(--dm-orange);background:var(--dm-orange-bg,#FFF2E0);transform:translateY(-1px)}
+
+/* Toolbar e barra de Ações em Massa — leve tint de marca, ícones laranja */
+.f-bulk-toolbar{background:linear-gradient(180deg,var(--dm-orange-bg,#FFF2E0),var(--white))!important;border:1px solid var(--dm-orange-tint,#FFE0BD)!important;border-radius:8px!important;padding:10px!important;margin-bottom:0}
+.f-bulk-toolbar svg{color:var(--dm-orange)}
+.f-bulk-actions-bar{background:linear-gradient(180deg,var(--dm-orange-bg,#FFF2E0),var(--white))!important;border:1px solid var(--dm-orange-tint,#FFE0BD)!important}
+
+/* Tabela premium: cabeçalho com leve gradiente, zebra, hover de marca, # em chip */
+.f-bulk-table thead th{background:linear-gradient(180deg,var(--white),var(--gray-light))!important}
+.f-bulk-table tbody tr{transition:background .13s var(--ease-standard)}
+.f-bulk-table tbody tr:nth-child(even){background:rgba(0,0,0,.018)}
+.f-bulk-table tbody tr:hover{background:var(--dm-orange-bg,#FFF2E0)}
+.f-bulk-num-chip{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 6px;border-radius:var(--r-pill);background:var(--dm-orange-bg,#FFF2E0);color:var(--dm-orange-d,#F85400);font-weight:700;font-size:11px}
+
+/* Cards (visão grade): entrada sutil + hover elevado com acento */
+.f-bulk-card{animation:gFadeIn .22s var(--ease-standard) both}
+.f-bulk-card:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,0,0,.10);border-color:var(--dm-orange-tint,#FFE0BD)}
+.f-bulk-badge.ok,.f-bulk-badge.warning,.f-bulk-badge.error{animation:gPopIn .22s var(--ease-spring) both}
+
+/* Barra de progresso com gradiente + brilho */
+#f-bulk-progress-bar{background:var(--gradient-orange)!important;position:relative;overflow:hidden}
+
+/* Foco de marca nos campos do modal */
+#f-bulk-modal input[type=text]:focus,#f-bulk-modal textarea:focus,#f-bulk-modal select:focus{border-color:var(--dm-orange)!important;box-shadow:0 0 0 3px rgba(255,144,0,.14)!important}
 
 /* M1.2 — skeleton/progress durante upload de imagem */
 .f-upload-zone.f-upload-loading{cursor:progress}

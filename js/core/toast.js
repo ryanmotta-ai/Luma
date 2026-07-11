@@ -84,6 +84,45 @@ function gBtnLoading(btn, label){
   return restore;
 }
 
+/* ── DIÁLOGOS PRÓPRIOS DO LUMA (substituem confirm()/prompt() nativos) ──
+   Promessa: gConfirm→bool, gPrompt→string|null (null = cancelado). Self-contained:
+   injeta o próprio overlay com tokens do tema. Enter confirma, Esc/clique-fora cancela.
+   Reutilizável em todo o app (migração gradual dos confirm/prompt nativos legados). */
+function _gDialog(opts){
+  return new Promise(resolve=>{
+    const prev=document.activeElement;
+    const isPrompt=!!opts.prompt;
+    const ov=document.createElement('div');
+    ov.className='g-dialog-ov';
+    ov.style.cssText='position:fixed;inset:0;z-index:11000;display:flex;align-items:center;justify-content:center;background:rgba(10,10,10,.5);padding:20px';
+    ov.innerHTML=`<div class="g-dialog" role="dialog" aria-modal="true" style="background:var(--white,#fff);color:var(--text,#0A0A0A);border:1px solid var(--gray-mid,rgba(0,0,0,.14));border-radius:12px;padding:20px;width:100%;max-width:400px;box-shadow:0 20px 50px rgba(0,0,0,.35);font-family:'Roboto',sans-serif">
+      ${opts.title?`<div style="font-size:15px;font-weight:700;margin-bottom:8px">${gEsc(opts.title)}</div>`:''}
+      ${opts.message?`<div style="font-size:13px;line-height:1.5;color:var(--text-2,#3A3A3A);margin-bottom:${isPrompt?'10px':'18px'}">${gEsc(opts.message)}</div>`:''}
+      ${isPrompt?`<input class="g-dialog-input" type="text" value="${gEsc(opts.default||'')}" placeholder="${gEsc(opts.placeholder||'')}" style="width:100%;font-size:13px;padding:9px 11px;border:1px solid var(--gray-mid,rgba(0,0,0,.2));border-radius:7px;background:var(--white,#fff);color:var(--text,#0A0A0A);outline:none;margin-bottom:18px">`:''}
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="g-dialog-cancel" type="button" style="font-size:12px;font-weight:600;padding:8px 14px;border-radius:7px;border:1px solid var(--gray-mid,rgba(0,0,0,.2));background:transparent;color:var(--text-2,#3A3A3A);cursor:pointer">${gEsc(opts.cancelLabel||'Cancelar')}</button>
+        <button class="g-dialog-ok" type="button" style="font-size:12px;font-weight:700;padding:8px 16px;border-radius:7px;border:1px solid ${opts.danger?'#C81818':'var(--dm-orange,#FF9000)'};background:${opts.danger?'#C81818':'var(--dm-orange,#FF9000)'};color:#fff;cursor:pointer">${gEsc(opts.okLabel||'Confirmar')}</button>
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+    const input=ov.querySelector('.g-dialog-input');
+    const done=(val)=>{ ov.remove(); document.removeEventListener('keydown',onKey,true); if(prev&&prev.focus){try{prev.focus();}catch(e){}} resolve(val); };
+    const onOk=()=>done(isPrompt?(input?input.value:''):true);
+    const onCancel=()=>done(isPrompt?null:false);
+    ov.querySelector('.g-dialog-ok').onclick=onOk;
+    ov.querySelector('.g-dialog-cancel').onclick=onCancel;
+    ov.addEventListener('mousedown',e=>{ if(e.target===ov) onCancel(); });
+    function onKey(e){
+      if(e.key==='Escape'){ e.preventDefault(); onCancel(); }
+      else if(e.key==='Enter'){ e.preventDefault(); onOk(); }
+    }
+    document.addEventListener('keydown',onKey,true);
+    setTimeout(()=>{ if(input){input.focus();input.select();} else { const ok=ov.querySelector('.g-dialog-ok'); if(ok)ok.focus(); } },30);
+  });
+}
+function gConfirm(message, opts){ opts=opts||{}; return _gDialog({prompt:false, message, title:opts.title, okLabel:opts.okLabel, cancelLabel:opts.cancelLabel, danger:opts.danger}); }
+function gPrompt(message, defaultVal, opts){ opts=opts||{}; return _gDialog({prompt:true, message, default:defaultVal||'', placeholder:opts.placeholder, title:opts.title, okLabel:opts.okLabel||'OK', cancelLabel:opts.cancelLabel}); }
+
 // C6: aviso (uma vez por sessão) de que imagens enviadas não são persistidas.
 // TODO(Fase 5): mover blobs para IndexedDB/Storage e remover este aviso.
 let gImgPersistWarned=false;

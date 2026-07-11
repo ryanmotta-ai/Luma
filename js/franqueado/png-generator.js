@@ -765,19 +765,305 @@ async function fRenderMaterialToDataURL(dados, camp, fmt){
   return finalCv.toDataURL('image/png');
 }
 
+let _fLastMaterialId = null;
+
+function fBulkCreateEmptyRow() {
+  const vars = fBulkVars();
+  const dados = {};
+  const erros = [];
+  vars.forEach(v => {
+    dados[v] = '';
+    const err = typeof fValidate === 'function' ? fValidate(v, '') : null;
+    if (err) erros.push(err);
+  });
+  return { dados, erros };
+}
+
+function fBulkAddEmptyRow() {
+  fBulkCollectCurrentInputs();
+  fBulkRows.push(fBulkCreateEmptyRow());
+  const st = document.getElementById('f-bulk-status');
+  if(st) st.textContent = `${fBulkRows.length} linha(s) carregada(s)`;
+  fBulkRenderPreview();
+}
+
+function fBulkClearAll() {
+  fBulkRows = [];
+  fBulkRenderPreview();
+  const st = document.getElementById('f-bulk-status');
+  if(st) st.textContent = '';
+  gToast('Planilha limpa com sucesso');
+}
+
 function fBulkOpen(){
   if(!fState.material||!fState.material.layers){gToast('Selecione um material primeiro');return;}
-  fBulkRows=[];
-  document.getElementById('f-bulk-status').textContent='';
+  
+  if (_fLastMaterialId !== fState.material.id) {
+    fBulkRows = [];
+    _fLastMaterialId = fState.material.id;
+  }
+  
+  if(!fBulkRows || fBulkRows.length === 0) {
+    fBulkRows = [];
+    for(let i=0; i<3; i++) {
+      fBulkRows.push(fBulkCreateEmptyRow());
+    }
+    _fBulkTableView = true; // default para tabela ao começar do zero
+  }
+  
+  const cityInput = document.getElementById('f-bulk-city');
+  if (cityInput) {
+    try {
+      cityInput.value = localStorage.getItem('luma_bulk_city') || '';
+    } catch (e) {
+      console.warn('Error reading city from localStorage', e);
+    }
+  }
+
+  document.getElementById('f-bulk-status').textContent=`${fBulkRows.length} linha(s) carregada(s)`;
   fBulkRenderPreview();
   // Reseta o bloco de IA pro estado colapsado a cada abertura (evita prompt de material antigo)
   const aiBody=document.getElementById('f-ai-prompt-body');
   if(aiBody)aiBody.style.display='none';
   const aiBtn=document.querySelector('.f-ai-prompt-toggle');
   if(aiBtn){aiBtn.setAttribute('aria-expanded','false');const c=aiBtn.querySelector('.f-ai-prompt-chevron');if(c)c.textContent='›';}
+  
+  const fmtWrap = document.getElementById('f-bulk-fmts-wrap');
+  const fmtList = document.getElementById('f-bulk-fmts-list');
+  if(fmtWrap && fmtList && typeof FMTS !== 'undefined') {
+    fmtWrap.style.display = 'block';
+    fmtList.innerHTML = FMTS.map(f => {
+      const checked = fState.fmt && fState.fmt.id === f.id ? 'checked' : '';
+      return `<label class="f-bulk-fmt-chip">
+        <input type="checkbox" value="${f.id}" class="f-bulk-fmt-cb" ${checked} style="margin:0;accent-color:var(--dm-orange,#FF9000)">
+        <span style="font-weight:600">${f.name}</span>
+      </label>`;
+    }).join('');
+  }
+  
+  fBulkUpdateSavedTemplatesList();
   document.getElementById('f-bulk-modal').classList.add('open');
 }
 function fBulkClose(){document.getElementById('f-bulk-modal').classList.remove('open');}
+
+/* ── DÚVIDAS FREQUENTES (FAQ) do Luma Sheets ── */
+const F_BULK_FAQ = [
+  { q:'O que é o Luma Sheets?', a:'É a geração de artes em lote: você preenche uma planilha (cada linha = uma arte) e o Luma gera todas de uma vez, prontas pra baixar num ZIP.' },
+  { q:'Como preencho a planilha?', a:'Três jeitos: (1) digite direto na tabela; (2) baixe o “CSV Modelo”, preencha no Excel e reenvie; (3) copie do Excel/Planilhas e cole pelo botão “Excel”.' },
+  { q:'Posso ditar por voz?', a:'Sim — clique no microfone ao lado de “Preencher Tabela” e fale suas ofertas (ex.: “hambúrguer por 25, pizza de 50 por 39”). O assistente separa produto e preço. Precisa de Chrome/Edge e do site em https ou localhost (não funciona abrindo o arquivo direto).' },
+  { q:'Como coloco fotos nos produtos?', a:'Na visualização em tabela, cada campo de imagem tem o botão “Foto” (envia do computador) ou um campo pra colar um link. Fotos abaixo de 600px avisam que podem sair pixeladas.' },
+  { q:'Dá pra exportar vários formatos?', a:'Sim — marque os formatos (Story, Feed, Wide…) em “Formatos para Exportar” e o ZIP vem com uma pasta por formato.' },
+  { q:'O que são as Ações em Massa?', a:'Na tabela você preenche uma coluna inteira de uma vez, aplica desconto em % ou arredonda os preços pra final “,90” — tudo em todas as linhas ao mesmo tempo.' },
+  { q:'“Começar com exemplos” lê meu cardápio real?', a:'Não. É uma demonstração que gera exemplos por tipo (pizza, sushi, burger) só como ponto de partida. Edite com seus produtos e preços reais antes de gerar.' },
+  { q:'Uma arte saiu em branco ou errada. Por quê?', a:'Confira se a linha não tem campos com erro (badge ⚠ no card) e se o material selecionado tem as variáveis certas. Corrija a linha e gere de novo.' },
+  { q:'O ZIP vem com as legendas?', a:'Sim — junto das imagens vem um arquivo "legendas_posts.txt" com 3 opções de copy por produto. Escolha entre formato Feed (completo com hashtags) ou Stories (curto) pelo seletor "Copy: Feed/Stories" na toolbar. As copys seguem o tom de voz Delivery Much e nunca repetem.' },
+];
+function fBulkToggleFaq(){
+  const panel = document.getElementById('f-bulk-faq');
+  if(!panel) return;
+  if(panel.classList.contains('open')){ panel.classList.remove('open'); return; }
+  const body = document.getElementById('f-bulk-faq-body');
+  if(body && !body.dataset.built){
+    body.innerHTML = F_BULK_FAQ.map(it =>
+      `<details class="f-bulk-faq-item"><summary>${gEsc(it.q)}</summary><div class="f-bulk-faq-a">${gEsc(it.a)}</div></details>`
+    ).join('');
+    body.dataset.built = '1';
+  }
+  panel.classList.add('open');
+}
+
+/* ── Title Case inteligente (respeita hífens e preposições pt-BR) ── */
+function fSmartTitleCase(str) {
+  if (!str) return '';
+  const preposicoes = new Set(['de','da','do','das','dos','e','em','com','por','para','a','o','ao','à','no','na','nos','nas','um','uma']);
+  return str.split(/\s+/).map((word, idx) => {
+    // Palavras com hífen: capitalizar cada parte (x-bacon → X-Bacon)
+    if (word.includes('-')) {
+      return word.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join('-');
+    }
+    // Preposições ficam minúsculas (exceto se for a primeira palavra)
+    if (idx > 0 && preposicoes.has(word.toLowerCase())) return word.toLowerCase();
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  }).join(' ');
+}
+
+function fBulkParseHeuristicText(text) {
+  // Splitter melhorado: separa por pontos, ponto-e-vírgula, quebras de linha e também por vírgula seguida de nome de produto
+  const sentences = text.split(/[.;\n\r]+|,\s*(?=[A-ZÁÉÍÓÚÀÂÊÔÃÕÇ])/)
+    .map(s => s.trim()).filter(Boolean);
+  const vars = fBulkVars();
+  
+  return sentences.map(sentence => {
+    let name = sentence;
+    
+    // 1. Extração de validade
+    const dateMatch = name.match(/(\b(?:hoje|amanhã|amanha|segunda|terça|terca|quarta|quinta|sexta|sábado|sabado|domingo|fim de semana|fds|esta semana|este mês|este mes|válido|valido)\b)/i);
+    let validade = '';
+    if (dateMatch) {
+      validade = dateMatch[1];
+      name = name.replace(dateMatch[0], '');
+    }
+    
+    // 2. Extração de desconto percentual
+    let desconto = '';
+    const pctMatch = name.match(/(\d+)\s*%\s*(?:off|de?\s*desconto|desc)/i);
+    if (pctMatch) {
+      desconto = pctMatch[1] + '%';
+      name = name.replace(pctMatch[0], '');
+    }
+    
+    // 3. Extração de preços (de X por Y / era X agora Y)
+    let precoDe = '';
+    let precoPor = '';
+    const dePorMatch = name.match(/(?:de\s+)?(?:r\$\s*)?(\d+(?:[.,]\d+)?)\s*(?:por\s+)(?:r\$\s*)?(\d+(?:[.,]\d+)?)/i)
+      || name.match(/(?:era\s+)(?:r\$\s*)?(\d+(?:[.,]\d+)?)\s*(?:e\s+)?(?:agora|hoje)\s*(?:(?:tá|ta|está)\s+)?(?:r\$\s*)?(\d+(?:[.,]\d+)?)/i);
+    if (dePorMatch) {
+      precoDe = dePorMatch[1];
+      precoPor = dePorMatch[2];
+      name = name.replace(dePorMatch[0], '');
+    } else {
+      // Preço único (fix: reais duplicado removido, adicionado "conto")
+      const singlePriceMatch = name.match(/(?:por|apenas|r\$\s*)\s*(\d+(?:[.,]\d+)?)/i) || name.match(/(\d+(?:[.,]\d+)?)\s*(?:reais|conto)/i);
+      if (singlePriceMatch) {
+        precoPor = singlePriceMatch[1];
+        name = name.replace(singlePriceMatch[0], '');
+      }
+    }
+    
+    // 4. Limpeza do nome do produto
+    name = name.replace(/\s+/g, ' ')
+               .replace(/^[e\s,]+|[e\s,]+$/gi, '')
+               .replace(/\b(?:tem|compre|leve|promoção de|oferta de|promoção|promo|oferta)\b/gi, '')
+               .replace(/(?:\bpor\b|\bde\b|\ba\b)$/gi, '')
+               .trim();
+    
+    // Title Case inteligente
+    if (name.length > 2) {
+      name = fSmartTitleCase(name);
+    }
+    
+    // 5. Mapeamento dinâmico para as variáveis do material
+    const dados = {};
+    vars.forEach(v => dados[v] = '');
+    
+    const nameKey = vars.find(v => /produto|titulo|nome/i.test(v)) || vars[0];
+    if (nameKey) dados[nameKey] = name;
+    
+    const deKey = vars.find(v => /de|antigo/i.test(v));
+    if (deKey) dados[deKey] = precoDe ? fApplyMask(deKey, precoDe) : '';
+    
+    const porKey = vars.find(v => /por|preco|preço|atual|valor/i.test(v));
+    if (porKey) dados[porKey] = precoPor ? fApplyMask(porKey, precoPor) : '';
+    
+    const valKey = vars.find(v => /validade|data|condicao|condição/i.test(v));
+    if (valKey) dados[valKey] = validade;
+    
+    const descKey = vars.find(v => /desconto|selo|off/i.test(v));
+    if (descKey && desconto) dados[descKey] = desconto;
+    
+    // Auto-categorizar se houver campo de categoria
+    const catKey = vars.find(v => /categor|tipo|segmento/i.test(v));
+    if (catKey && !dados[catKey]) {
+      dados[catKey] = fBulkAutoCategorize(name);
+    }
+    
+    // Validação
+    const erros = [];
+    vars.forEach(v => {
+      const err = typeof fValidate === 'function' ? fValidate(v, dados[v]) : null;
+      if (err) erros.push(err);
+    });
+    
+    return { dados, erros };
+  });
+}
+
+function fBulkFillWithAI() {
+  const ta = document.getElementById('f-bulk-ai-raw-text');
+  if(!ta) return;
+  const text = ta.value.trim();
+  if(!text) { gToast('Digite ou cole algum texto com ofertas primeiro', 'error'); return; }
+  
+  const parsedRows = fBulkParseHeuristicText(text);
+  if(!parsedRows || parsedRows.length === 0) {
+    gToast('Não consegui identificar nenhum produto ou preço no texto', 'error');
+    return;
+  }
+  
+  fBulkRows = parsedRows;
+  document.getElementById('f-bulk-status').textContent=`${fBulkRows.length} linha(s) carregada(s)`;
+  fBulkRenderPreview();
+  gToast('Tabela preenchida com ' + fBulkRows.length + ' oferta(s) extraida(s)');
+  ta.value = '';
+}
+
+let _fSpeechActive = false;
+let _fSpeechStarting = false;
+let _fSpeechInstance = null;
+
+// Estado visual do botão de voz via classe (sem cor hardcoded — o CSS usa tokens).
+function fStopSpeechUI(btn){
+  if(btn){ btn.classList.remove('is-recording'); btn.setAttribute('aria-pressed','false'); }
+}
+
+// Ditar por voz (Web Speech API). Robusto: exige contexto seguro (o mic é bloqueado
+// em file://), transcreve contínuo com resultados parciais ao vivo e é toggle (clicar
+// de novo para). Acumula no texto existente em vez de sobrescrever.
+function fStartSpeech(event, inputId){
+  if(event) event.preventDefault();
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ gToast('Reconhecimento de voz só funciona no Chrome ou Edge', 'error'); return; }
+  // Secure context: em file:// o navegador bloqueia o microfone — avisa ANTES de tentar.
+  if(typeof window.isSecureContext!=='undefined' && !window.isSecureContext){
+    gToast('O microfone só funciona em site seguro (https) ou localhost — não abrindo o arquivo direto (file://).', 'error');
+    return;
+  }
+
+  const btn = (event && event.currentTarget) ? event.currentTarget : document.getElementById('f-bulk-mic-btn');
+  const input = document.getElementById(inputId);
+  if(!input) return;
+
+  // Toggle: se já está gravando (ou iniciando), para.
+  if(_fSpeechActive || _fSpeechStarting){ if(_fSpeechInstance){ try{ _fSpeechInstance.stop(); }catch(e){} } return; }
+
+  const rec = new SR();
+  _fSpeechInstance = rec;
+  _fSpeechStarting = true;
+  rec.lang = 'pt-BR';
+  rec.continuous = true;      // não corta na primeira pausa (dita a lista inteira)
+  rec.interimResults = true;  // mostra as palavras ao vivo
+
+  const baseText = input.value ? (input.value.replace(/\s*$/,'') + ' ') : '';
+  let finalText = '';
+
+  if(btn){ btn.classList.add('is-recording'); btn.setAttribute('aria-pressed','true'); }
+
+  rec.onstart = () => { _fSpeechActive = true; _fSpeechStarting = false; gToast('🎙️ Ouvindo… fale as ofertas. Clique de novo para parar.'); };
+  rec.onresult = (e) => {
+    let interim = '';
+    for(let i=e.resultIndex; i<e.results.length; i++){
+      const t = e.results[i][0].transcript;
+      if(e.results[i].isFinal) finalText += t + ' '; else interim += t;
+    }
+    input.value = baseText + finalText + interim;
+    if(input.tagName === 'INPUT') input.dispatchEvent(new Event('input', {bubbles:true}));
+  };
+  rec.onerror = (e) => {
+    console.error('Speech error:', e.error);
+    if(e.error === 'not-allowed' || e.error === 'service-not-allowed') gToast('Microfone bloqueado — permita o acesso ao microfone nas configurações do navegador.', 'error');
+    else if(e.error === 'no-speech') gToast('Nenhuma fala detectada. Fale mais perto do microfone.', 'error');
+    else if(e.error !== 'aborted') gToast('Falha no áudio: ' + e.error, 'error');
+  };
+  rec.onend = () => {
+    fStopSpeechUI(btn);
+    _fSpeechActive = false; _fSpeechStarting = false; _fSpeechInstance = null;
+    if(finalText.trim()) gToast('✓ Transcrição adicionada');
+  };
+
+  try{ rec.start(); }
+  catch(e){ _fSpeechStarting = false; fStopSpeechUI(btn); gToast('Não consegui iniciar o microfone — tente de novo.', 'error'); }
+}
 
 /* ── Sugestão de prompt de IA para gerar a planilha (ChatGPT) ── */
 function fBuildAIPrompt(material){
@@ -933,54 +1219,406 @@ function fBulkParseCSV(text){
   }
   return out;
 }
+function fBulkProcessRawData(raw) {
+  if(!raw || !raw.length){ gToast('⚠ Dados vazios ou sem linhas','error'); return; }
+  
+  // Detecção Inteligente de Mapeamento de Colunas
+  const vars = fBulkVars();
+  const rawKeys = Object.keys(raw[0]);
+  const hasMatches = vars.some(v => rawKeys.includes(v));
+  
+  if (!hasMatches && rawKeys.length > 0) {
+    fBulkShowMapper(raw, rawKeys, vars);
+    return;
+  }
+  
+  fBulkRows=raw.map(row=>{
+    const dados={},erros=[];
+    Object.keys(row).forEach(k=>{
+      const cfg=fGetFieldType(k);
+      let v=(cfg.type==='image')?row[k]:fApplyMask(k,row[k]);
+      dados[k]=v;
+      const err=fValidate(k,v);
+      if(err)erros.push(err);
+    });
+    return {dados,erros};
+  });
+  document.getElementById('f-bulk-status').textContent=`${fBulkRows.length} linha(s) carregada(s)`;
+  fBulkRenderPreview();
+  const wrap = document.getElementById('f-bulk-paste-wrap');
+  if(wrap) wrap.style.display = 'none';
+}
+
+let _fBulkRawToMap = null;
+
+function fBulkShowMapper(raw, rawKeys, vars) {
+  _fBulkRawToMap = raw;
+  const wrap = document.getElementById('f-bulk-mapper-wrap');
+  const fieldsDiv = document.getElementById('f-bulk-mapper-fields');
+  const previewDiv = document.getElementById('f-bulk-preview');
+  
+  if(!wrap || !fieldsDiv) return;
+  
+  if(previewDiv) previewDiv.style.display = 'none';
+  wrap.style.display = 'block';
+  
+  fieldsDiv.innerHTML = vars.map(v => {
+    const label = typeof _dEsc !== 'undefined' ? _dEsc(v) : v;
+    
+    // Tenta adivinhar qual campo bate
+    let bestGuess = '';
+    const cleanV = v.toLowerCase().replace(/[^a-z0-9]/g, '');
+    for(let rk of rawKeys) {
+      const cleanRk = rk.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if(cleanRk.includes(cleanV) || cleanV.includes(cleanRk)) {
+        bestGuess = rk;
+        break;
+      }
+    }
+    
+    const options = [`<option value="">-- Ignorar --</option>`]
+      .concat(rawKeys.map(rk => {
+        const selected = rk === bestGuess ? 'selected' : '';
+        const safeRk = typeof _dEsc !== 'undefined' ? _dEsc(rk) : rk;
+        return `<option value="${safeRk}" ${selected}>${safeRk}</option>`;
+      })).join('');
+      
+    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px">
+      <span style="font-size:11px;font-weight:bold;color:var(--text)">${label}:</span>
+      <select id="f-bulk-map-select-${v}" style="font-size:11px;padding:6px;border:1px solid var(--gray-mid);border-radius:4px;background:var(--white);color:var(--text);width:60%;outline:none">
+        ${options}
+      </select>
+    </div>`;
+  }).join('');
+}
+
+function fBulkConfirmMapping() {
+  if(!_fBulkRawToMap) return;
+  const vars = fBulkVars();
+  const mapping = {};
+  
+  vars.forEach(v => {
+    const select = document.getElementById(`f-bulk-map-select-${v}`);
+    if(select) mapping[v] = select.value;
+  });
+  
+  const mappedRaw = _fBulkRawToMap.map(row => {
+    const newRow = {};
+    vars.forEach(v => {
+      const csvCol = mapping[v];
+      newRow[v] = csvCol ? row[csvCol] : '';
+    });
+    return newRow;
+  });
+  
+  fBulkCancelMapping();
+  fBulkProcessRawData(mappedRaw);
+}
+
+function fBulkCancelMapping() {
+  _fBulkRawToMap = null;
+  const wrap = document.getElementById('f-bulk-mapper-wrap');
+  const previewDiv = document.getElementById('f-bulk-preview');
+  if(wrap) wrap.style.display = 'none';
+  if(previewDiv) previewDiv.style.display = 'block';
+}
+
+function fBulkTogglePaste() {
+  const wrap = document.getElementById('f-bulk-paste-wrap');
+  if(wrap) wrap.style.display = wrap.style.display==='none' ? 'block' : 'none';
+}
+
+function fBulkHandlePaste() {
+  const ta = document.getElementById('f-bulk-paste-ta');
+  if(!ta) return;
+  const text = ta.value.trim();
+  if(!text) { gToast('Cole os dados copiados do Excel primeiro','error'); return; }
+  
+  let raw;
+  try{
+    const delim = text.includes('\t') ? '\t' : ',';
+    if(window.Papa) {
+      const res = Papa.parse(text, { header: true, skipEmptyLines: 'greedy', delimiter: delim });
+      raw = res.data;
+    } else {
+      raw = fBulkParseCSV(text);
+    }
+  }catch(err){ gToast('⚠ Dados inválidos','error'); return; }
+  
+  fBulkProcessRawData(raw);
+  ta.value = '';
+}
+
 function fBulkHandleCSV(input){
   const file=input.files[0];if(!file)return;
   const r=new FileReader();
   r.onload=e=>{
     let raw;
     try{ raw=fBulkParseCSV(e.target.result); }catch(err){ gToast('⚠ CSV inválido','error'); return; }
-    if(!raw.length){ gToast('⚠ CSV vazio ou sem linhas de dados','error'); return; }
-    // Reusa fApplyMask/fValidate por célula
-    fBulkRows=raw.map(row=>{
-      const dados={},erros=[];
-      Object.keys(row).forEach(k=>{
-        const cfg=fGetFieldType(k);
-        let v=(cfg.type==='image')?row[k]:fApplyMask(k,row[k]);
-        dados[k]=v;
-        const err=fValidate(k,v);
-        if(err)erros.push(err);
-      });
-      return {dados,erros};
-    });
-    document.getElementById('f-bulk-status').textContent=`${fBulkRows.length} linha(s) carregada(s)`;
-    fBulkRenderPreview();
+    fBulkProcessRawData(raw);
   };
   r.readAsText(file);
 }
 let _fBulkRenderToken=0;
+let _fBulkTableView=false;
+
+function fBulkToggleTableView() {
+  fBulkCollectCurrentInputs();
+  _fBulkTableView = !_fBulkTableView;
+  fBulkRenderPreview();
+}
+
 function fBulkRenderPreview(){
   const wrap=document.getElementById('f-bulk-preview');if(!wrap)return;
   // Atualiza o texto do botão "Baixar todos" com a contagem atual
   const dlBtn=document.getElementById('f-bulk-dl-btn');
   if(dlBtn)dlBtn.textContent='Baixar todos'+(fBulkRows.length?` (${fBulkRows.length})`:'');
   if(!fBulkRows.length){wrap.innerHTML='<div class="f-bulk-empty">Nenhum CSV carregado ainda. Baixe o modelo, preencha e reenvie.</div>';return;}
+  
+  if (_fBulkTableView) {
+    const keys = fBulkVars();
+    const ths = keys.map(k => `<th style="padding:10px 8px;border-bottom:2px solid var(--gray-mid, #D4D4D4);text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-2,#3A3A3A);font-weight:600;white-space:nowrap">${typeof _dEsc !== 'undefined'?_dEsc(k):k}</th>`).join('');
+    
+    const query = document.getElementById('f-bulk-search')?.value.trim().toLowerCase() || '';
+    let trs = fBulkRows.map((r,i) => {
+      if (query) {
+        const match = Object.values(r.dados).some(v => String(v).toLowerCase().includes(query));
+        if (!match) return '';
+      }
+      const tds = keys.map(k => {
+        const val = r.dados[k] || '';
+        const isFieldErr = r.erros.find(e => e.includes(k));
+        const safeV = typeof _dEsc !== 'undefined' ? _dEsc(val).replace(/"/g, '&quot;') : val.replace(/"/g, '&quot;');
+        
+        if (fIsImageVar(k)) {
+          return `<td style="padding:6px 4px;border-bottom:1px solid var(--gray-light, #F2F2F2)">
+            <div style="display:flex;align-items:center;gap:8px;min-width:160px">
+              ${val ? `
+                <div style="position:relative;width:28px;height:28px;border-radius:4px;border:1px solid var(--gray-mid,#D4D4D4);overflow:hidden;background:#eee;flex-shrink:0" title="Prévia da foto">
+                  <img src="${safeV}" style="width:100%;height:100%;object-fit:cover" onerror="this.src='';this.parentElement.style.borderColor='var(--dm-red,#C81818)';gToast('Link de imagem inválido ou quebrado!','error')" onload="if(this.naturalWidth && (this.naturalWidth < 600 || this.naturalHeight < 600)){ this.parentElement.style.borderColor='#FF9000'; this.parentElement.title='Aviso: Resolução baixa ('+this.naturalWidth+'x'+this.naturalHeight+'px)'; } else { this.parentElement.style.borderColor='var(--gray-mid,#D4D4D4)'; }">
+                </div>
+                <button class="d-btn-sec" style="padding:2px 6px;font-size:10px;color:var(--dm-red,#C81818);border-color:var(--gray-mid,#D4D4D4);cursor:pointer;border-radius:4px;background:#fff;font-weight:600" onclick="fBulkClearImage(${i}, '${k}')">Excluir</button>
+              ` : `
+                <label class="d-btn-sec" style="padding:4px 8px;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;border-radius:4px;border:1px solid var(--gray-mid,#D4D4D4);background:#fff;font-weight:600">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Foto
+                  <input type="file" accept="image/*" style="display:none" onchange="fBulkUploadCellImage(this, ${i}, '${k}')">
+                </label>
+                <input type="text" placeholder="Cole link..." value="" id="f-bulk-edit-${i}-${k}" onblur="fBulkSaveRow(${i}, true)" style="font-size:11px;padding:4px 6px;border:1px solid var(--gray-mid,#D4D4D4);border-radius:4px;width:75px;background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);outline:none">
+              `}
+            </div>
+          </td>`;
+        }
+        
+        ret      return `<tr>
+        <td style="padding:6px 4px;border-bottom:1px solid var(--gray-light, #F2F2F2);text-align:center;display:flex;align-items:center;justify-content:center;gap:4px">
+          <button class="d-btn-sec" style="padding:0;width:20px;height:20px;border-radius:50%;color:var(--text-3,#6B6B6B);background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s" onmouseover="this.style.color='var(--dm-orange,#FF9000)';this.style.background='var(--dm-orange-bg,rgba(255,144,0,.1))'" onmouseout="this.style.color='';this.style.background=''" onclick="fBulkShowCopyModal(${i})" title="Ver legendas geradas"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
+          <button class="d-btn-sec" style="padding:0;width:20px;height:20px;border-radius:50%;color:var(--text-3,#6B6B6B);background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s" onmouseover="this.style.color='var(--dm-orange,#FF9000)';this.style.background='var(--dm-orange-bg,rgba(255,144,0,.1))'" onmouseout="this.style.color='';this.style.background=''" onclick="fBulkCloneRow(${i})" title="Duplicar linha"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+          <button class="d-btn-sec" style="padding:0;width:20px;height:20px;border-radius:50%;color:var(--text-3,#6B6B6B);background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s" onmouseover="this.style.color='var(--dm-red,#C81818)';this.style.background='rgba(200,24,24,0.1)'" onmouseout="this.style.color='';this.style.background=''" onclick="fBulkRemoveCard(${i})" title="Remover linha"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </td>/></svg></button>
+          <button class="d-btn-sec" style="padding:0;width:20px;height:20px;border-radius:50%;color:var(--text-3,#6B6B6B);background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s" onmouseover="this.style.color='var(--dm-red,#C81818)';this.style.background='rgba(200,24,24,0.1)'" onmouseout="this.style.color='';this.style.background=''" onclick="fBulkRemoveCard(${i})" title="Remover linha"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </td>
+        <td style="padding:6px 4px;border-bottom:1px solid var(--gray-light, #F2F2F2);text-align:center;cursor:help" onmouseenter="fBulkShowHoverPreview(event, ${i})" onmouseleave="fBulkHideHoverPreview()"><span class="f-bulk-num-chip">${i+1}</span></td>
+        ${tds}
+      </tr>`;
+    }).join('');
+    
+    const optionsHtml = keys.map(k => `<option value="${k}">${typeof _dEsc !== 'undefined'?_dEsc(k):k}</option>`).join('');
+    wrap.innerHTML = `<div style="grid-column: 1 / -1; width:100%; display:flex; flex-direction:column; gap:12px">
+      <!-- Barra de Ações em Massa -->
+      <div class="f-bulk-actions-bar" style="display:flex;gap:10px;align-items:center;padding:8px 12px;border-radius:8px;font-size:11px;color:var(--text-2,#3A3A3A);flex-wrap:wrap">
+        <span style="display:inline-flex;align-items:center;gap:4px;font-weight:bold"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Ações em Massa:</span>
+        <span>Coluna:</span>
+        <select id="f-bulk-action-col" style="font-size:11px;padding:4px;border:1px solid var(--gray-mid,#D4D4D4);border-radius:4px;background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);outline:none">
+          ${optionsHtml}
+        </select>
+        <input type="text" id="f-bulk-action-val" placeholder="Texto para preencher..." style="font-size:11px;padding:4px 8px;border:1px solid var(--gray-mid,#D4D4D4);border-radius:4px;background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);width:130px;outline:none">
+        <button class="d-btn-sec" style="font-size:11px;padding:4px 10px;cursor:pointer;border-radius:4px;border:1px solid var(--gray-mid,#D4D4D4);background:var(--white,#FFFFFF);font-weight:600" onclick="fBulkApplyFill()">Preencher Tudo</button>
+        <span style="color:var(--gray-mid,#D4D4D4)">|</span>
+        <button class="d-btn-sec" style="font-size:11px;padding:4px 10px;cursor:pointer;border-radius:4px;border:1px solid var(--gray-mid,#D4D4D4);background:var(--white,#FFFFFF);font-weight:600" onclick="fBulkApplyDiscountPrompt()" title="Aplicar desconto em % a uma coluna de preços">Aplicar Desconto %</button>
+        <button class="d-btn-sec" style="font-size:11px;padding:4px 10px;cursor:pointer;border-radius:4px;border:1px solid var(--gray-mid,#D4D4D4);background:var(--white,#FFFFFF);font-weight:600" onclick="fBulkApplyRounding()" title="Arredondar preços da coluna para finais em ,90">Arredondar (.90)</button>
+      </div>
+      <div style="overflow-x:auto;width:100%;max-height:50vh;border:1px solid var(--gray-mid, #D4D4D4);border-radius:8px;background:var(--white,#FFFFFF)">
+        <table class="f-bulk-table" style="width:100%;border-collapse:collapse;margin:0">
+          <thead style="position:sticky;top:0;z-index:10">
+            <tr>
+              <th style="padding:10px 8px;border-bottom:2px solid var(--gray-mid, #D4D4D4);width:30px"></th>
+              <th style="padding:10px 8px;border-bottom:2px solid var(--gray-mid, #D4D4D4);width:30px;color:var(--text-2,#3A3A3A)">#</th>
+              ${ths}
+            </tr>
+          </thead>
+          <tbody>${trs}</tbody>
+        </table>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="d-btn-sec" style="width:100%;border:1px dashed var(--gray-mid, #D4D4D4);padding:8px 16px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;background:transparent;cursor:pointer;border-radius:6px;color:var(--text-2,#3A3A3A);font-weight:600;transition:all 0.15s ease" onmouseover="this.style.background='var(--gray-light, #F2F2F2)';this.style.color='var(--text)'" onmouseout="this.style.background='transparent';this.style.color=''" onclick="fBulkAddEmptyRow()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Adicionar Nova Linha
+        </button>
+        <button class="d-btn-sec" style="border:1px solid var(--gray-mid, #D4D4D4);padding:8px 16px;color:var(--dm-red,#C81818);background:transparent;font-size:12px;cursor:pointer;border-radius:6px;font-weight:600;transition:all 0.15s ease" onmouseover="this.style.background='rgba(255,45,85,0.1)'" onmouseout="this.style.background='transparent'" onclick="fBulkClearAll()">
+          Limpar Tudo
+        </button>
+      </div>
+    </div>`;
+    return;
+  }
+  
   // Proporção do thumbnail conforme o tamanho real do material (ou o preset, p/ legados)
   const [nw,nh]=fMaterialSize(fState.material, fState.fmt);
   const cw=96, ch=Math.max(40,Math.round(cw*nh/nw));
+  const query = document.getElementById('f-bulk-search')?.value.trim().toLowerCase() || '';
   wrap.innerHTML=fBulkRows.map((r,i)=>{
+    if (query) {
+      const match = Object.values(r.dados).some(v => String(v).toLowerCase().includes(query));
+      if (!match) return '';
+    }
     const titulo=r.dados.produto||r.dados.categoria||r.dados.brinde||Object.values(r.dados)[0]||('Linha '+(i+1));
     const campos=Object.keys(r.dados).slice(0,2).map(k=>`<div class="f-bulk-field"><span>${_dEsc?_dEsc(k):k}:</span> ${(_dEsc?_dEsc(r.dados[k]):r.dados[k])||'—'}</div>`).join('');
-    return `<div class="f-bulk-card ${r.erros.length?'has-err':''}" id="f-bulk-card-${i}">`
+    const isErr = r.erros.length > 0;
+    const actionsHtml = isErr 
+      ? `<button class="d-btn-sec" style="padding:2px 6px;font-size:9px;margin-top:4px;width:100%" onclick="fBulkEditRow(${i})">Corrigir linha</button>` 
+      : `<button class="d-btn-sec" style="padding:2px 6px;font-size:9px;margin-top:4px;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:4px" onclick="fBulkShowCopyModal(${i})"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Legendas</button>`;
+    return `<div class="f-bulk-card ${isErr?'has-err':''}" id="f-bulk-card-${i}">`
       +`<button class="f-bulk-remove" onclick="fBulkRemoveCard(${i})" title="Remover do lote">×</button>`
       +`<div class="f-bulk-card-num">${i+1}</div>`
       +`<canvas class="f-bulk-canvas" id="f-bulk-cv-${i}" width="${cw}" height="${ch}"></canvas>`
       +`<div class="f-bulk-card-title" title="${_dEsc?_dEsc(titulo):titulo}">${_dEsc?_dEsc(titulo):titulo}</div>`
-      +`<div class="f-bulk-card-info">${campos}</div>`
+      +`<div class="f-bulk-card-info" id="f-bulk-info-${i}">${campos}${actionsHtml}</div>`
       +`<div class="f-bulk-card-status"><span class="f-bulk-badge loading" id="f-bulk-badge-${i}">⏳</span></div>`
       +`</div>`;
   }).join('');
   fBulkRenderThumbs();
 }
+
+function fBulkEditRow(i) {
+  const infoDiv = document.getElementById('f-bulk-info-'+i);
+  if(!infoDiv) return;
+  const row = fBulkRows[i];
+  
+  const formHtml = Object.keys(row.dados).map(k => {
+    // verifica se o nome do campo aparece em algum erro
+    const isErr = row.erros.find(e => e.includes(k));
+    const val = row.dados[k] || '';
+    const safeK = typeof _dEsc !== 'undefined' ? _dEsc(k) : k;
+    const safeV = typeof _dEsc !== 'undefined' ? _dEsc(val).replace(/"/g, '&quot;') : val.replace(/"/g, '&quot;');
+    const cfg = typeof fGetFieldType === 'function' ? fGetFieldType(k) : {type:'text'};
+    
+    if (cfg.type === 'image') {
+      const isBase64 = val.startsWith('data:');
+      const previewHtml = val ? `<div class="f-bulk-local-prev" style="margin-top:4px;width:100%;height:30px;background:url('${_fCssUrlSafe(val)}') center/contain no-repeat;border:1px solid ${isErr?'var(--dm-red,#C81818)':'var(--gray-mid,#D4D4D4)'}"></div>` : '';
+      return `<div style="margin-bottom:4px">
+        <label style="display:block;font-size:9px;color:var(--text-2,#3A3A3A);margin-bottom:2px">${safeK} (Imagem local ou URL)</label>
+        <input type="file" id="f-bulk-edit-${i}-${k}-file" accept="image/*" style="width:100%;font-size:10px;color:var(--text-2,#3A3A3A)" onchange="fBulkHandleLocalImage(this, ${i}, '${k}')">
+        <input type="hidden" id="f-bulk-edit-${i}-${k}" value="${safeV}">
+        ${previewHtml}
+      </div>`;
+    }
+
+    return `<div style="margin-bottom:4px">
+      <label style="display:block;font-size:9px;color:var(--text-2,#3A3A3A);margin-bottom:2px">${safeK}</label>
+      <input type="text" id="f-bulk-edit-${i}-${k}" value="${safeV}" style="width:100%;font-size:10px;padding:2px 4px;border:1px solid ${isErr?'var(--dm-red,#C81818)':'var(--gray-mid,#D4D4D4)'};border-radius:2px;background:var(--white,#FFFFFF)">
+    </div>`;
+  }).join('');
+  
+  infoDiv.innerHTML = formHtml + `<button class="d-btn-pri" style="width:100%;padding:4px;font-size:10px;margin-top:4px" onclick="fBulkSaveRow(${i})">Salvar</button>`;
+}
+
+// Sanitiza um valor pra uso dentro de url('...') no CSS (tira aspas/parênteses/quebras).
+function _fCssUrlSafe(v){ return String(v==null?'':v).replace(/["'()\\\r\n]/g,''); }
+
+function fBulkHandleLocalImage(input, idx, key) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const hidden = document.getElementById(`f-bulk-edit-${idx}-${key}`);
+    if (hidden) hidden.value = e.target.result;
+    // Preview robusto: acha (ou cria) a div de prévia no mesmo wrapper, em vez de
+    // navegar por nextElementSibling — que quebrava (TypeError) quando o campo estava
+    // vazio e a div de preview ainda não existia.
+    const wrap = input.closest('div');
+    if (wrap) {
+      let prev = wrap.querySelector('.f-bulk-local-prev');
+      if (!prev) {
+        prev = document.createElement('div');
+        prev.className = 'f-bulk-local-prev';
+        prev.style.cssText = 'margin-top:4px;width:100%;height:30px;background-position:center;background-repeat:no-repeat;background-size:contain;border:1px solid var(--gray-mid,#D4D4D4)';
+        wrap.appendChild(prev);
+      }
+      prev.style.backgroundImage = `url('${_fCssUrlSafe(e.target.result)}')`;
+      prev.style.borderColor = 'var(--gray-mid,#D4D4D4)';
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function fBulkSaveRow(i, isSilent=false) {
+  const row = fBulkRows[i];
+  const keys = fBulkVars();
+  
+  // Verifica se a linha é completamente vazia
+  const isEmpty = keys.every(k => {
+    const input = document.getElementById(`f-bulk-edit-${i}-${k}`);
+    const val = input ? input.value : (row.dados[k] || '');
+    return !val || !val.trim();
+  });
+  
+  const dados = {}, erros = [];
+  
+  keys.forEach(k => {
+    const input = document.getElementById(`f-bulk-edit-${i}-${k}`);
+    if(input) {
+      const cfg = typeof fGetFieldType === 'function' ? fGetFieldType(k) : {type:'text'};
+      let v = (cfg.type==='image' && input.type !== 'file') ? input.value : fApplyMask(k, input.value);
+      dados[k] = v;
+      
+      // Só valida se a linha não for totalmente vazia
+      // (err no escopo do forEach: antes era const dentro do if → ReferenceError no blur)
+      let err = null;
+      if (!isEmpty) {
+        err = fValidate(k, v);
+        if(err) erros.push(err);
+      }
+
+      if(isSilent) {
+        input.style.borderColor = err ? 'var(--dm-red,#C81818)' : 'var(--gray-mid,#D4D4D4)';
+      }
+    } else {
+      dados[k] = row.dados[k];
+    }
+  });
+  
+  // Auto-Categorizador Rodada 2:
+  if (keys.includes('categoria') && keys.includes('produto')) {
+    const prodVal = dados['produto'] || '';
+    const catVal = dados['categoria'] || '';
+    if (prodVal && !catVal) {
+      const autoCat = fBulkAutoCategorize(prodVal);
+      if (autoCat) {
+        dados['categoria'] = autoCat;
+        const catInput = document.getElementById(`f-bulk-edit-${i}-categoria`);
+        if (catInput) {
+          catInput.value = autoCat;
+          catInput.style.borderColor = 'var(--gray-mid,#D4D4D4)';
+        }
+        const catErrIdx = erros.findIndex(e => e.includes('categoria'));
+        if (catErrIdx !== -1) erros.splice(catErrIdx, 1);
+      }
+    }
+  }
+  
+  fBulkRows[i] = {dados, erros};
+  
+  if(!isSilent) {
+    fBulkRenderPreview();
+  }
+}
+
+function fBulkSaveAllRows(isSilent=true) {
+  if (!_fBulkTableView) return;
+  fBulkRows.forEach((r, i) => {
+    fBulkSaveRow(i, isSilent);
+  });
+}
+
 // Renderiza os thumbnails em fila (cede o thread entre cada um). Um token cancela
 // loops antigos quando a lista é re-renderizada (ex.: após remover um card).
 async function fBulkRenderThumbs(){
@@ -1016,36 +1654,148 @@ async function fBulkRenderCardPreview(row, index){
 // Remove uma arte do lote e re-renderiza (re-indexa os cards).
 function fBulkRemoveCard(index){
   if(index<0||index>=fBulkRows.length)return;
+  fBulkCollectCurrentInputs();
   fBulkRows.splice(index,1);
   const st=document.getElementById('f-bulk-status');
   if(st)st.textContent=fBulkRows.length?`${fBulkRows.length} linha(s) carregada(s)`:'';
   fBulkRenderPreview();
   gToast('Arte removida do lote');
 }
+// Duplica a linha logo abaixo dela (o botão 📋 da tabela chamava esta função, que não existia).
+function fBulkCloneRow(index){
+  if(index<0||index>=fBulkRows.length)return;
+  fBulkCollectCurrentInputs();
+  const src=fBulkRows[index]||{dados:{},erros:[]};
+  fBulkRows.splice(index+1,0,{ dados:{...src.dados}, erros:[...(src.erros||[])] });
+  const st=document.getElementById('f-bulk-status');
+  if(st)st.textContent=`${fBulkRows.length} linha(s) carregada(s)`;
+  fBulkRenderPreview();
+  gToast('✓ Linha duplicada');
+}
 async function fBulkDownloadAll(){
   if(!fBulkRows.length){gToast('Envie um CSV primeiro');return;}
-  const c=fState.camp, fmt=fState.fmt, btn=document.getElementById('f-bulk-dl-btn');
-  if(btn){btn.disabled=true;}
-  const valid=fBulkRows.filter(r=>!r.erros.length);
-  if(!valid.length){gToast('⚠ Nenhuma linha válida — corrija os erros do CSV','error');if(btn)btn.disabled=false;return;}
-  let ok=0;
-  for(let i=0;i<valid.length;i++){
-    const row=valid[i];
-    if(btn)btn.textContent=`Baixando ${i+1}/${valid.length}...`;
-    try{
-      const dataUrl=await fRenderMaterialToDataURL(row.dados,c,fmt);
-      const a=document.createElement('a');
-      a.download=fBuildFilename(c,fmt,row.dados);
-      a.href=dataUrl;a.click();
-      ok++;
-    }catch(err){ console.warn('Bulk linha '+(i+1)+' falhou',err); }
-    // yield: cede o thread pra UI respirar entre PNGs pesados (2× super-sampling)
-    await new Promise(res=>(window.requestIdleCallback||setTimeout)(res, 120));
+  if(typeof JSZip === 'undefined'){gToast('JSZip não carregado','error');return;}
+  
+  // Salva e valida todas as linhas da tabela antes do download
+  fBulkSaveAllRows(true);
+  
+  const keys = fBulkVars();
+  const checkboxes = document.querySelectorAll('.f-bulk-fmt-cb:checked');
+  let selectedFmts = [];
+  if(checkboxes.length > 0 && typeof FMTS !== 'undefined') {
+    checkboxes.forEach(cb => {
+      const f = FMTS.find(x => x.id === cb.value);
+      if(f) selectedFmts.push(f);
+    });
+  } else {
+    selectedFmts = [fState.fmt];
   }
-  if(btn){btn.textContent='Baixar todos';btn.disabled=false;}
-  const _fail=valid.length-ok;
-  if(_fail>0) gToast(`${ok}/${valid.length} geradas — ${_fail} falhou(ram). Imagens por URL precisam ser públicas (com CORS).`,'error');
-  else gToast('✓ '+ok+' de '+valid.length+' artes geradas');
+  
+  // Filtra linhas válidas que não tenham erro e que NÃO estejam completamente vazias
+  const valid = fBulkRows.filter(r => {
+    if (r.erros.length > 0) return false;
+    const isEmpty = keys.every(k => !r.dados[k] || !r.dados[k].trim());
+    return !isEmpty;
+  });
+  if(!valid.length){gToast('⚠ Nenhuma linha válida preenchida','error');return;}
+  
+  const wrap = document.getElementById('f-bulk-progress-wrap');
+  const txt = document.getElementById('f-bulk-progress-text');
+  const pct = document.getElementById('f-bulk-progress-pct');
+  const bar = document.getElementById('f-bulk-progress-bar');
+  const actions = document.getElementById('f-bulk-actions');
+  
+  if(actions) actions.style.display = 'none';
+  if(wrap) wrap.style.display = 'block';
+  
+  let ok=0;
+  const zip = new JSZip();
+  const c=fState.camp;
+  const totalRenders = valid.length * selectedFmts.length;
+  let currentRender = 0;
+  
+  for(let fi=0; fi<selectedFmts.length; fi++) {
+    const fmt = selectedFmts[fi];
+    const folderPrefix = selectedFmts.length > 1 ? `${fmt.name}/` : '';
+    const oldFmt = fState.fmt;
+    fState.fmt = fmt;
+    
+    for(let i=0;i<valid.length;i++){
+      const row=valid[i];
+      currentRender++;
+      const pctVal = Math.round((currentRender / totalRenders) * 100);
+      
+      if(txt) txt.textContent = `Arte ${currentRender}/${totalRenders} (${fmt.name})...`;
+      if(pct) pct.textContent = `${pctVal}%`;
+      if(bar) bar.style.width = `${pctVal}%`;
+      
+      try{
+        const dataUrl=await fRenderMaterialToDataURL(row.dados,c,fmt);
+        const filename=fBuildFilename(c,fmt,row.dados);
+        const b64 = dataUrl.split(',')[1];
+        if(b64) zip.file(folderPrefix + filename, b64, {base64: true});
+        ok++;
+      }catch(err){ console.warn('Bulk linha '+(i+1)+' falhou',err); }
+      
+      await new Promise(res=>setTimeout(res, 50));
+    }
+    
+    fState.fmt = oldFmt;
+  }
+  
+  // Gerador de Legendas v2 — Motor Combinatório com tom DM
+  const copyFormat = (document.getElementById('f-bulk-copy-format') || {}).value || 'feed';
+  
+  let captionsText = `========================================================\n`;
+  captionsText += `   LEGENDAS PARA POSTS — GERADAS PELO LUMA SHEETS\n`;
+  captionsText += `   Formato: ${copyFormat === 'stories' ? 'Stories (curto)' : 'Feed (completo)'}\n`;
+  captionsText += `========================================================\n\n`;
+  
+  valid.forEach((row, idx) => {
+    const vars = Object.keys(row.dados);
+    const nameKey = vars.find(v => /produto|titulo|nome/i.test(v)) || vars[0] || '';
+    const deKey = vars.find(v => /de|antigo/i.test(v)) || '';
+    const porKey = vars.find(v => /por|preco|preço|atual|valor/i.test(v)) || '';
+    const valKey = vars.find(v => /validade|data|condicao|condição/i.test(v)) || '';
+    const descKey = vars.find(v => /desconto|selo|off/i.test(v)) || '';
+    
+    const prod = row.dados[nameKey] || ('Produto ' + (idx + 1));
+    const de = deKey ? (row.dados[deKey] || '') : '';
+    const por = porKey ? (row.dados[porKey] || '') : '';
+    const val = valKey ? (row.dados[valKey] || '') : '';
+    const desc = descKey ? (row.dados[descKey] || '') : '';
+    
+    captionsText += `--------------------------------------------------------\n`;
+    captionsText += `ITEM #${idx+1}: ${prod}\n`;
+    captionsText += `--------------------------------------------------------\n\n`;
+    
+    const copys = fBuildCopy(prod, de, por, val, desc, copyFormat);
+    
+    captionsText += `Opcao 1:\n${copys.op1}\n\n`;
+    captionsText += `Opcao 2:\n${copys.op2}\n\n`;
+    captionsText += `Opcao 3:\n${copys.op3}\n\n\n`;
+  });
+  
+  zip.file("legendas_posts.txt", captionsText);
+
+  try {
+    const zipBlob = await zip.generateAsync({type: "blob"});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(zipBlob);
+    a.download = `Luma_Artes_${fSanitizeNamePart(fState.material.name)||'Lote'}.zip`;
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+  } catch(err) {
+    console.error(err);
+    gToast('Erro ao gerar o arquivo ZIP', 'error');
+  }
+  
+  if(actions) actions.style.display = 'flex';
+  if(wrap) wrap.style.display = 'none';
+  
+  const _fail=totalRenders-ok;
+  if(_fail>0) gToast(`${ok}/${totalRenders} geradas — ${_fail} falhou(ram).`,'error');
+  else gToast('✓ '+ok+' artes geradas e baixadas no ZIP!');
   
   if(typeof fClearImgCache === 'function') fClearImgCache();
 }
@@ -1131,4 +1881,975 @@ function fSampleDadosForLayers(layers){
     out[n]=(typeof gFieldSampleValue==='function')?gFieldSampleValue(v||{name:n}):((v&&(v.label||n))||n);
   });
   return out;
+}
+
+/* ── LUMA SHEETS BULK ACTIONS (IDEIA 1) ── */
+function fBulkCollectCurrentInputs() {
+  if (!_fBulkTableView) return;
+  const keys = fBulkVars();
+  fBulkRows.forEach((r, i) => {
+    keys.forEach(k => {
+      const el = document.getElementById(`f-bulk-edit-${i}-${k}`);
+      if (el) {
+        r.dados[k] = el.value;
+      }
+    });
+  });
+}
+
+function fParsePriceNumber(str) {
+  if (!str) return 0;
+  let s = String(str).replace(/[^0-9.,]/g, ''); // mantém só dígitos, ponto e vírgula
+  if (!s) return 0;
+  if (s.includes(',')) {
+    // Formato BR: vírgula é decimal, ponto é milhar → "1.234,56" vira "1234.56"
+    s = s.replace(/\./g, '').replace(',', '.');
+  } else if (s.includes('.')) {
+    // Só ponto: é milhar se o último grupo tem 3 dígitos ("1.234"); senão é decimal ("9.90")
+    if (s.split('.').pop().length === 3) s = s.replace(/\./g, '');
+  }
+  const val = parseFloat(s);
+  return isNaN(val) ? 0 : val;
+}
+
+function fFormatPriceNumber(val) {
+  return 'R$ ' + val.toFixed(2).replace('.', ',');
+}
+
+function fBulkApplyFill() {
+  fBulkCollectCurrentInputs();
+  const col = document.getElementById('f-bulk-action-col')?.value;
+  const val = document.getElementById('f-bulk-action-val')?.value;
+  if (!col) return;
+  if (val === undefined || val === '') {
+    gToast('Digite um valor para preencher todas as linhas', 'warning');
+    return;
+  }
+  
+  // Aplica a máscara do campo (ex.: preço → "R$ 10,00") em vez de gravar cru, e revalida.
+  const masked = (typeof fApplyMask === 'function') ? fApplyMask(col, val) : val;
+  fBulkRows.forEach(r => {
+    r.dados[col] = masked;
+    _fBulkRevalidateCol(r, col);
+  });
+
+  gToast(`✓ Coluna "${col}" preenchida em todas as linhas`);
+  fBulkRenderPreview();
+}
+
+// Revalida UMA coluna de uma linha após uma transformação em massa: em vez de só
+// apagar o erro antigo (que deixava dado inválido "verde"), reexecuta fValidate.
+function _fBulkRevalidateCol(r, col){
+  r.erros = (r.erros||[]).filter(e => !e.includes(col));
+  const err = (typeof fValidate==='function') ? fValidate(col, r.dados[col]) : null;
+  if (err) r.erros.push(err);
+}
+
+async function fBulkApplyDiscountPrompt() {
+  fBulkCollectCurrentInputs();
+  const col = document.getElementById('f-bulk-action-col')?.value;
+  if (!col) return;
+
+  const isPrice = /preco|valor|min|taxa|de|por/i.test(col);
+  if (!isPrice && !(await gConfirm(`A coluna "${col}" não parece ser de preço. Aplicar mesmo assim?`, {okLabel:'Aplicar'}))) return;
+
+  const pctStr = await gPrompt('Percentual de desconto a aplicar:', '', {placeholder:'Ex.: 10 (para 10%)', title:'Aplicar desconto'});
+  if (pctStr === null) return;
+  const pct = parseFloat(String(pctStr).replace(',', '.'));
+  if (isNaN(pct) || pct < 0 || pct > 100) {
+    gToast('⚠ Percentual inválido (deve ser entre 0 e 100)', 'error');
+    return;
+  }
+
+  fBulkRows.forEach(r => {
+    const num = fParsePriceNumber(r.dados[col] || '');
+    if (num > 0) {
+      r.dados[col] = fFormatPriceNumber(num * (1 - pct / 100));
+      _fBulkRevalidateCol(r, col);
+    }
+  });
+
+  gToast(`✓ Desconto de ${pct}% aplicado à coluna "${col}"`);
+  fBulkRenderPreview();
+}
+
+async function fBulkApplyRounding() {
+  fBulkCollectCurrentInputs();
+  const col = document.getElementById('f-bulk-action-col')?.value;
+  if (!col) return;
+
+  const isPrice = /preco|valor|min|taxa|de|por/i.test(col);
+  if (!isPrice && !(await gConfirm(`A coluna "${col}" não parece ser de preço. Arredondar mesmo assim?`, {okLabel:'Arredondar'}))) return;
+
+  fBulkRows.forEach(r => {
+    const num = fParsePriceNumber(r.dados[col] || '');
+    if (num > 0) {
+      r.dados[col] = fFormatPriceNumber(Math.floor(num) + 0.90);
+      _fBulkRevalidateCol(r, col);
+    }
+  });
+
+  gToast(`✓ Valores da coluna "${col}" arredondados para final ,90`);
+  fBulkRenderPreview();
+}
+
+// DEMONSTRAÇÃO: NÃO lê cardápio real (o navegador nem conseguiria, por CORS).
+// Gera uma planilha de EXEMPLO conforme o tipo (pizza/sushi/burger…) como ponto de
+// partida editável. A UI deixa isso explícito ("Demonstração") — sem fingir que
+// baixou os produtos reais do franqueado.
+async function fBulkImportFromLink() {
+  const urlEl = document.getElementById('f-bulk-import-url');
+  const url = urlEl ? urlEl.value.trim() : '';
+  if (!url) {
+    gToast('Digite um tipo (pizza, sushi, burger…) ou cole um link primeiro', 'warning');
+    return;
+  }
+
+  const btn = document.querySelector('[onclick="fBulkImportFromLink()"]');
+  const restore = gBtnLoading(btn, 'Gerando…');
+
+  gToast('Gerando planilha de exemplo (demonstração)…');
+  await new Promise(r => setTimeout(r, 500));
+
+  // Escolhe o conjunto de exemplos pela palavra-chave (funciona com tipo OU link).
+  let items = [];
+  const lowerUrl = url.toLowerCase();
+  
+  if (lowerUrl.includes('pizza') || lowerUrl.includes('pizzaria')) {
+    items = [
+      { produto: 'Pizza Margherita G', precoDe: 'R$ 54,90', precoPor: 'R$ 44,90', validade: 'Válido até domingo', categoria: 'Pizzas' },
+      { produto: 'Pizza Calabresa G', precoDe: 'R$ 49,90', precoPor: 'R$ 39,90', validade: 'Válido até domingo', categoria: 'Pizzas' },
+      { produto: 'Pizza Quatro Queijos G', precoDe: 'R$ 59,90', precoPor: 'R$ 49,90', validade: 'Válido até domingo', categoria: 'Pizzas' },
+      { produto: 'Borda Recheada de Catupiry', precoDe: 'R$ 15,00', precoPor: 'R$ 10,00', validade: 'Válido até domingo', categoria: 'Adicionais' },
+      { produto: 'Coca-Cola 2 Litros', precoDe: 'R$ 12,00', precoPor: 'R$ 9,90', validade: 'Válido até domingo', categoria: 'Bebidas' }
+    ];
+  } else if (lowerUrl.includes('sushi') || lowerUrl.includes('japa') || lowerUrl.includes('japanese')) {
+    items = [
+      { produto: 'Combo Premium 30 Peças', precoDe: 'R$ 89,90', precoPor: 'R$ 69,90', validade: 'Só hoje', categoria: 'Combos' },
+      { produto: 'Temaki Filadélfia Dobrado', precoDe: 'R$ 38,00', precoPor: 'R$ 29,90', validade: 'Só hoje', categoria: 'Temakis' },
+      { produto: 'Hot Roll 10 unidades', precoDe: 'R$ 24,90', precoPor: 'R$ 19,90', validade: 'Só hoje', categoria: 'Entradas' },
+      { produto: 'Combo Executivo Japa', precoDe: 'R$ 49,90', precoPor: 'R$ 39,90', validade: 'Só hoje', categoria: 'Combos' }
+    ];
+  } else if (lowerUrl.includes('burger') || lowerUrl.includes('burguer') || lowerUrl.includes('lanche')) {
+    items = [
+      { produto: 'X-Bacon Cheddar Duplo', precoDe: 'R$ 36,90', precoPor: 'R$ 29,90', validade: 'Promoção da semana', categoria: 'Lanches' },
+      { produto: 'Monster Burger Crispy', precoDe: 'R$ 42,90', precoPor: 'R$ 34,90', validade: 'Promoção da semana', categoria: 'Lanches' },
+      { produto: 'Batata Frita Turbinada G', precoDe: 'R$ 22,00', precoPor: 'R$ 17,90', validade: 'Promoção da semana', categoria: 'Acompanhamentos' },
+      { produto: 'Combo Hamburguer + Batata + Refri', precoDe: 'R$ 49,90', precoPor: 'R$ 39,90', validade: 'Promoção da semana', categoria: 'Combos' }
+    ];
+  } else {
+    // Genérico / Padrão
+    items = [
+      { produto: 'Prato Feito Executivo', precoDe: 'R$ 28,00', precoPor: 'R$ 22,90', validade: 'Almoço de segunda a sexta', categoria: 'Pratos Quentes' },
+      { produto: 'Suco Natural de Laranja 500ml', precoDe: 'R$ 10,00', precoPor: 'R$ 7,90', validade: 'Almoço de segunda a sexta', categoria: 'Bebidas' },
+      { produto: 'Marmita Econômica M', precoDe: 'R$ 22,00', precoPor: 'R$ 17,90', validade: 'Almoço de segunda a sexta', categoria: 'Pratos Quentes' },
+      { produto: 'Sobremesa Pudim de Leite', precoDe: 'R$ 8,00', precoPor: 'R$ 5,90', validade: 'Almoço de segunda a sexta', categoria: 'Sobremesas' }
+    ];
+  }
+  
+  // Agora vamos injetar na planilha
+  const keys = fBulkVars();
+  fBulkRows = items.map(item => {
+    const dados = {};
+    keys.forEach(k => {
+      // MAPEIA variáveis
+      if (k === 'produto') dados[k] = item.produto;
+      else if (k === 'precoDe') dados[k] = item.precoDe;
+      else if (k === 'precoPor') dados[k] = item.precoPor;
+      else if (k === 'validade') dados[k] = item.validade;
+      else if (k === 'categoria') dados[k] = item.categoria;
+      else {
+        dados[k] = F_BULK_SAMPLES[k] ? F_BULK_SAMPLES[k][Math.floor(Math.random() * F_BULK_SAMPLES[k].length)] : '';
+      }
+    });
+    return { dados, erros: [] };
+  });
+  
+  restore();
+  if (urlEl) urlEl.value = '';
+  document.getElementById('f-bulk-status').textContent = `${fBulkRows.length} linha(s) carregada(s)`;
+  gToast(`✓ ${fBulkRows.length} exemplos de demonstração — edite com os seus produtos reais`);
+
+  _fBulkTableView = true;
+  fBulkRenderPreview();
+}
+
+/* ── LUMA SHEETS MODELOS SALVOS (IDEIA 3) ── */
+function fBulkUpdateSavedTemplatesList() {
+  const wrap = document.getElementById('f-bulk-saved-wrap');
+  const select = document.getElementById('f-bulk-saved-select');
+  if(!wrap || !select) return;
+  
+  if(!fState.material) {
+    wrap.style.display = 'none';
+    return;
+  }
+  
+  let store = { entries: [] };
+  try {
+    const raw = localStorage.getItem('_luma_saved_sheets');
+    if(raw) store = JSON.parse(raw);
+  } catch(e) {}
+  if (!store || !Array.isArray(store.entries)) store = { entries: [] };
+  
+  const currentMatId = fState.material.id;
+  const filtered = store.entries.filter(e => e.materialId === currentMatId);
+  
+  if(filtered.length === 0) {
+    wrap.style.display = 'none';
+    return;
+  }
+  
+  wrap.style.display = 'inline-flex';
+  select.innerHTML = `<option value="">-- Modelos Salvos (${filtered.length}) --</option>` +
+    filtered.map(e => `<option value="${e.id}">${_dEsc ? _dEsc(e.name) : e.name}</option>`).join('');
+}
+
+async function fBulkSaveTemplate() {
+  fBulkCollectCurrentInputs();
+  if (!fBulkRows || fBulkRows.length === 0) {
+    gToast('A planilha está vazia. Adicione algumas linhas antes de salvar', 'warning');
+    return;
+  }
+
+  const name = await gPrompt('Nome deste modelo:', '', {placeholder:'Ex.: Ofertas de Quarta-Feira', title:'Salvar modelo'});
+  if (name === null) return;
+  const trimmed = name.trim();
+  if (!trimmed) {
+    gToast('⚠ Nome inválido', 'error');
+    return;
+  }
+
+  let store = { entries: [] };
+  try {
+    const raw = localStorage.getItem('_luma_saved_sheets');
+    if (raw) store = JSON.parse(raw);
+  } catch (e) {}
+  if (!store || !Array.isArray(store.entries)) store = { entries: [] };
+
+  // NÃO persiste imagens base64 (data:) — inflam o localStorage (MB por linha) e estouram
+  // a quota (mesmo princípio do "push nunca grava base64"). Guarda só texto/URLs; imagens
+  // locais são reenviadas na hora de gerar o lote.
+  let stripped = 0;
+  const rows = fBulkRows.map(r => {
+    const dados = {};
+    Object.keys(r.dados).forEach(k => {
+      const v = r.dados[k];
+      if (typeof v === 'string' && v.startsWith('data:')) { dados[k] = ''; stripped++; }
+      else dados[k] = v;
+    });
+    return { dados, erros: [] };
+  });
+
+  store.entries.push({ id: 't-' + Date.now(), name: trimmed, materialId: fState.material.id, rows });
+  try {
+    localStorage.setItem('_luma_saved_sheets', JSON.stringify(store));
+  } catch (e) {
+    gToast('⚠ Não foi possível salvar — armazenamento local cheio. Apague modelos antigos e tente de novo.', 'error');
+    return;
+  }
+
+  gToast(stripped
+    ? `✓ Modelo "${trimmed}" salvo (${stripped} imagem(ns) local(is) não ficam guardadas — reenvie ao gerar)`
+    : `✓ Modelo "${trimmed}" salvo com sucesso!`);
+  fBulkUpdateSavedTemplatesList();
+}
+
+async function fBulkLoadTemplate() {
+  const select = document.getElementById('f-bulk-saved-select');
+  if (!select) return;
+  const id = select.value;
+  if (!id) return;
+  
+  let store = { entries: [] };
+  try {
+    const raw = localStorage.getItem('_luma_saved_sheets');
+    if (raw) store = JSON.parse(raw);
+  } catch (e) {}
+  if (!store || !Array.isArray(store.entries)) store = { entries: [] };
+  
+  const entry = store.entries.find(e => e.id === id);
+  if (!entry) {
+    gToast('⚠ Modelo não encontrado', 'error');
+    return;
+  }
+  
+  if (fBulkRows.length > 0) {
+    if (!(await gConfirm('Isto vai substituir os dados atuais da planilha. Continuar?', {okLabel:'Substituir'}))) {
+      select.value = '';
+      return;
+    }
+  }
+
+  fBulkRows = entry.rows.map(r => ({ dados: { ...r.dados }, erros: [] }));
+  document.getElementById('f-bulk-status').textContent = `${fBulkRows.length} linha(s) carregada(s)`;
+  gToast(`✓ Modelo "${entry.name}" carregado!`);
+  
+  _fBulkTableView = true;
+  fBulkRenderPreview();
+  select.value = '';
+}
+
+async function fBulkDeleteTemplate() {
+  const select = document.getElementById('f-bulk-saved-select');
+  if (!select) return;
+  const id = select.value;
+  if (!id) {
+    gToast('Selecione o modelo que deseja excluir no seletor ao lado', 'warning');
+    return;
+  }
+
+  let store = { entries: [] };
+  try {
+    const raw = localStorage.getItem('_luma_saved_sheets');
+    if (raw) store = JSON.parse(raw);
+  } catch (e) {}
+  if (!store || !Array.isArray(store.entries)) store = { entries: [] };
+
+  const entry = store.entries.find(e => e.id === id);
+  if (!entry) return;
+
+  if (!(await gConfirm(`Excluir permanentemente o modelo "${entry.name}"?`, {okLabel:'Excluir', danger:true}))) return;
+
+  store.entries = store.entries.filter(e => e.id !== id);
+  try {
+    localStorage.setItem('_luma_saved_sheets', JSON.stringify(store));
+  } catch (e) {}
+
+  gToast(`✓ Modelo "${entry.name}" excluído`);
+  fBulkUpdateSavedTemplatesList();
+}
+
+function fIsImageVar(varName) {
+  if (!fState.material || !fState.material.layers) return false;
+  const layer = fState.material.layers.find(l => l.varName === varName);
+  if (layer && layer.type === 'image') return true;
+  if (typeof dVars !== 'undefined' && dVars) {
+    const v = dVars.find(x => x.name === varName);
+    if (v && v.type === 'image') return true;
+  }
+  return /foto|imagem|img|logo/i.test(varName);
+}
+
+function fBulkUploadCellImage(input, i, k) {
+  const file = input.files[0];
+  if (!file) return;
+  
+  fBulkCollectCurrentInputs();
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const base64 = e.target.result;
+    fBulkRows[i].dados[k] = base64;
+    fBulkRows[i].erros = fBulkRows[i].erros.filter(err => !err.includes(k));
+    const img = new Image();
+    img.onload = function() {
+      if (img.width < 600 || img.height < 600) {
+        gToast(`⚠ Aviso: Imagem com resolução baixa (${img.width}x${img.height}px). Pode ficar pixelada no post final.`, 'warning');
+      }
+      fBulkRenderPreview();
+    };
+    img.onerror = function() {
+      gToast('Erro ao carregar a imagem. Verifique se o arquivo está íntegro.', 'error');
+    };
+    img.src = base64;
+    gToast('✓ Imagem carregada');
+    fBulkRenderPreview();
+  };
+  reader.readAsDataURL(file);
+}
+
+function fBulkClearImage(i, k) {
+  fBulkRows[i].dados[k] = '';
+  fBulkRenderPreview();
+}
+
+/* ── LUMA SHEETS RODADA 2 FEATURES ── */
+function fBulkAutoCategorize(prodName) {
+  if (!prodName) return '';
+  const low = prodName.toLowerCase();
+  
+  if (/coca|cola|pepsi|guarana|fanta|sprite|suco|cerveja|chopp|agua|água|refri|bebida|tônica|redbull/i.test(low)) {
+    return 'Bebidas';
+  }
+  if (/pizza|pizzaria|borda|calabresa|marguerita|mussarela|queijo/i.test(low)) {
+    return 'Pizzas';
+  }
+  if (/burger|burguer|hamburguer|hambúrguer|blend|lanche|x-bacon|x-salada|cheddar/i.test(low)) {
+    return 'Lanches';
+  }
+  if (/sushi|temaki|hot roll|sashimi|yakisoba|japa|niguiri|sunomono/i.test(low)) {
+    return 'Comida Japonesa';
+  }
+  if (/doce|sobremesa|pudim|bolo|sorvete|petit|mousse|brownie|nutella/i.test(low)) {
+    return 'Sobremesas';
+  }
+  if (/marmita|marmitex|prato feito|executivo|almoço|jantar|lasanha|parmegiana|strogonoff/i.test(low)) {
+    return 'Refeições';
+  }
+  if (/porção|porcao|batata frita|anéis de cebola|polenta|frito|entrada|fritas/i.test(low)) {
+    return 'Porções / Entradas';
+  }
+  return '';
+}
+
+function fBulkRemoveDuplicates() {
+  fBulkCollectCurrentInputs();
+  const before = fBulkRows.length;
+  
+  const seen = new Set();
+  fBulkRows = fBulkRows.filter(r => {
+    // Cria uma assinatura limpa baseada apenas nos dados
+    const signature = JSON.stringify(r.dados);
+    if (seen.has(signature)) return false;
+    seen.add(signature);
+    return true;
+  });
+  
+  const removed = before - fBulkRows.length;
+  if (removed > 0) {
+    document.getElementById('f-bulk-status').textContent = `${fBulkRows.length} linha(s) carregada(s)`;
+    gToast(`✓ ${removed} linha(s) duplicada(s) removida(s)`);
+    fBulkRenderPreview();
+  } else {
+    gToast('Nenhuma linha duplicada encontrada', 'info');
+  }
+}
+
+function fBulkSortTable(type) {
+  fBulkCollectCurrentInputs();
+  if (!type) return;
+  
+  if (type === 'price') {
+    fBulkRows.sort((a, b) => {
+      const key = Object.keys(a.dados).find(k => /preco|valor|por/i.test(k)) || 'precoPor';
+      const valA = fParsePriceNumber(a.dados[key] || '');
+      const valB = fParsePriceNumber(b.dados[key] || '');
+      return valA - valB;
+    });
+  } else if (type === 'name') {
+    fBulkRows.sort((a, b) => {
+      const key = Object.keys(a.dados).find(k => /produto|nome|titulo|desc/i.test(k)) || Object.keys(a.dados)[0] || '';
+      const nameA = String(a.dados[key] || '').toLowerCase();
+      const nameB = String(b.dados[key] || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+  }
+  
+  gToast(`✓ Tabela ordenada com sucesso`);
+  fBulkRenderPreview();
+  
+  const sortSelect = document.getElementById('f-bulk-sort-select');
+  if (sortSelect) sortSelect.value = '';
+}
+/* ══════════════════════════════════════════════════════════════════
+   MOTOR DE COPY COMBINATÓRIO v2 — Tom de Voz Delivery Much
+   Simples, amigável, direto. Zero emojis. Linguagem do cotidiano.
+   ══════════════════════════════════════════════════════════════════ */
+
+const _COPY_BLOCKS = {
+  // ─── GANCHOS: espelham a realidade do cliente antes de vender ───
+  hooks: {
+    universal: [
+      'Aquele dia que ninguem quer cozinhar.',
+      'Fim de expediente, geladeira vazia, zero vontade de sair de casa.',
+      'Quando bate a fome e voce nao quer pensar muito.',
+      'Ninguem deveria ter que cozinhar depois de um dia desses.',
+      'A preguica bateu. E ta tudo bem.',
+      'Cozinhar hoje? Nem pensar.',
+      'Tem dias que o jantar tem que ser facil.',
+      'A fome chegou e a gente resolve.',
+    ],
+    pizzas: [
+      'Noite de pizza e noite de pizza. Sem discussao.',
+      'O combinado de sempre ou um sabor novo pra testar?',
+      'A pizza chega quente e o problema do jantar ta resolvido.',
+      'Pizza nao precisa de motivo. Mas se precisasse, hoje tem.',
+    ],
+    lanches: [
+      'Aquele burger que resolve qualquer dia ruim.',
+      'Blend na chapa, queijo derretendo, pao selado. Simples assim.',
+      'Lanche bom nao precisa de apresentacao.',
+      'O hamburguer do jeito que tem que ser.',
+    ],
+    japonesa: [
+      'Japa hoje? A gente entrega fresco na sua porta.',
+      'Hot roll, temaki, combinado — escolhe o teu.',
+      'Comida japonesa fresquinha sem sair de casa.',
+      'Aquele japa que voce merece.',
+    ],
+    bebidas: [
+      'Pediu a comida e esqueceu da bebida? A gente resolve.',
+      'Geladinha, do jeito que tem que ser.',
+      'Nao tem refeicao completa sem uma bebida gelada.',
+    ],
+    sobremesas: [
+      'Depois do jantar, aquele doce que faz o dia valer a pena.',
+      'A sobremesa e a parte que ninguem pula.',
+      'Pra fechar a refeicao com chave de ouro.',
+    ],
+    refeicoes: [
+      'Almoco pronto, na sua mesa, sem estresse.',
+      'Refeicao feita com cuidado, entregue no seu tempo.',
+      'O prato do dia chegou. E veio caprichado.',
+      'Comida de verdade, do jeito que voce gosta.',
+    ],
+    porcoes: [
+      'Porcao pra dividir — ou nao, a gente nao julga.',
+      'A entrada que vira prato principal.',
+      'Pra beliscar enquanto o papo rola.',
+    ],
+    acai: [
+      'Acai no capricho, do jeito que voce gosta.',
+      'Calor la fora, acai gelado aqui dentro.',
+      'O acai de todo dia, sempre do mesmo jeito bom.',
+    ],
+  },
+
+  // ─── CORPO: apresenta produto + preco, concreto e direto ───
+  bodies: {
+    comDesconto: [
+      '{prod} saindo de {de} por {por}.',
+      '{prod} — de {de} por {por}. Valido {val}.',
+      'Hoje o {prod} ta de {de} por {por}.',
+      '{prod} por {por} (era {de}). Valido {val}.',
+      'De {de} por {por} — {prod}.',
+      '{prod}: antes {de}, agora {por}.',
+      '{prod} saindo de {de} por {por}. **Voce economiza {economiaReais}!**',
+      '{prod} de {de} por {por}. **Um desconto de {economiaPct} no seu jantar.**',
+    ],
+    semDesconto: [
+      '{prod} por {por}.',
+      '{prod} — {por}. Simples e bom.',
+      'Hoje tem {prod} a {por}.',
+      '{prod} saindo a {por}. Valido {val}.',
+      '{prod} a {por}. Sem complicacao.',
+      '{por} no {prod}. Direto ao ponto.',
+    ],
+    comPercentual: [
+      '{prod} com {desconto} de desconto: sai a {por}.',
+      '{desconto} OFF no {prod}. Preco final: {por}.',
+      '{prod} por {por} — {desconto} a menos que o normal.',
+      'Desconto de {desconto} no {prod}. Fica {por}.',
+    ],
+  },
+
+  // ─── CTA: uma acao clara, sem pressao ───
+  ctas: {
+    delivery: [
+      'Pede pelo app.',
+      'Abre o app e faz teu pedido.',
+      'Chama no delivery.',
+      'Faz teu pedido agora.',
+      'Pede pelo link na bio.',
+      'Manda mensagem e a gente entrega.',
+      'Ta no app, e so pedir.',
+    ],
+    engajamento: [
+      'Marca aqui quem sempre pede isso com voce.',
+      'Salva pra pedir depois.',
+      'Manda pra quem ta com fome agora.',
+      'Comenta qual e o teu pedido de sempre.',
+      'Marca quem precisa ver isso.',
+      'Manda pro grupo da galera.',
+    ],
+  },
+
+  // ─── HASHTAGS por segmento ───
+  hashtags: {
+    universal: ['#delivery', '#pecaagora', '#comida', '#deliverymuch', '#pediu'],
+    pizzas: ['#pizza', '#noitedepizza', '#pizzadelivery', '#pizzalovers'],
+    lanches: ['#burger', '#hamburguer', '#lanche', '#smashburger', '#burgerlovers'],
+    japonesa: ['#sushi', '#comidajaponesa', '#temaki', '#japa', '#sushilovers'],
+    bebidas: ['#bebida', '#drinks', '#gelada', '#refrescante'],
+    sobremesas: ['#sobremesa', '#doce', '#sweet', '#doceria'],
+    refeicoes: ['#almoco', '#marmita', '#pratofeito', '#refeicao', '#comidacaseira'],
+    porcoes: ['#porcao', '#entrada', '#petisco', '#aperitivo'],
+    acai: ['#acai', '#acaibowl', '#acailovers', '#gelado'],
+  },
+};
+
+/* Mapeia resultado de fBulkAutoCategorize para chave do COPY_BLOCKS */
+function _fCopySegment(prod) {
+  const cat = fBulkAutoCategorize(String(prod || ''));
+  const map = {
+    'Bebidas': 'bebidas', 'Pizzas': 'pizzas', 'Lanches': 'lanches',
+    'Comida Japonesa': 'japonesa', 'Sobremesas': 'sobremesas',
+    'Refeições': 'refeicoes', 'Porções / Entradas': 'porcoes',
+  };
+  // Açaí: detectar separadamente pois fBulkAutoCategorize não cobre
+  if (/açaí|acai|açai/i.test(String(prod || '').toLowerCase())) return 'acai';
+  return map[cat] || 'universal';
+}
+
+/* Sorteia N itens unicos de um array */
+function _fPickRandom(arr, n) {
+  if (!arr || arr.length === 0) return [];
+  const shuffled = arr.slice().sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, Math.min(n, shuffled.length));
+}
+
+/* Sorteia 1 item de um array */
+function _fPick1(arr) {
+  if (!arr || arr.length === 0) return '';
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+/* Interpola placeholders {prod}, {por}, {de}, {val}, {desconto}, {economiaReais}, {economiaPct} */
+function _fInterpolate(template, data) {
+  return template
+    .replace(/\{prod\}/g, data.prod || '')
+    .replace(/\{por\}/g, data.por || '')
+    .replace(/\{de\}/g, data.de || '')
+    .replace(/\{val\}/g, data.val || '')
+    .replace(/\{desconto\}/g, data.desconto || '')
+    .replace(/\{economiaReais\}/g, data.economiaReais || '')
+    .replace(/\{economiaPct\}/g, data.economiaPct || '');
+}
+
+/* Monta UMA copy completa (feed ou stories) */
+function _fAssembleCopy(prod, de, por, val, desc, format, segment, usedHooks, forceShort = false) {
+  const B = _COPY_BLOCKS;
+  
+  // Escolher body baseado nos dados disponíveis + economia calculada
+  let bodyPool;
+  const numDe = fParsePriceNumber(de);
+  const numPor = fParsePriceNumber(por);
+  const hasSavings = numDe > 0 && numPor > 0 && numDe > numPor;
+  
+  if (desc && /\d+%/.test(desc)) {
+    bodyPool = B.bodies.comPercentual;
+  } else if (de && de !== '—' && de.trim()) {
+    bodyPool = B.bodies.comDesconto;
+    if (!hasSavings) {
+      bodyPool = bodyPool.filter(tpl => !tpl.includes('{economiaReais}') && !tpl.includes('{economiaPct}'));
+    }
+  } else {
+    bodyPool = B.bodies.semDesconto;
+  }
+  
+  const formattedVal = _fFormatValidity(val);
+  const diff = numDe - numPor;
+  const economiaReais = hasSavings ? fFormatPriceNumber(diff) : '';
+  const pct = hasSavings ? Math.round((diff / numDe) * 100) : 0;
+  const economiaPct = hasSavings ? (pct + '%') : '';
+
+  const data = { 
+    prod: prod, 
+    de: de, 
+    por: por, 
+    val: formattedVal, 
+    desconto: desc,
+    economiaReais: economiaReais,
+    economiaPct: economiaPct
+  };
+  
+  // Escolher pool de hooks: mistura segmento-específico + universal
+  const segHooks = B.hooks[segment] || [];
+  const allHooks = segHooks.concat(B.hooks.universal);
+  const availHooks = allHooks.filter(h => !usedHooks.has(h));
+  const hooksToUse = availHooks.length > 0 ? availHooks : allHooks;
+  
+  let hook = '';
+  let body = '';
+  
+  if (forceShort) {
+    // Busca a combinação (hook + body) <= 120 caracteres
+    const validPairs = [];
+    const allPairs = [];
+    
+    for (let h of hooksToUse) {
+      for (let bTpl of bodyPool) {
+        const bText = _fInterpolate(bTpl, data);
+        const totalLen = h.length + 2 + bText.length;
+        const pair = { hook: h, body: bText, len: totalLen };
+        allPairs.push(pair);
+        if (totalLen <= 120) {
+          validPairs.push(pair);
+        }
+      }
+    }
+    
+    let chosenPair;
+    if (validPairs.length > 0) {
+      chosenPair = _fPick1(validPairs);
+    } else {
+      // Fallback para a mais curta possível
+      allPairs.sort((x, y) => x.len - y.len);
+      chosenPair = allPairs[0];
+    }
+    
+    hook = chosenPair.hook;
+    body = chosenPair.body;
+  } else {
+    hook = _fPick1(hooksToUse);
+    body = _fInterpolate(_fPick1(bodyPool), data);
+  }
+  
+  usedHooks.add(hook);
+  
+  // Stories: formato curto (2-3 linhas, sem hashtag)
+  if (format === 'stories') {
+    const cta = _fPick1(B.ctas.delivery);
+    return [hook, body, cta].join('\n');
+  }
+  
+  // Feed: formato completo
+  const ctaType = Math.random() > 0.5 ? 'delivery' : 'engajamento';
+  const cta = _fPick1(B.ctas[ctaType]);
+  
+  // Validade como linha separada (evita duplicar se já estiver no corpo)
+  const valLine = (formattedVal && !body.includes(formattedVal)) ? ('Valido ' + formattedVal + '.') : '';
+  
+  // Hashtags: 2 universais + 2-3 do segmento + hashtags locais (cidade)
+  const cityInput = document.getElementById('f-bulk-city');
+  const city = cityInput ? cityInput.value.trim() : '';
+  
+  const segTags = B.hashtags[segment] || [];
+  const uniTags = _fPickRandom(B.hashtags.universal, 2);
+  const specTags = _fPickRandom(segTags, 3);
+  let allTagsList = uniTags.concat(specTags);
+  
+  if (city) {
+    const cleanCity = _fSanitizeHashtagPart(city);
+    if (cleanCity) {
+      const localTags = [
+        `#deliverymuch${cleanCity}`,
+        `#${cleanCity}`,
+        `#delivery${cleanCity}`
+      ];
+      allTagsList = allTagsList.concat(localTags);
+    }
+  }
+  
+  const uniqueTags = [...new Set(allTagsList)];
+  const tags = uniqueTags.join(' ');
+  
+  // Montar
+  const lines = [hook, '', body];
+  if (valLine) lines.push(valLine);
+  lines.push('', cta);
+  if (tags) lines.push('', tags);
+  
+  return lines.join('\n');
+}
+
+/* Gera 3 opções de copy (substitui fGetSegmentedCaptions) */
+function fBuildCopy(prod, de, por, val, desc, format) {
+  const segment = _fCopySegment(prod);
+  const usedHooks = new Set();
+  
+  return {
+    op1: _fAssembleCopy(prod, de, por, val, desc, format || 'feed', segment, usedHooks, true),
+    op2: _fAssembleCopy(prod, de, por, val, desc, format || 'feed', segment, usedHooks, false),
+    op3: _fAssembleCopy(prod, de, por, val, desc, format || 'feed', segment, usedHooks, false),
+  };
+}
+
+/* Retrocompatibilidade: mantém assinatura antiga caso algo externo chame */
+function fGetSegmentedCaptions(prod, de, por, val, desc) {
+  return fBuildCopy(prod, de, por, val, desc, 'feed');
+}
+
+let _fBulkHoverTimeout = null;
+
+async function fBulkShowHoverPreview(event, i) {
+  fBulkCollectCurrentInputs();
+  const row = fBulkRows[i];
+  if (!row) return;
+  
+  const popover = document.getElementById('f-bulk-hover-preview');
+  const cv = document.getElementById('f-bulk-hover-preview-canvas');
+  if (!popover || !cv) return;
+  
+  if (_fBulkHoverTimeout) clearTimeout(_fBulkHoverTimeout);
+  
+  const rect = event.currentTarget.getBoundingClientRect();
+  popover.style.left = (rect.right + window.scrollX + 12) + 'px';
+  popover.style.top = (rect.top + window.scrollY - 30) + 'px';
+  popover.style.display = 'block';
+  
+  try {
+    const [w,h] = fMaterialSize(fState.material, fState.fmt);
+    const cw = 160;
+    const ch = Math.round(cw * h / w);
+    cv.width = cw;
+    cv.height = ch;
+    
+    const off = document.createElement('canvas');
+    off.width = w;
+    off.height = h;
+    
+    await fRenderTemplateLayers(off.getContext('2d'), fState.material.layers, w, h, row.dados, fState.camp);
+    
+    const ctx = cv.getContext('2d');
+    ctx.clearRect(0,0,cw,ch);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(off, 0, 0, w, h, 0, 0, cw, ch);
+  } catch(e) {
+    console.warn('[hover preview] falhou:', e);
+  }
+}
+
+function fBulkHideHoverPreview() {
+  if (_fBulkHoverTimeout) clearTimeout(_fBulkHoverTimeout);
+  _fBulkHoverTimeout = setTimeout(() => {
+    const popover = document.getElementById('f-bulk-hover-preview');
+    if (popover) popover.style.display = 'none';
+  }, 120);
+}
+
+function fBulkCloneRow(index) {
+  fBulkCollectCurrentInputs();
+  if (index < 0 || index >= fBulkRows.length) return;
+  
+  const original = fBulkRows[index];
+  const cloned = {
+    dados: { ...original.dados },
+    erros: [ ...original.erros ]
+  };
+  
+  fBulkRows.splice(index + 1, 0, cloned);
+  
+  document.getElementById('f-bulk-status').textContent = `${fBulkRows.length} linha(s) carregada(s)`;
+  gToast('✓ Linha duplicada');
+  fBulkRenderPreview();
+}
+
+/* ─── HELPERS E INTEGRAÇÃO DE COPYS (LUMA SHEETS) ─── */
+
+function _fSanitizeHashtagPart(str) {
+  if (!str) return '';
+  return str
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function _fGetDayOfWeekName(dayIndex) {
+  const days = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
+  return days[dayIndex];
+}
+
+function _fFormatValidity(val) {
+  const day = new Date().getDay();
+  let computedVal = val ? String(val).trim() : '';
+  
+  if (!computedVal) {
+    if (day === 5 || day === 6 || day === 0) {
+      return 'neste fim de semana';
+    } else {
+      return 'por tempo limitado';
+    }
+  }
+  
+  const dateRegex = /\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/;
+  const match = computedVal.match(dateRegex);
+  if (match) {
+    const dayStr = match[1];
+    const monthStr = match[2];
+    const yearStr = match[3];
+    const fullMatch = match[0];
+    
+    const dayNum = parseInt(dayStr, 10);
+    const monthNum = parseInt(monthStr, 10);
+    let yearNum = yearStr ? parseInt(yearStr, 10) : new Date().getFullYear();
+    if (yearStr && yearStr.length === 2) {
+      yearNum += 2000;
+    }
+    
+    const testDate = new Date(yearNum, monthNum - 1, dayNum);
+    if (!isNaN(testDate.getTime()) && testDate.getDate() === dayNum && (testDate.getMonth() + 1) === monthNum) {
+      const dayName = _fGetDayOfWeekName(testDate.getDay());
+      const cleanVal = computedVal.toLowerCase().replace(/até\s+/g, '').trim();
+      const cleanMatch = fullMatch.toLowerCase().trim();
+      if (cleanVal === cleanMatch) {
+        return `até ${dayName} (${fullMatch})`;
+      }
+    }
+  }
+  
+  return computedVal;
+}
+
+function fBulkShowCopyModal(i) {
+  fBulkCollectCurrentInputs();
+  const row = fBulkRows[i];
+  if (!row) return;
+  
+  const keys = fBulkVars();
+  const nameKey = keys.find(v => /produto|titulo|nome/i.test(v)) || keys[0] || '';
+  const deKey = keys.find(v => /de|antigo/i.test(v)) || '';
+  const porKey = keys.find(v => /por|preco|preço|atual|valor/i.test(v)) || '';
+  const valKey = keys.find(v => /validade|data|condicao|condição/i.test(v)) || '';
+  const descKey = keys.find(v => /desconto|selo|off/i.test(v)) || '';
+  
+  const prod = row.dados[nameKey] || ('Produto ' + (i + 1));
+  const de = deKey ? (row.dados[deKey] || '') : '';
+  const por = porKey ? (row.dados[porKey] || '') : '';
+  const val = valKey ? (row.dados[valKey] || '') : '';
+  const desc = descKey ? (row.dados[descKey] || '') : '';
+  
+  const copyFormat = (document.getElementById('f-bulk-copy-format') || {}).value || 'feed';
+  const copys = fBuildCopy(prod, de, por, val, desc, copyFormat);
+  
+  const productInfoDiv = document.getElementById('f-copy-modal-product-info');
+  if (productInfoDiv) {
+    productInfoDiv.textContent = `Gerando sugestões para: ${prod} ${por ? `(${por})` : ''}`;
+  }
+  
+  const optionsDiv = document.getElementById('f-copy-modal-options');
+  if (optionsDiv) {
+    optionsDiv.innerHTML = '';
+    
+    [copys.op1, copys.op2, copys.op3].forEach((text, index) => {
+      const optionContainer = document.createElement('div');
+      optionContainer.style.cssText = 'display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--gray-mid,#D4D4D4);border-radius:8px;background:var(--white,#FFFFFF)';
+      
+      const headerDiv = document.createElement('div');
+      headerDiv.style.cssText = 'display:flex;justify-content:space-between;align-items:center';
+      
+      const titleSpan = document.createElement('span');
+      titleSpan.style.cssText = 'font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--dm-orange,#FF9000)';
+      titleSpan.textContent = `Opção ${index + 1} ${index === 0 ? '(Direta - Sob limite)' : ''}`;
+      
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'd-btn-sec';
+      copyBtn.style.cssText = 'font-size:11px;padding:4px 8px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;border-radius:4px;font-weight:600';
+      copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copiar`;
+      
+      copyBtn.onclick = () => {
+        navigator.clipboard.writeText(text).then(() => {
+          gToast('Legenda copiada!');
+          copyBtn.style.color = 'var(--green-text,#15803d)';
+          copyBtn.style.borderColor = 'var(--green-text,#15803d)';
+          setTimeout(() => {
+            copyBtn.style.color = '';
+            copyBtn.style.borderColor = '';
+          }, 2000);
+        }).catch(err => {
+          console.error('Failed to copy text: ', err);
+          gToast('Erro ao copiar legenda', 'error');
+        });
+      };
+      
+      headerDiv.appendChild(titleSpan);
+      headerDiv.appendChild(copyBtn);
+      
+      const textPre = document.createElement('pre');
+      textPre.style.cssText = 'margin:0;font-family:inherit;font-size:12px;color:var(--text,#0A0A0A);white-space:pre-wrap;word-break:break-word;line-height:1.5';
+      textPre.textContent = text;
+      
+      optionContainer.appendChild(headerDiv);
+      optionContainer.appendChild(textPre);
+      optionsDiv.appendChild(optionContainer);
+    });
+  }
+  
+  document.getElementById('f-copy-modal').classList.add('open');
+}
+
+function fCloseCopyModal() {
+  document.getElementById('f-copy-modal').classList.remove('open');
 }
