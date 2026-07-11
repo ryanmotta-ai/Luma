@@ -19,10 +19,18 @@ Nunca suponha — abra e confira. Qual dúvida → qual arquivo:
 - `@luma-brain/02_ARCHITECTURE.md` — como o sistema é dividido; **o que NÃO existe**.
 - `@luma-brain/03_ENGINEERING.md` — as 3 leis do código.
 - `@luma-brain/04_DESIGN_SYSTEM.md` — tokens, cores, componentes.
+- `@luma-brain/05_DESIGN_PHILOSOPHY.md` — **filosofia de design** (valores, o que deve/não deve parecer).
+- `@luma-brain/design-system.md` — **regras de design** (tipografia, radius, cores, componentes).
+- `@luma-brain/references.md` — **referências de design** (produtos inspiradores, hierarquia).
+- `@luma-brain/design-process.md` — **processo de design** (como o Claude deve planejar interfaces).
+- `@luma-brain/ux-principles.md` — **princípios de UX** (leis de UX, tratamentos de erro, acessibilidade).
+- `@luma-brain/motion.md` — **animações e movimento** (hovers, focus, skeletons, easings).
+- `@luma-brain/design-review.md` — **revisão de design** (checklist de auto-revisão e proibitivos).
+- `@luma-brain/design-role.md` — **papel de design** (Principal Product Designer).
 - `@luma-brain/06_OPERATING_SYSTEM.md` — como se comportar (o loop, guardrails).
 - Técnico detalhado: `@docs/LUMA.md`. Backend: `@docs/LUMA-BACKEND-CHANGELOG.md`.
 
-Mínimo por tarefa: `06` + o arquivo do assunto. Código → some `03`. UI → `04`. Negócio → `01` **sempre**.
+Mínimo por tarefa: `06` + o arquivo do assunto. Código → some `03`. UI → `04` + `design-system.md` + `design-review.md`. Negócio → `01` **sempre**.
 
 ### FASE 2 — PLANEJA
 

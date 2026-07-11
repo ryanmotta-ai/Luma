@@ -19,6 +19,14 @@ Se a skill `luma` estiver disponível, invoque-a. Se não, siga o fluxo manualme
 - `02_ARCHITECTURE.md` — como o sistema é dividido; o que NÃO existe.
 - `03_ENGINEERING.md` — as 3 leis do código (sem build/ESM, prefixos sagrados, patch cirúrgico).
 - `04_DESIGN_SYSTEM.md` — tokens, cores, componentes.
+- `05_DESIGN_PHILOSOPHY.md` — **filosofia de design** (valores, o que deve/não deve parecer).
+- `design-system.md` — **regras de design** (tipografia, radius, cores, componentes).
+- `references.md` — **referências de design** (produtos inspiradores, hierarquia).
+- `design-process.md` — **processo de design** (como o Claude deve planejar interfaces).
+- `ux-principles.md` — **princípios de UX** (leis de UX, tratamentos de erro, acessibilidade).
+- `motion.md` — **animações e movimento** (hovers, focus, skeletons, easings).
+- `design-review.md` — **revisão de design** (checklist de auto-revisão e proibitivos).
+- `design-role.md` — **papel de design** (Principal Product Designer).
 - `06_OPERATING_SYSTEM.md` — **como se comportar** (o loop, guardrails, quando perguntar).
 - Técnico detalhado: `docs/LUMA.md`. Backend: `docs/LUMA-BACKEND-CHANGELOG.md`.
 
