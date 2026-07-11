@@ -61,7 +61,7 @@
   color:var(--green-text);
 }
 
-/* STAGE */
+/* STAGE — grade de pontos sutil separa o palco do resto do painel */
 .lp-stage{
   flex:1;
   padding:24px 20px;
@@ -70,7 +70,35 @@
   align-items:center;
   justify-content:center;
   overflow-y:auto;
+  position:relative;
+  background-image:radial-gradient(rgba(10,10,10,.06) 1px, transparent 1.5px);
+  background-size:16px 16px;
 }
+
+/* ── ESTADO VAZIO (contextual — copy definida por fLpShowEmpty) ── */
+.lp-empty{display:none;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:12px}
+.lp-stage.empty .lp-empty{display:flex}
+.lp-stage.empty .lp-canvas-wrap{display:none}
+/* Miniatura fantasma de uma arte (story 9:16) — foto + título + preço */
+.lp-empty-art{
+  width:118px;aspect-ratio:9/16;border-radius:14px;position:relative;overflow:hidden;
+  background:linear-gradient(165deg,var(--dm-orange) 0%,var(--dm-orange-d) 100%);
+  box-shadow:0 10px 26px rgba(248,84,0,.22);
+  margin-bottom:12px;
+  animation:lpFloat 4.5s var(--ease-standard) infinite;
+}
+.lp-empty-art::before{ /* círculo da foto do produto */
+  content:'';position:absolute;top:20%;left:50%;transform:translateX(-50%);
+  width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.28);
+}
+.lp-empty-art::after{ /* barras de texto (box-shadow replica a barra com o mesmo radius) */
+  content:'';position:absolute;left:22%;right:22%;bottom:31%;height:9px;border-radius:5px;
+  background:rgba(255,255,255,.55);
+  box-shadow:0 16px 0 -2px rgba(255,255,255,.34), 0 33px 0 -1px rgba(255,255,255,.75);
+}
+@keyframes lpFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+.lp-empty-title{font-size:13.5px;font-weight:700;color:var(--text)}
+.lp-empty-sub{font-size:11.5px;color:var(--text-3);line-height:1.55;max-width:210px}
 
 .lp-canvas-wrap {
   position:relative;
@@ -87,6 +115,13 @@
 .lp-canvas{
   display:block;
   max-width:100%;
+}
+
+/* Anel que pulsa quando a prévia acabou de refletir uma resposta nova */
+.lp-canvas-wrap.updated{animation:lpPulse .55s var(--ease-out)}
+@keyframes lpPulse{
+  0%{box-shadow:0 8px 32px rgba(0,0,0,.12), 0 0 0 0 rgba(255,144,0,.45)}
+  100%{box-shadow:0 8px 32px rgba(0,0,0,.12), 0 0 0 14px rgba(255,144,0,0)}
 }
 
 .lp-stage.loading .lp-canvas-wrap::after {
@@ -154,6 +189,8 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
   font-weight:500;
   color:var(--text-2);
 }
+.lp-tool-dim{color:var(--text-3);font-weight:400;font-variant-numeric:tabular-nums}
+#lp-zoom{font-variant-numeric:tabular-nums;min-width:30px}
 
 .lp-toggle {
   width:28px;
@@ -181,6 +218,14 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
 .lp-toggle.active .lp-toggle-knob {
   transform:translateX(12px);
 }
+.lp-toggle:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+
+/* ── Tema escuro ── */
+body:not(.theme-light) .lp-stage{background-image:radial-gradient(rgba(255,255,255,.06) 1px, transparent 1.5px)}
+body:not(.theme-light) .lp-empty-title{color:#F0EDE9}
+body:not(.theme-light) .lp-empty-sub{color:#8F8880}
+body:not(.theme-light) .lp-toggle{background:#3A3733}
+body:not(.theme-light) .lp-toggle.active{background:var(--dm-orange)}
 
 /* RESPONSIVE */
 @media (max-width:1100px){

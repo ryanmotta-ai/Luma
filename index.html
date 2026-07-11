@@ -640,22 +640,28 @@ input:focus:-webkit-autofill {
             </div>
           </div>
           <div class="lp-stage">
+            <!-- Estado vazio contextual (copy trocada por fLpShowEmpty conforme o passo do fluxo) -->
+            <div class="lp-empty" id="lp-empty" aria-hidden="true">
+              <div class="lp-empty-art"></div>
+              <div class="lp-empty-title" id="lp-empty-title">Sua arte nasce aqui</div>
+              <div class="lp-empty-sub" id="lp-empty-sub">Escolha uma campanha no catálogo para começar.</div>
+            </div>
             <div class="lp-canvas-wrap">
               <canvas class="lp-canvas" id="lp-canvas" aria-label="Prévia do template"></canvas>
             </div>
           </div>
           <div class="lp-toolbar">
             <div class="lp-tool-left">
-              <button class="lp-tool-btn" title="Ajustar à tela">
+              <button class="lp-tool-btn" onclick="fLpRefit()" title="Reajustar a prévia à tela" aria-label="Reajustar a prévia à tela">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14v4a2 2 0 0 0 2 2h4"/><path d="M4 10V6a2 2 0 0 1 2-2h4"/><path d="M14 4h4a2 2 0 0 1 2 2v4"/><path d="M20 14v4a2 2 0 0 1-2 2h-4"/></svg>
-                <span class="lp-tool-label">Auto</span>
               </button>
               <div class="lp-tool-divider"></div>
-              <span class="lp-tool-text">100%</span>
+              <span class="lp-tool-text" id="lp-zoom">—</span>
+              <span class="lp-tool-text lp-tool-dim" id="lp-dim"></span>
             </div>
             <div class="lp-tool-right">
-              <span class="lp-tool-text">Ver guias</span>
-              <div class="lp-toggle">
+              <span class="lp-tool-text" id="lp-guides-label">Guias</span>
+              <div class="lp-toggle" id="lp-guides-toggle" role="switch" aria-checked="false" aria-labelledby="lp-guides-label" tabindex="0" title="Mostrar guias de composição (margens e terços)" onclick="fLpToggleGuides()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();fLpToggleGuides();}">
                 <div class="lp-toggle-knob"></div>
               </div>
             </div>

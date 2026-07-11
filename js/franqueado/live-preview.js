@@ -74,6 +74,8 @@ const F_LP_SIZES = {story:[1080,1920], feed:[1080,1350], wide:[1200,628], post:[
 
 let _lpRendering = false;
 let _lpPendingRender = false;
+let _lpScale = 1;        // escala real prévia ÷ arte final (mostrada na toolbar)
+let _lpGuides = false;   // toggle "Guias": margens de segurança + terços sobre a prévia
 
 async function fUpdateLivePreview(opts){
   opts = opts || {}; // animateField é ignorado: o canvas já reflete o estado atual
@@ -99,6 +101,9 @@ async function fUpdateLivePreview(opts){
   if(stage) stage.classList.add('loading');
 
   try {
+    // Saiu do estado vazio → mostra o palco da arte
+    if(stage) stage.classList.remove('empty');
+
     const fmtId = (fState.fmt && fState.fmt.id) || fState.material.fmt || 'story';
     const sz = F_LP_SIZES[fmtId] || F_LP_SIZES.story;
     // Template 1:1 do PSD guarda w/h reais → preview no tamanho exato; senão o preset por formato.
@@ -125,6 +130,12 @@ async function fUpdateLivePreview(opts){
       // Véu sutil sobre os campos ainda não preenchidos (tom mais suave)
       fLpHighlightEmpty(ctx, fState.material.layers, pendentes, W, H);
     }
+
+    if(_lpGuides) _fLpDrawGuides(ctx, W, H);
+
+    // Micro-sinal de "vivo": anel que pulsa quando a prévia reflete uma resposta nova
+    const wrap = canvas.closest('.lp-canvas-wrap');
+    if(wrap){ wrap.classList.remove('updated'); void wrap.offsetWidth; wrap.classList.add('updated'); }
 
     fLpUpdateMeta(true);
   } catch(e){
@@ -162,26 +173,88 @@ function fLpSizeCanvas(canvas, W, H){
   const scale = Math.min(availW / W, maxH / H);
   canvas.style.width  = Math.round(W * scale) + 'px';
   canvas.style.height = Math.round(H * scale) + 'px';
+  // Toolbar honesta: escala real da prévia + dimensões da arte final
+  _lpScale = scale;
+  const zoomEl = document.getElementById('lp-zoom');
+  if(zoomEl) zoomEl.textContent = Math.round(scale * 100) + '%';
+  const dimEl = document.getElementById('lp-dim');
+  if(dimEl) dimEl.textContent = W + '×' + H;
 }
 
-// Estado vazio: nenhum template selecionado.
+// Reajusta a prévia à tela (botão da toolbar) — útil após redimensionar a janela.
+function fLpRefit(){
+  const canvas = document.getElementById('lp-canvas');
+  if(!canvas || !canvas.width) return;
+  const stage = canvas.closest('.lp-stage');
+  if(stage) _fLpStageWidthCache = stage.clientWidth;
+  fLpSizeCanvas(canvas, canvas.width, canvas.height);
+}
+
+// Liga/desliga as guias de composição (margens de segurança + terços + centro).
+function fLpToggleGuides(){
+  _lpGuides = !_lpGuides;
+  const t = document.getElementById('lp-guides-toggle');
+  if(t){ t.classList.toggle('active', _lpGuides); t.setAttribute('aria-checked', String(_lpGuides)); }
+  try { fUpdateLivePreview(); } catch(e){}
+}
+
+// Desenha as guias por cima da prévia: margem de segurança (tracejada laranja),
+// terços e centro (traço duplo escuro+claro → legível sobre qualquer arte).
+function _fLpDrawGuides(ctx, W, H){
+  ctx.save();
+  const lw = Math.max(2, Math.round(W * 0.0025));
+  // Margem de segurança (~4.5%): o que fica fora corre risco de corte/interface
+  const mx = W * 0.045, my = H * 0.045;
+  ctx.strokeStyle = 'rgba(255,144,0,.9)';
+  ctx.lineWidth = lw;
+  ctx.setLineDash([lw * 4, lw * 3]);
+  ctx.strokeRect(mx, my, W - mx * 2, H - my * 2);
+  ctx.setLineDash([]);
+  // Terços + centro em traço duplo (sombra escura + linha clara)
+  const lines = [
+    ['v', W / 3], ['v', (2 * W) / 3], ['h', H / 3], ['h', (2 * H) / 3],
+    ['v', W / 2], ['h', H / 2],
+  ];
+  const pass = (style, width) => {
+    ctx.strokeStyle = style; ctx.lineWidth = width;
+    lines.forEach(([dir, pos], i) => {
+      const isCenter = i >= 4;
+      ctx.globalAlpha = isCenter ? .5 : .35;
+      ctx.beginPath();
+      if(dir === 'v'){ ctx.moveTo(pos, 0); ctx.lineTo(pos, H); }
+      else { ctx.moveTo(0, pos); ctx.lineTo(W, pos); }
+      ctx.stroke();
+    });
+  };
+  pass('rgba(0,0,0,.6)', Math.max(2, lw));
+  pass('rgba(255,255,255,.9)', Math.max(1, Math.round(lw / 2)));
+  ctx.restore();
+}
+
+// Estado vazio contextual: a copy acompanha o passo do fluxo do franqueado.
 function fLpShowEmpty(canvas){
-  const W = 600, H = 800;
-  canvas.width = W; canvas.height = H;
-  fLpSizeCanvas(canvas, W, H);
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, W, H); // transparente → herda o fundo do tema (claro OU escuro) via CSS
-  // Cinza médio: legível tanto no tema claro quanto no escuro (antes era preto → sumia no dark).
-  const g = 'rgba(150,150,158,0.85)';
-  ctx.strokeStyle = 'rgba(150,150,158,0.55)'; ctx.fillStyle = g;
-  ctx.lineWidth = 4; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-  const cx = W/2, cy = H/2 - 40, s = 74;
-  // Ícone de imagem (moldura + sol + montanha)
-  ctx.strokeRect(cx - s, cy - s*0.72, s*2, s*1.44);
-  ctx.beginPath(); ctx.arc(cx - s*0.45, cy - s*0.3, 12, 0, Math.PI*2); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(cx - s + 10, cy + s*0.55); ctx.lineTo(cx - s*0.2, cy - s*0.05); ctx.lineTo(cx + s*0.25, cy + s*0.28); ctx.lineTo(cx + s - 10, cy - s*0.15); ctx.stroke();
-  ctx.font = '600 26px Roboto, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('Sua arte aparece aqui', W/2, cy + s + 46);
+  const stage = canvas.closest('.lp-stage') || document.querySelector('.lp-stage');
+  if(stage) stage.classList.add('empty');
+  const t = document.getElementById('lp-empty-title');
+  const s = document.getElementById('lp-empty-sub');
+  if(t && s){
+    if(fState.material){
+      // Render falhou (catch) — honestidade sem alarme
+      t.textContent = 'Não deu pra montar a prévia';
+      s.textContent = 'A arte final não é afetada — continue respondendo normalmente.';
+    } else if(fState.materialView && fState.camp){
+      t.textContent = 'Quase lá';
+      s.textContent = 'Escolha um material da campanha e a prévia monta aqui em tempo real.';
+    } else {
+      t.textContent = 'Sua arte nasce aqui';
+      s.textContent = 'Escolha uma campanha no catálogo para começar.';
+    }
+  }
+  // Toolbar sem números fantasma no vazio
+  const zoomEl = document.getElementById('lp-zoom');
+  if(zoomEl) zoomEl.textContent = '—';
+  const dimEl = document.getElementById('lp-dim');
+  if(dimEl) dimEl.textContent = '';
 }
 
 // Injeta placeholder {{var}} nos layers de texto com variável vazia e sem default.
