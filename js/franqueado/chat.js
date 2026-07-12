@@ -29,6 +29,43 @@ function fStartChatComMaterial(material){
   // Mobile: ao começar o chat, traz o painel do chat pra frente (o layout de 2 colunas colapsa).
   try{ document.body.classList.add('f-mobile-chat'); }catch(e){}
   const _b=document.getElementById('f-msg-box'); if(_b){ _b.disabled=false; }
+
+  fState.material = material;
+
+  // Verifica se há rascunho salvo para esta combinação de campanha e material
+  let draft = null;
+  try {
+    const saved = localStorage.getItem('luma_chat_draft');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && parsed.materialId === material.id && parsed.campId === fState.camp.id) {
+        draft = parsed;
+      }
+    }
+  } catch(e){}
+
+  if (draft && Object.keys(draft.dados).length > 0) {
+    fState.stepIdx = -1;
+    fState.done = false;
+    fState.extractedColors = {};
+    fUpdateProg();
+    fState._pendingDraft = draft;
+
+    let recoverMsg = `Identifiquei que você tem um rascunho em andamento para a arte <strong>${gEsc(material.name)}</strong>. Deseja continuar de onde parou?`;
+    fAddBot(recoverMsg, []);
+
+    const msgs = document.getElementById('f-messages');
+    const w = document.createElement('div');
+    w.className = 'msg bot';
+    w.innerHTML = `<div class="qr-wrap">
+      <div class="qr" onclick="fApplyRecoverDraft(true)">Sim, continuar</div>
+      <div class="qr" onclick="fApplyRecoverDraft(false)" style="background:var(--gray-light);border-color:var(--gray-mid);color:var(--text-2)">Não, começar do zero</div>
+    </div>`;
+    msgs.appendChild(w);
+    msgs.scrollTop = msgs.scrollHeight;
+    return;
+  }
+
   fState.stepIdx=-1;fState.done=false;fUpdateProg();
   fState.extractedColors={};
   try { fUpdateLivePreview(); } catch(e){}
@@ -203,7 +240,7 @@ function fAddBotImageUpload(stepLabel, pergunta, canGoBack){
   const msgs=document.getElementById('f-messages');
   const w=document.createElement('div');w.className='msg bot';
   const uploadId='f-upload-'+Date.now();
-  const fieldHint = `<div class="field-hint"><span class="field-hint-type"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span><span class="field-hint-text">${gEsc(pergunta.label)} · imagem (PNG/JPG, máx 4MB)</span></div>`;
+  const fieldHint = `<div class="field-hint"><span class="field-hint-type"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span><span class="field-hint-text">${gEsc(pergunta.label)} · imagem (PNG/JPG, máx 20MB)</span></div>`;
   let back='';
   if(canGoBack){
     back = `<div class="qr-back-wrap"><button class="qr-back" onclick="fGoBack()" title="Voltar uma pergunta"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>Voltar uma pergunta</button></div>`;
@@ -248,8 +285,8 @@ function fProcessImageFile(file, varId, uploadId){
     fShowFieldError('Esse arquivo não é uma imagem.');
     return;
   }
-  if(file.size > 4*1024*1024){
-    fShowFieldError(`Imagem muito grande (${(file.size/1024/1024).toFixed(1)}MB). Máximo 4MB.`);
+  if(file.size > 20*1024*1024){
+    fShowFieldError(`Imagem muito grande (${(file.size/1024/1024).toFixed(1)}MB). Máximo 20MB.`);
     return;
   }
   // M1.2: feedback de processamento — skeleton + barra de progresso enquanto lê/redimensiona
@@ -271,7 +308,7 @@ function fProcessImageFile(file, varId, uploadId){
       zEl.innerHTML=`<input type="file" id="${uploadId}-input" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="fHandleImageUpload(event,'${varId}','${uploadId}')">
         <div class="f-upload-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
         <div class="f-upload-title">Toque pra tentar de novo</div>
-        <div class="f-upload-sub">PNG ou JPG, até 4MB</div>`;
+        <div class="f-upload-sub">PNG ou JPG, até 20MB</div>`;
     }
   };
   reader.onload=(e)=>{
@@ -280,6 +317,7 @@ function fProcessImageFile(file, varId, uploadId){
     // Redimensiona se for muito grande (>1500px) pra economizar storage
     fResizeImageIfNeeded(dataUrl, 1500, (resizedUrl)=>{
       fState.dados[varId]=resizedUrl;
+      fSaveChatDraft();
 
       // EXTRAÇÃO DE CORES COM COLOR THIEF
       try {
@@ -369,6 +407,7 @@ function fResizeImageIfNeeded(dataUrl, maxDim, cb){
 function fReplaceImage(varId, btn){
   // Apaga o dado atual e força nova pergunta
   delete fState.dados[varId];
+  fSaveChatDraft();
   // Acha a pergunta no fluxo (com proteção)
   const perguntas = fState.camp?.perguntas;
   if(!perguntas || !Array.isArray(perguntas)) return;
@@ -415,6 +454,7 @@ function fGoBack(){
   const target = fState.stepIdx - 1;
   fState.camp.perguntas.forEach((p,idx)=>{ if(idx>=target) delete fState.dados[p.id]; });
   fState.stepIdx = target - 1; // fNextStep incrementa pra chegar no alvo
+  fSaveChatDraft();
   fNextStep();
 }
 
@@ -480,6 +520,7 @@ function fMostrarConfirm(){
 }
 function fEditCampo(idx){
   fState.stepIdx=idx;fState.editIdx=idx;
+  fSaveChatDraft();
   const p=fState.camp.perguntas[idx];
   const labels={produto:'Produto',precoDe:'Preço original',precoPor:'Preço promo',validade:'Validade',desconto:'Desconto',pedidoMin:'Pedido mínimo',bairros:'Cobertura',codigo:'Código',condicao:'Condição',brinde:'Brinde',categoria:'Categoria',oferta:'Oferta'};
   const label = labels[p.id] || p.label || p.id;
@@ -695,6 +736,7 @@ function fCopyFallback(text, cb) {
 
 function fGerarArte(){
   fState.done=true;fUpdateProg();
+  fClearChatDraft();
   const d=fState.dados,c=fState.camp;
   fAddBot('Gerando sua arte agora... ⚡',[]);
   setTimeout(async ()=>{
@@ -921,6 +963,9 @@ async function fBaixar(btn, snapId){
     else { fAddHist(snap.dados,snap.camp,snap.fmt,'baixada'); }
     if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt:snap.fmt.id,tipo:'png'});
     gToast('Arte baixada!');
+    if (typeof gTriggerOnboardingStep === 'function') {
+      gTriggerOnboardingStep('downloadedPng');
+    }
   }catch(e){
     console.warn('Falha ao gerar PNG:', e);
     gToast('Não consegui gerar o arquivo. Tente enviar a foto de novo pelo botão de upload, ou escolha outra imagem.','error');
@@ -1007,6 +1052,9 @@ async function fBaixarPDF(btn, snapId){
     else { fAddHist(snap.dados,snap.camp,snap.fmt,'baixada'); }
     if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt:snap.fmt.id,tipo:'pdf'});
     gToast('PDF baixado!');
+    if (typeof gTriggerOnboardingStep === 'function') {
+      gTriggerOnboardingStep('downloadedPng');
+    }
   }catch(e){
     console.error('Falha ao gerar PDF:', e);
     gToast('Não consegui gerar o PDF. Se a arte usa imagem por URL, ela precisa ser pública.','error');
@@ -1078,5 +1126,73 @@ function fSend(){
   b.value='';
   fAddUser(masked);
   fSaveAdv(masked);
+}
+
+function fSaveChatDraft() {
+  try {
+    if (!fState.camp || fState.done) {
+      localStorage.removeItem('luma_chat_draft');
+      return;
+    }
+    const draft = {
+      campId: fState.camp.id,
+      fmtId: fState.fmt ? fState.fmt.id : null,
+      materialId: fState.material ? fState.material.id : null,
+      stepIdx: fState.stepIdx,
+      dados: fState.dados || {},
+      extractedColors: fState.extractedColors || {}
+    };
+    localStorage.setItem('luma_chat_draft', JSON.stringify(draft));
+  } catch (e) {
+    console.warn('[Luma Draft] Erro ao salvar rascunho:', e);
+  }
+}
+
+function fClearChatDraft() {
+  try {
+    localStorage.removeItem('luma_chat_draft');
+  } catch (e) {}
+}
+
+function fApplyRecoverDraft(confirm) {
+  const qrWrap = document.querySelector('.qr-wrap');
+  if (qrWrap && qrWrap.parentElement) qrWrap.parentElement.remove();
+  
+  const draft = fState._pendingDraft;
+  delete fState._pendingDraft;
+  
+  if (confirm && draft) {
+    fState.dados = draft.dados;
+    fState.extractedColors = draft.extractedColors || {};
+    fState.stepIdx = draft.stepIdx - 1; // fNextStep incrementa para o passo correto
+    fAddBot("Rascunho recuperado com sucesso! Vamos continuar...", []);
+    try { fUpdateLivePreview(); } catch(e){}
+    clearTimeout(fNextTimeout);
+    fNextTimeout = setTimeout(() => fNextStep(), 900);
+  } else {
+    fClearChatDraft();
+    fState.stepIdx = -1;
+    fState.dados = {};
+    fState.done = false;
+    fState.extractedColors = {};
+    fUpdateProg();
+    try { fUpdateLivePreview(); } catch(e){}
+    
+    const total = fState.camp.perguntas.length;
+    let intro = `Boa escolha! Vamos montar sua publicação para o <strong>${gEsc(fState.material.name)}</strong>. `;
+    if(fState.material.publishMeta?.instrucoes){
+      intro += `<br><br><em style="display:block;margin-top:6px;padding:8px 10px;background:var(--dm-orange-bg);border-left:3px solid var(--dm-orange);font-size:12px;color:var(--text-2);border-radius:4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg> ${gEsc(fState.material.publishMeta.instrucoes)}</em><br>`;
+    }
+    intro += `Vou te guiar em <strong>${total} pergunta${total>1?'s':''} rápida${total>1?'s':''}</strong>. Leva menos de 1 minutinho.<br>
+    <div style="margin-top:8px;border-top:1px dashed var(--gray-mid);padding-top:6px;display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <span style="font-size:11px;color:var(--text-3)">Quer economizar tempo?</span>
+      <button onclick="fBulkOpen()" style="background:var(--dm-orange-bg);border:1px solid var(--dm-orange-tint);color:var(--dm-orange-d);font-size:11px;font-weight:600;padding:4px 10px;border-radius:var(--r-pill);cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:all 0.15s ease" onmouseover="this.style.background='var(--dm-orange-tint)'" onmouseout="this.style.background='var(--dm-orange-bg)'">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Criar várias de uma vez
+      </button>
+    </div>`;
+    fAddBot(intro, []);
+    clearTimeout(fNextTimeout);
+    fNextTimeout = setTimeout(() => fNextStep(), 900);
+  }
 }
 

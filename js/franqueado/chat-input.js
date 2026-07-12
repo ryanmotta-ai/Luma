@@ -243,6 +243,7 @@ function fSaveAdv(val){
   if(fState.stepIdx<pergs.length){
     savedField = pergs[fState.stepIdx].id;
     fState.dados[savedField]=val;
+    if (typeof fSaveChatDraft === 'function') fSaveChatDraft();
   }
   // Atualiza live preview com animação no campo que acabou de ser preenchido
   try { fUpdateLivePreview({animateField: savedField}); } catch(e){}

@@ -39,7 +39,7 @@ function gOpenUserProfileModal() {
   const sidebarRole = document.getElementById('prof-sidebar-role');
   if (sidebarName) sidebarName.textContent = displayName;
   if (sidebarRole) {
-    if(role==='gestao'||role==='superadmin'){sidebarRole.style.background='#7c3aed';sidebarRole.style.color='#fff';sidebarRole.textContent= role==='gestao'?'GESTÃO':'SUPER ADMIN';}
+    if(role==='gestao'||role==='superadmin'){sidebarRole.style.background='var(--dm-red)';sidebarRole.style.color='#fff';sidebarRole.textContent= role==='gestao'?'GESTÃO':'SUPER ADMIN';}
     else if(role==='equipe_dm'||role==='admin'){sidebarRole.style.background='var(--dm-yellow)';sidebarRole.style.color='var(--dm-red)';sidebarRole.textContent= role==='equipe_dm'?'EQUIPE DM':'ADMIN';}
     else{sidebarRole.style.background='rgba(255,144,0,.15)';sidebarRole.style.color='var(--dm-orange-d)';sidebarRole.textContent='FRANQUEADO';}
   }
@@ -392,7 +392,7 @@ function fSyncThemeIcon(theme) {
 /* ══ GESTÃO DE EQUIPE ══ */
 
 const _EQUIPE_ROLE_CFG={
-  gestao:    {label:'Gestão',     emoji:'👑',bg:'rgba(124,58,237,.1)',color:'#7c3aed',desc:'Gestão completa da plataforma'},
+  gestao:    {label:'Gestão',     emoji:'👑',bg:'rgba(200,24,24,.1)',color:'var(--dm-red)',desc:'Gestão completa da plataforma'},
   equipe_dm: {label:'Equipe DM',  emoji:'⚙️',bg:'rgba(255,185,0,.14)',color:'#C81818',desc:'Acesso ao estúdio de design'},
   franqueado:{label:'Franqueado', emoji:'🏪',bg:'rgba(255,144,0,.1)', color:'#F85400',desc:'Acesso ao chat e geração de artes'},
 };

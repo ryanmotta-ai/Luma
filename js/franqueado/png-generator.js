@@ -1209,6 +1209,9 @@ function fBulkTemplateCSV(){
   a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);
   gToast('✓ Modelo CSV com '+N+' exemplos baixado — edite e reenvie');
+  if (typeof gTriggerOnboardingStep === 'function') {
+    gTriggerOnboardingStep('triedCsv');
+  }
 }
 // Parser CSV simples com suporte a aspas e vírgula escapada
 function fBulkParseCSV(text){
@@ -1279,7 +1282,7 @@ function fBulkShowMapper(raw, rawKeys, vars) {
   wrap.style.display = 'block';
   
   fieldsDiv.innerHTML = vars.map(v => {
-    const label = typeof _dEsc !== 'undefined' ? _dEsc(v) : v;
+    const label = gEsc(v);
     
     // Tenta adivinhar qual campo bate
     let bestGuess = '';
@@ -1295,7 +1298,7 @@ function fBulkShowMapper(raw, rawKeys, vars) {
     const options = [`<option value="">-- Ignorar --</option>`]
       .concat(rawKeys.map(rk => {
         const selected = rk === bestGuess ? 'selected' : '';
-        const safeRk = typeof _dEsc !== 'undefined' ? _dEsc(rk) : rk;
+        const safeRk = gEsc(rk);
         return `<option value="${safeRk}" ${selected}>${safeRk}</option>`;
       })).join('');
       
@@ -1372,6 +1375,9 @@ function fBulkHandleCSV(input){
     let raw;
     try{ raw=fBulkParseCSV(e.target.result); }catch(err){ gToast('⚠ CSV inválido','error'); return; }
     fBulkProcessRawData(raw);
+    if (typeof gTriggerOnboardingStep === 'function') {
+      gTriggerOnboardingStep('triedCsv');
+    }
   };
   r.readAsText(file);
 }
@@ -1393,7 +1399,7 @@ function fBulkRenderPreview(){
   
   if (_fBulkTableView) {
     const keys = fBulkVars();
-    const ths = keys.map(k => `<th style="padding:10px 8px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-2,#3A3A3A);font-weight:700;white-space:nowrap">${typeof _dEsc !== 'undefined'?_dEsc(k):k}</th>`).join('');
+    const ths = keys.map(k => `<th style="padding:10px 8px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-2,#3A3A3A);font-weight:700;white-space:nowrap">${gEsc(k)}</th>`).join('');
     
     const query = document.getElementById('f-bulk-search')?.value.trim().toLowerCase() || '';
     let trs = fBulkRows.map((r,i) => {
@@ -1404,7 +1410,7 @@ function fBulkRenderPreview(){
       const tds = keys.map(k => {
         const val = r.dados[k] || '';
         const isFieldErr = r.erros.find(e => e.includes(k));
-        const safeV = typeof _dEsc !== 'undefined' ? _dEsc(val).replace(/"/g, '&quot;') : val.replace(/"/g, '&quot;');
+        const safeV = gEsc(val).replace(/"/g, '&quot;');
         
         if (fIsImageVar(k)) {
           return `<td style="padding:6px 4px;border-bottom:1px solid var(--gray-light, #F2F2F2)">
@@ -1441,7 +1447,7 @@ function fBulkRenderPreview(){
       </tr>`;
     }).join('');
     
-    const optionsHtml = keys.map(k => `<option value="${k}">${typeof _dEsc !== 'undefined'?_dEsc(k):k}</option>`).join('');
+    const optionsHtml = keys.map(k => `<option value="${k}">${gEsc(k)}</option>`).join('');
     wrap.innerHTML = `<div style="grid-column: 1 / -1; width:100%; display:flex; flex-direction:column; gap:12px">
       <!-- Barra de Ações em Massa -->
       <div class="f-bulk-actions-bar" style="display:flex;gap:10px;align-items:center;padding:10px 14px;border-radius:var(--r-sm);font-size:12px;color:var(--text-2,#3A3A3A);flex-wrap:wrap">
@@ -1490,7 +1496,7 @@ function fBulkRenderPreview(){
       if (!match) return '';
     }
     const titulo=r.dados.produto||r.dados.categoria||r.dados.brinde||Object.values(r.dados)[0]||('Linha '+(i+1));
-    const campos=Object.keys(r.dados).slice(0,2).map(k=>`<div class="f-bulk-field"><span>${_dEsc?_dEsc(k):k}:</span> ${(_dEsc?_dEsc(r.dados[k]):r.dados[k])||'—'}</div>`).join('');
+    const campos=Object.keys(r.dados).slice(0,2).map(k=>`<div class="f-bulk-field"><span>${gEsc(k)}:</span> ${(gEsc(r.dados[k]))||'—'}</div>`).join('');
     const isErr = r.erros.length > 0;
     const actionsHtml = isErr 
       ? `<button class="d-btn-sec" style="padding:2px 6px;font-size:9px;margin-top:4px;width:100%" onclick="fBulkEditRow(${i})">Corrigir linha</button>` 
@@ -1499,7 +1505,7 @@ function fBulkRenderPreview(){
       +`<button class="f-bulk-remove" onclick="fBulkRemoveCard(${i})" title="Remover do lote">×</button>`
       +`<div class="f-bulk-card-num">${i+1}</div>`
       +`<canvas class="f-bulk-canvas" id="f-bulk-cv-${i}" width="${cw}" height="${ch}"></canvas>`
-      +`<div class="f-bulk-card-title" title="${_dEsc?_dEsc(titulo):titulo}">${_dEsc?_dEsc(titulo):titulo}</div>`
+      +`<div class="f-bulk-card-title" title="${gEsc(titulo)}">${gEsc(titulo)}</div>`
       +`<div class="f-bulk-card-info" id="f-bulk-info-${i}">${campos}${actionsHtml}</div>`
       +`<div class="f-bulk-card-status"><span class="f-bulk-badge loading" id="f-bulk-badge-${i}">⏳</span></div>`
       +`</div>`;
@@ -1516,8 +1522,8 @@ function fBulkEditRow(i) {
     // verifica se o nome do campo aparece em algum erro
     const isErr = row.erros.find(e => e.includes(k));
     const val = row.dados[k] || '';
-    const safeK = typeof _dEsc !== 'undefined' ? _dEsc(k) : k;
-    const safeV = typeof _dEsc !== 'undefined' ? _dEsc(val).replace(/"/g, '&quot;') : val.replace(/"/g, '&quot;');
+    const safeK = gEsc(k);
+    const safeV = gEsc(val).replace(/"/g, '&quot;');
     const cfg = typeof fGetFieldType === 'function' ? fGetFieldType(k) : {type:'text'};
     
     if (cfg.type === 'image') {
@@ -2136,7 +2142,7 @@ function fBulkUpdateSavedTemplatesList() {
   
   wrap.style.display = 'inline-flex';
   select.innerHTML = `<option value="">-- Modelos Salvos (${filtered.length}) --</option>` +
-    filtered.map(e => `<option value="${e.id}">${_dEsc ? _dEsc(e.name) : e.name}</option>`).join('');
+    filtered.map(e => `<option value="${e.id}">${gEsc(e.name)}</option>`).join('');
 }
 
 async function fBulkSaveTemplate() {
@@ -2269,26 +2275,55 @@ function fBulkUploadCellImage(input, i, k) {
   const file = input.files[0];
   if (!file) return;
   
+  if (!file.type.startsWith('image/')) {
+    gToast('⚠ O arquivo selecionado não é uma imagem.', 'error');
+    return;
+  }
+  if (file.size > 20 * 1024 * 1024) {
+    gToast('⚠ Imagem muito grande. O limite máximo é 20MB.', 'error');
+    return;
+  }
+
   fBulkCollectCurrentInputs();
   
   const reader = new FileReader();
   reader.onload = function(e) {
     const base64 = e.target.result;
-    fBulkRows[i].dados[k] = base64;
-    fBulkRows[i].erros = fBulkRows[i].erros.filter(err => !err.includes(k));
-    const img = new Image();
-    img.onload = function() {
-      if (img.width < 600 || img.height < 600) {
-        gToast(`⚠ Aviso: Imagem com resolução baixa (${img.width}x${img.height}px). Pode ficar pixelada no post final.`, 'warning');
-      }
+    if (typeof fResizeImageIfNeeded === 'function') {
+      fResizeImageIfNeeded(base64, 1500, (resizedUrl) => {
+        fBulkRows[i].dados[k] = resizedUrl;
+        fBulkRows[i].erros = fBulkRows[i].erros.filter(err => !err.includes(k));
+        const img = new Image();
+        img.onload = function() {
+          if (img.width < 600 || img.height < 600) {
+            gToast(`⚠ Aviso: Imagem com resolução baixa (${img.width}x${img.height}px). Pode ficar pixelada no post final.`, 'warning');
+          }
+          fBulkRenderPreview();
+        };
+        img.onerror = function() {
+          gToast('Erro ao carregar a imagem. Verifique se o arquivo está íntegro.', 'error');
+        };
+        img.src = resizedUrl;
+        gToast('✓ Imagem carregada');
+        fBulkRenderPreview();
+      });
+    } else {
+      fBulkRows[i].dados[k] = base64;
+      fBulkRows[i].erros = fBulkRows[i].erros.filter(err => !err.includes(k));
+      const img = new Image();
+      img.onload = function() {
+        if (img.width < 600 || img.height < 600) {
+          gToast(`⚠ Aviso: Imagem com resolução baixa (${img.width}x${img.height}px). Pode ficar pixelada no post final.`, 'warning');
+        }
+        fBulkRenderPreview();
+      };
+      img.onerror = function() {
+        gToast('Erro ao carregar a imagem. Verifique se o arquivo está íntegro.', 'error');
+      };
+      img.src = base64;
+      gToast('✓ Imagem carregada');
       fBulkRenderPreview();
-    };
-    img.onerror = function() {
-      gToast('Erro ao carregar a imagem. Verifique se o arquivo está íntegro.', 'error');
-    };
-    img.src = base64;
-    gToast('✓ Imagem carregada');
-    fBulkRenderPreview();
+    }
   };
   reader.readAsDataURL(file);
 }

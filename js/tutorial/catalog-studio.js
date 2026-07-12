@@ -45,7 +45,7 @@ Object.assign(TUTORIALS, {
         build: ()=>`<div class="tut-scene-content"><div class="tut-mock-upload" id="tut-ef-up">
             <div class="tut-mock-upload-icon">⬆</div>
             <div class="tut-mock-upload-title">Toque para enviar uma foto</div>
-            <div class="tut-mock-upload-sub">ou arraste a imagem aqui · PNG/JPG até 4MB</div>
+            <div class="tut-mock-upload-sub">ou arraste a imagem aqui · PNG/JPG até 20MB</div>
           </div></div>`,
         tooltip:{ text:'Toque na área de upload e escolha a foto do produto no seu aparelho.', target:'#tut-ef-up', placement:'bottom' },
         after: ()=>{ tutSceneTimeout(()=>tutMoveCursor('#tut-ef-up','click'), 1400); } },

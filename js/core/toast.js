@@ -18,6 +18,27 @@ function gToast(msg, type){
   item.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
   
   item.textContent = msg;
+  
+  if (type === 'error') {
+    const helpBtn = document.createElement('button');
+    helpBtn.className = 'g-toast-help-btn';
+    helpBtn.type = 'button';
+    helpBtn.textContent = 'Como resolver? ❓';
+    helpBtn.onclick = function(e) {
+      e.stopPropagation();
+      if (typeof gToggleHelpChat === 'function') {
+        const win = document.getElementById('g-chat-window');
+        if (win && !win.classList.contains('open')) {
+          gToggleHelpChat();
+        }
+        if (typeof gSelectCommand === 'function') {
+          gSelectCommand('fran_cors', 'Minhas fotos não carregam');
+        }
+      }
+    };
+    item.appendChild(helpBtn);
+  }
+  
   container.appendChild(item);
   
   const duration = type === 'error' ? 4200 : 2800;

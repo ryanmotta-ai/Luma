@@ -218,6 +218,9 @@ async function fSelectMaterial(materialId){
   const targetFmt = FMTS.find(f=>f.id===targetFmtId);
   if(targetFmt) fState.fmt = targetFmt;
   fState.material=found;
+  if (typeof gTriggerOnboardingStep === 'function') {
+    gTriggerOnboardingStep('choseMaterial');
+  }
   fState.materialView=false;
   // Constrói perguntas a partir das variáveis do template + permissões definidas pelo designer
   const vars = dExtractTemplateVars(found.layers);
