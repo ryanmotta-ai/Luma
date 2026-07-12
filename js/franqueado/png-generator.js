@@ -848,28 +848,44 @@ function fBulkClose(){document.getElementById('f-bulk-modal').classList.remove('
 
 /* ── DÚVIDAS FREQUENTES (FAQ) do Luma Sheets ── */
 const F_BULK_FAQ = [
-  { q:'O que é o Luma Sheets?', a:'É a geração de artes em lote: você preenche uma planilha (cada linha = uma arte) e o Luma gera todas de uma vez, prontas pra baixar num ZIP.' },
-  { q:'Como preencho a planilha?', a:'Três jeitos: (1) digite direto na tabela; (2) baixe o “CSV Modelo”, preencha no Excel e reenvie; (3) copie do Excel/Planilhas e cole pelo botão “Excel”.' },
-  { q:'Posso ditar por voz?', a:'Sim — clique no microfone ao lado de “Preencher Tabela” e fale suas ofertas (ex.: “hambúrguer por 25, pizza de 50 por 39”). O assistente separa produto e preço. Precisa de Chrome/Edge e do site em https ou localhost (não funciona abrindo o arquivo direto).' },
-  { q:'Como coloco fotos nos produtos?', a:'Na visualização em tabela, cada campo de imagem tem o botão “Foto” (envia do computador) ou um campo pra colar um link. Fotos abaixo de 600px avisam que podem sair pixeladas.' },
-  { q:'Dá pra exportar vários formatos?', a:'Sim — marque os formatos (Story, Feed, Wide…) em “Formatos para Exportar” e o ZIP vem com uma pasta por formato.' },
-  { q:'O que são as Ações em Massa?', a:'Na tabela você preenche uma coluna inteira de uma vez, aplica desconto em % ou arredonda os preços pra final “,90” — tudo em todas as linhas ao mesmo tempo.' },
-  { q:'“Começar com exemplos” lê meu cardápio real?', a:'Não. É uma demonstração que gera exemplos por tipo (pizza, sushi, burger) só como ponto de partida. Edite com seus produtos e preços reais antes de gerar.' },
-  { q:'Uma arte saiu em branco ou errada. Por quê?', a:'Confira se a linha não tem campos com erro (badge ⚠ no card) e se o material selecionado tem as variáveis certas. Corrija a linha e gere de novo.' },
-  { q:'O ZIP vem com as legendas?', a:'Sim — junto das imagens vem um arquivo "legendas_posts.txt" com 3 opções de copy por produto. Escolha entre formato Feed (completo com hashtags) ou Stories (curto) pelo seletor "Copy: Feed/Stories" na toolbar. As copys seguem o tom de voz Delivery Much e nunca repetem.' },
+  { cat:'Começar', q:'O que é o Luma Sheets?', a:'É a geração de artes em lote: você preenche uma planilha (cada linha = uma arte) e o Luma gera todas de uma vez, prontas pra baixar num ZIP.' },
+  { cat:'Começar', q:'Como preencho a planilha?', a:'Três jeitos: (1) digite direto na tabela; (2) baixe o “CSV Modelo”, preencha no Excel e reenvie; (3) copie do Excel/Planilhas e cole pelo botão “Excel”.' },
+  { cat:'Começar', q:'“Começar com exemplos” lê meu cardápio real?', a:'Não. É uma demonstração que gera exemplos por tipo (pizza, sushi, burger) só como ponto de partida. Edite com seus produtos e preços reais antes de gerar.' },
+  { cat:'Recursos', q:'Posso ditar por voz?', a:'Sim — clique no microfone ao lado de “Preencher Tabela” e fale suas ofertas (ex.: “hambúrguer por 25, pizza de 50 por 39”). O assistente separa produto e preço. Precisa de Chrome/Edge e do site em https ou localhost (não funciona abrindo o arquivo direto).' },
+  { cat:'Recursos', q:'Como coloco fotos nos produtos?', a:'Na visualização em tabela, cada campo de imagem tem o botão “Foto” (envia do computador) ou um campo pra colar um link. Fotos abaixo de 600px avisam que podem sair pixeladas.' },
+  { cat:'Recursos', q:'Dá pra exportar vários formatos?', a:'Sim — marque os formatos (Story, Feed, Post wide…) em “Formatos para Exportar” e o ZIP vem com uma pasta por formato.' },
+  { cat:'Recursos', q:'O que são as Ações em Massa?', a:'Na tabela você preenche uma coluna inteira de uma vez, aplica desconto em % ou arredonda os preços pra final “,90” — tudo em todas as linhas ao mesmo tempo.' },
+  { cat:'Recursos', q:'O ZIP vem com as legendas?', a:'Sim — junto das imagens vem um arquivo “legendas_posts.txt” com 3 opções de copy por produto. Escolha entre formato Feed (completo, com hashtags) ou Stories (curto) pelo seletor “Copy” na toolbar. As copys seguem o tom de voz Delivery Much e não se repetem.' },
+  { cat:'Problemas', q:'Uma arte saiu em branco ou errada. Por quê?', a:'Confira se a linha não tem campos com erro (o card mostra um aviso laranja) e se o material selecionado tem as variáveis certas. Corrija a linha e gere de novo.' },
 ];
+let _fFaqKeyHandler = null;
 function fBulkToggleFaq(){
   const panel = document.getElementById('f-bulk-faq');
   if(!panel) return;
-  if(panel.classList.contains('open')){ panel.classList.remove('open'); return; }
+  if(panel.classList.contains('open')){ _fCloseFaq(panel); return; }
   const body = document.getElementById('f-bulk-faq-body');
   if(body && !body.dataset.built){
-    body.innerHTML = F_BULK_FAQ.map(it =>
-      `<details class="f-bulk-faq-item"><summary>${gEsc(it.q)}</summary><div class="f-bulk-faq-a">${gEsc(it.a)}</div></details>`
-    ).join('');
+    let html='', lastCat=null;
+    F_BULK_FAQ.forEach(it=>{
+      if(it.cat!==lastCat){ html+=`<div class="f-bulk-faq-cat">${gEsc(it.cat)}</div>`; lastCat=it.cat; }
+      html+=`<details class="f-bulk-faq-item"><summary>${gEsc(it.q)}</summary><div class="f-bulk-faq-a">${gEsc(it.a)}</div></details>`;
+    });
+    body.innerHTML = html;
     body.dataset.built = '1';
   }
   panel.classList.add('open');
+  // Foco entra no painel (botão fechar) e Esc fecha — o painel cobre o gatilho, então
+  // sem isso o único jeito de sair era o "X" (e teclado ficava perdido atrás do overlay).
+  const closeBtn = panel.querySelector('.f-bulk-faq-close');
+  if(closeBtn) setTimeout(()=>{ try{ closeBtn.focus(); }catch(e){} }, 30);
+  _fFaqKeyHandler = (e)=>{ if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); _fCloseFaq(panel); } };
+  document.addEventListener('keydown', _fFaqKeyHandler, true);
+}
+function _fCloseFaq(panel){
+  panel.classList.remove('open');
+  if(_fFaqKeyHandler){ document.removeEventListener('keydown', _fFaqKeyHandler, true); _fFaqKeyHandler=null; }
+  const trigger = document.querySelector('.f-bulk-faq-btn'); // devolve o foco a quem abriu
+  if(trigger && trigger.focus) try{ trigger.focus(); }catch(e){}
 }
 
 /* ── Title Case inteligente (respeita hífens e preposições pt-BR) ── */
@@ -1377,7 +1393,7 @@ function fBulkRenderPreview(){
   
   if (_fBulkTableView) {
     const keys = fBulkVars();
-    const ths = keys.map(k => `<th style="padding:10px 8px;border-bottom:2px solid var(--gray-mid, #D4D4D4);text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-2,#3A3A3A);font-weight:600;white-space:nowrap">${typeof _dEsc !== 'undefined'?_dEsc(k):k}</th>`).join('');
+    const ths = keys.map(k => `<th style="padding:10px 8px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-2,#3A3A3A);font-weight:700;white-space:nowrap">${typeof _dEsc !== 'undefined'?_dEsc(k):k}</th>`).join('');
     
     const query = document.getElementById('f-bulk-search')?.value.trim().toLowerCase() || '';
     let trs = fBulkRows.map((r,i) => {
@@ -1392,33 +1408,33 @@ function fBulkRenderPreview(){
         
         if (fIsImageVar(k)) {
           return `<td style="padding:6px 4px;border-bottom:1px solid var(--gray-light, #F2F2F2)">
-            <div style="display:flex;align-items:center;gap:8px;min-width:160px">
+            <div style="display:flex;align-items:center;gap:8px;min-width:170px">
               ${val ? `
-                <div style="position:relative;width:28px;height:28px;border-radius:4px;border:1px solid var(--gray-mid,#D4D4D4);overflow:hidden;background:#eee;flex-shrink:0" title="Prévia da foto">
-                  <img src="${safeV}" style="width:100%;height:100%;object-fit:cover" onerror="this.src='';this.parentElement.style.borderColor='var(--dm-red,#C81818)';gToast('Link de imagem inválido ou quebrado!','error')" onload="if(this.naturalWidth && (this.naturalWidth < 600 || this.naturalHeight < 600)){ this.parentElement.style.borderColor='#FF9000'; this.parentElement.title='Aviso: Resolução baixa ('+this.naturalWidth+'x'+this.naturalHeight+'px)'; } else { this.parentElement.style.borderColor='var(--gray-mid,#D4D4D4)'; }">
+                <div style="position:relative;width:28px;height:28px;border-radius:var(--r-sm);border:1px solid var(--gray-mid,#D4D4D4);overflow:hidden;background:var(--gray-light);flex-shrink:0" title="Prévia da foto">
+                  <img src="${safeV}" style="width:100%;height:100%;object-fit:cover" onerror="this.src='';this.parentElement.style.borderColor='var(--dm-red,#C81818)';gToast('Link de imagem inválido ou quebrado!','error')" onload="if(this.naturalWidth && (this.naturalWidth < 600 || this.naturalHeight < 600)){ this.parentElement.style.borderColor='var(--dm-yellow,#FFB900)'; this.parentElement.title='Aviso: Resolução baixa ('+this.naturalWidth+'x'+this.naturalHeight+'px)'; } else { this.parentElement.style.borderColor='var(--gray-mid,#D4D4D4)'; }">
                 </div>
-                <button class="d-btn-sec" style="padding:2px 6px;font-size:10px;color:var(--dm-red,#C81818);border-color:var(--gray-mid,#D4D4D4);cursor:pointer;border-radius:4px;background:#fff;font-weight:600" onclick="fBulkClearImage(${i}, '${k}')">Excluir</button>
+                <button class="d-btn-sec" style="padding:4px 8px;font-size:11px;color:var(--dm-red,#C81818);border-color:var(--gray-mid,#D4D4D4);border-radius:var(--r-sm);background:var(--white);font-weight:600;cursor:pointer" onclick="fBulkClearImage(${i}, '${k}')">Excluir</button>
               ` : `
-                <label class="d-btn-sec" style="padding:4px 8px;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;border-radius:4px;border:1px solid var(--gray-mid,#D4D4D4);background:#fff;font-weight:600">
+                <label class="d-btn-sec" style="padding:5px 9px;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;border-radius:var(--r-sm);border:1px solid var(--gray-mid,#D4D4D4);background:var(--white);font-weight:600">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Foto
                   <input type="file" accept="image/*" style="display:none" onchange="fBulkUploadCellImage(this, ${i}, '${k}')">
                 </label>
-                <input type="text" placeholder="Cole link..." value="" id="f-bulk-edit-${i}-${k}" onblur="fBulkSaveRow(${i}, true)" style="font-size:11px;padding:4px 6px;border:1px solid var(--gray-mid,#D4D4D4);border-radius:4px;width:75px;background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);outline:none">
+                <input type="text" placeholder="Cole link..." value="" id="f-bulk-edit-${i}-${k}" onblur="fBulkSaveRow(${i}, true)" style="font-size:12px;padding:5px 8px;border:1px solid var(--gray-mid,#D4D4D4);border-radius:var(--r-sm);width:80px;background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);outline:none">
               `}
             </div>
           </td>`;
         }
 
         return `<td style="padding:6px 4px;border-bottom:1px solid var(--gray-light, #F2F2F2)">
-          <input type="text" id="f-bulk-edit-${i}-${k}" value="${safeV}" style="width:100%;min-width:120px;font-size:12px;padding:6px 8px;border:1px solid ${isFieldErr?'var(--dm-red,#C81818)':'var(--gray-mid, #D4D4D4)'};border-radius:4px;background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);outline:none;transition:all 0.15s ease" onfocus="this.style.borderColor='var(--dm-orange,#FF9000)';this.style.boxShadow='0 0 0 2px rgba(255,144,0,0.15)'" onblur="this.style.borderColor='${isFieldErr?'var(--dm-red,#C81818)':'var(--gray-mid, #D4D4D4)'}';this.style.boxShadow='';fBulkSaveRow(${i}, true)">
+          <input type="text" id="f-bulk-edit-${i}-${k}" value="${safeV}" style="width:100%;min-width:120px;font-size:12px;padding:6px 8px;border:1px solid ${isFieldErr?'var(--dm-red,#C81818)':'var(--gray-mid, #D4D4D4)'};border-radius:var(--r-sm);background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);outline:none;transition:all var(--dur-micro) var(--ease-standard)" onfocus="this.style.borderColor='var(--dm-orange-d,#F85400)';this.style.boxShadow='0 0 0 3px rgba(248,84,0,0.12)'" onblur="this.style.borderColor='${isFieldErr?'var(--dm-red,#C81818)':'var(--gray-mid, #D4D4D4)'}';this.style.boxShadow='';fBulkSaveRow(${i}, true)">
         </td>`;
       }).join('');
 
       return `<tr>
         <td style="padding:6px 4px;border-bottom:1px solid var(--gray-light, #F2F2F2);text-align:center;display:flex;align-items:center;justify-content:center;gap:4px">
-          <button class="d-btn-sec" style="padding:0;width:20px;height:20px;border-radius:50%;color:var(--text-3,#6B6B6B);background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s" onmouseover="this.style.color='var(--dm-orange,#FF9000)';this.style.background='var(--dm-orange-bg,rgba(255,144,0,.1))'" onmouseout="this.style.color='';this.style.background=''" onclick="fBulkShowCopyModal(${i})" title="Ver legendas geradas"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
-          <button class="d-btn-sec" style="padding:0;width:20px;height:20px;border-radius:50%;color:var(--text-3,#6B6B6B);background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s" onmouseover="this.style.color='var(--dm-orange,#FF9000)';this.style.background='var(--dm-orange-bg,rgba(255,144,0,.1))'" onmouseout="this.style.color='';this.style.background=''" onclick="fBulkCloneRow(${i})" title="Duplicar linha"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
-          <button class="d-btn-sec" style="padding:0;width:20px;height:20px;border-radius:50%;color:var(--text-3,#6B6B6B);background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s" onmouseover="this.style.color='var(--dm-red,#C81818)';this.style.background='rgba(200,24,24,0.1)'" onmouseout="this.style.color='';this.style.background=''" onclick="fBulkRemoveCard(${i})" title="Remover linha"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          <button class="d-btn-sec" style="padding:0;width:22px;height:22px;border-radius:50%;color:var(--text-3,#6B6B6B);background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all var(--dur-micro) var(--ease-standard)" onmouseover="this.style.color='var(--dm-orange-d,#F85400)';this.style.background='var(--dm-orange-bg,rgba(255,144,0,.12))'" onmouseout="this.style.color='';this.style.background=''" onclick="fBulkShowCopyModal(${i})" title="Ver legendas geradas"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
+          <button class="d-btn-sec" style="padding:0;width:22px;height:22px;border-radius:50%;color:var(--text-3,#6B6B6B);background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all var(--dur-micro) var(--ease-standard)" onmouseover="this.style.color='var(--dm-orange-d,#F85400)';this.style.background='var(--dm-orange-bg,rgba(255,144,0,.12))'" onmouseout="this.style.color='';this.style.background=''" onclick="fBulkCloneRow(${i})" title="Duplicar linha"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+          <button class="d-btn-sec" style="padding:0;width:22px;height:22px;border-radius:50%;color:var(--text-3,#6B6B6B);background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all var(--dur-micro) var(--ease-standard)" onmouseover="this.style.color='var(--dm-red,#C81818)';this.style.background='rgba(200,24,24,0.08)'" onmouseout="this.style.color='';this.style.background=''" onclick="fBulkRemoveCard(${i})" title="Remover linha"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </td>
         <td style="padding:6px 4px;border-bottom:1px solid var(--gray-light, #F2F2F2);text-align:center;cursor:help" onmouseenter="fBulkShowHoverPreview(event, ${i})" onmouseleave="fBulkHideHoverPreview()"><span class="f-bulk-num-chip">${i+1}</span></td>
         ${tds}
@@ -1428,35 +1444,35 @@ function fBulkRenderPreview(){
     const optionsHtml = keys.map(k => `<option value="${k}">${typeof _dEsc !== 'undefined'?_dEsc(k):k}</option>`).join('');
     wrap.innerHTML = `<div style="grid-column: 1 / -1; width:100%; display:flex; flex-direction:column; gap:12px">
       <!-- Barra de Ações em Massa -->
-      <div class="f-bulk-actions-bar" style="display:flex;gap:10px;align-items:center;padding:8px 12px;border-radius:8px;font-size:11px;color:var(--text-2,#3A3A3A);flex-wrap:wrap">
+      <div class="f-bulk-actions-bar" style="display:flex;gap:10px;align-items:center;padding:10px 14px;border-radius:var(--r-sm);font-size:12px;color:var(--text-2,#3A3A3A);flex-wrap:wrap">
         <span style="display:inline-flex;align-items:center;gap:4px;font-weight:bold"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Ações em Massa:</span>
         <span>Coluna:</span>
-        <select id="f-bulk-action-col" style="font-size:11px;padding:4px;border:1px solid var(--gray-mid,#D4D4D4);border-radius:4px;background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);outline:none">
+        <select id="f-bulk-action-col" style="font-size:12px;padding:5px 8px;border:1px solid var(--gray-mid,#D4D4D4);border-radius:var(--r-sm);background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);outline:none;cursor:pointer">
           ${optionsHtml}
         </select>
-        <input type="text" id="f-bulk-action-val" placeholder="Texto para preencher..." style="font-size:11px;padding:4px 8px;border:1px solid var(--gray-mid,#D4D4D4);border-radius:4px;background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);width:130px;outline:none">
-        <button class="d-btn-sec" style="font-size:11px;padding:4px 10px;cursor:pointer;border-radius:4px;border:1px solid var(--gray-mid,#D4D4D4);background:var(--white,#FFFFFF);font-weight:600" onclick="fBulkApplyFill()">Preencher Tudo</button>
+        <input type="text" id="f-bulk-action-val" placeholder="Texto para preencher..." style="font-size:12px;padding:5px 8px;border:1px solid var(--gray-mid,#D4D4D4);border-radius:var(--r-sm);background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);width:150px;outline:none">
+        <button class="d-btn-sec" style="font-size:12px;padding:5px 12px;cursor:pointer;border-radius:var(--r-sm);border:1px solid var(--gray-mid,#D4D4D4);background:var(--white,#FFFFFF);font-weight:600" onclick="fBulkApplyFill()">Preencher Tudo</button>
         <span style="color:var(--gray-mid,#D4D4D4)">|</span>
-        <button class="d-btn-sec" style="font-size:11px;padding:4px 10px;cursor:pointer;border-radius:4px;border:1px solid var(--gray-mid,#D4D4D4);background:var(--white,#FFFFFF);font-weight:600" onclick="fBulkApplyDiscountPrompt()" title="Aplicar desconto em % a uma coluna de preços">Aplicar Desconto %</button>
-        <button class="d-btn-sec" style="font-size:11px;padding:4px 10px;cursor:pointer;border-radius:4px;border:1px solid var(--gray-mid,#D4D4D4);background:var(--white,#FFFFFF);font-weight:600" onclick="fBulkApplyRounding()" title="Arredondar preços da coluna para finais em ,90">Arredondar (.90)</button>
+        <button class="d-btn-sec" style="font-size:12px;padding:5px 12px;cursor:pointer;border-radius:var(--r-sm);border:1px solid var(--gray-mid,#D4D4D4);background:var(--white,#FFFFFF);font-weight:600" onclick="fBulkApplyDiscountPrompt()" title="Aplicar desconto em % a uma coluna de preços">Aplicar Desconto %</button>
+        <button class="d-btn-sec" style="font-size:12px;padding:5px 12px;cursor:pointer;border-radius:var(--r-sm);border:1px solid var(--gray-mid,#D4D4D4);background:var(--white,#FFFFFF);font-weight:600" onclick="fBulkApplyRounding()" title="Arredondar preços da coluna para finais em ,90">Arredondar (.90)</button>
       </div>
-      <div style="overflow-x:auto;width:100%;max-height:50vh;border:1px solid var(--gray-mid, #D4D4D4);border-radius:8px;background:var(--white,#FFFFFF)">
+      <div style="overflow-x:auto;width:100%;max-height:50vh;border:1px solid var(--gray-mid, #D4D4D4);border-radius:var(--r);background:var(--white,#FFFFFF)">
         <table class="f-bulk-table" style="width:100%;border-collapse:collapse;margin:0">
           <thead style="position:sticky;top:0;z-index:10">
             <tr>
-              <th style="padding:10px 8px;border-bottom:2px solid var(--gray-mid, #D4D4D4);width:30px"></th>
-              <th style="padding:10px 8px;border-bottom:2px solid var(--gray-mid, #D4D4D4);width:30px;color:var(--text-2,#3A3A3A)">#</th>
+              <th style="padding:10px 8px;width:30px"></th>
+              <th style="padding:10px 8px;width:30px;color:var(--text-2,#3A3A3A)">#</th>
               ${ths}
             </tr>
           </thead>
           <tbody>${trs}</tbody>
         </table>
       </div>
-      <div style="display:flex;gap:10px">
-        <button class="d-btn-sec" style="width:100%;border:1px dashed var(--gray-mid, #D4D4D4);padding:8px 16px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;background:transparent;cursor:pointer;border-radius:6px;color:var(--text-2,#3A3A3A);font-weight:600;transition:all 0.15s ease" onmouseover="this.style.background='var(--gray-light, #F2F2F2)';this.style.color='var(--text)'" onmouseout="this.style.background='transparent';this.style.color=''" onclick="fBulkAddEmptyRow()">
+      <div style="display:flex;gap:12px">
+        <button class="d-btn-sec" style="width:100%;border:1px dashed var(--gray-mid, #D4D4D4);padding:10px 16px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;background:transparent;cursor:pointer;border-radius:var(--r-sm);color:var(--text-2,#3A3A3A);font-weight:600;transition:all var(--dur-micro) var(--ease-standard)" onmouseover="this.style.background='var(--gray-light, #F2F2F2)';this.style.color='var(--text)'" onmouseout="this.style.background='transparent';this.style.color=''" onclick="fBulkAddEmptyRow()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Adicionar Nova Linha
         </button>
-        <button class="d-btn-sec" style="border:1px solid var(--gray-mid, #D4D4D4);padding:8px 16px;color:var(--dm-red,#C81818);background:transparent;font-size:12px;cursor:pointer;border-radius:6px;font-weight:600;transition:all 0.15s ease" onmouseover="this.style.background='rgba(255,45,85,0.1)'" onmouseout="this.style.background='transparent'" onclick="fBulkClearAll()">
+        <button class="d-btn-sec" style="border:1px solid var(--gray-mid, #D4D4D4);padding:10px 16px;color:var(--dm-red,#C81818);background:transparent;font-size:12px;cursor:pointer;border-radius:var(--r-sm);font-weight:600;transition:all var(--dur-micro) var(--ease-standard)" onmouseover="this.style.background='rgba(200,24,24,0.08)'" onmouseout="this.style.background='transparent'" onclick="fBulkClearAll()">
           Limpar Tudo
         </button>
       </div>
@@ -1506,22 +1522,22 @@ function fBulkEditRow(i) {
     
     if (cfg.type === 'image') {
       const isBase64 = val.startsWith('data:');
-      const previewHtml = val ? `<div class="f-bulk-local-prev" style="margin-top:4px;width:100%;height:30px;background:url('${_fCssUrlSafe(val)}') center/contain no-repeat;border:1px solid ${isErr?'var(--dm-red,#C81818)':'var(--gray-mid,#D4D4D4)'}"></div>` : '';
-      return `<div style="margin-bottom:4px">
-        <label style="display:block;font-size:9px;color:var(--text-2,#3A3A3A);margin-bottom:2px">${safeK} (Imagem local ou URL)</label>
-        <input type="file" id="f-bulk-edit-${i}-${k}-file" accept="image/*" style="width:100%;font-size:10px;color:var(--text-2,#3A3A3A)" onchange="fBulkHandleLocalImage(this, ${i}, '${k}')">
+      const previewHtml = val ? `<div class="f-bulk-local-prev" style="margin-top:6px;width:100%;height:32px;background:url('${_fCssUrlSafe(val)}') center/contain no-repeat;border:1px solid ${isErr?'var(--dm-red,#C81818)':'var(--gray-mid,#D4D4D4)'};border-radius:var(--r-sm)"></div>` : '';
+      return `<div style="margin-bottom:8px">
+        <label style="display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-3,#6B6B6B);margin-bottom:3px">${safeK} (Imagem local ou URL)</label>
+        <input type="file" id="f-bulk-edit-${i}-${k}-file" accept="image/*" style="width:100%;font-size:11px;color:var(--text-2,#3A3A3A)" onchange="fBulkHandleLocalImage(this, ${i}, '${k}')">
         <input type="hidden" id="f-bulk-edit-${i}-${k}" value="${safeV}">
         ${previewHtml}
       </div>`;
     }
 
-    return `<div style="margin-bottom:4px">
-      <label style="display:block;font-size:9px;color:var(--text-2,#3A3A3A);margin-bottom:2px">${safeK}</label>
-      <input type="text" id="f-bulk-edit-${i}-${k}" value="${safeV}" style="width:100%;font-size:10px;padding:2px 4px;border:1px solid ${isErr?'var(--dm-red,#C81818)':'var(--gray-mid,#D4D4D4)'};border-radius:2px;background:var(--white,#FFFFFF)">
+    return `<div style="margin-bottom:8px">
+      <label style="display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-3,#6B6B6B);margin-bottom:3px">${safeK}</label>
+      <input type="text" id="f-bulk-edit-${i}-${k}" value="${safeV}" style="width:100%;font-size:12px;padding:6px 8px;border:1px solid ${isErr?'var(--dm-red,#C81818)':'var(--gray-mid,#D4D4D4)'};border-radius:var(--r-sm);background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);outline:none">
     </div>`;
   }).join('');
   
-  infoDiv.innerHTML = formHtml + `<button class="d-btn-pri" style="width:100%;padding:4px;font-size:10px;margin-top:4px" onclick="fBulkSaveRow(${i})">Salvar</button>`;
+  infoDiv.innerHTML = formHtml + `<button class="d-btn-pri" style="width:100%;padding:6px 12px;font-size:12px;font-weight:600;margin-top:6px;border-radius:var(--r-sm)" onclick="fBulkSaveRow(${i})">Salvar</button>`;
 }
 
 // Sanitiza um valor pra uso dentro de url('...') no CSS (tira aspas/parênteses/quebras).
@@ -1706,6 +1722,7 @@ async function fBulkDownloadAll(){
   const c=fState.camp;
   const totalRenders = valid.length * selectedFmts.length;
   let currentRender = 0;
+  const usedNames = new Set(); // nomes já usados no ZIP (evita sobrescrita → "só 1 arte")
   
   for(let fi=0; fi<selectedFmts.length; fi++) {
     const fmt = selectedFmts[fi];
@@ -1724,9 +1741,21 @@ async function fBulkDownloadAll(){
       
       try{
         const dataUrl=await fRenderMaterialToDataURL(row.dados,c,fmt);
-        const filename=fBuildFilename(c,fmt,row.dados);
         const b64 = dataUrl.split(',')[1];
-        if(b64) zip.file(folderPrefix + filename, b64, {base64: true});
+        // Naming do lote: pasta por formato (só quando há +de 1) + "NN_Produto.png".
+        // O NN (01, 02…) ordena e já garante unicidade; o Set é backstop p/ produtos
+        // repetidos. Era a colisão de nomes que fazia o ZIP guardar só 1 arte.
+        const seq = String(i+1).padStart(2,'0');
+        const prodPart = fSanitizeNamePart(_fRowProductName(row.dados)) || 'Arte';
+        const folder = selectedFmts.length>1 ? (fSanitizeNamePart(fmt.name)||fmt.id||'Formato')+'/' : '';
+        let entry = folder + seq + '_' + prodPart + '.png';
+        if(usedNames.has(entry)){
+          const base = entry.replace(/\.png$/i,'');
+          let n=2; while(usedNames.has(base+'_'+n+'.png')) n++;
+          entry = base+'_'+n+'.png';
+        }
+        usedNames.add(entry);
+        if(b64) zip.file(entry, b64, {base64: true});
         ok++;
       }catch(err){ console.warn('Bulk linha '+(i+1)+' falhou',err); }
       
@@ -1805,10 +1834,22 @@ function fSanitizeNamePart(s){
     .join('')                                          // PascalCase
     .slice(0, 28);
 }
+// Nome cru do produto de uma linha: chaves conhecidas → heurística por nome da variável
+// → 1ª coluna preenchida. Vazio se não achar nada. (Sem isso, materiais com variável
+// "titulo"/"sabor" caíam todos no nome da campanha e geravam nomes idênticos.)
+function _fRowProductName(d){
+  if(!d) return '';
+  let p = d.produto || d.categoria || d.brinde || d.oferta;
+  if(!p){
+    const k = Object.keys(d).find(k=>/produto|titulo|título|nome|item|sabor/i.test(k) && d[k] && String(d[k]).trim());
+    if(k) p = d[k];
+    else { const f = Object.keys(d).find(k=>d[k] && String(d[k]).trim()); if(f) p = d[f]; }
+  }
+  return p || '';
+}
 function fBuildFilename(c, fmt, d){
   const camp = fSanitizeNamePart(c.name) || 'Campanha';
-  const prodRaw = d.produto || d.categoria || d.brinde || d.oferta || c.name || 'Arte';
-  const prod = fSanitizeNamePart(prodRaw) || 'Arte';
+  const prod = fSanitizeNamePart(_fRowProductName(d) || c.name) || 'Arte';
   const fmtName = fSanitizeNamePart(fmt.name) || 'Story';
   const now = new Date();
   const date = now.getFullYear() + '-' +
