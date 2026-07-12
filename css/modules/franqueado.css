@@ -69,30 +69,48 @@
 .hist-empty{text-align:center;padding:40px 20px;color:var(--text-3);font-size:13px}
 
 /* Filtros de status */
-.hist-filter-bar{display:flex;gap:4px;margin-bottom:6px;flex-shrink:0}
-.hist-filter-btn{flex:1;padding:6px 8px;font-size:11px;font-weight:500;border:1px solid var(--gray-mid);background:var(--white);color:var(--text-2);border-radius:var(--r-sm);cursor:pointer;font-family:'Roboto',sans-serif;display:flex;align-items:center;justify-content:center;gap:5px;transition:all .12s}
+.hist-filter-bar{
+  display:flex;gap:6px;margin-bottom:8px;flex-shrink:0;
+  overflow-x:auto;scrollbar-width:none;
+  -webkit-overflow-scrolling:touch;
+}
+.hist-filter-bar::-webkit-scrollbar{display:none}
+.hist-filter-btn{
+  flex:1;min-width:90px;padding:6px 12px;font-size:11px;font-weight:600;
+  border:1px solid var(--gray-mid);background:var(--white);color:var(--text-2);
+  border-radius:var(--r-sm);cursor:pointer;font-family:'Roboto',sans-serif;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  transition:all var(--dur-micro) var(--ease-standard);
+}
 .hist-filter-btn:hover{border-color:var(--dm-orange);color:var(--dm-orange-d)}
 .hist-filter-btn.active{background:var(--dm-orange-bg);border-color:var(--dm-orange);color:var(--dm-red)}
 .hist-filter-count{font-size:10px;background:var(--gray-light);color:var(--text-3);padding:1px 5px;border-radius:8px;font-weight:700}
 .hist-filter-btn.active .hist-filter-count{background:var(--dm-orange);color:var(--white)}
 
 /* Card */
-.hist-card{border:1px solid var(--gray-light);border-radius:var(--r);overflow:hidden;background:var(--white);display:flex;align-items:stretch;transition:border-color .15s, transform .2s cubic-bezier(.2,.9,.4,1), box-shadow .2s;flex-wrap:wrap;animation:gFadeInUp .35s cubic-bezier(.2,.9,.4,1) both}
-.hist-card:hover{border-color:var(--dm-orange);transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.06)}
-.hist-card[data-status="baixada"]{border-left:3px solid var(--green)}
-.hist-card[data-status="rascunho"]{border-left:3px solid var(--dm-yellow)}
+.hist-card{
+  border:1px solid var(--gray-light);border-radius:var(--r);
+  overflow:hidden;background:var(--white);display:flex;align-items:stretch;
+  transition:border-color var(--dur-fast) var(--ease-spring-soft), transform var(--dur-fast) var(--ease-spring-soft), box-shadow var(--dur-fast) var(--ease-spring-soft);
+  flex-wrap:wrap;animation:gFadeInUp var(--dur-base) var(--ease-spring-soft) both;
+}
+.hist-card:hover{
+  border-color:var(--dm-orange);
+  transform:translateY(-3px);
+  box-shadow:0 12px 28px rgba(248,84,0,0.08);
+}
 .hist-thumb{width:56px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'Roboto',sans-serif;font-weight:900;color:#fff;font-size:10px;letter-spacing:.04em;line-height:1.1;text-align:center;padding:4px}
-.hist-info{flex:1;padding:8px 10px;min-width:0}
-.hist-name{font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hist-info{flex:1;padding:10px 12px;min-width:0}
+.hist-name{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hist-meta{font-size:10px;color:var(--text-3);margin-top:3px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
 .hist-meta-sep{opacity:.4}
 .hist-badge-st{display:inline-block;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:1px 5px;border-radius:3px}
-.hist-badge-st.rascunho{background:linear-gradient(135deg, rgba(255,185,0,.15), rgba(255,185,0,.05));border:1px solid rgba(255,185,0,.3);color:#8A6500}
-.hist-badge-st.baixada{background:linear-gradient(135deg, rgba(34,197,94,.15), rgba(34,197,94,.05));border:1px solid rgba(34,197,94,.3);color:#15803D}
+.hist-badge-st.rascunho{background:rgba(255,185,0,.1);border:1px solid rgba(255,185,0,.25);color:#8A6500}
+.hist-badge-st.baixada{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);color:#15803D}
 
 /* Ações */
-.hist-actions{display:flex;gap:4px;margin-top:8px;flex-wrap:wrap}
-.hist-act-btn{padding:4px 9px;font-size:10px;font-weight:500;border:1px solid var(--gray-mid);background:var(--white);color:var(--text-2);border-radius:var(--r-sm);cursor:pointer;font-family:'Roboto',sans-serif;transition:all .12s;white-space:nowrap}
+.hist-actions{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.hist-act-btn{padding:5px 10px;font-size:11px;font-weight:600;border:1px solid var(--gray-mid);background:var(--white);color:var(--text-2);border-radius:var(--r-sm);cursor:pointer;font-family:'Roboto',sans-serif;transition:all var(--dur-micro) var(--ease-standard);white-space:nowrap}
 .hist-act-btn:hover{border-color:var(--dm-orange);color:var(--dm-orange-d);background:var(--dm-orange-bg)}
 .hist-act-btn.pri{background:var(--dm-orange);color:var(--white);border-color:var(--dm-orange)}
 .hist-act-btn.pri:hover{background:var(--dm-orange-d);color:var(--white)}

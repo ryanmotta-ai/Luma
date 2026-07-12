@@ -31,7 +31,7 @@
   border-radius: 4px;
   background: var(--white);
   box-shadow: 0 1px 4px rgba(0,0,0,0.15);
-  transition: transform 0.25s var(--ease-smooth), width 0.25s var(--ease-smooth);
+  transition: transform var(--dur-base) var(--ease-spring-soft), width var(--dur-base) var(--ease-spring-soft);
   z-index: 1;
   pointer-events: none;
 }

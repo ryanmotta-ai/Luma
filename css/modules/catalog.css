@@ -15,12 +15,16 @@
   padding:14px 16px;border-radius:14px;
   background:var(--white,#fff);
   border:1.5px solid var(--gray-light,#e9ecef);
-  cursor:pointer;transition:border-color var(--dur-fast) var(--ease-standard),box-shadow var(--dur-base) var(--ease-standard),transform var(--dur-base) var(--ease-spring);
+  cursor:pointer;transition:border-color var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-spring-soft),transform var(--dur-fast) var(--ease-spring-soft);
 }
 .cat-card:hover{
   border-color:var(--dm-orange,#FF9000);
-  box-shadow:0 6px 18px rgba(255,144,0,.14);
-  transform:translateY(-2px);
+  box-shadow:0 12px 28px rgba(248,84,0,0.08);
+  transform:translateY(-3px);
+}
+.cat-card:focus-visible{
+  outline:2px solid var(--dm-orange-d,#F85400);
+  outline-offset:2px;
 }
 .cat-card:active{transform:translateY(0) scale(.995)}
 
@@ -97,9 +101,9 @@
 }
 .f-mat-grid{
   display:grid;
-  grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));
-  gap:16px;
-  padding:24px;
+  grid-template-columns:repeat(auto-fill, minmax(285px, 1fr));
+  gap:20px;
+  padding:clamp(24px, 4.2vw, 96px);
 }
 .f-mat-card{
   background:var(--white);
@@ -107,7 +111,7 @@
   border-radius:var(--r);
   overflow:hidden;
   cursor:pointer;
-  transition:transform var(--dur-base) var(--ease-spring), border-color var(--dur-fast) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard);
+  transition:transform var(--dur-fast) var(--ease-spring-soft), border-color var(--dur-fast) var(--ease-standard), box-shadow var(--dur-fast) var(--ease-spring-soft);
   animation:gPopIn var(--dur-base) var(--ease-spring-soft) both;
 }
 /* Stagger de entrada: cada card entra logo após o anterior (efeito cascata).
@@ -123,8 +127,12 @@
 .f-mat-card:nth-child(n+9){animation-delay:.34s}
 .f-mat-card:hover{
   border-color:var(--dm-orange);
-  transform:translateY(-5px) scale(1.015);
-  box-shadow:0 14px 32px rgba(255,144,0,.22);
+  transform:translateY(-4px);
+  box-shadow:0 12px 32px rgba(248,84,0,0.08);
+}
+.f-mat-card:focus-visible{
+  outline:2px solid var(--dm-orange-d,#F85400);
+  outline-offset:2px;
 }
 .f-mat-card:active{transform:translateY(-1px) scale(.99)}
 .f-mat-thumb{

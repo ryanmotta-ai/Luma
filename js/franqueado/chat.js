@@ -34,16 +34,16 @@ function fStartChatComMaterial(material){
   try { fUpdateLivePreview(); } catch(e){}
   try { fAttachInputGuard(); } catch(e){}
   const total = fState.camp.perguntas.length;
-  let intro = `Você escolheu o material <strong>${gEsc(material.name)}</strong>. `;
+  let intro = `Boa escolha! Vamos montar sua publicação para o <strong>${gEsc(material.name)}</strong>. `;
   // Se tem instruções do designer, mostra (escapado — texto livre do designer)
   if(material.publishMeta?.instrucoes){
     intro += `<br><br><em style="display:block;margin-top:6px;padding:8px 10px;background:var(--dm-orange-bg);border-left:3px solid var(--dm-orange);font-size:12px;color:var(--text-2);border-radius:4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg> ${gEsc(material.publishMeta.instrucoes)}</em><br>`;
   }
-  intro += `Vou te fazer <strong>${total} pergunta${total>1?'s':''} rápida${total>1?'s':''}</strong> e gerar a arte. Leva ~1 minuto.<br>
+  intro += `Vou te guiar em <strong>${total} pergunta${total>1?'s':''} rápida${total>1?'s':''}</strong>. Leva menos de 1 minutinho.<br>
   <div style="margin-top:8px;border-top:1px dashed var(--gray-mid);padding-top:6px;display:flex;align-items:center;justify-content:space-between;gap:8px">
-    <span style="font-size:11px;color:var(--text-3)">Quer pular as perguntas?</span>
+    <span style="font-size:11px;color:var(--text-3)">Quer economizar tempo?</span>
     <button onclick="fBulkOpen()" style="background:var(--dm-orange-bg);border:1px solid var(--dm-orange-tint);color:var(--dm-orange-d);font-size:11px;font-weight:600;padding:4px 10px;border-radius:var(--r-pill);cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:all 0.15s ease" onmouseover="this.style.background='var(--dm-orange-tint)'" onmouseout="this.style.background='var(--dm-orange-bg)'">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Gerar em Lote
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Criar várias de uma vez
     </button>
   </div>`;
   fAddBot(intro, []);
@@ -966,7 +966,7 @@ function fCancelReset(){
 function fAddBot(html,qrs,canGoBack){
   const msgs=document.getElementById('f-messages');
   if(!msgs) return;
-  const w=document.createElement('div');w.className='msg bot';
+  const w=document.createElement('div');w.className='msg bot active-prompt';
   let q='';
   if(qrs&&qrs.length){
     q=`<div class="qr-wrap">${qrs.map(x=>{
@@ -983,6 +983,7 @@ function fAddBot(html,qrs,canGoBack){
     back = `<div class="qr-back-wrap"><button class="qr-back" onclick="fGoBack()" title="Voltar uma pergunta"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>Voltar uma pergunta</button></div>`;
   }
   w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div><div class="bbl">${html}</div>${q}${back}</div>`;
+  msgs.querySelectorAll('.msg').forEach(m => m.classList.remove('active-prompt'));
   msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;
 }
 
@@ -1026,14 +1027,16 @@ function _fUserInitials(){
 function fAddUser(txt){
   const msgs=document.getElementById('f-messages');
   if(!msgs) return;
-  const w=document.createElement('div');w.className='msg user';
+  const w=document.createElement('div');w.className='msg user active-prompt';
   w.innerHTML=`<div><div class="bbl">${gEsc(txt)}</div></div><div class="av u">${_fUserInitials()}</div>`;
+  msgs.querySelectorAll('.msg').forEach(m => m.classList.remove('active-prompt'));
   msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;
 }
 function fTyping(cb){
   const msgs=document.getElementById('f-messages');
-  const w=document.createElement('div');w.className='msg bot';w.id='typing-el';
+  const w=document.createElement('div');w.className='msg bot active-prompt';w.id='typing-el';
   w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div class="bbl"><div class="typing-row"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>`;
+  msgs.querySelectorAll('.msg').forEach(m => m.classList.remove('active-prompt'));
   msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;
   setTimeout(()=>{const t=document.getElementById('typing-el');if(t)t.remove();cb();},900);
 }

@@ -113,7 +113,7 @@
   box-shadow:0 0 0 1px rgba(255,255,255,.08),0 8px 40px rgba(0,0,0,.7);
   z-index:2;
 }
-#d-canvas-bg{position:absolute;inset:0;background:repeating-conic-gradient(#1A1A1A 0% 25%,#161616 0% 50%) 0 0/16px 16px}
+#d-canvas-bg{position:absolute;inset:0;background:repeating-conic-gradient(#111111 0% 25%,#0E0E0E 0% 50%) 0 0/16px 16px}
 #d-canvas-frame{position:relative;overflow:hidden;cursor:default;transition:transform .15s ease;}
 /* Marquee (rubber band) da seleção por arrasto — vive dentro do frame (mesmo espaço dos layers) */
 #d-marquee{
@@ -473,7 +473,12 @@ body.theme-light .field-chip.on span{color:var(--dm-orange-d)}
 .inv-dot.used{background:var(--green,#22C55E)}
 .inv-dot.free{background:transparent;box-shadow:inset 0 0 0 1.4px var(--d-text3)}
 /* menu flutuante do "⋯" */
-.field-menu-pop{position:fixed;z-index:10000;background:var(--d-surf2,#1e1e24);border:1px solid var(--d-border2);border-radius:7px;box-shadow:0 8px 24px rgba(0,0,0,.45);padding:4px;min-width:150px;display:flex;flex-direction:column}
+.field-menu-pop{
+  position:fixed;z-index:10000;
+  background:rgba(30,30,36,0.75);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border:1px solid rgba(255,255,255,0.08);border-radius:7px;
+  box-shadow:0 16px 40px rgba(0,0,0,0.4);padding:4px;min-width:150px;display:flex;flex-direction:column;
+}
 .field-menu-pop button{text-align:left;background:transparent;border:none;color:var(--d-text);font-size:12px;padding:7px 10px;border-radius:5px;cursor:pointer;font-family:'Roboto',sans-serif}
 .field-menu-pop button:hover{background:var(--d-surf3)}
 .field-menu-pop .field-menu-del{color:var(--dm-red)}
@@ -492,7 +497,11 @@ body.theme-light .field-chip.on span{color:var(--dm-orange-d)}
 
 /* ── Wizard de criação de campo (Fase 2) ── */
 .field-wizard{max-width:420px;width:92vw}
-.field-step{animation:gFadeIn .18s ease-out}
+@keyframes stepSlideIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.field-step{animation:stepSlideIn var(--dur-base) var(--ease-spring-soft) both}
 .field-q{font-size:15px;font-weight:700;color:var(--d-text);line-height:1.4;margin:4px 0 12px}
 .field-q-input{font-size:15px!important;padding:11px 12px!important}
 .field-q-hint{font-size:11px;color:var(--d-text3);line-height:1.5;margin-top:8px}
@@ -524,9 +533,11 @@ body.theme-light .field-chip.on span{color:var(--dm-orange-d)}
 .dp-content-editable .field-chip{font-size:11px}
 .dp-insert-field-btn{display:flex;align-items:center;gap:5px;width:100%;justify-content:center;font-size:11px;padding:6px}
 /* popover do picker de inserção */
-.field-pick-pop{position:fixed;z-index:10000;width:244px;max-height:340px;display:flex;flex-direction:column;
-  background:var(--d-surf2,#1e1e24);border:1px solid var(--d-border2);border-radius:8px;
-  box-shadow:0 10px 28px rgba(0,0,0,.5);padding:6px;font-family:'Roboto',sans-serif}
+.field-pick-pop{
+  position:fixed;z-index:10000;width:244px;max-height:340px;display:flex;flex-direction:column;
+  background:rgba(30,30,36,0.75);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border:1px solid rgba(255,255,255,0.08);border-radius:8px;
+  box-shadow:0 16px 40px rgba(0,0,0,0.4);padding:6px;font-family:'Roboto',sans-serif}
 .field-pick-search{background:var(--d-surf);border:1px solid var(--d-border);border-radius:6px;color:var(--d-text);
   font-size:12px;padding:7px 9px;outline:none;margin-bottom:4px;font-family:'Roboto',sans-serif}
 .field-pick-search:focus{border-color:var(--var-color)}
@@ -666,7 +677,7 @@ body.theme-light {
      estúdio a identidade "campo" vira o dourado AA (mesmo tom do badge). */
   --var-color:#8A6500;
 }
-body.theme-light #d-canvas-bg{background:repeating-conic-gradient(#E8E8E8 0% 25%,#EEE9E2 0% 50%) 0 0/16px 16px}
+body.theme-light #d-canvas-bg{background:repeating-conic-gradient(#FAFAFA 0% 25%,#F5F5F5 0% 50%) 0 0/16px 16px}
 body.theme-light .prop-input{background:#fff;color:var(--d-text);border-color:var(--d-border2)}
 body.theme-light .modal{background:#fff;border-color:var(--d-border2)}
 body.theme-light .modal-input,.theme-light .modal-select{background:#F5F5F5;color:var(--d-text)}

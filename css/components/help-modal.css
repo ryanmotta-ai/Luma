@@ -23,7 +23,7 @@
   display:flex;flex-direction:column;
   box-shadow:0 24px 80px rgba(0,0,0,.35);
   overflow:hidden;
-  animation:gScaleIn .25s cubic-bezier(.2,.9,.4,1);
+  animation:gScaleInPunch var(--dur-base) var(--ease-spring) both;
 }
 .g-help-head{
   display:flex;align-items:center;justify-content:space-between;
@@ -198,7 +198,7 @@
 
 /* ══ PANES ══ */
 .g-help-pane{display:none}
-.g-help-pane.active{display:block;animation:gFadeIn .2s ease-out}
+.g-help-pane.active{display:block;animation:gSlideInRight var(--dur-fast) var(--ease-spring-soft) both}
 
 /* ══ BARRA DE PROGRESSO (reutilizada) ══ */
 .g-help-prog-labels{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}

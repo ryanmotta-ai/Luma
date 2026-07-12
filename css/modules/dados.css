@@ -259,7 +259,7 @@ body.mode-dados #view-designer{display:none!important}
 .p-hbar-fill-html {
   height: 100%;
   border-radius: 4px;
-  transition: width 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: width var(--dur-slow, 0.4s) var(--ease-spring-soft, cubic-bezier(0.34, 1.56, 0.64, 1));
 }
 .p-hbar-row-html:hover .p-hbar-fill-html {
   filter: brightness(1.1);
@@ -896,7 +896,7 @@ body.p-geo-resizing, body.p-geo-resizing *{
 .p-geo-sc-pin{margin-left:5px; font-size:11px; vertical-align:-1px}
 .p-geo-barwrap{display:flex; align-items:center; gap:9px; min-width:120px}
 .p-geo-bartrack{flex:1; height:6px; background:var(--p-track); border-radius:4px; overflow:hidden}
-.p-geo-barfill{display:block; height:100%; background:var(--p-accent); border-radius:4px; width:0; transition:width .7s var(--p-ease)}
+.p-geo-barfill{display:block; height:100%; background:var(--p-accent); border-radius:4px; width:0; transition:width var(--dur-slow, 0.4s) var(--ease-spring-soft, cubic-bezier(0.34, 1.56, 0.64, 1))}
 .p-geo-pct{font-size:12px; font-weight:600; color:var(--p-text); font-variant-numeric:tabular-nums; min-width:46px; text-align:right}
 .p-table tbody tr.p-geo-sc{background:rgba(255,144,0,.07); box-shadow:inset 3px 0 0 var(--p-accent)}
 .p-table tbody tr.p-geo-sc:hover{background:rgba(255,144,0,.12)}
