@@ -92,23 +92,85 @@ function fApplyMask(id, raw){
     if(low === 'qualquer valor' || low === 'sem valor' || low === 'grátis' || low === 'gratis'){
       return v.charAt(0).toUpperCase()+v.slice(1);
     }
-    // Parsing de moeda BR: '.' = milhar, ',' = decimal. Trata milhar e inteiros.
-    let s = v.replace(/[^\d.,]/g,'');
-    if(!s) return v.slice(0, cfg.maxLen);
-    // O último separador (',' ou '.') seguido de 1-2 dígitos no fim é o decimal
-    const sepPos = Math.max(s.lastIndexOf(','), s.lastIndexOf('.'));
-    const tail = sepPos>=0 ? s.length-sepPos-1 : -1;
-    let intPart, decPart='';
-    if(sepPos>=0 && tail>=1 && tail<=2){
-      decPart = s.slice(sepPos+1).replace(/\D/g,'');
-      intPart = s.slice(0,sepPos).replace(/\D/g,'');
-    }else{
-      intPart = s.replace(/\D/g,''); // sem decimal → valor inteiro em reais
+
+    // Helper interno para formatar um valor numérico em R$
+    const formatSinglePrice = (valStr) => {
+      if (!valStr) return '';
+      let s = valStr.replace(/[^\d.,]/g,'');
+      if(!s) return '';
+      const sepPos = Math.max(s.lastIndexOf(','), s.lastIndexOf('.'));
+      const tail = sepPos>=0 ? s.length-sepPos-1 : -1;
+      let intPart, decPart='';
+      if(sepPos>=0 && tail>=1 && tail<=2){
+        decPart = s.slice(sepPos+1).replace(/\D/g,'');
+        intPart = s.slice(0,sepPos).replace(/\D/g,'');
+      }else{
+        intPart = s.replace(/\D/g,''); // sem decimal
+      }
+      if(!intPart || intPart === '0'){
+        if(decPart) return `R$ 0,${decPart.padEnd(2,'0').slice(0,2)}`;
+        return '';
+      }
+      intPart = String(parseInt(intPart||'0',10));
+      const intFmt = parseInt(intPart,10).toLocaleString('pt-BR');
+      decPart = decPart.padEnd(2,'0').slice(0,2);
+      return `R$ ${intFmt},${decPart}`;
+    };
+
+    // Helper interno para formatar o segmento (preço ou texto especial)
+    const formatSegmentValue = (valStr) => {
+      const trimmed = valStr.trim();
+      const formatted = formatSinglePrice(trimmed);
+      if (formatted) return formatted;
+      const lowVal = trimmed.toLowerCase();
+      if(lowVal === 'qualquer valor' || lowVal === 'sem valor' || lowVal === 'grátis' || lowVal === 'gratis'){
+        return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+      }
+      return trimmed;
+    };
+
+    // Detecta se contém prefixos "de" ou "por"
+    const hasDe = /(?:^|[^a-zA-Z0-9_])de\b/i.test(v);
+    const hasPor = /(?:^|[^a-zA-Z0-9_])por\b/i.test(v);
+
+    if (hasDe || hasPor) {
+      const deSegmentMatch = v.match(/(?:^|[^a-zA-Z0-9_])de\s*(?::|\s)\s*(.*?)(?=\s*por\b|$)/i);
+      const porSegmentMatch = v.match(/(?:^|[^a-zA-Z0-9_])por\s*(?::|\s)\s*(.*)/i);
+
+      const getPrefix = (matchStr, defaultVal) => {
+        const clean = matchStr.trim();
+        const hasColon = clean.includes(':');
+        const isUpper = clean.includes(defaultVal.toUpperCase());
+        return (isUpper ? defaultVal.toUpperCase() : defaultVal) + (hasColon ? ':' : '');
+      };
+
+      if (deSegmentMatch && porSegmentMatch) {
+        const deVal = formatSegmentValue(deSegmentMatch[1]);
+        const porVal = formatSegmentValue(porSegmentMatch[1]);
+        if (deVal && porVal) {
+          const origDe = getPrefix(deSegmentMatch[0], 'De');
+          const origPor = getPrefix(porSegmentMatch[0], 'Por');
+          return `${origDe} ${deVal} ${origPor} ${porVal}`;
+        }
+      }
+      if (deSegmentMatch) {
+        const deVal = formatSegmentValue(deSegmentMatch[1]);
+        if (deVal) {
+          const origDe = getPrefix(deSegmentMatch[0], 'De');
+          return `${origDe} ${deVal}`;
+        }
+      }
+      if (porSegmentMatch) {
+        const porVal = formatSegmentValue(porSegmentMatch[1]);
+        if (porVal) {
+          const origPor = getPrefix(porSegmentMatch[0], 'Por');
+          return `${origPor} ${porVal}`;
+        }
+      }
     }
-    intPart = String(parseInt(intPart||'0',10)); // remove zeros à esquerda
-    const intFmt = parseInt(intPart,10).toLocaleString('pt-BR'); // agrupa milhar
-    decPart = decPart.padEnd(2,'0').slice(0,2);
-    return `R$ ${intFmt},${decPart}`;
+
+    // Caso não tenha nenhum prefixo, formata como preço padrão único
+    return formatSinglePrice(v) || v.slice(0, cfg.maxLen);
   }
   if(cfg.type === 'discount'){
     // Aceita "20% off", "20%", "20", "R$ 5,00 off"
