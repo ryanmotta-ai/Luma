@@ -1803,19 +1803,21 @@ async function fBulkDownloadAll(){
   captionsText += `   Formato: ${copyFormat === 'stories' ? 'Stories (curto)' : 'Feed (completo)'}\n`;
   captionsText += `========================================================\n\n`;
   
+  const cleanStr = s => (typeof s === 'string' && !s.startsWith('data:') && s.length < 500) ? s : '';
+
   valid.forEach((row, idx) => {
-    const vars = Object.keys(row.dados);
+    const vars = Object.keys(row.dados).filter(v => !/foto|logo|imagem|img|avatar/i.test(v));
     const nameKey = vars.find(v => /produto|titulo|nome/i.test(v)) || vars[0] || '';
     const deKey = vars.find(v => /de|antigo/i.test(v)) || '';
     const porKey = vars.find(v => /por|preco|preço|atual|valor/i.test(v)) || '';
     const valKey = vars.find(v => /validade|data|condicao|condição/i.test(v)) || '';
     const descKey = vars.find(v => /desconto|selo|off/i.test(v)) || '';
     
-    const prod = row.dados[nameKey] || ('Produto ' + (idx + 1));
-    const de = deKey ? (row.dados[deKey] || '') : '';
-    const por = porKey ? (row.dados[porKey] || '') : '';
-    const val = valKey ? (row.dados[valKey] || '') : '';
-    const desc = descKey ? (row.dados[descKey] || '') : '';
+    const prod = cleanStr(row.dados[nameKey]) || ('Produto ' + (idx + 1));
+    const de = deKey ? cleanStr(row.dados[deKey]) : '';
+    const por = porKey ? cleanStr(row.dados[porKey]) : '';
+    const val = valKey ? cleanStr(row.dados[valKey]) : '';
+    const desc = descKey ? cleanStr(row.dados[descKey]) : '';
     
     captionsText += `--------------------------------------------------------\n`;
     captionsText += `ITEM #${idx+1}: ${prod}\n`;
@@ -2057,6 +2059,135 @@ async function fBulkApplyRounding() {
   fBulkRenderPreview();
 }
 
+function fGenerateDemoItems(type) {
+  const items = [];
+  const randElement = arr => arr[Math.floor(Math.random() * arr.length)];
+  const randRange = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+  const fmtPrice = val => `R$ ${val.toFixed(2).replace('.', ',')}`;
+
+  const validadePool = {
+    pizza: ['Válido até domingo', 'Só neste final de semana', 'Terça a quinta-feira', 'Promoção por tempo limitado'],
+    sushi: ['Hoje no jantar', 'Válido de terça a quinta', 'Exclusivo no delivery', 'Só hoje'],
+    burger: ['Promoção da semana', 'Válido hoje', 'Exclusivo no aplicativo', 'Happy Hour DM'],
+    universal: ['Almoço de segunda a sexta', 'Válido hoje', 'Por tempo limitado', 'Exclusivo no app']
+  }[type] || ['Por tempo limitado'];
+
+  if (type === 'pizza') {
+    const sabores = ['Margherita', 'Calabresa', 'Quatro Queijos', 'Pepperoni', 'Portuguesa', 'Frango com Catupiry', 'Lombo com Cream Cheese', 'Frango com Cheddar', 'Rúcula com Tomate Seco'];
+    const adicionais = ['Borda Recheada de Catupiry', 'Borda de Chocolate', 'Coca-Cola 2 Litros', 'Guaraná 2 Litros', 'Batata Rústica Assada', 'Suco Del Valle Uva 1L'];
+    const validade = randElement(validadePool);
+    
+    // Embaralha e pega 3 sabores
+    const selectedSabores = sabores.sort(() => 0.5 - Math.random()).slice(0, 3);
+    selectedSabores.forEach(s => {
+      const precoDeVal = randRange(48, 68);
+      const precoPorVal = precoDeVal - randRange(8, 15);
+      items.push({
+        produto: `Pizza ${s} G`,
+        precoDe: fmtPrice(precoDeVal),
+        precoPor: fmtPrice(precoPorVal),
+        validade: validade,
+        categoria: 'Pizzas'
+      });
+    });
+    
+    // Pega 2 adicionais
+    const selectedAdic = adicionais.sort(() => 0.5 - Math.random()).slice(0, 2);
+    selectedAdic.forEach(a => {
+      const precoDeVal = randRange(12, 18);
+      const precoPorVal = precoDeVal - randRange(3, 5);
+      items.push({
+        produto: a,
+        precoDe: fmtPrice(precoDeVal),
+        precoPor: fmtPrice(precoPorVal),
+        validade: validade,
+        categoria: a.includes('Coca') || a.includes('Guaraná') || a.includes('Suco') ? 'Bebidas' : 'Adicionais'
+      });
+    });
+  } else if (type === 'sushi') {
+    const pecas = [
+      { name: 'Combo Premium 30 Peças', cat: 'Combos', basePrice: [75, 95] },
+      { name: 'Temaki Filadélfia Dobrado', cat: 'Temakis', basePrice: [35, 45] },
+      { name: 'Hot Roll 10 unidades', cat: 'Entradas', basePrice: [22, 28] },
+      { name: 'Yakisoba Misto Especial', cat: 'Pratos Quentes', basePrice: [38, 48] },
+      { name: 'Combinado Chef 40 Peças', cat: 'Combos', basePrice: [89, 110] },
+      { name: 'Sunomono Especial', cat: 'Entradas', basePrice: [15, 22] },
+      { name: 'Uramaki Salmão 8 un', cat: 'Sushis', basePrice: [22, 28] },
+      { name: 'Hossomaki Filadélfia 8 un', cat: 'Sushis', basePrice: [18, 24] }
+    ];
+    const validade = randElement(validadePool);
+    const selected = pecas.sort(() => 0.5 - Math.random()).slice(0, 5);
+    
+    selected.forEach(p => {
+      const precoDeVal = randRange(p.basePrice[0], p.basePrice[1]);
+      const precoPorVal = precoDeVal - randRange(5, Math.floor(precoDeVal * 0.25));
+      items.push({
+        produto: p.name,
+        precoDe: fmtPrice(precoDeVal),
+        precoPor: fmtPrice(precoPorVal),
+        validade: validade,
+        categoria: p.cat
+      });
+    });
+  } else if (type === 'burger') {
+    const burgers = ['X-Bacon Cheddar Duplo', 'Monster Burger Crispy', 'Smash Burger Clássico', 'Chicken Burger Mayo', 'Veggie Burger Especial', 'Double Smash Cheddar', 'Cheddar Melt Onion'];
+    const acompanhamentos = ['Batata Frita Turbinada G', 'Anéis de Cebola Crocantes', 'Nuggets com Molho Barbecue', 'Milkshake de Ovomaltine 400ml', 'Refrigerante Lata', 'Batata Canoa com Cheddar'];
+    const validade = randElement(validadePool);
+
+    const selectedBurgers = burgers.sort(() => 0.5 - Math.random()).slice(0, 3);
+    selectedBurgers.forEach(b => {
+      const precoDeVal = randRange(28, 45);
+      const precoPorVal = precoDeVal - randRange(6, 11);
+      items.push({
+        produto: b,
+        precoDe: fmtPrice(precoDeVal),
+        precoPor: fmtPrice(precoPorVal),
+        validade: validade,
+        categoria: 'Lanches'
+      });
+    });
+
+    const selectedAcomp = acompanhamentos.sort(() => 0.5 - Math.random()).slice(0, 2);
+    selectedAcomp.forEach(a => {
+      const precoDeVal = randRange(12, 24);
+      const precoPorVal = precoDeVal - randRange(3, 6);
+      items.push({
+        produto: a,
+        precoDe: fmtPrice(precoDeVal),
+        precoPor: fmtPrice(precoPorVal),
+        validade: validade,
+        categoria: a.includes('Refrigerante') || a.includes('Milkshake') ? 'Bebidas' : 'Acompanhamentos'
+      });
+    });
+  } else {
+    // Universal
+    const pratos = [
+      { name: 'Prato Feito Executivo', cat: 'Pratos Quentes', basePrice: [24, 30] },
+      { name: 'Marmita Econômica M', cat: 'Pratos Quentes', basePrice: [18, 24] },
+      { name: 'Salada Caesar com Grelhado', cat: 'Saladas', basePrice: [22, 28] },
+      { name: 'Açaí 500ml Turbinado', cat: 'Sobremesas', basePrice: [18, 24] },
+      { name: 'Suco de Laranja Natural 500ml', cat: 'Bebidas', basePrice: [8, 12] },
+      { name: 'Pudim de Leite Condensado', cat: 'Sobremesas', basePrice: [7, 10] },
+      { name: 'Strogonoff de Frango G', cat: 'Pratos Quentes', basePrice: [26, 32] }
+    ];
+    const validade = randElement(validadePool);
+    const selected = pratos.sort(() => 0.5 - Math.random()).slice(0, 5);
+
+    selected.forEach(p => {
+      const precoDeVal = randRange(p.basePrice[0], p.basePrice[1]);
+      const precoPorVal = precoDeVal - randRange(2, Math.floor(precoDeVal * 0.20));
+      items.push({
+        produto: p.name,
+        precoDe: fmtPrice(precoDeVal),
+        precoPor: fmtPrice(precoPorVal),
+        validade: validade,
+        categoria: p.cat
+      });
+    });
+  }
+  return items;
+}
+
 // DEMONSTRAÇÃO: NÃO lê cardápio real (o navegador nem conseguiria, por CORS).
 // Gera uma planilha de EXEMPLO conforme o tipo (pizza/sushi/burger…) como ponto de
 // partida editável. A UI deixa isso explícito ("Demonstração") — sem fingir que
@@ -2080,35 +2211,13 @@ async function fBulkImportFromLink() {
   const lowerUrl = url.toLowerCase();
   
   if (lowerUrl.includes('pizza') || lowerUrl.includes('pizzaria')) {
-    items = [
-      { produto: 'Pizza Margherita G', precoDe: 'R$ 54,90', precoPor: 'R$ 44,90', validade: 'Válido até domingo', categoria: 'Pizzas' },
-      { produto: 'Pizza Calabresa G', precoDe: 'R$ 49,90', precoPor: 'R$ 39,90', validade: 'Válido até domingo', categoria: 'Pizzas' },
-      { produto: 'Pizza Quatro Queijos G', precoDe: 'R$ 59,90', precoPor: 'R$ 49,90', validade: 'Válido até domingo', categoria: 'Pizzas' },
-      { produto: 'Borda Recheada de Catupiry', precoDe: 'R$ 15,00', precoPor: 'R$ 10,00', validade: 'Válido até domingo', categoria: 'Adicionais' },
-      { produto: 'Coca-Cola 2 Litros', precoDe: 'R$ 12,00', precoPor: 'R$ 9,90', validade: 'Válido até domingo', categoria: 'Bebidas' }
-    ];
+    items = fGenerateDemoItems('pizza');
   } else if (lowerUrl.includes('sushi') || lowerUrl.includes('japa') || lowerUrl.includes('japanese')) {
-    items = [
-      { produto: 'Combo Premium 30 Peças', precoDe: 'R$ 89,90', precoPor: 'R$ 69,90', validade: 'Só hoje', categoria: 'Combos' },
-      { produto: 'Temaki Filadélfia Dobrado', precoDe: 'R$ 38,00', precoPor: 'R$ 29,90', validade: 'Só hoje', categoria: 'Temakis' },
-      { produto: 'Hot Roll 10 unidades', precoDe: 'R$ 24,90', precoPor: 'R$ 19,90', validade: 'Só hoje', categoria: 'Entradas' },
-      { produto: 'Combo Executivo Japa', precoDe: 'R$ 49,90', precoPor: 'R$ 39,90', validade: 'Só hoje', categoria: 'Combos' }
-    ];
+    items = fGenerateDemoItems('sushi');
   } else if (lowerUrl.includes('burger') || lowerUrl.includes('burguer') || lowerUrl.includes('lanche')) {
-    items = [
-      { produto: 'X-Bacon Cheddar Duplo', precoDe: 'R$ 36,90', precoPor: 'R$ 29,90', validade: 'Promoção da semana', categoria: 'Lanches' },
-      { produto: 'Monster Burger Crispy', precoDe: 'R$ 42,90', precoPor: 'R$ 34,90', validade: 'Promoção da semana', categoria: 'Lanches' },
-      { produto: 'Batata Frita Turbinada G', precoDe: 'R$ 22,00', precoPor: 'R$ 17,90', validade: 'Promoção da semana', categoria: 'Acompanhamentos' },
-      { produto: 'Combo Hamburguer + Batata + Refri', precoDe: 'R$ 49,90', precoPor: 'R$ 39,90', validade: 'Promoção da semana', categoria: 'Combos' }
-    ];
+    items = fGenerateDemoItems('burger');
   } else {
-    // Genérico / Padrão
-    items = [
-      { produto: 'Prato Feito Executivo', precoDe: 'R$ 28,00', precoPor: 'R$ 22,90', validade: 'Almoço de segunda a sexta', categoria: 'Pratos Quentes' },
-      { produto: 'Suco Natural de Laranja 500ml', precoDe: 'R$ 10,00', precoPor: 'R$ 7,90', validade: 'Almoço de segunda a sexta', categoria: 'Bebidas' },
-      { produto: 'Marmita Econômica M', precoDe: 'R$ 22,00', precoPor: 'R$ 17,90', validade: 'Almoço de segunda a sexta', categoria: 'Pratos Quentes' },
-      { produto: 'Sobremesa Pudim de Leite', precoDe: 'R$ 8,00', precoPor: 'R$ 5,90', validade: 'Almoço de segunda a sexta', categoria: 'Sobremesas' }
-    ];
+    items = fGenerateDemoItems('universal');
   }
   
   // Agora vamos injetar na planilha

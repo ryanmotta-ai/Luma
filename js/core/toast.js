@@ -62,8 +62,13 @@ function gEsc(s){
    Erro assíncrono não tratado morria em silêncio: o usuário clicava e "nada acontecia".
    Agora todo throw/rejeição não capturados viram UM toast honesto (+ console p/ debug).
    Throttle de 8s: um loop de erros não vira metralhadora de toasts.                  */
+const _gLastBootTime = Date.now();
 let _gLastErrToast=0;
 function _gGlobalErrToast(){
+  // Suprime toasts de erro se a splash screen estiver ativa ou se acabamos de inicializar (evita alertas de Supabase offline no boot)
+  if (document.getElementById('sp-overlay') && document.getElementById('sp-overlay').style.display !== 'none') return;
+  if (Date.now() - _gLastBootTime < 4000) return;
+
   const now=Date.now();
   if(now-_gLastErrToast<8000) return;
   _gLastErrToast=now;

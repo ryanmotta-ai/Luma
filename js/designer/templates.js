@@ -27,24 +27,92 @@ function dSyncLyrCnt(layers){
   });
 }
 
+function dBuildMockLayersForCamp(c, fmt){
+  const sz = DFMT_SIZES[fmt] || DFMT_SIZES.story;
+  const W = sz.w, H = sz.h, U = Math.min(W, H);
+  
+  // Decide a variável principal de preço/desconto
+  let priceVar = '';
+  if (c.perguntas.some(q => q.id === 'precoPor')) priceVar = 'precoPor';
+  else if (c.perguntas.some(q => q.id === 'desconto')) priceVar = 'desconto';
+  else if (c.perguntas.some(q => q.id === 'oferta')) priceVar = 'oferta';
+  else if (c.perguntas.some(q => q.id === 'condicao')) priceVar = 'condicao';
+  
+  // Decide a variável de título
+  const titleVar = c.perguntas.some(q => q.id === 'brinde') ? 'brinde' : 'produto';
+  
+  const layers = [
+    {id:'l-bg',name:'Fundo',type:'shape',x:0,y:0,w:W,h:H,fill:c.color||'#FF9000',opacity:100,radius:0,visible:true},
+    {id:'l-band',name:'Faixa de Destaque',type:'shape',x:0,y:Math.round(H*.70),w:W,h:H-Math.round(H*.70),fill:'rgba(0,0,0,.25)',opacity:100,radius:0,visible:true},
+    {id:'l-frame',name:'Foto do Produto',type:'frame',x:Math.round(W*.06),y:Math.round(H*.06),w:Math.round(W*.88),h:Math.round(H*.55),imgUrl:'',imgVar:'foto_produto',objectFit:'cover',frameShape:'rounded',radius:18,visible:true},
+    {id:'l-title',name:'Título',type:'text',x:Math.round(W*.08),y:Math.round(H*.74),w:Math.round(W*.55),h:Math.round(U*.12),content:`{{${titleVar}}}`,font:"'Roboto Black'",fontSize:Math.round(U*.085),color:'#FFFFFF',textAlign:'left',isVar:true,visible:true}
+  ];
+
+  if (c.perguntas.some(q => q.id === 'validade')) {
+    layers.push({id:'l-validade',name:'Validade',type:'text',x:Math.round(W*.08),y:Math.round(H*.86),w:Math.round(W*.50),h:Math.round(U*.05),content:'{{validade}}',font:"'Roboto'",fontSize:Math.round(U*.035),color:'rgba(255,255,255,.8)',textAlign:'left',isVar:true,visible:true});
+  }
+
+  // Preço de / Por ou desconto
+  const hasPrecoDe = c.perguntas.some(q => q.id === 'precoDe');
+  if (hasPrecoDe) {
+    layers.push({id:'l-badge',name:'Círculo de Preço',type:'shape',shapeKind:'circle',x:W-Math.round(U*.38),y:Math.round(H*.70),w:Math.round(U*.32),h:Math.round(U*.32),fill:'#FFFFFF',opacity:100,radius:999,visible:true});
+    layers.push({id:'l-de',name:'Preço De',type:'text',x:W-Math.round(U*.38),y:Math.round(H*.73),w:Math.round(U*.32),h:Math.round(U*.05),content:'DE {{precoDe}}',font:"'Roboto'",fontSize:Math.round(U*.035),color:'#C8102E',textAlign:'center',strikethrough:true,isVar:true,visible:true});
+    layers.push({id:'l-por',name:'Preço Por',type:'text',x:W-Math.round(U*.38),y:Math.round(H*.77),w:Math.round(U*.32),h:Math.round(U*.15),content:'R$\n{{precoPor}}',font:"'Roboto Black'",fontSize:Math.round(U*.085),color:'#C8102E',textAlign:'center',isVar:true,visible:true});
+  } else if (priceVar) {
+    layers.push({id:'l-badge',name:'Círculo de Destaque',type:'shape',shapeKind:'circle',x:W-Math.round(U*.38),y:Math.round(H*.70),w:Math.round(U*.32),h:Math.round(U*.32),fill:'#FFFFFF',opacity:100,radius:999,visible:true});
+    layers.push({id:'l-price',name:'Valor',type:'text',x:W-Math.round(U*.38),y:Math.round(H*.77),w:Math.round(U*.32),h:Math.round(U*.12),content:`{{${priceVar}}}`,font:"'Roboto Black'",fontSize:Math.round(U*.065),color:'#FF9000',textAlign:'center',isVar:true,visible:true});
+  }
+
+  // Logo da marca
+  layers.push({id:'l-logo',name:'Logo da Loja',type:'frame',x:W-Math.round(W*.18),y:H-Math.round(H*.07),w:Math.round(W*.12),h:Math.round(W*.05),imgUrl:'',imgVar:'logo_loja',objectFit:'contain',frameShape:'rect',visible:true});
+
+  return layers;
+}
+
 function dDefaultFolders(){
   const camps=[...CAMPS_ATIVAS,...CAMPS_OUTRAS];
-  // Pastas das campanhas começam VAZIAS — o designer cria os materiais de cada uma.
-  // Inclui metadados de cada campanha: perguntas, preview, badge, etc.
+  const exMeta=dDefaultPublishMeta();
+  exMeta.publicado=true;
+  exMeta.publicadoEm=Date.now();
+  exMeta.instrucoes='Material pronto para personalização.';
+  exMeta.permissoes={
+    produto:{edit:true,maxLen:32}, precoPor:{edit:true,maxLen:14}, precoDe:{edit:true,maxLen:14},
+    desconto:{edit:true,maxLen:14}, oferta:{edit:true,maxLen:20}, brinde:{edit:true,maxLen:20},
+    condicao:{edit:true,maxLen:20}, validade:{edit:true,maxLen:40},
+    foto_produto:{edit:true,maxLen:0}, logo_loja:{edit:true,maxLen:0},
+  };
+
+  // Pastas das campanhas com mock templates populados para visual de "produto em uso"
   dFolders=camps.map((c,i)=>({
     id:'f'+i,name:c.name,color:c.color,campId:c.id,cover:c.cover||'',grupos:['Todos os usuários'],agendamento:null,
     badge:c.badge||'',expiraDias:c.expiraDias||7,popular:c.popular||false,
     previewProd:c.previewProd||'',previewDe:c.previewDe||'',previewPor:c.previewPor||'',
     perguntas:c.perguntas||[],
-    templates:[]
+    templates:[
+      {
+        id: 't-mock-story-' + c.id,
+        name: c.name + ' — Story',
+        fmt: 'story',
+        layers: dBuildMockLayersForCamp(c, 'story'),
+        publishMeta: JSON.parse(JSON.stringify(exMeta))
+      },
+      {
+        id: 't-mock-feed-' + c.id,
+        name: c.name + ' — Feed',
+        fmt: 'feed',
+        layers: dBuildMockLayersForCamp(c, 'feed'),
+        publishMeta: JSON.parse(JSON.stringify(exMeta))
+      }
+    ]
   }));
+
   // ÚNICA exceção: uma pasta de exemplo com UM template-modelo pronto, que demonstra
   // as ferramentas da plataforma (texto+variáveis, formas, moldura de foto, badge, etc.).
-  const exMeta=dDefaultPublishMeta();
-  exMeta.publicado=true;
-  exMeta.publicadoEm=Date.now();
-  exMeta.instrucoes='Template de exemplo — use como ponto de partida pra aprender as ferramentas. Edite à vontade.';
-  exMeta.permissoes={
+  const modMeta=dDefaultPublishMeta();
+  modMeta.publicado=true;
+  modMeta.publicadoEm=Date.now();
+  modMeta.instrucoes='Template de exemplo — use como ponto de partida pra aprender as ferramentas. Edite à vontade.';
+  modMeta.permissoes={
     produto:{edit:true,maxLen:32}, precoPor:{edit:true,maxLen:14}, precoDe:{edit:true,maxLen:14},
     detalhes:{edit:true,maxLen:40}, validade:{edit:false,maxLen:40},
     foto_produto:{edit:true,maxLen:0}, logo_loja:{edit:true,maxLen:0},
@@ -53,7 +121,7 @@ function dDefaultFolders(){
     id:'f-modelo',name:'⭐ Modelo de exemplo',color:'#C8102E',campId:'',cover:'',
     grupos:['Todos os usuários'],agendamento:null,
     templates:[
-      {id:'t-modelo-story',name:'Modelo — Story',fmt:'story',layers:dBuildShowcaseLayers('story'),publishMeta:JSON.parse(JSON.stringify(exMeta))},
+      {id:'t-modelo-story',name:'Modelo — Story',fmt:'story',layers:dBuildShowcaseLayers('story'),publishMeta:JSON.parse(JSON.stringify(modMeta))},
     ]
   });
 }
@@ -138,6 +206,41 @@ function dPreloadFolders(){
   // Migração: garante que templates antigos tenham permissões pra fotos
   dFolders.forEach(f=>{
     if(!Array.isArray(f.templates)) f.templates=[]; // pasta legada/corrompida sem 'templates' não derruba o boot
+    
+    // Injeção dinâmica de mock templates para pastas vazias (ex: vindas do localStorage cache antigo)
+    if(f.templates.length === 0 && f.id !== 'f-modelo') {
+      const allCamps = [...CAMPS_ATIVAS,...CAMPS_OUTRAS];
+      const c = allCamps.find(x => x.id === f.campId || x.name === f.name);
+      if(c) {
+        const exMeta = dDefaultPublishMeta();
+        exMeta.publicado = true;
+        exMeta.publicadoEm = Date.now();
+        exMeta.instrucoes = 'Material pronto para personalização.';
+        exMeta.permissoes = {
+          produto:{edit:true,maxLen:32}, precoPor:{edit:true,maxLen:14}, precoDe:{edit:true,maxLen:14},
+          desconto:{edit:true,maxLen:14}, oferta:{edit:true,maxLen:20}, brinde:{edit:true,maxLen:20},
+          condicao:{edit:true,maxLen:20}, validade:{edit:true,maxLen:40},
+          foto_produto:{edit:true,maxLen:0}, logo_loja:{edit:true,maxLen:0},
+        };
+        f.templates = [
+          {
+            id: 't-mock-story-' + c.id,
+            name: c.name + ' — Story',
+            fmt: 'story',
+            layers: dBuildMockLayersForCamp(c, 'story'),
+            publishMeta: JSON.parse(JSON.stringify(exMeta))
+          },
+          {
+            id: 't-mock-feed-' + c.id,
+            name: c.name + ' — Feed',
+            fmt: 'feed',
+            layers: dBuildMockLayersForCamp(c, 'feed'),
+            publishMeta: JSON.parse(JSON.stringify(exMeta))
+          }
+        ];
+      }
+    }
+
     f.templates.forEach(t=>{
       if(!t.publishMeta) t.publishMeta = dDefaultPublishMeta();
       if(!t.publishMeta.permissoes) t.publishMeta.permissoes = {};
