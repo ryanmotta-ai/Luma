@@ -238,6 +238,8 @@ async function dColorSamplerAdd(x, y){
   }
   dColorSamplers.push({x:x, y:y, color:color, el:null});
   dColorSamplerRender();
+  if(typeof dHistoryPush==='function')dHistoryPush();
+  if(typeof dMarkUnsaved==='function')dMarkUnsaved();
   var hex=_dRgbaToHex(color.r, color.g, color.b);
   gToast('Sampler #'+dColorSamplers.length+': '+hex);
 }
@@ -252,6 +254,8 @@ function dColorSamplerRemove(idx){
   if(s.el&&s.el.parentNode) s.el.parentNode.removeChild(s.el);
   dColorSamplers.splice(idx, 1);
   dColorSamplerRender(); // re-renderiza para atualizar números
+  if(typeof dHistoryPush==='function')dHistoryPush();
+  if(typeof dMarkUnsaved==='function')dMarkUnsaved();
 }
 
 /**
@@ -455,6 +459,8 @@ function dRulerEnd(e){
     return;
   }
 
+  if(typeof dHistoryPush==='function')dHistoryPush();
+  if(typeof dMarkUnsaved==='function')dMarkUnsaved();
   gToast(''+Math.round(dist)+' px (ΔX:'+Math.round(dx)+' ΔY:'+Math.round(dy)+')');
 }
 
@@ -463,11 +469,16 @@ function dRulerEnd(e){
  */
 function dRulerClear(){
   if(dRulerState){
+    const hadRuler = dRulerState.startX !== null;
     if(dRulerState.lineEl&&dRulerState.lineEl.parentNode)
       dRulerState.lineEl.parentNode.removeChild(dRulerState.lineEl);
     if(dRulerState.labelEl&&dRulerState.labelEl.parentNode)
       dRulerState.labelEl.parentNode.removeChild(dRulerState.labelEl);
     dRulerState=null;
+    if(hadRuler){
+      if(typeof dHistoryPush==='function')dHistoryPush();
+      if(typeof dMarkUnsaved==='function')dMarkUnsaved();
+    }
   }
   document.removeEventListener('mousemove', dRulerMove);
   document.removeEventListener('mouseup', dRulerEnd);
@@ -513,6 +524,8 @@ function dNoteAdd(x, y){
     collapsed:true
   });
   dNoteRender();
+  if(typeof dHistoryPush==='function')dHistoryPush();
+  if(typeof dMarkUnsaved==='function')dMarkUnsaved();
   gToast('Nota adicionada');
 }
 
@@ -605,6 +618,8 @@ function dNoteRender(){
 function dNoteRemove(id){
   dNotes=dNotes.filter(function(n){return n.id!==id;});
   dNoteRender();
+  if(typeof dHistoryPush==='function')dHistoryPush();
+  if(typeof dMarkUnsaved==='function')dMarkUnsaved();
   gToast('Nota removida');
 }
 
@@ -624,6 +639,8 @@ function dNoteEdit(id){
   }
   note.text=newText.trim();
   dNoteRender();
+  if(typeof dHistoryPush==='function')dHistoryPush();
+  if(typeof dMarkUnsaved==='function')dMarkUnsaved();
   gToast('Nota atualizada');
 }
 
@@ -650,6 +667,8 @@ function dCountAdd(x, y){
   });
   dCountNext++;
   dCountRender();
+  if(typeof dHistoryPush==='function')dHistoryPush();
+  if(typeof dMarkUnsaved==='function')dMarkUnsaved();
   gToast('Marcador #'+(dCountNext-1)+' adicionado');
 }
 
@@ -700,6 +719,8 @@ function dCountRender(){
 function dCountRemove(id){
   dCountMarkers=dCountMarkers.filter(function(m){return m.id!==id;});
   dCountRender();
+  if(typeof dHistoryPush==='function')dHistoryPush();
+  if(typeof dMarkUnsaved==='function')dMarkUnsaved();
   gToast('Marcador removido');
 }
 
@@ -714,6 +735,9 @@ function dCountClear(){
   }
   dCountMarkers=[];
   dCountNext=1;
+  dCountRender();
+  if(typeof dHistoryPush==='function')dHistoryPush();
+  if(typeof dMarkUnsaved==='function')dMarkUnsaved();
   gToast('Todos os marcadores removidos');
 }
 

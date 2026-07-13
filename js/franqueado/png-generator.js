@@ -210,11 +210,15 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
   }
   // Aplica bindings (4.1) e regras condicionais (4.2) ANTES de filtrar visibilidade.
   const _defaults = (typeof gVarDefaults==='function') ? gVarDefaults() : null;
-  const effective = geomLayers.map(l=>{
+  let effective = geomLayers.map(l=>{
     let eff = (typeof gApplyBindings==='function') ? gApplyBindings(l, dados, {defaults:_defaults}) : l;
     if(typeof gApplyRules==='function') eff = gApplyRules(eff, dados, {defaults:_defaults});
     return eff;
   });
+  // Aplica Alinhamento Magnético Relativo (Auto-spacing)
+  if(typeof gApplyRelativeAnchors==='function'){
+    effective = gApplyRelativeAnchors(effective, dados, _defaults);
+  }
   // Renderiza só layers visíveis (geometria já está no formato alvo → escala 1:1)
   const visible = effective.filter(l => l.visible !== false);
   for(const l of visible){
@@ -336,6 +340,10 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     }
     // Substitui {{var}} pelo valor real do franqueado (interpolador único — 3.1)
     let raw = gInterpolate(l.content, dados, {onEmpty:'remove', defaults:_defaults});
+    // Se for caixa de texto (textBox === 'box'), aplica a quebra de linha inteligente (Smart Wrapping)
+    if(l.textBox === 'box' && typeof gSmartWrapText === 'function'){
+      raw = gSmartWrapText(raw, l.w, l, dados, _defaults);
+    }
     // text-transform importado do PSD (All Caps, etc.) — aplicado no conteúdo pois o
     // canvas 2D API não tem textTransform nativo
     if(l.textTransform==='uppercase') raw=raw.toUpperCase();
@@ -365,15 +373,22 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     const _txtFill = (l.gradient&&l.gradient.stops&&l.gradient.stops.length&&typeof gGradientCanvas==='function') ? gGradientCanvas(ctx,l.gradient,x,y,w,h) : _txtColor;
     const _lsTxt = (l.letterSpacing!=null) ? (l.letterSpacing*_scTxt)+'px' : null; // tracking
 
+    // Se a camada contiver split-tokens de preço, gera runs virtuais e processa como rich text!
+    const _vRuns = (typeof gBuildVirtualRuns === 'function') ? gBuildVirtualRuns(l, dados, 1, _defaults) : null;
+    let runsToUse = l.runs;
+    if (_vRuns) {
+      runsToUse = _vRuns;
+    }
+
     // ── RICH TEXT (multi-estilo) — MULTILINHA, fiel ao editor (spans + <br> no DOM):
     // divide os trechos pelas quebras '\n' do PSD, mede cada linha, aplica textTransform,
     // ancora pelo topo (vAlign) ou centraliza o bloco. O render antigo desenhava tudo
     // numa linha única no meio da caixa — a arte final divergia do editor.
-    if(l.runs && l.runs.length && !l.vertical){
+    if(runsToUse && runsToUse.length && !l.vertical){
       const _xf=t=>l.textTransform==='uppercase'?t.toUpperCase():l.textTransform==='lowercase'?t.toLowerCase():t;
       // Trechos → linhas (preserva segmentos vazios de linhas em branco)
       const linesRuns=[[]];
-      l.runs.forEach(r=>{
+      runsToUse.forEach(r=>{
         String(r.text||'').split('\n').forEach((part,pi)=>{
           if(pi>0) linesRuns.push([]);
           if(part!=='') linesRuns[linesRuns.length-1].push(Object.assign({},r,{text:part}));
@@ -391,7 +406,7 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
           const t=_xf(r.text||'');
           const ww=ctx.measureText(t).width;
           wsum+=ww; if(fs>maxFs)maxFs=fs;
-          return {t,fp,fs,ww,ls:r.letterSpacing||0,color:r.color};
+          return {t,fp,fs,ww,ls:r.letterSpacing||0,color:r.color,yOffset:r.yOffset};
         });
         return {ms,wsum,maxFs};
       });
@@ -409,10 +424,11 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
           ctx.font=`${_ital}${s.fp.weight} ${s.fs}px ${s.fp.family}`;
           ctx.letterSpacing=s.ls?(s.ls*_scTxt)+'px':'0px';
           ctx.fillStyle=s.color||_txtColor;
+          const baselineOffset = (s.yOffset || 0) * _scTxt;
           if(l.shadow){ ctx.shadowColor=l.shadowColor||'rgba(0,0,0,.5)'; ctx.shadowBlur=_shBlur; ctx.shadowOffsetX=_shOff.x; ctx.shadowOffsetY=_shOff.y; }
-          ctx.fillText(s.t, tx, baseline);
+          ctx.fillText(s.t, tx, baseline + baselineOffset);
           if(l.shadow){ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;}
-          if(l.strokeW>0){ ctx.lineWidth=Math.max(1,l.strokeW*_scTxt); ctx.strokeStyle=l.strokeColor||'#000'; ctx.lineJoin='round'; ctx.strokeText(s.t, tx, baseline); }
+          if(l.strokeW>0){ ctx.lineWidth=Math.max(1,l.strokeW*_scTxt); ctx.strokeStyle=l.strokeColor||'#000'; ctx.lineJoin='round'; ctx.strokeText(s.t, tx, baseline + baselineOffset); }
           tx+=s.ww;
         });
         cy+=lineH;
@@ -644,6 +660,14 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
           const posY = Math.max(0, Math.min(1, 0.5 + (l.imgOffsetY||0)));
           const drawX = x + (w - drawW)*posX;
           const drawY = y + (h - drawH)*posY;
+          
+          // Aplica filtros de imagem (Apetite Adjustments)
+          let filterStr = '';
+          if (l.filterBrightness != null && l.filterBrightness !== 0) filterStr += ` brightness(${1 + (l.filterBrightness / 100)})`;
+          if (l.filterContrast != null && l.filterContrast !== 0) filterStr += ` contrast(${1 + (l.filterContrast / 100)})`;
+          if (l.filterSaturate != null && l.filterSaturate !== 0) filterStr += ` saturate(${1 + (l.filterSaturate / 100)})`;
+          if (filterStr) ctx.filter = filterStr.trim();
+          
           ctx.drawImage(img, drawX, drawY, drawW, drawH);
           ctx.restore();
         }

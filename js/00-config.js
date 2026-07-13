@@ -150,7 +150,7 @@ const FMTS=[{id:'story',name:'Story',dim:'1080×1920'},{id:'feed',name:'Feed',di
    UMA regex e UM interpolador, usados por designer (simulação/preview)
    e franqueado (PNG). Nome válido = [a-zA-Z0-9_] (sem espaço/acento).
 ══════════════════════════════════════════════════════════════ */
-function gVarRegex(){ return /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g; }
+function gVarRegex(){ return /\{\{\s*([a-zA-Z0-9_]+)(?::([a-zA-Z0-9_]+))?\s*\}\}/g; }
 // Valida nome de variável (sem espaço/acento). Mesma regra do token e da criação.
 function gValidVarName(name){ return /^[a-zA-Z0-9_]+$/.test(String(name||'')); }
 // Escapa texto para XML/SVG (& < > " ').
@@ -270,13 +270,105 @@ function gInterpolate(content, dados, opts){
   opts = opts || {};
   const keep = opts.onEmpty === 'keep';
   const defaults = opts.defaults;
-  return String(content==null?'':content).replace(gVarRegex(), (m, name)=>{
-    const v = dados ? dados[name] : undefined;
-    if(v!=null && v!=='') return String(v);
-    const d = defaults ? defaults[name] : undefined;
-    if(d!=null && d!=='') return String(d);
-    return keep ? m : '';
+  return String(content==null?'':content).replace(gVarRegex(), (m, name, format)=>{
+    let v = dados ? dados[name] : undefined;
+    if(v==null || v==='') v = defaults ? defaults[name] : undefined;
+    if(v==null || v==='') return keep ? m : '';
+    
+    // Suporte a split de preços
+    if(format === 'inteiro'){
+      return gSplitPrice(v).inteiro;
+    }
+    if(format === 'centavos'){
+      return gSplitPrice(v).centavos;
+    }
+    
+    return String(v);
   });
+}
+
+// Separa um preço em inteiros e centavos de forma robusta
+function gSplitPrice(v) {
+  const s = String(v==null?'':v).trim();
+  const m = s.match(/(\d+)[.,](\d{2})/);
+  if (m) {
+    return { inteiro: m[1], centavos: m[2] };
+  }
+  const num = s.replace(/[^\d]/g, '');
+  if (num) {
+    return { inteiro: num, centavos: '00' };
+  }
+  return { inteiro: s, centavos: '' };
+}
+
+// Converte um texto contendo split-tokens em runs (trechos ricos) temporários para formatação avançada
+function gBuildVirtualRuns(layer, dados, scale, defaults) {
+  if (!layer) return null;
+  const content = layer.content || '';
+  const fontSize = layer.fontSize || 24;
+  
+  // Só gera se houver tokens de split de preço
+  if (!/:\s*(?:inteiro|centavos)/.test(content)) return null;
+  
+  const re = /(\{\{\s*[a-zA-Z0-9_]+(?::[a-zA-Z0-9_]+)?\s*\}\}|R\$\s*|\$\s*|[,.]|[^${]+)/g;
+  let match;
+  const runs = [];
+  
+  while ((match = re.exec(content)) !== null) {
+    const part = match[1];
+    if (!part) continue;
+    
+    let isSymbol = /^(?:R\$|\$)\s*$/i.test(part);
+    let isComma = /^[.,]$/.test(part);
+    let isToken = /^\{\{/.test(part);
+    
+    let run = {
+      text: part,
+      font: layer.font,
+      fontSize: fontSize,
+      color: layer.color,
+      letterSpacing: layer.letterSpacing
+    };
+    
+    if (isToken) {
+      const tokenMatch = part.match(/\{\{\s*([a-zA-Z0-9_]+)(?::([a-zA-Z0-9_]+))?\s*\}\}/);
+      if (tokenMatch) {
+        const varName = tokenMatch[1];
+        const format = tokenMatch[2];
+        
+        let val = dados ? dados[varName] : undefined;
+        if (val == null || val === '') val = defaults ? defaults[varName] : undefined;
+        if (val == null || val === '') {
+          val = varName;
+        }
+        
+        const split = gSplitPrice(val);
+        if (format === 'inteiro') {
+          run.text = split.inteiro;
+          run.fontSize = fontSize;
+        } else if (format === 'centavos') {
+          run.text = split.centavos || '00';
+          run.fontSize = Math.round(fontSize * 0.55);
+          run.yOffset = -Math.round(fontSize * 0.35); // suspenso ao topo
+        } else {
+          run.text = String(val);
+        }
+      }
+    } else {
+      if (isSymbol) {
+        run.fontSize = Math.round(fontSize * 0.55);
+        run.yOffset = -Math.round(fontSize * 0.35);
+      } else if (isComma) {
+        run.fontSize = Math.round(fontSize * 0.55);
+        run.yOffset = -Math.round(fontSize * 0.35);
+      }
+    }
+    
+    if (run.text) {
+      runs.push(run);
+    }
+  }
+  return runs.length > 0 ? runs : null;
 }
 // Mapa {nome:defaultValue} derivado do catálogo dVars (3.3). Usado pelo interpolador.
 function gVarDefaults(){
@@ -336,10 +428,19 @@ function gApplyRules(layer, dados, opts){
     else if(rule.when === 'filled')cond = (str.trim() !== '');
     else if(rule.when === 'maxLen')cond = (str.length > (parseInt(rule.value,10)||0));
     if(!cond) return;
+    // Registra a ativação da regra no tracker global do debugger se definido
+    if (typeof window !== 'undefined' && window._dActiveRules) {
+      window._dActiveRules.push({
+        layerId: layer.id,
+        rule: rule
+      });
+    }
     if(out === layer) out = {...layer};
     if(rule.then === 'hide')        out.visible = false;
     else if(rule.then === 'show')   out.visible = true;
     else if(rule.then === 'shrinkFont') out.fontSize = Math.max(8, Math.round((out.fontSize||24) * 0.7));
+    else if(rule.then === 'shiftX') out.x = (out.x || 0) + (parseInt(rule.value,10)||0);
+    else if(rule.then === 'shiftY') out.y = (out.y || 0) + (parseInt(rule.value,10)||0);
   });
   return out;
 }
@@ -426,4 +527,400 @@ function gFieldSlugify(label, existingNames){
   if(!taken.has(base)) return base;
   let i=2; while(taken.has(base+'_'+i)) i++;
   return base+'_'+i;
+}
+
+// Mede a largura real de uma camada de texto pós-interpolação
+function gMeasureLayerWidth(layer, text, ctxAux) {
+  if (!layer || layer.type !== 'text') return layer.w || 0;
+  
+  // Utiliza um canvas auxiliar para medir a largura do texto com fontes aplicadas
+  const canvas = ctxAux ? ctxAux.canvas : document.createElement('canvas');
+  const ctx = ctxAux || canvas.getContext('2d');
+  
+  const fp = (typeof dTextFontParts === 'function') ? dTextFontParts(layer.font) : { family: "'Roboto',sans-serif", weight: 700 };
+  const fontSize = layer.fontSize || 24;
+  const ital = layer.italic ? 'italic ' : '';
+  
+  ctx.font = `${ital}${fp.weight} ${fontSize}px ${fp.family}`;
+  ctx.letterSpacing = layer.letterSpacing ? (layer.letterSpacing) + 'px' : '0px';
+  
+  // Se contiver split-tokens, a largura total é a soma das larguras de cada run virtual
+  const runs = gBuildVirtualRuns(layer, null, 1, null);
+  if (runs && runs.length) {
+    let totalW = 0;
+    runs.forEach(r => {
+      const rFp = (typeof dTextFontParts === 'function') ? dTextFontParts(r.font) : fp;
+      ctx.font = `${ital}${rFp.weight} ${r.fontSize}px ${rFp.family}`;
+      ctx.letterSpacing = r.letterSpacing ? (r.letterSpacing) + 'px' : '0px';
+      totalW += ctx.measureText(r.text || '').width;
+    });
+    return totalW;
+  }
+  
+  const lines = String(text || '').split('\n');
+  let maxW = 0;
+  lines.forEach(line => {
+    const w = ctx.measureText(line).width;
+    if (w > maxW) maxW = w;
+  });
+  return maxW;
+}
+
+// Mede a altura real de uma camada de texto (multilinhas)
+function gMeasureLayerHeight(layer, text) {
+  if (!layer || layer.type !== 'text') return layer.h || 0;
+  const fontSize = layer.fontSize || 24;
+  const lineHeight = fontSize * (layer.lineHeight || 1.25);
+  const lines = String(text || '').split('\n').filter(l => l.trim() !== '').length;
+  return Math.max(1, lines) * lineHeight;
+}
+
+// Resolve e atualiza as posições (X e Y) de camadas ancoradas de forma magnética/relativa
+function gApplyRelativeAnchors(layers, dados, defaults) {
+  if (!layers || !layers.length) return layers;
+  
+  const cloned = layers.map(l => ({...l}));
+  const canvasAux = document.createElement('canvas');
+  const ctxAux = canvasAux.getContext('2d');
+  
+  const resolved = {};
+  cloned.forEach(l => {
+    let text = l.content || '';
+    if (l.isVar || /\{\{/.test(text)) {
+      text = gInterpolate(text, dados, {defaults});
+    }
+    
+    resolved[l.id] = {
+      x: l.x || 0,
+      y: l.y || 0,
+      w: l.type === 'text' ? gMeasureLayerWidth(l, text, ctxAux) : (l.w || 0),
+      h: l.type === 'text' ? gMeasureLayerHeight(l, text) : (l.h || 0),
+      visible: l.visible !== false
+    };
+  });
+  
+  const maxIter = cloned.length;
+  let changed = true;
+  let iter = 0;
+  
+  while (changed && iter < maxIter) {
+    changed = false;
+    iter++;
+    
+    cloned.forEach(l => {
+      const anchor = l.relativeAnchor;
+      if (!anchor || !anchor.layerId) return;
+      
+      const parent = resolved[anchor.layerId];
+      if (!parent) return;
+      
+      const gap = parseInt(anchor.gap, 10) || 0;
+      let newX = l.x || 0;
+      let newY = l.y || 0;
+      
+      if (anchor.type === 'left-to-right') {
+        if (parent.visible) {
+          newX = parent.x + parent.w + gap;
+        } else {
+          newX = parent.x; // pula elemento invisível
+        }
+      } else if (anchor.type === 'top-to-bottom') {
+        if (parent.visible) {
+          newY = parent.y + parent.h + gap;
+        } else {
+          newY = parent.y; // pula elemento invisível
+        }
+      }
+      
+      const current = resolved[l.id];
+      if (current.x !== newX || current.y !== newY) {
+        current.x = newX;
+        current.y = newY;
+        l.x = newX;
+        l.y = newY;
+        changed = true;
+      }
+    });
+  }
+  
+  return cloned;
+}
+
+// Lista de conectores curtos gramaticais (preposições, conjunções, artigos) em PT e EN
+const G_CONNECTORS = new Set([
+  'de', 'do', 'da', 'dos', 'das',
+  'e', 'ou', 'com', 'sem', 'para',
+  'em', 'no', 'na', 'nos', 'nas',
+  'por', 'pelo', 'pela', 'pelos', 'pelas',
+  'um', 'uma', 'uns', 'umas',
+  'o', 'a', 'os', 'as',
+  'ao', 'aos',
+  'of', 'and', 'or', 'with', 'without', 'for', 'in', 'at', 'on', 'by', 'a', 'an', 'the'
+]);
+
+// Quebra de linha inteligente baseada em pontuação de desequilíbrio e limites gramaticais (Knuth-Plass adaptado)
+function gSmartWrapText(text, maxW, layer, dados, defaults) {
+  if (!text || typeof text !== 'string') return text;
+  
+  // Se contiver quebras de linha manuais do designer, respeita e não mexe
+  if (text.includes('\n')) return text;
+  
+  // Limpa espaços redundantes
+  const cleanText = text.replace(/\s+/g, ' ').trim();
+  const words = cleanText.split(' ');
+  if (words.length <= 1) return cleanText;
+  
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  
+  // Medição exata da largura de cada linha usando as métricas da própria camada
+  const measure = (str) => {
+    // Limpa tags de template temporárias (__VAR_START_...__) para obter medição física exata de pixels no editor
+    const cleanStr = str.replace(/__VAR_START_[a-zA-Z0-9_]+__/g, '').replace(/__VAR_END__/g, '');
+    return gMeasureLayerWidth(layer, cleanStr, ctx);
+  };
+  
+  const padding = Math.round((layer.fontSize || 24) * 0.08);
+  const availableW = Math.max(10, maxW - padding * 2);
+  
+  // 1. Testa se cabe inteiro em 1 única linha
+  const fullW = measure(cleanText);
+  if (fullW <= availableW) {
+    return cleanText;
+  }
+  
+  let bestPartition = null;
+  let bestScore = Infinity;
+  
+  // Testa partições em N = 2 e N = 3 linhas
+  for (let n = 2; n <= 3; n++) {
+    if (words.length < n) continue;
+    
+    const partitions = [];
+    const getPartitions = (arr, partsLeft, currentPart) => {
+      if (partsLeft === 1) {
+        partitions.push(currentPart.concat([arr]));
+        return;
+      }
+      for (let i = 1; i <= arr.length - partsLeft + 1; i++) {
+        getPartitions(arr.slice(i), partsLeft - 1, currentPart.concat([arr.slice(0, i)]));
+      }
+    };
+    
+    getPartitions(words, n, []);
+    
+    // Avalia cada partição candidata
+    partitions.forEach(part => {
+      const lines = part.map(p => p.join(' '));
+      const widths = lines.map(measure);
+      
+      let overflowScore = 0;
+      let grammarScore = 0;
+      let orphanScore = 0;
+      
+      widths.forEach((w, idx) => {
+        // Penalidade severa por estourar a largura da caixa do designer
+        if (w > availableW) {
+          overflowScore += (w - availableW) * 150 + 20000;
+        }
+        
+        // Penalidade por terminar linha com preposição/conjunção (quebra gramatical feia)
+        if (idx < lines.length - 1) {
+          const lineWords = part[idx];
+          const lastWord = lineWords[lineWords.length - 1].toLowerCase().replace(/[.,!?;:]/g, '');
+          if (G_CONNECTORS.has(lastWord)) {
+            grammarScore += 350;
+          }
+        }
+      });
+      
+      // Penalidade por palavra órfã muito curta na última linha
+      const lastLineWords = part[part.length - 1];
+      if (lastLineWords.length === 1) {
+        const lastWord = lastLineWords[0];
+        if (lastWord.length < 4) {
+          orphanScore += 400;
+        }
+      }
+      
+      // Desequilíbrio entre larguras (procura simetria visual entre as linhas)
+      const maxWLine = Math.max(...widths);
+      const minWLine = Math.min(...widths);
+      const unbalanceScore = (maxWLine - minWLine) * 2.5;
+      
+      const totalScore = overflowScore + grammarScore + orphanScore + unbalanceScore;
+      
+      if (totalScore < bestScore) {
+        bestScore = totalScore;
+        bestPartition = lines;
+      }
+    });
+    
+    // Se a melhor partição em N linhas couber 100% sem estourar os limites de pixel, para nela
+    if (bestScore < 15000) {
+      break;
+    }
+  }
+  
+  if (bestPartition) {
+    return bestPartition.join('\n');
+  }
+  
+  return cleanText;
+}
+
+// Converte strings para Title Case Gramatical (Capitalização Semântica - Ideia 2)
+function gSmartTitleCase(str) {
+  if (!str || typeof str !== 'string') return str;
+  
+  // Limpa espaços redundantes
+  const cleaned = str.replace(/\s+/g, ' ').trim();
+  if (!cleaned) return '';
+  
+  // Só higieniza se o texto estiver 100% gritando em maiúsculas ou 100% em minúsculas.
+  // Preserva capitalizações mistas intencionais de marcas (ex: "Big Mac", "Coca-Cola Zero").
+  const isAllUpper = (cleaned === cleaned.toUpperCase());
+  const isAllLower = (cleaned === cleaned.toLowerCase());
+  if (!isAllUpper && !isAllLower) return cleaned;
+  
+  const words = cleaned.split(' ');
+  const formatted = words.map((w, idx) => {
+    if (!w) return '';
+    
+    // Remove pontuação para testar o conector
+    const wordClean = w.toLowerCase().replace(/[.,!?;:]/g, '');
+    const hasPunctuation = w.length > wordClean.length;
+    const punctuation = hasPunctuation ? w.slice(wordClean.length) : '';
+    
+    // Primeira palavra sempre é capitalizada. Demais palavras respeitam conectores curtos.
+    if (idx === 0 || !G_CONNECTORS.has(wordClean)) {
+      // Capitaliza a primeira letra, lidando com hifens (ex: "terça-feira" -> "Terça-feira")
+      const parts = wordClean.split('-');
+      const cappedParts = parts.map(p => p ? p[0].toUpperCase() + p.slice(1) : '');
+      return cappedParts.join('-') + punctuation;
+    }
+    
+    return wordClean + punctuation;
+  });
+  
+  return formatted.join(' ');
+}
+
+// Interpreta e humaniza datas ou prazos de validade digitados pelo franqueado (Ideia 3)
+function gSmartHumanizeDate(str) {
+  if (!str || typeof str !== 'string') return str;
+  
+  const cleaned = str.replace(/\s+/g, ' ').trim().toLowerCase();
+  if (!cleaned) return '';
+  
+  // Se o usuário já digitou uma frase de validade completa, respeita e não mexe
+  if (cleaned.includes('válid') || cleaned.includes('validade') || cleaned.includes('aproveite') || cleaned.length > 28) {
+    return str;
+  }
+  
+  // 1. Dias relativos comuns
+  if (cleaned === 'hoje') return 'Válido apenas hoje';
+  if (cleaned === 'amanha' || cleaned === 'amanhã') return 'Válido apenas amanhã';
+  if (cleaned === 'fim de semana' || cleaned === 'final de semana') return 'Válido neste fim de semana';
+  
+  // 2. Dias da semana simples
+  const diasSemana = {
+    'segunda': 'nesta segunda-feira',
+    'segunda-feira': 'nesta segunda-feira',
+    'terça': 'nesta terça-feira',
+    'terça-feira': 'nesta terça-feira',
+    'quarta': 'nesta quarta-feira',
+    'quarta-feira': 'nesta quarta-feira',
+    'quinta': 'nesta quinta-feira',
+    'quinta-feira': 'nesta quinta-feira',
+    'sexta': 'nesta sexta-feira',
+    'sexta-feira': 'nesta sexta-feira',
+    'sabado': 'neste sábado',
+    'sábado': 'neste sábado',
+    'domingo': 'neste domingo'
+  };
+  
+  if (diasSemana[cleaned]) {
+    return 'Válido ' + diasSemana[cleaned];
+  }
+  
+  // Se contiver "ate" ou "até" + dia da semana
+  if (cleaned.startsWith('até ') || cleaned.startsWith('ate ')) {
+    const dia = cleaned.replace(/^até\s+|^ate\s+/, '').trim();
+    if (diasSemana[dia]) {
+      return 'Válido até ' + dia.replace('-feira', '');
+    }
+  }
+  
+  // 3. Datas numéricas (ex: "12/07" ou "12-07")
+  const dateRegex = /^(\d{1,2})[\/\-](\d{1,2})([\/\-]\d{2,4})?$/;
+  if (dateRegex.test(cleaned)) {
+    return 'Válido até ' + str.trim();
+  }
+  
+  // Se contiver "de" (ex: "12 de julho")
+  if (/^\d{1,2}\s+de\s+[a-z]+$/i.test(cleaned)) {
+    return 'Válido até ' + str.trim();
+  }
+  
+  // Fallback padrão: anexa "Válido " na frente se for apenas um termo curto
+  if (str.trim().length <= 15) {
+    return 'Válido ' + str.trim();
+  }
+  
+  return str;
+}
+
+// Calcula o limite recomendado de caracteres da caixa de texto para preservar respiro e hierarquia
+function gCalculateRecommendedCharLimit(layer) {
+  if (!layer || layer.type !== 'text') return 0;
+  
+  const fs = layer.fontSize || 24;
+  
+  // Se for uma caixa de texto pontual (sem limite lateral físico), sugere limite padrão de segurança
+  if (layer.textBox !== 'box') {
+    return 35; 
+  }
+  
+  const w = layer.w || 300;
+  let h = layer.h || 80;
+  const lh = fs * (layer.lineHeight || 1.25);
+  
+  // Detecção Proativa de Colisão com Vizinhos Abaixo (Ideia 3 melhorada)
+  if (typeof dLayers !== 'undefined' && Array.isArray(dLayers)) {
+    // Filtra camadas visíveis no mesmo artboard que estejam abaixo
+    const belowLayers = dLayers.filter(l => 
+      l.id !== layer.id && 
+      l.visible && 
+      l.parentId === layer.parentId &&
+      l.y >= layer.y &&
+      // Sobreposição ou vizinhança horizontal (alinhamento X)
+      (Math.max(layer.x, l.x) < Math.min(layer.x + layer.w, l.x + l.w))
+    );
+    
+    if (belowLayers.length > 0) {
+      // Encontra a camada mais próxima diretamente abaixo
+      belowLayers.sort((a, b) => a.y - b.y);
+      const nearest = belowLayers[0];
+      const distY = nearest.y - (layer.y + h);
+      
+      // Se a distância for menor que 24px, reduzimos a altura de cálculo em 1 linha
+      // para forçar a hierarquia visual e evitar que fiquem colados ou colidam
+      if (distY >= 0 && distY < 24) {
+        h = Math.max(lh, h - lh);
+      }
+    }
+  }
+  
+  // Determina quantas linhas cabem fisicamente com folga
+  const maxLines = Math.max(1, Math.floor(h / lh));
+  
+  // Caractere ocidental médio tem cerca de 48% da largura do fontSize
+  const charW = fs * 0.48;
+  const charsPerLine = Math.max(1, Math.floor(w / charW));
+  
+  const rawLimit = maxLines * charsPerLine;
+  
+  // Aplica um redutor de segurança de 15% para manter respiros visuais elegantes nas caixas
+  return Math.max(10, Math.floor(rawLimit * 0.85));
 }

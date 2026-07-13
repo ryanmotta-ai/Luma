@@ -710,6 +710,11 @@ body.theme-light .dp-xywh-field{background:#F0F0F0;border-color:transparent}
 body.theme-light .dp-xywh-field:focus-within{border-color:var(--dm-orange);background:#fff}
 body.theme-light .dp-xywh-label{color:#6B6B6B}
 body.theme-light .dp-xywh-input{color:#0A0A0A}
+body.theme-light .dp-dado-ex {
+  background: #FFFFFF;
+  color: var(--d-text);
+  border-color: var(--d-border2);
+}
 
 /* ══ ICONBAR ══ */
 #d-left{
@@ -1357,7 +1362,40 @@ body.theme-light .dp-xywh-input{color:#0A0A0A}
 .psd-swatch{width:14px;height:14px;border-radius:3px;border:1px solid rgba(255,255,255,.2)}
 .psd-mode{font-size:11px;padding:4px 6px;background:var(--d-surf2,#2A2A2A);color:var(--d-text);border:1px solid var(--d-border2);border-radius:5px;flex-shrink:0}
 .psd-mode-fixed{font-size:11px;color:var(--d-text3);flex-shrink:0;padding:0 6px}
-.psd-var-input{width:120px;font-size:11px;padding:4px 7px;background:var(--var-bg);border:1px solid rgba(255,185,0,.4);color:var(--var-color);border-radius:5px;font-family:monospace;flex-shrink:0}
+.psd-var-input{
+  width:0;
+  opacity:0;
+  padding:4px 0;
+  margin-left:-9px;
+  border:1px solid transparent;
+  border-width:1px 0;
+  pointer-events:none;
+  visibility:hidden;
+  overflow:hidden;
+  transition:
+    width var(--dur-base) var(--ease-standard),
+    opacity var(--dur-base) var(--ease-standard),
+    padding var(--dur-base) var(--ease-standard),
+    margin-left var(--dur-base) var(--ease-standard),
+    border-color var(--dur-base) var(--ease-standard),
+    visibility var(--dur-base) var(--ease-standard);
+  font-size:11px;
+  background:var(--var-bg);
+  color:var(--var-color);
+  border-radius:5px;
+  font-family:monospace;
+  flex-shrink:0;
+  box-sizing:border-box;
+}
+.psd-var-input.visible{
+  width:120px;
+  opacity:1;
+  padding:4px 7px;
+  margin-left:0;
+  border:1px solid rgba(255,185,0,.4);
+  pointer-events:auto;
+  visibility:visible;
+}
 .psd-fontwarn{font-size:9px;font-weight:700;color:var(--dm-yellow);background:rgba(255,185,0,.12);padding:1px 6px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;gap:4px}
 .psd-fontok{font-size:9px;font-weight:700;color:var(--green-text);background:rgba(34,197,94,.12);padding:1px 6px;border-radius:8px;flex-shrink:0}
 .psd-multistyle{font-size:9px;font-weight:700;color:var(--dm-yellow);background:rgba(255,185,0,.12);padding:1px 6px;border-radius:8px;flex-shrink:0}
@@ -2612,4 +2650,16 @@ body.theme-light .field-pick-new {
 }
 body.theme-light .field-pick-new:hover {
   background: rgba(255, 144, 0, 0.15);
+}
+
+/* ── Estilização do Design System Linter (Checklist) ── */
+.linter-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.linter-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+body.theme-light .linter-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
 }

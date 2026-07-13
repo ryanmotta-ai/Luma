@@ -101,10 +101,16 @@ function dPropShowSections(layerType) {
   var secContent = document.getElementById('dp-sec-content');
   var secText    = document.getElementById('dp-sec-text');
   var secAppear  = document.getElementById('dp-sec-appear');
+  var secAnchor  = document.getElementById('dp-sec-anchor');
+  var secRules   = document.getElementById('dp-sec-rules');
+
+  var hasLayer = isText || isImg || isShp;
 
   if (secContent) secContent.style.display = (isText || isImg) ? '' : 'none';
   if (secText)    secText.style.display    = isText ? '' : 'none';
   if (secAppear)  secAppear.style.display  = isShp  ? '' : 'none';
+  if (secAnchor)  secAnchor.style.display  = hasLayer ? '' : 'none';
+  if (secRules)   secRules.style.display   = hasLayer ? '' : 'none';
 
   // Auto-expand the primary section for the layer type
   var targetOpen = isText ? secText : (isShp ? secAppear : secContent);

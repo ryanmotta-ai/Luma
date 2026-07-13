@@ -178,18 +178,79 @@ body.theme-light .vt-color-sep { background: rgba(0,0,0,0.1); }
 #view-designer{height:calc(100vh - 52px);height:calc(100dvh - 52px - var(--safe-top));}
 
 
-/* ── Smart guides ── */
-.smart-guide{
-  position:absolute;background:#FF00FF;
-  pointer-events:none;z-index:200;opacity:.9;
+/* ── Smart guides (Figma-style) ── */
+.smart-guide {
+  position: absolute;
+  background: var(--dm-orange);
+  pointer-events: none;
+  z-index: 200;
+  opacity: 0.95;
+  transition: opacity 0.1s ease;
 }
-.smart-guide.v{width:1px;}
-.smart-guide.h{height:1px;}
-.snap-tag{
-  position:absolute;background:#FF00FF;color:#fff;
-  font-size:9px;font-family:monospace;padding:1px 4px;
-  border-radius:2px;pointer-events:none;z-index:201;
-  font-weight:700;
+.smart-guide.v {
+  width: 1px;
+  box-shadow: 0 0 4px rgba(255, 144, 0, 0.3);
+}
+.smart-guide.h {
+  height: 1px;
+  box-shadow: 0 0 4px rgba(255, 144, 0, 0.3);
+}
+.smart-guide.gap-x {
+  border-left: 1px dashed var(--dm-orange) !important;
+  background: transparent !important;
+}
+.smart-guide.gap-y {
+  border-top: 1px dashed var(--dm-orange) !important;
+  background: transparent !important;
+}
+.snap-tag {
+  position: absolute;
+  background: var(--dm-orange);
+  color: #fff;
+  font-size: 10px;
+  font-family: monospace;
+  padding: 3px 6px;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 201;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(255, 144, 0, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* ── Rule Debugger & Highlight Styles ── */
+.rule-row {
+  transition: all 0.15s ease;
+  border-radius: 6px;
+  padding: 4px 6px;
+}
+.rule-row.active {
+  background: rgba(255, 185, 0, 0.06);
+  border-color: rgba(255, 185, 0, 0.2) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 185, 0, 0.15);
+}
+.rule-active-badge {
+  font-size: 9px;
+  font-weight: 700;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin-left: 6px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  animation: gFadeIn 0.2s ease-out both;
+}
+.rule-hover-highlight {
+  outline: 2px dashed var(--dm-orange) !important;
+  outline-offset: 4px;
+  animation: rulePulseBorder 1.2s infinite ease-in-out;
+}
+@keyframes rulePulseBorder {
+  0%, 100% { outline-color: var(--dm-orange); }
+  50% { outline-color: rgba(255, 144, 0, 0.2); }
 }
 
 
@@ -674,4 +735,32 @@ body.theme-light .vt-cd-bg { border-color: rgba(0,0,0,0.3); }
 body.theme-light .vt-cd-fg { border-color: rgba(0,0,0,0.3); }
 body.theme-light .vt-color-default:hover .vt-cd-bg, 
 body.theme-light .vt-color-default:hover .vt-cd-fg { border-color: #000; }
+
+/* ── Alerta Visual de Estouro de Respiro/Texto no Canvas ── */
+.canvas-layer.text-overflow {
+  box-shadow: 0 0 0 2.5px rgba(239, 68, 68, 0.65), inset 0 0 0 1px rgba(239, 68, 68, 0.4) !important;
+  border-radius: 4px;
+}
+.canvas-layer.text-overflow::after {
+  content: "⚠ ESTOURO DE RESPIRO";
+  position: absolute;
+  top: -20px;
+  left: 0;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 8px;
+  font-weight: 800;
+  font-family: var(--font-sans, sans-serif);
+  padding: 2px 6px;
+  border-radius: 3px;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+  animation: pulseOverflowAlert 1.5s infinite;
+}
+@keyframes pulseOverflowAlert {
+  0%, 100% { opacity: 0.9; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.03); }
+}
 

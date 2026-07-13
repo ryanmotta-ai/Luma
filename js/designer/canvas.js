@@ -792,14 +792,21 @@ function dRenderCanvas(){
   const _maskEls=(typeof _dMaskState!=='undefined'&&_dMaskState)?[_dMaskState.view,_dMaskState.cap].filter(n=>n&&n.parentNode===frame):[];
   _maskEls.forEach(n=>frame.removeChild(n));
   frame.innerHTML='';
+  // Inicializa o tracker de regras disparadas para o debugger
+  window._dActiveRules = [];
+  
   // Na simulação, aplica bindings (4.1) e regras (4.2) com os valores simulados — espelha o PNG.
   const _simDefs=dSimActive?gVarDefaults():null;
-  const _renderLayers=dLayers.map(l=>{
+  let _renderLayers=dLayers.map(l=>{
     if(!dSimActive)return l;
     let eff=(typeof gApplyBindings==='function')?gApplyBindings(l,dSimValues,{defaults:_simDefs}):l;
     if(typeof gApplyRules==='function')eff=gApplyRules(eff,dSimValues,{defaults:_simDefs});
     return eff;
   });
+  // Aplica Alinhamento Magnético Relativo (Auto-spacing)
+  if(typeof gApplyRelativeAnchors==='function'){
+    _renderLayers = gApplyRelativeAnchors(_renderLayers, dSimActive ? dSimValues : null, dSimActive ? _simDefs : gVarDefaults());
+  }
   _renderLayers.filter(l=>l.visible && l.type !== 'group').forEach(l=>{
     // Na simulação, 'l' pode ser um CLONE efetivo (gApplyBindings/gApplyRules retornam
     // cópia). Handlers que MUTAM estado precisam do original em dLayers — senão a
@@ -890,26 +897,48 @@ function dRenderCanvas(){
       // vAlign 'top' (texto importado do PSD): ancora pelo TOPO com o topo da tinta encostando no
       // topo da caixa (== node.top do PSD) → posição vertical 1:1. Demais textos: centralização
       // vertical (comportamento antigo do editor).
+      const isBox = l.textBox === 'box';
+      const wrapStyle = isBox ? 'white-space:pre-wrap;word-break:break-word;' : 'white-space:nowrap;';
       if(l.vAlign==='top'){
-        textNode.style.cssText='width:100%;overflow:visible;';
+        textNode.style.cssText=`width:100%;overflow:visible;${wrapStyle}`;
         const _gap=(typeof dTextInkTopGap==='function')?dTextInkTopGap(l.font, _renderFs, (l.lineHeight||1.2)):0;
         if(_gap) textNode.style.transform='translateY('+(-_gap).toFixed(2)+'px)';
       } else {
-        textNode.style.cssText='width:100%;height:100%;display:flex;align-items:center;overflow:visible;';
+        textNode.style.cssText=`width:100%;height:100%;display:flex;align-items:center;overflow:visible;${wrapStyle}`;
       }
-      // sim: valor do usuário vai como texto puro (sem HTML → sem XSS); edição: escapa o
-      // conteúdo do designer e só os tokens {{var}} viram badge.
-      if(dSimActive){ textNode.textContent=dInterpolate(l.content||''); }
+      // Se a camada contiver split-tokens de preço, gera runs virtuais e processa como HTML rico
+      const virtualRuns = (typeof gBuildVirtualRuns === 'function') ? gBuildVirtualRuns(l, dSimActive ? dSimValues : null, 1, gVarDefaults()) : null;
+      if (virtualRuns) {
+        textNode.innerHTML = virtualRuns.map(r => {
+          const dy = r.yOffset ? `display:inline-block;transform:translateY(${Math.round(r.yOffset * (_renderFs / (l.fontSize || 24)))}px);` : '';
+          const fs = Math.round((r.fontSize || l.fontSize || 24) * (_renderFs / (l.fontSize || 24)));
+          return `<span style="color:${r.color||'inherit'};font-size:${fs}px;font-family:${dTextFontParts(r.font).family};font-weight:${dTextFontParts(r.font).weight};${r.letterSpacing?'letter-spacing:'+r.letterSpacing+'px;':''}${dy}">${gEsc(r.text||'').replace(/\n/g,'<br>')}</span>`;
+        }).join('');
+      } else if(dSimActive){
+        let rawSim = dInterpolate(l.content||'');
+        if(isBox && typeof gSmartWrapText === 'function'){
+          rawSim = gSmartWrapText(rawSim, l.w, l, dSimValues, gVarDefaults());
+        }
+        textNode.textContent=rawSim;
+      }
       else if(l.runs && l.runs.length && !l.isVar){ // texto multi-estilo (rich text)
         textNode.innerHTML=l.runs.map(r=>`<span style="color:${r.color||'inherit'};font-size:${r.fontSize||_renderFs}px;font-family:${dTextFontParts(r.font).family};font-weight:${dTextFontParts(r.font).weight};${r.letterSpacing?'letter-spacing:'+r.letterSpacing+'px;':''}">${gEsc(r.text||'').replace(/\n/g,'<br>')}</span>`).join(''); }
-      else { textNode.innerHTML=gEsc(l.content||'').replace(gVarRegex(),(m,n)=>{
-        const v=(typeof dVars!=='undefined')&&dVars.find(x=>x.name===n);
-        // Mostra um valor de exemplo realista (não o nome do campo gigante). A borda
-        // tracejada + etiqueta roxa (l.isVar) já sinalizam que é variável; aqui só um
-        // sublinhado leve (.field-fill) marca o trecho dinâmico sem virar bloco.
-        const sample=(typeof gFieldSampleValue==='function')?gFieldSampleValue(v||{name:n}):((v&&(v.label||n))||n);
-        return '<span class="field-fill" data-var="'+n+'">'+gEsc(sample)+'</span>';
-      }); }
+      else {
+        let rawEdit = l.content || '';
+        rawEdit = rawEdit.replace(gVarRegex(), (m, n) => {
+          const v = (typeof dVars !== 'undefined') && dVars.find(x => x.name === n);
+          const sample = (typeof gFieldSampleValue === 'function') ? gFieldSampleValue(v || {name: n}) : ((v && (v.label || n)) || n);
+          return `__VAR_START_${n}__${sample}__VAR_END__`;
+        });
+        if(isBox && typeof gSmartWrapText === 'function'){
+          rawEdit = gSmartWrapText(rawEdit, l.w, l, null, gVarDefaults());
+        }
+        let escaped = gEsc(rawEdit);
+        escaped = escaped.replace(/__VAR_START_([a-zA-Z0-9_]+)__(.*?)__VAR_END__/g, (m, name, label) => {
+          return `<span class="field-fill" data-var="${name}">${label}</span>`;
+        });
+        textNode.innerHTML = escaped.replace(/\n/g, '<br>');
+      }
       // Preenchimento por gradiente no texto (clip) — não para rich text (que tem cor por trecho)
       if(l.gradient && l.gradient.stops && l.gradient.stops.length && !(l.runs&&l.runs.length)){
         textNode.style.backgroundImage=gGradientCss(l.gradient);
@@ -989,6 +1018,14 @@ function dRenderCanvas(){
         img.src=src;
         const posX=(0.5+(l.imgOffsetX||0))*100, posY=(0.5+(l.imgOffsetY||0))*100;
         img.style.cssText=`width:100%;height:100%;object-fit:${l.objectFit||'cover'};object-position:${posX}% ${posY}%;display:block;`;
+        
+        // Aplica filtros de imagem (Apetite Adjustments)
+        let filterStr = '';
+        if (l.filterBrightness != null && l.filterBrightness !== 0) filterStr += ` brightness(${1 + (l.filterBrightness / 100)})`;
+        if (l.filterContrast != null && l.filterContrast !== 0) filterStr += ` contrast(${1 + (l.filterContrast / 100)})`;
+        if (l.filterSaturate != null && l.filterSaturate !== 0) filterStr += ` saturate(${1 + (l.filterSaturate / 100)})`;
+        if (filterStr) img.style.filter = filterStr.trim();
+        
         if (isCropMode) {
           img.style.opacity = '0.5';
           img.style.cursor = 'move';
@@ -1006,6 +1043,7 @@ function dRenderCanvas(){
           const imgSolid=document.createElement('img');
           imgSolid.src=src;
           imgSolid.style.cssText=`position:absolute;top:0;left:0;width:100%;height:100%;object-fit:${l.objectFit||'cover'};object-position:${posX}% ${posY}%;display:block;pointer-events:none;`;
+          if (filterStr) imgSolid.style.filter = filterStr.trim();
           if(l.imgScale&&l.imgScale!==1){imgSolid.style.transform=`scale(${l.imgScale})`;imgSolid.style.transformOrigin='center';}
           const solidWrap=document.createElement('div');
           solidWrap.style.cssText=`position:absolute;inset:0;overflow:hidden;${clipCss};pointer-events:none;`;
@@ -1061,6 +1099,14 @@ function dRenderCanvas(){
         if(simImg)l._simImgUrl=simImg;
         const img=document.createElement('img');
         img.src=simImg||l.imgUrl;img.style.cssText=`width:100%;height:100%;object-fit:${l.objectFit||'cover'};`;
+        
+        // Aplica filtros de imagem (Apetite Adjustments)
+        let filterStr = '';
+        if (l.filterBrightness != null && l.filterBrightness !== 0) filterStr += ` brightness(${1 + (l.filterBrightness / 100)})`;
+        if (l.filterContrast != null && l.filterContrast !== 0) filterStr += ` contrast(${1 + (l.filterContrast / 100)})`;
+        if (l.filterSaturate != null && l.filterSaturate !== 0) filterStr += ` saturate(${1 + (l.filterSaturate / 100)})`;
+        if (filterStr) img.style.filter = filterStr.trim();
+        
         el.appendChild(img);
       }else{
         el.style.cssText+=`background:rgba(255,255,255,.06);border:1px dashed rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:11px;color:rgba(255,255,255,.3);flex-direction:column;gap:4px;`;
@@ -1139,6 +1185,14 @@ function dRenderCanvas(){
   dSyncPaintPointer();
   dAttachMarquee(); // garante o listener de marquee no frame (guarda interna evita duplicar)
   if(typeof dABAddResizeHandles==='function') dABAddResizeHandles();
+  
+  // Atualiza painel de regras em tempo real se o debugger detectou mudanças
+  if (dSelId) {
+    const lReal = dLayers.find(x => x.id === dSelId);
+    if (lReal && lReal.rules && typeof dRenderRules === 'function') {
+      dRenderRules(lReal);
+    }
+  }
 }
 
 
@@ -1235,6 +1289,25 @@ function dCalculateSnap(movingLayer, newX, newY){
       }
     }
   }
+
+  // Smart Snapping de Gaps Comuns Figma-Style (8px, 12px, 16px, 24px)
+  const commonGaps = [8, 12, 16, 24];
+  others.forEach(l => {
+    // Alinha horizontalmente se houver sobreposição vertical sutil ou próxima
+    if (Math.max(movingLayer.y, l.y) < Math.min(movingLayer.y + movingLayer.h, l.y + l.h) || others.length <= 4) {
+      commonGaps.forEach(gap => {
+        gapSnapX.push({ x: l.x + l.w + gap, gap: gap, refLayer: l });
+        gapSnapX.push({ x: l.x - gap - movingLayer.w, gap: gap, refLayer: l });
+      });
+    }
+    // Alinha verticalmente se houver sobreposição horizontal sutil ou próxima
+    if (Math.max(movingLayer.x, l.x) < Math.min(movingLayer.x + movingLayer.w, l.x + l.w) || others.length <= 4) {
+      commonGaps.forEach(gap => {
+        gapSnapY.push({ y: l.y + l.h + gap, gap: gap, refLayer: l });
+        gapSnapY.push({ y: l.y - gap - movingLayer.h, gap: gap, refLayer: l });
+      });
+    }
+  });
 
   let bestDx=0, bestDxAbs=SNAP_THRESHOLD+1;
   let gapMatchedX = null;
@@ -1424,6 +1497,74 @@ function dSimVarOverflow(vn,value){
     const interp=gInterpolate(l.content,sim,{onEmpty:'remove',defaults:gVarDefaults()});
     return dCheckTextOverflow({...l,content:interp});
   });
+}
+function dSimStressTest(mode) {
+  const usedVars = new Set();
+  dLayers.forEach(l => {
+    if (l.type === 'text' && l.content) {
+      const matches = l.content.matchAll(gVarRegex());
+      for (const m of matches) usedVars.add(m[1]);
+    }
+    if ((l.type === 'frame' || l.type === 'image') && l.imgVar) usedVars.add(l.imgVar);
+  });
+  
+  if (usedVars.size === 0) return;
+  
+  dSimValues = {};
+  const varsArr = [...usedVars];
+  
+  varsArr.forEach(vn => {
+    const v = dVars.find(x => x.name === vn);
+    const type = v ? v.type : 'text';
+    const isRequired = v ? v.required : false;
+    
+    if (mode === 'empty') {
+      dSimValues[vn] = isRequired ? (type === 'price' ? 'R$ 9,90' : 'Texto') : '';
+    } else if (mode === 'min') {
+      if (type === 'price') dSimValues[vn] = 'R$ 9';
+      else if (type === 'discount') dSimValues[vn] = '5%';
+      else if (type === 'image') dSimValues[vn] = (fState.camp && fState.camp.cover) || '';
+      else if (type === 'boolean') dSimValues[vn] = 'Não';
+      else dSimValues[vn] = 'Açaí';
+    } else if (mode === 'max') {
+      if (type === 'price') dSimValues[vn] = 'R$ 1.249,00';
+      else if (type === 'discount') dSimValues[vn] = '99% OFF + Frete Grátis';
+      else if (type === 'image') dSimValues[vn] = (fState.camp && fState.camp.cover) || '';
+      else if (type === 'boolean') dSimValues[vn] = 'Sim';
+      else {
+        const nameLower = vn.toLowerCase();
+        if (nameLower.includes('prod')) {
+          dSimValues[vn] = 'Super Combo Duplo Mega Burger Artesanal com Batata Frita e Molho Especial da Casa';
+        } else if (nameLower.includes('desc') || nameLower.includes('detalhe')) {
+          dSimValues[vn] = 'Delicioso blend de carne bovina grelhada no fogo com muito queijo cheddar derretido, alface crespa, tomate fresco colhido no dia e molho secreto.';
+        } else if (nameLower.includes('valid') || nameLower.includes('data')) {
+          dSimValues[vn] = 'Válido de segunda a quinta-feira exceto feriados e vésperas';
+        } else {
+          dSimValues[vn] = 'Edição especial limitada até durarem os estoques de hoje';
+        }
+      }
+    }
+  });
+  
+  const body = document.getElementById('d-sim-body');
+  if (body) {
+    varsArr.forEach(vn => {
+      const v = dVars.find(x => x.name === vn);
+      const input = body.querySelector(`[oninput*="'${vn}'"]`);
+      if (input) {
+        input.value = dSimValues[vn] || '';
+        dSimVarUpdateMeta(vn, dSimValues[vn] || '', (v && v.maxLen) ? v.maxLen : 0);
+      }
+    });
+  }
+  
+  dSimActive = true;
+  document.body.classList.add('simulating');
+  dRenderCanvas();
+  const ind = document.getElementById('d-sim-indicator');
+  if (ind) ind.style.display = 'flex';
+  
+  gToast(`⚡ Stress-Test (${mode.toUpperCase()}) aplicado!`);
 }
 function dCloseSimModal(){document.getElementById('d-sim-modal').classList.remove('open');}
 function dApplySim(){

@@ -219,15 +219,28 @@ function fNextStep(){
   const typeIcon = {price:'R$', discount:'%', code:'#', text:'Aa'}[cfg.type] || 'Aa';
   const fieldHint = `<div class="field-hint"><span class="field-hint-type">${typeIcon}</span><span class="field-hint-text">${gEsc(cfg.label)} · até ${cfg.maxLen} caracteres</span></div>`;
   
-  // Sugestão inteligente de cores a partir da foto do produto
+  // Sugestões ricas automáticas baseadas no tipo de dado da variável (UX do franqueado)
   let sugestoes = p.sugestoes ? p.sugestoes.slice() : [];
+  
+  if (cfg.type === 'boolean' && (!sugestoes || !sugestoes.length)) {
+    sugestoes = ['Sim', 'Não'];
+  } else if (cfg.type === 'select' && Array.isArray(cfg.options) && cfg.options.length && (!sugestoes || !sugestoes.length)) {
+    sugestoes = cfg.options;
+  } else if (cfg.type === 'color' && Array.isArray(cfg.palette) && cfg.palette.length && (!sugestoes || !sugestoes.length)) {
+    sugestoes = cfg.palette;
+  }
+  
+  // Sugestão inteligente de cores a partir da foto do produto
   if (cfg.type === 'color') {
     const fotoColor = fState.extractedColors && (fState.extractedColors['foto_produto'] || Object.values(fState.extractedColors)[0]);
-    if (fotoColor) {
-      if (!sugestoes.includes(fotoColor)) {
-        sugestoes.unshift(fotoColor);
-      }
+    if (fotoColor && !sugestoes.includes(fotoColor)) {
+      sugestoes.unshift(fotoColor);
     }
+  }
+  
+  // Se a variável for opcional (não requerida), auto-injeta a opção de pular
+  if (!cfg.required && !sugestoes.includes('Pular')) {
+    sugestoes.push('Pular');
   }
 
   fAddBot(`${stepLabel}${p.texto}${fieldHint}`, sugestoes, canGoBack);
@@ -573,73 +586,25 @@ let _fArtCaptions={}; // Cache das legendas geradas indexadas pelo canvasId/snap
 function fGenCaptionSuggestions(dados, camp, formato) {
   const prod = dados.produto || dados.categoria || dados.brinde || dados.oferta || camp.name;
   const por = dados.precoPor || dados.desconto || 'Ver no app';
-  const de = dados.precoDe ? `De ${dados.precoDe}` : '';
+  const de = dados.precoDe || '';
   const val = dados.validade || '';
-  const cupom = dados.codigo || '';
-  const condicao = dados.condicao || '';
-  const pedidoMin = dados.pedidoMin || '';
-  const bairros = dados.bairros || '';
-  const detalhes = dados.detalhes || '';
+  const desc = dados.detalhes || '';
 
-  // CTAs adaptados ao formato de arte (Feed/Instagram, Stories, Wide)
-  let ctaText = "Corre pro app da Delivery Much e pede o seu! Link na bio! 📲";
-  let hashFmt = "#feed";
-  if (formato.id === 'story') {
-    ctaText = "Acesse o link aqui nos Stories e faça seu pedido rápido! 📲";
-    hashFmt = "#stories";
-  } else if (formato.id === 'wide') {
-    ctaText = "Confira no link do site ou app da Delivery Much! 📲";
-    hashFmt = "#wide";
+  // Unificação com o avançado motor de copy gastronômica do Luma Sheets (fBuildCopy)
+  if (typeof fBuildCopy === 'function') {
+    const copys = fBuildCopy(prod, de, por, val, desc, formato?.id || 'feed');
+    return [
+      { id: 'promo', label: 'Promo', text: copys.op1 },
+      { id: 'engajar', label: 'Engajar', text: copys.op2 },
+      { id: 'whatsapp', label: 'WhatsApp', text: copys.op3 }
+    ];
   }
 
-  // Hashtags baseadas no produto
-  const cleanProd = prod.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const hashtags = `#deliverymuch #pedircomida #${cleanProd} #comidaemcasa #oferta ${hashFmt}`;
-
-  // 1. Variação Promoção (Foco em vendas e cupom)
-  let promoText = `🚨 Bateu aquela fome? A gente resolve! 🚨\n\n`;
-  promoText += `Olha só o que preparamos pra você hoje: *${prod}* por um precinho especial! 😋\n\n`;
-  if (de) promoText += `💸 ~${de}~ | 👉 *Por apenas ${por}!*\n\n`;
-  else promoText += `💸 *Por apenas ${por}!* 🤑\n\n`;
-  if (cupom) promoText += `🎟️ Use o cupom *${cupom}* pra garantir aquele desconto extra no app!\n\n`;
-  if (pedidoMin) promoText += `⚠️ Pedido mínimo: ${pedidoMin}.\n`;
-  if (condicao) promoText += `*Condição:* ${condicao}\n`;
-  if (bairros) promoText += `📍 Válido para a entrega em: ${bairros}\n`;
-  if (detalhes) promoText += `📝 ${detalhes}\n`;
-  if (val) promoText += `📅 Aproveita que essa oferta é válida ${val}!\n\n`;
-  promoText += `${ctaText}\n\n${hashtags}`;
-
-  // 2. Variação Engajamento (Foco em redes sociais, interação e comentários)
-  let engajarText = `Quem também concorda que a vida fica bem melhor com ${prod}? 😍👇\n\n`;
-  engajarText += `A nossa equipe preparou essa promoção especial pensando em você. `;
-  if (de) engajarText += `Pra comer muito gastando pouco: de ~${de}~ por apenas *${por}*! 😱\n\n`;
-  else engajarText += `Precinho super camarada de *${por}* pra alegrar seu dia! 🎉\n\n`;
-  if (cupom) {
-    engajarText += `🎟️ Cupom da vez: *${cupom}*\n`;
-    engajarText += `Comente "QUERO" que a gente te manda o link direto no Direct! 💬👇\n\n`;
-  } else {
-    engajarText += `Qual é o seu acompanhamento ideal pra hoje? Comente aqui embaixo! 👇💬\n\n`;
-  }
-  if (val) engajarText += `🏃‍♂️ Mas ó, não vacila: vale ${val}.\n\n`;
-  engajarText += `Marque aqui aquele amigo que vai pagar esse pra você hoje! 👇\n\n`;
-  engajarText += `${ctaText}\n\n${hashtags}`;
-
-  // 3. Variação WhatsApp (Foco em conversão direta)
-  let whatsappText = `Olá! Tudo bem? Passando pra te dar uma notícia deliciosa! 🌟\n\n`;
-  whatsappText += `Hoje tem *${prod}* na Delivery Much com um preço especial!\n\n`;
-  if (de) whatsappText += `❌ ~${de}~\n✅ *Por apenas ${por}!*\n\n`;
-  else whatsappText += `✅ *Por apenas ${por}!* 😍\n\n`;
-  if (cupom) whatsappText += `🎟️ Use o cupom *${cupom}* no app!\n\n`;
-  if (pedidoMin) whatsappText += `• Pedido mínimo: ${pedidoMin}\n`;
-  if (bairros) whatsappText += `• Entrega em: ${bairros}\n`;
-  if (val) whatsappText += `⏳ *Corre que é válido:* ${val}!\n\n`;
-  whatsappText += `Quer garantir o seu? É só abrir o app da Delivery Much no link abaixo ou responder a essa mensagem que te ajudo!\n`;
-  whatsappText += `👉 [Inserir Link do App/WhatsApp]`;
-
+  // Fallback simples caso fBuildCopy não esteja disponível
   return [
-    { id: 'promo', label: '📢 Promo', text: promoText },
-    { id: 'engajar', label: '🔥 Engajar', text: engajarText },
-    { id: 'whatsapp', label: '💬 WhatsApp', text: whatsappText }
+    { id: 'promo', label: 'Promo', text: `Hoje tem *${prod}* por apenas *${por}*! Aproveite!` },
+    { id: 'engajar', label: 'Engajar', text: `Marque aquele amigo que vai pagar esse *${prod}* pra você hoje!` },
+    { id: 'whatsapp', label: 'WhatsApp', text: `Olá! *${prod}* por apenas *${por}*! Peça no app!` }
   ];
 }
 
@@ -760,7 +725,7 @@ function fGerarArte(){
     _fArtCaptions[previewCanvasId] = suggestions;
 
     const captionHtml = `<div class="caption-assistant-panel" data-canvas-id="${previewCanvasId}" data-active-tab="promo">
-      <div class="caption-assistant-title">Legenda do Post ✍️</div>
+      <div class="caption-assistant-title">Legenda do Post</div>
       <div class="caption-tabs">
         ${suggestions.map((s, idx) => `
           <button class="caption-tab-btn ${idx === 0 ? 'active' : ''}" onclick="fSwitchCaptionTab(this, '${s.id}', '${previewCanvasId}')">
@@ -816,7 +781,7 @@ function fGerarArte(){
       <div class="bbl" style="padding-bottom:6px;display:inline-flex;align-items:center;gap:4px">Arte gerada! <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="color:#22c55e"><polyline points="20 6 9 17 4 12"/></svg></div>
       <div class="art-wrap">
         ${canvasBlock}
-        <div class="multi-fmt-row">
+        <div class="multi-fmt-row" style="${(fState.material && fState.material.fmt) ? 'display:none;' : ''}">
           ${FMTS.map(f=>`<div class="fmt-mini ${f.id===fState.fmt.id?'current':''}" onclick="fOutroFormato('${f.id}','${previewCanvasId}')">
             <div class="fmt-mini-thumb" style="background:${c.color}">${f.name.toUpperCase()}</div>
             <div class="fmt-mini-label" style="display:flex;align-items:center;justify-content:center;gap:3px">${f.name}${f.id===fState.fmt.id?' <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':''}</div>

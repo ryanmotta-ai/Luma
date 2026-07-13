@@ -88,8 +88,10 @@ function dPublishClose(){
 function dPublishSwitchTab(tab, btn){
   document.querySelectorAll('.pub-tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.pub-panel').forEach(p=>p.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('pub-panel-'+tab).classList.add('active');
+  const targetBtn = btn || document.querySelector(`.pub-tab[onclick*="'${tab}'"]`);
+  if(targetBtn) targetBtn.classList.add('active');
+  const panel = document.getElementById('pub-panel-'+tab);
+  if(panel) panel.classList.add('active');
 }
 
 /* ── RENDER DO MODAL ── */
@@ -127,9 +129,96 @@ function dPublishRender(){
     ?`<span class="pub-pill pub-pill-on">● Publicado anteriormente</span>`
     :`<span class="pub-pill pub-pill-off">○ Não publicado</span>`;
 
-  // Abre na aba de pranchetas
+  // Executa o linter na aba checklist de publicação
+  let linterStats = { errorsCount: 0, warningsCount: 0, infosCount: 0 };
+  if (typeof dRunLinter === 'function') {
+    const issuesContainer = document.getElementById('d-pub-linter-issues');
+    if (issuesContainer) {
+      // Temporariamente redireciona d-linter-issues para d-pub-linter-issues
+      const tempDiv = document.createElement('div');
+      tempDiv.id = 'd-linter-issues';
+      issuesContainer.parentNode.replaceChild(tempDiv, issuesContainer);
+      
+      dRunLinter();
+      
+      // Restaura a ID correta
+      tempDiv.id = 'd-pub-linter-issues';
+      
+      // Coleta as contagens da prancheta
+      const ab = (typeof dGetActiveAB === 'function') ? dGetActiveAB() : null;
+      const isStory = ab ? (ab.w === 1080 && ab.h === 1920) : (dFmt === 'story');
+      
+      dLayers.forEach(l => {
+        if (!l.visible) return;
+        const hasPrecoDe = l.id === 'precoDe' || (l.content && l.content.includes('{{precoDe}}'));
+        if (hasPrecoDe) {
+          const hasCondition = dLayers.some(other => 
+            other.rules && other.rules.some(r => r && r.var === 'precoDe' && r.when === 'empty' && r.then === 'hide')
+          );
+          if (!hasCondition) linterStats.errorsCount++;
+        }
+        if (l.type === 'text' && l.content) {
+          const currencyMatches = l.content.matchAll(/R\$\s*\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g);
+          for (const m of currencyMatches) {
+            const varName = m[1];
+            const v = dVars.find(x => x.name === varName);
+            if (v && (v.type === 'currency' || v.type === 'number')) linterStats.errorsCount++;
+          }
+        }
+        if (isStory && l.type !== 'group' && l.name.toLowerCase() !== 'background' && l.name.toLowerCase() !== 'bg') {
+          const isCriticalElement = l.type === 'text' || l.id === 'logo' || l.name.toLowerCase().includes('logo') || l.name.toLowerCase().includes('marca');
+          if (isCriticalElement) {
+            if (l.y < 250) linterStats.warningsCount++;
+            if ((l.y + l.h) > 1920 - 250) linterStats.warningsCount++;
+          }
+        }
+        if (l.type === 'text' && l.textBox === 'box') {
+          const boundField = dLayerBoundField(l);
+          const v = boundField ? dVars.find(x => x.name === boundField) : null;
+          if (v) {
+            const isCriticalField = ['produto', 'categoria', 'oferta', 'brinde', 'validade'].some(c => v.name.toLowerCase().includes(c));
+            const recommendedLimit = gCalculateRecommendedCharLimit(l);
+            if (isCriticalField && recommendedLimit < 35) linterStats.warningsCount++;
+          }
+        }
+      });
+    }
+  }
+
+  // Atualiza o resumo no rodapé da aba Checklist
+  const summaryEl = document.getElementById('d-pub-linter-summary');
+  if (summaryEl) {
+    if (linterStats.errorsCount > 0) {
+      summaryEl.innerHTML = `<span style="color:#ef4444;font-weight:700">🔴 ${linterStats.errorsCount} erro(s) crítico(s) detectado(s).</span>`
+        + `<span style="font-size:11px;color:#aaa">Corrija os erros listados para liberar a publicação.</span>`;
+    } else if (linterStats.warningsCount > 0) {
+      summaryEl.innerHTML = `<span style="color:#f59e0b;font-weight:700">🟡 ${linterStats.warningsCount} alerta(s) de Safe Zone / respiro pendente(s).</span>`
+        + `<span style="font-size:11px;color:#aaa">Publicação liberada com ressalvas.</span>`;
+    } else {
+      summaryEl.innerHTML = `<span style="color:#10b981;font-weight:700">🟢 Pronto: Nenhuma inconformidade de layout encontrada.</span>`
+        + `<span style="font-size:11px;color:#aaa">Campanha validada com sucesso.</span>`;
+    }
+  }
+
+  // Desabilita/Habilita botão de publicação final
+  const confirmBtn = document.querySelector('.pub-btn-confirm');
+  if (confirmBtn) {
+    if (linterStats.errorsCount > 0) {
+      confirmBtn.disabled = true;
+      confirmBtn.style.opacity = '0.5';
+      confirmBtn.style.cursor = 'not-allowed';
+      confirmBtn.title = 'Corrija os erros críticos no Checklist para liberar a publicação.';
+    } else {
+      confirmBtn.disabled = false;
+      confirmBtn.style.opacity = '1';
+      confirmBtn.style.cursor = 'pointer';
+      confirmBtn.title = '';
+    }
+  }
+
+  // Abre na aba de checklist inicialmente
   const firstBtn=document.querySelector('.pub-tab');
-  if(firstBtn) dPublishSwitchTab('artboards', firstBtn);
+  if(firstBtn) dPublishSwitchTab('linter', firstBtn);
 }
 
 /* ── GRID DE PRANCHETAS ── */

@@ -115,6 +115,7 @@
 .lp-canvas{
   display:block;
   max-width:100%;
+  transition: transform var(--dur-slow) var(--ease-spring-soft), transform-origin var(--dur-slow) var(--ease-spring-soft);
 }
 
 /* Anel que pulsa quando a prévia acabou de refletir uma resposta nova */

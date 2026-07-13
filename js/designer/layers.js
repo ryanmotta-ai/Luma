@@ -1132,6 +1132,15 @@ function dShowProps(l){
   if(isImg){
     document.getElementById('dp-imgurl').value=l.imgUrl||'';
     document.getElementById('dp-imgfit').value=l.objectFit||'cover';
+    
+    // Sincroniza os sliders dos filtros de imagem
+    const bEl = document.getElementById('dp-img-brightness');
+    const cEl = document.getElementById('dp-img-contrast');
+    const sEl = document.getElementById('dp-img-saturate');
+    if (bEl) bEl.value = l.filterBrightness != null ? l.filterBrightness : 0;
+    if (cEl) cEl.value = l.filterContrast != null ? l.filterContrast : 0;
+    if (sEl) sEl.value = l.filterSaturate != null ? l.filterSaturate : 0;
+    
     const imgSel=document.getElementById('dp-imgvar');
     const imgVars=dVars.filter(v=>v.type==='image');
     imgSel.innerHTML='<option value="">URL fixa</option>'+imgVars.map(v=>`<option value="${gEsc(v.name)}" ${v.name===l.imgVar?'selected':''}>${gEsc(v.label)}</option>`).join('');
@@ -1179,6 +1188,72 @@ function dShowProps(l){
   if (fillOpacEl) fillOpacEl.value = l.fillOpacity !== undefined ? l.fillOpacity : 100;
   
   dUpdateQuickLocksUI(l);
+  if(typeof dRenderAnchorProps==='function') dRenderAnchorProps(l);
+}
+
+/* ── ALINHAMENTO RELATIVO / AUTO-SPACING (Ideia 3) ── */
+function dRenderAnchorProps(l) {
+  const sel = document.getElementById('dp-anchor-layer');
+  const details = document.getElementById('dp-anchor-details');
+  if (!sel) return;
+  
+  // Filtra as outras camadas da mesma prancheta
+  const others = dLayers.filter(x => x.abId === l.abId && x.id !== l.id && x.type !== 'group');
+  
+  sel.innerHTML = '<option value="">Nenhum (Livre)</option>' + 
+    others.map(x => `<option value="${x.id}">${gEsc(x.name || x.content || x.type)}</option>`).join('');
+  
+  const anchor = l.relativeAnchor;
+  if (anchor && anchor.layerId) {
+    sel.value = anchor.layerId;
+    if (details) details.style.display = 'flex';
+    
+    const typeSel = document.getElementById('dp-anchor-type');
+    if (typeSel) typeSel.value = anchor.type || 'left-to-right';
+    
+    const gapInp = document.getElementById('dp-anchor-gap');
+    if (gapInp) gapInp.value = anchor.gap != null ? anchor.gap : 12;
+  } else {
+    sel.value = '';
+    if (details) details.style.display = 'none';
+  }
+}
+
+function dUpdateAnchorLayer(val) {
+  const l = dLayers.find(x => x.id === dSelId);
+  if (!l) return;
+  
+  dHistoryPush();
+  if (val) {
+    l.relativeAnchor = l.relativeAnchor || { type: 'left-to-right', gap: 12 };
+    l.relativeAnchor.layerId = val;
+  } else {
+    delete l.relativeAnchor;
+  }
+  
+  dRenderAnchorProps(l);
+  dMarkUnsaved();
+  dRenderCanvas();
+}
+
+function dUpdateAnchorType(val) {
+  const l = dLayers.find(x => x.id === dSelId);
+  if (!l || !l.relativeAnchor) return;
+  
+  dHistoryPush();
+  l.relativeAnchor.type = val;
+  dMarkUnsaved();
+  dRenderCanvas();
+}
+
+function dUpdateAnchorGap(val) {
+  const l = dLayers.find(x => x.id === dSelId);
+  if (!l || !l.relativeAnchor) return;
+  
+  dHistoryPushDebounced();
+  l.relativeAnchor.gap = parseInt(val, 10) || 0;
+  dMarkUnsaved();
+  dRenderCanvas();
 }
 
 function dUpdateQuickLocksUI(l) {
@@ -1255,19 +1330,36 @@ function dRenderRules(l){
   const rules=l.rules||[];
   const varOpts=(cur)=>'<option value="">var…</option>'+dVars.map(v=>`<option value="${v.name}" ${v.name===cur?'selected':''}>${v.name}</option>`).join('');
   const whenOpts=(cur)=>['empty','filled','maxLen'].map(w=>{const lbl={empty:'vazio',filled:'preenchido',maxLen:'passar de'}[w];return `<option value="${w}" ${w===cur?'selected':''}>${lbl}</option>`;}).join('');
-  const thenOpts=(cur)=>['hide','show','shrinkFont'].map(t=>{const lbl={hide:'ocultar',show:'mostrar',shrinkFont:'reduzir fonte'}[t];return `<option value="${t}" ${t===cur?'selected':''}>${lbl}</option>`;}).join('');
-  wrap.innerHTML=rules.map((r,i)=>`
-    <div class="rule-row">
-      <span style="font-size:10px;color:var(--d-text3)">Quando</span>
-      <select onchange="dUpdateRule(${i},'var',this.value)">${varOpts(r.var)}</select>
-      <span style="font-size:10px;color:var(--d-text3)">estiver</span>
-      <select onchange="dUpdateRule(${i},'when',this.value)">${whenOpts(r.when)}</select>
-      ${r.when==='maxLen'?`<input type="number" min="1" value="${r.value||20}" onchange="dUpdateRule(${i},'value',this.value)" title="limite de caracteres">`:''}
-      <span style="font-size:10px;color:var(--d-text3)">→</span>
-      <select onchange="dUpdateRule(${i},'then',this.value)">${thenOpts(r.then)}</select>
-      <button class="rule-del" onclick="dRemoveRule(${i})" title="Remover regra">×</button>
-    </div>`).join('')||'<div style="font-size:11px;color:var(--d-text3);padding:2px 0">Nenhuma regra.</div>';
+  const thenOpts=(cur)=>['hide','show','shrinkFont','shiftX','shiftY'].map(t=>{const lbl={hide:'ocultar',show:'mostrar',shrinkFont:'reduzir fonte',shiftX:'mover X',shiftY:'mover Y'}[t];return `<option value="${t}" ${t===cur?'selected':''}>${lbl}</option>`;}).join('');
+  
+  wrap.innerHTML=rules.map((r,i)=>{
+    const isActive = window._dActiveRules && window._dActiveRules.some(x => x.layerId === l.id && x.rule === r);
+    const activeClass = isActive ? 'active' : '';
+    const activeBadge = isActive ? `<span class="rule-active-badge">● Ativa</span>` : '';
+    
+    return `
+      <div class="rule-row ${activeClass}" style="display:flex;align-items:center;gap:4px;margin-bottom:4px;" onmouseenter="dRuleHoverLayer('${l.id}', true)" onmouseleave="dRuleHoverLayer('${l.id}', false)">
+        <span style="font-size:10px;color:var(--d-text3)">Quando</span>
+        <select onchange="dUpdateRule(${i},'var',this.value)">${varOpts(r.var)}</select>
+        <span style="font-size:10px;color:var(--d-text3)">estiver</span>
+        <select onchange="dUpdateRule(${i},'when',this.value)">${whenOpts(r.when)}</select>
+        ${r.when==='maxLen'?`<input type="number" min="1" style="width:40px;" value="${r.value||20}" onchange="dUpdateRule(${i},'value',this.value)" title="limite de caracteres">`:''}
+        <span style="font-size:10px;color:var(--d-text3)">→</span>
+        <select onchange="dUpdateRule(${i},'then',this.value)">${thenOpts(r.then)}</select>
+        ${r.then==='shiftX'||r.then==='shiftY'?`<input type="number" style="width:50px;" value="${r.value||0}" onchange="dUpdateRule(${i},'value',this.value)" title="deslocamento em pixels (negativo para esquerda/cima)"> <span style="font-size:9px;color:var(--d-text3)">px</span>`:''}
+        ${activeBadge}
+        <button class="rule-del" onclick="dRemoveRule(${i})" title="Remover regra" style="margin-left:auto;">×</button>
+      </div>`;
+  }).join('')||'<div style="font-size:11px;color:var(--d-text3);padding:2px 0">Nenhuma regra.</div>';
 }
+
+window.dRuleHoverLayer = function(layerId, active) {
+  const el = document.querySelector(`[data-id="${layerId}"]`);
+  if (el) {
+    if (active) el.classList.add('rule-hover-highlight');
+    else el.classList.remove('rule-hover-highlight');
+  }
+};
 function dAddRule(){
   const l=dLayers.find(x=>x.id===dSelId); if(!l){gToast('Selecione uma camada');return;}
   dHistoryPush();
@@ -1532,6 +1624,22 @@ function dDadoSetExample(varName, value){
   if(typeof dPersistVars==='function') dPersistVars();
   if(typeof dRenderCanvas==='function') dRenderCanvas();
 }
+function dDadoSetMaxLen(varName, value){
+  const v=dVars.find(x=>x.name===varName); if(!v) return;
+  const num=parseInt(value, 10);
+  if(!isNaN(num) && num > 0) v.maxLen=num; else delete v.maxLen;
+  if(typeof dPersistVars==='function') dPersistVars();
+  dMarkUnsaved();
+}
+function dDadoApplyRecommendedLimit(varName, limit){
+  const v=dVars.find(x=>x.name===varName); if(!v) return;
+  v.maxLen=limit;
+  if(typeof dPersistVars==='function') dPersistVars();
+  const l=dLayers.find(x=>x.id===dSelId);
+  if(l && typeof dRenderDadoControl==='function') dRenderDadoControl(l);
+  dMarkUnsaved();
+  gToast('✓ Limite de ' + limit + ' caracteres aplicado com sucesso');
+}
 // Controle "Dado" no topo das propriedades — injetado 1× e atualizado a cada seleção.
 function dRenderDadoControl(l){
   const pf=document.getElementById('d-props-form'); if(!pf) return;
@@ -1586,8 +1694,48 @@ function dRenderDadoControl(l){
         +'<span class="dp-dado-ex-lbl">Exemplo</span>'
         +'<input type="text" class="dp-dado-ex" value="'+_dEsc(v.example||'')+'" placeholder="'+ph+'" oninput="dDadoSetExample(\''+fn+'\', this.value)">'
         +'<button type="button" class="dp-dado-clear" onclick="dLayerUnbindField(dSelId)" title="Desvincular">✕</button>'
-        +'</div>'
-        +'<div class="dp-dado-ex-hint">Vale para o campo “'+_dEsc(v.label||v.name)+'” em todo lugar (inclusive o chat do franqueado).</div>';
+        +'</div>';
+      
+      const curLen = (v.example || '').length;
+      const maxLen = v.maxLen || 0;
+      if (maxLen > 0) {
+        const pct = Math.min(100, (curLen / maxLen) * 100);
+        const barColor = pct > 90 ? '#ef4444' : pct > 75 ? '#f59e0b' : '#10b981';
+        const textColor = pct > 90 ? '#ef4444' : '#888';
+        const labelMsg = pct > 90 ? '⚠ Risco de quebra de layout' : pct > 75 ? 'Respiro de segurança apertado' : 'Dentro do limite de segurança';
+        
+        h += '<div style="margin: 4px 0 8px 52px;">'
+          + '<div style="width:100%;height:4px;background:var(--d-border);border-radius:2px;overflow:hidden;" title="'+curLen+' de '+maxLen+' caracteres">'
+          + '<div style="width:'+pct+'%;height:100%;background:'+barColor+';transition:width 0.2s ease;"></div>'
+          + '</div>'
+          + '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px;">'
+          + '<span style="font-size:9.5px;color:'+textColor+';font-weight:700">'+curLen+' / '+maxLen+' car.</span>'
+          + '<span style="font-size:9px;color:'+textColor+';font-style:italic">'+labelMsg+'</span>'
+          + '</div>'
+          + '</div>';
+      }
+      
+      h+='<div class="dp-dado-ex-row" style="margin-top:6px">'
+        +'<span class="dp-dado-ex-lbl">Limite</span>'
+        +'<input type="number" min="0" class="dp-dado-ex" style="width:70px;text-align:center" value="'+(v.maxLen||'')+'" placeholder="sem limite" oninput="dDadoSetMaxLen(\''+fn+'\', this.value)">'
+        +'<span style="font-size:10px;color:var(--d-text3);margin-left:4px">caracteres</span>'
+        +'</div>';
+      
+      const recommendedLimit = (typeof gCalculateRecommendedCharLimit === 'function') ? gCalculateRecommendedCharLimit(l) : 0;
+      if (recommendedLimit > 0) {
+        h+='<div class="dp-dado-ex-hint" style="margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
+          +'<span>Respiro recomendado: <b>'+recommendedLimit+' car.</b></span>'
+          +'<button type="button" class="d-btn-sec" style="font-size:9.5px;padding:2px 6px;height:auto;line-height:1" onclick="dDadoApplyRecommendedLimit(\''+fn+'\','+recommendedLimit+')">Usar recomendado</button>'
+          +'</div>';
+      }
+      // Alerta proativo de margem/estúdio se o limite for apertado demais para variáveis críticas
+      const isCriticalField = ['produto', 'categoria', 'oferta', 'brinde', 'validade'].some(c => v.name.toLowerCase().includes(c));
+      if (isCriticalField && recommendedLimit > 0 && recommendedLimit < 35) {
+        h += '<div class="dp-dado-warn" style="margin-top:6px;margin-bottom:6px;background:rgba(255,144,0,0.08);border:1px solid rgba(255,144,0,0.2);color:var(--dm-orange);font-size:10.5px;padding:8px 10px;border-radius:6px;line-height:1.4">'
+          + '⚠ <b>Caixa de texto muito estreita</b>: O limite recomendado para esta variável (' + recommendedLimit + ' car.) é curto para textos comuns de franqueados. Aumente a largura da caixa ou reduza a fonte padrão para evitar que as letras encolham muito.'
+          + '</div>';
+      }
+      h+='<div class="dp-dado-ex-hint">Vale para o campo “'+_dEsc(v.label||v.name)+'” em todo lugar (inclusive o chat do franqueado).</div>';
     }
   }
   box.innerHTML=h;
@@ -1737,6 +1885,7 @@ function dActivatePanel(name){
   const campaignsPanel=document.getElementById('d-panel-campaigns');
   const dadosPanel=document.getElementById('d-panel-dados');
   const publicar=document.getElementById('d-panel-publicar');
+  const linterPanel=document.getElementById('d-panel-linter');
 
   if(name==='camadas'){
     if(rightEl){
@@ -1749,6 +1898,7 @@ function dActivatePanel(name){
     if(campaignsPanel) campaignsPanel.classList.add('hidden');
     if(dadosPanel) dadosPanel.classList.add('hidden');
     if(publicar) publicar.classList.add('hidden');
+    if(linterPanel) linterPanel.classList.add('hidden');
   } else if(name==='dados'){
     if(rightEl){
       rightEl.classList.remove('show-layers', 'show-campaigns');
@@ -1759,6 +1909,7 @@ function dActivatePanel(name){
     if(campaignsPanel) campaignsPanel.classList.add('hidden');
     if(dadosPanel) dadosPanel.classList.remove('hidden');
     if(publicar) publicar.classList.add('hidden');
+    if(linterPanel) linterPanel.classList.add('hidden');
     if(typeof dFieldsRender==='function') dFieldsRender();
   } else if(name==='campaigns'){
     if(rightEl){
@@ -1771,6 +1922,7 @@ function dActivatePanel(name){
     if(campaignsPanel) campaignsPanel.classList.remove('hidden');
     if(dadosPanel) dadosPanel.classList.add('hidden');
     if(publicar) publicar.classList.add('hidden');
+    if(linterPanel) linterPanel.classList.add('hidden');
 
     if(typeof dRenderFolders==='function') dRenderFolders();
   } else if(name==='publicar'){
@@ -1783,11 +1935,24 @@ function dActivatePanel(name){
     if(campaignsPanel) campaignsPanel.classList.add('hidden');
     if(dadosPanel) dadosPanel.classList.add('hidden');
     if(publicar) publicar.classList.remove('hidden');
+    if(linterPanel) linterPanel.classList.add('hidden');
+  } else if(name==='linter'){
+    if(rightEl){
+      rightEl.classList.remove('show-layers', 'show-campaigns');
+    }
+    if(layersSection) layersSection.style.display='none';
+    if(blendSection) blendSection.style.display='none';
+    if(propsPanel) propsPanel.classList.add('hidden');
+    if(campaignsPanel) campaignsPanel.classList.add('hidden');
+    if(dadosPanel) dadosPanel.classList.add('hidden');
+    if(publicar) publicar.classList.add('hidden');
+    if(linterPanel) linterPanel.classList.remove('hidden');
   }
 
   // Tutorial não é mais aba (acessado via Ajuda). Biblioteca/Assets migram para o drawer de Recursos.
   const tut=document.getElementById('dtab-tutorial');if(tut)tut.classList.add('hidden');
   if(name==='publicar'&&typeof dPublishPanelRender==='function')dPublishPanelRender();
+  if(name==='linter'&&typeof dRunLinter==='function')dRunLinter();
 }
 function dSwitchPanelToLayer(){dActivatePanel('camadas');}
 function dSwitchPanelToConteudo(){dActivatePanel('campaigns');}
@@ -2413,8 +2578,8 @@ function dRemoveMask(id){
 }
 
 // Sincroniza o catálogo dVars com os tokens {{}} de um content: auto-cria as faltantes (3.1)
-function dSyncVarsFromContent(content){
-  if(typeof dVars==='undefined'||!content)return;
+function dSyncVarsFromContent(content, skipPersist){
+  if(typeof dVars==='undefined'||!content)return false;
   const re=gVarRegex(); let m, changed=false;
   while((m=re.exec(content))){
     const name=m[1];
@@ -2423,7 +2588,11 @@ function dSyncVarsFromContent(content){
       changed=true;
     }
   }
-  if(changed){ if(typeof dVarsRender==='function')dVarsRender(); dPersistVars(); }
+  if(changed && !skipPersist){
+    if(typeof dVarsRender==='function')dVarsRender();
+    dPersistVars();
+  }
+  return changed;
 }
 
 /* ── AUTOCOMPLETE de {{var}} (V1/V2) ──

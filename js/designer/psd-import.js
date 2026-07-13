@@ -476,19 +476,118 @@ function _dPsdRichRuns(t, res, h){
     return out.length>1?out:null;
   }catch(e){ return null; }
 }
-// #1 — sugere variável pelo nome ({{x}}) ou heurística
+// Função auxiliar de singularização para heurísticas de auto-sugestão de variáveis do PSD.
+// Reduz variações de plurais comuns em português e inglês para melhorar a correspondência semântica.
+function _dSingularize(word){
+  if(!word) return '';
+  if(word.endsWith('oes')) return word.slice(0, -3) + 'ao'; // condicoes -> condicao
+  if(word.endsWith('ns')) return word.slice(0, -2) + 'm';   // cupons -> cupom
+  if(word.endsWith('ies')) return word.slice(0, -3) + 'y';   // validities -> validity
+  if(word.endsWith('es')){
+    if(word.endsWith('res')) return word.slice(0, -2); // valores -> valor
+    if(word.endsWith('hes')) return word.slice(0, -2); // detalhes -> detalhe
+    return word.slice(0, -1);
+  }
+  if(word.endsWith('s') && word.length > 2){
+    return word.slice(0, -1); // produtos -> produto, prices -> price
+  }
+  return word;
+}
+
+// #1 — sugere variável pelo nome ({{x}}) ou heurística de negócios Luma (auto:true ativa modo var por padrão)
 function _dPsdSuggestVar(name, content){
   const raw=String(name||'');
   const m=raw.match(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/);
   if(m) return {name:m[1], auto:true};
+  
   let clean=raw.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
-  const map={preco:'precoPor',precopor:'precoPor',precode:'precoDe',preco_de:'precoDe',preco_por:'precoPor',valor:'precoPor'};
-  if(map[clean]) return {name:map[clean], auto:false};
-  const known=['produto','precoPor','precoDe','validade','detalhes','desconto','cupom','codigo'];
-  const hit=known.find(k=>k.toLowerCase()===clean);
-  if(hit) return {name:hit, auto:false};
-  if(content && /r\$\s*\d/i.test(content)) return {name:'precoPor', auto:false};
+  const sing=_dSingularize(clean);
+  
+  // Mapeamento específico de variáveis Luma comuns, incluindo suporte multilíngue
+  const map={
+    preco:'precoPor',
+    precopor:'precoPor',
+    precode:'precoDe',
+    preco_de:'precoDe',
+    preco_por:'precoPor',
+    valor:'precoPor',
+    promocao:'precoPor',
+    de:'precoDe',
+    por:'precoPor',
+    
+    // Inglês e sinônimos adicionais
+    price:'precoPor',
+    value:'precoPor',
+    sale:'precoPor',
+    promo:'precoPor',
+    from:'precoDe',
+    to:'precoPor',
+    price_to:'precoPor',
+    priceto:'precoPor',
+    price_from:'precoDe',
+    pricefrom:'precoDe',
+    old_price:'precoDe',
+    oldprice:'precoDe',
+    price_old:'precoDe',
+    new_price:'precoPor',
+    newprice:'precoPor',
+    price_new:'precoPor',
+    sale_price:'precoPor',
+    saleprice:'precoPor',
+    
+    product:'produto',
+    validity:'validade',
+    valid:'validade',
+    detail:'detalhes',
+    discount:'desconto',
+    off:'desconto',
+    coupon:'cupom',
+    code:'codigo',
+    gift:'brinde',
+    freebie:'brinde',
+    condition:'condicao',
+    min_order:'pedidoMin',
+    minorder:'pedidoMin',
+    neighborhood:'bairros',
+    area:'bairros',
+    offer:'oferta',
+    category:'categoria'
+  };
+  
+  const matchedKey = map[clean] || map[sing];
+  if(matchedKey) return {name:matchedKey, auto:true};
+  
+  const known=[
+    'produto', 'precoPor', 'precoDe', 'validade', 'detalhes', 'desconto', 'cupom', 'codigo',
+    'brinde', 'condicao', 'pedidoMin', 'bairros', 'oferta', 'categoria'
+  ];
+  const hit=known.find(k=>{
+    const lower=k.toLowerCase();
+    return lower===clean || lower===sing;
+  });
+  if(hit) return {name:hit, auto:true};
+  
+  // Heurística de preço no conteúdo
+  if(content && /(?:r\$|\$)\s*\d/i.test(content)){
+    if(/(?:de|from)/i.test(clean) || /(?:de|from)/i.test(sing)) return {name:'precoDe', auto:true};
+    return {name:'precoPor', auto:true};
+  }
+  
   return {name:clean||'variavel', auto:false};
+}
+
+// Sugere variável e modo moldura para camadas de imagem baseando-se no nome
+function _dPsdSuggestImgVar(name){
+  const clean=String(name||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+  const sing=_dSingularize(clean);
+  
+  if(/logo|logomarca|marca|brand|logotipo/i.test(clean) || /logo|logomarca|marca|brand|logotipo/i.test(sing)){
+    return {name:'logo_loja', mode:'frame'};
+  }
+  if(/foto|imagem|img|photo|picture|pic|product|prod|banner|campanha|fundo|background|bg/i.test(clean) || /foto|imagem|img|photo|picture|pic|product|prod|banner|campanha|fundo|background|bg/i.test(sing)){
+    return {name:'foto_produto', mode:'frame'};
+  }
+  return null;
 }
 
 /* ── #4e — parse: Web Worker (offload) com fallback main-thread ── */
@@ -807,14 +906,35 @@ function dPsdParseItems(psd, res, ox, oy){
           it.kind='shape';
           it.fill=solid || (grad && grad.stops[0] && grad.stops[0].color) || '#FF9000';
           if(grad) it.gradient=grad;
-          it.mode='shape';
           it.shapeKind=shapeInfo.kind;
           it.radius=shapeInfo.radius;
           Object.assign(it,_dPsdEffects(node));        // sombra/glow/overlay/contorno-fx
           Object.assign(it,_dPsdShapeStroke(node));    // traçado do shape (vectorStroke) — prevalece
           const _rr=_dPsdCornerRadii(node,w,h); if(_rr) it.radii=_rr; // cantos por canto
+          
+          // Heurística de auto-frame para shapes (se o nome da camada contiver imagem/foto)
+          const imgSug = _dPsdSuggestImgVar(it.name);
+          if (imgSug) {
+            it.mode = imgSug.mode;
+            it.varName = imgSug.name;
+          } else {
+            it.mode = 'shape';
+          }
         }
-        else { it.kind='raster'; it.mode='raster'; it.imgUrl=_dPsdRasterURL(node.canvas); if(!it.imgUrl) return; }
+        else {
+          it.kind='raster';
+          it.imgUrl=_dPsdRasterURL(node.canvas);
+          if(!it.imgUrl) return;
+          
+          // Heurística de auto-frame para imagens raster
+          const imgSug = _dPsdSuggestImgVar(it.name);
+          if (imgSug) {
+            it.mode = imgSug.mode;
+            it.varName = imgSug.name;
+          } else {
+            it.mode = 'raster';
+          }
+        }
       } else { return; }
       items.push(it);
     });
@@ -926,7 +1046,7 @@ function dItemToLayer(it){
   // Modo MOLDURA DE FOTO (escolhido na revisão): a camada — forma ou imagem — vira um frame que o
   // franqueado preenche com foto. Preserva x/y/w/h; formato do frame herdado da forma original.
   if(it.mode==='frame'){
-    const F=Object.assign(base,{type:'frame', imgUrl:'', imgVar:'foto_produto', objectFit:'cover', shapeKind:it.shapeKind||'rect'});
+    const F=Object.assign(base,{type:'frame', imgUrl:'', imgVar:it.varName||'foto_produto', objectFit:'cover', shapeKind:it.shapeKind||'rect'});
     if(it.radius) F.radius=it.radius;
     if(it.radii) F.radii=it.radii;
     if(it.points) F.points=it.points;
@@ -1128,7 +1248,8 @@ function dPsdRenderRows(filter){
     }
     const swatchRadius=it.shapeKind==='circle'||it.shapeKind==='ellipse'?'50%':'3px';
     const swatch=it.kind==='shape'?`<span class="psd-swatch" style="background:${it.fill};border-radius:${swatchRadius}"></span>`:'';
-    const varIn=`<input class="psd-var-input" value="${it.varName||''}" placeholder="nome_da_var" oninput="dPsdSetVar(${i},this.value,this)" style="display:${it.kind==='text'&&it.mode==='var'?'inline-block':'none'}">`;
+    const isVarVisible = (it.kind==='text'&&it.mode==='var')||(it.mode==='frame');
+    const varIn=`<input class="psd-var-input ${isVarVisible?'visible':''}" value="${it.varName||''}" placeholder="nome_da_var" oninput="dPsdSetVar(${i},this.value,this)">`;
     const multiStyleBadge=(it.kind==='text'&&it.multiStyle)?`<span class="psd-multistyle" title="Texto com múltiplos estilos — importando estilo dominante">↕ misto</span>`:'';
     const blendBadge=it.blendMode?`<span class="psd-blend" title="Blend mode: ${_dPsdEsc(it.blendMode)}">⊕ ${_dPsdEsc(_dPsdBlendModeCSS(it.blendMode))}</span>`:'';
     let fontWarn='';
@@ -1158,7 +1279,25 @@ function dPsdRenderRows(filter){
   dPsdUpdateCount();
   if(typeof dPsdRenderPreview === 'function') dPsdRenderPreview();
 }
-function dPsdSetMode(i,v){ if(dPsdItems[i]){ dPsdItems[i].mode=v; dPsdRenderRows(document.getElementById('d-psd-search')&&document.getElementById('d-psd-search').value.trim().toLowerCase()||''); } }
+function dPsdSetMode(i,v){
+  if(dPsdItems[i]){
+    dPsdItems[i].mode=v;
+    const row=document.querySelector(`#d-psd-rows [data-psd-idx="${i}"]`);
+    if(row){
+      const varIn=row.querySelector('.psd-var-input');
+      if(varIn){
+        const isVarVisible=(dPsdItems[i].kind==='text'&&v==='var')||(v==='frame');
+        if(isVarVisible){
+          varIn.classList.add('visible');
+        } else {
+          varIn.classList.remove('visible');
+        }
+      }
+    }
+    dPsdUpdateCount();
+    if(typeof dPsdRenderPreview === 'function') dPsdRenderPreview();
+  }
+}
 function dPsdSetVar(i,v,el){ if(dPsdItems[i]){ const clean=v.trim().replace(/[^a-zA-Z0-9_]/g,''); dPsdItems[i].varName=clean; if(el&&el.value!==clean) el.value=clean; } } // reescreve o input p/ refletir o valor sanitizado
 function dPsdSetInclude(i,on){ if(dPsdItems[i]){ dPsdItems[i].include=on; const f=document.getElementById('d-psd-search'); dPsdRenderRows(f&&f.value.trim().toLowerCase()||''); } }
 function dPsdSelectAll(){ dPsdItems.forEach(it=>{ if(!it.isMaskBase) it.include=true; }); const f=document.getElementById('d-psd-search'); dPsdRenderRows(f&&f.value.trim().toLowerCase()||''); }
@@ -1239,9 +1378,34 @@ function dPsdConfirmImport(){
   let layers=chosen.map(dItemToLayer).filter(Boolean);
   // #4a — inverter z-order se a ordem do PSD vier trocada
   const inv=document.getElementById('d-psd-invert'); if(inv&&inv.checked) layers=layers.reverse();
+  let varsChanged = false;
   // Auto-cria no catálogo TODAS as vars dos textos — inclusive tokens {{}} digitados no
   // conteúdo do PSD (texto misto), não só as camadas inteiramente ligadas (isVar).
-  if(typeof dSyncVarsFromContent==='function') layers.forEach(l=>{ if(l.type==='text'&&l.content&&gVarRegex().test(l.content)) dSyncVarsFromContent(l.content); });
+  if(typeof dSyncVarsFromContent==='function') {
+    layers.forEach(l=>{
+      if(l.type==='text'&&l.content&&gVarRegex().test(l.content)) {
+        if(dSyncVarsFromContent(l.content, true)) {
+          varsChanged = true;
+        }
+      }
+    });
+  }
+  // Auto-cria no catálogo as variáveis das molduras de foto importadas (tipo image)
+  layers.forEach(l=>{
+    if(l.type==='frame'&&l.imgVar){
+      if(typeof dVars!=='undefined'&&dVars){
+        const name=l.imgVar;
+        if(!dVars.some(v=>v.name.toLowerCase()===name.toLowerCase())){
+          dVars.push({name, label:name.replace(/_/g,' '), type:'image', required:false});
+          varsChanged = true;
+        }
+      }
+    }
+  });
+  if(varsChanged) {
+    if(typeof dVarsRender==='function') dVarsRender();
+    if(typeof dPersistVars === 'function') dPersistVars();
+  }
   const fmtChoice=(document.getElementById('d-psd-fmt')||{}).value||'orig';
   document.getElementById('d-psd-modal').classList.remove('open');
   const cv=document.getElementById('d-psd-preview-canvas'); if(cv){ cv.width=0; cv.height=0; cv._renderId=(cv._renderId||0)+1; }

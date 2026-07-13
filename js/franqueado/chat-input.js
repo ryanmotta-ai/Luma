@@ -72,6 +72,7 @@ function fCleanTextNumber(v, type) {
 // Máscara aplicada no valor antes de salvar — formata sem rejeitar
 function fApplyMask(id, raw){
   if(raw==null) return '';
+  if(String(raw).toLowerCase() === 'pular') return 'Pular';
   const cfg = fGetFieldType(id);
   // Limpa números por extenso para apoiar digitação livre do usuário
   let rawCleaned = raw;
@@ -131,13 +132,20 @@ function fApplyMask(id, raw){
     // Código de cupom: maiúscula, sem espaço, alfanumérico
     return v.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0, cfg.maxLen);
   }
-  // text genérico: só trunca
+  // text genérico: aplica as máscaras semânticas de capitalização e data humanizada
+  if (id === 'validade' || cfg.type === 'date') {
+    v = (typeof gSmartHumanizeDate === 'function') ? gSmartHumanizeDate(v) : v;
+  } else {
+    v = (typeof gSmartTitleCase === 'function') ? gSmartTitleCase(v) : v;
+  }
   return v.slice(0, cfg.maxLen);
 }
 
 // Validação pós-máscara — retorna mensagem de erro ou null
 function fValidate(id, val){
   const cfg = fGetFieldType(id);
+  // Se o franqueado escolheu pular o campo opcional, valida com sucesso (retorna null)
+  if(val && String(val).toLowerCase() === 'pular') return null;
   // 3.3: campo vazio só bloqueia se a variável for obrigatória (honra dVars.required).
   if(!val || !val.trim()) return cfg.required ? `Preencha o campo de ${cfg.label}.` : null;
   if(cfg.type!=='price' && cfg.type!=='discount' && val.length > cfg.maxLen) return `O ${cfg.label} ficou muito longo (máx ${cfg.maxLen} caracteres).`; // preço/desconto: tamanho vem da máscara, não do usuário
@@ -242,7 +250,9 @@ function fSaveAdv(val){
   let savedField = null;
   if(fState.stepIdx<pergs.length){
     savedField = pergs[fState.stepIdx].id;
-    fState.dados[savedField]=val;
+    // Se o valor for "Pular", limpa salvando como vazio
+    const finalVal = String(val).toLowerCase() === 'pular' ? '' : val;
+    fState.dados[savedField]=finalVal;
     if (typeof fSaveChatDraft === 'function') fSaveChatDraft();
   }
   // Atualiza live preview com animação no campo que acabou de ser preenchido
@@ -256,5 +266,77 @@ function fSaveAdv(val){
     fTyping(()=>fMostrarConfirm());
   }
   else{fTyping(()=>fNextStep());}
+}
+
+// Inicializador da Formatação Inteligente do Input do Franqueado (Ideia 2)
+function fInitSmartInputFormatter() {
+  const b = document.getElementById('f-msg-box');
+  if(!b) return;
+  
+  let fInputFormatTimeout = null;
+  
+  const formatFn = () => {
+    const v = b.value.trim();
+    if(!v) return;
+    const id = fState.camp?.perguntas?.[fState.stepIdx]?.id;
+    if (!id) return;
+    
+    // Só formata se o tipo de campo for numérico/monetário/desconto ou pedidoMin
+    const cfg = fGetFieldType(id);
+    const isNumberType = cfg.type === 'price' || cfg.type === 'discount' || id === 'pedidoMin';
+    if (!isNumberType) return;
+    
+    // Ignora se o valor for muito curto ou incompleto para não incomodar a digitação
+    if (v.length < 2 && !/^\d+$/.test(v)) return;
+    
+    const masked = fApplyMask(id, v);
+    if (masked === v) return;
+    
+    // Se o usuário estiver no meio da digitação (termina em vírgula ou ponto), não formata
+    if (v.endsWith(',') || v.endsWith('.')) return;
+    
+    // Transição suave
+    b.classList.add('f-msg-box-transition');
+    setTimeout(() => {
+      const start = b.selectionStart;
+      const end = b.selectionEnd;
+      b.value = masked;
+      try { b.setSelectionRange(start, end); } catch(e){}
+      b.classList.remove('f-msg-box-transition');
+    }, 130);
+  };
+  
+  b.addEventListener('input', () => {
+    clearTimeout(fInputFormatTimeout);
+    fInputFormatTimeout = setTimeout(formatFn, 1200); // 1.2s após parar de digitar
+  });
+  
+  b.addEventListener('blur', () => {
+    clearTimeout(fInputFormatTimeout);
+    const v = b.value.trim();
+    if(!v) return;
+    const id = fState.camp?.perguntas?.[fState.stepIdx]?.id;
+    if (!id) return;
+    
+    const cfg = fGetFieldType(id);
+    const isNumberType = cfg.type === 'price' || cfg.type === 'discount' || id === 'pedidoMin';
+    if (!isNumberType) return;
+    
+    const masked = fApplyMask(id, v);
+    if (masked === v) return;
+    
+    b.classList.add('f-msg-box-transition');
+    setTimeout(() => {
+      b.value = masked;
+      b.classList.remove('f-msg-box-transition');
+    }, 130);
+  });
+}
+
+// Inicializa quando a DOM estiver carregada ou imediatamente se já carregou
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', fInitSmartInputFormatter);
+} else {
+  fInitSmartInputFormatter();
 }
 

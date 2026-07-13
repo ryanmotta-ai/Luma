@@ -1421,6 +1421,7 @@ input:focus:-webkit-autofill {
         <button class="rpanel-tab d-rp-tab active" id="rtab-layers" data-panel="camadas" onclick="dActivatePanel('camadas')" title="Camadas">Camadas</button>
         <button class="rpanel-tab d-rp-tab" id="rtab-dados" data-panel="dados" onclick="dActivatePanel('dados')" title="Campos que o franqueado preenche">Dados</button>
         <button class="rpanel-tab d-rp-tab" id="rtab-campaigns" data-panel="campaigns" onclick="dActivatePanel('campaigns')" title="Modelos e Campanhas">Campanhas</button>
+        <button class="rpanel-tab d-rp-tab" id="rtab-linter" data-panel="linter" onclick="dActivatePanel('linter')" title="Checklist de Qualidade do Design" style="color:var(--dm-orange);font-weight:700">Checklist</button>
       </div>
       <!-- Indicador contextual: nome+tipo da peça selecionada (visível só no painel Camada) -->
       <div class="d-rp-ctx" id="d-rp-ctx" style="display:none"></div>
@@ -1512,6 +1513,18 @@ input:focus:-webkit-autofill {
                 <select class="prop-input" id="dp-imgvar" onchange="dUpdateProp('imgVar',this.value)" style="display:none"></select>
                 <input class="prop-input" type="text" id="dp-imgurl" placeholder="URL da imagem" oninput="dUpdateProp('imgUrl',this.value)" style="font-size:11px">
                 <select class="prop-input" id="dp-imgfit" onchange="dUpdateProp('objectFit',this.value)" style="font-size:11px"><option value="cover">cover</option><option value="contain">contain</option><option value="fill">fill</option></select>
+                <div class="prop-row" style="margin-top:6px;gap:8px;">
+                  <span style="font-size:10px;color:var(--d-text3);min-width:60px">Brilho</span>
+                  <input type="range" id="dp-img-brightness" min="-100" max="100" value="0" oninput="dUpdateProp('filterBrightness', parseInt(this.value, 10))" style="flex:1;accent-color:#FF9000">
+                </div>
+                <div class="prop-row" style="gap:8px;">
+                  <span style="font-size:10px;color:var(--d-text3);min-width:60px">Contraste</span>
+                  <input type="range" id="dp-img-contrast" min="-100" max="100" value="0" oninput="dUpdateProp('filterContrast', parseInt(this.value, 10))" style="flex:1;accent-color:#FF9000">
+                </div>
+                <div class="prop-row" style="gap:8px;margin-bottom:6px;">
+                  <span style="font-size:10px;color:var(--d-text3);min-width:60px">Saturação</span>
+                  <input type="range" id="dp-img-saturate" min="-100" max="100" value="0" oninput="dUpdateProp('filterSaturate', parseInt(this.value, 10))" style="flex:1;accent-color:#FF9000">
+                </div>
                 <button id="dp-frame-upload" class="d-btn-sec" style="display:none;font-size:11px;padding:6px;width:100%;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Carregar foto do computador</button>
                 <div id="dp-frame-shape-row" class="prop-row" style="display:none">
                   <span style="font-size:11px;color:var(--d-text3);min-width:50px">Forma</span>
@@ -1691,6 +1704,50 @@ input:focus:-webkit-autofill {
             </div>
           </section>
 
+          <!-- ── SEÇÃO: ALINHAMENTO RELATIVO (AUTO-SPACING) ── -->
+          <section class="dp-section" id="dp-sec-anchor" style="display:none">
+            <button class="dp-sec-head" onclick="dPropToggleSection(this)">
+              <span class="dp-sec-label">ALINHAMENTO MAGNÉTICO</span>
+              <svg class="dp-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="dp-sec-body">
+              <div class="dp-field">
+                <label class="dp-field-label">Colar após camada</label>
+                <select class="prop-input" id="dp-anchor-layer" onchange="dUpdateAnchorLayer(this.value)" style="font-size:11px"></select>
+              </div>
+              <div id="dp-anchor-details" style="display:none;flex-direction:column;gap:8px;margin-top:6px">
+                <div class="dp-field">
+                  <label class="dp-field-label">Alinhamento</label>
+                  <select class="prop-input" id="dp-anchor-type" onchange="dUpdateAnchorType(this.value)" style="font-size:11px">
+                    <option value="left-to-right">À direita (Horizontal)</option>
+                    <option value="top-to-bottom">Abaixo (Vertical)</option>
+                  </select>
+                </div>
+                <div class="dp-field">
+                  <label class="dp-field-label">Espaçamento (gap)</label>
+                  <div class="dp-input-unit">
+                    <input class="prop-input prop-input-sm" type="number" id="dp-anchor-gap" value="12" oninput="dUpdateAnchorGap(this.value)">
+                    <span class="dp-unit">px</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ── SEÇÃO: REGRAS CONDICIONAIS ── -->
+          <section class="dp-section" id="dp-sec-rules" style="display:none">
+            <button class="dp-sec-head" onclick="dPropToggleSection(this)">
+              <span class="dp-sec-label">REGRAS CONDICIONAIS</span>
+              <svg class="dp-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="dp-sec-body">
+              <div id="d-rules-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
+              <button class="d-btn-sec" onclick="dAddRule()" style="width:100%;justify-content:center">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Adicionar regra
+              </button>
+            </div>
+          </section>
 
           <!-- A gestão de campos variáveis migrou para a aba "Dados" (#d-panel-dados). -->
 
@@ -1867,6 +1924,16 @@ input:focus:-webkit-autofill {
         <button class="d-btn-pri d-pub-panel-btn" onclick="dPublishOpen()" style="width:100%;justify-content:center">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
           Publicar template
+        </button>
+      </div>
+      <!-- Painel CHECKLIST (Design System Linter & Auditor de Layout) -->
+      <div class="rpanel-content hidden" id="d-panel-linter" style="display:flex;flex-direction:column;height:100%;">
+        <div class="section-head" style="color:var(--dm-orange)">CHECKLIST DE QUALIDADE</div>
+        <p style="font-size:11px;color:var(--d-text2);line-height:1.5;margin:0 0 12px 0">Auditoria inteligente do design system para evitar quebras de layout nas redes sociais dos franqueados.</p>
+        <div id="d-linter-issues" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding-right:4px;"></div>
+        <button class="d-btn-sec" onclick="dRunLinter()" style="width:100%;justify-content:center;margin-top:12px;flex-shrink:0;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          Re-analisar layout
         </button>
       </div>
       <!-- Painel CAMPANHAS (Modelos & Campanhas) -->
@@ -2563,10 +2630,13 @@ input:focus:-webkit-autofill {
       <button class="pv-close-btn" onclick="dCloseSimModal()">×</button>
     </div>
     <div class="sim-body" id="d-sim-body"></div>
-    <div class="sim-foot">
+    <div class="sim-foot" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
       <button class="sim-btn secondary" onclick="dCloseSimModal()">Cancelar</button>
-      <button class="sim-btn secondary" onclick="dResetSim()">Limpar variáveis</button>
-      <button class="sim-btn primary" onclick="dApplySim()">Aplicar simulação</button>
+      <button class="sim-btn secondary" onclick="dResetSim()">Limpar</button>
+      <button class="sim-btn secondary" onclick="dSimStressTest('max')" style="border-color:var(--dm-orange);color:var(--dm-orange);" title="Injeta valores máximos extremos nas variáveis">⚡ Máximo</button>
+      <button class="sim-btn secondary" onclick="dSimStressTest('min')" style="border-color:#10b981;color:#10b981;" title="Injeta valores mínimos nas variáveis">⚡ Mínimo</button>
+      <button class="sim-btn secondary" onclick="dSimStressTest('empty')" style="border-color:#6b7280;color:#6b7280;" title="Deixa as variáveis opcionais vazias">⚡ Vazio</button>
+      <button class="sim-btn primary" onclick="dApplySim()" style="margin-left:auto;">Aplicar</button>
     </div>
   </div>
 </div>
@@ -2606,7 +2676,8 @@ input:focus:-webkit-autofill {
     </div>
 
     <div class="pub-tabs">
-      <button class="pub-tab active" onclick="dPublishSwitchTab('artboards',this)">Pranchetas</button>
+      <button class="pub-tab active" onclick="dPublishSwitchTab('linter',this)" style="color:var(--dm-orange);font-weight:700">Checklist</button>
+      <button class="pub-tab" onclick="dPublishSwitchTab('artboards',this)">Pranchetas</button>
       <button class="pub-tab" onclick="dPublishSwitchTab('pasta',this)">Pasta &amp; Nome</button>
       <button class="pub-tab" onclick="dPublishSwitchTab('validade',this)">Validade</button>
       <button class="pub-tab" onclick="dPublishSwitchTab('permissoes',this)">Permissões</button>
@@ -2614,8 +2685,17 @@ input:focus:-webkit-autofill {
     </div>
 
     <div class="pub-body">
-      <!-- ABA 0: Seleção de pranchetas -->
-      <div class="pub-panel active" id="pub-panel-artboards">
+      <!-- ABA 0: Checklist de Qualidade (Linter) -->
+      <div class="pub-panel active" id="pub-panel-linter">
+        <div class="pub-ab-header" style="margin-bottom:12px;">
+          <span class="pub-section-intro" style="margin:0">Checklist de Qualidade: Revise erros e alertas do layout antes de disponibilizar aos franqueados.</span>
+        </div>
+        <div id="d-pub-linter-issues" style="display:flex;flex-direction:column;gap:10px;max-height:42vh;overflow-y:auto;padding-right:4px;margin-bottom:12px;"></div>
+        <div id="d-pub-linter-summary" style="padding:10px 14px;border-radius:8px;background:rgba(255,255,255,0.03);border:1px solid var(--d-border);font-size:12px;color:var(--d-text2);display:flex;align-items:center;justify-content:space-between;"></div>
+      </div>
+
+      <!-- ABA 1: Seleção de pranchetas -->
+      <div class="pub-panel" id="pub-panel-artboards">
         <div class="pub-ab-header">
           <span class="pub-section-intro" style="margin:0">Selecione as pranchetas para publicar. Cada uma vira um material separado no catálogo do franqueado.</span>
           <div class="pub-ab-sel-btns">
@@ -3078,6 +3158,7 @@ input:focus:-webkit-autofill {
 
 <script src="js/designer/color-picker.js"></script>
 <script src="js/designer/tooltip.js"></script>
+<script src="js/designer/linter.js"></script>
   <!-- Tooltip Educativo Global -->
   <div id="d-rich-tooltip" class="d-rich-tooltip" style="display:none; opacity:0;"></div>
 </body>

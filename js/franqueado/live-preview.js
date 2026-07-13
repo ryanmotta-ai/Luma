@@ -68,6 +68,93 @@ const F_FIELD_LABELS = {
   desconto:'Desconto',pedidoMin:'Pedido mínimo',bairros:'Cobertura',codigo:'Código',
   condicao:'Condição',brinde:'Brinde',categoria:'Categoria',oferta:'Oferta'
 };
+// Bancos de dados de exemplos realistas por segmento de produto
+const F_LP_CONTEXT_EXAMPLES = {
+  pizzas: {
+    produto: 'Pizza de Calabresa G',
+    precoPor: 'R$ 39,90',
+    precoDe: 'R$ 49,90',
+    validade: 'só neste fim de semana',
+    desconto: '20% off',
+    pedidoMin: 'R$ 30,00',
+    bairros: 'Centro e bairros próximos',
+    codigo: 'QUEROPIZZA',
+    condicao: 'exclusivo no aplicativo',
+    brinde: 'borda recheada grátis',
+    categoria: 'Pizzas',
+    oferta: 'Compre uma pizza G, ganhe um refri 2L'
+  },
+  lanches: {
+    produto: 'Cheddar Burger Duplo',
+    precoPor: 'R$ 29,90',
+    precoDe: 'R$ 34,90',
+    validade: 'apenas hoje no jantar',
+    desconto: '15% off',
+    pedidoMin: 'R$ 25,00',
+    bairros: 'Entrega em toda a cidade',
+    codigo: 'BURGER15',
+    condicao: 'somente no delivery',
+    brinde: 'batata frita individual grátis',
+    categoria: 'Lanches',
+    oferta: 'Combo Burger + Fritas + Refri'
+  },
+  japonesa: {
+    produto: 'Combo Premium 30 Peças',
+    precoPor: 'R$ 59,90',
+    precoDe: 'R$ 79,90',
+    validade: 'válido de terça a quinta',
+    desconto: '25% off',
+    pedidoMin: 'R$ 50,00',
+    bairros: 'Raio de até 5km',
+    codigo: 'JAPATOP',
+    condicao: 'pedidos pelo app',
+    brinde: 'hot roll cortesia',
+    categoria: 'Comida Japonesa',
+    oferta: 'Ganhe 5 hot rolls de brinde'
+  },
+  doces: {
+    produto: 'Açaí 500ml Turbinado',
+    precoPor: 'R$ 19,90',
+    precoDe: 'R$ 24,90',
+    validade: 'válido até domingo',
+    desconto: '20% off',
+    pedidoMin: 'R$ 15,00',
+    bairros: 'Consulte bairros atendidos',
+    codigo: 'SOBREMESA20',
+    condicao: 'não acumulativo',
+    brinde: 'leite condensado extra grátis',
+    categoria: 'Doces e Bebidas',
+    oferta: 'Adicione 3 acompanhamentos grátis'
+  },
+  universal: {
+    produto: 'Prato Feito Executivo',
+    precoPor: 'R$ 22,90',
+    precoDe: 'R$ 28,00',
+    validade: 'de segunda a sexta das 11h às 14h',
+    desconto: 'R$ 5,00 off',
+    pedidoMin: 'R$ 20,00',
+    bairros: 'Centro e Centro-Sul',
+    codigo: 'ALMOCOTAL',
+    condicao: 'válido no app',
+    brinde: 'sobremesa de brinde',
+    categoria: 'Refeições',
+    oferta: 'Suco grátis acompanhando o prato'
+  }
+};
+
+// Infere semanticamente o segmento do material ativo baseado no nome da campanha e do material
+function _fLpGuessSegment() {
+  const campName = String(fState.camp?.name || '').toLowerCase();
+  const matName = String(fState.material?.name || '').toLowerCase();
+  const combined = campName + ' ' + matName;
+  
+  if (/pizza|pizzaria|calabresa|borda/i.test(combined)) return 'pizzas';
+  if (/burger|burguer|lanche|combo|artesanal|hamburguer|hambúrguer/i.test(combined)) return 'lanches';
+  if (/sushi|temaki|japa|japanese|peixe/i.test(combined)) return 'japonesa';
+  if (/doce|sobremesa|açai|açaí|sorvete|milkshake|brownie|pudim|bolo/i.test(combined)) return 'doces';
+  
+  return 'universal';
+}
 // Dimensões por formato — espelha o png-generator (cobre 'post' e 'wide', que o
 // DFMT_SIZES do designer não tem). fState.fmt.id pode ser 'post'.
 const F_LP_SIZES = {story:[1080,1920], feed:[1080,1350], wide:[1200,628], post:[1200,628]};
@@ -127,8 +214,43 @@ async function fUpdateLivePreview(opts){
       }
     } else {
       await fRenderTemplateLayers(ctx, fState.material.layers, W, H, dadosPreview, fState.camp);
+      
       // Véu sutil sobre os campos ainda não preenchidos (tom mais suave)
       fLpHighlightEmpty(ctx, fState.material.layers, pendentes, W, H);
+      
+      // Focus Sync: Destaque sutil no campo correspondente à pergunta ativa do chat
+      const activeVar = fState.camp?.perguntas?.[fState.stepIdx]?.id;
+      let activeLayer = null;
+      if (activeVar) {
+        activeLayer = fState.material.layers.find(l => {
+          if (l.type === 'text' && l.content) {
+            const re = gVarRegex();
+            let match;
+            while ((match = re.exec(l.content)) !== null) {
+              if (match[1] === activeVar) return true;
+            }
+          }
+          if ((l.type === 'image' || l.type === 'frame') && l.imgVar === activeVar) return true;
+          return false;
+        });
+        if (activeLayer) {
+          fLpHighlightActiveField(ctx, activeLayer, W, H);
+        }
+      }
+      
+      // Smart Zoom & Highlight de Foco (Ideia 2)
+      if (activeLayer && !fState.done) {
+        const cx = activeLayer.x + activeLayer.w / 2;
+        const cy = activeLayer.y + activeLayer.h / 2;
+        const px = Math.min(100, Math.max(0, (cx / W) * 100));
+        const py = Math.min(100, Math.max(0, (cy / H) * 100));
+        
+        canvas.style.transformOrigin = `${px.toFixed(1)}% ${py.toFixed(1)}%`;
+        canvas.style.transform = 'scale(1.8)';
+      } else {
+        canvas.style.transformOrigin = 'center center';
+        canvas.style.transform = 'scale(1)';
+      }
     }
 
     if(_lpGuides) _fLpDrawGuides(ctx, W, H);
@@ -263,7 +385,22 @@ function fLpShowEmpty(canvas){
 function fLpInjectPlaceholders(layers, dadosPreview, defaults){
   const pendentes = new Set();
   const orig = fState.dados || {};
+  
   (layers || []).forEach(l => {
+    // Processamento de variáveis de imagem/moldura vazias: injeta a capa da campanha como fallback visual realista
+    if ((l.type === 'image' || l.type === 'frame') && l.imgVar) {
+      const name = l.imgVar;
+      const val = orig[name];
+      const vazio = (val == null || val === '');
+      if (vazio) {
+        pendentes.add(l.id);
+        if (fState.camp && fState.camp.cover) {
+          dadosPreview[name] = fState.camp.cover;
+        }
+      }
+    }
+    
+    // Processamento de variáveis de texto
     if(l.type !== 'text' || !l.content) return;
     const re = gVarRegex();
     let m;
@@ -274,13 +411,29 @@ function fLpInjectPlaceholders(layers, dadosPreview, defaults){
       if(!vazio) continue;
       pendentes.add(l.id);
       const def = defaults ? defaults[name] : undefined;
-      // Placeholder AMIGÁVEL quando não há default: exemplo do campo → [Rótulo].
-      // O token cru '{{produto}}' aparecia gigante na prévia ("{{PRODUTO" com o
-      // uppercase do PSD) — jargão de código na cara do franqueado.
+      
       if(def == null || def === ''){
         const vDef=(typeof dVars!=='undefined'&&dVars)?dVars.find(v=>v.name===name):null;
-        const ex=(vDef&&vDef.example!=null&&String(vDef.example).trim()!=='')?String(vDef.example).trim():'';
-        dadosPreview[name] = ex || '['+((vDef&&vDef.label)||name)+']';
+        let ex=(vDef&&vDef.example!=null&&String(vDef.example).trim()!=='')?String(vDef.example).trim():'';
+        
+        if(!ex){
+          // 1ª Linha de Defesa: Primeira sugestão da pergunta da campanha ativa (se disponível)
+          const perg = fState.camp?.perguntas?.find(p => p.id === name);
+          if (perg && Array.isArray(perg.sugestoes) && perg.sugestoes.length > 0 && perg.sugestoes[0]) {
+            ex = perg.sugestoes[0];
+          }
+        }
+        if(!ex){
+          // 2ª Linha de Defesa: Exemplos baseados no segmento do material
+          const segment = _fLpGuessSegment();
+          const dict = F_LP_CONTEXT_EXAMPLES[segment] || F_LP_CONTEXT_EXAMPLES.universal;
+          ex = dict[name] || F_LP_CONTEXT_EXAMPLES.universal[name];
+        }
+        if(!ex){
+          // 3ª Linha de Defesa: Rótulos amigáveis ou o nome puro da variável
+          ex = (vDef && vDef.label) || F_FIELD_LABELS[name] || name;
+        }
+        dadosPreview[name] = ex;
       }
     }
   });
@@ -304,6 +457,45 @@ function fLpHighlightEmpty(ctx, layers, pendentes, W, H){
     if(typeof roundedRect === 'function'){ roundedRect(ctx, l.x || 0, l.y || 0, l.w || W, l.h || 40, r || 0); ctx.fill(); }
     else { ctx.fillRect(l.x || 0, l.y || 0, l.w || W, l.h || 40); }
   });
+  ctx.restore();
+}
+
+// Desenha um destaque sutil de foco ao redor do campo correspondente à pergunta ativa do chat (Focus Sync)
+function fLpHighlightActiveField(ctx, l, W, H) {
+  const src = (fState.material && fState.material.w>0 && fState.material.h>0)
+    ? [fState.material.w, fState.material.h]
+    : (F_LP_SIZES[(fState.material && fState.material.fmt)] || F_LP_SIZES.story);
+  if(src[0] !== W || src[1] !== H) return; // ignora se houver reflow de zoom/coords
+  
+  ctx.save();
+  
+  // Cor do destaque: Laranja oficial Delivery Much
+  ctx.strokeStyle = '#F85400';
+  ctx.lineWidth = Math.max(3, Math.round(W * 0.005));
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  
+  // Efeito de Glow/Sombra
+  ctx.shadowColor = 'rgba(248, 84, 0, 0.45)';
+  ctx.shadowBlur = Math.max(8, Math.round(W * 0.012));
+  
+  const padding = 8;
+  const x = (l.x || 0) - padding;
+  const y = (l.y || 0) - padding;
+  const w = (l.w || W) + padding * 2;
+  const h = (l.h || 40) + padding * 2;
+  const r = Math.min(l.radius || 6, w / 2, h / 2);
+  
+  ctx.beginPath();
+  if (typeof roundedRect === 'function') {
+    roundedRect(ctx, x, y, w, h, r);
+  } else if (ctx.roundRect) {
+    ctx.roundRect(x, y, w, h, r);
+  } else {
+    ctx.rect(x, y, w, h);
+  }
+  ctx.stroke();
+  
   ctx.restore();
 }
 

@@ -41,15 +41,24 @@ function dHistorySnapshot(){
   let paint;
   if(dPaintDirty){ paint=dCapturePaint(); _dLastPaintURL=paint; dPaintDirty=false; }
   else { paint=(dHistoryIdx>=0&&dHistory[dHistoryIdx])?dHistory[dHistoryIdx].paint:_dLastPaintURL; }
-  return {layers, paint};
+  
+  // Captura o snapshot das ferramentas de medição (notes, samplers, contadores, régua)
+  const measurements = (typeof dMeasurementSnapshot === 'function') ? dMeasurementSnapshot() : null;
+  
+  return {layers, paint, measurements};
 }
 function dHistoryCommit(){
   _dHistPending=false;
   clearTimeout(_dHistDebounce);
   const snap=dHistorySnapshot();
   const top=dHistoryIdx>=0?dHistory[dHistoryIdx]:null;
-  // Não duplica se layers E pintura idênticos ao topo
-  if(top && top.paint===snap.paint && JSON.stringify(top.layers)===JSON.stringify(snap.layers)){
+  
+  // Se houver measurements, compara-os também para detectar mudanças e não ignorar no histórico
+  const isSameLayers = top && JSON.stringify(top.layers) === JSON.stringify(snap.layers);
+  const isSamePaint = top && top.paint === snap.paint;
+  const isSameMeas = top && JSON.stringify(top.measurements) === JSON.stringify(snap.measurements);
+  
+  if(top && isSamePaint && isSameLayers && isSameMeas){
     dUpdateUndoButtons();return;
   }
   dHistory=dHistory.slice(0,dHistoryIdx+1);
@@ -60,6 +69,13 @@ function dHistoryCommit(){
 }
 // Reseta o histórico com o estado atual como baseline (layers + pintura)
 function dHistoryReset(){
+  // Zera as medições ao dar reset no histórico (ex: troca de template)
+  if (typeof dMeasurementRestore === 'function') {
+    dMeasurementRestore({ colorSamplers: [], ruler: null, notes: [], countMarkers: [], countNext: 1 });
+    if (typeof dColorSamplerRender === 'function') dColorSamplerRender();
+    if (typeof dNoteRender === 'function') dNoteRender();
+    if (typeof dCountRender === 'function') dCountRender();
+  }
   dPaintDirty=true;            // captura a pintura atual como baseline
   dHistory=[dHistorySnapshot()];
   dHistoryIdx=0;
@@ -91,6 +107,18 @@ function dApplyHistoryEntry(entry){
   dRestoreSelection();
   dApplyPaintSnapshot(entry.paint);
   _dLastPaintURL=entry.paint; dPaintDirty=false;
+  
+  // Restaura o snapshot das ferramentas de medição (notes, samplers, contadores, régua)
+  if (typeof dMeasurementRestore === 'function') {
+    if (entry.measurements) {
+      dMeasurementRestore(entry.measurements);
+    } else {
+      dMeasurementRestore({ colorSamplers: [], ruler: null, notes: [], countMarkers: [], countNext: 1 });
+    }
+    if (typeof dColorSamplerRender === 'function') dColorSamplerRender();
+    if (typeof dNoteRender === 'function') dNoteRender();
+    if (typeof dCountRender === 'function') dCountRender();
+  }
 }
 function dUndo(){
   if(dHistoryIdx<=0){gToast('Nada para desfazer');return;}
