@@ -31,10 +31,19 @@ function fGoToCampaigns(){
   const catBtn=document.querySelector('.f-tab');
   fSwitchTab('catalogo', catBtn);
 }
+// Busca textual: casa o termo contra produto, campanha, formato, material e a data amigável.
+function _fHistMatch(h, q){
+  if(!q) return true;
+  const hay=[h.prod,h.campName,h.fmtName,h.materialName,h.de,h.por,(typeof fFormatHistDate==='function'?fFormatHistDate(h.ts):'')]
+    .filter(Boolean).join(' ').toLowerCase();
+  return hay.includes(q);
+}
 function fRenderHist(){
   const all = fGetHist();
   const el = document.getElementById('f-hist-tab');
-  const filtered = fHistFilter === 'todos' ? all : all.filter(h => (h.status||'rascunho') === fHistFilter);
+  const q = (fHistSearch||'').trim().toLowerCase();
+  const byStatus = fHistFilter === 'todos' ? all : all.filter(h => (h.status||'rascunho') === fHistFilter);
+  const filtered = q ? byStatus.filter(h=>_fHistMatch(h,q)) : byStatus;
   const counts = {
     todos: all.length,
     rascunho: all.filter(h=>(h.status||'rascunho')==='rascunho').length,
@@ -45,6 +54,12 @@ function fRenderHist(){
     <button class="hist-filter-btn ${fHistFilter==='rascunho'?'active':''}" onclick="fSetHistFilter('rascunho',this)">Rascunhos <span class="hist-filter-count">${counts.rascunho}</span></button>
     <button class="hist-filter-btn ${fHistFilter==='baixada'?'active':''}" onclick="fSetHistFilter('baixada',this)">Baixadas <span class="hist-filter-count">${counts.baixada}</span></button>
   </div>`;
+  // Busca só aparece quando há histórico (não polui o empty state). Reidrata o valor
+  // digitado e mantém o foco no fim, já que re-renderizamos o container inteiro a cada tecla.
+  const searchBar = all.length ? `<div class="hist-search-row">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input id="f-hist-search" type="search" aria-label="Buscar nas minhas artes" placeholder="Buscar por produto, campanha, data…" value="${gEsc(fHistSearch||'')}" oninput="fSetHistSearch(this.value)"/>
+  </div>` : '';
   if(!all.length){
     // M1.3 — empty state empático com ícone + CTA de volta ao fluxo
     el.innerHTML = filterBar + `<div class="empty-state">
@@ -58,17 +73,23 @@ function fRenderHist(){
     return;
   }
   if(!filtered.length){
-    el.innerHTML = filterBar + `<div class="empty-state empty-state-sm">
+    const emptyBody = q
+      ? `<div class="empty-title">Nada encontrado para “${gEsc(fHistSearch.trim())}”</div>
+         <div class="empty-text">Tente outro produto, campanha ou data.</div>
+         <button class="empty-cta ghost" onclick="fSetHistSearch('')">Limpar busca</button>`
+      : `<div class="empty-title">Nenhuma arte ${fHistFilter==='rascunho'?'em rascunho':'baixada ainda'}</div>
+         <div class="empty-text">${fHistFilter==='rascunho'?'Os rascunhos que você começar aparecem aqui.':'Baixe uma arte e ela fica registrada aqui.'}</div>
+         <button class="empty-cta ghost" onclick="fSetHistFilter('todos',document.querySelector('.hist-filter-btn'))">Ver todas</button>`;
+    el.innerHTML = filterBar + searchBar + `<div class="empty-state empty-state-sm">
       <div class="empty-icon">
         <img src="assets/illustrations/empty_filtered.png" style="width: 140px; height: auto;" alt="Empty Results">
       </div>
-      <div class="empty-title">Nenhuma arte ${fHistFilter==='rascunho'?'em rascunho':'baixada ainda'}</div>
-      <div class="empty-text">${fHistFilter==='rascunho'?'Os rascunhos que você começar aparecem aqui.':'Baixe uma arte e ela fica registrada aqui.'}</div>
-      <button class="empty-cta ghost" onclick="fSetHistFilter('todos',document.querySelector('.hist-filter-btn'))">Ver todas</button>
+      ${emptyBody}
     </div>`;
+    _fHistRestoreSearchFocus();
     return;
   }
-  el.innerHTML = filterBar + filtered.map(h=>{
+  el.innerHTML = filterBar + searchBar + filtered.map(h=>{
     const isRascunho = (h.status||'rascunho') === 'rascunho';
     const statusBadge = isRascunho
       ? `<span class="hist-badge-st rascunho">rascunho</span>`
@@ -87,6 +108,14 @@ function fRenderHist(){
       </div>
     </div>`;
   }).join('');
+  _fHistRestoreSearchFocus();
+}
+// Re-renderizamos o container inteiro a cada tecla → o input perde o foco/cursor.
+// Devolvemos o foco ao fim do texto só quando há busca ativa (não rouba foco à toa).
+function _fHistRestoreSearchFocus(){
+  if(!fHistSearch) return;
+  const inp=document.getElementById('f-hist-search');
+  if(inp && document.activeElement!==inp){ inp.focus(); const n=inp.value.length; try{ inp.setSelectionRange(n,n); }catch(e){} }
 }
 
 async function fDownloadHist(id){
@@ -233,9 +262,12 @@ function fDuplicateInOtherFmt(id){
   if(card && !card.querySelector('.hist-dup-bar')){
     const bar = document.createElement('div');
     bar.className = 'hist-dup-bar';
-    bar.innerHTML = `<span>Duplicar em qual formato?</span>` +
+    const fmtAtual=FMTS.find(f=>f.id===h.fmtId);
+    bar.innerHTML = `<span>Gerar de novo em:</span>` +
+      // Mesmo formato = regerar a arte como está (útil após editar preço/validade pelo "Editar").
+      (fmtAtual?`<button class="hist-dup-btn" onclick="fConfirmDuplicate(${id},'${fmtAtual.id}')">${gEsc(fmtAtual.name)} (mesmo)</button>`:'') +
       FMTS.filter(f=>f.id !== h.fmtId).map(f=>
-        `<button class="hist-dup-btn" onclick="fConfirmDuplicate(${id},'${f.id}')">${f.name}</button>`
+        `<button class="hist-dup-btn" onclick="fConfirmDuplicate(${id},'${f.id}')">${gEsc(f.name)}</button>`
       ).join('') +
       `<button class="hist-dup-cancel" onclick="this.parentElement.remove()">cancelar</button>`;
     card.appendChild(bar);
@@ -404,11 +436,18 @@ function fCampEl(c,isRec,ghost){
   const thumbAttr = (!cover && !ghost && _fCampThumbNeeded(c)) ? ` data-thumb-camp="${c.id}"` : '';
   const _icoFlame='<svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:-1px;margin-right:3px"><path d="M12 2s5 4 5 9a5 5 0 0 1-10 0c0-1 .3-2 .8-2.8C8 10 9 12 10 12c0-3 2-7 2-10z"/></svg>';
   const _icoClock='<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-1px;margin-right:3px"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+  // F: favorito (fixar no topo) + badge "novo" (material publicado depois da última visita).
+  // "novo" cede espaço pra "Popular" (mesmo canto) — não empilha dois selos no topo-esq.
+  const _isFav = !ghost && typeof fIsFav==='function' && fIsFav(c.id);
+  const favBtn = ghost ? '' : `<button class="camp-fav${_isFav?' is-fav':''}" onclick="fToggleFav('${c.id}',event)" aria-pressed="${_isFav}" aria-label="${_isFav?'Remover das favoritas':'Fixar nas favoritas'}" title="${_isFav?'Remover das favoritas':'Fixar nas favoritas'}"><svg width="14" height="14" viewBox="0 0 24 24" fill="${_isFav?'currentColor':'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></button>`;
+  const _hasNew = !ghost && !c.popular && typeof fCampHasNew==='function' && fCampHasNew(c);
   return `<div class="camp-card ${!ghost&&fState.camp&&c.id===fState.camp.id?'selected':''} ${isRec?'recommended':''}${ghost?' ghost':''}"${ghost?' aria-disabled="true"':` onclick="fSelectCamp('${c.id}')"`}>
+    ${favBtn}
     ${ghost?'':`<div class="camp-prev-btn" onclick="event.stopPropagation();fOpenPreview(event,'${c.id}')">PRÉVIA</div>`}
     <div class="camp-thumb ${cover?'has-cover':''}"${thumbAttr} style="${thumbStyle}">
       ${c.badge?`<div class="camp-badge">${gEsc(c.badge)}</div>`:''}
       ${!ghost&&c.popular?`<div class="camp-popular">${_icoFlame}Popular</div>`:''}
+      ${_hasNew?`<div class="camp-new">novo</div>`:''}
       ${!ghost&&c.expiraDias<=3?`<div class="camp-urgency">${_icoClock}${c.expiraDias}d</div>`:''}
       ${cover?'':`<div class="camp-thumb-prod">${gEsc(previewProd)}</div>
       ${previewDe?`<div class="camp-thumb-de">${gEsc(previewDe)}</div>`:''}
@@ -513,8 +552,21 @@ function _fCampEmptyState(query){
     <div class="empty-text">Assim que houver campanhas disponíveis, elas aparecem aqui.</div>
   </div>`;
 }
+// Campanha AGENDADA pra data futura (designer definiu go-live) → ainda não aparece pro
+// franqueado. A expiração (validade) já é tratada em materials.js; isto fecha a entrada.
+function _fCampAgendadaFuturo(c){
+  const f=(typeof fFolderForCamp==='function')?fFolderForCamp(c):null;
+  const ag=f&&f.agendamento;
+  if(!ag) return false;
+  const d=new Date(String(ag)+'T00:00:00');
+  if(isNaN(d.getTime())) return false;
+  const hoje=new Date(); hoje.setHours(0,0,0,0);
+  return d.getTime()>hoje.getTime();
+}
 function fRenderCatalogs(a,o,opts){
-  a=a||[];o=o||[];opts=opts||{};
+  a=(a||[]).filter(c=>!_fCampAgendadaFuturo(c));
+  o=(o||[]).filter(c=>!_fCampAgendadaFuturo(c));
+  opts=opts||{};
   const cat=document.getElementById('f-catalog'); if(!cat)return;
   const searching=!!opts.search;
   const backRow=`<div class="cat-back-row">
@@ -689,9 +741,15 @@ function _fHomeBodyHTML(query){
   // Rascunhos mais recentes (máx 3) — atalho de retomada
   let drafts=[];
   try{ drafts=fGetHist().filter(x=>x.status==='rascunho').slice(0,3); }catch(e){}
+  // Favoritas: campanhas que o franqueado fixou, na ordem em que favoritou. Só as que
+  // existem no pool atual (uma campanha removida do catálogo não aparece "fantasma").
+  let favs=[];
+  try{ const favIds=fGetFavs(); favs=favIds.map(id=>pool.find(c=>c.id===id)).filter(Boolean); }catch(e){}
   return `
     ${drafts.length?`<div class="fh-sec">Continuar de onde parou</div>
     <div class="fh-cont">${drafts.map(_fHomeDraftEl).join('')}</div>`:''}
+    ${favs.length?`<div class="fh-sec">Favoritas <em>· ${favs.length} fixada${favs.length!==1?'s':''}</em></div>
+    <div class="camp-grid fh-grid">${favs.map(c=>fCampEl(c,false,!_fCampHasMats(c))).join('')}</div>`:''}
     ${rec?_fHomeHeroEl(rec):''}
     ${gridProntas.length?`<div class="fh-sec">Prontas pra usar <em>· ${gridProntas.length} campanha${gridProntas.length!==1?'s':''}</em></div>
     <div class="camp-grid fh-grid">${gridProntas.map(c=>fCampEl(c,false)).join('')}</div>`:''}

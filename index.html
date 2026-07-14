@@ -627,6 +627,9 @@ input:focus:-webkit-autofill {
               <input id="f-msg-box" aria-label="Digite sua resposta" enterkeyhint="send" placeholder="Digite sua resposta ou use os botões acima..." onkeydown="if(event.key==='Enter')fSend()"/>
               <span id="f-char-count" aria-hidden="true"></span>
             </div>
+            <button id="f-chat-mic" onclick="fStartSpeech(event,'f-msg-box')" aria-label="Ditar por voz" aria-pressed="false" title="Ditar por voz">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+            </button>
             <button id="f-snd" onclick="fSend()" aria-label="Enviar">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m22 2-7 20-4-9-9-4 20-7z"/></svg>
             </button>
@@ -650,6 +653,8 @@ input:focus:-webkit-autofill {
               <canvas class="lp-canvas" id="lp-canvas" aria-label="Prévia do template"></canvas>
             </div>
           </div>
+          <!-- Avisos persistentes (faltou preencher / texto estourando / foto baixa-res) -->
+          <div class="lp-warnings" id="lp-warnings" aria-live="polite"></div>
           <div class="lp-toolbar">
             <div class="lp-tool-left">
               <button class="lp-tool-btn" onclick="fLpRefit()" title="Reajustar a prévia à tela" aria-label="Reajustar a prévia à tela">
@@ -2125,7 +2130,8 @@ input:focus:-webkit-autofill {
           <label class="d-btn-sec" style="cursor:pointer;margin:0" title="Subir um arquivo CSV">Subir CSV
             <input type="file" id="f-bulk-file" accept=".csv,text/csv" style="display:none" onchange="fBulkHandleCSV(this)">
           </label>
-          <button class="d-btn-sec" onclick="fBulkTogglePaste()" title="Colar dados do Excel/Planilhas">Colar do Excel</button>
+          <button class="d-btn-sec" onclick="fBulkTogglePaste()" title="Colar dados do Excel/Planilhas ou o texto do cardápio">Colar planilha/cardápio</button>
+          <button class="d-btn-sec" onclick="fBulkFromHistorico()" title="Adicionar produtos que você já usou (do seu histórico)">Do histórico</button>
 
           <span class="f-bulk-tbar-div"></span>
           <button class="d-btn-sec" onclick="fBulkToggleTableView()" title="Alternar entre tabela e cartões">Tabela / Cartões</button>
@@ -2168,8 +2174,8 @@ input:focus:-webkit-autofill {
 
         <!-- Caixa de colar do Excel -->
         <div id="f-bulk-paste-wrap" class="f-bulk-sec f-bulk-sec--fmt" style="display:none;padding:10px">
-          <textarea id="f-bulk-paste-ta" placeholder="Cole aqui os dados copiados do Excel ou Planilhas (Ctrl+V)…" style="width:100%;height:60px;font-size:11px;padding:8px;border:1px solid var(--gray-mid);border-radius:6px;background:var(--white);color:var(--text);resize:vertical"></textarea>
-          <button class="d-btn-pri" style="margin-top:6px;font-size:11px" onclick="fBulkHandlePaste()">Processar dados colados</button>
+          <textarea id="f-bulk-paste-ta" placeholder="Cole a planilha do Excel/Sheets — OU o texto do cardápio, um item por linha (ex.: Pizza Calabresa de 40 por 30, válido no fim de semana)…" style="width:100%;height:60px;font-size:11px;padding:8px;border:1px solid var(--gray-mid);border-radius:6px;background:var(--white);color:var(--text);resize:vertical"></textarea>
+          <button class="d-btn-pri" style="margin-top:6px;font-size:11px" onclick="fBulkHandlePaste()">Processar planilha/cardápio</button>
         </div>
 
         <!-- Planilha / cartões -->
@@ -2183,6 +2189,9 @@ input:focus:-webkit-autofill {
           </div>
           <div style="background:var(--gray-light);border-radius:4px;height:6px;overflow:hidden">
             <div id="f-bulk-progress-bar" style="width:0%;height:100%;transition:width 0.1s linear"></div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;margin-top:8px">
+            <button class="d-btn-sec" id="f-bulk-cancel-btn" onclick="fBulkCancelGen()" style="font-size:11px;padding:5px 12px;color:var(--dm-red,#C81818);border:1px solid var(--gray-mid,#D4D4D4);border-radius:var(--r-sm);background:var(--white,#FFFFFF);cursor:pointer;font-weight:600">Cancelar</button>
           </div>
         </div>
 
@@ -2529,6 +2538,7 @@ input:focus:-webkit-autofill {
 <script src="js/tutorial/catalog-studio.js"></script>
 <script src="js/tutorial/engine.js"></script>
 <script src="js/franqueado/history.js"></script>
+<script src="js/franqueado/prefs.js"></script>
 <script src="js/franqueado/catalog.js"></script>
 <script src="js/franqueado/materials.js"></script>
 <script src="js/franqueado/chat.js"></script>

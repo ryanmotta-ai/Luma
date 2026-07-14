@@ -24,6 +24,58 @@ function fIsMaterialValid(material){
   const v=new Date(material.publishMeta.validade+'T23:59:59');
   return v.getTime() >= Date.now();
 }
+
+/* ── KIT DA CAMPANHA: preencher uma vez → gerar todos os materiais ──
+   Reusa os dados já respondidos (fState.dados) e renderiza cada material publicado da
+   campanha com o motor final, empacotando num ZIP. Pula materiais que não aproveitam
+   nenhum dado preenchido (não gera arte vazia). Reusa fRenderMaterialToDataURL + JSZip. */
+function _fKitBtnHtml(){
+  try{
+    const c=fState.camp; if(!c) return '';
+    const mm=fGetMaterialsForCamp(c.id).filter(fIsMaterialValid);
+    if(mm.length<2) return '';
+    return `<button class="confirm-bulk" onclick="fGenerateCampaignKit()" title="Gerar todos os materiais desta campanha com os mesmos dados"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Gerar kit da campanha (${mm.length})</button>`;
+  }catch(e){ return ''; }
+}
+async function fGenerateCampaignKit(){
+  const c=fState.camp; if(!c){ gToast('Selecione uma campanha primeiro'); return; }
+  if(typeof JSZip==='undefined'){ gToast('Não consegui preparar o ZIP.','error'); return; }
+  const mats=fGetMaterialsForCamp(c.id).filter(fIsMaterialValid);
+  if(mats.length<2){ gToast('Esta campanha só tem um material.'); return; }
+  const dados=fState.dados||{};
+  const fmtMap={story:'story',feed:'feed',wide:'post',post:'post'};
+  const zip=new JSZip();
+  const prevMat=fState.material, prevFmt=fState.fmt;
+  let ok=0, pulados=0;
+  gToast('Gerando o kit da campanha…');
+  for(const m of mats){
+    try{
+      if(typeof fEnsureMaterialLayers==='function') await fEnsureMaterialLayers(m);
+      if(!m.layers||!m.layers.length){ pulados++; continue; }
+      // Pula material que não usa NENHUM dado já preenchido (sairia vazio → não vale a pena).
+      const mvars=(typeof dExtractTemplateVars==='function')?dExtractTemplateVars(m.layers):[];
+      if(mvars.length && !mvars.some(v=>dados[v]!=null && dados[v]!=='')){ pulados++; continue; }
+      const fmt=FMTS.find(f=>f.id===(fmtMap[m.fmt]||m.fmt))||fState.fmt||FMTS[0];
+      fState.material=m; fState.fmt=fmt;
+      const dataUrl=await fRenderMaterialToDataURL(dados, c, fmt);
+      const b64=dataUrl.split(',')[1];
+      if(b64){ zip.file((fSanitizeNamePart(m.name)||('Material_'+(ok+1)))+'.png', b64, {base64:true}); ok++; }
+      else pulados++;
+    }catch(e){ console.warn('[kit] material falhou:', e); pulados++; }
+  }
+  fState.material=prevMat; fState.fmt=prevFmt;
+  if(!ok){ gToast('Não consegui gerar o kit — preencha ao menos um campo em comum aos materiais.','error'); return; }
+  try{
+    const blob=await zip.generateAsync({type:'blob'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='Kit_'+(fSanitizeNamePart(c.name)||'Campanha')+'.zip';
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+  }catch(e){ console.error(e); gToast('Erro ao gerar o ZIP do kit.','error'); return; }
+  gToast(`✓ Kit gerado: ${ok} materiais`+(pulados?` (${pulados} pulados — precisam de dados próprios)`:'')+'.');
+  if(typeof fClearImgCache==='function') fClearImgCache();
+}
 // Abre a "pasta" da campanha mostrando os materiais publicados
 function fOpenMaterialCatalog(camp){
   fState.materialView=true;
@@ -78,6 +130,7 @@ function fRenderMaterialCatalog(camp, container){
         <div class="f-mat-empty-title">Nosso time está trabalhando!</div>
         <div class="f-mat-empty-text">${expired ? 'Os materiais desta campanha expiraram. ' : ''}Em breve haverá novos materiais disponíveis para <strong>${gEsc(camp.name)}</strong>. Volte em alguns instantes ou escolha outra campanha.</div>
       </div>`;
+    if(typeof fMarkCampSeen==='function') fMarkCampSeen(camp.id);
     return;
   }
   container.innerHTML=`
@@ -102,6 +155,9 @@ function fRenderMaterialCatalog(camp, container){
       if(cv) fRenderPreviewToCanvas(cv, m, {maxPx:520, camp:{color:camp.color||'#FF9000'}});
     });
   }
+  // Só marca a campanha como "vista" DEPOIS de renderar os cards (fRenderMaterialCard lê o
+  // seen anterior p/ decidir a tag "novo"); assim o badge some só na próxima abertura.
+  if(typeof fMarkCampSeen==='function') fMarkCampSeen(camp.id);
 }
 function fRenderMaterialCard(material, camp){
   const validade = material.publishMeta.validade;
@@ -114,8 +170,10 @@ function fRenderMaterialCard(material, camp){
   }
   // Mini-prévia: usa fmt do template
   const fmtName = {story:'Story 9:16',feed:'Feed 1:1',wide:'Post wide',post:'Post wide'}[material.fmt] || 'Story';
+  const isNew = (typeof fMaterialIsNew==='function') && fMaterialIsNew(material, camp.id);
   return `<div class="f-mat-card" onclick="fSelectMaterial('${material.id}')">
     <div class="f-mat-thumb f-mat-thumb-${material.fmt||'story'}" style="background:${camp.color}">
+      ${isNew?`<div class="f-mat-new">novo</div>`:''}
       <div class="f-mat-thumb-prod">${gEsc(camp.previewProd||camp.name)}</div>
       ${camp.previewPor?`<div class="f-mat-thumb-por">${gEsc(camp.previewPor)}</div>`:''}
       <div class="f-mat-thumb-logo" role="img" aria-label="DM"></div>

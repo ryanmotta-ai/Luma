@@ -8,7 +8,18 @@
 
 let fNextTimeout = null;
 
+// Atalhos de validade com DATAS REAIS calculadas na hora (uma sugestão estática vira
+// mentira amanhã). As frases já vêm com "Válido" → passam intactas pelo humanizador de
+// data (gSmartHumanizeDate ignora quem já contém "válid").
+function fValidadeSuggestions(){
+  const now=new Date();
+  const d7=new Date(now.getTime()+7*24*60*60*1000);
+  const dd=String(d7.getDate()).padStart(2,'0'), mm=String(d7.getMonth()+1).padStart(2,'0');
+  return ['Válido só hoje','Válido neste fim de semana',`Válido até ${dd}/${mm}`,'Válido até o fim do mês'];
+}
 function fGetSuggestionsForVar(varName, camp){
+  // Validade é sensível ao tempo → sempre datas calculadas, antes de qualquer default estático.
+  if(varName==='validade') return fValidadeSuggestions();
   // Tenta achar sugestões nas perguntas da campanha original
   const orig = camp.perguntas?.find(p=>p.id===varName);
   if(orig && orig.sugestoes) return orig.sugestoes;
@@ -19,7 +30,6 @@ function fGetSuggestionsForVar(varName, camp){
     precoDe: ['R$ 24,90', 'R$ 34,90', 'R$ 44,90'],
     desconto: ['20% off', '30% off', '50% off'],
     codigo: ['PROMO10', 'DM20', 'SUPER30'],
-    validade: ['só hoje', 'até domingo', 'fim de semana'],
     detalhes: ['Frete grátis', 'Combo família', 'Edição limitada'],
   };
   return defaults[varName] || [];
@@ -70,13 +80,86 @@ function fStartChatComMaterial(material){
   fState.extractedColors={};
   try { fUpdateLivePreview(); } catch(e){}
   try { fAttachInputGuard(); } catch(e){}
+  // Antes de perguntar, oferece atalhos: reusar uma loja salva (logo/cor) e/ou os dados
+  // da última arte deste material. Se não houver nada a oferecer, vai direto às perguntas.
+  fMaterialPreStart(material);
+}
+
+/* ── Atalhos de pré-início (perfil de loja salva + reusar última arte) ──
+   Decisão de produto: "só um passo no chat" — sem tela de gerência de lojas. */
+function _fPergExists(id){ return (fState.camp.perguntas||[]).some(p=>p.id===id); }
+
+function fMaterialPreStart(material){
+  const lojas = (typeof fGetLojas==='function') ? fGetLojas() : [];
+  const hasLogoField = _fPergExists('logo_loja');
+  const lojaOffer = hasLogoField && lojas.length;
+  // Última arte: entrada mais recente do histórico com o MESMO material.
+  let lastArte=null;
+  try{ lastArte=(typeof fGetHist==='function') ? fGetHist().find(h=>h.materialId===material.id) : null; }catch(e){}
+  if(!lojaOffer && !lastArte){ _fProceedMaterialStart(material); return; }
+
+  const msgs=document.getElementById('f-messages');
+  const w=document.createElement('div'); w.className='msg bot active-prompt'; w.id='prestart-msg';
+  const _lojaIco='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/><path d="M3 9h18"/></svg>';
+  const _rewindIco='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>';
+  let chips='';
+  if(lojaOffer){
+    chips += lojas.map(l=>`<div class="qr qr-loja" onclick="fPickLoja('${l.id}')">${_lojaIco}${gEsc(l.nome||'Minha loja')}</div>`).join('');
+  }
+  if(lastArte){
+    chips += `<div class="qr" onclick="fUseLastArte(${lastArte.id})">${_rewindIco}Usar dados da última arte</div>`;
+  }
+  chips += `<div class="qr" onclick="fSkipPreStart()" style="background:var(--gray-light);border-color:var(--gray-mid);color:var(--text-2)">Começar do zero</div>`;
+  w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div>
+    <div class="bbl">Antes de começar a arte de <strong>${gEsc(material.name)}</strong>, quer adiantar?</div>
+    <div class="qr-wrap">${chips}</div>
+  </div>`;
+  msgs.querySelectorAll('.msg').forEach(m=>m.classList.remove('active-prompt'));
+  msgs.appendChild(w); msgs.scrollTop=msgs.scrollHeight;
+}
+function _fClearPreStart(){ const m=document.getElementById('prestart-msg'); if(m) m.remove(); }
+function fSkipPreStart(){ _fClearPreStart(); _fProceedMaterialStart(fState.material); }
+// Aplica uma loja salva: preenche logo (e whatsapp/cor se o template os tiver) e remove
+// essas perguntas do fluxo — o franqueado não redigita o que já é da loja.
+function fPickLoja(lojaId){
+  _fClearPreStart();
+  const loja=(typeof fGetLojas==='function') ? fGetLojas().find(l=>l.id===lojaId) : null;
+  if(!loja){ _fProceedMaterialStart(fState.material); return; }
+  if(loja.logo && _fPergExists('logo_loja')) fState.dados['logo_loja']=loja.logo;
+  if(loja.whatsapp){ ['whatsapp','telefone','contato'].forEach(k=>{ if(_fPergExists(k)) fState.dados[k]=loja.whatsapp; }); }
+  if(loja.cor){ ['cor','cor_marca','cor_loja'].forEach(k=>{ if(_fPergExists(k)) fState.dados[k]=loja.cor; }); }
+  // Remove do fluxo tudo que a loja já respondeu.
+  fState.camp.perguntas = (fState.camp.perguntas||[]).filter(p=>fState.dados[p.id]==null);
+  if(typeof gToast==='function') gToast(`Dados de ${loja.nome||'sua loja'} aplicados`);
+  try{ fUpdateLivePreview(); }catch(e){}
+  _fProceedMaterialStart(fState.material);
+}
+// Reusa os dados de uma arte anterior deste material e pula direto pro resumo.
+function fUseLastArte(histId){
+  _fClearPreStart();
+  const h=(typeof fGetHist==='function') ? fGetHist().find(x=>x.id===histId) : null;
+  if(!h){ _fProceedMaterialStart(fState.material); return; }
+  fState.dados={...h.dados};
+  fState.stepIdx=fState.camp.perguntas.length; // pula as perguntas → confirmação
+  fState.done=false; fState.editIdx=null;
+  fUpdateProg();
+  try{ fUpdateLivePreview(); }catch(e){}
+  fAddBot(`Peguei os dados da sua última arte de <strong>${gEsc(fState.material.name)}</strong>. Confira e ajuste o que quiser antes de gerar.`,[]);
+  setTimeout(()=>fMostrarConfirm(),600);
+}
+function _fProceedMaterialStart(material){
+  fState.stepIdx=-1; fState.done=false; fUpdateProg();
   const total = fState.camp.perguntas.length;
   let intro = `Boa escolha! Vamos montar sua publicação para o <strong>${gEsc(material.name)}</strong>. `;
   // Se tem instruções do designer, mostra (escapado — texto livre do designer)
   if(material.publishMeta?.instrucoes){
     intro += `<br><br><em style="display:block;margin-top:6px;padding:8px 10px;background:var(--dm-orange-bg);border-left:3px solid var(--dm-orange);font-size:12px;color:var(--text-2);border-radius:4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg> ${gEsc(material.publishMeta.instrucoes)}</em><br>`;
   }
-  intro += `Vou te guiar em <strong>${total} pergunta${total>1?'s':''} rápida${total>1?'s':''}</strong>. Leva menos de 1 minutinho.<br>
+  // total 0 (loja respondeu tudo) → não promete pergunta nenhuma.
+  intro += total>0
+    ? `Vou te guiar em <strong>${total} pergunta${total>1?'s':''} rápida${total>1?'s':''}</strong>. Leva menos de 1 minutinho.`
+    : `Já tenho o que preciso — é só conferir e gerar.`;
+  intro += `<br>
   <div style="margin-top:8px;border-top:1px dashed var(--gray-mid);padding-top:6px;display:flex;align-items:center;justify-content:space-between;gap:8px">
     <span style="font-size:11px;color:var(--text-3)">Quer economizar tempo?</span>
     <button onclick="fBulkOpen()" style="background:var(--dm-orange-bg);border:1px solid var(--dm-orange-tint);color:var(--dm-orange-d);font-size:11px;font-weight:600;padding:4px 10px;border-radius:var(--r-pill);cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:all 0.15s ease" onmouseover="this.style.background='var(--dm-orange-tint)'" onmouseout="this.style.background='var(--dm-orange-bg)'">
@@ -86,6 +169,42 @@ function fStartChatComMaterial(material){
   fAddBot(intro, []);
   clearTimeout(fNextTimeout);
   fNextTimeout = setTimeout(()=>fNextStep(),900);
+}
+// Pergunta o nome da loja (inline no chat — sem prompt() nativo, feedback é via UI da casa).
+function fSaveLojaPrompt(){
+  const logo=fState.dados && fState.dados.logo_loja;
+  if(!logo){ if(typeof gToast==='function') gToast('Envie o logo primeiro.','error'); return; }
+  const existing=document.getElementById('loja-save-msg'); if(existing) existing.remove();
+  const msgs=document.getElementById('f-messages');
+  const w=document.createElement('div'); w.className='msg bot'; w.id='loja-save-msg';
+  w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div>
+    <div class="bbl">Como quer chamar essa loja pra reusar o logo depois?</div>
+    <div class="loja-save-row">
+      <input id="loja-save-name" maxlength="30" placeholder="Ex: Pizzaria do João" onkeydown="if(event.key==='Enter')fConfirmSaveLoja()"/>
+      <button class="loja-save-btn" onclick="fConfirmSaveLoja()">Salvar</button>
+    </div>
+  </div>`;
+  msgs.appendChild(w); msgs.scrollTop=msgs.scrollHeight;
+  const inp=document.getElementById('loja-save-name'); if(inp) inp.focus();
+}
+function fConfirmSaveLoja(){
+  const inp=document.getElementById('loja-save-name');
+  const nome=(inp && inp.value.trim())||'';
+  if(!nome){ if(typeof gToast==='function') gToast('Dê um nome para a loja.','error'); if(inp) inp.focus(); return; }
+  const logo=fState.dados && fState.dados.logo_loja;
+  if(!logo){ if(typeof gToast==='function') gToast('Envie o logo primeiro.','error'); return; }
+  // Encolhe o logo (máx 400px) antes de guardar no localStorage — logo grande estoura a quota.
+  const finish=(smallLogo)=>{
+    const loja={nome, logo:smallLogo};
+    // Aproveita whatsapp/cor se o material tiver esses campos preenchidos.
+    ['whatsapp','telefone','contato'].forEach(k=>{ if(fState.dados[k]) loja.whatsapp=fState.dados[k]; });
+    ['cor','cor_marca','cor_loja'].forEach(k=>{ if(fState.dados[k]) loja.cor=fState.dados[k]; });
+    if(typeof fAddLoja==='function') fAddLoja(loja);
+    if(typeof gToast==='function') gToast(`Loja "${nome}" salva! Vai aparecer na próxima arte.`);
+    const m=document.getElementById('loja-save-msg'); if(m) m.remove();
+  };
+  if(typeof fResizeImageIfNeeded==='function') fResizeImageIfNeeded(logo, 400, finish);
+  else finish(logo);
 }
 function fAskCampSwitch(c){
   const msgs=document.getElementById('f-messages');
@@ -361,11 +480,15 @@ function fProcessImageFile(file, varId, uploadId){
       // Substitui a zona de upload pela prévia da foto
       const zone=document.getElementById(uploadId+'-zone');
       if(zone){
+        // Logo da loja: oferece salvar como perfil reaproveitável (só um passo, sem tela de gerência).
+        const saveLojaBtn = (varId==='logo_loja')
+          ? `<button class="f-upload-save-loja" onclick="fSaveLojaPrompt()" title="Salvar essa loja para reusar depois"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z"/></svg>Salvar loja</button>`
+          : '';
         zone.outerHTML=`<div class="f-upload-preview">
           <img src="${resizedUrl}" alt="Foto enviada"/>
           <div class="f-upload-preview-overlay">
             <span style="display:inline-flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg>Foto enviada</span>
-            <button class="f-upload-replace" onclick="fReplaceImage('${varId}',this)">Trocar</button>
+            <span style="display:inline-flex;gap:6px">${saveLojaBtn}<button class="f-upload-replace" onclick="fReplaceImage('${varId}',this)">Trocar</button></span>
           </div>
         </div>`;
       }
@@ -527,6 +650,7 @@ function fMostrarConfirm(){
         <button class="confirm-btn ok" onclick="fConfirmarGerar()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><polyline points="20 6 9 17 4 12"/></svg>Confirmar e gerar</button>
       </div>
       ${(fState.material&&fState.material.layers)?`<button class="confirm-bulk" onclick="fBulkOpen()" title="Gerar muitas artes de uma vez com o Luma Sheets"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Gerar em Lote (Luma Sheets)</button>`:''}
+      ${(typeof _fKitBtnHtml==='function')?_fKitBtnHtml():''}
     </div>
   </div>`;
   msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;
@@ -699,6 +823,22 @@ function fCopyFallback(text, cb) {
   document.body.removeChild(ta);
 }
 
+// Texto da legenda ativa de uma bolha de arte (para copiar junto no download / compartilhar).
+function _fActiveCaptionText(snapId){
+  const caps=_fArtCaptions[snapId]; if(!caps||!caps.length) return '';
+  const panel=document.querySelector(`.caption-assistant-panel[data-canvas-id="${snapId}"]`);
+  const tab=(panel&&panel.dataset.activeTab)||'promo';
+  const sel=caps.find(c=>c.id===tab)||caps[0];
+  return sel?sel.text:'';
+}
+// Copia texto (Clipboard API com fallback execCommand). Reusa fCopyFallback.
+function _fCopyText(text){
+  if(!text) return;
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).catch(()=>fCopyFallback(text,()=>{}));
+  } else fCopyFallback(text,()=>{});
+}
+
 function fGerarArte(){
   fState.done=true;fUpdateProg();
   fClearChatDraft();
@@ -790,6 +930,7 @@ function fGerarArte(){
         ${captionHtml}
         <div class="art-footer" style="display:flex;gap:6px;">
           <div class="art-btn" onclick="fRefazer()" style="flex:1;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Refazer</div>
+          <div class="art-btn art-share" onclick="fCompartilhar(this,'${previewCanvasId}')" title="Compartilhar imagem + legenda (WhatsApp, Instagram…)" aria-label="Compartilhar" style="flex:0 0 auto;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></div>
           <div class="art-btn pri" onclick="fBaixar(this,'${previewCanvasId}')" style="flex:1.2;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>Baixar PNG</div>
           <div class="art-btn pri" onclick="fBaixarPDF(this,'${previewCanvasId}')" style="flex:1.2; background:var(--dm-red); border-color:var(--dm-red); box-shadow:0 2px 8px rgba(200,24,24,.35);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>Baixar PDF</div>
         </div>
@@ -927,7 +1068,10 @@ async function fBaixar(btn, snapId){
     if(snap.histId){ fMarkHistBaixada(snap.histId); }
     else { fAddHist(snap.dados,snap.camp,snap.fmt,'baixada'); }
     if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt:snap.fmt.id,tipo:'png'});
-    gToast('Arte baixada!');
+    // Baixa a imagem e já deixa a legenda na área de transferência — 1 passo a menos pra postar.
+    const cap=_fActiveCaptionText(snapId);
+    if(cap){ _fCopyText(cap); gToast('Arte baixada • legenda copiada!'); }
+    else gToast('Arte baixada!');
     if (typeof gTriggerOnboardingStep === 'function') {
       gTriggerOnboardingStep('downloadedPng');
     }

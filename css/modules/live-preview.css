@@ -246,3 +246,53 @@ body:not(.theme-light) .lp-toggle.active{background:var(--dm-orange)}
   #f-live-preview{display:none}
 }
 
+
+/* ── Edição direta na prévia (clique-para-preencher) ── */
+.lp-canvas{cursor:pointer}
+.lp-edit-pop{position:fixed;z-index:12000;width:min(260px,92vw);background:var(--white,#fff);color:var(--text,#0A0A0A);
+  border:1px solid var(--gray-mid,#D4D4D4);border-radius:12px;box-shadow:0 16px 40px rgba(0,0,0,.22);
+  padding:14px;font-family:'Roboto',sans-serif;animation:gFadeInUp var(--dur-fast,.18s) var(--ease-out) both}
+.lp-edit-lbl{font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3,#6B6B6B);margin-bottom:8px}
+.lp-edit-input{width:100%;font-size:13px;padding:9px 11px;border:1px solid var(--gray-mid,#D4D4D4);border-radius:8px;
+  background:var(--white,#fff);color:var(--text,#0A0A0A);outline:none;transition:border-color .15s,box-shadow .15s}
+.lp-edit-input:focus{border-color:var(--dm-orange,#FF9000);box-shadow:0 0 0 3px rgba(255,144,0,.14)}
+.lp-edit-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px}
+.lp-edit-count{font-size:10.5px;color:var(--text-3,#6B6B6B);font-variant-numeric:tabular-nums}
+.lp-edit-ok{font-size:12px;font-weight:700;padding:8px 16px;border-radius:8px;border:none;cursor:pointer;
+  background:var(--dm-orange-d,#F85400);color:#fff;transition:filter .15s,transform .15s var(--ease-spring)}
+.lp-edit-ok:hover{filter:brightness(1.06);transform:translateY(-1px)}
+.lp-edit-actions{display:flex;flex-direction:column;gap:6px}
+.lp-edit-btn{font-size:12px;font-weight:600;padding:9px 12px;border-radius:8px;border:1px solid var(--gray-mid,#D4D4D4);
+  background:var(--white,#fff);color:var(--text,#0A0A0A);cursor:pointer;text-align:left;transition:all .15s var(--ease-standard)}
+.lp-edit-btn:hover{border-color:var(--dm-orange,#FF9000);color:var(--dm-orange-d,#F85400);background:var(--dm-orange-bg,#FFF2E0)}
+.lp-edit-btn.lp-edit-danger{color:var(--dm-red,#C81818)}
+.lp-edit-btn.lp-edit-danger:hover{border-color:var(--dm-red,#C81818);background:rgba(200,24,24,.06);color:var(--dm-red,#C81818)}
+.lp-edit-orlink{font-size:10.5px;color:var(--text-3,#6B6B6B);margin:12px 0 6px}
+
+/* ── Modo enquadrar foto ── */
+.lp-frame-ov{position:absolute;inset:0;z-index:30;cursor:move;background:rgba(248,84,0,.04);
+  box-shadow:inset 0 0 0 2px var(--dm-orange,#FF9000);border-radius:12px}
+.lp-frame-hint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);white-space:nowrap;
+  display:flex;align-items:center;gap:10px;font-size:11px;font-weight:600;color:#fff;font-family:'Roboto',sans-serif;
+  background:rgba(20,20,20,.82);padding:7px 8px 7px 12px;border-radius:var(--r-pill,999px);box-shadow:0 6px 18px rgba(0,0,0,.3)}
+.lp-frame-done{font-size:11px;font-weight:700;padding:5px 12px;border-radius:var(--r-pill,999px);border:none;cursor:pointer;
+  background:var(--dm-orange,#FF9000);color:#fff}
+.lp-frame-done:hover{background:var(--dm-orange-d,#F85400)}
+
+/* ── Avisos persistentes "não deixar sair errado" ── */
+.lp-warnings{display:flex;flex-wrap:wrap;gap:6px;padding:0 2px;margin-top:2px}
+.lp-warnings:empty{display:none}
+.lp-warn{font-size:11px;font-weight:600;font-family:'Roboto',sans-serif;padding:5px 11px;border-radius:var(--r-pill,999px);
+  cursor:pointer;border:1px solid transparent;display:inline-flex;align-items:center;gap:5px;line-height:1.2;
+  transition:transform .12s var(--ease-spring),filter .12s;text-align:left}
+.lp-warn::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;opacity:.9}
+.lp-warn:hover{transform:translateY(-1px);filter:brightness(.98)}
+.lp-warn-miss{background:var(--gray-light,#F2F2F2);color:var(--text-2,#3A3A3A);border-color:var(--gray-mid,#D4D4D4)}
+.lp-warn-over{background:rgba(200,24,24,.10);color:var(--dm-red,#C81818);border-color:rgba(200,24,24,.30)}
+.lp-warn-low{background:rgba(255,185,0,.18);color:#92400E;border-color:rgba(255,185,0,.45)}
+
+/* ── Chip flutuante de descoberta (hover na prévia) ── */
+#lp-hover-chip{position:fixed;z-index:12500;pointer-events:none;display:none;font-size:11px;font-weight:600;
+  font-family:'Roboto',sans-serif;color:#fff;background:rgba(20,20,20,.86);padding:4px 10px;border-radius:var(--r-pill,999px);
+  box-shadow:0 4px 12px rgba(0,0,0,.28);white-space:nowrap}
+#lp-hover-chip.locked{background:rgba(120,120,120,.9)}

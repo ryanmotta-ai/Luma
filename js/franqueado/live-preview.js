@@ -163,6 +163,9 @@ let _lpRendering = false;
 let _lpPendingRender = false;
 let _lpScale = 1;        // escala real prévia ÷ arte final (mostrada na toolbar)
 let _lpGuides = false;   // toggle "Guias": margens de segurança + terços sobre a prévia
+let _lpFraming = null;   // {layer, varName} enquanto o franqueado enquadra a foto (trava o zoom automático)
+let _lpOverflow = new Set(); // ids de camadas de texto com estouro no último render (avisos)
+let _lpImgDims = {};     // cache url→{w,h} p/ aviso de baixa resolução sem recarregar
 
 async function fUpdateLivePreview(opts){
   opts = opts || {}; // animateField é ignorado: o canvas já reflete o estado atual
@@ -213,8 +216,11 @@ async function fUpdateLivePreview(opts){
         await fRenderCanvasHelper(canvas, fState.material, W, H, dadosPreview, fState.camp);
       }
     } else {
+      // Coleta overflow de texto durante ESTE render (só a prévia liga o coletor).
+      window._fOverflowSink = new Set();
       await fRenderTemplateLayers(ctx, fState.material.layers, W, H, dadosPreview, fState.camp);
-      
+      _lpOverflow = window._fOverflowSink; window._fOverflowSink = null;
+
       // Véu sutil sobre os campos ainda não preenchidos (tom mais suave)
       fLpHighlightEmpty(ctx, fState.material.layers, pendentes, W, H);
       
@@ -238,13 +244,14 @@ async function fUpdateLivePreview(opts){
         }
       }
       
-      // Smart Zoom & Highlight de Foco (Ideia 2)
-      if (activeLayer && !fState.done) {
+      // Smart Zoom & Highlight de Foco (Ideia 2) — desligado no modo enquadramento
+      // (o franqueado precisa da arte inteira estável pra arrastar/dar zoom na foto).
+      if (activeLayer && !fState.done && !_lpFraming) {
         const cx = activeLayer.x + activeLayer.w / 2;
         const cy = activeLayer.y + activeLayer.h / 2;
         const px = Math.min(100, Math.max(0, (cx / W) * 100));
         const py = Math.min(100, Math.max(0, (cy / H) * 100));
-        
+
         canvas.style.transformOrigin = `${px.toFixed(1)}% ${py.toFixed(1)}%`;
         canvas.style.transform = 'scale(1.8)';
       } else {
@@ -260,6 +267,7 @@ async function fUpdateLivePreview(opts){
     if(wrap){ wrap.classList.remove('updated'); void wrap.offsetWidth; wrap.classList.add('updated'); }
 
     fLpUpdateMeta(true);
+    try{ fLpUpdateWarnings(); }catch(e){}
   } catch(e){
     console.warn('[lp] erro ao renderizar preview:', e);
     fLpShowEmpty(canvas);
@@ -440,22 +448,30 @@ function fLpInjectPlaceholders(layers, dadosPreview, defaults){
   return pendentes;
 }
 
-// Desenha um véu translúcido sobre os layers com variáveis pendentes (tom mais suave).
-// Só quando NÃO houve smart-resize: com reflow as coords mudam e o véu desalinharia.
+// Marca os campos ainda vazios como EDITÁVEIS (contorno tracejado laranja), em vez de
+// escurecer — o objetivo é convidar ao toque ("toque pra preencher"), não parecer travado.
+// Só quando NÃO houve smart-resize (com reflow as coords mudam e o contorno desalinharia).
 function fLpHighlightEmpty(ctx, layers, pendentes, W, H){
   if(!pendentes || !pendentes.size) return;
   const src = (fState.material && fState.material.w>0 && fState.material.h>0)
     ? [fState.material.w, fState.material.h]
     : (F_LP_SIZES[(fState.material && fState.material.fmt)] || F_LP_SIZES.story);
-  if(src[0] !== W || src[1] !== H) return; // houve reflow → omite o véu
+  if(src[0] !== W || src[1] !== H) return; // houve reflow → omite
   ctx.save();
-  ctx.globalAlpha = 0.10;
-  ctx.fillStyle = '#000000';
+  const dash = Math.max(4, Math.round(W * 0.006));
+  ctx.setLineDash([dash * 1.6, dash]);
+  ctx.lineWidth = Math.max(2, Math.round(W * 0.003));
   (layers || []).forEach(l => {
     if(!pendentes.has(l.id)) return;
-    const r = Math.min(l.radius || 0, (l.w || 0) / 2, (l.h || 0) / 2);
-    if(typeof roundedRect === 'function'){ roundedRect(ctx, l.x || 0, l.y || 0, l.w || W, l.h || 40, r || 0); ctx.fill(); }
-    else { ctx.fillRect(l.x || 0, l.y || 0, l.w || W, l.h || 40); }
+    const x = l.x || 0, y = l.y || 0, w = l.w || W, h = l.h || 40;
+    const r = Math.min(l.radius || 0, w / 2, h / 2);
+    // leve realce de fundo + contorno tracejado da marca
+    ctx.globalAlpha = 0.06; ctx.fillStyle = '#F85400';
+    if(typeof roundedRect === 'function'){ roundedRect(ctx, x, y, w, h, r || 0); ctx.fill(); }
+    else ctx.fillRect(x, y, w, h);
+    ctx.globalAlpha = 0.55; ctx.strokeStyle = '#F85400';
+    if(typeof roundedRect === 'function'){ roundedRect(ctx, x, y, w, h, r || 0); ctx.stroke(); }
+    else ctx.strokeRect(x, y, w, h);
   });
   ctx.restore();
 }
@@ -562,10 +578,303 @@ function fInitMobilePreviewEvents() {
   }
 }
 
+/* ══════════════════════════════════════════════════════════════
+   EDIÇÃO DIRETA NA PRÉVIA (clique-para-preencher) + ENQUADRAR FOTO
+   O franqueado clica num campo da arte e edita ali: texto inline ou
+   foto (enviar/link/reposicionar/trocar/remover). NUNCA edita camadas
+   — texto/foto vão pra fState.dados; o enquadramento vai pra
+   fState.dados['__fit__'+var] (override por-arte lido pelo motor, sem
+   mutar o template compartilhado). Respeita permissão do designer
+   (edit:false → cadeado) e maxLen. Depende de: png-generator (render,
+   fResizeImageIfNeeded), chat-input (fApplyMask, fGetFieldType).
+══════════════════════════════════════════════════════════════ */
+function _fLpRender(){ try{ fUpdateLivePreview(); }catch(e){} }
+function _fLpLabel(v){
+  const perg=fState.camp&&fState.camp.perguntas&&fState.camp.perguntas.find(p=>p.id===v);
+  if(perg&&perg.label) return perg.label;
+  const vDef=(typeof dVars!=='undefined'&&dVars)?dVars.find(x=>x.name===v):null;
+  return (vDef&&vDef.label)||F_FIELD_LABELS[v]||v;
+}
+function _fLpExample(v){
+  const perg=fState.camp&&fState.camp.perguntas&&fState.camp.perguntas.find(p=>p.id===v);
+  if(perg&&Array.isArray(perg.sugestoes)&&perg.sugestoes[0]) return perg.sugestoes[0];
+  const seg=(typeof _fLpGuessSegment==='function')?_fLpGuessSegment():'universal';
+  const dict=F_LP_CONTEXT_EXAMPLES[seg]||F_LP_CONTEXT_EXAMPLES.universal;
+  return dict[v]||'';
+}
+// Permissão por campo do designer (edit:false = fixo) + maxLen.
+function _fLpPerm(v){
+  const perms=(fState.material&&fState.material.publishMeta&&fState.material.publishMeta.permissoes)||{};
+  const p=perms[v]||{};
+  const cfg=(typeof fGetFieldType==='function')?fGetFieldType(v):{maxLen:32};
+  return { editable: p.edit!==false, maxLen: (p.maxLen||cfg.maxLen||32) };
+}
+// Ponto do clique em espaço da ARTE (W×H) — robusto a qualquer transform CSS do canvas.
+function _fLpArtCoords(ev){
+  const canvas=document.getElementById('lp-canvas');
+  if(!canvas||!canvas.width) return null;
+  const r=canvas.getBoundingClientRect();
+  if(!r.width||!r.height) return null;
+  const cx=(ev.touches?ev.touches[0].clientX:ev.clientX), cy=(ev.touches?ev.touches[0].clientY:ev.clientY);
+  return { x:((cx-r.left)/r.width)*canvas.width, y:((cy-r.top)/r.height)*canvas.height };
+}
+function _fLpLayerVars(l){
+  if(!l) return [];
+  if((l.type==='image'||l.type==='frame') && l.imgVar) return [l.imgVar];
+  if(l.type==='text' && l.content){
+    const out=[]; const re=gVarRegex(); let m;
+    while((m=re.exec(l.content))!==null){ if(out.indexOf(m[1])<0) out.push(m[1]); }
+    return out;
+  }
+  return [];
+}
+function _fLpLayerAt(x,y){
+  const layers=(fState.material&&fState.material.layers)||[];
+  for(let i=layers.length-1;i>=0;i--){
+    const l=layers[i];
+    if(!l||l.visible===false||!_fLpLayerVars(l).length) continue;
+    const lx=l.x||0, ly=l.y||0, lw=l.w||0, lh=l.h||0;
+    if(x>=lx&&x<=lx+lw&&y>=ly&&y<=ly+lh) return l;
+  }
+  return null;
+}
+function _fLpLockToast(v){ gToast('Campo fixo da marca — não editável neste material.'); }
+
+// ── Setter + commit ──
+function _fLpCommit(v,val){
+  if(!fState.dados) fState.dados={};
+  const mv=(typeof fApplyMask==='function')?fApplyMask(v,val):val;
+  if(mv===''||mv==null) delete fState.dados[v]; else fState.dados[v]=mv;
+  try{ if(typeof fSaveChatDraft==='function') fSaveChatDraft(); }catch(e){}
+  _fLpRender();
+}
+
+// ── Popover ──
+function _fLpCloseEditor(){
+  const p=document.getElementById('lp-edit-pop'); if(p) p.remove();
+  document.removeEventListener('mousedown',_fLpPopOutside,true);
+  document.removeEventListener('keydown',_fLpPopKey,true);
+}
+function _fLpPopOutside(e){ const p=document.getElementById('lp-edit-pop'); if(p&&!p.contains(e.target)&&e.target.id!=='lp-canvas') _fLpCloseEditor(); }
+function _fLpPopKey(e){ if(e.key==='Escape'){ e.preventDefault(); _fLpCloseEditor(); } }
+function _fLpMakePop(ev){
+  _fLpCloseEditor();
+  const p=document.createElement('div'); p.id='lp-edit-pop'; p.className='lp-edit-pop';
+  document.body.appendChild(p);
+  const px=(ev&&(ev.clientX||(ev.touches&&ev.touches[0].clientX)))||window.innerWidth/2;
+  const py=(ev&&(ev.clientY||(ev.touches&&ev.touches[0].clientY)))||window.innerHeight/2;
+  p.style.left=Math.max(8,Math.min(px, window.innerWidth-270))+'px';
+  p.style.top=Math.max(8,Math.min(py+10, window.innerHeight-210))+'px';
+  setTimeout(()=>{ document.addEventListener('mousedown',_fLpPopOutside,true); document.addEventListener('keydown',_fLpPopKey,true); },0);
+  return p;
+}
+
+// ── Editor de texto ──
+function _fLpTextEditor(v,maxLen,ev){
+  const p=_fLpMakePop(ev);
+  const cur=(fState.dados&&fState.dados[v]!=null)?String(fState.dados[v]):'';
+  p.innerHTML=`<div class="lp-edit-lbl">${gEsc(_fLpLabel(v))}</div>
+    <input type="text" class="lp-edit-input" maxlength="${maxLen}" placeholder="${gEsc(_fLpExample(v))}">
+    <div class="lp-edit-row"><span class="lp-edit-count"></span><button class="lp-edit-ok" type="button">Salvar</button></div>`;
+  const inp=p.querySelector('.lp-edit-input'), cnt=p.querySelector('.lp-edit-count');
+  inp.value=cur;
+  const refresh=()=>{ cnt.textContent=inp.value.length+'/'+maxLen; };
+  inp.addEventListener('input',()=>{ refresh(); if(!fState.dados)fState.dados={}; fState.dados[v]=inp.value; _fLpRender(); }); // preview ao vivo (cru)
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); _fLpCommit(v,inp.value); _fLpCloseEditor(); } });
+  p.querySelector('.lp-edit-ok').onclick=()=>{ _fLpCommit(v,inp.value); _fLpCloseEditor(); };
+  refresh();
+  setTimeout(()=>{ inp.focus(); inp.select(); },20);
+}
+
+// ── Editor de imagem ──
+function _fLpImageEditor(l,v,ev){
+  const p=_fLpMakePop(ev);
+  const has=!!(fState.dados&&fState.dados[v]);
+  p.innerHTML=`<div class="lp-edit-lbl">${gEsc(_fLpLabel(v))}</div>
+    <div class="lp-edit-actions">
+      <button class="lp-edit-btn" data-a="upload" type="button">${has?'Trocar foto':'Enviar foto'}</button>
+      ${has?'<button class="lp-edit-btn" data-a="frame" type="button">Reposicionar</button>':''}
+      ${has?'<button class="lp-edit-btn lp-edit-danger" data-a="remove" type="button">Remover</button>':''}
+    </div>
+    <div class="lp-edit-orlink">ou cole um link de imagem:</div>
+    <div class="lp-edit-row"><input type="text" class="lp-edit-input" placeholder="https://..."><button class="lp-edit-ok" type="button">OK</button></div>
+    <input type="file" accept="image/png,image/jpeg,image/webp" class="lp-edit-file" style="display:none">`;
+  const file=p.querySelector('.lp-edit-file');
+  p.querySelector('[data-a="upload"]').onclick=()=>file.click();
+  file.onchange=e=>{ const f=e.target.files&&e.target.files[0]; if(f) _fLpUploadImage(f,v); };
+  const fb=p.querySelector('[data-a="frame"]'); if(fb) fb.onclick=()=>{ _fLpCloseEditor(); fLpStartFraming(l,v); };
+  const rb=p.querySelector('[data-a="remove"]'); if(rb) rb.onclick=()=>{ delete fState.dados[v]; delete fState.dados['__fit__'+v]; try{fSaveChatDraft&&fSaveChatDraft();}catch(e){} _fLpRender(); _fLpCloseEditor(); };
+  const link=p.querySelector('.lp-edit-input');
+  p.querySelector('.lp-edit-ok').onclick=()=>{ const u=link.value.trim(); if(!u)return; if(!fState.dados)fState.dados={}; fState.dados[v]=u; delete fState.dados['__fit__'+v]; try{fSaveChatDraft&&fSaveChatDraft();}catch(e){} _fLpRender(); _fLpCloseEditor(); };
+}
+function _fLpUploadImage(file,v){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const done=(url)=>{
+      if(!fState.dados)fState.dados={};
+      fState.dados[v]=url; delete fState.dados['__fit__'+v];
+      try{fSaveChatDraft&&fSaveChatDraft();}catch(e){}
+      _fLpRender();
+      const im=new Image(); im.onload=()=>{ if(im.naturalWidth<600||im.naturalHeight<600) gToast('⚠ Foto de baixa resolução ('+im.naturalWidth+'×'+im.naturalHeight+'px) — pode sair pixelada na arte.','error'); }; im.src=url;
+      _fLpCloseEditor();
+    };
+    if(typeof fResizeImageIfNeeded==='function') fResizeImageIfNeeded(e.target.result,1500,done); else done(e.target.result);
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Modo enquadrar foto (arrasta = posição, roda/pinça = zoom) ──
+let _fLpFrameDrag=null;
+let _fLpPinch=null;
+function _fLpTouchDist(e){ const a=e.touches[0], b=e.touches[1]; return Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY); }
+function _fLpFrameMove(e){
+  if(!_fLpFrameDrag||!_lpFraming) return;
+  const l=_lpFraming.layer, v=_lpFraming.varName;
+  const dx=(e.clientX-_fLpFrameDrag.sx)/((_lpScale||1)*(l.w||1));
+  const dy=(e.clientY-_fLpFrameDrag.sy)/((_lpScale||1)*(l.h||1));
+  const offX=Math.max(-.5,Math.min(.5,_fLpFrameDrag.ox-dx));
+  const offY=Math.max(-.5,Math.min(.5,_fLpFrameDrag.oy-dy));
+  const f=fState.dados['__fit__'+v]||{scale:1};
+  fState.dados['__fit__'+v]={scale:f.scale||1,offX,offY};
+  _fLpRender();
+}
+function _fLpFrameUp(){ _fLpFrameDrag=null; }
+function fLpStartFraming(l,v){
+  const canvas=document.getElementById('lp-canvas'); const wrap=canvas&&canvas.closest('.lp-canvas-wrap'); if(!wrap) return;
+  _lpFraming={layer:l,varName:v};
+  const init=(fState.dados&&fState.dados['__fit__'+v])||{scale:(l.imgScale||1),offX:(l.imgOffsetX||0),offY:(l.imgOffsetY||0)};
+  fState.dados['__fit__'+v]={scale:init.scale||1,offX:init.offX||0,offY:init.offY||0};
+  _fLpRender(); // trava scale 1 e aplica o fit
+  let ov=document.getElementById('lp-frame-ov');
+  if(!ov){ ov=document.createElement('div'); ov.id='lp-frame-ov'; ov.className='lp-frame-ov'; wrap.appendChild(ov); }
+  ov.innerHTML=`<div class="lp-frame-hint">Arraste pra posicionar · role pra dar zoom <button class="lp-frame-done" type="button">Concluir</button></div>`;
+  ov.querySelector('.lp-frame-done').onclick=()=>fLpStopFraming();
+  ov.onmousedown=(e)=>{ if(e.target.classList.contains('lp-frame-done'))return; e.preventDefault(); const f=fState.dados['__fit__'+v]||{}; _fLpFrameDrag={sx:e.clientX,sy:e.clientY,ox:f.offX||0,oy:f.offY||0}; };
+  ov.onwheel=(e)=>{ e.preventDefault(); const f=fState.dados['__fit__'+v]||{scale:1,offX:0,offY:0}; const sc=Math.max(1,Math.min(5,(f.scale||1)*(e.deltaY>0?0.94:1.06))); fState.dados['__fit__'+v]={scale:sc,offX:f.offX||0,offY:f.offY||0}; _fLpRender(); };
+  // Toque (mobile): 1 dedo = posição, 2 dedos = pinça-zoom
+  ov.ontouchstart=(e)=>{ if(e.target.classList.contains('lp-frame-done'))return; const f=fState.dados['__fit__'+v]||{}; if(e.touches.length>=2){ _fLpPinch={d:_fLpTouchDist(e),sc:f.scale||1}; _fLpFrameDrag=null; } else { _fLpFrameDrag={sx:e.touches[0].clientX,sy:e.touches[0].clientY,ox:f.offX||0,oy:f.offY||0}; } e.preventDefault(); };
+  ov.ontouchmove=(e)=>{ e.preventDefault(); const f=fState.dados['__fit__'+v]||{scale:1,offX:0,offY:0}; if(e.touches.length>=2&&_fLpPinch){ const nd=_fLpTouchDist(e); const sc=Math.max(1,Math.min(5,_fLpPinch.sc*(nd/(_fLpPinch.d||1)))); fState.dados['__fit__'+v]={scale:sc,offX:f.offX||0,offY:f.offY||0}; _fLpRender(); } else if(_fLpFrameDrag){ const dx=(e.touches[0].clientX-_fLpFrameDrag.sx)/((_lpScale||1)*(l.w||1)); const dy=(e.touches[0].clientY-_fLpFrameDrag.sy)/((_lpScale||1)*(l.h||1)); fState.dados['__fit__'+v]={scale:f.scale||1,offX:Math.max(-.5,Math.min(.5,_fLpFrameDrag.ox-dx)),offY:Math.max(-.5,Math.min(.5,_fLpFrameDrag.oy-dy))}; _fLpRender(); } };
+  ov.ontouchend=(e)=>{ if(!e.touches.length){ _fLpFrameDrag=null; _fLpPinch=null; } };
+  window.addEventListener('mousemove',_fLpFrameMove);
+  window.addEventListener('mouseup',_fLpFrameUp);
+}
+function fLpStopFraming(){
+  window.removeEventListener('mousemove',_fLpFrameMove);
+  window.removeEventListener('mouseup',_fLpFrameUp);
+  _fLpFrameDrag=null; _fLpPinch=null; _lpFraming=null;
+  const ov=document.getElementById('lp-frame-ov'); if(ov) ov.remove();
+  try{fSaveChatDraft&&fSaveChatDraft();}catch(e){}
+  _fLpRender();
+}
+
+// ── Chooser quando a camada de texto tem +de 1 variável ──
+function _fLpVarChooser(l,vars,ev){
+  const p=_fLpMakePop(ev);
+  p.innerHTML=`<div class="lp-edit-lbl">O que editar aqui?</div><div class="lp-edit-actions">`+
+    vars.map(v=>`<button class="lp-edit-btn" data-v="${gEsc(v)}" type="button">${gEsc(_fLpLabel(v))}${_fLpPerm(v).editable?'':' · fixo'}</button>`).join('')+`</div>`;
+  p.querySelectorAll('[data-v]').forEach(b=>{ b.onclick=()=>{ const v=b.getAttribute('data-v'); const perm=_fLpPerm(v); if(!perm.editable){ _fLpLockToast(v); return; } _fLpTextEditor(v,perm.maxLen,ev); }; });
+}
+
+// ── Clique no canvas ──
+function _fLpOnCanvasClick(ev){
+  if(_lpFraming) return;
+  if(!fState.material||!fState.material.layers||!fState.material.layers.length) return;
+  const pt=_fLpArtCoords(ev); if(!pt) return;
+  const l=_fLpLayerAt(pt.x,pt.y);
+  if(!l){ _fLpCloseEditor(); return; }
+  if(l.type==='image'||l.type==='frame'){
+    const perm=_fLpPerm(l.imgVar);
+    if(!perm.editable){ _fLpLockToast(l.imgVar); return; }
+    _fLpImageEditor(l,l.imgVar,ev); return;
+  }
+  const vars=_fLpLayerVars(l); if(!vars.length) return;
+  if(vars.length===1){ const perm=_fLpPerm(vars[0]); if(!perm.editable){ _fLpLockToast(vars[0]); return; } _fLpTextEditor(vars[0],perm.maxLen,ev); }
+  else { _fLpVarChooser(l,vars,ev); }
+}
+// ── Avisos persistentes: "não deixar sair errado" (faltou / estourou / baixa-res) ──
+function _fLpMeasureImg(url){
+  if(_lpImgDims[url]!==undefined) return;
+  _lpImgDims[url]=null; // medindo
+  const im=new Image();
+  im.onload=()=>{ _lpImgDims[url]={w:im.naturalWidth,h:im.naturalHeight}; try{fLpUpdateWarnings();}catch(e){} };
+  im.onerror=()=>{ _lpImgDims[url]={w:9999,h:9999}; };
+  im.src=url;
+}
+function _fLpJumpToField(v){
+  const l=(fState.material&&fState.material.layers||[]).find(x=>_fLpLayerVars(x).indexOf(v)>=0);
+  if(!l) return;
+  const perm=_fLpPerm(v);
+  if(!perm.editable){ _fLpLockToast(v); return; }
+  if(l.type==='image'||l.type==='frame') _fLpImageEditor(l,v,null);
+  else _fLpTextEditor(v,perm.maxLen,null);
+}
+function fLpUpdateWarnings(){
+  const box=document.getElementById('lp-warnings'); if(!box) return;
+  if(!fState.material||!fState.material.layers||!fState.material.layers.length){ box.innerHTML=''; return; }
+  const d=fState.dados||{}, layers=fState.material.layers, items=[];
+  // 1) Faltou preencher (perguntas do fluxo ainda sem resposta)
+  ((fState.camp&&fState.camp.perguntas)||[]).forEach(p=>{
+    if(d[p.id]==null||d[p.id]===''){ items.push({kind:'miss', v:p.id, label:(p.label||_fLpLabel(p.id))}); }
+  });
+  // 2) Texto estourando a caixa (coletor do último render)
+  if(_lpOverflow&&_lpOverflow.size){
+    _lpOverflow.forEach(id=>{ const l=layers.find(x=>x.id===id); if(!l)return; const v=_fLpLayerVars(l)[0]; items.push({kind:'over', v, label:(v?_fLpLabel(v):'Texto')}); });
+  }
+  // 3) Foto de baixa resolução (mede uma vez por URL, cacheado)
+  layers.forEach(l=>{
+    if((l.type!=='image'&&l.type!=='frame')||!l.imgVar) return;
+    const val=d[l.imgVar];
+    if(!val||typeof val!=='string') return;
+    const dim=_lpImgDims[val];
+    if(dim===undefined){ _fLpMeasureImg(val); }
+    else if(dim && (dim.w<600||dim.h<600)){ items.push({kind:'low', v:l.imgVar, label:_fLpLabel(l.imgVar), dim}); }
+  });
+  box.innerHTML = items.map(it=>{
+    const cls = it.kind==='miss'?'lp-warn-miss':(it.kind==='over'?'lp-warn-over':'lp-warn-low');
+    const txt = it.kind==='miss'?('Falta preencher: '+it.label)
+              : it.kind==='over'?('“'+it.label+'” não cabe — encurte o texto')
+              : ('Foto “'+it.label+'” está baixa ('+it.dim.w+'×'+it.dim.h+')');
+    return `<button type="button" class="lp-warn ${cls}" data-v="${gEsc(it.v||'')}">${gEsc(txt)}</button>`;
+  }).join('');
+  box.querySelectorAll('.lp-warn').forEach(b=>{ b.onclick=()=>{ const v=b.getAttribute('data-v'); if(v) _fLpJumpToField(v); }; });
+}
+
+// ── Hover: chip flutuante indicando que o campo é editável (descoberta) ──
+let _fLpHoverChip=null;
+function _fLpHideHoverChip(){ if(_fLpHoverChip) _fLpHoverChip.style.display='none'; }
+function _fLpOnCanvasMove(ev){
+  const cv=document.getElementById('lp-canvas');
+  if(_lpFraming||!fState.material||!fState.material.layers||!fState.material.layers.length){ _fLpHideHoverChip(); return; }
+  const pt=_fLpArtCoords(ev); if(!pt){ _fLpHideHoverChip(); return; }
+  const l=_fLpLayerAt(pt.x,pt.y);
+  if(!l){ _fLpHideHoverChip(); if(cv) cv.style.cursor='default'; return; }
+  if(cv) cv.style.cursor='pointer';
+  const v=(l.type==='image'||l.type==='frame')?l.imgVar:_fLpLayerVars(l)[0];
+  const editable=_fLpPerm(v).editable;
+  const label=(l.type==='image'||l.type==='frame')?'foto':_fLpLabel(v);
+  let c=_fLpHoverChip;
+  if(!c){ c=document.createElement('div'); c.id='lp-hover-chip'; document.body.appendChild(c); _fLpHoverChip=c; }
+  c.className='lp-hover-chip'+(editable?'':' locked');
+  c.textContent = editable ? ('Editar '+label) : 'Fixo da marca';
+  c.style.left=Math.min((ev.clientX||0)+14, window.innerWidth-150)+'px';
+  c.style.top=Math.min((ev.clientY||0)+14, window.innerHeight-38)+'px';
+  c.style.display='block';
+}
+function _fLpBindCanvasEditing(){
+  const cv=document.getElementById('lp-canvas');
+  if(cv && !cv._fLpBound){
+    cv._fLpBound=true;
+    cv.addEventListener('click',_fLpOnCanvasClick);
+    cv.addEventListener('mousemove',_fLpOnCanvasMove);
+    cv.addEventListener('mouseleave',_fLpHideHoverChip);
+  }
+}
+
 // Update inicial assim que DOM tá pronto
 document.addEventListener('DOMContentLoaded', () => {
   try { dPreloadFolders(); } catch(e){}
   try { fUpdateLivePreview(); } catch(e){}
   try { fInitMobilePreviewEvents(); } catch(e){}
+  try { _fLpBindCanvasEditing(); } catch(e){}
 });
 

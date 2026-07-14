@@ -349,7 +349,7 @@ function dPublishRenderPerms(){
   if(!vars.length){
     permList.innerHTML='<div class="pub-empty">As pranchetas selecionadas não têm variáveis editáveis ({{nome}}).</div>';return;
   }
-  permList.innerHTML=vars.map(v=>{
+  permList.innerHTML=_dPermBar()+vars.map(v=>{
     const vDef=(dVars||[]).find(x=>x.name===v);
     const isImage=vDef?vDef.type==='image':false;
     if(!dPubPermissoes[v]) dPubPermissoes[v]={edit:true,maxLen:isImage?0:32}; // imagem não usa maxLen de texto
@@ -376,6 +376,55 @@ function dPublishUpdatePerm(varName, key, value){
   if(!dPubPermissoes[varName]) dPubPermissoes[varName]={edit:true,maxLen:32};
   dPubPermissoes[varName][key]=value;
   if(key==='edit') dPublishRenderPerms();
+}
+
+/* ── PRESETS DE PERMISSÃO + APLICAR À CAMPANHA INTEIRA ──
+   Governança: define o trilho de permissão uma vez e replica em todos os materiais da
+   pasta (consistência de marca) sem refazer campo a campo. Presets ficam no localStorage. */
+function _dPermPresets(){
+  try{ const r=localStorage.getItem('_luma_perm_presets'); const s=r?JSON.parse(r):null; return (s&&Array.isArray(s.entries))?s.entries:[]; }catch(e){ return []; }
+}
+function _dPermBar(){
+  const opts=_dPermPresets().map(p=>`<option value="${gEsc(p.id)}">${gEsc(p.name)}</option>`).join('');
+  return `<div class="pub-perm-presets" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--d-border2,rgba(255,255,255,.12))">
+    <select onchange="dPermPresetLoad(this.value)" style="font-size:12px;padding:6px 8px;border:1px solid var(--d-border2,rgba(255,255,255,.14));border-radius:6px;background:var(--d-surf,#222);color:var(--d-text,#eee);outline:none;cursor:pointer"><option value="">Aplicar preset…</option>${opts}</select>
+    <button type="button" class="d-btn-sec" onclick="dPermPresetSave()">Salvar preset</button>
+    <button type="button" class="d-btn-sec" onclick="dPermApplyToFolder()" title="Copia estas permissões para todos os materiais desta campanha">Aplicar a toda a campanha</button>
+  </div>`;
+}
+function dPermPresetSave(){
+  const name=prompt('Nome do preset de permissões (ex.: "Preços travados, produto livre"):');
+  if(name===null) return;
+  const nm=name.trim(); if(!nm){ gToast('Nome inválido','error'); return; }
+  let store={entries:[]}; try{const r=localStorage.getItem('_luma_perm_presets'); if(r)store=JSON.parse(r);}catch(e){}
+  if(!store||!Array.isArray(store.entries)) store={entries:[]};
+  store.entries.push({ id:'pp-'+Date.now(), name:nm, perms:JSON.parse(JSON.stringify(dPubPermissoes)) });
+  try{ localStorage.setItem('_luma_perm_presets', JSON.stringify(store)); }catch(e){ gToast('Não consegui salvar o preset (armazenamento cheio?)','error'); return; }
+  gToast('✓ Preset "'+nm+'" salvo');
+  dPublishRenderPerms();
+}
+function dPermPresetLoad(id){
+  if(!id) return;
+  const p=_dPermPresets().find(e=>e.id===id); if(!p||!p.perms) return;
+  // aplica só aos campos que ESTE material tem (não injeta campos alheios na tela)
+  Object.keys(dPubPermissoes).forEach(v=>{ if(p.perms[v]) dPubPermissoes[v]=JSON.parse(JSON.stringify(p.perms[v])); });
+  dPublishRenderPerms();
+  gToast('✓ Preset aplicado a este material');
+}
+function dPermApplyToFolder(){
+  const info=(typeof _dPubFindTmpl==='function')?_dPubFindTmpl():null;
+  const folder=info&&info.folder;
+  if(!folder||!Array.isArray(folder.templates)||folder.templates.length<2){ gToast('Esta campanha não tem outros materiais pra aplicar.'); return; }
+  if(!confirm(`Aplicar estas permissões a TODOS os ${folder.templates.length} materiais desta campanha?`)) return;
+  const perms=JSON.parse(JSON.stringify(dPubPermissoes));
+  folder.templates.forEach(t=>{
+    if(!t.publishMeta) t.publishMeta={};
+    // merge: preserva o que o material já tinha, o preset sobrescreve/adiciona.
+    t.publishMeta.permissoes=Object.assign({}, t.publishMeta.permissoes||{}, JSON.parse(JSON.stringify(perms)));
+    t._syncPending=true;
+  });
+  if(typeof dPersistFolders==='function') dPersistFolders();
+  gToast('✓ Permissões aplicadas a '+folder.templates.length+' materiais da campanha');
 }
 
 /* ── CONFIRMAR PUBLICAÇÃO ── */

@@ -693,6 +693,9 @@ function dTemplateMenuOpen(ev, folderId, tmplId){
       ? `<button class="tmpl-ctx-item" onclick="dToggleTemplatePublish('${folderId}','${tmplId}',false)"><span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></span>Despublicar</button>`
       : `<button class="tmpl-ctx-item" onclick="dToggleTemplatePublish('${folderId}','${tmplId}',true)"><span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M4.5 16.5c-1.5 1.25-2.5 3.5-2.5 3.5s2.25-1 3.5-2.5L18.5 4.5 19.5 5.5zm11-11l-3 3M9 12l-3 3"/></svg></span>Publicar agora</button>`
     }
+    <button class="tmpl-ctx-item" onclick="dDuplicateTemplate('${folderId}','${tmplId}')">
+      <span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>Duplicar
+    </button>
     <div class="tmpl-ctx-sep"></div>
     <button class="tmpl-ctx-item tmpl-ctx-danger" onclick="dDeleteTemplate('${folderId}','${tmplId}')">
       <span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></span>Excluir
@@ -754,6 +757,48 @@ function dDeleteTemplate(folderId, tmplId){
   dRenderFolders();
   document.querySelectorAll('.tmpl-context-menu').forEach(m=>m.remove());
   gToast('Template excluído.');
+}
+// Duplica um template inteiro (camadas + variáveis via layers + permissões + validade)
+// como um RASCUNHO novo na mesma pasta — o time recria campanhas quase-iguais sem
+// começar do zero. Ganha id/remoteId próprios (linha nova no banco, não sobrescreve).
+async function dDuplicateTemplate(folderId, tmplId){
+  document.querySelectorAll('.tmpl-context-menu').forEach(m=>m.remove());
+  const f=dFolders.find(x=>x.id===folderId); if(!f) return;
+  const t=f.templates.find(x=>x.id===tmplId); if(!t) return;
+
+  // Catálogo leve: garante os layers baixados antes de clonar (senão a cópia vem vazia).
+  if(t._needsLayersFetch && t.remoteId){
+    const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
+    if(sb){
+      if(typeof dTmplLoading==='function') dTmplLoading('show');
+      try{
+        const {data,error}=await sb.schema('luma').from('templates').select('layers').eq('id',t.remoteId).single();
+        if(error||!data){ if(typeof dTmplLoading==='function') dTmplLoading('error','Não consegui baixar o material pra duplicar — tente de novo.'); return; }
+        t.layers=Array.isArray(data.layers)?data.layers:[]; t._needsLayersFetch=false;
+        if(typeof dPersistFolders==='function') dPersistFolders();
+        if(typeof dTmplLoading==='function') dTmplLoading('hide');
+      }catch(e){ if(typeof dTmplLoading==='function') dTmplLoading('error','Falha ao baixar o material.'); return; }
+    }
+  }
+
+  const clone=JSON.parse(JSON.stringify(t));
+  clone.id=_dUuid('t');
+  clone.remoteId=_dUuid('t');   // linha própria no banco — não colide com o original
+  clone.name=(t.name||'Material')+' (cópia)';
+  clone._needsLayersFetch=false;
+  clone._syncPending=true;
+  // Nasce como RASCUNHO: preserva permissões/validade/instruções, mas NÃO publica junto.
+  if(!clone.publishMeta) clone.publishMeta={};
+  clone.publishMeta.publicado=false;
+  clone.publishMeta.publicadoEm=null;
+
+  const idx=f.templates.findIndex(x=>x.id===tmplId);
+  f.templates.splice(idx>=0?idx+1:f.templates.length, 0, clone);
+
+  dPersistFolders();
+  dRenderFolders();
+  dLoadTemplate(clone, f);   // abre a cópia pronta pra editar
+  gToast('✓ Material duplicado (rascunho) — edite e publique quando quiser.');
 }
 // Atalho rápido: edita só validade num modalzinho menor
 function dQuickEditValidade(folderId, tmplId){

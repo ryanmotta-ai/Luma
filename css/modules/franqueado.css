@@ -851,3 +851,43 @@ body.f-cols-enter #fran-right{animation:gFadeIn var(--dur-base) var(--ease-out) 
   .hist-thumb{width:64px}
   .hist-filter-btn{min-height:var(--tap-min)}
 }
+
+/* ══════════════════════════════════════════════════════════════
+   Novas funcionalidades do franqueado (favoritos, badge "novo",
+   busca no histórico, atalhos de loja/compartilhar).
+══════════════════════════════════════════════════════════════ */
+
+/* Favoritar campanha — estrela sobre o card (fixa no topo da home) */
+.camp-fav{position:absolute;top:6px;right:6px;z-index:5;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:none;border-radius:50%;background:rgba(0,0,0,.42);color:#fff;cursor:pointer;opacity:0;transition:opacity var(--dur-fast) var(--ease-standard),transform var(--dur-fast) var(--ease-standard),background var(--dur-fast) var(--ease-standard)}
+.camp-card:hover .camp-fav{opacity:1}
+.camp-fav:hover{background:rgba(0,0,0,.62);transform:scale(1.1)}
+.camp-fav.is-fav{opacity:1;color:var(--dm-yellow)}
+@media (hover:none){.camp-fav{opacity:.9}}
+
+/* Badge "novo" (material publicado depois da última visita) — pill laranja no card */
+.camp-new{position:absolute;top:6px;left:6px;z-index:2;display:inline-flex;align-items:center;font-size:9px;font-weight:800;padding:2px 7px;border-radius:var(--r-pill);letter-spacing:.04em;text-transform:uppercase;background:var(--dm-orange);color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.18)}
+.f-mat-new{position:absolute;top:8px;left:8px;z-index:3;display:inline-flex;align-items:center;font-size:9px;font-weight:800;padding:2px 8px;border-radius:var(--r-pill);letter-spacing:.04em;text-transform:uppercase;background:var(--dm-orange);color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.2)}
+
+/* Busca textual no histórico "Minhas artes" (espelha #f-search) */
+.hist-search-row{position:relative;flex-shrink:0;margin-bottom:8px}
+.hist-search-row svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-3)}
+#f-hist-search{width:100%;padding:8px 12px 8px 32px;border:1px solid var(--gray-mid);border-radius:var(--r-sm);font-size:13px;font-family:'Roboto',sans-serif;background:var(--off-white);color:var(--text);outline:none}
+#f-hist-search:focus{border-color:var(--dm-orange)}
+body:not(.theme-light) .hist-search-row svg{color:var(--d-text-3,var(--text-3))}
+body:not(.theme-light) #f-hist-search{background:var(--d-surf);border-color:var(--d-border2);color:var(--d-text)}
+
+/* Chip de loja salva no pré-início do chat (reusa .qr, só um leve tom de marca) */
+.qr-loja{border-color:var(--dm-orange-tint)!important}
+
+/* Salvar loja: botão no preview do logo + linha de nome inline no chat */
+.f-upload-save-loja{background:var(--dm-orange);border:none;color:#fff;font-size:11px;font-weight:700;padding:4px 9px;border-radius:var(--r-pill);cursor:pointer;display:inline-flex;align-items:center;transition:filter var(--dur-fast) var(--ease-standard)}
+.f-upload-save-loja:hover{filter:brightness(1.08)}
+.loja-save-row{display:flex;gap:6px;margin-top:8px;align-items:center}
+.loja-save-row input{flex:1;padding:8px 10px;border:1px solid var(--gray-mid);border-radius:var(--r-sm);font-size:13px;font-family:'Roboto',sans-serif;background:var(--off-white);color:var(--text);outline:none}
+.loja-save-row input:focus{border-color:var(--dm-orange)}
+.loja-save-btn{background:var(--dm-orange);border:none;color:#fff;font-size:12px;font-weight:700;padding:8px 14px;border-radius:var(--r-sm);cursor:pointer;flex-shrink:0}
+.loja-save-btn:hover{filter:brightness(1.08)}
+body:not(.theme-light) .loja-save-row input{background:var(--d-surf);border-color:var(--d-border2);color:var(--d-text)}
+
+/* Botão Compartilhar na bolha da arte (art-btn é a base; aqui só o ajuste do ícone) */
+.art-btn.art-share{padding-left:12px;padding-right:12px}

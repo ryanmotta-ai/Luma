@@ -172,6 +172,39 @@ async function fGenPDF(d,c,fmt){
   setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
 }
 
+// Compartilha a arte (imagem + legenda) via Web Share API — atalho pra WhatsApp/Instagram
+// sem "baixar → abrir app → anexar". O Luma continua só ENTREGANDO o arquivo (não posta).
+// Sem suporte a compartilhar arquivos (ex.: desktop), cai em baixar + copiar legenda.
+async function fCompartilhar(btn, snapId){
+  const snap=(snapId && typeof _fArtSnapshots!=='undefined' && _fArtSnapshots[snapId])
+    || {dados:fState.dados,camp:fState.camp,fmt:fState.fmt,histId:fState._lastHistId,material:fState.material};
+  const cap=(typeof _fActiveCaptionText==='function') ? _fActiveCaptionText(snapId) : '';
+  const prevMat=fState.material;
+  if(snap.material) fState.material=snap.material; // renderiza com o material DESTA arte
+  try{
+    const canvas=await fRenderCanvasHelper(snap.dados,snap.camp,snap.fmt);
+    const fname=fBuildFilename(snap.camp,snap.fmt,snap.dados);
+    const blob=await new Promise(res=>canvas.toBlob(res,'image/png'));
+    const file=blob ? new File([blob],fname,{type:'image/png'}) : null;
+    const canShareFiles = file && navigator.canShare && navigator.canShare({files:[file]});
+    if(canShareFiles){
+      await navigator.share({files:[file], text:cap||undefined, title:'Delivery Much'});
+      if(snap.histId){ fMarkHistBaixada(snap.histId); } else { fAddHist(snap.dados,snap.camp,snap.fmt,'baixada'); }
+      if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt:snap.fmt.id,tipo:'png',via:'share'});
+    } else {
+      // Fallback (desktop / sem Web Share de arquivos): baixa a imagem e copia a legenda.
+      const a=document.createElement('a'); a.download=fname; a.href=canvas.toDataURL('image/png'); a.click();
+      if(cap && typeof _fCopyText==='function') _fCopyText(cap);
+      if(snap.histId){ fMarkHistBaixada(snap.histId); } else { fAddHist(snap.dados,snap.camp,snap.fmt,'baixada'); }
+      gToast(cap ? 'Compartilhamento não disponível aqui — baixei a imagem e copiei a legenda.' : 'Compartilhamento não disponível aqui — baixei a imagem.');
+    }
+  }catch(e){
+    if(e && e.name==='AbortError') return; // usuário cancelou o share nativo — silencioso
+    console.warn('Falha ao compartilhar:',e);
+    gToast('Não consegui compartilhar. Tente o botão Baixar.','error');
+  }finally{ fState.material=prevMat; }
+}
+
 // Rodapé de marca da ferramenta (Luma) — DESATIVADO: a arte gerada é da loja do
 // franqueado, então a marca do Luma não deve ser queimada no PNG/PDF final. Mantido
 // como no-op pra não quebrar os pontos de chamada (download, resultado, fallback).
@@ -546,6 +579,15 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
       const lineHeight = fontSize * (l.lineHeight||1.2);
       const totalTextH = lineHeight * lines.length;
 
+      // Coletor de OVERFLOW (opt-in): só a Prévia ao Vivo seta window._fOverflowSink.
+      // Sinaliza estouro vertical (texto mais alto que a caixa) e horizontal em point-text
+      // (que não encolhe). Não afeta o PNG final/lote (sink ausente). Aditivo e barato.
+      if(typeof window!=='undefined' && window._fOverflowSink && l.id){
+        const _vOver = totalTextH > h + Math.max(2, fontSize*0.18);
+        const _hOver = (l.textBox!=='box') && (maxLineW > w + Math.max(2, w*0.02));
+        if(_vOver || _hOver) window._fOverflowSink.add(l.id);
+      }
+
       ctx.fillStyle = _txtFill; // gradiente/overlay/cor (horizontal)
       ctx.textAlign = l.textAlign || 'left';
       // Ancoragem vertical: 'top' (PSD) → topo da tinta encosta no topo da caixa (baseline 1:1 com
@@ -653,11 +695,17 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
           } else { // cover
             if(imgAR > frameAR){ baseH = h; baseW = h*imgAR; } else { baseW = w; baseH = w/imgAR; }
           }
-          // Zoom + reposição da foto dentro da moldura (mesma semântica do object-position do designer)
-          const sc = l.imgScale || 1;
+          // Zoom + reposição da foto dentro da moldura. Override por-arte do franqueado
+          // (dados['__fit__'+var]) VENCE o do template — sem mutar a camada compartilhada
+          // (a Prévia ao Vivo deixa o franqueado enquadrar a própria foto). Retrocompatível:
+          // sem override, usa o enquadramento do designer, exatamente como antes.
+          const _fit = (dados && l.imgVar) ? dados['__fit__'+l.imgVar] : null;
+          const sc = (_fit && _fit.scale>0) ? _fit.scale : (l.imgScale || 1);
           const drawW = baseW*sc, drawH = baseH*sc;
-          const posX = Math.max(0, Math.min(1, 0.5 + (l.imgOffsetX||0)));
-          const posY = Math.max(0, Math.min(1, 0.5 + (l.imgOffsetY||0)));
+          const _ox = (_fit && _fit.offX!=null) ? _fit.offX : (l.imgOffsetX||0);
+          const _oy = (_fit && _fit.offY!=null) ? _fit.offY : (l.imgOffsetY||0);
+          const posX = Math.max(0, Math.min(1, 0.5 + _ox));
+          const posY = Math.max(0, Math.min(1, 0.5 + _oy));
           const drawX = x + (w - drawW)*posX;
           const drawY = y + (h - drawH)*posY;
           
@@ -985,24 +1033,28 @@ function fBulkParseHeuristicText(text) {
     // 5. Mapeamento dinâmico para as variáveis do material
     const dados = {};
     vars.forEach(v => dados[v] = '');
-    
-    const nameKey = vars.find(v => /produto|titulo|nome/i.test(v)) || vars[0];
+
+    // Só campos de TEXTO recebem o texto parseado — senão o nome caía em "foto_produto"
+    // (casa com /produto/i) e o campo "produto" ficava vazio (bug do mapeamento por regex).
+    const textVars = vars.filter(v => (typeof fIsImageVar==='function') ? !fIsImageVar(v) : !/foto|logo|imagem|img|avatar/i.test(v));
+    // Nome: prefere o campo EXATO "produto"/"titulo"/"nome" antes do casamento por substring.
+    const nameKey = textVars.find(v => /^(produto|titulo|nome)$/i.test(v)) || textVars.find(v => /produto|titulo|nome/i.test(v)) || textVars[0];
     if (nameKey) dados[nameKey] = name;
-    
-    const deKey = vars.find(v => /de|antigo/i.test(v));
+
+    const deKey = textVars.find(v => /^(precode|de)$/i.test(v)) || textVars.find(v => /de|antigo/i.test(v));
     if (deKey) dados[deKey] = precoDe ? fApplyMask(deKey, precoDe) : '';
-    
-    const porKey = vars.find(v => /por|preco|preço|atual|valor/i.test(v));
+
+    const porKey = textVars.find(v => /^(precopor|por|preco|preço|valor)$/i.test(v)) || textVars.find(v => /por|preco|preço|atual|valor/i.test(v));
     if (porKey) dados[porKey] = precoPor ? fApplyMask(porKey, precoPor) : '';
-    
-    const valKey = vars.find(v => /validade|data|condicao|condição/i.test(v));
+
+    const valKey = textVars.find(v => /validade|data|condicao|condição/i.test(v));
     if (valKey) dados[valKey] = validade;
-    
-    const descKey = vars.find(v => /desconto|selo|off/i.test(v));
+
+    const descKey = textVars.find(v => /desconto|selo|off/i.test(v));
     if (descKey && desconto) dados[descKey] = desconto;
-    
+
     // Auto-categorizar se houver campo de categoria
-    const catKey = vars.find(v => /categor|tipo|segmento/i.test(v));
+    const catKey = textVars.find(v => /categor|tipo|segmento/i.test(v));
     if (catKey && !dados[catKey]) {
       dados[catKey] = fBulkAutoCategorize(name);
     }
@@ -1371,12 +1423,35 @@ function fBulkTogglePaste() {
   if(wrap) wrap.style.display = wrap.style.display==='none' ? 'block' : 'none';
 }
 
+// Detecta se o texto colado é tabular (Excel/CSV) ou texto livre de cardápio. Tabular =
+// tem tabs, OU toda linha não-vazia tem o mesmo nº de vírgulas (>=1). Senão é cardápio.
+function _fBulkLooksTabular(text){
+  if(text.includes('\t')) return true;
+  const lines=text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  if(lines.length<2) return false;
+  const commas=lines.map(l=>(l.match(/,/g)||[]).length);
+  return commas[0]>=1 && commas.every(n=>n===commas[0]);
+}
 function fBulkHandlePaste() {
   const ta = document.getElementById('f-bulk-paste-ta');
   if(!ta) return;
   const text = ta.value.trim();
-  if(!text) { gToast('Cole os dados copiados do Excel primeiro','error'); return; }
-  
+  if(!text) { gToast('Cole a planilha ou o texto do cardápio primeiro','error'); return; }
+
+  // Texto de cardápio (sem colunas) → parser heurístico (extrai produto/preço/validade).
+  if(!_fBulkLooksTabular(text)){
+    if(typeof fBulkParseHeuristicText!=='function'){ gToast('Não consegui ler esse texto.','error'); return; }
+    const rows=fBulkParseHeuristicText(text).filter(r=>Object.values(r.dados).some(v=>v&&String(v).trim()));
+    if(!rows.length){ gToast('Não achei produtos nesse texto. Tente uma linha por item (ex.: "Pizza Calabresa de 40 por 30").','warning'); return; }
+    fBulkRows=rows;
+    _fBulkTableView=true;
+    const st=document.getElementById('f-bulk-status'); if(st) st.textContent=`${rows.length} linha(s) carregada(s)`;
+    fBulkRenderPreview();
+    ta.value='';
+    gToast(`✓ ${rows.length} item(ns) do cardápio — confira preço/validade e gere.`);
+    return;
+  }
+
   let raw;
   try{
     const delim = text.includes('\t') ? '\t' : ',';
@@ -1387,7 +1462,7 @@ function fBulkHandlePaste() {
       raw = fBulkParseCSV(text);
     }
   }catch(err){ gToast('⚠ Dados inválidos','error'); return; }
-  
+
   fBulkProcessRawData(raw);
   ta.value = '';
 }
@@ -1485,6 +1560,9 @@ function fBulkRenderPreview(){
         <span style="color:var(--gray-mid,#D4D4D4)">|</span>
         <button class="d-btn-sec" style="font-size:12px;padding:5px 12px;cursor:pointer;border-radius:var(--r-sm);border:1px solid var(--gray-mid,#D4D4D4);background:var(--white,#FFFFFF);font-weight:600" onclick="fBulkApplyDiscountPrompt()" title="Aplicar desconto em % a uma coluna de preços">Aplicar Desconto %</button>
         <button class="d-btn-sec" style="font-size:12px;padding:5px 12px;cursor:pointer;border-radius:var(--r-sm);border:1px solid var(--gray-mid,#D4D4D4);background:var(--white,#FFFFFF);font-weight:600" onclick="fBulkApplyRounding()" title="Arredondar preços da coluna para finais em ,90">Arredondar (.90)</button>
+        <span style="color:var(--gray-mid,#D4D4D4)">|</span>
+        <button class="d-btn-sec" style="font-size:12px;padding:5px 12px;cursor:pointer;border-radius:var(--r-sm);border:1px solid var(--gray-mid,#D4D4D4);background:var(--white,#FFFFFF);font-weight:600" onclick="fBulkApplyValidade()" title="Aplicar a mesma validade a todas as linhas">Validade em todas</button>
+        <button class="d-btn-sec" style="font-size:12px;padding:5px 12px;cursor:pointer;border-radius:var(--r-sm);border:1px solid var(--gray-mid,#D4D4D4);background:var(--white,#FFFFFF);font-weight:600" onclick="fBulkApplyLoja()" title="Preencher o logo de uma loja salva em todas as linhas">Logo da loja em todas</button>
       </div>
       <div style="overflow-x:auto;width:100%;max-height:50vh;border:1px solid var(--gray-mid, #D4D4D4);border-radius:var(--r);background:var(--white,#FFFFFF)">
         <table class="f-bulk-table" style="width:100%;border-collapse:collapse;margin:0">
@@ -1711,10 +1789,18 @@ function fBulkRemoveCard(index){
   gToast('Arte removida do lote');
 }
 // (fBulkCloneRow definido mais abaixo — versão única mantida para evitar duplicata)
+// Cancelamento cooperativo do lote: o botão seta a flag; o loop de geração checa entre artes
+// e para, empacotando no ZIP só o que já ficou pronto (ZIP parcial, não perde o trabalho feito).
+let _fBulkCancel = false;
+function fBulkCancelGen(){
+  _fBulkCancel = true;
+  const b = document.getElementById('f-bulk-cancel-btn');
+  if(b){ b.disabled = true; b.textContent = 'Cancelando…'; }
+}
 async function fBulkDownloadAll(){
   if(!fBulkRows.length){gToast('Envie um CSV primeiro');return;}
   if(typeof JSZip === 'undefined'){gToast('JSZip não carregado','error');return;}
-  
+
   // Salva e valida todas as linhas da tabela antes do download
   fBulkSaveAllRows(true);
   
@@ -1737,7 +1823,23 @@ async function fBulkDownloadAll(){
     return !isEmpty;
   });
   if(!valid.length){gToast('⚠ Nenhuma linha válida preenchida','error');return;}
-  
+
+  // ── Pré-voo: resume o que VAI e o que NÃO vai sair, e confirma antes de gastar tempo.
+  // Linhas com erro/vazias são puladas — o franqueado sabe ANTES, não ao abrir o ZIP.
+  const _pulados = fBulkRows.filter(r => !valid.includes(r));
+  const _nErro = _pulados.filter(r => r.erros && r.erros.length).length;
+  const _nVazias = _pulados.length - _nErro;
+  const _totalArtes = valid.length * selectedFmts.length;
+  let _resumo = `Vou gerar ${valid.length} arte(s)`;
+  if (selectedFmts.length > 1) _resumo += ` × ${selectedFmts.length} formatos = ${_totalArtes} imagens`;
+  _resumo += '.';
+  if (_nErro) _resumo += `\n• ${_nErro} linha(s) com erro serão puladas (vão pro erros.txt).`;
+  if (_nVazias) _resumo += `\n• ${_nVazias} linha(s) vazia(s) ignorada(s).`;
+  if (_totalArtes > 80) _resumo += `\n\nÉ bastante coisa — pode demorar e pesar no navegador do celular.`;
+  if (typeof gConfirm === 'function' && !(await gConfirm(_resumo + '\n\nGerar agora?', {okLabel:`Gerar ${_totalArtes}`}))) return;
+  _fBulkCancel = false;
+  const _falhas = []; // renders que lançaram (vão pro erros.txt)
+
   const wrap = document.getElementById('f-bulk-progress-wrap');
   const txt = document.getElementById('f-bulk-progress-text');
   const pct = document.getElementById('f-bulk-progress-pct');
@@ -1746,7 +1848,9 @@ async function fBulkDownloadAll(){
   
   if(actions) actions.style.display = 'none';
   if(wrap) wrap.style.display = 'block';
-  
+  const cancelBtn = document.getElementById('f-bulk-cancel-btn');
+  if(cancelBtn){ cancelBtn.disabled = false; cancelBtn.textContent = 'Cancelar'; }
+
   let ok=0;
   const zip = new JSZip();
   const c=fState.camp;
@@ -1755,12 +1859,14 @@ async function fBulkDownloadAll(){
   const usedNames = new Set(); // nomes já usados no ZIP (evita sobrescrita → "só 1 arte")
   
   for(let fi=0; fi<selectedFmts.length; fi++) {
+    if(_fBulkCancel) break;
     const fmt = selectedFmts[fi];
     const folderPrefix = selectedFmts.length > 1 ? `${fmt.name}/` : '';
     const oldFmt = fState.fmt;
     fState.fmt = fmt;
-    
+
     for(let i=0;i<valid.length;i++){
+      if(_fBulkCancel){ fState.fmt = oldFmt; break; } // sai limpo, restaurando o formato
       const row=valid[i];
       currentRender++;
       const pctVal = Math.round((currentRender / totalRenders) * 100);
@@ -1787,8 +1893,11 @@ async function fBulkDownloadAll(){
         usedNames.add(entry);
         if(b64) zip.file(entry, b64, {base64: true});
         ok++;
-      }catch(err){ console.warn('Bulk linha '+(i+1)+' falhou',err); }
-      
+      }catch(err){
+        console.warn('Bulk linha '+(i+1)+' falhou',err);
+        _falhas.push({ prod: _fRowProductName(row.dados) || ('Linha '+(i+1)), motivo: (err&&err.message)||'erro ao renderizar', fmt: fmt.name });
+      }
+
       await new Promise(res=>setTimeout(res, 50));
     }
     
@@ -1832,6 +1941,28 @@ async function fBulkDownloadAll(){
   
   zip.file("legendas_posts.txt", captionsText);
 
+  // erros.txt: por que uma arte não saiu (linha pulada por erro/vazia, falha de render ou
+  // cancelamento). Sem isso, o franqueado baixava o ZIP e não sabia o que faltou.
+  if(_pulados.length || _falhas.length || _fBulkCancel){
+    let et = 'RELATORIO DO LOTE — LUMA SHEETS\n========================================\n\n';
+    if(_pulados.length){
+      et += `LINHAS NAO GERADAS (${_pulados.length}):\n`;
+      _pulados.forEach(r=>{
+        const p=_fRowProductName(r.dados)||'(sem nome)';
+        const motivo=(r.erros&&r.erros.length)?r.erros.join('; '):'linha vazia';
+        et += ` - ${p}: ${motivo}\n`;
+      });
+      et += '\n';
+    }
+    if(_falhas.length){
+      et += `FALHAS AO GERAR (${_falhas.length}):\n`;
+      _falhas.forEach(f=>{ et += ` - ${f.prod} (${f.fmt}): ${f.motivo}\n`; });
+      et += '\n';
+    }
+    if(_fBulkCancel) et += 'GERACAO CANCELADA — o ZIP tem so as artes prontas ate o cancelamento.\n';
+    zip.file('erros.txt', et);
+  }
+
   try {
     const zipBlob = await zip.generateAsync({type: "blob"});
     const a = document.createElement('a');
@@ -1848,8 +1979,10 @@ async function fBulkDownloadAll(){
   if(wrap) wrap.style.display = 'none';
   
   const _fail=totalRenders-ok;
-  if(_fail>0) gToast(`${ok}/${totalRenders} geradas — ${_fail} falhou(ram).`,'error');
+  if(_fBulkCancel) gToast(`Cancelado — ${ok} arte(s) prontas no ZIP.`);
+  else if(_fail>0) gToast(`${ok}/${totalRenders} geradas — ${_fail} falhou(ram). Veja o erros.txt no ZIP.`,'error');
   else gToast('✓ '+ok+' artes geradas e baixadas no ZIP!');
+  _fBulkCancel = false;
   
   if(typeof fClearImgCache === 'function') fClearImgCache();
 }
@@ -1871,11 +2004,13 @@ function fSanitizeNamePart(s){
 // "titulo"/"sabor" caíam todos no nome da campanha e geravam nomes idênticos.)
 function _fRowProductName(d){
   if(!d) return '';
-  let p = d.produto || d.categoria || d.brinde || d.oferta;
+  // Ignora chaves internas (ex.: '__fit__var' = enquadramento por-arte, que é objeto).
+  const ok = k => k.indexOf('__')!==0 && d[k] && typeof d[k]==='string' && String(d[k]).trim();
+  let p = (typeof d.produto==='string'&&d.produto) || d.categoria || d.brinde || d.oferta;
   if(!p){
-    const k = Object.keys(d).find(k=>/produto|titulo|título|nome|item|sabor/i.test(k) && d[k] && String(d[k]).trim());
+    const k = Object.keys(d).find(k=>/produto|titulo|título|nome|item|sabor/i.test(k) && ok(k));
     if(k) p = d[k];
-    else { const f = Object.keys(d).find(k=>d[k] && String(d[k]).trim()); if(f) p = d[f]; }
+    else { const f = Object.keys(d).find(ok); if(f) p = d[f]; }
   }
   return p || '';
 }
@@ -2056,6 +2191,46 @@ async function fBulkApplyRounding() {
   });
 
   gToast(`✓ Valores da coluna "${col}" arredondados para final ,90`);
+  fBulkRenderPreview();
+}
+
+// Aplica a MESMA validade a todas as linhas. Reusa fValidadeSuggestions (datas reais) como
+// sugestão editável e a máscara/validação de campo — irmão de "Aplicar Desconto/Arredondar".
+async function fBulkApplyValidade() {
+  fBulkCollectCurrentInputs();
+  const keys = fBulkVars();
+  const col = keys.find(k => /validade|data/i.test(k));
+  if (!col) { gToast('Este material não tem campo de validade.', 'warning'); return; }
+  const sugg = (typeof fValidadeSuggestions === 'function') ? fValidadeSuggestions() : ['Válido até o fim do mês'];
+  const val = await gPrompt(`Validade para todas as linhas:\n(sugestões: ${sugg.join(' · ')})`, sugg[sugg.length-1], {placeholder:'Ex.: Válido até o fim do mês', title:'Aplicar validade'});
+  if (val === null) return;
+  const masked = (typeof fApplyMask === 'function') ? fApplyMask(col, val) : val;
+  fBulkRows.forEach(r => { r.dados[col] = masked; _fBulkRevalidateCol(r, col); });
+  gToast(`✓ Validade aplicada em todas as linhas`);
+  fBulkRenderPreview();
+}
+
+// Preenche o logo de uma loja salva (perfil de loja) em todas as linhas — franqueado que
+// monta o cardápio inteiro de um parceiro não reenvia o mesmo logo 20 vezes. Reusa fGetLojas.
+async function fBulkApplyLoja() {
+  fBulkCollectCurrentInputs();
+  const keys = fBulkVars();
+  const col = keys.find(k => /logo/i.test(k));
+  if (!col) { gToast('Este material não tem campo de logo.', 'warning'); return; }
+  const lojas = (typeof fGetLojas === 'function') ? fGetLojas() : [];
+  if (!lojas.length) { gToast('Nenhuma loja salva ainda — salve uma no chat ao enviar um logo.', 'warning'); return; }
+  let loja = lojas[0];
+  if (lojas.length > 1) {
+    const nomes = lojas.map((l,i)=>`${i+1}) ${l.nome||'Loja '+(i+1)}`).join('  ');
+    const pick = await gPrompt(`Qual loja aplicar?\n${nomes}`, '1', {placeholder:'Número da loja', title:'Logo da loja'});
+    if (pick === null) return;
+    const idx = parseInt(String(pick).trim(), 10) - 1;
+    if (isNaN(idx) || idx < 0 || idx >= lojas.length) { gToast('Número inválido.', 'error'); return; }
+    loja = lojas[idx];
+  }
+  if (!loja.logo) { gToast('Essa loja não tem logo salvo.', 'error'); return; }
+  fBulkRows.forEach(r => { r.dados[col] = loja.logo; _fBulkRevalidateCol(r, col); });
+  gToast(`✓ Logo de ${loja.nome||'sua loja'} aplicado em todas as linhas`);
   fBulkRenderPreview();
 }
 
@@ -2245,6 +2420,47 @@ async function fBulkImportFromLink() {
 
   _fBulkTableView = true;
   fBulkRenderPreview();
+}
+
+// Puxa produtos já usados do histórico do franqueado como linhas do lote — zero digitação
+// pra quem repete o cardápio. Dedup por nome de produto; APPEND (não apaga o que já está).
+function fBulkFromHistorico(){
+  if(!fState.material){ gToast('Abra um material primeiro.'); return; }
+  let hist=[];
+  try{ hist=(typeof fGetHist==='function')?fGetHist():[]; }catch(e){}
+  if(!hist.length){ gToast('Você ainda não gerou nenhuma arte.','warning'); return; }
+  const keys=fBulkVars();
+  const nameKey=keys.find(v=>/produto|titulo|nome/i.test(v))||keys[0];
+  // Já considera os produtos que estão na planilha p/ não duplicar ao adicionar.
+  fBulkCollectCurrentInputs();
+  const seen=new Set(fBulkRows.map(r=>String(r.dados[nameKey]||'').trim().toLowerCase()).filter(Boolean));
+  const novos=[];
+  hist.forEach(h=>{
+    const src=h.dados||{};
+    const dados={};
+    keys.forEach(k=>{
+      let v=src[k];
+      if(v==null||v===''){ // fallback pros campos "achatados" do histórico
+        if(/produto|titulo|nome/i.test(k)) v=h.prod;
+        else if(/^de$|antigo/i.test(k)) v=h.de;
+        else if(/por|preco|preço|valor/i.test(k)) v=h.por;
+      }
+      if(typeof v==='string' && v.startsWith('data:')) v=''; // não traz foto base64 pesada
+      dados[k]=v||'';
+    });
+    const nome=String(dados[nameKey]||'').trim().toLowerCase();
+    if(!nome || seen.has(nome)) return;
+    seen.add(nome);
+    const erros=[];
+    keys.forEach(k=>{ const e=(typeof fValidate==='function')?fValidate(k,dados[k]):null; if(e) erros.push(e); });
+    novos.push({dados, erros});
+  });
+  if(!novos.length){ gToast('Nada novo no histórico pra adicionar.','warning'); return; }
+  fBulkRows = fBulkRows.concat(novos);
+  _fBulkTableView=true;
+  const st=document.getElementById('f-bulk-status'); if(st) st.textContent=`${fBulkRows.length} linha(s) carregada(s)`;
+  fBulkRenderPreview();
+  gToast(`✓ ${novos.length} produto(s) do histórico — ajuste preço/validade e gere.`);
 }
 
 /* ── LUMA SHEETS MODELOS SALVOS (IDEIA 3) ── */
