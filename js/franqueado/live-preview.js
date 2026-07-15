@@ -172,15 +172,13 @@ async function fUpdateLivePreview(opts){
   const canvas = document.getElementById('lp-canvas');
   if(!canvas || canvas.tagName !== 'CANVAS') return;
 
-  // Sem template selecionado (ou camadas vazias) → Tenta fallback renderer, ou mostra estado vazio
+  // Sem template ou sem camadas → estado vazio. (Material publicado sempre tem camadas;
+  // não existe caminho de preview "só com bg" — o antigo caía num fRenderCanvasHelper de
+  // assinatura incompatível que nem desenhava no lp-canvas.)
   if(!fState.material || !fState.material.layers || !fState.material.layers.length){
-    if (fState.material && fState.material.bg) {
-      // Tem background ou programmatic, invoca o helper!
-    } else {
-      fLpShowEmpty(canvas);
-      fLpUpdateMeta(false);
-      return;
-    }
+    fLpShowEmpty(canvas);
+    fLpUpdateMeta(false);
+    return;
   }
 
   // Render em andamento → agenda só mais um (coalesce de digitação rápida)
@@ -211,11 +209,7 @@ async function fUpdateLivePreview(opts){
     const dadosPreview = Object.assign({}, fState.dados || {});
     const pendentes = fLpInjectPlaceholders(fState.material.layers, dadosPreview, _defaults);
 
-    if (!fState.material.layers || !fState.material.layers.length) {
-      if (typeof fRenderCanvasHelper === 'function') {
-        await fRenderCanvasHelper(canvas, fState.material, W, H, dadosPreview, fState.camp);
-      }
-    } else {
+    {
       // Coleta overflow de texto durante ESTE render (só a prévia liga o coletor).
       window._fOverflowSink = new Set();
       await fRenderTemplateLayers(ctx, fState.material.layers, W, H, dadosPreview, fState.camp);
@@ -629,7 +623,21 @@ function _fLpLayerVars(l){
   return [];
 }
 function _fLpLayerAt(x,y){
-  const layers=(fState.material&&fState.material.layers)||[];
+  const mat=fState.material;
+  let layers=(mat&&mat.layers)||[];
+  // Espelha o reflow do render: quando o formato exibido difere do nativo do template,
+  // fRenderTemplateLayers re-ancora as coords (gReflowLayers). Sem espelhar aqui, o clique/
+  // hover caía no layer errado em templates legados exibidos noutro formato. Os callers só
+  // leem type/imgVar/vars (preservados na cópia refluída), então devolver a cópia é seguro.
+  const cv=document.getElementById('lp-canvas');
+  if(mat && cv && typeof fMaterialSize==='function' && typeof gReflowLayers==='function'){
+    const sz=fMaterialSize(mat), tw=sz[0], th=sz[1], W=cv.width, H=cv.height;
+    if((tw!==W || th!==H) && W && H){
+      const fmtSizes={story:[1080,1920],feed:[1080,1350],wide:[1200,628],post:[1200,628]};
+      const fmtKey=Object.keys(fmtSizes).find(k=>fmtSizes[k][0]===W&&fmtSizes[k][1]===H);
+      layers=gReflowLayers(mat.layers,{w:tw,h:th},{w:W,h:H},{fmtKey:(fmtKey&&typeof gFmtKey==='function')?gFmtKey(fmtKey):null});
+    }
+  }
   for(let i=layers.length-1;i>=0;i--){
     const l=layers[i];
     if(!l||l.visible===false||!_fLpLayerVars(l).length) continue;

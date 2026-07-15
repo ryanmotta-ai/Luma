@@ -2611,8 +2611,10 @@ async function fBulkDeleteTemplate() {
 
 function fIsImageVar(varName) {
   if (!fState.material || !fState.material.layers) return false;
-  const layer = fState.material.layers.find(l => l.varName === varName);
-  if (layer && layer.type === 'image') return true;
+  // Camadas de imagem/moldura guardam o campo em `imgVar` (não `varName`) — testar varName
+  // nunca casava, e uma var de imagem com nome fora do padrão (ex.: "destaque") virava texto.
+  const layer = fState.material.layers.find(l => l.imgVar === varName);
+  if (layer && (layer.type === 'image' || layer.type === 'frame')) return true;
   if (typeof dVars !== 'undefined' && dVars) {
     const v = dVars.find(x => x.name === varName);
     if (v && v.type === 'image') return true;
