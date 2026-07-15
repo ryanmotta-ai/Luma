@@ -47,6 +47,7 @@ async function fGenerateCampaignKit(){
   const zip=new JSZip();
   const prevMat=fState.material, prevFmt=fState.fmt;
   let ok=0, pulados=0;
+  const usedNames=new Set();   // evita que 2 materiais de mesmo nome se sobrescrevam no ZIP
   gToast('Gerando o kit da campanha…');
   for(const m of mats){
     try{
@@ -59,7 +60,12 @@ async function fGenerateCampaignKit(){
       fState.material=m; fState.fmt=fmt;
       const dataUrl=await fRenderMaterialToDataURL(dados, c, fmt);
       const b64=dataUrl.split(',')[1];
-      if(b64){ zip.file((fSanitizeNamePart(m.name)||('Material_'+(ok+1)))+'.png', b64, {base64:true}); ok++; }
+      if(b64){
+        let base=fSanitizeNamePart(m.name)||('Material_'+(ok+1)), name=base, n=2;
+        while(usedNames.has(name.toLowerCase())){ name=base+'_'+(n++); } // nome único → nada some no ZIP
+        usedNames.add(name.toLowerCase());
+        zip.file(name+'.png', b64, {base64:true}); ok++;
+      }
       else pulados++;
     }catch(e){ console.warn('[kit] material falhou:', e); pulados++; }
   }
