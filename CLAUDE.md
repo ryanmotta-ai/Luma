@@ -28,6 +28,7 @@ Se a skill `luma` estiver disponível, invoque-a. Se não, siga o fluxo manualme
 - `design-review.md` — **revisão de design** (checklist de auto-revisão e proibitivos).
 - `design-role.md` — **papel de design** (Principal Product Designer).
 - `06_OPERATING_SYSTEM.md` — **como se comportar** (o loop, guardrails, quando perguntar).
+- `07_ROADMAP.md` — **roadmap oficial da v1** (fases, bugs com file:line, decisões abertas; atualize os checks ao concluir itens).
 - Técnico detalhado: `docs/LUMA.md`. Backend: `docs/LUMA-BACKEND-CHANGELOG.md`.
 
 ## Inegociáveis (resumo — detalhe no luma-brain)
