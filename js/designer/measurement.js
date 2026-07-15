@@ -26,7 +26,10 @@ function _dMeasureCanvasSize(){
 // Converte coordenadas de tela (relativas ao frame) para coordenadas do canvas, compensando zoom
 function _dScreenToCanvas(screenX, screenY, frame){
   const rect=frame.getBoundingClientRect();
-  const scale=(typeof dZoomLevel!=='undefined'?dZoomLevel:100)/100;
+  // Escala REAL do DOM (mesma razão do dCanvasPos do pincel): durante os ~220ms da
+  // transição de zoom, dZoomLevel já é o valor final mas o frame ainda está numa escala
+  // intermediária — pinos/notas/régua caíam deslocados do cursor logo após o zoom.
+  const scale=(rect.width&&frame.offsetWidth)?(rect.width/frame.offsetWidth):((typeof dZoomLevel!=='undefined'?dZoomLevel:100)/100);
   return {
     x:Math.round((screenX-rect.left)/scale),
     y:Math.round((screenY-rect.top)/scale)
@@ -774,6 +777,25 @@ function dRenderMeasureOverlay() {
     const dy = dRulerState.endY - dRulerState.startY;
     const dist = Math.sqrt(dx * dx + dy * dy);
     const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+    // Undo/redo restaura o estado SEM os elementos (e o re-render do canvas pode
+    // destacá-los do DOM) — recria aqui, senão fica medição fantasma invisível.
+    if (dRulerState.startX !== null && (!dRulerState.lineEl || !dRulerState.lineEl.isConnected)) {
+      const host = document.getElementById('d-measure-overlay') || document.getElementById('d-canvas-frame');
+      if (host) {
+        const lineEl = document.createElement('div');
+        lineEl.id = 'd-ruler-line';
+        lineEl.style.cssText = 'position:absolute;z-index:800;pointer-events:none;transform-origin:0 0;height:0;border-top:2px dashed #FF00FF;left:' + dRulerState.startX + 'px;top:' + dRulerState.startY + 'px;width:0;';
+        const labelEl = document.createElement('div');
+        labelEl.id = 'd-ruler-label';
+        labelEl.style.cssText = 'position:absolute;z-index:810;pointer-events:none;background:#1A1A1A;border:1px solid #FF00FF;border-radius:6px;padding:4px 8px;font-family:Roboto,monospace,sans-serif;font-size:10px;color:#FF00FF;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.4);display:none;';
+        host.appendChild(lineEl); host.appendChild(labelEl);
+        dRulerState.lineEl = lineEl; dRulerState.labelEl = labelEl; dRulerState.frame = host;
+        if (dist >= 2) {
+          labelEl.style.display = 'block';
+          labelEl.textContent = Math.round(dist) + ' px | Ângulo: ' + angle.toFixed(1) + '° | ΔX: ' + Math.round(dx) + ' ΔY: ' + Math.round(dy);
+        }
+      }
+    }
     if (dRulerState.lineEl) {
       // coords cruas: o overlay vive dentro do #d-canvas-frame escalado
       dRulerState.lineEl.style.left = dRulerState.startX + 'px';

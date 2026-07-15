@@ -20,6 +20,12 @@ let dSelectionTolerance = 32;
 /** Se true, Magic Wand considera apenas layers "adjacentes" (contíguos) */
 let dSelectionContiguous = true;
 
+// Visibilidade efetiva da camada. Este helper era chamado em TODA a suíte de
+// seleção mas nunca foi definido — objeto/rápida/varinha morriam em
+// ReferenceError no primeiro uso, em silêncio. Esconder um grupo já propaga
+// `visible` aos filhos (dToggleVis), então basta ler a flag da própria camada.
+function dIsLayerVisible(l){ return !!l && l.visible !== false; }
+
 
 /* ═══════════════════════════════════════════════════════════════════
  *  1. OBJECT SELECTION — Rubber Band + IOU
@@ -112,10 +118,17 @@ function dObjSelectEnd(e) {
 
   dObjSelectState = null;
 
-  // Se o retângulo é muito pequeno, desselecionar
+  // Retângulo minúsculo = clique sem arrasto: seleciona a camada sob o cursor
+  // (antes desselecionava tudo — obrigava a arrastar até pra pegar um elemento).
   if (rw < 4 && rh < 4) {
-    dSelId = null;
-    dMultiSel = [];
+    let hitId = null;
+    for (let i = dLayers.length - 1; i >= 0; i--) {
+      const l = dLayers[i];
+      if (!dIsLayerVisible(l) || l.locked || l.type === 'group') continue;
+      if (st.curX >= l.x && st.curX <= l.x + l.w && st.curY >= l.y && st.curY <= l.y + l.h) { hitId = l.id; break; }
+    }
+    if (hitId) { dSelLayer(hitId); }
+    else { dSelId = null; dMultiSel = []; }
     dRenderCanvas();
     dRenderLayersList();
     return;
@@ -709,10 +722,12 @@ function dMagicWandSelect(x, y, tolerance) {
 
     // Para image/frame sem cor hex: amostrar pixel do canvas composto
     if (!srcHex) {
-        var artW = (typeof dArtboards !== 'undefined' && dArtboards && dArtboards[0])
-            ? dArtboards[0].w : 1080;
-        var artH = (typeof dArtboards !== 'undefined' && dArtboards && dArtboards[0])
-            ? dArtboards[0].h : 1920;
+        // Prancheta ATIVA, não a [0] — com tamanho errado o getImageData caía fora
+        // dos limites e a varinha falhava em silêncio fora da primeira prancheta.
+        var _wab = (typeof dGetActiveAB === 'function') ? dGetActiveAB() : null;
+        if (!_wab && typeof dArtboards !== 'undefined' && dArtboards) _wab = dArtboards[0];
+        var artW = _wab ? _wab.w : 1080;
+        var artH = _wab ? _wab.h : 1920;
         var ofc = _dCompositeOffscreen(artW, artH);
         try {
             var pd = ofc.ctx.getImageData(px, py, 1, 1).data;

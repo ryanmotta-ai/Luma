@@ -609,12 +609,19 @@ function _dAdvSelFromEvent(e){
     const tol=parseInt((tolEl&&tolEl.value)||'32',10);
     const ids=dMagicWandSelect(x,y,tol);
     if(ids.length){
-      dSelId=ids[0];
-      dMultiSel=ids.slice(1);
+      // Shift soma à seleção atual, Alt subtrai (igual à seleção rápida) — antes a
+      // varinha sempre substituía tudo, ignorando os modificadores.
+      const cur=new Set(e.shiftKey||e.altKey?[dSelId,...dMultiSel].filter(Boolean):[]);
+      if(e.altKey) ids.forEach(id=>cur.delete(id));
+      else ids.forEach(id=>cur.add(id));
+      const arr=[...cur];
+      dSelId=arr[0]||null;
+      dMultiSel=arr.slice(1);
       dRenderCanvas();
       dRenderLayersList();
-      gToast('✓ Varinha: '+ids.length+' layer'+(ids.length>1?'s':'')+' selecionado'+(ids.length>1?'s':''));
-    }else{
+      gToast(e.altKey?('Varinha: '+ids.length+' fora da seleção ('+arr.length+' restam)')
+        :('✓ Varinha: '+arr.length+' layer'+(arr.length>1?'s':'')+' selecionado'+(arr.length>1?'s':'')));
+    }else if(!e.shiftKey&&!e.altKey){
       dSelId=null;dMultiSel=[];
       dRenderCanvas();dRenderLayersList();
       gToast('⚠ Nenhuma camada correspondente');

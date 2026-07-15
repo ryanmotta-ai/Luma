@@ -242,8 +242,10 @@ document.getElementById('d-canvas-frame').addEventListener('click',function(e){
     if(e.target.closest('button,input,select,textarea,.layer-handle'))return;
   }
   const f=DFMT_SIZES[dFmt];
-  const rect=this.getBoundingClientRect();const scale=dZoomLevel/100;
-  const x=Math.round((e.clientX-rect.left)/scale);const y=Math.round((e.clientY-rect.top)/scale);
+  // dCanvasPos usa a escala REAL do DOM — dZoomLevel/100 diverge durante a transição
+  // de zoom (~220ms) e posicionava texto/nota/carimbo deslocados do cursor.
+  const pos=dCanvasPos(e);
+  const x=pos.x;const y=pos.y;
   if(dTool==='text'||dTool==='text-h')dAddTextAt(x,y,false);
   else if(dTool==='text-v')dAddTextAt(x,y,true);
   else if(dTool==='mask-text-h')dAddTextMaskAt(x,y,false);
@@ -262,6 +264,11 @@ document.getElementById('d-canvas-frame').addEventListener('click',function(e){
     // Clique sobre camada não chega aqui (o mousedown da camada trata e o guard
     // onFrame barra o click) — sem amostragem dupla.
     if(typeof dEyedropAt==='function') dEyedropAt(x,y);
+  }
+  else if(dTool==='bucket'){
+    // Antes o clique em área vazia morria em silêncio — o cursor de balde sugeria
+    // flood-fill, mas o balde do Luma pinta a cor de texto/forma.
+    gToast('O balde pinta texto ou forma — clique numa dessas camadas');
   }
   else if(dTool==='rect')dAddShapeAt(x,y);
   else if(dTool==='frame')dAddFrameAt(x,y);
@@ -565,6 +572,7 @@ function dNitidezFlyout(e) {
   }
 }
 
+let _dNitidezHinted = false;
 function dNitidezPick(tool, e) {
   if(e) e.stopPropagation();
   dNitidezLast = tool;
@@ -572,6 +580,12 @@ function dNitidezPick(tool, e) {
   const icon = document.getElementById('dtool-nitidez-icon');
   if(icon) icon.innerHTML = _dNitidezIcons[tool] || '';
   dSetTool(tool);
+  // Essas ferramentas agem SÓ sobre traços do pincel — sobre uma imagem importada
+  // nada acontece e o usuário ficava sem saber por quê. Avisa uma vez por sessão.
+  if(!_dNitidezHinted){
+    _dNitidezHinted = true;
+    gToast('Desfoque, nitidez e dedo agem sobre os traços do pincel');
+  }
 }
 
 /* ══ GRUPO FORMA — flyout Photoshop-style ══ */

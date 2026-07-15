@@ -35,6 +35,11 @@ function _dMaskRenderView(){
 /* ── ações de painel ── */
 function dMaskAdd(){
   const l=_dMaskLayer(); if(!l){ gToast('Selecione uma camada'); return; }
+  // Grupo (e qualquer camada sem w/h) não suporta máscara — sem o guard,
+  // _dMaskBlank(undefined) criava canvas inválido e a sessão abria degenerada.
+  if(l.type==='group'||typeof l.w!=='number'||typeof l.h!=='number'){
+    gToast('Máscara funciona em camadas de conteúdo (texto, forma, imagem)'); return;
+  }
   if(!l.mask){ dHistoryPush(); l.mask=_dMaskBlank(l.w,l.h).toDataURL('image/png'); dMarkUnsaved(); }
   dMaskPaintStart();
 }

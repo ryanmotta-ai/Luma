@@ -29,6 +29,14 @@
 | 17 | **Carimbo tinha dois caminhos divergentes** — sobre camada colava em +20/+20, zerava a fonte e voltava pra select (com "Fundo" cobrindo o canvas, o modo Alinhado nunca rodava); unificado em `dStampAt` (posiciona no cursor, fonte persiste, alinhado funciona) | `js/designer/brush.js` (dStampAt), `canvas.js` |
 | 18 | **Réguas desalinhadas do artboard** — o "0" partia do canto do painel e pan/scroll/relayout não re-renderizavam; agora ancoradas no frame real, com watcher em rAF que segue qualquer movimento da arte | `js/designer/canvas.js` (dRenderRulers/_dRulersTick) |
 | 19 | **Carimbo guardava referência viva** — `dStampAt` re-resolve a origem por id nos dois caminhos (undo/exclusão da origem não carimba mais estado morto) | `js/designer/brush.js` |
+| 20 | **`dIsLayerVisible` não existia** — chamada 9× em selection.js; TODA a seleção avançada (objeto, rápida, varinha) morria em ReferenceError no 1º uso, em silêncio. Helper definido (grupo já propaga `visible` aos filhos) | `js/designer/selection.js` |
+| 21 | **Varinha usava a prancheta [0]** em vez da ativa no composite de imagem | `js/designer/selection.js` |
+| 22 | **Varinha ignorava Shift/Alt** — agora soma/subtrai da seleção, como a seleção rápida | `js/designer/canvas.js` |
+| 23 | **Seleção de objeto: clique sem arrasto desselecionava** — agora seleciona a camada sob o cursor (vazio segue desselecionando) | `js/designer/selection.js` |
+| 24 | **K (máscara) em grupo criava máscara degenerada** — guard em `dMaskAdd` com toast | `js/designer/mask.js` |
+| 25 | **Régua sumia após undo/redo** — o overlay agora recria linha/label quando o estado existe sem DOM (inclusive label com medida) | `js/designer/measurement.js` |
+| 26 | **Nota/contagem/sampler/régua/criação-por-clique deslocadas na transição de zoom** — `_dScreenToCanvas` e o click do frame usam a escala real do DOM (mesma razão do pincel) | `js/designer/measurement.js`, `brush.js` |
+| 27 | **No-ops silenciosos ganharam feedback** — balde em área vazia orienta ("pinta texto/forma"); desfoque/nitidez/dedo avisam 1× por sessão que agem sobre traços do pincel | `js/designer/brush.js` |
 
 ---
 
@@ -40,16 +48,8 @@ _(vazio — os três P0 da rodada 1 foram corrigidos na rodada 2)_
 
 | # | Bug | Onde | Status |
 |---|---|---|---|
-| 20 | Varinha mágica dimensiona o composite com `dArtboards[0].w/h` fixo em vez do artboard ativo → falha silenciosa fora da 1ª prancheta | `selection.js:712-716` | auditoria (MÉDIA) |
-| 21 | Varinha mágica ignora Shift/Alt (não soma/subtrai da seleção; quick-select respeita) | `canvas.js:604-618` | auditoria (MÉDIA) |
-| 22 | Seleção de Objeto: clique sem arrasto sobre a camada **desseleciona** (trata como retângulo < 4px) em vez de selecionar | `selection.js:116-122` | auditoria (MÉDIA) |
-| 23 | Ferramenta Linha não é ferramenta — cai uma linha fixa no centro e volta pra select; sem clique-e-desenha | `brush.js:591-597` + `layers.js` (dAddLine) | auditoria (MÉDIA) |
+| 23 | Ferramenta Linha não é ferramenta — cai uma linha fixa no centro e volta pra select; sem clique-e-desenha | `brush.js` (_dFormaDispatch) + `layers.js` (dAddLine) | auditoria (MÉDIA) — decisão de UX: alinhar ao fluxo das outras formas |
 | 24 | Borracha mágica em área grande quebra o undo (flood-fill em chunks assíncronos; `dHistoryPush` captura estado parcial; fim não entra no histórico) | `eraser-tools.js:135-175` | auditoria (MÉDIA) |
-| 25 | Desfoque/Nitidez/Dedo só agem sobre a camada de pintura — sobre imagem importada não fazem nada, **sem aviso** (mínimo: toast explicando) | `brush.js:125-155,506-539` | auditoria (MÉDIA) |
-| 26 | Balde/conta-gotas são no-ops silenciosos em área vazia e camada de imagem (sem feedback do que a ferramenta cobre) | `canvas.js:1129-1130` | auditoria (MÉDIA) |
-| 27 | K (máscara) em grupo/camada sem w/h cria máscara degenerada (`_dMaskBlank(undefined)`) — validar tipo + toast | `publish.js` (tecla K) + `mask.js:36` | auditoria (MÉDIA) |
-| 28 | Régua some após undo/redo (estado restaurado sem recriar `lineEl`/`labelEl` — fica estado fantasma) | `undo-redo.js:105-121` + `measurement.js:881-889` | auditoria (MÉDIA) |
-| 29 | Nota/contagem/color-sampler usam `dZoomLevel/100` em vez da escala real do DOM → clique durante a transição de zoom (~220ms) posiciona deslocado (o pincel já foi corrigido; usar `dCanvasPos`) | `brush.js:235` + `measurement.js:29` | auditoria (MÉDIA) |
 
 ## 🟡 P2 — polimento / UX
 
