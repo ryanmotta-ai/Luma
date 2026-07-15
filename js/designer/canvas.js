@@ -1432,50 +1432,120 @@ function dClearGuides(){
 /* ══ SIMULAR DADOS REAIS ══ */
 let dSimValues = {};  // {nomeVar: valor}
 let dSimActive = false;
+let dSimDraftValues = {};
+let dSimFmt = 'original';
+let dSimRenderTimer = null;
+let dSimRenderSeq = 0;
+let dSimLastTrigger = null;
 
-function dOpenSimModal(){
-  // Extrair todas as variáveis do template
-  const usedVars = new Set();
+function dSimUsedVars(){
+  const used=new Set();
   dLayers.forEach(l=>{
     if(l.type==='text'&&l.content){
-      const matches=l.content.matchAll(gVarRegex());
-      for(const m of matches)usedVars.add(m[1]);
+      for(const m of l.content.matchAll(gVarRegex()))used.add(m[1]);
     }
-    if((l.type==='frame'||l.type==='image')&&l.imgVar)usedVars.add(l.imgVar);
+    if((l.type==='frame'||l.type==='image')&&l.imgVar)used.add(l.imgVar);
   });
-  if(usedVars.size===0){
-    gToast('⚠ Nenhuma variável encontrada no template');
-    return;
-  }
-  const body=document.getElementById('d-sim-body');
-  const varsArr=[...usedVars];
-  body.innerHTML=`<p style="color:#888;font-size:12px;margin-bottom:14px;line-height:1.5">Preencha valores reais para cada variável e clique em <strong style="color:var(--dm-orange)">Aplicar</strong> para ver como ficará a arte com dados reais.</p>`+
-    varsArr.map(vn=>{
-      const v=dVars.find(x=>x.name===vn);
-      const label=v?v.label:vn;
-      const type=v?v.type:'text';
-      const cur=dSimValues[vn]||'';
-      // V6: contador de caracteres (vs maxLen da var, se houver) + flag de overflow
-      const maxLen=(v&&v.maxLen)?v.maxLen:0;
-      const meta=`<span class="sim-count" id="sim-count-${vn}"></span><span class="sim-overflow" id="sim-ovf-${vn}" style="display:none">⚠ não cabe no layout</span>`;
-      if(type==='image'){
-        return `<div class="sim-row"><label>${gEsc(label)} <span style="color:#666;font-weight:400">(${vn})</span> · imagem</label><input type="text" placeholder="URL da imagem ou cole base64" value="${gEsc(cur)}" oninput="dSimVarInput('${vn}',this.value,${maxLen})"></div>`;
-      }
-      const longText=label.toLowerCase().includes('descri')||label.toLowerCase().includes('texto');
-      if(longText){
-        return `<div class="sim-row"><label>${gEsc(label)} <span style="color:#666;font-weight:400">(${vn})</span>${meta}</label><textarea rows="2" placeholder="Digite o valor..." oninput="dSimVarInput('${vn}',this.value,${maxLen})">${gEsc(cur)}</textarea></div>`;
-      }
-      return `<div class="sim-row"><label>${gEsc(label)} <span style="color:#666;font-weight:400">(${vn})</span>${meta}</label><input type="text" placeholder="Digite o valor..." value="${gEsc(cur)}" oninput="dSimVarInput('${vn}',this.value,${maxLen})"></div>`;
-    }).join('');
-  // estado inicial dos contadores/flags
-  varsArr.forEach(vn=>{const v=dVars.find(x=>x.name===vn);dSimVarUpdateMeta(vn,dSimValues[vn]||'',(v&&v.maxLen)?v.maxLen:0);});
-  document.getElementById('d-sim-modal').classList.add('open');
+  return [...used];
 }
-// V6: atualiza valor simulado + contador + flag de overflow no modal de simulação
+
+function dSimSourceSize(){
+  const ab=(typeof dGetActiveAB==='function')?dGetActiveAB():null;
+  const fallback=DFMT_SIZES[dFmt]||DFMT_SIZES.story;
+  return {w:(ab&&ab.w)||fallback.w,h:(ab&&ab.h)||fallback.h,fmt:(ab&&ab.fmt)||dFmt};
+}
+
+function dSimTargetSize(){
+  const src=dSimSourceSize();
+  if(dSimFmt==='original')return src;
+  const target=DFMT_SIZES[dSimFmt]||src;
+  return {w:target.w,h:target.h,fmt:dSimFmt};
+}
+
+function dSimLayersForFmt(){
+  const src=dSimSourceSize(),target=dSimTargetSize();
+  if(src.w===target.w&&src.h===target.h)return dLayers;
+  return typeof gReflowLayers==='function'
+    ?gReflowLayers(dLayers,src,target,{fmtKey:typeof gFmtKey==='function'?gFmtKey(target.fmt):target.fmt})
+    :dLayers;
+}
+
+function dSimFormatButtons(){
+  const src=dSimSourceSize();
+  const formats=[
+    {id:'original',label:'Original',w:src.w,h:src.h},
+    {id:'story',label:'Story',...DFMT_SIZES.story},
+    {id:'feed',label:'Feed',...DFMT_SIZES.feed},
+    {id:'wide',label:'Wide',...DFMT_SIZES.wide},
+    {id:'horizontal',label:'Horizontal',...DFMT_SIZES.horizontal},
+  ];
+  return formats.map(fmt=>`<button type="button" class="sim-fmt-chip ${dSimFmt===fmt.id?'active':''}" aria-pressed="${dSimFmt===fmt.id}" onclick="dSimSetFmt('${fmt.id}')"><span>${fmt.label}</span><small>${fmt.w}×${fmt.h}</small></button>`).join('');
+}
+
+function dSimFieldMarkup(vn){
+  const v=dVars.find(x=>x.name===vn);
+  const label=v?(v.label||vn):vn;
+  const type=v?(v.type||'text'):'text';
+  const cur=dSimDraftValues[vn]||'';
+  const maxLen=(v&&v.maxLen)?v.maxLen:0;
+  const meta=`<span class="sim-count" id="sim-count-${vn}"></span><span class="sim-overflow" id="sim-ovf-${vn}" hidden>Revisar encaixe</span>`;
+  const fieldId='sim-input-'+vn;
+  if(type==='image'){
+    return `<div class="sim-row"><div class="sim-label-row"><label for="${fieldId}">${gEsc(label)}</label><span class="sim-field-type">Imagem</span></div><input id="${fieldId}" type="text" inputmode="url" placeholder="Cole uma URL ou imagem em base64" value="${gEsc(cur)}" oninput="dSimVarInput('${vn}',this.value,${maxLen})"></div>`;
+  }
+  const longText=type==='textarea'||label.toLowerCase().includes('descri')||label.toLowerCase().includes('texto');
+  const control=longText
+    ?`<textarea id="${fieldId}" rows="3" placeholder="Digite um valor real" oninput="dSimVarInput('${vn}',this.value,${maxLen})">${gEsc(cur)}</textarea>`
+    :`<input id="${fieldId}" type="text" placeholder="Digite um valor real" value="${gEsc(cur)}" oninput="dSimVarInput('${vn}',this.value,${maxLen})">`;
+  return `<div class="sim-row"><div class="sim-label-row"><label for="${fieldId}">${gEsc(label)}</label><span class="sim-field-key">{{${gEsc(vn)}}}</span></div>${control}<div class="sim-field-meta">${meta}</div></div>`;
+}
+
+function dOpenSimModal(){
+  const modal=document.getElementById('d-sim-modal');
+  const box=modal?.querySelector('.sim-box');
+  if(!modal||!box)return;
+  dSimLastTrigger=document.activeElement instanceof HTMLElement?document.activeElement:null;
+  dSimDraftValues=JSON.parse(JSON.stringify(dSimValues));
+  const varsArr=dSimUsedVars();
+  box.innerHTML=`<header class="sim-head">
+      <div><span class="sim-eyebrow">Teste antes de publicar</span><h3 id="d-sim-title">Simular dados reais</h3><p>Confira conteúdo, encaixe e adaptação sem alterar o template.</p></div>
+      <button type="button" class="sim-close" onclick="dCloseSimModal()" aria-label="Fechar simulação"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </header>
+    <div class="sim-workspace">
+      <section class="sim-preview-panel" aria-labelledby="sim-preview-title">
+        <div class="sim-section-head"><div><span id="sim-preview-title">Pré-visualização</span><small id="sim-preview-dim">—</small></div><span class="sim-live-badge"><span></span>Atualização ao vivo</span></div>
+        <div class="sim-format-scroll" aria-label="Formatos suportados">${dSimFormatButtons()}</div>
+        <div class="sim-stage">
+          <div class="sim-stage-grid"></div><canvas id="d-sim-preview-canvas" aria-label="Arte com os dados simulados"></canvas>
+          <div class="sim-render-state" id="d-sim-render-state" role="status" aria-live="polite"><span class="sim-spinner"></span><span>Preparando simulação…</span></div>
+        </div>
+        <div class="sim-preview-foot"><span id="sim-preview-format">Formato original</span><span id="sim-preview-status">Aguardando renderização</span></div>
+      </section>
+      <aside class="sim-controls-panel" aria-labelledby="sim-controls-title">
+        <div class="sim-controls-head"><div><span id="sim-controls-title">Dados de teste</span><small>${varsArr.length} campo${varsArr.length!==1?'s':''} encontrado${varsArr.length!==1?'s':''}</small></div></div>
+        ${varsArr.length?`<div class="sim-scenarios" aria-label="Cenários rápidos">
+          <button type="button" onclick="dSimStressTest('sample')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M3 12h18"/></svg><span>Exemplo</span></button>
+          <button type="button" onclick="dSimStressTest('max')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 15 4-4 3 3 7-8"/><path d="M14 6h5v5"/></svg><span>Limite</span></button>
+          <button type="button" onclick="dSimStressTest('min')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg><span>Mínimo</span></button>
+          <button type="button" onclick="dSimStressTest('empty')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="m7 7 10 10"/></svg><span>Vazio</span></button>
+        </div><div class="sim-fields" id="d-sim-body">${varsArr.map(dSimFieldMarkup).join('')}</div>`:
+        `<div class="sim-empty"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5"/></svg><strong>Nenhum campo para simular</strong><p>Adicione variáveis como {{produto}} ou uma imagem vinculada para testar dados reais.</p></div>`}
+      </aside>
+    </div>
+    <footer class="sim-foot"><div class="sim-foot-status" id="d-sim-foot-status" aria-live="polite">As alterações ainda não afetam o editor</div><button type="button" class="sim-btn secondary" onclick="dSimClearDraft()">Limpar</button><button type="button" class="sim-btn secondary" onclick="dCloseSimModal()">Cancelar</button><button type="button" class="sim-btn primary" ${varsArr.length?'':'disabled'} onclick="dApplySim()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m8 5 11 7-11 7V5Z"/></svg><span>Aplicar simulação</span></button></footer>`;
+  modal.setAttribute('role','dialog');modal.setAttribute('aria-modal','true');modal.setAttribute('aria-labelledby','d-sim-title');
+  if(!modal._simBackdropBound){modal.addEventListener('mousedown',e=>{if(e.target===modal)dCloseSimModal();});modal._simBackdropBound=true;}
+  varsArr.forEach(vn=>{const v=dVars.find(x=>x.name===vn);dSimVarUpdateMeta(vn,dSimDraftValues[vn]||'',(v&&v.maxLen)?v.maxLen:0);});
+  modal.classList.add('open');
+  dSimUpdatePreviewMeta();
+  dSimScheduleRender(true);
+  setTimeout(()=>box.querySelector('.sim-close')?.focus(),0);
+}
+
 function dSimVarInput(vn,value,maxLen){
-  dSimValues[vn]=value;
+  dSimDraftValues[vn]=value;
   dSimVarUpdateMeta(vn,value,maxLen||0);
-  if(dSimActive)dRenderCanvas(); // reflete na prévia em tempo real se a simulação está ativa
+  dSimScheduleRender();
 }
 function dSimVarUpdateMeta(vn,value,maxLen){
   const cEl=document.getElementById('sim-count-'+vn);
@@ -1485,33 +1555,75 @@ function dSimVarUpdateMeta(vn,value,maxLen){
     cEl.style.color = (maxLen && len>maxLen) ? 'var(--dm-red)' : '';
   }
   const oEl=document.getElementById('sim-ovf-'+vn);
-  if(oEl) oEl.style.display = dSimVarOverflow(vn,value) ? '' : 'none';
+  if(oEl)oEl.hidden=!dSimVarOverflow(vn,value);
 }
 // Testa se o texto simulado caberia nos layers que usam a variável (usa dCheckTextOverflow)
 function dSimVarOverflow(vn,value){
   if(typeof dCheckTextOverflow!=='function')return false;
   const reTok=new RegExp('\\{\\{\\s*'+vn+'\\s*\\}\\}');
-  const sim={...dSimValues,[vn]:value};
-  return dLayers.some(l=>{
+  const sim={...dSimDraftValues,[vn]:value};
+  return dSimLayersForFmt().some(l=>{
     if(l.type!=='text'||!l.content||!reTok.test(l.content))return false;
     const interp=gInterpolate(l.content,sim,{onEmpty:'remove',defaults:gVarDefaults()});
     return dCheckTextOverflow({...l,content:interp});
   });
 }
-function dSimStressTest(mode) {
-  const usedVars = new Set();
-  dLayers.forEach(l => {
-    if (l.type === 'text' && l.content) {
-      const matches = l.content.matchAll(gVarRegex());
-      for (const m of matches) usedVars.add(m[1]);
-    }
-    if ((l.type === 'frame' || l.type === 'image') && l.imgVar) usedVars.add(l.imgVar);
+
+function dSimSetFmt(fmt){
+  if(fmt!=='original'&&!DFMT_SIZES[fmt])return;
+  dSimFmt=fmt;
+  document.querySelectorAll('#d-sim-modal .sim-fmt-chip').forEach(btn=>{
+    const active=btn.getAttribute('onclick')?.includes(`'${fmt}'`);
+    btn.classList.toggle('active',!!active);btn.setAttribute('aria-pressed',active?'true':'false');
   });
-  
-  if (usedVars.size === 0) return;
-  
-  dSimValues = {};
-  const varsArr = [...usedVars];
+  dSimUpdatePreviewMeta();
+  dSimUsedVars().forEach(vn=>{const v=dVars.find(x=>x.name===vn);dSimVarUpdateMeta(vn,dSimDraftValues[vn]||'',(v&&v.maxLen)?v.maxLen:0);});
+  dSimScheduleRender(true);
+}
+
+function dSimUpdatePreviewMeta(){
+  const target=dSimTargetSize();
+  const labels={original:'Original',story:'Story',feed:'Feed',wide:'Wide',horizontal:'Horizontal'};
+  const dim=document.getElementById('sim-preview-dim');if(dim)dim.textContent=target.w+'×'+target.h+' px';
+  const fmt=document.getElementById('sim-preview-format');if(fmt)fmt.textContent=(labels[dSimFmt]||'Original')+' · '+target.w+'×'+target.h;
+}
+
+function dSimScheduleRender(immediate){
+  clearTimeout(dSimRenderTimer);
+  dSimRenderTimer=setTimeout(dSimRenderPreview,immediate?0:120);
+  const status=document.getElementById('sim-preview-status');if(status)status.textContent='Atualizando…';
+}
+
+async function dSimRenderPreview(){
+  const canvas=document.getElementById('d-sim-preview-canvas');
+  const state=document.getElementById('d-sim-render-state');
+  const status=document.getElementById('sim-preview-status');
+  if(!canvas)return;
+  const seq=++dSimRenderSeq;
+  if(state){state.className='sim-render-state loading';state.innerHTML='<span class="sim-spinner"></span><span>Renderizando dados reais…</span>';}
+  if(typeof fRenderPreviewToCanvas!=='function'){
+    if(state){state.className='sim-render-state error';state.innerHTML='<span>Pré-visualização indisponível</span><small>Feche e abra novamente. Se continuar, recarregue o Luma.</small>';}
+    if(status)status.textContent='Falha no renderizador';
+    return;
+  }
+  const src=dSimSourceSize(),target=dSimTargetSize();
+  const tmpl={layers:dSimLayersForFmt(),w:target.w,h:target.h,fmt:target.fmt,bg:(typeof dGetActiveAB==='function'&&dGetActiveAB())?.bg};
+  let ok=false;
+  try{ok=await fRenderPreviewToCanvas(canvas,tmpl,{maxPx:1200,dados:JSON.parse(JSON.stringify(dSimDraftValues))});}catch(e){ok=false;}
+  if(seq!==dSimRenderSeq)return;
+  if(ok===false){
+    if(state){state.className='sim-render-state error';state.innerHTML='<span>Não foi possível renderizar</span><small>Revise imagens e dados inseridos e tente novamente.</small>';}
+    if(status)status.textContent='Erro de renderização';
+    return;
+  }
+  if(state){state.className='sim-render-state';state.innerHTML='';}
+  if(status)status.textContent=(src.w===target.w&&src.h===target.h)?'Layout original':'Smart resize aplicado';
+}
+
+function dSimStressTest(mode) {
+  const varsArr=dSimUsedVars();
+  if(!varsArr.length)return;
+  dSimDraftValues={};
   
   varsArr.forEach(vn => {
     const v = dVars.find(x => x.name === vn);
@@ -1519,74 +1631,106 @@ function dSimStressTest(mode) {
     const isRequired = v ? v.required : false;
     
     if (mode === 'empty') {
-      dSimValues[vn] = isRequired ? (type === 'price' ? 'R$ 9,90' : 'Texto') : '';
+      dSimDraftValues[vn] = isRequired ? (type === 'price' ? 'R$ 9,90' : 'Texto') : '';
     } else if (mode === 'min') {
-      if (type === 'price') dSimValues[vn] = 'R$ 9';
-      else if (type === 'discount') dSimValues[vn] = '5%';
-      else if (type === 'image') dSimValues[vn] = (fState.camp && fState.camp.cover) || '';
-      else if (type === 'boolean') dSimValues[vn] = 'Não';
-      else dSimValues[vn] = 'Açaí';
+      if (type === 'price') dSimDraftValues[vn] = 'R$ 9';
+      else if (type === 'discount') dSimDraftValues[vn] = '5%';
+      else if (type === 'image') dSimDraftValues[vn] = (typeof fState!=='undefined'&&fState.camp&&fState.camp.cover) || '';
+      else if (type === 'boolean') dSimDraftValues[vn] = 'Não';
+      else dSimDraftValues[vn] = 'Açaí';
     } else if (mode === 'max') {
-      if (type === 'price') dSimValues[vn] = 'R$ 1.249,00';
-      else if (type === 'discount') dSimValues[vn] = '99% OFF + Frete Grátis';
-      else if (type === 'image') dSimValues[vn] = (fState.camp && fState.camp.cover) || '';
-      else if (type === 'boolean') dSimValues[vn] = 'Sim';
+      if (type === 'price') dSimDraftValues[vn] = 'R$ 1.249,00';
+      else if (type === 'discount') dSimDraftValues[vn] = '99% OFF + Frete Grátis';
+      else if (type === 'image') dSimDraftValues[vn] = (typeof fState!=='undefined'&&fState.camp&&fState.camp.cover) || '';
+      else if (type === 'boolean') dSimDraftValues[vn] = 'Sim';
       else {
         const nameLower = vn.toLowerCase();
         if (nameLower.includes('prod')) {
-          dSimValues[vn] = 'Super Combo Duplo Mega Burger Artesanal com Batata Frita e Molho Especial da Casa';
+          dSimDraftValues[vn] = 'Super Combo Duplo Mega Burger Artesanal com Batata Frita e Molho Especial da Casa';
         } else if (nameLower.includes('desc') || nameLower.includes('detalhe')) {
-          dSimValues[vn] = 'Delicioso blend de carne bovina grelhada no fogo com muito queijo cheddar derretido, alface crespa, tomate fresco colhido no dia e molho secreto.';
+          dSimDraftValues[vn] = 'Delicioso blend de carne bovina grelhada no fogo com muito queijo cheddar derretido, alface crespa, tomate fresco colhido no dia e molho secreto.';
         } else if (nameLower.includes('valid') || nameLower.includes('data')) {
-          dSimValues[vn] = 'Válido de segunda a quinta-feira exceto feriados e vésperas';
+          dSimDraftValues[vn] = 'Válido de segunda a quinta-feira exceto feriados e vésperas';
         } else {
-          dSimValues[vn] = 'Edição especial limitada até durarem os estoques de hoje';
+          dSimDraftValues[vn] = 'Edição especial limitada até durarem os estoques de hoje';
         }
       }
+    } else {
+      dSimDraftValues[vn]=(type==='image')?'':((typeof gFieldSampleValue==='function')?gFieldSampleValue(v||{name:vn}):(v&&v.label)||vn);
     }
   });
-  
-  const body = document.getElementById('d-sim-body');
-  if (body) {
-    varsArr.forEach(vn => {
-      const v = dVars.find(x => x.name === vn);
-      const input = body.querySelector(`[oninput*="'${vn}'"]`);
-      if (input) {
-        input.value = dSimValues[vn] || '';
-        dSimVarUpdateMeta(vn, dSimValues[vn] || '', (v && v.maxLen) ? v.maxLen : 0);
-      }
-    });
-  }
-  
-  dSimActive = true;
-  document.body.classList.add('simulating');
-  dRenderCanvas();
-  const ind = document.getElementById('d-sim-indicator');
-  if (ind) ind.style.display = 'flex';
-  
-  gToast(`⚡ Stress-Test (${mode.toUpperCase()}) aplicado!`);
+
+  varsArr.forEach(vn=>{
+    const v=dVars.find(x=>x.name===vn),input=document.getElementById('sim-input-'+vn);
+    if(input)input.value=dSimDraftValues[vn]||'';
+    dSimVarUpdateMeta(vn,dSimDraftValues[vn]||'',(v&&v.maxLen)?v.maxLen:0);
+  });
+  const labels={sample:'Exemplo aplicado',max:'Teste de limite aplicado',min:'Valores mínimos aplicados',empty:'Campos opcionais esvaziados'};
+  const status=document.getElementById('d-sim-foot-status');if(status)status.textContent=labels[mode]||'Cenário aplicado';
+  dSimScheduleRender(true);
 }
-function dCloseSimModal(){document.getElementById('d-sim-modal').classList.remove('open');}
+
+function dCloseSimModal(){
+  const modal=document.getElementById('d-sim-modal');if(!modal)return;
+  clearTimeout(dSimRenderTimer);dSimRenderSeq++;
+  modal.classList.remove('open');
+  const trigger=dSimLastTrigger;setTimeout(()=>{if(trigger&&document.contains(trigger))trigger.focus();},0);
+}
+function dSimClearDraft(){
+  dSimDraftValues={};
+  dSimUsedVars().forEach(vn=>{
+    const v=dVars.find(x=>x.name===vn),input=document.getElementById('sim-input-'+vn);
+    if(input)input.value='';
+    dSimVarUpdateMeta(vn,'',(v&&v.maxLen)?v.maxLen:0);
+  });
+  const status=document.getElementById('d-sim-foot-status');if(status)status.textContent='Campos limpos; o editor continua inalterado';
+  dSimScheduleRender(true);
+}
 function dApplySim(){
+  dSimValues=JSON.parse(JSON.stringify(dSimDraftValues));
   dSimActive=true;
   document.body.classList.add('simulating');
   dRenderCanvas();
   dCloseSimModal();
   const cnt=Object.keys(dSimValues).filter(k=>dSimValues[k]).length;
-  gToast('✓ Simulação ativa com '+cnt+' variável(is) preenchida(s) — clique em "Limpar simulação" pra voltar');
-  // botão visual na topbar
-  const ind=document.getElementById('d-sim-indicator');
-  if(ind)ind.style.display='flex';
+  gToast('Simulação ativa com '+cnt+' campo'+(cnt!==1?'s':'')+' preenchido'+(cnt!==1?'s':''));
+  dSimUpdateTopbar();
 }
 function dResetSim(){
+  const hadSimulation=dSimActive||Object.keys(dSimValues).length>0;
   dSimValues={};
+  dSimDraftValues={};
   dSimActive=false;
   document.body.classList.remove('simulating');
   dRenderCanvas();
-  const ind=document.getElementById('d-sim-indicator');
-  if(ind)ind.style.display='none';
-  gToast('Simulação desativada');
+  dSimUsedVars().forEach(vn=>{
+    const v=dVars.find(x=>x.name===vn),input=document.getElementById('sim-input-'+vn);
+    if(input)input.value='';dSimVarUpdateMeta(vn,'',(v&&v.maxLen)?v.maxLen:0);
+  });
+  const status=document.getElementById('d-sim-foot-status');if(status)status.textContent='Campos limpos; o template original está preservado';
+  dSimUpdateTopbar();
+  if(document.getElementById('d-sim-modal')?.classList.contains('open'))dSimScheduleRender(true);
+  if(hadSimulation)gToast('Simulação desativada');
 }
+
+function dSimUpdateTopbar(){
+  const trigger=document.querySelector('[onclick="dOpenSimModal()"]');
+  const ind=document.getElementById('d-sim-indicator');
+  if(trigger){trigger.classList.toggle('is-active',dSimActive);trigger.setAttribute('aria-pressed',dSimActive?'true':'false');trigger.title=dSimActive?'Editar dados simulados':'Testar layout com dados reais';}
+  if(ind){ind.style.display=dSimActive?'flex':'none';ind.setAttribute('role','button');ind.tabIndex=dSimActive?0:-1;ind.setAttribute('aria-label','Encerrar simulação');ind.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();dResetSim();}};}
+}
+
+document.addEventListener('keydown',e=>{
+  const modal=document.getElementById('d-sim-modal');if(!modal?.classList.contains('open'))return;
+  if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();dCloseSimModal();return;}
+  if(e.key!=='Tab')return;
+  const focusable=[...modal.querySelectorAll('button:not([disabled]),input:not([disabled]),textarea:not([disabled])')].filter(el=>el.offsetParent!==null);
+  if(!focusable.length)return;
+  const first=focusable[0],last=focusable[focusable.length-1];
+  if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+  else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+},true);
+
 // Helper para substituir {{var}} pelos valores simulados
 function dInterpolate(text){
   if(!dSimActive)return text;
