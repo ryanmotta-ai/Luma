@@ -134,6 +134,9 @@ async function fDownloadHist(id){
   if(fState.material && typeof fEnsureMaterialLayers==='function') await fEnsureMaterialLayers(fState.material);
   try {
     await fGenPNG(h.dados,c,f);
+  } catch(e) {
+    gToast('⚠ Não foi possível baixar a arte. Tente de novo','error');
+    return; // não marca "baixada" nem toast de sucesso se o PNG não saiu
   } finally {
     fState.material = prevMaterial; // restaura sempre, mesmo se fGenPNG lançar
   }
@@ -291,6 +294,9 @@ async function fConfirmDuplicate(id, fmtId){
   try {
     await fGenPNG(h.dados, c, f);
     fAddHist(h.dados, c, f, 'baixada'); // só registra se o PNG saiu (material ainda carregado aqui)
+  } catch(e) {
+    gToast('⚠ Não foi possível duplicar a arte. Tente de novo','error');
+    return;
   } finally {
     fState.material = prevMaterial; // restaura sempre, mesmo se fGenPNG lançar
   }

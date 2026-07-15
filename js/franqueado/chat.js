@@ -965,6 +965,7 @@ async function fOutroFormato(id, snapId){
   const snap=(snapId&&_fArtSnapshots[snapId])||{dados:fState.dados,camp:fState.camp,fmt:fState.fmt,material:fState.material};
   // Guarda por BOLHA: compara com o formato desta arte, não com o global (outra bolha pode ter outro fmt)
   if(snap.fmt && f.id===snap.fmt.id) return;
+  const prevFmt=fState.fmt;         // p/ reverter se a geração falhar (senão o rail fica num fmt que não saiu)
   fState.fmt=f;fRenderFmts();fUpdateCtx();
 
   // Atualiza as sugestões de legenda para o novo formato
@@ -1028,7 +1029,8 @@ async function fOutroFormato(id, snapId){
     await _fRerenderArtThumb(snapId, snap, f); // thumb acompanha a nova geometria
   }catch(e){
     console.warn('Falha ao gerar no formato '+f.name+':', e);
-    gToast('Não consegui gerar nesse formato. Tente de novo.','error');
+    gToast('⚠ Não consegui gerar nesse formato. Tente de novo','error');
+    fState.fmt=prevFmt; fRenderFmts(); fUpdateCtx(); // reverte o rail ao formato que estava
   }finally{
     fState.material=prevMat;
   }
