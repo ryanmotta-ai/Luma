@@ -1124,14 +1124,11 @@ document.addEventListener('keydown', e => {
       }
     }
 
-    // F2 - Renomeação
+    // F2 - Renomeia a camada selecionada. (Sem seleção não faz nada: no modo canvas
+    // único não há prancheta nomeável — o caminho dRenameAB era um no-op morto.)
     if (e.key === 'F2') {
       e.preventDefault();
-      if (dSelId !== null) {
-        if (typeof dRenameLayer === 'function') dRenameLayer(dSelId, e);
-      } else if (typeof dActiveABId !== 'undefined' && dActiveABId) {
-        if (typeof dRenameAB === 'function') dRenameAB(dActiveABId);
-      }
+      if (dSelId !== null && typeof dRenameLayer === 'function') dRenameLayer(dSelId, e);
       return;
     }
 

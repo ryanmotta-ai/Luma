@@ -370,7 +370,8 @@ function dNewArtboard(fmt){
 
 function dDeleteAB(){}    // no-op
 function dDuplicateAB(){gToast('⚠ Modo canvas único: operação não disponível');}
-function dRenameAB(){}    // no-op
+// dRenameAB removido: não havia prancheta nomeável no modo canvas único e o único
+// caller (F2 sem seleção) foi retirado. Reintroduzir só quando houver multi-prancheta.
 function dRenderABList(){} // no-op — sem lista de pranchetas
 function dArrangeGrid(){}  // no-op
 

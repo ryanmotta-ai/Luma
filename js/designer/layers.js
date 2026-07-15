@@ -470,20 +470,30 @@ function dLayerContextMenu(e, layerId){
 }
 
 /* ── DELETE / REORDER / ALIGN ── */
-function dDeleteLayer(){
+async function dDeleteLayer(){
   if(!dSelId)return;
   const l=dLayers.find(x=>x.id===dSelId);
+  // Grupo: pergunta (via gConfirm, o diálogo da casa) se os filhos vão junto.
+  // Fiel ao antigo confirm nativo: OK = apaga tudo; Cancelar = mantém os filhos
+  // (só o grupo sai). Ambos removem o grupo.
+  let deleteChildren=false;
+  if (l && l.type === 'group') {
+    deleteChildren = (typeof gConfirm==='function')
+      ? await gConfirm('Excluir também os elementos deste grupo?', {title:'Excluir grupo', okLabel:'Excluir tudo', cancelLabel:'Manter os itens', danger:true})
+      : confirm('Deseja excluir também todos os layers deste grupo?');
+    // O layer pode ter mudado (undo/sync trocam objetos) durante o await → re-resolve por id.
+    if(!dSelId || !dLayers.some(x=>x.id===dSelId)) return;
+  }
+  // dHistoryPush DEPOIS do await: no modelo coalescido o snapshot é capturado numa
+  // microtask; se empurrasse antes do await, capturaria o estado PRÉ-exclusão e a
+  // remoção não entraria no histórico. Aqui as mutações abaixo são síncronas → o
+  // snapshot sai correto (pós-exclusão).
   dHistoryPush();
   if (l && l.type === 'group') {
-    const deleteChildren = confirm('Deseja excluir também todos os layers deste grupo?');
     if (deleteChildren) {
       dLayers = dLayers.filter(x => x.id !== dSelId && x.parentId !== dSelId);
     } else {
-      dLayers.forEach(x => {
-        if (x.parentId === dSelId) {
-          delete x.parentId;
-        }
-      });
+      dLayers.forEach(x => { if (x.parentId === dSelId) delete x.parentId; });
       dLayers = dLayers.filter(x => x.id !== dSelId);
     }
   } else {
@@ -3117,7 +3127,14 @@ function dGetGroupSiblings(layer){
 function dRenameLayer(id, e){
   if(e)e.stopPropagation();
   const l=dLayers.find(x=>x.id===id);if(!l)return;
-  const row=document.querySelector(`.layer-row[data-lid="${id}"]`);
+  let row=document.querySelector(`.layer-row[data-lid="${id}"]`);
+  if(!row){
+    // Camada dentro de grupo colapsado: a linha não está no DOM. Expande os
+    // ancestrais e re-renderiza antes de editar (antes o F2 falhava em silêncio).
+    let pid=l.parentId, expanded=false;
+    while(pid){ const p=dLayers.find(x=>x.id===pid); if(!p)break; if(p.collapsed){p.collapsed=false;expanded=true;} pid=p.parentId; }
+    if(expanded){ dRenderLayersList(); row=document.querySelector(`.layer-row[data-lid="${id}"]`); }
+  }
   if(!row)return;
   const label=row.querySelector('.layer-label');
   if(!label)return;
