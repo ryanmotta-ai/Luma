@@ -7,9 +7,9 @@ const LumaTooltips = {
   // SELECIONAR
   'select': { name: 'Ferramenta Seleção', group: 'Selecionar', shortcut: 'V', desc: 'Move, redimensiona e rotaciona elementos no seu design.', example: 'Use para organizar o layout e posicionar objetos livremente no canvas.' },
   'hand': { name: 'Ferramenta Mão', group: 'Navegação', shortcut: 'H', desc: 'Navegue pelo canvas de forma livre sem alterar nenhum elemento.', example: 'Dica Pro: Segure a Barra de Espaço a qualquer momento para ativar temporariamente.' },
-  'obj-select': { name: 'Seleção de Objeto', group: 'Selecionar', shortcut: 'W', desc: 'Encontra e seleciona objetos automaticamente na tela usando inteligência.', example: 'Ideal para isolar elementos complexos de um fundo em um único clique.' },
-  'quick-select': { name: 'Seleção Rápida', group: 'Selecionar', shortcut: 'W', desc: 'Pinte sobre uma área para selecioná-la rapidamente.', example: 'Ótimo para selecionar roupas ou partes específicas de uma imagem.' },
-  'magic-wand': { name: 'Varinha Mágica', group: 'Selecionar', shortcut: 'Y', desc: 'Seleciona áreas com cores semelhantes com apenas um clique.', example: 'Perfeito para remover fundos sólidos ou selecionar céus.' },
+  'obj-select': { name: 'Seleção de Objeto', group: 'Selecionar', shortcut: 'Shift+V', desc: 'Encontra e seleciona objetos automaticamente na tela usando inteligência.', example: 'Ideal para isolar elementos complexos de um fundo em um único clique.' },
+  'quick-select': { name: 'Seleção Rápida', group: 'Selecionar', shortcut: 'Shift+V', desc: 'Pinte sobre uma área para selecioná-la rapidamente.', example: 'Ótimo para selecionar roupas ou partes específicas de uma imagem.' },
+  'magic-wand': { name: 'Varinha Mágica', group: 'Selecionar', shortcut: 'Shift+V', desc: 'Seleciona áreas com cores semelhantes com apenas um clique.', example: 'Perfeito para remover fundos sólidos ou selecionar céus.' },
 
   // TEXTO & MÍDIA
   'text-h': { name: 'Texto Horizontal', group: 'Texto', shortcut: 'T', desc: 'Adiciona blocos de texto ou parágrafos regulares no formato ocidental.', example: 'Clique para criar um título ou arraste para desenhar uma caixa de parágrafo.' },
@@ -25,7 +25,7 @@ const LumaTooltips = {
   'triangle': { name: 'Ferramenta Triângulo', group: 'Formas', shortcut: '', desc: 'Desenha triângulos vetoriais.', example: 'Use nas composições geométricas do seu layout.' },
   'polygon': { name: 'Ferramenta Polígono', group: 'Formas', shortcut: '', desc: 'Desenha polígonos vetoriais complexos.', example: 'Ajuste o número de lados no painel de propriedades após desenhar.' },
   'star': { name: 'Ferramenta Estrela', group: 'Formas', shortcut: '', desc: 'Desenha formas estelares.', example: 'Ideal para emblemas, promoções ou ícones de avaliação.' },
-  'line': { name: 'Ferramenta Linha', group: 'Formas', shortcut: 'L', desc: 'Desenha linhas retas e setas vetoriais.', example: 'Segure SHIFT para travar o ângulo a cada 45 graus.' },
+  'line': { name: 'Ferramenta Linha', group: 'Formas', shortcut: 'Shift+U', desc: 'Desenha linhas retas e setas vetoriais.', example: 'Segure SHIFT para travar o ângulo a cada 45 graus.' },
 
   // DADOS E AUTOMAÇÃO
   'var-data': { name: 'Vincular Campo', group: 'Dados', shortcut: 'X', desc: 'Conecta um elemento a uma variável dinâmica de banco de dados.', example: 'Use para criar templates que se auto-preenchem com dados de clientes.' },
@@ -37,13 +37,13 @@ const LumaTooltips = {
   'stamp': { name: 'Carimbo / Clonar', group: 'Pintura', shortcut: 'S', desc: 'Copia (clona) pixels de uma área da imagem para outra.', example: 'Segure ALT e clique na área que deseja copiar, depois pinte sobre o defeito para corrigi-lo.' },
   'bucket': { name: 'Lata de Tinta', group: 'Preenchimento', shortcut: 'G', desc: 'Preenche uma área fechada de cor sólida com um clique.', example: 'Ajuste a "Tolerância" no menu superior para controlar o alcance do preenchimento.' },
   'gradient': { name: 'Gradiente', group: 'Preenchimento', shortcut: 'G', desc: 'Cria uma transição de cores suave entre dois ou mais pontos.', example: 'Clique e arraste pelo canvas para definir a direção e o tamanho do degradê.' },
-  'blur': { name: 'Desfoque', group: 'Efeitos', shortcut: '', desc: 'Suaviza arestas duras ou detalhes numa imagem.', example: 'Pinte sobre o fundo da imagem para simular profundidade de campo.' },
-  'sharpen': { name: 'Nitidez', group: 'Efeitos', shortcut: 'O', desc: 'Aumenta o contraste nas bordas, dando mais nitidez aos detalhes.', example: 'Use com cautela em rostos para destacar apenas os olhos.' },
-  'smudge': { name: 'Ferramenta Dedo', group: 'Efeitos', shortcut: '', desc: 'Empurra e mistura cores na tela, como se fosse tinta fresca.', example: 'Ótimo para criar texturas artísticas ou corrigir pequenos fios de cabelo.' },
+  'blur': { name: 'Desfoque', group: 'Efeitos', shortcut: 'N', desc: 'Suaviza arestas duras ou detalhes numa imagem.', example: 'Pinte sobre o fundo da imagem para simular profundidade de campo.' },
+  'sharpen': { name: 'Nitidez', group: 'Efeitos', shortcut: 'N', desc: 'Aumenta o contraste nas bordas, dando mais nitidez aos detalhes.', example: 'Use com cautela em rostos para destacar apenas os olhos.' },
+  'smudge': { name: 'Ferramenta Dedo', group: 'Efeitos', shortcut: 'N', desc: 'Empurra e mistura cores na tela, como se fosse tinta fresca.', example: 'Ótimo para criar texturas artísticas ou corrigir pequenos fios de cabelo.' },
 
   // RECURSOS
   'resources': { name: 'Biblioteca', group: 'Recursos', shortcut: 'L', desc: 'Acesse assets, componentes e ícones salvos na nuvem.', example: 'Arraste elementos direto para a tela sem sair do Luma.' },
-  'ia-assist': { name: 'Assistente IA', group: 'Recursos', shortcut: 'Z', desc: 'Auxilia na criação e no tratamento de imagens usando inteligência artificial.', example: 'Selecione uma área e peça para a IA remover ou substituir um objeto.' },
+  'ia-assist': { name: 'Assistente IA', group: 'Recursos', shortcut: '', desc: 'Auxilia na criação e no tratamento de imagens usando inteligência artificial.', example: 'Selecione uma área e peça para a IA remover ou substituir um objeto.' },
 
   // UTILITÁRIOS
   'eyedrop': { name: 'Conta-gotas', group: 'Utilitários', shortcut: 'I', desc: 'Captura (amostra) a cor exata de qualquer pixel na tela.', example: 'A cor capturada vai automaticamente para sua paleta principal.' },
@@ -159,8 +159,8 @@ function showRichTooltip(btnEl, data, tooltipEl) {
     topPos = window.innerHeight - ttRect.height - 16;
   }
 
-  tooltipEl.style.left = \`\${leftPos}px\`;
-  tooltipEl.style.top = \`\${topPos}px\`;
+  tooltipEl.style.left = `${leftPos}px`;
+  tooltipEl.style.top = `${topPos}px`;
   
   // Trigger animation (fade + slide)
   requestAnimationFrame(() => {
