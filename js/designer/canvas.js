@@ -411,6 +411,7 @@ function dAttachMarquee(){
   frame._marqueeBound=true;
   frame.addEventListener('mousedown',dStartMarquee);
   frame.addEventListener('mousedown', function(e) {
+    if (e.button !== 0) return; // só botão esquerdo — direito abriria menu de contexto junto
     if (typeof dTool !== 'undefined' && dTool === 'ruler') {
       e.preventDefault();
       if (typeof dRulerStart === 'function') {
@@ -421,6 +422,9 @@ function dAttachMarquee(){
 }
 
 function dStartMarquee(e){
+  // Só o botão ESQUERDO cria/seleciona. Sem isto, o botão direito iniciava o desenho de forma
+  // ao mesmo tempo que abria o menu de contexto — impossível posicionar a forma. (Bug real.)
+  if(e.button!==0) return;
   // Ferramentas de seleção avançada — roteadas antes do guard canvas-layer
   if(dTool==='obj-select'){
     const frame=document.getElementById('d-canvas-frame');
