@@ -136,9 +136,17 @@ async function dEyedropPixel(x, y){
     ctx.restore();
   });
 
-  // Amostrar o pixel
-  var data=ctx.getImageData(x, y, 1, 1).data;
-  return {r:data[0], g:data[1], b:data[2], a:data[3]};
+  // A pintura do pincel vive num overlay ACIMA das camadas — compõe por último,
+  // senão o conta-gotas ignora os traços pintados.
+  var paintCv=document.getElementById('d-paint-canvas');
+  if(paintCv&&paintCv.width){ try{ ctx.drawImage(paintCv,0,0); }catch(e){} }
+
+  // Amostrar o pixel. getImageData lança se uma imagem sem CORS contaminou o canvas —
+  // devolve null e o chamador cai no fallback de leitura direta da camada.
+  try{
+    var data=ctx.getImageData(x, y, 1, 1).data;
+    return {r:data[0], g:data[1], b:data[2], a:data[3]};
+  }catch(e){ return null; }
 }
 
 // Auxiliar: retângulo arredondado no canvas 2D

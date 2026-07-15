@@ -1130,7 +1130,16 @@ function dRenderCanvas(){
       e.stopPropagation();
       if(dTool==='obj-select'){const _oFr=document.getElementById('d-canvas-frame');if(_oFr&&typeof dObjSelectStart==='function')dObjSelectStart(e,_oFr);return;}
       if(dTool==='quick-select'||dTool==='magic-wand'){_dAdvSelFromEvent(e);return;}
-      if(dTool==='eyedrop'){dEyedropFromLayer(lReal);return;}
+      if(dTool==='eyedrop'){
+        // Texto/forma: leitura direta (cor exata). Imagem/moldura: amostra o pixel
+        // composto (antes só avisava "funciona em texto e forma" e não coletava nada).
+        if((lReal.type==='image'||lReal.type==='frame')&&typeof dEyedropAt==='function'){
+          const _fr=document.getElementById('d-canvas-frame');
+          const _r=_fr.getBoundingClientRect(),_s=dZoomLevel/100;
+          dEyedropAt(Math.round((e.clientX-_r.left)/_s),Math.round((e.clientY-_r.top)/_s),lReal);
+        }else dEyedropFromLayer(lReal);
+        return;
+      }
       if(dTool==='bucket'){dBucketFillLayer(lReal);return;}
       if(dTool==='var-data'){ // Vincular campo: clicou no elemento → abre o seletor ancorado nele
         if(typeof dLayerIsBindable==='function' && !dLayerIsBindable(l)){ gToast('Essa camada não recebe Dado (só texto/imagem)'); return; }
@@ -1163,7 +1172,9 @@ function dRenderCanvas(){
           dStartDrag(e,lReal);
         } else gToast('🔒 Camada bloqueada. Clique no 🔓 para desbloquear.');
       }
-      else if(dTool==='stamp'&&dStampSource){dDoStamp(lReal);}
+      // Carimbo: NÃO tratar aqui — o mousedown apenas deixa o evento morrer e o 'click'
+      // do frame (que enxerga cliques sobre camadas, stamp é creationTool) chama dStampAt.
+      // Tratar nos dois caminhos carimbava DUAS vezes por clique.
     });
     // Botão direito → menu de contexto da camada (vincular dado, converter forma⇄moldura, etc.)
     el.addEventListener('contextmenu',e=>{ if(typeof dLayerContextMenu==='function') dLayerContextMenu(e,l.id); });
@@ -1756,8 +1767,22 @@ function dToggleRulers(){
   });
   const btn=document.getElementById('dt-rulers-btn');
   if(btn)btn.classList.toggle('active',dRulersOn);
-  if(dRulersOn)dRenderRulers();
+  if(dRulersOn){dRenderRulers();_dRulersTick();}
   gToast(dRulersOn?'✓ Réguas ativas':'Réguas ocultas');
+}
+// Watcher (só com réguas ativas): re-renderiza quando o FRAME muda de posição na tela —
+// cobre scroll, pan, zoom e relayout (barra do pincel abrindo, painel redimensionando).
+// Um listener de scroll não basta: relayout move a arte sem disparar scroll.
+let _dRulersLastPos='';
+function _dRulersTick(){
+  if(!dRulersOn)return;
+  const f=document.getElementById('d-canvas-frame');
+  if(f){
+    const r=f.getBoundingClientRect();
+    const key=Math.round(r.left)+','+Math.round(r.top)+','+Math.round(r.width);
+    if(key!==_dRulersLastPos){_dRulersLastPos=key;dRenderRulers();}
+  }
+  requestAnimationFrame(_dRulersTick);
 }
 function dRenderRulers(){
   if(!dRulersOn)return;
@@ -1767,17 +1792,25 @@ function dRenderRulers(){
   const step= f.w>1500 ? 100 : (f.w>800 ? 50 : 25);
   const rh=document.getElementById('d-ruler-h');
   const rv=document.getElementById('d-ruler-v');
-  if(!rh||!rv)return;
+  const frame=document.getElementById('d-canvas-frame');
+  if(!rh||!rv||!frame)return;
+  // Âncora: o "0" da régua é o canto do ARTBOARD na tela (compensa a centralização
+  // do workspace e o scroll do wrapper — antes as marcas partiam do canto do painel).
+  const fr=frame.getBoundingClientRect();
+  const offX=fr.left-rh.getBoundingClientRect().left;
+  const offY=fr.top-rv.getBoundingClientRect().top;
+  const maxW=rh.clientWidth, maxH=rv.clientHeight;
   // Limpar
   rh.innerHTML='';rv.innerHTML='';
-  // Marks horizontais — em coordenadas de tela
+  // Marks horizontais — em coordenadas de tela, ancoradas no frame
   for(let x=0;x<=f.w;x+=step){
-    const sx=x*scale;
+    const sx=offX+x*scale;
+    if(sx<-40||sx>maxW+40)continue; // fora da régua visível
     const mark=document.createElement('div');
     mark.className='ruler-mark h'+(x%(step*2)===0?' lg':'');
     mark.style.left=sx+'px';
     rh.appendChild(mark);
-    if(x%(step*2)===0&&x>0){
+    if(x%(step*2)===0){
       const lbl=document.createElement('div');
       lbl.className='ruler-mark-label h';
       lbl.style.left=sx+'px';
@@ -1787,12 +1820,13 @@ function dRenderRulers(){
   }
   // Marks verticais
   for(let y=0;y<=f.h;y+=step){
-    const sy=y*scale;
+    const sy=offY+y*scale;
+    if(sy<-40||sy>maxH+40)continue;
     const mark=document.createElement('div');
     mark.className='ruler-mark v'+(y%(step*2)===0?' lg':'');
     mark.style.top=sy+'px';
     rv.appendChild(mark);
-    if(y%(step*2)===0&&y>0){
+    if(y%(step*2)===0){
       const lbl=document.createElement('div');
       lbl.className='ruler-mark-label v';
       lbl.style.top=sy+'px';

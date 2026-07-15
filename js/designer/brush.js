@@ -2,7 +2,7 @@
  * js/designer/brush.js
  *
  * Sistema de pincel/borracha/carimbo: dPaintStart, dPaintMove, dPaintEnd,
- * dDoStamp, dBrushUpdate, dBrushSetPreset, dShowBrushBar.
+ * dStampAt, dBrushUpdate, dBrushSetPreset, dShowBrushBar.
  * Depende de: designer/canvas.js
  */
 
@@ -192,13 +192,17 @@ function dClearPaint(){
 let dStampSource=null;
 let dStampOffset=null; // offset fixo entre cliques quando "Alinhado" está ligado
 let dGradStart=null; // ponto inicial do arraste da ferramenta Gradiente
-function dDoStamp(targetLayer){
-  if(!dStampSource)return;
+// Carimba um clone da origem em (x,y) — caminho ÚNICO para clique sobre camada e
+// sobre o frame. Antes divergiam: sobre camada colava em +20/+20, zerava a origem e
+// trocava pra select — com um "Fundo" cobrindo o canvas, o modo Alinhado e o carimbo
+// repetido no cursor nunca rodavam.
+function dStampAt(x,y){
+  if(!dStampSource){gToast('Marque uma fonte primeiro (botão "Marcar fonte" ou tecla S)');return;}
   // Re-resolve a origem pelo id: undo/redo troca dLayers por clones e a referência
   // guardada vira um objeto morto (carimbava estado antigo; deletar a origem não invalidava)
-  const src=dLayers.find(x=>x.id===dStampSource.id);
+  const src=dLayers.find(l=>l.id===dStampSource.id);
   if(!src){
-    dStampSource=null;
+    dStampSource=null;dStampOffset=null;
     if(typeof dStampUpdateStatus==='function')dStampUpdateStatus();
     gToast('A origem do carimbo não existe mais — marque outra com S');
     return;
@@ -207,11 +211,17 @@ function dDoStamp(targetLayer){
   const clone=JSON.parse(JSON.stringify(src));
   clone.id='l-'+(++dLyrCnt);
   clone.name=src.name+' (cópia)';
-  clone.x=targetLayer.x+20;clone.y=targetLayer.y+20;
+  if(dStampAligned){
+    // Alinhado: mantém o mesmo deslocamento relativo à fonte entre cliques
+    if(!dStampOffset) dStampOffset={dx:x-src.x, dy:y-src.y};
+    clone.x=x-dStampOffset.dx; clone.y=y-dStampOffset.dy;
+  } else {
+    clone.x=x-Math.round(clone.w/2); clone.y=y-Math.round(clone.h/2);
+  }
   dLayers.push(clone);
   dRenderCanvas();dRenderLayersList();dStats();dMarkUnsaved();
-  gToast('Camada duplicada: '+clone.name);
-  dStampSource=null;dSetTool('select');
+  gToast('✓ "'+clone.name+'" carimbado!');
+  // mantém a fonte p/ múltiplos carimbos; "Limpar"/Esc reseta
 }
 
 /* ── CLICK ON CANVAS (add layer) ── */
@@ -247,28 +257,17 @@ document.getElementById('d-canvas-frame').addEventListener('click',function(e){
   else if(dTool==='count'){
     if(typeof dCountAdd==='function') dCountAdd(x,y);
   }
+  else if(dTool==='eyedrop'){
+    // Área sem camada (fundo do frame ou pixels pintados): amostra o composto.
+    // Clique sobre camada não chega aqui (o mousedown da camada trata e o guard
+    // onFrame barra o click) — sem amostragem dupla.
+    if(typeof dEyedropAt==='function') dEyedropAt(x,y);
+  }
   else if(dTool==='rect')dAddShapeAt(x,y);
   else if(dTool==='frame')dAddFrameAt(x,y);
   else if(dTool==='img')dAddImageAt(x,y);
   else if(dTool==='stamp'){
-    if(!dStampSource){gToast('Marque uma fonte primeiro (botão "Marcar fonte" ou tecla S)');}
-    else{
-      dHistoryPush();
-      const clone=JSON.parse(JSON.stringify(dStampSource));
-      clone.id='l-'+(++dLyrCnt);
-      clone.name=dStampSource.name+' (cópia)';
-      if(dStampAligned){
-        // Alinhado: mantém o mesmo deslocamento relativo à fonte entre cliques
-        if(!dStampOffset) dStampOffset={dx:x-dStampSource.x, dy:y-dStampSource.y};
-        clone.x=x-dStampOffset.dx; clone.y=y-dStampOffset.dy;
-      } else {
-        clone.x=x-Math.round(clone.w/2); clone.y=y-Math.round(clone.h/2);
-      }
-      dLayers.push(clone);
-      dRenderCanvas();dRenderLayersList();dStats();dMarkUnsaved();
-      gToast('✓ "'+clone.name+'" carimbado!');
-      // mantém a fonte p/ múltiplos carimbos; "Limpar"/Esc reseta
-    }
+    dStampAt(x,y);
   }
 });
 // Paint listeners no paint canvas diretamente (não canvas-frame)

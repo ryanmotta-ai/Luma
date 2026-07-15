@@ -139,24 +139,15 @@ function dAutoFitText(layerId){
 
 
 /* ══ EYEDROPPER COMO FERRAMENTA (tool=eyedrop, atalho I) ══ */
-function dEyedropFromLayer(sourceLayer){
-  let color=null;
-  if(sourceLayer.type==='text')color=sourceLayer.color;
-  else if(sourceLayer.type==='shape')color=sourceLayer.fill;
-  else if(sourceLayer.type==='frame'){
-    gToast('O conta-gotas funciona em texto e forma');
-    return;
-  }
-  if(!color){gToast('⚠ Camada sem cor');return;}
-  // Atualiza a cor do PINCEL e exibe num seletor
+// Aplica a cor coletada: swatch do pincel + camada selecionada (se texto/forma).
+// sourceId evita "aplicar" a cor da própria camada de origem em cima dela mesma.
+function _dEyedropApply(color, sourceId){
   dEyedropLastColor = color;
-  // Atualizar swatch do pincel
   const sw=document.getElementById('d-brush-color-sw');
   const pk=document.getElementById('d-brush-color-pick');
   if(sw)sw.style.background=color;
   if(pk)pk.value=color;
-  // Se há layer selecionado de texto/shape, aplicar nele
-  if(dSelId&&dSelId!==sourceLayer.id){
+  if(dSelId&&dSelId!==sourceId){
     const target=dLayers.find(x=>x.id===dSelId);
     if(target&&(target.type==='text'||target.type==='shape')){
       dHistoryPush();
@@ -168,6 +159,29 @@ function dEyedropFromLayer(sourceLayer){
     }
   }
   gToast('Cor coletada: '+color+' (selecione uma camada e clique aqui)');
+}
+
+// Leitura direta (exata) da cor declarada — caminho de texto/forma e fallback.
+function dEyedropFromLayer(sourceLayer){
+  let color=null;
+  if(sourceLayer.type==='text')color=sourceLayer.color;
+  else if(sourceLayer.type==='shape')color=sourceLayer.fill;
+  else{
+    gToast('Não deu para ler a cor deste ponto');
+    return;
+  }
+  if(!color){gToast('⚠ Camada sem cor');return;}
+  _dEyedropApply(color, sourceLayer.id);
+}
+
+// Amostra o PIXEL composto (imagens, molduras, pintura do pincel) via dEyedropPixel.
+// fallbackLayer: leitura direta se o pixel falhar (fora do canvas, transparente, CORS).
+async function dEyedropAt(x, y, fallbackLayer){
+  let px=null;
+  try{ px=await dEyedropPixel(x, y); }catch(e){ px=null; }
+  if(px&&px.a>0){ _dEyedropApply(_dRgbaToHex(px.r, px.g, px.b), fallbackLayer&&fallbackLayer.id); return; }
+  if(fallbackLayer){ dEyedropFromLayer(fallbackLayer); return; }
+  gToast('Nada para amostrar aqui');
 }
 let dEyedropLastColor='#FF9000';
 

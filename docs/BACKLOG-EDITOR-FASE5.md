@@ -25,22 +25,21 @@
 | 13 | **× do fechar invisível no tema claro** — `.pv-close-btn` usava branco fixo; agora tokens `--d-*` (afeta todos os modais que o usam) | `css/modules/designer.css` |
 | 14 | **Emoji ⌨ em botão** (proibitivo do DS) → SVG | `index.html:1929` |
 | 15 | Comentário/código mortos do Ctrl+Alt+V ("Alt = colar no lugar" nunca rodava; Alt é colar estilo) | `js/designer/publish.js` |
+| 16 | **Conta-gotas não amostrava pixel real** — o amostrador composto (`dEyedropPixel`) existia mas nunca era ligado à ferramenta; agora imagem/moldura/pintura amostram o pixel (com paint canvas composto e fallback pra leitura direta em canvas contaminado por CORS); texto/forma seguem com leitura exata | `js/designer/tools.js` (dEyedropAt), `measurement.js`, `canvas.js`, `brush.js` |
+| 17 | **Carimbo tinha dois caminhos divergentes** — sobre camada colava em +20/+20, zerava a fonte e voltava pra select (com "Fundo" cobrindo o canvas, o modo Alinhado nunca rodava); unificado em `dStampAt` (posiciona no cursor, fonte persiste, alinhado funciona) | `js/designer/brush.js` (dStampAt), `canvas.js` |
+| 18 | **Réguas desalinhadas do artboard** — o "0" partia do canto do painel e pan/scroll/relayout não re-renderizavam; agora ancoradas no frame real, com watcher em rAF que segue qualquer movimento da arte | `js/designer/canvas.js` (dRenderRulers/_dRulersTick) |
+| 19 | **Carimbo guardava referência viva** — `dStampAt` re-resolve a origem por id nos dois caminhos (undo/exclusão da origem não carimba mais estado morto) | `js/designer/brush.js` |
 
 ---
 
 ## 🔴 P0 — abertos, confirmar e corrigir primeiro
 
-| # | Bug | Cenário | Onde | Status |
-|---|---|---|---|---|
-| 16 | **Conta-gotas não amostra pixel real** — existe um amostrador completo (`dEyedropPixel`/`dEyedropPreview`, composita as camadas offscreen) que nunca é ligado à ferramenta; ela usa `dEyedropFromLayer` (só lê `l.color` de texto/forma). Clicar em imagem/pintura não pega cor | usuário clica numa foto com o conta-gotas → toast "funciona em texto e forma" | `js/designer/measurement.js:54,182,209` vs `canvas.js:1129` | auditoria (ALTA) — confirmar |
-| 17 | **Carimbo tem dois caminhos divergentes** — clique sobre camada (`dDoStamp`: cola em +20/+20, zera fonte, volta pra select) vs clique no frame (`brush.js`: posiciona no cursor, modo alinhado, fonte persiste). Com camada "Fundo" cobrindo o canvas, o caminho bom nunca roda | marcar fonte, clicar no canvas → clone cai em lugar errado e a ferramenta some | `canvas.js:1162` vs `brush.js:253-272` | auditoria (ALTA) — confirmar |
-| 18 | **Réguas (Shift+R/toggle) desalinhadas do artboard** — marcas partem do canto do painel, sem compensar offset de centralização nem scroll; nunca re-renderizam em pan/scroll | ativar réguas → "0" fora do canto da arte; rolar piora | `canvas.js:1758-1799` | auditoria (ALTA) — confirmar |
+_(vazio — os três P0 da rodada 1 foram corrigidos na rodada 2)_
 
 ## 🟠 P1 — abertos, corrigir na sequência
 
 | # | Bug | Onde | Status |
 |---|---|---|---|
-| 19 | Carimbo via tecla S guarda **referência viva** da camada (`dStampSource = l`); o caminho de clique-no-frame clona sem re-resolver por id → carimba estado morto após undo/exclusão (viola a regra "estado por ID") | `publish.js` (tecla S) + `brush.js:257` | auditoria (MÉDIA) |
 | 20 | Varinha mágica dimensiona o composite com `dArtboards[0].w/h` fixo em vez do artboard ativo → falha silenciosa fora da 1ª prancheta | `selection.js:712-716` | auditoria (MÉDIA) |
 | 21 | Varinha mágica ignora Shift/Alt (não soma/subtrai da seleção; quick-select respeita) | `canvas.js:604-618` | auditoria (MÉDIA) |
 | 22 | Seleção de Objeto: clique sem arrasto sobre a camada **desseleciona** (trata como retângulo < 4px) em vez de selecionar | `selection.js:116-122` | auditoria (MÉDIA) |
