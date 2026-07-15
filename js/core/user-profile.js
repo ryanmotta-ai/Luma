@@ -299,21 +299,27 @@ function gProfileCheckPasswordStrength(password) {
   }
 }
 
-// Simula alteração de senha
-function gProfileChangePassword(event) {
+// Altera a senha DE VERDADE (Supabase updateUser sobre a sessão ativa) via gResetPassword.
+// Nota: o Supabase troca a senha pela sessão logada e não valida a "senha atual" — o campo
+// existe por convenção de UX, mas não é verificado aqui (re-autenticar exigiria outro fluxo).
+async function gProfileChangePassword(event) {
   if (event) event.preventDefault();
 
-  const currentPass = document.getElementById('prof-input-password-current').value;
   const newPass = document.getElementById('prof-input-password-new').value;
   const confirmPass = document.getElementById('prof-input-password-confirm').value;
 
   if (newPass.length < 8) {
-    if (typeof gToast === 'function') gToast('⚠️ A nova senha deve ter no mínimo 8 caracteres.');
+    if (typeof gToast === 'function') gToast('⚠ A nova senha deve ter no mínimo 8 caracteres', 'error');
     return;
   }
 
   if (newPass !== confirmPass) {
-    if (typeof gToast === 'function') gToast('⚠️ As senhas não coincidem.');
+    if (typeof gToast === 'function') gToast('⚠ As senhas não coincidem', 'error');
+    return;
+  }
+
+  if (typeof gResetPassword !== 'function') {
+    if (typeof gToast === 'function') gToast('⚠ Não foi possível alterar a senha agora', 'error');
     return;
   }
 
@@ -322,18 +328,19 @@ function gProfileChangePassword(event) {
   btn.disabled = true;
   btn.innerHTML = `<span class="prof-spinner"></span> Atualizando...`;
 
-  setTimeout(() => {
-    // Resetar campos
+  const res = await gResetPassword(newPass);
+
+  btn.disabled = false;
+  btn.innerHTML = originalHTML;
+
+  if (res && res.ok) {
     document.getElementById('prof-form-seguranca').reset();
     gProfileCheckPasswordStrength('');
-
-    // Restaurar botão
-    btn.disabled = false;
-    btn.innerHTML = originalHTML;
-
-    if (typeof gToast === 'function') gToast('🔐 Senha redefinida com sucesso!');
+    if (typeof gToast === 'function') gToast('Senha alterada');
     gCloseUserProfileModal();
-  }, 700);
+  } else {
+    if (typeof gToast === 'function') gToast('⚠ ' + ((res && res.error) || 'Não foi possível alterar a senha'), 'error');
+  }
 }
 
 // Renderiza as estatísticas reais na tela
