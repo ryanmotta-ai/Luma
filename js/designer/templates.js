@@ -16,6 +16,8 @@ let dResize=null,dResizeSX,dResizeSY,dResizeW,dResizeH;
 let dVars=[],dAssets=[],dLyrCnt=100,dActiveTab='campaigns';
 let dFolders=[],dActiveTmplId=null,dFolderOpen={};
 let dArtboards=[],dActiveABId=null,dUseArtboards=true;
+const D_STUDIO_RECENTS_KEY='luma_studio_recents_v1';
+let dStudioRecoveredWork=false;
 
 // Garante que o contador de ids nunca fique atrás dos ids 'l-N' já existentes
 // (layers restaurados do localStorage / carregados de template) — senão ++dLyrCnt
@@ -559,13 +561,202 @@ function dInit(){
   if(typeof gHydrateFolders==='function'){
     gHydrateFolders(dFolders).then(changed=>{ if(changed && typeof dRenderFolders==='function') dRenderFolders(); });
   }
+  dStudioRecoveredWork=loaded&&dStudioHasMeaningfulLayers(dLayers);
   dHistoryReset();
   if(!loaded){dLayers=dBuildBlankLayers(dFmt);}
   if(typeof dRenderWorkspace==='function')dRenderWorkspace();
   dApplyFormat();dRenderCanvas();dRenderLayersList();
   setTimeout(() => { if (typeof dSetZoom === 'function') dSetZoom(28); else dFitToScreen(); }, 100);
   setTimeout(dEnsurePaintCanvas,100);
+  dStudioHomeEnsure();
+  dStudioHomeRender();
+  if(!dActiveTmplId) dStudioHomeOpen({initial:true});
   // Campanhas/Biblioteca agora são abas do painel direito (#d-right); a aba Campanhas já abre por padrão
+}
+
+/* ── HOME DO ESTÚDIO ── */
+function dStudioHasMeaningfulLayers(layers){
+  const usable=(layers||[]).filter(Boolean);
+  if(usable.length!==1) return usable.length>1;
+  const layer=usable[0];
+  return !(layer.type==='shape'&&String(layer.name||'').trim().toLowerCase()==='fundo');
+}
+
+function dStudioRecentRead(){
+  try{
+    const parsed=JSON.parse(localStorage.getItem(D_STUDIO_RECENTS_KEY)||'[]');
+    return Array.isArray(parsed)?parsed.slice(0,8):[];
+  }catch(e){ return []; }
+}
+
+function dStudioRecentWrite(items){
+  try{ localStorage.setItem(D_STUDIO_RECENTS_KEY,JSON.stringify((items||[]).slice(0,8))); }
+  catch(e){ /* Recentes são conveniência; o projeto continua salvo normalmente. */ }
+}
+
+function dStudioRememberRecent(folder,tmpl){
+  if(!folder||!tmpl) return;
+  const key=(tmpl.remoteId||tmpl.id)+'@'+(folder.remoteId||folder.id);
+  const item={
+    key:key,folderId:folder.id,folderRemoteId:folder.remoteId||'',
+    templateId:tmpl.id,templateRemoteId:tmpl.remoteId||'',openedAt:Date.now()
+  };
+  dStudioRecentWrite([item,...dStudioRecentRead().filter(r=>r&&r.key!==key)]);
+}
+
+function dStudioResolveRecent(item){
+  if(!item) return null;
+  const folder=dFolders.find(f=>f.id===item.folderId||(item.folderRemoteId&&f.remoteId===item.folderRemoteId));
+  if(!folder) return null;
+  const tmpl=(folder.templates||[]).find(t=>t.id===item.templateId||(item.templateRemoteId&&t.remoteId===item.templateRemoteId));
+  return tmpl?{folder:folder,tmpl:tmpl,openedAt:item.openedAt||0}:null;
+}
+
+function dStudioRelativeTime(value){
+  const elapsed=Math.max(0,Date.now()-(+value||0));
+  const min=Math.floor(elapsed/60000);
+  if(min<1) return 'Agora';
+  if(min<60) return 'Há '+min+' min';
+  const hours=Math.floor(min/60);
+  if(hours<24) return 'Há '+hours+' h';
+  const days=Math.floor(hours/24);
+  if(days===1) return 'Ontem';
+  if(days<7) return 'Há '+days+' dias';
+  return new Date(+value).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}).replace('.','');
+}
+
+function dStudioTemplateStatus(tmpl){
+  if(tmpl&&tmpl._syncPending) return {label:'Neste aparelho',kind:'local'};
+  if(tmpl&&tmpl.publishMeta&&tmpl.publishMeta.publicado) return {label:'Publicado',kind:'published'};
+  return {label:'Rascunho',kind:'draft'};
+}
+
+function dStudioHomeEnsure(){
+  const main=document.getElementById('d-main');
+  if(!main) return;
+  if(!document.getElementById('d-studio-home')){
+    const home=document.createElement('section');
+    home.id='d-studio-home';home.className='d-studio-home';home.setAttribute('aria-hidden','true');
+    main.appendChild(home);
+  }
+  const zone=document.getElementById('dt-zone-1');
+  if(zone&&!document.getElementById('d-studio-home-btn')){
+    const button=document.createElement('button');
+    button.id='d-studio-home-btn';button.type='button';button.className='dt-btn-action d-studio-home-btn';
+    button.title='Início do Estúdio';button.setAttribute('aria-label','Voltar ao início do Estúdio');
+    button.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>';
+    button.onclick=()=>dStudioHomeOpen();
+    zone.insertBefore(button,zone.children[1]||null);
+  }
+  const psd=document.getElementById('d-psd-input');
+  if(psd&&psd.dataset.studioHomeBound!=='1'){
+    psd.dataset.studioHomeBound='1';
+    psd.addEventListener('change',()=>{if(psd.files&&psd.files.length)dStudioHomeClose();});
+  }
+}
+
+function dStudioCampaignOptions(selectedId){
+  return dFolders.map(f=>'<option value="'+gEsc(f.id)+'" '+(f.id===selectedId?'selected':'')+'>'+gEsc(f.name)+'</option>').join('');
+}
+
+function dStudioHomeRender(){
+  const home=document.getElementById('d-studio-home');
+  if(!home) return;
+  const selectedFolder=dFolders.find(f=>f.id===dActiveTmplFolderId)||dFolders[0]||{};
+  const selected=selectedFolder.id||'';
+  const recent=dStudioRecentRead().map(dStudioResolveRecent).filter(Boolean).slice(0,6);
+  const cards=recent.map((entry,index)=>{
+    const t=entry.tmpl,f=entry.folder,status=dStudioTemplateStatus(t);
+    const size=DFMT_SIZES[t.fmt]||{w:t.w||1080,h:t.h||1920};
+    const hasLocalLayers=Array.isArray(t.layers)&&t.layers.length&&!t._needsLayersFetch;
+    const blank=hasLocalLayers&&!dStudioHasMeaningfulLayers(t.layers);
+    const orientation=size.w>size.h?'landscape':(size.w===size.h?'square':'portrait');
+    const thumb=blank
+      ?'<span class="dsh-blank-preview" aria-hidden="true"><span class="dsh-blank-sheet '+orientation+'"><i></i></span><span>Material em branco</span></span>'
+      :'<span class="dsh-thumb-fallback" aria-hidden="true"><span>'+gEsc(String(f.name||'L').charAt(0).toUpperCase())+'</span></span>';
+    const openedAt=Number(entry.openedAt);
+    const datetime=new Date(Number.isFinite(openedAt)&&openedAt>0?openedAt:Date.now()).toISOString();
+    return '<button type="button" class="dsh-recent-card '+(blank?'is-blank':'')+'" onclick="dStudioOpenRecent('+index+',this)" aria-label="Abrir '+gEsc(t.name)+'">'+
+      '<span class="dsh-thumb" id="dsh-thumb-'+index+'">'+thumb+'</span>'+
+      '<span class="dsh-card-copy"><strong title="'+gEsc(t.name)+'">'+gEsc(t.name)+'</strong><span>'+gEsc(f.name)+' · '+size.w+' × '+size.h+'</span></span>'+
+      '<span class="dsh-card-meta"><span class="dsh-status '+status.kind+'"><i></i>'+status.label+'</span><time datetime="'+datetime+'">'+dStudioRelativeTime(entry.openedAt)+'</time></span>'+
+    '</button>';
+  }).join('');
+  const recover=dStudioRecoveredWork?'<button type="button" class="dsh-recover" onclick="dStudioRecoverLocal()"><span class="dsh-recover-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></span><span><strong>Recuperar trabalho local</strong><small>Há alterações deste aparelho que ainda não pertencem a uma campanha.</small></span><svg class="dsh-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>':'';
+  const empty='<div class="dsh-empty"><span class="dsh-empty-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H10l2 2h5.5A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5z"/><path d="M9 12h6M12 9v6"/></svg></span><strong>Seus materiais recentes aparecerão aqui</strong><span>Crie um projeto ou abra um material em Campanhas para começar.</span></div>';
+  home.innerHTML='<div class="dsh-shell">'+
+    '<div class="dsh-intro"><header class="dsh-hero"><div class="dsh-eyebrow"><span></span>ESTÚDIO LUMA</div><h1 id="dsh-title" tabindex="-1">Dê forma à próxima campanha.</h1><p>Continue um material recente ou comece no formato certo, já conectado à campanha.</p></header></div>'+
+    '<section class="dsh-start" aria-labelledby="dsh-start-title"><div class="dsh-section-heading dsh-start-heading"><div><span>COMEÇAR</span><h2 id="dsh-start-title">Escolha seu ponto de partida</h2></div><label class="dsh-campaign"><span>Campanha de destino</span><select id="dsh-folder" '+(dFolders.length?'':'disabled')+'>'+dStudioCampaignOptions(selected)+'</select></label></div>'+
+    '<div class="dsh-actions"><button type="button" class="dsh-create-action" onclick="dStudioHomeNew()"><span class="dsh-action-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><span class="dsh-action-copy"><small>CRIAR DO ZERO</small><strong>Novo material</strong><span>Formatos recomendados, recentes e dimensões personalizadas.</span></span><span class="dsh-format-stack" aria-hidden="true"><i></i><i></i><i></i></span><svg class="dsh-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>'+
+    '<div class="dsh-imports"><div class="dsh-imports-head"><span>IMPORTAR ARQUIVO</span><small>Continue um trabalho existente</small></div><div class="dsh-import-actions"><button type="button" class="dsh-import-action" onclick="dStudioHomeImport(\'psd\')"><span class="dsh-action-icon ps"><strong>Ps</strong></span><span><strong>Photoshop</strong><small>Camadas editáveis</small></span><svg class="dsh-arrow" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button><button type="button" class="dsh-import-action" onclick="dStudioHomeImport(\'svg\')"><span class="dsh-action-icon ai"><strong>Ai</strong></span><span><strong>SVG / Illustrator</strong><small>Vetores e layouts</small></span><svg class="dsh-arrow" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button></div></div></div>'+recover+'</section>'+
+    '<section class="dsh-recents" aria-labelledby="dsh-recents-title"><div class="dsh-section-heading"><div><span>SEU RITMO</span><div class="dsh-title-line"><h2 id="dsh-recents-title">Abertos recentemente</h2><small class="dsh-count">'+recent.length+(recent.length===1?' material':' materiais')+'</small></div></div></div><div class="dsh-recent-grid">'+(cards||empty)+'</div></section>'+
+  '</div>';
+  recent.forEach((entry,index)=>dStudioRenderThumb(entry.tmpl,index));
+}
+
+function dStudioRenderThumb(tmpl,index){
+  if(!tmpl||!Array.isArray(tmpl.layers)||!tmpl.layers.length||tmpl._needsLayersFetch||!dStudioHasMeaningfulLayers(tmpl.layers)) return;
+  const host=document.getElementById('dsh-thumb-'+index);if(!host)return;
+  const size=DFMT_SIZES[tmpl.fmt]||{w:tmpl.w||1080,h:tmpl.h||1920};
+  const canvas=document.createElement('span');canvas.className='dsh-thumb-canvas';
+  canvas.style.width=size.w+'px';canvas.style.height=size.h+'px';host.innerHTML='';host.appendChild(canvas);
+  dRenderTemplateToDOM(canvas,tmpl);
+  requestAnimationFrame(()=>{
+    const scale=Math.min(host.clientWidth/size.w,host.clientHeight/size.h);
+    canvas.style.transform='translate(-50%,-50%) scale('+scale+')';
+  });
+}
+
+function dStudioHomeFolder(){
+  const select=document.getElementById('dsh-folder');
+  return dFolders.find(f=>f.id===(select&&select.value))||null;
+}
+
+function dStudioRequireFolder(){
+  const folder=dStudioHomeFolder();
+  if(folder) return folder;
+  gToast('Crie uma campanha antes de adicionar um material','error');
+  if(typeof dOpenNewFolder==='function') dOpenNewFolder();
+  return null;
+}
+
+function dStudioHomeNew(){
+  const folder=dStudioRequireFolder();if(!folder)return;
+  dActiveTmplFolderId=folder.id;dNewDocOpen();
+}
+
+function dStudioHomeImport(kind){
+  const folder=dStudioRequireFolder();if(!folder)return;
+  dActiveTmplFolderId=folder.id;dImportToFolder(folder.id,kind);
+}
+
+async function dStudioOpenRecent(index,card){
+  const entry=dStudioRecentRead().map(dStudioResolveRecent).filter(Boolean)[index];
+  if(!entry){gToast('Este material não está mais disponível','error');dStudioHomeRender();return;}
+  if(card){card.classList.add('is-opening');card.setAttribute('aria-busy','true');}
+  const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(!reduce)await new Promise(resolve=>setTimeout(resolve,120));
+  await dLoadTemplate(entry.tmpl,entry.folder);
+  if(card&&document.contains(card)){card.classList.remove('is-opening');card.removeAttribute('aria-busy');}
+}
+
+function dStudioRecoverLocal(){
+  dStudioRecoveredWork=false;dActiveTmplId=null;dActiveTmplFolderId=null;
+  const name=document.getElementById('dt-project-name');if(name)name.textContent='Trabalho recuperado';
+  if(typeof dSetSaveState==='function')dSetSaveState('unsaved');
+  dStudioHomeClose();gToast('Trabalho recuperado. Use “Salvar como” para vinculá-lo a uma campanha.');
+}
+
+function dStudioHomeOpen(options){
+  if(!(options&&options.initial)&&dActiveTmplId&&typeof dSave==='function'&&dSave({silent:true})===false) return;
+  dStudioHomeEnsure();dStudioHomeRender();document.body.classList.add('d-studio-home-open');
+  const home=document.getElementById('d-studio-home');if(home)home.setAttribute('aria-hidden','false');
+  requestAnimationFrame(()=>{const title=document.getElementById('dsh-title');if(title)title.focus();});
+}
+
+function dStudioHomeClose(){
+  document.body.classList.remove('d-studio-home-open');
+  const home=document.getElementById('d-studio-home');if(home)home.setAttribute('aria-hidden','true');
 }
 
 /* ── PASTAS (árvore de campanhas: card com capa + menu, expande templates inline) ── */
@@ -1110,6 +1301,8 @@ async function dLoadTemplate(tmpl,folder,options){
   if(projNameEl && tmpl) projNameEl.textContent = tmpl.name;
   document.querySelectorAll('.dt-fmt').forEach(b=>b.classList.toggle('active',b.dataset.fmt===dFmt));
   dRenderPagesTray();
+  if(folder)dStudioRememberRecent(folder,tmpl);
+  dStudioHomeClose();
   if(!(options&&options.silent)) gToast('Template "'+tmpl.name+'" carregado na prancheta ativa');
 }
 
@@ -1299,6 +1492,7 @@ function dConfirmFolder(){
   dFolderOpen[id]=true;
   dRenderFolders();
   dPersistFolders();
+  if(document.body.classList.contains('d-studio-home-open'))dStudioHomeRender();
   dCloseFolderModal();
   if(typeof fGetCampaigns==='function'&&typeof fRenderCatalogs==='function')try{const{ativas,outras}=fGetCampaigns();fRenderCatalogs(ativas,outras);}catch(e){}
   gToast('✓ Pasta "'+name+'" criada');
@@ -1532,6 +1726,9 @@ function dNewDocEnhanceModal(){
   const nameField=document.createElement('label');nameField.className='newdoc-field newdoc-name-field';nameField.htmlFor='nd-name';
   nameField.innerHTML='<span>NOME DO PROJETO</span><input class="modal-input" id="nd-name" maxlength="60" autocomplete="off" placeholder="Ex.: Campanha de inverno">';
   settingsTitle.insertAdjacentElement('afterend',nameField);
+  const campaignField=document.createElement('label');campaignField.className='newdoc-field newdoc-campaign-field';campaignField.htmlFor='nd-folder';
+  campaignField.innerHTML='<span>CAMPANHA</span><select class="modal-select" id="nd-folder"></select>';
+  nameField.insertAdjacentElement('afterend',campaignField);
   const w=document.getElementById('nd-w'),h=document.getElementById('nd-h'),unit=document.getElementById('nd-unit'),dpi=document.getElementById('nd-dpi'),bg=document.getElementById('nd-bg');
   w.parentElement.className='newdoc-field';
   h.parentElement.className='newdoc-input-action';h.parentElement.removeAttribute('style');h.parentElement.parentElement.className='newdoc-field';
@@ -1563,7 +1760,10 @@ function dNewDocEnhanceModal(){
     if(!dNewDocOpening)dNewDocDraftDirty=true;
     if(e.target.id==='nd-name'||e.target.id==='nd-bg-color')dNewDocUpdate(true);
   });
-  settings.addEventListener('change',()=>{if(!dNewDocOpening)dNewDocDraftDirty=true;});
+  settings.addEventListener('change',e=>{
+    if(!dNewDocOpening)dNewDocDraftDirty=true;
+    if(e.target.id==='nd-folder')dNewDocUpdate(true);
+  });
 }
 
 function dNewDocClose(force){
@@ -1588,6 +1788,9 @@ function dNewDocOpen(){
   
   dNewDocEnsureSmartTabs();
   const folder=dFolders.find(f=>f.id===dActiveTmplFolderId)||null;
+  const folderSelect=document.getElementById('nd-folder');
+  folderSelect.innerHTML=dStudioCampaignOptions((folder||dFolders[0]||{}).id||'');
+  folderSelect.disabled=!dFolders.length;
   document.getElementById('nd-name').value=dUniqueTemplateName(folder,'Novo projeto');
   const recentTab=document.querySelector('[data-smart-tab="recent"]');
   const recommendedTab=document.querySelector('[data-smart-tab="recommended"]');
@@ -1695,8 +1898,10 @@ function dNewDocUpdate(fromPreset){
   else if(w<16||h<16){message='Use dimensões de pelo menos 16 px';state='error';}
   else if(w>8000||h>8000){message='O limite é 8.000 px por lado';state='error';}
   else{
-    const folder=dFolders.find(f=>f.id===dActiveTmplFolderId)||null;
-    if(dUniqueTemplateName(folder,name)!==name){message='O nome será ajustado para evitar conflito';state='warning';}
+    const folderSelect=document.getElementById('nd-folder');
+    const folder=dFolders.find(f=>f.id===(folderSelect&&folderSelect.value))||null;
+    if(!folder){message='Escolha ou crie uma campanha';state='error';}
+    else if(dUniqueTemplateName(folder,name)!==name){message='O nome será ajustado para evitar conflito';state='warning';}
   }
   validation.textContent=message;validation.dataset.state=state;createBtn.disabled=state==='error';
 }
@@ -1730,7 +1935,9 @@ function dNewDocConfirm(){
     dUseArtboards = document.getElementById('nd-use-artboards').checked;
   }
   
-  const folder=dFolders.find(f=>f.id===dActiveTmplFolderId)||null;
+  const folderSelect=document.getElementById('nd-folder');
+  const folder=dFolders.find(f=>f.id===(folderSelect&&folderSelect.value))||null;
+  if(!folder){gToast('Escolha uma campanha para criar o material','error');return;}
   let createdName=requestedName;
   let creationSaved=true;
   dActiveTmplId=null;
@@ -1760,6 +1967,7 @@ function dNewDocConfirm(){
     }else if(typeof dSetSaveState==='function') dSetSaveState('saved');
     const projNameEl=document.getElementById('dt-project-name');
     if(projNameEl) projNameEl.textContent=projectName;
+    if(creationSaved)dStudioRememberRecent(folder,project);
     dRenderFolders();
     if(typeof dRenderPagesTray==='function') dRenderPagesTray();
   }else{
@@ -1768,6 +1976,7 @@ function dNewDocConfirm(){
   }
   dRememberNewDocPreset();
   dNewDocClose(true);
+  if(creationSaved)dStudioHomeClose();
   
   if(creationSaved){
     const msg=dUseArtboards
@@ -1961,6 +2170,7 @@ function dSvgImport(){
   inp.type='file'; inp.accept='.svg,.ai';
   inp.onchange=e=>{
     const file=e.target.files && e.target.files[0]; if(!file) return;
+    dStudioHomeClose();
     const reader=new FileReader();
     reader.onload=ev=>dSvgHandleFile(ev.target.result, file.name);
     reader.onerror=()=>gToast('⚠ Não foi possível ler o arquivo — verifique se é um .psd válido','error');
