@@ -240,14 +240,15 @@ input:focus:-webkit-autofill {
 <script src="js/core/splash.js"></script>
 
 <!-- ══ TOPBAR GLOBAL ══ -->
-<div id="global-topbar">
-  <div class="dm-logo dm-logo--h-branca top-dm-logo" role="img" aria-label="Luma"></div>
-  <div class="top-sep"></div>
-  <div class="mode-tabs">
-    <div class="mode-tab-pill" id="mode-tab-pill"></div>
-    <button class="mode-tab active" id="tab-fran" onclick="setMode('franqueado')">Franqueado</button>
-    <button class="mode-tab" id="tab-design" onclick="setMode('designer')">Designer</button>
+<header id="global-topbar">
+  <div class="top-brand-cluster">
+    <div class="dm-logo dm-logo--h-branca top-dm-logo" role="img" aria-label="Luma"></div>
   </div>
+  <nav class="mode-tabs" aria-label="Alternar área do Luma">
+    <div class="mode-tab-pill" id="mode-tab-pill"></div>
+    <button class="mode-tab active" id="tab-fran" onclick="setMode('franqueado')" aria-label="Abrir área do Franqueado"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 9l2-5h14l2 5"/><path d="M5 13v7h14v-7"/><path d="M9 20v-5h6v5"/><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/></svg><span>Franqueado</span></button>
+    <button class="mode-tab" id="tab-design" onclick="setMode('designer')" aria-label="Abrir área do Designer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m14.5 4.5 5 5L8 21H3v-5z"/><path d="m12 7 5 5"/><path d="M3 3h7"/></svg><span>Designer</span></button>
+  </nav>
   
   <!-- Cluster direito: contexto do modo · Ajuda · perfil · Sair -->
   <div class="top-right" id="topbar-right-global">
@@ -258,20 +259,19 @@ input:focus:-webkit-autofill {
     </div>
 
     <!-- Perfil de Usuário Unificado -->
-    <div class="top-profile-badge" id="topbar-user-profile" onclick="if(typeof gOpenUserProfileModal === 'function') gOpenUserProfileModal()" title="Configurações de Perfil">
+    <button type="button" class="top-profile-badge" id="topbar-user-profile" onclick="if(typeof gOpenUserProfileModal === 'function') gOpenUserProfileModal()" aria-haspopup="dialog" aria-controls="g-profile-modal" title="Abrir perfil e configurações">
       <!-- Vazio de propósito: gUpdateUserTopbar() preenche com o papel real (GESTÃO /
            EQUIPE DM / FRANQUEADO). Um placeholder fixo piscava "ADMIN" — palavra que nem
            existe no vocabulário de papéis do produto (04_DESIGN_SYSTEM §8). -->
-      <span class="admin-badge" id="topbar-user-role"></span>
       <div class="top-av" id="topbar-user-av"></div>
-      <span class="top-name" id="topbar-user-name">Ryan</span>
-    </div>
-
-    <button class="top-exit-btn" onclick="gLogout()" aria-label="Sair" title="Sair do Luma">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      <span class="top-profile-copy">
+        <span class="top-name" id="topbar-user-name">Ryan</span>
+        <span class="admin-badge" id="topbar-user-role"></span>
+      </span>
+      <svg class="top-profile-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
     </button>
   </div>
-</div>
+</header>
 
 <!-- ══ MODAL DE AJUDA / SUPORTE ══ -->
 <div id="g-help-modal" class="g-help-modal" role="dialog" aria-modal="true" aria-labelledby="g-help-title" onclick="if(event.target===this)gCloseHelp()">
@@ -1156,7 +1156,7 @@ input:focus:-webkit-autofill {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" stroke-dasharray="4 4"/><path d="M12 8v8M8 12h8"/></svg> Seleção Rápida
             </button>
             <button class="vat-item" onclick="dSelectPick('magic-wand',event);dToggleAllTools()">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21l10-10M13 3l1.5 3 3 1.5-3 1.5L13 12l-1.5-3-3-1.5 3-1.5zM19 9l2-2M15 5l2-2"/></svg> Varinha Mágica <span class="vat-shortcut">Y</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21l10-10M13 3l1.5 3 3 1.5-3 1.5L13 12l-1.5-3-3-1.5 3-1.5zM19 9l2-2M15 5l2-2"/></svg> Varinha Mágica <span class="vat-shortcut">Shift+V</span>
             </button>
           </div>
           <div class="vat-category">
@@ -1231,7 +1231,7 @@ input:focus:-webkit-autofill {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg> Desfoque
             </button>
             <button class="vat-item" onclick="dNitidezPick('sharpen',event);dToggleAllTools()">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 22 12 12 22 2 12"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> Nitidez <span class="vat-shortcut">O</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 22 12 12 22 2 12"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> Nitidez <span class="vat-shortcut">N</span>
             </button>
             <button class="vat-item" onclick="dNitidezPick('smudge',event);dToggleAllTools()">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11h.01M7 6h.01M11 3h.01M15 3h.01M19 6h.01M21 11h.01M19 16c-2 3-7 3-9-1-1-2-3-2-4-1-1 1-1 3 0 4 2 2 7 0 13-2Z"/></svg> Dedo
@@ -1926,7 +1926,7 @@ input:focus:-webkit-autofill {
           <div class="d-tut-hero-sub">Guia rápido de cada ferramenta. Comece abrindo o modelo de exemplo e mexendo nele.</div>
           <button class="d-btn-pri" onclick="gOpenHelp()" style="width:100%;justify-content:center;margin-top:8px"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:middle;margin-right:4px"><polygon points="5 3 19 12 5 21 5 3"/></svg>Ver tutoriais animados</button>
           <button class="d-btn-sec" onclick="dTutLoadExample()" style="width:100%;justify-content:center;margin-top:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><path d="M2 10h20"/></svg>Abrir modelo de exemplo</button>
-          <button class="d-btn-sec" onclick="dOpenCheat()" style="width:100%;justify-content:center;margin-top:6px">⌨ Ver todos os atalhos</button>
+          <button class="d-btn-sec" onclick="dOpenCheat()" style="width:100%;justify-content:center;margin-top:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9 14h6"/></svg>Ver todos os atalhos</button>
         </div>
         <div id="d-tutorial-body"></div>
       </div>
@@ -2567,55 +2567,88 @@ input:focus:-webkit-autofill {
 
 
 
-<!-- ══ CHEATSHEET MODAL ══ -->
+<!-- ══ CHEATSHEET MODAL — mapa espelha o handler real (publish.js "KEYBOARD SHORTCUTS") ══ -->
 <div id="d-cheat-modal" onclick="if(event.target===this)dCloseCheat()">
-  <div class="cheat-box">
+  <div class="cheat-box" role="dialog" aria-modal="true" aria-labelledby="d-cheat-title">
     <div class="cheat-head">
-      <h3>ATALHOS DE TECLADO</h3>
-      <button class="pv-close-btn" onclick="dCloseCheat()">×</button>
+      <h3 id="d-cheat-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9 14h6"/></svg>ATALHOS DE TECLADO</h3>
+      <button class="pv-close-btn" onclick="dCloseCheat()" aria-label="Fechar atalhos">×</button>
     </div>
     <div class="cheat-body">
       <div class="cheat-section">
         <h4>Ferramentas</h4>
-        <div class="cheat-row"><span>Mover</span><span class="cheat-key">V</span></div>
-        <div class="cheat-row"><span>Texto</span><span class="cheat-key">T</span></div>
-        <div class="cheat-row"><span>Retângulo</span><span class="cheat-key">R</span></div>
-        <div class="cheat-row"><span>Moldura de foto</span><span class="cheat-key">F</span></div>
-        <div class="cheat-row"><span>Imagem URL</span><span class="cheat-key">M</span></div>
-        <div class="cheat-row"><span>Pincel</span><span class="cheat-key">B</span></div>
-        <div class="cheat-row"><span>Borracha</span><span class="cheat-key">E</span></div>
-        <div class="cheat-row"><span>Carimbo / clonar</span><span class="cheat-key">S</span></div>
+        <div class="cheat-row"><span>Seleção / mover</span><span class="cheat-keys"><kbd>V</kbd></span></div>
+        <div class="cheat-row"><span>Alternar seleções (objeto, rápida, varinha)</span><span class="cheat-keys"><kbd>Shift</kbd><em>+</em><kbd>V</kbd></span></div>
+        <div class="cheat-row"><span>Mão (navegar)</span><span class="cheat-keys"><kbd>H</kbd></span></div>
+        <div class="cheat-row"><span>Mão temporária</span><span class="cheat-keys"><kbd>Espaço</kbd><span class="txt">segurar</span></span></div>
+        <div class="cheat-row"><span>Texto</span><span class="cheat-keys"><kbd>T</kbd></span></div>
+        <div class="cheat-row"><span>Alternar textos (vertical, máscara)</span><span class="cheat-keys"><kbd>Shift</kbd><em>+</em><kbd>T</kbd></span></div>
+        <div class="cheat-row"><span>Forma (última usada)</span><span class="cheat-keys"><kbd>U</kbd></span></div>
+        <div class="cheat-row"><span>Alternar formas</span><span class="cheat-keys"><kbd>Shift</kbd><em>+</em><kbd>U</kbd></span></div>
+        <div class="cheat-row"><span>Retângulo</span><span class="cheat-keys"><kbd>R</kbd></span></div>
+        <div class="cheat-row"><span>Elipse</span><span class="cheat-keys"><kbd>O</kbd></span></div>
+        <div class="cheat-row"><span>Moldura de foto</span><span class="cheat-keys"><kbd>F</kbd></span></div>
+        <div class="cheat-row"><span>Imagem URL</span><span class="cheat-keys"><kbd>M</kbd></span></div>
+        <div class="cheat-row"><span>Vincular campo</span><span class="cheat-keys"><kbd>X</kbd></span></div>
+        <div class="cheat-row"><span>QR Code</span><span class="cheat-keys"><kbd>Q</kbd></span></div>
+        <div class="cheat-row"><span>Conta-gotas</span><span class="cheat-keys"><kbd>I</kbd></span></div>
+        <div class="cheat-row"><span>Alternar utilitários (régua, nota…)</span><span class="cheat-keys"><kbd>Shift</kbd><em>+</em><kbd>I</kbd></span></div>
+      </div>
+      <div class="cheat-section">
+        <h4>Pintura</h4>
+        <div class="cheat-row"><span>Pincel</span><span class="cheat-keys"><kbd>B</kbd></span></div>
+        <div class="cheat-row"><span>Borracha</span><span class="cheat-keys"><kbd>E</kbd></span></div>
+        <div class="cheat-row"><span>Carimbo / clonar</span><span class="cheat-keys"><kbd>S</kbd></span></div>
+        <div class="cheat-row"><span>Balde de tinta</span><span class="cheat-keys"><kbd>G</kbd></span></div>
+        <div class="cheat-row"><span>Gradiente</span><span class="cheat-keys"><kbd>Shift</kbd><em>+</em><kbd>G</kbd></span></div>
+        <div class="cheat-row"><span>Desfoque / nitidez / dedo</span><span class="cheat-keys"><kbd>N</kbd><em>e</em><kbd>Shift</kbd><em>+</em><kbd>N</kbd></span></div>
+        <div class="cheat-row"><span>Tamanho do pincel</span><span class="cheat-keys"><kbd>[</kbd><em>·</em><kbd>]</kbd></span></div>
+        <div class="cheat-row"><span>Limpar pintura (pincel ativo)</span><span class="cheat-keys"><kbd>Del</kbd></span></div>
+        <div class="cheat-row"><span>Máscara na camada</span><span class="cheat-keys"><kbd>K</kbd></span></div>
+        <div class="cheat-row"><span>Concluir / cancelar máscara</span><span class="cheat-keys"><kbd>Enter</kbd><em>·</em><kbd>Esc</kbd></span></div>
+      </div>
+      <div class="cheat-section">
+        <h4>Camadas</h4>
+        <div class="cheat-row"><span>Duplicar</span><span class="cheat-keys"><kbd>Ctrl</kbd><em>+</em><kbd>D</kbd></span></div>
+        <div class="cheat-row"><span>Excluir</span><span class="cheat-keys"><kbd>Del</kbd></span></div>
+        <div class="cheat-row"><span>Copiar / colar</span><span class="cheat-keys"><kbd>Ctrl</kbd><em>+</em><kbd>C</kbd><em>·</em><kbd>V</kbd></span></div>
+        <div class="cheat-row"><span>Colar no mesmo lugar</span><span class="cheat-keys"><kbd>Ctrl</kbd><em>+</em><kbd>Shift</kbd><em>+</em><kbd>V</kbd></span></div>
+        <div class="cheat-row"><span>Copiar / colar estilo</span><span class="cheat-keys"><kbd>Ctrl</kbd><em>+</em><kbd>Alt</kbd><em>+</em><kbd>C</kbd><em>·</em><kbd>V</kbd></span></div>
+        <div class="cheat-row"><span>Agrupar</span><span class="cheat-keys"><kbd>Ctrl</kbd><em>+</em><kbd>G</kbd></span></div>
+        <div class="cheat-row"><span>Desagrupar</span><span class="cheat-keys"><kbd>Ctrl</kbd><em>+</em><kbd>Shift</kbd><em>+</em><kbd>G</kbd></span></div>
+        <div class="cheat-row"><span>Renomear camada</span><span class="cheat-keys"><kbd>F2</kbd></span></div>
+        <div class="cheat-row"><span>Multi-seleção</span><span class="cheat-keys"><kbd>Shift</kbd><em>+</em><span class="txt">clique</span></span></div>
+        <div class="cheat-row"><span>Renomear na lista</span><span class="cheat-keys"><span class="txt">duplo clique</span></span></div>
       </div>
       <div class="cheat-section">
         <h4>Histórico</h4>
-        <div class="cheat-row"><span>Desfazer</span><span class="cheat-key">Ctrl + Z</span></div>
-        <div class="cheat-row"><span>Refazer</span><span class="cheat-key">Ctrl + Shift + Z</span></div>
-        <h4 style="margin-top:14px">Camadas</h4>
-        <div class="cheat-row"><span>Duplicar</span><span class="cheat-key">Ctrl + D</span></div>
-        <div class="cheat-row"><span>Deletar</span><span class="cheat-key">Del</span></div>
-        <div class="cheat-row"><span>Agrupar</span><span class="cheat-key">Ctrl + G</span></div>
-        <div class="cheat-row"><span>Desagrupar</span><span class="cheat-key">Ctrl + Shift + G</span></div>
-        <div class="cheat-row"><span>Multi-seleção</span><span class="cheat-key">Shift + clique</span></div>
-        <div class="cheat-row"><span>Renomear</span><span class="cheat-key">duplo clique na lista</span></div>
+        <div class="cheat-row"><span>Desfazer</span><span class="cheat-keys"><kbd>Ctrl</kbd><em>+</em><kbd>Z</kbd></span></div>
+        <div class="cheat-row"><span>Refazer</span><span class="cheat-keys"><kbd>Ctrl</kbd><em>+</em><kbd>Shift</kbd><em>+</em><kbd>Z</kbd></span></div>
+        <div class="cheat-row"><span>Refazer (alternativo)</span><span class="cheat-keys"><kbd>Ctrl</kbd><em>+</em><kbd>Y</kbd></span></div>
       </div>
       <div class="cheat-section">
-        <h4>Movimento</h4>
-        <div class="cheat-row"><span>Mover 1px</span><span class="cheat-key">setas</span></div>
-        <div class="cheat-row"><span>Mover 10px</span><span class="cheat-key">Shift + setas</span></div>
-        <div class="cheat-row"><span>Edição inline</span><span class="cheat-key">duplo clique no texto</span></div>
-        <div class="cheat-row"><span>Cancelar / fechar</span><span class="cheat-key">Esc</span></div>
+        <h4>Movimento &amp; edição</h4>
+        <div class="cheat-row"><span>Mover 1px</span><span class="cheat-keys"><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd></span></div>
+        <div class="cheat-row"><span>Mover 10px</span><span class="cheat-keys"><kbd>Shift</kbd><em>+</em><span class="txt">setas</span></span></div>
+        <div class="cheat-row"><span>Editar texto no canvas</span><span class="cheat-keys"><span class="txt">duplo clique</span></span></div>
+        <div class="cheat-row"><span>Cancelar / voltar à seleção</span><span class="cheat-keys"><kbd>Esc</kbd></span></div>
       </div>
       <div class="cheat-section">
-        <h4>Zoom</h4>
-        <div class="cheat-row"><span>Fit to screen</span><span class="cheat-key">Ctrl + 0</span></div>
-        <div class="cheat-row"><span>Zoom 100%</span><span class="cheat-key">Ctrl + 1</span></div>
-        <div class="cheat-row"><span>Zoom no cursor</span><span class="cheat-key">Ctrl + scroll</span></div>
-        <h4 style="margin-top:14px">Geral</h4>
-        <div class="cheat-row"><span>Publicar</span><span class="cheat-key">Ctrl + S</span></div>
-        <div class="cheat-row"><span>Pré-visualização</span><span class="cheat-key">P</span></div>
-        <div class="cheat-row"><span>Mostrar atalhos</span><span class="cheat-key">?</span></div>
+        <h4>Zoom &amp; vista</h4>
+        <div class="cheat-row"><span>Ajustar à tela</span><span class="cheat-keys"><kbd>Ctrl</kbd><em>+</em><kbd>0</kbd></span></div>
+        <div class="cheat-row"><span>Zoom 100%</span><span class="cheat-keys"><kbd>Ctrl</kbd><em>+</em><kbd>1</kbd></span></div>
+        <div class="cheat-row"><span>Aproximar / afastar</span><span class="cheat-keys"><kbd>Ctrl</kbd><em>+</em><kbd>+</kbd><em>·</em><kbd>−</kbd></span></div>
+        <div class="cheat-row"><span>Zoom no cursor</span><span class="cheat-keys"><kbd>Ctrl</kbd><em>+</em><span class="txt">scroll</span></span></div>
+      </div>
+      <div class="cheat-section">
+        <h4>Geral</h4>
+        <div class="cheat-row"><span>Salvar template</span><span class="cheat-keys"><kbd>Ctrl</kbd><em>+</em><kbd>S</kbd></span></div>
+        <div class="cheat-row"><span>Pré-visualização</span><span class="cheat-keys"><kbd>P</kbd></span></div>
+        <div class="cheat-row"><span>Recursos / assets</span><span class="cheat-keys"><kbd>L</kbd></span></div>
+        <div class="cheat-row"><span>Mostrar atalhos</span><span class="cheat-keys"><kbd>?</kbd></span></div>
       </div>
     </div>
+    <div class="cheat-foot"><span><kbd>Esc</kbd> fecha</span><span><kbd>?</kbd> abre a qualquer momento</span></div>
   </div>
 </div>
 

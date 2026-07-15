@@ -1089,8 +1089,9 @@ body.theme-light .dp-dado-ex {
 }
 .pv-device-btn.active{background:rgba(255,255,255,.1);color:#fff;}
 .pv-close-btn{
-  width:32px;height:32px;border-radius:8px;border:none;background:rgba(255,255,255,.08);
-  color:rgba(255,255,255,.6);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;
+  /* Tokens (não rgba branco fixo): no tema claro o × ficava branco sobre branco. */
+  width:32px;height:32px;border-radius:8px;border:none;background:var(--d-surf2);
+  color:var(--d-text2);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;
   transition:all .15s;
 }
 .pv-close-btn:hover{background:rgba(200,24,24,.4);color:#fff;}

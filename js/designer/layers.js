@@ -3147,8 +3147,127 @@ function dRenameLayer(id, e){
 }
 
 
-function dOpenCheat(){document.getElementById('d-cheat-modal').classList.add('open');}
-function dCloseCheat(){document.getElementById('d-cheat-modal').classList.remove('open');}
+let dCheatLastTrigger=null,dCheatCategory='all';
+
+function dCheatNormalize(value){
+  return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+}
+
+function dCheatEnhance(){
+  const modal=document.getElementById('d-cheat-modal');
+  if(!modal||modal.dataset.enhanced==='1')return;
+  modal.dataset.enhanced='1';modal.setAttribute('aria-hidden','true');
+  const box=modal.querySelector('.cheat-box'),head=modal.querySelector('.cheat-head'),body=modal.querySelector('.cheat-body');
+  if(!box||!head||!body)return;
+  body.id='d-cheat-body';
+
+  const close=modal.querySelector('.pv-close-btn');
+  if(close){
+    close.classList.add('cheat-close');
+    close.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+  }
+
+  const tools=document.createElement('div');tools.className='cheat-tools';
+  tools.innerHTML='<div class="cheat-search-row"><label class="cheat-search" for="d-cheat-search"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><span class="cheat-sr-only">Buscar atalhos</span><input id="d-cheat-search" type="search" autocomplete="off" spellcheck="false" placeholder="Buscar comando ou tecla" aria-controls="d-cheat-body"><kbd>/</kbd></label><button type="button" class="cheat-search-clear" aria-label="Limpar busca"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button><output id="d-cheat-count" class="cheat-result-count" aria-live="polite"></output></div><nav class="cheat-categories" aria-label="Categorias de atalhos"></nav>';
+  head.insertAdjacentElement('afterend',tools);
+
+  const nav=tools.querySelector('.cheat-categories');
+  const categories=[{id:'all',label:'Todos'}];
+  body.querySelectorAll('.cheat-section').forEach((section,index)=>{
+    const heading=section.querySelector('h4');if(!heading)return;
+    const id='cheat-cat-'+index,headingId=id+'-title';
+    section.id=id;section.dataset.category=id;section.setAttribute('role','region');section.setAttribute('aria-labelledby',headingId);
+    heading.id=headingId;heading.dataset.count=section.querySelectorAll('.cheat-row').length;
+    categories.push({id:id,label:heading.textContent.trim()});
+  });
+  categories.forEach(category=>{
+    const button=document.createElement('button');button.type='button';button.className='cheat-category';
+    button.dataset.category=category.id;button.textContent=category.label;
+    button.setAttribute('aria-pressed',category.id==='all'?'true':'false');
+    button.onclick=()=>dCheatSetCategory(category.id);
+    nav.appendChild(button);
+  });
+  nav.addEventListener('keydown',e=>{
+    if(e.key!=='ArrowLeft'&&e.key!=='ArrowRight')return;
+    const buttons=[...nav.querySelectorAll('button')],index=buttons.indexOf(document.activeElement);
+    if(index<0)return;e.preventDefault();
+    buttons[(index+(e.key==='ArrowRight'?1:-1)+buttons.length)%buttons.length].focus();
+  });
+
+  const empty=document.createElement('div');empty.id='d-cheat-empty';empty.className='cheat-empty';empty.hidden=true;
+  empty.innerHTML='<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><strong>Nenhum atalho encontrado</strong><span>Tente buscar pela ação ou pela tecla.</span>';
+  body.appendChild(empty);
+
+  const input=tools.querySelector('#d-cheat-search'),clear=tools.querySelector('.cheat-search-clear');
+  input.addEventListener('input',dCheatFilter);
+  clear.addEventListener('click',()=>{input.value='';dCheatFilter();input.focus();});
+  const foot=modal.querySelector('.cheat-foot');
+  if(foot&&!foot.querySelector('[data-cheat-search-hint]')){
+    const hint=document.createElement('span');hint.dataset.cheatSearchHint='1';hint.innerHTML='<kbd>/</kbd> buscar';foot.appendChild(hint);
+  }
+}
+
+function dCheatSetCategory(category){
+  dCheatCategory=category||'all';dCheatFilter();
+}
+
+function dCheatFilter(){
+  const modal=document.getElementById('d-cheat-modal');if(!modal)return;
+  const input=modal.querySelector('#d-cheat-search'),query=dCheatNormalize(input&&input.value);
+  let visible=0;
+  modal.querySelectorAll('.cheat-section').forEach(section=>{
+    const categoryMatch=dCheatCategory==='all'||section.dataset.category===dCheatCategory;
+    let sectionVisible=0;
+    section.querySelectorAll('.cheat-row').forEach(row=>{
+      const show=categoryMatch&&(!query||dCheatNormalize(row.textContent).includes(query));
+      row.hidden=!show;if(show){sectionVisible++;visible++;}
+    });
+    section.hidden=!sectionVisible;
+  });
+  modal.querySelectorAll('.cheat-category').forEach(button=>{
+    const active=button.dataset.category===dCheatCategory;
+    button.classList.toggle('active',active);button.setAttribute('aria-pressed',active?'true':'false');
+  });
+  const body=modal.querySelector('.cheat-body');if(body)body.classList.toggle('is-filtered',dCheatCategory!=='all');
+  const count=modal.querySelector('#d-cheat-count');if(count)count.textContent=visible+(visible===1?' atalho':' atalhos');
+  const empty=modal.querySelector('#d-cheat-empty');if(empty)empty.hidden=visible!==0;
+  const clear=modal.querySelector('.cheat-search-clear');if(clear)clear.hidden=!query;
+}
+
+function dOpenCheat(){
+  const m=document.getElementById('d-cheat-modal');if(!m)return;
+  dCheatEnhance();
+  dCheatLastTrigger=document.activeElement instanceof HTMLElement?document.activeElement:null;
+  dCheatCategory='all';
+  const input=m.querySelector('#d-cheat-search');if(input)input.value='';
+  dCheatFilter();m.classList.add('open');m.setAttribute('aria-hidden','false');
+  requestAnimationFrame(()=>{if(input)input.focus();});
+}
+function dCloseCheat(){
+  const m=document.getElementById('d-cheat-modal');if(!m)return;
+  m.classList.remove('open');
+  // Devolve o foco a quem abriu (mesmo padrão do modal de publicar) — sem isso
+  // o foco morre no botão escondido e o teclado "some" para leitores de tela.
+  const t=dCheatLastTrigger;dCheatLastTrigger=null;
+  if(t&&document.contains(t))t.focus();
+  m.setAttribute('aria-hidden','true');
+}
+// Esc fecha o cheatsheet. Captura + stopImmediatePropagation para o Esc não vazar
+// pro handler global do canvas (que trocaria a ferramenta pra seleção junto).
+document.addEventListener('keydown',e=>{
+  const m=document.getElementById('d-cheat-modal');
+  if(!m||!m.classList.contains('open'))return;
+  if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();dCloseCheat();}
+  else if(e.key==='/'&&document.activeElement!==m.querySelector('#d-cheat-search')){
+    e.preventDefault();e.stopImmediatePropagation();m.querySelector('#d-cheat-search')?.focus();
+  }else if(e.key==='Tab'){
+    const focusable=[...m.querySelectorAll('button:not([disabled]),input:not([disabled])')].filter(el=>!el.hidden&&el.offsetParent!==null);
+    if(!focusable.length)return;
+    const first=focusable[0],last=focusable[focusable.length-1];
+    if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+    else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+  }
+},true);
 
 
 
