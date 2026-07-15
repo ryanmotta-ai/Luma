@@ -250,7 +250,7 @@ input:focus:-webkit-autofill {
     <button class="mode-tab" id="tab-design" onclick="setMode('designer')" aria-label="Abrir área do Designer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m14.5 4.5 5 5L8 21H3v-5z"/><path d="m12 7 5 5"/><path d="M3 3h7"/></svg><span>Designer</span></button>
   </nav>
   
-  <!-- Cluster direito: contexto do modo · Ajuda · perfil · Sair -->
+  <!-- Cluster direito: contexto do modo e perfil -->
   <div class="top-right" id="topbar-right-global">
     <!-- Elementos de Contexto (específicos de cada modo) -->
     <!-- Pill de contexto removida: duplicava o f-ctx-tag do header do chat (fUpdateCtx guarda com if(pill)) -->
@@ -647,12 +647,29 @@ input:focus:-webkit-autofill {
         </div>
         <aside id="f-live-preview" aria-label="Prévia em tempo real">
           <div class="lp-head">
-            <div class="lp-title">Prévia ao Vivo</div>
-            <div class="lp-sync">
-              <span class="lp-sync-dot"></span><span class="lp-sync-text" id="lp-sub">aguardando dados...</span>
+            <div class="lp-title-group">
+              <span class="lp-title-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+              </span>
+              <div>
+                <span class="lp-kicker">Prova digital</span>
+                <div class="lp-title">Prévia ao Vivo</div>
+              </div>
+            </div>
+            <div class="lp-head-actions">
+              <div class="lp-sync" role="status" aria-live="polite">
+                <span class="lp-sync-dot"></span><span class="lp-sync-text" id="lp-sub">aguardando dados...</span>
+              </div>
+              <button type="button" class="lp-mobile-close" aria-label="Fechar prévia" onclick="document.getElementById('f-live-preview').classList.remove('open');var b=document.getElementById('mobile-preview-toggle');if(b)b.focus()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+              </button>
             </div>
           </div>
           <div class="lp-stage">
+            <div class="lp-stage-meta" aria-hidden="true">
+              <span>Área de prova</span>
+              <span class="lp-stage-hint">Clique na arte para editar</span>
+            </div>
             <!-- Estado vazio contextual (copy trocada por fLpShowEmpty conforme o passo do fluxo) -->
             <div class="lp-empty" id="lp-empty" aria-hidden="true">
               <div class="lp-empty-art"></div>
@@ -662,9 +679,9 @@ input:focus:-webkit-autofill {
             <div class="lp-canvas-wrap">
               <canvas class="lp-canvas" id="lp-canvas" aria-label="Prévia do template"></canvas>
             </div>
+            <!-- Avisos persistentes (faltou preencher / texto estourando / foto baixa-res) -->
+            <div class="lp-warnings" id="lp-warnings" aria-label="Pendências da arte" aria-live="polite"></div>
           </div>
-          <!-- Avisos persistentes (faltou preencher / texto estourando / foto baixa-res) -->
-          <div class="lp-warnings" id="lp-warnings" aria-live="polite"></div>
           <div class="lp-toolbar">
             <div class="lp-tool-left">
               <button class="lp-tool-btn" onclick="fLpRefit()" title="Reajustar a prévia à tela" aria-label="Reajustar a prévia à tela">
@@ -675,9 +692,12 @@ input:focus:-webkit-autofill {
               <span class="lp-tool-text lp-tool-dim" id="lp-dim"></span>
             </div>
             <div class="lp-tool-right">
-              <span class="lp-tool-text" id="lp-guides-label">Guias</span>
-              <div class="lp-toggle" id="lp-guides-toggle" role="switch" aria-checked="false" aria-labelledby="lp-guides-label" tabindex="0" title="Mostrar guias de composição (margens e terços)" onclick="fLpToggleGuides()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();fLpToggleGuides();}">
-                <div class="lp-toggle-knob"></div>
+              <!-- 3 estados (era liga/desliga de Guias): Limpo · Guias · Ambiente.
+                   "Ambiente" mostra como o Stories cobre a arte (mesma safe zone do linter). -->
+              <div class="lp-viewseg" role="radiogroup" aria-label="Sobreposição da prévia">
+                <button type="button" class="lp-viewseg-btn active" id="lp-view-off" role="radio" aria-checked="true" title="Só a arte, sem sobreposição" onclick="fLpSetView('off')">Limpo</button>
+                <button type="button" class="lp-viewseg-btn" id="lp-view-guides" role="radio" aria-checked="false" title="Guias de composição (margens e terços)" onclick="fLpSetView('guides')">Guias</button>
+                <button type="button" class="lp-viewseg-btn" id="lp-view-env" role="radio" aria-checked="false" title="Como fica postado no Stories (áreas que o app cobre)" onclick="fLpSetView('env')">Ambiente</button>
               </div>
             </div>
           </div>
@@ -2056,220 +2076,282 @@ input:focus:-webkit-autofill {
   <canvas id="f-bulk-hover-preview-canvas" style="width:100%;height:auto;border-radius:4px;display:block;border:1px solid var(--gray-light,#F2F2F2)"></canvas>
 </div>
 
-<!-- 4.3 — Luma Sheets: geração em lote -->
+<!-- 4.3 — Luma Sheets: workspace de geração em lote -->
 <div class="modal-overlay" id="f-bulk-modal">
-  <div class="modal f-bulk-modal-box" style="max-width:1120px;width:96vw;max-height:92vh;display:flex;flex-direction:column;padding:20px;border-radius:12px;overflow:hidden;position:relative">
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:4px">
-      <div class="modal-title" style="display:flex;align-items:center;gap:8px;margin:0"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Luma Sheets <span class="f-bulk-title-tag">Geração em lote</span></div>
-      <button type="button" class="f-bulk-faq-btn" onclick="fBulkToggleFaq()" title="Dúvidas frequentes">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        Dúvidas frequentes
-      </button>
-    </div>
-    <p style="font-size:12px;color:var(--text-3,#6B6B6B);line-height:1.5;margin:0 0 16px">Preencha a tabela abaixo com as suas ofertas, cole dados do Excel ou envie um arquivo de planilha para criar dezenas de artes juntas.</p>
-
-    <!-- Duas colunas: controles à esquerda, planilha à direita -->
-    <div style="display:flex;gap:20px;flex:1;min-height:0;overflow:hidden;margin-bottom:12px">
-
-      <!-- Coluna esquerda: assistente + formatos -->
-      <div style="width:380px;flex-shrink:0;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding-right:12px;border-right:1px solid var(--gray-mid,#E2E2E2)">
-
-        <!-- Assistente de IA + exemplos -->
-        <div class="f-ai-prompt-block f-bulk-sec f-bulk-sec--ai" id="f-ai-prompt-block" style="margin-bottom:0">
-          <div style="font-size:12px;color:var(--text-2);margin-bottom:6px;display:flex;align-items:center;gap:5px">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
-            <strong>Assistente de Preenchimento por IA</strong>
-          </div>
-          <textarea id="f-bulk-ai-raw-text" placeholder="Escreva ou fale suas ofertas… Ex: 'Hambúrguer clássico por R$ 25 hoje. Amanhã pizza de calabresa de 50 por 39.'" style="width:100%;height:60px;font-size:11px;padding:8px;border:1px solid var(--gray-mid);border-radius:6px;background:var(--white);color:var(--text);resize:none;margin-bottom:6px"></textarea>
-          <div style="display:flex;gap:8px;align-items:center">
-            <button class="d-btn-pri" style="font-size:11px;padding:6px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:5px" onclick="fBulkFillWithAI()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v4M3 5h4M6 17v4M4 19h4M13 3l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5z"/></svg>Preencher Tabela</button>
-            <button class="d-btn-sec" id="f-bulk-mic-btn" onclick="fStartSpeech(event, 'f-bulk-ai-raw-text')" style="padding:0;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0" title="Falar ofertas por voz 🎙️">
-              <svg class="mic-svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
-            </button>
-            <button class="d-btn-sec" style="font-size:11px;padding:6px 12px;margin-left:auto;cursor:pointer" onclick="fToggleAIPrompt()">Ver prompt</button>
-          </div>
-
-          <!-- Exemplos por tipo (DEMONSTRAÇÃO — não lê o cardápio real) -->
-          <div style="margin-top:12px;padding:10px 12px;border-radius:8px;background:rgba(124,110,255,.06);border:1px dashed rgba(124,110,255,.35)">
-            <div style="font-size:12px;color:var(--text-2);margin-bottom:2px;display:flex;align-items:center;gap:5px">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#7C6EFF"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-              <strong>Começar com exemplos prontos</strong>
-              <span style="font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#7C6EFF;border:1px solid #7C6EFF;border-radius:999px;padding:1px 6px">Demonstração</span>
-            </div>
-            <div style="font-size:10.5px;color:var(--text-3,#6B6B6B);line-height:1.4;margin-bottom:6px">Gera uma tabela de exemplo conforme o tipo de comida. Não lê o seu cardápio — serve apenas como ponto de partida para você editar.</div>
-            <div style="display:flex;gap:8px">
-              <input type="text" id="f-bulk-import-url" placeholder="Ex.: pizza, sushi, burger… (ou cole um link)" style="flex:1;font-size:11px;padding:6px 8px;border:1px solid var(--gray-mid);border-radius:6px;background:var(--white);color:var(--text);outline:none">
-              <button class="d-btn-pri" style="font-size:11px;padding:6px 12px;cursor:pointer;font-weight:600;white-space:nowrap" onclick="fBulkImportFromLink()">Importar exemplos</button>
-            </div>
-          </div>
-
-          <div class="f-ai-prompt-body" id="f-ai-prompt-body" style="display:none;margin-top:10px;border-top:1px dashed var(--gray-mid);padding-top:10px">
-            <p class="f-ai-prompt-desc" style="font-size:10px;color:var(--text-3)">Se preferir usar o ChatGPT externo:</p>
-            <div class="f-ai-prompt-box"><pre id="f-ai-prompt-text" class="f-ai-prompt-pre" style="font-size:9px;color:var(--text);white-space:pre-wrap;word-break:break-all"></pre></div>
-            <div class="f-ai-prompt-actions" style="margin-top:4px">
-              <button class="f-ai-prompt-copy" onclick="fCopyAIPrompt()" style="font-size:10px;padding:4px 8px;cursor:pointer">Copiar prompt</button>
-              <a class="f-ai-prompt-open" href="https://chat.openai.com" target="_blank" rel="noopener" style="font-size:10px;color:var(--text)">Abrir ChatGPT →</a>
-            </div>
-          </div>
-        </div>
-
-        <!-- Mapeamento de CSV (aparece só quando as colunas não batem) -->
-        <div id="f-bulk-mapper-wrap" class="f-bulk-sec f-bulk-sec--demo" style="display:none">
-          <div style="font-size:12px;font-weight:bold;margin-bottom:8px">Mapear Colunas do CSV</div>
-          <p style="font-size:11px;color:var(--text-2);margin-bottom:12px">Escolha qual coluna corresponde a cada variável da arte:</p>
-          <div id="f-bulk-mapper-fields" style="display:flex;flex-direction:column;gap:8px"></div>
-          <div style="margin-top:12px;display:flex;gap:8px">
-            <button class="d-btn-pri" style="font-size:11px;cursor:pointer" onclick="fBulkConfirmMapping()">Confirmar</button>
-            <button class="d-btn-sec" style="font-size:11px;cursor:pointer" onclick="fBulkCancelMapping()">Cancelar</button>
-          </div>
-        </div>
-
-        <!-- Formatos para exportar -->
-        <div id="f-bulk-fmts-wrap" class="f-bulk-sec f-bulk-sec--fmt">
-          <div style="font-size:12px;color:var(--text-2);margin-bottom:8px;font-weight:bold;display:flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>Formatos para Exportar:</div>
-          <div id="f-bulk-fmts-list" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+  <section class="modal f-bulk-modal-box" role="dialog" aria-modal="true" aria-labelledby="f-bulk-title" aria-describedby="f-bulk-description">
+    <header class="f-bulk-workspace-head">
+      <div class="f-bulk-brand">
+        <span class="f-bulk-brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        </span>
+        <div>
+          <div class="f-bulk-eyebrow">Produção em lote</div>
+          <h2 id="f-bulk-title">Luma Sheets</h2>
         </div>
       </div>
+      <p id="f-bulk-description">Adicione suas ofertas, revise os campos e gere todas as peças em uma única operação.</p>
+      <div class="f-bulk-head-actions">
+        <button type="button" class="f-bulk-faq-btn" onclick="fBulkToggleFaq()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Ajuda
+        </button>
+        <button type="button" class="f-bulk-close-btn" onclick="fBulkClose()" aria-label="Fechar Luma Sheets" title="Fechar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </header>
 
-      <!-- Coluna direita: toolbar + planilha -->
-      <div style="flex:1;min-width:0;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding-left:4px">
-
-        <!-- Toolbar (agrupada por função) -->
-        <div class="f-bulk-toolbar" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <button class="d-btn-sec" onclick="fBulkTemplateCSV()" title="Baixar um CSV de exemplo">CSV Modelo</button>
-          <label class="d-btn-sec" style="cursor:pointer;margin:0" title="Subir um arquivo CSV">Subir CSV
-            <input type="file" id="f-bulk-file" accept=".csv,text/csv" style="display:none" onchange="fBulkHandleCSV(this)">
-          </label>
-          <button class="d-btn-sec" onclick="fBulkTogglePaste()" title="Colar dados do Excel/Planilhas ou o texto do cardápio">Colar planilha/cardápio</button>
-          <button class="d-btn-sec" onclick="fBulkFromHistorico()" title="Adicionar produtos que você já usou (do seu histórico)">Do histórico</button>
-
-          <span class="f-bulk-tbar-div"></span>
-          <button class="d-btn-sec" onclick="fBulkToggleTableView()" title="Alternar entre tabela e cartões">Tabela / Cartões</button>
-
-          <span class="f-bulk-tbar-div"></span>
-          <button class="d-btn-sec" onclick="fBulkSaveTemplate()" title="Salvar a planilha atual como modelo">Salvar</button>
-          <div id="f-bulk-saved-wrap" style="display:none;align-items:center;gap:4px">
-            <select id="f-bulk-saved-select" onchange="fBulkLoadTemplate()" style="font-size:11px;padding:5px;border:1px solid var(--gray-mid,#D4D4D4);border-radius:4px;background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);outline:none;cursor:pointer"></select>
-            <button class="d-btn-sec" onclick="fBulkDeleteTemplate()" style="padding:4px 7px;color:var(--dm-red,#C81818);cursor:pointer;display:inline-flex;align-items:center" title="Excluir modelo"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+    <div class="f-bulk-workspace">
+      <aside class="f-bulk-setup" aria-label="Entrada e configuração do lote">
+        <section class="f-bulk-setup-section">
+          <div class="f-bulk-section-heading">
+            <span class="f-bulk-step">1</span>
+            <div><span>Adicionar ofertas</span><small>Escolha o caminho mais fácil para você</small></div>
           </div>
 
-          <!-- Ferramentas secundárias (disclosure) + busca, à direita -->
-          <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+          <div class="f-ai-prompt-block f-bulk-ai-card" id="f-ai-prompt-block">
+            <div class="f-bulk-card-head">
+              <span class="f-bulk-card-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v4M3 5h4M6 17v4M4 19h4M13 3l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5z"/></svg>
+              </span>
+              <div><strong>Descreva suas ofertas</strong><small>O Luma organiza a planilha para você</small></div>
+              <span class="f-bulk-recommended">Mais rápido</span>
+            </div>
+            <label class="f-bulk-field-label" for="f-bulk-ai-raw-text">Produtos, preços e condições</label>
+            <textarea id="f-bulk-ai-raw-text" placeholder="Ex.: Hambúrguer clássico por R$ 25 hoje. Amanhã, pizza de calabresa de R$ 50 por R$ 39."></textarea>
+            <div class="f-bulk-ai-actions">
+              <button type="button" class="d-btn-pri f-bulk-ai-submit" onclick="fBulkFillWithAI()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3v4M3 5h4M6 17v4M4 19h4M13 3l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5z"/></svg>
+                Preencher planilha
+              </button>
+              <button type="button" class="d-btn-sec" id="f-bulk-mic-btn" onclick="fStartSpeech(event, 'f-bulk-ai-raw-text')" title="Ditar ofertas por voz" aria-label="Ditar ofertas por voz">
+                <svg class="mic-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+              </button>
+              <button type="button" class="f-ai-prompt-toggle" onclick="fToggleAIPrompt()" aria-expanded="false">Usar no ChatGPT <span class="f-ai-prompt-chevron" aria-hidden="true">›</span></button>
+            </div>
+            <div class="f-ai-prompt-body" id="f-ai-prompt-body" style="display:none">
+              <p class="f-ai-prompt-desc">Copie o prompt preparado para este material e use no ChatGPT.</p>
+              <div class="f-ai-prompt-box"><pre id="f-ai-prompt-text" class="f-ai-prompt-pre"></pre></div>
+              <div class="f-ai-prompt-actions">
+                <button type="button" class="f-ai-prompt-copy" onclick="fCopyAIPrompt()">Copiar prompt</button>
+                <a class="f-ai-prompt-open" href="https://chat.openai.com" target="_blank" rel="noopener">Abrir ChatGPT</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="f-bulk-source-label">Outras formas de começar</div>
+          <div class="f-bulk-source-grid">
+            <button type="button" class="f-bulk-source-action" onclick="fBulkTogglePaste()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M7 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2"/><path d="M8 11h8M8 15h6"/></svg>
+              <span><strong>Colar dados</strong><small>Excel, Sheets ou cardápio</small></span>
+            </button>
+            <label class="f-bulk-source-action" for="f-bulk-file">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8"/></svg>
+              <span><strong>Enviar CSV</strong><small>Importar arquivo preenchido</small></span>
+              <input type="file" id="f-bulk-file" accept=".csv,text/csv" class="f-bulk-visually-hidden" onchange="fBulkHandleCSV(this)">
+            </label>
+            <button type="button" class="f-bulk-source-action" onclick="fBulkFromHistorico()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg>
+              <span><strong>Do histórico</strong><small>Reaproveitar produtos anteriores</small></span>
+            </button>
+            <button type="button" class="f-bulk-source-action" onclick="fBulkTemplateCSV()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+              <span><strong>CSV modelo</strong><small>Baixar estrutura pronta</small></span>
+            </button>
+          </div>
+
+          <div id="f-bulk-paste-wrap" class="f-bulk-inline-panel" style="display:none">
+            <label class="f-bulk-field-label" for="f-bulk-paste-ta">Cole seus dados abaixo</label>
+            <textarea id="f-bulk-paste-ta" placeholder="Cole células do Excel ou um item do cardápio por linha."></textarea>
+            <button type="button" class="d-btn-pri" onclick="fBulkHandlePaste()">Processar dados</button>
+          </div>
+
+          <details class="f-bulk-examples">
+            <summary>
+              <span class="f-bulk-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
+              <span><strong>Explorar com exemplos</strong><small>Demonstração para começar do zero</small></span>
+              <svg class="f-bulk-disclosure-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </summary>
+            <div class="f-bulk-examples-body">
+              <p>Gera produtos fictícios por categoria. Revise os dados antes de criar as artes.</p>
+              <div><input type="text" id="f-bulk-import-url" placeholder="Ex.: pizza, sushi ou burger"><button type="button" class="d-btn-sec" onclick="fBulkImportFromLink()">Gerar exemplos</button></div>
+            </div>
+          </details>
+
+          <div id="f-bulk-mapper-wrap" class="f-bulk-mapper" style="display:none">
+            <div class="f-bulk-card-head"><span class="f-bulk-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h10"/></svg></span><div><strong>Mapear colunas do CSV</strong><small>Associe cada coluna ao campo correto</small></div></div>
+            <div id="f-bulk-mapper-fields"></div>
+            <div class="f-bulk-mapper-actions"><button type="button" class="d-btn-pri" onclick="fBulkConfirmMapping()">Confirmar mapeamento</button><button type="button" class="d-btn-sec" onclick="fBulkCancelMapping()">Cancelar</button></div>
+          </div>
+        </section>
+
+        <section class="f-bulk-setup-section f-bulk-output-config">
+          <div class="f-bulk-section-heading">
+            <span class="f-bulk-step">2</span>
+            <div><span>Configurar saída</span><small>Escolha formatos e contexto das legendas</small></div>
+          </div>
+          <div id="f-bulk-fmts-wrap">
+            <label class="f-bulk-field-label">Formatos das artes</label>
+            <div id="f-bulk-fmts-list"></div>
+          </div>
+          <div class="f-bulk-output-fields">
+            <label><span>Formato da legenda</span><select id="f-bulk-copy-format"><option value="feed">Feed</option><option value="stories">Stories</option></select></label>
+            <label><span>Cidade para hashtags</span><input type="text" id="f-bulk-city" placeholder="Ex.: Passo Fundo" oninput="try{localStorage.setItem('luma_bulk_city', this.value);}catch(e){}"></label>
+          </div>
+        </section>
+      </aside>
+
+      <main class="f-bulk-sheet-area">
+        <div class="f-bulk-sheet-head">
+          <div class="f-bulk-section-heading">
+            <span class="f-bulk-step">3</span>
+            <div><span>Revise sua produção</span><small>Edite qualquer célula antes de gerar</small></div>
+          </div>
+          <div class="f-bulk-status-wrap"><span class="f-bulk-live-dot" aria-hidden="true"></span><span id="f-bulk-status" aria-live="polite"></span></div>
+        </div>
+
+        <div class="f-bulk-toolbar">
+          <div class="f-bulk-toolbar-group">
+            <button type="button" class="d-btn-sec f-bulk-view-toggle" onclick="fBulkToggleTableView()" title="Alternar entre tabela e cartões">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+              Tabela / Cartões
+            </button>
+            <button type="button" class="d-btn-sec" onclick="fBulkSaveTemplate()" title="Salvar a planilha atual como modelo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+              Salvar modelo
+            </button>
+            <div id="f-bulk-saved-wrap" style="display:none">
+              <select id="f-bulk-saved-select" onchange="fBulkLoadTemplate()" aria-label="Modelos salvos"></select>
+              <button type="button" class="f-bulk-delete-model" onclick="fBulkDeleteTemplate()" title="Excluir modelo selecionado" aria-label="Excluir modelo selecionado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+            </div>
+          </div>
+          <div class="f-bulk-toolbar-group f-bulk-toolbar-end">
+            <label class="f-bulk-search-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              <input type="search" id="f-bulk-search" oninput="fBulkRenderPreview()" placeholder="Buscar na planilha" aria-label="Buscar na planilha">
+            </label>
             <details class="f-bulk-more">
-              <summary class="d-btn-sec f-bulk-more-sum" title="Mais ferramentas"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>Ferramentas<span class="f-bulk-more-caret">▾</span></summary>
+              <summary class="d-btn-sec f-bulk-more-sum" title="Mais ferramentas">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+                Ferramentas <span class="f-bulk-more-caret" aria-hidden="true">▾</span>
+              </summary>
               <div class="f-bulk-more-pop">
-                <button class="d-btn-sec" onclick="fBulkRemoveDuplicates()" style="width:100%;justify-content:flex-start" title="Remover linhas duplicadas">Remover duplicados</button>
-                <label class="f-bulk-more-row">Ordenar
-                  <select id="f-bulk-sort-select" onchange="fBulkSortTable(this.value)">
-                    <option value="">—</option>
-                    <option value="name">Nome (A-Z)</option>
-                    <option value="price">Preço</option>
-                  </select>
-                </label>
-                <label class="f-bulk-more-row" title="Formato das legendas no arquivo de copy do ZIP">Legenda
-                  <select id="f-bulk-copy-format">
-                    <option value="feed">Feed</option>
-                    <option value="stories">Stories</option>
-                  </select>
-                </label>
-                <label class="f-bulk-more-row" title="Sua cidade/região para hashtags locais">Cidade
-                  <input type="text" id="f-bulk-city" placeholder="Ex: Passo Fundo" oninput="try{localStorage.setItem('luma_bulk_city', this.value);}catch(e){}">
-                </label>
+                <button type="button" class="f-bulk-tool-action" onclick="fBulkRemoveDuplicates()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="13" height="13" rx="2"/><path d="M8 8h13v13H8z"/></svg><span><strong>Remover duplicados</strong><small>Limpa linhas idênticas</small></span></button>
+                <label class="f-bulk-more-row"><span>Ordenar planilha</span><select id="f-bulk-sort-select" onchange="fBulkSortTable(this.value)"><option value="">Escolher</option><option value="name">Nome (A–Z)</option><option value="price">Preço</option></select></label>
               </div>
             </details>
-            <input type="text" id="f-bulk-search" oninput="fBulkRenderPreview()" placeholder="Buscar…" style="font-size:11px;padding:6px 8px;border:1px solid var(--gray-mid,#D4D4D4);border-radius:4px;background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);width:110px;outline:none">
-            <span id="f-bulk-status" style="font-size:11px;color:var(--text-3,#6B6B6B)"></span>
           </div>
         </div>
 
-        <!-- Caixa de colar do Excel -->
-        <div id="f-bulk-paste-wrap" class="f-bulk-sec f-bulk-sec--fmt" style="display:none;padding:10px">
-          <textarea id="f-bulk-paste-ta" placeholder="Cole a planilha do Excel/Sheets — OU o texto do cardápio, um item por linha (ex.: Pizza Calabresa de 40 por 30, válido no fim de semana)…" style="width:100%;height:60px;font-size:11px;padding:8px;border:1px solid var(--gray-mid);border-radius:6px;background:var(--white);color:var(--text);resize:vertical"></textarea>
-          <button class="d-btn-pri" style="margin-top:6px;font-size:11px" onclick="fBulkHandlePaste()">Processar planilha/cardápio</button>
+        <div id="f-bulk-preview" class="f-bulk-preview"></div>
+
+        <div id="f-bulk-progress-wrap" class="f-bulk-progress" style="display:none" role="status" aria-live="polite">
+          <div class="f-bulk-progress-head"><span id="f-bulk-progress-text">Gerando seu lote…</span><strong id="f-bulk-progress-pct">0%</strong></div>
+          <div class="f-bulk-progress-track"><div id="f-bulk-progress-bar" style="width:0%"></div></div>
+          <button type="button" class="d-btn-sec" id="f-bulk-cancel-btn" onclick="fBulkCancelGen()">Cancelar geração</button>
         </div>
+      </main>
+    </div>
 
-        <!-- Planilha / cartões -->
-        <div id="f-bulk-preview" class="f-bulk-preview" style="flex:1;min-height:0"></div>
-
-        <!-- Progresso da geração -->
-        <div id="f-bulk-progress-wrap" style="display:none;margin-top:8px">
-          <div style="font-size:12px;margin-bottom:6px;display:flex;justify-content:space-between">
-            <span id="f-bulk-progress-text">Gerando ZIP…</span>
-            <span id="f-bulk-progress-pct">0%</span>
-          </div>
-          <div style="background:var(--gray-light);border-radius:4px;height:6px;overflow:hidden">
-            <div id="f-bulk-progress-bar" style="width:0%;height:100%;transition:width 0.1s linear"></div>
-          </div>
-          <div style="display:flex;justify-content:flex-end;margin-top:8px">
-            <button class="d-btn-sec" id="f-bulk-cancel-btn" onclick="fBulkCancelGen()" style="font-size:11px;padding:5px 12px;color:var(--dm-red,#C81818);border:1px solid var(--gray-mid,#D4D4D4);border-radius:var(--r-sm);background:var(--white,#FFFFFF);cursor:pointer;font-weight:600">Cancelar</button>
-          </div>
-        </div>
-
+    <footer class="f-bulk-footer" id="f-bulk-actions">
+      <div class="f-bulk-footer-note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <span>O ZIP inclui as artes organizadas por formato e um arquivo com sugestões de legenda.</span>
       </div>
-    </div>
+      <div class="f-bulk-footer-actions"><button type="button" class="d-btn-sec" onclick="fBulkClose()">Fechar</button><button type="button" class="d-btn-pri" id="f-bulk-dl-btn" onclick="fBulkDownloadAll()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>Gerar artes (ZIP)</button></div>
+    </footer>
 
-    <!-- Rodapé -->
-    <div class="modal-actions" id="f-bulk-actions" style="margin-top:0;padding-top:12px;border-top:1px solid var(--gray-mid,#E2E2E2)">
-      <button class="d-btn-sec" onclick="fBulkClose()">Fechar</button>
-      <button class="d-btn-pri" id="f-bulk-dl-btn" onclick="fBulkDownloadAll()" style="font-weight:bold">Baixar todos (ZIP)</button>
-    </div>
-
-    <!-- Painel de Dúvidas Frequentes (overlay dentro do modal) -->
     <div id="f-bulk-faq" class="f-bulk-faq" role="dialog" aria-modal="true" aria-labelledby="f-bulk-faq-title">
       <div class="f-bulk-faq-head">
-        <div class="f-bulk-faq-title" id="f-bulk-faq-title">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          Dúvidas frequentes
-        </div>
-        <button type="button" class="f-bulk-faq-close" onclick="fBulkToggleFaq()" title="Fechar" aria-label="Fechar">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
+        <div class="f-bulk-faq-title" id="f-bulk-faq-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Dúvidas frequentes</div>
+        <button type="button" class="f-bulk-faq-close" onclick="fBulkToggleFaq()" title="Fechar" aria-label="Fechar dúvidas frequentes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
       <div id="f-bulk-faq-body" class="f-bulk-faq-body"></div>
     </div>
-  </div>
+  </section>
 </div>
 
 <!-- Importação de PSD: tela de revisão/mapeamento -->
-<div class="modal-overlay" id="d-psd-modal">
-  <div class="modal psd-modal" style="width:860px;max-width:96vw;max-height:88vh;display:flex;flex-direction:column;gap:10px">
-    <div class="modal-title">Importar PSD</div>
-    <div id="d-psd-meta" style="font-size:12px;color:var(--d-text2)"></div>
-    <div class="psd-fmt-row">
-      <label class="modal-label" style="margin:0">Formato</label>
-      <select class="modal-select" id="d-psd-fmt" style="flex:1">
-        <option value="orig">Tamanho original do PSD</option>
-        <option value="story">Story (1080×1920)</option>
-        <option value="feed">Feed (1080×1350)</option>
-        <option value="wide">Wide (1200×628)</option>
-        <option value="horizontal">Horizontal (1920×1080)</option>
-      </select>
-      <label class="modal-label" style="margin:0;display:flex;align-items:center;gap:6px;white-space:nowrap;cursor:pointer" title="Marque se as camadas vierem na ordem trocada (fundo na frente)">
-        <input type="checkbox" id="d-psd-invert"> Inverter ordem
+<div class="modal-overlay" id="d-psd-modal" role="dialog" aria-modal="true" aria-labelledby="d-psd-title">
+  <section class="modal psd-modal">
+    <header class="psd-review-header">
+      <div class="psd-review-identity">
+        <span class="psd-product-mark" aria-hidden="true">Ps</span>
+        <div>
+          <span class="psd-eyebrow">Importador inteligente</span>
+          <h2 class="modal-title" id="d-psd-title">Revisar camadas do PSD</h2>
+          <div id="d-psd-meta" class="psd-file-meta"></div>
+        </div>
+      </div>
+      <ol class="psd-progress-steps" aria-label="Progresso da importação">
+        <li class="complete"><span>1</span>Arquivo</li>
+        <li class="active" aria-current="step"><span>2</span>Camadas</li>
+        <li><span>3</span>Importar</li>
+      </ol>
+      <button type="button" class="psd-close-btn" onclick="dPsdCancel()" aria-label="Fechar importador PSD">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </header>
+
+    <div class="psd-commandbar">
+      <label class="psd-format-field" for="d-psd-fmt">
+        <span>Formato de saída</span>
+        <select class="modal-select" id="d-psd-fmt">
+          <option value="orig">Tamanho original do PSD</option>
+          <option value="story">Story (1080×1920)</option>
+          <option value="feed">Feed (1080×1350)</option>
+          <option value="wide">Wide (1200×628)</option>
+          <option value="horizontal">Horizontal (1920×1080)</option>
+        </select>
+      </label>
+      <div class="psd-command-note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+        O tamanho original preserva a composição com maior fidelidade.
+      </div>
+      <label class="psd-order-toggle" title="Ative se o fundo aparecer sobre as demais camadas">
+        <input type="checkbox" id="d-psd-invert">
+        <span class="psd-order-control" aria-hidden="true"></span>
+        <span><strong>Inverter ordem</strong><small>Use se o fundo vier à frente</small></span>
       </label>
     </div>
-    <!-- Corpo em duas colunas: preview (esq) + lista de camadas (dir) -->
+
     <div class="psd-modal-cols">
-      <!-- Preview à esquerda -->
-      <div class="psd-preview-panel">
-        <div class="psd-preview-label">Pré-visualização</div>
-        <div class="psd-preview-canvases">
-          <canvas id="d-psd-preview-canvas"></canvas>
-          <canvas id="d-psd-preview-overlay"></canvas>
+      <aside class="psd-preview-panel" aria-label="Pré-visualização do PSD">
+        <div class="psd-panel-heading">
+          <div><span class="psd-panel-kicker">Resultado</span><strong>Pré-visualização</strong></div>
+          <span class="psd-fidelity-badge"><span></span>Fiel ao arquivo</span>
         </div>
-        <div class="psd-preview-hint">Passe o mouse sobre uma camada para destacá-la</div>
-      </div>
-      <!-- Lista de camadas à direita -->
-      <div class="psd-rows-panel">
-        <div style="font-size:11px;color:var(--d-text3);line-height:1.5;margin-bottom:6px">Revise cada camada: vire textos em <code style="color:var(--var-color)">{{variáveis}}</code>, mantenha cor sólida como forma editável, ou imagem fiel. Camadas nomeadas <code style="color:var(--var-color)">{{nome}}</code> já entram como variável.</div>
-        <div id="d-psd-rows" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:4px"></div>
-      </div>
+        <div class="psd-preview-canvases">
+          <canvas id="d-psd-preview-canvas" aria-label="Composição das camadas selecionadas"></canvas>
+          <canvas id="d-psd-preview-overlay" aria-hidden="true"></canvas>
+        </div>
+        <div class="psd-preview-hint">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m5 3 14 9-6 2-3 6L5 3Z"/></svg>
+          Passe sobre a arte ou sobre uma camada para inspecioná-la.
+        </div>
+      </aside>
+
+      <main class="psd-rows-panel">
+        <div class="psd-panel-heading psd-layers-heading">
+          <div><span class="psd-panel-kicker">Conversão</span><strong>Como cada camada deve entrar?</strong></div>
+          <span class="psd-auto-label">Sugestões aplicadas automaticamente</span>
+        </div>
+        <div class="psd-guidance">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v3M5.64 5.64l2.12 2.12M3 12h3M18 12h3M16.24 7.76l2.12-2.12"/><path d="M9 18h6M10 21h4M8.5 15.5A5 5 0 1 1 15.5 15.5c-.8.7-1.2 1.3-1.3 2h-4.4c-.1-.7-.5-1.3-1.3-2Z"/></svg>
+          <p><strong>O Luma já reconheceu os tipos mais prováveis.</strong> Converta conteúdos que mudam em campos editáveis e preserve elementos gráficos como imagem quando a fidelidade for prioridade.</p>
+        </div>
+        <div id="d-psd-rows" class="psd-rows-list"></div>
+      </main>
     </div>
-    <div class="modal-actions">
-      <button class="d-btn-sec" onclick="dPsdCancel()">Cancelar</button>
-      <button class="d-btn-pri" onclick="dPsdConfirmImport()">Importar <span id="d-psd-count"></span></button>
-    </div>
-  </div>
+
+    <footer class="modal-actions psd-review-footer">
+      <div class="psd-footer-status"><span class="psd-footer-dot"></span><span id="d-psd-footer-summary">Tudo pronto para revisar</span></div>
+      <div class="psd-footer-actions">
+        <button type="button" class="d-btn-sec" onclick="dPsdCancel()">Cancelar</button>
+        <button type="button" class="d-btn-pri psd-import-cta" onclick="dPsdConfirmImport()"><span id="d-psd-action-label">Importar</span> <span id="d-psd-count"></span></button>
+      </div>
+    </footer>
+  </section>
 </div>
 
 <!-- PSD Artboard Selector (PSD com múltiplas pranchetas) -->

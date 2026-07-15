@@ -162,7 +162,7 @@ const F_LP_SIZES = {story:[1080,1920], feed:[1080,1350], wide:[1200,628], post:[
 let _lpRendering = false;
 let _lpPendingRender = false;
 let _lpScale = 1;        // escala real prévia ÷ arte final (mostrada na toolbar)
-let _lpGuides = false;   // toggle "Guias": margens de segurança + terços sobre a prévia
+// (o antigo _lpGuides virou _lpView — ver fLpSetView, mais abaixo)
 let _lpFraming = null;   // {layer, varName} enquanto o franqueado enquadra a foto (trava o zoom automático)
 let _lpOverflow = new Set(); // ids de camadas de texto com estouro no último render (avisos)
 let _lpImgDims = {};     // cache url→{w,h} p/ aviso de baixa resolução sem recarregar
@@ -254,7 +254,8 @@ async function fUpdateLivePreview(opts){
       }
     }
 
-    if(_lpGuides) _fLpDrawGuides(ctx, W, H);
+    if(_lpView==='guides') _fLpDrawGuides(ctx, W, H);
+    else if(_lpView==='env') _fLpDrawEnvironment(ctx, W, H);
 
     // Micro-sinal de "vivo": anel que pulsa quando a prévia reflete uma resposta nova
     const wrap = canvas.closest('.lp-canvas-wrap');
@@ -315,11 +316,23 @@ function fLpRefit(){
 }
 
 // Liga/desliga as guias de composição (margens de segurança + terços + centro).
-function fLpToggleGuides(){
-  _lpGuides = !_lpGuides;
-  const t = document.getElementById('lp-guides-toggle');
-  if(t){ t.classList.toggle('active', _lpGuides); t.setAttribute('aria-checked', String(_lpGuides)); }
+// Sobreposição da prévia: 'off' | 'guides' | 'env'. Substitui o antigo liga/desliga de
+// guias (_lpGuides), que virou este estado de 3 valores.
+let _lpView = 'off';
+function fLpSetView(v){
+  _lpView = (v==='guides'||v==='env') ? v : 'off';
+  const map = {off:'lp-view-off', guides:'lp-view-guides', env:'lp-view-env'};
+  Object.keys(map).forEach(k=>{
+    const b = document.getElementById(map[k]);
+    if(b){ const on = (k===_lpView); b.classList.toggle('active', on); b.setAttribute('aria-checked', String(on)); }
+  });
   try { fUpdateLivePreview(); } catch(e){}
+}
+// No-op defensivo: o liga/desliga de Guias virou o seletor de 3 estados e não tem mais
+// chamador. Mantida (f* não regride) caso algum ponto antigo ainda chame — alterna
+// limpo↔guias, sem passar pelo Ambiente, que é escolha explícita.
+function fLpToggleGuides(){
+  fLpSetView(_lpView==='guides' ? 'off' : 'guides');
 }
 
 // Desenha as guias por cima da prévia: margem de segurança (tracejada laranja),
@@ -354,6 +367,78 @@ function _fLpDrawGuides(ctx, W, H){
   pass('rgba(255,255,255,.9)', Math.max(1, Math.round(lw / 2)));
   ctx.restore();
 }
+
+/* ── AMBIENTE: como a arte fica POSTADA no Stories ─────────────────────────────
+   O Estúdio já sabia disto (o linter reprova camada crítica nos 250px do topo/base —
+   ver dRunLinter §3), mas o conhecimento nunca chegava ao franqueado: ele via um
+   retângulo limpo e descobria o problema depois de postar. Aqui a MESMA constante
+   vira desenho. Só faz sentido em Story (9:16) — Feed/Wide não têm esse chrome. */
+const F_LP_STORY_SAFE = 250;                 // px na arte 1080×1920 (idêntico ao linter)
+function _fLpIsStory(W,H){ return H > W && Math.abs((H/W) - (1920/1080)) < 0.06; }
+// Fração da altura ocupada por cada zona de perigo — escala para qualquer 9:16.
+function _fLpSafeFrac(H){ return F_LP_STORY_SAFE / (H || 1920); }
+
+function _fLpDrawEnvironment(ctx, W, H){
+  if(!_fLpIsStory(W,H)) return;
+  const zone = H * _fLpSafeFrac(H);
+  const u = W / 1080;                          // unidade: escala tudo a partir do 1080 nativo
+  ctx.save();
+  // 1) Zonas que o app cobre — véu vermelho + borda tracejada
+  ctx.fillStyle = 'rgba(200,24,24,.16)';
+  ctx.fillRect(0, 0, W, zone);
+  ctx.fillRect(0, H - zone, W, zone);
+  ctx.strokeStyle = 'rgba(200,24,24,.55)';
+  ctx.lineWidth = Math.max(2, 3 * u);
+  ctx.setLineDash([12 * u, 8 * u]);
+  ctx.beginPath(); ctx.moveTo(0, zone); ctx.lineTo(W, zone);
+  ctx.moveTo(0, H - zone); ctx.lineTo(W, H - zone); ctx.stroke();
+  ctx.setLineDash([]);
+  // 2) Chrome do Stories (proxy genérico — não imita a marca de ninguém; comunica
+  //    "aqui o app cobre"). Barras de progresso + avatar + barra de mensagem.
+  const wht = 'rgba(255,255,255,.9)';
+  ctx.fillStyle = wht;
+  const bx = 24 * u, bw = (W - bx * 2 - 18 * u) / 4;
+  for(let i = 0; i < 4; i++){
+    ctx.globalAlpha = i === 0 ? .9 : .35;
+    _fLpRoundRect(ctx, bx + i * (bw + 6 * u), 22 * u, bw, 5 * u, 3 * u); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  // avatar + nome
+  ctx.beginPath(); ctx.arc(bx + 20 * u, 62 * u, 20 * u, 0, Math.PI * 2); ctx.fillStyle = wht; ctx.fill();
+  ctx.font = `600 ${Math.round(22 * u)}px Roboto, sans-serif`;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText('sua loja', bx + 50 * u, 62 * u);
+  // barra "Enviar mensagem" + ícones
+  const by = H - zone + 90 * u;
+  ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = Math.max(1.5, 2 * u);
+  _fLpRoundRect(ctx, bx, by, W - bx * 2 - 130 * u, 62 * u, 31 * u); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,.75)';
+  ctx.font = `400 ${Math.round(20 * u)}px Roboto, sans-serif`;
+  ctx.fillText('Enviar mensagem', bx + 24 * u, by + 31 * u);
+  [0, 1].forEach(i => { _fLpRoundRect(ctx, W - bx - 100 * u + i * 55 * u, by + 14 * u, 34 * u, 34 * u, 8 * u); ctx.fill(); });
+  // 3) Rótulos das zonas
+  ctx.font = `700 ${Math.round(18 * u)}px Roboto, sans-serif`;
+  ctx.textAlign = 'center';
+  const tag = (txt, y) => {
+    const w = ctx.measureText(txt).width + 20 * u;
+    ctx.fillStyle = 'rgba(200,24,24,.9)';
+    _fLpRoundRect(ctx, W / 2 - w / 2, y - 13 * u, w, 26 * u, 6 * u); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillText(txt, W / 2, y);
+  };
+  tag('perfil e barras cobrem aqui', zone - 20 * u);
+  tag('barra de mensagem cobre aqui', H - zone + 22 * u);
+  ctx.restore();
+}
+// roundRect próprio: o global roundedRect() vive no png-generator e usa outra assinatura.
+function _fLpRoundRect(ctx, x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+// NOTA: aqui NÃO entra aviso na barra de chips quando uma camada cai na zona coberta.
+// Camada é do TEMPLATE — o franqueado não move camadas (01_BUSINESS §5), então seria
+// ruído que ele não pode resolver (o mesmo erro dos avisos de placeholder). Quem barra
+// isso é o linter, no publicar, com o designer — que é quem pode consertar.
 
 // Estado vazio contextual: a copy acompanha o passo do fluxo do franqueado.
 function fLpShowEmpty(canvas){
@@ -755,16 +840,31 @@ function fLpStartFraming(l,v){
   _fLpRender(); // trava scale 1 e aplica o fit
   let ov=document.getElementById('lp-frame-ov');
   if(!ov){ ov=document.createElement('div'); ov.id='lp-frame-ov'; ov.className='lp-frame-ov'; wrap.appendChild(ov); }
-  ov.innerHTML=`<div class="lp-frame-hint">Arraste pra posicionar · role pra dar zoom <button class="lp-frame-done" type="button">Concluir</button></div>`;
+  ov.innerHTML=`<div class="lp-frame-hint">Arraste pra posicionar · role pra dar zoom <button class="lp-frame-reset" type="button" title="Voltar ao enquadramento original">Restaurar</button><button class="lp-frame-done" type="button">Concluir</button></div>`;
   ov.querySelector('.lp-frame-done').onclick=()=>fLpStopFraming();
-  ov.onmousedown=(e)=>{ if(e.target.classList.contains('lp-frame-done'))return; e.preventDefault(); const f=fState.dados['__fit__'+v]||{}; _fLpFrameDrag={sx:e.clientX,sy:e.clientY,ox:f.offX||0,oy:f.offY||0}; };
+  ov.querySelector('.lp-frame-reset').onclick=()=>fLpResetFraming();
+  // Botões da barra não podem iniciar arrasto (senão "Restaurar" move a foto antes de resetar).
+  ov.onmousedown=(e)=>{ if(e.target.closest('.lp-frame-hint'))return; e.preventDefault(); const f=fState.dados['__fit__'+v]||{}; _fLpFrameDrag={sx:e.clientX,sy:e.clientY,ox:f.offX||0,oy:f.offY||0}; };
   ov.onwheel=(e)=>{ e.preventDefault(); const f=fState.dados['__fit__'+v]||{scale:1,offX:0,offY:0}; const sc=Math.max(1,Math.min(5,(f.scale||1)*(e.deltaY>0?0.94:1.06))); fState.dados['__fit__'+v]={scale:sc,offX:f.offX||0,offY:f.offY||0}; _fLpRender(); };
   // Toque (mobile): 1 dedo = posição, 2 dedos = pinça-zoom
-  ov.ontouchstart=(e)=>{ if(e.target.classList.contains('lp-frame-done'))return; const f=fState.dados['__fit__'+v]||{}; if(e.touches.length>=2){ _fLpPinch={d:_fLpTouchDist(e),sc:f.scale||1}; _fLpFrameDrag=null; } else { _fLpFrameDrag={sx:e.touches[0].clientX,sy:e.touches[0].clientY,ox:f.offX||0,oy:f.offY||0}; } e.preventDefault(); };
+  ov.ontouchstart=(e)=>{ if(e.target.closest('.lp-frame-hint'))return; const f=fState.dados['__fit__'+v]||{}; if(e.touches.length>=2){ _fLpPinch={d:_fLpTouchDist(e),sc:f.scale||1}; _fLpFrameDrag=null; } else { _fLpFrameDrag={sx:e.touches[0].clientX,sy:e.touches[0].clientY,ox:f.offX||0,oy:f.offY||0}; } e.preventDefault(); };
   ov.ontouchmove=(e)=>{ e.preventDefault(); const f=fState.dados['__fit__'+v]||{scale:1,offX:0,offY:0}; if(e.touches.length>=2&&_fLpPinch){ const nd=_fLpTouchDist(e); const sc=Math.max(1,Math.min(5,_fLpPinch.sc*(nd/(_fLpPinch.d||1)))); fState.dados['__fit__'+v]={scale:sc,offX:f.offX||0,offY:f.offY||0}; _fLpRender(); } else if(_fLpFrameDrag){ const dx=(e.touches[0].clientX-_fLpFrameDrag.sx)/((_lpScale||1)*(l.w||1)); const dy=(e.touches[0].clientY-_fLpFrameDrag.sy)/((_lpScale||1)*(l.h||1)); fState.dados['__fit__'+v]={scale:f.scale||1,offX:Math.max(-.5,Math.min(.5,_fLpFrameDrag.ox-dx)),offY:Math.max(-.5,Math.min(.5,_fLpFrameDrag.oy-dy))}; _fLpRender(); } };
   ov.ontouchend=(e)=>{ if(!e.touches.length){ _fLpFrameDrag=null; _fLpPinch=null; } };
   window.addEventListener('mousemove',_fLpFrameMove);
   window.addEventListener('mouseup',_fLpFrameUp);
+}
+// Volta ao enquadramento que o DESIGNER definiu no template, descartando o que o
+// franqueado mexeu. Sem isto, o único jeito de desfazer era reenviar a foto — e o medo
+// de "estragar" mata o valor da prévia (05_DESIGN_PHILOSOPHY §2: impossível errar).
+// Mantém o modo enquadramento aberto: restaurar é um passo atrás, não uma saída.
+function fLpResetFraming(){
+  if(!_lpFraming) return;
+  const l=_lpFraming.layer, v=_lpFraming.varName;
+  fState.dados['__fit__'+v]={scale:(l.imgScale||1),offX:(l.imgOffsetX||0),offY:(l.imgOffsetY||0)};
+  _fLpFrameDrag=null; _fLpPinch=null;
+  try{fSaveChatDraft&&fSaveChatDraft();}catch(e){}
+  _fLpRender();
+  if(typeof gToast==='function') gToast('Enquadramento restaurado');
 }
 function fLpStopFraming(){
   window.removeEventListener('mousemove',_fLpFrameMove);

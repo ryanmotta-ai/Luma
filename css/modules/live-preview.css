@@ -9,20 +9,22 @@
 #f-chat-col{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
 
 #f-live-preview{
-  width:320px;
+  width:clamp(400px,31vw,520px);
   flex-shrink:0;
-  background:var(--off-white);
+  background:var(--white);
   border-left:1px solid var(--gray-light);
   display:flex;flex-direction:column;
   overflow:hidden;
   font-family:'Roboto',sans-serif;
   color:var(--text);
-  transition: background 0.3s, border-color 0.3s;
+  box-shadow:-18px 0 48px rgba(10,10,10,.035);
+  transition:width var(--dur-base) var(--ease-standard),background var(--dur-base),border-color var(--dur-base);
 }
 
 /* HEADER */
 .lp-head{
-  padding:16px 20px;
+  min-height:70px;
+  padding:13px 18px;
   border-bottom:1px solid var(--gray-light);
   flex-shrink:0;
   display:flex;
@@ -30,20 +32,29 @@
   align-items:center;
 }
 
+.lp-title-group,.lp-head-actions{display:flex;align-items:center}
+.lp-title-group{gap:11px;min-width:0}
+.lp-head-actions{gap:8px;justify-content:flex-end}
+.lp-title-icon{
+  width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:0 0 auto;
+  color:var(--dm-orange-d);background:var(--dm-orange-bg);border:1px solid var(--dm-orange-tint);
+}
+.lp-title-icon svg{width:17px;height:17px}
+.lp-kicker{display:block;margin-bottom:2px;font-size:8px;font-weight:800;line-height:1;letter-spacing:.14em;text-transform:uppercase;color:var(--text-3)}
+
 .lp-title{
-  font-size:14px;
-  font-weight:500;
-  letter-spacing:0.02em;
+  font-size:14px;font-weight:750;line-height:1.2;letter-spacing:-.015em;
 }
 
 .lp-sync {
   display:flex;
   align-items:center;
   gap:6px;
-  font-size:11px;
-  color:var(--text-3);
-  font-weight:400;
+  max-width:170px;padding:7px 10px;border:1px solid var(--gray-light);border-radius:var(--r-pill);
+  background:var(--off-white);font-size:10.5px;color:var(--text-3);font-weight:550;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
+.lp-sync-text{overflow:hidden;text-overflow:ellipsis}
 
 .lp-sync-dot {
   width:6px;
@@ -55,25 +66,35 @@
 
 .lp-sync.ready .lp-sync-dot {
   background:var(--green);
-  box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+  box-shadow:0 0 0 3px rgba(34,197,94,.13);
 }
 .lp-sync.ready {
   color:var(--green-text);
+  border-color:rgba(34,197,94,.2);
+  background:rgba(34,197,94,.06);
 }
+.lp-mobile-close{display:none;width:34px;height:34px;border:1px solid var(--gray-light);border-radius:10px;background:var(--white);color:var(--text-2);cursor:pointer;align-items:center;justify-content:center}
+.lp-mobile-close svg{width:16px;height:16px}
+.lp-mobile-close:hover{background:var(--gray-light);color:var(--text)}
+.lp-mobile-close:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
 
 /* STAGE — grade de pontos sutil separa o palco do resto do painel */
 .lp-stage{
   flex:1;
-  padding:24px 20px;
+  min-height:0;
+  padding:54px 24px 76px;
   display:flex;
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  overflow-y:auto;
+  overflow:hidden;
   position:relative;
-  background-image:radial-gradient(rgba(10,10,10,.06) 1px, transparent 1.5px);
-  background-size:16px 16px;
+  background-color:var(--off-white);
+  background-image:radial-gradient(rgba(10,10,10,.075) .75px,transparent .9px);
+  background-size:18px 18px;
 }
+.lp-stage-meta{position:absolute;z-index:2;top:18px;left:20px;right:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;pointer-events:none;color:var(--text-3);font-size:9px;font-weight:800;letter-spacing:.11em;text-transform:uppercase}
+.lp-stage-hint{font-size:9.5px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--text-3)}
 
 /* ── ESTADO VAZIO (contextual — copy definida por fLpShowEmpty) ── */
 .lp-empty{display:none;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:12px}
@@ -102,15 +123,19 @@
 
 .lp-canvas-wrap {
   position:relative;
-  border-radius:12px;
-  box-shadow:0 8px 32px rgba(0,0,0,0.12);
+  border-radius:14px;
+  border:1px solid rgba(10,10,10,.09);
+  box-shadow:0 2px 4px rgba(10,10,10,.05),0 20px 52px rgba(10,10,10,.14);
   background: var(--gray-light); /* checkered background below */
   background-image: linear-gradient(45deg, rgba(0,0,0,0.03) 25%, transparent 25%), linear-gradient(-45deg, rgba(0,0,0,0.03) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, rgba(0,0,0,0.03) 75%), linear-gradient(-45deg, transparent 75%, rgba(0,0,0,0.03) 75%);
   background-size: 20px 20px;
   background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
   padding: 0;
   overflow:hidden;
+  transform:translateZ(0);
+  transition:box-shadow var(--dur-base) var(--ease-standard),transform var(--dur-base) var(--ease-spring-soft);
 }
+.lp-canvas-wrap:hover{box-shadow:0 3px 8px rgba(10,10,10,.07),0 24px 60px rgba(10,10,10,.17);transform:translateY(-2px)}
 
 .lp-canvas{
   display:block;
@@ -143,13 +168,15 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
 
 /* TOOLBAR */
 .lp-toolbar {
-  padding:12px 20px;
+  min-height:56px;
+  padding:9px 14px;
   border-top:1px solid var(--gray-light);
   flex-shrink:0;
   display:flex;
   justify-content:space-between;
   align-items:center;
-  background:var(--off-white);
+  background:var(--white);
+  gap:12px;
 }
 
 .lp-tool-left, .lp-tool-right {
@@ -157,23 +184,26 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
   align-items:center;
   gap:10px;
 }
+.lp-tool-right{min-width:0}
 
 .lp-tool-btn {
-  background:transparent;
-  border:none;
+  width:32px;height:32px;background:var(--off-white);
+  border:1px solid var(--gray-light);
   color:var(--text-2);
   cursor:pointer;
   display:flex;
   align-items:center;
   justify-content:center;
-  padding:4px;
-  border-radius:4px;
-  transition:all .2s;
+  padding:0;border-radius:9px;
+  transition:background var(--dur-micro),color var(--dur-micro),border-color var(--dur-micro),transform var(--dur-micro) var(--ease-spring);
 }
 .lp-tool-btn:hover {
   background:var(--gray-light);
   color:var(--text);
+  border-color:var(--gray-mid);
 }
+.lp-tool-btn:active{transform:scale(.94)}
+.lp-tool-btn:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
 
 .lp-tool-label {
   display:none;
@@ -182,12 +212,12 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
 .lp-tool-divider {
   width:1px;
   height:14px;
-  background:var(--gray-mid);
+  background:var(--gray-light);
 }
 
 .lp-tool-text {
-  font-size:11px;
-  font-weight:500;
+  font-size:10.5px;
+  font-weight:650;
   color:var(--text-2);
 }
 .lp-tool-dim{color:var(--text-3);font-weight:400;font-variant-numeric:tabular-nums}
@@ -219,6 +249,21 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
 .lp-toggle.active .lp-toggle-knob {
   transform:translateX(12px);
 }
+
+/* Seletor de sobreposição (Limpo · Guias · Ambiente) — substitui o liga/desliga de Guias.
+   Ativo segue o padrão de chip da casa (DS §8): fundo suave + borda laranja + texto vermelho
+   (--dm-red passa AA em texto pequeno; --dm-orange sobre branco não passaria). */
+.lp-viewseg{display:inline-flex;min-width:0;padding:3px;border:1px solid var(--gray-light);border-radius:11px;overflow:hidden;background:var(--off-white)}
+.lp-viewseg-btn{font-family:'Roboto',sans-serif;font-size:10.5px;font-weight:650;padding:6px 9px;border:none;border-radius:8px;cursor:pointer;
+  background:transparent;color:var(--text-3);white-space:nowrap;
+  transition:background var(--dur-micro,140ms) var(--ease-standard,ease),color var(--dur-micro,140ms) var(--ease-standard,ease),box-shadow var(--dur-micro,140ms) var(--ease-standard,ease)}
+.lp-viewseg-btn:hover{background:var(--gray-light);color:var(--text-2)}
+.lp-viewseg-btn.active{background:var(--white);color:var(--text);box-shadow:0 1px 4px rgba(10,10,10,.1)}
+.lp-viewseg-btn:focus-visible{outline:2px solid var(--dm-orange);outline-offset:0}
+body:not(.theme-light) .lp-viewseg{border-color:var(--d-border2);background:var(--d-surf)}
+body:not(.theme-light) .lp-viewseg-btn{color:var(--d-text3)}
+body:not(.theme-light) .lp-viewseg-btn:hover{background:var(--d-surf2);color:var(--d-text)}
+body:not(.theme-light) .lp-viewseg-btn.active{background:rgba(255,144,0,.16);color:var(--dm-yellow)}
 .lp-toggle:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
 
 /* ── Tema escuro ── */
@@ -230,17 +275,13 @@ body:not(.theme-light) .lp-toggle.active{background:var(--dm-orange)}
 
 /* RESPONSIVE */
 @media (max-width:1100px){
-  #f-right-body{flex-direction:column}
-  #f-live-preview{
-    width:100%;height:auto;
-    border-left:none;
-    border-bottom:1px solid var(--gray-light);
-    flex-direction:row;
-    align-items:stretch;
-  }
-  .lp-head{border-bottom:none;border-right:1px solid var(--gray-light);width:120px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start}
-  .lp-stage{flex:1;padding:10px; flex-direction:row}
-  .lp-toolbar{display:none}
+  #f-live-preview{width:clamp(360px,39vw,430px)}
+  .lp-head{padding-inline:14px}
+  .lp-title-icon{display:none}
+  .lp-sync{max-width:145px}
+  .lp-stage{padding-inline:18px}
+  .lp-tool-dim{display:none}
+  .lp-viewseg-btn{padding-inline:7px}
 }
 @media (max-width:680px){
   #f-live-preview{display:none}
@@ -278,22 +319,43 @@ body:not(.theme-light) .lp-toggle.active{background:var(--dm-orange)}
 .lp-frame-done{font-size:11px;font-weight:700;padding:5px 12px;border-radius:var(--r-pill,999px);border:none;cursor:pointer;
   background:var(--dm-orange,#FF9000);color:#fff}
 .lp-frame-done:hover{background:var(--dm-orange-d,#F85400)}
+/* "Restaurar" é secundário ao lado do "Concluir": fantasma sobre a barra escura, pra
+   ler como passo atrás e não competir com a ação principal. */
+.lp-frame-reset{font-size:11px;font-weight:600;padding:5px 10px;border-radius:var(--r-pill,999px);cursor:pointer;
+  background:transparent;border:1px solid rgba(255,255,255,.35);color:rgba(255,255,255,.9);
+  transition:background var(--dur-micro,140ms) var(--ease-standard,ease), border-color var(--dur-micro,140ms) var(--ease-standard,ease)}
+.lp-frame-reset:hover{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.6)}
 
-/* ── Avisos persistentes "não deixar sair errado" ── */
-.lp-warnings{display:flex;flex-wrap:wrap;gap:6px;padding:0 2px;margin-top:2px}
+/* ── Bandeja de validação: preserva o canvas e mantém cada aviso acionável ── */
+.lp-warnings{
+  position:absolute;z-index:8;left:16px;right:16px;bottom:14px;
+  display:flex;flex-wrap:nowrap;gap:6px;min-width:0;padding:7px;
+  overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;
+  background:rgba(255,255,255,.92);border:1px solid rgba(10,10,10,.09);border-radius:13px;
+  box-shadow:0 8px 28px rgba(10,10,10,.09);backdrop-filter:blur(12px);
+  animation:gFadeInUp var(--dur-base) var(--ease-out) both;
+}
+.lp-warnings::-webkit-scrollbar{display:none}
 .lp-warnings:empty{display:none}
-.lp-warn{font-size:11px;font-weight:600;font-family:'Roboto',sans-serif;padding:5px 11px;border-radius:var(--r-pill,999px);
-  cursor:pointer;border:1px solid transparent;display:inline-flex;align-items:center;gap:5px;line-height:1.2;
+.lp-warn{flex:0 0 auto;max-width:260px;font-size:10.5px;font-weight:650;font-family:'Roboto',sans-serif;padding:6px 10px;border-radius:9px;
+  cursor:pointer;border:1px solid transparent;display:inline-flex;align-items:center;gap:6px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   transition:transform .12s var(--ease-spring),filter .12s;text-align:left}
 .lp-warn::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;opacity:.9}
 .lp-warn:hover{transform:translateY(-1px);filter:brightness(.98)}
-.lp-warn-miss{background:var(--gray-light,#F2F2F2);color:var(--text-2,#3A3A3A);border-color:var(--gray-mid,#D4D4D4)}
+.lp-warn:focus-visible{outline:2px solid var(--dm-orange);outline-offset:1px}
+.lp-warn-miss{background:var(--off-white,#FAFAFA);color:var(--text-2,#3A3A3A);border-color:var(--gray-light,#F2F2F2)}
 .lp-warn-over{background:rgba(200,24,24,.10);color:var(--dm-red,#C81818);border-color:rgba(200,24,24,.30)}
 .lp-warn-low{background:rgba(255,185,0,.18);color:#92400E;border-color:rgba(255,185,0,.45)}
 /* "+N avisos" — resumo dos que passaram do teto; neutro e não-clicável (sem hover/ponto) */
 .lp-warn-more{background:transparent;color:var(--text-3,#6B6B6B);border-color:var(--gray-mid,#D4D4D4);cursor:default}
 .lp-warn-more::before{display:none}
 .lp-warn-more:hover{transform:none;filter:none}
+
+body:not(.theme-light) .lp-warnings{background:rgba(24,23,22,.9);border-color:var(--d-border2);box-shadow:0 10px 34px rgba(0,0,0,.26)}
+
+@media (prefers-reduced-motion:reduce){
+  .lp-canvas-wrap,.lp-warnings,.lp-empty-art{animation:none!important;transition:none!important}
+}
 
 /* ── Chip flutuante de descoberta (hover na prévia) ── */
 #lp-hover-chip{position:fixed;z-index:12500;pointer-events:none;display:none;font-size:11px;font-weight:600;

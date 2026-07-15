@@ -1160,18 +1160,19 @@ function dPsdOpenReview(){
   const _nT=dPsdItems.filter(i=>i.kind==='text').length;
   const _nS=dPsdItems.filter(i=>i.kind==='shape').length;
   const _nI=dPsdItems.filter(i=>i.kind==='raster').length;
+  const _warnIcon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3 2.8 19h18.4L12 3Z"/><path d="M12 9v4M12 16h.01"/></svg>';
   // Badge DPI: aviso visual quando o doc não é 72dpi (fontes em pontos serão escaladas)
   const _hiDpi=dPsdMeta.res&&dPsdMeta.res>90;
   const _dpiHtml=_hiDpi
-    ?` <span class="psd-dpi-warn" title="Fontes em pontos serão escaladas automaticamente (${Math.round(dPsdMeta.res)}dpi → 72dpi)">⚠ ${Math.round(dPsdMeta.res)}dpi</span>`
-    :(dPsdMeta.res&&dPsdMeta.res!==72?` · ${Math.round(dPsdMeta.res)}dpi`:'');
+    ?`<span class="psd-dpi-warn" title="Fontes em pontos serão escaladas automaticamente (${Math.round(dPsdMeta.res)}dpi para 72dpi)">${_warnIcon}${Math.round(dPsdMeta.res)} dpi</span>`
+    :(dPsdMeta.res&&dPsdMeta.res!==72?`<span class="psd-meta-chip">${Math.round(dPsdMeta.res)} dpi</span>`:'');
   // Aviso de camadas de ajuste: o Luma não aplica ajustes de cor/tom (Levels/Curves/Hue…),
   // então as cores podem diferir levemente do PSD. (Fidelidade total exigiria achatar — futuro.)
   const _adjHtml=(_dPsdAdjustCount>0)
-    ?` <span class="psd-dpi-warn" title="O Photoshop tem ${_dPsdAdjustCount} camada(s) de ajuste de cor/tom que o Luma não reproduz — as cores podem diferir levemente do original.">⚠ ${_dPsdAdjustCount} ajuste(s) de cor</span>`
+    ?`<span class="psd-dpi-warn" title="O Photoshop tem ${_dPsdAdjustCount} camada(s) de ajuste que o Luma não reproduz; as cores podem variar.">${_warnIcon}${_dPsdAdjustCount} ajuste(s) de cor</span>`
     :'';
   const _metaEl=document.getElementById('d-psd-meta');
-  if(_metaEl) _metaEl.innerHTML=_dPsdEsc((dPsdMeta.name||'PSD')+' · '+dPsdMeta.w+'×'+dPsdMeta.h)+_dpiHtml+_adjHtml+_dPsdEsc(' · '+_nT+'T '+_nS+'S '+_nI+'I'+(dPsdMeta.worker?' · worker':''));
+  if(_metaEl) _metaEl.innerHTML=`<strong class="psd-meta-name">${_dPsdEsc(dPsdMeta.name||'PSD')}</strong><span class="psd-meta-chip">${dPsdMeta.w} × ${dPsdMeta.h}px</span><span class="psd-meta-chip">${_nT} texto${_nT===1?'':'s'}</span><span class="psd-meta-chip">${_nS} forma${_nS===1?'':'s'}</span><span class="psd-meta-chip">${_nI} imagem${_nI===1?'':'ens'}</span>${_dpiHtml}${_adjHtml}`;
   // Detecção de formato com tolerância ±2px (PSDs com 1079×1921 ainda mapeiam para 'story').
   // Sem match exato → 'orig': preserva o tamanho real do PSD (1:1) em vez de forçar um preset.
   const fmt=_dPsdExactFmt(dPsdMeta.w, dPsdMeta.h);
@@ -1182,14 +1183,15 @@ function dPsdOpenReview(){
   const rowsEl=document.getElementById('d-psd-rows');
   if(rowsEl&&!document.getElementById('d-psd-search')){
     const si=document.createElement('input'); si.id='d-psd-search'; si.type='search';
-    si.placeholder='Filtrar camadas…'; si.className='psd-search-input';
+    si.placeholder='Buscar por nome, conteúdo, fonte ou tipo de camada'; si.className='psd-search-input';
+    si.setAttribute('aria-label','Buscar camadas do PSD');
     si.oninput=()=>dPsdRenderRows(si.value.trim().toLowerCase());
     rowsEl.parentNode.insertBefore(si,rowsEl);
   }
   // Botões Todas / Nenhuma (injetados uma vez; ficam acima da lista)
   if(rowsEl&&!document.getElementById('d-psd-sel-btns')){
     const tb=document.createElement('div'); tb.id='d-psd-sel-btns'; tb.className='psd-sel-btns';
-    tb.innerHTML='<button class="psd-sel-btn" onclick="dPsdSelectAll()">Todas</button><button class="psd-sel-btn" onclick="dPsdSelectNone()">Nenhuma</button><span id="d-psd-sel-info" class="psd-sel-info"></span>';
+    tb.innerHTML='<button type="button" class="psd-sel-btn" onclick="dPsdSelectAll()">Selecionar todas</button><button type="button" class="psd-sel-btn" onclick="dPsdSelectNone()">Limpar seleção</button><span id="d-psd-sel-info" class="psd-sel-info" aria-live="polite"></span>';
     rowsEl.parentNode.insertBefore(tb,rowsEl);
   }
   const sf=document.getElementById('d-psd-search'); if(sf) sf.value='';
@@ -1210,7 +1212,11 @@ function dPsdOpenReview(){
 function _dPsdBlendModeCSS(bm){ return bm?bm.replace(/([A-Z])/g,c=>'-'+c.toLowerCase()):''; }
 function dPsdRenderRows(filter){
   const wrap=document.getElementById('d-psd-rows'); if(!wrap) return;
-  const ico={text:'T',shape:'■',raster:'▣'};
+  const ico={
+    text:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 6V4h14v2M12 4v16M8 20h8"/></svg>',
+    shape:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/></svg>',
+    raster:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m4 17 4-4 3 3 3-3 6 5"/></svg>'
+  };
   const kindOrder={text:0,shape:1,raster:2};
   const kindLabel={text:'Textos',shape:'Formas',raster:'Imagens'};
   // Indexar, filtrar por busca (nome, conteúdo, fontName, tipo em PT-BR) e agrupar por tipo
@@ -1232,43 +1238,43 @@ function dPsdRenderRows(filter){
       header=`<div class="psd-group-header">${kindLabel[it.kind]||'Outros'} <span class="psd-group-count">${count[it.kind]||0}</span></div>`; }
     let modeSel='';
     if(it.kind==='text'){
-      modeSel=`<select class="psd-mode" onchange="dPsdSetMode(${i},this.value)">
+      modeSel=`<select class="psd-mode" aria-label="Como importar a camada ${_dPsdEsc(it.name)}" onchange="dPsdSetMode(${i},this.value)">
         <option value="text" ${it.mode==='text'?'selected':''}>Texto editável</option>
         <option value="var" ${it.mode==='var'?'selected':''}>Variável {{ }}</option>
         <option value="raster" ${it.mode==='raster'?'selected':''}>Imagem fiel</option></select>`;
     } else if(it.kind==='shape'){
-      modeSel=`<select class="psd-mode" onchange="dPsdSetMode(${i},this.value)">
+      modeSel=`<select class="psd-mode" aria-label="Como importar a camada ${_dPsdEsc(it.name)}" onchange="dPsdSetMode(${i},this.value)">
         <option value="shape" ${it.mode==='shape'?'selected':''}>Cor (editável)</option>
         <option value="frame" ${it.mode==='frame'?'selected':''}>Moldura de foto</option>
         <option value="raster" ${it.mode==='raster'?'selected':''}>Imagem</option></select>`;
     } else { // raster/imagem: pode virar Imagem fiel OU moldura de foto (o franqueado preenche)
-      modeSel=`<select class="psd-mode" onchange="dPsdSetMode(${i},this.value)">
+      modeSel=`<select class="psd-mode" aria-label="Como importar a camada ${_dPsdEsc(it.name)}" onchange="dPsdSetMode(${i},this.value)">
         <option value="raster" ${it.mode!=='frame'?'selected':''}>Imagem</option>
         <option value="frame" ${it.mode==='frame'?'selected':''}>Moldura de foto</option></select>`;
     }
     const swatchRadius=it.shapeKind==='circle'||it.shapeKind==='ellipse'?'50%':'3px';
     const swatch=it.kind==='shape'?`<span class="psd-swatch" style="background:${it.fill};border-radius:${swatchRadius}"></span>`:'';
     const isVarVisible = (it.kind==='text'&&it.mode==='var')||(it.mode==='frame');
-    const varIn=`<input class="psd-var-input ${isVarVisible?'visible':''}" value="${it.varName||''}" placeholder="nome_da_var" oninput="dPsdSetVar(${i},this.value,this)">`;
-    const multiStyleBadge=(it.kind==='text'&&it.multiStyle)?`<span class="psd-multistyle" title="Texto com múltiplos estilos — importando estilo dominante">↕ misto</span>`:'';
-    const blendBadge=it.blendMode?`<span class="psd-blend" title="Blend mode: ${_dPsdEsc(it.blendMode)}">⊕ ${_dPsdEsc(_dPsdBlendModeCSS(it.blendMode))}</span>`:'';
+    const varIn=`<input class="psd-var-input ${isVarVisible?'visible':''}" value="${_dPsdEsc(it.varName||'')}" placeholder="nome_do_campo" aria-label="Nome do campo editável da camada ${_dPsdEsc(it.name)}" oninput="dPsdSetVar(${i},this.value,this)">`;
+    const multiStyleBadge=(it.kind==='text'&&it.multiStyle)?`<span class="psd-multistyle" title="O estilo dominante será preservado">Estilos mistos</span>`:'';
+    const blendBadge=it.blendMode?`<span class="psd-blend" title="Modo de mesclagem: ${_dPsdEsc(it.blendMode)}">Mesclagem · ${_dPsdEsc(_dPsdBlendModeCSS(it.blendMode))}</span>`:'';
     let fontWarn='';
     if(it.kind==='text'&&it.fontName&&!/roboto/i.test(it.fontName)){
       const fn=_dPsdEsc(it.fontName);
-      if(it.fontRemapped) fontWarn=`<span class="psd-fontok" title="Fonte '${fn}' mapeada para fonte enviada">✓ ${fn}</span>`;
-      else fontWarn=`<span class="psd-fontwarn">⚠ ${fn} <label class="psd-font-upload-btn" title="Enviar '${fn}' agora">↑ enviar<input type="file" accept=".ttf,.otf,.woff,.woff2" style="display:none" onchange="dPsdUploadFont(${i},this)"></label></span>`;
+      if(it.fontRemapped) fontWarn=`<span class="psd-fontok" title="Fonte '${fn}' vinculada">Fonte vinculada · ${fn}</span>`;
+      else fontWarn=`<span class="psd-fontwarn">Fonte ausente · ${fn} <label class="psd-font-upload-btn" title="Enviar '${fn}' agora">Enviar<input type="file" accept=".ttf,.otf,.woff,.woff2" style="display:none" onchange="dPsdUploadFont(${i},this)"></label></span>`;
     }
-    const opacityBadge=it.opacity<95?`<span class="psd-opacity-badge">α ${it.opacity}%</span>`:'';
-    const vecWarn=it.vectorMaskFailed?`<span class="psd-fontwarn" title="Recorte vetorial não pôde ser rasterizado — shape importado sem máscara">⚠ Shape vetorial simplificado</span>`:'';
-    const clipWarn=it.maskFallback?`<span class="psd-fontwarn" title="Forma complexa de base não pôde ser rasterizada">⚠ Clipping mask não preservada</span>`:'';
+    const opacityBadge=it.opacity<95?`<span class="psd-opacity-badge">Opacidade ${it.opacity}%</span>`:'';
+    const vecWarn=it.vectorMaskFailed?`<span class="psd-fontwarn" title="O recorte vetorial não pôde ser rasterizado">Máscara simplificada</span>`:'';
+    const clipWarn=it.maskFallback?`<span class="psd-fontwarn" title="A forma complexa de base não pôde ser rasterizada">Recorte simplificado</span>`:'';
     const textInfoBadge=it.kind==='text'?`<span class="psd-textinfo">${it.fontSize}px · ${it.textAlign}</span>`:'';
     const thumb=it.kind==='raster'&&it.imgUrl?`<img class="psd-thumb" src="${it.imgUrl}" alt="" loading="lazy">`:'';
     const textPrev=it.kind==='text'&&it.content
       ?`<span class="psd-text-prev" style="color:${it.color||'#aaa'}">${_dPsdEsc(it.content.replace(/\n/g,' ').slice(0,60))}</span>`:'';
     const groupCrumb=it.group?`<span class="psd-group-crumb" title="Grupo: ${_dPsdEsc(it.group)}">${_dPsdEsc(it.group.slice(0,28))}</span>`:'';
     return header+`<div class="psd-row ${it.include?'':'psd-row-off'}" data-psd-idx="${i}" onmouseenter="typeof dPsdHoverLayer==='function'&&dPsdHoverLayer(${i})" onmouseleave="typeof dPsdHoverLayer==='function'&&dPsdHoverLayer(-1)">
-      <input type="checkbox" ${it.include?'checked':''} onchange="dPsdSetInclude(${i},this.checked)">
-      <span class="psd-row-ico">${swatch||ico[it.kind]||'▣'}</span>
+      <input type="checkbox" aria-label="Importar camada ${_dPsdEsc(it.name)}" ${it.include?'checked':''} onchange="dPsdSetInclude(${i},this.checked)">
+      <span class="psd-row-ico psd-row-ico-${it.kind}">${swatch||ico[it.kind]||ico.raster}</span>
       ${thumb}
       <span class="psd-row-name" title="${_dPsdEsc(it.name)}">
         <span class="psd-row-name-top">${_dPsdEsc(it.name)}${multiStyleBadge}${blendBadge}${fontWarn}${opacityBadge}${vecWarn}${clipWarn}${textInfoBadge}</span>
@@ -1360,8 +1366,23 @@ function dPsdUpdateCount(){
   // n e total no MESMO universo (sem mask-bases, que são ocultas da lista) —
   // senão o contador podia mostrar "13/12 selecionadas".
   const n=dPsdItems.filter(it=>it.include&&!it.isMaskBase).length, total=dPsdItems.filter(it=>!it.isMaskBase).length;
-  const c=document.getElementById('d-psd-count'); if(c) c.textContent='('+n+')';
-  const info=document.getElementById('d-psd-sel-info'); if(info) info.textContent=n+' / '+total+' selecionadas';
+  const vars=dPsdItems.filter(it=>it.include&&!it.isMaskBase&&(it.mode==='var'||it.mode==='frame')).length;
+  const pendingFonts=dPsdItems.filter(it=>it.include&&it.kind==='text'&&it.fontName&&!/roboto/i.test(it.fontName)&&!it.fontRemapped).length;
+  const c=document.getElementById('d-psd-count'); if(c) c.textContent=n+' camada'+(n===1?'':'s');
+  const info=document.getElementById('d-psd-sel-info'); if(info) info.textContent=n+' de '+total+' selecionadas';
+  const summary=document.getElementById('d-psd-footer-summary');
+  if(summary){
+    let txt=n+' de '+total+' camadas · '+vars+' campo'+(vars===1?' editável':'s editáveis');
+    if(pendingFonts) txt+=' · '+pendingFonts+' fonte'+(pendingFonts===1?' pendente':'s pendentes');
+    summary.textContent=txt;
+  }
+  const actionLabel=document.getElementById('d-psd-action-label');
+  if(actionLabel){
+    const seq=dPsdMeta&&dPsdMeta.sequence;
+    actionLabel.textContent=seq?(seq.current<seq.total?'Revisar e continuar':'Concluir importação'):'Importar';
+  }
+  const cta=document.querySelector('#d-psd-modal .psd-import-cta');
+  if(cta){ cta.disabled=n===0; cta.setAttribute('aria-disabled',n===0?'true':'false'); }
 }
 function dPsdCancel(){
   const m=document.getElementById('d-psd-modal'); if(m)m.classList.remove('open');
@@ -1578,6 +1599,7 @@ function dPsdShowArtboardSelector(psd, artboards, res, baseName){
   overlay.innerHTML=dPsdBuildArtboardSelectorHTML(items);
   overlay.style.display='flex';
   overlay._psdData={ psd, items, res:res||72, baseName:baseName||'PSD' };
+  _dPsdAbUpdateCount();
   // Preview da primeira prancheta na abertura (timeout dá tempo ao DOM renderizar)
   setTimeout(()=>dPsdAbSelectPreview(0), 80);
 }
@@ -1594,24 +1616,26 @@ function dPsdBuildArtboardSelectorHTML(items){
       +`<option value="orig" ${item.fmt==='orig'?'selected':''}>Original</option>`;
     return `<div class="psd-ab-row" id="psd-ab-row-${i}" onclick="dPsdAbSelectPreview(${i})">
       <label class="psd-ab-check" onclick="event.stopPropagation()">
-        <input type="checkbox" ${item.selected?'checked':''} onchange="dPsdAbToggle(${i}, this.checked)">
+        <input type="checkbox" aria-label="Importar prancheta ${_dPsdEsc(item.name)}" ${item.selected?'checked':''} onchange="dPsdAbToggle(${i}, this.checked)">
       </label>
       <div class="psd-ab-info">
         <span class="psd-ab-name" title="${_dPsdEsc(item.name)}">${_dPsdEsc(item.name)}</span>
         <span class="psd-ab-dim">${item.w} × ${item.h}px</span>
       </div>
-      <select class="psd-ab-fmt" id="psd-ab-fmt-${i}" onchange="dPsdAbSetFmt(${i}, this.value)">${fmtOpts}</select>
+      <select class="psd-ab-fmt" id="psd-ab-fmt-${i}" aria-label="Formato da prancheta ${_dPsdEsc(item.name)}" onclick="event.stopPropagation()" onchange="dPsdAbSetFmt(${i}, this.value)">${fmtOpts}</select>
     </div>`;
   }).join('');
   const dest = folders.length
-    ? `<div class="psd-ab-dest"><label>Importar para a pasta:</label>
+    ? `<div class="psd-ab-dest"><label for="psd-ab-folder-sel"><span>Destino</span><strong>Importar para a pasta</strong></label>
         <select id="psd-ab-folder-sel" class="psd-ab-fmt">${folderOptions}</select></div>`
-    : `<div class="psd-ab-dest" style="color:var(--dm-red)">⚠ Nenhuma pasta encontrada — crie uma pasta antes de importar.</div>`;
+    : `<div class="psd-ab-dest psd-ab-dest-error"><span>Nenhuma pasta encontrada.</span><strong>Crie uma pasta antes de continuar.</strong></div>`;
   return `
     <div class="psd-ab-modal">
       <div class="psd-ab-header">
-        <span class="psd-ab-title">Pranchetas encontradas</span>
-        <span class="psd-ab-subtitle">${items.length} prancheta(s) no arquivo PSD</span>
+        <span class="psd-product-mark" aria-hidden="true">Ps</span>
+        <div class="psd-ab-header-copy"><span class="psd-eyebrow">Importador inteligente</span><span class="psd-ab-title">Escolha as pranchetas</span><span class="psd-ab-subtitle">${items.length} prancheta${items.length===1?'':'s'} encontrada${items.length===1?'':'s'} no arquivo</span></div>
+        <span class="psd-ab-step">Etapa 1 de 2</span>
+        <button type="button" class="psd-close-btn" onclick="dPsdAbCancel()" aria-label="Fechar seleção de pranchetas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
       </div>
       <div class="psd-ab-body">
         <div class="psd-ab-left">
@@ -1619,15 +1643,16 @@ function dPsdBuildArtboardSelectorHTML(items){
           ${dest}
         </div>
         <div class="psd-ab-right">
-          <div class="psd-ab-prev-label" id="d-psd-ab-preview-label">Passe o mouse para visualizar</div>
+          <div class="psd-panel-heading"><div><span class="psd-panel-kicker">Prévia</span><strong class="psd-ab-prev-label" id="d-psd-ab-preview-label">Selecione uma prancheta</strong></div><span class="psd-fidelity-badge"><span></span>Visualização fiel</span></div>
           <div class="psd-ab-prev-wrap">
-            <canvas id="d-psd-ab-preview-canvas"></canvas>
+            <canvas id="d-psd-ab-preview-canvas" aria-label="Pré-visualização da prancheta selecionada"></canvas>
           </div>
         </div>
       </div>
       <div class="psd-ab-footer">
-        <button class="psd-ab-btn cancel" onclick="dPsdAbCancel()">Cancelar</button>
-        <button class="psd-ab-btn confirm" onclick="dPsdAbConfirm()">Revisar selecionadas →</button>
+        <span class="psd-ab-footer-summary" id="d-psd-ab-summary" aria-live="polite"></span>
+        <button type="button" class="psd-ab-btn cancel" onclick="dPsdAbCancel()">Cancelar</button>
+        <button type="button" class="psd-ab-btn confirm" id="d-psd-ab-confirm" onclick="dPsdAbConfirm()">Revisar selecionadas</button>
       </div>
     </div>`;
 }
@@ -1674,9 +1699,23 @@ async function dPsdAbSelectPreview(itemIdx){
   }
   await _dPsdDrawItemsBasic(canvas, usable, item.w, item.h);
 }
+function _dPsdAbUpdateCount(){
+  const o=document.getElementById('d-psd-ab-overlay');
+  if(!o||!o._psdData) return;
+  const total=o._psdData.items.length;
+  const selected=o._psdData.items.filter(it=>it.selected).length;
+  const summary=document.getElementById('d-psd-ab-summary');
+  if(summary) summary.textContent=selected+' de '+total+' prancheta'+(total===1?'':'s')+' selecionada'+(selected===1?'':'s');
+  const btn=document.getElementById('d-psd-ab-confirm');
+  if(btn){ btn.textContent=selected?'Revisar '+selected+' selecionada'+(selected===1?'':'s'):'Selecione uma prancheta'; btn.disabled=selected===0; }
+}
 function dPsdAbToggle(index, checked){
   const o=document.getElementById('d-psd-ab-overlay');
-  if(o&&o._psdData&&o._psdData.items[index]) o._psdData.items[index].selected=checked;
+  if(o&&o._psdData&&o._psdData.items[index]){
+    o._psdData.items[index].selected=checked;
+    const row=document.getElementById('psd-ab-row-'+index); if(row) row.classList.toggle('is-unselected',!checked);
+    _dPsdAbUpdateCount();
+  }
 }
 function dPsdAbSetFmt(index, fmt){
   const o=document.getElementById('d-psd-ab-overlay');
@@ -1715,7 +1754,7 @@ function dPsdProcessArtboardsSequence(psd, items, res, baseName, folderId, idx, 
     dPsdProcessArtboardsSequence(psd, items, res, baseName, folderId, idx+1, results);
     return;
   }
-  dPsdMeta={w:item.w, h:item.h, name:item.name, res:res||72}; // res → badge de DPI na revisão
+  dPsdMeta={w:item.w, h:item.h, name:item.name, res:res||72, sequence:{current:idx+1,total:items.length}}; // res → badge de DPI na revisão
   // Ao confirmar a revisão desta prancheta → guarda o resultado e vai pra próxima.
   _dPsdReviewOnConfirm=function(layers, fmtChoice, w, h){
     const fmt=(fmtChoice && fmtChoice!=='orig') ? fmtChoice : item.fmt;
@@ -1780,15 +1819,25 @@ function dPsdSaveArtboardTemplates(results, folderId, baseName){
   gToast('✓ '+results.length+' template(s) importado(s) → '+folder.name);
 }
 
-/* ── overlay de "lendo PSD…" ── */
-function _dPsdBusy(on){
+/* ── estado de leitura e análise do arquivo ── */
+function _dPsdBusy(on,file){
   let el=document.getElementById('d-psd-busy');
   if(on){
     if(!el){ el=document.createElement('div'); el.id='d-psd-busy';
-      el.innerHTML='<div class="d-psd-busy-box"><span class="mini-spinner"></span> Lendo PSD…</div>';
+      el.setAttribute('role','status'); el.setAttribute('aria-live','polite');
+      el.innerHTML='<div class="d-psd-busy-box"><div class="d-psd-busy-head"><span class="psd-product-mark" aria-hidden="true">Ps</span><div class="d-psd-busy-copy"><strong>Preparando seu arquivo</strong><span id="d-psd-busy-file">PSD</span></div></div><div class="d-psd-busy-progress" aria-hidden="true"><span></span></div><div class="d-psd-busy-stage"><strong id="d-psd-busy-stage">Verificando o arquivo…</strong><span>Isso pode levar alguns segundos</span></div></div>';
       document.body.appendChild(el); }
+    const fileEl=document.getElementById('d-psd-busy-file');
+    if(fileEl&&file){
+      const mb=file.size/(1024*1024);
+      fileEl.textContent=file.name+' · '+(mb>=1?mb.toFixed(1)+' MB':Math.max(1,Math.round(file.size/1024))+' KB');
+    }
+    _dPsdBusyUpdate('Verificando o arquivo…');
     el.style.display='flex';
   } else if(el){ el.style.display='none'; }
+}
+function _dPsdBusyUpdate(message){
+  const stage=document.getElementById('d-psd-busy-stage'); if(stage) stage.textContent=message;
 }
 
 /* ── handler do input ── */
@@ -1798,9 +1847,10 @@ async function dImportPSD(input){
   if(!file) return;
   if(!/\.psd$/i.test(file.name)){ gToast('Selecione um arquivo .psd','error'); return; }
   if(file.size > 200*1024*1024){ gToast('⚠ PSD muito grande (máx ~200MB)','error'); return; }
-  _dPsdBusy(true);
+  _dPsdBusy(true,file);
   let agPsd;
   try{ agPsd=await dLoadAgPsd(); }catch(e){ _dPsdBusy(false); console.error('PSD lib:',e); gToast('⚠ Não foi possível carregar o leitor de PSD — recarregue a página','error'); return; }
+  _dPsdBusyUpdate('Lendo estrutura, imagens e fontes…');
   let buf;
   try{ buf=await file.arrayBuffer(); }catch(e){ _dPsdBusy(false); gToast('⚠ Não foi possível ler o arquivo — verifique se é um .psd válido','error'); return; }
   let result;
@@ -1810,6 +1860,7 @@ async function dImportPSD(input){
     _dPsdBusy(false); console.error('PSD:',result&&result.error); gToast('⚠ Não foi possível ler este PSD (formato não suportado)','error'); return;
   }
   try{
+    _dPsdBusyUpdate('Preparando camadas editáveis…');
     const baseName=file.name.replace(/\.psd$/i,'');
     // PSD com múltiplas pranchetas (artboards) → tela de seleção antes da revisão.
     const artboards=(result.psd.children||[]).filter(c=>c && c.artboard && c.artboard.rect);
