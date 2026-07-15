@@ -56,18 +56,24 @@ async function gLogin(email, password) {
   if (!email || !password) return { ok: false, error: 'E-mail e senha são obrigatórios.' };
   const sb = _gSb();
   if (!sb) return { ok: false, error: 'Backend indisponível. Recarregue a página.' };
-  const { error } = await sb.auth.signInWithPassword({
-    email: String(email).trim().toLowerCase(),
-    password
-  });
-  if (error) {
-    const msg = /invalid login|invalid_credentials/i.test(error.message || '')
-      ? 'E-mail ou senha incorretos.'
-      : (error.message || 'Falha no login.');
-    return { ok: false, error: msg };
+  // try/catch: uma rejeição (falha de rede no fetch) NÃO pode escapar — quem chama
+  // (gDoLogin) espera sempre um objeto de resultado, senão o botão trava em "Autenticando…".
+  try {
+    const { error } = await sb.auth.signInWithPassword({
+      email: String(email).trim().toLowerCase(),
+      password
+    });
+    if (error) {
+      const msg = /invalid login|invalid_credentials/i.test(error.message || '')
+        ? 'E-mail ou senha incorretos.'
+        : (error.message || 'Falha no login.');
+      return { ok: false, error: msg };
+    }
+    await gLoadProfile();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: 'Não foi possível conectar. Verifique sua internet e tente de novo.' };
   }
-  await gLoadProfile();
-  return { ok: true };
 }
 
 async function gLogout() {
