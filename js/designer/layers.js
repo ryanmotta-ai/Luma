@@ -2706,7 +2706,8 @@ function dUseAsset(i){
 }
 
 /* ── SAVE / PREVIEW ── */
-function dSave(){
+function dSave(options){
+  const silent=!!(options&&options.silent);
   // Sincronizar layers editados de volta pro artboard ativo antes de salvar
   if(typeof dSyncLayersToAB==='function')dSyncLayersToAB();
   if(dActiveTmplId){
@@ -2726,13 +2727,14 @@ function dSave(){
   if(typeof dSetSaveState==='function')dSetSaveState('saving'); // M2.2
   const okF=dPersistFolders();
   const okA=(typeof dPersistArtboards==='function')?dPersistArtboards():true;
-  if(!(okF&&okA)){ if(typeof dSetSaveState==='function')dSetSaveState('unsaved'); return; } // erro já exibido
+  if(!(okF&&okA)){ if(typeof dSetSaveState==='function')dSetSaveState('unsaved'); return false; } // erro já exibido
   const saveBtn=document.querySelector('.d-btn-pri[onclick="dSave()"]');
   if(saveBtn){saveBtn.classList.add('save-success');setTimeout(()=>saveBtn.classList.remove('save-success'),2000);}
   if(typeof dSetSaveState==='function')dSetSaveState('saved'); // limpa dDirty + mostra "Guardado"
   if(typeof dRenderPagesTray==='function')dRenderPagesTray();
   // Não sobrescreve o aviso de imagens se ele acabou de aparecer neste save
-  if(!(gImgPersistWarned&&!hadImgWarn))gToast('✓ Rascunho salvo!');
+  if(!silent&&!(gImgPersistWarned&&!hadImgWarn))gToast('✓ Rascunho salvo!');
+  return true;
 }
 function dPersistFolders(){
   let droppedImg=false;

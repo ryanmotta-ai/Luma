@@ -85,7 +85,7 @@ Luma/
 │   ├── 01-reset.css
 │   ├── 02-animations.css          # keyframes g* + guarda reduced-motion
 │   ├── 03-fonts.css               # vazio (Realce Black aposentada; Roboto via Google Fonts no <head>)
-│   ├── components/                # topbar, splash, tutorial, help-modal, help-chat, user-profile, pages-tray
+│   ├── components/                # topbar, splash, tutorial, help-modal, user-profile, pages-tray
 │   └── modules/                   # franqueado, franqueado_effects, designer, chat, catalog,
 │                                  # live-preview, layers-panel, toolbar, all-tools, color-picker,
 │                                  # publish-modal, topbar
@@ -96,7 +96,7 @@ Luma/
 │   ├── 01-state.js                # fState inicial
 │   ├── main.js                    # bootstrap: setMode(), boot async, syncs
 │   ├── core/                      # auth, user-profile, supabase(.config)(.example), img-store,
-│   │                              # layout (smart resize), toast (gToast+gEsc), help, help-chat, splash
+│   │                              # layout (smart resize), toast (gToast+gEsc), help, splash
 │   ├── franqueado/                # catalog (com HOME), materials, chat, chat-input, history,
 │   │                              # live-preview, png-generator
 │   ├── designer/                  # canvas, layers, templates, tools, brush, mask, blending,
@@ -341,7 +341,7 @@ Linha compacta (ícone SVG do tipo tingido — único canal de cor — + nome + 
 
 ### Publicação (`publish.js`)
 
-Modal com pranchetas (thumb + nome + checkbox), pasta destino, validade (default +30d), permissões por campo (`{edit, maxLen}`) e instruções livres. `dPublishConfirm()` grava `publishMeta {publicado, publicadoEm, validade, instrucoes, permissoes}` no template e persiste → aparece no catálogo do franqueado. Tela de sucesso animada (checkmark SVG).
+Wizard em três etapas: **Qualidade** (linter + materiais), **Configuração** (campanha, validade, permissões `{edit, maxLen}` e instruções) e **Revisão** (pré-visualização pelo renderizador oficial + resumo). A configuração possui rascunho automático local, validação por etapa, confirmação explícita para publicar/republicar e retorno ao editor após o sucesso. `dPublishConfirm()` grava `publishMeta {publicado, publicadoEm, validade, instrucoes, permissoes}` no template e persiste → aparece no catálogo do franqueado. Os atalhos de `templates.js` carregam o material e encaminham para esse mesmo wizard; nenhum atalho publica diretamente.
 
 ### Preview/Export (`preview.js`, prefixo `pv*`)
 
@@ -379,9 +379,8 @@ O dashboard simulado foi retirado em 2026-07-15. Analytics real continua em `ana
 ## 12. TUTORIAIS E COMPONENTES GLOBAIS
 
 - **Tutorial engine** (`tutorial/engine.js`): 18 tutoriais (4 franqueado + 14 estúdio) com cenas animadas, cursor virtual, tooltips, play/pause, mocks de tela (não tocam estado real). Conclusão grava `yngs_tutorials_done`.
-- **Central de Ajuda** (`core/help.js`): modal com catálogo dos tutoriais + busca. Card → `tutOpen(id)`.
-- **Help-chat** (`core/help-chat.js`): widget flutuante estilo Intercom com árvores de decisão por persona e simulação de suporte humano.
-- **Toast** (`core/toast.js`): `gToast(msg, type)` — 2.8s (4.2s erro). ⚠ **Sem fila** — chamadas em sequência se sobrescrevem. Também: `gBtnLoading`, `gWarnImagesNotPersisted`, **`gEsc`** (escape HTML global).
+- **Central de Ajuda** (`core/help.js`): botão flutuante, trilha, busca, guias rápidos, ajuda contextual e onboarding do franqueado. Tutorial → `tutOpen(id)`.
+- **Toast** (`core/toast.js`): `gToast(msg, type, helpTopic?)` — 2.8s (4.2s erro). CTA de ajuda só existe com artigo explícito. ⚠ **Sem fila** — chamadas em sequência se sobrescrevem. Também: `gBtnLoading`, `gWarnImagesNotPersisted`, **`gEsc`** (escape HTML global).
 - **Splash** (`core/splash.js`): overlay de entrada, mínimo 2.8s, tudo em try/catch.
 - **Auth UI** (`core/auth.js` + `core/user-profile.js`): login/logout/reset de senha reais (Supabase), perfil com foto (localStorage `__luma_user_photo_*`), gestão de equipe (listar/role/ativo via RLS), `gUpdateUserTopbar`.
 
@@ -544,7 +543,7 @@ localStorage.clear(); location.reload();               // reset local (backend r
 
 ## 19. LINHA DO TEMPO (condensada)
 
-- **Fases 0–4**: refatoração modular (1 arquivo 9.3k linhas → dezenas), ferramentas de pintura, formas, efeitos de texto, sistema de campos completo (tipos ricos, bindings, regras), bulk CSV, export SVG, pastas com capa, fontes custom, 18 tutoriais, libs vendorizadas, help-chat.
+- **Fases 0–4**: refatoração modular (1 arquivo 9.3k linhas → dezenas), ferramentas de pintura, formas, efeitos de texto, sistema de campos completo (tipos ricos, bindings, regras), bulk CSV, export SVG, pastas com capa, fontes custom, 18 tutoriais, libs vendorizadas e Central de Ajuda unificada.
 - **5.2 Smart resize**: motor de âncoras em `core/layout.js`, PNG/preview/editor sem distorção.
 - **PSD/SVG import**: revisão por camada, multi-artboard, remap de fontes, máscaras.
 - **Redesign do Estúdio**: canvas único, aba Campanhas em árvore, propriedades integradas às Camadas.

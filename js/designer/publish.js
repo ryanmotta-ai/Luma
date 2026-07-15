@@ -11,6 +11,96 @@ let dPubSelectedABs = new Set();   // IDs das pranchetas selecionadas
 let dPubPermissoes  = {};          // permissões compartilhadas
 let dPubObservers   = [];          // cleanup de observers
 let dPrevToolForSpace = null;      // ferramenta anterior ao pressionar Espaço
+let dPubWizardStep = 0;
+let dPubLinterStats = { errorsCount:0, warningsCount:0, infosCount:0 };
+let dPubLastTrigger = null;
+let dPubDraftTimer = null;
+let dPubPublished = false;
+
+const D_PUB_STEPS=[
+  {label:'Qualidade', panels:['linter','artboards']},
+  {label:'Configuração', panels:['pasta','validade','permissoes','instrucoes']},
+  {label:'Revisão', panels:['review']},
+];
+
+function dPublishDraftKey(){
+  const ab=(typeof dGetActiveAB==='function')?dGetActiveAB():null;
+  const id=(typeof dActiveTmplId!=='undefined'&&dActiveTmplId)||((ab&&ab.id)?ab.id+':'+(ab.name||'material'):'novo');
+  return '_luma_publish_draft:'+id;
+}
+
+function dPublishCollectDraft(){
+  const names={};
+  dPubSelectedABs.forEach(id=>{
+    const input=document.getElementById('pub-ab-name-'+id);
+    if(input)names[id]=input.value;
+  });
+  return {
+    folderId:document.getElementById('pub-folder')?.value||'',
+    validade:document.getElementById('pub-validade')?.value||'',
+    instrucoes:document.getElementById('pub-instrucoes')?.value||'',
+    permissoes:JSON.parse(JSON.stringify(dPubPermissoes)),
+    selected:[...dPubSelectedABs],names,step:dPubWizardStep,savedAt:Date.now()
+  };
+}
+
+function dPublishPersistDraft(showFeedback){
+  try{
+    localStorage.setItem(dPublishDraftKey(),JSON.stringify(dPublishCollectDraft()));
+    const status=document.getElementById('pub-draft-status');
+    if(status)status.textContent='Rascunho salvo agora';
+    if(showFeedback)gToast('Rascunho da publicação salvo');
+    return true;
+  }catch(e){
+    if(showFeedback)gToast('Não foi possível salvar o rascunho da publicação','error');
+    return false;
+  }
+}
+
+function dPublishQueueDraft(){
+  if(dPubPublished)return;
+  clearTimeout(dPubDraftTimer);
+  dPubDraftTimer=setTimeout(()=>dPublishPersistDraft(false),300);
+  const status=document.getElementById('pub-draft-status');
+  if(status)status.textContent='Salvando rascunho…';
+}
+
+function dPublishLoadDraft(){
+  let draft=null;
+  try{draft=JSON.parse(localStorage.getItem(dPublishDraftKey())||'null');}catch(e){}
+  if(!draft)return;
+  const folder=document.getElementById('pub-folder');
+  if(folder&&draft.folderId&&[...folder.options].some(o=>o.value===draft.folderId))folder.value=draft.folderId;
+  const validade=document.getElementById('pub-validade');
+  const instrucoes=document.getElementById('pub-instrucoes');
+  if(validade&&typeof draft.validade==='string')validade.value=draft.validade;
+  if(instrucoes&&typeof draft.instrucoes==='string')instrucoes.value=draft.instrucoes;
+  if(draft.permissoes&&typeof draft.permissoes==='object')dPubPermissoes=JSON.parse(JSON.stringify(draft.permissoes));
+  if(Array.isArray(draft.selected)){
+    const validIds=new Set((typeof dArtboards!=='undefined'&&dArtboards?dArtboards:[]).map(ab=>ab.id));
+    const restored=draft.selected.filter(id=>validIds.has(id));
+    if(restored.length)dPubSelectedABs=new Set(restored);
+  }
+  dPublishRenderArtboards();
+  dPublishRenderPerms();
+  Object.entries(draft.names||{}).forEach(([id,name])=>{
+    const input=document.getElementById('pub-ab-name-'+id);
+    if(input)input.value=name;
+  });
+  const status=document.getElementById('pub-draft-status');
+  if(status)status.textContent='Rascunho recuperado';
+}
+
+function dPublishClearDraft(key){
+  clearTimeout(dPubDraftTimer);
+  try{localStorage.removeItem(key||dPublishDraftKey());}catch(e){}
+}
+
+function dPublishSaveDraft(){
+  const saved=dPublishPersistDraft(false);
+  if(typeof dSave==='function')dSave();
+  else if(saved)gToast('Rascunho da publicação salvo');
+}
 
 function dGetActiveTemplate(){
   for(const f of dFolders){
@@ -19,6 +109,266 @@ function dGetActiveTemplate(){
   }
   return null;
 }
+
+function dPublishSetupWizard(){
+  const modal=document.getElementById('d-publish-modal');
+  const box=modal?.querySelector('.pub-box');
+  const body=modal?.querySelector('.pub-body');
+  const tabsWrap=modal?.querySelector('.pub-tabs');
+  const tabs=modal?.querySelectorAll('.pub-tab');
+  if(!modal||!box||!body||!tabs?.length)return;
+
+  modal.setAttribute('role','dialog');
+  modal.setAttribute('aria-modal','true');
+  modal.setAttribute('aria-labelledby','d-publish-title');
+  tabsWrap?.setAttribute('aria-label','Etapas da publicação');
+  box.classList.remove('pub-success-mode');
+  modal.querySelector('#pub-success-panel')?.remove();
+  const title=modal.querySelector('.pub-head-title span');
+  if(title){title.id='d-publish-title';title.tabIndex=-1;title.textContent='Publicar template';}
+
+  const icons=[
+    '<path d="m9 11 2 2 4-4"/><circle cx="12" cy="12" r="9"/>',
+    '<path d="M4 6h16M4 12h16M4 18h10"/>',
+    '<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/>'
+  ];
+  tabs.forEach((tab,index)=>{
+    if(index<3){
+      tab.hidden=false;
+      tab.removeAttribute('style');
+      tab.removeAttribute('role');
+      tab.setAttribute('onclick',`dPublishGoStep(${index})`);
+      tab.innerHTML=`<span class="pub-step-num">${index+1}</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[index]}</svg><span>${D_PUB_STEPS[index].label}</span>`;
+    }else tab.hidden=true;
+  });
+
+  if(!document.getElementById('pub-panel-review')){
+    const review=document.createElement('div');
+    review.id='pub-panel-review';
+    review.className='pub-panel';
+    body.appendChild(review);
+  }
+  if(!document.getElementById('pub-wizard-error')){
+    const error=document.createElement('div');
+    error.id='pub-wizard-error';
+    error.className='pub-wizard-error';
+    error.setAttribute('role','alert');
+    error.hidden=true;
+    body.prepend(error);
+  }
+
+  const sections={
+    artboards:['Material','Escolha o que será publicado e confirme o nome exibido no catálogo.'],
+    pasta:['Destino','Defina em qual campanha o material ficará disponível.'],
+    validade:['Disponibilidade','Escolha por quanto tempo o material poderá ser usado.'],
+    permissoes:['Campos editáveis','Controle o que o franqueado pode alterar sem sair da marca.'],
+    instrucoes:['Orientação','Explique quando e como este material deve ser usado.']
+  };
+  Object.entries(sections).forEach(([id,copy])=>{
+    const panel=document.getElementById('pub-panel-'+id);
+    if(panel&&!panel.querySelector('.pub-wizard-section-head')){
+      panel.insertAdjacentHTML('afterbegin',`<div class="pub-wizard-section-head"><span>${copy[0]}</span><p>${copy[1]}</p></div>`);
+    }
+  });
+
+  const foot=modal.querySelector('.pub-foot');
+  const cancel=foot?.querySelector('.pub-btn-cancel');
+  const primary=foot?.querySelector('.pub-btn-confirm');
+  if(foot&&!document.getElementById('pub-save-draft')){
+    const draft=document.createElement('button');
+    draft.id='pub-save-draft';
+    draft.type='button';
+    draft.className='pub-btn pub-btn-draft';
+    draft.setAttribute('onclick','dPublishSaveDraft()');
+    draft.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg><span>Salvar rascunho</span>';
+    foot.insertBefore(draft,cancel);
+    const status=document.createElement('span');
+    status.id='pub-draft-status';
+    status.className='pub-draft-status';
+    status.setAttribute('aria-live','polite');
+    foot.insertBefore(status,draft);
+  }
+  if(cancel){cancel.hidden=false;cancel.setAttribute('onclick','dPublishSecondaryAction()');}
+  if(primary){primary.disabled=false;primary.classList.remove('loading');primary.setAttribute('onclick','dPublishPrimaryAction()');}
+
+  if(!modal._pubDraftBound){
+    const queue=e=>{if(e.target.matches('input,select,textarea'))dPublishQueueDraft();};
+    modal.addEventListener('input',queue);
+    modal.addEventListener('change',queue);
+    modal._pubDraftBound=true;
+  }
+  dPublishLoadDraft();
+  dPublishShowStep(0,true);
+  setTimeout(()=>title?.focus(),0);
+}
+
+function dPublishShowError(message,step,focusEl){
+  if(Number.isInteger(step)&&step!==dPubWizardStep)dPublishShowStep(step,true);
+  const error=document.getElementById('pub-wizard-error');
+  if(error){
+    error.hidden=false;
+    error.innerHTML='<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 17h.01"/></svg><span>'+gEsc(message)+'</span>';
+  }
+  if(focusEl)setTimeout(()=>focusEl.focus(),0);
+  return false;
+}
+
+function dPublishClearError(){
+  const error=document.getElementById('pub-wizard-error');
+  if(error){error.hidden=true;error.textContent='';}
+  document.querySelectorAll('#d-publish-modal .is-invalid').forEach(el=>el.classList.remove('is-invalid'));
+}
+
+function dPublishValidateStep(step){
+  dPublishClearError();
+  if(step===0){
+    if(dPubLinterStats.errorsCount>0)return dPublishShowError('Corrija os erros críticos do checklist antes de continuar.',0,document.getElementById('d-pub-linter-issues'));
+    if(!dPubSelectedABs.size)return dPublishShowError('Selecione pelo menos um material para publicar.',0,document.getElementById('pub-ab-grid'));
+    for(const id of dPubSelectedABs){
+      const input=document.getElementById('pub-ab-name-'+id);
+      if(!input?.value.trim()){
+        input?.classList.add('is-invalid');
+        return dPublishShowError('Dê um nome ao material antes de continuar.',0,input);
+      }
+    }
+  }
+  if(step===1){
+    const folder=document.getElementById('pub-folder');
+    if(!folder?.value){folder?.classList.add('is-invalid');return dPublishShowError('Selecione a campanha de destino.',1,folder);}
+    const validade=document.getElementById('pub-validade');
+    const today=new Date();
+    const localToday=new Date(today.getTime()-today.getTimezoneOffset()*60000).toISOString().slice(0,10);
+    if(validade?.value&&validade.value<localToday){
+      validade.classList.add('is-invalid');
+      return dPublishShowError('A validade não pode estar no passado.',1,validade);
+    }
+    for(const [name,perm] of Object.entries(dPubPermissoes)){
+      if(perm.edit&&perm.maxLen!==0&&(!Number.isFinite(Number(perm.maxLen))||Number(perm.maxLen)<1||Number(perm.maxLen)>200)){
+        const input=[...document.querySelectorAll('.pub-perm-len input')].find(el=>el.closest('.pub-perm-row')?.querySelector('.pub-perm-key')?.textContent.includes(name));
+        input?.classList.add('is-invalid');
+        return dPublishShowError('Use limites entre 1 e 200 caracteres.',1,input);
+      }
+    }
+  }
+  return true;
+}
+
+function dPublishGoStep(index,force){
+  index=Math.max(0,Math.min(D_PUB_STEPS.length-1,Number(index)||0));
+  if(!force&&index>dPubWizardStep){
+    for(let step=dPubWizardStep;step<index;step++)if(!dPublishValidateStep(step))return;
+  }
+  dPublishShowStep(index,false);
+}
+
+function dPublishShowStep(index,skipDraft){
+  dPubWizardStep=index;
+  document.querySelectorAll('#d-publish-modal .pub-panel').forEach(panel=>panel.classList.remove('active'));
+  D_PUB_STEPS[index].panels.forEach(id=>document.getElementById('pub-panel-'+id)?.classList.add('active'));
+  document.querySelectorAll('#d-publish-modal .pub-tab').forEach((tab,i)=>{
+    if(i>2)return;
+    tab.classList.toggle('active',i===index);
+    tab.classList.toggle('complete',i<index);
+    if(i===index)tab.setAttribute('aria-current','step');
+    else tab.removeAttribute('aria-current');
+    tab.tabIndex=i===index?0:-1;
+  });
+  if(index===2)dPublishRenderReview();
+  dPublishUpdateFooter();
+  dPublishClearError();
+  if(!skipDraft)dPublishQueueDraft();
+  const active=document.querySelectorAll('#d-publish-modal .pub-tab')[index];
+  setTimeout(()=>active?.focus(),0);
+}
+
+function dPublishUpdateFooter(){
+  const modal=document.getElementById('d-publish-modal');
+  const cancel=modal?.querySelector('.pub-btn-cancel');
+  const primary=modal?.querySelector('.pub-btn-confirm');
+  const draft=document.getElementById('pub-save-draft');
+  if(cancel)cancel.textContent=dPubWizardStep===0?'Fechar':'Voltar';
+  if(draft)draft.hidden=false;
+  if(primary){
+    primary.disabled=dPubWizardStep===0&&dPubLinterStats.errorsCount>0;
+    primary.innerHTML=dPubWizardStep===2
+      ?'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4 20-7Z"/><path d="M22 2 11 13"/></svg><span>Publicar material</span>'
+      :'<span>Continuar</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>';
+  }
+}
+
+function dPublishSecondaryAction(){
+  if(dPubWizardStep>0)dPublishGoStep(dPubWizardStep-1,true);
+  else dPublishClose();
+}
+
+function dPublishPrimaryAction(){
+  if(dPubWizardStep<2){dPublishGoStep(dPubWizardStep+1);return;}
+  dPublishRequestConfirm();
+}
+
+function dPublishRenderReview(){
+  const panel=document.getElementById('pub-panel-review');if(!panel)return;
+  const ab=(typeof dArtboards!=='undefined'&&dArtboards)?dArtboards.find(item=>dPubSelectedABs.has(item.id)):null;
+  const folder=document.getElementById('pub-folder');
+  const folderName=folder?.selectedOptions?.[0]?.textContent||'Campanha não definida';
+  const nameInput=ab?document.getElementById('pub-ab-name-'+ab.id):null;
+  const name=(nameInput?.value||ab?.name||'Material').trim();
+  const validade=document.getElementById('pub-validade')?.value;
+  const instrucoes=document.getElementById('pub-instrucoes')?.value.trim();
+  const editable=Object.values(dPubPermissoes).filter(p=>p.edit).length;
+  const total=Object.keys(dPubPermissoes).length;
+  panel.innerHTML=`<div class="pub-review-grid">
+    <section class="pub-review-preview" aria-labelledby="pub-review-preview-title">
+      <div class="pub-wizard-section-head"><span id="pub-review-preview-title">Pré-visualização</span><p>Esta é a versão que ficará disponível para o franqueado.</p></div>
+      <div class="pub-review-canvas-wrap"><canvas id="pub-review-canvas"></canvas></div>
+      <div class="pub-review-dim">${ab?`${ab.w} × ${ab.h} · ${(ab.fmt||'custom').toUpperCase()}`:'Material indisponível'}</div>
+    </section>
+    <section class="pub-review-summary" aria-labelledby="pub-review-summary-title">
+      <div class="pub-wizard-section-head"><span id="pub-review-summary-title">Resumo da publicação</span><p>Confira os detalhes antes de disponibilizar.</p></div>
+      <dl class="pub-review-list">
+        <div><dt>Material</dt><dd>${gEsc(name)}</dd></div>
+        <div><dt>Campanha</dt><dd>${gEsc(folderName)}</dd></div>
+        <div><dt>Validade</dt><dd>${validade?gEsc(validade.split('-').reverse().join('/')):'Sem data de expiração'}</dd></div>
+        <div><dt>Campos editáveis</dt><dd>${editable} de ${total}</dd></div>
+        <div><dt>Instruções</dt><dd>${instrucoes?gEsc(instrucoes):'Nenhuma instrução adicional'}</dd></div>
+      </dl>
+      <div class="pub-review-notice"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span>Ao publicar, este material ficará visível no catálogo enquanto estiver dentro da validade.</span></div>
+    </section>
+  </div>`;
+  setTimeout(()=>{
+    const canvas=document.getElementById('pub-review-canvas');
+    if(canvas&&ab&&typeof fRenderPreviewToCanvas==='function')fRenderPreviewToCanvas(canvas,ab,{maxPx:900});
+  },0);
+}
+
+async function dPublishRequestConfirm(){
+  if(!dPublishValidateStep(0)||!dPublishValidateStep(1))return;
+  const info=_dPubFindTmpl();
+  const republish=!!(info?.tmpl?.publishMeta?.publicado);
+  const ok=typeof gConfirm==='function'
+    ?await gConfirm(republish?'Publicar esta revisão e substituir a versão disponível no catálogo?':'Disponibilizar este material no catálogo do franqueado?',{title:republish?'Confirmar republicação':'Confirmar publicação',okLabel:republish?'Republicar':'Publicar',cancelLabel:'Revisar'})
+    :true;
+  if(ok)dPublishConfirm();
+}
+
+function dPublishFocusable(){
+  const modal=document.getElementById('d-publish-modal');
+  if(!modal)return[];
+  return [...modal.querySelectorAll('button:not([disabled]):not([hidden]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')].filter(el=>el.offsetParent!==null);
+}
+
+document.addEventListener('keydown',e=>{
+  const modal=document.getElementById('d-publish-modal');
+  if(!modal?.classList.contains('open'))return;
+  // O dialogo de confirmacao tem seu proprio ciclo de teclado e foco.
+  if(document.querySelector('.g-dialog-ov'))return;
+  if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();dPublishClose();return;}
+  if(e.key!=='Tab')return;
+  const focusable=dPublishFocusable();if(!focusable.length)return;
+  const first=focusable[0],last=focusable[focusable.length-1];
+  if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+  else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+},true);
 
 /* ── PAINEL PUBLICAR (sidebar) — resumo + gatilho do modal completo (fluxo híbrido) ── */
 function dPublishPanelRender(){
@@ -67,25 +417,29 @@ function dPublishOpen(){
   if(typeof dSyncLayersToAB==='function') dSyncLayersToAB();
   const _ab=dGetActiveAB();
   if(!dLayers||!dLayers.length){gToast('Adicione camadas antes de publicar.');return;}
+  dPubLastTrigger=document.activeElement instanceof HTMLElement?document.activeElement:null;
+  dPubPublished=false;
+  dPubWizardStep=0;
   dPubSelectedABs=new Set([_ab.id]);
   dPubPermissoes={};
   dPublishRender();
   document.getElementById('d-publish-modal').classList.add('open');
+  dPublishSetupWizard();
 }
 function dPublishClose(){
   const modal = document.getElementById('d-publish-modal');
   if (modal) {
     modal.classList.remove('open');
-    const box = modal.querySelector('.pub-box');
-    if (box && box._originalHTML) {
-      setTimeout(() => {
-        box.innerHTML = box._originalHTML;
-        delete box._originalHTML;
-      }, 300);
-    }
+    dPubHidePreview();
+    const trigger=dPubLastTrigger;
+    setTimeout(()=>{if(trigger&&document.contains(trigger))trigger.focus();},0);
   }
 }
 function dPublishSwitchTab(tab, btn){
+  if(document.getElementById('pub-panel-review')){
+    const oldMap={linter:0,artboards:0,pasta:1,validade:1,permissoes:1,instrucoes:1,review:2};
+    if(Object.prototype.hasOwnProperty.call(oldMap,tab)){dPublishGoStep(oldMap[tab],true);return;}
+  }
   document.querySelectorAll('.pub-tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.pub-panel').forEach(p=>p.classList.remove('active'));
   const targetBtn = btn || document.querySelector(`.pub-tab[onclick*="'${tab}'"]`);
@@ -126,8 +480,8 @@ function dPublishRender(){
   const stateEl=document.getElementById('pub-current-state');
   const anyPublished=!!(_meta&&_meta.publicado);
   stateEl.innerHTML=anyPublished
-    ?`<span class="pub-pill pub-pill-on">● Publicado anteriormente</span>`
-    :`<span class="pub-pill pub-pill-off">○ Não publicado</span>`;
+    ?`<span class="pub-pill pub-pill-on"><span class="pub-status-dot"></span>Publicado anteriormente</span>`
+    :`<span class="pub-pill pub-pill-off"><span class="pub-status-dot"></span>Rascunho</span>`;
 
   // Executa o linter na aba checklist de publicação
   let linterStats = { errorsCount: 0, warningsCount: 0, infosCount: 0 };
@@ -185,18 +539,20 @@ function dPublishRender(){
     }
   }
 
+  dPubLinterStats=linterStats;
+
   // Atualiza o resumo no rodapé da aba Checklist
   const summaryEl = document.getElementById('d-pub-linter-summary');
   if (summaryEl) {
     if (linterStats.errorsCount > 0) {
-      summaryEl.innerHTML = `<span style="color:#ef4444;font-weight:700">🔴 ${linterStats.errorsCount} erro(s) crítico(s) detectado(s).</span>`
-        + `<span style="font-size:11px;color:#aaa">Corrija os erros listados para liberar a publicação.</span>`;
+      summaryEl.className='pub-linter-summary error';
+      summaryEl.innerHTML = `<span class="pub-linter-main"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 17h.01"/></svg>${linterStats.errorsCount} erro(s) crítico(s)</span><span>Corrija os itens listados para continuar.</span>`;
     } else if (linterStats.warningsCount > 0) {
-      summaryEl.innerHTML = `<span style="color:#f59e0b;font-weight:700">🟡 ${linterStats.warningsCount} alerta(s) de Safe Zone / respiro pendente(s).</span>`
-        + `<span style="font-size:11px;color:#aaa">Publicação liberada com ressalvas.</span>`;
+      summaryEl.className='pub-linter-summary warning';
+      summaryEl.innerHTML = `<span class="pub-linter-main"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 9v4M12 17h.01"/></svg>${linterStats.warningsCount} alerta(s)</span><span>Você pode continuar, mas vale revisar o respiro e a área segura.</span>`;
     } else {
-      summaryEl.innerHTML = `<span style="color:#10b981;font-weight:700">🟢 Pronto: Nenhuma inconformidade de layout encontrada.</span>`
-        + `<span style="font-size:11px;color:#aaa">Campanha validada com sucesso.</span>`;
+      summaryEl.className='pub-linter-summary success';
+      summaryEl.innerHTML = `<span class="pub-linter-main"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></svg>Pronto para continuar</span><span>Nenhuma inconformidade crítica foi encontrada.</span>`;
     }
   }
 
@@ -205,20 +561,12 @@ function dPublishRender(){
   if (confirmBtn) {
     if (linterStats.errorsCount > 0) {
       confirmBtn.disabled = true;
-      confirmBtn.style.opacity = '0.5';
-      confirmBtn.style.cursor = 'not-allowed';
       confirmBtn.title = 'Corrija os erros críticos no Checklist para liberar a publicação.';
     } else {
       confirmBtn.disabled = false;
-      confirmBtn.style.opacity = '1';
-      confirmBtn.style.cursor = 'pointer';
       confirmBtn.title = '';
     }
   }
-
-  // Abre na aba de checklist inicialmente
-  const firstBtn=document.querySelector('.pub-tab');
-  if(firstBtn) dPublishSwitchTab('linter', firstBtn);
 }
 
 /* ── GRID DE PRANCHETAS ── */
@@ -324,6 +672,7 @@ function dPubToggleAB(id){
   if(card) card.classList.toggle('selected', dPubSelectedABs.has(id));
   if(chk)  chk.checked=dPubSelectedABs.has(id);
   dPublishRenderPerms();
+  dPublishQueueDraft();
 }
 function dPubSelectAllAB(sel){
   const _ab=dGetActiveAB();
@@ -376,6 +725,7 @@ function dPublishUpdatePerm(varName, key, value){
   if(!dPubPermissoes[varName]) dPubPermissoes[varName]={edit:true,maxLen:32};
   dPubPermissoes[varName][key]=value;
   if(key==='edit') dPublishRenderPerms();
+  dPublishQueueDraft();
 }
 
 /* ── PRESETS DE PERMISSÃO + APLICAR À CAMPANHA INTEIRA ──
@@ -386,14 +736,16 @@ function _dPermPresets(){
 }
 function _dPermBar(){
   const opts=_dPermPresets().map(p=>`<option value="${gEsc(p.id)}">${gEsc(p.name)}</option>`).join('');
-  return `<div class="pub-perm-presets" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--d-border2,rgba(255,255,255,.12))">
-    <select onchange="dPermPresetLoad(this.value)" style="font-size:12px;padding:6px 8px;border:1px solid var(--d-border2,rgba(255,255,255,.14));border-radius:6px;background:var(--d-surf,#222);color:var(--d-text,#eee);outline:none;cursor:pointer"><option value="">Aplicar preset…</option>${opts}</select>
+  return `<div class="pub-perm-presets">
+    <select class="pub-perm-preset-select" onchange="dPermPresetLoad(this.value)"><option value="">Aplicar preset…</option>${opts}</select>
     <button type="button" class="d-btn-sec" onclick="dPermPresetSave()">Salvar preset</button>
     <button type="button" class="d-btn-sec" onclick="dPermApplyToFolder()" title="Copia estas permissões para todos os materiais desta campanha">Aplicar a toda a campanha</button>
   </div>`;
 }
-function dPermPresetSave(){
-  const name=prompt('Nome do preset de permissões (ex.: "Preços travados, produto livre"):');
+async function dPermPresetSave(){
+  const name=typeof gPrompt==='function'
+    ?await gPrompt('Dê um nome que ajude o time a reconhecer esta configuração.','',{title:'Salvar preset de permissões',placeholder:'Ex.: Preços travados, produto livre',okLabel:'Salvar preset'})
+    :null;
   if(name===null) return;
   const nm=name.trim(); if(!nm){ gToast('Nome inválido','error'); return; }
   let store={entries:[]}; try{const r=localStorage.getItem('_luma_perm_presets'); if(r)store=JSON.parse(r);}catch(e){}
@@ -409,13 +761,16 @@ function dPermPresetLoad(id){
   // aplica só aos campos que ESTE material tem (não injeta campos alheios na tela)
   Object.keys(dPubPermissoes).forEach(v=>{ if(p.perms[v]) dPubPermissoes[v]=JSON.parse(JSON.stringify(p.perms[v])); });
   dPublishRenderPerms();
-  gToast('✓ Preset aplicado a este material');
+  gToast('Preset aplicado a este material');
 }
-function dPermApplyToFolder(){
+async function dPermApplyToFolder(){
   const info=(typeof _dPubFindTmpl==='function')?_dPubFindTmpl():null;
   const folder=info&&info.folder;
   if(!folder||!Array.isArray(folder.templates)||folder.templates.length<2){ gToast('Esta campanha não tem outros materiais pra aplicar.'); return; }
-  if(!confirm(`Aplicar estas permissões a TODOS os ${folder.templates.length} materiais desta campanha?`)) return;
+  const confirmed=typeof gConfirm==='function'
+    ?await gConfirm(`Aplicar estas permissões aos ${folder.templates.length} materiais da campanha?`,{title:'Aplicar à campanha inteira',okLabel:'Aplicar permissões',cancelLabel:'Cancelar'})
+    :false;
+  if(!confirmed)return;
   const perms=JSON.parse(JSON.stringify(dPubPermissoes));
   folder.templates.forEach(t=>{
     if(!t.publishMeta) t.publishMeta={};
@@ -424,20 +779,73 @@ function dPermApplyToFolder(){
     t._syncPending=true;
   });
   if(typeof dPersistFolders==='function') dPersistFolders();
-  gToast('✓ Permissões aplicadas a '+folder.templates.length+' materiais da campanha');
+  gToast('Permissões aplicadas a '+folder.templates.length+' materiais da campanha');
+}
+
+function dPublishShowSuccess(count,folderName){
+  const modal=document.getElementById('d-publish-modal');
+  const box=modal?.querySelector('.pub-box');
+  const body=modal?.querySelector('.pub-body');
+  if(!modal||!box||!body){dPublishClose();return;}
+  dPubPublished=true;
+  box.classList.add('pub-success-mode');
+  document.querySelectorAll('#d-publish-modal .pub-panel').forEach(panel=>panel.classList.remove('active'));
+  let success=document.getElementById('pub-success-panel');
+  if(!success){
+    success=document.createElement('section');
+    success.id='pub-success-panel';
+    success.className='pub-success-state';
+    body.appendChild(success);
+  }
+  success.innerHTML=`<div class="pub-success-icon-wrap">
+      <svg class="checkmark-svg" viewBox="0 0 52 52" aria-hidden="true"><circle class="checkmark-circle" cx="26" cy="26" r="25" fill="none"/><path class="checkmark-check" d="M14.1 27.2l7.1 7.2 16.7-16.8"/></svg>
+    </div>
+    <span class="pub-success-eyebrow">Publicação concluída</span>
+    <h3>Material disponível no catálogo</h3>
+    <p>${count} material${count!==1?'is':''} publicado${count!==1?'s':''} em <strong>${gEsc(folderName)}</strong>.</p>
+    <div class="pub-success-note"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7 9 18l-5-5"/></svg><span>O franqueado já pode encontrar o material enquanto ele estiver dentro da validade.</span></div>`;
+  const title=modal.querySelector('.pub-head-title span');
+  if(title)title.textContent='Publicado com sucesso';
+  const draft=document.getElementById('pub-save-draft');
+  const status=document.getElementById('pub-draft-status');
+  const cancel=modal.querySelector('.pub-btn-cancel');
+  const primary=modal.querySelector('.pub-btn-confirm');
+  if(draft)draft.hidden=true;
+  if(status)status.textContent='';
+  if(cancel)cancel.hidden=true;
+  if(primary){
+    primary.disabled=false;
+    primary.classList.remove('loading');
+    primary.setAttribute('onclick','dPublishClose()');
+    primary.innerHTML='<span>Voltar ao editor</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>';
+  }
+  setTimeout(()=>success.querySelector('h3')?.setAttribute('tabindex','-1'),0);
+  setTimeout(()=>success.querySelector('h3')?.focus(),10);
 }
 
 /* ── CONFIRMAR PUBLICAÇÃO ── */
 function dPublishConfirm(){
+  if(!dPublishValidateStep(0)||!dPublishValidateStep(1))return;
+  const draftKey=dPublishDraftKey();
+  const confirmBtn=document.querySelector('#d-publish-modal .pub-btn-confirm');
+  if(confirmBtn){
+    confirmBtn.disabled=true;
+    confirmBtn.classList.add('loading');
+    confirmBtn.innerHTML='<span class="pub-btn-spinner" aria-hidden="true"></span><span>Publicando…</span>';
+  }
   const selected=[...dPubSelectedABs];
-  if(!selected.length){gToast('⚠ Selecione a prancheta para publicar');return;}
+  if(!selected.length){gToast('Selecione a prancheta para publicar','error');return;}
   dGetActiveAB();
   if(typeof dSyncLayersToAB==='function') dSyncLayersToAB();
   const folderId=document.getElementById('pub-folder').value;
   const validade=document.getElementById('pub-validade').value;
   const instrucoes=document.getElementById('pub-instrucoes').value;
   const folder=dFolders.find(f=>f.id===folderId);
-  if(!folder){gToast('⚠ Selecione uma pasta válida');return;}
+  if(!folder){
+    if(confirmBtn){confirmBtn.disabled=false;confirmBtn.classList.remove('loading');}
+    dPublishShowError('Selecione uma campanha válida.',1,document.getElementById('pub-folder'));
+    return;
+  }
   let count=0;
   selected.forEach(abId=>{
     const ab=dArtboards.find(a=>a.id===abId);if(!ab)return;
@@ -485,34 +893,16 @@ function dPublishConfirm(){
   const hadImgWarn=gImgPersistWarned;
   const ok=dPersistFolders();
   dRenderFolders();
-  if(!ok)return; // quota cheia: erro já exibido, mantém o modal aberto para o usuário ajustar
-  dDirty=false; // publicar persistiu tudo
-  document.getElementById('d-save-indicator').innerHTML='<span style="color:rgba(34,197,94,.95);font-weight:600;display:inline-flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg>Publicado</span>';
-  
-  // Exibe a tela celebratória de sucesso com animação de checkmark em SVG
-  const box = document.querySelector('#d-publish-modal .pub-box');
-  if (box) {
-    box._originalHTML = box.innerHTML;
-    box.innerHTML = `
-      <div class="pub-success-state">
-        <div class="pub-success-icon-wrap">
-          <svg class="checkmark-svg" viewBox="0 0 52 52">
-            <circle class="checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
-            <path class="checkmark-check" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
-          </svg>
-        </div>
-        <h3 style="font-size:18px;color:var(--d-text);font-weight:700;margin:0 0 8px;font-family:'Roboto',sans-serif;">Publicado com sucesso!</h3>
-        <p style="font-size:12.5px;color:var(--d-text2);margin:0 0 24px;line-height:1.5;font-family:'Roboto',sans-serif;">
-          ${count} prancheta${count !== 1 ? 's' : ''} publicada${count !== 1 ? 's' : ''} e disponível${count !== 1 ? 's' : ''} no Franqueado.
-        </p>
-        <button class="pub-btn pub-btn-confirm" onclick="dPublishClose()" style="padding: 8px 24px; font-size:12.5px;">Entendido</button>
-      </div>
-    `;
-  } else {
-    if(!(gImgPersistWarned&&!hadImgWarn))
-      gToast(''+count+' prancheta'+(count!==1?'s':'')+' publicada'+(count!==1?'s':'')+' com sucesso!');
-    dPublishClose();
+  if(!ok){
+    if(confirmBtn){confirmBtn.disabled=false;confirmBtn.classList.remove('loading');dPublishUpdateFooter();}
+    dPublishShowError('Não foi possível salvar a publicação. Revise o espaço disponível e tente novamente.',2,confirmBtn);
+    return;
   }
+  dDirty=false; // publicar persistiu tudo
+  const saveIndicator=document.getElementById('d-save-indicator');
+  if(saveIndicator)saveIndicator.innerHTML='<span class="d-save-published"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>Publicado</span>';
+  dPublishClearDraft(draftKey);
+  dPublishShowSuccess(count,folder.name);
 }
 /* ── M2.2 — Safety net: estado de gravação + proteção contra fecho acidental ── */
 let dDirty=false;

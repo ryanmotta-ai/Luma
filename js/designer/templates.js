@@ -697,7 +697,7 @@ function dTemplateMenuOpen(ev, folderId, tmplId){
     </button>
     ${isPublished
       ? `<button class="tmpl-ctx-item" onclick="dToggleTemplatePublish('${folderId}','${tmplId}',false)"><span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></span>Despublicar</button>`
-      : `<button class="tmpl-ctx-item" onclick="dToggleTemplatePublish('${folderId}','${tmplId}',true)"><span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M4.5 16.5c-1.5 1.25-2.5 3.5-2.5 3.5s2.25-1 3.5-2.5L18.5 4.5 19.5 5.5zm11-11l-3 3M9 12l-3 3"/></svg></span>Publicar agora</button>`
+      : `<button class="tmpl-ctx-item" onclick="dToggleTemplatePublish('${folderId}','${tmplId}',true)"><span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M4.5 16.5c-1.5 1.25-2.5 3.5-2.5 3.5s2.25-1 3.5-2.5L18.5 4.5 19.5 5.5zm11-11l-3 3M9 12l-3 3"/></svg></span>Revisar e publicar</button>`
     }
     <button class="tmpl-ctx-item" onclick="dDuplicateTemplate('${folderId}','${tmplId}')">
       <span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>Duplicar
@@ -724,15 +724,18 @@ function dTemplateMenuOpen(ev, folderId, tmplId){
   }, 0);
 }
 function dToggleTemplatePublish(folderId, tmplId, publicar){
+  if(publicar){
+    dOpenTemplatePublishWizard(folderId,tmplId,0);
+    return;
+  }
   const f=dFolders.find(x=>x.id===folderId); if(!f) return;
   const t=f.templates.find(x=>x.id===tmplId); if(!t) return;
   if(!t.publishMeta) t.publishMeta = dDefaultPublishMeta();
-  t.publishMeta.publicado = publicar;
-  if(publicar) t.publishMeta.publicadoEm = Date.now();
+  t.publishMeta.publicado = false;
   dPersistFolders();
   dRenderFolders();
   document.querySelectorAll('.tmpl-context-menu').forEach(m=>m.remove());
-  gToast(publicar ? 'Material publicado!' : 'Material despublicado.');
+  gToast('Material despublicado.');
 }
 /* ── Deleção no Supabase (fire-and-forget, mesmo padrão de fonts.js) ── */
 function _dSbTmpl(){ return (typeof gSupabase==='function')?gSupabase():window.sb; }
@@ -787,10 +790,12 @@ async function dDuplicateTemplate(folderId, tmplId){
     }
   }
 
+  if(t.id===dActiveTmplId && typeof dSave==='function' && dSave({silent:true})===false) return;
+
   const clone=JSON.parse(JSON.stringify(t));
   clone.id=_dUuid('t');
   clone.remoteId=_dUuid('t');   // linha própria no banco — não colide com o original
-  clone.name=(t.name||'Material')+' (cópia)';
+  clone.name=dUniqueTemplateName(f,(t.name||'Material')+' - cópia');
   clone._needsLayersFetch=false;
   clone._syncPending=true;
   // Nasce como RASCUNHO: preserva permissões/validade/instruções, mas NÃO publica junto.
@@ -801,11 +806,170 @@ async function dDuplicateTemplate(folderId, tmplId){
   const idx=f.templates.findIndex(x=>x.id===tmplId);
   f.templates.splice(idx>=0?idx+1:f.templates.length, 0, clone);
 
-  dPersistFolders();
+  if(!dPersistFolders()){
+    f.templates=f.templates.filter(x=>x.id!==clone.id);
+    return;
+  }
   dRenderFolders();
   dLoadTemplate(clone, f);   // abre a cópia pronta pra editar
   gToast('✓ Material duplicado (rascunho) — edite e publique quando quiser.');
 }
+
+let dSaveAsSourceFolderId=null;
+let dSaveAsSourceTemplateId=null;
+let dSaveAsReturnFocus=null;
+
+function dSaveAsSetBusy(busy){
+  const btn=document.getElementById('d-save-as-confirm');
+  if(!btn) return;
+  btn.disabled=busy;
+  btn.innerHTML=busy?'<svg class="save-as-spinner" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></svg><span>Criando cópia</span>':'Criar cópia';
+}
+
+function dEnsureSaveAsModal(){
+  let modal=document.getElementById('d-save-as-modal');
+  if(modal) return modal;
+  modal=document.createElement('div');
+  modal.id='d-save-as-modal';modal.className='modal-overlay save-as-overlay';
+  modal.setAttribute('role','dialog');modal.setAttribute('aria-modal','true');modal.setAttribute('aria-labelledby','d-save-as-title');
+  modal.innerHTML=`
+    <div class="modal save-as-modal" role="document">
+      <div class="save-as-accent" aria-hidden="true"></div>
+      <header class="save-as-header">
+        <div class="save-as-heading">
+          <span class="save-as-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>
+          <span><strong id="d-save-as-title">Salvar como</strong><small>Crie uma nova versão sem alterar o original</small></span>
+        </div>
+        <button type="button" class="newdoc-close" onclick="dSaveAsClose()" aria-label="Fechar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </header>
+      <div class="save-as-body">
+        <div class="save-as-source"><span>Projeto original</span><strong id="d-save-as-source"></strong><small>O original continuará intacto</small></div>
+        <label class="newdoc-field" for="d-save-as-name"><span>NOME DA NOVA CÓPIA</span><input class="modal-input" id="d-save-as-name" maxlength="60" autocomplete="off"></label>
+        <div class="save-as-safety"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg><span>A cópia nasce como rascunho, com publicação independente.</span></div>
+        <p id="d-save-as-status" class="newdoc-validation" aria-live="polite"></p>
+      </div>
+      <footer class="save-as-actions"><button type="button" class="d-btn-sec" onclick="dSaveAsClose()">Cancelar</button><button type="button" id="d-save-as-confirm" class="d-btn-pri" onclick="dSaveAsConfirm()">Criar cópia</button></footer>
+    </div>`;
+  modal.addEventListener('mousedown',e=>{if(e.target===modal)dSaveAsClose();});
+  modal.addEventListener('keydown',e=>{
+    e.stopPropagation();
+    if(e.key==='Escape'){e.preventDefault();dSaveAsClose();}
+    if(e.key==='Enter'&&e.target.id==='d-save-as-name'){e.preventDefault();dSaveAsConfirm();}
+    if(e.key==='Tab'){
+      const focusable=[...modal.querySelectorAll('button:not(:disabled),input:not(:disabled)')];
+      const first=focusable[0],last=focusable[focusable.length-1];
+      if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+      else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+    }
+  });
+  document.body.appendChild(modal);
+  modal.querySelector('#d-save-as-name').addEventListener('input',dSaveAsUpdate);
+  return modal;
+}
+
+function dSaveAsClose(){
+  const modal=document.getElementById('d-save-as-modal');
+  if(modal) modal.classList.remove('open');
+  dSaveAsSourceFolderId=null;dSaveAsSourceTemplateId=null;
+  if(dSaveAsReturnFocus&&document.contains(dSaveAsReturnFocus)) dSaveAsReturnFocus.focus();
+  dSaveAsReturnFocus=null;
+}
+
+function dSaveAsUpdate(){
+  const folder=dFolders.find(f=>f.id===dSaveAsSourceFolderId);
+  const input=document.getElementById('d-save-as-name');
+  const status=document.getElementById('d-save-as-status');
+  const confirmBtn=document.getElementById('d-save-as-confirm');
+  if(!input||!status||!confirmBtn) return;
+  const requested=input.value.replace(/\s+/g,' ').trim();
+  confirmBtn.disabled=!requested;
+  if(!requested){status.textContent='Digite um nome para continuar';status.dataset.state='error';return;}
+  const finalName=dUniqueTemplateName(folder,requested);
+  status.textContent=finalName===requested?'Nome disponível':'Será salvo como "'+finalName+'" para evitar conflito';
+  status.dataset.state=finalName===requested?'success':'warning';
+}
+
+async function dSaveAsProject(){
+  const folder=dFolders.find(f=>f.id===dActiveTmplFolderId);
+  const source=folder&&folder.templates.find(t=>t.id===dActiveTmplId);
+  if(!folder||!source){
+    gToast('Abra um projeto salvo antes de criar uma cópia','error');
+    return;
+  }
+  if(typeof dSave==='function' && dSave({silent:true})===false) return;
+  dSaveAsReturnFocus=document.activeElement;
+  dSaveAsSourceFolderId=folder.id;dSaveAsSourceTemplateId=source.id;
+  const suggested=dUniqueTemplateName(folder,(source.name||'Material')+' - cópia');
+  const modal=dEnsureSaveAsModal();
+  document.getElementById('d-save-as-source').textContent=source.name||'Sem título';
+  const input=document.getElementById('d-save-as-name');input.value=suggested;
+  dSaveAsSetBusy(false);modal.classList.add('open');dSaveAsUpdate();
+  requestAnimationFrame(()=>{input.focus();input.select();});
+}
+
+async function dSaveAsConfirm(){
+  const folder=dFolders.find(f=>f.id===dSaveAsSourceFolderId);
+  const source=folder&&folder.templates.find(t=>t.id===dSaveAsSourceTemplateId);
+  const input=document.getElementById('d-save-as-name');
+  if(!folder||!source||!input){dSaveAsClose();return;}
+  const confirmBtn=document.getElementById('d-save-as-confirm');
+  if(confirmBtn&&confirmBtn.disabled) return;
+  const requested=input.value.replace(/\s+/g,' ').trim().slice(0,60);
+  if(!requested){
+    gToast('Digite um nome para salvar a cópia','error');
+    return;
+  }
+  dSaveAsSetBusy(true);
+  const finalName=dUniqueTemplateName(folder,requested);
+  const clone=JSON.parse(JSON.stringify(source));
+  clone.id=_dUuid('t');
+  clone.remoteId=_dUuid('t');
+  clone.name=finalName;
+  clone._needsLayersFetch=false;
+  clone._syncPending=true;
+  if(!clone.publishMeta) clone.publishMeta={};
+  clone.publishMeta.publicado=false;
+  clone.publishMeta.publicadoEm=null;
+
+  const sourceIndex=folder.templates.findIndex(t=>t.id===source.id);
+  folder.templates.splice(sourceIndex>=0?sourceIndex+1:folder.templates.length,0,clone);
+  if(!dPersistFolders()){
+    folder.templates=folder.templates.filter(t=>t.id!==clone.id);
+    dSaveAsSetBusy(false);dSaveAsUpdate();
+    return;
+  }
+  dRenderFolders();
+  await dLoadTemplate(clone,folder,{silent:true});
+  if(typeof dSetSaveState==='function') dSetSaveState('saved');
+  dSaveAsClose();
+  const conflictNote=finalName!==requested?' com nome ajustado para evitar conflito':'';
+  gToast('Cópia salva como "'+finalName+'"'+conflictNote);
+}
+
+function dBindSaveAsProjectAction(){
+  const btn=document.querySelector('.dt-btn-action[title="Salvar Como / Exportar"]');
+  if(!btn) return;
+  btn.onclick=dSaveAsProject;
+  btn.title='Salvar uma cópia independente deste projeto';
+  btn.setAttribute('aria-label','Salvar projeto como uma nova cópia');
+  btn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Salvar como</span>';
+  if(!document.querySelector('[data-export-action]')){
+    const exportBtn=document.createElement('button');
+    exportBtn.type='button';exportBtn.className='dt-btn-action';exportBtn.dataset.exportAction='true';
+    exportBtn.title='Exportar arquivo';exportBtn.setAttribute('aria-label','Exportar projeto');
+    exportBtn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 15V3"/></svg><span>Exportar</span>';
+    exportBtn.onclick=()=>{if(typeof dOpenExportModal==='function')dOpenExportModal();};
+    btn.insertAdjacentElement('afterend',exportBtn);
+  }
+  const exportTitle=document.querySelector('#d-export-modal .modal-title');
+  if(exportTitle){
+    const textNode=[...exportTitle.childNodes].find(node=>node.nodeType===Node.TEXT_NODE&&node.textContent.trim());
+    if(textNode) textNode.textContent=' Exportar projeto';
+  }
+}
+
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',dBindSaveAsProjectAction,{once:true});
+else dBindSaveAsProjectAction();
 // Atalho rápido: edita só validade num modalzinho menor
 function dQuickEditValidade(folderId, tmplId){
   document.querySelectorAll('.tmpl-context-menu').forEach(m=>m.remove());
@@ -823,20 +987,27 @@ function dQuickEditValidade(folderId, tmplId){
   dPersistFolders();
   gToast('✓ Validade atualizada!');
 }
-// Atalho rápido: abre o modal principal já na aba permissões
-function dQuickEditPerms(folderId, tmplId){
+// Centraliza os atalhos no fluxo oficial para nunca publicar sem checklist e revisao.
+async function dOpenTemplatePublishWizard(folderId,tmplId,step){
   document.querySelectorAll('.tmpl-context-menu').forEach(m=>m.remove());
   const f=dFolders.find(x=>x.id===folderId); if(!f) return;
   const t=f.templates.find(x=>x.id===tmplId); if(!t) return;
-  // Carrega o template e abre modal de publicação na aba permissões
-  dLoadTemplate(t, f);
-  setTimeout(()=>{
-    dPublishOpen();
-    setTimeout(()=>{
-      const tab3 = document.querySelector('.pub-tab[onclick*="permissoes"]') || document.querySelectorAll('.pub-tab')[3];
-      if(tab3) dPublishSwitchTab('permissoes', tab3);
-    }, 100);
-  }, 100);
+  await dLoadTemplate(t,f);
+  // Lazy load pode abortar por rede; nesse caso, nao abre o wizard com outra arte.
+  if(dActiveTmplId!==tmplId)return;
+  if(typeof dPublishOpen!=='function'){
+    gToast('O fluxo de publicação não está disponível.','error');
+    return;
+  }
+  dPublishOpen();
+  const modal=document.getElementById('d-publish-modal');
+  if(modal?.classList.contains('open')&&Number.isInteger(step)&&step>0&&typeof dPublishGoStep==='function'){
+    dPublishGoStep(step,true);
+  }
+}
+// Atalho rapido: abre o wizard diretamente na etapa que contem as permissoes.
+function dQuickEditPerms(folderId, tmplId){
+  dOpenTemplatePublishWizard(folderId,tmplId,1);
 }
 function dToggleFolder(id){
   const willOpen=!dFolderOpen[id];
@@ -875,7 +1046,7 @@ function dTmplLoading(state, msg){
   }
 }
 
-async function dLoadTemplate(tmpl,folder){
+async function dLoadTemplate(tmpl,folder,options){
   if(!tmpl)return;
 
   // -- LAZY LOAD DOS LAYERS (catálogo leve: layers descem sob demanda) --
@@ -933,12 +1104,13 @@ async function dLoadTemplate(tmpl,folder){
   if(typeof dRenderWorkspace==='function')dRenderWorkspace();
   dApplyFormat();
   setTimeout(dFitToScreen,50);
-  dRenderCanvas();dRenderLayersList();dStats();dMarkUnsaved();dRenderABList();
+  dRenderCanvas();dRenderLayersList();dStats();dRenderABList();
+  if(typeof dSetSaveState==='function') dSetSaveState('saved');
   const projNameEl = document.getElementById('dt-project-name');
   if(projNameEl && tmpl) projNameEl.textContent = tmpl.name;
   document.querySelectorAll('.dt-fmt').forEach(b=>b.classList.toggle('active',b.dataset.fmt===dFmt));
   dRenderPagesTray();
-  gToast('Template "'+tmpl.name+'" carregado na prancheta ativa');
+  if(!(options&&options.silent)) gToast('Template "'+tmpl.name+'" carregado na prancheta ativa');
 }
 
 /* ══ RENOMEAR O DOCUMENTO/ARTE ATIVA (rótulo da topbar) ══
@@ -959,14 +1131,18 @@ function dProjectRename(){
   let done=false;
   const finish=(save)=>{
     if(done)return;done=true;
-    const val=inp.value.trim();
+    const val=inp.value.replace(/\s+/g,' ').trim();
     if(save&&val){
-      span.textContent=val;
+      const folder=dFolders.find(f=>f.id===dActiveTmplFolderId);
+      const tmpl=folder&&folder.templates.find(t=>t.id===dActiveTmplId);
+      const finalName=dUniqueTemplateName(folder,val,dActiveTmplId);
+      span.textContent=finalName;
       const ab=(typeof dGetActiveAB==='function')?dGetActiveAB():null;
-      if(ab) ab.name=val;
-      if(typeof dArtboards!=='undefined'&&dArtboards.length) dArtboards[0].name=val;
+      if(ab) ab.name=finalName;
+      if(tmpl) tmpl.name=finalName;
       if(typeof dMarkUnsaved==='function') dMarkUnsaved();
       if(typeof dPersistArtboards==='function') dPersistArtboards();
+      if(finalName!==val) gToast('Nome ajustado para "'+finalName+'" para evitar conflito.');
     }
     inp.remove();span.style.display='';delete span.dataset.editing;
   };
@@ -1264,7 +1440,144 @@ const DNEWDOC_PRESETS = {
   custom: []
 };
 
+const DNEWDOC_RECENTS_KEY='luma_newdoc_recents_v1';
+let dNewDocSelectedPreset=null;
+
+function dUniqueTemplateName(folder,preferred,excludeId){
+  const fallback='Sem título';
+  const clean=String(preferred||fallback).trim().slice(0,60)||fallback;
+  const names=new Set((folder&&folder.templates||[])
+    .filter(t=>t.id!==excludeId)
+    .map(t=>String(t.name||'').trim().toLocaleLowerCase('pt-BR')));
+  if(!names.has(clean.toLocaleLowerCase('pt-BR'))) return clean;
+  const stem=clean.replace(/\s+\d+$/,'').trim()||fallback;
+  for(let n=2;n<1000;n++){
+    const suffix=' '+n;
+    const candidate=stem.slice(0,60-suffix.length).trim()+suffix;
+    if(!names.has(candidate.toLocaleLowerCase('pt-BR'))) return candidate;
+  }
+  return stem.slice(0,46).trim()+' '+Date.now();
+}
+
+function dNewDocPresetByKey(key){
+  const parts=String(key||'').split(':');
+  const category=parts[0],id=parts[1];
+  const preset=(DNEWDOC_PRESETS[category]||[]).find(p=>p.id===id);
+  return preset?{...preset,category}:null;
+}
+
+function dNewDocRecentPresets(){
+  try{
+    const keys=JSON.parse(localStorage.getItem(DNEWDOC_RECENTS_KEY)||'[]');
+    return Array.isArray(keys)?keys.map(dNewDocPresetByKey).filter(Boolean):[];
+  }catch(e){ return []; }
+}
+
+function dRememberNewDocPreset(){
+  if(!dNewDocSelectedPreset) return;
+  try{
+    const current=JSON.parse(localStorage.getItem(DNEWDOC_RECENTS_KEY)||'[]');
+    const keys=Array.isArray(current)?current.filter(k=>k!==dNewDocSelectedPreset):[];
+    keys.unshift(dNewDocSelectedPreset);
+    localStorage.setItem(DNEWDOC_RECENTS_KEY,JSON.stringify(keys.slice(0,5)));
+  }catch(e){}
+}
+
+function dNewDocEnsureSmartTabs(){
+  const first=document.querySelector('#d-newdoc-modal .newdoc-tab');
+  const wrap=first&&first.parentElement;
+  if(!wrap) return;
+  let recommended=wrap.querySelector('[data-smart-tab="recommended"]');
+  if(!recommended){
+    recommended=document.createElement('button');
+    recommended.type='button';recommended.className='newdoc-tab';recommended.dataset.smartTab='recommended';
+    recommended.textContent='Recomendados';recommended.onclick=()=>dNewDocSelectTab('recommended',recommended);
+    wrap.insertBefore(recommended,first);
+  }
+  if(dNewDocRecentPresets().length&&!wrap.querySelector('[data-smart-tab="recent"]')){
+    const recent=document.createElement('button');
+    recent.type='button';recent.className='newdoc-tab';recent.dataset.smartTab='recent';
+    recent.textContent='Recentes';recent.onclick=()=>dNewDocSelectTab('recent',recent);
+    wrap.insertBefore(recent,recommended);
+  }
+}
+
+let dNewDocDraftDirty=false;
+let dNewDocOpening=false;
+let dNewDocReturnFocus=null;
+
+function dNewDocEnhanceModal(){
+  const modal=document.getElementById('d-newdoc-modal');
+  if(!modal||modal.dataset.enhanced==='1') return;
+  modal.dataset.enhanced='1';modal.setAttribute('role','dialog');modal.setAttribute('aria-modal','true');modal.setAttribute('aria-labelledby','nd-title');
+  const box=modal.querySelector('.modal');
+  const header=box&&box.children[0],main=box&&box.children[1],actions=box&&box.children[2];
+  if(!box||!header||!main||!actions) return;
+  box.classList.add('newdoc-modal');box.removeAttribute('style');
+  header.className='newdoc-header';header.removeAttribute('style');
+  const title=header.children[0],closeBtn=header.children[1];
+  title.id='nd-title';title.className='newdoc-title';title.removeAttribute('style');
+  title.innerHTML='<span class="newdoc-title-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M3 12h18"/></svg></span><span><strong>Novo projeto</strong><small>Escolha o formato e comece com a estrutura certa</small></span>';
+  closeBtn.className='newdoc-close';closeBtn.removeAttribute('style');closeBtn.setAttribute('aria-label','Fechar novo projeto');
+  closeBtn.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>';closeBtn.onclick=()=>dNewDocClose();
+
+  main.className='newdoc-main';main.removeAttribute('style');
+  const library=main.children[0],settings=main.children[1];
+  library.className='newdoc-library';library.removeAttribute('style');
+  library.children[0].className='newdoc-tabs';library.children[0].removeAttribute('style');
+  const presets=document.getElementById('nd-presets-container');presets.className='newdoc-presets';presets.removeAttribute('style');
+  settings.className='newdoc-settings';settings.removeAttribute('style');
+  const settingsTitle=settings.children[0];settingsTitle.className='newdoc-settings-title';settingsTitle.removeAttribute('style');settingsTitle.textContent='Configuração';
+
+  const nameField=document.createElement('label');nameField.className='newdoc-field newdoc-name-field';nameField.htmlFor='nd-name';
+  nameField.innerHTML='<span>NOME DO PROJETO</span><input class="modal-input" id="nd-name" maxlength="60" autocomplete="off" placeholder="Ex.: Campanha de inverno">';
+  settingsTitle.insertAdjacentElement('afterend',nameField);
+  const w=document.getElementById('nd-w'),h=document.getElementById('nd-h'),unit=document.getElementById('nd-unit'),dpi=document.getElementById('nd-dpi'),bg=document.getElementById('nd-bg');
+  w.parentElement.className='newdoc-field';
+  h.parentElement.className='newdoc-input-action';h.parentElement.removeAttribute('style');h.parentElement.parentElement.className='newdoc-field';
+  const measures=unit.parentElement.parentElement;measures.className='newdoc-field-row';measures.removeAttribute('style');
+  unit.parentElement.className='newdoc-field';dpi.parentElement.className='newdoc-field';
+  bg.parentElement.className='newdoc-input-action';bg.parentElement.removeAttribute('style');bg.parentElement.parentElement.className='newdoc-field';
+  settings.querySelectorAll('label,.modal-input,.modal-select').forEach(el=>el.removeAttribute('style'));
+  const swap=h.parentElement.querySelector('button');swap.classList.add('newdoc-swap');swap.removeAttribute('style');swap.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 7-4 4 4 4M3 11h14a4 4 0 0 0 4-4M17 17l4-4-4-4M21 13H7a4 4 0 0 0-4 4"/></svg>';
+  const preview=document.getElementById('nd-px-preview').parentElement;preview.className='newdoc-preview';preview.removeAttribute('style');
+  preview.insertAdjacentHTML('afterbegin','<div class="newdoc-preview-stage" aria-hidden="true"><div id="nd-preview-sheet" class="newdoc-preview-sheet"><span></span></div></div><span class="newdoc-preview-label">PRÉ-VISUALIZAÇÃO</span>');
+  document.getElementById('nd-px-preview').className='newdoc-preview-size';document.getElementById('nd-px-preview').removeAttribute('style');
+  preview.insertAdjacentHTML('beforeend','<p id="nd-validation" class="newdoc-validation" aria-live="polite"></p>');
+
+  actions.classList.add('newdoc-actions');actions.removeAttribute('style');
+  const cancel=actions.children[0],confirmBtn=actions.children[1];cancel.onclick=()=>dNewDocClose();confirmBtn.id='nd-create-btn';confirmBtn.innerHTML='<span>Criar projeto</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+  modal.addEventListener('mousedown',e=>{if(e.target===modal)dNewDocClose();});
+  modal.addEventListener('keydown',e=>{
+    e.stopPropagation();
+    if(e.key==='Escape'){e.preventDefault();dNewDocClose();}
+    if(e.key==='Enter'&&e.target.matches('input,select')&&!document.getElementById('nd-create-btn').disabled){e.preventDefault();dNewDocConfirm();}
+    if(e.key==='Tab'){
+      const focusable=[...modal.querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled)')];
+      const first=focusable[0],last=focusable[focusable.length-1];
+      if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+      else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+    }
+  });
+  settings.addEventListener('input',e=>{
+    if(!dNewDocOpening)dNewDocDraftDirty=true;
+    if(e.target.id==='nd-name'||e.target.id==='nd-bg-color')dNewDocUpdate(true);
+  });
+  settings.addEventListener('change',()=>{if(!dNewDocOpening)dNewDocDraftDirty=true;});
+}
+
+function dNewDocClose(force){
+  const modal=document.getElementById('d-newdoc-modal');
+  if(!modal) return;
+  if(!force&&dNewDocDraftDirty&&!confirm('Descartar as configurações deste novo projeto?')) return;
+  dNewDocDraftDirty=false;modal.classList.remove('open');
+  if(dNewDocReturnFocus&&document.contains(dNewDocReturnFocus)) dNewDocReturnFocus.focus();
+  dNewDocReturnFocus=null;
+}
+
 function dNewDocOpen(){
+  dNewDocReturnFocus=document.activeElement;
+  dNewDocOpening=true;dNewDocEnhanceModal();
   document.getElementById('nd-unit').value='px';
   document.getElementById('nd-dpi').value=72;
   document.getElementById('nd-bg').value='white';
@@ -1273,10 +1586,16 @@ function dNewDocOpen(){
     document.getElementById('nd-use-artboards').checked = dUseArtboards;
   }
   
-  const firstTab = document.querySelector('.newdoc-tab');
-  dNewDocSelectTab('social', firstTab);
+  dNewDocEnsureSmartTabs();
+  const folder=dFolders.find(f=>f.id===dActiveTmplFolderId)||null;
+  document.getElementById('nd-name').value=dUniqueTemplateName(folder,'Novo projeto');
+  const recentTab=document.querySelector('[data-smart-tab="recent"]');
+  const recommendedTab=document.querySelector('[data-smart-tab="recommended"]');
+  dNewDocSelectTab(recentTab?'recent':'recommended',recentTab||recommendedTab);
   
+  dNewDocUpdate(true);dNewDocDraftDirty=false;dNewDocOpening=false;
   document.getElementById('d-newdoc-modal').classList.add('open');
+  requestAnimationFrame(()=>document.getElementById('nd-name').focus());
 }
 
 function dNewDocSelectTab(category, tabEl){
@@ -1286,13 +1605,14 @@ function dNewDocSelectTab(category, tabEl){
   const container = document.getElementById('nd-presets-container');
   if(!container) return;
 
-  const presets = DNEWDOC_PRESETS[category] || [];
+  const recommended=['social:story','social:feed','social:post','web:fhd']
+    .map(dNewDocPresetByKey).filter(Boolean);
+  const presets = category==='recent' ? dNewDocRecentPresets()
+    : category==='recommended' ? recommended
+    : (DNEWDOC_PRESETS[category] || []).map(p=>({...p,category}));
   if(presets.length === 0){
-    container.innerHTML = `
-      <div style="grid-column: 1 / -1; text-align: center; color: var(--d-text3); font-size: 13px; padding: 40px 0;">
-        Defina dimensões customizadas no painel ao lado.
-      </div>
-    `;
+    dNewDocSelectedPreset=null;
+    container.innerHTML = '<div class="newdoc-empty"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v8M8 12h8"/></svg><strong>Formato personalizado</strong><span>Defina as dimensões no painel ao lado.</span></div>';
     return;
   }
 
@@ -1303,14 +1623,14 @@ function dNewDocSelectTab(category, tabEl){
     const boxH = Math.max((p.h / maxDim) * 44, 8);
     
     return `
-      <button type="button" class="newdoc-preset-btn" data-preset-id="${p.id}" onclick="dNewDocApplyPreset('${category}', '${p.id}', this)" style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;padding:16px 8px;">
-        <div style="height: 50px; display:flex; align-items:center; justify-content:center; width:100%;">
-          <div style="width: ${boxW}px; height: ${boxH}px; background: #fff; border: 1px solid #ccc; box-shadow: 2px 2px 5px rgba(0,0,0,0.08); border-radius:1px;"></div>
+      <button type="button" class="newdoc-preset-btn" data-preset-id="${p.id}" onclick="dNewDocApplyPreset('${p.category||category}', '${p.id}', this)">
+        <div class="newdoc-preset-visual">
+          <div class="newdoc-preset-sheet" style="--preset-w:${boxW}px;--preset-h:${boxH}px"></div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:3px;">
-          <span style="font-weight: bold; font-size: 13px; line-height:1.2;">${p.name}</span>
-          <span style="font-size: 11px; opacity: 0.7; line-height:1.2;">${p.w} × ${p.h} ${p.unit}</span>
-          <span style="font-size: 10px; opacity: 0.5; line-height:1.2;">${p.dpi} ppi</span>
+        <div class="newdoc-preset-copy">
+          <strong>${gEsc(p.name)}</strong>
+          <span>${p.w} × ${p.h} ${p.unit}</span>
+          <small>${p.dpi} ppi</small>
         </div>
       </button>
     `;
@@ -1319,7 +1639,7 @@ function dNewDocSelectTab(category, tabEl){
   // Auto-selecionar o primeiro preset
   const firstPresetBtn = container.querySelector('.newdoc-preset-btn');
   if(firstPresetBtn){
-    dNewDocApplyPreset(category, presets[0].id, firstPresetBtn);
+      dNewDocApplyPreset(presets[0].category||category, presets[0].id, firstPresetBtn);
   }
 }
 
@@ -1327,6 +1647,8 @@ function dNewDocApplyPreset(category, id, btnEl){
   const presets = DNEWDOC_PRESETS[category] || [];
   const p = presets.find(x => x.id === id);
   if(!p) return;
+  dNewDocSelectedPreset=category+':'+id;
+  if(!dNewDocOpening)dNewDocDraftDirty=true;
 
   document.querySelectorAll('.newdoc-preset-btn').forEach(btn => btn.classList.remove('active'));
   if(btnEl) btnEl.classList.add('active');
@@ -1336,7 +1658,7 @@ function dNewDocApplyPreset(category, id, btnEl){
   document.getElementById('nd-w').value = p.w;
   document.getElementById('nd-h').value = p.h;
 
-  dNewDocUpdate();
+  dNewDocUpdate(true);
 }
 
 // Converte os campos do modal para pixels usando a unidade + DPI
@@ -1349,10 +1671,34 @@ function _dNewDocPx(){
   return {w:toPx(wv),h:toPx(hv),dpi};
 }
 
-function dNewDocUpdate(){
+function dNewDocUpdate(fromPreset){
+  if(!fromPreset) dNewDocSelectedPreset=null;
   const {w,h}=_dNewDocPx();
   const el=document.getElementById('nd-px-preview');
   if(el)el.textContent=(w||'—')+' × '+(h||'—')+' px';
+  const sheet=document.getElementById('nd-preview-sheet');
+  if(sheet&&w>0&&h>0){
+    const ratio=w/h;
+    sheet.style.width=(ratio>=1?'88':Math.max(30,88*ratio))+'%';
+    sheet.style.height=(ratio>=1?Math.max(30,88/ratio):'88')+'%';
+    const bgSel=document.getElementById('nd-bg').value;
+    sheet.dataset.bg=bgSel;
+    sheet.style.background=bgSel==='color'?document.getElementById('nd-bg-color').value:'';
+  }
+  const nameInput=document.getElementById('nd-name');
+  const validation=document.getElementById('nd-validation');
+  const createBtn=document.getElementById('nd-create-btn');
+  if(!validation||!createBtn) return;
+  const name=nameInput?nameInput.value.replace(/\s+/g,' ').trim():'';
+  let message='Tudo pronto para criar';let state='success';
+  if(!name){message='Digite um nome para o projeto';state='error';}
+  else if(w<16||h<16){message='Use dimensões de pelo menos 16 px';state='error';}
+  else if(w>8000||h>8000){message='O limite é 8.000 px por lado';state='error';}
+  else{
+    const folder=dFolders.find(f=>f.id===dActiveTmplFolderId)||null;
+    if(dUniqueTemplateName(folder,name)!==name){message='O nome será ajustado para evitar conflito';state='warning';}
+  }
+  validation.textContent=message;validation.dataset.state=state;createBtn.disabled=state==='error';
 }
 
 function dNewDocSwapOrientation(){
@@ -1364,29 +1710,71 @@ function dNewDocSwapOrientation(){
 function dNewDocBgChange(){
   const v=document.getElementById('nd-bg').value;
   document.getElementById('nd-bg-color').style.display=(v==='color')?'inline-block':'none';
+  dNewDocUpdate(true);
 }
 
 function dNewDocConfirm(){
   const {w,h,dpi}=_dNewDocPx();
-  if(w<16||h<16){gToast('⚠ Dimensões muito pequenas (mín. 16px)','error');return;}
-  if(w>8000||h>8000){gToast('⚠ Dimensões muito grandes (máx. 8000px)','error');return;}
+  if(w<16||h<16){gToast('Use dimensões de pelo menos 16 px','error');return;}
+  if(w>8000||h>8000){gToast('O limite é 8.000 px por lado','error');return;}
   const bgSel=document.getElementById('nd-bg').value;
   const bg=(bgSel==='color')?document.getElementById('nd-bg-color').value:bgSel;
+  const requestedName=document.getElementById('nd-name').value.replace(/\s+/g,' ').trim().slice(0,60);
+  if(!requestedName){gToast('Digite um nome para o projeto','error');return;}
+  if(typeof dSave==='function' && dSave({silent:true})===false){
+    gToast('O projeto atual não pôde ser salvo; o novo não foi criado','error');
+    return;
+  }
   
   if (document.getElementById('nd-use-artboards')) {
     dUseArtboards = document.getElementById('nd-use-artboards').checked;
   }
   
+  const folder=dFolders.find(f=>f.id===dActiveTmplFolderId)||null;
+  let createdName=requestedName;
+  let creationSaved=true;
+  dActiveTmplId=null;
   dArtboards = [];
   dActiveABId = null;
   
-  dNewArtboardCustom(w,h,bg,dpi);
-  document.getElementById('d-newdoc-modal').classList.remove('open');
+  const ab=dNewArtboardCustom(w,h,bg,dpi);
+  if(folder&&ab){
+    const projectName=dUniqueTemplateName(folder,requestedName);
+    createdName=projectName;
+    const project={
+      id:_dUuid('t'),remoteId:_dUuid('t'),name:projectName,fmt:ab.fmt,
+      w:ab.w,h:ab.h,bg:ab.bg,layers:JSON.parse(JSON.stringify(ab.layers||[])),
+      publishMeta:dDefaultPublishMeta(),_needsLayersFetch:false,_syncPending:true
+    };
+    ab.name=projectName;
+    folder.templates.push(project);
+    dActiveTmplId=project.id;
+    dActiveTmplFolderId=folder.id;
+    const okA=(typeof dPersistArtboards==='function')?dPersistArtboards():true;
+    const okF=okA?dPersistFolders():false;
+    if(!(okF&&okA)){
+      folder.templates=folder.templates.filter(t=>t.id!==project.id);
+      dActiveTmplId=null;
+      creationSaved=false;
+      if(typeof dSetSaveState==='function') dSetSaveState('unsaved');
+    }else if(typeof dSetSaveState==='function') dSetSaveState('saved');
+    const projNameEl=document.getElementById('dt-project-name');
+    if(projNameEl) projNameEl.textContent=projectName;
+    dRenderFolders();
+    if(typeof dRenderPagesTray==='function') dRenderPagesTray();
+  }else{
+    if(ab){ab.name=requestedName;const projNameEl=document.getElementById('dt-project-name');if(projNameEl)projNameEl.textContent=requestedName;}
+    if(typeof dMarkUnsaved==='function') dMarkUnsaved();
+  }
+  dRememberNewDocPreset();
+  dNewDocClose(true);
   
-  const msg = dUseArtboards 
-    ? '✓ Novo workspace multi-prancheta criado com prancheta de ' + w + '×' + h + 'px'
-    : '✓ Novo documento único de ' + w + '×' + h + 'px criado';
-  gToast(msg);
+  if(creationSaved){
+    const msg=dUseArtboards
+      ? 'Projeto "'+createdName+'" criado com prancheta de '+w+'×'+h+' px'
+      : 'Projeto "'+createdName+'" criado em '+w+'×'+h+' px';
+    gToast(msg);
+  }
 }
 
 /* ── FORMATO / CANVAS ── */
@@ -2349,7 +2737,7 @@ function dSwitchPage(tmplId) {
   if (tmplId === dActiveTmplId) return; // Já está na página
   
   // Salva a página atual automaticamente antes de trocar
-  if (typeof dSave === 'function') dSave();
+  if (typeof dSave === 'function' && dSave({silent:true})===false) return;
   
   // Carrega a nova
   dLoadTemplateById(dActiveTmplFolderId, tmplId);
@@ -2361,11 +2749,11 @@ function dAddPageToCurrentFolder() {
   if (!folder) return;
 
   // Salva a atual
-  if (typeof dSave === 'function') dSave();
+  if (typeof dSave === 'function' && dSave({silent:true})===false) return;
 
   const id = 't' + Date.now();
   const n = folder.templates.length + 1;
-  const name = 'Página ' + n;
+  const name = dUniqueTemplateName(folder,'Página ' + n);
   
   // Copia o formato/tamanho da prancheta ativa se existir, senão usa 'story'
   const ab = dGetActiveAB && dGetActiveAB();
@@ -2384,7 +2772,10 @@ function dAddPageToCurrentFolder() {
   if(isCustom){ newTmpl.w=ab.w; newTmpl.h=ab.h; }
 
   folder.templates.push(newTmpl);
-  dPersistFolders();
+  if(!dPersistFolders()){
+    folder.templates=folder.templates.filter(t=>t.id!==id);
+    return;
+  }
   dLoadTemplate(newTmpl, folder);
   dRenderPagesTray();
   gToast('Nova página adicionada!');
@@ -2399,12 +2790,12 @@ function dDuplicatePageInTray(ev, tmplId) {
   if (!orig) return;
 
   // Garante salvar estado se estivermos duplicando a página ATUAL
-  if (tmplId === dActiveTmplId && typeof dSave === 'function') dSave();
+  if (tmplId === dActiveTmplId && typeof dSave === 'function' && dSave({silent:true})===false) return;
 
   const id = 't' + Date.now();
   const clone = JSON.parse(JSON.stringify(orig));
   clone.id = id;
-  clone.name = clone.name + ' cópia';
+  clone.name = dUniqueTemplateName(folder,(clone.name||'Página')+' - cópia');
   // Reset metadados de publicação para a cópia (não sai publicada de cara)
   clone.publishMeta = dDefaultPublishMeta();
 
@@ -2412,7 +2803,10 @@ function dDuplicatePageInTray(ev, tmplId) {
   const idx = folder.templates.indexOf(orig);
   folder.templates.splice(idx + 1, 0, clone);
 
-  dPersistFolders();
+  if(!dPersistFolders()){
+    folder.templates=folder.templates.filter(t=>t.id!==id);
+    return;
+  }
   
   // Troca direto pra duplicata
   dLoadTemplate(clone, folder);
