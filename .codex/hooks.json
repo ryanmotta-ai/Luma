@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"[Luma] Siga a skill luma / CLAUDE.md: 1) leia luma-brain/ (06_OPERATING_SYSTEM + o arquivo do assunto; 01_BUSINESS p/ regra de negocio) 2) planeje 3) implemente cirurgico. Nunca commit automatico; verifique no navegador antes de dar por feito.\"",
+            "statusMessage": "Reforcando o fluxo Luma"
+          }
+        ]
+      }
+    ]
+  }
+}

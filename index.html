@@ -614,18 +614,23 @@ input:focus:-webkit-autofill {
         <button id="f-mobile-back" onclick="fMobileBackToCatalog()" aria-label="Voltar ao catálogo" title="Voltar ao catálogo">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
-        <div class="bot-circle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg><div class="bot-online"></div></div>
-        <div>
-          <div class="bot-info-name">Luma</div>
-          <div class="bot-info-status">online agora</div>
+        <div class="f-assistant-brand">
+          <div class="bot-circle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8.01" y2="16"/><line x1="16" y1="16" x2="16.01" y2="16"/></svg><div class="bot-online"></div></div>
+          <div class="f-assistant-copy">
+            <div class="bot-info-status">Assistente criativo</div>
+            <div class="bot-info-name">Luma</div>
+          </div>
         </div>
-        <div id="f-ctx-tag">Escolha uma campanha</div>
-        <div id="f-head-actions">
-          <button id="f-bulk-head-btn" onclick="fBulkOpen()" title="Gerar muitas artes de uma vez a partir de uma planilha CSV"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Gerar vários</button>
-          <button id="f-reset-btn" onclick="fResetFlow()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><polyline points="3 3 3 8 8 8"/></svg>Reiniciar</button>
-          <button id="f-theme-btn" onclick="fToggleTheme()" title="Alternar tema claro/escuro" aria-label="Alternar tema" style="margin-left: 4px; padding: 6px 10px;">
-            <svg id="f-theme-icon-dark" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:none; vertical-align:middle;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-            <svg id="f-theme-icon-light" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle;"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        <div class="f-session-context">
+          <span class="f-session-label">Material em edição</span>
+          <div id="f-ctx-tag" aria-live="polite">Escolha uma campanha</div>
+        </div>
+        <div id="f-head-actions" aria-label="Ações da criação">
+          <button id="f-bulk-head-btn" onclick="fBulkOpen()" title="Gerar artes em lote a partir de uma planilha"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span>Gerar em lote</span></button>
+          <button id="f-reset-btn" onclick="fResetFlow()" title="Recomeçar esta criação"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><polyline points="3 3 3 8 8 8"/></svg><span>Recomeçar</span></button>
+          <button id="f-theme-btn" onclick="fToggleTheme()" title="Alternar tema claro ou escuro" aria-label="Alternar tema claro ou escuro">
+            <svg id="f-theme-icon-dark" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            <svg id="f-theme-icon-light" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
           </button>
         </div>
       </div>
@@ -740,30 +745,31 @@ input:focus:-webkit-autofill {
   </div>
 
   <!-- ══ DESIGNER LAYOUT ══ -->
-  <!-- Topbar minimalista: só info + undo/redo + formato + preview + publicar -->
-  <div id="d-topbar">
-    <!-- Zona 1: Nome do Projeto -->
-    <div class="dt-zone" id="dt-zone-1">
-      <button class="dt-btn-action" onclick="if(typeof dNewDocOpen === 'function') { dNewDocOpen(); }" title="Novo Projeto" style="margin-right:8px; border-radius: 8px; font-weight: 600; background: #FF9000; color: white;">
+  <!-- Barra operacional do Estúdio: documento, contexto e entrega -->
+  <div id="d-topbar" role="toolbar" aria-label="Controles do projeto">
+    <div class="dt-left-cluster">
+      <!-- Documento atual -->
+      <div class="dt-zone" id="dt-zone-1">
+      <button class="dt-btn-action dt-new-project" onclick="if(typeof dNewDocOpen === 'function') { dNewDocOpen(); }" title="Novo Projeto">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-        <span style="color: white;">Novo Projeto</span>
+        <span>Novo projeto</span>
       </button>
-      <div class="dt-project-wrap" title="Renomear projeto" onclick="if(typeof dProjectRename==='function')dProjectRename()">
+      <div class="dt-project-wrap" role="button" tabindex="0" aria-label="Renomear projeto" title="Renomear projeto" onclick="if(typeof dProjectRename==='function')dProjectRename()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();if(typeof dProjectRename==='function')dProjectRename()}">
+        <span class="dt-project-kicker">Projeto</span>
         <span id="dt-project-name">Projeto Principal</span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dt-chevron"><polyline points="6 9 12 15 18 9"/></svg>
       </div>
     </div>
 
-    <!-- Zona 2: Histórico (Undo / Redo) -->
-    <div class="dt-zone" id="dt-zone-2">
-      <div class="dt-divider"></div>
+      <!-- Histórico -->
+      <div class="dt-zone dt-history-group" id="dt-zone-2" aria-label="Histórico">
       <button class="dt-btn" id="dbtn-undo" aria-label="Desfazer Ação (Ctrl+Z)" title="Desfazer Ação (Ctrl+Z)" onclick="dUndo()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"/></svg>
       </button>
       <button class="dt-btn" id="dbtn-redo" aria-label="Refazer Ação (Ctrl+Shift+Z)" title="Refazer Ação (Ctrl+Shift+Z)" onclick="dRedo()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 019-9 9 9 0 016 2.3L21 13"/></svg>
       </button>
-      <div class="dt-divider"></div>
+      </div>
     </div>
 
     <!-- Zona 3 & 4: Propriedades Contextuais & Alinhamento (Centro) -->
@@ -772,80 +778,87 @@ input:focus:-webkit-autofill {
       <div class="dt-context-wrapper">
         <!-- Estado "Nenhum elemento selecionado" -->
         <div id="dt-no-selection" class="dt-context-panel active">
-          <span class="dt-status-text">Selecione uma camada</span>
-          <div class="dt-divider"></div>
+          <span class="dt-context-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 3v18M3 8h18"/></svg></span>
+          <span class="dt-status-text">Canvas</span>
           <span id="d-dim-label" class="dt-mono-text">1080 × 1920</span>
-          <div class="dt-divider"></div>
           <button id="d-zoom-val" class="dt-zoom-btn" onclick="dFitToScreen()" title="Enquadrar na tela (Ctrl+0)">100%</button>
         </div>
 
         <!-- Estado "Camada selecionada" (Campos X, Y, W, H e Alinhamento) -->
         <div id="dt-layer-selection" class="dt-context-panel">
-          <div class="dt-input-modern">
+          <div class="dt-transform-group" role="group" aria-label="Posição e tamanho">
+          <label class="dt-input-modern">
             <span class="dt-lbl">X</span>
-            <input type="number" id="d-top-x" oninput="dUpdateProp('x',this.value)">
-          </div>
-          <div class="dt-input-modern">
+            <input type="number" id="d-top-x" aria-label="Posição horizontal" oninput="dUpdateProp('x',this.value)">
+          </label>
+          <label class="dt-input-modern">
             <span class="dt-lbl">Y</span>
-            <input type="number" id="d-top-y" oninput="dUpdateProp('y',this.value)">
-          </div>
-          <div class="dt-divider"></div>
-          <div class="dt-input-modern">
+            <input type="number" id="d-top-y" aria-label="Posição vertical" oninput="dUpdateProp('y',this.value)">
+          </label>
+          <label class="dt-input-modern">
             <span class="dt-lbl">W</span>
-            <input type="number" id="d-top-w" oninput="dUpdateProp('w',this.value)">
-          </div>
-          <div class="dt-input-modern">
+            <input type="number" id="d-top-w" aria-label="Largura" oninput="dUpdateProp('w',this.value)">
+          </label>
+          <label class="dt-input-modern">
             <span class="dt-lbl">H</span>
-            <input type="number" id="d-top-h" oninput="dUpdateProp('h',this.value)">
-          </div>
+            <input type="number" id="d-top-h" aria-label="Altura" oninput="dUpdateProp('h',this.value)">
+          </label>
           <button class="dt-lock-ratio-btn" id="d-top-lock" onclick="dToggleLockRatio()" title="Manter proporção">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           </button>
-          <div class="dt-divider"></div>
+          </div>
 
+          <div class="dt-align-group" role="group" aria-label="Alinhar camada">
           <button class="dt-align-btn" onclick="dAlign('left')" title="Esquerda"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="3" x2="3" y2="21"/><rect x="7" y="5" width="14" height="6" rx="1"/><rect x="7" y="13" width="10" height="6" rx="1"/></svg></button>
           <button class="dt-align-btn" onclick="dAlign('center')" title="Centro H"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="3" x2="12" y2="21"/><rect x="5" y="6" width="14" height="4" rx="1"/><rect x="7" y="14" width="10" height="4" rx="1"/></svg></button>
           <button class="dt-align-btn" onclick="dAlign('right')" title="Direita"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="21" y1="3" x2="21" y2="21"/><rect x="3" y="5" width="14" height="6" rx="1"/><rect x="7" y="13" width="10" height="6" rx="1"/></svg></button>
-          <div class="dt-divider"></div>
+          <span class="dt-align-separator" aria-hidden="true"></span>
           <button class="dt-align-btn" onclick="dAlign('top')" title="Topo"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="3" x2="21" y2="3"/><rect x="5" y="7" width="6" height="14" rx="1"/><rect x="13" y="7" width="6" height="10" rx="1"/></svg></button>
           <button class="dt-align-btn" onclick="dAlign('vmid')" title="Centro V"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"/><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="7" width="4" height="10" rx="1"/></svg></button>
           <button class="dt-align-btn" onclick="dAlign('bottom')" title="Base"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="21" x2="21" y2="21"/><rect x="5" y="3" width="6" height="14" rx="1"/><rect x="13" y="7" width="6" height="10" rx="1"/></svg></button>
+          </div>
         </div>
       </div>
     </div>
 
     <!-- Zona 5: Status e Ações Finais -->
     <div class="dt-zone" id="dt-zone-5">
-      <div id="d-save-indicator" class="dt-status-save"></div>
-      <div id="d-save-indicator2" style="display: none;"></div>
+      <div class="dt-sync-cluster" aria-label="Estado de salvamento">
+        <div id="d-save-indicator" class="dt-status-save"></div>
+        <div id="d-save-indicator2" style="display: none;"></div>
+      </div>
 
-      <div class="dt-divider"></div>
-
+      <div class="dt-doc-actions" aria-label="Ações do arquivo">
       <button class="dt-btn-action" onclick="typeof dOpenExportModal === 'function' && dOpenExportModal()" title="Salvar Como / Exportar">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         <span>Salvar Como</span>
       </button>
+      </div>
 
+      <div class="dt-delivery-actions" aria-label="Testar e publicar">
       <button class="dt-btn-action" onclick="dOpenSimModal()" title="Testar layout">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
         <span>Simular</span>
       </button>
-      <div id="d-sim-indicator" class="dt-sim-active" onclick="dResetSim()" title="Sair da simulação" style="display:none;">
+      <button type="button" id="d-sim-indicator" class="dt-sim-active" onclick="dResetSim()" title="Sair da simulação" style="display:none;">
         <span class="dt-sim-dot"></span> Ativa
-      </div>
+      </button>
       <button class="dt-btn-primary" onclick="dPublishOpen()" title="Publicar">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
         <span>Publicar</span>
       </button>
+      </div>
 
-      <!-- Outros controles secundários -->
+      <!-- Utilidades secundárias -->
+      <div class="dt-utility-actions" aria-label="Utilidades">
       <button class="dt-btn" id="dt-theme-btn" onclick="dToggleTheme()" title="Alternar tema claro/escuro" aria-label="Alternar tema">
         <svg id="theme-icon-dark" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         <svg id="theme-icon-light" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
       </button>
       <button class="dt-btn" id="dt-help-btn" onclick="dOpenCheat()" title="Atalhos de teclado (?)" aria-label="Atalhos de teclado">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M7 9h.01M10.5 9h.01M14 9h.01M17.5 9h.01M7 12.5h.01M10.5 12.5h.01M14 12.5h.01M17.5 12.5h.01M7.5 16h9"/></svg>
       </button>
+      </div>
     </div>
   </div>
 

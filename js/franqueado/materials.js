@@ -105,7 +105,7 @@ function fOpenMaterialCatalog(camp){
   // Mobile: o catálogo de materiais vive no #fran-right (escondido por padrão no
   // celular). Sem trazer o painel pra frente, tocar numa campanha caía numa tela
   // vazia. O "voltar" (fCloseMaterialCatalog) remove a classe e devolve o catálogo.
-  try{ document.body.classList.add('f-mobile-chat'); }catch(e){}
+  try{ document.body.classList.add('f-mobile-chat','f-material-browser'); }catch(e){}
   const chatCol=document.getElementById('f-chat-col');
   let matView=document.getElementById('f-material-view');
   if(!matView){
@@ -140,33 +140,61 @@ function fRenderMaterialCatalog(camp, container){
   const expired = materials.length - validMat.length;
   if(!validMat.length){
     container.innerHTML=`
-      <div class="f-mat-head">
-        <button class="f-mat-back" onclick="fCloseMaterialCatalog()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></button>
-        <div class="f-mat-head-title">
-          <div class="f-mat-camp-name">${gEsc(camp.name)}</div>
-          <div class="f-mat-camp-sub">Materiais disponíveis</div>
+      <div class="f-mat-shell">
+        <header class="f-mat-hero">
+          <button class="f-mat-back" type="button" onclick="fCloseMaterialCatalog()" aria-label="Voltar para campanhas">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          </button>
+          <div class="f-mat-head-title">
+            <div class="f-mat-breadcrumb">Catálogo <span aria-hidden="true">/</span> Campanha</div>
+            <h1 class="f-mat-camp-name">${gEsc(camp.name)}</h1>
+            <p class="f-mat-camp-sub">Os materiais desta campanha aparecerão aqui assim que estiverem disponíveis.</p>
+          </div>
+        </header>
+        <div class="f-mat-empty">
+          <div class="f-mat-empty-icon" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2h14M5 22h14M19 2v6.34a2 2 0 0 1-.586 1.414L13.828 14.4a2 2 0 0 0 0 2.828l4.586 4.586A2 2 0 0 1 19 21.23V22M5 2v6.34a2 2 0 0 0 .586 1.414L10.172 14.4a2 2 0 0 1 0 2.828l-4.586 4.586A2 2 0 0 0 5 21.23V22"/></svg></div>
+          <div class="f-mat-empty-title">Novos materiais em preparação</div>
+          <div class="f-mat-empty-text">${expired ? 'Os materiais anteriores desta campanha expiraram. ' : ''}Enquanto o time prepara as próximas opções, você pode explorar outra campanha.</div>
+          <button class="f-mat-empty-action" type="button" onclick="fCloseMaterialCatalog()">Explorar campanhas</button>
         </div>
-      </div>
-      <div class="f-mat-empty">
-        <div class="f-mat-empty-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2h14M5 22h14M19 2v6.34a2 2 0 0 1-.586 1.414L13.828 14.4a2 2 0 0 0 0 2.828l4.586 4.586a2 2 0 0 1 .586 1.414V22M5 2v6.34a2 2 0 0 0 .586 1.414L10.172 14.4a2 2 0 0 1 0 2.828l-4.586 4.586A2 2 0 0 0 5 23.23V22"/></svg></div>
-        <div class="f-mat-empty-title">Nosso time está trabalhando!</div>
-        <div class="f-mat-empty-text">${expired ? 'Os materiais desta campanha expiraram. ' : ''}Em breve haverá novos materiais disponíveis para <strong>${gEsc(camp.name)}</strong>. Volte em alguns instantes ou escolha outra campanha.</div>
       </div>`;
     if(typeof fMarkCampSeen==='function') fMarkCampSeen(camp.id);
     return;
   }
+  const fmtLabels={story:'Story',feed:'Feed',wide:'Post wide',post:'Post wide'};
+  const formats=[...new Set(validMat.map(m=>fmtLabels[m.fmt]||'Story'))];
   container.innerHTML=`
-    <div class="f-mat-head">
-      <button class="f-mat-back" onclick="fCloseMaterialCatalog()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></button>
-      <div class="f-mat-head-title">
-        <div class="f-mat-camp-name">${gEsc(camp.name)}</div>
-        <div class="f-mat-camp-sub">${validMat.length} material${validMat.length>1?'is':''} disponível${validMat.length>1?'is':''}</div>
-      </div>
+    <div class="f-mat-shell">
+      <header class="f-mat-hero">
+        <button class="f-mat-back" type="button" onclick="fCloseMaterialCatalog()" aria-label="Voltar para campanhas">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
+        <div class="f-mat-head-title">
+          <div class="f-mat-breadcrumb">Catálogo <span aria-hidden="true">/</span> Campanha</div>
+          <h1 class="f-mat-camp-name">${gEsc(camp.name)}</h1>
+          <p class="f-mat-camp-sub">Escolha o formato ideal. Depois, o Luma guia você na personalização.</p>
+          <div class="f-mat-summary" aria-label="Resumo da campanha">
+            <span class="f-mat-count"><strong>${validMat.length}</strong> material${validMat.length>1?'is':''}</span>
+            ${formats.map(fmt=>`<span class="f-mat-summary-chip">${gEsc(fmt)}</span>`).join('')}
+          </div>
+        </div>
+        <div class="f-mat-hero-mark" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </div>
+      </header>
+      <section class="f-mat-content" aria-labelledby="f-mat-section-title">
+        <div class="f-mat-section-head">
+          <div>
+            <div class="f-mat-section-kicker">Materiais disponíveis</div>
+            <h2 id="f-mat-section-title">Por onde você quer começar?</h2>
+          </div>
+          <p>Você poderá revisar tudo antes de baixar.</p>
+        </div>
+        <div class="f-mat-grid">
+          ${validMat.map(m=>fRenderMaterialCard(m, camp)).join('')}
+        </div>
+      </section>
     </div>
-    <div class="f-mat-grid">
-      ${validMat.map(m=>fRenderMaterialCard(m, camp)).join('')}
-    </div>
-    <div class="f-mat-foot">Selecione um material acima para começar a personalizar.</div>
   `;
   // Thumbs FIÉIS: renderiza a arte real de cada material (mesmo motor do PNG) por cima
   // do placeholder colorido — que permanece como fallback se o render falhar.
@@ -174,7 +202,15 @@ function fRenderMaterialCatalog(camp, container){
     validMat.forEach(m=>{
       if(!(m.layers&&m.layers.length)) return;
       const cv=document.getElementById('f-mat-cv-'+m.id);
-      if(cv) fRenderPreviewToCanvas(cv, m, {maxPx:520, camp:{color:camp.color||'#FF9000'}});
+      if(!cv) return;
+      const card=cv.closest('.f-mat-card');
+      try{
+        Promise.resolve(fRenderPreviewToCanvas(cv, m, {maxPx:520, camp:{color:camp.color||'#FF9000'}}))
+          .then(()=>{ if(card) card.classList.remove('is-rendering'); })
+          .catch(()=>{ if(card){ card.classList.remove('is-rendering'); card.classList.add('has-preview-error'); } });
+      }catch(e){
+        if(card){ card.classList.remove('is-rendering'); card.classList.add('has-preview-error'); }
+      }
     });
   }
   // Só marca a campanha como "vista" DEPOIS de renderar os cards (fRenderMaterialCard lê o
@@ -193,26 +229,34 @@ function fRenderMaterialCard(material, camp){
   // Mini-prévia: usa fmt do template
   const fmtName = {story:'Story 9:16',feed:'Feed 1:1',wide:'Post wide',post:'Post wide'}[material.fmt] || 'Story';
   const isNew = (typeof fMaterialIsNew==='function') && fMaterialIsNew(material, camp.id);
-  return `<div class="f-mat-card" onclick="fSelectMaterial('${material.id}',this)">
-    <div class="f-mat-thumb f-mat-thumb-${material.fmt||'story'}" style="background:${camp.color}">
-      ${isNew?`<div class="f-mat-new">novo</div>`:''}
-      <div class="f-mat-thumb-prod">${gEsc(camp.previewProd||camp.name)}</div>
-      ${camp.previewPor?`<div class="f-mat-thumb-por">${gEsc(camp.previewPor)}</div>`:''}
-      <div class="f-mat-thumb-logo" role="img" aria-label="DM"></div>
-      <canvas class="f-mat-cv" id="f-mat-cv-${material.id}" aria-hidden="true"></canvas>
-      <div class="f-mat-thumb-tag">${material.fmt==='feed'?'FEED':material.fmt==='wide'||material.fmt==='post'?'POST':'STORY'}</div>
+  const renderState=(material.layers&&material.layers.length)?' is-rendering':'';
+  return `<button class="f-mat-card${renderState}" type="button" onclick="fSelectMaterial('${material.id}',this)" aria-label="Personalizar ${gEsc(material.name)}, formato ${gEsc(fmtName)}">
+    <div class="f-mat-preview">
+      <div class="f-mat-thumb f-mat-thumb-${material.fmt||'story'}" style="background:${camp.color}">
+        ${isNew?`<div class="f-mat-new">Novo</div>`:''}
+        <div class="f-mat-thumb-prod">${gEsc(camp.previewProd||camp.name)}</div>
+        ${camp.previewPor?`<div class="f-mat-thumb-por">${gEsc(camp.previewPor)}</div>`:''}
+        <div class="f-mat-thumb-logo" role="img" aria-label="Delivery Much"></div>
+        <canvas class="f-mat-cv" id="f-mat-cv-${material.id}" aria-hidden="true"></canvas>
+        <div class="f-mat-thumb-tag">${material.fmt==='feed'?'FEED':material.fmt==='wide'||material.fmt==='post'?'POST':'STORY'}</div>
+      </div>
+      <div class="f-mat-preview-loading" aria-hidden="true"><span></span></div>
     </div>
     <div class="f-mat-info">
-      <div class="f-mat-name">${gEsc(material.name)}</div>
+      <div class="f-mat-info-main">
+        <div class="f-mat-name">${gEsc(material.name)}</div>
+        <div class="f-mat-action" aria-hidden="true">Personalizar <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
+      </div>
       <div class="f-mat-meta">
         <span class="f-mat-fmt">${fmtName}</span>
         ${validadeLabel}
       </div>
     </div>
-  </div>`;
+  </button>`;
 }
 function fCloseMaterialCatalog(){
   fState.materialView=false;
+  try{ document.body.classList.remove('f-material-browser'); }catch(e){}
   fState.camp={id:'',name:'',color:'#FF9000',perguntas:[]};
   const chatCol=document.getElementById('f-chat-col');
   const matView=document.getElementById('f-material-view');
@@ -316,6 +360,7 @@ async function fSelectMaterial(materialId, card){
     gTriggerOnboardingStep('choseMaterial');
   }
   fState.materialView=false;
+  try{ document.body.classList.remove('f-material-browser'); }catch(e){}
   // Constrói perguntas a partir das variáveis do template + permissões definidas pelo designer
   const vars = dExtractTemplateVars(found.layers);
   // V7: respeita a ordem do catálogo dVars (designer reordena → muda a ordem das perguntas).

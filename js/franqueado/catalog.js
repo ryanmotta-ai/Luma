@@ -10,7 +10,8 @@
 function fSwitchTab(tab,btn){
   fState.tab=tab;
   document.querySelectorAll('.f-tab').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
+  if(btn) btn.classList.add('active');
+  document.body.classList.toggle('f-history-mode',tab==='historico');
   const cat=document.getElementById('f-catalog'),hist=document.getElementById('f-hist-tab');
   const sr=document.getElementById('f-search-row'); // #f-fmt-wrap removido (seletor de formato aposentado)
   if(tab==='historico'){cat.style.display='none';hist.style.display='flex';sr.style.display='none';fRenderHist();}
@@ -30,6 +31,7 @@ function fSetHistFilter(f, btn){
 function fGoToCampaigns(){
   const catBtn=document.querySelector('.f-tab');
   fSwitchTab('catalogo', catBtn);
+  fGoHome();
 }
 // Busca textual: casa o termo contra produto, campanha, formato, material e a data amigável.
 function _fHistMatch(h, q){
@@ -49,7 +51,19 @@ function fRenderHist(){
     rascunho: all.filter(h=>(h.status||'rascunho')==='rascunho').length,
     baixada: all.filter(h=>h.status==='baixada').length,
   };
-  const filterBar = `<div class="hist-filter-bar">
+  const pageHead=`<header class="f-history-head">
+    <div class="f-history-head-copy">
+      <div class="f-history-kicker">Sua biblioteca criativa</div>
+      <h1>Minhas artes <span>${all.length}</span></h1>
+      <p>Continue um rascunho, reutilize uma criação ou baixe novamente.</p>
+    </div>
+    <div class="f-history-head-actions">
+      <button class="f-history-help" type="button" onclick="gOpenHelp(this)" data-help-trigger aria-controls="g-help-modal" aria-expanded="false" aria-label="Abrir Central de Ajuda"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 1 1 3.6 1.9c-.9.6-1.4 1.1-1.4 2.1"/><path d="M12 17h.01"/></svg>Ajuda</button>
+      <button class="f-history-home" type="button" onclick="fGoHome()" aria-label="Voltar ao início"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Início</button>
+      <button class="f-history-new" type="button" onclick="fGoToCampaigns()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Nova arte</button>
+    </div>
+  </header>`;
+  const filterBar = `<div class="hist-filter-bar" aria-label="Filtrar artes por status">
     <button class="hist-filter-btn ${fHistFilter==='todos'?'active':''}" onclick="fSetHistFilter('todos',this)">Todas <span class="hist-filter-count">${counts.todos}</span></button>
     <button class="hist-filter-btn ${fHistFilter==='rascunho'?'active':''}" onclick="fSetHistFilter('rascunho',this)">Rascunhos <span class="hist-filter-count">${counts.rascunho}</span></button>
     <button class="hist-filter-btn ${fHistFilter==='baixada'?'active':''}" onclick="fSetHistFilter('baixada',this)">Baixadas <span class="hist-filter-count">${counts.baixada}</span></button>
@@ -57,19 +71,19 @@ function fRenderHist(){
   // Busca só aparece quando há histórico (não polui o empty state). Reidrata o valor
   // digitado e mantém o foco no fim, já que re-renderizamos o container inteiro a cada tecla.
   const searchBar = all.length ? `<div class="hist-search-row">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
     <input id="f-hist-search" type="search" aria-label="Buscar nas minhas artes" placeholder="Buscar por produto, campanha, data…" value="${gEsc(fHistSearch||'')}" oninput="fSetHistSearch(this.value)"/>
   </div>` : '';
+  const toolbar=all.length?`<div class="f-history-toolbar">${searchBar}${filterBar}</div>`:'';
   if(!all.length){
-    // M1.3 — empty state empático com ícone + CTA de volta ao fluxo
-    el.innerHTML = filterBar + `<div class="empty-state">
+    el.innerHTML = `<div class="f-history-shell">${pageHead}<div class="empty-state f-history-empty">
       <div class="empty-icon">
-        <img src="assets/illustrations/empty_arts.png" style="width: 180px; height: auto;" alt="Empty Canvas">
+        <img src="assets/illustrations/empty_arts.png" alt="Uma tela pronta para receber sua primeira arte">
       </div>
-      <div class="empty-title">Você ainda não gerou nenhuma arte</div>
-      <div class="empty-text">Escolha uma campanha, responda umas perguntinhas e sua primeira arte aparece aqui.</div>
-      <button class="empty-cta" onclick="fGoToCampaigns()">Ver campanhas sugeridas →</button>
-    </div>`;
+      <div class="empty-title">Sua primeira criação começa por uma campanha</div>
+      <div class="empty-text">Escolha um material, personalize com a ajuda da Luma e encontre o resultado sempre aqui.</div>
+      <button class="empty-cta" onclick="fGoToCampaigns()">Explorar campanhas</button>
+    </div></div>`;
     return;
   }
   if(!filtered.length){
@@ -80,34 +94,42 @@ function fRenderHist(){
       : `<div class="empty-title">Nenhuma arte ${fHistFilter==='rascunho'?'em rascunho':'baixada ainda'}</div>
          <div class="empty-text">${fHistFilter==='rascunho'?'Os rascunhos que você começar aparecem aqui.':'Baixe uma arte e ela fica registrada aqui.'}</div>
          <button class="empty-cta ghost" onclick="fSetHistFilter('todos',document.querySelector('.hist-filter-btn'))">Ver todas</button>`;
-    el.innerHTML = filterBar + searchBar + `<div class="empty-state empty-state-sm">
+    el.innerHTML = `<div class="f-history-shell">${pageHead}${toolbar}<div class="empty-state empty-state-sm f-history-empty">
       <div class="empty-icon">
-        <img src="assets/illustrations/empty_filtered.png" style="width: 140px; height: auto;" alt="Empty Results">
+        <img src="assets/illustrations/empty_filtered.png" alt="Nenhuma arte encontrada com os filtros atuais">
       </div>
       ${emptyBody}
-    </div>`;
+    </div></div>`;
     _fHistRestoreSearchFocus();
     return;
   }
-  el.innerHTML = filterBar + searchBar + filtered.map(h=>{
+  const cards=filtered.map(h=>{
     const isRascunho = (h.status||'rascunho') === 'rascunho';
     const statusBadge = isRascunho
       ? `<span class="hist-badge-st rascunho">rascunho</span>`
       : `<span class="hist-badge-st baixada">baixada</span>`;
     const dateStr = fFormatHistDate(h.ts);
-    return `<div class="hist-card" data-status="${h.status||'rascunho'}">
-      <div class="hist-thumb" style="background:${gEsc(h.campColor||'var(--dm-orange)')}">${gEsc((h.campName||'').toUpperCase().slice(0,8))}</div>
+    const artName=h.materialName ? h.materialName : ((h.prod||'Arte')+' · '+(h.fmtName||''));
+    return `<article class="hist-card" data-status="${h.status||'rascunho'}">
+      <div class="hist-thumb" style="background:${gEsc(h.campColor||'var(--dm-orange)')}">
+        <span class="hist-thumb-camp">${gEsc(h.campName||'Luma')}</span>
+        <strong>${gEsc(h.prod||h.campName||'Sua arte')}</strong>
+        ${h.por?`<span class="hist-thumb-offer">${gEsc(h.por)}</span>`:''}
+        <span class="hist-thumb-fmt">${gEsc(h.fmtName||'Material')}</span>
+      </div>
       <div class="hist-info">
-        <div class="hist-name">${h.materialName ? gEsc(h.materialName) : (gEsc(h.prod) + ' · ' + gEsc(h.fmtName))}</div>
-        <div class="hist-meta">${statusBadge}<span class="hist-meta-sep">·</span>${gEsc(h.campName)}<span class="hist-meta-sep">·</span>${gEsc(h.fmtName)}<span class="hist-meta-sep">·</span>${dateStr}</div>
+        <div class="hist-card-top">${statusBadge}<time>${dateStr}</time></div>
+        <div class="hist-name">${gEsc(artName)}</div>
+        <div class="hist-meta"><span>${gEsc(h.campName)}</span><span class="hist-meta-sep">·</span><span>${gEsc(h.fmtName)}</span></div>
         <div class="hist-actions">
-          <button class="hist-act-btn" onclick="fEditFromHist(${h.id},this)" title="Abrir e editar"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Editar</button>
-          <button class="hist-act-btn" onclick="fDuplicateInOtherFmt(${h.id})" title="Gerar em outro formato"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplicar</button>
-          <button class="hist-act-btn pri" onclick="fDownloadHist(${h.id})" title="Baixar PNG"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M5 21h14"/></svg>Baixar</button>
+          <button class="hist-act-btn hist-act-main" onclick="fEditFromHist(${h.id},this)" title="Abrir e editar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>${isRascunho?'Continuar':'Editar'}</button>
+          <button class="hist-act-btn" onclick="fDuplicateInOtherFmt(${h.id})" title="Gerar em outro formato"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplicar</button>
+          <button class="hist-act-btn hist-act-download" onclick="fDownloadHist(${h.id})" title="Baixar PNG" aria-label="Baixar ${gEsc(artName)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M5 21h14"/></svg></button>
         </div>
       </div>
-    </div>`;
+    </article>`;
   }).join('');
+  el.innerHTML=`<div class="f-history-shell">${pageHead}${toolbar}<div class="f-history-results"><div class="f-history-results-head"><span>${filtered.length} ${filtered.length===1?'arte':'artes'}</span><span>Mais recentes primeiro</span></div><div class="f-history-grid">${cards}</div></div></div>`;
   _fHistRestoreSearchFocus();
 }
 // Re-renderizamos o container inteiro a cada tecla → o input perde o foco/cursor.
@@ -416,8 +438,7 @@ function _fPaintCampThumb(node,id){
   const url=_fCampThumbURL(id);
   if(!url)return;
   if(node.classList.contains('fh-hero-cover')){
-    // preserva o scrim do hero (badges legíveis sobre a arte)
-    node.style.backgroundImage=`linear-gradient(180deg,rgba(0,0,0,.30),rgba(0,0,0,0) 35%,rgba(0,0,0,0) 65%,rgba(0,0,0,.38)),url('${url}')`;
+    node.style.backgroundImage=`url('${url}')`;
   }else{
     node.style.backgroundImage=`url('${url}')`;
   }
@@ -449,7 +470,7 @@ function fCampEl(c,isRec,ghost){
   const _isFav = !ghost && typeof fIsFav==='function' && fIsFav(c.id);
   const favBtn = ghost ? '' : `<button class="camp-fav${_isFav?' is-fav':''}" onclick="fToggleFav('${c.id}',event)" aria-pressed="${_isFav}" aria-label="${_isFav?'Remover das favoritas':'Fixar nas favoritas'}" title="${_isFav?'Remover das favoritas':'Fixar nas favoritas'}"><svg width="14" height="14" viewBox="0 0 24 24" fill="${_isFav?'currentColor':'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></button>`;
   const _hasNew = !ghost && !c.popular && typeof fCampHasNew==='function' && fCampHasNew(c);
-  return `<div class="camp-card ${!ghost&&fState.camp&&c.id===fState.camp.id?'selected':''} ${isRec?'recommended':''}${ghost?' ghost':''}"${ghost?' aria-disabled="true"':` onclick="fSelectCamp('${c.id}')"`}>
+  return `<div class="camp-card ${!ghost&&fState.camp&&c.id===fState.camp.id?'selected':''} ${isRec?'recommended':''}${ghost?' ghost':''}"${ghost?' aria-disabled="true"':` role="button" tabindex="0" aria-label="Abrir campanha ${gEsc(c.name)}" onclick="fSelectCamp('${c.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();fSelectCamp('${c.id}')}"`}>
     ${favBtn}
     ${ghost?'':`<div class="camp-prev-btn" onclick="event.stopPropagation();fOpenPreview(event,'${c.id}')">PRÉVIA</div>`}
     <div class="camp-thumb ${cover?'has-cover':''}"${thumbAttr} style="${thumbStyle}">
@@ -633,7 +654,7 @@ function fSelectCamp(id){
 ══════════════════════════════════════════════════════════════ */
 function fGoHome(){
   document.body.classList.add('f-home-mode');
-  document.body.classList.remove('f-mobile-chat');
+  document.body.classList.remove('f-mobile-chat','f-history-mode','f-material-browser');
   fRenderHome(); // com coreografia de entrada
 }
 function fExitHome(){
@@ -668,7 +689,7 @@ function fHomeGreeting(){
     const dn=(typeof gAuthState!=='undefined'&&gAuthState.user&&gAuthState.user.displayName)||'';
     n=dn.trim().split(/\s+/)[0]||'';
   }catch(e){}
-  return g+(n?', '+gEsc(n):'')+' 👋';
+  return g+(n?', '+gEsc(n):'');
 }
 
 // Card de rascunho da fila "Continuar de onde parou" (dados vêm do usuário → escapar)
@@ -676,13 +697,25 @@ function _fHomeDraftEl(hEntry){
   const name=gEsc(hEntry.prod||hEntry.campName||'Arte');
   const fmt=gEsc(hEntry.fmtName||'');
   const when=(typeof fFormatHistDate==='function')?fFormatHistDate(hEntry.ts):'';
-  return `<button class="fh-draft" onclick="fHomeResume(${hEntry.id})">
-    <div class="fh-draft-th" style="background:linear-gradient(155deg,${gEsc(hEntry.campColor||'#FF9000')},rgba(0,0,0,.35)),${gEsc(hEntry.campColor||'#FF9000')}"></div>
-    <div class="fh-draft-info">
-      <div class="fh-draft-name">${name}${fmt?' — '+fmt:''}</div>
-      <div class="fh-draft-meta">Rascunho · ${when}</div>
+  const camp=(typeof fResolveCamp==='function')?fResolveCamp(hEntry.campId):null;
+  const cover=camp?(fCampCover(camp)||_fCampThumbURL(camp.id)):'';
+  const coverSafe=gEsc(cover).replace(/'/g,'%27');
+  const colorSafe=gEsc(hEntry.campColor||(camp&&camp.color)||'var(--dm-orange)');
+  const thumbStyle=cover
+    ?`background-color:${colorSafe};background-image:url('${coverSafe}');background-size:cover;background-position:center`
+    :`background-color:${colorSafe}`;
+  const thumbAttr=(!cover&&camp&&_fCampThumbNeeded(camp))?` data-thumb-camp="${camp.id}"`:'';
+  return `<button class="fh-draft" type="button" onclick="fHomeResume(${hEntry.id})" aria-label="Continuar ${name}${fmt?', formato '+fmt:''}">
+    <div class="fh-draft-th"${thumbAttr} style="${thumbStyle}" aria-hidden="true">
+      <span>${fmt||'Arte'}</span>
     </div>
-    <span class="fh-draft-go">Retomar →</span>
+    <div class="fh-draft-info">
+      <div class="fh-draft-status"><span></span> Rascunho</div>
+      <div class="fh-draft-name">${name}</div>
+      <div class="fh-draft-meta">${gEsc(hEntry.campName||'Campanha')}${fmt?' · '+fmt:''}</div>
+      <div class="fh-draft-foot"><time>${when}</time><span class="fh-draft-progress" aria-hidden="true"><i></i></span></div>
+    </div>
+    <span class="fh-draft-go" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span>
   </button>`;
 }
 function fHomeResume(id){
@@ -701,26 +734,31 @@ function _fHomeHeroEl(rec){
   const mats=(typeof fGetMaterialsForCamp==='function')?fGetMaterialsForCamp(rec.id):[];
   const matLabel=mats.length?`${mats.length} material${mats.length!==1?'is':''}`:'Materiais em breve';
   const coverSafe=gEsc(cover).replace(/'/g,'%27');   // %27: neutraliza o ' que fecharia o url('…')
-  const colorSafe=gEsc(rec.color||'#FF9000');
+  const colorSafe=gEsc(rec.color||'var(--dm-orange)');
   const coverStyle=cover
-    ?`background-color:${colorSafe};background-image:linear-gradient(180deg,rgba(0,0,0,.30),rgba(0,0,0,0) 35%,rgba(0,0,0,0) 65%,rgba(0,0,0,.38)),url('${coverSafe}');background-size:cover;background-position:center`
-    :`background:linear-gradient(155deg,${colorSafe},rgba(0,0,0,.45)),${colorSafe}`;
+    ?`background-color:${colorSafe};background-image:url('${coverSafe}');background-size:cover;background-position:center`
+    :`background-color:${colorSafe}`;
   const heroThumbAttr=(!cover&&_fCampThumbNeeded(rec))?` data-thumb-camp="${rec.id}"`:'';
+  const fmtNames=[...new Set(mats.map(m=>({story:'Story 9:16',feed:'Feed 1:1',wide:'Post wide',post:'Post wide'}[m.fmt]||'Material')))];
   const _flame='<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:-1px"><path d="M12 2s5 4 5 9a5 5 0 0 1-10 0c0-1 .3-2 .8-2.8C8 10 9 12 10 12c0-3 2-7 2-10z"/></svg>';
   const _star='<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:-1.5px"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9"/></svg>';
-  return `<div class="fh-hero" onclick="fSelectCamp('${rec.id}')">
+  return `<section class="fh-featured" aria-label="Campanha recomendada">
+  <button class="fh-hero" type="button" onclick="fSelectCamp('${rec.id}')" aria-label="Abrir campanha ${gEsc(rec.name)}">
     <div class="fh-hero-cover"${heroThumbAttr} style="${coverStyle}">
       ${rec.badge?`<span class="fh-hero-badge">${gEsc(rec.badge)}</span>`:''}
       ${rec.popular?`<span class="fh-hero-pop">${_flame} Popular</span>`:''}
       ${cover?'':`<div class="fh-hero-prod">${gEsc(rec.previewProd||rec.name)}</div>`}
+      <span class="fh-hero-cover-note">Campanha em destaque</span>
     </div>
     <div class="fh-hero-body">
       <span class="fh-hero-eyebrow">${_star} RECOMENDADA AGORA</span>
       <span class="fh-hero-name">${gEsc(rec.name)}</span>
-      <span class="fh-hero-meta">${matLabel}${rec.expiraDias?` · válida por ${rec.expiraDias} dias`:''}</span>
-      <span class="fh-hero-cta">Criar arte agora →</span>
+      <span class="fh-hero-meta">${matLabel}${rec.expiraDias?` · disponível por ${rec.expiraDias} dias`:''}</span>
+      ${fmtNames.length?`<span class="fh-hero-formats">${fmtNames.slice(0,3).map(fmt=>`<span>${gEsc(fmt)}</span>`).join('')}</span>`:''}
+      <span class="fh-hero-cta">Criar arte agora <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span>
     </div>
-  </div>`;
+  </button>
+  </section>`;
 }
 
 // Campanha tem material publicado e válido? (vitrine honesta: prontas vs em breve)
@@ -735,10 +773,10 @@ function _fHomeBodyHTML(query){
   const impl=(typeof CAMPS_IMPLEMENTACAO!=='undefined')?CAMPS_IMPLEMENTACAO:[];
   if(q){
     const match=[...ativas,...outras,...impl].filter(c=>c.name.toLowerCase().includes(q));
-    if(!match.length) return `<div class="fh-empty">Nenhuma campanha encontrada para “${gEsc(query)}”. Tente outro termo.</div>`;
+    if(!match.length) return `<div class="fh-empty"><span class="fh-empty-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></span><strong>Nenhuma campanha encontrada</strong><span>Não encontramos resultados para “${gEsc(query)}”. Tente outro termo.</span></div>`;
     const isImpl=c=>impl.some(x=>x.id===c.id);
-    return `<div class="fh-sec">Resultados <em>· ${match.length}</em></div>
-      <div class="camp-grid fh-grid">${match.map(c=>fCampEl(c,false,!isImpl(c)&&!_fCampHasMats(c))).join('')}</div>`;
+    return `<section class="fh-section fh-results"><div class="fh-sec"><span>Resultados</span><em>${match.length} campanha${match.length!==1?'s':''}</em></div>
+      <div class="camp-grid fh-grid">${match.map(c=>fCampEl(c,false,!isImpl(c)&&!_fCampHasMats(c))).join('')}</div></section>`;
   }
   // Vitrine honesta: só entra em "Prontas pra usar" quem tem material publicado
   // e válido; o resto vai pra "Em breve" (cards menores, sem clique). A recomendada
@@ -756,17 +794,17 @@ function _fHomeBodyHTML(query){
   let favs=[];
   try{ const favIds=fGetFavs(); favs=favIds.map(id=>pool.find(c=>c.id===id)).filter(Boolean); }catch(e){}
   return `
-    ${drafts.length?`<div class="fh-sec">Continuar de onde parou</div>
-    <div class="fh-cont">${drafts.map(_fHomeDraftEl).join('')}</div>`:''}
-    ${favs.length?`<div class="fh-sec">Favoritas <em>· ${favs.length} fixada${favs.length!==1?'s':''}</em></div>
-    <div class="camp-grid fh-grid">${favs.map(c=>fCampEl(c,false,!_fCampHasMats(c))).join('')}</div>`:''}
+    ${drafts.length?`<section class="fh-section fh-continue"><div class="fh-sec"><span>Continue criando</span><em>Seus rascunhos mais recentes</em></div>
+    <div class="fh-cont">${drafts.map(_fHomeDraftEl).join('')}</div></section>`:''}
+    ${favs.length?`<section class="fh-section"><div class="fh-sec"><span>Favoritas</span><em>${favs.length} fixada${favs.length!==1?'s':''}</em></div>
+    <div class="camp-grid fh-grid">${favs.map(c=>fCampEl(c,false,!_fCampHasMats(c))).join('')}</div></section>`:''}
     ${rec?_fHomeHeroEl(rec):''}
-    ${gridProntas.length?`<div class="fh-sec">Prontas pra usar <em>· ${gridProntas.length} campanha${gridProntas.length!==1?'s':''}</em></div>
-    <div class="camp-grid fh-grid">${gridProntas.map(c=>fCampEl(c,false)).join('')}</div>`:''}
-    ${impl.length?`<div class="fh-sec">Implementação <em>· para o lançamento da sua unidade</em></div>
-    <div class="camp-grid fh-grid">${impl.map(c=>fCampEl(c,false)).join('')}</div>`:''}
-    ${embreve.length?`<div class="fh-sec">Em breve <em>· materiais em preparação</em></div>
-    <div class="camp-grid fh-grid fh-grid-ghost">${embreve.map(c=>fCampEl(c,false,true)).join('')}</div>`:''}`;
+    ${gridProntas.length?`<section class="fh-section"><div class="fh-sec"><span>Prontas para usar</span><em>${gridProntas.length} campanha${gridProntas.length!==1?'s':''} disponíveis</em></div>
+    <div class="camp-grid fh-grid">${gridProntas.map(c=>fCampEl(c,false)).join('')}</div></section>`:''}
+    ${impl.length?`<section class="fh-section"><div class="fh-sec"><span>Jornada de implementação</span><em>Materiais para o lançamento da sua unidade</em></div>
+    <div class="camp-grid fh-grid">${impl.map(c=>fCampEl(c,false)).join('')}</div></section>`:''}
+    ${embreve.length?`<section class="fh-section fh-coming"><div class="fh-sec"><span>Em breve</span><em>Materiais em preparação</em></div>
+    <div class="camp-grid fh-grid fh-grid-ghost">${embreve.map(c=>fCampEl(c,false,true)).join('')}</div></section>`:''}`;
 }
 
 /* ── Revelação por rolagem ─────────────────────────────────────
@@ -817,15 +855,20 @@ function fRenderHome(opts){
   const nHist=(function(){try{return fGetHist().length;}catch(e){return 0;}})();
   el.innerHTML=`<div class="fh-inner">
     <div class="fh-head">
-      <div>
+      <div class="fh-head-copy">
+        <div class="fh-kicker"><span class="fh-kicker-mark" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 1.8 4.7L19 9.5l-4.1 3.2 1.3 5.3-4.2-2.8L7.8 18l1.3-5.3L5 9.5l5.2-1.8L12 3Z"/></svg></span>Seu espaço criativo</div>
         <h1 class="fh-greet">${fHomeGreeting()}</h1>
-        <p class="fh-sub">Escolha uma campanha e eu monto a arte com você — leva ~1 minuto.</p>
+        <p class="fh-sub">Escolha uma campanha. A Luma guia o restante e sua arte fica pronta em cerca de um minuto.</p>
       </div>
-      <button class="fh-mine" onclick="fHomeOpenHist()">Minhas artes${nHist?` <span class="fh-mine-badge">${nHist}</span>`:''}</button>
+      <div class="fh-head-actions">
+        <button class="fh-help" type="button" onclick="gOpenHelp(this)" data-help-trigger aria-controls="g-help-modal" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 1 1 3.6 1.9c-.9.6-1.4 1.1-1.4 2.1"/><path d="M12 17h.01"/></svg><span>Ajuda</span></button>
+        <button class="fh-mine" type="button" onclick="fHomeOpenHist()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 4v5"/></svg><span>Minhas artes</span>${nHist?` <span class="fh-mine-badge">${nHist}</span>`:''}</button>
+      </div>
     </div>
-    <div class="fh-search-row">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      <input id="fh-search" type="search" aria-label="Buscar campanha" placeholder="Buscar campanha…" oninput="fHomeFilter(this.value)"/>
+    <div class="fh-search-row" role="search">
+      <span class="fh-search-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
+      <div class="fh-search-field"><label for="fh-search">Encontre sua próxima campanha</label><input id="fh-search" type="search" autocomplete="off" placeholder="Busque por tema ou ocasião" oninput="fHomeFilter(this.value)"/></div>
+      <span class="fh-search-hint" aria-hidden="true">Campanhas e formatos</span>
     </div>
     <div id="fh-body">${_fHomeBodyHTML('')}</div>
   </div>`;

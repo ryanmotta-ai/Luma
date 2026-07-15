@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Mockup — Luma Sheets P2.4 (proposta)</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../css/00-tokens.css">
+<style>
+  /* ═══ MOCKUP P2.4 — só para aprovação visual; nada disto vai para produção como está.
+     Usa os tokens REAIS (00-tokens.css) para fidelidade de marca. ═══ */
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Roboto',sans-serif;background:rgba(0,0,0,.7);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
+  .note{position:fixed;top:10px;left:12px;font-size:11px;color:#fff;opacity:.8;z-index:10}
+
+  .sheet-modal{background:var(--white);border-radius:12px;width:min(1120px,96vw);height:min(760px,92vh);display:flex;flex-direction:column;overflow:hidden;position:relative;box-shadow:0 24px 64px rgba(0,0,0,.35)}
+  .sheet-modal::before{content:'';height:4px;background:var(--gradient-orange, linear-gradient(135deg,#FF9000,#F85400));flex-shrink:0}
+
+  /* Cabeçalho */
+  .sh-head{display:flex;align-items:center;gap:10px;padding:16px 20px 12px}
+  .sh-title{font-weight:900;font-size:20px;letter-spacing:.5px;color:var(--text);display:flex;align-items:center;gap:8px}
+  .sh-title svg{background:var(--gradient-orange);color:#fff;padding:5px;border-radius:8px;width:30px;height:30px}
+  .sh-tag{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:var(--dm-orange-bg);color:var(--dm-orange-d);border:1px solid var(--dm-orange-tint);border-radius:999px;padding:2px 8px}
+  .sh-sub{font-size:12px;color:var(--text-3);margin:0 20px 12px}
+  .sh-faq{margin-left:auto;font-size:11px;font-weight:600;color:var(--text-2);background:transparent;border:1px solid var(--gray-mid);border-radius:999px;padding:5px 12px;cursor:pointer}
+
+  .sh-cols{display:flex;gap:0;flex:1;min-height:0}
+
+  /* ── Coluna esquerda: TODAS as fontes de dados num lugar só ── */
+  .sh-left{width:360px;flex-shrink:0;border-right:1px solid var(--gray-light);display:flex;flex-direction:column;min-height:0}
+  .sh-left-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);padding:4px 16px 8px}
+  .src-tabs{display:flex;gap:4px;padding:0 16px 10px;flex-wrap:wrap}
+  .src-tab{font-size:11px;font-weight:600;color:var(--text-2);background:var(--gray-light);border:1px solid transparent;border-radius:999px;padding:5px 11px;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+  .src-tab.active{background:var(--dm-orange-bg);border-color:var(--dm-orange);color:var(--dm-orange-d)}
+  .src-pane{flex:1;overflow-y:auto;padding:4px 16px 16px;display:none;flex-direction:column;gap:10px}
+  .src-pane.active{display:flex}
+  .src-pane textarea{width:100%;height:74px;font-size:11px;padding:8px;border:1px solid var(--gray-mid);border-radius:6px;background:var(--white);color:var(--text);resize:none;font-family:inherit}
+  .src-hint{font-size:10.5px;color:var(--text-3);line-height:1.45}
+  .row{display:flex;gap:8px;align-items:center}
+  .cta{background:var(--dm-orange-d);border:1px solid var(--dm-orange-d);color:#fff;font-size:11px;font-weight:600;padding:6px 12px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+  .sec{background:var(--white);border:1px solid var(--gray-mid);color:var(--text-2);font-size:11px;font-weight:600;padding:6px 12px;border-radius:6px;cursor:pointer}
+  .mic{width:28px;height:28px;border-radius:50%;border:1px solid var(--gray-mid);background:var(--white);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;color:var(--text-2)}
+  .demo-tag{font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--dm-orange-d);border:1px solid var(--dm-orange-tint);background:var(--dm-orange-bg);border-radius:999px;padding:1px 6px}
+  .drop{border:1.5px dashed var(--gray-mid);border-radius:8px;padding:18px 12px;text-align:center;color:var(--text-3);font-size:11px;cursor:pointer}
+  .drop strong{display:block;color:var(--text-2);font-size:12px;margin-bottom:2px}
+
+  /* Exportação mora na esquerda, embaixo — perto do CTA final */
+  .sh-left-foot{border-top:1px solid var(--gray-light);padding:12px 16px}
+  .sh-left-foot .sh-left-label{padding:0 0 8px}
+  .fmt-chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;border:1px solid var(--gray-mid);border-radius:999px;padding:4px 10px;color:var(--text-2);cursor:pointer;margin-right:6px}
+  .fmt-chip.on{background:var(--dm-orange-bg);border-color:var(--dm-orange);color:var(--dm-orange-d)}
+
+  /* ── Coluna direita: a PLANILHA é a heroína ── */
+  .sh-right{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0;background:var(--off-white)}
+  .sh-toolbar{display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--white);border-bottom:1px solid var(--gray-light)}
+  .seg{display:inline-flex;border:1px solid var(--gray-mid);border-radius:6px;overflow:hidden}
+  .seg button{font-size:11px;font-weight:600;padding:5px 12px;border:none;background:var(--white);color:var(--text-2);cursor:pointer}
+  .seg button.on{background:var(--dm-orange-bg);color:var(--dm-orange-d)}
+  .tool-sel{font-size:11px;padding:5px 8px;border:1px solid var(--gray-mid);border-radius:6px;background:var(--white);color:var(--text)}
+  .search{margin-left:auto;position:relative}
+  .search input{font-size:11px;padding:6px 8px 6px 26px;border:1px solid var(--gray-mid);border-radius:6px;background:var(--white);width:150px}
+  .search svg{position:absolute;left:8px;top:50%;transform:translateY(-50%);color:var(--text-3)}
+  .status{font-size:11px;color:var(--text-3);white-space:nowrap}
+
+  /* Ações em massa: barra contextual da tabela, mesma família visual */
+  .massa{display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--dm-orange-bg);border-bottom:1px solid var(--dm-orange-tint);font-size:11px;color:var(--text-2);flex-wrap:wrap}
+  .massa .lbl{font-weight:700;display:inline-flex;gap:4px;align-items:center;color:var(--dm-orange-d)}
+  .massa input{font-size:11px;padding:4px 8px;border:1px solid var(--gray-mid);border-radius:6px;width:120px}
+  .massa .sep{color:var(--dm-orange-tint)}
+
+  .grid{flex:1;overflow:auto;padding:12px 16px}
+  table{width:100%;border-collapse:collapse;background:var(--white);border:1px solid var(--gray-mid);border-radius:10px;overflow:hidden;font-size:12px}
+  th{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-2);text-align:left;padding:9px 10px;background:var(--gray-light)}
+  td{padding:7px 10px;border-top:1px solid var(--gray-light);color:var(--text)}
+  td input{border:1px solid var(--gray-mid);border-radius:6px;padding:5px 8px;font-size:12px;width:100%}
+  .num{width:30px;color:var(--text-3);text-align:center}
+
+  .sh-foot{display:flex;align-items:center;gap:10px;padding:12px 20px;border-top:1px solid var(--gray-light);background:var(--white)}
+  .foot-note{font-size:11px;color:var(--text-3)}
+  .sh-foot .cta{margin-left:auto;font-size:13px;padding:8px 18px}
+</style>
+</head>
+<body>
+<div class="note">MOCKUP P2.4 — proposta de reorganização (todas as funções mantidas)</div>
+
+<div class="sheet-modal">
+  <div class="sh-head">
+    <div class="sh-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      Luma Sheets <span class="sh-tag">Geração em lote</span>
+    </div>
+    <button class="sh-faq">? Dúvidas frequentes</button>
+  </div>
+  <p class="sh-sub">Adicione suas ofertas por qualquer caminho à esquerda — a planilha ao lado é onde você revisa e ajusta antes de gerar tudo.</p>
+
+  <div class="sh-cols">
+    <!-- ESQUERDA: uma única seção "Adicionar ofertas" com abas -->
+    <div class="sh-left">
+      <div class="sh-left-label">Adicionar ofertas</div>
+      <div class="src-tabs">
+        <button class="src-tab active" data-p="p-ia">✎ Descrever</button>
+        <button class="src-tab" data-p="p-colar">Colar</button>
+        <button class="src-tab" data-p="p-csv">Arquivo CSV</button>
+        <button class="src-tab" data-p="p-hist">Do histórico</button>
+        <button class="src-tab" data-p="p-demo">Exemplos</button>
+      </div>
+
+      <div class="src-pane active" id="p-ia">
+        <div class="src-hint">Escreva (ou dite) suas ofertas em linguagem natural e o Luma preenche a tabela.</div>
+        <textarea placeholder="Ex: 'Hambúrguer clássico por R$ 25 hoje. Amanhã pizza de calabresa de 50 por 39.'"></textarea>
+        <div class="row">
+          <button class="cta">✦ Preencher tabela</button>
+          <button class="mic" title="Ditar por voz"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg></button>
+          <button class="sec" style="margin-left:auto">Ver prompt (ChatGPT)</button>
+        </div>
+      </div>
+
+      <div class="src-pane" id="p-colar">
+        <div class="src-hint">Cole a planilha do Excel/Sheets — ou o texto do cardápio, um item por linha.</div>
+        <textarea placeholder="Pizza Calabresa de 40 por 30, válido no fim de semana&#10;X-Bacon por 25 reais"></textarea>
+        <div class="row"><button class="cta">Processar</button></div>
+      </div>
+
+      <div class="src-pane" id="p-csv">
+        <div class="drop"><strong>Solte o arquivo CSV aqui</strong>ou clique para escolher</div>
+        <div class="row"><button class="sec">Baixar CSV modelo</button></div>
+      </div>
+
+      <div class="src-pane" id="p-hist">
+        <div class="src-hint">Adiciona produtos que você já usou em artes anteriores — zero digitação.</div>
+        <div class="row"><button class="cta">Adicionar do histórico</button></div>
+      </div>
+
+      <div class="src-pane" id="p-demo">
+        <div class="src-hint"><span class="demo-tag">Demonstração</span>&nbsp; Gera uma tabela de exemplo pelo tipo de comida. Não lê seu cardápio.</div>
+        <div class="row">
+          <input type="text" placeholder="Ex.: pizza, sushi, burger…" style="flex:1;font-size:11px;padding:6px 8px;border:1px solid var(--gray-mid);border-radius:6px">
+          <button class="sec">Gerar exemplos</button>
+        </div>
+      </div>
+
+      <div class="sh-left-foot">
+        <div class="sh-left-label">Formatos para exportar</div>
+        <span class="fmt-chip on">✓ Story</span><span class="fmt-chip on">✓ Feed</span><span class="fmt-chip">Post wide</span>
+        <div class="row" style="margin-top:10px;font-size:11px;color:var(--text-3)">
+          Legenda: <select class="tool-sel"><option>Feed</option><option>Stories</option></select>
+          Cidade: <input type="text" placeholder="Passo Fundo" style="width:90px;font-size:11px;padding:4px 8px;border:1px solid var(--gray-mid);border-radius:6px">
+        </div>
+      </div>
+    </div>
+
+    <!-- DIREITA: planilha heroína -->
+    <div class="sh-right">
+      <div class="sh-toolbar">
+        <div class="seg"><button class="on">Tabela</button><button>Cartões</button></div>
+        <select class="tool-sel"><option>Modelos salvos…</option><option>Ofertas de Quarta</option></select>
+        <button class="sec">Salvar modelo</button>
+        <select class="tool-sel"><option>Ferramentas…</option><option>Remover duplicados</option><option>Ordenar por nome</option><option>Ordenar por preço</option></select>
+        <div class="search">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input placeholder="Buscar…">
+        </div>
+        <span class="status">3 linhas</span>
+      </div>
+
+      <div class="massa">
+        <span class="lbl">⚡ Aplicar em todas:</span>
+        <select class="tool-sel"><option>precoPor</option><option>validade</option></select>
+        <input placeholder="Valor…"> <button class="sec">Preencher</button>
+        <span class="sep">|</span>
+        <button class="sec">Desconto %</button>
+        <button class="sec">Arredondar ,90</button>
+        <button class="sec">Validade</button>
+        <button class="sec">Logo da loja</button>
+      </div>
+
+      <div class="grid">
+        <table>
+          <thead><tr><th></th><th>#</th><th>produto</th><th>precoDe</th><th>precoPor</th><th>validade</th><th>foto</th></tr></thead>
+          <tbody>
+            <tr><td class="num">⋯</td><td class="num">1</td><td><input value="Pizza Calabresa"></td><td><input value="R$ 40,00"></td><td><input value="R$ 30,00"></td><td><input value="Válido até domingo"></td><td><button class="sec">Foto</button></td></tr>
+            <tr><td class="num">⋯</td><td class="num">2</td><td><input value="X-Bacon"></td><td><input></td><td><input value="R$ 25,00"></td><td><input value="Só hoje"></td><td><button class="sec">Foto</button></td></tr>
+            <tr><td class="num">⋯</td><td class="num">3</td><td><input value="Combo Família"></td><td><input value="R$ 90,00"></td><td><input value="R$ 69,00"></td><td><input></td><td><button class="sec">Foto</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="sh-foot">
+        <span class="foot-note">3 linhas válidas × 2 formatos = <strong>6 imagens</strong> no ZIP (com legendas)</span>
+        <button class="sec">Fechar</button>
+        <button class="cta">⬇ Gerar 6 artes (ZIP)</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('.src-tab').forEach(t=>t.onclick=()=>{
+    document.querySelectorAll('.src-tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.src-pane').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById(t.dataset.p).classList.add('active');
+  });
+</script>
+</body>
+</html>

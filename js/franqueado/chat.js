@@ -370,7 +370,7 @@ function fNextStep(){
 // Pergunta especial de upload de imagem
 function fAddBotImageUpload(stepLabel, pergunta, canGoBack){
   const msgs=document.getElementById('f-messages');
-  const w=document.createElement('div');w.className='msg bot';
+  const w=document.createElement('div');w.className='msg bot active-prompt';
   const uploadId='f-upload-'+Date.now();
   const fieldHint = `<div class="field-hint"><span class="field-hint-type"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span><span class="field-hint-text">${gEsc(pergunta.label)} · imagem (PNG/JPG, máx 20MB)</span></div>`;
   let back='';
@@ -393,6 +393,8 @@ function fAddBotImageUpload(stepLabel, pergunta, canGoBack){
     </div>
     ${back}
   </div>`;
+  msgs.querySelectorAll('.msg').forEach(m=>m.classList.remove('active-prompt'));
+  _fApplyMessageGrouping(msgs,w,'bot');
   msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;
   // Habilita drag & drop na zona
   const zone=document.getElementById(uploadId+'-zone');
@@ -632,31 +634,40 @@ function fMostrarConfirm(){
     } else {
       valDisplay = `<span class="confirm-val" title="${gEsc(valor||'')}">${gEsc(valor||'—')}</span>`;
     }
-    return `<div class="confirm-row">
+    const isEmpty=valor==null||valor==='';
+    return `<div class="confirm-row${isEmpty?' is-empty':''}">
       <span class="confirm-label" title="${gEsc(label)}">${gEsc(label)}</span>
       <div class="confirm-val-wrap">${valDisplay}</div>
-      <button class="confirm-edit" onclick="fEditCampo(${i})" title="Editar ${gEsc(label)}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:3px;vertical-align:-1px"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>Editar</button>
+      <button class="confirm-edit" onclick="fEditCampo(${i})" title="Editar ${gEsc(label)}" aria-label="Editar ${gEsc(label)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
     </div>`;
   }).join('');
+  const bulkAction=(fState.material&&fState.material.layers)?`<button class="confirm-bulk" onclick="fBulkOpen()" title="Gerar muitas artes de uma vez com o Luma Sheets"><span class="confirm-alt-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span><span><strong>Gerar em lote</strong><small>Use uma planilha no Luma Sheets</small></span><svg class="confirm-alt-arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>`:'';
+  const kitAction=(typeof _fKitBtnHtml==='function')?_fKitBtnHtml():'';
+  const alternativeActions=(bulkAction||kitAction)?`<div class="confirm-alternatives"><div class="confirm-alternatives-title">Outras formas de gerar</div>${bulkAction}${kitAction}</div>`:'';
   const msgs=document.getElementById('f-messages');
-  const w=document.createElement('div');w.className='msg bot';w.id='confirm-msg';
-  w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div>
-    <div class="bbl" style="padding-bottom:6px">Confere tudo antes de eu gerar a arte:</div>
-    <div class="confirm-card">
-      <div class="confirm-header">Resumo · ${gEsc(c.name)}</div>
+  const w=document.createElement('div');w.className='msg bot active-prompt';w.id='confirm-msg';
+  w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8.01" y2="16"/><line x1="16" y1="16" x2="16.01" y2="16"/></svg></div><div class="msg-content confirm-message-content">
+    <div class="bbl confirm-intro">Revise os detalhes antes de gerar sua arte.</div>
+    <section class="confirm-card" role="region" aria-labelledby="confirm-title">
+      <div class="confirm-header">
+        <div class="confirm-header-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+        <div class="confirm-header-copy"><span>Revisão final</span><h2 id="confirm-title">Tudo certo para gerar?</h2></div>
+        <div class="confirm-context"><span>${gEsc(c.name)}</span><span>${gEsc(fState.fmt&&fState.fmt.name||'Material')}</span></div>
+      </div>
       <div class="confirm-fields">${rows}</div>
       <div class="confirm-actions">
-        <button class="confirm-btn cancel" onclick="fEditarTudo()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Alterar</button>
-        <button class="confirm-btn ok" onclick="fConfirmarGerar()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><polyline points="20 6 9 17 4 12"/></svg>Confirmar e gerar</button>
+        <button class="confirm-btn cancel" onclick="fEditarTudo()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 3 3 9 9 9"/></svg>Revisar respostas</button>
+        <button class="confirm-btn ok" onclick="fConfirmarGerar()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>Gerar minha arte</button>
       </div>
-      ${(fState.material&&fState.material.layers)?`<button class="confirm-bulk" onclick="fBulkOpen()" title="Gerar muitas artes de uma vez com o Luma Sheets"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Gerar em Lote (Luma Sheets)</button>`:''}
-      ${(typeof _fKitBtnHtml==='function')?_fKitBtnHtml():''}
-      <div id="f-kit-progress" style="display:none;margin:0 14px 12px;font-size:11px;color:var(--text-2)">
-        <div style="display:flex;justify-content:space-between;margin-bottom:5px"><span id="f-kit-progress-text">Preparando kit…</span><span id="f-kit-progress-pct">0%</span></div>
-        <div style="height:5px;overflow:hidden;border-radius:var(--r-sm);background:var(--gray-light)"><div id="f-kit-progress-bar" style="width:0;height:100%;background:var(--gradient-orange);transition:width var(--dur-fast) var(--ease-standard)"></div></div>
+      ${alternativeActions}
+      <div id="f-kit-progress" class="confirm-progress" style="display:none">
+        <div class="confirm-progress-label"><span id="f-kit-progress-text">Preparando kit…</span><span id="f-kit-progress-pct">0%</span></div>
+        <div class="confirm-progress-track"><div id="f-kit-progress-bar"></div></div>
       </div>
-    </div>
+    </section>
   </div>`;
+  msgs.querySelectorAll('.msg').forEach(m=>m.classList.remove('active-prompt'));
+  _fApplyMessageGrouping(msgs,w,'bot');
   msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;
 }
 function fEditCampo(idx){
@@ -1123,6 +1134,13 @@ function fCancelReset(){
   const m=document.getElementById('reset-confirm-msg');if(m)m.remove();
 }
 
+function _fApplyMessageGrouping(msgs,message,type){
+  const previous=msgs&&msgs.lastElementChild;
+  if(!previous||!previous.classList.contains('msg')||!previous.classList.contains(type)) return;
+  previous.classList.add('msg-has-continuation');
+  message.classList.add('msg-continuation');
+}
+
 function fAddBot(html,qrs,canGoBack){
   const msgs=document.getElementById('f-messages');
   if(!msgs) return;
@@ -1142,8 +1160,9 @@ function fAddBot(html,qrs,canGoBack){
   if(canGoBack){
     back = `<div class="qr-back-wrap"><button class="qr-back" onclick="fGoBack()" title="Voltar uma pergunta"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>Voltar uma pergunta</button></div>`;
   }
-  w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div><div class="bbl">${html}</div>${q}${back}</div>`;
+  w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8.01" y2="16"/><line x1="16" y1="16" x2="16.01" y2="16"/></svg></div><div class="msg-content"><div class="bbl">${html}</div>${q}${back}</div>`;
   msgs.querySelectorAll('.msg').forEach(m => m.classList.remove('active-prompt'));
+  _fApplyMessageGrouping(msgs,w,'bot');
   msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;
 }
 
@@ -1191,8 +1210,9 @@ function fAddUser(txt){
   const msgs=document.getElementById('f-messages');
   if(!msgs) return;
   const w=document.createElement('div');w.className='msg user active-prompt';
-  w.innerHTML=`<div><div class="bbl">${gEsc(txt)}</div></div><div class="av u">${_fUserInitials()}</div>`;
+  w.innerHTML=`<div class="msg-content"><div class="bbl">${gEsc(txt)}</div></div><div class="av u">${_fUserInitials()}</div>`;
   msgs.querySelectorAll('.msg').forEach(m => m.classList.remove('active-prompt'));
+  _fApplyMessageGrouping(msgs,w,'user');
   msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;
 }
 function fTyping(cb){
