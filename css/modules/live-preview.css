@@ -95,6 +95,11 @@
 }
 .lp-stage-meta{position:absolute;z-index:2;top:18px;left:20px;right:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;pointer-events:none;color:var(--text-3);font-size:9px;font-weight:800;letter-spacing:.11em;text-transform:uppercase}
 .lp-stage-hint{font-size:9.5px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--text-3)}
+/* Mesa arrastável (estilo Miro): grab em repouso, grabbing enquanto move. Sobre a arte o
+   pointer (clique-pra-editar) vence em repouso; durante o arrasto, grabbing tem prioridade. */
+.lp-stage:not(.empty){cursor:grab}
+.lp-stage.lp-panning,
+.lp-stage.lp-panning .lp-canvas{cursor:grabbing}
 
 /* ── ESTADO VAZIO (contextual — copy definida por fLpShowEmpty) ── */
 .lp-empty{display:none;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:12px}
@@ -135,15 +140,16 @@
   transform:translateZ(0);
   transition:box-shadow var(--dur-base) var(--ease-standard),transform var(--dur-base) var(--ease-spring-soft);
 }
-.lp-canvas-wrap:hover{box-shadow:0 3px 8px rgba(10,10,10,.07),0 24px 60px rgba(10,10,10,.17);transform:translateY(-2px)}
+/* Só a sombra no hover — o transform do card é controlado pelo JS (zoom/pan da mesa). */
+.lp-canvas-wrap:hover{box-shadow:0 3px 8px rgba(10,10,10,.07),0 24px 60px rgba(10,10,10,.17)}
+/* Durante roda/arrasto o card responde na hora; em repouso, a mola do CSS anima o recentralizar. */
+.lp-canvas-wrap.lp-no-anim{transition:none}
 
 .lp-canvas{
   display:block;
   max-width:100%;
   transition: transform var(--dur-slow) var(--ease-spring-soft), transform-origin var(--dur-slow) var(--ease-spring-soft);
 }
-/* Durante roda/arrasto do zoom manual a mola de 420ms atrasaria o gesto — resposta imediata. */
-.lp-canvas.lp-no-anim{transition:none}
 
 /* Anel que pulsa quando a prévia acabou de refletir uma resposta nova */
 .lp-canvas-wrap.updated{animation:lpPulse .55s var(--ease-out)}
