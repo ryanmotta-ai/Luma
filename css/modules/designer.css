@@ -198,7 +198,13 @@ body.theme-light .ab-bg-btn{border-color:rgba(0,0,0,.15);background:#f3f3f3;}
 body.theme-light .ab-bg-btn:hover{border-color:rgba(0,0,0,.3);}
 
 
-.canvas-layer{position:absolute;cursor:move;user-select:none}
+.canvas-layer{position:absolute;cursor:inherit;user-select:none}
+/* Só a Seleção arrasta camadas → mostra "move". Nas demais ferramentas o cursor
+   da ferramenta (setado no #d-canvas-frame) deve valer sobre a camada — antes o
+   cursor:move fixo escondia o de balde/conta-gotas/carimbo ao passar na imagem.
+   O :not([data-tool]) cobre o estado inicial antes do 1º dSetTool. */
+body[data-tool="select"] .canvas-layer,
+body:not([data-tool]) .canvas-layer{cursor:move}
 .canvas-layer:hover{outline:1px dashed rgba(255,144,0,.5)}
 .canvas-layer.selected{outline:2px solid var(--dm-orange)!important;outline-offset:1px}
 /* M2.1 — destaque recíproco lista de layers ↔ canvas */

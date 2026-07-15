@@ -339,6 +339,8 @@ function dSetTool(t){
   const brushOpts=document.getElementById('d-brush-opts');
   if(ws)ws.style.cursor='';
   
+  // Espelha a ferramenta ativa no body → o CSS decide o cursor da camada (só 'select' = move)
+  document.body.setAttribute('data-tool', t);
   // Hand/Pan tool class toggles
   document.body.classList.toggle('tool-hand-active', t === 'hand');
   if (t !== 'hand') {
@@ -1136,7 +1138,7 @@ function dRenderCanvas(){
     if(l.id===dSelId){
       ['br','bl','tr','tl'].forEach(pos=>{
         const h=document.createElement('div');h.className='layer-handle handle-'+pos;
-        if(l.locked){h.style.opacity='0.3';h.style.cursor='not-allowed';h.addEventListener('mousedown',e=>{e.stopPropagation();gToast('🔒 Camada bloqueada');});}
+        if(l.locked){h.style.opacity='0.3';h.style.cursor='not-allowed';h.addEventListener('mousedown',e=>{e.stopPropagation();gToast('Camada bloqueada');});}
         else h.addEventListener('mousedown',e=>{e.stopPropagation();dStartResize(e,lReal,pos);});
         el.appendChild(h);
       });
@@ -1187,7 +1189,7 @@ function dRenderCanvas(){
         if(!l.locked){
           dPendingIsolate = (_inMulti && dMultiSel.length>1) ? l.id : null;
           dStartDrag(e,lReal);
-        } else gToast('🔒 Camada bloqueada. Clique no 🔓 para desbloquear.');
+        } else gToast('⚠ Camada bloqueada — desbloqueie no cadeado da lista de camadas');
       }
       // Carimbo: NÃO tratar aqui — o mousedown apenas deixa o evento morrer e o 'click'
       // do frame (que enxerga cliques sobre camadas, stamp é creationTool) chama dStampAt.
