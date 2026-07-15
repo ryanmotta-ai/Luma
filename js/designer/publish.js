@@ -660,19 +660,21 @@ document.addEventListener('keydown', e => {
       return;
     }
 
-    // Atalhos CTRL/CMD funcionam sempre (mesmo em inputs) — exceto Ctrl+A em input que faria selectAll
+    // Atalhos CTRL/CMD. Salvar e zoom funcionam sempre (mesmo em inputs). Já os que agem
+    // sobre CAMADA (undo/redo/duplicar/agrupar) NÃO disparam dentro de um campo de texto —
+    // ali Ctrl+Z tem de ser o desfazer NATIVO do texto, não desfazer a última ação de camada.
     if (e.ctrlKey || e.metaKey) {
-      if (e.shiftKey && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); dRedo(); return; }
-      if (e.key === 'z' || e.key === 'Z') { e.preventDefault(); dUndo(); return; }
-      if (e.key === 'y' || e.key === 'Y') { e.preventDefault(); dRedo(); return; }
+      if (!inField && e.shiftKey && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); dRedo(); return; }
+      if (!inField && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); dUndo(); return; }
+      if (!inField && (e.key === 'y' || e.key === 'Y')) { e.preventDefault(); dRedo(); return; }
       if (e.key === 's' || e.key === 'S') { if (!e.shiftKey) { e.preventDefault(); dSave(); return; } }
       if (e.key === '0') { e.preventDefault(); dFitToScreen(); return; }
       if (e.key === '1') { e.preventDefault(); dSetZoom(100); return; }
       if (e.key === '=' || e.key === '+') { e.preventDefault(); dZoom(1); return; }
       if (e.key === '-' || e.key === '_') { e.preventDefault(); dZoom(-1); return; }
-      if (e.key === 'd' || e.key === 'D') { e.preventDefault(); dDuplicateLayer(); return; }
-      if (!e.shiftKey && (e.key === 'g' || e.key === 'G')) { e.preventDefault(); dGroupSelected(); return; }
-      if (e.shiftKey && (e.key === 'g' || e.key === 'G')) { e.preventDefault(); dUngroupSelected(); return; }
+      if (!inField && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); dDuplicateLayer(); return; }
+      if (!inField && !e.shiftKey && (e.key === 'g' || e.key === 'G')) { e.preventDefault(); dGroupSelected(); return; }
+      if (!inField && e.shiftKey && (e.key === 'g' || e.key === 'G')) { e.preventDefault(); dUngroupSelected(); return; }
     }
 
     if (inField) return; // resto bloqueia se em input
@@ -918,6 +920,10 @@ document.addEventListener('keydown', e => {
     if (dSelId && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
       e.preventDefault();
       const l = dLayers.find(x => x.id === dSelId); if (!l) return;
+      // Entra no histórico (antes não entrava → Ctrl+Z não desfazia o movimento por setas).
+      // Debounced: segurar/repetir a seta coalesce num único passo de desfazer.
+      if (typeof dHistoryPushDebounced === 'function') dHistoryPushDebounced();
+      else if (typeof dHistoryPush === 'function') dHistoryPush();
       const step = e.shiftKey ? 10 : 1;
       if (e.key === 'ArrowUp') l.y -= step;
       if (e.key === 'ArrowDown') l.y += step;

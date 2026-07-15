@@ -448,20 +448,8 @@ function dHexInput(colorPickId, swatchId, val, prop){
   dUpdateProp(prop,hex);
 }
 
-function dToggleLock(e,id){
-  e.stopPropagation();
-  const l=dLayers.find(x=>x.id===id);if(!l)return;
-  l.locked=!l.locked;
-  if (l.type === 'group') {
-    dLayers.forEach(x => {
-      if (x.parentId === l.id) {
-        x.locked = l.locked;
-      }
-    });
-  }
-  dRenderCanvas();dRenderLayersList();dMarkUnsaved();
-  gToast(l.locked?'🔒 Camada bloqueada':'🔓 Camada desbloqueada');
-}
+// dToggleLock vive em layers.js (versão com dHistoryPush). A duplicata que existia aqui
+// carregava depois e vencia — mas sem entrar no histórico (Ctrl+Z não desfazia o bloqueio).
 
 /* ── BLOCOS REUTILIZÁVEIS (snippets) ── */
 let dSnippets=[];
