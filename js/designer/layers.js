@@ -2811,7 +2811,9 @@ async function _dUploadLayerImages(layers, tid){
   }
   return layers;
 }
-function _dUuid(p){ return (crypto&&crypto.randomUUID)?crypto.randomUUID():(p+'-'+Date.now()+Math.random().toString(36).slice(2)); }
+// Mantém a assinatura (p) por compat; o prefixo é irrelevante — o id precisa ser UUID
+// válido (PK uuid no banco), garantido por gUuid() mesmo fora de contexto seguro.
+function _dUuid(p){ return gUuid(); }
 async function _dPushFoldersNow(){
   const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
   if(!sb || typeof gIsAdmin!=='function' || !gIsAdmin()) return;

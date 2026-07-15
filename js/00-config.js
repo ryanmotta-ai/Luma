@@ -264,6 +264,23 @@ function gPackMask(url){
   if(url.length * 0.75 <= G_MASK_KEEP_MAX) return {url:url, dropped:false};
   return {url:null, dropped:true};
 }
+// UUID v4 válido — sempre, em qualquer contexto. crypto.randomUUID só existe em
+// contexto seguro (https/localhost); em file:// ou IP de LAN ele é undefined, e um id
+// não-uuid (ex.: 't-123') faz o upsert numa PK uuid falhar PARA SEMPRE, em silêncio.
+// Por isso o fallback aqui também produz um uuid de formato válido (getRandomValues; e,
+// no pior caso, Math.random — não-cripto, mas aceito pela coluna).
+function gUuid(){
+  try{ if(window.crypto && crypto.randomUUID) return crypto.randomUUID(); }catch(e){}
+  try{
+    if(window.crypto && crypto.getRandomValues){
+      const b=crypto.getRandomValues(new Uint8Array(16));
+      b[6]=(b[6]&0x0f)|0x40; b[8]=(b[8]&0x3f)|0x80;
+      const h=[]; for(let i=0;i<16;i++) h.push(b[i].toString(16).padStart(2,'0'));
+      return `${h[0]}${h[1]}${h[2]}${h[3]}-${h[4]}${h[5]}-${h[6]}${h[7]}-${h[8]}${h[9]}-${h[10]}${h[11]}${h[12]}${h[13]}${h[14]}${h[15]}`;
+    }
+  }catch(e){}
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0; return (c==='x'?r:(r&0x3|0x8)).toString(16);});
+}
 // Substitui {{nome}} por dados[nome]. onEmpty: 'remove' (default) → ''; 'keep' → mantém o token.
 // opts.defaults: mapa {nome:valor} usado quando o dado está vazio (3.3 — defaultValue da var).
 function gInterpolate(content, dados, opts){
