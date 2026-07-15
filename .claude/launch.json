@@ -4,8 +4,8 @@
     {
       "name": "luma-static",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "5603"],
-      "port": 5603
+      "runtimeArgs": ["-m", "http.server", "5604"],
+      "port": 5604
     }
   ]
 }
