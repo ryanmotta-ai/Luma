@@ -120,7 +120,7 @@ async function gGetAllUsers(){
       .order('role',{ascending:false}).order('nome',{ascending:true});
     if(error || !Array.isArray(data)) return [];
     return data.map(p=>({ id:p.id, email:p.email, displayName:p.nome||p.email, role:p.role,
-      departamento:p.departamento||null, ativo:p.ativo!==false, isBase:true }));
+      departamento:p.departamento||null, ativo:p.ativo!==false }));
   }catch(e){ return []; }
 }
 async function gSetUserRole(idOrEmail, newRole){

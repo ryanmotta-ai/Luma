@@ -395,6 +395,9 @@ const _EQUIPE_ROLE_CFG={
 };
 
 const _ICO_TRASH=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`;
+// Mesmo glifo de "restaurar/refazer" usado no franqueado (chat.js fRefazer) — reaproveita a
+// linguagem visual já existente em vez de inventar um ícone novo para o mesmo conceito.
+const _ICO_RESTORE=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`;
 const _ICO_CHEVRON=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
 const _ICO_CHECK=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
 
@@ -446,19 +449,29 @@ async function gProfileRenderEquipe(){
       }).join('');
     const picker=canEdit?`<div class="prof-role-picker" id="${pid}">${pickerOpts}</div>`:'';
 
-    const invitedTag=!u.isBase?`<span class="prof-user-tag invited">convidado</span>`:'';
+    // BUG corrigido: isBase vinha sempre true de gGetAllUsers (só há usuários reais hoje,
+    // não existe mais o mock local que a flag distinguia) — então "!u.isBase" nunca era
+    // verdadeiro e o botão de ação nunca aparecia para ninguém. Removido o campo morto;
+    // o que importa de verdade é ativo/inativo (§2: gestão administra usuários).
+    const isInactive = u.ativo === false;
+    const statusTag = isInactive ? `<span class="prof-user-tag inactive">inativo</span>` : '';
     const youTag=isMe?`<span class="prof-user-you">(você)</span>`:'';
-    const removeBtn=!u.isBase&&!isMe&&canEdit
-      ?`<button class="prof-user-remove" onclick="gProfileRemoveUser('${gEsc(u.email)}')" title="Remover acesso">${_ICO_TRASH}</button>`:'';
+    // Reativar (ativo:false→true) completa o ciclo: antes, desativar era beco sem volta
+    // pela UI (só existia gSetUserAtivo(id,true) no backend, sem caminho na tela).
+    const actionBtn = (!isMe && canEdit)
+      ? (isInactive
+          ? `<button class="prof-user-remove prof-user-restore" onclick="gProfileReactivateUser('${gEsc(u.email)}')" title="Reativar acesso">${_ICO_RESTORE}</button>`
+          : `<button class="prof-user-remove" onclick="gProfileRemoveUser('${gEsc(u.email)}')" title="Desativar acesso">${_ICO_TRASH}</button>`)
+      : '';
 
-    return `<div class="prof-user-row${isMe?' is-me':''}">
+    return `<div class="prof-user-row${isMe?' is-me':''}${isInactive?' is-inactive':''}">
       <div class="prof-user-av" style="background:${avBg}">${avContent}</div>
       <div class="prof-user-info">
-        <div class="prof-user-name">${gEsc(u.displayName)}${youTag}${invitedTag}</div>
+        <div class="prof-user-name">${gEsc(u.displayName)}${youTag}${statusTag}</div>
         <div class="prof-user-email">${gEsc(u.email)}</div>
       </div>
       ${pill}${picker}
-      ${removeBtn}
+      ${actionBtn}
     </div>`;
   }).join('');
 
@@ -532,9 +545,19 @@ function gProfileToggleRolePicker(email,pid,btn,ev){
 async function gProfilePickRole(email,newRole,pid,ev){
   if(ev) ev.stopPropagation();
   document.getElementById(pid)?.classList.remove('open');
+  // Mudar o papel de alguém não tinha NENHUMA confirmação — um clique já promovia/
+  // rebaixava na hora. §2/§3: papel é a hierarquia de permissão de sistema, não é
+  // detalhe trivial. gConfirm (não confirm() nativo) é o canal já usado na casa.
+  const rc=_EQUIPE_ROLE_CFG[newRole];
+  const rotulo=rc?rc.label:newRole;
+  const msg = newRole==='gestao'
+    ? `Dar acesso total de Gestão para ${email}? Isso inclui administrar todos os usuários.`
+    : `Mudar a permissão de ${email} para "${rotulo}"?`;
+  const ok = await gConfirm(msg, {okLabel:'Confirmar', danger:newRole==='gestao'});
+  if(!ok) return;
   const res=await gSetUserRole(email,newRole);
-  if(!res.ok){gToast('⚠️ '+res.error);return;}
-  gToast('✅ Permissão atualizada!');
+  if(!res.ok){gToast('⚠ '+res.error,'error');return;}
+  gToast('Permissão atualizada!');
   gProfileRenderEquipe();
 }
 
@@ -554,10 +577,24 @@ async function gProfileSetUserRole(email,newRole){
 }
 
 async function gProfileRemoveUser(email){
-  if(!confirm('Desativar o acesso de '+email+'? Ele não conseguirá mais usar o app. (A exclusão definitiva é feita no painel do Supabase.)')) return;
+  // confirm() nativo → gConfirm (01_BUSINESS §10 / 03_ENGINEERING: gToast/gConfirm são os
+  // únicos canais de feedback e confirmação; confirm() nativo espalhado é proibido).
+  const ok = await gConfirm('Desativar o acesso de '+email+'? Ele não conseguirá mais usar o app. (A exclusão definitiva é feita no painel do Supabase.)', {okLabel:'Desativar', danger:true});
+  if(!ok) return;
   const res=await gRemoveManagedUser(email);
-  if(!res.ok){gToast('⚠️ '+res.error);return;}
-  gToast('✅ Usuário desativado.');
+  if(!res.ok){gToast('⚠ '+res.error,'error');return;}
+  gToast('Usuário desativado.');
+  gProfileRenderEquipe();
+}
+
+// Fecha o ciclo desativar↔reativar: gSetUserAtivo(id,true) já existia no backend, mas
+// não havia caminho na UI para acioná-lo — desativar era, na prática, definitivo.
+async function gProfileReactivateUser(email){
+  const ok = await gConfirm('Reativar o acesso de '+email+'? Ele volta a conseguir usar o app.', {okLabel:'Reativar'});
+  if(!ok) return;
+  const res=await gSetUserAtivo(email, true);
+  if(!res.ok){gToast('⚠ '+res.error,'error');return;}
+  gToast('Usuário reativado!');
   gProfileRenderEquipe();
 }
 

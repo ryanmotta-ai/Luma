@@ -584,6 +584,9 @@
 }
 .prof-user-row:hover{background:var(--off-white)}
 .prof-user-row.is-me{background:rgba(255,144,0,.04);border-color:rgba(255,144,0,.15)}
+/* Usuário desativado: linha esmaecida (não escondida — gestão precisa achar pra reativar) */
+.prof-user-row.is-inactive{opacity:.55}
+.prof-user-row.is-inactive:hover{opacity:.85}
 
 /* Avatar */
 .prof-user-av{
@@ -606,6 +609,11 @@
   background:var(--gray-light);color:var(--text-3);
 }
 .prof-user-tag.invited{background:rgba(34,197,94,.12);color:#15803D}
+.prof-user-tag.inactive{background:rgba(200,24,24,.08);color:var(--dm-red)}
+/* --dm-red como texto sobre fundo translúcido escurece demais no tema escuro (medido:
+   ~3:1, reprova AA). Este arquivo nunca teve passe de tema escuro — corrigindo só o que
+   estou adicionando agora, com o vermelho que o Estúdio já usa pra texto sobre fundo escuro. */
+body:not(.theme-light) .prof-user-tag.inactive{color:var(--d-error,#FF6B6B)}
 .prof-user-email{font-size:11px;color:var(--text-3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* Role pill — styled badge, not native select */
@@ -668,3 +676,5 @@
   transition:color var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard);flex-shrink:0;
 }
 .prof-user-remove:hover{color:#ef4444;background:rgba(239,68,68,.08)}
+/* Reativar é ação positiva (desfaz a desativação) — hover verde, não vermelho */
+.prof-user-restore:hover{color:var(--green-text);background:rgba(34,197,94,.1)}
