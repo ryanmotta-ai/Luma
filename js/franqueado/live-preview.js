@@ -812,13 +812,25 @@ function fLpUpdateWarnings(){
   const box=document.getElementById('lp-warnings'); if(!box) return;
   if(!fState.material||!fState.material.layers||!fState.material.layers.length){ box.innerHTML=''; return; }
   const d=fState.dados||{}, layers=fState.material.layers, items=[];
+  const seen=new Set(); // dedup por var+tipo (uma var em vários layers não vira vários chips)
   // 1) Faltou preencher (perguntas do fluxo ainda sem resposta)
   ((fState.camp&&fState.camp.perguntas)||[]).forEach(p=>{
-    if(d[p.id]==null||d[p.id]===''){ items.push({kind:'miss', v:p.id, label:(p.label||_fLpLabel(p.id))}); }
+    if((d[p.id]==null||d[p.id]==='') && !seen.has('m:'+p.id)){ seen.add('m:'+p.id); items.push({kind:'miss', v:p.id, label:(p.label||_fLpLabel(p.id))}); }
   });
-  // 2) Texto estourando a caixa (coletor do último render)
+  const missVars=new Set(items.filter(i=>i.kind==='miss').map(i=>i.v));
+  // 2) Texto estourando a caixa — SÓ quando é ação do franqueado: campo com variável
+  //    EDITÁVEL e JÁ preenchido. Placeholder de campo vazio e layer fixo (sem var) não
+  //    contam — "encurtar" o que ele não escreveu (ou não pode editar) é ruído inútil.
   if(_lpOverflow&&_lpOverflow.size){
-    _lpOverflow.forEach(id=>{ const l=layers.find(x=>x.id===id); if(!l)return; const v=_fLpLayerVars(l)[0]; items.push({kind:'over', v, label:(v?_fLpLabel(v):'Texto')}); });
+    _lpOverflow.forEach(id=>{
+      const l=layers.find(x=>x.id===id); if(!l) return;
+      const v=_fLpLayerVars(l)[0];
+      if(!v || missVars.has(v)) return;            // sem var, ou ainda vazio → é placeholder
+      if(d[v]==null||d[v]==='') return;            // sem valor real → overflow de placeholder
+      const perm=_fLpPerm(v); if(perm && perm.editable===false) return; // franqueado não edita
+      if(seen.has('o:'+v)) return; seen.add('o:'+v);
+      items.push({kind:'over', v, label:_fLpLabel(v)});
+    });
   }
   // 3) Foto de baixa resolução (mede uma vez por URL, cacheado)
   layers.forEach(l=>{
@@ -827,16 +839,20 @@ function fLpUpdateWarnings(){
     if(!val||typeof val!=='string') return;
     const dim=_lpImgDims[val];
     if(dim===undefined){ _fLpMeasureImg(val); }
-    else if(dim && (dim.w<600||dim.h<600)){ items.push({kind:'low', v:l.imgVar, label:_fLpLabel(l.imgVar), dim}); }
+    else if(dim && (dim.w<600||dim.h<600) && !seen.has('l:'+l.imgVar)){ seen.add('l:'+l.imgVar); items.push({kind:'low', v:l.imgVar, label:_fLpLabel(l.imgVar), dim}); }
   });
-  box.innerHTML = items.map(it=>{
+  // Teto: nunca soterra a prévia. Mostra os primeiros e resume o resto num "+N".
+  const MAX=4;
+  const shown=items.slice(0,MAX);
+  const extra=items.length-shown.length;
+  box.innerHTML = shown.map(it=>{
     const cls = it.kind==='miss'?'lp-warn-miss':(it.kind==='over'?'lp-warn-over':'lp-warn-low');
     const txt = it.kind==='miss'?('Falta preencher: '+it.label)
               : it.kind==='over'?('“'+it.label+'” não cabe — encurte o texto')
               : ('Foto “'+it.label+'” está baixa ('+it.dim.w+'×'+it.dim.h+')');
     return `<button type="button" class="lp-warn ${cls}" data-v="${gEsc(it.v||'')}">${gEsc(txt)}</button>`;
-  }).join('');
-  box.querySelectorAll('.lp-warn').forEach(b=>{ b.onclick=()=>{ const v=b.getAttribute('data-v'); if(v) _fLpJumpToField(v); }; });
+  }).join('') + (extra>0 ? `<span class="lp-warn lp-warn-more">+${extra} aviso${extra>1?'s':''}</span>` : '');
+  box.querySelectorAll('button.lp-warn').forEach(b=>{ b.onclick=()=>{ const v=b.getAttribute('data-v'); if(v) _fLpJumpToField(v); }; });
 }
 
 // ── Hover: chip flutuante indicando que o campo é editável (descoberta) ──
