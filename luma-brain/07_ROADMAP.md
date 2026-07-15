@@ -109,7 +109,7 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
 - [x] `fDownloadHist` e `fConfirmDuplicate`: `await fGenPNG` sem catch — falha de render = nada acontece, sem toast (`catalog.js:121-144,276-299`). Tratado como o `fBaixar` (commit anterior à atualização do roadmap).
 - [x] `fOutroFormato` muta `fState.fmt` antes de gerar e não restaura no erro (`chat.js:963-1034`). Restaurado no `catch` (commit `ad51493`).
 - [x] "Pular" campo opcional grava `''` e a prévia acusa "Falta preencher" pra sempre (`chat-input.js:316` + `live-preview.js:816`) — marcador interno distingue "pulado" de "esquecido" (commit `f827894`).
-- [ ] Sheets: linhas com erro são excluídas do ZIP sem aviso (`png-generator.js:1782-1786`) — reportar "N geradas, M puladas".
+- [x] Sheets: linhas com erro são excluídas do ZIP sem aviso (`png-generator.js:1782-1786`) — pré-voo, `erros.txt` e resumo final informam o que foi gerado ou pulado (commit anterior à atualização do roadmap).
 - [ ] Kit da campanha: dedup de nome no ZIP (dois materiais com mesmo nome se sobrescrevem, `materials.js:62` — mesma correção que o bulk já tem em `png-generator.js:1829`) + barra de progresso.
 - [x] Live preview: chamada com assinatura errada de `fRenderCanvasHelper` deixa um branch morto (`live-preview.js:214-217`); hit-testing ignora reflow em template legado (`live-preview.js:631`); `fIsImageVar` testa `varName` em vez de `imgVar` (`png-generator.js:2448`). Corrigidos no commit `c362ba3`.
 - [ ] Loading ao trocar material/editar do histórico (`fEnsureMaterialLayers` é fetch de rede sem spinner).
