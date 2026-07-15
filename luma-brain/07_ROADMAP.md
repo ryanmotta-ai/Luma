@@ -43,10 +43,10 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
 
 *Risco de perder trabalho ou embaraçar o projeto. Horas, não dias.*
 
-- [ ] **Commitar as ~850 linhas pendentes** (11 arquivos + `js/franqueado/prefs.js`, que o `index.html` já referencia mas está **fora do git** — se perder, o app quebra). Verificar no navegador antes; separar em commits temáticos (regra: nunca `git add .`).
-- [ ] **Corrigir o 404 de todo boot**: `index.html:32` linka `css/components/layers-panel.css`, que não existe (o certo já está na linha 34).
-- [ ] **Remover `AUTH_USERS`** (`js/core/auth.js:17-29`): código morto com 11 e-mails reais + hash de senha compartilhada versionados.
-- [ ] Conferir se o backup diário (GitHub Actions) segue verde.
+- [x] **Commitar as ~850 linhas pendentes** — feito (commit `672c401` + refinos `82951f5`); `js/franqueado/prefs.js` já está versionado.
+- [x] **Corrigir o 404 de todo boot** — link para `css/components/layers-panel.css` removido do `index.html` (commit `1a27177`).
+- [x] **Remover `AUTH_USERS`** — array morto removido do `js/core/auth.js` (commit `5d6de18`).
+- [ ] Conferir se o backup diário (GitHub Actions) segue verde. *(depende do painel do GitHub — Ryan)*
 
 ## 4. Fase 1 — Confiança no dado (o designer não pode perder trabalho)
 
