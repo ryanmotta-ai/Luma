@@ -166,7 +166,7 @@ function fRenderMaterialCard(material, camp){
     const v=new Date(validade+'T23:59:59');
     const diff=Math.ceil((v.getTime()-Date.now())/(24*60*60*1000));
     if(diff<=3) validadeLabel=`<span class="f-mat-urgency" style="display:inline-flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${diff}d restantes</span>`;
-    else validadeLabel=`<span class="f-mat-validade">válido até ${new Date(validade).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}</span>`;
+    else validadeLabel=`<span class="f-mat-validade">válido até ${v.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}</span>`;
   }
   // Mini-prévia: usa fmt do template
   const fmtName = {story:'Story 9:16',feed:'Feed 1:1',wide:'Post wide',post:'Post wide'}[material.fmt] || 'Story';
