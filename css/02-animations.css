@@ -127,8 +127,7 @@ button:not(:disabled):not([data-no-press]):active,
 
 /* Estado ativo */
 body.mode-franqueado #view-franqueado,
-body.mode-designer #view-designer,
-body.mode-dados #view-dados {
+body.mode-designer #view-designer {
   display: flex !important;
   animation: viewEntrance var(--dur-slow) var(--ease-spring-soft) forwards;
 }

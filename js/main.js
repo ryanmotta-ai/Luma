@@ -18,15 +18,14 @@ function dUpdateTabPill() {
 }
 
 function setMode(m){
-  // Gate por role: franqueado NÃO acessa Designer nem Dados (trava no clique e via DOM/console).
-  if((m==='designer'||m==='dados') && (typeof gIsAdmin!=='function' || !gIsAdmin())) m='franqueado';
+  if(m!=='franqueado' && m!=='designer') m='franqueado';
+  // Gate por role: franqueado NÃO acessa o Estúdio (trava no clique e via DOM/console).
+  if(m==='designer' && (typeof gIsAdmin!=='function' || !gIsAdmin())) m='franqueado';
   // Troca só a classe de modo, preservando as demais (theme-light, rulers-on, simulating...)
-  document.body.classList.remove('mode-franqueado','mode-designer','mode-dados');
+  document.body.classList.remove('mode-franqueado','mode-designer');
   document.body.classList.add('mode-'+m);
   document.getElementById('tab-fran').classList.toggle('active', m==='franqueado');
   document.getElementById('tab-design').classList.toggle('active', m==='designer');
-  const tabDados=document.getElementById('tab-dados');
-  if(tabDados) tabDados.classList.toggle('active', m==='dados');
   
   dUpdateTabPill();
 
@@ -35,18 +34,15 @@ function setMode(m){
   if(ctxFran) ctxFran.style.display = m==='franqueado'?'':'none';
   if(ctxDesign) ctxDesign.style.display = m==='designer'?'':'none';
   if(m==='designer') dInit();
-  if(m==='dados' && typeof pInit==='function') pInit();
 }
 
-// Mostra as abas Designer/Dados só pra persona Designer (equipe_dm/gestao).
-// Franqueado fica restrito à própria área. A RLS já protege os dados no backend;
+// Mostra a aba Designer só pra persona Designer (equipe_dm/gestao).
+// Franqueado fica restrito à própria área. A RLS já protege o conteúdo no backend;
 // isto é o gate de navegação no front.
 function gApplyModeAccess(){
   const isAdmin = (typeof gIsAdmin==='function') && gIsAdmin();
   const tabDesign = document.getElementById('tab-design');
-  const tabDados = document.getElementById('tab-dados');
   if(tabDesign) tabDesign.style.display = isAdmin ? '' : 'none';
-  if(tabDados) tabDados.style.display = isAdmin ? '' : 'none';
   if(!isAdmin) setMode('franqueado'); // garante que o franqueado fica na própria área
   dUpdateTabPill();
 }
@@ -66,7 +62,7 @@ function gOnLoginSuccess() {
   if(typeof gUpdateUserTopbar === 'function') gUpdateUserTopbar();
   if(typeof gTrackEvent === 'function') gTrackEvent('sessao_iniciada', {rota:'app'});
 
-  // Gate de navegação por role: franqueado só vê a própria área (esconde abas Designer/Dados).
+  // Gate de navegação por role: franqueado só vê a própria área (esconde o Estúdio).
   gApplyModeAccess();
 
   // INIT FRANQUEADO

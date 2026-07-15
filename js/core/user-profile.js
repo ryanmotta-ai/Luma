@@ -21,7 +21,7 @@ function gOpenUserProfileModal() {
 
   // Carregar dados adicionais ou preencher defaults
   const phone = localStorage.getItem('__luma_user_phone_' + email) || '(55) 99123-4567';
-  const theme = document.body.classList.contains('theme-light') || document.body.classList.contains('p-light-theme') ? 'light' : 'dark';
+  const theme = document.body.classList.contains('theme-light') ? 'light' : 'dark';
 
   // Preencher formulário de dados pessoais
   const inputName = document.getElementById('prof-input-name');
@@ -245,14 +245,6 @@ function gProfileApplyTheme(theme) {
   const designLightIcon = document.getElementById('theme-icon-light');
   if (designDarkIcon) designDarkIcon.style.display = theme === 'dark' ? '' : 'none';
   if (designLightIcon) designLightIcon.style.display = theme === 'light' ? '' : 'none';
-
-  // Para a aba Dados:
-  const v = document.getElementById('view-dados');
-  if (v) {
-    v.classList.toggle('p-light', theme === 'light');
-    document.body.classList.toggle('p-light-theme', theme === 'light');
-    if (typeof pSyncThemeBtn === 'function') pSyncThemeBtn();
-  }
 }
 
 // Verifica a força da senha digitada
