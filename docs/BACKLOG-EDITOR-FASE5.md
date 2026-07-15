@@ -37,6 +37,9 @@
 | 25 | **Régua sumia após undo/redo** — o overlay agora recria linha/label quando o estado existe sem DOM (inclusive label com medida) | `js/designer/measurement.js` |
 | 26 | **Nota/contagem/sampler/régua/criação-por-clique deslocadas na transição de zoom** — `_dScreenToCanvas` e o click do frame usam a escala real do DOM (mesma razão do pincel) | `js/designer/measurement.js`, `brush.js` |
 | 27 | **No-ops silenciosos ganharam feedback** — balde em área vazia orienta ("pinta texto/forma"); desfoque/nitidez/dedo avisam 1× por sessão que agem sobre traços do pincel | `js/designer/brush.js` |
+| 28 | **Ferramenta Linha virou ferramenta de verdade** — clique-e-desenha no eixo dominante do arrasto (`dAddLineAt`); clique solto cria linha padrão no ponto (antes caía uma linha fixa no centro e voltava pra select) | `js/designer/brush.js`, `canvas.js`, `layers.js` |
+| 29 | **Borracha mágica quebrava o undo em área grande** — o commit do histórico agora acontece no fim dos chunks assíncronos (o push do mouseup capturava o estado pré-apagamento e se dedupava); undo restaura, redo re-apaga | `js/designer/eraser-tools.js` |
+| 30 | **Cursor das formas** — elipse/triângulo/polígono/estrela/linha ganham crosshair (só o retângulo tinha) | `js/designer/canvas.js` |
 
 ---
 
@@ -46,16 +49,12 @@ _(vazio — os três P0 da rodada 1 foram corrigidos na rodada 2)_
 
 ## 🟠 P1 — abertos, corrigir na sequência
 
-| # | Bug | Onde | Status |
-|---|---|---|---|
-| 23 | Ferramenta Linha não é ferramenta — cai uma linha fixa no centro e volta pra select; sem clique-e-desenha | `brush.js` (_dFormaDispatch) + `layers.js` (dAddLine) | auditoria (MÉDIA) — decisão de UX: alinhar ao fluxo das outras formas |
-| 24 | Borracha mágica em área grande quebra o undo (flood-fill em chunks assíncronos; `dHistoryPush` captura estado parcial; fim não entra no histórico) | `eraser-tools.js:135-175` | auditoria (MÉDIA) |
+_(vazio — todos os P1 foram corrigidos)_
 
 ## 🟡 P2 — polimento / UX
 
 | # | Item | Onde |
 |---|---|---|
-| 30 | Cursor não muda para elipse/triângulo/polígono/estrela (só rect tem crosshair no `dToolCursors`) | `canvas.js:232-275` |
 | 31 | Cursor "move" das camadas sobrepõe o cursor da ferramenta ativa (balde/conta-gotas/carimbo sobre imagem parecem drag) | `canvas.js:1031` |
 | 32 | F2 em camada dentro de grupo colapsado falha em silêncio (linha não está no DOM) | `layers.js` (dRenameLayer) |
 | 33 | F2 sem seleção: `dRenameAB` é função vazia (resquício multi-prancheta) — implementar ou remover o caminho | `templates.js:373` |

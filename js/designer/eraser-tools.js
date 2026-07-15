@@ -164,6 +164,11 @@ function dMagicEraseAt(ctx, x, y, tolerance) {
         }
         ctx.putImageData(patch, bx, by);
         if(typeof dMarkUnsaved==='function') dMarkUnsaved();
+        // O apagamento só toca o canvas AQUI (fim dos chunks assíncronos) — o push do
+        // mouseup capturou o estado pré-apagamento (e se dedupou). Sem este commit,
+        // o estado final nunca entrava no histórico e o Ctrl+Z ficava incoerente.
+        if(typeof dPaintDirty!=='undefined') dPaintDirty=true;
+        if(typeof dHistoryPush==='function') dHistoryPush();
       }
     }
     } catch(err) {

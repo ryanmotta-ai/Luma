@@ -244,6 +244,12 @@ const dToolCursors = {
   'mask-text-v': `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230A0A0A' stroke-width='2' stroke-dasharray='2 2' stroke-linecap='round'><line x1='2' y1='12' x2='6' y2='12'/><line x1='18' y1='12' x2='22' y2='12'/><line x1='4' y1='8' x2='4' y2='16'/><line x1='20' y1='8' x2='20' y2='16'/><line x1='6' y1='12' x2='18' y2='12'/></svg>") 12 12, vertical-text`,
 
   rect: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230A0A0A' stroke-width='2'><line x1='12' y1='2' x2='12' y2='22'/><line x1='2' y1='12' x2='22' y2='12'/><rect x='8' y='8' width='8' height='8' rx='1' stroke='%23FF9000' stroke-width='1.5' fill='rgba(255,144,0,0.1)'/></svg>") 12 12, crosshair`,
+  // Demais formas: sem entrada aqui o cursor caía em 'default' (seta) e nada indicava o modo de desenho
+  ellipse: 'crosshair',
+  triangle: 'crosshair',
+  polygon: 'crosshair',
+  star: 'crosshair',
+  line: 'crosshair',
 
   frame: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230A0A0A' stroke-width='2'><line x1='12' y1='2' x2='12' y2='22'/><line x1='2' y1='12' x2='22' y2='12'/><rect x='7' y='7' width='10' height='10' rx='1' stroke='%23FF9000' stroke-width='1.5' fill='none'/><line x1='7' y1='7' x2='17' y2='17' stroke='%23FF9000' stroke-width='1' opacity='0.5'/><line x1='17' y1='7' x2='7' y2='17' stroke='%23FF9000' stroke-width='1' opacity='0.5'/></svg>") 12 12, crosshair`,
 
@@ -406,7 +412,7 @@ function dStartMarquee(e){
       _dAdvSelFromEvent(e);
     return;
   }
-  if(['rect','ellipse','triangle','polygon','star','text','text-h','text-v','img','frame'].includes(dTool)){
+  if(['rect','ellipse','triangle','polygon','star','line','text','text-h','text-v','img','frame'].includes(dTool)){
     dStartDrawShape(e);
     return;
   }
@@ -574,7 +580,11 @@ function dEndDrawShape(e) {
     left = startX; top = startY;
   }
   
-  if (tool === 'rect') {
+  if (tool === 'line') {
+    // Linha usa os endpoints crus do arrasto (o clamp de w/h<10 acima não se aplica:
+    // uma linha horizontal tem h≈0 por definição)
+    if(typeof dAddLineAt === 'function') dAddLineAt(startX, startY, x, y);
+  } else if (tool === 'rect') {
     if(typeof dAddShapeAt === 'function') dAddShapeAt(left, top, w, h);
   } else if (['circle','ellipse','triangle','polygon','star'].includes(tool)) {
     if(typeof dAddShapeKind === 'function') dAddShapeKind(tool, left, top, w, h);

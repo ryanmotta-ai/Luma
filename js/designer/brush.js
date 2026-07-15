@@ -602,7 +602,6 @@ const _dFormaIcons = {
 
 // Despacho único de forma: line → dAddLine, rect → ferramenta de clique, demais → inserir
 function _dFormaDispatch(kind){
-  if(kind==='line') { dAddLine(); return; }
   // TODAS as formas entram no modo clique-e-desenha (não só o retângulo) — consistente
   // e sem "forma morta no centro". O gate de desenho (canvas.js:405) e dEndDrawShape já
   // criam ellipse/triangle/polygon/star por coordenada; dSetTool trata todas no grupo 'forma'.

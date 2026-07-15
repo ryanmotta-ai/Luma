@@ -3293,6 +3293,23 @@ function dAddLine(){
   gToast('Linha adicionada');
 }
 
+// Linha desenhada por arrasto (ferramenta 'line'). Camadas não têm rotação no motor,
+// então a linha assume o eixo DOMINANTE do arrasto (horizontal ou vertical).
+function dAddLineAt(x1,y1,x2,y2){
+  const horiz=Math.abs(x2-x1)>=Math.abs(y2-y1);
+  const len=Math.round(horiz?Math.abs(x2-x1):Math.abs(y2-y1));
+  const id='l-'+(++dLyrCnt);
+  dHistoryPush();
+  let x,y,w,h;
+  if(len<10){ x=Math.round(x1)-100; y=Math.round(y1)-1; w=200; h=3; } // clique sem arrasto: linha padrão no ponto
+  else if(horiz){ x=Math.round(Math.min(x1,x2)); y=Math.round(y1)-1; w=len; h=3; }
+  else{ x=Math.round(x1)-1; y=Math.round(Math.min(y1,y2)); w=3; h=len; }
+  dLayers.push({id,name:'Linha '+dLyrCnt,type:'shape',x,y,w,h,fill:'#FFFFFF',opacity:100,radius:2,visible:true});
+  dSelLayerState(id);dRenderCanvas();dRenderLayersList();dStats();dMarkUnsaved();dSetTool('select');
+  setTimeout(()=>dFlashLayer(id),30);
+  gToast('Linha adicionada');
+}
+
 // Geometria de formas não-retangulares como pontos em fração [0..1] do bounding box.
 // Usado tanto no designer (clip-path CSS) quanto no png-generator (path do canvas).
 // Retorna null para rect/circle/ellipse (que usam border-radius / ellipse).
