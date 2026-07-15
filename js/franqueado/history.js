@@ -16,7 +16,9 @@ function fSaveHist(a){
     ok=false;
     if(typeof gToast==='function')gToast('⚠ Não foi possível salvar no histórico: armazenamento cheio.','error');
   }
-  if(typeof fPushArtesToBackend==='function') fPushArtesToBackend(); // sync Supabase (background, por usuário)
+  // sync Supabase (background, por usuário). .catch: uma rejeição do push (rede/RLS) não
+  // pode virar unhandledrejection — o cache local já guardou; o push re-tenta depois.
+  if(typeof fPushArtesToBackend==='function'){ try{ const p=fPushArtesToBackend(); if(p&&p.catch) p.catch(()=>{}); }catch(e){} }
   return ok;
 }
 
@@ -44,7 +46,7 @@ async function fPushArtesToBackend(){
   const hist=fGetHist(); let changed=false;
   for(const h of hist){
     if(h._synced) continue; // já no banco (status muda via fMarkBaixadaBackend)
-    if(!h.remoteId) h.remoteId=(crypto&&crypto.randomUUID)?crypto.randomUUID():('a-'+(h.id||Date.now()));
+    if(!h.remoteId) h.remoteId=gUuid();
     // sobe fotos ENVIADAS (base64) do dados pro Storage (bucket público); URLs externas ficam como estão
     const dados={...(h.dados||{})};
     for(const k in dados){
@@ -108,8 +110,12 @@ function fAddHist(d,c,f,status){
   status = status || 'rascunho';
   // Dedup: se já existe entrada com mesma camp+fmt+dados nos últimos 5min, atualiza em vez de duplicar
   const now = Date.now();
-  // Assinatura normalizada: ordena as chaves p/ não duplicar quando só a ordem muda (M15)
-  const sig = c.id+'|'+f.id+'|'+JSON.stringify(d, Object.keys(d||{}).sort());
+  // Assinatura normalizada: chaves ordenadas (não duplicar quando só a ordem muda, M15).
+  // Foto (data:) entra só pelo COMPRIMENTO — nunca o base64 inteiro: isso enchia o _sig de
+  // megabytes por entrada no localStorage, mas o tamanho já distingue fotos diferentes.
+  const _sigObj={};
+  Object.keys(d||{}).sort().forEach(k=>{ const v=d[k]; _sigObj[k]=(typeof v==='string'&&v.startsWith('data:'))?('img:'+v.length):v; });
+  const sig = c.id+'|'+f.id+'|'+JSON.stringify(_sigObj);
   const recent = h.find(x => x._sig===sig && (now - x.id) < 5*60*1000);
   if(recent){
     // Promove status: rascunho → baixada se for o caso
