@@ -90,12 +90,7 @@ Editor visual estilo Photoshop para criação de templates.
 
 Funcionalidades: layers (texto, shape, moldura, imagem), variáveis `{{}}`, smart resize multi-formato, importação de PSD (ag-psd) e SVG (Illustrator), brush/eraser/eyedropper/bucket, undo/redo, upload de fontes, tutoriais animados, exportação PNG/JPG/SVG.
 
-### Módulo 3 — Analytics `p*`
-Dashboard de dados de performance criativa. Front com dados mockados — backend por vir.
-
-Seções: Visão Geral (KPIs + gráficos), Performance de Templates, Mapa de calor de horários, Ranking de franqueados, Timeline de publicações, Comparador de períodos, Funil de conversão, Distribuição geográfica.
-
-### Módulo 4 — CRM Visual *(planejado)*
+### Módulo 3 — CRM Visual *(planejado)*
 Editor de inapp e push para CleverTap. Substitui o fluxo atual de ChatGPT + edição manual de HTML.
 
 ---
@@ -107,7 +102,6 @@ Editor de inapp e push para CleverTap. Substitui o fluxo atual de ChatGPT + edi�
 | `f*` | Franqueado (`fStartChat`, `fGerarArte`) |
 | `d*` | Designer (`dRenderCanvas`, `dPublishOpen`) |
 | `g*` | Global (`gToast`, `gOpenHelp`) |
-| `p*` | Analytics / Pedro (`pInitDashboard`) |
 | `tut*` | Tutorial Engine (`tutOpen`, `tutNext`) |
 | `pv*` | Preview Engine (`pvRender`) |
 | `sp*` | Splash screen |

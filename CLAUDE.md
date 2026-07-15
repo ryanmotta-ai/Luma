@@ -34,7 +34,7 @@ Se a skill `luma` estiver disponível, invoque-a. Se não, siga o fluxo manualme
 ## Inegociáveis (resumo — detalhe no luma-brain)
 
 - **Ordem de autoridade:** palavra do usuário > código real > luma-brain/docs > genérico. Conselho genérico de fora que contradiz o Luma **está errado aqui**.
-- Vanilla JS, **sem build, sem ES Modules, sem dependências novas**. Funções globais, prefixos (`f*` `d*` `g*` `p*`) **nunca** renomeados.
+- Vanilla JS, **sem build, sem ES Modules, sem dependências novas**. Funções globais, prefixos (`f*` `d*` `g*`) **nunca** renomeados.
 - **Patch cirúrgico**; `f*`/`d*` não regridem; a maioria das features toca 1–2 arquivos.
 - **RLS é a única fronteira de segurança** — nada de segurança no front; sem segredo hardcoded.
 - Escape (`gEsc`/`_dEsc`) em todo dado de usuário; cor/motion via **token**; feedback via `gToast`; ícone = SVG (não emoji).

@@ -2,6 +2,7 @@
 
 > **Fonte única de verdade.** Leia este documento do início ao fim antes de qualquer sessão de trabalho no projeto.
 > Gerado em **2026-07-09** a partir do estudo completo dos docs anteriores + verificação direta do código e do repositório.
+> Última atualização estrutural: **2026-07-15** (dashboard Dados removido; analytics permanece por extração SQL/BI).
 > **Substitui:** `LUMA-CONTEXTO.md` · `LUMA-FEATURES.md` · `LUMA-INVENTARIO.md` · `LUMA-BACKUP.md` · `UX-WRITING-DESIGN.md`.
 > **Companheiro vivo:** `LUMA-BACKEND-CHANGELOG.md` (registro append-only de toda mudança de backend).
 >
@@ -17,7 +18,7 @@ Três papéis num único app (SPA em `index.html`):
 
 - **Franqueado** (usuário final): escolhe uma campanha, responde um chat guiado (produto, preço, foto), e baixa a arte pronta (PNG/PDF) — sem saber design.
 - **Designer** (equipe DM / "Estúdio"): cria templates num editor estilo Canva/Photoshop, define **campos** (variáveis) que o franqueado preenche, permissões e validade, e publica.
-- **Gestão**: tudo acima + administração de usuários e leitura de analytics.
+- **Gestão**: tudo acima + administração de usuários e leitura de analytics por SQL/BI.
 
 A ponte entre designer e franqueado é o **sistema de campos** (`{{produto}}`, `foto_produto`…) com **um único interpolador** (`gInterpolate`) compartilhado entre a simulação do designer, o live preview e o gerador de PNG final.
 
@@ -27,8 +28,7 @@ A ponte entre designer e franqueado é o **sistema de campos** (`{{produto}}`, `
 |---|--------|---------|--------|
 | 1 | **Franqueado** — catálogo + chat gerador de artes | `f*` | ✅ Produção (com backend) |
 | 2 | **Designer/Estúdio** — editor visual de templates | `d*` | ✅ Funcional, em refino contínuo |
-| 3 | **Dados** — dashboards de performance criativa | `p*` | 🟡 Front implementado com dados simulados; analytics real sai por **extração SQL** (views no Supabase), não por dashboard no app |
-| 4 | **CRM Visual** — inapp/push para CleverTap | — | 💡 Ideia validada, nada implementado. Dependência: estudar formatos aceitos pelo CleverTap antes |
+| 3 | **CRM Visual** — inapp/push para CleverTap | — | 💡 Ideia validada, nada implementado. Dependência: estudar formatos aceitos pelo CleverTap antes |
 
 ---
 
@@ -67,7 +67,7 @@ A ponte entre designer e franqueado é o **sistema de campos** (`{{produto}}`, `
 
 ### Boot (`js/main.js`)
 
-`DOMContentLoaded` **async**: `await gLoadProfile()` (sessão Supabase real) decide login vs app → `fGoHome()` (home do franqueado) → dispara **6 syncs** de backend em background (variáveis, folders, fontes, snippets, biblioteca, artes). `setMode(m)` troca `body.mode-<m>`, alterna topbars e chama `dInit()`/`pInit()` lazy (1ª vez). Franqueado (role) **não vê** as abas Designer/Dados (gate no front por role).
+`DOMContentLoaded` **async**: `await gLoadProfile()` (sessão Supabase real) decide login vs app → `fGoHome()` (home do franqueado) → dispara **6 syncs** de backend em background (variáveis, folders, fontes, snippets, biblioteca, artes). `setMode(m)` troca `body.mode-<m>`, alterna topbars e chama `dInit()` lazy (1ª vez). Franqueado (role) **não vê** o Estúdio (gate no front por role).
 
 ### Temas
 
@@ -88,7 +88,7 @@ Luma/
 │   ├── components/                # topbar, splash, tutorial, help-modal, help-chat, user-profile, pages-tray
 │   └── modules/                   # franqueado, franqueado_effects, designer, chat, catalog,
 │                                  # live-preview, layers-panel, toolbar, all-tools, color-picker,
-│                                  # publish-modal, topbar, dados
+│                                  # publish-modal, topbar
 ├── js/
 │   ├── 00-config.js               # HIST_KEY, CAMPS_ATIVAS/OUTRAS/IMPLEMENTACAO, FMTS,
 │   │                              # regex/validação de var, gInterpolate, bindings, regras,
@@ -103,8 +103,6 @@ Luma/
 │   │                              # eraser-tools, color-picker, measurement, selection, props-panel,
 │   │                              # undo-redo, publish, preview, library, fonts, psd-import,
 │   │                              # tooltip, rich-tooltips, tutorial-panel
-│   ├── dados/                     # state, index, overview, funil, geo, heatmap, timeline,
-│   │                              # comparador, franqueados, templates (tudo p*)
 │   └── tutorial/                  # engine, catalog (4), catalog-studio (14), mocks, mocks-studio
 ├── assets/
 │   ├── logos/                     # luma-h-branca.png, luma-h-cor.png (+ DM legadas no disco)
@@ -132,7 +130,6 @@ Luma/
 | `f*` | Franqueado | `js/franqueado/*.js` |
 | `d*` | Designer | `js/designer/*.js` |
 | `g*` | Global/core | `js/core/*.js`, `js/00-config.js` |
-| `p*` | Dados | `js/dados/*.js` |
 | `tut*` | Tutorial engine | `js/tutorial/*.js` |
 | `pv*` | Preview engine | `js/designer/preview.js` |
 | `sp*` | Splash | `js/core/splash.js` |
@@ -140,7 +137,7 @@ Luma/
 
 ### Prefixos de IDs HTML
 
-`f-*` franqueado · `fh-*` home do franqueado · `d-*` designer · `dp-*` props panel · `dv-*` modal de campo · `dt-*`/`df-*` modais de template/pasta · `pub-*` publicação · `pv-*` preview · `vt-*` toolbar vertical · `bb-*` brush bar · `g-*` globais · `tut-*` tutorial · `sp-*` splash · `p-*` dados · `lp-*` live preview.
+`f-*` franqueado · `fh-*` home do franqueado · `d-*` designer · `dp-*` props panel · `dv-*` modal de campo · `dt-*`/`df-*` modais de template/pasta · `pub-*` publicação · `pv-*` preview · `vt-*` toolbar vertical · `bb-*` brush bar · `g-*` globais · `tut-*` tutorial · `sp-*` splash · `lp-*` live preview.
 
 ### Padrões obrigatórios
 
@@ -373,9 +370,9 @@ DOMParser puro. Suporta text/tspan, rect, circle/ellipse, image, path (bbox apro
 
 ---
 
-## 11. MÓDULO DADOS (`p*`)
+## 11. ANALYTICS (SEM FRONT)
 
-Front implementado em `js/dados/` (state, index, overview, funil, geo, heatmap, timeline, comparador, franqueados, templates) com CSS em `css/modules/dados.css`. Tema claro/escuro próprio (`p-light-theme`), gráficos com crosshair/hover, tabelas com linhas expansíveis. **Dados exibidos são simulados** — a decisão de arquitetura é que analytics real sai por **extração** (views SQL `analytics.vw_*` no Supabase, ver §14.6), não por dashboard no app. Visível apenas para roles internos (gate por role).
+O dashboard simulado foi retirado em 2026-07-15. Analytics real continua em `analytics.fct_eventos` e nas views `analytics.vw_*`, consumidas por **extração SQL/BI** (ver §14.6). Não existe rota, aba, CSS ou JavaScript de analytics no frontend.
 
 ---
 
@@ -394,7 +391,7 @@ Front implementado em `js/dados/` (state, index, overview, funil, geo, heatmap, 
 
 - **3 roles** em `public.profiles.role`: `franqueado` (1) < `equipe_dm` (2) < `gestao` (3) — `ROLE_HIERARCHY` em `auth.js`. `gIsAdmin()` = equipe_dm ou gestao; `gIsSuperAdmin()` = gestao.
 - Login: `sb.auth.signInWithPassword`; logout real com `signOut`; reset por e-mail. Boot: `gLoadProfile()` = `auth.getUser()` + SELECT em `profiles` → popula `gAuthState`. **Nunca confiar em metadata do JWT** — sempre ler `profiles.role`.
-- Gate no front: franqueado não vê abas Designer/Dados (o RLS garante no dado; o front só esconde).
+- Gate no front: franqueado não vê o Estúdio (a RLS garante a proteção do conteúdo; o front só esconde).
 - Criação/exclusão de usuário: **direto no Dashboard do Supabase** (decisão 2026-06-19; Edge Function admin ficou adiada).
 - **Guard anti-auto-promoção**: trigger `guard_profile_role` no banco bloqueia UPDATE de role por não-gestão (testado: HTTP 400).
 
@@ -436,7 +433,7 @@ Front Vanilla fala **direto** com o Supabase via `supabase-js` v2 vendorizado (`
 
 ### 14.6. Analytics
 
-Decisão: **sem dashboard real no app** — estudos saem por extração (SQL Editor/BI) nas views `analytics.vw_*`. O módulo Dados do front mostra simulações.
+Decisão: **sem dashboard no app** — estudos saem por extração (SQL Editor/BI) nas views `analytics.vw_*`.
 
 ### 14.7. Migrations (13, em `supabase/migrations/`)
 

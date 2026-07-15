@@ -2,7 +2,7 @@
 
 > Documento fundacional do `luma-brain`. Responde, em uma leitura: **qual o propósito**, **quem usa**, **qual problema resolve** e **o que o produto NÃO faz**.
 > Antes de mexer no código, leia também `docs/LUMA.md` (documentação técnica oficial). Este arquivo é o "porquê"; o `LUMA.md` é o "como".
-> Última revisão: 2026-07-11.
+> Última revisão: 2026-07-15.
 
 ---
 
@@ -61,7 +61,7 @@ Ser o **sistema operacional de comunicação visual da rede Delivery Much** — 
 O caminho:
 
 1. **Hoje** — gerador de artes estáticas (posts/stories/feed) self-service para o franqueado, com editor de templates para o time de design.
-2. **Próximo** — dados de performance criativa (o que converte) e um Brand Guardian que impede peça fora da marca antes de publicar.
+2. **Próximo** — dados de performance criativa por extração SQL/BI e um Brand Guardian que impede peça fora da marca antes de publicar.
 3. **Depois** — CRM Visual: os mesmos templates alimentando inapp, push e comunicação (hoje montados à mão no ChatGPT + CleverTap).
 
 Objetivo de longo prazo: qualquer comunicação visual da rede — arte, inapp, push — nasce no Luma, correta por construção.
@@ -82,7 +82,7 @@ Objetivo de longo prazo: qualquer comunicação visual da rede — arte, inapp, 
 - Substituir ferramentas pagas (Deskfy, Placid) e trabalho manual por uma stack interna.
 - Acelerar o **lançamento de cidades novas** (parte do investimento inicial já é marketing).
 - Aumentar a **frequência e a qualidade** das promoções locais — que puxam GMV, a base da comissão.
-- Preparar terreno para decisões guiadas por dado (módulo Analytics) e para o CRM Visual.
+- Preparar terreno para decisões guiadas por dado (analytics por extração SQL/BI) e para o CRM Visual.
 
 ---
 
@@ -97,7 +97,7 @@ O dono do app numa cidade do interior. **Não sabe design.** Quer uma arte de co
 Cria e publica os **templates** que o franqueado consome. Trabalha num editor estilo Canva/Photoshop, define os **campos** que o franqueado vai preencher (`{{produto}}`, `{{preco}}`, `foto_produto`…), as permissões e a validade, e publica no catálogo. Faz o trabalho _uma vez_ para servir a rede inteira.
 
 ### Gestão — a liderança da rede
-Tudo acima, mais administração de usuários e leitura de analytics. Enxerga o uso consolidado (quem gera, o que converte) e governa a marca.
+Tudo acima, mais administração de usuários e leitura de analytics por extração SQL/BI. Enxerga o uso consolidado (quem gera, o que converte) e governa a marca.
 
 > **Ponte entre os papéis:** o **sistema de campos** (`{{variáveis}}`) e um **interpolador único** compartilhado entre a simulação do designer, a prévia ao vivo e o gerador final — o que o designer monta é exatamente o que o franqueado obtém.
 
@@ -109,8 +109,7 @@ Tudo acima, mais administração de usuários e leitura de analytics. Enxerga o 
 |---|--------|-----------|-----------|--------|
 | 1 | **Franqueado** | Franqueado | Catálogo de campanhas → chat guiado → arte pronta (PNG/PDF), com prévia ao vivo e histórico | ✅ Em produção |
 | 2 | **Designer / Estúdio** | Time de design | Editor visual de templates: camadas, campos, regras, permissões, publicação; import de PSD/SVG | ✅ Funcional, em refino |
-| 3 | **Dados / Analytics** | Gestão | Performance criativa (o que gera e converte) | 🟡 Front com dados simulados; analytics real por extração SQL |
-| 4 | **CRM Visual** | Time / Gestão | Editor de inapp e push para o CleverTap, com os mesmos templates e Brand Guardian | 💡 Planejado |
+| 3 | **CRM Visual** | Time / Gestão | Editor de inapp e push para o CleverTap, com os mesmos templates e Brand Guardian | 💡 Planejado |
 
 Detalhes técnicos de cada módulo em `docs/LUMA.md`.
 

@@ -108,9 +108,9 @@ então o ganho seria marginal; o app renderizar atrás do login (sem sessão) se
 - Rodapé da Ajuda: "Luma · piloto interno · v0.4" — a 1.0 precisa de versão/rotulagem real.
 - ~~Nav do módulo Dados duplica cada rótulo na árvore de acessibilidade~~ 🗑️ — some com o módulo (§2.7).
 
-### 2.7 Módulo Dados — 🗑️ SAI DO PRODUTO (decisão de 2026-07-15)
+### 2.7 Módulo Dados — ✅ REMOVIDO DO PRODUTO (2026-07-15)
 
-**Decisão do dono do produto: o módulo Dados será removido do Luma.** A auditoria tinha
+**Decisão executada: o módulo Dados foi removido do Luma.** A auditoria tinha
 proposto rotular a tela como "dados de demonstração" (o módulo roda 100% sobre mocks
 `P_MOCK_*` sem indicação visível). **Removê-lo é a resposta mais honesta** e é coerente com o
 que a arquitetura já diz: *"Analytics por extração, não por dashboard — as views `analytics.vw_*`
@@ -127,17 +127,15 @@ e o módulo sai do escopo de P1.2/P1.3 — o que **reduz a dívida medida**, nã
 | Nav duplicado na árvore de acessibilidade | resolvido por remoção |
 | Front com dado 100% falso sem rótulo | resolvido por remoção |
 
-**Raio de alcance mapeado** (para quem executar a remoção — **não é tarefa desta UI 1.0**):
-`js/dados/*` (10 arquivos, ~2.766 linhas) · `css/modules/dados.css` (1.862 linhas) ·
-`index.html` (link do CSS, `#tab-dados`, `#view-dados`/`#p-sidenav`/`#p-main`, 10 `<script>`) ·
-`js/main.js` (`setMode`, `gApplyModeAccess`, `pInit`) — **~4.6 mil linhas** ao todo.
+**Raio removido:** `js/dados/*` (10 arquivos) · `css/modules/dados.css` · `index.html`
+(link do CSS, `#tab-dados`, `#view-dados` e 10 `<script>`) · `js/main.js`
+(`setMode`, `gApplyModeAccess`, `pInit`) — **~4,6 mil linhas** ao todo.
 ⚠️ **Não confundir** com a aba **"Dados" do Estúdio** (`#rtab-dados` → `dActivatePanel('dados')`),
 que é o **centro de campos do designer** e **fica** — nome igual, coisa diferente.
 
-**Pergunta em aberto (produto/backend, não UI):** o `gTrackEvent` → `analytics.fct_eventos`
-(`js/core/supabase.js`, chamado de `main.js` e dos arquivos do franqueado) **continua coletando**?
-A coleta é independente do dashboard removido e alimenta a extração por SQL — a recomendação é
-**manter**, mas é decisão de produto.
+**O que permanece:** `gTrackEvent` → `analytics.fct_eventos` (`js/core/supabase.js`, chamado de
+`main.js` e dos arquivos do franqueado) continua coletando. A coleta é independente do dashboard
+removido e alimenta a extração por SQL/BI.
 
 ---
 
@@ -194,7 +192,6 @@ A coleta é independente do dashboard removido e alimenta a extração por SQL �
 
 ## 4. O que fica explicitamente FORA da UI 1.0
 
-- **A remoção do módulo Dados em si** — a decisão está tomada (§2.7) e o raio de alcance está mapeado lá, mas arrancar ~4,6 mil linhas é tarefa de produto/engenharia, não um item de refino visual. A UI 1.0 apenas **para de investir** nele.
 - **OCR de cardápio no Sheets** (dependência vendorizada pendente de decisão).
 - **CRM Visual** (módulo planejado, não existe).
 - **Multi-tenant/catálogo por cidade** (decisão de arquitetura, não de UI).

@@ -3,14 +3,14 @@
 > As regras de como se escreve código no Luma. É o manual do time — para gente e para IA.
 > **Aviso importante:** este projeto tem restrições incomuns (Vanilla JS, sem build, sem framework, sem testes automatizados, estado global por design). Por isso, **alguns "best practices" genéricos aqui aparecem TRADUZIDOS para a realidade do Luma** — e, onde a regra clássica não se aplica, o arquivo diz a verdade em vez de fingir. Seguir cegamente conselho genérico aqui **quebra** o projeto.
 > Ordem de autoridade quando algo divergir: **o código > este arquivo > conselho genérico de fora.**
-> Última revisão: 2026-07-11. Ver `02_ARCHITECTURE.md` (o "onde") e `docs/LUMA.md` (o detalhe).
+> Última revisão: 2026-07-15. Ver `02_ARCHITECTURE.md` (o "onde") e `docs/LUMA.md` (o detalhe).
 
 ---
 
 ## As 3 leis que explicam todas as outras
 
 1. **Sem build, sem framework, sem ES Modules.** Funções globais, `<script>` sequenciais no `index.html`. Nada de `import`/`export`, npm em runtime, Vite/Webpack. Bibliotecas entram **vendorizadas** em `assets/vendor/`.
-2. **Prefixos e IDs são sagrados.** `f*` `d*` `g*` `p*` `tut*` `pv*`. O HTML chama funções por nome (`onclick="fNextStep()"`) e há chamadas cruzadas entre arquivos. **Renomear = quebrar em silêncio.**
+2. **Prefixos e IDs são sagrados.** `f*` `d*` `g*` `tut*` `pv*`. O HTML chama funções por nome (`onclick="fNextStep()"`) e há chamadas cruzadas entre arquivos. **Renomear = quebrar em silêncio.**
 3. **Patch cirúrgico.** Adicione sem quebrar. A maioria das features toca **1–2 arquivos**; se abriu mais de 3, quase sempre há caminho mais simples. `f*` e `d*` **não podem regredir**.
 
 Tudo abaixo deriva dessas três.

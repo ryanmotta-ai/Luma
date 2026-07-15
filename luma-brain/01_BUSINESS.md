@@ -2,7 +2,7 @@
 
 > O arquivo que impede a IA de **inventar regras**. O `00_PRODUCT.md` diz _por que_ o Luma existe; este diz _quais são as regras do mundo em que ele opera_.
 > Antes de propor qualquer solução ("criar campanhas", "dar acesso a X", "publicar template"), leia a seção correspondente aqui. As **invariantes** (⛔) são regras que **não se inventa** — se uma proposta as viola, ela está errada, por mais elegante que pareça.
-> Última revisão: 2026-07-11. Fonte técnica: `docs/LUMA.md`. Fonte de negócio: pesquisa Delivery Much (ver `00_PRODUCT.md` §10).
+> Última revisão: 2026-07-15. Fonte técnica: `docs/LUMA.md`. Fonte de negócio: pesquisa Delivery Much (ver `00_PRODUCT.md` §10).
 
 ---
 
@@ -42,13 +42,13 @@ Glossário de dois mundos: um mesmo nome pode significar coisas diferentes no ne
 |------|-------|--------|--------------|
 | `franqueado` | 1 | Dono do app numa cidade | Gerar arte a partir de templates publicados; ver o próprio histórico |
 | `equipe_dm` | 2 | Funcionário interno (design/marketing/…) | Tudo do franqueado + criar/editar/publicar templates, campos, assets (o "Estúdio") |
-| `gestao` | 3 | Direção | Tudo + administração de usuários + leitura de analytics |
+| `gestao` | 3 | Direção | Tudo + administração de usuários + leitura de analytics por SQL/BI |
 
 Helpers no código: `gIsAdmin()` = `equipe_dm` **ou** `gestao`; `gIsSuperAdmin()` = `gestao`. `ROLE_HIERARCHY = {franqueado:1, equipe_dm:2, gestao:3}`.
 
 **Regras / invariantes:**
 - ⛔ **O role vem sempre de `profiles.role` (servidor), nunca do metadata do JWT.** Não confie em claim do token para decidir permissão.
-- ⛔ **Franqueado não vê Designer nem Dados.** O gate é por role no front (esconde as abas) **e** no dado (RLS). As duas camadas existem de propósito — não remova uma "porque a outra cobre".
+- ⛔ **Franqueado não vê o Estúdio.** O gate por role esconde a aba no front e a RLS protege o conteúdo no banco. Analytics não possui dashboard no app; a gestão consulta por SQL/BI.
 - ⛔ **Escrita de conteúdo (template/campo/asset) é só `equipe_dm`/`gestao`** (`is_designer()` no backend). Franqueado só **lê** o que foi publicado e **escreve o próprio histórico de artes**.
 - Criação/exclusão de usuário é feita **direto no Dashboard do Supabase** (decisão vigente) — não há tela de admin de usuários no Luma que crie contas.
 - ⚠️ `equipe_dm` tem `departamento`, mas o Luma **não** segmenta acesso por departamento hoje (isso é regra do Portal, não do Luma).
@@ -175,7 +175,7 @@ Tipos: `text`, `number`, `currency`, `date`, `image`, `select`, `color`, `boolea
 
 **No mundo real.** A Delivery Much tem o programa de vantagens **Much+** (cupons, promoções, combos, clube) e faz comunicação com o usuário final do app. Hoje o time monta inapp/push **à mão** (HTML no ChatGPT → CleverTap).
 
-**No Luma.** É o **módulo 4 — CRM Visual (💡 planejado, não implementado)**: editor de inapp/push que reaproveita os mesmos templates e campos, com Brand Guardian antes de subir, exportando compatível com o **CleverTap**.
+**No Luma.** É o **módulo 3 — CRM Visual (💡 planejado, não implementado)**: editor de inapp/push que reaproveita os mesmos templates e campos, com Brand Guardian antes de subir, exportando compatível com o **CleverTap**.
 
 **Regras / invariantes:**
 - ⛔ **O Luma NÃO envia mensagem.** Ele _prepara_ a peça; o disparo é no CleverTap. Não modele "Luma manda push".

@@ -2,7 +2,7 @@
 
 > Como o Luma é montado, em camadas e fronteiras. **Sem código — só arquitetura.**
 > O `01_BUSINESS.md` diz as regras do domínio; este diz onde cada coisa mora e como as partes conversam. Para o "como" no detalhe (funções, tabelas, policies), a fonte é `docs/LUMA.md`.
-> Última revisão: 2026-07-11.
+> Última revisão: 2026-07-15.
 
 ---
 
@@ -18,9 +18,9 @@ O Luma é uma **SPA estática que fala direto com o Supabase**. Não há servido
  │  VIEWS/MÓDULOS        MOTORES                 ESTADO          │
  │  · Franqueado (f*)    · Render (Canvas 2D)    variáveis let   │
  │  · Estúdio  (d*)      · Interpolador único    globais         │
- │  · Dados    (p*)      · Smart resize          (dLayers,       │
- │  · Tutorial (tut*)    · Import PSD/SVG          fState, dVars) │
- │  · Core     (g*)      · Pintura (paint canvas)                │
+ │  · Tutorial (tut*)    · Smart resize          (dLayers,       │
+ │  · Core     (g*)      · Import PSD/SVG          fState, dVars) │
+ │                       · Pintura (paint canvas)                │
  │                                                               │
  │  PERSISTÊNCIA LOCAL:  localStorage (cache)  ·  IndexedDB (img) │
  └───────────────┬───────────────────────────────────────────────┘
@@ -56,13 +56,12 @@ O Luma é uma **SPA estática que fala direto com o Supabase**. Não há servido
 | `f*` | Franqueado | `js/franqueado/*` |
 | `d*` | Designer / Estúdio | `js/designer/*` |
 | `g*` | Core / global | `js/core/*`, `js/00-config.js` |
-| `p*` | Dados / Analytics | `js/dados/*` |
 | `tut*` | Tutoriais | `js/tutorial/*` |
 | `pv*` | Preview engine | `js/designer/preview.js` |
 
 **Estado.** Variáveis `let` **globais** (`dLayers`, `fState`, `dVars`, `dFolders`, `gAuthState`…), mutadas diretamente + re-render manual. Não há store, signals ou virtual DOM.
 
-**Views.** O `index.html` tem containers por modo (`#view-franqueado`, `#view-designer`, Dados). O boot (`main.js`, `DOMContentLoaded` async) checa a sessão, decide login × app, e `setMode()` troca a classe do `body` e inicializa cada módulo _lazy_ (só na primeira vez).
+**Views.** O `index.html` tem containers por modo (`#view-franqueado`, `#view-designer`). O boot (`main.js`, `DOMContentLoaded` async) checa a sessão, decide login × app, e `setMode()` troca a classe do `body` e inicializa o Estúdio _lazy_ (só na primeira vez).
 
 **Bibliotecas** entram **vendorizadas** em `assets/vendor/` (Color Thief, Pica, PapaParse, pdf-lib, ag-psd, supabase-js) — nunca via CDN em runtime.
 
@@ -150,7 +149,7 @@ Postgres, três schemas, **RLS habilitado em tudo**:
 
 **Princípios de arquitetura do banco:**
 - **RLS como fronteira** — `anon` sem acesso; regra por role via funções `get_user_role()` / `is_designer()` embutidas nas policies.
-- **Analytics por extração**, não por dashboard: as views `analytics.vw_*` são consumidas via SQL Editor/BI, sem grant para o front. O módulo Dados do app mostra dados **simulados**.
+- **Analytics por extração**, não por dashboard: as views `analytics.vw_*` são consumidas via SQL Editor/BI, sem grant e sem módulo no front.
 - Estrutura desenhada para eventualmente **fundir com o CRM da DM**.
 - Migrations versionadas em `supabase/migrations/`; toda mudança vai no `docs/LUMA-BACKEND-CHANGELOG.md`.
 
@@ -177,7 +176,7 @@ Arquivos (imagens, fontes) não moram no banco nem no localStorage — vão para
 - **Supabase Auth (GoTrue)** — login por e-mail + senha; reset por e-mail; logout real.
 - **No boot**, a app carrega o perfil (`auth.getUser()` + `SELECT` em `profiles`) e popula o estado de sessão (`gAuthState`) **antes** de decidir login × app.
 - **Role sempre do servidor** (`profiles.role`), nunca do metadata do JWT.
-- **Gate por role** no front esconde as abas Designer/Dados do franqueado; a RLS garante no dado. As duas camadas coexistem de propósito.
+- **Gate por role** no front esconde o Estúdio do franqueado; a RLS garante a proteção do conteúdo. Analytics não tem superfície no app.
 - Um **trigger guard** no banco bloqueia auto-promoção de role.
 
 ⛔ **Sem middleware / sem auth guard server-side** — é uma SPA estática, não há servidor para interceptar rotas. A proteção efetiva é: front esconde + **RLS retorna vazio** para quem não tem direito.

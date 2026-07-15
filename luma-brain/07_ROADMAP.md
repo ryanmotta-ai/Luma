@@ -19,7 +19,7 @@ A v1 existe quando estas 5 frases forem verdade **sem asterisco**:
 4. **Nada no app mente** — o que é demo está rotulado ou removido; "Salvo na nuvem" só aparece quando salvou na nuvem.
 5. **Zero XSS conhecido, RLS validada nas 3 roles**, backup rodando.
 
-O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visual/CleverTap, multi-tenant por cidade, agendador de posts, legendas por IA de verdade. **Dashboard de analytics no app deixou de ser roadmap: o módulo Dados será retirado** (decisão 2026-07-15) — analytics é por extração SQL, como a arquitetura já definia.
+O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visual/CleverTap, multi-tenant por cidade, agendador de posts, legendas por IA de verdade. **O dashboard de analytics foi retirado do app** (decisão executada em 2026-07-15) — analytics é por extração SQL, como a arquitetura já definia.
 
 ---
 
@@ -121,7 +121,7 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
 
 *Fechar o que a gestão precisa e assumir o que não vai. ~1 semana.*
 
-- [ ] **RETIRAR o módulo Dados** (decisão 2026-07-15): remover `js/dados/` (10 arquivos, ~2.500 linhas), `css/modules/dados.css` (1.862 linhas), `#view-dados` e os `<script>` de `dados/*` do `index.html`, a pill "Dados" do seletor de modos e o `pInit`/gates em `main.js` + `auth.js`. Atualizar `LUMA.md` §11 e `02_ARCHITECTURE.md` (módulo 3 deixa de existir no front). ⚠ O que **fica**: `analytics.fct_eventos`, `gTrackEvent` e as views `vw_*` — analytics segue por extração SQL (gestão/BI), sem front.
+- [x] **RETIRAR o módulo Dados** (decisão 2026-07-15): removidos `js/dados/`, `css/modules/dados.css`, `#view-dados`, scripts, pill e gates do modo. Docs atualizados. O que **fica**: `analytics.fct_eventos`, `gTrackEvent` e as views `vw_*` — analytics segue por extração SQL (gestão/BI), sem front.
 - [ ] **Analytics utilizável (backend, independe do módulo retirado)**: emitir os eventos que faltam (`template_publicado`, `campanha_aberta`, `material_aberto` — previstos na migration, nunca emitidos) e documentar que as views se consultam via SQL Editor/service_role (com RLS dono-only em `luma.artes`, designer autenticado vê ~nada — comportamento esperado, não bug).
 - [ ] Linter unificado: `dPublishRender` reimplementa as regras em vez de reusar `dRunLinter` (`publish.js:149-184`); regra 5 morta (`l.url` → `l.imgUrl`, `linter.js:115`).
 - [ ] Limpeza: `rich-tooltips.js` sem `<script>` (morto), no-ops de multi-prancheta, `fDrawDMLogo`/`fLoadLogoBranca` mortos, `__luma_session` órfão.
