@@ -10,23 +10,11 @@
  *   Persona Franqueado = franqueado · Persona Designer = equipe_dm/gestao (gIsAdmin)
  *   gestao = topo (gerencia usuários).
  *
- * OBS: a gestão de usuários (gGetAllUsers/gSetUserRole/...) ainda é MOCK
- * (localStorage + AUTH_USERS). Migrar pra Supabase Admin (Edge Function) é trabalho futuro.
+ * OBS: a gestão de usuários (gGetAllUsers/gSetUserRole/gSetUserAtivo) já usa o
+ * Supabase via RLS (só gestão escreve; guard no banco bloqueia auto-promoção).
+ * Falta só CRIAR usuário pelo app (Edge Function com service_role) — hoje é no
+ * Dashboard do Supabase (gAddManagedUser orienta isso).
  */
-
-const AUTH_USERS = [
-  { email: 'ryan.motta@deliverymuch.com.br', hash: '847c6bd10efb303516b1248b6b1b9246b66fd9ad460731716d7e31855e8112cb', role: 'superadmin', displayName: 'Ryan Motta' },
-  { email: 'pedro.moraes@deliverymuch.com.br', hash: '847c6bd10efb303516b1248b6b1b9246b66fd9ad460731716d7e31855e8112cb', role: 'admin', displayName: 'Pedro Moraes' },
-  { email: 'laura.ferrari@deliverymuch.com.br', hash: '847c6bd10efb303516b1248b6b1b9246b66fd9ad460731716d7e31855e8112cb', role: 'admin', displayName: 'Laura Ferrari' },
-  { email: 'ricardo.moreira@deliverymuch.com.br', hash: '847c6bd10efb303516b1248b6b1b9246b66fd9ad460731716d7e31855e8112cb', role: 'admin', displayName: 'Ricardo Moreira' },
-  { email: 'vanessa.rosa@deliverymuch.com.br', hash: '847c6bd10efb303516b1248b6b1b9246b66fd9ad460731716d7e31855e8112cb', role: 'admin', displayName: 'Vanessa Rosa' },
-  { email: 'ana.almeida@deliverymuch.com.br', hash: '847c6bd10efb303516b1248b6b1b9246b66fd9ad460731716d7e31855e8112cb', role: 'admin', displayName: 'Ana Almeida' },
-  { email: 'joviane.santos@deliverymuch.com.br', hash: '847c6bd10efb303516b1248b6b1b9246b66fd9ad460731716d7e31855e8112cb', role: 'admin', displayName: 'Joviane Santos' },
-  { email: 'marco.severo@deliverymuch.com.br', hash: '847c6bd10efb303516b1248b6b1b9246b66fd9ad460731716d7e31855e8112cb', role: 'admin', displayName: 'Marco Severo' },
-  { email: 'brenda.santos@deliverymuch.com.br', hash: '847c6bd10efb303516b1248b6b1b9246b66fd9ad460731716d7e31855e8112cb', role: 'admin', displayName: 'Brenda Santos' },
-  { email: 'pedro@deliverymuch.com.br', hash: '847c6bd10efb303516b1248b6b1b9246b66fd9ad460731716d7e31855e8112cb', role: 'admin', displayName: 'Pedro' },
-  { email: 'guilherme@deliverymuch.com.br', hash: '847c6bd10efb303516b1248b6b1b9246b66fd9ad460731716d7e31855e8112cb', role: 'admin', displayName: 'Guilherme' }
-];
 
 // Roles do banco (espelham o DM CRM). gIsAdmin = persona Designer (equipe_dm+gestao).
 const ROLE_HIERARCHY = { franqueado:1, equipe_dm:2, gestao:3 };
