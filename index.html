@@ -258,7 +258,7 @@ input:focus:-webkit-autofill {
     <div id="topbar-context-design" style="display: none; align-items: center;">
     </div>
 
-    <button id="top-help-btn" class="top-help-btn" onclick="gOpenHelp()" aria-label="Ajuda e suporte" title="Ajuda e suporte">
+    <button id="top-help-btn" class="top-help-btn" onclick="gOpenHelp(this)" data-help-trigger aria-controls="g-help-modal" aria-expanded="false" aria-label="Abrir Central de Ajuda" title="Central de Ajuda">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
       <span>Ajuda</span>
     </button>
@@ -280,26 +280,26 @@ input:focus:-webkit-autofill {
 </div>
 
 <!-- ══ MODAL DE AJUDA / SUPORTE ══ -->
-<div id="g-help-modal" class="g-help-modal" onclick="if(event.target===this)gCloseHelp()">
-  <div class="g-help-box">
+<div id="g-help-modal" class="g-help-modal" role="dialog" aria-modal="true" aria-labelledby="g-help-title" onclick="if(event.target===this)gCloseHelp()">
+  <div class="g-help-box" tabindex="-1">
     <div class="g-help-head">
       <div class="g-help-title">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        <span>Como podemos ajudar?</span>
+        <span id="g-help-title">Central de Ajuda</span>
       </div>
       <button class="g-help-close" onclick="gCloseHelp()" aria-label="Fechar">×</button>
     </div>
-    <div class="g-help-tabs">
-      <button class="g-help-tab active" id="g-help-tab-trilha" onclick="gHelpSwitchTab('trilha')">📚 Trilha</button>
-      <button class="g-help-tab" id="g-help-tab-catalogo" onclick="gHelpSwitchTab('catalogo')">🔍 Catálogo</button>
+    <div class="g-help-tabs" role="tablist" aria-label="Conteudo da Central de Ajuda">
+      <button class="g-help-tab active" id="g-help-tab-trilha" role="tab" aria-selected="true" aria-controls="g-help-pane-trilha" onclick="gHelpSwitchTab('trilha')">📚 Trilha</button>
+      <button class="g-help-tab" id="g-help-tab-catalogo" role="tab" aria-selected="false" aria-controls="g-help-pane-catalogo" tabindex="-1" onclick="gHelpSwitchTab('catalogo')">🔍 Catálogo</button>
     </div>
     <div class="g-help-body">
 
-      <div id="g-help-pane-trilha" class="g-help-pane active">
+      <div id="g-help-pane-trilha" class="g-help-pane active" role="tabpanel" aria-labelledby="g-help-tab-trilha">
         <div id="g-help-trail-content"></div>
       </div>
 
-      <div id="g-help-pane-catalogo" class="g-help-pane">
+      <div id="g-help-pane-catalogo" class="g-help-pane" role="tabpanel" aria-labelledby="g-help-tab-catalogo">
         <input class="g-help-search" id="g-help-search" type="text" placeholder="🔎 Buscar tutorial (ex.: variáveis, pincel, publicar)..." oninput="gHelpRenderCatalog(this.value)">
         <div id="g-help-tut-catalog"></div>
       </div>

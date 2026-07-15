@@ -1083,7 +1083,7 @@ async function fBaixar(btn, snapId){
     }
   }catch(e){
     console.warn('Falha ao gerar PNG:', e);
-    gToast('Não consegui gerar o arquivo. Tente enviar a foto de novo pelo botão de upload, ou escolha outra imagem.','error');
+    gToast('Não consegui gerar o arquivo. Tente enviar a foto de novo pelo botão de upload, ou escolha outra imagem.','error','ajuda-upload');
   }finally{ fState.material=prevMat; restore(); }
 }
 function fRefazer(){fState.stepIdx=-1;fState.dados={};fState.done=false;fClearImgCache();_fArtSnapshots={};_fArtCaptions={};const msgs=document.getElementById('f-messages');if(msgs)msgs.innerHTML='';fUpdateProg();fAddBot(`Vamos refazer a arte da <strong>${gEsc(fState.camp.name)}</strong>.`,[]);clearTimeout(fNextTimeout);fNextTimeout=setTimeout(()=>fNextStep(),500);}

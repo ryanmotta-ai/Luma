@@ -133,8 +133,10 @@
     },
     // Suporte Humano
     support: {
-      text: "Fechado! Já vou te conectar com a nossa equipe de suporte da Delivery Much.<br><br>Pode <strong>escrever sua mensagem na caixa de texto aqui embaixo</strong> e enviar pra gente começar a conversar:",
-      options: []
+      text: "O atendimento humano ainda não está disponível dentro do Luma.<br><br>Use a <strong>Central de Ajuda</strong> para consultar os tutoriais e orientações disponíveis.",
+      options: [
+        { id: "start", text: "Voltar ao menu principal", icon: "back" }
+      ]
     }
   };
 
@@ -187,9 +189,14 @@
     btn.id = 'g-chat-btn';
     btn.className = 'g-chat-btn';
     btn.type = 'button';
-    btn.setAttribute('aria-label', 'Abrir chat de ajuda');
+    btn.setAttribute('aria-label', 'Abrir Central de Ajuda');
+    btn.setAttribute('aria-controls', 'g-help-modal');
+    btn.setAttribute('aria-expanded', 'false');
+    btn.setAttribute('data-help-trigger', '');
     btn.innerHTML = `<svg class="g-chat-btn-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" fill="#ffffff"/><path d="M9 10c1 1.5 3 1.5 4 0" stroke="#1a1a1a" stroke-width="2" stroke-linecap="round" fill="none"/></svg>`;
-    btn.onclick = gToggleHelpChat;
+    btn.onclick = function(){
+      if(typeof gOpenHelp==='function') gOpenHelp(btn);
+    };
     document.body.appendChild(btn);
 
     // Injeta janela de chat
@@ -447,18 +454,6 @@
 
       const node = G_CHAT_FLOW[id];
       if (!node) return;
-
-      if (id === 'support') {
-        supportMode = true;
-        const input = document.getElementById('g-chat-input');
-        const sendBtn = document.getElementById('g-chat-send');
-        if (input && sendBtn) {
-          input.disabled = false;
-          input.placeholder = "Escreva sua mensagem para o suporte...";
-          sendBtn.disabled = false;
-          setTimeout(() => input.focus(), 100);
-        }
-      }
 
       gAddChatBubbleBot(node.text, node.options, id);
     }, 600);

@@ -46,6 +46,16 @@
   transition:all .12s;
 }
 .g-help-close:hover{background:var(--gray-light);color:var(--dm-red)}
+.g-help-close:focus-visible,
+.g-help-tab:focus-visible,
+.g-help-search:focus-visible,
+.g-help-trail-cta:focus-visible,
+.g-help-trail-next:focus-visible,
+.g-help-trail-step:focus-visible,
+.g-help-tut-card:focus-visible{
+  outline:2px solid var(--dm-orange);
+  outline-offset:2px;
+}
 .g-help-body{
   padding:18px 22px 22px;
   overflow-y:auto;
@@ -231,6 +241,7 @@
 
 /* ══ TRILHA — próxima aula CTA ══ */
 .g-help-trail-next{
+  width:100%;border:0;font-family:'Roboto',sans-serif;text-align:left;
   background:var(--off-white);border:1.5px solid var(--gray-light);
   border-radius:10px;padding:12px 14px;
   cursor:pointer;margin-bottom:16px;
@@ -269,6 +280,7 @@
 /* ══ TRILHA — lista de passos ══ */
 .g-help-trail-steps{display:flex;flex-direction:column;gap:4px}
 .g-help-trail-step{
+  width:100%;border:0;font-family:'Roboto',sans-serif;text-align:left;
   display:flex;align-items:center;gap:10px;
   padding:9px 10px;border-radius:8px;
   cursor:pointer;
@@ -308,6 +320,29 @@
 .g-help-trail-step-dur{font-size:10px;color:var(--text-3);margin-top:1px}
 .g-help-trail-step-play{font-size:10px;color:var(--text-3);flex-shrink:0;transition:opacity .15s;opacity:.35}
 .g-help-trail-step:hover .g-help-trail-step-play{opacity:1}
+.g-help-trail-step:disabled{cursor:default}
+
+/* ══ AJUDA CONTEXTUAL ══ */
+.g-help-context{margin:0 0 16px;padding:12px;border:1px solid var(--gray-light);border-radius:var(--r);background:var(--off-white)}
+.g-help-context-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3)}
+.g-help-context-list{display:flex;flex-wrap:wrap;gap:6px}
+.g-help-context-item{border:1px solid var(--gray-mid);border-radius:var(--r-pill);background:var(--white);color:var(--text-2);padding:6px 9px;font:600 11px 'Roboto',sans-serif;cursor:pointer;transition:color var(--dur-micro) var(--ease-standard),border-color var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard)}
+.g-help-context-item:hover{border-color:var(--dm-orange);background:var(--dm-orange-bg);color:var(--dm-orange-d)}
+.g-help-context-item:focus-visible,.g-help-topic-back:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+
+/* ══ ARTIGOS RAPIDOS ══ */
+.g-help-topic{padding:8px 2px 4px;color:var(--text-2)}
+.g-help-topic-back{border:0;background:none;padding:0;margin:0 0 16px;color:var(--dm-orange-d);font:700 12px 'Roboto',sans-serif;cursor:pointer}
+.g-help-topic-eyebrow{display:block;margin-bottom:6px;color:var(--text-3);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.g-help-topic h3{margin:0 0 8px;color:var(--text);font-size:17px;line-height:1.25}
+.g-help-topic p{margin:0;max-width:48ch;font-size:13px;line-height:1.55}
+
+/* ══ ONBOARDING DO FRANQUEADO ══ */
+.g-help-onboarding{margin:0 0 16px;padding:12px;border:1px solid var(--gray-light);border-radius:var(--r);background:var(--white)}
+.g-help-onboarding-track{height:5px;overflow:hidden;border-radius:var(--r-pill);background:var(--gray-light)}
+.g-help-onboarding-track span{display:block;height:100%;border-radius:inherit;background:var(--dm-orange);transition:width var(--dur-base) var(--ease-standard)}
+.g-help-onboarding-steps{display:flex;flex-wrap:wrap;gap:5px 10px;margin-top:9px;color:var(--text-3);font-size:10px;line-height:1.35}
+.g-help-onboarding-steps .done{color:var(--green-text)}
 
 /* Catalog pane search spacing */
 #g-help-pane-catalogo .g-help-search{margin-bottom:14px}

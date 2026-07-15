@@ -47,6 +47,52 @@ const G_HELP_TRAILS = {
   ],
 };
 
+const G_HELP_KEYWORDS={
+  'primeira-arte':['campanha','material','gerar','download'],
+  'qual-formato':['story','feed','wide','post','formato'],
+  'editar-arte':['historico','minhas artes','rascunho','duplicar'],
+  'enviar-foto':['foto','imagem','upload','png','jpg','20mb'],
+  'gerar-varios':['csv','planilha','lote','sheets','baixar todos'],
+  'variaveis':['campo','dados','token','texto','preco'],
+  'vinculos-regras':['regra','vinculo','hide','condicional','shrink'],
+  'simular':['simulacao','preview','dados reais','overflow'],
+  'publicar':['publicacao','template','validade','permissao'],
+  'atalhos':['teclado','ctrl','zoom','desfazer','refazer'],
+  'importar-psd':['psd','svg','photoshop','importar'],
+};
+
+const G_HELP_ARTICLES=[
+  {id:'ajuda-pdf',cat:'franqueado',title:'Baixar a arte em PDF',sub:'Onde encontrar o download em PDF',keywords:['pdf','baixar','imprimir','download'],body:'Depois de gerar a arte, use Baixar PDF na tela final. Se a arte usar uma imagem por URL e a geracao falhar, confirme que a imagem esta publica.'},
+  {id:'ajuda-csv',cat:'franqueado',title:'Gerar artes por planilha',sub:'CSV Modelo, envio e download em lote',keywords:['csv','planilha','lote','sheets','excel'],body:'Abra Gerar varios, baixe o CSV Modelo, preencha uma linha por produto e envie a planilha. Ao revisar a grade, use Baixar todos para gerar o ZIP.'},
+  {id:'ajuda-upload',cat:'franqueado',title:'Enviar foto do produto',sub:'Formatos e limite de tamanho',keywords:['foto','imagem','upload','20mb','png','jpg'],body:'Envie imagens PNG ou JPG de ate 20 MB. Para imagens por URL, o endereco precisa ser publico para que a arte possa ser gerada.'},
+];
+
+const G_HELP_CONTEXTS={
+  franqueado:['primeira-arte','gerar-varios','editar-arte'],
+  designer:['studio-tour','variaveis','simular'],
+  camadas:['editar-elementos','pintura','atalhos'],
+  dados:['variaveis','vinculos-regras','simular'],
+  campaigns:['pastas-capas','publicar','importar-psd'],
+  linter:['publicar','editar-elementos','atalhos'],
+};
+
+let gHelpLastTrigger=null;
+let gHelpPreviousOverflow='';
+let gHelpTopicQuery='';
+
+function gHelpSetTriggerState(isOpen){
+  document.querySelectorAll('[data-help-trigger]').forEach(trigger=>{
+    trigger.setAttribute('aria-expanded',isOpen?'true':'false');
+  });
+}
+
+function gHelpFocusableElements(){
+  const modal=document.getElementById('g-help-modal');
+  if(!modal)return [];
+  return [...modal.querySelectorAll('button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])')]
+    .filter(el=>el.offsetParent!==null);
+}
+
 /* ══ HELPERS ══ */
 
 function gHelpTutDone(){
@@ -60,7 +106,7 @@ function gHelpTutDuration(id){
   return sec>=60 ? `~${Math.round(sec/60)} min` : `~${sec}s`;
 }
 function gHelpIsFirstVisit(){
-  return !localStorage.getItem('yngs_help_visited');
+  try{ return !localStorage.getItem('yngs_help_visited'); }catch(e){ return true; }
 }
 function gHelpMarkVisited(){
   try{ localStorage.setItem('yngs_help_visited','1'); }catch(e){}
@@ -69,6 +115,54 @@ function gHelpCurrentTrail(){
   const u=(typeof gCurrentUser==='function')?gCurrentUser():null;
   const role=u?u.role:'designer';
   return role==='franqueado' ? G_HELP_TRAILS.franqueado : G_HELP_TRAILS.designer;
+}
+
+function gHelpAllItems(){
+  return G_HELP_CATALOG.concat(G_HELP_ARTICLES);
+}
+function gHelpFindItem(id){
+  return gHelpAllItems().find(item=>item.id===id);
+}
+function gHelpItemMatches(item,query){
+  const haystack=[item.title,item.sub,item.body].concat(G_HELP_KEYWORDS[item.id]||[],item.keywords||[]).join(' ').toLowerCase();
+  return haystack.includes(query);
+}
+function gHelpContextIds(){
+  const isDesigner=document.body.classList.contains('mode-designer');
+  if(!isDesigner)return G_HELP_CONTEXTS.franqueado;
+  const active=document.querySelector('.rpanel-tab.active')?.dataset.panel;
+  return G_HELP_CONTEXTS[active]||G_HELP_CONTEXTS.designer;
+}
+function gHelpRenderContext(){
+  const items=gHelpContextIds().map(gHelpFindItem).filter(Boolean);
+  if(!items.length)return '';
+  return `<section class="g-help-context" aria-labelledby="g-help-context-title">
+    <div class="g-help-context-head">
+      <span id="g-help-context-title">Nesta tela</span>
+      <span>${document.body.classList.contains('mode-designer')?'Estudio':'Franqueado'}</span>
+    </div>
+    <div class="g-help-context-list">
+      ${items.map(item=>`<button type="button" class="g-help-context-item" onclick="gHelpOpenItem('${item.id}')">${item.title}</button>`).join('')}
+    </div>
+  </section>`;
+}
+function gHelpRenderOnboarding(){
+  const isFranqueado=(typeof gIsAdmin==='function')&&!gIsAdmin();
+  if(!isFranqueado)return '';
+  let progress={choseMaterial:false,downloadedPng:false,triedCsv:false};
+  try{ progress=Object.assign(progress,JSON.parse(localStorage.getItem('luma_onboarding_franqueado')||'{}')); }catch(e){}
+  const steps=[
+    ['choseMaterial','Escolher material'],
+    ['downloadedPng','Baixar arte'],
+    ['triedCsv','Criar em lote'],
+  ];
+  const done=steps.filter(([key])=>progress[key]).length;
+  if(done===steps.length)return '';
+  return `<section class="g-help-onboarding" aria-labelledby="g-help-onboarding-title">
+    <div class="g-help-context-head"><span id="g-help-onboarding-title">Primeiros passos</span><span>${done}/${steps.length}</span></div>
+    <div class="g-help-onboarding-track"><span style="width:${Math.round(done/steps.length*100)}%"></span></div>
+    <div class="g-help-onboarding-steps">${steps.map(([key,label])=>`<span class="${progress[key]?'done':''}">${progress[key]?'Concluido':'A fazer'}: ${label}</span>`).join('')}</div>
+  </section>`;
 }
 
 /* ══ TRILHA ══ */
@@ -111,7 +205,7 @@ function gHelpRenderTrail(){
     if(nextCard){
       const dur=gHelpTutDuration(nextId);
       ctaHtml=`
-        <div class="g-help-trail-next" onclick="gHelpMarkVisited();gHelpPlay('${nextId}')">
+      <button type="button" class="g-help-trail-next" onclick="gHelpMarkVisited();gHelpPlay('${nextId}')">
           <span class="g-help-trail-next-label">Continue de onde parou · aula ${currentIdx+1}</span>
           <div class="g-help-trail-next-row">
             <span class="g-help-tut-icon des" style="width:32px;height:32px;font-size:15px;flex-shrink:0">${nextCard.icon}</span>
@@ -121,7 +215,7 @@ function gHelpRenderTrail(){
             </div>
             <div class="g-help-trail-next-play">▶</div>
           </div>
-        </div>`;
+        </button>`;
     }
   } else {
     ctaHtml=`
@@ -145,7 +239,7 @@ function gHelpRenderTrail(){
       ?'<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
       :(i+1);
     return `
-      <div class="g-help-trail-step ${state}" ${exists?`onclick="gHelpMarkVisited();gHelpPlay('${id}')"`:''}>
+      <button type="button" class="g-help-trail-step ${state}" ${exists?`onclick="gHelpMarkVisited();gHelpPlay('${id}')"`: 'disabled'}>
         <div class="g-help-trail-step-num">${numHtml}</div>
         <span class="g-help-tut-icon ${card.cat==='designer'?'des':'fra'}" style="width:28px;height:28px;font-size:13px;flex-shrink:0;border-radius:6px">${card.icon}</span>
         <div class="g-help-trail-step-info">
@@ -153,10 +247,10 @@ function gHelpRenderTrail(){
           ${dur?`<div class="g-help-trail-step-dur">${dur}</div>`:''}
         </div>
         ${exists?'<div class="g-help-trail-step-play">▶</div>':''}
-      </div>`;
+      </button>`;
   }).join('');
 
-  wrap.innerHTML=progressHtml+ctaHtml+`<div class="g-help-trail-steps">${stepsHtml}</div>`;
+  wrap.innerHTML=progressHtml+ctaHtml+gHelpRenderContext()+gHelpRenderOnboarding()+`<div class="g-help-trail-steps">${stepsHtml}</div>`;
 }
 
 /* ══ CATÁLOGO ══ */
@@ -164,15 +258,18 @@ function gHelpRenderTrail(){
 function gHelpRenderCatalog(query){
   const wrap=document.getElementById('g-help-tut-catalog'); if(!wrap)return;
   const q=(query||'').trim().toLowerCase();
+  gHelpTopicQuery=query||'';
   const done=gHelpTutDone();
   const cats=[
     {key:'franqueado', name:'Para o franqueado', ico:'🍔', cls:'fra'},
     {key:'designer',  name:'Para o designer · Estúdio', ico:'🎨', cls:'des'},
   ];
   wrap.innerHTML=cats.map(cat=>{
-    const items=G_HELP_CATALOG.filter(t=>t.cat===cat.key)
+    const tutorials=G_HELP_CATALOG.filter(t=>t.cat===cat.key)
       .filter(t=>typeof TUTORIALS!=='undefined'&&TUTORIALS[t.id])
-      .filter(t=>!q||t.title.toLowerCase().includes(q)||t.sub.toLowerCase().includes(q));
+      .filter(t=>!q||gHelpItemMatches(t,q));
+    const articles=G_HELP_ARTICLES.filter(t=>t.cat===cat.key).filter(t=>!q||gHelpItemMatches(t,q));
+    const items=tutorials.concat(articles);
     if(!items.length)return '';
     return `<div class="g-help-cat-group">
       <div class="g-help-cat-head">
@@ -182,13 +279,13 @@ function gHelpRenderCatalog(query){
       </div>
       <div class="g-help-tut-grid">
         ${items.map(t=>`
-          <button class="g-help-tut-card ${t.cat==='designer'?'des':'fra'}" onclick="gHelpPlay('${t.id}')">
+          <button class="g-help-tut-card ${t.cat==='designer'?'des':'fra'}" onclick="gHelpOpenItem('${t.id}')">
             <span class="g-help-tut-play">▶</span>
-            <span class="g-help-tut-icon">${t.icon}</span>
+            <span class="g-help-tut-icon">${t.icon||'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>'}</span>
             <span class="g-help-tut-title">${t.title}</span>
             <span class="g-help-tut-sub">${t.sub}</span>
             <span class="g-help-tut-meta">
-              <span class="g-help-tut-dur">${gHelpTutDuration(t.id)}</span>
+              <span class="g-help-tut-dur">${typeof TUTORIALS!=='undefined'&&TUTORIALS[t.id]?gHelpTutDuration(t.id):'Guia rapido'}</span>
               ${done.includes(t.id)?'<span class="g-help-tut-done">✓ visto</span>':''}
             </span>
           </button>`).join('')}
@@ -199,9 +296,35 @@ function gHelpRenderCatalog(query){
 
 /* ══ NAVEGAÇÃO POR ABAS ══ */
 
+function gHelpOpenItem(id){
+  const item=gHelpFindItem(id);
+  if(!item)return;
+  if(typeof TUTORIALS!=='undefined'&&TUTORIALS[id]){ gHelpPlay(id); return; }
+  const wrap=document.getElementById('g-help-tut-catalog');
+  if(!wrap||!item.body)return;
+  wrap.innerHTML=`<article class="g-help-topic" aria-labelledby="g-help-topic-title">
+    <button type="button" class="g-help-topic-back" onclick="gHelpRenderCatalog(gHelpTopicQuery)">Voltar aos resultados</button>
+    <span class="g-help-topic-eyebrow">Guia rapido</span>
+    <h3 id="g-help-topic-title" tabindex="-1">${item.title}</h3>
+    <p>${item.body}</p>
+  </article>`;
+  setTimeout(()=>document.getElementById('g-help-topic-title')?.focus(),0);
+}
+
+function gOpenHelpTopic(id,trigger){
+  if(!gHelpFindItem(id))return;
+  gOpenHelp(trigger);
+  gHelpSwitchTab('catalogo');
+  gHelpRenderCatalog('');
+  gHelpOpenItem(id);
+}
+
 function gHelpSwitchTab(tab){
   ['trilha','catalogo'].forEach(t=>{
-    document.getElementById('g-help-tab-'+t)?.classList.toggle('active',t===tab);
+    const tabEl=document.getElementById('g-help-tab-'+t);
+    tabEl?.classList.toggle('active',t===tab);
+    tabEl?.setAttribute('aria-selected',t===tab?'true':'false');
+    tabEl?.setAttribute('tabindex',t===tab?'0':'-1');
     document.getElementById('g-help-pane-'+t)?.classList.toggle('active',t===tab);
   });
   if(tab==='catalogo'){
@@ -215,17 +338,25 @@ function gHelpSwitchTab(tab){
 
 function gHelpPlay(id){
   gHelpMarkVisited();
-  gCloseHelp();
+  gCloseHelp({restoreFocus:false});
   setTimeout(()=>tutOpen(id), 300);
 }
-function gOpenHelp(){
+function gOpenHelp(trigger){
+  const modal=document.getElementById('g-help-modal');
+  if(!modal)return;
+  if(trigger instanceof HTMLElement)gHelpLastTrigger=trigger;
+  else if(document.activeElement instanceof HTMLElement)gHelpLastTrigger=document.activeElement;
   gHelpRenderTrail();
-  const savedTab=localStorage.getItem('yngs_help_active_tab')||'trilha';
+  let savedTab='trilha';
+  try{ savedTab=localStorage.getItem('yngs_help_active_tab')||'trilha'; }catch(e){}
   // Primeiro acesso sempre abre na trilha
   const tab=gHelpIsFirstVisit()?'trilha':savedTab;
   // Ativa a aba correta sem re-renderizar desnecessariamente
   ['trilha','catalogo'].forEach(t=>{
-    document.getElementById('g-help-tab-'+t)?.classList.toggle('active',t===tab);
+    const tabEl=document.getElementById('g-help-tab-'+t);
+    tabEl?.classList.toggle('active',t===tab);
+    tabEl?.setAttribute('aria-selected',t===tab?'true':'false');
+    tabEl?.setAttribute('tabindex',t===tab?'0':'-1');
     document.getElementById('g-help-pane-'+t)?.classList.toggle('active',t===tab);
   });
   if(tab==='catalogo'){
@@ -233,20 +364,38 @@ function gOpenHelp(){
     if(s) s.value='';
     gHelpRenderCatalog('');
   }
-  document.getElementById('g-help-modal').classList.add('open');
+  gHelpPreviousOverflow=document.body.style.overflow;
+  modal.classList.add('open');
   document.body.style.overflow='hidden';
+  gHelpSetTriggerState(true);
+  setTimeout(()=>document.getElementById('g-help-tab-'+tab)?.focus(),0);
 }
-function gCloseHelp(){
-  document.getElementById('g-help-modal').classList.remove('open');
-  document.body.style.overflow='';
+function gCloseHelp(opts){
+  const modal=document.getElementById('g-help-modal');
+  if(!modal||!modal.classList.contains('open'))return;
+  modal.classList.remove('open');
+  document.body.style.overflow=gHelpPreviousOverflow;
+  gHelpSetTriggerState(false);
+  if(!opts||opts.restoreFocus!==false){
+    const trigger=gHelpLastTrigger;
+    setTimeout(()=>{ if(trigger&&document.contains(trigger))trigger.focus(); },0);
+  }
 }
 function gHelpAction(action){
   const tutorialMap={iniciar:'primeira-arte',refazer:'editar-arte',formato:'qual-formato',marca:'regras-marca'};
   const tutId=tutorialMap[action];
-  if(tutId){ gCloseHelp(); setTimeout(()=>tutOpen(tutId),300); return; }
+  if(tutId){ gCloseHelp({restoreFocus:false}); setTimeout(()=>tutOpen(tutId),300); return; }
 }
 
-// Esc fecha o modal
 document.addEventListener('keydown',(e)=>{
-  if(e.key==='Escape'&&document.getElementById('g-help-modal')?.classList.contains('open')) gCloseHelp();
+  const modal=document.getElementById('g-help-modal');
+  if(!modal?.classList.contains('open'))return;
+  if(e.key==='Escape'){ e.preventDefault(); gCloseHelp(); return; }
+  if(e.key!=='Tab')return;
+  const focusables=gHelpFocusableElements();
+  if(!focusables.length){ e.preventDefault(); modal.querySelector('.g-help-box')?.focus(); return; }
+  const first=focusables[0];
+  const last=focusables[focusables.length-1];
+  if(e.shiftKey&&document.activeElement===first){ e.preventDefault(); last.focus(); }
+  else if(!e.shiftKey&&document.activeElement===last){ e.preventDefault(); first.focus(); }
 });

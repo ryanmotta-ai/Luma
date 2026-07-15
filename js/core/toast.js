@@ -5,7 +5,7 @@
  * Depende de: nada (usa apenas o DOM).
  */
 
-function gToast(msg, type){
+function gToast(msg, type, helpTopic){
   const container = document.getElementById('g-toast-container');
   if (!container) return;
   
@@ -19,13 +19,18 @@ function gToast(msg, type){
   
   item.textContent = msg;
   
-  if (type === 'error') {
+  if (type === 'error' && helpTopic) {
     const helpBtn = document.createElement('button');
     helpBtn.className = 'g-toast-help-btn';
     helpBtn.type = 'button';
     helpBtn.textContent = 'Como resolver? ❓';
+    helpBtn.textContent = 'Ver orientacao';
     helpBtn.onclick = function(e) {
       e.stopPropagation();
+      if (typeof gOpenHelpTopic === 'function') {
+        gOpenHelpTopic(helpTopic, helpBtn);
+        return;
+      }
       if (typeof gToggleHelpChat === 'function') {
         const win = document.getElementById('g-chat-window');
         if (win && !win.classList.contains('open')) {
