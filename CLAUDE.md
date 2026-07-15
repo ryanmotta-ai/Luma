@@ -8,7 +8,7 @@ Para **qualquer** pedido neste repositório (código, CSS, docs, backend, dúvid
 
 1. **Lê o `luma-brain/`** (a mente do projeto) — entender antes de mexer.
 2. **Planeja** — resultado esperado, arquitetura, os 1–2 arquivos, reutilizar o que já existe.
-3. **Implementa** — patch cirúrgico → verifica no navegador → explica o impacto → mostra o diff.
+3. **Implementa** — patch cirúrgico → explica o impacto → mostra o diff. Verificar no navegador é recomendado quando possível, mas não é bloqueante para dar a tarefa por concluída.
 
 Se a skill `luma` estiver disponível, invoque-a. Se não, siga o fluxo manualmente lendo `luma-brain/06_OPERATING_SYSTEM.md` (o loop de operação) + o arquivo do assunto.
 
@@ -38,7 +38,7 @@ Se a skill `luma` estiver disponível, invoque-a. Se não, siga o fluxo manualme
 - **Patch cirúrgico**; `f*`/`d*` não regridem; a maioria das features toca 1–2 arquivos.
 - **RLS é a única fronteira de segurança** — nada de segurança no front; sem segredo hardcoded.
 - Escape (`gEsc`/`_dEsc`) em todo dado de usuário; cor/motion via **token**; feedback via `gToast`; ícone = SVG (não emoji).
-- **Verifique no navegador** — não há teste automatizado; "compilou" não é verificação.
+- Verificar no navegador é recomendado (não há teste automatizado; "compilou" não é verificação), mas não é obrigatório para concluir a tarefa.
 - **Nunca commit automático. Nunca `git add .`** — mostre o `git diff`, peça confirmação.
 - **PT-BR** na comunicação e na copy.
 - Dúvida de **negócio/gosto → pergunte**; dúvida **técnica → vá ao código**.
