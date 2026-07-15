@@ -323,8 +323,10 @@ body.theme-light .layer-row.active .layer-label{color:#1a1a1a;font-weight:500}
 /* ── Drawer de Recursos (Biblioteca + Assets) ── */
 #d-resources-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:690}
 #d-resources-backdrop.open{display:block}
-#d-resources-drawer{position:fixed;top:0;left:0;bottom:0;width:330px;max-width:85vw;background:var(--d-dark);border-right:1px solid var(--d-border);z-index:700;display:flex;flex-direction:column;transform:translateX(-105%);transition:transform .2s ease;box-shadow:4px 0 24px rgba(0,0,0,.4)}
-#d-resources-drawer.open{transform:translateX(0)}
+/* A11Y (P0.1): gaveta fora da tela por translate continua no Tab/leitor de tela —
+   visibility:hidden fecha isso sem matar o deslize (some só ao fim da transição). */
+#d-resources-drawer{position:fixed;top:0;left:0;bottom:0;width:330px;max-width:85vw;background:var(--d-dark);border-right:1px solid var(--d-border);z-index:700;display:flex;flex-direction:column;transform:translateX(-105%);visibility:hidden;transition:transform .2s ease, visibility 0s linear .2s;box-shadow:4px 0 24px rgba(0,0,0,.4)}
+#d-resources-drawer.open{transform:translateX(0);visibility:visible;transition:transform .2s ease, visibility 0s}
 .d-res-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border-bottom:1px solid var(--d-border);flex-shrink:0}
 .d-res-tabs{display:flex;gap:4px}
 .d-res-tab{padding:6px 12px;background:transparent;border:none;border-radius:6px;font-size:11.5px;font-weight:600;color:var(--d-text3);cursor:pointer;font-family:'Roboto',sans-serif}
@@ -646,8 +648,12 @@ body.theme-light .field-chip.on span{color:var(--dm-orange-d)}
 .d-btn-sec:hover{background:var(--d-surf);color:var(--d-text)}
 
 /* MODAL */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:400;opacity:0;pointer-events:none;transition:opacity var(--dur-fast) var(--ease-out)}
-.modal-overlay.open{opacity:1;pointer-events:all}
+/* A11Y (P0.1): fechado NÃO pode existir para leitor de tela nem para o Tab. `opacity:0`
+   sozinho não tira da árvore de acessibilidade — o modal continuava focável (eram 76
+   elementos alcançáveis por Tab em modais invisíveis). `visibility:hidden` remove dos dois,
+   e o delay de 0s na saída preserva o fade (só some depois que a opacidade termina). */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:400;opacity:0;pointer-events:none;visibility:hidden;transition:opacity var(--dur-fast) var(--ease-out), visibility 0s linear var(--dur-fast)}
+.modal-overlay.open{opacity:1;pointer-events:all;visibility:visible;transition:opacity var(--dur-fast) var(--ease-out), visibility 0s}
 /* Caixa do modal: pop com mola na abertura (escala+sobe), some suave no fechamento.
    O overshoot vem da curva (--ease-spring-soft). */
 .modal{background:var(--d-dark);border:1px solid var(--d-border2);border-radius:10px;padding:24px;width:380px;display:flex;flex-direction:column;gap:16px;
@@ -655,6 +661,36 @@ body.theme-light .field-chip.on span{color:var(--dm-orange-d)}
   transition:transform var(--dur-base) var(--ease-spring-soft), opacity var(--dur-fast) var(--ease-out);will-change:transform,opacity}
 .modal-overlay.open .modal{transform:none;opacity:1}
 .modal.light{background:var(--white);border-color:var(--gray-mid)}
+
+/* ── Modal "d-modal-*" do Estúdio (Salvar Como / Exportar) ───────────────────
+   BUG ENCONTRADO (P0.1): o markup e o JS existiam, mas NENHUMA regra CSS casava
+   .d-modal-overlay / .d-modal / .d-modal-header / .d-modal-close (0 regras). Sem elas o
+   modal virava um bloco estático solto no fim da página (position:static, y≈900) e o
+   dOpenExportModal() era um no-op silencioso: a exportação em lote estava MORTA.
+   Aqui ele reusa o mesmo padrão do .modal da casa (backdrop + pop com mola + a11y). */
+.d-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:400;opacity:0;pointer-events:none;visibility:hidden;transition:opacity var(--dur-fast) var(--ease-out), visibility 0s linear var(--dur-fast)}
+.d-modal-overlay.open{opacity:1;pointer-events:all;visibility:visible;transition:opacity var(--dur-fast) var(--ease-out), visibility 0s}
+.d-modal{background:var(--d-dark);border:1px solid var(--d-border2);border-radius:var(--r);width:600px;max-width:94vw;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;
+  transform:scale(.94) translateY(10px);opacity:0;
+  transition:transform var(--dur-base) var(--ease-spring-soft), opacity var(--dur-fast) var(--ease-out);will-change:transform,opacity}
+.d-modal-overlay.open .d-modal{transform:none;opacity:1}
+.d-modal-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 24px;border-bottom:1px solid var(--d-border);flex-shrink:0}
+.d-modal-body{overflow-y:auto;flex:1;min-height:0}
+.d-modal-close{background:transparent;border:none;color:var(--d-text2);font-size:22px;line-height:1;cursor:pointer;width:32px;height:32px;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background var(--dur-micro) var(--ease-standard), color var(--dur-micro) var(--ease-standard)}
+.d-modal-close:hover{background:var(--d-surf2);color:var(--d-text)}
+/* Botões deste modal: também eram classes sem CSS (o .active do seletor de formato era
+   um no-op visual). Seguem o padrão da casa: CTA = fundo --dm-orange-d + branco (DS §8);
+   chip ativo = mesmo visual do filtro do histórico (fundo suave + borda laranja). */
+.dbtn-primary{background:var(--dm-orange-d);border:1px solid var(--dm-orange-d);color:var(--white);font-family:'Roboto',sans-serif;font-weight:600;font-size:13px;padding:7px 16px;border-radius:var(--r-sm);cursor:pointer;transition:filter var(--dur-micro) var(--ease-standard), transform var(--dur-micro) var(--ease-spring)}
+.dbtn-primary:hover{filter:brightness(1.08);transform:translateY(-1px)}
+.dbtn-primary:active{transform:translateY(0)}
+.dbtn-secondary{background:transparent;border:1px solid var(--d-border2);color:var(--d-text2);font-family:'Roboto',sans-serif;font-weight:600;font-size:13px;padding:7px 16px;border-radius:var(--r-sm);cursor:pointer;transition:background var(--dur-micro) var(--ease-standard), color var(--dur-micro) var(--ease-standard)}
+.dbtn-secondary:hover{background:var(--d-surf2);color:var(--d-text)}
+/* Vem DEPOIS de .dbtn-primary de propósito: o chip de formato usa as duas classes e
+   precisa vencer o fundo laranja do CTA (mesma especificidade → ordem decide). */
+.d-export-fmt-btn{background:var(--d-surf2);border:1px solid var(--d-border2);color:var(--d-text2)}
+.d-export-fmt-btn:hover{border-color:var(--dm-orange);color:var(--d-text);filter:none;transform:none}
+.d-export-fmt-btn.active{background:var(--dm-orange-bg);border-color:var(--dm-orange);color:var(--dm-red);filter:none;transform:none}
 .modal-title{font-family:'Roboto',sans-serif;font-weight:900;font-size:20px;letter-spacing:1.5px;color:var(--d-text)}
 .modal.light .modal-title{color:var(--text)}
 .modal-field{display:flex;flex-direction:column;gap:6px}

@@ -148,11 +148,9 @@ function gProfileHandleUpload(input) {
 
   // Validação simples de tamanho (máximo 1MB para localStorage)
   if (file.size > 1024 * 1024) {
-    if (typeof gToast === 'function') {
-      gToast('⚠️ A foto deve ser menor do que 1MB.');
-    } else {
-      alert('A foto deve ser menor do que 1MB.');
-    }
+    // Feedback é SEMPRE gToast (regra da casa). O alert() daqui era fallback morto —
+    // toast.js carrega antes deste arquivo, então gToast nunca falta. Erro diz o que fazer.
+    gToast('⚠ Foto acima de 1MB — escolha uma imagem menor.', 'error');
     return;
   }
 

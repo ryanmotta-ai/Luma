@@ -267,8 +267,11 @@ input:focus:-webkit-autofill {
 
     <!-- Perfil de Usuário Unificado -->
     <div class="top-profile-badge" id="topbar-user-profile" onclick="if(typeof gOpenUserProfileModal === 'function') gOpenUserProfileModal()" title="Configurações de Perfil">
-      <span class="admin-badge" id="topbar-user-role">ADMIN</span>
-      <div class="top-av" id="topbar-user-av">RY</div>
+      <!-- Vazio de propósito: gUpdateUserTopbar() preenche com o papel real (GESTÃO /
+           EQUIPE DM / FRANQUEADO). Um placeholder fixo piscava "ADMIN" — palavra que nem
+           existe no vocabulário de papéis do produto (04_DESIGN_SYSTEM §8). -->
+      <span class="admin-badge" id="topbar-user-role"></span>
+      <div class="top-av" id="topbar-user-av"></div>
       <span class="top-name" id="topbar-user-name">Ryan</span>
     </div>
 
@@ -320,10 +323,11 @@ input:focus:-webkit-autofill {
     <div class="prof-sidebar">
       <div class="prof-sidebar-user">
         <div class="prof-sidebar-av-wrap">
-          <div class="prof-sidebar-av" id="prof-sidebar-avatar">RY</div>
+          <div class="prof-sidebar-av" id="prof-sidebar-avatar"></div>
         </div>
-        <div class="prof-sidebar-name" id="prof-sidebar-name">Ryan</div>
-        <span class="admin-badge" id="prof-sidebar-role" style="font-size: 9px; padding: 2px 6px;">ADMIN</span>
+        <div class="prof-sidebar-name" id="prof-sidebar-name"></div>
+        <!-- Vazio de propósito: preenchido com o papel real ao abrir o perfil (ver topbar). -->
+        <span class="admin-badge" id="prof-sidebar-role" style="font-size: 9px; padding: 2px 6px;"></span>
       </div>
       
       <div class="prof-nav">
@@ -3110,44 +3114,44 @@ input:focus:-webkit-autofill {
 <div id="d-export-modal" class="d-modal-overlay">
   <div class="d-modal" style="max-width: 600px;">
     <div class="d-modal-header">
-      <h2 style="margin:0; font-size: 1.25rem; color: #fff; display:flex; align-items:center; gap:8px;">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FF9000" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <h2 class="modal-title" style="margin:0; font-size:20px; color:var(--d-text); display:flex; align-items:center; gap:8px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--dm-orange-d)"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Salvar Como / Exportar
       </h2>
-      <button class="d-modal-close" onclick="document.getElementById('d-export-modal').classList.remove('open')">×</button>
+      <button class="d-modal-close" aria-label="Fechar" onclick="document.getElementById('d-export-modal').classList.remove('open')">×</button>
     </div>
-    
-    <div class="d-modal-body" style="padding: 24px; color: #e0e0e0;">
-      
+
+    <div class="d-modal-body" style="padding: 24px; color: var(--d-text);">
+
       <!-- Opções Gerais (Formato, etc) -->
       <div style="display:flex; gap:20px; margin-bottom:20px;">
         <div style="flex:1;">
-          <label style="display:block; font-size:12px; color:#aaa; margin-bottom:8px; text-transform:uppercase; letter-spacing:1px;">Formato</label>
+          <label style="display:block; font-size:12px; color:var(--d-text2); margin-bottom:8px; text-transform:uppercase; letter-spacing:1px;">Formato</label>
           <div style="display:flex; gap:10px;">
-            <button class="dbtn-primary d-export-fmt-btn active" data-fmt="image/png" onclick="dSetExportFmt('image/png', this)" style="flex:1; background:#2A2A2A; color:#fff; border:1px solid #444;">PNG</button>
-            <button class="dbtn-primary d-export-fmt-btn" data-fmt="image/jpeg" onclick="dSetExportFmt('image/jpeg', this)" style="flex:1; background:#2A2A2A; color:#fff; border:1px solid #444;">JPG</button>
-            <button class="dbtn-primary d-export-fmt-btn" data-fmt="svg" onclick="dSetExportFmt('svg', this)" style="flex:1; background:#2A2A2A; color:#fff; border:1px solid #444;">SVG</button>
+            <button class="dbtn-primary d-export-fmt-btn active" data-fmt="image/png" onclick="dSetExportFmt('image/png', this)" style="flex:1;">PNG</button>
+            <button class="dbtn-primary d-export-fmt-btn" data-fmt="image/jpeg" onclick="dSetExportFmt('image/jpeg', this)" style="flex:1;">JPG</button>
+            <button class="dbtn-primary d-export-fmt-btn" data-fmt="svg" onclick="dSetExportFmt('svg', this)" style="flex:1;">SVG</button>
           </div>
         </div>
-        
+
         <div id="d-export-scale-group" style="flex:1;">
-          <label style="display:block; font-size:12px; color:#aaa; margin-bottom:8px; text-transform:uppercase; letter-spacing:1px;">Escala / Qualidade</label>
-          <select id="d-export-scale" style="width:100%; padding:10px 12px; background:#1A1A1A; border:1px solid #333; color:#fff; border-radius:8px; outline:none; font-family:'Roboto',sans-serif;">
+          <label style="display:block; font-size:12px; color:var(--d-text2); margin-bottom:8px; text-transform:uppercase; letter-spacing:1px;">Escala / Qualidade</label>
+          <select id="d-export-scale" style="width:100%; padding:10px 12px; background:var(--d-surf); border:1px solid var(--d-border2); color:var(--d-text); border-radius:var(--r-sm); outline:none; font-family:'Roboto',sans-serif;">
             <option value="1">1x (Original)</option>
             <option value="2" selected>2x (Alta resolução)</option>
             <option value="3">3x (Super resolução)</option>
           </select>
         </div>
       </div>
-      
+
       <!-- Seleção de Pranchetas -->
-      <div style="background: #1A1A1A; border: 1px solid #333; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column;">
-        <div style="padding: 12px 16px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; background: #222;">
-          <label style="font-size: 13px; font-weight: 600; color: #fff; margin: 0; display:flex; align-items:center; gap:8px; cursor:pointer;">
-            <input type="checkbox" id="d-export-check-all" onchange="dToggleAllExportArtboards(this)" checked style="accent-color: #FF9000; width: 16px; height: 16px;">
+      <div style="background: var(--d-bg); border: 1px solid var(--d-border); border-radius: var(--r); overflow: hidden; display: flex; flex-direction: column;">
+        <div style="padding: 12px 16px; border-bottom: 1px solid var(--d-border); display: flex; justify-content: space-between; align-items: center; background: var(--d-surf);">
+          <label style="font-size: 13px; font-weight: 600; color: var(--d-text); margin: 0; display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" id="d-export-check-all" onchange="dToggleAllExportArtboards(this)" checked style="accent-color: var(--dm-orange); width: 16px; height: 16px;">
             Selecionar Todas as Pranchetas
           </label>
-          <span id="d-export-count" style="font-size: 12px; color: #aaa;">0 pranchetas</span>
+          <span id="d-export-count" style="font-size: 12px; color: var(--d-text2);">0 pranchetas</span>
         </div>
         <div id="d-export-artboards-list" style="max-height: 250px; overflow-y: auto; padding: 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px;">
           <!-- Items inseridos por JS -->
@@ -3155,9 +3159,9 @@ input:focus:-webkit-autofill {
       </div>
 
     </div>
-    <div class="d-modal-footer" style="padding: 16px 24px; border-top: 1px solid #333; display: flex; justify-content: flex-end; gap: 12px; background: #222;">
+    <div class="d-modal-footer" style="padding: 16px 24px; border-top: 1px solid var(--d-border); display: flex; justify-content: flex-end; gap: 12px; background: var(--d-surf);">
       <button class="dbtn-secondary" onclick="document.getElementById('d-export-modal').classList.remove('open')">Cancelar</button>
-      <button class="dbtn-primary" onclick="dConfirmExport()" style="background:#FF9000; color:#000; display:flex; align-items:center; gap:6px;">
+      <button class="dbtn-primary d-export-go" onclick="dConfirmExport()" style="display:flex; align-items:center; gap:6px;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Baixar Selecionadas
       </button>

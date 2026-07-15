@@ -83,6 +83,11 @@
     animation-duration:.01ms!important;
     animation-iteration-count:1!important;
     transition-duration:.01ms!important;
+    /* Sem isto, a guarda zerava a DURAÇÃO mas mantinha o DELAY: quem tem transição
+       atrasada (ex.: `visibility 0s linear var(--dur-fast)` dos overlays) continuava
+       esperando. Movimento reduzido tem que ser instantâneo, não só rápido. */
+    animation-delay:0s!important;
+    transition-delay:0s!important;
   }
 }
 
