@@ -68,10 +68,19 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
 - [ ] Sync grava `template_id: null` e devolve `materialId: null` (`history.js:61,83`) — "Editar" em outro device perde o vínculo com o material. Persistir o template_id.
 - [ ] `_sig` guarda `JSON.stringify(dados)` com base64 de fotos dentro (`history.js:112`) — acelera estouro de quota.
 
-**Segurança (XSS residual) — P0:**
-- [ ] Linter do designer: `layerName`/`desc` em `innerHTML` sem escape (`js/designer/linter.js:157-160`) — nome de camada vindo de PSD/banco executa script ao abrir o painel ou o checklist de publicação.
-- [ ] Hero da home: `cover` interpolado cru em `style` (`catalog.js:696-698`); `campColor` no histórico (`catalog.js:99`); `label` de campo sem `gEsc` em `fEditFromHist` (`catalog.js:192,228`); escape parcial em `publish.js:249`; `cover`/`color` crus em `templates.js:624-625`.
-- [ ] Auth: `gLoadProfile` engole erro e rebaixa gestor a `franqueado` em silêncio (`auth.js:56-64`); `ativo:false` não é lido no front; `gDoLogin` sem try/catch trava o botão em "Autenticando…" (`auth.js:179`).
+**Segurança (XSS residual) — P0 — ✅ FEITO (commits `81c0f0f`, `0cde200`):**
+- [x] Linter do designer: `layerName`/`desc` escapados com `_dEsc` (`linter.js:157-160`).
+- [x] Hero da home (`cover`/`color`, `catalog.js`), `campColor` do histórico, `label` em `fEditFromHist`, nome+cor em `publish.js:245-249`, `cover`/`color` em `templates.js:624`. Padrão `%27` no `'` que fecharia `url('…')`.
+
+**Auth (robustez) — parcial:**
+- [x] `gDoLogin` travava o botão em "Autenticando…" numa falha de rede — `gLogin` agora captura a rejeição e sempre devolve resultado (commit `67ac2b7`).
+- [ ] `gLoadProfile` engole erro e rebaixa gestor a `franqueado` em silêncio (`auth.js:44-52`). *Nota: falha para MENOS privilégio (a RLS ainda governa o dado), então é seguro — o problema é ser silencioso. Distinguir "sem rede" de "deslogado" precisa de teste com sessão real → deixado p/ verificação no navegador.*
+- [ ] `ativo:false` não é lido no front (`gLoadProfile` não busca a coluna) — bloquear login de usuário desativado muda o fluxo de login e precisa de conta desativada real p/ testar → verificação no navegador.
+
+> ⚠️ **As frentes de Sync e Histórico acima seguem abertas de propósito.** Elas mexem na
+> camada que perde dados e só se validam com navegador + backend + (no sync) dois devices/abas.
+> Corrigir "no escuro" arrisca introduzir a própria perda que se quer evitar. Fazer em par com
+> o Ryan, uma de cada vez, verificando cada uma no navegador antes de seguir.
 
 ## 5. Fase 2 — Catálogo 100% real (autonomia do designer)
 
