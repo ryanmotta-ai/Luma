@@ -96,7 +96,7 @@ function fRenderHist(){
       : `<span class="hist-badge-st baixada">baixada</span>`;
     const dateStr = fFormatHistDate(h.ts);
     return `<div class="hist-card" data-status="${h.status||'rascunho'}">
-      <div class="hist-thumb" style="background:${h.campColor||'var(--dm-orange)'}">${gEsc((h.campName||'').toUpperCase().slice(0,8))}</div>
+      <div class="hist-thumb" style="background:${gEsc(h.campColor||'var(--dm-orange)')}">${gEsc((h.campName||'').toUpperCase().slice(0,8))}</div>
       <div class="hist-info">
         <div class="hist-name">${h.materialName ? gEsc(h.materialName) : (gEsc(h.prod) + ' · ' + gEsc(h.fmtName))}</div>
         <div class="hist-meta">${statusBadge}<span class="hist-meta-sep">·</span>${gEsc(h.campName)}<span class="hist-meta-sep">·</span>${gEsc(h.fmtName)}<span class="hist-meta-sep">·</span>${dateStr}</div>
@@ -189,9 +189,9 @@ async function fEditFromHist(id){
       const label = vDef ? vDef.label : v.replace(/_/g,' ');
       const isImage = (vDef ? vDef.type==='image' : false) || imgVars.has(v);
       if(isImage){
-        perguntas.push({id:v, texto:`Envie a <strong>${label.toLowerCase()}</strong>`, sugestoes:[], isImage:true, label, maxLen:0});
+        perguntas.push({id:v, texto:`Envie a <strong>${gEsc(label.toLowerCase())}</strong>`, sugestoes:[], isImage:true, label, maxLen:0});
       } else {
-        perguntas.push({id:v, texto:`Qual é o <strong>${label.toLowerCase()}</strong>?`, sugestoes:fGetSuggestionsForVar(v, c), maxLen:perm?.maxLen||32, label});
+        perguntas.push({id:v, texto:`Qual é o <strong>${gEsc(label.toLowerCase())}</strong>?`, sugestoes:fGetSuggestionsForVar(v, c), maxLen:perm?.maxLen||32, label});
       }
     });
     fState.camp = {...c, perguntas, materialName: material.name};
@@ -225,8 +225,8 @@ async function fEditFromHist(id){
       const isImg = typeof val==='string' && val.startsWith('data:image');
       const vDef = (typeof dVars!=='undefined' && dVars) ? dVars.find(x=>x.name===k) : null;
       const label = (vDef && vDef.label) || fbLabels[k] || k.replace(/_/g,' ');
-      if(isImg) return {id:k, texto:`Envie a <strong>${label.toLowerCase()}</strong>`, sugestoes:[], isImage:true, label, maxLen:0};
-      return {id:k, texto:`Qual é o <strong>${label.toLowerCase()}</strong>?`, sugestoes:fGetSuggestionsForVar(k, c), maxLen:32, label};
+      if(isImg) return {id:k, texto:`Envie a <strong>${gEsc(label.toLowerCase())}</strong>`, sugestoes:[], isImage:true, label, maxLen:0};
+      return {id:k, texto:`Qual é o <strong>${gEsc(label.toLowerCase())}</strong>?`, sugestoes:fGetSuggestionsForVar(k, c), maxLen:32, label};
     });
   } else {
     fbPerguntas = c.perguntas; // sem dados salvos → usa as perguntas da campanha
@@ -692,9 +692,11 @@ function _fHomeHeroEl(rec){
   const cover=fCampCover(rec)||_fCampThumbURL(rec.id);
   const mats=(typeof fGetMaterialsForCamp==='function')?fGetMaterialsForCamp(rec.id):[];
   const matLabel=mats.length?`${mats.length} material${mats.length!==1?'is':''}`:'Materiais em breve';
+  const coverSafe=gEsc(cover).replace(/'/g,'%27');   // %27: neutraliza o ' que fecharia o url('…')
+  const colorSafe=gEsc(rec.color||'#FF9000');
   const coverStyle=cover
-    ?`background-color:${rec.color};background-image:linear-gradient(180deg,rgba(0,0,0,.30),rgba(0,0,0,0) 35%,rgba(0,0,0,0) 65%,rgba(0,0,0,.38)),url('${cover}');background-size:cover;background-position:center`
-    :`background:linear-gradient(155deg,${rec.color},rgba(0,0,0,.45)),${rec.color}`;
+    ?`background-color:${colorSafe};background-image:linear-gradient(180deg,rgba(0,0,0,.30),rgba(0,0,0,0) 35%,rgba(0,0,0,0) 65%,rgba(0,0,0,.38)),url('${coverSafe}');background-size:cover;background-position:center`
+    :`background:linear-gradient(155deg,${colorSafe},rgba(0,0,0,.45)),${colorSafe}`;
   const heroThumbAttr=(!cover&&_fCampThumbNeeded(rec))?` data-thumb-camp="${rec.id}"`:'';
   const _flame='<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:-1px"><path d="M12 2s5 4 5 9a5 5 0 0 1-10 0c0-1 .3-2 .8-2.8C8 10 9 12 10 12c0-3 2-7 2-10z"/></svg>';
   const _star='<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:-1.5px"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9"/></svg>';
