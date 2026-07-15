@@ -270,8 +270,19 @@ function dDuplicateLayer(){
   const clone=JSON.parse(JSON.stringify(l));
   clone.id='l-'+(++dLyrCnt);
   clone.name=l.name+' cópia';
-  clone.x=l.x+20;clone.y=l.y+20;
+  if(typeof l.x==='number'){clone.x=l.x+20;clone.y=l.y+20;} // grupo pode não ter x/y (evita NaN)
   dLayers.push(clone);
+  // Grupo: duplica também os filhos reapontando pro novo contêiner —
+  // sem isso o Ctrl+D criava um grupo VAZIO (os filhos ficavam só no original).
+  if(l.type==='group'){
+    dLayers.filter(x=>x.parentId===l.id).forEach(ch=>{
+      const c=JSON.parse(JSON.stringify(ch));
+      c.id='l-'+(++dLyrCnt);
+      c.parentId=clone.id;
+      c.x=(ch.x||0)+20;c.y=(ch.y||0)+20;
+      dLayers.push(c);
+    });
+  }
   dRenderCanvas();dRenderLayersList();dStats();dMarkUnsaved();
   dSelLayer(clone.id);
   setTimeout(()=>dFlashLayer(clone.id),50);

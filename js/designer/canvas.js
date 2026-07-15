@@ -349,6 +349,9 @@ function dSetTool(t){
   dShowBrushBar(t);
   dEnsurePaintCanvas();
   dSyncPaintPointer();
+  // A régua promete persistir "até Esc ou troca de ferramenta" — cumpre a segunda parte
+  // (dRulerClear é no-op sem medição ativa).
+  if(t!=='ruler' && typeof dRulerClear==='function') dRulerClear();
   if(typeof dRenderMeasureOverlay==='function') dRenderMeasureOverlay();
 }
 
@@ -1123,6 +1126,7 @@ function dRenderCanvas(){
     }
     el.addEventListener('mousedown',e=>{
       if(e.button && e.button!==0) return; // botão direito/meio → deixa o contextmenu agir, sem iniciar drag
+      if(dTool==='hand')return; // deixa borbulhar pro pan do wrapper — senão a Mão não move quando o arrasto começa sobre uma camada (ex.: Fundo)
       e.stopPropagation();
       if(dTool==='obj-select'){const _oFr=document.getElementById('d-canvas-frame');if(_oFr&&typeof dObjSelectStart==='function')dObjSelectStart(e,_oFr);return;}
       if(dTool==='quick-select'||dTool==='magic-wand'){_dAdvSelFromEvent(e);return;}

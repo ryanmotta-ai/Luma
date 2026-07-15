@@ -939,7 +939,12 @@ function dStats(){}
 let dClipboard=null; // null | { layers:[...] }
 function dCopy(){
   if(!dSelId && !dMultiSel.length)return;
-  const ids = dMultiSel.length ? dMultiSel : [dSelId];
+  const ids = dMultiSel.length ? [...dMultiSel] : [dSelId];
+  // Grupo copiado leva os filhos junto — antes copiava só o contêiner (colava grupo vazio).
+  ids.slice().forEach(id=>{
+    const g=dLayers.find(x=>x.id===id);
+    if(g&&g.type==='group')dLayers.forEach(ch=>{if(ch.parentId===id&&!ids.includes(ch.id))ids.push(ch.id);});
+  });
   const layers = ids.map(id=>{const l=dLayers.find(x=>x.id===id);return l?JSON.parse(JSON.stringify(l)):null;}).filter(Boolean);
   if(!layers.length)return;
   dClipboard={layers};
@@ -950,14 +955,21 @@ function dPaste(samePlace){
   if(!dClipboard || !dClipboard.layers.length)return;
   dHistoryPush();
   const newIds=[];
+  const idMap={}; // id original → id do clone (p/ religar filhos ao grupo CLONADO)
+  const clones=[];
   dClipboard.layers.forEach(orig=>{
     const nl=JSON.parse(JSON.stringify(orig));
     nl.id='l-'+(++dLyrCnt); // mesma convenção de id do resto do designer (string)
     nl.name=orig.name+' cópia';
     if(!samePlace){nl.x=(orig.x||0)+10;nl.y=(orig.y||0)+10;}
+    idMap[orig.id]=nl.id;
+    clones.push(nl);
     dLayers.push(nl);
     newIds.push(nl.id);
   });
+  // Se o grupo veio junto na cópia, os filhos clonados apontam pro grupo novo;
+  // se só os filhos foram copiados, mantêm o parentId original (colam no mesmo grupo).
+  clones.forEach(nl=>{ if(nl.parentId && idMap[nl.parentId]) nl.parentId=idMap[nl.parentId]; });
   dSelId=newIds[0];
   dMultiSel = newIds.length>1 ? newIds : [];
   dRenderCanvas();dRenderLayersList();dStats();dMarkUnsaved();
@@ -1082,15 +1094,20 @@ document.addEventListener('keydown', e => {
 
     // Ctrl+C / Ctrl+V — copiar/colar layers (só no canvas, nunca dentro de campos de texto)
     if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) { e.preventDefault(); dCopy(); return; }
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) { e.preventDefault(); dPaste(e.altKey || e.shiftKey); return; } // Alt/Shift = colar no mesmo lugar
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) { e.preventDefault(); dPaste(e.shiftKey); return; } // Shift = colar no mesmo lugar (Alt é colar ESTILO, interceptado acima)
     if (e.ctrlKey || e.metaKey || e.altKey) return; // outros combos com modificador NÃO disparam atalhos de ferramenta
 
     if (e.key === 'Escape') { dCloseVarModal(); dSetTool('select'); }
-    if ((e.key === 'Delete' || e.key === 'Backspace') && dTool !== 'brush' && dTool !== 'eraser') dDeleteLayer();
-    if (e.key === 'Delete' && (dTool === 'brush' || dTool === 'eraser')) dClearPaint();
+    // Del respeita a multi-seleção (antes só a camada primária caía) e, com QUALQUER
+    // ferramenta de pintura ativa, limpa a pintura em vez de apagar a camada selecionada.
+    const _paintTools = ['brush', 'eraser', 'smudge', 'blur', 'sharpen', 'bg-eraser'];
+    if ((e.key === 'Delete' || e.key === 'Backspace') && !_paintTools.includes(dTool)) {
+      if (typeof dDeleteSelectedLayer === 'function') dDeleteSelectedLayer(); else dDeleteLayer();
+    }
+    if (e.key === 'Delete' && _paintTools.includes(dTool)) dClearPaint();
     if (e.key === 'Escape') { dStampSource = null; if(typeof dStampUpdateStatus==='function') dStampUpdateStatus(); } // Esc limpa stamp source
     // [ e ] ajustam o tamanho do pincel (Shift = passo 10) quando ferramenta de pintura ativa
-    if ((e.key === '[' || e.key === ']') && ['brush','eraser','smudge','blur','sharpen'].includes(dTool) && typeof dBrushNudgeSize === 'function') {
+    if ((e.key === '[' || e.key === ']') && ['brush','eraser','smudge','blur','sharpen','bg-eraser'].includes(dTool) && typeof dBrushNudgeSize === 'function') {
       e.preventDefault(); dBrushNudgeSize(e.key === ']' ? (e.shiftKey?10:1) : (e.shiftKey?-10:-1)); return;
     }
 
@@ -1315,12 +1332,17 @@ document.addEventListener('keydown', e => {
       if (typeof dHistoryPushDebounced === 'function') dHistoryPushDebounced();
       else if (typeof dHistoryPush === 'function') dHistoryPush();
       const step = e.shiftKey ? 10 : 1;
-      if (e.key === 'ArrowUp') l.y -= step;
-      if (e.key === 'ArrowDown') l.y += step;
-      if (e.key === 'ArrowLeft') l.x -= step;
-      if (e.key === 'ArrowRight') l.x += step;
+      const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
+      const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
+      // Grupo move pelos filhos (o contêiner não tem x/y — antes virava NaN e nada andava);
+      // multi-seleção anda junta, igual ao arrasto com o mouse.
+      let targets;
+      if (l.type === 'group') targets = dLayers.filter(x => x.parentId === l.id);
+      else if (dMultiSel.length > 1 && dMultiSel.includes(l.id)) targets = dLayers.filter(x => dMultiSel.includes(x.id));
+      else targets = [l];
+      targets.forEach(t => { if (typeof t.x === 'number') { t.x += dx; t.y += dy; } });
       dRenderCanvas();
-      if (document.getElementById('dp-x')) { document.getElementById('dp-x').value = l.x; document.getElementById('dp-y').value = l.y; }
+      if (typeof l.x === 'number' && document.getElementById('dp-x')) { document.getElementById('dp-x').value = l.x; document.getElementById('dp-y').value = l.y; }
       dMarkUnsaved();
     }
   }
