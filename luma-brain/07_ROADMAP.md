@@ -53,20 +53,20 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
 *A promessa "um template, muitas cidades" morre se o template evapora. ~1–2 semanas.*
 
 **Sync do designer (`js/designer/layers.js`) — P0:**
-- [ ] `_dPushFoldersNow` early-return sem backend/admin **não marca `_syncPending`** (`layers.js:2817`) → edição offline é descartada pelo pull do boot ("banco manda", `layers.js:2955`). Marcar pendência sempre que o push não rodar.
-- [ ] Exceção no meio do push cai em catch silencioso e os templates não visitados ficam sem `_syncPending` (`layers.js:2860`).
-- [ ] Debounce de 1,2s + `dDirty` zerado na hora (`publish.js:532`) = fechar a aba logo após salvar perde o push sem acionar o `beforeunload`. Flush do push pendente no `beforeunload`.
-- [ ] Push concorrente sem lock (badge chama `_dPushFoldersNow()` direto, `layers.js:2881`) e upsert last-write-wins sem versão — mínimo p/ v1: lock simples + `updated_at` com aviso de conflito.
-- [ ] Boot race: pull substitui `dFolders` e o template aberto com id local fica órfão — `dSave` grava em lugar nenhum (`layers.js:2717`).
-- [ ] Deleções fire-and-forget que "ressuscitam" itens se falharem (`templates.js:736-744`, `layers.js:2038`, `fonts.js:82`, `library.js:233,491`) — fila de deleção pendente.
-- [ ] `_dUuid` fallback não gera UUID válido (`layers.js:2814`) → upsert falha pra sempre em silêncio.
-- [ ] Indicador "Salvo na nuvem" mente em modo local (`publish.js:531`) — só mostrar quando o push confirmou.
+- [x] `_dUuid` fallback não gerava UUID válido → upsert falhava pra sempre fora de contexto seguro. Novo `gUuid()` em `00-config.js` (commit `21a0959`).
+- [x] Indicador "Salvo na nuvem" mentia em modo local → "Salvo neste aparelho" (commit `18f5eed`).
+- [ ] `_dPushFoldersNow` early-return sem backend/admin **não marca `_syncPending`** (`layers.js:2817`) → edição offline é descartada pelo pull do boot. ⚠ **navegador+backend**
+- [ ] Exceção no meio do push cai em catch silencioso e os templates não visitados ficam sem `_syncPending` (`layers.js:2860`). ⚠ **navegador+backend**
+- [ ] Debounce de 1,2s + `dDirty` zerado na hora (`publish.js:532`) = fechar a aba logo após salvar perde o push. Flush no `beforeunload`. ⚠ **navegador**
+- [ ] Push concorrente sem lock (`layers.js:2881`) e upsert last-write-wins sem versão — lock + `updated_at` com aviso de conflito. ⚠ **navegador+backend, 2 abas**
+- [ ] Boot race: pull substitui `dFolders` e o template aberto com id local fica órfão (`layers.js:2717`). ⚠ **navegador+backend**
+- [ ] Deleções fire-and-forget que "ressuscitam" itens se falharem (`templates.js:736-744`, `layers.js:2038`, `fonts.js:82`, `library.js:233,491`) — fila de deleção pendente. ⚠ **navegador+backend**
 
 **Histórico do franqueado (`js/franqueado/history.js`) — P0:**
-- [ ] `fPushArtesToBackend` regrava o localStorage com snapshot velho após `await`s — arte criada durante o push é perdida (`history.js:40-70`). Reler antes de gravar + lock.
-- [ ] `fSaveHist` dispara push sem `.catch()` (`history.js:19`).
-- [ ] Sync grava `template_id: null` e devolve `materialId: null` (`history.js:61,83`) — "Editar" em outro device perde o vínculo com o material. Persistir o template_id.
-- [ ] `_sig` guarda `JSON.stringify(dados)` com base64 de fotos dentro (`history.js:112`) — acelera estouro de quota.
+- [x] `fSaveHist` disparava push sem `.catch()` → agora tratado (commit `b7f4013`).
+- [x] `_sig` guardava base64 de fotos (MB por entrada) → agora só o comprimento (commit `b7f4013`).
+- [ ] `fPushArtesToBackend` regrava o localStorage com snapshot velho após `await`s — arte criada durante o push é perdida (`history.js:40-70`). Reler antes de gravar + lock. ⚠ **navegador+backend**
+- [ ] Sync grava `template_id: null` e devolve `materialId: null` (`history.js:61,83`) — "Editar" em outro device perde o vínculo com o material. Persistir o template_id (precisa de coluna/uso no backend). ⚠ **navegador+backend**
 
 **Segurança (XSS residual) — P0 — ✅ FEITO (commits `81c0f0f`, `0cde200`):**
 - [x] Linter do designer: `layerName`/`desc` escapados com `_dEsc` (`linter.js:157-160`).
