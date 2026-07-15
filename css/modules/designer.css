@@ -125,6 +125,23 @@
   z-index:9000;
   border-radius:1px;
 }
+/* Badge de dimensão ao vivo durante o desenho de forma (W×H / comprimento da linha).
+   Vive no #d-workspace (fora do transform:scale do frame) para a fonte não distorcer no zoom.
+   CTA laranja-escuro + branco = par de contraste aprovado do DS (§8). */
+#d-draw-dim{
+  position:absolute;
+  z-index:9001;
+  pointer-events:none;
+  display:none;
+  background:var(--dm-orange-d);
+  color:var(--white);
+  font:600 11px/1 'Roboto',sans-serif;
+  letter-spacing:.02em;
+  padding:4px 7px;
+  border-radius:var(--r-sm);
+  box-shadow:0 2px 8px rgba(0,0,0,.45);
+  white-space:nowrap;
+}
 
 /* ── HANDLES DE RESIZE DO ARTBOARD ── */
 .ab-rh{

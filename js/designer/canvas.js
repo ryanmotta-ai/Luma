@@ -388,6 +388,22 @@ function dEnsureMarqueeEl(){
   return el;
 }
 
+// Badge de dimensão ao vivo do desenho de forma. Ancorado no #d-workspace (NÃO no frame),
+// porque o frame tem transform:scale do zoom — dentro dele a fonte do badge distorceria.
+function dEnsureDrawDimEl(){
+  const ws=document.getElementById('d-workspace');
+  if(!ws)return null;
+  let el=document.getElementById('d-draw-dim');
+  if(!el || el.parentElement!==ws){
+    if(el)el.remove();
+    el=document.createElement('div');
+    el.id='d-draw-dim';
+    el.setAttribute('aria-hidden','true');
+    ws.appendChild(el);
+  }
+  return el;
+}
+
 // Anexa o mousedown do marquee no frame uma única vez (o frame persiste entre renders).
 function dAttachMarquee(){
   const frame=document.getElementById('d-canvas-frame');
@@ -518,7 +534,9 @@ function dStartDrawShape(e) {
     el.style.width='0px';el.style.height='0px';
     el.style.display='block';
     el.style.borderStyle='solid';
+    el.style.borderWidth='2px';
     el.style.borderColor='var(--dm-orange)';
+    el.style.background='rgba(255,144,0,0.12)';
   }
   document.addEventListener('mousemove', dUpdateDrawShape);
   document.addEventListener('mouseup', dEndDrawShape);
@@ -547,6 +565,23 @@ function dUpdateDrawShape(e) {
 
   const el=document.getElementById('d-marquee');
   if(el){el.style.left=left+'px';el.style.top=top+'px';el.style.width=w+'px';el.style.height=h+'px';}
+
+  // Badge de dimensão ao vivo — em px de design (o mesmo espaço de w/h), seguindo o cursor.
+  // Linha mostra comprimento; demais formas mostram L×A.
+  const badge=dEnsureDrawDimEl();
+  if(badge){
+    const ws=document.getElementById('d-workspace');
+    const wsRect=ws.getBoundingClientRect();
+    if(dDrawShapeState.tool==='line'){
+      const len=Math.round(Math.hypot(x-dDrawShapeState.startX, y-dDrawShapeState.startY));
+      badge.textContent=len+' px';
+    }else{
+      badge.textContent=Math.round(w)+' × '+Math.round(h);
+    }
+    badge.style.left=(e.clientX-wsRect.left+14)+'px';
+    badge.style.top=(e.clientY-wsRect.top+16)+'px';
+    badge.style.display='block';
+  }
 }
 
 function dEndDrawShape(e) {
@@ -576,7 +611,9 @@ function dEndDrawShape(e) {
   const startX = dDrawShapeState.startX, startY = dDrawShapeState.startY; // capturar ANTES de anular
   dDrawShapeState = null;
   const el=document.getElementById('d-marquee');
-  if(el) { el.style.display='none'; el.style.borderStyle=''; el.style.borderColor=''; }
+  if(el) { el.style.display='none'; el.style.borderStyle=''; el.style.borderWidth=''; el.style.borderColor=''; el.style.background=''; }
+  const badge=document.getElementById('d-draw-dim');
+  if(badge) badge.style.display='none';
 
   if (w < 10 || h < 10) {
     // Clique simples (sem arrasto): cria no ponto do clique com tamanho default
