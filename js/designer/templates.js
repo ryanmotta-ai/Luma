@@ -620,9 +620,11 @@ function dRenderFolders(){
     const cover=(f.cover&&f.cover!=='__local__')?f.cover:'';
     const total=f.templates.length;
     const pub=f.templates.filter(t=>t.publishMeta&&t.publishMeta.publicado).length;
+    const coverSafe=gEsc(cover).replace(/'/g,'%27');   // %27: neutraliza o ' que fecharia o url('…')
+    const colorSafe=gEsc(f.color||'#FF9000');
     const thumbStyle=cover
-      ? `background-image:url('${cover}')`
-      : `background:linear-gradient(135deg, ${f.color||'#FF9000'}, ${(f.color||'#FF9000')}99)`;
+      ? `background-image:url('${coverSafe}')`
+      : `background:linear-gradient(135deg, ${colorSafe}, ${colorSafe}99)`;
     const thumbInner=cover ? '' : `<span class="dc-thumb-letter">${gEsc(((f.name||'?').trim()[0]||'?')).toUpperCase()}</span>`;
     const metaTxt = total ? `${total} material${total!==1?'is':''}${pub?` · ${pub} no ar`:''}` : 'Vazia';
 

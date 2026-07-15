@@ -154,10 +154,10 @@ function dRunLinter() {
       <div class="linter-card" style="background:${bgOpacity};border:1px solid ${borderColor};border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px;transition:transform 0.15s ease;margin-bottom:8px;">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <span style="font-size:9.5px;font-weight:800;color:${badgeColor};letter-spacing:0.04em;text-transform:uppercase">${badgeText}</span>
-          <span style="font-size:10px;color:var(--d-text3);font-style:italic;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${issue.layerName}">Camada: ${issue.layerName}</span>
+          <span style="font-size:10px;color:var(--d-text3);font-style:italic;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_dEsc(issue.layerName)}">Camada: ${_dEsc(issue.layerName)}</span>
         </div>
         <div style="font-size:11.5px;font-weight:700;color:var(--d-text);margin-top:2px;">${issue.title}</div>
-        <div style="font-size:10.5px;color:var(--d-text2);line-height:1.4">${issue.desc}</div>
+        <div style="font-size:10.5px;color:var(--d-text2);line-height:1.4">${_dEsc(issue.desc)}</div>
         <div style="display:flex;gap:6px;margin-top:6px;align-items:center;">
           <button class="d-btn-sec" style="font-size:10px;padding:3px 8px;height:auto;" onclick="dLinterFocusLayer('${issue.layerId}')">🔍 Ir para camada</button>
           ${fixBtn}

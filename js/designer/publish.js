@@ -242,11 +242,11 @@ function dPublishRenderArtboards(){
     <div class="pub-ab-check-wrap">
       <input type="checkbox" class="pub-ab-chk" id="pub-ab-chk-${ab.id}" ${checked?'checked':''} onclick="event.stopPropagation();dPubToggleAB('${ab.id}')">
     </div>
-    <div class="pub-ab-thumb" style="background:${bgColor};padding-top:${ratio*100}%">
+    <div class="pub-ab-thumb" style="background:${gEsc(bgColor)};padding-top:${ratio*100}%">
       <div class="pub-ab-thumb-render" id="pub-ab-render-${ab.id}"></div>
     </div>
     <div class="pub-ab-info">
-      <input class="pub-ab-name-inp" id="pub-ab-name-${ab.id}" value="${existingName.replace(/"/g,'&quot;')}" placeholder="Nome do material" onclick="event.stopPropagation()" title="Nome que aparecerá no catálogo do franqueado">
+      <input class="pub-ab-name-inp" id="pub-ab-name-${ab.id}" value="${gEsc(existingName)}" placeholder="Nome do material" onclick="event.stopPropagation()" title="Nome que aparecerá no catálogo do franqueado">
     </div>
   </div>`;
   setTimeout(()=>{
