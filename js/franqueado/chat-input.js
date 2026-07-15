@@ -312,9 +312,13 @@ function fSaveAdv(val){
   let savedField = null;
   if(fState.stepIdx<pergs.length){
     savedField = pergs[fState.stepIdx].id;
-    // Se o valor for "Pular", limpa salvando como vazio
-    const finalVal = String(val).toLowerCase() === 'pular' ? '' : val;
+    // "Pular" mantém a variável vazia para não renderizar texto na arte. O metadado
+    // separado evita que a prévia trate uma escolha explícita como campo esquecido.
+    const skipped = String(val).toLowerCase() === 'pular';
+    const finalVal = skipped ? '' : val;
     fState.dados[savedField]=finalVal;
+    if(skipped) fState.dados['__skipped__'+savedField]=true;
+    else delete fState.dados['__skipped__'+savedField];
     if (typeof fSaveChatDraft === 'function') fSaveChatDraft();
   }
   // Atualiza live preview com animação no campo que acabou de ser preenchido

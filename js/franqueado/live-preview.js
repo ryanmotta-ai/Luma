@@ -823,7 +823,8 @@ function fLpUpdateWarnings(){
   const seen=new Set(); // dedup por var+tipo (uma var em vários layers não vira vários chips)
   // 1) Faltou preencher (perguntas do fluxo ainda sem resposta)
   ((fState.camp&&fState.camp.perguntas)||[]).forEach(p=>{
-    if((d[p.id]==null||d[p.id]==='') && !seen.has('m:'+p.id)){ seen.add('m:'+p.id); items.push({kind:'miss', v:p.id, label:(p.label||_fLpLabel(p.id))}); }
+    // Campo opcional pulado continua vazio no render, mas não é uma pendência do usuário.
+    if((d[p.id]==null||d[p.id]==='') && !d['__skipped__'+p.id] && !seen.has('m:'+p.id)){ seen.add('m:'+p.id); items.push({kind:'miss', v:p.id, label:(p.label||_fLpLabel(p.id))}); }
   });
   const missVars=new Set(items.filter(i=>i.kind==='miss').map(i=>i.v));
   // 2) Texto estourando a caixa — SÓ quando é ação do franqueado: campo com variável
