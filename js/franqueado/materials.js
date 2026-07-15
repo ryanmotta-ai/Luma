@@ -48,8 +48,21 @@ async function fGenerateCampaignKit(){
   const prevMat=fState.material, prevFmt=fState.fmt;
   let ok=0, pulados=0;
   const usedNames=new Set();   // evita que 2 materiais de mesmo nome se sobrescrevam no ZIP
+  const restoreBtn=(typeof gBtnLoading==='function') ? gBtnLoading(document.querySelector('[onclick="fGenerateCampaignKit()"]'),'Gerando…') : ()=>{};
+  const progress=document.getElementById('f-kit-progress');
+  const progressText=document.getElementById('f-kit-progress-text');
+  const progressPct=document.getElementById('f-kit-progress-pct');
+  const progressBar=document.getElementById('f-kit-progress-bar');
+  const updateProgress=(done)=>{
+    const pct=Math.round(done/mats.length*100);
+    if(progressText) progressText.textContent=`Material ${done}/${mats.length}`;
+    if(progressPct) progressPct.textContent=pct+'%';
+    if(progressBar) progressBar.style.width=pct+'%';
+  };
+  if(progress){ progress.style.display='block'; updateProgress(0); }
   gToast('Gerando o kit da campanha…');
-  for(const m of mats){
+  for(let i=0;i<mats.length;i++){
+    const m=mats[i];
     try{
       if(typeof fEnsureMaterialLayers==='function') await fEnsureMaterialLayers(m);
       if(!m.layers||!m.layers.length){ pulados++; continue; }
@@ -68,9 +81,10 @@ async function fGenerateCampaignKit(){
       }
       else pulados++;
     }catch(e){ console.warn('[kit] material falhou:', e); pulados++; }
+    finally{ updateProgress(i+1); }
   }
   fState.material=prevMat; fState.fmt=prevFmt;
-  if(!ok){ gToast('Não consegui gerar o kit — preencha ao menos um campo em comum aos materiais.','error'); return; }
+  if(!ok){ restoreBtn(); if(progress) progress.style.display='none'; gToast('Não consegui gerar o kit — preencha ao menos um campo em comum aos materiais.','error'); return; }
   try{
     const blob=await zip.generateAsync({type:'blob'});
     const a=document.createElement('a');
@@ -78,7 +92,9 @@ async function fGenerateCampaignKit(){
     a.download='Kit_'+(fSanitizeNamePart(c.name)||'Campanha')+'.zip';
     a.click();
     setTimeout(()=>URL.revokeObjectURL(a.href),5000);
-  }catch(e){ console.error(e); gToast('Erro ao gerar o ZIP do kit.','error'); return; }
+  }catch(e){ console.error(e); restoreBtn(); if(progress) progress.style.display='none'; gToast('Erro ao gerar o ZIP do kit.','error'); return; }
+  restoreBtn();
+  if(progress) progress.style.display='none';
   gToast(`✓ Kit gerado: ${ok} materiais`+(pulados?` (${pulados} pulados — precisam de dados próprios)`:'')+'.');
   if(typeof fClearImgCache==='function') fClearImgCache();
 }

@@ -651,6 +651,10 @@ function fMostrarConfirm(){
       </div>
       ${(fState.material&&fState.material.layers)?`<button class="confirm-bulk" onclick="fBulkOpen()" title="Gerar muitas artes de uma vez com o Luma Sheets"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Gerar em Lote (Luma Sheets)</button>`:''}
       ${(typeof _fKitBtnHtml==='function')?_fKitBtnHtml():''}
+      <div id="f-kit-progress" style="display:none;margin:0 14px 12px;font-size:11px;color:var(--text-2)">
+        <div style="display:flex;justify-content:space-between;margin-bottom:5px"><span id="f-kit-progress-text">Preparando kit…</span><span id="f-kit-progress-pct">0%</span></div>
+        <div style="height:5px;overflow:hidden;border-radius:var(--r-sm);background:var(--gray-light)"><div id="f-kit-progress-bar" style="width:0;height:100%;background:var(--gradient-orange);transition:width var(--dur-fast) var(--ease-standard)"></div></div>
+      </div>
     </div>
   </div>`;
   msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;
