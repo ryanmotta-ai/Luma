@@ -167,6 +167,12 @@ let _lpFraming = null;   // {layer, varName} enquanto o franqueado enquadra a fo
 let _lpOverflow = new Set(); // ids de camadas de texto com estouro no último render (avisos)
 let _lpImgDims = {};     // cache url→{w,h} p/ aviso de baixa resolução sem recarregar
 
+// Zoom/pan manual da prova digital (item: inspecionar a arte de perto).
+// _lpUserZoom=1 é o ajuste à tela; >1 amplia. Pan em px de tela relativo ao centro do quadro.
+// Tem PRIORIDADE sobre o smart-zoom do chat (que foca o campo ativo) — ver _fLpApplyCanvasView.
+let _lpUserZoom = 1, _lpPanX = 0, _lpPanY = 0;
+let _lpPanning = null, _lpDidPan = false, _lpSuppressClick = false;
+
 async function fUpdateLivePreview(opts){
   opts = opts || {}; // animateField é ignorado: o canvas já reflete o estado atual
   const canvas = document.getElementById('lp-canvas');
@@ -197,6 +203,8 @@ async function fUpdateLivePreview(opts){
     // Template 1:1 do PSD guarda w/h reais → preview no tamanho exato; senão o preset por formato.
     const W = (fState.material.w>0) ? fState.material.w : sz[0];
     const H = (fState.material.h>0) ? fState.material.h : sz[1];
+    // Arte diferente da anterior → zera o zoom/pan manual (senão a prova abre já ampliada/deslocada).
+    if (canvas.width !== W || canvas.height !== H) { _lpUserZoom = 1; _lpPanX = 0; _lpPanY = 0; }
     canvas.width = W; canvas.height = H;
     fLpSizeCanvas(canvas, W, H);
 
@@ -238,20 +246,8 @@ async function fUpdateLivePreview(opts){
         }
       }
       
-      // Smart Zoom & Highlight de Foco (Ideia 2) — desligado no modo enquadramento
-      // (o franqueado precisa da arte inteira estável pra arrastar/dar zoom na foto).
-      if (activeLayer && !fState.done && !_lpFraming) {
-        const cx = activeLayer.x + activeLayer.w / 2;
-        const cy = activeLayer.y + activeLayer.h / 2;
-        const px = Math.min(100, Math.max(0, (cx / W) * 100));
-        const py = Math.min(100, Math.max(0, (cy / H) * 100));
-
-        canvas.style.transformOrigin = `${px.toFixed(1)}% ${py.toFixed(1)}%`;
-        canvas.style.transform = 'scale(1.8)';
-      } else {
-        canvas.style.transformOrigin = 'center center';
-        canvas.style.transform = 'scale(1)';
-      }
+      // Zoom/pan manual (se ativo) tem prioridade; senão, Smart Zoom foca o campo ativo do chat.
+      _fLpApplyCanvasView(activeLayer, W, H);
     }
 
     if(_lpView==='guides') _fLpDrawGuides(ctx, W, H);
@@ -298,22 +294,162 @@ function fLpSizeCanvas(canvas, W, H){
   const scale = Math.min(availW / W, maxH / H);
   canvas.style.width  = Math.round(W * scale) + 'px';
   canvas.style.height = Math.round(H * scale) + 'px';
-  // Toolbar honesta: escala real da prévia + dimensões da arte final
+  // Toolbar honesta: escala real da prévia (× zoom manual) + dimensões da arte final
   _lpScale = scale;
-  const zoomEl = document.getElementById('lp-zoom');
-  if(zoomEl) zoomEl.textContent = Math.round(scale * 100) + '%';
+  _fLpUpdateZoomLabel();
   const dimEl = document.getElementById('lp-dim');
   if(dimEl) dimEl.textContent = W + '×' + H;
+  // Amarra roda (zoom) e arrasto (pan) no quadro da prova — uma única vez (o wrap persiste).
+  const wrap = canvas.closest('.lp-canvas-wrap');
+  if(wrap && !wrap._lpZoomBound){
+    wrap._lpZoomBound = true;
+    wrap.addEventListener('wheel', _fLpWheelZoom, {passive:false});
+    wrap.addEventListener('mousedown', _fLpPanDown);
+  }
+}
+
+// Rótulo honesto na toolbar: escala real (ajuste × zoom manual) da prévia sobre a arte final.
+function _fLpUpdateZoomLabel(){
+  const zoomEl = document.getElementById('lp-zoom');
+  if(zoomEl) zoomEl.textContent = Math.round(_lpScale * _lpUserZoom * 100) + '%';
 }
 
 // Reajusta a prévia à tela (botão da toolbar) — útil após redimensionar a janela.
 function fLpRefit(){
   const canvas = document.getElementById('lp-canvas');
   if(!canvas || !canvas.width) return;
+  _lpUserZoom = 1; _lpPanX = 0; _lpPanY = 0; // reajustar = voltar ao 100% de tela
   const stage = canvas.closest('.lp-stage');
   if(stage) _fLpStageWidthCache = stage.clientWidth;
   fLpSizeCanvas(canvas, canvas.width, canvas.height);
+  _fLpApplyCanvasView(null, canvas.width, canvas.height);
+  _fLpUpdatePanCursor();
 }
+
+/* ══ ZOOM / PAN DA PROVA DIGITAL ══
+   Amplia e navega a arte inteira dentro do quadro (overflow:hidden do .lp-canvas-wrap recorta).
+   Reusa o mesmo canvas.style.transform do smart-zoom — origin no centro, translate = pan. */
+
+// Aplicador ÚNICO da transformação do canvas. Zoom manual (>1) vence o smart-zoom do chat.
+function _fLpApplyCanvasView(activeLayer, W, H){
+  const canvas = document.getElementById('lp-canvas');
+  if(!canvas) return;
+  if(_lpUserZoom > 1){
+    canvas.style.transformOrigin = 'center center';
+    canvas.style.transform = `translate(${_lpPanX}px, ${_lpPanY}px) scale(${_lpUserZoom})`;
+    return;
+  }
+  // Sem zoom manual → comportamento original: Smart Zoom foca o campo ativo (fora do enquadramento).
+  if (activeLayer && !fState.done && !_lpFraming) {
+    const cx = activeLayer.x + activeLayer.w / 2;
+    const cy = activeLayer.y + activeLayer.h / 2;
+    const px = Math.min(100, Math.max(0, (cx / W) * 100));
+    const py = Math.min(100, Math.max(0, (cy / H) * 100));
+    canvas.style.transformOrigin = `${px.toFixed(1)}% ${py.toFixed(1)}%`;
+    canvas.style.transform = 'scale(1.8)';
+  } else {
+    canvas.style.transformOrigin = 'center center';
+    canvas.style.transform = 'scale(1)';
+  }
+}
+
+// Limita o pan para o canvas ampliado nunca descolar do quadro (sem faixa vazia).
+function _fLpClampPan(){
+  const wrap = document.querySelector('.lp-canvas-wrap');
+  if(!wrap) return;
+  const r = wrap.getBoundingClientRect();
+  const maxX = Math.max(0, (_lpUserZoom - 1) * r.width / 2);
+  const maxY = Math.max(0, (_lpUserZoom - 1) * r.height / 2);
+  _lpPanX = Math.max(-maxX, Math.min(maxX, _lpPanX));
+  _lpPanY = Math.max(-maxY, Math.min(maxY, _lpPanY));
+}
+
+// Cursor de mãozinha só quando há zoom (senão mantém o pointer do clique-pra-editar via CSS).
+function _fLpUpdatePanCursor(dragging){
+  const canvas = document.getElementById('lp-canvas');
+  if(!canvas) return;
+  canvas.style.cursor = (_lpUserZoom > 1) ? (dragging ? 'grabbing' : 'grab') : '';
+}
+
+// Roda do mouse = zoom centrado no ponto sob o cursor (mantém esse ponto fixo).
+function _fLpWheelZoom(e){
+  if(_lpFraming) return; // o modo enquadrar-foto tem seu próprio zoom
+  const canvas = document.getElementById('lp-canvas');
+  if(!canvas || !canvas.width) return;
+  e.preventDefault();
+  const old = _lpUserZoom;
+  const next = Math.max(1, Math.min(5, old * (e.deltaY > 0 ? 0.9 : 1.1)));
+  if(next === old) return;
+  const wrap = canvas.closest('.lp-canvas-wrap');
+  const r = wrap.getBoundingClientRect();
+  const cx = e.clientX - (r.left + r.width / 2); // cursor relativo ao centro do quadro
+  const cy = e.clientY - (r.top + r.height / 2);
+  const k = next / old;
+  _lpPanX = cx - k * (cx - _lpPanX); // mantém o ponto sob o cursor fixo
+  _lpPanY = cy - k * (cy - _lpPanY);
+  _lpUserZoom = next;
+  if(next === 1){ _lpPanX = 0; _lpPanY = 0; }
+  _fLpClampPan();
+  canvas.classList.add('lp-no-anim'); // sem a mola de 420ms durante a roda
+  _fLpApplyCanvasView(null, canvas.width, canvas.height);
+  _fLpUpdateZoomLabel();
+  _fLpUpdatePanCursor();
+  clearTimeout(_fLpWheelZoom._t);
+  _fLpWheelZoom._t = setTimeout(()=>canvas.classList.remove('lp-no-anim'), 200);
+}
+
+// Arrastar = pan (só quando ampliado). Sem zoom, o clique continua editando o campo.
+function _fLpPanDown(e){
+  if(_lpFraming || _lpUserZoom <= 1 || e.button !== 0) return;
+  _lpPanning = { sx:e.clientX, sy:e.clientY, px:_lpPanX, py:_lpPanY };
+  _lpDidPan = false;
+  e.preventDefault();
+  const canvas = document.getElementById('lp-canvas');
+  if(canvas) canvas.classList.add('lp-no-anim');
+  window.addEventListener('mousemove', _fLpPanMove);
+  window.addEventListener('mouseup', _fLpPanUp);
+}
+function _fLpPanMove(e){
+  if(!_lpPanning) return;
+  const dx = e.clientX - _lpPanning.sx, dy = e.clientY - _lpPanning.sy;
+  if(!_lpDidPan && Math.hypot(dx, dy) < 4) return; // limiar: micro-movimento ainda é clique
+  _lpDidPan = true;
+  _lpPanX = _lpPanning.px + dx;
+  _lpPanY = _lpPanning.py + dy;
+  _fLpClampPan();
+  const canvas = document.getElementById('lp-canvas');
+  _fLpApplyCanvasView(null, canvas.width, canvas.height);
+  _fLpUpdatePanCursor(true);
+}
+function _fLpPanUp(){
+  window.removeEventListener('mousemove', _fLpPanMove);
+  window.removeEventListener('mouseup', _fLpPanUp);
+  _lpPanning = null;
+  const canvas = document.getElementById('lp-canvas');
+  if(canvas) canvas.classList.remove('lp-no-anim');
+  _fLpUpdatePanCursor();
+  // Se de fato houve pan, engole o clique seguinte para não abrir a edição de campo.
+  if(_lpDidPan){ _lpSuppressClick = true; setTimeout(()=>{ _lpSuppressClick = false; }, 0); }
+}
+
+// Botões −/+ da toolbar: zoom pelo centro do quadro (não há cursor de referência).
+function fLpZoomStep(dir){
+  const canvas = document.getElementById('lp-canvas');
+  if(!canvas || !canvas.width) return;
+  const old = _lpUserZoom;
+  const next = Math.max(1, Math.min(5, old * (dir > 0 ? 1.25 : 0.8)));
+  if(next === old) return;
+  const k = next / old;
+  _lpPanX *= k; _lpPanY *= k; // ponto central fixo
+  _lpUserZoom = next;
+  if(next === 1){ _lpPanX = 0; _lpPanY = 0; }
+  _fLpClampPan();
+  _fLpApplyCanvasView(null, canvas.width, canvas.height);
+  _fLpUpdateZoomLabel();
+  _fLpUpdatePanCursor();
+}
+// Clicar no % volta ao ajuste de tela.
+function fLpZoomReset(){ fLpRefit(); }
 
 // Liga/desliga as guias de composição (margens de segurança + terços + centro).
 // Sobreposição da prévia: 'off' | 'guides' | 'env'. Substitui o antigo liga/desliga de
@@ -886,6 +1022,7 @@ function _fLpVarChooser(l,vars,ev){
 // ── Clique no canvas ──
 function _fLpOnCanvasClick(ev){
   if(_lpFraming) return;
+  if(_lpSuppressClick) return; // veio de um arrasto de pan — não abre edição de campo
   if(!fState.material||!fState.material.layers||!fState.material.layers.length) return;
   const pt=_fLpArtCoords(ev); if(!pt) return;
   const l=_fLpLayerAt(pt.x,pt.y);

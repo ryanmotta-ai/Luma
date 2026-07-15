@@ -693,7 +693,13 @@ input:focus:-webkit-autofill {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14v4a2 2 0 0 0 2 2h4"/><path d="M4 10V6a2 2 0 0 1 2-2h4"/><path d="M14 4h4a2 2 0 0 1 2 2v4"/><path d="M20 14v4a2 2 0 0 1-2 2h-4"/></svg>
               </button>
               <div class="lp-tool-divider"></div>
-              <span class="lp-tool-text" id="lp-zoom">—</span>
+              <button class="lp-tool-btn" onclick="fLpZoomStep(-1)" title="Diminuir zoom" aria-label="Diminuir zoom">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </button>
+              <button class="lp-tool-text lp-zoom-reset" id="lp-zoom" onclick="fLpZoomReset()" title="Voltar ao ajuste de tela" aria-label="Nível de zoom — clique para reajustar">—</button>
+              <button class="lp-tool-btn" onclick="fLpZoomStep(1)" title="Aumentar zoom" aria-label="Aumentar zoom">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><line x1="12" y1="5" x2="12" y2="19"/></svg>
+              </button>
               <span class="lp-tool-text lp-tool-dim" id="lp-dim"></span>
             </div>
             <div class="lp-tool-right">
