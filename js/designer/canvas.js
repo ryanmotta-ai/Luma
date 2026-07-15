@@ -821,9 +821,29 @@ function dFxShadowParts(l){
     parts.push('inset '+(-o.x)+'px '+(-o.y)+'px '+b+'px '+(l.bevelShadow||'rgba(0,0,0,.5)')); }
   return parts;
 }
+// Contorno TRACEJADO no editor via SVG inline — honra o array strokeDash REAL (o border CSS só
+// desenhava um tracejado genérico do navegador, divergindo do PNG/SVG de saída). Espelha os mesmos
+// atributos do export (preview.js): dasharray/cap/join. Retorna '' quando não há tracejado.
+function dDashOutlineSvg(l){
+  if(!(l.strokeW>0) || !l.strokeDash || !l.strokeDash.length) return '';
+  const w=l.w, h=l.h, sw=l.strokeW, half=sw/2, col=l.strokeColor||'#000';
+  const da=l.strokeDash.join(' ');
+  const cap=l.strokeCap?` stroke-linecap="${l.strokeCap}"`:'';
+  const join=l.strokeJoin?` stroke-linejoin="${l.strokeJoin}"`:'';
+  const common=`fill="none" stroke="${col}" stroke-width="${sw}" stroke-dasharray="${da}"${cap}${join}`;
+  const kind=l.shapeKind||'rect';
+  let shape;
+  if(kind==='circle'||kind==='ellipse'){
+    // inset de meia-espessura → traço fica DENTRO da caixa (não some metade na borda)
+    shape=`<ellipse cx="${w/2}" cy="${h/2}" rx="${Math.max(0,w/2-half)}" ry="${Math.max(0,h/2-half)}" ${common}/>`;
+  } else {
+    shape=`<rect x="${half}" y="${half}" width="${Math.max(0,w-sw)}" height="${Math.max(0,h-sw)}" rx="${Math.max(0,l.radius||0)}" ${common}/>`;
+  }
+  return `<svg width="100%" height="100%" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="position:absolute;inset:0;overflow:visible;pointer-events:none">${shape}</svg>`;
+}
 // Traçado de shape como box-shadow, respeitando o alinhamento (inside/center/outside).
 function dFxStrokeParts(l){
-  if(!(l.strokeW>0) || l.strokeDash) return []; // dash é tratado via border no editor
+  if(!(l.strokeW>0) || l.strokeDash) return []; // dash é desenhado via SVG (dDashOutlineSvg)
   const w=l.strokeW, c=l.strokeColor||'#000', a=l.strokeAlign||'inside';
   if(a==='outside') return ['0 0 0 '+w+'px '+c];
   if(a==='center')  return ['0 0 0 '+(w/2)+'px '+c, 'inset 0 0 0 '+(w/2)+'px '+c];
@@ -906,15 +926,17 @@ function dRenderCanvas(){
         inner.style.cssText='position:absolute;inset:0;';
         const abs=pts.map(p=>[p[0]*l.w, p[1]*l.h]);
         const d=gRoundPolyD(abs, l.radius||0);
-        const _st=(l.strokeW>0)?' stroke="'+(l.strokeColor||'#000')+'" stroke-width="'+l.strokeW+'"':''; // traçado no polígono
+        let _st=(l.strokeW>0)?' stroke="'+(l.strokeColor||'#000')+'" stroke-width="'+l.strokeW+'"':''; // traçado no polígono
+        if(l.strokeW>0 && l.strokeDash && l.strokeDash.length) _st+=' stroke-dasharray="'+l.strokeDash.join(' ')+'"'; // tracejado real
         inner.innerHTML='<svg width="100%" height="100%" viewBox="0 0 '+l.w+' '+l.h+'" preserveAspectRatio="none" style="display:block;overflow:visible"><path d="'+d+'" fill="'+(l.fill||'#FF9000')+'"'+_st+'/></svg>';
         el.appendChild(inner);
       }else{
         el.style.background=dFxShapeBg(l); // fill + color overlay
         if(kind==='circle'||kind==='ellipse'){ el.style.borderRadius='50%'; }
         else { const _cr=dCornerRadii(l); el.style.borderRadius=_cr.tl+'px '+_cr.tr+'px '+_cr.br+'px '+_cr.bl+'px'; } // cantos por canto
-        if(l.strokeW>0 && l.strokeDash){ el.style.border=l.strokeW+'px dashed '+(l.strokeColor||'#000'); el.style.boxSizing='border-box'; } // traçado tracejado
-        const _bs=dFxStrokeParts(l).concat(dFxShadowParts(l)); // traçado(+align) + sombra/glow/inner/bevel
+        const _dash=dDashOutlineSvg(l); // tracejado fiel (array real) via SVG — substitui o border genérico
+        if(_dash) el.insertAdjacentHTML('beforeend', _dash);
+        const _bs=dFxStrokeParts(l).concat(dFxShadowParts(l)); // traçado sólido(+align) + sombra/glow/inner/bevel
         if(_bs.length) el.style.boxShadow=_bs.join(', ');
       }
     }else if(l.type==='text'){

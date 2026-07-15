@@ -900,16 +900,23 @@ function dPsdParseItems(psd, res, ox, oy){
         const grad=(node.vectorFill && node.vectorFill.colorStops)?_dPsdGradient(node):null;
         // Cor: preferir a EXATA do vetor (vectorFill), cair na amostragem de pixels só se faltar.
         const solid=_dPsdVectorSolidColor(node)||_dPsdSolidColor(node.canvas);
-        if(grad || solid){
+        // Contorno vetorial (vectorStroke) — inclui formas SÓ-CONTORNO (sem preenchimento): molduras
+        // vazadas, divisores e linhas TRACEJADAS. Antes, sem fill/gradiente, essas caíam no raster e o
+        // tracejado virava imagem chapada (o dash lido em _dPsdShapeStroke nem era alcançado). Agora um
+        // traçado real (lineWidth>0) também qualifica a camada como FORMA editável.
+        const stroke=_dPsdShapeStroke(node);
+        const hasStroke=stroke.strokeW>0;
+        if(grad || solid || hasStroke){
           // Forma: preferir o tipo EXATO do vetor (keyOriginType), cair no heurístico de pixel.
           const shapeInfo=_dPsdVectorShapeKind(node,w,h)||_dPsdDetectShapeKind(node.canvas);
           it.kind='shape';
-          it.fill=solid || (grad && grad.stops[0] && grad.stops[0].color) || '#FF9000';
+          // Só-contorno (sem fill sólido/gradiente) → fundo TRANSPARENTE, não a cor padrão laranja.
+          it.fill=solid || (grad && grad.stops[0] && grad.stops[0].color) || (hasStroke ? 'transparent' : '#FF9000');
           if(grad) it.gradient=grad;
           it.shapeKind=shapeInfo.kind;
           it.radius=shapeInfo.radius;
           Object.assign(it,_dPsdEffects(node));        // sombra/glow/overlay/contorno-fx
-          Object.assign(it,_dPsdShapeStroke(node));    // traçado do shape (vectorStroke) — prevalece
+          Object.assign(it,stroke);                    // traçado do shape (vectorStroke, incl. tracejado)
           const _rr=_dPsdCornerRadii(node,w,h); if(_rr) it.radii=_rr; // cantos por canto
           
           // Heurística de auto-frame para shapes (se o nome da camada contiver imagem/foto)
