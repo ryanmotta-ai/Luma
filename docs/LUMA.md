@@ -102,7 +102,7 @@ Luma/
 │   ├── designer/                  # canvas, layers, templates, tools, brush, mask, blending,
 │   │                              # eraser-tools, color-picker, measurement, selection, props-panel,
 │   │                              # undo-redo, publish, preview, library, fonts, psd-import,
-│   │                              # tooltip, rich-tooltips, tutorial-panel
+│   │                              # tooltip, tutorial-panel
 │   └── tutorial/                  # engine, catalog (4), catalog-studio (14), mocks, mocks-studio
 ├── assets/
 │   ├── logos/                     # luma-h-branca.png, luma-h-cor.png (+ DM legadas no disco)

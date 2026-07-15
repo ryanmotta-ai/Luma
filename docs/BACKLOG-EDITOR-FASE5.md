@@ -51,16 +51,22 @@ _(vazio — os três P0 da rodada 1 foram corrigidos na rodada 2)_
 
 _(vazio — todos os P1 foram corrigidos)_
 
-## 🟡 P2 — polimento / UX
+## 🟡 P2 — polimento / UX ✅ CORRIGIDOS
 
 | # | Item | Onde |
 |---|---|---|
-| 31 | Cursor "move" das camadas sobrepõe o cursor da ferramenta ativa (balde/conta-gotas/carimbo sobre imagem parecem drag) | `canvas.js:1031` |
-| 32 | F2 em camada dentro de grupo colapsado falha em silêncio (linha não está no DOM) | `layers.js` (dRenameLayer) |
-| 33 | F2 sem seleção: `dRenameAB` é função vazia (resquício multi-prancheta) — implementar ou remover o caminho | `templates.js:373` |
-| 34 | `dDeleteLayer` de grupo usa `confirm()` nativo — trocar por `gConfirm` (padrão da casa) | `layers.js:478` |
-| 35 | Toasts com emoji (🔒 etc.) no canvas.js — dívida contra o DS (ícone = SVG) | `canvas.js:1119,1160` |
-| 36 | `js/designer/rich-tooltips.js` é arquivo morto (não referenciado no index.html; o vivo é `tooltip.js`) — remover ou consolidar | `js/designer/rich-tooltips.js` |
+| 31 | **Cursor da camada** — `.canvas-layer` tinha `cursor:move` fixo, escondendo o cursor de balde/conta-gotas/carimbo sobre imagem; agora só a Seleção mostra "move" (via `body[data-tool]`), o resto herda o cursor da ferramenta | `css/modules/designer.css`, `canvas.js` (dSetTool) |
+| 32 | **F2 em grupo colapsado** — a linha não estava no DOM e o F2 falhava mudo; agora expande os ancestrais colapsados e re-renderiza antes de editar | `js/designer/layers.js` (dRenameLayer) |
+| 33 | **`dRenameAB` no-op removido** — F2 sem seleção não chama mais o caminho morto de multi-prancheta (não faz nada, como esperado no canvas único) | `js/designer/publish.js`, `templates.js` |
+| 34 | **`dDeleteLayer` de grupo usa `gConfirm`** (diálogo da casa) em vez de `confirm()` nativo; função virou async com `dHistoryPush` reordenado pós-await (senão a exclusão não entrava no histórico) e re-resolução por id após o await | `js/designer/layers.js` |
+| 35 | **Emoji 🔒/🔓 nos toasts do canvas.js removidos** (✓/⚠ são sancionados pelo DS §8; 🔒 não) | `js/designer/canvas.js` |
+| 36 | **`rich-tooltips.js` removido** — arquivo morto sem `<script>` (o vivo é `tooltip.js`); doc/roadmap atualizados | `js/designer/rich-tooltips.js` |
+
+## 🔵 P3 — follow-up conhecido (fora dos itens da auditoria)
+
+| Item | Onde |
+|---|---|
+| Sweep dos outros 10 `confirm()` nativos → `gConfirm` (rotacionar/redimensionar prancheta, excluir template/pasta/página, remover fonte/variável, descartar novo doc, smart-resize do formato). Cada um vira async e precisa da mesma análise de ordem de histórico e de callers do #34 — deixado como bloco próprio p/ verificar com calma | `canvas.js:25`, `fonts.js:163`, `layers.js:2538`, `templates.js:411,444,947,1516,1527,1772,3032` |
 
 ---
 

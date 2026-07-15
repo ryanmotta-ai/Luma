@@ -124,7 +124,7 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
 - [x] **RETIRAR o módulo Dados** (decisão 2026-07-15): removidos `js/dados/`, `css/modules/dados.css`, `#view-dados`, scripts, pill e gates do modo. Docs atualizados. O que **fica**: `analytics.fct_eventos`, `gTrackEvent` e as views `vw_*` — analytics segue por extração SQL (gestão/BI), sem front.
 - [ ] **Analytics utilizável (backend, independe do módulo retirado)**: emitir os eventos que faltam (`template_publicado`, `campanha_aberta`, `material_aberto` — previstos na migration, nunca emitidos) e documentar que as views se consultam via SQL Editor/service_role (com RLS dono-only em `luma.artes`, designer autenticado vê ~nada — comportamento esperado, não bug).
 - [ ] Linter unificado: `dPublishRender` reimplementa as regras em vez de reusar `dRunLinter` (`publish.js:149-184`); regra 5 morta (`l.url` → `l.imgUrl`, `linter.js:115`).
-- [ ] Limpeza: `rich-tooltips.js` sem `<script>` (morto), no-ops de multi-prancheta, `fDrawDMLogo`/`fLoadLogoBranca` mortos, `__luma_session` órfão.
+- [ ] Limpeza: ~~`rich-tooltips.js` sem `<script>` (morto)~~ (removido), no-ops de multi-prancheta (`dRenameAB` removido), `fDrawDMLogo`/`fLoadLogoBranca` mortos, `__luma_session` órfão.
 - [ ] Docs em dia: `LUMA.md` (63 scripts, config versionado de propósito), changelog, e este roadmap com os checks.
 - [ ] **Verificação final no navegador nas 3 roles** (franqueado, equipe_dm, gestao) — o checklist do `LUMA.md` §18.
 
