@@ -207,8 +207,12 @@ function dPreloadFolders(){
   dFolders.forEach(f=>{
     if(!Array.isArray(f.templates)) f.templates=[]; // pasta legada/corrompida sem 'templates' não derruba o boot
     
-    // Injeção dinâmica de mock templates para pastas vazias (ex: vindas do localStorage cache antigo)
-    if(f.templates.length === 0 && f.id !== 'f-modelo') {
+    // Injeção dinâmica de mock templates para pastas vazias (ex: vindas do localStorage cache antigo).
+    // SÓ no modo demo (sem backend): num deploy real, fabricar material fake numa pasta que o
+    // designer esvaziou de propósito viola "zero peça fora da marca" — a pasta vazia deve mostrar
+    // "em breve", não uma arte inventada. A migração da fonte de campanhas p/ luma.pastas remove isto.
+    const _demoMode = !(typeof gHasBackend==='function' && gHasBackend());
+    if(_demoMode && f.templates.length === 0 && f.id !== 'f-modelo') {
       const allCamps = [...CAMPS_ATIVAS,...CAMPS_OUTRAS];
       const c = allCamps.find(x => x.id === f.campId || x.name === f.name);
       if(c) {
