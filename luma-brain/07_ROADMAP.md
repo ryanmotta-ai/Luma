@@ -86,11 +86,21 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
 
 *O maior gap estrutural de produto. ~2 semanas.*
 
-- [ ] **Campanhas saem do hardcode**: hoje `CAMPS_ATIVAS/OUTRAS/IMPLEMENTACAO` (`js/00-config.js:14-145`) são a fonte da lista e `dFolders` só fornece capa/templates (`catalog.js:460-463`). Migrar a fonte para `luma.pastas` (as colunas — badge, popular, agendamento, cor — já existem no banco). Criar/arquivar campanha vira ação da UI do designer. `CAMPS_*` vira só seed de primeira instalação.
-- [ ] **Matar a re-injeção de mocks**: `dPreloadFolders` re-injeta templates fake em pasta vazia cujo nome/campId coincida (`templates.js:211-242`) — pasta real esvaziada de propósito ganha material inventado de volta. Isso viola diretamente "zero peça fora da marca".
-- [ ] **Perfil real**: conectar "Alterar senha" ao `gResetPassword` que já existe (`auth.js:109`); hoje é `setTimeout` fake (`user-profile.js:193-236,325-336`). Decidir destino de telefone/foto (localStorage-only hoje; `profiles.avatar_url` existe no banco e nunca foi usada).
-- [ ] Grupos de visibilidade e `agendamento`/`grupos` de pasta: ou aplicar de verdade (franqueado já respeita agendamento; falta o resto) ou remover da UI.
-- [ ] Validade com fuso: `new Date('YYYY-MM-DD')` exibe um dia a menos (`materials.js:169`; a linha 166 já faz certo com `T23:59:59`).
+- [ ] **Campanhas saem do hardcode** (headline, arquitetural): hoje `CAMPS_ATIVAS/OUTRAS/IMPLEMENTACAO` (`js/00-config.js:14-145`) são a fonte da lista e `dFolders` só fornece capa/templates (`catalog.js:460-463`). Migrar a fonte para `luma.pastas` (colunas badge, popular, agendamento, cor, perguntas, previews já existem). Criar/arquivar campanha vira ação da UI do designer. `CAMPS_*` vira só seed de primeira instalação. ⚠ **precisa de backend + navegador + UI de criar campanha + decisões (ver plano na §5.1)**
+- [x] **Matar a re-injeção de mocks**: agora só ocorre em modo demo (sem backend); com Supabase real, pasta vazia mostra "em breve" (commit `11399b9`). A migração acima remove o mock de vez.
+- [x] **Perfil — alterar senha real**: ligado ao `gResetPassword` (commit `362d3d5`); era `setTimeout` fake. *(Destino de telefone/foto — hoje localStorage-only, `profiles.avatar_url` existe e é ociosa — fica p/ a fase de perfil cross-device; precisa de navegador.)*
+- [ ] Grupos de visibilidade e `agendamento`/`grupos` de pasta: ou aplicar de verdade (franqueado já respeita agendamento; falta o resto) ou remover da UI. ⚠ **decisão + navegador**
+- [x] Validade com fuso: corrigido — reusa o `v` local com `T23:59:59` (commit `ba2b12e`).
+
+### 5.1. Plano da migração de campanhas (a executar em par, com o navegador)
+
+*Por que faseado: é um flip de fonte de verdade tocada por ~20 pontos; feito no escuro, arrisca deixar o catálogo do franqueado vazio ou quebrado. Um passo por vez, verificando no navegador.*
+
+1. **Costurar o seam (refactor sem mudar comportamento).** Rotear TODA leitura de `CAMPS_*` no franqueado (catalog/materials/chat/live-preview) por `fGetCampaigns()`/`fResolveCamp()`, que hoje já existem mas são ignorados. `fGetCampaigns` segue devolvendo as constantes. *Verificar: catálogo/home/chat idênticos ao de hoje.*
+2. **Garantir que `luma.pastas` carrega todos os campos** que a UI lê (perguntas, badge, popular, previews, cor, expira_dias). O upsert já grava — confirmar que o pull (`_dRowToFolder`) devolve tudo e preencher o que faltar.
+3. **UI de campanha no designer.** Criar/editar/arquivar pasta com esses campos (nome, cor, badge, perguntas, validade, agendamento, grupos). Boa parte do modal de pasta já existe — estender.
+4. **Flip da fonte.** `fGetCampaigns()` passa a montar a lista a partir de `dFolders` (com `ativa`/arquivada), caindo em `CAMPS_*` só como seed na primeira instalação. *Verificar nas 2 personas: designer cria campanha → franqueado vê; designer arquiva → some.*
+5. **Aposentar `CAMPS_*`** para seed-only e remover `dBuildMockLayersForCamp`/mocks. *Verificar: sem campanha fantasma, sem material fake.*
 
 ## 6. Fase 3 — Nenhum clique morre em silêncio (confiabilidade da ponta)
 
