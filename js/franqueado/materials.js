@@ -193,7 +193,7 @@ function fRenderMaterialCard(material, camp){
   // Mini-prévia: usa fmt do template
   const fmtName = {story:'Story 9:16',feed:'Feed 1:1',wide:'Post wide',post:'Post wide'}[material.fmt] || 'Story';
   const isNew = (typeof fMaterialIsNew==='function') && fMaterialIsNew(material, camp.id);
-  return `<div class="f-mat-card" onclick="fSelectMaterial('${material.id}')">
+  return `<div class="f-mat-card" onclick="fSelectMaterial('${material.id}',this)">
     <div class="f-mat-thumb f-mat-thumb-${material.fmt||'story'}" style="background:${camp.color}">
       ${isNew?`<div class="f-mat-new">novo</div>`:''}
       <div class="f-mat-thumb-prod">${gEsc(camp.previewProd||camp.name)}</div>
@@ -276,7 +276,7 @@ async function fEnsureMaterialLayers(t){
   return t;
 }
 // Usuário clicou num material — entra no chat com perguntas geradas das variáveis do template
-async function fSelectMaterial(materialId){
+async function fSelectMaterial(materialId, card){
   // Acha o material em qualquer pasta
   let found=null, folderFound=null;
   if(typeof dFolders !== 'undefined' && dFolders){
@@ -287,7 +287,21 @@ async function fSelectMaterial(materialId){
   }
   if(!found){ gToast('Material não encontrado.'); return; }
   // Catálogo leve: baixa os layers deste template agora (1ª vez neste aparelho)
-  await fEnsureMaterialLayers(found);
+  const title=card&&card.querySelector('.f-mat-name');
+  const previousTitle=title&&title.innerHTML;
+  const restoreLoading=()=>{
+    if(!card) return;
+    card.classList.remove('is-loading');
+    card.style.pointerEvents='';
+    if(title) title.innerHTML=previousTitle;
+  };
+  if(found._needsLayersFetch && card){
+    card.classList.add('is-loading');
+    card.style.pointerEvents='none';
+    if(title) title.innerHTML='<span class="mini-spinner" aria-hidden="true"></span><span style="margin-left:6px">Abrindo material…</span>';
+  }
+  try{ await fEnsureMaterialLayers(found); }
+  finally{ restoreLoading(); }
   if(found._needsLayersFetch){ // fetch falhou (sem rede?) — não entra no chat com material vazio
     gToast('Não consegui carregar este material. Verifique sua conexão e tente de novo.','error');
     return;

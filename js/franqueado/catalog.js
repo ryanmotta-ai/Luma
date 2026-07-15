@@ -101,7 +101,7 @@ function fRenderHist(){
         <div class="hist-name">${h.materialName ? gEsc(h.materialName) : (gEsc(h.prod) + ' · ' + gEsc(h.fmtName))}</div>
         <div class="hist-meta">${statusBadge}<span class="hist-meta-sep">·</span>${gEsc(h.campName)}<span class="hist-meta-sep">·</span>${gEsc(h.fmtName)}<span class="hist-meta-sep">·</span>${dateStr}</div>
         <div class="hist-actions">
-          <button class="hist-act-btn" onclick="fEditFromHist(${h.id})" title="Abrir e editar"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Editar</button>
+          <button class="hist-act-btn" onclick="fEditFromHist(${h.id},this)" title="Abrir e editar"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Editar</button>
           <button class="hist-act-btn" onclick="fDuplicateInOtherFmt(${h.id})" title="Gerar em outro formato"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplicar</button>
           <button class="hist-act-btn pri" onclick="fDownloadHist(${h.id})" title="Baixar PNG"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M5 21h14"/></svg>Baixar</button>
         </div>
@@ -147,7 +147,7 @@ async function fDownloadHist(id){
 }
 
 // F-04: retomar uma entrada do histórico no chat, com dados pré-preenchidos
-async function fEditFromHist(id){
+async function fEditFromHist(id, btn){
   const h = fGetHist().find(x=>x.id===id);
   if(!h) return;
   const all = [...CAMPS_ATIVAS, ...CAMPS_OUTRAS];
@@ -168,7 +168,9 @@ async function fEditFromHist(id){
   }
   // Template sincronizado do backend pode estar sem layers (lazy) — baixa antes de montar as perguntas
   if(material && typeof fEnsureMaterialLayers==='function'){
-    await fEnsureMaterialLayers(material);
+    const restoreBtn=(material._needsLayersFetch && typeof gBtnLoading==='function') ? gBtnLoading(btn,'Abrindo…') : ()=>{};
+    try{ await fEnsureMaterialLayers(material); }
+    finally{ restoreBtn(); }
     if(material._needsLayersFetch) material = null; // fetch falhou → segue pro fallback (estrutura padrão)
   }
 
