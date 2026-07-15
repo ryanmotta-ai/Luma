@@ -1,6 +1,6 @@
 # Diagnostico - Central de Ajuda do Luma
 
-> Status: diagnostico concluido; Entrega A implementada em 2026-07-15.
+> Status: entregas A-D implementadas; refinamento visual e UX concluido em 2026-07-15.
 > Escopo: unificar a experiencia de ajuda; nao inclui backend, suporte humano real ou redefinicao do design system.
 
 ## Objetivo
@@ -28,23 +28,40 @@ Transformar o botao flutuante na entrada unica da Central de Ajuda. A central de
 - A falha de geracao que orienta reenviar foto abre o guia de upload da Central.
 - O fluxo de suporte humano do chat deixou de habilitar envio simulado e informa honestamente que esse canal ainda nao existe no Luma.
 
+## Entrega D registrada
+
+- Removidos o botao superior, o widget/chat legado, seus scripts e seu CSS exclusivo.
+- O botao flutuante agora e markup nativo da Central, sem injecao dinamica no boot.
+- `gTriggerOnboardingStep` foi movido para `core/help.js`, preservando os tres chamadores do fluxo de franqueado.
+- O estilo do CTA contextual de toast foi movido para `help-modal.css`.
+- O motor de spotlight, reconhecimento de voz, sandbox e suporte simulado foram removidos junto com o chat por nao terem uma integracao real ou caminho validado na Central.
+
 ## Estado atual
 
 | Superficie | Implementacao | O que entrega hoje | Problema principal |
 |---|---|---|---|
-| Ajuda superior | `#top-help-btn` + `js/core/help.js` | trilha por papel, catalogo pesquisavel e abertura dos 18 tutoriais | segunda entrada concorrente; modal nao gerencia foco como dialogo completo |
-| Widget flutuante | `js/core/help-chat.js` + `css/components/help-chat.css` | FAQ por arvore, autocomplete, spotlight e onboarding do franqueado | mistura ajuda, onboarding e falso suporte humano em um componente de 1067 linhas |
-| Tutorial animado | `js/tutorial/engine.js` + catalogos | 4 tutoriais de franqueado e 14 do Estudio, progresso persistido | e o conteudo certo, mas esta exposto por duas experiencias diferentes |
-| Guia no Estudio | `dtab-tutorial` + `tutorial-panel.js` | acordeoes explicativos, modelo de exemplo, links para tutoriais e atalhos | e um ponto de descoberta valido, mas duplica copy e ainda usa icones emoji |
+| Entrada global | `#g-help-float` | abre a Central unica e comunica o estado com `aria-expanded` | sem pendencia estrutural conhecida |
+| Central de Ajuda | `js/core/help.js` + `help-modal.css` | trilha por papel, busca, contexto da tela, onboarding e guias rapidos | canal de suporte humano continua fora do escopo |
+| Tutorial animado | `js/tutorial/engine.js` + catalogos | 4 tutoriais de franqueado e 14 do Estudio, com progresso persistido | conteudo das cenas segue sendo mantido no motor existente |
+| Guia no Estudio | `dtab-tutorial` + `tutorial-panel.js` | descoberta complementar e atalhos para tutoriais | revisao visual desse painel pertence ao roadmap geral de UI |
 
 Fluxo atual:
 
 ```text
-Topbar Ajuda -> modal (Trilha / Catalogo) -> tutorial animado
-Botao flutuante -> chat/FAQ -> spotlight, onboarding ou resposta simulada
-Painel Tutorial do Estudio -> modal de Ajuda / atalhos / modelo de exemplo
-Toast de erro -> chat -> resposta fixa de upload
+Botao flutuante -> Central de Ajuda -> trilha, busca ou ajuda contextual
+Central de Ajuda -> tutorial animado ou guia rapido
+Painel Tutorial do Estudio -> Central de Ajuda / atalhos / modelo de exemplo
+Toast de erro contextual -> guia correspondente na Central
 ```
+
+## Refinamento visual e UX registrado
+
+- Hierarquia reorganizada com marca, titulo, descricao, abas com SVG e uma acao primaria por contexto.
+- Emojis e cores soltas da Central foram substituidos por SVG `currentColor` e tokens do design system.
+- Hover, pressed, disabled, focus-visible, progresso, conclusao e estado vazio receberam tratamentos consistentes.
+- O modal usa motion discreto, respeita `prefers-reduced-motion` e ocupa a tela no mobile sem overflow horizontal.
+- Foco inicial vai para o titulo, Tab permanece preso no dialogo, Esc fecha e o foco retorna ao gatilho.
+- Loading e skeleton nao foram adicionados porque a Central renderiza conteudo local de forma sincrona; nao existe espera real a representar.
 
 ## Conteudo e estado que devem ser preservados
 

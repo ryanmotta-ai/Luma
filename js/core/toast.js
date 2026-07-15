@@ -23,23 +23,10 @@ function gToast(msg, type, helpTopic){
     const helpBtn = document.createElement('button');
     helpBtn.className = 'g-toast-help-btn';
     helpBtn.type = 'button';
-    helpBtn.textContent = 'Como resolver? ❓';
     helpBtn.textContent = 'Ver orientacao';
     helpBtn.onclick = function(e) {
       e.stopPropagation();
-      if (typeof gOpenHelpTopic === 'function') {
-        gOpenHelpTopic(helpTopic, helpBtn);
-        return;
-      }
-      if (typeof gToggleHelpChat === 'function') {
-        const win = document.getElementById('g-chat-window');
-        if (win && !win.classList.contains('open')) {
-          gToggleHelpChat();
-        }
-        if (typeof gSelectCommand === 'function') {
-          gSelectCommand('fran_cors', 'Minhas fotos não carregam');
-        }
-      }
+      if (typeof gOpenHelpTopic === 'function') gOpenHelpTopic(helpTopic, helpBtn);
     };
     item.appendChild(helpBtn);
   }

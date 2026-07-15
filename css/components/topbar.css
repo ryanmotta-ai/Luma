@@ -40,26 +40,6 @@
 .mode-tab.active{color:#F85400;font-weight:700;}
 .mode-tab:hover:not(.active){color:#fff;}
 
-/* Botão de Ajuda na topbar */
-.top-help-btn{
-  display:flex;align-items:center;gap:6px;
-  padding:5px 12px;font-size:12px;font-weight:500;
-  background:rgba(255,255,255,.12);color:var(--white);
-  border:1px solid rgba(255,255,255,.18);
-  border-radius:var(--r-pill);cursor:pointer;
-  font-family:'Roboto',sans-serif;
-  transition:all .2s cubic-bezier(.2,.9,.4,1);
-}
-.top-help-btn:hover{
-  background:var(--white);color:var(--dm-orange);
-  border-color:var(--white);
-  transform:translateY(-1px);
-  box-shadow:0 4px 14px rgba(0,0,0,.22);
-}
-.top-help-btn:active{transform:translateY(0) scale(.96)}
-.top-help-btn svg{flex-shrink:0;transition:transform .2s}
-.top-help-btn:hover svg{transform:rotate(-8deg) scale(1.1)}
-
 .top-right{margin-left:auto;display:flex;align-items:center;gap:14px}
 .top-av{width:28px;height:28px;border-radius:50%;background:var(--white);color:#F85400;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;overflow:hidden;background-size:cover;background-position:center;transition:transform 0.2s var(--ease-smooth);}
 .top-av img{width:100%;height:100%;object-fit:cover;}
@@ -132,8 +112,6 @@
   }
   .top-right{gap:9px}
   .mode-tab{padding:5px 11px;min-height:var(--tap-min);display:flex;align-items:center}
-  .top-help-btn span{display:none}            /* só o ícone de ajuda */
-  .top-help-btn{padding:0;width:var(--tap-min);height:var(--tap-min);justify-content:center;border-radius:50%}
   .top-exit-btn{width:var(--tap-min);height:var(--tap-min)}
   .top-profile-badge{min-height:var(--tap-min)}
 }

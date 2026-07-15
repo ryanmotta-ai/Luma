@@ -89,7 +89,6 @@ function gOnLoginSuccess() {
 
 // Inicializa a aba no startup e checa a autenticação
 window.addEventListener('DOMContentLoaded', async () => {
-  if (typeof gInitHelpChat === 'function') gInitHelpChat();
   setTimeout(dUpdateTabPill, 100);
 
   // Checa a sessão REAL do Supabase (assíncrono) antes de decidir login vs app.

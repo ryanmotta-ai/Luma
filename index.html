@@ -17,7 +17,6 @@
 <link rel="stylesheet" href="css/components/topbar.css">
 <link rel="stylesheet" href="css/components/help-modal.css">
 <link rel="stylesheet" href="css/components/user-profile.css">
-<link rel="stylesheet" href="css/components/help-chat.css">
 <link rel="stylesheet" href="css/components/tutorial.css">
 <link rel="stylesheet" href="css/modules/franqueado.css">
 <link rel="stylesheet" href="css/modules/chat.css">
@@ -258,11 +257,6 @@ input:focus:-webkit-autofill {
     <div id="topbar-context-design" style="display: none; align-items: center;">
     </div>
 
-    <button id="top-help-btn" class="top-help-btn" onclick="gOpenHelp(this)" data-help-trigger aria-controls="g-help-modal" aria-expanded="false" aria-label="Abrir Central de Ajuda" title="Central de Ajuda">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-      <span>Ajuda</span>
-    </button>
-
     <!-- Perfil de Usuário Unificado -->
     <div class="top-profile-badge" id="topbar-user-profile" onclick="if(typeof gOpenUserProfileModal === 'function') gOpenUserProfileModal()" title="Configurações de Perfil">
       <!-- Vazio de propósito: gUpdateUserTopbar() preenche com o papel real (GESTÃO /
@@ -283,15 +277,22 @@ input:focus:-webkit-autofill {
 <div id="g-help-modal" class="g-help-modal" role="dialog" aria-modal="true" aria-labelledby="g-help-title" onclick="if(event.target===this)gCloseHelp()">
   <div class="g-help-box" tabindex="-1">
     <div class="g-help-head">
-      <div class="g-help-title">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        <span id="g-help-title">Central de Ajuda</span>
+      <div class="g-help-heading">
+        <span class="g-help-brand-icon" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/><path d="M9 7h6M9 11h5"/></svg>
+        </span>
+        <div>
+          <h2 class="g-help-title" id="g-help-title" tabindex="-1">Central de Ajuda</h2>
+          <p class="g-help-subtitle">Aprenda no seu ritmo e encontre respostas sem sair do Luma.</p>
+        </div>
       </div>
-      <button class="g-help-close" onclick="gCloseHelp()" aria-label="Fechar">×</button>
+      <button type="button" class="g-help-close" onclick="gCloseHelp()" aria-label="Fechar Central de Ajuda">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+      </button>
     </div>
     <div class="g-help-tabs" role="tablist" aria-label="Conteudo da Central de Ajuda">
-      <button class="g-help-tab active" id="g-help-tab-trilha" role="tab" aria-selected="true" aria-controls="g-help-pane-trilha" onclick="gHelpSwitchTab('trilha')">📚 Trilha</button>
-      <button class="g-help-tab" id="g-help-tab-catalogo" role="tab" aria-selected="false" aria-controls="g-help-pane-catalogo" tabindex="-1" onclick="gHelpSwitchTab('catalogo')">🔍 Catálogo</button>
+      <button class="g-help-tab active" id="g-help-tab-trilha" role="tab" aria-selected="true" aria-controls="g-help-pane-trilha" onclick="gHelpSwitchTab('trilha')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg><span>Minha trilha</span></button>
+      <button class="g-help-tab" id="g-help-tab-catalogo" role="tab" aria-selected="false" aria-controls="g-help-pane-catalogo" tabindex="-1" onclick="gHelpSwitchTab('catalogo')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><span>Explorar ajuda</span></button>
     </div>
     <div class="g-help-body">
 
@@ -300,20 +301,28 @@ input:focus:-webkit-autofill {
       </div>
 
       <div id="g-help-pane-catalogo" class="g-help-pane" role="tabpanel" aria-labelledby="g-help-tab-catalogo">
-        <input class="g-help-search" id="g-help-search" type="text" placeholder="🔎 Buscar tutorial (ex.: variáveis, pincel, publicar)..." oninput="gHelpRenderCatalog(this.value)">
-        <div id="g-help-tut-catalog"></div>
+        <label class="g-help-search-wrap" for="g-help-search">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+          <span class="g-help-sr-only">Buscar na Central de Ajuda</span>
+          <input class="g-help-search" id="g-help-search" type="search" autocomplete="off" placeholder="Busque por uma tarefa, recurso ou dúvida" oninput="gHelpRenderCatalog(this.value)">
+        </label>
+        <div id="g-help-tut-catalog" aria-live="polite"></div>
       </div>
 
       <div class="g-help-foot">
-        <span>Luma · piloto interno</span>
-        <span class="g-help-foot-sep">·</span>
-        <span>v0.4</span>
+        <span>Ajuda integrada ao seu fluxo</span>
+        <span class="g-help-foot-sep" aria-hidden="true">·</span>
+        <span>Pressione Esc para fechar</span>
       </div>
     </div>
   </div>
 </div>
 
 <!-- ══ MODAL DE PERFIL DE USUÁRIO ══ -->
+<button id="g-help-float" class="g-help-float" type="button" onclick="gOpenHelp(this)" data-help-trigger aria-controls="g-help-modal" aria-expanded="false" aria-label="Abrir Central de Ajuda" title="Central de Ajuda">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+</button>
+
 <div id="g-profile-modal" class="g-profile-modal" onclick="if(event.target===this)gCloseUserProfileModal()">
   <div class="prof-box">
     
@@ -2552,7 +2561,6 @@ input:focus:-webkit-autofill {
 <script src="js/core/supabase.js"></script>
 <script src="js/core/auth.js"></script>
 <script src="js/core/user-profile.js"></script>
-<script src="js/core/help-chat.js"></script>
 <script src="js/main.js"></script>
 
 
