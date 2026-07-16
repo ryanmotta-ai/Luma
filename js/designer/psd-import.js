@@ -70,10 +70,12 @@ function _dPsdFontScale(tr){
 // tamanho real é ausente/implausível — preservando o tamanho 1:1 do Photoshop.
 function _dPsdFontSize(t,h,content,res){
   const s=_dPsdTextStyle(t);
-  let fs=(s.fontSize||s.size||0)*_dPsdFontScale(t&&t.transform);
-  // DPI: o fontSize vem em pontos; em doc hi-res (res≠72) escala p/ px. Guard fs<200: se o
-  // transform já trouxe um valor grande em px, não dobra. Mesmo critério p/ box e point.
-  if(res>90 && fs>0 && fs<200) fs*=(res/72);
+  const _tScale=_dPsdFontScale(t&&t.transform);
+  let fs=(s.fontSize||s.size||0)*_tScale;
+  // DPI: o fontSize vem em pontos; em doc hi-res (res≠72) escala p/ px. Só dobra quando o TRANSFORM
+  // ainda não trouxe a escala (tScale≈1) — senão dobraria. Antes o teto absoluto fs<200 deixava
+  // títulos grandes (ex.: 220pt a 300dpi) sem escalar, saindo 4× menores que o desenhado.
+  if(res>90 && fs>0 && _tScale<1.5) fs*=(res/72);
   // PARÁGRAFO (box): a caixa é fixa/alta → confia sempre no tamanho real do designer.
   if(t && t.shapeType==='box' && fs>=6 && fs<=2000) return Math.round(Math.max(8,Math.min(fs,2000)));
   // POINT: confia no tamanho real; só ancora na caixa (bbox de glifos) se o valor for implausível.
@@ -146,8 +148,9 @@ function _dPsdParagraphBox(node){
 function _dPsdEffects(node){
   const fx=node.effects||{}; const out={};
   const _u=v=>{ if(v==null) return 0; return (v.value!=null)?+v.value:+v; };
-  // Pega o 1º efeito de um array e marca _fxOverflow quando há vários do mesmo tipo
-  // (PS CC permite 2+ sombras/traços; o modelo Luma só representa um → P3 rasteriza o resto fiel).
+  // Pega o 1º efeito de um array e marca _fxOverflow quando há vários do mesmo tipo (PS CC permite
+  // 2+ sombras/traços; o modelo Luma só representa um). _fxOverflow é consumido no fim do parse →
+  // a camada rasteriza fiel (senão o 2º+ efeito sumiria em silêncio).
   const _first=x=>{ if(Array.isArray(x)){ if(x.length>1) out._fxOverflow=true; return x[0]; } return x; };
   // Sombra projetada
   let ds=_first(fx.dropShadow);
@@ -196,8 +199,8 @@ function _dPsdEffects(node){
     out.overlay=true;
     out.overlayColor=_dPsdHex(so.color)||'#000000';
     out.overlayOpacity=(so.opacity!=null?+so.opacity:1);
-    // blendMode do efeito (multiply/screen/etc). O renderer ainda não aplica → guarda p/ P3
-    // decidir rasterizar quando for um modo que o overlay simples (substituição de cor) falsearia.
+    // blendMode do efeito (multiply/screen/etc). O overlay simples (substituição de cor) falsearia →
+    // overlayBlend é consumido no fim do parse e força rasterização fiel da camada.
     if(so.blendMode && so.blendMode!=='normal') out.overlayBlend=so.blendMode;
   }
   // Sobreposição de gradiente (gradient overlay)
@@ -457,6 +460,10 @@ function _dPsdRichRuns(t, res, h){
   try{
     const runs=Array.isArray(t.styleRuns)?t.styleRuns:null; if(!runs||runs.length<2) return null;
     const full=String(t.text||'').replace(/\r\n?/g,'\n');
+    // Cor do estilo DOMINANTE como fallback: um run que só muda o tamanho costuma herdar a cor
+    // (sem fillColor no EngineData) — cair em #000 fixo apagava trecho branco sobre fundo escuro.
+    const _domStyle=(typeof _dPsdDominantStyle==='function'&&_dPsdDominantStyle(t))||null;
+    const _domColor=(_domStyle&&_domStyle.style&&_dPsdHex(_domStyle.style.fillColor||_domStyle.style.color))||'#000000';
     const out=[]; let pos=0;
     for(const r of runs){
       const len=r.length||0; const seg=full.substr(pos,len); pos+=len; if(!seg) continue;
@@ -466,7 +473,7 @@ function _dPsdRichRuns(t, res, h){
       const _rfs=_dPsdFontSize({style:st,transform:t.transform}, h, seg, res);
       out.push({
         text:seg,
-        color:_dPsdHex(st.fillColor||st.color)||'#000000',
+        color:_dPsdHex(st.fillColor||st.color)||_domColor,
         fontSize:_rfs,
         font: remap||(/black|900|heavy/i.test(fname)?"'Roboto Black'":/bold|700/i.test(fname)?"'Roboto',bold":"'Roboto'"),
         _fontName:fname, // nome original — permite remap posterior (upload de fonte na revisão)
@@ -554,8 +561,12 @@ function _dPsdSuggestVar(name, content){
     category:'categoria'
   };
   
+  // Chaves ambíguas: palavras curtas/genéricas que também aparecem em texto fixo (conectivos,
+  // rótulos). Elas SUGEREM a variável, mas NÃO ativam o modo var automático — senão uma camada
+  // chamada "de"/"por"/"off"/"area" teria seu conteúdo fixo substituído por {{var}} (perda silenciosa).
+  const AMBIGUOUS=new Set(['de','por','to','from','off','area','value','sale','promo','valor','promocao']);
   const matchedKey = map[clean] || map[sing];
-  if(matchedKey) return {name:matchedKey, auto:true};
+  if(matchedKey) return {name:matchedKey, auto: !(AMBIGUOUS.has(clean)||AMBIGUOUS.has(sing))};
   
   const known=[
     'produto', 'precoPor', 'precoDe', 'validade', 'detalhes', 'desconto', 'cupom', 'codigo',
@@ -567,10 +578,12 @@ function _dPsdSuggestVar(name, content){
   });
   if(hit) return {name:hit, auto:true};
   
-  // Heurística de preço no conteúdo
+  // Heurística de preço no CONTEÚDO: só SUGERE a variável (auto:false). Antes, qualquer texto com
+  // "R$ …" virava {{precoPor}} substituindo o conteúdo inteiro — destruía rodapés/disclaimers que
+  // por acaso citam um valor. O usuário promove a variável conscientemente na tela de revisão.
   if(content && /(?:r\$|\$)\s*\d/i.test(content)){
-    if(/(?:de|from)/i.test(clean) || /(?:de|from)/i.test(sing)) return {name:'precoDe', auto:true};
-    return {name:'precoPor', auto:true};
+    if(/(?:de|from)/i.test(clean) || /(?:de|from)/i.test(sing)) return {name:'precoDe', auto:false};
+    return {name:'precoPor', auto:false};
   }
   
   return {name:clean||'variavel', auto:false};
@@ -860,7 +873,7 @@ function dPsdParseItems(psd, res, ox, oy){
         it.fontRemapped=!!_fRemap;
         // fontCaps: 0=normal, 1=small-caps, 2=all-caps (PS "All Caps" character style)
         if(st.fontCaps===2) it.textTransform='uppercase';
-        else if(st.fontCaps===1) it.textTransform='lowercase'; // small-caps → aproximação
+        else if(st.fontCaps===1) it.textTransform='uppercase'; // small-caps (versaletes) ≈ maiúsculas; NUNCA lowercase (invertia a caixa)
         // fauxBold: PS "Faux Bold" — eleva o peso quando a fonte não tem variante bold
         if(st.fauxBold || /bold|black|heavy|700|900/i.test(it.fontName)) it.fontWeightOverride=700;
         // Itálico: faux italic do PS ou variante itálica/oblíqua no nome da fonte → font-style:italic
@@ -918,7 +931,13 @@ function dPsdParseItems(psd, res, ox, oy){
           Object.assign(it,_dPsdEffects(node));        // sombra/glow/overlay/contorno-fx
           Object.assign(it,stroke);                    // traçado do shape (vectorStroke, incl. tracejado)
           const _rr=_dPsdCornerRadii(node,w,h); if(_rr) it.radii=_rr; // cantos por canto
-          
+          // Linha/divisor fino SÓ-CONTORNO: um retângulo de altura ~traço viraria uma MOLDURA de 4
+          // lados no lugar de um traço único. Converte em barra sólida fina (= a linha do PSD).
+          if(hasStroke && !solid && !grad && Math.min(w,h) <= Math.max(stroke.strokeW*1.5, 4)){
+            it.fill=stroke.strokeColor||'#000000'; it.shapeKind='rect';
+            it.strokeW=0; delete it.strokeDash; delete it.strokeCap; delete it.strokeJoin; delete it.strokeAlign; delete it.radii;
+          }
+
           // Heurística de auto-frame para shapes (se o nome da camada contiver imagem/foto)
           const imgSug = _dPsdSuggestImgVar(it.name);
           if (imgSug) {
@@ -943,6 +962,18 @@ function dPsdParseItems(psd, res, ox, oy){
           }
         }
       } else { return; }
+      // Fidelidade: combinações que o modelo EDITÁVEL não representa → rasteriza fiel (há pixels no
+      // node.canvas). Mesma filosofia de warp/rotação/smart-object. Sem isto, esses efeitos sumiam
+      // silenciosamente (o dado era gravado mas nenhum renderizador o consumia).
+      const _pn=it._psdNode;
+      if(_pn && _pn.canvas && _pn.canvas.width>0){
+        const _fxUnsup = it._fxOverflow                                   // 2+ efeitos do mesmo tipo (só o 1º era aplicado)
+          || it.overlayBlend                                             // color overlay em multiply/screen/etc.
+          || (it.gradientOverlay && it.gradientOverlay.blendMode)        // gradient overlay com blend
+          || (it.kind==='text' && (it.innerShadow||it.innerGlow||it.bevel||it.gradientOverlay)) // efeitos que o texto não renderiza
+          || (it.fillOpacity!=null && it.fillOpacity<1 && (it.shadow||it.innerShadow||it.glow||it.innerGlow||it.bevel||it.overlay||it.gradientOverlay||it.strokeW)); // fill-opacity + efeitos
+        if(_fxUnsup){ it.needsRaster=true; if(!it.imgUrl) it.imgUrl=_dPsdRasterURL(_pn.canvas,{maxPx:2400,q:0.92}); }
+      }
       items.push(it);
     });
   })(psd.children, 1, false, '');
@@ -997,7 +1028,23 @@ function dPsdParseItems(psd, res, ox, oy){
             ctx.fill();
             success = true;
           } else if (base.kind === 'shape') {
-            ctx.fillRect(ox, oy, base.w, base.h);
+            // Honra cantos arredondados (radius uniforme ou radii por-canto) — antes o fillRect reto
+            // recortava com quebra de canto sobre uma base arredondada.
+            const _rr=base.radii||{}, tl=+_rr.tl||base.radius||0, tr=+_rr.tr||base.radius||0, br=+_rr.br||base.radius||0, bl=+_rr.bl||base.radius||0;
+            if(tl||tr||br||bl){
+              ctx.beginPath();
+              ctx.moveTo(ox+tl,oy);
+              ctx.lineTo(ox+base.w-tr,oy); ctx.arcTo(ox+base.w,oy,ox+base.w,oy+tr,tr);
+              ctx.lineTo(ox+base.w,oy+base.h-br); ctx.arcTo(ox+base.w,oy+base.h,ox+base.w-br,oy+base.h,br);
+              ctx.lineTo(ox+bl,oy+base.h); ctx.arcTo(ox,oy+base.h,ox,oy+base.h-bl,bl);
+              ctx.lineTo(ox,oy+tl); ctx.arcTo(ox,oy,ox+tl,oy,tl);
+              ctx.closePath(); ctx.fill();
+            } else { ctx.fillRect(ox, oy, base.w, base.h); }
+            success = true;
+          } else if (base._psdNode && base._psdNode.canvas && base._psdNode.canvas.width>0) {
+            // Base RASTER (foto/forma complexa): usa o ALPHA dos pixels da base como recorte, em vez
+            // de desistir (antes o clipping era totalmente ignorado e a camada importava cheia).
+            ctx.drawImage(base._psdNode.canvas, ox, oy, base.w, base.h);
             success = true;
           }
           if(success) {
