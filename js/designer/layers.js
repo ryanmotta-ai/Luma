@@ -2787,6 +2787,12 @@ function dPushFoldersToBackend(){
   if(_dFoldersPushTimer) clearTimeout(_dFoldersPushTimer);
   _dFoldersPushTimer=setTimeout(()=>{ _dFoldersPushTimer=null; _dPushFoldersNow(); }, 1200);
 }
+// FLUSH no fechamento: salvar e fechar a aba dentro do debounce (1,2s) descartava o push.
+// pagehide dispara o push imediato (melhor esforço — se o navegador matar o fetch, o
+// template segue _syncPending e sobe no próximo boot; nada se perde, só atrasa).
+window.addEventListener('pagehide', ()=>{
+  if(_dFoldersPushTimer){ clearTimeout(_dFoldersPushTimer); _dFoldersPushTimer=null; _dPushFoldersNow(); }
+});
 // Sobe um data:URL pro Storage e devolve a URL pública (ou null em falha).
 async function _dUploadDataUrl(bucket, path, dataUrl){
   const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
@@ -2831,9 +2837,14 @@ async function _dUploadLayerImages(layers, tid){
 // Mantém a assinatura (p) por compat; o prefixo é irrelevante — o id precisa ser UUID
 // válido (PK uuid no banco), garantido por gUuid() mesmo fora de contexto seguro.
 function _dUuid(p){ return gUuid(); }
+// LOCK: dois pushes ao mesmo tempo (debounce + clique no badge + flush do pagehide)
+// intercalavam upserts das mesmas linhas. Um por vez; pedido durante o voo roda ao final.
+let _dPushBusy=false, _dPushQueued=false;
 async function _dPushFoldersNow(){
   const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
   if(!sb || typeof gIsAdmin!=='function' || !gIsAdmin()) return;
+  if(_dPushBusy){ _dPushQueued=true; return; }
+  _dPushBusy=true;
   try{
     for(const f of (dFolders||[])){
       if(!f.remoteId) f.remoteId=_dUuid('p');
