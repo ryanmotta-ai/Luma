@@ -86,7 +86,7 @@ permissoes: { nome_do_campo: { edit: true|false, maxLen: 32 } }
 
 **No mundo real (Delivery Much).** "Campanha" é uma ação de marketing: uma promoção, uma data comemorativa, um combo. Podem ser **nacionais** (criadas pela DM central e seguidas por todos os franqueados) ou **locais** (o franqueado, em parceria com um restaurante, cria uma promo "para além das campanhas nacionais").
 
-**No Luma.** Uma **campanha é uma _pasta_ (`folder`) que agrupa templates/materiais** de um mesmo tema. É a "gaveta" do catálogo. Cada pasta tem: `id`, `name`, `campId` (liga ao catálogo), `cover` (capa) e uma lista de `templates`. As campanhas do catálogo estão em `js/00-config.js`: `CAMPS_ATIVAS`, `CAMPS_OUTRAS`, `CAMPS_IMPLEMENTACAO` (esta última = onboarding de cidade nova).
+**No Luma.** Uma **campanha é uma _pasta_ (`folder`) que agrupa templates/materiais** de um mesmo tema. É a "gaveta" do catálogo. Cada pasta tem: `id`, `name`, `campId` (liga ao catálogo), `cover` (capa) e uma lista de `templates`. O catálogo do franqueado é **config + banco** (desde 2026-07-16): a base são as campanhas de `js/00-config.js` (`CAMPS_ATIVAS`, `CAMPS_OUTRAS`, `CAMPS_IMPLEMENTACAO` — esta última = onboarding de cidade nova), e **pastas criadas no Estúdio sem campanha correspondente entram como campanhas dinâmicas** (`fGetCampaigns`), com o id da própria pasta. A capa segue a mesma regra: **pasta existente manda** (capa vazia = removida de propósito → cor da marca); o `cover` do config é só semente de primeira carga.
 
 **Fluxo:** o **designer/gestão cria a campanha (pasta) e publica templates dentro dela**. O **franqueado escolhe uma campanha no catálogo → escolhe um material → gera a arte**. O franqueado **consome** campanhas; ele **não cria** campanhas no Luma.
 

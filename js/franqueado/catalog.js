@@ -332,14 +332,20 @@ async function fConfirmDuplicate(id, fmtId){
 // Acha a pasta (dFolders) ligada a uma campanha — por campId ou nome
 function fFolderForCamp(c){
   if(typeof dFolders==='undefined'||!dFolders||!c)return null;
-  return dFolders.find(f=>f.campId===c.id) || dFolders.find(f=>f.name===c.name) || null;
+  // 3º match: campanha dinâmica (criada no Estúdio) usa o id da própria pasta como camp.id
+  return dFolders.find(f=>f.campId===c.id) || dFolders.find(f=>f.name===c.name)
+      || dFolders.find(f=>f.remoteId===c.id||f.id===c.id) || null;
 }
-// Capa da pasta (se o designer enviou uma) — usada como fundo do card
-// Prioridade: dFolders.cover (designer upload) > c.cover (estático no config)
+// Capa da pasta — usada como fundo do card.
+// Pasta EXISTENTE no catálogo manda (gerida pelo MKT no Estúdio/banco): cover vazio
+// significa "sem capa de propósito" (remoção) → cor da marca/thumb, NUNCA o hardcode.
+// O c.cover estático do config é só semente para campanha ainda sem pasta (1ª carga).
 function fCampCover(c){
   const f=fFolderForCamp(c);
-  const cv=f&&f.cover;
-  if(cv&&typeof cv==='string'&&cv!=='__local__'&&cv.length) return cv;
+  if(f){
+    const cv=f.cover;
+    return (cv&&typeof cv==='string'&&cv!=='__local__'&&cv.length)?cv:'';
+  }
   return (c&&c.cover&&typeof c.cover==='string'&&c.cover.length)?c.cover:'';
 }
 /* ── MINIATURAS REAIS DOS MATERIAIS ──────────────────────────────
@@ -487,9 +493,32 @@ function fCampEl(c,isRec,ghost){
   </div>`;
 }
 function fGetCampaigns(){
-  // As constantes CAMPS_* são sempre a fonte da lista — dFolders só serve
-  // para capa e templates publicados (consultado por fCampCover / fFolderForCamp).
-  return {ativas:CAMPS_ATIVAS,outras:CAMPS_OUTRAS};
+  // Config (CAMPS_*) é a BASE; pastas do banco sem campanha correspondente viram
+  // campanhas dinâmicas na vitrine — o MKT cria a pasta no Estúdio e ela aparece
+  // pro franqueado sem mexer em código. (Antes: só as hardcoded eram listadas, e
+  // "criar campanha" no Estúdio não refletia em lugar nenhum do franqueado.)
+  const ativas=[...CAMPS_ATIVAS];
+  try{
+    if(typeof dFolders!=='undefined' && dFolders){
+      const conhecidas=[...CAMPS_ATIVAS,...CAMPS_OUTRAS];
+      const ids=new Set(conhecidas.map(c=>c.id));
+      const nomes=new Set(conhecidas.map(c=>c.name));
+      dFolders.forEach(f=>{
+        if(!f || f.id==='f-modelo') return;              // pasta de exemplo não é campanha
+        if(f.campId && ids.has(f.campId)) return;        // já listada via config
+        if(nomes.has(f.name)) return;                    // mesma campanha (match por nome)
+        ativas.push({
+          // remoteId (estável pós-sync) > id local; histórico/artes gravam este id
+          id:f.campId||f.remoteId||f.id, name:f.name, color:f.color||'#FF9000',
+          cover:'', count:(f.templates||[]).length, badge:f.badge||'',
+          expiraDias:f.expiraDias, popular:!!f.popular,
+          previewProd:f.previewProd||'', previewDe:f.previewDe||'', previewPor:f.previewPor||'',
+          perguntas:Array.isArray(f.perguntas)?f.perguntas:[]
+        });
+      });
+    }
+  }catch(e){}
+  return {ativas, outras:CAMPS_OUTRAS};
 }
 function fResolveCamp(id){
   const {ativas,outras}=fGetCampaigns();

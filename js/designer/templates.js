@@ -194,8 +194,11 @@ function dPreloadFolders(){
   dFolders.forEach(f=>{
     if(f.campId && campsMap[f.campId]){
       const c=campsMap[f.campId];
-      // Capa oficial da campanha (constantes) preenche pastas que ainda não têm capa própria
-      if(!f.cover && c.cover) f.cover=c.cover;
+      // Capa oficial (constantes) é SEMENTE de 1ª carga: só em pasta que ainda não existe
+      // no banco (sem remoteId). Pasta sincronizada manda — inclusive capa REMOVIDA de
+      // propósito (cover_url NULL); re-herdar aqui ressuscitava a capa antiga a cada boot
+      // e o push seguinte regravava o hardcode no banco.
+      if(!f.cover && !f.remoteId && c.cover) f.cover=c.cover;
       if(!f.perguntas) f.perguntas=c.perguntas||[];
       if(!f.badge) f.badge=c.badge||'';
       if(!f.expiraDias) f.expiraDias=c.expiraDias||7;
@@ -1483,6 +1486,7 @@ function dConfirmFolder(){
     dRenderFolders();
     dCloseFolderModal();
     if(typeof fGetCampaigns==='function'&&typeof fRenderCatalogs==='function')try{const{ativas,outras}=fGetCampaigns();fRenderCatalogs(ativas,outras);}catch(e){}
+    if(typeof fHomeRefreshIfIdle==='function')try{fHomeRefreshIfIdle();}catch(e){} // home/vitrine reflete a capa nova sem F5
     gToast('✓ Pasta "'+name+'" atualizada');
     return;
   }
@@ -1494,6 +1498,7 @@ function dConfirmFolder(){
   if(document.body.classList.contains('d-studio-home-open'))dStudioHomeRender();
   dCloseFolderModal();
   if(typeof fGetCampaigns==='function'&&typeof fRenderCatalogs==='function')try{const{ativas,outras}=fGetCampaigns();fRenderCatalogs(ativas,outras);}catch(e){}
+  if(typeof fHomeRefreshIfIdle==='function')try{fHomeRefreshIfIdle();}catch(e){} // home/vitrine reflete sem F5
   gToast('✓ Pasta "'+name+'" criada');
 }
 // Renomear rápido (sem abrir o modal todo)

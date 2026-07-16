@@ -48,6 +48,7 @@ function fGetMaterialsForCamp(campId){
     const folder = dFolders.find(f=>{
       if(f.campId===campId) return true;
       if(c && f.name===c.name) return true;
+      if(f.remoteId===campId || f.id===campId) return true; // campanha dinâmica: camp.id = id da pasta
       return false;
     });
     if(folder && folder.templates) real=folder.templates.filter(t=>t.publishMeta && t.publishMeta.publicado);
