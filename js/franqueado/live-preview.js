@@ -339,6 +339,7 @@ async function fUpdateLivePreview(opts){
   if(!fState.material || !fState.material.layers || !fState.material.layers.length){
     fLpShowEmpty(canvas);
     fLpUpdateMeta(false);
+    try{ _fLpPaintPip(); }catch(e){} // sem material → a miniatura volta a ser o ícone
     return;
   }
 
@@ -416,6 +417,7 @@ async function fUpdateLivePreview(opts){
 
     fLpUpdateMeta(true);
     try{ fLpUpdateWarnings(); }catch(e){}
+    try{ _fLpPaintPip(); }catch(e){} // miniatura viva no celular acompanha cada resposta
   } catch(e){
     console.warn('[lp] erro ao renderizar preview:', e);
     fLpShowEmpty(canvas);
@@ -908,7 +910,84 @@ function fLpUpdateMeta(hasTemplate){
     }
   }
 }
+/* ── MINIATURA VIVA (PiP) ──
+   No celular a prévia ficava escondida atrás de um botão-olho — o franqueado respondia às
+   cegas e perdia a mágica de VER a arte nascer. O botão flutuante vira um mini-canvas com a
+   arte real, repintado a cada resposta (drawImage do #lp-canvas — cópia de pixels do motor
+   único, NUNCA um segundo renderizador). Toque nele = abre a prova em tela cheia. */
+function _fLpPaintPip(){
+  const btn = document.getElementById('mobile-preview-toggle');
+  if(!btn) return;
+  if(!window.matchMedia || !matchMedia('(max-width:680px)').matches) return;
+  const src = document.getElementById('lp-canvas');
+  if(!src || !src.width || !fState.material){ btn.classList.remove('pip-has-art'); return; }
+  let cv = btn.querySelector('.pip-cv');
+  if(!cv){ cv = document.createElement('canvas'); cv.className = 'pip-cv'; btn.appendChild(cv); }
+  // Altura acompanha a proporção da arte (story alto, wide baixo), com limites de bolso.
+  const W = 64, H = Math.max(48, Math.min(114, Math.round(W * src.height / src.width)));
+  btn.style.setProperty('--pip-h', H + 'px');
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = W * dpr; cv.height = H * dpr;
+  const ctx = cv.getContext('2d');
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(src, 0, 0, cv.width, cv.height);
+  btn.classList.add('pip-has-art');
+  // Arte pronta → um pulso convida pra prova final (uma vez por arte; nada de abrir sozinho)
+  if(fState.done && !btn._pipPulsed){ btn._pipPulsed = true; btn.classList.add('pip-pulse'); setTimeout(()=>btn.classList.remove('pip-pulse'), 1200); }
+  if(!fState.done) btn._pipPulsed = false;
+}
+
+// Gestos de celular na PROVA: pinça = zoom (mesmo _fLpZoomAround da roda), 1 dedo = pan.
+// Fora do modo enquadrar-foto (que tem os próprios gestos). Toque sem arrasto segue editando.
+function _fLpBindStageTouch(){
+  const stage = document.querySelector('#f-live-preview .lp-stage');
+  if(!stage || stage._lpTouchBound) return;
+  stage._lpTouchBound = true;
+  let pinch = null;
+  stage.addEventListener('touchstart', (e)=>{
+    if(_lpFraming) return;
+    if(e.touches.length >= 2){
+      pinch = { d:_fLpTouchDist(e), z:_lpUserZoom,
+        cx:(e.touches[0].clientX + e.touches[1].clientX)/2,
+        cy:(e.touches[0].clientY + e.touches[1].clientY)/2 };
+      e.preventDefault();
+    } else if(e.touches.length === 1){
+      _fLpPanDown({ button:0, clientX:e.touches[0].clientX, clientY:e.touches[0].clientY,
+        target:e.target, preventDefault:function(){} });
+    }
+  }, {passive:false});
+  stage.addEventListener('touchmove', (e)=>{
+    if(_lpFraming) return;
+    if(pinch && e.touches.length >= 2){
+      e.preventDefault();
+      _fLpZoomAround(pinch.z * (_fLpTouchDist(e)/(pinch.d||1)), pinch.cx, pinch.cy);
+    } else if(_lpPanning && e.touches.length === 1){
+      e.preventDefault();
+      _fLpPanMove({ clientX:e.touches[0].clientX, clientY:e.touches[0].clientY });
+    }
+  }, {passive:false});
+  stage.addEventListener('touchend', (e)=>{ if(!e.touches.length){ pinch = null; if(_lpPanning) _fLpPanUp(); } });
+}
+
+// A alça no topo da gaveta PROMETE arrastar — cumpre: puxar o cabeçalho pra baixo fecha.
+function _fLpBindSwipeClose(){
+  const head = document.querySelector('#f-live-preview .lp-head');
+  if(!head || head._lpSwipeBound) return;
+  head._lpSwipeBound = true;
+  let sy = null;
+  head.addEventListener('touchstart', (e)=>{ sy = e.touches[0].clientY; }, {passive:true});
+  head.addEventListener('touchmove', (e)=>{
+    if(sy != null && e.touches[0].clientY - sy > 60){
+      sy = null;
+      const el = document.getElementById('f-live-preview'); if(el) el.classList.remove('open');
+    }
+  }, {passive:true});
+  head.addEventListener('touchend', ()=>{ sy = null; });
+}
+
 function fInitMobilePreviewEvents() {
+  _fLpBindStageTouch();
+  _fLpBindSwipeClose();
   if (!document.getElementById('mobile-preview-toggle')) {
     const btn = document.createElement('button');
     btn.id = 'mobile-preview-toggle';

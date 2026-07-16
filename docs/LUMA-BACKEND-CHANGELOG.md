@@ -234,6 +234,9 @@ Mesmo padrão offline-first (localStorage cache + push background só designer +
 - [x] `js/core/user-profile.js`: badges + tela de *Gestão de Equipe* migrados pro Supabase (lista profiles reais via RLS; Fase 1).
 - [x] **Persistência do designer**: ✅ variáveis, ✅ pastas + templates + Storage, ✅ fontes, ✅ snippets, ✅ biblioteca de assets (todas via API; falta exercer no navegador).
 - [x] **Persistência do franqueado**: ✅ histórico de artes (`luma.artes`) + ✅ fotos do chat → bucket `luma-user-uploads` (tornado público).
-- [ ] **Analytics**: emitir eventos em `analytics.fct_eventos` nos pontos-chave.
+- [x] **Analytics**: eventos emitidos nos pontos-chave — `sessao_iniciada`, `arte_gerada`, `arte_baixada`, e (2026-07-16) `template_publicado`, `campanha_aberta`, `material_aberto` (funil completo campanha → material → arte). As views `vw_*` consultam-se via SQL Editor/service_role.
+- [ ] **PENDENTE DE APLICAÇÃO (Pedro, ~5 min no SQL Editor)** — 2 migrations escritas em 2026-07-16, versionadas em `supabase/migrations/`:
+  - `20260716120000_luma_artes_template_id.sql` — coluna `template_id` em `luma.artes` (FK SET NULL + índice). Depois de aplicar, avisar p/ ligar o front (history.js grava/lê o vínculo — hoje grava null).
+  - `20260716130000_luma_updated_at.sql` — `updated_at` + trigger em `luma.pastas`/`luma.templates` (base p/ aviso de conflito cross-device no sync).
 - [ ] **XSS (H.1)**: `gEsc()` global antes de produção (achado §11.3 do CRM).
 - [~] Gestão de usuários: ✅ Fase 1 (listar/role/ativo via RLS). **Fase 2 (criar via Edge Function) ADIADA** — por ora criar/excluir usuário é feito direto no Dashboard do Supabase (decisão 2026-06-19).

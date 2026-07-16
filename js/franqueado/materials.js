@@ -210,7 +210,7 @@ function fRenderMaterialCatalog(camp, container){
           <h1 class="f-mat-camp-name">${gEsc(camp.name)}</h1>
           <p class="f-mat-camp-sub">Escolha o formato ideal. Depois, o Luma guia você na personalização.</p>
           <div class="f-mat-summary" aria-label="Resumo da campanha">
-            <span class="f-mat-count"><strong>${validMat.length}</strong> material${validMat.length>1?'is':''}</span>
+            <span class="f-mat-count"><strong>${validMat.length}</strong> ${validMat.length>1?'materiais':'material'}</span>
             ${formats.map(fmt=>`<span class="f-mat-summary-chip">${gEsc(fmt)}</span>`).join('')}
           </div>
         </div>
@@ -309,6 +309,16 @@ function fCloseMaterialCatalog(){
     chatCol.style.display='';
     chatCol.classList.add('fade-enter');
 
+    // O usuário pode ter navegado DENTRO da janela do fade (200ms) — ex.: clicar em
+    // "Minhas artes" logo após voltar. Este callback atrasado chamava fGoHome() mesmo
+    // assim, derrubando o modo histórico e deixando o rail num estado misto (catálogo
+    // escondido + histórico espremido) — o bug intermitente da página "toda bugada".
+    // Estado mais novo vence: se já está no histórico ou noutro material, só limpa o fade.
+    const _navegou = document.body.classList.contains('f-history-mode')
+      || document.body.classList.contains('f-material-browser')
+      || (fState && fState.material);
+    if(_navegou){ chatCol.classList.remove('fade-enter'); return; }
+
     fRestoreCatalog();
     fUpdateCtx();
     // Voltar dos materiais → HOME (vitrine). O chat por trás fica no estado
@@ -393,6 +403,8 @@ async function fSelectMaterial(materialId, card){
   const targetFmt = FMTS.find(f=>f.id===targetFmtId);
   if(targetFmt) fState.fmt = targetFmt;
   fState.material=found;
+  // Evento previsto na migration de analytics e nunca emitido (funil: campanha → material → arte)
+  if(typeof gTrackEvent==='function') gTrackEvent('material_aberto',{material:found.name||'', fmt:found.fmt||'', demo:!!found._demo});
   if (typeof gTriggerOnboardingStep === 'function') {
     gTriggerOnboardingStep('choseMaterial');
   }

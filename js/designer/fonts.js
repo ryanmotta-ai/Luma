@@ -79,7 +79,7 @@ async function dPushFontsToBackend(){
 async function dDeleteFontFromBackend(remoteId){
   const sb=_gSbFont();
   if(!sb || !remoteId || typeof gIsAdmin!=='function' || !gIsAdmin()) return;
-  try{ await sb.schema('luma').from('fontes').delete().eq('id', remoteId); }catch(e){}
+  await gRemoteDelete('fontes','id',remoteId); // falhou → fila (re-tenta no boot)
 }
 async function dSyncFontsFromBackend(){
   const sb=_gSbFont(); if(!sb) return;

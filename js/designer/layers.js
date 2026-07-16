@@ -2045,7 +2045,7 @@ async function dPushVarsToBackend(){
 async function dDeleteVarFromBackend(name){
   const sb = (typeof gSupabase==='function') ? gSupabase() : window.sb;
   if(!sb || !name || typeof gIsAdmin!=='function' || !gIsAdmin()) return;
-  try{ await sb.schema('luma').from('variaveis').delete().eq('name', name); }catch(e){}
+  await gRemoteDelete('variaveis','name',name); // falhou → fila (re-tenta no boot)
 }
 // Carrega o catálogo do Supabase pro dVars (boot). Banco vazio + designer + catálogo
 // local → faz a migração inicial (push).
@@ -2731,6 +2731,11 @@ function dSave(options){
       // final (o franqueado renderiza t.bg) até uma republicação.
       if(_ab && _ab.bg!==undefined) t.bg=_ab.bg;
       if(_custom){ t.fmt=_ab.fmt; t.w=_ab.w; t.h=_ab.h; }
+      // PENDENTE ATÉ CONFIRMAR: marca na escrita; só o upsert bem-sucedido limpa
+      // (_dPushFoldersNow). Sem isto, um push pulado (sessão caída), uma exceção no
+      // meio do loop ou fechar a aba no debounce deixava a edição SEM flag — e o pull
+      // do próximo boot descartava o trabalho ("banco manda").
+      t._syncPending=true;
     }}));
   }
   const hadImgWarn=gImgPersistWarned;
@@ -2782,6 +2787,12 @@ function dPushFoldersToBackend(){
   if(_dFoldersPushTimer) clearTimeout(_dFoldersPushTimer);
   _dFoldersPushTimer=setTimeout(()=>{ _dFoldersPushTimer=null; _dPushFoldersNow(); }, 1200);
 }
+// FLUSH no fechamento: salvar e fechar a aba dentro do debounce (1,2s) descartava o push.
+// pagehide dispara o push imediato (melhor esforço — se o navegador matar o fetch, o
+// template segue _syncPending e sobe no próximo boot; nada se perde, só atrasa).
+window.addEventListener('pagehide', ()=>{
+  if(_dFoldersPushTimer){ clearTimeout(_dFoldersPushTimer); _dFoldersPushTimer=null; _dPushFoldersNow(); }
+});
 // Sobe um data:URL pro Storage e devolve a URL pública (ou null em falha).
 async function _dUploadDataUrl(bucket, path, dataUrl){
   const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
@@ -2826,9 +2837,14 @@ async function _dUploadLayerImages(layers, tid){
 // Mantém a assinatura (p) por compat; o prefixo é irrelevante — o id precisa ser UUID
 // válido (PK uuid no banco), garantido por gUuid() mesmo fora de contexto seguro.
 function _dUuid(p){ return gUuid(); }
+// LOCK: dois pushes ao mesmo tempo (debounce + clique no badge + flush do pagehide)
+// intercalavam upserts das mesmas linhas. Um por vez; pedido durante o voo roda ao final.
+let _dPushBusy=false, _dPushQueued=false;
 async function _dPushFoldersNow(){
   const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
   if(!sb || typeof gIsAdmin!=='function' || !gIsAdmin()) return;
+  if(_dPushBusy){ _dPushQueued=true; return; }
+  _dPushBusy=true;
   try{
     for(const f of (dFolders||[])){
       if(!f.remoteId) f.remoteId=_dUuid('p');
@@ -2871,8 +2887,16 @@ async function _dPushFoldersNow(){
     }
     // re-salva o cache local com os remoteId/URLs recém-atribuídos (imagens já são URLs → leve)
     try{ localStorage.setItem('yngs_folders_v1', JSON.stringify(dFolders)); }catch(e){}
-  }catch(e){ /* silencioso: o cache local já guardou */ }
-  finally{ if(typeof gSyncBadgeUpdate==='function') gSyncBadgeUpdate(); }
+  }catch(e){
+    // O cache local já guardou e os templates tocados seguem _syncPending (marcados no save) —
+    // nada se perde; o badge (finally) avisa. Log p/ diagnóstico, não silêncio total.
+    console.warn('[sync] push de pastas interrompido:', e);
+  }
+  finally{
+    _dPushBusy=false;
+    if(typeof gSyncBadgeUpdate==='function') gSyncBadgeUpdate();
+    if(_dPushQueued){ _dPushQueued=false; setTimeout(()=>_dPushFoldersNow(),0); } // roda o pedido que chegou no meio
+  }
 }
 
 /* ── Badge "não sincronizado" (topbar do designer) ──
@@ -2943,9 +2967,13 @@ async function dSyncFoldersFromBackend(){
     // Lazy Load: exclui propositalmente a coluna `layers` pesada do download em lote no boot.
     // Os layers descem sob demanda: dLoadTemplate (designer) / fEnsureMaterialLayers (franqueado).
     const { data:rt }=await sb.schema('luma').from('templates').select('id, pasta_id, nome, fmt, formats, w, h, bg, publicado, publicado_em, validade, instrucoes, permissoes');
+    // Anti-ressurreição: linhas cuja deleção está na fila pendente não voltam pro catálogo
+    // (a deleção remota falhou; sem o filtro o item apagado reaparecia até o retry vingar).
+    const _hasPD=(typeof gIsPendingDelete==='function');
+    const rpF=_hasPD?rp.filter(p=>!gIsPendingDelete('pastas',p.id)):rp;
     const byPasta={};
-    (rt||[]).forEach(t=>{ (byPasta[t.pasta_id]=byPasta[t.pasta_id]||[]).push(_dRowToTemplate(t)); });
-    const remote=rp.map(p=>_dRowToFolder(p, byPasta[p.id]||[]));
+    (rt||[]).forEach(t=>{ if(_hasPD&&(gIsPendingDelete('templates',t.id)||gIsPendingDelete('pastas',t.pasta_id)))return; (byPasta[t.pasta_id]=byPasta[t.pasta_id]||[]).push(_dRowToTemplate(t)); });
+    const remote=rpF.map(p=>_dRowToFolder(p, byPasta[p.id]||[]));
     // merge: banco manda; preserva pastas locais sem correspondente (por remoteId ou campId)
     const rIds=new Set(remote.map(f=>f.remoteId));
     const rCamps=new Set(remote.map(f=>f.campId).filter(Boolean));
@@ -2956,8 +2984,11 @@ async function dSyncFoldersFromBackend(){
     });
     // Trabalho local ainda NÃO sincronizado (_syncPending) não pode ser engolido pelo
     // "banco manda": sem isto, um reload descartaria o template que falhou em subir.
+    // O template ABERTO no editor também é preservado (mesmo sincronizado): o pull trocaria
+    // o objeto e o dActiveTmplId ficaria órfão — o próximo dSave gravaria no vazio, em silêncio.
+    const _openId=(typeof dActiveTmplId!=='undefined')?dActiveTmplId:null;
     (dFolders||[]).forEach(lf=>{
-      const pend=(lf.templates||[]).filter(t=>t&&t._syncPending);
+      const pend=(lf.templates||[]).filter(t=>t&&(t._syncPending||(_openId&&t.id===_openId)));
       if(!pend.length) return;
       const rf=remote.find(f=>f.remoteId===lf.remoteId)||remote.find(f=>f.campId&&f.campId===lf.campId);
       if(!rf) return; // pasta local-only já sobrevive via extras
