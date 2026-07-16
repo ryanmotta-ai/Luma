@@ -159,6 +159,25 @@
 }
 .g-help-foot-sep{opacity:.4}
 
+/* Suporte humano — bloco de saída pro Forms quando a Central não resolveu */
+.g-help-support-row{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  margin-top:20px;padding:13px 16px;
+  background:var(--dm-orange-bg);border:1px solid var(--dm-orange-tint);border-radius:var(--r);
+}
+.g-help-support-label{font-size:12.5px;color:var(--text-2);font-weight:500}
+.g-help-support-btn{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:9px 15px;border-radius:var(--r);border:none;cursor:pointer;
+  background:var(--dm-orange-d);color:var(--white);
+  font-size:12.5px;font-weight:700;font-family:inherit;white-space:nowrap;
+  transition:transform var(--dur-micro) var(--ease-spring),box-shadow var(--dur-micro) var(--ease-standard),filter var(--dur-micro) var(--ease-standard);
+}
+.g-help-support-btn svg{width:16px;height:16px}
+.g-help-support-btn:hover{filter:saturate(1.08);transform:translateY(-1px);box-shadow:0 6px 16px color-mix(in srgb,var(--dm-orange-d) 24%,transparent)}
+.g-help-support-btn:active{transform:translateY(1px) scale(.98)}
+.g-help-support-btn:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+
 @media (max-width:520px){
   .g-help-grid{grid-template-columns:1fr}
 }

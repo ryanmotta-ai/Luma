@@ -60,6 +60,17 @@ const G_HELP_ICONS={
   search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>'
 };
 
+/* ── Suporte humano ──
+   PREENCHA com o link do formulário (Forms) de suporte. Vazio → o botão avisa que o canal está
+   em configuração (não abre uma aba em branco). É o único ponto a editar quando o link existir. */
+const G_SUPPORT_FORM_URL = '';
+function gHelpContactSupport(){
+  const url=(typeof G_SUPPORT_FORM_URL==='string')?G_SUPPORT_FORM_URL.trim():'';
+  if(!url){ if(typeof gToast==='function') gToast('Canal de suporte em configuração — em breve.'); return; }
+  try{ if(typeof gTrackEvent==='function') gTrackEvent('suporte_humano_click',{rota:'ajuda'}); }catch(e){}
+  window.open(url, '_blank', 'noopener,noreferrer'); // nova aba, sem acesso ao opener
+}
+
 function gHelpIcon(name,cls){
   const paths=G_HELP_ICONS[name]||G_HELP_ICONS.info;
   return `<svg class="${cls||''}" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
