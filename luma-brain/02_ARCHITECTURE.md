@@ -111,6 +111,8 @@ O ponto arquitetural mais importante do produto: **um único motor de render, tr
 
 **Formatos:** Story 1080×1920 · Feed 1080×1350 · Post/Wide 1200×628 (mais tamanhos nativos de PSD).
 
+**Motor de copy (legendas):** separado do motor de render — é o **combinatório** que gera as 3 legendas do post (auxiliar, NÃO IA). Vive em `js/franqueado/png-generator.js` (`fBuildCopy` → `_fAssembleCopy`, bancos `_COPY_BLOCKS`, segmento `_fCopySegment`), acionado pelo assistente de legenda em `chat.js` (`fGenCaptionSuggestions`). Detalhe completo (peças, como estender) em `docs/LUMA.md` §9 → "Motor de copy / legendas".
+
 ---
 
 ## 5. Backend
