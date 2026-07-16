@@ -1,0 +1,36 @@
+{
+  "name": "luma-desktop",
+  "productName": "Luma",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Luma — casca desktop (aponta para o GitHub Pages; o app não vive aqui)",
+  "main": "main.js",
+  "author": "Delivery Much",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --publish never"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "br.com.deliverymuch.luma",
+    "productName": "Luma",
+    "directories": { "buildResources": "build", "output": "dist" },
+    "files": ["main.js", "error.html", "build/icon.png"],
+    "win": {
+      "target": ["nsis", "portable"],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "artifactName": "Luma-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "Luma-${version}-portatil.${ext}"
+    }
+  }
+}

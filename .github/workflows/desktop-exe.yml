@@ -1,0 +1,38 @@
+# Compila a casca desktop do Luma (.exe) num runner Windows.
+# Disparo manual (workflow_dispatch). Gera dois artefatos:
+#   Luma-Setup-x.y.z.exe   → instalador de um clique
+#   Luma-x.y.z-portatil.exe → executável portátil (pendrive, sem instalar)
+# A casca só aponta pro GitHub Pages — o .exe não precisa ser recompilado
+# a cada mudança do app; só quando a própria casca (desktop/) mudar.
+name: Desktop (.exe)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-win:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Instalar dependências da casca
+        working-directory: desktop
+        run: npm install
+
+      - name: Empacotar .exe (instalador + portátil)
+        working-directory: desktop
+        run: npx electron-builder --win --publish never
+
+      - name: Publicar artefatos
+        uses: actions/upload-artifact@v4
+        with:
+          name: Luma-Windows
+          path: desktop/dist/*.exe
+          if-no-files-found: error
