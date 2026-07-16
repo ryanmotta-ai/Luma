@@ -2802,9 +2802,9 @@ async function _dUploadDataUrl(bucket, path, dataUrl){
     const ext=((blob.type.split('/')[1]||'png').split('+')[0]).replace(/[^a-z0-9]/gi,'')||'png';
     const full=path+'.'+ext;
     const { error }=await sb.storage.from(bucket).upload(full, blob, {upsert:true, contentType:blob.type||'image/png'});
-    if(error) return null;
+    if(error){ console.warn('[sync] upload pro Storage falhou ('+bucket+'/'+full+'):', error.message||error); return null; }
     return sb.storage.from(bucket).getPublicUrl(full).data.publicUrl;
-  }catch(e){ return null; }
+  }catch(e){ console.warn('[sync] upload pro Storage falhou ('+bucket+'):', e); return null; }
 }
 // Sobe as imagens base64 dos layers pro Storage, trocando por URL no próprio objeto.
 async function _dUploadLayerImages(layers, tid){
@@ -2864,13 +2864,19 @@ async function _dPushFoldersNow(){
         const cu=await _dUploadDataUrl('luma-covers', f.remoteId+'/cover', f.cover);
         if(cu) f.cover=cu;
       }
-      const coverUrl=(typeof f.cover==='string' && !f.cover.startsWith('data:') && f.cover!=='__local__') ? f.cover : null;
-      await sb.schema('luma').from('pastas').upsert({
+      // cover_url só entra no upsert com valor DEFINITIVO: URL pronta grava; '' (capa
+      // removida pelo designer) limpa; data:/idb:///__local__ (upload pendente/só-local)
+      // OMITE a coluna — o upsert não toca coluna ausente e a capa que já está no banco
+      // sobrevive. (Antes: upload falho gravava NULL e APAGAVA a capa antiga de todos.)
+      const _rowPasta={
         id:f.remoteId, nome:f.name||'(sem nome)', cor:f.color||null, camp_id:f.campId||null,
-        cover_url:coverUrl, badge:f.badge||'', expira_dias:f.expiraDias||7, popular:!!f.popular,
+        badge:f.badge||'', expira_dias:f.expiraDias||7, popular:!!f.popular,
         preview_prod:f.previewProd||'', preview_de:f.previewDe||'', preview_por:f.previewPor||'',
         perguntas:f.perguntas||[], grupos:f.grupos||['Todos os usuários'], ativa:true
-      }, {onConflict:'id'});
+      };
+      if(f.cover==='') _rowPasta.cover_url=null;
+      else if(typeof f.cover==='string' && !f.cover.startsWith('data:') && f.cover.indexOf('idb://')!==0 && f.cover!=='__local__') _rowPasta.cover_url=f.cover;
+      await sb.schema('luma').from('pastas').upsert(_rowPasta, {onConflict:'id'});
       for(const t of (f.templates||[])){
         // Catálogo leve: template sem layers baixados (cache de sessão franqueado) —
         // upsert aqui gravaria layers:[] no banco e DESTRUIRIA o template. Nunca subir.
