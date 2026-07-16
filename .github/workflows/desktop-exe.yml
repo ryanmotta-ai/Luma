@@ -1,15 +1,22 @@
-# Compila a casca desktop do Luma (.exe) num runner Windows e publica uma
-# RELEASE pública (links permanentes, sem login) com quatro anexos:
-#   Luma-Setup-x.y.z.exe / Luma-x.y.z-portatil.exe → versionados
-#   Luma-Setup.exe / Luma-portatil.exe             → nomes FIXOS, para o link
-#     eterno .../releases/latest/download/Luma-Setup.exe apontar sempre pro novo
-# A casca só aponta pro GitHub Pages — o .exe não precisa ser recompilado a
-# cada mudança do app; só quando a própria casca (desktop/) mudar. Nova versão:
-# suba o "version" em desktop/package.json e rode este workflow de novo.
-name: Desktop (.exe)
+# Compila a casca desktop do Luma (Windows + macOS) e publica uma RELEASE
+# pública (links permanentes, sem login) com os anexos:
+#   Luma-Setup-x.y.z.exe / Luma-x.y.z-portatil.exe / Luma-x.y.z.dmg → versionados
+#   Luma-Setup.exe / Luma-portatil.exe / Luma.dmg                   → nomes FIXOS,
+#     para o link eterno .../releases/latest/download/Luma-Setup.exe (ou Luma.dmg)
+#     apontar sempre pro novo
+# A casca só aponta pro GitHub Pages — os binários não precisam ser recompilados
+# a cada mudança do app; só quando a própria casca (desktop/) mudar — por isso o
+# gatilho de push é restrito a desktop/** . Nova versão: suba o "version" em
+# desktop/package.json e deixe o push disparar (ou rode manualmente).
+name: Desktop (Windows + macOS)
 
 on:
   workflow_dispatch:
+  push:
+    branches: [talpaipai]
+    paths:
+      - 'desktop/**'
+      - '.github/workflows/desktop-exe.yml'
 
 permissions:
   contents: write   # criar a Release e a tag
@@ -52,16 +59,18 @@ jobs:
           name: Luma Desktop ${{ steps.ver.outputs.version }}
           make_latest: true
           body: |
-            ## Luma para Windows
+            ## Luma para computador
 
             | Arquivo | Uso |
             |---|---|
-            | **Luma-Setup.exe** | Instalador de um clique (cria atalho no menu Iniciar) |
-            | **Luma-portatil.exe** | Roda direto, sem instalar (pendrive) |
+            | **Luma-Setup.exe** | Windows — instalador de um clique (cria atalho no menu Iniciar) |
+            | **Luma-portatil.exe** | Windows — roda direto, sem instalar (pendrive) |
+            | **Luma.dmg** | macOS — arraste o Luma para Aplicativos (Intel e Apple Silicon) |
 
             O app abre a versão de produção do Luma — **atualiza sozinho a cada deploy**, sem baixar nada de novo.
 
-            > No primeiro uso o Windows SmartScreen pode avisar "editor desconhecido": clique em **Mais informações → Executar assim mesmo**.
+            > **Windows:** no primeiro uso o SmartScreen pode avisar "editor desconhecido": clique em **Mais informações → Executar assim mesmo**.
+            > **macOS:** no primeiro uso, se o sistema disser que não pode verificar o app, clique com o **botão direito no Luma → Abrir → Abrir** (só na primeira vez).
           files: |
             desktop/dist/Luma-Setup-${{ steps.ver.outputs.version }}.exe
             desktop/dist/Luma-${{ steps.ver.outputs.version }}-portatil.exe
@@ -73,4 +82,46 @@ jobs:
         with:
           name: Luma-Windows
           path: desktop/dist/*.exe
+          if-no-files-found: error
+
+  # Roda DEPOIS do Windows de propósito: o job de cima cria/atualiza a Release
+  # e este só ANEXA o DMG nela — em paralelo os dois brigariam pela mesma tag.
+  build-mac:
+    runs-on: macos-latest
+    needs: build-win
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Instalar dependências da casca
+        working-directory: desktop
+        run: npm install
+
+      - name: Empacotar .dmg (universal — Intel + Apple Silicon)
+        working-directory: desktop
+        run: npx electron-builder --mac --publish never
+
+      - name: Versão da casca (do package.json)
+        id: ver
+        run: echo "version=$(node -p "require('./desktop/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cópia com nome fixo (link eterno releases/latest)
+        run: cp "desktop/dist/Luma-${{ steps.ver.outputs.version }}.dmg" "desktop/dist/Luma.dmg"
+
+      - name: Anexar DMG na Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: desktop-v${{ steps.ver.outputs.version }}
+          files: |
+            desktop/dist/Luma-${{ steps.ver.outputs.version }}.dmg
+            desktop/dist/Luma.dmg
+
+      - name: Publicar artefatos do run (debug)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Luma-macOS
+          path: desktop/dist/*.dmg
           if-no-files-found: error
