@@ -655,6 +655,12 @@ function fSelectCamp(id){
 function fGoHome(opts){
   document.body.classList.add('f-home-mode');
   document.body.classList.remove('f-mobile-chat','f-history-mode','f-material-browser');
+  // Saindo do HISTÓRICO pela home: reseta a aba do rail. fGoHome removia só a classe, mas o
+  // fSwitchTab tinha deixado displays inline (catálogo none, histórico flex) — ao entrar numa
+  // campanha depois, o rail voltava com o histórico ESPREMIDO e sem catálogo (bug da foto).
+  if(fState.tab==='historico' && typeof fSwitchTab==='function'){
+    fSwitchTab('catalogo', document.querySelector('.f-tab'));
+  }
   // opts.silent (usado no boot pós-login): renderiza a home já ASSENTADA, sem a cascata de
   // entrada — evita o flash de "franqueado vazio" enquanto o corpo estava em opacity:0. A cascata
   // segue nas navegações internas (fGoHome() sem opts).
