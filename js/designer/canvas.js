@@ -1220,6 +1220,14 @@ function dRenderCanvas(){
       if(e.button && e.button!==0) return; // botão direito/meio → deixa o contextmenu agir, sem iniciar drag
       if(dTool==='hand')return; // deixa borbulhar pro pan do wrapper — senão a Mão não move quando o arrasto começa sobre uma camada (ex.: Fundo)
       e.stopPropagation();
+      // Ferramentas de CRIAÇÃO: iniciar o desenho por arrasto AQUI também. O mousedown sobre uma
+      // camada (o Fundo cobre o canvas inteiro) parava no stopPropagation e o dStartMarquee do frame
+      // nunca disparava — segurar-e-arrastar não criava a forma dimensionada (só o clique de tamanho
+      // padrão), dando a sensação de "bugado/piscando". Mesma lista do gate do frame (dStartMarquee).
+      if(['rect','ellipse','triangle','polygon','star','line','text','text-h','text-v','img','frame'].includes(dTool)){
+        if(typeof dStartDrawShape==='function') dStartDrawShape(e);
+        return;
+      }
       if(dTool==='obj-select'){const _oFr=document.getElementById('d-canvas-frame');if(_oFr&&typeof dObjSelectStart==='function')dObjSelectStart(e,_oFr);return;}
       if(dTool==='quick-select'||dTool==='magic-wand'){_dAdvSelFromEvent(e);return;}
       if(dTool==='eyedrop'){
