@@ -36,7 +36,7 @@ function _fDemoMaterial(camp){
   _F_DEMO_MAT_CACHE[camp.id]=mat;
   return mat;
 }
-function _fAllCamps(){ return [...CAMPS_ATIVAS, ...(typeof CAMPS_OUTRAS!=='undefined'?CAMPS_OUTRAS:[])]; }
+function _fAllCamps(){ const g=(typeof fGetCampaigns==='function')?fGetCampaigns():{ativas:CAMPS_ATIVAS,outras:CAMPS_OUTRAS}; return [...g.ativas, ...g.outras]; }
 function _fDemoMaterialsForCamp(campId){ const c=_fAllCamps().find(x=>x.id===campId); const m=c?_fDemoMaterial(c):null; return m?[m]:[]; }
 function _fFindDemoMaterial(materialId){ for(const c of _fAllCamps()){ const m=_fDemoMaterial(c); if(m && m.id===materialId) return m; } return null; }
 

@@ -142,7 +142,7 @@ function _fHistRestoreSearchFocus(){
 
 async function fDownloadHist(id){
   const h=fGetHist().find(x=>x.id===id);if(!h)return;
-  const all=[...CAMPS_ATIVAS,...CAMPS_OUTRAS];
+  const {ativas:_ca,outras:_co}=fGetCampaigns(); const all=[..._ca,..._co];
   const c=all.find(x=>x.id===h.campId)||{id:h.campId,name:h.campName,color:h.campColor,perguntas:[]};
   const f=FMTS.find(x=>x.id===h.fmtId)||FMTS[0];
   // Carrega material original se ainda existir (pra renderer usar layers reais)
@@ -172,7 +172,7 @@ async function fDownloadHist(id){
 async function fEditFromHist(id, btn){
   const h = fGetHist().find(x=>x.id===id);
   if(!h) return;
-  const all = [...CAMPS_ATIVAS, ...CAMPS_OUTRAS];
+  const {ativas:_ca2,outras:_co2}=fGetCampaigns(); const all=[..._ca2,..._co2];
   const c = all.find(x=>x.id===h.campId);
   if(!c){ gToast('Campanha original não encontrada.'); return; }
   const f = FMTS.find(x=>x.id===h.fmtId) || FMTS[0];
@@ -261,7 +261,7 @@ async function fEditFromHist(id, btn){
   fState.camp = {...c, perguntas: fbPerguntas};
   fState.dados = {...h.dados};
   fState.stepIdx = fbPerguntas.length;
-  fRenderCatalogs(CAMPS_ATIVAS, CAMPS_OUTRAS);
+  const {ativas:_cra,outras:_cro}=fGetCampaigns(); fRenderCatalogs(_cra,_cro);
   fRenderFmts();
   fUpdateCtx();
   document.getElementById('f-messages').innerHTML='';
@@ -279,7 +279,7 @@ async function fEditFromHist(id, btn){
 function fDuplicateInOtherFmt(id){
   const h = fGetHist().find(x=>x.id===id);
   if(!h) return;
-  const all = [...CAMPS_ATIVAS, ...CAMPS_OUTRAS];
+  const {ativas:_ca3,outras:_co3}=fGetCampaigns(); const all=[..._ca3,..._co3];
   const c = all.find(x=>x.id===h.campId) || {id:h.campId,name:h.campName,color:h.campColor,perguntas:[]};
   // Sugere o próximo formato (rotaciona)
   const idx = FMTS.findIndex(f=>f.id===h.fmtId);
@@ -303,7 +303,7 @@ function fDuplicateInOtherFmt(id){
 async function fConfirmDuplicate(id, fmtId){
   const h = fGetHist().find(x=>x.id===id);
   if(!h) return;
-  const all = [...CAMPS_ATIVAS, ...CAMPS_OUTRAS];
+  const {ativas:_ca4,outras:_co4}=fGetCampaigns(); const all=[..._ca4,..._co4];
   const c = all.find(x=>x.id===h.campId) || {id:h.campId,name:h.campName,color:h.campColor,perguntas:[]};
   const f = FMTS.find(x=>x.id===fmtId) || FMTS[0];
   // Carrega material original se ainda existir
@@ -492,6 +492,10 @@ function fCampEl(c,isRec,ghost){
     <div class="camp-body"><div class="camp-name">${gEsc(c.name)}</div><div class="camp-sub">${countLabel}</div></div>
   </div>`;
 }
+/* ── SEAM DAS CAMPANHAS (Fase 2 — migração do hardcode) ──
+   TODA leitura de campanha do franqueado passa por aqui (fGetCampaigns/fResolveCamp) —
+   nunca por CAMPS_* direto. Hoje devolve as constantes (comportamento idêntico ao legado);
+   o flip pra luma.pastas (dFolders) muda SÓ este ponto, com CAMPS_* virando seed. */
 function fGetCampaigns(){
   // Config (CAMPS_*) é a BASE; pastas do banco sem campanha correspondente viram
   // campanhas dinâmicas na vitrine — o MKT cria a pasta no Estúdio e ela aparece
@@ -518,15 +522,14 @@ function fGetCampaigns(){
       });
     }
   }catch(e){}
-  return {ativas, outras:CAMPS_OUTRAS};
+  return {ativas, outras:CAMPS_OUTRAS, impl:(typeof CAMPS_IMPLEMENTACAO!=='undefined')?CAMPS_IMPLEMENTACAO:[]};
 }
 function fResolveCamp(id){
-  const {ativas,outras}=fGetCampaigns();
+  const {ativas,outras,impl}=fGetCampaigns();
   const pool=[...ativas,...outras];
-  const allConst=[...CAMPS_ATIVAS,...CAMPS_OUTRAS,...CAMPS_IMPLEMENTACAO];
   return pool.find(x=>x.id===id)
       || pool.find(x=>x.campId===id)
-      || allConst.find(x=>x.id===id)
+      || [...pool,...impl].find(x=>x.id===id)
       || null;
 }
 
@@ -537,8 +540,8 @@ const _ICO_CHEV=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" str
 function fRenderCategorias(){
   const cat=document.getElementById('f-catalog'); if(!cat)return;
   fState.categoria=null;
-  const nCamps=CAMPS_ATIVAS.length+CAMPS_OUTRAS.length;
-  const nImpl=CAMPS_IMPLEMENTACAO.length;
+  const {ativas:_cn1,outras:_cn2,impl:_cni}=fGetCampaigns(); const nCamps=_cn1.length+_cn2.length;
+  const nImpl=_cni.length;
   cat.innerHTML=`<div class="cat-grid">
     <div class="cat-card" onclick="fSelectCategoria('campanhas')">
       <div class="cat-card-thumb" style="background:linear-gradient(135deg,#FF9000,#C84B00)">
@@ -582,7 +585,7 @@ function fRenderImplementacao(){
       <span class="cat-back-label">Implementação</span>
     </div>
     <div class="sec-title">Etapas de lançamento</div>
-    <div class="camp-grid">${CAMPS_IMPLEMENTACAO.map(c=>fCampEl(c,false)).join('')}</div>`;
+    <div class="camp-grid">${fGetCampaigns().impl.map(c=>fCampEl(c,false)).join('')}</div>`;
 }
 function fRestoreCatalog(){
   if(fState.categoria==='campanhas'){
@@ -668,7 +671,7 @@ function fSelectCamp(id){
   fState.camp=c;
   // Vindo da home (categoria ainda null): abre o rail na lista certa, não nos cards de categoria
   if(!fState.categoria){
-    const isImpl=(typeof CAMPS_IMPLEMENTACAO!=='undefined')&&CAMPS_IMPLEMENTACAO.some(x=>x.id===c.id);
+    const isImpl=fGetCampaigns().impl.some(x=>x.id===c.id);
     fState.categoria=isImpl?'implementacao':'campanhas';
   }
   fRestoreCatalog();
@@ -810,7 +813,7 @@ function _fCampHasMats(c){
 function _fHomeBodyHTML(query){
   const q=(query||'').trim().toLowerCase();
   const {ativas,outras}=fGetCampaigns();
-  const impl=(typeof CAMPS_IMPLEMENTACAO!=='undefined')?CAMPS_IMPLEMENTACAO:[];
+  const impl=fGetCampaigns().impl;
   if(q){
     const match=[...ativas,...outras,...impl].filter(c=>c.name.toLowerCase().includes(q));
     if(!match.length) return `<div class="fh-empty"><span class="fh-empty-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></span><strong>Nenhuma campanha encontrada</strong><span>Não encontramos resultados para “${gEsc(query)}”. Tente outro termo.</span></div>`;
