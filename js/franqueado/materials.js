@@ -6,18 +6,54 @@
  * Depende de: 00-config.js, 01-state.js, franqueado/chat.js
  */
 
+/* ── DEMO: material genérico por campanha (só quando a pasta NÃO tem material real publicado) ──
+   Existe para a vitrine não ficar vazia em demonstrações enquanto o backend não publica templates
+   (as capas já são hardcoded no config pelo mesmo motivo). NÃO entra em dFolders → não é
+   sincronizado nem persistido, e é substituído pelos materiais reais assim que existirem.
+   O template usa tokens {{var}} (chat de personalização funciona) e carrega _demoDados p/ a thumb
+   sair preenchida (valores de preview da campanha) em vez de mostrar os placeholders crus. ── */
+const _F_DEMO_MAT_CACHE={};
+function _fDemoMaterial(camp){
+  if(!camp || !camp.cover) return null;               // só pastas com capa associada
+  if(_F_DEMO_MAT_CACHE[camp.id]) return _F_DEMO_MAT_CACHE[camp.id];
+  const perg=Array.isArray(camp.perguntas)?camp.perguntas:[];
+  const vars=perg.map(p=>p.id);
+  const headVar=vars.includes('produto')?'produto':(vars[0]||'produto');
+  const subVar=vars.includes('precoPor')?'precoPor':(vars.find(v=>v!==headVar)||null);
+  const W=1080,H=1920, col=camp.color||'#FF9000';
+  const _t=(id,extra)=>Object.assign({id:'l-demo-'+camp.id+'-'+id,type:'text',visible:true,opacity:100,textAlign:'center',textBox:'box',font:"'Roboto Black'",color:'#ffffff'},extra);
+  const layers=[
+    {id:'l-demo-'+camp.id+'-bg',type:'shape',shapeKind:'rect',x:0,y:0,w:W,h:H,fill:col,opacity:100,visible:true},
+    {id:'l-demo-'+camp.id+'-scrim',type:'shape',shapeKind:'rect',x:0,y:1120,w:W,h:800,fill:'rgba(0,0,0,0.28)',opacity:100,visible:true},
+    _t('tag',{content:camp.name,x:90,y:150,w:900,h:110,fontSize:46,font:"'Roboto',bold"}),
+    _t('head',{content:'{{'+headVar+'}}',x:70,y:1200,w:940,h:360,fontSize:150}),
+  ];
+  if(subVar) layers.push(_t('sub',{content:'{{'+subVar+'}}',x:70,y:1580,w:940,h:220,fontSize:120,color:'#FFD200'}));
+  const _demoDados={};
+  _demoDados[headVar]=camp.previewProd||camp.name||'SEU PRODUTO';
+  if(subVar){ const sp=perg.find(p=>p.id===subVar); _demoDados[subVar]=camp.previewPor||(sp&&sp.sugestoes&&sp.sugestoes[0])||'OFERTA'; }
+  const mat={id:'demo-'+camp.id, name:'Modelo '+camp.name, fmt:'story', w:W, h:H, publishMeta:{publicado:true}, layers, _demo:true, _demoDados};
+  _F_DEMO_MAT_CACHE[camp.id]=mat;
+  return mat;
+}
+function _fAllCamps(){ return [...CAMPS_ATIVAS, ...(typeof CAMPS_OUTRAS!=='undefined'?CAMPS_OUTRAS:[])]; }
+function _fDemoMaterialsForCamp(campId){ const c=_fAllCamps().find(x=>x.id===campId); const m=c?_fDemoMaterial(c):null; return m?[m]:[]; }
+function _fFindDemoMaterial(materialId){ for(const c of _fAllCamps()){ const m=_fDemoMaterial(c); if(m && m.id===materialId) return m; } return null; }
+
 function fGetMaterialsForCamp(campId){
-  if(typeof dFolders === 'undefined' || !dFolders) return [];
-  // Casa pela campId direta OU pelo nome da campanha como fallback
-  const all=[...CAMPS_ATIVAS,...CAMPS_OUTRAS];
-  const c=all.find(x=>x.id===campId);
-  const folder = dFolders.find(f=>{
-    if(f.campId===campId) return true;
-    if(c && f.name===c.name) return true;
-    return false;
-  });
-  if(!folder) return [];
-  return folder.templates.filter(t=>t.publishMeta && t.publishMeta.publicado);
+  let real=[];
+  if(typeof dFolders !== 'undefined' && dFolders){
+    // Casa pela campId direta OU pelo nome da campanha como fallback
+    const c=_fAllCamps().find(x=>x.id===campId);
+    const folder = dFolders.find(f=>{
+      if(f.campId===campId) return true;
+      if(c && f.name===c.name) return true;
+      return false;
+    });
+    if(folder && folder.templates) real=folder.templates.filter(t=>t.publishMeta && t.publishMeta.publicado);
+  }
+  if(real.length) return real;
+  return _fDemoMaterialsForCamp(campId); // pasta sem material real → material-demo (vitrine na demo)
 }
 function fIsMaterialValid(material){
   if(!material.publishMeta || !material.publishMeta.validade) return true;
@@ -205,7 +241,7 @@ function fRenderMaterialCatalog(camp, container){
       if(!cv) return;
       const card=cv.closest('.f-mat-card');
       try{
-        Promise.resolve(fRenderPreviewToCanvas(cv, m, {maxPx:520, camp:{color:camp.color||'#FF9000'}}))
+        Promise.resolve(fRenderPreviewToCanvas(cv, m, {maxPx:520, camp:{color:camp.color||'#FF9000'}, dados:m._demoDados}))
           .then(()=>{ if(card) card.classList.remove('is-rendering'); })
           .catch(()=>{ if(card){ card.classList.remove('is-rendering'); card.classList.add('has-preview-error'); } });
       }catch(e){
@@ -329,6 +365,7 @@ async function fSelectMaterial(materialId, card){
       if(t){ found=t; folderFound=f; break; }
     }
   }
+  if(!found) found=_fFindDemoMaterial(materialId); // material-demo (pasta sem material real publicado)
   if(!found){ gToast('Material não encontrado.'); return; }
   // Catálogo leve: baixa os layers deste template agora (1ª vez neste aparelho)
   const title=card&&card.querySelector('.f-mat-name');
