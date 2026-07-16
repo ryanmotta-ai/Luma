@@ -103,4 +103,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Usuário logado, init normal
     gOnLoginSuccess();
   }
+  // Boot decidido (login exibido ou home renderizada) → libera o splash pra sair. Em rede lenta,
+  // o splash segura até aqui (mín. 2.8s / teto 9s) em vez de revelar o app meio-carregado.
+  if (typeof spBootReady === 'function') spBootReady();
 });

@@ -42,13 +42,25 @@
     // 2.8s = fim da barra (1s de delay + 1.8s de preenchimento); a animação refinada
     // toca por completo antes da saída com fade+zoom.
     var SP_MIN = 2800;
+    // Teto duro: em rede lenta / boot travado o splash NUNCA fica preso — revela de qualquer jeito.
+    var SP_MAX = 9000;
     var spStart = Date.now();   // marcado no parse (script é o 1º do <body>)
+    var spReady = false;        // boot decidiu (login exibido OU home renderizada)
+
+    // Sinal do boot (main.js chama quando o app está pronto pra aparecer). Assim o splash cobre a
+    // checagem de sessão e o 1º render — em rede lenta não revela mais uma tela vazia/meio-carregada.
+    window.spBootReady = function () {
+      spReady = true;
+      if (Date.now() - spStart >= SP_MIN) spDismiss(); // já passou o mínimo → revela agora
+    };
 
     document.addEventListener('DOMContentLoaded', function () {
       try {
         var elapsed = Date.now() - spStart;
-        var remaining = Math.max(0, SP_MIN - elapsed);
-        setTimeout(spDismiss, remaining);
+        // No mínimo (2.8s): revela SÓ se o boot já estiver pronto; senão espera o spBootReady.
+        setTimeout(function () { if (spReady) spDismiss(); }, Math.max(0, SP_MIN - elapsed));
+        // Failsafe: revela no teto mesmo sem sinal do boot (rede lenta não prende o splash).
+        setTimeout(spDismiss, Math.max(SP_MIN, SP_MAX - elapsed));
       } catch (e) {
         spDismiss(); // qualquer falha → não deixa o overlay preso
       }
