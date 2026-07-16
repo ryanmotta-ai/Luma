@@ -39,6 +39,20 @@ async function _fUploadUserImg(uid, sub, dataUrl){
     return sb.storage.from('luma-user-uploads').getPublicUrl(path).data.publicUrl;
   }catch(e){ return null; }
 }
+// Resolve o materialId LOCAL da arte pro UUID do template no banco (luma.artes.template_id
+// é UUID com FK). Materiais-demo ('demo-...') e templates locais nunca sincronizados não
+// têm UUID → null (linha antiga do banco também é null; o front já trata).
+function _fTemplateUuidFor(h){
+  const mid=h&&h.materialId; if(!mid) return null;
+  if(typeof dFolders!=='undefined'&&Array.isArray(dFolders)){
+    for(const f of dFolders){
+      const t=(f.templates||[]).find(x=>x&&x.id===mid);
+      if(t) return t.remoteId||null;
+    }
+  }
+  // Sem catálogo carregado: num device que só puxou do banco o id local JÁ é o UUID remoto.
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(mid))?mid:null;
+}
 // LOCK: dois pushes simultâneos (arte nova + retomada de sync) intercalavam uploads e
 // regravavam o storage um por cima do outro. Um por vez; pedido no meio roda ao final.
 let _fArtesPushBusy=false, _fArtesPushQueued=false;
@@ -62,16 +76,23 @@ async function fPushArtesToBackend(){
       }
     }
     h.dados=dados;
-    const { error }=await sb.schema('luma').from('artes').upsert({
+    const row={
       id:h.remoteId, user_id:user.id,
       camp_id:h.campId||null, camp_name:h.campName||null, camp_color:h.campColor||null,
       fmt_id:h.fmtId||null, fmt_name:h.fmtName||null,
-      template_id:null, material_name:h.materialName||null,
+      template_id:_fTemplateUuidFor(h), material_name:h.materialName||null,
       dados:dados, prod:h.prod||null, por:h.por||null, de:h.de||null,
       status:h.status||'rascunho', sig:h._sig||null,
       baixada_em:h.tsBaixada?new Date(h.tsBaixada).toISOString():null,
       created_at:h.ts?new Date(h.ts).toISOString():undefined
-    }, {onConflict:'id'});
+    };
+    let { error }=await sb.schema('luma').from('artes').upsert(row, {onConflict:'id'});
+    // FK: se o template foi apagado no banco entre gerar e sincronizar, o vínculo não pode
+    // segurar a arte inteira fora do histórico cross-device — regrava sem o vínculo.
+    if(error && row.template_id){
+      row.template_id=null;
+      ({ error }=await sb.schema('luma').from('artes').upsert(row, {onConflict:'id'}));
+    }
     if(!error){ h._synced=true; changed=true; }
   }
   if(changed){
@@ -105,7 +126,9 @@ function _fRowToArte(r){
     tsBaixada:r.baixada_em?new Date(r.baixada_em).getTime():null,
     status:r.status||'rascunho', _sig:r.sig||'',
     campId:r.camp_id, campName:r.camp_name, campColor:r.camp_color,
-    fmtId:r.fmt_id, fmtName:r.fmt_name, materialId:null, materialName:r.material_name,
+    // template_id (UUID) vira o materialId local: num device recém-sincronizado o id do
+    // template no catálogo É o UUID do banco — "Editar" volta a achar o material de origem.
+    fmtId:r.fmt_id, fmtName:r.fmt_name, materialId:r.template_id||null, materialName:r.material_name,
     dados:(r.dados&&typeof r.dados==='object')?r.dados:{},
     prod:r.prod||'', por:r.por||'', de:r.de||''
   };

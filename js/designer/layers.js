@@ -2845,6 +2845,18 @@ async function _dPushFoldersNow(){
   if(!sb || typeof gIsAdmin!=='function' || !gIsAdmin()) return;
   if(_dPushBusy){ _dPushQueued=true; return; }
   _dPushBusy=true;
+  // AVISO DE CONFLITO (cross-device): o upsert é last-write-wins — se OUTRO device gravou
+  // o template depois do nosso último pull/push (carimbo do banco > snapshot local
+  // _remoteUpdatedAt), este push sobrescreve aquele trabalho. Continua sobrescrevendo
+  // (LWW é a regra), mas avisa o designer — a perda deixa de ser silenciosa.
+  const _confl=[]; let _stamps=null;
+  try{
+    const _ids=[]; (dFolders||[]).forEach(f=>(f.templates||[]).forEach(t=>{ if(t&&t.remoteId&&!t._needsLayersFetch) _ids.push(t.remoteId); }));
+    if(_ids.length){
+      const { data }=await sb.schema('luma').from('templates').select('id, updated_at').in('id', _ids);
+      _stamps=new Map((data||[]).map(r=>[r.id, r.updated_at]));
+    }
+  }catch(e){} // sem carimbo (rede) → só perde o aviso; o push segue normal
   try{
     for(const f of (dFolders||[])){
       if(!f.remoteId) f.remoteId=_dUuid('p');
@@ -2874,16 +2886,28 @@ async function _dPushFoldersNow(){
         ));
         if(localBin){ t._syncPending=true; continue; }
         const pm=t.publishMeta||{};
-        const { error }=await sb.schema('luma').from('templates').upsert({
+        const _remote=_stamps?_stamps.get(t.remoteId):null;
+        if(_remote && t._remoteUpdatedAt && new Date(_remote).getTime()>new Date(t._remoteUpdatedAt).getTime()){
+          _confl.push(t.name||'(sem nome)');
+        }
+        const { data:_up, error }=await sb.schema('luma').from('templates').upsert({
           id:t.remoteId, pasta_id:f.remoteId, nome:t.name||'(sem nome)', fmt:t.fmt||'story',
           formats:t.formats||['story','feed','wide'], layers:t.layers||[],
           // Tamanho real do template (essencial p/ PSD 'orig', que não tem preset em DFMT_SIZES):
           w:(t.w>0?t.w:null), h:(t.h>0?t.h:null), bg:t.bg||null,
           publicado:!!pm.publicado, publicado_em:pm.publicadoEm?new Date(pm.publicadoEm).toISOString():null,
           validade:pm.validade||null, instrucoes:pm.instrucoes||'', permissoes:pm.permissoes||{}
-        }, {onConflict:'id'});
+        }, {onConflict:'id'}).select('updated_at');
         t._syncPending=!!error; // erro de rede/RLS no upsert também conta como pendente
+        // Snapshot novo: o carimbo que o NOSSO write acabou de gerar (trigger touch_updated_at).
+        // Sem isto o próximo push acusaria conflito com a própria gravação.
+        if(!error && _up && _up[0] && _up[0].updated_at) t._remoteUpdatedAt=_up[0].updated_at;
       }
+    }
+    if(_confl.length && typeof gToast==='function'){
+      const nomes=_confl.slice(0,2).join('", "');
+      const resto=_confl.length>2?` (e mais ${_confl.length-2})`:'';
+      gToast(`Atenção: "${nomes}"${resto} tinha alteração feita em outro dispositivo — esta gravação passou por cima. Se não foi você, reveja o template.`, 'error');
     }
     // re-salva o cache local com os remoteId/URLs recém-atribuídos (imagens já são URLs → leve)
     try{ localStorage.setItem('yngs_folders_v1', JSON.stringify(dFolders)); }catch(e){}
@@ -2931,6 +2955,7 @@ function gSyncBadgeUpdate(){
 function _dRowToTemplate(t){
   return {
     id:t.id, remoteId:t.id, name:t.nome||'(sem nome)', fmt:t.fmt||'story',
+    _remoteUpdatedAt:t.updated_at||null, // snapshot p/ o aviso de conflito no push (LWW)
     formats:Array.isArray(t.formats)?t.formats:['story','feed','wide'],
     // Tamanho real vem do banco (sync leve). Templates antigos têm NULL → dLoadTemplate
     // cai no preset do fmt (comportamento atual); republicar grava o tamanho correto.
@@ -2966,7 +2991,7 @@ async function dSyncFoldersFromBackend(){
     if(e1 || !Array.isArray(rp) || !rp.length) return; // banco vazio → mantém local (push migra)
     // Lazy Load: exclui propositalmente a coluna `layers` pesada do download em lote no boot.
     // Os layers descem sob demanda: dLoadTemplate (designer) / fEnsureMaterialLayers (franqueado).
-    const { data:rt }=await sb.schema('luma').from('templates').select('id, pasta_id, nome, fmt, formats, w, h, bg, publicado, publicado_em, validade, instrucoes, permissoes');
+    const { data:rt }=await sb.schema('luma').from('templates').select('id, pasta_id, nome, fmt, formats, w, h, bg, publicado, publicado_em, validade, instrucoes, permissoes, updated_at');
     // Anti-ressurreição: linhas cuja deleção está na fila pendente não voltam pro catálogo
     // (a deleção remota falhou; sem o filtro o item apagado reaparecia até o retry vingar).
     const _hasPD=(typeof gIsPendingDelete==='function');

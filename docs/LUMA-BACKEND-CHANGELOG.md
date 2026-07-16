@@ -228,6 +228,23 @@ Mesmo padrão offline-first (localStorage cache + push background só designer +
 
 ---
 
+## 2026-07-16 — Aviso de conflito cross-device no sync do designer
+
+**Arquivo tocado:** `js/designer/layers.js` (só front — `updated_at` + trigger já existiam no banco desde o schema inicial). Fecha o item P0 do roadmap "upsert last-write-wins sem versão — lock + `updated_at` com aviso de conflito" (o lock já existia).
+
+- **Pull** (`dSyncFoldersFromBackend`/`_dRowToTemplate`): baixa `updated_at` e guarda como snapshot `_remoteUpdatedAt` no template local.
+- **Push** (`_dPushFoldersNow`): antes de gravar, uma consulta em lote compara o carimbo atual do banco com o snapshot. Carimbo mais novo = outro device gravou nesse meio-tempo → o push segue (LWW continua sendo a regra), mas `gToast` avisa quais templates foram sobrescritos — a perda deixa de ser silenciosa.
+- Depois de cada upsert o snapshot é renovado com o carimbo que o próprio write gerou (senão o push seguinte acusaria conflito com a própria gravação).
+- Sem rede na consulta do carimbo → só perde o aviso; o push não muda.
+
+## 2026-07-16 — Histórico de artes ligado ao template de origem (`template_id`)
+
+**Arquivo tocado:** `js/franqueado/history.js` (só front — a coluna `luma.artes.template_id` já existia desde o schema inicial).
+
+- **Push** (`fPushArtesToBackend`): grava `template_id` de verdade via `_fTemplateUuidFor(h)` — resolve o `materialId` local pro UUID remoto do template (via `dFolders`, com fallback regex pra device onde o id local já é o UUID). Materiais-demo e templates nunca sincronizados → `null`, como antes.
+- **Guarda de FK:** se o template foi apagado no banco antes da arte sincronizar, o upsert re-tenta uma vez com `template_id:null` — o vínculo nunca segura a arte fora do histórico cross-device.
+- **Pull** (`_fRowToArte`): `materialId` volta do banco (`r.template_id`) em vez de `null` — **"Editar" uma arte sincronizada em outro device volta a achar o material de origem** (num device recém-sincronizado o id local do template É o UUID do banco).
+
 ## Pendências / próximos passos
 
 - [x] **Login real testado no navegador** — funciona (login + promoção a `gestao` OK, 2026-06-19).
@@ -236,7 +253,7 @@ Mesmo padrão offline-first (localStorage cache + push background só designer +
 - [x] **Persistência do franqueado**: ✅ histórico de artes (`luma.artes`) + ✅ fotos do chat → bucket `luma-user-uploads` (tornado público).
 - [x] **Analytics**: eventos emitidos nos pontos-chave — `sessao_iniciada`, `arte_gerada`, `arte_baixada`, e (2026-07-16) `template_publicado`, `campanha_aberta`, `material_aberto` (funil completo campanha → material → arte). As views `vw_*` consultam-se via SQL Editor/service_role.
 - [ ] **PENDENTE DE APLICAÇÃO (Pedro, ~5 min no SQL Editor)** — 2 migrations escritas em 2026-07-16, versionadas em `supabase/migrations/`:
-  - `20260716120000_luma_artes_template_id.sql` — coluna `template_id` em `luma.artes` (FK SET NULL + índice). Depois de aplicar, avisar p/ ligar o front (history.js grava/lê o vínculo — hoje grava null).
-  - `20260716130000_luma_updated_at.sql` — `updated_at` + trigger em `luma.pastas`/`luma.templates` (base p/ aviso de conflito cross-device no sync).
+  - `20260716120000_luma_artes_template_id.sql` — coluna `template_id` em `luma.artes` (FK SET NULL + índice). **Nota (2026-07-16): a coluna já existe no schema inicial aplicado (`20260618092000`)** — o que esta migration adiciona de fato é o índice. O front **já foi ligado** (ver entrada abaixo); a migration segue valendo aplicar pelo índice.
+  - `20260716130000_luma_updated_at.sql` — **virou NO-OP (2026-07-16)**: coluna e trigger já existiam desde o schema inicial (`touch_*_updated`). O arquivo foi reescrito pra só desfazer a duplicata caso a versão original tenha sido aplicada. **Resumo pro Pedro: só a `20260716120000` vale aplicar (e só pelo índice).**
 - [ ] **XSS (H.1)**: `gEsc()` global antes de produção (achado §11.3 do CRM).
 - [~] Gestão de usuários: ✅ Fase 1 (listar/role/ativo via RLS). **Fase 2 (criar via Edge Function) ADIADA** — por ora criar/excluir usuário é feito direto no Dashboard do Supabase (decisão 2026-06-19).

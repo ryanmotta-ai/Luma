@@ -58,7 +58,7 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
 - [ ] `_dPushFoldersNow` early-return sem backend/admin **não marca `_syncPending`** (`layers.js:2817`) → edição offline é descartada pelo pull do boot. ⚠ **navegador+backend**
 - [ ] Exceção no meio do push cai em catch silencioso e os templates não visitados ficam sem `_syncPending` (`layers.js:2860`). ⚠ **navegador+backend**
 - [ ] Debounce de 1,2s + `dDirty` zerado na hora (`publish.js:532`) = fechar a aba logo após salvar perde o push. Flush no `beforeunload`. ⚠ **navegador**
-- [ ] Push concorrente sem lock (`layers.js:2881`) e upsert last-write-wins sem versão — lock + `updated_at` com aviso de conflito. ⚠ **navegador+backend, 2 abas**
+- [x] Push concorrente sem lock (`layers.js:2881`) e upsert last-write-wins sem versão — lock + `updated_at` com aviso de conflito. Lock (commit anterior) + aviso via snapshot `_remoteUpdatedAt` vs carimbo do banco (2026-07-16; falta exercer com 2 devices no navegador). ⚠ **navegador+backend, 2 abas**
 - [ ] Boot race: pull substitui `dFolders` e o template aberto com id local fica órfão (`layers.js:2717`). ⚠ **navegador+backend**
 - [ ] Deleções fire-and-forget que "ressuscitam" itens se falharem (`templates.js:736-744`, `layers.js:2038`, `fonts.js:82`, `library.js:233,491`) — fila de deleção pendente. ⚠ **navegador+backend**
 
