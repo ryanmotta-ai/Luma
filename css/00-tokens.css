@@ -104,6 +104,9 @@ body.theme-light { --green-text: #15803D; }
    branca (Ativo 1) → fundos laranja/coloridos/escuros
    cor   (Ativo 2) → fundos claros/brancos */
 :root {
+  /* ⚠ ARMADILHA: url() dentro de custom property resolve relativo ao arquivo que USA a var
+     em alguns navegadores (não ao que define). Usar var(--logo-*) fora de /css/ (ex.: modules/)
+     gera /css/assets/... → 404. Fora deste arquivo, use url('../../assets/...') direto. */
   --logo-h-branca: url('../assets/logos/luma-h-branca.png');
   --logo-h-cor: url('../assets/logos/luma-h-cor.png');
   /* aliases mantidos por compatibilidade apontando para as novas logos */

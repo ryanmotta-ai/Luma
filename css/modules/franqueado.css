@@ -53,7 +53,8 @@
 .camp-thumb-prod{font-size:13px;letter-spacing:.03em;line-height:1.05;z-index:1;text-transform:uppercase;max-width:100%;word-break:break-word}
 .camp-thumb-de{font-size:8px;font-family:'Roboto',sans-serif;font-weight:400;opacity:.65;text-decoration:line-through;z-index:1;line-height:1}
 .camp-thumb-por{font-size:18px;color:var(--dm-yellow);z-index:1;line-height:1.05;letter-spacing:.02em}
-.camp-thumb-logo{height:9px;width:30px;margin-top:3px;z-index:1;background:var(--logo-h-branca) center/contain no-repeat;opacity:.75}
+/* url direta (não var(--logo-*)): url() em custom property resolve relativo a ESTA pasta em alguns navegadores → 404 */
+.camp-thumb-logo{height:9px;width:30px;margin-top:3px;z-index:1;background:url('../../assets/logos/luma-h-branca.png') center/contain no-repeat;opacity:.75}
 .camp-thumb-name{font-size:13px;letter-spacing:.04em;line-height:1.1;z-index:1}
 /* Badges unificados: mesma família de pill, peso e tamanho; cores semânticas. */
 .camp-badge,.camp-urgency,.camp-popular{position:absolute;display:inline-flex;align-items:center;font-size:9px;font-weight:700;padding:2px 7px;border-radius:var(--r-pill);letter-spacing:.03em;z-index:2;box-shadow:0 2px 6px rgba(0,0,0,.18)}

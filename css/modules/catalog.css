@@ -187,7 +187,8 @@
   position:relative;z-index:1;font-size:22px;color:var(--dm-yellow);letter-spacing:.02em;line-height:1.1;
 }
 .f-mat-thumb-logo{
-  position:relative;z-index:1;height:11px;width:38px;margin-top:6px;background:var(--logo-h-branca) center/contain no-repeat;opacity:.85;
+  /* url direta (não var(--logo-*)): url() em custom property resolve relativo a ESTA pasta em alguns navegadores → /css/assets/ = 404 */
+  position:relative;z-index:1;height:11px;width:38px;margin-top:6px;background:url('../../assets/logos/luma-h-branca.png') center/contain no-repeat;opacity:.85;
 }
 .f-mat-preview-loading{
   position:absolute;inset:0;z-index:4;display:flex;align-items:center;justify-content:center;

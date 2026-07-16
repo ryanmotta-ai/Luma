@@ -535,7 +535,8 @@
 .pv-multi-prod{font-size:13px;letter-spacing:.03em;line-height:1.05;z-index:1;text-transform:uppercase;max-width:100%;word-break:break-word}
 .pv-multi-de{font-size:8px;font-family:'Roboto',sans-serif;font-weight:400;opacity:.65;text-decoration:line-through;z-index:1;line-height:1}
 .pv-multi-por{font-size:17px;color:var(--dm-yellow);z-index:1;line-height:1;letter-spacing:.02em}
-.pv-multi-logo{height:8px;width:28px;margin-top:4px;z-index:1;background:var(--logo-h-branca) center/contain no-repeat;opacity:.8}
+/* url direta (não var(--logo-*)): url() em custom property resolve relativo a ESTA pasta em alguns navegadores → 404 */
+.pv-multi-logo{height:8px;width:28px;margin-top:4px;z-index:1;background:url('../../assets/logos/luma-h-branca.png') center/contain no-repeat;opacity:.8}
 .pv-multi-label{display:flex;flex-direction:column;align-items:center;gap:1px}
 .pv-multi-fmt-name{font-size:12px;font-weight:700;color:var(--text)}
 .pv-multi-fmt-dim{font-size:10px;color:var(--text-3)}
