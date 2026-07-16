@@ -31,7 +31,7 @@ git clone <repo> && cd luma
 
 Roda 100% no navegador. Com Supabase configurado, sincroniza o catálogo entre dispositivos; sem credenciais, cai em modo local (`localStorage`).
 
-**Detalhe técnico, arquitetura e convenções → [`docs/LUMA.md`](docs/LUMA.md)** · Contexto de produto → [`luma-brain/`](luma-brain/).
+**Detalhe técnico, arquitetura e convenções — [`docs/LUMA.md`](docs/LUMA.md)** · Contexto de produto — [`luma-brain/`](luma-brain/).
 
 ---
 
