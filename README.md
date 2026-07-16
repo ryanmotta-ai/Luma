@@ -6,19 +6,19 @@ Luma é a plataforma de **creative automation** interna da Delivery Much. O desi
 
 ---
 
-### 🎨 Para quem cria (designer)
+### Para quem cria (designer)
 Editor estilo Photoshop no navegador — camadas, campos editáveis (`{{produto}}`, `{{preço}}`), validade e permissões por camada. Publica e a rede inteira já tem acesso, sem deploy.
 
-### 📱 Para quem usa (franqueado)
+### Para quem usa (franqueado)
 Escolhe a campanha, responde umas perguntas (produto, preço, foto) e baixa a arte pronta em **Story, Feed ou Post** — PNG ou PDF. De brinde, 3 sugestões de **legenda** prontas pra colar.
 
 ---
 
 ### Por que importa
-- ⚡ **Arte em menos de 1 min** — do template ao PNG, sem fricção.
-- 🎯 **Sempre na marca** — o franqueado preenche, nunca desenha do zero.
-- 🌎 **Um template, muitas cidades** — o designer não refaz a mesma peça N vezes.
-- 🔌 **Zero setup** — HTML/CSS/JS puro. Sem build, sem dependências. Abre e roda.
+- **Arte em menos de 1 min** — do template ao PNG, sem fricção.
+- **Sempre na marca** — o franqueado preenche, nunca desenha do zero.
+- **Um template, muitas cidades** — o designer não refaz a mesma peça N vezes.
+- **Zero setup** — HTML/CSS/JS puro. Sem build, sem dependências. Abre e roda.
 
 ---
 
