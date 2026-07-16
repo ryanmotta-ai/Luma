@@ -378,3 +378,142 @@ body:not(.theme-light) .lp-warnings{background:rgba(24,23,22,.9);border-color:va
   font-family:'Roboto',sans-serif;color:#fff;background:rgba(20,20,20,.86);padding:4px 10px;border-radius:var(--r-pill,999px);
   box-shadow:0 4px 12px rgba(0,0,0,.28);white-space:nowrap}
 #lp-hover-chip.locked{background:rgba(120,120,120,.9)}
+
+
+/* ════════════════════════════════════════════════════════════════════
+   "VER POSTADO" — a arte real dentro do iPhone 17 Pro Max
+   Chassi premium + chrome de Stories/Feed/WhatsApp. Tudo escopado em
+   #f-posted-modal pra não vazar. Proposta: docs/mockups/previa-mockup-celular.html
+   ════════════════════════════════════════════════════════════════════ */
+
+/* Botão da toolbar da prévia (irmão de Limpo·Guias·Ambiente, mas é ação) */
+.lp-posted-btn{display:inline-flex;align-items:center;gap:5px;font-family:'Roboto',sans-serif;
+  font-size:11px;font-weight:700;color:var(--dm-orange-d);background:var(--dm-orange-bg);
+  border:1px solid transparent;border-radius:var(--r-pill);padding:5px 11px;cursor:pointer;
+  transition:transform var(--dur-micro) var(--ease-spring),filter var(--dur-micro),background var(--dur-micro)}
+.lp-posted-btn:hover{transform:translateY(-1px);filter:brightness(.97)}
+.lp-posted-btn:active{transform:translateY(0)}
+.lp-posted-btn:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+.lp-posted-btn svg{flex-shrink:0}
+body:not(.theme-light) .lp-posted-btn{background:rgba(248,84,0,.16);color:var(--dm-orange)}
+
+/* ── Overlay do modal (mesmo padrão do #f-preview-modal) ── */
+#f-posted-modal{display:none;position:fixed;inset:0;z-index:320;padding:20px;
+  background:rgba(0,0,0,.62);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);
+  align-items:center;justify-content:center;animation:gFadeIn var(--dur-fast) var(--ease-out)}
+#f-posted-modal.open{display:flex}
+.posted-box{width:min(720px,100%);max-height:92vh;display:flex;flex-direction:column;overflow:hidden;
+  background:var(--glass-bg);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
+  border:1px solid var(--glass-border);border-radius:18px;box-shadow:var(--glass-shadow);
+  animation:gPopIn var(--dur-base) var(--ease-spring-soft)}
+.posted-head{display:flex;align-items:center;gap:14px;padding:14px 16px 14px 20px;border-bottom:1px solid var(--gray-light);flex-shrink:0}
+.posted-titles{display:flex;flex-direction:column;line-height:1.25;margin-right:auto}
+.posted-title{font-family:'Roboto',sans-serif;font-weight:900;font-size:16px;letter-spacing:-.01em;color:var(--text)}
+.posted-sub{font-size:12px;color:var(--text-3)}
+.posted-close{width:34px;height:34px;flex-shrink:0;border:none;background:transparent;color:var(--text-3);
+  border-radius:var(--r-pill);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background var(--dur-micro),color var(--dur-micro)}
+.posted-close svg{width:20px;height:20px}
+.posted-close:hover{background:var(--gray-light);color:var(--text)}
+.posted-close:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+
+/* Segmento Stories · Feed · WhatsApp */
+.posted-seg{display:inline-flex;border:1px solid var(--gray-mid);border-radius:var(--r-pill);overflow:hidden;background:var(--white)}
+.pst-seg-btn{font-family:'Roboto',sans-serif;font-size:12px;font-weight:600;padding:7px 14px;border:none;background:transparent;color:var(--text-2);cursor:pointer;transition:background var(--dur-fast),color var(--dur-fast)}
+.pst-seg-btn.active{background:var(--dm-orange-bg);color:var(--dm-orange-d)}
+.pst-seg-btn:focus-visible{outline:2px solid var(--dm-orange);outline-offset:-2px}
+
+.posted-stage{flex:1;min-height:0;overflow:auto;display:flex;align-items:center;justify-content:center;
+  padding:26px 20px;background:
+    radial-gradient(900px 400px at 50% -20%, rgba(255,144,0,.10), transparent 60%),
+    var(--off-white)}
+.pst-loading{font-size:13px;color:var(--text-3);font-weight:600}
+body:not(.theme-light) .posted-box{background:rgba(24,23,22,.92);border-color:var(--d-border2)}
+body:not(.theme-light) .posted-head{border-color:var(--d-border)}
+body:not(.theme-light) .posted-title{color:var(--d-text)}
+body:not(.theme-light) .posted-sub,body:not(.theme-light) .posted-close{color:var(--d-text2)}
+body:not(.theme-light) .posted-close:hover{background:var(--d-surf2);color:var(--d-text)}
+body:not(.theme-light) .posted-seg{background:var(--d-surf);border-color:var(--d-border2)}
+body:not(.theme-light) .pst-seg-btn{color:var(--d-text2)}
+body:not(.theme-light) .pst-seg-btn.active{background:rgba(248,84,0,.18);color:var(--dm-orange)}
+body:not(.theme-light) .posted-stage{background:var(--d-dark)}
+
+/* ══ CHASSI iPhone 17 Pro Max ══ */
+#f-posted-modal .pst-phone{width:300px;height:640px;border-radius:56px;padding:9px;position:relative;flex-shrink:0;
+  background:linear-gradient(150deg,#43444A 0%,#25262B 22%,#1B1C20 50%,#25262B 78%,#3C3D43 100%);
+  box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.14),inset 0 0 0 3px #0C0D10,0 30px 64px -20px rgba(20,12,0,.55),0 14px 28px -12px rgba(0,0,0,.4)}
+#f-posted-modal .pst-phone::before{content:'';position:absolute;left:-2px;top:150px;width:3px;height:22px;border-radius:3px;background:#4A4B51;box-shadow:0 46px 0 #4A4B51,0 84px 0 #4A4B51}
+#f-posted-modal .pst-phone::after{content:'';position:absolute;right:-2px;top:176px;width:3px;height:58px;border-radius:3px;background:#4A4B51;box-shadow:0 96px 0 #4A4B51}
+#f-posted-modal .pst-screen{width:100%;height:100%;border-radius:48px;overflow:hidden;position:relative;background:#000;display:flex;flex-direction:column}
+#f-posted-modal .pst-island{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:88px;height:27px;background:#000;border-radius:16px;z-index:40;box-shadow:0 0 0 1px rgba(255,255,255,.05)}
+
+/* status bar */
+#f-posted-modal .pst-sysbar{position:absolute;top:0;left:0;right:0;height:46px;z-index:35;display:flex;align-items:center;justify-content:space-between;padding:16px 22px 0;pointer-events:none;font-size:12px;font-weight:700;font-family:'Roboto',sans-serif}
+#f-posted-modal .pst-sysbar .pst-ic{display:flex;align-items:center;gap:5px}
+#f-posted-modal .pst-sysbar.dark,#f-posted-modal .pst-sysbar.dark *{color:#fff}
+#f-posted-modal .pst-sysbar.light,#f-posted-modal .pst-sysbar.light *{color:#0A0A0A}
+
+/* slot da arte real (o canvas é encaixado aqui pelo JS) */
+#f-posted-modal .pst-artslot{display:flex;align-items:center;justify-content:center;overflow:hidden}
+#f-posted-modal .pst-artslot canvas,#f-posted-modal .pst-artslot .pst-art{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block}
+#f-posted-modal .pst-av{width:30px;height:30px;border-radius:50%;flex-shrink:0;background:linear-gradient(158deg,var(--dm-orange),var(--dm-red))}
+#f-posted-modal .pst-grow{flex:1}
+
+/* ══ 1 · STORIES ══ */
+#f-posted-modal .pst-story{flex:1;position:relative;background:linear-gradient(160deg,var(--dm-orange),var(--dm-orange-d) 55%,var(--dm-red));overflow:hidden}
+#f-posted-modal .pst-story .pst-artslot{position:absolute;inset:0}
+#f-posted-modal .pst-story-bars{position:absolute;top:52px;left:12px;right:12px;display:flex;gap:4px;z-index:20}
+#f-posted-modal .pst-story-bars i{flex:1;height:2.5px;border-radius:2px;background:rgba(255,255,255,.4);overflow:hidden}
+#f-posted-modal .pst-story-bars i.on::before,#f-posted-modal .pst-story-bars i.done::before{content:'';display:block;height:100%;background:#fff;border-radius:2px}
+#f-posted-modal .pst-story-bars i.on::before{width:64%}
+#f-posted-modal .pst-story-bars i.done::before{width:100%}
+#f-posted-modal .pst-story-top{position:absolute;top:62px;left:14px;right:12px;display:flex;align-items:center;gap:9px;z-index:20;color:#fff}
+#f-posted-modal .pst-story-top .pst-av{width:30px;height:30px;border:2px solid #fff}
+#f-posted-modal .pst-user{font-size:13px;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.4)}
+#f-posted-modal .pst-time{font-size:12px;opacity:.75;font-weight:400}
+#f-posted-modal .pst-story-top svg{width:20px;height:20px;opacity:.95}
+#f-posted-modal .pst-story-bot{position:absolute;bottom:16px;left:14px;right:14px;display:flex;align-items:center;gap:12px;z-index:20}
+#f-posted-modal .pst-story-input{flex:1;height:42px;border-radius:var(--r-pill);border:1.5px solid rgba(255,255,255,.6);display:flex;align-items:center;padding:0 16px;color:rgba(255,255,255,.9);font-size:13px}
+#f-posted-modal .pst-story-bot svg{width:24px;height:24px;color:#fff;flex-shrink:0}
+
+/* ══ 2 · FEED ══ */
+#f-posted-modal .pst-feed{flex:1;background:#fff;display:flex;flex-direction:column;padding-top:46px;overflow:hidden}
+#f-posted-modal .pst-feed-head{display:flex;align-items:center;gap:9px;padding:9px 13px}
+#f-posted-modal .pst-feed-head .pst-av{width:32px;height:32px}
+#f-posted-modal .pst-feed-id{display:flex;flex-direction:column;line-height:1.25}
+#f-posted-modal .pst-feed-user{font-size:13px;font-weight:700;color:#0A0A0A}
+#f-posted-modal .pst-feed-loc{font-size:11px;color:#3A3A3A}
+#f-posted-modal .pst-feed-head svg{width:18px;height:18px;color:#0A0A0A}
+#f-posted-modal .pst-feed .pst-artslot{flex:1;min-height:0;background:var(--gray-light)}
+#f-posted-modal .pst-feed-actions{display:flex;align-items:center;gap:15px;padding:11px 13px 6px}
+#f-posted-modal .pst-feed-actions svg{width:24px;height:24px;color:#0A0A0A}
+#f-posted-modal .pst-feed-likes{font-size:13px;font-weight:700;padding:2px 13px;color:#0A0A0A}
+#f-posted-modal .pst-feed-cap{font-size:13px;padding:3px 13px;color:#0A0A0A;line-height:1.4}
+#f-posted-modal .pst-feed-cap b{font-weight:700}
+#f-posted-modal .pst-feed-cap .muted{color:#8A8A8A}
+#f-posted-modal .pst-feed-time{font-size:10px;color:#8A8A8A;padding:5px 13px;text-transform:uppercase;letter-spacing:.02em}
+
+/* ══ 3 · WHATSAPP ══ */
+#f-posted-modal .pst-wa{flex:1;display:flex;flex-direction:column;position:relative;overflow:hidden;background:#0B141A}
+#f-posted-modal .pst-wa-bg{position:absolute;inset:0;opacity:.06;pointer-events:none;background-image:radial-gradient(circle at 20% 30%,#fff 0 1.5px,transparent 2px),radial-gradient(circle at 70% 60%,#fff 0 1.5px,transparent 2px),radial-gradient(circle at 45% 85%,#fff 0 1.5px,transparent 2px);background-size:60px 60px}
+#f-posted-modal .pst-wa-head{padding:46px 14px 9px 8px;background:#1F2C34;display:flex;align-items:center;gap:10px;position:relative;z-index:5}
+#f-posted-modal .pst-wa-head svg{width:22px;height:22px;color:#E9EDEF}
+#f-posted-modal .pst-wa-head .pst-wa-av{width:34px;height:34px;border-radius:50%;flex-shrink:0;background:linear-gradient(158deg,var(--dm-orange),var(--dm-red))}
+#f-posted-modal .pst-wa-id{display:flex;flex-direction:column;line-height:1.3}
+#f-posted-modal .pst-wa-name{font-size:14px;font-weight:600;color:#E9EDEF}
+#f-posted-modal .pst-wa-status{font-size:11px;color:#8696A0}
+#f-posted-modal .pst-wa-body{flex:1;min-height:0;overflow:hidden;position:relative;z-index:2;padding:14px 10px;display:flex;flex-direction:column;gap:7px;justify-content:flex-end}
+#f-posted-modal .pst-wa-day{align-self:center;background:#182229;color:#8696A0;font-size:11px;font-weight:500;padding:5px 12px;border-radius:8px;margin-bottom:4px}
+#f-posted-modal .pst-bub{max-width:82%;border-radius:9px;padding:5px 8px 6px;font-size:13px;line-height:1.35;align-self:flex-end;background:#005C4B;color:#E9EDEF;border-top-right-radius:2px}
+#f-posted-modal .pst-meta{float:right;margin:6px 0 -2px 10px;font-size:10px;color:#93b6ab;display:flex;align-items:center;gap:3px}
+#f-posted-modal .pst-bub-img{align-self:flex-end;max-width:80%;background:#005C4B;border-radius:9px;border-top-right-radius:2px;padding:3px;position:relative}
+#f-posted-modal .pst-bub-img .pst-artslot{border-radius:7px;max-height:360px}
+#f-posted-modal .pst-meta-ov{position:absolute;right:10px;bottom:9px;font-size:10px;color:#fff;display:flex;align-items:center;gap:3px;background:rgba(0,0,0,.4);padding:2px 7px;border-radius:8px}
+#f-posted-modal .pst-check{width:15px;height:15px;color:#53BDEB}
+#f-posted-modal .pst-wa-input{position:relative;z-index:5;padding:7px 8px;display:flex;align-items:center;gap:7px}
+#f-posted-modal .pst-wa-field{flex:1;background:#202C33;border-radius:var(--r-pill);height:40px;display:flex;align-items:center;padding:0 14px;color:#8696A0;font-size:13px}
+#f-posted-modal .pst-wa-send{width:40px;height:40px;border-radius:50%;background:#00A884;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+#f-posted-modal .pst-wa-send svg{width:20px;height:20px;color:#0B141A}
+
+/* telas baixas: encolhe o celular pra caber no modal */
+@media (max-height:760px){ #f-posted-modal .pst-phone{transform:scale(.84)} }
+@media (prefers-reduced-motion:reduce){ #f-posted-modal,.posted-box{animation:none!important} }

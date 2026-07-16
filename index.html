@@ -710,6 +710,12 @@ input:focus:-webkit-autofill {
               <span class="lp-tool-text lp-tool-dim" id="lp-dim"></span>
             </div>
             <div class="lp-tool-right">
+              <!-- "Postado": abre a arte real dentro do celular (Stories/Feed/WhatsApp).
+                   É ação (modal), não sobreposição — por isso fora do segmento abaixo. -->
+              <button type="button" class="lp-posted-btn" onclick="fOpenPosted()" title="Ver como a arte fica postada (Stories, Feed, WhatsApp)" aria-label="Ver como a arte fica postada">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2.5"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+                <span>Postado</span>
+              </button>
               <!-- 3 estados (era liga/desliga de Guias): Limpo · Guias · Ambiente.
                    "Ambiente" mostra como o Stories cobre a arte (mesma safe zone do linter). -->
               <div class="lp-viewseg" role="radiogroup" aria-label="Sobreposição da prévia">
@@ -737,6 +743,24 @@ input:focus:-webkit-autofill {
     </div>
     <div class="preview-note" id="pv-note"></div>
     <div class="preview-hint">Toque no formato que deseja gerar</div>
+  </div>
+</div>
+
+<!-- MODAL "VER POSTADO": a arte real dentro do iPhone (Stories/Feed/WhatsApp).
+     Conteúdo montado por fOpenPosted() em js/franqueado/live-preview.js. -->
+<div id="f-posted-modal" aria-hidden="true">
+  <div class="posted-box" role="dialog" aria-modal="true" aria-label="Como a arte fica postada">
+    <div class="posted-head">
+      <div class="posted-titles">
+        <span class="posted-title">Como fica postado</span>
+        <span class="posted-sub">a sua arte no ambiente real</span>
+      </div>
+      <div class="posted-seg" id="posted-seg" role="radiogroup" aria-label="Onde postar"></div>
+      <button class="posted-close" onclick="fClosePosted()" aria-label="Fechar prévia">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <div class="posted-stage" id="posted-stage"></div>
   </div>
 </div>
 

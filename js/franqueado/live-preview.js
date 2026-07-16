@@ -55,6 +55,158 @@ function fClosePreview(){document.getElementById('f-preview-modal').classList.re
 document.getElementById('f-preview-modal').addEventListener('click',function(e){if(e.target===this)fClosePreview();});
 
 
+/* ══════════════════════════════════════════════════════════════
+   "VER POSTADO" — a arte REAL dentro do celular (Stories/Feed/WhatsApp)
+   O último passo emocional: o franqueado vê a peça postada no ambiente
+   real (o "nível de agência"). Reusa o MOTOR ÚNICO (fRenderTemplateLayers)
+   + os mesmos placeholders da prévia (fLpInjectPlaceholders): o que aparece
+   aqui é exatamente o que sai no PNG. O chrome do celular é só a moldura —
+   NÃO há um segundo renderizador. Depende de: png-generator (render),
+   00-config (gVarDefaults). Proposta aprovada: docs/mockups/previa-mockup-celular.html.
+══════════════════════════════════════════════════════════════ */
+let _postedArt = null;      // {canvas,w,h} — a arte real, renderizada uma vez por abertura
+let _postedCtx = 'story';   // contexto ativo: 'story' | 'feed' | 'whatsapp'
+
+// Ícones do chrome (SVG currentColor — regra da casa; nunca emoji na moldura).
+const _PST_DOTS = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>';
+const _PST_X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+const _PST_HEART = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 8.6a5 5 0 00-8.8-2 5 5 0 00-8.8 2c0 5 8.8 10.4 8.8 10.4s8.8-5.4 8.8-10.4z"/></svg>';
+const _PST_SEND = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>';
+const _PST_COMMENT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.4 8.4 0 01-11.9 7.6L3 21l1.9-6a8.4 8.4 0 1116.1-3.5z"/></svg>';
+const _PST_BOOKMARK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>';
+const _PST_BACK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 5l-7 7 7 7"/></svg>';
+const _PST_VIDEO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>';
+const _PST_CALL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3 19.5 19.5 0 01-6-6 19.8 19.8 0 01-3-8.6A2 2 0 014.1 2h3a2 2 0 012 1.7c.1 1 .4 1.9.7 2.8a2 2 0 01-.5 2.1L8.1 9.9a16 16 0 006 6l1.3-1.3a2 2 0 012.1-.4c.9.3 1.8.6 2.8.7a2 2 0 011.8 2z"/></svg>';
+const _PST_UP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
+const _PST_CHECK = '<svg class="pst-check" viewBox="0 0 18 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 6.5l3 3 6.5-7.5"/><path d="M7 9.5l1 1 6.5-7.5"/></svg>';
+
+// Barra de status do sistema (bateria/wifi/sinal). whiteText=true sobre fundo escuro.
+function _fPostedSysbar(whiteText){
+  return `<div class="pst-sysbar ${whiteText?'dark':'light'}">
+    <span class="pst-t">21:47</span>
+    <span class="pst-ic">
+      <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7" width="3" height="4" rx=".5"/><rect x="4" y="5" width="3" height="6" rx=".5"/><rect x="8" y="3" width="3" height="8" rx=".5"/><rect x="12" y="1" width="3" height="10" rx=".5"/></svg>
+      <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M8 2.2c2 0 3.9.8 5.3 2.1l1.1-1.2A9.3 9.3 0 008 .6 9.3 9.3 0 001.6 3.1l1.1 1.2A7.6 7.6 0 018 2.2zM8 5.6c1.1 0 2.1.4 2.9 1.2l1.1-1.2A6 6 0 008 3.9 6 6 0 004 5.6l1.1 1.2A4.2 4.2 0 018 5.6zm0 3.4l1.9-2a2.6 2.6 0 00-3.8 0L8 9z"/></svg>
+      <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="17" height="8" rx="1.5" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+    </span>
+  </div>`;
+}
+
+// Nome do produto pra legenda/handle (dado real; cai no nome da campanha).
+function _fPostedProd(){
+  const d=fState.dados||{}, c=fState.camp||{};
+  return String(d.produto || c.previewProd || c.name || 'Confira nossa oferta').slice(0,60);
+}
+
+// Renderiza a arte real UMA vez, no motor único, num canvas fora da tela.
+async function _fPostedRenderArt(){
+  const mat = fState.material;
+  if(!mat || !mat.layers || !mat.layers.length) return null;
+  const fmtId = (fState.fmt && fState.fmt.id) || mat.fmt || 'story';
+  const sz = F_LP_SIZES[fmtId] || F_LP_SIZES.story;
+  const W = (mat.w>0) ? mat.w : sz[0];
+  const H = (mat.h>0) ? mat.h : sz[1];
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H; cv.className = 'pst-art';
+  const ctx = cv.getContext('2d');
+  const _defaults = (typeof gVarDefaults === 'function') ? gVarDefaults() : {};
+  const dados = Object.assign({}, fState.dados || {});
+  try { fLpInjectPlaceholders(mat.layers, dados, _defaults); } catch(e){}
+  await fRenderTemplateLayers(ctx, mat.layers, W, H, dados, fState.camp);
+  return { canvas: cv, w: W, h: H };
+}
+
+/* ── Chrome de cada ambiente (recebe o slot vazio; o canvas real é encaixado depois) ── */
+function _fPostedStory(slot){
+  return `<div class="pst-story">
+    ${slot}
+    <div class="pst-story-bars"><i class="done"></i><i class="on"></i><i></i></div>
+    <div class="pst-story-top"><span class="pst-av"></span><span class="pst-user">sualoja</span><span class="pst-time">2 h</span><span class="pst-grow"></span>${_PST_DOTS}${_PST_X}</div>
+    <div class="pst-story-bot"><div class="pst-story-input">Enviar mensagem</div>${_PST_HEART}${_PST_SEND}</div>
+  </div>`;
+}
+function _fPostedFeed(slot){
+  const prod = _fPostedProd();
+  const preco = (fState.dados && (fState.dados.precoPor || fState.dados.preco)) || '';
+  return `<div class="pst-feed">
+    <div class="pst-feed-head"><span class="pst-av"></span><span class="pst-feed-id"><span class="pst-feed-user">sualoja</span><span class="pst-feed-loc">Sua cidade</span></span><span class="pst-grow"></span>${_PST_DOTS}</div>
+    ${slot}
+    <div class="pst-feed-actions">${_PST_HEART}${_PST_COMMENT}${_PST_SEND}<span class="pst-grow"></span>${_PST_BOOKMARK}</div>
+    <div class="pst-feed-likes">128 curtidas</div>
+    <div class="pst-feed-cap"><b>sualoja</b> ${gEsc(prod)}${preco?(' · '+gEsc(String(preco))):''} <span class="muted">... mais</span></div>
+    <div class="pst-feed-time">agora mesmo</div>
+  </div>`;
+}
+function _fPostedWhats(slot){
+  return `<div class="pst-wa">
+    <div class="pst-wa-bg"></div>
+    <div class="pst-wa-head">${_PST_BACK}<span class="pst-wa-av"></span><span class="pst-wa-id"><span class="pst-wa-name">Clientes</span><span class="pst-wa-status">online</span></span><span class="pst-grow"></span>${_PST_VIDEO}${_PST_CALL}</div>
+    <div class="pst-wa-body">
+      <div class="pst-wa-day">HOJE</div>
+      <div class="pst-bub out">Chegou a oferta de hoje, olha só<span class="pst-meta">21:45 ${_PST_CHECK}</span></div>
+      <div class="pst-bub-img">${slot}<div class="pst-meta-ov">21:45 ${_PST_CHECK}</div></div>
+    </div>
+    <div class="pst-wa-input"><div class="pst-wa-field"><span class="pst-grow">Mensagem</span></div><div class="pst-wa-send">${_PST_UP}</div></div>
+  </div>`;
+}
+
+// Monta o celular no contexto ativo e encaixa o canvas real no slot.
+function _fPostedPaint(){
+  const stage = document.getElementById('posted-stage');
+  if(!stage || !_postedArt) return;
+  const slot = '<div class="pst-artslot"></div>';
+  const chrome = _postedCtx==='feed' ? _fPostedFeed(slot)
+               : _postedCtx==='whatsapp' ? _fPostedWhats(slot)
+               : _fPostedStory(slot);
+  // sysbar de texto claro em Story/WhatsApp (fundo escuro); escuro no Feed (fundo branco)
+  stage.innerHTML = `<div class="pst-phone pst-ctx-${_postedCtx}"><div class="pst-island"></div><div class="pst-screen">${_fPostedSysbar(_postedCtx!=='feed')}${chrome}</div></div>`;
+  const holder = stage.querySelector('.pst-artslot');
+  if(holder && _postedArt.canvas) holder.appendChild(_postedArt.canvas);
+}
+
+function fPostedSetCtx(ctx){
+  _postedCtx = (ctx==='feed'||ctx==='whatsapp') ? ctx : 'story';
+  document.querySelectorAll('#posted-seg .pst-seg-btn').forEach(b=>{
+    const on = b.dataset.ctx === _postedCtx;
+    b.classList.toggle('active', on); b.setAttribute('aria-checked', String(on));
+  });
+  _fPostedPaint();
+}
+
+async function fOpenPosted(){
+  if(!fState.material || !fState.material.layers || !fState.material.layers.length){
+    if(typeof gToast==='function') gToast('Monte a arte primeiro pra ver como ela fica postada.');
+    return;
+  }
+  const modal = document.getElementById('f-posted-modal');
+  const stage = document.getElementById('posted-stage');
+  const seg = document.getElementById('posted-seg');
+  if(!modal || !stage || !seg) return;
+  // Abre já no formato nativo da arte (Story vira Stories; o resto começa no Feed).
+  const fmtId = (fState.fmt && fState.fmt.id) || fState.material.fmt || 'story';
+  _postedCtx = (fmtId==='story') ? 'story' : 'feed';
+  const CTXS = [{id:'story',label:'Stories'},{id:'feed',label:'Feed'},{id:'whatsapp',label:'WhatsApp'}];
+  seg.innerHTML = CTXS.map(c=>`<button type="button" class="pst-seg-btn${c.id===_postedCtx?' active':''}" data-ctx="${c.id}" role="radio" aria-checked="${c.id===_postedCtx}" onclick="fPostedSetCtx('${c.id}')">${c.label}</button>`).join('');
+  modal.classList.add('open'); modal.setAttribute('aria-hidden','false');
+  stage.innerHTML = '<div class="pst-loading">Montando a prévia…</div>';
+  _postedArt = null;
+  try { _postedArt = await _fPostedRenderArt(); }
+  catch(e){ console.warn('[posted] erro ao renderizar a arte:', e); }
+  if(!_postedArt){ stage.innerHTML = '<div class="pst-loading">Não deu pra montar a prévia — a arte final não é afetada.</div>'; return; }
+  _fPostedPaint();
+  document.addEventListener('keydown', _fPostedKey, true);
+}
+function fClosePosted(){
+  const modal = document.getElementById('f-posted-modal');
+  if(modal){ modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); }
+  _postedArt = null;
+  document.removeEventListener('keydown', _fPostedKey, true);
+}
+function _fPostedKey(e){ if(e.key==='Escape'){ e.preventDefault(); fClosePosted(); } }
+// Clique no fundo (fora do box) fecha — mesmo padrão do f-preview-modal.
+(function(){ const m=document.getElementById('f-posted-modal'); if(m) m.addEventListener('click', function(e){ if(e.target===this) fClosePosted(); }); })();
+
+
 /* ── LIVE PREVIEW (F-01) ──
    Renderiza o template REAL publicado pelo designer no canvas #lp-canvas,
    substituindo {{var}} pelos dados já preenchidos em fState.dados. Usa o mesmo
