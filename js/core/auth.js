@@ -35,7 +35,7 @@ async function gLoadProfile() {
     if (!user) { gAuthState = { user: null }; return null; }
     const { data: prof } = await sb
       .from('profiles')
-      .select('role, nome, departamento')
+      .select('role, nome, departamento, telefone')
       .eq('id', user.id)
       .maybeSingle();
     gAuthState = { user: {
@@ -44,6 +44,7 @@ async function gLoadProfile() {
       role: (prof && prof.role) || 'franqueado',
       displayName: (prof && prof.nome) || (user.email || '').split('@')[0],
       departamento: (prof && prof.departamento) || null,
+      telefone: (prof && prof.telefone) || '',
     } };
     return gAuthState.user;
   } catch (e) {

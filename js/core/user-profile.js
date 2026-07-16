@@ -19,8 +19,9 @@ function gOpenUserProfileModal() {
   const email = user ? user.email : 'ryan@deliverymuch.com.br';
   const role = user ? user.role : 'admin';
 
-  // Carregar dados adicionais ou preencher defaults
-  const phone = localStorage.getItem('__luma_user_phone_' + email) || '(55) 99123-4567';
+  // Telefone: banco (profiles.telefone, via gLoadProfile) > cache local antigo > vazio.
+  // (O default fake '(55) 99123-4567' era resto de mock — sumiu.)
+  const phone = (user && user.telefone) || localStorage.getItem('__luma_user_phone_' + email) || '';
   const theme = document.body.classList.contains('theme-light') ? 'light' : 'dark';
 
   // Preencher formulário de dados pessoais
@@ -173,7 +174,7 @@ function gProfileHandleUpload(input) {
 }
 
 // Salva as alterações de dados pessoais
-function gProfileSaveData(event) {
+async function gProfileSaveData(event) {
   if (event) event.preventDefault();
 
   const nameVal = document.getElementById('prof-input-name').value.trim();
@@ -187,6 +188,29 @@ function gProfileSaveData(event) {
   const originalHTML = btn.innerHTML;
   btn.disabled = true;
   btn.innerHTML = `<span class="prof-spinner"></span> Salvando...`;
+
+  // Persiste nome/telefone no BANCO (profiles) — RLS "usuario atualiza próprio perfil".
+  // Antes só ia pra localStorage: telefone/nome novos sumiam em outro device.
+  // (E-mail fica fora: trocar e-mail é fluxo de auth com confirmação, não um UPDATE.)
+  try {
+    const me = gCurrentUser();
+    const sb = (typeof gSupabase==='function') ? gSupabase() : window.sb;
+    if (me && me.id && sb) {
+      const { error } = await sb.from('profiles')
+        .update({ nome: nameVal, telefone: phoneVal || null })
+        .eq('id', me.id);
+      if (error) {
+        btn.disabled = false; btn.innerHTML = originalHTML;
+        gToast('⚠️ Não salvou no servidor: ' + error.message, 'error');
+        return;
+      }
+      if (typeof gAuthState !== 'undefined' && gAuthState.user) gAuthState.user.telefone = phoneVal;
+    }
+  } catch(e) {
+    btn.disabled = false; btn.innerHTML = originalHTML;
+    gToast('⚠️ Não salvou no servidor. Verifique a conexão.', 'error');
+    return;
+  }
 
   setTimeout(() => {
     // Atualizar no sessionStorage o estado de autenticação ativo do Luma
