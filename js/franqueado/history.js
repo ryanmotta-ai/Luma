@@ -39,10 +39,16 @@ async function _fUploadUserImg(uid, sub, dataUrl){
     return sb.storage.from('luma-user-uploads').getPublicUrl(path).data.publicUrl;
   }catch(e){ return null; }
 }
+// LOCK: dois pushes simultâneos (arte nova + retomada de sync) intercalavam uploads e
+// regravavam o storage um por cima do outro. Um por vez; pedido no meio roda ao final.
+let _fArtesPushBusy=false, _fArtesPushQueued=false;
 async function fPushArtesToBackend(){
   const sb=_fSbArtes();
   const user=(typeof gCurrentUser==='function')?gCurrentUser():null;
   if(!sb || !user || !user.id) return;
+  if(_fArtesPushBusy){ _fArtesPushQueued=true; return; }
+  _fArtesPushBusy=true;
+  try{
   const hist=fGetHist(); let changed=false;
   for(const h of hist){
     if(h._synced) continue; // já no banco (status muda via fMarkBaixadaBackend)
@@ -68,7 +74,24 @@ async function fPushArtesToBackend(){
     }, {onConflict:'id'});
     if(!error){ h._synced=true; changed=true; }
   }
-  if(changed){ try{localStorage.setItem(HIST_KEY, JSON.stringify(hist.slice(0,50)));}catch(e){} } // setItem direto (não fSaveHist) p/ não recursar
+  if(changed){
+    // RELÊ o storage antes de gravar: uma arte criada/baixada DURANTE os awaits acima não pode
+    // ser sobrescrita pelo snapshot velho. Mescla só os campos de sync (remoteId/_synced/dados
+    // com URLs) sobre a lista atual — status/baixada recentes vencem.
+    try{
+      const cur=fGetHist();
+      const byId=new Map(hist.map(h=>[h.id,h]));
+      const merged=cur.map(c=>{
+        const u=byId.get(c.id);
+        return u ? Object.assign({}, c, {remoteId:u.remoteId, _synced:u._synced, dados:u.dados}) : c;
+      });
+      localStorage.setItem(HIST_KEY, JSON.stringify(merged.slice(0,50))); // setItem direto (não fSaveHist) p/ não recursar
+    }catch(e){}
+  }
+  } finally {
+    _fArtesPushBusy=false;
+    if(_fArtesPushQueued){ _fArtesPushQueued=false; setTimeout(()=>fPushArtesToBackend(),0); }
+  }
 }
 async function fMarkBaixadaBackend(remoteId, tsBaixada){
   const sb=_fSbArtes();
