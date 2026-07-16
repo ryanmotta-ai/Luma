@@ -73,4 +73,17 @@ Depois de implementar:
 - Ação **destrutiva/irreversível** não autorizada → confirme antes.
 - No modo autônomo, não trave pedindo permissão para o trivial: decida o razoável, faça, e diga o que decidiu.
 
+---
+
+## Economia de uso (enxugar o gasto)
+
+O que mais consome limite aqui: **subagentes em paralelo**, **contexto alto (>150k)** e **sessões longas**. Trabalhe enxuto:
+
+- **Subagente só quando a tarefa pede escala de verdade.** Investigação pontual ou de 1–2 arquivos → leia você mesmo, direto. Reserve fan-out de subagentes (ex.: auditoria ampla) pra quando o usuário pediu amplitude — e **confirme o escopo antes** pra rodar uma vez, certo (rodar de novo custa dobrado).
+- **Leia só a fatia que precisa.** Use `offset`/`limit` e `grep` mirado em vez de abrir arquivos de 1000+ linhas inteiros. Localize com busca, depois leia o trecho.
+- **Não re-leia o que acabou de editar** nem re-verifique o que o Edit já garante. A ferramenta erra se a edição falhar — confie. Agrupe chamadas independentes num turno só.
+- **Verificação enxuta.** Cheque a lógica/DOM no ponto tocado em vez de reconstruir harness gigante; reuse o servidor local já no ar em vez de reiniciar; screenshot só quando o visual é o alvo.
+- **Sessão longa fica cara** (contexto alto encarece cada request). Terminou um assunto? **Abra sessão nova** pro próximo — começa leve. Evite arrastar uma sessão por muitas tarefas distintas.
+- **Patch cirúrgico também é economia:** menos arquivos tocados = menos leitura, menos verificação, menos contexto.
+
 > O detalhe completo de cada regra está em `luma-brain/`. Esta skill é o ponto de entrada; a profundidade mora lá. Toda lição nova de comportamento entra em `06_OPERATING_SYSTEM.md`.
