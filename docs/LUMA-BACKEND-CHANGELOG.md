@@ -228,6 +228,16 @@ Mesmo padrão offline-first (localStorage cache + push background só designer +
 
 ---
 
+## 2026-07-16 — INCIDENTE: sync de templates quebrado desde 11/07 (migration não aplicada)
+
+**Sintoma:** diagnóstico no console (sessão real do designer) mostrou 30 pastas no banco e **0 templates** — os 2 templates locais presos em `_syncPending`. Franqueados sem catálogo de materiais novos.
+
+**Causa-raiz:** a migration `20260711120000_luma_templates_size_cols.sql` (colunas `w/h/bg` em `luma.templates`) foi versionada no repo mas **nunca aplicada no banco**. O push do designer grava essas colunas em todo upsert → PostgREST rejeita a linha inteira (`column templates.w does not exist`, HTTP 400). O pull do boot pede as mesmas colunas no `select` → também falha. Pastas não usam as colunas → sobem normal (por isso o problema passou despercebido: metade do sync funcionava).
+
+**Por que ficou mudo 5 dias:** os erros de upsert/pull eram engolidos (só viravam `_syncPending`/catch silencioso). O badge "não sincronizado" acendeu, mas sem o motivo. Correção de visibilidade: `console.warn` nos erros de push/pull do sync (`js/designer/layers.js`, esta data).
+
+**Correção de banco:** SQL na pendência 🔴 abaixo (Pedro). **Lição de processo:** migration só está "pronta" quando aplicada — versionar no repo não muda o banco; conferir com um `select` na coluna nova após aplicar.
+
 ## 2026-07-16 — Aviso de conflito cross-device no sync do designer
 
 **Arquivo tocado:** `js/designer/layers.js` (só front — `updated_at` + trigger já existiam no banco desde o schema inicial). Fecha o item P0 do roadmap "upsert last-write-wins sem versão — lock + `updated_at` com aviso de conflito" (o lock já existia).
@@ -252,6 +262,15 @@ Mesmo padrão offline-first (localStorage cache + push background só designer +
 - [x] **Persistência do designer**: ✅ variáveis, ✅ pastas + templates + Storage, ✅ fontes, ✅ snippets, ✅ biblioteca de assets (todas via API; falta exercer no navegador).
 - [x] **Persistência do franqueado**: ✅ histórico de artes (`luma.artes`) + ✅ fotos do chat → bucket `luma-user-uploads` (tornado público).
 - [x] **Analytics**: eventos emitidos nos pontos-chave — `sessao_iniciada`, `arte_gerada`, `arte_baixada`, e (2026-07-16) `template_publicado`, `campanha_aberta`, `material_aberto` (funil completo campanha → material → arte). As views `vw_*` consultam-se via SQL Editor/service_role.
+- [ ] 🔴 **URGENTE (Pedro, 30s no SQL Editor)** — **templates não sincronizam desde 11/07** (incidente confirmado em 2026-07-16, ver entrada acima): a migration `20260711120000_luma_templates_size_cols.sql` nunca foi aplicada. Sem as colunas `w/h/bg`, TODO upsert de template falha (`column templates.w does not exist`) e o pull do catálogo também — franqueado não vê material novo, designer acumula pendência. Colar no SQL Editor (idempotente, não-destrutivo):
+  ```sql
+  ALTER TABLE luma.templates ADD COLUMN IF NOT EXISTS w  INT;
+  ALTER TABLE luma.templates ADD COLUMN IF NOT EXISTS h  INT;
+  ALTER TABLE luma.templates ADD COLUMN IF NOT EXISTS bg TEXT;
+  -- aproveitando: índice da migration 20260716120000
+  CREATE INDEX IF NOT EXISTS idx_artes_template_id ON luma.artes(template_id);
+  ```
+  Depois de aplicar, avisar o Ryan: recarregar o Estúdio e clicar no badge "não sincronizado" — os templates presos sobem sozinhos.
 - [ ] **PENDENTE DE APLICAÇÃO (Pedro, ~5 min no SQL Editor)** — 2 migrations escritas em 2026-07-16, versionadas em `supabase/migrations/`:
   - `20260716120000_luma_artes_template_id.sql` — coluna `template_id` em `luma.artes` (FK SET NULL + índice). **Nota (2026-07-16): a coluna já existe no schema inicial aplicado (`20260618092000`)** — o que esta migration adiciona de fato é o índice. O front **já foi ligado** (ver entrada abaixo); a migration segue valendo aplicar pelo índice.
   - `20260716130000_luma_updated_at.sql` — **virou NO-OP (2026-07-16)**: coluna e trigger já existiam desde o schema inicial (`touch_*_updated`). O arquivo foi reescrito pra só desfazer a duplicata caso a versão original tenha sido aplicada. **Resumo pro Pedro: só a `20260716120000` vale aplicar (e só pelo índice).**

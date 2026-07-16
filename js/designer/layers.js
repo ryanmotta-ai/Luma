@@ -2899,6 +2899,9 @@ async function _dPushFoldersNow(){
           validade:pm.validade||null, instrucoes:pm.instrucoes||'', permissoes:pm.permissoes||{}
         }, {onConflict:'id'}).select('updated_at');
         t._syncPending=!!error; // erro de rede/RLS no upsert também conta como pendente
+        // Erro mudo custou 5 dias de sync quebrado (migration w/h/bg não aplicada, 07/2026):
+        // o badge acende mas SEM o motivo ninguém diagnostica. Sempre nomear a causa.
+        if(error) console.warn('[sync] upsert do template falhou:', t.name, '→', error.message||error);
         // Snapshot novo: o carimbo que o NOSSO write acabou de gerar (trigger touch_updated_at).
         // Sem isto o próximo push acusaria conflito com a própria gravação.
         if(!error && _up && _up[0] && _up[0].updated_at) t._remoteUpdatedAt=_up[0].updated_at;
@@ -2991,7 +2994,9 @@ async function dSyncFoldersFromBackend(){
     if(e1 || !Array.isArray(rp) || !rp.length) return; // banco vazio → mantém local (push migra)
     // Lazy Load: exclui propositalmente a coluna `layers` pesada do download em lote no boot.
     // Os layers descem sob demanda: dLoadTemplate (designer) / fEnsureMaterialLayers (franqueado).
-    const { data:rt }=await sb.schema('luma').from('templates').select('id, pasta_id, nome, fmt, formats, w, h, bg, publicado, publicado_em, validade, instrucoes, permissoes, updated_at');
+    const { data:rt, error:eT }=await sb.schema('luma').from('templates').select('id, pasta_id, nome, fmt, formats, w, h, bg, publicado, publicado_em, validade, instrucoes, permissoes, updated_at');
+    // Pull mudo = catálogo vazio sem explicação (mesmo incidente de 07/2026). Nomear a causa.
+    if(eT) console.warn('[sync] pull de templates falhou (catálogo não desceu):', eT.message||eT);
     // Anti-ressurreição: linhas cuja deleção está na fila pendente não voltam pro catálogo
     // (a deleção remota falhou; sem o filtro o item apagado reaparecia até o retry vingar).
     const _hasPD=(typeof gIsPendingDelete==='function');
