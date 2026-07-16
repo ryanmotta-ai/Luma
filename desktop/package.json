@@ -9,7 +9,8 @@
   "license": "UNLICENSED",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --win --publish never"
+    "dist": "electron-builder --win --publish never",
+    "dist:mac": "electron-builder --mac --publish never"
   },
   "devDependencies": {
     "electron": "^33.2.0",
@@ -18,11 +19,38 @@
   "build": {
     "appId": "br.com.deliverymuch.luma",
     "productName": "Luma",
-    "directories": { "buildResources": "build", "output": "dist" },
-    "files": ["main.js", "error.html", "build/icon.png"],
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "error.html",
+      "build/icon.png"
+    ],
     "win": {
-      "target": ["nsis", "portable"],
+      "target": [
+        "nsis",
+        "portable"
+      ],
       "icon": "build/icon.png"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "category": "public.app-category.productivity",
+      "identity": null,
+      "artifactName": "Luma-${version}.${ext}"
+    },
+    "dmg": {
+      "artifactName": "Luma-${version}.${ext}"
     },
     "nsis": {
       "oneClick": true,
@@ -32,5 +60,10 @@
     "portable": {
       "artifactName": "Luma-${version}-portatil.${ext}"
     }
+  },
+  "allowScripts": {
+    "@electron/rebuild@3.6.1": true,
+    "electron@33.4.11": true,
+    "electron-builder@25.1.8": true
   }
 }

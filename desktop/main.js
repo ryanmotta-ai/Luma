@@ -27,7 +27,10 @@ function createWindow() {
     }
   });
 
-  Menu.setApplicationMenu(null);
+  // No Windows o menu nulo só esconde a barra; no macOS ele MATA os atalhos
+  // de sistema (Cmd+C/V/Q). Por isso o Mac ganha o menu padrão do Electron
+  // (fica na barra global do sistema, não ocupa a janela).
+  if (process.platform !== 'darwin') Menu.setApplicationMenu(null);
   win.loadURL(APP_URL);
 
   // Sem internet (o Luma precisa dela pro Supabase de qualquer forma):
@@ -43,14 +46,24 @@ function createWindow() {
     return { action: 'deny' };
   });
 
-  // Menu nulo mata os atalhos padrão — devolve o recarregar (F5 / Ctrl+R).
+  // Menu nulo mata os atalhos padrão — devolve o recarregar
+  // (F5 / Ctrl+R no Windows; Cmd+R no macOS).
   win.webContents.on('before-input-event', (e, input) => {
     if (input.type === 'keyDown' &&
-        (input.key === 'F5' || (input.control && input.key.toLowerCase() === 'r'))) {
+        (input.key === 'F5' ||
+         ((input.control || input.meta) && input.key.toLowerCase() === 'r'))) {
       win.loadURL(APP_URL);
     }
   });
 }
 
 app.whenReady().then(createWindow);
-app.on('window-all-closed', () => app.quit());
+
+// Convenção de cada casa: no Windows fechar a janela encerra o app;
+// no macOS o app fica no Dock e clicar nele reabre a janela.
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') app.quit();
+});
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) createWindow();
+});

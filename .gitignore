@@ -22,6 +22,9 @@ Desktop.ini
 # Logs
 *.log
 
+# Saída do electron-builder (instaladores gerados; nunca versionar)
+desktop/dist/
+
 # Saídas de backup (geradas por scripts/backup-storage.js e pela CLI; nunca versionar)
 backup/
 storage-backup/
