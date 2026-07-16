@@ -934,15 +934,13 @@ function _dSbTmpl(){ return (typeof gSupabase==='function')?gSupabase():window.s
 async function dDeleteTemplateFromBackend(remoteId){
   const sb=_dSbTmpl();
   if(!sb || !remoteId || typeof gIsAdmin!=='function' || !gIsAdmin()) return;
-  try{ await sb.schema('luma').from('templates').delete().eq('id', remoteId); }catch(e){}
+  await gRemoteDelete('templates','id',remoteId); // falhou → fila (não ressuscita no pull)
 }
 async function dDeleteFolderFromBackend(remoteId){
   const sb=_dSbTmpl();
   if(!sb || !remoteId || typeof gIsAdmin!=='function' || !gIsAdmin()) return;
-  try{
-    await sb.schema('luma').from('templates').delete().eq('pasta_id', remoteId);
-    await sb.schema('luma').from('pastas').delete().eq('id', remoteId);
-  }catch(e){}
+  await gRemoteDelete('templates','pasta_id',remoteId); // falhou → fila (não ressuscita no pull)
+  await gRemoteDelete('pastas','id',remoteId);
 }
 function dDeleteTemplate(folderId, tmplId){
   if(!confirm('Excluir este template? Ação não pode ser desfeita.')) return;

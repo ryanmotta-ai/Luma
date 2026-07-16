@@ -63,3 +63,36 @@ function gTrackEvent(evento, payload){
     }).then(({error})=>{ if(error) console.warn('[analytics]', evento, error.message||error); });
   }catch(e){ console.warn('[analytics]', e); }
 }
+
+/* ── Fila de DELEÇÕES pendentes (anti-ressurreição) ──
+   As deleções remotas eram fire-and-forget: se a rede/RLS falhasse, a linha ficava no banco
+   e o item "ressuscitava" no pull seguinte. Agora: tenta na hora; falhou → entra na fila
+   (localStorage) e re-tenta no boot. O pull do catálogo também filtra ids na fila, fechando
+   a janela de ressurreição mesmo antes do retry vingar. */
+const G_PENDING_DELETES_KEY='yngs_pending_deletes_v1';
+function gPendingDeletes(){ try{ return JSON.parse(localStorage.getItem(G_PENDING_DELETES_KEY)||'[]'); }catch(e){ return []; } }
+function _gSavePendingDeletes(q){ try{ localStorage.setItem(G_PENDING_DELETES_KEY, JSON.stringify(q.slice(-200))); }catch(e){} }
+// Deleta table.col=val no schema luma. Falhou/offline → fila. Retorna true se deletou agora.
+async function gRemoteDelete(table, col, val){
+  const sb=gSupabase();
+  if(sb){
+    try{ const { error }=await sb.schema('luma').from(table).delete().eq(col, val); if(!error) return true; }catch(e){}
+  }
+  const q=gPendingDeletes();
+  if(!q.some(x=>x.table===table&&x.col===col&&x.val===val)) q.push({table, col, val});
+  _gSavePendingDeletes(q);
+  return false;
+}
+// true se este id/valor está aguardando deleção (o pull usa pra não ressuscitar o item)
+function gIsPendingDelete(table, val){ return gPendingDeletes().some(x=>x.table===table&&x.val===val); }
+// Re-tenta a fila inteira (chamado no boot, antes dos syncs)
+async function gFlushPendingDeletes(){
+  const sb=gSupabase(); if(!sb) return;
+  const q=gPendingDeletes(); if(!q.length) return;
+  const left=[];
+  for(const it of q){
+    try{ const { error }=await sb.schema('luma').from(it.table).delete().eq(it.col, it.val); if(error) left.push(it); }
+    catch(e){ left.push(it); }
+  }
+  _gSavePendingDeletes(left);
+}

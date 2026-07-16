@@ -81,6 +81,8 @@ function gOnLoginSuccess() {
   // Sincroniza variáveis e catálogo (pastas/templates) com o Supabase (offline-first).
   // Pastas (capas/materiais) e artes (rascunhos) refrescam a home quando chegam.
   const _fhRefresh = () => { if (typeof fHomeRefreshIfIdle === 'function') fHomeRefreshIfIdle(); };
+  // Deleções que falharam em sessões anteriores re-tentam ANTES dos pulls (anti-ressurreição)
+  if (typeof gFlushPendingDeletes === 'function') { try { gFlushPendingDeletes(); } catch(e){} }
   if (typeof dSyncVarsFromBackend === 'function') dSyncVarsFromBackend();
   if (typeof dSyncFoldersFromBackend === 'function') Promise.resolve(dSyncFoldersFromBackend()).then(_fhRefresh).catch(()=>{});
   if (typeof dSyncFontsFromBackend === 'function') dSyncFontsFromBackend();

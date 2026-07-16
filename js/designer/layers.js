@@ -2045,7 +2045,7 @@ async function dPushVarsToBackend(){
 async function dDeleteVarFromBackend(name){
   const sb = (typeof gSupabase==='function') ? gSupabase() : window.sb;
   if(!sb || !name || typeof gIsAdmin!=='function' || !gIsAdmin()) return;
-  try{ await sb.schema('luma').from('variaveis').delete().eq('name', name); }catch(e){}
+  await gRemoteDelete('variaveis','name',name); // falhou → fila (re-tenta no boot)
 }
 // Carrega o catálogo do Supabase pro dVars (boot). Banco vazio + designer + catálogo
 // local → faz a migração inicial (push).
@@ -2967,9 +2967,13 @@ async function dSyncFoldersFromBackend(){
     // Lazy Load: exclui propositalmente a coluna `layers` pesada do download em lote no boot.
     // Os layers descem sob demanda: dLoadTemplate (designer) / fEnsureMaterialLayers (franqueado).
     const { data:rt }=await sb.schema('luma').from('templates').select('id, pasta_id, nome, fmt, formats, w, h, bg, publicado, publicado_em, validade, instrucoes, permissoes');
+    // Anti-ressurreição: linhas cuja deleção está na fila pendente não voltam pro catálogo
+    // (a deleção remota falhou; sem o filtro o item apagado reaparecia até o retry vingar).
+    const _hasPD=(typeof gIsPendingDelete==='function');
+    const rpF=_hasPD?rp.filter(p=>!gIsPendingDelete('pastas',p.id)):rp;
     const byPasta={};
-    (rt||[]).forEach(t=>{ (byPasta[t.pasta_id]=byPasta[t.pasta_id]||[]).push(_dRowToTemplate(t)); });
-    const remote=rp.map(p=>_dRowToFolder(p, byPasta[p.id]||[]));
+    (rt||[]).forEach(t=>{ if(_hasPD&&(gIsPendingDelete('templates',t.id)||gIsPendingDelete('pastas',t.pasta_id)))return; (byPasta[t.pasta_id]=byPasta[t.pasta_id]||[]).push(_dRowToTemplate(t)); });
+    const remote=rpF.map(p=>_dRowToFolder(p, byPasta[p.id]||[]));
     // merge: banco manda; preserva pastas locais sem correspondente (por remoteId ou campId)
     const rIds=new Set(remote.map(f=>f.remoteId));
     const rCamps=new Set(remote.map(f=>f.campId).filter(Boolean));

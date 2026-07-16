@@ -230,7 +230,7 @@ async function dPushLibToBackend(){
 }
 async function dDeleteLibFromBackend(remoteId){
   const sb=_gSbLib(); if(!sb || !remoteId || typeof gIsAdmin!=='function' || !gIsAdmin()) return;
-  try{ await sb.schema('luma').from('biblioteca_assets').delete().eq('id', remoteId); }catch(e){}
+  await gRemoteDelete('biblioteca_assets','id',remoteId); // falhou → fila (re-tenta no boot)
 }
 async function dSyncLibFromBackend(){
   const sb=_gSbLib(); if(!sb) return;
@@ -487,7 +487,7 @@ async function dPushSnippetsToBackend(){
 }
 async function dDeleteSnippetFromBackend(remoteId){
   const sb=_gSbSnip(); if(!sb || !remoteId || typeof gIsAdmin!=='function' || !gIsAdmin()) return;
-  try{ await sb.schema('luma').from('snippets').delete().eq('id', remoteId); }catch(e){}
+  await gRemoteDelete('snippets','id',remoteId); // falhou → fila (re-tenta no boot)
 }
 async function dSyncSnippetsFromBackend(){
   const sb=_gSbSnip(); if(!sb) return;
