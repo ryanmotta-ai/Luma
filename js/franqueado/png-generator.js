@@ -2797,114 +2797,186 @@ const _COPY_BLOCKS = {
   // ─── GANCHOS: espelham a realidade do cliente antes de vender ───
   hooks: {
     universal: [
-      'Aquele dia que ninguem quer cozinhar.',
+      'Aquele dia que ninguém quer cozinhar.',
       'Fim de expediente, geladeira vazia, zero vontade de sair de casa.',
-      'Quando bate a fome e voce nao quer pensar muito.',
-      'Ninguem deveria ter que cozinhar depois de um dia desses.',
-      'A preguica bateu. E ta tudo bem.',
+      'Quando bate a fome e você não quer pensar muito.',
+      'Ninguém deveria ter que cozinhar depois de um dia desses.',
+      'A preguiça bateu. E tá tudo bem.',
       'Cozinhar hoje? Nem pensar.',
-      'Tem dias que o jantar tem que ser facil.',
+      'Tem dias que o jantar tem que ser fácil.',
       'A fome chegou e a gente resolve.',
+      'Sem fila, sem louça pra lavar, sem estresse.',
+      'Você pede, a gente cuida do resto.',
+      'O jantar de hoje já tem endereço: o seu.',
+      'Menos decisão, mais sabor.',
     ],
     pizzas: [
-      'Noite de pizza e noite de pizza. Sem discussao.',
+      'Noite de pizza é noite de pizza. Sem discussão.',
       'O combinado de sempre ou um sabor novo pra testar?',
-      'A pizza chega quente e o problema do jantar ta resolvido.',
-      'Pizza nao precisa de motivo. Mas se precisasse, hoje tem.',
+      'A pizza chega quente e o problema do jantar tá resolvido.',
+      'Pizza não precisa de motivo. Mas se precisasse, hoje tem.',
+      'Massa fresca, borda no ponto, recheio caprichado.',
+      'A rodada de pizza que junta todo mundo na mesa.',
     ],
     lanches: [
       'Aquele burger que resolve qualquer dia ruim.',
-      'Blend na chapa, queijo derretendo, pao selado. Simples assim.',
-      'Lanche bom nao precisa de apresentacao.',
-      'O hamburguer do jeito que tem que ser.',
+      'Blend na chapa, queijo derretendo, pão selado. Simples assim.',
+      'Lanche bom não precisa de apresentação.',
+      'O hambúrguer do jeito que tem que ser.',
+      'Vontade de lanche não avisa — mas a gente entrega.',
+      'Suculento, no ponto, do primeiro ao último bocado.',
     ],
     japonesa: [
       'Japa hoje? A gente entrega fresco na sua porta.',
       'Hot roll, temaki, combinado — escolhe o teu.',
       'Comida japonesa fresquinha sem sair de casa.',
-      'Aquele japa que voce merece.',
+      'Aquele japa que você merece.',
+      'Peça na medida certa pra dividir (ou não).',
+      'Frescor de restaurante, conforto de casa.',
     ],
     bebidas: [
       'Pediu a comida e esqueceu da bebida? A gente resolve.',
       'Geladinha, do jeito que tem que ser.',
-      'Nao tem refeicao completa sem uma bebida gelada.',
+      'Não tem refeição completa sem uma bebida gelada.',
+      'Aquela gelada que combina com tudo.',
+      'Pra acompanhar o pedido e refrescar o dia.',
     ],
     sobremesas: [
       'Depois do jantar, aquele doce que faz o dia valer a pena.',
-      'A sobremesa e a parte que ninguem pula.',
-      'Pra fechar a refeicao com chave de ouro.',
+      'A sobremesa é a parte que ninguém pula.',
+      'Pra fechar a refeição com chave de ouro.',
+      'Sempre tem espaço pra sobremesa.',
+      'O docinho que transforma o dia comum.',
     ],
     refeicoes: [
-      'Almoco pronto, na sua mesa, sem estresse.',
-      'Refeicao feita com cuidado, entregue no seu tempo.',
+      'Almoço pronto, na sua mesa, sem estresse.',
+      'Refeição feita com cuidado, entregue no seu tempo.',
       'O prato do dia chegou. E veio caprichado.',
-      'Comida de verdade, do jeito que voce gosta.',
+      'Comida de verdade, do jeito que você gosta.',
+      'Do fogão pra sua casa, quentinho.',
+      'Aquele almoço que mata a saudade da comida caseira.',
     ],
     porcoes: [
-      'Porcao pra dividir — ou nao, a gente nao julga.',
+      'Porção pra dividir — ou não, a gente não julga.',
       'A entrada que vira prato principal.',
       'Pra beliscar enquanto o papo rola.',
+      'A porção certa pra acompanhar a rodada.',
+      'Crocante por fora, do jeito que a mesa pede.',
     ],
     acai: [
-      'Acai no capricho, do jeito que voce gosta.',
-      'Calor la fora, acai gelado aqui dentro.',
-      'O acai de todo dia, sempre do mesmo jeito bom.',
+      'Açaí no capricho, do jeito que você gosta.',
+      'Calor lá fora, açaí gelado aqui dentro.',
+      'O açaí de todo dia, sempre do mesmo jeito bom.',
+      'Monta do seu jeito, com tudo que você ama.',
+      'Energia gelada pra qualquer hora do dia.',
+    ],
+    saudavel: [
+      'Comer bem sem abrir mão do sabor? Dá sim.',
+      'Leve, fresco e do jeito que o corpo agradece.',
+      'Aquela refeição que cuida de você sem pesar.',
+      'Saudável não é sinônimo de sem graça.',
+      'Fresco, colorido e cheio de sabor.',
+    ],
+    cafe: [
+      'O dia começa melhor com um café da manhã de verdade.',
+      'Pão quentinho, café passado na hora. Dá pra começar melhor?',
+      'Aquele lanche da tarde que você merece.',
+      'Fresquinho da padaria, direto pra sua mesa.',
+      'Pra adoçar a pausa do meio do dia.',
+    ],
+    mexicana: [
+      'Aquele toque picante que anima o dia.',
+      'Taco, nachos, guacamole — a festa mexicana chegou.',
+      'Sabor intenso, do jeito que o México ensinou.',
+      'Pra quem gosta de comer com as mãos e sorrir depois.',
+    ],
+    massas: [
+      'Massa fresca é conforto em forma de prato.',
+      'Molho encorpado, massa no ponto certo.',
+      'Aquele prato de massa que abraça no fim do dia.',
+      'Simples, italiano e reconfortante.',
+    ],
+    churrasco: [
+      'O cheiro de churrasco chegou na sua casa.',
+      'Carne no ponto, do jeito que você pediu.',
+      'Fim de semana pede churrasco. A gente entrega.',
+      'Suculenta, na brasa, sem você acender a churrasqueira.',
     ],
   },
 
-  // ─── CORPO: apresenta produto + preco, concreto e direto ───
+  // ─── CORPO: apresenta produto + preço, concreto e direto ───
   bodies: {
     comDesconto: [
       '{prod} saindo de {de} por {por}.',
-      '{prod} — de {de} por {por}. Valido {val}.',
-      'Hoje o {prod} ta de {de} por {por}.',
-      '{prod} por {por} (era {de}). Valido {val}.',
+      '{prod} — de {de} por {por}. Válido {val}.',
+      'Hoje o {prod} tá de {de} por {por}.',
+      '{prod} por {por} (era {de}). Válido {val}.',
       'De {de} por {por} — {prod}.',
       '{prod}: antes {de}, agora {por}.',
-      '{prod} saindo de {de} por {por}. **Voce economiza {economiaReais}!**',
-      '{prod} de {de} por {por}. **Um desconto de {economiaPct} no seu jantar.**',
+      '{prod} saindo de {de} por {por}. **Você economiza {economiaReais}!**',
+      '{prod} de {de} por {por}. **Um desconto de {economiaPct} no seu pedido.**',
+      'Baixou o preço: {prod} de {de} por {por}.',
+      'O {prod} tá {por} hoje (de {de}). Aproveita.',
     ],
     semDesconto: [
       '{prod} por {por}.',
       '{prod} — {por}. Simples e bom.',
       'Hoje tem {prod} a {por}.',
-      '{prod} saindo a {por}. Valido {val}.',
-      '{prod} a {por}. Sem complicacao.',
+      '{prod} saindo a {por}. Válido {val}.',
+      '{prod} a {por}. Sem complicação.',
       '{por} no {prod}. Direto ao ponto.',
+      '{prod} por {por}, quentinho na sua porta.',
+      'É {prod}? É {por}. Pedido feito.',
+      'Peça o {prod} por {por} e mate a vontade.',
     ],
     comPercentual: [
       '{prod} com {desconto} de desconto: sai a {por}.',
-      '{desconto} OFF no {prod}. Preco final: {por}.',
+      '{desconto} OFF no {prod}. Preço final: {por}.',
       '{prod} por {por} — {desconto} a menos que o normal.',
       'Desconto de {desconto} no {prod}. Fica {por}.',
+      '{desconto} de desconto no {prod}, só hoje: {por}.',
+      'Aproveita: {prod} com {desconto} OFF, agora {por}.',
+    ],
+    // Sem preço definido: apresenta o produto sem prometer valor (o preço fica no app).
+    semPreco: [
+      '{prod} fresquinho, esperando por você.',
+      'Hoje tem {prod}. Confere o preço no app.',
+      '{prod} do jeito que você gosta. Válido {val}.',
+      'Bateu a vontade de {prod}? A gente entrega.',
+      '{prod} pronto pra sair. É só chamar.',
+      'O {prod} de hoje tá te esperando no app.',
     ],
   },
 
-  // ─── CTA: uma acao clara, sem pressao ───
+  // ─── CTA: uma ação clara, sem pressão ───
   ctas: {
     delivery: [
-      'Pede pelo app.',
+      'Peça pelo app.',
       'Abre o app e faz teu pedido.',
       'Chama no delivery.',
       'Faz teu pedido agora.',
-      'Pede pelo link na bio.',
+      'Peça pelo link na bio.',
       'Manda mensagem e a gente entrega.',
-      'Ta no app, e so pedir.',
+      'Tá no app, é só pedir.',
+      'Pediu, chegou. É no app.',
+      'Deixa com a gente: peça pelo delivery.',
     ],
     engajamento: [
-      'Marca aqui quem sempre pede isso com voce.',
+      'Marca aqui quem sempre pede isso com você.',
       'Salva pra pedir depois.',
-      'Manda pra quem ta com fome agora.',
-      'Comenta qual e o teu pedido de sempre.',
+      'Manda pra quem tá com fome agora.',
+      'Comenta qual é o teu pedido de sempre.',
       'Marca quem precisa ver isso.',
       'Manda pro grupo da galera.',
+      'Compartilha com quem ia amar.',
+      'Conta aqui: com o que você pede isso?',
     ],
   },
 
   // ─── HASHTAGS por segmento ───
   hashtags: {
-    universal: ['#delivery', '#pecaagora', '#comida', '#deliverymuch', '#pediu'],
-    pizzas: ['#pizza', '#noitedepizza', '#pizzadelivery', '#pizzalovers'],
+    universal: ['#delivery', '#pecaagora', '#comida', '#deliverymuch', '#pediu', '#matoufome'],
+    pizzas: ['#pizza', '#noitedepizza', '#pizzadelivery', '#pizzalovers', '#pizzaria'],
     lanches: ['#burger', '#hamburguer', '#lanche', '#smashburger', '#burgerlovers'],
     japonesa: ['#sushi', '#comidajaponesa', '#temaki', '#japa', '#sushilovers'],
     bebidas: ['#bebida', '#drinks', '#gelada', '#refrescante'],
@@ -2912,19 +2984,31 @@ const _COPY_BLOCKS = {
     refeicoes: ['#almoco', '#marmita', '#pratofeito', '#refeicao', '#comidacaseira'],
     porcoes: ['#porcao', '#entrada', '#petisco', '#aperitivo'],
     acai: ['#acai', '#acaibowl', '#acailovers', '#gelado'],
+    saudavel: ['#saudavel', '#comidasaudavel', '#fit', '#lowcarb', '#eatclean'],
+    cafe: ['#cafedamanha', '#padaria', '#cafe', '#brunch', '#lanchedatarde'],
+    mexicana: ['#comidamexicana', '#tacos', '#nachos', '#mexican', '#guacamole'],
+    massas: ['#massa', '#macarrao', '#pasta', '#comidaitaliana', '#massafresca'],
+    churrasco: ['#churrasco', '#carne', '#barbecue', '#espetinho', '#brasa'],
   },
 };
 
 /* Mapeia resultado de fBulkAutoCategorize para chave do COPY_BLOCKS */
 function _fCopySegment(prod) {
+  const low = String(prod || '').toLowerCase();
+  // Segmentos que fBulkAutoCategorize não cobre — detecção própria da copy (não mexe no bulk).
+  // Precedem o mapa: pra "salada", "taco", "café" etc. saírem de 'universal' pro tom certo.
+  if (/açaí|acai|açai/.test(low)) return 'acai';
+  if (/salada|fit\b|saud[aá]vel|natural|light|vegano|vegetariano|\bbowl\b|low.?carb|proteico|integral/.test(low)) return 'saudavel';
+  if (/caf[eé]|padaria|p[aã]o\b|croissant|brunch|tapioca|misto quente|torrada|cuscuz/.test(low)) return 'cafe';
+  if (/taco|burrito|nachos|guacamole|quesadilla|mexican|chili|nacho/.test(low)) return 'mexicana';
+  if (/massa|macarr[aã]o|espaguete|nhoque|talharim|fettuccine|penne|ravioli|carbonara/.test(low)) return 'massas';
+  if (/churrasco|espetinho|espeto|picanha|costela|parrilla|barbecue|churras|maminha|fraldinha/.test(low)) return 'churrasco';
   const cat = fBulkAutoCategorize(String(prod || ''));
   const map = {
     'Bebidas': 'bebidas', 'Pizzas': 'pizzas', 'Lanches': 'lanches',
     'Comida Japonesa': 'japonesa', 'Sobremesas': 'sobremesas',
     'Refeições': 'refeicoes', 'Porções / Entradas': 'porcoes',
   };
-  // Açaí: detectar separadamente pois fBulkAutoCategorize não cobre
-  if (/açaí|acai|açai/i.test(String(prod || '').toLowerCase())) return 'acai';
   return map[cat] || 'universal';
 }
 
@@ -2954,18 +3038,21 @@ function _fInterpolate(template, data) {
 }
 
 /* Monta UMA copy completa (feed ou stories) */
-function _fAssembleCopy(prod, de, por, val, desc, format, segment, usedHooks, forceShort = false) {
+function _fAssembleCopy(prod, de, por, val, desc, format, segment, used, forceShort = false) {
   const B = _COPY_BLOCKS;
-  
+
   // Escolher body baseado nos dados disponíveis + economia calculada
   let bodyPool;
   const numDe = fParsePriceNumber(de);
   const numPor = fParsePriceNumber(por);
-  const hasSavings = numDe > 0 && numPor > 0 && numDe > numPor;
-  
-  if (desc && /\d+%/.test(desc)) {
+  const hasPrice = /\d/.test(String(por || ''));   // "Ver no app"/vazio → sem preço real
+  const hasSavings = hasPrice && numDe > 0 && numPor > 0 && numDe > numPor;
+
+  if (!hasPrice) {
+    bodyPool = B.bodies.semPreco;                  // sem preço → não promete valor (fica no app)
+  } else if (desc && /\d+%/.test(desc)) {
     bodyPool = B.bodies.comPercentual;
-  } else if (de && de !== '—' && de.trim()) {
+  } else if (de && de !== '—' && de.trim() && numDe > 0) {
     bodyPool = B.bodies.comDesconto;
     if (!hasSavings) {
       bodyPool = bodyPool.filter(tpl => !tpl.includes('{economiaReais}') && !tpl.includes('{economiaPct}'));
@@ -2973,6 +3060,9 @@ function _fAssembleCopy(prod, de, por, val, desc, format, segment, usedHooks, fo
   } else {
     bodyPool = B.bodies.semDesconto;
   }
+  // Dedup de CORPO entre as 3 opções (cai no pool cheio se esgotar)
+  const _availBodies = bodyPool.filter(t => !used.bodies.has(t));
+  bodyPool = _availBodies.length ? _availBodies : bodyPool;
   
   const formattedVal = _fFormatValidity(val);
   const diff = numDe - numPor;
@@ -2993,29 +3083,30 @@ function _fAssembleCopy(prod, de, por, val, desc, format, segment, usedHooks, fo
   // Escolher pool de hooks: mistura segmento-específico + universal
   const segHooks = B.hooks[segment] || [];
   const allHooks = segHooks.concat(B.hooks.universal);
-  const availHooks = allHooks.filter(h => !usedHooks.has(h));
+  const availHooks = allHooks.filter(h => !used.hooks.has(h));
   const hooksToUse = availHooks.length > 0 ? availHooks : allHooks;
-  
+
   let hook = '';
   let body = '';
-  
+  let bodyTpl = '';
+
   if (forceShort) {
     // Busca a combinação (hook + body) <= 120 caracteres
     const validPairs = [];
     const allPairs = [];
-    
+
     for (let h of hooksToUse) {
       for (let bTpl of bodyPool) {
         const bText = _fInterpolate(bTpl, data);
         const totalLen = h.length + 2 + bText.length;
-        const pair = { hook: h, body: bText, len: totalLen };
+        const pair = { hook: h, tpl: bTpl, body: bText, len: totalLen };
         allPairs.push(pair);
         if (totalLen <= 120) {
           validPairs.push(pair);
         }
       }
     }
-    
+
     let chosenPair;
     if (validPairs.length > 0) {
       chosenPair = _fPick1(validPairs);
@@ -3024,28 +3115,39 @@ function _fAssembleCopy(prod, de, por, val, desc, format, segment, usedHooks, fo
       allPairs.sort((x, y) => x.len - y.len);
       chosenPair = allPairs[0];
     }
-    
+
     hook = chosenPair.hook;
     body = chosenPair.body;
+    bodyTpl = chosenPair.tpl;
   } else {
     hook = _fPick1(hooksToUse);
-    body = _fInterpolate(_fPick1(bodyPool), data);
+    bodyTpl = _fPick1(bodyPool);
+    body = _fInterpolate(bodyTpl, data);
   }
+
+  used.hooks.add(hook);
+  used.bodies.add(bodyTpl);
   
-  usedHooks.add(hook);
-  
+  // CTA sem repetir entre as opções
+  const _pickCta = (type) => {
+    const pool = B.ctas[type] || [];
+    const avail = pool.filter(c => !used.ctas.has(c));
+    const c = _fPick1(avail.length ? avail : pool);
+    used.ctas.add(c);
+    return c;
+  };
+
   // Stories: formato curto (2-3 linhas, sem hashtag)
   if (format === 'stories') {
-    const cta = _fPick1(B.ctas.delivery);
-    return [hook, body, cta].join('\n');
+    return [hook, body, _pickCta('delivery')].join('\n');
   }
-  
+
   // Feed: formato completo
   const ctaType = Math.random() > 0.5 ? 'delivery' : 'engajamento';
-  const cta = _fPick1(B.ctas[ctaType]);
-  
+  const cta = _pickCta(ctaType);
+
   // Validade como linha separada (evita duplicar se já estiver no corpo)
-  const valLine = (formattedVal && !body.includes(formattedVal)) ? ('Valido ' + formattedVal + '.') : '';
+  const valLine = (formattedVal && !body.includes(formattedVal)) ? ('Válido ' + formattedVal + '.') : '';
   
   // Hashtags: 2 universais + 2-3 do segmento + hashtags locais (cidade)
   const cityInput = document.getElementById('f-bulk-city');
@@ -3083,12 +3185,12 @@ function _fAssembleCopy(prod, de, por, val, desc, format, segment, usedHooks, fo
 /* Gera 3 opções de copy (substitui fGetSegmentedCaptions) */
 function fBuildCopy(prod, de, por, val, desc, format) {
   const segment = _fCopySegment(prod);
-  const usedHooks = new Set();
-  
+  // Dedup COMPARTILHADO entre as 3 opções: gancho, corpo e CTA não repetem → 3 legendas distintas.
+  const used = { hooks: new Set(), bodies: new Set(), ctas: new Set() };
   return {
-    op1: _fAssembleCopy(prod, de, por, val, desc, format || 'feed', segment, usedHooks, true),
-    op2: _fAssembleCopy(prod, de, por, val, desc, format || 'feed', segment, usedHooks, false),
-    op3: _fAssembleCopy(prod, de, por, val, desc, format || 'feed', segment, usedHooks, false),
+    op1: _fAssembleCopy(prod, de, por, val, desc, format || 'feed', segment, used, true),
+    op2: _fAssembleCopy(prod, de, por, val, desc, format || 'feed', segment, used, false),
+    op3: _fAssembleCopy(prod, de, por, val, desc, format || 'feed', segment, used, false),
   };
 }
 
