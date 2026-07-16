@@ -1,16 +1,18 @@
-# Compila a casca desktop do Luma (.exe) num runner Windows.
-# Disparo manual (workflow_dispatch). Gera dois artefatos:
-#   Luma-Setup-x.y.z.exe   → instalador de um clique
-#   Luma-x.y.z-portatil.exe → executável portátil (pendrive, sem instalar)
-# A casca só aponta pro GitHub Pages — o .exe não precisa ser recompilado
-# a cada mudança do app; só quando a própria casca (desktop/) mudar.
+# Compila a casca desktop do Luma (.exe) num runner Windows e publica uma
+# RELEASE pública (links permanentes, sem login) com quatro anexos:
+#   Luma-Setup-x.y.z.exe / Luma-x.y.z-portatil.exe → versionados
+#   Luma-Setup.exe / Luma-portatil.exe             → nomes FIXOS, para o link
+#     eterno .../releases/latest/download/Luma-Setup.exe apontar sempre pro novo
+# A casca só aponta pro GitHub Pages — o .exe não precisa ser recompilado a
+# cada mudança do app; só quando a própria casca (desktop/) mudar. Nova versão:
+# suba o "version" em desktop/package.json e rode este workflow de novo.
 name: Desktop (.exe)
 
 on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write   # criar a Release e a tag
 
 jobs:
   build-win:
@@ -30,7 +32,43 @@ jobs:
         working-directory: desktop
         run: npx electron-builder --win --publish never
 
-      - name: Publicar artefatos
+      - name: Versão da casca (do package.json)
+        id: ver
+        shell: pwsh
+        run: |
+          $v = node -p "require('./desktop/package.json').version"
+          "version=$v" >> $env:GITHUB_OUTPUT
+
+      - name: Cópias com nome fixo (link eterno releases/latest)
+        shell: pwsh
+        run: |
+          Copy-Item "desktop/dist/Luma-Setup-${{ steps.ver.outputs.version }}.exe" "desktop/dist/Luma-Setup.exe"
+          Copy-Item "desktop/dist/Luma-${{ steps.ver.outputs.version }}-portatil.exe" "desktop/dist/Luma-portatil.exe"
+
+      - name: Publicar Release pública
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: desktop-v${{ steps.ver.outputs.version }}
+          name: Luma Desktop ${{ steps.ver.outputs.version }}
+          make_latest: true
+          body: |
+            ## Luma para Windows
+
+            | Arquivo | Uso |
+            |---|---|
+            | **Luma-Setup.exe** | Instalador de um clique (cria atalho no menu Iniciar) |
+            | **Luma-portatil.exe** | Roda direto, sem instalar (pendrive) |
+
+            O app abre a versão de produção do Luma — **atualiza sozinho a cada deploy**, sem baixar nada de novo.
+
+            > No primeiro uso o Windows SmartScreen pode avisar "editor desconhecido": clique em **Mais informações → Executar assim mesmo**.
+          files: |
+            desktop/dist/Luma-Setup-${{ steps.ver.outputs.version }}.exe
+            desktop/dist/Luma-${{ steps.ver.outputs.version }}-portatil.exe
+            desktop/dist/Luma-Setup.exe
+            desktop/dist/Luma-portatil.exe
+
+      - name: Publicar artefatos do run (debug)
         uses: actions/upload-artifact@v4
         with:
           name: Luma-Windows
