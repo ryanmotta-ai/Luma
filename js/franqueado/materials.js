@@ -309,6 +309,16 @@ function fCloseMaterialCatalog(){
     chatCol.style.display='';
     chatCol.classList.add('fade-enter');
 
+    // O usuário pode ter navegado DENTRO da janela do fade (200ms) — ex.: clicar em
+    // "Minhas artes" logo após voltar. Este callback atrasado chamava fGoHome() mesmo
+    // assim, derrubando o modo histórico e deixando o rail num estado misto (catálogo
+    // escondido + histórico espremido) — o bug intermitente da página "toda bugada".
+    // Estado mais novo vence: se já está no histórico ou noutro material, só limpa o fade.
+    const _navegou = document.body.classList.contains('f-history-mode')
+      || document.body.classList.contains('f-material-browser')
+      || (fState && fState.material);
+    if(_navegou){ chatCol.classList.remove('fade-enter'); return; }
+
     fRestoreCatalog();
     fUpdateCtx();
     // Voltar dos materiais → HOME (vitrine). O chat por trás fica no estado
