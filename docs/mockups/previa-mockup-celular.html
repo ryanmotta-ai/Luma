@@ -208,16 +208,19 @@
     to{opacity:1;transform:translateY(0) scale(1)}
   }
   @keyframes mkCapIn{ from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
-  .head{animation:mkHeadIn var(--dur-base) var(--ease-out) both}
-  .col{animation:mkPhoneIn var(--dur-slow) var(--ease-spring-soft) both}
+  /* fill 'backwards' (nunca 'both'/'forwards'): segura o estado inicial durante o
+     delay, mas SOLTA o elemento ao terminar — fill de animação encerrada vence a
+     cascata e engoliria o .dim do seletor (bug real: os chips pareciam mortos). */
+  .head{animation:mkHeadIn var(--dur-base) var(--ease-out) backwards}
+  .col{animation:mkPhoneIn var(--dur-slow) var(--ease-spring-soft) backwards}
   .col[data-ctx="0"]{animation-delay:140ms}
   .col[data-ctx="1"]{animation-delay:360ms}
   .col[data-ctx="2"]{animation-delay:580ms}
-  .col-cap{animation:mkCapIn var(--dur-base) var(--ease-out) both}
+  .col-cap{animation:mkCapIn var(--dur-base) var(--ease-out) backwards}
   .col[data-ctx="0"] .col-cap{animation-delay:420ms}
   .col[data-ctx="1"] .col-cap{animation-delay:640ms}
   .col[data-ctx="2"] .col-cap{animation-delay:860ms}
-  .foot{animation:mkCapIn var(--dur-base) var(--ease-out) both;animation-delay:980ms}
+  .foot{animation:mkCapIn var(--dur-base) var(--ease-out) backwards;animation-delay:980ms}
   /* acessibilidade: reduz pra fade imediato (motion.md §3) */
   @media (prefers-reduced-motion:reduce){
     .head,.col,.col-cap,.foot{animation-duration:.01ms!important;animation-delay:0ms!important}

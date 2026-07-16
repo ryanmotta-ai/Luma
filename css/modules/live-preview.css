@@ -521,7 +521,10 @@ body:not(.theme-light) .posted-stage{background:var(--d-dark)}
   from{opacity:0;transform:translateY(26px) scale(.95)}
   to{opacity:1;transform:translateY(0) scale(1)}
 }
-#f-posted-modal .pst-enter{animation:gPstPhoneIn var(--dur-slow) var(--ease-spring-soft) both}
+/* fill 'backwards', nunca 'both': fill de animação encerrada vence a cascata e
+   sequestraria opacity/transform do wrapper de qualquer estilo futuro (a página
+   de mockups teve esse bug real com o seletor). */
+#f-posted-modal .pst-enter{animation:gPstPhoneIn var(--dur-slow) var(--ease-spring-soft) backwards}
 
 /* telas baixas: encolhe o celular pra caber no modal */
 @media (max-height:760px){ #f-posted-modal .pst-phone{transform:scale(.84)} }
