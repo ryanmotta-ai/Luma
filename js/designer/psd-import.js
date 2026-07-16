@@ -37,8 +37,11 @@ function dLoadAgPsd(){
 // dBlendToComposite('color burn') caía em undefined. DBLEND_PSD_MAP faz a ponte.
 function _dPsdBlendMode(bm){
   if(!bm || bm==='normal' || bm==='passThrough') return undefined;
-  if(typeof DBLEND_PSD_MAP!=='undefined' && DBLEND_PSD_MAP[bm]) return DBLEND_PSD_MAP[bm];
-  return bm; // já camelCase ou modo de uma palavra conhecido
+  if(typeof DBLEND_PSD_MAP==='undefined') return undefined;
+  if(DBLEND_PSD_MAP[bm]) return DBLEND_PSD_MAP[bm];           // nome com espaço ("color burn") → camelCase
+  // ag-psd já em camelCase: aceita SÓ se for um modo conhecido. Um modo sem render (ex.: "dissolve")
+  // vira Normal explícito — senão o badge "Mesclagem · dissolve" mentia (renderizava normal).
+  return (Object.values(DBLEND_PSD_MAP).indexOf(bm)>=0) ? bm : undefined;
 }
 function _dPsdHex(c){
   if(!c||c.r==null) return null;
@@ -981,7 +984,9 @@ function dPsdParseItems(psd, res, ox, oy){
   // Assinatura exata (tipo+nome+caixa+conteúdo) repetida → duplicata de parsing: descarta + avisa.
   const _seen=new Set(); const out=[];
   items.forEach(it=>{
-    const sig=it.kind+'|'+it.name+'|'+it.x+'|'+it.y+'|'+it.w+'|'+it.h+'|'+(it.content||'');
+    // Inclui cor e tamanho do raster: sem isso, dois retângulos "Faixa" de mesma caixa mas cores
+    // diferentes (ou duas fotos no mesmo frame) eram vistos como duplicata e o 2º sumia.
+    const sig=it.kind+'|'+it.name+'|'+it.x+'|'+it.y+'|'+it.w+'|'+it.h+'|'+(it.content||'')+'|'+(it.fill||'')+'|'+(it.imgUrl?it.imgUrl.length:'');
     if(_seen.has(sig)){ console.warn('[psd] layer duplicada descartada (assinatura idêntica):', it.name); return; }
     _seen.add(sig); out.push(it);
   });
@@ -1162,7 +1167,14 @@ function _dPsdMemApply(items){
     if(_dPsdMemIsGeneric(key)) return;
     const s=mem[key]; if(!s) return;
     const validText=['text','var','raster'], validShape=['shape','raster','frame'], validRaster=['raster','frame'];
-    if(s.mode&&(
+    if(s.mode==='var' && it.kind==='text'){
+      // Converter texto → variável REESCREVE o conteúdo por {{var}}. Entre PSDs diferentes, uma
+      // camada "valor" que num arquivo era var e noutro é um disclaimer teria o texto destruído.
+      // Só converte se o conteúdo for compatível (vazio/curto ou a heurística sugere a mesma var);
+      // senão preserva o texto e apenas pré-preenche o varName.
+      const sug=(typeof _dPsdSuggestVar==='function')?_dPsdSuggestVar(it.name,it.content):null;
+      if(!it.content || String(it.content).length<=24 || (sug&&sug.name===s.varName)) it.mode='var';
+    } else if(s.mode&&(
       (it.kind==='text'&&validText.includes(s.mode))||
       (it.kind==='shape'&&validShape.includes(s.mode))||
       (it.kind==='raster'&&validRaster.includes(s.mode))
@@ -1930,7 +1942,9 @@ async function dImportPSD(input){
       const abL=Math.round(r.left||0), abT=Math.round(r.top||0);
       const abW=Math.max(1,Math.round((r.right||0)-(r.left||0)));
       const abH=Math.max(1,Math.round((r.bottom||0)-(r.top||0)));
-      dPsdItems=dPsdParseItems(result.psd, result.res||72, abL, abT);
+      // Só os filhos da PRANCHETA — não o doc inteiro. Passar result.psd trazia camadas soltas na
+      // raiz (pasteboard/notas) deslocadas por (abL,abT). Igual ao multi-artboard e ao preview.
+      dPsdItems=dPsdParseItems({children:(abNode.children||[])}, result.res||72, abL, abT);
       dPsdMeta={w:abW, h:abH, name:baseName, res:result.res||72, worker:result.worker===true};
     } else {
       // PSD simples sem artboards.
