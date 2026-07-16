@@ -39,15 +39,28 @@
   .col-cap .k{display:block;font-size:13px;font-weight:800;color:var(--text);margin-bottom:3px}
   .col-cap .k em{color:var(--dm-orange-d);font-style:normal}
 
-  /* ══ CHASSI DO CELULAR ══ */
-  .phone{width:300px;height:620px;border-radius:44px;background:#0B0B0C;padding:11px;
-    box-shadow:0 2px 0 #2a2a2c inset,0 0 0 2px #2a2a2c,0 26px 60px -18px rgba(20,12,0,.5),0 12px 26px -12px rgba(0,0,0,.35);
-    position:relative;flex-shrink:0}
-  .screen{width:100%;height:100%;border-radius:34px;overflow:hidden;position:relative;background:#000;
+  /* ══ CHASSI DO CELULAR — iPhone 17 Pro Max ══
+     Padrão premium: borda fina e uniforme, cantos amplos, rail de titânio
+     com brilho metálico e botões laterais (Ação/Volume à esquerda, Power/
+     Controle da Câmera à direita). É o "material nível de agência" já no chassi. */
+  .phone{width:302px;height:648px;border-radius:56px;padding:9px;position:relative;flex-shrink:0;
+    background:linear-gradient(150deg,#43444A 0%,#25262B 22%,#1B1C20 50%,#25262B 78%,#3C3D43 100%);
+    box-shadow:
+      inset 0 0 0 1.5px rgba(255,255,255,.14),   /* fio de luz do rail de titânio */
+      inset 0 0 0 3px #0C0D10,                    /* vinco interno escuro */
+      0 30px 64px -20px rgba(20,12,0,.55),
+      0 14px 28px -12px rgba(0,0,0,.4)}
+  /* botões laterais — silhueta do 17 Pro Max (titânio um tom acima do rail) */
+  .phone::before{content:'';position:absolute;left:-2px;top:150px;width:3px;height:22px;border-radius:3px;
+    background:#4A4B51;box-shadow:0 46px 0 #4A4B51,0 84px 0 #4A4B51}     /* Ação · Vol+ · Vol- */
+  .phone::after{content:'';position:absolute;right:-2px;top:176px;width:3px;height:58px;border-radius:3px;
+    background:#4A4B51;box-shadow:0 96px 0 #4A4B51}                       /* Power · Controle da Câmera */
+  .screen{width:100%;height:100%;border-radius:48px;overflow:hidden;position:relative;background:#000;
     display:flex;flex-direction:column}
-  /* dynamic island */
-  .island{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:92px;height:26px;
-    background:#000;border-radius:16px;z-index:40;pointer-events:none}
+  /* Dynamic Island */
+  .island{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:88px;height:27px;
+    background:#000;border-radius:16px;z-index:40;pointer-events:none;
+    box-shadow:0 0 0 1px rgba(255,255,255,.05)}
   /* status bar do sistema */
   .sysbar{position:absolute;top:0;left:0;right:0;height:46px;z-index:35;display:flex;
     align-items:center;justify-content:space-between;padding:16px 22px 0;pointer-events:none;
