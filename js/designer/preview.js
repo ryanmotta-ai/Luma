@@ -590,30 +590,47 @@ function dSvgShape(l){
     gradDef=gGradientSvg(l.gradientOverlay, gid); fill='url(#'+gid+')'; totalOp=(layerOp*(l.gradientOverlay.opacity!=null?l.gradientOverlay.opacity:1)).toFixed(3);
   }
   const kind=l.shapeKind||'rect';
-  // traçado (Tool 1) — atributos comuns a todas as formas (+ dash/cap/join)
-  let strokeAttr='';
-  if(l.strokeW>0){ strokeAttr=` stroke="${dSvgColor(l.strokeColor||'#000').fill}" stroke-width="${l.strokeW}"`;
-    if(l.strokeDash&&l.strokeDash.length) strokeAttr+=` stroke-dasharray="${l.strokeDash.join(' ')}"`;
-    if(l.strokeCap) strokeAttr+=` stroke-linecap="${l.strokeCap}"`;
-    if(l.strokeJoin) strokeAttr+=` stroke-linejoin="${l.strokeJoin}"`; }
-  if(kind==='circle'||kind==='ellipse')
-    return gradDef+`<ellipse cx="${l.x+l.w/2}" cy="${l.y+l.h/2}" rx="${l.w/2}" ry="${l.h/2}" fill="${fill}" fill-opacity="${totalOp}"${strokeAttr}/>`;
+  // Geometria da forma como elemento SVG, aceitando atributos extras (fill/stroke/clip).
+  // Um único gerador reusado pelo fill, pelo traço e pelo clipPath — sem duplicar a forma.
   const pts=(typeof dShapePoints==='function')?dShapePoints(l):null;
-  if(pts){
-    const abs=pts.map(p=>[l.x+p[0]*l.w, l.y+p[1]*l.h]);
-    const r=Math.min(l.radius||0, l.w/2, l.h/2);
-    if(r>0 && typeof gRoundPolyD==='function'){
-      return gradDef+`<path d="${gRoundPolyD(abs,r)}" fill="${fill}" fill-opacity="${totalOp}"${strokeAttr}/>`;
+  const geom=(extra)=>{
+    if(kind==='circle'||kind==='ellipse') return `<ellipse cx="${l.x+l.w/2}" cy="${l.y+l.h/2}" rx="${l.w/2}" ry="${l.h/2}" ${extra}/>`;
+    if(pts){
+      const abs=pts.map(p=>[l.x+p[0]*l.w, l.y+p[1]*l.h]);
+      const r=Math.min(l.radius||0, l.w/2, l.h/2);
+      if(r>0 && typeof gRoundPolyD==='function') return `<path d="${gRoundPolyD(abs,r)}" ${extra}/>`;
+      return `<polygon points="${abs.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ')}" ${extra}/>`;
     }
-    return gradDef+`<polygon points="${abs.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ')}" fill="${fill}" fill-opacity="${totalOp}"${strokeAttr}/>`;
+    if(l.radii){
+      const d=_dSvgRoundRectPath(l.x,l.y,l.w,l.h, +l.radii.tl||0, +l.radii.tr||0, +l.radii.br||0, +l.radii.bl||0);
+      return `<path d="${d}" ${extra}/>`;
+    }
+    const r=Math.min(l.radius||0, l.w/2, l.h/2);
+    return `<rect x="${l.x}" y="${l.y}" width="${l.w}" height="${l.h}" rx="${r}" ry="${r}" ${extra}/>`;
+  };
+  const fillAttr=`fill="${fill}" fill-opacity="${totalOp}"`;
+  // Decoração do traço (dash/cap/join) — comum a todos os alinhamentos.
+  let strokeDeco='';
+  if(l.strokeDash&&l.strokeDash.length) strokeDeco+=` stroke-dasharray="${l.strokeDash.join(' ')}"`;
+  if(l.strokeCap) strokeDeco+=` stroke-linecap="${l.strokeCap}"`;
+  if(l.strokeJoin) strokeDeco+=` stroke-linejoin="${l.strokeJoin}"`;
+  const align=l.strokeW>0?(l.strokeAlign||'center'):null;
+  // inside/outside: o SVG só desenha o traço CENTRADO no path. Espelhando o PNG (largura×2 + clip
+  // interno / re-fill), dobramos a espessura e recortamos (inside) ou pintamos o fill por cima
+  // (outside) — senão a borda saía meio pra fora e mais fina que na arte final.
+  if(align==='inside' || align==='outside'){
+    const scol=dSvgColor(l.strokeColor||'#000').fill;
+    const strokeEl=geom(`fill="none" stroke="${scol}" stroke-width="${l.strokeW*2}"${strokeDeco}`);
+    const fillEl=geom(fillAttr);
+    if(align==='inside'){
+      const cid='clp-'+String(l.id||'x').replace(/[^a-z0-9]/gi,'')+'-'+Math.round(l.x)+'-'+Math.round(l.y);
+      return gradDef+`<clipPath id="${cid}">${geom('')}</clipPath>`+fillEl+`<g clip-path="url(#${cid})">${strokeEl}</g>`;
+    }
+    return gradDef+strokeEl+fillEl; // outside: traço atrás, fill por cima cobre a metade interna
   }
-  // cantos por canto (Tool 2): l.radii → path; senão <rect rx> uniforme
-  if(l.radii){
-    const d=_dSvgRoundRectPath(l.x,l.y,l.w,l.h, +l.radii.tl||0, +l.radii.tr||0, +l.radii.br||0, +l.radii.bl||0);
-    return gradDef+`<path d="${d}" fill="${fill}" fill-opacity="${totalOp}"${strokeAttr}/>`;
-  }
-  const r=Math.min(l.radius||0, l.w/2, l.h/2);
-  return gradDef+`<rect x="${l.x}" y="${l.y}" width="${l.w}" height="${l.h}" rx="${r}" ry="${r}" fill="${fill}" fill-opacity="${totalOp}"${strokeAttr}/>`;
+  // centro (ou sem traço): elemento único com traço centrado
+  const strokeAttr=(l.strokeW>0)?` stroke="${dSvgColor(l.strokeColor||'#000').fill}" stroke-width="${l.strokeW}"${strokeDeco}`:'';
+  return gradDef+geom(`${fillAttr}${strokeAttr}`);
 }
 function dSvgText(l, mctx, fillVars, dados, defaults){
   const content = fillVars ? gInterpolate(l.content, dados, {onEmpty:'remove', defaults}) : (l.content||'');
