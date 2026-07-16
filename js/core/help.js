@@ -205,7 +205,7 @@ function gHelpRenderOnboarding(){
   return `<section class="g-help-onboarding" aria-labelledby="g-help-onboarding-title">
     <div class="g-help-context-head"><span id="g-help-onboarding-title">Primeiros passos</span><span>${done}/${steps.length}</span></div>
     <div class="g-help-onboarding-track"><span style="width:${Math.round(done/steps.length*100)}%"></span></div>
-    <div class="g-help-onboarding-steps">${steps.map(([key,label])=>`<span class="${progress[key]?'done':''}">${progress[key]?'Concluido':'A fazer'}: ${label}</span>`).join('')}</div>
+    <div class="g-help-onboarding-steps">${steps.map(([key,label])=>`<span class="${progress[key]?'done':''}">${progress[key]?'Concluído':'A fazer'}: ${label}</span>`).join('')}</div>
   </section>`;
 }
 function gTriggerOnboardingStep(stepName){

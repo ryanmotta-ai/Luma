@@ -678,3 +678,25 @@ body:not(.theme-light) .prof-user-tag.inactive{color:var(--d-error,#FF6B6B)}
 .prof-user-remove:hover{color:#ef4444;background:rgba(239,68,68,.08)}
 /* Reativar é ação positiva (desfaz a desativação) — hover verde, não vermelho */
 .prof-user-restore:hover{color:var(--green-text);background:rgba(34,197,94,.1)}
+
+/* ══ PERFIL NO CELULAR (≤680px) — o layout de duas colunas (sidebar 240px + conteúdo)
+   não cabe: o conteúdo era CORTADO na borda direita (inputs e título pela metade).
+   Empilha: folha inteira, sidebar vira topo compacto com navegação horizontal. ══ */
+@media (max-width:680px){
+  .g-profile-modal{padding:0;align-items:stretch;justify-content:stretch}
+  .prof-box{width:100%;max-width:none;height:100dvh;max-height:100dvh;border-radius:0;flex-direction:column}
+  .prof-sidebar{width:100%;border-right:0;border-bottom:1px solid var(--gray-light);padding:calc(12px + var(--safe-top)) 14px 10px}
+  .prof-sidebar-user{flex-direction:row;text-align:left;align-items:center;gap:12px;margin-bottom:10px}
+  .prof-sidebar-av-wrap{width:44px;height:44px;margin-bottom:0;flex-shrink:0}
+  .prof-sidebar-av{font-size:16px}
+  /* Navegação em linha, rolável; sair da conta vai pro fim da linha */
+  .prof-nav{flex-direction:row;gap:6px;overflow-x:auto;scrollbar-width:none;flex-grow:0}
+  .prof-nav::-webkit-scrollbar{display:none}
+  .prof-nav-btn{white-space:nowrap;flex:0 0 auto;min-height:40px}
+  .prof-logout-btn{margin-top:0;margin-left:auto}
+  .prof-content{flex:1;min-height:0}
+  .prof-header{padding:14px 16px}
+  .prof-body{padding:16px 16px calc(20px + var(--safe-bottom))}
+  /* O FAB da prévia não pode flutuar na frente do perfil aberto */
+  body:has(#g-profile-modal.open) #mobile-preview-toggle{display:none!important}
+}
