@@ -308,6 +308,21 @@ A fonte de verdade do tipo é `dVars[id].type`; `F_FIELD_TYPES` é fallback lega
 | `fBulkOpen` → `fBulkDownloadAll` | png-generator.js | Geração em lote via CSV (PapaParse) com fila/yield |
 | `fResizeImageIfNeeded` | chat.js | Resize nítido via Pica (fallback canvas); Color Thief sugere paleta da foto |
 
+### Motor de copy / legendas (combinatório, NÃO IA)
+
+Gera 3 variações de **legenda** (Promo · Engajar · WhatsApp) pro post depois que a arte é criada — o "assistente de legenda". É **combinatório** (combina frases pré-definidas), não IA: alinhado ao `00_PRODUCT.md` §9 ("sugestão de conteúdo é auxiliar, não o produto"). Onde mora:
+
+| Peça | Arquivo:função | Papel |
+|---|---|---|
+| Entrada (UI) | `chat.js` → `fGenCaptionSuggestions(dados, camp, formato)` | Extrai prod/de/por/val/desc do estado e chama o motor; devolve `[{id,label,text}]` pras abas. `fFetchAICaptionSuggestions` é só o **stub** pra plugar IA no futuro (hoje delega ao local) |
+| Motor | `png-generator.js` → `fBuildCopy(prod, de, por, val, desc, format)` | Monta as 3 opções (op1 curta ≤120 p/ stories/promo, op2/op3 completas). Dedup **compartilhado** de gancho+corpo+CTA entre as 3 |
+| Montador | `png-generator.js` → `_fAssembleCopy(...)` | Uma legenda = gancho + corpo + validade + CTA + hashtags. Cálculo de economia (economiaReais/Pct), formato feed vs stories, e pool `semPreco` quando `por` não tem dígito (ex.: "Ver no app") |
+| Bancos | `png-generator.js` → `_COPY_BLOCKS` | Os dados combinados: `hooks` (por segmento + universal), `bodies` (comDesconto/semDesconto/comPercentual/semPreco, com placeholders `{prod}{de}{por}{val}{desconto}{economiaReais}{economiaPct}`), `ctas` (delivery/engajamento), `hashtags` (por segmento + universal + cidade) |
+| Segmento | `png-generator.js` → `_fCopySegment(prod)` | Detecta o segmento (pizzas, lanches, japonesa, bebidas, sobremesas, refeicoes, porcoes, acai, saudavel, cafe, mexicana, massas, churrasco → senão `universal`). Detecção própria + fallback `fBulkAutoCategorize`; NÃO mexe no bulk |
+| Copiar | `chat.js` → `fCopyCaption` / `_fActiveCaptionText` | Copia a aba ativa pra área de transferência; `_fArtCaptions[canvasId]` é o cache das legendas geradas |
+
+**Como estender:** mais variedade → adicionar itens nos pools de `_COPY_BLOCKS`. Novo segmento → adicionar detecção em `_fCopySegment` **e** os pools `hooks[seg]`/`hashtags[seg]` correspondentes (corpos/CTAs são compartilhados). Placeholders novos → registrar em `_fInterpolate`.
+
 ---
 
 ## 10. MÓDULO DESIGNER / ESTÚDIO (`d*`)
