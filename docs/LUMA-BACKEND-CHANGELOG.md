@@ -228,6 +228,20 @@ Mesmo padrão offline-first (localStorage cache + push background só designer +
 
 ---
 
+## 2026-07-16 — INCIDENTE 2: Storage recusa TODO upload do designer (falta SELECT p/ upsert)
+
+**Sintoma:** capa de pasta editada no Estúdio "não salvava" (vitrine seguia com a imagem antiga) e, pior, o push gravava `cover_url=NULL` e **apagava a capa antiga** da pasta no banco. Diagnóstico nos buckets: `luma-covers`, `luma-template-assets` e `luma-fontes` com **0 objetos desde sempre**; `luma-user-uploads` (franqueado) com 44 — designer nunca conseguiu subir nada.
+
+**Causa-raiz:** todo upload do app usa `{upsert:true}`, e o upsert do Storage exige **INSERT + SELECT + UPDATE** em `storage.objects`. Os 3 buckets públicos só tinham INSERT/UPDATE/DELETE (`is_designer()`) — sem policy de SELECT o Storage recusa o upsert. "Bucket público" cobre só a leitura via URL/CDN, não a API autenticada. Efeito colateral histórico: sem upload, as imagens dos templates nunca externalizavam → **base64 gigante em `luma.templates` (a raiz do problema de tráfego/egress)**.
+
+**Correções:**
+1. Migration `20260716150000_luma_storage_select_buckets_publicos.sql` — policy de SELECT (authenticated) nos 3 buckets. **Aplicar no SQL Editor.**
+2. Front (`js/designer/layers.js`): upload falho agora loga `console.warn` (era silencioso) e o upsert de pastas **omite `cover_url`** quando a capa está pendente/local — preserva a capa que já está no banco em vez de gravar NULL.
+
+**Lição:** upsert de Storage precisa das 3 policies; bucket "público" não dispensa SELECT para a API. Conferir upload com `select count(*) from storage.objects where bucket_id='...'` após configurar bucket novo.
+
+---
+
 ## 2026-07-16 — INCIDENTE: sync de templates quebrado desde 11/07 (migration não aplicada)
 
 **Sintoma:** diagnóstico no console (sessão real do designer) mostrou 30 pastas no banco e **0 templates** — os 2 templates locais presos em `_syncPending`. Franqueados sem catálogo de materiais novos.
@@ -262,7 +276,7 @@ Mesmo padrão offline-first (localStorage cache + push background só designer +
 - [x] **Persistência do designer**: ✅ variáveis, ✅ pastas + templates + Storage, ✅ fontes, ✅ snippets, ✅ biblioteca de assets (todas via API; falta exercer no navegador).
 - [x] **Persistência do franqueado**: ✅ histórico de artes (`luma.artes`) + ✅ fotos do chat → bucket `luma-user-uploads` (tornado público).
 - [x] **Analytics**: eventos emitidos nos pontos-chave — `sessao_iniciada`, `arte_gerada`, `arte_baixada`, e (2026-07-16) `template_publicado`, `campanha_aberta`, `material_aberto` (funil completo campanha → material → arte). As views `vw_*` consultam-se via SQL Editor/service_role.
-- [ ] 🔴 **URGENTE (Pedro, 30s no SQL Editor)** — **templates não sincronizam desde 11/07** (incidente confirmado em 2026-07-16, ver entrada acima): a migration `20260711120000_luma_templates_size_cols.sql` nunca foi aplicada. Sem as colunas `w/h/bg`, TODO upsert de template falha (`column templates.w does not exist`) e o pull do catálogo também — franqueado não vê material novo, designer acumula pendência. Colar no SQL Editor (idempotente, não-destrutivo):
+- [x] 🔴 ~~URGENTE~~ **RESOLVIDO (Pedro, 2026-07-16)** — **templates não sincronizam desde 11/07** (incidente confirmado em 2026-07-16, ver entrada acima): a migration `20260711120000_luma_templates_size_cols.sql` nunca tinha sido aplicada. **Aplicada em 2026-07-16 via SQL Editor junto com a `20260716120000` (índice) e a `20260716130000` (no-op)** — verificação pós-aplicação: `size_cols=3`, `idx_artes_template_id=1`, triggers `touch_*` intactos e sem duplicatas. Falta o passo do Ryan (recarregar o Estúdio + clicar no badge) pra `luma.templates` sair de 0. SQL aplicado:
   ```sql
   ALTER TABLE luma.templates ADD COLUMN IF NOT EXISTS w  INT;
   ALTER TABLE luma.templates ADD COLUMN IF NOT EXISTS h  INT;
@@ -271,8 +285,8 @@ Mesmo padrão offline-first (localStorage cache + push background só designer +
   CREATE INDEX IF NOT EXISTS idx_artes_template_id ON luma.artes(template_id);
   ```
   Depois de aplicar, avisar o Ryan: recarregar o Estúdio e clicar no badge "não sincronizado" — os templates presos sobem sozinhos.
-- [ ] **PENDENTE DE APLICAÇÃO (Pedro, ~5 min no SQL Editor)** — 2 migrations escritas em 2026-07-16, versionadas em `supabase/migrations/`:
+- [x] **APLICADAS (Pedro, 2026-07-16, junto com a urgente acima)** — 2 migrations escritas em 2026-07-16, versionadas em `supabase/migrations/`:
   - `20260716120000_luma_artes_template_id.sql` — coluna `template_id` em `luma.artes` (FK SET NULL + índice). **Nota (2026-07-16): a coluna já existe no schema inicial aplicado (`20260618092000`)** — o que esta migration adiciona de fato é o índice. O front **já foi ligado** (ver entrada abaixo); a migration segue valendo aplicar pelo índice.
   - `20260716130000_luma_updated_at.sql` — **virou NO-OP (2026-07-16)**: coluna e trigger já existiam desde o schema inicial (`touch_*_updated`). O arquivo foi reescrito pra só desfazer a duplicata caso a versão original tenha sido aplicada. **Resumo pro Pedro: só a `20260716120000` vale aplicar (e só pelo índice).**
 - [ ] **XSS (H.1)**: `gEsc()` global antes de produção (achado §11.3 do CRM).
-- [~] Gestão de usuários: ✅ Fase 1 (listar/role/ativo via RLS). **Fase 2 (criar via Edge Function) ADIADA** — por ora criar/excluir usuário é feito direto no Dashboard do Supabase (decisão 2026-06-19).
+- [x] Gestão de usuários: ✅ Fase 1 (listar/role/ativo via RLS). ✅ **Fase 2 (2026-07-16): convite pelo app via Edge Function `invite-user`** (deployada, v1) — valida caller `gestao`, envia e-mail de convite (`auth.admin.inviteUserByEmail`), e ajusta role/nome/telefone no profile (o trigger `handle_new_user` segue criando como `franqueado`; o UPDATE autorizado define o role real). Front: botão Convidar da aba Equipe + campo telefone opcional. ⚠ Requer aplicar `20260716160000_luma_profiles_telefone.sql` (coluna `telefone`). Exclusão definitiva de auth.users continua manual (Dashboard).
