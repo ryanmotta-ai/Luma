@@ -2980,8 +2980,11 @@ async function dSyncFoldersFromBackend(){
     });
     // Trabalho local ainda NÃO sincronizado (_syncPending) não pode ser engolido pelo
     // "banco manda": sem isto, um reload descartaria o template que falhou em subir.
+    // O template ABERTO no editor também é preservado (mesmo sincronizado): o pull trocaria
+    // o objeto e o dActiveTmplId ficaria órfão — o próximo dSave gravaria no vazio, em silêncio.
+    const _openId=(typeof dActiveTmplId!=='undefined')?dActiveTmplId:null;
     (dFolders||[]).forEach(lf=>{
-      const pend=(lf.templates||[]).filter(t=>t&&t._syncPending);
+      const pend=(lf.templates||[]).filter(t=>t&&(t._syncPending||(_openId&&t.id===_openId)));
       if(!pend.length) return;
       const rf=remote.find(f=>f.remoteId===lf.remoteId)||remote.find(f=>f.campId&&f.campId===lf.campId);
       if(!rf) return; // pasta local-only já sobrevive via extras
