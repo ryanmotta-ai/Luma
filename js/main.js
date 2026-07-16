@@ -74,7 +74,9 @@ function gOnLoginSuccess() {
   else if (typeof fStartChat === 'function') fStartChat();
   // Estado inicial = HOME em tela cheia (vitrine de campanhas). O welcome acima
   // fica como fallback por trás; escolher uma campanha sai do modo home sozinho.
-  if (typeof fGoHome === 'function') fGoHome();
+  // silent no boot: a home entra já assentada (sem a cascata que deixava o corpo em
+  // opacity:0), então ao sair do login/splash cai direto na vitrine cheia — sem flash vazio.
+  if (typeof fGoHome === 'function') fGoHome({silent:true});
 
   // Sincroniza variáveis e catálogo (pastas/templates) com o Supabase (offline-first).
   // Pastas (capas/materiais) e artes (rascunhos) refrescam a home quando chegam.

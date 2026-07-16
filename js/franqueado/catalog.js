@@ -652,10 +652,13 @@ function fSelectCamp(id){
    fGoHome/fExitHome ligam/desligam o modo via body.f-home-mode;
    os fluxos existentes (materiais → chat → prévia) ficam intactos.
 ══════════════════════════════════════════════════════════════ */
-function fGoHome(){
+function fGoHome(opts){
   document.body.classList.add('f-home-mode');
   document.body.classList.remove('f-mobile-chat','f-history-mode','f-material-browser');
-  fRenderHome(); // com coreografia de entrada
+  // opts.silent (usado no boot pós-login): renderiza a home já ASSENTADA, sem a cascata de
+  // entrada — evita o flash de "franqueado vazio" enquanto o corpo estava em opacity:0. A cascata
+  // segue nas navegações internas (fGoHome() sem opts).
+  fRenderHome(opts);
 }
 function fExitHome(){
   // Ao sair da home, as colunas entram com direção (rail desliza da esquerda,
