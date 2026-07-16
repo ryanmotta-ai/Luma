@@ -644,6 +644,8 @@ function fSelectCamp(id){
   }
   fRestoreCatalog();
   fUpdateCtx();
+  // Evento previsto na migration de analytics e nunca emitido (funil: campanha → material → arte)
+  if(typeof gTrackEvent==='function') gTrackEvent('campanha_aberta',{camp_id:c.id, camp:c.name||''});
   fOpenMaterialCatalog(c);
 }
 

@@ -403,6 +403,8 @@ async function fSelectMaterial(materialId, card){
   const targetFmt = FMTS.find(f=>f.id===targetFmtId);
   if(targetFmt) fState.fmt = targetFmt;
   fState.material=found;
+  // Evento previsto na migration de analytics e nunca emitido (funil: campanha → material → arte)
+  if(typeof gTrackEvent==='function') gTrackEvent('material_aberto',{material:found.name||'', fmt:found.fmt||'', demo:!!found._demo});
   if (typeof gTriggerOnboardingStep === 'function') {
     gTriggerOnboardingStep('choseMaterial');
   }
