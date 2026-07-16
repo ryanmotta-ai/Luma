@@ -2731,6 +2731,11 @@ function dSave(options){
       // final (o franqueado renderiza t.bg) até uma republicação.
       if(_ab && _ab.bg!==undefined) t.bg=_ab.bg;
       if(_custom){ t.fmt=_ab.fmt; t.w=_ab.w; t.h=_ab.h; }
+      // PENDENTE ATÉ CONFIRMAR: marca na escrita; só o upsert bem-sucedido limpa
+      // (_dPushFoldersNow). Sem isto, um push pulado (sessão caída), uma exceção no
+      // meio do loop ou fechar a aba no debounce deixava a edição SEM flag — e o pull
+      // do próximo boot descartava o trabalho ("banco manda").
+      t._syncPending=true;
     }}));
   }
   const hadImgWarn=gImgPersistWarned;
@@ -2871,8 +2876,16 @@ async function _dPushFoldersNow(){
     }
     // re-salva o cache local com os remoteId/URLs recém-atribuídos (imagens já são URLs → leve)
     try{ localStorage.setItem('yngs_folders_v1', JSON.stringify(dFolders)); }catch(e){}
-  }catch(e){ /* silencioso: o cache local já guardou */ }
-  finally{ if(typeof gSyncBadgeUpdate==='function') gSyncBadgeUpdate(); }
+  }catch(e){
+    // O cache local já guardou e os templates tocados seguem _syncPending (marcados no save) —
+    // nada se perde; o badge (finally) avisa. Log p/ diagnóstico, não silêncio total.
+    console.warn('[sync] push de pastas interrompido:', e);
+  }
+  finally{
+    _dPushBusy=false;
+    if(typeof gSyncBadgeUpdate==='function') gSyncBadgeUpdate();
+    if(_dPushQueued){ _dPushQueued=false; setTimeout(()=>_dPushFoldersNow(),0); } // roda o pedido que chegou no meio
+  }
 }
 
 /* ── Badge "não sincronizado" (topbar do designer) ──
