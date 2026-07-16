@@ -65,6 +65,8 @@ O Luma é uma **SPA estática que fala direto com o Supabase**. Não há servido
 
 **Bibliotecas** entram **vendorizadas** em `assets/vendor/` (Color Thief, Pica, PapaParse, pdf-lib, ag-psd, supabase-js) — nunca via CDN em runtime.
 
+**Distribuição.** Produção é o **GitHub Pages** (subpath `/Luma/` — por isso manifest e links usam caminhos **relativos**). O app é um **PWA instalável**: `manifest.json` + ícones + metas Apple no `<head>`; no iPhone, Safari → Compartilhar → Adicionar à Tela de Início (abre standalone, sem barra do navegador). ⛔ **Sem service worker, de propósito:** não há build/hash de arquivos, então cache de SW congelaria versão velha no celular do franqueado — a atualização instantânea a cada deploy vale mais que instalação com um toque no Android.
+
 ---
 
 ## 3. Editor / Estúdio
