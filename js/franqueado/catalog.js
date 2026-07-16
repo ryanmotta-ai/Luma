@@ -461,7 +461,7 @@ function fCampEl(c,isRec,ghost){
     ? `background-color:${c.color};background-image:url('${gEsc(cover)}');background-size:cover;background-position:center`
     : `background:${c.color}`;
   const mats = (typeof fGetMaterialsForCamp==='function') ? fGetMaterialsForCamp(c.id) : [];
-  const countLabel = ghost ? 'Materiais em breve' : (mats.length ? `${mats.length} material${mats.length!==1?'is':''}` : 'Sem materiais');
+  const countLabel = ghost ? 'Materiais em breve' : (mats.length ? `${mats.length} ${mats.length!==1?'materiais':'material'}` : 'Sem materiais');
   const thumbAttr = (!cover && !ghost && _fCampThumbNeeded(c)) ? ` data-thumb-camp="${c.id}"` : '';
   const _icoFlame='<svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:-1px;margin-right:3px"><path d="M12 2s5 4 5 9a5 5 0 0 1-10 0c0-1 .3-2 .8-2.8C8 10 9 12 10 12c0-3 2-7 2-10z"/></svg>';
   const _icoClock='<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-1px;margin-right:3px"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
@@ -735,7 +735,7 @@ function fHomeOpenHist(){
 function _fHomeHeroEl(rec){
   const cover=fCampCover(rec)||_fCampThumbURL(rec.id);
   const mats=(typeof fGetMaterialsForCamp==='function')?fGetMaterialsForCamp(rec.id):[];
-  const matLabel=mats.length?`${mats.length} material${mats.length!==1?'is':''}`:'Materiais em breve';
+  const matLabel=mats.length?`${mats.length} ${mats.length!==1?'materiais':'material'}`:'Materiais em breve';
   const coverSafe=gEsc(cover).replace(/'/g,'%27');   // %27: neutraliza o ' que fecharia o url('…')
   const colorSafe=gEsc(rec.color||'var(--dm-orange)');
   const coverStyle=cover

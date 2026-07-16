@@ -210,7 +210,7 @@ function fRenderMaterialCatalog(camp, container){
           <h1 class="f-mat-camp-name">${gEsc(camp.name)}</h1>
           <p class="f-mat-camp-sub">Escolha o formato ideal. Depois, o Luma guia você na personalização.</p>
           <div class="f-mat-summary" aria-label="Resumo da campanha">
-            <span class="f-mat-count"><strong>${validMat.length}</strong> material${validMat.length>1?'is':''}</span>
+            <span class="f-mat-count"><strong>${validMat.length}</strong> ${validMat.length>1?'materiais':'material'}</span>
             ${formats.map(fmt=>`<span class="f-mat-summary-chip">${gEsc(fmt)}</span>`).join('')}
           </div>
         </div>
