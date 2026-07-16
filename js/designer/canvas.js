@@ -836,6 +836,12 @@ function dDashOutlineSvg(l){
   if(kind==='circle'||kind==='ellipse'){
     // inset de meia-espessura → traço fica DENTRO da caixa (não some metade na borda)
     shape=`<ellipse cx="${w/2}" cy="${h/2}" rx="${Math.max(0,w/2-half)}" ry="${Math.max(0,h/2-half)}" ${common}/>`;
+  } else if(l.radii && typeof _dSvgRoundRectPath==='function'){
+    // Cantos por-canto (radii) → path, para o tracejado casar com o preenchimento arredondado
+    // (antes usava rx uniforme e desenhava cantos retos sobre um fundo arredondado).
+    const r=l.radii, m=v=>Math.max(0,(+v||0));
+    const d=_dSvgRoundRectPath(half,half,Math.max(0,w-sw),Math.max(0,h-sw), m(r.tl),m(r.tr),m(r.br),m(r.bl));
+    shape=`<path d="${d}" ${common}/>`;
   } else {
     shape=`<rect x="${half}" y="${half}" width="${Math.max(0,w-sw)}" height="${Math.max(0,h-sw)}" rx="${Math.max(0,l.radius||0)}" ${common}/>`;
   }
@@ -928,6 +934,8 @@ function dRenderCanvas(){
         const d=gRoundPolyD(abs, l.radius||0);
         let _st=(l.strokeW>0)?' stroke="'+(l.strokeColor||'#000')+'" stroke-width="'+l.strokeW+'"':''; // traçado no polígono
         if(l.strokeW>0 && l.strokeDash && l.strokeDash.length) _st+=' stroke-dasharray="'+l.strokeDash.join(' ')+'"'; // tracejado real
+        if(l.strokeW>0 && l.strokeCap) _st+=' stroke-linecap="'+l.strokeCap+'"';     // ponta (mesmo do PNG/SVG)
+        if(l.strokeW>0 && l.strokeJoin) _st+=' stroke-linejoin="'+l.strokeJoin+'"';  // junção (estrela/triângulo)
         inner.innerHTML='<svg width="100%" height="100%" viewBox="0 0 '+l.w+' '+l.h+'" preserveAspectRatio="none" style="display:block;overflow:visible"><path d="'+d+'" fill="'+(l.fill||'#FF9000')+'"'+_st+'/></svg>';
         el.appendChild(inner);
       }else{
