@@ -294,7 +294,11 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
           ctx.putImageData(botData,bx,by);
         }
       }else{
-        ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.drawImage(oc,0,0); ctx.restore();
+        // Camada mascarada com blend NATIVO: aplica o composite na composição final contra o
+        // fundo. Antes caía em source-over → o multiply/screen/etc. sumia no PNG (editor mostrava).
+        ctx.save(); ctx.setTransform(1,0,0,1,0,0);
+        if(_bm!=='normal' && _native) ctx.globalCompositeOperation=_native;
+        ctx.drawImage(oc,0,0); ctx.restore();
       }
     }else{
       await fRenderOneLayer(ctx, l, dados, 1, 1);
@@ -339,11 +343,15 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
       ctx.shadowColor=l.shadowColor||'rgba(0,0,0,.5)'; ctx.shadowBlur=(l.shadowBlur!=null?l.shadowBlur:6)*_sc; ctx.shadowOffsetX=o.x*_sc; ctx.shadowOffsetY=o.y*_sc;
       ctx.fillStyle=_fill; ctx.fill(); ctx.restore(); }
     if(l.glow){ ctx.save(); _trace(); ctx.shadowColor=l.glowColor||'rgba(255,255,255,.7)'; ctx.shadowBlur=(l.glowSize!=null?l.glowSize:8)*_sc; ctx.fillStyle=_fill; ctx.fill(); ctx.restore(); }
-    // 2) fill principal (gradiente/sólido) (+ overlays por cima)
-    _trace(); ctx.fillStyle=_fillStyle; ctx.fill();
-    if(l.gradientOverlay && l.gradientOverlay.stops && l.gradientOverlay.stops.length && typeof gGradientCanvas==='function'){ // gradient overlay
-      _trace(); ctx.save(); ctx.globalAlpha=(l.gradientOverlay.opacity!=null?l.gradientOverlay.opacity:1); ctx.fillStyle=gGradientCanvas(ctx,l.gradientOverlay,x,y,w,h); ctx.fill(); ctx.restore(); }
-    if(_overlay){ _trace(); ctx.fillStyle=_overlay; ctx.fill(); }
+    // 2) fill principal (gradiente/sólido) (+ overlays por cima). Closure p/ reusar no re-fill do
+    // traçado 'outside' (senão o re-fill simples apagava o gradientOverlay/overlay).
+    const _paintFill=()=>{
+      _trace(); ctx.fillStyle=_fillStyle; ctx.fill();
+      if(l.gradientOverlay && l.gradientOverlay.stops && l.gradientOverlay.stops.length && typeof gGradientCanvas==='function'){ // gradient overlay
+        _trace(); ctx.save(); ctx.globalAlpha=(l.gradientOverlay.opacity!=null?l.gradientOverlay.opacity:1); ctx.fillStyle=gGradientCanvas(ctx,l.gradientOverlay,x,y,w,h); ctx.fill(); ctx.restore(); }
+      if(_overlay){ _trace(); ctx.fillStyle=_overlay; ctx.fill(); }
+    };
+    _paintFill();
     // 3) sombra interna / brilho interno (aprox.: traço borrado recortado p/ dentro)
     const _innerStroke=(color,blur,o)=>{ ctx.save(); _trace(); ctx.clip(); _trace();
       ctx.shadowColor=color; ctx.shadowBlur=blur*_sc; ctx.shadowOffsetX=(o?o.x:0)*_sc; ctx.shadowOffsetY=(o?o.y:0)*_sc;
@@ -358,7 +366,7 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
       ctx.lineJoin=l.strokeJoin||'round'; ctx.lineCap=l.strokeCap||'butt';
       if(l.strokeDash && l.strokeDash.length) ctx.setLineDash(l.strokeDash.map(d=>d*_sc)); else ctx.setLineDash([]);
       if(a==='inside'){ ctx.save(); ctx.clip(); ctx.stroke(); ctx.restore(); }
-      else if(a==='outside'){ ctx.stroke(); ctx.setLineDash([]); _trace(); ctx.fillStyle=_overlay||_fillStyle; ctx.fill(); }
+      else if(a==='outside'){ ctx.stroke(); ctx.setLineDash([]); _paintFill(); } // re-fill completo: preserva gradientOverlay/overlay
       else { ctx.stroke(); }
       ctx.setLineDash([]);
     }
@@ -404,7 +412,10 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     const _shBlur = l.shadow ? (l.shadowBlur!=null ? l.shadowBlur*_scTxt : Math.max(1,fontSize*0.12)) : 0;
     // gradiente no texto (preenchimento) → CanvasGradient; senão a cor efetiva
     const _txtFill = (l.gradient&&l.gradient.stops&&l.gradient.stops.length&&typeof gGradientCanvas==='function') ? gGradientCanvas(ctx,l.gradient,x,y,w,h) : _txtColor;
-    const _lsTxt = (l.letterSpacing!=null) ? (l.letterSpacing*_scTxt)+'px' : null; // tracking
+    let _lsTxt = (l.letterSpacing!=null) ? (l.letterSpacing*_scTxt)+'px' : null; // tracking (reescala se o auto-fit encolher)
+    // Brilho externo (outer glow) do texto — halo atrás dos glifos. Antes só shape tinha glow no PNG.
+    const _glowColor = l.glow ? (l.glowColor||'rgba(255,255,255,.7)') : null;
+    const _glowBlur  = l.glow ? (l.glowSize!=null?l.glowSize:Math.max(2,(l.fontSize||24)*0.25))*_scTxt : 0;
 
     // Se a camada contiver split-tokens de preço, gera runs virtuais e processa como rich text!
     const _vRuns = (typeof gBuildVirtualRuns === 'function') ? gBuildVirtualRuns(l, dados, 1, _defaults) : null;
@@ -453,17 +464,27 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
         const lineH=lineHs[idx];
         const baseline=cy + li.maxFs*0.8 + (lineH-li.maxFs)/2; // baseline ≈ line-box CSS (half-leading)
         let tx = l.textAlign==='center'? x+w/2-li.wsum/2 : l.textAlign==='right'? x+w-li.wsum : x;
+        const _lineX0=tx; // início da linha (p/ sublinhado/tachado)
         li.ms.forEach(s=>{
           ctx.font=`${_ital}${s.fp.weight} ${s.fs}px ${s.fp.family}`;
           ctx.letterSpacing=s.ls?(s.ls*_scTxt)+'px':'0px';
           ctx.fillStyle=s.color||_txtColor;
           const baselineOffset = (s.yOffset || 0) * _scTxt;
+          if(_glowColor){ ctx.save(); ctx.shadowColor=_glowColor; ctx.shadowBlur=_glowBlur; ctx.shadowOffsetX=0; ctx.shadowOffsetY=0; ctx.fillText(s.t, tx, baseline + baselineOffset); ctx.restore(); }
           if(l.shadow){ ctx.shadowColor=l.shadowColor||'rgba(0,0,0,.5)'; ctx.shadowBlur=_shBlur; ctx.shadowOffsetX=_shOff.x; ctx.shadowOffsetY=_shOff.y; }
           ctx.fillText(s.t, tx, baseline + baselineOffset);
           if(l.shadow){ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;}
           if(l.strokeW>0){ ctx.lineWidth=Math.max(1,l.strokeW*_scTxt); ctx.strokeStyle=l.strokeColor||'#000'; ctx.lineJoin='round'; ctx.strokeText(s.t, tx, baseline + baselineOffset); }
           tx+=s.ww;
         });
+        // Sublinhado/tachado no rich text (o caminho single-style já fazia; aqui sumia).
+        if(l.underline || l.strikethrough){
+          ctx.save();
+          ctx.strokeStyle=l.color||_txtColor; ctx.lineWidth=Math.max(2, li.maxFs*0.05);
+          if(l.strikethrough){ const sy=baseline-li.maxFs*0.30; ctx.beginPath(); ctx.moveTo(_lineX0,sy); ctx.lineTo(_lineX0+li.wsum,sy); ctx.stroke(); }
+          if(l.underline){ const uy=baseline+li.maxFs*0.12; ctx.beginPath(); ctx.moveTo(_lineX0,uy); ctx.lineTo(_lineX0+li.wsum,uy); ctx.stroke(); }
+          ctx.restore();
+        }
         cy+=lineH;
       });
       ctx.letterSpacing='0px';
@@ -531,6 +552,7 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
           } else {
             ctx.letterSpacing = '0px';
           }
+          if(_glowColor){ ctx.save(); ctx.shadowColor=_glowColor; ctx.shadowBlur=_glowBlur; ctx.shadowOffsetX=0; ctx.shadowOffsetY=0; ctx.fillText(char, tx, cy); ctx.restore(); }
           if(l.shadow){
             ctx.shadowColor=l.shadowColor||'rgba(0,0,0,.5)';
             ctx.shadowBlur=_shBlur; ctx.shadowOffsetX=_shOff.x; ctx.shadowOffsetY=_shOff.y;
@@ -574,6 +596,9 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
         const shrinkRatio = availableW / maxLineW;
         fontSize = Math.max(minFontSize, Math.floor(fontSize * shrinkRatio));
         ctx.font = `${_ital}${fwt} ${fontSize}px ${ff}`;
+        // O tracking (px do tamanho original) precisa encolher junto — senão fica exagerado
+        // proporcionalmente após o auto-fit, divergindo do editor.
+        if(_lsTxt!=null) _lsTxt = (l.letterSpacing*_scTxt*shrinkRatio)+'px';
       }
 
       const lineHeight = fontSize * (l.lineHeight||1.2);
@@ -622,6 +647,7 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
         // mas descartado aqui no desenho, divergindo do editor.
         ctx.letterSpacing = _lsTxt || (isDisplayFont ? `${Math.max(0.5, fontSize * 0.02)}px` : '0px');
 
+        if(_glowColor){ ctx.save(); ctx.shadowColor=_glowColor; ctx.shadowBlur=_glowBlur; ctx.shadowOffsetX=0; ctx.shadowOffsetY=0; ctx.fillText(line, tx, ty); ctx.restore(); }
         if(l.shadow){
           ctx.shadowColor=l.shadowColor||'rgba(0,0,0,.5)';
           ctx.shadowBlur=_shBlur; ctx.shadowOffsetX=_shOff.x; ctx.shadowOffsetY=_shOff.y;
