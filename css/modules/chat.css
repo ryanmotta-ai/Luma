@@ -805,9 +805,9 @@ body:has(#f-bulk-modal.open) #mobile-preview-toggle{display:none!important}
   #f-msg-box{font-size:16px;padding-top:11px;padding-bottom:11px} /* 16px = sem auto-zoom iOS */
   #f-snd{width:var(--tap-min);height:var(--tap-min);flex-shrink:0}
   /* Bolhas de chat mais largas no celular (menos margem lateral desperdiçada).
-     padding-bottom extra: o FAB da prévia (54px, bottom:80px) não pode tampar o fim do
-     scroll (cobria o último card da revisão, ex.: "Gerar kit da campanha"). */
-  #f-messages{padding-left:14px;padding-right:14px;padding-bottom:96px}
+     padding-bottom extra: a miniatura viva da prévia (até ~114px, bottom:80px) não pode
+     tampar o fim do scroll (cobria o último card da revisão, ex.: "Gerar kit da campanha"). */
+  #f-messages{padding-left:14px;padding-right:14px;padding-bottom:150px}
   .qr{min-height:38px;display:inline-flex;align-items:center} /* quick-replies tocáveis */
   .confirm-btn{min-height:var(--tap-min)}
   /* Resultado da arte: botões de download/formato tocáveis */
