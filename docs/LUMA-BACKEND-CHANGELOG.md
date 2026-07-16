@@ -215,7 +215,7 @@ Mesmo padrão offline-first (localStorage cache + push background só designer +
 
 **Mapa localStorage → Postgres:** ver `supabase/README.md`.
 
-**Segurança:** auditado contra os achados do DM CRM (`docs/LUMA-REGRAS_BACKEND.md`). Testes anônimos confirmam que nada vaza. Detalhes no README.
+**Segurança:** auditado contra os achados do DM CRM (`docs/LUMA-REGRAS_BACKEND.md` — removido em 2026-07-16; lições em `docs/LUMA.md` §14.9). Testes anônimos confirmam que nada vaza. Detalhes no README.
 
 ---
 

@@ -5,7 +5,8 @@
 > em `arquivo:linha`, cruzadas com o `luma-brain/` e o `docs/LUMA.md`.
 > **Critério de corte:** só entra o que serve à missão (arte em <1min, zero peça fora da marca,
 > autonomia da ponta). Nada de inventar por inventar.
-> Última revisão: 2026-07-15. Dono: Ryan. Atualize os checkboxes conforme avança.
+> Última revisão: 2026-07-16. Dono: Ryan. Atualize os checkboxes conforme avança.
+> Trilha de UI (tela a tela, notas e fases P0–P3): `docs/ROADMAP-UI-1.0.md` — corre em paralelo; o gate final da 1.0 soma as duas.
 
 ---
 
@@ -47,6 +48,7 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
 - [x] **Corrigir o 404 de todo boot** — link para `css/components/layers-panel.css` removido do `index.html` (commit `1a27177`).
 - [x] **Remover `AUTH_USERS`** — array morto removido do `js/core/auth.js` (commit `5d6de18`).
 - [ ] Conferir se o backup diário (GitHub Actions) segue verde. *(depende do painel do GitHub — Ryan)*
+- [ ] 🔴 **Pedro aplicar o SQL das colunas `w/h/bg`** (`luma.templates`) — **sync de templates parado desde 11/07** (incidente 2026-07-16; SQL pronto no `docs/LUMA-BACKEND-CHANGELOG.md`). Depois: Ryan recarrega o Estúdio, clica no badge "não sincronizado" e confirma com o snippet de diagnóstico. **Lição de processo: migration só está pronta quando APLICADA e conferida com um select — versionar no repo não muda o banco.**
 
 ## 4. Fase 1 — Confiança no dado (o designer não pode perder trabalho)
 
@@ -56,17 +58,17 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
 - [x] `_dUuid` fallback não gerava UUID válido → upsert falhava pra sempre fora de contexto seguro. Novo `gUuid()` em `00-config.js` (commit `21a0959`).
 - [x] Indicador "Salvo na nuvem" mentia em modo local → "Salvo neste aparelho" (commit `18f5eed`).
 - [ ] `_dPushFoldersNow` early-return sem backend/admin **não marca `_syncPending`** (`layers.js:2817`) → edição offline é descartada pelo pull do boot. ⚠ **navegador+backend**
-- [ ] Exceção no meio do push cai em catch silencioso e os templates não visitados ficam sem `_syncPending` (`layers.js:2860`). ⚠ **navegador+backend**
-- [ ] Debounce de 1,2s + `dDirty` zerado na hora (`publish.js:532`) = fechar a aba logo após salvar perde o push. Flush no `beforeunload`. ⚠ **navegador**
+- [ ] Exceção no meio do push cai em catch silencioso e os templates não visitados ficam sem `_syncPending` (`layers.js:2860`). *Parcial: erros de upsert/pull agora saem no `console.warn` (2026-07-16, pós-incidente) — falta marcar `_syncPending` nos não visitados.* ⚠ **navegador+backend**
+- [x] Debounce de 1,2s + `dDirty` zerado na hora (`publish.js:532`) = fechar a aba logo após salvar perde o push. Flush no `pagehide` (`layers.js:2791`).
 - [x] Push concorrente sem lock (`layers.js:2881`) e upsert last-write-wins sem versão — lock + `updated_at` com aviso de conflito. Lock (commit anterior) + aviso via snapshot `_remoteUpdatedAt` vs carimbo do banco (2026-07-16; falta exercer com 2 devices no navegador). ⚠ **navegador+backend, 2 abas**
-- [ ] Boot race: pull substitui `dFolders` e o template aberto com id local fica órfão (`layers.js:2717`). ⚠ **navegador+backend**
-- [ ] Deleções fire-and-forget que "ressuscitam" itens se falharem (`templates.js:736-744`, `layers.js:2038`, `fonts.js:82`, `library.js:233,491`) — fila de deleção pendente. ⚠ **navegador+backend**
+- [x] Boot race: pull substitui `dFolders` e o template aberto com id local fica órfão — o pull agora preserva o template aberto e os `_syncPending` (ver comentário em `dSyncFoldersFromBackend`).
+- [x] Deleções fire-and-forget que "ressuscitam" itens se falharem — fila de deleção pendente + filtro anti-ressurreição no pull (commit `f0e6e2f`).
 
 **Histórico do franqueado (`js/franqueado/history.js`) — P0:**
 - [x] `fSaveHist` disparava push sem `.catch()` → agora tratado (commit `b7f4013`).
 - [x] `_sig` guardava base64 de fotos (MB por entrada) → agora só o comprimento (commit `b7f4013`).
-- [ ] `fPushArtesToBackend` regrava o localStorage com snapshot velho após `await`s — arte criada durante o push é perdida (`history.js:40-70`). Reler antes de gravar + lock. ⚠ **navegador+backend**
-- [ ] Sync grava `template_id: null` e devolve `materialId: null` (`history.js:61,83`) — "Editar" em outro device perde o vínculo com o material. Persistir o template_id (precisa de coluna/uso no backend). ⚠ **navegador+backend**
+- [x] `fPushArtesToBackend` regrava o localStorage com snapshot velho após `await`s — lock no push + releitura antes de regravar (commit `5301afe`).
+- [x] Sync grava `template_id: null` e devolve `materialId: null` — resolvedor `_fTemplateUuidFor` no push (com guarda de FK) e `materialId` de volta no pull (commit `6cb2bd2`; a coluna já existia no banco). *Falta exercer cross-device no navegador.*
 
 **Segurança (XSS residual) — P0 — ✅ FEITO (commits `81c0f0f`, `0cde200`):**
 - [x] Linter do designer: `layerName`/`desc` escapados com `_dEsc` (`linter.js:157-160`).
@@ -114,7 +116,8 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
 - [x] Live preview: chamada com assinatura errada de `fRenderCanvasHelper` deixa um branch morto (`live-preview.js:214-217`); hit-testing ignora reflow em template legado (`live-preview.js:631`); `fIsImageVar` testa `varName` em vez de `imgVar` (`png-generator.js:2448`). Corrigidos no commit `c362ba3`.
 - [x] Loading ao trocar material/editar do histórico (`fEnsureMaterialLayers` é fetch de rede sem spinner). Card e botão mostram spinner e bloqueiam novo clique durante o fetch (este pacote).
 - [ ] Editor: Ctrl+Z sequestrado dentro de inputs (`publish.js:660-674`); mover com setas e trocar foto de moldura fora do undo (`publish.js:914`, `canvas.js:1075`); `dToggleLock`/`dSwapColors` duplicadas se sobrescrevendo (`library.js:451`, `tools.js:185`); `dAlign` de grupo grava `NaN` (`layers.js:526-534`).
-- [ ] Trocar `confirm()`/emoji-em-toast pelos padrões da casa (`gConfirm` já existe; ícone = SVG): `templates.js:1140`, `publish.js:418`, toasts do Sheets. (Os emojis do módulo Dados morrem junto com a retirada dele — Fase 4.)
+- [ ] Trocar os ~10 `confirm()` nativos restantes por `gConfirm` (`canvas.js:25`, `fonts.js:163`, `layers.js:2538`, `templates.js:411,444,947,1516,1527,1772,3032`) — cada um vira async e precisa da mesma análise de ordem de histórico do caso `dDeleteLayer` (auditoria do editor, 2026-07-15). Emoji-em-toast: varredura na trilha de UI (`docs/ROADMAP-UI-1.0.md` P1.1).
+  > ⚠️ Falsos positivos já descartados na auditoria do editor — **não "corrigir"**: clique único NÃO cria duas camadas (o `dSetTool('select')` na criação é compensação intencional); colar camada NÃO perde vínculo `{{campo}}`; undo/redo restaura grupos corretamente.
 - [ ] Upload de imagem de moldura/biblioteca sem limite de tamanho (`canvas.js:1071`, `library.js:134`) — validar como fontes/PSD já validam.
 
 ## 7. Fase 4 — Operação honesta e corte da v1
@@ -122,7 +125,7 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
 *Fechar o que a gestão precisa e assumir o que não vai. ~1 semana.*
 
 - [x] **RETIRAR o módulo Dados** (decisão 2026-07-15): removidos `js/dados/`, `css/modules/dados.css`, `#view-dados`, scripts, pill e gates do modo. Docs atualizados. O que **fica**: `analytics.fct_eventos`, `gTrackEvent` e as views `vw_*` — analytics segue por extração SQL (gestão/BI), sem front.
-- [ ] **Analytics utilizável (backend, independe do módulo retirado)**: emitir os eventos que faltam (`template_publicado`, `campanha_aberta`, `material_aberto` — previstos na migration, nunca emitidos) e documentar que as views se consultam via SQL Editor/service_role (com RLS dono-only em `luma.artes`, designer autenticado vê ~nada — comportamento esperado, não bug).
+- [x] **Analytics utilizável (backend, independe do módulo retirado)**: eventos do funil emitidos (`template_publicado`, `campanha_aberta`, `material_aberto` — commit `21ea6c8`); views consultam-se via SQL Editor/service_role (documentado no changelog).
 - [ ] Linter unificado: `dPublishRender` reimplementa as regras em vez de reusar `dRunLinter` (`publish.js:149-184`); regra 5 morta (`l.url` → `l.imgUrl`, `linter.js:115`).
 - [ ] Limpeza: ~~`rich-tooltips.js` sem `<script>` (morto)~~ (removido), no-ops de multi-prancheta (`dRenameAB` removido), `fDrawDMLogo`/`fLoadLogoBranca` mortos, `__luma_session` órfão.
 - [ ] Docs em dia: `LUMA.md` (63 scripts, config versionado de propósito), changelog, e este roadmap com os checks.
