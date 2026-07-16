@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Prévia no celular (Stories · Feed · WhatsApp)</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../css/00-tokens.css">
+<style>
+  /* MOCKUP — só para aprovação de direção visual. Usa tokens reais do Luma.
+     Nada aqui vai para produção como está: é a "proposta antes de implementar".
+     Objetivo: mostrar a MESMA arte do franqueado postada em 3 ambientes reais,
+     pra ele sentir o resultado "nível de agência" antes de baixar. */
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Roboto',sans-serif;background:
+      radial-gradient(1200px 600px at 50% -10%, #FFF6EC, transparent 60%),
+      var(--off-white);
+    padding:28px 20px 64px;color:var(--text);-webkit-font-smoothing:antialiased}
+
+  .head{max-width:1080px;margin:0 auto 26px}
+  h1{font-size:22px;font-weight:900;letter-spacing:-.02em;margin-bottom:6px}
+  .sub{font-size:13px;color:var(--text-3);line-height:1.6;max-width:640px}
+  .sub b{color:var(--text-2);font-weight:700}
+
+  /* seletor que espelha a toolbar da prévia real (só ilustrativo) */
+  .seg{display:inline-flex;border:1px solid var(--gray-mid);border-radius:var(--r-pill);
+    overflow:hidden;margin-top:16px;background:var(--white);box-shadow:var(--glass-shadow)}
+  .seg button{font-size:12px;font-weight:600;padding:8px 16px;border:none;background:transparent;
+    color:var(--text-2);cursor:pointer;display:inline-flex;align-items:center;gap:7px;
+    transition:background var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard)}
+  .seg button svg{width:15px;height:15px}
+  .seg button.on{background:var(--dm-orange-bg);color:var(--dm-orange-d)}
+
+  .stage{display:flex;gap:44px;justify-content:center;align-items:flex-start;flex-wrap:wrap;
+    max-width:1180px;margin:8px auto 0}
+  .col{display:flex;flex-direction:column;align-items:center;gap:0;transition:opacity var(--dur-base) var(--ease-standard),transform var(--dur-base) var(--ease-standard)}
+  .col.dim{opacity:.32;transform:scale(.97);filter:saturate(.6)}
+  .col-cap{margin-top:20px;width:300px;font-size:12px;color:var(--text-3);line-height:1.55;text-align:center}
+  .col-cap .k{display:block;font-size:13px;font-weight:800;color:var(--text);margin-bottom:3px}
+  .col-cap .k em{color:var(--dm-orange-d);font-style:normal}
+
+  /* ══ CHASSI DO CELULAR ══ */
+  .phone{width:300px;height:620px;border-radius:44px;background:#0B0B0C;padding:11px;
+    box-shadow:0 2px 0 #2a2a2c inset,0 0 0 2px #2a2a2c,0 26px 60px -18px rgba(20,12,0,.5),0 12px 26px -12px rgba(0,0,0,.35);
+    position:relative;flex-shrink:0}
+  .screen{width:100%;height:100%;border-radius:34px;overflow:hidden;position:relative;background:#000;
+    display:flex;flex-direction:column}
+  /* dynamic island */
+  .island{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:92px;height:26px;
+    background:#000;border-radius:16px;z-index:40;pointer-events:none}
+  /* status bar do sistema */
+  .sysbar{position:absolute;top:0;left:0;right:0;height:46px;z-index:35;display:flex;
+    align-items:center;justify-content:space-between;padding:16px 22px 0;pointer-events:none;
+    font-size:12px;font-weight:700}
+  .sysbar .t{letter-spacing:-.02em}
+  .sysbar .ic{display:flex;align-items:center;gap:5px}
+  .sysbar svg{display:block}
+  .sysbar.dark,.sysbar.dark *{color:#fff}
+  .sysbar.light,.sysbar.light *{color:#0A0A0A}
+
+  /* ══ A ARTE (proxy do canvas do franqueado) — a MESMA nas 3 telas ══
+     Um promo DM realista: badge, foto, produto, de/por, CTA, logo. */
+  .art{position:relative;width:100%;height:100%;overflow:hidden;color:#fff;
+    background:
+      radial-gradient(120% 80% at 50% 8%, rgba(255,185,0,.35), transparent 55%),
+      linear-gradient(158deg,var(--dm-orange) 0%,var(--dm-orange-d) 52%,var(--dm-red) 100%);
+    display:flex;flex-direction:column;align-items:center;text-align:center}
+  .art--story{padding:112px 26px 92px}
+  .art--square{padding:34px 26px 30px;aspect-ratio:4/5;height:auto}
+  .art--chat{padding:26px 20px 34px;aspect-ratio:4/5;height:auto;border-radius:12px}
+  .art .badge{font-size:10px;font-weight:900;letter-spacing:.14em;background:var(--dm-yellow);
+    color:var(--dm-red);padding:5px 12px;border-radius:var(--r-pill);text-transform:uppercase;box-shadow:0 4px 14px rgba(200,24,24,.3)}
+  .art .photo{margin:22px auto 20px;width:64%;aspect-ratio:1;border-radius:50%;position:relative;
+    background:
+      radial-gradient(60% 55% at 42% 38%, #FFE7B3, transparent 62%),
+      radial-gradient(circle at 50% 50%, #C0390B, #7A1E06);
+    box-shadow:0 18px 40px -10px rgba(0,0,0,.4),0 0 0 6px rgba(255,255,255,.12);overflow:hidden}
+  .art .photo::after{content:'';position:absolute;inset:0;
+    background:
+      radial-gradient(circle at 30% 30%, rgba(255,255,255,.25), transparent 25%),
+      repeating-radial-gradient(circle at 50% 50%, transparent 0 14px, rgba(0,0,0,.08) 15px 16px)}
+  .art--story .photo{width:56%;margin:26px auto 22px}
+  .art .prod{font-weight:900;font-size:24px;line-height:1.02;letter-spacing:-.01em;text-shadow:0 2px 10px rgba(120,10,0,.35);padding:0 6px}
+  .art--square .prod,.art--chat .prod{font-size:21px}
+  .art .de{margin-top:14px;font-size:13px;font-weight:700;opacity:.9;text-decoration:line-through;text-decoration-color:var(--dm-yellow);text-decoration-thickness:2px}
+  .art .por{font-weight:900;font-size:40px;line-height:1;color:var(--dm-yellow);letter-spacing:-.02em;text-shadow:0 3px 14px rgba(120,10,0,.4)}
+  .art--square .por,.art--chat .por{font-size:34px}
+  .art .cta{margin-top:16px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+    background:#fff;color:var(--dm-red);padding:8px 18px;border-radius:var(--r-pill);box-shadow:0 8px 18px -6px rgba(0,0,0,.35)}
+  .art .brand{position:absolute;bottom:20px;left:0;right:0;font-size:9px;font-weight:800;letter-spacing:.22em;opacity:.85}
+  .art--square .brand,.art--chat .brand{position:static;margin-top:16px}
+  .spacer{flex:1}
+
+  /* ══════════ 1 · INSTAGRAM STORIES ══════════ */
+  .ig-story{position:relative;flex:1;background:#000;overflow:hidden}
+  .story-bars{position:absolute;top:52px;left:12px;right:12px;display:flex;gap:4px;z-index:20}
+  .story-bars i{flex:1;height:2.5px;border-radius:2px;background:rgba(255,255,255,.4);overflow:hidden}
+  .story-bars i.on{background:rgba(255,255,255,.4)}
+  .story-bars i.on::before{content:'';display:block;height:100%;width:64%;background:#fff;border-radius:2px}
+  .story-bars i.done::before{content:'';display:block;height:100%;width:100%;background:#fff;border-radius:2px}
+  .story-top{position:absolute;top:62px;left:14px;right:12px;display:flex;align-items:center;gap:9px;z-index:20;color:#fff}
+  .story-av{width:30px;height:30px;border-radius:50%;flex-shrink:0;padding:2px;
+    background:linear-gradient(45deg,#FEDA75,#FA7E1E,#D62976,#962FBF);}
+  .story-av span{display:block;width:100%;height:100%;border-radius:50%;background:
+      linear-gradient(158deg,var(--dm-orange),var(--dm-red));border:2px solid #000}
+  .story-user{font-size:13px;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.4)}
+  .story-time{font-size:12px;opacity:.7;font-weight:400}
+  .story-top .grow{flex:1}
+  .story-top svg{width:20px;height:20px;opacity:.95}
+  .story-bot{position:absolute;bottom:16px;left:14px;right:14px;display:flex;align-items:center;gap:12px;z-index:20}
+  .story-input{flex:1;height:42px;border-radius:var(--r-pill);border:1.5px solid rgba(255,255,255,.6);
+    display:flex;align-items:center;padding:0 16px;color:rgba(255,255,255,.9);font-size:13px}
+  .story-bot svg{width:24px;height:24px;color:#fff;flex-shrink:0}
+
+  /* ══════════ 2 · FEED DO INSTAGRAM ══════════ */
+  .ig-feed{flex:1;background:#fff;display:flex;flex-direction:column;padding-top:46px;overflow:hidden}
+  .feed-head{display:flex;align-items:center;gap:9px;padding:9px 13px}
+  .feed-av{width:32px;height:32px;border-radius:50%;padding:2px;flex-shrink:0;
+    background:linear-gradient(45deg,#FEDA75,#FA7E1E,#D62976,#962FBF)}
+  .feed-av span{display:block;width:100%;height:100%;border-radius:50%;
+    background:linear-gradient(158deg,var(--dm-orange),var(--dm-red));border:2px solid #fff}
+  .feed-id{display:flex;flex-direction:column;line-height:1.25}
+  .feed-user{font-size:13px;font-weight:700;color:#0A0A0A}
+  .feed-loc{font-size:11px;color:#3A3A3A}
+  .feed-head .grow{flex:1}
+  .feed-head svg{width:18px;height:18px;color:#0A0A0A}
+  .feed-actions{display:flex;align-items:center;gap:15px;padding:11px 13px 6px}
+  .feed-actions svg{width:24px;height:24px;color:#0A0A0A}
+  .feed-actions .grow{flex:1}
+  .feed-likes{font-size:13px;font-weight:700;padding:2px 13px;color:#0A0A0A}
+  .feed-cap{font-size:13px;padding:3px 13px;color:#0A0A0A;line-height:1.4}
+  .feed-cap b{font-weight:700}
+  .feed-cap .muted{color:#8A8A8A}
+  .feed-more{font-size:13px;color:#8A8A8A;padding:4px 13px}
+  .feed-time{font-size:10px;color:#8A8A8A;padding:5px 13px;text-transform:uppercase;letter-spacing:.02em}
+
+  /* ══════════ 3 · WHATSAPP ══════════ */
+  .wa{flex:1;display:flex;flex-direction:column;position:relative;overflow:hidden;
+    background:#0B141A}
+  .wa-bg{position:absolute;inset:0;opacity:.06;pointer-events:none;
+    background-image:radial-gradient(circle at 20% 30%, #fff 0 1.5px, transparent 2px),
+      radial-gradient(circle at 70% 60%, #fff 0 1.5px, transparent 2px),
+      radial-gradient(circle at 45% 85%, #fff 0 1.5px, transparent 2px);
+    background-size:60px 60px}
+  .wa-head{padding-top:46px;background:#1F2C34;display:flex;align-items:center;gap:10px;
+    padding-left:8px;padding-right:14px;padding-bottom:9px;position:relative;z-index:5}
+  .wa-head .back{color:#fff}
+  .wa-head svg{width:22px;height:22px;color:#E9EDEF}
+  .wa-av{width:34px;height:34px;border-radius:50%;flex-shrink:0;
+    background:linear-gradient(158deg,var(--dm-orange),var(--dm-red))}
+  .wa-id{display:flex;flex-direction:column;line-height:1.3;flex:1}
+  .wa-name{font-size:14px;font-weight:600;color:#E9EDEF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
+  .wa-status{font-size:11px;color:#8696A0}
+  .wa-head .acts{display:flex;gap:18px}
+  .wa-body{flex:1;min-height:0;overflow:hidden;position:relative;z-index:2;padding:14px 10px;display:flex;flex-direction:column;gap:7px;justify-content:flex-end}
+  .wa-day{align-self:center;background:#182229;color:#8696A0;font-size:11px;font-weight:500;
+    padding:5px 12px;border-radius:8px;margin-bottom:4px}
+  .bub{max-width:82%;border-radius:9px;padding:5px 8px 6px;font-size:13px;line-height:1.35;position:relative}
+  .bub .meta{float:right;margin:6px 0 -2px 10px;font-size:10px;display:flex;align-items:center;gap:3px}
+  .bub.in{align-self:flex-start;background:#202C33;color:#E9EDEF;border-top-left-radius:2px}
+  .bub.in .meta{color:#8696A0}
+  .bub.out{align-self:flex-end;background:#005C4B;color:#E9EDEF;border-top-right-radius:2px}
+  .bub.out .meta{color:#93b6ab}
+  .bub.out .meta svg{width:15px;height:15px;color:#53BDEB}
+  .bub-img{align-self:flex-end;max-width:80%;background:#005C4B;border-radius:9px;border-top-right-radius:2px;
+    padding:3px;position:relative}
+  .bub-img .art{border-radius:7px}
+  .bub-img .cap-line{color:#E9EDEF;font-size:13px;line-height:1.35;padding:5px 5px 4px}
+  .bub-img .meta{position:absolute;right:11px;bottom:8px;font-size:10px;color:#fff;
+    display:flex;align-items:center;gap:3px;background:rgba(0,0,0,.35);padding:2px 6px;border-radius:8px}
+  .bub-img .meta svg{width:15px;height:15px;color:#53BDEB}
+  .wa-input{position:relative;z-index:5;padding:7px 8px;display:flex;align-items:center;gap:7px;background:transparent}
+  .wa-field{flex:1;background:#202C33;border-radius:var(--r-pill);height:40px;display:flex;align-items:center;
+    padding:0 12px;gap:9px;color:#8696A0;font-size:13px}
+  .wa-field .grow{flex:1}
+  .wa-field svg{width:20px;height:20px;color:#8696A0}
+  .wa-send{width:40px;height:40px;border-radius:50%;background:#00A884;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .wa-send svg{width:20px;height:20px;color:#0B141A}
+
+  .foot{max-width:760px;margin:44px auto 0;padding:18px 20px;border:1px solid var(--gray-light);
+    background:var(--white);border-radius:var(--r);font-size:12.5px;color:var(--text-3);line-height:1.65}
+  .foot b{color:var(--text-2)}
+  .foot .tag{display:inline-block;font-size:11px;font-weight:800;color:var(--dm-orange-d);
+    background:var(--dm-orange-bg);padding:2px 9px;border-radius:var(--r-pill);margin-bottom:8px;letter-spacing:.02em}
+
+  @media (max-width:700px){ .stage{gap:34px} .phone{transform:scale(.92)} }
+</style>
+</head>
+<body>
+
+<div class="head">
+  <h1>Prévia no celular — a arte no ambiente real</h1>
+  <p class="sub">O franqueado já vê a arte no palco da prévia. Falta o último passo emocional: <b>ver a peça postada de verdade</b> — no Stories, no feed e no zap — pra sentir que fez material nível de agência. Abaixo, a <b>mesma arte</b> em três contextos. Um seletor na prévia (como o de Guias/Ambiente) alterna entre eles.</p>
+  <div class="seg">
+    <button class="on" onclick="pick(this,0)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1.2" fill="currentColor" stroke="none"/></svg>
+      Stories
+    </button>
+    <button onclick="pick(this,1)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 15l4-4 3 3 4-5 7 7"/></svg>
+      Feed
+    </button>
+    <button onclick="pick(this,2)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21a9 9 0 10-8-4.9L3 21l4.9-1A9 9 0 0012 21z"/></svg>
+      WhatsApp
+    </button>
+  </div>
+</div>
+
+<div class="stage">
+
+  <!-- ═══════════ 1 · STORIES ═══════════ -->
+  <div class="col" data-ctx="0">
+    <div class="phone">
+      <div class="island"></div>
+      <div class="screen">
+        <div class="sysbar dark">
+          <span class="t">21:47</span>
+          <span class="ic">
+            <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7" width="3" height="4" rx=".5"/><rect x="4" y="5" width="3" height="6" rx=".5"/><rect x="8" y="3" width="3" height="8" rx=".5"/><rect x="12" y="1" width="3" height="10" rx=".5"/></svg>
+            <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M8 2.2c2 0 3.9.8 5.3 2.1l1.1-1.2A9.3 9.3 0 008 .6 9.3 9.3 0 001.6 3.1l1.1 1.2A7.6 7.6 0 018 2.2zM8 5.6c1.1 0 2.1.4 2.9 1.2l1.1-1.2A6 6 0 008 3.9 6 6 0 004 5.6l1.1 1.2A4.2 4.2 0 018 5.6zm0 3.4l1.9-2a2.6 2.6 0 00-3.8 0L8 9z"/></svg>
+            <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="17" height="8" rx="1.5" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+          </span>
+        </div>
+
+        <div class="ig-story">
+          <div class="art art--story">
+            <div class="badge">Oferta do dia</div>
+            <div class="photo"></div>
+            <div class="prod">PIZZA CALABRESA GG</div>
+            <div class="de">de R$ 49,90</div>
+            <div class="por">R$ 39,90</div>
+            <div class="cta">Peça no app</div>
+            <div class="brand">DELIVERY MUCH</div>
+          </div>
+
+          <div class="story-bars"><i class="done"></i><i class="on"></i><i></i></div>
+          <div class="story-top">
+            <div class="story-av"><span></span></div>
+            <span class="story-user">deliverymuch.suacidade</span>
+            <span class="story-time">2 h</span>
+            <span class="grow"></span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="19" cy="12" r="1.6" fill="currentColor"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </div>
+          <div class="story-bot">
+            <div class="story-input">Enviar mensagem</div>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 8.6a5 5 0 00-8.8-2 5 5 0 00-8.8 2c0 5 8.8 10.4 8.8 10.4s8.8-5.4 8.8-10.4z"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="col-cap"><span class="k">1 · <em>Stories</em></span>A arte ocupa a tela toda, com as barras, o perfil e a barra de Direct por cima — o mesmo chrome que o modo Ambiente já ensina, agora com o resultado final.</p>
+  </div>
+
+  <!-- ═══════════ 2 · FEED ═══════════ -->
+  <div class="col" data-ctx="1">
+    <div class="phone">
+      <div class="island"></div>
+      <div class="screen">
+        <div class="sysbar light">
+          <span class="t">21:47</span>
+          <span class="ic">
+            <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7" width="3" height="4" rx=".5"/><rect x="4" y="5" width="3" height="6" rx=".5"/><rect x="8" y="3" width="3" height="8" rx=".5"/><rect x="12" y="1" width="3" height="10" rx=".5"/></svg>
+            <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M8 2.2c2 0 3.9.8 5.3 2.1l1.1-1.2A9.3 9.3 0 008 .6 9.3 9.3 0 001.6 3.1l1.1 1.2A7.6 7.6 0 018 2.2zM8 5.6c1.1 0 2.1.4 2.9 1.2l1.1-1.2A6 6 0 008 3.9 6 6 0 004 5.6l1.1 1.2A4.2 4.2 0 018 5.6zm0 3.4l1.9-2a2.6 2.6 0 00-3.8 0L8 9z"/></svg>
+            <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="17" height="8" rx="1.5" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+          </span>
+        </div>
+
+        <div class="ig-feed">
+          <div class="feed-head">
+            <div class="feed-av"><span></span></div>
+            <div class="feed-id">
+              <span class="feed-user">deliverymuch.suacidade</span>
+              <span class="feed-loc">Sua Cidade · Interior</span>
+            </div>
+            <span class="grow"></span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="19" cy="12" r="1.6" fill="currentColor"/></svg>
+          </div>
+
+          <div class="art art--square">
+            <div class="badge">Oferta do dia</div>
+            <div class="photo"></div>
+            <div class="prod">PIZZA CALABRESA GG</div>
+            <div class="de">de R$ 49,90</div>
+            <div class="por">R$ 39,90</div>
+            <div class="brand">DELIVERY MUCH</div>
+          </div>
+
+          <div class="feed-actions">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 8.6a5 5 0 00-8.8-2 5 5 0 00-8.8 2c0 5 8.8 10.4 8.8 10.4s8.8-5.4 8.8-10.4z"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.4 8.4 0 01-11.9 7.6L3 21l1.9-6a8.4 8.4 0 1116.1-3.5z"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+            <span class="grow"></span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+          </div>
+          <div class="feed-likes">1.248 curtidas</div>
+          <div class="feed-cap"><b>deliverymuch.suacidade</b> 🍕 Promoção de hoje! Pizza GG de calabresa por só R$ 39,90 <span class="muted">... mais</span></div>
+          <div class="feed-more">Ver todos os 34 comentários</div>
+          <div class="feed-time">há 3 horas</div>
+        </div>
+      </div>
+    </div>
+    <p class="col-cap"><span class="k">2 · <em>Feed</em></span>Dentro do post: perfil, curtidas, a legenda que o próprio Luma sugere e os botões de interação. Ele vê o corte 4:5 e a primeira linha da legenda como o cliente veria.</p>
+  </div>
+
+  <!-- ═══════════ 3 · WHATSAPP ═══════════ -->
+  <div class="col" data-ctx="2">
+    <div class="phone">
+      <div class="island"></div>
+      <div class="screen">
+        <div class="sysbar dark">
+          <span class="t">21:47</span>
+          <span class="ic">
+            <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7" width="3" height="4" rx=".5"/><rect x="4" y="5" width="3" height="6" rx=".5"/><rect x="8" y="3" width="3" height="8" rx=".5"/><rect x="12" y="1" width="3" height="10" rx=".5"/></svg>
+            <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M8 2.2c2 0 3.9.8 5.3 2.1l1.1-1.2A9.3 9.3 0 008 .6 9.3 9.3 0 001.6 3.1l1.1 1.2A7.6 7.6 0 018 2.2zM8 5.6c1.1 0 2.1.4 2.9 1.2l1.1-1.2A6 6 0 008 3.9 6 6 0 004 5.6l1.1 1.2A4.2 4.2 0 018 5.6zm0 3.4l1.9-2a2.6 2.6 0 00-3.8 0L8 9z"/></svg>
+            <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="17" height="8" rx="1.5" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+          </span>
+        </div>
+
+        <div class="wa">
+          <div class="wa-bg"></div>
+          <div class="wa-head">
+            <svg class="back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 5l-7 7 7 7"/></svg>
+            <div class="wa-av"></div>
+            <div class="wa-id">
+              <span class="wa-name">Clientes VIP · Grupo</span>
+              <span class="wa-status">você, +248 participantes</span>
+            </div>
+            <div class="acts">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3 19.5 19.5 0 01-6-6 19.8 19.8 0 01-3-8.6A2 2 0 014.1 2h3a2 2 0 012 1.7c.1 1 .4 1.9.7 2.8a2 2 0 01-.5 2.1L8.1 9.9a16 16 0 006 6l1.3-1.3a2 2 0 012.1-.4c.9.3 1.8.6 2.8.7a2 2 0 011.8 2z"/></svg>
+            </div>
+          </div>
+
+          <div class="wa-body">
+            <div class="wa-day">HOJE</div>
+            <div class="bub in">Bom dia! Tem promoção hoje? 😋<span class="meta">21:32</span></div>
+            <div class="bub out">Bom dia! 🍕 Chegou a oferta do dia, olha só 👇<span class="meta">21:45 <svg viewBox="0 0 18 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 6.5l3 3 6.5-7.5"/><path d="M7 9.5l1 1 6.5-7.5"/></svg></span></div>
+            <div class="bub-img">
+              <div class="art art--chat">
+                <div class="badge">Oferta do dia</div>
+                <div class="photo"></div>
+                <div class="prod">PIZZA CALABRESA GG</div>
+                <div class="de">de R$ 49,90</div>
+                <div class="por">R$ 39,90</div>
+                <div class="brand">DELIVERY MUCH</div>
+              </div>
+              <div class="meta">21:45 <svg viewBox="0 0 18 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 6.5l3 3 6.5-7.5"/><path d="M7 9.5l1 1 6.5-7.5"/></svg></div>
+            </div>
+            <div class="bub in">Quero uma! Já pedindo aqui 🤤<span class="meta">21:46</span></div>
+          </div>
+
+          <div class="wa-input">
+            <div class="wa-field">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4 4 0 007 0M9 9.5h.01M15 9.5h.01"/></svg>
+              <span class="grow">Mensagem</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13.4 3.6a2 2 0 00-2.8 0L4 10.2A5 5 0 0011 17l6.4-6.4"/><path d="M21 8l-8.5 8.5a3 3 0 01-4.2-4.2L16 4"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="14" height="12" rx="2"/><path d="M17 10l4-2v8l-4-2"/></svg>
+            </div>
+            <div class="wa-send">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="col-cap"><span class="k">3 · <em>WhatsApp</em></span>A forma nº 1 do franqueado do interior divulgar: mandar no grupo. A arte como imagem enviada, com legenda e o tique azul — o resultado no canal que ele mais usa.</p>
+  </div>
+
+</div>
+
+<div class="foot">
+  <span class="tag">COMO ENTRA NA PRÉVIA</span><br>
+  Um <b>quarto estado</b> ao lado de Limpo · Guias · Ambiente (ou um botão “Ver postado”): a arte real do canvas — não este proxy — é desenhada dentro do chrome escolhido. Reusa o motor único de render; o mockup do celular é só a moldura em volta. <b>Nada aqui vira produção como está</b> — é a proposta pra aprovar a direção antes de integrar em <code>js/franqueado/live-preview.js</code> + <code>css/modules/live-preview.css</code>.
+</div>
+
+<script>
+  // Só ilustra o seletor da proposta: destaca um contexto por vez (os outros ficam esmaecidos).
+  function pick(btn, ctx){
+    document.querySelectorAll('.seg button').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');
+    document.querySelectorAll('.col').forEach(c=>{
+      c.classList.toggle('dim', +c.dataset.ctx !== ctx);
+    });
+    document.querySelector('.col[data-ctx="'+ctx+'"]').scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+  }
+</script>
+</body>
+</html>
