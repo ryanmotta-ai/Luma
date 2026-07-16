@@ -2913,8 +2913,8 @@ const _COPY_BLOCKS = {
       '{prod} por {por} (era {de}). Válido {val}.',
       'De {de} por {por} — {prod}.',
       '{prod}: antes {de}, agora {por}.',
-      '{prod} saindo de {de} por {por}. **Você economiza {economiaReais}!**',
-      '{prod} de {de} por {por}. **Um desconto de {economiaPct} no seu pedido.**',
+      '{prod} saindo de {de} por {por}. Você economiza {economiaReais}!',
+      '{prod} de {de} por {por} — {economiaPct} de desconto no seu pedido.',
       'Baixou o preço: {prod} de {de} por {por}.',
       'O {prod} tá {por} hoje (de {de}). Aproveita.',
     ],
@@ -2936,6 +2936,9 @@ const _COPY_BLOCKS = {
       'Desconto de {desconto} no {prod}. Fica {por}.',
       '{desconto} de desconto no {prod}, só hoje: {por}.',
       'Aproveita: {prod} com {desconto} OFF, agora {por}.',
+      // Sem preço final informado — o desconto ainda aparece (antes caía no pool sem preço e sumia)
+      '{desconto} OFF no {prod}. Aproveita enquanto dura.',
+      '{prod} com {desconto} de desconto. Corre que acaba.',
     ],
     // Sem preço definido: apresenta o produto sem prometer valor (o preço fica no app).
     semPreco: [
@@ -2970,6 +2973,14 @@ const _COPY_BLOCKS = {
       'Manda pro grupo da galera.',
       'Compartilha com quem ia amar.',
       'Conta aqui: com o que você pede isso?',
+    ],
+    // CTA de MENSAGEM (WhatsApp/status): pede resposta ali mesmo, não clique em bio.
+    whatsapp: [
+      'Responde essa mensagem e a gente já anota teu pedido.',
+      'Chama a gente aqui e garante o teu.',
+      'Manda um "quero" que a gente cuida do resto.',
+      'É só responder aqui pra pedir.',
+      'Peça pelo app ou responde essa mensagem.',
     ],
   },
 
@@ -3037,21 +3048,25 @@ function _fInterpolate(template, data) {
     .replace(/\{economiaPct\}/g, data.economiaPct || '');
 }
 
-/* Monta UMA copy completa (feed ou stories) */
-function _fAssembleCopy(prod, de, por, val, desc, format, segment, used, forceShort = false) {
+/* Monta UMA copy completa. mode: 'promo' | 'engajar' | 'whatsapp' */
+function _fAssembleCopy(prod, de, por, val, desc, mode, segment, used, forceShort = false) {
   const B = _COPY_BLOCKS;
+  const isWpp = mode === 'whatsapp';
 
   // Escolher body baseado nos dados disponíveis + economia calculada
   let bodyPool;
   const numDe = fParsePriceNumber(de);
   const numPor = fParsePriceNumber(por);
-  const hasPrice = /\d/.test(String(por || ''));   // "Ver no app"/vazio → sem preço real
+  const hasPrice = /\d/.test(String(por || ''));   // vazio/sem dígito → sem preço real
   const hasSavings = hasPrice && numDe > 0 && numPor > 0 && numDe > numPor;
 
-  if (!hasPrice) {
-    bodyPool = B.bodies.semPreco;                  // sem preço → não promete valor (fica no app)
-  } else if (desc && /\d+%/.test(desc)) {
+  if (desc && /\d+\s*%/.test(desc)) {
     bodyPool = B.bodies.comPercentual;
+    // Sem preço final, os templates que citam {por} gerariam "Preço final: ." — só os que não citam.
+    if (!hasPrice) bodyPool = bodyPool.filter(tpl => !tpl.includes('{por}'));
+    if (!bodyPool.length) bodyPool = B.bodies.semPreco;
+  } else if (!hasPrice) {
+    bodyPool = B.bodies.semPreco;                  // sem preço → não promete valor (fica no app)
   } else if (de && de !== '—' && de.trim() && numDe > 0) {
     bodyPool = B.bodies.comDesconto;
     if (!hasSavings) {
@@ -3064,20 +3079,31 @@ function _fAssembleCopy(prod, de, por, val, desc, format, segment, used, forceSh
   const _availBodies = bodyPool.filter(t => !used.bodies.has(t));
   bodyPool = _availBodies.length ? _availBodies : bodyPool;
   
-  const formattedVal = _fFormatValidity(val);
+  // Validade entra no MEIO da frase ("Válido {val}.") → tira um "válido" que o franqueado já
+  // digitou (senão saía "Válido válido só hoje") e baixa a 1ª letra quando é palavra
+  // ("Esta semana" → "esta semana"; datas/números ficam como estão).
+  let formattedVal = _fFormatValidity(val);
+  formattedVal = String(formattedVal || '').replace(/^v[áa]lid[oa]\s+/i, '');
+  if (formattedVal && /^[A-ZÀ-Ü]/.test(formattedVal)) formattedVal = formattedVal.charAt(0).toLowerCase() + formattedVal.slice(1);
   const diff = numDe - numPor;
   const economiaReais = hasSavings ? fFormatPriceNumber(diff) : '';
   const pct = hasSavings ? Math.round((diff / numDe) * 100) : 0;
   const economiaPct = hasSavings ? (pct + '%') : '';
 
-  const data = { 
-    prod: prod, 
-    de: de, 
-    por: por, 
-    val: formattedVal, 
-    desconto: desc,
-    economiaReais: economiaReais,
-    economiaPct: economiaPct
+  // Desconto sem o "off" digitado — os templates já trazem "OFF"/"de desconto"
+  // (senão saía "20% off OFF"). Mesma família do "Válido válido".
+  const descClean = String(desc || '').trim().replace(/\s*off\.?\s*$/i, '');
+
+  // WhatsApp: *negrito* REAL do app nos valores que vendem (produto, preços, desconto).
+  const _b = isWpp ? (s => s ? '*' + s + '*' : s) : (s => s);
+  const data = {
+    prod: _b(prod),
+    de: _b(de),
+    por: _b(por),
+    val: formattedVal,
+    desconto: _b(descClean),
+    economiaReais: _b(economiaReais),
+    economiaPct: _b(economiaPct)
   };
   
   // Escolher pool de hooks: mistura segmento-específico + universal
@@ -3137,17 +3163,20 @@ function _fAssembleCopy(prod, de, por, val, desc, format, segment, used, forceSh
     return c;
   };
 
-  // Stories: formato curto (2-3 linhas, sem hashtag)
-  if (format === 'stories') {
-    return [hook, body, _pickCta('delivery')].join('\n');
-  }
-
-  // Feed: formato completo
-  const ctaType = Math.random() > 0.5 ? 'delivery' : 'engajamento';
-  const cta = _pickCta(ctaType);
-
   // Validade como linha separada (evita duplicar se já estiver no corpo)
   const valLine = (formattedVal && !body.includes(formattedVal)) ? ('Válido ' + formattedVal + '.') : '';
+
+  // WHATSAPP: mensagem, não legenda — sem hashtags (ruído no app), CTA de resposta direta.
+  // Diagramação de mensagem: gancho / corpo (+validade) / CTA, blocos separados por linha vazia.
+  if (isWpp) {
+    const wLines = [hook, '', body];
+    if (valLine) wLines.push(valLine);
+    wLines.push('', _pickCta('whatsapp'));
+    return wLines.join('\n');
+  }
+
+  // FEED: CTA coerente com a aba — "Promo" vende (pedido), "Engajar" conversa (marca/salva/comenta).
+  const cta = _pickCta(mode === 'engajar' ? 'engajamento' : 'delivery');
   
   // Hashtags: 2 universais + 2-3 do segmento + hashtags locais (cidade)
   const cityInput = document.getElementById('f-bulk-city');
@@ -3183,14 +3212,21 @@ function _fAssembleCopy(prod, de, por, val, desc, format, segment, used, forceSh
 }
 
 /* Gera 3 opções de copy (substitui fGetSegmentedCaptions) */
-function fBuildCopy(prod, de, por, val, desc, format) {
-  const segment = _fCopySegment(prod);
+function fBuildCopy(prod, de, por, val, desc, format, ctxName) {
+  // Segmento considera também o nome da campanha (ctx): "Combo 20 peças" sozinho é universal,
+  // mas dentro de "Bora De Sushi Na Promo" é japonesa — tom certo com mais frequência.
+  const segment = _fCopySegment(String(prod||'') + ' ' + String(ctxName||''));
   // Dedup COMPARTILHADO entre as 3 opções: gancho, corpo e CTA não repetem → 3 legendas distintas.
   const used = { hooks: new Set(), bodies: new Set(), ctas: new Set() };
+  // Cada aba tem PROPÓSITO e formato próprios (antes as 3 eram iguais e o CTA era sorteado —
+  // a aba "Engajar" podia sair com CTA de delivery):
+  //   promo    → legenda de feed vendedora, par gancho+corpo curto, CTA de pedido, hashtags
+  //   engajar  → legenda de feed com CTA de engajamento garantido (marca/comenta/salva), hashtags
+  //   whatsapp → MENSAGEM: *negrito* real do WhatsApp, sem hashtags, CTA de resposta direta
   return {
-    op1: _fAssembleCopy(prod, de, por, val, desc, format || 'feed', segment, used, true),
-    op2: _fAssembleCopy(prod, de, por, val, desc, format || 'feed', segment, used, false),
-    op3: _fAssembleCopy(prod, de, por, val, desc, format || 'feed', segment, used, false),
+    op1: _fAssembleCopy(prod, de, por, val, desc, 'promo', segment, used, true),
+    op2: _fAssembleCopy(prod, de, por, val, desc, 'engajar', segment, used, false),
+    op3: _fAssembleCopy(prod, de, por, val, desc, 'whatsapp', segment, used, false),
   };
 }
 

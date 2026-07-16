@@ -724,14 +724,16 @@ let _fArtCaptions={}; // Cache das legendas geradas indexadas pelo canvasId/snap
  */
 function fGenCaptionSuggestions(dados, camp, formato) {
   const prod = dados.produto || dados.categoria || dados.brinde || dados.oferta || camp.name;
-  const por = dados.precoPor || dados.desconto || 'Ver no app';
+  // Mapeamento assertivo dos slots: preço é preço; DESCONTO vai pro slot de desconto (ativa o
+  // pool comPercentual — antes virava {por} e saía "por 20% off"). Sem preço → pool semPreco.
+  const por = dados.precoPor || '';
   const de = dados.precoDe || '';
   const val = dados.validade || '';
-  const desc = dados.detalhes || '';
+  const desc = dados.desconto || dados.detalhes || '';
 
   // Unificação com o avançado motor de copy gastronômica do Luma Sheets (fBuildCopy)
   if (typeof fBuildCopy === 'function') {
-    const copys = fBuildCopy(prod, de, por, val, desc, formato?.id || 'feed');
+    const copys = fBuildCopy(prod, de, por, val, desc, formato?.id || 'feed', camp && camp.name);
     return [
       { id: 'promo', label: 'Promo', text: copys.op1 },
       { id: 'engajar', label: 'Engajar', text: copys.op2 },
