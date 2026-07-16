@@ -197,6 +197,31 @@
     background:var(--dm-orange-bg);padding:2px 9px;border-radius:var(--r-pill);margin-bottom:8px;letter-spacing:.02em}
 
   @media (max-width:700px){ .stage{gap:34px} .phone{transform:scale(.92)} }
+
+  /* ── ENTRADA PREMIUM: os celulares entram um de cada vez ──
+     Cascata escalonada (Stories → Feed → WhatsApp) com a mola suave da casa.
+     O texto de apoio chega logo DEPOIS do celular dele — o olho pousa na peça
+     primeiro, lê depois. Durações/curvas só via token (motion.md §1). */
+  @keyframes mkHeadIn{ from{opacity:0;transform:translateY(-10px)} to{opacity:1;transform:none} }
+  @keyframes mkPhoneIn{
+    from{opacity:0;transform:translateY(36px) scale(.94)}
+    to{opacity:1;transform:translateY(0) scale(1)}
+  }
+  @keyframes mkCapIn{ from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
+  .head{animation:mkHeadIn var(--dur-base) var(--ease-out) both}
+  .col{animation:mkPhoneIn var(--dur-slow) var(--ease-spring-soft) both}
+  .col[data-ctx="0"]{animation-delay:140ms}
+  .col[data-ctx="1"]{animation-delay:360ms}
+  .col[data-ctx="2"]{animation-delay:580ms}
+  .col-cap{animation:mkCapIn var(--dur-base) var(--ease-out) both}
+  .col[data-ctx="0"] .col-cap{animation-delay:420ms}
+  .col[data-ctx="1"] .col-cap{animation-delay:640ms}
+  .col[data-ctx="2"] .col-cap{animation-delay:860ms}
+  .foot{animation:mkCapIn var(--dur-base) var(--ease-out) both;animation-delay:980ms}
+  /* acessibilidade: reduz pra fade imediato (motion.md §3) */
+  @media (prefers-reduced-motion:reduce){
+    .head,.col,.col-cap,.foot{animation-duration:.01ms!important;animation-delay:0ms!important}
+  }
 </style>
 </head>
 <body>

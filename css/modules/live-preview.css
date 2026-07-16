@@ -514,6 +514,15 @@ body:not(.theme-light) .posted-stage{background:var(--d-dark)}
 #f-posted-modal .pst-wa-send{width:40px;height:40px;border-radius:50%;background:#00A884;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 #f-posted-modal .pst-wa-send svg{width:20px;height:20px;color:#0B141A}
 
+/* Entrada premium do celular: sobe com mola suave ao abrir e a cada troca de
+   contexto (o rebuild do innerHTML re-dispara). Vive no wrapper .pst-enter — NÃO
+   no .pst-phone, cujo transform do media query abaixo seria engolido pelo fill. */
+@keyframes gPstPhoneIn{
+  from{opacity:0;transform:translateY(26px) scale(.95)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+#f-posted-modal .pst-enter{animation:gPstPhoneIn var(--dur-slow) var(--ease-spring-soft) both}
+
 /* telas baixas: encolhe o celular pra caber no modal */
 @media (max-height:760px){ #f-posted-modal .pst-phone{transform:scale(.84)} }
-@media (prefers-reduced-motion:reduce){ #f-posted-modal,.posted-box{animation:none!important} }
+@media (prefers-reduced-motion:reduce){ #f-posted-modal,.posted-box,#f-posted-modal .pst-enter{animation:none!important} }

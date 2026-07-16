@@ -158,8 +158,11 @@ function _fPostedPaint(){
   const chrome = _postedCtx==='feed' ? _fPostedFeed(slot)
                : _postedCtx==='whatsapp' ? _fPostedWhats(slot)
                : _fPostedStory(slot);
-  // sysbar de texto claro em Story/WhatsApp (fundo escuro); escuro no Feed (fundo branco)
-  stage.innerHTML = `<div class="pst-phone pst-ctx-${_postedCtx}"><div class="pst-island"></div><div class="pst-screen">${_fPostedSysbar(_postedCtx!=='feed')}${chrome}</div></div>`;
+  // sysbar de texto claro em Story/WhatsApp (fundo escuro); escuro no Feed (fundo branco).
+  // O wrapper .pst-enter carrega a animação de entrada (rebuild do innerHTML a re-dispara
+  // a cada troca de contexto) — anima o wrapper, e não o .pst-phone, porque o chassi tem
+  // transform próprio no media query de tela baixa e o fill da animação o sobrescreveria.
+  stage.innerHTML = `<div class="pst-enter"><div class="pst-phone pst-ctx-${_postedCtx}"><div class="pst-island"></div><div class="pst-screen">${_fPostedSysbar(_postedCtx!=='feed')}${chrome}</div></div></div>`;
   const holder = stage.querySelector('.pst-artslot');
   if(holder && _postedArt.canvas) holder.appendChild(_postedArt.canvas);
 }
