@@ -144,9 +144,28 @@ async function gSetUserAtivo(idOrEmail, ativo){
     return {ok:true};
   }catch(e){ return {ok:false,error:String((e&&e.message)||e)}; }
 }
-// Criar usuário pelo app exige Edge Function (service_role) — Fase 2. Por ora, orienta o painel.
+// Fase 2: convite real via Edge Function invite-user (service_role vive LÁ, nunca aqui).
+// A função valida caller gestão, envia o e-mail de convite e grava role/telefone no profile.
+async function gInviteUser(email, nome, role, telefone){
+  if(!gCanManageUsers()) return {ok:false,error:'Sem permissão (só gestão convida).'};
+  const sb=_gSb(); if(!sb) return {ok:false,error:'Backend indisponível.'};
+  if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return {ok:false,error:'Digite um e-mail válido.'};
+  if(!nome) return {ok:false,error:'Digite o nome do membro.'};
+  try{
+    const { data, error }=await sb.functions.invoke('invite-user', { body:{ email, nome, role, telefone:telefone||null } });
+    if(error){
+      // FunctionsHttpError: o corpo tem a mensagem real da função (403/400/500)
+      let msg=error.message||'Falha ao convidar.';
+      try{ const ctx=await error.context?.json?.(); if(ctx&&ctx.error) msg=ctx.error; }catch(e){}
+      return {ok:false,error:msg};
+    }
+    if(data && data.error) return {ok:false,error:data.error};
+    return {ok:true};
+  }catch(e){ return {ok:false,error:String((e&&e.message)||e)}; }
+}
+// Compat: chamadas antigas ao stub continuam respondendo com orientação.
 function gAddManagedUser(){
-  return {ok:false, error:'Para criar usuário: painel do Supabase → Authentication → Users → Add user (marque Auto Confirm). A criação pelo app vem na próxima fase.'};
+  return {ok:false, error:'Use o convite por e-mail (botão Convidar) — cria a conta e envia o link de acesso.'};
 }
 // "Remover" na Fase 1 = desativar (exclusão definitiva de auth.users precisa de Edge Function).
 async function gRemoveManagedUser(idOrEmail){

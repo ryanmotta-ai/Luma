@@ -506,10 +506,11 @@ function gProfileShowInviteForm(){
     <div class="prof-grid prof-grid-2" style="gap:10px">
       <div class="prof-field"><label class="prof-label">Nome completo</label><input class="prof-input" id="prof-inv-name" placeholder="Ex: João Silva"></div>
       <div class="prof-field"><label class="prof-label">E-mail</label><input class="prof-input" id="prof-inv-email" type="email" placeholder="joao@deliverymuch.com.br"></div>
+      <div class="prof-field"><label class="prof-label">Telefone <span style="opacity:.55;font-weight:400">(opcional)</span></label><input class="prof-input" id="prof-inv-tel" type="tel" placeholder="(48) 99999-9999"></div>
       <div class="prof-field"><label class="prof-label">Permissão</label><select class="prof-input" id="prof-inv-role">${roleOpts}</select></div>
     </div>
     <div style="display:flex;gap:8px;margin-top:12px">
-      <button class="prof-btn prof-btn-primary" style="font-size:12px;padding:8px 16px" onclick="gProfileInviteUser()">Adicionar membro</button>
+      <button class="prof-btn prof-btn-primary" style="font-size:12px;padding:8px 16px" id="prof-inv-btn" onclick="gProfileInviteUser()">Convidar por e-mail</button>
       <button class="prof-btn prof-btn-secondary" style="font-size:12px;padding:8px 16px" onclick="document.getElementById('prof-invite-form').style.display='none'">Cancelar</button>
     </div>
   </div>`;
@@ -517,14 +518,19 @@ function gProfileShowInviteForm(){
   document.getElementById('prof-inv-name')?.focus();
 }
 
-function gProfileInviteUser(){
+async function gProfileInviteUser(){
   const name=document.getElementById('prof-inv-name')?.value.trim();
   const email=document.getElementById('prof-inv-email')?.value.trim();
+  const tel=document.getElementById('prof-inv-tel')?.value.trim();
   const role=document.getElementById('prof-inv-role')?.value;
-  const res=gAddManagedUser(email,name,role);
-  if(!res.ok){gToast('⚠️ '+res.error);return;}
-  gToast('✅ Membro adicionado!');
-  gProfileRenderEquipe();
+  const btn=document.getElementById('prof-inv-btn');
+  if(btn){btn.disabled=true;btn.textContent='Enviando convite…';}
+  const res=await gInviteUser(email,name,role,tel);
+  if(btn){btn.disabled=false;btn.textContent='Convidar por e-mail';}
+  if(!res.ok){gToast('⚠️ '+res.error,'error');return;}
+  gToast('✅ Convite enviado para '+email+'!');
+  const form=document.getElementById('prof-invite-form'); if(form)form.style.display='none';
+  gProfileRenderEquipe(); // o profile já existe (trigger) — aparece na lista na hora
 }
 
 function gProfileToggleRolePicker(email,pid,btn,ev){
