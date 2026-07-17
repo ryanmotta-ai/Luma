@@ -153,7 +153,7 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
 **P2 — valor médio**
 
 - [ ] **Path vetorial complexo sem rasterizar.** Só rect/elipse viram shape editável e recolorável (`_dPsdVectorShapeKind`:243); path arbitrário cai em raster (`vectorMaskFailed`:849) e perde nitidez/recolor ao escalar. Importar como shape de path se o modelo do editor suportar; senão, subir a resolução do raster do vetor. *Verificar: logo vetorial importado continua nítido em 2×.*
-- [ ] **Teto de raster adaptativo.** `_dPsdRasterURL` (`psd-import.js:283-296`) faz downscale default a 1600px; herói de PSD 4K perde detalhe (já há exceção p/ warp/smart em :280-282). Escalar o teto ao tamanho da prancheta alvo (Story 1080 ≠ PSD 4000). Peso extra absorvido pelo IndexedDB (`idb://`). *Verificar: foto grande não sai borrada no PNG final 2×.*
+- [x] **Teto de raster adaptativo.** `_dPsdRasterURL` fazia downscale fixo a 1600px, borrando herói de PSD grande no export 2×. O parse agora computa `_rasterCap = min(3200, max(1600, 2×maxDimPrancheta))` (o PNG final é 2× a prancheta), e os chamadores passam `width/height` ao parse. Piso 1600 (sem regressão em prancheta pequena), teto 3200 (protege o IndexedDB). Verificado no round-trip: Story mantém foto 3000 (era 1600), Wide→2400, imagens menores que o teto ficam intactas.
 
 **P3 — polimento**
 

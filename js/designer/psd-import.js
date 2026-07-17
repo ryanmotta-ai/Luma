@@ -817,6 +817,13 @@ function dPsdParseItems(psd, res, ox, oy){
   ox=ox||0; oy=oy||0;
   _dPsdAdjustCount=0;
   const items=[]; let n=0;
+  // Teto de raster ADAPTATIVO à prancheta. O PNG final renderiza a 2× o tamanho da
+  // prancheta, então uma imagem grande precisa de até 2×maxDim px pra não sair mole no
+  // export — o teto fixo de 1600 borrava herói de PSD grande. Piso 1600 (comportamento
+  // antigo p/ prancheta pequena, sem regressão), teto 3200 (protege o IndexedDB de PSD
+  // gigante). psd.width/height vem dos chamadores (incluído no objeto passado ao parse).
+  const _artMax=Math.max((psd&&psd.width)||0, (psd&&psd.height)||0);
+  const _rasterCap=Math.min(3200, Math.max(1600, 2*_artMax));
   // parentOp: opacidade acumulada dos grupos-pai (0–1); parentHidden: grupo-pai oculto.
   (function walk(nodes, parentOp, parentHidden, parentName){
     (nodes||[]).forEach(node=>{
@@ -909,7 +916,7 @@ function dPsdParseItems(psd, res, ox, oy){
           if(pb){ it.x=Math.round(pb.x-ox); it.y=Math.round(pb.y-oy); it.w=Math.max(1,pb.w); it.h=Math.max(1,pb.h); }
           else { it.textBoxApprox=true; console.warn('[psd] caixa de parágrafo não derivável — usando bbox de glifos:', it.name); }
         }
-        if(node.canvas && node.canvas.width>0){ it.imgUrl=_dPsdRasterURL(node.canvas); } // p/ "imagem fiel"
+        if(node.canvas && node.canvas.width>0){ it.imgUrl=_dPsdRasterURL(node.canvas,{maxPx:_rasterCap}); } // p/ "imagem fiel"
       } else if(node.canvas && node.canvas.width>0 && node.canvas.height>0){
         // Camada de GRADIENTE (GdFl: tem vectorFill com colorStops) → shape com gradiente editável,
         // mesmo não sendo cor sólida (senão cairia em raster).
@@ -952,7 +959,7 @@ function dPsdParseItems(psd, res, ox, oy){
         }
         else {
           it.kind='raster';
-          it.imgUrl=_dPsdRasterURL(node.canvas);
+          it.imgUrl=_dPsdRasterURL(node.canvas,{maxPx:_rasterCap});
           if(!it.imgUrl) return;
           
           // Heurística de auto-frame para imagens raster
@@ -1745,7 +1752,7 @@ async function dPsdAbSelectPreview(itemIdx){
   // Parse lazy: só na primeira seleção desta prancheta
   if(!item._parsedItems){
     item._parsedItems=dPsdParseItems(
-      {children:(item.layer&&item.layer.children)||[]},
+      {children:(item.layer&&item.layer.children)||[], width:item.w, height:item.h},
       res||72, item.left, item.top
     );
   }
@@ -1817,7 +1824,7 @@ function dPsdProcessArtboardsSequence(psd, items, res, baseName, folderId, idx, 
   }
   const item=items[idx];
   // Parseia só as camadas desta prancheta, normalizando coords pra (0,0) da prancheta.
-  dPsdItems=dPsdParseItems({children:(item.layer&&item.layer.children)||[]}, res, item.left, item.top);
+  dPsdItems=dPsdParseItems({children:(item.layer&&item.layer.children)||[], width:item.w, height:item.h}, res, item.left, item.top);
   if(!dPsdItems.length){
     gToast('⚠ "'+item.name+'" sem camadas utilizáveis — pulando');
     dPsdProcessArtboardsSequence(psd, items, res, baseName, folderId, idx+1, results);
@@ -1947,7 +1954,7 @@ async function dImportPSD(input){
       const abH=Math.max(1,Math.round((r.bottom||0)-(r.top||0)));
       // Só os filhos da PRANCHETA — não o doc inteiro. Passar result.psd trazia camadas soltas na
       // raiz (pasteboard/notas) deslocadas por (abL,abT). Igual ao multi-artboard e ao preview.
-      dPsdItems=dPsdParseItems({children:(abNode.children||[])}, result.res||72, abL, abT);
+      dPsdItems=dPsdParseItems({children:(abNode.children||[]), width:abW, height:abH}, result.res||72, abL, abT);
       dPsdMeta={w:abW, h:abH, name:baseName, res:result.res||72, worker:result.worker===true};
     } else {
       // PSD simples sem artboards.
