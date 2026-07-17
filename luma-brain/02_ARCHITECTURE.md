@@ -63,7 +63,7 @@ O Luma é uma **SPA estática que fala direto com o Supabase**. Não há servido
 
 **Views.** O `index.html` tem containers por modo (`#view-franqueado`, `#view-designer`). O boot (`main.js`, `DOMContentLoaded` async) checa a sessão, decide login × app, e `setMode()` troca a classe do `body` e inicializa o Estúdio _lazy_ (só na primeira vez).
 
-**Bibliotecas** entram **vendorizadas** em `assets/vendor/` (Color Thief, Pica, PapaParse, pdf-lib, ag-psd, supabase-js) — nunca via CDN em runtime.
+**Bibliotecas** entram **vendorizadas** em `assets/vendor/` (Color Thief, Pica, PapaParse, pdf-lib, ag-psd, supabase-js). O vendorizado é o **padrão** — boot previsível, sem depender de rede. Um **fallback via CDN é permitido** quando o vendorizado falhar (ex.: o loader do ag-psd tenta o local e cai no CDN). Decisão de 2026-07: rede externa em runtime deixou de ser proibida; o vendorizado continua sendo a primeira escolha.
 
 **Distribuição.** Produção é o **GitHub Pages** (subpath `/Luma/` — por isso manifest e links usam caminhos **relativos**). O app é um **PWA instalável**: `manifest.json` + ícones + metas Apple no `<head>`; no iPhone, Safari → Compartilhar → Adicionar à Tela de Início (abre standalone, sem barra do navegador). ⛔ **Sem service worker, de propósito:** não há build/hash de arquivos, então cache de SW congelaria versão velha no celular do franqueado — a atualização instantânea a cada deploy vale mais que instalação com um toque no Android.
 
