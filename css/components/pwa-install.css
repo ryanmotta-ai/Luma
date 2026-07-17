@@ -1,0 +1,85 @@
+/**
+ * css/components/pwa-install.css
+ *
+ * Dica de instalação do Luma como app (PWA). Card discreto, dispensável, no rodapé.
+ * Cores/raio/motion via token; respeita safe-area (notch/Dock). Ver js/core/pwa-install.js.
+ */
+#luma-pwa-hint {
+  position: fixed;
+  left: 50%;
+  bottom: calc(18px + var(--safe-bottom, 0px));
+  transform: translate(-50%, 130%);
+  z-index: 13000;
+  width: min(400px, calc(100vw - 28px));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px 12px 14px;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r);
+  box-shadow: 0 12px 40px -8px rgba(20, 12, 0, .28), var(--glass-shadow);
+  opacity: 0;
+  transition: transform var(--dur-base) var(--ease-spring-soft), opacity var(--dur-base) var(--ease-standard);
+}
+#luma-pwa-hint.in { transform: translate(-50%, 0); opacity: 1; }
+#luma-pwa-hint.leaving { transform: translate(-50%, 130%); opacity: 0; }
+
+#luma-pwa-hint .pwah-icon {
+  width: 40px; height: 40px; flex-shrink: 0;
+  border-radius: 9px;
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(255, 185, 0, .5), transparent 55%),
+    linear-gradient(158deg, var(--dm-orange), var(--dm-orange-d) 62%, var(--dm-red));
+  box-shadow: 0 4px 12px -2px rgba(200, 24, 24, .3);
+}
+#luma-pwa-hint .pwah-text { flex: 1; min-width: 0; }
+#luma-pwa-hint .pwah-title {
+  font-family: 'Roboto', sans-serif; font-weight: 800; font-size: 13.5px;
+  color: var(--text); line-height: 1.25;
+}
+#luma-pwa-hint .pwah-body {
+  font-size: 12px; color: var(--text-3); line-height: 1.45; margin-top: 2px;
+}
+#luma-pwa-hint .pwah-body b { color: var(--text-2); font-weight: 700; }
+/* o glyph de compartilhar (iOS) inline no meio do texto */
+#luma-pwa-hint .pwah-body svg {
+  width: 14px; height: 14px; vertical-align: -3px; margin: 0 1px;
+  color: var(--dm-orange-d);
+}
+
+#luma-pwa-hint .pwah-cta {
+  flex-shrink: 0;
+  font-family: 'Roboto', sans-serif; font-weight: 700; font-size: 12.5px;
+  color: #fff; background: var(--dm-orange); border: none;
+  border-radius: var(--r-pill); padding: 9px 16px; cursor: pointer;
+  box-shadow: 0 6px 16px -4px rgba(255, 144, 0, .5);
+  transition: transform var(--dur-micro) var(--ease-spring), filter var(--dur-micro);
+}
+#luma-pwa-hint .pwah-cta:hover { transform: translateY(-1px); filter: brightness(1.05); }
+#luma-pwa-hint .pwah-cta:active { transform: translateY(0); }
+
+#luma-pwa-hint .pwah-close {
+  flex-shrink: 0; width: 28px; height: 28px;
+  border: none; background: transparent; color: var(--text-3);
+  border-radius: var(--r-pill); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background var(--dur-micro), color var(--dur-micro);
+}
+#luma-pwa-hint .pwah-close svg { width: 16px; height: 16px; }
+#luma-pwa-hint .pwah-close:hover { background: var(--gray-light); color: var(--text); }
+#luma-pwa-hint .pwah-cta:focus-visible,
+#luma-pwa-hint .pwah-close:focus-visible { outline: 2px solid var(--dm-orange); outline-offset: 2px; }
+
+body:not(.theme-light) #luma-pwa-hint { background: rgba(24, 23, 22, .92); border-color: var(--d-border2); }
+body:not(.theme-light) #luma-pwa-hint .pwah-title { color: var(--d-text); }
+body:not(.theme-light) #luma-pwa-hint .pwah-body { color: var(--d-text2); }
+body:not(.theme-light) #luma-pwa-hint .pwah-body b { color: var(--d-text); }
+body:not(.theme-light) #luma-pwa-hint .pwah-close:hover { background: var(--d-surf2); color: var(--d-text); }
+
+@media (prefers-reduced-motion: reduce) {
+  #luma-pwa-hint { transition: opacity var(--dur-fast) var(--ease-standard); transform: translate(-50%, 0); }
+  #luma-pwa-hint.leaving { transform: translate(-50%, 0); }
+}
