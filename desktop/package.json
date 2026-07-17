@@ -31,6 +31,14 @@
     },
     "portable": {
       "artifactName": "Luma-${version}-portatil.${ext}"
+    },
+    "mac": {
+      "target": [{ "target": "dmg", "arch": "universal" }],
+      "category": "public.app-category.business",
+      "icon": "build/icon.png"
+    },
+    "dmg": {
+      "artifactName": "Luma-${version}.${ext}"
     }
   }
 }

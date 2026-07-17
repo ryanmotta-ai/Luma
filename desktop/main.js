@@ -27,7 +27,10 @@ function createWindow() {
     }
   });
 
-  Menu.setApplicationMenu(null);
+  // No Windows a barra de menu é ruído → some. No MAC, NÃO: o menu padrão do
+  // macOS carrega os atalhos essenciais (Cmd+C/V/X/A e Cmd+Q); zerá-lo quebraria
+  // copiar/colar no chat e o Cmd+Q. Então só removemos o menu fora do Mac.
+  if (process.platform !== 'darwin') Menu.setApplicationMenu(null);
   win.loadURL(APP_URL);
 
   // Sem internet (o Luma precisa dela pro Supabase de qualquer forma):
@@ -43,14 +46,19 @@ function createWindow() {
     return { action: 'deny' };
   });
 
-  // Menu nulo mata os atalhos padrão — devolve o recarregar (F5 / Ctrl+R).
+  // Recarregar: F5 (Windows) e Ctrl+R / Cmd+R (Cmd no Mac vem em input.meta).
   win.webContents.on('before-input-event', (e, input) => {
     if (input.type === 'keyDown' &&
-        (input.key === 'F5' || (input.control && input.key.toLowerCase() === 'r'))) {
+        (input.key === 'F5' || ((input.control || input.meta) && input.key.toLowerCase() === 'r'))) {
       win.loadURL(APP_URL);
     }
   });
 }
 
 app.whenReady().then(createWindow);
-app.on('window-all-closed', () => app.quit());
+
+// Convenção do macOS: fechar a janela NÃO encerra o app (ele fica no Dock);
+// só sai no Cmd+Q. No Windows/Linux, fechar a última janela encerra.
+app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+// Clicar no ícone do Dock com o app aberto e sem janelas reabre a janela.
+app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
