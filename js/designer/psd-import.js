@@ -1201,10 +1201,14 @@ function _dPsdMemSave(items){
 }
 
 // Heurística de z-order: retorna true se a lista de itens precisar ser invertida.
-// ag-psd devolve filhos topo-primeiro (como o painel do Photoshop), mas dLayers[0] é
-// o fundo visual em Luma. Logo: se o ÚLTIMO item da lista parece um fundo (nome ou área),
-// o array veio topo-primeiro e precisa ser invertido. Se o PRIMEIRO item parece fundo,
-// veio em ordem inversa e está correto.
+// Os itens chegam aqui TOPO-PRIMEIRO (o parse faz out.reverse em :1069 pra exibir a
+// revisão como o painel do Photoshop), mas dLayers[0] é o FUNDO visual em Luma → o
+// caso NORMAL é inverter de volta pra base-primeiro.
+// Empírico (2026-07, round-trip ag-psd writePsd/readPsd): ag-psd devolve base-primeiro
+// (children[0] = fundo), então após o out.reverse a lista fica topo-primeiro e precisa
+// inverter — inclusive quando não há um "fundo" óbvio. O default era `false` (não
+// inverter), o que deixava pilhas sem fundo nomeado/grande com z-order TROCADO (o
+// designer reordenava na mão). O toggle manual (#d-psd-invert) cobre o PSD atípico.
 function _dPsdShouldInvert(items, w, h){
   if(!items||items.length<2) return false;
   const first=items[0], last=items[items.length-1];
@@ -1215,9 +1219,8 @@ function _dPsdShouldInvert(items, w, h){
   const bgKinds=new Set(['shape','raster']);
   const firstIsBg=bgRe.test((first.name||'').trim())||(firstCov>=0.7&&bgKinds.has(first.kind));
   const lastIsBg =bgRe.test((last.name||'').trim()) ||(lastCov >=0.7&&bgKinds.has(last.kind));
-  if(lastIsBg &&!firstIsBg) return true;  // fundo no final → topo-primeiro → precisa inverter
-  if(firstIsBg&&!lastIsBg)  return false; // fundo no início → já está na ordem certa
-  return false; // sem sinal claro → mantém padrão (sem inversão)
+  if(firstIsBg&&!lastIsBg)  return false; // fundo NO TOPO da lista → PSD atípico já em base-primeiro
+  return true; // caso normal (topo-primeiro) → inverter pra base-primeiro. Cobre o sem-sinal.
 }
 
 /* ── tela de revisão ── */
