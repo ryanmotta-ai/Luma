@@ -364,7 +364,7 @@ Modal multi-formato (Story/Feed/Wide sem distorção via smart resize), shells d
 
 ### Import PSD (`psd-import.js`)
 
-ag-psd vendorizado + Web Worker (timeout 25s → fallback main-thread). Fluxo: validação (máx ~200MB) → parse → multi-artboard? (seletor + revisão em sequência, 1 template rascunho por prancheta) → revisão por camada (Texto editável / Campo `{{}}` / Cor / Imagem fiel) → import com auto-criação de campos e reflow. Fidelidade: cor sólida, sombra/contorno, fontSize corrigido por DPI, máscaras + clipping, opacidade de grupos acumulada, remap de fontes (com upload na hora na tela de revisão), heurística de z-order. Limitações: 1 estilo de texto por camada, shapes vetoriais viram raster/cor, gradientes/smart objects/camadas de ajuste ignorados, raster ≤1600px comprimido.
+ag-psd vendorizado + Web Worker (timeout 25s → fallback main-thread). Fluxo: validação (máx ~200MB) → parse → multi-artboard? (seletor + revisão em sequência, 1 template rascunho por prancheta) → revisão por camada (Texto editável / Campo `{{}}` / Cor / Imagem fiel) → import com auto-criação de campos e reflow. Fidelidade: cor sólida, **gradiente (linear/radial, fill e overlay)**, **texto multi-estilo (`styleRuns` → `l.runs`)**, sombra/contorno, fontSize corrigido por DPI, máscaras + clipping, opacidade de grupos acumulada, **smart object / camada rotacionada / texto com warp rasterizados 1:1**, remap de fontes (com upload na hora na tela de revisão), heurística de z-order. Limitações (atualizadas 2026-07): **paths vetoriais complexos** viram raster (rect/elipse seguem shape editável e recolorável), **camadas de ajuste** (Levels/Curves/Hue) não são aplicadas às de baixo — são dropadas, com aviso na revisão, **z-order** por heurística (às vezes precisa do toggle manual), raster comprimido (teto 1600px, maior p/ warp/smart). Backlog priorizado em `luma-brain/07_ROADMAP.md` §9.
 
 ### Import SVG (`templates.js`)
 
@@ -514,7 +514,7 @@ Todo acesso com try/catch (quota ~5MB). `gPackImgUrl` mantém imagens ≤~70KB n
 
 ## 17. LIMITAÇÕES CONHECIDAS E DÍVIDAS
 
-**Funcionais:** `opacity` só em shape · `gToast` sem fila · eyedrop/bucket só texto/forma · PSD (1 estilo por camada, sem gradientes/smart objects, z-order às vezes manual) · SVG (classes em `<style>` não lidas, grupos 1 nível, bbox de path aproximada).
+**Funcionais:** `opacity` só em shape · `gToast` sem fila · eyedrop/bucket só texto/forma · PSD (paths vetoriais complexos rasterizam, camadas de ajuste não aplicadas, z-order às vezes manual — ver `07_ROADMAP.md` §9) · SVG (classes em `<style>` não lidas, grupos 1 nível, bbox de path aproximada).
 
 **Técnicas:** arquivos grandes (`canvas.js`, `layers.js`, `templates.js` ~1k linhas) · sem testes automatizados (regressão só no navegador) · pontas soltas conhecidas (`fStartChatPreservandoDados` órfã; `fDownloadHist` marca "baixada" mesmo se o PNG falhar; `return` morto em `dMeasureText`; `realce-black.woff2` órfã no disco).
 

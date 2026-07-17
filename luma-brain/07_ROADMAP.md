@@ -141,6 +141,26 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
 | 4 | **Presets de permissões compartilhados** (tabela) ou localStorage por designer? | localStorage na v1 (1 designer ativo); tabela quando houver 2+ designers |
 | 5 | **Legendas "IA"**: manter motor local (bom) ou plugar API? | Motor local na v1 — o stub `fFetchAICaptionSuggestions` fica pronto pra plugar depois |
 
+## 9. Import PSD — melhorias mapeadas (backlog priorizado)
+
+*Mapeamento de 2026-07 lendo `js/designer/psd-import.js` (1958 linhas). **Correção de rota:** a lista de "limitações" da `docs/LUMA.md` estava desatualizada — **multi-estilo de texto** (`_dPsdRichRuns`:462 → `it.runs`:898) e **gradiente linear/radial** (`_dPsdGradient`:445 → `it.gradient`:899,931) já funcionam ponta a ponta (parse + render em `png-generator.js`); smart object / rotação / warp já **rasterizam 1:1** (`_dPsdNeedsRaster`:789). O que sobra de real, por valor:*
+
+**P1 — alto valor**
+
+- [ ] **Z-order confiável.** A heurística `_dPsdShouldInvert` (`psd-import.js:1208-1221`) só detecta fundo-no-início/fundo-no-fim por nome (`/background|fundo|bg.../`) ou cobertura ≥70%; "sem sinal claro → mantém padrão" (:1220), então pilha complexa sai trocada e o designer reordena na mão. Tornar determinístico a partir da ordem real de `psd.children` (a existência do "inverter" sugere que a ordem às vezes vem espelhada do ag-psd); manter o toggle manual como rede. *Verificar: PSD com 5+ camadas sobrepostas importa na ordem certa sem toque.*
+- [ ] **Camadas de ajuste aplicadas (ou aviso honesto).** Levels/Curves/Hue afetam as camadas de baixo, mas o Luma não tem pipeline de ajuste → são dropadas (`_dPsdNeedsRaster`:792, contador `_dPsdAdjustCount`:811) e as cores divergem do PSD. Opção barata: usar o **composite** que o ag-psd já entrega pra rasterizar fiel a região afetada. Opção mínima: aviso na revisão dizendo **quais** camadas mudam de cor (hoje é só uma contagem). *Verificar: PSD com Curves sobre foto → cor final bate com o Photoshop, ou avisa claro.*
+
+**P2 — valor médio**
+
+- [ ] **Path vetorial complexo sem rasterizar.** Só rect/elipse viram shape editável e recolorável (`_dPsdVectorShapeKind`:243); path arbitrário cai em raster (`vectorMaskFailed`:849) e perde nitidez/recolor ao escalar. Importar como shape de path se o modelo do editor suportar; senão, subir a resolução do raster do vetor. *Verificar: logo vetorial importado continua nítido em 2×.*
+- [ ] **Teto de raster adaptativo.** `_dPsdRasterURL` (`psd-import.js:283-296`) faz downscale default a 1600px; herói de PSD 4K perde detalhe (já há exceção p/ warp/smart em :280-282). Escalar o teto ao tamanho da prancheta alvo (Story 1080 ≠ PSD 4000). Peso extra absorvido pelo IndexedDB (`idb://`). *Verificar: foto grande não sai borrada no PNG final 2×.*
+
+**P3 — polimento**
+
+- [ ] **Pattern fill / patternOverlay** rasterizam (`_dPsdNeedsRaster`:793-795) — perdem tiling/recolor. Baixa prioridade (pouco comum em peça de promo).
+- [ ] **Badges de revisão** já cobrem máscara/recorte simplificado (`vecWarn`/`clipWarn`:1334-1335); estender pro ajuste dropado com a lista de camadas afetadas.
+- [x] **Doc desatualizada** (`docs/LUMA.md:367,517`): "1 estilo por camada / gradientes ignorados" era mentira — corrigido neste pacote.
+
 ## 9. Pós-v1 (estacionamento justificado — não encher a v1)
 
 - **v1.1** — Edge Function de usuários; lojas salvas/favoritos cross-device (tabela de prefs); presets compartilhados.
