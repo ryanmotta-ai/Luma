@@ -221,7 +221,7 @@ function fAskCampSwitch(c){
 }
 function fApplyCampSwitch(cId, keepData){
   const m=document.getElementById('switch-confirm-msg');if(m)m.remove();
-  const c=(typeof fResolveCamp==='function')?fResolveCamp(cId):[...CAMPS_ATIVAS,...CAMPS_OUTRAS].find(x=>x.id===cId);
+  const c=fResolveCamp(cId); // seam: catalog.js carrega antes (index.html)
   if(!c)return;
   // Limpa estado (a troca via catálogo de materiais é nova arquitetura)
   fState.camp=c;fState.stepIdx=-1;fState.done=false;

@@ -72,7 +72,7 @@ function dBuildMockLayersForCamp(c, fmt){
 }
 
 function dDefaultFolders(){
-  const camps=[...CAMPS_ATIVAS,...CAMPS_OUTRAS];
+  const camps=fAllCampaigns(); // seam da Fase 2
   const exMeta=dDefaultPublishMeta();
   exMeta.publicado=true;
   exMeta.publicadoEm=Date.now();
@@ -190,7 +190,7 @@ function dPreloadFolders(){
   }catch(e){}
   // Merge com CAMPS pra preencher campos faltantes (perguntas, badge, etc)
   const campsMap={};
-  [...CAMPS_ATIVAS,...CAMPS_OUTRAS].forEach(c=>{campsMap[c.id]=c;});
+  fAllCampaigns().forEach(c=>{campsMap[c.id]=c;});
   dFolders.forEach(f=>{
     if(f.campId && campsMap[f.campId]){
       const c=campsMap[f.campId];
@@ -218,7 +218,7 @@ function dPreloadFolders(){
     // "em breve", não uma arte inventada. A migração da fonte de campanhas p/ luma.pastas remove isto.
     const _demoMode = !(typeof gHasBackend==='function' && gHasBackend());
     if(_demoMode && f.templates.length === 0 && f.id !== 'f-modelo') {
-      const allCamps = [...CAMPS_ATIVAS,...CAMPS_OUTRAS];
+      const allCamps = fAllCampaigns();
       const c = allCamps.find(x => x.id === f.campId || x.name === f.name);
       if(c) {
         const exMeta = dDefaultPublishMeta();
@@ -1358,7 +1358,7 @@ let dFolderDraftCover=null;    // capa em edição (commit só no Salvar)
 // Popula o select de campanhas no modal
 function dPopFolderCampaignSelect(sel){
   const el=document.getElementById('df-campaign');if(!el)return;
-  const camps=[...CAMPS_ATIVAS,...CAMPS_OUTRAS];
+  const camps=fAllCampaigns(); // seam da Fase 2
   el.innerHTML='<option value="">Sem campanha vinculada</option>'+
     camps.map(c=>`<option value="${c.id}" ${c.id===sel?'selected':''}>${c.name}</option>`).join('');
 }

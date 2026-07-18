@@ -524,6 +524,8 @@ function fGetCampaigns(){
   }catch(e){}
   return {ativas, outras:CAMPS_OUTRAS, impl:(typeof CAMPS_IMPLEMENTACAO!=='undefined')?CAMPS_IMPLEMENTACAO:[]};
 }
+// Pool padrão (ativas+outras) — a forma mais consumida no app inteiro.
+function fAllCampaigns(){ const {ativas,outras}=fGetCampaigns(); return [...ativas,...outras]; }
 function fResolveCamp(id){
   const {ativas,outras,impl}=fGetCampaigns();
   const pool=[...ativas,...outras];

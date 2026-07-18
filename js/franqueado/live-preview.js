@@ -9,7 +9,7 @@
 /* ── PREVIEW MODAL ── */
 function fOpenPreview(e,id){
   e.stopPropagation();
-  const c=(typeof fResolveCamp==='function')?fResolveCamp(id):[...CAMPS_ATIVAS,...CAMPS_OUTRAS].find(x=>x.id===id);
+  const c=fResolveCamp(id); // seam: catalog.js carrega antes (index.html)
   if(!c)return;
   document.getElementById('pv-title').textContent=c.name;
   // Contagem HONESTA: materiais realmente publicados e válidos (não o count estático do
