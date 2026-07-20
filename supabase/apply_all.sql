@@ -675,3 +675,30 @@ ON CONFLICT (name) DO NOTHING;
 -- ============================================================
 
 
+
+-- ============================================================
+-- DELTAS 2026-06/07 — mantém o bootstrap alinhado às migrations
+-- (2026-07-16: o incidente do sync nasceu de migration versionada e não
+--  aplicada; este bloco idempotente garante que ambiente NOVO já nasce
+--  com tudo. Espelha: 20260619110000, 20260711120000, 20260716120000/130000/
+--  150000/160000.)
+-- ============================================================
+-- fontes: metadados extras (20260619110000)
+ALTER TABLE luma.fontes ADD COLUMN IF NOT EXISTS nome   TEXT;
+ALTER TABLE luma.fontes ADD COLUMN IF NOT EXISTS weight INT DEFAULT 400;
+ALTER TABLE luma.fontes ADD COLUMN IF NOT EXISTS formato TEXT;
+
+-- templates: tamanho real p/ render 1:1 (20260711120000)
+ALTER TABLE luma.templates ADD COLUMN IF NOT EXISTS w  INT;
+ALTER TABLE luma.templates ADD COLUMN IF NOT EXISTS h  INT;
+ALTER TABLE luma.templates ADD COLUMN IF NOT EXISTS bg TEXT;
+
+-- profiles: telefone opcional (20260716160000)
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS telefone TEXT;
+
+-- storage: upsert exige INSERT+SELECT+UPDATE; sem este SELECT nenhum upload
+-- de designer funciona (INCIDENTE 2 de 2026-07-16) (20260716150000)
+DROP POLICY IF EXISTS "autenticado lê buckets luma públicos" ON storage.objects;
+CREATE POLICY "autenticado lê buckets luma públicos"
+  ON storage.objects FOR SELECT TO authenticated
+  USING (bucket_id IN ('luma-covers','luma-template-assets','luma-fontes'));
