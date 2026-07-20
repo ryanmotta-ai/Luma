@@ -69,13 +69,19 @@ async function fPushArtesToBackend(){
     if(!h.remoteId) h.remoteId=gUuid();
     // sobe fotos ENVIADAS (base64) do dados pro Storage (bucket público); URLs externas ficam como estão
     const dados={...(h.dados||{})};
+    let fotoPendente=false;
     for(const k in dados){
       if(typeof dados[k]==='string' && dados[k].startsWith('data:')){
         const url=await _fUploadUserImg(user.id, h.remoteId+'/'+k, dados[k]);
         if(url) dados[k]=url;
+        else fotoPendente=true;
       }
     }
     h.dados=dados;
+    // Foto que não subiu (sem rede/RLS)? NÃO grava base64 no banco — era a raiz do problema
+    // de tráfego (linha de MB re-baixada por todo device). A arte fica local (_synced falso)
+    // e re-tenta no próximo push; mesmo padrão do designer (_dPushFoldersNow).
+    if(fotoPendente){ console.warn('[artes] foto não subiu pro Storage — arte segue local, re-tenta no próximo sync'); continue; }
     const row={
       id:h.remoteId, user_id:user.id,
       camp_id:h.campId||null, camp_name:h.campName||null, camp_color:h.campColor||null,

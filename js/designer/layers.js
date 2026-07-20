@@ -2881,7 +2881,11 @@ async function _dPushFoldersNow(){
       };
       if(f.cover==='') _rowPasta.cover_url=null;
       else if(typeof f.cover==='string' && !f.cover.startsWith('data:') && f.cover.indexOf('idb://')!==0 && f.cover!=='__local__') _rowPasta.cover_url=f.cover;
-      await sb.schema('luma').from('pastas').upsert(_rowPasta, {onConflict:'id'});
+      // Erro no upsert da pasta (rede/RLS) era 100% silencioso: a edição de campanha vivia
+      // só no cache e o próximo pull a descartava. Agora marca pendência (badge) e loga.
+      const { error:_pErr }=await sb.schema('luma').from('pastas').upsert(_rowPasta, {onConflict:'id'});
+      f._syncPending=!!_pErr;
+      if(_pErr) console.warn('[sync] upsert da pasta falhou ('+(f.name||'?')+'):', _pErr.message||_pErr);
       for(const t of (f.templates||[])){
         // Catálogo leve: template sem layers baixados (cache de sessão franqueado) —
         // upsert aqui gravaria layers:[] no banco e DESTRUIRIA o template. Nunca subir.
@@ -2943,7 +2947,8 @@ async function _dPushFoldersNow(){
    descobria semanas depois (ou nunca). Clique = tentar de novo na hora. */
 let _dLastPendCount=0;
 function gSyncBadgeUpdate(){
-  const n=(typeof dFolders!=='undefined'&&dFolders||[]).reduce((a,f)=>a+((f.templates||[]).filter(t=>t&&t._syncPending).length),0);
+  // Conta templates E pastas pendentes (upsert de pasta que falhou também é trabalho não-salvo)
+  const n=(typeof dFolders!=='undefined'&&dFolders||[]).reduce((a,f)=>a+(f&&f._syncPending?1:0)+((f.templates||[]).filter(t=>t&&t._syncPending).length),0);
   let el=document.getElementById('g-sync-pending');
   if(!el){
     if(!n){ _dLastPendCount=0; return; }
