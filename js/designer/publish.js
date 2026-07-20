@@ -1361,8 +1361,12 @@ document.addEventListener('keyup', e => {
 
 
 
-/* -- TOOLBAR COLOR WIDGET (FG/BG) -- */
-function dSwapColors() {
+/* -- TOOLBAR COLOR WIDGET (FG/BG) --
+   NÃO é a mesma função de tools.js: esta troca os inputs vt-color-* (widget vcp),
+   a de tools.js troca d-color-*-pick (toolbar). Como tinham o MESMO nome e tools.js
+   carrega depois, o botão vcp-swap rodava a função errada (no-op). Renomeada para
+   dVcpSwapColors + onclick do index.html apontado pra cá (auditoria 16/07). */
+function dVcpSwapColors() {
   const fgInp = document.getElementById('vt-color-fg-input');
   const bgInp = document.getElementById('vt-color-bg-input');
   if(!fgInp || !bgInp) return;

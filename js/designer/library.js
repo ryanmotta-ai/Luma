@@ -211,7 +211,7 @@ async function dPushLibToBackend(){
   try{
     for(const a of dLibAssets){
       if(!a || !a.url) continue;
-      if(!a.remoteId) a.remoteId=(crypto&&crypto.randomUUID)?crypto.randomUUID():('lib-'+Date.now()+Math.random().toString(36).slice(2));
+      if(!a.remoteId) a.remoteId=gUuid(); // sempre UUID válido: fallback 'lib-…' quebrava o upsert (PK uuid) p/ sempre em file://-LAN
       if(typeof a.url==='string' && a.url.startsWith('data:')){
         try{
           const blob=await (await fetch(a.url)).blob();
@@ -479,7 +479,7 @@ async function dPushSnippetsToBackend(){
   const sb=_gSbSnip(); if(!sb || typeof gIsAdmin!=='function' || !gIsAdmin()) return;
   try{
     for(const s of dSnippets){
-      if(!s.remoteId) s.remoteId=(crypto&&crypto.randomUUID)?crypto.randomUUID():('s-'+Date.now()+Math.random().toString(36).slice(2));
+      if(!s.remoteId) s.remoteId=gUuid(); // sempre UUID válido (fallback 's-…' quebrava upsert em PK uuid)
       await sb.schema('luma').from('snippets').upsert({ id:s.remoteId, nome:s.name||'Bloco', layers:s.layers||[] }, {onConflict:'id'});
     }
     try{ localStorage.setItem('yngs_snippets_v1', JSON.stringify(dSnippets)); }catch(e){}

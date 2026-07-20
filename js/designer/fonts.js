@@ -56,7 +56,7 @@ async function dPushFontsToBackend(){
   try{
     for(const f of dCustomFonts){
       if(!f || !f.dataUrl) continue;
-      if(!f.remoteId) f.remoteId=(crypto&&crypto.randomUUID)?crypto.randomUUID():('f-'+Date.now()+Math.random().toString(36).slice(2));
+      if(!f.remoteId) f.remoteId=gUuid(); // sempre UUID válido (fallback 'f-…' quebrava upsert em PK uuid)
       // sobe o arquivo da fonte pro Storage se ainda é base64
       if(typeof f.dataUrl==='string' && f.dataUrl.startsWith('data:')){
         try{
