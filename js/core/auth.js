@@ -33,11 +33,27 @@ async function gLoadProfile() {
   try {
     const { data: { user } } = await sb.auth.getUser();
     if (!user) { gAuthState = { user: null }; return null; }
-    const { data: prof } = await sb
+    const { data: prof, error: profErr } = await sb
       .from('profiles')
-      .select('role, nome, departamento, telefone')
+      .select('role, nome, departamento, telefone, ativo')
       .eq('id', user.id)
       .maybeSingle();
+    // Falha ao carregar o profile (rede/RLS) rebaixava gestão→franqueado EM SILÊNCIO:
+    // a pessoa via o app "sem as abas" e achava que perdeu o acesso. O default franqueado
+    // continua (fail-closed, correto) — mas agora com aviso do que aconteceu.
+    if (profErr) {
+      console.warn('[auth] profile não carregou — usando role mínima temporária:', profErr.message||profErr);
+      try { if (typeof gToast === 'function') gToast('⚠ Não consegui carregar seu perfil completo. Recarregue a página.', 'error'); } catch(e) {}
+    }
+    // Gate de conta desativada: sem isto, "Desativar acesso" na Equipe era cosmético —
+    // o usuário com ativo=false seguia logando e usando tudo. (RLS ainda é a fronteira
+    // dos DADOS; isto encerra a SESSÃO. Endurecer também nas policies fica no backlog.)
+    if (prof && prof.ativo === false) {
+      try { await sb.auth.signOut(); } catch(e) {}
+      try { if (typeof gToast === 'function') gToast('Sua conta foi desativada. Fale com a gestão.', 'error'); } catch(e) {}
+      gAuthState = { user: null };
+      return null;
+    }
     gAuthState = { user: {
       id: user.id,
       email: user.email,

@@ -93,6 +93,11 @@ function gOnLoginSuccess() {
 
 // Inicializa a aba no startup e checa a autenticação
 window.addEventListener('DOMContentLoaded', async () => {
+  // Tema salvo no perfil volta a valer após reload (antes: sempre resetava pro padrão)
+  try {
+    const _theme = localStorage.getItem('__luma_theme');
+    if (_theme && typeof gProfileApplyTheme === 'function') gProfileApplyTheme(_theme);
+  } catch(e) {}
   setTimeout(dUpdateTabPill, 100);
 
   // Checa a sessão REAL do Supabase (assíncrono) antes de decidir login vs app.

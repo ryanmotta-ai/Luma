@@ -259,6 +259,9 @@ async function gProfileSaveData(event) {
 
 // Aplica o tema selecionado
 function gProfileApplyTheme(theme) {
+  // Persiste: o seletor de tema do perfil dizia "salvo" e não gravava em lugar NENHUM —
+  // o tema voltava ao padrão em todo F5. (localStorage = padrão da casa p/ preferência local.)
+  try { localStorage.setItem('__luma_theme', theme); } catch(e) {}
   // Para a aba Designer e Franqueado (que compartilham a classe body.theme-light):
   document.body.classList.toggle('theme-light', theme === 'light');
   if (typeof dTheme !== 'undefined') dTheme = theme;
@@ -453,7 +456,9 @@ async function gProfileRenderEquipe(){
     const rcfg=_EQUIPE_ROLE_CFG[u.role]||_EQUIPE_ROLE_CFG.franqueado;
     const pid='prof-rp-'+idx;
 
-    const pill=`<button class="prof-role-pill" data-role="${u.role}" ${canEdit?`onclick="gProfileToggleRolePicker('${gEsc(u.email)}','${pid}',this,event)"`:'disabled'} title="${rcfg.desc}">
+    // data-email + this.dataset: gEsc dentro de onclick não protege o contexto de string JS
+    // (&#39; volta a ser aspa antes do JS rodar) — atributo data é o único caminho seguro.
+    const pill=`<button class="prof-role-pill" data-role="${u.role}" data-email="${gEsc(u.email)}" ${canEdit?`onclick="gProfileToggleRolePicker(this.dataset.email,'${pid}',this,event)"`:'disabled'} title="${rcfg.desc}">
       <span class="prof-role-dot"></span>${rcfg.label}${canEdit?_ICO_CHEVRON:''}
     </button>`;
 
@@ -462,7 +467,7 @@ async function gProfileRenderEquipe(){
       .map(r=>{
         const rc=_EQUIPE_ROLE_CFG[r];
         const cur=r===u.role;
-        return `<button class="prof-role-picker-opt${cur?' is-current':''}" onclick="gProfilePickRole('${gEsc(u.email)}','${r}','${pid}',event)">
+        return `<button class="prof-role-picker-opt${cur?' is-current':''}" data-email="${gEsc(u.email)}" onclick="gProfilePickRole(this.dataset.email,'${r}','${pid}',event)">
           <span class="prof-role-picker-opt-ico" style="background:${rc.bg};color:${rc.color}">${rc.emoji}</span>
           <span class="prof-role-picker-opt-text">
             <span class="prof-role-picker-opt-label">${rc.label}</span>
@@ -485,7 +490,7 @@ async function gProfileRenderEquipe(){
     const actionBtn = (!isMe && canEdit)
       ? (isInactive
           ? `<button class="prof-user-remove prof-user-restore" onclick="gProfileReactivateUser('${gEsc(u.email)}')" title="Reativar acesso">${_ICO_RESTORE}</button>`
-          : `<button class="prof-user-remove" onclick="gProfileRemoveUser('${gEsc(u.email)}')" title="Desativar acesso">${_ICO_TRASH}</button>`)
+          : `<button class="prof-user-remove" data-email="${gEsc(u.email)}" onclick="gProfileRemoveUser(this.dataset.email)" title="Desativar acesso">${_ICO_TRASH}</button>`)
       : '';
 
     return `<div class="prof-user-row${isMe?' is-me':''}${isInactive?' is-inactive':''}">
@@ -600,11 +605,8 @@ function gProfileFilterEquipe(query){
   });
 }
 
-async function gProfileSetUserRole(email,newRole){
-  const res=await gSetUserRole(email,newRole);
-  if(!res.ok){gToast('⚠️ '+res.error);gProfileRenderEquipe();return;}
-  gToast('✅ Permissão atualizada!');
-}
+// (gProfileSetUserRole removida na auditoria 16/07: duplicata sem chamador de
+//  gProfilePickRole — e trocava role SEM confirmação. O fluxo real é o picker.)
 
 async function gProfileRemoveUser(email){
   // confirm() nativo → gConfirm (01_BUSINESS §10 / 03_ENGINEERING: gToast/gConfirm são os

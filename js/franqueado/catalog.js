@@ -154,6 +154,13 @@ async function fDownloadHist(id){
     }
   }
   if(fState.material && typeof fEnsureMaterialLayers==='function') await fEnsureMaterialLayers(fState.material);
+  // Honestidade: se os layers do material não desceram (sem rede), o fGenPNG cairia no
+  // renderer GENÉRICO e entregava arte errada com toast de sucesso. Avisa e para.
+  if(fState.material && fState.material._needsLayersFetch){
+    fState.material = prevMaterial;
+    gToast('⚠ Não consegui carregar o material original. Verifique a conexão e tente de novo.','error');
+    return;
+  }
   try {
     await fGenPNG(h.dados,c,f);
   } catch(e) {
@@ -463,8 +470,9 @@ function fCampEl(c,isRec,ghost){
   // Degradação graciosa: a cor da campanha fica POR BAIXO da imagem — se a capa faltar (404),
   // o card mostra a cor da marca em vez de um retângulo branco.
   // Scrim (gradiente topo+base) por cima da capa → badges legíveis mesmo em fotos claras.
+  const coverSafe = cover && gEsc(cover).replace(/'/g,'%27'); // %27: neutraliza o ' que fecharia o url('…') — mesmo padrão das outras 2 ocorrências
   const thumbStyle = cover
-    ? `background-color:${c.color};background-image:url('${gEsc(cover)}');background-size:cover;background-position:center`
+    ? `background-color:${c.color};background-image:url('${coverSafe}');background-size:cover;background-position:center`
     : `background:${c.color}`;
   const mats = (typeof fGetMaterialsForCamp==='function') ? fGetMaterialsForCamp(c.id) : [];
   const countLabel = ghost ? 'Materiais em breve' : (mats.length ? `${mats.length} ${mats.length!==1?'materiais':'material'}` : 'Sem materiais');

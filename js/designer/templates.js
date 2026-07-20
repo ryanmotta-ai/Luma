@@ -1360,7 +1360,7 @@ function dPopFolderCampaignSelect(sel){
   const el=document.getElementById('df-campaign');if(!el)return;
   const camps=fAllCampaigns(); // seam da Fase 2
   el.innerHTML='<option value="">Sem campanha vinculada</option>'+
-    camps.map(c=>`<option value="${c.id}" ${c.id===sel?'selected':''}>${c.name}</option>`).join('');
+    camps.map(c=>`<option value="${gEsc(c.id)}" ${c.id===sel?'selected':''}>${gEsc(c.name)}</option>`).join('');
 }
 // Renderiza os checkboxes de grupos
 function dFolderRenderGroups(selected){
