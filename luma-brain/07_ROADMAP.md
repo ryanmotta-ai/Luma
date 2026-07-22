@@ -168,6 +168,12 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
 - **v2** — **CRM Visual** (inapp/push → CleverTap; pré-requisito declarado: mapear formatos aceitos); legendas por IA real; catálogo por cidade (multi-tenant — decisão de arquitetura, não feature).
 - **Contínuo** — fatiar `designer.css` (2.665 linhas) e reduzir os 604 `style=""` inline gerados por JS; testes de fumaça manuais documentados por release.
 
+### Ideias registradas em 2026-07-18 (Ryan, ainda sem decisão de prioridade)
+
+- **Indicadores por material** — painel contextual (não é dashboard geral) dentro da pasta, visível só pra gestão/designer no modo franqueado: downloads do material + variação % no período. **Esbarra na decisão de 2026-07-15** de tirar analytics do app (§1, §7) — é uma exceção pontual a reabrir com o Ryan, não decidida aqui. Esforço médio: precisa de evento de download (hoje só existe `material_aberto`) + view/policy de agregação legível pelo papel de gestão (hoje RLS bloqueia — depende do Pedro); a UI em si é pequena.
+- **Módulo "Marca"** — logos/assets oficiais da Delivery Much centralizados. Não precisa de módulo novo: a biblioteca do Studio (`biblioteca_assets`, `js/designer/library.js`) já tem nome/categoria/tipo e sync com Supabase — vira uma categoria/aba dedicada reaproveitando a infra existente. Esforço baixo.
+- **Módulo Calendário** — vincula cada arte a uma campanha + data; visão mensal; designer preenche manualmente todo mês (sem integração automática com nada externo); franqueado clica no dia → link fixo pra Yungas + lista de artes recomendadas daquele dia. Não reaproveita infra pronta: tabela nova, tela de calendário, fluxo de preenchimento do designer. Esforço médio-alto, comparável à migração de campanhas da Fase 2.
+
 ---
 
 ## Ver também
