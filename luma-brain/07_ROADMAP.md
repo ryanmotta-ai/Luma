@@ -57,8 +57,8 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
 **Sync do designer (`js/designer/layers.js`) — P0:**
 - [x] `_dUuid` fallback não gerava UUID válido → upsert falhava pra sempre fora de contexto seguro. Novo `gUuid()` em `00-config.js` (commit `21a0959`).
 - [x] Indicador "Salvo na nuvem" mentia em modo local → "Salvo neste aparelho" (commit `18f5eed`).
-- [ ] `_dPushFoldersNow` early-return sem backend/admin **não marca `_syncPending`** (`layers.js:2817`) → edição offline é descartada pelo pull do boot. ⚠ **navegador+backend**
-- [ ] Exceção no meio do push cai em catch silencioso e os templates não visitados ficam sem `_syncPending` (`layers.js:2860`). *Parcial: erros de upsert/pull agora saem no `console.warn` (2026-07-16, pós-incidente) — falta marcar `_syncPending` nos não visitados.* ⚠ **navegador+backend**
+- [~] `_dPushFoldersNow` early-return sem backend/admin **não marca `_syncPending`** (`layers.js:~2845`). **Reconferido 2026-07-18:** a perda de TEMPLATE está mitigada por outra via — `dSave` marca `t._syncPending=true` na escrita (`layers.js:2738`) e o pull do boot preserva pendentes (`:3040`). **Resíduo real:** edição só-de-PASTA (rename/cor/ordem) não recebe `_syncPending` no save (o flag de pasta só aparece em `:2887`), então uma alteração só de metadados de pasta com push pulado ainda seria descartada no pull. ⚠ **navegador+backend**
+- [~] Exceção no meio do push e templates não visitados sem `_syncPending` (`layers.js:~2932`). **Reconferido 2026-07-18:** o catch faz `console.warn` e **os templates seguem protegidos pelo flag posto no save** (só o upsert com sucesso limpa `_syncPending`, `:2916`) — o próprio comentário do catch confirma. Na prática o dado não se perde; falta só a marcação explícita no catch como cinto-e-suspensório. ⚠ **navegador+backend**
 - [x] Debounce de 1,2s + `dDirty` zerado na hora (`publish.js:532`) = fechar a aba logo após salvar perde o push. Flush no `pagehide` (`layers.js:2791`).
 - [x] Push concorrente sem lock (`layers.js:2881`) e upsert last-write-wins sem versão — lock + `updated_at` com aviso de conflito. Lock (commit anterior) + aviso via snapshot `_remoteUpdatedAt` vs carimbo do banco (2026-07-16; falta exercer com 2 devices no navegador). ⚠ **navegador+backend, 2 abas**
 - [x] Boot race: pull substitui `dFolders` e o template aberto com id local fica órfão — o pull agora preserva o template aberto e os `_syncPending` (ver comentário em `dSyncFoldersFromBackend`).
@@ -76,8 +76,8 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
 
 **Auth (robustez) — parcial:**
 - [x] `gDoLogin` travava o botão em "Autenticando…" numa falha de rede — `gLogin` agora captura a rejeição e sempre devolve resultado (commit `67ac2b7`).
-- [ ] `gLoadProfile` engole erro e rebaixa gestor a `franqueado` em silêncio (`auth.js:44-52`). *Nota: falha para MENOS privilégio (a RLS ainda governa o dado), então é seguro — o problema é ser silencioso. Distinguir "sem rede" de "deslogado" precisa de teste com sessão real → deixado p/ verificação no navegador.*
-- [ ] `ativo:false` não é lido no front (`gLoadProfile` não busca a coluna) — bloquear login de usuário desativado muda o fluxo de login e precisa de conta desativada real p/ testar → verificação no navegador.
+- [~] `gLoadProfile` rebaixa gestor a `franqueado` em erro de perfil (`auth.js:44-52`). **Reconferido 2026-07-18:** já **não é silencioso** — em `profErr` faz `console.warn` + `gToast('⚠ Não consegui carregar seu perfil…')`. Segue fail-closed pra role mínima (seguro, RLS governa). **Resíduo:** ainda não distingue "sem rede" de "deslogado" → verificação no navegador com sessão real.
+- [x] `ativo:false` não é lido no front. **FEITO (reconferido 2026-07-18):** `auth.js:38` faz `.select('role, nome, departamento, telefone, ativo')` e `auth.js:51-56` bloqueia login de conta desativada (`signOut` + toast + `gAuthState={user:null}`). *(Falta só exercer com conta desativada real no navegador.)*
 
 > ⚠️ **As frentes de Sync e Histórico acima seguem abertas de propósito.** Elas mexem na
 > camada que perde dados e só se validam com navegador + backend + (no sync) dois devices/abas.
@@ -91,18 +91,20 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
 - [ ] **Campanhas saem do hardcode** (headline, arquitetural): hoje `CAMPS_ATIVAS/OUTRAS/IMPLEMENTACAO` (`js/00-config.js:14-145`) são a fonte da lista e `dFolders` só fornece capa/templates (`catalog.js:460-463`). Migrar a fonte para `luma.pastas` (colunas badge, popular, agendamento, cor, perguntas, previews já existem). Criar/arquivar campanha vira ação da UI do designer. `CAMPS_*` vira só seed de primeira instalação. ⚠ **precisa de backend + navegador + UI de criar campanha + decisões (ver plano na §5.1)**
 - [x] **Matar a re-injeção de mocks**: agora só ocorre em modo demo (sem backend); com Supabase real, pasta vazia mostra "em breve" (commit `11399b9`). A migração acima remove o mock de vez.
 - [x] **Perfil — alterar senha real**: ligado ao `gResetPassword` (commit `362d3d5`); era `setTimeout` fake. *(Destino de telefone/foto — hoje localStorage-only, `profiles.avatar_url` existe e é ociosa — fica p/ a fase de perfil cross-device; precisa de navegador.)*
-- [ ] Grupos de visibilidade e `agendamento`/`grupos` de pasta: ou aplicar de verdade (franqueado já respeita agendamento; falta o resto) ou remover da UI. ⚠ **decisão + navegador**
+- [~] Grupos de visibilidade e `agendamento`/`grupos` de pasta. **Reconferido 2026-07-18:** ✅ **agendamento é respeitado** — `_fCampAgendadaFuturo` (`catalog.js:628`) filtra pastas com go-live futuro. **Resíduo aberto:** **grupos são órfãos** — gravados na UI (`templates.js:1478`, `dFolderRenderGroups:1366`) mas NENHUM ponto do franqueado lê/filtra por grupos. Decidir: aplicar de verdade ou remover da UI. ⚠ **decisão + navegador**
 - [x] Validade com fuso: corrigido — reusa o `v` local com `T23:59:59` (commit `ba2b12e`).
 
 ### 5.1. Plano da migração de campanhas (a executar em par, com o navegador)
 
 *Por que faseado: é um flip de fonte de verdade tocada por ~20 pontos; feito no escuro, arrisca deixar o catálogo do franqueado vazio ou quebrado. Um passo por vez, verificando no navegador.*
 
-1. **Costurar o seam (refactor sem mudar comportamento).** Rotear TODA leitura de `CAMPS_*` no franqueado (catalog/materials/chat/live-preview) por `fGetCampaigns()`/`fResolveCamp()`, que hoje já existem mas são ignorados. `fGetCampaigns` segue devolvendo as constantes. *Verificar: catálogo/home/chat idênticos ao de hoje.*
-2. **Garantir que `luma.pastas` carrega todos os campos** que a UI lê (perguntas, badge, popular, previews, cor, expira_dias). O upsert já grava — confirmar que o pull (`_dRowToFolder`) devolve tudo e preencher o que faltar.
-3. **UI de campanha no designer.** Criar/editar/arquivar pasta com esses campos (nome, cor, badge, perguntas, validade, agendamento, grupos). Boa parte do modal de pasta já existe — estender.
-4. **Flip da fonte.** `fGetCampaigns()` passa a montar a lista a partir de `dFolders` (com `ativa`/arquivada), caindo em `CAMPS_*` só como seed na primeira instalação. *Verificar nas 2 personas: designer cria campanha → franqueado vê; designer arquiva → some.*
-5. **Aposentar `CAMPS_*`** para seed-only e remover `dBuildMockLayersForCamp`/mocks. *Verificar: sem campanha fantasma, sem material fake.*
+> **Reconferido 2026-07-18 contra o código.** Passos 1 e 2 ✅ feitos. Passo 3 parcial (modal edita nome/cor/campId/grupos/agendamento/capa — falta ARQUIVAR e os campos badge/perguntas). Passos 4 e 5 abertos: `fGetCampaigns()` ainda parte de `CAMPS_ATIVAS` (`catalog.js:512`) e só complementa com `dFolders`; `dBuildMockLayersForCamp` (`templates.js:32`) e `CAMPS_*` seguem como fonte.
+
+1. [x] **Costurar o seam (refactor sem mudar comportamento).** Leituras roteadas por `fGetCampaigns()`/`fAllCampaigns()`/`fResolveCamp()`. *(Feito nesta sessão.)*
+2. [x] **`luma.pastas` carrega os campos** que a UI lê (`_dRowToFolder` cobre ativa/ordem/agendamento etc.). *(Feito nesta sessão.)*
+3. [~] **UI de campanha no designer.** ✅ modal edita nome, cor, campId, grupos, agendamento e capa (`templates.js:1436-1494`). **Falta:** botão de **ARQUIVAR** (hoje só Editar/Renomear/Esvaziar/Excluir; sem flag `ativa`/arquivada) e tornar **badge** e **perguntas** editáveis (hoje só herdados de `CAMPS_*`).
+4. [ ] **Flip da fonte.** `fGetCampaigns()` passa a montar a lista a partir de `dFolders` (com `ativa`/arquivada), caindo em `CAMPS_*` só como seed. *Verificar nas 2 personas.* **Ainda aberto** (`catalog.js:512`).
+5. [ ] **Aposentar `CAMPS_*`** para seed-only e remover `dBuildMockLayersForCamp`/mocks. **Ainda aberto** (`templates.js:32,98,105`).
 
 ## 6. Fase 3 — Nenhum clique morre em silêncio (confiabilidade da ponta)
 
@@ -115,7 +117,7 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
 - [x] Kit da campanha: dedup de nome no ZIP (dois materiais com mesmo nome se sobrescrevem, `materials.js:62` — mesma correção que o bulk já tem em `png-generator.js:1829`) + barra de progresso (commits `6931c90` e este pacote).
 - [x] Live preview: chamada com assinatura errada de `fRenderCanvasHelper` deixa um branch morto (`live-preview.js:214-217`); hit-testing ignora reflow em template legado (`live-preview.js:631`); `fIsImageVar` testa `varName` em vez de `imgVar` (`png-generator.js:2448`). Corrigidos no commit `c362ba3`.
 - [x] Loading ao trocar material/editar do histórico (`fEnsureMaterialLayers` é fetch de rede sem spinner). Card e botão mostram spinner e bloqueiam novo clique durante o fetch (este pacote).
-- [ ] Editor: Ctrl+Z sequestrado dentro de inputs (`publish.js:660-674`); mover com setas e trocar foto de moldura fora do undo (`publish.js:914`, `canvas.js:1075`); `dToggleLock`/`dSwapColors` duplicadas se sobrescrevendo (`library.js:451`, `tools.js:185`); `dAlign` de grupo grava `NaN` (`layers.js:526-534`).
+- [~] Editor — bugs de undo/duplicata. **Reconferido 2026-07-18:** ✅ Ctrl+Z em inputs corrigido (`publish.js:1067`, guarda `!inField`); ✅ mover com setas entrou no undo (`publish.js:1329`) e aplicar asset da biblioteca também (`library.js:190`); ✅ `dToggleLock`/`dSwapColors` desduplicadas (só em `layers.js:1004` e `tools.js:199`). **Resíduo aberto:** (a) trocar/limpar **foto direto na moldura** ainda fora do undo (`canvas.js:1170` e `:1182` — `imgUrl=` sem `dHistoryPush`); (b) `dAlign` de **grupo** grava `NaN` — grupos não têm x/y/w/h e `dAlign` (`layers.js:515-548`) não tem branch `l.type==='group'`.
 - [ ] Trocar os ~10 `confirm()` nativos restantes por `gConfirm` (`canvas.js:25`, `fonts.js:163`, `layers.js:2538`, `templates.js:411,444,947,1516,1527,1772,3032`) — cada um vira async e precisa da mesma análise de ordem de histórico do caso `dDeleteLayer` (auditoria do editor, 2026-07-15). Emoji-em-toast: varredura na trilha de UI (`docs/ROADMAP-UI-1.0.md` P1.1).
   > ⚠️ Falsos positivos já descartados na auditoria do editor — **não "corrigir"**: clique único NÃO cria duas camadas (o `dSetTool('select')` na criação é compensação intencional); colar camada NÃO perde vínculo `{{campo}}`; undo/redo restaura grupos corretamente.
 - [ ] Upload de imagem de moldura/biblioteca sem limite de tamanho (`canvas.js:1071`, `library.js:134`) — validar como fontes/PSD já validam.
@@ -126,8 +128,8 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
 
 - [x] **RETIRAR o módulo Dados** (decisão 2026-07-15): removidos `js/dados/`, `css/modules/dados.css`, `#view-dados`, scripts, pill e gates do modo. Docs atualizados. O que **fica**: `analytics.fct_eventos`, `gTrackEvent` e as views `vw_*` — analytics segue por extração SQL (gestão/BI), sem front.
 - [x] **Analytics utilizável (backend, independe do módulo retirado)**: eventos do funil emitidos (`template_publicado`, `campanha_aberta`, `material_aberto` — commit `21ea6c8`); views consultam-se via SQL Editor/service_role (documentado no changelog).
-- [ ] Linter unificado: `dPublishRender` reimplementa as regras em vez de reusar `dRunLinter` (`publish.js:149-184`); regra 5 morta (`l.url` → `l.imgUrl`, `linter.js:115`).
-- [ ] Limpeza: ~~`rich-tooltips.js` sem `<script>` (morto)~~ (removido), no-ops de multi-prancheta (`dRenameAB` removido), `fDrawDMLogo`/`fLoadLogoBranca` mortos, `__luma_session` órfão.
+- [~] Linter unificado. **Reconferido 2026-07-18:** ✅ `dPublishRender` já **reusa** `dRunLinter` (`publish.js:488`) — não reimplementa mais. **Resíduo aberto:** regra 5 morta — `linter.js:115` testa `l.url`, mas camadas image/frame guardam em `l.imgUrl` (`layers.js:382,390,408`); a regra nunca dispara. Trocar `l.url` → `l.imgUrl`.
+- [~] Limpeza. **Reconferido 2026-07-18:** ✅ `rich-tooltips.js` e `dRenameAB` removidos. **Resíduo aberto:** `fLoadLogoBranca` (`png-generator.js:12`) morto (0 chamadas) e `__luma_session` (`user-profile.js:218,224`) órfão (nunca gravado, bloco inerte). ⚠️ **Correção do roadmap:** `fDrawDMLogo` **NÃO é morto** — está EM USO (`chat.js:968`, `png-generator.js:47,127,857`); não remover.
 - [ ] Docs em dia: `LUMA.md` (63 scripts, config versionado de propósito), changelog, e este roadmap com os checks.
 - [ ] **Verificação final no navegador nas 3 roles** (franqueado, equipe_dm, gestao) — o checklist do `LUMA.md` §18.
 
