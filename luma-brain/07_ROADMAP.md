@@ -186,7 +186,9 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
   - **Sinal de demanda pro designer** (equipe/gestão) — o que a rede buscou/abriu e não tinha material, e onde desistiu → worklist priorizada pro time ("22 cidades quiseram X e não tinha"). Fecha o loop demanda → criação.
 - **Repostar o que funcionou** (franqueado) — do histórico, "gerar de novo" com um toque, sem refazer o chat. **Condição do Ryan:** mora **dentro do histórico ("Minhas Artes")** — botão por arte — pra **não entulhar a tela** nem "pular a home". Esforço baixo.
 - **Painel "Mídias" / Módulo "Marca"** (inspiração: painel de mídias do Dashquify) — **NÃO é módulo novo**: a Biblioteca do Studio (`biblioteca_assets`, `js/designer/library.js`, drawer "Recursos") já tem nome/categoria/tipo e sync com Supabase. **Escopo decidido: só reorganizar o que já existe** — reagrupar em abas **Marca** (logos/imagens oficiais) × **Minhas mídias**. Fora de escopo por ora: captura automática de uploads descartados (PSDs, fotos de moldura `canvas.js:1170`). Esforço baixo (`library.js` + markup do drawer).
-- **Luma temático do Much+** *(gracinha pra diretoria — ideia de futuro)* — quando a pasta/campanha **"Mais Benefícios"** (Much+) for aberta/preenchida, o Luma troca de tema (cores/branding do Much+) enquanto o franqueado está nela. Fundação parcial: já existe hook de tema (`dTheme` + tokens de cor) — daria pra ativar um tema por campanha. ⚠️ A campanha "Mais Benefícios" **ainda não existe** no `js/00-config.js` (só há um campo `desconto` que menciona "benefício"). Pensar como parte do futuro, sem pressa.
+- **Tema por campanha — 1º caso: Much+** *(agrado estético pra diretoria — ideia de futuro)* — o **Much+ é o serviço de assinatura/clube da Delivery Much**. A ideia: ao abrir uma campanha do Much+ (ex.: "Mais Benefícios"), o Luma **se transforma num "ambiente Much+"** — paleta, logo, tipografia e acento do Much+ substituem os do Luma, com uma **transição de entrada** ("nossa, entrei em outro mundo"), revertendo ao sair pra home. É o tipo de detalhe que encanta a diretoria e reforça imersão de marca quando o franqueado promove o clube.
+  - **Como fazer (altitude — generalizar, não cravar "Much+"):** modelar como **`tema` na campanha/pasta** (ex.: `tema:'muchplus'`), não um `if muchplus` solto — assim qualquer campanha futura pode carregar tema próprio. Mecânica: uma classe no `body` (ex.: `body.theme-muchplus`) que **sobrescreve os tokens de marca** (`--dm-orange`, acento, `--logo-h-*`) — a fundação já existe (`dTheme` + tokens de `00-tokens.css`). Gatilho em `fSelectCamp` (aplica) e `fGoHome` (remove); transição via tokens de motion.
+  - **Depende de:** assets de marca do Much+ (logo SVG/PNG + paleta) que o Ryan fornece — como as capas da Copa; e a campanha "Mais Benefícios" **ainda não existe** no `js/00-config.js`. Esforço baixo-médio se escopado a troca-de-tokens + logo + transição.
 - **Refazer a tela de login** (`#g-login-screen`, `index.html:167-234`) — visual mais premium, aguardando referências do Ryan. Preservar intacto o contrato do `auth.js`: `gDoLogin`/`gDoForgot`/`gShowLoginView`/`gShowForgotView`/`gTogglePass` + IDs `gl-email`/`gl-pass`/`gl-error`/`gl-btn-login` (+ `gf-*`). Oportunidade: migrar os `style=""` inline com hex cravado (`#FF9000`, `#e53e3e`, `#38a169`) pra tokens + classe CSS. Esforço médio (só front).
 
 **Precisa de estudo antes de comprometer:**
@@ -203,6 +205,37 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
 - **Copiloto de template pro designer (IA que scaffolda camadas/campos)** — Ryan: não é necessário agora.
 - **Brand Guardian leve** — morre no multi-KV: campanhas com key-visuals diferentes fariam o guardião apontar "erro" onde é proposital.
 - **Última milha da legenda** (copiar legenda + baixar arte num gesto) — só depois de o **motor de copy estar sólido**; hoje ainda não está no ponto pra construir em cima.
+
+---
+
+## 10. Priorização e dificuldade (visão rápida — Claude, 2026-07-18)
+
+*Minha recomendação de ordem de ataque rumo ao "1.0 sólido" (§1). Prioridade = quanto trava a definição-de-pronto; Dificuldade = esforço/risco de código. Dep.: **[P]** Pedro/backend · **[N]** navegador · **[S]** solo (código só). O Ryan bate o martelo final.*
+
+| # | Item | Prioridade | Dificuldade | Dep. |
+|---|------|:---:|:---:|:---:|
+| A1 | Aplicar SQL `w/h/bg` (sync de templates parado desde 11/07) | 🔴 Crítica | Fácil | [P] |
+| C1–C3 | Catálogo fora do hardcode: UI de campanha (criar/arquivar/badge/perguntas) + flip da fonte + aposentar `CAMPS_*` | 🔴 Alta | Difícil | [P][N] |
+| B1–B3 | Sync: resíduos de `_syncPending` (edição só-de-pasta) + distinguir sem-rede/deslogado | 🔴 Alta | Médio | [P][N] |
+| CR | Integrar o documento **Luma Code Review** (~1.100 linhas) — triar real vs falso-positivo | 🔴 Alta | Médio | Ryan traz |
+| E4/G3 | Verificação final nas 3 roles + gate visual da UI 1.0 | 🔴 Alta | Médio | [N] |
+| TOOLS | Refinar ferramentas de design uma a uma (moldura de seleção + caixa de texto primeiro) | 🟠 Média-Alta | Difícil | [N] |
+| D1 | Editor: foto de moldura no undo + `dAlign` de grupo (NaN) | 🟠 Média | Fácil | [S] |
+| D2 | ~10 `confirm()` nativos → `gConfirm` | 🟠 Média | Médio | [S] |
+| D3 | Limite de tamanho no upload de imagem | 🟠 Média | Fácil | [S] |
+| G1 | Varredura de emoji→SVG + tokenização de cor + auditor `ui-audit.html` | 🟠 Média | Médio | [S] |
+| G2 | Redesigns de tela (Perfil, Ajuda, **Login+Splash**, Sheets, empty-states) | 🟠 Média | Difícil | [N] |
+| F1 | PSD: camadas de ajuste (cor diverge) — aplicar ou avisar | 🟠 Média | Médio | [S][N] |
+| C4 | Grupos de visibilidade: aplicar ou remover da UI | 🟡 Baixa | Fácil | decisão |
+| E1 | Linter: regra 5 morta (`l.url`→`l.imgUrl`) | 🟡 Baixa | Fácil | [S] |
+| E2 | Limpar `fLoadLogoBranca` morto + `__luma_session` órfão | 🟡 Baixa | Fácil | [S] |
+| E3 | Docs em dia (`LUMA.md`, changelog, roadmap) | 🟡 Baixa | Fácil | [S] |
+| F2/F3 | PSD: path vetorial + pattern/badges | 🟡 Baixa | Médio | [S] |
+| SLIDE | One-pager/slide "o que falta pro 1.0" pra diretoria | 🟡 Baixa | Fácil | [S] |
+
+**Pós-1.0 (features, não entram no corte):** Calendário nacional que empurra campanha · par vinculado feed↔story↔WhatsApp · backbone de eventos (→ "mais usados da rede" + "sinal de demanda") · repostar do histórico · painel Mídias/Marca · **tema por campanha (Much+)** · *(estudar antes)* CRM Visual, indicadores por material.
+
+**Ganhos rápidos "solo" (posso fechar sem navegador nem Pedro):** E1, E2, D1, D3 — depois D2 e G1.
 
 ---
 
