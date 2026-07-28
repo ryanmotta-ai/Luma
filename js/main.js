@@ -60,7 +60,15 @@ function gOnLoginSuccess() {
   dUpdateTabPill();
 
   if(typeof gUpdateUserTopbar === 'function') gUpdateUserTopbar();
-  if(typeof gTrackEvent === 'function') gTrackEvent('sessao_iniciada', {rota:'app'});
+  // pagina_aberta = todo carregamento (F5 conta); sessao_iniciada = 1x por sessão real do
+  // navegador (sessionStorage sobrevive a F5, zera ao fechar a aba). Antes: sessao_iniciada
+  // disparava a cada reload (inflava "sessões") e pagina_aberta, previsto no schema, nunca saía.
+  if(typeof gTrackEvent === 'function'){
+    gTrackEvent('pagina_aberta', {rota:'app'});
+    let _novaSessao=true;
+    try{ if(sessionStorage.getItem('__luma_sess')){ _novaSessao=false; } else { sessionStorage.setItem('__luma_sess','1'); } }catch(e){}
+    if(_novaSessao) gTrackEvent('sessao_iniciada', {rota:'app'});
+  }
 
   // Gate de navegação por role: franqueado só vê a própria área (esconde o Estúdio).
   gApplyModeAccess();

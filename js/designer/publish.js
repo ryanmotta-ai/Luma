@@ -887,8 +887,10 @@ function dPublishConfirm(){
     tmpl.publishMeta.permissoes=JSON.parse(JSON.stringify(dPubPermissoes));
     // Vincula a arte aberta ao template publicado: republicar atualiza ESTE template.
     if(typeof dActiveTmplId!=='undefined') dActiveTmplId=tmpl.id;
-    // Evento previsto na migration de analytics e nunca emitido — alimenta as views vw_*
-    if(typeof gTrackEvent==='function') gTrackEvent('template_publicado',{template:tmpl.name||'', fmt:tmpl.fmt||'', pasta:folder.name||''});
+    // Contrato do schema: {template_id, template_name, fmt_id, camp_id, camp_name}
+    if(typeof gTrackEvent==='function') gTrackEvent('template_publicado',{
+      template_id:tmpl.remoteId||tmpl.id||null, template_name:tmpl.name||'', fmt_id:tmpl.fmt||'',
+      camp_id:folder.campId||folder.remoteId||folder.id||null, camp_name:folder.name||''});
     count++;
   });
   dFolderOpen[folderId]=true;

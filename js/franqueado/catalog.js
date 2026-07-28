@@ -171,7 +171,7 @@ async function fDownloadHist(id){
   }
   fMarkHistBaixada(id);
   fRenderHist();
-  if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:h.campId,fmt:h.fmtId,tipo:'png',origem:'historico'});
+  if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:h.campId,fmt_id:h.fmtId,tipo:'png',origem:'historico'});
   gToast('Arte baixada!');
 }
 
@@ -686,8 +686,8 @@ function fSelectCamp(id){
   }
   fRestoreCatalog();
   fUpdateCtx();
-  // Evento previsto na migration de analytics e nunca emitido (funil: campanha → material → arte)
-  if(typeof gTrackEvent==='function') gTrackEvent('campanha_aberta',{camp_id:c.id, camp:c.name||''});
+  // Funil campanha → material → arte (contrato do schema: camp_id/camp_name)
+  if(typeof gTrackEvent==='function') gTrackEvent('campanha_aberta',{camp_id:c.id, camp_name:c.name||''});
   fOpenMaterialCatalog(c);
 }
 

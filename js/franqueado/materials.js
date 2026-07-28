@@ -404,8 +404,12 @@ async function fSelectMaterial(materialId, card){
   const targetFmt = FMTS.find(f=>f.id===targetFmtId);
   if(targetFmt) fState.fmt = targetFmt;
   fState.material=found;
-  // Evento previsto na migration de analytics e nunca emitido (funil: campanha → material → arte)
-  if(typeof gTrackEvent==='function') gTrackEvent('material_aberto',{material:found.name||'', fmt:found.fmt||'', demo:!!found._demo});
+  // Funil campanha → material → arte: precisa de camp_id + template_id p/ cruzar com os
+  // outros eventos (antes só mandava o nome, o funil não fechava). campId da pasta dona.
+  if(typeof gTrackEvent==='function') gTrackEvent('material_aberto',{
+    camp_id:(folderFound&&(folderFound.campId||folderFound.remoteId||folderFound.id))||null,
+    template_id:found.remoteId||found.id||null, template_name:found.name||'',
+    fmt_id:found.fmt||'', demo:!!found._demo });
   if (typeof gTriggerOnboardingStep === 'function') {
     gTriggerOnboardingStep('choseMaterial');
   }

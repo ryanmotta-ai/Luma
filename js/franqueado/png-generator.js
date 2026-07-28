@@ -190,7 +190,7 @@ async function fCompartilhar(btn, snapId){
     if(canShareFiles){
       await navigator.share({files:[file], text:cap||undefined, title:'Delivery Much'});
       if(snap.histId){ fMarkHistBaixada(snap.histId); } else { fAddHist(snap.dados,snap.camp,snap.fmt,'baixada'); }
-      if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt:snap.fmt.id,tipo:'png',via:'share'});
+      if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt_id:snap.fmt.id,tipo:'png',via:'share'});
     } else {
       // Fallback (desktop / sem Web Share de arquivos): baixa a imagem e copia a legenda.
       const a=document.createElement('a'); a.download=fname; a.href=canvas.toDataURL('image/png'); a.click();

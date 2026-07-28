@@ -867,7 +867,7 @@ function fGerarArte(){
     const de=d.precoDe?`De ${d.precoDe}`:'';
     const val=d.validade||'';
     fState._lastHistId = fAddHist(d,c,fState.fmt,'rascunho'); // id correto mesmo com dedup (C8)
-    if(typeof gTrackEvent==='function') gTrackEvent('arte_gerada',{camp_id:c.id,camp_name:c.name,fmt:fState.fmt.id,material_id:fState.material?.id||null});
+    if(typeof gTrackEvent==='function') gTrackEvent('arte_gerada',{camp_id:c.id,camp_name:c.name,fmt_id:fState.fmt.id,template_id:(fState.material&&(fState.material.remoteId||fState.material.id))||null});
     const msgs=document.getElementById('f-messages');
     const w=document.createElement('div');w.className='msg bot';
     // ID único pro canvas thumbnail
@@ -1040,7 +1040,7 @@ async function fOutroFormato(id, snapId){
   try{
     await fGenPNG(snap.dados,snap.camp,f);
     fAddHist(snap.dados,snap.camp,f,'baixada');
-    if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt:f.id,tipo:'png',outro_formato:true});
+    if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt_id:f.id,tipo:'png',outro_formato:true});
     snap.fmt=f; // a bolha agora "é" deste formato — o Baixar PNG dela acompanha
     gToast(`${f.name} baixado!`);
     await _fRerenderArtThumb(snapId, snap, f); // thumb acompanha a nova geometria
@@ -1086,7 +1086,7 @@ async function fBaixar(btn, snapId){
     await fGenPNG(snap.dados,snap.camp,snap.fmt);
     if(snap.histId){ fMarkHistBaixada(snap.histId); }
     else { fAddHist(snap.dados,snap.camp,snap.fmt,'baixada'); }
-    if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt:snap.fmt.id,tipo:'png'});
+    if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt_id:snap.fmt.id,tipo:'png'});
     // Baixa a imagem e já deixa a legenda na área de transferência — 1 passo a menos pra postar.
     const cap=_fActiveCaptionText(snapId);
     if(cap){ _fCopyText(cap); gToast('Arte baixada • legenda copiada!'); }
@@ -1186,7 +1186,7 @@ async function fBaixarPDF(btn, snapId){
     await fGenPDF(snap.dados, snap.camp, snap.fmt);
     if(snap.histId){ fMarkHistBaixada(snap.histId); }
     else { fAddHist(snap.dados,snap.camp,snap.fmt,'baixada'); }
-    if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt:snap.fmt.id,tipo:'pdf'});
+    if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt_id:snap.fmt.id,tipo:'pdf'});
     gToast('PDF baixado!');
     if (typeof gTriggerOnboardingStep === 'function') {
       gTriggerOnboardingStep('downloadedPng');
