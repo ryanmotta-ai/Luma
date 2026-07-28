@@ -239,6 +239,28 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
 
 ---
 
+## 10. Performance & tráfego de dados (backlog técnico — não bloqueia v1)
+
+> Contexto: o app roda no navegador (inclusive web mobile) falando direto com o Supabase.
+> O gargalo histórico era **egress** (base64 gigante no catálogo). Resolvido em jul/2026
+> com o "catálogo leve" (layers sob demanda) + push que não grava base64. O que resta
+> aqui é otimização de margem, não incêndio.
+
+**Anotado em 2026-07-16 (upload de imagem — decidido NÃO mexer agora):**
+- [ ] **Teto de upload alto demais p/ o público**: chat aceita até 20 MB (`js/franqueado/chat.js:422`). A foto é redimensionada p/ 1500px + JPEG 0.88 (pica) ANTES de trafegar — o resultado é leve (~200–500 KB), mas os 20 MB brutos viram ~27 MB de base64 em memória no meio do caminho: risco de travar aba de celular modesto no 4G. Baixar p/ ~12 MB (1 caractere) cobre qualquer foto de celular.
+- [ ] **Uploads do Luma Sheets escapam do resize**: `png-generator.js:2659` (perfil) e `fBulkHandleLocalImage` validam 20 MB mas NÃO passam por `fResizeImageIfNeeded`. Num lote de 30 produtos, 30 imagens grandes vão inteiras. Rotear pelo mesmo resize de 1500px.
+- [ ] **WebP no encode** (era o item "compressão/WebP"): trocar `toDataURL('image/jpeg',0.88)` por WebP (~30% menor na mesma qualidade) com fallback JPEG p/ navegador antigo. Corta storage e egress de uma vez.
+- [ ] **Limpeza de uploads órfãos** em `luma-user-uploads`: foto de arte que saiu do histórico (cap 50) fica no bucket p/ sempre — job de limpeza.
+- [ ] **Delta-sync por `updated_at` no designer**: hoje o boot do designer re-baixa metadados do catálogo inteiro (leve, mas O(catálogo)). Evoluir p/ baixar só o que mudou.
+
+**Nota de capacidade (70+ franqueados simultâneos — avaliado em 2026-07-16):** o Supabase Pro
+aguenta com folga. Ver a análise no `docs/LUMA.md` (seção de capacidade) ou o resumo: o uso é
+espasmódico (não streaming), o CDN serve as imagens fora do Postgres, e o pico realista de
+70 pessoas gerando arte fica em dezenas de requests concorrentes — muito abaixo do limite da
+instância. Só reavaliar em 300+ franqueados ativos (aí: paginação de catálogo + connection pooling).
+
+---
+
 ## Ver também
 
 - `00_PRODUCT.md` §9 (o que o Luma NÃO faz) — o guarda-costas deste roadmap.
