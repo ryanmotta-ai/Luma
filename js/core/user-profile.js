@@ -273,18 +273,15 @@ async function gProfileSaveData(event) {
 
 // Aplica o tema selecionado
 function gProfileApplyTheme(theme) {
-<<<<<<< Updated upstream
   // Persiste: o seletor de tema do perfil dizia "salvo" e não gravava em lugar NENHUM —
   // o tema voltava ao padrão em todo F5. (localStorage = padrão da casa p/ preferência local.)
   try { localStorage.setItem('__luma_theme', theme); } catch(e) {}
-=======
   // Transição suave da troca (motion.md §3): liga .theme-anim só durante a troca manual e
   // remove após --dur-base, pra não deixar a transição global grudada no resto da sessão.
   const b = document.body;
   b.classList.add('theme-anim');
   clearTimeout(gProfileApplyTheme._t);
   gProfileApplyTheme._t = setTimeout(() => b.classList.remove('theme-anim'), 280);
->>>>>>> Stashed changes
   // Para a aba Designer e Franqueado (que compartilham a classe body.theme-light):
   b.classList.toggle('theme-light', theme === 'light');
   if (typeof dTheme !== 'undefined') dTheme = theme;
@@ -508,16 +505,12 @@ async function gProfileRenderEquipe(){
     const pid='prof-rp-'+idx;
     const triggerId='prof-rb-'+idx;
 
-<<<<<<< Updated upstream
     // data-email + this.dataset: gEsc dentro de onclick não protege o contexto de string JS
     // (&#39; volta a ser aspa antes do JS rodar) — atributo data é o único caminho seguro.
-    const pill=`<button class="prof-role-pill" data-role="${u.role}" data-email="${gEsc(u.email)}" ${canEdit?`onclick="gProfileToggleRolePicker(this.dataset.email,'${pid}',this,event)"`:'disabled'} title="${rcfg.desc}">
-=======
-    const pill=`<button type="button" class="prof-role-pill" id="${triggerId}" data-role="${gEsc(u.role)}"
+    const pill=`<button type="button" class="prof-role-pill" id="${triggerId}" data-role="${gEsc(u.role)}" data-email="${gEsc(u.email)}"
       aria-label="Permissão: ${gEsc(rcfg.label)}${canEdit?'. Clique para alterar':''}"
-      ${canEdit?`aria-haspopup="menu" aria-expanded="false" aria-controls="${pid}" onclick="gProfileToggleRolePicker('${gEsc(u.email)}','${pid}',this,event)"`:'disabled'}
+      ${canEdit?`aria-haspopup="menu" aria-expanded="false" aria-controls="${pid}" onclick="gProfileToggleRolePicker(this.dataset.email,'${pid}',this,event)"`:'disabled'}
       title="${gEsc(rcfg.desc)}">
->>>>>>> Stashed changes
       <span class="prof-role-dot"></span>${rcfg.label}${canEdit?_ICO_CHEVRON:''}
     </button>`;
 
@@ -526,15 +519,11 @@ async function gProfileRenderEquipe(){
       .map(r=>{
         const rc=_EQUIPE_ROLE_CFG[r];
         const cur=r===u.role;
-<<<<<<< Updated upstream
-        return `<button class="prof-role-picker-opt${cur?' is-current':''}" data-email="${gEsc(u.email)}" onclick="gProfilePickRole(this.dataset.email,'${r}','${pid}',event)">
-          <span class="prof-role-picker-opt-ico" style="background:${rc.bg};color:${rc.color}">${rc.emoji}</span>
-=======
+        const icoHtml=rc.icon?`<span class="prof-role-picker-opt-ico">${rc.icon}</span>`:`<span class="prof-role-picker-opt-ico" style="background:${rc.bg};color:${rc.color}">${rc.emoji}</span>`;
         return `<button type="button" role="menuitemradio" aria-checked="${cur?'true':'false'}"
-          class="prof-role-picker-opt prof-role-picker-opt-${r}${cur?' is-current':''}"
-          ${cur?'disabled aria-disabled="true"':`onclick="gProfilePickRole('${gEsc(u.email)}','${r}','${pid}',event)"`}>
-          <span class="prof-role-picker-opt-ico">${rc.icon}</span>
->>>>>>> Stashed changes
+          class="prof-role-picker-opt prof-role-picker-opt-${r}${cur?' is-current':''}" data-email="${gEsc(u.email)}"
+          ${cur?'disabled aria-disabled="true"':`onclick="gProfilePickRole(this.dataset.email,'${r}','${pid}',event)"`}>
+          ${icoHtml}
           <span class="prof-role-picker-opt-text">
             <span class="prof-role-picker-opt-label">${rc.label}</span>
             <span class="prof-role-picker-opt-desc">${rc.desc}</span>
@@ -555,15 +544,9 @@ async function gProfileRenderEquipe(){
     // pela UI (só existia gSetUserAtivo(id,true) no backend, sem caminho na tela).
     const actionBtn = (!isMe && canEdit)
       ? (isInactive
-<<<<<<< Updated upstream
-          ? `<button class="prof-user-remove prof-user-restore" onclick="gProfileReactivateUser('${gEsc(u.email)}')" title="Reativar acesso">${_ICO_RESTORE}</button>`
-          : `<button class="prof-user-remove" data-email="${gEsc(u.email)}" onclick="gProfileRemoveUser(this.dataset.email)" title="Desativar acesso">${_ICO_TRASH}</button>`)
-      : '';
-=======
-          ? `<button type="button" class="prof-user-action prof-user-restore" onclick="gProfileReactivateUser('${gEsc(u.email)}')" aria-label="Reativar acesso de ${gEsc(displayName)}" title="Reativar acesso">${_ICO_RESTORE}</button>`
-          : `<button type="button" class="prof-user-action" onclick="gProfileRemoveUser('${gEsc(u.email)}')" aria-label="Desativar acesso de ${gEsc(displayName)}" title="Desativar acesso">${_ICO_TRASH}</button>`)
+          ? `<button type="button" class="prof-user-action prof-user-restore" data-email="${gEsc(u.email)}" onclick="gProfileReactivateUser(this.dataset.email||'${gEsc(u.email)}')" aria-label="Reativar acesso de ${gEsc(displayName)}" title="Reativar acesso">${_ICO_RESTORE}</button>`
+          : `<button type="button" class="prof-user-action" data-email="${gEsc(u.email)}" onclick="gProfileRemoveUser(this.dataset.email||'${gEsc(u.email)}')" aria-label="Desativar acesso de ${gEsc(displayName)}" title="Desativar acesso">${_ICO_TRASH}</button>`)
       : '<span class="prof-user-action-placeholder" aria-hidden="true"></span>';
->>>>>>> Stashed changes
 
     return `<li class="prof-user-row${isMe?' is-me':''}${isInactive?' is-inactive':''}" data-status="${isInactive?'inactive':'active'}">
       <div class="prof-user-identity">
@@ -810,10 +793,8 @@ function gProfileFilterEquipe(query){
   if(empty)empty.hidden=visible!==0;
 }
 
-<<<<<<< Updated upstream
 // (gProfileSetUserRole removida na auditoria 16/07: duplicata sem chamador de
 //  gProfilePickRole — e trocava role SEM confirmação. O fluxo real é o picker.)
-=======
 function gProfileSetEquipeFilter(filter,button){
   const pane=document.getElementById('prof-pane-equipe'); if(!pane)return;
   if(!['all','active','inactive'].includes(filter))filter='all';
@@ -833,7 +814,6 @@ function gProfileClearEquipeFilters(){
   gProfileSetEquipeFilter('all',allBtn);
   if(input)input.focus();
 }
->>>>>>> Stashed changes
 
 async function gProfileRemoveUser(email){
   // confirm() nativo → gConfirm (01_BUSINESS §10 / 03_ENGINEERING: gToast/gConfirm são os
