@@ -1,0 +1,111 @@
+/**
+ * css/modules/panel-dock.css
+ *
+ * Drag & drop das 3 colunas do franqueado. Depende de: 00-tokens.css.
+ * Par do js/franqueado/panel-dock.js.
+ *
+ * Estratégia SEM mover DOM: em desktop largo (dock ativo), display:contents nos
+ * wrappers #fran-right/#f-right-body promove #f-chat-col e #f-live-preview a
+ * irmãos flex de #fran-main — aí os 3 painéis (com #fran-left) reordenam por
+ * data-panel-slot (0/1/2). Fora do desktop largo/home, nada disto aplica → mobile,
+ * tema e home ficam idênticos ao original.
+ */
+
+/* ══ ESTADO DE DOCK (desktop largo, fora do home) ══ */
+@media (min-width: 1024px) {
+
+  /* Promove chat+preview a irmãos flex de #fran-main. :not(.f-home-mode):not(.f-history-mode) porque a
+     home e o histórico (Minhas Artes) são visões em tela cheia. */
+  body.panel-dock-active:not(.f-home-mode):not(.f-history-mode) #fran-right,
+  body.panel-dock-active:not(.f-home-mode):not(.f-history-mode) #f-right-body { display: contents; }
+
+  /* #fran-right (que dava o fundo off-white da área do chat) virou contents →
+     devolve o fundo direto no chat. */
+  body.panel-dock-active:not(.f-home-mode):not(.f-history-mode) #f-chat-col { background: var(--off-white); }
+
+  /* Acomodação em mola ao trocar de slot (largura/base animam). */
+  body.panel-dock-active:not(.f-history-mode) #fran-left,
+  body.panel-dock-active:not(.f-history-mode) #f-chat-col,
+  body.panel-dock-active:not(.f-history-mode) #f-live-preview {
+    transition: flex-basis var(--dur-base) var(--ease-spring),
+                width var(--dur-base) var(--ease-spring);
+  }
+
+  /* SLOTS por POSIÇÃO. ID+attr (1,2,0) vence o width:ID base (1,0,0) de cada painel.
+     slot 0 esquerda ~328 · slot 1 centro flex:1 (HERÓI) · slot 2 direita ~380. */
+  body.panel-dock-active:not(.f-history-mode) #fran-left[data-panel-slot="0"],
+  body.panel-dock-active:not(.f-history-mode) #f-chat-col[data-panel-slot="0"],
+  body.panel-dock-active:not(.f-history-mode) #f-live-preview[data-panel-slot="0"] {
+    order: 0; flex: 0 0 328px; width: 328px; max-width: 328px;
+  }
+  body.panel-dock-active:not(.f-history-mode) #fran-left[data-panel-slot="1"],
+  body.panel-dock-active:not(.f-history-mode) #f-chat-col[data-panel-slot="1"],
+  body.panel-dock-active:not(.f-history-mode) #f-live-preview[data-panel-slot="1"] {
+    order: 1; flex: 1 1 0; width: auto; max-width: none; min-width: 0;
+  }
+  body.panel-dock-active:not(.f-history-mode) #fran-left[data-panel-slot="2"],
+  body.panel-dock-active:not(.f-history-mode) #f-chat-col[data-panel-slot="2"],
+  body.panel-dock-active:not(.f-history-mode) #f-live-preview[data-panel-slot="2"] {
+    order: 2; flex: 0 0 380px; width: 380px; max-width: 380px;
+  }
+
+  /* Separador coerente: cada painel mostra 1 borda à direita, exceto o último.
+     Evita "borda dupla"/"sem borda" quando o preview (border-left) troca de ponta. */
+  body.panel-dock-active:not(.f-history-mode) #fran-left,
+  body.panel-dock-active:not(.f-history-mode) #f-chat-col,
+  body.panel-dock-active:not(.f-history-mode) #f-live-preview {
+    border-left: 0; border-right: 1px solid var(--gray-light);
+  }
+  body.panel-dock-active:not(.f-history-mode) #fran-left[data-panel-slot="2"],
+  body.panel-dock-active:not(.f-history-mode) #f-chat-col[data-panel-slot="2"],
+  body.panel-dock-active:not(.f-history-mode) #f-live-preview[data-panel-slot="2"] { border-right: 0; }
+}
+
+/* ══ GARANTIA DE TELA CHEIA EM MINHAS ARTES (f-history-mode) ══ */
+body.f-history-mode #fran-left {
+  width: 100% !important;
+  max-width: none !important;
+  flex: 1 1 100% !important;
+  order: 0 !important;
+  border-right: 0 !important;
+}
+
+/* ══ GRIP HANDLE (pegada de arrastar) — só no dock ativo ══ */
+.panel-grip-handle {
+  display: none;
+  align-items: center; justify-content: center;
+  width: 26px; height: 26px; flex-shrink: 0; padding: 0;
+  border: none; background: transparent; color: var(--text-3);
+  border-radius: var(--r-sm); cursor: grab; touch-action: none;
+  transition: background var(--dur-micro) var(--ease-standard),
+              color var(--dur-micro) var(--ease-standard);
+}
+body.panel-dock-active .panel-grip-handle { display: inline-flex; }
+.panel-grip-handle:hover { background: var(--dm-orange-bg); color: var(--dm-orange-d); }
+.panel-grip-handle:active { cursor: grabbing; }
+.panel-grip-handle:focus-visible { outline: 2px solid var(--dm-orange); outline-offset: 2px; }
+.panel-grip-handle svg { width: 15px; height: 15px; pointer-events: none; }
+
+/* ══ PAINEL SENDO ARRASTADO — elevação de estúdio ══ */
+.is-panel-dragging {
+  opacity: .85; position: relative; z-index: 60;
+  border-radius: var(--r); cursor: grabbing;
+  box-shadow: 0 26px 60px rgba(10, 10, 10, .28), 0 6px 18px rgba(10, 10, 10, .14);
+  transition: none !important;   /* segue o ponteiro sem lag de mola */
+}
+body.panel-dock-dragging { user-select: none; }
+body.panel-dock-dragging * { cursor: grabbing !important; }
+
+/* ══ ZONA DE DESTINO — borda tracejada laranja ══ */
+.panel-drop-zone-active {
+  outline: 2.5px dashed var(--dm-orange);
+  outline-offset: -6px;
+  border-radius: var(--r);
+  background: color-mix(in srgb, var(--dm-orange) 5%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.panel-dock-active #fran-left,
+  body.panel-dock-active #f-chat-col,
+  body.panel-dock-active #f-live-preview { transition: none; }
+}

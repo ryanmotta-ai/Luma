@@ -870,9 +870,14 @@ function dRenderLayersList(){
     const _boundFn = (typeof dLayerBoundField==='function') ? dLayerBoundField(l) : null;
     const _boundV = _boundFn ? dVars.find(v=>v.name===_boundFn) : null;
     const hasVarEmbedded = l.type === 'text' && /\{\{/.test(l.content || '');
+    // Camada que ACEITA campo mas não tem nenhum ganha o convite no mesmo lugar onde o selo
+    // apareceria — o olho já procura o estado do Dado ali. Fica discreto até o hover da linha
+    // (ver .lyr-bind no designer.css) pra não poluir uma lista cheia de camadas.
+    const _canBind = (typeof dLayerIsBindable==='function') && dLayerIsBindable(l) && l.type!=='group';
     const varBadge = _boundV
       ? `<span class="lyr-badge lyr-var lyr-dado" title="Dado: ${gEsc(_boundV.label||_boundV.name)}">◆ ${gEsc(_boundV.label||_boundV.name)}</span>`
-      : (hasVarEmbedded ? `<span class="lyr-badge lyr-var" title="Contém um campo"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;color:var(--var-color, #a855f7)"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>` : '');
+      : (hasVarEmbedded ? `<span class="lyr-badge lyr-var" title="Contém um campo"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;color:var(--var-color, #a855f7)"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>`
+        : (_canBind ? `<button type="button" class="lyr-badge lyr-bind" title="Vincular campo (X) — o franqueado passa a preencher esta camada" onclick="dBindFieldForLayer('${l.id}',event)">vincular</button>` : ''));
 
     let typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="10" height="10" rx="1"/><circle cx="16" cy="16" r="5"/></svg>`; // shape default
     if (l.type === 'text') typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>`;
@@ -1770,6 +1775,15 @@ function dFieldBindPickerOpen(ev){
     onNew:(q)=>dOpenVarModal(q?{forLayer:dSelId,label:q}:{forLayer:dSelId})
   });
 }
+// Vincular campo direto da linha da lista de camadas. O ponto de entrada do vínculo vivia
+// só num flyout da toolbar (#dtool-var-data) e na tecla X — invisível pra quem não decorou o
+// atalho, que é o motivo real de o fluxo pelo painel Dados parecer o único caminho.
+// Seleciona a camada antes porque o seletor existente opera sobre dSelId.
+function dBindFieldForLayer(id, ev){
+  if(ev) ev.stopPropagation();
+  if(typeof dSelLayer==='function') dSelLayer(id);
+  if(typeof dOpenBindForSelected==='function') dOpenBindForSelected();
+}
 // Ponto de entrada da ferramenta/atalho "Vincular campo" (X) e do menu de contexto.
 function dOpenBindForSelected(){
   const l=dLayers.find(x=>x.id===dSelId);
@@ -2312,6 +2326,19 @@ function dFieldUse(i){
     return;
   }
   if(l && l.type==='text'){
+    // Texto sem nenhum campo é PLACEHOLDER: quem escreveu "Combo Smash" na arte quis dizer
+    // "aqui entra o nome do produto". Concatenar deixava "Combo Smash {{produto}}" e obrigava
+    // o designer a voltar na aba Camadas e apagar o exemplo na mão. Delega ao dLayerBindField
+    // — o mesmo motor do atalho X — pra não existirem dois comportamentos pra uma intenção.
+    // Só quando a camada JÁ tem campo é que estamos compondo frase mista ("DE R$ x POR y"):
+    // aí acrescentar é o certo, porque o texto fixo ao redor é intencional.
+    const jaTemCampo=(typeof dLayerEmbeddedFields==='function') && dLayerEmbeddedFields(l).length>0;
+    if(!jaTemCampo){
+      dLayerBindField(l.id, v.name); // já faz history, render, props, unsaved e toast
+      dActivatePanel('camadas');
+      dSelLayer(l.id);
+      return;
+    }
     if(typeof dHistoryPush==='function') dHistoryPush();
     l.content=((l.content||'')+' {{'+v.name+'}}').replace(/^\s+/,'');
     dActivatePanel('camadas');
@@ -2594,7 +2621,12 @@ function dSyncVarsFromContent(content, skipPersist){
   while((m=re.exec(content))){
     const name=m[1];
     if(!dVars.some(v=>v.name.toLowerCase()===name.toLowerCase())){
-      dVars.push({name, label:name.replace(/_/g,' '), type:'text', required:false});
+      // O nome já carrega a intenção: {{preco_por}} nasce Preço, {{logo_loja}} nasce Imagem,
+      // {{validade}} nasce Data. Antes tudo nascia 'text' em 'outros' e o designer reabria o
+      // campo pra corrigir na mão — o que anulava o ganho de digitar o token direto na camada.
+      const type=(typeof gFieldGuessType==='function')?gFieldGuessType(name):'text';
+      const category=(typeof gFieldGuessCategory==='function')?gFieldGuessCategory(name,type):'outros';
+      dVars.push({name, label:name.replace(/_/g,' '), type, category, required:false});
       changed=true;
     }
   }
@@ -2873,11 +2905,15 @@ async function _dPushFoldersNow(){
         id:f.remoteId, nome:f.name||'(sem nome)', cor:f.color||null, camp_id:f.campId||null,
         badge:f.badge||'', expira_dias:f.expiraDias||7, popular:!!f.popular,
         preview_prod:f.previewProd||'', preview_de:f.previewDe||'', preview_por:f.previewPor||'',
+<<<<<<< Updated upstream
         perguntas:f.perguntas||[], grupos:f.grupos||['Todos os usuários'],
         // Fase 2 passo 2: preserva o estado real — ativa:true fixo desfazia o arquivar,
         // e ordem/agendamento nunca subiam (a ordenação do catálogo não sobrevivia ao ciclo).
         ativa:(f.ativa!==false), ordem:(typeof f.ordem==='number'?f.ordem:idx),
         agendamento:f.agendamento||null
+=======
+        perguntas:f.perguntas||[], grupos:f.grupos||['Todos os usuários'], ativa:!f.arquivada
+>>>>>>> Stashed changes
       };
       if(f.cover==='') _rowPasta.cover_url=null;
       else if(typeof f.cover==='string' && !f.cover.startsWith('data:') && f.cover.indexOf('idb://')!==0 && f.cover!=='__local__') _rowPasta.cover_url=f.cover;
@@ -2999,10 +3035,15 @@ function _dRowToFolder(p, templates){
     previewProd:p.preview_prod||'', previewDe:p.preview_de||'', previewPor:p.preview_por||'',
     perguntas:Array.isArray(p.perguntas)?p.perguntas:[],
     grupos:Array.isArray(p.grupos)?p.grupos:['Todos os usuários'],
+<<<<<<< Updated upstream
     // Fase 2 passo 2: campos que o flip de campanhas precisa — antes o pull perdia
     // ativa/ordem/agendamento e o push re-gravava ativa:true (arquivar seria desfeito).
     ativa:(p.ativa!==false), ordem:(typeof p.ordem==='number'?p.ordem:null),
     agendamento:p.agendamento||null, templates:templates||[]
+=======
+    agendamento:null, templates:templates||[],
+    arquivada:(p.ativa===false)   // coluna `ativa` do banco: false = pasta arquivada (some da vitrine)
+>>>>>>> Stashed changes
   };
 }
 async function dSyncFoldersFromBackend(){

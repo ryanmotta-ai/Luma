@@ -150,22 +150,12 @@ function fUseLastArte(histId){
 function _fProceedMaterialStart(material){
   fState.stepIdx=-1; fState.done=false; fUpdateProg();
   const total = fState.camp.perguntas.length;
-  let intro = `Boa escolha! Vamos montar sua publicação para o <strong>${gEsc(material.name)}</strong>. `;
-  // Se tem instruções do designer, mostra (escapado — texto livre do designer)
-  if(material.publishMeta?.instrucoes){
-    intro += `<br><br><em style="display:block;margin-top:6px;padding:8px 10px;background:var(--dm-orange-bg);border-left:3px solid var(--dm-orange);font-size:12px;color:var(--text-2);border-radius:4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg> ${gEsc(material.publishMeta.instrucoes)}</em><br>`;
-  }
-  // total 0 (loja respondeu tudo) → não promete pergunta nenhuma.
-  intro += total>0
-    ? `Vou te guiar em <strong>${total} pergunta${total>1?'s':''} rápida${total>1?'s':''}</strong>. Leva menos de 1 minutinho.`
+  let intro = total > 0
+    ? `Vamos preencher sua arte em <strong>${total} passo${total>1?'s':''} rápido${total>1?'s':''}</strong>.`
     : `Já tenho o que preciso — é só conferir e gerar.`;
-  intro += `<br>
-  <div style="margin-top:8px;border-top:1px dashed var(--gray-mid);padding-top:6px;display:flex;align-items:center;justify-content:space-between;gap:8px">
-    <span style="font-size:11px;color:var(--text-3)">Quer economizar tempo?</span>
-    <button onclick="fBulkOpen()" style="background:var(--dm-orange-bg);border:1px solid var(--dm-orange-tint);color:var(--dm-orange-d);font-size:11px;font-weight:600;padding:4px 10px;border-radius:var(--r-pill);cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:all 0.15s ease" onmouseover="this.style.background='var(--dm-orange-tint)'" onmouseout="this.style.background='var(--dm-orange-bg)'">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Criar várias de uma vez
-    </button>
-  </div>`;
+  if(material.publishMeta?.instrucoes){
+    intro += `<br><br><em style="display:block;margin-top:6px;padding:8px 10px;background:var(--dm-orange-bg);border-left:3px solid var(--dm-orange);font-size:12px;color:var(--text-2);border-radius:4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg> ${gEsc(material.publishMeta.instrucoes)}</em>`;
+  }
   fAddBot(intro, []);
   clearTimeout(fNextTimeout);
   fNextTimeout = setTimeout(()=>fNextStep(),900);
@@ -244,7 +234,7 @@ function fSelectFmt(id){
     // Regerar arte automaticamente no novo formato
     document.getElementById('f-messages').innerHTML='';
     fState.stepIdx=fState.camp.perguntas.length;fUpdateProg();
-    fAddBot(`Trocando pra <strong>${novoFmt.name}</strong> mantendo as respostas... ⚡`,[]);
+    fAddBot(`Trocando pra <strong>${novoFmt.name}</strong> mantendo as respostas…`,[]);
     setTimeout(()=>fGerarArte(),500);
     return;
   }
@@ -286,8 +276,8 @@ function fShowWelcome(){
   try{ fUpdateProg(); }catch(e){}
   try{ fUpdateCtx(); }catch(e){}
   const box=document.getElementById('f-msg-box');
-  if(box){ box.disabled=true; box.placeholder='Escolha uma campanha ao lado para começar 👈'; }
-  try{ fAddBot('Oi! Eu sou a <strong>Luma</strong> 👋 Escolha uma campanha aqui do lado que eu monto a arte com você — leva ~1 minutinho.',[]); }catch(e){}
+  if(box){ box.disabled=true; box.placeholder='Escolha uma campanha ao lado para começar'; }
+  try{ fAddBot('Oi! Eu sou a <strong>Luma</strong>. Escolha uma campanha aqui do lado que eu monto a arte com você — leva ~1 minutinho.',[]); }catch(e){}
 }
 
 
@@ -329,14 +319,18 @@ function fNextStep(){
     // Desabilita input de texto
     const box=document.getElementById('f-msg-box');
     if(box){box.disabled=true;box.placeholder='Use o botão de upload acima';}
+    const snd=document.getElementById('f-snd'); if(snd) snd.disabled=true;
+    const mic=document.getElementById('f-chat-mic'); if(mic) mic.disabled=true;
     return;
   }
   // Pergunta de texto normal
   const box=document.getElementById('f-msg-box');
   if(box){box.disabled=false;}
+  const snd=document.getElementById('f-snd'); if(snd) snd.disabled=false;
+  const mic=document.getElementById('f-chat-mic'); if(mic) mic.disabled=false;
   const cfg = fGetFieldType(p.id);
   const typeIcon = {price:'R$', discount:'%', code:'#', text:'Aa'}[cfg.type] || 'Aa';
-  const fieldHint = `<div class="field-hint"><span class="field-hint-type">${typeIcon}</span><span class="field-hint-text">${gEsc(cfg.label)} · até ${cfg.maxLen} caracteres</span></div>`;
+  const fieldHint = `<div class="field-hint"><span class="field-hint-type">${typeIcon}</span><span class="field-hint-text">${gEsc(cfg.label)}</span></div>`;
   
   // Sugestões ricas automáticas baseadas no tipo de dado da variável (UX do franqueado)
   let sugestoes = p.sugestoes ? p.sugestoes.slice() : [];
@@ -379,7 +373,7 @@ function fAddBotImageUpload(stepLabel, pergunta, canGoBack){
   }
   w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div>
     <div class="bbl">${stepLabel}${pergunta.texto}${fieldHint}</div>
-    <div class="f-upload-zone" id="${uploadId}-zone" onclick="document.getElementById('${uploadId}-input').click()">
+    <div class="f-upload-zone" id="${uploadId}-zone" onclick="fOpenUploadPanel('${pergunta.id}','${uploadId}')">
       <input type="file" id="${uploadId}-input" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="fHandleImageUpload(event,'${pergunta.id}','${uploadId}')">
       <div class="f-upload-icon">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -389,7 +383,7 @@ function fAddBotImageUpload(stepLabel, pergunta, canGoBack){
         </svg>
       </div>
       <div class="f-upload-title">Toque pra enviar uma foto</div>
-      <div class="f-upload-sub">ou arraste a imagem aqui</div>
+      <div class="f-upload-sub">recentes, lojas salvas ou novo arquivo</div>
     </div>
     ${back}
   </div>`;
@@ -448,64 +442,63 @@ function fProcessImageFile(file, varId, uploadId){
   reader.onload=(e)=>{
     if(_bar)_bar.style.width='85%';
     const dataUrl=e.target.result;
-    // Redimensiona se for muito grande (>1500px) pra economizar storage
-    fResizeImageIfNeeded(dataUrl, 1500, (resizedUrl)=>{
-      fState.dados[varId]=resizedUrl;
-      fSaveChatDraft();
-
-      // EXTRAÇÃO DE CORES COM COLOR THIEF
-      try {
-        if(window.ColorThief) {
-          const imgTemp = new Image();
-          imgTemp.onload = () => {
-            try {
-              const thief = new ColorThief();
-              const rgb = thief.getColor(imgTemp);
-              if (rgb && rgb.length === 3) {
-                const hex = '#' + rgb.map(x => {
-                  const s = x.toString(16);
-                  return s.length === 1 ? '0' + s : s;
-                }).join('');
-                if(!fState.extractedColors) fState.extractedColors = {};
-                fState.extractedColors[varId] = hex;
-              }
-            } catch(thiefErr) {
-              console.warn('[ColorThief] Erro ao extrair cor:', thiefErr);
-            }
-          };
-          imgTemp.src = resizedUrl;
-        }
-      } catch(colorThiefErr) {
-        console.warn('[ColorThief] Falha ao ler imagem:', colorThiefErr);
-      }
-
-      // Substitui a zona de upload pela prévia da foto
-      const zone=document.getElementById(uploadId+'-zone');
-      if(zone){
-        // Logo da loja: oferece salvar como perfil reaproveitável (só um passo, sem tela de gerência).
-        const saveLojaBtn = (varId==='logo_loja')
-          ? `<button class="f-upload-save-loja" onclick="fSaveLojaPrompt()" title="Salvar essa loja para reusar depois"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z"/></svg>Salvar loja</button>`
-          : '';
-        zone.outerHTML=`<div class="f-upload-preview">
-          <img src="${resizedUrl}" alt="Foto enviada"/>
-          <div class="f-upload-preview-overlay">
-            <span style="display:inline-flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg>Foto enviada</span>
-            <span style="display:inline-flex;gap:6px">${saveLojaBtn}<button class="f-upload-replace" onclick="fReplaceImage('${varId}',this)">Trocar</button></span>
-          </div>
-        </div>`;
-      }
-      // Habilita input de novo pra prox pergunta
-      const box=document.getElementById('f-msg-box');
-      if(box){box.disabled=false;}
-      // Pula pra próxima pergunta automaticamente
-      try { fUpdateLivePreview({animateField:varId}); } catch(e){}
-      setTimeout(()=>{
-        if(fState.editIdx !== null){fState.editIdx=null; fTyping(()=>fMostrarConfirm());}
-        else { fTyping(()=>fNextStep()); }
-      }, 600);
+    // Redimensiona se for muito grande (>2500px). 2500 cobre story a 2× (2160px) sem
+    // esticar a foto — 1500 antes borrava em arte grande. Ainda limita o peso do draft.
+    fResizeImageIfNeeded(dataUrl, 2500, (resizedUrl)=>{
+      _fApplyImageToField(varId, uploadId, resizedUrl);
+      // Guarda nos "recentes" (referência no IndexedDB + thumb leve; NUNCA base64 cru no
+      // localStorage — regra da casa §7). O painel de upload reusa esta lista.
+      if(typeof fRecordRecentImg==='function') fRecordRecentImg(resizedUrl, varId);
     });
   };
   reader.readAsDataURL(file);
+}
+/* Aplica uma imagem (já redimensionada) ao campo do chat: preview, cor, avança.
+   Extraído do onload do upload para o painel de upload (imagens recentes / lojas)
+   reusar EXATAMENTE o mesmo finishing — um caminho só. */
+function _fApplyImageToField(varId, uploadId, resizedUrl){
+  fState.dados[varId]=resizedUrl;
+  fSaveChatDraft();
+  // EXTRAÇÃO DE CORES COM COLOR THIEF
+  try {
+    if(window.ColorThief) {
+      const imgTemp = new Image();
+      imgTemp.onload = () => {
+        try {
+          const thief = new ColorThief();
+          const rgb = thief.getColor(imgTemp);
+          if (rgb && rgb.length === 3) {
+            const hex = '#' + rgb.map(x => { const s = x.toString(16); return s.length === 1 ? '0' + s : s; }).join('');
+            if(!fState.extractedColors) fState.extractedColors = {};
+            fState.extractedColors[varId] = hex;
+          }
+        } catch(thiefErr) { console.warn('[ColorThief] Erro ao extrair cor:', thiefErr); }
+      };
+      imgTemp.src = resizedUrl;
+    }
+  } catch(colorThiefErr) { console.warn('[ColorThief] Falha ao ler imagem:', colorThiefErr); }
+  // Substitui a zona de upload pela prévia da foto
+  const zone=document.getElementById(uploadId+'-zone');
+  if(zone){
+    const saveLojaBtn = (varId==='logo_loja')
+      ? `<button class="f-upload-save-loja" onclick="fSaveLojaPrompt()" title="Salvar essa loja para reusar depois"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z"/></svg>Salvar loja</button>`
+      : '';
+    zone.outerHTML=`<div class="f-upload-preview f-upload-preview-pop">
+      <img src="${resizedUrl}" alt="Foto enviada"/>
+      <div class="f-upload-preview-overlay">
+        <span style="display:inline-flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg>Foto enviada</span>
+        <span style="display:inline-flex;gap:6px">${saveLojaBtn}<button class="f-upload-replace" onclick="fReplaceImage('${varId}',this)">Trocar</button></span>
+      </div>
+    </div>`;
+  }
+  const box=document.getElementById('f-msg-box');
+  if(box){box.disabled=false;}
+  try { fUpdateLivePreview({animateField:varId}); } catch(e){}
+  if(typeof window.gPlayPhotoSnapSound==='function') window.gPlayPhotoSnapSound();
+  setTimeout(()=>{
+    if(fState.editIdx !== null){fState.editIdx=null; fTyping(()=>fMostrarConfirm());}
+    else { fTyping(()=>fNextStep()); }
+  }, 600);
 }
 function fResizeImageIfNeeded(dataUrl, maxDim, cb){
   const img=new Image();
@@ -618,6 +611,8 @@ function fMostrarConfirm(){
   // Input pausado enquanto o resumo está na tela — Editar/Alterar reabilitam.
   const _box=document.getElementById('f-msg-box');
   if(_box){ _box.disabled=true; _box.placeholder='Confira o resumo acima e confirme 👆'; }
+  const _snd=document.getElementById('f-snd'); if(_snd) _snd.disabled=true;
+  const _mic=document.getElementById('f-chat-mic'); if(_mic) _mic.disabled=true;
   const d=fState.dados,c=fState.camp;
   const labels={produto:'Produto',precoDe:'Preço original',precoPor:'Preço promo',validade:'Validade',desconto:'Desconto',pedidoMin:'Pedido mínimo',bairros:'Cobertura',codigo:'Código',condicao:'Condição',brinde:'Brinde',categoria:'Categoria',oferta:'Oferta'};
   const rows=c.perguntas.map((p,i)=>{
@@ -641,13 +636,9 @@ function fMostrarConfirm(){
       <button class="confirm-edit" onclick="fEditCampo(${i})" title="Editar ${gEsc(label)}" aria-label="Editar ${gEsc(label)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
     </div>`;
   }).join('');
-  const bulkAction=(fState.material&&fState.material.layers)?`<button class="confirm-bulk" onclick="fBulkOpen()" title="Gerar muitas artes de uma vez com o Luma Sheets"><span class="confirm-alt-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span><span><strong>Gerar em lote</strong><small>Use uma planilha no Luma Sheets</small></span><svg class="confirm-alt-arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>`:'';
-  const kitAction=(typeof _fKitBtnHtml==='function')?_fKitBtnHtml():'';
-  const alternativeActions=(bulkAction||kitAction)?`<div class="confirm-alternatives"><div class="confirm-alternatives-title">Outras formas de gerar</div>${bulkAction}${kitAction}</div>`:'';
   const msgs=document.getElementById('f-messages');
   const w=document.createElement('div');w.className='msg bot active-prompt';w.id='confirm-msg';
   w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8.01" y2="16"/><line x1="16" y1="16" x2="16.01" y2="16"/></svg></div><div class="msg-content confirm-message-content">
-    <div class="bbl confirm-intro">Revise os detalhes antes de gerar sua arte.</div>
     <section class="confirm-card" role="region" aria-labelledby="confirm-title">
       <div class="confirm-header">
         <div class="confirm-header-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
@@ -659,7 +650,6 @@ function fMostrarConfirm(){
         <button class="confirm-btn cancel" onclick="fEditarTudo()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 3 3 9 9 9"/></svg>Revisar respostas</button>
         <button class="confirm-btn ok" onclick="fConfirmarGerar()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>Gerar minha arte</button>
       </div>
-      ${alternativeActions}
       <div id="f-kit-progress" class="confirm-progress" style="display:none">
         <div class="confirm-progress-label"><span id="f-kit-progress-text">Preparando kit…</span><span id="f-kit-progress-pct">0%</span></div>
         <div class="confirm-progress-track"><div id="f-kit-progress-bar"></div></div>
@@ -702,16 +692,30 @@ function fEditCampo(idx){
     fAddBotImageUpload(stepLabel, editPergunta, false);
     const box=document.getElementById('f-msg-box');
     if(box){box.disabled=true;box.placeholder='Use o botão de upload acima';}
+    const snd=document.getElementById('f-snd'); if(snd) snd.disabled=true;
+    const mic=document.getElementById('f-chat-mic'); if(mic) mic.disabled=true;
   } else {
     fAddBot(`Qual é o novo valor para <strong>${gEsc(label)}</strong>?`,p.sugestoes);
     const box=document.getElementById('f-msg-box');
     if(box){box.disabled=false;}
+    const snd=document.getElementById('f-snd'); if(snd) snd.disabled=false;
+    const mic=document.getElementById('f-chat-mic'); if(mic) mic.disabled=false;
     try { fUpdateInputPlaceholder(p.id); } catch(e){}
     try { fUpdateCharCount(); } catch(e){}
   }
 }
 function fEditarTudo(){const m=document.getElementById('confirm-msg');if(m)m.remove();fState.stepIdx=-1;fState.dados={};fState.editIdx=null;fStartChat();}
-function fConfirmarGerar(){const m=document.getElementById('confirm-msg');if(m)m.remove();fGerarArte();}
+function fConfirmarGerar(){
+  const wrap = document.querySelector('.lp-canvas-wrap');
+  if(wrap){
+    wrap.classList.remove('is-rendering');
+    void wrap.offsetWidth;
+    wrap.classList.add('is-rendering');
+    setTimeout(() => wrap.classList.remove('is-rendering'), 650);
+  }
+  const m=document.getElementById('confirm-msg');if(m)m.remove();
+  fGerarArte();
+}
 // Snapshot por bolha de arte gerada: como editar+confirmar de novo empilha outra
 // bolha, cada "Baixar"/"Outro formato" precisa operar sobre os dados DAQUELA arte,
 // não sobre fState (que reflete só a última). Chaveado pelo id do canvas da bolha.
@@ -749,12 +753,78 @@ function fGenCaptionSuggestions(dados, camp, formato) {
   ];
 }
 
+// Helper global para obter a chave Gemini (do config, window ou localStorage)
+function gGetGeminiApiKey() {
+  return window.LUMA_GEMINI_API_KEY || (typeof LUMA_CONFIG !== 'undefined' && LUMA_CONFIG.geminiApiKey) || localStorage.getItem('luma_gemini_api_key') || '';
+}
+// Modelo dos agentes — vem do 00-config.js; o literal é só rede de segurança se este
+// arquivo for carregado sozinho. Trocar o modelo é UMA edição, no config.
+function gGetGeminiModel() {
+  return window.LUMA_GEMINI_MODEL || localStorage.getItem('luma_gemini_model') || 'gemini-flash-latest';
+}
+
 /**
- * Ponto de integração do Backend. Pedro/Equipe podem plugar uma requisição
- * a uma API de IA (LLM) nesta função no futuro.
+ * Agente 1: Copywriter Gastronômico Inteligente do Luma (Google Gemini API)
  */
 async function fFetchAICaptionSuggestions(dados, camp, formato) {
-  return fGenCaptionSuggestions(dados, camp, formato);
+  const fallback = fGenCaptionSuggestions(dados, camp, formato);
+  fallback._ia = false;   // marca a ORIGEM: a UI rotula IA x motor local (ver painel de legenda)
+  const apiKey = gGetGeminiApiKey();
+
+  if (!apiKey) {
+    return fallback;
+  }
+
+  try {
+    const prod = dados.produto || dados.item || 'Oferta Especial';
+    const de = dados.precoDe ? `R$ ${dados.precoDe}` : '';
+    const por = dados.precoPor ? `R$ ${dados.precoPor}` : (dados.preco ? `R$ ${dados.preco}` : '');
+    const val = dados.validade || 'Tempo limitado';
+    const campName = (camp && camp.name) ? camp.name : 'Delivery Much';
+
+    const cidade = dados.cidade || (typeof fState !== 'undefined' && fState.dados && fState.dados.cidade) || 'Sua Cidade';
+    const cidadeTag = cidade.replace(/[^a-zA-Z0-9]/g, '');
+
+    const systemPrompt = `Você é o Agente Copywriter do Luma (Delivery Much), especializado em marketing gastronômico para delivery no interior do Brasil.
+Gere 3 opções de legendas atraentes para Instagram/WhatsApp sobre o produto "${prod}" (${de ? 'De ' + de : ''} por apenas ${por}, validade: ${val}, campanha: ${campName}, cidade: ${cidade}).
+
+REGRAS OBRIGATÓRIAS:
+1. NUNCA USE EMOJIS (é estritamente proibido incluir qualquer tipo de emoji no texto).
+2. Inclua hashtags automáticas ao final de cada legenda com base na cidade (${cidade}), ex: #${cidadeTag} #Delivery${cidadeTag} #DeliveryMuch.
+
+Retorne APENAS um JSON válido no formato exato:
+{
+  "promo": "texto da legenda de promoção/vendas com hashtags da cidade ao final",
+  "engajar": "texto da legenda de engajamento/comentários com hashtags da cidade ao final",
+  "whatsapp": "texto formatado para lista do WhatsApp com *negritos* e hashtags da cidade ao final"
+}`;
+
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${gGetGeminiModel()}:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: systemPrompt }] }],
+        generationConfig: { responseMimeType: 'application/json' }
+      })
+    });
+
+    if (!res.ok) throw new Error('API Gemini respondeu erro ' + res.status);
+    const data = await res.json();
+    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!rawText) throw new Error('Resposta vazia');
+
+    const parsed = JSON.parse(rawText);
+    const out = [
+      { id: 'promo', label: 'Promo', text: parsed.promo || fallback[0].text },
+      { id: 'engajar', label: 'Engajar', text: parsed.engajar || fallback[1].text },
+      { id: 'whatsapp', label: 'WhatsApp', text: parsed.whatsapp || fallback[2].text }
+    ];
+    out._ia = true;
+    return out;
+  } catch (err) {
+    console.warn('[Luma IA Copywriter] Usando fallback local:', err);
+    return fallback;
+  }
 }
 
 /**
@@ -802,7 +872,7 @@ function fCopyCaption(canvasId) {
       copyBtn.classList.add('copied');
       copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:2px"><polyline points="20 6 9 17 4 12"/></svg> Copiado!`;
       
-      gToast('Legenda copiada com sucesso!');
+      gToast('Legenda copiada!');
       
       setTimeout(() => {
         copyBtn.classList.remove('copied');
@@ -835,7 +905,7 @@ function fCopyFallback(text, cb) {
     cb();
   } catch (e) {
     console.error('Erro ao copiar no fallback:', e);
-    gToast('Não consegui copiar o texto automaticamente.', 'error');
+    gToast('Não consegui copiar sozinha — selecione o texto e copie na mão.', 'error');
   }
   document.body.removeChild(ta);
 }
@@ -860,7 +930,7 @@ function fGerarArte(){
   fState.done=true;fUpdateProg();
   fClearChatDraft();
   const d=fState.dados,c=fState.camp;
-  fAddBot('Gerando sua arte agora... ⚡',[]);
+  fAddBot('Gerando sua arte agora…',[]);
   setTimeout(async ()=>{
     const prod=d.produto||d.categoria||d.brinde||d.oferta||c.name;
     const por=d.precoPor||d.desconto||'Ver no app';
@@ -882,7 +952,9 @@ function fGerarArte(){
     _fArtCaptions[previewCanvasId] = suggestions;
 
     const captionHtml = `<div class="caption-assistant-panel" data-canvas-id="${previewCanvasId}" data-active-tab="promo">
-      <div class="caption-assistant-title">Legenda do Post</div>
+      <div class="caption-assistant-title">Legenda do Post
+        <span class="caption-src is-ia" title="Texto gerado por Inteligência Artificial (Gemini 3.6 Flash)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg>Gerado por IA (Gemini 3.6 Flash)</span>
+      </div>
       <div class="caption-tabs">
         ${suggestions.map((s, idx) => `
           <button class="caption-tab-btn ${idx === 0 ? 'active' : ''}" onclick="fSwitchCaptionTab(this, '${s.id}', '${previewCanvasId}')">
@@ -945,11 +1017,16 @@ function fGerarArte(){
           </div>`).join('')}
         </div>
         ${captionHtml}
-        <div class="art-footer" style="display:flex;gap:6px;">
-          <div class="art-btn" onclick="fRefazer()" style="flex:1;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Refazer</div>
-          <div class="art-btn art-share" onclick="fCompartilhar(this,'${previewCanvasId}')" title="Compartilhar imagem + legenda (WhatsApp, Instagram…)" aria-label="Compartilhar" style="flex:0 0 auto;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></div>
-          <div class="art-btn pri" onclick="fBaixar(this,'${previewCanvasId}')" style="flex:1.2;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>Baixar PNG</div>
-          <div class="art-btn pri" onclick="fBaixarPDF(this,'${previewCanvasId}')" style="flex:1.2; background:var(--dm-red); border-color:var(--dm-red); box-shadow:0 2px 8px rgba(200,24,24,.35);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>Baixar PDF</div>
+        <div class="art-footer">
+          <div class="art-btn art-redo" onclick="fRefazer()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Refazer</div>
+          <div class="art-btn art-share" onclick="fCompartilhar(this,'${previewCanvasId}')" title="Compartilhar imagem + legenda (WhatsApp, Instagram…)" aria-label="Compartilhar"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></div>
+          <div class="art-btn pri art-download" onclick="fBaixar(this,'${previewCanvasId}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>Baixar PNG</div>
+        </div>
+        <div class="art-bulk-row" style="padding:0 14px 12px 14px;margin-top:2px">
+          <div class="art-btn art-bulk-btn" onclick="fBulkOpenFromArt()" title="Gerar dezenas de variações desta arte em lote com o Luma Sheets" style="width:100%;background:var(--dm-orange-bg,#FFF8F5);border:1px solid var(--dm-orange-tint,#FFD0B8);color:var(--dm-orange-d,#D44500);font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;padding:9.5px 12px;border-radius:10px;cursor:pointer;transition:all 0.15s ease">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            <span>Gerar em Lote com Luma Sheets</span>
+          </div>
         </div>
       </div>
     </div>`;
@@ -1046,7 +1123,7 @@ async function fOutroFormato(id, snapId){
     await _fRerenderArtThumb(snapId, snap, f); // thumb acompanha a nova geometria
   }catch(e){
     console.warn('Falha ao gerar no formato '+f.name+':', e);
-    gToast('⚠ Não consegui gerar nesse formato. Tente de novo','error');
+    gToast('Não consegui gerar nesse formato. Tente de novo.','error');
     fState.fmt=prevFmt; fRenderFmts(); fUpdateCtx(); // reverte o rail ao formato que estava
   }finally{
     fState.material=prevMat;
@@ -1152,7 +1229,7 @@ function fAddBot(html,qrs,canGoBack){
     q=`<div class="qr-wrap">${qrs.map(x=>{
       const isColor = /^#[0-9A-F]{6}$/i.test(x.trim());
       if(isColor) {
-        return `<div class="qr qr-color" data-qr="${gEsc(x)}" onclick="fQR(this.dataset.qr,this)" style="background:${gEsc(x)} !important; color:${fGetContrastColor(x)} !important; border-color:${gEsc(x)} !important; font-family:monospace; display:inline-flex; align-items:center; gap:6px;"><span style="width:10px; height:10px; border-radius:50%; background:#fff; border:1px solid rgba(0,0,0,0.25); display:inline-block;"></span>${gEsc(x)}</div>`;
+        return `<div class="qr qr-color" data-qr="${gEsc(x)}" onclick="fQR(this.dataset.qr,this)" style="background:${gEsc(x)} !important; color:${fGetContrastColor(x)} !important; border-color:${gEsc(x)} !important; font-family:'Roboto',sans-serif; display:inline-flex; align-items:center; gap:6px;"><span style="width:10px; height:10px; border-radius:50%; background:#fff; border:1px solid rgba(0,0,0,0.25); display:inline-block;"></span>${gEsc(x)}</div>`;
       }
       return `<div class="qr" data-qr="${gEsc(x)}" onclick="fQR(this.dataset.qr,this)">${gEsc(x)}</div>`;
     }).join('')}</div>`;
@@ -1193,7 +1270,7 @@ async function fBaixarPDF(btn, snapId){
     }
   }catch(e){
     console.error('Falha ao gerar PDF:', e);
-    gToast('Não consegui gerar o PDF. Se a arte usa imagem por URL, ela precisa ser pública.','error');
+    gToast('Não consegui gerar o PDF. Se a foto veio de um link, reenvie pelo botão de upload e tente de novo.','error');
   }finally{ fState.material=prevMat; restore(); }
 }
 // Iniciais reais do usuário logado (nome/loja) — em vez do "FR" fixo (cheiro de protótipo).
@@ -1219,11 +1296,17 @@ function fAddUser(txt){
 }
 function fTyping(cb){
   const msgs=document.getElementById('f-messages');
+  const botCircles = document.querySelectorAll('.bot-circle');
+  botCircles.forEach(c => c.classList.add('thinking'));
   const w=document.createElement('div');w.className='msg bot active-prompt';w.id='typing-el';
   w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div class="bbl"><div class="typing-row"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>`;
   msgs.querySelectorAll('.msg').forEach(m => m.classList.remove('active-prompt'));
   msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;
-  setTimeout(()=>{const t=document.getElementById('typing-el');if(t)t.remove();cb();},900);
+  setTimeout(()=>{
+    const t=document.getElementById('typing-el');if(t)t.remove();
+    botCircles.forEach(c => c.classList.remove('thinking'));
+    cb();
+  },900);
 }
 function fQR(val, el){
   // QR clicado: aplica máscara E valida, espelhando fSend (M19 — sugestões dinâmicas
@@ -1302,7 +1385,7 @@ function fApplyRecoverDraft(confirm) {
     fState.dados = draft.dados;
     fState.extractedColors = draft.extractedColors || {};
     fState.stepIdx = draft.stepIdx - 1; // fNextStep incrementa para o passo correto
-    fAddBot("Rascunho recuperado com sucesso! Vamos continuar...", []);
+    fAddBot("Rascunho recuperado! Vamos continuar…", []);
     try { fUpdateLivePreview(); } catch(e){}
     clearTimeout(fNextTimeout);
     fNextTimeout = setTimeout(() => fNextStep(), 900);
@@ -1316,17 +1399,10 @@ function fApplyRecoverDraft(confirm) {
     try { fUpdateLivePreview(); } catch(e){}
     
     const total = fState.camp.perguntas.length;
-    let intro = `Boa escolha! Vamos montar sua publicação para o <strong>${gEsc(fState.material.name)}</strong>. `;
+    let intro = `Vamos preencher sua arte em <strong>${total} passo${total>1?'s':''} rápido${total>1?'s':''}</strong>.`;
     if(fState.material.publishMeta?.instrucoes){
-      intro += `<br><br><em style="display:block;margin-top:6px;padding:8px 10px;background:var(--dm-orange-bg);border-left:3px solid var(--dm-orange);font-size:12px;color:var(--text-2);border-radius:4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg> ${gEsc(fState.material.publishMeta.instrucoes)}</em><br>`;
+      intro += `<br><br><em style="display:block;margin-top:6px;padding:8px 10px;background:var(--dm-orange-bg);border-left:3px solid var(--dm-orange);font-size:12px;color:var(--text-2);border-radius:4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg> ${gEsc(fState.material.publishMeta.instrucoes)}</em>`;
     }
-    intro += `Vou te guiar em <strong>${total} pergunta${total>1?'s':''} rápida${total>1?'s':''}</strong>. Leva menos de 1 minutinho.<br>
-    <div style="margin-top:8px;border-top:1px dashed var(--gray-mid);padding-top:6px;display:flex;align-items:center;justify-content:space-between;gap:8px">
-      <span style="font-size:11px;color:var(--text-3)">Quer economizar tempo?</span>
-      <button onclick="fBulkOpen()" style="background:var(--dm-orange-bg);border:1px solid var(--dm-orange-tint);color:var(--dm-orange-d);font-size:11px;font-weight:600;padding:4px 10px;border-radius:var(--r-pill);cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:all 0.15s ease" onmouseover="this.style.background='var(--dm-orange-tint)'" onmouseout="this.style.background='var(--dm-orange-bg)'">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Criar várias de uma vez
-      </button>
-    </div>`;
     fAddBot(intro, []);
     clearTimeout(fNextTimeout);
     fNextTimeout = setTimeout(() => fNextStep(), 900);

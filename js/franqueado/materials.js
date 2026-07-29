@@ -75,10 +75,10 @@ function _fKitBtnHtml(){
   }catch(e){ return ''; }
 }
 async function fGenerateCampaignKit(){
-  const c=fState.camp; if(!c){ gToast('Selecione uma campanha primeiro'); return; }
-  if(typeof JSZip==='undefined'){ gToast('Não consegui preparar o ZIP.','error'); return; }
+  const c=fState.camp; if(!c){ gToast('Escolha uma campanha primeiro.'); return; }
+  if(typeof JSZip==='undefined'){ gToast('Não consegui preparar o pacote agora. Recarregue a página e tente de novo.','error'); return; }
   const mats=fGetMaterialsForCamp(c.id).filter(fIsMaterialValid);
-  if(mats.length<2){ gToast('Esta campanha só tem um material.'); return; }
+  if(mats.length<2){ gToast('Esta campanha só tem um material — o kit precisa de dois ou mais.'); return; }
   const dados=fState.dados||{};
   const fmtMap={story:'story',feed:'feed',wide:'post',post:'post'};
   const zip=new JSZip();
@@ -129,16 +129,191 @@ async function fGenerateCampaignKit(){
     a.download='Kit_'+(fSanitizeNamePart(c.name)||'Campanha')+'.zip';
     a.click();
     setTimeout(()=>URL.revokeObjectURL(a.href),5000);
-  }catch(e){ console.error(e); restoreBtn(); if(progress) progress.style.display='none'; gToast('Erro ao gerar o ZIP do kit.','error'); return; }
+  }catch(e){ console.error(e); restoreBtn(); if(progress) progress.style.display='none'; gToast('Não consegui montar o kit. Tente de novo.','error'); return; }
   restoreBtn();
   if(progress) progress.style.display='none';
-  gToast(`✓ Kit gerado: ${ok} materiais`+(pulados?` (${pulados} pulados — precisam de dados próprios)`:'')+'.');
+  gToast(`Kit pronto: ${ok} materiais`+(pulados?` (${pulados} pulados — precisam de dados próprios)`:'')+'.');
   if(typeof fClearImgCache==='function') fClearImgCache();
 }
+/* ── TEMA POR CAMPANHA (1º caso: Much+) ──
+   Campanha com `theme` — ou pasta com a tag/badge "MUCH+" — re-tokeniza o app
+   enquanto o franqueado está dentro dela: body.camp-theme-<slug> (tokens em
+   00-tokens.css), véu de transição e motion do logo no header (franqueado.css).
+   Entradas: fOpenMaterialCatalog e fEditFromHist. Saídas: fGoHome e
+   fCloseMaterialCatalog. ⚠ NÃO pendurar a remoção em fRestoreCatalog: é
+   re-render do rail e roda com o franqueado DENTRO da campanha (favoritar
+   uma campanha derrubava o tema no meio do fluxo). */
+let _fCampThemeAtivo='';
+function _fCampThemeOf(camp){
+  if(!camp) return '';
+  // Pasta marcada MUCH+ liga o tema mesmo sem `theme` explícito — o MKT cria a
+  // pasta no Estúdio com o badge e a vitrine já veste o clube, sem mexer em código.
+  const t=camp.theme||(/much\s*\+/i.test(camp.badge||'')?'muchplus':'');
+  return String(t).toLowerCase().replace(/[^a-z0-9-]/g,''); // vira classe CSS — só slug seguro
+}
+function fApplyCampTheme(camp){
+  const t=_fCampThemeOf(camp);
+  if(t===_fCampThemeAtivo) return; // idempotente: re-entrar na mesma campanha não repete véu/vídeo
+  if(!t){ fRemoveCampTheme(); return; }
+  if(_fCampThemeAtivo) document.body.classList.remove('camp-theme-'+_fCampThemeAtivo);
+  _fCampThemeAtivo=t;
+  const reduz=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Guard do flip: ele roda ~400ms depois — se o franqueado já saiu (fGoHome) ou
+  // trocou de tema nessa janela, aplicar agora "vestiria" a home. Aborta.
+  const flip=()=>{ if(_fCampThemeAtivo!==t) return; document.body.classList.add('camp-theme-'+t); if(t==='muchplus') _fMuchPlusHeader(reduz); };
+  if(reduz){ flip(); return; } // movimento reduzido: troca seca, sem véu
+  // Véu "entrei em outro mundo": cobre a tela, o tema troca por baixo (~400ms,
+  // quando o círculo já fechou — ninguém vê a costura) e evapora sozinho.
+  const antigo=document.getElementById('f-camp-veil'); if(antigo) antigo.remove();
+  const veil=document.createElement('div'); veil.id='f-camp-veil';
+  veil.innerHTML='<div class="veil-layer veil-1"></div><div class="veil-layer veil-2"></div>'
+    +(t==='muchplus'?'<img src="assets/logos/muchplus-trim.png" alt="" aria-hidden="true"/>':''); // -trim: PNG original é quadrado com ~70% de margem transparente
+  document.body.appendChild(veil);
+  void veil.offsetWidth; // commita o estado inicial do clip-path antes de animar
+  veil.classList.add('on');
+  if(t==='muchplus') _fPlayMuchPlusWooshSound();
+  setTimeout(flip,700); // magenta já cobriu a tela (varredura 200–950ms)
+  // Só o animationend do PRÓPRIO véu (fade final) remove — o das camadas/logo
+  // borbulha antes e derrubaria o véu no meio da varredura.
+  veil.addEventListener('animationend',e=>{ if(e.target===veil) veil.remove(); });
+  setTimeout(()=>{ if(veil.isConnected) veil.remove(); },3000); // cinto: aba oculta não dispara animationend
+}
+
+/* ══ SOUND DESIGN MUCH+ (Sopro de Seda + Acorde Cristalino Fá#5/Dó#6) ══ */
+function _fPlayMuchPlusWooshSound(){
+  try{
+    const AudioContext=window.AudioContext||window.webkitAudioContext;
+    if(!AudioContext) return;
+    const ctx=new AudioContext();
+    if(ctx.state==='suspended') ctx.resume();
+    const now=ctx.currentTime;
+
+    // 1. Sopro de Seda (Warm Velvet Sweep)
+    const oscSwoosh=ctx.createOscillator();
+    const gainSwoosh=ctx.createGain();
+    const filterSwoosh=ctx.createBiquadFilter();
+
+    oscSwoosh.type='sine';
+    oscSwoosh.frequency.setValueAtTime(120,now);
+    oscSwoosh.frequency.exponentialRampToValueAtTime(320,now+0.28);
+
+    filterSwoosh.type='lowpass';
+    filterSwoosh.frequency.setValueAtTime(350,now);
+
+    gainSwoosh.gain.setValueAtTime(0.001,now);
+    gainSwoosh.gain.exponentialRampToValueAtTime(0.14,now+0.15);
+    gainSwoosh.gain.exponentialRampToValueAtTime(0.001,now+0.40);
+
+    oscSwoosh.connect(filterSwoosh);
+    filterSwoosh.connect(gainSwoosh);
+    gainSwoosh.connect(ctx.destination);
+
+    oscSwoosh.start(now);
+    oscSwoosh.stop(now+0.42);
+
+    // 2. Acorde de Cristal Harmônico (Fá#5 740Hz + Dó#6 1108Hz)
+    const tCrystal=now+0.18;
+    [739.99,1108.73].forEach(freq=>{
+      const osc=ctx.createOscillator();
+      const gain=ctx.createGain();
+      const filter=ctx.createBiquadFilter();
+
+      osc.type='sine';
+      osc.frequency.setValueAtTime(freq,tCrystal);
+
+      filter.type='lowpass';
+      filter.frequency.setValueAtTime(1600,tCrystal);
+
+      gain.gain.setValueAtTime(0.001,tCrystal);
+      gain.gain.exponentialRampToValueAtTime(0.08,tCrystal+0.04);
+      gain.gain.exponentialRampToValueAtTime(0.001,tCrystal+0.55);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(tCrystal);
+      osc.stop(tCrystal+0.60);
+    });
+
+    setTimeout(()=>{ try{ ctx.close(); }catch(e){} },1000);
+  }catch(e){}
+}
+function _fMuchPlusHeader(semMotion){
+  const brand=document.querySelector('#f-chat-head .f-assistant-brand');
+  if(!brand||brand.querySelector('.muchplus-motion-wrap')) return;
+  const wrap=document.createElement('div');
+  wrap.className='muchplus-motion-wrap';
+  // Markup estático (sem dado de usuário). Os irmãos originais da marca ficam
+  // display:none via CSS — nunca sobrescrever o innerHTML do header (a versão
+  // anterior duplicava o markup do index.html e as cópias iam divergir).
+  wrap.innerHTML='<video src="assets/motion/logo_muchplus.webm" muted playsinline preload="auto" aria-hidden="true"></video>'
+    +'<img src="assets/logos/muchplus-trim.png" alt="Much+" style="display:none"/>'; // -trim: sem as margens do PNG original, o logo ocupa a altura de verdade
+  brand.appendChild(wrap);
+  const vid=wrap.querySelector('video'), img=wrap.querySelector('img');
+  let trocou=false;
+  const troca=()=>{ if(trocou) return; trocou=true;
+    vid.style.opacity='0';
+    setTimeout(()=>{ vid.style.display='none'; img.style.display='block'; },250);
+  };
+  if(semMotion){ troca(); return; }
+  // 1 ciclo do motion → assenta no logo estático. Fallbacks em camadas: o .mov
+  // original (qtrle, 54MB) não decodificava em navegador NENHUM — o webm resolve,
+  // mas erro de rede/decoder ainda cai no logo sem buraco visual.
+  vid.onended=troca;
+  vid.onerror=troca;
+  // ⚠ NÃO dar play aqui: o header vive no #f-chat-col, que fica display:none
+  // enquanto o franqueado navega nos materiais da pasta — o ciclo tocava
+  // invisível e, ao abrir o chat, só restava o logo parado. O play (e os cintos
+  // de fallback, senão trocariam antes de alguém ver) arma quando o header
+  // realmente aparece (fSelectMaterial devolve o display do chat).
+  let armado=false;
+  const arma=()=>{
+    if(armado||trocou) return; armado=true;
+    const cinto=()=>setTimeout(troca,(vid.duration||3.4)*1000+800); // duração real + folga
+    if(vid.readyState>=1) cinto(); else vid.onloadedmetadata=cinto;
+    setTimeout(troca,8000); // último cinto: metadata nunca chegou
+    const p=vid.play(); if(p&&p.catch) p.catch(troca); // autoplay bloqueado → direto ao logo
+  };
+  // Visível agora (ex.: retomada do histórico cai direto no chat) → toca já.
+  // Escondido (navegando materiais) → fica pendurado em wrap._arma e o
+  // _fMuchPlusHeaderPlay dispara quando o fSelectMaterial devolve o display.
+  // (offsetParent + chamada explícita, e não IntersectionObserver: determinístico
+  // e verificável — IO não tica em aba sem compositor.)
+  if(vid.offsetParent!==null) arma();
+  else wrap._arma=arma;
+}
+// Ponte do seam de visibilidade: o fSelectMaterial chama isto ao devolver o
+// display do chat — se o motion do Much+ está pendurado esperando, toca agora.
+function _fMuchPlusHeaderPlay(){
+  const wrap=document.querySelector('#f-chat-head .muchplus-motion-wrap');
+  if(wrap&&wrap._arma) wrap._arma();
+}
+function fRemoveCampTheme(){
+  const tinha=_fCampThemeAtivo;
+  if(tinha){ document.body.classList.remove('camp-theme-'+tinha); _fCampThemeAtivo=''; }
+  const wrap=document.querySelector('#f-chat-head .muchplus-motion-wrap');
+  if(wrap) wrap.remove(); // a marca original só estava display:none — reaparece sozinha (o _arma morre com o nó)
+  const veil=document.getElementById('f-camp-veil'); if(veil) veil.remove();
+  // Beat de saída: wipe reverso curto (~320ms) — o magenta recolhe e devolve o Luma.
+  // Só quando havia tema de verdade (o guard `tinha` também evita beat duplo no
+  // encadeamento fCloseMaterialCatalog → fGoHome) e sem reduced-motion.
+  if(tinha && !(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)){
+    const antigoOut=document.getElementById('f-camp-veil-out'); if(antigoOut) antigoOut.remove();
+    const out=document.createElement('div'); out.id='f-camp-veil-out';
+    document.body.appendChild(out);
+    void out.offsetWidth;
+    out.classList.add('on');
+    out.addEventListener('animationend',()=>out.remove());
+    setTimeout(()=>{ if(out.isConnected) out.remove(); },900); // cinto: aba oculta
+  }
+}
+
 // Abre a "pasta" da campanha mostrando os materiais publicados
 function fOpenMaterialCatalog(camp){
   fState.materialView=true;
   fState.material=null;
+  fApplyCampTheme(camp); // campanha com tema (Much+) veste o app ao entrar na pasta
   // Mobile: o catálogo de materiais vive no #fran-right (escondido por padrão no
   // celular). Sem trazer o painel pra frente, tocar numa campanha caía numa tela
   // vazia. O "voltar" (fCloseMaterialCatalog) remove a classe e devolve o catálogo.
@@ -295,6 +470,10 @@ function fCloseMaterialCatalog(){
   fState.materialView=false;
   try{ document.body.classList.remove('f-material-browser'); }catch(e){}
   fState.camp={id:'',name:'',color:'#FF9000',perguntas:[]};
+  // Sai da pasta → o mundo volta a ser Luma JÁ AQUI (síncrono). Antes ficava pro
+  // fRestoreCatalog dentro do setTimeout — e o early-return de navegação rápida
+  // ("Minhas artes" na janela do fade) vazava o tema pra fora da campanha.
+  if(typeof fRemoveCampTheme==='function') fRemoveCampTheme();
   const chatCol=document.getElementById('f-chat-col');
   const matView=document.getElementById('f-material-view');
   if(matView) {
@@ -377,7 +556,7 @@ async function fSelectMaterial(materialId, card){
     }
   }
   if(!found) found=_fFindDemoMaterial(materialId); // material-demo (pasta sem material real publicado)
-  if(!found){ gToast('Material não encontrado.'); return; }
+  if(!found){ gToast('Não achei esse material.'); return; }
   // Catálogo leve: baixa os layers deste template agora (1ª vez neste aparelho)
   const title=card&&card.querySelector('.f-mat-name');
   const previousTitle=title&&title.innerHTML;
@@ -467,6 +646,7 @@ async function fSelectMaterial(materialId, card){
   const matView=document.getElementById('f-material-view');
   if(matView) matView.style.display='none';
   chatCol.style.display='';
+  if(typeof _fMuchPlusHeaderPlay==='function') _fMuchPlusHeaderPlay(); // header voltou a aparecer → motion do tema toca agora
   fUpdateCtx();
   // Limpa estado anterior
   fState.dados={};

@@ -198,7 +198,7 @@ function dEyedropPreview(screenX, screenY, color){
       'position:fixed','z-index:99999','pointer-events:none',
       'background:#1A1A1A','border:2px solid #333','border-radius:8px',
       'padding:8px 10px','display:flex','align-items:center','gap:8px',
-      'font-family:Roboto,monospace,sans-serif','font-size:11px','color:#eee',
+      'font-family:Roboto,sans-serif','font-variant-numeric:tabular-nums','font-size:11px','color:#eee',
       'box-shadow:0 4px 16px rgba(0,0,0,.5)','white-space:nowrap'
     ].join(';')+';';
     document.body.appendChild(_dEyedropPreviewEl);
@@ -312,7 +312,7 @@ function dColorSamplerRender(){
           'font-family:Roboto,sans-serif">'+(i+1)+'</div>'+
         '<div class="d-sampler-tooltip" style="position:absolute;top:22px;left:50%;transform:translateX(-50%);'+
           'background:#1A1A1A;border:1px solid #444;border-radius:6px;padding:6px 8px;white-space:nowrap;'+
-          'font-family:Roboto,monospace,sans-serif;font-size:10px;color:#eee;display:none;z-index:950;'+
+          'font-family:Roboto,sans-serif;font-variant-numeric:tabular-nums;font-size:10px;color:#eee;display:none;z-index:950;'+
           'box-shadow:0 2px 8px rgba(0,0,0,.4)">'+
           '<div style="font-weight:700;margin-bottom:2px">'+hex+'</div>'+
           '<div style="color:#999">R:'+s.color.r+' G:'+s.color.g+' B:'+s.color.b+' A:'+s.color.a+'</div>'+
@@ -388,7 +388,7 @@ function dRulerStart(e, frame){
   labelEl.style.cssText=[
     'position:absolute','z-index:810','pointer-events:none',
     'background:#1A1A1A','border:1px solid #FF00FF','border-radius:6px',
-    'padding:4px 8px','font-family:Roboto,monospace,sans-serif','font-size:10px',
+    'padding:4px 8px','font-family:Roboto,sans-serif','font-variant-numeric:tabular-nums','font-size:10px',
     'color:#FF00FF','white-space:nowrap','box-shadow:0 2px 8px rgba(0,0,0,.4)',
     'display:none'
   ].join(';')+';';
@@ -787,7 +787,7 @@ function dRenderMeasureOverlay() {
         lineEl.style.cssText = 'position:absolute;z-index:800;pointer-events:none;transform-origin:0 0;height:0;border-top:2px dashed #FF00FF;left:' + dRulerState.startX + 'px;top:' + dRulerState.startY + 'px;width:0;';
         const labelEl = document.createElement('div');
         labelEl.id = 'd-ruler-label';
-        labelEl.style.cssText = 'position:absolute;z-index:810;pointer-events:none;background:#1A1A1A;border:1px solid #FF00FF;border-radius:6px;padding:4px 8px;font-family:Roboto,monospace,sans-serif;font-size:10px;color:#FF00FF;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.4);display:none;';
+        labelEl.style.cssText = 'position:absolute;z-index:810;pointer-events:none;background:#1A1A1A;border:1px solid #FF00FF;border-radius:6px;padding:4px 8px;font-family:Roboto,sans-serif;font-variant-numeric:tabular-nums;font-size:10px;color:#FF00FF;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.4);display:none;';
         host.appendChild(lineEl); host.appendChild(labelEl);
         dRulerState.lineEl = lineEl; dRulerState.labelEl = labelEl; dRulerState.frame = host;
         if (dist >= 2) {

@@ -130,6 +130,262 @@ function dPropShowSections(layerType) {
 
 const DP_LAYERS_COLLAPSED_KEY = 'dp-layers-collapsed';
 const DP_COMPOSITION_OPEN_KEY = 'dp-composition-open';
+const DP_WORKSPACE_MODE_KEY = 'dp-workspace-mode';
+
+const DP_ESSENTIAL_TOOL_LABELS = {
+  'vt-text-wrap': 'Texto',
+  'vt-frame-wrap': 'Imagens',
+  'vt-forma-wrap': 'Formas',
+  'vt-data-wrap': 'Campos',
+  'dtool-resources': 'Elementos'
+};
+
+const DP_ESSENTIAL_TOOL_FLYOUTS = {
+  'vt-text-wrap': 'dTextFlyout',
+  'vt-frame-wrap': 'dFrameFlyout',
+  'vt-forma-wrap': 'dFormaFlyout',
+  'vt-data-wrap': 'dDataFlyout'
+};
+
+const DP_ESSENTIAL_TOOL_VALUES = [
+  'select', 'hand',
+  'text', 'text-h', 'text-v',
+  'rect', 'ellipse', 'triangle', 'polygon', 'star', 'line',
+  'frame', 'img', 'var-data'
+];
+
+function dPropWorkspaceMode() {
+  return document.body.classList.contains('d-studio-advanced') ? 'advanced' : 'essential';
+}
+
+function dPropReadWorkspaceMode() {
+  try {
+    return localStorage.getItem(DP_WORKSPACE_MODE_KEY) === 'advanced' ? 'advanced' : 'essential';
+  } catch(e) {
+    return 'essential';
+  }
+}
+
+function dPropSetWorkspaceMode(mode, options) {
+  const advanced = mode === 'advanced';
+  const persist = !!(options && options.persist);
+  const announce = !!(options && options.announce);
+  const toggle = document.getElementById('dpi-studio-mode-switch');
+  const label = document.getElementById('dpi-studio-mode-label');
+  const live = document.getElementById('dpi-studio-mode-live');
+
+  document.body.classList.toggle('d-studio-essential', !advanced);
+  document.body.classList.toggle('d-studio-advanced', advanced);
+
+  if (toggle) {
+    toggle.setAttribute('aria-pressed', String(advanced));
+    toggle.setAttribute('aria-label', advanced ? 'Voltar às ferramentas principais' : 'Abrir mais ferramentas');
+    toggle.title = advanced ? 'Voltar às ferramentas principais' : 'Abrir mais ferramentas';
+  }
+  if (label) label.textContent = advanced ? 'Simplificar' : 'Mais ferramentas';
+
+  if (!advanced) {
+    document.querySelectorAll('#d-vtoolbar .vt-flyout.open').forEach(function(flyout) {
+      flyout.classList.remove('open');
+    });
+    if (typeof dToggleAllTools === 'function') dToggleAllTools(false);
+    // Cada grupo lembra a última subferramenta usada. Ao voltar ao modo essencial,
+    // não deixa um botão visível reativar silenciosamente uma opção agora escondida.
+    if (typeof dSelectLast !== 'undefined' && ['select', 'hand'].indexOf(dSelectLast) === -1) dSelectLast = 'select';
+    if (typeof dTextLast !== 'undefined' && ['text-h', 'text-v'].indexOf(dTextLast) === -1) dTextLast = 'text-h';
+    if (typeof dDataLast !== 'undefined' && dDataLast !== 'var-data') dDataLast = 'var-data';
+    if (typeof dTool !== 'undefined' && DP_ESSENTIAL_TOOL_VALUES.indexOf(dTool) === -1 && typeof dSetTool === 'function') {
+      dSetTool('select');
+    }
+  }
+
+  if (persist) {
+    try { localStorage.setItem(DP_WORKSPACE_MODE_KEY, advanced ? 'advanced' : 'essential'); } catch(e) {}
+  }
+  if (announce && live) {
+    live.textContent = advanced
+      ? 'Todas as ferramentas profissionais estão visíveis.'
+      : 'As ferramentas principais estão visíveis. Use Mais ferramentas para abrir as opções profissionais.';
+  }
+  if (typeof dPropSyncInspectorFromState === 'function') dPropSyncInspectorFromState();
+}
+
+function dPropToggleWorkspaceMode() {
+  dPropSetWorkspaceMode(dPropWorkspaceMode() === 'advanced' ? 'essential' : 'advanced', {
+    persist: true,
+    announce: true
+  });
+}
+
+function dPropBuildWorkspaceMode() {
+  const toolbar = document.getElementById('d-vtoolbar');
+  const grid = toolbar ? toolbar.querySelector('.vt-tools-grid') : null;
+  if (!toolbar || !grid || document.getElementById('dpi-studio-mode-switch')) return;
+
+  const head = document.createElement('div');
+  head.className = 'dpi-studio-rail-head';
+  head.innerHTML = '<strong>Adicionar</strong>';
+  toolbar.insertBefore(head, toolbar.firstChild);
+
+  const modeSwitch = document.createElement('button');
+  modeSwitch.type = 'button';
+  modeSwitch.id = 'dpi-studio-mode-switch';
+  modeSwitch.className = 'dpi-studio-mode-switch';
+  modeSwitch.setAttribute('aria-pressed', 'false');
+  modeSwitch.innerHTML =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>' +
+    '</svg>' +
+    '<span id="dpi-studio-mode-label">Mais ferramentas</span>';
+  modeSwitch.addEventListener('click', dPropToggleWorkspaceMode);
+  toolbar.insertBefore(modeSwitch, grid.nextSibling);
+
+  const live = document.createElement('span');
+  live.id = 'dpi-studio-mode-live';
+  live.className = 'sr-only';
+  live.setAttribute('aria-live', 'polite');
+  toolbar.appendChild(live);
+
+  toolbar.querySelectorAll('.vt-group-wrap, .vt-group > .vt-btn, .vt-tools-grid > .vt-btn').forEach(function(tool) {
+    tool.classList.add('d-studio-tool');
+  });
+
+  Object.keys(DP_ESSENTIAL_TOOL_LABELS).forEach(function(id) {
+    const tool = document.getElementById(id);
+    if (!tool) return;
+    const button = tool.matches('button') ? tool : tool.querySelector(':scope > .vt-btn');
+    if (!button) return;
+    tool.classList.add('d-studio-tool-essential');
+    button.classList.add('d-studio-tool-essential-button');
+    button.setAttribute('aria-label', DP_ESSENTIAL_TOOL_LABELS[id]);
+    if (!button.querySelector('.dpi-essential-tool-label')) {
+      const toolLabel = document.createElement('span');
+      toolLabel.className = 'dpi-essential-tool-label';
+      toolLabel.textContent = DP_ESSENTIAL_TOOL_LABELS[id];
+      button.appendChild(toolLabel);
+    }
+    if (DP_ESSENTIAL_TOOL_FLYOUTS[id] && !tool.querySelector('.dpi-essential-tool-options')) {
+      const options = document.createElement('button');
+      options.type = 'button';
+      options.className = 'dpi-essential-tool-options';
+      options.setAttribute('aria-label', 'Mais opções de ' + DP_ESSENTIAL_TOOL_LABELS[id].toLowerCase());
+      options.title = 'Mais opções';
+      options.innerHTML =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>';
+      options.addEventListener('click', function(event) {
+        const openFlyout = window[DP_ESSENTIAL_TOOL_FLYOUTS[id]];
+        if (typeof openFlyout === 'function') openFlyout(event);
+      });
+      const flyout = tool.querySelector(':scope > .vt-flyout');
+      tool.insertBefore(options, flyout || null);
+    }
+  });
+
+  ['dtool-obj-select', 'dtool-quick-select', 'dtool-magic-wand', 'dtool-mask-text-h', 'dtool-mask-text-v', 'dtool-qr-code'].forEach(function(id) {
+    const item = document.getElementById(id);
+    if (item) item.classList.add('d-studio-flyout-advanced');
+  });
+
+  toolbar.querySelectorAll('.vt-colors, .vt-color-sep, .vt-color-picker').forEach(function(control) {
+    control.classList.add('d-studio-tool-advanced');
+  });
+
+  dPropSetWorkspaceMode(dPropReadWorkspaceMode(), { persist: false, announce: false });
+}
+
+function dPropBuildEssentialChrome() {
+  const topbar = document.getElementById('d-topbar');
+  const left = topbar ? topbar.querySelector('.dt-left-cluster') : null;
+  const docActions = topbar ? topbar.querySelector('.dt-doc-actions') : null;
+  if (!topbar || !left || !docActions) return;
+
+  topbar.classList.add('dpi-studio-topbar');
+
+  const duplicateSave = document.getElementById('dpi-save-now');
+  if (duplicateSave) duplicateSave.remove();
+
+  if (!document.getElementById('dpi-studio-back')) {
+    const back = document.createElement('button');
+    back.type = 'button';
+    back.id = 'dpi-studio-back';
+    back.className = 'dt-btn-action dpi-studio-back';
+    back.setAttribute('aria-label', 'Voltar ao início do Estúdio');
+    back.title = 'Voltar ao início do Estúdio';
+    back.innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>' +
+      '<span>Voltar</span>';
+    back.addEventListener('click', function() {
+      if (typeof dStudioHomeOpen === 'function') dStudioHomeOpen();
+    });
+    left.insertBefore(back, left.firstChild);
+  }
+
+  const newProject = topbar.querySelector('.dt-new-project');
+  if (newProject) {
+    newProject.setAttribute('aria-label', 'Criar novo projeto');
+    newProject.title = 'Criar novo projeto';
+    const label = newProject.querySelector('span');
+    if (label) label.textContent = 'Novo';
+  }
+
+  const saveAsButton = docActions.querySelector('.dt-btn-action:not([data-export-action])');
+  if (saveAsButton) {
+    saveAsButton.classList.add('dpi-save-as-action');
+    saveAsButton.setAttribute('aria-label', 'Salvar uma cópia do material');
+    saveAsButton.title = 'Salvar uma cópia do material';
+  }
+
+  const exportButton = topbar.querySelector('[data-export-action]') ||
+    topbar.querySelector('[onclick*="dOpenExportModal"]');
+  if (exportButton) {
+    exportButton.classList.add('dpi-export-action');
+    exportButton.setAttribute('aria-label', 'Exportar material');
+    exportButton.title = 'Exportar material';
+    const label = exportButton.querySelector('span');
+    if (label) label.textContent = 'Exportar';
+  }
+
+  const previewButton = topbar.querySelector('[onclick*="dOpenSimModal"]');
+  if (previewButton) {
+    previewButton.setAttribute('aria-label', 'Visualizar com dados de exemplo');
+    previewButton.title = 'Visualizar com dados de exemplo';
+    const label = previewButton.querySelector('span');
+    if (label) label.textContent = 'Visualizar';
+  }
+
+  const saveIndicator = document.getElementById('d-save-indicator');
+  if (saveIndicator) {
+    saveIndicator.setAttribute('role', 'status');
+    saveIndicator.setAttribute('aria-live', 'polite');
+    saveIndicator.setAttribute('aria-atomic', 'true');
+  }
+
+  const reviewTab = document.querySelector('.d-rp-tab[data-panel="linter"]');
+  if (reviewTab) {
+    reviewTab.title = 'Revisão de qualidade';
+    if (!reviewTab.querySelector('.dpi-tab-label')) reviewTab.textContent = 'Revisão';
+  }
+
+  const staleGuide = document.getElementById('dpi-empty-guide');
+  if (staleGuide) staleGuide.remove();
+
+  const artboardSize = document.querySelector('#dp-sec-ab-size .dp-sec-label');
+  const artboardWidthInput = document.getElementById('d-ab-w-inp');
+  const artboardHeightInput = document.getElementById('d-ab-h-inp');
+  const artboardWidth = artboardWidthInput ? artboardWidthInput.closest('.dp-xywh-field') : null;
+  const artboardHeight = artboardHeightInput ? artboardHeightInput.closest('.dp-xywh-field') : null;
+  if (artboardSize) artboardSize.textContent = 'Tamanho da arte';
+  if (artboardWidth) {
+    const label = artboardWidth.querySelector('label');
+    if (label) label.textContent = 'Largura';
+    artboardWidthInput.setAttribute('aria-label', 'Largura da arte em pixels');
+  }
+  if (artboardHeight) {
+    const label = artboardHeight.querySelector('label');
+    if (label) label.textContent = 'Altura';
+    artboardHeightInput.setAttribute('aria-label', 'Altura da arte em pixels');
+  }
+}
 
 const DP_PANEL_ICONS = {
   camadas: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 4.5-8 4.5-8-4.5L12 3Z"/><path d="m4 12 8 4.5 8-4.5"/><path d="m4 16.5 8 4.5 8-4.5"/></svg>',
@@ -149,6 +405,108 @@ const DP_SECTION_ICONS = {
   'dp-sec-anchor': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 17h16M8 3v8M16 13v8"/></svg>',
   'dp-sec-rules': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3v12M6 9h8a4 4 0 0 1 4 4v8"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="5" r="3"/></svg>'
 };
+
+const DP_PANEL_VIEW_META = {
+  edit: {
+    label: 'Editar',
+    panel: 'camadas',
+    controls: 'd-panel-camada',
+    icon: DP_SECTION_ICONS['dp-sec-appear']
+  },
+  organize: {
+    label: 'Organizar',
+    panel: 'camadas',
+    controls: 'd-layers-section',
+    icon: DP_PANEL_ICONS.camadas
+  },
+  dados: {
+    label: 'Campos',
+    panel: 'dados',
+    controls: 'd-panel-dados',
+    icon: DP_PANEL_ICONS.dados
+  }
+};
+
+function dPropBuildPanelNav() {
+  const right = document.getElementById('d-right');
+  const tabs = right ? right.querySelector('.d-rp-tabs') : null;
+  if (!right || !tabs || document.getElementById('dpi-panel-nav')) return;
+
+  const nav = document.createElement('div');
+  nav.id = 'dpi-panel-nav';
+  nav.className = 'dpi-panel-nav';
+  nav.setAttribute('role', 'tablist');
+  nav.setAttribute('aria-label', 'O que você quer fazer');
+
+  Object.keys(DP_PANEL_VIEW_META).forEach(function(view) {
+    const meta = DP_PANEL_VIEW_META[view];
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'dpi-panel-nav-button';
+    button.dataset.view = view;
+    button.setAttribute('role', 'tab');
+    button.setAttribute('aria-controls', meta.controls);
+    button.setAttribute('aria-selected', 'false');
+    button.tabIndex = -1;
+    button.innerHTML =
+      '<span class="dpi-panel-nav-icon" aria-hidden="true">' + meta.icon + '</span>' +
+      '<span>' + meta.label + '</span>';
+    button.addEventListener('click', function() {
+      dPropOpenPanelView(view);
+    });
+    nav.appendChild(button);
+  });
+
+  nav.addEventListener('keydown', function(event) {
+    const buttons = Array.from(nav.querySelectorAll('.dpi-panel-nav-button'));
+    const current = buttons.indexOf(document.activeElement);
+    let next = null;
+    if (event.key === 'ArrowRight') next = (Math.max(current, 0) + 1) % buttons.length;
+    if (event.key === 'ArrowLeft') next = (current <= 0 ? buttons.length : current) - 1;
+    if (event.key === 'Home') next = 0;
+    if (event.key === 'End') next = buttons.length - 1;
+    if (next === null) return;
+    event.preventDefault();
+    buttons[next].focus();
+    buttons[next].click();
+  });
+
+  right.insertBefore(nav, tabs);
+  dPropSyncPanelNav('edit');
+}
+
+function dPropSyncPanelNav(view) {
+  const right = document.getElementById('d-right');
+  const nav = document.getElementById('dpi-panel-nav');
+  if (!right) return;
+  const normalized = DP_PANEL_VIEW_META[view] ? view : String(view || '');
+  right.dataset.dpiView = normalized;
+  right.classList.toggle('dpi-organize-open', normalized === 'organize');
+  if (!nav) return;
+
+  nav.querySelectorAll('.dpi-panel-nav-button').forEach(function(button) {
+    const active = button.dataset.view === normalized;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-selected', String(active));
+    button.tabIndex = active ? 0 : -1;
+  });
+}
+
+function dPropOpenPanelView(view) {
+  const meta = DP_PANEL_VIEW_META[view];
+  if (!meta || typeof dPropBaseActivatePanel !== 'function') return;
+  dPropBaseActivatePanel(meta.panel);
+  dPropSyncTabs(meta.panel);
+  dPropSyncPanelNav(view);
+
+  if (view === 'organize') {
+    const section = document.getElementById('d-layers-section');
+    const collapse = document.getElementById('dpi-layers-collapse');
+    if (section && collapse && section.classList.contains('dpi-layers-collapsed')) collapse.click();
+    const search = document.getElementById('d-layers-search');
+    if (search) window.setTimeout(function() { search.focus(); }, 0);
+  }
+}
 
 function dPropLayerIcon(type) {
   if (type === 'text') return DP_SECTION_ICONS['dp-sec-text'];
@@ -250,7 +608,11 @@ function dPropSyncInspectorContext(layer) {
     if (icon) icon.innerHTML = dPropLayerIcon(layer.type);
     if (kicker) kicker.textContent = typeLabel;
     if (name) name.textContent = layer.name || layer.content || 'Camada sem nome';
-    if (meta) meta.textContent = Math.round(layer.w || 0) + ' \u00d7 ' + Math.round(layer.h || 0) + ' px' + (layer.locked ? '  /  Bloqueada' : '');
+    if (meta) {
+      meta.textContent = dPropWorkspaceMode() === 'essential'
+        ? (layer.locked ? 'Posi\u00e7\u00e3o bloqueada' : 'Pronto para editar')
+        : Math.round(layer.w || 0) + ' \u00d7 ' + Math.round(layer.h || 0) + ' px' + (layer.locked ? '  /  Bloqueada' : '');
+    }
     if (visible) {
       visible.classList.toggle('is-active', layer.visible === false);
       visible.setAttribute('aria-pressed', String(layer.visible === false));
@@ -267,14 +629,20 @@ function dPropSyncInspectorContext(layer) {
   } else {
     const ab = dPropActiveArtboard();
     if (icon) icon.innerHTML = DP_SECTION_ICONS['dp-sec-ab-size'];
-    if (kicker) kicker.textContent = 'Documento';
-    if (name) name.textContent = ab && ab.name ? ab.name : 'Prancheta';
-    if (meta) meta.textContent = ab ? Math.round(ab.w || 0) + ' \u00d7 ' + Math.round(ab.h || 0) + ' px' : 'Configura\u00e7\u00f5es da prancheta';
+    if (kicker) kicker.textContent = 'Arte';
+    if (name) name.textContent = ab && ab.name ? ab.name : 'Arte';
+    if (meta) {
+      meta.textContent = dPropWorkspaceMode() === 'essential'
+        ? 'Ajustes gerais do material'
+        : (ab ? Math.round(ab.w || 0) + ' \u00d7 ' + Math.round(ab.h || 0) + ' px' : 'Configura\u00e7\u00f5es da arte');
+    }
     if (contentLabel) contentLabel.textContent = 'Conte\u00fado';
   }
 
   dPropEnhanceDado(layer);
+  dPropSyncDataContext(layer || null);
   dPropSyncImageSource();
+  dPropSyncCanvasEmpty();
 }
 
 function dPropEnhanceDado(layer) {
@@ -607,9 +975,21 @@ function dPropInitLayersDock() {
 
   const list = document.getElementById('d-layers-list');
   if (list) {
+    function keepOrganizeView() {
+      const rightPanel = document.getElementById('d-right');
+      if (!rightPanel || rightPanel.dataset.dpiView !== 'organize') return;
+      rightPanel.dataset.dpiKeepOrganize = '1';
+      window.setTimeout(function() {
+        delete rightPanel.dataset.dpiKeepOrganize;
+      }, 0);
+    }
+
     list.setAttribute('role', 'listbox');
     list.setAttribute('aria-label', 'Camadas da prancheta');
     list.setAttribute('aria-multiselectable', 'true');
+    list.addEventListener('pointerdown', function(event) {
+      if (event.target.closest('.layer-row')) keepOrganizeView();
+    }, true);
     list.addEventListener('keydown', function(event) {
       const rows = Array.from(list.querySelectorAll('.layer-row'));
       if (!rows.length) return;
@@ -621,12 +1001,14 @@ function dPropInitLayersDock() {
       if (event.key === 'End') target = rows.length - 1;
       if (target !== null) {
         event.preventDefault();
+        keepOrganizeView();
         rows[target].focus();
         rows[target].click();
         return;
       }
       if ((event.key === 'Enter' || event.key === ' ') && current >= 0) {
         event.preventDefault();
+        keepOrganizeView();
         rows[current].click();
       }
     });
@@ -662,6 +1044,169 @@ const DP_DATA_CATEGORY_ICONS = {
   outros: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 8h.01M12 12v4"/></svg>'
 };
 
+let dPropDataProblemsOnly = false;
+
+const DP_DATA_STARTER_FIELDS = [
+  { name: 'produto', label: 'Produto', type: 'text', required: true, category: 'produto' },
+  { name: 'foto_produto', label: 'Foto do produto', type: 'image', required: false, category: 'midia' },
+  { name: 'precoPor', label: 'Pre\u00e7o da oferta', type: 'currency', required: true, category: 'preco' },
+  { name: 'precoDe', label: 'Pre\u00e7o original', type: 'currency', required: false, category: 'preco' },
+  { name: 'validade', label: 'Validade', type: 'text', required: false, category: 'campanha' }
+];
+
+const DP_DATA_ALIASES = [
+  ['produto', 'item', 'lanche', 'combo', 'prato', 'nome'],
+  ['foto', 'imagem', 'produto', 'photo', 'picture'],
+  ['preco', 'valor', 'oferta', 'promo', 'promocao', 'por'],
+  ['original', 'antes', 'de', 'preco antigo'],
+  ['desconto', 'off', 'economia'],
+  ['validade', 'data', 'periodo', 'ate'],
+  ['cupom', 'codigo', 'voucher'],
+  ['logo', 'marca', 'logomarca'],
+  ['chamada', 'titulo', 'headline', 'destaque'],
+  ['descricao', 'detalhes', 'texto', 'observacao']
+];
+
+function dPropDataNormalize(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\{\{|\}\}/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function dPropDataAliasGroup(value) {
+  const normalized = dPropDataNormalize(value);
+  if (!normalized) return -1;
+  return DP_DATA_ALIASES.findIndex(function(group) {
+    return group.some(function(alias) {
+      const cleanAlias = dPropDataNormalize(alias);
+      return normalized === cleanAlias ||
+        (cleanAlias.length > 3 && normalized.indexOf(cleanAlias) !== -1);
+    });
+  });
+}
+
+function dPropDataBoundNames(layer) {
+  if (!layer) return [];
+  if (typeof dLayerBoundField === 'function') {
+    const bound = dLayerBoundField(layer);
+    if (bound) return [bound];
+  }
+  if (typeof dLayerEmbeddedFields === 'function') return dLayerEmbeddedFields(layer);
+  return [];
+}
+
+function dPropDataSuggestedField(layer) {
+  if (!layer || typeof dVars === 'undefined' || !Array.isArray(dVars)) return null;
+  const compatible = dVars.filter(function(field) { return dPropDataFieldFitsLayer(field, layer); });
+  if (!compatible.length) return null;
+
+  const source = [layer.name || '', layer.type === 'text' ? layer.content || '' : ''].join(' ');
+  const sourceNorm = dPropDataNormalize(source);
+  const sourceCompact = sourceNorm.replace(/\s+/g, '');
+  const sourceWords = sourceNorm.split(/\s+/).filter(function(word) { return word.length > 2; });
+  let parserHint = '';
+  try {
+    if (layer.type === 'text' && typeof _dPsdSuggestVar === 'function') {
+      parserHint = (_dPsdSuggestVar(layer.name || '', layer.content || '') || {}).name || '';
+    } else if ((layer.type === 'image' || layer.type === 'frame') && typeof _dPsdSuggestImgVar === 'function') {
+      parserHint = (_dPsdSuggestImgVar(layer.name || '') || {}).name || '';
+    }
+  } catch (error) {
+    parserHint = '';
+  }
+
+  let best = null;
+  let bestScore = 0;
+  compatible.forEach(function(field) {
+    const fieldNorm = dPropDataNormalize((field.label || '') + ' ' + (field.name || ''));
+    const fieldCompact = fieldNorm.replace(/\s+/g, '');
+    const fieldWords = fieldNorm.split(/\s+/).filter(function(word) { return word.length > 2; });
+    let score = 0;
+
+    if (parserHint && field.name === parserHint) score += 120;
+    if (sourceCompact && fieldCompact && (sourceCompact === fieldCompact || sourceCompact === dPropDataNormalize(field.name).replace(/\s+/g, ''))) {
+      score += 100;
+    }
+    if (sourceNorm && fieldNorm && (
+      (fieldCompact.length > 3 && sourceCompact.indexOf(fieldCompact) !== -1) ||
+      (sourceCompact.length > 3 && fieldCompact.indexOf(sourceCompact) !== -1)
+    )) score += 65;
+
+    const overlap = fieldWords.filter(function(word) { return sourceWords.indexOf(word) !== -1; }).length;
+    score += overlap * 22;
+
+    const sourceAlias = dPropDataAliasGroup(source);
+    const fieldAlias = dPropDataAliasGroup((field.label || '') + ' ' + (field.name || ''));
+    if (sourceAlias >= 0 && sourceAlias === fieldAlias) score += 58;
+    if (field.type === 'image' && /foto|imagem|logo|marca|photo|picture/.test(sourceNorm)) score += 24;
+
+    if (score > bestScore) {
+      best = field;
+      bestScore = score;
+    }
+  });
+  return bestScore >= 40 ? best : null;
+}
+
+function dPropDataSelectedLayer() {
+  if (typeof dLayers === 'undefined' || !Array.isArray(dLayers) || typeof dSelId === 'undefined') return null;
+  return dLayers.find(function(layer) { return layer.id === dSelId; }) || null;
+}
+
+function dPropDataFieldIndex(name) {
+  if (typeof dVars === 'undefined' || !Array.isArray(dVars)) return -1;
+  return dVars.findIndex(function(field) { return field.name === name; });
+}
+
+function dPropDataFieldFitsLayer(field, layer) {
+  if (!field || !layer) return false;
+  if (field.type === 'image') return layer.type === 'image' || layer.type === 'frame';
+  return layer.type === 'text';
+}
+
+function dPropDataProblemCount() {
+  if (typeof _dFieldsDup === 'undefined' || !_dFieldsDup) return 0;
+  return Object.keys(_dFieldsDup).length;
+}
+
+function dPropLocateField(name) {
+  if (typeof dFieldUsageLayers !== 'function') return;
+  const usage = dFieldUsageLayers(name);
+  if (!usage.length) return;
+  usage.forEach(function(layer) {
+    if (typeof dFieldFlashLayer === 'function') dFieldFlashLayer(layer.id);
+  });
+  if (typeof gToast === 'function') {
+    gToast(usage.length === 1 ? 'Campo destacado na arte' : usage.length + ' elementos destacados na arte');
+  }
+}
+
+function dPropCompareField(name) {
+  const index = dPropDataFieldIndex(name);
+  const field = index >= 0 && typeof dVars !== 'undefined' ? dVars[index] : null;
+  if (!field || typeof dFieldsFilter !== 'function') return;
+  const query = field.label || field.name;
+  const search = document.getElementById('d-fields-search');
+  if (search) search.value = query;
+  dPropDataProblemsOnly = true;
+  if (typeof dFieldSetStatusFilter === 'function') dFieldSetStatusFilter('all');
+  dFieldsFilter(query);
+  if (typeof gToast === 'function') gToast('Mostrando campos com o mesmo nome');
+}
+
+function dPropSetDataProblemsFilter(active) {
+  dPropDataProblemsOnly = !!active;
+  if (active && typeof dFieldSetStatusFilter === 'function') {
+    dFieldSetStatusFilter('all');
+    return;
+  }
+  if (typeof dFieldsRender === 'function') dFieldsRender();
+}
+
 function dPropDataCategoryKey(label) {
   const normalized = String(label || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   if (normalized.indexOf('produto') !== -1) return 'produto';
@@ -669,6 +1214,183 @@ function dPropDataCategoryKey(label) {
   if (normalized.indexOf('campanha') !== -1) return 'campanha';
   if (normalized.indexOf('midia') !== -1) return 'midia';
   return 'outros';
+}
+
+function dPropDataUseSuggestion(fieldName) {
+  const layer = dPropDataSelectedLayer();
+  const index = dPropDataFieldIndex(fieldName);
+  const field = index >= 0 && typeof dVars !== 'undefined' ? dVars[index] : null;
+  if (!layer || !field || !dPropDataFieldFitsLayer(field, layer)) return;
+  if (typeof dLayerBindField === 'function') dLayerBindField(layer.id, field.name);
+  dPropSyncDataContext(layer);
+}
+
+function dPropDataCreateForSelection() {
+  const layer = dPropDataSelectedLayer();
+  if (!layer || !dPropDataFieldFitsLayer({ type: layer.type === 'text' ? 'text' : 'image' }, layer)) {
+    if (typeof gToast === 'function') gToast('Selecione um texto ou uma imagem primeiro');
+    return;
+  }
+  const genericNames = /^(texto|imagem|moldura|frame|layer|camada)(\s+\d+)?$/i;
+  const layerName = String(layer.name || '').trim();
+  const opts = { forLayer: layer.id };
+  if (layerName && !genericNames.test(layerName)) opts.label = layerName;
+  if (typeof dOpenVarModal === 'function') dOpenVarModal(opts);
+}
+
+function dPropDataChooseExisting() {
+  const search = document.getElementById('d-fields-search');
+  if (!search) return;
+  search.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  window.setTimeout(function() {
+    search.focus();
+    search.select();
+  }, 180);
+}
+
+function dPropDataLocateSelection() {
+  const layer = dPropDataSelectedLayer();
+  if (layer && typeof dFieldFlashLayer === 'function') dFieldFlashLayer(layer.id);
+}
+
+function dPropDataSetContextActions(actions) {
+  const container = document.getElementById('dpi-data-context-actions');
+  if (!container) return;
+  container.innerHTML = '';
+  actions.forEach(function(action) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = action.primary ? 'dpi-data-context-action is-primary' : 'dpi-data-context-action';
+    button.textContent = action.label;
+    button.setAttribute('aria-label', action.ariaLabel || action.label);
+    button.addEventListener('click', action.onClick);
+    container.appendChild(button);
+  });
+}
+
+function dPropDataAddStarterFields() {
+  if (typeof dVars === 'undefined' || !Array.isArray(dVars)) return;
+  const existingNames = dVars.map(function(field) { return dPropDataNormalize(field.name); });
+  const existingLabels = dVars.map(function(field) { return dPropDataNormalize(field.label); });
+  const added = [];
+
+  DP_DATA_STARTER_FIELDS.forEach(function(field) {
+    if (existingNames.indexOf(dPropDataNormalize(field.name)) !== -1 ||
+        existingLabels.indexOf(dPropDataNormalize(field.label)) !== -1) return;
+    const next = {
+      name: field.name,
+      label: field.label,
+      type: field.type,
+      required: field.required,
+      category: field.category
+    };
+    dVars.push(next);
+    existingNames.push(dPropDataNormalize(next.name));
+    existingLabels.push(dPropDataNormalize(next.label));
+    added.push(next);
+  });
+
+  if (!added.length) {
+    if (typeof gToast === 'function') gToast('Os campos essenciais j\u00e1 est\u00e3o nesta arte');
+    return;
+  }
+  if (typeof dVarsRender === 'function') dVarsRender();
+  if (typeof dPersistVars === 'function') dPersistVars();
+  if (typeof dMarkUnsaved === 'function') dMarkUnsaved();
+  dPropSyncDataIntro();
+  if (typeof gToast === 'function') {
+    gToast(added.length + (added.length === 1 ? ' campo essencial adicionado' : ' campos essenciais adicionados'));
+  }
+}
+
+function dPropDataOpenSimulation(mode) {
+  const used = typeof dSimUsedVars === 'function' ? dSimUsedVars() : [];
+  if (!used.length) {
+    if (typeof gToast === 'function') gToast('Conecte pelo menos um conte\u00fado antes de testar');
+    return;
+  }
+  if (typeof dOpenSimModal !== 'function') return;
+  dOpenSimModal();
+  if (mode && typeof dSimStressTest === 'function') {
+    window.setTimeout(function() { dSimStressTest(mode); }, 80);
+  }
+}
+
+function dPropDataHighlightAll() {
+  if (typeof dVars === 'undefined' || !Array.isArray(dVars) || typeof dVarUsage !== 'function') return;
+  const ids = [];
+  dVars.forEach(function(field) {
+    dVarUsage(field.name).forEach(function(id) {
+      if (ids.indexOf(id) === -1) ids.push(id);
+    });
+  });
+  if (!ids.length) {
+    if (typeof gToast === 'function') gToast('Nenhum conte\u00fado conectado ainda');
+    return;
+  }
+  ids.forEach(function(id) {
+    const element = document.querySelector('.canvas-layer[data-id="' + id + '"]');
+    if (!element) return;
+    element.classList.remove('var-flash');
+    void element.offsetWidth;
+    element.classList.add('var-flash');
+    window.setTimeout(function() { element.classList.remove('var-flash'); }, 1400);
+  });
+  if (typeof gToast === 'function') {
+    gToast(ids.length === 1 ? 'Conte\u00fado edit\u00e1vel destacado' : ids.length + ' conte\u00fados edit\u00e1veis destacados');
+  }
+}
+
+function dPropBuildDataTools() {
+  const panel = document.getElementById('d-panel-dados');
+  const list = document.getElementById('d-fields-list');
+  if (!panel || !list || document.getElementById('dpi-data-tools')) return;
+  const tools = document.createElement('details');
+  tools.id = 'dpi-data-tools';
+  tools.className = 'dpi-data-tools';
+  tools.innerHTML =
+    '<summary>' +
+      '<span class="dpi-data-tools-icon" aria-hidden="true">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m8 12 2.5 2.5L16 9"/><circle cx="12" cy="12" r="9"/></svg>' +
+      '</span>' +
+      '<span><strong>Conferir a experi\u00eancia</strong><small id="dpi-data-tools-status">Veja o que o franqueado vai editar.</small></span>' +
+      '<svg class="dpi-data-tools-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>' +
+    '</summary>' +
+    '<div class="dpi-data-tools-body">' +
+      '<button type="button" data-data-tool="preview">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>' +
+        '<span><strong>Ver como franqueado</strong><small>Preencha uma c\u00f3pia sem alterar a arte.</small></span>' +
+      '</button>' +
+      '<button type="button" data-data-tool="stress">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M4 5h16M8 5v14M5 19h6M14 14l3-3 3 3"/></svg>' +
+        '<span><strong>Testar textos longos</strong><small>Encontre estouros antes de publicar.</small></span>' +
+      '</button>' +
+      '<button type="button" data-data-tool="highlight">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/><circle cx="12" cy="12" r="3"/></svg>' +
+        '<span><strong>Mostrar na arte</strong><small>Destaque tudo que poder\u00e1 mudar.</small></span>' +
+      '</button>' +
+    '</div>';
+  tools.addEventListener('click', function(event) {
+    const button = event.target.closest('[data-data-tool]');
+    if (!button) return;
+    const action = button.dataset.dataTool;
+    if (action === 'preview') dPropDataOpenSimulation();
+    if (action === 'stress') dPropDataOpenSimulation('max');
+    if (action === 'highlight') dPropDataHighlightAll();
+  });
+  panel.insertBefore(tools, list);
+}
+
+function dPropSyncDataTools() {
+  const status = document.getElementById('dpi-data-tools-status');
+  if (!status || typeof dVars === 'undefined' || !Array.isArray(dVars)) return;
+  const used = typeof dVarUsage === 'function'
+    ? dVars.filter(function(field) { return dVarUsage(field.name).length > 0; }).length
+    : 0;
+  const free = Math.max(0, dVars.length - used);
+  if (!dVars.length) status.textContent = 'Comece com um conjunto pronto ou crie um campo.';
+  else if (!free) status.textContent = 'Tudo conectado. Fa\u00e7a um teste antes de publicar.';
+  else status.textContent = used + ' conectado' + (used === 1 ? '' : 's') + ' e ' + free + ' ' + (free === 1 ? 'dispon\u00edvel' : 'dispon\u00edveis') + '.';
 }
 
 function dPropBuildDataIntro() {
@@ -682,35 +1404,54 @@ function dPropBuildDataIntro() {
   intro.innerHTML =
     '<span class="dpi-data-intro-icon" aria-hidden="true">' + DP_PANEL_ICONS.dados + '</span>' +
     '<span class="dpi-data-intro-copy">' +
-      '<span>Campos edit\u00e1veis</span>' +
-      '<strong>Conte\u00fado do template</strong>' +
-      '<small id="dpi-data-summary" aria-live="polite">Organize o que o franqueado pode atualizar.</small>' +
+      '<strong>Campos da arte</strong>' +
+      '<small id="dpi-data-summary" aria-live="polite">Defina o que o franqueado poder\u00e1 alterar.</small>' +
     '</span>' +
     '<span class="dpi-data-total" id="dpi-data-total" aria-label="0 campos">0</span>';
   panel.insertBefore(intro, toolbar);
+
+  const context = document.createElement('div');
+  context.id = 'dpi-data-context';
+  context.className = 'dpi-data-context';
+  context.setAttribute('role', 'group');
+  context.setAttribute('aria-label', 'Pr\u00f3ximo passo');
+  context.innerHTML =
+    '<span class="dpi-data-context-icon" aria-hidden="true">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m4 3 7 17 2.2-6.8L20 11 4 3Z"/></svg>' +
+    '</span>' +
+    '<span class="dpi-data-context-copy" aria-live="polite">' +
+      '<strong id="dpi-data-context-title">Selecione um texto ou uma imagem</strong>' +
+      '<small id="dpi-data-context-detail">Depois escolha o campo que deseja usar.</small>' +
+    '</span>' +
+    '<span class="dpi-data-context-actions" id="dpi-data-context-actions"></span>';
+  panel.insertBefore(context, toolbar);
 
   toolbar.setAttribute('role', 'search');
   toolbar.setAttribute('aria-label', 'Buscar ou criar campo');
   const search = toolbar.querySelector('#d-fields-search');
   if (search) {
-    search.placeholder = 'Buscar por nome, tipo ou categoria';
-    search.setAttribute('aria-label', 'Buscar por nome, tipo ou categoria');
+    search.placeholder = 'Buscar campos';
+    search.setAttribute('aria-label', 'Buscar campos por nome, tipo ou categoria');
   }
   const create = toolbar.querySelector('.dados-new-btn');
   if (create) {
     create.setAttribute('aria-label', 'Criar novo campo');
+    create.title = 'Criar novo campo';
     if (!create.querySelector('.dpi-new-label')) {
       Array.from(create.childNodes).forEach(function(node) {
         if (node.nodeType === Node.TEXT_NODE) node.nodeValue = '';
       });
       const label = document.createElement('span');
       label.className = 'dpi-new-label';
-      label.textContent = 'Novo campo';
+      label.textContent = 'Novo';
       create.appendChild(label);
     }
   }
   const chips = panel.querySelector('.dados-chipbar');
-  if (chips) chips.setAttribute('role', 'group');
+  if (chips) {
+    chips.setAttribute('role', 'group');
+    chips.setAttribute('aria-label', 'Filtrar campos');
+  }
 }
 
 function dPropSyncDataIntro() {
@@ -722,16 +1463,175 @@ function dPropSyncDataIntro() {
   const used = (typeof dVarUsage === 'function')
     ? fields.filter(function(field) { return dVarUsage(field.name).length > 0; }).length
     : 0;
-  const free = totalFields - used;
-  total.textContent = String(totalFields);
-  total.setAttribute('aria-label', totalFields + (totalFields === 1 ? ' campo' : ' campos'));
+  total.textContent = totalFields ? used + '/' + totalFields : '0';
+  total.setAttribute('aria-label', used + ' de ' + totalFields + (totalFields === 1 ? ' campo na arte' : ' campos na arte'));
   if (!totalFields) {
-    summary.textContent = 'Crie os campos que o franqueado poder\u00e1 atualizar.';
-  } else if (!used) {
-    summary.textContent = totalFields + ' campos criados. Escolha um e conecte a uma camada.';
+    summary.textContent = 'Crie o primeiro campo que poder\u00e1 ser alterado.';
   } else {
-    summary.textContent = used + ' em uso e ' + free + (free === 1 ? ' pronto para conectar.' : ' prontos para conectar.');
+    summary.textContent = 'Defina o que o franqueado poder\u00e1 alterar.';
   }
+  dPropSyncDataTools();
+}
+
+function dPropSyncDataContext(layer) {
+  const context = document.getElementById('dpi-data-context');
+  const title = document.getElementById('dpi-data-context-title');
+  const detail = document.getElementById('dpi-data-context-detail');
+  if (!context || !title || !detail) return;
+
+  const compatible = !!(layer && (layer.type === 'text' || layer.type === 'image' || layer.type === 'frame'));
+  context.classList.toggle('is-ready', compatible);
+  context.classList.remove('is-suggested', 'is-connected');
+  if (!compatible) {
+    title.textContent = 'Selecione um texto ou uma imagem';
+    detail.textContent = 'O Luma indicar\u00e1 o pr\u00f3ximo passo.';
+    dPropDataSetContextActions([]);
+  } else {
+    const boundNames = dPropDataBoundNames(layer);
+    const boundField = boundNames.length === 1 && typeof dVars !== 'undefined'
+      ? dVars.find(function(field) { return field.name === boundNames[0]; })
+      : null;
+    const suggestion = !boundNames.length ? dPropDataSuggestedField(layer) : null;
+    if (boundNames.length) {
+      context.classList.add('is-connected');
+      title.textContent = 'Pronto para ser personalizado';
+      if (boundNames.length === 1) {
+        detail.textContent = 'O franqueado editar\u00e1 \u201c' + ((boundField && (boundField.label || boundField.name)) || boundNames[0]) + '\u201d sem mexer no layout.';
+      } else {
+        detail.textContent = boundNames.length + ' informa\u00e7\u00f5es deste texto poder\u00e3o ser alteradas.';
+      }
+      dPropDataSetContextActions([
+        { label: 'Mostrar', ariaLabel: 'Destacar este conte\u00fado na arte', onClick: dPropDataLocateSelection },
+        { label: 'Trocar', ariaLabel: 'Escolher outro conte\u00fado edit\u00e1vel', onClick: dPropDataChooseExisting }
+      ]);
+    } else if (suggestion) {
+      context.classList.add('is-suggested');
+      title.textContent = 'Sugest\u00e3o: ' + (suggestion.label || suggestion.name);
+      detail.textContent = 'Conecte com um clique ou escolha outra op\u00e7\u00e3o.';
+      dPropDataSetContextActions([
+        {
+          label: 'Usar sugest\u00e3o',
+          ariaLabel: 'Usar ' + (suggestion.label || suggestion.name) + ' neste conte\u00fado',
+          primary: true,
+          onClick: function() { dPropDataUseSuggestion(suggestion.name); }
+        },
+        { label: 'Outra op\u00e7\u00e3o', onClick: dPropDataChooseExisting }
+      ]);
+    } else {
+      const kind = layer.type === 'text' ? 'texto' : 'imagem';
+      title.textContent = 'O que poder\u00e1 mudar aqui?';
+      detail.textContent = 'Transforme este ' + kind + ' em um conte\u00fado edit\u00e1vel.';
+      dPropDataSetContextActions([
+        { label: 'Tornar edit\u00e1vel', primary: true, onClick: dPropDataCreateForSelection },
+        { label: 'Usar existente', onClick: dPropDataChooseExisting }
+      ]);
+    }
+  }
+  dPropRefreshDataActions(layer || null);
+}
+
+function dPropRefreshDataActions(layer) {
+  const list = document.getElementById('d-fields-list');
+  if (!list || typeof dVars === 'undefined' || !Array.isArray(dVars)) return;
+
+  list.querySelectorAll('.field-item[data-field]').forEach(function(item) {
+    const index = dPropDataFieldIndex(item.dataset.field);
+    const field = index >= 0 ? dVars[index] : null;
+    const action = item.querySelector('.dpi-field-primary-action');
+    if (!field || !action) return;
+
+    const usage = typeof dFieldUsageLayers === 'function' ? dFieldUsageLayers(field.name) : [];
+    const usedHere = !!(layer && usage.some(function(place) { return place.id === layer.id; }));
+    const fits = dPropDataFieldFitsLayer(field, layer);
+
+    item.classList.toggle('is-compatible', fits && !usedHere);
+    action.classList.toggle('is-locate', !fits && usage.length > 0);
+    action.classList.toggle('is-current', usedHere);
+    action.disabled = usedHere || (!fits && !usage.length);
+    if (usedHere) {
+      if (action.textContent !== 'Conectado') action.textContent = 'Conectado';
+      action.setAttribute('aria-label', (field.label || field.name) + ' j\u00e1 est\u00e1 conectado a este elemento');
+    } else if (fits) {
+      if (action.textContent !== 'Usar') action.textContent = 'Usar';
+      action.setAttribute('aria-label', 'Usar o campo ' + (field.label || field.name) + ' neste elemento');
+    } else if (usage.length) {
+      if (action.textContent !== 'Ver na arte') action.textContent = 'Ver na arte';
+      action.setAttribute('aria-label', 'Localizar o campo ' + (field.label || field.name) + ' na arte');
+    } else {
+      if (action.textContent !== 'Usar') action.textContent = 'Usar';
+      action.setAttribute('aria-label', 'Selecione um elemento compat\u00edvel antes de usar ' + (field.label || field.name));
+    }
+  });
+
+  list.querySelectorAll('.field-cat').forEach(function(category) {
+    category.classList.toggle('has-compatible-fields', !!category.querySelector('.field-item.is-compatible:not([hidden])'));
+  });
+}
+
+function dPropEnhanceDataFilters(list) {
+  const chipbar = document.getElementById('d-fields-chipbar');
+  if (!chipbar || !list) return;
+
+  const labels = ['Todos', 'Na arte', 'Dispon\u00edveis'];
+  Array.from(chipbar.querySelectorAll('.field-chip:not(.dpi-problems-chip)')).forEach(function(chip, index) {
+    const count = chip.querySelector('span');
+    if (labels[index]) {
+      Array.from(chip.childNodes).forEach(function(node) {
+        if (node.nodeType === Node.TEXT_NODE) node.nodeValue = labels[index] + ' ';
+      });
+    }
+    chip.setAttribute('aria-pressed', String(chip.classList.contains('on') && !dPropDataProblemsOnly));
+    if (!chip.dataset.dpiProblemsReset) {
+      chip.dataset.dpiProblemsReset = 'true';
+      chip.addEventListener('click', function() { dPropDataProblemsOnly = false; }, true);
+    }
+    if (count) count.setAttribute('aria-hidden', 'true');
+  });
+
+  const problems = dPropDataProblemCount();
+  let problemsChip = chipbar.querySelector('.dpi-problems-chip');
+  if (problems && !problemsChip) {
+    problemsChip = document.createElement('button');
+    problemsChip.type = 'button';
+    problemsChip.className = 'field-chip dpi-problems-chip';
+    problemsChip.addEventListener('click', function() {
+      dPropSetDataProblemsFilter(!dPropDataProblemsOnly);
+    });
+    chipbar.appendChild(problemsChip);
+  }
+  if (problemsChip) {
+    problemsChip.hidden = !problems;
+    problemsChip.classList.toggle('on', dPropDataProblemsOnly);
+    problemsChip.setAttribute('aria-pressed', String(dPropDataProblemsOnly));
+    problemsChip.setAttribute('aria-label', problems + (problems === 1 ? ' campo com problema' : ' campos com problemas'));
+    const problemsMarkup = 'Problemas <span aria-hidden="true">' + problems + '</span>';
+    if (problemsChip.innerHTML !== problemsMarkup) problemsChip.innerHTML = problemsMarkup;
+  }
+
+  let visibleProblems = 0;
+  list.querySelectorAll('.field-item[data-field]').forEach(function(item) {
+    const hasProblem = !!item.querySelector('.field-row-warn');
+    item.hidden = dPropDataProblemsOnly && !hasProblem;
+    if (hasProblem) visibleProblems += 1;
+  });
+
+  list.querySelectorAll('.field-cat').forEach(function(category) {
+    const visible = Array.from(category.querySelectorAll('.field-item[data-field]')).filter(function(item) { return !item.hidden; });
+    category.hidden = dPropDataProblemsOnly && !visible.length;
+    const count = category.querySelector('.field-cat-count');
+    if (count && dPropDataProblemsOnly && count.textContent !== String(visible.length)) count.textContent = String(visible.length);
+  });
+
+  let empty = list.querySelector('.dpi-data-problems-empty');
+  if (dPropDataProblemsOnly && !visibleProblems && !empty) {
+    empty = document.createElement('div');
+    empty.className = 'dpi-data-problems-empty';
+    empty.innerHTML =
+      '<span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="m5 12 4 4L19 6"/></svg></span>' +
+      '<strong>Nenhum problema encontrado</strong>';
+    list.appendChild(empty);
+  }
+  if (empty) empty.hidden = !dPropDataProblemsOnly || !!visibleProblems;
 }
 
 function dPropEnhanceDataRows() {
@@ -741,6 +1641,27 @@ function dPropEnhanceDataRows() {
   const emptyIcon = list.querySelector('.field-empty-icon');
   if (emptyIcon && !emptyIcon.querySelector('svg')) {
     emptyIcon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H10l2 2h5.5A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5z"/><path d="M9 12h6M12 9v6"/></svg>';
+  }
+  const empty = list.querySelector('.field-empty');
+  if (empty && !empty.querySelector('.dpi-data-starter')) {
+    const examples = empty.querySelector('.field-empty-exs');
+    if (examples) examples.remove();
+    const title = empty.querySelector('.field-empty-title');
+    if (title) title.textContent = 'Escolha o que o franqueado poder\u00e1 trocar sem mexer no layout.';
+    const starter = document.createElement('div');
+    starter.className = 'dpi-data-starter';
+    starter.innerHTML =
+      '<button type="button" class="dpi-data-starter-primary">Adicionar campos essenciais</button>' +
+      '<small>Produto, foto, pre\u00e7os e validade.</small>';
+    starter.querySelector('button').addEventListener('click', dPropDataAddStarterFields);
+    const createFirst = empty.querySelector('.d-btn-pri');
+    if (createFirst) {
+      createFirst.textContent = 'Criar um por vez';
+      createFirst.classList.add('dpi-data-starter-secondary');
+      empty.insertBefore(starter, createFirst);
+    } else {
+      empty.appendChild(starter);
+    }
   }
 
   list.querySelectorAll('.field-cat').forEach(function(category, index) {
@@ -770,57 +1691,110 @@ function dPropEnhanceDataRows() {
     }
   });
 
+  const selectedLayer = dPropDataSelectedLayer();
   list.querySelectorAll('.field-row').forEach(function(row) {
     const item = row.closest('.field-item');
+    const fieldName = item ? item.dataset.field : '';
+    const fieldIndex = dPropDataFieldIndex(fieldName);
+    const field = fieldIndex >= 0 && typeof dVars !== 'undefined' ? dVars[fieldIndex] : null;
     const name = row.querySelector('.field-row-name .nm');
     const meta = row.querySelector('.field-row-meta');
     const end = row.querySelector('.field-row-end');
     const used = !!row.querySelector('.field-sdot.used');
     const label = name ? name.textContent.trim() : 'Campo';
+    const warning = row.querySelector('.field-row-warn');
+    if (warning) {
+      warning.setAttribute('aria-hidden', 'true');
+      warning.removeAttribute('title');
+    }
     row.setAttribute('role', 'group');
-    row.tabIndex = 0;
-    row.setAttribute('aria-expanded', String(!!(item && item.classList.contains('open'))));
-    row.setAttribute('aria-label', label + (used ? ', em uso. Abrir detalhes.' : ', livre para conectar. Abrir detalhes.'));
-    if (!row.dataset.dpiKeyboard) {
-      row.dataset.dpiKeyboard = 'true';
-      row.addEventListener('keydown', function(event) {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          row.click();
-        }
+    row.removeAttribute('tabindex');
+    row.setAttribute('aria-label', label + (used ? ', na arte.' : ', dispon\u00edvel.') + (warning ? ' Poss\u00edvel duplicata.' : ''));
+
+    let toggle = row.querySelector('.dpi-field-toggle');
+    const currentMid = row.querySelector('.field-row-mid');
+    if (!toggle && currentMid) {
+      toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'field-row-mid dpi-field-toggle';
+      while (currentMid.firstChild) toggle.appendChild(currentMid.firstChild);
+      currentMid.replaceWith(toggle);
+      toggle.addEventListener('click', function(event) {
+        event.stopPropagation();
+        if (typeof dFieldToggleOpen === 'function') dFieldToggleOpen(fieldName);
       });
     }
+    if (toggle) {
+      toggle.setAttribute('aria-expanded', String(!!(item && item.classList.contains('open'))));
+      toggle.setAttribute('aria-label', (item && item.classList.contains('open') ? 'Fechar detalhes de ' : 'Abrir detalhes de ') + label + (warning ? '. Poss\u00edvel duplicata.' : '.'));
+    }
+
     if (meta) {
       Array.from(meta.childNodes).forEach(function(node) {
         if (node.nodeType === Node.TEXT_NODE && node.nodeValue.indexOf('N\u00e3o usada') !== -1) {
-          node.nodeValue = node.nodeValue.replace('N\u00e3o usada', 'Livre para conectar');
+          node.nodeValue = node.nodeValue.replace('N\u00e3o usada', 'Dispon\u00edvel');
         }
       });
     }
-    if (end && !end.querySelector('.dpi-field-status')) {
-      const status = document.createElement('span');
-      status.className = 'dpi-field-status ' + (used ? 'is-used' : 'is-free');
-      status.textContent = used ? 'Em uso' : 'Livre';
+
+    const staleStatus = end ? end.querySelector('.dpi-field-status') : null;
+    if (staleStatus) staleStatus.remove();
+    if (end && field && !end.querySelector('.dpi-field-primary-action')) {
+      const action = document.createElement('button');
+      action.type = 'button';
+      action.className = 'dpi-field-primary-action';
+      action.addEventListener('click', function(event) {
+        event.stopPropagation();
+        const currentIndex = dPropDataFieldIndex(fieldName);
+        const currentField = currentIndex >= 0 && typeof dVars !== 'undefined' ? dVars[currentIndex] : null;
+        const currentLayer = dPropDataSelectedLayer();
+        const usage = currentField && typeof dFieldUsageLayers === 'function' ? dFieldUsageLayers(currentField.name) : [];
+        const usedHere = !!(currentLayer && usage.some(function(place) { return place.id === currentLayer.id; }));
+        if (currentField && currentLayer && dPropDataFieldFitsLayer(currentField, currentLayer) && !usedHere) {
+          if (typeof dFieldUse === 'function') dFieldUse(currentIndex);
+          return;
+        }
+        if (usage.length) dPropLocateField(fieldName);
+      });
       const menu = end.querySelector('.field-card-menu');
-      if (menu) end.insertBefore(status, menu);
-      else end.appendChild(status);
+      if (menu) end.insertBefore(action, menu);
+      else end.appendChild(action);
     }
+
     const menu = row.querySelector('.field-card-menu');
     if (menu && !menu.dataset.dpiIcon) {
       menu.dataset.dpiIcon = 'true';
       menu.setAttribute('aria-label', 'Mais a\u00e7\u00f5es para ' + label);
       menu.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>';
     }
+
+    const duplicateNote = item ? item.querySelector('.field-dup-note') : null;
+    if (duplicateNote && !duplicateNote.querySelector('.dpi-field-compare')) {
+      const compare = document.createElement('button');
+      compare.type = 'button';
+      compare.className = 'dpi-field-compare';
+      compare.textContent = 'Comparar';
+      compare.setAttribute('aria-label', 'Comparar campos com o mesmo nome de ' + label);
+      compare.addEventListener('click', function(event) {
+        event.stopPropagation();
+        dPropCompareField(fieldName);
+      });
+      duplicateNote.appendChild(compare);
+    }
   });
   dPropSyncDataIntro();
+  dPropEnhanceDataFilters(list);
+  dPropSyncDataContext(selectedLayer);
+  dPropSyncDataTools();
 }
 
 function dPropInitDataPanel() {
   const panel = document.getElementById('d-panel-dados');
   const list = document.getElementById('d-fields-list');
   if (!panel || !list) return;
-  panel.setAttribute('aria-label', 'Centro de campos do template');
+  panel.setAttribute('aria-label', 'Campos da arte');
   dPropBuildDataIntro();
+  dPropBuildDataTools();
   dPropEnhanceDataRows();
   new MutationObserver(function() {
     dPropEnhanceDataRows();
@@ -842,6 +1816,71 @@ const DP_FIELD_TYPE_HELP = {
   color: 'Uma cor dentro da paleta sugerida.',
   boolean: 'Uma decis\u00e3o simples de sim ou n\u00e3o.'
 };
+
+function dPropFindExistingField(label) {
+  if (typeof dVars === 'undefined' || !Array.isArray(dVars)) return null;
+  const normalized = dPropDataNormalize(label);
+  const compact = normalized.replace(/\s+/g, '');
+  if (compact.length < 3) return null;
+
+  let similar = null;
+  for (let i = 0; i < dVars.length; i += 1) {
+    const field = dVars[i];
+    const fieldLabel = dPropDataNormalize(field.label || '').replace(/\s+/g, '');
+    const fieldName = dPropDataNormalize(field.name || '').replace(/\s+/g, '');
+    if (compact === fieldLabel || compact === fieldName) return { field: field, exact: true };
+    if (!similar && compact.length > 3 && (
+      (fieldLabel.length > 3 && (fieldLabel.indexOf(compact) !== -1 || compact.indexOf(fieldLabel) !== -1)) ||
+      (fieldName.length > 3 && (fieldName.indexOf(compact) !== -1 || compact.indexOf(fieldName) !== -1))
+    )) similar = { field: field, exact: false };
+  }
+  return similar;
+}
+
+function dPropUseExistingFromWizard(fieldName) {
+  const bindTo = typeof dVarBindAfterCreate !== 'undefined' ? dVarBindAfterCreate : null;
+  const fieldIndex = dPropDataFieldIndex(fieldName);
+  const field = fieldIndex >= 0 && typeof dVars !== 'undefined' ? dVars[fieldIndex] : null;
+  const layer = bindTo && typeof dLayers !== 'undefined'
+    ? dLayers.find(function(item) { return item.id === bindTo; })
+    : null;
+  if (typeof dCloseVarModal === 'function') dCloseVarModal();
+  if (field && layer && dPropDataFieldFitsLayer(field, layer) && typeof dLayerBindField === 'function') {
+    dLayerBindField(layer.id, field.name);
+    return;
+  }
+  if (typeof dActivatePanel === 'function') dActivatePanel('dados');
+  const search = document.getElementById('d-fields-search');
+  if (search) search.value = (field && (field.label || field.name)) || fieldName;
+  if (typeof dFieldsFilter === 'function') dFieldsFilter((field && (field.label || field.name)) || fieldName);
+  window.setTimeout(dPropDataChooseExisting, 80);
+}
+
+function dPropSyncFieldExistingMatch() {
+  const modal = document.getElementById('d-var-modal');
+  const label = document.getElementById('dv-label');
+  const matchBox = document.getElementById('dpi-field-existing-match');
+  if (!modal || !label || !matchBox) return;
+  const editing = typeof dEditingVarName !== 'undefined' && !!dEditingVarName;
+  const match = !editing ? dPropFindExistingField(label.value) : null;
+  matchBox.hidden = !match;
+  if (!match) {
+    matchBox.removeAttribute('data-field');
+    return;
+  }
+  matchBox.dataset.field = match.field.name;
+  const copy = matchBox.querySelector('span');
+  const button = matchBox.querySelector('button');
+  if (copy) {
+    copy.textContent = match.exact
+      ? '\u201c' + (match.field.label || match.field.name) + '\u201d j\u00e1 existe.'
+      : 'Talvez voc\u00ea queira usar \u201c' + (match.field.label || match.field.name) + '\u201d.';
+  }
+  if (button) {
+    button.textContent = 'Usar existente';
+    button.setAttribute('aria-label', 'Usar o campo existente ' + (match.field.label || match.field.name));
+  }
+}
 
 function dPropBuildFieldWizard() {
   const modal = document.getElementById('d-var-modal');
@@ -884,6 +1923,22 @@ function dPropBuildFieldWizard() {
     details.addEventListener('click', function() {
       requestAnimationFrame(dPropSyncFieldWizard);
     });
+  }
+  const label = document.getElementById('dv-label');
+  const hint = document.querySelector('#dv-step-1 .field-q-hint');
+  if (label && hint && !document.getElementById('dpi-field-existing-match')) {
+    const match = document.createElement('div');
+    match.id = 'dpi-field-existing-match';
+    match.className = 'dpi-field-existing-match';
+    match.hidden = true;
+    match.setAttribute('role', 'status');
+    match.innerHTML = '<span></span><button type="button">Usar existente</button>';
+    match.querySelector('button').addEventListener('click', function() {
+      const fieldName = match.dataset.field;
+      if (fieldName) dPropUseExistingFromWizard(fieldName);
+    });
+    hint.insertAdjacentElement('afterend', match);
+    label.addEventListener('input', dPropSyncFieldExistingMatch);
   }
 }
 
@@ -941,6 +1996,7 @@ function dPropSyncFieldWizard() {
     detailsToggle.setAttribute('aria-expanded', String(open));
     detailsToggle.classList.toggle('open', open);
   }
+  dPropSyncFieldExistingMatch();
 }
 
 function dPropInitFieldWizard() {
@@ -951,6 +2007,155 @@ function dPropInitFieldWizard() {
       if (modal.classList.contains('open')) dPropSyncFieldWizard();
     }).observe(modal, { attributes: true, attributeFilter: ['class'] });
   }
+}
+
+/* --------------------------------------------------------------------------
+   Blank canvas and page navigation
+   These helpers present the existing creation/import/page functions with a
+   calmer first-use path. They do not create a second document engine.
+   -------------------------------------------------------------------------- */
+
+function dPropStartFromImport(kind) {
+  if (typeof dActiveTmplFolderId !== 'undefined' && dActiveTmplFolderId &&
+      typeof dImportToFolder === 'function') {
+    dImportToFolder(dActiveTmplFolderId, kind);
+    return;
+  }
+  if (typeof dStudioHomeOpen === 'function') dStudioHomeOpen();
+}
+
+function dPropBuildCanvasEmpty() {
+  const wrapper = document.getElementById('d-canvas-wrapper');
+  if (!wrapper || document.getElementById('dpi-canvas-empty')) return;
+
+  const empty = document.createElement('section');
+  empty.id = 'dpi-canvas-empty';
+  empty.className = 'dpi-canvas-empty';
+  empty.setAttribute('aria-label', 'Começar uma arte');
+  empty.innerHTML =
+    '<span class="dpi-canvas-empty-icon" aria-hidden="true">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 9h6M12 6v6"/><path d="M8 16h8"/></svg>' +
+    '</span>' +
+    '<div class="dpi-canvas-empty-copy">' +
+      '<strong>Comece sua arte</strong>' +
+      '<p>Importe um arquivo pronto ou adicione o primeiro conteúdo.</p>' +
+    '</div>' +
+    '<div class="dpi-canvas-empty-imports" aria-label="Importar arquivo">' +
+      '<button type="button" class="dpi-empty-primary" data-empty-action="psd">' +
+        '<span class="dpi-empty-file-mark" aria-hidden="true">Ps</span><span>Importar PSD</span>' +
+      '</button>' +
+      '<button type="button" class="dpi-empty-secondary" data-empty-action="svg">' +
+        '<span class="dpi-empty-file-mark" aria-hidden="true">Ai</span><span>SVG / Illustrator</span>' +
+      '</button>' +
+    '</div>' +
+    '<div class="dpi-canvas-empty-divider"><span>ou crie do zero</span></div>' +
+    '<div class="dpi-canvas-empty-create" aria-label="Adicionar conteúdo">' +
+      '<button type="button" data-empty-action="text">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M5 5V3h14v2M9 21h6M12 3v18"/></svg><span>Texto</span>' +
+      '</button>' +
+      '<button type="button" data-empty-action="image">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m21 15-5-5L5 20"/></svg><span>Imagem</span>' +
+      '</button>' +
+    '</div>';
+
+  empty.addEventListener('click', function(event) {
+    event.stopPropagation();
+    const button = event.target.closest('[data-empty-action]');
+    if (!button) return;
+    const action = button.dataset.emptyAction;
+    if (action === 'psd' || action === 'svg') dPropStartFromImport(action);
+    if (action === 'text' && typeof dAddText === 'function') dAddText();
+    if (action === 'image' && typeof dAddFrame === 'function') dAddFrame();
+  });
+  wrapper.appendChild(empty);
+}
+
+function dPropSyncCanvasEmpty() {
+  if (typeof dLayers === 'undefined' || !Array.isArray(dLayers)) return;
+  const empty = typeof dStudioHasMeaningfulLayers === 'function'
+    ? !dStudioHasMeaningfulLayers(dLayers)
+    : dLayers.filter(Boolean).length <= 1;
+  document.body.classList.toggle('dpi-empty-canvas', empty);
+}
+
+function dPropInitCanvasEmpty() {
+  dPropBuildCanvasEmpty();
+  dPropSyncCanvasEmpty();
+  const frame = document.getElementById('d-canvas-frame');
+  if (!frame || frame.dataset.dpiEmptyObserved === '1') return;
+  frame.dataset.dpiEmptyObserved = '1';
+  let scheduled = false;
+  new MutationObserver(function() {
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(function() {
+      scheduled = false;
+      dPropSyncCanvasEmpty();
+    });
+  }).observe(frame, { childList: true });
+}
+
+function dPropSyncPagesTray() {
+  const tray = document.getElementById('d-pages-tray');
+  const list = document.getElementById('ptray-list');
+  const toggle = tray ? tray.querySelector('.ptray-toggle') : null;
+  if (!tray || !list || !toggle) return;
+
+  const items = Array.from(list.querySelectorAll('.ptray-item'));
+  const count = items.length;
+  if (count && tray.dataset.dpiDefaultCollapsed !== '1') {
+    tray.dataset.dpiDefaultCollapsed = '1';
+    tray.classList.add('collapsed');
+    if (typeof dPagesTrayCollapsed !== 'undefined') dPagesTrayCollapsed = true;
+  }
+
+  tray.classList.toggle('dpi-pages-single', count <= 1);
+  let label = toggle.querySelector('.dpi-pages-toggle-label');
+  if (!label) {
+    label = document.createElement('span');
+    label.className = 'dpi-pages-toggle-label';
+    toggle.appendChild(label);
+  }
+  label.textContent = count + (count === 1 ? ' página' : ' páginas');
+  const expanded = !tray.classList.contains('collapsed');
+  toggle.setAttribute('aria-expanded', String(expanded));
+  toggle.setAttribute('aria-controls', 'ptray-list');
+  toggle.setAttribute('aria-label', (expanded ? 'Recolher ' : 'Mostrar ') + label.textContent);
+  toggle.title = expanded ? 'Recolher páginas' : 'Mostrar páginas';
+
+  list.setAttribute('role', 'list');
+  list.setAttribute('aria-label', 'Páginas do material');
+  items.forEach(function(item, index) {
+    const active = item.classList.contains('active');
+    item.setAttribute('role', 'button');
+    item.setAttribute('aria-current', active ? 'page' : 'false');
+    item.setAttribute('aria-label', 'Abrir página ' + (index + 1) + ': ' +
+      ((item.querySelector('.ptray-item-label') || {}).textContent || 'Sem nome'));
+    item.tabIndex = active || (!items.some(function(row) { return row.classList.contains('active'); }) && index === 0) ? 0 : -1;
+  });
+
+  const add = tray.querySelector('.ptray-add');
+  if (add) add.setAttribute('aria-label', 'Adicionar nova página');
+}
+
+function dPropInitPagesTray() {
+  const tray = document.getElementById('d-pages-tray');
+  const list = document.getElementById('ptray-list');
+  const toggle = tray ? tray.querySelector('.ptray-toggle') : null;
+  if (!tray || !list || !toggle || tray.dataset.dpiReady === '1') return;
+  tray.dataset.dpiReady = '1';
+
+  toggle.addEventListener('click', function() {
+    requestAnimationFrame(dPropSyncPagesTray);
+  });
+  list.addEventListener('keydown', function(event) {
+    const item = event.target.closest('.ptray-item');
+    if (!item || (event.key !== 'Enter' && event.key !== ' ')) return;
+    event.preventDefault();
+    item.click();
+  });
+  new MutationObserver(dPropSyncPagesTray).observe(list, { childList: true });
+  dPropSyncPagesTray();
 }
 
 const dPropBaseShowProps = typeof dShowProps === 'function' ? dShowProps : null;
@@ -967,6 +2172,21 @@ if (dPropBaseActivatePanel) {
   dActivatePanel = function(name) {
     const result = dPropBaseActivatePanel(name);
     dPropSyncTabs(typeof dActivePanel !== 'undefined' ? dActivePanel : name);
+    const aliases = {
+      camada: 'edit',
+      camadas: 'edit',
+      propriedades: 'edit',
+      dados: 'dados',
+      vars: 'dados',
+      variaveis: 'dados',
+      linter: 'linter',
+      campaigns: 'campaigns',
+      conteudo: 'campaigns'
+    };
+    const rightPanel = document.getElementById('d-right');
+    const keepOrganize = rightPanel && rightPanel.dataset.dpiKeepOrganize === '1' &&
+      (name === 'camada' || name === 'camadas' || name === 'propriedades');
+    dPropSyncPanelNav(keepOrganize ? 'organize' : (aliases[name] || name));
     return result;
   };
 }
@@ -1017,6 +2237,8 @@ if (dPropBaseFieldWizardBack) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+  dPropBuildWorkspaceMode();
+  dPropBuildEssentialChrome();
   dPropRestoreSections();
   document.querySelectorAll('#d-props-form .dp-section[id]').forEach(function(s) {
     var body = s.querySelector('.dp-sec-body');
@@ -1031,9 +2253,12 @@ document.addEventListener('DOMContentLoaded', function() {
   dPropBuildImageControls();
   dPropInitSectionsA11y();
   dPropInitTabs();
+  dPropBuildPanelNav();
   dPropInitLayersDock();
   dPropInitDataPanel();
   dPropInitFieldWizard();
+  dPropInitCanvasEmpty();
+  dPropInitPagesTray();
   dPropSyncInspectorFromState();
 
   const form = document.getElementById('d-props-form');

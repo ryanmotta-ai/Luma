@@ -905,6 +905,7 @@ function dPublishConfirm(){
   if(saveIndicator)saveIndicator.innerHTML='<span class="d-save-published"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>Publicado</span>';
   dPublishClearDraft(draftKey);
   dPublishShowSuccess(count,folder.name);
+  if(typeof window.gPlayPublishSuccessSound === 'function') window.gPlayPublishSuccessSound();
 }
 /* ── M2.2 — Safety net: estado de gravação + proteção contra fecho acidental ── */
 let dDirty=false;

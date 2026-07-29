@@ -18,6 +18,9 @@ let dFolders=[],dActiveTmplId=null,dFolderOpen={};
 let dArtboards=[],dActiveABId=null,dUseArtboards=true;
 const D_STUDIO_RECENTS_KEY='luma_studio_recents_v1';
 let dStudioRecoveredWork=false;
+let dStudioHomeSearchQuery='';
+let dStudioHomeCampaignFilter='all';
+let dStudioHomeStatusFilter='all';
 
 // Garante que o contador de ids nunca fique atrás dos ids 'l-N' já existentes
 // (layers restaurados do localStorage / carregados de template) — senão ++dLyrCnt
@@ -630,7 +633,7 @@ function dStudioRelativeTime(value){
 }
 
 function dStudioTemplateStatus(tmpl){
-  if(tmpl&&tmpl._syncPending) return {label:'Neste aparelho',kind:'local'};
+  if(tmpl&&tmpl._syncPending) return {label:'Rascunho local',kind:'local'};
   if(tmpl&&tmpl.publishMeta&&tmpl.publishMeta.publicado) return {label:'Publicado',kind:'published'};
   return {label:'Rascunho',kind:'draft'};
 }
@@ -663,44 +666,356 @@ function dStudioCampaignOptions(selectedId){
   return dFolders.map(f=>'<option value="'+gEsc(f.id)+'" '+(f.id===selectedId?'selected':'')+'>'+gEsc(f.name)+'</option>').join('');
 }
 
+function dStudioHomeNormalize(value){
+  return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('pt-BR');
+}
+
+function dStudioHomeSetFilter(type,value){
+  if(type==='search') dStudioHomeSearchQuery=String(value||'');
+  if(type==='campaign') dStudioHomeCampaignFilter=String(value||'all');
+  if(type==='status') dStudioHomeStatusFilter=String(value||'all');
+  dStudioHomeApplyFilters();
+}
+
+function dStudioHomeApplyFilters(){
+  const query=dStudioHomeNormalize(dStudioHomeSearchQuery);
+  let visible=0;
+  const cards=Array.from(document.querySelectorAll('#dsh-all-grid .dsh-material-card'));
+  cards.forEach(card=>{
+    const matchesQuery=!query||dStudioHomeNormalize(card.dataset.search).includes(query);
+    const matchesCampaign=dStudioHomeCampaignFilter==='all'||card.dataset.campaign===dStudioHomeCampaignFilter;
+    const matchesStatus=dStudioHomeStatusFilter==='all'||card.dataset.status===dStudioHomeStatusFilter;
+    const show=matchesQuery&&matchesCampaign&&matchesStatus;
+    card.hidden=!show;
+    if(show) visible++;
+  });
+  const count=document.getElementById('dsh-all-visible');
+  if(count) count.textContent=visible+(visible===1?' material':' materiais');
+  const empty=document.getElementById('dsh-filter-empty');
+  if(empty) empty.hidden=!cards.length||visible>0;
+}
+
+function dStudioHomeMaterialEntries(){
+  const opened=new Map();
+  dStudioRecentRead().forEach(item=>opened.set(item.key,item.openedAt||0));
+  return dFolders.flatMap(folder=>(folder.templates||[]).map(tmpl=>{
+    const key=(tmpl.remoteId||tmpl.id)+'@'+(folder.remoteId||folder.id);
+    return {folder:folder,tmpl:tmpl,openedAt:opened.get(key)||0};
+  })).sort((a,b)=>(b.openedAt||0)-(a.openedAt||0));
+}
+
+function dStudioHomeMaterialCard(entry,key,options){
+  const t=entry.tmpl,f=entry.folder,status=dStudioTemplateStatus(t);
+  const preset=DFMT_SIZES[t.fmt]||{w:t.w||1080,h:t.h||1920};
+  const width=t.w||preset.w||1080,height=t.h||preset.h||1920;
+  const hasLocalLayers=Array.isArray(t.layers)&&t.layers.length&&!t._needsLayersFetch;
+  const blank=hasLocalLayers&&!dStudioHasMeaningfulLayers(t.layers);
+  const orientation=width>height?'landscape':(width===height?'square':'portrait');
+  const displayName=String(t.name||'').trim()==='Novo projeto'?'Novo material':(t.name||'Material sem nome');
+  const thumbId='dsh-thumb-'+key;
+  const thumb=blank
+    ?'<span class="dsh-blank-preview" aria-hidden="true"><span class="dsh-blank-sheet '+orientation+'"><i></i></span><span>Material em branco</span></span>'
+    :'<span class="dsh-thumb-fallback" aria-hidden="true"><span>'+gEsc(String(f.name||'L').charAt(0).toUpperCase())+'</span></span>';
+  const openedAt=Number(entry.openedAt);
+  const hasOpenedAt=Number.isFinite(openedAt)&&openedAt>0;
+  const datetime=hasOpenedAt?new Date(openedAt).toISOString():'';
+  const time=hasOpenedAt
+    ?'<time datetime="'+datetime+'">'+dStudioRelativeTime(openedAt)+'</time>'
+    :'<span class="dsh-card-size">'+width+' × '+height+'</span>';
+  const allClass=options&&options.all?' dsh-all-card':'';
+  const search=gEsc(displayName+' '+(f.name||'')+' '+width+' '+height);
+
+  return '<article class="dsh-material-card dsh-recent-card '+(blank?'is-blank ':'')+allClass+'" '+
+      'data-search="'+search+'" data-campaign="'+gEsc(f.id)+'" data-status="'+status.kind+'">'+
+    '<button type="button" class="dsh-card-open" onclick="dStudioHomeOpenMaterial(\''+gEsc(f.id)+'\',\''+gEsc(t.id)+'\',this)" aria-label="Abrir '+gEsc(displayName)+'">'+
+      '<span class="dsh-thumb" id="'+thumbId+'">'+thumb+'</span>'+
+      '<span class="dsh-card-copy"><strong title="'+gEsc(displayName)+'">'+gEsc(displayName)+'</strong><span>'+gEsc(f.name)+' · '+width+' × '+height+'</span></span>'+
+      '<span class="dsh-card-meta"><span class="dsh-status '+status.kind+'"><i></i>'+status.label+'</span>'+time+'</span>'+
+    '</button>'+
+    '<button type="button" class="dsh-card-menu" onclick="event.stopPropagation();dTemplateMenuOpen(event,\''+gEsc(f.id)+'\',\''+gEsc(t.id)+'\')" aria-label="Mais ações para '+gEsc(displayName)+'" title="Mais ações">'+
+      '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>'+
+    '</button>'+
+  '</article>';
+}
+
 function dStudioHomeRender(){
   const home=document.getElementById('d-studio-home');
   if(!home) return;
   const selectedFolder=dFolders.find(f=>f.id===dActiveTmplFolderId)||dFolders[0]||{};
   const selected=selectedFolder.id||'';
-  const recent=dStudioRecentRead().map(dStudioResolveRecent).filter(Boolean).slice(0,6);
-  const cards=recent.map((entry,index)=>{
-    const t=entry.tmpl,f=entry.folder,status=dStudioTemplateStatus(t);
-    const size=DFMT_SIZES[t.fmt]||{w:t.w||1080,h:t.h||1920};
-    const hasLocalLayers=Array.isArray(t.layers)&&t.layers.length&&!t._needsLayersFetch;
-    const blank=hasLocalLayers&&!dStudioHasMeaningfulLayers(t.layers);
-    const orientation=size.w>size.h?'landscape':(size.w===size.h?'square':'portrait');
-    const thumb=blank
-      ?'<span class="dsh-blank-preview" aria-hidden="true"><span class="dsh-blank-sheet '+orientation+'"><i></i></span><span>Material em branco</span></span>'
-      :'<span class="dsh-thumb-fallback" aria-hidden="true"><span>'+gEsc(String(f.name||'L').charAt(0).toUpperCase())+'</span></span>';
-    const openedAt=Number(entry.openedAt);
-    const datetime=new Date(Number.isFinite(openedAt)&&openedAt>0?openedAt:Date.now()).toISOString();
-    return '<button type="button" class="dsh-recent-card '+(blank?'is-blank':'')+'" onclick="dStudioOpenRecent('+index+',this)" aria-label="Abrir '+gEsc(t.name)+'">'+
-      '<span class="dsh-thumb" id="dsh-thumb-'+index+'">'+thumb+'</span>'+
-      '<span class="dsh-card-copy"><strong title="'+gEsc(t.name)+'">'+gEsc(t.name)+'</strong><span>'+gEsc(f.name)+' · '+size.w+' × '+size.h+'</span></span>'+
-      '<span class="dsh-card-meta"><span class="dsh-status '+status.kind+'"><i></i>'+status.label+'</span><time datetime="'+datetime+'">'+dStudioRelativeTime(entry.openedAt)+'</time></span>'+
-    '</button>';
-  }).join('');
-  const recover=dStudioRecoveredWork?'<button type="button" class="dsh-recover" onclick="dStudioRecoverLocal()"><span class="dsh-recover-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></span><span><strong>Recuperar trabalho local</strong><small>Há alterações deste aparelho que ainda não pertencem a uma campanha.</small></span><svg class="dsh-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>':'';
-  const empty='<div class="dsh-empty"><span class="dsh-empty-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H10l2 2h5.5A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5z"/><path d="M9 12h6M12 9v6"/></svg></span><strong>Seus materiais recentes aparecerão aqui</strong><span>Crie um projeto ou abra um material em Campanhas para começar.</span></div>';
-  home.innerHTML='<div class="dsh-shell">'+
-    '<div class="dsh-intro"><header class="dsh-hero"><div class="dsh-eyebrow"><span></span>ESTÚDIO LUMA</div><h1 id="dsh-title" tabindex="-1">Dê forma à próxima campanha.</h1><p>Continue um material recente ou comece no formato certo, já conectado à campanha.</p></header></div>'+
-    '<section class="dsh-start" aria-labelledby="dsh-start-title"><div class="dsh-section-heading dsh-start-heading"><div><span>COMEÇAR</span><h2 id="dsh-start-title">Escolha seu ponto de partida</h2></div><label class="dsh-campaign"><span>Campanha de destino</span><select id="dsh-folder" '+(dFolders.length?'':'disabled')+'>'+dStudioCampaignOptions(selected)+'</select></label></div>'+
-    '<div class="dsh-actions"><button type="button" class="dsh-create-action" onclick="dStudioHomeNew()"><span class="dsh-action-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><span class="dsh-action-copy"><small>CRIAR DO ZERO</small><strong>Novo material</strong><span>Formatos recomendados, recentes e dimensões personalizadas.</span></span><span class="dsh-format-stack" aria-hidden="true"><i></i><i></i><i></i></span><svg class="dsh-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>'+
-    '<div class="dsh-imports"><div class="dsh-imports-head"><span>IMPORTAR ARQUIVO</span><small>Continue um trabalho existente</small></div><div class="dsh-import-actions"><button type="button" class="dsh-import-action" onclick="dStudioHomeImport(\'psd\')"><span class="dsh-action-icon ps"><strong>Ps</strong></span><span><strong>Photoshop</strong><small>Camadas editáveis</small></span><svg class="dsh-arrow" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button><button type="button" class="dsh-import-action" onclick="dStudioHomeImport(\'svg\')"><span class="dsh-action-icon ai"><strong>Ai</strong></span><span><strong>SVG / Illustrator</strong><small>Vetores e layouts</small></span><svg class="dsh-arrow" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button></div></div></div>'+recover+'</section>'+
-    '<section class="dsh-recents" aria-labelledby="dsh-recents-title"><div class="dsh-section-heading"><div><span>SEU RITMO</span><div class="dsh-title-line"><h2 id="dsh-recents-title">Abertos recentemente</h2><small class="dsh-count">'+recent.length+(recent.length===1?' material':' materiais')+'</small></div></div></div><div class="dsh-recent-grid">'+(cards||empty)+'</div></section>'+
+  const recent=dStudioRecentRead().map(dStudioResolveRecent).filter(Boolean).slice(0,4);
+  const all=dStudioHomeMaterialEntries();
+  const recentCards=recent.map((entry,index)=>dStudioHomeMaterialCard(entry,'recent-'+index)).join('');
+  const allCards=all.map((entry,index)=>dStudioHomeMaterialCard(entry,'all-'+index,{all:true})).join('');
+
+  // Seletor visual estético para "Salvar em"
+  const selectedFolderColor = selectedFolder.color || 'var(--dm-orange)';
+  const saveFolderBtn = '<div class="dsh-campaign" id="dsh-save-folder-wrap">'+
+    '<span>Salvar em</span>'+
+    '<button type="button" class="dsh-custom-select-btn" id="dsh-save-folder-btn" onclick="dStudioToggleSaveFolderMenu(event)" aria-label="Campanha onde o material será salvo">'+
+      '<span class="dsh-folder-badge-icon" style="background:'+selectedFolderColor+';color:#fff">'+
+        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>'+
+      '</span>'+
+      '<span class="dsh-custom-select-label">'+gEsc(selectedFolder.name||'Campanha')+'</span>'+
+      '<svg class="dsh-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>'+
+    '</button>'+
+    '<select id="dsh-folder" style="display:none">'+dStudioCampaignOptions(selected)+'</select>'+
   '</div>';
-  recent.forEach((entry,index)=>dStudioRenderThumb(entry.tmpl,index));
+
+  // Seletor visual estético para Filtro de Campanhas
+  const activeCampaignObj = dFolders.find(f => f.id === dStudioHomeCampaignFilter);
+  const activeCampLabel = activeCampaignObj ? activeCampaignObj.name : 'Todas as campanhas';
+  const activeCampIcon = activeCampaignObj
+    ? '<span class="dsh-folder-badge-icon" style="background:'+(activeCampaignObj.color||'var(--dm-orange)')+';color:#fff;width:18px;height:18px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg></span>'
+    : '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--dm-orange)"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>';
+
+  const campaignFilterBtn = '<button type="button" class="dsh-custom-select-btn" id="dsh-campaign-filter-btn" onclick="dStudioToggleCampaignFilterMenu(event)" aria-label="Filtrar por campanha">'+
+    '<span class="dsh-filter-icon">'+activeCampIcon+'</span>'+
+    '<span class="dsh-custom-select-label">'+gEsc(activeCampLabel)+'</span>'+
+    '<svg class="dsh-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>'+
+  '</button>';
+
+  // Seletor visual estético para Filtro de Status
+  const STATUS_ICONS = {
+    all: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--dm-orange)"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>',
+    draft: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#FFB900"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+    published: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#22C55E"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+    local: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#A855F7"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>'
+  };
+  const STATUS_LABELS = {
+    all: 'Todos os status',
+    draft: 'Rascunhos',
+    published: 'Publicados',
+    local: 'Rascunhos locais'
+  };
+
+  const statusFilterBtn = '<button type="button" class="dsh-custom-select-btn" id="dsh-status-filter-btn" onclick="dStudioToggleStatusFilterMenu(event)" aria-label="Filtrar por status">'+
+    '<span class="dsh-filter-icon">'+(STATUS_ICONS[dStudioHomeStatusFilter]||STATUS_ICONS.all)+'</span>'+
+    '<span class="dsh-custom-select-label">'+gEsc(STATUS_LABELS[dStudioHomeStatusFilter]||STATUS_LABELS.all)+'</span>'+
+    '<svg class="dsh-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>'+
+  '</button>';
+
+  const recover=dStudioRecoveredWork?'<button type="button" class="dsh-recover" onclick="dStudioRecoverLocal()"><span class="dsh-recover-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></span><span><strong>Continuar trabalho não salvo</strong></span><svg class="dsh-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>':'';
+  const empty='<div class="dsh-empty"><span class="dsh-empty-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H10l2 2h5.5A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5z"/><path d="M9 12h6M12 9v6"/></svg></span><strong>Seus materiais aparecerão aqui</strong><span>Crie um material ou importe um arquivo para começar.</span></div>';
+  const recentSection=recent.length
+    ?'<section class="dsh-recents dsh-continue" aria-labelledby="dsh-recents-title"><div class="dsh-section-heading"><div class="dsh-title-line"><h2 id="dsh-recents-title">Continue editando</h2><small class="dsh-count">'+recent.length+(recent.length===1?' material':' materiais')+'</small></div></div><div class="dsh-recent-grid">'+recentCards+'</div></section>'
+    :'';
+  home.innerHTML='<div class="dsh-shell">'+
+    '<div class="dsh-intro"><header class="dsh-hero"><h1 id="dsh-title" tabindex="-1">Crie seu próximo material.</h1></header></div>'+
+    recover+recentSection+
+    '<section class="dsh-start" aria-labelledby="dsh-start-title"><div class="dsh-section-heading dsh-start-heading"><h2 id="dsh-start-title">Criar ou importar</h2>'+saveFolderBtn+'</div>'+
+    '<div class="dsh-actions">'+
+      '<button type="button" class="dsh-start-card dsh-start-create" onclick="dStudioHomeNew()"><span class="dsh-action-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><span class="dsh-action-copy"><strong>Criar material</strong><span>Comece com uma tela limpa.</span></span><svg class="dsh-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>'+
+      '<button type="button" class="dsh-start-card" onclick="dStudioHomeImport(\'psd\')"><span class="dsh-action-icon ps"><strong>Ps</strong></span><span class="dsh-action-copy"><strong>Photoshop</strong><span>PSD com camadas editáveis.</span></span><svg class="dsh-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>'+
+      '<button type="button" class="dsh-start-card" onclick="dStudioHomeImport(\'svg\')"><span class="dsh-action-icon ai"><strong>Ai</strong></span><span class="dsh-action-copy"><strong>SVG / Illustrator</strong><span>Vetores editáveis.</span></span><svg class="dsh-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>'+
+    '</div></section>'+
+    '<section class="dsh-library" aria-labelledby="dsh-library-title"><div class="dsh-section-heading dsh-library-heading"><div class="dsh-title-line"><h2 id="dsh-library-title">Todos os materiais</h2><small class="dsh-count" id="dsh-all-visible">'+all.length+(all.length===1?' material':' materiais')+'</small></div>'+
+      '<div class="dsh-library-tools"><label class="dsh-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><span class="sr-only">Buscar materiais</span><input type="search" value="'+gEsc(dStudioHomeSearchQuery)+'" placeholder="Buscar materiais" oninput="dStudioHomeSetFilter(\'search\',this.value)"></label>'+
+      campaignFilterBtn+statusFilterBtn+'</div></div>'+
+      '<div class="dsh-all-grid" id="dsh-all-grid">'+(allCards||empty)+'</div>'+
+      '<div class="dsh-filter-empty" id="dsh-filter-empty" hidden><strong>Nenhum material encontrado</strong><span>Tente outro nome, campanha ou status.</span></div>'+
+    '</section>'+
+  '</div>';
+  const thumbTasks=recent.map((entry,index)=>({tmpl:entry.tmpl,hostId:'dsh-thumb-recent-'+index}))
+    .concat(all.map((entry,index)=>({tmpl:entry.tmpl,hostId:'dsh-thumb-all-'+index})));
+  dStudioObserveHomeThumbs(thumbTasks);
+  dStudioHomeApplyFilters();
 }
 
-function dStudioRenderThumb(tmpl,index){
+function dStudioToggleSaveFolderMenu(ev){
+  ev.stopPropagation();
+  ev.preventDefault();
+  const existing = document.getElementById('dsh-save-folder-popover');
+  if(existing){ existing.remove(); return; }
+  document.querySelectorAll('.dsh-custom-popover').forEach(p=>p.remove());
+
+  const btn = ev.currentTarget;
+  const rect = btn.getBoundingClientRect();
+  const popover = document.createElement('div');
+  popover.id = 'dsh-save-folder-popover';
+  popover.className = 'dsh-custom-popover';
+  popover.style.left = Math.min(rect.left, window.innerWidth - 280) + 'px';
+  popover.style.top = (rect.bottom + 6) + 'px';
+
+  const selectedFolder = dFolders.find(f => f.id === dActiveTmplFolderId) || dFolders[0] || {};
+
+  const items = dFolders.map(folder => {
+    const isSelected = folder.id === selectedFolder.id;
+    const color = folder.color || 'var(--dm-orange)';
+    const count = (folder.templates || []).length;
+    const checkSvg = isSelected ? '<svg class="dsh-popover-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : '';
+
+    return '<button type="button" class="dsh-popover-item '+(isSelected?'selected':'')+'" onclick="dStudioSelectSaveFolder(\''+gEsc(folder.id)+'\')">'+
+      '<span class="dsh-popover-thumb-wrap" style="background:'+color+';color:#fff">'+
+        '<svg class="dsh-popover-folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>'+
+      '</span>'+
+      '<span class="dsh-popover-label-wrap">'+
+        '<span class="dsh-popover-label-title">'+gEsc(folder.name)+'</span>'+
+        '<span class="dsh-popover-label-sub">'+count+(count===1?' material':' materiais')+'</span>'+
+      '</span>'+
+      checkSvg+
+    '</button>';
+  }).join('');
+
+  popover.innerHTML = items;
+  document.body.appendChild(popover);
+
+  setTimeout(()=>{
+    const closeOnOut = (e)=>{
+      if(!popover.contains(e.target) && !btn.contains(e.target)){
+        popover.remove();
+        document.removeEventListener('click', closeOnOut);
+      }
+    };
+    document.addEventListener('click', closeOnOut);
+  }, 0);
+}
+
+function dStudioSelectSaveFolder(folderId){
+  dActiveTmplFolderId = folderId;
+  const select = document.getElementById('dsh-folder');
+  if(select) select.value = folderId;
+  dStudioHomeRender();
+  document.querySelectorAll('.dsh-custom-popover').forEach(p=>p.remove());
+}
+
+function dStudioToggleCampaignFilterMenu(ev){
+  ev.stopPropagation();
+  ev.preventDefault();
+  const existing = document.getElementById('dsh-campaign-filter-popover');
+  if(existing){ existing.remove(); return; }
+  document.querySelectorAll('.dsh-custom-popover').forEach(p=>p.remove());
+
+  const btn = ev.currentTarget;
+  const rect = btn.getBoundingClientRect();
+  const popover = document.createElement('div');
+  popover.id = 'dsh-campaign-filter-popover';
+  popover.className = 'dsh-custom-popover';
+  popover.style.left = Math.min(rect.left, window.innerWidth - 280) + 'px';
+  popover.style.top = (rect.bottom + 6) + 'px';
+
+  const totalAll = dFolders.reduce((sum, f) => sum + (f.templates || []).length, 0);
+  const isAllSelected = dStudioHomeCampaignFilter === 'all';
+  const allCheckSvg = isAllSelected ? '<svg class="dsh-popover-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : '';
+
+  let html = '<button type="button" class="dsh-popover-item '+(isAllSelected?'selected':'')+'" onclick="dStudioSelectCampaignFilter(\'all\')">'+
+    '<span class="dsh-popover-thumb-wrap" style="background:var(--d-surf);color:var(--dm-orange)">'+
+      '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>'+
+    '</span>'+
+    '<span class="dsh-popover-label-wrap">'+
+      '<span class="dsh-popover-label-title">Todas as campanhas</span>'+
+      '<span class="dsh-popover-label-sub">'+totalAll+(totalAll===1?' material':' materiais')+'</span>'+
+    '</span>'+
+    allCheckSvg+
+  '</button>';
+
+  html += dFolders.map(folder => {
+    const isSelected = dStudioHomeCampaignFilter === folder.id;
+    const color = folder.color || 'var(--dm-orange)';
+    const count = (folder.templates || []).length;
+    const checkSvg = isSelected ? '<svg class="dsh-popover-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : '';
+
+    return '<button type="button" class="dsh-popover-item '+(isSelected?'selected':'')+'" onclick="dStudioSelectCampaignFilter(\''+gEsc(folder.id)+'\')">'+
+      '<span class="dsh-popover-thumb-wrap" style="background:'+color+';color:#fff">'+
+        '<svg class="dsh-popover-folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>'+
+      '</span>'+
+      '<span class="dsh-popover-label-wrap">'+
+        '<span class="dsh-popover-label-title">'+gEsc(folder.name)+'</span>'+
+        '<span class="dsh-popover-label-sub">'+count+(count===1?' material':' materiais')+'</span>'+
+      '</span>'+
+      checkSvg+
+    '</button>';
+  }).join('');
+
+  popover.innerHTML = html;
+  document.body.appendChild(popover);
+
+  setTimeout(()=>{
+    const closeOnOut = (e)=>{
+      if(!popover.contains(e.target) && !btn.contains(e.target)){
+        popover.remove();
+        document.removeEventListener('click', closeOnOut);
+      }
+    };
+    document.addEventListener('click', closeOnOut);
+  }, 0);
+}
+
+function dStudioSelectCampaignFilter(val){
+  dStudioHomeSetFilter('campaign', val);
+  dStudioHomeRender();
+  document.querySelectorAll('.dsh-custom-popover').forEach(p=>p.remove());
+}
+
+function dStudioToggleStatusFilterMenu(ev){
+  ev.stopPropagation();
+  ev.preventDefault();
+  const existing = document.getElementById('dsh-status-filter-popover');
+  if(existing){ existing.remove(); return; }
+  document.querySelectorAll('.dsh-custom-popover').forEach(p=>p.remove());
+
+  const btn = ev.currentTarget;
+  const rect = btn.getBoundingClientRect();
+  const popover = document.createElement('div');
+  popover.id = 'dsh-status-filter-popover';
+  popover.className = 'dsh-custom-popover';
+  popover.style.left = Math.min(rect.left, window.innerWidth - 260) + 'px';
+  popover.style.top = (rect.bottom + 6) + 'px';
+
+  const allEntries = dStudioHomeMaterialEntries();
+  const counts = {
+    all: allEntries.length,
+    draft: allEntries.filter(e => dStudioTemplateStatus(e.tmpl).kind === 'draft').length,
+    published: allEntries.filter(e => dStudioTemplateStatus(e.tmpl).kind === 'published').length,
+    local: allEntries.filter(e => dStudioTemplateStatus(e.tmpl).kind === 'local').length
+  };
+
+  const statusList = [
+    { id: 'all', label: 'Todos os status', icon: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--dm-orange)"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>' },
+    { id: 'draft', label: 'Rascunhos', icon: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#FFB900"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>' },
+    { id: 'published', label: 'Publicados', icon: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#22C55E"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>' },
+    { id: 'local', label: 'Rascunhos locais', icon: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#A855F7"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>' }
+  ];
+
+  const html = statusList.map(st => {
+    const isSelected = dStudioHomeStatusFilter === st.id;
+    const count = counts[st.id] || 0;
+    const checkSvg = isSelected ? '<svg class="dsh-popover-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : '';
+
+    return '<button type="button" class="dsh-popover-item '+(isSelected?'selected':'')+'" onclick="dStudioSelectStatusFilter(\''+st.id+'\')">'+
+      '<span class="dsh-popover-thumb-wrap" style="background:var(--d-surf)">'+st.icon+'</span>'+
+      '<span class="dsh-popover-label-wrap">'+
+        '<span class="dsh-popover-label-title">'+st.label+'</span>'+
+        '<span class="dsh-popover-label-sub">'+count+(count===1?' material':' materiais')+'</span>'+
+      '</span>'+
+      checkSvg+
+    '</button>';
+  }).join('');
+
+  popover.innerHTML = html;
+  document.body.appendChild(popover);
+
+  setTimeout(()=>{
+    const closeOnOut = (e)=>{
+      if(!popover.contains(e.target) && !btn.contains(e.target)){
+        popover.remove();
+        document.removeEventListener('click', closeOnOut);
+      }
+    };
+    document.addEventListener('click', closeOnOut);
+  }, 0);
+}
+
+function dStudioSelectStatusFilter(val){
+  dStudioHomeSetFilter('status', val);
+  dStudioHomeRender();
+  document.querySelectorAll('.dsh-custom-popover').forEach(p=>p.remove());
+}
+
+
+function dStudioRenderThumb(tmpl,hostId){
   if(!tmpl||!Array.isArray(tmpl.layers)||!tmpl.layers.length||tmpl._needsLayersFetch||!dStudioHasMeaningfulLayers(tmpl.layers)) return;
-  const host=document.getElementById('dsh-thumb-'+index);if(!host)return;
+  const host=document.getElementById(hostId);if(!host)return;
   const size=DFMT_SIZES[tmpl.fmt]||{w:tmpl.w||1080,h:tmpl.h||1920};
   const canvas=document.createElement('span');canvas.className='dsh-thumb-canvas';
   canvas.style.width=size.w+'px';canvas.style.height=size.h+'px';host.innerHTML='';host.appendChild(canvas);
@@ -709,6 +1024,38 @@ function dStudioRenderThumb(tmpl,index){
     const scale=Math.min(host.clientWidth/size.w,host.clientHeight/size.h);
     canvas.style.transform='translate(-50%,-50%) scale('+scale+')';
   });
+}
+
+function dStudioObserveHomeThumbs(tasks){
+  const pending=(tasks||[]).map(task=>({task:task,host:document.getElementById(task.hostId)})).filter(item=>item.host);
+  if(!pending.length)return;
+  if(typeof IntersectionObserver!=='function'){
+    pending.forEach(item=>dStudioRenderThumb(item.task.tmpl,item.task.hostId));
+    return;
+  }
+  const observer=new IntersectionObserver(entries=>{
+    entries.forEach(entry=>{
+      if(!entry.isIntersecting)return;
+      const item=pending.find(candidate=>candidate.host===entry.target);
+      if(item)dStudioRenderThumb(item.task.tmpl,item.task.hostId);
+      observer.unobserve(entry.target);
+    });
+  },{root:document.getElementById('d-studio-home'),rootMargin:'160px 0px',threshold:.01});
+  pending.forEach(item=>observer.observe(item.host));
+}
+
+async function dStudioHomeOpenMaterial(folderId,tmplId,button){
+  const folder=dFolders.find(item=>item.id===folderId);
+  const tmpl=folder&&(folder.templates||[]).find(item=>item.id===tmplId);
+  if(!folder||!tmpl){
+    gToast('Este material não está mais disponível','error');
+    dStudioHomeRender();
+    return;
+  }
+  const card=button&&button.closest('.dsh-material-card');
+  if(card){card.classList.add('is-opening');card.setAttribute('aria-busy','true');}
+  await dLoadTemplate(tmpl,folder);
+  if(card&&document.contains(card)){card.classList.remove('is-opening');card.removeAttribute('aria-busy');}
 }
 
 function dStudioHomeFolder(){
@@ -874,6 +1221,24 @@ function dLoadTemplateById(folderId, tmplId){
   if(t) dLoadTemplate(t, f);
 }
 // Menu de ações rápidas do template
+function dRenameTemplate(folderId,tmplId){
+  document.querySelectorAll('.tmpl-context-menu').forEach(menu=>menu.remove());
+  const folder=dFolders.find(item=>item.id===folderId);if(!folder)return;
+  const tmpl=(folder.templates||[]).find(item=>item.id===tmplId);if(!tmpl)return;
+  const requested=prompt('Nome do material:',tmpl.name||'Material');
+  if(requested===null)return;
+  const next=dUniqueTemplateName(folder,requested,tmpl.id);
+  if(!next.trim())return;
+  tmpl.name=next;
+  if(tmpl.id===dActiveTmplId){
+    const title=document.getElementById('dt-project-name');
+    if(title)title.textContent=next;
+  }
+  dPersistFolders();
+  dRenderFolders();
+  if(document.body.classList.contains('d-studio-home-open'))dStudioHomeRender();
+  gToast('Material renomeado');
+}
 function dTemplateMenuOpen(ev, folderId, tmplId){
   ev.preventDefault();
   // Fecha qualquer menu aberto
@@ -884,6 +1249,9 @@ function dTemplateMenuOpen(ev, folderId, tmplId){
   const menu = document.createElement('div');
   menu.className = 'tmpl-context-menu';
   menu.innerHTML = `
+    <button class="tmpl-ctx-item" onclick="dRenameTemplate('${folderId}','${tmplId}')">
+      <span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>Renomear
+    </button>
     <button class="tmpl-ctx-item" onclick="dQuickEditValidade('${folderId}','${tmplId}')">
       <span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>Editar validade
     </button>
@@ -904,7 +1272,8 @@ function dTemplateMenuOpen(ev, folderId, tmplId){
   `;
   document.body.appendChild(menu);
   // Posiciona próximo ao botão
-  const rect = ev.target.getBoundingClientRect();
+  const trigger = ev.currentTarget || ev.target;
+  const rect = trigger.getBoundingClientRect();
   menu.style.left = Math.min(rect.left, window.innerWidth - 220) + 'px';
   menu.style.top = (rect.bottom + 4) + 'px';
   // Fecha ao clicar fora
@@ -929,6 +1298,7 @@ function dToggleTemplatePublish(folderId, tmplId, publicar){
   t.publishMeta.publicado = false;
   dPersistFolders();
   dRenderFolders();
+  if(document.body.classList.contains('d-studio-home-open')) dStudioHomeRender();
   document.querySelectorAll('.tmpl-context-menu').forEach(m=>m.remove());
   gToast('Material despublicado.');
 }
@@ -957,6 +1327,7 @@ function dDeleteTemplate(folderId, tmplId){
   }
   dPersistFolders();
   dRenderFolders();
+  if(document.body.classList.contains('d-studio-home-open')) dStudioHomeRender();
   document.querySelectorAll('.tmpl-context-menu').forEach(m=>m.remove());
   gToast('Template excluído.');
 }
@@ -1366,16 +1737,22 @@ function dPopFolderCampaignSelect(sel){
 function dFolderRenderGroups(selected){
   const wrap=document.getElementById('df-groups');if(!wrap)return;
   const sel=selected&&selected.length?selected:['Todos os usuários'];
-  wrap.innerHTML=FOLDER_GROUPS.map(g=>`
-    <label class="df-group-chip">
-      <input type="checkbox" value="${g}" ${sel.includes(g)?'checked':''} onchange="dFolderGroupChange(this)">${g}
-    </label>`).join('');
+  wrap.innerHTML=FOLDER_GROUPS.map(g=>{
+    const act=sel.includes(g);
+    return `<label class="df-group-chip ${act?'active':''}">
+      <input type="checkbox" value="${g}" ${act?'checked':''} onchange="dFolderGroupChange(this)">${g}
+    </label>`;
+  }).join('');
 }
 // "Todos os usuários" é exclusivo: marca-lo desmarca os outros e vice-versa
 function dFolderGroupChange(cb){
   const all=document.querySelectorAll('#df-groups input[type=checkbox]');
   if(cb.value==='Todos os usuários'&&cb.checked){ all.forEach(x=>{if(x.value!=='Todos os usuários')x.checked=false;}); }
   else if(cb.value!=='Todos os usuários'&&cb.checked){ all.forEach(x=>{if(x.value==='Todos os usuários')x.checked=false;}); }
+  all.forEach(x=>{
+    const lbl=x.closest('.df-group-chip');
+    if(lbl) lbl.classList.toggle('active', x.checked);
+  });
 }
 function dFolderToggleAdv(){
   const body=document.getElementById('df-adv-body');
@@ -1428,6 +1805,22 @@ function dCompressCover(dataUrl, maxW, maxH, quality, cb){
   img.src=dataUrl;
 }
 
+function dFolderSelectColor(hex){
+  const el = document.getElementById('df-color');
+  if(el) el.value = hex;
+  document.querySelectorAll('.df-swatch').forEach(s => {
+    s.classList.toggle('active', (s.dataset.color||'').toLowerCase() === (hex||'').toLowerCase());
+  });
+  dFolderUpdateCoverPreview();
+}
+
+function dFolderOnCustomColorChange(hex){
+  document.querySelectorAll('.df-swatch').forEach(s => {
+    s.classList.toggle('active', (s.dataset.color||'').toLowerCase() === (hex||'').toLowerCase());
+  });
+  dFolderUpdateCoverPreview();
+}
+
 // Fecha o modal de pasta limpando o estado de edição (evita estado sujo entre aberturas)
 function dCloseFolderModal(){
   dEditingFolderId=null; dFolderDraftCover=null;
@@ -1438,7 +1831,7 @@ function dOpenNewFolder(){
   document.getElementById('df-modal-title').textContent='Nova Pasta';
   document.getElementById('df-save-btn').textContent='Criar pasta';
   document.getElementById('df-name').value='';
-  document.getElementById('df-color').value='#FF9000';
+  dFolderSelectColor('#FF9000');
   dPopFolderCampaignSelect('');
   dFolderRenderGroups(['Todos os usuários']);
   document.getElementById('df-schedule-toggle').checked=false;
@@ -1458,7 +1851,8 @@ function dEditFolder(id){
   document.getElementById('df-modal-title').textContent='Editando pasta';
   document.getElementById('df-save-btn').textContent='Salvar';
   document.getElementById('df-name').value=f.name||'';
-  document.getElementById('df-color').value=(f.color&&f.color[0]==='#')?f.color:'#FF9000';
+  const col=(f.color&&f.color[0]==='#')?f.color:'#FF9000';
+  dFolderSelectColor(col);
   dPopFolderCampaignSelect(f.campId||'');
   dFolderRenderGroups(f.grupos||['Todos os usuários']);
   const hasSched=!!(f.agendamento);
@@ -1715,7 +2109,7 @@ function dNewDocEnhanceModal(){
   header.className='newdoc-header';header.removeAttribute('style');
   const title=header.children[0],closeBtn=header.children[1];
   title.id='nd-title';title.className='newdoc-title';title.removeAttribute('style');
-  title.innerHTML='<span class="newdoc-title-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M3 12h18"/></svg></span><span><strong>Novo projeto</strong><small>Escolha o formato e comece com a estrutura certa</small></span>';
+  title.innerHTML='<span class="newdoc-title-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M3 12h18"/></svg></span><span><strong>Novo material</strong><small>Escolha o formato e comece com a estrutura certa</small></span>';
   closeBtn.className='newdoc-close';closeBtn.removeAttribute('style');closeBtn.setAttribute('aria-label','Fechar novo projeto');
   closeBtn.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>';closeBtn.onclick=()=>dNewDocClose();
 
@@ -1795,7 +2189,7 @@ function dNewDocOpen(){
   const folderSelect=document.getElementById('nd-folder');
   folderSelect.innerHTML=dStudioCampaignOptions((folder||dFolders[0]||{}).id||'');
   folderSelect.disabled=!dFolders.length;
-  document.getElementById('nd-name').value=dUniqueTemplateName(folder,'Novo projeto');
+  document.getElementById('nd-name').value=dUniqueTemplateName(folder,'Novo material');
   const recentTab=document.querySelector('[data-smart-tab="recent"]');
   const recommendedTab=document.querySelector('[data-smart-tab="recommended"]');
   dNewDocSelectTab(recentTab?'recent':'recommended',recentTab||recommendedTab);

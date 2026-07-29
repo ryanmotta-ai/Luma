@@ -288,6 +288,8 @@ Estado inicial em tela cheia (`body.f-home-mode` esconde as colunas). Layout flu
 
 `CAMPS_ATIVAS`, `CAMPS_OUTRAS`, `CAMPS_IMPLEMENTACAO` (onboarding de novos franqueados) — cada uma `{id, name, color, badge, expiraDias, popular, previewProd/De/Por, perguntas:[{id, texto, sugestoes}]}`. `FMTS`: story 1080×1920 · feed 1080×1350 · post 1200×628.
 
+**Tema por campanha (2026-07-23, 1º caso: Much+).** Campanha com `theme:'muchplus'` — ou pasta com badge "MUCH+" — re-tokeniza o app enquanto o franqueado está dentro dela: `fApplyCampTheme`/`fRemoveCampTheme` (materials.js) põem/tiram `body.camp-theme-<slug>`; os tokens do tema moram em `00-tokens.css`, o visual (véu de transição + motion do logo no header, `assets/motion/logo_muchplus.webm` VP9 com alpha) em `modules/franqueado.css`. Entradas: `fOpenMaterialCatalog`, `fEditFromHist`, early-return do `fSelectCamp`. Saídas: `fGoHome`, `fCloseMaterialCatalog`. ⚠ Nunca pendurar remoção no `fRestoreCatalog` (é re-render de rail, roda dentro da campanha). Pastas do banco propagam `theme` via `fGetCampaigns`.
+
 ### Tipos de campo do chat (`chat-input.js`)
 
 A fonte de verdade do tipo é `dVars[id].type`; `F_FIELD_TYPES` é fallback legado por nome (produto, precoDe, precoPor, codigo, desconto…). Resolução por 3 funções: `fGetFieldType(id)` (config efetiva com precedência permissão do designer > dVars > fallback), `fApplyMask(id, raw)` (formata sem rejeitar: moeda BR, desconto %/R$, código maiúsculo, texto truncado), `fValidate(id, val)` (required, maxLen, formato).
@@ -364,7 +366,15 @@ Modal multi-formato (Story/Feed/Wide sem distorção via smart resize), shells d
 
 ### Import PSD (`psd-import.js`)
 
+<<<<<<< Updated upstream
 ag-psd vendorizado + Web Worker (timeout 25s → fallback main-thread). Fluxo: validação (máx ~200MB) → parse → multi-artboard? (seletor + revisão em sequência, 1 template rascunho por prancheta) → revisão por camada (Texto editável / Campo `{{}}` / Cor / Imagem fiel) → import com auto-criação de campos e reflow. Fidelidade: cor sólida, **gradiente (linear/radial, fill e overlay)**, **texto multi-estilo (`styleRuns` → `l.runs`)**, sombra/contorno, fontSize corrigido por DPI, máscaras + clipping, opacidade de grupos acumulada, **smart object / camada rotacionada / texto com warp rasterizados 1:1**, remap de fontes (com upload na hora na tela de revisão), heurística de z-order. Limitações (atualizadas 2026-07): **paths vetoriais complexos** viram raster (rect/elipse seguem shape editável e recolorável), **camadas de ajuste** (Levels/Curves/Hue) não são aplicadas às de baixo — são dropadas, com aviso na revisão, **z-order** por heurística (às vezes precisa do toggle manual), raster comprimido (teto 1600px, maior p/ warp/smart). Backlog priorizado em `luma-brain/07_ROADMAP.md` §9.
+=======
+ag-psd vendorizado + Web Worker (prazo ~1s/MB, teto 10min, renovado a cada sinal de progresso; abaixo de 150MB o buffer vai duplicado e há fallback main-thread, acima ele é transferido e o worker é o único caminho). Fluxo: validação (máx 500MB, `.psd`/`.psb`) → parse → **uma única tela de revisão**: multi-prancheta vira abas dentro dela (cada prancheta com suas próprias decisões, formato e destino; parse sob demanda) e um só "Importar" cria um template rascunho por prancheta; prancheta única cria a prancheta no editor. Por camada: Texto editável / Campo `{{}}` / Cor / Moldura de foto / Imagem fiel, com auto-criação de campos e reflow.
+
+**Fidelidade:** cor e forma exatas do vetor (`vectorFill`/`keyOriginType`), gradiente linear/radial/refletido (cônico e losango rasterizam), sombra projetada/interna, brilho externo/interno, chanfro, sobreposição de cor e gradiente, contorno com alinhamento e tracejado, luz global do documento, `fontSize` por DPI + caixa de parágrafo 1:1, auto-entrelinha do PS, máscaras compostas (camada + clipping + vetorial + grupos-pai) em resolução adaptativa (700–1400px), opacidade e mesclagem de grupo herdadas, remap de fontes com upload na hora, heurística de z-order, relatório de fidelidade por diff de pixel contra o composto do Photoshop.
+
+**Viram imagem fiel** (visual 1:1, sem edição): smart object, camada de ajuste, padrão, rotação, espelho/180°, texto em curva, texto com warp, e combinações de efeito que o modelo não representa. **Perdas avisadas na revisão:** cetim, contorno customizado de efeito, escala de efeitos ≠100%, traço com gradiente/padrão, texto justificado (entra alinhado pela última linha), estilos mistos de texto. Raster de fidelidade a 2400px/q0.92; raster comum a 1600px/q0.82.
+>>>>>>> Stashed changes
 
 ### Import SVG (`templates.js`)
 
@@ -514,7 +524,11 @@ Todo acesso com try/catch (quota ~5MB). `gPackImgUrl` mantém imagens ≤~70KB n
 
 ## 17. LIMITAÇÕES CONHECIDAS E DÍVIDAS
 
+<<<<<<< Updated upstream
 **Funcionais:** `opacity` só em shape · `gToast` sem fila · eyedrop/bucket só texto/forma · PSD (paths vetoriais complexos rasterizam, camadas de ajuste não aplicadas, z-order às vezes manual — ver `07_ROADMAP.md` §9) · SVG (classes em `<style>` não lidas, grupos 1 nível, bbox de path aproximada).
+=======
+**Funcionais:** `opacity` só em shape · `gToast` sem fila · eyedrop/bucket só texto/forma · PSD (texto justificado não distribui palavras; smart object/ajuste/padrão/rotação/espelho/warp entram como imagem fiel; z-order às vezes manual) · SVG (classes em `<style>` não lidas, grupos 1 nível, bbox de path aproximada).
+>>>>>>> Stashed changes
 
 **Técnicas:** arquivos grandes (`canvas.js`, `layers.js`, `templates.js` ~1k linhas) · sem testes automatizados (regressão só no navegador) · pontas soltas conhecidas (`fStartChatPreservandoDados` órfã; `fDownloadHist` marca "baixada" mesmo se o PNG falhar; `return` morto em `dMeasureText`; `realce-black.woff2` órfã no disco).
 
