@@ -10,7 +10,6 @@
  * Depende de: designer/templates.js, core/layout.js, core/toast.js, 00-config.js.
  */
 
-<<<<<<< Updated upstream
 /* ── carrega o ag-psd: vendorizado (local, offline) → fallback CDN ── */
 let _agPsdPromise=null;
 function dLoadAgPsd(){
@@ -1153,8 +1152,7 @@ function dItemToLayer(it){
   return _dPsdApplyFx(Object.assign(base,{type:'image',imgUrl:it.imgUrl,imgVar:'',objectFit:'cover',frameShape:'rect'}), it);
 }
 
-=======
->>>>>>> Stashed changes
+
 /* ── Memória de mapeamento (Fase D) ──
    Persiste {layerName → {mode, varName}} em localStorage para reusar entre sessões.
    REGRAS (a v1 salvava o modo de TODAS as camadas e contaminava PSDs diferentes):
@@ -1885,8 +1883,6 @@ function _dPsdBoardsPrepRefs(){
   _dPsdBoards.forEach(b=>{ if(b.ref===undefined) b.ref=_dPsdRefCanvas(_dPsdDocCanvas, b.left, b.top, b.w, b.h); });
   _dPsdDocCanvas=null;
 }
-<<<<<<< Updated upstream
-
 // Preview de prancheta no seletor de artboards.
 // Acionado por CLICK (não hover) para evitar renders espásticos.
 // Usa dPsdParseItems lazy (parseado na 1ª seleção, cacheado em item._parsedItems)
@@ -1909,7 +1905,9 @@ async function dPsdAbSelectPreview(itemIdx){
       {children:(item.layer&&item.layer.children)||[], width:item.w, height:item.h},
       res||72, item.left, item.top
     );
-=======
+  }
+}
+
 // Parse sob demanda + memória do recorte de fidelidade. Guarda no board, então reabrir
 // uma prancheta já visitada preserva TODAS as decisões de camada que o usuário tomou.
 function _dPsdBoardLoad(b){
@@ -1921,7 +1919,6 @@ function _dPsdBoardLoad(b){
     // — raster, máscara composta, efeitos. Com 14 pranchetas isto era a diferença entre
     // alguns MB e alguns GB retidos até o modal fechar.
     b.layer=null;
->>>>>>> Stashed changes
   }
   if(b.ref===undefined) b.ref=_dPsdRefCanvas(_dPsdDocCanvas, b.left, b.top, b.w, b.h);
   return b;
@@ -2044,30 +2041,8 @@ async function _dPsdCollectBoards(onProgress){
     _dPsdSyncVarsFromLayers(layers);
     out.push({name:b.name, fmt:(b.fmt||'orig'), layers, nativeW:b.w, nativeH:b.h});
   }
-<<<<<<< Updated upstream
-  const item=items[idx];
-  // Parseia só as camadas desta prancheta, normalizando coords pra (0,0) da prancheta.
-  dPsdItems=dPsdParseItems({children:(item.layer&&item.layer.children)||[], width:item.w, height:item.h}, res, item.left, item.top);
-  if(!dPsdItems.length){
-    gToast('⚠ "'+item.name+'" sem camadas utilizáveis — pulando');
-    dPsdProcessArtboardsSequence(psd, items, res, baseName, folderId, idx+1, results);
-    return;
-  }
-  dPsdMeta={w:item.w, h:item.h, name:item.name, res:res||72, sequence:{current:idx+1,total:items.length}}; // res → badge de DPI na revisão
-  // Ao confirmar a revisão desta prancheta → guarda o resultado e vai pra próxima.
-  _dPsdReviewOnConfirm=function(layers, fmtChoice, w, h){
-    const fmt=(fmtChoice && fmtChoice!=='orig') ? fmtChoice : item.fmt;
-    results.push({ name:item.name, fmt, layers, nativeW:w, nativeH:h });
-    dPsdProcessArtboardsSequence(psd, items, res, baseName, folderId, idx+1, results);
-  };
-  gToast('Revisando: '+item.name+' ('+(idx+1)+'/'+items.length+')');
-  dPsdOpenReview();
-  // Pré-seleciona o formato detectado/escolhido no seletor da tela de revisão.
-  const sel=document.getElementById('d-psd-fmt'); if(sel) sel.value=item.fmt;
-=======
   if(memAll.length) _dPsdMemSave.apply(null, memAll);
   return out;
->>>>>>> Stashed changes
 }
 
 // Reflow das layers (coords nativas da prancheta) pro espaço DFMT_SIZES[fmt] — o gerador
@@ -2219,15 +2194,10 @@ async function dImportPSD(input){
       const abH=Math.max(1,Math.round((r.bottom||0)-(r.top||0)));
       // Só os filhos da PRANCHETA — não o doc inteiro. Passar result.psd trazia camadas soltas na
       // raiz (pasteboard/notas) deslocadas por (abL,abT). Igual ao multi-artboard e ao preview.
-<<<<<<< Updated upstream
       dPsdItems=dPsdParseItems({children:(abNode.children||[]), width:abW, height:abH}, result.res||72, abL, abT);
-      dPsdMeta={w:abW, h:abH, name:baseName, res:result.res||72, worker:result.worker===true};
-=======
-      dPsdItems=dPsdParseItems({children:(abNode.children||[])}, result.res||72, abL, abT);
       dPsdMeta={w:abW, h:abH, name:baseName, res:result.res||72, worker:result.worker===true,
         // ref: recorte da prancheta no composto do doc → base do relatório de fidelidade (#17)
         ref:_dPsdRefCanvas(result.psd.canvas, abL, abT, abW, abH)};
->>>>>>> Stashed changes
     } else {
       // PSD simples sem artboards.
       dPsdItems=dPsdParseItems(result.psd, result.res||72);

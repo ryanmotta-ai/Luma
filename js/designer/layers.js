@@ -2905,15 +2905,11 @@ async function _dPushFoldersNow(){
         id:f.remoteId, nome:f.name||'(sem nome)', cor:f.color||null, camp_id:f.campId||null,
         badge:f.badge||'', expira_dias:f.expiraDias||7, popular:!!f.popular,
         preview_prod:f.previewProd||'', preview_de:f.previewDe||'', preview_por:f.previewPor||'',
-<<<<<<< Updated upstream
         perguntas:f.perguntas||[], grupos:f.grupos||['Todos os usuários'],
         // Fase 2 passo 2: preserva o estado real — ativa:true fixo desfazia o arquivar,
         // e ordem/agendamento nunca subiam (a ordenação do catálogo não sobrevivia ao ciclo).
-        ativa:(f.ativa!==false), ordem:(typeof f.ordem==='number'?f.ordem:idx),
+        ativa:(f.ativa!==false && !f.arquivada), ordem:(typeof f.ordem==='number'?f.ordem:idx),
         agendamento:f.agendamento||null
-=======
-        perguntas:f.perguntas||[], grupos:f.grupos||['Todos os usuários'], ativa:!f.arquivada
->>>>>>> Stashed changes
       };
       if(f.cover==='') _rowPasta.cover_url=null;
       else if(typeof f.cover==='string' && !f.cover.startsWith('data:') && f.cover.indexOf('idb://')!==0 && f.cover!=='__local__') _rowPasta.cover_url=f.cover;
@@ -3035,15 +3031,11 @@ function _dRowToFolder(p, templates){
     previewProd:p.preview_prod||'', previewDe:p.preview_de||'', previewPor:p.preview_por||'',
     perguntas:Array.isArray(p.perguntas)?p.perguntas:[],
     grupos:Array.isArray(p.grupos)?p.grupos:['Todos os usuários'],
-<<<<<<< Updated upstream
     // Fase 2 passo 2: campos que o flip de campanhas precisa — antes o pull perdia
     // ativa/ordem/agendamento e o push re-gravava ativa:true (arquivar seria desfeito).
     ativa:(p.ativa!==false), ordem:(typeof p.ordem==='number'?p.ordem:null),
-    agendamento:p.agendamento||null, templates:templates||[]
-=======
-    agendamento:null, templates:templates||[],
+    agendamento:p.agendamento||null, templates:templates||[],
     arquivada:(p.ativa===false)   // coluna `ativa` do banco: false = pasta arquivada (some da vitrine)
->>>>>>> Stashed changes
   };
 }
 async function dSyncFoldersFromBackend(){

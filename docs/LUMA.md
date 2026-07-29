@@ -366,15 +366,11 @@ Modal multi-formato (Story/Feed/Wide sem distorção via smart resize), shells d
 
 ### Import PSD (`psd-import.js`)
 
-<<<<<<< Updated upstream
-ag-psd vendorizado + Web Worker (timeout 25s → fallback main-thread). Fluxo: validação (máx ~200MB) → parse → multi-artboard? (seletor + revisão em sequência, 1 template rascunho por prancheta) → revisão por camada (Texto editável / Campo `{{}}` / Cor / Imagem fiel) → import com auto-criação de campos e reflow. Fidelidade: cor sólida, **gradiente (linear/radial, fill e overlay)**, **texto multi-estilo (`styleRuns` → `l.runs`)**, sombra/contorno, fontSize corrigido por DPI, máscaras + clipping, opacidade de grupos acumulada, **smart object / camada rotacionada / texto com warp rasterizados 1:1**, remap de fontes (com upload na hora na tela de revisão), heurística de z-order. Limitações (atualizadas 2026-07): **paths vetoriais complexos** viram raster (rect/elipse seguem shape editável e recolorável), **camadas de ajuste** (Levels/Curves/Hue) não são aplicadas às de baixo — são dropadas, com aviso na revisão, **z-order** por heurística (às vezes precisa do toggle manual), raster comprimido (teto 1600px, maior p/ warp/smart). Backlog priorizado em `luma-brain/07_ROADMAP.md` §9.
-=======
 ag-psd vendorizado + Web Worker (prazo ~1s/MB, teto 10min, renovado a cada sinal de progresso; abaixo de 150MB o buffer vai duplicado e há fallback main-thread, acima ele é transferido e o worker é o único caminho). Fluxo: validação (máx 500MB, `.psd`/`.psb`) → parse → **uma única tela de revisão**: multi-prancheta vira abas dentro dela (cada prancheta com suas próprias decisões, formato e destino; parse sob demanda) e um só "Importar" cria um template rascunho por prancheta; prancheta única cria a prancheta no editor. Por camada: Texto editável / Campo `{{}}` / Cor / Moldura de foto / Imagem fiel, com auto-criação de campos e reflow.
 
 **Fidelidade:** cor e forma exatas do vetor (`vectorFill`/`keyOriginType`), gradiente linear/radial/refletido (cônico e losango rasterizam), sombra projetada/interna, brilho externo/interno, chanfro, sobreposição de cor e gradiente, contorno com alinhamento e tracejado, luz global do documento, `fontSize` por DPI + caixa de parágrafo 1:1, auto-entrelinha do PS, máscaras compostas (camada + clipping + vetorial + grupos-pai) em resolução adaptativa (700–1400px), opacidade e mesclagem de grupo herdadas, remap de fontes com upload na hora, heurística de z-order, relatório de fidelidade por diff de pixel contra o composto do Photoshop.
 
 **Viram imagem fiel** (visual 1:1, sem edição): smart object, camada de ajuste, padrão, rotação, espelho/180°, texto em curva, texto com warp, e combinações de efeito que o modelo não representa. **Perdas avisadas na revisão:** cetim, contorno customizado de efeito, escala de efeitos ≠100%, traço com gradiente/padrão, texto justificado (entra alinhado pela última linha), estilos mistos de texto. Raster de fidelidade a 2400px/q0.92; raster comum a 1600px/q0.82.
->>>>>>> Stashed changes
 
 ### Import SVG (`templates.js`)
 
@@ -524,11 +520,7 @@ Todo acesso com try/catch (quota ~5MB). `gPackImgUrl` mantém imagens ≤~70KB n
 
 ## 17. LIMITAÇÕES CONHECIDAS E DÍVIDAS
 
-<<<<<<< Updated upstream
-**Funcionais:** `opacity` só em shape · `gToast` sem fila · eyedrop/bucket só texto/forma · PSD (paths vetoriais complexos rasterizam, camadas de ajuste não aplicadas, z-order às vezes manual — ver `07_ROADMAP.md` §9) · SVG (classes em `<style>` não lidas, grupos 1 nível, bbox de path aproximada).
-=======
 **Funcionais:** `opacity` só em shape · `gToast` sem fila · eyedrop/bucket só texto/forma · PSD (texto justificado não distribui palavras; smart object/ajuste/padrão/rotação/espelho/warp entram como imagem fiel; z-order às vezes manual) · SVG (classes em `<style>` não lidas, grupos 1 nível, bbox de path aproximada).
->>>>>>> Stashed changes
 
 **Técnicas:** arquivos grandes (`canvas.js`, `layers.js`, `templates.js` ~1k linhas) · sem testes automatizados (regressão só no navegador) · pontas soltas conhecidas (`fStartChatPreservandoDados` órfã; `fDownloadHist` marca "baixada" mesmo se o PNG falhar; `return` morto em `dMeasureText`; `realce-black.woff2` órfã no disco).
 
