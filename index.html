@@ -547,9 +547,46 @@ input:focus:-webkit-autofill {
         <div class="prof-pane" id="prof-pane-estatisticas">
           <div class="prof-section-head"><div><h4>Atividade da conta</h4><p>Um resumo direto do conteúdo disponível e do tempo nesta sessão.</p></div></div>
           <div class="prof-stats-grid">
+<<<<<<< Updated upstream
             <div class="prof-stat-card"><span class="prof-stat-icon prof-stat-icon-accent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="m8 14 2.5-3 2 2 3.5-4 2 3"/></svg></span><span class="prof-stat-info"><strong class="prof-stat-value" id="prof-stat-templates">0</strong><small class="prof-stat-label">Artes no portfólio</small></span></div>
             <div class="prof-stat-card"><span class="prof-stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V5M16 20v-7M22 20V3"/></svg></span><span class="prof-stat-info"><strong class="prof-stat-value" id="prof-stat-campaigns">0</strong><small class="prof-stat-label">Campanhas ativas</small></span></div>
             <div class="prof-stat-card"><span class="prof-stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span class="prof-stat-info"><strong class="prof-stat-value" id="prof-stat-session-time">0 min</strong><small class="prof-stat-label">Tempo nesta sessão</small></span></div>
+=======
+            <div class="prof-stat-card">
+              <div class="prof-stat-icon" style="background: rgba(255, 144, 0, 0.1); color: var(--dm-orange);">🎨</div>
+              <div class="prof-stat-info">
+                <div class="prof-stat-value" id="prof-stat-templates">0</div>
+                <div class="prof-stat-label">Artes no Portfólio</div>
+              </div>
+            </div>
+            <div class="prof-stat-card">
+              <div class="prof-stat-icon" style="background: rgba(34, 197, 94, 0.1); color: #22c55e;">⚡</div>
+              <div class="prof-stat-info">
+                <div class="prof-stat-value" id="prof-stat-campaigns">0</div>
+                <div class="prof-stat-label">Campanhas Ativas</div>
+              </div>
+            </div>
+            <div class="prof-stat-card">
+              <div class="prof-stat-icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">⏱️</div>
+              <div class="prof-stat-info">
+                <div class="prof-stat-value" id="prof-stat-session-time">0 min</div>
+                <div class="prof-stat-label">Tempo em Sessão</div>
+              </div>
+            </div>
+            <div class="prof-stat-card">
+              <div class="prof-stat-icon" style="background: rgba(200, 24, 24, 0.1); color: var(--dm-red);">👑</div>
+              <div class="prof-stat-info">
+                <div class="prof-stat-value" id="prof-stat-level">Designer Principal</div>
+                <div class="prof-stat-label">Nível da Conta</div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Copy corrigida: a dica antiga mandava para a aba "Dados", módulo REMOVIDO do
+               produto (analytics é por extração SQL/BI, fora do app — 02_ARCHITECTURE §7). -->
+          <div style="background: rgba(0, 0, 0, 0.02); border: 1px solid var(--gray-light); border-radius: 12px; padding: 16px; font-size: 12.5px; color: var(--text-2); line-height: 1.5;">
+            <strong>Dica:</strong> os números acima vêm das campanhas e templates publicados no Estúdio. Relatórios de desempenho da rede são extraídos pela equipe de dados, fora do app.
+>>>>>>> Stashed changes
           </div>
           <div class="prof-activity-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><p>Os números usam apenas dados já disponíveis no Luma. Nenhum relatório ou histórico adicional é criado por esta tela.</p></div>
         </div>
@@ -1915,7 +1952,10 @@ input:focus:-webkit-autofill {
           <select class="ps-select" id="dp-blend"></select>
           <div class="ps-input-wrap">
             <label class="ps-label" title="Opacidade">Opac.</label>
-            <input class="ps-input" type="number" id="dp-opacity" min="0" max="100" value="100" oninput="dUpdateProp('opacity',this.value)">
+            <!-- id proprio: era um SEGUNDO id="dp-opacity" (duplicado do painel de propriedades).
+                 getElementById so alcanca o primeiro -> este campo nunca era sincronizado com a
+                 camada selecionada (mostrava 100 com a camada a 40). -->
+            <input class="ps-input" type="number" id="dp-opacity-blend" min="0" max="100" value="100" oninput="dUpdateProp('opacity',this.value)">
             <span class="ps-unit">%</span>
           </div>
         </div>

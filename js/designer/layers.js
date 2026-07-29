@@ -1198,6 +1198,10 @@ function dShowProps(l){
   // Universal opacity, fill opacity and locks sync for any active layer properties
   const opacEl = document.getElementById('dp-opacity');
   if (opacEl) opacEl.value = l.opacity !== undefined ? l.opacity : 100;
+  // Barra de blend tem o próprio campo de opacidade (era um id duplicado, inalcançável —
+  // ficava travado em 100 independente da camada). Sincroniza junto.
+  const opacBlendEl = document.getElementById('dp-opacity-blend');
+  if (opacBlendEl) opacBlendEl.value = l.opacity !== undefined ? l.opacity : 100;
   
   const fillOpacEl = document.getElementById('dp-fill-opacity');
   if (fillOpacEl) fillOpacEl.value = l.fillOpacity !== undefined ? l.fillOpacity : 100;

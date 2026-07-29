@@ -1362,6 +1362,7 @@ document.addEventListener('keyup', e => {
 
 
 
+<<<<<<< Updated upstream
 /* -- TOOLBAR COLOR WIDGET (FG/BG) --
    NÃO é a mesma função de tools.js: esta troca os inputs vt-color-* (widget vcp),
    a de tools.js troca d-color-*-pick (toolbar). Como tinham o MESMO nome e tools.js
@@ -1398,3 +1399,10 @@ function dOnFgColorChange(color) {
 function dOnBgColorChange(color) {
   window.dGlobalBgColor = color;
 }
+=======
+/* O widget de cor FG/BG que vivia aqui (dSwapColors/dDefaultColors/dOnFgColorChange)
+   foi REMOVIDO: mirava um DOM "vt-color-*" que nunca existiu no index e, pior, colidia
+   com o dSwapColors REAL de tools.js — como publish.js carrega antes, funcionava por
+   sorte de ordem; se a ordem mudasse, o botão de alternar cores quebraria em silêncio.
+   O motor único do widget de cor é o de js/designer/tools.js. */
+>>>>>>> Stashed changes
