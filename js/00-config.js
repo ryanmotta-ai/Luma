@@ -9,8 +9,8 @@
    FRANQUEADO — dados e estado
 ══════════════════════════════════════════════════════════════ */
 const HIST_KEY='dm_artes_hist_v2';
-window.LUMA_CONFIG = window.LUMA_CONFIG || { geminiApiKey: 'AQ.Ab8RN6LEoTbs5aIZbVDXcaGctnKOjw8NMnX5cwGjXyRMXDjdNw' };
-window.LUMA_GEMINI_API_KEY = window.LUMA_GEMINI_API_KEY || 'AQ.Ab8RN6LEoTbs5aIZbVDXcaGctnKOjw8NMnX5cwGjXyRMXDjdNw';
+window.LUMA_CONFIG = window.LUMA_CONFIG || { geminiApiKey: 'AQ.Ab8RN6KTNTMzdzlSMSzfDFPk9Jx0raAvkQ-HAgUkeVlU1ft4Vw' };
+window.LUMA_GEMINI_API_KEY = window.LUMA_GEMINI_API_KEY || 'AQ.Ab8RN6KTNTMzdzlSMSzfDFPk9Jx0raAvkQ-HAgUkeVlU1ft4Vw';
 // Modelo dos 2 agentes, em UM lugar só (já divergiu entre chat.js e help-widget.js antes).
 // 'gemini-flash-latest' é APELIDO: o Google aponta pro Flash atual, então uma aposentadoria
 // de versão não quebra os agentes de novo — foi exatamente o que matou o 'gemini-1.5-flash'.

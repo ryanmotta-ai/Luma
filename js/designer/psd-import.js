@@ -8,26 +8,9 @@
  *
  * O parse e a fidelidade de leitura moram em `psd-parse.js`, carregado ANTES deste.
  * Depende de: designer/templates.js, core/layout.js, core/toast.js, 00-config.js.
+ * dLoadAgPsd/_agPsdPromise vivem só em psd-parse.js (globais, sem module) — uma cópia
+ * aqui duplicava o `let` e quebrava o parse do arquivo inteiro (SyntaxError já declarado).
  */
-
-/* ── carrega o ag-psd: vendorizado (local, offline) → fallback CDN ── */
-let _agPsdPromise=null;
-function dLoadAgPsd(){
-  if(window.agPsd) return Promise.resolve(window.agPsd);
-  if(_agPsdPromise) return _agPsdPromise;
-  const sources=['assets/vendor/ag-psd.js','https://cdn.jsdelivr.net/npm/ag-psd/dist/bundle.js'];
-  _agPsdPromise=new Promise((resolve,reject)=>{
-    let i=0;
-    (function tryNext(){
-      if(i>=sources.length){ _agPsdPromise=null; reject(new Error('Não foi possível carregar a biblioteca de PSD')); return; }
-      const s=document.createElement('script'); s.async=true; s.src=sources[i++];
-      s.onload=()=> window.agPsd ? resolve(window.agPsd) : tryNext();
-      s.onerror=tryNext;
-      document.head.appendChild(s);
-    })();
-  });
-  return _agPsdPromise;
-}
 
 /* ── helpers de leitura ── */
 // ag-psd devolve o blend mode como chave separada por ESPAÇO ('color burn', 'soft light',
@@ -605,73 +588,11 @@ function _dPsdSuggestImgVar(name){
   return null;
 }
 
-/* ── #4e — parse: Web Worker (offload) com fallback main-thread ── */
-const _DPSD_WORKER_SRC = ""
-  + "self.onmessage=function(e){try{"
-  + "try{importScripts(e.data.lib);}catch(_){importScripts(e.data.cdn);}"
-  + "var psd=self.agPsd.readPsd(e.data.buffer,{useImageData:true,skipLayerImaging:false});"
-  + "var transfers=[];"
-  + "function strip(n){var o={name:n.name,left:n.left,top:n.top,right:n.right,bottom:n.bottom,hidden:n.hidden,opacity:n.opacity,fillOpacity:n.fillOpacity,blendMode:n.blendMode,text:n.text,effects:n.effects,artboard:n.artboard,clipping:n.clipping,clippingLayer:n.clippingLayer||n.clipping,vectorMask:n.vectorMask,vectorStroke:n.vectorStroke,vectorOrigination:n.vectorOrigination,vectorFill:n.vectorFill,adjustment:n.adjustment,placedLayer:n.placedLayer};"
-  + "if(n.imageData&&n.imageData.data){o._img={w:n.imageData.width,h:n.imageData.height,buf:n.imageData.data.buffer};transfers.push(n.imageData.data.buffer);}"
-  + "if(n.mask&&n.mask.imageData&&n.mask.imageData.data){o._mask={w:n.mask.imageData.width,h:n.mask.imageData.height,buf:n.mask.imageData.data.buffer,left:n.mask.left,top:n.mask.top,defaultColor:n.mask.defaultColor,disabled:n.mask.disabled};transfers.push(n.mask.imageData.data.buffer);}"
-  + "if(n.children)o.children=n.children.map(strip);return o;}"
-  + "var res=(psd.imageResources&&psd.imageResources.resolutionInfo&&psd.imageResources.resolutionInfo.horizontalResolution)||72;"
-  + "if(res&&res.value)res=res.value;"
-  + "self.postMessage({ok:true,tree:{width:psd.width,height:psd.height,res:res,children:(psd.children||[]).map(strip)}},transfers);"
-  + "}catch(err){self.postMessage({ok:false,error:String(err)});}};";
-
-function _dPsdRebuildNode(node){
-  const n={name:node.name,left:node.left,top:node.top,right:node.right,bottom:node.bottom,hidden:node.hidden,opacity:node.opacity,fillOpacity:node.fillOpacity,blendMode:node.blendMode,text:node.text,effects:node.effects,artboard:node.artboard,clipping:node.clipping,clippingLayer:node.clippingLayer||node.clipping,vectorMask:node.vectorMask,vectorStroke:node.vectorStroke,vectorOrigination:node.vectorOrigination,vectorFill:node.vectorFill,adjustment:node.adjustment,placedLayer:node.placedLayer};
-  if(node._img && node._img.buf){
-    try{
-      const c=document.createElement('canvas'); c.width=node._img.w; c.height=node._img.h;
-      const id=new ImageData(new Uint8ClampedArray(node._img.buf), node._img.w, node._img.h);
-      c.getContext('2d').putImageData(id,0,0); n.canvas=c;
-    }catch(e){}
-  }
-  if(node._mask && node._mask.buf){
-    try{
-      const mc=document.createElement('canvas'); mc.width=node._mask.w; mc.height=node._mask.h;
-      const mid=new ImageData(new Uint8ClampedArray(node._mask.buf), node._mask.w, node._mask.h);
-      mc.getContext('2d').putImageData(mid,0,0);
-      n.mask={canvas:mc, left:node._mask.left, top:node._mask.top, defaultColor:node._mask.defaultColor, disabled:node._mask.disabled};
-    }catch(e){}
-  }
-  if(node.children) n.children=node.children.map(_dPsdRebuildNode);
-  return n;
-}
-function _dPsdResolution(psd){
-  let r=(psd.imageResources&&psd.imageResources.resolutionInfo&&psd.imageResources.resolutionInfo.horizontalResolution)||psd.res||72;
-  if(r&&r.value) r=r.value;
-  return (+r)||72;
-}
-// resolve { psd } com canvases prontos; tenta worker, cai pro main thread
-function _dPsdReadPsd(buffer, agPsd){
-  return new Promise((resolve)=>{
-    let done=false;
-    const mainParse=()=>{ if(done)return; done=true;
-      try{ const psd=agPsd.readPsd(buffer,{useImageData:false,skipLayerImaging:false}); resolve({psd:psd, res:_dPsdResolution(psd), worker:false}); }
-      catch(e){ resolve({error:e}); } };
-    let worker, to, workerUrl;
-    try{
-      const blob=new Blob([_DPSD_WORKER_SRC],{type:'application/javascript'});
-      workerUrl = URL.createObjectURL(blob);
-      worker=new Worker(workerUrl);
-      const cleanup = () => { if(workerUrl){URL.revokeObjectURL(workerUrl);workerUrl=null;} try{worker.terminate();}catch(e){} };
-      to=setTimeout(()=>{ cleanup(); mainParse(); }, 25000);
-      worker.onmessage=(ev)=>{ clearTimeout(to); cleanup();
-        if(done) return;
-        if(ev.data&&ev.data.ok&&ev.data.tree){ done=true;
-          const tree=ev.data.tree;
-          resolve({psd:{width:tree.width,height:tree.height,children:(tree.children||[]).map(_dPsdRebuildNode)}, res:(+tree.res)||72, worker:true});
-        } else mainParse();
-      };
-      worker.onerror=()=>{ clearTimeout(to); cleanup(); mainParse(); };
-      const copy=buffer.slice(0); // transfere a CÓPIA; original fica pro fallback
-      worker.postMessage({buffer:copy, lib:new URL('assets/vendor/ag-psd.js',location.href).href, cdn:'https://cdn.jsdelivr.net/npm/ag-psd/dist/bundle.js'}, [copy]);
-    }catch(e){ if(to)clearTimeout(to); mainParse(); }
-  });
-}
+/* _DPSD_WORKER_SRC / _dPsdRebuildNode / _dPsdResolution / _dPsdReadPsd vivem só em
+   psd-parse.js — a cópia que estava aqui era uma versão mais antiga (sem cancelamento,
+   sem timeout proporcional ao tamanho do arquivo, sem transferência sem-cópia pra PSD
+   grande) que, por carregar DEPOIS, sobrescrevia silenciosamente a função real e quebrava
+   o botão Cancelar (dPsdCancelLoad só existe em psd-parse.js). */
 
 /* ── detecção de formato pela proporção da prancheta ── */
 function dPsdDetectFmt(w, h){

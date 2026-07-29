@@ -1149,11 +1149,9 @@ function _dPsdImgSig(url){
   return L+':'+(h>>>0).toString(36);
 }
 
-/* ── PSD → itens intermediários (modo escolhível na revisão) ── */
-let dPsdItems=[]; let dPsdMeta=null;
-// Nº de camadas de ajuste (Levels/Curves/Hue…) vistas no último parse. O Luma não tem pipeline
-// de ajuste, então elas são dropadas e as cores podem diferir do PSD → vira aviso na revisão.
-let _dPsdAdjustCount=0;
+/* ── PSD → itens intermediários (modo escolhível na revisão) ──
+   dPsdItems/dPsdMeta/_dPsdAdjustCount vivem só em psd-import.js (estado real da revisão,
+   30+ leituras/escritas lá); aqui eram declaração órfã, nunca lida — só colidia o `let`. */
 // Nº de camadas que EXPLODIRAM no parse do último arquivo (viram aviso na revisão).
 let _dPsdErrorCount=0;
 // Uma camada com efeito malformado, path inválido ou texto corrompido NÃO pode derrubar o
