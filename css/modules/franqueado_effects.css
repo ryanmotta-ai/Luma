@@ -33,9 +33,10 @@
    PREMIUM CARDS (HOVER EFFECTS)
    ========================================================================== */
 .camp-card, .f-mat-card {
-  border: 1px solid var(--gray-light);
-  background: var(--white);
-  /* transição tokenizada (mola no transform) — SEM !important, pra respeitar prefers-reduced-motion */
+  /* SÓ transições aqui — este arquivo é "hover effects". border/background pertencem aos
+     donos (.camp-card em franqueado.css, .f-mat-card em catalog.css via --fm-surface). Cravar
+     background:var(--white) aqui, carregado DEPOIS do catalog.css, derrotava o remap de token
+     do .f-mat-card e deixava o card branco (texto #F0F0F0 ilegível) no dark do franqueado. */
   transition: transform var(--dur-base) var(--ease-spring),
               border-color var(--dur-fast) var(--ease-standard),
               box-shadow var(--dur-base) var(--ease-standard);

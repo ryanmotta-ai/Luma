@@ -74,13 +74,27 @@ function gCloseUserProfileModal() {
 function gProfileSwitchTab(tabName) {
   // Ajustar botões da navegação lateral
   document.querySelectorAll('.prof-nav-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.id === `prof-nav-${tabName}`);
+    const isActive = btn.id === `prof-nav-${tabName}`;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-current', isActive ? 'page' : 'false');
   });
 
   // Ajustar panes de conteúdo
   document.querySelectorAll('.prof-pane').forEach(pane => {
-    pane.classList.toggle('active', pane.id === `prof-pane-${tabName}`);
+    const isActive = pane.id === `prof-pane-${tabName}`;
+    pane.classList.toggle('active', isActive);
+    pane.setAttribute('aria-hidden', isActive ? 'false' : 'true');
   });
+
+  // Reforça a mudança de contexto sem atrasar a navegação.
+  const content = document.querySelector('#g-profile-modal .prof-content');
+  if (content && document.getElementById('g-profile-modal')?.classList.contains('open')) {
+    content.classList.remove('prof-tab-changing');
+    void content.offsetWidth;
+    content.classList.add('prof-tab-changing');
+    clearTimeout(gProfileSwitchTab._motionTimer);
+    gProfileSwitchTab._motionTimer = setTimeout(() => content.classList.remove('prof-tab-changing'), 320);
+  }
 
   // Atualizar título e subtítulo do header do modal
   const title = document.getElementById('prof-modal-title');
@@ -101,8 +115,8 @@ function gProfileSwitchTab(tabName) {
     const sessionEl = document.getElementById('prof-stat-session-time');
     if (sessionEl) sessionEl.textContent = `${elapsedMinutes} min`;
   } else if (tabName === 'equipe') {
-    if (title) title.textContent = 'Gerenciar Equipe';
-    if (subtitle) subtitle.textContent = 'Adicione membros e gerencie as permissões de acesso.';
+    if (title) title.textContent = 'Gestão de equipe';
+    if (subtitle) subtitle.textContent = 'Convide pessoas e mantenha cada acesso no nível certo.';
     gProfileRenderEquipe();
   }
 }
@@ -259,11 +273,20 @@ async function gProfileSaveData(event) {
 
 // Aplica o tema selecionado
 function gProfileApplyTheme(theme) {
+<<<<<<< Updated upstream
   // Persiste: o seletor de tema do perfil dizia "salvo" e não gravava em lugar NENHUM —
   // o tema voltava ao padrão em todo F5. (localStorage = padrão da casa p/ preferência local.)
   try { localStorage.setItem('__luma_theme', theme); } catch(e) {}
+=======
+  // Transição suave da troca (motion.md §3): liga .theme-anim só durante a troca manual e
+  // remove após --dur-base, pra não deixar a transição global grudada no resto da sessão.
+  const b = document.body;
+  b.classList.add('theme-anim');
+  clearTimeout(gProfileApplyTheme._t);
+  gProfileApplyTheme._t = setTimeout(() => b.classList.remove('theme-anim'), 280);
+>>>>>>> Stashed changes
   // Para a aba Designer e Franqueado (que compartilham a classe body.theme-light):
-  document.body.classList.toggle('theme-light', theme === 'light');
+  b.classList.toggle('theme-light', theme === 'light');
   if (typeof dTheme !== 'undefined') dTheme = theme;
   fSyncThemeIcon(theme);
 
@@ -415,26 +438,35 @@ function fSyncThemeIcon(theme) {
 
 /* ══ GESTÃO DE EQUIPE ══ */
 
-const _EQUIPE_ROLE_CFG={
-  gestao:    {label:'Gestão',     emoji:'👑',bg:'rgba(200,24,24,.1)',color:'var(--dm-red)',desc:'Gestão completa da plataforma'},
-  equipe_dm: {label:'Equipe DM',  emoji:'⚙️',bg:'rgba(255,185,0,.14)',color:'#C81818',desc:'Acesso ao estúdio de design'},
-  franqueado:{label:'Franqueado', emoji:'🏪',bg:'rgba(255,144,0,.1)', color:'#F85400',desc:'Acesso ao chat e geração de artes'},
-};
-
-const _ICO_TRASH=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`;
+const _ICO_TRASH=`<svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`;
 // Mesmo glifo de "restaurar/refazer" usado no franqueado (chat.js fRefazer) — reaproveita a
 // linguagem visual já existente em vez de inventar um ícone novo para o mesmo conceito.
-const _ICO_RESTORE=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`;
-const _ICO_CHEVRON=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
-const _ICO_CHECK=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+const _ICO_RESTORE=`<svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`;
+const _ICO_CHEVRON=`<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
+const _ICO_CHECK=`<svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+const _ICO_USERS=`<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg>`;
+const _ICO_SHIELD=`<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4.6 2.9 8 7 10 4.1-2 7-5.4 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg>`;
+const _ICO_STORE=`<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10h18"/><path d="M5 10v10h14V10"/><path d="m4 4-1 6a3 3 0 0 0 5 2 3 3 0 0 0 4 0 3 3 0 0 0 4 0 3 3 0 0 0 5-2l-1-6H4Z"/></svg>`;
+const _ICO_SEARCH=`<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>`;
+const _ICO_EMPTY=`<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/><path d="M8.5 11h5"/></svg>`;
+const _ICO_CLOSE=`<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg>`;
+const _ICO_ROLE_GESTAO=`<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4.6 2.9 8 7 10 4.1-2 7-5.4 7-10V6l-7-3Z"/><path d="M9 12h6M12 9v6"/></svg>`;
+const _ICO_ROLE_EQUIPE=`<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 7h5M18.5 4.5v5"/></svg>`;
+const _ICO_ROLE_FRANQUEADO=`<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10h18"/><path d="M5 10v10h14V10"/><path d="m4 4-1 6a3 3 0 0 0 5 2 3 3 0 0 0 4 0 3 3 0 0 0 4 0 3 3 0 0 0 5-2l-1-6H4Z"/></svg>`;
 
-function _profAvBg(name){
-  const colors=['#e11d48','#2563eb','#16a34a','#d97706','#7c3aed','#db2777','#0284c7'];
+const _EQUIPE_ROLE_CFG={
+  gestao:    {label:'Gestão',     icon:_ICO_ROLE_GESTAO,     desc:'Acesso total e gestão de usuários'},
+  equipe_dm: {label:'Equipe DM',  icon:_ICO_ROLE_EQUIPE,     desc:'Cria e publica materiais no Estúdio'},
+  franqueado:{label:'Franqueado', icon:_ICO_ROLE_FRANQUEADO, desc:'Gera artes a partir do catálogo'},
+};
+
+function _profAvatarTone(name){
   const h=Array.from(name).reduce((a,c)=>a+c.charCodeAt(0),0);
-  return colors[h%colors.length];
+  return 'prof-user-av-tone-'+(h%3);
 }
 function _profInitials(name){
   const p=name.trim().split(/\s+/);
+  if(!name.trim()) return 'LM';
   return p.length>1?(p[0][0]+p[p.length-1][0]).toUpperCase():name.substring(0,2).toUpperCase();
 }
 
@@ -442,23 +474,50 @@ async function gProfileRenderEquipe(){
   // limpa pickers que foram movidos para o body via portal
   document.querySelectorAll('body>.prof-role-picker').forEach(p=>p.remove());
   const pane=document.getElementById('prof-pane-equipe'); if(!pane)return;
+  pane.setAttribute('aria-busy','true');
+  pane.innerHTML=`<div class="prof-team-loading" role="status" aria-live="polite">
+    <span class="prof-team-loading-line prof-team-loading-title"></span>
+    <span class="prof-team-loading-line"></span>
+    <span class="prof-team-loading-line"></span>
+    <span class="prof-team-loading-copy">Carregando equipe…</span>
+  </div>`;
+
   const users=await gGetAllUsers();
   const me=gCurrentUser();
+  const orderedUsers=users.slice().sort((a,b)=>{
+    const aMe=a.email===me.email, bMe=b.email===me.email;
+    if(aMe!==bMe) return aMe?-1:1;
+    const aActive=a.ativo!==false, bActive=b.ativo!==false;
+    if(aActive!==bActive) return aActive?-1:1;
+    const roleDiff=gRoleLevel(b.role)-gRoleLevel(a.role);
+    if(roleDiff) return roleDiff;
+    return String(a.displayName||a.email).localeCompare(String(b.displayName||b.email),'pt-BR');
+  });
 
-  const rows=users.map((u,idx)=>{
+  const rows=orderedUsers.map((u,idx)=>{
     const isMe=u.email===me.email;
-    const photo=localStorage.getItem('__luma_user_photo_'+u.email);
-    const avBg=photo?'transparent':_profAvBg(u.displayName);
+    const displayName=String(u.displayName||u.email||'Membro');
+    let photo='';
+    try{photo=localStorage.getItem('__luma_user_photo_'+u.email)||'';}catch(e){}
+    const avatarClass=photo?' has-photo':' '+_profAvatarTone(displayName);
     const avContent=photo
-      ?`<img src="${gEsc(photo)}" alt="${gEsc(u.displayName)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
-      :gEsc(_profInitials(u.displayName));
+      ?`<img src="${gEsc(photo)}" alt="">`
+      :gEsc(_profInitials(displayName));
     const canEdit=!isMe&&gRoleLevel(me.role)>gRoleLevel(u.role);
     const rcfg=_EQUIPE_ROLE_CFG[u.role]||_EQUIPE_ROLE_CFG.franqueado;
     const pid='prof-rp-'+idx;
+    const triggerId='prof-rb-'+idx;
 
+<<<<<<< Updated upstream
     // data-email + this.dataset: gEsc dentro de onclick não protege o contexto de string JS
     // (&#39; volta a ser aspa antes do JS rodar) — atributo data é o único caminho seguro.
     const pill=`<button class="prof-role-pill" data-role="${u.role}" data-email="${gEsc(u.email)}" ${canEdit?`onclick="gProfileToggleRolePicker(this.dataset.email,'${pid}',this,event)"`:'disabled'} title="${rcfg.desc}">
+=======
+    const pill=`<button type="button" class="prof-role-pill" id="${triggerId}" data-role="${gEsc(u.role)}"
+      aria-label="Permissão: ${gEsc(rcfg.label)}${canEdit?'. Clique para alterar':''}"
+      ${canEdit?`aria-haspopup="menu" aria-expanded="false" aria-controls="${pid}" onclick="gProfileToggleRolePicker('${gEsc(u.email)}','${pid}',this,event)"`:'disabled'}
+      title="${gEsc(rcfg.desc)}">
+>>>>>>> Stashed changes
       <span class="prof-role-dot"></span>${rcfg.label}${canEdit?_ICO_CHEVRON:''}
     </button>`;
 
@@ -467,8 +526,15 @@ async function gProfileRenderEquipe(){
       .map(r=>{
         const rc=_EQUIPE_ROLE_CFG[r];
         const cur=r===u.role;
+<<<<<<< Updated upstream
         return `<button class="prof-role-picker-opt${cur?' is-current':''}" data-email="${gEsc(u.email)}" onclick="gProfilePickRole(this.dataset.email,'${r}','${pid}',event)">
           <span class="prof-role-picker-opt-ico" style="background:${rc.bg};color:${rc.color}">${rc.emoji}</span>
+=======
+        return `<button type="button" role="menuitemradio" aria-checked="${cur?'true':'false'}"
+          class="prof-role-picker-opt prof-role-picker-opt-${r}${cur?' is-current':''}"
+          ${cur?'disabled aria-disabled="true"':`onclick="gProfilePickRole('${gEsc(u.email)}','${r}','${pid}',event)"`}>
+          <span class="prof-role-picker-opt-ico">${rc.icon}</span>
+>>>>>>> Stashed changes
           <span class="prof-role-picker-opt-text">
             <span class="prof-role-picker-opt-label">${rc.label}</span>
             <span class="prof-role-picker-opt-desc">${rc.desc}</span>
@@ -476,110 +542,236 @@ async function gProfileRenderEquipe(){
           ${cur?`<span class="prof-role-picker-check">${_ICO_CHECK}</span>`:''}
         </button>`;
       }).join('');
-    const picker=canEdit?`<div class="prof-role-picker" id="${pid}">${pickerOpts}</div>`:'';
+    const picker=canEdit?`<div class="prof-role-picker" id="${pid}" role="menu" aria-label="Alterar permissão de ${gEsc(displayName)}" data-trigger-id="${triggerId}" onkeydown="gProfileRolePickerKeydown(event,'${pid}')">${pickerOpts}</div>`:'';
 
     // BUG corrigido: isBase vinha sempre true de gGetAllUsers (só há usuários reais hoje,
     // não existe mais o mock local que a flag distinguia) — então "!u.isBase" nunca era
     // verdadeiro e o botão de ação nunca aparecia para ninguém. Removido o campo morto;
     // o que importa de verdade é ativo/inativo (§2: gestão administra usuários).
     const isInactive = u.ativo === false;
-    const statusTag = isInactive ? `<span class="prof-user-tag inactive">inativo</span>` : '';
-    const youTag=isMe?`<span class="prof-user-you">(você)</span>`:'';
+    const status=`<span class="prof-user-status ${isInactive?'is-inactive':'is-active'}"><i></i>${isInactive?'Inativo':'Ativo'}</span>`;
+    const youTag=isMe?`<span class="prof-user-you">Você</span>`:'';
     // Reativar (ativo:false→true) completa o ciclo: antes, desativar era beco sem volta
     // pela UI (só existia gSetUserAtivo(id,true) no backend, sem caminho na tela).
     const actionBtn = (!isMe && canEdit)
       ? (isInactive
+<<<<<<< Updated upstream
           ? `<button class="prof-user-remove prof-user-restore" onclick="gProfileReactivateUser('${gEsc(u.email)}')" title="Reativar acesso">${_ICO_RESTORE}</button>`
           : `<button class="prof-user-remove" data-email="${gEsc(u.email)}" onclick="gProfileRemoveUser(this.dataset.email)" title="Desativar acesso">${_ICO_TRASH}</button>`)
       : '';
+=======
+          ? `<button type="button" class="prof-user-action prof-user-restore" onclick="gProfileReactivateUser('${gEsc(u.email)}')" aria-label="Reativar acesso de ${gEsc(displayName)}" title="Reativar acesso">${_ICO_RESTORE}</button>`
+          : `<button type="button" class="prof-user-action" onclick="gProfileRemoveUser('${gEsc(u.email)}')" aria-label="Desativar acesso de ${gEsc(displayName)}" title="Desativar acesso">${_ICO_TRASH}</button>`)
+      : '<span class="prof-user-action-placeholder" aria-hidden="true"></span>';
+>>>>>>> Stashed changes
 
-    return `<div class="prof-user-row${isMe?' is-me':''}${isInactive?' is-inactive':''}">
-      <div class="prof-user-av" style="background:${avBg}">${avContent}</div>
-      <div class="prof-user-info">
-        <div class="prof-user-name">${gEsc(u.displayName)}${youTag}${statusTag}</div>
-        <div class="prof-user-email">${gEsc(u.email)}</div>
+    return `<li class="prof-user-row${isMe?' is-me':''}${isInactive?' is-inactive':''}" data-status="${isInactive?'inactive':'active'}">
+      <div class="prof-user-identity">
+        <div class="prof-user-av${avatarClass}" aria-hidden="true">${avContent}</div>
+        <div class="prof-user-info">
+          <div class="prof-user-name">${gEsc(displayName)}${youTag}</div>
+          <div class="prof-user-email">${gEsc(u.email)}</div>
+        </div>
       </div>
-      ${pill}${picker}
-      ${actionBtn}
-    </div>`;
+      <div class="prof-user-access">${pill}${picker}</div>
+      <div class="prof-user-status-cell">${status}</div>
+      <div class="prof-user-actions">${actionBtn}</div>
+    </li>`;
   }).join('');
 
+  const activeCount=users.filter(u=>u.ativo!==false).length;
+  const inactiveCount=users.length-activeCount;
+  const internalCount=users.filter(u=>u.role==='equipe_dm'||u.role==='gestao').length;
+  const franchiseCount=users.filter(u=>u.role==='franqueado').length;
+
   pane.innerHTML=`
-    <div class="prof-equipe-toolbar">
-      <div class="prof-equipe-search-wrap">
-        <span class="prof-equipe-search-ico"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
-        <input class="prof-equipe-search" placeholder="Buscar membro…" oninput="gProfileFilterEquipe(this.value)">
+    <section class="prof-team-overview" aria-labelledby="prof-team-overview-title">
+      <div class="prof-team-overview-copy">
+        <span class="prof-team-overview-icon">${_ICO_USERS}</span>
+        <div>
+          <span class="prof-team-kicker">Acessos da plataforma</span>
+          <h4 id="prof-team-overview-title">Sua equipe em um só lugar</h4>
+          <p>Convide pessoas, revise permissões e mantenha os acessos organizados.</p>
+        </div>
       </div>
-      <button class="prof-invite-btn" onclick="gProfileShowInviteForm()">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Convidar
+      <button type="button" class="prof-invite-btn" onclick="gProfileShowInviteForm()" aria-controls="prof-invite-form" aria-expanded="false">
+        ${_ICO_USERS}<span>Convidar membro</span>
       </button>
+    </section>
+
+    <div class="prof-team-metrics" aria-label="Resumo da equipe">
+      <div class="prof-team-metric">
+        <span class="prof-team-metric-icon prof-team-metric-icon-active">${_ICO_USERS}</span>
+        <span><strong>${activeCount}</strong><small>Acessos ativos</small></span>
+      </div>
+      <div class="prof-team-metric">
+        <span class="prof-team-metric-icon">${_ICO_SHIELD}</span>
+        <span><strong>${internalCount}</strong><small>Equipe interna</small></span>
+      </div>
+      <div class="prof-team-metric">
+        <span class="prof-team-metric-icon">${_ICO_STORE}</span>
+        <span><strong>${franchiseCount}</strong><small>Franqueados</small></span>
+      </div>
     </div>
-    <div id="prof-invite-form" style="display:none"></div>
-    <div class="prof-equipe-count">${users.length} membro${users.length!==1?'s':''}</div>
-    <div class="prof-user-list" id="prof-user-list">${rows}</div>`;
+
+    <div id="prof-invite-form" hidden></div>
+
+    <div class="prof-equipe-tools">
+      <div class="prof-equipe-search-wrap">
+        <span class="prof-equipe-search-ico">${_ICO_SEARCH}</span>
+        <input type="search" class="prof-equipe-search" id="prof-equipe-search" placeholder="Buscar por nome ou e-mail"
+          aria-label="Buscar membros por nome ou e-mail" aria-describedby="prof-equipe-result-count"
+          autocomplete="off" oninput="gProfileFilterEquipe(this.value)">
+      </div>
+      <div class="prof-equipe-filters" role="group" aria-label="Filtrar membros por status">
+        <button type="button" class="prof-equipe-filter is-active" data-filter="all" aria-pressed="true" onclick="gProfileSetEquipeFilter('all',this)">Todos <span>${users.length}</span></button>
+        <button type="button" class="prof-equipe-filter" data-filter="active" aria-pressed="false" onclick="gProfileSetEquipeFilter('active',this)">Ativos <span>${activeCount}</span></button>
+        <button type="button" class="prof-equipe-filter" data-filter="inactive" aria-pressed="false" onclick="gProfileSetEquipeFilter('inactive',this)">Inativos <span>${inactiveCount}</span></button>
+      </div>
+    </div>
+
+    <section class="prof-members-surface" aria-labelledby="prof-members-title">
+      <div class="prof-members-titlebar">
+        <div>
+          <h4 id="prof-members-title">Membros</h4>
+          <p id="prof-equipe-result-count" role="status" aria-live="polite">${users.length} membro${users.length!==1?'s':''}</p>
+        </div>
+        <span class="prof-members-safe">${_ICO_SHIELD} Permissões protegidas pelo servidor</span>
+      </div>
+      <div class="prof-user-list-head" aria-hidden="true">
+        <span>Membro</span><span>Acesso</span><span>Status</span><span>Ações</span>
+      </div>
+      <ul class="prof-user-list" id="prof-user-list">${rows}</ul>
+      <div class="prof-team-empty" id="prof-team-empty" hidden>
+        <span>${_ICO_EMPTY}</span>
+        <strong>Nenhum membro encontrado</strong>
+        <p>Ajuste a busca ou limpe os filtros para ver a equipe.</p>
+        <button type="button" class="prof-btn prof-btn-secondary" onclick="gProfileClearEquipeFilters()">Limpar filtros</button>
+      </div>
+    </section>`;
+  pane.dataset.filter='all';
+  pane.dataset.query='';
+  pane.setAttribute('aria-busy','false');
 }
 
 function gProfileShowInviteForm(){
   const form=document.getElementById('prof-invite-form'); if(!form)return;
-  if(form.style.display!=='none'){form.style.display='none';return;}
+  if(!form.hidden){gProfileHideInviteForm();return;}
   const meRole=gCurrentUser().role;
   const roleOpts=['franqueado','equipe_dm']
     .filter(r=>gRoleLevel(r)<gRoleLevel(meRole))
-    .map(r=>{const rc=_EQUIPE_ROLE_CFG[r];return `<option value="${r}"${r==='equipe_dm'?' selected':''}>${rc.emoji} ${rc.label}</option>`;}).join('');
-  form.innerHTML=`<div class="prof-invite-box">
-    <div class="prof-invite-title">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
-      Novo membro
+    .map(r=>{const rc=_EQUIPE_ROLE_CFG[r];return `<option value="${r}"${r==='equipe_dm'?' selected':''}>${rc.label}</option>`;}).join('');
+  form.innerHTML=`<form class="prof-invite-box" onsubmit="gProfileInviteUser(event)" aria-labelledby="prof-invite-title">
+    <div class="prof-invite-head">
+      <span class="prof-invite-head-icon">${_ICO_USERS}</span>
+      <div>
+        <span class="prof-team-kicker">Novo acesso</span>
+        <h4 id="prof-invite-title">Convidar membro</h4>
+        <p>O convite chega por e-mail e o acesso já nasce com a permissão escolhida.</p>
+      </div>
+      <button type="button" class="prof-invite-close" onclick="gProfileHideInviteForm()" aria-label="Fechar formulário de convite">${_ICO_CLOSE}</button>
     </div>
-    <div class="prof-grid prof-grid-2" style="gap:10px">
-      <div class="prof-field"><label class="prof-label">Nome completo</label><input class="prof-input" id="prof-inv-name" placeholder="Ex: João Silva"></div>
-      <div class="prof-field"><label class="prof-label">E-mail</label><input class="prof-input" id="prof-inv-email" type="email" placeholder="joao@deliverymuch.com.br"></div>
-      <div class="prof-field"><label class="prof-label">Telefone <span style="opacity:.55;font-weight:400">(opcional)</span></label><input class="prof-input" id="prof-inv-tel" type="tel" placeholder="(48) 99999-9999"></div>
-      <div class="prof-field"><label class="prof-label">Permissão</label><select class="prof-input" id="prof-inv-role">${roleOpts}</select></div>
+    <div class="prof-invite-grid">
+      <div class="prof-field"><label class="prof-label" for="prof-inv-name">Nome completo</label><input class="prof-input" id="prof-inv-name" name="name" autocomplete="name" placeholder="Ex.: João Silva" required></div>
+      <div class="prof-field"><label class="prof-label" for="prof-inv-email">E-mail</label><input class="prof-input" id="prof-inv-email" name="email" type="email" autocomplete="email" placeholder="joao@deliverymuch.com.br" required></div>
+      <div class="prof-field"><label class="prof-label" for="prof-inv-tel">Telefone <span class="prof-field-optional">Opcional</span></label><input class="prof-input" id="prof-inv-tel" name="tel" type="tel" autocomplete="tel" placeholder="(48) 99999-9999"></div>
+      <div class="prof-field"><label class="prof-label" for="prof-inv-role">Permissão inicial</label><select class="prof-input" id="prof-inv-role" name="role">${roleOpts}</select></div>
     </div>
-    <div style="display:flex;gap:8px;margin-top:12px">
-      <button class="prof-btn prof-btn-primary" style="font-size:12px;padding:8px 16px" id="prof-inv-btn" onclick="gProfileInviteUser()">Convidar por e-mail</button>
-      <button class="prof-btn prof-btn-secondary" style="font-size:12px;padding:8px 16px" onclick="document.getElementById('prof-invite-form').style.display='none'">Cancelar</button>
+    <div class="prof-invite-actions">
+      <button type="button" class="prof-btn prof-btn-secondary" onclick="gProfileHideInviteForm()">Cancelar</button>
+      <button type="submit" class="prof-btn prof-btn-primary" id="prof-inv-btn">${_ICO_USERS}<span>Enviar convite</span></button>
     </div>
-  </div>`;
-  form.style.display='block';
+  </form>`;
+  form.hidden=false;
+  document.querySelector('.prof-invite-btn')?.setAttribute('aria-expanded','true');
   document.getElementById('prof-inv-name')?.focus();
 }
 
-async function gProfileInviteUser(){
+function gProfileHideInviteForm(){
+  const form=document.getElementById('prof-invite-form');
+  if(form){form.hidden=true;form.innerHTML='';}
+  const trigger=document.querySelector('.prof-invite-btn');
+  if(trigger){trigger.setAttribute('aria-expanded','false');trigger.focus();}
+}
+
+async function gProfileInviteUser(event){
+  if(event)event.preventDefault();
   const name=document.getElementById('prof-inv-name')?.value.trim();
   const email=document.getElementById('prof-inv-email')?.value.trim();
   const tel=document.getElementById('prof-inv-tel')?.value.trim();
   const role=document.getElementById('prof-inv-role')?.value;
   const btn=document.getElementById('prof-inv-btn');
-  if(btn){btn.disabled=true;btn.textContent='Enviando convite…';}
+  const originalHTML=btn?btn.innerHTML:'';
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="prof-spinner" aria-hidden="true"></span><span>Enviando convite…</span>';}
   const res=await gInviteUser(email,name,role,tel);
-  if(btn){btn.disabled=false;btn.textContent='Convidar por e-mail';}
-  if(!res.ok){gToast('⚠️ '+res.error,'error');return;}
-  gToast('✅ Convite enviado para '+email+'!');
-  const form=document.getElementById('prof-invite-form'); if(form)form.style.display='none';
+  if(btn){btn.disabled=false;btn.innerHTML=originalHTML;}
+  if(!res.ok){gToast('Não foi possível enviar o convite: '+res.error,'error');return;}
+  gToast('Convite enviado para '+email);
+  const form=document.getElementById('prof-invite-form'); if(form){form.hidden=true;form.innerHTML='';}
   gProfileRenderEquipe(); // o profile já existe (trigger) — aparece na lista na hora
+}
+
+function gProfileCloseRolePickers(exceptId){
+  document.querySelectorAll('.prof-role-picker.open').forEach(picker=>{
+    if(exceptId&&picker.id===exceptId)return;
+    picker.classList.remove('open');
+    picker.style.visibility='';
+    const trigger=document.getElementById(picker.dataset.triggerId||'');
+    if(trigger)trigger.setAttribute('aria-expanded','false');
+  });
 }
 
 function gProfileToggleRolePicker(email,pid,btn,ev){
   if(ev) ev.stopPropagation();
-  // fecha outros pickers abertos
-  document.querySelectorAll('.prof-role-picker.open').forEach(p=>{if(p.id!==pid)p.classList.remove('open');});
   const picker=document.getElementById(pid); if(!picker)return;
-  if(picker.classList.contains('open')){picker.classList.remove('open');return;}
+  if(picker.classList.contains('open')){
+    gProfileCloseRolePickers();
+    btn.focus();
+    return;
+  }
+  gProfileCloseRolePickers(pid);
   // portal: move para body para escapar do overflow:hidden + transform do modal
   if(picker.parentElement!==document.body) document.body.appendChild(picker);
   const rect=btn.getBoundingClientRect();
-  picker.style.top=(rect.bottom+4)+'px';
-  picker.style.right=(window.innerWidth-rect.right)+'px';
-  picker.style.left='auto';
+  picker.style.visibility='hidden';
   picker.classList.add('open');
+  const pickerRect=picker.getBoundingClientRect();
+  const below=rect.bottom+6;
+  const top=below+pickerRect.height<=window.innerHeight-12
+    ?below
+    :Math.max(12,rect.top-pickerRect.height-6);
+  picker.style.top=top+'px';
+  picker.style.right=Math.max(12,window.innerWidth-rect.right)+'px';
+  picker.style.left='auto';
+  picker.style.visibility='';
+  btn.setAttribute('aria-expanded','true');
+  const firstOption=picker.querySelector('.prof-role-picker-opt:not([disabled])');
+  if(firstOption)firstOption.focus();
+}
+
+function gProfileRolePickerKeydown(event,pid){
+  const picker=document.getElementById(pid); if(!picker)return;
+  const options=Array.from(picker.querySelectorAll('.prof-role-picker-opt:not([disabled])'));
+  const trigger=document.getElementById(picker.dataset.triggerId||'');
+  if(event.key==='Escape'){
+    event.preventDefault();
+    gProfileCloseRolePickers();
+    if(trigger)trigger.focus();
+    return;
+  }
+  if(!['ArrowDown','ArrowUp','Home','End'].includes(event.key)||!options.length)return;
+  event.preventDefault();
+  const current=options.indexOf(document.activeElement);
+  let next=0;
+  if(event.key==='End')next=options.length-1;
+  else if(event.key==='ArrowUp')next=current<=0?options.length-1:current-1;
+  else if(event.key==='ArrowDown')next=current<0||current===options.length-1?0:current+1;
+  options[next].focus();
 }
 
 async function gProfilePickRole(email,newRole,pid,ev){
   if(ev) ev.stopPropagation();
-  document.getElementById(pid)?.classList.remove('open');
+  gProfileCloseRolePickers();
   // Mudar o papel de alguém não tinha NENHUMA confirmação — um clique já promovia/
   // rebaixava na hora. §2/§3: papel é a hierarquia de permissão de sistema, não é
   // detalhe trivial. gConfirm (não confirm() nativo) é o canal já usado na casa.
@@ -591,22 +783,57 @@ async function gProfilePickRole(email,newRole,pid,ev){
   const ok = await gConfirm(msg, {okLabel:'Confirmar', danger:newRole==='gestao'});
   if(!ok) return;
   const res=await gSetUserRole(email,newRole);
-  if(!res.ok){gToast('⚠ '+res.error,'error');return;}
-  gToast('Permissão atualizada!');
+  if(!res.ok){gToast('Não foi possível atualizar a permissão: '+res.error,'error');return;}
+  gToast('Permissão atualizada');
   gProfileRenderEquipe();
 }
 
 function gProfileFilterEquipe(query){
-  const q=query.toLowerCase();
-  document.querySelectorAll('#prof-user-list .prof-user-row').forEach(row=>{
-    const name=row.querySelector('.prof-user-name')?.textContent.toLowerCase()||'';
-    const email=row.querySelector('.prof-user-email')?.textContent.toLowerCase()||'';
-    row.style.display=(!q||name.includes(q)||email.includes(q))?'':'none';
+  const pane=document.getElementById('prof-pane-equipe'); if(!pane)return;
+  const q=String(query||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const filter=pane.dataset.filter||'all';
+  pane.dataset.query=q;
+  let visible=0;
+  const rows=document.querySelectorAll('#prof-user-list .prof-user-row');
+  rows.forEach(row=>{
+    const text=(row.textContent||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const matchesQuery=!q||text.includes(q);
+    const matchesStatus=filter==='all'||row.dataset.status===filter;
+    row.hidden=!(matchesQuery&&matchesStatus);
+    if(!row.hidden)visible++;
   });
+  const count=document.getElementById('prof-equipe-result-count');
+  if(count)count.textContent=(q||filter!=='all')
+    ?`${visible} de ${rows.length} membros`
+    :`${rows.length} membro${rows.length!==1?'s':''}`;
+  const empty=document.getElementById('prof-team-empty');
+  if(empty)empty.hidden=visible!==0;
 }
 
+<<<<<<< Updated upstream
 // (gProfileSetUserRole removida na auditoria 16/07: duplicata sem chamador de
 //  gProfilePickRole — e trocava role SEM confirmação. O fluxo real é o picker.)
+=======
+function gProfileSetEquipeFilter(filter,button){
+  const pane=document.getElementById('prof-pane-equipe'); if(!pane)return;
+  if(!['all','active','inactive'].includes(filter))filter='all';
+  pane.dataset.filter=filter;
+  document.querySelectorAll('.prof-equipe-filter').forEach(btn=>{
+    const active=btn===button||btn.dataset.filter===filter;
+    btn.classList.toggle('is-active',active);
+    btn.setAttribute('aria-pressed',active?'true':'false');
+  });
+  gProfileFilterEquipe(document.getElementById('prof-equipe-search')?.value||'');
+}
+
+function gProfileClearEquipeFilters(){
+  const input=document.getElementById('prof-equipe-search');
+  if(input)input.value='';
+  const allBtn=document.querySelector('.prof-equipe-filter[data-filter="all"]');
+  gProfileSetEquipeFilter('all',allBtn);
+  if(input)input.focus();
+}
+>>>>>>> Stashed changes
 
 async function gProfileRemoveUser(email){
   // confirm() nativo → gConfirm (01_BUSINESS §10 / 03_ENGINEERING: gToast/gConfirm são os
@@ -614,8 +841,8 @@ async function gProfileRemoveUser(email){
   const ok = await gConfirm('Desativar o acesso de '+email+'? Ele não conseguirá mais usar o app. (A exclusão definitiva é feita no painel do Supabase.)', {okLabel:'Desativar', danger:true});
   if(!ok) return;
   const res=await gRemoveManagedUser(email);
-  if(!res.ok){gToast('⚠ '+res.error,'error');return;}
-  gToast('Usuário desativado.');
+  if(!res.ok){gToast('Não foi possível desativar o usuário: '+res.error,'error');return;}
+  gToast('Usuário desativado');
   gProfileRenderEquipe();
 }
 
@@ -625,15 +852,15 @@ async function gProfileReactivateUser(email){
   const ok = await gConfirm('Reativar o acesso de '+email+'? Ele volta a conseguir usar o app.', {okLabel:'Reativar'});
   if(!ok) return;
   const res=await gSetUserAtivo(email, true);
-  if(!res.ok){gToast('⚠ '+res.error,'error');return;}
-  gToast('Usuário reativado!');
+  if(!res.ok){gToast('Não foi possível reativar o usuário: '+res.error,'error');return;}
+  gToast('Usuário reativado');
   gProfileRenderEquipe();
 }
 
 // Fecha role picker ao clicar fora do painel
 document.addEventListener('click',function(e){
   if(!e.target.closest('.prof-role-pill')&&!e.target.closest('.prof-role-picker')){
-    document.querySelectorAll('.prof-role-picker.open').forEach(p=>p.classList.remove('open'));
+    gProfileCloseRolePickers();
   }
 });
 

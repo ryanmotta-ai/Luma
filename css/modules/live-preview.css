@@ -23,8 +23,8 @@
 
 /* HEADER */
 .lp-head{
-  min-height:70px;
-  padding:13px 18px;
+  min-height:64px;
+  padding:9px 18px;
   border-bottom:1px solid var(--gray-light);
   flex-shrink:0;
   display:flex;
@@ -61,7 +61,7 @@
   height:6px;
   border-radius:50%;
   background:var(--gray-mid);
-  transition:all .3s ease;
+  transition:background var(--dur-base) var(--ease-standard),box-shadow var(--dur-base) var(--ease-standard);
 }
 
 .lp-sync.ready .lp-sync-dot {
@@ -82,7 +82,7 @@
 .lp-stage{
   flex:1;
   min-height:0;
-  padding:54px 24px 76px;
+  padding:36px 16px 24px;
   display:flex;
   flex-direction:column;
   align-items:center;
@@ -105,11 +105,18 @@
 .lp-empty{display:none;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:12px}
 .lp-stage.empty .lp-empty{display:flex}
 .lp-stage.empty .lp-canvas-wrap{display:none}
+/* No estado vazio (sem material) esconde tudo que opera sobre uma arte que ainda não
+   existe: barra de ferramentas (zoom/ajustar/mockups), os rótulos do palco (Área de prova
+   / Clique na arte) e o chip de status do topo. Volta sozinho quando .lp-stage perde .empty
+   (arte carregada). :has() alcança os irmãos fora do .lp-stage. */
+#f-live-preview:has(.lp-stage.empty) .lp-toolbar,
+#f-live-preview:has(.lp-stage.empty) .lp-stage-meta,
+#f-live-preview:has(.lp-stage.empty) .lp-sync{display:none}
 /* Miniatura fantasma de uma arte (story 9:16) — foto + título + preço */
 .lp-empty-art{
   width:118px;aspect-ratio:9/16;border-radius:14px;position:relative;overflow:hidden;
   background:linear-gradient(165deg,var(--dm-orange) 0%,var(--dm-orange-d) 100%);
-  box-shadow:0 10px 26px rgba(248,84,0,.22);
+  box-shadow:0 10px 26px color-mix(in srgb,var(--dm-orange-d) 22%,transparent);
   margin-bottom:12px;
   animation:lpFloat 4.5s var(--ease-standard) infinite;
 }
@@ -154,8 +161,20 @@
 /* Anel que pulsa quando a prévia acabou de refletir uma resposta nova */
 .lp-canvas-wrap.updated{animation:lpPulse .55s var(--ease-out)}
 @keyframes lpPulse{
-  0%{box-shadow:0 8px 32px rgba(0,0,0,.12), 0 0 0 0 rgba(255,144,0,.45)}
-  100%{box-shadow:0 8px 32px rgba(0,0,0,.12), 0 0 0 14px rgba(255,144,0,0)}
+  0%{box-shadow:0 8px 32px rgba(0,0,0,.12), 0 0 0 0 color-mix(in srgb,var(--dm-orange) 45%,transparent)}
+  100%{box-shadow:0 8px 32px rgba(0,0,0,.12), 0 0 0 14px color-mix(in srgb,var(--dm-orange) 0%,transparent)}
+}
+
+/* Varredura de luz (Scanline) na conclusão da arte */
+.lp-canvas-wrap.is-rendering::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  height: 40%;
+  background: linear-gradient(180deg, transparent 0%, color-mix(in srgb,var(--dm-orange) 40%,transparent) 50%, transparent 100%);
+  pointer-events: none;
+  z-index: 12;
+  animation: gScanline 0.55s var(--ease-out) forwards;
 }
 
 .lp-stage.loading .lp-canvas-wrap::after {
@@ -190,7 +209,7 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
 .lp-tool-left, .lp-tool-right {
   display:flex;
   align-items:center;
-  gap:10px;
+  gap:8px;
 }
 .lp-tool-right{min-width:0}
 
@@ -212,6 +231,15 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
 }
 .lp-tool-btn:active{transform:scale(.94)}
 .lp-tool-btn:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+.lp-fit-btn{width:auto;min-width:32px;padding:0 9px;gap:6px;font:700 10.5px 'Roboto',sans-serif;white-space:nowrap}
+.lp-fit-btn svg{flex:0 0 14px}
+
+.lp-zoom-group{height:32px;display:inline-flex;align-items:center;padding:2px;border:1px solid var(--gray-light);border-radius:10px;background:var(--off-white)}
+.lp-zoom-step{width:28px;height:26px;display:grid;place-items:center;padding:0;border:0;border-radius:7px;background:transparent;color:var(--text-2);cursor:pointer;transition:background var(--dur-micro),color var(--dur-micro),transform var(--dur-micro) var(--ease-spring)}
+.lp-zoom-step svg{width:13px;height:13px}
+.lp-zoom-step:hover{background:var(--white);color:var(--text)}
+.lp-zoom-step:active{transform:scale(.9)}
+.lp-zoom-step:focus-visible{outline:2px solid var(--dm-orange);outline-offset:-1px}
 
 .lp-tool-label {
   display:none;
@@ -228,11 +256,11 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
   font-weight:650;
   color:var(--text-2);
 }
-.lp-tool-dim{color:var(--text-3);font-weight:400;font-variant-numeric:tabular-nums}
-#lp-zoom{font-variant-numeric:tabular-nums;min-width:30px}
+.lp-tool-dim{min-width:62px;padding-left:8px;border-left:1px solid var(--gray-light);color:var(--text-3);font-weight:400;font-variant-numeric:tabular-nums;white-space:nowrap}
+#lp-zoom{height:26px;min-width:38px;font-variant-numeric:tabular-nums}
 /* O % vira botão (voltar ao ajuste) — reseta o visual nativo de <button> e vira clicável. */
 .lp-zoom-reset{
-  background:none;border:none;padding:2px 4px;border-radius:6px;cursor:pointer;
+  background:none;border:none;padding:2px 5px;border-radius:6px;cursor:pointer;
   font-family:inherit;text-align:center;
   transition:background var(--dur-micro),color var(--dur-micro);
 }
@@ -246,7 +274,7 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
   border-radius:10px;
   position:relative;
   cursor:pointer;
-  transition:background .3s;
+  transition:background var(--dur-base) var(--ease-standard);
 }
 .lp-toggle.active {
   background:var(--dm-orange);
@@ -259,12 +287,19 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
   position:absolute;
   top:2px;
   left:2px;
-  transition:transform .3s;
+  transition:transform var(--dur-base) var(--ease-spring-soft);
   box-shadow:0 1px 2px rgba(0,0,0,.2);
 }
 .lp-toggle.active .lp-toggle-knob {
   transform:translateX(12px);
 }
+.lp-autozoom-btn{height:32px;display:inline-flex;align-items:center;gap:7px;padding:0 8px 0 10px;border:1px solid var(--gray-light);border-radius:10px;background:var(--off-white);color:var(--text-3);font:700 10.5px 'Roboto',sans-serif;cursor:pointer;white-space:nowrap;transition:background var(--dur-micro),border-color var(--dur-micro),color var(--dur-micro),transform var(--dur-micro) var(--ease-spring)}
+.lp-autozoom-btn:hover{background:var(--gray-light);color:var(--text-2)}
+.lp-autozoom-btn:active{transform:scale(.97)}
+.lp-autozoom-btn:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+.lp-autozoom-btn.active{border-color:var(--dm-orange-tint);background:var(--dm-orange-bg);color:var(--dm-orange-d)}
+.lp-autozoom-btn.active .lp-toggle{background:var(--dm-orange-d)}
+.lp-autozoom-btn.active .lp-toggle-knob{transform:translateX(12px)}
 
 /* Seletor de sobreposição (Limpo · Guias · Ambiente) — substitui o liga/desliga de Guias.
    Ativo segue o padrão de chip da casa (DS §8): fundo suave + borda laranja + texto vermelho
@@ -279,7 +314,7 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
 body:not(.theme-light) .lp-viewseg{border-color:var(--d-border2);background:var(--d-surf)}
 body:not(.theme-light) .lp-viewseg-btn{color:var(--d-text3)}
 body:not(.theme-light) .lp-viewseg-btn:hover{background:var(--d-surf2);color:var(--d-text)}
-body:not(.theme-light) .lp-viewseg-btn.active{background:rgba(255,144,0,.16);color:var(--dm-yellow)}
+body:not(.theme-light) .lp-viewseg-btn.active{background:color-mix(in srgb,var(--dm-orange) 16%,transparent);color:var(--dm-yellow)}
 .lp-toggle:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
 
 /* ── Tema escuro ── */
@@ -311,23 +346,23 @@ body:not(.theme-light) .lp-toggle.active{background:var(--dm-orange)}
   padding:14px;font-family:'Roboto',sans-serif;animation:gFadeInUp var(--dur-fast,.18s) var(--ease-out) both}
 .lp-edit-lbl{font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3,#6B6B6B);margin-bottom:8px}
 .lp-edit-input{width:100%;font-size:13px;padding:9px 11px;border:1px solid var(--gray-mid,#D4D4D4);border-radius:8px;
-  background:var(--white,#fff);color:var(--text,#0A0A0A);outline:none;transition:border-color .15s,box-shadow .15s}
-.lp-edit-input:focus{border-color:var(--dm-orange,#FF9000);box-shadow:0 0 0 3px rgba(255,144,0,.14)}
+  background:var(--white,#fff);color:var(--text,#0A0A0A);outline:none;transition:border-color var(--dur-micro) var(--ease-standard),box-shadow var(--dur-micro) var(--ease-standard)}
+.lp-edit-input:focus{border-color:var(--dm-orange,#FF9000);box-shadow:0 0 0 3px color-mix(in srgb,var(--dm-orange) 14%,transparent)}
 .lp-edit-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px}
 .lp-edit-count{font-size:10.5px;color:var(--text-3,#6B6B6B);font-variant-numeric:tabular-nums}
 .lp-edit-ok{font-size:12px;font-weight:700;padding:8px 16px;border-radius:8px;border:none;cursor:pointer;
-  background:var(--dm-orange-d,#F85400);color:#fff;transition:filter .15s,transform .15s var(--ease-spring)}
+  background:var(--dm-orange-d,#F85400);color:#fff;transition:filter var(--dur-micro) var(--ease-standard),transform var(--dur-micro) var(--ease-spring)}
 .lp-edit-ok:hover{filter:brightness(1.06);transform:translateY(-1px)}
 .lp-edit-actions{display:flex;flex-direction:column;gap:6px}
 .lp-edit-btn{font-size:12px;font-weight:600;padding:9px 12px;border-radius:8px;border:1px solid var(--gray-mid,#D4D4D4);
-  background:var(--white,#fff);color:var(--text,#0A0A0A);cursor:pointer;text-align:left;transition:all .15s var(--ease-standard)}
+  background:var(--white,#fff);color:var(--text,#0A0A0A);cursor:pointer;text-align:left;transition:border-color var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard)}
 .lp-edit-btn:hover{border-color:var(--dm-orange,#FF9000);color:var(--dm-orange-d,#F85400);background:var(--dm-orange-bg,#FFF2E0)}
 .lp-edit-btn.lp-edit-danger{color:var(--dm-red,#C81818)}
 .lp-edit-btn.lp-edit-danger:hover{border-color:var(--dm-red,#C81818);background:rgba(200,24,24,.06);color:var(--dm-red,#C81818)}
 .lp-edit-orlink{font-size:10.5px;color:var(--text-3,#6B6B6B);margin:12px 0 6px}
 
 /* ── Modo enquadrar foto ── */
-.lp-frame-ov{position:absolute;inset:0;z-index:30;cursor:move;background:rgba(248,84,0,.04);
+.lp-frame-ov{position:absolute;inset:0;z-index:30;cursor:move;background:color-mix(in srgb,var(--dm-orange-d) 4%,transparent);
   box-shadow:inset 0 0 0 2px var(--dm-orange,#FF9000);border-radius:12px}
 .lp-frame-hint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);white-space:nowrap;
   display:flex;align-items:center;gap:10px;font-size:11px;font-weight:600;color:#fff;font-family:'Roboto',sans-serif;
@@ -355,7 +390,7 @@ body:not(.theme-light) .lp-toggle.active{background:var(--dm-orange)}
 .lp-warnings:empty{display:none}
 .lp-warn{flex:0 0 auto;max-width:260px;font-size:10.5px;font-weight:650;font-family:'Roboto',sans-serif;padding:6px 10px;border-radius:9px;
   cursor:pointer;border:1px solid transparent;display:inline-flex;align-items:center;gap:6px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  transition:transform .12s var(--ease-spring),filter .12s;text-align:left}
+  transition:transform var(--dur-micro) var(--ease-spring),filter var(--dur-micro) var(--ease-standard);text-align:left}
 .lp-warn::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;opacity:.9}
 .lp-warn:hover{transform:translateY(-1px);filter:brightness(.98)}
 .lp-warn:focus-visible{outline:2px solid var(--dm-orange);outline-offset:1px}
@@ -387,7 +422,7 @@ body:not(.theme-light) .lp-warnings{background:rgba(24,23,22,.9);border-color:va
    ════════════════════════════════════════════════════════════════════ */
 
 /* Botão da toolbar da prévia (irmão de Limpo·Guias·Ambiente, mas é ação) */
-.lp-posted-btn{display:inline-flex;align-items:center;gap:5px;font-family:'Roboto',sans-serif;
+.lp-posted-btn{height:32px;display:inline-flex;align-items:center;gap:5px;font-family:'Roboto',sans-serif;
   font-size:11px;font-weight:700;color:var(--dm-orange-d);background:var(--dm-orange-bg);
   border:1px solid transparent;border-radius:var(--r-pill);padding:5px 11px;cursor:pointer;
   transition:transform var(--dur-micro) var(--ease-spring),filter var(--dur-micro),background var(--dur-micro)}
@@ -395,7 +430,7 @@ body:not(.theme-light) .lp-warnings{background:rgba(24,23,22,.9);border-color:va
 .lp-posted-btn:active{transform:translateY(0)}
 .lp-posted-btn:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
 .lp-posted-btn svg{flex-shrink:0}
-body:not(.theme-light) .lp-posted-btn{background:rgba(248,84,0,.16);color:var(--dm-orange)}
+body:not(.theme-light) .lp-posted-btn{background:color-mix(in srgb,var(--dm-orange-d) 16%,transparent);color:var(--dm-orange)}
 
 /* ── Overlay do modal (mesmo padrão do #f-preview-modal) ── */
 #f-posted-modal{display:none;position:fixed;inset:0;z-index:320;padding:20px;
@@ -424,7 +459,7 @@ body:not(.theme-light) .lp-posted-btn{background:rgba(248,84,0,.16);color:var(--
 
 .posted-stage{flex:1;min-height:0;overflow:auto;display:flex;align-items:center;justify-content:center;
   padding:26px 20px;background:
-    radial-gradient(900px 400px at 50% -20%, rgba(255,144,0,.10), transparent 60%),
+    radial-gradient(900px 400px at 50% -20%, color-mix(in srgb,var(--dm-orange) 10%,transparent), transparent 60%),
     var(--off-white)}
 .pst-loading{font-size:13px;color:var(--text-3);font-weight:600}
 body:not(.theme-light) .posted-box{background:rgba(24,23,22,.92);border-color:var(--d-border2)}
@@ -434,7 +469,7 @@ body:not(.theme-light) .posted-sub,body:not(.theme-light) .posted-close{color:va
 body:not(.theme-light) .posted-close:hover{background:var(--d-surf2);color:var(--d-text)}
 body:not(.theme-light) .posted-seg{background:var(--d-surf);border-color:var(--d-border2)}
 body:not(.theme-light) .pst-seg-btn{color:var(--d-text2)}
-body:not(.theme-light) .pst-seg-btn.active{background:rgba(248,84,0,.18);color:var(--dm-orange)}
+body:not(.theme-light) .pst-seg-btn.active{background:color-mix(in srgb,var(--dm-orange-d) 18%,transparent);color:var(--dm-orange)}
 body:not(.theme-light) .posted-stage{background:var(--d-dark)}
 
 /* ══ CHASSI iPhone 17 Pro Max ══ */
@@ -526,6 +561,84 @@ body:not(.theme-light) .posted-stage{background:var(--d-dark)}
    de mockups teve esse bug real com o seletor). */
 #f-posted-modal .pst-enter{animation:gPstPhoneIn var(--dur-slow) var(--ease-spring-soft) backwards}
 
+/* ── Parallax: o celular acompanha o cursor ──
+   Camada PRÓPRIA (.pst-tilt) entre .pst-enter e .pst-phone. Os três têm transform e cada
+   um tem um dono: entrada / parallax / scale de tela baixa. Empilhar no mesmo elemento
+   faz um comer o outro — foi exatamente o bug que o comentário do .pst-enter registra.
+   Em repouso a transição devolve o celular à posição reta; com o cursor dentro (.is-live)
+   a transição é curta o bastante pra não arrastar atrás do mouse. */
+#f-posted-modal .pst-tilt{
+  --pst-rx:0deg; --pst-ry:0deg; --pst-gx:50%; --pst-gy:0%;
+  transform:perspective(1200px) rotateX(var(--pst-rx)) rotateY(var(--pst-ry));
+  transform-style:preserve-3d;
+  transition:transform var(--dur-base) var(--ease-out);
+  will-change:transform;
+}
+#f-posted-modal .pst-tilt.is-live{transition:transform var(--dur-micro) linear}
+/* Brilho de vidro: reflexo que anda CONTRA o giro. É o que faz a moldura ler como
+   objeto físico em vez de screenshot. pointer-events:none — nunca rouba o hover/clique. */
+#f-posted-modal .pst-glare{
+  position:absolute;inset:0;border-radius:56px;pointer-events:none;z-index:3;opacity:0;
+  background:radial-gradient(38% 30% at var(--pst-gx) var(--pst-gy),rgba(255,255,255,.5),rgba(255,255,255,0) 70%);
+  transition:opacity var(--dur-base) var(--ease-standard);
+}
+#f-posted-modal .pst-tilt.is-live .pst-glare{opacity:1}
+
+/* ── Troca de ambiente: só a TELA desliza; o chassi fica parado na mão ── */
+@keyframes gPstSlideL{ from{opacity:.25;transform:translateX(14%)} to{opacity:1;transform:translateX(0)} }
+@keyframes gPstSlideR{ from{opacity:.25;transform:translateX(-14%)} to{opacity:1;transform:translateX(0)} }
+#f-posted-modal .pst-screen.pst-slide-l{animation:gPstSlideL var(--dur-base) var(--ease-out)}
+#f-posted-modal .pst-screen.pst-slide-r{animation:gPstSlideR var(--dur-base) var(--ease-out)}
+/* touch-action:pan-y — o navegador entrega o gesto horizontal pro swipe e mantém o
+   scroll vertical do palco nativo (sem isto o swipe brigava com a rolagem). */
+.posted-stage{touch-action:pan-y}
+
+/* ── Botão "Ver no celular" (header) ── */
+.posted-phone-btn{display:inline-flex;align-items:center;gap:6px;flex-shrink:0;padding:7px 12px;
+  border:1px solid var(--gray-mid);background:var(--white);color:var(--text-2);
+  font-family:'Roboto',sans-serif;font-size:12px;font-weight:600;border-radius:var(--r-pill);cursor:pointer;
+  transition:background var(--dur-fast),color var(--dur-fast),border-color var(--dur-fast)}
+.posted-phone-btn svg{width:15px;height:15px}
+.posted-phone-btn:hover{background:var(--dm-orange-bg);color:var(--dm-orange-d);border-color:var(--dm-orange)}
+.posted-phone-btn:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+body:not(.theme-light) .posted-phone-btn{background:var(--d-surf);border-color:var(--d-border2);color:var(--d-text2)}
+body:not(.theme-light) .posted-phone-btn:hover{background:color-mix(in srgb,var(--dm-orange-d) 18%,transparent);color:var(--dm-orange)}
+@media (max-width:560px){ .posted-phone-btn span{display:none} .posted-phone-btn{padding:7px 9px} }
+
+/* ── Painel do QR: sobrepõe o palco, não empurra o layout ── */
+.pst-qr{position:absolute;inset:0;z-index:6;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+  padding:22px;text-align:center;background:color-mix(in srgb,var(--off-white) 88%,transparent);
+  backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);animation:gPopIn var(--dur-base) var(--ease-spring-soft)}
+.posted-stage{position:relative} /* âncora do .pst-qr acima */
+.pst-qr-head{display:flex;flex-direction:column;gap:3px;max-width:280px}
+.pst-qr-head strong{font-family:'Roboto',sans-serif;font-weight:900;font-size:15px;color:var(--text)}
+.pst-qr-head span{font-size:12px;line-height:1.4;color:var(--text-3)}
+/* O QR fica sempre em cartão BRANCO, mesmo no tema escuro: inverter um QR derruba a
+   leitura em boa parte das câmeras. Contraste do formato vence a estética do tema. */
+.pst-qr-code{background:#fff;padding:10px;border-radius:12px;box-shadow:0 6px 20px rgba(0,0,0,.16);line-height:0}
+.pst-qr-code canvas{display:block;image-rendering:pixelated} /* pixelated: módulo nítido, sem borrar a borda */
+.pst-qr-copy{padding:8px 16px;border:1px solid var(--gray-mid);background:var(--white);color:var(--text-2);
+  font-family:'Roboto',sans-serif;font-size:12px;font-weight:700;border-radius:var(--r-pill);cursor:pointer;
+  transition:background var(--dur-fast),color var(--dur-fast)}
+.pst-qr-copy:hover{background:var(--dm-orange-bg);color:var(--dm-orange-d)}
+.pst-qr-copy:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+.pst-qr-note{font-size:10.5px;color:var(--text-3)}
+.pst-qr-x{position:absolute;top:12px;right:14px;width:30px;height:30px;border:none;background:transparent;
+  color:var(--text-3);font-size:22px;line-height:1;cursor:pointer;border-radius:var(--r-pill)}
+.pst-qr-x:hover{background:var(--gray-light);color:var(--text)}
+.pst-qr-x:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+body:not(.theme-light) .pst-qr{background:color-mix(in srgb,var(--d-dark) 88%,transparent)}
+body:not(.theme-light) .pst-qr-head strong{color:var(--d-text)}
+body:not(.theme-light) .pst-qr-head span,body:not(.theme-light) .pst-qr-note,body:not(.theme-light) .pst-qr-x{color:var(--d-text2)}
+body:not(.theme-light) .pst-qr-copy{background:var(--d-surf);border-color:var(--d-border2);color:var(--d-text2)}
+body:not(.theme-light) .pst-qr-x:hover{background:var(--d-surf2);color:var(--d-text)}
+
 /* telas baixas: encolhe o celular pra caber no modal */
 @media (max-height:760px){ #f-posted-modal .pst-phone{transform:scale(.84)} }
-@media (prefers-reduced-motion:reduce){ #f-posted-modal,.posted-box,#f-posted-modal .pst-enter{animation:none!important} }
+@media (prefers-reduced-motion:reduce){
+  #f-posted-modal,.posted-box,#f-posted-modal .pst-enter,.pst-qr,
+  #f-posted-modal .pst-screen.pst-slide-l,#f-posted-modal .pst-screen.pst-slide-r{animation:none!important}
+  /* parallax é movimento puro: desliga inteiro, não só a transição */
+  #f-posted-modal .pst-tilt{transform:none!important;transition:none!important}
+  #f-posted-modal .pst-glare{display:none}
+}

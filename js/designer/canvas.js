@@ -810,11 +810,13 @@ function dApplyBg(ab){
    Compartilhado pelo render do canvas e pelo thumbnail. Sem efeito → []. */
 function dFxShadowParts(l){
   const parts=[];
+  // sp(): "propagação" do PS = 4ª medida do box-shadow (spread). Nativo aqui, custo zero.
+  const sp=v=>v?' '+v+'px':'';
   if(l.shadow){ const o=gFxOffset(l.shadowDist!=null?l.shadowDist:4, l.shadowAngle); const b=l.shadowBlur!=null?l.shadowBlur:6;
-    parts.push(o.x+'px '+o.y+'px '+b+'px '+(l.shadowColor||'rgba(0,0,0,.5)')); }
-  if(l.glow){ parts.push('0 0 '+(l.glowSize!=null?l.glowSize:8)+'px '+(l.glowColor||'rgba(255,255,255,.7)')); }
+    parts.push(o.x+'px '+o.y+'px '+b+'px'+sp(l.shadowSpread)+' '+(l.shadowColor||'rgba(0,0,0,.5)')); }
+  if(l.glow){ parts.push('0 0 '+(l.glowSize!=null?l.glowSize:8)+'px'+sp(l.glowSpread)+' '+(l.glowColor||'rgba(255,255,255,.7)')); }
   if(l.innerShadow){ const o=gFxOffset(l.innerShadowDist!=null?l.innerShadowDist:4, l.innerShadowAngle); const b=l.innerShadowBlur!=null?l.innerShadowBlur:6;
-    parts.push('inset '+o.x+'px '+o.y+'px '+b+'px '+(l.innerShadowColor||'rgba(0,0,0,.5)')); }
+    parts.push('inset '+o.x+'px '+o.y+'px '+b+'px'+sp(l.innerShadowSpread)+' '+(l.innerShadowColor||'rgba(0,0,0,.5)')); }
   if(l.innerGlow){ parts.push('inset 0 0 '+(l.innerGlowSize!=null?l.innerGlowSize:8)+'px '+(l.innerGlowColor||'rgba(255,255,255,.7)')); }
   if(l.bevel){ const o=gFxOffset(l.bevelSize!=null?l.bevelSize:4, l.bevelAngle), b=l.bevelSize!=null?l.bevelSize:4; // realce (luz) + sombra opostos, internos
     parts.push('inset '+o.x+'px '+o.y+'px '+b+'px '+(l.bevelHighlight||'rgba(255,255,255,.7)'));

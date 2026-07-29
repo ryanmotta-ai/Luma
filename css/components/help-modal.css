@@ -7,10 +7,10 @@
  */
 
 /* ══ MODAL DE AJUDA / SUPORTE ══ */
-.g-help-float{position:fixed;right:24px;bottom:24px;z-index:350;width:56px;height:56px;border:0;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--dm-orange);color:var(--white);cursor:pointer;box-shadow:0 12px 28px rgba(248,84,0,.25);transition:transform var(--dur-micro) var(--ease-spring),background var(--dur-micro) var(--ease-standard),box-shadow var(--dur-micro) var(--ease-standard)}
-.g-help-float:hover{background:var(--dm-orange-d);transform:translateY(-2px);box-shadow:0 16px 34px rgba(248,84,0,.32)}
-.g-help-float:active{transform:scale(.95)}
-.g-help-float:focus-visible{outline:2px solid var(--dm-orange);outline-offset:3px}
+.g-help-float{position:fixed;right:24px;bottom:24px;z-index:350;width:44px;height:44px;border:1px solid var(--gray-mid);border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--white);color:var(--text-2);cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.12);transition:transform var(--dur-fast) var(--ease-spring),background var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard)}
+.g-help-float:hover{background:var(--dm-orange-bg);border-color:var(--dm-orange);color:var(--dm-orange-d);transform:translateY(-2px) scale(1.05);box-shadow:0 8px 20px rgba(248,84,0,.2)}
+.g-help-float:active{transform:scale(.94)}
+.g-help-float:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
 .g-help-modal{
   display:none;position:fixed;inset:0;z-index:400;
   background:rgba(0,0,0,.55);
@@ -378,16 +378,21 @@
 #g-help-pane-catalogo .g-help-search{margin-bottom:14px}
 
 /* Refinamento premium da Central unificada. */
-.g-help-float{
-  right:24px;bottom:24px;width:56px;height:56px;
-  background:var(--gradient-orange);
-  border:1px solid color-mix(in srgb,var(--white) 32%,transparent);
-  box-shadow:0 16px 38px color-mix(in srgb,var(--dm-orange-d) 28%,transparent),0 2px 8px color-mix(in srgb,var(--text) 18%,transparent);
-  color:var(--text);
+/* Posicionamento inteligente dedicado por tela */
+body.mode-franqueado.f-home-mode #g-help-float{right:28px;bottom:28px}
+body.mode-franqueado:not(.f-home-mode) #g-help-float{right:20px;bottom:76px}
+/* A bolinha NUNCA por cima da prévia ao vivo. Como os painéis trocam de coluna
+   (js/franqueado/panel-dock.js), a posição segue a ORDEM, não um canto fixo: só quando a
+   prévia ocupa o slot 2 (direita, 380px) a bolinha recua pra dentro. Nas outras ordens
+   quem está na direita é o chat ou a lista — aí o canto normal serve.
+   Largura casada com o slot 2 de css/modules/panel-dock.css. */
+@media (min-width:1024px){
+  body.mode-franqueado.panel-dock-active:not(.f-home-mode):not(.f-history-mode):has(#f-live-preview[data-panel-slot="2"]) #g-help-float{
+    right:calc(380px + 20px);
+  }
 }
-.g-help-float::after{content:"";position:absolute;inset:-5px;border:1px solid color-mix(in srgb,var(--dm-orange) 25%,transparent);border-radius:inherit;opacity:0;transform:scale(.88);transition:opacity var(--dur-fast) var(--ease-standard),transform var(--dur-base) var(--ease-spring-soft)}
-.g-help-float:hover::after,.g-help-float:focus-visible::after{opacity:1;transform:scale(1)}
-.g-help-float:active{transform:translateY(1px) scale(.94);box-shadow:0 7px 18px color-mix(in srgb,var(--dm-orange-d) 24%,transparent)}
+body.mode-designer:not(.d-studio-home-open) #g-help-float{right:376px;bottom:24px;background:var(--d-surf2);color:var(--d-text2);border:1px solid var(--d-border)}
+body.mode-designer:not(.d-studio-home-open) #g-help-float:hover{background:var(--d-surf3);border-color:var(--dm-orange);color:var(--dm-orange)}
 
 .g-help-modal{
   background:color-mix(in srgb,var(--text) 56%,transparent);
@@ -544,4 +549,173 @@
 @media (prefers-reduced-motion:reduce){
   .g-help-modal,.g-help-box,.g-help-pane.active,.g-help-empty{animation:none!important}
   .g-help-modal *,.g-help-float,.g-help-float::after{scroll-behavior:auto!important;transition-duration:0.01ms!important;animation-duration:0.01ms!important;animation-iteration-count:1!important}
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CENTRAL DE AJUDA DO FRANQUEADO — widget compacto (Início / Ajuda / Suporte).
+   Só no franqueado; o designer segue com #g-help-modal acima. Motor de dados e
+   navegação em js/core/help.js (gFraHelp*/gFh*). Tema claro (marca do franqueado). */
+#fhw{position:fixed;inset:0;z-index:1200;display:none}
+#fhw.open{display:block}
+#fhw .fhw-scrim{position:absolute;inset:0;background:rgba(10,10,10,.20);animation:fhwScrim var(--dur-base) var(--ease-out) both}
+@keyframes fhwScrim{from{opacity:0}to{opacity:1}}
+.fhw-panel{position:absolute;right:24px;bottom:24px;width:384px;height:640px;max-height:calc(100vh - 48px);
+  background:var(--white);border:1px solid rgba(10,10,10,.06);border-radius:20px;overflow:hidden;
+  display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(10,10,10,.22);
+  font-family:'Roboto',sans-serif;color:var(--text);
+  transition:width var(--dur-slow) var(--ease-out),height var(--dur-slow) var(--ease-out),box-shadow var(--dur-slow) var(--ease-out);
+  animation:fhwIn var(--dur-slow) var(--ease-out) backwards}
+@keyframes fhwIn{from{opacity:0;transform:translateY(22px) scale(.975)}to{opacity:1;transform:none}}
+.fhw-panel.expanded{width:560px;height:min(760px,calc(100vh - 48px));box-shadow:0 30px 80px rgba(10,10,10,.26)}
+
+/* Header (troca por seção) */
+.fhw-hd-home{background:var(--dm-orange);color:#fff;padding:19px 20px 22px;flex-shrink:0;position:relative}
+.fhw-brand{display:flex;align-items:center;gap:9px}
+.fhw-logo{width:25px;height:25px;display:grid;place-items:center;background:rgba(255,255,255,.2);border-radius:8px}
+.fhw-logo svg{width:15px;height:15px}
+.fhw-brand-name{font-weight:900;font-size:14.5px}
+.fhw-greet{margin-top:20px}
+.fhw-greet h1{margin:0;font-size:24px;line-height:1.16;font-weight:900;letter-spacing:-.015em;text-wrap:balance}
+.fhw-greet p{margin:7px 0 0;font-size:13.5px;line-height:1.45;color:rgba(255,255,255,.92)}
+.fhw-hd-plain{background:var(--white);border-bottom:1px solid var(--gray-light);padding:0 12px;height:54px;display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0}
+.fhw-title{font-size:15px;font-weight:800;letter-spacing:-.01em}
+.fhw-back{position:absolute;left:8px;top:50%;transform:translateY(-50%);width:34px;height:34px;border:0;background:none;color:var(--text-2);border-radius:9px;cursor:pointer;display:grid;place-items:center;transition:background var(--dur-micro)}
+.fhw-back:hover{background:var(--off-white)}
+.fhw-back svg{width:20px;height:20px}
+.fhw-x{position:absolute;width:32px;height:32px;border:0;border-radius:9px;cursor:pointer;display:grid;place-items:center;transition:background var(--dur-micro)}
+.fhw-hd-home .fhw-x{top:16px;right:16px;background:rgba(255,255,255,.16);color:#fff}
+.fhw-hd-home .fhw-x:hover{background:rgba(255,255,255,.3)}
+.fhw-hd-plain .fhw-x{right:8px;top:50%;transform:translateY(-50%);background:none;color:var(--text-3)}
+.fhw-hd-plain .fhw-x:hover{background:var(--off-white)}
+.fhw-x svg{width:17px;height:17px}
+
+/* Corpo + panes */
+.fhw-body{flex:1;overflow-y:auto;background:var(--white)}
+.fhw-pane{display:none}
+.fhw-pane.active{display:block;animation:fhwFade var(--dur-base) var(--ease-out) backwards}
+@keyframes fhwFade{from{opacity:0}to{opacity:1}}
+/* Cascata escalonada (delay via --fhd no JS). backwards → não sobrescreve o hover ao fim. */
+.fhw-rise{animation:fhwRise var(--dur-slow) var(--ease-out) backwards;animation-delay:var(--fhd,0ms)}
+@keyframes fhwRise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+/* Início */
+.fhw-home{padding:18px 16px 20px}
+.fhw-ask{display:flex;align-items:center;gap:12px;background:var(--white);border:1px solid var(--gray-light);border-radius:14px;padding:15px 16px;box-shadow:0 6px 18px rgba(10,10,10,.06);cursor:pointer;transition:transform var(--dur-fast) var(--ease-spring-soft),box-shadow var(--dur-fast)}
+.fhw-ask:hover{transform:translateY(-2px);box-shadow:0 14px 30px rgba(10,10,10,.1)}
+.fhw-ask:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+.fhw-ask-txt{flex:1}
+.fhw-ask-txt b{display:block;font-size:14px;font-weight:800}
+.fhw-ask-txt span{font-size:12px;color:var(--text-3)}
+.fhw-ask-ico{width:38px;height:38px;flex-shrink:0;border-radius:10px;background:var(--dm-orange-bg);color:var(--dm-orange);display:grid;place-items:center}
+.fhw-ask-ico svg{width:18px;height:18px}
+.fhw-label{font-size:9.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--text-3);margin:20px 2px 10px}
+.fhw-home>.fhw-label:first-child{margin-top:4px}
+.fhw-news{display:block;border:1px solid var(--gray-light);border-radius:14px;overflow:hidden;cursor:pointer;transition:transform var(--dur-fast) var(--ease-spring-soft),box-shadow var(--dur-fast)}
+.fhw-news:hover{transform:translateY(-2px);box-shadow:0 14px 30px rgba(10,10,10,.09)}
+.fhw-news:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+.fhw-news-cover{height:104px;background:var(--dm-orange);position:relative}
+.fhw-news-cover b{position:absolute;left:13px;bottom:12px;color:#fff;font-weight:900;font-size:11px;letter-spacing:.04em;background:rgba(10,10,10,.26);padding:4px 9px;border-radius:999px}
+.fhw-news-body{padding:13px 15px 15px}
+.fhw-news-body b{display:block;font-size:14px;font-weight:800;line-height:1.3}
+.fhw-news-body p{margin:5px 0 0;font-size:12.5px;color:var(--text-3);line-height:1.45}
+
+/* Busca */
+.fhw-searchbar{padding:14px 16px 4px}
+.fhw-search{display:flex;align-items:center;gap:9px;background:var(--off-white);border:1px solid var(--gray-light);border-radius:11px;padding:11px 13px}
+.fhw-search:focus-within{border-color:var(--dm-orange-tint);background:var(--white);box-shadow:0 0 0 3px var(--dm-orange-bg)}
+.fhw-search svg{width:16px;height:16px;color:var(--text-3);flex-shrink:0}
+.fhw-search input{border:0;outline:0;background:none;font-family:inherit;font-size:14px;color:var(--text);width:100%}
+.fhw-search input::placeholder{color:var(--text-3)}
+.fhw-count{font-size:12px;color:var(--text-3);padding:14px 18px 4px;font-weight:500}
+
+/* Linhas planas (coleções + artigos) */
+.fhw-rows{display:flex;flex-direction:column}
+.fhw-row{display:flex;align-items:center;gap:14px;padding:15px 18px;border:0;border-bottom:1px solid var(--gray-light);background:none;cursor:pointer;text-align:left;font-family:inherit;width:100%;transition:background var(--dur-fast) var(--ease-out),transform var(--dur-fast) var(--ease-out)}
+.fhw-row:hover{background:var(--off-white);transform:translateX(3px)}
+.fhw-row:active{transform:translateX(1px) scale(.995)}
+.fhw-row:focus-visible{outline:2px solid var(--dm-orange);outline-offset:-2px}
+.fhw-row-txt{flex:1;min-width:0}
+.fhw-row-title{font-size:14px;font-weight:700;color:var(--text);line-height:1.35}
+.fhw-row-desc{font-size:12.5px;color:var(--text-3);margin-top:3px;line-height:1.4}
+.fhw-row-meta{font-size:11.5px;color:var(--text-3);margin-top:6px;font-weight:500}
+.fhw-chev{color:var(--gray-mid);flex-shrink:0;transition:transform var(--dur-fast) var(--ease-out),color var(--dur-fast)}
+.fhw-chev svg{width:18px;height:18px}
+.fhw-row:hover .fhw-chev{transform:translateX(3px);color:var(--dm-orange)}
+
+/* Artigo */
+.fhw-topic{padding:22px 20px 8px}
+.fhw-eyebrow{font-size:9.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--dm-orange);margin-bottom:9px}
+.fhw-topic h2{margin:0 0 10px;font-size:21px;font-weight:900;line-height:1.22;letter-spacing:-.015em;text-wrap:balance}
+.fhw-meta{display:flex;align-items:center;gap:5px;color:var(--text-3);font-size:11.5px;font-weight:600;margin:0 0 18px}
+.fhw-meta svg{width:13px;height:13px}
+.fhw-lead{font-size:15px;line-height:1.55;color:var(--text);font-weight:500;margin:0 0 16px;text-wrap:pretty}
+.fhw-h{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text);margin:22px 0 12px}
+.fhw-p{margin:0 0 13px;font-size:14px;line-height:1.65;color:var(--text-2);text-wrap:pretty}
+.fhw-steps{counter-reset:fhst;list-style:none;margin:2px 0 4px;padding:0;display:flex;flex-direction:column;gap:15px}
+.fhw-step{display:flex;gap:13px;align-items:flex-start}
+.fhw-step-n{counter-increment:fhst;flex-shrink:0;width:27px;height:27px;border-radius:50%;background:var(--dm-orange-bg);color:var(--dm-orange);font-weight:800;font-size:13px;display:grid;place-items:center}
+.fhw-step-n::before{content:counter(fhst)}
+.fhw-step-t{font-size:14px;line-height:1.5;color:var(--text-2);padding-top:3px}
+.fhw-ul{margin:2px 0 6px;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px}
+.fhw-ul li{position:relative;padding-left:19px;font-size:14px;line-height:1.5;color:var(--text-2)}
+.fhw-ul li::before{content:"";position:absolute;left:3px;top:8px;width:6px;height:6px;border-radius:50%;background:var(--dm-orange)}
+.fhw-tip{display:flex;gap:11px;background:var(--dm-orange-bg);border-radius:13px;padding:13px 15px;margin:8px 0 6px}
+.fhw-tip-ico{color:var(--dm-orange);flex-shrink:0;margin-top:1px}
+.fhw-tip-ico svg{width:18px;height:18px}
+.fhw-tip-t{font-size:13px;line-height:1.5;color:var(--text-2)}
+.fhw-tip-t b{font-weight:800;color:var(--text)}
+.fhw-foot{margin:26px 20px 24px;padding-top:20px;border-top:1px solid var(--gray-light)}
+.fhw-foot-q{font-size:13px;font-weight:700;color:var(--text);margin-bottom:11px}
+.fhw-vote{display:flex;gap:9px}
+.fhw-vote button{width:44px;height:38px;border:1px solid var(--gray-light);border-radius:11px;background:var(--white);cursor:pointer;color:var(--text-3);display:grid;place-items:center;transition:border-color var(--dur-fast),background var(--dur-fast),color var(--dur-fast)}
+.fhw-vote button:hover{border-color:var(--dm-orange-tint);background:var(--dm-orange-bg);color:var(--dm-orange)}
+.fhw-vote button svg{width:18px;height:18px}
+.fhw-help{margin-top:18px;font-size:12.5px;color:var(--text-3);line-height:1.5}
+.fhw-help a{color:var(--dm-orange);font-weight:700;text-decoration:none;cursor:pointer}
+.fhw-help a:hover{text-decoration:underline}
+.fhw-panel.expanded .fhw-topic,.fhw-panel.expanded .fhw-foot{max-width:520px}
+.fhw-panel.expanded .fhw-foot{margin-left:auto;margin-right:auto}
+
+/* Suporte */
+.fhw-support{padding:34px 26px;text-align:center;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:center}
+.fhw-support-ico{width:56px;height:56px;border-radius:16px;background:var(--dm-orange-bg);color:var(--dm-orange);display:grid;place-items:center;margin-bottom:16px}
+.fhw-support-ico svg{width:28px;height:28px}
+.fhw-support h2{margin:0 0 8px;font-size:18px;font-weight:900}
+.fhw-support p{margin:0 0 22px;font-size:13.5px;color:var(--text-3);line-height:1.55;max-width:30ch}
+.fhw-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px 16px;border:0;border-radius:12px;background:var(--dm-orange);color:#fff;font-family:inherit;font-weight:800;font-size:14px;cursor:pointer;box-shadow:0 6px 16px rgba(255,144,0,.28);transition:transform var(--dur-fast) var(--ease-spring-soft)}
+.fhw-btn:hover{transform:translateY(-1px)}
+.fhw-btn svg{width:16px;height:16px}
+.fhw-btn-ghost{background:none;color:var(--text-2);border:1px solid var(--gray-light);box-shadow:none;margin-top:10px;font-weight:700}
+.fhw-support small{display:block;margin-top:18px;color:var(--text-3);font-size:11.5px}
+.fhw-empty{padding:40px 20px;text-align:center;color:var(--text-3);font-size:13px}
+
+/* Abas */
+.fhw-tabs{display:flex;background:var(--white);border-top:1px solid var(--gray-light);flex-shrink:0;padding:7px 8px}
+.fhw-tab{flex:1;border:0;background:none;font-family:inherit;cursor:pointer;padding:7px 4px 6px;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--text-3);border-radius:10px;transition:color var(--dur-fast),background var(--dur-fast)}
+.fhw-tab svg{width:21px;height:21px;transition:transform var(--dur-base) var(--ease-spring),stroke-width var(--dur-fast)}
+.fhw-tab span{font-size:10.5px;font-weight:700}
+.fhw-tab:hover{background:var(--off-white)}
+.fhw-tab:hover svg{transform:translateY(-1px)}
+.fhw-tab:focus-visible{outline:2px solid var(--dm-orange);outline-offset:-2px}
+.fhw-tab.active{color:var(--dm-orange)}
+.fhw-tab.active svg{stroke-width:2.5;transform:translateY(-2px) scale(1.06)}
+
+/* ══ TEMA ESCURO DO WIDGET DE AJUDA (#fhw) — franqueado ══
+   Aparece no dark alternativo do franqueado; sem isto o painel fica branco. Remapeia os tokens
+   neutros no escopo (mesmo padrão do modal de perfil). --white fora do remap: o único branco de
+   texto é #fff LITERAL sobre o header laranja (.fhw-hd-home) → imune, fica correto. O header
+   laranja (--dm-orange) é marca e vale nos dois temas. */
+body:not(.theme-light) #fhw{
+  --white:var(--d-surf);--off-white:var(--d-dark);--gray-light:var(--d-border);
+  --text:var(--d-text);--text-2:var(--d-text2);--text-3:var(--d-text3);
+}
+body:not(.theme-light) .fhw-panel{border-color:var(--d-border2)}
+body:not(.theme-light) .fhw-ask,body:not(.theme-light) .fhw-vote button{border-color:var(--d-border2)}
+
+@media (max-width:560px){
+  .fhw-panel,.fhw-panel.expanded{right:0;bottom:0;left:0;top:0;width:auto;height:auto;max-height:none;border-radius:0;border:0}
+}
+@media (prefers-reduced-motion:reduce){
+  .fhw-panel,.fhw-pane.active,.fhw-rise,#fhw .fhw-scrim{animation:none!important}
+  .fhw-panel{transition:none}
 }

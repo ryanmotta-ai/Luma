@@ -270,10 +270,11 @@ function fAttachInputGuard(){
     const id = fState.camp?.perguntas?.[fState.stepIdx]?.id;
     const cfg = id ? fGetFieldType(id) : {maxLen:120};
     box.value = newVal.slice(0, cfg.maxLen);
-    box.setSelectionRange(start + clean.length, start + clean.length);
-    fUpdateCharCount();
+    const cursor = Math.min(box.value.length, start + clean.length);
+    box.setSelectionRange(cursor, cursor);
+    box.dispatchEvent(new Event('input', {bubbles:true}));
   });
-  // Limite vivo
+  // Limite vivo + prévia ao vivo do texto digitado.
   box.addEventListener('input', ()=>{
     const id = fState.camp?.perguntas?.[fState.stepIdx]?.id;
     if(!id) return;
@@ -282,6 +283,16 @@ function fAttachInputGuard(){
       box.value = box.value.slice(0, cfg.maxLen);
     }
     fUpdateCharCount();
+    // Só espelha na prévia campos de TEXTO (imagem/select/cor/boolean não vêm de digitação).
+    // O valor final mascarado é gravado no submit (fSaveAdv); aqui é só espelho cru p/ ver
+    // o encaixe ao vivo, sanitizado como o paste (sem \n\t que divergem do PNG). Não mexe
+    // no flag de skip — isso é decisão do submit, não de cada tecla.
+    if(cfg.type==='image'||cfg.type==='select'||cfg.type==='color'||cfg.type==='boolean') return;
+    if(!fState.dados) fState.dados={};
+    fState.dados[id]=box.value.replace(/[\r\n\t]/g,' ');
+    // Debounce leve: gSmartWrapText mede texto por tecla; sem isso trava em texto longo.
+    clearTimeout(box._lpPreviewT);
+    box._lpPreviewT=setTimeout(()=>{ try{ fUpdateLivePreview(); }catch(e){} }, 110);
   });
 }
 function fUpdateCharCount(){

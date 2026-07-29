@@ -14,7 +14,7 @@ function fSaveHist(a){
   try{localStorage.setItem(HIST_KEY,JSON.stringify(a.slice(0,50)));}
   catch(e){
     ok=false;
-    if(typeof gToast==='function')gToast('⚠ Não foi possível salvar no histórico: armazenamento cheio.','error');
+    if(typeof gToast==='function')gToast('Não consegui salvar no histórico — a memória do navegador encheu. Apague artes antigas e tente de novo.','error');
   }
   // sync Supabase (background, por usuário). .catch: uma rejeição do push (rede/RLS) não
   // pode virar unhandledrejection — o cache local já guardou; o push re-tenta depois.

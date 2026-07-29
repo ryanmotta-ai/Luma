@@ -1,16 +1,16 @@
 /**
  * js/designer/psd-import.js
  *
- * Import de .psd → template editável da Luma (com tela de revisão).
- * Robustez: ag-psd vendorizado (offline-first), parse em Web Worker (com fallback),
- * fontSize corrigido por DPI+caixa, rasters comprimidos, toggle de z-order.
- * Mapeamento por camada: texto Editável / Variável {{}} / Cor (shape) / Imagem fiel.
- *  - camada nomeada {{nome}} entra já como variável (+ heurística por nome/conteúdo);
- *  - sombra/contorno (layer effects) viram l.shadow / l.strokeW;
- *  - camada de cor sólida vira shape re-colorável.
- * Depende de: designer/templates.js, core/layout.js, core/toast.js, 00-config.js (gPackImgUrl).
+ * REVISÃO e IMPORTAÇÃO do .psd — a metade do importador que é tela.
+ * Memória de mapeamento por nome de camada, modal de revisão (abas de prancheta, lista
+ * de camadas com modo por camada, busca), prévia no motor real, relatório de fidelidade
+ * contra o composto do Photoshop, e a criação das pranchetas/templates.
+ *
+ * O parse e a fidelidade de leitura moram em `psd-parse.js`, carregado ANTES deste.
+ * Depende de: designer/templates.js, core/layout.js, core/toast.js, 00-config.js.
  */
 
+<<<<<<< Updated upstream
 /* ── carrega o ag-psd: vendorizado (local, offline) → fallback CDN ── */
 let _agPsdPromise=null;
 function dLoadAgPsd(){
@@ -1153,6 +1153,8 @@ function dItemToLayer(it){
   return _dPsdApplyFx(Object.assign(base,{type:'image',imgUrl:it.imgUrl,imgVar:'',objectFit:'cover',frameShape:'rect'}), it);
 }
 
+=======
+>>>>>>> Stashed changes
 /* ── Memória de mapeamento (Fase D) ──
    Persiste {layerName → {mode, varName}} em localStorage para reusar entre sessões.
    REGRAS (a v1 salvava o modo de TODAS as camadas e contaminava PSDs diferentes):
@@ -1189,9 +1191,11 @@ function _dPsdMemApply(items){
     if(s.varName&&it.kind==='text') it.varName=s.varName;
   });
 }
-function _dPsdMemSave(items){
+// Aceita UM array de itens ou vários (multi-prancheta). Importar 14 pranchetas fazia 14
+// leituras + 14 gravações do mapa inteiro no localStorage; agora é uma de cada.
+function _dPsdMemSave(...listas){
   const mem=_dPsdMemLoad();
-  items.forEach(it=>{
+  listas.forEach(items=>(items||[]).forEach(it=>{
     const key=it.name.toLowerCase().trim().slice(0,48);
     if(_dPsdMemIsGeneric(key)) return;
     const isDecision=(it._defaultMode!=null && it.mode!==it._defaultMode);
@@ -1202,7 +1206,7 @@ function _dPsdMemSave(items){
     } else if(mem[key]){
       delete mem[key]; // voltou pro padrão → esquece a decisão antiga
     }
-  });
+  }));
   const keys=Object.keys(mem); if(keys.length>500) keys.slice(0,keys.length-500).forEach(k=>delete mem[k]);
   try{ localStorage.setItem(_PSD_MEM_KEY,JSON.stringify(mem)); }catch(e){}
 }
@@ -1231,8 +1235,11 @@ function _dPsdShouldInvert(items, w, h){
 }
 
 /* ── tela de revisão ── */
-function dPsdOpenReview(){
-  const modal=document.getElementById('d-psd-modal'); if(!modal) return;
+// Aplica a prancheta ATIVA (dPsdItems/dPsdMeta) na tela: cabeçalho, formato, inverter e
+// lista. Extraído de dPsdOpenReview porque trocar de prancheta precisa exatamente disto —
+// e NÃO precisa re-injetar busca/botões nem re-bindar o hover do canvas.
+function _dPsdApplyBoardToUI(){
+  if(!dPsdMeta) return;
   const _nT=dPsdItems.filter(i=>i.kind==='text').length;
   const _nS=dPsdItems.filter(i=>i.kind==='shape').length;
   const _nI=dPsdItems.filter(i=>i.kind==='raster').length;
@@ -1247,14 +1254,32 @@ function dPsdOpenReview(){
   const _adjHtml=(_dPsdAdjustCount>0)
     ?`<span class="psd-dpi-warn" title="O Photoshop tem ${_dPsdAdjustCount} camada(s) de ajuste que o Luma não reproduz; as cores podem variar.">${_warnIcon}${_dPsdAdjustCount} ajuste(s) de cor</span>`
     :'';
+  // Camadas que falharam no parse entraram como imagem fiel (ou foram puladas). Avisar é
+  // obrigatório: silêncio aqui vira "a camada sumiu do nada" pro designer.
+  const _errHtml=(_dPsdErrorCount>0)
+    ?`<span class="psd-dpi-warn" title="${_dPsdErrorCount} camada(s) não puderam ser interpretadas; entraram como imagem fiel ou foram puladas.">${_warnIcon}${_dPsdErrorCount} camada(s) com falha</span>`
+    :'';
   const _metaEl=document.getElementById('d-psd-meta');
-  if(_metaEl) _metaEl.innerHTML=`<strong class="psd-meta-name">${_dPsdEsc(dPsdMeta.name||'PSD')}</strong><span class="psd-meta-chip">${dPsdMeta.w} × ${dPsdMeta.h}px</span><span class="psd-meta-chip">${_nT} texto${_nT===1?'':'s'}</span><span class="psd-meta-chip">${_nS} forma${_nS===1?'':'s'}</span><span class="psd-meta-chip">${_nI} imagem${_nI===1?'':'ens'}</span>${_dpiHtml}${_adjHtml}`;
+  if(_metaEl) _metaEl.innerHTML=`<strong class="psd-meta-name">${_dPsdEsc(dPsdMeta.name||'PSD')}</strong><span class="psd-meta-chip">${dPsdMeta.w} × ${dPsdMeta.h}px</span><span class="psd-meta-chip">${_nT} texto${_nT===1?'':'s'}</span><span class="psd-meta-chip">${_nS} forma${_nS===1?'':'s'}</span><span class="psd-meta-chip">${_nI} imagem${_nI===1?'':'ens'}</span>${_dpiHtml}${_adjHtml}${_errHtml}`;
   // Detecção de formato com tolerância ±2px (PSDs com 1079×1921 ainda mapeiam para 'story').
   // Sem match exato → 'orig': preserva o tamanho real do PSD (1:1) em vez de forçar um preset.
-  const fmt=_dPsdExactFmt(dPsdMeta.w, dPsdMeta.h);
+  // Numa prancheta já visitada, respeita o que o usuário escolheu; só na primeira
+  // passagem é que o formato/inversão vêm da detecção automática.
+  const _b=_dPsdBoards[_dPsdBoardIdx];
+  const fmt=(_b && _b.fmt!=null) ? _b.fmt : _dPsdExactFmt(dPsdMeta.w, dPsdMeta.h);
   const sel=document.getElementById('d-psd-fmt'); if(sel) sel.value=fmt;
   const inv=document.getElementById('d-psd-invert');
-  if(inv){ inv.checked=_dPsdShouldInvert(dPsdItems, dPsdMeta.w, dPsdMeta.h); inv.onchange=()=>dPsdRenderPreview(); }
+  if(inv){
+    inv.checked=(_b && _b.invert!=null) ? !!_b.invert : _dPsdShouldInvert(dPsdItems, dPsdMeta.w, dPsdMeta.h);
+    inv.onchange=()=>dPsdRenderPreview();
+  }
+  const _sf0=document.getElementById('d-psd-search'); if(_sf0) _sf0.value='';
+  _dPsdLastHoverIdx=-1;
+  _dPsdMemApply(dPsdItems);
+  dPsdRenderRows();
+}
+function dPsdOpenReview(){
+  const modal=document.getElementById('d-psd-modal'); if(!modal) return;
   // Campo de busca (injetado dinamicamente, acima de #d-psd-rows)
   const rowsEl=document.getElementById('d-psd-rows');
   if(rowsEl&&!document.getElementById('d-psd-search')){
@@ -1270,7 +1295,6 @@ function dPsdOpenReview(){
     tb.innerHTML='<button type="button" class="psd-sel-btn" onclick="dPsdSelectAll()">Selecionar todas</button><button type="button" class="psd-sel-btn" onclick="dPsdSelectNone()">Limpar seleção</button><span id="d-psd-sel-info" class="psd-sel-info" aria-live="polite"></span>';
     rowsEl.parentNode.insertBefore(tb,rowsEl);
   }
-  const sf=document.getElementById('d-psd-search'); if(sf) sf.value='';
   // Canvas hover: hover sobre preview canvas → destaca camada + scroll na lista
   const _pCv=document.getElementById('d-psd-preview-canvas');
   if(_pCv&&!_pCv._psdHoverBound){
@@ -1278,10 +1302,8 @@ function dPsdOpenReview(){
     _pCv.addEventListener('mousemove',_dPsdCanvasHover);
     _pCv.addEventListener('mouseleave',()=>{ _dPsdLastHoverIdx=-1; dPsdHoverLayer(-1); });
   }
-  _dPsdLastHoverIdx=-1;
-  // Aplica memória de mapeamentos anteriores
-  _dPsdMemApply(dPsdItems);
-  dPsdRenderRows();
+  _dPsdRenderBoards();   // faixa de pranchetas + campo de destino (só no multi-prancheta)
+  _dPsdApplyBoardToUI();
   modal.classList.add('open');
 }
 // Converte blend mode do ag-psd (camelCase) → CSS (kebab-case); 'normal'→'' (sem propriedade)
@@ -1332,7 +1354,12 @@ function dPsdRenderRows(filter){
     const swatch=it.kind==='shape'?`<span class="psd-swatch" style="background:${it.fill};border-radius:${swatchRadius}"></span>`:'';
     const isVarVisible = (it.kind==='text'&&it.mode==='var')||(it.mode==='frame');
     const varIn=`<input class="psd-var-input ${isVarVisible?'visible':''}" value="${_dPsdEsc(it.varName||'')}" placeholder="nome_do_campo" aria-label="Nome do campo editável da camada ${_dPsdEsc(it.name)}" oninput="dPsdSetVar(${i},this.value,this)">`;
-    const multiStyleBadge=(it.kind==='text'&&it.multiStyle)?`<span class="psd-multistyle" title="O estilo dominante será preservado">Estilos mistos</span>`:'';
+    // O aviso é de PERDA, então só aparece quando há perda de verdade: ou o rich text não
+    // resolveu (it.multiStyle), ou resolveu mas a camada virou variável — e `runs` não vai
+    // junto com {{campo}} (ver dItemToLayer), então aí o estilo misto some mesmo.
+    const _perdeEstilo=(it.kind==='text') && (it.multiStyle || (it.runs && it.mode==='var'));
+    const multiStyleBadge=_perdeEstilo
+      ?`<span class="psd-multistyle" title="${it.runs?'Como campo editável, o texto assume um estilo único':'O estilo dominante será preservado'}">Estilos mistos</span>`:'';
     const blendBadge=it.blendMode?`<span class="psd-blend" title="Modo de mesclagem: ${_dPsdEsc(it.blendMode)}">Mesclagem · ${_dPsdEsc(_dPsdBlendModeCSS(it.blendMode))}</span>`:'';
     let fontWarn='';
     if(it.kind==='text'&&it.fontName&&!/roboto/i.test(it.fontName)){
@@ -1341,6 +1368,20 @@ function dPsdRenderRows(filter){
       else fontWarn=`<span class="psd-fontwarn">Fonte ausente · ${fn} <label class="psd-font-upload-btn" title="Enviar '${fn}' agora">Enviar<input type="file" accept=".ttf,.otf,.woff,.woff2" style="display:none" onchange="dPsdUploadFont(${i},this)"></label></span>`;
     }
     const opacityBadge=it.opacity<95?`<span class="psd-opacity-badge">Opacidade ${it.opacity}%</span>`:'';
+    const fxWarns=[
+      it.fxSatin?'Cetim não aplicado':'',
+      it.fxContour?'Contorno de efeito ignorado':'',
+      it.fxScale?('Efeitos a '+it.fxScale+'%'):'',
+      it.strokeApprox?'Traço aproximado (cor sólida)':'',
+      it.gradientUnsupported?('Gradiente '+(it.gradientUnsupported==='angle'?'cônico':'losango')+' → imagem fiel'):'',
+      it.gradientOverlayApprox?('Sobreposição '+(it.gradientOverlayApprox==='angle'?'cônica':'losango')+' aproximada'):'',
+      it.textOnPath?'Texto em curva → imagem fiel':'',
+      it.flipped?'Camada espelhada → imagem fiel':'',
+      it.textJustifyAll?'Justificado total → última linha não estica':''
+    ].filter(Boolean).map(t=>`<span class="psd-fontwarn" title="O Photoshop aplica isso de um jeito que o Luma não reproduz; o resto da camada entra fiel">${t}</span>`).join('');
+    const grpBlendBadge=it.groupBlendApprox?`<span class="psd-fontwarn" title="A mesclagem vinha de um grupo do Photoshop e foi aplicada camada a camada — onde as camadas do grupo se sobrepõem o resultado pode diferir do PSD">Mesclagem de grupo aproximada</span>`:'';
+    const errBadge=it.parseError?`<span class="psd-fontwarn" title="Esta camada não pôde ser interpretada e entrou como imagem fiel do que o Photoshop compôs">Camada recuperada</span>`:'';
+    const flatBadge=it.flattened?`<span class="psd-fontwarn" title="O PSD não tem camadas editáveis — a arte entrou achatada, como imagem única">Arte achatada</span>`:'';
     const vecWarn=it.vectorMaskFailed?`<span class="psd-fontwarn" title="O recorte vetorial não pôde ser rasterizado">Máscara simplificada</span>`:'';
     const clipWarn=it.maskFallback?`<span class="psd-fontwarn" title="A forma complexa de base não pôde ser rasterizada">Recorte simplificado</span>`:'';
     const textInfoBadge=it.kind==='text'?`<span class="psd-textinfo">${it.fontSize}px · ${it.textAlign}</span>`:'';
@@ -1353,7 +1394,7 @@ function dPsdRenderRows(filter){
       <span class="psd-row-ico psd-row-ico-${it.kind}">${swatch||ico[it.kind]||ico.raster}</span>
       ${thumb}
       <span class="psd-row-name" title="${_dPsdEsc(it.name)}">
-        <span class="psd-row-name-top">${_dPsdEsc(it.name)}${multiStyleBadge}${blendBadge}${fontWarn}${opacityBadge}${vecWarn}${clipWarn}${textInfoBadge}</span>
+        <span class="psd-row-name-top">${_dPsdEsc(it.name)}${errBadge}${flatBadge}${multiStyleBadge}${blendBadge}${grpBlendBadge}${fxWarns}${fontWarn}${opacityBadge}${vecWarn}${clipWarn}${textInfoBadge}</span>
         ${groupCrumb}${textPrev}
       </span>
       ${modeSel}${varIn}</div>`;
@@ -1446,78 +1487,122 @@ function dPsdUpdateCount(){
   const pendingFonts=dPsdItems.filter(it=>it.include&&it.kind==='text'&&it.fontName&&!/roboto/i.test(it.fontName)&&!it.fontRemapped).length;
   const c=document.getElementById('d-psd-count'); if(c) c.textContent=n+' camada'+(n===1?'':'s');
   const info=document.getElementById('d-psd-sel-info'); if(info) info.textContent=n+' de '+total+' selecionadas';
+  const _multi=_dPsdBoards.length>1;
+  const _nB=_multi?_dPsdBoards.filter(b=>b.selected).length:0;
   const summary=document.getElementById('d-psd-footer-summary');
   if(summary){
-    let txt=n+' de '+total+' camadas · '+vars+' campo'+(vars===1?' editável':'s editáveis');
+    // No multi-prancheta o contador de camadas é da prancheta ABERTA — dizer só "12 de 14
+    // camadas" esconderia que o botão vai importar outras pranchetas junto.
+    let txt=_multi?('Esta prancheta: '+n+' de '+total+' camadas'):(n+' de '+total+' camadas');
+    txt+=' · '+vars+' campo'+(vars===1?' editável':'s editáveis');
+    if(_multi) txt+=' · '+_nB+' prancheta'+(_nB===1?'':'s')+' no import';
     if(pendingFonts) txt+=' · '+pendingFonts+' fonte'+(pendingFonts===1?' pendente':'s pendentes');
     summary.textContent=txt;
   }
   const actionLabel=document.getElementById('d-psd-action-label');
-  if(actionLabel){
-    const seq=dPsdMeta&&dPsdMeta.sequence;
-    actionLabel.textContent=seq?(seq.current<seq.total?'Revisar e continuar':'Concluir importação'):'Importar';
-  }
+  if(actionLabel) actionLabel.textContent=_multi?('Importar '+_nB+' prancheta'+(_nB===1?'':'s')):'Importar';
   const cta=document.querySelector('#d-psd-modal .psd-import-cta');
-  if(cta){ cta.disabled=n===0; cta.setAttribute('aria-disabled',n===0?'true':'false'); }
+  if(cta){
+    // Multi: o que habilita é ter prancheta marcada — a prancheta aberta pode estar
+    // toda desmarcada e ainda assim haver outras com camadas pra importar.
+    const off=_multi?(_nB===0):(n===0);
+    cta.disabled=off; cta.setAttribute('aria-disabled',off?'true':'false');
+  }
+  const cnt=document.getElementById('d-psd-count');
+  if(cnt&&_multi) cnt.textContent='';
 }
 function dPsdCancel(){
-  const m=document.getElementById('d-psd-modal'); if(m)m.classList.remove('open');
-  const wasSeq=!!_dPsdReviewOnConfirm; // cancelar no meio da sequência aborta tudo
-  dPsdItems=[]; dPsdMeta=null; _dPsdReviewOnConfirm=null;
+  const nBoards=_dPsdBoards.length;
+  _dPsdCloseReviewUI();
+  dPsdItems=[]; dPsdMeta=null;
+  _dPsdBoards=[]; _dPsdBoardIdx=0; _dPsdDocCanvas=null;
+  if(nBoards>1) gToast('Importação de pranchetas cancelada');
+}
+// Auto-cria no catálogo os campos que as layers usam: tokens {{}} no conteúdo (inclusive
+// texto misto, não só camada inteiramente ligada) e a variável de cada moldura de foto.
+// Extraído porque o import de N pranchetas precisa rodar isto por prancheta.
+function _dPsdSyncVarsFromLayers(layers){
+  let mudou=false;
+  if(typeof dSyncVarsFromContent==='function'){
+    layers.forEach(l=>{
+      if(l.type==='text'&&l.content&&gVarRegex().test(l.content)){
+        if(dSyncVarsFromContent(l.content, true)) mudou=true;
+      }
+    });
+  }
+  layers.forEach(l=>{
+    if(l.type==='frame'&&l.imgVar&&typeof dVars!=='undefined'&&dVars){
+      const name=l.imgVar;
+      if(!dVars.some(v=>v.name.toLowerCase()===name.toLowerCase())){
+        dVars.push({name, label:name.replace(/_/g,' '), type:'image', required:false});
+        mudou=true;
+      }
+    }
+  });
+  if(mudou){
+    if(typeof dVarsRender==='function') dVarsRender();
+    if(typeof dPersistVars==='function') dPersistVars();
+  }
+  return mudou;
+}
+// Fecha o modal e zera os canvases. Comum aos dois caminhos de saída (importar/cancelar).
+function _dPsdCloseReviewUI(){
+  clearTimeout(_dPsdPreviewTimer); // nada de render órfão depois de fechar
+  _dPsdShowFidelity(null);
+  const m=document.getElementById('d-psd-modal'); if(m) m.classList.remove('open');
   const cv=document.getElementById('d-psd-preview-canvas'); if(cv){ cv.width=0; cv.height=0; cv._renderId=(cv._renderId||0)+1; }
   const ov=document.getElementById('d-psd-preview-overlay'); if(ov){ ov.width=0; ov.height=0; }
-  if(wasSeq) gToast('Importação de pranchetas cancelada');
 }
-function dPsdConfirmImport(){
+async function dPsdConfirmImport(){
+  // ── multi-prancheta: importa TODAS as marcadas de uma vez, uma por template ──
+  if(_dPsdBoards.length>1){
+    _dPsdBoardSaveActive();
+    const marcadas=_dPsdBoards.filter(b=>b.selected);
+    if(!marcadas.length){ gToast('Marque ao menos uma prancheta','error'); return; }
+    const fSel=document.getElementById('d-psd-folder');
+    const folderId=fSel?fSel.value:null;
+    if(!folderId){ gToast('⚠ Crie uma campanha antes de importar','error'); return; }
+    // Trava o botão: preparar N pranchetas leva tempo e um segundo clique duplicaria tudo.
+    const cta=document.querySelector('#d-psd-modal .psd-import-cta');
+    if(cta) cta.disabled=true;
+    const lbl=document.getElementById('d-psd-action-label');
+    // O feedback vai no botão e no rodapé — o overlay d-psd-busy está oculto nesta fase
+    // (o modal de revisão é que está na tela), então escrever nele não mostraria nada.
+    const foot=document.getElementById('d-psd-footer-summary');
+    const results=await _dPsdCollectBoards((i,t,nome)=>{
+      if(lbl) lbl.textContent='Preparando '+i+'/'+t+'…';
+      if(foot) foot.textContent='Preparando "'+nome+'" ('+i+' de '+t+')…';
+    });
+    const vazias=results.filter(r=>r.vazia).map(r=>r.name);
+    const bons=results.filter(r=>!r.vazia);
+    if(!bons.length){
+      if(cta) cta.disabled=false;
+      if(lbl) lbl.textContent='Importar '+marcadas.length+' prancheta'+(marcadas.length===1?'':'s');
+      gToast('Nenhuma prancheta tem camada selecionada','error'); return;
+    }
+    _dPsdCloseReviewUI();
+    dPsdSaveArtboardTemplates(bons, folderId, _dPsdBaseName);
+    // Prancheta marcada mas sem camada nenhuma não pode sumir calada.
+    if(vazias.length) gToast('⚠ Sem camadas selecionadas: '+vazias.join(', '));
+    _dPsdBoards=[]; _dPsdBoardIdx=0; _dPsdDocCanvas=null;
+    dPsdItems=[]; dPsdMeta=null;
+    return;
+  }
+  // ── prancheta única: cria a prancheta no editor (caminho original) ──
   const chosen=dPsdItems.filter(it=>it.include && !it.isMaskBase);
   if(!chosen.length){ gToast('Selecione ao menos uma camada','error'); return; }
   _dPsdMemSave(dPsdItems); // persiste mapeamentos para próximas importações
   let layers=chosen.map(dItemToLayer).filter(Boolean);
   // #4a — inverter z-order se a ordem do PSD vier trocada
   const inv=document.getElementById('d-psd-invert'); if(inv&&inv.checked) layers=layers.reverse();
-  let varsChanged = false;
-  // Auto-cria no catálogo TODAS as vars dos textos — inclusive tokens {{}} digitados no
-  // conteúdo do PSD (texto misto), não só as camadas inteiramente ligadas (isVar).
-  if(typeof dSyncVarsFromContent==='function') {
-    layers.forEach(l=>{
-      if(l.type==='text'&&l.content&&gVarRegex().test(l.content)) {
-        if(dSyncVarsFromContent(l.content, true)) {
-          varsChanged = true;
-        }
-      }
-    });
-  }
-  // Auto-cria no catálogo as variáveis das molduras de foto importadas (tipo image)
-  layers.forEach(l=>{
-    if(l.type==='frame'&&l.imgVar){
-      if(typeof dVars!=='undefined'&&dVars){
-        const name=l.imgVar;
-        if(!dVars.some(v=>v.name.toLowerCase()===name.toLowerCase())){
-          dVars.push({name, label:name.replace(/_/g,' '), type:'image', required:false});
-          varsChanged = true;
-        }
-      }
-    }
-  });
-  if(varsChanged) {
-    if(typeof dVarsRender==='function') dVarsRender();
-    if(typeof dPersistVars === 'function') dPersistVars();
-  }
+  _dPsdSyncVarsFromLayers(layers);
   const fmtChoice=(document.getElementById('d-psd-fmt')||{}).value||'orig';
-  document.getElementById('d-psd-modal').classList.remove('open');
-  const cv=document.getElementById('d-psd-preview-canvas'); if(cv){ cv.width=0; cv.height=0; cv._renderId=(cv._renderId||0)+1; }
-  const ov=document.getElementById('d-psd-preview-overlay'); if(ov){ ov.width=0; ov.height=0; }
-  // Fluxo multi-prancheta: encaminha as layers pro callback (cria template) e não cria prancheta.
-  if(_dPsdReviewOnConfirm){
-    const cb=_dPsdReviewOnConfirm; _dPsdReviewOnConfirm=null;
-    const w=dPsdMeta.w, h=dPsdMeta.h;
-    dPsdItems=[]; dPsdMeta=null;
-    cb(layers, fmtChoice, w, h);
-    return;
-  }
-  dImportLayersAsArtboard(dPsdMeta.w, dPsdMeta.h, layers, dPsdMeta.name, fmtChoice, dPsdMeta.res||72);
+  const _w=dPsdMeta.w, _h=dPsdMeta.h, _name=dPsdMeta.name, _res=dPsdMeta.res||72;
+  _dPsdCloseReviewUI();
+  dImportLayersAsArtboard(_w, _h, layers, _name, fmtChoice, _res);
   const nVar=layers.filter(l=>l.isVar).length, nTxt=layers.filter(l=>l.type==='text').length;
   gToast('✓ PSD importado: '+layers.length+' camadas · '+nTxt+' texto · '+nVar+' variável(is)');
+  _dPsdBoards=[]; _dPsdDocCanvas=null;
   dPsdItems=[]; dPsdMeta=null;
 }
 
@@ -1598,23 +1683,128 @@ async function _dPsdDrawItemsBasic(canvas, items, w, h){
     ctx.restore();
   }
 }
-async function dPsdRenderPreview(){
+// #16 — DEBOUNCE. Cada tecla na busca, cada troca de modo e cada (des)marcar camada chamava
+// dPsdRenderRows, que re-renderizava a ARTE INTEIRA no motor fiel (+ agora o diff de fidelidade).
+// Numa rajada de digitação isso era uma composição completa por caractere. Agrupa num render só.
+let _dPsdPreviewTimer=null;
+function dPsdRenderPreview(){
+  clearTimeout(_dPsdPreviewTimer);
+  _dPsdPreviewTimer=setTimeout(_dPsdRenderPreviewNow, 140);
+}
+async function _dPsdRenderPreviewNow(){
   const canvas=document.getElementById('d-psd-preview-canvas');
   if(!canvas || !dPsdMeta) return;
   const inv=document.getElementById('d-psd-invert');
-  // Mesmo universo do import: sem mask-bases (a máscara já está composta nos itens)
-  let items=dPsdItems.filter(it=>it.include && !it.isMaskBase);
-  if(inv && inv.checked) items=items.slice().reverse();
+  // Mesmo universo do import: sem mask-bases (a máscara já está composta nos itens).
+  // Guarda o índice original de cada item — o relatório de fidelidade precisa dele p/ achar a linha.
+  let ordered=dPsdItems.map((it,i)=>({it,i})).filter(o=>o.it.include && !o.it.isMaskBase);
+  if(inv && inv.checked) ordered=ordered.slice().reverse();
+  const items=ordered.map(o=>o.it);
   // Caminho FIEL: converte pra layers Luma e renderiza com o motor da arte final —
   // o preview mostra exatamente o que o import vai produzir.
+  let drawn=false;
   if(typeof fRenderPreviewToCanvas==='function'){
     const layers=_dPsdItemsToPreviewLayers(items);
     if(layers.length){
       const ok=await fRenderPreviewToCanvas(canvas, {layers, w:dPsdMeta.w, h:dPsdMeta.h}, {maxPx:1100});
-      if(ok!==false) return;
+      drawn=(ok!==false);
     }
   }
-  await _dPsdDrawItemsBasic(canvas, items, dPsdMeta.w, dPsdMeta.h);
+  if(!drawn) await _dPsdDrawItemsBasic(canvas, items, dPsdMeta.w, dPsdMeta.h);
+  if(!dPsdMeta) return; // modal fechou durante o render assíncrono
+  _dPsdShowFidelity(_dPsdFidelity(canvas, dPsdMeta.ref, ordered, dPsdMeta.w, dPsdMeta.h));
+}
+
+/* ── #17 — RELATÓRIO DE FIDELIDADE ────────────────────────────────────────────────
+   Compara a prévia renderizada contra `psd.canvas` — o composto que o PRÓPRIO Photoshop
+   gravou no arquivo, ou seja, a verdade do que o designer viu. Cada perda que hoje é
+   silenciosa (efeito não representado, fonte substituída, camada desmarcada, gradiente
+   aproximado) vira um número na tela e um nome de camada. É a "vitrine honesta" aplicada
+   ao importador: onde o modelo não chega, o Luma AVISA em vez de fingir.
+   A referência é guardada JÁ recortada e reduzida — o composto em tamanho real de um PSD
+   grande custaria centenas de MB de RAM parados durante toda a revisão.                  */
+const _DPSD_FID_PX=400;   // lado maior da imagem de análise
+const _DPSD_FID_TOL=16;   // 0–255: abaixo disso é ruído de anti-alias/JPEG dos nossos rasters
+// Recorta (x,y,w,h) do composto do documento e reduz p/ o tamanho de análise.
+function _dPsdRefCanvas(src, x, y, w, h){
+  try{
+    if(!src || !src.width || !src.height || !(w>8) || !(h>8)) return null;
+    const scale=Math.min(1, _DPSD_FID_PX/Math.max(w,h));
+    const tw=Math.max(1,Math.round(w*scale)), th=Math.max(1,Math.round(h*scale));
+    const c=document.createElement('canvas'); c.width=tw; c.height=th;
+    const cx=c.getContext('2d'); cx.imageSmoothingQuality='high';
+    // Fosco branco (não é cor de marca — é o fundo neutro que iguala o alpha dos dois lados
+    // da comparação; sem ele, área transparente x área branca acusaria divergência falsa).
+    cx.fillStyle='#fff'; cx.fillRect(0,0,tw,th);
+    cx.drawImage(src, x||0, y||0, w, h, 0, 0, tw, th);
+    return c;
+  }catch(e){ return null; }
+}
+// → {pct, worst:[{idx,name,pct}]} ou null. pct = % dos pixels que BATEM com o Photoshop.
+// Medimos cobertura (pixels acima da tolerância), não média de erro: a média diria "98% fiel"
+// mesmo com um logo inteiro errado, porque o resto da arte dilui — número bonito e inútil.
+// `ordered` = [{it,i}…] na MESMA ordem de desenho da prévia (fundo → topo).
+function _dPsdFidelity(rendered, ref, ordered, metaW, metaH){
+  try{
+    if(!ref || !rendered || !rendered.width || !rendered.height) return null;
+    const w=ref.width, h=ref.height;
+    const tmp=document.createElement('canvas'); tmp.width=w; tmp.height=h;
+    const tx=tmp.getContext('2d'); tx.imageSmoothingQuality='high';
+    tx.fillStyle='#fff'; tx.fillRect(0,0,w,h);
+    tx.drawImage(rendered,0,0,w,h);
+    const A=tx.getImageData(0,0,w,h).data;
+    const B=ref.getContext('2d').getImageData(0,0,w,h).data;
+    // Mapa de divergência por pixel (1/0), reaproveitado no ranking por camada.
+    const bad=new Uint8Array(w*h); let nBad=0;
+    for(let p=0,i=0;p<bad.length;p++,i+=4){
+      const d=(Math.abs(A[i]-B[i])+Math.abs(A[i+1]-B[i+1])+Math.abs(A[i+2]-B[i+2]))/3;
+      if(d>_DPSD_FID_TOL){ bad[p]=1; nBad++; }
+    }
+    const pct=Math.max(0, Math.min(100, Math.round(100-(nBad/bad.length)*100)));
+    // Culpa por camada. Atribuir por SOBREPOSIÇÃO de caixa não serve: o fundo cobre a arte
+    // inteira e herdaria a divergência de todo mundo — apareceria sempre no pódio sendo
+    // pixel-perfeito. Cada pixel pertence à camada mais ao TOPO cuja caixa o contém (a última
+    // a desenhar ali), e a camada totalmente coberta some do ranking: não se vê, não diverge.
+    const list=ordered||[];
+    const sx=w/Math.max(1,metaW), sy=h/Math.max(1,metaH);
+    const owner=new Int32Array(w*h).fill(-1);
+    list.forEach((o,k)=>{
+      const it=o.it;
+      const x0=Math.max(0,Math.floor(it.x*sx)), y0=Math.max(0,Math.floor(it.y*sy));
+      const x1=Math.min(w,Math.ceil((it.x+it.w)*sx)), y1=Math.min(h,Math.ceil((it.y+it.h)*sy));
+      for(let y=y0;y<y1;y++){ const row=y*w; for(let x=x0;x<x1;x++) owner[row+x]=k; }
+    });
+    const tot=new Int32Array(list.length), div=new Int32Array(list.length);
+    for(let p=0;p<owner.length;p++){ const k=owner[p]; if(k<0) continue; tot[k]++; if(bad[p]) div[k]++; }
+    const worst=list.map((o,k)=>(tot[k]<16)?null:{idx:o.i, name:o.it.name, pct:Math.round(div[k]/tot[k]*100)})
+      .filter(o=>o&&o.pct>=8).sort((a,b)=>b.pct-a.pct).slice(0,3);
+    return {pct, worst};
+  }catch(e){ return null; } // canvas contaminado / sem composto: some o número, o import segue
+}
+// Pinta o resultado: o selo do painel de prévia vira a medição real e as 3 piores camadas
+// ganham um aviso na própria linha da lista.
+function _dPsdShowFidelity(rep){
+  document.querySelectorAll('#d-psd-rows .psd-fid-badge').forEach(el=>el.remove()); // medição anterior
+  const badge=document.querySelector('#d-psd-modal .psd-fidelity-badge');
+  if(!badge) return;
+  if(!rep){ badge.innerHTML='<span></span>Fiel ao arquivo'; badge.removeAttribute('title'); return; }
+  // Semáforo por token (nunca hex): verde bate, laranja merece olhada, vermelho pede ação.
+  const dot=rep.pct>=95?'var(--green)':(rep.pct>=85?'var(--dm-orange)':'var(--dm-red)');
+  badge.innerHTML='<span style="background:'+dot+'"></span>Fidelidade '+rep.pct+'%';
+  badge.title='Comparação com o composto do Photoshop: '+rep.pct+'% dos pixels batem.'
+    +(rep.worst.length?(' Maior divergência: '+rep.worst.map(o=>o.name+' ('+o.pct+'%)').join(', ')+'.')
+                      :' Nenhuma camada com divergência relevante.');
+  // Marca as linhas direto no DOM em vez de re-renderizar a lista: dPsdRenderRows dispara
+  // dPsdRenderPreview, que dispararia esta função de novo — laço infinito.
+  rep.worst.forEach(o=>{
+    const top=document.querySelector('#d-psd-rows [data-psd-idx="'+o.idx+'"] .psd-row-name-top');
+    if(!top) return;
+    const b=document.createElement('span');
+    b.className='psd-fontwarn psd-fid-badge';
+    b.title='Das camadas selecionadas, esta é uma das que mais se afasta do que o Photoshop mostra ('+o.pct+'% dos pixels da caixa divergem).';
+    b.textContent='Divergência '+o.pct+'%';
+    top.appendChild(b);
+  });
 }
 // Texto multilinha nos previews: canvas fillText ignora '\n' (glifos colados numa linha).
 // Desenha linha a linha com o lineHeight do item (fallback 1.2).
@@ -1661,77 +1851,41 @@ function dPsdHoverLayer(idx) {
 // guard de null (_dEsc faz String(null)→"null"; aqui null/undefined vira "").
 function _dPsdEsc(s){ return (typeof _dEsc==='function') ? _dEsc(s==null?'':s) : String(s==null?'':s); }
 
-function dPsdShowArtboardSelector(psd, artboards, res, baseName){
-  const items=artboards.map((ab,i)=>{
-    const r=ab.artboard.rect||{};
+/* ══ PRANCHETAS NA MESMA TELA ══
+   Antes: uma tela só pra escolher as pranchetas ("Etapa 1 de 2") e, ao confirmar, a
+   revisão por camada REABRIA uma vez por prancheta — 1 + N telas pra um arquivo de N
+   pranchetas, sem como voltar e sem ver o conjunto. Agora as pranchetas são abas da
+   própria revisão: cada uma guarda suas decisões, o preview troca na hora e um único
+   "Importar" cria todos os templates.
+   _dPsdBoards vazio = PSD de prancheta única (o caminho comum, que não muda em nada). */
+let _dPsdBoards=[];       // [{name,w,h,left,top,fmt,invert,selected,layer,items,ref,parsed}]
+let _dPsdBoardIdx=0;
+let _dPsdDocCanvas=null;  // composto do documento — recortado por prancheta p/ a fidelidade
+let _dPsdDocRes=72;
+let _dPsdBaseName='';
+
+// Monta as pranchetas a partir dos nós de artboard do ag-psd. Não parseia camada nenhuma
+// aqui: parse é caro e a maioria dos arquivos tem uma prancheta que o designer nem abre.
+function _dPsdBuildBoards(artboards){
+  return artboards.map((ab,i)=>{
+    const r=(ab.artboard&&ab.artboard.rect)||{};
     const w=Math.max(1,Math.round((r.right||0)-(r.left||0)));
     const h=Math.max(1,Math.round((r.bottom||0)-(r.top||0)));
-    return { index:i, name:(ab.name||('Prancheta '+(i+1))).toString().slice(0,48),
+    return { name:(ab.name||('Prancheta '+(i+1))).toString().slice(0,48),
       w, h, left:Math.round(r.left||0), top:Math.round(r.top||0),
-      fmt:_dPsdExactFmt(w,h), selected:true, layer:ab };
+      fmt:_dPsdExactFmt(w,h), invert:null, selected:true, layer:ab,
+      items:null, ref:undefined };
   });
-  const overlay=document.getElementById('d-psd-ab-overlay');
-  if(!overlay){ console.error('[psd] overlay d-psd-ab-overlay não encontrado'); return; }
-  overlay.innerHTML=dPsdBuildArtboardSelectorHTML(items);
-  overlay.style.display='flex';
-  overlay._psdData={ psd, items, res:res||72, baseName:baseName||'PSD' };
-  _dPsdAbUpdateCount();
-  // Preview da primeira prancheta na abertura (timeout dá tempo ao DOM renderizar)
-  setTimeout(()=>dPsdAbSelectPreview(0), 80);
 }
-
-function dPsdBuildArtboardSelectorHTML(items){
-  const folders=(typeof dFolders!=='undefined'&&dFolders)?dFolders:[];
-  const _tgt=(typeof dImportTargetFolderId!=='undefined')?dImportTargetFolderId:null;
-  const folderOptions=folders.map(f=>`<option value="${_dPsdEsc(f.id)}" ${f.id===_tgt?'selected':''}>${_dPsdEsc(f.name)}</option>`).join('');
-  // Opções de formato geradas dinamicamente a partir de DFMT_SIZES + 'orig'
-  const _fmtKeys=typeof DFMT_SIZES!=='undefined'?Object.keys(DFMT_SIZES):['story','feed','wide','horizontal'];
-  const _fmtLabel={story:'Story',feed:'Feed',wide:'Wide',horizontal:'Horizontal',orig:'Original'};
-  const rows=items.map((item,i)=>{
-    const fmtOpts=_fmtKeys.map(k=>`<option value="${k}" ${item.fmt===k?'selected':''}>${_fmtLabel[k]||k}</option>`).join('')
-      +`<option value="orig" ${item.fmt==='orig'?'selected':''}>Original</option>`;
-    return `<div class="psd-ab-row" id="psd-ab-row-${i}" onclick="dPsdAbSelectPreview(${i})">
-      <label class="psd-ab-check" onclick="event.stopPropagation()">
-        <input type="checkbox" aria-label="Importar prancheta ${_dPsdEsc(item.name)}" ${item.selected?'checked':''} onchange="dPsdAbToggle(${i}, this.checked)">
-      </label>
-      <div class="psd-ab-info">
-        <span class="psd-ab-name" title="${_dPsdEsc(item.name)}">${_dPsdEsc(item.name)}</span>
-        <span class="psd-ab-dim">${item.w} × ${item.h}px</span>
-      </div>
-      <select class="psd-ab-fmt" id="psd-ab-fmt-${i}" aria-label="Formato da prancheta ${_dPsdEsc(item.name)}" onclick="event.stopPropagation()" onchange="dPsdAbSetFmt(${i}, this.value)">${fmtOpts}</select>
-    </div>`;
-  }).join('');
-  const dest = folders.length
-    ? `<div class="psd-ab-dest"><label for="psd-ab-folder-sel"><span>Destino</span><strong>Importar para a pasta</strong></label>
-        <select id="psd-ab-folder-sel" class="psd-ab-fmt">${folderOptions}</select></div>`
-    : `<div class="psd-ab-dest psd-ab-dest-error"><span>Nenhuma pasta encontrada.</span><strong>Crie uma pasta antes de continuar.</strong></div>`;
-  return `
-    <div class="psd-ab-modal">
-      <div class="psd-ab-header">
-        <span class="psd-product-mark" aria-hidden="true">Ps</span>
-        <div class="psd-ab-header-copy"><span class="psd-eyebrow">Importador inteligente</span><span class="psd-ab-title">Escolha as pranchetas</span><span class="psd-ab-subtitle">${items.length} prancheta${items.length===1?'':'s'} encontrada${items.length===1?'':'s'} no arquivo</span></div>
-        <span class="psd-ab-step">Etapa 1 de 2</span>
-        <button type="button" class="psd-close-btn" onclick="dPsdAbCancel()" aria-label="Fechar seleção de pranchetas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
-      </div>
-      <div class="psd-ab-body">
-        <div class="psd-ab-left">
-          <div class="psd-ab-list">${rows}</div>
-          ${dest}
-        </div>
-        <div class="psd-ab-right">
-          <div class="psd-panel-heading"><div><span class="psd-panel-kicker">Prévia</span><strong class="psd-ab-prev-label" id="d-psd-ab-preview-label">Selecione uma prancheta</strong></div><span class="psd-fidelity-badge"><span></span>Visualização fiel</span></div>
-          <div class="psd-ab-prev-wrap">
-            <canvas id="d-psd-ab-preview-canvas" aria-label="Pré-visualização da prancheta selecionada"></canvas>
-          </div>
-        </div>
-      </div>
-      <div class="psd-ab-footer">
-        <span class="psd-ab-footer-summary" id="d-psd-ab-summary" aria-live="polite"></span>
-        <button type="button" class="psd-ab-btn cancel" onclick="dPsdAbCancel()">Cancelar</button>
-        <button type="button" class="psd-ab-btn confirm" id="d-psd-ab-confirm" onclick="dPsdAbConfirm()">Revisar selecionadas</button>
-      </div>
-    </div>`;
+// Recorta a referência de fidelidade de TODAS as pranchetas de uma vez e solta o composto
+// do documento. Cada recorte tem ≤400px (~600KB); o composto de um doc grande passa de
+// 100MB e ficaria parado na memória durante toda a revisão só para ser recortado depois.
+function _dPsdBoardsPrepRefs(){
+  if(!_dPsdDocCanvas) return;
+  _dPsdBoards.forEach(b=>{ if(b.ref===undefined) b.ref=_dPsdRefCanvas(_dPsdDocCanvas, b.left, b.top, b.w, b.h); });
+  _dPsdDocCanvas=null;
 }
+<<<<<<< Updated upstream
 
 // Preview de prancheta no seletor de artboards.
 // Acionado por CLICK (não hover) para evitar renders espásticos.
@@ -1755,73 +1909,142 @@ async function dPsdAbSelectPreview(itemIdx){
       {children:(item.layer&&item.layer.children)||[], width:item.w, height:item.h},
       res||72, item.left, item.top
     );
+=======
+// Parse sob demanda + memória do recorte de fidelidade. Guarda no board, então reabrir
+// uma prancheta já visitada preserva TODAS as decisões de camada que o usuário tomou.
+function _dPsdBoardLoad(b){
+  if(!b.items){
+    b.items=dPsdParseItems({children:(b.layer&&b.layer.children)||[]}, _dPsdDocRes, b.left, b.top);
+    b.adjust=_dPsdAdjustCount; b.errors=_dPsdErrorCount; // contadores viram badge na revisão
+    // Solta o nó cru do ag-psd: ele carrega UM CANVAS POR CAMADA (o que pesa de verdade num
+    // PSD grande) e, depois do parse, tudo que a revisão e o import usam já está em b.items
+    // — raster, máscara composta, efeitos. Com 14 pranchetas isto era a diferença entre
+    // alguns MB e alguns GB retidos até o modal fechar.
+    b.layer=null;
+>>>>>>> Stashed changes
   }
-  const parsed=item._parsedItems;
+  if(b.ref===undefined) b.ref=_dPsdRefCanvas(_dPsdDocCanvas, b.left, b.top, b.w, b.h);
+  return b;
+}
+// Congela na prancheta ativa o que está na tela agora (formato, inversão). As decisões de
+// camada já vivem em b.items — dPsdItems é a MESMA referência, não uma cópia.
+function _dPsdBoardSaveActive(){
+  const b=_dPsdBoards[_dPsdBoardIdx]; if(!b) return;
+  const sel=document.getElementById('d-psd-fmt'); if(sel) b.fmt=sel.value;
+  const inv=document.getElementById('d-psd-invert'); if(inv) b.invert=inv.checked;
+}
+function dPsdBoardSelect(i){
+  if(!_dPsdBoards.length || i===_dPsdBoardIdx || !_dPsdBoards[i]) return;
+  _dPsdBoardSaveActive();
+  _dPsdBoardIdx=i;
+  const b=_dPsdBoardLoad(_dPsdBoards[i]);
+  dPsdItems=b.items;
+  _dPsdAdjustCount=b.adjust||0; _dPsdErrorCount=b.errors||0;
+  dPsdMeta={w:b.w, h:b.h, name:b.name, res:_dPsdDocRes, ref:b.ref};
+  _dPsdRenderBoards();
+  _dPsdApplyBoardToUI();
+}
+/* Teclado na faixa de pranchetas (padrão ARIA de tablist):
+   ← → andam entre abas, Home/End vão às pontas, Enter/Espaço abrem a aba focada. O foco
+   acompanha a troca porque o repaint recria os elementos — sem o focus() explícito o Tab
+   voltaria pro começo do modal a cada seta. */
+function _dPsdBoardsKey(ev,i){
+  const k=ev.key, ult=_dPsdBoards.length-1;
+  let alvo=null;
+  if(k==='ArrowRight') alvo=Math.min(ult,i+1);
+  else if(k==='ArrowLeft') alvo=Math.max(0,i-1);
+  else if(k==='Home') alvo=0;
+  else if(k==='End') alvo=ult;
+  else if(k==='Enter'||k===' '){ ev.preventDefault(); dPsdBoardSelect(i); return; }
+  else return;
+  ev.preventDefault();
+  if(alvo===i) return;
+  dPsdBoardSelect(alvo);
+  const el=document.querySelector('#d-psd-boards .psd-board-tab[data-board="'+alvo+'"]');
+  if(el) el.focus();
+}
+// Desmarcar não impede de inspecionar: a aba continua clicável, só não entra no import.
+function dPsdBoardToggle(i,on){
+  const b=_dPsdBoards[i]; if(!b) return;
+  b.selected=!!on;
+  _dPsdRenderBoards(); dPsdUpdateCount();
+}
+function _dPsdRenderBoards(){
+  const wrap=document.getElementById('d-psd-boards');
+  const fField=document.getElementById('d-psd-folder-field');
+  if(!wrap) return;
+  const multi=_dPsdBoards.length>1;
+  wrap.hidden=!multi;
+  if(fField) fField.hidden=!multi;
+  if(!multi){ wrap.innerHTML=''; return; }
+  const nSel=_dPsdBoards.filter(b=>b.selected).length;
+  // Check no padrão da casa: input real (acessível, focável) escondido + span irmão pintado
+  // por CSS — o mesmo esquema do toggle "Inverter ordem". O checkbox nativo era o elemento
+  // mais pesado da aba e competia com o nome da prancheta.
+  const _tick='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 13 4 4 10-10"/></svg>';
+  wrap.innerHTML='<span class="psd-boards-label"><strong>'+_dPsdBoards.length+'</strong>'
+      +'<small>prancheta'+(_dPsdBoards.length===1?'':'s')+'<br>'+nSel+' no import</small></span>'
+    +'<div class="psd-boards-track">'
+    +_dPsdBoards.map((b,i)=>{
+      const on=i===_dPsdBoardIdx;
+      // aria-controls aponta pro painel que a aba governa (a lista de camadas), e o keydown
+      // vai pro _dPsdBoardsKey: setas andam entre abas, como manda o padrão de tablist.
+      return '<div class="psd-board-tab'+(on?' is-active':'')+(b.selected?'':' is-off')+'" role="tab"'
+        +' aria-selected="'+(on?'true':'false')+'" tabindex="'+(on?'0':'-1')+'"'
+        +' aria-controls="d-psd-rows" data-board="'+i+'"'
+        +' title="'+_dPsdEsc(b.name)+' · '+b.w+' × '+b.h+'px"'
+        +' onclick="dPsdBoardSelect('+i+')" onkeydown="_dPsdBoardsKey(event,'+i+')">'
+        +'<label class="psd-board-check" onclick="event.stopPropagation()">'
+        +'<input type="checkbox" '+(b.selected?'checked':'')+' onchange="dPsdBoardToggle('+i+',this.checked)"'
+        +' aria-label="Incluir a prancheta '+_dPsdEsc(b.name)+' no import">'
+        +'<span class="psd-board-box" aria-hidden="true">'+_tick+'</span></label>'
+        +'<span class="psd-board-tab-copy"><strong>'+_dPsdEsc(b.name)+'</strong>'
+        +'<small>'+b.w+' × '+b.h+'</small></span></div>';
+    }).join('')
+    +'</div>';
+  // Popular o destino uma vez (as pastas não mudam com o modal aberto).
+  const fSel=document.getElementById('d-psd-folder');
+  if(fSel && !fSel.options.length){
+    const folders=(typeof dFolders!=='undefined'&&dFolders)?dFolders:[];
+    const tgt=(typeof dImportTargetFolderId!=='undefined')?dImportTargetFolderId:null;
+    fSel.innerHTML=folders.length
+      ? folders.map(f=>'<option value="'+_dPsdEsc(f.id)+'"'+(f.id===tgt?' selected':'')+'>'+_dPsdEsc(f.name)+'</option>').join('')
+      : '<option value="">Crie uma campanha primeiro</option>';
+  }
+}
 
-  if(!parsed.length){ canvas.width=item.w; canvas.height=item.h; canvas.getContext('2d').clearRect(0,0,item.w,item.h); return; }
-  // Z-order: dPsdParseItems devolve topo-primeiro, mas nem sempre (depende do PSD). Em vez de
-  // reverter de forma fixa (quebrava desenhando o fundo por último → bloco sólido), usa a MESMA
-  // heurística do preview principal (_dPsdShouldInvert): só inverte quando o fundo está no final.
-  const toRender=_dPsdShouldInvert(parsed, item.w, item.h) ? [...parsed].reverse() : parsed;
-  const usable=toRender.filter(it=>!it.isMaskBase); // máscara já composta nos itens
-  // Caminho FIEL: motor da arte final (máscaras, radii, gradientes, efeitos, blend) —
-  // o preview da prancheta fica idêntico ao que o import produz.
-  if(typeof fRenderPreviewToCanvas==='function'){
-    const layers=_dPsdItemsToPreviewLayers(usable);
-    if(layers.length){
-      const ok=await fRenderPreviewToCanvas(canvas, {layers, w:item.w, h:item.h}, {maxPx:1100});
-      if(ok!==false) return;
-    }
+// Substitui o antigo dPsdProcessArtboardsSequence: em vez de reabrir a revisao uma vez
+// por prancheta, o import percorre as pranchetas MARCADAS, gera as layers de cada uma e
+// entrega tudo de uma vez pro dPsdSaveArtboardTemplates.
+// Assíncrona por causa do pior caso: importar 14 pranchetas onde o designer abriu só uma
+// dispara 13 parses seguidos (getImageData, composição de máscara e toDataURL por camada)
+// num bloco só — a aba congelava sem dizer nada. Agora cede o controle entre pranchetas e
+// informa qual está sendo preparada.
+// O parse de UMA prancheta segue síncrono: é o trabalho que o usuário pediu ao clicar, e
+// fatiar o walk por dentro exigiria refazer o laço recursivo que é o coração do importador.
+async function _dPsdCollectBoards(onProgress){
+  const out=[]; const memAll=[];
+  const marcadas=_dPsdBoards.filter(b=>b.selected);
+  for(let k=0;k<marcadas.length;k++){
+    const b=marcadas[k];
+    if(onProgress) onProgress(k+1, marcadas.length, b.name);
+    const jaTinha=!!b.items;
+    // Prancheta nunca aberta ainda nao foi parseada: parseia agora (sem UI, so dados).
+    _dPsdBoardLoad(b);
+    // Só cede o controle quando houve trabalho pesado (parse novo) — pausar por prancheta
+    // já pronta só somaria latência.
+    if(!jaTinha) await _dPsdYield();
+    const chosen=(b.items||[]).filter(it=>it.include && !it.isMaskBase);
+    if(!chosen.length){ out.push({name:b.name, vazia:true}); continue; }
+    memAll.push(b.items); // uma gravação só, no fim
+    let layers=chosen.map(dItemToLayer).filter(Boolean);
+    // invert null = usuario nunca abriu esta prancheta: cai na heuristica de z-order.
+    const inv=(b.invert!=null)?b.invert:_dPsdShouldInvert(b.items,b.w,b.h);
+    if(inv) layers=layers.reverse();
+    _dPsdSyncVarsFromLayers(layers);
+    out.push({name:b.name, fmt:(b.fmt||'orig'), layers, nativeW:b.w, nativeH:b.h});
   }
-  await _dPsdDrawItemsBasic(canvas, usable, item.w, item.h);
-}
-function _dPsdAbUpdateCount(){
-  const o=document.getElementById('d-psd-ab-overlay');
-  if(!o||!o._psdData) return;
-  const total=o._psdData.items.length;
-  const selected=o._psdData.items.filter(it=>it.selected).length;
-  const summary=document.getElementById('d-psd-ab-summary');
-  if(summary) summary.textContent=selected+' de '+total+' prancheta'+(total===1?'':'s')+' selecionada'+(selected===1?'':'s');
-  const btn=document.getElementById('d-psd-ab-confirm');
-  if(btn){ btn.textContent=selected?'Revisar '+selected+' selecionada'+(selected===1?'':'s'):'Selecione uma prancheta'; btn.disabled=selected===0; }
-}
-function dPsdAbToggle(index, checked){
-  const o=document.getElementById('d-psd-ab-overlay');
-  if(o&&o._psdData&&o._psdData.items[index]){
-    o._psdData.items[index].selected=checked;
-    const row=document.getElementById('psd-ab-row-'+index); if(row) row.classList.toggle('is-unselected',!checked);
-    _dPsdAbUpdateCount();
-  }
-}
-function dPsdAbSetFmt(index, fmt){
-  const o=document.getElementById('d-psd-ab-overlay');
-  if(o&&o._psdData&&o._psdData.items[index]) o._psdData.items[index].fmt=fmt;
-}
-function dPsdAbCancel(){
-  const o=document.getElementById('d-psd-ab-overlay');
-  if(o){ o.style.display='none'; o.innerHTML=''; o._psdData=null; }
-}
-function dPsdAbConfirm(){
-  const overlay=document.getElementById('d-psd-ab-overlay');
-  if(!overlay||!overlay._psdData) return;
-  const { psd, items, res, baseName }=overlay._psdData;
-  const selected=items.filter(it=>it.selected);
-  if(!selected.length){ gToast('Selecione pelo menos uma prancheta'); return; }
-  const folderSel=document.getElementById('psd-ab-folder-sel');
-  const folderId=folderSel?folderSel.value:null;
-  if(!folderId){ gToast('⚠ Crie uma pasta antes de importar','error'); return; }
-  overlay.style.display='none'; overlay.innerHTML=''; overlay._psdData=null;
-  // Processa cada prancheta em sequência (abre a revisão por camada, uma de cada vez).
-  dPsdProcessArtboardsSequence(psd, selected, res, baseName, folderId, 0, []);
-}
-
-// Abre a revisão por camada de cada prancheta selecionada, uma por vez. Ao confirmar
-// cada uma, acumula o resultado e avança; ao final, cria os templates na pasta.
-function dPsdProcessArtboardsSequence(psd, items, res, baseName, folderId, idx, results){
-  if(idx>=items.length){
-    dPsdSaveArtboardTemplates(results, folderId, baseName);
-    return;
-  }
+<<<<<<< Updated upstream
   const item=items[idx];
   // Parseia só as camadas desta prancheta, normalizando coords pra (0,0) da prancheta.
   dPsdItems=dPsdParseItems({children:(item.layer&&item.layer.children)||[], width:item.w, height:item.h}, res, item.left, item.top);
@@ -1841,6 +2064,10 @@ function dPsdProcessArtboardsSequence(psd, items, res, baseName, folderId, idx, 
   dPsdOpenReview();
   // Pré-seleciona o formato detectado/escolhido no seletor da tela de revisão.
   const sel=document.getElementById('d-psd-fmt'); if(sel) sel.value=item.fmt;
+=======
+  if(memAll.length) _dPsdMemSave.apply(null, memAll);
+  return out;
+>>>>>>> Stashed changes
 }
 
 // Reflow das layers (coords nativas da prancheta) pro espaço DFMT_SIZES[fmt] — o gerador
@@ -1901,12 +2128,23 @@ function _dPsdBusy(on,file){
   if(on){
     if(!el){ el=document.createElement('div'); el.id='d-psd-busy';
       el.setAttribute('role','status'); el.setAttribute('aria-live','polite');
-      el.innerHTML='<div class="d-psd-busy-box"><div class="d-psd-busy-head"><span class="psd-product-mark" aria-hidden="true">Ps</span><div class="d-psd-busy-copy"><strong>Preparando seu arquivo</strong><span id="d-psd-busy-file">PSD</span></div></div><div class="d-psd-busy-progress" aria-hidden="true"><span></span></div><div class="d-psd-busy-stage"><strong id="d-psd-busy-stage">Verificando o arquivo…</strong><span>Isso pode levar alguns segundos</span></div></div>';
+      // Botão Cancelar: um arquivo de 400MB leva minutos e antes não havia como desistir —
+      // quem abriu o PSD errado ficava preso olhando a barra até o fim.
+      el.innerHTML='<div class="d-psd-busy-box"><div class="d-psd-busy-head"><span class="psd-product-mark" aria-hidden="true">Ps</span><div class="d-psd-busy-copy"><strong>Preparando seu arquivo</strong><span id="d-psd-busy-file">PSD</span></div></div><div class="d-psd-busy-progress" aria-hidden="true"><span></span></div><div class="d-psd-busy-stage"><strong id="d-psd-busy-stage">Verificando o arquivo…</strong><span id="d-psd-busy-hint">Isso pode levar alguns segundos</span></div><button type="button" class="d-psd-busy-cancel" id="d-psd-busy-cancel" onclick="dPsdCancelLoad()">Cancelar</button></div>';
       document.body.appendChild(el); }
+    const cBtn=document.getElementById('d-psd-busy-cancel');
+    if(cBtn){ cBtn.disabled=false; cBtn.textContent='Cancelar'; }
     const fileEl=document.getElementById('d-psd-busy-file');
     if(fileEl&&file){
       const mb=file.size/(1024*1024);
       fileEl.textContent=file.name+' · '+(mb>=1?mb.toFixed(1)+' MB':Math.max(1,Math.round(file.size/1024))+' KB');
+      // Expectativa honesta: um PSD de 150MB não leva "alguns segundos".
+      const hint=document.getElementById('d-psd-busy-hint');
+      // Três faixas, porque com o limite em 500MB "alguns minutos" cobria coisas muito
+      // diferentes: 45MB abre rápido, 400MB pode passar de cinco minutos.
+      if(hint) hint.textContent = mb>=200 ? 'Arquivo muito grande — pode levar vários minutos; deixe esta aba aberta'
+                                : mb>=40  ? 'Arquivo grande — pode levar alguns minutos'
+                                          : 'Isso pode levar alguns segundos';
     }
     _dPsdBusyUpdate('Verificando o arquivo…');
     el.style.display='flex';
@@ -1921,30 +2159,57 @@ async function dImportPSD(input){
   const file=input.files && input.files[0];
   input.value='';
   if(!file) return;
-  if(!/\.psd$/i.test(file.name)){ gToast('Selecione um arquivo .psd','error'); return; }
-  if(file.size > 200*1024*1024){ gToast('⚠ PSD muito grande (máx ~200MB)','error'); return; }
+  // .psb (Large Document) é o MESMO formato pro ag-psd — recusá-lo só barrava, sem motivo
+  // técnico, os arquivos grandes de campanha (que são justamente os que o designer traz).
+  if(!/\.ps[db]$/i.test(file.name)){ gToast('Selecione um arquivo .psd ou .psb','error'); return; }
+  if(file.size > _DPSD_MAX_MB*1024*1024){
+    gToast('⚠ PSD muito grande ('+Math.round(file.size/(1024*1024))+'MB) — o limite é '+_DPSD_MAX_MB+'MB. Achate camadas ou salve sem histórico.','error');
+    return;
+  }
+  _dPsdCancelled=false; // cada abertura começa com o cancelamento limpo
   _dPsdBusy(true,file);
   let agPsd;
   try{ agPsd=await dLoadAgPsd(); }catch(e){ _dPsdBusy(false); console.error('PSD lib:',e); gToast('⚠ Não foi possível carregar o leitor de PSD — recarregue a página','error'); return; }
+  if(_dPsdCancelled){ _dPsdBusy(false); gToast('Importação cancelada'); return; }
   _dPsdBusyUpdate('Lendo estrutura, imagens e fontes…');
   let buf;
   try{ buf=await file.arrayBuffer(); }catch(e){ _dPsdBusy(false); gToast('⚠ Não foi possível ler o arquivo — verifique se é um .psd válido','error'); return; }
+  if(_dPsdCancelled){ _dPsdBusy(false); gToast('Importação cancelada'); return; }
   let result;
   try{ result=await _dPsdReadPsd(buf, agPsd); }
   catch(e){ result={error:e}; }
+  // Cancelado no meio: sai quieto (o usuário sabe o que fez), sem erro assustador.
+  if(_dPsdCancelled || (result&&result.cancelled)){ _dPsdBusy(false); gToast('Importação cancelada'); return; }
   if(!result || result.error || !result.psd || !result.psd.width){
     _dPsdBusy(false); console.error('PSD:',result&&result.error); gToast('⚠ Não foi possível ler este PSD (formato não suportado)','error'); return;
   }
   try{
     _dPsdBusyUpdate('Preparando camadas editáveis…');
-    const baseName=file.name.replace(/\.psd$/i,'');
+    // Luz global do DOCUMENTO, fixada antes de qualquer parse: os fluxos de prancheta chamam
+    // dPsdParseItems com um psd sintético que não a carrega.
+    _dPsdGlobalLight=_dPsdReadGlobalLight(result.psd);
+    const baseName=file.name.replace(/\.ps[db]$/i,'');
     // PSD com múltiplas pranchetas (artboards) → tela de seleção antes da revisão.
     const artboards=(result.psd.children||[]).filter(c=>c && c.artboard && c.artboard.rect);
+    _dPsdDocCanvas=result.psd.canvas||null;
+    _dPsdDocRes=result.res||72;
+    _dPsdBaseName=baseName;
     if(artboards.length>1){
+      // Multi-prancheta abre DIRETO na revisão, com as pranchetas como abas. A primeira já
+      // vem parseada; as outras só quando o designer clicar (ou no import).
+      _dPsdBoards=_dPsdBuildBoards(artboards);
+      _dPsdBoardIdx=0;
+      _dPsdBoardsPrepRefs(); // recorta as referências e solta o composto do doc
+      const b0=_dPsdBoardLoad(_dPsdBoards[0]);
+      dPsdItems=b0.items;
+      _dPsdAdjustCount=b0.adjust||0; _dPsdErrorCount=b0.errors||0;
+      dPsdMeta={w:b0.w, h:b0.h, name:b0.name, res:_dPsdDocRes, ref:b0.ref};
       _dPsdBusy(false);
-      dPsdShowArtboardSelector(result.psd, artboards, result.res||72, baseName);
+      if(!dPsdItems.length) gToast('⚠ "'+b0.name+'" não tem camadas utilizáveis — veja as outras pranchetas');
+      dPsdOpenReview();
       return;
     }
+    _dPsdBoards=[];
     if(artboards.length===1){
       // Prancheta única: usa rect da artboard como dimensões e offset.
       // Sem isso, PSDs exportados de docs multi-artboard herdariam o tamanho do doc inteiro.
@@ -1954,15 +2219,29 @@ async function dImportPSD(input){
       const abH=Math.max(1,Math.round((r.bottom||0)-(r.top||0)));
       // Só os filhos da PRANCHETA — não o doc inteiro. Passar result.psd trazia camadas soltas na
       // raiz (pasteboard/notas) deslocadas por (abL,abT). Igual ao multi-artboard e ao preview.
+<<<<<<< Updated upstream
       dPsdItems=dPsdParseItems({children:(abNode.children||[]), width:abW, height:abH}, result.res||72, abL, abT);
       dPsdMeta={w:abW, h:abH, name:baseName, res:result.res||72, worker:result.worker===true};
+=======
+      dPsdItems=dPsdParseItems({children:(abNode.children||[])}, result.res||72, abL, abT);
+      dPsdMeta={w:abW, h:abH, name:baseName, res:result.res||72, worker:result.worker===true,
+        // ref: recorte da prancheta no composto do doc → base do relatório de fidelidade (#17)
+        ref:_dPsdRefCanvas(result.psd.canvas, abL, abT, abW, abH)};
+>>>>>>> Stashed changes
     } else {
       // PSD simples sem artboards.
       dPsdItems=dPsdParseItems(result.psd, result.res||72);
-      dPsdMeta={w:result.psd.width, h:result.psd.height, name:baseName, res:result.res||72, worker:result.worker===true};
+      dPsdMeta={w:result.psd.width, h:result.psd.height, name:baseName, res:result.res||72, worker:result.worker===true,
+        ref:_dPsdRefCanvas(result.psd.canvas, 0, 0, result.psd.width, result.psd.height)};
     }
     _dPsdBusy(false);
-    if(!dPsdItems.length){ gToast('⚠ Nenhuma camada utilizável neste PSD','error'); return; }
+    if(!dPsdItems.length){
+      // Último recurso antes de recusar: a arte achatada do próprio Photoshop.
+      const flat=_dPsdFlatItem(result.psd, dPsdMeta&&dPsdMeta.w, dPsdMeta&&dPsdMeta.h);
+      if(!flat){ gToast('⚠ Nenhuma camada utilizável neste PSD','error'); return; }
+      dPsdItems=[flat];
+      gToast('PSD sem camadas editáveis — importando a arte achatada');
+    }
     dPsdOpenReview();
   }catch(e){ _dPsdBusy(false); console.error('PSD parse:',e); gToast('⚠ Não foi possível interpretar as camadas do PSD','error'); }
 }

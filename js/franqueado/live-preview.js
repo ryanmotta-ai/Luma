@@ -150,30 +150,208 @@ function _fPostedWhats(slot){
   </div>`;
 }
 
-// Monta o celular no contexto ativo e encaixa o canvas real no slot.
-function _fPostedPaint(){
-  const stage = document.getElementById('posted-stage');
-  if(!stage || !_postedArt) return;
+// Ordem dos ambientes: define a DIREÇÃO do swipe e das setas do teclado.
+const _PST_ORDER = ['story','feed','whatsapp'];
+
+// Conteúdo da TELA (sysbar + chrome do app + slot vazio da arte). Separado do chassi de
+// propósito: trocar de ambiente repinta só isto, e o celular fica parado na mão.
+// Sysbar de texto claro em Story/WhatsApp (fundo escuro); escuro no Feed (fundo branco).
+function _fPostedScreenHTML(){
   const slot = '<div class="pst-artslot"></div>';
   const chrome = _postedCtx==='feed' ? _fPostedFeed(slot)
                : _postedCtx==='whatsapp' ? _fPostedWhats(slot)
                : _fPostedStory(slot);
-  // sysbar de texto claro em Story/WhatsApp (fundo escuro); escuro no Feed (fundo branco).
-  // O wrapper .pst-enter carrega a animação de entrada (rebuild do innerHTML a re-dispara
-  // a cada troca de contexto) — anima o wrapper, e não o .pst-phone, porque o chassi tem
-  // transform próprio no media query de tela baixa e o fill da animação o sobrescreveria.
-  stage.innerHTML = `<div class="pst-enter"><div class="pst-phone pst-ctx-${_postedCtx}"><div class="pst-island"></div><div class="pst-screen">${_fPostedSysbar(_postedCtx!=='feed')}${chrome}</div></div></div>`;
-  const holder = stage.querySelector('.pst-artslot');
-  if(holder && _postedArt.canvas) holder.appendChild(_postedArt.canvas);
+  return _fPostedSysbar(_postedCtx!=='feed') + chrome;
+}
+// Encaixa o canvas REAL no slot. É sempre o mesmo objeto DOM — só troca de pai, nunca
+// re-renderiza (render de arte é caro e o resultado não muda ao trocar de ambiente).
+function _fPostedMountArt(scope){
+  const holder = (scope||document).querySelector('.pst-artslot');
+  if(holder && _postedArt && _postedArt.canvas) holder.appendChild(_postedArt.canvas);
+}
+// Monta o celular inteiro. Só na ABERTURA — trocar de ambiente não passa por aqui, senão o
+// chassi subiria com mola a cada swipe (ver _fPostedSwapScreen).
+// A hierarquia tem 3 camadas de transform de propósito, cada uma com um dono:
+//   .pst-enter (animação de entrada) > .pst-tilt (parallax) > .pst-phone (scale do media query).
+// Empilhar tudo num elemento só faria um sobrescrever o outro — o CSS já registra esse bug.
+function _fPostedPaint(){
+  const stage = document.getElementById('posted-stage');
+  if(!stage || !_postedArt) return;
+  stage.innerHTML = `<div class="pst-enter"><div class="pst-tilt"><div class="pst-phone pst-ctx-${_postedCtx}">`
+    + `<div class="pst-island"></div>`
+    + `<div class="pst-screen">${_fPostedScreenHTML()}</div>`
+    + `<div class="pst-glare" aria-hidden="true"></div>`
+    + `</div></div></div>`;
+  _fPostedMountArt(stage);
+  _fPostedBindStage(stage);
+}
+// Troca SÓ o conteúdo da tela, deslizando na direção do gesto. O chassi fica imóvel —
+// a leitura é "trocou de app dentro do celular", não "trocou de celular".
+function _fPostedSwapScreen(dir){
+  const stage = document.getElementById('posted-stage');
+  const phone = stage && stage.querySelector('.pst-phone');
+  const screen = phone && phone.querySelector('.pst-screen');
+  if(!screen){ _fPostedPaint(); return; }
+  phone.className = 'pst-phone pst-ctx-'+_postedCtx; // o chrome muda de cor por contexto
+  screen.innerHTML = _fPostedScreenHTML();
+  _fPostedMountArt(screen);
+  screen.classList.remove('pst-slide-l','pst-slide-r');
+  void screen.offsetWidth; // reflow forçado: sem isto o navegador reaproveita a animação anterior e nada desliza
+  screen.classList.add(dir<0 ? 'pst-slide-l' : 'pst-slide-r');
 }
 
-function fPostedSetCtx(ctx){
-  _postedCtx = (ctx==='feed'||ctx==='whatsapp') ? ctx : 'story';
+// dir opcional: quando vem do swipe/teclado já sabemos o sentido; do clique, deduz pela ordem.
+function fPostedSetCtx(ctx, dir){
+  const next = (_PST_ORDER.indexOf(ctx)>=0) ? ctx : 'story';
+  if(next === _postedCtx) return;
+  const d = (dir!=null) ? dir : (_PST_ORDER.indexOf(next) - _PST_ORDER.indexOf(_postedCtx));
+  _postedCtx = next;
   document.querySelectorAll('#posted-seg .pst-seg-btn').forEach(b=>{
     const on = b.dataset.ctx === _postedCtx;
     b.classList.toggle('active', on); b.setAttribute('aria-checked', String(on));
   });
-  _fPostedPaint();
+  _fPostedSwapScreen(d);
+}
+// Anda um ambiente pro lado (swipe e setas). Não circula: parar na ponta dá a
+// sensação física de fim de lista, e evita o carrossel infinito desorientar.
+function _fPostedStep(dir){
+  const next = _PST_ORDER[_PST_ORDER.indexOf(_postedCtx) + dir];
+  if(next) fPostedSetCtx(next, dir);
+}
+
+/* ── Parallax + swipe ──
+   Os dois vivem no #posted-stage, que sobrevive aos repaints (só o conteúdo troca).
+   Por isso o bind é UMA vez: religar a cada pintura empilharia listeners duplicados. */
+let _pstStageBound = false, _pstTiltRaf = 0;
+function _fPostedReducedMotion(){
+  try{ return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  catch(e){ return false; }
+}
+// nx/ny em -1..1 (posição do cursor no palco). O brilho anda junto e o giro é contido:
+// passando de ~10° o celular deixa de parecer objeto e vira animação.
+function _fPostedTilt(nx, ny){
+  const tilt = document.querySelector('#posted-stage .pst-tilt');
+  if(!tilt) return;
+  if(_pstTiltRaf) cancelAnimationFrame(_pstTiltRaf);
+  _pstTiltRaf = requestAnimationFrame(()=>{
+    _pstTiltRaf = 0;
+    tilt.style.setProperty('--pst-ry', (nx*9).toFixed(2)+'deg');
+    tilt.style.setProperty('--pst-rx', (-ny*7).toFixed(2)+'deg');
+    tilt.style.setProperty('--pst-gx', (50 + nx*46).toFixed(1)+'%'); // brilho contra o giro
+    tilt.style.setProperty('--pst-gy', (50 + ny*46).toFixed(1)+'%');
+    tilt.classList.add('is-live');
+  });
+}
+function _fPostedTiltReset(){
+  const tilt = document.querySelector('#posted-stage .pst-tilt');
+  if(!tilt) return;
+  if(_pstTiltRaf){ cancelAnimationFrame(_pstTiltRaf); _pstTiltRaf=0; }
+  tilt.classList.remove('is-live'); // volta ao repouso pela transição do CSS
+  tilt.style.setProperty('--pst-ry','0deg'); tilt.style.setProperty('--pst-rx','0deg');
+  tilt.style.setProperty('--pst-gx','50%');  tilt.style.setProperty('--pst-gy','0%');
+}
+function _fPostedBindStage(stage){
+  if(_pstStageBound) return;
+  _pstStageBound = true;
+  // Parallax só no ponteiro fino (mouse). No celular o dedo já é o swipe, e girar um
+  // celular desenhado dentro de um celular real não comunica nada.
+  stage.addEventListener('mousemove', e=>{
+    if(_fPostedReducedMotion()) return;
+    const r = stage.getBoundingClientRect();
+    _fPostedTilt(((e.clientX-r.left)/Math.max(1,r.width))*2-1, ((e.clientY-r.top)/Math.max(1,r.height))*2-1);
+  });
+  stage.addEventListener('mouseleave', _fPostedTiltReset);
+  // Swipe horizontal troca de ambiente. Trava o eixo no primeiro movimento: sem isso o
+  // gesto de rolar o modal virava troca de tela por acidente.
+  let x0=null, y0=null, axis=null;
+  stage.addEventListener('touchstart', e=>{
+    if(e.touches.length!==1){ x0=null; return; }
+    x0=e.touches[0].clientX; y0=e.touches[0].clientY; axis=null;
+  }, {passive:true});
+  stage.addEventListener('touchmove', e=>{
+    if(x0==null || e.touches.length!==1) return;
+    const dx=e.touches[0].clientX-x0, dy=e.touches[0].clientY-y0;
+    if(axis==null && (Math.abs(dx)>8 || Math.abs(dy)>8)) axis = Math.abs(dx)>Math.abs(dy) ? 'x' : 'y';
+    if(axis==='x') e.preventDefault(); // segura o scroll do palco durante o gesto horizontal
+  }, {passive:false});
+  stage.addEventListener('touchend', e=>{
+    const start=x0; x0=null;
+    if(start==null || axis!=='x') return;
+    const dx=(e.changedTouches[0]||{}).clientX - start;
+    if(Math.abs(dx) >= 50) _fPostedStep(dx<0 ? 1 : -1); // arrastar p/ a esquerda avança
+  }, {passive:true});
+}
+
+/* ══ "Ver no meu celular" — a arte real na tela do lojista, via QR ══
+   Sobe o PNG já renderizado (_postedArt, o mesmo pixel da arte final) pro bucket público
+   e transforma a URL num QR. O celular aponta a câmera e vê a peça em tamanho real, sem
+   baixar nada nem instalar nada.
+   ⚠ O bucket luma-user-uploads é PÚBLICO por design (decisão 2 do roadmap: a arte final é
+   pública por natureza — vai pro Instagram). Quem tem o link vê a arte; a copy avisa. */
+let _pstQRUrl = null;   // URL desta arte; evita re-subir a cada abertura do painel
+let _pstQRBusy = false;
+function _fPostedQRPanel(){
+  let el = document.getElementById('posted-qr');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'posted-qr'; el.className = 'pst-qr';
+    el.setAttribute('role','dialog'); el.setAttribute('aria-label','Ver a arte no celular');
+    const stage = document.getElementById('posted-stage');
+    if(!stage) return null;
+    stage.appendChild(el);
+  }
+  return el;
+}
+function fPostedCloseQR(){
+  const el = document.getElementById('posted-qr');
+  if(el) el.remove();
+}
+async function fPostedOpenQR(){
+  if(!_postedArt || !_postedArt.canvas){ gToast('Espere a prévia terminar de montar.'); return; }
+  if(_pstQRBusy) return;
+  const el = _fPostedQRPanel();
+  if(!el) return;
+  // Já subiu nesta sessão: reabre na hora, sem novo upload.
+  if(_pstQRUrl){ _fPostedQRRender(el, _pstQRUrl); return; }
+  const sb = (typeof gSupabase==='function') ? gSupabase() : null;
+  const user = (typeof gCurrentUser==='function') ? gCurrentUser() : null;
+  if(!sb || !user || !user.id || typeof _fUploadUserImg!=='function'){
+    // Honestidade: sem backend não existe link nenhum. Dizer o que fazer, não só o que falhou.
+    el.innerHTML = '<button type="button" class="pst-qr-x" onclick="fPostedCloseQR()" aria-label="Fechar">&times;</button>'
+      + '<div class="pst-qr-head"><strong>Ver no meu celular</strong><span>Entre na sua conta pra gerar o link — a prévia aqui não é afetada.</span></div>';
+    return;
+  }
+  _pstQRBusy = true;
+  el.innerHTML = '<div class="pst-qr-head"><strong>Preparando o link…</strong><span>Subindo a arte pra você abrir no celular</span></div>';
+  try{
+    const dataUrl = _postedArt.canvas.toDataURL('image/png');
+    const url = await _fUploadUserImg(user.id, 'previa/arte-'+Date.now(), dataUrl);
+    if(!url) throw new Error('upload falhou');
+    _pstQRUrl = url;
+    _fPostedQRRender(el, url);
+  }catch(e){
+    console.warn('[posted] QR:', e);
+    el.innerHTML = '<button type="button" class="pst-qr-x" onclick="fPostedCloseQR()" aria-label="Fechar">&times;</button>'
+      + '<div class="pst-qr-head"><strong>Não deu pra gerar o link</strong><span>Tente de novo em instantes — a sua arte continua intacta.</span></div>';
+  }finally{ _pstQRBusy = false; }
+}
+function _fPostedQRRender(el, url){
+  el.innerHTML = '<button type="button" class="pst-qr-x" onclick="fPostedCloseQR()" aria-label="Fechar">&times;</button>'
+    + '<div class="pst-qr-head"><strong>Aponte a câmera</strong><span>A arte abre em tamanho real no seu celular</span></div>'
+    + '<div class="pst-qr-code" id="posted-qr-code"></div>'
+    + '<button type="button" class="pst-qr-copy" onclick="fPostedCopyQRLink(this)">Copiar link</button>'
+    + '<span class="pst-qr-note">Quem tiver o link vê esta arte.</span>';
+  const box = el.querySelector('#posted-qr-code');
+  const cv = (typeof gQRCanvas==='function') ? gQRCanvas(url, 5, 3) : null;
+  if(cv && box) box.appendChild(cv);
+  else if(box) box.textContent = 'Use o botão abaixo para copiar o link.';
+}
+function fPostedCopyQRLink(btn){
+  if(!_pstQRUrl) return;
+  const done = ()=>{ if(btn){ btn.textContent='Link copiado'; setTimeout(()=>{ if(btn) btn.textContent='Copiar link'; }, 1800); } };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(_pstQRUrl).then(done).catch(()=>gToast('Não foi possível copiar o link','error'));
+  } else { gToast('Não foi possível copiar o link','error'); }
 }
 
 async function fOpenPosted(){
@@ -193,6 +371,8 @@ async function fOpenPosted(){
   modal.classList.add('open'); modal.setAttribute('aria-hidden','false');
   stage.innerHTML = '<div class="pst-loading">Montando a prévia…</div>';
   _postedArt = null;
+  // Arte nova = link velho não vale mais (apontaria pro PNG da arte anterior).
+  fPostedCloseQR(); _pstQRUrl = null;
   try { _postedArt = await _fPostedRenderArt(); }
   catch(e){ console.warn('[posted] erro ao renderizar a arte:', e); }
   if(!_postedArt){ stage.innerHTML = '<div class="pst-loading">Não deu pra montar a prévia — a arte final não é afetada.</div>'; return; }
@@ -202,10 +382,23 @@ async function fOpenPosted(){
 function fClosePosted(){
   const modal = document.getElementById('f-posted-modal');
   if(modal){ modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); }
+  fPostedCloseQR();
   _postedArt = null;
+  // _pstQRUrl NÃO é limpo aqui: reabrir a mesma arte reusa o link já subido. Quem zera é
+  // a próxima renderização (fOpenPosted), porque aí a arte pode ter mudado.
   document.removeEventListener('keydown', _fPostedKey, true);
 }
-function _fPostedKey(e){ if(e.key==='Escape'){ e.preventDefault(); fClosePosted(); } }
+function _fPostedKey(e){
+  if(e.key==='Escape'){
+    e.preventDefault();
+    // Esc fecha primeiro o painel do QR (camada de cima), depois o modal.
+    if(document.getElementById('posted-qr')) fPostedCloseQR(); else fClosePosted();
+    return;
+  }
+  // Setas trocam de ambiente — o mesmo que o swipe faz no dedo.
+  if(e.key==='ArrowRight'){ e.preventDefault(); _fPostedStep(1); }
+  else if(e.key==='ArrowLeft'){ e.preventDefault(); _fPostedStep(-1); }
+}
 // Clique no fundo (fora do box) fecha — mesmo padrão do f-preview-modal.
 (function(){ const m=document.getElementById('f-posted-modal'); if(m) m.addEventListener('click', function(e){ if(e.target===this) fClosePosted(); }); })();
 
@@ -320,13 +513,36 @@ let _lpScale = 1;        // escala real prévia ÷ arte final (mostrada na toolb
 // (o antigo _lpGuides virou _lpView — ver fLpSetView, mais abaixo)
 let _lpFraming = null;   // {layer, varName} enquanto o franqueado enquadra a foto (trava o zoom automático)
 let _lpOverflow = new Set(); // ids de camadas de texto com estouro no último render (avisos)
-let _lpImgDims = {};     // cache url→{w,h} p/ aviso de baixa resolução sem recarregar
 
 // Zoom/pan manual da prova digital (item: inspecionar a arte de perto).
 // _lpUserZoom=1 é o ajuste à tela; >1 amplia. Pan em px de tela relativo ao centro do quadro.
 // Tem PRIORIDADE sobre o smart-zoom do chat (que foca o campo ativo) — ver _fLpApplyCanvasFocus.
 let _lpUserZoom = 1, _lpPanX = 0, _lpPanY = 0;
 let _lpPanning = null, _lpDidPan = false, _lpSuppressClick = false;
+const F_LP_AUTO_ZOOM_KEY = 'luma-lp-auto-zoom';
+let _lpAutoZoom = true;
+try { _lpAutoZoom = localStorage.getItem(F_LP_AUTO_ZOOM_KEY) !== '0'; } catch(e){}
+
+function _fLpSyncAutoZoomButton(){
+  const btn=document.getElementById('lp-auto-zoom'); if(!btn) return;
+  btn.classList.toggle('active',_lpAutoZoom);
+  btn.setAttribute('aria-pressed',String(_lpAutoZoom));
+  btn.title=_lpAutoZoom?'Desativar zoom automático':'Ativar zoom automático';
+}
+function fLpToggleAutoZoom(){
+  _lpAutoZoom=!_lpAutoZoom;
+  try { localStorage.setItem(F_LP_AUTO_ZOOM_KEY,_lpAutoZoom?'1':'0'); } catch(e){}
+  _fLpSyncAutoZoomButton();
+  const canvas=document.getElementById('lp-canvas');
+  if(!_lpAutoZoom && canvas){
+    canvas.style.transformOrigin='center center';
+    canvas.style.transform='scale(1)';
+  } else {
+    _lpUserZoom=1; _lpPanX=0; _lpPanY=0;
+    _fLpApplyUserView();
+    try { fUpdateLivePreview(); } catch(e){}
+  }
+}
 
 async function fUpdateLivePreview(opts){
   opts = opts || {}; // animateField é ignorado: o canvas já reflete o estado atual
@@ -434,8 +650,9 @@ async function fUpdateLivePreview(opts){
   }
 }
 
-let _fLpStageWidthCache = 264;
-// Dimensiona o canvas para caber no .lp-stage sem distorcer (escala única).
+let _fLpStageWidthCache = 360;
+let _fLpStageHeightCache = 580;
+// Dimensiona o canvas para aproveitar ao máximo o palco (.lp-stage) sem distorcer (escala inteligente).
 function fLpSizeCanvas(canvas, W, H){
   const stage = canvas.closest('.lp-stage') || canvas.parentElement;
   if (stage && !stage._hasResizeObserver && typeof ResizeObserver !== 'undefined') {
@@ -443,14 +660,21 @@ function fLpSizeCanvas(canvas, W, H){
     new ResizeObserver(entries => {
       if(entries && entries.length) {
         _fLpStageWidthCache = entries[0].contentRect.width;
+        _fLpStageHeightCache = entries[0].contentRect.height;
       }
     }).observe(stage);
     _fLpStageWidthCache = stage.clientWidth;
+    _fLpStageHeightCache = stage.clientHeight;
   }
-  const csW = stage ? _fLpStageWidthCache : 264;
-  const availW = Math.max(120, csW - 36); // desconta o padding lateral do .lp-stage (18+18)
-  const maxH = 380;
-  const scale = Math.min(availW / W, maxH / H);
+  const csW = (stage && stage.clientWidth > 100) ? stage.clientWidth : (_fLpStageWidthCache || 360);
+  const csH = (stage && stage.clientHeight > 100) ? stage.clientHeight : (_fLpStageHeightCache || 580);
+  
+  // Respiro inteligente nas bordas do palco
+  const availW = Math.max(160, csW - 32);
+  const availH = Math.max(200, csH - 48);
+
+  // Escala dinâmica adaptada às proporções reais de qualquer formato (Story 9:16, Feed 1:1, Banner 16:9, etc.)
+  const scale = Math.min(availW / W, availH / H);
   canvas.style.width  = Math.round(W * scale) + 'px';
   canvas.style.height = Math.round(H * scale) + 'px';
   // Toolbar honesta: escala real da prévia (× zoom manual) + dimensões da arte final
@@ -506,7 +730,7 @@ function _fLpApplyCanvasFocus(activeLayer, W, H){
   const canvas = document.getElementById('lp-canvas');
   if(!canvas) return;
   const manual = (_lpUserZoom !== 1 || _lpPanX !== 0 || _lpPanY !== 0);
-  if(!manual && activeLayer && !fState.done && !_lpFraming){
+  if(_lpAutoZoom && !manual && activeLayer && !fState.done && !_lpFraming){
     const cx = activeLayer.x + activeLayer.w / 2;
     const cy = activeLayer.y + activeLayer.h / 2;
     const px = Math.min(100, Math.max(0, (cx / W) * 100));
@@ -1168,10 +1392,10 @@ function _fLpUploadImage(file,v){
       fState.dados[v]=url; delete fState.dados['__fit__'+v];
       try{fSaveChatDraft&&fSaveChatDraft();}catch(e){}
       _fLpRender();
-      const im=new Image(); im.onload=()=>{ if(im.naturalWidth<600||im.naturalHeight<600) gToast('⚠ Foto de baixa resolução ('+im.naturalWidth+'×'+im.naturalHeight+'px) — pode sair pixelada na arte.','error'); }; im.src=url;
+      const im=new Image(); im.onload=()=>{ if(im.naturalWidth<600||im.naturalHeight<600) gToast('Foto de baixa resolução ('+im.naturalWidth+'×'+im.naturalHeight+'px) — pode sair pixelada na arte.','error'); }; im.src=url;
       _fLpCloseEditor();
     };
-    if(typeof fResizeImageIfNeeded==='function') fResizeImageIfNeeded(e.target.result,1500,done); else done(e.target.result);
+    if(typeof fResizeImageIfNeeded==='function') fResizeImageIfNeeded(e.target.result,2500,done); else done(e.target.result); // 2500: cobre story a 2× sem esticar (mesmo cap do upload no chat)
   };
   reader.readAsDataURL(file);
 }
@@ -1260,69 +1484,10 @@ function _fLpOnCanvasClick(ev){
   if(vars.length===1){ const perm=_fLpPerm(vars[0]); if(!perm.editable){ _fLpLockToast(vars[0]); return; } _fLpTextEditor(vars[0],perm.maxLen,ev); }
   else { _fLpVarChooser(l,vars,ev); }
 }
-// ── Avisos persistentes: "não deixar sair errado" (faltou / estourou / baixa-res) ──
-function _fLpMeasureImg(url){
-  if(_lpImgDims[url]!==undefined) return;
-  _lpImgDims[url]=null; // medindo
-  const im=new Image();
-  im.onload=()=>{ _lpImgDims[url]={w:im.naturalWidth,h:im.naturalHeight}; try{fLpUpdateWarnings();}catch(e){} };
-  im.onerror=()=>{ _lpImgDims[url]={w:9999,h:9999}; };
-  im.src=url;
-}
-function _fLpJumpToField(v){
-  const l=(fState.material&&fState.material.layers||[]).find(x=>_fLpLayerVars(x).indexOf(v)>=0);
-  if(!l) return;
-  const perm=_fLpPerm(v);
-  if(!perm.editable){ _fLpLockToast(v); return; }
-  if(l.type==='image'||l.type==='frame') _fLpImageEditor(l,v,null);
-  else _fLpTextEditor(v,perm.maxLen,null);
-}
+// A bandeja permanece no DOM por compatibilidade, mas os avisos visuais foram desativados.
 function fLpUpdateWarnings(){
   const box=document.getElementById('lp-warnings'); if(!box) return;
-  if(!fState.material||!fState.material.layers||!fState.material.layers.length){ box.innerHTML=''; return; }
-  const d=fState.dados||{}, layers=fState.material.layers, items=[];
-  const seen=new Set(); // dedup por var+tipo (uma var em vários layers não vira vários chips)
-  // 1) Faltou preencher (perguntas do fluxo ainda sem resposta)
-  ((fState.camp&&fState.camp.perguntas)||[]).forEach(p=>{
-    // Campo opcional pulado continua vazio no render, mas não é uma pendência do usuário.
-    if((d[p.id]==null||d[p.id]==='') && !d['__skipped__'+p.id] && !seen.has('m:'+p.id)){ seen.add('m:'+p.id); items.push({kind:'miss', v:p.id, label:(p.label||_fLpLabel(p.id))}); }
-  });
-  const missVars=new Set(items.filter(i=>i.kind==='miss').map(i=>i.v));
-  // 2) Texto estourando a caixa — SÓ quando é ação do franqueado: campo com variável
-  //    EDITÁVEL e JÁ preenchido. Placeholder de campo vazio e layer fixo (sem var) não
-  //    contam — "encurtar" o que ele não escreveu (ou não pode editar) é ruído inútil.
-  if(_lpOverflow&&_lpOverflow.size){
-    _lpOverflow.forEach(id=>{
-      const l=layers.find(x=>x.id===id); if(!l) return;
-      const v=_fLpLayerVars(l)[0];
-      if(!v || missVars.has(v)) return;            // sem var, ou ainda vazio → é placeholder
-      if(d[v]==null||d[v]==='') return;            // sem valor real → overflow de placeholder
-      const perm=_fLpPerm(v); if(perm && perm.editable===false) return; // franqueado não edita
-      if(seen.has('o:'+v)) return; seen.add('o:'+v);
-      items.push({kind:'over', v, label:_fLpLabel(v)});
-    });
-  }
-  // 3) Foto de baixa resolução (mede uma vez por URL, cacheado)
-  layers.forEach(l=>{
-    if((l.type!=='image'&&l.type!=='frame')||!l.imgVar) return;
-    const val=d[l.imgVar];
-    if(!val||typeof val!=='string') return;
-    const dim=_lpImgDims[val];
-    if(dim===undefined){ _fLpMeasureImg(val); }
-    else if(dim && (dim.w<600||dim.h<600) && !seen.has('l:'+l.imgVar)){ seen.add('l:'+l.imgVar); items.push({kind:'low', v:l.imgVar, label:_fLpLabel(l.imgVar), dim}); }
-  });
-  // Teto: nunca soterra a prévia. Mostra os primeiros e resume o resto num "+N".
-  const MAX=4;
-  const shown=items.slice(0,MAX);
-  const extra=items.length-shown.length;
-  box.innerHTML = shown.map(it=>{
-    const cls = it.kind==='miss'?'lp-warn-miss':(it.kind==='over'?'lp-warn-over':'lp-warn-low');
-    const txt = it.kind==='miss'?('Falta preencher: '+it.label)
-              : it.kind==='over'?('“'+it.label+'” não cabe — encurte o texto')
-              : ('Foto “'+it.label+'” está baixa ('+it.dim.w+'×'+it.dim.h+')');
-    return `<button type="button" class="lp-warn ${cls}" data-v="${gEsc(it.v||'')}">${gEsc(txt)}</button>`;
-  }).join('') + (extra>0 ? `<span class="lp-warn lp-warn-more">+${extra} aviso${extra>1?'s':''}</span>` : '');
-  box.querySelectorAll('button.lp-warn').forEach(b=>{ b.onclick=()=>{ const v=b.getAttribute('data-v'); if(v) _fLpJumpToField(v); }; });
+  box.innerHTML='';
 }
 
 // ── Hover: chip flutuante indicando que o campo é editável (descoberta) ──
@@ -1359,6 +1524,7 @@ function _fLpBindCanvasEditing(){
 // Update inicial assim que DOM tá pronto
 document.addEventListener('DOMContentLoaded', () => {
   try { dPreloadFolders(); } catch(e){}
+  try { _fLpSyncAutoZoomButton(); } catch(e){}
   try { fUpdateLivePreview(); } catch(e){}
   try { fInitMobilePreviewEvents(); } catch(e){}
   try { _fLpBindCanvasEditing(); } catch(e){}

@@ -102,7 +102,7 @@
 .f-mat-breadcrumb span{color:var(--dm-orange)}
 .f-mat-camp-name{
   margin:0;color:var(--fm-text);font-family:'Roboto',sans-serif;font-weight:900;
-  font-size:clamp(27px,2.2vw,40px);letter-spacing:-.035em;line-height:1.04;
+  font-size:clamp(27px,2.2vw,40px);letter-spacing:-.035em;line-height:1.04;text-wrap:balance;
 }
 .f-mat-camp-sub{
   max-width:620px;margin:10px 0 0;color:var(--fm-text-muted);font-size:14px;line-height:1.55;
@@ -228,7 +228,7 @@
   border-radius:16px;background:var(--dm-orange-bg);color:var(--dm-orange-d);
 }
 .f-mat-empty-title{
-  margin-bottom:9px;color:var(--fm-text);font-family:'Roboto',sans-serif;font-size:20px;font-weight:900;letter-spacing:-.02em;
+  margin-bottom:9px;color:var(--fm-text);font-family:'Roboto',sans-serif;font-size:20px;font-weight:900;letter-spacing:-.02em;text-wrap:balance;
 }
 .f-mat-empty-text{
   max-width:440px;color:var(--fm-text-muted);font-size:13px;line-height:1.6;

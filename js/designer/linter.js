@@ -10,7 +10,14 @@ function dRunLinter() {
   if (!container) return;
   
   if (!dLayers || dLayers.length === 0) {
-    container.innerHTML = '<div style="font-size:11.5px;color:var(--d-text3);padding:10px 0;text-align:center">Nenhuma camada na prancheta para analisar.</div>';
+    container.innerHTML = `
+      <div class="dl-empty" role="status">
+        <span class="dl-empty-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4"/><path d="m9 15 3-3m0 0 3-3m-3 3 3 3m-3-3L9 9"/></svg>
+        </span>
+        <strong>Nada para revisar ainda</strong>
+        <span>Adicione uma camada à prancheta para iniciar a análise.</span>
+      </div>`;
     return;
   }
   
@@ -132,38 +139,96 @@ function dRunLinter() {
   
   if (issues.length === 0) {
     container.innerHTML = `
-      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 16px;text-align:center;gap:12px;">
-        <div style="width:48px;height:48px;border-radius:50%;background:rgba(16,185,129,0.1);display:flex;align-items:center;justify-content:center;color:#10b981">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        </div>
-        <span style="font-size:12px;font-weight:700;color:var(--d-text)">Layout Perfeito!</span>
-        <span style="font-size:11.5px;color:var(--d-text3);line-height:1.5">Nenhum erro crítico ou de respiro foi detectado no design system da prancheta. Pronto para publicação segura.</span>
+      <div class="dl-approved" role="status">
+        <span class="dl-approved-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        </span>
+        <span class="dl-approved-kicker">Revisão concluída</span>
+        <strong>Layout pronto para publicar</strong>
+        <span>Nenhum erro ou alerta de composição foi encontrado nesta prancheta.</span>
       </div>`;
     return;
   }
-  
-  container.innerHTML = issues.map(issue => {
-    const badgeColor = issue.type === 'error' ? '#ef4444' : issue.type === 'warning' ? '#f59e0b' : '#10b981';
-    const bgOpacity = issue.type === 'error' ? 'rgba(239,68,68,0.04)' : issue.type === 'warning' ? 'rgba(245,158,11,0.04)' : 'rgba(16,185,129,0.04)';
-    const borderColor = issue.type === 'error' ? 'rgba(239,68,68,0.15)' : issue.type === 'warning' ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.15)';
-    const badgeText = issue.type === 'error' ? '🔴 ERRO' : issue.type === 'warning' ? '🟡 ALERTA' : '🟢 OTIMIZAR';
-    
-    const fixBtn = issue.autoFix ? `<button class="d-btn-sec" style="font-size:10px;padding:3px 8px;height:auto;border-color:${badgeColor};color:${badgeColor}" onclick="dDadoLinterAutoFix('${issue.layerId}', '${issue.autoFix}', '${issue.autoFixParam || ''}')">🛠 Auto-corrigir</button>` : '';
-    
+
+  const counts = issues.reduce((acc, issue) => {
+    acc[issue.type] = (acc[issue.type] || 0) + 1;
+    return acc;
+  }, { error: 0, warning: 0, info: 0 });
+  const totalLabel = issues.length === 1 ? '1 ponto para revisar' : `${issues.length} pontos para revisar`;
+  const summaryHtml = `
+    <div class="dl-summary" role="status" aria-label="${totalLabel}">
+      <div class="dl-summary-copy">
+        <span>Resultado da análise</span>
+        <strong>${totalLabel}</strong>
+      </div>
+      <div class="dl-summary-counts" aria-label="Contagem por severidade">
+        ${counts.error ? `<span class="dl-count dl-count--error"><b>${counts.error}</b> ${counts.error === 1 ? 'erro' : 'erros'}</span>` : ''}
+        ${counts.warning ? `<span class="dl-count dl-count--warning"><b>${counts.warning}</b> ${counts.warning === 1 ? 'alerta' : 'alertas'}</span>` : ''}
+        ${counts.info ? `<span class="dl-count dl-count--info"><b>${counts.info}</b> ${counts.info === 1 ? 'ajuste' : 'ajustes'}</span>` : ''}
+      </div>
+    </div>`;
+
+  const cardsHtml = issues.map(issue => {
+    const severity = issue.type === 'error' ? 'error' : issue.type === 'warning' ? 'warning' : 'info';
+    const badgeText = severity === 'error' ? 'Erro' : severity === 'warning' ? 'Alerta' : 'Otimização';
+    const layerName = _dEsc(issue.layerName || 'Camada sem nome');
+    const layerId = String(issue.layerId || '').replace(/'/g, '\\x27');
+    const fixType = String(issue.autoFix || '').replace(/'/g, '\\x27');
+    const fixParam = String(issue.autoFixParam || '').replace(/'/g, '\\x27');
+    const fixBtn = issue.autoFix ? `
+      <button class="dl-action dl-action--fix" onclick="dDadoLinterAutoFix('${layerId}', '${fixType}', '${fixParam}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14.7 6.3 3 3M5 21l3.5-.7L19 9.8a2.1 2.1 0 0 0-3-3L5.7 17.2 5 21Z"/><path d="M12 3v4M3 12h4M5.6 5.6l2.8 2.8"/></svg>
+        Corrigir
+      </button>` : '';
+
     return `
-      <div class="linter-card" style="background:${bgOpacity};border:1px solid ${borderColor};border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px;transition:transform 0.15s ease;margin-bottom:8px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span style="font-size:9.5px;font-weight:800;color:${badgeColor};letter-spacing:0.04em;text-transform:uppercase">${badgeText}</span>
-          <span style="font-size:10px;color:var(--d-text3);font-style:italic;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_dEsc(issue.layerName)}">Camada: ${_dEsc(issue.layerName)}</span>
+      <article class="linter-card dl-issue dl-issue--${severity}">
+        <div class="dl-issue-head">
+          <span class="dl-severity"><span aria-hidden="true"></span>${badgeText}</span>
+          <span class="dl-layer" title="Camada: ${layerName}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 17l9 5 9-5"/></svg>
+            ${layerName}
+          </span>
         </div>
-        <div style="font-size:11.5px;font-weight:700;color:var(--d-text);margin-top:2px;">${issue.title}</div>
-        <div style="font-size:10.5px;color:var(--d-text2);line-height:1.4">${_dEsc(issue.desc)}</div>
-        <div style="display:flex;gap:6px;margin-top:6px;align-items:center;">
-          <button class="d-btn-sec" style="font-size:10px;padding:3px 8px;height:auto;" onclick="dLinterFocusLayer('${issue.layerId}')">🔍 Ir para camada</button>
+        <div class="dl-issue-body">
+          <strong>${_dEsc(issue.title)}</strong>
+          <p>${_dEsc(issue.desc)}</p>
+        </div>
+        <div class="dl-issue-actions">
           ${fixBtn}
+          <button class="dl-action" onclick="dLinterFocusLayer('${layerId}')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4M11 8v6M8 11h6"/></svg>
+            Localizar
+          </button>
         </div>
-      </div>`;
+      </article>`;
   }).join('');
+
+  container.innerHTML = summaryHtml + cardsHtml;
+}
+
+function dApplyIntelligentLayout(){
+  if(typeof gResolveIntelligentLayout!=='function'||!dLayers||!dLayers.length)return;
+  const ab=typeof dGetActiveAB==='function'?dGetActiveAB():null;
+  if(!ab||!ab.w||!ab.h){gToast('⚠ Não foi possível identificar o tamanho da prancheta');return;}
+
+  if(typeof gIntelligentLayoutContext!=='function')return;
+  const result=gResolveIntelligentLayout(dLayers,gIntelligentLayoutContext(dLayers,ab.w,ab.h));
+  const unresolved=result.diagnostics.filter(item=>item.type!=='collision');
+  if(!result.moves.length){
+    gToast(unresolved.length?'⚠ Não há espaço seguro para corrigir todas as camadas':'Layout já está em uma área segura');
+    return;
+  }
+
+  dHistoryPush();
+  dLayers=result.layers;
+  if(typeof dRestoreSelection==='function')dRestoreSelection();
+  if(typeof dSyncLayersToAB==='function')dSyncLayersToAB();
+  dMarkUnsaved();
+  dRenderCanvas();
+  dRenderLayersList();
+  dRunLinter();
+  gToast(unresolved.length?'Layout ajustado; revise as camadas restantes':'Layout ajustado com segurança');
 }
 
 // Foca, seleciona e destaca a camada com problemas no Canvas
