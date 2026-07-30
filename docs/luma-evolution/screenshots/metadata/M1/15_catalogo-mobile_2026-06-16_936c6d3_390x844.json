@@ -1,0 +1,13 @@
+{
+  "tela": "Campanha aberta no celular",
+  "area": "Franqueado",
+  "estado": "catalogo-mobile",
+  "marco": "M1",
+  "rotulo": "O Luma nasce — já modular",
+  "commit": "936c6d3",
+  "data": "2026-06-16",
+  "viewport": "390x844",
+  "tipoCaptura": "real-commit",
+  "confianca": "alto",
+  "nota": "Execução do próprio commit via git worktree, offline; Supabase zerado e sessão de demonstração injetada. O código da interface não foi alterado."
+}

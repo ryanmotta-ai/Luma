@@ -217,7 +217,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
 .difs li.nao{color:var(--tinta-3)}
 .difs li.nao .n{background:transparent;border:1.5px dashed var(--tinta-3);color:var(--tinta-3)}
 
-/* ═══ mega linha do tempo — os 77 commits ══════════════════════════════════ */
+/* ═══ mega linha do tempo — todos os commits ══════════════════════════════════ */
 
 /* Colunas por DIA, com largura proporcional ao número de commits daquele dia. Espaçar os
    dias por igual esconderia o que mais importa aqui: metade do trabalho aconteceu em

@@ -100,8 +100,8 @@ docs/luma-evolution/
 
 ## Problemas conhecidos
 
-- **O git não guarda o começo do Luma.** Duas raízes órfãs, ambas de 2026-07-16, ambas já com o produto inteiro. A única evidência anterior é `research/origem/yungas-artes-piloto.html`, entregue fora do repositório.
-- **O histórico versionado tem 15 dias** (16 a 30 de julho de 2026), 71 commits, sem tags nem releases. Não há como mostrar eras de meses.
+- **O clone deste ambiente vem `shallow`.** Antes de qualquer análise de histórico, rode `git rev-parse --is-shallow-repository`; se der `true`, faça `git fetch --unshallow origin` e `git fetch origin '+refs/heads/*:refs/remotes/origin/*'`. Sem isso, `git log --all` mostra uma fração do repositório — aqui eram 78 de 239 commits, e a apresentação chegou a afirmar coisas falsas sobre o começo do projeto por causa disso.
+- **O histórico tem 45 dias** (16/06 a 30/07/2026), 239 commits, uma raiz só. O que o git *não* guarda é o piloto Yungas, anterior a tudo isso e preservado em `research/origem/`.
 - **Telas que dependem do banco aparecem com o conteúdo de exemplo do commit**, não com dados reais. Proposital: nenhuma captura toca produção.
 - **Algumas telas não são alcançáveis offline** — as que exigem um template salvo no banco. Cada caso está em `reports/limitacoes.md`.
 - **O texto do `.pptx` não é editável**: cada slide é a imagem conferida. Para mudar conteúdo, mexa em `slides.js` e rode `tudo.js --sem-captura`.

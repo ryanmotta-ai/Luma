@@ -3,17 +3,17 @@
     "id": "M0",
     "rotulo": "Piloto Yungas — Módulo de Artes",
     "era": "Antes do git",
-    "data": "2026-07-15",
+    "data": "2026-06-15",
     "dataExata": false,
-    "dataRotulo": "anterior a 16/07",
+    "dataRotulo": "anterior a 16/06",
     "tipo": "arquivo",
     "arquivo": "yungas-artes-piloto.html",
     "hash": null,
     "hashCurto": "origem",
     "autor": "entregue fora do repositório",
-    "porQue": "É a única evidência do produto ANTES do git. As duas raízes do repositório já contêm o app inteiro, então sem este arquivo a pergunta \"como o Luma começou?\" não teria resposta com evidência.",
+    "porQue": "É a evidência do produto ANTES do Luma. Em 16/06 o repositório já nasce com o nome \"Luma · Creative Automation\" e 85 arquivos modularizados — este arquivo único, com outro nome, é o que veio antes disso.",
     "fatos": [
-      "Chamava-se \"Yungas · Módulo de Artes · Delivery Much\" — o nome Luma ainda não existia",
+      "Chamava-se \"Yungas · Módulo de Artes · Delivery Much\" — ainda não era Luma",
       "1 arquivo HTML, 565.693 bytes, 9.316 linhas",
       "Um bloco <style> e um bloco <script> — tudo no mesmo lugar",
       "Os prefixos sagrados já estavam lá: 148 funções d*, 78 f* e 4 g*"
@@ -21,39 +21,94 @@
   },
   {
     "id": "M1",
-    "rotulo": "O que o git preserva como ponto de partida",
-    "era": "Base preservada",
-    "data": "2026-07-16",
+    "rotulo": "O Luma nasce — já modular",
+    "era": "O começo real",
+    "data": "2026-06-16",
     "dataExata": true,
     "tipo": "commit",
-    "hash": "89ca896",
-    "hashCurto": "89ca896",
+    "hash": "936c6d3",
+    "hashCurto": "936c6d3",
     "autor": "ryanmotta-ai",
-    "mensagem": "feat(desktop): app macOS — DMG universal + convenções do Mac na casca Electron",
-    "porQue": "Commit mais antigo por data-hora do repositório (16/07, 10:33). Já traz 285 arquivos e um index.html de 234.737 bytes — o git começa com o produto pronto, não com o começo dele.",
+    "mensagem": "files",
+    "porQue": "O segundo commit do repositório, doze minutos depois do \"Initial commit\" que trazia só um README. É aqui que o produto entra no git — e já entra com o nome Luma e a arquitetura dividida em arquivos.",
     "fatos": [
-      "285 arquivos versionados já no commit mais antigo",
-      "index.html com 234.737 bytes; 47 arquivos em js/ e 22 em css/",
-      "Duas raízes órfãs no repositório (74d31b5 e df0c056), ambas de 16/07"
+      "85 arquivos: 42 em js/, 17 em css/, 11 em assets/",
+      "index.html com 82.099 bytes — o monolito do piloto já tinha virado módulos",
+      "O título da página já diz \"Luma · Creative Automation\"",
+      "Doze minutos depois do \"Initial commit\", que tinha um README e nada mais"
     ]
   },
   {
-    "id": "M2",
-    "rotulo": "A arte dentro do celular",
-    "era": "O franqueado no celular",
-    "data": "2026-07-16",
-    "dataExata": true,
+    "id": "M1b",
+    "rotulo": "0.5 alpha",
+    "era": "Primeiras versões",
     "tipo": "commit",
-    "hash": "57cbe74",
-    "hashCurto": "57cbe74",
-    "autor": "Claude",
-    "mensagem": "Prévia: \"Ver postado\" — a arte real dentro do celular",
-    "porQue": "Fecha a sequência de mockup do dia. O franqueado deixa de ver um arquivo e passa a ver como a arte fica publicada — que é a pergunta que ele realmente tem.",
+    "hash": "7ecb854",
+    "hashCurto": "7ecb854",
+    "dataExata": true,
+    "porQue": "A primeira versão que o próprio autor nomeou. Dois dias depois do início, com o import de PSD e as ferramentas de texto já funcionando.",
     "fatos": [
-      "Precedido por \"Mockup: prévia da arte no celular (Stories, Feed, WhatsApp)\"",
-      "E por \"Mockup: silhueta do iPhone 17 Pro Max (padrão premium)\"",
-      "No mesmo dia entram o PWA instalável e a casca de desktop"
-    ]
+      "Sequência de 18/06: \"0.5 alpha release\" e, minutos depois, \"0.6\"",
+      "Os commits de 17/06 são todos sobre import de PSD e ferramentas de texto",
+      "Até aqui, o repositório tem um autor só"
+    ],
+    "data": "2026-06-18",
+    "autor": "ryanmotta-ai",
+    "mensagem": "0.5 alpha release"
+  },
+  {
+    "id": "M1c",
+    "rotulo": "O backend entra",
+    "era": "Fundação de dados",
+    "tipo": "commit",
+    "hash": "dced413",
+    "hashCurto": "dced413",
+    "dataExata": true,
+    "porQue": "Pedro Moraes entra no repositório com o Supabase: schema, RLS e a fundação do client. É o dia em que o Luma deixa de viver só no navegador.",
+    "fatos": [
+      "\"Backend Supabase (Fase 5.1): schema, RLS, hardening e fundacao do client\"",
+      "Junho inteiro tem commits de segurança: views SECURITY INVOKER, revoke de triggers, XSS no designer",
+      "A RLS como única fronteira de segurança nasce aqui"
+    ],
+    "data": "2026-06-18",
+    "autor": "Pedro Moraes",
+    "mensagem": "Backend Supabase (Fase 5.1): schema, RLS, hardening e fundacao do client"
+  },
+  {
+    "id": "M1d",
+    "rotulo": "Um mês de produto",
+    "era": "Amadurecimento",
+    "tipo": "commit",
+    "hash": "8abd65b",
+    "hashCurto": "8abd65b",
+    "dataExata": true,
+    "porQue": "Ponta de 11/07, o maior dia até então (18 commits). O index.html chegou a 212 KB e o luma-brain já orienta decisões de design.",
+    "fatos": [
+      "index.html com 212.604 bytes, contra 82.099 no primeiro dia",
+      "\"alinha camada de design ao propor, não impor\" — o design system ganha doutrina",
+      "Claude entra no repositório em julho; junho foi de Ryan e Pedro"
+    ],
+    "data": "2026-07-11",
+    "autor": "ryanmotta-ai",
+    "mensagem": "docs(design): alinha camada de design ao 'propor, não impor' + botões sem gradiente"
+  },
+  {
+    "id": "M1e",
+    "rotulo": "O maior dia do histórico",
+    "era": "Pico de trabalho",
+    "tipo": "commit",
+    "hash": "e85b648",
+    "hashCurto": "e85b648",
+    "dataExata": true,
+    "porQue": "15/07 concentra 57 commits — o maior volume de todo o repositório, e 44 deles mexem em tela. É a véspera do dia em que a vitrine passa a ser gerida pelo banco.",
+    "fatos": [
+      "57 commits num dia; 44 mexem em tela",
+      "Somado a 16/07 (51 commits), são 45% de todo o histórico em dois dias",
+      "O último do dia é sobre fidelidade do import de PSD"
+    ],
+    "data": "2026-07-15",
+    "autor": "Claude",
+    "mensagem": "PSD import: formas só-contorno e tracejado fiéis"
   },
   {
     "id": "M3",
@@ -88,41 +143,6 @@
       "882cda0 — gate de conta desativada, XSS residuais e fim dos sucessos falsos",
       "26e8215 — franqueado deixa de gravar base64 no banco",
       "ed254c4 e de5659c — z-order confiável e raster adaptativo no import de PSD"
-    ]
-  },
-  {
-    "id": "M5",
-    "rotulo": "1.0 declarada",
-    "era": "A 1.0",
-    "data": "2026-07-29",
-    "dataExata": true,
-    "tipo": "commit",
-    "hash": "b29dbd8",
-    "hashCurto": "b29dbd8",
-    "autor": "ryanmotta-ai",
-    "mensagem": "toma 1.0",
-    "porQue": "É o único marco declarado pelo próprio dono do produto, não inferido por nós. Fecha o ciclo de 22/07, que foi só planejamento no luma-brain.",
-    "fatos": [
-      "22/07 tem 6 commits, todos em luma-brain/ — planejamento, nenhuma tela alterada",
-      "5067bd2 e f1984dc registram o tema Much+ ANTES de ele existir em código"
-    ]
-  },
-  {
-    "id": "M6",
-    "rotulo": "A camada de IA",
-    "era": "Recursos inteligentes",
-    "data": "2026-07-30",
-    "dataExata": true,
-    "tipo": "commit",
-    "hash": "28a93e2",
-    "hashCurto": "28a93e2",
-    "autor": "Claude",
-    "mensagem": "feat(sheets): ler cardápio em foto/PDF e casar fotos com as linhas",
-    "porQue": "Fecha a manhã de 30/07 (10:50 às 11:05), em que a IA entra como camada de produto e não como truque isolado: um motor único com Edge Function, atendendo vários recursos.",
-    "fatos": [
-      "fc36ae4 (10:50) — tubulação única de IA + encaixar texto no limite",
-      "13279fe (10:55) — ajuda responde aterrada na Central de Ajuda e cala quando não sabe",
-      "b5945db — gAiReady deixa de prometer IA onde não há caminho"
     ]
   },
   {

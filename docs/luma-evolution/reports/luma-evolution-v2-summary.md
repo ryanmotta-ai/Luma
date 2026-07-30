@@ -49,8 +49,8 @@ Nenhuma versão histórica foi reexecutada para a V2: as 65 capturas já estavam
 | 1–2 | Abertura | Capa e o que veremos |
 | 3 | Ponto de partida | A primeira versão conhecida, executada |
 | 4 | Linha do tempo | Os 6 marcos, incluindo os três pontos de comparação |
-| **5** | **Mega linha do tempo** | **Os 77 commits num quadro: nove faixas por área, sete colunas por dia com largura proporcional ao volume** |
-| **6–8** | **Histórico completo** | **Todos os 77 commits listados, por dia, com hash, hora e assunto** |
+| **5** | **Mega linha do tempo** | **Os 239 commits num quadro: faixas por área, uma coluna por dia com largura proporcional ao volume** |
+| **6–9** | **Histórico completo** | **Todos os 239 commits listados, por dia, com hash, hora e assunto** |
 | 9 | Divisor | Tela a tela, versão por versão |
 | **10–18** | **Três versões** | **Nove telas: login, vitrine, campanha, chat, Estúdio, exportação, histórico, conta e chat no celular — cada uma no primeiro commit, na véspera da 1.0 e hoje, com as diferenças numeradas** |
 | 19–20 | Sem par no bloco | O celular (piloto → hoje) e o CLI, que não existia antes |
@@ -114,11 +114,11 @@ Cada contorno vem de `getBoundingClientRect` na versão atual, em porcentagem da
 |---|---|
 | Capturas reais em disco | 86 |
 | Imagens nos slides | 70, no máximo 3 por slide |
-| Marcos capturados | 9 (6 na linha do tempo, 3 nas comparações) |
+| Marcos capturados | 13 (10 na linha do tempo, 3 nas comparações) |
 | Telas do produto comparadas | 16 |
 | Funcionalidades mapeadas no atlas | 16 |
-| Commits analisados | 72, de 3 autores |
-| Período coberto | anterior a 16/07/2026 → 30/07/2026 |
+| Commits analisados | 239, de 3 autores (ryanmotta-ai 119, Claude 85, Pedro Moraes 35) |
+| Período coberto | anterior a 16/06/2026 → 30/07/2026 (45 dias) |
 | Imagens reconstruídas ou ilustradas | 0 |
 | Linhas do produto alteradas para os prints | 0 |
 
@@ -126,15 +126,35 @@ Conferência visual automática antes de exportar: **0 elementos fora da página
 
 ---
 
+## O clone truncado — e o que ele escondia
+
+A apresentação chegou a afirmar que o repositório tinha 77 commits em 15 dias, duas raízes órfãs e que **o git não guardava o começo do Luma**. Tudo falso, e por uma causa só: **o ambiente clonou o repositório em modo `shallow`** — 78 dos 239 commits, 2 das 6 branches. `git log --all` mostrava fielmente o que estava em disco; o disco é que estava incompleto.
+
+Depois de `git fetch --unshallow` e do fetch de todas as branches:
+
+| | Antes (truncado) | Real |
+|---|---|---|
+| Commits | 77 | **239** |
+| Período | 15 dias (16–30/07) | **45 dias (16/06 → 30/07)** |
+| Raízes | "duas órfãs" | **uma**: `f9252a7` |
+| Commit mais antigo | 285 arquivos | **1 arquivo** (um README) |
+| Autor com mais commits | Claude (54) | **ryanmotta-ai (119)** |
+
+O começo real: **16/06, 11:06** — `f9252a7`, "Initial commit", um README. Doze minutos depois, `936c6d3` traz 85 arquivos, 42 em `js/`, e o título da página já diz **"Luma · Creative Automation"**.
+
+Isso reposiciona o piloto Yungas: ele não é anterior a julho, é anterior a **junho** — o monolito de 565 KB que virou aqueles 85 módulos.
+
+> **Para quem for repetir esta análise:** rode `git rev-parse --is-shallow-repository` antes de afirmar qualquer coisa sobre o começo de um histórico. Num ambiente efêmero, o clone raso é o padrão, não a exceção.
+
+---
+
 ## A mega linha do tempo
 
-Dois slides novos respondem "o que aconteceu em cada commit":
+**O quadro.** Os 239 commits em faixas por área, com uma coluna por dia e largura proporcional ao volume. **15 e 16 de julho concentram 108 commits — 45% de todo o histórico.** Ponto cheio mexe em tela, vazado não mexe, marco em preto.
 
-**Slide 5 — o quadro.** Os 77 commits em nove faixas por área do produto, com uma coluna por dia. A largura de cada coluna é proporcional ao volume daquele dia: espaçar os dias por igual esconderia o que mais importa — **29 commits em 16/07 e 25 em 30/07 concentram 70% do trabalho**. Ponto cheio é commit que mexe em tela, vazado é o que não mexe, e os marcos aparecem em preto.
+O quadro mostra o produto mudando de foco ao longo de 45 dias: junho é de fundação, com PSD, ferramentas de texto e o backend chegando; julho traz o time, a vitrine e o volume; IA e CLI existem só no último dia.
 
-O quadro mostra o produto mudando de foco: Backend e Design só no início; IA e CLI só existem no último dia; Docs distribuído por todos os dias, inclusive 22/07, que tem seis commits e nenhuma mudança de tela.
-
-**Slides 6–8 — a lista.** Todos os 77 commits, agrupados por dia, com hash, hora e assunto. Existe para consulta, não para leitura em voz alta — se alguém perguntar por um commit, está ali.
+**A lista.** Todos os 239 commits, por dia, com hash, hora e assunto. Existe para consulta, não para leitura em voz alta.
 
 Os dados vêm de `scripts/historico.js`, que classifica cada commit pela área dos arquivos que ele tocou.
 

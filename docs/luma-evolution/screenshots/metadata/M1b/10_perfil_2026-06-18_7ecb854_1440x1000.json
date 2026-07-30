@@ -1,0 +1,13 @@
+{
+  "tela": "Perfil do usuário",
+  "area": "Núcleo",
+  "estado": "perfil",
+  "marco": "M1b",
+  "rotulo": "0.5 alpha",
+  "commit": "7ecb854",
+  "data": "2026-06-18",
+  "viewport": "1440x1000",
+  "tipoCaptura": "real-commit",
+  "confianca": "alto",
+  "nota": "Execução do próprio commit via git worktree, offline; Supabase zerado e sessão de demonstração injetada. O código da interface não foi alterado."
+}

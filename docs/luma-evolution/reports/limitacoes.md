@@ -4,23 +4,27 @@ O que não foi possível recuperar, e por quê. Escrito para que nenhuma lacuna 
 
 ---
 
-## 1. O git não guarda o começo do Luma
+## 1. O que o git guarda — e o que ele não guarda
 
-**O fato.** O repositório tem **duas raízes órfãs**, `74d31b5` e `df0c056`, ambas de 2026-07-16. O commit mais antigo por data-hora (`89ca896`, 10:33 de 16/07) já traz **285 arquivos** e um `index.html` de **234.737 bytes**, com 47 arquivos em `js/` e 22 em `css/`.
+**O fato.** O repositório tem **uma raiz só**: `f9252a7`, "Initial commit", de 2026-06-16 às 11:06, com um `README.md` e nada mais. Doze minutos depois, `936c6d3` traz o produto inteiro — 85 arquivos, 42 em `js/`, 17 em `css/`, e um `index.html` de 82.099 bytes cujo título já diz **"Luma · Creative Automation"**.
 
-**O que isso significa.** Quando o versionamento começou, o produto já estava construído. As perguntas "como o Luma começou?" e "como eram as primeiras telas?" **não têm resposta dentro do repositório**.
+**O que isso significa.** O git **guarda** o começo do Luma. A pergunta "como o produto entrou no repositório?" tem resposta: entrou já modular e já com o nome.
 
-**Como foi contornado.** O arquivo do piloto — `Yungas · Módulo de Artes · Delivery Much`, 565.693 bytes em um único HTML — foi entregue fora do git, está preservado em `research/origem/` e foi **executado**, não descrito. É a evidência do "antes" da apresentação inteira.
+**O que o git não guarda** é o estágio anterior a esse: o piloto `Yungas · Módulo de Artes`, um arquivo único de 565.693 bytes, com outro nome e sem separação em módulos. Ele foi entregue fora do versionamento, está preservado em `research/origem/` e foi executado, não descrito.
 
-**O que continua sem evidência.** A data exata do piloto. O arquivo não a declara e não está sob versionamento, então a apresentação diz "anterior a 16/07/2026" em vez de cravar um dia.
+**A data do piloto continua sem evidência.** O arquivo não a declara. A apresentação diz "anterior a 16/06/2026" — o dia em que o repositório já nasce com o nome Luma — em vez de cravar um dia.
+
+⚠️ **Correção registrada.** Até 30/07, este documento afirmava que o repositório tinha *duas raízes órfãs* de 16/07 e que o commit mais antigo já trazia 285 arquivos. Era **falso**, e a causa foi um clone `shallow`: o ambiente clonou o repositório truncado, com 78 dos 239 commits e 2 das 6 branches. `git log --all` mostrava só o que estava em disco. Depois de `git fetch --unshallow` e do fetch de todas as branches, o histórico real apareceu. A lição vale para qualquer análise de repositório em ambiente efêmero: **verifique `git rev-parse --is-shallow-repository` antes de afirmar qualquer coisa sobre o começo de um histórico.**
 
 ---
 
-## 2. O histórico versionado cobre 15 dias
+## 2. O histórico cobre 45 dias, com um vazio no meio
 
-72 commits entre 2026-07-16 e 2026-07-30, de 3 autores (Claude, ryanmotta-ai, Pedro Moraes). Sem tags, sem releases, sem branches de release. Metade dos commits é do primeiro dia.
+239 commits entre 2026-06-16 e 2026-07-30, de 3 autores — ryanmotta-ai (119), Claude (85) e Pedro Moraes (35). Sem tags de versão além de `desktop-v1.0.0`.
 
-**Consequência para a narrativa.** Não existem eras de meses ou anos. Os marcos foram agrupados pelo que mudou, não por período longo — e a apresentação diz isso num slide próprio, para que ninguém leia "72 commits" como o tamanho do trabalho.
+A distribuição é muito desigual: **15 e 16 de julho concentram 108 commits**, 45% de todo o histórico. E há um vazio de 30/06 a 06/07 — sete dias sem nenhum commit.
+
+**Consequência para a narrativa.** Os marcos foram escolhidos por mudança visível, não por espaçamento regular no calendário — e a mega linha do tempo usa colunas de largura proporcional ao volume justamente para que esse desequilíbrio apareça em vez de ser disfarçado.
 
 ---
 

@@ -1,4 +1,13 @@
-// docs/luma-evolution/scripts/slides.js — a narrativa da apresentação.
+// docs/luma-evolution/scripts/slides.js — a narrativa da V1.
+//
+// ⛔ OBSOLETA — NÃO APRESENTE A PARTIR DAQUI.
+// Esta narrativa foi escrita quando o ambiente tinha um clone `shallow` do repositório:
+// 78 dos 239 commits, 2 das 6 branches. Por isso ela afirma coisas FALSAS — que o
+// histórico tem 15 dias, que existem duas raízes órfãs e que "o git não guarda o começo
+// do Luma". O histórico real começa em 16/06/2026 com uma raiz só (f9252a7) e um README.
+// A narrativa corrigida é slides-v2.js. Este arquivo fica como registro do erro.
+//
+// (descrição original abaixo)
 //
 // Monta a lista de slides a partir das evidências que existem em disco. Slide que
 // dependeria de uma captura ausente NÃO é gerado: a apresentação nunca aponta pra imagem

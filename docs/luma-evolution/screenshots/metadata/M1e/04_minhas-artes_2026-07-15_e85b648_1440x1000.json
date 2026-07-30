@@ -1,0 +1,13 @@
+{
+  "tela": "Minhas artes — histórico",
+  "area": "Franqueado",
+  "estado": "minhas-artes",
+  "marco": "M1e",
+  "rotulo": "O maior dia do histórico",
+  "commit": "e85b648",
+  "data": "2026-07-15",
+  "viewport": "1440x1000",
+  "tipoCaptura": "real-commit",
+  "confianca": "alto",
+  "nota": "Execução do próprio commit via git worktree, offline; Supabase zerado e sessão de demonstração injetada. O código da interface não foi alterado."
+}

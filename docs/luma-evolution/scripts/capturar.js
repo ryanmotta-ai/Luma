@@ -39,7 +39,9 @@ const I_CENA = ARGS.indexOf('--cena');
 // três minutos de reexecutar o marco inteiro.
 const soCenas = I_CENA >= 0 ? (ARGS[I_CENA + 1] || '').split(',').filter(Boolean) : null;
 const soFaltando = ARGS.includes('--faltando');
-const filtro = ARGS.filter((a, i) => !a.startsWith('--') && i !== I_CENA + 1);
+// Sem --cena, I_CENA é -1 e I_CENA+1 vira 0 — o filtro descartava o PRIMEIRO marco
+// passado na linha de comando. `capturar.js M1 M2` capturava só o M2, em silêncio.
+const filtro = ARGS.filter((a, i) => !a.startsWith('--') && (I_CENA < 0 || i !== I_CENA + 1));
 
 const TETO_CENA = 45000;    // uma cena que passa disso está emperrada, não lenta
 const TETO_MARCO = 420000;  // 7 min: teto do marco inteiro, some das cenas + folga

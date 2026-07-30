@@ -183,9 +183,9 @@ function tres({ cena, kicker, titulo, versoes, conclusao, nota }) {
   const ok = versoes.filter(v => tem(v.marco, cena));
   if (ok.length < 2) { console.error(`  (slide "${titulo}" pulado — falta captura de ${cena})`); return false; }
   add(`<section class="slide">${topo(kicker, ok.map(v => quando(marco(v.marco))).join(' → '))}
-    <div class="corpo" style="bottom:238px">
-      <h2 class="titulo" style="font-size:44px;margin-bottom:18px">${esc(titulo)}</h2>
-      <div class="t3" style="height:calc(100% - 70px)">
+    <div class="corpo" style="bottom:262px">
+      <h2 class="titulo" style="font-size:42px;margin-bottom:16px">${esc(titulo)}</h2>
+      <div class="t3" style="height:calc(100% - 66px)">
         ${ok.map(v => `<div class="t3-col${v.marco === 'M8' ? ' atual' : ''}">
           <div class="t3-img" style="--ar:${ar(img(v.marco, cena))}"><img src="${img(v.marco, cena)}" alt="${esc(v.rotulo)}"></div>
           <div class="t3-cab"><span class="r">${esc(v.rotulo)}</span>
@@ -284,7 +284,7 @@ function ganhos({ kicker, titulo, itens, nota, evid }) {
   return true;
 }
 
-// PADRÃO 9 — mega linha do tempo: os 77 commits num quadro só.
+// PADRÃO 9 — mega linha do tempo: todos os commits do repositório num quadro só.
 // Colunas por DIA, com largura proporcional ao número de commits daquele dia, e uma faixa
 // por área do produto. Espaçar os dias por igual esconderia o que mais importa: metade do
 // trabalho aconteceu em dois dias.
@@ -384,7 +384,7 @@ add(`<section class="slide escuro">
   <h1>Luma<br><em>de uma necessidade<br>a um produto</em></h1>
   <div class="csub">Uma visão visual da transformação da plataforma — reconstruída executando o código de cada época.</div>
   <div class="meta">
-    <div><b>Período</b>anterior a 16/07/2026 → 30/07/2026</div>
+    <div><b>Período</b>anterior a 16/06/2026 → 30/07/2026</div>
     <div><b>Evidência</b>${totalShots} capturas reais, ${M.commits} commits</div>
     <div><b>Método</b>cada versão foi executada, não descrita</div>
   </div>
@@ -419,7 +419,7 @@ add(`<section class="slide">${topo('O que veremos')}
 
 // ══ 3 · O PONTO DE PARTIDA ══════════════════════════════════════════════════
 if (tem('M0', 'home')) {
-  add(`<section class="slide">${topo('O ponto de partida', 'anterior a 16/07/2026')}
+  add(`<section class="slide">${topo('O ponto de partida', 'anterior a 16/06/2026')}
     <div class="corpo" style="display:flex;gap:44px">
       <div style="flex:1.3;display:flex;flex-direction:column;justify-content:center;min-width:0">
         <div class="moldura" style="--ar:${ar(img('M0','home'))}"><img src="${img('M0','home')}" alt="Piloto Yungas"></div>
@@ -428,27 +428,51 @@ if (tem('M0', 'home')) {
       </div>
       <div style="flex:.85;display:flex;flex-direction:column;justify-content:center;min-width:0">
         <h2 class="titulo" style="font-size:50px">Nem se<br>chamava Luma</h2>
-        <div class="sub" style="font-size:21px">Um arquivo HTML só, identidade vermelha, e nenhuma tela de entrada: o app abria com o assistente já na pergunta 1 de 4.</div>
+        <div class="sub" style="font-size:21px">Um arquivo HTML só, identidade vermelha, e nenhuma tela de entrada. Em <b>16/06</b> o repositório já nasce com o nome Luma e 85 arquivos — este monolito é o que veio antes disso.</div>
         <div class="numeros" style="grid-template-columns:1fr 1fr;margin-top:28px">
           <div class="card"><div class="v">1</div><div class="r">arquivo,<br>565 KB</div></div>
           <div class="card"><div class="v">9.316</div><div class="r">linhas, tudo<br>no mesmo lugar</div></div>
           <div class="card"><div class="v">266</div><div class="r">funções — já com os<br>prefixos d*, f* e g*</div></div>
-          <div class="card"><div class="v">0</div><div class="r">backend:<br>rodava no navegador</div></div>
+          <div class="card"><div class="v">85</div><div class="r">arquivos no Luma<br>dois meses depois</div></div>
         </div>
       </div>
     </div>
     ${rodape('execução real do arquivo preservado')}
   </section>`,
-  `O slide que ancora tudo. O arquivo **roda** — é o HTML original executado agora, não um print de arquivo morto.
-Seja honesto na origem: é a primeira versão **conhecida e preservada**, entregue fora do repositório. Não é o primeiro commit — o git não guarda o começo.
-Dois detalhes fortes: a fonte da marca já vinha embutida em base64, e a convenção de prefixos do código de hoje nasceu aqui.
-~1min.`,
-  { tipo: 'Arquivo histórico fornecido', imagens: [img('M0','home')], quando: 'anterior a 16/07/2026',
+  `O arquivo **roda** — é o HTML original executado agora, não um print de arquivo morto.
+Seja honesto na origem: o git guarda o começo do Luma, mas não guarda este arquivo. Ele é anterior a 16/06, quando o repositório já nasce com o nome Luma e 85 módulos.
+A convenção de prefixos do código de hoje nasceu aqui.
+~50s.`,
+  { tipo: 'Arquivo histórico fornecido', imagens: [img('M0','home')], quando: 'anterior a 16/06/2026',
     obs: 'HTML original servido offline, sem alteração de código. Contagens medidas no próprio arquivo.' });
 }
 
+// O elo entre o piloto e o git: mesma tela, dois nomes.
+if (tem('M0', 'home') && tem('M1', 'home')) {
+  add(`<section class="slide">${topo('De Yungas a Luma', 'anterior a 16/06 → 16/06/2026')}
+    <div class="corpo" style="bottom:214px">
+      <h2 class="titulo" style="font-size:46px;margin-bottom:20px">A mesma tela, dois nomes</h2>
+      <div class="telas" style="height:calc(100% - 74px)">
+        ${painel('M0', 'home', 'Yungas · Módulo de Artes', { cls: 'eti-antes', txt: 'antes do git' },
+          'Vermelho, arquivo único de 565 KB. Catálogo à esquerda, assistente no centro, prévia à direita.')}
+        ${painel('M1', 'home', 'Luma · Creative Automation', { cls: 'eti-hoje', txt: 'primeiro commit' },
+          'Laranja, 85 arquivos separados. <b>A mesma estrutura, as mesmas campanhas</b> — trocaram o nome e a cor.')}
+      </div>
+    </div>
+    <div class="conclusao">O piloto não foi jogado fora: ele <b>virou</b> o Luma. O monolito de 565 KB foi partido em 85 arquivos, a marca mudou de Yungas para Luma, e a tela seguiu igual — até as campanhas de exemplo são as mesmas.</div>
+    ${rodape('duas execuções reais')}
+  </section>`,
+  `O elo perdido da apresentação. Estas duas telas estão a poucos dias uma da outra e mostram a mesma coisa com outra identidade.
+Repare nas campanhas: Combo Smash, Hamburguer Fest, Frete Grátis — idênticas nas duas.
+O que mudou entre uma e outra não foi a interface: foi a arquitetura, de um arquivo para oitenta e cinco.
+~50s.`,
+  { tipo: 'Captura real', imagens: [img('M0','home'), img('M1','home')],
+    quando: 'anterior a 16/06 → 2026-06-16 (936c6d3)',
+    obs: 'Duas execuções reais: o arquivo do piloto e o segundo commit do repositório.' });
+}
+
 // ══ 4 · LINHA DO TEMPO ══════════════════════════════════════════════════════
-add(`<section class="slide">${topo('Linha do tempo', `${MARCOS.length} marcos · ${M.commits} commits em 15 dias`)}
+add(`<section class="slide">${topo('Linha do tempo', `${MARCOS.length} marcos · ${M.commits} commits em 45 dias`)}
   <div class="corpo" style="display:flex;align-items:center">
     <div class="tl"><div class="tl-eixo"></div><div class="tl-itens">
       ${MARCOS.map(m => `<div class="tl-item ${m.id === 'M0' || m.id === 'M8' ? 'forte' : ''}">
@@ -464,7 +488,7 @@ add(`<section class="slide">${topo('Linha do tempo', `${MARCOS.length} marcos ·
   ${rodape('')}
 </section>`,
 `Cinco marcos escolhidos por diferença visual clara — não por serem recentes.
-O histórico versionado é curto: 15 dias, ${M.commits} commits, e metade deles no primeiro dia. A forma que importa é: um piloto, uma fundação enorme, duas semanas de refino e um salto de capacidade no fim.
+O histórico cobre 45 dias e ${M.commits} commits. A forma que importa: junho é de fundação com um autor só, julho traz o time e o volume, e 15 e 16/07 sozinhos concentram 45% de tudo.
 ~50s.`,
 { tipo: 'Captura real', imagens: [], quando: `${M.primeiro} → ${M.ultimo}`,
   obs: 'Datas e hashes conferidos com git log.' });
@@ -515,14 +539,14 @@ tres({
   titulo: 'A vitrine, nos três pontos',
   versoes: [
     { marco: 'M1', rotulo: 'Primeiro commit', difs: [
-      'Chamada <b>"Seu espaço criativo"</b>, com a promessa de tempo no subtítulo.',
-      'Busca genérica: <b>"Busque por tema ou ocasião"</b>.',
-      'Dois botões no cabeçalho: <b>Ajuda</b> e <b>Minhas artes</b>.',
-      { t: 'Sem filtro de campanha.', nao: true }
+      'Não existe vitrine: o app <b>abre no assistente</b>, com o catálogo numa coluna estreita.',
+      'É o layout do piloto Yungas — <b>trocando o vermelho pelo laranja</b>.',
+      'A topbar tem uma aba a mais, <b>Dados</b>, que desapareceria depois.',
+      { t: 'Sem tela de entrada, sem destaque, sem filtro.', nao: true }
     ]},
     { marco: 'M4', rotulo: 'Véspera da 1.0', difs: [
-      'Estrutura da chamada <b>inalterada</b> desde 16/07.',
-      'Duas semanas de trabalho foram em <b>sync, segurança e PSD</b> — não nesta tela.',
+      'A vitrine <b>já nasceu</b>: saudação, busca e grade de campanhas.',
+      'O assistente saiu do centro e virou uma etapa depois da escolha.',
       { t: 'Ainda sem filtro nem campanha em destaque.', nao: true }
     ]},
     { marco: 'M8', rotulo: 'Hoje', difs: [
@@ -532,8 +556,9 @@ tres({
       'Campanha da semana em <b>destaque</b>, com formatos e prazo.'
     ]}
   ],
-  conclusao: 'Entre o primeiro commit e a véspera da 1.0 a tela <b>quase não muda</b> — o esforço daquelas duas semanas foi em robustez. O salto visual vem depois da 1.0.',
-  nota: `Comparação de três pontos do git. O do meio é o mais revelador: prova que a 1.0 foi declarada sobre uma base endurecida, não redesenhada.
+  conclusao: 'A vitrine <b>não existia no primeiro commit</b>. O Luma nasceu com a mesma tela do piloto — o assistente no centro — e só ganhou uma porta de entrada um mês depois.',
+  nota: `A comparação mais reveladora do bloco. O quadro da esquerda é 16/06: o Luma no dia em que entrou no git, com o layout herdado do piloto e só a cor trocada.
+A vitrine aparece em julho — foi ela que deu onde morar ao destaque, à busca e ao histórico.
 ~50s.`
 });
 
@@ -542,13 +567,13 @@ tres({
   titulo: 'A campanha aberta, nos três pontos',
   versoes: [
     { marco: 'M1', rotulo: 'Primeiro commit', difs: [
-      'Cards de campanha são <b>blocos de cor com texto</b>, sem capa real.',
-      'Coluna da direita é <b>"Prévia digital"</b>, com barra de prova (Postado, Limpo, Guias).',
-      { t: 'Sem atalho de ajuda na tela.', nao: true }
+      'A campanha abre num <b>estado vazio</b>: "Nosso time está trabalhando!".',
+      'Havia catálogo, mas <b>nenhum material</b> para escolher dentro dele.',
+      'Cards são blocos de cor com texto, sem capa real.'
     ]},
     { marco: 'M4', rotulo: 'Véspera da 1.0', difs: [
-      'Mesma estrutura de rail e de prévia.',
-      'O que mudou no período está <b>por baixo</b>: o franqueado parou de gravar base64 no banco.'
+      'A campanha ganhou <b>materiais de verdade</b> e a pergunta "Por onde você quer começar?".',
+      'Prévia à direita com barra de prova (Postado, Limpo, Guias).'
     ]},
     { marco: 'M8', rotulo: 'Hoje', difs: [
       'Cards passam a exibir a <b>capa real</b> da campanha, vinda do banco.',
@@ -557,8 +582,9 @@ tres({
       'Entra o <b>atalho de ajuda</b> flutuante.'
     ]},
   ],
-  conclusao: 'A diferença mais concreta está nos cards: eles deixaram de ser <b>cor com texto</b> e passaram a mostrar a arte real que o time publicou.',
-  nota: `Aponte os cards da esquerda e os da direita. A mudança de bloco de cor para capa real é o que dá ao franqueado a chance de reconhecer a campanha antes de abrir.
+  conclusao: 'Em junho a campanha era uma <b>promessa vazia</b> — "nosso time está trabalhando". Hoje chega com capa real, formatos e prazo, publicada pelo próprio time sem tocar em código.',
+  nota: `O quadro da esquerda é honesto sobre o estágio de junho: a estrutura existia, o conteúdo não.
+Cada capa que aparece à direita foi publicada sem passar pela engenharia — é o efeito de 247bcd4.
 ~50s.`
 });
 
@@ -593,14 +619,15 @@ tres({
   titulo: 'O Estúdio, nos três pontos',
   versoes: [
     { marco: 'M1', rotulo: 'Primeiro commit', difs: [
-      'Título <b>"Dê forma à próxima campanha"</b>.',
-      'Campanha de destino num <b>menu suspenso</b> à direita.',
-      '"Abertos recentemente" com <b>estado vazio</b> — nada para reencontrar.',
-      { t: 'Sem biblioteca, sem busca, sem filtro.', nao: true }
+      'Abre <b>direto no canvas escuro</b>, sem tela intermediária.',
+      'Campanhas num painel colorido à direita, com Nova pasta e Importar PSD.',
+      'Simular, Preview e <b>Publicar</b> já estão no topo.',
+      { t: 'Sem home, sem biblioteca, sem busca.', nao: true }
     ]},
     { marco: 'M4', rotulo: 'Véspera da 1.0', difs: [
-      'Mesma tela do primeiro commit.',
-      'Ganhos do período foram no motor: <b>IDs sempre UUID</b> e colisão de função corrigida.'
+      'Nasce a <b>home do Estúdio</b>: "Dê forma à próxima campanha".',
+      'Três portas de entrada e um menu de campanha de destino.',
+      { t: '"Abertos recentemente" ainda vazio.', nao: true }
     ]},
     { marco: 'M8', rotulo: 'Hoje', difs: [
       'Título vira <b>"Crie seu próximo material"</b> — a ação, não a metáfora.',
@@ -609,9 +636,9 @@ tres({
       'Entram <b>busca</b> e dois filtros — por campanha e por status.'
     ]},
   ],
-  conclusao: 'A maior transformação do produto está aqui: de uma tela que só <b>iniciava</b> trabalho para uma que também <b>guarda e reencontra</b> o que já foi feito.',
-  nota: `Este é o slide mais forte do bloco. À esquerda, "Abertos recentemente: 0 materiais". À direita, uma biblioteca com busca e filtro.
-A diferença não é estética — é a diferença entre uma ferramenta e um acervo.
+  conclusao: 'Três estágios visíveis: <b>canvas puro</b> em junho, <b>uma porta de entrada</b> em julho, <b>um acervo</b> hoje. A diferença entre o primeiro e o último é a diferença entre uma ferramenta e uma biblioteca.',
+  nota: `O slide mais forte do bloco, e agora com o estágio que faltava: em junho o Estúdio era só o canvas — abria com a prancheta preta e as ferramentas em volta.
+A home aparece em julho; a biblioteca com busca e status, só no fim.
 ~1min.`
 });
 
@@ -644,18 +671,20 @@ tres({
   titulo: 'O histórico: a tela que já nasceu pronta',
   versoes: [
     { marco: 'M1', rotulo: 'Primeiro commit', difs: [
-      '"Sua biblioteca criativa", com estado vazio que <b>ensina o caminho</b>.',
-      'Ajuda, Início e <b>Nova arte</b> no cabeçalho.'
+      'É uma <b>aba na coluna estreita</b>, não uma tela: divide espaço com o assistente.',
+      'Filtros já existem — Todas, Rascunhos, Baixadas — todos zerados.',
+      'O vazio diz "Ainda não <b>tens</b> artes geradas": português de Portugal.'
     ]},
     { marco: 'M4', rotulo: 'Véspera da 1.0', difs: [
-      '<b>Idêntica</b> à do primeiro commit.'
+      'Vira <b>tela inteira</b>: "Sua biblioteca criativa".',
+      'O vazio passa a ensinar o caminho, com "Explorar campanhas".'
     ]},
     { marco: 'M8', rotulo: 'Hoje', difs: [
       'Ainda <b>praticamente igual</b> — mudou o atalho de ajuda, que virou flutuante.',
       'O que evoluiu foi <b>invisível</b>: o histórico saiu do navegador e foi para o banco.'
     ]},
   ],
-  conclusao: 'O contraexemplo útil da apresentação: <b>nem toda evolução aparece na tela</b>. Esta ficou igual enquanto ganhava trava de escrita, releitura antes de regravar e aviso de conflito entre aparelhos.',
+  conclusao: 'Saiu de uma aba espremida para uma tela própria — e aí <b>parou</b>. O contraexemplo útil da apresentação: entre julho e hoje ela ganhou trava de escrita e aviso de conflito sem mudar um pixel.',
   nota: `Slide honesto e importante. Se todas as telas mudassem muito, a apresentação estaria contando a história errada.
 Esta chegou certa no primeiro dia. O trabalho foi fazer o dado sobreviver por trás dela.
 ~45s.`
