@@ -753,78 +753,102 @@ function fGenCaptionSuggestions(dados, camp, formato) {
   ];
 }
 
-// Helper global para obter a chave Gemini (do config, window ou localStorage)
-function gGetGeminiApiKey() {
-  return window.LUMA_GEMINI_API_KEY || (typeof LUMA_CONFIG !== 'undefined' && LUMA_CONFIG.geminiApiKey) || localStorage.getItem('luma_gemini_api_key') || '';
-}
-// Modelo dos agentes — vem do 00-config.js; o literal é só rede de segurança se este
-// arquivo for carregado sozinho. Trocar o modelo é UMA edição, no config.
-function gGetGeminiModel() {
-  return window.LUMA_GEMINI_MODEL || localStorage.getItem('luma_gemini_model') || 'gemini-flash-latest';
+// Selo de ORIGEM da legenda. O painel dizia "Gerado por IA" SEMPRE — inclusive quando
+// a legenda vinha do motor local (sem rede/sem chave). App que mente é bug (luma-brain §1.4);
+// agora o selo segue o flag _ia que fFetchAICaptionSuggestions já devolvia.
+const _ICO_SPARK = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg>';
+const _ICO_PEN = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+function _fCaptionSrcTag(suggestions){
+  const ia = !!(suggestions && suggestions._ia);
+  const modelo = (typeof gAiModel === 'function') ? gAiModel() : '';
+  return ia
+    ? `<span class="caption-src is-ia" title="Texto gerado por Inteligência Artificial${modelo ? ' (' + gEsc(modelo) + ')' : ''} — confira antes de publicar">${_ICO_SPARK}Gerado por IA</span>`
+    : `<span class="caption-src" title="Escrito pelo motor de copy do Luma (sem IA)">${_ICO_PEN}Sugestão do Luma</span>`;
 }
 
 /**
- * Agente 1: Copywriter Gastronômico Inteligente do Luma (Google Gemini API)
+ * Agente Copywriter do Luma. Transporte e chave ficam no motor único (core/ai.js);
+ * aqui vive só o PROMPT — o que a legenda tem que ser.
+ *
+ * Regras que o prompt carrega (e por quê):
+ * - Zero emoji: regra de marca antiga desta base (o SVG é o ícone, o emoji não).
+ * - Nada de inventar preço, validade ou benefício: a legenda acompanha uma arte
+ *   com dados reais; texto que promete o que a peça não diz vira reclamação na loja.
+ * - Uma ANGULAÇÃO por opção (vender / engajar / lista de WhatsApp) e formato certo
+ *   por canal — story é curto, feed é completo, WhatsApp usa *negrito*.
+ * - Ancorado na cidade: é a alavanca real do franqueado (hiperlocal, 00_PRODUCT §1).
+ * O motor local (fBuildCopy, via fGenCaptionSuggestions) segue sendo o fallback —
+ * sem rede, sem chave ou com resposta torta, a legenda continua saindo.
  */
 async function fFetchAICaptionSuggestions(dados, camp, formato) {
   const fallback = fGenCaptionSuggestions(dados, camp, formato);
   fallback._ia = false;   // marca a ORIGEM: a UI rotula IA x motor local (ver painel de legenda)
-  const apiKey = gGetGeminiApiKey();
+  if (typeof gAskAI !== 'function' || !gAiReady()) return fallback;
 
-  if (!apiKey) {
-    return fallback;
-  }
+  const prod = dados.produto || dados.item || dados.categoria || dados.oferta || (camp && camp.name) || 'Oferta especial';
+  const de = dados.precoDe ? `R$ ${dados.precoDe}` : '';
+  const por = dados.precoPor ? `R$ ${dados.precoPor}` : (dados.preco ? `R$ ${dados.preco}` : '');
+  const val = dados.validade || '';
+  const desc = dados.desconto || dados.detalhes || '';
+  const campName = (camp && camp.name) ? camp.name : 'Delivery Much';
+  const cidade = dados.cidade || (typeof fState !== 'undefined' && fState.dados && fState.dados.cidade) || '';
+  const cidadeTag = cidade.replace(/[^a-zA-Z0-9]/g, '');
+  const fmtId = (formato && formato.id) || (typeof fState !== 'undefined' && fState.fmt && fState.fmt.id) || 'feed';
+  const ehStory = fmtId === 'story';
 
-  try {
-    const prod = dados.produto || dados.item || 'Oferta Especial';
-    const de = dados.precoDe ? `R$ ${dados.precoDe}` : '';
-    const por = dados.precoPor ? `R$ ${dados.precoPor}` : (dados.preco ? `R$ ${dados.preco}` : '');
-    const val = dados.validade || 'Tempo limitado';
-    const campName = (camp && camp.name) ? camp.name : 'Delivery Much';
+  // Só entra no prompt o que EXISTE — campo vazio virava "por undefined" / "validade: Tempo limitado"
+  // inventado, e o modelo repetia a invenção na legenda.
+  const fatos = [
+    `Produto: ${prod}`,
+    de ? `Preço antigo: ${de}` : '',
+    por ? `Preço promocional: ${por}` : '',
+    desc ? `Vantagem: ${desc}` : '',
+    val ? `Validade: ${val}` : '',
+    `Campanha: ${campName}`,
+    cidade ? `Cidade do franqueado: ${cidade}` : ''
+  ].filter(Boolean).join('\n');
 
-    const cidade = dados.cidade || (typeof fState !== 'undefined' && fState.dados && fState.dados.cidade) || 'Sua Cidade';
-    const cidadeTag = cidade.replace(/[^a-zA-Z0-9]/g, '');
+  const hashtags = cidadeTag
+    ? `Termine com hashtags: #${cidadeTag} #Delivery${cidadeTag} #DeliveryMuch`
+    : `Termine com hashtags: #DeliveryMuch #Delivery`;
 
-    const systemPrompt = `Você é o Agente Copywriter do Luma (Delivery Much), especializado em marketing gastronômico para delivery no interior do Brasil.
-Gere 3 opções de legendas atraentes para Instagram/WhatsApp sobre o produto "${prod}" (${de ? 'De ' + de : ''} por apenas ${por}, validade: ${val}, campanha: ${campName}, cidade: ${cidade}).
+  const prompt = `Você escreve legendas para o Delivery Much, o app de delivery das cidades do interior do Brasil. Quem publica é o franqueado da cidade — dono do app ali, vizinho do cliente. Tom: simples, amigável, direto e próximo; português do Brasil; frase curta; nada de jargão de agência nem de "imperdível/incrível".
+
+FATOS DA PEÇA (a legenda acompanha uma arte com estes dados):
+${fatos}
 
 REGRAS OBRIGATÓRIAS:
-1. NUNCA USE EMOJIS (é estritamente proibido incluir qualquer tipo de emoji no texto).
-2. Inclua hashtags automáticas ao final de cada legenda com base na cidade (${cidade}), ex: #${cidadeTag} #Delivery${cidadeTag} #DeliveryMuch.
+1. NUNCA use emoji — nenhum, em nenhuma opção.
+2. NÃO invente preço, prazo, brinde, frete ou benefício que não esteja nos fatos acima. Sem preço nos fatos, escreva sem citar valor.
+3. As 3 opções têm ângulos DIFERENTES entre si — não reescreva a mesma frase.
+4. ${ehStory ? 'Formato STORY: no máximo 2 linhas curtas em "promo" e "engajar" (texto que caiba num story, leitura de 2 segundos).' : 'Formato FEED: "promo" e "engajar" podem ter 2 a 4 linhas.'}
+5. ${hashtags} — só em "promo" e "engajar". A opção "whatsapp" NÃO leva hashtag.
+6. "whatsapp" é mensagem pra lista de transmissão: usa *asteriscos* pra negrito e chama pra pedir no app.
 
-Retorne APENAS um JSON válido no formato exato:
-{
-  "promo": "texto da legenda de promoção/vendas com hashtags da cidade ao final",
-  "engajar": "texto da legenda de engajamento/comentários com hashtags da cidade ao final",
-  "whatsapp": "texto formatado para lista do WhatsApp com *negritos* e hashtags da cidade ao final"
-}`;
+Responda APENAS com JSON válido:
+{"promo":"legenda que vende (foco na oferta)","engajar":"legenda que puxa comentário/marcação de amigo","whatsapp":"mensagem curta pra lista do WhatsApp com *negrito*"}`;
 
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${gGetGeminiModel()}:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: systemPrompt }] }],
-        generationConfig: { responseMimeType: 'application/json' }
-      })
-    });
+  const texto = await gAskAI('legenda', prompt, { json: true });
+  const parsed = texto && (typeof gAiParseJson === 'function' ? gAiParseJson(texto) : null);
+  if (!parsed) return fallback;
 
-    if (!res.ok) throw new Error('API Gemini respondeu erro ' + res.status);
-    const data = await res.json();
-    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!rawText) throw new Error('Resposta vazia');
-
-    const parsed = JSON.parse(rawText);
-    const out = [
-      { id: 'promo', label: 'Promo', text: parsed.promo || fallback[0].text },
-      { id: 'engajar', label: 'Engajar', text: parsed.engajar || fallback[1].text },
-      { id: 'whatsapp', label: 'WhatsApp', text: parsed.whatsapp || fallback[2].text }
-    ];
-    out._ia = true;
-    return out;
-  } catch (err) {
-    console.warn('[Luma IA Copywriter] Usando fallback local:', err);
-    return fallback;
-  }
+  const limpa = (v, i) => {
+    let s = (typeof v === 'string' ? v : '').trim();
+    // Cinto de segurança da regra 1: modelo às vezes escorrega um emoji. Tira em vez de
+    // devolver peça fora do padrão de marca.
+    s = s.replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}]/gu, '').replace(/[ \t]{2,}/g, ' ').trim();
+    return s || fallback[i].text;
+  };
+  const out = [
+    { id: 'promo', label: 'Promo', text: limpa(parsed.promo, 0) },
+    { id: 'engajar', label: 'Engajar', text: limpa(parsed.engajar, 1) },
+    { id: 'whatsapp', label: 'WhatsApp', text: limpa(parsed.whatsapp, 2) }
+  ];
+  // Regra 3 conferida no código, não só pedida no prompt: opção repetida cai pro motor local.
+  if (out[1].text === out[0].text) out[1].text = fallback[1].text;
+  if (out[2].text === out[0].text) out[2].text = fallback[2].text;
+  out._ia = true;
+  return out;
 }
 
 /**
@@ -953,7 +977,7 @@ function fGerarArte(){
 
     const captionHtml = `<div class="caption-assistant-panel" data-canvas-id="${previewCanvasId}" data-active-tab="promo">
       <div class="caption-assistant-title">Legenda do Post
-        <span class="caption-src is-ia" title="Texto gerado por Inteligência Artificial (Gemini 3.6 Flash)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg>Gerado por IA (Gemini 3.6 Flash)</span>
+        ${_fCaptionSrcTag(suggestions)}
       </div>
       <div class="caption-tabs">
         ${suggestions.map((s, idx) => `
@@ -1087,6 +1111,10 @@ async function fOutroFormato(id, snapId){
       const selected = suggestions.find(s => s.id === activeTabId) || suggestions[0];
       box.innerHTML = gEsc(selected.text).replace(/\n/g, '<br>');
     }
+
+    // Origem pode mudar entre formatos (a IA pode falhar só numa das chamadas)
+    const srcOld = panel.querySelector('.caption-src');
+    if (srcOld) srcOld.outerHTML = _fCaptionSrcTag(suggestions);
 
     // Atualiza a fileira de formatos secundários (.fmt-mini) no card correspondente
     const card = panel.closest('.art-wrap');

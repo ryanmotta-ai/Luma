@@ -370,6 +370,32 @@ body:not(.theme-light) .confirm-progress-track{background:var(--d-surf2)}
 .f-msg-box-transition{transition:opacity .15s ease,color .15s ease;opacity:.2;color:var(--dm-orange)!important}
 #f-char-count{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--text-3);font-weight:500;pointer-events:none;letter-spacing:.02em;font-variant-numeric:tabular-nums}
 #f-char-count.warn{color:var(--dm-red);font-weight:700}
+/* ENCAIXAR NO LIMITE (chat-input.js: _fFitSync/fFitTextWithAI) — o botão vive DENTRO do
+   campo, à esquerda do contador; a classe .has-fit abre espaço no padding em vez de medir
+   largura em JS. Só existe no DOM quando há texto cortado e IA disponível. */
+#f-input-wrap.has-fit #f-msg-box{padding-right:132px}
+.f-fit-btn{position:absolute;right:52px;top:50%;transform:translateY(-50%);display:inline-flex;align-items:center;gap:4px;
+  padding:3px 9px;border:1px solid var(--dm-orange-tint);border-radius:var(--r-pill);background:var(--dm-orange-bg);
+  color:var(--dm-orange-d);font-family:'Roboto',sans-serif;font-size:10px;font-weight:800;letter-spacing:.03em;cursor:pointer;
+  transition:background var(--dur-fast) var(--ease-standard),transform var(--dur-fast) var(--ease-spring)}
+.f-fit-btn:hover{background:var(--dm-orange-tint);transform:translateY(-50%) scale(1.03)}
+.f-fit-btn:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+.f-fit-btn.is-loading{opacity:.6;pointer-events:none}
+.f-fit-btn.is-loading svg{animation:gSpin 1s linear infinite}
+.f-fit-pop{position:absolute;right:0;bottom:calc(100% + 8px);z-index:30;min-width:260px;max-width:min(420px,80vw);
+  background:var(--white);border:1px solid var(--gray-light);border-radius:12px;box-shadow:0 12px 32px rgba(10,10,10,.14);
+  padding:6px;animation:gFadeInUp var(--dur-fast) var(--ease-out) both}
+.f-fit-pop-head{padding:6px 8px 4px;font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3)}
+.f-fit-opt{display:flex;align-items:center;gap:8px;width:100%;padding:7px 8px;border:none;background:transparent;border-radius:8px;
+  cursor:pointer;text-align:left;font-family:'Roboto',sans-serif;font-size:12px;color:var(--text);
+  transition:background var(--dur-fast) var(--ease-standard)}
+.f-fit-opt:hover{background:var(--dm-orange-bg)}
+.f-fit-opt span{flex:1;min-width:0}
+.f-fit-opt em{flex-shrink:0;font-style:normal;font-size:9px;font-weight:700;color:var(--text-3);font-variant-numeric:tabular-nums}
+.f-fit-pop-foot{padding:4px 8px 6px;font-size:9px;color:var(--text-3)}
+body:not(.theme-light) .f-fit-pop{background:var(--d-surf);border-color:var(--d-border)}
+body:not(.theme-light) .f-fit-opt{color:var(--d-text)}
+body:not(.theme-light) .f-fit-opt:hover{background:var(--d-surf2)}
 .bbl-err{background:rgba(200,24,24,.08)!important;border:1px solid rgba(200,24,24,.25)!important;color:var(--dm-red)!important;font-weight:500}
 .step-label{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--dm-orange-d);background:var(--dm-orange-bg);padding:2px 7px;border-radius:3px;margin-right:8px;vertical-align:middle;animation:gFadeIn .3s ease-out both}
 .field-hint{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:4px 9px;background:var(--gray-light);border-radius:var(--r-pill);font-size:10px;color:var(--text-2);font-weight:500;animation:gFadeInUp .3s ease-out .15s both;opacity:0}
