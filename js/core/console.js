@@ -71,17 +71,23 @@ const G_CLI_CMDS = {
       L.push(`${dot(iaOk ? 'ok' : 'warn')} ia          ${iaOk ? gEsc(modelo) : 'sem caminho (nem function, nem chave)'}`);
       // 4. catálogo local
       const pastas = (typeof dFolders !== 'undefined' && dFolders) ? dFolders : [];
-      let tmpls = 0, pend = 0, semRemote = 0, lazy = 0;
+      let tmpls = 0, pend = 0, semRemote = 0, lazy = 0, capaLocal = 0, semCapa = 0;
       pastas.forEach(f => {
         (f.templates || []).forEach(t => { tmpls++; if (t._syncPending) pend++; if (t._needsLayersFetch) lazy++; });
         if (!f.remoteId) semRemote++;
+        const cv = String(f.cover || '');
+        if (cv.startsWith('data:') || cv.indexOf('idb://') === 0 || cv === '__local__') capaLocal++;
+        else if (!cv) semCapa++;
       });
       L.push(`${dot(pastas.length ? 'ok' : 'warn')} local       ${pastas.length} pasta(s) · ${tmpls} material(is)${lazy ? ' · ' + lazy + ' sem layers baixados' : ''}`);
       L.push(`${dot(pend ? 'warn' : 'ok')} pendências  ${pend} material(is) não sincronizado(s)${semRemote ? ' · ' + semRemote + ' pasta(s) só local' : ''}`);
       // 5. deleções que falharam
       const del = (typeof gPendingDeletes === 'function') ? gPendingDeletes() : [];
       L.push(`${dot(del.length ? 'warn' : 'ok')} deleções    ${del.length} na fila de retry`);
-      // 6. localStorage
+      // 6. capas — a pergunta "por que a capa nova não pega?" morre aqui.
+      // Capa em data:/idb:// é capa que NÃO subiu pro Storage: o push omite o cover_url e o
+      // pull seguinte devolve vazio. Junto com o teste do bucket abaixo, dá a causa.
+      L.push(`${dot(capaLocal ? 'err' : 'ok')} capas       ${capaLocal} pasta(s) com capa só local (não subiu) · ${semCapa} sem capa`);
       let bytes = 0, chaves = 0;
       try {
         for (let i = 0; i < localStorage.length; i++) {
@@ -107,6 +113,15 @@ const G_CLI_CMDS = {
           if (np > 0 && nt === 0) L.push(`  <span class="cli-err">↑ pastas no banco e ZERO materiais é a assinatura do sync quebrado (migration não aplicada).</span>`);
         } catch (e) {
           L.push(`${dot('err')} banco       falhou ao consultar: ${gEsc(String(e && e.message || e))}`);
+        }
+        // Bucket da capa: se ele não responde, capa nova NUNCA pega (o push omite o
+        // cover_url e o pull devolve vazio). É o teste que nomeia essa causa.
+        try {
+          const { error: eB } = await sb.storage.from('luma-covers').list('', { limit: 1 });
+          L.push(`${dot(eB ? 'err' : 'ok')} bucket capa ${eB ? 'luma-covers NÃO responde: ' + gEsc(eB.message || '') : 'luma-covers ok'}`);
+          if (eB) L.push(`  <span class="cli-err">↑ sem este bucket a capa fica só no aparelho: o upload falha e o banco segue sem capa.</span>`);
+        } catch (e) {
+          L.push(`${dot('err')} bucket capa falhou ao testar: ${gEsc(String(e && e.message || e))}`);
         }
       } else {
         L.push(`${dot('warn')} banco       não consultado (sem backend ou sem sessão)`);

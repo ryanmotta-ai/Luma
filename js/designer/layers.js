@@ -2897,9 +2897,20 @@ async function _dPushFoldersNow(){
     let idx=-1;
     for(const f of (dFolders||[])){ idx++;
       if(!f.remoteId) f.remoteId=_dUuid('p');
+      let _capaPend=false;
       if(typeof f.cover==='string' && f.cover.startsWith('data:')){
         const cu=await _dUploadDataUrl('luma-covers', f.remoteId+'/cover', f.cover);
         if(cu) f.cover=cu;
+        else{
+          // ⚠ Este era um erro 100% MUDO, e é o "não consigo trocar a capa": o upload falha,
+          // o cover_url é OMITIDO do upsert (linha abaixo), o upsert da PASTA dá certo,
+          // _syncPending vira false e o app ainda diz "✓ Pasta atualizada". O pull seguinte
+          // troca a capa local pela vazia do banco — a capa "não pega" e ninguém sabe por quê.
+          // Agora: pendência (badge + retry no próximo save) e a causa dita em voz alta.
+          _capaPend=true;
+          console.warn('[sync] a capa de "'+(f.name||'?')+'" NÃO subiu pro Storage (bucket luma-covers) — fica só neste aparelho até um save dar certo.');
+          if(typeof gToast==='function') gToast('⚠ A capa de "'+(f.name||'?')+'" não subiu pro servidor — por ora ela vale só neste aparelho.','error');
+        }
       }
       // cover_url só entra no upsert com valor DEFINITIVO: URL pronta grava; '' (capa
       // removida pelo designer) limpa; data:/idb:///__local__ (upload pendente/só-local)
@@ -2920,7 +2931,9 @@ async function _dPushFoldersNow(){
       // Erro no upsert da pasta (rede/RLS) era 100% silencioso: a edição de campanha vivia
       // só no cache e o próximo pull a descartava. Agora marca pendência (badge) e loga.
       const { error:_pErr }=await sb.schema('luma').from('pastas').upsert(_rowPasta, {onConflict:'id'});
-      f._syncPending=!!_pErr;
+      // Capa que não subiu conta como pendência: sem isso o upsert bem-sucedido zerava o
+      // flag e a pasta ficava "sincronizada" com a capa só no cache local.
+      f._syncPending=!!_pErr || _capaPend;
       if(_pErr) console.warn('[sync] upsert da pasta falhou ('+(f.name||'?')+'):', _pErr.message||_pErr);
       for(const t of (f.templates||[])){
         // Catálogo leve: template sem layers baixados (cache de sessão franqueado) —
