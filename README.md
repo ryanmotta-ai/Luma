@@ -31,6 +31,20 @@ git clone <repo> && cd luma
 
 Roda 100% no navegador. Com Supabase configurado, sincroniza o catálogo entre dispositivos; sem credenciais, cai em modo local (`localStorage`).
 
+### Ver uma versão antiga
+
+Como não há build, **qualquer commit do passado ainda roda hoje** — dá pra abrir a tela de duas semanas atrás e comparar lado a lado:
+
+```bash
+node scripts/versao.js                 # lista as versões que mudaram tela
+node scripts/versao.js 2026-07-18      # abre a versão daquele dia
+node scripts/versao.js 24fdf80         # ou um commit específico
+node scripts/versao.js <ref> --porta 8100    # duas de uma vez, pra comparar em abas
+node scripts/versao.js --limpar        # apaga as cópias do disco
+```
+
+A cópia sobe offline, entra sem login e **não fala com o Supabase** — um front antigo escrevendo no banco de hoje daria estrago silencioso. A sua árvore de trabalho não é tocada (é um `git worktree` descartável em `/tmp`).
+
 **Detalhe técnico, arquitetura e convenções — [`docs/LUMA.md`](docs/LUMA.md)** · Contexto de produto — [`luma-brain/`](luma-brain/).
 
 ---
