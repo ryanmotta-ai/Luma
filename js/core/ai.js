@@ -22,12 +22,17 @@ const G_AI_TIMEOUT_MS = 30000;     // teto por chamada — cardápio em PDF é o
 let _gAiEdgeOk = null;             // null = não testado; false = function ausente/erra
 const _gAiCache = new Map();       // hash(task|prompt) → texto (só chamadas SEM anexo)
 
-// Há algum caminho pra IA? Serve pra UI decidir se mostra o recurso.
-// Otimista de propósito: só desliga depois de uma falha real (_gAiEdgeOk=false
-// e sem chave de transição), e aí o próximo render some com o botão.
+// Há algum caminho pra IA? A UI usa isto pra decidir se MOSTRA o recurso — então não
+// pode ser otimismo cego: botão que aparece e falha é pior que botão que não existe.
+// Sem chamar rede, dá pra saber que NÃO há caminho: ou existe sessão no Supabase (a
+// function pode responder), ou existe chave de transição no front. Nenhum dos dois =
+// modo local puro → o recurso simplesmente não aparece.
 function gAiReady(){
-  if(_gAiEdgeOk!==false) return true;
-  return !!_gAiKeyLocal();
+  if(_gAiEdgeOk===false) return !!_gAiKeyLocal();   // function ausente/quebrada → só com chave
+  if(_gAiEdgeOk===true) return true;                // já respondeu antes nesta sessão
+  const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
+  const logado=(typeof gCurrentUser==='function') ? !!gCurrentUser() : false;
+  return (!!sb && logado) || !!_gAiKeyLocal();
 }
 function _gAiKeyLocal(){
   try{
