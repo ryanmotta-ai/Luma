@@ -866,7 +866,10 @@ body:not(.theme-light) .fh-help{color:var(--d-text2)}
 body:not(.theme-light) .fh-help:hover{background:var(--d-surf2);color:var(--dm-orange)}
 body:not(.theme-light) .fh-search-row.is-stuck{background:rgba(26,26,26,.84);border-color:var(--dm-orange-tint)}
 body:not(.theme-light) .fh-search-field label{color:var(--d-text2)}
-body:not(.theme-light) .fh-hero-formats>span,body:not(.theme-light) .fh-draft-go{background:var(--d-surf2);border-color:var(--d-border2)}
+/* `color` junto: sem ele o chip herdava --text-3 (#6B6B6B) e ficava 2.69:1 sobre o
+   --d-surf2 no tema escuro. Vale pra TODO hero, não só o Much+ — só não aparecia porque
+   o tema Much+ pintava o chip de amarelo por cima. */
+body:not(.theme-light) .fh-hero-formats>span,body:not(.theme-light) .fh-draft-go{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text2)}
 body:not(.theme-light) #fh-search{color:var(--d-text)}
 body:not(.theme-light) .fh-filter-btn{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text2)}
 body:not(.theme-light) .fh-filter-btn:hover{background:rgba(255,144,0,.14);border-color:var(--dm-orange-tint);color:var(--dm-orange)}
@@ -1246,24 +1249,39 @@ body.camp-theme-muchplus #global-topbar,body.camp-theme-muchplus #view-franquead
 body.camp-theme-muchplus ::selection{background:color-mix(in srgb,var(--dm-orange) 24%,transparent)}
 
 /* Card/hero da vitrine com tema: o convite começa ANTES do clique. */
-.camp-card[data-camp-theme="muchplus"]{border-color:var(--muchplus-magenta);background:var(--muchplus-magenta);box-shadow:inset 0 4px 0 var(--muchplus-yellow),0 8px 24px color-mix(in srgb,var(--muchplus-magenta) 12%,transparent)}
-.camp-card[data-camp-theme="muchplus"] .camp-thumb{border-bottom-color:var(--muchplus-yellow);background-color:var(--white)}
-.camp-card[data-camp-theme="muchplus"] .camp-body{background:var(--muchplus-magenta);box-shadow:inset 0 3px 0 var(--muchplus-yellow)}
-.camp-card[data-camp-theme="muchplus"] .camp-name{color:var(--white)}
-.camp-card[data-camp-theme="muchplus"] .camp-sub{color:color-mix(in srgb,var(--white) 82%,var(--muchplus-magenta))}
-.camp-card[data-camp-theme="muchplus"]:hover{border-color:var(--muchplus-magenta);box-shadow:inset 0 4px 0 var(--muchplus-yellow),0 0 0 3px color-mix(in srgb,var(--muchplus-magenta) 12%,transparent),0 16px 34px color-mix(in srgb,var(--muchplus-magenta) 20%,transparent)}
-.fh-hero[data-camp-theme="muchplus"]{border-color:var(--muchplus-magenta);background:var(--white);box-shadow:inset 0 5px 0 var(--muchplus-yellow),0 18px 48px color-mix(in srgb,var(--muchplus-magenta) 14%,transparent)}
+/* Card da grade: mesmo tratamento sóbrio do hero, pela mesma razão. Deixá-lo chapado de
+   magenta com o hero calmo INVERTIA a hierarquia — o card da grade gritava mais que o
+   destaque logo acima dele, na mesma tela. Fundo, nome e legenda voltam aos tokens do
+   app (os dois temas saem de graça); o Much+ fica no filete do topo e na borda. */
+.camp-card[data-camp-theme="muchplus"]{border-color:var(--muchplus-border);box-shadow:inset 0 3px 0 var(--muchplus-magenta),0 8px 24px color-mix(in srgb,var(--muchplus-magenta) 8%,transparent)}
+.camp-card[data-camp-theme="muchplus"] .camp-thumb{background-color:var(--white)}
+.camp-card[data-camp-theme="muchplus"]:hover{border-color:var(--muchplus-magenta);box-shadow:inset 0 3px 0 var(--muchplus-magenta),0 0 0 3px color-mix(in srgb,var(--muchplus-magenta) 10%,transparent),0 16px 34px color-mix(in srgb,var(--muchplus-magenta) 14%,transparent)}
+/* ── Much+ no HERO: sóbrio (decisão do Ryan, 2026-07-30) ──
+   Antes o painel inteiro era #F8006E chapado e havia um filete amarelo de 5px entre a
+   capa e o texto. Dois problemas reais: o magenta em ~56% de um card desse tamanho
+   roubava a atenção do conteúdo (nome, formatos, CTA), e o filete lia como sobra de
+   renderização — "um pedacinho amarelo onde o banner não alcança" — em vez de divisória.
+
+   Agora o painel NÃO tem cor própria: herda o fundo do .fh-hero, então claro e escuro
+   saem de graça e o card volta a pertencer à mesma vitrine dos outros. O Much+ aparece
+   só nos acentos — barra do topo, olho-de-boi, CTA e a marca d'água. */
+.fh-hero[data-camp-theme="muchplus"]{border-color:var(--muchplus-border);box-shadow:inset 0 4px 0 var(--muchplus-magenta),0 18px 54px color-mix(in srgb,var(--muchplus-magenta) 9%,transparent)}
 .fh-hero[data-camp-theme="muchplus"] .fh-hero-cover{background-color:var(--white)}
-.fh-hero[data-camp-theme="muchplus"] .fh-hero-cover::after{border-right-color:var(--muchplus-yellow);box-shadow:inset -5px 0 0 var(--muchplus-yellow)}
-.fh-hero[data-camp-theme="muchplus"] .fh-hero-body{position:relative;background:var(--muchplus-magenta)}
-.fh-hero[data-camp-theme="muchplus"] .fh-hero-body::after{content:'MUCH+';position:absolute;right:clamp(20px,3vw,48px);bottom:18px;color:color-mix(in srgb,var(--muchplus-yellow) 14%,transparent);font-size:clamp(54px,6vw,104px);font-weight:900;line-height:.8;letter-spacing:-.08em;pointer-events:none}
+/* Sem filete: a troca de cor entre a capa e o painel já separa os dois. */
+.fh-hero[data-camp-theme="muchplus"] .fh-hero-cover::after{border-right-color:transparent}
+.fh-hero[data-camp-theme="muchplus"] .fh-hero-body{position:relative}
+.fh-hero[data-camp-theme="muchplus"] .fh-hero-body::after{content:'MUCH+';position:absolute;right:clamp(20px,3vw,48px);bottom:18px;color:color-mix(in srgb,var(--muchplus-magenta) 7%,transparent);font-size:clamp(54px,6vw,104px);font-weight:900;line-height:.8;letter-spacing:-.08em;pointer-events:none}
 .fh-hero[data-camp-theme="muchplus"] .fh-hero-body>*{position:relative;z-index:1}
-.fh-hero[data-camp-theme="muchplus"] .fh-hero-eyebrow{color:var(--muchplus-yellow)}
-.fh-hero[data-camp-theme="muchplus"] .fh-hero-name{color:var(--white);font-family:'Ubuntu','Roboto',sans-serif;font-weight:700;letter-spacing:-.04em}
-.fh-hero[data-camp-theme="muchplus"] .fh-hero-meta{color:var(--white)}
-.fh-hero[data-camp-theme="muchplus"] .fh-hero-formats>span{border-color:var(--muchplus-yellow);background:color-mix(in srgb,var(--muchplus-yellow) 14%,transparent);color:var(--muchplus-yellow)}
-.fh-hero[data-camp-theme="muchplus"] .fh-hero-cta{background:var(--muchplus-yellow);color:var(--muchplus-magenta-d);box-shadow:0 10px 24px color-mix(in srgb,var(--muchplus-magenta-d) 32%,transparent)}
-.fh-hero[data-camp-theme="muchplus"]:hover{border-color:var(--muchplus-magenta);box-shadow:inset 0 5px 0 var(--muchplus-yellow),0 0 0 3px color-mix(in srgb,var(--muchplus-magenta) 10%,transparent),0 22px 52px color-mix(in srgb,var(--muchplus-magenta) 18%,transparent)}
+/* O olho-de-boi troca de tom por tema: o #C4005B tem 6:1 sobre branco mas some no
+   escuro, e o claro (#FF3D92) faz o inverso. Os chips e o nome ficam nos tokens de
+   texto do app de propósito — é o que faz o card parar de gritar. */
+.fh-hero[data-camp-theme="muchplus"] .fh-hero-eyebrow{color:var(--muchplus-magenta-d)}
+body:not(.theme-light) .fh-hero[data-camp-theme="muchplus"] .fh-hero-eyebrow{color:var(--muchplus-magenta-l)}
+.fh-hero[data-camp-theme="muchplus"] .fh-hero-name{font-family:'Ubuntu','Roboto',sans-serif;font-weight:700;letter-spacing:-.04em}
+/* CTA no magenta ESCURO: o #F8006E dá só ~4.2:1 com texto branco, e o rótulo tem 12px. */
+.fh-hero[data-camp-theme="muchplus"] .fh-hero-cta{background:var(--muchplus-magenta-d);color:var(--white);box-shadow:0 9px 22px color-mix(in srgb,var(--muchplus-magenta-d) 22%,transparent)}
+.fh-hero[data-camp-theme="muchplus"]:hover .fh-hero-cta{background:var(--muchplus-magenta);box-shadow:0 12px 28px color-mix(in srgb,var(--muchplus-magenta-d) 30%,transparent)}
+.fh-hero[data-camp-theme="muchplus"]:hover{border-color:var(--muchplus-magenta);box-shadow:inset 0 4px 0 var(--muchplus-magenta),0 0 0 3px color-mix(in srgb,var(--muchplus-magenta) 9%,transparent),0 22px 52px color-mix(in srgb,var(--muchplus-magenta) 14%,transparent)}
 .camp-card[data-camp-theme="muchplus"] .camp-badge,.fh-hero[data-camp-theme="muchplus"] .fh-hero-badge{background:var(--muchplus-magenta-d);color:var(--white);position:relative;overflow:hidden}
 .fh-hero[data-camp-theme="muchplus"] .fh-hero-badge,.fh-hero[data-camp-theme="muchplus"] .fh-hero-pop,.fh-hero[data-camp-theme="muchplus"] .fh-hero-cover-note{display:none}
 /* shine do badge: barra branca CHAPADA varre UMA vez ao renderizar (sem loop, sem gradiente) */
