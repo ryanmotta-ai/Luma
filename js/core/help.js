@@ -326,6 +326,84 @@ const G_HELP_ARTICLES=[
   {id:'ajuda-upload',cat:'franqueado',title:'Enviar foto do produto',sub:'Formatos e limite de tamanho',keywords:['foto','imagem','upload','20mb','png','jpg'],body:'Envie imagens PNG ou JPG de ate 20 MB. Para imagens por URL, o endereco precisa ser publico para que a arte possa ser gerada.'},
 ];
 
+/* ══ CONHECIMENTO PRA IA (aterrar a resposta na verdade do Luma) ══
+   O assistente de ajuda respondia com o modelo solto: sem material, ele inventava
+   tela e botão que não existem. Esta é a ÚNICA função que achata a Central de Ajuda
+   (artigos do franqueado + FAQ curto + catálogo de tópicos + FAQ do Luma Sheets) em
+   texto puro e devolve só os trechos que casam com a pergunta — contexto curto e
+   relevante em vez de despejar a base inteira no prompt.
+   Quem usa: js/widgets/help-widget.js. Quem precisar de aterramento no futuro reusa
+   daqui em vez de montar um segundo índice. */
+let _gHelpKnowIdx=null;
+// Palavra de pergunta que não diz NADA sobre o assunto. Sem esta lista, "qual a capital
+// da França?" casava com o artigo "Qual formato escolher" por causa do "qual" — e a IA
+// respondia como se a pergunta fosse do Luma. Só palavra-função entra aqui; termo de
+// domínio (foto, planilha, preço) nunca.
+const G_HELP_STOPWORDS=['que','qual','quais','como','onde','quando','porque','por','para','pra','pro',
+  'com','sem','dos','das','uma','uns','umas','meu','minha','meus','minhas','isso','esse','essa','este','esta',
+  'tem','ter','fazer','faco','faz','posso','pode','poder','quero','queria','preciso','preciso','aqui','ali',
+  'mais','menos','muito','pouco','sobre','tudo','nada','algum','alguma','ser','estar','vai','vou','nao','sim',
+  'ele','ela','eles','elas','voce','seu','sua','seus','suas','num','numa','pelo','pela','ate','depois','antes'];
+function _gHelpNorm(s){
+  // ̀-ͯ = marcas de acento soltas depois do NFD ("preço" → "preco")
+  return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+}
+function _gHelpFlatBlocks(blocks){
+  const partes=[];
+  (blocks||[]).forEach(b=>{
+    if(!b) return;
+    ['lead','p','tip','h'].forEach(k=>{ if(b[k]) partes.push(String(b[k])); });
+    ['steps','list'].forEach(k=>{ if(Array.isArray(b[k])) partes.push(b[k].join(' ')); });
+  });
+  return partes.join(' ').replace(/<[^>]+>/g,''); // blocos usam <b> pra destaque; a IA não precisa
+}
+function _gHelpKnowledgeIndex(){
+  if(_gHelpKnowIdx) return _gHelpKnowIdx;
+  const out=[];
+  try{
+    if(typeof G_FRA_HELP_ARTS!=='undefined') Object.keys(G_FRA_HELP_ARTS).forEach(id=>{
+      const a=G_FRA_HELP_ARTS[id];
+      out.push({id, title:a.title||id, kw:(typeof G_FRA_HELP_KW!=='undefined'?(G_FRA_HELP_KW[id]||''):''), text:_gHelpFlatBlocks(a.blocks)});
+    });
+    if(typeof G_HELP_ARTICLES!=='undefined') G_HELP_ARTICLES.forEach(a=>{
+      out.push({id:a.id, title:a.title, kw:(a.keywords||[]).join(' '), text:(a.sub?a.sub+'. ':'')+(a.body||'')});
+    });
+    if(typeof G_HELP_CATALOG!=='undefined') G_HELP_CATALOG.forEach(t=>{
+      if(out.some(x=>x.id===t.id)) return;   // artigo completo já cobre o tópico
+      out.push({id:t.id, title:t.title, kw:(typeof G_HELP_KEYWORDS!=='undefined'?(G_HELP_KEYWORDS[t.id]||[]).join(' '):''), text:t.sub||''});
+    });
+    // FAQ do Luma Sheets vive em png-generator.js (global) — carrega depois deste
+    // arquivo, então só é lido aqui, na 1ª chamada.
+    if(typeof F_BULK_FAQ!=='undefined') F_BULK_FAQ.forEach((f,i)=>{
+      out.push({id:'sheets-'+i, title:f.q, kw:'sheets planilha lote csv '+(f.cat||''), text:f.a});
+    });
+  }catch(e){}
+  _gHelpKnowIdx=out;
+  return out;
+}
+/**
+ * Trechos da Central de Ajuda que casam com a pergunta, já em texto pronto pra prompt.
+ * @returns {string} '' quando nada casa — quem chama trata isso como "não está na base".
+ */
+function gHelpKnowledge(pergunta, max){
+  const idx=_gHelpKnowledgeIndex();
+  const q=_gHelpNorm(pergunta);
+  const palavras=q.split(/[^a-z0-9]+/).filter(w=>w.length>2 && G_HELP_STOPWORDS.indexOf(w)<0);
+  if(!palavras.length || !idx.length) return '';
+  const ranked=idx.map(it=>{
+    const alvoTitulo=_gHelpNorm(it.title+' '+it.kw);
+    const alvoTexto=_gHelpNorm(it.text);
+    let score=0;
+    palavras.forEach(w=>{
+      if(alvoTitulo.indexOf(w)>=0) score+=3;   // acerto no título/keyword vale mais
+      else if(alvoTexto.indexOf(w)>=0) score+=1;
+    });
+    return {it,score};
+  }).filter(r=>r.score>0).sort((a,b)=>b.score-a.score).slice(0, max||4);
+  if(!ranked.length) return '';
+  return ranked.map(r=>'### '+r.it.title+'\n'+r.it.text).join('\n\n');
+}
+
 const G_HELP_CONTEXTS={
   franqueado:['primeira-arte','gerar-varios','editar-arte'],
   designer:['studio-tour','variaveis','simular'],

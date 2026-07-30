@@ -892,11 +892,25 @@
     }
   };
 
+  // Material que ATERRA a resposta: os trechos da Central de Ajuda que casam com a
+  // pergunta (gHelpKnowledge, em core/help.js) + o artigo do próprio widget que casar.
+  // Antes ia a base INTEIRA do widget no prompt — caro, diluído, e sem a Central de
+  // Ajuda real nem o FAQ do Sheets, então o modelo preenchia o vazio inventando.
+  function lumaWidgetKnowledge(userMessage) {
+    let ctx = '';
+    try { if (typeof gHelpKnowledge === 'function') ctx = gHelpKnowledge(userMessage, 4) || ''; } catch (e) {}
+    const lower = (userMessage || '').toLowerCase();
+    const art = LUMA_ARTICLES.find(a => lower.includes(a.id) || a.title.toLowerCase().split(' ').some(w => w.length > 3 && lower.includes(w)));
+    if (art) {
+      ctx += (ctx ? '\n\n' : '') + '### ' + art.title + '\n' + art.summary + ' ' +
+        art.steps.map(s => s.title + ': ' + s.text).join(' ');
+    }
+    return ctx;
+  }
+
   async function lumaWidgetGenerateAIResponse(userMessage) {
-    const apiKey = (typeof gGetGeminiApiKey === 'function' ? gGetGeminiApiKey() : '') || localStorage.getItem('luma_gemini_api_key') || '';
-    
-    const articlesContext = LUMA_ARTICLES.map(a => `TITULO: ${a.title}\nRESUMO: ${a.summary}\nPASSOS: ${a.steps.map(s => s.title + ': ' + s.text).join('; ')}`).join('\n\n');
-    
+    const temIA = typeof gAskAI === 'function' && typeof gAiReady === 'function' && gAiReady();
+
     // Devolve {text, fonte} — quem renderiza precisa saber a ORIGEM pra rotular a bolha.
     // Sem isso o usuário não distingue resposta de IA de busca na base, e o widget parecia
     // atendimento humano (era o rótulo "Suporte ao Vivo") quando nunca houve humano nenhum.
@@ -910,7 +924,7 @@
       return null;
     };
 
-    if (!apiKey) {
+    if (!temIA) {
       const daBase = buscarNaBase();
       if (daBase) return daBase;
       // Honestidade: NÃO existe notificação a humano nenhum aqui. O texto antigo prometia que
@@ -919,47 +933,38 @@
         text: 'Não encontrei isso na Central de Ajuda, e o assistente de IA está desligado no momento.\n\nTente descrever com outras palavras ou procure direto na aba "Explorar ajuda".' };
     }
     
-    try {
-      const prompt = `Você é o Agente de Suporte ao Vivo do Luma (Delivery Much). Responda com simpatia, clareza e objetividade ao franqueado/designer. Use os dados da base de conhecimento se relevante.
-
-REGRA OBRIGATÓRIA:
-NUNCA USE EMOJIS (é estritamente proibido incluir qualquer tipo de emoji no texto).
-
-BASE DE CONHECIMENTO DO LUMA:
-${articlesContext}
-
-MENSAGEM DO USUÁRIO: "${userMessage}"
-
-Responda em português de forma direta, amigável e útil (máximo 4-5 linhas), sem nenhum emoji.`;
-
-      const sel = widgetState.selectedModel || localStorage.getItem('luma_selected_ai_model') || 'gemini-flash-latest';
-      let modelo = 'gemini-flash-latest';
-      if (sel === 'gemini-2.0-flash') modelo = 'gemini-2.0-flash';
-      else if (sel === 'gemini-1.5-pro') modelo = 'gemini-1.5-pro';
-      else if (sel === 'gemini-1.5-flash-8b') modelo = 'gemini-1.5-flash-8b';
-      else modelo = 'gemini-flash-latest';
-
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
-        })
-      });
-
-      if (!res.ok) throw new Error('Erro na API Gemini: ' + res.status);
-      const data = await res.json();
-      const txt = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!txt) throw new Error('Resposta vazia da IA');
-      return { fonte: 'ia', text: txt };
-    } catch (err) {
-      console.warn('[Luma IA Suporte] IA indisponível, caindo na base:', err);
-      // A IA falhou → tenta a base antes de desistir; e avisa que a IA não respondeu.
-      const daBase = buscarNaBase();
-      if (daBase) return { fonte: 'base', text: daBase.text };
-      return { fonte: 'erro',
-        text: 'Não consegui falar com o assistente de IA agora, e também não achei o tema na Central de Ajuda.\n\nTente de novo em instantes ou procure na aba "Explorar ajuda".' };
+    const material = lumaWidgetKnowledge(userMessage);
+    // Sem material que case, NÃO chama a IA: ela responderia por conta própria sobre um
+    // produto interno que não conhece. Melhor dizer que não está na Central.
+    if (!material) {
+      return { fonte: 'indisponivel',
+        text: 'Não encontrei isso na Central de Ajuda.\n\nTente descrever com outras palavras, ou abra a aba "Explorar ajuda" pra ver os temas disponíveis.' };
     }
+
+    const prompt = `Você é o assistente da Central de Ajuda do Luma, a ferramenta interna de criação de artes da Delivery Much. Quem pergunta é um franqueado (dono do app na cidade dele, não é designer) ou alguém do time de design.
+
+RESPONDA APENAS COM BASE NO MATERIAL ABAIXO. Ele é a documentação real do produto.
+
+MATERIAL DA CENTRAL DE AJUDA:
+${material}
+
+PERGUNTA: "${userMessage}"
+
+REGRAS:
+1. Se a resposta NÃO estiver no material, diga exatamente: "Isso não está na Central de Ajuda." e sugira procurar na aba "Explorar ajuda". Não invente tela, botão ou caminho.
+2. Não prometa contato humano, ticket ou notificação — isso não existe aqui.
+3. Sem emoji. Português do Brasil, direto e amigável, no máximo 5 linhas.
+4. Quando o material tiver passos, responda em passos curtos.`;
+
+    const txt = await gAskAI('ajuda', prompt, { json: false });
+    if (txt && txt.trim()) return { fonte: 'ia', text: txt.trim() };
+
+    // IA não respondeu → entrega o artigo cru, que é melhor que nada e não mente.
+    console.warn('[Luma IA Suporte] sem resposta da IA, caindo na base');
+    const daBase = buscarNaBase();
+    if (daBase) return { fonte: 'base', text: daBase.text };
+    return { fonte: 'erro',
+      text: 'Não consegui falar com o assistente de IA agora.\n\nTente de novo em instantes ou procure na aba "Explorar ajuda".' };
   }
 
   window.lumaWidgetSendMsg = async function () {
