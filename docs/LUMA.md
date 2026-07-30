@@ -405,6 +405,32 @@ O dashboard simulado foi retirado em 2026-07-15. Analytics real continua em `ana
 - **Splash** (`core/splash.js`): overlay de entrada, mínimo 2.8s, tudo em try/catch.
 - **Auth UI** (`core/auth.js` + `core/user-profile.js`): login/logout/reset de senha reais (Supabase), perfil com foto (localStorage `__luma_user_photo_*`), gestão de equipe (listar/role/ativo via RLS), `gUpdateUserTopbar`.
 
+### 12.1. IA — motor único (`core/ai.js`)
+
+**Todo** recurso de IA fala por aqui; nenhum outro arquivo monta chamada pro modelo (regra do motor único, §`03_ENGINEERING`). A IA é **auxiliar**: cada recurso tem caminho de queda e o produto funciona sem ela (`00_PRODUCT.md` §9).
+
+| Função | Papel |
+|---|---|
+| `gAskAI(task, prompt, opts)` | Pergunta ao modelo. Nunca lança, nunca trava (timeout 30s). `opts.parts` = anexos (`{mimeType,data}`), `opts.json`, `opts.cache`. Devolve texto ou **null** — quem chama decide o fallback |
+| `gAiReady()` | Tem caminho pra IA? A UI usa pra decidir se mostra o recurso (otimista; desliga só depois de falha real) |
+| `gAiParseJson(txt)` | Parser tolerante (modelo às vezes embrulha em ```json) — nunca lança |
+| `gAiFileToPart(file)` | Arquivo → `{mimeType, data}` base64 pro anexo |
+| `gAiModel()` | Modelo atual (`window.LUMA_GEMINI_MODEL`, trocável no config e pelo seletor do widget) |
+
+**Caminhos, nesta ordem:** Edge Function `ai` (chave no servidor — ver `LUMA-BACKEND-CHANGELOG.md` 2026-07-30) → **transição**: chamada direta com a chave do front ⚠ (sai de cena quando a function subir) → `null`.
+
+**Onde a IA é usada (5 pontos):**
+
+| Recurso | Onde | Queda quando a IA falha |
+|---|---|---|
+| **Legenda do post** | `franqueado/chat.js` (`fFetchAICaptionSuggestions`) | motor local `fBuildCopy`; o selo do painel diz a origem real (`_fCaptionSrcTag`) |
+| **Encaixar no limite** (`maxLen`) | `franqueado/chat-input.js` (`fFitTextWithAI`) | botão não aparece; opção que não cabe é descartada no código |
+| **Ajuda aterrada** | `widgets/help-widget.js` + `gHelpKnowledge` (`core/help.js`) | artigo cru da base; sem material que case, **não chama** o modelo |
+| **Ler cardápio** (foto/PDF/texto) | `franqueado/png-generator.js` (`fBulkReadMenu`, `_fBulkItensPorIA`) | parser heurístico local (`fBulkParseHeuristicText`) segue sendo o 1º caminho no texto |
+| **Casar fotos com linhas** | `franqueado/png-generator.js` (`fBulkMatchPhotos`) | casamento por nome de arquivo (local) resolve a maioria; sobra fica sem foto |
+
+**Regras dos recursos de IA nesta base:** (1) validar no **código** o que o prompt pediu (tamanho, formato, repetição) — modelo erra contagem; (2) **marcar a origem** na UI (selo/chip) — app que finge não mentir é bug; (3) nunca inventar dado de negócio (preço, validade) — prompt proíbe e a grade exige revisão; (4) toda linha lida por IA passa pela mesma validação das digitadas.
+
 ---
 
 ## 13. AUTENTICAÇÃO E ROLES
@@ -571,6 +597,7 @@ localStorage.clear(); location.reload();               // reset local (backend r
 - **2026-06-18/19 — Fase 5.1 Backend**: projeto Supabase próprio, 13 migrations, auth real, persistência completa offline-first, Storage.
 - **2026-06-22/25**: analytics por extração (views), performance (índices + RLS initplan), hardening pós-incidente, backup diário automatizado e validado.
 - **2026-06-fim**: XSS corrigido (3 passes com `gEsc`), gate por role no front, refatoração de performance/memory leaks (Fase 3).
+- **2026-07-30**: **IA sai do improviso** — Edge Function `ai` (chave fora do front), motor único `core/ai.js` e 5 recursos plugados nele: encaixar texto no `maxLen`, ajuda aterrada na Central, ler cardápio (foto/PDF) no Sheets, casar fotos com as linhas, legenda com prompt sério. Ver §12.1.
 - **2026-07-30**: capa do card da vitrine volta a ser **a capa da pasta** — a fila de miniaturas do conteúdo (`_fCampThumbs`/`fHomeFillThumbs`, ~100 linhas) saiu: renderizava a arte com campos vazios e deixava o card em branco. Capa do Storage que não baixa agora cai na cor da pasta também na lista do Estúdio (`dRenderFolders`).
 - **2026-07-09**: home do franqueado responsiva (thumbs reais, vitrine honesta, scroll-reveal, busca sticky), redesign do painel Campos (linha compacta + filtros + higiene), topbar (hierarquia + paleta), **auditoria de contraste WCAG aplicada** (tokens `--green-text`, `--var-color` claro, `--d-text3`, CTAs em `--dm-orange-d`). Este documento.
 

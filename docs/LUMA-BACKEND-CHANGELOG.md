@@ -6,6 +6,30 @@
 
 ---
 
+## 2026-07-30 — Edge Function `ai`: a chave do Gemini sai do front
+
+**Contexto (incidente latente).** A chave da API do Gemini estava **hardcoded em `js/00-config.js`** (`LUMA_GEMINI_API_KEY`) e era servida a todo browser de franqueado — qualquer DevTools lia e gastava a cota da DM, sem freio e sem rastro. Fere o guardrail "nenhum segredo no código" (`luma-brain/06_OPERATING_SYSTEM.md` §7). A chave já tinha sido trocada uma vez por quebra (commit `9422d0a`), o que confirma o padrão.
+
+**Arquivo novo:** `supabase/functions/ai/index.ts` — proxy único de IA.
+- **Autorização:** exige JWT válido (`auth.getUser()` com o client anon + header, mesmo padrão do `invite-user`). Qualquer role autenticada usa — as 3 personas têm recurso de IA. O que se protege aqui é a **cota**, não dado.
+- **Chave:** `Deno.env.get('GEMINI_API_KEY')` — secret do projeto. Sem o secret, responde 503 e o front cai no motor local.
+- **Freio:** rate-limit de 20 chamadas/minuto por usuário, em memória do isolate. ⚠ **Teto assumido:** é por instância, não global — serve contra loop/abuso acidental. Se precisar de contabilidade exata, virar tabela `luma.ai_uso` + RPC.
+- **Tetos por chamada:** prompt ≤ 12.000 chars, ≤ 8 anexos, ≤ ~6 MB de base64 somados, mime de anexo só `image/png|jpeg|webp|gif` ou `application/pdf`.
+- **Tarefas aceitas** (allowlist, pra recusar uso genérico do proxy): `legenda`, `encurtar`, `ajuda`, `cardapio`, `casar-fotos`.
+- **Decisão de arquitetura registrada:** a function **repassa** o prompt montado pelo front em vez de montar prompt aqui. Motivo: sem build/ESM, prompt no servidor viraria prompt **duplicado** (o front precisa dele no modo transição) — e duplicar motor é a proibição nº 1 desta base. Consequência aceita: um usuário logado da DM consegue gastar tokens com prompt próprio, limitado pelo rate-limit. Se algum dia precisar de controle rígido, os builders migram pra cá task por task.
+
+**Front:** `js/core/ai.js` (motor único — `gAskAI`/`gAiReady`/`gAiParseJson`/`gAiFileToPart`). Tenta a function; se ela não estiver publicada (404), cai no **caminho de transição** (chave do front, comportamento atual) e loga o aviso. Nenhum outro arquivo do front toca a API do Gemini — `gGetGeminiApiKey`/`gGetGeminiModel` foram removidos.
+
+**Ações necessárias (Pedro + Ryan), nesta ordem:**
+1. `supabase secrets set GEMINI_API_KEY=<chave NOVA>` — gerar uma chave nova, a atual já circulou em browser.
+2. `supabase functions deploy ai`.
+3. Revogar a chave antiga no Google Cloud e **apagar** `geminiApiKey`/`LUMA_GEMINI_API_KEY` de `js/00-config.js` (o front passa a usar só a function).
+4. Conferir no console do navegador que não aparece mais `[ai] Edge Function 'ai' não publicada`.
+
+**Enquanto os passos acima não rodarem:** a IA continua funcionando pelo caminho de transição — nada quebra, e a exposição da chave permanece. Não é estado final.
+
+---
+
 ## 2026-06-22 — Hardening pós-incidente: views SECURITY INVOKER + revoke de funções de trigger
 
 **Contexto:** ao mexer em **Settings › API › Exposed schemas**, o schema `analytics` foi exposto pela Data API. Isso disparou **6 ERROR** de segurança (`security_definer_view` — view `SECURITY DEFINER` exposta fura RLS) + WARN de funções `SECURITY DEFINER` chamáveis via `/rest/v1/rpc/`. **Os dados não vazaram:** as views já estavam sem grant de `SELECT` pra `anon`/`authenticated`.
