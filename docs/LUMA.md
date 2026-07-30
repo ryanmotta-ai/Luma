@@ -435,7 +435,7 @@ O dashboard simulado foi retirado em 2026-07-15. Analytics real continua em `ana
 
 Terminal interno, **Ctrl+`** abre, **Esc** fecha. Só monta pra `gIsAdmin()` (equipe_dm/gestao). Existe porque o diagnóstico de sync era feito colando snippet no DevTools — conhecimento que morava em log de conversa (incidente de 07/2026: "30 pastas no banco e 0 templates"). Agora é comando nomeado.
 
-**No celular** não há Ctrl+`: a entrada é o item **Console · DEV** no painel de perfil (sidebar, ao lado de "Equipe") — revelado pelo mesmo `gIsAdmin()`, escondido do franqueado. Toque nele fecha o modal e abre o console. Lá também não há Tab nem ↑/↓, então aparece uma faixa de **chips** com os comandos de leitura (`ajuda`, `diag`, `sync status`, `pastas ls`, `cache ls`) — só comando que não muda nada. Três detalhes que fazem "funcionar no celular" ser verdade: `_gCliAjustaViewport()` sobe o painel a altura que o **teclado virtual** comeu (`position:fixed` não vê o teclado, e o campo ficava embaixo dele); `font-size:16px` no input (menos que isso e o iOS dá zoom); e `body.cli-on` tira do rodapé os flutuantes com z-index maior — aviso de PWA (13000, via CSS) e FAB do widget de ajuda (9999, no `checkVisibility` do próprio widget, porque o display dele é inline).
+**No celular** não há Ctrl+`: a entrada é o item **Console · DEV** no painel de perfil (sidebar, ao lado de "Equipe") — revelado pelo mesmo `gIsAdmin()`, escondido do franqueado. Toque nele fecha o modal e abre o console. Lá também não há Tab nem ↑/↓, então aparece uma faixa de **chips** com os comandos de leitura (`ajuda`, `diag`, `modelo`, `sync status`, `pastas ls`, `cache ls`) — só comando que não muda nada. Três detalhes que fazem "funcionar no celular" ser verdade: `_gCliAjustaViewport()` sobe o painel a altura que o **teclado virtual** comeu (`position:fixed` não vê o teclado, e o campo ficava embaixo dele); `font-size:16px` no input (menos que isso e o iOS dá zoom); e `body.cli-on` tira do rodapé os flutuantes com z-index maior — aviso de PWA (13000, via CSS) e FAB do widget de ajuda (9999, no `checkVisibility` do próprio widget, porque o display dele é inline).
 
 | Comando | O que faz |
 |---|---|
@@ -445,15 +445,24 @@ Terminal interno, **Ctrl+`** abre, **Esc** fecha. Só monta pra `gIsAdmin()` (eq
 | `pastas [ls\|<id>]` | Lista `dFolders` ou detalha uma pasta (remoteId, capa, materiais, flags) |
 | `cache [ls\|clear <chave>]` | Tamanho por chave do localStorage; `clear` exige `gConfirm` |
 | `ia <pergunta>` | Pergunta em PT-BR — **também é o padrão**: qualquer frase que não seja comando vai pra IA |
+| `modelo [nome]` | Mostra/troca o modelo do Gemini. Grava em `localStorage.luma_gemini_model`, que **`gAiModel()` lê antes de `window.LUMA_GEMINI_MODEL`** — sem essa ordem a escolha morria no reload, porque `00-config.js` redefine o window a cada boot. Vale pra **todo** recurso de IA daquele aparelho; `modelo padrao` desfaz. Só apelidos `-latest` na lista sugerida (versão fixa aposenta e quebra) |
 | `limpar` · `sair` | Limpa a tela · fecha |
 
-**A IA do console** recebe o contexto real da sessão (o mesmo que o `diag` mede) + a lista de comandos, e pode **sugerir** um comando — a sugestão só **pré-preenche** o campo, nunca executa. Task `cli` na Edge Function.
+**A IA do console** recebe o contexto real da sessão (o mesmo que o `diag` mede) + a lista de comandos, e devolve `{passos, resposta, comando}`. Os `passos` viram um bloco **raciocínio** esmaecido acima da resposta — é o que o modelo diz ter feito, não roteiro nosso. O `comando` só **pré-preenche** o campo, nunca executa. Task `cli` na Edge Function.
+
+**Enquanto trabalha** (`_gCliSpinStart` / `_gCliSpinPasso`): um bloco mostra o que está acontecendo **de verdade** — rótulo girando, tempo decorrido e os passos anunciados por quem chama conforme acontecem (contexto lido → perguntando pro `<modelo>` → resposta recebida). Sem barra de progresso: não há como saber a fração de uma chamada de rede, e passo inventado é mentira bonita. O bloco some quando a resposta chega, pra não virar histórico falso.
 
 **Teclado (desktop):** ↑/↓ histórico da sessão · Tab autocompleta comando · o `keydown` para no console (atalho do Estúdio não dispara por baixo).
 
 ⛔ **Não é fronteira de segurança.** O gate por role é de UX; quem governa é a RLS, e todo comando roda com a sessão do próprio usuário — o console não dá poder que o DevTools já não desse. Comando que só é seguro "porque só dev vê" não entra.
 
-**Visual** (`css/modules/console.css`): superfície do Estúdio, acento laranja, banner LUMA em pixel art com gradiente da marca (`background-clip:text`), mono do sistema (nenhuma fonte baixada), e flip completo em `body.theme-light`.
+**Visual** (`css/modules/console.css`): superfície do Estúdio, acento laranja, mono do sistema (nenhuma fonte baixada) e flip completo em `body.theme-light`.
+
+A caixa de boas-vindas é **texto monoespaçado**, não CSS: a moldura é o próprio caractere, com o mascote numa coluna e o contexto na outra. A largura é contada em **caracteres** (`padEnd`) porque é o que fecha a moldura em fonte mono — medir em pixel aqui não fecha nunca. O miolo é `robô(22) + ' │ '(3) + info(IW)`, com `IW` 48 no desktop e 30 no celular; **as duas colunas têm que ter o mesmo número de linhas (13)**.
+
+O **mascote bate embaixadinha**: uma arte base de 13×22 e um quadro montado por mutação dela (olhos que seguem a bola, piscada, boca que abre no toque, antena pulsando, painel de LEDs correndo, braços por altura, perna que sobe, rastro, sombra que engorda e contador `×N`). A trajetória é declarada só pela **metade esquerda** — o meio-ciclo seguinte é o espelho (`col → 20-col`), e é isso que faz o **pé alternar** sozinho. Cada célula carrega uma classe (`cli-r-body`, `cli-r-face`, `cli-r-led`, `cli-r-ball`…) pra colorir peça por peça sem mexer na largura. Timer único, parado no `gCliClose()`, e `prefers-reduced-motion` deixa no quadro do ápice.
+
+**Motion do chat:** a saída de comando entra **linha a linha** — `_gCliEscalona` põe `animation-delay` em cada uma (teto de 420ms), CSS resolve o resto. Foi feito no CSS de propósito: com `setTimeout`, um `diag` de 30 linhas viraria 30 timers.
 
 ---
 

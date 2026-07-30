@@ -20,47 +20,144 @@
  */
 
 const G_CLI_ATALHO = 'Ctrl+`';
-const G_CLI_VERSION = '1.0';   // aparece no título da caixa de boas-vindas
+const G_CLI_VERSION = '1.1';   // aparece no título da caixa de boas-vindas
 let _gCliMontado = false;
 let _gCliAberto = false;
 let _gCliHist = [];        // histórico de comandos (setas ↑/↓), só da sessão
 let _gCliHistIdx = -1;
 let _gCliBusy = false;
 
-/* ══ BANNER ══
-   Caixa desenhada com box-drawing, no estilo dos CLIs de terminal: moldura com título,
-   mascote na coluna da esquerda e dicas na direita. Tudo é TEXTO monoespaçado — a
-   moldura é o próprio caractere, não borda de CSS, senão perde a cara de terminal.
+/* ══ MASCOTE — o robô do Luma batendo embaixadinha ══
+   Tudo aqui é TEXTO monoespaçado: a moldura, o robô, a bola e a sombra. A moldura é o
+   próprio caractere (não borda de CSS), senão perde a cara de terminal.
 
-   O robô do Luma bate embaixadinha: só a BOLA e o PÉ mudam entre os quadros, então em
-   vez de 9 quadros literais existe uma base + a trajetória da bola. Menos arte pra
-   manter e a curva fica editável num lugar só. */
-const G_CLI_ROBO_W = 13;
+   A arte é UMA base de 13 linhas × 22 colunas; cada quadro sai de mutações dela
+   (olhos, boca, antena, LEDs, braços, pernas, bola, sombra, contador). Assim há uma
+   arte pra manter em vez de 26 quadros literais, e ajustar o robô é mexer numa linha.
+
+   GEOMETRIA: o robô é centrado na coluna 10 e a trajetória da bola é declarada só pela
+   METADE ESQUERDA — o meio-ciclo seguinte é o espelho (col → 20-col). É isso que faz o
+   pé ALTERNAR sozinho: sai embaixadinha de verdade, não um quique repetido. */
+const G_CLI_ROBO_W = 22;
+const G_CLI_ROBO_CX = 10;      // coluna do centro do robô = eixo do espelho
 const G_CLI_ROBO_BASE = [
-  '             ',
-  '  ╭───────╮  ',
-  '  │ ◠   ◠ │  ',
-  '  │   ◡   │  ',
-  '  ╰──┬─┬──╯  ',
-  '   ╭─┴─┴─╮   ',
-  '   │ LUMA│   ',
-  '   ╰┬───┬╯   ',
-  '    ╵   ╵    '
+  '                      ', // 0  espaço aéreo (ápice da bola)
+  '          ◦           ', // 1  bulbo da antena (pulsa)
+  '          │           ', // 2  haste
+  '      ╭───┴───╮       ', // 3  topo da cabeça
+  '      │ ◉ · ◉ │       ', // 4  olhos (piscam)
+  '      │ ╰───╯ │       ', // 5  boca (abre no toque)
+  '      ╰──┬─┬──╯       ', // 6  pescoço
+  '     ╔═══╧═╧═══╗      ', // 7  ombros
+  '     ║ L U M A ║      ', // 8  peito
+  '  ▪──╢▪▫▪▫▪▫▪▫▪╟──▪   ', // 9  braços + painel de LEDs
+  '     ╚═══╤═╤═══╝      ', // 10 quadril
+  '        ─╯ ╰─         ', // 11 pés (o que chuta vira ╱ ou ╲)
+  '    ▁▁▁▁▁▁▁▁▁▁▁▁▁     '  // 12 chão — recebe a sombra e o contador
 ];
-// Ciclo da bola [linha, coluna]: sobe pela direita, cai no pé, é devolvida pra cima.
-const G_CLI_BOLA = [[0,10],[1,11],[2,12],[4,12],[6,11],[7,10],[8,9],[6,10],[4,11],[2,11]];
-const G_CLI_PE_CHUTE = '    ╵  ╱     '.slice(0, G_CLI_ROBO_W);
+// Meio-ciclo da bola [linha, coluna]: sai do pé esquerdo, sobe pela esquerda, passa por
+// cima da cabeça e desce pela direita até a altura do pé direito. Índice 0 é o TOQUE.
+// As linhas 1 e 9 ficam de fora de propósito: são as do bulbo e a dos braços.
+const G_CLI_BOLA = [[11,8],[10,7],[8,6],[6,5],[4,4],[2,5],[0,7],[0,13],[2,15],[4,16],[6,15],[8,14],[10,13]];
+// Braços por altura da bola: 0 abertos, 1 estendidos (ela está no alto), 2 recolhidos
+// (chute). Larguras fixas — 5 à esquerda (col 0-4) e 6 à direita (col 16-21).
+const G_CLI_BRACO_E = ['  ▪──', ' ▪───', '   ▪─'];
+const G_CLI_BRACO_D = ['──▪   ', '───▪  ', '─▪    '];
 
-function _gCliRoboFrame(i){
-  const rows = G_CLI_ROBO_BASE.slice();
-  const p = G_CLI_BOLA[i % G_CLI_BOLA.length];
-  const r = p[0], c = p[1];
-  // O pé PRIMEIRO: ele troca a linha 8 inteira e, se viesse depois, apagaria a bola
-  // justamente no quadro do contato (a bola sumia de vista no meio da embaixadinha).
-  if (r >= 7) rows[8] = G_CLI_PE_CHUTE;   // contato: o pé direito levanta pra devolver
-  rows[r] = rows[r].substring(0, c) + '●' + rows[r].substring(c + 1);
-  return rows;
+// Onde a bola está no quadro f. Meio-ciclo par usa a curva declarada; ímpar usa o
+// espelho — é o que troca o pé de apoio.
+function _gCliBolaPos(f) {
+  const n = G_CLI_BOLA.length;
+  const p = G_CLI_BOLA[f % n];
+  const espelho = Math.floor(f / n) % 2 === 1;
+  return [p[0], espelho ? (2 * G_CLI_ROBO_CX - p[1]) : p[1]];
 }
+
+// Monta o quadro como grade de células [caractere, classe]. A classe é o que permite
+// pintar cada peça de uma cor (corpo, rosto, LED, bola, chão) sem quebrar a moldura:
+// a largura continua sendo 1 caractere por coluna, o span só colore.
+function _gCliRoboFrame(f) {
+  const W = G_CLI_ROBO_W;
+  const g = G_CLI_ROBO_BASE.map(linha => {
+    const s = linha.padEnd(W);
+    const cs = [];
+    for (let i = 0; i < W; i++) cs.push([s.charAt(i), 'cli-r-body']);
+    return cs;
+  });
+  const set = (r, c, ch, cls) => { if (g[r] && g[r][c]) g[r][c] = [ch, cls || 'cli-r-body']; };
+  const cor = (r, c, cls) => { if (g[r] && g[r][c]) g[r][c][1] = cls; };
+  const vazio = (r, c) => !!(g[r] && g[r][c] && g[r][c][0] === ' ');
+
+  const pos = _gCliBolaPos(f), br = pos[0], bc = pos[1];
+  const toque = br === 11;
+
+  // Rosto: os olhos SEGUEM a bola (◐ à esquerda, ◑ à direita, ◉ arregalado quando ela
+  // está por cima), pisca uma vez a cada ciclo e a boca abre no toque ("hup!").
+  const pisca = (f % (G_CLI_BOLA.length * 2)) === 25;
+  const olho = pisca ? '─' : (br <= 2 ? '◉' : (bc < G_CLI_ROBO_CX ? '◐' : '◑'));
+  set(4, 8, olho, 'cli-r-face');
+  set(4, 12, olho, 'cli-r-face');
+  for (let c = 8; c <= 12; c++) cor(5, c, 'cli-r-face');
+  if (toque) set(5, 10, '○', 'cli-r-face');
+
+  // Antena: • e não ●, senão vira uma segunda bola parada em cima da cabeça.
+  set(1, 10, (Math.floor(f / 4) % 2) ? '•' : '◦', 'cli-r-led');
+  for (let c = 7; c <= 13; c++) cor(8, c, 'cli-r-tag');           // o L U M A do peito
+
+  // Painel de LEDs correndo. /3 porque a 12 quadros/s o alternado puro vira estrobo.
+  const fase = Math.floor(f / 3);
+  for (let c = 6; c <= 14; c++) set(9, c, ((c + fase) % 2) ? '▫' : '▪', 'cli-r-led');
+
+  const braco = (br <= 2) ? 1 : (br >= 10 ? 2 : 0);
+  for (let c = 0; c < 5; c++) set(9, c, G_CLI_BRACO_E[braco].charAt(c));
+  for (let c = 0; c < 6; c++) set(9, 16 + c, G_CLI_BRACO_D[braco].charAt(c));
+
+  // Bola baixa = perna correspondente subindo. Regra pela POSIÇÃO da bola (não por
+  // índice do quadro) porque assim o espelho já dá o pé certo, sem contabilidade extra.
+  if (br >= 10) {
+    if (bc < G_CLI_ROBO_CX) { set(11, 8, '╱'); set(11, 9, '╱'); }
+    else { set(11, 11, '╲'); set(11, 12, '╲'); }
+  }
+
+  for (let c = 4; c <= 16; c++) cor(12, c, 'cli-r-ground');
+  set(12, bc, br >= 10 ? '▄' : (br >= 6 ? '▃' : (br >= 2 ? '▂' : '▁')), 'cli-r-ground');
+
+  // Contador de embaixadinhas: um toque por meio-ciclo, então sai da conta do quadro —
+  // nenhum estado extra pra sincronizar. Teto em 999 pra não estourar as 4 colunas.
+  const n = Math.min(999, 1 + Math.floor(f / G_CLI_BOLA.length));
+  const marcador = ('×' + n).padStart(4);
+  for (let c = 0; c < 4; c++) set(12, 18 + c, marcador.charAt(c), 'cli-r-count');
+
+  // Rastro só no ar aberto (linha ≤ 6, acima dos ombros) e só onde havia espaço. Abaixo
+  // disso a bola passa NA FRENTE do tronco: o ponto cairia dentro do peito e leria como
+  // sujeira na arte, não como rastro.
+  if (f > 0) {
+    const a = _gCliBolaPos(f - 1);
+    if (a[0] <= 6 && vazio(a[0], a[1])) set(a[0], a[1], '·', 'cli-r-trail');
+  }
+  set(br, bc, '●', 'cli-r-ball');   // a bola por último: ela passa NA FRENTE do robô
+  return g;
+}
+
+// Células → HTML, agrupando vizinhas de mesma classe (uma linha vira ~6 spans, não 22).
+function _gCliRoboLinhaHTML(cells) {
+  let out = '', buf = '', cls = cells.length ? cells[0][1] : '';
+  cells.forEach(cel => {
+    if (cel[1] !== cls) { out += `<span class="${cls}">${gEsc(buf)}</span>`; buf = ''; cls = cel[1]; }
+    buf += cel[0];
+  });
+  return out + `<span class="${cls}">${gEsc(buf)}</span>`;
+}
+
+/* ══ MODELOS DE IA OFERECIDOS ══
+   Só APELIDOS `-latest`: o Google aponta o apelido pro modelo atual, então aposentar uma
+   versão não quebra o Luma de novo (foi o que matou o 'gemini-1.5-flash' — ver
+   js/00-config.js). A lista é atalho, não trava: o comando aceita qualquer nome válido. */
+const G_CLI_MODELOS = [
+  { id: 'gemini-flash-latest',      desc: 'padrão — rápido e barato' },
+  { id: 'gemini-flash-lite-latest', desc: 'o mais rápido; respostas mais curtas' },
+  { id: 'gemini-pro-latest',        desc: 'o mais capaz; mais lento e mais caro' }
+];
 
 /* ══ REGISTRO DE COMANDOS ══
    run() devolve string (ou Promise<string>) já em HTML seguro — todo dado de fora
@@ -266,6 +363,41 @@ const G_CLI_CMDS = {
     run: (args) => _gCliAsk(args.join(' '))
   },
 
+  modelo: {
+    uso: 'modelo [nome]',
+    desc: 'Mostra ou troca o modelo de IA usado pelo Luma',
+    run: (args) => {
+      const atual = (typeof gAiModel === 'function') ? gAiModel() : '?';
+      const nome = (args[0] || '').trim();
+      if (!nome) {
+        const lista = G_CLI_MODELOS.map(m => {
+          const marca = m.id === atual ? '<span class="cli-b-cmd">▸</span>' : ' ';
+          return `  ${marca} <b>${gEsc(m.id)}</b>${' '.repeat(Math.max(1, 26 - m.id.length))}<span class="cli-dim">${gEsc(m.desc)}</span>`;
+        }).join('\n');
+        return `modelo atual: <b>${gEsc(atual)}</b>\n\n${lista}\n\n`
+          + `<span class="cli-dim">trocar: <b>modelo &lt;nome&gt;</b> · voltar ao padrão: <b>modelo padrao</b>\n`
+          + `Vale pra TODO recurso de IA do Luma (legenda, cardápio, ajuda), só neste aparelho.</span>`;
+      }
+      if (nome === 'padrao' || nome === 'padrão') {
+        try { localStorage.removeItem('luma_gemini_model'); } catch (e) {}
+        _gCliInfoCache = null;
+        return `de volta ao padrão: <b>${gEsc((typeof gAiModel === 'function') ? gAiModel() : '?')}</b>`;
+      }
+      // Mesma regra do proxy (supabase/functions/ai): nome fora disso a function recusa,
+      // então recusar aqui evita descobrir o erro só na próxima pergunta.
+      if (!/^[a-z0-9.\-]{3,60}$/i.test(nome)) {
+        return '<span class="cli-err">nome inválido — só letras, números, ponto e hífen (3 a 60).</span>';
+      }
+      try { localStorage.setItem('luma_gemini_model', nome); }
+      catch (e) { return '<span class="cli-err">não deu pra salvar a escolha (localStorage bloqueado).</span>'; }
+      window.LUMA_GEMINI_MODEL = nome;   // vale já nesta sessão, sem recarregar
+      _gCliInfoCache = null;             // a caixa mostra o modelo — força redesenhar
+      const conhecido = G_CLI_MODELOS.some(m => m.id === nome);
+      return `modelo agora é <b>${gEsc(nome)}</b>.`
+        + (conhecido ? '' : `\n<span class="cli-warn">Fora da lista — se o Google não conhecer esse nome, TODA a IA do Luma passa a falhar neste aparelho. Desfaz com: <b>modelo padrao</b></span>`);
+    }
+  },
+
   limpar: { uso: 'limpar', desc: 'Limpa a tela', run: () => { _gCliBody().innerHTML = ''; return ''; } },
   sair: { uso: 'sair', desc: 'Fecha o console', run: () => { gCliClose(); return ''; } }
 };
@@ -282,6 +414,7 @@ async function _gCliAsk(pergunta) {
   const pastas = (typeof dFolders !== 'undefined' && dFolders) ? dFolders : [];
   let tmpls = 0, pend = 0;
   pastas.forEach(f => (f.templates || []).forEach(t => { tmpls++; if (t._syncPending) pend++; }));
+  _gCliSpinPasso(`contexto lido · ${pastas.length} pasta(s) · ${tmpls} material(is) · ${pend} pendente(s)`);
   const ctx = [
     `role: ${(typeof gCurrentRole === 'function' ? gCurrentRole() : '?')}`,
     `backend: ${(typeof gHasBackend === 'function' && gHasBackend()) ? 'ligado' : 'modo local'}`,
@@ -307,16 +440,30 @@ PERGUNTA: "${pergunta}"
 
 REGRAS:
 1. Responda com base no contexto acima. Não invente número que não está nele.
-2. Se um comando daqui ajuda a investigar ou resolver, coloque em "comando" (só o comando, sem explicação). Se nenhum serve, "comando" vazio.
-3. No máximo 6 linhas. Sem emoji.
-4. Se a pergunta for sobre algo que você não sabe do Luma, diga isso em vez de chutar.
+2. Em "passos", de 2 a 4 itens CURTOS (até 8 palavras cada) dizendo o que você checou no contexto e o que concluiu — o caminho até a resposta, não a resposta repetida.
+3. Se um comando daqui ajuda a investigar ou resolver, coloque em "comando" (só o comando, sem explicação). Se nenhum serve, "comando" vazio.
+4. No máximo 6 linhas na resposta. Sem emoji.
+5. Se a pergunta for sobre algo que você não sabe do Luma, diga isso em vez de chutar.
 
-Responda APENAS JSON: {"resposta":"...","comando":""}`;
+Responda APENAS JSON: {"passos":["...","..."],"resposta":"...","comando":""}`;
 
+  const modelo = (typeof gAiModel === 'function') ? gAiModel() : '?';
+  _gCliSpinPasso(`perguntando pro ${modelo}`);
   const txt = await gAskAI('cli', prompt, { json: true });
+  _gCliSpinPasso(txt ? 'resposta recebida · lendo o JSON' : 'o modelo não respondeu');
   const p = txt && (typeof gAiParseJson === 'function' ? gAiParseJson(txt) : null);
   if (!p || !p.resposta) return '<span class="cli-err">a IA não respondeu agora.</span>';
-  let out = gEsc(String(p.resposta).trim());
+
+  // O raciocínio é o que o MODELO diz ter feito pra chegar lá — vem no mesmo JSON, não é
+  // roteiro nosso. Fica esmaecido acima da resposta: quem só quer o resultado ignora.
+  let out = '';
+  const passos = Array.isArray(p.passos) ? p.passos.slice(0, 4) : [];
+  if (passos.length) {
+    out += `<span class="cli-think-tit">raciocínio</span>\n`
+      + passos.map(x => `<span class="cli-dim">  · ${gEsc(String(x).trim())}</span>`).join('\n')
+      + '\n\n';
+  }
+  out += gEsc(String(p.resposta).trim());
   const cmd = String(p.comando || '').trim();
   if (cmd && G_CLI_CMDS[cmd.split(/\s+/)[0]]) {
     out += `\n\n<span class="cli-dim">sugestão:</span> <button type="button" class="cli-sug" onclick="_gCliSugerir('${gEsc(cmd).replace(/'/g, '&#39;')}')">${gEsc(cmd)}</button> <span class="cli-dim">(clique pra preencher)</span>`;
@@ -353,7 +500,7 @@ function _gCliMontar() {
     </div>
     <div class="cli-body" id="cli-body" tabindex="0"></div>
     <div class="cli-chips" aria-label="Comandos rápidos">
-      ${['ajuda', 'diag', 'sync status', 'pastas ls', 'cache ls'].map(c => `<button type="button" class="cli-chip" onclick="_gCliChip('${c}')">${c}</button>`).join('')}
+      ${['ajuda', 'diag', 'modelo', 'sync status', 'pastas ls', 'cache ls'].map(c => `<button type="button" class="cli-chip" onclick="_gCliChip('${c}')">${c}</button>`).join('')}
     </div>
     <div class="cli-inputrow">
       <span class="cli-prompt" aria-hidden="true">luma ›</span>
@@ -396,11 +543,22 @@ function _gCliChip(cmd) {
   _gCliExec(cmd);
 }
 
-function _gCliPrint(html, cls) {
+// escalona=true faz cada LINHA da saída entrar com um atraso próprio — é o que dá o
+// ritmo de terminal escrevendo em vez de o bloco aparecer seco. O atraso vive no CSS
+// (uma animação por linha); com setTimeout, um diag de 30 linhas viraria 30 timers.
+function _gCliEscalona(html) {
+  return String(html).split('\n').map((ln, i) =>
+    // o teto de 420ms é o que impede a saída longa de virar espera; ' ' segura a altura
+    // da linha vazia (span em bloco sem conteúdo colapsa mesmo com pre-wrap)
+    `<span class="cli-ln" style="animation-delay:${Math.min(i * 28, 420)}ms">${ln || ' '}</span>`
+  ).join('');
+}
+
+function _gCliPrint(html, cls, escalona) {
   const body = _gCliBody(); if (!body) return;
   const l = document.createElement('div');
   l.className = 'cli-line' + (cls ? ' ' + cls : '');
-  l.innerHTML = html;
+  l.innerHTML = escalona ? _gCliEscalona(html) : html;
   body.appendChild(l);
   body.scrollTop = body.scrollHeight;
   return l;
@@ -417,17 +575,28 @@ function _gCliInfoW(){
   return (window.matchMedia && window.matchMedia('(max-width:640px)').matches) ? 30 : 48;
 }
 let _gCliRoboTimer = null;
-let _gCliRoboI = 0;
+let _gCliRoboI = 6;        // começa no ápice: é o quadro mais bonito parado (reduced-motion)
+let _gCliInfoCache = null; // {iw, linhas}
+
+// A caixa é redesenhada ~12×/s pela embaixadinha; ler sessão, backend e localStorage em
+// cada quadro seria desperdício. O conteúdo só muda ao abrir o console ou ao trocar o
+// modelo — os dois pontos invalidam este cache.
+function _gCliInfo(IW) {
+  if (!_gCliInfoCache || _gCliInfoCache.iw !== IW) _gCliInfoCache = { iw: IW, linhas: _gCliInfoLinhas(IW) };
+  return _gCliInfoCache.linhas;
+}
 
 function _gCliInfoLinhas(IW) {
   const u = (typeof gCurrentUser === 'function') ? gCurrentUser() : null;
   const nome = (u && u.displayName ? String(u.displayName) : '').trim().split(/[\s@]/)[0] || 'você';
   const role = (typeof gCurrentRole === 'function') ? (gCurrentRole() || '?') : '?';
   const backend = (typeof gHasBackend === 'function' && gHasBackend()) ? 'Supabase' : 'local';
-  const ia = (typeof gAiReady === 'function' && gAiReady()) ? ((typeof gAiModel === 'function') ? gAiModel() : 'on') : 'off';
+  const ia = (typeof gAiReady === 'function' && gAiReady()) ? ((typeof gAiModel === 'function') ? gAiModel() : 'on') : 'desligada';
   // Coluna estreita (celular) recebe texto CURTO, não texto cortado: fatiar a frase no
   // meio da palavra ("radiografia do catálo") lê como bug, não como layout.
   const curto = IW < 40;
+  // 13 linhas — uma por linha do mascote. Sobrar/faltar aqui não quebra a moldura
+  // (o padEnd fecha), mas desalinha a leitura das duas colunas.
   return [
     { t: '' },
     { t: 'Console do time  ·  v' + G_CLI_VERSION, cls: 'cli-b-tit' },
@@ -435,9 +604,13 @@ function _gCliInfoLinhas(IW) {
     { t: 'Boa, ' + nome + '!', cls: 'cli-b-oi' },
     { t: role + ' · backend ' + backend, cls: 'cli-b-meta' },
     { t: 'ia ' + ia, cls: 'cli-b-meta' },
+    { t: '' },
     { t: 'Comece por', cls: 'cli-b-meta' },
     { t: curto ? 'diag     estado do catálogo' : 'diag     radiografia do catálogo e do sync', cmd: 'diag' },
-    { t: curto ? 'ajuda    todos os comandos' : 'ajuda    a lista inteira de comandos', cmd: 'ajuda' }
+    { t: curto ? 'modelo   troca o modelo da IA' : 'modelo   mostra e troca o modelo da IA', cmd: 'modelo' },
+    { t: curto ? 'ajuda    todos os comandos' : 'ajuda    a lista inteira de comandos', cmd: 'ajuda' },
+    { t: '' },
+    { t: curto ? 'Tab · ↑ · Esc' : 'Tab completa · ↑ repete · Esc fecha', cls: 'cli-b-meta' }
   ];
 }
 
@@ -450,7 +623,7 @@ function _gCliCaixaHTML(frame) {
   // │ + robô(13) + ' │ '(3) + info(IW) + │ — os três (topo, conteúdo, base) fecham na
   // mesma largura. Errar essa conta por 2 já deixou a moldura aberta do lado direito.
   const IW = _gCliInfoW();
-  const info = _gCliInfoLinhas(IW);
+  const info = _gCliInfo(IW);
   const miolo = G_CLI_ROBO_W + 3 + IW;
   // Título destacado como nas referências: os traços ficam esmaecidos, o nome não.
   const topo = `<span class="cli-fr">╭─</span><span class="cli-b-tit">${gEsc(tit)}</span>`
@@ -464,14 +637,14 @@ function _gCliCaixaHTML(frame) {
     const corpo = it.cmd
       ? `<span class="cli-b-cmd">${gEsc(txt.slice(0, it.cmd.length))}</span><span class="cli-b-dica">${gEsc(txt.slice(it.cmd.length))}</span>`
       : `<span class="${it.cls || 'cli-dim'}">${gEsc(txt)}</span>`;
-    return '<span class="cli-fr">│</span>' + `<span class="cli-robo">${r}</span>`
+    return '<span class="cli-fr">│</span>' + _gCliRoboLinhaHTML(r)
       + '<span class="cli-fr"> │ </span>' + corpo + '<span class="cli-fr">│</span>';
   });
   return topo + '\n' + linhas.join('\n') + '\n' + base;
 }
 
 function _gCliBanner() {
-  const box = _gCliPrint(_gCliCaixaHTML(0), 'cli-banner');
+  const box = _gCliPrint(_gCliCaixaHTML(_gCliRoboI), 'cli-banner');
   if (box) box.id = 'cli-banner-box';
   _gCliPrint(`<span class="cli-dim">digite um comando, ou pergunte em português — <b>Tab</b> completa, <b>↑</b> repete.</span>\n`);
   _gCliRoboStart();
@@ -486,34 +659,64 @@ function _gCliRoboStart() {
     const box = document.getElementById('cli-banner-box');
     if (!box || !_gCliAberto) { _gCliRoboStop(); return; }
     box.innerHTML = _gCliCaixaHTML(++_gCliRoboI);
-  }, 130);
+  }, 85);   // 13 quadros por meio-ciclo ≈ 1,1s por embaixadinha — o ritmo de uma de verdade
 }
 function _gCliRoboStop() {
   if (_gCliRoboTimer) { clearInterval(_gCliRoboTimer); _gCliRoboTimer = null; }
 }
 
-/* ══ SPINNER DE LINHA ══
-   O "sinalzinho rodando" enquanto o comando (ou a IA) trabalha: gira no lugar, conta o
-   tempo depois de 1s e é REMOVIDO quando a resposta chega — a linha do spinner não fica
-   como histórico falso. Caracteres de quadrante existem em qualquer fonte mono (o braille
-   dos CLIs de terminal viraria caixinha em parte dos sistemas). */
+/* ══ PENSAMENTO AO VIVO ══
+   O bloco que mostra o trabalho SENDO FEITO enquanto o comando (ou a IA) roda: gira no
+   lugar, conta o tempo e vai listando os passos conforme eles ACONTECEM de verdade —
+   quem chama anuncia cada etapa com _gCliSpinPasso. Nada de roteiro fixo nem de barra de
+   progresso: não há como saber a fração de uma chamada de rede, e passo inventado é
+   mentira bonita. O bloco é REMOVIDO quando a resposta chega, pra não virar histórico.
+
+   Caracteres de quadrante existem em qualquer fonte mono (o braille dos CLIs de terminal
+   viraria caixinha em parte dos sistemas). */
 const G_CLI_SPIN = ['▖', '▘', '▝', '▗'];
+let _gCliSpinAtual = null;   // handle do bloco em curso — é por onde _gCliAsk anuncia passos
+
 function _gCliSpinStart(rotulo) {
-  const el = _gCliPrint(`<span class="cli-sp">${G_CLI_SPIN[0]}</span> <span class="cli-dim">${gEsc(rotulo)}</span>`, 'cli-out');
+  const el = _gCliPrint('', 'cli-out cli-think');
   if (!el) return null;
-  const t0 = Date.now();
-  let i = 0;
-  const timer = setInterval(() => {
-    const s = Math.floor((Date.now() - t0) / 1000);
-    el.innerHTML = `<span class="cli-sp">${G_CLI_SPIN[++i % G_CLI_SPIN.length]}</span> `
-      + `<span class="cli-dim">${gEsc(rotulo)}${s >= 1 ? ' (' + s + 's)' : ''}</span>`;
-  }, 120);
-  return { el, timer };
+  const h = { el, rotulo, t0: Date.now(), passos: [], i: 0, timer: null };
+  _gCliSpinAtual = h;
+  _gCliSpinPinta();
+  h.timer = setInterval(() => { h.i++; _gCliSpinPinta(); }, 110);
+  return h;
 }
+
+// Um passo REAL que acabou de acontecer. Entra no bloco na hora, com o ├/└ redesenhado.
+function _gCliSpinPasso(txt) {
+  const h = _gCliSpinAtual;
+  if (!h) return;
+  h.passos.push(String(txt));
+  _gCliSpinPinta();
+  const body = _gCliBody(); if (body) body.scrollTop = body.scrollHeight;
+}
+
+function _gCliSpinPinta() {
+  const h = _gCliSpinAtual;
+  if (!h || !h.el) return;
+  const s = (Date.now() - h.t0) / 1000;
+  const linhas = [
+    `<span class="cli-sp">${G_CLI_SPIN[h.i % G_CLI_SPIN.length]}</span> `
+    + `<span class="cli-think-tit">${gEsc(h.rotulo)}</span> <span class="cli-dim">${s.toFixed(1)}s</span>`
+  ];
+  h.passos.forEach((p, k) => {
+    const ult = k === h.passos.length - 1;
+    linhas.push(`<span class="cli-dim${ult ? ' cli-think-ult' : ''}">  ${ult ? '└' : '├'} ${gEsc(p)}</span>`);
+  });
+  h.el.innerHTML = linhas.join('\n');
+}
+
 function _gCliSpinStop(h) {
+  h = h || _gCliSpinAtual;
   if (!h) return;
   clearInterval(h.timer);
   if (h.el && h.el.parentNode) h.el.remove();
+  if (_gCliSpinAtual === h) _gCliSpinAtual = null;
 }
 
 async function _gCliExec(linha) {
@@ -531,13 +734,14 @@ async function _gCliExec(linha) {
 
   _gCliBusy = true;
   const spin = document.getElementById('cli-spin'); if (spin) spin.classList.add('on');
+  const cx = document.getElementById('luma-cli'); if (cx) cx.classList.add('busy');
   // Rótulo honesto: comando "roda", IA "pensa". Nada de barra de progresso falsa —
   // não há como saber a fração de nada disso.
-  const linha_spin = _gCliSpinStart(cmd ? 'rodando ' + nome + '…' : 'pensando…');
+  const linha_spin = _gCliSpinStart(cmd ? 'rodando ' + nome : 'pensando');
   try {
     const out = await exec();
     _gCliSpinStop(linha_spin);
-    if (out) _gCliPrint(out, 'cli-out');
+    if (out) _gCliPrint(out, 'cli-out', true);
   } catch (e) {
     _gCliSpinStop(linha_spin);
     _gCliPrint(`<span class="cli-err">estourou: ${gEsc(String(e && e.message || e))}</span>`, 'cli-out');
@@ -545,6 +749,7 @@ async function _gCliExec(linha) {
     _gCliSpinStop(linha_spin);
     _gCliBusy = false;
     if (spin) spin.classList.remove('on');
+    if (cx) cx.classList.remove('busy');
     const body = _gCliBody(); if (body) body.scrollTop = body.scrollHeight;
   }
 }
@@ -598,6 +803,7 @@ function gCliOpen() {
   document.body.classList.add('cli-on');
   const rl = document.getElementById('cli-role');
   if (rl) rl.textContent = (typeof gCurrentRole === 'function') ? (gCurrentRole() || '') : '';
+  _gCliInfoCache = null;   // sessão/backend/modelo podem ter mudado desde a última abertura
   // 1ª abertura desenha a caixa; reabrir só religa a embaixadinha (o histórico fica).
   if (!_gCliBody().childElementCount) _gCliBanner(); else _gCliRoboStart();
   // No celular o foco imediato abre o teclado e cobre o banner: quem quiser digitar

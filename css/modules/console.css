@@ -46,7 +46,7 @@
 .cli-x:hover{background:var(--d-surf3);color:var(--d-text)}
 
 /* ── corpo (a "tela" do terminal) ── */
-.cli-body{flex:1;overflow-y:auto;padding:12px 14px 8px;outline:none;scrollbar-width:thin}
+.cli-body{flex:1;overflow-y:auto;padding:12px 14px 8px;outline:none;scrollbar-width:thin;scroll-behavior:smooth}
 .cli-body::-webkit-scrollbar{width:9px}
 .cli-body::-webkit-scrollbar-thumb{background:var(--d-surf3);border-radius:var(--r-pill)}
 .cli-line{white-space:pre-wrap;word-break:break-word;margin:0 0 2px}
@@ -71,9 +71,27 @@
 .cli-banner{margin:2px 0 10px;line-height:1.12;letter-spacing:0;animation:cliBanner var(--dur-slow) var(--ease-out) both}
 @keyframes cliBanner{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .cli-fr{color:var(--dm-orange-d);opacity:.55}                 /* traços da moldura */
-.cli-robo{color:var(--dm-orange)}                             /* o mascote */
 /* ⚠ NADA de letter-spacing aqui dentro: a caixa é monoespaçada e qualquer espaçamento
    extra num span soma largura só naquela linha — a borda da direita sai do lugar. */
+
+/* O MASCOTE, peça por peça (js: _gCliRoboFrame monta a grade de células e marca a
+   classe de cada uma). Cor só muda pintura: a largura segue 1 caractere por coluna,
+   que é o que mantém a moldura fechada. */
+.cli-r-body{color:var(--dm-orange)}                           /* chassi */
+.cli-r-face{color:var(--d-text)}                              /* olhos e boca */
+.cli-r-tag{color:var(--dm-yellow);font-weight:700}            /* o L U M A do peito */
+.cli-r-led{color:var(--green)}                                /* painel e antena */
+.cli-r-ball{color:var(--dm-yellow);font-weight:700}           /* a bola */
+.cli-r-trail{color:var(--dm-orange-d);opacity:.45}            /* o rastro dela */
+.cli-r-ground{color:var(--d-text3)}                           /* chão e sombra */
+.cli-r-count{color:var(--dm-orange-d);opacity:.75}            /* ×N embaixadinhas */
+body.theme-light .cli-r-body{color:var(--dm-orange-d)}
+body.theme-light .cli-r-face{color:var(--text)}
+body.theme-light .cli-r-tag{color:var(--dm-orange-text)}
+body.theme-light .cli-r-led{color:var(--green-text)}
+body.theme-light .cli-r-ball{color:var(--dm-orange-text)}
+body.theme-light .cli-r-ground{color:var(--text-3)}
+
 .cli-b-tit{color:var(--dm-yellow);font-weight:700}
 .cli-b-cmd{color:var(--dm-orange);font-weight:700}
 .cli-b-oi{color:var(--d-text);font-weight:700}
@@ -91,13 +109,36 @@ body.theme-light .cli-b-dica{color:var(--text-2)}
 @keyframes cliSpPulse{0%,100%{opacity:1}50%{opacity:.45}}
 body.theme-light .cli-sp{color:var(--dm-orange-d)}
 
+/* Bloco de pensamento ao vivo (js: _gCliSpinStart/_gCliSpinPasso): o passo mais novo
+   respira pra marcar "é aqui que estou agora"; os anteriores ficam parados. */
+.cli-think{margin:4px 0 6px}
+.cli-think-tit{color:var(--dm-orange);font-weight:700}
+.cli-think-ult{animation:cliSpPulse 1.4s ease-in-out infinite}
+body.theme-light .cli-think-tit{color:var(--dm-orange-d)}
+
 /* Cada linha nova entra com um deslize curto — é o que dá ritmo de terminal em vez de
    texto aparecendo seco. Curto de propósito: 1 linha de saída pode ter 30 dessas. */
 .cli-line{animation:cliLineIn 160ms var(--ease-out) both}
 @keyframes cliLineIn{from{opacity:0;transform:translateY(2px)}to{opacity:1;transform:none}}
+
+/* Saída de comando entra LINHA A LINHA (js: _gCliEscalona põe o animation-delay em cada
+   uma). display:block é o que dá a quebra: o \n foi consumido pelo split, senão a linha
+   duplicaria. `both` faz a linha já ocupar altura antes de aparecer — sem isso a caixa
+   pularia de tamanho enquanto escreve. */
+.cli-ln{display:block;animation:cliLnIn 240ms var(--ease-out) both}
+@keyframes cliLnIn{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+
+/* Console trabalhando: o prompt pulsa e a borda do campo acende. Estado visível sem
+   ocupar linha nova no histórico. */
+#luma-cli.busy .cli-prompt{animation:cliSpPulse 1.1s ease-in-out infinite}
+#luma-cli.busy .cli-inputrow{border-top-color:var(--dm-orange)}
+
 @media (prefers-reduced-motion:reduce){
   .cli-line,.cli-banner{animation:none}
-  .cli-sp{animation:none}
+  .cli-sp,.cli-think-ult{animation:none}
+  .cli-ln{animation:none}
+  #luma-cli.busy .cli-prompt{animation:none}
+  .cli-body{scroll-behavior:auto}
 }
 
 /* Sugestão de comando vinda da IA — pré-preenche o campo, nunca executa sozinha. */

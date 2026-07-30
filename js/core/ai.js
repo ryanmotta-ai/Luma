@@ -41,9 +41,15 @@ function _gAiKeyLocal(){
       || localStorage.getItem('luma_gemini_api_key') || '';
   }catch(e){ return ''; }
 }
+// A escolha do time (console: comando `modelo`) vence o padrão do config. A ordem
+// importa: 00-config.js SEMPRE define window.LUMA_GEMINI_MODEL no boot, então com o
+// window na frente a troca não sobrevivia ao recarregar — voltava calada pro padrão.
 function gAiModel(){
-  try{ return window.LUMA_GEMINI_MODEL || localStorage.getItem('luma_gemini_model') || 'gemini-flash-latest'; }
-  catch(e){ return 'gemini-flash-latest'; }
+  try{
+    const escolhido = localStorage.getItem('luma_gemini_model');
+    if(escolhido) return escolhido;
+  }catch(e){}
+  return window.LUMA_GEMINI_MODEL || 'gemini-flash-latest';
 }
 
 /**
