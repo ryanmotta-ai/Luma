@@ -64,6 +64,7 @@ docs/luma-evolution/
 | `cenas.js` | **Define o que é fotografado.** Cada cena sabe chegar até si mesma. |
 | `slides.js` | Narrativa da V1 (auditoria, 9 marcos). |
 | `slides-v2.js` | **Narrativa da V2** (case, 5 marcos + atlas + Much+). Os números são contados aqui a cada montagem. |
+| `historico.js` | Levanta os 77 commits com data, autor, área e se mexem em tela. Alimenta a mega linha do tempo. |
 | `atlas.js` | Mede no DOM onde cada funcionalidade está hoje, em % da viewport. |
 | `anotar.js` | Gera as capturas anotadas de `screenshots/annotated/`. |
 | `estilo.css` | A identidade visual — quatro padrões de slide, compartilhados pelas duas versões. |

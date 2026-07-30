@@ -4,7 +4,7 @@ Resumo do que foi entregue, com o que sustenta cada parte.
 
 ```
 docs/luma-evolution/presentation/
-├── luma-evolution-v2.pptx              35 slides, 16:9, notas em todos
+├── luma-evolution-v2.pptx              39 slides, 16:9, notas em todos
 ├── luma-evolution-v2.pdf               mesmo conteúdo, 1920×1080 por página
 ├── luma-evolution-v2-speaker-notes.md  notas curtas (média 37 palavras, teto 72)
 ├── luma-evolution-v2-index.md          índice de evidências, slide a slide
@@ -19,7 +19,7 @@ docs/luma-evolution/presentation/
 | | V1 | V2 |
 |---|---|---|
 | Enfoque | auditoria do repositório | case de produto |
-| Slides | 26 | **35** |
+| Slides | 26 | **39** |
 | Prints por slide | até 8 | **no máximo 3**, sem exceção |
 | Telas comparadas | 6 | **16** |
 | Comparações de versão | 5 | **14** (9 de três versões + 5 recortes ampliados) |
@@ -42,29 +42,31 @@ Nenhuma versão histórica foi reexecutada para a V2: as 65 capturas já estavam
 
 ---
 
-## Estrutura dos 35 slides
+## Estrutura dos 39 slides
 
 | # | Bloco | Conteúdo |
 |---|---|---|
 | 1–2 | Abertura | Capa e o que veremos |
 | 3 | Ponto de partida | A primeira versão conhecida, executada |
 | 4 | Linha do tempo | Os 6 marcos, incluindo os três pontos de comparação |
-| 5 | Divisor | Tela a tela, versão por versão |
-| **6–14** | **Três versões** | **Nove telas: login, vitrine, campanha, chat, Estúdio, exportação, histórico, conta e chat no celular — cada uma no primeiro commit, na véspera da 1.0 e hoje, com as diferenças numeradas** |
-| 15–16 | Sem par no bloco | O celular (piloto → hoje) e o CLI, que não existia antes |
-| **17–21** | **Recortes** | **Barra superior, topo da vitrine, cabeçalho do chat, barra de resposta e chamada do Estúdio — ampliados** |
-| **22** | **Ganhos** | **Oito melhorias, cada uma com commit e data** |
-| 23 | Divisor | Atlas |
-| 24–28 | Atlas | Criar · Editar · Organizar · Publicar · Manter |
-| 29 | Much+ | O tema por campanha, duas execuções da mesma versão |
-| 30 | Além da aparência | Cinco frentes de maturidade |
-| 31–33 | O Luma atual | Nove telas, começando pelas que não tiveram slide próprio |
-| 34 | A dimensão | Números contados no repositório |
-| 35 | Fechamento | De ferramenta a produto |
+| **5** | **Mega linha do tempo** | **Os 77 commits num quadro: nove faixas por área, sete colunas por dia com largura proporcional ao volume** |
+| **6–8** | **Histórico completo** | **Todos os 77 commits listados, por dia, com hash, hora e assunto** |
+| 9 | Divisor | Tela a tela, versão por versão |
+| **10–18** | **Três versões** | **Nove telas: login, vitrine, campanha, chat, Estúdio, exportação, histórico, conta e chat no celular — cada uma no primeiro commit, na véspera da 1.0 e hoje, com as diferenças numeradas** |
+| 19–20 | Sem par no bloco | O celular (piloto → hoje) e o CLI, que não existia antes |
+| **21–25** | **Recortes** | **Barra superior, topo da vitrine, cabeçalho do chat, barra de resposta e chamada do Estúdio — ampliados** |
+| **26** | **Ganhos** | **Oito melhorias, cada uma com commit e data** |
+| 27 | Divisor | Atlas |
+| 28–32 | Atlas | Criar · Editar · Organizar · Publicar · Manter |
+| 33 | Much+ | O tema por campanha, duas execuções da mesma versão |
+| 34 | Além da aparência | Cinco frentes de maturidade |
+| 35–37 | O Luma atual | Nove telas, começando pelas que não tiveram slide próprio |
+| 38 | A dimensão | Números contados no repositório |
+| 39 | Fechamento | De ferramenta a produto |
 
-**Duração:** 27 minutos somando as notas.
+**Duração:** 28 minutos somando as notas.
 
-**O bloco 6–22 é o que responde "o que foi mudando e aprimorado".** Os três pontos de comparação são fixos em todos os slides:
+**O bloco 10–26 é o que responde "o que foi mudando e aprimorado".** Os três pontos de comparação são fixos em todos os slides:
 
 | Ponto | Commit | Data | Por quê |
 |---|---|---|---|
@@ -121,6 +123,20 @@ Cada contorno vem de `getBoundingClientRect` na versão atual, em porcentagem da
 | Linhas do produto alteradas para os prints | 0 |
 
 Conferência visual automática antes de exportar: **0 elementos fora da página, 0 textos cortados, 0 contrastes abaixo de 4,5:1** (menor medido 8,26:1). Detalhe em `reports/luma-evolution-v2-conferencia.md`.
+
+---
+
+## A mega linha do tempo
+
+Dois slides novos respondem "o que aconteceu em cada commit":
+
+**Slide 5 — o quadro.** Os 77 commits em nove faixas por área do produto, com uma coluna por dia. A largura de cada coluna é proporcional ao volume daquele dia: espaçar os dias por igual esconderia o que mais importa — **29 commits em 16/07 e 25 em 30/07 concentram 70% do trabalho**. Ponto cheio é commit que mexe em tela, vazado é o que não mexe, e os marcos aparecem em preto.
+
+O quadro mostra o produto mudando de foco: Backend e Design só no início; IA e CLI só existem no último dia; Docs distribuído por todos os dias, inclusive 22/07, que tem seis commits e nenhuma mudança de tela.
+
+**Slides 6–8 — a lista.** Todos os 77 commits, agrupados por dia, com hash, hora e assunto. Existe para consulta, não para leitura em voz alta — se alguém perguntar por um commit, está ali.
+
+Os dados vêm de `scripts/historico.js`, que classifica cada commit pela área dos arquivos que ele tocou.
 
 ---
 

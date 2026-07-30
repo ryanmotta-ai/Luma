@@ -28,6 +28,9 @@ const TODOS = JSON.parse(fs.readFileSync(path.join(BASE, 'commit-map', 'mileston
 const ESCOLHIDOS = ['M0', 'M1', 'M3', 'M4', 'M7', 'M8'];
 const MARCOS = ESCOLHIDOS.map(id => TODOS.find(m => m.id === id)).filter(Boolean);
 
+const commitsPath = path.join(BASE, 'commit-map', 'todos-os-commits.json');
+const COMMITS = fs.existsSync(commitsPath) ? JSON.parse(fs.readFileSync(commitsPath, 'utf8')) : [];
+
 const atlasPath = path.join(BASE, 'commit-map', 'atlas.json');
 const ATLAS = fs.existsSync(atlasPath) ? JSON.parse(fs.readFileSync(atlasPath, 'utf8')) : [];
 
@@ -281,6 +284,100 @@ function ganhos({ kicker, titulo, itens, nota, evid }) {
   return true;
 }
 
+// PADRÃO 9 — mega linha do tempo: os 77 commits num quadro só.
+// Colunas por DIA, com largura proporcional ao número de commits daquele dia, e uma faixa
+// por área do produto. Espaçar os dias por igual esconderia o que mais importa: metade do
+// trabalho aconteceu em dois dias.
+function megaLinha() {
+  if (!COMMITS.length) return false;
+  const HASH_MARCO = new Set(MARCOS.map(m => m.hashCurto));
+  const dias = [...new Set(COMMITS.map(c => c.dia))].sort();
+  const porDia = d => COMMITS.filter(c => c.dia === d);
+  const AREAS = ['Franqueado', 'Designer', 'Núcleo', 'Design', 'Backend', 'IA', 'CLI', 'Pacote', 'Docs'];
+  const pico = Math.max(...dias.map(d => porDia(d).length));
+  const rotDia = d => d.slice(5).replace('-', '/');
+
+  const cabecalho = dias.map(d => {
+    const n = porDia(d).length;
+    return `<div class="mega-dia${n >= pico * 0.6 ? ' pico' : ''}" style="flex:${n}">
+      <span class="d">${rotDia(d)}</span><span class="q">${n}</span></div>`;
+  }).join('');
+
+  const faixas = AREAS.map(ar2 => `<div class="mega-faixa">
+    <div class="mega-rot">${esc(ar2)}</div>
+    ${dias.map(d => {
+      const cs = porDia(d).filter(c => c.areas.includes(ar2));
+      return `<div class="mega-cel" style="flex:${porDia(d).length}">${cs.map(c =>
+        `<span class="pt-c${HASH_MARCO.has(c.h) ? ' marco' : (c.tela ? '' : ' doc')}" title="${esc(c.h)}"></span>`).join('')}</div>`;
+    }).join('')}
+  </div>`).join('');
+
+  add(`<section class="slide">${topo('Todo o histórico', `${COMMITS.length} commits · ${dias.length} dias com atividade`)}
+    <div class="corpo">
+      <h2 class="titulo" style="font-size:44px;margin-bottom:18px">Onde o trabalho aconteceu, commit a commit</h2>
+      <div class="mega" style="height:calc(100% - 70px)">
+        <div class="mega-dias">${cabecalho}</div>
+        <div class="mega-grade">${faixas}</div>
+        <div class="mega-leg">
+          <span><span class="pt-c"></span> commit que mexe em tela</span>
+          <span><span class="pt-c doc"></span> commit sem mudança visual</span>
+          <span><span class="pt-c marco"></span> marco da linha do tempo</span>
+          <span style="margin-left:auto;color:var(--tinta-3)">a largura de cada coluna é o volume daquele dia</span>
+        </div>
+      </div>
+    </div>
+    ${rodape('')}
+  </section>`,
+  `A forma do trabalho num quadro. Dois picos — ${rotDia(dias[0])} e ${rotDia(dias[dias.length-1])} — concentram mais da metade dos commits.
+O vazio no meio não é ócio: 22/07 são seis commits só de planejamento no luma-brain, sem tocar em tela.
+Deixe a plateia varrer as faixas: dá para ver o produto mudando de foco — franqueado e designer no início, IA e console no fim.
+~1min.`,
+  { tipo: 'Captura real', imagens: [], quando: `${dias[0]} → ${dias[dias.length-1]}`,
+    obs: `git log --all, ${COMMITS.length} commits classificados por arquivo tocado.` });
+  return true;
+}
+
+// PADRÃO 10 — a lista completa, em páginas de duas colunas.
+function listaCommits() {
+  if (!COMMITS.length) return false;
+  const HASH_MARCO = new Set(MARCOS.map(m => m.hashCurto));
+  const dias = [...new Set(COMMITS.map(c => c.dia))].sort();
+  // Quebra por DIA, nunca no meio de um: um dia partido entre dois slides força a plateia
+  // a segurar contexto de um slide para o outro.
+  const paginas = [];
+  let atual = [], carga = 0;
+  for (const d of dias) {
+    const cs = COMMITS.filter(c => c.dia === d);
+    const custo = Math.ceil(cs.length / 2) * 2 + 3;   // duas colunas + cabeçalho do dia
+    if (carga + custo > 52 && atual.length) { paginas.push(atual); atual = []; carga = 0; }
+    atual.push([d, cs]); carga += custo;
+  }
+  if (atual.length) paginas.push(atual);
+
+  paginas.forEach((pag, i) => {
+    const corpo = pag.map(([d, cs]) => `<div class="cm-grupo">
+      <div class="cm-dia"><b>${d.slice(8)}/${d.slice(5,7)}</b>
+        <span>${cs.length} commits · ${cs.filter(c => c.tela).length} mexem em tela</span></div>
+      <div class="cm-lista">${cs.map(c => `<div class="cm${HASH_MARCO.has(c.h) ? ' marco' : ''}">
+        <span class="hs">${esc(c.h)}</span><span class="hr">${esc(c.hora)}</span>
+        <span class="tx">${esc(c.s.length > 74 ? c.s.slice(0, 73) + '…' : c.s)}</span></div>`).join('')}</div>
+    </div>`).join('');
+    add(`<section class="slide" data-indice>${topo(`Todo o histórico · ${i + 1} de ${paginas.length}`,
+        pag.map(([d]) => d.slice(5).replace('-', '/')).join(' · '))}
+      <div class="corpo">
+        <div class="commits">${corpo}</div>
+      </div>
+      ${rodape('')}
+    </section>`,
+    `Página ${i + 1} de ${paginas.length} do histórico completo. Não leia em voz alta — está aqui para quem quiser conferir depois.
+Se alguém perguntar por um commit específico, é nestes slides que ele está.
+~15s.`,
+    { tipo: 'Captura real', imagens: [], quando: pag.map(([d]) => d).join(', '),
+      obs: 'git log --all, assunto e hora de cada commit.' });
+  });
+  return true;
+}
+
 // ══ 1 · CAPA ════════════════════════════════════════════════════════════════
 add(`<section class="slide escuro">
   <div class="marca">Delivery Much · uso interno</div>
@@ -373,6 +470,9 @@ O histórico versionado é curto: 15 dias, ${M.commits} commits, e metade deles 
   obs: 'Datas e hashes conferidos com git log.' });
 
 // ══ 5–7 · TRÊS GRANDES MOMENTOS ═════════════════════════════════════════════
+
+megaLinha();
+listaCommits();
 
 // ══ EVOLUÇÃO EM DETALHE — todas as versões de cada tela ═════════════════════
 add(`<section class="slide escuro">

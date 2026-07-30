@@ -95,8 +95,12 @@ ${corpo}
           if (px < MIN_FONTE) prob.push({ t: 'fonte-pequena', el: (e.className || e.tagName).toString().slice(0, 28), d: px + 'px' });
         }
       });
+      // Slide marcado com data-indice é lista de referência: existe para consulta, não
+      // para projeção, e o teto de densidade não se aplica a ele.
       const chars = (s.innerText || '').replace(/\s+/g, ' ').trim().length;
-      if (chars > 1500) prob.push({ t: 'slide-denso', el: '(slide)', d: chars + ' caracteres' });
+      if (chars > 1500 && !s.hasAttribute('data-indice')) {
+        prob.push({ t: 'slide-denso', el: '(slide)', d: chars + ' caracteres' });
+      }
 
       // Sobreposição com a faixa de conclusão. A conclusão é `position:absolute`, então
       // texto do corpo passando por baixo dela não conta como "fora da página" — mas

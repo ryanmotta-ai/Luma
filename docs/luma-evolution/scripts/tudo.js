@@ -41,6 +41,7 @@ try {
     passo('· medindo onde as funcionalidades estão hoje', 'node', [path.join(AQUI, 'atlas.js')]);
     passo('· gerando as capturas anotadas', 'node', [path.join(AQUI, 'anotar.js')]);
   }
+  if (v2) passo('· levantando o histórico completo de commits', 'node', [path.join(AQUI, 'historico.js')]);
   passo(`montando HTML, conferindo layout, PNGs, PDF, notas e índice (${v2 ? 'V2' : 'V1'})`,
     'node', [path.join(AQUI, 'publicar.js'), NARRATIVA, PREFIXO]);
   passo('empacotando o PowerPoint', 'python3', [path.join(AQUI, 'montar-pptx.py'), PREFIXO]);

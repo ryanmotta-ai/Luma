@@ -216,3 +216,53 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
 /* ausência também é diferença: risca o que aquela versão ainda não tinha */
 .difs li.nao{color:var(--tinta-3)}
 .difs li.nao .n{background:transparent;border:1.5px dashed var(--tinta-3);color:var(--tinta-3)}
+
+/* ═══ mega linha do tempo — os 77 commits ══════════════════════════════════ */
+
+/* Colunas por DIA, com largura proporcional ao número de commits daquele dia. Espaçar os
+   dias por igual esconderia o que mais importa aqui: metade do trabalho aconteceu em
+   dois dias. */
+.mega{display:flex;flex-direction:column;height:100%;gap:0}
+.mega-dias{display:flex;gap:3px;margin-bottom:10px}
+.mega-dia{display:flex;flex-direction:column;align-items:center;padding:7px 4px 9px;border-radius:8px 8px 0 0;
+  background:var(--papel-2);border:1px solid var(--linha);border-bottom:none}
+.mega-dia.pico{background:#FFF3E0;border-color:#FFD9A0}
+.mega-dia .d{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--tinta)}
+.mega-dia .q{font-size:14px;color:var(--tinta-3);margin-top:2px}
+.mega-dia.pico .q{color:var(--laranja-d);font-weight:700}
+
+.mega-grade{flex:1;display:flex;flex-direction:column;gap:2px;min-height:0}
+.mega-faixa{display:flex;align-items:stretch;gap:3px;flex:1;min-height:0}
+.mega-rot{width:118px;flex-shrink:0;display:flex;align-items:center;font-size:14px;font-weight:800;
+  color:var(--tinta-2);letter-spacing:-.01em}
+/* centrado: alinhado à esquerda, os pontos de um dia cheio se amontoavam num canto e
+   deixavam metade da coluna vazia, o que lia como "parou no meio do dia". */
+.mega-cel{display:flex;align-items:center;justify-content:center;gap:3px;padding:0 5px;
+  border-left:1px solid var(--linha);flex-wrap:wrap;align-content:center;background:var(--papel)}
+.mega-cel:last-child{border-right:1px solid var(--linha)}
+.mega-faixa:nth-child(odd) .mega-cel{background:#FAFAF8}
+/* cada ponto é um commit: cheio quando mexe em tela, vazado quando não */
+.pt-c{width:11px;height:11px;border-radius:50%;background:var(--laranja);flex-shrink:0}
+.pt-c.doc{background:transparent;border:1.5px solid var(--tinta-3)}
+.pt-c.marco{background:var(--tinta);width:14px;height:14px;box-shadow:0 0 0 2.5px var(--laranja)}
+
+.mega-leg{display:flex;gap:26px;margin-top:12px;font-size:14px;color:var(--tinta-2);align-items:center}
+.mega-leg span{display:flex;align-items:center;gap:8px}
+
+/* ── lista completa dos commits ── */
+/* Grid de duas colunas preenchia na HORIZONTAL: o segundo commit do dia caía à direita
+   do primeiro, e a leitura cronológica quebrava. Agora cada dia é um bloco com o
+   cabeçalho em largura cheia e os commits fluindo em coluna, de cima para baixo. */
+.commits{height:100%}
+.cm-grupo{margin-bottom:16px;break-inside:avoid}
+.cm-lista{column-count:2;column-gap:38px}
+.cm-dia{display:flex;align-items:baseline;gap:12px;margin:0 0 8px;
+  padding-bottom:5px;border-bottom:2px solid var(--laranja)}
+.cm-dia b{font-size:20px;font-weight:900;letter-spacing:-.02em}
+.cm-dia span{font-size:15px;color:var(--tinta-3)}
+.cm{display:flex;gap:9px;align-items:baseline;padding:2px 0;font-size:15px;line-height:1.32;break-inside:avoid}
+.cm .hs{font-family:var(--mono);font-size:14px;color:var(--laranja-d);flex-shrink:0;width:60px}
+.cm .hr{font-family:var(--mono);font-size:14px;color:var(--tinta-3);flex-shrink:0;width:40px}
+.cm .tx{color:var(--tinta-2);white-space:nowrap}   /* o corte é feito na origem, com … */
+.cm.marco .tx{color:var(--tinta);font-weight:700}
+.cm.marco .hs{font-weight:800}
