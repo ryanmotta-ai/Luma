@@ -1397,64 +1397,310 @@ function fBulkParseHeuristicText(text) {
       name = fSmartTitleCase(name);
     }
     
-    // 5. Mapeamento dinâmico para as variáveis do material
-    const dados = {};
-    vars.forEach(v => dados[v] = '');
-
-    // Só campos de TEXTO recebem o texto parseado — senão o nome caía em "foto_produto"
-    // (casa com /produto/i) e o campo "produto" ficava vazio (bug do mapeamento por regex).
-    const textVars = vars.filter(v => (typeof fIsImageVar==='function') ? !fIsImageVar(v) : !/foto|logo|imagem|img|avatar/i.test(v));
-    // Nome: prefere o campo EXATO "produto"/"titulo"/"nome" antes do casamento por substring.
-    const nameKey = textVars.find(v => /^(produto|titulo|nome)$/i.test(v)) || textVars.find(v => /produto|titulo|nome/i.test(v)) || textVars[0];
-    if (nameKey) dados[nameKey] = name;
-
-    const deKey = textVars.find(v => /^(precode|de)$/i.test(v)) || textVars.find(v => /de|antigo/i.test(v));
-    if (deKey) dados[deKey] = precoDe ? fApplyMask(deKey, precoDe) : '';
-
-    const porKey = textVars.find(v => /^(precopor|por|preco|preço|valor)$/i.test(v)) || textVars.find(v => /por|preco|preço|atual|valor/i.test(v));
-    if (porKey) dados[porKey] = precoPor ? fApplyMask(porKey, precoPor) : '';
-
-    const valKey = textVars.find(v => /validade|data|condicao|condição/i.test(v));
-    if (valKey) dados[valKey] = validade;
-
-    const descKey = textVars.find(v => /desconto|selo|off/i.test(v));
-    if (descKey && desconto) dados[descKey] = desconto;
-
-    // Auto-categorizar se houver campo de categoria
-    const catKey = textVars.find(v => /categor|tipo|segmento/i.test(v));
-    if (catKey && !dados[catKey]) {
-      dados[catKey] = fBulkAutoCategorize(name);
-    }
-    
-    // Validação
-    const erros = [];
-    vars.forEach(v => {
-      const err = typeof fValidate === 'function' ? fValidate(v, dados[v]) : null;
-      if (err) erros.push(err);
-    });
-    
-    return { dados, erros };
+    return _fBulkRowFromCampos({nome:name, precoDe, precoPor, validade, desconto});
   });
 }
 
-function fBulkFillWithAI() {
+/* Monta UMA linha da grade a partir de campos canônicos. É a única tradução
+   "produto/de/por/validade/desconto" → vocabulário do material (as vars do template),
+   com máscara e validação. Usada pelo parser heurístico de texto E pela leitura de
+   cardápio por IA — duas entradas, um mapeamento (duplicar aqui já foi bug antes). */
+function _fBulkRowFromCampos(c){
+  const vars = fBulkVars();
+  const dados = {};
+  vars.forEach(v => dados[v] = '');
+
+  // Só campos de TEXTO recebem o texto parseado — senão o nome caía em "foto_produto"
+  // (casa com /produto/i) e o campo "produto" ficava vazio (bug do mapeamento por regex).
+  const textVars = vars.filter(v => (typeof fIsImageVar==='function') ? !fIsImageVar(v) : !/foto|logo|imagem|img|avatar/i.test(v));
+  // Nome: prefere o campo EXATO "produto"/"titulo"/"nome" antes do casamento por substring.
+  const nameKey = textVars.find(v => /^(produto|titulo|nome)$/i.test(v)) || textVars.find(v => /produto|titulo|nome/i.test(v)) || textVars[0];
+  if (nameKey) dados[nameKey] = c.nome || '';
+
+  const deKey = textVars.find(v => /^(precode|de)$/i.test(v)) || textVars.find(v => /de|antigo/i.test(v));
+  if (deKey) dados[deKey] = c.precoDe ? fApplyMask(deKey, c.precoDe) : '';
+
+  const porKey = textVars.find(v => /^(precopor|por|preco|preço|valor)$/i.test(v)) || textVars.find(v => /por|preco|preço|atual|valor/i.test(v));
+  if (porKey) dados[porKey] = c.precoPor ? fApplyMask(porKey, c.precoPor) : '';
+
+  const valKey = textVars.find(v => /validade|data|condicao|condição/i.test(v));
+  if (valKey) dados[valKey] = c.validade || '';
+
+  const descKey = textVars.find(v => /desconto|selo|off/i.test(v));
+  if (descKey && c.desconto) dados[descKey] = c.desconto;
+
+  // Auto-categorizar se houver campo de categoria
+  const catKey = textVars.find(v => /categor|tipo|segmento/i.test(v));
+  if (catKey && !dados[catKey]) {
+    dados[catKey] = fBulkAutoCategorize(c.nome || '');
+  }
+
+  // Validação
+  const erros = [];
+  vars.forEach(v => {
+    const err = typeof fValidate === 'function' ? fValidate(v, dados[v]) : null;
+    if (err) erros.push(err);
+  });
+
+  return { dados, erros };
+}
+
+// Valor que é só número/preço/percentual (não serve como nome de produto).
+const _F_SO_NUMERO=/^r?\$?\s*[\d.,%]+\s*(?:reais|off)?$/i;
+// Chip "IA" da linha — vale nas DUAS visões da grade (tabela é a padrão; cartões é opção).
+// Linha lida de cardápio ou com foto casada por visão pede conferência: preço e foto
+// errados só se pegam com o olho do franqueado.
+function _fBulkIaChip(r){
+  if(!r || (!r._ia && !r._iaFoto)) return '';
+  const motivo = r._ia ? 'Nome e preço lidos do cardápio pela IA' : 'Foto casada pela IA';
+  return `<span class="f-bulk-ia-chip" title="${motivo} — confira antes de gerar">IA</span>`;
+}
+function _fBulkRowTemNome(r){
+  return Object.values(r&&r.dados||{}).some(v=>{ const s=String(v||'').trim(); return s && !_F_SO_NUMERO.test(s) && !s.startsWith('data:'); });
+}
+function _fBulkRowTemPreco(r){
+  return Object.values(r&&r.dados||{}).some(v=>_F_SO_NUMERO.test(String(v||'').trim()));
+}
+// Linha aproveitável = tem nome. Linha sem nome vira arte vazia, então é descartada.
+function _fBulkRowsUteis(rows){ return (rows||[]).filter(_fBulkRowTemNome); }
+// O parser heurístico nunca "falha" — em cardápio colado do WhatsApp ele devolve LIXO
+// arrumadinho: uma linha com o título da seção ("LANCHES") e outras só com preço solto.
+// Sinal de fracasso: o texto TEM número, mas nenhuma linha saiu com nome E preço juntos.
+// (Texto sem número nenhum — só uma lista de nomes — é caso legítimo do parser local.)
+function _fBulkHeuristicaFalhou(texto, rows){
+  if((rows||[]).some(r=>_fBulkRowTemNome(r) && _fBulkRowTemPreco(r))) return false;
+  return /\d/.test(String(texto||''));
+}
+
+async function fBulkFillWithAI() {
   const ta = document.getElementById('f-bulk-ai-raw-text');
   if(!ta) return;
   const text = ta.value.trim();
   if(!text) { gToast('Digite ou cole um texto com as ofertas primeiro.', 'error'); return; }
-  
-  const parsedRows = fBulkParseHeuristicText(text);
-  if(!parsedRows || parsedRows.length === 0) {
+
+  // Escada: o parser local resolve o caso comum ("burger por 25, pizza de 50 por 39") de
+  // graça e na hora. A IA entra só quando ele não achou produto nenhum — texto de cardápio
+  // colado do WhatsApp, com seção, emoji e quebra torta.
+  let parsedRows = fBulkParseHeuristicText(text);
+  let veioDaIA = false;
+  if(_fBulkHeuristicaFalhou(text, parsedRows) && typeof gAskAI==='function' && gAiReady()){
+    _fBulkSetBusy(true, 'Entendendo suas ofertas…');
+    const daIA = await _fBulkItensPorIA('texto', text, null);
+    _fBulkSetBusy(false);
+    if(daIA && daIA.length){ parsedRows = daIA; veioDaIA = true; }
+  }
+
+  parsedRows = _fBulkRowsUteis(parsedRows);
+  if(!parsedRows.length) {
     gToast('Não achei nenhum produto ou preço nesse texto.', 'error');
     return;
   }
-  
+
   fBulkRows = parsedRows;
-  document.getElementById('f-bulk-status').textContent=`${fBulkRows.length} linha(s) carregada(s)`;
+  _fBulkAfterImport(veioDaIA ? 'texto lido pela IA' : '');
+  ta.value = '';
+}
+
+/* ══════════════════════════════════════════════════════════════
+   LER CARDÁPIO (foto/PDF) — o gargalo real do Sheets não é preencher (voz e ações em
+   massa já cobrem), é DIGITAR o cardápio que o lojista mandou por WhatsApp em foto ou
+   PDF. Aqui o arquivo vai pro modelo e volta como linhas da grade.
+   ⚠ Preço errado é dano real (peça publicada com valor que a loja não honra), então:
+   a linha entra MARCADA como lida por IA, passa pela mesma validação das outras e o
+   franqueado revisa na grade antes de gerar — nunca vai direto pro ZIP.
+══════════════════════════════════════════════════════════════ */
+async function fBulkReadMenu(input){
+  const files = input && input.files ? Array.from(input.files).slice(0,4) : [];
+  if(input) input.value = '';
+  if(!files.length) return;
+  if(typeof gAskAI!=='function' || !gAiReady()){
+    gToast('A leitura de cardápio precisa do assistente de IA, que está indisponível agora.','error');
+    return;
+  }
+  const grandes = files.filter(f=>f.size > 8*1024*1024);
+  if(grandes.length){ gToast('Arquivo muito grande (máx. 8 MB por cardápio).','error'); return; }
+
+  _fBulkSetBusy(true, 'Lendo o cardápio…');
+  const partes = [];
+  for(const f of files){
+    const p = await gAiFileToPart(f);
+    if(p) partes.push(p);
+  }
+  if(!partes.length){ _fBulkSetBusy(false); gToast('Não consegui ler esse arquivo.','error'); return; }
+
+  const itens = await _fBulkItensPorIA('arquivo', '', partes);
+  _fBulkSetBusy(false);
+  if(!itens || !itens.length){
+    gToast('Não achei produtos com preço nesse cardápio. Tente uma foto mais nítida ou digite as ofertas.','error');
+    return;
+  }
+  fBulkRows = itens;
+  _fBulkAfterImport('cardápio lido pela IA');
+}
+
+// Núcleo compartilhado: pede itens ao modelo (de texto OU de anexo) e devolve linhas
+// prontas da grade. Um prompt, duas entradas.
+async function _fBulkItensPorIA(origem, texto, partes){
+  const prompt = `Você extrai itens de cardápio para uma planilha de artes de promoção (Delivery Much, delivery no interior do Brasil).
+
+${origem==='arquivo' ? 'O anexo é um cardápio (foto ou PDF) de um restaurante.' : 'O texto abaixo foi escrito ou colado pelo franqueado:\n"""\n'+texto+'\n"""'}
+
+TAREFA: liste os itens que dá pra anunciar, com preço.
+
+REGRAS:
+1. NÃO invente item nem preço. Se o preço não aparece, deixe "" — não estime.
+2. Preço como está no original, só número com vírgula decimal (ex.: "25,90"). Sem "R$".
+3. Se houver preço normal E promocional, o normal vai em "precoDe" e o promocional em "precoPor". Só um preço: vai em "precoPor".
+4. Ignore título de seção ("Lanches", "Bebidas"), endereço, telefone e horário.
+5. Nome do produto curto e limpo, sem descrição longa de ingredientes.
+6. No máximo 40 itens, na ordem em que aparecem.
+
+Responda APENAS JSON: {"itens":[{"produto":"...","precoDe":"","precoPor":"25,90"}]}`;
+
+  const resp = await gAskAI('cardapio', prompt, {parts:partes||[], json:true, cache:!partes});
+  const parsed = resp && (typeof gAiParseJson==='function' ? gAiParseJson(resp) : null);
+  const brutos = parsed && Array.isArray(parsed.itens) ? parsed.itens : [];
+  const limpaPreco = v => String(v==null?'':v).replace(/r\$\s*/i,'').replace(/[^\d.,]/g,'').trim();
+  return brutos.slice(0,40).map(it=>{
+    const nome = String(it&&it.produto||'').replace(/\s+/g,' ').trim().slice(0,60);
+    if(!nome) return null;
+    const row = _fBulkRowFromCampos({
+      nome: (typeof fSmartTitleCase==='function') ? fSmartTitleCase(nome) : nome,
+      precoDe: limpaPreco(it.precoDe), precoPor: limpaPreco(it.precoPor),
+      validade:'', desconto:''
+    });
+    row._ia = true;   // chip na grade: revisar preço antes de gerar
+    return row;
+  }).filter(Boolean);
+}
+
+// Estado de "trabalhando" da etapa 1 (a leitura de cardápio leva alguns segundos).
+function _fBulkSetBusy(on, texto){
+  const card = document.getElementById('f-ai-prompt-block');
+  if(card) card.classList.toggle('is-busy', !!on);
+  document.querySelectorAll('#f-ai-prompt-block button, #f-bulk-menu-input').forEach(b=>{ b.disabled = !!on; });
+  const st = document.getElementById('f-bulk-menu-status');
+  if(st) st.textContent = on ? (texto||'Lendo…') : '';
+}
+
+// Fim de importação: status, grade e ida pra revisão — o mesmo desfecho pros 3 caminhos.
+function _fBulkAfterImport(fonte){
+  const st = document.getElementById('f-bulk-status');
+  if(st) st.textContent = `${fBulkRows.length} linha(s) carregada(s)`;
   fBulkRenderPreview();
   _fBulkGoReview();
-  gToast('Tabela preenchida com ' + fBulkRows.length + ' oferta(s).');
-  ta.value = '';
+  const nIA = fBulkRows.filter(r=>r&&r._ia).length;
+  if(nIA) gToast(`${nIA} linha(s) do ${fonte} — confira os preços antes de gerar.`);
+  else gToast('Tabela preenchida com ' + fBulkRows.length + ' oferta(s).');
+  try{ fBulkScheduleAutosave(); }catch(e){}
+}
+
+/* ══════════════════════════════════════════════════════════════
+   FOTOS EM LOTE — 30 produtos = 30 cliques em "Foto". Aqui o franqueado solta a pasta
+   inteira e cada imagem acha sua linha.
+   Escada: primeiro o casamento por NOME DE ARQUIVO, que é local, instantâneo e acerta a
+   maioria ("x-burger-duplo.jpg" → "X-Burger Duplo"). A IA entra só nas sobras, numa
+   única chamada com as fotos restantes. Foto que ninguém casou fica de fora — melhor
+   linha sem foto que foto no produto errado.
+══════════════════════════════════════════════════════════════ */
+function _fBulkImgKey(){
+  const vars = fBulkVars();
+  return vars.find(v => (typeof fIsImageVar==='function') ? fIsImageVar(v) : /foto|imagem|img/i.test(v)) || '';
+}
+function _fBulkNormNome(s){
+  return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/\.(jpe?g|png|webp|gif)$/i,'').replace(/[^a-z0-9]+/g,' ').trim();
+}
+// Pontuação de casamento: palavras do nome do produto presentes no nome do arquivo.
+function _fBulkScoreNome(produto, arquivo){
+  const p=_fBulkNormNome(produto).split(' ').filter(w=>w.length>2);
+  const a=_fBulkNormNome(arquivo);
+  if(!p.length || !a) return 0;
+  const acertos=p.filter(w=>a.indexOf(w)>=0).length;
+  return acertos/p.length;
+}
+async function fBulkMatchPhotos(input){
+  const files = input && input.files ? Array.from(input.files).filter(f=>/^image\//.test(f.type)).slice(0,40) : [];
+  if(input) input.value='';
+  if(!files.length) return;
+  const imgKey = _fBulkImgKey();
+  if(!imgKey){ gToast('Este material não usa foto de produto.','error'); return; }
+  if(!fBulkRows.length){ gToast('Carregue as ofertas primeiro — as fotos vão nas linhas.','error'); return; }
+
+  const nomeKey = Object.keys(fBulkRows[0].dados).find(k=>/^(produto|titulo|nome)$/i.test(k))
+    || Object.keys(fBulkRows[0].dados).find(k=>/produto|titulo|nome/i.test(k) && k!==imgKey);
+  const pendentes = fBulkRows.map((r,i)=>({i, nome:String((r.dados||{})[nomeKey]||'').trim()}))
+                             .filter(x=>x.nome && !String((fBulkRows[x.i].dados||{})[imgKey]||'').trim());
+  if(!pendentes.length){ gToast('Todas as linhas já têm foto.','error'); return; }
+
+  _fBulkSetBusy(true,'Casando fotos…');
+  const usados=new Set(); const casados=[];
+  // 1) nome do arquivo (local, sem IA)
+  pendentes.forEach(p=>{
+    let melhor=null, melhorScore=0;
+    files.forEach((f,fi)=>{
+      if(usados.has(fi)) return;
+      const s=_fBulkScoreNome(p.nome, f.name);
+      if(s>melhorScore){ melhorScore=s; melhor=fi; }
+    });
+    if(melhor!=null && melhorScore>=0.6){ usados.add(melhor); casados.push({linha:p.i, file:files[melhor], via:'nome'}); }
+  });
+
+  // 2) sobras → uma única chamada de visão
+  const sobraFotos = files.map((f,i)=>({f,i})).filter(x=>!usados.has(x.i)).slice(0,8);
+  const sobraLinhas = pendentes.filter(p=>!casados.some(c=>c.linha===p.i));
+  if(sobraFotos.length && sobraLinhas.length && typeof gAskAI==='function' && gAiReady()){
+    const partes=[];
+    for(const s of sobraFotos){ const p=await gAiFileToPart(s.f); if(p) partes.push(p); }
+    if(partes.length){
+      const lista=sobraLinhas.map((p,idx)=>`${idx}: ${p.nome}`).join('\n');
+      const prompt=`Você casa fotos de comida com itens de um cardápio.
+
+Recebi ${partes.length} imagem(ns), na ordem em que aparecem (imagem 0, imagem 1, ...).
+
+ITENS SEM FOTO:
+${lista}
+
+TAREFA: para cada imagem, diga o índice do item que ela mostra.
+
+REGRAS:
+1. Só case quando a imagem MOSTRA claramente aquele item. Na dúvida, use null.
+2. Um item por imagem, sem repetir item.
+3. Responda com um array do tamanho do número de imagens.
+
+Responda APENAS JSON: {"casos":[{"imagem":0,"item":2},{"imagem":1,"item":null}]}`;
+      const resp=await gAskAI('casar-fotos', prompt, {parts:partes, json:true, cache:false});
+      const parsed=resp && (typeof gAiParseJson==='function'?gAiParseJson(resp):null);
+      const casos=parsed&&Array.isArray(parsed.casos)?parsed.casos:[];
+      const itemUsado=new Set();
+      casos.forEach(c=>{
+        const im=Number(c&&c.imagem), it=(c&&c.item);
+        if(!Number.isInteger(im) || im<0 || im>=sobraFotos.length) return;
+        if(it==null || !Number.isInteger(Number(it))) return;
+        const alvo=sobraLinhas[Number(it)];
+        if(!alvo || itemUsado.has(alvo.i)) return;
+        itemUsado.add(alvo.i);
+        casados.push({linha:alvo.i, file:sobraFotos[im].f, via:'ia'});
+      });
+    }
+  }
+
+  // 3) grava (dataURL no mesmo campo que o upload manual usa)
+  for(const c of casados){
+    const part=await gAiFileToPart(c.file);
+    if(!part) continue;
+    fBulkRows[c.linha].dados[imgKey]='data:'+part.mimeType+';base64,'+part.data;
+    if(c.via==='ia') fBulkRows[c.linha]._iaFoto=true;   // casada por visão: vale conferir
+  }
+  try{ if(typeof _fBulkRevalidateRows==='function') _fBulkRevalidateRows(fBulkRows); }catch(e){}
+  _fBulkSetBusy(false);
+  fBulkRenderPreview();
+  try{ fBulkScheduleAutosave(); }catch(e){}
+
+  const porNome=casados.filter(c=>c.via==='nome').length, porIA=casados.filter(c=>c.via==='ia').length;
+  const sobrando=pendentes.length-casados.length;
+  if(!casados.length) gToast('Não consegui casar nenhuma foto com as linhas — envie pelo nome do produto no arquivo.','error');
+  else gToast(`${casados.length} foto(s) posicionada(s)${porIA?` (${porNome} pelo nome, ${porIA} pela IA)`:''}${sobrando?` · ${sobrando} linha(s) ainda sem foto`:''}.`);
 }
 
 let _fSpeechActive = false;
@@ -1988,7 +2234,7 @@ function fBulkRenderPreview(){
           <button class="d-btn-sec" style="padding:0;width:22px;height:22px;border-radius:50%;color:var(--text-3,#6B6B6B);background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all var(--dur-micro) var(--ease-standard)" onmouseover="this.style.color='var(--dm-orange-d,#F85400)';this.style.background='var(--dm-orange-bg,rgba(255,144,0,.12))'" onmouseout="this.style.color='';this.style.background=''" onclick="fBulkCloneRow(${i})" title="Duplicar linha"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
           <button class="d-btn-sec" style="padding:0;width:22px;height:22px;border-radius:50%;color:var(--text-3,#6B6B6B);background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all var(--dur-micro) var(--ease-standard)" onmouseover="this.style.color='var(--dm-red,#C81818)';this.style.background='rgba(200,24,24,0.08)'" onmouseout="this.style.color='';this.style.background=''" onclick="fBulkRemoveCard(${i})" title="Remover linha"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </td>
-        <td style="padding:6px 4px;border-bottom:1px solid var(--gray-light, #F2F2F2);text-align:center;cursor:help" onmouseenter="fBulkShowHoverPreview(event, ${i})" onmouseleave="fBulkHideHoverPreview()"><span class="f-bulk-num-chip">${i+1}</span></td>
+        <td style="padding:6px 4px;border-bottom:1px solid var(--gray-light, #F2F2F2);text-align:center;cursor:help;white-space:nowrap" onmouseenter="fBulkShowHoverPreview(event, ${i})" onmouseleave="fBulkHideHoverPreview()"><span class="f-bulk-num-chip">${i+1}</span>${_fBulkIaChip(r)}</td>
         ${tds}
       </tr>`;
     }).join('');
@@ -2060,9 +2306,10 @@ function fBulkRenderPreview(){
     const actionsHtml = isErr 
       ? `<button class="d-btn-sec" style="padding:2px 6px;font-size:9px;margin-top:4px;width:100%" onclick="fBulkEditRow(${i})">Corrigir linha</button>` 
       : `<button class="d-btn-sec" style="padding:2px 6px;font-size:9px;margin-top:4px;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:4px" onclick="fBulkShowCopyModal(${i})"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Legendas</button>`;
+    const iaChip = _fBulkIaChip(r);
     return `<div class="f-bulk-card ${isErr?'has-err':''}" id="f-bulk-card-${i}">`
       +`<button class="f-bulk-remove" onclick="fBulkRemoveCard(${i})" title="Remover do lote">×</button>`
-      +`<div class="f-bulk-card-num">${i+1}</div>`
+      +`<div class="f-bulk-card-num">${i+1}</div>${iaChip}`
       +`<canvas class="f-bulk-canvas" id="f-bulk-cv-${i}" width="${cw}" height="${ch}"></canvas>`
       +`<div class="f-bulk-card-title" title="${gEsc(titulo)}">${gEsc(titulo)}</div>`
       +`<div class="f-bulk-card-info" id="f-bulk-info-${i}">${campos}${actionsHtml}</div>`
