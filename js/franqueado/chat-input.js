@@ -269,6 +269,7 @@ function fAttachInputGuard(){
     const newVal = box.value.slice(0,start) + clean + box.value.slice(end);
     const id = fState.camp?.perguntas?.[fState.stepIdx]?.id;
     const cfg = id ? fGetFieldType(id) : {maxLen:120};
+    _fFitRemember(box, id, newVal, cfg.maxLen);   // guarda a tentativa ANTES do corte
     box.value = newVal.slice(0, cfg.maxLen);
     const cursor = Math.min(box.value.length, start + clean.length);
     box.setSelectionRange(cursor, cursor);
@@ -280,6 +281,7 @@ function fAttachInputGuard(){
     if(!id) return;
     const cfg = fGetFieldType(id);
     if(box.value.length > cfg.maxLen){
+      _fFitRemember(box, id, box.value, cfg.maxLen); // o que ele QUIS escrever, antes do corte
       box.value = box.value.slice(0, cfg.maxLen);
     }
     fUpdateCharCount();
@@ -315,6 +317,130 @@ function fUpdateCharCount(){
   } else {
     counter.classList.remove('warn');
   }
+  _fFitSync(box, id, cfg, len);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ENCAIXAR NO LIMITE — o campo tem maxLen (permissão do designer). Quem digita
+   "Hambúrguer Artesanal Duplo com Bacon" num campo de 32 vê o texto ser CORTADO
+   pela guarda acima e fica tentando abreviar na mão, letra por letra. Esta é a
+   tarefa repetitiva mais frequente do fluxo — acontece em todo campo de texto.
+   Aqui: guarda a tentativa completa, pede 3 versões que CAIBAM e valida o
+   tamanho no código (não confia no modelo). Sem IA disponível, o botão nem
+   aparece — nada muda pra quem não tem.
+══════════════════════════════════════════════════════════════ */
+let _fFitOpts = [];          // últimas opções (o onclick passa índice, nunca o texto)
+let _fFitBusy = false;
+
+// Guarda o texto que o usuário QUIS escrever, por campo (o corte já aconteceu).
+function _fFitRemember(box, id, textoCompleto, maxLen){
+  if(!box || !id || typeof textoCompleto!=='string') return;
+  if(textoCompleto.length<=maxLen) return;
+  box._fFit = {id, text:textoCompleto.replace(/[\r\n\t]/g,' ').replace(/\s+/g,' ').trim()};
+}
+function _fFitAttempt(box, id){
+  const f=box && box._fFit;
+  return (f && f.id===id && f.text) ? f.text : '';
+}
+// Mostra/esconde o botão. Aparece só quando: bateu no teto, existe tentativa maior
+// que o limite, o campo é de texto e há IA no ar.
+function _fFitSync(box, id, cfg, len){
+  const wrap=document.getElementById('f-input-wrap'); if(!wrap) return;
+  let btn=document.getElementById('f-fit-btn');
+  const tipoTexto = cfg.type==='text' || cfg.type==='code';
+  const cabe = len>=cfg.maxLen && _fFitAttempt(box,id).length>cfg.maxLen;
+  const podeIA = typeof gAskAI==='function' && typeof gAiReady==='function' && gAiReady();
+  if(!(tipoTexto && cabe && podeIA)){
+    if(btn) btn.remove();
+    wrap.classList.remove('has-fit');
+    _fFitClosePop();
+    return;
+  }
+  wrap.classList.add('has-fit');   // abre espaço no padding do campo (ver chat.css)
+  if(btn) return;
+  btn=document.createElement('button');
+  btn.type='button'; btn.id='f-fit-btn'; btn.className='f-fit-btn';
+  btn.title='Encurtar para caber em '+cfg.maxLen+' caracteres';
+  btn.setAttribute('aria-label', btn.title);
+  btn.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg><span>Encurtar</span>';
+  btn.onclick=(ev)=>{ ev.preventDefault(); fFitTextWithAI(); };
+  wrap.appendChild(btn);
+}
+function _fFitClosePop(){
+  const p=document.getElementById('f-fit-pop'); if(p) p.remove();
+  document.removeEventListener('keydown', _fFitEsc);
+}
+function _fFitEsc(e){ if(e.key==='Escape') _fFitClosePop(); }
+
+async function fFitTextWithAI(){
+  if(_fFitBusy) return;
+  const box=document.getElementById('f-msg-box'); if(!box) return;
+  const id=fState.camp?.perguntas?.[fState.stepIdx]?.id; if(!id) return;
+  const cfg=fGetFieldType(id);
+  const original=_fFitAttempt(box,id) || box.value;
+  if(!original) return;
+  const btn=document.getElementById('f-fit-btn');
+  _fFitBusy=true; _fFitClosePop();
+  if(btn){ btn.classList.add('is-loading'); btn.disabled=true; }
+
+  const camp=(fState.camp&&fState.camp.name)||'Delivery Much';
+  const prompt=`Você encurta textos de peças de marketing do Delivery Much (delivery no interior do Brasil).
+
+TEXTO ORIGINAL (campo "${cfg.label}" da campanha "${camp}"):
+"${original}"
+
+TAREFA: reescreva em no máximo ${cfg.maxLen} caracteres, contando espaços.
+
+REGRAS:
+1. Cada opção precisa ter NO MÁXIMO ${cfg.maxLen} caracteres. Conte antes de responder.
+2. Não perca a informação principal (o produto/oferta que o texto anuncia).
+3. Não invente informação que não está no original.
+4. Sem emoji. Sem ponto final solto no fim. Português do Brasil.
+5. 3 opções DIFERENTES entre si: uma abreviando palavras longas, uma cortando o que é acessório, uma reescrevendo mais curto.
+
+Responda APENAS JSON: {"opcoes":["...","...","..."]}`;
+
+  const texto=await gAskAI('encurtar', prompt, {json:true});
+  const parsed=texto && (typeof gAiParseJson==='function'?gAiParseJson(texto):null);
+  if(btn){ btn.classList.remove('is-loading'); btn.disabled=false; }
+  _fFitBusy=false;
+
+  // Validação no CÓDIGO: modelo erra contagem de caractere com frequência.
+  const brutas=(parsed&&Array.isArray(parsed.opcoes))?parsed.opcoes:[];
+  _fFitOpts=brutas
+    .map(s=>String(s||'').replace(/[\r\n\t]/g,' ').replace(/\s+/g,' ').trim())
+    .filter(s=>s && s.length<=cfg.maxLen)
+    .filter((s,i,arr)=>arr.indexOf(s)===i)
+    .slice(0,3);
+  if(!_fFitOpts.length){
+    gToast(parsed?'Não consegui encurtar sem perder o sentido — ajuste na mão':'A IA não respondeu agora — tente de novo','error');
+    return;
+  }
+  const wrap=document.getElementById('f-input-wrap'); if(!wrap) return;
+  const pop=document.createElement('div');
+  pop.id='f-fit-pop'; pop.className='f-fit-pop'; pop.setAttribute('role','menu');
+  pop.innerHTML=`<div class="f-fit-pop-head">Cabe em ${cfg.maxLen} caracteres</div>`+
+    _fFitOpts.map((s,i)=>`<button type="button" class="f-fit-opt" role="menuitem" onclick="fFitApply(${i})"><span>${gEsc(s)}</span><em>${s.length}</em></button>`).join('')+
+    `<div class="f-fit-pop-foot">Sugestão de IA — confira antes de gerar.</div>`;
+  wrap.appendChild(pop);
+  setTimeout(()=>{
+    document.addEventListener('keydown', _fFitEsc);
+    document.addEventListener('click', function fora(ev){
+      if(pop.contains(ev.target) || (btn&&btn.contains(ev.target))) { document.addEventListener('click', fora, {once:true}); return; }
+      _fFitClosePop();
+    }, {once:true});
+  },0);
+}
+// Aplica a opção escolhida reusando o caminho de digitação (evento 'input' →
+// contador, prévia ao vivo e fState.dados atualizam por um só lugar).
+function fFitApply(i){
+  const s=_fFitOpts[i]; const box=document.getElementById('f-msg-box');
+  if(!s||!box) return;
+  box.value=s;
+  box._fFit=null;                      // encaixou: a tentativa antiga não vale mais
+  _fFitClosePop();
+  box.dispatchEvent(new Event('input',{bubbles:true}));
+  box.focus();
 }
 
 function fSaveAdv(val){

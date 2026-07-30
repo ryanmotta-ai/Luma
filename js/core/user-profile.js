@@ -52,6 +52,11 @@ function gOpenUserProfileModal() {
   const equipeBtn = document.getElementById('prof-nav-equipe');
   if(equipeBtn) equipeBtn.style.display = gIsSuperAdmin() ? '' : 'none';
 
+  // Console (Luma CLI): mesmo gate do console em si (gIsAdmin = equipe_dm + gestao).
+  // Gate mais estreito aqui deixaria o designer sem caminho no celular, onde não há Ctrl+`.
+  const cliBtn = document.getElementById('prof-nav-console');
+  if(cliBtn) cliBtn.style.display = (typeof gIsAdmin==='function' && gIsAdmin()) ? '' : 'none';
+
   // Atualizar avatares do modal
   gProfileUpdateModalAvatars(displayName, email);
 
@@ -71,6 +76,14 @@ function gCloseUserProfileModal() {
 }
 
 // Alterna entre as abas do painel
+// Abre o Luma CLI a partir do painel. Fecha o modal primeiro: são duas camadas
+// sobrepostas e o console precisa do foco (e do espaço) pra ser usável no celular.
+function gProfileOpenCli(){
+  if(typeof gCliOpen!=='function') return;
+  gCloseUserProfileModal();
+  setTimeout(()=>gCliOpen(), 220);   // deixa a saída do modal terminar
+}
+
 function gProfileSwitchTab(tabName) {
   // Ajustar botões da navegação lateral
   document.querySelectorAll('.prof-nav-btn').forEach(btn => {

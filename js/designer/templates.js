@@ -1169,7 +1169,9 @@ function dRenderFolders(){
     const coverSafe=gEsc(cover).replace(/'/g,'%27');   // %27: neutraliza o ' que fecharia o url('…')
     const colorSafe=gEsc(f.color||'#FF9000');
     const thumbStyle=cover
-      ? `background-image:url('${coverSafe}')`
+      // Cor da pasta POR BAIXO da capa: capa do Storage que ainda não baixou (ou 404)
+      // deixava o quadrado vazio — a pasta parecia invisível na lista logo após o F5.
+      ? `background-color:${colorSafe};background-image:url('${coverSafe}')`
       : `background:linear-gradient(135deg, ${colorSafe}, ${colorSafe}99)`;
     const thumbInner=cover ? '' : `<span class="dc-thumb-letter">${gEsc(((f.name||'?').trim()[0]||'?')).toUpperCase()}</span>`;
     const metaTxt = total ? `${total} material${total!==1?'is':''}${pub?` · ${pub} no ar`:''}` : 'Vazia';

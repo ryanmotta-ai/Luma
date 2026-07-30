@@ -144,7 +144,7 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
 | 2 | **Fotos do franqueado em bucket público** (`luma-user-uploads`): aceitar (viram arte pública) ou URLs assinadas? | Aceitar na v1, documentado — o PNG final é público por natureza |
 | 3 | **Criar usuário pelo app** (Edge Function com service_role) ou seguir no Dashboard? | Dashboard na v1 (decisão de 2026-06-19 mantida); Edge Function na v1.1 |
 | 4 | **Presets de permissões compartilhados** (tabela) ou localStorage por designer? | localStorage na v1 (1 designer ativo); tabela quando houver 2+ designers |
-| 5 | **Legendas "IA"**: manter motor local (bom) ou plugar API? | Motor local na v1 — o stub `fFetchAICaptionSuggestions` fica pronto pra plugar depois |
+| ~~5~~ | ~~**Legendas "IA"**: manter motor local ou plugar API?~~ | ✅ **Resolvido (2026-07-30): os dois.** A API está plugada via `core/ai.js` e o motor local (`fBuildCopy`) é o fallback — o selo do painel diz a origem real de cada legenda |
 
 ## 9. Import PSD — melhorias mapeadas (backlog priorizado)
 
@@ -190,6 +190,27 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
   - **Como fazer (altitude — generalizar, não cravar "Much+"):** modelar como **`tema` na campanha/pasta** (ex.: `tema:'muchplus'`), não um `if muchplus` solto — assim qualquer campanha futura pode carregar tema próprio. Mecânica: uma classe no `body` (ex.: `body.theme-muchplus`) que **sobrescreve os tokens de marca** (`--dm-orange`, acento, `--logo-h-*`) — a fundação já existe (`dTheme` + tokens de `00-tokens.css`). Gatilho em `fSelectCamp` (aplica) e `fGoHome` (remove); transição via tokens de motion.
   - **Depende de:** assets de marca do Much+ (logo SVG/PNG + paleta) que o Ryan fornece — como as capas da Copa; e a campanha "Mais Benefícios" **ainda não existe** no `js/00-config.js`. Esforço baixo-médio se escopado a troca-de-tokens + logo + transição.
 - **Refazer a tela de login** (`#g-login-screen`, `index.html:167-234`) — visual mais premium, aguardando referências do Ryan. Preservar intacto o contrato do `auth.js`: `gDoLogin`/`gDoForgot`/`gShowLoginView`/`gShowForgotView`/`gTogglePass` + IDs `gl-email`/`gl-pass`/`gl-error`/`gl-btn-login` (+ `gf-*`). Oportunidade: migrar os `style=""` inline com hex cravado (`#FF9000`, `#e53e3e`, `#38a169`) pra tokens + classe CSS. Esforço médio (só front).
+
+### Brainstorm de 2026-07-30 (IA pra matar tarefa repetitiva) — **implementado**
+
+*Pergunta do Ryan: onde a IA tira trabalho repetitivo do Luma (Sheets e outros processos). Crivo aplicado: só toil real, IA **auxiliar** (`00_PRODUCT` §9), zero dependência nova, e nada de reciclar o que foi descartado em 18/07.*
+
+**Feito (commits `fc36ae4`, `13279fe`, `28a93e2`):**
+
+- **0. Tubulação** — Edge Function `supabase/functions/ai` (chave fora do front, rate-limit, allowlist de tarefa) + `js/core/ai.js` como motor único. Detalhe e **passos pendentes do Pedro** (secret + deploy + rotação da chave) no `docs/LUMA-BACKEND-CHANGELOG.md` (2026-07-30). ⚠ Enquanto não subir, roda pelo caminho de transição com a chave do front — **não é estado final**.
+- **1. Encaixar no limite** (`maxLen`) — a tarefa repetitiva mais frequente do fluxo: o input corta o texto e o franqueado abrevia na mão. Guarda a tentativa completa antes do corte e oferece 3 versões que cabem, validadas no código.
+- **2. Ajuda aterrada** — `gHelpKnowledge` (em `core/help.js`) achata a Central + FAQ do Sheets e manda só o que casa; sem material, o widget **não chama** o modelo.
+- **3. Ler cardápio** (foto/PDF/texto) no Sheets — mata o "digitar 30 linhas do cardápio que o lojista mandou no WhatsApp" e aposenta o paliativo "copie este prompt no ChatGPT". Linha entra com chip IA e revisão obrigatória (preço errado é dano real).
+- **4. Legenda séria** — prompt com fato-que-existe, ângulo por opção, story x feed; emoji removido no código; selo de origem passou a dizer a verdade (dizia "Gerado por IA" sempre).
+- **5. Casar fotos com as linhas** — nome de arquivo primeiro (local), visão só nas sobras, em uma chamada.
+
+- **6. Luma CLI** *(pedido do Ryan na mesma sessão)* — console do time (`Ctrl+\``, só `gIsAdmin()`): `diag`, `sync`, `pastas`, `cache` + conversa com a IA no próprio terminal, com banner em pixel art e os dois temas. Nasceu pra matar o "snippet colado no DevTools" do diagnóstico de sync. Detalhe no `docs/LUMA.md` §12.2. **Descartado no caminho:** terminal de shell de verdade — a casca desktop é burra de propósito (`contextIsolation`, carrega a URL de produção) e dar shell a ela troca um .exe inofensivo por superfície de ataque.
+
+**Fora, com motivo:**
+- **Sinal de demanda destilado** (IA agrupando o que a rede buscou e não tinha) — depende do **backbone de eventos**, que não existe ainda. Entra junto dele.
+- **Gerar arte/imagem por IA** — fere "zero peça fora da marca"; o valor do Luma é o trilho.
+- **IA que publica** — invariante: o Luma não envia (postar é manual).
+- **Triagem de PSD** (sugerir camada→`{{campo}}`) — roça no "copiloto de template" descartado em 18/07. Só se o Ryan reabrir.
 
 **Precisa de estudo antes de comprometer:**
 

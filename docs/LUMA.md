@@ -278,7 +278,7 @@ Estado inicial em tela cheia (`body.f-home-mode` esconde as colunas). Layout flu
 - "Continuar de onde parou" (até 3 rascunhos).
 - Hero da recomendada (a popular **entre as que têm material**; nunca campanha vazia).
 - **Vitrine honesta**: "Prontas pra usar" (com material publicado e válido) vs **"Em breve"** (cards ghost menores, `pointer-events:none`).
-- **Miniaturas reais**: o 1º material válido da campanha é renderizado em ~360px pelo MESMO motor do PNG (`fRenderTemplateLayers`) numa fila assíncrona com cache por campanha (`_fCampThumbs`, invalida se o material mudar). Prioridade de capa: upload do designer > thumb renderizada > cor da marca. Padrão de segurança: `fState.material` save/restore condicional.
+- **Capa do card = capa da PASTA** (`fCampCover`): só a capa que o designer subiu no Estúdio. Sem capa → cor da marca + nome (placeholder programático). ⚠ A antiga fila de "miniaturas reais" (renderizava o 1º material da campanha e usava como capa — `_fCampThumbs`/`fHomeFillThumbs`, removida em 2026-07-30) mostrava a arte com os **campos vazios**: card em branco no boot ("pastas invisíveis") e a identidade da campanha trocada pelo conteúdo. Mesma regra do `01_BUSINESS.md`: pasta manda, capa vazia = removida de propósito.
 
 ### Estado (`fState` em `01-state.js`)
 
@@ -298,13 +298,13 @@ A fonte de verdade do tipo é `dVars[id].type`; `F_FIELD_TYPES` é fallback lega
 
 | Função | Arquivo | Papel |
 |---|---|---|
-| `fRenderHome` / `fHomeFillThumbs` | catalog.js | Home + fila de miniaturas reais |
+| `fRenderHome` / `fCampCover` | catalog.js | Home da vitrine + capa da pasta no card |
 | `fSelectCamp` → `fOpenMaterialCatalog` → `fSelectMaterial` | catalog/materials.js | Campanha → materiais → chat (gera perguntas das vars + permissões) |
 | `fNextStep` / `fSend` / `fQR` / `fSaveAdv` | chat/chat-input.js | Passo a passo do chat (texto/upload) |
 | `fMostrarConfirm` → `fConfirmarGerar` → `fGerarArte` | chat.js | Confirmação editável → arte + histórico |
 | `fBaixar` / `fBaixarPDF` / `fOutroFormato` | chat.js | Download PNG/PDF, variação de formato |
 | `fGenPNG` / `fGenPDF` / `fRenderCanvasHelper` | png-generator.js | Render final 2× supersampling |
-| `fRenderTemplateLayers` / `fRenderOneLayer` | png-generator.js | **Motor de render** (reflow smart-resize, bindings, regras, máscaras, blend modes) — usado por PNG, preview, thumbs. ⚠ Lê `fState.material` (bg + tamanho nativo via `fMaterialSize`); para renderizar material arbitrário: save/restore de `fState.material` |
+| `fRenderTemplateLayers` / `fRenderOneLayer` | png-generator.js | **Motor de render** (reflow smart-resize, bindings, regras, máscaras, blend modes) — usado por PNG e preview. ⚠ Lê `fState.material` (bg + tamanho nativo via `fMaterialSize`); para renderizar material arbitrário: save/restore de `fState.material` |
 | `fUpdateLivePreview` | live-preview.js | Preview lateral em tempo real com placeholders |
 | `fAddHist` / `fMarkHistBaixada` / `fGetHist` | history.js | Histórico (localStorage `dm_artes_hist_v2`, cap 50, dedup) + push pra `luma.artes` |
 | `fBulkOpen` → `fBulkDownloadAll` | png-generator.js | Geração em lote via CSV (PapaParse) com fila/yield |
@@ -404,6 +404,56 @@ O dashboard simulado foi retirado em 2026-07-15. Analytics real continua em `ana
 - **Toast** (`core/toast.js`): `gToast(msg, type, helpTopic?)` — 2.8s (4.2s erro). CTA de ajuda só existe com artigo explícito. ⚠ **Sem fila** — chamadas em sequência se sobrescrevem. Também: `gBtnLoading`, `gWarnImagesNotPersisted`, **`gEsc`** (escape HTML global).
 - **Splash** (`core/splash.js`): overlay de entrada, mínimo 2.8s, tudo em try/catch.
 - **Auth UI** (`core/auth.js` + `core/user-profile.js`): login/logout/reset de senha reais (Supabase), perfil com foto (localStorage `__luma_user_photo_*`), gestão de equipe (listar/role/ativo via RLS), `gUpdateUserTopbar`.
+
+### 12.1. IA — motor único (`core/ai.js`)
+
+**Todo** recurso de IA fala por aqui; nenhum outro arquivo monta chamada pro modelo (regra do motor único, §`03_ENGINEERING`). A IA é **auxiliar**: cada recurso tem caminho de queda e o produto funciona sem ela (`00_PRODUCT.md` §9).
+
+| Função | Papel |
+|---|---|
+| `gAskAI(task, prompt, opts)` | Pergunta ao modelo. Nunca lança, nunca trava (timeout 30s). `opts.parts` = anexos (`{mimeType,data}`), `opts.json`, `opts.cache`. Devolve texto ou **null** — quem chama decide o fallback |
+| `gAiReady()` | Tem caminho pra IA? A UI usa pra decidir se mostra o recurso (otimista; desliga só depois de falha real) |
+| `gAiParseJson(txt)` | Parser tolerante (modelo às vezes embrulha em ```json) — nunca lança |
+| `gAiFileToPart(file)` | Arquivo → `{mimeType, data}` base64 pro anexo |
+| `gAiModel()` | Modelo atual (`window.LUMA_GEMINI_MODEL`, trocável no config e pelo seletor do widget) |
+
+**Caminhos, nesta ordem:** Edge Function `ai` (chave no servidor — ver `LUMA-BACKEND-CHANGELOG.md` 2026-07-30) → **transição**: chamada direta com a chave do front ⚠ (sai de cena quando a function subir) → `null`.
+
+**Onde a IA é usada (5 pontos):**
+
+| Recurso | Onde | Queda quando a IA falha |
+|---|---|---|
+| **Legenda do post** | `franqueado/chat.js` (`fFetchAICaptionSuggestions`) | motor local `fBuildCopy`; o selo do painel diz a origem real (`_fCaptionSrcTag`) |
+| **Encaixar no limite** (`maxLen`) | `franqueado/chat-input.js` (`fFitTextWithAI`) | botão não aparece; opção que não cabe é descartada no código |
+| **Ajuda aterrada** | `widgets/help-widget.js` + `gHelpKnowledge` (`core/help.js`) | artigo cru da base; sem material que case, **não chama** o modelo |
+| **Ler cardápio** (foto/PDF/texto) | `franqueado/png-generator.js` (`fBulkReadMenu`, `_fBulkItensPorIA`) | parser heurístico local (`fBulkParseHeuristicText`) segue sendo o 1º caminho no texto |
+| **Casar fotos com linhas** | `franqueado/png-generator.js` (`fBulkMatchPhotos`) | casamento por nome de arquivo (local) resolve a maioria; sobra fica sem foto |
+
+**Regras dos recursos de IA nesta base:** (1) validar no **código** o que o prompt pediu (tamanho, formato, repetição) — modelo erra contagem; (2) **marcar a origem** na UI (selo/chip) — app que finge não mentir é bug; (3) nunca inventar dado de negócio (preço, validade) — prompt proíbe e a grade exige revisão; (4) toda linha lida por IA passa pela mesma validação das digitadas.
+
+### 12.2. Luma CLI — console do time (`core/console.js`)
+
+Terminal interno, **Ctrl+`** abre, **Esc** fecha. Só monta pra `gIsAdmin()` (equipe_dm/gestao). Existe porque o diagnóstico de sync era feito colando snippet no DevTools — conhecimento que morava em log de conversa (incidente de 07/2026: "30 pastas no banco e 0 templates"). Agora é comando nomeado.
+
+**No celular** não há Ctrl+`: a entrada é o item **Console · DEV** no painel de perfil (sidebar, ao lado de "Equipe") — revelado pelo mesmo `gIsAdmin()`, escondido do franqueado. Toque nele fecha o modal e abre o console. Lá também não há Tab nem ↑/↓, então aparece uma faixa de **chips** com os comandos de leitura (`ajuda`, `diag`, `sync status`, `pastas ls`, `cache ls`) — só comando que não muda nada. Três detalhes que fazem "funcionar no celular" ser verdade: `_gCliAjustaViewport()` sobe o painel a altura que o **teclado virtual** comeu (`position:fixed` não vê o teclado, e o campo ficava embaixo dele); `font-size:16px` no input (menos que isso e o iOS dá zoom); e `body.cli-on` tira do rodapé os flutuantes com z-index maior — aviso de PWA (13000, via CSS) e FAB do widget de ajuda (9999, no `checkVisibility` do próprio widget, porque o display dele é inline).
+
+| Comando | O que faz |
+|---|---|
+| `ajuda` | Lista os comandos |
+| `diag` | Radiografia: sessão/role, backend, IA, catálogo local, `_syncPending`, fila de deleção, MB do localStorage e **contagem no banco** (a linha que explicou o incidente) |
+| `sync status\|push\|pull` | Estado do sync ou força `_dPushFoldersNow()` / `dSyncFoldersFromBackend()`, mostrando antes → depois |
+| `pastas [ls\|<id>]` | Lista `dFolders` ou detalha uma pasta (remoteId, capa, materiais, flags) |
+| `cache [ls\|clear <chave>]` | Tamanho por chave do localStorage; `clear` exige `gConfirm` |
+| `ia <pergunta>` | Pergunta em PT-BR — **também é o padrão**: qualquer frase que não seja comando vai pra IA |
+| `limpar` · `sair` | Limpa a tela · fecha |
+
+**A IA do console** recebe o contexto real da sessão (o mesmo que o `diag` mede) + a lista de comandos, e pode **sugerir** um comando — a sugestão só **pré-preenche** o campo, nunca executa. Task `cli` na Edge Function.
+
+**Teclado (desktop):** ↑/↓ histórico da sessão · Tab autocompleta comando · o `keydown` para no console (atalho do Estúdio não dispara por baixo).
+
+⛔ **Não é fronteira de segurança.** O gate por role é de UX; quem governa é a RLS, e todo comando roda com a sessão do próprio usuário — o console não dá poder que o DevTools já não desse. Comando que só é seguro "porque só dev vê" não entra.
+
+**Visual** (`css/modules/console.css`): superfície do Estúdio, acento laranja, banner LUMA em pixel art com gradiente da marca (`background-clip:text`), mono do sistema (nenhuma fonte baixada), e flip completo em `body.theme-light`.
 
 ---
 
@@ -571,6 +621,8 @@ localStorage.clear(); location.reload();               // reset local (backend r
 - **2026-06-18/19 — Fase 5.1 Backend**: projeto Supabase próprio, 13 migrations, auth real, persistência completa offline-first, Storage.
 - **2026-06-22/25**: analytics por extração (views), performance (índices + RLS initplan), hardening pós-incidente, backup diário automatizado e validado.
 - **2026-06-fim**: XSS corrigido (3 passes com `gEsc`), gate por role no front, refatoração de performance/memory leaks (Fase 3).
+- **2026-07-30**: **IA sai do improviso** — Edge Function `ai` (chave fora do front), motor único `core/ai.js` e 5 recursos plugados nele: encaixar texto no `maxLen`, ajuda aterrada na Central, ler cardápio (foto/PDF) no Sheets, casar fotos com as linhas, legenda com prompt sério. Ver §12.1.
+- **2026-07-30**: capa do card da vitrine volta a ser **a capa da pasta** — a fila de miniaturas do conteúdo (`_fCampThumbs`/`fHomeFillThumbs`, ~100 linhas) saiu: renderizava a arte com campos vazios e deixava o card em branco. Capa do Storage que não baixa agora cai na cor da pasta também na lista do Estúdio (`dRenderFolders`).
 - **2026-07-09**: home do franqueado responsiva (thumbs reais, vitrine honesta, scroll-reveal, busca sticky), redesign do painel Campos (linha compacta + filtros + higiene), topbar (hierarquia + paleta), **auditoria de contraste WCAG aplicada** (tokens `--green-text`, `--var-color` claro, `--d-text3`, CTAs em `--dm-orange-d`). Este documento.
 
 ---
