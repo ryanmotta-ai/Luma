@@ -12,11 +12,15 @@
 const { chromium } = require('/opt/node22/lib/node_modules/playwright');
 const path = require('path');
 const fs = require('fs');
-const S = require('./slides.js');
+// Qual narrativa montar e com que nome sair. Sem argumento, monta a V1 — o comportamento
+// que já existia. `node publicar.js slides-v2.js luma-evolution-v2` monta a V2.
+const NARRATIVA = process.argv[2] || './slides.js';
+const PREFIXO = process.argv[3] || 'luma-evolution';
+const S = require(NARRATIVA.startsWith('.') ? NARRATIVA : './' + NARRATIVA);
 
 const BASE = path.resolve(__dirname, '..');
 const OUT = path.join(BASE, 'presentation');
-const PNGS = path.join(OUT, 'slides-png');
+const PNGS = path.join(OUT, PREFIXO === 'luma-evolution' ? 'slides-png' : PREFIXO + '-png');
 const W = 1920, H = 1080;
 const MIN_FONTE = 14;        // abaixo disso não se lê numa projeção
 const MIN_CONTRASTE = 4.5;   // WCAG AA para texto
@@ -40,17 +44,17 @@ const rgb = s => (String(s).match(/\d+/g) || [0, 0, 0]).slice(0, 3).map(Number);
 
   const css = fs.readFileSync(path.join(__dirname, 'estilo.css'), 'utf8');
   const doc = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
-<title>Luma — de piloto a produto</title>
+<title>${S.titulo || 'Luma — de piloto a produto'}</title>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700;900&display=swap" rel="stylesheet">
 <style>${css}</style></head><body>
 ${corpo}
 </body></html>`;
-  fs.writeFileSync(path.join(OUT, 'luma-evolution.html'), doc);
+  fs.writeFileSync(path.join(OUT, PREFIXO + '.html'), doc);
   console.log(`HTML: ${S.slides.length} slides`);
 
   const nav = await chromium.launch();
   const p = await nav.newPage({ viewport: { width: W, height: H } });
-  await p.goto('file://' + path.join(OUT, 'luma-evolution.html'), { waitUntil: 'networkidle' });
+  await p.goto('file://' + path.join(OUT, PREFIXO + '.html'), { waitUntil: 'networkidle' });
   await p.waitForTimeout(2000);
 
   // ── 2. conferência de layout (antes de exportar nada) ──────────────────────
@@ -136,7 +140,7 @@ ${corpo}
     '- Se a captura escolhida é a que melhor mostra o ponto do slide.',
     '- Se o texto está correto quanto ao fato — isso é o índice de evidências que responde.', '',
     'Essas três coisas precisam de leitura humana.');
-  fs.writeFileSync(path.join(BASE, 'reports', 'conferencia-visual.md'), V.join('\n') + '\n');
+  fs.writeFileSync(path.join(BASE, 'reports', PREFIXO + '-conferencia.md'), V.join('\n') + '\n');
 
   // ── 3. PNGs e PDF ──────────────────────────────────────────────────────────
   const total = await p.evaluate(() => document.querySelectorAll('.slide').length);
@@ -145,9 +149,9 @@ ${corpo}
   }
   console.log(`PNG: ${total} slides`);
 
-  await p.pdf({ path: path.join(OUT, 'luma-evolution.pdf'), width: '1920px', height: '1080px',
+  await p.pdf({ path: path.join(OUT, PREFIXO + '.pdf'), width: '1920px', height: '1080px',
                 printBackground: true, pageRanges: `1-${total}` });
-  console.log('PDF: luma-evolution.pdf');
+  console.log('PDF: ' + PREFIXO + '.pdf');
   await nav.close();
 
   // ── 4. notas do apresentador ───────────────────────────────────────────────
@@ -155,16 +159,16 @@ ${corpo}
     `${S.slides.length} slides. Somando as durações das notas dá cerca de 15 minutos falando; dá pra cortar os slides de era e ficar em 10.`, '',
     '> Tudo aqui tem lastro no repositório. Onde a motivação não está registrada, a nota diz "aparenta" em vez de afirmar.', ''];
   S.notas.forEach((t, k) => N.push(`## Slide ${String(k + 1).padStart(2, '0')}`, '', t, ''));
-  fs.writeFileSync(path.join(OUT, 'luma-evolution-notas.md'), N.join('\n'));
-  console.log('Notas: luma-evolution-notas.md');
+  fs.writeFileSync(path.join(OUT, PREFIXO + (PREFIXO.endsWith('v2') ? '-speaker-notes.md' : '-notas.md')), N.join('\n'));
+  console.log('Notas: ' + PREFIXO + (PREFIXO.endsWith('v2') ? '-speaker-notes.md' : '-notas.md'));
 
   // ── 5. índice de evidências ────────────────────────────────────────────────
-  const I = ['# Índice de evidências', '',
-    'Cada slide, o que o sustenta e o quanto se pode confiar.', '',
-    '- **Alto** — captura real de uma execução (do commit ou do arquivo original), sem alteração no código da interface.',
-    '- **Médio** — captura real que exigiu restauração técnica. *Nenhum slide desta apresentação está neste nível.*',
-    '- **Baixo** — reconstrução visual a partir do código. *Nenhum slide desta apresentação está neste nível.*', '',
-    '| # | Slide | Evidência | Imagens | Confiança | Observação |', '|---|---|---|---|---|---|'];
+  const I = [`# Índice de evidências — ${S.titulo || 'Luma'}`, '',
+    'Tipos usados: **Captura real** (execução do commit), **Arquivo histórico fornecido** (o piloto preservado),',
+    '**Estado atual** (branch atual) e **Capa** (slide sem imagem de produto).', '',
+    'Não há nesta apresentação nenhuma **captura restaurada** nem **reconstrução**: toda imagem saiu de uma execução real,',
+    'sem alteração no código da interface.', '',
+    '| # | Slide | Imagens | Data ou commit | Tipo de evidência | Observações |', '|---|---|---|---|---|---|'];
   S.indice.forEach((e, k) => {
     const s = S.slides[k];
     // A ordem importa: os slides de era não têm .titulo — o rótulo deles é o .rot da legenda.
@@ -174,14 +178,14 @@ ${corpo}
     const imgs = (e.imagens || []).filter(Boolean).map(x => '`' + path.basename(x) + '`').join('<br>') || '—';
     // Escapa o pipe: uma observação com `git log | wc -l` quebrava a coluna da tabela.
     const cel = t => String(t).replace(/\|/g, '\\|');
-    I.push(`| ${k + 1} | ${cel(tit)} | ${cel(e.tipo)} | ${imgs} | ${e.confianca} | ${cel(e.obs || '—')} |`);
+    I.push(`| ${k + 1} | ${cel(tit)} | ${imgs} | ${cel(e.quando || '—')} | ${cel(e.tipo)} | ${cel(e.obs || '—')} |`);
   });
   I.push('', '## Como conferir uma imagem', '',
     'Cada PNG tem um JSON irmão em `screenshots/metadata/<marco>/` com a tela, o estado, o commit, a data, a viewport e o tipo de captura.',
     'Para reabrir a versão que gerou a imagem: `node scripts/versao.js <hash>`.');
-  fs.writeFileSync(path.join(OUT, 'luma-evolution-indice.md'), I.join('\n'));
-  console.log('Índice: luma-evolution-indice.md');
+  fs.writeFileSync(path.join(OUT, PREFIXO + (PREFIXO.endsWith('v2') ? '-index.md' : '-indice.md')), I.join('\n'));
+  console.log('Índice: ' + PREFIXO + (PREFIXO.endsWith('v2') ? '-index.md' : '-indice.md'));
 
-  console.log(`\n${S.totalShots} capturas · ${S.marcosComShot} marcos · ${S.slides.length} slides\n`);
+  console.log(`\n${S.totalShots} capturas · ${(S.MARCOS || []).length || S.marcosComShot} marcos · ${S.slides.length} slides\n`);
   if (nProb || ruins.length) { console.log('⚠ há apontamentos em reports/conferencia-visual.md\n'); process.exitCode = 1; }
 })();

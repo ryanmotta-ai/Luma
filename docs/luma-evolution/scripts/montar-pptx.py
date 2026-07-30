@@ -30,9 +30,12 @@ except ImportError:
     sys.exit("falta o python-pptx: pip install python-pptx")
 
 BASE = Path(__file__).resolve().parent.parent
-PNGS = BASE / "presentation" / "slides-png"
-NOTAS = BASE / "presentation" / "luma-evolution-notas.md"
-SAIDA = BASE / "presentation" / "luma-evolution.pptx"
+# Sem argumento empacota a V1 (comportamento que ja existia); com prefixo, a variante.
+#   python3 montar-pptx.py luma-evolution-v2
+PREFIXO = sys.argv[1] if len(sys.argv) > 1 else "luma-evolution"
+PNGS = BASE / "presentation" / ("slides-png" if PREFIXO == "luma-evolution" else PREFIXO + "-png")
+NOTAS = BASE / "presentation" / (PREFIXO + ("-speaker-notes.md" if PREFIXO.endswith("v2") else "-notas.md"))
+SAIDA = BASE / "presentation" / (PREFIXO + ".pptx")
 
 # 16:9 em EMU (1 polegada = 914400 EMU): 13,333 x 7,5 pol = 1920x1080 a 144 dpi.
 LARG, ALT = Emu(12192000), Emu(6858000)

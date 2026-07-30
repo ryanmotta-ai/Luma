@@ -5,7 +5,7 @@
 - **Como:** `git worktree` + servidor estático (scripts/versao.js)
 - **Credenciais:** nenhuma. Supabase zerado; sessão de demonstração injetada no navegador.
 - **Alteração no código da interface:** nenhuma.
-- **Duração:** 166s
+- **Duração:** 183s
 
 | Cena | Área | Viewport | Capturou | Arquivo / motivo |
 |---|---|---|---|---|
@@ -17,6 +17,7 @@
 | Exportar arte | Designer | 1440x1000 | sim | 06_exportar_2026-07-30_atual_1440x1000.png |
 | Central de ajuda | Suporte | 1440x1000 | não | tela não existe nesta versão |
 | Luma CLI — console do time | Interno | 1440x1000 | sim | 08_cli_2026-07-30_atual_1440x1000.png |
-| Vitrine no celular | Franqueado | 390x844 | sim | 09_home-mobile_2026-07-30_atual_390x844.png |
+| Much+ — o tema por campanha | Franqueado | 1440x1000 | sim | 09_muchplus_2026-07-30_atual_1440x1000.png |
+| Vitrine no celular | Franqueado | 390x844 | sim | 10_home-mobile_2026-07-30_atual_390x844.png |
 
 Cena não capturada aqui significa, na maioria dos casos, que a tela não existia nesta versão ou não era alcançável offline — não que a captura tenha falhado por acidente. Ver `reports/limitacoes.md`.

@@ -1,0 +1,680 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<title>Luma — de uma necessidade a um produto</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700;900&display=swap" rel="stylesheet">
+<style>/* docs/luma-evolution/scripts/estilo.css — identidade dos slides.
+   Um slide é 1920×1080 em px absolutos: o destino é PNG/PDF/PPTX de tamanho fixo, então
+   aqui não há responsividade a resolver — há um palco de tamanho conhecido. */
+
+:root{
+  --laranja:#FF9000; --laranja-d:#F85400; --amarelo:#FFB900; --magenta:#C4005B;
+  --tinta:#0A0A0A; --tinta-2:#4A4A4A; --tinta-3:#7C7C7C;
+  --papel:#FFFFFF; --papel-2:#F7F7F5; --linha:#E6E4E0; --verde:#15803D;
+  --fonte:'Roboto',-apple-system,'Segoe UI',sans-serif;
+  --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialiased}
+
+.slide{position:relative;width:1920px;height:1080px;overflow:hidden;
+  background:var(--papel);color:var(--tinta);page-break-after:always;break-after:page}
+.slide + .slide{margin-top:40px}
+
+/* ── moldura comum ── */
+.fio{position:absolute;left:0;top:0;width:100%;height:7px;background:var(--laranja);z-index:4}
+.topo{position:absolute;top:60px;left:96px;right:96px;display:flex;align-items:baseline;gap:20px;z-index:3}
+.kicker{font-size:19px;font-weight:900;letter-spacing:.19em;text-transform:uppercase;color:var(--laranja-d)}
+.quando{font-family:var(--mono);font-size:17px;color:var(--tinta-3);margin-left:auto}
+.corpo{position:absolute;top:140px;left:96px;right:96px;bottom:104px;z-index:2}
+.titulo{font-size:62px;font-weight:900;letter-spacing:-.035em;line-height:1.03}
+.sub{margin-top:18px;font-size:25px;line-height:1.42;color:var(--tinta-2);font-weight:400}
+.num{position:absolute;right:96px;bottom:44px;z-index:3;font-family:var(--mono);font-size:16px;color:var(--tinta-3)}
+/* o selo fica à ESQUERDA do número de página — os dois já dividiram o mesmo canto uma vez */
+.selo{position:absolute;left:96px;bottom:44px;z-index:3;display:flex;align-items:center;gap:9px;
+  font-family:var(--mono);font-size:14px;color:var(--tinta-3)}
+.selo .pt{width:8px;height:8px;border-radius:50%;background:var(--verde)}
+
+/* ── capa e divisor ── */
+.escuro{background:var(--tinta);color:#fff;display:flex;flex-direction:column;justify-content:center;padding:0 128px}
+.escuro .marca{font-size:20px;font-weight:900;letter-spacing:.24em;text-transform:uppercase;color:var(--laranja);margin-bottom:40px}
+.escuro h1{font-size:132px;font-weight:900;letter-spacing:-.05em;line-height:.94}
+.escuro h1 em{font-style:normal;color:var(--laranja)}
+.escuro .csub{margin-top:32px;font-size:32px;color:#C8C8C8;font-weight:300;max-width:1300px;line-height:1.38}
+.escuro .meta{position:absolute;left:128px;bottom:76px;right:128px;display:flex;gap:64px;
+  font-family:var(--mono);font-size:18px;color:#8A8A8A;border-top:1px solid #2A2A2A;padding-top:24px}
+.escuro .meta b{color:#fff;font-weight:700;display:block;font-size:22px;margin-bottom:5px;font-family:var(--fonte)}
+.escuro .sn{font-family:var(--mono);font-size:23px;color:var(--laranja);letter-spacing:.18em;margin-bottom:24px}
+.escuro h2{font-size:98px;font-weight:900;letter-spacing:-.045em;line-height:1}
+.escuro .psec{margin-top:26px;font-size:29px;color:#B4B4B4;max-width:1250px;line-height:1.4;font-weight:300}
+
+/* ── telas (a evidência) ── */
+.telas{display:flex;gap:34px;height:100%;align-items:stretch}
+.tela{flex:1;display:flex;flex-direction:column;min-width:0}
+/* A moldura VESTE a captura: --ar carrega a proporção real do PNG (1440/1000 no desktop,
+   390/844 no celular). Sem isso a moldura esticava até o fim da coluna e deixava uma faixa
+   branca embaixo da imagem, que lida como erro de layout e não como respiro. */
+.moldura{flex:0 1 auto;min-height:0;max-height:100%;aspect-ratio:var(--ar,1440/1000);margin:0 auto;
+  border:1px solid var(--linha);border-radius:12px;overflow:hidden;
+  background:var(--papel-2);box-shadow:0 16px 40px rgba(10,10,10,.10)}
+/* contain, nunca cover: recortar a evidência esconde justamente o que o slide afirma */
+.moldura img{width:100%;height:100%;object-fit:contain;object-position:top center;display:block}
+.legenda{margin-top:14px;display:flex;align-items:baseline;gap:12px;flex-shrink:0}
+.legenda .rot{font-size:23px;font-weight:900;letter-spacing:-.01em}
+.legenda .meta{font-family:var(--mono);font-size:15px;color:var(--tinta-3);margin-left:auto}
+.nota{margin-top:7px;font-size:18px;color:var(--tinta-2);line-height:1.34;flex-shrink:0}
+
+.eti{display:inline-flex;align-items:center;height:28px;padding:0 12px;border-radius:999px;
+  font-size:14px;font-weight:900;letter-spacing:.09em;text-transform:uppercase;flex-shrink:0}
+.eti-antes{background:#EFEDEA;color:var(--tinta-2)}
+.eti-hoje{background:var(--laranja);color:#fff}
+.eti-novo{background:var(--verde);color:#fff}
+
+.conclusao{position:absolute;left:96px;right:96px;bottom:96px;z-index:3;border-left:5px solid var(--laranja);
+  padding:4px 0 4px 22px;font-size:22px;line-height:1.44;color:var(--tinta-2);max-width:1560px}
+.conclusao b{color:var(--tinta);font-weight:800}
+
+/* ── números ── */
+.numeros{display:grid;gap:24px}
+.card{border:1px solid var(--linha);border-radius:14px;padding:30px 30px;background:var(--papel-2);
+  display:flex;flex-direction:column;justify-content:center}
+.card .v{font-size:74px;font-weight:900;letter-spacing:-.05em;line-height:1.02;color:var(--tinta)}
+.card .v small{font-size:32px;color:var(--tinta-3);font-weight:700}
+.card .r{margin-top:10px;font-size:20px;color:var(--tinta-2);line-height:1.34}
+.card.destaque{background:var(--tinta);border-color:var(--tinta)}
+.card.destaque .v{color:var(--laranja)}
+.card.destaque .r{color:#C0C0C0}
+
+/* ── linha do tempo ── */
+.tl{position:relative;width:100%}
+.tl-eixo{position:absolute;left:0;right:0;top:104px;height:3px;background:var(--linha)}
+.tl-itens{display:flex;justify-content:space-between}
+.tl-item{flex:1;padding-right:20px;position:relative}
+.tl-ponto{position:absolute;top:96px;left:0;width:18px;height:18px;border-radius:50%;
+  background:var(--laranja);border:4px solid #fff;box-shadow:0 0 0 2px var(--laranja)}
+.tl-item.forte .tl-ponto{background:var(--tinta);box-shadow:0 0 0 2px var(--tinta)}
+.tl-data{font-family:var(--mono);font-size:15px;color:var(--tinta-3)}
+.tl-era{margin-top:6px;font-size:14px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--laranja-d);min-height:36px;line-height:1.3}
+.tl-rot{margin-top:56px;font-size:20px;font-weight:800;line-height:1.24;letter-spacing:-.015em;min-height:76px}
+.tl-desc{margin-top:10px;font-size:16px;color:var(--tinta-2);line-height:1.36}
+.tl-hash{margin-top:12px;font-family:var(--mono);font-size:14px;color:var(--tinta-3)}
+
+/* ── lista editorial ── */
+.lista{display:flex;flex-direction:column;gap:20px;justify-content:center}
+.li{display:flex;gap:24px;align-items:flex-start;padding-bottom:20px;border-bottom:1px solid var(--linha)}
+.li:last-child{border-bottom:none;padding-bottom:0}
+.li .n{font-family:var(--mono);font-size:19px;color:var(--laranja-d);font-weight:700;min-width:48px;padding-top:5px}
+.li h4{font-size:28px;font-weight:900;letter-spacing:-.018em}
+.li p{margin-top:7px;font-size:20px;color:var(--tinta-2);line-height:1.4;max-width:1340px}
+
+/* ── marcadores de fato (bullets curtos) ── */
+.fatos{list-style:none;margin-top:12px}
+.fatos li{display:flex;gap:12px;margin-bottom:12px;font-size:19px;line-height:1.38;color:var(--tinta-2)}
+.fatos li::before{content:'—';color:var(--laranja);font-weight:900;flex-shrink:0}
+
+@page{size:1920px 1080px;margin:0}
+@media print{body{background:#fff}.slide+.slide{margin-top:0}}
+
+/* ═══ padrões acrescentados na V2 ═══════════════════════════════════════════ */
+
+/* ── três momentos: origem → expansão → atual, no mesmo enquadramento ── */
+/* center, não stretch: três capturas 1440×1000 lado a lado em 1728px dão colunas de
+   ~560px, e a altura resultante nunca preenche o corpo. Centralizado, a sobra vira
+   respiro simétrico em vez de um bloco vazio embaixo. */
+.trio{display:flex;gap:26px;height:100%;align-items:center}
+.trio .tela{flex:1}
+.trio .rot{font-size:20px}
+.trio .nota{font-size:16px}
+.trio .legenda .meta{font-size:14px}   /* 14px é o piso de leitura numa projeção */
+/* a seta entre os momentos dá a leitura de sequência sem precisar de texto */
+.seta{align-self:center;flex:0 0 auto;font-size:30px;color:var(--linha);font-weight:900;padding-bottom:60px}
+
+/* ── atlas: a captura com os contornos medidos + a lista numerada ── */
+.atlas{display:flex;gap:36px;height:100%;align-items:center}
+.atlas-fig{flex:1.55;position:relative;border:1px solid var(--linha);border-radius:12px;overflow:hidden;
+  background:var(--papel-2);box-shadow:0 16px 40px rgba(10,10,10,.10);aspect-ratio:1440/1000}
+/* fill, não contain: o contorno é posicionado em % da imagem, então qualquer letterbox
+   deslocaria os destaques em relação ao que eles apontam. */
+.atlas-fig img{width:100%;height:100%;object-fit:fill;display:block}
+.marca{position:absolute;border:3px solid var(--laranja);border-radius:7px;
+  box-shadow:0 0 0 3px rgba(255,144,0,.26)}
+.marca-n{position:absolute;width:34px;height:34px;border-radius:50%;background:var(--laranja);color:#fff;
+  font-size:19px;font-weight:900;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 12px rgba(10,10,10,.3)}
+.atlas-lista{flex:1;display:flex;flex-direction:column;gap:22px;justify-content:center;min-width:0}
+.atlas-item{display:flex;gap:16px;align-items:flex-start}
+.atlas-bola{width:34px;height:34px;border-radius:50%;background:var(--laranja);color:#fff;flex-shrink:0;
+  font-size:19px;font-weight:900;display:flex;align-items:center;justify-content:center}
+.atlas-item h4{font-size:24px;font-weight:900;letter-spacing:-.015em;line-height:1.18}
+.atlas-item p{margin-top:6px;font-size:18px;color:var(--tinta-2);line-height:1.38}
+.atlas-item .onde{margin-top:7px;font-family:var(--mono);font-size:14px;color:var(--tinta-3)}
+.fluxo-tag{display:inline-flex;align-items:center;height:30px;padding:0 14px;border-radius:999px;
+  background:var(--tinta);color:#fff;font-size:14px;font-weight:900;letter-spacing:.1em;text-transform:uppercase}
+</style></head><body>
+<section class="slide escuro">
+  <div class="marca">Delivery Much · uso interno</div>
+  <h1>Luma<br><em>de uma necessidade<br>a um produto</em></h1>
+  <div class="csub">Uma visão visual da transformação da plataforma — reconstruída executando o código de cada época.</div>
+  <div class="meta">
+    <div><b>Período</b>anterior a 16/07/2026 → 30/07/2026</div>
+    <div><b>Evidência</b>65 capturas reais, 72 commits</div>
+    <div><b>Método</b>cada versão foi executada, não descrita</div>
+  </div>
+</section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">O que veremos</span></div>
+  <div class="corpo">
+    <h2 class="titulo" style="font-size:56px">Cinco perguntas</h2>
+    <div class="lista" style="margin-top:44px">
+      <div class="li"><div class="n">01</div><div><h4>Como o Luma começou</h4>
+        <p>A primeira versão conhecida e preservada, executada — outro nome, outra cor, sem tela de entrada.</p></div></div>
+      <div class="li"><div class="n">02</div><div><h4>Como as telas principais evoluíram</h4>
+        <p>Seis áreas comparadas lado a lado, mesma tela em versões diferentes.</p></div></div>
+      <div class="li"><div class="n">03</div><div><h4>Que funcionalidades entraram</h4>
+        <p>E em que momento cada uma passou a existir.</p></div></div>
+      <div class="li"><div class="n">04</div><div><h4>Onde tudo está hoje</h4>
+        <p>Um atlas com o caminho exato até cada recurso, marcado sobre a tela real.</p></div></div>
+      <div class="li"><div class="n">05</div><div><h4>Que maturidade o produto ganhou</h4>
+        <p>Além da aparência: dado com dono, rede que falha sem perder, IA como camada.</p></div></div>
+    </div>
+  </div>
+  <div class="num">02 / 24</div>
+</section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">O ponto de partida</span><span class="quando">anterior a 16/07/2026</span></div>
+    <div class="corpo" style="display:flex;gap:44px">
+      <div style="flex:1.3;display:flex;flex-direction:column;justify-content:center;min-width:0">
+        <div class="moldura" style="--ar:1440/1000"><img src="../screenshots/original/M0/01_home_2026-07-15_origem_1440x1000.png" alt="Piloto Yungas"></div>
+        <div class="legenda"><span class="eti eti-antes">primeira versão conhecida</span>
+          <span class="rot">Yungas · Módulo de Artes</span><span class="meta">arquivo preservado</span></div>
+      </div>
+      <div style="flex:.85;display:flex;flex-direction:column;justify-content:center;min-width:0">
+        <h2 class="titulo" style="font-size:50px">Nem se<br>chamava Luma</h2>
+        <div class="sub" style="font-size:21px">Um arquivo HTML só, identidade vermelha, e nenhuma tela de entrada: o app abria com o assistente já na pergunta 1 de 4.</div>
+        <div class="numeros" style="grid-template-columns:1fr 1fr;margin-top:28px">
+          <div class="card"><div class="v">1</div><div class="r">arquivo,<br>565 KB</div></div>
+          <div class="card"><div class="v">9.316</div><div class="r">linhas, tudo<br>no mesmo lugar</div></div>
+          <div class="card"><div class="v">266</div><div class="r">funções — já com os<br>prefixos d*, f* e g*</div></div>
+          <div class="card"><div class="v">0</div><div class="r">backend:<br>rodava no navegador</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="num">03 / 24</div><div class="selo"><span class="pt"></span>execução real do arquivo preservado</div>
+  </section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Linha do tempo</span><span class="quando">5 marcos · 72 commits em 15 dias</span></div>
+  <div class="corpo" style="display:flex;align-items:center">
+    <div class="tl"><div class="tl-eixo"></div><div class="tl-itens">
+      <div class="tl-item forte">
+        <div class="tl-data">antes de 07-16</div>
+        <div class="tl-era">Antes do git</div>
+        <div class="tl-ponto"></div>
+        <div class="tl-rot">Piloto Yungas — Módulo de Artes</div>
+        <div class="tl-desc">Chamava-se &quot;Yungas · Módulo de Artes · Delivery Much&quot; — o nome Luma ainda não existia</div>
+        <div class="tl-hash">arquivo original</div>
+      </div><div class="tl-item ">
+        <div class="tl-data">07-16</div>
+        <div class="tl-era">Base preservada</div>
+        <div class="tl-ponto"></div>
+        <div class="tl-rot">O que o git preserva como ponto de partida</div>
+        <div class="tl-desc">285 arquivos versionados já no commit mais antigo</div>
+        <div class="tl-hash">89ca896</div>
+      </div><div class="tl-item ">
+        <div class="tl-data">07-16</div>
+        <div class="tl-era">Catálogo vivo</div>
+        <div class="tl-ponto"></div>
+        <div class="tl-rot">A vitrine passa a ser gerida pelo banco</div>
+        <div class="tl-desc">No mesmo lote: convite de membro real por Edge Function e perfil persistido no banco</div>
+        <div class="tl-hash">247bcd4</div>
+      </div><div class="tl-item ">
+        <div class="tl-data">07-30</div>
+        <div class="tl-era">Ferramenta interna</div>
+        <div class="tl-ponto"></div>
+        <div class="tl-rot">Luma CLI — o console do time</div>
+        <div class="tl-desc">c9790e8 (11:27) — o console nasce com IA, banner em pixel art e os dois temas</div>
+        <div class="tl-hash">e48b7ff</div>
+      </div><div class="tl-item forte">
+        <div class="tl-data">07-30</div>
+        <div class="tl-era">Acabamento</div>
+        <div class="tl-ponto"></div>
+        <div class="tl-rot">Estado atual</div>
+        <div class="tl-desc">9c1a83b — revisão de UI/UX do CLI com contraste medido no Chromium</div>
+        <div class="tl-hash">branch atual</div>
+      </div>
+    </div></div>
+  </div>
+  <div class="num">04 / 24</div>
+</section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Evolução geral · A entrada</span><span class="quando">origem → expansão → hoje</span></div>
+    <div class="corpo" style="bottom:196px">
+      <h2 class="titulo" style="font-size:48px;margin-bottom:22px">A primeira tela, em três momentos</h2>
+      <div class="trio" style="height:calc(100% - 78px)">
+        <div class="tela">
+  <div class="moldura" style="--ar:1440/1000"><img src="../screenshots/original/M0/01_home_2026-07-15_origem_1440x1000.png" alt="Origem"></div>
+  <div class="legenda">
+    <span class="rot">Origem</span>
+    <span class="meta">anterior a 16/07 · arquivo original</span></div>
+  <div class="nota">Cai direto no chat. O catálogo é uma coluna estreita à esquerda.</div>
+</div><div class="seta">→</div><div class="tela">
+  <div class="moldura" style="--ar:1440/1000"><img src="../screenshots/original/M3/01_home_2026-07-16_247bcd4_1440x1000.png" alt="Expansão"></div>
+  <div class="legenda">
+    <span class="rot">Expansão</span>
+    <span class="meta">2026-07-16 · 247bcd4</span></div>
+  <div class="nota">Ganha vitrine própria: a lista de campanhas passa a vir do banco.</div>
+</div><div class="seta">→</div><div class="tela">
+  <div class="moldura" style="--ar:1440/1000"><img src="../screenshots/original/M8/01_home_2026-07-30_atual_1440x1000.png" alt="Hoje"></div>
+  <div class="legenda">
+    <span class="rot">Hoje</span>
+    <span class="meta">2026-07-30 · branch atual</span></div>
+  <div class="nota">Saudação, busca, destaque da semana e a grade de campanhas prontas.</div>
+</div>
+      </div>
+    </div>
+    <div class="conclusao">O produto deixou de assumir que você já sabia o que fazer. Hoje a primeira tela <b>orienta a escolha</b> antes de pedir qualquer informação.</div>
+    <div class="num">05 / 24</div><div class="selo"><span class="pt"></span>três execuções reais</div>
+  </section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Evolução geral · O fluxo de criação</span><span class="quando">origem → expansão → hoje</span></div>
+    <div class="corpo" style="bottom:196px">
+      <h2 class="titulo" style="font-size:48px;margin-bottom:22px">O chat sempre esteve no centro</h2>
+      <div class="trio" style="height:calc(100% - 78px)">
+        <div class="tela">
+  <div class="moldura" style="--ar:1440/1000"><img src="../screenshots/original/M0/03_chat_2026-07-15_origem_1440x1000.png" alt="Origem"></div>
+  <div class="legenda">
+    <span class="rot">Origem</span>
+    <span class="meta">anterior a 16/07 · arquivo original</span></div>
+  <div class="nota">Assistente pergunta em 4 passos, com sugestões clicáveis e prévia à direita.</div>
+</div><div class="seta">→</div><div class="tela">
+  <div class="moldura" style="--ar:1440/1000"><img src="../screenshots/original/M3/03_chat_2026-07-16_247bcd4_1440x1000.png" alt="Expansão"></div>
+  <div class="legenda">
+    <span class="rot">Expansão</span>
+    <span class="meta">2026-07-16 · 247bcd4</span></div>
+  <div class="nota">Mesma mecânica, agora dentro de uma campanha escolhida no catálogo.</div>
+</div><div class="seta">→</div><div class="tela">
+  <div class="moldura" style="--ar:1440/1000"><img src="../screenshots/original/M8/03_chat_2026-07-30_atual_1440x1000.png" alt="Hoje"></div>
+  <div class="legenda">
+    <span class="rot">Hoje</span>
+    <span class="meta">2026-07-30 · branch atual</span></div>
+  <div class="nota">Com material escolhido, formato definido e IA ajudando a encaixar o texto.</div>
+</div>
+      </div>
+    </div>
+    <div class="conclusao">O acerto do piloto foi o formato: <b>perguntar em vez de mandar editar</b>. O que mudou não foi o chat — foi tudo que passou a existir em volta dele.</div>
+    <div class="num">06 / 24</div><div class="selo"><span class="pt"></span>três execuções reais</div>
+  </section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Evolução geral · A criação</span><span class="quando">origem → expansão → hoje</span></div>
+    <div class="corpo" style="bottom:196px">
+      <h2 class="titulo" style="font-size:48px;margin-bottom:22px">O Estúdio ganhou uma casa</h2>
+      <div class="trio" style="height:calc(100% - 78px)">
+        <div class="tela">
+  <div class="moldura" style="--ar:1440/1000"><img src="../screenshots/original/M0/05_designer_2026-07-15_origem_1440x1000.png" alt="Origem"></div>
+  <div class="legenda">
+    <span class="rot">Origem</span>
+    <span class="meta">anterior a 16/07 · arquivo original</span></div>
+  <div class="nota">Entra direto no canvas, com as ferramentas em volta.</div>
+</div><div class="seta">→</div><div class="tela">
+  <div class="moldura" style="--ar:1440/1000"><img src="../screenshots/original/M3/05_designer_2026-07-16_247bcd4_1440x1000.png" alt="Expansão"></div>
+  <div class="legenda">
+    <span class="rot">Expansão</span>
+    <span class="meta">2026-07-16 · 247bcd4</span></div>
+  <div class="nota">O canvas passa a conviver com pastas e campanhas vindas do banco.</div>
+</div><div class="seta">→</div><div class="tela">
+  <div class="moldura" style="--ar:1440/1000"><img src="../screenshots/original/M8/05_designer_2026-07-30_atual_1440x1000.png" alt="Hoje"></div>
+  <div class="legenda">
+    <span class="rot">Hoje</span>
+    <span class="meta">2026-07-30 · branch atual</span></div>
+  <div class="nota">Abre numa home própria: biblioteca de materiais, busca, filtros e três formas de começar.</div>
+</div>
+      </div>
+    </div>
+    <div class="conclusao">Editar sempre funcionou — o canvas do piloto já era completo. O que faltava era <b>onde guardar e reencontrar</b> o que foi editado.</div>
+    <div class="num">07 / 24</div><div class="selo"><span class="pt"></span>três execuções reais</div>
+  </section>
+<section class="slide escuro">
+  <div class="sn">ÁREA POR ÁREA</div><h2>Seis frentes,<br>seis comparações</h2>
+  <p class="psec">Mesma tela, mesmo enquadramento, datas embaixo. Da esquerda para a direita: como era, como está.</p>
+</section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Área · Biblioteca de campanhas</span><span class="quando">anterior a 16/07 → 2026-07-30</span></div>
+    <div class="corpo" style="bottom:196px">
+      <h2 class="titulo" style="font-size:48px;margin-bottom:22px">De lista fixa a catálogo gerido pelo time</h2>
+      <div class="telas" style="height:calc(100% - 78px)">
+        <div class="tela">
+  <div class="moldura" style="--ar:1440/1000"><img src="../screenshots/original/M0/02_catalogo_2026-07-15_origem_1440x1000.png" alt="Piloto"></div>
+  <div class="legenda"><span class="eti eti-antes">antes</span>
+    <span class="rot">Piloto</span>
+    <span class="meta">anterior a 16/07 · arquivo original</span></div>
+  <div class="nota">As campanhas eram itens fixos no código: publicar uma nova exigia mexer no arquivo.</div>
+</div>
+        <div class="tela">
+  <div class="moldura" style="--ar:1440/1000"><img src="../screenshots/original/M8/02_catalogo_2026-07-30_atual_1440x1000.png" alt="Hoje"></div>
+  <div class="legenda"><span class="eti eti-hoje">hoje</span>
+    <span class="rot">Hoje</span>
+    <span class="meta">2026-07-30 · branch atual</span></div>
+  <div class="nota">Campanha é pasta no banco: o que o time cria no Estúdio aparece para o franqueado sem deploy.</div>
+</div>
+      </div>
+    </div>
+    <div class="conclusao">Essa é a mudança que tirou o time de engenharia do caminho. <b>Publicar campanha virou trabalho de quem faz a campanha.</b></div>
+    <div class="num">09 / 24</div><div class="selo"><span class="pt"></span>duas execuções reais</div>
+  </section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Área · Artes e organização</span><span class="quando">anterior a 16/07 → 2026-07-30</span></div>
+    <div class="corpo" style="bottom:196px">
+      <h2 class="titulo" style="font-size:48px;margin-bottom:22px">O trabalho começado deixou de se perder</h2>
+      <div class="telas" style="height:calc(100% - 78px)">
+        <div class="tela">
+  <div class="moldura" style="--ar:1440/1000"><img src="../screenshots/original/M0/04_minhas-artes_2026-07-15_origem_1440x1000.png" alt="Piloto"></div>
+  <div class="legenda"><span class="eti eti-antes">antes</span>
+    <span class="rot">Piloto</span>
+    <span class="meta">anterior a 16/07 · arquivo original</span></div>
+  <div class="nota">Uma aba de histórico ao lado do catálogo, presa à sessão do navegador.</div>
+</div>
+        <div class="tela">
+  <div class="moldura" style="--ar:1440/1000"><img src="../screenshots/original/M8/04_minhas-artes_2026-07-30_atual_1440x1000.png" alt="Hoje"></div>
+  <div class="legenda"><span class="eti eti-hoje">hoje</span>
+    <span class="rot">Hoje</span>
+    <span class="meta">2026-07-30 · branch atual</span></div>
+  <div class="nota">Área própria, com rascunho retomável e o vínculo com o template que deu origem à arte.</div>
+</div>
+      </div>
+    </div>
+    <div class="conclusao">O histórico saiu do navegador e foi para o banco, com trava de escrita e aviso de conflito entre aparelhos. <b>Fechar o app deixou de ser perder o trabalho.</b></div>
+    <div class="num">10 / 24</div><div class="selo"><span class="pt"></span>duas execuções reais</div>
+  </section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Área · Exportação</span><span class="quando">2026-07-16 → 2026-07-30</span></div>
+    <div class="corpo" style="bottom:196px">
+      <h2 class="titulo" style="font-size:48px;margin-bottom:22px">Sair do Luma com o arquivo certo</h2>
+      <div class="telas" style="height:calc(100% - 78px)">
+        <div class="tela">
+  <div class="moldura" style="--ar:1440/1000"><img src="../screenshots/original/M1/06_exportar_2026-07-16_89ca896_1440x1000.png" alt="Primeira versão no git"></div>
+  <div class="legenda"><span class="eti eti-antes">antes</span>
+    <span class="rot">Primeira versão no git</span>
+    <span class="meta">2026-07-16 · 89ca896</span></div>
+  <div class="nota">Exportação existia, ainda enxuta.</div>
+</div>
+        <div class="tela">
+  <div class="moldura" style="--ar:1440/1000"><img src="../screenshots/original/M8/06_exportar_2026-07-30_atual_1440x1000.png" alt="Hoje"></div>
+  <div class="legenda"><span class="eti eti-hoje">hoje</span>
+    <span class="rot">Hoje</span>
+    <span class="meta">2026-07-30 · branch atual</span></div>
+  <div class="nota">Formato, escala e lote de pranchetas — PNG, JPG, SVG e PSD a partir da mesma arte.</div>
+</div>
+      </div>
+    </div>
+    <div class="conclusao">A exportação virou a ponta séria do fluxo: <b>escala dobrada para impressão</b> e saída em lote, sem refazer nada.</div>
+    <div class="num">11 / 24</div><div class="selo"><span class="pt"></span>duas execuções reais</div>
+  </section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Área · Celular</span><span class="quando">anterior a 16/07 → 2026-07-30</span></div>
+    <div class="corpo" style="bottom:196px">
+      <h2 class="titulo" style="font-size:48px;margin-bottom:22px">De adaptado a pensado para a tela pequena</h2>
+      <div class="telas" style="height:calc(100% - 78px)">
+        <div class="tela">
+  <div class="moldura" style="--ar:390/844"><img src="../screenshots/original/M0/09_home-mobile_2026-07-15_origem_390x844.png" alt="Piloto no celular"></div>
+  <div class="legenda"><span class="eti eti-antes">antes</span>
+    <span class="rot">Piloto no celular</span>
+    <span class="meta">anterior a 16/07 · arquivo original</span></div>
+  <div class="nota">Layout de desktop espremido na largura do telefone.</div>
+</div>
+        <div class="tela">
+  <div class="moldura" style="--ar:390/844"><img src="../screenshots/original/M8/10_home-mobile_2026-07-30_atual_390x844.png" alt="Hoje no celular"></div>
+  <div class="legenda"><span class="eti eti-hoje">hoje</span>
+    <span class="rot">Hoje no celular</span>
+    <span class="meta">2026-07-30 · branch atual</span></div>
+  <div class="nota">Vitrine própria de celular, com alvos de toque e navegação por gesto.</div>
+</div>
+      </div>
+    </div>
+    <div class="conclusao">Em 16/07 o telefone ganha tratamento próprio: prévia com a arte dentro do aparelho e PWA instalável. <b>Deixou de ser um desktop menor.</b></div>
+    <div class="num">12 / 24</div><div class="selo"><span class="pt"></span>duas execuções reais</div>
+  </section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Área · Ferramenta interna</span><span class="quando">30/07/2026</span></div>
+    <div class="corpo" style="display:flex;gap:44px">
+      <div style="flex:1.35;display:flex;flex-direction:column;justify-content:center;min-width:0">
+        <div class="moldura" style="--ar:1440/1000"><img src="../screenshots/original/M8/08_cli_2026-07-30_atual_1440x1000.png" alt="Luma CLI"></div>
+        <div class="legenda"><span class="eti eti-novo">não existia antes</span><span class="rot">Luma CLI</span>
+          <span class="meta">30/07/2026 · branch atual</span></div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0">
+        <h2 class="titulo" style="font-size:44px">Uma superfície para quem <em style="font-style:normal;color:var(--laranja-d)">mantém</em> o Luma</h2>
+        <div class="sub" style="font-size:20px">Nasceu de um incidente real de sync em que o diagnóstico era colar snippet no DevTools.</div>
+        <ul class="fatos" style="margin-top:22px">
+          <li><span><b>diag</b> — radiografia de sessão, sync, cache, banco e IA</span></li>
+          <li><span><b>sync push/pull</b> — força a sincronização e mostra antes → depois</span></li>
+          <li><span>Qualquer frase vira pergunta para a IA, com o contexto real da sessão</span></li>
+        </ul>
+        <div class="conclusao" style="position:static;margin-top:20px;font-size:19px">O gate por perfil é de UX. Quem protege o dado continua sendo a <b>RLS no banco</b> — o console não dá poder que o DevTools já não desse.</div>
+      </div>
+    </div>
+    <div class="num">13 / 24</div><div class="selo"><span class="pt"></span>execução real do commit</div>
+  </section>
+<section class="slide escuro">
+  <div class="sn">ATLAS</div><h2>Onde tudo<br>está hoje</h2>
+  <p class="psec">Cada recurso marcado sobre a tela real, com o caminho exato até ele. As posições foram medidas no DOM da versão atual — nenhum contorno foi desenhado no olho.</p>
+</section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Onde as coisas estão</span><span class="quando">atlas 1/5 · estado atual</span></div>
+    <div class="corpo">
+      <div style="display:flex;align-items:baseline;gap:18px;margin-bottom:20px">
+        <span class="fluxo-tag">Criar</span>
+        <h2 class="titulo" style="font-size:40px">Vitrine — por onde se começa</h2>
+      </div>
+      <div class="atlas" style="height:calc(100% - 76px)">
+        <div class="atlas-fig"><img src="../screenshots/feature-atlas/atlas_criar_1440x1000.png" alt="Vitrine — por onde se começa">
+          <div class="marca" style="left:2.50%;top:32.79%;width:93.96%;height:31.34%"></div>
+          <div class="marca-n" style="left:max(6px, calc(2.50% - 17px));top:max(6px, calc(32.79% - 17px))">1</div><div class="marca" style="left:2.50%;top:23.31%;width:93.96%;height:6.60%"></div>
+          <div class="marca-n" style="left:max(6px, calc(2.50% - 17px));top:max(6px, calc(23.31% - 17px))">2</div><div class="marca" style="left:86.46%;top:15.63%;width:10.00%;height:4.80%"></div>
+          <div class="marca-n" style="left:max(6px, calc(86.46% - 17px));top:max(6px, calc(15.63% - 17px))">3</div><div class="marca" style="left:41.82%;top:1.00%;width:8.11%;height:3.20%"></div>
+          <div class="marca-n" style="left:max(6px, calc(41.82% - 17px));top:max(6px, calc(1.00% - 17px))">4</div>
+        </div>
+        <div class="atlas-lista">
+          <div class="atlas-item"><div class="atlas-bola">1</div>
+            <div><h4>Campanha em destaque</h4><p>Puxa pra frente a campanha da semana, com formatos e prazo.</p>
+              <div class="onde">Vitrine → primeiro bloco · Todos</div></div></div><div class="atlas-item"><div class="atlas-bola">2</div>
+            <div><h4>Busca de campanha</h4><p>Filtra o catálogo por tema, prato ou ocasião.</p>
+              <div class="onde">Vitrine → campo de busca · Todos</div></div></div><div class="atlas-item"><div class="atlas-bola">3</div>
+            <div><h4>Minhas artes</h4><p>Abre o histórico e retoma uma arte pela metade.</p>
+              <div class="onde">Vitrine → cabeçalho · Todos</div></div></div><div class="atlas-item"><div class="atlas-bola">4</div>
+            <div><h4>Alternador Franqueado / Designer</h4><p>Troca entre a área de uso e o Estúdio de criação.</p>
+              <div class="onde">Topbar · equipe_dm+</div></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="num">15 / 24</div><div class="selo"><span class="pt"></span>contornos medidos no DOM</div>
+  </section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Onde as coisas estão</span><span class="quando">atlas 2/5 · estado atual</span></div>
+    <div class="corpo">
+      <div style="display:flex;align-items:baseline;gap:18px;margin-bottom:20px">
+        <span class="fluxo-tag">Editar</span>
+        <h2 class="titulo" style="font-size:40px">Campanha aberta — o chat que monta a arte</h2>
+      </div>
+      <div class="atlas" style="height:calc(100% - 76px)">
+        <div class="atlas-fig"><img src="../screenshots/feature-atlas/atlas_editar_1440x1000.png" alt="Campanha aberta — o chat que monta a arte">
+          <div class="marca" style="left:22.78%;top:11.90%;width:50.76%;height:81.80%"></div>
+          <div class="marca-n" style="left:max(6px, calc(22.78% - 17px));top:max(6px, calc(11.90% - 17px))">1</div><div class="marca" style="left:73.61%;top:5.50%;width:26.39%;height:94.50%"></div>
+          <div class="marca-n" style="left:max(6px, calc(73.61% - 17px));top:max(6px, calc(5.50% - 17px))">2</div><div class="marca" style="left:24.17%;top:95.15%;width:41.32%;height:3.50%"></div>
+          <div class="marca-n" style="left:max(6px, calc(24.17% - 17px));top:max(6px, calc(95.15% - 17px))">3</div><div class="marca" style="left:35.65%;top:8.60%;width:11.04%;height:1.40%"></div>
+          <div class="marca-n" style="left:max(6px, calc(35.65% - 17px));top:max(6px, calc(8.60% - 17px))">4</div>
+        </div>
+        <div class="atlas-lista">
+          <div class="atlas-item"><div class="atlas-bola">1</div>
+            <div><h4>Chat de preenchimento</h4><p>Pergunta em passos curtos em vez de exigir que você edite a arte.</p>
+              <div class="onde">Campanha → material → Personalizar · Todos</div></div></div><div class="atlas-item"><div class="atlas-bola">2</div>
+            <div><h4>Prévia ao vivo</h4><p>Mostra a arte se montando enquanto as respostas entram.</p>
+              <div class="onde">Coluna da direita · Todos</div></div></div><div class="atlas-item"><div class="atlas-bola">3</div>
+            <div><h4>Campo de resposta</h4><p>Aceita texto ou a sugestão clicada, com o limite de caracteres à vista.</p>
+              <div class="onde">Rodapé do chat · Todos</div></div></div><div class="atlas-item"><div class="atlas-bola">4</div>
+            <div><h4>Contexto da campanha</h4><p>Mostra em qual campanha e formato a arte está sendo montada.</p>
+              <div class="onde">Topo do chat · Todos</div></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="num">16 / 24</div><div class="selo"><span class="pt"></span>contornos medidos no DOM</div>
+  </section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Onde as coisas estão</span><span class="quando">atlas 3/5 · estado atual</span></div>
+    <div class="corpo">
+      <div style="display:flex;align-items:baseline;gap:18px;margin-bottom:20px">
+        <span class="fluxo-tag">Organizar</span>
+        <h2 class="titulo" style="font-size:40px">Estúdio — a casa do designer</h2>
+      </div>
+      <div class="atlas" style="height:calc(100% - 76px)">
+        <div class="atlas-fig"><img src="../screenshots/feature-atlas/atlas_organizar_1440x1000.png" alt="Estúdio — a casa do designer">
+          <div class="marca" style="left:2.50%;top:22.46%;width:95.00%;height:14.60%"></div>
+          <div class="marca-n" style="left:max(6px, calc(2.50% - 17px));top:max(6px, calc(22.46% - 17px))">1</div><div class="marca" style="left:2.50%;top:45.26%;width:95.00%;height:22.64%"></div>
+          <div class="marca-n" style="left:max(6px, calc(2.50% - 17px));top:max(6px, calc(45.26% - 17px))">2</div><div class="marca" style="left:55.63%;top:40.46%;width:41.88%;height:3.60%"></div>
+          <div class="marca-n" style="left:max(6px, calc(55.63% - 17px));top:max(6px, calc(40.46% - 17px))">3</div><div class="marca" style="left:81.43%;top:17.66%;width:16.07%;height:3.60%"></div>
+          <div class="marca-n" style="left:max(6px, calc(81.43% - 17px));top:max(6px, calc(17.66% - 17px))">4</div>
+        </div>
+        <div class="atlas-lista">
+          <div class="atlas-item"><div class="atlas-bola">1</div>
+            <div><h4>Começar do zero ou de um arquivo</h4><p>Arte em branco, PSD com camadas ou SVG vetorial — três portas de entrada.</p>
+              <div class="onde">Estúdio → Criar material · Photoshop · Illustrator · equipe_dm+</div></div></div><div class="atlas-item"><div class="atlas-bola">2</div>
+            <div><h4>Biblioteca de materiais</h4><p>Reúne o que a equipe já fez, com miniatura e status de publicação.</p>
+              <div class="onde">Estúdio → Todos os materiais · equipe_dm+</div></div></div><div class="atlas-item"><div class="atlas-bola">3</div>
+            <div><h4>Busca e filtros</h4><p>Acha o material por nome, por campanha ou por status.</p>
+              <div class="onde">Estúdio → topo da biblioteca · equipe_dm+</div></div></div><div class="atlas-item"><div class="atlas-bola">4</div>
+            <div><h4>Pasta de destino</h4><p>Define em qual campanha a próxima arte vai nascer.</p>
+              <div class="onde">Estúdio → cabeçalho · equipe_dm+</div></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="num">17 / 24</div><div class="selo"><span class="pt"></span>contornos medidos no DOM</div>
+  </section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Onde as coisas estão</span><span class="quando">atlas 4/5 · estado atual</span></div>
+    <div class="corpo">
+      <div style="display:flex;align-items:baseline;gap:18px;margin-bottom:20px">
+        <span class="fluxo-tag">Publicar e exportar</span>
+        <h2 class="titulo" style="font-size:40px">Exportar e publicar</h2>
+      </div>
+      <div class="atlas" style="height:calc(100% - 76px)">
+        <div class="atlas-fig"><img src="../screenshots/feature-atlas/atlas_publicar_1440x1000.png" alt="Exportar e publicar">
+          <div class="marca" style="left:30.90%;top:41.40%;width:5.76%;height:3.10%"></div>
+          <div class="marca-n" style="left:max(6px, calc(30.90% - 17px));top:max(6px, calc(41.40% - 17px))">1</div><div class="marca" style="left:50.69%;top:41.40%;width:18.40%;height:3.90%"></div>
+          <div class="marca-n" style="left:max(6px, calc(50.69% - 17px));top:max(6px, calc(41.40% - 17px))">2</div>
+        </div>
+        <div class="atlas-lista">
+          <div class="atlas-item"><div class="atlas-bola">1</div>
+            <div><h4>Formato de saída</h4><p>PNG, JPG, SVG ou PSD a partir da mesma arte.</p>
+              <div class="onde">Exportar → Formato · equipe_dm+</div></div></div><div class="atlas-item"><div class="atlas-bola">2</div>
+            <div><h4>Escala de exportação</h4><p>Dobra a resolução para impressão sem refazer nada.</p>
+              <div class="onde">Exportar → Escala · equipe_dm+</div></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="num">18 / 24</div><div class="selo"><span class="pt"></span>contornos medidos no DOM</div>
+  </section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Onde as coisas estão</span><span class="quando">atlas 5/5 · estado atual</span></div>
+    <div class="corpo">
+      <div style="display:flex;align-items:baseline;gap:18px;margin-bottom:20px">
+        <span class="fluxo-tag">Manter e diagnosticar</span>
+        <h2 class="titulo" style="font-size:40px">Console do time</h2>
+      </div>
+      <div class="atlas" style="height:calc(100% - 76px)">
+        <div class="atlas-fig"><img src="../screenshots/feature-atlas/atlas_interno_1440x1000.png" alt="Console do time">
+          <div class="marca" style="left:18.06%;top:44.00%;width:63.89%;height:56.00%"></div>
+          <div class="marca-n" style="left:max(6px, calc(18.06% - 17px));top:max(6px, calc(44.00% - 17px))">1</div><div class="marca" style="left:18.13%;top:95.96%;width:63.75%;height:4.04%"></div>
+          <div class="marca-n" style="left:max(6px, calc(18.13% - 17px));top:max(6px, calc(95.96% - 17px))">2</div>
+        </div>
+        <div class="atlas-lista">
+          <div class="atlas-item"><div class="atlas-bola">1</div>
+            <div><h4>Luma CLI</h4><p>Diagnóstico de sync, catálogo, cache e banco em comandos nomeados.</p>
+              <div class="onde">Ctrl+` no desktop · painel de perfil no celular · equipe_dm+</div></div></div><div class="atlas-item"><div class="atlas-bola">2</div>
+            <div><h4>Conversa com a IA</h4><p>Responde com o contexto real da sessão e sugere o comando certo.</p>
+              <div class="onde">CLI → qualquer frase que não seja comando · equipe_dm+</div></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="num">19 / 24</div><div class="selo"><span class="pt"></span>contornos medidos no DOM</div>
+  </section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Recursos especiais · Much+</span><span class="quando">30/07/2026</span></div>
+    <div class="corpo" style="bottom:196px">
+      <h2 class="titulo" style="font-size:48px;margin-bottom:22px">A campanha que troca a cara do app</h2>
+      <div class="telas" style="height:calc(100% - 78px)">
+        <div class="tela">
+  <div class="moldura" style="--ar:1440/1000"><img src="../screenshots/original/M8/02_catalogo_2026-07-30_atual_1440x1000.png" alt="Campanha comum"></div>
+  <div class="legenda"><span class="eti eti-antes">padrão</span>
+    <span class="rot">Campanha comum</span>
+    <span class="meta">2026-07-30 · branch atual</span></div>
+  <div class="nota">Identidade Luma: laranja da marca, acentos laranja, FAB de ajuda laranja.</div>
+</div>
+        <div class="tela">
+  <div class="moldura" style="--ar:1440/1000"><img src="../screenshots/original/M8/09_muchplus_2026-07-30_atual_1440x1000.png" alt="Campanha Much+"></div>
+  <div class="legenda"><span class="eti eti-hoje">tema</span>
+    <span class="rot">Campanha Much+</span>
+    <span class="meta">2026-07-30 · branch atual</span></div>
+  <div class="nota">Dentro da Much+, o app inteiro se re-tokeniza: topbar, acentos e FAB viram magenta.</div>
+</div>
+      </div>
+    </div>
+    <div class="conclusao">Não é uma tela nova — é o <b>mesmo app com outros tokens</b>. O tema vive na campanha, então uma marca parceira entra sem fork e sem tela dedicada. Na vitrine ele é contido; dentro da campanha, assume.</div>
+    <div class="num">20 / 24</div><div class="selo"><span class="pt"></span>duas execuções reais, mesma versão</div>
+  </section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Evolução além da aparência</span></div>
+  <div class="corpo">
+    <h2 class="titulo" style="font-size:52px">O que amadureceu por baixo</h2>
+    <div class="lista" style="margin-top:30px">
+      <div class="li"><div class="n">01</div><div><h4>Dado com dono</h4>
+        <p>O piloto guardava tudo no navegador. Hoje há Postgres com 18 migrations e RLS: a permissão do franqueado é regra de banco, não decisão da interface.</p></div></div>
+      <div class="li"><div class="n">02</div><div><h4>Rede que falha sem perder trabalho</h4>
+        <p>Sync offline-first: push com debounce, fila de deleções, template aberto que sobrevive ao pull do boot e aviso de conflito entre aparelhos.</p></div></div>
+      <div class="li"><div class="n">03</div><div><h4>IA como camada, não como truque</h4>
+        <p>Um motor único atende legenda, encaixe de texto, ajuda aterrada e leitura de cardápio. A chave vive no servidor, em Edge Function.</p></div></div>
+      <div class="li"><div class="n">04</div><div><h4>Feedback que não mente</h4>
+        <p>Fim dos "sucessos falsos": o que não subiu para o banco deixou de exibir confirmação verde.</p></div></div>
+      <div class="li"><div class="n">05</div><div><h4>Um produto que se cuida</h4>
+        <p>Console interno com diagnóstico nomeado, linter de template e a máquina do tempo que reabre qualquer versão antiga — a mesma que produziu estes slides.</p></div></div>
+    </div>
+  </div>
+  <div class="num">21 / 24</div>
+</section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">O Luma atual</span><span class="quando">30/07/2026 · branch atual</span></div>
+    <div class="corpo">
+      <h2 class="titulo" style="font-size:48px;margin-bottom:20px">O produto hoje, tela por tela</h2>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:18px;height:calc(100% - 76px)">
+        <div style="display:flex;flex-direction:column;min-height:0">
+          <div class="moldura" style="--ar:1440/1000"><img src="../screenshots/original/M8/01_home_2026-07-30_atual_1440x1000.png" alt="Vitrine"></div>
+          <div style="margin-top:8px;font-size:17px;font-weight:800">Vitrine</div>
+        </div><div style="display:flex;flex-direction:column;min-height:0">
+          <div class="moldura" style="--ar:1440/1000"><img src="../screenshots/original/M8/02_catalogo_2026-07-30_atual_1440x1000.png" alt="Campanha aberta"></div>
+          <div style="margin-top:8px;font-size:17px;font-weight:800">Campanha aberta</div>
+        </div><div style="display:flex;flex-direction:column;min-height:0">
+          <div class="moldura" style="--ar:1440/1000"><img src="../screenshots/original/M8/03_chat_2026-07-30_atual_1440x1000.png" alt="Chat que monta a arte"></div>
+          <div style="margin-top:8px;font-size:17px;font-weight:800">Chat que monta a arte</div>
+        </div><div style="display:flex;flex-direction:column;min-height:0">
+          <div class="moldura" style="--ar:1440/1000"><img src="../screenshots/original/M8/04_minhas-artes_2026-07-30_atual_1440x1000.png" alt="Minhas artes"></div>
+          <div style="margin-top:8px;font-size:17px;font-weight:800">Minhas artes</div>
+        </div><div style="display:flex;flex-direction:column;min-height:0">
+          <div class="moldura" style="--ar:1440/1000"><img src="../screenshots/original/M8/05_designer_2026-07-30_atual_1440x1000.png" alt="Estúdio"></div>
+          <div style="margin-top:8px;font-size:17px;font-weight:800">Estúdio</div>
+        </div><div style="display:flex;flex-direction:column;min-height:0">
+          <div class="moldura" style="--ar:1440/1000"><img src="../screenshots/original/M8/06_exportar_2026-07-30_atual_1440x1000.png" alt="Exportar"></div>
+          <div style="margin-top:8px;font-size:17px;font-weight:800">Exportar</div>
+        </div><div style="display:flex;flex-direction:column;min-height:0">
+          <div class="moldura" style="--ar:1440/1000"><img src="../screenshots/original/M8/08_cli_2026-07-30_atual_1440x1000.png" alt="Console do time"></div>
+          <div style="margin-top:8px;font-size:17px;font-weight:800">Console do time</div>
+        </div><div style="display:flex;flex-direction:column;min-height:0">
+          <div class="moldura" style="--ar:1440/1000"><img src="../screenshots/original/M8/09_muchplus_2026-07-30_atual_1440x1000.png" alt="Tema Much+"></div>
+          <div style="margin-top:8px;font-size:17px;font-weight:800">Tema Much+</div>
+        </div>
+      </div>
+    </div>
+    <div class="num">22 / 24</div><div class="selo"><span class="pt"></span>execuções reais da branch atual</div>
+  </section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">A dimensão da evolução</span><span class="quando">só números reais</span></div>
+  <div class="corpo">
+    <h2 class="titulo" style="font-size:52px">O tamanho do salto</h2>
+    <div class="numeros" style="grid-template-columns:repeat(4,1fr);margin-top:40px">
+      <div class="card"><div class="v">1 <small>→</small> 56</div><div class="r">arquivos de JavaScript.<br>A origem era um arquivo só.</div></div>
+      <div class="card"><div class="v">41.416</div><div class="r">linhas de JS hoje,<br>mais 20.766 de CSS</div></div>
+      <div class="card"><div class="v">1.071</div><div class="r">funções globais nomeadas<br>(697 no Estúdio, 234 no franqueado)</div></div>
+      <div class="card destaque"><div class="v">18</div><div class="r">migrations de banco —<br>a origem não tinha backend</div></div>
+      <div class="card"><div class="v">5</div><div class="r">marcos selecionados,<br>de 72 commits analisados</div></div>
+      <div class="card"><div class="v">65</div><div class="r">capturas reais produzidas,<br>nenhuma reconstruída</div></div>
+      <div class="card"><div class="v">16</div><div class="r">funcionalidades mapeadas<br>no atlas, medidas no DOM</div></div>
+      <div class="card"><div class="v">0</div><div class="r">dependências de runtime<br>no front — segue vanilla</div></div>
+    </div>
+  </div>
+  <div class="num">23 / 24</div>
+</section>
+<section class="slide escuro">
+  <div class="marca">Para fechar</div>
+  <h1>De ferramenta<br><em>a produto.</em></h1>
+  <div class="csub">O Luma não evoluiu apenas em quantidade de telas. Ele consolidou uma experiência, uma linguagem visual própria e uma forma de resolver necessidades reais da operação — sem nunca deixar de ser aberto num arquivo HTML.</div>
+  <div class="meta">
+    <div><b>Ainda em construção</b>o roadmap da v1 segue aberto em luma-brain/07</div>
+    <div><b>Reproduzível</b>node docs/luma-evolution/scripts/tudo.js --v2</div>
+  </div>
+</section>
+</body></html>

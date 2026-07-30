@@ -110,3 +110,39 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
 
 @page{size:1920px 1080px;margin:0}
 @media print{body{background:#fff}.slide+.slide{margin-top:0}}
+
+/* ═══ padrões acrescentados na V2 ═══════════════════════════════════════════ */
+
+/* ── três momentos: origem → expansão → atual, no mesmo enquadramento ── */
+/* center, não stretch: três capturas 1440×1000 lado a lado em 1728px dão colunas de
+   ~560px, e a altura resultante nunca preenche o corpo. Centralizado, a sobra vira
+   respiro simétrico em vez de um bloco vazio embaixo. */
+.trio{display:flex;gap:26px;height:100%;align-items:center}
+.trio .tela{flex:1}
+.trio .rot{font-size:20px}
+.trio .nota{font-size:16px}
+.trio .legenda .meta{font-size:14px}   /* 14px é o piso de leitura numa projeção */
+/* a seta entre os momentos dá a leitura de sequência sem precisar de texto */
+.seta{align-self:center;flex:0 0 auto;font-size:30px;color:var(--linha);font-weight:900;padding-bottom:60px}
+
+/* ── atlas: a captura com os contornos medidos + a lista numerada ── */
+.atlas{display:flex;gap:36px;height:100%;align-items:center}
+.atlas-fig{flex:1.55;position:relative;border:1px solid var(--linha);border-radius:12px;overflow:hidden;
+  background:var(--papel-2);box-shadow:0 16px 40px rgba(10,10,10,.10);aspect-ratio:1440/1000}
+/* fill, não contain: o contorno é posicionado em % da imagem, então qualquer letterbox
+   deslocaria os destaques em relação ao que eles apontam. */
+.atlas-fig img{width:100%;height:100%;object-fit:fill;display:block}
+.marca{position:absolute;border:3px solid var(--laranja);border-radius:7px;
+  box-shadow:0 0 0 3px rgba(255,144,0,.26)}
+.marca-n{position:absolute;width:34px;height:34px;border-radius:50%;background:var(--laranja);color:#fff;
+  font-size:19px;font-weight:900;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 12px rgba(10,10,10,.3)}
+.atlas-lista{flex:1;display:flex;flex-direction:column;gap:22px;justify-content:center;min-width:0}
+.atlas-item{display:flex;gap:16px;align-items:flex-start}
+.atlas-bola{width:34px;height:34px;border-radius:50%;background:var(--laranja);color:#fff;flex-shrink:0;
+  font-size:19px;font-weight:900;display:flex;align-items:center;justify-content:center}
+.atlas-item h4{font-size:24px;font-weight:900;letter-spacing:-.015em;line-height:1.18}
+.atlas-item p{margin-top:6px;font-size:18px;color:var(--tinta-2);line-height:1.38}
+.atlas-item .onde{margin-top:7px;font-family:var(--mono);font-size:14px;color:var(--tinta-3)}
+.fluxo-tag{display:inline-flex;align-items:center;height:30px;padding:0 14px;border-radius:999px;
+  background:var(--tinta);color:#fff;font-size:14px;font-weight:900;letter-spacing:.1em;text-transform:uppercase}

@@ -2,10 +2,19 @@
 
 Apresentação visual de como o Luma mudou, montada **executando cada versão antiga** em vez de descrevê-la. Toda imagem é uma captura real; nenhuma é reconstrução ou ilustração.
 
+São **duas apresentações** sobre as mesmas evidências:
+
+| | O que é | Slides |
+|---|---|---|
+| **V2** *(a de apresentar)* | Case de produto: 5 marcos curados, atlas de funcionalidades, Much+ | 24 |
+| V1 | Auditoria: os 9 marcos capturados, foco em proveniência | 26 |
+
 ```bash
-node docs/luma-evolution/scripts/tudo.js                 # reconstrói tudo (~25 min)
-node docs/luma-evolution/scripts/tudo.js --faltando      # captura só os marcos sem PNG
-node docs/luma-evolution/scripts/tudo.js --sem-captura   # só remonta os slides (~1 min)
+node docs/luma-evolution/scripts/tudo.js --v2 --sem-captura   # remonta a V2 (~1 min)
+node docs/luma-evolution/scripts/tudo.js --v2                 # V2 + atlas + anotações
+node docs/luma-evolution/scripts/tudo.js --sem-captura        # remonta a V1
+node docs/luma-evolution/scripts/tudo.js                      # V1 do zero, com captura (~25 min)
+node docs/luma-evolution/scripts/capturar.js M3 --cena home   # refaz uma tela só
 ```
 
 Saída em `presentation/`: `.pptx`, `.pdf`, `.html`, um PNG por slide, notas do apresentador e índice de evidências.
@@ -53,9 +62,12 @@ docs/luma-evolution/
 | `tudo.js` | Roda tudo na ordem certa. É o comando que você quer. |
 | `capturar.js` | Sobe cada marco e fotografa as cenas. Timeout por cena e por marco. |
 | `cenas.js` | **Define o que é fotografado.** Cada cena sabe chegar até si mesma. |
-| `slides.js` | A narrativa. Os números do produto são contados aqui, a cada montagem. |
-| `estilo.css` | A identidade visual dos slides. |
-| `publicar.js` | HTML → confere o layout → PNGs → PDF → notas → índice. |
+| `slides.js` | Narrativa da V1 (auditoria, 9 marcos). |
+| `slides-v2.js` | **Narrativa da V2** (case, 5 marcos + atlas + Much+). Os números são contados aqui a cada montagem. |
+| `atlas.js` | Mede no DOM onde cada funcionalidade está hoje, em % da viewport. |
+| `anotar.js` | Gera as capturas anotadas de `screenshots/annotated/`. |
+| `estilo.css` | A identidade visual — quatro padrões de slide, compartilhados pelas duas versões. |
+| `publicar.js` | HTML → confere o layout → PNGs → PDF → notas → índice. Aceita narrativa e prefixo. |
 | `montar-pptx.py` | Empacota os PNGs no `.pptx`, com as notas no campo de notas. |
 
 ---
@@ -93,3 +105,4 @@ docs/luma-evolution/
 - **Algumas telas não são alcançáveis offline** — as que exigem um template salvo no banco. Cada caso está em `reports/limitacoes.md`.
 - **O texto do `.pptx` não é editável**: cada slide é a imagem conferida. Para mudar conteúdo, mexa em `slides.js` e rode `tudo.js --sem-captura`.
 - **Peso em disco**: as capturas são PNG a 2× e somam dezenas de MB. Se o repositório ficar pesado, o caminho é versionar só `presentation/` e reconstruir `screenshots/` sob demanda.
+- **O splash de boot já enganou a captura uma vez.** Sete telas de entrada saíram fotografando o overlay laranja em vez da vitrine, porque a espera só checava se a home existia no DOM. Hoje `esperarBoot` usa `elementFromPoint` para confirmar quem está na frente. Se acrescentar cena nova, confie nessa guarda — e olhe o PNG.

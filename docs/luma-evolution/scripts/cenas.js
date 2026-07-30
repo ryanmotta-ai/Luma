@@ -119,6 +119,23 @@ const CENAS = [
     }
   },
   {
+    id: 'muchplus', titulo: 'Much+ — o tema por campanha', area: 'Franqueado', viewport: [1440, 1000],
+    async montar(p) {
+      // A campanha Much+ re-tokeniza o app enquanto o franqueado está dentro dela. Procura
+      // pelo nome porque a posição na vitrine muda conforme o que o time publicou.
+      const ok = await p.evaluate(() => {
+        const alvo = [...document.querySelectorAll('.camp-card, .fh-hero, [class*="camp-card"]')]
+          .find(e => /much\s*\+/i.test(e.textContent || ''));
+        if (!alvo) return false;
+        (alvo.querySelector('[onclick], button, a') || alvo).click();
+        return true;
+      });
+      if (!ok) return false;
+      await espera(p, 3500);
+      return visivel(p, '.f-mat-card, .f-mat-content, #camp-main');
+    }
+  },
+  {
     id: 'home-mobile', titulo: 'Vitrine no celular', area: 'Franqueado', viewport: [390, 844],
     async montar(p) { await espera(p, 1500); return visivel(p, '.fh-hero, #fh-body, .camp-grid, #f-rail, #f-home'); }
   }

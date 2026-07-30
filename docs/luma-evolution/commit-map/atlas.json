@@ -1,0 +1,250 @@
+[
+  {
+    "quadro": "criar",
+    "tela": "Vitrine — por onde se começa",
+    "fluxo": "Criar",
+    "imagem": "../screenshots/feature-atlas/atlas_criar_1440x1000.png",
+    "feats": [
+      {
+        "nome": "Campanha em destaque",
+        "sel": ".fh-hero",
+        "onde": "Vitrine → primeiro bloco",
+        "perfil": "Todos",
+        "oQueFaz": "Puxa pra frente a campanha da semana, com formatos e prazo.",
+        "caixa": {
+          "x": 2.5,
+          "y": 32.7859375,
+          "w": 93.95833333333333,
+          "h": 31.3359375
+        }
+      },
+      {
+        "nome": "Busca de campanha",
+        "sel": ".fh-search-row, #fh-search, [class*=\"fh-search\"]",
+        "onde": "Vitrine → campo de busca",
+        "perfil": "Todos",
+        "oQueFaz": "Filtra o catálogo por tema, prato ou ocasião.",
+        "caixa": {
+          "x": 2.5,
+          "y": 23.306250000000002,
+          "w": 93.95833333333333,
+          "h": 6.6000000000000005
+        }
+      },
+      {
+        "nome": "Minhas artes",
+        "sel": "[onclick*=\"fHomeOpenHist\"], .fh-hd-btn",
+        "onde": "Vitrine → cabeçalho",
+        "perfil": "Todos",
+        "oQueFaz": "Abre o histórico e retoma uma arte pela metade.",
+        "caixa": {
+          "x": 86.45833333333334,
+          "y": 15.626562499999999,
+          "w": 10,
+          "h": 4.8
+        }
+      },
+      {
+        "nome": "Alternador Franqueado / Designer",
+        "sel": "#global-topbar [onclick*=\"setMode\"], .gt-switch",
+        "onde": "Topbar",
+        "perfil": "equipe_dm+",
+        "oQueFaz": "Troca entre a área de uso e o Estúdio de criação.",
+        "caixa": {
+          "x": 41.82400173611111,
+          "y": 1,
+          "w": 8.106553819444445,
+          "h": 3.2
+        }
+      }
+    ]
+  },
+  {
+    "quadro": "editar",
+    "tela": "Campanha aberta — o chat que monta a arte",
+    "fluxo": "Editar",
+    "imagem": "../screenshots/feature-atlas/atlas_editar_1440x1000.png",
+    "feats": [
+      {
+        "nome": "Chat de preenchimento",
+        "sel": "#f-messages",
+        "onde": "Campanha → material → Personalizar",
+        "perfil": "Todos",
+        "oQueFaz": "Pergunta em passos curtos em vez de exigir que você edite a arte.",
+        "caixa": {
+          "x": 22.77777777777778,
+          "y": 11.899999999999999,
+          "w": 50.763888888888886,
+          "h": 81.8
+        }
+      },
+      {
+        "nome": "Prévia ao vivo",
+        "sel": "#f-live-preview, .f-live, [class*=\"live-prev\"], [class*=\"f-preview\"]",
+        "onde": "Coluna da direita",
+        "perfil": "Todos",
+        "oQueFaz": "Mostra a arte se montando enquanto as respostas entram.",
+        "caixa": {
+          "x": 73.61111111111111,
+          "y": 5.5,
+          "w": 26.38888888888889,
+          "h": 94.5
+        }
+      },
+      {
+        "nome": "Campo de resposta",
+        "sel": "#f-msg-box, #f-snd, [class*=\"f-msgrow\"], [class*=\"f-inputrow\"]",
+        "onde": "Rodapé do chat",
+        "perfil": "Todos",
+        "oQueFaz": "Aceita texto ou a sugestão clicada, com o limite de caracteres à vista.",
+        "caixa": {
+          "x": 24.166666666666668,
+          "y": 95.15,
+          "w": 41.31944444444444,
+          "h": 3.5000000000000004
+        }
+      },
+      {
+        "nome": "Contexto da campanha",
+        "sel": "#f-ctx-tag, [class*=\"f-ctx\"]",
+        "onde": "Topo do chat",
+        "perfil": "Todos",
+        "oQueFaz": "Mostra em qual campanha e formato a arte está sendo montada.",
+        "caixa": {
+          "x": 35.65321180555556,
+          "y": 8.6,
+          "w": 11.041666666666666,
+          "h": 1.4000000000000001
+        }
+      }
+    ]
+  },
+  {
+    "quadro": "organizar",
+    "tela": "Estúdio — a casa do designer",
+    "fluxo": "Organizar",
+    "imagem": "../screenshots/feature-atlas/atlas_organizar_1440x1000.png",
+    "feats": [
+      {
+        "nome": "Começar do zero ou de um arquivo",
+        "sel": ".dsh-actions",
+        "onde": "Estúdio → Criar material · Photoshop · Illustrator",
+        "perfil": "equipe_dm+",
+        "oQueFaz": "Arte em branco, PSD com camadas ou SVG vetorial — três portas de entrada.",
+        "caixa": {
+          "x": 2.5,
+          "y": 22.4640625,
+          "w": 95,
+          "h": 14.6
+        }
+      },
+      {
+        "nome": "Biblioteca de materiais",
+        "sel": "#dsh-all-grid",
+        "onde": "Estúdio → Todos os materiais",
+        "perfil": "equipe_dm+",
+        "oQueFaz": "Reúne o que a equipe já fez, com miniatura e status de publicação.",
+        "caixa": {
+          "x": 2.5,
+          "y": 45.2640625,
+          "w": 95,
+          "h": 22.6421875
+        }
+      },
+      {
+        "nome": "Busca e filtros",
+        "sel": ".dsh-library-tools",
+        "onde": "Estúdio → topo da biblioteca",
+        "perfil": "equipe_dm+",
+        "oQueFaz": "Acha o material por nome, por campanha ou por status.",
+        "caixa": {
+          "x": 55.625,
+          "y": 40.4640625,
+          "w": 41.875,
+          "h": 3.5999999999999996
+        }
+      },
+      {
+        "nome": "Pasta de destino",
+        "sel": "#dsh-save-folder-wrap",
+        "onde": "Estúdio → cabeçalho",
+        "perfil": "equipe_dm+",
+        "oQueFaz": "Define em qual campanha a próxima arte vai nascer.",
+        "caixa": {
+          "x": 81.43446180555556,
+          "y": 17.6640625,
+          "w": 16.065538194444446,
+          "h": 3.5999999999999996
+        }
+      }
+    ]
+  },
+  {
+    "quadro": "publicar",
+    "tela": "Exportar e publicar",
+    "fluxo": "Publicar e exportar",
+    "imagem": "../screenshots/feature-atlas/atlas_publicar_1440x1000.png",
+    "feats": [
+      {
+        "nome": "Formato de saída",
+        "sel": "#d-export-modal [class*=\"fmt\"], #d-export-fmt, .d-exp-fmt",
+        "onde": "Exportar → Formato",
+        "perfil": "equipe_dm+",
+        "oQueFaz": "PNG, JPG, SVG ou PSD a partir da mesma arte.",
+        "caixa": {
+          "x": 30.90277777777778,
+          "y": 41.4,
+          "w": 5.763888888888889,
+          "h": 3.1
+        }
+      },
+      {
+        "nome": "Escala de exportação",
+        "sel": "#d-export-modal select, #d-export-scale",
+        "onde": "Exportar → Escala",
+        "perfil": "equipe_dm+",
+        "oQueFaz": "Dobra a resolução para impressão sem refazer nada.",
+        "caixa": {
+          "x": 50.69444444444444,
+          "y": 41.4,
+          "w": 18.40277777777778,
+          "h": 3.9
+        }
+      }
+    ]
+  },
+  {
+    "quadro": "interno",
+    "tela": "Console do time",
+    "fluxo": "Manter e diagnosticar",
+    "imagem": "../screenshots/feature-atlas/atlas_interno_1440x1000.png",
+    "feats": [
+      {
+        "nome": "Luma CLI",
+        "sel": "#luma-cli",
+        "onde": "Ctrl+` no desktop · painel de perfil no celular",
+        "perfil": "equipe_dm+",
+        "oQueFaz": "Diagnóstico de sync, catálogo, cache e banco em comandos nomeados.",
+        "caixa": {
+          "x": 18.055555555555554,
+          "y": 44,
+          "w": 63.888888888888886,
+          "h": 56.00000000000001
+        }
+      },
+      {
+        "nome": "Conversa com a IA",
+        "sel": ".cli-inputrow, #luma-cli input",
+        "onde": "CLI → qualquer frase que não seja comando",
+        "perfil": "equipe_dm+",
+        "oQueFaz": "Responde com o contexto real da sessão e sugere o comando certo.",
+        "caixa": {
+          "x": 18.125,
+          "y": 95.96249999999999,
+          "w": 63.74999999999999,
+          "h": 4.0375000000000005
+        }
+      }
+    ]
+  }
+]

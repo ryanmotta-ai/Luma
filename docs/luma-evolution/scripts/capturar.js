@@ -31,6 +31,16 @@ const MARCOS = JSON.parse(fs.readFileSync(path.join(BASE, 'commit-map', 'milesto
 const DEST = path.join(BASE, 'screenshots', 'original');
 const META = path.join(BASE, 'screenshots', 'metadata');
 
+// Argumentos, lidos no escopo do módulo porque capturarMarco() também consulta soCenas.
+// Dentro do IIFE eles ficavam invisíveis pra ela e o filtro descartava todas as cenas.
+const ARGS = process.argv.slice(2);
+const I_CENA = ARGS.indexOf('--cena');
+// --cena home,home-mobile → refaz só essas cenas. Corrige uma captura ruim sem pagar os
+// três minutos de reexecutar o marco inteiro.
+const soCenas = I_CENA >= 0 ? (ARGS[I_CENA + 1] || '').split(',').filter(Boolean) : null;
+const soFaltando = ARGS.includes('--faltando');
+const filtro = ARGS.filter((a, i) => !a.startsWith('--') && i !== I_CENA + 1);
+
 const TETO_CENA = 45000;    // uma cena que passa disso está emperrada, não lenta
 const TETO_MARCO = 420000;  // 7 min: teto do marco inteiro, some das cenas + folga
 const TETO_BOOT = 12000;    // o splash segura até ~9s; passou disso, o app não subiu
@@ -75,7 +85,14 @@ async function esperarBoot(p) {
       const login = document.getElementById('g-login-screen');
       if (login && getComputedStyle(login).display !== 'none') return false;   // ainda na porta
       const app = document.querySelector('.fh-hero, #fh-body, .camp-grid, #f-home, #view-franqueado, #d-main, #camp-main');
-      return !!(app && app.getBoundingClientRect().height > 80);
+      if (!app) return false;
+      const r = app.getBoundingClientRect();
+      if (r.height < 80) return false;
+      // O splash de boot é um overlay laranja que segue por cima DEPOIS de a home montar.
+      // Checar só "a home existe" fotografava o splash — 7 capturas saíram assim antes
+      // desta guarda. elementFromPoint diz quem está de fato na frente naquele ponto.
+      const frente = document.elementFromPoint(r.x + r.width / 2, r.y + Math.min(40, r.height / 2));
+      return !!(frente && (app.contains(frente) || frente.contains(app)));
     }, { timeout: TETO_BOOT, polling: 250 });
     await p.waitForTimeout(700);   // respiro pras animações de entrada assentarem
     return true;
@@ -99,6 +116,7 @@ async function capturarMarco(marco, porta) {
 
   try {
     for (const cena of CENAS) {
+      if (soCenas && !soCenas.includes(cena.id)) continue;
       // Teto do marco: se estourou, o resto das cenas é registrado sem tentar.
       if (Date.now() - t0 > TETO_MARCO) {
         rel.cenas.push({ cena: cena.id, titulo: cena.titulo, area: cena.area, ok: false,
@@ -184,9 +202,7 @@ const temPng = id => {
 };
 
 (async () => {
-  const args = process.argv.slice(2);
-  const soFaltando = args.includes('--faltando');
-  const filtro = args.filter(a => !a.startsWith('--'));
+
   let alvos = filtro.length ? MARCOS.filter(m => filtro.includes(m.id)) : MARCOS;
   if (soFaltando) alvos = alvos.filter(m => !temPng(m.id));
 
@@ -218,6 +234,7 @@ const temPng = id => {
     .sort((a, b) => a.marco.localeCompare(b.marco));
   fs.writeFileSync(mapa, JSON.stringify(mesclado, null, 2));
 
+  if (soCenas) console.log(`\n(rodado só para as cenas: ${soCenas.join(', ')})`);
   const ok = todos.reduce((n, r) => n + (r.cenas || []).filter(c => c.ok).length, 0);
   console.log(`\n${ok} capturas em ${alvos.length} marcos · ${((Date.now() - inicio) / 60000).toFixed(1)} min\n`);
 })();
