@@ -619,118 +619,16 @@ function fCampCover(c){
   }
   return (c&&c.cover&&typeof c.cover==='string'&&c.cover.length)?c.cover:'';
 }
-/* ── MINIATURAS REAIS DOS MATERIAIS ──────────────────────────────
-   O card da campanha mostra o material publicado de verdade: o 1º material
-   válido é renderizado em miniatura pelo MESMO motor do PNG final
-   (fRenderTemplateLayers) e cacheado por campanha. O HTML sai na hora com a
-   cor da marca; a fila assíncrona pinta a capa real quando o render termina.
-   Prioridade de capa: upload do designer > miniatura renderizada > cor. */
-let _fCampThumbs={};      // campId → {mid: chave do material renderizado, url: dataURL}
-let _fCampThumbBusy=false;
-let _fCampThumbsLoaded=false; // cache persistido (IndexedDB) já carregado?
-
-function _fCampThumbMaterial(c){
-  if(typeof fGetMaterialsForCamp!=='function'||!c)return null;
-  // Agora permite templates que ainda não fizeram fetch das layers (_needsLayersFetch)
-  const mats=fGetMaterialsForCamp(c.id).filter(t=>fIsMaterialValid(t)&&(t._needsLayersFetch || (t.layers&&t.layers.length)));
-  return mats[0]||null;
-}
-function _fCampThumbURL(id){
-  const e=_fCampThumbs[id];
-  return (e&&e.url&&e.url!=='__fail__')?e.url:'';
-}
-// Chave de frescor do thumb: id + data de publicação. Republicar o material muda a
-// chave → thumb re-renderiza. Permite persistir o cache entre sessões sem servir capa velha.
-function _fCampThumbMid(t){
-  return t.id+':'+((t.publishMeta&&t.publishMeta.publicadoEm)||0);
-}
-// Precisa renderizar? (sem cache, ou o material publicado mudou desde o cache)
-function _fCampThumbNeeded(c){
-  const t=_fCampThumbMaterial(c); if(!t)return false;
-  const e=_fCampThumbs[c.id];
-  return !e||e.mid!==_fCampThumbMid(t);
-}
-// Persiste no IndexedDB só os thumbs que renderizaram ('__fail__' fica de fora — re-tenta
-// na próxima sessão). Sem isso, cada abertura do app re-baixaria os layers pros thumbs.
-function _fCampThumbsPersist(){
-  if(typeof gIdbPut!=='function')return;
-  try{
-    const ok={};
-    for(const k in _fCampThumbs){ const e=_fCampThumbs[k]; if(e&&e.url&&e.url!=='__fail__') ok[k]=e; }
-    gIdbPut('__f_camp_thumbs__', ok);
-  }catch(e){}
-}
-async function _fRenderCampThumb(c,t){
-  // Lazy Load discreto se o template for virgem de layers (mesmo helper do clique, com dedup)
-  if(typeof fEnsureMaterialLayers==='function') await fEnsureMaterialLayers(t);
-
-  const [tw,th]=fMaterialSize(t);
-  const s=Math.min(1,360/tw); // miniatura ~360px de largura — nítida no card, leve na memória
-  const cv=document.createElement('canvas');
-  cv.width=Math.max(1,Math.round(tw*s));cv.height=Math.max(1,Math.round(th*s));
-  const ctx=cv.getContext('2d');
-  ctx.scale(s,s);
-  ctx.fillStyle=c.color||'#FF9000';ctx.fillRect(0,0,tw,th); // JPEG não tem alpha — nunca fundo preto
-  const prev=fState.material;
-  fState.material=t; // o motor lê bg/tamanho do fState (mesmo padrão do fDownloadHist)
-  try{ await fRenderTemplateLayers(ctx,t.layers||[],tw,th,{},c); }
-  finally{ if(fState.material===t)fState.material=prev; } // não sobrescreve escolha feita no meio
-  return cv.toDataURL('image/jpeg',.85);
-}
-// Fila: pinta as capas pendentes uma a uma (só enquanto a home está aberta)
-async function fHomeFillThumbs(){
-  if(_fCampThumbBusy)return;
-  _fCampThumbBusy=true;
-  try{
-    // 1º uso na sessão: recupera thumbs renderizados em sessões anteriores (IndexedDB)
-    if(!_fCampThumbsLoaded){
-      _fCampThumbsLoaded=true;
-      if(typeof gIdbGet==='function'){
-        try{ const saved=await gIdbGet('__f_camp_thumbs__'); if(saved&&typeof saved==='object') _fCampThumbs={...saved,..._fCampThumbs}; }catch(e){}
-      }
-    }
-    let node, rendered=false;
-    while((node=document.querySelector('#f-home [data-thumb-camp]'))){
-      if(!document.body.classList.contains('f-home-mode'))break;
-      const id=node.getAttribute('data-thumb-camp');
-      const c=fResolveCamp(id);
-      const t=c&&_fCampThumbMaterial(c);
-      if(t&&_fCampThumbNeeded(c)){
-        let url='__fail__';
-        try{
-          if(typeof fEnsureMaterialLayers==='function') await fEnsureMaterialLayers(t); // catálogo leve
-          if(t.layers&&t.layers.length) url=await _fRenderCampThumb(c,t);
-        }catch(e){}
-        _fCampThumbs[id]={mid:_fCampThumbMid(t),url};
-        if(url!=='__fail__')rendered=true;
-        await new Promise(r=>setTimeout(r,40)); // respiro entre renders — não trava a aba
-      }
-      document.querySelectorAll(`#f-home [data-thumb-camp="${id}"]`).forEach(n=>_fPaintCampThumb(n,id));
-    }
-    if(rendered)_fCampThumbsPersist();
-  } finally { _fCampThumbBusy=false; }
-}
-function _fPaintCampThumb(node,id){
-  node.removeAttribute('data-thumb-camp'); // sempre limpa — a fila não pode girar em falso
-  const url=_fCampThumbURL(id);
-  if(!url)return;
-  if(node.classList.contains('fh-hero-cover')){
-    node.style.backgroundImage=`url('${url}')`;
-  }else{
-    node.style.backgroundImage=`url('${url}')`;
-  }
-  node.style.backgroundSize='cover';
-  node.style.backgroundPosition='center';
-  node.classList.add('has-cover','thumb-real');
-}
 
 function fCampEl(c,isRec,ghost){
   // F-06: thumb mostra prévia real com produto e preço
   const previewProd = c.previewProd || c.name;
   const previewPor = c.previewPor || '';
   const previewDe = c.previewDe || '';
-  // Capa: upload do designer > miniatura renderizada em cache > cor da marca
-  const cover = fCampCover(c) || _fCampThumbURL(c.id);
+  // Capa: SÓ a capa da própria pasta (fCampCover) > cor da marca. Nunca o material de
+  // dentro: a miniatura renderizada mostrava a arte com os campos VAZIOS (retângulo em
+  // branco, o "card invisível" no boot) e trocava a identidade da campanha pelo conteúdo.
+  const cover = fCampCover(c);
   // Degradação graciosa: a cor da campanha fica POR BAIXO da imagem — se a capa faltar (404),
   // o card mostra a cor da marca em vez de um retângulo branco.
   // Scrim (gradiente topo+base) por cima da capa → badges legíveis mesmo em fotos claras.
@@ -740,7 +638,6 @@ function fCampEl(c,isRec,ghost){
     : `background:${c.color}`;
   const mats = (typeof fGetMaterialsForCamp==='function') ? fGetMaterialsForCamp(c.id) : [];
   const countLabel = ghost ? 'Materiais em breve' : (mats.length ? `${mats.length} ${mats.length!==1?'materiais':'material'}` : 'Sem materiais');
-  const thumbAttr = (!cover && !ghost && _fCampThumbNeeded(c)) ? ` data-thumb-camp="${c.id}"` : '';
   const _icoFlame='<svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:-1px;margin-right:3px"><path d="M12 2s5 4 5 9a5 5 0 0 1-10 0c0-1 .3-2 .8-2.8C8 10 9 12 10 12c0-3 2-7 2-10z"/></svg>';
   const _icoClock='<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-1px;margin-right:3px"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
   // F: favorito (fixar no topo) + badge "novo" (material publicado depois da última visita).
@@ -760,7 +657,7 @@ function fCampEl(c,isRec,ghost){
     ${favBtn}
     ${adminBtn}
     ${ghost?'':`<div class="camp-prev-btn" onclick="event.stopPropagation();fOpenPreview(event,'${c.id}')">PRÉVIA</div>`}
-    <div class="camp-thumb ${cover?'has-cover':''}"${thumbAttr} style="${thumbStyle}">
+    <div class="camp-thumb ${cover?'has-cover':''}" style="${thumbStyle}">
       ${c.badge?`<div class="camp-badge">${gEsc(c.badge)}</div>`:''}
       ${!ghost&&c.popular?`<div class="camp-popular">${_icoFlame}Popular</div>`:''}
       ${_hasNew?`<div class="camp-new">novo</div>`:''}
@@ -1052,13 +949,12 @@ function _fHomeDraftEl(hEntry){
   const fmt=gEsc(hEntry.fmtName||'');
   const when=(typeof fFormatHistDate==='function')?fFormatHistDate(hEntry.ts):'';
   const camp=(typeof fResolveCamp==='function')?fResolveCamp(hEntry.campId):null;
-  const cover=camp?(fCampCover(camp)||_fCampThumbURL(camp.id)):'';
+  const cover=camp?fCampCover(camp):'';   // capa da pasta, nunca a arte de dentro
   const coverSafe=gEsc(cover).replace(/'/g,'%27');
   const colorSafe=gEsc(hEntry.campColor||(camp&&camp.color)||'var(--dm-orange)');
   const thumbStyle=cover
     ?`background-color:${colorSafe};background-image:url('${coverSafe}');background-size:cover;background-position:center`
     :`background-color:${colorSafe}`;
-  const thumbAttr=(!cover&&camp&&_fCampThumbNeeded(camp))?` data-thumb-camp="${camp.id}"`:'';
   let pct=0, summaryVal='';
   if(hEntry.dados && camp && camp.perguntas && camp.perguntas.length){
     const filled=camp.perguntas.filter(p=>hEntry.dados[p.id]!=null && hEntry.dados[p.id]!=='').length;
@@ -1067,7 +963,7 @@ function _fHomeDraftEl(hEntry){
     if(firstKey) summaryVal=hEntry.dados[firstKey];
   }
   return `<button class="fh-draft" type="button" onclick="fHomeResume(${hEntry.id})" aria-label="Continuar ${name}${fmt?', formato '+fmt:''}">
-    <div class="fh-draft-th"${thumbAttr} style="${thumbStyle}" aria-hidden="true">
+    <div class="fh-draft-th" style="${thumbStyle}" aria-hidden="true">
       <span>${fmt||'Arte'}</span>
     </div>
     <div class="fh-draft-info">
@@ -1091,7 +987,7 @@ function fHomeOpenHist(){
 
 // Hero da campanha recomendada (a "popular" entre as que têm material pronto)
 function _fHomeHeroEl(rec){
-  const cover=fCampCover(rec)||_fCampThumbURL(rec.id);
+  const cover=fCampCover(rec);   // capa da pasta, nunca a arte de dentro
   const mats=(typeof fGetMaterialsForCamp==='function')?fGetMaterialsForCamp(rec.id):[];
   const matLabel=mats.length?`${mats.length} ${mats.length!==1?'materiais':'material'}`:'Materiais em breve';
   const coverSafe=gEsc(cover).replace(/'/g,'%27');   // %27: neutraliza o ' que fecharia o url('…')
@@ -1099,14 +995,13 @@ function _fHomeHeroEl(rec){
   const coverStyle=cover
     ?`background-color:${colorSafe};background-image:url('${coverSafe}');background-size:cover;background-position:center`
     :`background-color:${colorSafe}`;
-  const heroThumbAttr=(!cover&&_fCampThumbNeeded(rec))?` data-thumb-camp="${rec.id}"`:'';
   const fmtNames=[...new Set(mats.map(m=>({story:'Story 9:16',feed:'Feed 1:1',wide:'Post wide',post:'Post wide'}[m.fmt]||'Material')))];
   const _flame='<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:-1px"><path d="M12 2s5 4 5 9a5 5 0 0 1-10 0c0-1 .3-2 .8-2.8C8 10 9 12 10 12c0-3 2-7 2-10z"/></svg>';
   const _star='<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:-1.5px"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9"/></svg>';
   const _temaHero=(typeof _fCampThemeOf==='function')?_fCampThemeOf(rec):''; // mesmo convite do card, no hero
   return `<section class="fh-featured" aria-label="Campanha recomendada">
   <button class="fh-hero" type="button"${_temaHero?` data-camp-theme="${_temaHero}"`:''} onclick="fSelectCamp('${rec.id}')" aria-label="Abrir campanha ${gEsc(rec.name)}">
-    <div class="fh-hero-cover"${heroThumbAttr} style="${coverStyle}">
+    <div class="fh-hero-cover" style="${coverStyle}">
       ${rec.badge?`<span class="fh-hero-badge">${gEsc(rec.badge)}</span>`:''}
       ${rec.popular?`<span class="fh-hero-pop">${_flame} Popular</span>`:''}
       ${cover?'':`<div class="fh-hero-prod">${gEsc(rec.previewProd||rec.name)}</div>`}
@@ -1329,7 +1224,6 @@ function fRenderHome(opts){
   // Se o observer falhar por qualquer motivo, ninguém pode ficar invisível
   try{ _fhSetupReveal(); }catch(e){ el.querySelectorAll('#fh-body>*').forEach(b=>b.classList.add('in')); }
   _fhBindSticky();
-  setTimeout(fHomeFillThumbs,0); // capas reais pintam em background
 }
 function fHomeFilter(q){
   const body=document.getElementById('fh-body'); if(!body)return;
@@ -1338,7 +1232,6 @@ function fHomeFilter(q){
   if(home) home.classList.remove('fh-anim');
   body.innerHTML=_fHomeBodyHTML(q);
   try{ _fhSetupReveal(); }catch(e){ body.querySelectorAll(':scope>*').forEach(b=>b.classList.add('in')); }
-  setTimeout(fHomeFillThumbs,0);
 }
 // Re-renderiza a home quando o sync do backend traz capas/artes novas —
 // só se ela está visível e o usuário não está no meio de uma busca.

@@ -278,7 +278,7 @@ Estado inicial em tela cheia (`body.f-home-mode` esconde as colunas). Layout flu
 - "Continuar de onde parou" (até 3 rascunhos).
 - Hero da recomendada (a popular **entre as que têm material**; nunca campanha vazia).
 - **Vitrine honesta**: "Prontas pra usar" (com material publicado e válido) vs **"Em breve"** (cards ghost menores, `pointer-events:none`).
-- **Miniaturas reais**: o 1º material válido da campanha é renderizado em ~360px pelo MESMO motor do PNG (`fRenderTemplateLayers`) numa fila assíncrona com cache por campanha (`_fCampThumbs`, invalida se o material mudar). Prioridade de capa: upload do designer > thumb renderizada > cor da marca. Padrão de segurança: `fState.material` save/restore condicional.
+- **Capa do card = capa da PASTA** (`fCampCover`): só a capa que o designer subiu no Estúdio. Sem capa → cor da marca + nome (placeholder programático). ⚠ A antiga fila de "miniaturas reais" (renderizava o 1º material da campanha e usava como capa — `_fCampThumbs`/`fHomeFillThumbs`, removida em 2026-07-30) mostrava a arte com os **campos vazios**: card em branco no boot ("pastas invisíveis") e a identidade da campanha trocada pelo conteúdo. Mesma regra do `01_BUSINESS.md`: pasta manda, capa vazia = removida de propósito.
 
 ### Estado (`fState` em `01-state.js`)
 
@@ -298,13 +298,13 @@ A fonte de verdade do tipo é `dVars[id].type`; `F_FIELD_TYPES` é fallback lega
 
 | Função | Arquivo | Papel |
 |---|---|---|
-| `fRenderHome` / `fHomeFillThumbs` | catalog.js | Home + fila de miniaturas reais |
+| `fRenderHome` / `fCampCover` | catalog.js | Home da vitrine + capa da pasta no card |
 | `fSelectCamp` → `fOpenMaterialCatalog` → `fSelectMaterial` | catalog/materials.js | Campanha → materiais → chat (gera perguntas das vars + permissões) |
 | `fNextStep` / `fSend` / `fQR` / `fSaveAdv` | chat/chat-input.js | Passo a passo do chat (texto/upload) |
 | `fMostrarConfirm` → `fConfirmarGerar` → `fGerarArte` | chat.js | Confirmação editável → arte + histórico |
 | `fBaixar` / `fBaixarPDF` / `fOutroFormato` | chat.js | Download PNG/PDF, variação de formato |
 | `fGenPNG` / `fGenPDF` / `fRenderCanvasHelper` | png-generator.js | Render final 2× supersampling |
-| `fRenderTemplateLayers` / `fRenderOneLayer` | png-generator.js | **Motor de render** (reflow smart-resize, bindings, regras, máscaras, blend modes) — usado por PNG, preview, thumbs. ⚠ Lê `fState.material` (bg + tamanho nativo via `fMaterialSize`); para renderizar material arbitrário: save/restore de `fState.material` |
+| `fRenderTemplateLayers` / `fRenderOneLayer` | png-generator.js | **Motor de render** (reflow smart-resize, bindings, regras, máscaras, blend modes) — usado por PNG e preview. ⚠ Lê `fState.material` (bg + tamanho nativo via `fMaterialSize`); para renderizar material arbitrário: save/restore de `fState.material` |
 | `fUpdateLivePreview` | live-preview.js | Preview lateral em tempo real com placeholders |
 | `fAddHist` / `fMarkHistBaixada` / `fGetHist` | history.js | Histórico (localStorage `dm_artes_hist_v2`, cap 50, dedup) + push pra `luma.artes` |
 | `fBulkOpen` → `fBulkDownloadAll` | png-generator.js | Geração em lote via CSV (PapaParse) com fila/yield |
@@ -571,6 +571,7 @@ localStorage.clear(); location.reload();               // reset local (backend r
 - **2026-06-18/19 — Fase 5.1 Backend**: projeto Supabase próprio, 13 migrations, auth real, persistência completa offline-first, Storage.
 - **2026-06-22/25**: analytics por extração (views), performance (índices + RLS initplan), hardening pós-incidente, backup diário automatizado e validado.
 - **2026-06-fim**: XSS corrigido (3 passes com `gEsc`), gate por role no front, refatoração de performance/memory leaks (Fase 3).
+- **2026-07-30**: capa do card da vitrine volta a ser **a capa da pasta** — a fila de miniaturas do conteúdo (`_fCampThumbs`/`fHomeFillThumbs`, ~100 linhas) saiu: renderizava a arte com campos vazios e deixava o card em branco. Capa do Storage que não baixa agora cai na cor da pasta também na lista do Estúdio (`dRenderFolders`).
 - **2026-07-09**: home do franqueado responsiva (thumbs reais, vitrine honesta, scroll-reveal, busca sticky), redesign do painel Campos (linha compacta + filtros + higiene), topbar (hierarquia + paleta), **auditoria de contraste WCAG aplicada** (tokens `--green-text`, `--var-color` claro, `--d-text3`, CTAs em `--dm-orange-d`). Este documento.
 
 ---
