@@ -15,7 +15,7 @@
 - **Chave:** `Deno.env.get('GEMINI_API_KEY')` — secret do projeto. Sem o secret, responde 503 e o front cai no motor local.
 - **Freio:** rate-limit de 20 chamadas/minuto por usuário, em memória do isolate. ⚠ **Teto assumido:** é por instância, não global — serve contra loop/abuso acidental. Se precisar de contabilidade exata, virar tabela `luma.ai_uso` + RPC.
 - **Tetos por chamada:** prompt ≤ 12.000 chars, ≤ 8 anexos, ≤ ~6 MB de base64 somados, mime de anexo só `image/png|jpeg|webp|gif` ou `application/pdf`.
-- **Tarefas aceitas** (allowlist, pra recusar uso genérico do proxy): `legenda`, `encurtar`, `ajuda`, `cardapio`, `casar-fotos`.
+- **Tarefas aceitas** (allowlist, pra recusar uso genérico do proxy): `legenda`, `encurtar`, `ajuda`, `cardapio`, `casar-fotos`, `cli` (console interno do time — `js/core/console.js`, gated por `gIsAdmin()` no front).
 - **Decisão de arquitetura registrada:** a function **repassa** o prompt montado pelo front em vez de montar prompt aqui. Motivo: sem build/ESM, prompt no servidor viraria prompt **duplicado** (o front precisa dele no modo transição) — e duplicar motor é a proibição nº 1 desta base. Consequência aceita: um usuário logado da DM consegue gastar tokens com prompt próprio, limitado pelo rate-limit. Se algum dia precisar de controle rígido, os builders migram pra cá task por task.
 
 **Front:** `js/core/ai.js` (motor único — `gAskAI`/`gAiReady`/`gAiParseJson`/`gAiFileToPart`). Tenta a function; se ela não estiver publicada (404), cai no **caminho de transição** (chave do front, comportamento atual) e loga o aviso. Nenhum outro arquivo do front toca a API do Gemini — `gGetGeminiApiKey`/`gGetGeminiModel` foram removidos.

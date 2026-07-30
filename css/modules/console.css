@@ -1,0 +1,129 @@
+/* ══════════════════════════════════════════════════════════════
+   LUMA CLI (js/core/console.js) — console de comandos do time.
+
+   Identidade: superfície do Estúdio (--d-*), acento laranja da marca e o banner
+   LUMA em pixel art com o gradiente laranja→amarelo. Tudo por TOKEN — nenhum hex
+   solto, nenhuma fonte nova baixada (a mono é a do sistema).
+   Tema: escuro é o padrão do app; body.theme-light abaixo faz o flip completo.
+══════════════════════════════════════════════════════════════ */
+
+#luma-cli{
+  position:fixed;left:50%;bottom:0;z-index:900;
+  width:min(920px,94vw);height:min(62vh,560px);
+  display:flex;flex-direction:column;overflow:hidden;
+  background:var(--d-dark);
+  border:1px solid var(--d-border2);border-bottom:none;
+  border-radius:14px 14px 0 0;
+  box-shadow:0 -18px 60px rgba(0,0,0,.45);
+  font-family:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace;
+  font-size:12.5px;line-height:1.55;
+  color:var(--d-text);
+  /* fechado: fora da tela, sem pointer-events e sem foco alcançável por Tab */
+  transform:translate(-50%,100%);visibility:hidden;pointer-events:none;
+  transition:transform var(--dur-base) var(--ease-out),visibility 0s linear var(--dur-base);
+}
+#luma-cli.open{transform:translate(-50%,0);visibility:visible;pointer-events:auto;transition:transform var(--dur-base) var(--ease-out),visibility 0s}
+
+/* ── cabeçalho ── */
+.cli-head{
+  display:flex;align-items:center;gap:9px;flex-shrink:0;
+  padding:9px 12px;border-bottom:1px solid var(--d-border);
+  background:linear-gradient(180deg,var(--d-surf),var(--d-dark));
+}
+.cli-logo{display:flex;align-items:center;justify-content:center;width:22px;height:22px;flex-shrink:0;
+  border-radius:var(--r-sm);background:var(--dm-orange);color:var(--on-accent)}
+.cli-logo svg{width:13px;height:13px}
+.cli-title{font-weight:800;letter-spacing:.06em;text-transform:uppercase;font-size:10.5px;color:var(--d-text)}
+.cli-badge{padding:1px 7px;border-radius:var(--r-pill);background:var(--var-bg);color:var(--var-color);
+  font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.cli-badge:empty{display:none}
+.cli-head-sp{flex:1}
+.cli-hint{font-size:9.5px;color:var(--d-text3);letter-spacing:.03em}
+.cli-x{display:flex;align-items:center;justify-content:center;width:24px;height:24px;flex-shrink:0;
+  border:none;background:transparent;border-radius:var(--r-sm);color:var(--d-text3);cursor:pointer;
+  transition:background var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard)}
+.cli-x svg{width:13px;height:13px}
+.cli-x:hover{background:var(--d-surf3);color:var(--d-text)}
+
+/* ── corpo (a "tela" do terminal) ── */
+.cli-body{flex:1;overflow-y:auto;padding:12px 14px 8px;outline:none;scrollbar-width:thin}
+.cli-body::-webkit-scrollbar{width:9px}
+.cli-body::-webkit-scrollbar-thumb{background:var(--d-surf3);border-radius:var(--r-pill)}
+.cli-line{white-space:pre-wrap;word-break:break-word;margin:0 0 2px}
+.cli-line.cli-echo{margin-top:9px;color:var(--d-text)}
+.cli-echo-prompt{color:var(--dm-orange);font-weight:700}
+.cli-line.cli-out{color:var(--d-text2);margin-bottom:4px}
+.cli-dim{color:var(--d-text3)}
+.cli-err{color:var(--d-error)}
+.cli-warn{color:var(--var-color)}
+.cli-line b{color:var(--d-text);font-weight:700}
+
+/* Bolinha de status do diag — mesma gramática do resto do app (verde/amarelo/vermelho). */
+.cli-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px;vertical-align:1px;background:var(--d-text3)}
+.cli-dot.ok{background:var(--green)}
+.cli-dot.warn{background:var(--dm-yellow)}
+.cli-dot.err{background:var(--dm-red)}
+
+/* Banner em pixel art: os blocos ganham o gradiente da marca via clip no texto.
+   line-height 1 pra os blocos se encostarem e virarem desenho, não texto. */
+.cli-banner{
+  margin:2px 0 8px;font-family:inherit;font-size:10px;line-height:1;letter-spacing:0;
+  background:linear-gradient(100deg,var(--dm-orange) 0%,var(--dm-yellow) 62%,var(--dm-orange-d) 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:cliBanner var(--dur-slow) var(--ease-out) both;
+}
+@keyframes cliBanner{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* Sugestão de comando vinda da IA — pré-preenche o campo, nunca executa sozinha. */
+.cli-sug{font-family:inherit;font-size:11.5px;font-weight:700;cursor:pointer;
+  padding:1px 8px;border-radius:var(--r-sm);
+  border:1px solid var(--dm-orange-tint);background:var(--dm-orange-bg);color:var(--dm-orange-text);
+  transition:background var(--dur-fast) var(--ease-standard)}
+.cli-sug:hover{background:var(--dm-orange);color:var(--on-accent)}
+
+/* ── linha de comando ── */
+.cli-inputrow{display:flex;align-items:center;gap:8px;flex-shrink:0;
+  padding:10px 14px;border-top:1px solid var(--d-border);background:var(--d-surf)}
+.cli-prompt{color:var(--dm-orange);font-weight:700;flex-shrink:0}
+#cli-input{flex:1;min-width:0;border:none;background:transparent;outline:none;
+  font-family:inherit;font-size:12.5px;color:var(--d-text);caret-color:var(--dm-orange)}
+#cli-input::placeholder{color:var(--d-text3)}
+.cli-spin{width:12px;height:12px;flex-shrink:0;border-radius:50%;opacity:0;
+  border:2px solid var(--d-surf3);border-top-color:var(--dm-orange)}
+.cli-spin.on{opacity:1;animation:gSpin .7s linear infinite}
+
+/* ── TEMA CLARO (flip completo: o console acompanha o app) ── */
+body.theme-light #luma-cli{
+  background:var(--white);border-color:var(--gray-light);color:var(--text);
+  box-shadow:0 -18px 50px rgba(10,10,10,.16);
+}
+body.theme-light .cli-head{background:linear-gradient(180deg,var(--off-white),var(--white));border-bottom-color:var(--gray-light)}
+body.theme-light .cli-title{color:var(--text)}
+body.theme-light .cli-hint{color:var(--text-3)}
+body.theme-light .cli-x{color:var(--text-3)}
+body.theme-light .cli-x:hover{background:var(--gray-light);color:var(--text)}
+body.theme-light .cli-line.cli-echo{color:var(--text)}
+body.theme-light .cli-line.cli-out{color:var(--text-2)}
+body.theme-light .cli-dim{color:var(--text-3)}
+body.theme-light .cli-err{color:var(--dm-red-text)}
+body.theme-light .cli-warn{color:var(--dm-orange-text)}
+body.theme-light .cli-line b{color:var(--text)}
+body.theme-light .cli-dot{background:var(--text-3)}
+body.theme-light .cli-dot.ok{background:var(--green-text)}
+body.theme-light .cli-inputrow{background:var(--off-white);border-top-color:var(--gray-light)}
+body.theme-light #cli-input{color:var(--text)}
+body.theme-light #cli-input::placeholder{color:var(--text-3)}
+body.theme-light .cli-body::-webkit-scrollbar-thumb{background:var(--gray-mid)}
+body.theme-light .cli-spin{border-color:var(--gray-mid);border-top-color:var(--dm-orange)}
+
+/* Mobile: o console é ferramenta de teclado — ocupa a tela toda e some o atalho. */
+@media (max-width:640px){
+  #luma-cli{width:100vw;height:78vh;border-radius:12px 12px 0 0}
+  .cli-hint{display:none}
+  .cli-banner{font-size:7px}
+}
+@media (prefers-reduced-motion:reduce){
+  #luma-cli{transition:none}
+  .cli-banner{animation:none}
+  .cli-spin.on{animation-duration:1.6s}
+}

@@ -431,6 +431,28 @@ O dashboard simulado foi retirado em 2026-07-15. Analytics real continua em `ana
 
 **Regras dos recursos de IA nesta base:** (1) validar no **código** o que o prompt pediu (tamanho, formato, repetição) — modelo erra contagem; (2) **marcar a origem** na UI (selo/chip) — app que finge não mentir é bug; (3) nunca inventar dado de negócio (preço, validade) — prompt proíbe e a grade exige revisão; (4) toda linha lida por IA passa pela mesma validação das digitadas.
 
+### 12.2. Luma CLI — console do time (`core/console.js`)
+
+Terminal interno, **Ctrl+`** abre, **Esc** fecha. Só monta pra `gIsAdmin()` (equipe_dm/gestao). Existe porque o diagnóstico de sync era feito colando snippet no DevTools — conhecimento que morava em log de conversa (incidente de 07/2026: "30 pastas no banco e 0 templates"). Agora é comando nomeado.
+
+| Comando | O que faz |
+|---|---|
+| `ajuda` | Lista os comandos |
+| `diag` | Radiografia: sessão/role, backend, IA, catálogo local, `_syncPending`, fila de deleção, MB do localStorage e **contagem no banco** (a linha que explicou o incidente) |
+| `sync status\|push\|pull` | Estado do sync ou força `_dPushFoldersNow()` / `dSyncFoldersFromBackend()`, mostrando antes → depois |
+| `pastas [ls\|<id>]` | Lista `dFolders` ou detalha uma pasta (remoteId, capa, materiais, flags) |
+| `cache [ls\|clear <chave>]` | Tamanho por chave do localStorage; `clear` exige `gConfirm` |
+| `ia <pergunta>` | Pergunta em PT-BR — **também é o padrão**: qualquer frase que não seja comando vai pra IA |
+| `limpar` · `sair` | Limpa a tela · fecha |
+
+**A IA do console** recebe o contexto real da sessão (o mesmo que o `diag` mede) + a lista de comandos, e pode **sugerir** um comando — a sugestão só **pré-preenche** o campo, nunca executa. Task `cli` na Edge Function.
+
+**Teclado:** ↑/↓ histórico da sessão · Tab autocompleta comando · o `keydown` para no console (atalho do Estúdio não dispara por baixo).
+
+⛔ **Não é fronteira de segurança.** O gate por role é de UX; quem governa é a RLS, e todo comando roda com a sessão do próprio usuário — o console não dá poder que o DevTools já não desse. Comando que só é seguro "porque só dev vê" não entra.
+
+**Visual** (`css/modules/console.css`): superfície do Estúdio, acento laranja, banner LUMA em pixel art com gradiente da marca (`background-clip:text`), mono do sistema (nenhuma fonte baixada), e flip completo em `body.theme-light`.
+
 ---
 
 ## 13. AUTENTICAÇÃO E ROLES

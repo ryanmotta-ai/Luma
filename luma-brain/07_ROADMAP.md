@@ -204,6 +204,8 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
 - **4. Legenda séria** — prompt com fato-que-existe, ângulo por opção, story x feed; emoji removido no código; selo de origem passou a dizer a verdade (dizia "Gerado por IA" sempre).
 - **5. Casar fotos com as linhas** — nome de arquivo primeiro (local), visão só nas sobras, em uma chamada.
 
+- **6. Luma CLI** *(pedido do Ryan na mesma sessão)* — console do time (`Ctrl+\``, só `gIsAdmin()`): `diag`, `sync`, `pastas`, `cache` + conversa com a IA no próprio terminal, com banner em pixel art e os dois temas. Nasceu pra matar o "snippet colado no DevTools" do diagnóstico de sync. Detalhe no `docs/LUMA.md` §12.2. **Descartado no caminho:** terminal de shell de verdade — a casca desktop é burra de propósito (`contextIsolation`, carrega a URL de produção) e dar shell a ela troca um .exe inofensivo por superfície de ataque.
+
 **Fora, com motivo:**
 - **Sinal de demanda destilado** (IA agrupando o que a rede buscou e não tinha) — depende do **backbone de eventos**, que não existe ainda. Entra junto dele.
 - **Gerar arte/imagem por IA** — fere "zero peça fora da marca"; o valor do Luma é o trilho.

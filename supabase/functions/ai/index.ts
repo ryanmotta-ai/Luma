@@ -28,7 +28,8 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 
 // Tarefas conhecidas (só pra log/telemetria e pra recusar uso genérico do proxy).
-const TASKS = ["legenda", "encurtar", "ajuda", "cardapio", "casar-fotos"];
+// `cli` = console interno do time (js/core/console.js), só role equipe_dm/gestao no front.
+const TASKS = ["legenda", "encurtar", "ajuda", "cardapio", "casar-fotos", "cli"];
 
 // Tetos por chamada: prompt de peça de marketing é curto; anexo é foto/PDF de cardápio.
 const MAX_PROMPT = 12000;      // caracteres

@@ -45,6 +45,7 @@
 <!-- depois de franqueado/chat/live-preview: sobrepõe o layout das 3 colunas -->
 <link rel="stylesheet" href="css/modules/panel-dock.css">
 <link rel="stylesheet" href="css/modules/help-widget.css">
+<link rel="stylesheet" href="css/modules/console.css">
 </head>
 <body class="mode-franqueado theme-light">
 
@@ -2871,6 +2872,9 @@ input:focus:-webkit-autofill {
 <script src="js/core/ai.js"></script>
 <script src="js/core/auth.js"></script>
 <script src="js/core/user-profile.js"></script>
+<!-- Luma CLI: por último entre os core porque só usa globais já definidos
+     (gIsAdmin, gHasBackend, gAskAI, dFolders…) e é o único que abre por atalho -->
+<script src="js/core/console.js"></script>
 <script src="js/main.js"></script>
 
 
