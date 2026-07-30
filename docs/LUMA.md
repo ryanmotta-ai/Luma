@@ -452,7 +452,9 @@ Terminal interno, **Ctrl+`** abre, **Esc** fecha. Só monta pra `gIsAdmin()` (eq
 
 **Enquanto trabalha** (`_gCliSpinStart` / `_gCliSpinPasso`): um bloco mostra o que está acontecendo **de verdade** — rótulo girando, tempo decorrido e os passos anunciados por quem chama conforme acontecem (contexto lido → perguntando pro `<modelo>` → resposta recebida). Sem barra de progresso: não há como saber a fração de uma chamada de rede, e passo inventado é mentira bonita. O bloco some quando a resposta chega, pra não virar histórico falso.
 
-**Teclado (desktop):** ↑/↓ histórico da sessão · Tab autocompleta comando · o `keydown` para no console (atalho do Estúdio não dispara por baixo).
+**Teclado (desktop):** ↑/↓ histórico da sessão · Tab autocompleta comando · o `keydown` do campo para no console (atalho do Estúdio não dispara por baixo). **Esc fecha de qualquer lugar** — o listener mora no `#luma-cli`, não no campo: como o campo para a propagação, com o foco num chip ou no corpo o Esc não chegava a ninguém e o cabeçalho mentia.
+
+**Palavra solta parecida com comando** (`diagg`, `pasta`) **não vai pra IA** — vira "não é comando, você quis dizer X?" com o botão que pré-preenche. Sem isso, um erro de digitação com a IA desligada terminava em "IA indisponível": beco sem saída pra quem só errou uma tecla.
 
 ⛔ **Não é fronteira de segurança.** O gate por role é de UX; quem governa é a RLS, e todo comando roda com a sessão do próprio usuário — o console não dá poder que o DevTools já não desse. Comando que só é seguro "porque só dev vê" não entra.
 
@@ -462,7 +464,17 @@ A caixa de boas-vindas é **texto monoespaçado**, não CSS: a moldura é o pró
 
 O **mascote bate embaixadinha**: uma arte base de 13×22 e um quadro montado por mutação dela (olhos que seguem a bola, piscada, boca que abre no toque, antena pulsando, painel de LEDs correndo, braços por altura, perna que sobe, rastro, sombra que engorda e contador `×N`). A trajetória é declarada só pela **metade esquerda** — o meio-ciclo seguinte é o espelho (`col → 20-col`), e é isso que faz o **pé alternar** sozinho. Cada célula carrega uma classe (`cli-r-body`, `cli-r-face`, `cli-r-led`, `cli-r-ball`…) pra colorir peça por peça sem mexer na largura. Timer único, parado no `gCliClose()`, e `prefers-reduced-motion` deixa no quadro do ápice.
 
-**Motion do chat:** a saída de comando entra **linha a linha** — `_gCliEscalona` põe `animation-delay` em cada uma (teto de 420ms), CSS resolve o resto. Foi feito no CSS de propósito: com `setTimeout`, um `diag` de 30 linhas viraria 30 timers.
+**Motion do chat:** a saída de comando entra **linha a linha** — `_gCliEscalona` põe `animation-delay` em cada uma (teto de 420ms), CSS resolve o resto. Foi feito no CSS de propósito: com `setTimeout`, um `diag` de 30 linhas viraria 30 timers. Enquanto roda, o **único** indicador é o bloco de pensamento + o prompt aceso (havia também um spinner de 12px no canto do campo — dois sinais pro mesmo estado, o menos informativo saiu).
+
+**Regras de UI que o console tem de manter** (revisão de 2026-07-30, tudo medido no Chromium):
+
+- **Piso de 12px** na tipografia. Abaixo disso só micro-badge em caixa-alta bold (`.cli-title` 10.5px, `.cli-badge` 9px).
+- **Contraste ≥ 3:1 para objeto gráfico** — vale pra moldura da caixa (`.cli-fr`, opacity `.75`), o rastro da bola e **as bolinhas do `diag`**. Duas armadilhas reais aqui: `body.theme-light .cli-dot` tem especificidade maior que `.cli-dot.warn`, então **warn e err precisam de override explícito no claro** (sem eles as duas viravam cinza — a bolinha existe justamente pra distinguir verde/amarelo/vermelho); e a bolinha de erro usa `--d-error`, não `--dm-red`, porque o `#C81818` sobre o `#1A1A1A` mede 2.98:1.
+- **44px de alvo de toque no celular** (fechar, chips, linha de comando) — lei de Fitts, `ux-principles.md`.
+- **Clicar em qualquer ponto da linha de comando foca o campo.** O campo tem ~20px dentro de uma linha de 40px; sem o handler na linha, dois terços do alvo não faziam nada.
+- **Banner do celular é fluido:** `clamp(7.5px,2.6vw,11px)`. A caixa tem 57 colunas fixas, então quem manda no tamanho é a largura da tela — com px cravado ela usava 257px de 364 disponíveis.
+- **Radius só pelos tokens** (`--r` 10px / `--r-sm` 6px / `--r-pill`).
+- **Coluna de descrição do `ajuda` sai do comando mais longo**, nunca de número fixo.
 
 ---
 

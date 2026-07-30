@@ -1,9 +1,11 @@
 /* ══════════════════════════════════════════════════════════════
    LUMA CLI (js/core/console.js) — console de comandos do time.
 
-   Identidade: superfície do Estúdio (--d-*), acento laranja da marca e o banner
-   LUMA em pixel art com o gradiente laranja→amarelo. Tudo por TOKEN — nenhum hex
-   solto, nenhuma fonte nova baixada (a mono é a do sistema).
+   Identidade: superfície do Estúdio (--d-*), acento laranja da marca e a caixa de
+   boas-vindas desenhada em TEXTO (moldura de box-drawing + mascote animado, montados
+   em js/core/console.js). Tudo por TOKEN — nenhum hex solto, nenhuma fonte nova
+   baixada (a mono é a do sistema). Piso de 12px na tipografia: abaixo disso só
+   micro-badge em caixa-alta bold (.cli-title, .cli-badge).
    Tema: escuro é o padrão do app; body.theme-light abaixo faz o flip completo.
 ══════════════════════════════════════════════════════════════ */
 
@@ -13,7 +15,7 @@
   display:flex;flex-direction:column;overflow:hidden;
   background:var(--d-dark);
   border:1px solid var(--d-border2);border-bottom:none;
-  border-radius:14px 14px 0 0;
+  border-radius:var(--r) var(--r) 0 0;
   box-shadow:0 -18px 60px rgba(0,0,0,.45);
   font-family:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace;
   font-size:12.5px;line-height:1.55;
@@ -38,8 +40,8 @@
   font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
 .cli-badge:empty{display:none}
 .cli-head-sp{flex:1}
-.cli-hint{font-size:9.5px;color:var(--d-text3);letter-spacing:.03em}
-.cli-x{display:flex;align-items:center;justify-content:center;width:24px;height:24px;flex-shrink:0;
+.cli-hint{font-size:12px;color:var(--d-text3);letter-spacing:.03em}
+.cli-x{display:flex;align-items:center;justify-content:center;width:28px;height:28px;flex-shrink:0;
   border:none;background:transparent;border-radius:var(--r-sm);color:var(--d-text3);cursor:pointer;
   transition:background var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard)}
 .cli-x svg{width:13px;height:13px}
@@ -62,7 +64,10 @@
 .cli-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px;vertical-align:1px;background:var(--d-text3)}
 .cli-dot.ok{background:var(--green)}
 .cli-dot.warn{background:var(--dm-yellow)}
-.cli-dot.err{background:var(--dm-red)}
+/* --d-error e não --dm-red: o #C81818 sobre o #1A1A1A do console mede 2.98:1, logo abaixo
+   dos 3:1 que a WCAG pede pra objeto gráfico. O token de TEXTO já resolve (mesma família,
+   e é o que .cli-err usa duas linhas acima). */
+.cli-dot.err{background:var(--d-error)}
 
 /* ── CAIXA DE BOAS-VINDAS (js: _gCliCaixaHTML) ──
    A moldura é CARACTERE, não borda de CSS: é o que dá a cara de terminal e o que mantém
@@ -70,7 +75,7 @@
    verticalmente (com 1.55 do corpo os traços ficariam soltos). */
 .cli-banner{margin:2px 0 10px;line-height:1.12;letter-spacing:0;animation:cliBanner var(--dur-slow) var(--ease-out) both}
 @keyframes cliBanner{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-.cli-fr{color:var(--dm-orange-d);opacity:.55}                 /* traços da moldura */
+.cli-fr{color:var(--dm-orange-d);opacity:.75}                 /* traços da moldura */
 /* ⚠ NADA de letter-spacing aqui dentro: a caixa é monoespaçada e qualquer espaçamento
    extra num span soma largura só naquela linha — a borda da direita sai do lugar. */
 
@@ -82,7 +87,7 @@
 .cli-r-tag{color:var(--dm-yellow);font-weight:700}            /* o L U M A do peito */
 .cli-r-led{color:var(--green)}                                /* painel e antena */
 .cli-r-ball{color:var(--dm-yellow);font-weight:700}           /* a bola */
-.cli-r-trail{color:var(--dm-orange-d);opacity:.45}            /* o rastro dela */
+.cli-r-trail{color:var(--dm-orange-d);opacity:.7}            /* o rastro dela */
 .cli-r-ground{color:var(--d-text3)}                           /* chão e sombra */
 .cli-r-count{color:var(--dm-orange-d);opacity:.75}            /* ×N embaixadinhas */
 body.theme-light .cli-r-body{color:var(--dm-orange-d)}
@@ -112,9 +117,9 @@ body.theme-light .cli-sp{color:var(--dm-orange-d)}
 /* Bloco de pensamento ao vivo (js: _gCliSpinStart/_gCliSpinPasso): o passo mais novo
    respira pra marcar "é aqui que estou agora"; os anteriores ficam parados. */
 .cli-think{margin:4px 0 6px}
-.cli-think-tit{color:var(--dm-orange);font-weight:700}
+.cli-h,.cli-think-tit{color:var(--dm-orange);font-weight:700}
 .cli-think-ult{animation:cliSpPulse 1.4s ease-in-out infinite}
-body.theme-light .cli-think-tit{color:var(--dm-orange-d)}
+body.theme-light .cli-h,body.theme-light .cli-think-tit{color:var(--dm-orange-d)}
 
 /* Cada linha nova entra com um deslize curto — é o que dá ritmo de terminal em vez de
    texto aparecendo seco. Curto de propósito: 1 linha de saída pode ter 30 dessas. */
@@ -142,7 +147,7 @@ body.theme-light .cli-think-tit{color:var(--dm-orange-d)}
 }
 
 /* Sugestão de comando vinda da IA — pré-preenche o campo, nunca executa sozinha. */
-.cli-sug{font-family:inherit;font-size:11.5px;font-weight:700;cursor:pointer;
+.cli-sug{font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;
   padding:1px 8px;border-radius:var(--r-sm);
   border:1px solid var(--dm-orange-tint);background:var(--dm-orange-bg);color:var(--dm-orange-text);
   transition:background var(--dur-fast) var(--ease-standard)}
@@ -154,8 +159,8 @@ body.theme-light .cli-think-tit{color:var(--dm-orange-d)}
 .cli-chips{display:none;gap:6px;flex-shrink:0;overflow-x:auto;scrollbar-width:none;
   padding:8px 12px;border-top:1px solid var(--d-border);background:var(--d-dark)}
 .cli-chips::-webkit-scrollbar{display:none}
-.cli-chip{flex:0 0 auto;font-family:inherit;font-size:11.5px;font-weight:700;cursor:pointer;
-  padding:6px 12px;min-height:32px;border-radius:var(--r-pill);
+.cli-chip{flex:0 0 auto;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;
+  padding:6px 14px;min-height:44px;border-radius:var(--r-pill);
   border:1px solid var(--d-border2);background:var(--d-surf2);color:var(--d-text2);
   transition:background var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard)}
 .cli-chip:active,.cli-chip:hover{background:var(--dm-orange);border-color:var(--dm-orange);color:var(--on-accent)}
@@ -164,12 +169,9 @@ body.theme-light .cli-think-tit{color:var(--dm-orange-d)}
 .cli-inputrow{display:flex;align-items:center;gap:8px;flex-shrink:0;
   padding:10px 14px;border-top:1px solid var(--d-border);background:var(--d-surf)}
 .cli-prompt{color:var(--dm-orange);font-weight:700;flex-shrink:0}
-#cli-input{flex:1;min-width:0;border:none;background:transparent;outline:none;
+#cli-input{flex:1;min-width:0;align-self:stretch;border:none;background:transparent;outline:none;
   font-family:inherit;font-size:12.5px;color:var(--d-text);caret-color:var(--dm-orange)}
 #cli-input::placeholder{color:var(--d-text3)}
-.cli-spin{width:12px;height:12px;flex-shrink:0;border-radius:50%;opacity:0;
-  border:2px solid var(--d-surf3);border-top-color:var(--dm-orange)}
-.cli-spin.on{opacity:1;animation:gSpin .7s linear infinite}
 
 /* ── TEMA CLARO (flip completo: o console acompanha o app) ── */
 body.theme-light #luma-cli{
@@ -189,11 +191,16 @@ body.theme-light .cli-warn{color:var(--dm-orange-text)}
 body.theme-light .cli-line b{color:var(--text)}
 body.theme-light .cli-dot{background:var(--text-3)}
 body.theme-light .cli-dot.ok{background:var(--green-text)}
+/* warn e err PRECISAM estar aqui: `body.theme-light .cli-dot` tem especificidade maior
+   que `.cli-dot.warn`, então sem estas duas linhas o amarelo e o vermelho viravam cinza
+   no tema claro — a bolinha existe justamente pra distinguir verde/amarelo/vermelho.
+   As cores seguem o mapeamento que este arquivo já usa no claro (.cli-warn/.cli-err). */
+body.theme-light .cli-dot.warn{background:var(--dm-orange-text)}
+body.theme-light .cli-dot.err{background:var(--dm-red-text)}
 body.theme-light .cli-inputrow{background:var(--off-white);border-top-color:var(--gray-light)}
 body.theme-light #cli-input{color:var(--text)}
 body.theme-light #cli-input::placeholder{color:var(--text-3)}
 body.theme-light .cli-body::-webkit-scrollbar-thumb{background:var(--gray-mid)}
-body.theme-light .cli-spin{border-color:var(--gray-mid);border-top-color:var(--dm-orange)}
 
 /* ── CELULAR ──
    Sem Ctrl+`: a entrada é o item "Console" do painel de perfil (user-profile.js).
@@ -201,15 +208,19 @@ body.theme-light .cli-spin{border-color:var(--gray-mid);border-top-color:var(--d
    O padding de baixo respeita a home bar do iPhone; o JS (_gCliAjustaViewport) cuida
    do teclado virtual, que `position:fixed` não enxerga sozinho. */
 @media (max-width:640px){
-  #luma-cli{width:100vw;height:82dvh;max-height:82dvh;border-radius:14px 14px 0 0}
+  #luma-cli{width:100vw;height:82dvh;max-height:82dvh;border-radius:var(--r) var(--r) 0 0}
   .cli-hint{display:none}
-  .cli-banner{font-size:7.5px}
+  /* A caixa tem 57 colunas fixas, então quem manda no tamanho é a LARGURA da tela, não
+     um px cravado: a 7.5px ela usava só 257px de 364 disponíveis num iPhone comum — arte
+     minúscula com folga sobrando. ~34px de texto por px de fonte (medido), daí o 2.6vw;
+     o teto de 11px evita a caixa encostar na borda em telas grandes. */
+  .cli-banner{font-size:clamp(7.5px,2.6vw,11px)}
   .cli-body{padding:10px 12px 6px;font-size:12px}
   .cli-chips{display:flex}
-  .cli-inputrow{padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px))}
+  .cli-inputrow{min-height:44px;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px))}
   #cli-input{font-size:16px}       /* < 16px faz o iOS dar zoom no foco e desalinhar tudo */
-  .cli-x{width:32px;height:32px}   /* alvo de toque */
-  .cli-x svg{width:15px;height:15px}
+  .cli-x{width:44px;height:44px}   /* alvo de toque (mínimo da lei de Fitts) */
+  .cli-x svg{width:16px;height:16px}
   .cli-sug{padding:4px 10px}
 }
 /* Item "Console" no painel de perfil (a entrada do celular): é AÇÃO, não aba — nunca
@@ -229,5 +240,4 @@ body.theme-light .cli-chip:active,body.theme-light .cli-chip:hover{background:va
 @media (prefers-reduced-motion:reduce){
   #luma-cli{transition:none}
   .cli-banner{animation:none}
-  .cli-spin.on{animation-duration:1.6s}
 }

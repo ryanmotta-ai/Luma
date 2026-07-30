@@ -20,7 +20,7 @@
  */
 
 const G_CLI_ATALHO = 'Ctrl+`';
-const G_CLI_VERSION = '1.1';   // aparece no título da caixa de boas-vindas
+const G_CLI_VERSION = '1.2';   // aparece no título da caixa de boas-vindas
 let _gCliMontado = false;
 let _gCliAberto = false;
 let _gCliHist = [];        // histórico de comandos (setas ↑/↓), só da sessão
@@ -167,11 +167,14 @@ const G_CLI_CMDS = {
     uso: 'ajuda',
     desc: 'Lista os comandos',
     run: () => {
+      // A coluna sai do comando MAIS LONGO, não de um número fixo: com 22 cravado, o
+      // `cache [ls|clear <chave>]` (24) estourava e a descrição dele saía desalinhada.
+      const col = Object.keys(G_CLI_CMDS).reduce((n, k) => Math.max(n, G_CLI_CMDS[k].uso.length), 0) + 2;
       const linhas = Object.keys(G_CLI_CMDS).map(k => {
         const c = G_CLI_CMDS[k];
-        return `  <b>${gEsc(c.uso)}</b>${' '.repeat(Math.max(1, 22 - c.uso.length))}<span class="cli-dim">${gEsc(c.desc)}</span>`;
+        return `  <b>${gEsc(c.uso)}</b>${' '.repeat(col - c.uso.length)}<span class="cli-dim">${gEsc(c.desc)}</span>`;
       }).join('\n');
-      return `COMANDOS\n${linhas}\n\n<span class="cli-dim">Qualquer outra frase vira pergunta pra IA. Ex.: "por que o franqueado não vê o material novo?"</span>`;
+      return `<span class="cli-h">COMANDOS</span>\n${linhas}\n\n<span class="cli-dim">Qualquer outra frase vira pergunta pra IA. Ex.: "por que o franqueado não vê o material novo?"</span>`;
     }
   },
 
@@ -305,7 +308,7 @@ const G_CLI_CMDS = {
         return `${pastas.length} pasta(s)\n${linhas}`;
       }
       const f = pastas.find(x => String(x.id) === alvo || String(x.remoteId) === alvo || (x.name || '').toLowerCase().includes(alvo.toLowerCase()));
-      if (!f) return `<span class="cli-err">pasta "${gEsc(alvo)}" não encontrada.</span>`;
+      if (!f) return `<span class="cli-err">pasta "${gEsc(alvo)}" não encontrada.</span> <span class="cli-dim">Veja os nomes em <b>pastas ls</b>.</span>`;
       const mats = (f.templates || []).map(t => {
         const st = (t.publishMeta && t.publishMeta.publicado) ? 'publicado' : 'rascunho';
         const fl = [t._syncPending ? 'pendente' : '', t._needsLayersFetch ? 'sem layers' : ''].filter(Boolean).join(' ');
@@ -344,7 +347,7 @@ const G_CLI_CMDS = {
       if (acao === 'clear') {
         const chave = args[1];
         if (!chave) return '<span class="cli-err">uso: cache clear &lt;chave&gt; — o nome exato (veja em <b>cache ls</b>).</span>';
-        if (localStorage.getItem(chave) === null) return `<span class="cli-err">chave "${gEsc(chave)}" não existe.</span>`;
+        if (localStorage.getItem(chave) === null) return `<span class="cli-err">chave "${gEsc(chave)}" não existe.</span> <span class="cli-dim">O nome exato está em <b>cache ls</b>.</span>`;
         // Apagar cache é irreversível e pode custar trabalho não sincronizado. Confirma sempre.
         const ok = (typeof gConfirm === 'function')
           ? await gConfirm(`Apagar "${chave}" do armazenamento local?\n\nSe houver trabalho ainda não sincronizado nessa chave, ele se perde.`, { title: 'Limpar cache', okLabel: 'Apagar', danger: true })
@@ -507,14 +510,24 @@ function _gCliMontar() {
       <input id="cli-input" type="text" autocomplete="off" autocapitalize="off" autocorrect="off"
              spellcheck="false" enterkeyhint="send" aria-label="Comando"
              placeholder="digite um comando ou uma pergunta">
-      <span class="cli-spin" id="cli-spin" aria-hidden="true"></span>
     </div>`;
   document.body.appendChild(el);
 
   const inp = el.querySelector('#cli-input');
   inp.addEventListener('keydown', _gCliTeclas);
-  // Clicar no corpo devolve o foco pro campo (comportamento de terminal)
-  _gCliBody().addEventListener('click', (ev) => { if (!ev.target.closest('button')) inp.focus(); });
+  // Clicar no corpo OU na linha de comando devolve o foco pro campo (comportamento de
+  // terminal). A linha importa tanto quanto o corpo: o campo tem 14px de altura dentro de
+  // uma linha de 40px, então clicar "no lugar certo" acertava só um terço do alvo.
+  const focar = (ev) => { if (!ev.target.closest('button')) inp.focus(); };
+  _gCliBody().addEventListener('click', focar);
+  el.querySelector('.cli-inputrow').addEventListener('click', focar);
+
+  // Esc fecha de QUALQUER lugar do console. O keydown do campo para a propagação (pra
+  // atalho do Estúdio não disparar por baixo), então com o foco num chip ou no corpo o
+  // Esc não chegava a ninguém — e o cabeçalho promete "Esc fecha".
+  el.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape') { ev.preventDefault(); gCliClose(); }
+  });
 
   // CELULAR: o teclado virtual não empurra `position:fixed` — o campo ficaria EMBAIXO
   // dele (você digita sem ver). O visualViewport diz quanto o teclado comeu; o console
@@ -728,12 +741,27 @@ async function _gCliExec(linha) {
   const partes = linha.split(/\s+/);
   const nome = partes[0].toLowerCase();
   const cmd = G_CLI_CMDS[nome];
+
+  // PALAVRA SOLTA parecida com um comando é quase sempre erro de digitação, não pergunta.
+  // Sem isto, "diagg" ia pra IA e — com a IA desligada — a resposta era "IA indisponível":
+  // beco sem saída pra quem só errou uma tecla. Convenção de terminal (o git faz igual).
+  if (!cmd && partes.length === 1) {
+    const perto = Object.keys(G_CLI_CMDS).find(k => k.indexOf(nome) === 0 || nome.indexOf(k) === 0);
+    if (perto) {
+      _gCliPrint(`<span class="cli-err">"${gEsc(linha)}" não é comando.</span> <span class="cli-dim">Você quis dizer</span> `
+        + `<button type="button" class="cli-sug" onclick="_gCliSugerir('${perto}')">${perto}</button><span class="cli-dim">?</span>`, 'cli-out');
+      return;
+    }
+  }
+
   // Frase que não é comando conhecido vai pra IA — é o "modo conversa" do terminal.
   const exec = cmd ? () => cmd.run(partes.slice(1)) : () => _gCliAsk(linha);
   if (!cmd) _gCliPrint('<span class="cli-dim">(não é comando — perguntando pra IA)</span>');
 
   _gCliBusy = true;
-  const spin = document.getElementById('cli-spin'); if (spin) spin.classList.add('on');
+  // Um indicador só: o bloco de pensamento (com passos e tempo) + o prompt aceso. Havia
+  // também um spinner de 12px no canto do campo — dois sinais pro mesmo estado, e o menos
+  // informativo saiu.
   const cx = document.getElementById('luma-cli'); if (cx) cx.classList.add('busy');
   // Rótulo honesto: comando "roda", IA "pensa". Nada de barra de progresso falsa —
   // não há como saber a fração de nada disso.
@@ -748,7 +776,6 @@ async function _gCliExec(linha) {
   } finally {
     _gCliSpinStop(linha_spin);
     _gCliBusy = false;
-    if (spin) spin.classList.remove('on');
     if (cx) cx.classList.remove('busy');
     const body = _gCliBody(); if (body) body.scrollTop = body.scrollHeight;
   }
