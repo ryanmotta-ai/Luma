@@ -149,6 +149,45 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
 .atlas-item .onde{margin-top:7px;font-family:var(--mono);font-size:14px;color:var(--tinta-3)}
 .fluxo-tag{display:inline-flex;align-items:center;height:30px;padding:0 14px;border-radius:999px;
   background:var(--tinta);color:#fff;font-size:14px;font-weight:900;letter-spacing:.1em;text-transform:uppercase}
+
+/* ═══ padrões da V2.1 — evolução em detalhe ════════════════════════════════ */
+
+/* ── tira: TODAS as versões de uma tela, em sequência cronológica ── */
+.tira{display:grid;gap:22px 16px;align-content:center;height:100%}
+.tira-item{display:flex;flex-direction:column;min-width:0}
+.tira-img{width:100%;aspect-ratio:1440/1000;border:1px solid var(--linha);border-radius:8px;overflow:hidden;
+  background:var(--papel-2);box-shadow:0 8px 20px rgba(10,10,10,.09)}
+.tira-img img{width:100%;height:100%;object-fit:cover;object-position:top center;display:block}
+/* o marco que o slide quer destacar ganha borda de acento, não tamanho diferente —
+   mudar a escala de um quadro estraga a comparação que a tira existe para fazer */
+.tira-item.chave .tira-img{border:2px solid var(--laranja);box-shadow:0 10px 26px rgba(255,144,0,.26)}
+.tira-cap{margin-top:9px;font-family:var(--mono);font-size:14px;color:var(--tinta-3);line-height:1.4}
+.tira-cap b{display:block;font-family:var(--fonte);font-size:15px;font-weight:800;color:var(--tinta);
+  letter-spacing:-.01em;margin-bottom:2px}
+.tira-item.chave .tira-cap b{color:var(--laranja-d)}
+.tira-mud{margin-top:6px;font-size:14px;color:var(--tinta-2);line-height:1.34}
+
+/* ── detalhe: a mesma faixa da tela, ampliada, em várias versões ──
+   O recorte é feito com background-position/size sobre a captura inteira: nada é cortado
+   em disco, e mudar a região é mudar dois números. */
+.det{display:flex;flex-direction:column;gap:18px;height:100%;justify-content:center}
+.det-linha{display:flex;gap:18px;align-items:stretch}
+.det-quadro{flex:1;display:flex;flex-direction:column;min-width:0}
+.det-crop{width:100%;border:1px solid var(--linha);border-radius:9px;background-repeat:no-repeat;
+  background-color:var(--papel-2);box-shadow:0 8px 20px rgba(10,10,10,.09)}
+.det-cap{margin-top:8px;display:flex;align-items:baseline;gap:10px}
+.det-cap .q{font-size:17px;font-weight:800;letter-spacing:-.01em}
+.det-cap .d{font-family:var(--mono);font-size:14px;color:var(--tinta-3);margin-left:auto}
+.det-obs{margin-top:5px;font-size:15px;color:var(--tinta-2);line-height:1.36}
+
+/* ── ganhos: o que mudou, em colunas ── */
+.ganhos{display:grid;grid-template-columns:repeat(2,1fr);gap:18px 40px;align-content:center;height:100%}
+.ganho{display:flex;gap:16px;align-items:flex-start}
+.ganho .ic{width:30px;height:30px;border-radius:8px;background:var(--laranja);color:#fff;flex-shrink:0;
+  font-size:15px;font-weight:900;display:flex;align-items:center;justify-content:center}
+.ganho h4{font-size:21px;font-weight:900;letter-spacing:-.015em;line-height:1.2}
+.ganho p{margin-top:5px;font-size:17px;color:var(--tinta-2);line-height:1.38}
+.ganho .qd{margin-top:5px;font-family:var(--mono);font-size:14px;color:var(--tinta-3)}
 </style></head><body>
 <section class="slide escuro">
   <div class="marca">Delivery Much · uso interno</div>
@@ -156,7 +195,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
   <div class="csub">Uma visão visual da transformação da plataforma — reconstruída executando o código de cada época.</div>
   <div class="meta">
     <div><b>Período</b>anterior a 16/07/2026 → 30/07/2026</div>
-    <div><b>Evidência</b>65 capturas reais, 72 commits</div>
+    <div><b>Evidência</b>65 capturas reais, 73 commits</div>
     <div><b>Método</b>cada versão foi executada, não descrita</div>
   </div>
 </section>
@@ -176,7 +215,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
         <p>Além da aparência: dado com dono, rede que falha sem perder, IA como camada.</p></div></div>
     </div>
   </div>
-  <div class="num">02 / 24</div>
+  <div class="num">02 / 35</div>
 </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">O ponto de partida</span><span class="quando">anterior a 16/07/2026</span></div>
     <div class="corpo" style="display:flex;gap:44px">
@@ -196,9 +235,9 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
         </div>
       </div>
     </div>
-    <div class="num">03 / 24</div><div class="selo"><span class="pt"></span>execução real do arquivo preservado</div>
+    <div class="num">03 / 35</div><div class="selo"><span class="pt"></span>execução real do arquivo preservado</div>
   </section>
-<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Linha do tempo</span><span class="quando">5 marcos · 72 commits em 15 dias</span></div>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Linha do tempo</span><span class="quando">5 marcos · 73 commits em 15 dias</span></div>
   <div class="corpo" style="display:flex;align-items:center">
     <div class="tl"><div class="tl-eixo"></div><div class="tl-itens">
       <div class="tl-item forte">
@@ -239,7 +278,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div></div>
   </div>
-  <div class="num">04 / 24</div>
+  <div class="num">04 / 35</div>
 </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Evolução geral · A entrada</span><span class="quando">origem → expansão → hoje</span></div>
     <div class="corpo" style="bottom:196px">
@@ -267,7 +306,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">O produto deixou de assumir que você já sabia o que fazer. Hoje a primeira tela <b>orienta a escolha</b> antes de pedir qualquer informação.</div>
-    <div class="num">05 / 24</div><div class="selo"><span class="pt"></span>três execuções reais</div>
+    <div class="num">05 / 35</div><div class="selo"><span class="pt"></span>três execuções reais</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Evolução geral · O fluxo de criação</span><span class="quando">origem → expansão → hoje</span></div>
     <div class="corpo" style="bottom:196px">
@@ -295,7 +334,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">O acerto do piloto foi o formato: <b>perguntar em vez de mandar editar</b>. O que mudou não foi o chat — foi tudo que passou a existir em volta dele.</div>
-    <div class="num">06 / 24</div><div class="selo"><span class="pt"></span>três execuções reais</div>
+    <div class="num">06 / 35</div><div class="selo"><span class="pt"></span>três execuções reais</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Evolução geral · A criação</span><span class="quando">origem → expansão → hoje</span></div>
     <div class="corpo" style="bottom:196px">
@@ -323,7 +362,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">Editar sempre funcionou — o canvas do piloto já era completo. O que faltava era <b>onde guardar e reencontrar</b> o que foi editado.</div>
-    <div class="num">07 / 24</div><div class="selo"><span class="pt"></span>três execuções reais</div>
+    <div class="num">07 / 35</div><div class="selo"><span class="pt"></span>três execuções reais</div>
   </section>
 <section class="slide escuro">
   <div class="sn">ÁREA POR ÁREA</div><h2>Seis frentes,<br>seis comparações</h2>
@@ -350,7 +389,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">Essa é a mudança que tirou o time de engenharia do caminho. <b>Publicar campanha virou trabalho de quem faz a campanha.</b></div>
-    <div class="num">09 / 24</div><div class="selo"><span class="pt"></span>duas execuções reais</div>
+    <div class="num">09 / 35</div><div class="selo"><span class="pt"></span>duas execuções reais</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Área · Artes e organização</span><span class="quando">anterior a 16/07 → 2026-07-30</span></div>
     <div class="corpo" style="bottom:196px">
@@ -373,7 +412,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">O histórico saiu do navegador e foi para o banco, com trava de escrita e aviso de conflito entre aparelhos. <b>Fechar o app deixou de ser perder o trabalho.</b></div>
-    <div class="num">10 / 24</div><div class="selo"><span class="pt"></span>duas execuções reais</div>
+    <div class="num">10 / 35</div><div class="selo"><span class="pt"></span>duas execuções reais</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Área · Exportação</span><span class="quando">2026-07-16 → 2026-07-30</span></div>
     <div class="corpo" style="bottom:196px">
@@ -396,7 +435,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">A exportação virou a ponta séria do fluxo: <b>escala dobrada para impressão</b> e saída em lote, sem refazer nada.</div>
-    <div class="num">11 / 24</div><div class="selo"><span class="pt"></span>duas execuções reais</div>
+    <div class="num">11 / 35</div><div class="selo"><span class="pt"></span>duas execuções reais</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Área · Celular</span><span class="quando">anterior a 16/07 → 2026-07-30</span></div>
     <div class="corpo" style="bottom:196px">
@@ -419,7 +458,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">Em 16/07 o telefone ganha tratamento próprio: prévia com a arte dentro do aparelho e PWA instalável. <b>Deixou de ser um desktop menor.</b></div>
-    <div class="num">12 / 24</div><div class="selo"><span class="pt"></span>duas execuções reais</div>
+    <div class="num">12 / 35</div><div class="selo"><span class="pt"></span>duas execuções reais</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Área · Ferramenta interna</span><span class="quando">30/07/2026</span></div>
     <div class="corpo" style="display:flex;gap:44px">
@@ -439,7 +478,397 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
         <div class="conclusao" style="position:static;margin-top:20px;font-size:19px">O gate por perfil é de UX. Quem protege o dado continua sendo a <b>RLS no banco</b> — o console não dá poder que o DevTools já não desse.</div>
       </div>
     </div>
-    <div class="num">13 / 24</div><div class="selo"><span class="pt"></span>execução real do commit</div>
+    <div class="num">13 / 35</div><div class="selo"><span class="pt"></span>execução real do commit</div>
+  </section>
+<section class="slide escuro">
+  <div class="sn">EVOLUÇÃO EM DETALHE</div><h2>Tela a tela,<br>versão por versão</h2>
+  <p class="psec">Daqui em diante, cada slide mostra <b>todas</b> as execuções capturadas de uma mesma tela, em ordem cronológica. O quadro com borda laranja é o momento em que aquela tela mudou de verdade.</p>
+</section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Detalhe · Tela de entrada</span><span class="quando">9 versões · anterior a 16/07 → 2026-07-30</span></div>
+    <div class="corpo" style="bottom:196px">
+      <h2 class="titulo" style="font-size:46px;margin-bottom:20px">A porta de entrada, em todas as versões</h2>
+      <div class="tira" style="height:calc(100% - 74px);grid-template-columns:repeat(5,1fr)">
+        <div class="tira-item chave">
+          <div class="tira-img"><img src="../screenshots/original/M0/01_home_2026-07-15_origem_1440x1000.png" alt="Piloto Yungas — Módulo de Artes"></div>
+          <div class="tira-cap"><b>antes</b>arquivo original</div>
+          <div class="tira-mud">Sem vitrine: abre no chat.</div>
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M1/01_home_2026-07-16_89ca896_1440x1000.png" alt="O que o git preserva como ponto de partida"></div>
+          <div class="tira-cap"><b>07/16</b>89ca896</div>
+          <div class="tira-mud">Primeira vitrine preservada no git.</div>
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M2/01_home_2026-07-16_57cbe74_1440x1000.png" alt="A arte dentro do celular"></div>
+          <div class="tira-cap"><b>07/16</b>57cbe74</div>
+          
+        </div><div class="tira-item chave">
+          <div class="tira-img"><img src="../screenshots/original/M3/01_home_2026-07-16_247bcd4_1440x1000.png" alt="A vitrine passa a ser gerida pelo banco"></div>
+          <div class="tira-cap"><b>07/16</b>247bcd4</div>
+          <div class="tira-mud">Passa a vir do banco.</div>
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M4/01_home_2026-07-20_bcc61e8_1440x1000.png" alt="Endurecimento: segurança, sync e PSD"></div>
+          <div class="tira-cap"><b>07/20</b>bcc61e8</div>
+          
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M5/01_home_2026-07-29_b29dbd8_1440x1000.png" alt="1.0 declarada"></div>
+          <div class="tira-cap"><b>07/29</b>b29dbd8</div>
+          
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M6/01_home_2026-07-30_28a93e2_1440x1000.png" alt="A camada de IA"></div>
+          <div class="tira-cap"><b>07/30</b>28a93e2</div>
+          
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M7/01_home_2026-07-30_e48b7ff_1440x1000.png" alt="Luma CLI — o console do time"></div>
+          <div class="tira-cap"><b>07/30</b>e48b7ff</div>
+          
+        </div><div class="tira-item chave">
+          <div class="tira-img"><img src="../screenshots/original/M8/01_home_2026-07-30_atual_1440x1000.png" alt="Estado atual"></div>
+          <div class="tira-cap"><b>07/30</b>branch atual</div>
+          <div class="tira-mud">Destaque, busca e filtro.</div>
+        </div>
+      </div>
+    </div>
+    <div class="conclusao">Duas viradas concentram quase toda a diferença: o <b>surgimento da vitrine</b> e a passagem dela para o banco. Entre elas e depois, o que muda é refino — hierarquia, respiro e a campanha em destaque ganhando peso.</div>
+    <div class="num">15 / 35</div><div class="selo"><span class="pt"></span>9 execuções reais</div>
+  </section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Detalhe · Campanha aberta</span><span class="quando">9 versões · anterior a 16/07 → 2026-07-30</span></div>
+    <div class="corpo" style="bottom:196px">
+      <h2 class="titulo" style="font-size:46px;margin-bottom:20px">A campanha aberta, em todas as versões</h2>
+      <div class="tira" style="height:calc(100% - 74px);grid-template-columns:repeat(5,1fr)">
+        <div class="tira-item chave">
+          <div class="tira-img"><img src="../screenshots/original/M0/02_catalogo_2026-07-15_origem_1440x1000.png" alt="Piloto Yungas — Módulo de Artes"></div>
+          <div class="tira-cap"><b>antes</b>arquivo original</div>
+          <div class="tira-mud">Lista fixa em código.</div>
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M1/02_catalogo_2026-07-16_89ca896_1440x1000.png" alt="O que o git preserva como ponto de partida"></div>
+          <div class="tira-cap"><b>07/16</b>89ca896</div>
+          
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M2/02_catalogo_2026-07-16_57cbe74_1440x1000.png" alt="A arte dentro do celular"></div>
+          <div class="tira-cap"><b>07/16</b>57cbe74</div>
+          
+        </div><div class="tira-item chave">
+          <div class="tira-img"><img src="../screenshots/original/M3/02_catalogo_2026-07-16_247bcd4_1440x1000.png" alt="A vitrine passa a ser gerida pelo banco"></div>
+          <div class="tira-cap"><b>07/16</b>247bcd4</div>
+          <div class="tira-mud">Campanha vira pasta no banco.</div>
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M4/02_catalogo_2026-07-20_bcc61e8_1440x1000.png" alt="Endurecimento: segurança, sync e PSD"></div>
+          <div class="tira-cap"><b>07/20</b>bcc61e8</div>
+          
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M5/02_catalogo_2026-07-29_b29dbd8_1440x1000.png" alt="1.0 declarada"></div>
+          <div class="tira-cap"><b>07/29</b>b29dbd8</div>
+          
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M6/02_catalogo_2026-07-30_28a93e2_1440x1000.png" alt="A camada de IA"></div>
+          <div class="tira-cap"><b>07/30</b>28a93e2</div>
+          
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M7/02_catalogo_2026-07-30_e48b7ff_1440x1000.png" alt="Luma CLI — o console do time"></div>
+          <div class="tira-cap"><b>07/30</b>e48b7ff</div>
+          
+        </div><div class="tira-item chave">
+          <div class="tira-img"><img src="../screenshots/original/M8/02_catalogo_2026-07-30_atual_1440x1000.png" alt="Estado atual"></div>
+          <div class="tira-cap"><b>07/30</b>branch atual</div>
+          <div class="tira-mud">Capa, prazo e formatos.</div>
+        </div>
+      </div>
+    </div>
+    <div class="conclusao">Aqui a mudança é mais estrutural que visual: a mesma tela passou a ser <b>alimentada pelo trabalho do time</b> em vez de por um commit. O que se vê são capas reais chegando ao lugar dos blocos de cor.</div>
+    <div class="num">16 / 35</div><div class="selo"><span class="pt"></span>9 execuções reais</div>
+  </section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Detalhe · O chat que monta a arte</span><span class="quando">9 versões · anterior a 16/07 → 2026-07-30</span></div>
+    <div class="corpo" style="bottom:196px">
+      <h2 class="titulo" style="font-size:46px;margin-bottom:20px">O fluxo de preenchimento, em todas as versões</h2>
+      <div class="tira" style="height:calc(100% - 74px);grid-template-columns:repeat(5,1fr)">
+        <div class="tira-item chave">
+          <div class="tira-img"><img src="../screenshots/original/M0/03_chat_2026-07-15_origem_1440x1000.png" alt="Piloto Yungas — Módulo de Artes"></div>
+          <div class="tira-cap"><b>antes</b>arquivo original</div>
+          <div class="tira-mud">Quatro perguntas, sugestões clicáveis.</div>
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M1/03_chat_2026-07-16_89ca896_1440x1000.png" alt="O que o git preserva como ponto de partida"></div>
+          <div class="tira-cap"><b>07/16</b>89ca896</div>
+          
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M2/03_chat_2026-07-16_57cbe74_1440x1000.png" alt="A arte dentro do celular"></div>
+          <div class="tira-cap"><b>07/16</b>57cbe74</div>
+          
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M3/03_chat_2026-07-16_247bcd4_1440x1000.png" alt="A vitrine passa a ser gerida pelo banco"></div>
+          <div class="tira-cap"><b>07/16</b>247bcd4</div>
+          
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M4/03_chat_2026-07-20_bcc61e8_1440x1000.png" alt="Endurecimento: segurança, sync e PSD"></div>
+          <div class="tira-cap"><b>07/20</b>bcc61e8</div>
+          
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M5/03_chat_2026-07-29_b29dbd8_1440x1000.png" alt="1.0 declarada"></div>
+          <div class="tira-cap"><b>07/29</b>b29dbd8</div>
+          
+        </div><div class="tira-item chave">
+          <div class="tira-img"><img src="../screenshots/original/M6/03_chat_2026-07-30_28a93e2_1440x1000.png" alt="A camada de IA"></div>
+          <div class="tira-cap"><b>07/30</b>28a93e2</div>
+          <div class="tira-mud">IA encaixa o texto no limite.</div>
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M7/03_chat_2026-07-30_e48b7ff_1440x1000.png" alt="Luma CLI — o console do time"></div>
+          <div class="tira-cap"><b>07/30</b>e48b7ff</div>
+          
+        </div><div class="tira-item chave">
+          <div class="tira-img"><img src="../screenshots/original/M8/03_chat_2026-07-30_atual_1440x1000.png" alt="Estado atual"></div>
+          <div class="tira-cap"><b>07/30</b>branch atual</div>
+          <div class="tira-mud">Prévia fiel ao lado.</div>
+        </div>
+      </div>
+    </div>
+    <div class="conclusao">A tela que <b>menos mudou de forma</b> e mais ganhou capacidade. A mecânica de perguntar em passos é a mesma desde a origem; o que entrou foi contexto, formato e ajuda de IA no texto.</div>
+    <div class="num">17 / 35</div><div class="selo"><span class="pt"></span>9 execuções reais</div>
+  </section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Detalhe · Minhas artes</span><span class="quando">9 versões · anterior a 16/07 → 2026-07-30</span></div>
+    <div class="corpo" style="bottom:196px">
+      <h2 class="titulo" style="font-size:46px;margin-bottom:20px">O histórico, em todas as versões</h2>
+      <div class="tira" style="height:calc(100% - 74px);grid-template-columns:repeat(5,1fr)">
+        <div class="tira-item chave">
+          <div class="tira-img"><img src="../screenshots/original/M0/04_minhas-artes_2026-07-15_origem_1440x1000.png" alt="Piloto Yungas — Módulo de Artes"></div>
+          <div class="tira-cap"><b>antes</b>arquivo original</div>
+          <div class="tira-mud">Aba presa à sessão do navegador.</div>
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M1/04_minhas-artes_2026-07-16_89ca896_1440x1000.png" alt="O que o git preserva como ponto de partida"></div>
+          <div class="tira-cap"><b>07/16</b>89ca896</div>
+          
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M2/04_minhas-artes_2026-07-16_57cbe74_1440x1000.png" alt="A arte dentro do celular"></div>
+          <div class="tira-cap"><b>07/16</b>57cbe74</div>
+          
+        </div><div class="tira-item chave">
+          <div class="tira-img"><img src="../screenshots/original/M3/04_minhas-artes_2026-07-16_247bcd4_1440x1000.png" alt="A vitrine passa a ser gerida pelo banco"></div>
+          <div class="tira-cap"><b>07/16</b>247bcd4</div>
+          <div class="tira-mud">Passa a viver no banco.</div>
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M4/04_minhas-artes_2026-07-20_bcc61e8_1440x1000.png" alt="Endurecimento: segurança, sync e PSD"></div>
+          <div class="tira-cap"><b>07/20</b>bcc61e8</div>
+          
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M5/04_minhas-artes_2026-07-29_b29dbd8_1440x1000.png" alt="1.0 declarada"></div>
+          <div class="tira-cap"><b>07/29</b>b29dbd8</div>
+          
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M6/04_minhas-artes_2026-07-30_28a93e2_1440x1000.png" alt="A camada de IA"></div>
+          <div class="tira-cap"><b>07/30</b>28a93e2</div>
+          
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M7/04_minhas-artes_2026-07-30_e48b7ff_1440x1000.png" alt="Luma CLI — o console do time"></div>
+          <div class="tira-cap"><b>07/30</b>e48b7ff</div>
+          
+        </div><div class="tira-item chave">
+          <div class="tira-img"><img src="../screenshots/original/M8/04_minhas-artes_2026-07-30_atual_1440x1000.png" alt="Estado atual"></div>
+          <div class="tira-cap"><b>07/30</b>branch atual</div>
+          <div class="tira-mud">Área própria, rascunho retomável.</div>
+        </div>
+      </div>
+    </div>
+    <div class="conclusao">A tela que mais mudou de <b>lugar</b>: começou como aba secundária do catálogo e virou área própria, com o rascunho ligado ao template que deu origem à arte.</div>
+    <div class="num">18 / 35</div><div class="selo"><span class="pt"></span>9 execuções reais</div>
+  </section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Detalhe · Estúdio</span><span class="quando">8 versões · anterior a 16/07 → 2026-07-30</span></div>
+    <div class="corpo" style="bottom:196px">
+      <h2 class="titulo" style="font-size:46px;margin-bottom:20px">O Estúdio, em todas as versões</h2>
+      <div class="tira" style="height:calc(100% - 74px);grid-template-columns:repeat(4,1fr)">
+        <div class="tira-item chave">
+          <div class="tira-img"><img src="../screenshots/original/M0/05_designer_2026-07-15_origem_1440x1000.png" alt="Piloto Yungas — Módulo de Artes"></div>
+          <div class="tira-cap"><b>antes</b>arquivo original</div>
+          <div class="tira-mud">Abre direto no canvas.</div>
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M1/05_designer_2026-07-16_89ca896_1440x1000.png" alt="O que o git preserva como ponto de partida"></div>
+          <div class="tira-cap"><b>07/16</b>89ca896</div>
+          
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M2/05_designer_2026-07-16_57cbe74_1440x1000.png" alt="A arte dentro do celular"></div>
+          <div class="tira-cap"><b>07/16</b>57cbe74</div>
+          
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M3/05_designer_2026-07-16_247bcd4_1440x1000.png" alt="A vitrine passa a ser gerida pelo banco"></div>
+          <div class="tira-cap"><b>07/16</b>247bcd4</div>
+          
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M4/05_designer_2026-07-20_bcc61e8_1440x1000.png" alt="Endurecimento: segurança, sync e PSD"></div>
+          <div class="tira-cap"><b>07/20</b>bcc61e8</div>
+          <div class="tira-mud">IDs sempre UUID, PSD confiável.</div>
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M6/05_designer_2026-07-30_28a93e2_1440x1000.png" alt="A camada de IA"></div>
+          <div class="tira-cap"><b>07/30</b>28a93e2</div>
+          
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M7/05_designer_2026-07-30_e48b7ff_1440x1000.png" alt="Luma CLI — o console do time"></div>
+          <div class="tira-cap"><b>07/30</b>e48b7ff</div>
+          
+        </div><div class="tira-item chave">
+          <div class="tira-img"><img src="../screenshots/original/M8/05_designer_2026-07-30_atual_1440x1000.png" alt="Estado atual"></div>
+          <div class="tira-cap"><b>07/30</b>branch atual</div>
+          <div class="tira-mud">Home própria com biblioteca.</div>
+        </div>
+      </div>
+    </div>
+    <div class="conclusao">O canvas do primeiro dia já era completo. A evolução foi <b>de organização</b>: uma home que reúne o que a equipe fez, com busca, filtro por campanha e status de publicação.</div>
+    <div class="num">19 / 35</div><div class="selo"><span class="pt"></span>8 execuções reais</div>
+  </section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Detalhe · Exportação</span><span class="quando">8 versões · 2026-07-16 → 2026-07-30</span></div>
+    <div class="corpo" style="bottom:196px">
+      <h2 class="titulo" style="font-size:46px;margin-bottom:20px">A saída do arquivo, em todas as versões</h2>
+      <div class="tira" style="height:calc(100% - 74px);grid-template-columns:repeat(4,1fr)">
+        <div class="tira-item chave">
+          <div class="tira-img"><img src="../screenshots/original/M1/06_exportar_2026-07-16_89ca896_1440x1000.png" alt="O que o git preserva como ponto de partida"></div>
+          <div class="tira-cap"><b>07/16</b>89ca896</div>
+          <div class="tira-mud">Exportação enxuta.</div>
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M2/06_exportar_2026-07-16_57cbe74_1440x1000.png" alt="A arte dentro do celular"></div>
+          <div class="tira-cap"><b>07/16</b>57cbe74</div>
+          
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M3/06_exportar_2026-07-16_247bcd4_1440x1000.png" alt="A vitrine passa a ser gerida pelo banco"></div>
+          <div class="tira-cap"><b>07/16</b>247bcd4</div>
+          
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M4/06_exportar_2026-07-20_bcc61e8_1440x1000.png" alt="Endurecimento: segurança, sync e PSD"></div>
+          <div class="tira-cap"><b>07/20</b>bcc61e8</div>
+          <div class="tira-mud">Raster adaptativo: export 2× nítido.</div>
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M5/06_exportar_2026-07-29_b29dbd8_1440x1000.png" alt="1.0 declarada"></div>
+          <div class="tira-cap"><b>07/29</b>b29dbd8</div>
+          
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M6/06_exportar_2026-07-30_28a93e2_1440x1000.png" alt="A camada de IA"></div>
+          <div class="tira-cap"><b>07/30</b>28a93e2</div>
+          
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M7/06_exportar_2026-07-30_e48b7ff_1440x1000.png" alt="Luma CLI — o console do time"></div>
+          <div class="tira-cap"><b>07/30</b>e48b7ff</div>
+          
+        </div><div class="tira-item chave">
+          <div class="tira-img"><img src="../screenshots/original/M8/06_exportar_2026-07-30_atual_1440x1000.png" alt="Estado atual"></div>
+          <div class="tira-cap"><b>07/30</b>branch atual</div>
+          <div class="tira-mud">Formato, escala e lote.</div>
+        </div>
+      </div>
+    </div>
+    <div class="conclusao">A linha começa em 16/07 porque <b>o piloto não tinha esse modal</b> — o que já é a informação. O salto de qualidade veio em 17/07, com z-order confiável no PSD e raster adaptativo à prancheta.</div>
+    <div class="num">20 / 35</div><div class="selo"><span class="pt"></span>8 execuções reais</div>
+  </section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Detalhe · Celular</span><span class="quando">9 versões · anterior a 16/07 → 2026-07-30</span></div>
+    <div class="corpo" style="bottom:196px">
+      <h2 class="titulo" style="font-size:46px;margin-bottom:20px">A mesma tela no celular, em todas as versões</h2>
+      <div class="tira" style="height:calc(100% - 74px);grid-template-columns:repeat(5,1fr)">
+        <div class="tira-item chave">
+          <div class="tira-img"><img src="../screenshots/original/M0/09_home-mobile_2026-07-15_origem_390x844.png" alt="Piloto Yungas — Módulo de Artes"></div>
+          <div class="tira-cap"><b>antes</b>arquivo original</div>
+          <div class="tira-mud">Desktop espremido.</div>
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M1/10_home-mobile_2026-07-16_89ca896_390x844.png" alt="O que o git preserva como ponto de partida"></div>
+          <div class="tira-cap"><b>07/16</b>89ca896</div>
+          
+        </div><div class="tira-item chave">
+          <div class="tira-img"><img src="../screenshots/original/M2/10_home-mobile_2026-07-16_57cbe74_390x844.png" alt="A arte dentro do celular"></div>
+          <div class="tira-cap"><b>07/16</b>57cbe74</div>
+          <div class="tira-mud">Prévia com a arte no aparelho.</div>
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M3/10_home-mobile_2026-07-16_247bcd4_390x844.png" alt="A vitrine passa a ser gerida pelo banco"></div>
+          <div class="tira-cap"><b>07/16</b>247bcd4</div>
+          
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M4/10_home-mobile_2026-07-20_bcc61e8_390x844.png" alt="Endurecimento: segurança, sync e PSD"></div>
+          <div class="tira-cap"><b>07/20</b>bcc61e8</div>
+          
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M5/10_home-mobile_2026-07-29_b29dbd8_390x844.png" alt="1.0 declarada"></div>
+          <div class="tira-cap"><b>07/29</b>b29dbd8</div>
+          
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M6/09_home-mobile_2026-07-30_28a93e2_390x844.png" alt="A camada de IA"></div>
+          <div class="tira-cap"><b>07/30</b>28a93e2</div>
+          
+        </div><div class="tira-item">
+          <div class="tira-img"><img src="../screenshots/original/M7/10_home-mobile_2026-07-30_e48b7ff_390x844.png" alt="Luma CLI — o console do time"></div>
+          <div class="tira-cap"><b>07/30</b>e48b7ff</div>
+          
+        </div><div class="tira-item chave">
+          <div class="tira-img"><img src="../screenshots/original/M8/10_home-mobile_2026-07-30_atual_390x844.png" alt="Estado atual"></div>
+          <div class="tira-cap"><b>07/30</b>branch atual</div>
+          <div class="tira-mud">Vitrine própria de toque.</div>
+        </div>
+      </div>
+    </div>
+    <div class="conclusao">O telefone é onde o franqueado realmente trabalha. A linha mostra a passagem de <b>layout adaptado</b> para <b>layout pensado</b>: alvos de toque, navegação por gesto e PWA instalável.</div>
+    <div class="num">21 / 35</div><div class="selo"><span class="pt"></span>9 execuções reais</div>
+  </section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Detalhe · Identidade</span><span class="quando">mesma faixa da tela, ampliada</span></div>
+    <div class="corpo" style="bottom:196px">
+      <h2 class="titulo" style="font-size:46px;margin-bottom:18px">A barra superior, ampliada</h2>
+      <div class="det" style="height:calc(100% - 72px)">
+        <div class="det-linha">
+          <div class="det-quadro">
+            <div class="det-crop" style="aspect-ratio:26.182;background-image:url('../screenshots/original/M0/01_home_2026-07-15_origem_1440x1000.png');background-size:100% auto;background-position:0 0.00%"></div>
+            <div class="det-cap"><span class="q">Piloto Yungas</span>
+              <span class="d">anterior a 16/07 · arquivo original</span></div>
+            <div class="det-obs">Vermelho saturado, logo da Delivery Much, alternador com cantos vivos e um botão de ajuda solto ao lado.</div>
+          </div>
+        </div><div class="det-linha">
+          <div class="det-quadro">
+            <div class="det-crop" style="aspect-ratio:26.182;background-image:url('../screenshots/original/M3/01_home_2026-07-16_247bcd4_1440x1000.png');background-size:100% auto;background-position:0 0.00%"></div>
+            <div class="det-cap"><span class="q">Catálogo vivo</span>
+              <span class="d">2026-07-16 · 247bcd4</span></div>
+            <div class="det-obs">Já é Luma: laranja da marca, logo próprio, alternador em pílula com ícone e o avatar mostrando nome e função.</div>
+          </div>
+        </div><div class="det-linha">
+          <div class="det-quadro">
+            <div class="det-crop" style="aspect-ratio:26.182;background-image:url('../screenshots/original/M8/01_home_2026-07-30_atual_1440x1000.png');background-size:100% auto;background-position:0 0.00%"></div>
+            <div class="det-cap"><span class="q">Hoje</span>
+              <span class="d">2026-07-30 · branch atual</span></div>
+            <div class="det-obs">Praticamente inalterada desde 16/07 — as duas faixas são quase indistinguíveis.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="conclusao">A identidade virou de uma vez, no dia 16, e <b>parou de mudar</b>. Numa base que cresceu vinte vezes desde então, a faixa que aparece em toda tela ficou igual — é o sinal de um design system que pegou.</div>
+    <div class="num">22 / 35</div><div class="selo"><span class="pt"></span>recorte da captura, sem edição</div>
+  </section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Detalhe · Chamada da vitrine</span><span class="quando">mesma faixa da tela, ampliada</span></div>
+    <div class="corpo" style="bottom:196px">
+      <h2 class="titulo" style="font-size:46px;margin-bottom:18px">O topo da vitrine, ampliado</h2>
+      <div class="det" style="height:calc(100% - 72px)">
+        <div class="det-linha">
+          <div class="det-quadro">
+            <div class="det-crop" style="aspect-ratio:4.966;background-image:url('../screenshots/original/M1/01_home_2026-07-16_89ca896_1440x1000.png');background-size:100% auto;background-position:0 8.45%"></div>
+            <div class="det-cap"><span class="q">Primeira vitrine no git</span>
+              <span class="d">2026-07-16 · 89ca896</span></div>
+            <div class="det-obs">A vitrine existe, mas a chamada ainda divide espaço com a estrutura de navegação.</div>
+          </div>
+        </div><div class="det-linha">
+          <div class="det-quadro">
+            <div class="det-crop" style="aspect-ratio:4.966;background-image:url('../screenshots/original/M8/01_home_2026-07-30_atual_1440x1000.png');background-size:100% auto;background-position:0 8.45%"></div>
+            <div class="det-cap"><span class="q">Hoje</span>
+              <span class="d">2026-07-30 · branch atual</span></div>
+            <div class="det-obs">Saudação com o nome, uma pergunta que orienta a próxima ação, busca com exemplo dentro do campo e o atalho para o histórico à direita.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="conclusao">O mesmo espaço passou a responder três perguntas de uma vez: <b>quem sou eu aqui, o que faço agora e onde está o que já comecei</b>.</div>
+    <div class="num">23 / 35</div><div class="selo"><span class="pt"></span>recorte da captura, sem edição</div>
+  </section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">O que foi aprimorado</span></div>
+    <div class="corpo">
+      <h2 class="titulo" style="font-size:50px">Oito melhorias que a linha do tempo mostra</h2>
+      <div class="ganhos" style="height:calc(100% - 90px);margin-top:12px">
+        <div class="ganho"><div class="ic">1</div>
+          <div><h4>Uma porta de entrada</h4><p>A tela inicial deixou de ser o meio do trabalho e passou a orientar a escolha.</p><div class="qd">vitrine · 16/07</div></div></div><div class="ganho"><div class="ic">2</div>
+          <div><h4>Campanha sem deploy</h4><p>Publicar uma campanha virou criar uma pasta — sem passar pela engenharia.</p><div class="qd">247bcd4 · 16/07</div></div></div><div class="ganho"><div class="ic">3</div>
+          <div><h4>Trabalho que não se perde</h4><p>Histórico no banco, com trava de escrita e aviso de conflito entre aparelhos.</p><div class="qd">sync · 16/07</div></div></div><div class="ganho"><div class="ic">4</div>
+          <div><h4>Celular com linguagem própria</h4><p>Prévia com a arte dentro do aparelho, alvos de toque e PWA instalável.</p><div class="qd">57cbe74 · 16/07</div></div></div><div class="ganho"><div class="ic">5</div>
+          <div><h4>PSD que chega inteiro</h4><p>Z-order confiável e raster adaptativo à prancheta: o export 2× deixou de borrar.</p><div class="qd">ed254c4 · 17/07</div></div></div><div class="ganho"><div class="ic">6</div>
+          <div><h4>Feedback que não mente</h4><p>Fim dos sucessos falsos: o que não subiu ao banco parou de exibir confirmação verde.</p><div class="qd">882cda0 · 20/07</div></div></div><div class="ganho"><div class="ic">7</div>
+          <div><h4>IA como camada</h4><p>Um motor único para legenda, encaixe de texto, ajuda aterrada e leitura de cardápio.</p><div class="qd">fc36ae4 · 30/07</div></div></div><div class="ganho"><div class="ic">8</div>
+          <div><h4>Ferramenta de quem mantém</h4><p>Console com diagnóstico nomeado — o que era snippet no DevTools virou comando.</p><div class="qd">c9790e8 · 30/07</div></div></div>
+      </div>
+    </div>
+    <div class="num">24 / 35</div>
   </section>
 <section class="slide escuro">
   <div class="sn">ATLAS</div><h2>Onde tudo<br>está hoje</h2>
@@ -472,7 +901,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
         </div>
       </div>
     </div>
-    <div class="num">15 / 24</div><div class="selo"><span class="pt"></span>contornos medidos no DOM</div>
+    <div class="num">26 / 35</div><div class="selo"><span class="pt"></span>contornos medidos no DOM</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Onde as coisas estão</span><span class="quando">atlas 2/5 · estado atual</span></div>
     <div class="corpo">
@@ -501,7 +930,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
         </div>
       </div>
     </div>
-    <div class="num">16 / 24</div><div class="selo"><span class="pt"></span>contornos medidos no DOM</div>
+    <div class="num">27 / 35</div><div class="selo"><span class="pt"></span>contornos medidos no DOM</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Onde as coisas estão</span><span class="quando">atlas 3/5 · estado atual</span></div>
     <div class="corpo">
@@ -530,7 +959,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
         </div>
       </div>
     </div>
-    <div class="num">17 / 24</div><div class="selo"><span class="pt"></span>contornos medidos no DOM</div>
+    <div class="num">28 / 35</div><div class="selo"><span class="pt"></span>contornos medidos no DOM</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Onde as coisas estão</span><span class="quando">atlas 4/5 · estado atual</span></div>
     <div class="corpo">
@@ -553,7 +982,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
         </div>
       </div>
     </div>
-    <div class="num">18 / 24</div><div class="selo"><span class="pt"></span>contornos medidos no DOM</div>
+    <div class="num">29 / 35</div><div class="selo"><span class="pt"></span>contornos medidos no DOM</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Onde as coisas estão</span><span class="quando">atlas 5/5 · estado atual</span></div>
     <div class="corpo">
@@ -576,7 +1005,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
         </div>
       </div>
     </div>
-    <div class="num">19 / 24</div><div class="selo"><span class="pt"></span>contornos medidos no DOM</div>
+    <div class="num">30 / 35</div><div class="selo"><span class="pt"></span>contornos medidos no DOM</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Recursos especiais · Much+</span><span class="quando">30/07/2026</span></div>
     <div class="corpo" style="bottom:196px">
@@ -599,7 +1028,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">Não é uma tela nova — é o <b>mesmo app com outros tokens</b>. O tema vive na campanha, então uma marca parceira entra sem fork e sem tela dedicada. Na vitrine ele é contido; dentro da campanha, assume.</div>
-    <div class="num">20 / 24</div><div class="selo"><span class="pt"></span>duas execuções reais, mesma versão</div>
+    <div class="num">31 / 35</div><div class="selo"><span class="pt"></span>duas execuções reais, mesma versão</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Evolução além da aparência</span></div>
   <div class="corpo">
@@ -617,7 +1046,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
         <p>Console interno com diagnóstico nomeado, linter de template e a máquina do tempo que reabre qualquer versão antiga — a mesma que produziu estes slides.</p></div></div>
     </div>
   </div>
-  <div class="num">21 / 24</div>
+  <div class="num">32 / 35</div>
 </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">O Luma atual</span><span class="quando">30/07/2026 · branch atual</span></div>
     <div class="corpo">
@@ -650,7 +1079,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
         </div>
       </div>
     </div>
-    <div class="num">22 / 24</div><div class="selo"><span class="pt"></span>execuções reais da branch atual</div>
+    <div class="num">33 / 35</div><div class="selo"><span class="pt"></span>execuções reais da branch atual</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">A dimensão da evolução</span><span class="quando">só números reais</span></div>
   <div class="corpo">
@@ -660,13 +1089,13 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       <div class="card"><div class="v">41.416</div><div class="r">linhas de JS hoje,<br>mais 20.766 de CSS</div></div>
       <div class="card"><div class="v">1.071</div><div class="r">funções globais nomeadas<br>(697 no Estúdio, 234 no franqueado)</div></div>
       <div class="card destaque"><div class="v">18</div><div class="r">migrations de banco —<br>a origem não tinha backend</div></div>
-      <div class="card"><div class="v">5</div><div class="r">marcos selecionados,<br>de 72 commits analisados</div></div>
+      <div class="card"><div class="v">5</div><div class="r">marcos selecionados,<br>de 73 commits analisados</div></div>
       <div class="card"><div class="v">65</div><div class="r">capturas reais produzidas,<br>nenhuma reconstruída</div></div>
       <div class="card"><div class="v">16</div><div class="r">funcionalidades mapeadas<br>no atlas, medidas no DOM</div></div>
       <div class="card"><div class="v">0</div><div class="r">dependências de runtime<br>no front — segue vanilla</div></div>
     </div>
   </div>
-  <div class="num">23 / 24</div>
+  <div class="num">34 / 35</div>
 </section>
 <section class="slide escuro">
   <div class="marca">Para fechar</div>

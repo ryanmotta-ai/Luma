@@ -1,15 +1,15 @@
 # Conferência visual dos slides
 
-`presentation/luma-evolution.html` — **24 slides**, palco de 1920×1080.
+`presentation/luma-evolution.html` — **35 slides**, palco de 1920×1080.
 
 Medido em cada slide: elemento fora da página; texto realmente cortado (só conta quando um contêiner com `overflow` diferente de `visible` clipa — `scrollHeight > clientHeight` sozinho é falso positivo);
 imagem sem espaço; fonte abaixo de 14px; mais de 1.500 caracteres num slide; e contraste do texto de corpo (mínimo 4.5:1, WCAG AA).
 
 | Verificação | Resultado |
 |---|---|
-| Slides | 24 |
+| Slides | 35 |
 | Problemas de layout | **nenhum** |
-| Textos de corpo medidos | 61 |
+| Textos de corpo medidos | 71 |
 | Contraste abaixo de 4.5:1 | **nenhum** |
 | Menor contraste medido | 8.26:1 |
 
@@ -19,7 +19,7 @@ Nenhum.
 
 ## Contraste
 
-Todos os 61 textos de corpo medidos passam de 4.5:1.
+Todos os 71 textos de corpo medidos passam de 4.5:1.
 
 ---
 

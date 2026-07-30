@@ -166,6 +166,83 @@ Os contornos não foram desenhados no olho: cada caixa foi medida com getBoundin
   return true;
 }
 
+// PADRÃO 5 — tira: TODAS as versões capturadas de uma tela, em ordem cronológica.
+// É o padrão que mais mostra evolução por slide: oito ou nove execuções reais lado a lado,
+// cada uma com a data e uma linha do que mudou naquele passo.
+function tira({ cena, kicker, titulo, chave, mudancas, conclusao, nota }) {
+  const versoes = TODOS.filter(m => tem(m.id, cena));
+  if (versoes.length < 4) return false;
+  add(`<section class="slide">${topo(kicker, `${versoes.length} versões · ${quando(versoes[0])} → ${quando(versoes[versoes.length - 1])}`)}
+    <div class="corpo" style="bottom:196px">
+      <h2 class="titulo" style="font-size:46px;margin-bottom:20px">${esc(titulo)}</h2>
+      <div class="tira" style="height:calc(100% - 74px);grid-template-columns:repeat(${Math.ceil(versoes.length / 2)},1fr)">
+        ${versoes.map(m => `<div class="tira-item${(chave || []).includes(m.id) ? ' chave' : ''}">
+          <div class="tira-img"><img src="${img(m.id, cena)}" alt="${esc(m.rotulo)}"></div>
+          <div class="tira-cap"><b>${esc(m.dataExata ? m.data.slice(5).replace('-', '/') : 'antes')}</b>${esc(selo(m))}</div>
+          ${mudancas && mudancas[m.id] ? `<div class="tira-mud">${esc(mudancas[m.id])}</div>` : ''}
+        </div>`).join('')}
+      </div>
+    </div>
+    <div class="conclusao">${conclusao}</div>
+    ${rodape(`${versoes.length} execuções reais`)}
+  </section>`, nota,
+  { tipo: 'Captura real', imagens: versoes.map(m => img(m.id, cena)),
+    quando: `${quando(versoes[0])} → ${quando(versoes[versoes.length - 1])}`,
+    obs: `Cena "${cena}" em ${versoes.length} versões, mesma viewport.` });
+  return true;
+}
+
+// PADRÃO 6 — detalhe: a MESMA faixa da tela, ampliada, em várias versões.
+// O recorte sai de background-position/size sobre a captura inteira: nenhuma imagem é
+// cortada em disco, e mudar a região é mudar dois números. `y` e `h` são porcentagens da
+// altura da captura; a largura é sempre a faixa inteira.
+function detalhe({ kicker, titulo, cena, regiao, versoes, conclusao, nota }) {
+  const { y, h } = regiao;
+  const disponiveis = versoes.filter(v => tem(v.marco, cena));
+  if (disponiveis.length < 2) return false;
+  // 1440 de largura por (1000 × h%) de altura — a proporção real da faixa recortada.
+  const prop = (1440 / (10 * h)).toFixed(3);
+  const posY = (y / (100 - h) * 100).toFixed(2);
+  add(`<section class="slide">${topo(kicker, 'mesma faixa da tela, ampliada')}
+    <div class="corpo" style="bottom:196px">
+      <h2 class="titulo" style="font-size:46px;margin-bottom:18px">${esc(titulo)}</h2>
+      <div class="det" style="height:calc(100% - 72px)">
+        ${disponiveis.map(v => `<div class="det-linha">
+          <div class="det-quadro">
+            <div class="det-crop" style="aspect-ratio:${prop};background-image:url('${img(v.marco, cena)}');background-size:100% auto;background-position:0 ${posY}%"></div>
+            <div class="det-cap"><span class="q">${esc(v.rotulo)}</span>
+              <span class="d">${esc(quando(marco(v.marco)))} · ${esc(selo(marco(v.marco)))}</span></div>
+            ${v.obs ? `<div class="det-obs">${v.obs}</div>` : ''}
+          </div>
+        </div>`).join('')}
+      </div>
+    </div>
+    <div class="conclusao">${conclusao}</div>
+    ${rodape('recorte da captura, sem edição')}
+  </section>`, nota,
+  { tipo: 'Captura real', imagens: disponiveis.map(v => img(v.marco, cena)),
+    quando: disponiveis.map(v => quando(marco(v.marco))).join(' → '),
+    obs: `Faixa y ${y}%–${y + h}% da cena "${cena}", ampliada por CSS. As capturas em disco são as inteiras.` });
+  return true;
+}
+
+// PADRÃO 7 — ganhos: o que foi aprimorado, em grade de duas colunas.
+function ganhos({ kicker, titulo, itens, nota, evid }) {
+  add(`<section class="slide">${topo(kicker)}
+    <div class="corpo">
+      <h2 class="titulo" style="font-size:50px">${esc(titulo)}</h2>
+      <div class="ganhos" style="height:calc(100% - 90px);margin-top:12px">
+        ${itens.map((g, i) => `<div class="ganho"><div class="ic">${i + 1}</div>
+          <div><h4>${esc(g.t)}</h4><p>${g.d}</p>${g.q ? `<div class="qd">${esc(g.q)}</div>` : ''}</div></div>`).join('')}
+      </div>
+    </div>
+    ${rodape('')}
+  </section>`, nota,
+  { tipo: 'Captura real', imagens: [], quando: evid || `${M.primeiro} → ${M.ultimo}`,
+    obs: 'Cada item tem lastro em commit do histórico.' });
+  return true;
+}
+
 // ══ 1 · CAPA ════════════════════════════════════════════════════════════════
 add(`<section class="slide escuro">
   <div class="marca">Delivery Much · uso interno</div>
@@ -383,6 +460,164 @@ Ressalte a última linha se houver alguém de segurança na sala.
   { tipo: 'Captura real', imagens: [img('M8','cli')], quando: '30/07/2026 (branch atual)',
     obs: 'Sem versão anterior: a tela nasceu em 30/07 (c9790e8 e e48b7ff).' });
 }
+
+// ══ EVOLUÇÃO EM DETALHE — todas as versões de cada tela ═════════════════════
+add(`<section class="slide escuro">
+  <div class="sn">EVOLUÇÃO EM DETALHE</div><h2>Tela a tela,<br>versão por versão</h2>
+  <p class="psec">Daqui em diante, cada slide mostra <b>todas</b> as execuções capturadas de uma mesma tela, em ordem cronológica. O quadro com borda laranja é o momento em que aquela tela mudou de verdade.</p>
+</section>`,
+`Divisor do bloco mais denso. Avise que agora vem volume: são oito ou nove versões reais por tela.
+Não descreva quadro a quadro — deixe a plateia varrer a linha e aponte só o quadro destacado.
+~15s.`,
+{ tipo: 'Capa', imagens: [], quando: '—', obs: '—' });
+
+tira({
+  cena: 'home', kicker: 'Detalhe · Tela de entrada',
+  titulo: 'A porta de entrada, em todas as versões',
+  chave: ['M0', 'M3', 'M8'],
+  mudancas: {
+    M0: 'Sem vitrine: abre no chat.',
+    M1: 'Primeira vitrine preservada no git.',
+    M3: 'Passa a vir do banco.',
+    M8: 'Destaque, busca e filtro.'
+  },
+  conclusao: 'Duas viradas concentram quase toda a diferença: o <b>surgimento da vitrine</b> e a passagem dela para o banco. Entre elas e depois, o que muda é refino — hierarquia, respiro e a campanha em destaque ganhando peso.',
+  nota: `A linha inteira num slide. Aponte o primeiro quadro (vermelho, sem vitrine) e o último, e diga que tudo no meio é o mesmo produto amadurecendo.
+O quadro de 16/07 é onde a vitrine nasce; o de 30/07 é o estado atual.
+~1min.`
+});
+
+tira({
+  cena: 'catalogo', kicker: 'Detalhe · Campanha aberta',
+  titulo: 'A campanha aberta, em todas as versões',
+  chave: ['M0', 'M3', 'M8'],
+  mudancas: {
+    M0: 'Lista fixa em código.',
+    M3: 'Campanha vira pasta no banco.',
+    M8: 'Capa, prazo e formatos.'
+  },
+  conclusao: 'Aqui a mudança é mais estrutural que visual: a mesma tela passou a ser <b>alimentada pelo trabalho do time</b> em vez de por um commit. O que se vê são capas reais chegando ao lugar dos blocos de cor.',
+  nota: `Slide para o time de operação: cada capa nesta linha foi publicada sem tocar em código.
+~50s.`
+});
+
+tira({
+  cena: 'chat', kicker: 'Detalhe · O chat que monta a arte',
+  titulo: 'O fluxo de preenchimento, em todas as versões',
+  chave: ['M0', 'M6', 'M8'],
+  mudancas: {
+    M0: 'Quatro perguntas, sugestões clicáveis.',
+    M6: 'IA encaixa o texto no limite.',
+    M8: 'Prévia fiel ao lado.'
+  },
+  conclusao: 'A tela que <b>menos mudou de forma</b> e mais ganhou capacidade. A mecânica de perguntar em passos é a mesma desde a origem; o que entrou foi contexto, formato e ajuda de IA no texto.',
+  nota: `Use este slide para dar crédito à ideia original: o formato estava certo desde o primeiro dia.
+O quadro de 30/07 marca a entrada da IA — encaixar texto no limite sem cortar sentido.
+~50s.`
+});
+
+tira({
+  cena: 'minhas-artes', kicker: 'Detalhe · Minhas artes',
+  titulo: 'O histórico, em todas as versões',
+  chave: ['M0', 'M3', 'M8'],
+  mudancas: {
+    M0: 'Aba presa à sessão do navegador.',
+    M3: 'Passa a viver no banco.',
+    M8: 'Área própria, rascunho retomável.'
+  },
+  conclusao: 'A tela que mais mudou de <b>lugar</b>: começou como aba secundária do catálogo e virou área própria, com o rascunho ligado ao template que deu origem à arte.',
+  nota: `Os commits de sync de 16/07 estão por trás desta linha: lock no push, releitura antes de regravar e fila de deleções.
+~45s.`
+});
+
+tira({
+  cena: 'designer', kicker: 'Detalhe · Estúdio',
+  titulo: 'O Estúdio, em todas as versões',
+  chave: ['M0', 'M8'],
+  mudancas: {
+    M0: 'Abre direto no canvas.',
+    M4: 'IDs sempre UUID, PSD confiável.',
+    M8: 'Home própria com biblioteca.'
+  },
+  conclusao: 'O canvas do primeiro dia já era completo. A evolução foi <b>de organização</b>: uma home que reúne o que a equipe fez, com busca, filtro por campanha e status de publicação.',
+  nota: `Não há captura do Estúdio em 29/07 — a cena não foi alcançada offline naquele commit, e isso está declarado no índice.
+~45s.`
+});
+
+tira({
+  cena: 'exportar', kicker: 'Detalhe · Exportação',
+  titulo: 'A saída do arquivo, em todas as versões',
+  chave: ['M1', 'M8'],
+  mudancas: {
+    M1: 'Exportação enxuta.',
+    M4: 'Raster adaptativo: export 2× nítido.',
+    M8: 'Formato, escala e lote.'
+  },
+  conclusao: 'A linha começa em 16/07 porque <b>o piloto não tinha esse modal</b> — o que já é a informação. O salto de qualidade veio em 17/07, com z-order confiável no PSD e raster adaptativo à prancheta.',
+  nota: `Slide técnico. Se houver designer na sala, o ponto é o raster adaptativo: o export 2× deixou de borrar.
+~40s.`
+});
+
+tira({
+  cena: 'home-mobile', kicker: 'Detalhe · Celular',
+  titulo: 'A mesma tela no celular, em todas as versões',
+  chave: ['M0', 'M2', 'M8'],
+  mudancas: {
+    M0: 'Desktop espremido.',
+    M2: 'Prévia com a arte no aparelho.',
+    M8: 'Vitrine própria de toque.'
+  },
+  conclusao: 'O telefone é onde o franqueado realmente trabalha. A linha mostra a passagem de <b>layout adaptado</b> para <b>layout pensado</b>: alvos de toque, navegação por gesto e PWA instalável.',
+  nota: `Compare o primeiro e o último quadro: mesma informação, densidade completamente diferente.
+~40s.`
+});
+
+// ── recortes ampliados ──
+detalhe({
+  kicker: 'Detalhe · Identidade', titulo: 'A barra superior, ampliada',
+  cena: 'home', regiao: { y: 0, h: 5.5 },
+  versoes: [
+    { marco: 'M0', rotulo: 'Piloto Yungas', obs: 'Vermelho saturado, logo da Delivery Much, alternador com cantos vivos e um botão de ajuda solto ao lado.' },
+    { marco: 'M3', rotulo: 'Catálogo vivo', obs: 'Já é Luma: laranja da marca, logo próprio, alternador em pílula com ícone e o avatar mostrando nome e função.' },
+    { marco: 'M8', rotulo: 'Hoje', obs: 'Praticamente inalterada desde 16/07 — as duas faixas são quase indistinguíveis.' }
+  ],
+  conclusao: 'A identidade virou de uma vez, no dia 16, e <b>parou de mudar</b>. Numa base que cresceu vinte vezes desde então, a faixa que aparece em toda tela ficou igual — é o sinal de um design system que pegou.',
+  nota: `Slide de design system, e o achado aqui é o contrário do esperado: as duas últimas faixas são quase idênticas.
+Isso é a mensagem. A identidade se resolveu cedo e não precisou de retoque, enquanto o resto do produto quadruplicou de tamanho.
+Se alguém perguntar por que não mostrar mais versões: porque não há diferença para mostrar.
+~45s.`
+});
+
+detalhe({
+  kicker: 'Detalhe · Chamada da vitrine', titulo: 'O topo da vitrine, ampliado',
+  cena: 'home', regiao: { y: 6, h: 29 },
+  versoes: [
+    { marco: 'M1', rotulo: 'Primeira vitrine no git', obs: 'A vitrine existe, mas a chamada ainda divide espaço com a estrutura de navegação.' },
+    { marco: 'M8', rotulo: 'Hoje', obs: 'Saudação com o nome, uma pergunta que orienta a próxima ação, busca com exemplo dentro do campo e o atalho para o histórico à direita.' }
+  ],
+  conclusao: 'O mesmo espaço passou a responder três perguntas de uma vez: <b>quem sou eu aqui, o que faço agora e onde está o que já comecei</b>.',
+  nota: `Este é o recorte que melhor mostra intenção de produto: o texto "Qual arte vamos criar hoje?" não é enfeite, é o que transforma uma tela de lista numa tela de decisão.
+O placeholder da busca traz exemplo real (Sushi, Almoço) em vez de "digite aqui".
+~45s.`
+});
+
+ganhos({
+  kicker: 'O que foi aprimorado',
+  titulo: 'Oito melhorias que a linha do tempo mostra',
+  itens: [
+    { t: 'Uma porta de entrada', d: 'A tela inicial deixou de ser o meio do trabalho e passou a orientar a escolha.', q: 'vitrine · 16/07' },
+    { t: 'Campanha sem deploy', d: 'Publicar uma campanha virou criar uma pasta — sem passar pela engenharia.', q: '247bcd4 · 16/07' },
+    { t: 'Trabalho que não se perde', d: 'Histórico no banco, com trava de escrita e aviso de conflito entre aparelhos.', q: 'sync · 16/07' },
+    { t: 'Celular com linguagem própria', d: 'Prévia com a arte dentro do aparelho, alvos de toque e PWA instalável.', q: '57cbe74 · 16/07' },
+    { t: 'PSD que chega inteiro', d: 'Z-order confiável e raster adaptativo à prancheta: o export 2× deixou de borrar.', q: 'ed254c4 · 17/07' },
+    { t: 'Feedback que não mente', d: 'Fim dos sucessos falsos: o que não subiu ao banco parou de exibir confirmação verde.', q: '882cda0 · 20/07' },
+    { t: 'IA como camada', d: 'Um motor único para legenda, encaixe de texto, ajuda aterrada e leitura de cardápio.', q: 'fc36ae4 · 30/07' },
+    { t: 'Ferramenta de quem mantém', d: 'Console com diagnóstico nomeado — o que era snippet no DevTools virou comando.', q: 'c9790e8 · 30/07' }
+  ],
+  nota: `O slide-resumo do bloco. Cada item tem commit e data, então nenhum é impressão.
+Se precisar cortar tempo, este slide substitui os sete de tira — mas perde a evidência visual.
+~1min10.`
+});
 
 // ══ 14–18 · ATLAS ═══════════════════════════════════════════════════════════
 add(`<section class="slide escuro">

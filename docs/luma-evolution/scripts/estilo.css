@@ -146,3 +146,42 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
 .atlas-item .onde{margin-top:7px;font-family:var(--mono);font-size:14px;color:var(--tinta-3)}
 .fluxo-tag{display:inline-flex;align-items:center;height:30px;padding:0 14px;border-radius:999px;
   background:var(--tinta);color:#fff;font-size:14px;font-weight:900;letter-spacing:.1em;text-transform:uppercase}
+
+/* ═══ padrões da V2.1 — evolução em detalhe ════════════════════════════════ */
+
+/* ── tira: TODAS as versões de uma tela, em sequência cronológica ── */
+.tira{display:grid;gap:22px 16px;align-content:center;height:100%}
+.tira-item{display:flex;flex-direction:column;min-width:0}
+.tira-img{width:100%;aspect-ratio:1440/1000;border:1px solid var(--linha);border-radius:8px;overflow:hidden;
+  background:var(--papel-2);box-shadow:0 8px 20px rgba(10,10,10,.09)}
+.tira-img img{width:100%;height:100%;object-fit:cover;object-position:top center;display:block}
+/* o marco que o slide quer destacar ganha borda de acento, não tamanho diferente —
+   mudar a escala de um quadro estraga a comparação que a tira existe para fazer */
+.tira-item.chave .tira-img{border:2px solid var(--laranja);box-shadow:0 10px 26px rgba(255,144,0,.26)}
+.tira-cap{margin-top:9px;font-family:var(--mono);font-size:14px;color:var(--tinta-3);line-height:1.4}
+.tira-cap b{display:block;font-family:var(--fonte);font-size:15px;font-weight:800;color:var(--tinta);
+  letter-spacing:-.01em;margin-bottom:2px}
+.tira-item.chave .tira-cap b{color:var(--laranja-d)}
+.tira-mud{margin-top:6px;font-size:14px;color:var(--tinta-2);line-height:1.34}
+
+/* ── detalhe: a mesma faixa da tela, ampliada, em várias versões ──
+   O recorte é feito com background-position/size sobre a captura inteira: nada é cortado
+   em disco, e mudar a região é mudar dois números. */
+.det{display:flex;flex-direction:column;gap:18px;height:100%;justify-content:center}
+.det-linha{display:flex;gap:18px;align-items:stretch}
+.det-quadro{flex:1;display:flex;flex-direction:column;min-width:0}
+.det-crop{width:100%;border:1px solid var(--linha);border-radius:9px;background-repeat:no-repeat;
+  background-color:var(--papel-2);box-shadow:0 8px 20px rgba(10,10,10,.09)}
+.det-cap{margin-top:8px;display:flex;align-items:baseline;gap:10px}
+.det-cap .q{font-size:17px;font-weight:800;letter-spacing:-.01em}
+.det-cap .d{font-family:var(--mono);font-size:14px;color:var(--tinta-3);margin-left:auto}
+.det-obs{margin-top:5px;font-size:15px;color:var(--tinta-2);line-height:1.36}
+
+/* ── ganhos: o que mudou, em colunas ── */
+.ganhos{display:grid;grid-template-columns:repeat(2,1fr);gap:18px 40px;align-content:center;height:100%}
+.ganho{display:flex;gap:16px;align-items:flex-start}
+.ganho .ic{width:30px;height:30px;border-radius:8px;background:var(--laranja);color:#fff;flex-shrink:0;
+  font-size:15px;font-weight:900;display:flex;align-items:center;justify-content:center}
+.ganho h4{font-size:21px;font-weight:900;letter-spacing:-.015em;line-height:1.2}
+.ganho p{margin-top:5px;font-size:17px;color:var(--tinta-2);line-height:1.38}
+.ganho .qd{margin-top:5px;font-family:var(--mono);font-size:14px;color:var(--tinta-3)}
