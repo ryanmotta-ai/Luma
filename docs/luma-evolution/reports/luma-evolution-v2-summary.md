@@ -4,7 +4,7 @@ Resumo do que foi entregue, com o que sustenta cada parte.
 
 ```
 docs/luma-evolution/presentation/
-├── luma-evolution-v2.pptx              35 slides, 16:9, notas em todos
+├── luma-evolution-v2.pptx              39 slides, 16:9, notas em todos
 ├── luma-evolution-v2.pdf               mesmo conteúdo, 1920×1080 por página
 ├── luma-evolution-v2-speaker-notes.md  notas curtas (média 37 palavras, teto 72)
 ├── luma-evolution-v2-index.md          índice de evidências, slide a slide
@@ -19,9 +19,10 @@ docs/luma-evolution/presentation/
 | | V1 | V2 |
 |---|---|---|
 | Enfoque | auditoria do repositório | case de produto |
-| Slides | 26 | **35** |
-| Marcos na narrativa | 9 | 5 no arco principal, **todos os 9** nas tiras de detalhe |
-| Imagens nos slides | 32 | **100** (68 capturas distintas) |
+| Slides | 26 | **39** |
+| Prints por slide | até 8 | **no máximo 3**, sem exceção |
+| Comparações de versão | 5 | **11** (6 de três versões + 5 recortes ampliados) |
+| Imagens nos slides | 32 | **66** |
 | Atlas de funcionalidades | não tinha | **16 recursos em 5 telas**, medidos no DOM |
 | Capturas anotadas | não tinha | **5**, em `screenshots/annotated/` |
 | Much+ | mencionado | **slide próprio**, com as duas execuções lado a lado |
@@ -31,8 +32,8 @@ docs/luma-evolution/presentation/
 
 1. **Comparação** — antes → hoje, lado a lado.
 2. **Três momentos** — origem → expansão → atual.
-3. **Tira** — *todas* as versões capturadas de uma tela, em duas linhas.
-4. **Detalhe** — a mesma faixa da tela, ampliada, em várias versões.
+3. **Três versões** — primeiro commit → véspera da 1.0 → hoje, com as diferenças numeradas em cada coluna.
+4. **Detalhe** — a mesma faixa da tela, ampliada, nas três versões.
 5. **Atlas** — captura com os contornos medidos no DOM.
 6. **Ganhos** — o que foi aprimorado, em grade.
 7. **Editorial** — título com lista ou números.
@@ -41,7 +42,7 @@ Nenhuma versão histórica foi reexecutada para a V2: as 65 capturas já estavam
 
 ---
 
-## Estrutura dos 35 slides
+## Estrutura dos 39 slides
 
 | # | Bloco | Conteúdo |
 |---|---|---|
@@ -52,18 +53,26 @@ Nenhuma versão histórica foi reexecutada para a V2: as 65 capturas já estavam
 | 8 | Divisor | Área por área |
 | 9–13 | Evolução por área | Biblioteca, Minhas artes, Exportação, Celular e o CLI |
 | 14 | Divisor | Evolução em detalhe |
-| **15–21** | **Tiras** | **Todas as versões de cada tela: entrada, campanha, chat, histórico, Estúdio, exportação e celular** |
-| **22–23** | **Recortes** | **A barra superior e o topo da vitrine, ampliados** |
-| **24** | **Ganhos** | **Oito melhorias, cada uma com commit e data** |
-| 25 | Divisor | Atlas |
-| 26–30 | Atlas | Criar · Editar · Organizar · Publicar · Manter |
-| 31 | Much+ | O tema por campanha, duas execuções da mesma versão |
-| 32 | Além da aparência | Cinco frentes de maturidade |
-| 33 | O Luma atual | Oito telas de hoje |
-| 34 | A dimensão | Números contados no repositório |
-| 35 | Fechamento | De ferramenta a produto |
+| **15–20** | **Três versões** | **Vitrine, campanha, chat, Estúdio, exportação e histórico — cada um comparando o primeiro commit, a véspera da 1.0 e hoje, com as diferenças numeradas** |
+| **21–25** | **Recortes** | **Barra superior, topo da vitrine, cabeçalho do chat, barra de resposta e chamada do Estúdio — ampliados** |
+| **26** | **Ganhos** | **Oito melhorias, cada uma com commit e data** |
+| 27 | Divisor | Atlas |
+| 28–32 | Atlas | Criar · Editar · Organizar · Publicar · Manter |
+| 33 | Much+ | O tema por campanha, duas execuções da mesma versão |
+| 34 | Além da aparência | Cinco frentes de maturidade |
+| 35–37 | O Luma atual | Oito telas de hoje, três por slide |
+| 38 | A dimensão | Números contados no repositório |
+| 39 | Fechamento | De ferramenta a produto |
 
-**O bloco 15–24 é o que responde "o que foi mudando e aprimorado".** As sete tiras põem 8 ou 9 execuções reais da mesma tela lado a lado; os dois recortes ampliam a faixa onde a mudança é mais fina; e o slide de ganhos fecha com o commit de cada melhoria.
+**O bloco 15–26 é o que responde "o que foi mudando e aprimorado".** Os três pontos de comparação são fixos em todos os slides:
+
+| Ponto | Commit | Data | Por quê |
+|---|---|---|---|
+| Primeiro commit | `89ca896` | 16/07 10:33 | O mais antigo do repositório por data-hora |
+| Véspera da 1.0 | `bcc61e8` | 20/07 09:48 | Último commit que mexe em tela antes de `b29dbd8` ("toma 1.0") |
+| Hoje | branch atual | 30/07 | Ponta da branch |
+
+A coluna do meio é a que mais informa: em quase toda tela ela é **igual à do primeiro commit**. Isso mostra que as duas semanas anteriores à 1.0 foram gastas em sync, segurança e import de PSD — o salto visual veio depois.
 
 ---
 
@@ -77,7 +86,7 @@ Nenhuma versão histórica foi reexecutada para a V2: as 65 capturas já estavam
 | Ferramenta interna | 30/07/2026 | `e48b7ff` | O Luma ganha console próprio para quem o mantém |
 | Estado atual | 30/07/2026 | branch atual | Much+ contido, CLI revisado, máquina do tempo |
 
-M2, M4, M5 e M6 não têm slide próprio no arco principal — a tela que cada um muda já está representada por um vizinho. Mas **todos os nove aparecem nas tiras de detalhe** (slides 15 a 21), onde a linha completa de cada tela é mostrada em ordem cronológica. É lá que se vê o refino que um slide de marco isolado não mostraria.
+M2, M4, M5 e M6 não têm slide próprio no arco principal — a tela que cada um muda já está representada por um vizinho. O bloco de comparação detalhada (slides 15 a 26) usa três pontos fixos — primeiro commit, véspera da 1.0 e hoje — porque três prints por slide é o teto que mantém cada quadro grande o bastante para sustentar a legenda.
 
 ---
 
@@ -102,8 +111,8 @@ Cada contorno vem de `getBoundingClientRect` na versão atual, em porcentagem da
 | | |
 |---|---|
 | Capturas reais em disco | 65 |
-| Imagens nos slides | 100, de 68 capturas distintas |
-| Marcos capturados | 9 — todos aparecem nas tiras |
+| Imagens nos slides | 66, no máximo 3 por slide |
+| Marcos capturados | 9 (5 na narrativa, 3 nas comparações detalhadas) |
 | Funcionalidades mapeadas | 16 |
 | Commits analisados | 72, de 3 autores |
 | Período coberto | anterior a 16/07/2026 → 30/07/2026 |
