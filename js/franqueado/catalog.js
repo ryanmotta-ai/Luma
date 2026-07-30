@@ -603,9 +603,17 @@ function fRenderArchivedPanel(){
 }
 function fFolderForCamp(c){
   if(typeof dFolders==='undefined'||!dFolders||!c)return null;
+  // Duas pastas podem casar com a MESMA campanha (a semente do CAMPS_* e uma pasta real
+  // do banco com o mesmo nome). Entre as que casam, a SINCRONIZADA manda: é ela que o
+  // designer edita e a que sobrevive ao próximo pull. Sem isso a vitrine lia a semente e
+  // a capa nova "não pegava" — trocar a foto do banner não surtia efeito nenhum.
+  const _preferSync = arr => arr.find(f=>f&&f.remoteId) || arr[0] || null;
+  const porCamp = dFolders.filter(f=>f&&f.campId===c.id);
+  if(porCamp.length) return _preferSync(porCamp);
+  const porNome = dFolders.filter(f=>f&&f.name===c.name);
+  if(porNome.length) return _preferSync(porNome);
   // 3º match: campanha dinâmica (criada no Estúdio) usa o id da própria pasta como camp.id
-  return dFolders.find(f=>f.campId===c.id) || dFolders.find(f=>f.name===c.name)
-      || dFolders.find(f=>f.remoteId===c.id||f.id===c.id) || null;
+  return dFolders.find(f=>f&&(f.remoteId===c.id||f.id===c.id)) || null;
 }
 // Capa da pasta — usada como fundo do card.
 // Pasta EXISTENTE no catálogo manda (gerida pelo MKT no Estúdio/banco): cover vazio
@@ -999,7 +1007,16 @@ function _fHomeHeroEl(rec){
   const _flame='<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:-1px"><path d="M12 2s5 4 5 9a5 5 0 0 1-10 0c0-1 .3-2 .8-2.8C8 10 9 12 10 12c0-3 2-7 2-10z"/></svg>';
   const _star='<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:-1.5px"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9"/></svg>';
   const _temaHero=(typeof _fCampThemeOf==='function')?_fCampThemeOf(rec):''; // mesmo convite do card, no hero
+  // 3-pontos do hero (só DM staff + campanha com pasta real): mesmo menu do card, mesma
+  // função. Faltava justo AQUI — trocar a capa do banner exigia caçar a pasta no Estúdio,
+  // porque o card tinha o atalho e o banner não. Fica FORA do <button class="fh-hero">:
+  // botão dentro de botão é HTML inválido e o clique não chega.
+  const _heroFolder=(typeof gIsAdmin==='function'&&gIsAdmin()&&typeof fFolderForCamp==='function')?fFolderForCamp(rec):null;
+  const heroAdmin=_heroFolder
+    ? `<button class="camp-admin-btn fh-hero-admin" onclick="fCampAdminMenu(event,'${_heroFolder.id}')" aria-label="Ações da campanha em destaque" title="Editar campanha, capa e mais"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>`
+    : '';
   return `<section class="fh-featured" aria-label="Campanha recomendada">
+  ${heroAdmin}
   <button class="fh-hero" type="button"${_temaHero?` data-camp-theme="${_temaHero}"`:''} onclick="fSelectCamp('${rec.id}')" aria-label="Abrir campanha ${gEsc(rec.name)}">
     <div class="fh-hero-cover" style="${coverStyle}">
       ${rec.badge?`<span class="fh-hero-badge">${gEsc(rec.badge)}</span>`:''}

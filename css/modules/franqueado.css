@@ -766,7 +766,14 @@ body.mode-franqueado:not(.f-home-mode):not(.f-history-mode) #g-help-float{displa
 .fh-draft-go{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:1px solid var(--gray-light);border-radius:10px;background:var(--off-white);color:var(--text-2)}
 
 /* Destaque editorial: arte em escala real de vitrine e informação com foco único. */
-.fh-featured{min-width:0}
+.fh-featured{min-width:0;position:relative}   /* position: âncora do 3-pontos do hero */
+/* 3-pontos do hero (catalog.js: heroAdmin). Herda .camp-admin-btn, mas aquele nasce
+   invisível e só aparece no hover do CARD — aqui o pai é a section, então o gatilho é o
+   hover dela. Em tela de toque (sem hover) fica sempre visível: no celular seria a única
+   forma de chegar na capa do banner, e um botão que exige hover ali nunca apareceria. */
+.fh-hero-admin{top:14px;right:14px;width:34px;height:34px}
+.fh-featured:hover .fh-hero-admin,.fh-hero-admin:focus-visible{opacity:1}
+@media (hover:none){ .fh-hero-admin{opacity:1} }
 .fh-hero{
   width:100%;min-height:clamp(282px,21vw,340px);display:grid;grid-template-columns:minmax(360px,44%) minmax(0,1fr);
   padding:0;border:1px solid var(--gray-light);border-radius:24px;background:var(--white);overflow:hidden;text-align:left;

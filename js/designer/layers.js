@@ -3042,6 +3042,12 @@ function _dRowToFolder(p, templates){
     arquivada:(p.ativa===false)   // coluna `ativa` do banco: false = pasta arquivada (some da vitrine)
   };
 }
+// Chave de comparação de nome de pasta: sem acento, sem caixa, sem espaço duplo.
+// "Much+ Benefícios" e "much+ beneficios " são a MESMA pasta pro merge do sync.
+function _dChaveNome(n){
+  return String(n||'').trim().toLowerCase().normalize('NFD')
+    .replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ');
+}
 async function dSyncFoldersFromBackend(){
   const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
   if(!sb) return;
@@ -3070,9 +3076,16 @@ async function dSyncFoldersFromBackend(){
     // merge: banco manda; preserva pastas locais sem correspondente (por remoteId ou campId)
     const rIds=new Set(remote.map(f=>f.remoteId));
     const rCamps=new Set(remote.map(f=>f.campId).filter(Boolean));
+    const rNomes=new Set(remote.map(f=>_dChaveNome(f.name)));
     const extras=(dFolders||[]).filter(f=>{
       if(f.remoteId && rIds.has(f.remoteId)) return false;
       if(f.campId && rCamps.has(f.campId)) return false;
+      // ...e por NOME, mas SÓ pra semente (sem remoteId): pasta criada no Estúdio sem
+      // vincular campanha (camp_id NULL) não casava por campId, então a semente do
+      // CAMPS_* sobrevivia ao lado dela — eram duas "Much+ Benefícios" na árvore, e a
+      // vitrine lia a semente (capa hardcoded) em vez da pasta que o designer edita.
+      // Pasta local COM remoteId nunca cai aqui: pode ser trabalho pendente de subir.
+      if(!f.remoteId && rNomes.has(_dChaveNome(f.name))) return false;
       return true;
     });
     // Trabalho local ainda NÃO sincronizado (_syncPending) não pode ser engolido pelo
@@ -3083,7 +3096,11 @@ async function dSyncFoldersFromBackend(){
     (dFolders||[]).forEach(lf=>{
       const pend=(lf.templates||[]).filter(t=>t&&(t._syncPending||(_openId&&t.id===_openId)));
       if(!pend.length) return;
-      const rf=remote.find(f=>f.remoteId===lf.remoteId)||remote.find(f=>f.campId&&f.campId===lf.campId);
+      // Mesma escada do filtro de extras acima (inclusive o nome): sem o casamento por
+      // nome, a semente descartada levaria com ela o template ainda não sincronizado.
+      const rf=remote.find(f=>f.remoteId===lf.remoteId)
+            ||remote.find(f=>f.campId&&f.campId===lf.campId)
+            ||remote.find(f=>_dChaveNome(f.name)===_dChaveNome(lf.name));
       if(!rf) return; // pasta local-only já sobrevive via extras
       pend.forEach(pt=>{
         const i=rf.templates.findIndex(x=>x&&(x.id===pt.id||(pt.remoteId&&x.remoteId===pt.remoteId)));
