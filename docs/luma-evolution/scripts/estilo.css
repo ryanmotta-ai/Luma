@@ -1,0 +1,112 @@
+/* docs/luma-evolution/scripts/estilo.css — identidade dos slides.
+   Um slide é 1920×1080 em px absolutos: o destino é PNG/PDF/PPTX de tamanho fixo, então
+   aqui não há responsividade a resolver — há um palco de tamanho conhecido. */
+
+:root{
+  --laranja:#FF9000; --laranja-d:#F85400; --amarelo:#FFB900; --magenta:#C4005B;
+  --tinta:#0A0A0A; --tinta-2:#4A4A4A; --tinta-3:#7C7C7C;
+  --papel:#FFFFFF; --papel-2:#F7F7F5; --linha:#E6E4E0; --verde:#15803D;
+  --fonte:'Roboto',-apple-system,'Segoe UI',sans-serif;
+  --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialiased}
+
+.slide{position:relative;width:1920px;height:1080px;overflow:hidden;
+  background:var(--papel);color:var(--tinta);page-break-after:always;break-after:page}
+.slide + .slide{margin-top:40px}
+
+/* ── moldura comum ── */
+.fio{position:absolute;left:0;top:0;width:100%;height:7px;background:var(--laranja);z-index:4}
+.topo{position:absolute;top:60px;left:96px;right:96px;display:flex;align-items:baseline;gap:20px;z-index:3}
+.kicker{font-size:19px;font-weight:900;letter-spacing:.19em;text-transform:uppercase;color:var(--laranja-d)}
+.quando{font-family:var(--mono);font-size:17px;color:var(--tinta-3);margin-left:auto}
+.corpo{position:absolute;top:140px;left:96px;right:96px;bottom:104px;z-index:2}
+.titulo{font-size:62px;font-weight:900;letter-spacing:-.035em;line-height:1.03}
+.sub{margin-top:18px;font-size:25px;line-height:1.42;color:var(--tinta-2);font-weight:400}
+.num{position:absolute;right:96px;bottom:44px;z-index:3;font-family:var(--mono);font-size:16px;color:var(--tinta-3)}
+/* o selo fica à ESQUERDA do número de página — os dois já dividiram o mesmo canto uma vez */
+.selo{position:absolute;left:96px;bottom:44px;z-index:3;display:flex;align-items:center;gap:9px;
+  font-family:var(--mono);font-size:14px;color:var(--tinta-3)}
+.selo .pt{width:8px;height:8px;border-radius:50%;background:var(--verde)}
+
+/* ── capa e divisor ── */
+.escuro{background:var(--tinta);color:#fff;display:flex;flex-direction:column;justify-content:center;padding:0 128px}
+.escuro .marca{font-size:20px;font-weight:900;letter-spacing:.24em;text-transform:uppercase;color:var(--laranja);margin-bottom:40px}
+.escuro h1{font-size:132px;font-weight:900;letter-spacing:-.05em;line-height:.94}
+.escuro h1 em{font-style:normal;color:var(--laranja)}
+.escuro .csub{margin-top:32px;font-size:32px;color:#C8C8C8;font-weight:300;max-width:1300px;line-height:1.38}
+.escuro .meta{position:absolute;left:128px;bottom:76px;right:128px;display:flex;gap:64px;
+  font-family:var(--mono);font-size:18px;color:#8A8A8A;border-top:1px solid #2A2A2A;padding-top:24px}
+.escuro .meta b{color:#fff;font-weight:700;display:block;font-size:22px;margin-bottom:5px;font-family:var(--fonte)}
+.escuro .sn{font-family:var(--mono);font-size:23px;color:var(--laranja);letter-spacing:.18em;margin-bottom:24px}
+.escuro h2{font-size:98px;font-weight:900;letter-spacing:-.045em;line-height:1}
+.escuro .psec{margin-top:26px;font-size:29px;color:#B4B4B4;max-width:1250px;line-height:1.4;font-weight:300}
+
+/* ── telas (a evidência) ── */
+.telas{display:flex;gap:34px;height:100%;align-items:stretch}
+.tela{flex:1;display:flex;flex-direction:column;min-width:0}
+/* A moldura VESTE a captura: --ar carrega a proporção real do PNG (1440/1000 no desktop,
+   390/844 no celular). Sem isso a moldura esticava até o fim da coluna e deixava uma faixa
+   branca embaixo da imagem, que lida como erro de layout e não como respiro. */
+.moldura{flex:0 1 auto;min-height:0;max-height:100%;aspect-ratio:var(--ar,1440/1000);margin:0 auto;
+  border:1px solid var(--linha);border-radius:12px;overflow:hidden;
+  background:var(--papel-2);box-shadow:0 16px 40px rgba(10,10,10,.10)}
+/* contain, nunca cover: recortar a evidência esconde justamente o que o slide afirma */
+.moldura img{width:100%;height:100%;object-fit:contain;object-position:top center;display:block}
+.legenda{margin-top:14px;display:flex;align-items:baseline;gap:12px;flex-shrink:0}
+.legenda .rot{font-size:23px;font-weight:900;letter-spacing:-.01em}
+.legenda .meta{font-family:var(--mono);font-size:15px;color:var(--tinta-3);margin-left:auto}
+.nota{margin-top:7px;font-size:18px;color:var(--tinta-2);line-height:1.34;flex-shrink:0}
+
+.eti{display:inline-flex;align-items:center;height:28px;padding:0 12px;border-radius:999px;
+  font-size:14px;font-weight:900;letter-spacing:.09em;text-transform:uppercase;flex-shrink:0}
+.eti-antes{background:#EFEDEA;color:var(--tinta-2)}
+.eti-hoje{background:var(--laranja);color:#fff}
+.eti-novo{background:var(--verde);color:#fff}
+
+.conclusao{position:absolute;left:96px;right:96px;bottom:96px;z-index:3;border-left:5px solid var(--laranja);
+  padding:4px 0 4px 22px;font-size:22px;line-height:1.44;color:var(--tinta-2);max-width:1560px}
+.conclusao b{color:var(--tinta);font-weight:800}
+
+/* ── números ── */
+.numeros{display:grid;gap:24px}
+.card{border:1px solid var(--linha);border-radius:14px;padding:30px 30px;background:var(--papel-2);
+  display:flex;flex-direction:column;justify-content:center}
+.card .v{font-size:74px;font-weight:900;letter-spacing:-.05em;line-height:1.02;color:var(--tinta)}
+.card .v small{font-size:32px;color:var(--tinta-3);font-weight:700}
+.card .r{margin-top:10px;font-size:20px;color:var(--tinta-2);line-height:1.34}
+.card.destaque{background:var(--tinta);border-color:var(--tinta)}
+.card.destaque .v{color:var(--laranja)}
+.card.destaque .r{color:#C0C0C0}
+
+/* ── linha do tempo ── */
+.tl{position:relative;width:100%}
+.tl-eixo{position:absolute;left:0;right:0;top:104px;height:3px;background:var(--linha)}
+.tl-itens{display:flex;justify-content:space-between}
+.tl-item{flex:1;padding-right:20px;position:relative}
+.tl-ponto{position:absolute;top:96px;left:0;width:18px;height:18px;border-radius:50%;
+  background:var(--laranja);border:4px solid #fff;box-shadow:0 0 0 2px var(--laranja)}
+.tl-item.forte .tl-ponto{background:var(--tinta);box-shadow:0 0 0 2px var(--tinta)}
+.tl-data{font-family:var(--mono);font-size:15px;color:var(--tinta-3)}
+.tl-era{margin-top:6px;font-size:14px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--laranja-d);min-height:36px;line-height:1.3}
+.tl-rot{margin-top:56px;font-size:20px;font-weight:800;line-height:1.24;letter-spacing:-.015em;min-height:76px}
+.tl-desc{margin-top:10px;font-size:16px;color:var(--tinta-2);line-height:1.36}
+.tl-hash{margin-top:12px;font-family:var(--mono);font-size:14px;color:var(--tinta-3)}
+
+/* ── lista editorial ── */
+.lista{display:flex;flex-direction:column;gap:20px;justify-content:center}
+.li{display:flex;gap:24px;align-items:flex-start;padding-bottom:20px;border-bottom:1px solid var(--linha)}
+.li:last-child{border-bottom:none;padding-bottom:0}
+.li .n{font-family:var(--mono);font-size:19px;color:var(--laranja-d);font-weight:700;min-width:48px;padding-top:5px}
+.li h4{font-size:28px;font-weight:900;letter-spacing:-.018em}
+.li p{margin-top:7px;font-size:20px;color:var(--tinta-2);line-height:1.4;max-width:1340px}
+
+/* ── marcadores de fato (bullets curtos) ── */
+.fatos{list-style:none;margin-top:12px}
+.fatos li{display:flex;gap:12px;margin-bottom:12px;font-size:19px;line-height:1.38;color:var(--tinta-2)}
+.fatos li::before{content:'—';color:var(--laranja);font-weight:900;flex-shrink:0}
+
+@page{size:1920px 1080px;margin:0}
+@media print{body{background:#fff}.slide+.slide{margin-top:0}}

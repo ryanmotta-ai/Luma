@@ -1,0 +1,164 @@
+[
+  {
+    "id": "M0",
+    "rotulo": "Piloto Yungas — Módulo de Artes",
+    "era": "Antes do git",
+    "data": "2026-07-15",
+    "dataExata": false,
+    "dataRotulo": "anterior a 16/07",
+    "tipo": "arquivo",
+    "arquivo": "yungas-artes-piloto.html",
+    "hash": null,
+    "hashCurto": "origem",
+    "autor": "entregue fora do repositório",
+    "porQue": "É a única evidência do produto ANTES do git. As duas raízes do repositório já contêm o app inteiro, então sem este arquivo a pergunta \"como o Luma começou?\" não teria resposta com evidência.",
+    "fatos": [
+      "Chamava-se \"Yungas · Módulo de Artes · Delivery Much\" — o nome Luma ainda não existia",
+      "1 arquivo HTML, 565.693 bytes, 9.316 linhas",
+      "Um bloco <style> e um bloco <script> — tudo no mesmo lugar",
+      "Os prefixos sagrados já estavam lá: 148 funções d*, 78 f* e 4 g*"
+    ]
+  },
+  {
+    "id": "M1",
+    "rotulo": "O que o git preserva como ponto de partida",
+    "era": "Base preservada",
+    "data": "2026-07-16",
+    "dataExata": true,
+    "tipo": "commit",
+    "hash": "89ca896",
+    "hashCurto": "89ca896",
+    "autor": "ryanmotta-ai",
+    "mensagem": "feat(desktop): app macOS — DMG universal + convenções do Mac na casca Electron",
+    "porQue": "Commit mais antigo por data-hora do repositório (16/07, 10:33). Já traz 285 arquivos e um index.html de 234.737 bytes — o git começa com o produto pronto, não com o começo dele.",
+    "fatos": [
+      "285 arquivos versionados já no commit mais antigo",
+      "index.html com 234.737 bytes; 47 arquivos em js/ e 22 em css/",
+      "Duas raízes órfãs no repositório (74d31b5 e df0c056), ambas de 16/07"
+    ]
+  },
+  {
+    "id": "M2",
+    "rotulo": "A arte dentro do celular",
+    "era": "O franqueado no celular",
+    "data": "2026-07-16",
+    "dataExata": true,
+    "tipo": "commit",
+    "hash": "57cbe74",
+    "hashCurto": "57cbe74",
+    "autor": "Claude",
+    "mensagem": "Prévia: \"Ver postado\" — a arte real dentro do celular",
+    "porQue": "Fecha a sequência de mockup do dia. O franqueado deixa de ver um arquivo e passa a ver como a arte fica publicada — que é a pergunta que ele realmente tem.",
+    "fatos": [
+      "Precedido por \"Mockup: prévia da arte no celular (Stories, Feed, WhatsApp)\"",
+      "E por \"Mockup: silhueta do iPhone 17 Pro Max (padrão premium)\"",
+      "No mesmo dia entram o PWA instalável e a casca de desktop"
+    ]
+  },
+  {
+    "id": "M3",
+    "rotulo": "A vitrine passa a ser gerida pelo banco",
+    "era": "Catálogo vivo",
+    "data": "2026-07-16",
+    "dataExata": true,
+    "tipo": "commit",
+    "hash": "247bcd4",
+    "hashCurto": "247bcd4",
+    "autor": "Pedro Moraes",
+    "mensagem": "feat(franqueado): vitrine gerida pelo banco — capa manda e pasta nova vira campanha",
+    "porQue": "Mudança estrutural de produto: a vitrine deixa de ser lista fixa em código e passa a refletir o que o time cria no Estúdio, sem deploy.",
+    "fatos": [
+      "No mesmo lote: convite de membro real por Edge Function e perfil persistido no banco",
+      "A \"Fase 2\" do seam de campanhas continua em 18/07 com 40b2587 e 8826c9e"
+    ]
+  },
+  {
+    "id": "M4",
+    "rotulo": "Endurecimento: segurança, sync e PSD",
+    "era": "Endurecimento",
+    "data": "2026-07-20",
+    "dataExata": true,
+    "tipo": "commit",
+    "hash": "bcc61e8",
+    "hashCurto": "bcc61e8",
+    "autor": "Pedro Moraes",
+    "mensagem": "fix(designer): colisao dSwapColors + ids sempre UUID",
+    "porQue": "Último commit do bloco 17–20/07, que é inteiro de robustez: z-order do PSD, raster adaptativo, gate de conta desativada, XSS residuais e fim dos \"sucessos falsos\".",
+    "fatos": [
+      "882cda0 — gate de conta desativada, XSS residuais e fim dos sucessos falsos",
+      "26e8215 — franqueado deixa de gravar base64 no banco",
+      "ed254c4 e de5659c — z-order confiável e raster adaptativo no import de PSD"
+    ]
+  },
+  {
+    "id": "M5",
+    "rotulo": "1.0 declarada",
+    "era": "A 1.0",
+    "data": "2026-07-29",
+    "dataExata": true,
+    "tipo": "commit",
+    "hash": "b29dbd8",
+    "hashCurto": "b29dbd8",
+    "autor": "ryanmotta-ai",
+    "mensagem": "toma 1.0",
+    "porQue": "É o único marco declarado pelo próprio dono do produto, não inferido por nós. Fecha o ciclo de 22/07, que foi só planejamento no luma-brain.",
+    "fatos": [
+      "22/07 tem 6 commits, todos em luma-brain/ — planejamento, nenhuma tela alterada",
+      "5067bd2 e f1984dc registram o tema Much+ ANTES de ele existir em código"
+    ]
+  },
+  {
+    "id": "M6",
+    "rotulo": "A camada de IA",
+    "era": "Recursos inteligentes",
+    "data": "2026-07-30",
+    "dataExata": true,
+    "tipo": "commit",
+    "hash": "28a93e2",
+    "hashCurto": "28a93e2",
+    "autor": "Claude",
+    "mensagem": "feat(sheets): ler cardápio em foto/PDF e casar fotos com as linhas",
+    "porQue": "Fecha a manhã de 30/07 (10:50 às 11:05), em que a IA entra como camada de produto e não como truque isolado: um motor único com Edge Function, atendendo vários recursos.",
+    "fatos": [
+      "fc36ae4 (10:50) — tubulação única de IA + encaixar texto no limite",
+      "13279fe (10:55) — ajuda responde aterrada na Central de Ajuda e cala quando não sabe",
+      "b5945db — gAiReady deixa de prometer IA onde não há caminho"
+    ]
+  },
+  {
+    "id": "M7",
+    "rotulo": "Luma CLI — o console do time",
+    "era": "Ferramenta interna",
+    "data": "2026-07-30",
+    "dataExata": true,
+    "tipo": "commit",
+    "hash": "e48b7ff",
+    "hashCurto": "e48b7ff",
+    "autor": "Claude",
+    "mensagem": "feat(cli): Luma CLI no celular, com entrada escondida no painel de perfil",
+    "porQue": "Primeira superfície do produto voltada pra quem MANTÉM o Luma, não pra quem usa. Nasceu de um incidente real de sync que era diagnosticado colando snippet no DevTools.",
+    "fatos": [
+      "c9790e8 (11:27) — o console nasce com IA, banner em pixel art e os dois temas",
+      "e48b7ff (11:41) — chega ao celular, com entrada escondida no painel de perfil",
+      "O gate por role é de UX; a fronteira de segurança continua sendo a RLS"
+    ]
+  },
+  {
+    "id": "M8",
+    "rotulo": "Estado atual",
+    "era": "Acabamento",
+    "data": "2026-07-30",
+    "dataExata": true,
+    "tipo": "commit",
+    "hash": "HEAD",
+    "hashCurto": "atual",
+    "autor": "Claude / ryanmotta-ai",
+    "mensagem": "Vitrine Much+ sóbria, revisão de UI/UX do CLI e a máquina do tempo de versões",
+    "porQue": "Ponta da branch. Os últimos commits do dia são de acabamento: mascote do CLI, revisão de UI/UX com contraste medido, tema Much+ contido e o script que torna esta apresentação reproduzível.",
+    "fatos": [
+      "9c1a83b — revisão de UI/UX do CLI com contraste medido no Chromium",
+      "7f0c1ea e da629be — tema Much+ deixa de inundar o card e vira acento",
+      "5408748 — scripts/versao.js: qualquer commit antigo volta a rodar"
+    ]
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "tela": "Estúdio — a casa do designer",
+  "area": "Designer",
+  "estado": "designer",
+  "marco": "M2",
+  "rotulo": "A arte dentro do celular",
+  "commit": "57cbe74",
+  "data": "2026-07-16",
+  "viewport": "1440x1000",
+  "tipoCaptura": "real-commit",
+  "confianca": "alto",
+  "nota": "Execução do próprio commit via git worktree, offline; Supabase zerado e sessão de demonstração injetada. O código da interface não foi alterado."
+}
