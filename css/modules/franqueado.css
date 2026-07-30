@@ -1269,9 +1269,9 @@ body.camp-theme-muchplus ::selection{background:color-mix(in srgb,var(--dm-orang
 .fh-hero[data-camp-theme="muchplus"] .fh-hero-cover{background-color:var(--white)}
 /* Sem filete: a troca de cor entre a capa e o painel já separa os dois. */
 .fh-hero[data-camp-theme="muchplus"] .fh-hero-cover::after{border-right-color:transparent}
-.fh-hero[data-camp-theme="muchplus"] .fh-hero-body{position:relative}
-.fh-hero[data-camp-theme="muchplus"] .fh-hero-body::after{content:'MUCH+';position:absolute;right:clamp(20px,3vw,48px);bottom:18px;color:color-mix(in srgb,var(--muchplus-magenta) 7%,transparent);font-size:clamp(54px,6vw,104px);font-weight:900;line-height:.8;letter-spacing:-.08em;pointer-events:none}
-.fh-hero[data-camp-theme="muchplus"] .fh-hero-body>*{position:relative;z-index:1}
+/* Sem marca d'água "MUCH+" no painel: a capa ao lado já diz a marca, e uma tipografia
+   de 100px em 7% de opacidade só suja o fundo. O position/z-index que existiam aqui
+   eram só pra ancorar e empilhar por cima dela — saíram junto. */
 /* O olho-de-boi troca de tom por tema: o #C4005B tem 6:1 sobre branco mas some no
    escuro, e o claro (#FF3D92) faz o inverso. Os chips e o nome ficam nos tokens de
    texto do app de propósito — é o que faz o card parar de gritar. */
