@@ -20,21 +20,47 @@
  */
 
 const G_CLI_ATALHO = 'Ctrl+`';
+const G_CLI_VERSION = '1.0';   // aparece no título da caixa de boas-vindas
 let _gCliMontado = false;
 let _gCliAberto = false;
 let _gCliHist = [];        // histórico de comandos (setas ↑/↓), só da sessão
 let _gCliHistIdx = -1;
 let _gCliBusy = false;
 
-/* Banner em pixel art. Blocos █ desenhando LUMA — a "cara" de CLI que todo terminal
-   tem no boot. O gradiente da marca vem do CSS (background-clip:text). */
-const G_CLI_BANNER = [
-  '██        ██    ██  ██    ██    ████  ',
-  '██        ██    ██  ███  ███   ██  ██ ',
-  '██        ██    ██  ██ ██ ██  ████████',
-  '██        ██    ██  ██    ██  ██    ██',
-  '████████   ██████   ██    ██  ██    ██'
-].join('\n');
+/* ══ BANNER ══
+   Caixa desenhada com box-drawing, no estilo dos CLIs de terminal: moldura com título,
+   mascote na coluna da esquerda e dicas na direita. Tudo é TEXTO monoespaçado — a
+   moldura é o próprio caractere, não borda de CSS, senão perde a cara de terminal.
+
+   O robô do Luma bate embaixadinha: só a BOLA e o PÉ mudam entre os quadros, então em
+   vez de 9 quadros literais existe uma base + a trajetória da bola. Menos arte pra
+   manter e a curva fica editável num lugar só. */
+const G_CLI_ROBO_W = 13;
+const G_CLI_ROBO_BASE = [
+  '             ',
+  '  ╭───────╮  ',
+  '  │ ◠   ◠ │  ',
+  '  │   ◡   │  ',
+  '  ╰──┬─┬──╯  ',
+  '   ╭─┴─┴─╮   ',
+  '   │ LUMA│   ',
+  '   ╰┬───┬╯   ',
+  '    ╵   ╵    '
+];
+// Ciclo da bola [linha, coluna]: sobe pela direita, cai no pé, é devolvida pra cima.
+const G_CLI_BOLA = [[0,10],[1,11],[2,12],[4,12],[6,11],[7,10],[8,9],[6,10],[4,11],[2,11]];
+const G_CLI_PE_CHUTE = '    ╵  ╱     '.slice(0, G_CLI_ROBO_W);
+
+function _gCliRoboFrame(i){
+  const rows = G_CLI_ROBO_BASE.slice();
+  const p = G_CLI_BOLA[i % G_CLI_BOLA.length];
+  const r = p[0], c = p[1];
+  // O pé PRIMEIRO: ele troca a linha 8 inteira e, se viesse depois, apagaria a bola
+  // justamente no quadro do contato (a bola sumia de vista no meio da embaixadinha).
+  if (r >= 7) rows[8] = G_CLI_PE_CHUTE;   // contato: o pé direito levanta pra devolver
+  rows[r] = rows[r].substring(0, c) + '●' + rows[r].substring(c + 1);
+  return rows;
+}
 
 /* ══ REGISTRO DE COMANDOS ══
    run() devolve string (ou Promise<string>) já em HTML seguro — todo dado de fora
@@ -380,13 +406,114 @@ function _gCliPrint(html, cls) {
   return l;
 }
 
-function _gCliBanner() {
+/* ══ CAIXA DE BOAS-VINDAS ══
+   Duas colunas dentro de uma moldura de texto: mascote à esquerda, contexto e dicas à
+   direita. A largura é fixa em caracteres (padEnd) porque é isso que mantém a moldura
+   fechada em fonte monoespaçada — medir em pixel aqui não fecha nunca. */
+// Largura da coluna de texto. No celular a caixa inteira (13 do robô + 3 + info) tem que
+// caber na tela sem quebrar a moldura, então a coluna encurta — a caixa é remontada a cada
+// quadro, logo ela se adapta sozinha ao girar o aparelho.
+function _gCliInfoW(){
+  return (window.matchMedia && window.matchMedia('(max-width:640px)').matches) ? 30 : 48;
+}
+let _gCliRoboTimer = null;
+let _gCliRoboI = 0;
+
+function _gCliInfoLinhas(IW) {
+  const u = (typeof gCurrentUser === 'function') ? gCurrentUser() : null;
+  const nome = (u && u.displayName ? String(u.displayName) : '').trim().split(/[\s@]/)[0] || 'você';
   const role = (typeof gCurrentRole === 'function') ? (gCurrentRole() || '?') : '?';
   const backend = (typeof gHasBackend === 'function' && gHasBackend()) ? 'Supabase' : 'local';
   const ia = (typeof gAiReady === 'function' && gAiReady()) ? ((typeof gAiModel === 'function') ? gAiModel() : 'on') : 'off';
-  _gCliPrint(`<pre class="cli-banner" aria-label="LUMA">${G_CLI_BANNER}</pre>`);
-  _gCliPrint(`<span class="cli-dim">console do Estúdio · ${gEsc(role)} · backend ${gEsc(backend)} · ia ${gEsc(ia)}</span>`);
-  _gCliPrint(`<span class="cli-dim">digite <b>ajuda</b> pra ver os comandos, ou pergunte em português.</span>\n`);
+  // Coluna estreita (celular) recebe texto CURTO, não texto cortado: fatiar a frase no
+  // meio da palavra ("radiografia do catálo") lê como bug, não como layout.
+  const curto = IW < 40;
+  return [
+    { t: '' },
+    { t: 'Console do time  ·  v' + G_CLI_VERSION, cls: 'cli-b-tit' },
+    { t: '' },
+    { t: 'Boa, ' + nome + '!', cls: 'cli-b-oi' },
+    { t: role + ' · backend ' + backend, cls: 'cli-b-meta' },
+    { t: 'ia ' + ia, cls: 'cli-b-meta' },
+    { t: 'Comece por', cls: 'cli-b-meta' },
+    { t: curto ? 'diag     estado do catálogo' : 'diag     radiografia do catálogo e do sync', cmd: 'diag' },
+    { t: curto ? 'ajuda    todos os comandos' : 'ajuda    a lista inteira de comandos', cmd: 'ajuda' }
+  ];
+}
+
+// Monta a caixa inteira em HTML. Colunas coloridas por span; o padding é feito no TEXTO
+// antes de virar HTML, senão a moldura desalinha.
+function _gCliCaixaHTML(frame) {
+  const robo = _gCliRoboFrame(frame);
+  const tit = ' Luma CLI ';
+  // MIOLO = tudo entre as duas bordas verticais. A linha de conteúdo é
+  // │ + robô(13) + ' │ '(3) + info(IW) + │ — os três (topo, conteúdo, base) fecham na
+  // mesma largura. Errar essa conta por 2 já deixou a moldura aberta do lado direito.
+  const IW = _gCliInfoW();
+  const info = _gCliInfoLinhas(IW);
+  const miolo = G_CLI_ROBO_W + 3 + IW;
+  // Título destacado como nas referências: os traços ficam esmaecidos, o nome não.
+  const topo = `<span class="cli-fr">╭─</span><span class="cli-b-tit">${gEsc(tit)}</span>`
+    + `<span class="cli-fr">${'─'.repeat(Math.max(0, miolo - 1 - tit.length))}╮</span>`;
+  const base = `<span class="cli-fr">╰${'─'.repeat(miolo)}╯</span>`;
+  const linhas = robo.map((r, i) => {
+    const it = info[i] || { t: '' };
+    const txt = String(it.t).padEnd(IW).slice(0, IW);
+    // Linha de comando: o nome sai em laranja e a descrição esmaecida. O corte é feito
+    // no texto JÁ preenchido, então o padding (e a moldura) não se mexe.
+    const corpo = it.cmd
+      ? `<span class="cli-b-cmd">${gEsc(txt.slice(0, it.cmd.length))}</span><span class="cli-b-dica">${gEsc(txt.slice(it.cmd.length))}</span>`
+      : `<span class="${it.cls || 'cli-dim'}">${gEsc(txt)}</span>`;
+    return '<span class="cli-fr">│</span>' + `<span class="cli-robo">${r}</span>`
+      + '<span class="cli-fr"> │ </span>' + corpo + '<span class="cli-fr">│</span>';
+  });
+  return topo + '\n' + linhas.join('\n') + '\n' + base;
+}
+
+function _gCliBanner() {
+  const box = _gCliPrint(_gCliCaixaHTML(0), 'cli-banner');
+  if (box) box.id = 'cli-banner-box';
+  _gCliPrint(`<span class="cli-dim">digite um comando, ou pergunte em português — <b>Tab</b> completa, <b>↑</b> repete.</span>\n`);
+  _gCliRoboStart();
+}
+
+// A embaixadinha roda enquanto o console está aberto. Um timer só, parado no fechar.
+// prefers-reduced-motion: fica no quadro parado (a caixa não perde nada).
+function _gCliRoboStart() {
+  _gCliRoboStop();
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  _gCliRoboTimer = setInterval(() => {
+    const box = document.getElementById('cli-banner-box');
+    if (!box || !_gCliAberto) { _gCliRoboStop(); return; }
+    box.innerHTML = _gCliCaixaHTML(++_gCliRoboI);
+  }, 130);
+}
+function _gCliRoboStop() {
+  if (_gCliRoboTimer) { clearInterval(_gCliRoboTimer); _gCliRoboTimer = null; }
+}
+
+/* ══ SPINNER DE LINHA ══
+   O "sinalzinho rodando" enquanto o comando (ou a IA) trabalha: gira no lugar, conta o
+   tempo depois de 1s e é REMOVIDO quando a resposta chega — a linha do spinner não fica
+   como histórico falso. Caracteres de quadrante existem em qualquer fonte mono (o braille
+   dos CLIs de terminal viraria caixinha em parte dos sistemas). */
+const G_CLI_SPIN = ['▖', '▘', '▝', '▗'];
+function _gCliSpinStart(rotulo) {
+  const el = _gCliPrint(`<span class="cli-sp">${G_CLI_SPIN[0]}</span> <span class="cli-dim">${gEsc(rotulo)}</span>`, 'cli-out');
+  if (!el) return null;
+  const t0 = Date.now();
+  let i = 0;
+  const timer = setInterval(() => {
+    const s = Math.floor((Date.now() - t0) / 1000);
+    el.innerHTML = `<span class="cli-sp">${G_CLI_SPIN[++i % G_CLI_SPIN.length]}</span> `
+      + `<span class="cli-dim">${gEsc(rotulo)}${s >= 1 ? ' (' + s + 's)' : ''}</span>`;
+  }, 120);
+  return { el, timer };
+}
+function _gCliSpinStop(h) {
+  if (!h) return;
+  clearInterval(h.timer);
+  if (h.el && h.el.parentNode) h.el.remove();
 }
 
 async function _gCliExec(linha) {
@@ -404,12 +531,18 @@ async function _gCliExec(linha) {
 
   _gCliBusy = true;
   const spin = document.getElementById('cli-spin'); if (spin) spin.classList.add('on');
+  // Rótulo honesto: comando "roda", IA "pensa". Nada de barra de progresso falsa —
+  // não há como saber a fração de nada disso.
+  const linha_spin = _gCliSpinStart(cmd ? 'rodando ' + nome + '…' : 'pensando…');
   try {
     const out = await exec();
+    _gCliSpinStop(linha_spin);
     if (out) _gCliPrint(out, 'cli-out');
   } catch (e) {
+    _gCliSpinStop(linha_spin);
     _gCliPrint(`<span class="cli-err">estourou: ${gEsc(String(e && e.message || e))}</span>`, 'cli-out');
   } finally {
+    _gCliSpinStop(linha_spin);
     _gCliBusy = false;
     if (spin) spin.classList.remove('on');
     const body = _gCliBody(); if (body) body.scrollTop = body.scrollHeight;
@@ -465,7 +598,8 @@ function gCliOpen() {
   document.body.classList.add('cli-on');
   const rl = document.getElementById('cli-role');
   if (rl) rl.textContent = (typeof gCurrentRole === 'function') ? (gCurrentRole() || '') : '';
-  if (!_gCliBody().childElementCount) _gCliBanner();
+  // 1ª abertura desenha a caixa; reabrir só religa a embaixadinha (o histórico fica).
+  if (!_gCliBody().childElementCount) _gCliBanner(); else _gCliRoboStart();
   // No celular o foco imediato abre o teclado e cobre o banner: quem quiser digitar
   // toca no campo (ou num chip). No desktop o foco entra na hora, como todo terminal.
   const ehToque = window.matchMedia && window.matchMedia('(max-width:640px)').matches;
@@ -477,6 +611,7 @@ function gCliClose() {
   if (el) { el.classList.remove('open'); el.style.bottom = ''; }
   document.body.classList.remove('cli-on');
   _gCliAberto = false;
+  _gCliRoboStop();   // console fechado não fica com timer girando atrás
 }
 function gCliToggle() { _gCliAberto ? gCliClose() : gCliOpen(); }
 

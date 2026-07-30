@@ -64,15 +64,41 @@
 .cli-dot.warn{background:var(--dm-yellow)}
 .cli-dot.err{background:var(--dm-red)}
 
-/* Banner em pixel art: os blocos ganham o gradiente da marca via clip no texto.
-   line-height 1 pra os blocos se encostarem e virarem desenho, não texto. */
-.cli-banner{
-  margin:2px 0 8px;font-family:inherit;font-size:10px;line-height:1;letter-spacing:0;
-  background:linear-gradient(100deg,var(--dm-orange) 0%,var(--dm-yellow) 62%,var(--dm-orange-d) 100%);
-  -webkit-background-clip:text;background-clip:text;color:transparent;
-  animation:cliBanner var(--dur-slow) var(--ease-out) both;
+/* ── CAIXA DE BOAS-VINDAS (js: _gCliCaixaHTML) ──
+   A moldura é CARACTERE, não borda de CSS: é o que dá a cara de terminal e o que mantém
+   o alinhamento em qualquer largura. line-height apertado pra a moldura se fechar
+   verticalmente (com 1.55 do corpo os traços ficariam soltos). */
+.cli-banner{margin:2px 0 10px;line-height:1.12;letter-spacing:0;animation:cliBanner var(--dur-slow) var(--ease-out) both}
+@keyframes cliBanner{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.cli-fr{color:var(--dm-orange-d);opacity:.55}                 /* traços da moldura */
+.cli-robo{color:var(--dm-orange)}                             /* o mascote */
+/* ⚠ NADA de letter-spacing aqui dentro: a caixa é monoespaçada e qualquer espaçamento
+   extra num span soma largura só naquela linha — a borda da direita sai do lugar. */
+.cli-b-tit{color:var(--dm-yellow);font-weight:700}
+.cli-b-cmd{color:var(--dm-orange);font-weight:700}
+.cli-b-oi{color:var(--d-text);font-weight:700}
+.cli-b-meta{color:var(--d-text3)}
+.cli-b-dica{color:var(--d-text2)}
+body.theme-light .cli-fr{color:var(--dm-orange-d);opacity:.7}
+body.theme-light .cli-b-tit,body.theme-light .cli-b-cmd{color:var(--dm-orange-d)}
+body.theme-light .cli-b-oi{color:var(--text)}
+body.theme-light .cli-b-meta{color:var(--text-3)}
+body.theme-light .cli-b-dica{color:var(--text-2)}
+
+/* Spinner de linha: o "sinalzinho rodando" enquanto o comando/IA trabalha. O caractere
+   troca no JS; aqui só a cor e um respiro de opacidade pra ele parecer vivo. */
+.cli-sp{color:var(--dm-orange);animation:cliSpPulse 1.2s ease-in-out infinite}
+@keyframes cliSpPulse{0%,100%{opacity:1}50%{opacity:.45}}
+body.theme-light .cli-sp{color:var(--dm-orange-d)}
+
+/* Cada linha nova entra com um deslize curto — é o que dá ritmo de terminal em vez de
+   texto aparecendo seco. Curto de propósito: 1 linha de saída pode ter 30 dessas. */
+.cli-line{animation:cliLineIn 160ms var(--ease-out) both}
+@keyframes cliLineIn{from{opacity:0;transform:translateY(2px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){
+  .cli-line,.cli-banner{animation:none}
+  .cli-sp{animation:none}
 }
-@keyframes cliBanner{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 
 /* Sugestão de comando vinda da IA — pré-preenche o campo, nunca executa sozinha. */
 .cli-sug{font-family:inherit;font-size:11.5px;font-weight:700;cursor:pointer;
