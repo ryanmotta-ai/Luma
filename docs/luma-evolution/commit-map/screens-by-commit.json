@@ -105,27 +105,77 @@
     "hash": "89ca896",
     "cenas": [
       {
-        "cena": "home",
-        "titulo": "Vitrine do franqueado",
-        "area": "Franqueado",
+        "cena": "login",
+        "titulo": "Entrada — a porta do produto",
+        "area": "Acesso",
         "ok": true,
-        "arquivo": "01_home_2026-07-16_89ca896_1440x1000.png",
+        "arquivo": "09_login_2026-07-16_89ca896_1440x1000.png",
         "viewport": "1440x1000",
         "motivo": null,
         "erroPagina": []
       },
       {
-        "cena": "home-mobile",
-        "titulo": "Vitrine no celular",
+        "cena": "perfil",
+        "titulo": "Perfil do usuário",
+        "area": "Núcleo",
+        "ok": true,
+        "arquivo": "10_perfil_2026-07-16_89ca896_1440x1000.png",
+        "viewport": "1440x1000",
+        "motivo": null,
+        "erroPagina": []
+      },
+      {
+        "cena": "novo-material",
+        "titulo": "Criar material do zero",
+        "area": "Designer",
+        "ok": true,
+        "arquivo": "12_novo-material_2026-07-16_89ca896_1440x1000.png",
+        "viewport": "1440x1000",
+        "motivo": null,
+        "erroPagina": []
+      },
+      {
+        "cena": "psd",
+        "titulo": "Importar PSD do Photoshop",
+        "area": "Designer",
+        "ok": true,
+        "arquivo": "13_psd_2026-07-16_89ca896_1440x1000.png",
+        "viewport": "1440x1000",
+        "motivo": null,
+        "erroPagina": []
+      },
+      {
+        "cena": "atalhos",
+        "titulo": "Atalhos do Estúdio",
+        "area": "Designer",
+        "ok": true,
+        "arquivo": "14_atalhos_2026-07-16_89ca896_1440x1000.png",
+        "viewport": "1440x1000",
+        "motivo": null,
+        "erroPagina": []
+      },
+      {
+        "cena": "catalogo-mobile",
+        "titulo": "Campanha aberta no celular",
         "area": "Franqueado",
         "ok": true,
-        "arquivo": "10_home-mobile_2026-07-16_89ca896_390x844.png",
+        "arquivo": "15_catalogo-mobile_2026-07-16_89ca896_390x844.png",
+        "viewport": "390x844",
+        "motivo": null,
+        "erroPagina": []
+      },
+      {
+        "cena": "chat-mobile",
+        "titulo": "O chat no celular",
+        "area": "Franqueado",
+        "ok": true,
+        "arquivo": "16_chat-mobile_2026-07-16_89ca896_390x844.png",
         "viewport": "390x844",
         "motivo": null,
         "erroPagina": []
       }
     ],
-    "duracao": "37s"
+    "duracao": "147s"
   },
   {
     "marco": "M2",
@@ -192,27 +242,77 @@
     "hash": "bcc61e8",
     "cenas": [
       {
-        "cena": "home",
-        "titulo": "Vitrine do franqueado",
-        "area": "Franqueado",
+        "cena": "login",
+        "titulo": "Entrada — a porta do produto",
+        "area": "Acesso",
         "ok": true,
-        "arquivo": "01_home_2026-07-20_bcc61e8_1440x1000.png",
+        "arquivo": "09_login_2026-07-20_bcc61e8_1440x1000.png",
         "viewport": "1440x1000",
         "motivo": null,
         "erroPagina": []
       },
       {
-        "cena": "home-mobile",
-        "titulo": "Vitrine no celular",
+        "cena": "perfil",
+        "titulo": "Perfil do usuário",
+        "area": "Núcleo",
+        "ok": true,
+        "arquivo": "10_perfil_2026-07-20_bcc61e8_1440x1000.png",
+        "viewport": "1440x1000",
+        "motivo": null,
+        "erroPagina": []
+      },
+      {
+        "cena": "novo-material",
+        "titulo": "Criar material do zero",
+        "area": "Designer",
+        "ok": true,
+        "arquivo": "12_novo-material_2026-07-20_bcc61e8_1440x1000.png",
+        "viewport": "1440x1000",
+        "motivo": null,
+        "erroPagina": []
+      },
+      {
+        "cena": "psd",
+        "titulo": "Importar PSD do Photoshop",
+        "area": "Designer",
+        "ok": true,
+        "arquivo": "13_psd_2026-07-20_bcc61e8_1440x1000.png",
+        "viewport": "1440x1000",
+        "motivo": null,
+        "erroPagina": []
+      },
+      {
+        "cena": "atalhos",
+        "titulo": "Atalhos do Estúdio",
+        "area": "Designer",
+        "ok": true,
+        "arquivo": "14_atalhos_2026-07-20_bcc61e8_1440x1000.png",
+        "viewport": "1440x1000",
+        "motivo": null,
+        "erroPagina": []
+      },
+      {
+        "cena": "catalogo-mobile",
+        "titulo": "Campanha aberta no celular",
         "area": "Franqueado",
         "ok": true,
-        "arquivo": "10_home-mobile_2026-07-20_bcc61e8_390x844.png",
+        "arquivo": "15_catalogo-mobile_2026-07-20_bcc61e8_390x844.png",
+        "viewport": "390x844",
+        "motivo": null,
+        "erroPagina": []
+      },
+      {
+        "cena": "chat-mobile",
+        "titulo": "O chat no celular",
+        "area": "Franqueado",
+        "ok": true,
+        "arquivo": "16_chat-mobile_2026-07-20_bcc61e8_390x844.png",
         "viewport": "390x844",
         "motivo": null,
         "erroPagina": []
       }
     ],
-    "duracao": "37s"
+    "duracao": "147s"
   },
   {
     "marco": "M5",
@@ -384,66 +484,6 @@
     "hash": "HEAD",
     "cenas": [
       {
-        "cena": "home",
-        "titulo": "Vitrine do franqueado",
-        "area": "Franqueado",
-        "ok": true,
-        "arquivo": "01_home_2026-07-30_atual_1440x1000.png",
-        "viewport": "1440x1000",
-        "motivo": null,
-        "erroPagina": []
-      },
-      {
-        "cena": "catalogo",
-        "titulo": "Campanha aberta — materiais",
-        "area": "Franqueado",
-        "ok": true,
-        "arquivo": "02_catalogo_2026-07-30_atual_1440x1000.png",
-        "viewport": "1440x1000",
-        "motivo": null,
-        "erroPagina": []
-      },
-      {
-        "cena": "chat",
-        "titulo": "Chat que monta a arte",
-        "area": "Franqueado",
-        "ok": true,
-        "arquivo": "03_chat_2026-07-30_atual_1440x1000.png",
-        "viewport": "1440x1000",
-        "motivo": null,
-        "erroPagina": []
-      },
-      {
-        "cena": "minhas-artes",
-        "titulo": "Minhas artes — histórico",
-        "area": "Franqueado",
-        "ok": true,
-        "arquivo": "04_minhas-artes_2026-07-30_atual_1440x1000.png",
-        "viewport": "1440x1000",
-        "motivo": null,
-        "erroPagina": []
-      },
-      {
-        "cena": "designer",
-        "titulo": "Estúdio — a casa do designer",
-        "area": "Designer",
-        "ok": true,
-        "arquivo": "05_designer_2026-07-30_atual_1440x1000.png",
-        "viewport": "1440x1000",
-        "motivo": null,
-        "erroPagina": []
-      },
-      {
-        "cena": "exportar",
-        "titulo": "Exportar arte",
-        "area": "Designer",
-        "ok": true,
-        "arquivo": "06_exportar_2026-07-30_atual_1440x1000.png",
-        "viewport": "1440x1000",
-        "motivo": null,
-        "erroPagina": []
-      },
-      {
         "cena": "ajuda",
         "titulo": "Central de ajuda",
         "area": "Suporte",
@@ -452,38 +492,8 @@
         "viewport": "1440x1000",
         "motivo": "tela não existe nesta versão",
         "erroPagina": []
-      },
-      {
-        "cena": "cli",
-        "titulo": "Luma CLI — console do time",
-        "area": "Interno",
-        "ok": true,
-        "arquivo": "08_cli_2026-07-30_atual_1440x1000.png",
-        "viewport": "1440x1000",
-        "motivo": null,
-        "erroPagina": []
-      },
-      {
-        "cena": "muchplus",
-        "titulo": "Much+ — o tema por campanha",
-        "area": "Franqueado",
-        "ok": true,
-        "arquivo": "09_muchplus_2026-07-30_atual_1440x1000.png",
-        "viewport": "1440x1000",
-        "motivo": null,
-        "erroPagina": []
-      },
-      {
-        "cena": "home-mobile",
-        "titulo": "Vitrine no celular",
-        "area": "Franqueado",
-        "ok": true,
-        "arquivo": "10_home-mobile_2026-07-30_atual_390x844.png",
-        "viewport": "390x844",
-        "motivo": null,
-        "erroPagina": []
       }
     ],
-    "duracao": "183s"
+    "duracao": "20s"
   }
 ]

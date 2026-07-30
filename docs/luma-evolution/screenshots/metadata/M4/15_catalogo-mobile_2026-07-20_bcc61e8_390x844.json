@@ -1,0 +1,13 @@
+{
+  "tela": "Campanha aberta no celular",
+  "area": "Franqueado",
+  "estado": "catalogo-mobile",
+  "marco": "M4",
+  "rotulo": "Endurecimento: segurança, sync e PSD",
+  "commit": "bcc61e8",
+  "data": "2026-07-20",
+  "viewport": "390x844",
+  "tipoCaptura": "real-commit",
+  "confianca": "alto",
+  "nota": "Execução do próprio commit via git worktree, offline; Supabase zerado e sessão de demonstração injetada. O código da interface não foi alterado."
+}

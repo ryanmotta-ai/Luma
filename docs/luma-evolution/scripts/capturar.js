@@ -62,14 +62,24 @@ function comTeto(promessa, ms, fallback) {
 function servidor(dir, porta) {
   return new Promise((resolve, reject) => {
     const s = http.createServer((req, res) => {
-      const rel = decodeURIComponent(req.url.split('?')[0]);
+      const [caminho, query] = req.url.split('?');
+      const rel = decodeURIComponent(caminho);
       const alvo = path.join(dir, rel === '/' ? 'index.html' : rel);
       if (!alvo.startsWith(dir)) { res.writeHead(403).end(); return; }
       fs.readFile(alvo, (e, buf) => {
         if (e) { res.writeHead(404).end('404'); return; }
+        let corpo = buf;
+        // ?semdemo=1 → devolve o HTML SEM a injeção de sessão que o versao.js coloca.
+        // É o único jeito de fotografar a tela de login: a sessão demo a substitui antes
+        // de qualquer print. O arquivo em disco não é tocado.
+        if (query && query.includes('semdemo') && alvo.endsWith('.html')) {
+          const txt = buf.toString('utf8');
+          const i = txt.indexOf('<!-- luma:versao -->');
+          if (i >= 0) corpo = Buffer.from(txt.slice(0, i) + '</body>', 'utf8');
+        }
         res.writeHead(200, { 'Content-Type': TIPOS[path.extname(alvo).toLowerCase()] || 'application/octet-stream',
                              'Cache-Control': 'no-store' });
-        res.end(buf);
+        res.end(corpo);
       });
     });
     s.once('error', reject);
@@ -134,9 +144,14 @@ async function capturarMarco(marco, porta) {
       let ok = false, motivo = '', arq = null;
       const tc = Date.now();
       try {
-        await comTeto(p.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 }), 22000, null);
-        const subiu = await esperarBoot(p);
-        if (!subiu) motivo = 'o app não montou a tempo';
+        const alvoUrl = cena.semSessao ? url + '?semdemo=1' : url;
+        await comTeto(p.goto(alvoUrl, { waitUntil: 'domcontentloaded', timeout: 20000 }), 22000, null);
+        if (cena.semSessao) {
+          await p.waitForTimeout(4000);   // sem sessão o boot decide rápido e para no login
+        } else {
+          const subiu = await esperarBoot(p);
+          if (!subiu) motivo = 'o app não montou a tempo';
+        }
 
         // A cena inteira corre sob teto: nenhuma navegação interna pendura o pipeline.
         ok = await comTeto(cena.montar(p), TETO_CENA, false);

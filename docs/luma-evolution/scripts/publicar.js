@@ -94,6 +94,22 @@ ${corpo}
       const chars = (s.innerText || '').replace(/\s+/g, ' ').trim().length;
       if (chars > 1500) prob.push({ t: 'slide-denso', el: '(slide)', d: chars + ' caracteres' });
 
+      // Sobreposição com a faixa de conclusão. A conclusão é `position:absolute`, então
+      // texto do corpo passando por baixo dela não conta como "fora da página" — mas
+      // aparece cortado no slide. Aconteceu: a quarta diferença sumia atrás da barra.
+      const concl = s.querySelector('.conclusao');
+      if (concl && getComputedStyle(concl).position === 'absolute') {
+        const rc = concl.getBoundingClientRect();
+        s.querySelectorAll('.corpo *').forEach(e => {
+          if (!(e.textContent || '').trim() || e.children.length) return;
+          const re = e.getBoundingClientRect();
+          if (re.bottom > rc.top + 4 && re.top < rc.bottom - 4 && re.right > rc.left && re.left < rc.right) {
+            prob.push({ t: 'sob-a-conclusao', el: (e.className || e.tagName).toString().slice(0, 28),
+              d: `"${e.textContent.trim().slice(0, 34)}"` });
+          }
+        });
+      }
+
       const fundoSlide = getComputedStyle(s).backgroundColor;
       s.querySelectorAll('.sub,.nota,.card .r,.li p,.conclusao,.csub,.psec,.tl-desc').forEach(e => {
         if (!(e.textContent || '').trim()) return;

@@ -177,9 +177,9 @@ function tres({ cena, kicker, titulo, versoes, conclusao, nota }) {
   const ok = versoes.filter(v => tem(v.marco, cena));
   if (ok.length < 2) { console.error(`  (slide "${titulo}" pulado — falta captura de ${cena})`); return false; }
   add(`<section class="slide">${topo(kicker, ok.map(v => quando(marco(v.marco))).join(' → '))}
-    <div class="corpo" style="bottom:186px">
-      <h2 class="titulo" style="font-size:46px;margin-bottom:20px">${esc(titulo)}</h2>
-      <div class="t3" style="height:calc(100% - 74px)">
+    <div class="corpo" style="bottom:238px">
+      <h2 class="titulo" style="font-size:44px;margin-bottom:18px">${esc(titulo)}</h2>
+      <div class="t3" style="height:calc(100% - 70px)">
         ${ok.map(v => `<div class="t3-col${v.marco === 'M8' ? ' atual' : ''}">
           <div class="t3-img" style="--ar:${ar(img(v.marco, cena))}"><img src="${img(v.marco, cena)}" alt="${esc(v.rotulo)}"></div>
           <div class="t3-cab"><span class="r">${esc(v.rotulo)}</span>
@@ -239,7 +239,7 @@ function detalhe({ kicker, titulo, cena, regiao, versoes, conclusao, nota }) {
   const prop = (1440 / (10 * h)).toFixed(3);
   const posY = (y / (100 - h) * 100).toFixed(2);
   add(`<section class="slide">${topo(kicker, 'mesma faixa da tela, ampliada')}
-    <div class="corpo" style="bottom:196px">
+    <div class="corpo" style="bottom:224px">
       <h2 class="titulo" style="font-size:46px;margin-bottom:18px">${esc(titulo)}</h2>
       <div class="det" style="height:calc(100% - 72px)">
         ${disponiveis.map(v => `<div class="det-linha">
@@ -657,6 +657,82 @@ Esta chegou certa no primeiro dia. O trabalho foi fazer o dado sobreviver por tr
 ~45s.`
 });
 
+tres({
+  cena: 'login', kicker: 'Comparação · A porta do produto',
+  titulo: 'A tela de entrada, nos três pontos',
+  versoes: [
+    { marco: 'M1', rotulo: 'Primeiro commit', difs: [
+      'Cartão branco no centro de um fundo <b>laranja chapado</b>.',
+      'Logo, dois campos, um botão. <b>Nada além do formulário</b>.',
+      { t: 'Não diz o que é o Luma nem para quem.', nao: true }
+    ]},
+    { marco: 'M4', rotulo: 'Véspera da 1.0', difs: [
+      '<b>Idêntica</b> à do primeiro commit.',
+      'O produto chegou à 1.0 com a porta ainda anônima.'
+    ]},
+    { marco: 'M8', rotulo: 'Hoje', difs: [
+      'Vira <b>duas colunas</b>: proposta à esquerda, formulário à direita.',
+      'Promete em uma frase: <b>"Arte de agência, pronta em um minuto."</b>',
+      'Mostra <b>artes reais</b> — Much+, Combos, Desconto em Dobro.',
+      'Declara o público: <b>acesso restrito a franqueados e equipe</b>.'
+    ]}
+  ],
+  conclusao: 'A tela que <b>mais mudou de função</b> em todo o produto: era só uma catraca e virou a primeira peça de comunicação — quem chega já entende o que o Luma faz antes de digitar a senha.',
+  nota: `Comece por aqui se tiver pouco tempo: é a comparação mais imediata da apresentação.
+Repare que as artes na coluna esquerda são materiais reais do catálogo, não ilustração.
+~50s.`
+});
+
+tres({
+  cena: 'perfil', kicker: 'Comparação · Conta e permissões',
+  titulo: 'O painel de conta, nos três pontos',
+  versoes: [
+    { marco: 'M1', rotulo: 'Primeiro commit', difs: [
+      'Modal pequeno com <b>Dados, Segurança, Estatísticas e Equipe</b>.',
+      'E-mail é <b>campo editável comum</b>.',
+      'Tema fica junto dos dados pessoais, sem explicação.'
+    ]},
+    { marco: 'M4', rotulo: 'Véspera da 1.0', difs: [
+      'Mesma estrutura.',
+      'O período endureceu o que está <b>atrás</b> desta tela: gate de conta desativada e convite real por Edge Function.'
+    ]},
+    { marco: 'M8', rotulo: 'Hoje', difs: [
+      'Vira painel largo, <b>"Conta e gestão"</b>, com conteúdo em cards.',
+      'O rail mostra o <b>nível de acesso</b>: Equipe marcada ADMIN, Console marcado DEV.',
+      'E-mail fica <b>travado</b>, com o motivo escrito ao lado.',
+      '"Atividade" entra no lugar de "Estatísticas".'
+    ]}
+  ],
+  conclusao: 'A conta deixou de ser um formulário e virou o lugar onde <b>a permissão fica visível</b>. O e-mail travado com explicação é a diferença entre um campo que falha e um campo que ensina.',
+  nota: `Slide bom para quem cuida de acesso. O selo DEV ao lado de Console é a entrada do Luma CLI aparecendo na interface — antes era só atalho de teclado.
+~50s.`
+});
+
+tres({
+  cena: 'chat-mobile', kicker: 'Comparação · O chat no celular',
+  titulo: 'O preenchimento no telefone, nos três pontos',
+  versoes: [
+    { marco: 'M1', rotulo: 'Primeiro commit', difs: [
+      'Cabeçalho repete <b>"Material em edição"</b>; duas frases antes de perguntar.',
+      'Bloco <b>"Criar várias de uma vez"</b> disputa espaço com o passo 1.',
+      'A prévia é um <b>botão de olho</b>: para ver a arte, é preciso abrir.'
+    ]},
+    { marco: 'M4', rotulo: 'Véspera da 1.0', difs: [
+      'Mesmo texto e mesmo cabeçalho.',
+      'O botão de olho vira <b>miniatura da arte</b>, sempre visível no canto.'
+    ]},
+    { marco: 'M8', rotulo: 'Hoje', difs: [
+      'Cabeçalho traz <b>campanha e formato</b>, só o necessário.',
+      'Uma frase antes de perguntar, no lugar de duas.',
+      'O campo em edição vira <b>chip</b> dentro da pergunta.'
+    ]}
+  ],
+  conclusao: 'No telefone cada linha custa caro. A miniatura chegou <b>antes da 1.0</b>; o que veio depois foi o corte de texto — o cabeçalho e a introdução encolheram para sobrar tela.',
+  nota: `A miniatura flutuante é a "prévia viva" de 16/07 chegando ao chat: no celular, ver a arte enquanto responde é a diferença entre confiar e conferir depois.
+Repare que aqui a coluna do meio JÁ difere da primeira — é a exceção no bloco.
+~45s.`
+});
+
 // ── recortes ampliados ──
 detalhe({
   kicker: 'Detalhe · Identidade', titulo: 'A barra superior, ampliada',
@@ -803,9 +879,12 @@ O item 5 é meta — a ferramenta que reabre versões antigas é a que gerou est
   obs: 'Síntese de commit-map/luma-timeline.md e docs/LUMA-BACKEND-CHANGELOG.md.' });
 
 // ══ 21 · O LUMA ATUAL ═══════════════════════════════════════════════════════
-const galeria = ['home', 'catalogo', 'chat', 'minhas-artes', 'designer', 'exportar', 'cli', 'muchplus'].filter(c => tem('M8', c));
+const galeria = ['home', 'catalogo', 'chat', 'minhas-artes', 'designer', 'exportar', 'cli', 'muchplus', 'login', 'perfil', 'novo-material', 'psd', 'atalhos', 'catalogo-mobile', 'chat-mobile'].filter(c => tem('M8', c));
 const ROT = { home:'Vitrine', catalogo:'Campanha aberta', chat:'Chat que monta a arte', 'minhas-artes':'Minhas artes',
-              designer:'Estúdio', exportar:'Exportar', cli:'Console do time', muchplus:'Tema Much+' };
+              designer:'Estúdio', exportar:'Exportar', cli:'Console do time', muchplus:'Tema Much+',
+              login:'Entrada', perfil:'Conta e gestão', 'novo-material':'Criar material',
+              psd:'Importar PSD', atalhos:'Atalhos do Estúdio',
+              'catalogo-mobile':'Campanha no celular', 'chat-mobile':'Chat no celular' };
 const DESC = {
   home: 'Saudação, busca com exemplo, campanha da semana em destaque e a grade de prontas para usar.',
   catalogo: 'Materiais da campanha com capa real, formato e validade — e a prévia esperando à direita.',
@@ -814,7 +893,14 @@ const DESC = {
   designer: 'Três portas de entrada e a biblioteca do time, com busca e filtro por campanha e status.',
   exportar: 'PNG, JPG, SVG e PSD, com escala 2× e seleção de pranchetas em lote.',
   cli: 'Diagnóstico de sync, catálogo, cache e banco em comandos nomeados — e IA no mesmo campo.',
-  muchplus: 'A campanha que re-tokeniza o app inteiro: mesma estrutura, outra marca.'
+  muchplus: 'A campanha que re-tokeniza o app inteiro: mesma estrutura, outra marca.',
+  login: 'Proposta de valor à esquerda, formulário à direita, acesso declarado no rodapé.',
+  perfil: 'Dados, segurança, atividade, equipe e console — com o nível de acesso à vista.',
+  'novo-material': 'Presets por canal, medida livre, campanha de destino e pré-visualização.',
+  psd: 'Camadas do Photoshop chegam editáveis, com z-order confiável.',
+  atalhos: 'A folha de atalhos do Estúdio, para quem trabalha sem tirar a mão do teclado.',
+  'catalogo-mobile': 'A campanha no telefone, com os materiais em coluna única.',
+  'chat-mobile': 'Cinco passos no celular, com a arte em miniatura flutuante.'
 };
 // Três por slide: acima disso o quadro encolhe e a legenda deixa de ser verificável.
 for (let i = 0; i < galeria.length; i += 3) {

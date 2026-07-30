@@ -18,9 +18,9 @@ O que não foi possível recuperar, e por quê. Escrito para que nenhuma lacuna 
 
 ## 2. O histórico versionado cobre 15 dias
 
-71 commits entre 2026-07-16 e 2026-07-30, de 3 autores (Claude, ryanmotta-ai, Pedro Moraes). Sem tags, sem releases, sem branches de release. Metade dos commits é do primeiro dia.
+72 commits entre 2026-07-16 e 2026-07-30, de 3 autores (Claude, ryanmotta-ai, Pedro Moraes). Sem tags, sem releases, sem branches de release. Metade dos commits é do primeiro dia.
 
-**Consequência para a narrativa.** Não existem eras de meses ou anos. Os marcos foram agrupados pelo que mudou, não por período longo — e a apresentação diz isso num slide próprio, para que ninguém leia "71 commits" como o tamanho do trabalho.
+**Consequência para a narrativa.** Não existem eras de meses ou anos. Os marcos foram agrupados pelo que mudou, não por período longo — e a apresentação diz isso num slide próprio, para que ninguém leia "72 commits" como o tamanho do trabalho.
 
 ---
 
@@ -40,11 +40,15 @@ Uma cena que não é capturada **não é falha de captura**: na maioria dos caso
 |---|---|---|
 | A tela não existia naquele commit | Ex.: o Luma CLI só existe a partir de 30/07 | Slide sem "antes", com etiqueta **novo** |
 | A tela exige um template salvo no banco | O canvas do Estúdio e o fluxo de publicar dependem de conteúdo que, offline, não existe | Fica de fora; a home do Estúdio entra no lugar |
-| O widget mudou de gatilho entre versões | A Central de Ajuda é um FAB cujo id mudou; onde o seletor não casa, a cena reporta ausência | Fica de fora daquela versão |
+| O widget mudou de gatilho entre versões | A Central de Ajuda hoje é `#luma-widget-modal`; era `#fhw` | Fica de fora |
 
 O detalhe por marco está em `reports/runtime-<marco>.md`, com a lista exata do que capturou e do que não capturou, e o motivo de cada caso.
 
-**Cenas deliberadamente fora do conjunto:** a tela de login (o boot assume a sessão de demonstração antes de ela ser fotografável), o canvas do Estúdio com template aberto e o fluxo de publicar — as duas últimas dependem de dado no banco.
+**A Central de Ajuda é o caso não resolvido.** O widget existe e abre quando chamado à mão numa sondagem, mas não abre pela cena automatizada — três tentativas, com `gFraHelpOpen`, `gOpenHelp` e clique no FAB. Como a apresentação não depende dessa tela, ela ficou de fora em vez de consumir mais tempo. A cena continua em `cenas.js`: se alguém descobrir o gatilho, é uma linha.
+
+**A tela de login deixou de ser uma lacuna.** Ela era invisível à captura porque o `versao.js` injeta uma sessão de demonstração que a substitui antes de qualquer print. O servidor do capturador passou a aceitar `?semdemo=1`, que devolve o HTML sem essa injeção — o arquivo em disco não é tocado. Hoje o login está capturado nos três pontos de comparação.
+
+**Cenas ainda fora do conjunto:** o canvas do Estúdio com template aberto e o fluxo de publicar — as duas dependem de conteúdo salvo no banco, que offline não existe.
 
 ---
 

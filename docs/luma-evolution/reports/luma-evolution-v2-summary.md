@@ -4,7 +4,7 @@ Resumo do que foi entregue, com o que sustenta cada parte.
 
 ```
 docs/luma-evolution/presentation/
-├── luma-evolution-v2.pptx              39 slides, 16:9, notas em todos
+├── luma-evolution-v2.pptx              44 slides, 16:9, notas em todos
 ├── luma-evolution-v2.pdf               mesmo conteúdo, 1920×1080 por página
 ├── luma-evolution-v2-speaker-notes.md  notas curtas (média 37 palavras, teto 72)
 ├── luma-evolution-v2-index.md          índice de evidências, slide a slide
@@ -19,10 +19,11 @@ docs/luma-evolution/presentation/
 | | V1 | V2 |
 |---|---|---|
 | Enfoque | auditoria do repositório | case de produto |
-| Slides | 26 | **39** |
+| Slides | 26 | **44** |
 | Prints por slide | até 8 | **no máximo 3**, sem exceção |
-| Comparações de versão | 5 | **11** (6 de três versões + 5 recortes ampliados) |
-| Imagens nos slides | 32 | **66** |
+| Telas comparadas | 6 | **16** |
+| Comparações de versão | 5 | **14** (9 de três versões + 5 recortes ampliados) |
+| Imagens nos slides | 32 | **82** |
 | Atlas de funcionalidades | não tinha | **16 recursos em 5 telas**, medidos no DOM |
 | Capturas anotadas | não tinha | **5**, em `screenshots/annotated/` |
 | Much+ | mencionado | **slide próprio**, com as duas execuções lado a lado |
@@ -42,7 +43,7 @@ Nenhuma versão histórica foi reexecutada para a V2: as 65 capturas já estavam
 
 ---
 
-## Estrutura dos 39 slides
+## Estrutura dos 44 slides
 
 | # | Bloco | Conteúdo |
 |---|---|---|
@@ -53,18 +54,18 @@ Nenhuma versão histórica foi reexecutada para a V2: as 65 capturas já estavam
 | 8 | Divisor | Área por área |
 | 9–13 | Evolução por área | Biblioteca, Minhas artes, Exportação, Celular e o CLI |
 | 14 | Divisor | Evolução em detalhe |
-| **15–20** | **Três versões** | **Vitrine, campanha, chat, Estúdio, exportação e histórico — cada um comparando o primeiro commit, a véspera da 1.0 e hoje, com as diferenças numeradas** |
-| **21–25** | **Recortes** | **Barra superior, topo da vitrine, cabeçalho do chat, barra de resposta e chamada do Estúdio — ampliados** |
-| **26** | **Ganhos** | **Oito melhorias, cada uma com commit e data** |
-| 27 | Divisor | Atlas |
-| 28–32 | Atlas | Criar · Editar · Organizar · Publicar · Manter |
-| 33 | Much+ | O tema por campanha, duas execuções da mesma versão |
-| 34 | Além da aparência | Cinco frentes de maturidade |
-| 35–37 | O Luma atual | Oito telas de hoje, três por slide |
-| 38 | A dimensão | Números contados no repositório |
-| 39 | Fechamento | De ferramenta a produto |
+| **15–23** | **Três versões** | **Nove telas comparadas: vitrine, campanha, chat, Estúdio, exportação, histórico, entrada, conta e chat no celular — cada uma no primeiro commit, na véspera da 1.0 e hoje, com as diferenças numeradas** |
+| **24–28** | **Recortes** | **Barra superior, topo da vitrine, cabeçalho do chat, barra de resposta e chamada do Estúdio — ampliados** |
+| **29** | **Ganhos** | **Oito melhorias, cada uma com commit e data** |
+| 30 | Divisor | Atlas |
+| 31–35 | Atlas | Criar · Editar · Organizar · Publicar · Manter |
+| 36 | Much+ | O tema por campanha, duas execuções da mesma versão |
+| 37 | Além da aparência | Cinco frentes de maturidade |
+| 38–42 | O Luma atual | Quinze telas de hoje, três por slide |
+| 43 | A dimensão | Números contados no repositório |
+| 44 | Fechamento | De ferramenta a produto |
 
-**O bloco 15–26 é o que responde "o que foi mudando e aprimorado".** Os três pontos de comparação são fixos em todos os slides:
+**O bloco 15–29 é o que responde "o que foi mudando e aprimorado".** Os três pontos de comparação são fixos em todos os slides:
 
 | Ponto | Commit | Data | Por quê |
 |---|---|---|---|
@@ -110,10 +111,11 @@ Cada contorno vem de `getBoundingClientRect` na versão atual, em porcentagem da
 
 | | |
 |---|---|
-| Capturas reais em disco | 65 |
-| Imagens nos slides | 66, no máximo 3 por slide |
+| Capturas reais em disco | 86 |
+| Imagens nos slides | 82, no máximo 3 por slide |
 | Marcos capturados | 9 (5 na narrativa, 3 nas comparações detalhadas) |
-| Funcionalidades mapeadas | 16 |
+| Telas do produto comparadas | 16 |
+| Funcionalidades mapeadas no atlas | 16 |
 | Commits analisados | 72, de 3 autores |
 | Período coberto | anterior a 16/07/2026 → 30/07/2026 |
 | Imagens reconstruídas ou ilustradas | 0 |
@@ -123,13 +125,25 @@ Conferência visual automática antes de exportar: **0 elementos fora da página
 
 ---
 
-## Um defeito encontrado e corrigido no caminho
+## As 16 telas comparadas
+
+Entrada (login) · Vitrine · Campanha aberta · Chat · Minhas artes · Estúdio · Criar material · Importar PSD · Exportar · Atalhos do Estúdio · Conta e gestão · Console do time · Tema Much+ · Vitrine no celular · Campanha no celular · Chat no celular.
+
+Nove delas têm slide de comparação nos três pontos do git. As demais aparecem no atlas, no bloco Much+ ou na galeria do estado atual.
+
+---
+
+## Dois defeitos encontrados e corrigidos no caminho
 
 Sete capturas históricas — todas as telas de entrada de M1 a M7 — tinham fotografado o **splash de boot** em vez da vitrine. A espera de montagem verificava que a home existia no DOM, mas não que ela estava visível: o splash é um overlay laranja que continua por cima depois da home montar.
 
 A correção usa `elementFromPoint` para confirmar quem está de fato na frente antes de disparar o print. As sete capturas foram refeitas e um detector de tela chapada confirmou que nenhuma sobrou. O mesmo defeito existia na V1, e foi corrigido junto.
 
 Isso vale como lembrete: "a captura existe" não é o mesmo que "a captura mostra o que deveria".
+
+**O segundo foi na função que decide se uma tela apareceu.** Ela usava `querySelector` com uma lista de alternativas, e o navegador devolve quem vem primeiro no DOM — não quem está visível. Um contêiner de 0×0 nessa posição mascarava o elemento visível logo abaixo, e a campanha no celular reportava "não existe" tendo renderizado. Agora testa todos os candidatos.
+
+Um terceiro passou pela conferência automática e só apareceu na revisão visual: a faixa de conclusão é `position:absolute` e cobria a última linha de uma lista, sem contar como "fora da página". A conferência aprendeu a checar essa colisão — o defeito não volta em silêncio.
 
 ---
 
@@ -138,7 +152,7 @@ Isso vale como lembrete: "a captura existe" não é o mesmo que "a captura mostr
 - **A data do piloto não é verificável.** O arquivo não a declara e está fora do git, por isso a apresentação diz "anterior a 16/07/2026" e o identifica como *primeira versão conhecida e preservada*, nunca como primeiro commit.
 - **As capturas rodam offline, sem banco.** O conteúdo é o exemplo de cada commit, não dado de produção — nenhuma captura toca o Supabase real.
 - **Não há métrica de uso.** Adoção, tempo de criação e impacto financeiro não existem no repositório e por isso não aparecem em nenhum slide.
-- **Três telas não foram alcançadas offline:** o canvas do Estúdio com template aberto e o fluxo de publicar (dependem de dado no banco) e a Central de Ajuda em versões antigas (o gatilho do widget mudou de nome). Estão declaradas em `reports/limitacoes.md`, não escondidas.
+- **Três telas não foram alcançadas offline:** o canvas do Estúdio com template aberto e o fluxo de publicar (dependem de dado no banco), e a Central de Ajuda — o widget existe e responde à sondagem, mas não abre pela cena automatizada. Três tentativas, o limite acordado; fica declarada em `reports/limitacoes.md`, não escondida.
 
 ---
 

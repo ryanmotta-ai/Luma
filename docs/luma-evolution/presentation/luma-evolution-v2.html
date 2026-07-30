@@ -195,7 +195,11 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
    sustentar a afirmação da legenda. */
 .t3{display:flex;gap:22px;height:100%;align-items:flex-start}
 .t3-col{flex:1;display:flex;flex-direction:column;min-width:0}
-.t3-img{width:100%;aspect-ratio:var(--ar,1440/1000);border:1px solid var(--linha);border-radius:10px;
+/* max-height + width:auto é o que segura a captura de celular: 390×844 numa coluna de
+   561px daria 1215px de altura e o quadro saía do slide. Com o teto, a largura encolhe
+   junto e o print de telefone fica em pé, no tamanho certo. */
+.t3-img{width:auto;max-width:100%;max-height:560px;aspect-ratio:var(--ar,1440/1000);margin:0 auto;
+  border:1px solid var(--linha);border-radius:10px;
   overflow:hidden;background:var(--papel-2);box-shadow:0 12px 30px rgba(10,10,10,.10);position:relative}
 .t3-img img{width:100%;height:100%;object-fit:cover;object-position:top center;display:block}
 .t3-col.atual .t3-img{border:2px solid var(--laranja);box-shadow:0 12px 32px rgba(255,144,0,.24)}
@@ -222,7 +226,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
   <div class="csub">Uma visão visual da transformação da plataforma — reconstruída executando o código de cada época.</div>
   <div class="meta">
     <div><b>Período</b>anterior a 16/07/2026 → 30/07/2026</div>
-    <div><b>Evidência</b>65 capturas reais, 74 commits</div>
+    <div><b>Evidência</b>86 capturas reais, 75 commits</div>
     <div><b>Método</b>cada versão foi executada, não descrita</div>
   </div>
 </section>
@@ -242,7 +246,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
         <p>Além da aparência: dado com dono, rede que falha sem perder, IA como camada.</p></div></div>
     </div>
   </div>
-  <div class="num">02 / 39</div>
+  <div class="num">02 / 44</div>
 </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">O ponto de partida</span><span class="quando">anterior a 16/07/2026</span></div>
     <div class="corpo" style="display:flex;gap:44px">
@@ -262,9 +266,9 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
         </div>
       </div>
     </div>
-    <div class="num">03 / 39</div><div class="selo"><span class="pt"></span>execução real do arquivo preservado</div>
+    <div class="num">03 / 44</div><div class="selo"><span class="pt"></span>execução real do arquivo preservado</div>
   </section>
-<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Linha do tempo</span><span class="quando">5 marcos · 74 commits em 15 dias</span></div>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Linha do tempo</span><span class="quando">5 marcos · 75 commits em 15 dias</span></div>
   <div class="corpo" style="display:flex;align-items:center">
     <div class="tl"><div class="tl-eixo"></div><div class="tl-itens">
       <div class="tl-item forte">
@@ -305,7 +309,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div></div>
   </div>
-  <div class="num">04 / 39</div>
+  <div class="num">04 / 44</div>
 </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Evolução geral · A entrada</span><span class="quando">origem → expansão → hoje</span></div>
     <div class="corpo" style="bottom:196px">
@@ -333,7 +337,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">O produto deixou de assumir que você já sabia o que fazer. Hoje a primeira tela <b>orienta a escolha</b> antes de pedir qualquer informação.</div>
-    <div class="num">05 / 39</div><div class="selo"><span class="pt"></span>três execuções reais</div>
+    <div class="num">05 / 44</div><div class="selo"><span class="pt"></span>três execuções reais</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Evolução geral · O fluxo de criação</span><span class="quando">origem → expansão → hoje</span></div>
     <div class="corpo" style="bottom:196px">
@@ -361,7 +365,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">O acerto do piloto foi o formato: <b>perguntar em vez de mandar editar</b>. O que mudou não foi o chat — foi tudo que passou a existir em volta dele.</div>
-    <div class="num">06 / 39</div><div class="selo"><span class="pt"></span>três execuções reais</div>
+    <div class="num">06 / 44</div><div class="selo"><span class="pt"></span>três execuções reais</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Evolução geral · A criação</span><span class="quando">origem → expansão → hoje</span></div>
     <div class="corpo" style="bottom:196px">
@@ -389,7 +393,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">Editar sempre funcionou — o canvas do piloto já era completo. O que faltava era <b>onde guardar e reencontrar</b> o que foi editado.</div>
-    <div class="num">07 / 39</div><div class="selo"><span class="pt"></span>três execuções reais</div>
+    <div class="num">07 / 44</div><div class="selo"><span class="pt"></span>três execuções reais</div>
   </section>
 <section class="slide escuro">
   <div class="sn">ÁREA POR ÁREA</div><h2>Seis frentes,<br>seis comparações</h2>
@@ -416,7 +420,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">Essa é a mudança que tirou o time de engenharia do caminho. <b>Publicar campanha virou trabalho de quem faz a campanha.</b></div>
-    <div class="num">09 / 39</div><div class="selo"><span class="pt"></span>duas execuções reais</div>
+    <div class="num">09 / 44</div><div class="selo"><span class="pt"></span>duas execuções reais</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Área · Artes e organização</span><span class="quando">anterior a 16/07 → 2026-07-30</span></div>
     <div class="corpo" style="bottom:196px">
@@ -439,7 +443,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">O histórico saiu do navegador e foi para o banco, com trava de escrita e aviso de conflito entre aparelhos. <b>Fechar o app deixou de ser perder o trabalho.</b></div>
-    <div class="num">10 / 39</div><div class="selo"><span class="pt"></span>duas execuções reais</div>
+    <div class="num">10 / 44</div><div class="selo"><span class="pt"></span>duas execuções reais</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Área · Exportação</span><span class="quando">2026-07-16 → 2026-07-30</span></div>
     <div class="corpo" style="bottom:196px">
@@ -462,7 +466,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">A exportação virou a ponta séria do fluxo: <b>escala dobrada para impressão</b> e saída em lote, sem refazer nada.</div>
-    <div class="num">11 / 39</div><div class="selo"><span class="pt"></span>duas execuções reais</div>
+    <div class="num">11 / 44</div><div class="selo"><span class="pt"></span>duas execuções reais</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Área · Celular</span><span class="quando">anterior a 16/07 → 2026-07-30</span></div>
     <div class="corpo" style="bottom:196px">
@@ -485,7 +489,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">Em 16/07 o telefone ganha tratamento próprio: prévia com a arte dentro do aparelho e PWA instalável. <b>Deixou de ser um desktop menor.</b></div>
-    <div class="num">12 / 39</div><div class="selo"><span class="pt"></span>duas execuções reais</div>
+    <div class="num">12 / 44</div><div class="selo"><span class="pt"></span>duas execuções reais</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Área · Ferramenta interna</span><span class="quando">30/07/2026</span></div>
     <div class="corpo" style="display:flex;gap:44px">
@@ -505,16 +509,16 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
         <div class="conclusao" style="position:static;margin-top:20px;font-size:19px">O gate por perfil é de UX. Quem protege o dado continua sendo a <b>RLS no banco</b> — o console não dá poder que o DevTools já não desse.</div>
       </div>
     </div>
-    <div class="num">13 / 39</div><div class="selo"><span class="pt"></span>execução real do commit</div>
+    <div class="num">13 / 44</div><div class="selo"><span class="pt"></span>execução real do commit</div>
   </section>
 <section class="slide escuro">
   <div class="sn">EVOLUÇÃO EM DETALHE</div><h2>Tela a tela,<br>versão por versão</h2>
   <p class="psec">Daqui em diante, cada slide mostra <b>todas</b> as execuções capturadas de uma mesma tela, em ordem cronológica. O quadro com borda laranja é o momento em que aquela tela mudou de verdade.</p>
 </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Comparação · Tela de entrada</span><span class="quando">2026-07-16 → 2026-07-20 → 2026-07-30</span></div>
-    <div class="corpo" style="bottom:186px">
-      <h2 class="titulo" style="font-size:46px;margin-bottom:20px">A vitrine: primeiro commit, véspera da 1.0 e hoje</h2>
-      <div class="t3" style="height:calc(100% - 74px)">
+    <div class="corpo" style="bottom:238px">
+      <h2 class="titulo" style="font-size:44px;margin-bottom:18px">A vitrine: primeiro commit, véspera da 1.0 e hoje</h2>
+      <div class="t3" style="height:calc(100% - 70px)">
         <div class="t3-col">
           <div class="t3-img" style="--ar:1440/1000"><img src="../screenshots/original/M1/01_home_2026-07-16_89ca896_1440x1000.png" alt="Primeiro commit"></div>
           <div class="t3-cab"><span class="r">Primeiro commit</span>
@@ -534,12 +538,12 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">Entre o primeiro commit e a véspera da 1.0 a tela <b>quase não muda</b> — o esforço daquelas duas semanas foi em robustez. O salto visual vem depois da 1.0.</div>
-    <div class="num">15 / 39</div><div class="selo"><span class="pt"></span>3 execuções reais</div>
+    <div class="num">15 / 44</div><div class="selo"><span class="pt"></span>3 execuções reais</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Comparação · Campanha aberta</span><span class="quando">2026-07-16 → 2026-07-20 → 2026-07-30</span></div>
-    <div class="corpo" style="bottom:186px">
-      <h2 class="titulo" style="font-size:46px;margin-bottom:20px">A campanha aberta, nos três pontos</h2>
-      <div class="t3" style="height:calc(100% - 74px)">
+    <div class="corpo" style="bottom:238px">
+      <h2 class="titulo" style="font-size:44px;margin-bottom:18px">A campanha aberta, nos três pontos</h2>
+      <div class="t3" style="height:calc(100% - 70px)">
         <div class="t3-col">
           <div class="t3-img" style="--ar:1440/1000"><img src="../screenshots/original/M1/02_catalogo_2026-07-16_89ca896_1440x1000.png" alt="Primeiro commit"></div>
           <div class="t3-cab"><span class="r">Primeiro commit</span>
@@ -559,12 +563,12 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">A diferença mais concreta está nos cards: eles deixaram de ser <b>cor com texto</b> e passaram a mostrar a arte real que o time publicou.</div>
-    <div class="num">16 / 39</div><div class="selo"><span class="pt"></span>3 execuções reais</div>
+    <div class="num">16 / 44</div><div class="selo"><span class="pt"></span>3 execuções reais</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Comparação · O chat que monta a arte</span><span class="quando">2026-07-16 → 2026-07-20 → 2026-07-30</span></div>
-    <div class="corpo" style="bottom:186px">
-      <h2 class="titulo" style="font-size:46px;margin-bottom:20px">O preenchimento, nos três pontos</h2>
-      <div class="t3" style="height:calc(100% - 74px)">
+    <div class="corpo" style="bottom:238px">
+      <h2 class="titulo" style="font-size:44px;margin-bottom:18px">O preenchimento, nos três pontos</h2>
+      <div class="t3" style="height:calc(100% - 70px)">
         <div class="t3-col">
           <div class="t3-img" style="--ar:1440/1000"><img src="../screenshots/original/M1/03_chat_2026-07-16_89ca896_1440x1000.png" alt="Primeiro commit"></div>
           <div class="t3-cab"><span class="r">Primeiro commit</span>
@@ -584,12 +588,12 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">A mecânica de perguntar em passos é <b>a mesma dos três</b>. O que saiu foi ruído no topo e no rodapé; o que entrou foi estado visível e controle de zoom.</div>
-    <div class="num">17 / 39</div><div class="selo"><span class="pt"></span>3 execuções reais</div>
+    <div class="num">17 / 44</div><div class="selo"><span class="pt"></span>3 execuções reais</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Comparação · Estúdio</span><span class="quando">2026-07-16 → 2026-07-20 → 2026-07-30</span></div>
-    <div class="corpo" style="bottom:186px">
-      <h2 class="titulo" style="font-size:46px;margin-bottom:20px">O Estúdio, nos três pontos</h2>
-      <div class="t3" style="height:calc(100% - 74px)">
+    <div class="corpo" style="bottom:238px">
+      <h2 class="titulo" style="font-size:44px;margin-bottom:18px">O Estúdio, nos três pontos</h2>
+      <div class="t3" style="height:calc(100% - 70px)">
         <div class="t3-col">
           <div class="t3-img" style="--ar:1440/1000"><img src="../screenshots/original/M1/05_designer_2026-07-16_89ca896_1440x1000.png" alt="Primeiro commit"></div>
           <div class="t3-cab"><span class="r">Primeiro commit</span>
@@ -609,12 +613,12 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">A maior transformação do produto está aqui: de uma tela que só <b>iniciava</b> trabalho para uma que também <b>guarda e reencontra</b> o que já foi feito.</div>
-    <div class="num">18 / 39</div><div class="selo"><span class="pt"></span>3 execuções reais</div>
+    <div class="num">18 / 44</div><div class="selo"><span class="pt"></span>3 execuções reais</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Comparação · Exportação</span><span class="quando">2026-07-16 → 2026-07-20 → 2026-07-30</span></div>
-    <div class="corpo" style="bottom:186px">
-      <h2 class="titulo" style="font-size:46px;margin-bottom:20px">A saída do arquivo, nos três pontos</h2>
-      <div class="t3" style="height:calc(100% - 74px)">
+    <div class="corpo" style="bottom:238px">
+      <h2 class="titulo" style="font-size:44px;margin-bottom:18px">A saída do arquivo, nos três pontos</h2>
+      <div class="t3" style="height:calc(100% - 70px)">
         <div class="t3-col">
           <div class="t3-img" style="--ar:1440/1000"><img src="../screenshots/original/M1/06_exportar_2026-07-16_89ca896_1440x1000.png" alt="Primeiro commit"></div>
           <div class="t3-cab"><span class="r">Primeiro commit</span>
@@ -634,12 +638,12 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">Uma linha nova no modal que muda o lugar do Luma no fluxo: a arte deixa de ser <b>ponto final</b> e passa a poder continuar no Photoshop.</div>
-    <div class="num">19 / 39</div><div class="selo"><span class="pt"></span>3 execuções reais</div>
+    <div class="num">19 / 44</div><div class="selo"><span class="pt"></span>3 execuções reais</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Comparação · Minhas artes</span><span class="quando">2026-07-16 → 2026-07-20 → 2026-07-30</span></div>
-    <div class="corpo" style="bottom:186px">
-      <h2 class="titulo" style="font-size:46px;margin-bottom:20px">O histórico: a tela que já nasceu pronta</h2>
-      <div class="t3" style="height:calc(100% - 74px)">
+    <div class="corpo" style="bottom:238px">
+      <h2 class="titulo" style="font-size:44px;margin-bottom:18px">O histórico: a tela que já nasceu pronta</h2>
+      <div class="t3" style="height:calc(100% - 70px)">
         <div class="t3-col">
           <div class="t3-img" style="--ar:1440/1000"><img src="../screenshots/original/M1/04_minhas-artes_2026-07-16_89ca896_1440x1000.png" alt="Primeiro commit"></div>
           <div class="t3-cab"><span class="r">Primeiro commit</span>
@@ -659,10 +663,85 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">O contraexemplo útil da apresentação: <b>nem toda evolução aparece na tela</b>. Esta ficou igual enquanto ganhava trava de escrita, releitura antes de regravar e aviso de conflito entre aparelhos.</div>
-    <div class="num">20 / 39</div><div class="selo"><span class="pt"></span>3 execuções reais</div>
+    <div class="num">20 / 44</div><div class="selo"><span class="pt"></span>3 execuções reais</div>
+  </section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Comparação · A porta do produto</span><span class="quando">2026-07-16 → 2026-07-20 → 2026-07-30</span></div>
+    <div class="corpo" style="bottom:238px">
+      <h2 class="titulo" style="font-size:44px;margin-bottom:18px">A tela de entrada, nos três pontos</h2>
+      <div class="t3" style="height:calc(100% - 70px)">
+        <div class="t3-col">
+          <div class="t3-img" style="--ar:1440/1000"><img src="../screenshots/original/M1/09_login_2026-07-16_89ca896_1440x1000.png" alt="Primeiro commit"></div>
+          <div class="t3-cab"><span class="r">Primeiro commit</span>
+            <span class="d">2026-07-16 · 89ca896</span></div>
+          <ul class="difs"><li class=""><span class="n">1</span><span>Cartão branco no centro de um fundo <b>laranja chapado</b>.</span></li><li class=""><span class="n">2</span><span>Logo, dois campos, um botão. <b>Nada além do formulário</b>.</span></li><li class="nao"><span class="n">–</span><span>Não diz o que é o Luma nem para quem.</span></li></ul>
+        </div><div class="t3-col">
+          <div class="t3-img" style="--ar:1440/1000"><img src="../screenshots/original/M4/09_login_2026-07-20_bcc61e8_1440x1000.png" alt="Véspera da 1.0"></div>
+          <div class="t3-cab"><span class="r">Véspera da 1.0</span>
+            <span class="d">2026-07-20 · bcc61e8</span></div>
+          <ul class="difs"><li class=""><span class="n">1</span><span><b>Idêntica</b> à do primeiro commit.</span></li><li class=""><span class="n">2</span><span>O produto chegou à 1.0 com a porta ainda anônima.</span></li></ul>
+        </div><div class="t3-col atual">
+          <div class="t3-img" style="--ar:1440/1000"><img src="../screenshots/original/M8/09_login_2026-07-30_atual_1440x1000.png" alt="Hoje"></div>
+          <div class="t3-cab"><span class="r">Hoje</span>
+            <span class="d">2026-07-30 · branch atual</span></div>
+          <ul class="difs"><li class=""><span class="n">1</span><span>Vira <b>duas colunas</b>: proposta à esquerda, formulário à direita.</span></li><li class=""><span class="n">2</span><span>Promete em uma frase: <b>"Arte de agência, pronta em um minuto."</b></span></li><li class=""><span class="n">3</span><span>Mostra <b>artes reais</b> — Much+, Combos, Desconto em Dobro.</span></li><li class=""><span class="n">4</span><span>Declara o público: <b>acesso restrito a franqueados e equipe</b>.</span></li></ul>
+        </div>
+      </div>
+    </div>
+    <div class="conclusao">A tela que <b>mais mudou de função</b> em todo o produto: era só uma catraca e virou a primeira peça de comunicação — quem chega já entende o que o Luma faz antes de digitar a senha.</div>
+    <div class="num">21 / 44</div><div class="selo"><span class="pt"></span>3 execuções reais</div>
+  </section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Comparação · Conta e permissões</span><span class="quando">2026-07-16 → 2026-07-20 → 2026-07-30</span></div>
+    <div class="corpo" style="bottom:238px">
+      <h2 class="titulo" style="font-size:44px;margin-bottom:18px">O painel de conta, nos três pontos</h2>
+      <div class="t3" style="height:calc(100% - 70px)">
+        <div class="t3-col">
+          <div class="t3-img" style="--ar:1440/1000"><img src="../screenshots/original/M1/10_perfil_2026-07-16_89ca896_1440x1000.png" alt="Primeiro commit"></div>
+          <div class="t3-cab"><span class="r">Primeiro commit</span>
+            <span class="d">2026-07-16 · 89ca896</span></div>
+          <ul class="difs"><li class=""><span class="n">1</span><span>Modal pequeno com <b>Dados, Segurança, Estatísticas e Equipe</b>.</span></li><li class=""><span class="n">2</span><span>E-mail é <b>campo editável comum</b>.</span></li><li class=""><span class="n">3</span><span>Tema fica junto dos dados pessoais, sem explicação.</span></li></ul>
+        </div><div class="t3-col">
+          <div class="t3-img" style="--ar:1440/1000"><img src="../screenshots/original/M4/10_perfil_2026-07-20_bcc61e8_1440x1000.png" alt="Véspera da 1.0"></div>
+          <div class="t3-cab"><span class="r">Véspera da 1.0</span>
+            <span class="d">2026-07-20 · bcc61e8</span></div>
+          <ul class="difs"><li class=""><span class="n">1</span><span>Mesma estrutura.</span></li><li class=""><span class="n">2</span><span>O período endureceu o que está <b>atrás</b> desta tela: gate de conta desativada e convite real por Edge Function.</span></li></ul>
+        </div><div class="t3-col atual">
+          <div class="t3-img" style="--ar:1440/1000"><img src="../screenshots/original/M8/10_perfil_2026-07-30_atual_1440x1000.png" alt="Hoje"></div>
+          <div class="t3-cab"><span class="r">Hoje</span>
+            <span class="d">2026-07-30 · branch atual</span></div>
+          <ul class="difs"><li class=""><span class="n">1</span><span>Vira painel largo, <b>"Conta e gestão"</b>, com conteúdo em cards.</span></li><li class=""><span class="n">2</span><span>O rail mostra o <b>nível de acesso</b>: Equipe marcada ADMIN, Console marcado DEV.</span></li><li class=""><span class="n">3</span><span>E-mail fica <b>travado</b>, com o motivo escrito ao lado.</span></li><li class=""><span class="n">4</span><span>"Atividade" entra no lugar de "Estatísticas".</span></li></ul>
+        </div>
+      </div>
+    </div>
+    <div class="conclusao">A conta deixou de ser um formulário e virou o lugar onde <b>a permissão fica visível</b>. O e-mail travado com explicação é a diferença entre um campo que falha e um campo que ensina.</div>
+    <div class="num">22 / 44</div><div class="selo"><span class="pt"></span>3 execuções reais</div>
+  </section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Comparação · O chat no celular</span><span class="quando">2026-07-16 → 2026-07-20 → 2026-07-30</span></div>
+    <div class="corpo" style="bottom:238px">
+      <h2 class="titulo" style="font-size:44px;margin-bottom:18px">O preenchimento no telefone, nos três pontos</h2>
+      <div class="t3" style="height:calc(100% - 70px)">
+        <div class="t3-col">
+          <div class="t3-img" style="--ar:390/844"><img src="../screenshots/original/M1/16_chat-mobile_2026-07-16_89ca896_390x844.png" alt="Primeiro commit"></div>
+          <div class="t3-cab"><span class="r">Primeiro commit</span>
+            <span class="d">2026-07-16 · 89ca896</span></div>
+          <ul class="difs"><li class=""><span class="n">1</span><span>Cabeçalho repete <b>"Material em edição"</b>; duas frases antes de perguntar.</span></li><li class=""><span class="n">2</span><span>Bloco <b>"Criar várias de uma vez"</b> disputa espaço com o passo 1.</span></li><li class=""><span class="n">3</span><span>A prévia é um <b>botão de olho</b>: para ver a arte, é preciso abrir.</span></li></ul>
+        </div><div class="t3-col">
+          <div class="t3-img" style="--ar:390/844"><img src="../screenshots/original/M4/16_chat-mobile_2026-07-20_bcc61e8_390x844.png" alt="Véspera da 1.0"></div>
+          <div class="t3-cab"><span class="r">Véspera da 1.0</span>
+            <span class="d">2026-07-20 · bcc61e8</span></div>
+          <ul class="difs"><li class=""><span class="n">1</span><span>Mesmo texto e mesmo cabeçalho.</span></li><li class=""><span class="n">2</span><span>O botão de olho vira <b>miniatura da arte</b>, sempre visível no canto.</span></li></ul>
+        </div><div class="t3-col atual">
+          <div class="t3-img" style="--ar:390/844"><img src="../screenshots/original/M8/16_chat-mobile_2026-07-30_atual_390x844.png" alt="Hoje"></div>
+          <div class="t3-cab"><span class="r">Hoje</span>
+            <span class="d">2026-07-30 · branch atual</span></div>
+          <ul class="difs"><li class=""><span class="n">1</span><span>Cabeçalho traz <b>campanha e formato</b>, só o necessário.</span></li><li class=""><span class="n">2</span><span>Uma frase antes de perguntar, no lugar de duas.</span></li><li class=""><span class="n">3</span><span>O campo em edição vira <b>chip</b> dentro da pergunta.</span></li></ul>
+        </div>
+      </div>
+    </div>
+    <div class="conclusao">No telefone cada linha custa caro. A miniatura chegou <b>antes da 1.0</b>; o que veio depois foi o corte de texto — o cabeçalho e a introdução encolheram para sobrar tela.</div>
+    <div class="num">23 / 44</div><div class="selo"><span class="pt"></span>3 execuções reais</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Detalhe · Identidade</span><span class="quando">mesma faixa da tela, ampliada</span></div>
-    <div class="corpo" style="bottom:196px">
+    <div class="corpo" style="bottom:224px">
       <h2 class="titulo" style="font-size:46px;margin-bottom:18px">A barra superior, ampliada</h2>
       <div class="det" style="height:calc(100% - 72px)">
         <div class="det-linha">
@@ -690,10 +769,10 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">A identidade virou de uma vez, no dia 16, e <b>parou de mudar</b>. Numa base que cresceu vinte vezes desde então, a faixa que aparece em toda tela ficou igual — é o sinal de um design system que pegou.</div>
-    <div class="num">21 / 39</div><div class="selo"><span class="pt"></span>recorte da captura, sem edição</div>
+    <div class="num">24 / 44</div><div class="selo"><span class="pt"></span>recorte da captura, sem edição</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Detalhe · Chamada da vitrine</span><span class="quando">mesma faixa da tela, ampliada</span></div>
-    <div class="corpo" style="bottom:196px">
+    <div class="corpo" style="bottom:224px">
       <h2 class="titulo" style="font-size:46px;margin-bottom:18px">O topo da vitrine, ampliado</h2>
       <div class="det" style="height:calc(100% - 72px)">
         <div class="det-linha">
@@ -714,10 +793,10 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">O mesmo espaço passou a responder três perguntas de uma vez: <b>quem sou eu aqui, o que faço agora e onde está o que já comecei</b>.</div>
-    <div class="num">22 / 39</div><div class="selo"><span class="pt"></span>recorte da captura, sem edição</div>
+    <div class="num">25 / 44</div><div class="selo"><span class="pt"></span>recorte da captura, sem edição</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Recorte · Cabeçalho do chat</span><span class="quando">mesma faixa da tela, ampliada</span></div>
-    <div class="corpo" style="bottom:196px">
+    <div class="corpo" style="bottom:224px">
       <h2 class="titulo" style="font-size:46px;margin-bottom:18px">O topo do chat, ampliado</h2>
       <div class="det" style="height:calc(100% - 72px)">
         <div class="det-linha">
@@ -745,10 +824,10 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">O topo do chat perdeu <b>um botão e um rótulo</b> e ganhou clareza. Menos elementos disputando a mesma faixa é o que faz a pergunta do assistente virar o assunto da tela.</div>
-    <div class="num">23 / 39</div><div class="selo"><span class="pt"></span>recorte da captura, sem edição</div>
+    <div class="num">26 / 44</div><div class="selo"><span class="pt"></span>recorte da captura, sem edição</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Recorte · Rodapé do chat</span><span class="quando">mesma faixa da tela, ampliada</span></div>
-    <div class="corpo" style="bottom:196px">
+    <div class="corpo" style="bottom:224px">
       <h2 class="titulo" style="font-size:46px;margin-bottom:18px">A barra de resposta, ampliada</h2>
       <div class="det" style="height:calc(100% - 72px)">
         <div class="det-linha">
@@ -776,10 +855,10 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">A faixa onde o franqueado <b>de fato digita</b>. O zoom deixou de ser um número para configurar e virou um comportamento que a tela resolve.</div>
-    <div class="num">24 / 39</div><div class="selo"><span class="pt"></span>recorte da captura, sem edição</div>
+    <div class="num">27 / 44</div><div class="selo"><span class="pt"></span>recorte da captura, sem edição</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Recorte · Cabeçalho do Estúdio</span><span class="quando">mesma faixa da tela, ampliada</span></div>
-    <div class="corpo" style="bottom:196px">
+    <div class="corpo" style="bottom:224px">
       <h2 class="titulo" style="font-size:46px;margin-bottom:18px">A chamada do Estúdio, ampliada</h2>
       <div class="det" style="height:calc(100% - 72px)">
         <div class="det-linha">
@@ -807,7 +886,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">A troca de <b>metáfora por ação</b>. O designer que abre o Estúdio quer criar um material, não dar forma a uma campanha — e a pasta de destino saiu de um menu para a superfície.</div>
-    <div class="num">25 / 39</div><div class="selo"><span class="pt"></span>recorte da captura, sem edição</div>
+    <div class="num">28 / 44</div><div class="selo"><span class="pt"></span>recorte da captura, sem edição</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">O que foi aprimorado</span></div>
     <div class="corpo">
@@ -824,7 +903,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
           <div><h4>Ferramenta de quem mantém</h4><p>Console com diagnóstico nomeado — o que era snippet no DevTools virou comando.</p><div class="qd">c9790e8 · 30/07</div></div></div>
       </div>
     </div>
-    <div class="num">26 / 39</div>
+    <div class="num">29 / 44</div>
   </section>
 <section class="slide escuro">
   <div class="sn">ATLAS</div><h2>Onde tudo<br>está hoje</h2>
@@ -857,7 +936,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
         </div>
       </div>
     </div>
-    <div class="num">28 / 39</div><div class="selo"><span class="pt"></span>contornos medidos no DOM</div>
+    <div class="num">31 / 44</div><div class="selo"><span class="pt"></span>contornos medidos no DOM</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Onde as coisas estão</span><span class="quando">atlas 2/5 · estado atual</span></div>
     <div class="corpo">
@@ -886,7 +965,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
         </div>
       </div>
     </div>
-    <div class="num">29 / 39</div><div class="selo"><span class="pt"></span>contornos medidos no DOM</div>
+    <div class="num">32 / 44</div><div class="selo"><span class="pt"></span>contornos medidos no DOM</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Onde as coisas estão</span><span class="quando">atlas 3/5 · estado atual</span></div>
     <div class="corpo">
@@ -915,7 +994,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
         </div>
       </div>
     </div>
-    <div class="num">30 / 39</div><div class="selo"><span class="pt"></span>contornos medidos no DOM</div>
+    <div class="num">33 / 44</div><div class="selo"><span class="pt"></span>contornos medidos no DOM</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Onde as coisas estão</span><span class="quando">atlas 4/5 · estado atual</span></div>
     <div class="corpo">
@@ -938,7 +1017,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
         </div>
       </div>
     </div>
-    <div class="num">31 / 39</div><div class="selo"><span class="pt"></span>contornos medidos no DOM</div>
+    <div class="num">34 / 44</div><div class="selo"><span class="pt"></span>contornos medidos no DOM</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Onde as coisas estão</span><span class="quando">atlas 5/5 · estado atual</span></div>
     <div class="corpo">
@@ -961,7 +1040,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
         </div>
       </div>
     </div>
-    <div class="num">32 / 39</div><div class="selo"><span class="pt"></span>contornos medidos no DOM</div>
+    <div class="num">35 / 44</div><div class="selo"><span class="pt"></span>contornos medidos no DOM</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Recursos especiais · Much+</span><span class="quando">30/07/2026</span></div>
     <div class="corpo" style="bottom:196px">
@@ -984,7 +1063,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">Não é uma tela nova — é o <b>mesmo app com outros tokens</b>. O tema vive na campanha, então uma marca parceira entra sem fork e sem tela dedicada. Na vitrine ele é contido; dentro da campanha, assume.</div>
-    <div class="num">33 / 39</div><div class="selo"><span class="pt"></span>duas execuções reais, mesma versão</div>
+    <div class="num">36 / 44</div><div class="selo"><span class="pt"></span>duas execuções reais, mesma versão</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Evolução além da aparência</span></div>
   <div class="corpo">
@@ -1002,9 +1081,9 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
         <p>Console interno com diagnóstico nomeado, linter de template e a máquina do tempo que reabre qualquer versão antiga — a mesma que produziu estes slides.</p></div></div>
     </div>
   </div>
-  <div class="num">34 / 39</div>
+  <div class="num">37 / 44</div>
 </section>
-<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">O Luma atual</span><span class="quando">1/3 · 30/07/2026 · branch atual</span></div>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">O Luma atual</span><span class="quando">1/5 · 30/07/2026 · branch atual</span></div>
     <div class="corpo">
       <h2 class="titulo" style="font-size:46px;margin-bottom:20px">O produto hoje, tela por tela</h2>
       <div class="t3" style="height:calc(100% - 74px)">
@@ -1023,9 +1102,9 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
         </div>
       </div>
     </div>
-    <div class="num">35 / 39</div><div class="selo"><span class="pt"></span>execuções reais da branch atual</div>
+    <div class="num">38 / 44</div><div class="selo"><span class="pt"></span>execuções reais da branch atual</div>
   </section>
-<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">O Luma atual</span><span class="quando">2/3 · 30/07/2026 · branch atual</span></div>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">O Luma atual</span><span class="quando">2/5 · 30/07/2026 · branch atual</span></div>
     <div class="corpo">
       <h2 class="titulo" style="font-size:46px;margin-bottom:20px">O produto hoje, tela por tela</h2>
       <div class="t3" style="height:calc(100% - 74px)">
@@ -1044,9 +1123,9 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
         </div>
       </div>
     </div>
-    <div class="num">36 / 39</div><div class="selo"><span class="pt"></span>execuções reais da branch atual</div>
+    <div class="num">39 / 44</div><div class="selo"><span class="pt"></span>execuções reais da branch atual</div>
   </section>
-<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">O Luma atual</span><span class="quando">3/3 · 30/07/2026 · branch atual</span></div>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">O Luma atual</span><span class="quando">3/5 · 30/07/2026 · branch atual</span></div>
     <div class="corpo">
       <h2 class="titulo" style="font-size:46px;margin-bottom:20px">O produto hoje, tela por tela</h2>
       <div class="t3" style="height:calc(100% - 74px)">
@@ -1058,10 +1137,56 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
           <div class="t3-img" style="--ar:1440/1000"><img src="../screenshots/original/M8/09_muchplus_2026-07-30_atual_1440x1000.png" alt="Tema Much+"></div>
           <div class="t3-cab"><span class="r">Tema Much+</span></div>
           <div class="nota" style="margin-top:9px">A campanha que re-tokeniza o app inteiro: mesma estrutura, outra marca.</div>
+        </div><div class="t3-col atual">
+          <div class="t3-img" style="--ar:1440/1000"><img src="../screenshots/original/M8/09_login_2026-07-30_atual_1440x1000.png" alt="Entrada"></div>
+          <div class="t3-cab"><span class="r">Entrada</span></div>
+          <div class="nota" style="margin-top:9px">Proposta de valor à esquerda, formulário à direita, acesso declarado no rodapé.</div>
         </div>
       </div>
     </div>
-    <div class="num">37 / 39</div><div class="selo"><span class="pt"></span>execuções reais da branch atual</div>
+    <div class="num">40 / 44</div><div class="selo"><span class="pt"></span>execuções reais da branch atual</div>
+  </section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">O Luma atual</span><span class="quando">4/5 · 30/07/2026 · branch atual</span></div>
+    <div class="corpo">
+      <h2 class="titulo" style="font-size:46px;margin-bottom:20px">O produto hoje, tela por tela</h2>
+      <div class="t3" style="height:calc(100% - 74px)">
+        <div class="t3-col atual">
+          <div class="t3-img" style="--ar:1440/1000"><img src="../screenshots/original/M8/10_perfil_2026-07-30_atual_1440x1000.png" alt="Conta e gestão"></div>
+          <div class="t3-cab"><span class="r">Conta e gestão</span></div>
+          <div class="nota" style="margin-top:9px">Dados, segurança, atividade, equipe e console — com o nível de acesso à vista.</div>
+        </div><div class="t3-col atual">
+          <div class="t3-img" style="--ar:1440/1000"><img src="../screenshots/original/M8/12_novo-material_2026-07-30_atual_1440x1000.png" alt="Criar material"></div>
+          <div class="t3-cab"><span class="r">Criar material</span></div>
+          <div class="nota" style="margin-top:9px">Presets por canal, medida livre, campanha de destino e pré-visualização.</div>
+        </div><div class="t3-col atual">
+          <div class="t3-img" style="--ar:1440/1000"><img src="../screenshots/original/M8/13_psd_2026-07-30_atual_1440x1000.png" alt="Importar PSD"></div>
+          <div class="t3-cab"><span class="r">Importar PSD</span></div>
+          <div class="nota" style="margin-top:9px">Camadas do Photoshop chegam editáveis, com z-order confiável.</div>
+        </div>
+      </div>
+    </div>
+    <div class="num">41 / 44</div><div class="selo"><span class="pt"></span>execuções reais da branch atual</div>
+  </section>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">O Luma atual</span><span class="quando">5/5 · 30/07/2026 · branch atual</span></div>
+    <div class="corpo">
+      <h2 class="titulo" style="font-size:46px;margin-bottom:20px">O produto hoje, tela por tela</h2>
+      <div class="t3" style="height:calc(100% - 74px)">
+        <div class="t3-col atual">
+          <div class="t3-img" style="--ar:1440/1000"><img src="../screenshots/original/M8/14_atalhos_2026-07-30_atual_1440x1000.png" alt="Atalhos do Estúdio"></div>
+          <div class="t3-cab"><span class="r">Atalhos do Estúdio</span></div>
+          <div class="nota" style="margin-top:9px">A folha de atalhos do Estúdio, para quem trabalha sem tirar a mão do teclado.</div>
+        </div><div class="t3-col atual">
+          <div class="t3-img" style="--ar:390/844"><img src="../screenshots/original/M8/15_catalogo-mobile_2026-07-30_atual_390x844.png" alt="Campanha no celular"></div>
+          <div class="t3-cab"><span class="r">Campanha no celular</span></div>
+          <div class="nota" style="margin-top:9px">A campanha no telefone, com os materiais em coluna única.</div>
+        </div><div class="t3-col atual">
+          <div class="t3-img" style="--ar:390/844"><img src="../screenshots/original/M8/16_chat-mobile_2026-07-30_atual_390x844.png" alt="Chat no celular"></div>
+          <div class="t3-cab"><span class="r">Chat no celular</span></div>
+          <div class="nota" style="margin-top:9px">Cinco passos no celular, com a arte em miniatura flutuante.</div>
+        </div>
+      </div>
+    </div>
+    <div class="num">42 / 44</div><div class="selo"><span class="pt"></span>execuções reais da branch atual</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">A dimensão da evolução</span><span class="quando">só números reais</span></div>
   <div class="corpo">
@@ -1071,13 +1196,13 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       <div class="card"><div class="v">41.416</div><div class="r">linhas de JS hoje,<br>mais 20.766 de CSS</div></div>
       <div class="card"><div class="v">1.071</div><div class="r">funções globais nomeadas<br>(697 no Estúdio, 234 no franqueado)</div></div>
       <div class="card destaque"><div class="v">18</div><div class="r">migrations de banco —<br>a origem não tinha backend</div></div>
-      <div class="card"><div class="v">5</div><div class="r">marcos selecionados,<br>de 74 commits analisados</div></div>
-      <div class="card"><div class="v">65</div><div class="r">capturas reais produzidas,<br>nenhuma reconstruída</div></div>
+      <div class="card"><div class="v">5</div><div class="r">marcos selecionados,<br>de 75 commits analisados</div></div>
+      <div class="card"><div class="v">86</div><div class="r">capturas reais produzidas,<br>nenhuma reconstruída</div></div>
       <div class="card"><div class="v">16</div><div class="r">funcionalidades mapeadas<br>no atlas, medidas no DOM</div></div>
       <div class="card"><div class="v">0</div><div class="r">dependências de runtime<br>no front — segue vanilla</div></div>
     </div>
   </div>
-  <div class="num">38 / 39</div>
+  <div class="num">43 / 44</div>
 </section>
 <section class="slide escuro">
   <div class="marca">Para fechar</div>
