@@ -435,6 +435,8 @@ O dashboard simulado foi retirado em 2026-07-15. Analytics real continua em `ana
 
 Terminal interno, **Ctrl+`** abre, **Esc** fecha. Só monta pra `gIsAdmin()` (equipe_dm/gestao). Existe porque o diagnóstico de sync era feito colando snippet no DevTools — conhecimento que morava em log de conversa (incidente de 07/2026: "30 pastas no banco e 0 templates"). Agora é comando nomeado.
 
+**No celular** não há Ctrl+`: a entrada é o item **Console · DEV** no painel de perfil (sidebar, ao lado de "Equipe") — revelado pelo mesmo `gIsAdmin()`, escondido do franqueado. Toque nele fecha o modal e abre o console. Lá também não há Tab nem ↑/↓, então aparece uma faixa de **chips** com os comandos de leitura (`ajuda`, `diag`, `sync status`, `pastas ls`, `cache ls`) — só comando que não muda nada. Três detalhes que fazem "funcionar no celular" ser verdade: `_gCliAjustaViewport()` sobe o painel a altura que o **teclado virtual** comeu (`position:fixed` não vê o teclado, e o campo ficava embaixo dele); `font-size:16px` no input (menos que isso e o iOS dá zoom); e `body.cli-on` tira do rodapé os flutuantes com z-index maior — aviso de PWA (13000, via CSS) e FAB do widget de ajuda (9999, no `checkVisibility` do próprio widget, porque o display dele é inline).
+
 | Comando | O que faz |
 |---|---|
 | `ajuda` | Lista os comandos |
@@ -447,7 +449,7 @@ Terminal interno, **Ctrl+`** abre, **Esc** fecha. Só monta pra `gIsAdmin()` (eq
 
 **A IA do console** recebe o contexto real da sessão (o mesmo que o `diag` mede) + a lista de comandos, e pode **sugerir** um comando — a sugestão só **pré-preenche** o campo, nunca executa. Task `cli` na Edge Function.
 
-**Teclado:** ↑/↓ histórico da sessão · Tab autocompleta comando · o `keydown` para no console (atalho do Estúdio não dispara por baixo).
+**Teclado (desktop):** ↑/↓ histórico da sessão · Tab autocompleta comando · o `keydown` para no console (atalho do Estúdio não dispara por baixo).
 
 ⛔ **Não é fronteira de segurança.** O gate por role é de UX; quem governa é a RLS, e todo comando roda com a sessão do próprio usuário — o console não dá poder que o DevTools já não desse. Comando que só é seguro "porque só dev vê" não entra.
 

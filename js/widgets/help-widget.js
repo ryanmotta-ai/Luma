@@ -347,8 +347,12 @@
       const spOverlay = document.getElementById('sp-overlay');
       const isSplashActive = spOverlay && !spOverlay.classList.contains('sp-done') && spOverlay.style.display !== 'none';
       const isLoginActive = document.body.classList.contains('mode-login') || document.body.classList.contains('login-active');
+      // Luma CLI aberto (body.cli-on): o console ocupa o rodapé e este FAB fica EM CIMA do
+      // campo de comando no celular (z-index 9999 vs 900), roubando o toque. Entra aqui
+      // porque o display é escrito INLINE neste laço — regra de CSS não venceria.
+      const isCliActive = document.body.classList.contains('cli-on');
 
-      if (isSplashActive || isLoginActive) {
+      if (isSplashActive || isLoginActive || isCliActive) {
         wrap.style.display = 'none';
       } else {
         wrap.style.display = 'flex';
@@ -367,6 +371,10 @@
       const observer = new MutationObserver(checkVisibility);
       observer.observe(spOverlay, { attributes: true, attributeFilter: ['class', 'style'] });
     }
+    // O body NÃO era observado (só o comentário dizia que era): o laço de 500ms morre em
+    // 10s, então classe de contexto trocada depois — como o cli-on do console — nunca era
+    // reavaliada e o FAB ficava por cima. Mutação de classe no body é rara; custo zero.
+    new MutationObserver(checkVisibility).observe(document.body, { attributes: true, attributeFilter: ['class'] });
   }
 
   // Mostra uma saudação cedo e depois reaparece em intervalos discretos.

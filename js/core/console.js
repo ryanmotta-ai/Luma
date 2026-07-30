@@ -311,9 +311,14 @@ function _gCliMontar() {
       </button>
     </div>
     <div class="cli-body" id="cli-body" tabindex="0"></div>
+    <div class="cli-chips" aria-label="Comandos rápidos">
+      ${['ajuda', 'diag', 'sync status', 'pastas ls', 'cache ls'].map(c => `<button type="button" class="cli-chip" onclick="_gCliChip('${c}')">${c}</button>`).join('')}
+    </div>
     <div class="cli-inputrow">
       <span class="cli-prompt" aria-hidden="true">luma ›</span>
-      <input id="cli-input" type="text" autocomplete="off" spellcheck="false" aria-label="Comando" placeholder="digite um comando ou uma pergunta">
+      <input id="cli-input" type="text" autocomplete="off" autocapitalize="off" autocorrect="off"
+             spellcheck="false" enterkeyhint="send" aria-label="Comando"
+             placeholder="digite um comando ou uma pergunta">
       <span class="cli-spin" id="cli-spin" aria-hidden="true"></span>
     </div>`;
   document.body.appendChild(el);
@@ -322,6 +327,32 @@ function _gCliMontar() {
   inp.addEventListener('keydown', _gCliTeclas);
   // Clicar no corpo devolve o foco pro campo (comportamento de terminal)
   _gCliBody().addEventListener('click', (ev) => { if (!ev.target.closest('button')) inp.focus(); });
+
+  // CELULAR: o teclado virtual não empurra `position:fixed` — o campo ficaria EMBAIXO
+  // dele (você digita sem ver). O visualViewport diz quanto o teclado comeu; o console
+  // sobe essa altura. No desktop o gap é 0 e nada acontece.
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', _gCliAjustaViewport);
+    window.visualViewport.addEventListener('scroll', _gCliAjustaViewport);
+    inp.addEventListener('focus', () => setTimeout(_gCliAjustaViewport, 120));
+  }
+}
+
+function _gCliAjustaViewport() {
+  const el = document.getElementById('luma-cli');
+  if (!el || !_gCliAberto) return;
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const gap = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+  el.style.bottom = gap ? gap + 'px' : '';
+}
+
+// Chip de comando rápido: no celular não existe Tab nem histórico com setas, então os
+// comandos de leitura ficam a um toque. Só comando que NÃO muda nada entra na lista.
+function _gCliChip(cmd) {
+  const inp = document.getElementById('cli-input');
+  if (inp) inp.value = '';
+  _gCliExec(cmd);
 }
 
 function _gCliPrint(html, cls) {
@@ -413,14 +444,23 @@ function gCliOpen() {
   if (!el) return;
   _gCliAberto = true;
   el.classList.add('open');
+  // Flutuantes do franqueado moram no MESMO rodapé e com z-index maior (aviso de PWA
+  // 13000, FAB do widget de ajuda 9999): no celular eles cobrem o campo de comando e
+  // roubam o toque. Saem de cena enquanto o console está aberto — ver console.css.
+  document.body.classList.add('cli-on');
   const rl = document.getElementById('cli-role');
   if (rl) rl.textContent = (typeof gCurrentRole === 'function') ? (gCurrentRole() || '') : '';
   if (!_gCliBody().childElementCount) _gCliBanner();
-  setTimeout(() => { const i = document.getElementById('cli-input'); if (i) i.focus(); }, 40);
+  // No celular o foco imediato abre o teclado e cobre o banner: quem quiser digitar
+  // toca no campo (ou num chip). No desktop o foco entra na hora, como todo terminal.
+  const ehToque = window.matchMedia && window.matchMedia('(max-width:640px)').matches;
+  if (!ehToque) setTimeout(() => { const i = document.getElementById('cli-input'); if (i) i.focus(); }, 40);
+  _gCliAjustaViewport();
 }
 function gCliClose() {
   const el = document.getElementById('luma-cli');
-  if (el) el.classList.remove('open');
+  if (el) { el.classList.remove('open'); el.style.bottom = ''; }
+  document.body.classList.remove('cli-on');
   _gCliAberto = false;
 }
 function gCliToggle() { _gCliAberto ? gCliClose() : gCliOpen(); }

@@ -81,6 +81,18 @@
   transition:background var(--dur-fast) var(--ease-standard)}
 .cli-sug:hover{background:var(--dm-orange);color:var(--on-accent)}
 
+/* ── comandos rápidos (celular) ──
+   Sem teclado físico não há Tab nem histórico com setas: os comandos de LEITURA
+   ficam a um toque. Escondido no desktop, que tem Tab e ↑/↓. */
+.cli-chips{display:none;gap:6px;flex-shrink:0;overflow-x:auto;scrollbar-width:none;
+  padding:8px 12px;border-top:1px solid var(--d-border);background:var(--d-dark)}
+.cli-chips::-webkit-scrollbar{display:none}
+.cli-chip{flex:0 0 auto;font-family:inherit;font-size:11.5px;font-weight:700;cursor:pointer;
+  padding:6px 12px;min-height:32px;border-radius:var(--r-pill);
+  border:1px solid var(--d-border2);background:var(--d-surf2);color:var(--d-text2);
+  transition:background var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard)}
+.cli-chip:active,.cli-chip:hover{background:var(--dm-orange);border-color:var(--dm-orange);color:var(--on-accent)}
+
 /* ── linha de comando ── */
 .cli-inputrow{display:flex;align-items:center;gap:8px;flex-shrink:0;
   padding:10px 14px;border-top:1px solid var(--d-border);background:var(--d-surf)}
@@ -116,12 +128,37 @@ body.theme-light #cli-input::placeholder{color:var(--text-3)}
 body.theme-light .cli-body::-webkit-scrollbar-thumb{background:var(--gray-mid)}
 body.theme-light .cli-spin{border-color:var(--gray-mid);border-top-color:var(--dm-orange)}
 
-/* Mobile: o console é ferramenta de teclado — ocupa a tela toda e some o atalho. */
+/* ── CELULAR ──
+   Sem Ctrl+`: a entrada é o item "Console" do painel de perfil (user-profile.js).
+   dvh em vez de vh porque a barra do navegador some/aparece e vh trava no maior valor.
+   O padding de baixo respeita a home bar do iPhone; o JS (_gCliAjustaViewport) cuida
+   do teclado virtual, que `position:fixed` não enxerga sozinho. */
 @media (max-width:640px){
-  #luma-cli{width:100vw;height:78vh;border-radius:12px 12px 0 0}
+  #luma-cli{width:100vw;height:82dvh;max-height:82dvh;border-radius:14px 14px 0 0}
   .cli-hint{display:none}
-  .cli-banner{font-size:7px}
+  .cli-banner{font-size:7.5px}
+  .cli-body{padding:10px 12px 6px;font-size:12px}
+  .cli-chips{display:flex}
+  .cli-inputrow{padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px))}
+  #cli-input{font-size:16px}       /* < 16px faz o iOS dar zoom no foco e desalinhar tudo */
+  .cli-x{width:32px;height:32px}   /* alvo de toque */
+  .cli-x svg{width:15px;height:15px}
+  .cli-sug{padding:4px 10px}
 }
+/* Item "Console" no painel de perfil (a entrada do celular): é AÇÃO, não aba — nunca
+   fica .active, então o ícone laranja marca a diferença. O resto herda .prof-nav-btn. */
+.prof-nav-cli svg{color:var(--dm-orange)}
+
+/* Console aberto: o aviso de instalar o PWA sai do rodapé. Ele tem z-index 13000 contra
+   os 900 do console e, no celular, cobria exatamente o campo de comando — interceptando o
+   toque. (O FAB do widget de ajuda tem o mesmo problema, mas o display dele é escrito
+   INLINE por help-widget.js; a regra é lá, no checkVisibility.) O diálogo do gConfirm
+   (11000) NÃO entra aqui de propósito: confirmação destrutiva tem que ficar por cima. */
+body.cli-on #luma-pwa-hint{display:none}
+
+body.theme-light .cli-chips{background:var(--white);border-top-color:var(--gray-light)}
+body.theme-light .cli-chip{background:var(--off-white);border-color:var(--gray-mid);color:var(--text-2)}
+body.theme-light .cli-chip:active,body.theme-light .cli-chip:hover{background:var(--dm-orange);border-color:var(--dm-orange);color:var(--on-accent)}
 @media (prefers-reduced-motion:reduce){
   #luma-cli{transition:none}
   .cli-banner{animation:none}

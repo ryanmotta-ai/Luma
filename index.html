@@ -421,6 +421,13 @@ input:focus:-webkit-autofill {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg>
           <span>Equipe</span><small class="prof-nav-tag">ADMIN</small>
         </button>
+        <!-- Entrada do Luma CLI. É o único caminho no celular (não há Ctrl+` sem teclado)
+             e fica aqui, escondido no painel, em vez de botão solto na tela do franqueado.
+             Revelado por gIsAdmin() em gOpenUserProfileModal — o MESMO gate do console. -->
+        <button type="button" class="prof-nav-btn prof-nav-cli" id="prof-nav-console" onclick="gProfileOpenCli()" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 17 6-6-6-6"/><path d="M12 19h8"/></svg>
+          <span>Console</span><small class="prof-nav-tag">DEV</small>
+        </button>
       </nav>
 
       <button type="button" class="prof-nav-btn prof-logout-btn" onclick="gLogout()">
