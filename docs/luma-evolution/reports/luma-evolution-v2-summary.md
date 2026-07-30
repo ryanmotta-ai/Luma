@@ -4,7 +4,7 @@ Resumo do que foi entregue, com o que sustenta cada parte.
 
 ```
 docs/luma-evolution/presentation/
-├── luma-evolution-v2.pptx              44 slides, 16:9, notas em todos
+├── luma-evolution-v2.pptx              35 slides, 16:9, notas em todos
 ├── luma-evolution-v2.pdf               mesmo conteúdo, 1920×1080 por página
 ├── luma-evolution-v2-speaker-notes.md  notas curtas (média 37 palavras, teto 72)
 ├── luma-evolution-v2-index.md          índice de evidências, slide a slide
@@ -19,53 +19,52 @@ docs/luma-evolution/presentation/
 | | V1 | V2 |
 |---|---|---|
 | Enfoque | auditoria do repositório | case de produto |
-| Slides | 26 | **44** |
+| Slides | 26 | **35** |
 | Prints por slide | até 8 | **no máximo 3**, sem exceção |
 | Telas comparadas | 6 | **16** |
 | Comparações de versão | 5 | **14** (9 de três versões + 5 recortes ampliados) |
-| Imagens nos slides | 32 | **82** |
+| Imagens nos slides | 32 | **70** |
 | Atlas de funcionalidades | não tinha | **16 recursos em 5 telas**, medidos no DOM |
 | Capturas anotadas | não tinha | **5**, em `screenshots/annotated/` |
 | Much+ | mencionado | **slide próprio**, com as duas execuções lado a lado |
-| Padrões de slide | vários | **7**, repetidos de ponta a ponta |
+| Padrões de slide | vários | **6**, repetidos de ponta a ponta |
 
-### Os sete padrões
+### Os padrões
 
-1. **Comparação** — antes → hoje, lado a lado.
-2. **Três momentos** — origem → expansão → atual.
-3. **Três versões** — primeiro commit → véspera da 1.0 → hoje, com as diferenças numeradas em cada coluna.
-4. **Detalhe** — a mesma faixa da tela, ampliada, nas três versões.
-5. **Atlas** — captura com os contornos medidos no DOM.
-6. **Ganhos** — o que foi aprimorado, em grade.
-7. **Editorial** — título com lista ou números.
+1. **Comparação** — antes → hoje, lado a lado (usado no celular e no CLI).
+2. **Três versões** — primeiro commit → véspera da 1.0 → hoje, com as diferenças numeradas em cada coluna.
+3. **Detalhe** — a mesma faixa da tela, ampliada, nas três versões.
+4. **Atlas** — captura com os contornos medidos no DOM.
+5. **Ganhos** — o que foi aprimorado, em grade.
+6. **Editorial** — título com lista ou números.
 
 Nenhuma versão histórica foi reexecutada para a V2: as 65 capturas já estavam em disco. O que foi capturado de novo é só o estado atual — atlas, anotações e a campanha Much+.
 
 ---
 
-## Estrutura dos 44 slides
+## Estrutura dos 35 slides
 
 | # | Bloco | Conteúdo |
 |---|---|---|
 | 1–2 | Abertura | Capa e o que veremos |
 | 3 | Ponto de partida | A primeira versão conhecida, executada |
-| 4 | Linha do tempo | Os 5 marcos do arco principal |
-| 5–7 | Evolução geral | Entrada, fluxo de criação e Estúdio em três momentos cada |
-| 8 | Divisor | Área por área |
-| 9–13 | Evolução por área | Biblioteca, Minhas artes, Exportação, Celular e o CLI |
-| 14 | Divisor | Evolução em detalhe |
-| **15–23** | **Três versões** | **Nove telas comparadas: vitrine, campanha, chat, Estúdio, exportação, histórico, entrada, conta e chat no celular — cada uma no primeiro commit, na véspera da 1.0 e hoje, com as diferenças numeradas** |
-| **24–28** | **Recortes** | **Barra superior, topo da vitrine, cabeçalho do chat, barra de resposta e chamada do Estúdio — ampliados** |
-| **29** | **Ganhos** | **Oito melhorias, cada uma com commit e data** |
-| 30 | Divisor | Atlas |
-| 31–35 | Atlas | Criar · Editar · Organizar · Publicar · Manter |
-| 36 | Much+ | O tema por campanha, duas execuções da mesma versão |
-| 37 | Além da aparência | Cinco frentes de maturidade |
-| 38–42 | O Luma atual | Quinze telas de hoje, três por slide |
-| 43 | A dimensão | Números contados no repositório |
-| 44 | Fechamento | De ferramenta a produto |
+| 4 | Linha do tempo | Os 6 marcos, incluindo os três pontos de comparação |
+| 5 | Divisor | Tela a tela, versão por versão |
+| **6–14** | **Três versões** | **Nove telas: login, vitrine, campanha, chat, Estúdio, exportação, histórico, conta e chat no celular — cada uma no primeiro commit, na véspera da 1.0 e hoje, com as diferenças numeradas** |
+| 15–16 | Sem par no bloco | O celular (piloto → hoje) e o CLI, que não existia antes |
+| **17–21** | **Recortes** | **Barra superior, topo da vitrine, cabeçalho do chat, barra de resposta e chamada do Estúdio — ampliados** |
+| **22** | **Ganhos** | **Oito melhorias, cada uma com commit e data** |
+| 23 | Divisor | Atlas |
+| 24–28 | Atlas | Criar · Editar · Organizar · Publicar · Manter |
+| 29 | Much+ | O tema por campanha, duas execuções da mesma versão |
+| 30 | Além da aparência | Cinco frentes de maturidade |
+| 31–33 | O Luma atual | Nove telas, começando pelas que não tiveram slide próprio |
+| 34 | A dimensão | Números contados no repositório |
+| 35 | Fechamento | De ferramenta a produto |
 
-**O bloco 15–29 é o que responde "o que foi mudando e aprimorado".** Os três pontos de comparação são fixos em todos os slides:
+**Duração:** 27 minutos somando as notas.
+
+**O bloco 6–22 é o que responde "o que foi mudando e aprimorado".** Os três pontos de comparação são fixos em todos os slides:
 
 | Ponto | Commit | Data | Por quê |
 |---|---|---|---|
@@ -112,8 +111,8 @@ Cada contorno vem de `getBoundingClientRect` na versão atual, em porcentagem da
 | | |
 |---|---|
 | Capturas reais em disco | 86 |
-| Imagens nos slides | 82, no máximo 3 por slide |
-| Marcos capturados | 9 (5 na narrativa, 3 nas comparações detalhadas) |
+| Imagens nos slides | 70, no máximo 3 por slide |
+| Marcos capturados | 9 (6 na linha do tempo, 3 nas comparações) |
 | Telas do produto comparadas | 16 |
 | Funcionalidades mapeadas no atlas | 16 |
 | Commits analisados | 72, de 3 autores |
@@ -122,6 +121,21 @@ Cada contorno vem de `getBoundingClientRect` na versão atual, em porcentagem da
 | Linhas do produto alteradas para os prints | 0 |
 
 Conferência visual automática antes de exportar: **0 elementos fora da página, 0 textos cortados, 0 contrastes abaixo de 4,5:1** (menor medido 8,26:1). Detalhe em `reports/luma-evolution-v2-conferencia.md`.
+
+---
+
+## Revisão de coerência
+
+Uma passada crítica sobre a sequência encontrou quatro problemas, todos corrigidos:
+
+1. **Seis telas apareciam duas vezes.** Os blocos "evolução geral" e "área por área" cobriam as mesmas telas que o bloco de comparação detalhada, com marcos ligeiramente diferentes. Os dois primeiros saíram; sobrou o detalhado, que traz as diferenças numeradas. O celular e o CLI ficaram, porque não repetem nada.
+2. **O commit da coluna do meio não estava na linha do tempo.** `bcc61e8` sustenta doze comparações e aparecia do nada no meio da apresentação. Agora é o quarto marco.
+3. **"Tela de entrada" nomeava duas telas.** A vitrine virou "Vitrine"; o login ficou com "Tela de entrada" — e passou a abrir o bloco, que é onde ele pertence.
+4. **Cinco slides com o mesmo título.** A galeria de fecho encolheu de quinze telas em cinco slides para nove em três, começando pelas que ainda não tiveram slide próprio.
+
+Também havia duas superlativas competindo ("a maior transformação do produto" no Estúdio e "a tela que mais mudou de função" no login). A do login virou uma afirmação sobre papel, não sobre tamanho.
+
+Um bug do pipeline apareceu na mesma passada: quando a apresentação encolhe, os PNGs da rodada anterior ficavam em disco e o empacotador os incluía — o PPTX saiu com 44 páginas para um HTML de 35. O publicador agora limpa antes de exportar.
 
 ---
 

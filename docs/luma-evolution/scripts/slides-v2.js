@@ -22,7 +22,10 @@ const TODOS = JSON.parse(fs.readFileSync(path.join(BASE, 'commit-map', 'mileston
 // ── curadoria: 5 marcos dos 9 capturados ─────────────────────────────────────
 // Escolhidos por diferença visual clara. M2/M4/M5/M6 saem porque a tela que eles mudam já
 // está representada por um vizinho — dois commits quase idênticos não contam história.
-const ESCOLHIDOS = ['M0', 'M1', 'M3', 'M7', 'M8'];
+// M4 (véspera da 1.0) entra porque é a coluna do meio de todas as comparações do bloco
+// detalhado. Sem ele aqui, aquele commit aparecia do nada no meio da apresentação e o
+// argumento "as duas semanas antes da 1.0 foram de robustez" ficava sem referência.
+const ESCOLHIDOS = ['M0', 'M1', 'M3', 'M4', 'M7', 'M8'];
 const MARCOS = ESCOLHIDOS.map(id => TODOS.find(m => m.id === id)).filter(Boolean);
 
 const atlasPath = path.join(BASE, 'commit-map', 'atlas.json');
@@ -370,145 +373,46 @@ O histórico versionado é curto: 15 dias, ${M.commits} commits, e metade deles 
   obs: 'Datas e hashes conferidos com git log.' });
 
 // ══ 5–7 · TRÊS GRANDES MOMENTOS ═════════════════════════════════════════════
-trio({
-  kicker: 'Evolução geral · A entrada',
-  titulo: 'A primeira tela, em três momentos',
-  momentos: [
-    { marco: 'M0', cena: 'home', rotulo: 'Origem', nota: 'Cai direto no chat. O catálogo é uma coluna estreita à esquerda.' },
-    { marco: 'M3', cena: 'home', rotulo: 'Expansão', nota: 'Ganha vitrine própria: a lista de campanhas passa a vir do banco.' },
-    { marco: 'M8', cena: 'home', rotulo: 'Hoje', nota: 'Saudação, busca, destaque da semana e a grade de campanhas prontas.' }
-  ],
-  conclusao: 'O produto deixou de assumir que você já sabia o que fazer. Hoje a primeira tela <b>orienta a escolha</b> antes de pedir qualquer informação.',
-  nota: `A leitura mais direta da apresentação: três execuções reais, mesma tela, três épocas.
-Repare na paleta — vermelho na origem, laranja da marca hoje.
-~50s.`
-});
-
-trio({
-  kicker: 'Evolução geral · O fluxo de criação',
-  titulo: 'O chat sempre esteve no centro',
-  momentos: [
-    { marco: 'M0', cena: 'chat', rotulo: 'Origem', nota: 'Assistente pergunta em 4 passos, com sugestões clicáveis e prévia à direita.' },
-    { marco: 'M3', cena: 'chat', rotulo: 'Expansão', nota: 'Mesma mecânica, agora dentro de uma campanha escolhida no catálogo.' },
-    { marco: 'M8', cena: 'chat', rotulo: 'Hoje', nota: 'Com material escolhido, formato definido e IA ajudando a encaixar o texto.' }
-  ],
-  conclusao: 'O acerto do piloto foi o formato: <b>perguntar em vez de mandar editar</b>. O que mudou não foi o chat — foi tudo que passou a existir em volta dele.',
-  nota: `Slide que dá crédito à ideia original. O chat guiado não foi invenção posterior.
-A evolução foi de contexto, não de mecânica.
-~45s.`
-});
-
-trio({
-  kicker: 'Evolução geral · A criação',
-  titulo: 'O Estúdio ganhou uma casa',
-  momentos: [
-    { marco: 'M0', cena: 'designer', rotulo: 'Origem', nota: 'Entra direto no canvas, com as ferramentas em volta.' },
-    { marco: 'M3', cena: 'designer', rotulo: 'Expansão', nota: 'O canvas passa a conviver com pastas e campanhas vindas do banco.' },
-    { marco: 'M8', cena: 'designer', rotulo: 'Hoje', nota: 'Abre numa home própria: biblioteca de materiais, busca, filtros e três formas de começar.' }
-  ],
-  conclusao: 'Editar sempre funcionou — o canvas do piloto já era completo. O que faltava era <b>onde guardar e reencontrar</b> o que foi editado.',
-  nota: `Cuidado para não vender demais: a diferença aqui é organizacional, não de capacidade de desenho.
-~40s.`
-});
-
-// ══ 8–13 · EVOLUÇÃO POR ÁREA ════════════════════════════════════════════════
-add(`<section class="slide escuro">
-  <div class="sn">ÁREA POR ÁREA</div><h2>Seis frentes,<br>seis comparações</h2>
-  <p class="psec">Mesma tela, mesmo enquadramento, datas embaixo. Da esquerda para a direita: como era, como está.</p>
-</section>`,
-`Divisor. Avise que a leitura daqui pra frente é sempre igual — isso deixa a plateia processar a imagem, não o layout.
-~10s.`,
-{ tipo: 'Capa', imagens: [], quando: '—', obs: '—' });
-
-comparar({
-  cena: 'catalogo', kicker: 'Área · Biblioteca de campanhas',
-  titulo: 'De lista fixa a catálogo gerido pelo time',
-  antes: 'M0', depois: 'M8', rotA: 'Piloto', rotB: 'Hoje',
-  notaA: 'As campanhas eram itens fixos no código: publicar uma nova exigia mexer no arquivo.',
-  notaB: 'Campanha é pasta no banco: o que o time cria no Estúdio aparece para o franqueado sem deploy.',
-  conclusao: 'Essa é a mudança que tirou o time de engenharia do caminho. <b>Publicar campanha virou trabalho de quem faz a campanha.</b>',
-  nota: `Slide de impacto operacional. Antes, cada campanha nova era um commit; hoje é uma pasta.
-O marco dessa virada é 247bcd4, de 16/07.
-~45s.`
-});
-
-comparar({
-  cena: 'minhas-artes', kicker: 'Área · Artes e organização',
-  titulo: 'O trabalho começado deixou de se perder',
-  antes: 'M0', depois: 'M8', rotA: 'Piloto', rotB: 'Hoje',
-  notaA: 'Uma aba de histórico ao lado do catálogo, presa à sessão do navegador.',
-  notaB: 'Área própria, com rascunho retomável e o vínculo com o template que deu origem à arte.',
-  conclusao: 'O histórico saiu do navegador e foi para o banco, com trava de escrita e aviso de conflito entre aparelhos. <b>Fechar o app deixou de ser perder o trabalho.</b>',
-  nota: `Aqui vale citar os commits de sync de 16/07: lock no push, releitura antes de regravar e fila de deleções.
-~40s.`
-});
-
-comparar({
-  cena: 'exportar', kicker: 'Área · Exportação',
-  titulo: 'Sair do Luma com o arquivo certo',
-  antes: 'M1', depois: 'M8', rotA: 'Primeira versão no git', rotB: 'Hoje',
-  notaA: 'Exportação existia, ainda enxuta.',
-  notaB: 'Formato, escala e lote de pranchetas — PNG, JPG, SVG e PSD a partir da mesma arte.',
-  conclusao: 'A exportação virou a ponta séria do fluxo: <b>escala dobrada para impressão</b> e saída em lote, sem refazer nada.',
-  nota: `A comparação aqui começa em 16/07 porque o piloto não tinha esse modal — o que já é a informação.
-Em 17/07 entram o z-order confiável do PSD e o raster adaptativo, que é o que torna o export 2× nítido.
-~40s.`
-});
-
-comparar({
-  cena: 'home-mobile', kicker: 'Área · Celular',
-  titulo: 'De adaptado a pensado para a tela pequena',
-  antes: 'M0', depois: 'M8', rotA: 'Piloto no celular', rotB: 'Hoje no celular',
-  notaA: 'Layout de desktop espremido na largura do telefone.',
-  notaB: 'Vitrine própria de celular, com alvos de toque e navegação por gesto.',
-  conclusao: 'Em 16/07 o telefone ganha tratamento próprio: prévia com a arte dentro do aparelho e PWA instalável. <b>Deixou de ser um desktop menor.</b>',
-  nota: `Se houver franqueado na sala, este slide fala com ele: o uso real acontece no celular.
-~35s.`
-});
-
-// CLI — nasceu no fim, não tem "antes"
-if (tem('M8', 'cli')) {
-  add(`<section class="slide">${topo('Área · Ferramenta interna', '30/07/2026')}
-    <div class="corpo" style="display:flex;gap:44px">
-      <div style="flex:1.35;display:flex;flex-direction:column;justify-content:center;min-width:0">
-        <div class="moldura" style="--ar:${ar(img('M8','cli'))}"><img src="${img('M8','cli')}" alt="Luma CLI"></div>
-        <div class="legenda"><span class="eti eti-novo">não existia antes</span><span class="rot">Luma CLI</span>
-          <span class="meta">30/07/2026 · branch atual</span></div>
-      </div>
-      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0">
-        <h2 class="titulo" style="font-size:44px">Uma superfície para quem <em style="font-style:normal;color:var(--laranja-d)">mantém</em> o Luma</h2>
-        <div class="sub" style="font-size:20px">Nasceu de um incidente real de sync em que o diagnóstico era colar snippet no DevTools.</div>
-        <ul class="fatos" style="margin-top:22px">
-          <li><span><b>diag</b> — radiografia de sessão, sync, cache, banco e IA</span></li>
-          <li><span><b>sync push/pull</b> — força a sincronização e mostra antes → depois</span></li>
-          <li><span>Qualquer frase vira pergunta para a IA, com o contexto real da sessão</span></li>
-        </ul>
-        <div class="conclusao" style="position:static;margin-top:20px;font-size:19px">O gate por perfil é de UX. Quem protege o dado continua sendo a <b>RLS no banco</b> — o console não dá poder que o DevTools já não desse.</div>
-      </div>
-    </div>
-    ${rodape('execução real do commit')}
-  </section>`,
-  `Slide sem "antes", e é esse o ponto: o produto passou a ter ferramenta interna própria.
-O conhecimento que morava na cabeça de quem debugava virou comando nomeado.
-Ressalte a última linha se houver alguém de segurança na sala.
-~50s.`,
-  { tipo: 'Captura real', imagens: [img('M8','cli')], quando: '30/07/2026 (branch atual)',
-    obs: 'Sem versão anterior: a tela nasceu em 30/07 (c9790e8 e e48b7ff).' });
-}
 
 // ══ EVOLUÇÃO EM DETALHE — todas as versões de cada tela ═════════════════════
 add(`<section class="slide escuro">
   <div class="sn">EVOLUÇÃO EM DETALHE</div><h2>Tela a tela,<br>versão por versão</h2>
-  <p class="psec">Daqui em diante, cada slide mostra <b>todas</b> as execuções capturadas de uma mesma tela, em ordem cronológica. O quadro com borda laranja é o momento em que aquela tela mudou de verdade.</p>
+  <p class="psec">Cada slide compara a mesma tela em <b>três pontos do git</b>: o primeiro commit, a véspera da 1.0 e hoje. As diferenças vêm numeradas em cada coluna.</p>
 </section>`,
-`Divisor do bloco mais denso. Avise que agora vem volume: são oito ou nove versões reais por tela.
-Não descreva quadro a quadro — deixe a plateia varrer a linha e aponte só o quadro destacado.
+`Divisor do bloco principal. Diga a regra de leitura uma vez: esquerda é o primeiro commit, meio é a véspera da 1.0, direita é hoje.
+A coluna do meio é a que mais informa — repare quantas vezes ela é igual à primeira.
 ~15s.`,
 { tipo: 'Capa', imagens: [], quando: '—', obs: '—' });
 
 tres({
-  cena: 'home', kicker: 'Comparação · Tela de entrada',
-  titulo: 'A vitrine: primeiro commit, véspera da 1.0 e hoje',
+  cena: 'login', kicker: 'Comparação · Tela de entrada',
+  titulo: 'O login, nos três pontos',
+  versoes: [
+    { marco: 'M1', rotulo: 'Primeiro commit', difs: [
+      'Cartão branco no centro de um fundo <b>laranja chapado</b>.',
+      'Logo, dois campos, um botão. <b>Nada além do formulário</b>.',
+      { t: 'Não diz o que é o Luma nem para quem.', nao: true }
+    ]},
+    { marco: 'M4', rotulo: 'Véspera da 1.0', difs: [
+      '<b>Idêntica</b> à do primeiro commit.',
+      'O produto chegou à 1.0 com a porta ainda anônima.'
+    ]},
+    { marco: 'M8', rotulo: 'Hoje', difs: [
+      'Vira <b>duas colunas</b>: proposta à esquerda, formulário à direita.',
+      'Promete em uma frase: <b>"Arte de agência, pronta em um minuto."</b>',
+      'Mostra <b>artes reais</b> — Much+, Combos, Desconto em Dobro.',
+      'Declara o público: <b>acesso restrito a franqueados e equipe</b>.'
+    ]}
+  ],
+  conclusao: 'A porta do produto <b>mudou de papel</b>: era só uma catraca e virou a primeira peça de comunicação — quem chega entende o que o Luma faz antes de digitar a senha.',
+  nota: `Comece por aqui se tiver pouco tempo: é a comparação mais imediata da apresentação.
+Repare que as artes na coluna esquerda são materiais reais do catálogo, não ilustração.
+~50s.`
+});
+
+tres({
+  cena: 'home', kicker: 'Comparação · Vitrine',
+  titulo: 'A vitrine, nos três pontos',
   versoes: [
     { marco: 'M1', rotulo: 'Primeiro commit', difs: [
       'Chamada <b>"Seu espaço criativo"</b>, com a promessa de tempo no subtítulo.',
@@ -658,32 +562,6 @@ Esta chegou certa no primeiro dia. O trabalho foi fazer o dado sobreviver por tr
 });
 
 tres({
-  cena: 'login', kicker: 'Comparação · A porta do produto',
-  titulo: 'A tela de entrada, nos três pontos',
-  versoes: [
-    { marco: 'M1', rotulo: 'Primeiro commit', difs: [
-      'Cartão branco no centro de um fundo <b>laranja chapado</b>.',
-      'Logo, dois campos, um botão. <b>Nada além do formulário</b>.',
-      { t: 'Não diz o que é o Luma nem para quem.', nao: true }
-    ]},
-    { marco: 'M4', rotulo: 'Véspera da 1.0', difs: [
-      '<b>Idêntica</b> à do primeiro commit.',
-      'O produto chegou à 1.0 com a porta ainda anônima.'
-    ]},
-    { marco: 'M8', rotulo: 'Hoje', difs: [
-      'Vira <b>duas colunas</b>: proposta à esquerda, formulário à direita.',
-      'Promete em uma frase: <b>"Arte de agência, pronta em um minuto."</b>',
-      'Mostra <b>artes reais</b> — Much+, Combos, Desconto em Dobro.',
-      'Declara o público: <b>acesso restrito a franqueados e equipe</b>.'
-    ]}
-  ],
-  conclusao: 'A tela que <b>mais mudou de função</b> em todo o produto: era só uma catraca e virou a primeira peça de comunicação — quem chega já entende o que o Luma faz antes de digitar a senha.',
-  nota: `Comece por aqui se tiver pouco tempo: é a comparação mais imediata da apresentação.
-Repare que as artes na coluna esquerda são materiais reais do catálogo, não ilustração.
-~50s.`
-});
-
-tres({
   cena: 'perfil', kicker: 'Comparação · Conta e permissões',
   titulo: 'O painel de conta, nos três pontos',
   versoes: [
@@ -732,6 +610,47 @@ tres({
 Repare que aqui a coluna do meio JÁ difere da primeira — é a exceção no bloco.
 ~45s.`
 });
+
+comparar({
+  cena: 'home-mobile', kicker: 'Área · Celular',
+  titulo: 'De adaptado a pensado para a tela pequena',
+  antes: 'M0', depois: 'M8', rotA: 'Piloto no celular', rotB: 'Hoje no celular',
+  notaA: 'Layout de desktop espremido na largura do telefone.',
+  notaB: 'Vitrine própria de celular, com alvos de toque e navegação por gesto.',
+  conclusao: 'Em 16/07 o telefone ganha tratamento próprio: prévia com a arte dentro do aparelho e PWA instalável. <b>Deixou de ser um desktop menor.</b>',
+  nota: `Se houver franqueado na sala, este slide fala com ele: o uso real acontece no celular.
+~35s.`
+});
+
+// CLI — nasceu no fim, não tem "antes"
+if (tem('M8', 'cli')) {
+  add(`<section class="slide">${topo('Área · Ferramenta interna', '30/07/2026')}
+    <div class="corpo" style="display:flex;gap:44px">
+      <div style="flex:1.35;display:flex;flex-direction:column;justify-content:center;min-width:0">
+        <div class="moldura" style="--ar:${ar(img('M8','cli'))}"><img src="${img('M8','cli')}" alt="Luma CLI"></div>
+        <div class="legenda"><span class="eti eti-novo">não existia antes</span><span class="rot">Luma CLI</span>
+          <span class="meta">30/07/2026 · branch atual</span></div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0">
+        <h2 class="titulo" style="font-size:44px">Uma superfície para quem <em style="font-style:normal;color:var(--laranja-d)">mantém</em> o Luma</h2>
+        <div class="sub" style="font-size:20px">Nasceu de um incidente real de sync em que o diagnóstico era colar snippet no DevTools.</div>
+        <ul class="fatos" style="margin-top:22px">
+          <li><span><b>diag</b> — radiografia de sessão, sync, cache, banco e IA</span></li>
+          <li><span><b>sync push/pull</b> — força a sincronização e mostra antes → depois</span></li>
+          <li><span>Qualquer frase vira pergunta para a IA, com o contexto real da sessão</span></li>
+        </ul>
+        <div class="conclusao" style="position:static;margin-top:20px;font-size:19px">O gate por perfil é de UX. Quem protege o dado continua sendo a <b>RLS no banco</b> — o console não dá poder que o DevTools já não desse.</div>
+      </div>
+    </div>
+    ${rodape('execução real do commit')}
+  </section>`,
+  `Slide sem "antes", e é esse o ponto: o produto passou a ter ferramenta interna própria.
+O conhecimento que morava na cabeça de quem debugava virou comando nomeado.
+Ressalte a última linha se houver alguém de segurança na sala.
+~50s.`,
+  { tipo: 'Captura real', imagens: [img('M8','cli')], quando: '30/07/2026 (branch atual)',
+    obs: 'Sem versão anterior: a tela nasceu em 30/07 (c9790e8 e e48b7ff).' });
+}
 
 // ── recortes ampliados ──
 detalhe({
@@ -879,7 +798,11 @@ O item 5 é meta — a ferramenta que reabre versões antigas é a que gerou est
   obs: 'Síntese de commit-map/luma-timeline.md e docs/LUMA-BACKEND-CHANGELOG.md.' });
 
 // ══ 21 · O LUMA ATUAL ═══════════════════════════════════════════════════════
-const galeria = ['home', 'catalogo', 'chat', 'minhas-artes', 'designer', 'exportar', 'cli', 'muchplus', 'login', 'perfil', 'novo-material', 'psd', 'atalhos', 'catalogo-mobile', 'chat-mobile'].filter(c => tem('M8', c));
+// Ordem deliberada: primeiro as telas que ainda NÃO tiveram slide próprio, depois as
+// principais como fecho. Quinze telas em cinco slides cansava — vitrine, chat e Estúdio
+// já haviam aparecido três vezes cada (comparação, atlas e galeria).
+const galeria = ['novo-material', 'psd', 'atalhos', 'catalogo-mobile', 'home-mobile', 'muchplus',
+                 'home', 'designer', 'cli'].filter(c => tem('M8', c));
 const ROT = { home:'Vitrine', catalogo:'Campanha aberta', chat:'Chat que monta a arte', 'minhas-artes':'Minhas artes',
               designer:'Estúdio', exportar:'Exportar', cli:'Console do time', muchplus:'Tema Much+',
               login:'Entrada', perfil:'Conta e gestão', 'novo-material':'Criar material',
@@ -906,9 +829,9 @@ const DESC = {
 for (let i = 0; i < galeria.length; i += 3) {
   const grupo = galeria.slice(i, i + 3);
   const parte = Math.floor(i / 3) + 1, partes = Math.ceil(galeria.length / 3);
-  add(`<section class="slide">${topo('O Luma atual', `${parte}/${partes} · 30/07/2026 · branch atual`)}
+  add(`<section class="slide">${topo(`O Luma atual · ${parte} de ${partes}`, '30/07/2026 · branch atual')}
     <div class="corpo">
-      <h2 class="titulo" style="font-size:46px;margin-bottom:20px">O produto hoje, tela por tela</h2>
+      <h2 class="titulo" style="font-size:46px;margin-bottom:20px">${esc(grupo.map(c => ROT[c] || c).join(' · '))}</h2>
       <div class="t3" style="height:calc(100% - 74px)">
         ${grupo.map(c => `<div class="t3-col atual">
           <div class="t3-img" style="--ar:${ar(img('M8', c))}"><img src="${img('M8', c)}" alt="${esc(ROT[c] || c)}"></div>

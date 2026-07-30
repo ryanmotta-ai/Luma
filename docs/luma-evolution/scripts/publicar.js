@@ -27,6 +27,10 @@ const MIN_CONTRASTE = 4.5;   // WCAG AA para texto
 
 fs.mkdirSync(PNGS, { recursive: true });
 fs.mkdirSync(path.join(BASE, 'reports'), { recursive: true });
+// Limpa os PNGs da rodada anterior. Sem isso, uma apresentação que encolhe deixa os
+// slides extras em disco e o montar-pptx.py os empacota junto — o PPTX saiu com 44
+// páginas quando o HTML tinha 35.
+for (const f of fs.readdirSync(PNGS)) if (/^slide-\d+\.png$/.test(f)) fs.unlinkSync(path.join(PNGS, f));
 
 const lum = ([r, g, b]) => { const f = v => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); };
   return .2126 * f(r) + .7152 * f(g) + .0722 * f(b); };
