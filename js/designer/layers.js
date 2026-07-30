@@ -3052,7 +3052,14 @@ async function dSyncFoldersFromBackend(){
     // Os layers descem sob demanda: dLoadTemplate (designer) / fEnsureMaterialLayers (franqueado).
     const { data:rt, error:eT }=await sb.schema('luma').from('templates').select('id, pasta_id, nome, fmt, formats, w, h, bg, publicado, publicado_em, validade, instrucoes, permissoes, updated_at');
     // Pull mudo = catálogo vazio sem explicação (mesmo incidente de 07/2026). Nomear a causa.
-    if(eT) console.warn('[sync] pull de templates falhou (catálogo não desceu):', eT.message||eT);
+    // E ABORTAR: seguir o merge com rt=null montava TODA pasta com zero material — a vitrine
+    // jogava o catálogo inteiro em "Em breve" (card fantasma, sem clique) e a linha 3087
+    // gravava esse vazio no localStorage, destruindo o cache que ainda estava íntegro. Uma
+    // falha de rede num pull não pode apagar catálogo: mantém o local e re-tenta no próximo boot.
+    if(eT){
+      console.warn('[sync] pull de templates falhou (catálogo não desceu):', eT.message||eT);
+      return;
+    }
     // Anti-ressurreição: linhas cuja deleção está na fila pendente não voltam pro catálogo
     // (a deleção remota falhou; sem o filtro o item apagado reaparecia até o retry vingar).
     const _hasPD=(typeof gIsPendingDelete==='function');
