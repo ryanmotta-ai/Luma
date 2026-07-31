@@ -71,6 +71,11 @@
   --dur-fast:  180ms;   /* botões, chips, tooltips */
   --dur-base:  260ms;   /* modais, painéis, cards */
   --dur-slow:  420ms;   /* entradas grandes, transição de view */
+  /* Único degrau acima do --dur-slow: momento de CONQUISTA (conclusão de módulo,
+     splash de formação). Não use em UI cotidiana — 720ms num hover é lentidão,
+     não elegância. Foi o único token que a Academia precisou acrescentar: as
+     outras quatro durações já cobriam hover, botão, painel e entrada de view. */
+  --dur-celebration: 720ms;
 
   /* Legado (mantido p/ compat — não remover; muitos arquivos referenciam) */
   --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);

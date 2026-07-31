@@ -59,7 +59,15 @@ function acRenderAula(root, opts){
     </div>`;
   }
   acRenderSidebar();
-  if(_acAulaMontada !== aula.id){ acRenderAulaMain(aula); _acAulaMontada = aula.id; }
+  if(_acAulaMontada !== aula.id){
+    // Crossfade só quando a casca JÁ existia (troca de aula dentro do ambiente).
+    // Na primeira montagem não há de onde cruzar — animar ali só atrasaria a tela.
+    const main = document.getElementById('ac-aula-main');
+    const primeira = _acAulaMontada === null || !main || !main.childElementCount;
+    if(primeira || typeof acTroca!=='function') acRenderAulaMain(aula);
+    else acTroca(main, ()=>acRenderAulaMain(aula));
+    _acAulaMontada = aula.id;
+  }
   else acRenderAbas(aula);
   if(typeof acRenderAgente==='function') acRenderAgente(aula);
   acAplicarAgenteRecolhido();
@@ -116,7 +124,7 @@ function acSidebarModulo(m){
   const bloq = est==='bloqueado';
   return `<li class="ac-side-mod is-${est}${aberto?' is-aberto':''}">
     <button type="button" class="ac-side-mod-cab" aria-expanded="${aberto?'true':'false'}"
-            onclick="this.closest('.ac-side-mod').classList.toggle('is-aberto');this.setAttribute('aria-expanded',this.closest('.ac-side-mod').classList.contains('is-aberto'))">
+            aria-controls="ac-aulas-${m.id}" onclick="acToggleModulo(this)">
       <span class="ac-side-mod-ico" aria-hidden="true">${
         est==='concluido'?acIco('check'):est==='atualizado'?acIco('novo'):bloq?acIco('lock'):acIco('chev','ac-i-chev')}</span>
       <span class="ac-side-mod-txt">
@@ -124,7 +132,7 @@ function acSidebarModulo(m){
         <span class="ac-side-mod-meta">${feitas}/${aulas.length}${bloq?' · bloqueado':''}</span>
       </span>
     </button>
-    <ul class="ac-side-aulas">${aulas.map(a=>acSidebarAula(a,m,bloq)).join('')}</ul>
+    <ul class="ac-side-aulas" id="ac-aulas-${m.id}"${aberto?'':' hidden'}>${aulas.map(a=>acSidebarAula(a,m,bloq)).join('')}</ul>
   </li>`;
 }
 
@@ -159,6 +167,21 @@ function acSidebarAula(a, m, bloq){
       ${atualizada?`<span class="ac-tag ac-tag-novo" title="Conteúdo atualizado depois de você ver">Novo</span>`:''}
     </${bloq?'div':'button'}>
   </li>`;
+}
+
+/**
+ * Abre/fecha um módulo na sidebar animando a ALTURA real.
+ * Antes era um toggle de classe com display:none → block: a altura pulava e as
+ * aulas que a pessoa estava olhando desapareciam de um quadro pro outro.
+ */
+function acToggleModulo(btn){
+  const li = btn && btn.closest('.ac-side-mod'); if(!li) return;
+  const lista = li.querySelector('.ac-side-aulas');
+  const abrir = !li.classList.contains('is-aberto');
+  li.classList.toggle('is-aberto', abrir);
+  btn.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+  if(typeof acAltura==='function') acAltura(lista, abrir);
+  else if(lista) lista.hidden = !abrir;
 }
 
 // Troca de aula: salva o que está em curso antes de sair (posição + rascunho).
@@ -317,15 +340,17 @@ async function acMontarPlayer(aula){
     const dur = v.duration || aula.duracao_seg || 0;
     const margem = dur ? Math.min(10, dur*0.1) : 0;
     const retomarDe = (p.posicao_seg>5 && (!dur || p.posicao_seg < dur-margem)) ? p.posicao_seg : 0;
+    // A retomada agora é ESCOLHA, não fato consumado: posicionamos o vídeo no
+    // ponto salvo (é o que a pessoa quer em 9 de 10 casos) mas oferecemos
+    // reiniciar numa faixa discreta sobre o player, sem modal e sem travar o play.
     if(retomarDe){
       try{ v.currentTime = retomarDe; }catch(e){}
-      gToast('Retomando de '+acFmtTempo(retomarDe));
+      acMostrarRetomada(retomarDe);
       if(typeof gTrackEvent==='function') gTrackEvent('video_retomado',{aula_id:aula.id});
     }
   });
-  v.addEventListener('playing', ()=>{ if(estado) estado.style.display='none'; });
   v.addEventListener('waiting', ()=>{
-    if(estado && !estado.classList.contains('is-erro')){ estado.style.display=''; }
+    if(estado && !estado.classList.contains('is-erro')){ estado.style.display=''; acPlayerEstado('carregando'); }
   });
   let jaTocou=false;
   v.addEventListener('play', ()=>{
@@ -333,8 +358,21 @@ async function acMontarPlayer(aula){
     if(!jaTocou){ jaTocou=true; if(typeof gTrackEvent==='function') gTrackEvent('video_iniciado',{aula_id:aula.id}); }
   });
   v.addEventListener('timeupdate', ()=>acVideoTick(aula));
-  v.addEventListener('pause', ()=>acSalvarPosicao());
-  v.addEventListener('ended', ()=>{ acVideoTick(aula, true); acSalvarPosicao(true); });
+  v.addEventListener('pause', ()=>{ acSalvarPosicao(); acPlayerEstado('pausado'); });
+  v.addEventListener('playing', ()=>{ if(estado) estado.style.display='none'; acPlayerEstado('tocando'); });
+  // FIM DO VÍDEO — antes daqui, este handler chamava acVideoTick(aula, true), que
+  // forçava pct_assistido = 1 e concluía a aula. Isso FURAVA a própria regra do
+  // módulo: arrastar a barra até o fim disparava 'ended' e a aula era concluída
+  // com 0% assistido (medido: {pct:0} → {pct:1, concluida:true}).
+  // Agora o fim do vídeo NÃO mexe no percentual — ele só grava o que foi de fato
+  // assistido e apresenta a próxima ação. Quem assistiu de verdade já cruzou o
+  // critério no timeupdate e a aula concluiu sozinha antes de chegar aqui.
+  v.addEventListener('ended', ()=>{
+    acVideoTick(aula);
+    acSalvarPosicao(true);
+    acPlayerEstado('fim');
+    acMostrarFimDoVideo(aula);
+  });
   v.addEventListener('error', ()=>{
     if(estado){
       estado.style.display='';
@@ -350,7 +388,7 @@ async function acMontarPlayer(aula){
  * seek) é o que impede "arrastei a barrinha até o fim" de valer como aula vista —
  * exatamente o que o produto pede.
  */
-function acVideoTick(aula, forcarFim){
+function acVideoTick(aula){
   const v = _acVideoEl; if(!v) return;
   const dur = v.duration || aula.duracao_seg || 0;
   const agora = v.currentTime;
@@ -362,10 +400,14 @@ function acVideoTick(aula, forcarFim){
   const pctSessao = dur ? Math.min(1, _acAssistido/dur) : 0;
   // O total é o acumulado no banco + o desta sessão (quem assiste em duas visitas
   // também chega ao critério).
-  const pct = forcarFim ? Math.max(p.pct_assistido||0, 1) : Math.min(1, (p.pct_assistido||0) + pctSessao);
+  // Sem atalho de "forçar 100%": o percentual é SEMPRE o acumulado real.
+  const pct = Math.min(1, (p.pct_assistido||0) + pctSessao);
   const num = document.getElementById('ac-assistido-num');
   const barra = document.querySelector('#ac-assistido .ac-barra i');
   const box = document.getElementById('ac-assistido');
+  // Escrita direta (sem helper de animação): isto roda ~4x por segundo durante a
+  // reprodução, e animar cada tick seria trabalho jogado fora — a própria
+  // frequência já produz um avanço contínuo suave.
   if(num) num.textContent = Math.round(pct*100)+'% assistido';
   if(barra) barra.style.width = Math.round(pct*100)+'%';
   if(box) box.setAttribute('aria-label', Math.round(pct*100)+'% do vídeo assistido');
@@ -387,6 +429,108 @@ function acVideoTick(aula, forcarFim){
     }
   }
 }
+/* ══════════════════════════════════════════════════════════════
+   ESTADOS DO PLAYER · RETOMADA · FIM DO VÍDEO
+   Tudo como faixa discreta DENTRO do palco do player: nada de modal por cima do
+   vídeo (o pedido é explícito — não bloquear com modal invasivo).
+══════════════════════════════════════════════════════════════ */
+// Estado só como classe no palco: o CSS decide a aparência, o JS não sabe de cor.
+function acPlayerEstado(estado){
+  const palco = document.querySelector('#ac-player .ac-player-palco');
+  if(!palco) return;
+  palco.classList.remove('is-carregando','is-tocando','is-pausado','is-fim');
+  if(estado) palco.classList.add('is-'+estado);
+}
+
+// Faixa de retomada: informa de onde voltou e oferece reiniciar. Some sozinha
+// (a informação já cumpriu o papel) mas o botão fica alcançável enquanto está lá.
+function acMostrarRetomada(seg){
+  const palco = document.querySelector('#ac-player .ac-player-palco');
+  if(!palco) return;
+  const antiga = palco.querySelector('.ac-retomada'); if(antiga) antiga.remove();
+  const el = document.createElement('div');
+  el.className = 'ac-retomada';
+  el.setAttribute('role','status');
+  el.innerHTML = `<span class="ac-retomada-txt">Retomando de <strong>${acFmtTempo(seg)}</strong></span>
+    <button type="button" class="ac-retomada-btn" onclick="acReiniciarVideo(this)">Começar do início</button>`;
+  palco.appendChild(el);
+  requestAnimationFrame(()=>el.classList.add('is-visivel'));
+  // 9s: tempo de ler e decidir sem a faixa virar parte fixa do player.
+  clearTimeout(el._t);
+  el._t = setTimeout(()=>{ el.classList.remove('is-visivel'); setTimeout(()=>el.remove(), 400); }, 9000);
+}
+function acReiniciarVideo(btn){
+  const v = _acVideoEl; if(!v) return;
+  try{ v.currentTime = 0; v.play&&v.play().catch(()=>{}); }catch(e){}
+  const faixa = btn && btn.closest('.ac-retomada');
+  if(faixa){ faixa.classList.remove('is-visivel'); setTimeout(()=>faixa.remove(), 400); }
+  gToast('Começando do início');
+}
+
+// Fim do vídeo: apresenta a AÇÃO SEGUINTE em vez de sumir. Não conclui nada por
+// conta própria (a regra de progresso é a única fonte disso) e não tira os
+// controles — reassistir é um clique no próprio player.
+function acMostrarFimDoVideo(aula){
+  const palco = document.querySelector('#ac-player .ac-player-palco');
+  if(!palco || !aula) return;
+  const antiga = palco.querySelector('.ac-fimvideo'); if(antiga) antiga.remove();
+  // A faixa de retomada sai de cena: ela fica atrás do véu do fim do vídeo e vira
+  // ruído ilegível. Já cumpriu o papel dela quando o vídeo começou.
+  const retomada = palco.querySelector('.ac-retomada');
+  if(retomada){ clearTimeout(retomada._t); retomada.classList.remove('is-visivel'); setTimeout(()=>retomada.remove(), 300); }
+  const p = acProg(aula.id);
+  const aulas = acAulas();
+  const i = aulas.findIndex(a=>a.id===aula.id);
+  const prox = (i>=0 && i<aulas.length-1) ? aulas[i+1] : null;
+  const temAtiv = !!(aula.atividade && (aula.atividade.itens||[]).length);
+  const pctMin = acPctMin();
+  const faltaAssistir = !p.concluida && (aula.duracao_seg||0)>0 && (p.pct_assistido||0) < pctMin;
+
+  // A ação principal muda com a situação real — não é um botão fixo.
+  let acao;
+  if(faltaAssistir){
+    acao = `<span class="ac-fimvideo-nota">Você pulou trechos do vídeo. Reveja o que faltou para concluir a aula.</span>`;
+  }else if(temAtiv){
+    acao = `<button type="button" class="ac-btn ac-btn-primario" onclick="acFimVideoIr('atividade')">Fazer a atividade</button>`;
+  }else if(!p.concluida){
+    acao = `<button type="button" class="ac-btn ac-btn-primario" onclick="acConcluirAula('${aula.id}');acFecharFimVideo()">Marcar como concluída</button>`;
+  }else if(prox){
+    acao = `<button type="button" class="ac-btn ac-btn-primario" onclick="acAbrirAula('${prox.id}')">Próxima aula</button>`;
+  }else{
+    acao = `<button type="button" class="ac-btn ac-btn-primario" onclick="acGo('home')">Voltar à jornada</button>`;
+  }
+
+  const el = document.createElement('div');
+  el.className = 'ac-fimvideo';
+  el.setAttribute('role','group');
+  el.setAttribute('aria-label','Fim do vídeo');
+  el.innerHTML = `<div class="ac-fimvideo-box">
+      <strong class="ac-fimvideo-t">${p.concluida?'Aula concluída':'Fim do vídeo'}</strong>
+      ${acao}
+      <div class="ac-fimvideo-sec">
+        <button type="button" class="ac-link" onclick="acReiniciarVideo(this)">Reassistir</button>
+        ${prox&&(p.concluida||!faltaAssistir)?`<button type="button" class="ac-link" onclick="acAbrirAula('${prox.id}')">Próxima aula</button>`:''}
+        <button type="button" class="ac-link" onclick="acFecharFimVideo()">Fechar</button>
+      </div>
+    </div>`;
+  palco.appendChild(el);
+  requestAnimationFrame(()=>el.classList.add('is-visivel'));
+  const b = el.querySelector('.ac-btn, .ac-link'); if(b) setTimeout(()=>{ try{b.focus();}catch(e){} }, 260);
+}
+function acFecharFimVideo(){
+  const el = document.querySelector('.ac-fimvideo');
+  if(!el) return;
+  el.classList.remove('is-visivel');
+  setTimeout(()=>el.remove(), 300);
+  acPlayerEstado('pausado');
+}
+function acFimVideoIr(aba){
+  acFecharFimVideo();
+  acTrocarAba(aba);
+  const painel = document.getElementById('ac-aba-painel');
+  if(painel && painel.scrollIntoView){ try{ painel.scrollIntoView({block:'nearest',behavior:'smooth'}); }catch(e){} }
+}
+
 function acPctMin(){
   const c = acState.curso;
   const v = c && c.criterios && Number(c.criterios.pct_min);
@@ -489,6 +633,12 @@ async function acConcluirAula(aulaId, opts){
 
   // Atualiza só o que mudou (não remonta o vídeo)
   acRenderSidebar();
+  // Feedback imediato NO ITEM que mudou: a linha da aula pulsa e o check se
+  // desenha. Sem isso a conclusão acontecia "em algum lugar" da lista.
+  if(typeof acPulso==='function'){
+    const linha = document.querySelector('.ac-side-aula.is-atual');
+    if(linha){ acPulso(linha); const ico=linha.querySelector('.ac-i-ok'); if(ico) ico.classList.add('ac-risca'); }
+  }
   const nav = document.getElementById('ac-nav-centro');
   if(nav) nav.innerHTML = acBotaoConcluirHTML(aula);
   acRenderAbas(aula);
@@ -508,6 +658,12 @@ async function acConcluirAula(aulaId, opts){
   }
   if(modAntes!=='concluido' && modDepois==='concluido'){
     if(typeof gTrackEvent==='function') gTrackEvent('modulo_concluido',{modulo_id:mod&&mod.id, curso_id:acState.curso&&acState.curso.id});
+    // O card do módulo reconhece o fechamento ANTES do overlay: quando a pessoa
+    // olha pra sidebar depois, o estado já mudou com destaque, não do nada.
+    if(typeof acPulso==='function'){
+      const li = document.querySelector('.ac-side-mod.is-concluido .ac-side-mod-cab');
+      if(li) acPulso(li,'marco');
+    }
     acFestejar('modulo', mod);
     return;
   }
@@ -588,14 +744,21 @@ function acRenderAbas(aula){
       onclick="acTrocarAba('${a.id}')">${gEsc(a.rot)}${a.n?`<span class="ac-aba-n">${a.n}</span>`:''}</button>`).join('');
   painel.setAttribute('aria-labelledby','ac-aba-'+acAulaAba);
 
-  if(acAulaAba==='visao')       painel.innerHTML = acAbaVisao(aula);
-  else if(acAulaAba==='materiais')  painel.innerHTML = acAbaMateriais(aula, mats);
-  else if(acAulaAba==='notas')      painel.innerHTML = acAbaNotas(aula);
-  else if(acAulaAba==='transcricao')painel.innerHTML = acAbaTranscricao(aula);
-  else if(acAulaAba==='atividade')  painel.innerHTML = acAbaAtividade(aula);
-
-  if(acAulaAba==='notas') acRestaurarRascunho();
-  if(acAulaAba==='materiais') acResolverLinksMateriais(aula);
+  const pintar = ()=>{
+    if(acAulaAba==='visao')            painel.innerHTML = acAbaVisao(aula);
+    else if(acAulaAba==='materiais')   painel.innerHTML = acAbaMateriais(aula, mats);
+    else if(acAulaAba==='notas')       painel.innerHTML = acAbaNotas(aula);
+    else if(acAulaAba==='transcricao') painel.innerHTML = acAbaTranscricao(aula);
+    else if(acAulaAba==='atividade')   painel.innerHTML = acAbaAtividade(aula);
+    if(acAulaAba==='notas') acRestaurarRascunho();
+    if(acAulaAba==='materiais') acResolverLinksMateriais(aula);
+  };
+  // Crossfade só quando o painel TROCA de aba. Re-render da mesma aba (salvar uma
+  // anotação, concluir a aula) pinta direto: animar ali pisca sem motivo.
+  const mudouAba = painel.dataset.aba && painel.dataset.aba !== acAulaAba;
+  painel.dataset.aba = acAulaAba;
+  if(mudouAba && typeof acTroca==='function') acTroca(painel, pintar);
+  else pintar();
 }
 function acTrocarAba(id){
   if(id==='notas' || acAulaAba==='notas') acAulaGuardarRascunho();
