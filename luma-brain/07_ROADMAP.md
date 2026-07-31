@@ -5,7 +5,7 @@
 > em `arquivo:linha`, cruzadas com o `luma-brain/` e o `docs/LUMA.md`.
 > **Critério de corte:** só entra o que serve à missão (arte em <1min, zero peça fora da marca,
 > autonomia da ponta). Nada de inventar por inventar.
-> Última revisão: 2026-07-16. Dono: Ryan. Atualize os checkboxes conforme avança.
+> Última revisão: 2026-07-31. Dono: Ryan. Atualize os checkboxes conforme avança.
 > Trilha de UI (tela a tela, notas e fases P0–P3): `docs/ROADMAP-UI-1.0.md` — corre em paralelo; o gate final da 1.0 soma as duas.
 
 ---
@@ -37,6 +37,7 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
 | Catálogo de campanhas | **Hardcoded** (`CAMPS_*` em `00-config.js`) | Criar campanha exige deploy — fere a autonomia do designer |
 | Perfil/equipe | Parcial | "Alterar senha" e "Salvar dados" são simulações com `setTimeout` |
 | Docs/luma-brain | Fortes | Pequenas defasagens (nº de scripts, config "gitignored" que é versionado) |
+| **Academia (formação do franqueado)** | **Novo em 2026-07-31** — jornada, ambiente de aula, tutor de IA, gestão de conteúdo, certificado | Funcional e verificado no navegador. Pendências reais: deploy da function `ai` (task `aula`), aplicar a migration e a equipe publicar o conteúdo oficial (hoje há só estrutura de demonstração, rotulada). Ver `docs/LUMA-ACADEMIA.md` §13 |
 
 ---
 

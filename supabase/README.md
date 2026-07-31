@@ -22,8 +22,13 @@ O LUMA roda hoje em banco próprio, mas foi modelado pra **mesclar no projeto do
 | `…092000_luma_artes_schema.sql` | `luma.artes` (histórico do franqueado) + RLS |
 | `…093000_analytics_schema.sql` | schema `analytics` + `fct_eventos` (Módulo 3) + RLS |
 | `…094000_storage_buckets.sql` | buckets `luma-*` + policies |
+| `…20260731120000_luma_academia.sql` | **Academia**: `cursos`/`curso_modulos`/`curso_aulas`/`matriculas`/`aula_progresso`/`aula_notas`/`aula_mensagens`/`certificados` + RLS + RPC `ac_emitir_certificado` + bucket privado `luma-aulas` |
 | `seed.sql` | (opcional) variáveis base + snippet de promoção da equipe |
-| `apply_all.sql` | os 6 acima concatenados, pra colar no SQL Editor |
+| `apply_all.sql` | os 6 do **schema base** concatenados, pra colar num projeto LIMPO |
+
+⚠️ A tabela acima lista o schema base + a Academia. Entre eles há mais migrations (hardening,
+índices, RLS initplan, colunas extras) — a pasta `migrations/` em ordem de nome é a fonte da
+verdade, e `apply_all.sql` **não** as inclui: ele serve pra levantar um projeto do zero.
 
 ## Mapa localStorage → Postgres
 

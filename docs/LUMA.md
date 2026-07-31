@@ -88,7 +88,7 @@ Luma/
 │   ├── components/                # topbar, splash, tutorial, help-modal, user-profile, pages-tray
 │   └── modules/                   # franqueado, franqueado_effects, designer, chat, catalog,
 │                                  # live-preview, layers-panel, toolbar, all-tools, color-picker,
-│                                  # publish-modal, topbar
+│                                  # publish-modal, topbar, academia
 ├── js/
 │   ├── 00-config.js               # HIST_KEY, CAMPS_ATIVAS/OUTRAS/IMPLEMENTACAO, FMTS,
 │   │                              # regex/validação de var, gInterpolate, bindings, regras,
@@ -99,6 +99,8 @@ Luma/
 │   │                              # layout (smart resize), toast (gToast+gEsc), help, splash
 │   ├── franqueado/                # catalog (com HOME), materials, chat, chat-input, history,
 │   │                              # live-preview, png-generator
+│   ├── academia/                  # academia (estado/dados/home), aula (player+abas), agente (IA),
+│   │                              # gestao (equipe_dm), certificado — ver §21
 │   ├── designer/                  # canvas, layers, templates, tools, brush, mask, blending,
 │   │                              # eraser-tools, color-picker, measurement, selection, props-panel,
 │   │                              # undo-redo, publish, preview, library, fonts, psd-import,
@@ -646,7 +648,24 @@ localStorage.clear(); location.reload();               // reset local (backend r
 - **2026-06-fim**: XSS corrigido (3 passes com `gEsc`), gate por role no front, refatoração de performance/memory leaks (Fase 3).
 - **2026-07-30**: **IA sai do improviso** — Edge Function `ai` (chave fora do front), motor único `core/ai.js` e 5 recursos plugados nele: encaixar texto no `maxLen`, ajuda aterrada na Central, ler cardápio (foto/PDF) no Sheets, casar fotos com as linhas, legenda com prompt sério. Ver §12.1.
 - **2026-07-30**: capa do card da vitrine volta a ser **a capa da pasta** — a fila de miniaturas do conteúdo (`_fCampThumbs`/`fHomeFillThumbs`, ~100 linhas) saiu: renderizava a arte com campos vazios e deixava o card em branco. Capa do Storage que não baixa agora cai na cor da pasta também na lista do Estúdio (`dRenderFolders`).
+- **2026-07-31**: **Academia Delivery Much** — módulo de formação e implementação do franqueado: jornada com mapa de módulos, ambiente de aula em 3 regiões (player MP4 com retomada, materiais, anotações, transcrição, atividade), tutor de IA com prompt no servidor, gestão de conteúdo com upload de MP4, conclusão e certificado em PDF. Ver §21 e `docs/LUMA-ACADEMIA.md`.
 - **2026-07-09**: home do franqueado responsiva (thumbs reais, vitrine honesta, scroll-reveal, busca sticky), redesign do painel Campos (linha compacta + filtros + higiene), topbar (hierarquia + paleta), **auditoria de contraste WCAG aplicada** (tokens `--green-text`, `--var-color` claro, `--d-text3`, CTAs em `--dm-orange-d`). Este documento.
+
+---
+
+## 21. MÓDULO ACADEMIA (`ac*`)
+
+**Doc completa: [LUMA-ACADEMIA.md](LUMA-ACADEMIA.md).** Resumo do que um agente precisa saber antes de tocar aqui:
+
+- **O que é.** Terceira aba de modo na topbar: a **Academia Delivery Much**, onde o franqueado faz a **Formação do Franqueado** (jornada de implementação). Visível às 3 roles; a gestão de conteúdo é `equipe_dm`/`gestao`.
+- ⛔ **Não chamar de "Implementação".** Esse nome já é a categoria de materiais do catálogo (`CAMPS_IMPLEMENTACAO`, `fRenderImplementacao`).
+- **Arquivos:** `js/academia/{academia,aula,agente,gestao,certificado}.js` + `css/modules/academia.css`. Prefixo **`ac*`**; `f*`/`d*`/`g*` intocados.
+- **Estado:** `acState` (curso, matrícula, progresso, notas, certificado, rota, aulaId). Rotas internas por `acGo(rota, arg)`; `setMode('academia')` chama `acInit()` lazy.
+- **Backend:** 8 tabelas em `luma` (`cursos`, `curso_modulos`, `curso_aulas`, `matriculas`, `aula_progresso`, `aula_notas`, `aula_mensagens`, `certificados`) + bucket **privado** `luma-aulas` + RPC `luma.ac_emitir_certificado`. Ver §14 e o changelog.
+- **Certificado não é falsificável:** `luma.certificados` não tem policy de escrita; só a RPC `SECURITY DEFINER` grava, revalidando as aulas obrigatórias. O PDF sai de um Canvas 2D pelo **pdf-lib vendorizado** (mesmo caminho de `fGenPDF`).
+- **Tutor de IA:** task `aula` no motor único `gAskAI`. **O prompt vive na Edge Function** — é a única task assim (as outras montam no front por causa do modo de transição). O front manda só pergunta + contexto, e **nunca** o gabarito da atividade nem dado pessoal. Gate de disponibilidade: `gAiEdgeReady()`, não `gAiReady()`.
+- **Progresso honesto:** o player soma só deltas `< 2s` de `timeupdate`; arrastar a barra até o fim não conclui a aula. Critério de conclusão (`cursos.criterios.pct_min`, padrão 85%) é o mesmo no front e na RPC.
+- **Anotações e conversas são privadas até da equipe** (policy só do dono, sem `is_designer()`).
 
 ---
 
@@ -654,6 +673,7 @@ localStorage.clear(); location.reload();               // reset local (backend r
 
 - **Este arquivo (`docs/LUMA.md`)** é a documentação oficial. Feature nova, mudança de arquitetura, token novo, tabela nova → atualizar a seção correspondente AQUI.
 - **`docs/LUMA-BACKEND-CHANGELOG.md`** continua como registro append-only de TODA mudança de backend (com data e migration).
+- **`docs/LUMA-ACADEMIA.md`** — doc do módulo Academia (formação do franqueado). O §21 aqui é o resumo; o detalhe mora lá.
 - Docs substituídos por este (podem ser removidos): `LUMA-CONTEXTO.md`, `LUMA-FEATURES.md`, `LUMA-INVENTARIO.md`, `LUMA-BACKUP.md`, `UX-WRITING-DESIGN.md`.
 - `LUMA-BACK_CONTEXT.md` e `LUMA-REGRAS_BACKEND.md` (removidos em 2026-07-16) documentavam **outro projeto** (Portal de Franqueados / DM CRM, Supabase `gplxnzgsculryjykbcuo`) — as lições relevantes vivem no §14.9; os originais, no repo do portal. Também removidos na mesma limpeza: `BACKLOG-EDITOR-FASE5.md` e `CENTRAL-AJUDA-DIAGNOSTICO.md` (auditorias concluídas; o que seguia aberto foi absorvido pelo `luma-brain/07_ROADMAP.md`, e o estado da Central de Ajuda está no §12).
 - Para inventário exaustivo de funções/IDs além do que está aqui: o código é o inventário — `grep` pelos prefixos.

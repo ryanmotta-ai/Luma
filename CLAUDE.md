@@ -50,6 +50,7 @@ Elas valem em toda resposta, sem precisar ser pedidas. Desligar: **"stop ponytai
 - `06_OPERATING_SYSTEM.md` — **como se comportar** (o loop, guardrails, quando perguntar).
 - `07_ROADMAP.md` — **roadmap oficial da v1** (fases, bugs com file:line, decisões abertas; atualize os checks ao concluir itens).
 - Técnico detalhado: `docs/LUMA.md`. Backend: `docs/LUMA-BACKEND-CHANGELOG.md`.
+- **Academia** (formação do franqueado, prefixo `ac*`): `docs/LUMA-ACADEMIA.md`.
 
 ## Inegociáveis (resumo — detalhe no luma-brain)
 

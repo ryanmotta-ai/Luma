@@ -2,7 +2,7 @@
 
 > Como o Luma é montado, em camadas e fronteiras. **Sem código — só arquitetura.**
 > O `01_BUSINESS.md` diz as regras do domínio; este diz onde cada coisa mora e como as partes conversam. Para o "como" no detalhe (funções, tabelas, policies), a fonte é `docs/LUMA.md`.
-> Última revisão: 2026-07-15.
+> Última revisão: 2026-07-31.
 
 ---
 
@@ -18,8 +18,9 @@ O Luma é uma **SPA estática que fala direto com o Supabase**. Não há servido
  │  VIEWS/MÓDULOS        MOTORES                 ESTADO          │
  │  · Franqueado (f*)    · Render (Canvas 2D)    variáveis let   │
  │  · Estúdio  (d*)      · Interpolador único    globais         │
- │  · Tutorial (tut*)    · Smart resize          (dLayers,       │
- │  · Core     (g*)      · Import PSD/SVG          fState, dVars) │
+ │  · Academia (ac*)     · Smart resize          (dLayers,       │
+ │  · Tutorial (tut*)    · Import PSD/SVG          fState, dVars, │
+ │  · Core     (g*)      · IA única (gAskAI)       acState)      │
  │                       · Pintura (paint canvas)                │
  │                                                               │
  │  PERSISTÊNCIA LOCAL:  localStorage (cache)  ·  IndexedDB (img) │
@@ -58,10 +59,13 @@ O Luma é uma **SPA estática que fala direto com o Supabase**. Não há servido
 | `g*` | Core / global | `js/core/*`, `js/00-config.js` |
 | `tut*` | Tutoriais | `js/tutorial/*` |
 | `pv*` | Preview engine | `js/designer/preview.js` |
+| `ac*` | Academia (formação do franqueado) | `js/academia/*` |
 
 **Estado.** Variáveis `let` **globais** (`dLayers`, `fState`, `dVars`, `dFolders`, `gAuthState`…), mutadas diretamente + re-render manual. Não há store, signals ou virtual DOM.
 
-**Views.** O `index.html` tem containers por modo (`#view-franqueado`, `#view-designer`). O boot (`main.js`, `DOMContentLoaded` async) checa a sessão, decide login × app, e `setMode()` troca a classe do `body` e inicializa o Estúdio _lazy_ (só na primeira vez).
+**Views.** O `index.html` tem containers por modo (`#view-franqueado`, `#view-academia`, `#view-designer`). O boot (`main.js`, `DOMContentLoaded` async) checa a sessão, decide login × app, e `setMode()` troca a classe do `body` e inicializa Estúdio e Academia _lazy_ (só na primeira entrada de cada um).
+
+⚠️ **Armadilha do `viewEntrance`:** as views guardam o `transform` final da animação de entrada (`animation-fill-mode: forwards`). `transform` ≠ `none` cria **bloco de contenção**, então um filho `position:fixed` ancora na view, não no viewport. Painel/drawer dentro de uma view usa `position:absolute` num pai explícito. _(Bug real da Academia: os drawers saíam 52px deslocados.)_
 
 **Bibliotecas** entram **vendorizadas** em `assets/vendor/` (Color Thief, Pica, PapaParse, pdf-lib, ag-psd, supabase-js). O vendorizado é o **padrão** — boot previsível, sem depender de rede. Um **fallback via CDN é permitido** quando o vendorizado falhar (ex.: o loader do ag-psd tenta o local e cai no CDN). Decisão de 2026-07: rede externa em runtime deixou de ser proibida; o vendorizado continua sendo a primeira escolha.
 
@@ -121,7 +125,13 @@ O ponto arquitetural mais importante do produto: **um único motor de render, tr
 
 **O que é.** **Supabase** (projeto `uqrqzjafhigjuvtjqzid`, plano Free) = Postgres gerenciado + Auth (GoTrue) + Storage + API auto-gerada. É um backend **próprio do Luma**, separado do Portal/CRM da DM (que é outro projeto Supabase).
 
-**O que NÃO é.** ⛔ **Não há servidor de aplicação próprio** — sem Node, sem Express, sem Next, sem Edge Functions deployadas no Luma. Toda a "lógica de servidor" é **RLS + funções SQL** dentro do Postgres. Operações administrativas (criar usuário) são feitas **no Dashboard do Supabase**, não por um endpoint da aplicação.
+**O que NÃO é.** ⛔ **Não há servidor de aplicação próprio** — sem Node, sem Express, sem Next. A "lógica de servidor" é **RLS + funções SQL** dentro do Postgres.
+
+⚠️ **Correção (2026-07-31):** este arquivo afirmava "sem Edge Functions deployadas". **Existem duas**, e o código venceu o doc:
+- `supabase/functions/invite-user` — convite de usuário (precisa de service role).
+- `supabase/functions/ai` — **tubulação única de IA**: guarda a chave do provedor fora do front, valida JWT, aplica rate-limit e mantém a allowlist de tarefas. Desde 2026-07-31 também monta o **prompt pedagógico** do tutor da Academia (task `aula`), a primeira tarefa cujo prompt vive no servidor.
+
+Isso **não** transforma o Luma num app com backend próprio: as functions são fronteiras pontuais (segredo e regra que não pode viver no cliente), não uma camada por onde o app passa. O front continua falando **direto** com PostgREST/Storage, e a RLS continua sendo a única fronteira de segurança dos dados. Criação de usuário segue no Dashboard quando o convite não serve.
 
 **Consequência arquitetural central:** como o front fala direto com o banco usando a **anon key pública**, **a RLS é a única fronteira de segurança**. Não existe "camada de servidor" para validar regra de negócio — se a regra precisa valer, ela vive numa _policy_ SQL. O JavaScript é conveniência/UX, nunca segurança.
 
@@ -148,7 +158,7 @@ Postgres, três schemas, **RLS habilitado em tudo**:
 | Schema | Contém | Acesso |
 |--------|--------|--------|
 | `public` | `profiles` (estende `auth.users`: role, nome, departamento) | Usuário lê o próprio; staff lê todos |
-| `luma` | `pastas`, `templates`, `variaveis`, `fontes`, `snippets`, `biblioteca_assets`, `artes` | Leitura autenticada; escrita de conteúdo só designer (`is_designer()`); `artes` por dono |
+| `luma` | `pastas`, `templates`, `variaveis`, `fontes`, `snippets`, `biblioteca_assets`, `artes` + **Academia** (`cursos`, `curso_modulos`, `curso_aulas`, `matriculas`, `aula_progresso`, `aula_notas`, `aula_mensagens`, `certificados`) | Leitura autenticada; escrita de conteúdo só designer (`is_designer()`); `artes`/progresso por dono; `aula_notas` e `aula_mensagens` **só do dono** (nem a equipe lê); `certificados` sem policy de escrita (grava só a RPC `ac_emitir_certificado`) |
 | `analytics` | `fct_eventos` + views `vw_*` de extração | INSERT autenticado em nome próprio; SELECT só `gestao` |
 
 **Princípios de arquitetura do banco:**
@@ -170,6 +180,7 @@ Arquivos (imagens, fontes) não moram no banco nem no localStorage — vão para
 | `luma-fontes` | Fontes enviadas pelo designer | — |
 | `luma-user-uploads` | Fotos que o franqueado envia (produto) | **Público** (viram arte pública) |
 | `luma-renders` | Renders | Privado |
+| `luma-aulas` | Vídeos MP4 e materiais das aulas da Academia | **Privado** (URL assinada; vídeo de formação não vira link público) |
 
 **Fluxo:** imagem base64 / referência `idb://` no estado → **upload para o Storage** → o banco guarda apenas a **URL**. Isso resolve o antigo "imagens somem no reload" e alivia a quota do localStorage (~5MB).
 
@@ -226,7 +237,8 @@ Saber o que **não** existe evita a IA propor solução para camada inexistente:
 - ⛔ **Sem etapa de build/bundler.** Nada de Vite/Webpack/npm no runtime. Script novo = `<script>` no `index.html`, na ordem certa.
 - ⛔ **Sem servidor de aplicação** (Node/Edge/Next). A lógica de servidor é RLS + SQL.
 - ⛔ **Sem SSR / sem middleware de rota.** É SPA estática.
-- ⛔ **Sem API intermediária.** O front fala direto com PostgREST/Storage.
+- ⛔ **Sem API intermediária.** O front fala direto com PostgREST/Storage. As duas Edge Functions são exceções pontuais (segredo/regra), não uma camada de passagem — ver §5.
+- ⛔ **Sem streaming adaptativo de vídeo.** A Academia serve MP4 progressivo por URL assinada; o modelo separa `video_path` de `video_url` pra trocar por HLS depois sem mexer no schema.
 - ⛔ **Sem multi-tenant real** no Luma hoje — todos os franqueados veem o mesmo catálogo publicado. Isolar por cidade seria uma decisão de arquitetura nova, não um dado existente.
 - ⛔ **Sem testes automatizados** — regressão se detecta abrindo o navegador (por isso _patch cirúrgico_ é regra).
 
