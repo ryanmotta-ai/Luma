@@ -411,11 +411,15 @@ function fRenderMaterialCatalog(camp, container){
   // Thumbs FIÉIS: renderiza a arte real de cada material (mesmo motor do PNG) por cima
   // do placeholder colorido — que permanece como fallback se o render falhar.
   if(typeof fRenderPreviewToCanvas==='function'){
-    validMat.forEach(m=>{
+    validMat.forEach(async m=>{
+      // Catálogo leve: material chega sem layers (_needsLayersFetch). Sem buscar aqui,
+      // o thumb nunca renderiza e o card fica só com a cor — a pessoa não vê qual material é.
+      if(typeof fEnsureMaterialLayers==='function'){ try{ await fEnsureMaterialLayers(m); }catch(e){} }
       if(!(m.layers&&m.layers.length)) return;
       const cv=document.getElementById('f-mat-cv-'+m.id);
       if(!cv) return;
       const card=cv.closest('.f-mat-card');
+      if(card) card.classList.add('is-rendering'); // fetch tardou → mostra estado de render agora
       try{
         Promise.resolve(fRenderPreviewToCanvas(cv, m, {maxPx:520, camp:{color:camp.color||'#FF9000'}, dados:m._demoDados}))
           .then(()=>{ if(card) card.classList.remove('is-rendering'); })

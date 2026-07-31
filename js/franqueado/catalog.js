@@ -899,6 +899,10 @@ function fSelectCamp(id){
    os fluxos existentes (materiais → chat → prévia) ficam intactos.
 ══════════════════════════════════════════════════════════════ */
 function fGoHome(opts){
+  // Voltar ao menu renderiza SILENT (sem .fh-anim). A cascata animada dependia do reveal
+  // pôr .in nos cards, e no retorno os cards ficavam presos em opacity:0 (CSS gPopIn
+  // backwards) — o menu "não carregava". Silent = cards visíveis na hora. Boot já é silent.
+  opts=opts||{silent:true};
   if(typeof fRemoveCampTheme==='function') fRemoveCampTheme();
   document.body.classList.add('f-home-mode');
   document.body.classList.remove('f-mobile-chat','f-history-mode','f-material-browser');
@@ -1185,9 +1189,12 @@ function _fhSetupReveal(){
     });
   },{root:home,rootMargin:'0px 0px -60px 0px',threshold:0});
   blocks.forEach(b=>_fhRevealIO.observe(b));
+  // Rede de segurança: revela quem o observer não pegou. Sem gen-guard — adicionar .in é
+  // idempotente, e o guard fazia um render que corria com o sync (fHomeRefreshIfIdle)
+  // abortar a revelação, deixando os cards invisíveis pra sempre.
   setTimeout(()=>{
-    if(gen!==_fhRevealGen||home!==document.getElementById('f-home'))return;
-    home.querySelectorAll('#fh-body>*:not(.in)').forEach(b=>b.classList.add('in'));
+    const h=document.getElementById('f-home'); if(!h)return;
+    h.querySelectorAll('#fh-body>*:not(.in)').forEach(b=>b.classList.add('in'));
   },700);
 }
 
@@ -1237,10 +1244,11 @@ function fRenderHome(opts){
     </div>
     <div id="fh-body">${_fHomeBodyHTML('')}</div>
   </div>`;
-  _fhApplyStagger(el);
-  // Se o observer falhar por qualquer motivo, ninguém pode ficar invisível
+  // Tudo que roda depois do innerHTML é envolvido: um throw aqui deixava os cards em
+  // opacity:0 pra sempre (CSS #fh-body>* sob .fh-anim) — a home "não carregava" ao voltar.
+  try{ _fhApplyStagger(el); }catch(e){}
   try{ _fhSetupReveal(); }catch(e){ el.querySelectorAll('#fh-body>*').forEach(b=>b.classList.add('in')); }
-  _fhBindSticky();
+  try{ _fhBindSticky(); }catch(e){}
 }
 function fHomeFilter(q){
   const body=document.getElementById('fh-body'); if(!body)return;
