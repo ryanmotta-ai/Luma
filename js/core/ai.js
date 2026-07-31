@@ -34,6 +34,17 @@ function gAiReady(){
   const logado=(typeof gCurrentUser==='function') ? !!gCurrentUser() : false;
   return (!!sb && logado) || !!_gAiKeyLocal();
 }
+// Há o caminho SERVIDOR (Edge Function)? Recurso cujo prompt vive na function —
+// hoje o tutor da Academia (task 'aula') — não funciona com a chave do front, então
+// perguntar por gAiReady() daria "disponível" e a resposta falharia sempre.
+// Este é o gate certo para esses recursos.
+function gAiEdgeReady(){
+  if(_gAiEdgeOk===false) return false;              // function ausente/quebrada nesta sessão
+  const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
+  const cfg=window.LUMA_SUPABASE||{};
+  const logado=(typeof gCurrentUser==='function') ? !!gCurrentUser() : false;
+  return !!(sb && cfg.url && cfg.anonKey && logado);  // sem sessão a function responde 401
+}
 function _gAiKeyLocal(){
   try{
     return window.LUMA_GEMINI_API_KEY
@@ -54,22 +65,33 @@ function gAiModel(){
 
 /**
  * Pergunta ao modelo.
- * @param {string} task   'legenda'|'encurtar'|'ajuda'|'cardapio'|'casar-fotos' (a function só aceita estas)
- * @param {string} prompt prompt completo, montado por quem chama
- * @param {object} opts   {parts:[{mimeType,data}], json:true, cache:true}
+ * @param {string} task   'legenda'|'encurtar'|'ajuda'|'cardapio'|'casar-fotos'|'aula' (a function só aceita estas)
+ * @param {string} prompt prompt completo, montado por quem chama — EXCETO na task
+ *                        'aula', em que este campo é só a pergunta do estudante e
+ *                        o prompt pedagógico é montado na Edge Function (ver
+ *                        js/academia/agente.js: regra do tutor não pode viver no cliente).
+ * @param {object} opts   {parts:[{mimeType,data}], json:true, cache:true, contexto:{}}
+ *                        contexto: payload estruturado que só a task 'aula' usa;
+ *                        vai íntegro pra function, que compõe o prompt lá.
  * @returns {Promise<string|null>} texto da resposta, ou null se a IA não respondeu
  */
 async function gAskAI(task, prompt, opts){
   opts = opts || {};
   const parts = Array.isArray(opts.parts) ? opts.parts : [];
   const querJson = opts.json!==false;
+  const contexto = (opts.contexto && typeof opts.contexto==='object') ? opts.contexto : null;
   // Cache só faz sentido sem anexo (mesmo produto/limite pedido de novo é comum).
-  const podeCachear = opts.cache!==false && !parts.length && typeof gImgHash==='function';
+  // Com contexto (tutor) o cache fica FORA: a mesma pergunta em aulas/momentos
+  // diferentes tem respostas diferentes — cachear devolveria a aula errada.
+  const podeCachear = opts.cache!==false && !parts.length && !contexto && typeof gImgHash==='function';
   const chaveCache = podeCachear ? gImgHash(task+'|'+gAiModel()+'|'+prompt) : '';
   if(chaveCache && _gAiCache.has(chaveCache)) return _gAiCache.get(chaveCache);
 
-  let texto = await _gAiViaEdge(task, prompt, parts, querJson);
-  if(texto==null) texto = await _gAiViaChaveLocal(prompt, parts, querJson);
+  let texto = await _gAiViaEdge(task, prompt, parts, querJson, contexto);
+  // Caminho de transição (chave no front) monta o prompt no cliente — logo NÃO
+  // serve pra task 'aula', cujo prompt vive no servidor. Sem function, o tutor
+  // simplesmente não responde (a UI avisa) em vez de responder sem as regras.
+  if(texto==null && !contexto) texto = await _gAiViaChaveLocal(prompt, parts, querJson);
   if(texto!=null && chaveCache){
     if(_gAiCache.size>200) _gAiCache.clear(); // teto bobo, suficiente pra uma sessão
     _gAiCache.set(chaveCache, texto);
@@ -79,7 +101,7 @@ async function gAskAI(task, prompt, opts){
 
 // Caminho 1 — Edge Function (chave no servidor). fetch cru em vez de
 // functions.invoke pra ter AbortController (invoke não aceita signal).
-async function _gAiViaEdge(task, prompt, parts, querJson){
+async function _gAiViaEdge(task, prompt, parts, querJson, contexto){
   if(_gAiEdgeOk===false) return null;
   const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
   const cfg=window.LUMA_SUPABASE||{};
@@ -93,7 +115,9 @@ async function _gAiViaEdge(task, prompt, parts, querJson){
     const res=await fetch(cfg.url.replace(/\/+$/,'')+'/functions/v1/ai',{
       method:'POST', signal:ctrl.signal,
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,'apikey':cfg.anonKey},
-      body:JSON.stringify({task,prompt,parts,model:gAiModel(),json:querJson})
+      body:JSON.stringify(contexto
+        ? {task,prompt,parts,model:gAiModel(),json:querJson,contexto}
+        : {task,prompt,parts,model:gAiModel(),json:querJson})
     });
     if(res.status===404){ _gAiEdgeOk=false; console.warn('[ai] Edge Function `ai` não publicada — usando a chave do front (transição)'); return null; }
     const data=await res.json().catch(()=>null);

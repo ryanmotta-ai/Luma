@@ -29,12 +29,19 @@ const json = (body: unknown, status = 200) =>
 
 // Tarefas conhecidas (só pra log/telemetria e pra recusar uso genérico do proxy).
 // `cli` = console interno do time (js/core/console.js), só role equipe_dm/gestao no front.
-const TASKS = ["legenda", "encurtar", "ajuda", "cardapio", "casar-fotos", "cli"];
+// `aula` = tutor da Academia (js/academia/agente.js) — a ÚNICA task cujo prompt é
+// montado AQUI: regra pedagógica e limites do tutor não podem morar no cliente.
+const TASKS = ["legenda", "encurtar", "ajuda", "cardapio", "casar-fotos", "cli", "aula"];
 
 // Tetos por chamada: prompt de peça de marketing é curto; anexo é foto/PDF de cardápio.
 const MAX_PROMPT = 12000;      // caracteres
 const MAX_PARTS = 8;           // anexos por chamada
 const MAX_INLINE_BYTES = 6_000_000; // ~6MB de base64 somados (cardápio em PDF cabe)
+
+// Tetos do tutor da Academia (task "aula"): pergunta curta, contexto de aula grande.
+const MAX_PERGUNTA = 1500;        // caracteres da dúvida do estudante
+const MAX_CONTEXTO = 24000;       // caracteres do bloco de contexto montado abaixo
+const MAX_HISTORICO = 8;          // trocas anteriores consideradas
 
 // Rate-limit por usuário. ponytail: memória do isolate, não tabela — sem migration e
 // sem round-trip no caminho quente. Teto real: o Supabase pode rodar N isolates, então
@@ -52,6 +59,95 @@ function passouDoLimite(uid: string): boolean {
     for (const [k, v] of uso) if (!v.some((t) => agora - t < JANELA_MS)) uso.delete(k);
   }
   return marcas.length > MAX_POR_JANELA;
+}
+
+// ============================================================
+// TUTOR DA ACADEMIA — prompt de sistema versionado (task "aula")
+// ------------------------------------------------------------
+// Vive no servidor de propósito: as restrições abaixo (não entregar gabarito,
+// não inventar política da rede, mandar confirmar com humano em risco) são regra
+// de produto — no cliente qualquer DevTools as reescreveria.
+// Ao mudar comportamento, SUBA a versão: ela vai no log e permite comparar
+// respostas antes/depois sem adivinhação.
+// ============================================================
+const AULA_PROMPT_V = "2026-07-31.1";
+const AULA_SISTEMA = `Você é o tutor da Academia Delivery Much, o agente educacional da Formação do Franqueado.
+Seu papel é ajudar o estudante — um franqueado que está implantando a Delivery Much na cidade dele — a COMPREENDER e APLICAR o conteúdo oficial da aula atual.
+
+MÉTODO
+- Prefira perguntas orientadoras, pistas, exemplos e verificações de entendimento a respostas mastigadas.
+- Quando fizer sentido: confirme a dúvida, descubra o que a pessoa já entendeu, aponte o trecho/conceito relevante, dê uma pista e faça UMA pergunta de checagem.
+- Faça no máximo uma pergunta por resposta. Não transforme a conversa em interrogatório.
+- Responda direto, sem rodeio socrático, quando: a dúvida for operacional e objetiva; a pessoa só quer localizar um material ou recurso; houver risco de executar um processo errado; ou perguntar de volta só atrasaria.
+
+LIMITES (não negociáveis)
+- Use apenas o CONTEXTO OFICIAL fornecido abaixo. Não invente política, processo, prazo, valor, meta ou regra da rede.
+- Se a informação não estiver no contexto, diga isso com clareza e indique o caminho: o material da aula, outra aula da formação, ou a equipe Delivery Much.
+- Nunca entregue a resposta de uma atividade avaliativa. Você recebe apenas os enunciados, nunca o gabarito: conduza o raciocínio, dê pistas, não conclua por ela.
+- Se a dúvida envolver risco operacional, financeiro, jurídico, de segurança ou uma decisão oficial da rede, diga explicitamente que a confirmação humana da equipe Delivery Much é necessária.
+- Não fale de outros franqueados nem de dados de gestão. Você não executa ações no sistema.
+- Só cite minutagem do vídeo (formato mm:ss) se ela aparecer na transcrição do contexto. Sem transcrição, não invente tempo.
+
+TOM
+- Português do Brasil, claro e breve (em geral 2 a 5 frases). Profissional e próximo, sem infantilizar e sem bajular.
+- Fale de operação real de franquia, não de teoria abstrata. Trate a pessoa como adulta responsável pelo próprio negócio.
+- Texto corrido ou lista curta. Nada de markdown pesado, título nem emoji.`;
+
+function texto(v: unknown, max = 4000): string {
+  // Remove caracteres de controle (embaralhariam o prompt) e corta no teto.
+  return String(v ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, max);
+}
+
+/** Monta o prompt do tutor a partir do contexto estruturado enviado pelo front. */
+function montaPromptAula(contexto: Record<string, unknown>, pergunta: string): string {
+  const c = contexto ?? {};
+  const mats = Array.isArray(c.materiais) ? c.materiais : [];
+  const ativ = (c.atividade ?? null) as Record<string, unknown> | null;
+  const hist = Array.isArray(c.historico) ? (c.historico as Record<string, unknown>[]) : [];
+  const prog = (c.progresso ?? {}) as Record<string, unknown>;
+
+  const partes: string[] = [];
+  partes.push("CONTEXTO OFICIAL DA AULA");
+  partes.push(`Formação: ${texto(c.curso, 200)}`);
+  partes.push(`Módulo: ${texto(c.modulo, 200)}`);
+  partes.push(`Aula: ${texto(c.aula, 200)}`);
+  if (c.objetivo) partes.push(`Objetivo da aula: ${texto(c.objetivo, 800)}`);
+  if (c.resumo) partes.push(`Resumo: ${texto(c.resumo, 2500)}`);
+  if (c.descricao) partes.push(`Descrição: ${texto(c.descricao, 2500)}`);
+  if (mats.length) {
+    partes.push("Materiais desta aula: " + mats
+      .map((m) => `${texto((m as Record<string, unknown>).titulo, 120)} (${texto((m as Record<string, unknown>).tipo, 30)})`)
+      .join("; "));
+  }
+  if (ativ) {
+    partes.push(`Atividade da aula (SEM gabarito — não responda por ela): ${texto(ativ.titulo, 120)}`);
+    const ens = Array.isArray(ativ.enunciados) ? ativ.enunciados : [];
+    ens.slice(0, 12).forEach((e, i) => partes.push(`  ${i + 1}. ${texto(e, 400)}`));
+  }
+  if (c.transcricao) {
+    partes.push("Transcrição (use os tempos [mm:ss] para citar momentos):");
+    partes.push(texto(c.transcricao, 12000));
+  } else if (c.tem_video) {
+    partes.push("Esta aula tem vídeo, mas SEM transcrição disponível — não cite minutagem.");
+  } else {
+    partes.push("Esta aula não tem vídeo (é de leitura).");
+  }
+  partes.push(`Situação do estudante: ${prog.aula_concluida ? "já concluiu esta aula" : "ainda não concluiu esta aula"}; ${Number(prog.pct_formacao) || 0}% da formação concluída${prog.formacao_concluida ? "; já formado (está revisando)" : ""}.`);
+
+  if (hist.length) {
+    partes.push("CONVERSA RECENTE NESTA AULA");
+    hist.slice(-MAX_HISTORICO).forEach((m) => {
+      const quem = String(m.papel) === "usuario" ? "Estudante" : "Tutor";
+      partes.push(`${quem}: ${texto(m.texto, 900)}`);
+    });
+  }
+
+  partes.push("PERGUNTA DO ESTUDANTE");
+  partes.push(pergunta);
+  partes.push("Responda seguindo o método, os limites e o tom definidos acima.");
+
+  const bloco = partes.join("\n").slice(0, MAX_CONTEXTO);
+  return `${AULA_SISTEMA}\n\n${bloco}`;
 }
 
 Deno.serve(async (req) => {
@@ -72,13 +168,30 @@ Deno.serve(async (req) => {
     // 2) Entrada
     const body = await req.json().catch(() => ({}));
     const task = String(body?.task ?? "");
-    const prompt = String(body?.prompt ?? "");
+    let prompt = String(body?.prompt ?? "");
     const partes = Array.isArray(body?.parts) ? body.parts : [];
     const modelo = /^[a-z0-9.\-]{3,60}$/i.test(String(body?.model ?? "")) ? String(body.model) : "gemini-flash-latest";
-    const querJson = body?.json !== false; // padrão: resposta em JSON (todas as tarefas de hoje)
+    let querJson = body?.json !== false; // padrão: resposta em JSON (todas as tarefas de hoje)
 
     if (!TASKS.includes(task)) return json({ error: "tarefa desconhecida" }, 400);
-    if (!prompt || prompt.length > MAX_PROMPT) return json({ error: "prompt vazio ou grande demais" }, 400);
+
+    // Task "aula": o front manda PERGUNTA + CONTEXTO; o prompt é montado aqui.
+    // (As outras tasks seguem recebendo o prompt pronto — ver nota do topo.)
+    if (task === "aula") {
+      const pergunta = prompt.trim();
+      if (!pergunta || pergunta.length > MAX_PERGUNTA) {
+        return json({ error: "pergunta vazia ou grande demais" }, 400);
+      }
+      const contexto = (body?.contexto && typeof body.contexto === "object") ? body.contexto : null;
+      if (!contexto) return json({ error: "contexto da aula ausente" }, 400);
+      prompt = montaPromptAula(contexto as Record<string, unknown>, pergunta);
+      querJson = false;   // tutor responde em texto corrido, não JSON
+      console.log(`[ai] aula · prompt ${AULA_PROMPT_V} · ${prompt.length} chars`);
+    }
+
+    if (!prompt || prompt.length > (task === "aula" ? MAX_CONTEXTO + 4000 : MAX_PROMPT)) {
+      return json({ error: "prompt vazio ou grande demais" }, 400);
+    }
     if (partes.length > MAX_PARTS) return json({ error: "anexos demais" }, 400);
 
     // 3) Anexos (foto/PDF de cardápio): só inlineData com mime de imagem/pdf

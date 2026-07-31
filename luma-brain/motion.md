@@ -8,18 +8,36 @@
 
 Toda animação deve utilizar as seguintes durações e curvas de atenuação definidas em `css/00-tokens.css`:
 
+> ⚠️ **Correção (2026-07-31):** os valores de easing listados aqui estavam **errados** —
+> eram os do Material Design, não os do Luma. O `00-tokens.css` é a fonte da verdade
+> (04_DESIGN_SYSTEM §0) e foi o que venceu. Abaixo, os valores REAIS do código.
+
 ### Durações
 * `--dur-micro`: `140ms` (Reações instantâneas, micro-estados, hover de botões/links)
 * `--dur-fast`: `180ms` (Transições simples, abertura de dropdowns, hovers de cards grandes)
 * `--dur-base`: `260ms` (Transições de layout, movimentação de painéis laterais/sidebars)
 * `--dur-slow`: `420ms` (Grandes áreas, heros de página, entradas de canvas complexos)
+* `--dur-celebration`: `720ms` (**único degrau acima do slow** — momento de conquista:
+  conclusão de módulo, splash de formação. ⛔ Nunca em UI cotidiana: 720ms num hover
+  é lentidão, não elegância. Acrescentado pela Academia em 2026-07-31.)
 
-### Curvas de Atenuação (Easing)
-* `--ease-standard`: `cubic-bezier(0.4, 0, 0.2, 1)` (Movimentos gerais dentro da tela)
-* `--ease-out`: `cubic-bezier(0, 0, 0.2, 1)` (Entrada de elementos na tela — rápido no início, amortece no fim)
-* `--ease-in`: `cubic-bezier(0.4, 0, 1, 1)` (Saída de elementos da tela — acelera no fim)
-* `--ease-spring`: `cubic-bezier(0.34, 1.56, 0.64, 1)` (Pop elástico de botões, cards ou badges)
-* `--ease-spring-soft`: `cubic-bezier(0.175, 0.885, 0.32, 1.1)` (Movimento elástico suave para containers)
+### Curvas de Atenuação (Easing) — valores reais de `00-tokens.css`
+* `--ease-standard`: `cubic-bezier(.2,.9,.4,1)` (Movimentos gerais dentro da tela)
+* `--ease-out`: `cubic-bezier(.16,1,.3,1)` (Entrada de elementos na tela — amortece no fim)
+* `--ease-in`: `cubic-bezier(.5,0,.9,.4)` (Saída de elementos da tela — acelera no fim)
+* `--ease-spring`: `cubic-bezier(.34,1.56,.64,1)` (Pop elástico de botões, cards ou badges)
+* `--ease-spring-soft`: `cubic-bezier(.22,1.2,.36,1)` (Movimento elástico suave para containers)
+
+### Duração e curva DENTRO do JavaScript
+⛔ **Nunca escreva ms nem cubic-bezier em JS** — é o mesmo erro que hex solto no CSS.
+A Academia resolveu com dois leitores de token (`js/academia/motion.js`):
+
+```js
+acDur('base')   // → 260 (lê --dur-base; devolve 0 em prefers-reduced-motion)
+acEase('out')   // → cubic-bezier(.16,1,.3,1)
+```
+
+Precisa animar por JS em outro módulo? Use o mesmo padrão em vez de duplicar valores.
 
 ---
 
@@ -103,3 +121,35 @@ Toda animação estrutural ou decorativa que possa causar distração ou enjoo v
 }
 ```
 > **Nota:** Em modo de redução de movimento, as animações elásticas ou translações são anuladas, mantendo-se apenas transições imediatas de opacidade (`fade`).
+
+⛔ **A regra que não se viola: remover o MOVIMENTO, nunca a informação.** Coreografia
+que revela conteúdo em etapas (ex.: a splash de conclusão da Academia) tem de mostrar
+**tudo de uma vez** nesse modo — e não pode depender do JS para revelar, senão o
+conteúdo fica invisível para sempre. O padrão da casa:
+
+```css
+@media (prefers-reduced-motion: reduce){
+  [data-passo]{ opacity:1!important; transform:none!important }  /* estado final imediato */
+  .ac-conc-pular{ display:none }                                 /* sem animação, nada a pular */
+}
+```
+
+---
+
+## 4. Padrões de motion FUNCIONAL (o que cada movimento resolve)
+
+Motion sem função é decoração — e decoração é o que este arquivo proíbe. Os padrões
+que a Academia consolidou, cada um resolvendo um problema medido no navegador:
+
+| Padrão | O problema que resolve |
+|---|---|
+| **Cascata de entrada** (atraso de 30ms por bloco, teto de 6) | A tela aparecia inteira de uma vez. A estrutura entra na hora; só o conteúdo escalona. |
+| **Progresso que percorre** | O valor era escrito inline e a barra/anel nascia pronta: a transição CSS não tinha de onde partir. Agora o render pinta o valor ANTERIOR e o JS leva até o atual. |
+| **Altura real no acordeão** | `display:none → block` fazia o layout saltar e sumia com as aulas que a pessoa estava olhando. Mede-se o conteúdo, anima-se até o número e devolve-se `auto`. |
+| **Crossfade de troca** | Substituir `innerHTML` piscava. Saída rápida (`--dur-micro`), entrada suave (`--dur-fast`), altura mínima preservada durante a troca. |
+| **Pulso de confirmação** | "Concluí, e aí?" — o item que mudou pulsa uma vez e a classe é removida. Estado permanente de animação vira árvore de natal. |
+| **Anexar só o que é novo** | Re-renderizar uma lista re-anima tudo. No chat, só a bolha nova recebe a classe de entrada. |
+
+⚠️ **Rolagem automática é interrupção, não ajuda.** Só desça até o fim se a pessoa
+já estava no fim; se ela subiu para reler, preserve a posição e ofereça um botão de
+volta (`acAgenteRolar`).

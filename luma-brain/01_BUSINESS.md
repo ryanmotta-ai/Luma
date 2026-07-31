@@ -2,7 +2,7 @@
 
 > O arquivo que impede a IA de **inventar regras**. O `00_PRODUCT.md` diz _por que_ o Luma existe; este diz _quais são as regras do mundo em que ele opera_.
 > Antes de propor qualquer solução ("criar campanhas", "dar acesso a X", "publicar template"), leia a seção correspondente aqui. As **invariantes** (⛔) são regras que **não se inventa** — se uma proposta as viola, ela está errada, por mais elegante que pareça.
-> Última revisão: 2026-07-15. Fonte técnica: `docs/LUMA.md`. Fonte de negócio: pesquisa Delivery Much (ver `00_PRODUCT.md` §10).
+> Última revisão: 2026-07-31. Fonte técnica: `docs/LUMA.md`. Fonte de negócio: pesquisa Delivery Much (ver `00_PRODUCT.md` §10).
 
 ---
 
@@ -229,7 +229,25 @@ O ciclo de vida que amarra tudo. **Este é o mapa mental que a IA precisa ter an
 
 ---
 
-## 12. Invariantes do domínio (resumo — a lista que não se viola)
+## 12. Formação do Franqueado (Academia)
+
+**No mundo real.** Antes de a cidade entrar no ar, o franqueado passa por uma **implementação**: entender o modelo, preparar a operação, conhecer os sistemas, captar os primeiros restaurantes, lançar. Hoje isso é conduzido pela franqueadora com reunião, planilha e material solto.
+
+**No Luma.** É o módulo **Academia** (`ac*`, aba própria na topbar), com uma jornada chamada **Formação do Franqueado**: módulos ordenados → aulas (vídeo + materiais + anotações + transcrição + atividade) → conclusão → **certificado**. Entidades em `luma.*`: `cursos`, `curso_modulos`, `curso_aulas`, `matriculas`, `aula_progresso`, `aula_notas`, `aula_mensagens`, `certificados`.
+
+**Regras / invariantes:**
+- ⛔ **Franqueado não cria nem edita conteúdo de formação** — mesma lógica de campanha/template: quem monta é `equipe_dm`/`gestao`. O franqueado **estuda**, anota, conclui e emite o **próprio** certificado.
+- ⛔ **"Academia" ≠ "Implementação".** No catálogo, **Implementação** é a categoria de **materiais de marketing** para lançar cidade nova (`CAMPS_IMPLEMENTACAO`). A formação é outra coisa, com outro nome. Não unifique os dois.
+- ⛔ **Concluir a formação não tira o acesso.** Depois de formado o franqueado continua com aulas, materiais, anotações e tutor — a interface muda de "implementação" para "formação concluída", o conteúdo não.
+- ⛔ **Atualizar uma aula não apaga formação de ninguém.** Correção pequena não mexe em conclusão nem em certificado; a aula só aparece marcada como atualizada. Mudança grande = **nova versão do curso**, e certificados antigos seguem válidos na versão que a pessoa concluiu.
+- ⛔ **Certificado é emitido pelo servidor**, nunca pelo cliente: a RPC `luma.ac_emitir_certificado` revalida as aulas obrigatórias. Ninguém emite certificado para outra pessoa.
+- ⛔ **Anotação pessoal e conversa com o tutor são privadas** — nem `equipe_dm` nem `gestao` leem. Acompanhamento da rede é agregado (quem iniciou, quem concluiu), não leitura de estudo alheio.
+- ⛔ **O tutor não decide pela rede.** Ele explica o conteúdo oficial da aula; risco operacional, financeiro, jurídico ou decisão da rede exige confirmação humana da equipe DM. E ele **não** entrega resposta de atividade avaliativa.
+- Aula pode ser **obrigatória** (conta para o certificado) ou **opcional**. Só material publicado aparece — igual ao catálogo.
+
+---
+
+## 13. Invariantes do domínio (resumo — a lista que não se viola)
 
 Se uma proposta contradiz qualquer item abaixo, ela está **errada** — reveja antes de codar:
 
@@ -243,6 +261,7 @@ Se uma proposta contradiz qualquer item abaixo, ela está **errada** — reveja 
 8. **Much+ / CRM-Portal são outros sistemas** — não são entidades do Luma.
 9. **Marca por construção:** tokens de cor, SVG (não emoji), campos com trilho de permissão, `gToast` para feedback.
 10. **Segurança e escape são regra, não opção:** RLS com `WITH CHECK`, `gEsc`/`_dEsc` em todo dado de usuário.
+11. **Formação:** franqueado estuda e se forma (não edita conteúdo); concluir não tira acesso; atualização de aula não apaga certificado; certificado só o servidor emite; anotação e conversa com o tutor são privadas.
 
 ---
 
