@@ -1,0 +1,13 @@
+{
+  "screen": "Vitrine do franqueado",
+  "area": "Franqueado",
+  "state": "home",
+  "milestone": "M4",
+  "label": "Endurecimento: segurança, sync e PSD",
+  "commit": "4be6c33",
+  "date": "2026-07-20",
+  "viewport": "1440x1000",
+  "captureType": "real-commit",
+  "confidence": "alto",
+  "notes": "Execução do próprio commit via git worktree, offline; Supabase zerado e sessão de demonstração injetada. O código da interface não foi alterado."
+}

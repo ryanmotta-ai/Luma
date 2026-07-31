@@ -157,6 +157,12 @@ function limpar() {
   console.log('\n  cache limpo\n');
 }
 
+// Exportado pra quem precisa do MESMO motor sem a interface de linha de comando —
+// hoje o capturador da apresentação (docs/luma-evolution/scripts/capturar.js). Um
+// preparador de versão só: se este arquivo mudar, a captura muda junto.
+module.exports = { resolver, preparar, servir, listar, limpar, CACHE };
+if (require.main !== module) return;
+
 // ── entrada ──────────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
 try {

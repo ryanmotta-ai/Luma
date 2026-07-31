@@ -1,0 +1,13 @@
+{
+  "screen": "Vitrine do franqueado",
+  "area": "Franqueado",
+  "state": "home",
+  "milestone": "M1",
+  "label": "O que o git preserva como ponto de partida",
+  "commit": "0aed7461a7a761808fbf5a1c0cf63eae0d4576f2",
+  "date": "2026-07-16",
+  "viewport": "1440x1000",
+  "captureType": "real-commit",
+  "confidence": "alto",
+  "notes": "Execução do próprio commit via git worktree, offline; Supabase zerado e sessão de demonstração injetada. O código da interface não foi alterado."
+}

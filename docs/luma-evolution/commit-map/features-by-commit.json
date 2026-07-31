@@ -1,0 +1,1016 @@
+[
+ {
+  "hash": "540874885a1e1b92ad76d2f2264f9edd89e78492",
+  "curto": "5408748",
+  "data": "2026-07-30",
+  "autor": "Claude",
+  "assunto": "feat(scripts): máquina do tempo — abre qualquer versão antiga do Luma no navegador",
+  "areas": [],
+  "mudaTela": false,
+  "nArquivos": 2
+ },
+ {
+  "hash": "da629bec12237485a60e033ad2e4176956925558",
+  "curto": "da629be",
+  "data": "2026-07-30",
+  "autor": "Claude",
+  "assunto": "fix(vitrine): fora a marca d'água \"MUCH+\" do painel do hero",
+  "areas": [
+   "Documentação",
+   "Franqueado"
+  ],
+  "mudaTela": true,
+  "nArquivos": 2
+ },
+ {
+  "hash": "7f0c1ea74fd499059faec6871b1e4fd5465539c5",
+  "curto": "7f0c1ea",
+  "data": "2026-07-30",
+  "autor": "Claude",
+  "assunto": "fix(vitrine): Much+ sóbrio — fim do filete amarelo e do painel chapado de magenta",
+  "areas": [
+   "Documentação",
+   "Franqueado"
+  ],
+  "mudaTela": true,
+  "nArquivos": 2
+ },
+ {
+  "hash": "9c1a83b87f2b5c2853baab6902900dd1748cf15c",
+  "curto": "9c1a83b",
+  "data": "2026-07-30",
+  "autor": "Claude",
+  "assunto": "fix(cli): revisão de UI/UX — Esc, alvo de clique, contraste e banner fluido",
+  "areas": [
+   "Documentação",
+   "Interno (CLI)"
+  ],
+  "mudaTela": true,
+  "nArquivos": 3
+ },
+ {
+  "hash": "c6e1ee621658cdb23ec108f11fa5a116af903de3",
+  "curto": "c6e1ee6",
+  "data": "2026-07-30",
+  "autor": "Claude",
+  "assunto": "feat(cli): mascote detalhado na embaixadinha, escolha de modelo e pensamento ao vivo",
+  "areas": [
+   "Documentação",
+   "IA",
+   "Interno (CLI)"
+  ],
+  "mudaTela": true,
+  "nArquivos": 4
+ },
+ {
+  "hash": "58449727a5fb1670b7c24cd67f5ea91a1ec36bb6",
+  "curto": "5844972",
+  "data": "2026-07-30",
+  "autor": "Claude",
+  "assunto": "feat(cli): banner novo em caixa de terminal, mascote na embaixadinha e spinner de linha",
+  "areas": [
+   "Interno (CLI)"
+  ],
+  "mudaTela": true,
+  "nArquivos": 2
+ },
+ {
+  "hash": "e4bd096b33cd22cc313179d12a08050d72cacc88",
+  "curto": "e4bd096",
+  "data": "2026-07-30",
+  "autor": "Claude",
+  "assunto": "fix(sync): capa que não sobe deixa de mentir \"salva\" — e o diag aponta a causa",
+  "areas": [
+   "Designer",
+   "Interno (CLI)"
+  ],
+  "mudaTela": true,
+  "nArquivos": 2
+ },
+ {
+  "hash": "9a5cb3fbc5efab23f959ad165ab5fb69408ebaa3",
+  "curto": "9a5cb3f",
+  "data": "2026-07-30",
+  "autor": "Claude",
+  "assunto": "fix(catálogo): fim da pasta duplicada e a capa do banner volta a ser editável",
+  "areas": [
+   "Designer",
+   "Franqueado"
+  ],
+  "mudaTela": true,
+  "nArquivos": 3
+ },
+ {
+  "hash": "3b4182188c30c5cbffe0a21d78eeb33fa4bbeb5e",
+  "curto": "3b41821",
+  "data": "2026-07-30",
+  "autor": "ryanmotta-ai",
+  "assunto": "Merge pull request #4 from ryanmotta-ai/claude/pastas-invisíveis-capa-of7m49",
+  "areas": [],
+  "mudaTela": false,
+  "nArquivos": 0
+ },
+ {
+  "hash": "e48b7ff0c386eb21a4a3ec4b3351e558f2cb0a4a",
+  "curto": "e48b7ff",
+  "data": "2026-07-30",
+  "autor": "Claude",
+  "assunto": "feat(cli): Luma CLI no celular, com entrada escondida no painel de perfil",
+  "areas": [
+   "Documentação",
+   "Interno (CLI)",
+   "Núcleo"
+  ],
+  "mudaTela": true,
+  "nArquivos": 6
+ },
+ {
+  "hash": "c9790e8a47db041043f434231d9fa02803b2389e",
+  "curto": "c9790e8",
+  "data": "2026-07-30",
+  "autor": "Claude",
+  "assunto": "feat(cli): Luma CLI — console do time com IA, banner em pixel art e os dois temas",
+  "areas": [
+   "Documentação",
+   "IA",
+   "Interno (CLI)"
+  ],
+  "mudaTela": true,
+  "nArquivos": 7
+ },
+ {
+  "hash": "b5945dbd622ca55a2e6cf873c5c902d72698d312",
+  "curto": "b5945db",
+  "data": "2026-07-30",
+  "autor": "Claude",
+  "assunto": "fix(ia): gAiReady não promete IA onde não há caminho nenhum",
+  "areas": [
+   "IA"
+  ],
+  "mudaTela": true,
+  "nArquivos": 1
+ },
+ {
+  "hash": "249fd02ae893ee9c68eceb62faea48e227f3c9d9",
+  "curto": "249fd02",
+  "data": "2026-07-30",
+  "autor": "Claude",
+  "assunto": "docs: registra a camada de IA (motor único, Edge Function e os 5 recursos)",
+  "areas": [
+   "Documentação"
+  ],
+  "mudaTela": false,
+  "nArquivos": 3
+ },
+ {
+  "hash": "28a93e2ad622b246c4a9b90f40e308065b9b161f",
+  "curto": "28a93e2",
+  "data": "2026-07-30",
+  "autor": "Claude",
+  "assunto": "feat(sheets): ler cardápio em foto/PDF e casar fotos com as linhas",
+  "areas": [
+   "Franqueado"
+  ],
+  "mudaTela": true,
+  "nArquivos": 3
+ },
+ {
+  "hash": "13279fe4b533494180c6d0efed4b133df5bc0c57",
+  "curto": "13279fe",
+  "data": "2026-07-30",
+  "autor": "Claude",
+  "assunto": "feat(ia): ajuda responde aterrada na Central de Ajuda, e cala quando não sabe",
+  "areas": [
+   "Núcleo"
+  ],
+  "mudaTela": true,
+  "nArquivos": 2
+ },
+ {
+  "hash": "fc36ae46ee5c72b9a37c87c21fe9b3a2486013db",
+  "curto": "fc36ae4",
+  "data": "2026-07-30",
+  "autor": "Claude",
+  "assunto": "feat(ia): tubulação única de IA + encaixar texto no limite + legenda melhor",
+  "areas": [
+   "Franqueado",
+   "IA"
+  ],
+  "mudaTela": true,
+  "nArquivos": 6
+ },
+ {
+  "hash": "803d2bdcd3711f4632a688d29024ee7295bd9ce0",
+  "curto": "803d2bd",
+  "data": "2026-07-30",
+  "autor": "Claude",
+  "assunto": "fix(sync): pull de templates que falha não apaga mais o catálogo local",
+  "areas": [
+   "Designer"
+  ],
+  "mudaTela": true,
+  "nArquivos": 1
+ },
+ {
+  "hash": "59e51209bb630bfa293574750e6f8194d5643842",
+  "curto": "59e5120",
+  "data": "2026-07-30",
+  "autor": "Claude",
+  "assunto": "fix(designer): cor da pasta por baixo da capa na lista de campanhas",
+  "areas": [
+   "Designer"
+  ],
+  "mudaTela": true,
+  "nArquivos": 1
+ },
+ {
+  "hash": "e92a854a8ff35687b0d2f4d0ee512830a893bfc2",
+  "curto": "e92a854",
+  "data": "2026-07-30",
+  "autor": "Claude",
+  "assunto": "fix(franqueado): capa do card é a capa da pasta, não o material de dentro",
+  "areas": [
+   "Documentação",
+   "Franqueado"
+  ],
+  "mudaTela": true,
+  "nArquivos": 3
+ },
+ {
+  "hash": "9422d0a779fe09cd8cbb0f596138ea754ced1d62",
+  "curto": "9422d0a",
+  "data": "2026-07-29",
+  "autor": "ryanmotta-ai",
+  "assunto": "fix: resolve conflitos de git stash e API key do Gemini quebrada",
+  "areas": [
+   "Designer"
+  ],
+  "mudaTela": true,
+  "nArquivos": 5
+ },
+ {
+  "hash": "6b57784b17c3674a8afe5fc645baddd3e01da16f",
+  "curto": "6b57784",
+  "data": "2026-07-29",
+  "autor": "ryanmotta-ai",
+  "assunto": "toma bug",
+  "areas": [
+   "Designer"
+  ],
+  "mudaTela": true,
+  "nArquivos": 4
+ },
+ {
+  "hash": "05444a0de81c8bf167131cf89c41504bf31fc061",
+  "curto": "05444a0",
+  "data": "2026-07-29",
+  "autor": "ryanmotta-ai",
+  "assunto": "Merge branch 'talmaemae' into talpaipai",
+  "areas": [],
+  "mudaTela": false,
+  "nArquivos": 0
+ },
+ {
+  "hash": "6d800aab23c2445fa9755e3b26e87c84d6a49a14",
+  "curto": "6d800aa",
+  "data": "2026-07-29",
+  "autor": "ryanmotta-ai",
+  "assunto": "fix: remove marcadores de conflito do git que quebravam o site",
+  "areas": [
+   "Designer",
+   "Documentação",
+   "Núcleo"
+  ],
+  "mudaTela": true,
+  "nArquivos": 5
+ },
+ {
+  "hash": "bab9b089994c6d78c66d0222acedf6fbdecb0f32",
+  "curto": "bab9b08",
+  "data": "2026-07-29",
+  "autor": "ryanmotta-ai",
+  "assunto": "Merge pull request #3 from ryanmotta-ai/talmaemae",
+  "areas": [],
+  "mudaTela": false,
+  "nArquivos": 0
+ },
+ {
+  "hash": "b29dbd8118356fd254120fd41540b138ec741b99",
+  "curto": "b29dbd8",
+  "data": "2026-07-29",
+  "autor": "ryanmotta-ai",
+  "assunto": "toma 1.0",
+  "areas": [
+   "Design system",
+   "Designer",
+   "Documentação",
+   "Franqueado",
+   "Núcleo"
+  ],
+  "mudaTela": true,
+  "nArquivos": 67
+ },
+ {
+  "hash": "f1984dcde098c5bf8e2eda3d128f363c5e724acb",
+  "curto": "f1984dc",
+  "data": "2026-07-22",
+  "autor": "Claude",
+  "assunto": "luma-brain: prioriza itens (matriz §10) e aprofunda o tema por campanha (Much+)",
+  "areas": [
+   "Documentação"
+  ],
+  "mudaTela": false,
+  "nArquivos": 1
+ },
+ {
+  "hash": "5067bd2c95c656539baf70a868a55fcef85d0f5e",
+  "curto": "5067bd2",
+  "data": "2026-07-22",
+  "autor": "Claude",
+  "assunto": "luma-brain: registra refino de ferramentas, doc Code Review, slide 1.0 e tema Much+",
+  "areas": [
+   "Documentação"
+  ],
+  "mudaTela": false,
+  "nArquivos": 1
+ },
+ {
+  "hash": "3bb85d2d570c30da6d96af7946c8335693ff839a",
+  "curto": "3bb85d2",
+  "data": "2026-07-22",
+  "autor": "Claude",
+  "assunto": "luma-brain: reconcilia roadmap com o código real (auditoria 2026-07-18)",
+  "areas": [
+   "Documentação"
+  ],
+  "mudaTela": false,
+  "nArquivos": 1
+ },
+ {
+  "hash": "a9fc4493085f8464bb06e0f86e236dca3e45bfc5",
+  "curto": "a9fc449",
+  "data": "2026-07-22",
+  "autor": "Claude",
+  "assunto": "luma-brain: consolida brainstorm de 2026-07-18 no roadmap",
+  "areas": [
+   "Documentação"
+  ],
+  "mudaTela": false,
+  "nArquivos": 1
+ },
+ {
+  "hash": "2f0058601eda9c0c281f73f4a597b8e803a0d017",
+  "curto": "2f00586",
+  "data": "2026-07-22",
+  "autor": "Claude",
+  "assunto": "luma-brain: registra login redesign + escopo do painel de Mídias",
+  "areas": [
+   "Documentação"
+  ],
+  "mudaTela": false,
+  "nArquivos": 1
+ },
+ {
+  "hash": "120845c72aa159bef3c97ebe9079c239d1a364b1",
+  "curto": "120845c",
+  "data": "2026-07-22",
+  "autor": "Claude",
+  "assunto": "luma-brain: registra 3 ideias de backlog (indicadores, marca, calendário)",
+  "areas": [
+   "Documentação"
+  ],
+  "mudaTela": false,
+  "nArquivos": 1
+ },
+ {
+  "hash": "4be6c33c698c34345bb257ce589a8f6e7440b287",
+  "curto": "4be6c33",
+  "data": "2026-07-20",
+  "autor": "Pedro Moraes",
+  "assunto": "chore(sql): apply_all com deltas de jun/jul + migration do indice virou no-op",
+  "areas": [
+   "Backend"
+  ],
+  "mudaTela": false,
+  "nArquivos": 2
+ },
+ {
+  "hash": "bcc61e850824c14a39030e04d21a944794c291d4",
+  "curto": "bcc61e8",
+  "data": "2026-07-20",
+  "autor": "Pedro Moraes",
+  "assunto": "fix(designer): colisao dSwapColors (botao vcp rodava a funcao errada) + ids sempre UUID",
+  "areas": [
+   "Designer"
+  ],
+  "mudaTela": true,
+  "nArquivos": 4
+ },
+ {
+  "hash": "882cda08a4f649068cd56d8246be00f3daddacc9",
+  "curto": "882cda0",
+  "data": "2026-07-20",
+  "autor": "Pedro Moraes",
+  "assunto": "fix(seguranca+ux): gate de conta desativada, XSS residuais e fim dos sucessos falsos",
+  "areas": [
+   "Designer",
+   "Franqueado",
+   "Núcleo"
+  ],
+  "mudaTela": true,
+  "nArquivos": 5
+ },
+ {
+  "hash": "26e82152a6a08dab3694840220500cdded1bfa34",
+  "curto": "26e8215",
+  "data": "2026-07-20",
+  "autor": "Pedro Moraes",
+  "assunto": "fix(sync): franqueado nao grava base64 no banco + erro de pasta deixa rastro",
+  "areas": [
+   "Designer",
+   "Franqueado"
+  ],
+  "mudaTela": true,
+  "nArquivos": 2
+ },
+ {
+  "hash": "8826c9e8d570cd4df418f4fbba6d9404bcb1d31f",
+  "curto": "8826c9e",
+  "data": "2026-07-18",
+  "autor": "Claude",
+  "assunto": "Fase 2 passo 2: pull/push de pastas cobrem ativa, ordem e agendamento",
+  "areas": [
+   "Designer"
+  ],
+  "mudaTela": true,
+  "nArquivos": 1
+ },
+ {
+  "hash": "40b258705507e529a5d31e15a806f3411ca97b6f",
+  "curto": "40b2587",
+  "data": "2026-07-18",
+  "autor": "Claude",
+  "assunto": "Fase 2: completa o seam — leituras restantes roteadas + fAllCampaigns",
+  "areas": [
+   "Designer",
+   "Franqueado"
+  ],
+  "mudaTela": true,
+  "nArquivos": 4
+ },
+ {
+  "hash": "de5659c726c76977dfc6674f68f94da86db2bd16",
+  "curto": "de5659c",
+  "data": "2026-07-17",
+  "autor": "Claude",
+  "assunto": "PSD: teto de raster adaptativo à prancheta (nitidez no export 2×)",
+  "areas": [
+   "Designer",
+   "Documentação"
+  ],
+  "mudaTela": true,
+  "nArquivos": 2
+ },
+ {
+  "hash": "ed254c4b458ae36ac67eaeda6ab8d5dee71a7b40",
+  "curto": "ed254c4",
+  "data": "2026-07-17",
+  "autor": "Claude",
+  "assunto": "PSD: z-order confiável no caso sem-sinal (default = inverter)",
+  "areas": [
+   "Designer",
+   "Documentação"
+  ],
+  "mudaTela": true,
+  "nArquivos": 2
+ },
+ {
+  "hash": "5d16dc092a84065bdc755aad7e140d6391fbb6db",
+  "curto": "5d16dc0",
+  "data": "2026-07-17",
+  "autor": "Claude",
+  "assunto": "Roadmap: mapeia melhorias do import PSD + corrige doc desatualizada",
+  "areas": [
+   "Documentação"
+  ],
+  "mudaTela": false,
+  "nArquivos": 2
+ },
+ {
+  "hash": "c749b7ae17104805c359f906d88f09189a1015b7",
+  "curto": "c749b7a",
+  "data": "2026-07-17",
+  "autor": "Claude",
+  "assunto": "Arquitetura: libera CDN/rede externa em runtime como fallback",
+  "areas": [
+   "Documentação"
+  ],
+  "mudaTela": false,
+  "nArquivos": 1
+ },
+ {
+  "hash": "4bfd965ab05bb41f9b0baa450fbe456db5ae01a9",
+  "curto": "4bfd965",
+  "data": "2026-07-17",
+  "autor": "Claude",
+  "assunto": "PWA: dica de instalação como app (Mac Dock, iPhone, Chromium)",
+  "areas": [
+   "Design system",
+   "Núcleo"
+  ],
+  "mudaTela": true,
+  "nArquivos": 3
+ },
+ {
+  "hash": "b7891c472fe57ffed806489d35169f68cc9a94ca",
+  "curto": "b7891c4",
+  "data": "2026-07-16",
+  "autor": "Claude",
+  "assunto": "Fase 2 (passo 1/5): costura o seam das campanhas — zero mudança de comportamento",
+  "areas": [
+   "Franqueado"
+  ],
+  "mudaTela": true,
+  "nArquivos": 2
+ },
+ {
+  "hash": "cd8eafb8aaddbcc9660009b8350943c33ae56c26",
+  "curto": "cd8eafb",
+  "data": "2026-07-16",
+  "autor": "Pedro Moraes",
+  "assunto": "feat(perfil): dados pessoais persistem no banco (nome/telefone)",
+  "areas": [
+   "Núcleo"
+  ],
+  "mudaTela": true,
+  "nArquivos": 2
+ },
+ {
+  "hash": "1956916d02214ab051ffceb8ea3545f96832ad2a",
+  "curto": "1956916",
+  "data": "2026-07-16",
+  "autor": "Pedro Moraes",
+  "assunto": "docs(changelog): incidente 2 do Storage, migrations aplicadas e Fase 2 do convite",
+  "areas": [
+   "Documentação"
+  ],
+  "mudaTela": false,
+  "nArquivos": 1
+ },
+ {
+  "hash": "fea1ffa68f18d1e00c13236a4b3f14674ce91001",
+  "curto": "fea1ffa",
+  "data": "2026-07-16",
+  "autor": "Pedro Moraes",
+  "assunto": "feat(equipe): convite de membro real (Edge Function) + telefone opcional",
+  "areas": [
+   "Backend",
+   "Núcleo"
+  ],
+  "mudaTela": true,
+  "nArquivos": 4
+ },
+ {
+  "hash": "247bcd4d8936b3a12553a244ada48989eb0deb5e",
+  "curto": "247bcd4",
+  "data": "2026-07-16",
+  "autor": "Pedro Moraes",
+  "assunto": "feat(franqueado): vitrine gerida pelo banco — capa manda e pasta nova vira campanha",
+  "areas": [
+   "Designer",
+   "Documentação",
+   "Franqueado"
+  ],
+  "mudaTela": true,
+  "nArquivos": 4
+ },
+ {
+  "hash": "52c90374c76cf1279249dd0c5dcbc1cf865df760",
+  "curto": "52c9037",
+  "data": "2026-07-16",
+  "autor": "Pedro Moraes",
+  "assunto": "fix(storage): upsert exigia SELECT (0 uploads do designer) + capa nao some mais",
+  "areas": [
+   "Backend",
+   "Designer"
+  ],
+  "mudaTela": true,
+  "nArquivos": 2
+ },
+ {
+  "hash": "c73dace350be174d53c1a93ce81a32f3ce68a488",
+  "curto": "c73dace",
+  "data": "2026-07-16",
+  "autor": "Pedro Moraes",
+  "assunto": "fix(css): logo do Luma 404 — url direta no lugar de var(--logo-*)",
+  "areas": [
+   "Design system",
+   "Franqueado"
+  ],
+  "mudaTela": true,
+  "nArquivos": 5
+ },
+ {
+  "hash": "c1417d53018ba37f7a938d1e3036686a0b83805b",
+  "curto": "c1417d5",
+  "data": "2026-07-16",
+  "autor": "ryanmotta-ai",
+  "assunto": "Docs: limpeza (remove docs do Portal e auditorias concluídas) + roadmap em dia rumo à 1.0",
+  "areas": [
+   "Documentação"
+  ],
+  "mudaTela": false,
+  "nArquivos": 7
+ },
+ {
+  "hash": "b15540309681e983d5064f4178ac76db5841203e",
+  "curto": "b155403",
+  "data": "2026-07-16",
+  "autor": "ryanmotta-ai",
+  "assunto": "Backend: documenta incidente do sync de templates (migration 11/07 não aplicada) + erros de sync com console.warn",
+  "areas": [
+   "Designer",
+   "Documentação"
+  ],
+  "mudaTela": true,
+  "nArquivos": 2
+ },
+ {
+  "hash": "6cb2bd2a53605bf364b33c0872e44f93eb5389ff",
+  "curto": "6cb2bd2",
+  "data": "2026-07-16",
+  "autor": "ryanmotta-ai",
+  "assunto": "Sync: aviso de conflito cross-device + histórico ligado ao template de origem",
+  "areas": [
+   "Backend",
+   "Designer",
+   "Documentação",
+   "Franqueado"
+  ],
+  "mudaTela": true,
+  "nArquivos": 5
+ },
+ {
+  "hash": "de4ad6685607ce52c060731d1c95573748c6d151",
+  "curto": "de4ad66",
+  "data": "2026-07-16",
+  "autor": "ryanmotta-ai",
+  "assunto": "Merge branch 'talpaipai' of https://github.com/ryanmotta-ai/Luma into talpaipai",
+  "areas": [],
+  "mudaTela": false,
+  "nArquivos": 0
+ },
+ {
+  "hash": "225133f552ad9a475405fc6cad584616bfaa1f1b",
+  "curto": "225133f",
+  "data": "2026-07-16",
+  "autor": "Claude",
+  "assunto": "Backend: pacote de migrations pronto pra aplicar (Pedro, ~5 min)",
+  "areas": [
+   "Backend",
+   "Documentação"
+  ],
+  "mudaTela": false,
+  "nArquivos": 3
+ },
+ {
+  "hash": "21ea6c8a4dbe5b76eceefa162f756c75a1237263",
+  "curto": "21ea6c8",
+  "data": "2026-07-16",
+  "autor": "Claude",
+  "assunto": "Analytics: emite os eventos do funil previstos na migration",
+  "areas": [
+   "Designer",
+   "Franqueado"
+  ],
+  "mudaTela": true,
+  "nArquivos": 3
+ },
+ {
+  "hash": "5301afe3554cff1078a88e0f15850fd9d73c8f56",
+  "curto": "5301afe",
+  "data": "2026-07-16",
+  "autor": "Claude",
+  "assunto": "Histórico: lock no push e releitura antes de regravar o storage",
+  "areas": [
+   "Franqueado"
+  ],
+  "mudaTela": true,
+  "nArquivos": 1
+ },
+ {
+  "hash": "f0e6e2fc3e494be258acf22d623d59c29404fc4a",
+  "curto": "f0e6e2f",
+  "data": "2026-07-16",
+  "autor": "Claude",
+  "assunto": "Sync: fila de deleções pendentes (itens apagados não ressuscitam)",
+  "areas": [
+   "Designer",
+   "Núcleo"
+  ],
+  "mudaTela": true,
+  "nArquivos": 6
+ },
+ {
+  "hash": "e29573e1fdfbd5a4ae94b3952d1f6cd9d8c916b6",
+  "curto": "e29573e",
+  "data": "2026-07-16",
+  "autor": "Claude",
+  "assunto": "Sync: template aberto no editor sobrevive ao pull do boot",
+  "areas": [
+   "Designer"
+  ],
+  "mudaTela": true,
+  "nArquivos": 1
+ },
+ {
+  "hash": "41fb3bef24dded333854f288e483e218e7c1dd58",
+  "curto": "41fb3be",
+  "data": "2026-07-16",
+  "autor": "Claude",
+  "assunto": "Sync: flush do push no pagehide + lock de push concorrente",
+  "areas": [
+   "Designer"
+  ],
+  "mudaTela": true,
+  "nArquivos": 1
+ },
+ {
+  "hash": "239c3903a82d3b462cda1eaae3e54071c5bd549f",
+  "curto": "239c390",
+  "data": "2026-07-16",
+  "autor": "Claude",
+  "assunto": "Sync: template pendente na ESCRITA, limpo só no upsert confirmado",
+  "areas": [
+   "Designer"
+  ],
+  "mudaTela": true,
+  "nArquivos": 1
+ },
+ {
+  "hash": "9c5e3ffe0be6e87d2e85f886fd30bd8ca4cde9b4",
+  "curto": "9c5e3ff",
+  "data": "2026-07-16",
+  "autor": "Claude",
+  "assunto": "Copy: diagramação e assertividade por aba (passe final pro 1.0)",
+  "areas": [
+   "Franqueado"
+  ],
+  "mudaTela": true,
+  "nArquivos": 2
+ },
+ {
+  "hash": "74d31b50c9e46346c68cd9685d38db8de10dbee4",
+  "curto": "74d31b5",
+  "data": "2026-07-16",
+  "autor": "Claude",
+  "assunto": "Franqueado: rail não fica mais com o histórico espremido (bug da foto)",
+  "areas": [
+   "Franqueado"
+  ],
+  "mudaTela": true,
+  "nArquivos": 1
+ },
+ {
+  "hash": "ca00a540c06fc4f8aedd2cf67d6d75c0aae96ca2",
+  "curto": "ca00a54",
+  "data": "2026-07-16",
+  "autor": "Claude",
+  "assunto": "Franqueado: \"Minhas artes\" não é mais atropelado pelo fade do voltar",
+  "areas": [
+   "Franqueado"
+  ],
+  "mudaTela": true,
+  "nArquivos": 1
+ },
+ {
+  "hash": "bc6f4cdfad8402369f40a213cd99cbe620b4c0c6",
+  "curto": "bc6f4cd",
+  "data": "2026-07-16",
+  "autor": "ryanmotta-ai",
+  "assunto": "ci(desktop): build macOS no workflow — DMG universal anexado na Release",
+  "areas": [],
+  "mudaTela": false,
+  "nArquivos": 1
+ },
+ {
+  "hash": "963d2a060c2f7cfb85d7abf44b4360996cc801c8",
+  "curto": "963d2a0",
+  "data": "2026-07-16",
+  "autor": "Claude",
+  "assunto": "Mobile: prévia viva — miniatura PiP, pinça pra zoom e swipe pra fechar",
+  "areas": [
+   "Design system",
+   "Franqueado"
+  ],
+  "mudaTela": true,
+  "nArquivos": 3
+ },
+ {
+  "hash": "c0bd2b8a82340d72183b96e9954d2ebffad13407",
+  "curto": "c0bd2b8",
+  "data": "2026-07-16",
+  "autor": "Claude",
+  "assunto": "Mobile (franqueado): varredura completa de telas — rodada 2",
+  "areas": [
+   "Design system",
+   "Franqueado",
+   "Núcleo"
+  ],
+  "mudaTela": true,
+  "nArquivos": 3
+ },
+ {
+  "hash": "c86023103458ec234e349f291dd0715cd3ea9bac",
+  "curto": "c860231",
+  "data": "2026-07-16",
+  "autor": "Claude",
+  "assunto": "Mobile (franqueado): refinos de UI/UX",
+  "areas": [
+   "Design system",
+   "Franqueado"
+  ],
+  "mudaTela": true,
+  "nArquivos": 3
+ },
+ {
+  "hash": "24fdf80b92f27c0aa093e2f247c9e38a14462d23",
+  "curto": "24fdf80",
+  "data": "2026-07-16",
+  "autor": "Claude",
+  "assunto": "README: troca setas por travessão (limpeza total de símbolos)",
+  "areas": [
+   "Backend",
+   "Design system",
+   "Designer",
+   "Documentação",
+   "Empacotamento",
+   "Franqueado",
+   "Núcleo"
+  ],
+  "mudaTela": true,
+  "nArquivos": 290
+ },
+ {
+  "hash": "89ca896bde81f7623146b4a51e4cd44ecddbf978",
+  "curto": "89ca896",
+  "data": "2026-07-16",
+  "autor": "ryanmotta-ai",
+  "assunto": "feat(desktop): app macOS — DMG universal + convenções do Mac na casca Electron",
+  "areas": [
+   "Empacotamento"
+  ],
+  "mudaTela": false,
+  "nArquivos": 4
+ },
+ {
+  "hash": "d27efb33f7a9a7d66dd56d5efe65899def6f78fd",
+  "curto": "d27efb3",
+  "data": "2026-07-16",
+  "autor": "Claude",
+  "assunto": "Desktop: workflow publica Release pública com links permanentes",
+  "areas": [],
+  "mudaTela": false,
+  "nArquivos": 1
+ },
+ {
+  "hash": "0aed7461a7a761808fbf5a1c0cf63eae0d4576f2",
+  "curto": "0aed746",
+  "data": "2026-07-16",
+  "autor": "Claude",
+  "assunto": "Desktop: casca .exe do Luma (Electron apontando pro GitHub Pages)",
+  "areas": [
+   "Empacotamento"
+  ],
+  "mudaTela": false,
+  "nArquivos": 5
+ },
+ {
+  "hash": "96b311dc703ebce3c38525ceabccb63444c4b715",
+  "curto": "96b311d",
+  "data": "2026-07-16",
+  "autor": "Claude",
+  "assunto": "PWA: Luma instalável na tela de início do iPhone",
+  "areas": [
+   "Documentação",
+   "Empacotamento"
+  ],
+  "mudaTela": true,
+  "nArquivos": 6
+ },
+ {
+  "hash": "c7cbfb8fef511532e9374319b2ebbb370882852a",
+  "curto": "c7cbfb8",
+  "data": "2026-07-16",
+  "autor": "Claude",
+  "assunto": "Fix: fill da animação engolia o seletor da página de mockups",
+  "areas": [
+   "Design system",
+   "Documentação"
+  ],
+  "mudaTela": true,
+  "nArquivos": 2
+ },
+ {
+  "hash": "b15be352b4b12506432b0257591ff983854ac281",
+  "curto": "b15be35",
+  "data": "2026-07-16",
+  "autor": "Claude",
+  "assunto": "Motion: entrada premium dos celulares (cascata + mola suave)",
+  "areas": [
+   "Design system",
+   "Documentação",
+   "Franqueado"
+  ],
+  "mudaTela": true,
+  "nArquivos": 3
+ },
+ {
+  "hash": "57cbe746aca44c86980dbae0599905b225440c4b",
+  "curto": "57cbe74",
+  "data": "2026-07-16",
+  "autor": "Claude",
+  "assunto": "Prévia: \"Ver postado\" — a arte real dentro do celular",
+  "areas": [
+   "Design system",
+   "Franqueado"
+  ],
+  "mudaTela": true,
+  "nArquivos": 3
+ },
+ {
+  "hash": "df0c056dfa8b5dcc6e18116dfe8648f9b29c8bde",
+  "curto": "df0c056",
+  "data": "2026-07-16",
+  "autor": "Claude",
+  "assunto": "Mockup: silhueta do iPhone 17 Pro Max (padrão premium)",
+  "areas": [
+   "Documentação"
+  ],
+  "mudaTela": false,
+  "nArquivos": 1
+ },
+ {
+  "hash": "2e892dfaea91c5610047bb0ee8d34decb8403d4c",
+  "curto": "2e892df",
+  "data": "2026-07-16",
+  "autor": "Claude",
+  "assunto": "Mockup: prévia da arte no celular (Stories, Feed, WhatsApp)",
+  "areas": [
+   "Documentação"
+  ],
+  "mudaTela": false,
+  "nArquivos": 1
+ },
+ {
+  "hash": "b325da85346f0a2a4184a383459c244325234f6e",
+  "curto": "b325da8",
+  "data": "2026-07-16",
+  "autor": "Claude",
+  "assunto": "Skill luma: práticas de economia de uso",
+  "areas": [],
+  "mudaTela": false,
+  "nArquivos": 1
+ },
+ {
+  "hash": "515287b9230f48e3a9a2fb7a8ed72ca4e1c0c0a4",
+  "curto": "515287b",
+  "data": "2026-07-16",
+  "autor": "Claude",
+  "assunto": "Docs: ponteiro pro motor de copy no luma-brain",
+  "areas": [
+   "Documentação"
+  ],
+  "mudaTela": false,
+  "nArquivos": 1
+ },
+ {
+  "hash": "f599ab54468305dabf6940ef927e242293920e88",
+  "curto": "f599ab5",
+  "data": "2026-07-16",
+  "autor": "Claude",
+  "assunto": "Docs: documenta onde vive o motor de copy (legendas)",
+  "areas": [
+   "Documentação"
+  ],
+  "mudaTela": false,
+  "nArquivos": 1
+ },
+ {
+  "hash": "524ce65e5770f50c7dd672e956b49dab76106da2",
+  "curto": "524ce65",
+  "data": "2026-07-16",
+  "autor": "Claude",
+  "assunto": "Copy: overhaul do motor combinatório (bancos + montagem)",
+  "areas": [
+   "Backend",
+   "Design system",
+   "Designer",
+   "Documentação",
+   "Franqueado",
+   "Núcleo"
+  ],
+  "mudaTela": true,
+  "nArquivos": 279
+ }
+]

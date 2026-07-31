@@ -1,0 +1,13 @@
+{
+  "screen": "Vitrine no celular",
+  "area": "Franqueado",
+  "state": "home-mobile",
+  "milestone": "M6",
+  "label": "A camada de IA",
+  "commit": "249fd02",
+  "date": "2026-07-30",
+  "viewport": "390x844",
+  "captureType": "real-commit",
+  "confidence": "alto",
+  "notes": "Execução do próprio commit via git worktree, offline; Supabase zerado e sessão de demonstração injetada. O código da interface não foi alterado."
+}

@@ -1,0 +1,13 @@
+{
+  "screen": "Publicar template",
+  "area": "Designer",
+  "state": "publicar",
+  "milestone": "M0",
+  "label": "Piloto Yungas — Módulo de Artes",
+  "commit": null,
+  "date": "2026-07-15",
+  "viewport": "1440x1000",
+  "captureType": "real-arquivo-original",
+  "confidence": "alto",
+  "notes": "Execução do HTML original do piloto, servido offline. Nenhuma alteração no código."
+}

@@ -1,0 +1,81 @@
+540874885a1e1b92ad76d2f2264f9edd89e78492|5408748|2026-07-30|Claude|feat(scripts): máquina do tempo — abre qualquer versão antiga do Luma no navegador
+da629bec12237485a60e033ad2e4176956925558|da629be|2026-07-30|Claude|fix(vitrine): fora a marca d'água "MUCH+" do painel do hero
+7f0c1ea74fd499059faec6871b1e4fd5465539c5|7f0c1ea|2026-07-30|Claude|fix(vitrine): Much+ sóbrio — fim do filete amarelo e do painel chapado de magenta
+9c1a83b87f2b5c2853baab6902900dd1748cf15c|9c1a83b|2026-07-30|Claude|fix(cli): revisão de UI/UX — Esc, alvo de clique, contraste e banner fluido
+c6e1ee621658cdb23ec108f11fa5a116af903de3|c6e1ee6|2026-07-30|Claude|feat(cli): mascote detalhado na embaixadinha, escolha de modelo e pensamento ao vivo
+58449727a5fb1670b7c24cd67f5ea91a1ec36bb6|5844972|2026-07-30|Claude|feat(cli): banner novo em caixa de terminal, mascote na embaixadinha e spinner de linha
+e4bd096b33cd22cc313179d12a08050d72cacc88|e4bd096|2026-07-30|Claude|fix(sync): capa que não sobe deixa de mentir "salva" — e o diag aponta a causa
+9a5cb3fbc5efab23f959ad165ab5fb69408ebaa3|9a5cb3f|2026-07-30|Claude|fix(catálogo): fim da pasta duplicada e a capa do banner volta a ser editável
+3b4182188c30c5cbffe0a21d78eeb33fa4bbeb5e|3b41821|2026-07-30|ryanmotta-ai|Merge pull request #4 from ryanmotta-ai/claude/pastas-invisíveis-capa-of7m49
+e48b7ff0c386eb21a4a3ec4b3351e558f2cb0a4a|e48b7ff|2026-07-30|Claude|feat(cli): Luma CLI no celular, com entrada escondida no painel de perfil
+c9790e8a47db041043f434231d9fa02803b2389e|c9790e8|2026-07-30|Claude|feat(cli): Luma CLI — console do time com IA, banner em pixel art e os dois temas
+b5945dbd622ca55a2e6cf873c5c902d72698d312|b5945db|2026-07-30|Claude|fix(ia): gAiReady não promete IA onde não há caminho nenhum
+249fd02ae893ee9c68eceb62faea48e227f3c9d9|249fd02|2026-07-30|Claude|docs: registra a camada de IA (motor único, Edge Function e os 5 recursos)
+28a93e2ad622b246c4a9b90f40e308065b9b161f|28a93e2|2026-07-30|Claude|feat(sheets): ler cardápio em foto/PDF e casar fotos com as linhas
+13279fe4b533494180c6d0efed4b133df5bc0c57|13279fe|2026-07-30|Claude|feat(ia): ajuda responde aterrada na Central de Ajuda, e cala quando não sabe
+fc36ae46ee5c72b9a37c87c21fe9b3a2486013db|fc36ae4|2026-07-30|Claude|feat(ia): tubulação única de IA + encaixar texto no limite + legenda melhor
+803d2bdcd3711f4632a688d29024ee7295bd9ce0|803d2bd|2026-07-30|Claude|fix(sync): pull de templates que falha não apaga mais o catálogo local
+59e51209bb630bfa293574750e6f8194d5643842|59e5120|2026-07-30|Claude|fix(designer): cor da pasta por baixo da capa na lista de campanhas
+e92a854a8ff35687b0d2f4d0ee512830a893bfc2|e92a854|2026-07-30|Claude|fix(franqueado): capa do card é a capa da pasta, não o material de dentro
+9422d0a779fe09cd8cbb0f596138ea754ced1d62|9422d0a|2026-07-29|ryanmotta-ai|fix: resolve conflitos de git stash e API key do Gemini quebrada
+6b57784b17c3674a8afe5fc645baddd3e01da16f|6b57784|2026-07-29|ryanmotta-ai|toma bug
+05444a0de81c8bf167131cf89c41504bf31fc061|05444a0|2026-07-29|ryanmotta-ai|Merge branch 'talmaemae' into talpaipai
+6d800aab23c2445fa9755e3b26e87c84d6a49a14|6d800aa|2026-07-29|ryanmotta-ai|fix: remove marcadores de conflito do git que quebravam o site
+bab9b089994c6d78c66d0222acedf6fbdecb0f32|bab9b08|2026-07-29|ryanmotta-ai|Merge pull request #3 from ryanmotta-ai/talmaemae
+b29dbd8118356fd254120fd41540b138ec741b99|b29dbd8|2026-07-29|ryanmotta-ai|toma 1.0
+f1984dcde098c5bf8e2eda3d128f363c5e724acb|f1984dc|2026-07-22|Claude|luma-brain: prioriza itens (matriz §10) e aprofunda o tema por campanha (Much+)
+5067bd2c95c656539baf70a868a55fcef85d0f5e|5067bd2|2026-07-22|Claude|luma-brain: registra refino de ferramentas, doc Code Review, slide 1.0 e tema Much+
+3bb85d2d570c30da6d96af7946c8335693ff839a|3bb85d2|2026-07-22|Claude|luma-brain: reconcilia roadmap com o código real (auditoria 2026-07-18)
+a9fc4493085f8464bb06e0f86e236dca3e45bfc5|a9fc449|2026-07-22|Claude|luma-brain: consolida brainstorm de 2026-07-18 no roadmap
+2f0058601eda9c0c281f73f4a597b8e803a0d017|2f00586|2026-07-22|Claude|luma-brain: registra login redesign + escopo do painel de Mídias
+120845c72aa159bef3c97ebe9079c239d1a364b1|120845c|2026-07-22|Claude|luma-brain: registra 3 ideias de backlog (indicadores, marca, calendário)
+4be6c33c698c34345bb257ce589a8f6e7440b287|4be6c33|2026-07-20|Pedro Moraes|chore(sql): apply_all com deltas de jun/jul + migration do indice virou no-op
+bcc61e850824c14a39030e04d21a944794c291d4|bcc61e8|2026-07-20|Pedro Moraes|fix(designer): colisao dSwapColors (botao vcp rodava a funcao errada) + ids sempre UUID
+882cda08a4f649068cd56d8246be00f3daddacc9|882cda0|2026-07-20|Pedro Moraes|fix(seguranca+ux): gate de conta desativada, XSS residuais e fim dos sucessos falsos
+26e82152a6a08dab3694840220500cdded1bfa34|26e8215|2026-07-20|Pedro Moraes|fix(sync): franqueado nao grava base64 no banco + erro de pasta deixa rastro
+8826c9e8d570cd4df418f4fbba6d9404bcb1d31f|8826c9e|2026-07-18|Claude|Fase 2 passo 2: pull/push de pastas cobrem ativa, ordem e agendamento
+40b258705507e529a5d31e15a806f3411ca97b6f|40b2587|2026-07-18|Claude|Fase 2: completa o seam — leituras restantes roteadas + fAllCampaigns
+de5659c726c76977dfc6674f68f94da86db2bd16|de5659c|2026-07-17|Claude|PSD: teto de raster adaptativo à prancheta (nitidez no export 2×)
+ed254c4b458ae36ac67eaeda6ab8d5dee71a7b40|ed254c4|2026-07-17|Claude|PSD: z-order confiável no caso sem-sinal (default = inverter)
+5d16dc092a84065bdc755aad7e140d6391fbb6db|5d16dc0|2026-07-17|Claude|Roadmap: mapeia melhorias do import PSD + corrige doc desatualizada
+c749b7ae17104805c359f906d88f09189a1015b7|c749b7a|2026-07-17|Claude|Arquitetura: libera CDN/rede externa em runtime como fallback
+4bfd965ab05bb41f9b0baa450fbe456db5ae01a9|4bfd965|2026-07-17|Claude|PWA: dica de instalação como app (Mac Dock, iPhone, Chromium)
+b7891c472fe57ffed806489d35169f68cc9a94ca|b7891c4|2026-07-16|Claude|Fase 2 (passo 1/5): costura o seam das campanhas — zero mudança de comportamento
+cd8eafb8aaddbcc9660009b8350943c33ae56c26|cd8eafb|2026-07-16|Pedro Moraes|feat(perfil): dados pessoais persistem no banco (nome/telefone)
+1956916d02214ab051ffceb8ea3545f96832ad2a|1956916|2026-07-16|Pedro Moraes|docs(changelog): incidente 2 do Storage, migrations aplicadas e Fase 2 do convite
+fea1ffa68f18d1e00c13236a4b3f14674ce91001|fea1ffa|2026-07-16|Pedro Moraes|feat(equipe): convite de membro real (Edge Function) + telefone opcional
+247bcd4d8936b3a12553a244ada48989eb0deb5e|247bcd4|2026-07-16|Pedro Moraes|feat(franqueado): vitrine gerida pelo banco — capa manda e pasta nova vira campanha
+52c90374c76cf1279249dd0c5dcbc1cf865df760|52c9037|2026-07-16|Pedro Moraes|fix(storage): upsert exigia SELECT (0 uploads do designer) + capa nao some mais
+c73dace350be174d53c1a93ce81a32f3ce68a488|c73dace|2026-07-16|Pedro Moraes|fix(css): logo do Luma 404 — url direta no lugar de var(--logo-*)
+c1417d53018ba37f7a938d1e3036686a0b83805b|c1417d5|2026-07-16|ryanmotta-ai|Docs: limpeza (remove docs do Portal e auditorias concluídas) + roadmap em dia rumo à 1.0
+b15540309681e983d5064f4178ac76db5841203e|b155403|2026-07-16|ryanmotta-ai|Backend: documenta incidente do sync de templates (migration 11/07 não aplicada) + erros de sync com console.warn
+6cb2bd2a53605bf364b33c0872e44f93eb5389ff|6cb2bd2|2026-07-16|ryanmotta-ai|Sync: aviso de conflito cross-device + histórico ligado ao template de origem
+de4ad6685607ce52c060731d1c95573748c6d151|de4ad66|2026-07-16|ryanmotta-ai|Merge branch 'talpaipai' of https://github.com/ryanmotta-ai/Luma into talpaipai
+225133f552ad9a475405fc6cad584616bfaa1f1b|225133f|2026-07-16|Claude|Backend: pacote de migrations pronto pra aplicar (Pedro, ~5 min)
+21ea6c8a4dbe5b76eceefa162f756c75a1237263|21ea6c8|2026-07-16|Claude|Analytics: emite os eventos do funil previstos na migration
+5301afe3554cff1078a88e0f15850fd9d73c8f56|5301afe|2026-07-16|Claude|Histórico: lock no push e releitura antes de regravar o storage
+f0e6e2fc3e494be258acf22d623d59c29404fc4a|f0e6e2f|2026-07-16|Claude|Sync: fila de deleções pendentes (itens apagados não ressuscitam)
+e29573e1fdfbd5a4ae94b3952d1f6cd9d8c916b6|e29573e|2026-07-16|Claude|Sync: template aberto no editor sobrevive ao pull do boot
+41fb3bef24dded333854f288e483e218e7c1dd58|41fb3be|2026-07-16|Claude|Sync: flush do push no pagehide + lock de push concorrente
+239c3903a82d3b462cda1eaae3e54071c5bd549f|239c390|2026-07-16|Claude|Sync: template pendente na ESCRITA, limpo só no upsert confirmado
+9c5e3ffe0be6e87d2e85f886fd30bd8ca4cde9b4|9c5e3ff|2026-07-16|Claude|Copy: diagramação e assertividade por aba (passe final pro 1.0)
+74d31b50c9e46346c68cd9685d38db8de10dbee4|74d31b5|2026-07-16|Claude|Franqueado: rail não fica mais com o histórico espremido (bug da foto)
+ca00a540c06fc4f8aedd2cf67d6d75c0aae96ca2|ca00a54|2026-07-16|Claude|Franqueado: "Minhas artes" não é mais atropelado pelo fade do voltar
+bc6f4cdfad8402369f40a213cd99cbe620b4c0c6|bc6f4cd|2026-07-16|ryanmotta-ai|ci(desktop): build macOS no workflow — DMG universal anexado na Release
+963d2a060c2f7cfb85d7abf44b4360996cc801c8|963d2a0|2026-07-16|Claude|Mobile: prévia viva — miniatura PiP, pinça pra zoom e swipe pra fechar
+c0bd2b8a82340d72183b96e9954d2ebffad13407|c0bd2b8|2026-07-16|Claude|Mobile (franqueado): varredura completa de telas — rodada 2
+c86023103458ec234e349f291dd0715cd3ea9bac|c860231|2026-07-16|Claude|Mobile (franqueado): refinos de UI/UX
+24fdf80b92f27c0aa093e2f247c9e38a14462d23|24fdf80|2026-07-16|Claude|README: troca setas por travessão (limpeza total de símbolos)
+89ca896bde81f7623146b4a51e4cd44ecddbf978|89ca896|2026-07-16|ryanmotta-ai|feat(desktop): app macOS — DMG universal + convenções do Mac na casca Electron
+d27efb33f7a9a7d66dd56d5efe65899def6f78fd|d27efb3|2026-07-16|Claude|Desktop: workflow publica Release pública com links permanentes
+0aed7461a7a761808fbf5a1c0cf63eae0d4576f2|0aed746|2026-07-16|Claude|Desktop: casca .exe do Luma (Electron apontando pro GitHub Pages)
+96b311dc703ebce3c38525ceabccb63444c4b715|96b311d|2026-07-16|Claude|PWA: Luma instalável na tela de início do iPhone
+c7cbfb8fef511532e9374319b2ebbb370882852a|c7cbfb8|2026-07-16|Claude|Fix: fill da animação engolia o seletor da página de mockups
+b15be352b4b12506432b0257591ff983854ac281|b15be35|2026-07-16|Claude|Motion: entrada premium dos celulares (cascata + mola suave)
+57cbe746aca44c86980dbae0599905b225440c4b|57cbe74|2026-07-16|Claude|Prévia: "Ver postado" — a arte real dentro do celular
+df0c056dfa8b5dcc6e18116dfe8648f9b29c8bde|df0c056|2026-07-16|Claude|Mockup: silhueta do iPhone 17 Pro Max (padrão premium)
+2e892dfaea91c5610047bb0ee8d34decb8403d4c|2e892df|2026-07-16|Claude|Mockup: prévia da arte no celular (Stories, Feed, WhatsApp)
+b325da85346f0a2a4184a383459c244325234f6e|b325da8|2026-07-16|Claude|Skill luma: práticas de economia de uso
+515287b9230f48e3a9a2fb7a8ed72ca4e1c0c0a4|515287b|2026-07-16|Claude|Docs: ponteiro pro motor de copy no luma-brain
+f599ab54468305dabf6940ef927e242293920e88|f599ab5|2026-07-16|Claude|Docs: documenta onde vive o motor de copy (legendas)
+524ce65e5770f50c7dd672e956b49dab76106da2|524ce65|2026-07-16|Claude|Copy: overhaul do motor combinatório (bancos + montagem)

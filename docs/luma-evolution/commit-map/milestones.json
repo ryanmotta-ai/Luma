@@ -1,0 +1,175 @@
+[
+  {
+    "id": "M0",
+    "rotulo": "Piloto Yungas — Módulo de Artes",
+    "era": "Era 0 · Antes do git",
+    "data": "2026-07-15",
+    "dataExata": false,
+    "tipo": "arquivo",
+    "arquivo": "yungas-artes-piloto.html",
+    "hash": null,
+    "hashCurto": "origem",
+    "autor": "Ryan Motta (entregue fora do repositório)",
+    "mensagem": "Yungas · Módulo de Artes · Delivery Much — arquivo único de 565 KB",
+    "porQueFoiEscolhido": "É a única evidência do produto ANTES do git. As duas raízes do repositório já contêm o app inteiro, então sem este arquivo a pergunta 'como o Luma começou?' não teria resposta com evidência.",
+    "precisaSessao": false,
+    "evidencia": "Arquivo HTML entregue pelo Ryan nesta sessão. Data anterior ao primeiro commit; o dia exato não é verificável a partir do arquivo, por isso 'anterior a 2026-07-16'.",
+    "fatos": [
+      "Nome do produto: 'Yungas · Módulo de Artes · Delivery Much' — ainda não se chamava Luma",
+      "1 arquivo, 565.693 bytes, 9.316 linhas",
+      "1 bloco <style> e 1 bloco <script>; 266 funções declaradas",
+      "Fonte 'Realce Black' embutida em base64 dentro do próprio HTML",
+      "Único recurso externo: Google Fonts (Roboto)",
+      "Prefixos d-* (designer) já presentes"
+    ]
+  },
+  {
+    "id": "M1",
+    "rotulo": "O que o git preserva como ponto de partida",
+    "era": "Era 1 · Base preservada",
+    "data": "2026-07-16",
+    "dataExata": true,
+    "tipo": "commit",
+    "hash": "0aed7461a7a761808fbf5a1c0cf63eae0d4576f2",
+    "hashCurto": "0aed746",
+    "autor": "Claude",
+    "mensagem": "Desktop: casca .exe do Luma (Electron apontando pro GitHub Pages)",
+    "porQueFoiEscolhido": "Commit mais antigo POR DATA-HORA no repositório. Já traz 284 arquivos e o index.html com 234.737 bytes — ou seja, o git começa com o produto pronto, não com o começo dele.",
+    "evidencia": "git log --all --date=short --format='%ad %H' | sort | head -1",
+    "fatos": [
+      "284 arquivos versionados já no commit mais antigo",
+      "index.html com 234.737 bytes; 47 arquivos em js/ e 22 em css/",
+      "Duas raízes órfãs no repositório (524ce65 com 274 arquivos e 24fdf80 com 285)"
+    ]
+  },
+  {
+    "id": "M2",
+    "rotulo": "Prévia viva no celular",
+    "era": "Era 2 · O franqueado no celular",
+    "data": "2026-07-16",
+    "dataExata": true,
+    "tipo": "commit",
+    "hash": "963d2a0",
+    "hashCurto": "963d2a0",
+    "autor": "Claude",
+    "mensagem": "Mobile: prévia viva — miniatura PiP, pinça pra zoom e swipe pra fechar",
+    "porQueFoiEscolhido": "Fecha a sequência de mobile do dia (refinos rodada 1, varredura rodada 2, prévia viva). É o ponto em que o celular deixa de ser adaptação e vira gesto próprio.",
+    "evidencia": "Commits 15, 16 e 17 do dia 2026-07-16, em sequência.",
+    "fatos": [
+      "Antecedido por 'Mobile (franqueado): refinos de UI/UX' e 'varredura completa de telas — rodada 2'",
+      "PWA instalável e casca desktop (.exe/DMG) entram no mesmo dia"
+    ]
+  },
+  {
+    "id": "M3",
+    "rotulo": "A vitrine passa a ser gerida pelo banco",
+    "era": "Era 3 · Catálogo vivo",
+    "data": "2026-07-16",
+    "dataExata": true,
+    "tipo": "commit",
+    "hash": "247bcd4",
+    "hashCurto": "247bcd4",
+    "autor": "Claude",
+    "mensagem": "feat(franqueado): vitrine gerida pelo banco — capa manda e pasta nova vira campanha",
+    "porQueFoiEscolhido": "Mudança estrutural de produto: a vitrine deixa de ser lista fixa em código e passa a refletir o que o time cria no Estúdio, sem deploy.",
+    "evidencia": "Mensagem do commit + a sequência 'Fase 2' que o segue (b7891c4, 40b2587, 8826c9e).",
+    "fatos": [
+      "No mesmo lote: convite de membro real por Edge Function e persistência de perfil no banco",
+      "A 'Fase 2' do seam de campanhas continua em 18/07 com 40b2587 e 8826c9e"
+    ]
+  },
+  {
+    "id": "M4",
+    "rotulo": "Endurecimento: segurança, sync e PSD",
+    "era": "Era 4 · Endurecimento",
+    "data": "2026-07-20",
+    "dataExata": true,
+    "tipo": "commit",
+    "hash": "4be6c33",
+    "hashCurto": "4be6c33",
+    "autor": "Claude",
+    "mensagem": "chore(sql): apply_all com deltas de jun/jul + migration do indice virou no-op",
+    "porQueFoiEscolhido": "Último commit do bloco 17–20/07, que é inteiro de robustez: z-order do PSD, raster adaptativo, gate de conta desativada, XSS residuais, fim dos 'sucessos falsos' e franqueado que gravava base64 no banco.",
+    "evidencia": "Commits de 2026-07-17 a 2026-07-20 (11 commits), todos de correção ou robustez.",
+    "fatos": [
+      "882cda0 — 'gate de conta desativada, XSS residuais e fim dos sucessos falsos'",
+      "26e8215 — franqueado deixa de gravar base64 no banco",
+      "bcc61e8 — colisão de função no Estúdio (dSwapColors) e IDs sempre UUID"
+    ]
+  },
+  {
+    "id": "M5",
+    "rotulo": "1.0 declarada",
+    "era": "Era 5 · A 1.0",
+    "data": "2026-07-29",
+    "dataExata": true,
+    "tipo": "commit",
+    "hash": "b29dbd8",
+    "hashCurto": "b29dbd8",
+    "autor": "ryanmotta-ai",
+    "mensagem": "toma 1.0",
+    "porQueFoiEscolhido": "É o único marco declarado pelo próprio dono do produto, não inferido por nós. Fecha o ciclo de 22/07, que foi só planejamento no luma-brain (roadmap, matriz de prioridade e o tema Much+ sendo concebido).",
+    "evidencia": "Mensagem de commit do Ryan; precedido por 6 commits de luma-brain em 22/07 sem mudança de código.",
+    "fatos": [
+      "22/07 tem 6 commits, todos em luma-brain/ — planejamento, nenhuma tela alterada",
+      "5067bd2 e f1984dc registram o tema Much+ ANTES de ele existir em código"
+    ]
+  },
+  {
+    "id": "M6",
+    "rotulo": "A camada de IA",
+    "era": "Era 6 · Recursos inteligentes",
+    "data": "2026-07-30",
+    "dataExata": true,
+    "tipo": "commit",
+    "hash": "249fd02",
+    "hashCurto": "249fd02",
+    "autor": "Claude",
+    "mensagem": "docs: registra a camada de IA (motor único, Edge Function e os 5 recursos)",
+    "porQueFoiEscolhido": "Fecha a manhã de 30/07, em que a IA entra como camada de produto e não como truque isolado: um motor único (js/core/ai.js) com Edge Function, atendendo cinco recursos.",
+    "evidencia": "fc36ae4, 13279fe, 28a93e2 e 249fd02, todos de 2026-07-30.",
+    "fatos": [
+      "fc36ae4 — tubulação única de IA + encaixar texto no limite + legenda melhor",
+      "13279fe — ajuda responde aterrada na Central de Ajuda e cala quando não sabe",
+      "28a93e2 — ler cardápio em foto/PDF e casar fotos com as linhas (Luma Sheets)",
+      "b5945db — gAiReady deixa de prometer IA onde não há caminho"
+    ]
+  },
+  {
+    "id": "M7",
+    "rotulo": "Luma CLI — o console do time",
+    "era": "Era 7 · Ferramenta interna",
+    "data": "2026-07-30",
+    "dataExata": true,
+    "tipo": "commit",
+    "hash": "e48b7ff",
+    "hashCurto": "e48b7ff",
+    "autor": "Claude",
+    "mensagem": "feat(cli): Luma CLI no celular, com entrada escondida no painel de perfil",
+    "porQueFoiEscolhido": "Primeira superfície do produto voltada pra quem MANTÉM o Luma, não pra quem usa. Nasceu de um incidente real de sync que era diagnosticado colando snippet no DevTools.",
+    "evidencia": "c9790e8 e e48b7ff (2026-07-30); motivação registrada em docs/LUMA-BACKEND-CHANGELOG.md.",
+    "fatos": [
+      "Gate por role é de UX; a fronteira de segurança continua sendo a RLS",
+      "Comandos: ajuda, diag, sync, pastas, cache, ia, modelo, limpar, sair"
+    ]
+  },
+  {
+    "id": "M8",
+    "rotulo": "Estado atual",
+    "era": "Era 8 · Acabamento",
+    "data": "2026-07-31",
+    "dataExata": true,
+    "tipo": "commit",
+    "hash": "HEAD",
+    "hashCurto": "atual",
+    "autor": "Claude / ryanmotta-ai",
+    "mensagem": "Vitrine Much+ sóbria, revisão de UI/UX do CLI e a máquina do tempo de versões",
+    "porQueFoiEscolhido": "Ponta da branch padrão. Últimos 6 commits do dia são de acabamento: mascote do CLI, revisão de UI/UX com contraste medido, tema Much+ contido e o script que torna esta apresentação reproduzível.",
+    "evidencia": "Ponta da branch padrão no momento da captura: 4f680eb (2026-07-31).",
+    "fatos": [
+      "9c1a83b — revisão de UI/UX do CLI com contraste medido no Chromium",
+      "7f0c1ea e da629be — tema Much+ deixa de inundar o card e vira acento",
+      "5408748 — scripts/versao.js: qualquer commit antigo volta a rodar"
+    ]
+  }
+]
