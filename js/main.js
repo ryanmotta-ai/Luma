@@ -18,24 +18,33 @@ function dUpdateTabPill() {
 }
 
 function setMode(m){
-  if(m!=='franqueado' && m!=='designer') m='franqueado';
+  if(m!=='franqueado' && m!=='designer' && m!=='academia') m='franqueado';
   // Gate por role: franqueado NÃO acessa o Estúdio (trava no clique e via DOM/console).
+  // A Academia é das TRÊS personas (o franqueado estuda; a equipe administra) — sem gate.
   if(m==='designer' && (typeof gIsAdmin!=='function' || !gIsAdmin())) m='franqueado';
   // Tema de campanha (Much+) veste só o Franqueado. Sair para o Estúdio sem despir
   // deixava o body com camp-theme-* → tokens/fonte magenta vazavam pro Estúdio inteiro.
-  if(m==='designer' && typeof fRemoveCampTheme==='function') fRemoveCampTheme();
+  // Vale igual para a Academia: o magenta do Much+ não é a cor da formação.
+  if(m!=='franqueado' && typeof fRemoveCampTheme==='function') fRemoveCampTheme();
+  // Sair da Academia fecha os drawers de aula (senão o painel fixo do agente/estrutura
+  // fica pairando por cima do Franqueado, que não tem como fechá-lo).
+  if(m!=='academia' && typeof acFecharPaineis==='function') acFecharPaineis();
   // Troca só a classe de modo, preservando as demais (theme-light, rulers-on, simulating...)
-  document.body.classList.remove('mode-franqueado','mode-designer');
+  document.body.classList.remove('mode-franqueado','mode-designer','mode-academia');
   document.body.classList.add('mode-'+m);
   document.getElementById('tab-fran').classList.toggle('active', m==='franqueado');
   document.getElementById('tab-design').classList.toggle('active', m==='designer');
-  
+  const tabAcad = document.getElementById('tab-academia');
+  if(tabAcad) tabAcad.classList.toggle('active', m==='academia');
+
   dUpdateTabPill();
 
   const ctxFran = document.getElementById('topbar-context-fran');
   const ctxDesign = document.getElementById('topbar-context-design');
   if(ctxFran) ctxFran.style.display = m==='franqueado'?'':'none';
   if(ctxDesign) ctxDesign.style.display = m==='designer'?'':'none';
+  // Academia carrega lazy, como o Estúdio: só na primeira entrada paga o sync.
+  if(m==='academia' && typeof acInit==='function') acInit();
   if(m==='designer'){
     dInit();
     // Entrar no Estúdio sempre cai na CASA (aba Campanhas), nunca no painel de Camadas —
