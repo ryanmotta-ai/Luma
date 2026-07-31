@@ -1109,30 +1109,15 @@ input:focus:-webkit-autofill {
 
       <div class="vt-sep"></div>
 
-      <!-- Categoria 3: Automação & Dados -->
-      <div class="vt-group">
-        <div class="vt-group-wrap" id="vt-data-wrap">
-          <button class="vt-btn has-flyout" id="dtool-data-proxy"
-                  onclick="dDataActivate()"
-                  oncontextmenu="dDataFlyout(event)"
-                  title="Grupo Dados & Automação&#10;X — Botão direito: mais ferramentas">
-            <span id="dtool-data-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7" stroke-width="3"/></svg></span>
-            <span class="vt-sub-arrow"></span>
-          </button>
-          <div class="vt-flyout" id="vt-data-flyout">
-            <button id="dtool-var-data" class="vt-flyout-item active" onclick="dDataPick('var-data',event)" title="Vincular campo&#10;X">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7" stroke-width="3"/></svg>
-              <span>Vincular campo</span>
-            </button>
-            <button id="dtool-qr-code" class="vt-flyout-item" onclick="dDataPick('qr-code',event)" title="Gerador QR Code&#10;Q">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M7 17h.01M17 17h.01M17 7h.01M7 7h.01"/></svg>
-              <span>Gerador QR Code</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div class="vt-sep"></div>
+      <!-- A "Categoria 3: Automação & Dados" (Vincular campo + QR Code) saiu DAQUI a pedido
+           do Ryan (2026-07-30): vincular campo é ação sobre uma camada que já existe, não
+           ferramenta de desenho, e ocupava um slot da barra sem pertencer a ela.
+           NÃO foi removida do produto — segue em três caminhos:
+             · painel "todas as ferramentas" (dToggleAllTools), na mesma categoria;
+             · atalhos X (vincular campo) e Q (QR Code);
+             · menu de contexto da camada.
+           As funções dDataActivate/dDataPick/dDataFlyout continuam vivas e são o que esses
+           três caminhos chamam — por isso nada em js/designer/brush.js precisou mudar. -->
 
       <!-- Categoria 4: Pintura & Bitmap -->
       <div class="vt-group">

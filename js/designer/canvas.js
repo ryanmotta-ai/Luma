@@ -404,11 +404,58 @@ function dEnsureDrawDimEl(){
   return el;
 }
 
+// Converte um ponto da tela pra coordenada da prancheta. O zoom entra na conta: sem
+// dividir pela escala, soltar um asset com o canvas a 50% cria a camada no dobro da
+// distância. Mesma conta do marquee e do desenho de forma — um jeito só de converter.
+function dPontoNoCanvas(e){
+  const frame=document.getElementById('d-canvas-frame');
+  if(!frame)return null;
+  const r=frame.getBoundingClientRect();
+  const escala=(typeof dZoomLevel!=='undefined'?dZoomLevel:100)/100;
+  return { x:(e.clientX-r.left)/escala, y:(e.clientY-r.top)/escala };
+}
+
 // Anexa o mousedown do marquee no frame uma única vez (o frame persiste entre renders).
 function dAttachMarquee(){
   const frame=document.getElementById('d-canvas-frame');
   if(!frame || frame._marqueeBound)return;
   frame._marqueeBound=true;
+
+  /* ── SOLTAR ASSET NO CANVAS ──
+     Só reage ao tipo próprio da casa (`application/x-luma-asset`, posto em dAssetDragStart).
+     Arquivo vindo da área de trabalho NÃO entra por aqui — quem cuida disso é o dropzone da
+     biblioteca (library.js), que faz upload. Sem essa separação, arrastar um PNG do desktop
+     pro canvas criaria uma camada apontando pra um arquivo que não foi guardado em lugar
+     nenhum, e ela quebraria no próximo boot. */
+  const ehAsset=e=>{
+    const t=e.dataTransfer&&e.dataTransfer.types;
+    return !!(t&&Array.prototype.indexOf.call(t,'application/x-luma-asset')>=0)
+      || (typeof dAssetArrastando==='number');
+  };
+  frame.addEventListener('dragover',e=>{
+    if(!ehAsset(e))return;
+    e.preventDefault();                       // sem isto o navegador recusa o drop
+    e.dataTransfer.dropEffect='copy';
+    frame.classList.add('d-drop-alvo');
+  });
+  frame.addEventListener('dragleave',e=>{
+    // só apaga o realce quando o ponteiro sai do frame DE VERDADE: passar por cima de uma
+    // camada filha dispara dragleave e o realce piscaria a cada elemento cruzado.
+    if(e.relatedTarget&&frame.contains(e.relatedTarget))return;
+    frame.classList.remove('d-drop-alvo');
+  });
+  frame.addEventListener('drop',e=>{
+    if(!ehAsset(e))return;
+    e.preventDefault();
+    frame.classList.remove('d-drop-alvo');
+    let i=-1;
+    try{ i=parseInt(e.dataTransfer.getData('application/x-luma-asset'),10); }catch(err){}
+    if(!(i>=0)&&typeof dAssetArrastando==='number') i=dAssetArrastando;   // Safari
+    const p=dPontoNoCanvas(e);
+    if(!(i>=0)||!p)return;
+    if(typeof dAssetSoltarNoCanvas==='function') dAssetSoltarNoCanvas(i,p.x,p.y);
+  });
+
   frame.addEventListener('mousedown',dStartMarquee);
   frame.addEventListener('mousedown', function(e) {
     if (e.button !== 0) return; // só botão esquerdo — direito abriria menu de contexto junto

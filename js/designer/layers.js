@@ -48,10 +48,17 @@ function dSelLayer(id){
   dRenderLayersList();
   if(l){
     try{
+      // dShowProps preenche o #d-props-form, mas NÃO troca de aba.
+      //
+      // Havia aqui um dActivatePanel('camada'): clicar numa camada arrastava o painel da
+      // direita pra Propriedades. Saiu a pedido do Ryan (2026-07-30) — quem está com a aba
+      // Conteúdo aberta e clica numa camada só quer SELECIONAR, e perdia o painel em que
+      // estava trabalhando. A seleção passou a ser silenciosa: o form fica preenchido e
+      // aparece assim que a pessoa abrir a aba, sem tirá-la de onde estava.
+      //
+      // A troca continua onde ela é o RESULTADO do que se pediu, não uma surpresa:
+      // dSelLayerState (camada recém-criada) e dOpenBindForSelected (vincular campo).
       dShowProps(l);
-      // Auto-switch: ao selecionar um layer, traz o painel de Propriedades (camada) à frente.
-      // Sem isso, dShowProps preenche o #d-props-form mas ele fica escondido sob a aba Conteúdo.
-      if(typeof dActivatePanel==='function') dActivatePanel('camada');
     }catch(err){
       console.warn('[dSelLayer] erro em dShowProps — seleção preservada:',err);
     }
@@ -2735,9 +2742,12 @@ function dAssetsRender(){
   // nome/url vêm do usuário (e do sync) → escape obrigatório; url restrita a
   // protocolos de imagem seguros (nada de javascript: em src)
   const _safeUrl=u=>(typeof u==='string'&&/^(data:image\/|blob:|https?:\/\/|assets\/)/i.test(u))?u:'';
+  // draggable: o asset agora vai pro canvas ARRASTANDO (ver dAssetDragStart e o drop em
+  // canvas.js). O clique continua fazendo o que fazia — aplicar na camada selecionada.
   document.getElementById('d-assets-grid').innerHTML=dAssets.map((a,i)=>`
-    <div class="asset-thumb" onclick="dUseAsset(${i})" title="${_dEsc(a.name||'')}">
-      ${_safeUrl(a.url)?`<img src="${_dEsc(_safeUrl(a.url))}" alt="${_dEsc(a.name||'')}">`:`<span style="font-size:26px">${_dEsc(a.emoji||'')}</span>`}
+    <div class="asset-thumb" draggable="true" ondragstart="dAssetDragStart(event,${i})" ondragend="dAssetDragEnd(event)"
+         onclick="dUseAsset(${i})" title="${_dEsc(a.name||'')} — arraste pro canvas ou clique pra aplicar na camada selecionada">
+      ${_safeUrl(a.url)?`<img src="${_dEsc(_safeUrl(a.url))}" alt="${_dEsc(a.name||'')}" draggable="false">`:`<span style="font-size:26px">${_dEsc(a.emoji||'')}</span>`}
       <span class="asset-name">${_dEsc(a.name||'')}</span>
     </div>`).join('');
 }
@@ -2745,10 +2755,68 @@ function dHandleUpload(inp){ dLibUpload(inp); }
 function dUseAsset(i){
   const a=dAssets[i];if(!a.url){gToast('Asset sem URL');return;}
   const l=dLayers.find(x=>x.id===dSelId&&(x.type==='image'||x.type==='frame'));
-  if(!l){gToast('Selecione uma camada de imagem ou moldura primeiro');return;}
+  if(!l){gToast('Selecione uma camada de imagem, ou arraste o asset pro canvas');return;}
   l.imgUrl=a.url;dRenderCanvas();
   const urlInp=document.getElementById('dp-imgurl');if(urlInp)urlInp.value=a.url;
   gToast('✓ "'+a.name+'" aplicado');
+}
+
+/* ── ARRASTAR ASSET PRO CANVAS ──
+   O índice do asset viaja pelo dataTransfer com um tipo PRÓPRIO (`application/x-luma-asset`).
+   Tipo próprio e não `text/plain` de propósito: assim o drop do canvas sabe distinguir um
+   asset da casa de um arquivo arrastado da área de trabalho, e um não rouba o outro.
+   O estado global existe porque o Safari zera o dataTransfer fora do handler de drop. */
+let dAssetArrastando=null;
+function dAssetDragStart(e,i){
+  const a=dAssets[i];
+  if(!a||!a.url){e.preventDefault();return;}
+  dAssetArrastando=i;
+  try{
+    e.dataTransfer.effectAllowed='copy';
+    e.dataTransfer.setData('application/x-luma-asset',String(i));
+  }catch(err){}
+  const alvo=e.currentTarget;
+  if(alvo&&alvo.classList) alvo.classList.add('asset-dragging');
+}
+function dAssetDragEnd(e){
+  dAssetArrastando=null;
+  const alvo=e&&e.currentTarget;
+  if(alvo&&alvo.classList) alvo.classList.remove('asset-dragging');
+  const fr=document.getElementById('d-canvas-frame');
+  if(fr) fr.classList.remove('d-drop-alvo');
+}
+
+/* Cria a camada de imagem no ponto solto. A proporção sai da imagem REAL (naturalWidth):
+   soltar um logo largo e ele virar quadrado obriga a redimensionar na mão toda vez. */
+function dAssetSoltarNoCanvas(i,x,y){
+  const a=dAssets[i];
+  if(!a||!a.url){gToast('Asset sem URL');return;}
+  const criar=(w,h)=>{
+    if(typeof dHistoryPush==='function') dHistoryPush();
+    const id='l-'+(++dLyrCnt);
+    // x,y vêm do CENTRO do cursor: soltar e o elemento nascer com o canto no ponteiro
+    // desloca a peça pra baixo e pra direita de quem soltou.
+    dLayers.push({id,name:(a.name||'Asset')+'',type:'image',
+      x:Math.round(x-w/2),y:Math.round(y-h/2),w:Math.round(w),h:Math.round(h),
+      imgUrl:a.url,imgVar:'',objectFit:'contain',visible:true});
+    dSelLayerState(id);
+    dRenderCanvas();dRenderLayersList();
+    if(typeof dStats==='function')dStats();
+    if(typeof dMarkUnsaved==='function')dMarkUnsaved();
+    if(typeof dSetTool==='function')dSetTool('select');
+    gToast('✓ "'+(a.name||'Asset')+'" no canvas');
+    if(typeof dFlashLayer==='function') setTimeout(()=>dFlashLayer(id),30);
+  };
+  const LADO=220;   // maior lado padrão, em px da prancheta
+  const img=new Image();
+  img.onload=()=>{
+    const nw=img.naturalWidth||LADO, nh=img.naturalHeight||LADO;
+    const k=LADO/Math.max(nw,nh);
+    criar(nw*k,nh*k);
+  };
+  // Imagem que não carrega (URL morta, CORS) não pode travar o gesto: cai no quadrado.
+  img.onerror=()=>criar(LADO,LADO);
+  img.src=a.url;
 }
 
 /* ── SAVE / PREVIEW ── */
