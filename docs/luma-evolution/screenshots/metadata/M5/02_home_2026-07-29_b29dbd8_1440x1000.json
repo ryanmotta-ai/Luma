@@ -1,0 +1,13 @@
+{
+  "screen": "Vitrine do franqueado",
+  "area": "Franqueado",
+  "state": "home",
+  "milestone": "M5",
+  "label": "1.0 declarada",
+  "commit": "b29dbd8",
+  "date": "2026-07-29",
+  "viewport": "1440x1000",
+  "captureType": "real-commit",
+  "confidence": "alto",
+  "notes": "Execução do próprio commit via git worktree, offline; Supabase zerado e sessão de demonstração injetada. O código da interface não foi alterado."
+}

@@ -48,10 +48,17 @@ function dSelLayer(id){
   dRenderLayersList();
   if(l){
     try{
+      // dShowProps preenche o #d-props-form, mas NÃO troca de aba.
+      //
+      // Havia aqui um dActivatePanel('camada'): clicar numa camada arrastava o painel da
+      // direita pra Propriedades. Saiu a pedido do Ryan (2026-07-30) — quem está com a aba
+      // Conteúdo aberta e clica numa camada só quer SELECIONAR, e perdia o painel em que
+      // estava trabalhando. A seleção passou a ser silenciosa: o form fica preenchido e
+      // aparece assim que a pessoa abrir a aba, sem tirá-la de onde estava.
+      //
+      // A troca continua onde ela é o RESULTADO do que se pediu, não uma surpresa:
+      // dSelLayerState (camada recém-criada) e dOpenBindForSelected (vincular campo).
       dShowProps(l);
-      // Auto-switch: ao selecionar um layer, traz o painel de Propriedades (camada) à frente.
-      // Sem isso, dShowProps preenche o #d-props-form mas ele fica escondido sob a aba Conteúdo.
-      if(typeof dActivatePanel==='function') dActivatePanel('camada');
     }catch(err){
       console.warn('[dSelLayer] erro em dShowProps — seleção preservada:',err);
     }
@@ -870,9 +877,14 @@ function dRenderLayersList(){
     const _boundFn = (typeof dLayerBoundField==='function') ? dLayerBoundField(l) : null;
     const _boundV = _boundFn ? dVars.find(v=>v.name===_boundFn) : null;
     const hasVarEmbedded = l.type === 'text' && /\{\{/.test(l.content || '');
+    // Camada que ACEITA campo mas não tem nenhum ganha o convite no mesmo lugar onde o selo
+    // apareceria — o olho já procura o estado do Dado ali. Fica discreto até o hover da linha
+    // (ver .lyr-bind no designer.css) pra não poluir uma lista cheia de camadas.
+    const _canBind = (typeof dLayerIsBindable==='function') && dLayerIsBindable(l) && l.type!=='group';
     const varBadge = _boundV
       ? `<span class="lyr-badge lyr-var lyr-dado" title="Dado: ${gEsc(_boundV.label||_boundV.name)}">◆ ${gEsc(_boundV.label||_boundV.name)}</span>`
-      : (hasVarEmbedded ? `<span class="lyr-badge lyr-var" title="Contém um campo"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;color:var(--var-color, #a855f7)"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>` : '');
+      : (hasVarEmbedded ? `<span class="lyr-badge lyr-var" title="Contém um campo"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;color:var(--var-color, #a855f7)"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>`
+        : (_canBind ? `<button type="button" class="lyr-badge lyr-bind" title="Vincular campo (X) — o franqueado passa a preencher esta camada" onclick="dBindFieldForLayer('${l.id}',event)">vincular</button>` : ''));
 
     let typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="10" height="10" rx="1"/><circle cx="16" cy="16" r="5"/></svg>`; // shape default
     if (l.type === 'text') typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>`;
@@ -1193,6 +1205,10 @@ function dShowProps(l){
   // Universal opacity, fill opacity and locks sync for any active layer properties
   const opacEl = document.getElementById('dp-opacity');
   if (opacEl) opacEl.value = l.opacity !== undefined ? l.opacity : 100;
+  // Barra de blend tem o próprio campo de opacidade (era um id duplicado, inalcançável —
+  // ficava travado em 100 independente da camada). Sincroniza junto.
+  const opacBlendEl = document.getElementById('dp-opacity-blend');
+  if (opacBlendEl) opacBlendEl.value = l.opacity !== undefined ? l.opacity : 100;
   
   const fillOpacEl = document.getElementById('dp-fill-opacity');
   if (fillOpacEl) fillOpacEl.value = l.fillOpacity !== undefined ? l.fillOpacity : 100;
@@ -1770,6 +1786,15 @@ function dFieldBindPickerOpen(ev){
     onNew:(q)=>dOpenVarModal(q?{forLayer:dSelId,label:q}:{forLayer:dSelId})
   });
 }
+// Vincular campo direto da linha da lista de camadas. O ponto de entrada do vínculo vivia
+// só num flyout da toolbar (#dtool-var-data) e na tecla X — invisível pra quem não decorou o
+// atalho, que é o motivo real de o fluxo pelo painel Dados parecer o único caminho.
+// Seleciona a camada antes porque o seletor existente opera sobre dSelId.
+function dBindFieldForLayer(id, ev){
+  if(ev) ev.stopPropagation();
+  if(typeof dSelLayer==='function') dSelLayer(id);
+  if(typeof dOpenBindForSelected==='function') dOpenBindForSelected();
+}
 // Ponto de entrada da ferramenta/atalho "Vincular campo" (X) e do menu de contexto.
 function dOpenBindForSelected(){
   const l=dLayers.find(x=>x.id===dSelId);
@@ -2312,6 +2337,19 @@ function dFieldUse(i){
     return;
   }
   if(l && l.type==='text'){
+    // Texto sem nenhum campo é PLACEHOLDER: quem escreveu "Combo Smash" na arte quis dizer
+    // "aqui entra o nome do produto". Concatenar deixava "Combo Smash {{produto}}" e obrigava
+    // o designer a voltar na aba Camadas e apagar o exemplo na mão. Delega ao dLayerBindField
+    // — o mesmo motor do atalho X — pra não existirem dois comportamentos pra uma intenção.
+    // Só quando a camada JÁ tem campo é que estamos compondo frase mista ("DE R$ x POR y"):
+    // aí acrescentar é o certo, porque o texto fixo ao redor é intencional.
+    const jaTemCampo=(typeof dLayerEmbeddedFields==='function') && dLayerEmbeddedFields(l).length>0;
+    if(!jaTemCampo){
+      dLayerBindField(l.id, v.name); // já faz history, render, props, unsaved e toast
+      dActivatePanel('camadas');
+      dSelLayer(l.id);
+      return;
+    }
     if(typeof dHistoryPush==='function') dHistoryPush();
     l.content=((l.content||'')+' {{'+v.name+'}}').replace(/^\s+/,'');
     dActivatePanel('camadas');
@@ -2594,7 +2632,12 @@ function dSyncVarsFromContent(content, skipPersist){
   while((m=re.exec(content))){
     const name=m[1];
     if(!dVars.some(v=>v.name.toLowerCase()===name.toLowerCase())){
-      dVars.push({name, label:name.replace(/_/g,' '), type:'text', required:false});
+      // O nome já carrega a intenção: {{preco_por}} nasce Preço, {{logo_loja}} nasce Imagem,
+      // {{validade}} nasce Data. Antes tudo nascia 'text' em 'outros' e o designer reabria o
+      // campo pra corrigir na mão — o que anulava o ganho de digitar o token direto na camada.
+      const type=(typeof gFieldGuessType==='function')?gFieldGuessType(name):'text';
+      const category=(typeof gFieldGuessCategory==='function')?gFieldGuessCategory(name,type):'outros';
+      dVars.push({name, label:name.replace(/_/g,' '), type, category, required:false});
       changed=true;
     }
   }
@@ -2699,9 +2742,12 @@ function dAssetsRender(){
   // nome/url vêm do usuário (e do sync) → escape obrigatório; url restrita a
   // protocolos de imagem seguros (nada de javascript: em src)
   const _safeUrl=u=>(typeof u==='string'&&/^(data:image\/|blob:|https?:\/\/|assets\/)/i.test(u))?u:'';
+  // draggable: o asset agora vai pro canvas ARRASTANDO (ver dAssetDragStart e o drop em
+  // canvas.js). O clique continua fazendo o que fazia — aplicar na camada selecionada.
   document.getElementById('d-assets-grid').innerHTML=dAssets.map((a,i)=>`
-    <div class="asset-thumb" onclick="dUseAsset(${i})" title="${_dEsc(a.name||'')}">
-      ${_safeUrl(a.url)?`<img src="${_dEsc(_safeUrl(a.url))}" alt="${_dEsc(a.name||'')}">`:`<span style="font-size:26px">${_dEsc(a.emoji||'')}</span>`}
+    <div class="asset-thumb" draggable="true" ondragstart="dAssetDragStart(event,${i})" ondragend="dAssetDragEnd(event)"
+         onclick="dUseAsset(${i})" title="${_dEsc(a.name||'')} — arraste pro canvas ou clique pra aplicar na camada selecionada">
+      ${_safeUrl(a.url)?`<img src="${_dEsc(_safeUrl(a.url))}" alt="${_dEsc(a.name||'')}" draggable="false">`:`<span style="font-size:26px">${_dEsc(a.emoji||'')}</span>`}
       <span class="asset-name">${_dEsc(a.name||'')}</span>
     </div>`).join('');
 }
@@ -2709,10 +2755,68 @@ function dHandleUpload(inp){ dLibUpload(inp); }
 function dUseAsset(i){
   const a=dAssets[i];if(!a.url){gToast('Asset sem URL');return;}
   const l=dLayers.find(x=>x.id===dSelId&&(x.type==='image'||x.type==='frame'));
-  if(!l){gToast('Selecione uma camada de imagem ou moldura primeiro');return;}
+  if(!l){gToast('Selecione uma camada de imagem, ou arraste o asset pro canvas');return;}
   l.imgUrl=a.url;dRenderCanvas();
   const urlInp=document.getElementById('dp-imgurl');if(urlInp)urlInp.value=a.url;
   gToast('✓ "'+a.name+'" aplicado');
+}
+
+/* ── ARRASTAR ASSET PRO CANVAS ──
+   O índice do asset viaja pelo dataTransfer com um tipo PRÓPRIO (`application/x-luma-asset`).
+   Tipo próprio e não `text/plain` de propósito: assim o drop do canvas sabe distinguir um
+   asset da casa de um arquivo arrastado da área de trabalho, e um não rouba o outro.
+   O estado global existe porque o Safari zera o dataTransfer fora do handler de drop. */
+let dAssetArrastando=null;
+function dAssetDragStart(e,i){
+  const a=dAssets[i];
+  if(!a||!a.url){e.preventDefault();return;}
+  dAssetArrastando=i;
+  try{
+    e.dataTransfer.effectAllowed='copy';
+    e.dataTransfer.setData('application/x-luma-asset',String(i));
+  }catch(err){}
+  const alvo=e.currentTarget;
+  if(alvo&&alvo.classList) alvo.classList.add('asset-dragging');
+}
+function dAssetDragEnd(e){
+  dAssetArrastando=null;
+  const alvo=e&&e.currentTarget;
+  if(alvo&&alvo.classList) alvo.classList.remove('asset-dragging');
+  const fr=document.getElementById('d-canvas-frame');
+  if(fr) fr.classList.remove('d-drop-alvo');
+}
+
+/* Cria a camada de imagem no ponto solto. A proporção sai da imagem REAL (naturalWidth):
+   soltar um logo largo e ele virar quadrado obriga a redimensionar na mão toda vez. */
+function dAssetSoltarNoCanvas(i,x,y){
+  const a=dAssets[i];
+  if(!a||!a.url){gToast('Asset sem URL');return;}
+  const criar=(w,h)=>{
+    if(typeof dHistoryPush==='function') dHistoryPush();
+    const id='l-'+(++dLyrCnt);
+    // x,y vêm do CENTRO do cursor: soltar e o elemento nascer com o canto no ponteiro
+    // desloca a peça pra baixo e pra direita de quem soltou.
+    dLayers.push({id,name:(a.name||'Asset')+'',type:'image',
+      x:Math.round(x-w/2),y:Math.round(y-h/2),w:Math.round(w),h:Math.round(h),
+      imgUrl:a.url,imgVar:'',objectFit:'contain',visible:true});
+    dSelLayerState(id);
+    dRenderCanvas();dRenderLayersList();
+    if(typeof dStats==='function')dStats();
+    if(typeof dMarkUnsaved==='function')dMarkUnsaved();
+    if(typeof dSetTool==='function')dSetTool('select');
+    gToast('✓ "'+(a.name||'Asset')+'" no canvas');
+    if(typeof dFlashLayer==='function') setTimeout(()=>dFlashLayer(id),30);
+  };
+  const LADO=220;   // maior lado padrão, em px da prancheta
+  const img=new Image();
+  img.onload=()=>{
+    const nw=img.naturalWidth||LADO, nh=img.naturalHeight||LADO;
+    const k=LADO/Math.max(nw,nh);
+    criar(nw*k,nh*k);
+  };
+  // Imagem que não carrega (URL morta, CORS) não pode travar o gesto: cai no quadrado.
+  img.onerror=()=>criar(LADO,LADO);
+  img.src=a.url;
 }
 
 /* ── SAVE / PREVIEW ── */
@@ -2861,9 +2965,20 @@ async function _dPushFoldersNow(){
     let idx=-1;
     for(const f of (dFolders||[])){ idx++;
       if(!f.remoteId) f.remoteId=_dUuid('p');
+      let _capaPend=false;
       if(typeof f.cover==='string' && f.cover.startsWith('data:')){
         const cu=await _dUploadDataUrl('luma-covers', f.remoteId+'/cover', f.cover);
         if(cu) f.cover=cu;
+        else{
+          // ⚠ Este era um erro 100% MUDO, e é o "não consigo trocar a capa": o upload falha,
+          // o cover_url é OMITIDO do upsert (linha abaixo), o upsert da PASTA dá certo,
+          // _syncPending vira false e o app ainda diz "✓ Pasta atualizada". O pull seguinte
+          // troca a capa local pela vazia do banco — a capa "não pega" e ninguém sabe por quê.
+          // Agora: pendência (badge + retry no próximo save) e a causa dita em voz alta.
+          _capaPend=true;
+          console.warn('[sync] a capa de "'+(f.name||'?')+'" NÃO subiu pro Storage (bucket luma-covers) — fica só neste aparelho até um save dar certo.');
+          if(typeof gToast==='function') gToast('⚠ A capa de "'+(f.name||'?')+'" não subiu pro servidor — por ora ela vale só neste aparelho.','error');
+        }
       }
       // cover_url só entra no upsert com valor DEFINITIVO: URL pronta grava; '' (capa
       // removida pelo designer) limpa; data:/idb:///__local__ (upload pendente/só-local)
@@ -2876,7 +2991,7 @@ async function _dPushFoldersNow(){
         perguntas:f.perguntas||[], grupos:f.grupos||['Todos os usuários'],
         // Fase 2 passo 2: preserva o estado real — ativa:true fixo desfazia o arquivar,
         // e ordem/agendamento nunca subiam (a ordenação do catálogo não sobrevivia ao ciclo).
-        ativa:(f.ativa!==false), ordem:(typeof f.ordem==='number'?f.ordem:idx),
+        ativa:(f.ativa!==false && !f.arquivada), ordem:(typeof f.ordem==='number'?f.ordem:idx),
         agendamento:f.agendamento||null
       };
       if(f.cover==='') _rowPasta.cover_url=null;
@@ -2884,7 +2999,9 @@ async function _dPushFoldersNow(){
       // Erro no upsert da pasta (rede/RLS) era 100% silencioso: a edição de campanha vivia
       // só no cache e o próximo pull a descartava. Agora marca pendência (badge) e loga.
       const { error:_pErr }=await sb.schema('luma').from('pastas').upsert(_rowPasta, {onConflict:'id'});
-      f._syncPending=!!_pErr;
+      // Capa que não subiu conta como pendência: sem isso o upsert bem-sucedido zerava o
+      // flag e a pasta ficava "sincronizada" com a capa só no cache local.
+      f._syncPending=!!_pErr || _capaPend;
       if(_pErr) console.warn('[sync] upsert da pasta falhou ('+(f.name||'?')+'):', _pErr.message||_pErr);
       for(const t of (f.templates||[])){
         // Catálogo leve: template sem layers baixados (cache de sessão franqueado) —
@@ -3002,8 +3119,15 @@ function _dRowToFolder(p, templates){
     // Fase 2 passo 2: campos que o flip de campanhas precisa — antes o pull perdia
     // ativa/ordem/agendamento e o push re-gravava ativa:true (arquivar seria desfeito).
     ativa:(p.ativa!==false), ordem:(typeof p.ordem==='number'?p.ordem:null),
-    agendamento:p.agendamento||null, templates:templates||[]
+    agendamento:p.agendamento||null, templates:templates||[],
+    arquivada:(p.ativa===false)   // coluna `ativa` do banco: false = pasta arquivada (some da vitrine)
   };
+}
+// Chave de comparação de nome de pasta: sem acento, sem caixa, sem espaço duplo.
+// "Much+ Benefícios" e "much+ beneficios " são a MESMA pasta pro merge do sync.
+function _dChaveNome(n){
+  return String(n||'').trim().toLowerCase().normalize('NFD')
+    .replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ');
 }
 async function dSyncFoldersFromBackend(){
   const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
@@ -3015,7 +3139,14 @@ async function dSyncFoldersFromBackend(){
     // Os layers descem sob demanda: dLoadTemplate (designer) / fEnsureMaterialLayers (franqueado).
     const { data:rt, error:eT }=await sb.schema('luma').from('templates').select('id, pasta_id, nome, fmt, formats, w, h, bg, publicado, publicado_em, validade, instrucoes, permissoes, updated_at');
     // Pull mudo = catálogo vazio sem explicação (mesmo incidente de 07/2026). Nomear a causa.
-    if(eT) console.warn('[sync] pull de templates falhou (catálogo não desceu):', eT.message||eT);
+    // E ABORTAR: seguir o merge com rt=null montava TODA pasta com zero material — a vitrine
+    // jogava o catálogo inteiro em "Em breve" (card fantasma, sem clique) e a linha 3087
+    // gravava esse vazio no localStorage, destruindo o cache que ainda estava íntegro. Uma
+    // falha de rede num pull não pode apagar catálogo: mantém o local e re-tenta no próximo boot.
+    if(eT){
+      console.warn('[sync] pull de templates falhou (catálogo não desceu):', eT.message||eT);
+      return;
+    }
     // Anti-ressurreição: linhas cuja deleção está na fila pendente não voltam pro catálogo
     // (a deleção remota falhou; sem o filtro o item apagado reaparecia até o retry vingar).
     const _hasPD=(typeof gIsPendingDelete==='function');
@@ -3026,9 +3157,16 @@ async function dSyncFoldersFromBackend(){
     // merge: banco manda; preserva pastas locais sem correspondente (por remoteId ou campId)
     const rIds=new Set(remote.map(f=>f.remoteId));
     const rCamps=new Set(remote.map(f=>f.campId).filter(Boolean));
+    const rNomes=new Set(remote.map(f=>_dChaveNome(f.name)));
     const extras=(dFolders||[]).filter(f=>{
       if(f.remoteId && rIds.has(f.remoteId)) return false;
       if(f.campId && rCamps.has(f.campId)) return false;
+      // ...e por NOME, mas SÓ pra semente (sem remoteId): pasta criada no Estúdio sem
+      // vincular campanha (camp_id NULL) não casava por campId, então a semente do
+      // CAMPS_* sobrevivia ao lado dela — eram duas "Much+ Benefícios" na árvore, e a
+      // vitrine lia a semente (capa hardcoded) em vez da pasta que o designer edita.
+      // Pasta local COM remoteId nunca cai aqui: pode ser trabalho pendente de subir.
+      if(!f.remoteId && rNomes.has(_dChaveNome(f.name))) return false;
       return true;
     });
     // Trabalho local ainda NÃO sincronizado (_syncPending) não pode ser engolido pelo
@@ -3039,7 +3177,11 @@ async function dSyncFoldersFromBackend(){
     (dFolders||[]).forEach(lf=>{
       const pend=(lf.templates||[]).filter(t=>t&&(t._syncPending||(_openId&&t.id===_openId)));
       if(!pend.length) return;
-      const rf=remote.find(f=>f.remoteId===lf.remoteId)||remote.find(f=>f.campId&&f.campId===lf.campId);
+      // Mesma escada do filtro de extras acima (inclusive o nome): sem o casamento por
+      // nome, a semente descartada levaria com ela o template ainda não sincronizado.
+      const rf=remote.find(f=>f.remoteId===lf.remoteId)
+            ||remote.find(f=>f.campId&&f.campId===lf.campId)
+            ||remote.find(f=>_dChaveNome(f.name)===_dChaveNome(lf.name));
       if(!rf) return; // pasta local-only já sobrevive via extras
       pend.forEach(pt=>{
         const i=rf.templates.findIndex(x=>x&&(x.id===pt.id||(pt.remoteId&&x.remoteId===pt.remoteId)));

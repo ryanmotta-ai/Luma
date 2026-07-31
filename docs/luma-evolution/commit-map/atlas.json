@@ -1,0 +1,190 @@
+[
+  {
+    "quadro": "vitrine",
+    "tela": "Vitrine do franqueado",
+    "imagem": "../screenshots/feature-atlas/atlas_vitrine_1440x1000.png",
+    "feats": [
+      {
+        "nome": "Campanha em destaque",
+        "sel": ".fh-hero",
+        "area": "Franqueado",
+        "perfil": "Todos",
+        "caminho": "Entrar → primeira coisa na tela",
+        "oQueFaz": "Puxa pra frente a campanha recomendada da semana, com formatos e prazo.",
+        "beneficio": "O franqueado não precisa escolher entre 17 campanhas pra começar.",
+        "estado": "Implementado",
+        "caixa": {
+          "x": 2.5,
+          "y": 32.7859375,
+          "w": 93.95833333333333,
+          "h": 31.3359375
+        }
+      },
+      {
+        "nome": "Busca de campanha",
+        "sel": ".fh-search-row, #fh-search",
+        "area": "Franqueado",
+        "perfil": "Todos",
+        "caminho": "Vitrine → campo de busca",
+        "oQueFaz": "Filtra o catálogo por tema ou ocasião.",
+        "beneficio": "Encurta o caminho quando já se sabe o que quer.",
+        "estado": "Implementado",
+        "caixa": {
+          "x": 2.5,
+          "y": 23.306250000000002,
+          "w": 93.95833333333333,
+          "h": 6.6000000000000005
+        }
+      },
+      {
+        "nome": "Minhas artes",
+        "sel": "[onclick*=\"fHomeOpenHist\"], .fh-hd-btn",
+        "area": "Franqueado",
+        "perfil": "Todos",
+        "caminho": "Vitrine → cabeçalho → Minhas artes",
+        "oQueFaz": "Abre o histórico e permite retomar uma arte pela metade.",
+        "beneficio": "Trabalho começado não se perde entre sessões.",
+        "estado": "Implementado",
+        "caixa": {
+          "x": 86.45833333333334,
+          "y": 15.626562499999999,
+          "w": 10,
+          "h": 4.8
+        }
+      },
+      {
+        "nome": "Alternador Franqueado / Designer",
+        "sel": "#global-topbar [onclick*=\"setMode\"]",
+        "area": "Núcleo",
+        "perfil": "equipe_dm+",
+        "caminho": "Topbar → Designer",
+        "oQueFaz": "Troca entre a área de uso e o Estúdio de criação.",
+        "beneficio": "Um app só atende os dois papéis, sem login separado.",
+        "estado": "Implementado",
+        "caixa": {
+          "x": 41.82400173611111,
+          "y": 1,
+          "w": 8.106553819444445,
+          "h": 3.2
+        }
+      }
+    ]
+  },
+  {
+    "quadro": "campanha",
+    "tela": "Campanha aberta",
+    "imagem": "../screenshots/feature-atlas/atlas_campanha_1440x1000.png",
+    "feats": [
+      {
+        "nome": "Materiais da campanha",
+        "sel": ".f-mat-card",
+        "area": "Franqueado",
+        "perfil": "Todos",
+        "caminho": "Vitrine → campanha",
+        "oQueFaz": "Lista cada material disponível com o formato e a validade.",
+        "beneficio": "Mostra o que existe antes de pedir qualquer coisa.",
+        "estado": "Implementado",
+        "caixa": {
+          "x": 26.97699652777778,
+          "y": 43.2890625,
+          "w": 25,
+          "h": 44.81875
+        }
+      },
+      {
+        "nome": "Prévia ao vivo",
+        "sel": "#f-live-preview, .f-live, [class*=\"live-preview\"]",
+        "area": "Franqueado",
+        "perfil": "Todos",
+        "caminho": "Campanha → coluna da direita",
+        "oQueFaz": "Mostra a arte se montando enquanto as respostas entram.",
+        "beneficio": "Erro é visto na hora, não depois do download.",
+        "estado": "Implementado",
+        "caixa": {
+          "x": 73.61111111111111,
+          "y": 5.2,
+          "w": 26.38888888888889,
+          "h": 94.8
+        }
+      },
+      {
+        "nome": "Rail de campanhas",
+        "sel": "#fran-left, .fran-left",
+        "area": "Franqueado",
+        "perfil": "Todos",
+        "caminho": "Sempre visível à esquerda dentro da campanha",
+        "oQueFaz": "Mantém o catálogo ao alcance sem sair do que está fazendo.",
+        "beneficio": "Trocar de campanha não custa uma volta ao início.",
+        "estado": "Implementado",
+        "caixa": {
+          "x": 0,
+          "y": 5.2,
+          "w": 22.77777777777778,
+          "h": 94.8
+        }
+      }
+    ]
+  },
+  {
+    "quadro": "estudio",
+    "tela": "Estúdio do designer",
+    "imagem": "../screenshots/feature-atlas/atlas_estudio_1440x1000.png",
+    "feats": [
+      {
+        "nome": "Biblioteca de templates",
+        "sel": "#d-studio-home, .dc-tmpl",
+        "area": "Designer",
+        "perfil": "equipe_dm+",
+        "caminho": "Topbar → Designer",
+        "oQueFaz": "Reúne os templates da equipe, por pasta e por campanha.",
+        "beneficio": "O designer retoma o trabalho sem procurar arquivo.",
+        "estado": "Implementado",
+        "caixa": {
+          "x": 0,
+          "y": 5.2,
+          "w": 100,
+          "h": 94.8
+        }
+      }
+    ]
+  },
+  {
+    "quadro": "cli",
+    "tela": "Luma CLI",
+    "imagem": "../screenshots/feature-atlas/atlas_cli_1440x1000.png",
+    "feats": [
+      {
+        "nome": "Console do time",
+        "sel": "#luma-cli",
+        "area": "Interno",
+        "perfil": "equipe_dm+",
+        "caminho": "Ctrl+` no desktop · painel de perfil no celular",
+        "oQueFaz": "Diagnóstico de sync, catálogo, cache e banco em comandos nomeados.",
+        "beneficio": "O que era snippet colado no DevTools virou comando repetível.",
+        "estado": "Implementado",
+        "caixa": {
+          "x": 18.055555555555554,
+          "y": 44,
+          "w": 63.888888888888886,
+          "h": 56.00000000000001
+        }
+      },
+      {
+        "nome": "Conversa com a IA no terminal",
+        "sel": ".cli-inputrow",
+        "area": "Interno",
+        "perfil": "equipe_dm+",
+        "caminho": "CLI → qualquer frase que não seja comando",
+        "oQueFaz": "Responde perguntas com o contexto real da sessão e sugere o comando.",
+        "beneficio": "Investigar deixa de exigir decorar comando.",
+        "estado": "Implementado",
+        "caixa": {
+          "x": 18.125,
+          "y": 95.96249999999999,
+          "w": 63.74999999999999,
+          "h": 4.0375000000000005
+        }
+      }
+    ]
+  }
+]

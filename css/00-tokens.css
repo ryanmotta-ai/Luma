@@ -29,6 +29,20 @@
      sobre fundo claro. O flip é feito em body.theme-light logo abaixo.
      Use --green para pontos/bordas/fundos; --green-text para texto legível. */
   --green-text: #22C55E;
+  /* laranja para TEXTO — mesmo par que o verde acima. --dm-orange-d (#F85400) foi
+     desenhado para ser FUNDO de CTA com texto branco; como TEXTO sobre fundo claro
+     ele dá só 3.35:1 e reprova em AA. Sobre o escuro o laranja vivo já vai bem (7:1).
+     Use --dm-orange/-d para fundos e bordas; --dm-orange-text para texto pequeno. */
+  --dm-orange-text: var(--dm-orange);
+  /* texto/ícone POR CIMA de um fundo de acento (laranja, vermelho). Branco puro e
+     imutável: não acompanha tema, porque o fundo embaixo dele também não acompanha.
+     Diferente de --white, que os painéis re-mapeiam para superfícies escuras. */
+  --on-accent: #FFFFFF;
+  /* vermelho para TEXTO — terceiro par do mesmo padrão. --dm-red (#C81818) sobre
+     superfície escura dá 2.98:1 (medido) e reprova; o vermelho claro que o designer
+     já usa em erro resolve. No claro volta ao vermelho da marca (5.83:1).
+     Use --dm-red para fundos/badges; --dm-red-text para texto e link. */
+  --dm-red-text: var(--d-error);
   /* designer dark */
   --d-bg: #111111;
   --d-dark: #1A1A1A;
@@ -57,6 +71,11 @@
   --dur-fast:  180ms;   /* botões, chips, tooltips */
   --dur-base:  260ms;   /* modais, painéis, cards */
   --dur-slow:  420ms;   /* entradas grandes, transição de view */
+  /* Único degrau acima do --dur-slow: momento de CONQUISTA (conclusão de módulo,
+     splash de formação). Não use em UI cotidiana — 720ms num hover é lentidão,
+     não elegância. Foi o único token que a Academia precisou acrescentar: as
+     outras quatro durações já cobriam hover, botão, painel e entrada de view. */
+  --dur-celebration: 720ms;
 
   /* Legado (mantido p/ compat — não remover; muitos arquivos referenciam) */
   --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
@@ -64,7 +83,7 @@
   --transition-normal: var(--dur-base) var(--ease-standard);
   --transition-slow: var(--dur-slow) var(--ease-out);
 
-  --gradient-orange: linear-gradient(135deg, var(--dm-orange) 0%, var(--dm-orange-d) 100%);
+  --gradient-orange: #f85400;
   --gradient-dark: linear-gradient(180deg, #1A1A1A 0%, #0D0D0D 100%);
   --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
   --gradient-glow: radial-gradient(circle at top left, rgba(255, 144, 0, 0.15), transparent 60%);
@@ -99,6 +118,10 @@
 /* Flip do verde-texto por tema (theme-light = claro em TODOS os módulos).
    Sobre fundo claro o verde vivo dá só 2.3:1 — cai para o verde escuro AA. */
 body.theme-light { --green-text: #15803D; }
+/* Mesmo flip para o laranja-texto: #BF3F00 é o #F85400 escurecido no mesmo matiz,
+   5.35:1 sobre branco e 5.12:1 sobre off-white (medido). Mantém a leitura de marca. */
+body.theme-light { --dm-orange-text: #BF3F00; }
+body.theme-light { --dm-red-text: var(--dm-red); }
 
 /* ══ LOGOS LUMA ══
    branca (Ativo 1) → fundos laranja/coloridos/escuros
@@ -161,3 +184,37 @@ body.theme-light { --green-text: #15803D; }
   background-image: var(--logo-v-principal);
   aspect-ratio: 1 / 1;
 }
+
+/* ══ TEMA POR CAMPANHA ══
+   body.camp-theme-<slug> re-tokeniza a marca enquanto o franqueado está DENTRO
+   da campanha (liga/desliga em js/franqueado/materials.js — fApplyCampTheme).
+   Aqui moram SÓ tokens; o visual do tema (header, véu) fica em modules/franqueado.css.
+   --gradient-orange e --gradient-glow derivam destas vars em tempo de uso — não
+   precisam de override.
+
+   Much+ (clube de assinatura DM): magenta #F8006E vira a ação primária — amarelo
+   #FFB900 atrás de texto branco não tem contraste; o amarelo entra como acento
+   (tints, badge) e no próprio logo. */
+:root {
+  --muchplus-magenta: #F8006E;
+  --muchplus-magenta-d: #C4005B;
+  --muchplus-magenta-l: #FF3D92;
+  --muchplus-yellow: #FFB900;
+  --muchplus-cream: #FFF8DE;
+  --muchplus-tint: #FFF0F7;
+  --muchplus-border: #FFCFE5;
+}
+
+body.camp-theme-muchplus {
+  --dm-orange: var(--muchplus-magenta);
+  --dm-orange-d: var(--muchplus-magenta-d);
+  --dm-orange-l: var(--muchplus-magenta-l);
+  --dm-orange-bg: var(--muchplus-tint);
+  --dm-orange-tint: var(--muchplus-border);
+  --var-color: var(--muchplus-magenta);
+  --var-bg: rgba(248, 0, 110, .10);
+  --dm-orange-text: var(--muchplus-magenta-d); /* #C4005B já dá 6:1 sobre branco */
+}
+/* O tema claro re-define --var-color DEPOIS deste arquivo (designer.css, dourado AA).
+   A dupla classe vence a ordem de carga: dentro do Much+ o campo fica magenta AA. */
+body.theme-light.camp-theme-muchplus { --var-color: var(--muchplus-magenta-d); }

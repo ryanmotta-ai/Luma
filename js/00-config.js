@@ -9,9 +9,24 @@
    FRANQUEADO — dados e estado
 ══════════════════════════════════════════════════════════════ */
 const HIST_KEY='dm_artes_hist_v2';
+window.LUMA_CONFIG = window.LUMA_CONFIG || { geminiApiKey: 'AQ.Ab8RN6KTNTMzdzlSMSzfDFPk9Jx0raAvkQ-HAgUkeVlU1ft4Vw' };
+window.LUMA_GEMINI_API_KEY = window.LUMA_GEMINI_API_KEY || 'AQ.Ab8RN6KTNTMzdzlSMSzfDFPk9Jx0raAvkQ-HAgUkeVlU1ft4Vw';
+// Modelo dos 2 agentes, em UM lugar só (já divergiu entre chat.js e help-widget.js antes).
+// 'gemini-flash-latest' é APELIDO: o Google aponta pro Flash atual, então uma aposentadoria
+// de versão não quebra os agentes de novo — foi exatamente o que matou o 'gemini-1.5-flash'.
+window.LUMA_GEMINI_MODEL = window.LUMA_GEMINI_MODEL || 'gemini-flash-latest';
 
 /* ── CAMPANHAS ── */
 const CAMPS_ATIVAS=[
+  {id:'muchplus',name:'Much+ Benefícios',color:'#FFB900',count:4,badge:'MUCH+',expiraDias:90,popular:true,theme:'muchplus',cover:'assets/covers/muchplus.png',
+   previewProd:'CLUBE MUCH+',previewDe:'',previewPor:'MAIS BENEFÍCIOS',
+   perguntas:[
+    {id:'produto',texto:'Qual benefício exclusivo do Much+ você vai destacar na arte?',sugestoes:['Frete Grátis Ilimitado','Cupom de R$ 15 OFF','Cashback em Dobro','Desconto Exclusivo no Prato']},
+    {id:'desconto',texto:'Qual a vantagem especial para o assinante?',sugestoes:['Assinantes não pagam entrega','Exclusivo para membros Much+','Economize em todos os pedidos']},
+    {id:'precoPor',texto:'Qual o valor promocional da assinatura ou código do cupom?',sugestoes:['R$ 14,90/mês','Grátis no 1º mês','CUPOM MUCH15','R$ 9,90/mês']},
+    {id:'validade',texto:'Qual a validade da oferta Much+?',sugestoes:['Para todos os membros','Válido este mês','Por tempo limitado','Exclusivo do Clube']}
+   ]},
+
   {id:'cdm26',name:'Copa Do Mundo 2026',color:'#1565C0',count:6,badge:'2026',expiraDias:60,popular:true,cover:'assets/covers/cdm26.png',
    previewProd:'COPA DO MUNDO',previewDe:'',previewPor:'',
    perguntas:[
@@ -534,6 +549,28 @@ function gFieldGuessCategory(name, type){
   return 'outros';
 }
 
+// Infere o TIPO de um campo pelo nome técnico — o par simétrico de gFieldGuessCategory.
+// Existe porque a auto-criação (digitar {{preco_por}} numa camada, via dSyncVarsFromContent)
+// nascia sempre 'text': o designer tinha de reabrir o campo e corrigir o tipo na mão, o que
+// derrotava o ganho da auto-criação. O sinal do NOME é independente do sinal do TEXTO
+// (_dGuessTypeFromText lê "R$ 19,90"); os dois se complementam, nome primeiro.
+// A ordem dos testes importa: mídia e cupom vêm antes de preço para não serem capturados
+// pela regra ampla de valor ("logo_loja" é imagem; "cupom_desconto" é código, não R$).
+function gFieldGuessType(name){
+  const s=String(name||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+  if(!s) return 'text';
+  if(/(^|_)(foto|imagem|img|logo|banner|capa|thumb|arte)($|_)/.test(s)) return 'image';
+  if(/(^|_)cupom($|_)/.test(s)) return 'text'; // "MUCH10" é código, não valor monetário
+  if(/(^|_)(validade|vencimento|data|inicio|fim)($|_)/.test(s)) return 'date';
+  if(/(^|_)cor($|_)/.test(s)) return 'color';
+  // Prefixo de flag ANTES da regra ampla de valor: "tem_desconto" é um sim/não, não um R$.
+  // O prefixo é sinal mais específico que o substring solto ("desconto" em qualquer posição).
+  if(/^(tem|is|ativo|mostrar|exibir|possui)_/.test(s)) return 'boolean';
+  if(/(preco|valor|taxa|frete|desconto|cashback)/.test(s)) return 'currency';
+  if(/(^|_)(tempo|qtd|quantidade|minutos|prazo|estoque|itens|numero)($|_)/.test(s)) return 'number';
+  return 'text';
+}
+
 // Gera um nome técnico (slug) único a partir do rótulo amigável. Nunca exibido ao usuário.
 function gFieldSlugify(label, existingNames){
   let base=String(label||'').normalize('NFD').replace(/[̀-ͯ]/g,'')
@@ -685,7 +722,6 @@ function gSmartWrapText(text, maxW, layer, dados, defaults) {
   // Limpa espaços redundantes
   const cleanText = text.replace(/\s+/g, ' ').trim();
   const words = cleanText.split(' ');
-  if (words.length <= 1) return cleanText;
   
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
@@ -779,11 +815,39 @@ function gSmartWrapText(text, maxW, layer, dados, defaults) {
     }
   }
   
-  if (bestPartition) {
+  if (bestPartition && bestPartition.every(line => measure(line) <= availableW)) {
     return bestPartition.join('\n');
   }
-  
-  return cleanText;
+
+  const wrapped = [];
+  let current = '';
+  const pushToken = (token) => {
+    let rest = token;
+    while (rest && measure(rest) > availableW) {
+      let low = 1, high = rest.length, fit = 1;
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        if (measure(rest.slice(0, mid)) <= availableW) { fit = mid; low = mid + 1; }
+        else high = mid - 1;
+      }
+      wrapped.push(rest.slice(0, fit));
+      rest = rest.slice(fit);
+    }
+    return rest;
+  };
+  words.forEach(word => {
+    const next = current ? current + ' ' + word : word;
+    if (current && measure(next) > availableW) {
+      wrapped.push(current);
+      current = pushToken(word);
+    } else if (!current && measure(word) > availableW) {
+      current = pushToken(word);
+    } else {
+      current = next;
+    }
+  });
+  if (current) wrapped.push(current);
+  return wrapped.join('\n');
 }
 
 // Converte strings para Title Case Gramatical (Capitalização Semântica - Ideia 2)

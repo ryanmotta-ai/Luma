@@ -88,7 +88,7 @@ Luma/
 │   ├── components/                # topbar, splash, tutorial, help-modal, user-profile, pages-tray
 │   └── modules/                   # franqueado, franqueado_effects, designer, chat, catalog,
 │                                  # live-preview, layers-panel, toolbar, all-tools, color-picker,
-│                                  # publish-modal, topbar
+│                                  # publish-modal, topbar, academia
 ├── js/
 │   ├── 00-config.js               # HIST_KEY, CAMPS_ATIVAS/OUTRAS/IMPLEMENTACAO, FMTS,
 │   │                              # regex/validação de var, gInterpolate, bindings, regras,
@@ -99,6 +99,8 @@ Luma/
 │   │                              # layout (smart resize), toast (gToast+gEsc), help, splash
 │   ├── franqueado/                # catalog (com HOME), materials, chat, chat-input, history,
 │   │                              # live-preview, png-generator
+│   ├── academia/                  # academia (estado/dados/home), aula (player+abas), agente (IA),
+│   │                              # gestao (equipe_dm), certificado — ver §21
 │   ├── designer/                  # canvas, layers, templates, tools, brush, mask, blending,
 │   │                              # eraser-tools, color-picker, measurement, selection, props-panel,
 │   │                              # undo-redo, publish, preview, library, fonts, psd-import,
@@ -278,7 +280,7 @@ Estado inicial em tela cheia (`body.f-home-mode` esconde as colunas). Layout flu
 - "Continuar de onde parou" (até 3 rascunhos).
 - Hero da recomendada (a popular **entre as que têm material**; nunca campanha vazia).
 - **Vitrine honesta**: "Prontas pra usar" (com material publicado e válido) vs **"Em breve"** (cards ghost menores, `pointer-events:none`).
-- **Miniaturas reais**: o 1º material válido da campanha é renderizado em ~360px pelo MESMO motor do PNG (`fRenderTemplateLayers`) numa fila assíncrona com cache por campanha (`_fCampThumbs`, invalida se o material mudar). Prioridade de capa: upload do designer > thumb renderizada > cor da marca. Padrão de segurança: `fState.material` save/restore condicional.
+- **Capa do card = capa da PASTA** (`fCampCover`): só a capa que o designer subiu no Estúdio. Sem capa → cor da marca + nome (placeholder programático). ⚠ A antiga fila de "miniaturas reais" (renderizava o 1º material da campanha e usava como capa — `_fCampThumbs`/`fHomeFillThumbs`, removida em 2026-07-30) mostrava a arte com os **campos vazios**: card em branco no boot ("pastas invisíveis") e a identidade da campanha trocada pelo conteúdo. Mesma regra do `01_BUSINESS.md`: pasta manda, capa vazia = removida de propósito.
 
 ### Estado (`fState` em `01-state.js`)
 
@@ -288,6 +290,10 @@ Estado inicial em tela cheia (`body.f-home-mode` esconde as colunas). Layout flu
 
 `CAMPS_ATIVAS`, `CAMPS_OUTRAS`, `CAMPS_IMPLEMENTACAO` (onboarding de novos franqueados) — cada uma `{id, name, color, badge, expiraDias, popular, previewProd/De/Por, perguntas:[{id, texto, sugestoes}]}`. `FMTS`: story 1080×1920 · feed 1080×1350 · post 1200×628.
 
+**Tema por campanha (2026-07-23, 1º caso: Much+).** Campanha com `theme:'muchplus'` — ou pasta com badge "MUCH+" — re-tokeniza o app enquanto o franqueado está dentro dela: `fApplyCampTheme`/`fRemoveCampTheme` (materials.js) põem/tiram `body.camp-theme-<slug>`; os tokens do tema moram em `00-tokens.css`, o visual (véu de transição + motion do logo no header, `assets/motion/logo_muchplus.webm` VP9 com alpha) em `modules/franqueado.css`. Entradas: `fOpenMaterialCatalog`, `fEditFromHist`, early-return do `fSelectCamp`. Saídas: `fGoHome`, `fCloseMaterialCatalog`. ⚠ Nunca pendurar remoção no `fRestoreCatalog` (é re-render de rail, roda dentro da campanha). Pastas do banco propagam `theme` via `fGetCampaigns`.
+
+**Na VITRINE o tema é sóbrio (decisão do Ryan, 2026-07-30 — não "restaure" o magenta).** O hero e o card da grade do Much+ eram chapados de `--muchplus-magenta`, com um filete amarelo de 5px entre a capa e o texto. Dois problemas: em ~56% de um card daquele tamanho o magenta roubava a atenção do conteúdo, e o filete lia como sobra de renderização em vez de divisória. Agora **o painel não tem cor própria** — herda o fundo do card, então claro e escuro saem de graça e o Much+ volta a pertencer à mesma vitrine das outras campanhas. A marca aparece só nos acentos: filete magenta no topo, olho-de-boi e CTA. **Quem carrega a identidade é a capa da campanha**, não o cromo em volta — por isso caiu também a marca d'água "MUCH+" que ficava no canto do painel: 100px de tipografia a 7% de opacidade só sujavam o fundo ao lado de uma capa que já diz a marca. O CTA usa `--muchplus-magenta-d` porque o `#F8006E` com texto branco dá só ~4.2:1 e o rótulo tem 12px. Dentro da campanha o tema segue re-tokenizando o app normalmente — a mudança é só na vitrine.
+
 ### Tipos de campo do chat (`chat-input.js`)
 
 A fonte de verdade do tipo é `dVars[id].type`; `F_FIELD_TYPES` é fallback legado por nome (produto, precoDe, precoPor, codigo, desconto…). Resolução por 3 funções: `fGetFieldType(id)` (config efetiva com precedência permissão do designer > dVars > fallback), `fApplyMask(id, raw)` (formata sem rejeitar: moeda BR, desconto %/R$, código maiúsculo, texto truncado), `fValidate(id, val)` (required, maxLen, formato).
@@ -296,13 +302,13 @@ A fonte de verdade do tipo é `dVars[id].type`; `F_FIELD_TYPES` é fallback lega
 
 | Função | Arquivo | Papel |
 |---|---|---|
-| `fRenderHome` / `fHomeFillThumbs` | catalog.js | Home + fila de miniaturas reais |
+| `fRenderHome` / `fCampCover` | catalog.js | Home da vitrine + capa da pasta no card |
 | `fSelectCamp` → `fOpenMaterialCatalog` → `fSelectMaterial` | catalog/materials.js | Campanha → materiais → chat (gera perguntas das vars + permissões) |
 | `fNextStep` / `fSend` / `fQR` / `fSaveAdv` | chat/chat-input.js | Passo a passo do chat (texto/upload) |
 | `fMostrarConfirm` → `fConfirmarGerar` → `fGerarArte` | chat.js | Confirmação editável → arte + histórico |
 | `fBaixar` / `fBaixarPDF` / `fOutroFormato` | chat.js | Download PNG/PDF, variação de formato |
 | `fGenPNG` / `fGenPDF` / `fRenderCanvasHelper` | png-generator.js | Render final 2× supersampling |
-| `fRenderTemplateLayers` / `fRenderOneLayer` | png-generator.js | **Motor de render** (reflow smart-resize, bindings, regras, máscaras, blend modes) — usado por PNG, preview, thumbs. ⚠ Lê `fState.material` (bg + tamanho nativo via `fMaterialSize`); para renderizar material arbitrário: save/restore de `fState.material` |
+| `fRenderTemplateLayers` / `fRenderOneLayer` | png-generator.js | **Motor de render** (reflow smart-resize, bindings, regras, máscaras, blend modes) — usado por PNG e preview. ⚠ Lê `fState.material` (bg + tamanho nativo via `fMaterialSize`); para renderizar material arbitrário: save/restore de `fState.material` |
 | `fUpdateLivePreview` | live-preview.js | Preview lateral em tempo real com placeholders |
 | `fAddHist` / `fMarkHistBaixada` / `fGetHist` | history.js | Histórico (localStorage `dm_artes_hist_v2`, cap 50, dedup) + push pra `luma.artes` |
 | `fBulkOpen` → `fBulkDownloadAll` | png-generator.js | Geração em lote via CSV (PapaParse) com fila/yield |
@@ -364,7 +370,11 @@ Modal multi-formato (Story/Feed/Wide sem distorção via smart resize), shells d
 
 ### Import PSD (`psd-import.js`)
 
-ag-psd vendorizado + Web Worker (timeout 25s → fallback main-thread). Fluxo: validação (máx ~200MB) → parse → multi-artboard? (seletor + revisão em sequência, 1 template rascunho por prancheta) → revisão por camada (Texto editável / Campo `{{}}` / Cor / Imagem fiel) → import com auto-criação de campos e reflow. Fidelidade: cor sólida, **gradiente (linear/radial, fill e overlay)**, **texto multi-estilo (`styleRuns` → `l.runs`)**, sombra/contorno, fontSize corrigido por DPI, máscaras + clipping, opacidade de grupos acumulada, **smart object / camada rotacionada / texto com warp rasterizados 1:1**, remap de fontes (com upload na hora na tela de revisão), heurística de z-order. Limitações (atualizadas 2026-07): **paths vetoriais complexos** viram raster (rect/elipse seguem shape editável e recolorável), **camadas de ajuste** (Levels/Curves/Hue) não são aplicadas às de baixo — são dropadas, com aviso na revisão, **z-order** por heurística (às vezes precisa do toggle manual), raster comprimido (teto 1600px, maior p/ warp/smart). Backlog priorizado em `luma-brain/07_ROADMAP.md` §9.
+ag-psd vendorizado + Web Worker (prazo ~1s/MB, teto 10min, renovado a cada sinal de progresso; abaixo de 150MB o buffer vai duplicado e há fallback main-thread, acima ele é transferido e o worker é o único caminho). Fluxo: validação (máx 500MB, `.psd`/`.psb`) → parse → **uma única tela de revisão**: multi-prancheta vira abas dentro dela (cada prancheta com suas próprias decisões, formato e destino; parse sob demanda) e um só "Importar" cria um template rascunho por prancheta; prancheta única cria a prancheta no editor. Por camada: Texto editável / Campo `{{}}` / Cor / Moldura de foto / Imagem fiel, com auto-criação de campos e reflow.
+
+**Fidelidade:** cor e forma exatas do vetor (`vectorFill`/`keyOriginType`), gradiente linear/radial/refletido (cônico e losango rasterizam), sombra projetada/interna, brilho externo/interno, chanfro, sobreposição de cor e gradiente, contorno com alinhamento e tracejado, luz global do documento, `fontSize` por DPI + caixa de parágrafo 1:1, auto-entrelinha do PS, máscaras compostas (camada + clipping + vetorial + grupos-pai) em resolução adaptativa (700–1400px), opacidade e mesclagem de grupo herdadas, remap de fontes com upload na hora, heurística de z-order, relatório de fidelidade por diff de pixel contra o composto do Photoshop.
+
+**Viram imagem fiel** (visual 1:1, sem edição): smart object, camada de ajuste, padrão, rotação, espelho/180°, texto em curva, texto com warp, e combinações de efeito que o modelo não representa. **Perdas avisadas na revisão:** cetim, contorno customizado de efeito, escala de efeitos ≠100%, traço com gradiente/padrão, texto justificado (entra alinhado pela última linha), estilos mistos de texto. Raster de fidelidade a 2400px/q0.92; raster comum a 1600px/q0.82.
 
 ### Import SVG (`templates.js`)
 
@@ -398,6 +408,77 @@ O dashboard simulado foi retirado em 2026-07-15. Analytics real continua em `ana
 - **Toast** (`core/toast.js`): `gToast(msg, type, helpTopic?)` — 2.8s (4.2s erro). CTA de ajuda só existe com artigo explícito. ⚠ **Sem fila** — chamadas em sequência se sobrescrevem. Também: `gBtnLoading`, `gWarnImagesNotPersisted`, **`gEsc`** (escape HTML global).
 - **Splash** (`core/splash.js`): overlay de entrada, mínimo 2.8s, tudo em try/catch.
 - **Auth UI** (`core/auth.js` + `core/user-profile.js`): login/logout/reset de senha reais (Supabase), perfil com foto (localStorage `__luma_user_photo_*`), gestão de equipe (listar/role/ativo via RLS), `gUpdateUserTopbar`.
+
+### 12.1. IA — motor único (`core/ai.js`)
+
+**Todo** recurso de IA fala por aqui; nenhum outro arquivo monta chamada pro modelo (regra do motor único, §`03_ENGINEERING`). A IA é **auxiliar**: cada recurso tem caminho de queda e o produto funciona sem ela (`00_PRODUCT.md` §9).
+
+| Função | Papel |
+|---|---|
+| `gAskAI(task, prompt, opts)` | Pergunta ao modelo. Nunca lança, nunca trava (timeout 30s). `opts.parts` = anexos (`{mimeType,data}`), `opts.json`, `opts.cache`. Devolve texto ou **null** — quem chama decide o fallback |
+| `gAiReady()` | Tem caminho pra IA? A UI usa pra decidir se mostra o recurso (otimista; desliga só depois de falha real) |
+| `gAiParseJson(txt)` | Parser tolerante (modelo às vezes embrulha em ```json) — nunca lança |
+| `gAiFileToPart(file)` | Arquivo → `{mimeType, data}` base64 pro anexo |
+| `gAiModel()` | Modelo atual (`window.LUMA_GEMINI_MODEL`, trocável no config e pelo seletor do widget) |
+
+**Caminhos, nesta ordem:** Edge Function `ai` (chave no servidor — ver `LUMA-BACKEND-CHANGELOG.md` 2026-07-30) → **transição**: chamada direta com a chave do front ⚠ (sai de cena quando a function subir) → `null`.
+
+**Onde a IA é usada (5 pontos):**
+
+| Recurso | Onde | Queda quando a IA falha |
+|---|---|---|
+| **Legenda do post** | `franqueado/chat.js` (`fFetchAICaptionSuggestions`) | motor local `fBuildCopy`; o selo do painel diz a origem real (`_fCaptionSrcTag`) |
+| **Encaixar no limite** (`maxLen`) | `franqueado/chat-input.js` (`fFitTextWithAI`) | botão não aparece; opção que não cabe é descartada no código |
+| **Ajuda aterrada** | `widgets/help-widget.js` + `gHelpKnowledge` (`core/help.js`) | artigo cru da base; sem material que case, **não chama** o modelo |
+| **Ler cardápio** (foto/PDF/texto) | `franqueado/png-generator.js` (`fBulkReadMenu`, `_fBulkItensPorIA`) | parser heurístico local (`fBulkParseHeuristicText`) segue sendo o 1º caminho no texto |
+| **Casar fotos com linhas** | `franqueado/png-generator.js` (`fBulkMatchPhotos`) | casamento por nome de arquivo (local) resolve a maioria; sobra fica sem foto |
+
+**Regras dos recursos de IA nesta base:** (1) validar no **código** o que o prompt pediu (tamanho, formato, repetição) — modelo erra contagem; (2) **marcar a origem** na UI (selo/chip) — app que finge não mentir é bug; (3) nunca inventar dado de negócio (preço, validade) — prompt proíbe e a grade exige revisão; (4) toda linha lida por IA passa pela mesma validação das digitadas.
+
+### 12.2. Luma CLI — console do time (`core/console.js`)
+
+Terminal interno, **Ctrl+`** abre, **Esc** fecha. Só monta pra `gIsAdmin()` (equipe_dm/gestao). Existe porque o diagnóstico de sync era feito colando snippet no DevTools — conhecimento que morava em log de conversa (incidente de 07/2026: "30 pastas no banco e 0 templates"). Agora é comando nomeado.
+
+**No celular** não há Ctrl+`: a entrada é o item **Console · DEV** no painel de perfil (sidebar, ao lado de "Equipe") — revelado pelo mesmo `gIsAdmin()`, escondido do franqueado. Toque nele fecha o modal e abre o console. Lá também não há Tab nem ↑/↓, então aparece uma faixa de **chips** com os comandos de leitura (`ajuda`, `diag`, `modelo`, `sync status`, `pastas ls`, `cache ls`) — só comando que não muda nada. Três detalhes que fazem "funcionar no celular" ser verdade: `_gCliAjustaViewport()` sobe o painel a altura que o **teclado virtual** comeu (`position:fixed` não vê o teclado, e o campo ficava embaixo dele); `font-size:16px` no input (menos que isso e o iOS dá zoom); e `body.cli-on` tira do rodapé os flutuantes com z-index maior — aviso de PWA (13000, via CSS) e FAB do widget de ajuda (9999, no `checkVisibility` do próprio widget, porque o display dele é inline).
+
+| Comando | O que faz |
+|---|---|
+| `ajuda` | Lista os comandos |
+| `diag` | Radiografia: sessão/role, backend, IA, catálogo local, `_syncPending`, fila de deleção, MB do localStorage e **contagem no banco** (a linha que explicou o incidente) |
+| `sync status\|push\|pull` | Estado do sync ou força `_dPushFoldersNow()` / `dSyncFoldersFromBackend()`, mostrando antes → depois |
+| `pastas [ls\|<id>]` | Lista `dFolders` ou detalha uma pasta (remoteId, capa, materiais, flags) |
+| `cache [ls\|clear <chave>]` | Tamanho por chave do localStorage; `clear` exige `gConfirm` |
+| `ia <pergunta>` | Pergunta em PT-BR — **também é o padrão**: qualquer frase que não seja comando vai pra IA |
+| `modelo [nome]` | Mostra/troca o modelo do Gemini. Grava em `localStorage.luma_gemini_model`, que **`gAiModel()` lê antes de `window.LUMA_GEMINI_MODEL`** — sem essa ordem a escolha morria no reload, porque `00-config.js` redefine o window a cada boot. Vale pra **todo** recurso de IA daquele aparelho; `modelo padrao` desfaz. Só apelidos `-latest` na lista sugerida (versão fixa aposenta e quebra) |
+| `limpar` · `sair` | Limpa a tela · fecha |
+
+**A IA do console** recebe o contexto real da sessão (o mesmo que o `diag` mede) + a lista de comandos, e devolve `{passos, resposta, comando}`. Os `passos` viram um bloco **raciocínio** esmaecido acima da resposta — é o que o modelo diz ter feito, não roteiro nosso. O `comando` só **pré-preenche** o campo, nunca executa. Task `cli` na Edge Function.
+
+**Enquanto trabalha** (`_gCliSpinStart` / `_gCliSpinPasso`): um bloco mostra o que está acontecendo **de verdade** — rótulo girando, tempo decorrido e os passos anunciados por quem chama conforme acontecem (contexto lido → perguntando pro `<modelo>` → resposta recebida). Sem barra de progresso: não há como saber a fração de uma chamada de rede, e passo inventado é mentira bonita. O bloco some quando a resposta chega, pra não virar histórico falso.
+
+**Teclado (desktop):** ↑/↓ histórico da sessão · Tab autocompleta comando · o `keydown` do campo para no console (atalho do Estúdio não dispara por baixo). **Esc fecha de qualquer lugar** — o listener mora no `#luma-cli`, não no campo: como o campo para a propagação, com o foco num chip ou no corpo o Esc não chegava a ninguém e o cabeçalho mentia.
+
+**Palavra solta parecida com comando** (`diagg`, `pasta`) **não vai pra IA** — vira "não é comando, você quis dizer X?" com o botão que pré-preenche. Sem isso, um erro de digitação com a IA desligada terminava em "IA indisponível": beco sem saída pra quem só errou uma tecla.
+
+⛔ **Não é fronteira de segurança.** O gate por role é de UX; quem governa é a RLS, e todo comando roda com a sessão do próprio usuário — o console não dá poder que o DevTools já não desse. Comando que só é seguro "porque só dev vê" não entra.
+
+**Visual** (`css/modules/console.css`): superfície do Estúdio, acento laranja, mono do sistema (nenhuma fonte baixada) e flip completo em `body.theme-light`.
+
+A caixa de boas-vindas é **texto monoespaçado**, não CSS: a moldura é o próprio caractere, com o mascote numa coluna e o contexto na outra. A largura é contada em **caracteres** (`padEnd`) porque é o que fecha a moldura em fonte mono — medir em pixel aqui não fecha nunca. O miolo é `robô(22) + ' │ '(3) + info(IW)`, com `IW` 48 no desktop e 30 no celular; **as duas colunas têm que ter o mesmo número de linhas (13)**.
+
+O **mascote bate embaixadinha**: uma arte base de 13×22 e um quadro montado por mutação dela (olhos que seguem a bola, piscada, boca que abre no toque, antena pulsando, painel de LEDs correndo, braços por altura, perna que sobe, rastro, sombra que engorda e contador `×N`). A trajetória é declarada só pela **metade esquerda** — o meio-ciclo seguinte é o espelho (`col → 20-col`), e é isso que faz o **pé alternar** sozinho. Cada célula carrega uma classe (`cli-r-body`, `cli-r-face`, `cli-r-led`, `cli-r-ball`…) pra colorir peça por peça sem mexer na largura. Timer único, parado no `gCliClose()`, e `prefers-reduced-motion` deixa no quadro do ápice.
+
+**Motion do chat:** a saída de comando entra **linha a linha** — `_gCliEscalona` põe `animation-delay` em cada uma (teto de 420ms), CSS resolve o resto. Foi feito no CSS de propósito: com `setTimeout`, um `diag` de 30 linhas viraria 30 timers. Enquanto roda, o **único** indicador é o bloco de pensamento + o prompt aceso (havia também um spinner de 12px no canto do campo — dois sinais pro mesmo estado, o menos informativo saiu).
+
+**Regras de UI que o console tem de manter** (revisão de 2026-07-30, tudo medido no Chromium):
+
+- **Piso de 12px** na tipografia. Abaixo disso só micro-badge em caixa-alta bold (`.cli-title` 10.5px, `.cli-badge` 9px).
+- **Contraste ≥ 3:1 para objeto gráfico** — vale pra moldura da caixa (`.cli-fr`, opacity `.75`), o rastro da bola e **as bolinhas do `diag`**. Duas armadilhas reais aqui: `body.theme-light .cli-dot` tem especificidade maior que `.cli-dot.warn`, então **warn e err precisam de override explícito no claro** (sem eles as duas viravam cinza — a bolinha existe justamente pra distinguir verde/amarelo/vermelho); e a bolinha de erro usa `--d-error`, não `--dm-red`, porque o `#C81818` sobre o `#1A1A1A` mede 2.98:1.
+- **44px de alvo de toque no celular** (fechar, chips, linha de comando) — lei de Fitts, `ux-principles.md`.
+- **Clicar em qualquer ponto da linha de comando foca o campo.** O campo tem ~20px dentro de uma linha de 40px; sem o handler na linha, dois terços do alvo não faziam nada.
+- **Banner do celular é fluido:** `clamp(7.5px,2.6vw,11px)`. A caixa tem 57 colunas fixas, então quem manda no tamanho é a largura da tela — com px cravado ela usava 257px de 364 disponíveis.
+- **Radius só pelos tokens** (`--r` 10px / `--r-sm` 6px / `--r-pill`).
+- **Coluna de descrição do `ajuda` sai do comando mais longo**, nunca de número fixo.
 
 ---
 
@@ -514,7 +595,7 @@ Todo acesso com try/catch (quota ~5MB). `gPackImgUrl` mantém imagens ≤~70KB n
 
 ## 17. LIMITAÇÕES CONHECIDAS E DÍVIDAS
 
-**Funcionais:** `opacity` só em shape · `gToast` sem fila · eyedrop/bucket só texto/forma · PSD (paths vetoriais complexos rasterizam, camadas de ajuste não aplicadas, z-order às vezes manual — ver `07_ROADMAP.md` §9) · SVG (classes em `<style>` não lidas, grupos 1 nível, bbox de path aproximada).
+**Funcionais:** `opacity` só em shape · `gToast` sem fila · eyedrop/bucket só texto/forma · PSD (texto justificado não distribui palavras; smart object/ajuste/padrão/rotação/espelho/warp entram como imagem fiel; z-order às vezes manual) · SVG (classes em `<style>` não lidas, grupos 1 nível, bbox de path aproximada).
 
 **Técnicas:** arquivos grandes (`canvas.js`, `layers.js`, `templates.js` ~1k linhas) · sem testes automatizados (regressão só no navegador) · pontas soltas conhecidas (`fStartChatPreservandoDados` órfã; `fDownloadHist` marca "baixada" mesmo se o PNG falhar; `return` morto em `dMeasureText`; `realce-black.woff2` órfã no disco).
 
@@ -565,7 +646,29 @@ localStorage.clear(); location.reload();               // reset local (backend r
 - **2026-06-18/19 — Fase 5.1 Backend**: projeto Supabase próprio, 13 migrations, auth real, persistência completa offline-first, Storage.
 - **2026-06-22/25**: analytics por extração (views), performance (índices + RLS initplan), hardening pós-incidente, backup diário automatizado e validado.
 - **2026-06-fim**: XSS corrigido (3 passes com `gEsc`), gate por role no front, refatoração de performance/memory leaks (Fase 3).
+- **2026-07-30**: **IA sai do improviso** — Edge Function `ai` (chave fora do front), motor único `core/ai.js` e 5 recursos plugados nele: encaixar texto no `maxLen`, ajuda aterrada na Central, ler cardápio (foto/PDF) no Sheets, casar fotos com as linhas, legenda com prompt sério. Ver §12.1.
+- **2026-07-30**: capa do card da vitrine volta a ser **a capa da pasta** — a fila de miniaturas do conteúdo (`_fCampThumbs`/`fHomeFillThumbs`, ~100 linhas) saiu: renderizava a arte com campos vazios e deixava o card em branco. Capa do Storage que não baixa agora cai na cor da pasta também na lista do Estúdio (`dRenderFolders`).
+- **2026-07-31**: **Refino da Academia** — sistema de motion sobre os tokens (`js/academia/motion.js` + `--dur-celebration`), progresso que percorre em vez de nascer pronto, acordeão com altura real, crossfade na troca de aula/aba, chat que anexa só a mensagem nova e preserva a rolagem, retomada como escolha, fim de vídeo com próxima ação, e a **experiência de conclusão** (splash + vídeo dos CEOs configurável + nova jornada). Corrigido um furo na regra de progresso: `ended` concluía a aula com 0% assistido.
+- **2026-07-31**: **Academia Delivery Much** — módulo de formação e implementação do franqueado: jornada com mapa de módulos, ambiente de aula em 3 regiões (player MP4 com retomada, materiais, anotações, transcrição, atividade), tutor de IA com prompt no servidor, gestão de conteúdo com upload de MP4, conclusão e certificado em PDF. Ver §21 e `docs/LUMA-ACADEMIA.md`.
 - **2026-07-09**: home do franqueado responsiva (thumbs reais, vitrine honesta, scroll-reveal, busca sticky), redesign do painel Campos (linha compacta + filtros + higiene), topbar (hierarquia + paleta), **auditoria de contraste WCAG aplicada** (tokens `--green-text`, `--var-color` claro, `--d-text3`, CTAs em `--dm-orange-d`). Este documento.
+
+---
+
+## 21. MÓDULO ACADEMIA (`ac*`)
+
+**Doc completa: [LUMA-ACADEMIA.md](LUMA-ACADEMIA.md).** Resumo do que um agente precisa saber antes de tocar aqui:
+
+- **O que é.** Terceira aba de modo na topbar: a **Academia Delivery Much**, onde o franqueado faz a **Formação do Franqueado** (jornada de implementação). Visível às 3 roles; a gestão de conteúdo é `equipe_dm`/`gestao`.
+- ⛔ **Não chamar de "Implementação".** Esse nome já é a categoria de materiais do catálogo (`CAMPS_IMPLEMENTACAO`, `fRenderImplementacao`).
+- **Arquivos:** `js/academia/{academia,aula,agente,gestao,certificado}.js` + `css/modules/academia.css`. Prefixo **`ac*`**; `f*`/`d*`/`g*` intocados.
+- **Estado:** `acState` (curso, matrícula, progresso, notas, certificado, rota, aulaId). Rotas internas por `acGo(rota, arg)`; `setMode('academia')` chama `acInit()` lazy.
+- **Backend:** 8 tabelas em `luma` (`cursos`, `curso_modulos`, `curso_aulas`, `matriculas`, `aula_progresso`, `aula_notas`, `aula_mensagens`, `certificados`) + bucket **privado** `luma-aulas` + RPC `luma.ac_emitir_certificado`. Ver §14 e o changelog.
+- **Certificado não é falsificável:** `luma.certificados` não tem policy de escrita; só a RPC `SECURITY DEFINER` grava, revalidando as aulas obrigatórias. O PDF sai de um Canvas 2D pelo **pdf-lib vendorizado** (mesmo caminho de `fGenPDF`).
+- **Tutor de IA:** task `aula` no motor único `gAskAI`. **O prompt vive na Edge Function** — é a única task assim (as outras montam no front por causa do modo de transição). O front manda só pergunta + contexto, e **nunca** o gabarito da atividade nem dado pessoal. Gate de disponibilidade: `gAiEdgeReady()`, não `gAiReady()`.
+- **Progresso honesto:** o player soma só deltas `< 2s` de `timeupdate`; arrastar a barra até o fim não conclui a aula. Critério de conclusão (`cursos.criterios.pct_min`, padrão 85%) é o mesmo no front e na RPC.
+- **Anotações e conversas são privadas até da equipe** (policy só do dono, sem `is_designer()`).
+- **Motion:** `js/academia/motion.js` é o sistema — helpers que leem os tokens (`acDur`, `acEase`). ⛔ Nunca escreva ms/cubic-bezier em JS. A Academia acrescentou **um** token: `--dur-celebration` (720ms), só para marco de conquista.
+- **Experiência de conclusão:** `js/academia/conclusao.js` — splash + vídeo dos CEOs + próxima jornada, configurável em `luma.cursos.conclusao` e persistida em `luma.matriculas`. Dispara **uma vez por versão**, só com conclusão do servidor + certificado emitido.
 
 ---
 
@@ -573,6 +676,7 @@ localStorage.clear(); location.reload();               // reset local (backend r
 
 - **Este arquivo (`docs/LUMA.md`)** é a documentação oficial. Feature nova, mudança de arquitetura, token novo, tabela nova → atualizar a seção correspondente AQUI.
 - **`docs/LUMA-BACKEND-CHANGELOG.md`** continua como registro append-only de TODA mudança de backend (com data e migration).
+- **`docs/LUMA-ACADEMIA.md`** — doc do módulo Academia (formação do franqueado). O §21 aqui é o resumo; o detalhe mora lá.
 - Docs substituídos por este (podem ser removidos): `LUMA-CONTEXTO.md`, `LUMA-FEATURES.md`, `LUMA-INVENTARIO.md`, `LUMA-BACKUP.md`, `UX-WRITING-DESIGN.md`.
 - `LUMA-BACK_CONTEXT.md` e `LUMA-REGRAS_BACKEND.md` (removidos em 2026-07-16) documentavam **outro projeto** (Portal de Franqueados / DM CRM, Supabase `gplxnzgsculryjykbcuo`) — as lições relevantes vivem no §14.9; os originais, no repo do portal. Também removidos na mesma limpeza: `BACKLOG-EDITOR-FASE5.md` e `CENTRAL-AJUDA-DIAGNOSTICO.md` (auditorias concluídas; o que seguia aberto foi absorvido pelo `luma-brain/07_ROADMAP.md`, e o estado da Central de Ajuda está no §12).
 - Para inventário exaustivo de funções/IDs além do que está aqui: o código é o inventário — `grep` pelos prefixos.

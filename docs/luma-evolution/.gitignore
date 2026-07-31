@@ -1,0 +1,4 @@
+# PNG de cada slide: intermediário entre o HTML e o .pptx — os 31 já estão DENTRO do
+# .pptx e do .pdf versionados. Versioná-los seria guardar a mesma imagem três vezes.
+# Voltam com: node docs/luma-evolution/scripts/publicar.js
+presentation/slides-png/

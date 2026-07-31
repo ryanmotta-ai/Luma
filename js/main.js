@@ -18,22 +18,42 @@ function dUpdateTabPill() {
 }
 
 function setMode(m){
-  if(m!=='franqueado' && m!=='designer') m='franqueado';
+  if(m!=='franqueado' && m!=='designer' && m!=='academia') m='franqueado';
   // Gate por role: franqueado NÃO acessa o Estúdio (trava no clique e via DOM/console).
+  // A Academia é das TRÊS personas (o franqueado estuda; a equipe administra) — sem gate.
   if(m==='designer' && (typeof gIsAdmin!=='function' || !gIsAdmin())) m='franqueado';
+  // Tema de campanha (Much+) veste só o Franqueado. Sair para o Estúdio sem despir
+  // deixava o body com camp-theme-* → tokens/fonte magenta vazavam pro Estúdio inteiro.
+  // Vale igual para a Academia: o magenta do Much+ não é a cor da formação.
+  if(m!=='franqueado' && typeof fRemoveCampTheme==='function') fRemoveCampTheme();
+  // Sair da Academia fecha os drawers de aula (senão o painel fixo do agente/estrutura
+  // fica pairando por cima do Franqueado, que não tem como fechá-lo).
+  if(m!=='academia' && typeof acFecharPaineis==='function') acFecharPaineis();
   // Troca só a classe de modo, preservando as demais (theme-light, rulers-on, simulating...)
-  document.body.classList.remove('mode-franqueado','mode-designer');
+  document.body.classList.remove('mode-franqueado','mode-designer','mode-academia');
   document.body.classList.add('mode-'+m);
   document.getElementById('tab-fran').classList.toggle('active', m==='franqueado');
   document.getElementById('tab-design').classList.toggle('active', m==='designer');
-  
+  const tabAcad = document.getElementById('tab-academia');
+  if(tabAcad) tabAcad.classList.toggle('active', m==='academia');
+
   dUpdateTabPill();
 
   const ctxFran = document.getElementById('topbar-context-fran');
   const ctxDesign = document.getElementById('topbar-context-design');
   if(ctxFran) ctxFran.style.display = m==='franqueado'?'':'none';
   if(ctxDesign) ctxDesign.style.display = m==='designer'?'':'none';
-  if(m==='designer') dInit();
+  // Academia carrega lazy, como o Estúdio: só na primeira entrada paga o sync.
+  if(m==='academia' && typeof acInit==='function') acInit();
+  if(m==='designer'){
+    dInit();
+    // Entrar no Estúdio sempre cai na CASA (aba Campanhas), nunca no painel de Camadas —
+    // que é o contexto de quem já está editando. Ir e voltar do Franqueado devolvia o
+    // designer direto na arte que ele tinha aberto, sem passar pelo catálogo.
+    // A arte NÃO é fechada: dLayers/dActiveTmplId seguem intactos (fechar aqui arriscaria
+    // trabalho não salvo). Só o foco do painel volta pra casa.
+    if(typeof dActivatePanel==='function') dActivatePanel('campaigns');
+  }
 }
 
 // Mostra a aba Designer só pra persona Designer (equipe_dm/gestao).
@@ -51,11 +71,17 @@ function gApplyModeAccess(){
 
 // Função chamada após um login bem-sucedido ou quando a sessão já está ativa
 function gOnLoginSuccess() {
-  // Saída suave do login (fade+zoom) em vez de corte seco, encadeando com a entrada da view.
+  // Saída do login. Se o login estava VISÍVEL (usuário clicou Entrar), toca a tela
+  // de transição de marca; o app monta por baixo enquanto o laranja cobre. No boot
+  // com sessão ativa o login nunca apareceu → saída seca (sem transição fantasma).
   const _login = document.getElementById('g-login-screen');
-  if (_login) {
+  const _loginVisivel = _login && getComputedStyle(_login).display !== 'none';
+  const _hideLogin = () => { if (_login) { _login.style.display = 'none'; _login.classList.remove('gl-out'); } };
+  if (_loginVisivel && typeof gPlayLoginTransition === 'function') {
+    gPlayLoginTransition(_hideLogin);
+  } else if (_login) {
     _login.classList.add('gl-out');
-    setTimeout(() => { _login.style.display = 'none'; _login.classList.remove('gl-out'); }, 320);
+    setTimeout(_hideLogin, 320);
   }
   dUpdateTabPill();
 

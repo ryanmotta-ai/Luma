@@ -6,6 +6,86 @@
 
 ---
 
+## 2026-07-31 — Academia: experiência de conclusão (splash + vídeo dos CEOs)
+
+**Contexto.** Concluir a formação era um overlay igual ao de fechar um módulo. A conclusão é uma **mudança de fase** do franqueado na rede — splash, mensagem institucional e vídeo dos CEOs. Nada disso pode ser hardcoded: a equipe troca texto e vídeo sem deploy.
+
+**Migration:** `supabase/migrations/20260731180000_luma_academia_conclusao.sql`
+
+**Sem tabela nova, sem bucket novo** — e o porquê importa:
+- A **configuração** é uma por curso → coluna `luma.cursos.conclusao` (JSONB: `splash` + `video`). Tabela separada seria um JOIN 1:1 garantido pra sempre.
+- O **estado** é um por (usuário, curso) → colunas em `luma.matriculas`, que já tem exatamente essa cardinalidade e a policy de dono correta: `splash_vista_em`, `splash_versao`, `video_visto_em`, `video_ignorado_em`, `video_visto_versao`, `video_posicao_seg`.
+- O vídeo institucional entra em `luma-aulas` sob `conclusao/<curso>/`, com as policies que já existem (leitura autenticada, escrita `is_designer()`).
+
+**Nenhuma policy nova.** As colunas entram numa tabela cujas policies já são "dono lê/escreve o próprio; designer lê todos" com `WITH CHECK` no UPDATE. Marcar a própria splash como vista não é decisão de segurança — o pior caso é a pessoa rever ou pular a própria celebração.
+
+**Versionamento em dois níveis, de propósito:**
+- `cursos.versao` sobe → a conclusão vale como **nova** e a splash volta.
+- `conclusao.video.versao` sobe → a splash **não** volta; o vídeo novo aparece marcado como "Nova mensagem da liderança" na jornada. Quem já se formou não é obrigado a rever, e o histórico da formação anterior não é sobrescrito.
+
+**Semente de texto (idempotente, `WHERE conclusao = '{}'`).** Texto de partida editável para a splash. ⚠ **Nenhuma fala de CEO foi inventada:** o vídeo nasce `ativo: false`, sem URL, com a introdução marcada como conteúdo a ser gravado pela equipe.
+
+**Correção de regra de progresso incluída neste pacote (front).** O handler de `ended` do player chamava `acVideoTick(aula, true)`, que forçava `pct_assistido = 1` e concluía a aula. Isso **furava** o próprio design de "seek não conta": arrastar a barra até o fim disparava `ended` e a aula era concluída com 0% assistido — medido no navegador (`{pct:0}` → `{pct:1, concluida:true}`). O fim do vídeo agora só grava o que foi de fato assistido e apresenta a próxima ação. Quem assistiu de verdade já cruzou o critério no `timeupdate` antes de chegar lá.
+
+**Ações necessárias:** aplicar a migration. A Edge Function `ai` **não** mudou neste pacote. Conferir as 3 roles: o franqueado escreve o próprio estado de splash/vídeo; a equipe continua lendo matrícula agregada e segue **sem** acesso a anotações e conversas.
+
+---
+
+## 2026-07-31 — Academia Delivery Much: schema da formação do franqueado
+
+**Contexto.** A implementação de um franqueado novo acontecia fora do Luma (planilha + reunião + PDF solto). O módulo **Academia** traz a jornada pra dentro do produto: aulas em vídeo, materiais, anotações, tutor de IA, conclusão e certificado. Doc do módulo: [LUMA-ACADEMIA.md](LUMA-ACADEMIA.md).
+
+**Migration:** `supabase/migrations/20260731120000_luma_academia.sql`
+
+**8 tabelas no schema `luma`** (nomes em PT-BR, como o resto do schema):
+- Conteúdo — `cursos`, `curso_modulos`, `curso_aulas`. Escrita só `is_designer()`; franqueado lê apenas o publicado (módulo publicado **e** curso publicado, checado por `EXISTS` na policy da aula). Transcrição, materiais, atividade e objetivos são **JSONB na aula** — não valem tabela própria porque nunca são consultados fora do contexto da aula.
+- Progresso — `matriculas`, `aula_progresso`. Dono escreve (`WITH CHECK user_id = auth.uid()` em todo INSERT/UPDATE); equipe **lê** para acompanhar a rede.
+- Privado — `aula_notas`, `aula_mensagens`. Policy `FOR ALL` só do dono; **`is_designer()` não entra**. Anotação de estudo e dúvida crua são material de aprendizado, não de gestão.
+- Prova — `certificados`. Leitura dono + equipe. **Sem policy de INSERT/UPDATE/DELETE** (RLS sem policy = deny-all) → cliente não forja nem apaga.
+
+**Função `luma.ac_emitir_certificado(p_curso uuid)`** — `SECURITY DEFINER`, `SET search_path = ''`, `EXECUTE` revogado de `PUBLIC`/`anon` e concedido só a `authenticated` (padrão de `20260619100000_harden_definer_functions`). É a **única** porta de escrita do certificado: revalida no servidor todas as aulas obrigatórias publicadas (com o `criterios.pct_min` do curso), grava `matriculas.concluido_em`, gera o código `LUMA-XXXX-XXXX` e devolve a linha. Idempotente por `(user_id, curso_id, curso_versao)`. Levanta exceção com mensagem em PT-BR (a UI mostra a mensagem crua da função).
+
+**Trigger `luma.ac_guard_aula_curso`** (BEFORE INSERT/UPDATE em `curso_aulas`) — força `curso_id` a ser o curso do módulo da aula. Sem isso um UPDATE errado na gestão faria a aula aparecer numa formação e na sidebar de outra. `EXECUTE` revogado de todos (dispara pelo trigger).
+
+**Bucket novo `luma-aulas`** — **PRIVADO**, 500 MB/arquivo, mime restrito (`video/mp4`, PDF, imagem, VTT, CSV, DOCX, XLSX). É o primeiro bucket de conteúdo privado: os outros são públicos porque a arte final é pública, e vídeo de treinamento da rede não é. Leitura: qualquer autenticado (o franqueado precisa assistir). Escrita/UPDATE/DELETE: `is_designer()`. O front usa `createSignedUrl` (2 h vídeo, 1 h material).
+
+**Perf:** policies com `(select auth.uid())` / `(select public.is_designer())` — o padrão initplan desta base (`20260622130000`). Índices: `(curso_id, ordem)` nos módulos, `(modulo_id, ordem)` e `(curso_id, publicado)` nas aulas, `(user_id, curso_id)` e `(curso_id, concluida)` no progresso, `(user_id, aula_id, created_at)` em notas e mensagens.
+
+**Edge Function `ai`** — task nova **`aula`** (tutor da Academia). É a **primeira task cujo prompt é montado no servidor**: o front manda `{prompt: pergunta, contexto: {...}}` e a function compõe o prompt pedagógico (`AULA_SISTEMA`, versionado em `AULA_PROMPT_V`). A decisão de 2026-07-30 (function repassa prompt do front) **continua valendo para as tasks antigas** — elas têm modo de transição com chave local e mover o builder criaria prompt duplicado. A task `aula` nasce sem esse legado, então método socrático, proibição de entregar gabarito e exigência de confirmação humana ficam fora do alcance do DevTools. Tetos próprios: pergunta ≤ 1.500 chars, contexto montado ≤ 24.000 chars, histórico ≤ 8 trocas. Responde em texto (não JSON).
+
+**Front (`js/core/ai.js`)** — `gAskAI` ganhou `opts.contexto` (repassado íntegro à function) e `gAiEdgeReady()`, que diz se o caminho SERVIDOR está disponível. Recurso cujo prompt vive na function tem de perguntar por este, não por `gAiReady()`: com a chave de transição no front, `gAiReady()` dizia "disponível" e toda pergunta do tutor falhava.
+
+**Ações necessárias:**
+1. Aplicar a migration.
+2. `supabase functions deploy ai` (a task `aula` só existe na versão nova). Sem isso, o tutor aparece como indisponível e o resto do módulo funciona normalmente.
+3. Conferir as **3 roles**: `franqueado` (vê só publicado, não abre a gestão, não lê progresso de outro), `equipe_dm` (edita conteúdo, lê progresso agregado, **não** lê anotação/conversa), `gestao` (igual `equipe_dm` + o que já tinha).
+
+---
+
+## 2026-07-30 — Edge Function `ai`: a chave do Gemini sai do front
+
+**Contexto (incidente latente).** A chave da API do Gemini estava **hardcoded em `js/00-config.js`** (`LUMA_GEMINI_API_KEY`) e era servida a todo browser de franqueado — qualquer DevTools lia e gastava a cota da DM, sem freio e sem rastro. Fere o guardrail "nenhum segredo no código" (`luma-brain/06_OPERATING_SYSTEM.md` §7). A chave já tinha sido trocada uma vez por quebra (commit `9422d0a`), o que confirma o padrão.
+
+**Arquivo novo:** `supabase/functions/ai/index.ts` — proxy único de IA.
+- **Autorização:** exige JWT válido (`auth.getUser()` com o client anon + header, mesmo padrão do `invite-user`). Qualquer role autenticada usa — as 3 personas têm recurso de IA. O que se protege aqui é a **cota**, não dado.
+- **Chave:** `Deno.env.get('GEMINI_API_KEY')` — secret do projeto. Sem o secret, responde 503 e o front cai no motor local.
+- **Freio:** rate-limit de 20 chamadas/minuto por usuário, em memória do isolate. ⚠ **Teto assumido:** é por instância, não global — serve contra loop/abuso acidental. Se precisar de contabilidade exata, virar tabela `luma.ai_uso` + RPC.
+- **Tetos por chamada:** prompt ≤ 12.000 chars, ≤ 8 anexos, ≤ ~6 MB de base64 somados, mime de anexo só `image/png|jpeg|webp|gif` ou `application/pdf`.
+- **Tarefas aceitas** (allowlist, pra recusar uso genérico do proxy): `legenda`, `encurtar`, `ajuda`, `cardapio`, `casar-fotos`, `cli` (console interno do time — `js/core/console.js`, gated por `gIsAdmin()` no front).
+- **Decisão de arquitetura registrada:** a function **repassa** o prompt montado pelo front em vez de montar prompt aqui. Motivo: sem build/ESM, prompt no servidor viraria prompt **duplicado** (o front precisa dele no modo transição) — e duplicar motor é a proibição nº 1 desta base. Consequência aceita: um usuário logado da DM consegue gastar tokens com prompt próprio, limitado pelo rate-limit. Se algum dia precisar de controle rígido, os builders migram pra cá task por task.
+
+**Front:** `js/core/ai.js` (motor único — `gAskAI`/`gAiReady`/`gAiParseJson`/`gAiFileToPart`). Tenta a function; se ela não estiver publicada (404), cai no **caminho de transição** (chave do front, comportamento atual) e loga o aviso. Nenhum outro arquivo do front toca a API do Gemini — `gGetGeminiApiKey`/`gGetGeminiModel` foram removidos.
+
+**Ações necessárias (Pedro + Ryan), nesta ordem:**
+1. `supabase secrets set GEMINI_API_KEY=<chave NOVA>` — gerar uma chave nova, a atual já circulou em browser.
+2. `supabase functions deploy ai`.
+3. Revogar a chave antiga no Google Cloud e **apagar** `geminiApiKey`/`LUMA_GEMINI_API_KEY` de `js/00-config.js` (o front passa a usar só a function).
+4. Conferir no console do navegador que não aparece mais `[ai] Edge Function 'ai' não publicada`.
+
+**Enquanto os passos acima não rodarem:** a IA continua funcionando pelo caminho de transição — nada quebra, e a exposição da chave permanece. Não é estado final.
+
+---
+
 ## 2026-06-22 — Hardening pós-incidente: views SECURITY INVOKER + revoke de funções de trigger
 
 **Contexto:** ao mexer em **Settings › API › Exposed schemas**, o schema `analytics` foi exposto pela Data API. Isso disparou **6 ERROR** de segurança (`security_definer_view` — view `SECURITY DEFINER` exposta fura RLS) + WARN de funções `SECURITY DEFINER` chamáveis via `/rest/v1/rpc/`. **Os dados não vazaram:** as views já estavam sem grant de `SELECT` pra `anon`/`authenticated`.

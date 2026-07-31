@@ -40,77 +40,20 @@
 <link rel="stylesheet" href="css/modules/layers-panel.css">
 <link rel="stylesheet" href="css/modules/toolbar.css">
 <link rel="stylesheet" href="css/components/pwa-install.css">
+<link rel="stylesheet" href="css/components/login.css">
+<link rel="stylesheet" href="css/modules/upload-panel.css">
+<!-- depois de franqueado/chat/live-preview: sobrepõe o layout das 3 colunas -->
+<link rel="stylesheet" href="css/modules/panel-dock.css">
+<link rel="stylesheet" href="css/modules/help-widget.css">
+<link rel="stylesheet" href="css/modules/console.css">
+<link rel="stylesheet" href="css/modules/academia.css">
 </head>
 <body class="mode-franqueado theme-light">
 
-<!-- ══ GATE DE AUTENTICAÇÃO (CLIENT-SIDE) ══ -->
+<!-- ══ GATE DE AUTENTICAÇÃO (CLIENT-SIDE) ══
+     Visual em css/components/login.css. Autofill do Chrome fica aqui (é global,
+     não só do login) e o restante das regras .gl-* migrou para o arquivo. -->
 <style>
-@keyframes glFadeUp {
-  0% { opacity: 0; transform: translateY(30px) scale(0.95); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
-}
-@keyframes glFloat {
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-4px); }
-  100% { transform: translateY(0px); }
-}
-@keyframes glSpin {
-  100% { transform: rotate(360deg); }
-}
-@keyframes glBg {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-@keyframes glLogoFade {
-  0% { opacity: 0; transform: translateY(10px); }
-  100% { opacity: 0.95; transform: translateY(0); }
-}
-.gl-wrap {
-  animation: glFadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  position: relative;
-  z-index: 10;
-}
-.gl-inner {
-  background: #ffffff;
-  padding: 40px;
-  border-radius: 12px;
-  width: 380px;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  animation: glFloat 6s ease-in-out infinite alternate;
-  animation-delay: 0.8s;
-  position: relative;
-  z-index: 2;
-}
-.gl-input-label {
-  display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500; color: #6b7280; letter-spacing: 0.01em; transition: color 0.3s ease;
-}
-.gl-input-label:focus-within {
-  color: #1a1a1a;
-}
-.gl-input-wrap input {
-  background: #ffffff !important;
-  color: #1a1a1a !important;
-  border: 1px solid #e2e8f0 !important;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  border-radius: 12px !important;
-  padding: 14px 16px !important;
-  font-size: 15px !important;
-  width: 100%;
-  box-sizing: border-box;
-  font-weight: 500;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.02) inset;
-}
-.gl-input-wrap input::placeholder { color: #a0aec0; font-weight: 400; }
-.gl-input-wrap input:focus {
-  background: #fff !important;
-  border-color: #ff9000 !important;
-  box-shadow: 0 0 0 4px rgba(255,144,0,0.15) !important;
-  outline: none;
-}
 /* Mata o Auto-fill Azul feio do Chrome */
 input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus, input:-webkit-autofill:active {
   -webkit-box-shadow: 0 0 0 1000px #f4f5f7 inset !important;
@@ -120,118 +63,158 @@ input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:foc
 input:focus:-webkit-autofill {
   -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
 }
-/* Botões Laranja Luma */
-.gl-btn {
-  background: var(--dm-orange, #FF9000) !important;
-  color: #ffffff !important;
-  border-radius: 12px !important;
-  padding: 12px !important;
-  font-weight: 600 !important;
-  font-size: 14px !important;
-  transition: all 0.2s ease !important;
-  border: none !important;
-  cursor: pointer;
-  display: flex; justify-content: center; align-items: center;
-  gap: 8px;
-  position: relative;
-  overflow: hidden;
-}
-.gl-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(255,144,0,0.3) !important;
-  background: #f85400 !important;
-}
-.gl-btn:active:not(:disabled) {
-  transform: scale(0.97);
-  box-shadow: 0 4px 8px rgba(255,144,0,0.2) !important;
-}
-.gl-btn:disabled {
-  background: #e2e8f0 !important; cursor: not-allowed; transform: none; box-shadow: none !important; color: #a0aec0 !important;
-}
-.gl-link {
-  color: #888; transition: color 0.2s; font-size: 12px; text-decoration: none; font-weight: 500;
-}
-.gl-link:hover {
-  color: var(--dm-orange, #FF9000);
-}
-/* ── LOGIN MOBILE ── card fluido + inputs 16px (sem auto-zoom iOS) + safe-area */
-@media (max-width: 480px){
-  #g-login-screen{ padding: calc(16px + var(--safe-top)) calc(16px + var(--safe-right)) calc(16px + var(--safe-bottom)) calc(16px + var(--safe-left)); align-items: flex-start; overflow-y: auto; }
-  .gl-wrap{ width: 100%; margin-top: 8vh; }
-  .gl-inner{ width: 100%; padding: 28px 22px; animation: glFadeUp 0.8s cubic-bezier(0.16,1,0.3,1) forwards; }  /* sem float infinito no celular */
-  .gl-input-wrap input{ font-size: 16px !important; padding: 15px 16px !important; }
-  .gl-btn{ padding: 15px !important; font-size: 15px !important; min-height: var(--tap-min); }
-}
 </style>
 
-<div id="g-login-screen" style="display:none;position:fixed;inset:0;z-index:99999;background:#FF9000;align-items:center;justify-content:center;">
-  <div class="gl-wrap">
-    <div class="gl-inner">
-      
-      <div style="text-align:center;margin-bottom:8px;">
-        <img src="assets/logos/luma-h-cor.png" alt="Luma" style="height:48px;margin-bottom:8px;">
+<div id="g-login-screen" style="display:none;position:fixed;inset:0;z-index:99999;">
+  <div class="gl-page">
+
+    <!-- Painel de marca: headline + mosaico de artes reais (a arte é o herói) -->
+    <aside class="gl-brand" aria-label="Sobre o Luma">
+      <img class="gl-brand-logo" src="assets/logos/luma-h-branca.png" alt="Luma">
+      <div class="gl-brand-copy">
+        <h1>Arte de agência, pronta em um minuto.</h1>
+        <p>Você escolhe a campanha e responde a Luma. A arte sai no padrão Delivery Much — sempre.</p>
       </div>
+      <div class="gl-mosaic" aria-hidden="true">
+        <div class="gl-art gl-art-1"><img src="assets/covers/pt.png" alt=""></div>
+        <div class="gl-art gl-art-2"><img src="assets/covers/gb.png" alt=""></div>
+        <div class="gl-art gl-art-3"><img src="assets/covers/dd.png" alt=""></div>
+        <div class="gl-art gl-art-4 gl-muchplus"><span class="gl-badge">MUCH+</span><img src="assets/logos/muchplus-trim.png" alt=""></div>
+        <div class="gl-art gl-art-5"><img src="assets/covers/cc.png" alt=""></div>
+      </div>
+      <div class="gl-brand-foot">Feito para as franquias Delivery Much</div>
+    </aside>
+
+    <!-- Formulário -->
+    <main class="gl-form-side">
 
       <!-- Step 1: Login -->
-      <form id="gl-step-login" onsubmit="gDoLogin(event)" style="display:flex;flex-direction:column;gap:18px;">
-        
-        <label class="gl-input-label">
-          E-mail corporativo
-          <div class="gl-input-wrap">
-            <input id="gl-email" type="email" required placeholder="nome@deliverymuch.com.br">
-          </div>
+      <form id="gl-step-login" class="gl-form" onsubmit="gDoLogin(event)" style="display:flex">
+        <div>
+          <h2>Que bom te ver de novo</h2>
+          <p class="gl-sub">Entre com seu e-mail corporativo pra voltar a criar.</p>
+        </div>
+
+        <label class="gl-field">
+          <span class="gl-lbl">E-mail corporativo</span>
+          <div class="gl-in"><input id="gl-email" type="email" required placeholder="nome@deliverymuch.com.br" autocomplete="email"></div>
         </label>
-        
-        <label class="gl-input-label">
-          Senha
-          <div class="gl-input-wrap" style="position:relative;">
-            <input id="gl-pass" type="password" required placeholder="••••••••" style="padding-right:44px !important;">
-            <button type="button" onclick="gTogglePass()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:transparent;border:none;color:#a0aec0;cursor:pointer;padding:8px;border-radius:8px;transition:all 0.2s;">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+
+        <label class="gl-field">
+          <span class="gl-lbl">Senha</span>
+          <div class="gl-in">
+            <input id="gl-pass" type="password" required placeholder="••••••••" autocomplete="current-password" style="padding-right:48px"
+              onkeyup="document.getElementById('gl-caps').classList.toggle('show', event.getModifierState && event.getModifierState('CapsLock'))">
+            <button class="gl-eye" type="button" aria-label="Mostrar senha" aria-pressed="false"
+              onclick="var p=document.getElementById('gl-pass');var mostra=p.type==='password';gTogglePass();this.setAttribute('aria-pressed',mostra);this.setAttribute('aria-label',mostra?'Ocultar senha':'Mostrar senha')">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
           </div>
+          <span class="gl-hint" id="gl-caps" aria-live="polite">Caps Lock está ativado.</span>
         </label>
 
-        <div id="gl-error" style="display:none;color:#e53e3e;font-size:13px;background:rgba(229,62,62,0.1);padding:12px;border-radius:8px;text-align:center;font-weight:500;"></div>
+        <div id="gl-error" class="gl-msg gl-msg-err" role="alert" style="display:none"></div>
 
-        <button id="gl-btn-login" type="submit" class="gl-btn" style="margin-top:8px;">
+        <button id="gl-btn-login" type="submit" class="gl-btn">
           <span class="gl-btn-text">Entrar</span>
-          <svg class="gl-spinner" viewBox="0 0 24 24" style="display:none;width:20px;height:20px;animation:glSpin 1s linear infinite;"><circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.2)" stroke-width="3" fill="none"/><path d="M12 2a10 10 0 0 1 10 10" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
+          <svg class="gl-spinner" viewBox="0 0 24 24" style="display:none;animation:glSpin 1s linear infinite"><circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.25)" stroke-width="3" fill="none"/><path d="M12 2a10 10 0 0 1 10 10" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
         </button>
-        
-        <div style="text-align:center;margin-top:4px;">
-          <a href="#" onclick="gShowForgotView(); return false;" class="gl-link">Esqueci minha senha</a>
-        </div>
+
+        <a href="#" class="gl-link" onclick="gShowForgotView(); return false;">Esqueci minha senha</a>
+        <p class="gl-foot">Acesso restrito a franqueados e equipe Delivery Much.<br>Sem conta? Fale com a gestão da sua rede.</p>
       </form>
 
       <!-- Step 2: Forgot Password -->
-      <form id="gl-step-forgot" onsubmit="gDoForgot(event)" style="display:none;flex-direction:column;gap:18px;">
-        <p style="font-size:14px;color:#4a5568;margin:0;line-height:1.5;text-align:center;letter-spacing:-0.01em;">Insira seu e-mail corporativo para receber um link de recuperação.</p>
-        
-        <label class="gl-input-label">
-          E-mail corporativo
-          <div class="gl-input-wrap">
-            <input id="gf-email" type="email" required placeholder="nome@deliverymuch.com.br">
-          </div>
+      <form id="gl-step-forgot" class="gl-form" onsubmit="gDoForgot(event)" style="display:none">
+        <div>
+          <h2>Recuperar acesso</h2>
+          <p class="gl-sub">Insira seu e-mail corporativo e enviaremos um link de recuperação.</p>
+        </div>
+
+        <label class="gl-field">
+          <span class="gl-lbl">E-mail corporativo</span>
+          <div class="gl-in"><input id="gf-email" type="email" required placeholder="nome@deliverymuch.com.br" autocomplete="email"></div>
         </label>
 
-        <div id="gf-error" style="display:none;color:#e53e3e;font-size:13px;background:rgba(229,62,62,0.1);padding:12px;border-radius:8px;text-align:center;font-weight:500;"></div>
-        <div id="gf-success" style="display:none;color:#38a169;font-size:13px;background:rgba(56,161,105,0.1);padding:12px;border-radius:8px;text-align:center;font-weight:500;"></div>
+        <div id="gf-error" class="gl-msg gl-msg-err" role="alert" style="display:none"></div>
+        <div id="gf-success" class="gl-msg gl-msg-ok" role="status" style="display:none"></div>
 
-        <button id="gf-btn" type="submit" class="gl-btn" style="margin-top:8px;">
+        <button id="gf-btn" type="submit" class="gl-btn">
           <span class="gl-btn-text">Enviar link</span>
-          <svg class="gl-spinner" viewBox="0 0 24 24" style="display:none;width:20px;height:20px;animation:glSpin 1s linear infinite;"><circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.2)" stroke-width="3" fill="none"/><path d="M12 2a10 10 0 0 1 10 10" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
+          <svg class="gl-spinner" viewBox="0 0 24 24" style="display:none;animation:glSpin 1s linear infinite"><circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.25)" stroke-width="3" fill="none"/><path d="M12 2a10 10 0 0 1 10 10" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
         </button>
-        
-        <div style="text-align:center;margin-top:4px;">
-          <a href="#" onclick="gShowLoginView(); return false;" class="gl-link">← Voltar ao login</a>
-        </div>
+
+        <a href="#" class="gl-link" onclick="gShowLoginView(); return false;">← Voltar ao login</a>
       </form>
 
-    </div>
+    </main>
   </div>
-  <img src="assets/logos/dm-h-branca.png" alt="Delivery Much" style="position:absolute;bottom:24px;height:32px;opacity:0;animation:glLogoFade 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;animation-delay:0.4s;">
 </div>
+
+<!-- Tela de transição login → app (motion de marca). Visual em login.css; disparada
+     por gPlayLoginTransition, orquestrada por gOnLoginSuccess (main.js). -->
+<div id="gl-transition" aria-hidden="true">
+  <div class="gl-trans-logo-wrap">
+    <img class="gl-trans-logo" src="assets/logos/luma-h-branca.png" alt="">
+    <span class="gl-trans-sheen"></span>
+  </div>
+</div>
+
+<script>
+  // Toca a tela de transição de marca ao entrar no app. `done` esconde o login e é
+  // chamado SOB a cobertura (~460ms) — não no fim — senão o "atravessar" (fase 3)
+  // revelaria o login de novo em vez do app. Reduced-motion → fade curto e seco.
+  function gPlayLoginTransition(done){
+    var ov = document.getElementById('gl-transition');
+    if(!ov){ if(done) done(); return; }
+    var reduz = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if(reduz){
+      ov.style.cssText += ';display:flex;opacity:1;clip-path:none';
+      if(done) done();
+      setTimeout(function(){ ov.style.transition='opacity .25s'; ov.style.opacity='0'; }, 20);
+      setTimeout(function(){ ov.style.cssText=''; }, 320);
+      return;
+    }
+    var acabou = false;
+    var fim = function(){
+      if(acabou) return; acabou = true;
+      ov.classList.remove('playing'); ov.style.display='none';
+      ov.removeEventListener('animationend', onEnd);
+    };
+    var onEnd = function(e){ if(e.target === ov) fim(); };
+    ov.classList.add('playing');
+    ov.addEventListener('animationend', onEnd);
+    setTimeout(function(){ if(done) done(); }, 460); // login some coberto pelo laranja
+    setTimeout(fim, 1600); // cinto: aba oculta não dispara animationend
+  }
+
+  // Parallax sutil do mosaico do login seguindo o ponteiro (Arc-like: a UI responde
+  // física). Só mouse fino + sem reduced-motion; o transition de .35s no container dá
+  // o "lag orgânico". As cartas não são tocadas (glArtFloat anima `translate`, sem briga).
+  (function(){
+    var fino = window.matchMedia && window.matchMedia('(pointer:fine)').matches;
+    var reduz = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if(!fino || reduz) return;
+    var painel = document.querySelector('#g-login-screen .gl-brand');
+    var mos = document.querySelector('#g-login-screen .gl-mosaic');
+    if(!painel || !mos) return;
+    var raf = null;
+    painel.addEventListener('mousemove', function(e){
+      if(raf) return;
+      raf = requestAnimationFrame(function(){
+        raf = null;
+        var r = painel.getBoundingClientRect();
+        var x = ((e.clientX - r.left)/r.width - .5) * -12;
+        var y = ((e.clientY - r.top)/r.height - .5) * -9;
+        mos.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px)';
+      });
+    });
+    painel.addEventListener('mouseleave', function(){
+      if(raf){ cancelAnimationFrame(raf); raf = null; }
+      mos.style.transform = '';
+    });
+  })();
+</script>
 
 <!-- ══ SPLASH SCREEN (entrada) ══ -->
 <div id="sp-overlay" role="status" aria-label="Carregando Luma" style="position:fixed;inset:0;z-index:9999;background:#FF9000;display:flex;flex-direction:column;align-items:center;justify-content:center">
@@ -256,6 +239,7 @@ input:focus:-webkit-autofill {
   <nav class="mode-tabs" aria-label="Alternar área do Luma">
     <div class="mode-tab-pill" id="mode-tab-pill"></div>
     <button class="mode-tab active" id="tab-fran" onclick="setMode('franqueado')" aria-label="Abrir área do Franqueado"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 9l2-5h14l2 5"/><path d="M5 13v7h14v-7"/><path d="M9 20v-5h6v5"/><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/></svg><span>Franqueado</span></button>
+    <button class="mode-tab" id="tab-academia" onclick="setMode('academia')" aria-label="Abrir a Academia Delivery Much"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12.5V17c0 1.7 2.7 3 6 3s6-1.3 6-3v-4.5"/></svg><span>Academia</span></button>
     <button class="mode-tab" id="tab-design" onclick="setMode('designer')" aria-label="Abrir área do Designer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m14.5 4.5 5 5L8 21H3v-5z"/><path d="m12 7 5 5"/><path d="M3 3h7"/></svg><span>Designer</span></button>
   </nav>
   
@@ -334,190 +318,262 @@ input:focus:-webkit-autofill {
   </div>
 </div>
 
+<!-- ══ CENTRAL DE AJUDA DO FRANQUEADO — widget compacto (só no franqueado) ══
+     Aberto por gOpenHelp() quando NÃO está no modo designer (o designer segue com #g-help-modal).
+     Panes preenchidos por js/core/help.js (gFraHelp*/gFh*). -->
+<div id="fhw" role="dialog" aria-modal="true" aria-label="Ajuda do Luma" style="display:none" onclick="if(event.target.classList.contains('fhw-scrim'))gFraHelpClose()">
+  <div class="fhw-scrim"></div>
+  <div class="fhw-panel">
+    <div id="fhw-hd"></div>
+    <div class="fhw-body">
+      <div class="fhw-pane active" id="fhw-pane-inicio">
+        <div class="fhw-home">
+          <div class="fhw-ask" role="button" tabindex="0" onclick="gFhGo('ajuda')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();gFhGo('ajuda')}">
+            <div class="fhw-ask-txt"><b>Buscar na ajuda</b><span>Encontre um tema em segundos</span></div>
+            <span class="fhw-ask-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span>
+          </div>
+          <div class="fhw-label">Novidade</div>
+          <div class="fhw-news" role="button" tabindex="0" onclick="gFhOpenArt('vitrine')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();gFhOpenArt('vitrine')}">
+            <div class="fhw-news-cover"><b>NOVO</b></div>
+            <div class="fhw-news-body"><b>Sua vitrine agora é gerida pelo banco</b><p>As campanhas aparecem sozinhas assim que a gestão publica. Você não precisa fazer nada.</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="fhw-pane" id="fhw-pane-ajuda">
+        <div class="fhw-searchbar">
+          <div class="fhw-search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input placeholder="Qual é a sua dúvida?" id="fhw-q" aria-label="Buscar na ajuda" oninput="gFhSearch()">
+          </div>
+        </div>
+        <div class="fhw-count" id="fhw-count"></div>
+        <div class="fhw-rows" id="fhw-col-list"></div>
+      </div>
+      <div class="fhw-pane" id="fhw-pane-colecao"></div>
+      <div class="fhw-pane" id="fhw-pane-topic"></div>
+      <div class="fhw-pane" id="fhw-pane-suporte">
+        <div class="fhw-support">
+          <div class="fhw-support-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H8l-4 4V4Z"/><path d="M8 9h8M8 12.5h5"/></svg></div>
+          <h2>Precisa falar com a gente?</h2>
+          <p>Não achou a resposta aqui? Manda pra equipe do Luma que a gente te ajuda.</p>
+          <button type="button" class="fhw-btn" onclick="gFraHelpEmail()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v14H4z"/><path d="m4 6 8 6 8-6"/></svg>Enviar um e-mail</button>
+          <button type="button" class="fhw-btn fhw-btn-ghost" onclick="gHelpContactSupport()">Abrir formulário de suporte</button>
+          <small>A equipe responde em até 1 dia útil.</small>
+        </div>
+      </div>
+    </div>
+    <div class="fhw-tabs" role="tablist" aria-label="Seções da ajuda">
+      <button type="button" class="fhw-tab active" id="fhw-tab-inicio" onclick="gFhGo('inicio')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>Início</span></button>
+      <button type="button" class="fhw-tab" id="fhw-tab-ajuda" onclick="gFhGo('ajuda')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 1 1 3.6 1.9c-.9.6-1.4 1.1-1.4 2.1M12 17h.01"/></svg><span>Ajuda</span></button>
+      <button type="button" class="fhw-tab" id="fhw-tab-suporte" onclick="gFhGo('suporte')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v12H8l-4 4V5Z"/></svg><span>Suporte</span></button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ MODAL DE PERFIL DE USUÁRIO ══ -->
 <button id="g-help-float" class="g-help-float" type="button" onclick="gOpenHelp(this)" data-help-trigger aria-controls="g-help-modal" aria-expanded="false" aria-label="Abrir Central de Ajuda" title="Central de Ajuda">
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
 </button>
 
-<div id="g-profile-modal" class="g-profile-modal" onclick="if(event.target===this)gCloseUserProfileModal()">
+<div id="g-profile-modal" class="g-profile-modal" role="dialog" aria-modal="true" aria-labelledby="prof-modal-title" onclick="if(event.target===this)gCloseUserProfileModal()">
   <div class="prof-box">
-    
-    <!-- Sidebar -->
-    <div class="prof-sidebar">
-      <div class="prof-sidebar-user">
-        <div class="prof-sidebar-av-wrap">
-          <div class="prof-sidebar-av" id="prof-sidebar-avatar"></div>
-        </div>
-        <div class="prof-sidebar-name" id="prof-sidebar-name"></div>
-        <!-- Vazio de propósito: preenchido com o papel real ao abrir o perfil (ver topbar). -->
-        <span class="admin-badge" id="prof-sidebar-role" style="font-size: 9px; padding: 2px 6px;"></span>
+    <aside class="prof-sidebar" aria-label="Navegação da conta">
+      <div class="prof-brand">
+        <!-- A marca do Luma (mesma varinha do favicon.svg), não um ícone genérico de lápis.
+             Vem SEM o retângulo laranja do arquivo: o .prof-brand-mark já é o fundo laranja
+             arredondado. currentColor em vez do branco fixo, pra herdar do container. -->
+        <span class="prof-brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none">
+            <path d="M8 24 L15.5 16.5" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+            <path d="M17.5 14.5 L23 9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+            <path d="M12 5.5 Q12 9 15.5 9 Q12 9 12 12.5 Q12 9 8.5 9 Q12 9 12 5.5 Z" fill="currentColor"/>
+            <path d="M20 19.5 Q20 23 23.5 23 Q20 23 20 26.5 Q20 23 16.5 23 Q20 23 20 19.5 Z" fill="currentColor"/>
+            <path d="M24 15 Q24 17 26 17 Q24 17 24 19 Q24 17 22 17 Q24 17 24 15 Z" fill="currentColor"/>
+            <line x1="25.5" y1="6.5" x2="27.5" y2="4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="23.5" y1="5.5" x2="23.5" y2="3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="26" y1="8.5" x2="28.5" y2="8.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="prof-brand-copy"><strong>Luma</strong><small>Conta e gestão</small></span>
       </div>
-      
-      <div class="prof-nav">
-        <button class="prof-nav-btn active" id="prof-nav-dados" onclick="gProfileSwitchTab('dados')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          <span>Dados Pessoais</span>
+
+      <div class="prof-sidebar-user">
+        <div class="prof-sidebar-av-wrap"><div class="prof-sidebar-av" id="prof-sidebar-avatar"></div></div>
+        <div class="prof-sidebar-copy">
+          <div class="prof-sidebar-name" id="prof-sidebar-name"></div>
+          <span class="admin-badge" id="prof-sidebar-role"></span>
+        </div>
+      </div>
+
+      <span class="prof-nav-label">Sua conta</span>
+      <nav class="prof-nav" aria-label="Seções da conta">
+        <button type="button" class="prof-nav-btn active" id="prof-nav-dados" onclick="gProfileSwitchTab('dados')" aria-controls="prof-pane-dados">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>Dados pessoais</span>
         </button>
-        <button class="prof-nav-btn" id="prof-nav-seguranca" onclick="gProfileSwitchTab('seguranca')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <button type="button" class="prof-nav-btn" id="prof-nav-seguranca" onclick="gProfileSwitchTab('seguranca')" aria-controls="prof-pane-seguranca">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           <span>Segurança</span>
         </button>
-        <button class="prof-nav-btn" id="prof-nav-estatisticas" onclick="gProfileSwitchTab('estatisticas')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-          <span>Estatísticas</span>
+        <button type="button" class="prof-nav-btn" id="prof-nav-estatisticas" onclick="gProfileSwitchTab('estatisticas')" aria-controls="prof-pane-estatisticas">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V5M16 20v-7M22 20V3"/></svg>
+          <span>Atividade</span>
         </button>
-      </div>
-      
-        <button class="prof-nav-btn" id="prof-nav-equipe" onclick="gProfileSwitchTab('equipe')" style="display:none">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          <span>Equipe</span>
+        <button type="button" class="prof-nav-btn" id="prof-nav-equipe" onclick="gProfileSwitchTab('equipe')" aria-controls="prof-pane-equipe" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg>
+          <span>Equipe</span><small class="prof-nav-tag">ADMIN</small>
         </button>
-      <button class="prof-nav-btn prof-logout-btn" onclick="gLogout()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        <!-- Entrada do Luma CLI. É o único caminho no celular (não há Ctrl+` sem teclado)
+             e fica aqui, escondido no painel, em vez de botão solto na tela do franqueado.
+             Revelado por gIsAdmin() em gOpenUserProfileModal — o MESMO gate do console. -->
+        <button type="button" class="prof-nav-btn prof-nav-cli" id="prof-nav-console" onclick="gProfileOpenCli()" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 17 6-6-6-6"/><path d="M12 19h8"/></svg>
+          <span>Console</span><small class="prof-nav-tag">DEV</small>
+        </button>
+      </nav>
+
+      <button type="button" class="prof-nav-btn prof-logout-btn" onclick="gLogout()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg>
         <span>Sair da conta</span>
       </button>
-    </div>
-    
-    <!-- Content Area -->
-    <div class="prof-content">
-      <!-- Modal Header -->
-      <div class="prof-header">
+    </aside>
+
+    <section class="prof-content">
+      <header class="prof-header">
         <div class="prof-title-area">
+          <span class="prof-eyebrow">Conta</span>
           <h3 id="prof-modal-title">Dados Pessoais</h3>
           <p id="prof-modal-subtitle">Gerencie suas informações básicas de exibição.</p>
         </div>
-        <button class="prof-close" onclick="gCloseUserProfileModal()" aria-label="Fechar">×</button>
-      </div>
-      
-      <!-- Modal Body -->
+        <button type="button" class="prof-close" onclick="gCloseUserProfileModal()" aria-label="Fechar painel da conta">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg>
+        </button>
+      </header>
+
       <div class="prof-body">
-        
-        <!-- PANE: DADOS PESSOAIS -->
         <div class="prof-pane active" id="prof-pane-dados">
-          <form id="prof-form-dados" onsubmit="gProfileSaveData(event)">
-            <!-- Avatar Edit box -->
-            <div class="prof-avatar-edit-box">
-              <div class="prof-avatar-wrap">
-                <div class="prof-avatar-editor" onclick="gProfileTriggerUpload()" title="Alterar foto de perfil">
-                  <div class="prof-avatar-editor-img" id="prof-avatar-editor-img">RY</div>
-                  <div class="prof-avatar-overlay">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          <!-- Sem "Identidade e preferências" aqui: o cabeçalho acima já diz "Dados Pessoais ·
+               Gerencie suas informações básicas". Eram dois títulos empilhados dizendo o mesmo. -->
+          <div class="prof-account-layout">
+            <form id="prof-form-dados" class="prof-surface prof-data-surface" onsubmit="gProfileSaveData(event)">
+              <div class="prof-avatar-edit-box">
+                <div class="prof-avatar-wrap">
+                  <!-- Dois caminhos pro upload (clicar no avatar, link "Trocar foto"), não três.
+                       O badge de câmera flutuante era um terceiro botão pro mesmo lugar. -->
+                  <div class="prof-avatar-editor" onclick="gProfileTriggerUpload()" title="Alterar foto de perfil">
+                    <div class="prof-avatar-editor-img" id="prof-avatar-editor-img">RY</div>
+                    <div class="prof-avatar-overlay" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h4l2-3h4l2 3h4v13H4Z"/><circle cx="12" cy="13" r="4"/></svg>
+                    </div>
                   </div>
+                  <input type="file" id="prof-avatar-input" accept="image/*" style="display:none" onchange="gProfileHandleUpload(this)">
                 </div>
-                <button class="prof-avatar-badge" onclick="gProfileTriggerUpload()" title="Alterar foto" type="button">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                </button>
-                <input type="file" id="prof-avatar-input" accept="image/*" style="display: none;" onchange="gProfileHandleUpload(this)">
+                <div class="prof-avatar-copy">
+                  <strong>Foto de perfil</strong>
+                  <p class="prof-avatar-hint">JPG ou PNG de até 1MB. Uma imagem quadrada funciona melhor.</p>
+                  <button type="button" class="prof-inline-action" onclick="gProfileTriggerUpload()">Trocar foto</button>
+                </div>
               </div>
-              <p class="prof-avatar-hint">Toque para alterar · JPG ou PNG · máx. 1MB</p>
-            </div>
-            
-            <div class="prof-grid prof-grid-2">
-              <div class="prof-field">
-                <label class="prof-label">Nome de Exibição</label>
-                <input type="text" class="prof-input" id="prof-input-name" placeholder="Ex: Pedro Moraes" required>
+
+              <div class="prof-grid prof-grid-2">
+                <div class="prof-field">
+                  <label class="prof-label" for="prof-input-name">Nome de exibição</label>
+                  <input type="text" class="prof-input" id="prof-input-name" placeholder="Ex: Pedro Moraes" required>
+                </div>
+                <div class="prof-field">
+                  <label class="prof-label" for="prof-input-phone">Telefone / WhatsApp</label>
+                  <input type="text" class="prof-input" id="prof-input-phone" placeholder="(55) 99999-9999">
+                </div>
+                <div class="prof-field prof-field-full">
+                  <label class="prof-label" for="prof-input-email">E-mail corporativo</label>
+                  <input type="email" class="prof-input" id="prof-input-email" disabled>
+                  <small class="prof-field-help">O e-mail é protegido pela autenticação e não pode ser alterado aqui.</small>
+                </div>
+                <div class="prof-field prof-field-full">
+                  <label class="prof-label" for="prof-input-theme">Aparência</label>
+                  <select class="prof-input" id="prof-input-theme" onchange="gProfileApplyTheme(this.value)">
+                    <option value="light">Tema claro</option>
+                    <option value="dark">Tema escuro</option>
+                  </select>
+                  <small class="prof-field-help">A preferência acompanha este dispositivo.</small>
+                </div>
               </div>
-              <div class="prof-field">
-                <label class="prof-label">E-mail</label>
-                <input type="email" class="prof-input" id="prof-input-email" placeholder="nome@deliverymuch.com.br" required>
+
+              <div class="prof-actions">
+                <button type="button" class="prof-btn prof-btn-secondary" onclick="gCloseUserProfileModal()">Cancelar</button>
+                <button type="submit" class="prof-btn prof-btn-primary" id="prof-btn-save-dados">Salvar alterações</button>
               </div>
-              <div class="prof-field">
-                <label class="prof-label">Telefone / WhatsApp</label>
-                <input type="text" class="prof-input" id="prof-input-phone" placeholder="(55) 99999-9999">
-              </div>
-              <div class="prof-field">
-                <label class="prof-label">Preferência de Tema</label>
-                <select class="prof-input" id="prof-input-theme" onchange="gProfileApplyTheme(this.value)">
-                  <option value="light">Tema Claro ☀</option>
-                  <option value="dark">Tema Escuro 🌙</option>
-                </select>
-              </div>
-            </div>
-            
-            <div class="prof-actions">
-              <button type="button" class="prof-btn prof-btn-secondary" onclick="gCloseUserProfileModal()">Cancelar</button>
-              <button type="submit" class="prof-btn prof-btn-primary" id="prof-btn-save-dados">Salvar Alterações</button>
-            </div>
-          </form>
+            </form>
+            <!-- A coluna da direita saiu inteira. Os dois atalhos ("Segurança da conta",
+                 "Atividade") repetiam itens que a barra lateral já mostra a 2 cm dali, e o
+                 cartão "Sua conta no Luma" explicava em bullets o que os próprios campos já
+                 dizem embaixo deles (e-mail protegido, tema neste dispositivo). O formulário
+                 fica sozinho — como nas outras telas do app, que não têm painel de dicas. -->
+          </div>
         </div>
-        
-        <!-- PANE: SEGURANÇA -->
+
         <div class="prof-pane" id="prof-pane-seguranca">
-          <form id="prof-form-seguranca" onsubmit="gProfileChangePassword(event)">
-            <div class="prof-grid">
-              <div class="prof-field">
-                <label class="prof-label">Senha Atual</label>
-                <input type="password" class="prof-input" id="prof-input-password-current" placeholder="Digite sua senha atual" required>
+          <div class="prof-section-head"><div><h4>Senha e sessão</h4><p>Controles essenciais de acesso, sem complexidade desnecessária.</p></div></div>
+          <div class="prof-security-layout">
+            <form id="prof-form-seguranca" class="prof-surface prof-security-form" onsubmit="gProfileChangePassword(event)">
+              <div class="prof-security-intro">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3.5 6.5V12c0 5 3.5 8 8.5 9.5 5-1.5 8.5-4.5 8.5-9.5V6.5L12 3Z"/><path d="m9 12 2 2 4-4"/></svg>
+                <span><strong>Troque sua senha com segurança</strong><small>Use pelo menos 8 caracteres e evite senhas de outros serviços.</small></span>
               </div>
-              <div class="prof-field">
-                <label class="prof-label">Nova Senha</label>
-                <input type="password" class="prof-input" id="prof-input-password-new" placeholder="Nova senha (min. 8 caracteres)" oninput="gProfileCheckPasswordStrength(this.value)" required>
-                <div class="pass-strength-container">
-                  <div class="pass-strength-bar">
-                    <div class="pass-strength-segment" id="pass-seg-1"></div>
-                    <div class="pass-strength-segment" id="pass-seg-2"></div>
-                    <div class="pass-strength-segment" id="pass-seg-3"></div>
+              <div class="prof-grid">
+                <div class="prof-field">
+                  <label class="prof-label" for="prof-input-password-current">Senha atual</label>
+                  <input type="password" class="prof-input" id="prof-input-password-current" placeholder="Digite sua senha atual" required>
+                </div>
+                <div class="prof-field">
+                  <label class="prof-label" for="prof-input-password-new">Nova senha</label>
+                  <input type="password" class="prof-input" id="prof-input-password-new" placeholder="Mínimo de 8 caracteres" oninput="gProfileCheckPasswordStrength(this.value)" required>
+                  <div class="pass-strength-container">
+                    <div class="pass-strength-bar"><div class="pass-strength-segment" id="pass-seg-1"></div><div class="pass-strength-segment" id="pass-seg-2"></div><div class="pass-strength-segment" id="pass-seg-3"></div></div>
+                    <span class="pass-strength-text" id="pass-strength-text">Senha muito curta</span>
                   </div>
-                  <span class="pass-strength-text" id="pass-strength-text">Senha muito curta</span>
+                </div>
+                <div class="prof-field">
+                  <label class="prof-label" for="prof-input-password-confirm">Confirmar nova senha</label>
+                  <input type="password" class="prof-input" id="prof-input-password-confirm" placeholder="Repita a nova senha" required>
                 </div>
               </div>
-              <div class="prof-field">
-                <label class="prof-label">Confirmar Nova Senha</label>
-                <input type="password" class="prof-input" id="prof-input-password-confirm" placeholder="Confirme a nova senha" required>
+              <div class="prof-actions">
+                <button type="reset" class="prof-btn prof-btn-secondary">Limpar</button>
+                <button type="submit" class="prof-btn prof-btn-primary" id="prof-btn-save-password">Atualizar senha</button>
               </div>
-            </div>
-            
-            <div class="prof-actions">
-              <button type="button" class="prof-btn prof-btn-secondary" onclick="gCloseUserProfileModal()">Cancelar</button>
-              <button type="submit" class="prof-btn prof-btn-primary" id="prof-btn-save-password">Redefinir Senha</button>
-            </div>
-          </form>
+            </form>
+
+            <aside class="prof-surface prof-session-card">
+              <span class="prof-session-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>
+              <h4>Sessão atual</h4>
+              <span class="prof-session-status"><i></i>Ativa neste dispositivo</span>
+              <p>Você está autenticado no navegador atual. Sair encerra o acesso desta sessão.</p>
+              <button type="button" class="prof-btn prof-btn-secondary prof-session-logout" onclick="gLogout()">Sair desta sessão</button>
+            </aside>
+          </div>
         </div>
-        
-        <!-- PANE: ESTATÍSTICAS -->
+
         <div class="prof-pane" id="prof-pane-estatisticas">
+          <div class="prof-section-head"><div><h4>Atividade da conta</h4><p>Um resumo direto do conteúdo disponível e do tempo nesta sessão.</p></div></div>
           <div class="prof-stats-grid">
-            <div class="prof-stat-card">
-              <div class="prof-stat-icon" style="background: rgba(255, 144, 0, 0.1); color: var(--dm-orange);">🎨</div>
-              <div class="prof-stat-info">
-                <div class="prof-stat-value" id="prof-stat-templates">0</div>
-                <div class="prof-stat-label">Artes no Portfólio</div>
-              </div>
-            </div>
-            <div class="prof-stat-card">
-              <div class="prof-stat-icon" style="background: rgba(34, 197, 94, 0.1); color: #22c55e;">⚡</div>
-              <div class="prof-stat-info">
-                <div class="prof-stat-value" id="prof-stat-campaigns">0</div>
-                <div class="prof-stat-label">Campanhas Ativas</div>
-              </div>
-            </div>
-            <div class="prof-stat-card">
-              <div class="prof-stat-icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">⏱️</div>
-              <div class="prof-stat-info">
-                <div class="prof-stat-value" id="prof-stat-session-time">0 min</div>
-                <div class="prof-stat-label">Tempo em Sessão</div>
-              </div>
-            </div>
-            <div class="prof-stat-card">
-              <div class="prof-stat-icon" style="background: rgba(200, 24, 24, 0.1); color: var(--dm-red);">👑</div>
-              <div class="prof-stat-info">
-                <div class="prof-stat-value" id="prof-stat-level">Designer Principal</div>
-                <div class="prof-stat-label">Nível da Conta</div>
-              </div>
-            </div>
+            <div class="prof-stat-card"><span class="prof-stat-icon prof-stat-icon-accent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="m8 14 2.5-3 2 2 3.5-4 2 3"/></svg></span><span class="prof-stat-info"><strong class="prof-stat-value" id="prof-stat-templates">0</strong><small class="prof-stat-label">Artes no portfólio</small></span></div>
+            <div class="prof-stat-card"><span class="prof-stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V5M16 20v-7M22 20V3"/></svg></span><span class="prof-stat-info"><strong class="prof-stat-value" id="prof-stat-campaigns">0</strong><small class="prof-stat-label">Campanhas ativas</small></span></div>
+            <div class="prof-stat-card"><span class="prof-stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span class="prof-stat-info"><strong class="prof-stat-value" id="prof-stat-session-time">0 min</strong><small class="prof-stat-label">Tempo nesta sessão</small></span></div>
+            <div class="prof-stat-card"><span class="prof-stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8l4 4 5-8 5 8 4-4-2 10H5z"/><path d="M5 21h14"/></svg></span><span class="prof-stat-info"><strong class="prof-stat-value" id="prof-stat-level">—</strong><small class="prof-stat-label">Nível da conta</small></span></div>
           </div>
-          
+
+          <!-- Copy corrigida: a dica antiga mandava para a aba "Dados", módulo REMOVIDO do
+               produto (analytics é por extração SQL/BI, fora do app — 02_ARCHITECTURE §7). -->
           <div style="background: rgba(0, 0, 0, 0.02); border: 1px solid var(--gray-light); border-radius: 12px; padding: 16px; font-size: 12.5px; color: var(--text-2); line-height: 1.5;">
-            <strong>💡 Dica do Designer:</strong> Você pode exportar relatórios de desempenho e ver estatísticas agregadas de conversão acessando a aba <strong>Dados</strong> na barra de navegação superior.
+            <strong>Dica:</strong> os números acima vêm das campanhas e templates publicados no Estúdio. Relatórios de desempenho da rede são extraídos pela equipe de dados, fora do app.
           </div>
+          <div class="prof-activity-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><p>Os números usam apenas dados já disponíveis no Luma. Nenhum relatório ou histórico adicional é criado por esta tela.</p></div>
         </div>
 
-        <!-- PANE: EQUIPE (apenas superadmin) -->
         <div class="prof-pane" id="prof-pane-equipe"></div>
-
       </div>
-    </div>
-
+    </section>
   </div>
 </div>
 
@@ -604,16 +660,19 @@ input:focus:-webkit-autofill {
     <!-- LEFT catalog -->
     <div id="fran-left">
       <div id="fran-left-head">
-        <div class="fran-left-title-row">
-          <h2>CAMPANHAS</h2>
-          <button id="f-home-btn" onclick="fGoHome()" title="Voltar ao início" aria-label="Voltar ao início">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-            Início
-          </button>
-        </div>
         <div class="f-tabs">
+          <button type="button" class="panel-grip-handle" data-panel-grip="left" title="Arrastar para reordenar painel" aria-label="Arrastar para reordenar painel"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></button>
           <button class="f-tab active" onclick="fSwitchTab('catalogo',this)">Catálogo</button>
           <button class="f-tab" onclick="fSwitchTab('historico',this)">Minhas artes <span id="hist-badge"></span></button>
+        </div>
+        <div class="fran-home-row">
+          <button id="f-home-btn" onclick="fGoHome()" title="Voltar ao início" aria-label="Voltar ao início">
+            <span class="f-home-btn-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            </span>
+            <span class="f-home-btn-copy"><strong>Início</strong><small>Visão geral</small></span>
+            <svg class="f-home-btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
         </div>
         <div id="f-search-row">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -626,32 +685,32 @@ input:focus:-webkit-autofill {
 
     <!-- RIGHT chat -->
     <div id="fran-right">
-      <div id="f-chat-head">
-        <button id="f-mobile-back" onclick="fMobileBackToCatalog()" aria-label="Voltar ao catálogo" title="Voltar ao catálogo">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        </button>
-        <div class="f-assistant-brand">
-          <div class="bot-circle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8.01" y2="16"/><line x1="16" y1="16" x2="16.01" y2="16"/></svg><div class="bot-online"></div></div>
-          <div class="f-assistant-copy">
-            <div class="bot-info-status">Assistente criativo</div>
-            <div class="bot-info-name">Luma</div>
-          </div>
-        </div>
-        <div class="f-session-context">
-          <span class="f-session-label">Material em edição</span>
-          <div id="f-ctx-tag" aria-live="polite">Escolha uma campanha</div>
-        </div>
-        <div id="f-head-actions" aria-label="Ações da criação">
-          <button id="f-bulk-head-btn" onclick="fBulkOpen()" title="Gerar artes em lote a partir de uma planilha"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span>Gerar em lote</span></button>
-          <button id="f-reset-btn" onclick="fResetFlow()" title="Recomeçar esta criação"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><polyline points="3 3 3 8 8 8"/></svg><span>Recomeçar</span></button>
-          <button id="f-theme-btn" onclick="fToggleTheme()" title="Alternar tema claro ou escuro" aria-label="Alternar tema claro ou escuro">
-            <svg id="f-theme-icon-dark" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-            <svg id="f-theme-icon-light" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-          </button>
-        </div>
-      </div>
       <div id="f-right-body">
         <div id="f-chat-col">
+          <div id="f-chat-head">
+            <button type="button" class="panel-grip-handle" data-panel-grip="chat" title="Arrastar para reordenar painel" aria-label="Arrastar para reordenar painel"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></button>
+            <button id="f-mobile-back" onclick="fMobileBackToCatalog()" aria-label="Voltar ao catálogo" title="Voltar ao catálogo">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <div class="f-assistant-brand">
+              <div class="bot-circle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8.01" y2="16"/><line x1="16" y1="16" x2="16.01" y2="16"/></svg><div class="bot-online"></div></div>
+              <div class="f-assistant-copy">
+                <div class="bot-info-name">Luma</div>
+              </div>
+            </div>
+            <div class="f-session-context">
+              <span class="f-session-label">Campanha</span>
+              <div id="f-ctx-tag" aria-live="polite">Escolha uma campanha</div>
+            </div>
+            <div id="f-head-actions" aria-label="Ações da criação">
+              <button id="f-reset-btn" onclick="fResetFlow()" title="Recomeçar esta criação"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><polyline points="3 3 3 8 8 8"/></svg><span>Recomeçar</span></button>
+              <button id="f-bulk-head-btn" onclick="fBulkOpenFromArt()" title="Gerar artes em lote a partir de uma planilha"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span>Gerar em lote</span></button>
+              <button id="f-theme-btn" onclick="fToggleTheme()" title="Alternar tema claro ou escuro" aria-label="Alternar tema claro ou escuro">
+                <svg id="f-theme-icon-dark" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                <svg id="f-theme-icon-light" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+              </button>
+            </div>
+          </div>
           <div id="f-messages"></div>
           <div id="f-input-row">
             <div id="f-input-wrap">
@@ -669,12 +728,12 @@ input:focus:-webkit-autofill {
         <aside id="f-live-preview" aria-label="Prévia em tempo real">
           <div class="lp-head">
             <div class="lp-title-group">
+              <button type="button" class="panel-grip-handle" data-panel-grip="preview" title="Arrastar para reordenar painel" aria-label="Arrastar para reordenar painel"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></button>
               <span class="lp-title-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
               </span>
               <div>
-                <span class="lp-kicker">Prova digital</span>
-                <div class="lp-title">Prévia ao Vivo</div>
+                <div class="lp-title">Prévia ao vivo</div>
               </div>
             </div>
             <div class="lp-head-actions">
@@ -688,8 +747,7 @@ input:focus:-webkit-autofill {
           </div>
           <div class="lp-stage">
             <div class="lp-stage-meta" aria-hidden="true">
-              <span>Área de prova</span>
-              <span class="lp-stage-hint">Clique na arte para editar</span>
+              <span class="lp-stage-hint">Clique na arte para ajustar</span>
             </div>
             <!-- Estado vazio contextual (copy trocada por fLpShowEmpty conforme o passo do fluxo) -->
             <div class="lp-empty" id="lp-empty" aria-hidden="true">
@@ -705,33 +763,32 @@ input:focus:-webkit-autofill {
           </div>
           <div class="lp-toolbar">
             <div class="lp-tool-left">
-              <button class="lp-tool-btn" onclick="fLpRefit()" title="Reajustar a prévia à tela" aria-label="Reajustar a prévia à tela">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14v4a2 2 0 0 0 2 2h4"/><path d="M4 10V6a2 2 0 0 1 2-2h4"/><path d="M14 4h4a2 2 0 0 1 2 2v4"/><path d="M20 14v4a2 2 0 0 1-2 2h-4"/></svg>
+              <button type="button" class="lp-tool-btn lp-fit-btn" onclick="fLpRefit()" title="Reajustar a prévia à tela">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14v4a2 2 0 0 0 2 2h4"/><path d="M4 10V6a2 2 0 0 1 2-2h4"/><path d="M14 4h4a2 2 0 0 1 2 2v4"/><path d="M20 14v4a2 2 0 0 1-2 2h-4"/></svg>
+                <span>Ajustar</span>
               </button>
-              <div class="lp-tool-divider"></div>
-              <button class="lp-tool-btn" onclick="fLpZoomStep(-1)" title="Diminuir zoom" aria-label="Diminuir zoom">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              </button>
-              <button class="lp-tool-text lp-zoom-reset" id="lp-zoom" onclick="fLpZoomReset()" title="Voltar ao ajuste de tela" aria-label="Nível de zoom — clique para reajustar">—</button>
-              <button class="lp-tool-btn" onclick="fLpZoomStep(1)" title="Aumentar zoom" aria-label="Aumentar zoom">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><line x1="12" y1="5" x2="12" y2="19"/></svg>
-              </button>
-              <span class="lp-tool-text lp-tool-dim" id="lp-dim"></span>
+              <div class="lp-zoom-group" role="group" aria-label="Controles de zoom">
+                <button type="button" class="lp-zoom-step" onclick="fLpZoomStep(-1)" title="Diminuir zoom" aria-label="Diminuir zoom">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </button>
+                <button type="button" class="lp-tool-text lp-zoom-reset" id="lp-zoom" onclick="fLpZoomReset()" title="Voltar ao ajuste de tela" aria-label="Nível de zoom — clique para reajustar">—</button>
+                <button type="button" class="lp-zoom-step" onclick="fLpZoomStep(1)" title="Aumentar zoom" aria-label="Aumentar zoom">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><line x1="12" y1="5" x2="12" y2="19"/></svg>
+                </button>
+              </div>
+              <span class="lp-tool-text lp-tool-dim" id="lp-dim" title="Dimensões da arte"></span>
             </div>
             <div class="lp-tool-right">
+              <button type="button" class="lp-autozoom-btn active" id="lp-auto-zoom" aria-pressed="true" onclick="fLpToggleAutoZoom()" title="Desativar zoom automático">
+                <span>Auto-zoom</span>
+                <span class="lp-toggle" aria-hidden="true"><span class="lp-toggle-knob"></span></span>
+              </button>
               <!-- "Postado": abre a arte real dentro do celular (Stories/Feed/WhatsApp).
                    É ação (modal), não sobreposição — por isso fora do segmento abaixo. -->
               <button type="button" class="lp-posted-btn" onclick="fOpenPosted()" title="Ver como a arte fica postada (Stories, Feed, WhatsApp)" aria-label="Ver como a arte fica postada">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2.5"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
-                <span>Postado</span>
+                <span>Mockups</span>
               </button>
-              <!-- 3 estados (era liga/desliga de Guias): Limpo · Guias · Ambiente.
-                   "Ambiente" mostra como o Stories cobre a arte (mesma safe zone do linter). -->
-              <div class="lp-viewseg" role="radiogroup" aria-label="Sobreposição da prévia">
-                <button type="button" class="lp-viewseg-btn active" id="lp-view-off" role="radio" aria-checked="true" title="Só a arte, sem sobreposição" onclick="fLpSetView('off')">Limpo</button>
-                <button type="button" class="lp-viewseg-btn" id="lp-view-guides" role="radio" aria-checked="false" title="Guias de composição (margens e terços)" onclick="fLpSetView('guides')">Guias</button>
-                <button type="button" class="lp-viewseg-btn" id="lp-view-env" role="radio" aria-checked="false" title="Como fica postado no Stories (áreas que o app cobre)" onclick="fLpSetView('env')">Ambiente</button>
-              </div>
             </div>
           </div>
         </aside>
@@ -765,12 +822,24 @@ input:focus:-webkit-autofill {
         <span class="posted-sub">a sua arte no ambiente real</span>
       </div>
       <div class="posted-seg" id="posted-seg" role="radiogroup" aria-label="Onde postar"></div>
+      <button class="posted-phone-btn" onclick="fPostedOpenQR()" aria-label="Ver esta arte no meu celular" title="Ver no meu celular">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18.5h2"/></svg>
+        <span>Ver no celular</span>
+      </button>
       <button class="posted-close" onclick="fClosePosted()" aria-label="Fechar prévia">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
       </button>
     </div>
     <div class="posted-stage" id="posted-stage"></div>
   </div>
+</div>
+
+<!-- ══ VIEW ACADEMIA ══
+     Academia Delivery Much: jornada de formação do franqueado. Tudo é montado
+     por js/academia/* dentro de #ac-root (home da jornada, ambiente de aula,
+     gestão de conteúdo e certificado) — o mesmo padrão de #f-home. -->
+<div id="view-academia" class="view-container">
+  <div id="ac-root"></div>
 </div>
 
 <!-- ══ VIEW DESIGNER ══ -->
@@ -1050,30 +1119,15 @@ input:focus:-webkit-autofill {
 
       <div class="vt-sep"></div>
 
-      <!-- Categoria 3: Automação & Dados -->
-      <div class="vt-group">
-        <div class="vt-group-wrap" id="vt-data-wrap">
-          <button class="vt-btn has-flyout" id="dtool-data-proxy"
-                  onclick="dDataActivate()"
-                  oncontextmenu="dDataFlyout(event)"
-                  title="Grupo Dados & Automação&#10;X — Botão direito: mais ferramentas">
-            <span id="dtool-data-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7" stroke-width="3"/></svg></span>
-            <span class="vt-sub-arrow"></span>
-          </button>
-          <div class="vt-flyout" id="vt-data-flyout">
-            <button id="dtool-var-data" class="vt-flyout-item active" onclick="dDataPick('var-data',event)" title="Vincular campo&#10;X">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7" stroke-width="3"/></svg>
-              <span>Vincular campo</span>
-            </button>
-            <button id="dtool-qr-code" class="vt-flyout-item" onclick="dDataPick('qr-code',event)" title="Gerador QR Code&#10;Q">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M7 17h.01M17 17h.01M17 7h.01M7 7h.01"/></svg>
-              <span>Gerador QR Code</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div class="vt-sep"></div>
+      <!-- A "Categoria 3: Automação & Dados" (Vincular campo + QR Code) saiu DAQUI a pedido
+           do Ryan (2026-07-30): vincular campo é ação sobre uma camada que já existe, não
+           ferramenta de desenho, e ocupava um slot da barra sem pertencer a ela.
+           NÃO foi removida do produto — segue em três caminhos:
+             · painel "todas as ferramentas" (dToggleAllTools), na mesma categoria;
+             · atalhos X (vincular campo) e Q (QR Code);
+             · menu de contexto da camada.
+           As funções dDataActivate/dDataPick/dDataFlyout continuam vivas e são o que esses
+           três caminhos chamam — por isso nada em js/designer/brush.js precisou mudar. -->
 
       <!-- Categoria 4: Pintura & Bitmap -->
       <div class="vt-group">
@@ -1348,7 +1402,7 @@ input:focus:-webkit-autofill {
           <input type="color" id="d-color-bg-pick" style="display:none" value="#FFFFFF" oninput="dUpdateBgColor(this.value)">
           <input type="color" id="d-color-fg-pick" style="display:none" value="#FF9000" oninput="dBrushUpdate('color', this.value)">
         </div>
-        <button class="vcp-swap" onclick="dVcpSwapColors()" title="Alternar cores (X)">
+        <button class="vcp-swap" onclick="dSwapColors()" title="Alternar cores (X)">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
         </button>
         <button class="vcp-reset" onclick="dResetColors()" title="Cores padrão (D)">
@@ -1557,7 +1611,7 @@ input:focus:-webkit-autofill {
                 <button class="ab-bg-btn" id="d-ab-bg-transparent" title="Transparente" onclick="dSetABBg('transparent')" style="flex:1;height:28px;border-radius:6px;border:none"><svg width="16" height="16" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="8" height="8" fill="#bbb"/><rect x="8" y="8" width="8" height="8" fill="#bbb"/><rect x="0" y="8" width="8" height="8" fill="#e8e8e8"/><rect x="8" y="0" width="8" height="8" fill="#e8e8e8"/></svg></button>
                 <button class="ab-bg-btn" id="d-ab-bg-white" title="Branco" onclick="dSetABBg('white')" style="flex:1;height:28px;background:#fff;border-radius:6px;border:1px solid rgba(0,0,0,0.1)"></button>
                 <label class="ab-bg-btn ab-bg-custom-lbl" id="d-ab-bg-custom" title="Cor personalizada" style="flex:1;height:28px;position:relative;border-radius:6px;border:none"><input type="color" id="d-ab-bg-picker" style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none" oninput="dSetABBg(this.value)"></label>
-                <span id="d-ab-bg-hex" style="font-size:11px;color:var(--d-text);font-family:var(--font-mono);flex:1;text-align:center;font-weight:600"></span>
+                <span id="d-ab-bg-hex" style="font-size:11px;color:var(--d-text);font-family:'Roboto',sans-serif;font-variant-numeric:tabular-nums;flex:1;text-align:center;font-weight:600"></span>
               </div>
             </div>
           </section>
@@ -1668,7 +1722,9 @@ input:focus:-webkit-autofill {
                     <button class="dp-btn-icon" data-val="right" onclick="dPropSetAlign('right',this)" title="Direita"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="7" y1="18" x2="21" y2="18"/></svg></button>
                     <button class="dp-btn-icon" data-val="justify" onclick="dPropSetAlign('justify',this)" title="Justificar"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
                   </div>
-                  <select id="dp-align" style="display:none" onchange="dUpdateProp('textAlign',this.value)"><option>left</option><option>center</option><option>right</option></select>
+                  <!-- justify faltava aqui: dPropSetAlign espelha o valor neste select e um
+                       valor sem <option> zera o campo. O botão Justificar já existia. -->
+                  <select id="dp-align" style="display:none" onchange="dUpdateProp('textAlign',this.value)"><option>left</option><option>center</option><option>right</option><option>justify</option></select>
                 </div>
               </div>
               <div class="dp-field">
@@ -1869,7 +1925,10 @@ input:focus:-webkit-autofill {
           <select class="ps-select" id="dp-blend"></select>
           <div class="ps-input-wrap">
             <label class="ps-label" title="Opacidade">Opac.</label>
-            <input class="ps-input" type="number" id="dp-opacity" min="0" max="100" value="100" oninput="dUpdateProp('opacity',this.value)">
+            <!-- id proprio: era um SEGUNDO id="dp-opacity" (duplicado do painel de propriedades).
+                 getElementById so alcanca o primeiro -> este campo nunca era sincronizado com a
+                 camada selecionada (mostrava 100 com a camada a 40). -->
+            <input class="ps-input" type="number" id="dp-opacity-blend" min="0" max="100" value="100" oninput="dUpdateProp('opacity',this.value)">
             <span class="ps-unit">%</span>
           </div>
         </div>
@@ -2025,7 +2084,11 @@ input:focus:-webkit-autofill {
         <div class="section-head" style="color:var(--dm-orange)">CHECKLIST DE QUALIDADE</div>
         <p style="font-size:11px;color:var(--d-text2);line-height:1.5;margin:0 0 12px 0">Auditoria inteligente do design system para evitar quebras de layout nas redes sociais dos franqueados.</p>
         <div id="d-linter-issues" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding-right:4px;"></div>
-        <button class="d-btn-sec" onclick="dRunLinter()" style="width:100%;justify-content:center;margin-top:12px;flex-shrink:0;">
+        <button class="d-btn-pri" onclick="dApplyIntelligentLayout()" style="width:100%;justify-content:center;margin-top:12px;flex-shrink:0;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M4 7h10M4 12h16M4 17h10"/><path d="m16 5 3 2-3 2M14 15l3 2-3 2"/></svg>
+          Corrigir layout
+        </button>
+        <button class="d-btn-sec" onclick="dRunLinter()" style="width:100%;justify-content:center;margin-top:8px;flex-shrink:0;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
           Re-analisar layout
         </button>
@@ -2148,7 +2211,7 @@ input:focus:-webkit-autofill {
           <h2 id="f-bulk-title">Luma Sheets</h2>
         </div>
       </div>
-      <p id="f-bulk-description">Adicione suas ofertas, revise os campos e gere todas as peças em uma única operação.</p>
+      <p id="f-bulk-description">Crie várias artes de uma vez. São três passos — o Luma avisa quando cada um estiver pronto.</p>
       <div class="f-bulk-head-actions">
         <button type="button" class="f-bulk-faq-btn" onclick="fBulkToggleFaq()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -2160,64 +2223,104 @@ input:focus:-webkit-autofill {
       </div>
     </header>
 
+    <!-- Trilha das 3 etapas: onde estou, o que já fiz, o que falta. Clicável pra voltar. -->
+    <nav class="f-bulk-trail" id="f-bulk-trail" aria-label="Etapas">
+      <button type="button" class="f-bulk-trail-item" data-goto="1" onclick="fBulkStep(1)">
+        <span class="f-bulk-trail-num">1</span>
+        <span class="f-bulk-trail-txt"><strong>Suas ofertas</strong><small>o que você vai anunciar</small></span>
+      </button>
+      <button type="button" class="f-bulk-trail-item" data-goto="2" onclick="fBulkStep(2)">
+        <span class="f-bulk-trail-num">2</span>
+        <span class="f-bulk-trail-txt"><strong>Conferir</strong><small>revise antes de criar</small></span>
+      </button>
+      <button type="button" class="f-bulk-trail-item" data-goto="3" onclick="fBulkStep(3)">
+        <span class="f-bulk-trail-num">3</span>
+        <span class="f-bulk-trail-txt"><strong>Formatos</strong><small>onde você vai postar</small></span>
+      </button>
+    </nav>
+
     <div class="f-bulk-workspace">
-      <aside class="f-bulk-setup" aria-label="Entrada e configuração do lote">
-        <section class="f-bulk-setup-section">
-          <div class="f-bulk-section-heading">
-            <span class="f-bulk-step">1</span>
-            <div><span>Adicionar ofertas</span><small>Escolha o caminho mais fácil para você</small></div>
-          </div>
+      <!-- ══ ETAPA 1 — só uma pergunta na tela: o que anunciar ══ -->
+      <section class="f-bulk-stage" data-step="1" aria-label="Passo 1: suas ofertas">
+        <div class="f-bulk-stage-head">
+          <h3>O que você quer anunciar?</h3>
+          <p>Escreva do seu jeito, como se estivesse falando. O Luma separa produto e preço sozinho.</p>
+        </div>
 
           <div class="f-ai-prompt-block f-bulk-ai-card" id="f-ai-prompt-block">
-            <div class="f-bulk-card-head">
-              <span class="f-bulk-card-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v4M3 5h4M6 17v4M4 19h4M13 3l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5z"/></svg>
-              </span>
-              <div><strong>Descreva suas ofertas</strong><small>O Luma organiza a planilha para você</small></div>
-              <span class="f-bulk-recommended">Mais rápido</span>
-            </div>
-            <label class="f-bulk-field-label" for="f-bulk-ai-raw-text">Produtos, preços e condições</label>
+            <label class="f-bulk-field-label" for="f-bulk-ai-raw-text">Escreva ou fale suas ofertas</label>
             <textarea id="f-bulk-ai-raw-text" placeholder="Ex.: Hambúrguer clássico por R$ 25 hoje. Amanhã, pizza de calabresa de R$ 50 por R$ 39."></textarea>
             <div class="f-bulk-ai-actions">
+              <button type="button" class="d-btn-sec f-bulk-mic-big" id="f-bulk-mic-btn" onclick="fStartSpeech(event, 'f-bulk-ai-raw-text')" title="Falar em vez de digitar" aria-label="Falar as ofertas em vez de digitar">
+                <svg class="mic-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+                Falar
+              </button>
+              <!-- Ler cardápio: o lojista manda o cardápio em foto/PDF pelo WhatsApp e
+                   alguém digitava 30 linhas. O arquivo vira linhas da grade (png-generator.js:
+                   fBulkReadMenu) — sempre revisadas antes de gerar. -->
+              <label class="d-btn-sec f-bulk-menu-btn" for="f-bulk-menu-input" title="Ler um cardápio em foto ou PDF e virar linhas da planilha">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+                Ler cardápio
+                <input type="file" id="f-bulk-menu-input" accept="image/png,image/jpeg,image/webp,application/pdf" multiple class="f-bulk-visually-hidden" onchange="fBulkReadMenu(this)">
+              </label>
               <button type="button" class="d-btn-pri f-bulk-ai-submit" onclick="fBulkFillWithAI()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3v4M3 5h4M6 17v4M4 19h4M13 3l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5z"/></svg>
-                Preencher planilha
+                Organizar minhas ofertas
               </button>
-              <button type="button" class="d-btn-sec" id="f-bulk-mic-btn" onclick="fStartSpeech(event, 'f-bulk-ai-raw-text')" title="Ditar ofertas por voz" aria-label="Ditar ofertas por voz">
-                <svg class="mic-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
-              </button>
-              <button type="button" class="f-ai-prompt-toggle" onclick="fToggleAIPrompt()" aria-expanded="false">Usar no ChatGPT <span class="f-ai-prompt-chevron" aria-hidden="true">›</span></button>
             </div>
-            <div class="f-ai-prompt-body" id="f-ai-prompt-body" style="display:none">
-              <p class="f-ai-prompt-desc">Copie o prompt preparado para este material e use no ChatGPT.</p>
-              <div class="f-ai-prompt-box"><pre id="f-ai-prompt-text" class="f-ai-prompt-pre"></pre></div>
-              <div class="f-ai-prompt-actions">
-                <button type="button" class="f-ai-prompt-copy" onclick="fCopyAIPrompt()">Copiar prompt</button>
-                <a class="f-ai-prompt-open" href="https://chat.openai.com" target="_blank" rel="noopener">Abrir ChatGPT</a>
-              </div>
-            </div>
+            <div class="f-bulk-menu-status" id="f-bulk-menu-status" aria-live="polite"></div>
           </div>
 
-          <div class="f-bulk-source-label">Outras formas de começar</div>
-          <div class="f-bulk-source-grid">
-            <button type="button" class="f-bulk-source-action" onclick="fBulkTogglePaste()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M7 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2"/><path d="M8 11h8M8 15h6"/></svg>
-              <span><strong>Colar dados</strong><small>Excel, Sheets ou cardápio</small></span>
-            </button>
-            <label class="f-bulk-source-action" for="f-bulk-file">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8"/></svg>
-              <span><strong>Enviar CSV</strong><small>Importar arquivo preenchido</small></span>
-              <input type="file" id="f-bulk-file" accept=".csv,text/csv" class="f-bulk-visually-hidden" onchange="fBulkHandleCSV(this)">
-            </label>
-            <button type="button" class="f-bulk-source-action" onclick="fBulkFromHistorico()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg>
-              <span><strong>Do histórico</strong><small>Reaproveitar produtos anteriores</small></span>
-            </button>
-            <button type="button" class="f-bulk-source-action" onclick="fBulkTemplateCSV()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
-              <span><strong>CSV modelo</strong><small>Baixar estrutura pronta</small></span>
-            </button>
-          </div>
+          <!-- Tudo que NÃO é o caminho principal mora aqui dentro, fechado. Antes eram 6 caminhos
+               abertos ao mesmo tempo competindo com o campo de texto — ninguém sabia por onde começar. -->
+          <details class="f-bulk-alt">
+            <summary>
+              <span><strong>Prefiro outro jeito</strong><small>colar do Excel, enviar arquivo, repetir o de antes ou ver um exemplo</small></span>
+              <svg class="f-bulk-disclosure-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </summary>
+            <div class="f-bulk-alt-body">
+              <div class="f-bulk-source-grid">
+                <button type="button" class="f-bulk-source-action" onclick="fBulkTogglePaste()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M7 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2"/><path d="M8 11h8M8 15h6"/></svg>
+                  <span><strong>Colar do Excel</strong><small>copie as células e cole aqui</small></span>
+                </button>
+                <button type="button" class="f-bulk-source-action" onclick="fBulkFromHistorico()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg>
+                  <span><strong>Repetir ofertas antigas</strong><small>traz o que você já anunciou</small></span>
+                </button>
+                <label class="f-bulk-source-action" for="f-bulk-file">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8"/></svg>
+                  <span><strong>Enviar um arquivo</strong><small>planilha .csv do computador</small></span>
+                  <input type="file" id="f-bulk-file" accept=".csv,text/csv" class="f-bulk-visually-hidden" onchange="fBulkHandleCSV(this)">
+                </label>
+                <button type="button" class="f-bulk-source-action" onclick="fBulkTemplateCSV()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+                  <span><strong>Baixar planilha em branco</strong><small>preencher no Excel e enviar depois</small></span>
+                </button>
+              </div>
+
+              <div class="f-bulk-alt-example">
+                <label class="f-bulk-field-label" for="f-bulk-import-url">Só quero ver como funciona</label>
+                <div class="f-bulk-alt-example-row">
+                  <input type="text" id="f-bulk-import-url" placeholder="Ex.: pizza, sushi ou burger">
+                  <button type="button" class="d-btn-sec" onclick="fBulkImportFromLink()">Ver exemplo</button>
+                </div>
+                <small>Cria ofertas de mentira só pra você experimentar. Troque pelos seus produtos antes de gerar.</small>
+              </div>
+
+              <div class="f-bulk-alt-example">
+                <button type="button" class="f-ai-prompt-toggle" onclick="fToggleAIPrompt()" aria-expanded="false">Prefiro montar no ChatGPT <span class="f-ai-prompt-chevron" aria-hidden="true">›</span></button>
+                <div class="f-ai-prompt-body" id="f-ai-prompt-body" style="display:none">
+                  <p class="f-ai-prompt-desc">Copie o texto abaixo, cole no ChatGPT e traga o resultado de volta pra cá.</p>
+                  <div class="f-ai-prompt-box"><pre id="f-ai-prompt-text" class="f-ai-prompt-pre"></pre></div>
+                  <div class="f-ai-prompt-actions">
+                    <button type="button" class="f-ai-prompt-copy" onclick="fCopyAIPrompt()">Copiar</button>
+                    <a class="f-ai-prompt-open" href="https://chat.openai.com" target="_blank" rel="noopener">Abrir ChatGPT</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </details>
 
           <div id="f-bulk-paste-wrap" class="f-bulk-inline-panel" style="display:none">
             <label class="f-bulk-field-label" for="f-bulk-paste-ta">Cole seus dados abaixo</label>
@@ -2225,91 +2328,90 @@ input:focus:-webkit-autofill {
             <button type="button" class="d-btn-pri" onclick="fBulkHandlePaste()">Processar dados</button>
           </div>
 
-          <details class="f-bulk-examples">
-            <summary>
-              <span class="f-bulk-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
-              <span><strong>Explorar com exemplos</strong><small>Demonstração para começar do zero</small></span>
-              <svg class="f-bulk-disclosure-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
-            </summary>
-            <div class="f-bulk-examples-body">
-              <p>Gera produtos fictícios por categoria. Revise os dados antes de criar as artes.</p>
-              <div><input type="text" id="f-bulk-import-url" placeholder="Ex.: pizza, sushi ou burger"><button type="button" class="d-btn-sec" onclick="fBulkImportFromLink()">Gerar exemplos</button></div>
-            </div>
-          </details>
-
           <div id="f-bulk-mapper-wrap" class="f-bulk-mapper" style="display:none">
-            <div class="f-bulk-card-head"><span class="f-bulk-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h10"/></svg></span><div><strong>Mapear colunas do CSV</strong><small>Associe cada coluna ao campo correto</small></div></div>
+            <div class="f-bulk-card-head"><span class="f-bulk-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h10"/></svg></span><div><strong>De qual coluna vem cada informação?</strong><small>Confira se o Luma acertou</small></div></div>
             <div id="f-bulk-mapper-fields"></div>
-            <div class="f-bulk-mapper-actions"><button type="button" class="d-btn-pri" onclick="fBulkConfirmMapping()">Confirmar mapeamento</button><button type="button" class="d-btn-sec" onclick="fBulkCancelMapping()">Cancelar</button></div>
+            <div class="f-bulk-mapper-actions"><button type="button" class="d-btn-pri" onclick="fBulkConfirmMapping()">Está certo</button><button type="button" class="d-btn-sec" onclick="fBulkCancelMapping()">Cancelar</button></div>
           </div>
-        </section>
+      </section>
 
-        <section class="f-bulk-setup-section f-bulk-output-config">
-          <div class="f-bulk-section-heading">
-            <span class="f-bulk-step">2</span>
-            <div><span>Configurar saída</span><small>Escolha formatos e contexto das legendas</small></div>
-          </div>
-          <div id="f-bulk-fmts-wrap">
-            <label class="f-bulk-field-label">Formatos das artes</label>
-            <div id="f-bulk-fmts-list"></div>
-          </div>
-          <div class="f-bulk-output-fields">
-            <label><span>Formato da legenda</span><select id="f-bulk-copy-format"><option value="feed">Feed</option><option value="stories">Stories</option></select></label>
-            <label><span>Cidade para hashtags</span><input type="text" id="f-bulk-city" placeholder="Ex.: Passo Fundo" oninput="try{localStorage.setItem('luma_bulk_city', this.value);}catch(e){}"></label>
-          </div>
-        </section>
-      </aside>
-
-      <main class="f-bulk-sheet-area">
-        <div class="f-bulk-sheet-head">
-          <div class="f-bulk-section-heading">
-            <span class="f-bulk-step">3</span>
-            <div><span>Revise sua produção</span><small>Edite qualquer célula antes de gerar</small></div>
-          </div>
+      <!-- ══ ETAPA 2 — conferir a planilha ══ -->
+      <section class="f-bulk-stage" data-step="2" aria-label="Passo 2: conferir" hidden>
+        <div class="f-bulk-stage-head">
+          <h3>Confira o que vai ser criado</h3>
+          <p>Cada linha vira uma arte. Clique em qualquer campo pra corrigir.</p>
           <div class="f-bulk-status-wrap"><span class="f-bulk-live-dot" aria-hidden="true"></span><span id="f-bulk-status" aria-live="polite"></span></div>
-        </div>
-
-        <div class="f-bulk-toolbar">
-          <div class="f-bulk-toolbar-group">
-            <button type="button" class="d-btn-sec f-bulk-view-toggle" onclick="fBulkToggleTableView()" title="Alternar entre tabela e cartões">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-              Tabela / Cartões
-            </button>
-            <button type="button" class="d-btn-sec" onclick="fBulkSaveTemplate()" title="Salvar a planilha atual como modelo">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
-              Salvar modelo
-            </button>
-            <div id="f-bulk-saved-wrap" style="display:none">
-              <select id="f-bulk-saved-select" onchange="fBulkLoadTemplate()" aria-label="Modelos salvos"></select>
-              <button type="button" class="f-bulk-delete-model" onclick="fBulkDeleteTemplate()" title="Excluir modelo selecionado" aria-label="Excluir modelo selecionado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
-            </div>
-          </div>
-          <div class="f-bulk-toolbar-group f-bulk-toolbar-end">
-            <label class="f-bulk-search-wrap">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-              <input type="search" id="f-bulk-search" oninput="fBulkRenderPreview()" placeholder="Buscar na planilha" aria-label="Buscar na planilha">
-            </label>
-            <details class="f-bulk-more">
-              <summary class="d-btn-sec f-bulk-more-sum" title="Mais ferramentas">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
-                Ferramentas <span class="f-bulk-more-caret" aria-hidden="true">▾</span>
-              </summary>
-              <div class="f-bulk-more-pop">
-                <button type="button" class="f-bulk-tool-action" onclick="fBulkRemoveDuplicates()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="13" height="13" rx="2"/><path d="M8 8h13v13H8z"/></svg><span><strong>Remover duplicados</strong><small>Limpa linhas idênticas</small></span></button>
-                <label class="f-bulk-more-row"><span>Ordenar planilha</span><select id="f-bulk-sort-select" onchange="fBulkSortTable(this.value)"><option value="">Escolher</option><option value="name">Nome (A–Z)</option><option value="price">Preço</option></select></label>
-              </div>
-            </details>
-          </div>
         </div>
 
         <div id="f-bulk-preview" class="f-bulk-preview"></div>
 
-        <div id="f-bulk-progress-wrap" class="f-bulk-progress" style="display:none" role="status" aria-live="polite">
-          <div class="f-bulk-progress-head"><span id="f-bulk-progress-text">Gerando seu lote…</span><strong id="f-bulk-progress-pct">0%</strong></div>
-          <div class="f-bulk-progress-track"><div id="f-bulk-progress-bar" style="width:0%"></div></div>
-          <button type="button" class="d-btn-sec" id="f-bulk-cancel-btn" onclick="fBulkCancelGen()">Cancelar geração</button>
+        <!-- Recursos de planilheiro: reais e úteis, mas fechados. Quem precisa, procura;
+             quem não precisa, não tropeça neles no primeiro uso. -->
+        <details class="f-bulk-alt f-bulk-alt-tools">
+          <summary>
+            <span><strong>Mais opções da planilha</strong><small>mudar a visualização, salvar como modelo, buscar e organizar</small></span>
+            <svg class="f-bulk-disclosure-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+          </summary>
+          <div class="f-bulk-alt-body f-bulk-toolbar">
+            <div class="f-bulk-toolbar-group">
+              <button type="button" class="d-btn-sec f-bulk-view-toggle" onclick="fBulkToggleTableView()" title="Alternar entre tabela e cartões">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                Ver como cartões
+              </button>
+              <button type="button" class="d-btn-sec" onclick="fBulkSaveTemplate()" title="Guardar esta planilha para reusar depois">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+                Guardar esta planilha
+              </button>
+              <div id="f-bulk-saved-wrap" style="display:none">
+                <select id="f-bulk-saved-select" onchange="fBulkLoadTemplate()" aria-label="Planilhas guardadas"></select>
+                <button type="button" class="f-bulk-delete-model" onclick="fBulkDeleteTemplate()" title="Excluir a planilha guardada" aria-label="Excluir a planilha guardada"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+              </div>
+              <button type="button" class="d-btn-sec" onclick="fBulkRemoveDuplicates()" title="Apaga linhas repetidas">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="13" height="13" rx="2"/><path d="M8 8h13v13H8z"/></svg>
+                Apagar linhas repetidas
+              </button>
+              <!-- Fotos em lote: 30 linhas = 30 cliques em "Foto". Casa pelo nome do
+                   arquivo (local) e só chama a IA nas sobras (png-generator.js: fBulkMatchPhotos). -->
+              <label class="d-btn-sec f-bulk-photos-btn" for="f-bulk-photos-input" title="Enviar várias fotos e deixar cada uma achar sua linha">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15V5a2 2 0 0 0-2-2H9"/><rect x="3" y="7" width="14" height="14" rx="2"/><circle cx="7.5" cy="11.5" r="1.2"/><path d="m17 16-4-4-10 9"/></svg>
+                Fotos dos produtos
+                <input type="file" id="f-bulk-photos-input" accept="image/*" multiple class="f-bulk-visually-hidden" onchange="fBulkMatchPhotos(this)">
+              </label>
+            </div>
+            <div class="f-bulk-toolbar-group f-bulk-toolbar-end">
+              <label class="f-bulk-search-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                <input type="search" id="f-bulk-search" oninput="fBulkRenderPreview()" placeholder="Procurar um produto" aria-label="Procurar um produto na planilha">
+              </label>
+              <label class="f-bulk-more-row"><span>Colocar em ordem</span><select id="f-bulk-sort-select" onchange="fBulkSortTable(this.value)"><option value="">Escolher</option><option value="name">Nome (A–Z)</option><option value="price">Preço</option></select></label>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <!-- ══ ETAPA 3 — formatos e legenda ══ -->
+      <section class="f-bulk-stage" data-step="3" aria-label="Passo 3: formatos" hidden>
+        <div class="f-bulk-stage-head">
+          <h3>Onde você vai postar?</h3>
+          <p>Marque quantos quiser. O Luma cria a mesma oferta em cada formato escolhido.</p>
         </div>
-      </main>
+
+        <div id="f-bulk-fmts-wrap" class="f-bulk-fmts-block">
+          <label class="f-bulk-field-label">Formatos das artes</label>
+          <div id="f-bulk-fmts-list"></div>
+        </div>
+
+        <div class="f-bulk-output-fields">
+          <label><span>Texto do post</span><select id="f-bulk-copy-format"><option value="feed">Para o Feed (mais longo)</option><option value="stories">Para os Stories (curto)</option></select></label>
+          <label><span>Sua cidade</span><input type="text" id="f-bulk-city" placeholder="Ex.: Passo Fundo" oninput="try{localStorage.setItem('luma_bulk_city', this.value);}catch(e){}"><small>entra nas hashtags do post</small></label>
+        </div>
+
+        <div id="f-bulk-progress-wrap" class="f-bulk-progress" style="display:none" role="status" aria-live="polite">
+          <div class="f-bulk-progress-head"><span id="f-bulk-progress-text">Criando suas artes…</span><strong id="f-bulk-progress-pct">0%</strong></div>
+          <div class="f-bulk-progress-track"><div id="f-bulk-progress-bar" style="width:0%"></div></div>
+          <button type="button" class="d-btn-sec" id="f-bulk-cancel-btn" onclick="fBulkCancelGen()">Parar</button>
+        </div>
+      </section>
     </div>
 
     <footer class="f-bulk-footer" id="f-bulk-actions">
@@ -2317,7 +2419,11 @@ input:focus:-webkit-autofill {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z"/><path d="M12 16v-4M12 8h.01"/></svg>
         <span>O ZIP inclui as artes organizadas por formato e um arquivo com sugestões de legenda.</span>
       </div>
-      <div class="f-bulk-footer-actions"><button type="button" class="d-btn-sec" onclick="fBulkClose()">Fechar</button><button type="button" class="d-btn-pri" id="f-bulk-dl-btn" onclick="fBulkDownloadAll()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>Gerar artes (ZIP)</button></div>
+      <div class="f-bulk-footer-actions">
+        <button type="button" class="d-btn-sec" id="f-bulk-back-btn" onclick="fBulkStepBack()">Voltar</button>
+        <button type="button" class="d-btn-pri" id="f-bulk-next-btn" onclick="fBulkStepNext()">Continuar</button>
+        <button type="button" class="d-btn-pri" id="f-bulk-dl-btn" onclick="fBulkDownloadAll()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>Gerar artes (ZIP)</button>
+      </div>
     </footer>
 
     <div id="f-bulk-faq" class="f-bulk-faq" role="dialog" aria-modal="true" aria-labelledby="f-bulk-faq-title">
@@ -2352,6 +2458,11 @@ input:focus:-webkit-autofill {
       </button>
     </header>
 
+    <!-- Faixa de pranchetas: só aparece em PSD multi-prancheta. Cada aba é uma prancheta
+         com sua própria seleção de camadas — antes isto era uma TELA separada, e a revisão
+         reabria uma vez por prancheta. Preenchida por _dPsdRenderBoards(). -->
+    <div class="psd-boards" id="d-psd-boards" role="tablist" aria-label="Pranchetas do arquivo" hidden></div>
+
     <div class="psd-commandbar">
       <label class="psd-format-field" for="d-psd-fmt">
         <span>Formato de saída</span>
@@ -2362,6 +2473,12 @@ input:focus:-webkit-autofill {
           <option value="wide">Wide (1200×628)</option>
           <option value="horizontal">Horizontal (1920×1080)</option>
         </select>
+      </label>
+      <!-- Destino: vinha da tela de seleção que deixou de existir. Só faz sentido no
+           multi-prancheta, onde cada prancheta vira um template numa campanha. -->
+      <label class="psd-format-field" for="d-psd-folder" id="d-psd-folder-field" hidden>
+        <span>Importar para</span>
+        <select class="modal-select" id="d-psd-folder"></select>
       </label>
       <div class="psd-command-note">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
@@ -2413,9 +2530,6 @@ input:focus:-webkit-autofill {
   </section>
 </div>
 
-<!-- PSD Artboard Selector (PSD com múltiplas pranchetas) -->
-<div id="d-psd-ab-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:10000; align-items:center; justify-content:center;"></div>
-
 <!-- SVG Review Modal (import do Illustrator) -->
 <div id="d-svg-review-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:10000; align-items:center; justify-content:center;"></div>
 
@@ -2443,59 +2557,109 @@ input:focus:-webkit-autofill {
 </div>
 
 <div class="modal-overlay" id="d-folder-modal">
-  <div class="modal" style="width:460px;max-height:88vh;overflow-y:auto">
-    <div class="modal-title" id="df-modal-title">Nova Pasta</div>
-    <!-- Capa -->
-    <div class="modal-field">
-      <div class="df-cover-drop" id="df-cover-drop" onclick="document.getElementById('df-cover-input').click()">
-        <div class="df-cover-thumb" id="df-cover-thumb"></div>
-        <div class="df-cover-info">
-          <div class="df-cover-title">Miniatura da pasta</div>
-          <div class="df-cover-sub">Adicione uma capa para a pasta.</div>
-          <div class="df-cover-hint">Tamanho ideal: 750 × 400 px</div>
-          <button type="button" class="df-cover-remove" id="df-cover-remove" style="display:none" onclick="event.stopPropagation();dFolderClearCover()">Remover capa</button>
-        </div>
-        <input type="file" id="df-cover-input" accept="image/*" style="display:none" onchange="dFolderCoverUpload(this)">
+  <div class="modal df-modal-container">
+    <div class="df-modal-header">
+      <div class="df-modal-header-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
       </div>
+      <div class="df-modal-header-copy">
+        <h3 class="modal-title" id="df-modal-title">Editando pasta</h3>
+        <p class="df-modal-subtitle">Configure a miniatura de capa, a cor e as permissões de acesso.</p>
+      </div>
+      <button type="button" class="df-modal-close" onclick="dCloseFolderModal()" aria-label="Fechar modal">&times;</button>
     </div>
-    <!-- Título -->
-    <div class="modal-field">
-      <label class="modal-label">Título</label>
-      <input class="modal-input" id="df-name" placeholder="ex: Hamburguer Fest">
-    </div>
-    <!-- Cor (fallback quando não há capa) -->
-    <div class="modal-field">
-      <label class="modal-label">Cor da pasta (usada quando não há capa)</label>
-      <input type="color" class="modal-input" id="df-color" value="#FF9000" style="padding:3px 6px;height:36px;cursor:pointer">
-    </div>
-    <!-- Vincular campanha -->
-    <div class="modal-field">
-      <label class="modal-label">Vincular a uma campanha</label>
-      <select class="modal-select" id="df-campaign"></select>
-      <span style="font-size:10px;color:var(--d-text3);margin-top:2px">Mantém os materiais organizados na campanha da qual fazem parte (e leva a capa para o catálogo do franqueado).</span>
-    </div>
-    <!-- Configurações avançadas -->
-    <div class="df-adv">
-      <button type="button" class="df-adv-toggle" id="df-adv-toggle" onclick="dFolderToggleAdv()">
-        <span class="df-adv-chevron">▸</span> Configurações avançadas
-      </button>
-      <div class="df-adv-body" id="df-adv-body" style="display:none">
-        <div class="modal-field">
-          <label class="modal-label">Segmentar por grupos</label>
-          <span style="font-size:10px;color:var(--d-text3)">Limite o acesso desta pasta a grupos de usuários.</span>
-          <div class="df-groups" id="df-groups"></div>
-        </div>
-        <div class="modal-field">
-          <label class="modal-label" style="display:flex;align-items:center;gap:8px">
-            <input type="checkbox" id="df-schedule-toggle" onchange="dFolderToggleSchedule()"> Agendar disponibilização
-          </label>
-          <input class="modal-input" type="date" id="df-schedule-date" style="display:none">
+
+    <div class="df-modal-body">
+      <!-- Dropzone de Capa -->
+      <div class="modal-field">
+        <label class="modal-label">Miniatura de Capa</label>
+        <div class="df-cover-drop" id="df-cover-drop" onclick="document.getElementById('df-cover-input').click()">
+          <div class="df-cover-thumb-wrap">
+            <div class="df-cover-thumb" id="df-cover-thumb"></div>
+            <div class="df-cover-badge">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+          </div>
+          <div class="df-cover-info">
+            <div class="df-cover-title">Alterar capa da pasta</div>
+            <div class="df-cover-sub">Clique ou arraste uma foto para destacar esta pasta</div>
+            <div class="df-cover-hint">Tamanho ideal: 750 × 400 px (16:9)</div>
+            <button type="button" class="df-cover-remove" id="df-cover-remove" style="display:none" onclick="event.stopPropagation();dFolderClearCover()">Remover capa</button>
+          </div>
+          <input type="file" id="df-cover-input" accept="image/*" style="display:none" onchange="dFolderCoverUpload(this)">
         </div>
       </div>
+
+      <!-- Título -->
+      <div class="modal-field">
+        <label class="modal-label">Título da Pasta</label>
+        <input class="modal-input" id="df-name" placeholder="ex: Hamburguer Fest 2026">
+      </div>
+
+      <!-- Cor de Identificação -->
+      <div class="modal-field">
+        <label class="modal-label">Cor da pasta <span class="modal-label-hint">(exibida no catálogo quando não há foto de capa)</span></label>
+        <div class="df-color-swatches">
+          <button type="button" class="df-swatch" data-color="#FF9000" style="background:#FF9000" onclick="dFolderSelectColor('#FF9000')" title="Luma Orange"></button>
+          <button type="button" class="df-swatch" data-color="#F8006E" style="background:#F8006E" onclick="dFolderSelectColor('#F8006E')" title="Much+ Magenta"></button>
+          <button type="button" class="df-swatch" data-color="#FFB900" style="background:#FFB900" onclick="dFolderSelectColor('#FFB900')" title="Much+ Yellow"></button>
+          <button type="button" class="df-swatch" data-color="#1565C0" style="background:#1565C0" onclick="dFolderSelectColor('#1565C0')" title="Copa Blue"></button>
+          <button type="button" class="df-swatch" data-color="#C81818" style="background:#C81818" onclick="dFolderSelectColor('#C81818')" title="DM Red"></button>
+          <button type="button" class="df-swatch" data-color="#22C55E" style="background:#22C55E" onclick="dFolderSelectColor('#22C55E')" title="Green"></button>
+          <button type="button" class="df-swatch" data-color="#7C3AED" style="background:#7C3AED" onclick="dFolderSelectColor('#7C3AED')" title="Purple"></button>
+          <div class="df-color-custom-wrap" title="Cor personalizada">
+            <input type="color" id="df-color" value="#FF9000" onchange="dFolderOnCustomColorChange(this.value)">
+          </div>
+        </div>
+      </div>
+
+      <!-- Vincular campanha -->
+      <div class="modal-field">
+        <label class="modal-label">Vincular a uma campanha</label>
+        <div class="df-select-wrap">
+          <select class="modal-select" id="df-campaign"></select>
+          <svg class="df-select-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <span class="modal-field-help">Organiza os materiais no catálogo do franqueado dentro da campanha correspondente.</span>
+      </div>
+
+      <!-- Configurações avançadas -->
+      <div class="df-adv">
+        <button type="button" class="df-adv-toggle" id="df-adv-toggle" onclick="dFolderToggleAdv()">
+          <svg class="df-adv-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          <span>Configurações avançadas e permissões</span>
+        </button>
+        <div class="df-adv-body" id="df-adv-body" style="display:none">
+          <div class="modal-field">
+            <label class="modal-label">Segmentar por grupos de franquias</label>
+            <span class="modal-field-help">Limite o acesso desta pasta apenas a grupos específicos.</span>
+            <div class="df-groups" id="df-groups"></div>
+          </div>
+          <div class="modal-field">
+            <div class="df-schedule-card">
+              <div class="df-switch-row">
+                <div class="df-switch-info">
+                  <div class="df-switch-title">Agendar disponibilização</div>
+                  <div class="df-switch-sub">Publica esta pasta automaticamente na data agendada</div>
+                </div>
+                <label class="df-switch">
+                  <input type="checkbox" id="df-schedule-toggle" onchange="dFolderToggleSchedule()">
+                  <span class="df-slider"></span>
+                </label>
+              </div>
+              <input class="modal-input df-schedule-input" type="date" id="df-schedule-date" style="display:none">
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
+
     <div class="modal-actions">
-      <button class="d-btn-sec" onclick="dCloseFolderModal()">Cancelar</button>
-      <button class="d-btn-pri" id="df-save-btn" onclick="dConfirmFolder()">Salvar</button>
+      <button class="d-btn-ghost" onclick="dCloseFolderModal()">Cancelar</button>
+      <button class="d-btn-primary" id="df-save-btn" onclick="dConfirmFolder()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        <span>Salvar</span>
+      </button>
     </div>
   </div>
 </div>
@@ -2659,6 +2823,8 @@ input:focus:-webkit-autofill {
 <script src="js/core/img-store.js"></script>
 <script src="js/01-state.js"></script>
 <script src="js/core/toast.js"></script>
+<script src="js/core/sound.js"></script>
+<script src="js/core/qr.js"></script>
 <script src="js/core/layout.js"></script>
 <script src="js/core/help.js"></script>
 <script src="js/tutorial/catalog.js"></script>
@@ -2672,7 +2838,19 @@ input:focus:-webkit-autofill {
 <script src="js/franqueado/materials.js"></script>
 <script src="js/franqueado/chat.js"></script>
 <script src="js/franqueado/live-preview.js"></script>
+<script src="js/franqueado/panel-dock.js"></script>
+<script src="js/franqueado/upload-panel.js"></script>
 <script src="js/franqueado/chat-input.js"></script>
+<!-- ACADEMIA (formação do franqueado). Ordem importa: motion.js define os helpers
+     de animação que os outros usam; academia.js define o estado que
+     aula/agente/gestao/certificado/conclusao consomem. -->
+<script src="js/academia/motion.js"></script>
+<script src="js/academia/academia.js"></script>
+<script src="js/academia/aula.js"></script>
+<script src="js/academia/agente.js"></script>
+<script src="js/academia/gestao.js"></script>
+<script src="js/academia/certificado.js"></script>
+<script src="js/academia/conclusao.js"></script>
 <script src="js/designer/blending.js"></script>
 <script src="js/franqueado/png-generator.js"></script>
 <script src="js/designer/templates.js"></script>
@@ -2687,8 +2865,10 @@ input:focus:-webkit-autofill {
 <script src="js/designer/preview.js"></script>
 <script src="js/designer/library.js"></script>
 <script src="js/designer/undo-redo.js"></script>
+<script src="js/widgets/help-widget.js"></script>
 <script src="js/designer/tools.js"></script>
 <script src="js/designer/fonts.js"></script>
+<script src="js/designer/psd-parse.js"></script>
 <script src="js/designer/psd-import.js"></script>
 <script src="js/designer/mask.js"></script>
 <script src="js/designer/tutorial-panel.js"></script>
@@ -2700,8 +2880,13 @@ input:focus:-webkit-autofill {
 <script src="assets/vendor/supabase.js"></script>
 <script src="js/core/supabase-config.js"></script>
 <script src="js/core/supabase.js"></script>
+<!-- Motor único de IA: precisa do supabase.js (gSupabase) já carregado -->
+<script src="js/core/ai.js"></script>
 <script src="js/core/auth.js"></script>
 <script src="js/core/user-profile.js"></script>
+<!-- Luma CLI: por último entre os core porque só usa globais já definidos
+     (gIsAdmin, gHasBackend, gAskAI, dFolders…) e é o único que abre por atalho -->
+<script src="js/core/console.js"></script>
 <script src="js/main.js"></script>
 
 
@@ -3285,10 +3470,11 @@ input:focus:-webkit-autofill {
       <div style="display:flex; gap:20px; margin-bottom:20px;">
         <div style="flex:1;">
           <label style="display:block; font-size:12px; color:var(--d-text2); margin-bottom:8px; text-transform:uppercase; letter-spacing:1px;">Formato</label>
-          <div style="display:flex; gap:10px;">
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
             <button class="dbtn-primary d-export-fmt-btn active" data-fmt="image/png" onclick="dSetExportFmt('image/png', this)" style="flex:1;">PNG</button>
             <button class="dbtn-primary d-export-fmt-btn" data-fmt="image/jpeg" onclick="dSetExportFmt('image/jpeg', this)" style="flex:1;">JPG</button>
             <button class="dbtn-primary d-export-fmt-btn" data-fmt="svg" onclick="dSetExportFmt('svg', this)" style="flex:1;">SVG</button>
+            <button class="dbtn-primary d-export-fmt-btn d-export-psd-btn" data-fmt="psd" onclick="dSetExportFmt('psd', this)" style="flex:1; border-color:#31a8ff; color:#31a8ff;">PSD (Photoshop)</button>
           </div>
         </div>
 
@@ -3324,6 +3510,23 @@ input:focus:-webkit-autofill {
         Baixar Selecionadas
       </button>
     </div>
+  </div>
+</div>
+
+<!-- OVERLAY DE MOTION PARA EXPORTAÇÃO PHOTOSHOP (PSD) -->
+<div id="psd-export-motion-overlay" class="psd-export-overlay" style="display:none">
+  <div class="psd-export-card">
+    <div class="psd-badge-icon">
+      <div class="psd-badge-glow"></div>
+      <span class="psd-badge-txt">Ps</span>
+    </div>
+    <div class="psd-export-title">Exportando para Adobe Photoshop</div>
+    <div class="psd-export-sub">Preservando camadas, vetores e modos de mesclagem...</div>
+    
+    <div class="psd-export-progress-track">
+      <div class="psd-export-progress-fill" id="psd-export-bar"></div>
+    </div>
+    <div class="psd-export-step-log" id="psd-export-log">Compilando árvore de camadas nativas...</div>
   </div>
 </div>
 

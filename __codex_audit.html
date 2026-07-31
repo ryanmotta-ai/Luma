@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Auditoria local do Luma</title>
+  <style>html,body,iframe{width:100%;height:100%;margin:0;border:0}</style>
+</head>
+<body>
+  <iframe id="app" title="Luma"></iframe>
+  <script>
+    fetch('/index.html', { cache: 'no-store' })
+      .then(response => response.text())
+      .then(html => {
+        const stamp = Date.now();
+        const fresh = html
+          .replace('<head>', '<head><base href="/">')
+          .replace(/\b(href|src)="((?:css|js)\/[^"]+)"/g, (_, attr, path) =>
+            `${attr}="${path}${path.includes('?') ? '&' : '?'}audit=${stamp}"`
+          );
+        document.getElementById('app').srcdoc = fresh;
+      });
+  </script>
+</body>
+</html>

@@ -18,7 +18,7 @@ const F_LOJAS_KEY = 'dm_lojas_v1';
 function fGetLojas(){ try{ return JSON.parse(localStorage.getItem(F_LOJAS_KEY)||'[]'); }catch(e){ return []; } }
 function fSaveLojas(arr){
   try{ localStorage.setItem(F_LOJAS_KEY, JSON.stringify((arr||[]).slice(0,12))); return true; }
-  catch(e){ if(typeof gToast==='function') gToast('Não consegui salvar a loja: armazenamento cheio.','error'); return false; }
+  catch(e){ if(typeof gToast==='function') gToast('Não consegui salvar a loja — a memória do navegador encheu. Apague o que não usa e tente de novo.','error'); return false; }
 }
 function fAddLoja(loja){
   const arr=fGetLojas();

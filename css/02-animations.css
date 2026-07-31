@@ -66,8 +66,8 @@
   100%{background-position:200% 0}
 }
 @keyframes gRipple{
-  0%{box-shadow:0 0 0 0 rgba(255,144,0,.45)}
-  100%{box-shadow:0 0 0 12px rgba(255,144,0,0)}
+  0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--dm-orange) 45%,transparent)}
+  100%{box-shadow:0 0 0 12px color-mix(in srgb,var(--dm-orange) 0%,transparent)}
 }
 /* Splash — preenchimento da barra de progresso de entrada */
 @keyframes spBarFill{
@@ -75,6 +75,17 @@
   60%{width:70%}
   85%{width:90%}
   100%{width:100%}
+}
+/* Motion de feedback no canvas */
+@keyframes gCanvasPulse{
+  0%{transform:scale(1.02);filter:drop-shadow(0 0 10px color-mix(in srgb,var(--dm-orange) 35%,transparent))}
+  100%{transform:scale(1);filter:drop-shadow(0 0 0px transparent)}
+}
+/* Varredura de luz (Scanline) na conclusão da arte */
+@keyframes gScanline{
+  0%{top:-30%;opacity:0}
+  50%{opacity:.85}
+  100%{top:130%;opacity:0}
 }
 
 /* Respeita preferência do sistema por menos movimento */
@@ -148,6 +159,15 @@ body.mode-designer #view-designer {
 /* Saída suave da tela de login (fade + leve zoom) — encadeia com a entrada da view */
 #g-login-screen{transition:opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out)}
 #g-login-screen.gl-out{opacity:0;transform:scale(1.02);pointer-events:none}
+
+/* Transição suave claro↔escuro (motion.md §3): a classe .theme-anim é ligada por ~260ms
+   pelo JS SÓ no toggle manual do usuário — não no restore do load — pra evitar "piscar" a
+   troca sem atrasar hovers/interações no resto do tempo. Escopo em cor/borda (não 'all'). */
+body.theme-anim, body.theme-anim *:not(svg):not(path){
+  transition: background-color var(--dur-base) var(--ease-standard),
+              color var(--dur-base) var(--ease-standard),
+              border-color var(--dur-base) var(--ease-standard) !important;
+}
 
 /* Vibração lateral em erros de input */
 .g-shake {

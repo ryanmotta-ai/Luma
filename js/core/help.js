@@ -64,12 +64,227 @@ const G_HELP_ICONS={
    PREENCHA com o link do formulário (Forms) de suporte. Vazio → o botão avisa que o canal está
    em configuração (não abre uma aba em branco). É o único ponto a editar quando o link existir. */
 const G_SUPPORT_FORM_URL = '';
+// E-mail do suporte (botão "Enviar um e-mail" do widget do franqueado). Vazio → o botão
+// avisa que o canal está em configuração. Preencha quando existir (ex.: 'suporte@deliverymuch.com.br').
+const G_SUPPORT_EMAIL = '';
 function gHelpContactSupport(){
   const url=(typeof G_SUPPORT_FORM_URL==='string')?G_SUPPORT_FORM_URL.trim():'';
   if(!url){ if(typeof gToast==='function') gToast('Canal de suporte em configuração — em breve.'); return; }
   try{ if(typeof gTrackEvent==='function') gTrackEvent('suporte_humano_click',{rota:'ajuda'}); }catch(e){}
   window.open(url, '_blank', 'noopener,noreferrer'); // nova aba, sem acesso ao opener
 }
+
+/* ══════════════════════════════════════════════════════════════
+   CENTRAL DE AJUDA DO FRANQUEADO — widget compacto (#fhw)
+   Só no franqueado (o Estúdio segue com #g-help-modal). Início / Ajuda
+   (coleções → artigos de texto) / Suporte (e-mail + formulário). Sem trilha/tutoriais.
+   Copy estática nossa (não é dado de usuário) → dispensa gEsc. Prefixos gFh e _fh.
+══════════════════════════════════════════════════════════════ */
+
+// Botão "Enviar um e-mail" — usa G_SUPPORT_EMAIL. Vazio → avisa em configuração.
+function gFraHelpEmail(){
+  const mail=(typeof G_SUPPORT_EMAIL==='string')?G_SUPPORT_EMAIL.trim():'';
+  if(!mail){ if(typeof gToast==='function') gToast('Canal de e-mail em configuração — em breve.'); return; }
+  try{ if(typeof gTrackEvent==='function') gTrackEvent('suporte_humano_click',{rota:'ajuda',via:'email'}); }catch(e){}
+  window.location.href='mailto:'+mail+'?subject='+encodeURIComponent('Ajuda no Luma');
+}
+
+// Ícones do widget (SVG currentColor — sem emoji)
+const _FH_CHEV='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>';
+const _FH_X='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+const _FH_BACK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"/></svg>';
+const _FH_CLOCK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+const _FH_BULB='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.6.6 1 1.2 1 2h6c0-.8.4-1.4 1-2A6 6 0 0 0 12 3Z"/></svg>';
+const _FH_TUP='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v11H4V10zM7 10l5-7c1.3 0 2 .9 2 2v3h5.2a2 2 0 0 1 2 2.3l-1.3 7A2 2 0 0 1 17 21H7"/></svg>';
+const _FH_TDOWN='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 14V3h3v11zM17 14l-5 7c-1.3 0-2-.9-2-2v-3H4.8a2 2 0 0 1-2-2.3l1.3-7A2 2 0 0 1 7 3h10"/></svg>';
+const _FH_STAR='<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.2 5.3L20 10l-4.3 3.7.8 5.8L12 16.7l-4.5 2.8.8-5.8L4 10l5.8-1.7L12 3Z"/></svg>';
+
+// Artigos (blocos de conteúdo). 'vitrine' também é o card de Novidade do Início.
+const G_FRA_HELP_ARTS={
+  'primeira-arte':{title:'Criar minha primeira arte',read:'1 min',blocks:[
+    {lead:'Criar uma arte no Luma é rápido: você escolhe, responde algumas perguntas e baixa. Cerca de um minuto.'},
+    {h:'Passo a passo'},
+    {steps:['Escolha uma campanha no catálogo.','Clique no material que quer usar.','Responda as perguntas do chat: produto, preço e foto.','Confira a prévia e toque em <b>Baixar PNG</b>.']},
+    {tip:'Não precisa acertar de primeira — dá pra voltar, editar qualquer campo e gerar de novo quantas vezes quiser.'}
+  ]},
+  'qual-formato':{title:'Qual formato escolher',read:'1 min',blocks:[
+    {lead:'Cada formato tem um lugar certo pra brilhar. Escolha pelo canal onde vai postar.'},
+    {list:['<b>Story (9:16)</b> — Stories do Instagram e status do WhatsApp.','<b>Feed (4:5)</b> — publicação no feed do Instagram.','<b>Post / Wide</b> — banners e formatos mais largos.']},
+    {tip:'Na dúvida, use o formato que a campanha já sugere — ele foi pensado pra aquela peça.'}
+  ]},
+  'enviar-foto':{title:'Enviar a foto do produto',read:'2 min',blocks:[
+    {lead:'Uma boa foto muda tudo na arte final. Veja o que enviar.'},
+    {h:'O que enviar'},
+    {list:['PNG ou JPG, até 20 MB.','Quanto maior a resolução, mais nítida a arte.']},
+    {p:'Fotos abaixo de 600px podem sair pixeladas — o Luma te avisa antes de gerar.'},
+    {tip:'Dá pra trocar a foto e <b>reenquadrar direto na prévia</b>, arrastando pra posicionar.'}
+  ]},
+  'editar-arte':{title:'Editar uma arte que já fiz',read:'1 min',blocks:[
+    {lead:'Nada se perde: tudo que você começa ou baixa fica salvo em Minhas artes.'},
+    {list:['Continue um rascunho de onde parou.','Gere a mesma arte em outro formato.','Baixe de novo, sem refazer do zero.']}
+  ]},
+  'gerar-varios':{title:'Gerar várias artes de uma vez',read:'2 min',blocks:[
+    {lead:'Precisa de muitas artes de uma vez, tipo um cardápio inteiro? O lote resolve.'},
+    {h:'Como funciona'},
+    {steps:['Baixe o modelo de planilha.','Preencha uma linha por produto.','Envie a planilha e confira a grade.','Toque em <b>Baixar todas</b> pra gerar o pacote.']},
+    {tip:'Tem os produtos num texto? Cole direto que o Luma tenta montar a planilha sozinho.'}
+  ]},
+  'ajuda-pdf':{title:'Baixar a arte em PDF',read:'1 min',blocks:[
+    {lead:'Precisa imprimir? Baixe em PDF no lugar do PNG.'},
+    {p:'Depois de gerar a arte, use <b>Baixar PDF</b> na tela final. O arquivo sai no tamanho exato da arte, pronto pra gráfica.'}
+  ]},
+  'regras-marca':{title:'Regras da marca Delivery Much',read:'1 min',blocks:[
+    {lead:'Relaxa: é impossível estragar a marca no Luma.'},
+    {p:'Cores, fontes e logo vêm travados no template pela gestão. Você preenche só o conteúdo — produto, preço, foto.'},
+    {tip:'Se um campo está bloqueado, é porque a marca exige aquele padrão. É proteção, não limitação.'}
+  ]},
+  'vitrine':{title:'Sua vitrine é gerida pelo banco',eyebrow:'Novidade',read:'1 min',blocks:[
+    {lead:'Sua vitrine agora é gerida direto pela gestão.'},
+    {p:'As campanhas e capas do catálogo vêm do banco. Quando o time publica uma campanha nova, ela aparece pra você automaticamente.'},
+    {p:'Você não precisa atualizar nem configurar nada — é só abrir e criar.'}
+  ]}
+};
+const G_FRA_HELP_COLS=[
+  {id:'comece',title:'Comece por aqui',desc:'O básico pra criar sua primeira arte',arts:['primeira-arte','qual-formato','enviar-foto','editar-arte']},
+  {id:'alem',title:'Vá além',desc:'Lote, PDF e regras da marca',arts:['gerar-varios','ajuda-pdf','regras-marca']}
+];
+const G_FRA_HELP_KW={'primeira-arte':'começar gerar campanha material','qual-formato':'story feed post wide tamanho','enviar-foto':'foto imagem upload png jpg 20mb qualidade','editar-arte':'histórico minhas artes rascunho duplicar','gerar-varios':'lote planilha csv cardápio muitas','ajuda-pdf':'pdf imprimir baixar','regras-marca':'marca cor fonte logo'};
+
+let _fhPrev='ajuda', _fhLastCol='comece', _fhPrevOverflow='';
+
+function _fhBlocks(blocks){
+  return (blocks||[]).map(b=>{
+    if(b.lead) return `<p class="fhw-lead">${b.lead}</p>`;
+    if(b.h)    return `<h3 class="fhw-h">${b.h}</h3>`;
+    if(b.p)    return `<p class="fhw-p">${b.p}</p>`;
+    if(b.steps)return `<ol class="fhw-steps">${b.steps.map(s=>`<li class="fhw-step"><span class="fhw-step-n"></span><span class="fhw-step-t">${s}</span></li>`).join('')}</ol>`;
+    if(b.list) return `<ul class="fhw-ul">${b.list.map(i=>`<li>${i}</li>`).join('')}</ul>`;
+    if(b.tip)  return `<div class="fhw-tip"><span class="fhw-tip-ico">${_FH_BULB}</span><span class="fhw-tip-t">${b.tip}</span></div>`;
+    return '';
+  }).join('');
+}
+function _fhRowCol(c){
+  return `<button type="button" class="fhw-row" onclick="gFhOpenCol('${c.id}')">`
+    +`<span class="fhw-row-txt"><span class="fhw-row-title">${c.title}</span><span class="fhw-row-desc">${c.desc}</span>`
+    +`<span class="fhw-row-meta">${c.arts.length} ${c.arts.length===1?'artigo':'artigos'}</span></span>`
+    +`<span class="fhw-chev">${_FH_CHEV}</span></button>`;
+}
+function _fhRowArt(id){
+  const a=G_FRA_HELP_ARTS[id]; if(!a)return '';
+  return `<button type="button" class="fhw-row" onclick="gFhOpenArt('${id}')"><span class="fhw-row-txt"><span class="fhw-row-title">${a.title}</span></span><span class="fhw-chev">${_FH_CHEV}</span></button>`;
+}
+function gFhRenderCols(){
+  const list=document.getElementById('fhw-col-list'); if(!list)return;
+  list.innerHTML=G_FRA_HELP_COLS.map(_fhRowCol).join('');
+  const c=document.getElementById('fhw-count'); if(c)c.textContent=G_FRA_HELP_COLS.length+' coleções';
+}
+function gFhSearch(){
+  const inp=document.getElementById('fhw-q'); if(!inp)return;
+  const q=(inp.value||'').trim().toLowerCase();
+  const list=document.getElementById('fhw-col-list'), cnt=document.getElementById('fhw-count');
+  if(!q){ gFhRenderCols(); return; }
+  const hits=Object.keys(G_FRA_HELP_ARTS).filter(id=>id!=='vitrine' &&
+    (G_FRA_HELP_ARTS[id].title+' '+(G_FRA_HELP_KW[id]||'')).toLowerCase().includes(q));
+  if(list) list.innerHTML=hits.length?hits.map(_fhRowArt).join(''):'<div class="fhw-empty">Nada encontrado. Tente “foto”, “pdf” ou “lote”.</div>';
+  if(cnt) cnt.textContent=hits.length?hits.length+' '+(hits.length===1?'resultado':'resultados'):'';
+}
+function gFhOpenCol(id){
+  _fhLastCol=id; const c=G_FRA_HELP_COLS.find(x=>x.id===id); if(!c)return;
+  document.getElementById('fhw-pane-colecao').innerHTML=
+    `<div class="fhw-count">${c.title} · ${c.arts.length} ${c.arts.length===1?'artigo':'artigos'}</div>`
+    +`<div class="fhw-rows">${c.arts.map(_fhRowArt).join('')}</div>`;
+  _fhShow('colecao'); _fhSetHeader('colecao'); gFhSetActive('ajuda');
+}
+function gFhOpenArt(id){
+  const a=G_FRA_HELP_ARTS[id]; if(!a)return;
+  const active=document.querySelector('.fhw-pane.active');
+  _fhPrev=(active&&active.id==='fhw-pane-colecao')?'colecao':'ajuda';
+  document.getElementById('fhw-pane-topic').innerHTML=
+    `<article class="fhw-topic"><div class="fhw-eyebrow">${a.eyebrow||'Guia rápido'}</div>`
+    +`<h2>${a.title}</h2><div class="fhw-meta">${_FH_CLOCK}<span>${a.read||'1 min'} de leitura</span></div>`
+    +_fhBlocks(a.blocks)+`</article>`
+    +`<div class="fhw-foot"><div class="fhw-foot-q">Esse artigo ajudou?</div>`
+    +`<div class="fhw-vote"><button type="button" aria-label="Sim, ajudou" onclick="gFhVote(true)">${_FH_TUP}</button>`
+    +`<button type="button" aria-label="Não ajudou" onclick="gFhVote(false)">${_FH_TDOWN}</button></div>`
+    +`<div class="fhw-help">Ainda com dúvida? <a role="button" tabindex="0" onclick="gFhGo('suporte')" onkeydown="if(event.key==='Enter')gFhGo('suporte')">Falar com a gente</a></div></div>`;
+  _fhShow('topic'); _fhSetHeader('topic'); gFhSetActive('ajuda');
+}
+function gFhVote(good){
+  if(typeof gToast==='function') gToast(good?'Que bom! Obrigado pelo retorno.':'Valeu — vamos melhorar este artigo.');
+  try{ if(typeof gTrackEvent==='function') gTrackEvent('ajuda_feedback',{util:!!good}); }catch(e){}
+}
+function _fhSetHeader(pane){
+  const hd=document.getElementById('fhw-hd'); if(!hd)return;
+  if(pane==='inicio'){
+    hd.className='fhw-hd-home';
+    hd.innerHTML=`<div class="fhw-brand"><span class="fhw-logo" aria-hidden="true">${_FH_STAR}</span><span class="fhw-brand-name">Ajuda do Luma</span></div>`
+      +`<button type="button" class="fhw-x" aria-label="Fechar ajuda" onclick="gFraHelpClose()">${_FH_X}</button>`
+      +`<div class="fhw-greet"><h1>Olá! Como posso ajudar?</h1><p>Busque um tema ou fale com a gente.</p></div>`;
+  } else {
+    hd.className='fhw-hd-plain';
+    const withBack=(pane==='colecao'||pane==='topic');
+    const title=(pane==='suporte')?'Falar com a gente':'Ajuda';
+    hd.innerHTML=(withBack?`<button type="button" class="fhw-back" aria-label="Voltar" onclick="gFhBack()">${_FH_BACK}</button>`:'')
+      +`<span class="fhw-title">${title}</span>`
+      +`<button type="button" class="fhw-x" aria-label="Fechar ajuda" onclick="gFraHelpClose()">${_FH_X}</button>`;
+  }
+}
+function gFhBack(){
+  if(_fhPrev==='colecao') gFhOpenCol(_fhLastCol);
+  else gFhGo('ajuda');
+}
+var _FH_STAGGER='.fhw-ask,.fhw-label,.fhw-news,.fhw-count,.fhw-row,.fhw-eyebrow,.fhw-topic h2,.fhw-meta,.fhw-lead,.fhw-h,.fhw-p,.fhw-step,.fhw-ul,.fhw-tip,.fhw-foot,.fhw-support-ico,.fhw-support h2,.fhw-support p,.fhw-btn,.fhw-support small';
+function _fhStagger(pane){
+  if(!pane)return;
+  pane.querySelectorAll(_FH_STAGGER).forEach((el,i)=>{
+    el.classList.remove('fhw-rise'); void el.offsetWidth; // reflow → re-dispara em telas estáticas
+    el.style.setProperty('--fhd',Math.min(i*42,340)+'ms');
+    el.classList.add('fhw-rise');
+  });
+}
+function _fhShow(name){
+  document.querySelectorAll('.fhw-pane').forEach(p=>p.classList.remove('active'));
+  const pane=document.getElementById('fhw-pane-'+name); if(!pane)return;
+  pane.classList.add('active');
+  const panel=document.querySelector('.fhw-panel'); if(panel)panel.classList.toggle('expanded',name==='topic');
+  const body=document.querySelector('.fhw-body'); if(body)body.scrollTop=0;
+  _fhStagger(pane);
+}
+function gFhSetActive(tab){
+  ['inicio','ajuda','suporte'].forEach(t=>{ const el=document.getElementById('fhw-tab-'+t); if(el)el.classList.toggle('active',t===tab); });
+}
+function gFhGo(name){
+  if(name==='ajuda'){ const q=document.getElementById('fhw-q'); if(q)q.value=''; gFhRenderCols(); }
+  _fhShow(name); _fhSetHeader(name); gFhSetActive(name);
+}
+function gFraHelpOpen(trigger){
+  const w=document.getElementById('fhw'); if(!w)return;
+  if(trigger instanceof HTMLElement) gHelpLastTrigger=trigger;
+  else if(document.activeElement instanceof HTMLElement) gHelpLastTrigger=document.activeElement;
+  _fhSetHeader('inicio'); gFhRenderCols(); gFhSetActive('inicio');
+  const panel=document.querySelector('.fhw-panel'); if(panel)panel.classList.remove('expanded');
+  document.querySelectorAll('.fhw-pane').forEach(p=>p.classList.toggle('active',p.id==='fhw-pane-inicio'));
+  _fhPrevOverflow=document.body.style.overflow;
+  w.classList.add('open');
+  document.body.style.overflow='hidden';
+  gHelpSetTriggerState(true);
+  _fhStagger(document.getElementById('fhw-pane-inicio'));
+  setTimeout(()=>{ const x=w.querySelector('.fhw-x'); if(x)x.focus(); },0);
+}
+function gFraHelpClose(){
+  const w=document.getElementById('fhw'); if(!w||!w.classList.contains('open'))return;
+  w.classList.remove('open');
+  document.body.style.overflow=_fhPrevOverflow;
+  gHelpSetTriggerState(false);
+  const t=gHelpLastTrigger;
+  setTimeout(()=>{ if(t&&document.contains(t))t.focus(); },0);
+}
+// Esc fecha o widget do franqueado
+document.addEventListener('keydown',(e)=>{
+  const w=document.getElementById('fhw');
+  if(!w||!w.classList.contains('open'))return;
+  if(e.key==='Escape'){ e.preventDefault(); gFraHelpClose(); }
+});
 
 function gHelpIcon(name,cls){
   const paths=G_HELP_ICONS[name]||G_HELP_ICONS.info;
@@ -110,6 +325,84 @@ const G_HELP_ARTICLES=[
   {id:'ajuda-csv',cat:'franqueado',title:'Gerar artes por planilha',sub:'CSV Modelo, envio e download em lote',keywords:['csv','planilha','lote','sheets','excel'],body:'Abra Gerar varios, baixe o CSV Modelo, preencha uma linha por produto e envie a planilha. Ao revisar a grade, use Baixar todos para gerar o ZIP.'},
   {id:'ajuda-upload',cat:'franqueado',title:'Enviar foto do produto',sub:'Formatos e limite de tamanho',keywords:['foto','imagem','upload','20mb','png','jpg'],body:'Envie imagens PNG ou JPG de ate 20 MB. Para imagens por URL, o endereco precisa ser publico para que a arte possa ser gerada.'},
 ];
+
+/* ══ CONHECIMENTO PRA IA (aterrar a resposta na verdade do Luma) ══
+   O assistente de ajuda respondia com o modelo solto: sem material, ele inventava
+   tela e botão que não existem. Esta é a ÚNICA função que achata a Central de Ajuda
+   (artigos do franqueado + FAQ curto + catálogo de tópicos + FAQ do Luma Sheets) em
+   texto puro e devolve só os trechos que casam com a pergunta — contexto curto e
+   relevante em vez de despejar a base inteira no prompt.
+   Quem usa: js/widgets/help-widget.js. Quem precisar de aterramento no futuro reusa
+   daqui em vez de montar um segundo índice. */
+let _gHelpKnowIdx=null;
+// Palavra de pergunta que não diz NADA sobre o assunto. Sem esta lista, "qual a capital
+// da França?" casava com o artigo "Qual formato escolher" por causa do "qual" — e a IA
+// respondia como se a pergunta fosse do Luma. Só palavra-função entra aqui; termo de
+// domínio (foto, planilha, preço) nunca.
+const G_HELP_STOPWORDS=['que','qual','quais','como','onde','quando','porque','por','para','pra','pro',
+  'com','sem','dos','das','uma','uns','umas','meu','minha','meus','minhas','isso','esse','essa','este','esta',
+  'tem','ter','fazer','faco','faz','posso','pode','poder','quero','queria','preciso','preciso','aqui','ali',
+  'mais','menos','muito','pouco','sobre','tudo','nada','algum','alguma','ser','estar','vai','vou','nao','sim',
+  'ele','ela','eles','elas','voce','seu','sua','seus','suas','num','numa','pelo','pela','ate','depois','antes'];
+function _gHelpNorm(s){
+  // ̀-ͯ = marcas de acento soltas depois do NFD ("preço" → "preco")
+  return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+}
+function _gHelpFlatBlocks(blocks){
+  const partes=[];
+  (blocks||[]).forEach(b=>{
+    if(!b) return;
+    ['lead','p','tip','h'].forEach(k=>{ if(b[k]) partes.push(String(b[k])); });
+    ['steps','list'].forEach(k=>{ if(Array.isArray(b[k])) partes.push(b[k].join(' ')); });
+  });
+  return partes.join(' ').replace(/<[^>]+>/g,''); // blocos usam <b> pra destaque; a IA não precisa
+}
+function _gHelpKnowledgeIndex(){
+  if(_gHelpKnowIdx) return _gHelpKnowIdx;
+  const out=[];
+  try{
+    if(typeof G_FRA_HELP_ARTS!=='undefined') Object.keys(G_FRA_HELP_ARTS).forEach(id=>{
+      const a=G_FRA_HELP_ARTS[id];
+      out.push({id, title:a.title||id, kw:(typeof G_FRA_HELP_KW!=='undefined'?(G_FRA_HELP_KW[id]||''):''), text:_gHelpFlatBlocks(a.blocks)});
+    });
+    if(typeof G_HELP_ARTICLES!=='undefined') G_HELP_ARTICLES.forEach(a=>{
+      out.push({id:a.id, title:a.title, kw:(a.keywords||[]).join(' '), text:(a.sub?a.sub+'. ':'')+(a.body||'')});
+    });
+    if(typeof G_HELP_CATALOG!=='undefined') G_HELP_CATALOG.forEach(t=>{
+      if(out.some(x=>x.id===t.id)) return;   // artigo completo já cobre o tópico
+      out.push({id:t.id, title:t.title, kw:(typeof G_HELP_KEYWORDS!=='undefined'?(G_HELP_KEYWORDS[t.id]||[]).join(' '):''), text:t.sub||''});
+    });
+    // FAQ do Luma Sheets vive em png-generator.js (global) — carrega depois deste
+    // arquivo, então só é lido aqui, na 1ª chamada.
+    if(typeof F_BULK_FAQ!=='undefined') F_BULK_FAQ.forEach((f,i)=>{
+      out.push({id:'sheets-'+i, title:f.q, kw:'sheets planilha lote csv '+(f.cat||''), text:f.a});
+    });
+  }catch(e){}
+  _gHelpKnowIdx=out;
+  return out;
+}
+/**
+ * Trechos da Central de Ajuda que casam com a pergunta, já em texto pronto pra prompt.
+ * @returns {string} '' quando nada casa — quem chama trata isso como "não está na base".
+ */
+function gHelpKnowledge(pergunta, max){
+  const idx=_gHelpKnowledgeIndex();
+  const q=_gHelpNorm(pergunta);
+  const palavras=q.split(/[^a-z0-9]+/).filter(w=>w.length>2 && G_HELP_STOPWORDS.indexOf(w)<0);
+  if(!palavras.length || !idx.length) return '';
+  const ranked=idx.map(it=>{
+    const alvoTitulo=_gHelpNorm(it.title+' '+it.kw);
+    const alvoTexto=_gHelpNorm(it.text);
+    let score=0;
+    palavras.forEach(w=>{
+      if(alvoTitulo.indexOf(w)>=0) score+=3;   // acerto no título/keyword vale mais
+      else if(alvoTexto.indexOf(w)>=0) score+=1;
+    });
+    return {it,score};
+  }).filter(r=>r.score>0).sort((a,b)=>b.score-a.score).slice(0, max||4);
+  if(!ranked.length) return '';
+  return ranked.map(r=>'### '+r.it.title+'\n'+r.it.text).join('\n\n');
+}
 
 const G_HELP_CONTEXTS={
   franqueado:['primeira-arte','gerar-varios','editar-arte'],
@@ -400,6 +693,8 @@ function gHelpPlay(id){
   setTimeout(()=>tutOpen(id), 300);
 }
 function gOpenHelp(trigger){
+  // Franqueado usa o widget compacto (#fhw); só o Estúdio abre o modal completo.
+  if(!document.body.classList.contains('mode-designer')){ gFraHelpOpen(trigger); return; }
   const modal=document.getElementById('g-help-modal');
   if(!modal)return;
   if(trigger instanceof HTMLElement)gHelpLastTrigger=trigger;

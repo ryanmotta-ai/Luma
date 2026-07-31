@@ -907,6 +907,7 @@ function dPublishConfirm(){
   if(saveIndicator)saveIndicator.innerHTML='<span class="d-save-published"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>Publicado</span>';
   dPublishClearDraft(draftKey);
   dPublishShowSuccess(count,folder.name);
+  if(typeof window.gPlayPublishSuccessSound === 'function') window.gPlayPublishSuccessSound();
 }
 /* ── M2.2 — Safety net: estado de gravação + proteção contra fecho acidental ── */
 let dDirty=false;
@@ -1363,39 +1364,8 @@ document.addEventListener('keyup', e => {
 
 
 
-/* -- TOOLBAR COLOR WIDGET (FG/BG) --
-   NÃO é a mesma função de tools.js: esta troca os inputs vt-color-* (widget vcp),
-   a de tools.js troca d-color-*-pick (toolbar). Como tinham o MESMO nome e tools.js
-   carrega depois, o botão vcp-swap rodava a função errada (no-op). Renomeada para
-   dVcpSwapColors + onclick do index.html apontado pra cá (auditoria 16/07). */
-function dVcpSwapColors() {
-  const fgInp = document.getElementById('vt-color-fg-input');
-  const bgInp = document.getElementById('vt-color-bg-input');
-  if(!fgInp || !bgInp) return;
-  const temp = fgInp.value;
-  fgInp.value = bgInp.value;
-  bgInp.value = temp;
-  document.getElementById('vt-color-fg-ui').style.background = fgInp.value;
-  document.getElementById('vt-color-bg-ui').style.background = bgInp.value;
-  if(typeof dOnFgColorChange === 'function') dOnFgColorChange(fgInp.value);
-}
-function dDefaultColors() {
-  const fgInp = document.getElementById('vt-color-fg-input');
-  const bgInp = document.getElementById('vt-color-bg-input');
-  if(!fgInp || !bgInp) return;
-  fgInp.value = '#000000';
-  bgInp.value = '#ffffff';
-  document.getElementById('vt-color-fg-ui').style.background = '#000000';
-  document.getElementById('vt-color-bg-ui').style.background = '#ffffff';
-  if(typeof dOnFgColorChange === 'function') dOnFgColorChange('#000000');
-}
-// Sync tools that use color (like brush) when FG changes
-function dOnFgColorChange(color) {
-  // If brush tool is active and it has a color, maybe update it?
-  // We removed d-brush-color-pick from brush opts since we use global FG color now.
-  // We'll just define global variables if needed.
-  window.dGlobalFgColor = color;
-}
-function dOnBgColorChange(color) {
-  window.dGlobalBgColor = color;
-}
+/* O widget de cor FG/BG que vivia aqui (dSwapColors/dDefaultColors/dOnFgColorChange)
+   foi REMOVIDO: mirava um DOM "vt-color-*" que nunca existiu no index e, pior, colidia
+   com o dSwapColors REAL de tools.js — como publish.js carrega antes, funcionava por
+   sorte de ordem; se a ordem mudasse, o botão de alternar cores quebraria em silêncio.
+   O motor único do widget de cor é o de js/designer/tools.js. */

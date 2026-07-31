@@ -38,8 +38,7 @@
   border-radius:20px;
   box-shadow:
     0 32px 80px -16px rgba(0,0,0,.4),
-    0 0 0 1px rgba(255,255,255,.06),
-    inset 0 1px 0 rgba(255,255,255,.8);
+    0 0 0 1px rgba(255,255,255,.06);
   display:flex;flex-direction:column;
   overflow:hidden;
   transform:scale(.96) translateY(20px);
@@ -257,12 +256,12 @@
 .tut-btn-primary{
   background:#FF9000;
   color:#fff;
-  box-shadow:0 4px 14px rgba(255,144,0,.35), inset 0 1px 0 rgba(255,255,255,.2);
+  box-shadow:0 4px 14px rgba(255,144,0,.35);
 }
 .tut-btn-primary:hover{
   background:#F85400;
   transform:translateY(-1px);
-  box-shadow:0 6px 18px rgba(255,144,0,.45), inset 0 1px 0 rgba(255,255,255,.25);
+  box-shadow:0 6px 18px rgba(255,144,0,.45);
 }
 .tut-btn-primary:active{transform:translateY(0) scale(.97)}
 
@@ -552,7 +551,7 @@
   to{left:100%}
 }
 .tut-mock-color-hex{
-  font-size:11px;font-family:'Roboto Mono',monospace;
+  font-size:11px;font-family:'Roboto',sans-serif;
   color:var(--text-2);font-weight:500;
 }
 .tut-mock-color-name{font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em}
@@ -697,7 +696,7 @@
 .tut-panel-card-title{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#888;margin-bottom:7px;font-family:'Roboto',sans-serif}
 .tut-panel-card-body{display:flex;flex-direction:column;gap:6px;color:#E8E8E8;font-size:11px;font-family:'Roboto',sans-serif}
 .tut-panel-card.highlighted{box-shadow:0 0 0 2px rgba(255,144,0,.55);animation:tutStudioPulse 1.4s ease-in-out infinite}
-.tut-var-pill{display:inline-flex;align-items:center;gap:6px;background:rgba(255,185,0,.13);border:1px solid rgba(255,185,0,.35);border-radius:14px;padding:4px 10px;font-family:'Roboto Mono',monospace}
+.tut-var-pill{display:inline-flex;align-items:center;gap:6px;background:rgba(255,185,0,.13);border:1px solid rgba(255,185,0,.35);border-radius:14px;padding:4px 10px;font-family:'Roboto',sans-serif}
 .tut-var-pill-name{font-size:11px;font-weight:600;color:var(--dm-yellow)}
 .tut-var-pill-type{font-size:9px;color:#888;background:#2A2A2A;padding:1px 6px;border-radius:8px;font-family:'Roboto',sans-serif}
 .tut-var-pill.highlighted{box-shadow:0 0 0 2px rgba(255,185,0,.6);animation:tutStudioPulse 1.4s ease-in-out infinite}

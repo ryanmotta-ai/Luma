@@ -1,0 +1,145 @@
+/* docs/luma-evolution/scripts/estilo.css — identidade dos slides.
+   Um slide = 1920×1080. Tudo em px absolutos porque o destino é PNG/PDF/PPTX de tamanho
+   fixo: aqui não há responsividade a resolver, há um palco de tamanho conhecido. */
+
+:root{
+  --laranja:#FF9000; --laranja-d:#F85400; --amarelo:#FFB900;
+  --tinta:#0A0A0A; --tinta-2:#4A4A4A; --tinta-3:#8A8A8A;
+  --papel:#FFFFFF; --papel-2:#F7F7F5; --linha:#E6E4E0;
+  --verde:#15803D; --magenta:#C4005B;
+  --serif:'Roboto',-apple-system,'Segoe UI',sans-serif;
+  --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1a1a;font-family:var(--serif);-webkit-font-smoothing:antialiased}
+
+.slide{
+  position:relative;width:1920px;height:1080px;overflow:hidden;
+  background:var(--papel);color:var(--tinta);
+  page-break-after:always;break-after:page;
+  display:flex;flex-direction:column;
+}
+.slide + .slide{margin-top:40px}
+
+/* ── cabeçalho e rodapé comuns ── */
+.s-top{position:absolute;top:64px;left:96px;right:96px;display:flex;align-items:baseline;gap:20px;z-index:3}
+.s-kicker{font-size:19px;font-weight:900;letter-spacing:.19em;text-transform:uppercase;color:var(--laranja-d)}
+.s-tempo{font-family:var(--mono);font-size:17px;color:var(--tinta-3);letter-spacing:.03em;margin-left:auto}
+.s-titulo{font-size:66px;font-weight:900;letter-spacing:-.035em;line-height:1.02;max-width:1500px}
+.s-sub{margin-top:18px;font-size:26px;line-height:1.42;color:var(--tinta-2);max-width:1280px;font-weight:400}
+.s-corpo{position:absolute;top:150px;left:96px;right:96px;bottom:110px;z-index:2}
+.s-rodape{position:absolute;left:96px;right:96px;bottom:46px;display:flex;align-items:center;gap:16px;z-index:3;
+  font-size:18px;color:var(--tinta-3)}
+.s-rodape b{color:var(--tinta-2);font-weight:700}
+.s-num{margin-left:auto;font-family:var(--mono);font-size:16px;color:var(--tinta-3)}
+.s-fio{position:absolute;left:0;top:0;width:100%;height:7px;background:var(--laranja);z-index:4}
+
+/* ── capa ── */
+.capa{background:var(--tinta);color:#fff;justify-content:center;padding:0 128px}
+.capa .c-marca{font-size:20px;font-weight:900;letter-spacing:.24em;text-transform:uppercase;color:var(--laranja);margin-bottom:44px}
+.capa h1{font-size:138px;font-weight:900;letter-spacing:-.05em;line-height:.93}
+.capa h1 em{font-style:normal;color:var(--laranja)}
+.capa .c-sub{margin-top:34px;font-size:34px;color:#C8C8C8;font-weight:300;max-width:1250px;line-height:1.36}
+.capa .c-meta{position:absolute;left:128px;bottom:80px;right:128px;display:flex;gap:64px;
+  font-family:var(--mono);font-size:19px;color:#8A8A8A;border-top:1px solid #2A2A2A;padding-top:26px}
+.capa .c-meta b{color:#fff;font-weight:700;display:block;font-size:23px;margin-bottom:5px;font-family:var(--serif)}
+
+/* ── divisor de bloco ── */
+.secao{background:var(--tinta);color:#fff;justify-content:center;padding:0 128px}
+.secao .se-n{font-family:var(--mono);font-size:24px;color:var(--laranja);letter-spacing:.18em;margin-bottom:26px}
+.secao h2{font-size:104px;font-weight:900;letter-spacing:-.045em;line-height:1}
+.secao p{margin-top:28px;font-size:30px;color:#B4B4B4;max-width:1200px;line-height:1.4;font-weight:300}
+
+/* ── grade de telas ── */
+.telas{display:flex;gap:34px;height:100%;align-items:stretch}
+.tela{flex:1;display:flex;flex-direction:column;min-width:0}
+.tela-img{flex:1;min-height:0;border:1px solid var(--linha);border-radius:12px;overflow:hidden;background:var(--papel-2);
+  display:flex;align-items:flex-start;justify-content:center;box-shadow:0 18px 44px rgba(10,10,10,.10)}
+.tela-img img{width:100%;height:100%;object-fit:contain;object-position:top center;display:block}
+.tela-img.recorte img{object-fit:cover}
+.tela-cap{margin-top:16px;display:flex;align-items:baseline;gap:12px;flex-shrink:0}
+.tela-cap .t-rot{font-size:24px;font-weight:900;letter-spacing:-.01em}
+.tela-cap .t-meta{font-family:var(--mono);font-size:15px;color:var(--tinta-3);margin-left:auto}
+.tela-nota{margin-top:7px;font-size:18px;color:var(--tinta-2);line-height:1.34;flex-shrink:0}
+
+/* etiquetas de comparação */
+.eti{display:inline-flex;align-items:center;height:29px;padding:0 12px;border-radius:999px;
+  font-size:14px;font-weight:900;letter-spacing:.09em;text-transform:uppercase;flex-shrink:0}
+.eti-antes{background:#EFEDEA;color:var(--tinta-2)}
+.eti-depois{background:var(--laranja);color:#fff}
+.eti-novo{background:var(--verde);color:#fff}
+.eti-meio{background:#FFF0DA;color:var(--laranja-d)}
+
+/* ── conclusão da comparação ── */
+.conclusao{position:absolute;left:96px;right:96px;bottom:104px;z-index:3;
+  border-left:5px solid var(--laranja);padding:4px 0 4px 24px;font-size:23px;line-height:1.42;color:var(--tinta-2);max-width:1500px}
+.conclusao b{color:var(--tinta);font-weight:800}
+
+/* ── números ── */
+.numeros{display:grid;gap:26px;height:100%}
+.num-card{border:1px solid var(--linha);border-radius:14px;padding:34px 32px;background:var(--papel-2);
+  display:flex;flex-direction:column;justify-content:center}
+.num-v{font-size:82px;font-weight:900;letter-spacing:-.05em;line-height:.94;color:var(--tinta)}
+.num-v small{font-size:34px;color:var(--tinta-3);font-weight:700;letter-spacing:-.01em}
+.num-r{margin-top:12px;font-size:21px;color:var(--tinta-2);line-height:1.32}
+.num-card.destaque{background:var(--tinta);border-color:var(--tinta)}
+.num-card.destaque .num-v{color:var(--laranja)}
+.num-card.destaque .num-r{color:#C0C0C0}
+
+/* ── linha do tempo ── */
+.tl{position:relative;height:100%;padding-top:34px}
+.tl-eixo{position:absolute;left:0;right:0;top:118px;height:3px;background:var(--linha)}
+.tl-itens{display:flex;justify-content:space-between;position:relative;height:100%}
+.tl-item{flex:1;padding-right:22px;position:relative}
+.tl-ponto{position:absolute;top:110px;left:0;width:19px;height:19px;border-radius:50%;background:var(--laranja);border:4px solid #fff;box-shadow:0 0 0 2px var(--laranja)}
+.tl-item.marco .tl-ponto{background:var(--tinta);box-shadow:0 0 0 2px var(--tinta)}
+.tl-data{font-family:var(--mono);font-size:16px;color:var(--tinta-3);letter-spacing:.02em}
+.tl-era{margin-top:6px;font-size:15px;font-weight:900;letter-spacing:.11em;text-transform:uppercase;color:var(--laranja-d);min-height:38px}
+.tl-rot{margin-top:150px;font-size:22px;font-weight:800;line-height:1.22;letter-spacing:-.015em}
+.tl-desc{margin-top:11px;font-size:17px;color:var(--tinta-2);line-height:1.36}
+.tl-hash{margin-top:13px;font-family:var(--mono);font-size:14px;color:var(--tinta-3)}
+
+/* ── atlas: destaque sobre a captura ── */
+.atlas{display:flex;gap:38px;height:100%}
+/* aspect-ratio travado no tamanho da captura (1440x1000) + flex:0 0 auto: a caixa passa
+   a ter a proporção EXATA da imagem, então o object-fit:fill não estica nada e os
+   contornos em % continuam caindo no lugar certo. Com flex:1.65 a caixa ficava 1.28 e a
+   imagem 1.44 — a tela do produto aparecia achatada no slide. */
+.atlas-fig{flex:0 0 auto;height:100%;aspect-ratio:1440/1000;position:relative;
+  border:1px solid var(--linha);border-radius:12px;overflow:hidden;background:var(--papel-2);
+  box-shadow:0 18px 44px rgba(10,10,10,.10)}
+.atlas-fig img{width:100%;height:100%;object-fit:fill;display:block}
+.marca-alvo{position:absolute;border:3px solid var(--laranja);border-radius:8px;
+  box-shadow:0 0 0 3px rgba(255,144,0,.24);pointer-events:none}
+/* O número fica DENTRO do alvo, não a cavaleiro do canto: em alvo colado na borda da
+   figura ele saía da página (a figura tem overflow:hidden e o cortava pela metade). */
+.marca-n{position:absolute;width:38px;height:38px;border-radius:50%;background:var(--laranja);color:#fff;
+  font-size:21px;font-weight:900;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 12px rgba(10,10,10,.28);border:2px solid #fff}
+.atlas-lista{flex:1;display:flex;flex-direction:column;gap:20px;justify-content:center;min-width:0}
+.atlas-item{display:flex;gap:17px;align-items:flex-start}
+.atlas-bola{width:36px;height:36px;border-radius:50%;background:var(--laranja);color:#fff;flex-shrink:0;
+  font-size:20px;font-weight:900;display:flex;align-items:center;justify-content:center}
+.atlas-txt h4{font-size:25px;font-weight:900;letter-spacing:-.015em;line-height:1.15}
+.atlas-txt p{margin-top:7px;font-size:19px;color:var(--tinta-2);line-height:1.38}
+.atlas-txt .cam{margin-top:9px;font-family:var(--mono);font-size:15px;color:var(--tinta-3)}
+
+/* ── lista editorial ── */
+/* height:auto e não 100%: dentro do .s-corpo (que tem altura fixa) o 100% somava com o
+   título acima e empurrava o último item 5px pra fora da página. */
+.lista{display:flex;flex-direction:column;gap:22px;justify-content:center}
+.lista-item{display:flex;gap:26px;align-items:flex-start;padding-bottom:24px;border-bottom:1px solid var(--linha)}
+.lista-item:last-child{border-bottom:none}
+.lista-n{font-family:var(--mono);font-size:20px;color:var(--laranja-d);font-weight:700;min-width:52px;padding-top:5px}
+.lista-txt h4{font-size:29px;font-weight:900;letter-spacing:-.018em}
+.lista-txt p{margin-top:8px;font-size:21px;color:var(--tinta-2);line-height:1.4;max-width:1300px}
+
+/* ── aviso de evidência ── */
+.evid{position:absolute;right:186px;bottom:46px;z-index:5;display:flex;align-items:center;gap:9px;
+  font-family:var(--mono);font-size:14px;color:var(--tinta-3)}
+.evid .pt{width:8px;height:8px;border-radius:50%;background:var(--verde)}
+.evid.medio .pt{background:var(--amarelo)}
+
+/* mockup de celular só onde a responsividade é o assunto */
+.fone{border:11px solid #1A1A1A;border-radius:38px;overflow:hidden;background:#1A1A1A;box-shadow:0 22px 50px rgba(10,10,10,.24)}
+.fone img{display:block;width:100%;height:100%;object-fit:cover;object-position:top center}

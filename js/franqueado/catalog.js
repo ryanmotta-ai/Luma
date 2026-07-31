@@ -164,7 +164,7 @@ async function fDownloadHist(id){
   try {
     await fGenPNG(h.dados,c,f);
   } catch(e) {
-    gToast('⚠ Não foi possível baixar a arte. Tente de novo','error');
+    gToast('Não consegui baixar a arte. Tente de novo.','error');
     return; // não marca "baixada" nem toast de sucesso se o PNG não saiu
   } finally {
     fState.material = prevMaterial; // restaura sempre, mesmo se fGenPNG lançar
@@ -181,8 +181,11 @@ async function fEditFromHist(id, btn){
   if(!h) return;
   const {ativas:_ca2,outras:_co2}=fGetCampaigns(); const all=[..._ca2,..._co2];
   const c = all.find(x=>x.id===h.campId);
-  if(!c){ gToast('Campanha original não encontrada.'); return; }
+  if(!c){ gToast('Não achei a campanha original dessa arte.'); return; }
   const f = FMTS.find(x=>x.id===h.fmtId) || FMTS[0];
+  // Retomar do histórico entra na campanha SEM passar por fOpenMaterialCatalog —
+  // sem esta linha, voltar numa arte Much+ deixava o app vestido de Luma.
+  if(typeof fApplyCampTheme==='function') fApplyCampTheme(c);
   // Volta pra aba de catálogo pra mostrar o chat
   const catTabBtn = document.querySelector('.f-tab');
   if(catTabBtn) fSwitchTab('catalogo', catTabBtn);
@@ -326,7 +329,7 @@ async function fConfirmDuplicate(id, fmtId){
     await fGenPNG(h.dados, c, f);
     fAddHist(h.dados, c, f, 'baixada'); // só registra se o PNG saiu (material ainda carregado aqui)
   } catch(e) {
-    gToast('⚠ Não foi possível duplicar a arte. Tente de novo','error');
+    gToast('Não consegui duplicar a arte. Tente de novo.','error');
     return;
   } finally {
     fState.material = prevMaterial; // restaura sempre, mesmo se fGenPNG lançar
@@ -337,11 +340,280 @@ async function fConfirmDuplicate(id, fmtId){
 
 /* ── CATÁLOGO ── */
 // Acha a pasta (dFolders) ligada a uma campanha — por campId ou nome
+/* 3-pontos da vitrine (só DM staff): abre o MESMO editor de pasta do Estúdio.
+   Reuso total — dEditFolder popula/abre o #d-folder-modal e dConfirmFolder já
+   re-renderiza a vitrine/home e faz o push pro backend ao salvar. */
+function fEditCampFolder(folderId){
+  if(typeof gIsAdmin!=='function' || !gIsAdmin()) return;   // gate de UX; RLS é a fronteira real
+  if(typeof dEditFolder==='function') dEditFolder(folderId);
+  else if(typeof gToast==='function') gToast('Não consegui abrir o editor. Recarregue a página.','error');
+}
+const _ICO_STATS='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V5M16 20v-7M22 20V3"/></svg>';
+const _ICO_EDIT='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+const _ICO_ARCHIVE='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/></svg>';
+// Menu do 3-pontos (só DM staff): Editar / Arquivar. Menu flutuante fixo posicionado no botão.
+function fCampAdminMenu(ev, folderId){
+  try{ ev.stopPropagation(); ev.preventDefault(); }catch(e){}
+  fCloseCampAdminMenu();
+  const btn = (ev.currentTarget) || (ev.target && ev.target.closest('.camp-admin-btn'));
+  const menu = document.createElement('div');
+  menu.className = 'camp-admin-menu';
+  menu.innerHTML =
+    `<button type="button" onclick="fCloseCampAdminMenu();fCampAnalyticsOpen('${folderId}')">${_ICO_STATS}<span>Analisar campanha</span></button>`+
+    `<button type="button" onclick="fCloseCampAdminMenu();fEditCampFolder('${folderId}')">${_ICO_EDIT}<span>Editar campanha</span></button>`+
+    `<button type="button" onclick="fCloseCampAdminMenu();fArchiveFolder('${folderId}')">${_ICO_ARCHIVE}<span>Arquivar campanha</span></button>`;
+  document.body.appendChild(menu);
+  if(btn){
+    const r = btn.getBoundingClientRect();
+    menu.style.top = (r.bottom + 4) + 'px';
+    menu.style.left = Math.max(8, Math.min(r.right - menu.offsetWidth, window.innerWidth - menu.offsetWidth - 8)) + 'px';
+  }
+  // Fecha ao clicar fora / Esc. Timeout: não capturar o próprio clique que abriu.
+  setTimeout(()=>{ document.addEventListener('click', fCloseCampAdminMenu, {once:true}); document.addEventListener('keydown', _fCampMenuEsc); }, 0);
+}
+/* ══ ANALISAR CAMPANHA (3-pontos, só DM staff) ══
+   Painel flutuante com o que se sabe de uma campanha. Duas metades, com origens diferentes
+   e rótulos diferentes — misturar as duas seria mentir:
+
+   1. A CAMPANHA (sempre exata): vem de dFolders, que é o dado real do catálogo — materiais,
+      quantos publicados, validade, formatos, última publicação.
+   2. USO: tenta `luma.artes` no backend (o designer pode ter policy de leitura ampla) e,
+      quando não vem nada, cai no histórico LOCAL — que é só deste dispositivo/usuário.
+      O painel diz qual das duas está mostrando. As views `analytics.vw_*` não servem aqui:
+      não têm grant pra `authenticated`, são de extração por SQL (LUMA-BACKEND-CHANGELOG).   */
+function _fCampAnaFolder(folderId){
+  return (typeof dFolders!=='undefined'&&dFolders)?dFolders.find(f=>f.id===folderId):null;
+}
+// Métricas estruturais — contadas na hora, sem cache que possa envelhecer.
+function _fCampAnaEstrutura(f){
+  const tpls=(f&&f.templates)||[];
+  const pub=tpls.filter(t=>t&&t.publishMeta&&t.publishMeta.publicado);
+  const validos=pub.filter(t=>(typeof fIsMaterialValid!=='function')||fIsMaterialValid(t));
+  const fmts={};
+  pub.forEach(t=>{ const k=t.fmt||'orig'; fmts[k]=(fmts[k]||0)+1; });
+  const ultPub=pub.reduce((mx,t)=>Math.max(mx,(t.publishMeta&&t.publishMeta.publicadoEm)||0),0);
+  // "Próxima validade" = a mais próxima AINDA NO FUTURO. Ordenar todas devolvia a validade
+  // de um material já expirado (ex.: 2020-01-01), anunciando como "próxima" uma data vencida.
+  const hoje=new Date().toISOString().slice(0,10);
+  const validades=pub.map(t=>t.publishMeta&&t.publishMeta.validade).filter(v=>v&&v>=hoje).sort();
+  return { total:tpls.length, publicados:pub.length, validos:validos.length,
+    expirados:pub.length-validos.length, fmts, ultPub, proxValidade:validades[0]||null };
+}
+// Uso a partir do histórico local. `escopo` diz de quem são os números — o painel mostra isso.
+function _fCampAnaUsoLocal(f){
+  let hist=[];
+  try{ hist=(typeof fGetHist==='function')?fGetHist():[]; }catch(e){}
+  const ids=new Set([f.id, f.campId].filter(Boolean));
+  const nome=(f.name||'').toLowerCase().trim();
+  const meus=hist.filter(h=>h && (ids.has(h.campId) || (h.campName||'').toLowerCase().trim()===nome));
+  const baixadas=meus.filter(h=>h.status==='baixada');
+  // Material mais baixado: conta por materialId e resolve o nome no catálogo da pasta.
+  const porMat={};
+  baixadas.forEach(h=>{ const k=h.materialId||'(sem material)'; porMat[k]=(porMat[k]||0)+1; });
+  const top=Object.keys(porMat).sort((a,b)=>porMat[b]-porMat[a]).slice(0,3).map(id=>{
+    const t=((f.templates)||[]).find(x=>x&&x.id===id);
+    return { nome:(t&&t.name)||'Material removido', n:porMat[id] };
+  });
+  const porFmt={};
+  baixadas.forEach(h=>{ const k=h.fmtName||h.fmtId||'?'; porFmt[k]=(porFmt[k]||0)+1; });
+  const ultima=meus.reduce((mx,h)=>Math.max(mx,h.tsBaixada||h.ts||0),0);
+  const primeira=meus.reduce((mn,h)=>{ const t=h.ts||0; return (t&&(!mn||t<mn))?t:mn; },0);
+  return { escopo:'local', geradas:meus.length, baixadas:baixadas.length, top, porFmt, ultima, primeira };
+}
+// Tenta o agregado real no backend. Devolve null quando não há sessão, não é admin, a RLS
+// não deixa ver nada ou a campanha ainda não tem arte — e aí quem chama usa o local.
+async function _fCampAnaUsoBackend(f){
+  try{
+    const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
+    if(!sb || typeof gIsAdmin!=='function' || !gIsAdmin()) return null;
+    // Os UUIDs dos templates desta pasta — é por template_id que `artes` liga na campanha.
+    const ids=((f.templates)||[]).map(t=>t&&t.remoteId).filter(Boolean);
+    if(!ids.length) return null;
+    const { data, error }=await sb.schema('luma').from('artes')
+      .select('template_id,status,baixada_em,created_at,user_id').in('template_id', ids).limit(5000);
+    if(error || !data || !data.length) return null;
+    const baixadas=data.filter(r=>r.status==='baixada');
+    const porMat={};
+    baixadas.forEach(r=>{ porMat[r.template_id]=(porMat[r.template_id]||0)+1; });
+    const top=Object.keys(porMat).sort((a,b)=>porMat[b]-porMat[a]).slice(0,3).map(rid=>{
+      const t=((f.templates)||[]).find(x=>x&&x.remoteId===rid);
+      return { nome:(t&&t.name)||'Material removido', n:porMat[rid] };
+    });
+    const ts=v=>v?new Date(v).getTime():0;
+    return { escopo:'backend', geradas:data.length, baixadas:baixadas.length, top, porFmt:null,
+      lojas:new Set(data.map(r=>r.user_id).filter(Boolean)).size,
+      ultima:data.reduce((mx,r)=>Math.max(mx,ts(r.baixada_em),ts(r.created_at)),0),
+      primeira:data.reduce((mn,r)=>{ const t=ts(r.created_at); return (t&&(!mn||t<mn))?t:mn; },0) };
+  }catch(e){ return null; }
+}
+function _fCampAnaData(t){
+  if(!t) return '—';
+  try{ return new Date(t).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'}); }catch(e){ return '—'; }
+}
+function fCampAnalyticsClose(){
+  const el=document.getElementById('f-camp-ana');
+  if(el) el.remove();
+  document.removeEventListener('keydown', _fCampAnaEsc);
+}
+function _fCampAnaEsc(e){ if(e.key==='Escape'){ e.preventDefault(); fCampAnalyticsClose(); } }
+async function fCampAnalyticsOpen(folderId){
+  if(typeof gIsAdmin!=='function' || !gIsAdmin()) return;  // gate de UX; RLS é a fronteira real
+  const f=_fCampAnaFolder(folderId);
+  if(!f){ if(typeof gToast==='function') gToast('Não achei essa campanha.','error'); return; }
+  fCampAnalyticsClose();
+  const e=_fCampAnaEstrutura(f);
+  const box=document.createElement('div');
+  box.id='f-camp-ana'; box.className='camp-ana-overlay';
+  box.setAttribute('role','dialog'); box.setAttribute('aria-modal','true');
+  box.setAttribute('aria-label','Análise da campanha '+(f.name||''));
+  box.onclick=(ev)=>{ if(ev.target===box) fCampAnalyticsClose(); };
+  const fmtLista=Object.keys(e.fmts).map(k=>`<span class="camp-ana-chip">${gEsc(k)} · ${e.fmts[k]}</span>`).join('')
+    || '<span class="camp-ana-empty">nenhum material publicado</span>';
+  box.innerHTML=`<div class="camp-ana-box">
+    <div class="camp-ana-head">
+      <span class="camp-ana-dot" style="background:${gEsc(f.color||'#FF9000')}"></span>
+      <div class="camp-ana-title"><span>Análise da campanha</span><strong>${gEsc(f.name||'Campanha')}</strong></div>
+      <button type="button" class="camp-ana-x" onclick="fCampAnalyticsClose()" aria-label="Fechar análise">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <div class="camp-ana-body">
+      <div class="camp-ana-sec">
+        <span class="camp-ana-sec-t">A campanha</span>
+        <div class="camp-ana-grid">
+          <div class="camp-ana-kpi"><strong>${e.publicados}</strong><small>publicados</small></div>
+          <div class="camp-ana-kpi"><strong>${e.validos}</strong><small>no ar agora</small></div>
+          <div class="camp-ana-kpi${e.expirados?' is-warn':''}"><strong>${e.expirados}</strong><small>expirados</small></div>
+          <div class="camp-ana-kpi"><strong>${e.total}</strong><small>no total</small></div>
+        </div>
+        <div class="camp-ana-rows">
+          <div><span>Formatos</span><div class="camp-ana-chips">${fmtLista}</div></div>
+          <div><span>Última publicação</span><strong>${_fCampAnaData(e.ultPub)}</strong></div>
+          ${e.proxValidade?`<div><span>Próxima validade</span><strong>${gEsc(e.proxValidade)}</strong></div>`:''}
+          <div><span>Situação</span><strong>${f.ativa===false?'Arquivada':'Ativa'}</strong></div>
+        </div>
+      </div>
+      <div class="camp-ana-sec" id="f-camp-ana-uso">
+        <span class="camp-ana-sec-t">Uso</span>
+        <div class="camp-ana-loading">Consultando…</div>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(box);
+  document.addEventListener('keydown', _fCampAnaEsc);
+  // Uso vem depois: a consulta ao backend é assíncrona e o painel não deve esperar por ela.
+  const uso=(await _fCampAnaUsoBackend(f)) || _fCampAnaUsoLocal(f);
+  const alvo=document.getElementById('f-camp-ana-uso');
+  if(!alvo) return; // fechou antes da resposta
+  const topLista=uso.top.length
+    ? uso.top.map((t,i)=>`<div class="camp-ana-top"><span class="camp-ana-rank">${i+1}</span><span class="camp-ana-top-n">${gEsc(t.nome)}</span><strong>${t.n}</strong></div>`).join('')
+    : '<span class="camp-ana-empty">nenhuma arte baixada ainda</span>';
+  const taxa=uso.geradas?Math.round(uso.baixadas/uso.geradas*100):0;
+  const fmtUso=(uso.porFmt&&Object.keys(uso.porFmt).length)
+    ? Object.keys(uso.porFmt).sort((a,b)=>uso.porFmt[b]-uso.porFmt[a])
+        .map(k=>`<span class="camp-ana-chip">${gEsc(k)} · ${uso.porFmt[k]}</span>`).join('')
+    : '';
+  // Rótulo honesto da origem: o número local é de UM dispositivo e não representa a rede.
+  const origem=uso.escopo==='backend'
+    ? `<div class="camp-ana-src">Dados de todas as lojas${uso.lojas?' · '+uso.lojas+' loja'+(uso.lojas===1?'':'s'):''}</div>`
+    : `<div class="camp-ana-src is-local">Só deste dispositivo — o total da rede sai por extração SQL (o Luma não guarda esse agregado no app)</div>`;
+  alvo.innerHTML=`<span class="camp-ana-sec-t">Uso</span>
+    <div class="camp-ana-grid">
+      <div class="camp-ana-kpi"><strong>${uso.geradas}</strong><small>artes geradas</small></div>
+      <div class="camp-ana-kpi"><strong>${uso.baixadas}</strong><small>baixadas</small></div>
+      <div class="camp-ana-kpi"><strong>${taxa}%</strong><small>taxa de download</small></div>
+    </div>
+    <div class="camp-ana-rows">
+      <div><span>Mais baixados</span><div class="camp-ana-tops">${topLista}</div></div>
+      ${fmtUso?`<div><span>Por formato</span><div class="camp-ana-chips">${fmtUso}</div></div>`:''}
+      <div><span>Primeira arte</span><strong>${_fCampAnaData(uso.primeira)}</strong></div>
+      <div><span>Última atividade</span><strong>${_fCampAnaData(uso.ultima)}</strong></div>
+    </div>
+    ${origem}`;
+}
+
+function _fCampMenuEsc(e){ if(e.key==='Escape') fCloseCampAdminMenu(); }
+function fCloseCampAdminMenu(){
+  document.querySelectorAll('.camp-admin-menu').forEach(m=>m.remove());
+  document.removeEventListener('keydown', _fCampMenuEsc);
+}
+// Arquivar/desarquivar = flag na pasta + dPersistFolders (local + push pro backend, gated gIsAdmin
+// lá dentro — mesmo caminho de save do editor). ativa:!arquivada some/volta pra vitrine de todos.
+function fArchiveFolder(folderId){
+  if(typeof gIsAdmin!=='function' || !gIsAdmin()) return;
+  const f = (typeof dFolders!=='undefined' && dFolders) ? dFolders.find(x=>x.id===folderId) : null;
+  if(!f){ if(typeof gToast==='function') gToast('Não achei essa campanha.','error'); return; }
+  f.arquivada = true;
+  if(typeof dPersistFolders==='function') dPersistFolders();
+  fRestoreCatalog();
+  if(document.body.classList.contains('f-home-mode') && typeof fRenderHome==='function') fRenderHome({silent:true});
+  if(typeof gToast==='function') gToast(`Campanha "${f.name}" arquivada.`);
+}
+function fUnarchiveFolder(folderId){
+  if(typeof gIsAdmin!=='function' || !gIsAdmin()) return;
+  const f = (typeof dFolders!=='undefined' && dFolders) ? dFolders.find(x=>x.id===folderId) : null;
+  if(!f) return;
+  f.arquivada = false;
+  if(typeof dPersistFolders==='function') dPersistFolders();
+  fRenderArchivedPanel();   // atualiza a lista do painel (item saiu)
+  fRestoreCatalog();        // volta pra vitrine por trás
+  if(typeof gToast==='function') gToast(`Campanha "${f.name}" desarquivada.`);
+}
+
+/* ── PAINEL DE CAMPANHAS ARQUIVADAS (só DM staff) ── */
+function fOpenArchivedPanel(){
+  if(typeof gIsAdmin!=='function' || !gIsAdmin()) return;
+  let host=document.getElementById('f-archived-panel');
+  if(!host){
+    host=document.createElement('div'); host.id='f-archived-panel';
+    host.addEventListener('click',(e)=>{ if(e.target===host) fCloseArchivedPanel(); });
+    document.body.appendChild(host);
+  }
+  document.addEventListener('keydown', _fArchEsc);
+  fRenderArchivedPanel();
+}
+function _fArchEsc(e){ if(e.key==='Escape') fCloseArchivedPanel(); }
+function fCloseArchivedPanel(){
+  const host=document.getElementById('f-archived-panel'); if(host) host.remove();
+  document.removeEventListener('keydown', _fArchEsc);
+}
+function fRenderArchivedPanel(){
+  const host=document.getElementById('f-archived-panel'); if(!host) return;
+  const arq=(typeof fGetArchivedCamps==='function')?fGetArchivedCamps():[];
+  const _icoClose='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+  const cards = arq.length
+    ? `<div class="f-arch-grid">${arq.map(c=>{
+        const coverSafe=gEsc(c.cover||'').replace(/'/g,'%27');
+        const style=c.cover?`background-image:url('${coverSafe}');background-size:cover;background-position:center`:`background:${gEsc(c.color||'var(--dm-orange)')}`;
+        return `<div class="f-arch-card">
+          <div class="f-arch-thumb" style="${style}">${c.badge?`<span class="f-arch-badge">${gEsc(c.badge)}</span>`:''}</div>
+          <div class="f-arch-info"><div class="f-arch-name">${gEsc(c.name||'Campanha')}</div>
+            <button type="button" class="f-arch-unbtn" onclick="fUnarchiveFolder('${c._folderId}')">Desarquivar</button>
+          </div>
+        </div>`;
+      }).join('')}</div>`
+    : `<p class="f-arch-empty">Nenhuma campanha arquivada. Ao arquivar uma campanha pelos 3-pontos, ela aparece aqui.</p>`;
+  host.innerHTML=`<div class="f-arch-box" role="dialog" aria-modal="true" aria-label="Campanhas arquivadas">
+    <div class="f-arch-head">
+      <h2>Campanhas arquivadas${arq.length?` · ${arq.length}`:''}</h2>
+      <button type="button" class="f-arch-close" onclick="fCloseArchivedPanel()" aria-label="Fechar">${_icoClose}</button>
+    </div>
+    <div class="f-arch-body">${cards}</div>
+  </div>`;
+}
 function fFolderForCamp(c){
   if(typeof dFolders==='undefined'||!dFolders||!c)return null;
+  // Duas pastas podem casar com a MESMA campanha (a semente do CAMPS_* e uma pasta real
+  // do banco com o mesmo nome). Entre as que casam, a SINCRONIZADA manda: é ela que o
+  // designer edita e a que sobrevive ao próximo pull. Sem isso a vitrine lia a semente e
+  // a capa nova "não pegava" — trocar a foto do banner não surtia efeito nenhum.
+  const _preferSync = arr => arr.find(f=>f&&f.remoteId) || arr[0] || null;
+  const porCamp = dFolders.filter(f=>f&&f.campId===c.id);
+  if(porCamp.length) return _preferSync(porCamp);
+  const porNome = dFolders.filter(f=>f&&f.name===c.name);
+  if(porNome.length) return _preferSync(porNome);
   // 3º match: campanha dinâmica (criada no Estúdio) usa o id da própria pasta como camp.id
-  return dFolders.find(f=>f.campId===c.id) || dFolders.find(f=>f.name===c.name)
-      || dFolders.find(f=>f.remoteId===c.id||f.id===c.id) || null;
+  return dFolders.find(f=>f&&(f.remoteId===c.id||f.id===c.id)) || null;
 }
 // Capa da pasta — usada como fundo do card.
 // Pasta EXISTENTE no catálogo manda (gerida pelo MKT no Estúdio/banco): cover vazio
@@ -355,118 +627,16 @@ function fCampCover(c){
   }
   return (c&&c.cover&&typeof c.cover==='string'&&c.cover.length)?c.cover:'';
 }
-/* ── MINIATURAS REAIS DOS MATERIAIS ──────────────────────────────
-   O card da campanha mostra o material publicado de verdade: o 1º material
-   válido é renderizado em miniatura pelo MESMO motor do PNG final
-   (fRenderTemplateLayers) e cacheado por campanha. O HTML sai na hora com a
-   cor da marca; a fila assíncrona pinta a capa real quando o render termina.
-   Prioridade de capa: upload do designer > miniatura renderizada > cor. */
-let _fCampThumbs={};      // campId → {mid: chave do material renderizado, url: dataURL}
-let _fCampThumbBusy=false;
-let _fCampThumbsLoaded=false; // cache persistido (IndexedDB) já carregado?
-
-function _fCampThumbMaterial(c){
-  if(typeof fGetMaterialsForCamp!=='function'||!c)return null;
-  // Agora permite templates que ainda não fizeram fetch das layers (_needsLayersFetch)
-  const mats=fGetMaterialsForCamp(c.id).filter(t=>fIsMaterialValid(t)&&(t._needsLayersFetch || (t.layers&&t.layers.length)));
-  return mats[0]||null;
-}
-function _fCampThumbURL(id){
-  const e=_fCampThumbs[id];
-  return (e&&e.url&&e.url!=='__fail__')?e.url:'';
-}
-// Chave de frescor do thumb: id + data de publicação. Republicar o material muda a
-// chave → thumb re-renderiza. Permite persistir o cache entre sessões sem servir capa velha.
-function _fCampThumbMid(t){
-  return t.id+':'+((t.publishMeta&&t.publishMeta.publicadoEm)||0);
-}
-// Precisa renderizar? (sem cache, ou o material publicado mudou desde o cache)
-function _fCampThumbNeeded(c){
-  const t=_fCampThumbMaterial(c); if(!t)return false;
-  const e=_fCampThumbs[c.id];
-  return !e||e.mid!==_fCampThumbMid(t);
-}
-// Persiste no IndexedDB só os thumbs que renderizaram ('__fail__' fica de fora — re-tenta
-// na próxima sessão). Sem isso, cada abertura do app re-baixaria os layers pros thumbs.
-function _fCampThumbsPersist(){
-  if(typeof gIdbPut!=='function')return;
-  try{
-    const ok={};
-    for(const k in _fCampThumbs){ const e=_fCampThumbs[k]; if(e&&e.url&&e.url!=='__fail__') ok[k]=e; }
-    gIdbPut('__f_camp_thumbs__', ok);
-  }catch(e){}
-}
-async function _fRenderCampThumb(c,t){
-  // Lazy Load discreto se o template for virgem de layers (mesmo helper do clique, com dedup)
-  if(typeof fEnsureMaterialLayers==='function') await fEnsureMaterialLayers(t);
-
-  const [tw,th]=fMaterialSize(t);
-  const s=Math.min(1,360/tw); // miniatura ~360px de largura — nítida no card, leve na memória
-  const cv=document.createElement('canvas');
-  cv.width=Math.max(1,Math.round(tw*s));cv.height=Math.max(1,Math.round(th*s));
-  const ctx=cv.getContext('2d');
-  ctx.scale(s,s);
-  ctx.fillStyle=c.color||'#FF9000';ctx.fillRect(0,0,tw,th); // JPEG não tem alpha — nunca fundo preto
-  const prev=fState.material;
-  fState.material=t; // o motor lê bg/tamanho do fState (mesmo padrão do fDownloadHist)
-  try{ await fRenderTemplateLayers(ctx,t.layers||[],tw,th,{},c); }
-  finally{ if(fState.material===t)fState.material=prev; } // não sobrescreve escolha feita no meio
-  return cv.toDataURL('image/jpeg',.85);
-}
-// Fila: pinta as capas pendentes uma a uma (só enquanto a home está aberta)
-async function fHomeFillThumbs(){
-  if(_fCampThumbBusy)return;
-  _fCampThumbBusy=true;
-  try{
-    // 1º uso na sessão: recupera thumbs renderizados em sessões anteriores (IndexedDB)
-    if(!_fCampThumbsLoaded){
-      _fCampThumbsLoaded=true;
-      if(typeof gIdbGet==='function'){
-        try{ const saved=await gIdbGet('__f_camp_thumbs__'); if(saved&&typeof saved==='object') _fCampThumbs={...saved,..._fCampThumbs}; }catch(e){}
-      }
-    }
-    let node, rendered=false;
-    while((node=document.querySelector('#f-home [data-thumb-camp]'))){
-      if(!document.body.classList.contains('f-home-mode'))break;
-      const id=node.getAttribute('data-thumb-camp');
-      const c=fResolveCamp(id);
-      const t=c&&_fCampThumbMaterial(c);
-      if(t&&_fCampThumbNeeded(c)){
-        let url='__fail__';
-        try{
-          if(typeof fEnsureMaterialLayers==='function') await fEnsureMaterialLayers(t); // catálogo leve
-          if(t.layers&&t.layers.length) url=await _fRenderCampThumb(c,t);
-        }catch(e){}
-        _fCampThumbs[id]={mid:_fCampThumbMid(t),url};
-        if(url!=='__fail__')rendered=true;
-        await new Promise(r=>setTimeout(r,40)); // respiro entre renders — não trava a aba
-      }
-      document.querySelectorAll(`#f-home [data-thumb-camp="${id}"]`).forEach(n=>_fPaintCampThumb(n,id));
-    }
-    if(rendered)_fCampThumbsPersist();
-  } finally { _fCampThumbBusy=false; }
-}
-function _fPaintCampThumb(node,id){
-  node.removeAttribute('data-thumb-camp'); // sempre limpa — a fila não pode girar em falso
-  const url=_fCampThumbURL(id);
-  if(!url)return;
-  if(node.classList.contains('fh-hero-cover')){
-    node.style.backgroundImage=`url('${url}')`;
-  }else{
-    node.style.backgroundImage=`url('${url}')`;
-  }
-  node.style.backgroundSize='cover';
-  node.style.backgroundPosition='center';
-  node.classList.add('has-cover','thumb-real');
-}
 
 function fCampEl(c,isRec,ghost){
   // F-06: thumb mostra prévia real com produto e preço
   const previewProd = c.previewProd || c.name;
   const previewPor = c.previewPor || '';
   const previewDe = c.previewDe || '';
-  // Capa: upload do designer > miniatura renderizada em cache > cor da marca
-  const cover = fCampCover(c) || _fCampThumbURL(c.id);
+  // Capa: SÓ a capa da própria pasta (fCampCover) > cor da marca. Nunca o material de
+  // dentro: a miniatura renderizada mostrava a arte com os campos VAZIOS (retângulo em
+  // branco, o "card invisível" no boot) e trocava a identidade da campanha pelo conteúdo.
+  const cover = fCampCover(c);
   // Degradação graciosa: a cor da campanha fica POR BAIXO da imagem — se a capa faltar (404),
   // o card mostra a cor da marca em vez de um retângulo branco.
   // Scrim (gradiente topo+base) por cima da capa → badges legíveis mesmo em fotos claras.
@@ -476,7 +646,6 @@ function fCampEl(c,isRec,ghost){
     : `background:${c.color}`;
   const mats = (typeof fGetMaterialsForCamp==='function') ? fGetMaterialsForCamp(c.id) : [];
   const countLabel = ghost ? 'Materiais em breve' : (mats.length ? `${mats.length} ${mats.length!==1?'materiais':'material'}` : 'Sem materiais');
-  const thumbAttr = (!cover && !ghost && _fCampThumbNeeded(c)) ? ` data-thumb-camp="${c.id}"` : '';
   const _icoFlame='<svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:-1px;margin-right:3px"><path d="M12 2s5 4 5 9a5 5 0 0 1-10 0c0-1 .3-2 .8-2.8C8 10 9 12 10 12c0-3 2-7 2-10z"/></svg>';
   const _icoClock='<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-1px;margin-right:3px"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
   // F: favorito (fixar no topo) + badge "novo" (material publicado depois da última visita).
@@ -484,10 +653,19 @@ function fCampEl(c,isRec,ghost){
   const _isFav = !ghost && typeof fIsFav==='function' && fIsFav(c.id);
   const favBtn = ghost ? '' : `<button class="camp-fav${_isFav?' is-fav':''}" onclick="fToggleFav('${c.id}',event)" aria-pressed="${_isFav}" aria-label="${_isFav?'Remover das favoritas':'Fixar nas favoritas'}" title="${_isFav?'Remover das favoritas':'Fixar nas favoritas'}"><svg width="14" height="14" viewBox="0 0 24 24" fill="${_isFav?'currentColor':'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></button>`;
   const _hasNew = !ghost && !c.popular && typeof fCampHasNew==='function' && fCampHasNew(c);
-  return `<div class="camp-card ${!ghost&&fState.camp&&c.id===fState.camp.id?'selected':''} ${isRec?'recommended':''}${ghost?' ghost':''}"${ghost?' aria-disabled="true"':` role="button" tabindex="0" aria-label="Abrir campanha ${gEsc(c.name)}" onclick="fSelectCamp('${c.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();fSelectCamp('${c.id}')}"`}>
+  // 3-pontos "editar campanha" — só DM staff (gIsAdmin) E campanha com PASTA real (dFolders).
+  // Campanha hardcoded do config não tem pasta → não é editável (é código). Gate de UX; a
+  // segurança real é a RLS is_designer() no backend.
+  const _campFolder = (!ghost && typeof gIsAdmin==='function' && gIsAdmin() && typeof fFolderForCamp==='function') ? fFolderForCamp(c) : null;
+  const adminBtn = _campFolder ? `<button class="camp-admin-btn" onclick="fCampAdminMenu(event,'${_campFolder.id}')" aria-label="Ações da campanha" title="Ações da campanha"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>` : '';
+  // Campanha com tema (Much+): o card carrega o atributo e o CSS faz o convite
+  // (badge magenta + shine 1x + aura no hover) ANTES do clique. Slug já sai sanitizado.
+  const _tema=(typeof _fCampThemeOf==='function')?_fCampThemeOf(c):'';
+  return `<div class="camp-card ${!ghost&&fState.camp&&c.id===fState.camp.id?'selected':''} ${isRec?'recommended':''}${ghost?' ghost':''}"${_tema?` data-camp-theme="${_tema}"`:''}${ghost?' aria-disabled="true"':` role="button" tabindex="0" aria-label="Abrir campanha ${gEsc(c.name)}" onclick="fSelectCamp('${c.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();fSelectCamp('${c.id}')}"`}>
     ${favBtn}
+    ${adminBtn}
     ${ghost?'':`<div class="camp-prev-btn" onclick="event.stopPropagation();fOpenPreview(event,'${c.id}')">PRÉVIA</div>`}
-    <div class="camp-thumb ${cover?'has-cover':''}"${thumbAttr} style="${thumbStyle}">
+    <div class="camp-thumb ${cover?'has-cover':''}" style="${thumbStyle}">
       ${c.badge?`<div class="camp-badge">${gEsc(c.badge)}</div>`:''}
       ${!ghost&&c.popular?`<div class="camp-popular">${_icoFlame}Popular</div>`:''}
       ${_hasNew?`<div class="camp-new">novo</div>`:''}
@@ -523,6 +701,7 @@ function fGetCampaigns(){
           // remoteId (estável pós-sync) > id local; histórico/artes gravam este id
           id:f.campId||f.remoteId||f.id, name:f.name, color:f.color||'#FF9000',
           cover:'', count:(f.templates||[]).length, badge:f.badge||'',
+          theme:f.theme||'', // pasta pode carregar tema próprio (ex.: Much+) — ver fApplyCampTheme
           expiraDias:f.expiraDias, popular:!!f.popular,
           previewProd:f.previewProd||'', previewDe:f.previewDe||'', previewPor:f.previewPor||'',
           perguntas:Array.isArray(f.perguntas)?f.perguntas:[]
@@ -530,7 +709,19 @@ function fGetCampaigns(){
       });
     }
   }catch(e){}
-  return {ativas, outras:CAMPS_OUTRAS, impl:(typeof CAMPS_IMPLEMENTACAO!=='undefined')?CAMPS_IMPLEMENTACAO:[]};
+  // Campanha ARQUIVADA (pasta com arquivada=true) some da vitrine — vale tanto pra campanha
+  // dinâmica (id=pasta) quanto pra config cuja pasta foi arquivada. fResolveCamp/fFolderForCamp
+  // continuam achando a arquivada por id, então o painel de arquivadas ainda a resolve.
+  const _naoArq = (c)=>{ const ff=(typeof fFolderForCamp==='function')?fFolderForCamp(c):null; return !(ff && ff.arquivada); };
+  return {ativas:ativas.filter(_naoArq), outras:CAMPS_OUTRAS.filter(_naoArq), impl:(typeof CAMPS_IMPLEMENTACAO!=='undefined')?CAMPS_IMPLEMENTACAO:[]};
+}
+// Só as pastas arquivadas (pro painel admin). Resolve nome/capa pela própria pasta.
+function fGetArchivedCamps(){
+  if(typeof dFolders==='undefined' || !dFolders) return [];
+  return dFolders.filter(f=>f && f.arquivada && f.id!=='f-modelo').map(f=>({
+    id:f.campId||f.remoteId||f.id, name:f.name, color:f.color||'#FF9000', cover:f.cover||'',
+    badge:f.badge||'', _folderId:f.id
+  }));
 }
 // Pool padrão (ativas+outras) — a forma mais consumida no app inteiro.
 function fAllCampaigns(){ const {ativas,outras}=fGetCampaigns(); return [...ativas,...outras]; }
@@ -598,6 +789,9 @@ function fRenderImplementacao(){
     <div class="camp-grid">${fGetCampaigns().impl.map(c=>fCampEl(c,false)).join('')}</div>`;
 }
 function fRestoreCatalog(){
+  // ⚠ NÃO remover o tema de campanha aqui: isto é re-render do RAIL e roda com o
+  // franqueado dentro da campanha (favoritar chamava isto e derrubava o tema Much+
+  // no meio do fluxo). Saída de verdade: fGoHome / fCloseMaterialCatalog.
   if(fState.categoria==='campanhas'){
     const {ativas,outras}=fGetCampaigns();
     fRenderCatalogs(ativas,outras);
@@ -640,16 +834,19 @@ function fRenderCatalogs(a,o,opts){
   opts=opts||{};
   const cat=document.getElementById('f-catalog'); if(!cat)return;
   const searching=!!opts.search;
+  // Entrada do painel de arquivadas — só DM staff e só quando há campanha arquivada.
+  const _arqN = (typeof gIsAdmin==='function' && gIsAdmin() && typeof fGetArchivedCamps==='function') ? fGetArchivedCamps().length : 0;
+  const archBtn = _arqN ? `<button class="cat-arch-btn" onclick="fOpenArchivedPanel()" title="Ver campanhas arquivadas"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/></svg>Arquivadas · ${_arqN}</button>` : '';
   const backRow=`<div class="cat-back-row">
       <button class="cat-back-btn" onclick="fVoltarCategoria()">${_ICO_BACK} Todas as categorias</button>
-      <span class="cat-back-label">Campanhas</span>
+      ${archBtn}
     </div>`;
   // Sem nenhuma campanha → empty state (nunca títulos sobre grid vazio)
   if(!a.length && !o.length){ cat.innerHTML=backRow+_fCampEmptyState(searching?opts.search:null); return; }
   // "Recomendada agora" só fora da busca (senão fica um título órfão)
   const rec=searching?null:(a.find(c=>c.popular)||null);
   cat.innerHTML=backRow+`
-    ${rec?`<div class="sec-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:middle;margin-right:4px"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9"/></svg>Recomendada agora</div>
+    ${rec?`<div class="sec-title">A campanha do momento</div>
     <div class="camp-grid" id="camp-rec"></div>`:''}
     ${a.length?`<div class="sec-title">${searching?'Resultados':'Ativas agora'}</div><div class="camp-grid" id="camp-main"></div>`:''}
     ${o.length?`<div class="sec-title">${searching?'Outros resultados':'Outras campanhas'}</div><div class="camp-grid" id="camp-other"></div>`:''}`;
@@ -671,6 +868,11 @@ function fSelectCamp(id){
   const c=fResolveCamp(id);if(!c)return;
   fExitHome(); // vindo da home → devolve o layout de 3 colunas antes de seguir o fluxo normal
   if(fState.camp && fState.camp.id===c.id) {
+    // Reabrir a MESMA campanha (pasta ou chat ainda abertos atrás da home): o
+    // fGoHome despiu o tema — reveste em TODOS os caminhos daqui pra baixo
+    // (early-return dos materiais E o fluxo de chat com dados, que segue pro
+    // fAskCampSwitch sem passar pelo fOpenMaterialCatalog).
+    if(typeof fApplyCampTheme==='function') fApplyCampTheme(c);
     if(fState.materialView) return;
   }
   const temDados = Object.keys(fState.dados).length > 0 && !fState.materialView;
@@ -697,6 +899,7 @@ function fSelectCamp(id){
    os fluxos existentes (materiais → chat → prévia) ficam intactos.
 ══════════════════════════════════════════════════════════════ */
 function fGoHome(opts){
+  if(typeof fRemoveCampTheme==='function') fRemoveCampTheme();
   document.body.classList.add('f-home-mode');
   document.body.classList.remove('f-mobile-chat','f-history-mode','f-material-browser');
   // Saindo do HISTÓRICO pela home: reseta a aba do rail. fGoHome removia só a classe, mas o
@@ -740,7 +943,10 @@ function fHomeGreeting(){
   let n='';
   try{
     const dn=(typeof gAuthState!=='undefined'&&gAuthState.user&&gAuthState.user.displayName)||'';
-    n=dn.trim().split(/\s+/)[0]||'';
+    // Nome completo a partir do nome real OU do prefixo do email: tira o domínio (@),
+    // quebra em espaço/ponto/_/- e capitaliza cada palavra. "ryan.motta" → "Ryan Motta".
+    n=dn.trim().split('@')[0].split(/[\s._-]+/).filter(Boolean)
+        .map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
   }catch(e){}
   return g+(n?', '+gEsc(n):'');
 }
@@ -751,22 +957,28 @@ function _fHomeDraftEl(hEntry){
   const fmt=gEsc(hEntry.fmtName||'');
   const when=(typeof fFormatHistDate==='function')?fFormatHistDate(hEntry.ts):'';
   const camp=(typeof fResolveCamp==='function')?fResolveCamp(hEntry.campId):null;
-  const cover=camp?(fCampCover(camp)||_fCampThumbURL(camp.id)):'';
+  const cover=camp?fCampCover(camp):'';   // capa da pasta, nunca a arte de dentro
   const coverSafe=gEsc(cover).replace(/'/g,'%27');
   const colorSafe=gEsc(hEntry.campColor||(camp&&camp.color)||'var(--dm-orange)');
   const thumbStyle=cover
     ?`background-color:${colorSafe};background-image:url('${coverSafe}');background-size:cover;background-position:center`
     :`background-color:${colorSafe}`;
-  const thumbAttr=(!cover&&camp&&_fCampThumbNeeded(camp))?` data-thumb-camp="${camp.id}"`:'';
+  let pct=0, summaryVal='';
+  if(hEntry.dados && camp && camp.perguntas && camp.perguntas.length){
+    const filled=camp.perguntas.filter(p=>hEntry.dados[p.id]!=null && hEntry.dados[p.id]!=='').length;
+    pct=Math.round((filled/camp.perguntas.length)*100);
+    const firstKey=Object.keys(hEntry.dados).find(k=>hEntry.dados[k] && typeof hEntry.dados[k]==='string' && !hEntry.dados[k].startsWith('data:image'));
+    if(firstKey) summaryVal=hEntry.dados[firstKey];
+  }
   return `<button class="fh-draft" type="button" onclick="fHomeResume(${hEntry.id})" aria-label="Continuar ${name}${fmt?', formato '+fmt:''}">
-    <div class="fh-draft-th"${thumbAttr} style="${thumbStyle}" aria-hidden="true">
+    <div class="fh-draft-th" style="${thumbStyle}" aria-hidden="true">
       <span>${fmt||'Arte'}</span>
     </div>
     <div class="fh-draft-info">
-      <div class="fh-draft-status"><span></span> Rascunho</div>
+      <div class="fh-draft-status"><span></span> Em andamento${pct?` · ${pct}%`:''}</div>
       <div class="fh-draft-name">${name}</div>
-      <div class="fh-draft-meta">${gEsc(hEntry.campName||'Campanha')}${fmt?' · '+fmt:''}</div>
-      <div class="fh-draft-foot"><time>${when}</time><span class="fh-draft-progress" aria-hidden="true"><i></i></span></div>
+      <div class="fh-draft-meta">${summaryVal?gEsc(summaryVal)+' · ':''}${gEsc(hEntry.campName||'Campanha')}${fmt?' · '+fmt:''}</div>
+      <div class="fh-draft-foot"><time>${when}</time><span class="fh-draft-progress" aria-hidden="true" title="${pct}% concluído"><i style="width:${pct||50}%"></i></span></div>
     </div>
     <span class="fh-draft-go" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span>
   </button>`;
@@ -783,7 +995,7 @@ function fHomeOpenHist(){
 
 // Hero da campanha recomendada (a "popular" entre as que têm material pronto)
 function _fHomeHeroEl(rec){
-  const cover=fCampCover(rec)||_fCampThumbURL(rec.id);
+  const cover=fCampCover(rec);   // capa da pasta, nunca a arte de dentro
   const mats=(typeof fGetMaterialsForCamp==='function')?fGetMaterialsForCamp(rec.id):[];
   const matLabel=mats.length?`${mats.length} ${mats.length!==1?'materiais':'material'}`:'Materiais em breve';
   const coverSafe=gEsc(cover).replace(/'/g,'%27');   // %27: neutraliza o ' que fecharia o url('…')
@@ -791,20 +1003,29 @@ function _fHomeHeroEl(rec){
   const coverStyle=cover
     ?`background-color:${colorSafe};background-image:url('${coverSafe}');background-size:cover;background-position:center`
     :`background-color:${colorSafe}`;
-  const heroThumbAttr=(!cover&&_fCampThumbNeeded(rec))?` data-thumb-camp="${rec.id}"`:'';
   const fmtNames=[...new Set(mats.map(m=>({story:'Story 9:16',feed:'Feed 1:1',wide:'Post wide',post:'Post wide'}[m.fmt]||'Material')))];
   const _flame='<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:-1px"><path d="M12 2s5 4 5 9a5 5 0 0 1-10 0c0-1 .3-2 .8-2.8C8 10 9 12 10 12c0-3 2-7 2-10z"/></svg>';
   const _star='<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:-1.5px"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9"/></svg>';
+  const _temaHero=(typeof _fCampThemeOf==='function')?_fCampThemeOf(rec):''; // mesmo convite do card, no hero
+  // 3-pontos do hero (só DM staff + campanha com pasta real): mesmo menu do card, mesma
+  // função. Faltava justo AQUI — trocar a capa do banner exigia caçar a pasta no Estúdio,
+  // porque o card tinha o atalho e o banner não. Fica FORA do <button class="fh-hero">:
+  // botão dentro de botão é HTML inválido e o clique não chega.
+  const _heroFolder=(typeof gIsAdmin==='function'&&gIsAdmin()&&typeof fFolderForCamp==='function')?fFolderForCamp(rec):null;
+  const heroAdmin=_heroFolder
+    ? `<button class="camp-admin-btn fh-hero-admin" onclick="fCampAdminMenu(event,'${_heroFolder.id}')" aria-label="Ações da campanha em destaque" title="Editar campanha, capa e mais"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>`
+    : '';
   return `<section class="fh-featured" aria-label="Campanha recomendada">
-  <button class="fh-hero" type="button" onclick="fSelectCamp('${rec.id}')" aria-label="Abrir campanha ${gEsc(rec.name)}">
-    <div class="fh-hero-cover"${heroThumbAttr} style="${coverStyle}">
+  ${heroAdmin}
+  <button class="fh-hero" type="button"${_temaHero?` data-camp-theme="${_temaHero}"`:''} onclick="fSelectCamp('${rec.id}')" aria-label="Abrir campanha ${gEsc(rec.name)}">
+    <div class="fh-hero-cover" style="${coverStyle}">
       ${rec.badge?`<span class="fh-hero-badge">${gEsc(rec.badge)}</span>`:''}
       ${rec.popular?`<span class="fh-hero-pop">${_flame} Popular</span>`:''}
       ${cover?'':`<div class="fh-hero-prod">${gEsc(rec.previewProd||rec.name)}</div>`}
       <span class="fh-hero-cover-note">Campanha em destaque</span>
     </div>
     <div class="fh-hero-body">
-      <span class="fh-hero-eyebrow">${_star} RECOMENDADA AGORA</span>
+      <span class="fh-hero-eyebrow">${_star} EM DESTAQUE NESTA SEMANA</span>
       <span class="fh-hero-name">${gEsc(rec.name)}</span>
       <span class="fh-hero-meta">${matLabel}${rec.expiraDias?` · disponível por ${rec.expiraDias} dias`:''}</span>
       ${fmtNames.length?`<span class="fh-hero-formats">${fmtNames.slice(0,3).map(fmt=>`<span>${gEsc(fmt)}</span>`).join('')}</span>`:''}
@@ -819,14 +1040,74 @@ function _fCampHasMats(c){
   try{ return fGetMaterialsForCamp(c.id).filter(fIsMaterialValid).length>0; }catch(e){ return false; }
 }
 
+// Filtro de status da vitrine (independente do texto buscado). Reseta ao recarregar —
+// não é preferência de conta, é só o estado momentâneo da navegação.
+let _fhFilter='todas';
+const _FH_FILTERS=[
+  {id:'todas',label:'Todas'},
+  {id:'prontas',label:'Prontas para usar'},
+  {id:'favoritas',label:'Favoritas'},
+  {id:'embreve',label:'Em breve'}
+];
+function _fhEmptyState(title,sub){
+  return `<div class="fh-empty"><span class="fh-empty-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></span><strong>${title}</strong><span>${sub}</span></div>`;
+}
+function _fhFilterPanelHTML(){
+  return _FH_FILTERS.map(f=>`<button type="button" class="fh-filter-opt${_fhFilter===f.id?' is-current':''}" role="menuitemradio" aria-checked="${_fhFilter===f.id}" onclick="fHomeSetFilter('${f.id}')">${gEsc(f.label)}${_fhFilter===f.id?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>':''}</button>`).join('');
+}
+// Painel de filtro: abre/fecha como o menu do 3-pontos (fCampAdminMenu) — fora do
+// clique/Esc fecha; listener em {once:true} porque reabre a cada toggle.
+function fHomeToggleFilter(btn,ev){
+  try{ ev.stopPropagation(); }catch(e){}
+  const panel=document.getElementById('fh-filter-panel'); if(!panel)return;
+  const willOpen=!panel.classList.contains('open');
+  panel.classList.toggle('open',willOpen);
+  btn.setAttribute('aria-expanded',willOpen?'true':'false');
+  if(willOpen){
+    setTimeout(()=>{ document.addEventListener('click',fHomeCloseFilterPanel,{once:true}); document.addEventListener('keydown',_fhFilterEsc); },0);
+  }
+}
+function fHomeCloseFilterPanel(){
+  const panel=document.getElementById('fh-filter-panel'); if(!panel)return;
+  panel.classList.remove('open');
+  const btn=document.querySelector('.fh-filter-btn'); if(btn) btn.setAttribute('aria-expanded','false');
+  document.removeEventListener('keydown',_fhFilterEsc);
+}
+function _fhFilterEsc(e){ if(e.key==='Escape') fHomeCloseFilterPanel(); }
+function fHomeSetFilter(id){
+  _fhFilter=id;
+  fHomeCloseFilterPanel();
+  const wrap=document.querySelector('.fh-filter-wrap');
+  if(wrap){
+    const panel=wrap.querySelector('.fh-filter-panel'); if(panel) panel.innerHTML=_fhFilterPanelHTML();
+    const btn=wrap.querySelector('.fh-filter-btn');
+    if(btn){
+      btn.classList.toggle('is-active',id!=='todas');
+      let dot=btn.querySelector('.fh-filter-dot');
+      if(id!=='todas'&&!dot) btn.insertAdjacentHTML('beforeend','<span class="fh-filter-dot" aria-hidden="true"></span>');
+      else if(id==='todas'&&dot) dot.remove();
+    }
+  }
+  const s=document.getElementById('fh-search');
+  fHomeFilter(s?s.value:'');
+}
+
 // Corpo da home (seções). query preenchida = modo busca (lista achatada de resultados).
+// _fhFilter aplica por cima: tanto na busca quanto na vitrine parada.
 function _fHomeBodyHTML(query){
   const q=(query||'').trim().toLowerCase();
   const {ativas,outras}=fGetCampaigns();
   const impl=fGetCampaigns().impl;
+  let favIds=[]; try{ favIds=fGetFavs(); }catch(e){}
+  const passStatus=c=>{
+    if(_fhFilter==='favoritas') return favIds.includes(c.id);
+    if(_fhFilter==='prontas') return _fCampHasMats(c);
+    if(_fhFilter==='embreve') return !_fCampHasMats(c);
+    return true;
+  };
   if(q){
-    const match=[...ativas,...outras,...impl].filter(c=>c.name.toLowerCase().includes(q));
-    if(!match.length) return `<div class="fh-empty"><span class="fh-empty-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></span><strong>Nenhuma campanha encontrada</strong><span>Não encontramos resultados para “${gEsc(query)}”. Tente outro termo.</span></div>`;
+    const match=[...ativas,...outras,...impl].filter(c=>c.name.toLowerCase().includes(q)&&passStatus(c));
+    if(!match.length) return _fhEmptyState('Nenhuma campanha encontrada',`Não encontramos resultados para “${gEsc(query)}”. Tente outro termo${_fhFilter!=='todas'?' ou remova o filtro':''}.`);
     const isImpl=c=>impl.some(x=>x.id===c.id);
     return `<section class="fh-section fh-results"><div class="fh-sec"><span>Resultados</span><em>${match.length} campanha${match.length!==1?'s':''}</em></div>
       <div class="camp-grid fh-grid">${match.map(c=>fCampEl(c,false,!isImpl(c)&&!_fCampHasMats(c))).join('')}</div></section>`;
@@ -837,6 +1118,23 @@ function _fHomeBodyHTML(query){
   const pool=[...ativas,...outras];
   const prontas=pool.filter(_fCampHasMats);
   const embreve=pool.filter(c=>!_fCampHasMats(c));
+  // Filtro de status ativo (≠ todas): vitrine vira lista única e enxuta, sem hero/rascunhos.
+  if(_fhFilter==='prontas'){
+    if(!prontas.length) return _fhEmptyState('Nenhuma campanha pronta agora','As campanhas em preparação aparecem em "Em breve".');
+    return `<section class="fh-section fh-results"><div class="fh-sec"><span>Prontas para usar</span><em>${prontas.length} campanha${prontas.length!==1?'s':''}</em></div>
+      <div class="camp-grid fh-grid">${prontas.map(c=>fCampEl(c,false)).join('')}</div></section>`;
+  }
+  if(_fhFilter==='embreve'){
+    if(!embreve.length) return _fhEmptyState('Nenhuma campanha em preparação','Todas as campanhas do catálogo já estão prontas para usar.');
+    return `<section class="fh-section fh-results"><div class="fh-sec"><span>Em breve</span><em>${embreve.length} campanha${embreve.length!==1?'s':''}</em></div>
+      <div class="camp-grid fh-grid fh-grid-ghost">${embreve.map(c=>fCampEl(c,false,true)).join('')}</div></section>`;
+  }
+  if(_fhFilter==='favoritas'){
+    const favs=favIds.map(id=>pool.find(c=>c.id===id)).filter(Boolean);
+    if(!favs.length) return _fhEmptyState('Nenhuma favorita ainda','Fixe uma campanha para encontrá-la rápido por aqui.');
+    return `<section class="fh-section fh-results"><div class="fh-sec"><span>Favoritas</span><em>${favs.length} fixada${favs.length!==1?'s':''}</em></div>
+      <div class="camp-grid fh-grid">${favs.map(c=>fCampEl(c,false,!_fCampHasMats(c))).join('')}</div></section>`;
+  }
   const rec=prontas.find(c=>c.popular)||prontas[0]||null;
   const gridProntas=prontas.filter(c=>!rec||c.id!==rec.id);
   // Rascunhos mais recentes (máx 3) — atalho de retomada
@@ -847,7 +1145,7 @@ function _fHomeBodyHTML(query){
   let favs=[];
   try{ const favIds=fGetFavs(); favs=favIds.map(id=>pool.find(c=>c.id===id)).filter(Boolean); }catch(e){}
   return `
-    ${drafts.length?`<section class="fh-section fh-continue"><div class="fh-sec"><span>Continue criando</span><em>Seus rascunhos mais recentes</em></div>
+    ${drafts.length?`<section class="fh-section fh-continue"><div class="fh-sec"><span>Continue de onde parou</span><em>Seus rascunhos mais recentes</em></div>
     <div class="fh-cont">${drafts.map(_fHomeDraftEl).join('')}</div></section>`:''}
     ${favs.length?`<section class="fh-section"><div class="fh-sec"><span>Favoritas</span><em>${favs.length} fixada${favs.length!==1?'s':''}</em></div>
     <div class="camp-grid fh-grid">${favs.map(c=>fCampEl(c,false,!_fCampHasMats(c))).join('')}</div></section>`:''}
@@ -866,8 +1164,10 @@ function _fHomeBodyHTML(query){
    lote revelado junto (stagger); os cards herdam via --ci. Sem .fh-anim
    (refresh silencioso, busca) ou com reduced-motion, tudo fica visível na hora. */
 let _fhRevealIO=null;
+let _fhRevealGen=0;
 function _fhSetupReveal(){
   const home=document.getElementById('f-home'); if(!home)return;
+  const gen=++_fhRevealGen;
   if(_fhRevealIO){_fhRevealIO.disconnect();_fhRevealIO=null;}
   const blocks=home.querySelectorAll('#fh-body>*');
   const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -885,6 +1185,10 @@ function _fhSetupReveal(){
     });
   },{root:home,rootMargin:'0px 0px -60px 0px',threshold:0});
   blocks.forEach(b=>_fhRevealIO.observe(b));
+  setTimeout(()=>{
+    if(gen!==_fhRevealGen||home!==document.getElementById('f-home'))return;
+    home.querySelectorAll('#fh-body>*:not(.in)').forEach(b=>b.classList.add('in'));
+  },700);
 }
 
 // Busca gruda no topo ao rolar e ganha vidro (.is-stuck) — bind único no #f-home
@@ -909,9 +1213,9 @@ function fRenderHome(opts){
   el.innerHTML=`<div class="fh-inner">
     <div class="fh-head">
       <div class="fh-head-copy">
-        <div class="fh-kicker"><span class="fh-kicker-mark" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 1.8 4.7L19 9.5l-4.1 3.2 1.3 5.3-4.2-2.8L7.8 18l1.3-5.3L5 9.5l5.2-1.8L12 3Z"/></svg></span>Seu espaço criativo</div>
+        <div class="fh-kicker">Luma Franqueado</div>
         <h1 class="fh-greet">${fHomeGreeting()}</h1>
-        <p class="fh-sub">Escolha uma campanha. A Luma guia o restante e sua arte fica pronta em cerca de um minuto.</p>
+        <p class="fh-sub">Qual arte vamos criar hoje?</p>
       </div>
       <div class="fh-head-actions">
         <button class="fh-help" type="button" onclick="gOpenHelp(this)" data-help-trigger aria-controls="g-help-modal" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 1 1 3.6 1.9c-.9.6-1.4 1.1-1.4 2.1"/><path d="M12 17h.01"/></svg><span>Ajuda</span></button>
@@ -920,8 +1224,16 @@ function fRenderHome(opts){
     </div>
     <div class="fh-search-row" role="search">
       <span class="fh-search-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
-      <div class="fh-search-field"><label for="fh-search">Encontre sua próxima campanha</label><input id="fh-search" type="search" autocomplete="off" placeholder="Busque por tema ou ocasião" oninput="fHomeFilter(this.value)"/></div>
-      <span class="fh-search-hint" aria-hidden="true">Campanhas e formatos</span>
+      <div class="fh-search-field"><label for="fh-search">Encontre sua próxima campanha</label><input id="fh-search" type="search" autocomplete="off" placeholder="Buscar por tema, prato ou ocasião (ex: Sushi, Almoço)..." oninput="fHomeFilter(this.value)"/></div>
+      <div class="fh-search-tools">
+        <div class="fh-filter-wrap">
+          <button class="fh-filter-btn${_fhFilter!=='todas'?' is-active':''}" type="button" onclick="fHomeToggleFilter(this,event)" aria-haspopup="true" aria-expanded="false" aria-controls="fh-filter-panel">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16"/><path d="M7 12h10"/><path d="M10 18h4"/></svg>
+            <span>Filtrar</span>${_fhFilter!=='todas'?'<span class="fh-filter-dot" aria-hidden="true"></span>':''}
+          </button>
+          <div class="fh-filter-panel" id="fh-filter-panel" role="menu">${_fhFilterPanelHTML()}</div>
+        </div>
+      </div>
     </div>
     <div id="fh-body">${_fHomeBodyHTML('')}</div>
   </div>`;
@@ -929,7 +1241,6 @@ function fRenderHome(opts){
   // Se o observer falhar por qualquer motivo, ninguém pode ficar invisível
   try{ _fhSetupReveal(); }catch(e){ el.querySelectorAll('#fh-body>*').forEach(b=>b.classList.add('in')); }
   _fhBindSticky();
-  setTimeout(fHomeFillThumbs,0); // capas reais pintam em background
 }
 function fHomeFilter(q){
   const body=document.getElementById('fh-body'); if(!body)return;
@@ -938,7 +1249,6 @@ function fHomeFilter(q){
   if(home) home.classList.remove('fh-anim');
   body.innerHTML=_fHomeBodyHTML(q);
   try{ _fhSetupReveal(); }catch(e){ body.querySelectorAll(':scope>*').forEach(b=>b.classList.add('in')); }
-  setTimeout(fHomeFillThumbs,0);
 }
 // Re-renderiza a home quando o sync do backend traz capas/artes novas —
 // só se ela está visível e o usuário não está no meio de uma busca.

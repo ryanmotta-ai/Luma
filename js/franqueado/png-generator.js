@@ -36,23 +36,21 @@ async function fRenderCanvasHelper(d,c,fmt){
 
   // ─── CAMINHO NOVO: renderiza layers do template publicado pelo designer ───
   if(fState.material && fState.material.layers && fState.material.layers.length){
-    // Super-sampling: renderiza em 2x e downscale pra ganhar nitidez
+    // Exporta em 2× a resolução nativa. Antes renderizava 2× e fazia downscale de
+    // volta pro nativo — o dobro de pixel era jogado fora, servindo só de anti-serrilhado.
+    // Manter o 2× = PNG bem mais nítido pra tela/zoom/impressão. Custo zero de storage:
+    // o PNG só existe no clique de baixar, não fica salvo. w/h nativos seguem sendo a base.
     const SCALE = 2;
     const renderCv = document.createElement('canvas');
     renderCv.width = w * SCALE;
     renderCv.height = h * SCALE;
     const renderCtx = renderCv.getContext('2d');
+    renderCtx.imageSmoothingEnabled = true;
+    renderCtx.imageSmoothingQuality = 'high';
     renderCtx.scale(SCALE, SCALE);
     await fRenderTemplateLayers(renderCtx, fState.material.layers, w, h, d, c);
     await fDrawDMLogo(renderCtx, w, h);
-    // Downscale com alta qualidade pro canvas final
-    const finalCv = document.createElement('canvas');
-    finalCv.width = w; finalCv.height = h;
-    const finalCtx = finalCv.getContext('2d');
-    finalCtx.imageSmoothingEnabled = true;
-    finalCtx.imageSmoothingQuality = 'high';
-    finalCtx.drawImage(renderCv, 0, 0, w, h);
-    return finalCv;
+    return renderCv;
   }
 
   // ─── FALLBACK: renderer programático antigo (quando não há material) ───
@@ -134,6 +132,7 @@ async function fGenPNG(d,c,fmt){
   a.download=fBuildFilename(c,fmt,d);
   a.href=canvas.toDataURL('image/png');
   a.click();
+  if(typeof window.gPlayExportSuccessSound==='function') window.gPlayExportSuccessSound();
 }
 
 async function fGenPDF(d,c,fmt){
@@ -169,6 +168,7 @@ async function fGenPDF(d,c,fmt){
   a.download = fBuildFilename(c,fmt,d).replace(/\.png$/i, '') + '.pdf';
   a.href = URL.createObjectURL(blob);
   a.click();
+  if(typeof window.gPlayExportSuccessSound==='function') window.gPlayExportSuccessSound();
   setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
 }
 
@@ -232,7 +232,7 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
   // Os layers do designer foram criados num canvas com tamanho fixo (fmt do template).
   // 5.2: formato diferente → SMART RESIZE (gReflowLayers re-ancora sem distorcer),
   // em vez do antigo scaleX/scaleY que esticava shapes e textos.
-  const fmtSizes = {story:[1080,1920], feed:[1080,1350], wide:[1200,628], post:[1200,628]};
+  const fmtSizes = {story:[1080,1920], feed:[1080,1350], wide:[1200,628], post:[1200,628], horizontal:[1920,1080]};
   // Espaço nativo das coords do template: w/h reais (1:1 do PSD) ou o preset do formato (legado).
   // Quando o material tem w/h reais e está sendo renderizado no próprio tamanho, tw/th==W/H → sem reflow.
   const [tw, th] = fMaterialSize(fState.material);
@@ -252,6 +252,11 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
   if(typeof gApplyRelativeAnchors==='function'){
     effective = gApplyRelativeAnchors(effective, dados, _defaults);
   }
+  // NÃO rodar o auto-layout (gResolveIntelligentLayout) aqui: este render é o mesmo do
+  // preview ao vivo (roda a cada tecla) e do PNG. Mover camadas neste ponto custava
+  // O(layers × canvas) por tecla e fazia a prévia divergir do que o designer publicou.
+  // O auto-layout é ação EXPLÍCITA do Estúdio (dApplyIntelligentLayout), que persiste a
+  // geometria — assim prévia e PNG usam as mesmas coords, sem surpresa e sem custo aqui.
   // Renderiza só layers visíveis (geometria já está no formato alvo → escala 1:1)
   const visible = effective.filter(l => l.visible !== false);
   for(const l of visible){
@@ -339,10 +344,13 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     };
     const _overlay = (l.overlay&&l.overlayColor) ? gFxRgba(l.overlayColor, l.overlayOpacity!=null?l.overlayOpacity:1) : null;
     // 1) sombra projetada + brilho externo (atrás do fill)
+    // _spread(): canvas 2D não tem spread nativo. Traçar a MESMA forma com espessura 2×spread
+    // engorda a silhueta que projeta a sombra — que é o que a "propagação" do PS faz.
+    const _spread=(v)=>{ if(!(v>0))return; ctx.lineWidth=v*2*_sc; ctx.strokeStyle=_fill; ctx.stroke(); };
     if(l.shadow){ ctx.save(); _trace(); const o=gFxOffset(l.shadowDist!=null?l.shadowDist:4,l.shadowAngle);
       ctx.shadowColor=l.shadowColor||'rgba(0,0,0,.5)'; ctx.shadowBlur=(l.shadowBlur!=null?l.shadowBlur:6)*_sc; ctx.shadowOffsetX=o.x*_sc; ctx.shadowOffsetY=o.y*_sc;
-      ctx.fillStyle=_fill; ctx.fill(); ctx.restore(); }
-    if(l.glow){ ctx.save(); _trace(); ctx.shadowColor=l.glowColor||'rgba(255,255,255,.7)'; ctx.shadowBlur=(l.glowSize!=null?l.glowSize:8)*_sc; ctx.fillStyle=_fill; ctx.fill(); ctx.restore(); }
+      ctx.fillStyle=_fill; ctx.fill(); _spread(l.shadowSpread); ctx.restore(); }
+    if(l.glow){ ctx.save(); _trace(); ctx.shadowColor=l.glowColor||'rgba(255,255,255,.7)'; ctx.shadowBlur=(l.glowSize!=null?l.glowSize:8)*_sc; ctx.fillStyle=_fill; ctx.fill(); _spread(l.glowSpread); ctx.restore(); }
     // 2) fill principal (gradiente/sólido) (+ overlays por cima). Closure p/ reusar no re-fill do
     // traçado 'outside' (senão o re-fill simples apagava o gradientOverlay/overlay).
     const _paintFill=()=>{
@@ -614,7 +622,11 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
       }
 
       ctx.fillStyle = _txtFill; // gradiente/overlay/cor (horizontal)
-      ctx.textAlign = l.textAlign || 'left';
+      // JUSTIFICADO: o canvas não tem textAlign:'justify' — a distribuição é feita palavra a
+      // palavra mais abaixo (_fJustifySegs). Aqui o alinhamento base é 'left', que é também o
+      // que a ÚLTIMA linha de um parágrafo justificado usa.
+      const _just = (l.textAlign === 'justify');
+      ctx.textAlign = _just ? 'left' : (l.textAlign || 'left');
       // Ancoragem vertical: 'top' (PSD) → topo da tinta encosta no topo da caixa (baseline 1:1 com
       // o node.top do Photoshop). Demais → centralização vertical (comportamento antigo).
       const _vTop = (l.vAlign==='top');
@@ -647,19 +659,27 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
         // mas descartado aqui no desenho, divergindo do editor.
         ctx.letterSpacing = _lsTxt || (isDisplayFont ? `${Math.max(0.5, fontSize * 0.02)}px` : '0px');
 
-        if(_glowColor){ ctx.save(); ctx.shadowColor=_glowColor; ctx.shadowBlur=_glowBlur; ctx.shadowOffsetX=0; ctx.shadowOffsetY=0; ctx.fillText(line, tx, ty); ctx.restore(); }
-        if(l.shadow){
-          ctx.shadowColor=l.shadowColor||'rgba(0,0,0,.5)';
-          ctx.shadowBlur=_shBlur; ctx.shadowOffsetX=_shOff.x; ctx.shadowOffsetY=_shOff.y;
-        }
-        ctx.fillText(line, tx, ty);
-        if(l.shadow){ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;}
-        if(l.strokeW>0){
-          ctx.lineWidth=Math.max(1, l.strokeW*Math.min(scaleX,scaleY));
-          ctx.strokeStyle=l.strokeColor||'#000';
-          ctx.lineJoin='round';
-          ctx.strokeText(line, tx, ty);
-        }
+        // Justificado: a última linha NÃO estica (é a regra tipográfica; esticar a última
+        // linha de um parágrafo é o erro clássico que denuncia justificação mal feita).
+        const _segs = _just ? _fJustifySegs(ctx, line, tx, w - innerPad*2, i === lines.length-1) : null;
+        // Uma passada de pintura, reaproveitada pelo texto inteiro ou por palavra.
+        const pintar = (txt, px) => {
+          if(_glowColor){ ctx.save(); ctx.shadowColor=_glowColor; ctx.shadowBlur=_glowBlur; ctx.shadowOffsetX=0; ctx.shadowOffsetY=0; ctx.fillText(txt, px, ty); ctx.restore(); }
+          if(l.shadow){
+            ctx.shadowColor=l.shadowColor||'rgba(0,0,0,.5)';
+            ctx.shadowBlur=_shBlur; ctx.shadowOffsetX=_shOff.x; ctx.shadowOffsetY=_shOff.y;
+          }
+          ctx.fillText(txt, px, ty);
+          if(l.shadow){ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;}
+          if(l.strokeW>0){
+            ctx.lineWidth=Math.max(1, l.strokeW*Math.min(scaleX,scaleY));
+            ctx.strokeStyle=l.strokeColor||'#000';
+            ctx.lineJoin='round';
+            ctx.strokeText(txt, px, ty);
+          }
+        };
+        if(_segs) _segs.forEach(s=>pintar(s.txt, s.x));
+        else pintar(line, tx);
 
         if(l.strikethrough || l.underline){
           const textW = ctx.measureText(line).width;
@@ -778,6 +798,26 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
 }
 
 // Helper: desenha retângulo arredondado no canvas
+/* Justificação de uma linha: devolve [{txt,x}] com as palavras espalhadas para encostar nas
+   duas margens, ou null quando não se deve (ou não se pode) justificar.
+   O canvas não tem textAlign:'justify', então é isto ou não existe justificado no Luma — e o
+   importador de PSD já detectava a propriedade sem ter como honrá-la.
+   Devolve null quando: é a última linha (regra tipográfica — última linha não estica), há uma
+   palavra só (nada a distribuir), ou o texto já passa da largura (esticar pra trás juntaria
+   as palavras). Nesses casos o desenho segue alinhado à esquerda, como antes. */
+function _fJustifySegs(ctx, line, xLeft, width, isLast){
+  if(isLast) return null;
+  const palavras=String(line||'').split(/\s+/).filter(Boolean);
+  if(palavras.length<2) return null;
+  const larguras=palavras.map(p=>ctx.measureText(p).width);
+  const soma=larguras.reduce((a,b)=>a+b,0);
+  const folga=width-soma;
+  if(!(folga>0)) return null;
+  const gap=folga/(palavras.length-1);
+  const out=[]; let cx=xLeft;
+  palavras.forEach((p,i)=>{ out.push({txt:p, x:cx}); cx+=larguras[i]+gap; });
+  return out;
+}
 function roundedRect(ctx, x, y, w, h, r){
   ctx.beginPath();
   ctx.moveTo(x+r, y);
@@ -843,6 +883,190 @@ function fClearImgCache(){ _fImgCache.clear(); }
    com yield (await + setTimeout) pra não travar a aba. Imagens só por URL.
 ══════════════════════════════════════════════════════════════ */
 let fBulkRows=[];
+let _fBulkAudit=[];
+let _fBulkAsyncAudit=[];
+let _fBulkAuditFingerprint='';
+let _fBulkImageAudit=new Map();
+let _fBulkAutosaveTimer=null;
+let _fBulkAutosaveSeq=0;
+let _fBulkDraftFormats=[];
+let _fBulkGenerationState=null;
+let _fBulkPreflightRunning=false;
+
+function _fBulkStorageScope(){
+  const user=(typeof gAuthState!=='undefined'&&gAuthState&&gAuthState.user)||null;
+  const uid=user&&user.id?user.id:'local';
+  const mid=fState&&fState.material&&fState.material.id?fState.material.id:'material';
+  return `${String(uid).replace(/[^a-zA-Z0-9_-]/g,'_')}:${String(mid).replace(/[^a-zA-Z0-9_-]/g,'_')}`;
+}
+function _fBulkDraftKey(){ return `luma-sheets-draft-v1:${_fBulkStorageScope()}`; }
+function _fBulkGenerationKey(){ return `luma-sheets-generation-v1:${_fBulkStorageScope()}`; }
+
+function _fBulkRowsFingerprint(){
+  const compact=(fBulkRows||[]).map(r=>{
+    const out={};
+    Object.keys((r&&r.dados)||{}).sort().forEach(k=>{
+      const v=r.dados[k];
+      out[k]=(typeof v==='string'&&v.length>800)
+        ? `@${v.length}:${typeof gImgHash==='function'?gImgHash(v):v.slice(0,64)}`
+        : v;
+    });
+    return out;
+  });
+  const raw=JSON.stringify(compact);
+  return typeof gImgHash==='function'?gImgHash(raw):String(raw.length);
+}
+
+function _fBulkRevalidateRows(rows){
+  const keys=fBulkVars();
+  return (rows||[]).map(r=>{
+    const dados={};
+    keys.forEach(k=>{ dados[k]=r&&r.dados&&r.dados[k]!=null?String(r.dados[k]):''; });
+    const isEmpty=keys.every(k=>!dados[k].trim());
+    const erros=[];
+    if(!isEmpty) keys.forEach(k=>{
+      const err=typeof fValidate==='function'?fValidate(k,dados[k]):null;
+      if(err) erros.push(err);
+    });
+    return {dados,erros};
+  });
+}
+
+async function _fBulkDraftRows(){
+  const rows=[];
+  for(const row of fBulkRows||[]){
+    const dados={};
+    for(const k of Object.keys((row&&row.dados)||{})){
+      const v=row.dados[k];
+      if(typeof v==='string'&&v.startsWith('data:')){
+        if(typeof gIdbPut==='function'&&typeof gImgHash==='function'){
+          const key=`sheets-draft-${gImgHash(v)}`;
+          dados[k]=(await gIdbPut(key,v))?`idb://${key}`:'';
+        }else dados[k]='';
+      }else if(typeof v==='string'&&v.startsWith('blob:')) dados[k]='';
+      else dados[k]=v;
+    }
+    rows.push({dados});
+  }
+  return rows;
+}
+
+function _fBulkDraftMeta(rows){
+  return {
+    version:1,
+    materialId:fState.material&&fState.material.id,
+    updatedAt:new Date().toISOString(),
+    rows,
+    formats:Array.from(document.querySelectorAll('.f-bulk-fmt-cb:checked')).map(cb=>cb.value),
+    copyFormat:(document.getElementById('f-bulk-copy-format')||{}).value||'feed',
+    city:(document.getElementById('f-bulk-city')||{}).value||'',
+    tableView:_fBulkTableView
+  };
+}
+
+function _fBulkHasContent(){
+  const keys=fBulkVars();
+  return (fBulkRows||[]).some(r=>keys.some(k=>String((r.dados||{})[k]||'').trim()));
+}
+
+function _fBulkSetSaveStatus(text,state){
+  const el=document.getElementById('f-bulk-save-status');
+  if(!el)return;
+  el.textContent=text;
+  el.dataset.state=state||'';
+}
+
+async function fBulkSaveDraft(){
+  if(!fState.material)return;
+  const seq=++_fBulkAutosaveSeq;
+  _fBulkSetSaveStatus('Salvando…','saving');
+  try{
+    if(!_fBulkHasContent()&&!_fBulkGenerationState){
+      localStorage.removeItem(_fBulkDraftKey());
+      if(seq===_fBulkAutosaveSeq)_fBulkSetSaveStatus('Pronto para salvar','');
+      return;
+    }
+    const rows=await _fBulkDraftRows();
+    if(seq!==_fBulkAutosaveSeq)return;
+    localStorage.setItem(_fBulkDraftKey(),JSON.stringify(_fBulkDraftMeta(rows)));
+    _fBulkSetSaveStatus('Salvo agora','saved');
+  }catch(e){
+    console.warn('[sheets autosave] falhou:',e);
+    _fBulkSetSaveStatus('Não foi possível salvar','error');
+  }
+}
+
+// No fechamento inesperado não dá tempo de esperar o IndexedDB. Texto e links ainda são
+// preservados; fotos locais já salvas pelo autosave continuam referenciadas no rascunho anterior.
+function _fBulkSaveDraftSync(){
+  if(!fState.material||!_fBulkHasContent())return;
+  try{
+    const rows=(fBulkRows||[]).map(r=>{
+      const dados={};
+      Object.keys((r&&r.dados)||{}).forEach(k=>{
+        const v=r.dados[k];
+        dados[k]=(typeof v==='string'&&(v.startsWith('data:')||v.startsWith('blob:')))?'':v;
+      });
+      return {dados};
+    });
+    localStorage.setItem(_fBulkDraftKey(),JSON.stringify(_fBulkDraftMeta(rows)));
+  }catch(e){}
+}
+
+function fBulkScheduleAutosave(){
+  if(_fBulkAutosaveTimer)clearTimeout(_fBulkAutosaveTimer);
+  _fBulkSetSaveStatus('Alterações pendentes','pending');
+  _fBulkAutosaveTimer=setTimeout(()=>{ _fBulkAutosaveTimer=null; fBulkSaveDraft(); },650);
+}
+
+async function fBulkRestoreDraft(){
+  let draft=null;
+  try{
+    const raw=localStorage.getItem(_fBulkDraftKey());
+    if(raw)draft=JSON.parse(raw);
+  }catch(e){}
+  if(!draft||draft.version!==1||draft.materialId!==fState.material.id||!Array.isArray(draft.rows)||!draft.rows.length)return false;
+
+  const rows=[];
+  for(const r of draft.rows){
+    const dados={...(r.dados||{})};
+    for(const k of Object.keys(dados)){
+      if(typeof dados[k]==='string'&&dados[k].startsWith('idb://')&&typeof gResolveImgUrl==='function'){
+        dados[k]=(await gResolveImgUrl(dados[k]))||'';
+      }
+    }
+    rows.push({dados});
+  }
+  fBulkRows=_fBulkRevalidateRows(rows);
+  _fBulkTableView=draft.tableView!==false;
+  _fBulkDraftFormats=Array.isArray(draft.formats)?draft.formats:[];
+  const copy=document.getElementById('f-bulk-copy-format');
+  const city=document.getElementById('f-bulk-city');
+  if(copy&&draft.copyFormat)copy.value=draft.copyFormat;
+  if(city&&draft.city!=null)city.value=draft.city;
+  _fBulkSetSaveStatus('Produção recuperada','saved');
+  return true;
+}
+
+function fBulkSaveGenerationState(){
+  try{
+    if(_fBulkGenerationState)localStorage.setItem(_fBulkGenerationKey(),JSON.stringify(_fBulkGenerationState));
+    else localStorage.removeItem(_fBulkGenerationKey());
+  }catch(e){ console.warn('[sheets retomada] falhou:',e); }
+}
+
+function fBulkRestoreGenerationState(){
+  try{
+    const raw=localStorage.getItem(_fBulkGenerationKey());
+    _fBulkGenerationState=raw?JSON.parse(raw):null;
+  }catch(e){ _fBulkGenerationState=null; }
+  if(_fBulkGenerationState&&_fBulkGenerationState.fingerprint!==_fBulkRowsFingerprint())_fBulkGenerationState=null;
+}
+
+function fBulkResumeCount(){
+  if(!_fBulkGenerationState||_fBulkGenerationState.fingerprint!==_fBulkRowsFingerprint()||!Array.isArray(_fBulkGenerationState.jobs))return 0;
+  return _fBulkGenerationState.jobs.filter(j=>j.status!=='done').length;
+}
 
 // Renderiza o material atual num canvas e devolve o dataURL — SEM disparar download.
 // Reaproveita o mesmo caminho de super-sampling 2× do fGenPNG.
@@ -883,25 +1107,64 @@ function fBulkAddEmptyRow() {
   const st = document.getElementById('f-bulk-status');
   if(st) st.textContent = `${fBulkRows.length} linha(s) carregada(s)`;
   fBulkRenderPreview();
+  fBulkScheduleAutosave();
 }
 
 function fBulkClearAll() {
   fBulkRows = [];
+  _fBulkAudit=[];
+  _fBulkAsyncAudit=[];
+  _fBulkGenerationState=null;
+  try{
+    localStorage.removeItem(_fBulkDraftKey());
+    localStorage.removeItem(_fBulkGenerationKey());
+  }catch(e){}
   fBulkRenderPreview();
   const st = document.getElementById('f-bulk-status');
   if(st) st.textContent = '';
-  gToast('Planilha limpa com sucesso');
+  gToast('Planilha limpa.');
 }
 
-function fBulkOpen(){
-  if(!fState.material||!fState.material.layers){gToast('Selecione um material primeiro');return;}
+async function fBulkOpenFromArt() {
+  if (!fState.material || !fState.material.layers) {
+    gToast('Escolha um material primeiro.');
+    return;
+  }
+  
+  // Pré-carrega a Linha 1 do Luma Sheets com os dados atuais preenchidos na arte
+  if (fState.dados && Object.keys(fState.dados).length > 0) {
+    const vars = fBulkVars();
+    const rowData = {};
+    vars.forEach(v => {
+      rowData[v] = fState.dados[v] !== undefined ? fState.dados[v] : '';
+    });
+    
+    const currentArtRow = { dados: rowData, status: 'idle' };
+    
+    if (!fBulkRows || fBulkRows.length === 0) {
+      fBulkRows = [currentArtRow, fBulkCreateEmptyRow(), fBulkCreateEmptyRow()];
+    } else {
+      fBulkRows[0] = currentArtRow;
+    }
+  }
+
+  await fBulkOpen();
+  gToast('Luma Sheets aberto com os dados desta arte!');
+}
+
+async function fBulkOpen(){
+  if(!fState.material||!fState.material.layers){gToast('Escolha um material primeiro.');return;}
   
   if (_fLastMaterialId !== fState.material.id) {
     fBulkRows = [];
     _fLastMaterialId = fState.material.id;
+    _fBulkAudit=[];
+    _fBulkAsyncAudit=[];
+    _fBulkGenerationState=null;
   }
   
-  if(!fBulkRows || fBulkRows.length === 0) {
+  const restored=(!fBulkRows||fBulkRows.length===0)?await fBulkRestoreDraft():false;
+  if(!restored&&(!fBulkRows || fBulkRows.length === 0)) {
     fBulkRows = [];
     for(let i=0; i<3; i++) {
       fBulkRows.push(fBulkCreateEmptyRow());
@@ -933,16 +1196,94 @@ function fBulkOpen(){
     fmtList.innerHTML = FMTS.map(f => {
       const checked = fState.fmt && fState.fmt.id === f.id ? 'checked' : '';
       return `<label class="f-bulk-fmt-chip">
-        <input type="checkbox" value="${f.id}" class="f-bulk-fmt-cb" ${checked} style="margin:0;accent-color:var(--dm-orange,#FF9000)">
+        <input type="checkbox" value="${f.id}" class="f-bulk-fmt-cb" ${checked} onchange="fBulkUpdateReadiness();fBulkScheduleAutosave()" style="margin:0;accent-color:var(--dm-orange,#FF9000)">
         <span style="font-weight:600">${f.name}</span>
       </label>`;
     }).join('');
+    if(_fBulkDraftFormats.length){
+      fmtList.querySelectorAll('.f-bulk-fmt-cb').forEach(cb=>{ cb.checked=_fBulkDraftFormats.includes(cb.value); });
+      _fBulkDraftFormats=[];
+    }
   }
+  fBulkRestoreGenerationState();
+  const copy=document.getElementById('f-bulk-copy-format');
+  const city=document.getElementById('f-bulk-city');
+  if(copy&&!copy.dataset.autosaveBound){ copy.addEventListener('change',fBulkScheduleAutosave); copy.dataset.autosaveBound='1'; }
+  if(city&&!city.dataset.autosaveBound){ city.addEventListener('input',fBulkScheduleAutosave); city.dataset.autosaveBound='1'; }
+  if(!window._fBulkBeforeUnloadBound){
+    window.addEventListener('beforeunload',_fBulkSaveDraftSync);
+    window._fBulkBeforeUnloadBound=true;
+  }
+  fBulkUpdateReadiness();
   
   fBulkUpdateSavedTemplatesList();
   document.getElementById('f-bulk-modal').classList.add('open');
+  // Rascunho recuperado já tem ofertas: abre direto na conferência, senão a pessoa
+  // teria que atravessar o passo 1 de novo pra ver o que já era dela.
+  fBulkStep(restored ? 2 : 1);
+  if(restored)gToast('Sua produção foi recuperada automaticamente');
 }
-function fBulkClose(){document.getElementById('f-bulk-modal').classList.remove('open');}
+function fBulkClose(){
+  fBulkCollectCurrentInputs();
+  fBulkSaveDraft();
+  document.getElementById('f-bulk-modal').classList.remove('open');
+}
+
+/* ── Assistente de 3 passos ──
+   Antes as três etapas ficavam abertas ao mesmo tempo em duas colunas: a numeração
+   prometia uma ordem que o layout não cumpria, e ~15 controles disputavam a atenção
+   logo na abertura. Agora aparece UMA pergunta por vez; o resto continua existindo,
+   só não estorva. Nada de estado novo além do passo atual — as funções, os ids e o
+   fluxo de dados são exatamente os mesmos de antes. */
+let _fBulkStepN = 1;
+function fBulkStep(n){
+  _fBulkStepN = Math.max(1, Math.min(3, n|0));
+  const modal = document.getElementById('f-bulk-modal');
+  if(!modal) return;
+  modal.querySelectorAll('.f-bulk-stage').forEach(s=>{
+    s.hidden = (+s.dataset.step !== _fBulkStepN);
+  });
+  modal.querySelectorAll('.f-bulk-trail-item').forEach(b=>{
+    const i = +b.dataset.goto;
+    b.classList.toggle('is-now', i === _fBulkStepN);
+    b.classList.toggle('is-done', i < _fBulkStepN);
+    b.setAttribute('aria-current', i === _fBulkStepN ? 'step' : 'false');
+  });
+  const back = document.getElementById('f-bulk-back-btn');
+  const next = document.getElementById('f-bulk-next-btn');
+  const dl   = document.getElementById('f-bulk-dl-btn');
+  // No passo 1 não há pra onde voltar: o botão vira "Fechar" em vez de ficar morto na tela.
+  if(back){
+    back.textContent = (_fBulkStepN===1) ? 'Fechar' : 'Voltar';
+    back.onclick = (_fBulkStepN===1) ? fBulkClose : fBulkStepBack;
+  }
+  // "Gerar" só existe no último passo — ver o botão final desde o começo faz a pessoa
+  // clicar antes de preencher e colher um erro que ela não causou.
+  if(next) next.hidden = (_fBulkStepN===3);
+  if(dl)   dl.hidden   = (_fBulkStepN!==3);
+  // A planilha só é montada quando o passo dela aparece (o render lê o DOM visível).
+  // Guard de material: fBulkVars() (abaixo dos dois) lê fState.material.layers direto. A
+  // trilha é clicável a qualquer momento — sem isto, um clique com o material trocado
+  // por baixo derruba a navegação inteira com "Cannot read properties of null".
+  const _temMat = !!(typeof fState!=='undefined' && fState.material && fState.material.layers);
+  if(_temMat && _fBulkStepN===2 && typeof fBulkRenderPreview==='function') fBulkRenderPreview();
+  if(_temMat && typeof fBulkUpdateReadiness==='function') fBulkUpdateReadiness();
+  const ws = modal.querySelector('.f-bulk-workspace');
+  if(ws) ws.scrollTop = 0;
+}
+function fBulkStepBack(){ fBulkStep(_fBulkStepN-1); }
+// Importou ofertas com sucesso → mostra o resultado. Só avança a partir do passo 1: se a
+// pessoa já está conferindo ou escolhendo formato, arrastá-la de volta seria sequestrar o foco.
+function _fBulkGoReview(){ if(_fBulkStepN===1) fBulkStep(2); }
+function fBulkStepNext(){
+  // Sair do passo 1 sem nenhuma oferta é o erro mais comum: avisa e leva pra planilha
+  // mesmo assim (ela pode digitar direto na tabela — não é um bloqueio, é um empurrão).
+  if(_fBulkStepN===1){
+    const vazio = !fBulkRows.some(r=>Object.values(r.dados||{}).some(v=>String(v||'').trim()));
+    if(vazio) gToast('Escreva suas ofertas acima, ou preencha direto na planilha do próximo passo.');
+  }
+  fBulkStep(_fBulkStepN+1);
+}
 
 /* ── DÚVIDAS FREQUENTES (FAQ) do Luma Sheets ── */
 const F_BULK_FAQ = [
@@ -1056,63 +1397,310 @@ function fBulkParseHeuristicText(text) {
       name = fSmartTitleCase(name);
     }
     
-    // 5. Mapeamento dinâmico para as variáveis do material
-    const dados = {};
-    vars.forEach(v => dados[v] = '');
-
-    // Só campos de TEXTO recebem o texto parseado — senão o nome caía em "foto_produto"
-    // (casa com /produto/i) e o campo "produto" ficava vazio (bug do mapeamento por regex).
-    const textVars = vars.filter(v => (typeof fIsImageVar==='function') ? !fIsImageVar(v) : !/foto|logo|imagem|img|avatar/i.test(v));
-    // Nome: prefere o campo EXATO "produto"/"titulo"/"nome" antes do casamento por substring.
-    const nameKey = textVars.find(v => /^(produto|titulo|nome)$/i.test(v)) || textVars.find(v => /produto|titulo|nome/i.test(v)) || textVars[0];
-    if (nameKey) dados[nameKey] = name;
-
-    const deKey = textVars.find(v => /^(precode|de)$/i.test(v)) || textVars.find(v => /de|antigo/i.test(v));
-    if (deKey) dados[deKey] = precoDe ? fApplyMask(deKey, precoDe) : '';
-
-    const porKey = textVars.find(v => /^(precopor|por|preco|preço|valor)$/i.test(v)) || textVars.find(v => /por|preco|preço|atual|valor/i.test(v));
-    if (porKey) dados[porKey] = precoPor ? fApplyMask(porKey, precoPor) : '';
-
-    const valKey = textVars.find(v => /validade|data|condicao|condição/i.test(v));
-    if (valKey) dados[valKey] = validade;
-
-    const descKey = textVars.find(v => /desconto|selo|off/i.test(v));
-    if (descKey && desconto) dados[descKey] = desconto;
-
-    // Auto-categorizar se houver campo de categoria
-    const catKey = textVars.find(v => /categor|tipo|segmento/i.test(v));
-    if (catKey && !dados[catKey]) {
-      dados[catKey] = fBulkAutoCategorize(name);
-    }
-    
-    // Validação
-    const erros = [];
-    vars.forEach(v => {
-      const err = typeof fValidate === 'function' ? fValidate(v, dados[v]) : null;
-      if (err) erros.push(err);
-    });
-    
-    return { dados, erros };
+    return _fBulkRowFromCampos({nome:name, precoDe, precoPor, validade, desconto});
   });
 }
 
-function fBulkFillWithAI() {
+/* Monta UMA linha da grade a partir de campos canônicos. É a única tradução
+   "produto/de/por/validade/desconto" → vocabulário do material (as vars do template),
+   com máscara e validação. Usada pelo parser heurístico de texto E pela leitura de
+   cardápio por IA — duas entradas, um mapeamento (duplicar aqui já foi bug antes). */
+function _fBulkRowFromCampos(c){
+  const vars = fBulkVars();
+  const dados = {};
+  vars.forEach(v => dados[v] = '');
+
+  // Só campos de TEXTO recebem o texto parseado — senão o nome caía em "foto_produto"
+  // (casa com /produto/i) e o campo "produto" ficava vazio (bug do mapeamento por regex).
+  const textVars = vars.filter(v => (typeof fIsImageVar==='function') ? !fIsImageVar(v) : !/foto|logo|imagem|img|avatar/i.test(v));
+  // Nome: prefere o campo EXATO "produto"/"titulo"/"nome" antes do casamento por substring.
+  const nameKey = textVars.find(v => /^(produto|titulo|nome)$/i.test(v)) || textVars.find(v => /produto|titulo|nome/i.test(v)) || textVars[0];
+  if (nameKey) dados[nameKey] = c.nome || '';
+
+  const deKey = textVars.find(v => /^(precode|de)$/i.test(v)) || textVars.find(v => /de|antigo/i.test(v));
+  if (deKey) dados[deKey] = c.precoDe ? fApplyMask(deKey, c.precoDe) : '';
+
+  const porKey = textVars.find(v => /^(precopor|por|preco|preço|valor)$/i.test(v)) || textVars.find(v => /por|preco|preço|atual|valor/i.test(v));
+  if (porKey) dados[porKey] = c.precoPor ? fApplyMask(porKey, c.precoPor) : '';
+
+  const valKey = textVars.find(v => /validade|data|condicao|condição/i.test(v));
+  if (valKey) dados[valKey] = c.validade || '';
+
+  const descKey = textVars.find(v => /desconto|selo|off/i.test(v));
+  if (descKey && c.desconto) dados[descKey] = c.desconto;
+
+  // Auto-categorizar se houver campo de categoria
+  const catKey = textVars.find(v => /categor|tipo|segmento/i.test(v));
+  if (catKey && !dados[catKey]) {
+    dados[catKey] = fBulkAutoCategorize(c.nome || '');
+  }
+
+  // Validação
+  const erros = [];
+  vars.forEach(v => {
+    const err = typeof fValidate === 'function' ? fValidate(v, dados[v]) : null;
+    if (err) erros.push(err);
+  });
+
+  return { dados, erros };
+}
+
+// Valor que é só número/preço/percentual (não serve como nome de produto).
+const _F_SO_NUMERO=/^r?\$?\s*[\d.,%]+\s*(?:reais|off)?$/i;
+// Chip "IA" da linha — vale nas DUAS visões da grade (tabela é a padrão; cartões é opção).
+// Linha lida de cardápio ou com foto casada por visão pede conferência: preço e foto
+// errados só se pegam com o olho do franqueado.
+function _fBulkIaChip(r){
+  if(!r || (!r._ia && !r._iaFoto)) return '';
+  const motivo = r._ia ? 'Nome e preço lidos do cardápio pela IA' : 'Foto casada pela IA';
+  return `<span class="f-bulk-ia-chip" title="${motivo} — confira antes de gerar">IA</span>`;
+}
+function _fBulkRowTemNome(r){
+  return Object.values(r&&r.dados||{}).some(v=>{ const s=String(v||'').trim(); return s && !_F_SO_NUMERO.test(s) && !s.startsWith('data:'); });
+}
+function _fBulkRowTemPreco(r){
+  return Object.values(r&&r.dados||{}).some(v=>_F_SO_NUMERO.test(String(v||'').trim()));
+}
+// Linha aproveitável = tem nome. Linha sem nome vira arte vazia, então é descartada.
+function _fBulkRowsUteis(rows){ return (rows||[]).filter(_fBulkRowTemNome); }
+// O parser heurístico nunca "falha" — em cardápio colado do WhatsApp ele devolve LIXO
+// arrumadinho: uma linha com o título da seção ("LANCHES") e outras só com preço solto.
+// Sinal de fracasso: o texto TEM número, mas nenhuma linha saiu com nome E preço juntos.
+// (Texto sem número nenhum — só uma lista de nomes — é caso legítimo do parser local.)
+function _fBulkHeuristicaFalhou(texto, rows){
+  if((rows||[]).some(r=>_fBulkRowTemNome(r) && _fBulkRowTemPreco(r))) return false;
+  return /\d/.test(String(texto||''));
+}
+
+async function fBulkFillWithAI() {
   const ta = document.getElementById('f-bulk-ai-raw-text');
   if(!ta) return;
   const text = ta.value.trim();
-  if(!text) { gToast('Digite ou cole algum texto com ofertas primeiro', 'error'); return; }
-  
-  const parsedRows = fBulkParseHeuristicText(text);
-  if(!parsedRows || parsedRows.length === 0) {
-    gToast('Não consegui identificar nenhum produto ou preço no texto', 'error');
+  if(!text) { gToast('Digite ou cole um texto com as ofertas primeiro.', 'error'); return; }
+
+  // Escada: o parser local resolve o caso comum ("burger por 25, pizza de 50 por 39") de
+  // graça e na hora. A IA entra só quando ele não achou produto nenhum — texto de cardápio
+  // colado do WhatsApp, com seção, emoji e quebra torta.
+  let parsedRows = fBulkParseHeuristicText(text);
+  let veioDaIA = false;
+  if(_fBulkHeuristicaFalhou(text, parsedRows) && typeof gAskAI==='function' && gAiReady()){
+    _fBulkSetBusy(true, 'Entendendo suas ofertas…');
+    const daIA = await _fBulkItensPorIA('texto', text, null);
+    _fBulkSetBusy(false);
+    if(daIA && daIA.length){ parsedRows = daIA; veioDaIA = true; }
+  }
+
+  parsedRows = _fBulkRowsUteis(parsedRows);
+  if(!parsedRows.length) {
+    gToast('Não achei nenhum produto ou preço nesse texto.', 'error');
     return;
   }
-  
+
   fBulkRows = parsedRows;
-  document.getElementById('f-bulk-status').textContent=`${fBulkRows.length} linha(s) carregada(s)`;
-  fBulkRenderPreview();
-  gToast('Tabela preenchida com ' + fBulkRows.length + ' oferta(s) extraida(s)');
+  _fBulkAfterImport(veioDaIA ? 'texto lido pela IA' : '');
   ta.value = '';
+}
+
+/* ══════════════════════════════════════════════════════════════
+   LER CARDÁPIO (foto/PDF) — o gargalo real do Sheets não é preencher (voz e ações em
+   massa já cobrem), é DIGITAR o cardápio que o lojista mandou por WhatsApp em foto ou
+   PDF. Aqui o arquivo vai pro modelo e volta como linhas da grade.
+   ⚠ Preço errado é dano real (peça publicada com valor que a loja não honra), então:
+   a linha entra MARCADA como lida por IA, passa pela mesma validação das outras e o
+   franqueado revisa na grade antes de gerar — nunca vai direto pro ZIP.
+══════════════════════════════════════════════════════════════ */
+async function fBulkReadMenu(input){
+  const files = input && input.files ? Array.from(input.files).slice(0,4) : [];
+  if(input) input.value = '';
+  if(!files.length) return;
+  if(typeof gAskAI!=='function' || !gAiReady()){
+    gToast('A leitura de cardápio precisa do assistente de IA, que está indisponível agora.','error');
+    return;
+  }
+  const grandes = files.filter(f=>f.size > 8*1024*1024);
+  if(grandes.length){ gToast('Arquivo muito grande (máx. 8 MB por cardápio).','error'); return; }
+
+  _fBulkSetBusy(true, 'Lendo o cardápio…');
+  const partes = [];
+  for(const f of files){
+    const p = await gAiFileToPart(f);
+    if(p) partes.push(p);
+  }
+  if(!partes.length){ _fBulkSetBusy(false); gToast('Não consegui ler esse arquivo.','error'); return; }
+
+  const itens = await _fBulkItensPorIA('arquivo', '', partes);
+  _fBulkSetBusy(false);
+  if(!itens || !itens.length){
+    gToast('Não achei produtos com preço nesse cardápio. Tente uma foto mais nítida ou digite as ofertas.','error');
+    return;
+  }
+  fBulkRows = itens;
+  _fBulkAfterImport('cardápio lido pela IA');
+}
+
+// Núcleo compartilhado: pede itens ao modelo (de texto OU de anexo) e devolve linhas
+// prontas da grade. Um prompt, duas entradas.
+async function _fBulkItensPorIA(origem, texto, partes){
+  const prompt = `Você extrai itens de cardápio para uma planilha de artes de promoção (Delivery Much, delivery no interior do Brasil).
+
+${origem==='arquivo' ? 'O anexo é um cardápio (foto ou PDF) de um restaurante.' : 'O texto abaixo foi escrito ou colado pelo franqueado:\n"""\n'+texto+'\n"""'}
+
+TAREFA: liste os itens que dá pra anunciar, com preço.
+
+REGRAS:
+1. NÃO invente item nem preço. Se o preço não aparece, deixe "" — não estime.
+2. Preço como está no original, só número com vírgula decimal (ex.: "25,90"). Sem "R$".
+3. Se houver preço normal E promocional, o normal vai em "precoDe" e o promocional em "precoPor". Só um preço: vai em "precoPor".
+4. Ignore título de seção ("Lanches", "Bebidas"), endereço, telefone e horário.
+5. Nome do produto curto e limpo, sem descrição longa de ingredientes.
+6. No máximo 40 itens, na ordem em que aparecem.
+
+Responda APENAS JSON: {"itens":[{"produto":"...","precoDe":"","precoPor":"25,90"}]}`;
+
+  const resp = await gAskAI('cardapio', prompt, {parts:partes||[], json:true, cache:!partes});
+  const parsed = resp && (typeof gAiParseJson==='function' ? gAiParseJson(resp) : null);
+  const brutos = parsed && Array.isArray(parsed.itens) ? parsed.itens : [];
+  const limpaPreco = v => String(v==null?'':v).replace(/r\$\s*/i,'').replace(/[^\d.,]/g,'').trim();
+  return brutos.slice(0,40).map(it=>{
+    const nome = String(it&&it.produto||'').replace(/\s+/g,' ').trim().slice(0,60);
+    if(!nome) return null;
+    const row = _fBulkRowFromCampos({
+      nome: (typeof fSmartTitleCase==='function') ? fSmartTitleCase(nome) : nome,
+      precoDe: limpaPreco(it.precoDe), precoPor: limpaPreco(it.precoPor),
+      validade:'', desconto:''
+    });
+    row._ia = true;   // chip na grade: revisar preço antes de gerar
+    return row;
+  }).filter(Boolean);
+}
+
+// Estado de "trabalhando" da etapa 1 (a leitura de cardápio leva alguns segundos).
+function _fBulkSetBusy(on, texto){
+  const card = document.getElementById('f-ai-prompt-block');
+  if(card) card.classList.toggle('is-busy', !!on);
+  document.querySelectorAll('#f-ai-prompt-block button, #f-bulk-menu-input').forEach(b=>{ b.disabled = !!on; });
+  const st = document.getElementById('f-bulk-menu-status');
+  if(st) st.textContent = on ? (texto||'Lendo…') : '';
+}
+
+// Fim de importação: status, grade e ida pra revisão — o mesmo desfecho pros 3 caminhos.
+function _fBulkAfterImport(fonte){
+  const st = document.getElementById('f-bulk-status');
+  if(st) st.textContent = `${fBulkRows.length} linha(s) carregada(s)`;
+  fBulkRenderPreview();
+  _fBulkGoReview();
+  const nIA = fBulkRows.filter(r=>r&&r._ia).length;
+  if(nIA) gToast(`${nIA} linha(s) do ${fonte} — confira os preços antes de gerar.`);
+  else gToast('Tabela preenchida com ' + fBulkRows.length + ' oferta(s).');
+  try{ fBulkScheduleAutosave(); }catch(e){}
+}
+
+/* ══════════════════════════════════════════════════════════════
+   FOTOS EM LOTE — 30 produtos = 30 cliques em "Foto". Aqui o franqueado solta a pasta
+   inteira e cada imagem acha sua linha.
+   Escada: primeiro o casamento por NOME DE ARQUIVO, que é local, instantâneo e acerta a
+   maioria ("x-burger-duplo.jpg" → "X-Burger Duplo"). A IA entra só nas sobras, numa
+   única chamada com as fotos restantes. Foto que ninguém casou fica de fora — melhor
+   linha sem foto que foto no produto errado.
+══════════════════════════════════════════════════════════════ */
+function _fBulkImgKey(){
+  const vars = fBulkVars();
+  return vars.find(v => (typeof fIsImageVar==='function') ? fIsImageVar(v) : /foto|imagem|img/i.test(v)) || '';
+}
+function _fBulkNormNome(s){
+  return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/\.(jpe?g|png|webp|gif)$/i,'').replace(/[^a-z0-9]+/g,' ').trim();
+}
+// Pontuação de casamento: palavras do nome do produto presentes no nome do arquivo.
+function _fBulkScoreNome(produto, arquivo){
+  const p=_fBulkNormNome(produto).split(' ').filter(w=>w.length>2);
+  const a=_fBulkNormNome(arquivo);
+  if(!p.length || !a) return 0;
+  const acertos=p.filter(w=>a.indexOf(w)>=0).length;
+  return acertos/p.length;
+}
+async function fBulkMatchPhotos(input){
+  const files = input && input.files ? Array.from(input.files).filter(f=>/^image\//.test(f.type)).slice(0,40) : [];
+  if(input) input.value='';
+  if(!files.length) return;
+  const imgKey = _fBulkImgKey();
+  if(!imgKey){ gToast('Este material não usa foto de produto.','error'); return; }
+  if(!fBulkRows.length){ gToast('Carregue as ofertas primeiro — as fotos vão nas linhas.','error'); return; }
+
+  const nomeKey = Object.keys(fBulkRows[0].dados).find(k=>/^(produto|titulo|nome)$/i.test(k))
+    || Object.keys(fBulkRows[0].dados).find(k=>/produto|titulo|nome/i.test(k) && k!==imgKey);
+  const pendentes = fBulkRows.map((r,i)=>({i, nome:String((r.dados||{})[nomeKey]||'').trim()}))
+                             .filter(x=>x.nome && !String((fBulkRows[x.i].dados||{})[imgKey]||'').trim());
+  if(!pendentes.length){ gToast('Todas as linhas já têm foto.','error'); return; }
+
+  _fBulkSetBusy(true,'Casando fotos…');
+  const usados=new Set(); const casados=[];
+  // 1) nome do arquivo (local, sem IA)
+  pendentes.forEach(p=>{
+    let melhor=null, melhorScore=0;
+    files.forEach((f,fi)=>{
+      if(usados.has(fi)) return;
+      const s=_fBulkScoreNome(p.nome, f.name);
+      if(s>melhorScore){ melhorScore=s; melhor=fi; }
+    });
+    if(melhor!=null && melhorScore>=0.6){ usados.add(melhor); casados.push({linha:p.i, file:files[melhor], via:'nome'}); }
+  });
+
+  // 2) sobras → uma única chamada de visão
+  const sobraFotos = files.map((f,i)=>({f,i})).filter(x=>!usados.has(x.i)).slice(0,8);
+  const sobraLinhas = pendentes.filter(p=>!casados.some(c=>c.linha===p.i));
+  if(sobraFotos.length && sobraLinhas.length && typeof gAskAI==='function' && gAiReady()){
+    const partes=[];
+    for(const s of sobraFotos){ const p=await gAiFileToPart(s.f); if(p) partes.push(p); }
+    if(partes.length){
+      const lista=sobraLinhas.map((p,idx)=>`${idx}: ${p.nome}`).join('\n');
+      const prompt=`Você casa fotos de comida com itens de um cardápio.
+
+Recebi ${partes.length} imagem(ns), na ordem em que aparecem (imagem 0, imagem 1, ...).
+
+ITENS SEM FOTO:
+${lista}
+
+TAREFA: para cada imagem, diga o índice do item que ela mostra.
+
+REGRAS:
+1. Só case quando a imagem MOSTRA claramente aquele item. Na dúvida, use null.
+2. Um item por imagem, sem repetir item.
+3. Responda com um array do tamanho do número de imagens.
+
+Responda APENAS JSON: {"casos":[{"imagem":0,"item":2},{"imagem":1,"item":null}]}`;
+      const resp=await gAskAI('casar-fotos', prompt, {parts:partes, json:true, cache:false});
+      const parsed=resp && (typeof gAiParseJson==='function'?gAiParseJson(resp):null);
+      const casos=parsed&&Array.isArray(parsed.casos)?parsed.casos:[];
+      const itemUsado=new Set();
+      casos.forEach(c=>{
+        const im=Number(c&&c.imagem), it=(c&&c.item);
+        if(!Number.isInteger(im) || im<0 || im>=sobraFotos.length) return;
+        if(it==null || !Number.isInteger(Number(it))) return;
+        const alvo=sobraLinhas[Number(it)];
+        if(!alvo || itemUsado.has(alvo.i)) return;
+        itemUsado.add(alvo.i);
+        casados.push({linha:alvo.i, file:sobraFotos[im].f, via:'ia'});
+      });
+    }
+  }
+
+  // 3) grava (dataURL no mesmo campo que o upload manual usa)
+  for(const c of casados){
+    const part=await gAiFileToPart(c.file);
+    if(!part) continue;
+    fBulkRows[c.linha].dados[imgKey]='data:'+part.mimeType+';base64,'+part.data;
+    if(c.via==='ia') fBulkRows[c.linha]._iaFoto=true;   // casada por visão: vale conferir
+  }
+  try{ if(typeof _fBulkRevalidateRows==='function') _fBulkRevalidateRows(fBulkRows); }catch(e){}
+  _fBulkSetBusy(false);
+  fBulkRenderPreview();
+  try{ fBulkScheduleAutosave(); }catch(e){}
+
+  const porNome=casados.filter(c=>c.via==='nome').length, porIA=casados.filter(c=>c.via==='ia').length;
+  const sobrando=pendentes.length-casados.length;
+  if(!casados.length) gToast('Não consegui casar nenhuma foto com as linhas — envie pelo nome do produto no arquivo.','error');
+  else gToast(`${casados.length} foto(s) posicionada(s)${porIA?` (${porNome} pelo nome, ${porIA} pela IA)`:''}${sobrando?` · ${sobrando} linha(s) ainda sem foto`:''}.`);
 }
 
 let _fSpeechActive = false;
@@ -1131,10 +1719,10 @@ function fStartSpeech(event, inputId){
   if(event) event.preventDefault();
 
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if(!SR){ gToast('Reconhecimento de voz só funciona no Chrome ou Edge', 'error'); return; }
+  if(!SR){ gToast('O ditado por voz funciona no Chrome ou no Edge — abra o Luma num deles.', 'error'); return; }
   // Secure context: em file:// o navegador bloqueia o microfone — avisa ANTES de tentar.
   if(typeof window.isSecureContext!=='undefined' && !window.isSecureContext){
-    gToast('O microfone só funciona em site seguro (https) ou localhost — não abrindo o arquivo direto (file://).', 'error');
+    gToast('O microfone precisa do Luma aberto pelo endereço do site. Recarregue por lá e tente de novo.', 'error');
     return;
   }
 
@@ -1157,7 +1745,7 @@ function fStartSpeech(event, inputId){
 
   if(btn){ btn.classList.add('is-recording'); btn.setAttribute('aria-pressed','true'); }
 
-  rec.onstart = () => { _fSpeechActive = true; _fSpeechStarting = false; gToast('🎙️ Ouvindo… fale as ofertas. Clique de novo para parar.'); };
+  rec.onstart = () => { _fSpeechActive = true; _fSpeechStarting = false; gToast('Ouvindo… fale as ofertas. Clique de novo para parar.'); };
   rec.onresult = (e) => {
     let interim = '';
     for(let i=e.resultIndex; i<e.results.length; i++){
@@ -1171,12 +1759,12 @@ function fStartSpeech(event, inputId){
     console.error('Speech error:', e.error);
     if(e.error === 'not-allowed' || e.error === 'service-not-allowed') gToast('Microfone bloqueado — permita o acesso ao microfone nas configurações do navegador.', 'error');
     else if(e.error === 'no-speech') gToast('Nenhuma fala detectada. Fale mais perto do microfone.', 'error');
-    else if(e.error !== 'aborted') gToast('Falha no áudio: ' + e.error, 'error');
+    else if(e.error !== 'aborted') gToast('Falha no áudio. Tente de novo.', 'error');
   };
   rec.onend = () => {
     fStopSpeechUI(btn);
     _fSpeechActive = false; _fSpeechStarting = false; _fSpeechInstance = null;
-    if(finalText.trim()) gToast('✓ Transcrição adicionada');
+    if(finalText.trim()) gToast('Transcrição adicionada.');
   };
 
   try{ rec.start(); }
@@ -1222,7 +1810,7 @@ function fToggleAIPrompt(){
 function fCopyAIPrompt(){
   const text=document.getElementById('f-ai-prompt-text')?.textContent;
   if(!text)return;
-  const ok=()=>gToast('✓ Prompt copiado — cole no ChatGPT');
+  const ok=()=>gToast('Prompt copiado — cole no ChatGPT.');
   if(navigator.clipboard&&navigator.clipboard.writeText){
     navigator.clipboard.writeText(text).then(ok).catch(()=>fCopyAIPromptFallback(text,ok));
   }else fCopyAIPromptFallback(text,ok);
@@ -1231,7 +1819,7 @@ function fCopyAIPromptFallback(text,ok){
   const ta=document.createElement('textarea');
   ta.value=text;ta.style.position='fixed';ta.style.opacity='0';
   document.body.appendChild(ta);ta.select();
-  try{document.execCommand('copy');ok();}catch(e){gToast('Não consegui copiar automaticamente — selecione o texto e copie','error');}
+  try{document.execCommand('copy');ok();}catch(e){gToast('Não consegui copiar sozinha — selecione o texto e copie.','error');}
   document.body.removeChild(ta);
 }
 
@@ -1290,7 +1878,7 @@ function fBulkSampleValue(varName,i){
 }
 function fBulkTemplateCSV(){
   const vars=fBulkVars();
-  if(!vars.length){gToast('Este material não tem variáveis pra preencher');return;}
+  if(!vars.length){gToast('Este material não tem campos pra preencher.');return;}
   const N=5; // linhas de exemplo
   const lines=[vars.map(fBulkCsvCell).join(',')]; // cabeçalho = nomes das variáveis
   for(let i=0;i<N;i++){
@@ -1310,7 +1898,7 @@ function fBulkTemplateCSV(){
   a.download='modelo_'+(fSanitizeNamePart(fState.material.name)||'material')+'.csv';
   a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-  gToast('✓ Modelo CSV com '+N+' exemplos baixado — edite e reenvie');
+  gToast('Modelo de planilha com '+N+' exemplos baixado — edite e reenvie.');
   if (typeof gTriggerOnboardingStep === 'function') {
     gTriggerOnboardingStep('triedCsv');
   }
@@ -1341,7 +1929,7 @@ function fBulkParseCSV(text){
   return out;
 }
 function fBulkProcessRawData(raw) {
-  if(!raw || !raw.length){ gToast('⚠ Dados vazios ou sem linhas','error'); return; }
+  if(!raw || !raw.length){ gToast('A planilha está vazia.','error'); return; }
   
   // Detecção Inteligente de Mapeamento de Colunas
   const vars = fBulkVars();
@@ -1404,9 +1992,10 @@ function fBulkShowMapper(raw, rawKeys, vars) {
         return `<option value="${safeRk}" ${selected}>${safeRk}</option>`;
       })).join('');
       
+    const idV = String(v).replace(/[^a-zA-Z0-9_-]/g,'_'); // nome de campo vem de cabeçalho CSV do usuário → sanitiza p/ atributo id
     return `<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px">
       <span style="font-size:11px;font-weight:bold;color:var(--text)">${label}:</span>
-      <select id="f-bulk-map-select-${v}" style="font-size:11px;padding:6px;border:1px solid var(--gray-mid);border-radius:4px;background:var(--white);color:var(--text);width:60%;outline:none">
+      <select id="f-bulk-map-select-${idV}" style="font-size:11px;padding:6px;border:1px solid var(--gray-mid);border-radius:4px;background:var(--white);color:var(--text);width:60%;outline:none">
         ${options}
       </select>
     </div>`;
@@ -1419,7 +2008,8 @@ function fBulkConfirmMapping() {
   const mapping = {};
   
   vars.forEach(v => {
-    const select = document.getElementById(`f-bulk-map-select-${v}`);
+    const idV = String(v).replace(/[^a-zA-Z0-9_-]/g,'_'); // mesmo slug do id gerado em fRenderBulkMapper
+    const select = document.getElementById(`f-bulk-map-select-${idV}`);
     if(select) mapping[v] = select.value;
   });
   
@@ -1473,8 +2063,9 @@ function fBulkHandlePaste() {
     _fBulkTableView=true;
     const st=document.getElementById('f-bulk-status'); if(st) st.textContent=`${rows.length} linha(s) carregada(s)`;
     fBulkRenderPreview();
+    _fBulkGoReview();
     ta.value='';
-    gToast(`✓ ${rows.length} item(ns) do cardápio — confira preço/validade e gere.`);
+    gToast(`${rows.length} item(ns) do cardápio — confira preço/validade e gere.`);
     return;
   }
 
@@ -1487,7 +2078,7 @@ function fBulkHandlePaste() {
     } else {
       raw = fBulkParseCSV(text);
     }
-  }catch(err){ gToast('⚠ Dados inválidos','error'); return; }
+  }catch(err){ gToast('Dados inválidos.','error'); return; }
 
   fBulkProcessRawData(raw);
   ta.value = '';
@@ -1498,7 +2089,7 @@ function fBulkHandleCSV(input){
   const r=new FileReader();
   r.onload=e=>{
     let raw;
-    try{ raw=fBulkParseCSV(e.target.result); }catch(err){ gToast('⚠ CSV inválido','error'); return; }
+    try{ raw=fBulkParseCSV(e.target.result); }catch(err){ gToast('Planilha inválida.','error'); return; }
     fBulkProcessRawData(raw);
     if (typeof gTriggerOnboardingStep === 'function') {
       gTriggerOnboardingStep('triedCsv');
@@ -1515,16 +2106,92 @@ function fBulkToggleTableView() {
   fBulkRenderPreview();
 }
 
+// Uma leitura única mantém cabeçalho, rodapé e pré-voo falando a mesma verdade.
+// Linha totalmente vazia não é "erro": é um espaço de trabalho ainda não usado.
+function fBulkGetReadiness(keys=fBulkVars(), formatCount=null) {
+  const readyRows = [];
+  const errorRows = [];
+  const emptyRows = [];
+  fBulkRows.forEach((row, index) => {
+    const isEmpty = keys.every(k => !String((row.dados || {})[k] || '').trim());
+    if (isEmpty) {
+      emptyRows.push({row, index});
+    } else if (row.erros && row.erros.length) {
+      errorRows.push({row, index});
+    } else {
+      readyRows.push({row, index});
+    }
+  });
+
+  if (formatCount === null) {
+    const checked = document.querySelectorAll('.f-bulk-fmt-cb:checked').length;
+    formatCount = checked || 1; // espelha o fallback do download para o formato atual
+  }
+
+  return {
+    readyRows,
+    errorRows,
+    emptyRows,
+    formatCount,
+    artCount: readyRows.length * formatCount
+  };
+}
+
+function fBulkUpdateReadiness(readiness=fBulkGetReadiness()) {
+  const ready = readiness.readyRows.length;
+  const errors = readiness.errorRows.length;
+  const empty = readiness.emptyRows.length;
+  const total = fBulkRows.length;
+  const status = document.getElementById('f-bulk-status');
+  const dot = document.querySelector('.f-bulk-live-dot');
+  const footer = document.querySelector('.f-bulk-footer-note span');
+  const dlBtn = document.getElementById('f-bulk-dl-btn');
+
+  if (status) {
+    if (!total) status.textContent = 'Planilha vazia';
+    else if (!ready && !errors) status.textContent = `${total} linha(s) disponível(is) · preencha uma oferta`;
+    else if (errors) status.textContent = `${ready} pronta(s) · ${errors} para revisar`;
+    else status.textContent = `${ready} pronta(s) para gerar`;
+  }
+
+  if (dot) {
+    const color = ready ? (errors ? 'var(--dm-yellow)' : 'var(--green)') : (errors ? 'var(--dm-red)' : 'var(--gray-mid)');
+    dot.style.background = color;
+    dot.style.boxShadow = `0 0 0 3px color-mix(in srgb,${color} 14%,transparent)`;
+  }
+
+  if (footer) {
+    if (!ready && errors) {
+      footer.textContent = `Revise ${errors} linha(s) destacada(s) antes de gerar.`;
+    } else if (!ready) {
+      footer.textContent = 'Preencha pelo menos uma oferta para gerar as artes.';
+    } else {
+      const formatLabel = readiness.formatCount === 1 ? 'formato' : 'formatos';
+      let text = `${ready} oferta(s) × ${readiness.formatCount} ${formatLabel} = ${readiness.artCount} arte(s) no ZIP`;
+      if (errors) text += ` · ${errors} linha(s) com erro serão puladas`;
+      else if (empty) text += ` · ${empty} linha(s) vazia(s) serão ignoradas`;
+      footer.textContent = text;
+    }
+  }
+
+  if (dlBtn) {
+    const label = ready ? `Gerar ${readiness.artCount} arte${readiness.artCount === 1 ? '' : 's'}` : (errors ? 'Revise para gerar' : 'Preencha uma oferta');
+    dlBtn.disabled = ready === 0;
+    dlBtn.setAttribute('aria-disabled', ready === 0 ? 'true' : 'false');
+    dlBtn.title = ready ? `${readiness.artCount} arte(s) pronta(s) para gerar` : 'Preencha e revise a planilha antes de gerar';
+    dlBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg><span>${label}</span>`;
+  }
+}
+
 function fBulkRenderPreview(){
   const wrap=document.getElementById('f-bulk-preview');if(!wrap)return;
-  // Atualiza o texto do botão "Baixar todos" com a contagem atual
-  const dlBtn=document.getElementById('f-bulk-dl-btn');
-  if(dlBtn)dlBtn.textContent='Baixar todos'+(fBulkRows.length?` (${fBulkRows.length})`:'');
+  fBulkUpdateReadiness();
   if(!fBulkRows.length){wrap.innerHTML='<div class="f-bulk-empty">Nenhum CSV carregado ainda. Baixe o modelo, preencha e reenvie.</div>';return;}
   
   if (_fBulkTableView) {
     const keys = fBulkVars();
-    const ths = keys.map(k => `<th style="padding:10px 8px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-2,#3A3A3A);font-weight:700;white-space:nowrap">${gEsc(k)}</th>`).join('');
+    const labelFor = k => (typeof _fLpLabel === 'function' ? _fLpLabel(k) : k);
+    const ths = keys.map(k => `<th style="padding:10px 8px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-2,#3A3A3A);font-weight:700;white-space:nowrap">${gEsc(labelFor(k))}</th>`).join('');
     
     const query = document.getElementById('f-bulk-search')?.value.trim().toLowerCase() || '';
     let trs = fBulkRows.map((r,i) => {
@@ -1567,29 +2234,36 @@ function fBulkRenderPreview(){
           <button class="d-btn-sec" style="padding:0;width:22px;height:22px;border-radius:50%;color:var(--text-3,#6B6B6B);background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all var(--dur-micro) var(--ease-standard)" onmouseover="this.style.color='var(--dm-orange-d,#F85400)';this.style.background='var(--dm-orange-bg,rgba(255,144,0,.12))'" onmouseout="this.style.color='';this.style.background=''" onclick="fBulkCloneRow(${i})" title="Duplicar linha"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
           <button class="d-btn-sec" style="padding:0;width:22px;height:22px;border-radius:50%;color:var(--text-3,#6B6B6B);background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all var(--dur-micro) var(--ease-standard)" onmouseover="this.style.color='var(--dm-red,#C81818)';this.style.background='rgba(200,24,24,0.08)'" onmouseout="this.style.color='';this.style.background=''" onclick="fBulkRemoveCard(${i})" title="Remover linha"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </td>
-        <td style="padding:6px 4px;border-bottom:1px solid var(--gray-light, #F2F2F2);text-align:center;cursor:help" onmouseenter="fBulkShowHoverPreview(event, ${i})" onmouseleave="fBulkHideHoverPreview()"><span class="f-bulk-num-chip">${i+1}</span></td>
+        <td style="padding:6px 4px;border-bottom:1px solid var(--gray-light, #F2F2F2);text-align:center;cursor:help;white-space:nowrap" onmouseenter="fBulkShowHoverPreview(event, ${i})" onmouseleave="fBulkHideHoverPreview()"><span class="f-bulk-num-chip">${i+1}</span>${_fBulkIaChip(r)}</td>
         ${tds}
       </tr>`;
     }).join('');
     
-    const optionsHtml = keys.map(k => `<option value="${k}">${gEsc(k)}</option>`).join('');
+    const optionsHtml = keys.map(k => `<option value="${k}">${gEsc(labelFor(k))}</option>`).join('');
     wrap.innerHTML = `<div style="grid-column: 1 / -1; width:100%; display:flex; flex-direction:column; gap:12px">
-      <!-- Barra de Ações em Massa -->
-      <div class="f-bulk-actions-bar" style="display:flex;gap:10px;align-items:center;padding:10px 14px;border-radius:var(--r-sm);font-size:12px;color:var(--text-2,#3A3A3A);flex-wrap:wrap">
-        <span style="display:inline-flex;align-items:center;gap:4px;font-weight:bold"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Ações em Massa:</span>
-        <span>Coluna:</span>
-        <select id="f-bulk-action-col" style="font-size:12px;padding:5px 8px;border:1px solid var(--gray-mid,#D4D4D4);border-radius:var(--r-sm);background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);outline:none;cursor:pointer">
-          ${optionsHtml}
-        </select>
-        <input type="text" id="f-bulk-action-val" placeholder="Texto para preencher..." style="font-size:12px;padding:5px 8px;border:1px solid var(--gray-mid,#D4D4D4);border-radius:var(--r-sm);background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);width:150px;outline:none">
-        <button class="d-btn-sec" style="font-size:12px;padding:5px 12px;cursor:pointer;border-radius:var(--r-sm);border:1px solid var(--gray-mid,#D4D4D4);background:var(--white,#FFFFFF);font-weight:600" onclick="fBulkApplyFill()">Preencher Tudo</button>
-        <span style="color:var(--gray-mid,#D4D4D4)">|</span>
-        <button class="d-btn-sec" style="font-size:12px;padding:5px 12px;cursor:pointer;border-radius:var(--r-sm);border:1px solid var(--gray-mid,#D4D4D4);background:var(--white,#FFFFFF);font-weight:600" onclick="fBulkApplyDiscountPrompt()" title="Aplicar desconto em % a uma coluna de preços">Aplicar Desconto %</button>
-        <button class="d-btn-sec" style="font-size:12px;padding:5px 12px;cursor:pointer;border-radius:var(--r-sm);border:1px solid var(--gray-mid,#D4D4D4);background:var(--white,#FFFFFF);font-weight:600" onclick="fBulkApplyRounding()" title="Arredondar preços da coluna para finais em ,90">Arredondar (.90)</button>
-        <span style="color:var(--gray-mid,#D4D4D4)">|</span>
-        <button class="d-btn-sec" style="font-size:12px;padding:5px 12px;cursor:pointer;border-radius:var(--r-sm);border:1px solid var(--gray-mid,#D4D4D4);background:var(--white,#FFFFFF);font-weight:600" onclick="fBulkApplyValidade()" title="Aplicar a mesma validade a todas as linhas">Validade em todas</button>
-        <button class="d-btn-sec" style="font-size:12px;padding:5px 12px;cursor:pointer;border-radius:var(--r-sm);border:1px solid var(--gray-mid,#D4D4D4);background:var(--white,#FFFFFF);font-weight:600" onclick="fBulkApplyLoja()" title="Preencher o logo de uma loja salva em todas as linhas">Logo da loja em todas</button>
-      </div>
+      <!-- Mudanças em massa: poderosas, mas jargão de planilha. Ficam FECHADAS — abertas,
+           eram a primeira coisa que a franqueada via, antes até da própria tabela. -->
+      <details class="f-bulk-massbar">
+        <summary>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          <span><strong>Mudar tudo de uma vez</strong><small>o mesmo preço, validade ou logo em todas as linhas</small></span>
+          <svg class="f-bulk-disclosure-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+        </summary>
+        <div class="f-bulk-massbar-body">
+          <div class="f-bulk-massbar-row">
+            <label for="f-bulk-action-col">Qual informação</label>
+            <select id="f-bulk-action-col">${optionsHtml}</select>
+            <input type="text" id="f-bulk-action-val" placeholder="O que escrever em todas">
+            <button class="d-btn-pri" onclick="fBulkApplyFill()">Aplicar a todas</button>
+          </div>
+          <div class="f-bulk-massbar-row">
+            <button class="d-btn-sec" onclick="fBulkApplyDiscountPrompt()" title="Baixa um percentual de todos os preços">Dar desconto em tudo</button>
+            <button class="d-btn-sec" onclick="fBulkApplyRounding()" title="Deixa todos os preços com final ,90">Arredondar para ,90</button>
+            <button class="d-btn-sec" onclick="fBulkApplyValidade()" title="A mesma data de validade em todas as linhas">Mesma validade</button>
+            <button class="d-btn-sec" onclick="fBulkApplyLoja()" title="O logo de uma loja salva em todas as linhas">Mesmo logo</button>
+          </div>
+        </div>
+      </details>
       <div style="overflow-x:auto;width:100%;max-height:50vh;border:1px solid var(--gray-mid, #D4D4D4);border-radius:var(--r);background:var(--white,#FFFFFF)">
         <table class="f-bulk-table" style="width:100%;border-collapse:collapse;margin:0">
           <thead style="position:sticky;top:0;z-index:10">
@@ -1604,10 +2278,10 @@ function fBulkRenderPreview(){
       </div>
       <div style="display:flex;gap:12px">
         <button class="d-btn-sec" style="width:100%;border:1px dashed var(--gray-mid, #D4D4D4);padding:10px 16px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;background:transparent;cursor:pointer;border-radius:var(--r-sm);color:var(--text-2,#3A3A3A);font-weight:600;transition:all var(--dur-micro) var(--ease-standard)" onmouseover="this.style.background='var(--gray-light, #F2F2F2)';this.style.color='var(--text)'" onmouseout="this.style.background='transparent';this.style.color=''" onclick="fBulkAddEmptyRow()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Adicionar Nova Linha
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Adicionar linha
         </button>
         <button class="d-btn-sec" style="border:1px solid var(--gray-mid, #D4D4D4);padding:10px 16px;color:var(--dm-red,#C81818);background:transparent;font-size:12px;cursor:pointer;border-radius:var(--r-sm);font-weight:600;transition:all var(--dur-micro) var(--ease-standard)" onmouseover="this.style.background='rgba(200,24,24,0.08)'" onmouseout="this.style.background='transparent'" onclick="fBulkClearAll()">
-          Limpar Tudo
+          Limpar planilha
         </button>
       </div>
     </div>`;
@@ -1624,14 +2298,18 @@ function fBulkRenderPreview(){
       if (!match) return '';
     }
     const titulo=r.dados.produto||r.dados.categoria||r.dados.brinde||Object.values(r.dados)[0]||('Linha '+(i+1));
-    const campos=Object.keys(r.dados).slice(0,2).map(k=>`<div class="f-bulk-field"><span>${gEsc(k)}:</span> ${(gEsc(r.dados[k]))||'—'}</div>`).join('');
+    const campos=Object.keys(r.dados).slice(0,2).map(k=>{
+      const label=(typeof _fLpLabel==='function')?_fLpLabel(k):k;
+      return `<div class="f-bulk-field"><span>${gEsc(label)}:</span> ${(gEsc(r.dados[k]))||'—'}</div>`;
+    }).join('');
     const isErr = r.erros.length > 0;
     const actionsHtml = isErr 
       ? `<button class="d-btn-sec" style="padding:2px 6px;font-size:9px;margin-top:4px;width:100%" onclick="fBulkEditRow(${i})">Corrigir linha</button>` 
       : `<button class="d-btn-sec" style="padding:2px 6px;font-size:9px;margin-top:4px;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:4px" onclick="fBulkShowCopyModal(${i})"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Legendas</button>`;
+    const iaChip = _fBulkIaChip(r);
     return `<div class="f-bulk-card ${isErr?'has-err':''}" id="f-bulk-card-${i}">`
       +`<button class="f-bulk-remove" onclick="fBulkRemoveCard(${i})" title="Remover do lote">×</button>`
-      +`<div class="f-bulk-card-num">${i+1}</div>`
+      +`<div class="f-bulk-card-num">${i+1}</div>${iaChip}`
       +`<canvas class="f-bulk-canvas" id="f-bulk-cv-${i}" width="${cw}" height="${ch}"></canvas>`
       +`<div class="f-bulk-card-title" title="${gEsc(titulo)}">${gEsc(titulo)}</div>`
       +`<div class="f-bulk-card-info" id="f-bulk-info-${i}">${campos}${actionsHtml}</div>`
@@ -1703,7 +2381,7 @@ function fBulkHandleLocalImage(input, idx, key) {
   reader.readAsDataURL(file);
 }
 
-function fBulkSaveRow(i, isSilent=false) {
+function fBulkSaveRow(i, isSilent=false, skipReadiness=false) {
   const row = fBulkRows[i];
   const keys = fBulkVars();
   
@@ -1762,14 +2440,17 @@ function fBulkSaveRow(i, isSilent=false) {
   
   if(!isSilent) {
     fBulkRenderPreview();
+  } else if(!skipReadiness) {
+    fBulkUpdateReadiness();
   }
 }
 
 function fBulkSaveAllRows(isSilent=true) {
   if (!_fBulkTableView) return;
   fBulkRows.forEach((r, i) => {
-    fBulkSaveRow(i, isSilent);
+    fBulkSaveRow(i, isSilent, true);
   });
+  fBulkUpdateReadiness();
 }
 
 // Renderiza os thumbnails em fila (cede o thread entre cada um). Um token cancela
@@ -1779,7 +2460,13 @@ async function fBulkRenderThumbs(){
   for(let i=0;i<fBulkRows.length;i++){
     if(token!==_fBulkRenderToken)return; // novo render começou → aborta o antigo
     await fBulkRenderCardPreview(fBulkRows[i], i);
-    await new Promise(res=>(window.requestIdleCallback||setTimeout)(res,30));
+    // requestIdleCallback e setTimeout têm assinaturas DIFERENTES no 2º argumento:
+    // {timeout:30} vs 30. Passar o número pros dois fazia o Chrome lançar TypeError
+    // ("The provided value is not of type 'IdleRequestOptions'") já na 1ª volta — a
+    // promessa rejeitava, o laço morria e só a primeira miniatura era desenhada.
+    await new Promise(res=> window.requestIdleCallback
+      ? window.requestIdleCallback(res,{timeout:30})
+      : setTimeout(res,30));
   }
 }
 async function fBulkRenderCardPreview(row, index){
@@ -1797,7 +2484,7 @@ async function fBulkRenderCardPreview(row, index){
     ctx.drawImage(off,0,0,w,h,0,0,cv.width,cv.height);
     if(badge){
       badge.className='f-bulk-badge '+(row.erros.length?'warning':'ok');
-      badge.textContent=row.erros.length?('⚠ '+(row.erros.length>1?row.erros.length+' campos':'1 campo')):'✓ OK';
+      badge.textContent=row.erros.length?(''+(row.erros.length>1?row.erros.length+' campos':'1 campo')):'OK';
     }
   }catch(e){
     if(badge){badge.className='f-bulk-badge error';badge.textContent='✕ erro';}
@@ -1824,8 +2511,8 @@ function fBulkCancelGen(){
   if(b){ b.disabled = true; b.textContent = 'Cancelando…'; }
 }
 async function fBulkDownloadAll(){
-  if(!fBulkRows.length){gToast('Envie um CSV primeiro');return;}
-  if(typeof JSZip === 'undefined'){gToast('JSZip não carregado','error');return;}
+  if(!fBulkRows.length){gToast('Envie uma planilha primeiro.');return;}
+  if(typeof JSZip === 'undefined'){gToast('Não consegui preparar o pacote. Recarregue a página e tente de novo.','error');return;}
 
   // Salva e valida todas as linhas da tabela antes do download
   fBulkSaveAllRows(true);
@@ -1848,7 +2535,7 @@ async function fBulkDownloadAll(){
     const isEmpty = keys.every(k => !r.dados[k] || !r.dados[k].trim());
     return !isEmpty;
   });
-  if(!valid.length){gToast('⚠ Nenhuma linha válida preenchida','error');return;}
+  if(!valid.length){gToast('Nenhuma linha preenchida ainda.','error');return;}
 
   // ── Pré-voo: resume o que VAI e o que NÃO vai sair, e confirma antes de gastar tempo.
   // Linhas com erro/vazias são puladas — o franqueado sabe ANTES, não ao abrir o ZIP.
@@ -1995,19 +2682,20 @@ async function fBulkDownloadAll(){
     a.href = URL.createObjectURL(zipBlob);
     a.download = `Luma_Artes_${fSanitizeNamePart(fState.material.name)||'Lote'}.zip`;
     a.click();
+    if(typeof window.gPlayBatchCompleteSound==='function') window.gPlayBatchCompleteSound();
     setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
   } catch(err) {
     console.error(err);
-    gToast('Erro ao gerar o arquivo ZIP', 'error');
+    gToast('Não consegui montar o pacote. Tente de novo.', 'error');
   }
   
   if(actions) actions.style.display = 'flex';
   if(wrap) wrap.style.display = 'none';
   
   const _fail=totalRenders-ok;
-  if(_fBulkCancel) gToast(`Cancelado — ${ok} arte(s) prontas no ZIP.`);
-  else if(_fail>0) gToast(`${ok}/${totalRenders} geradas — ${_fail} falhou(ram). Veja o erros.txt no ZIP.`,'error');
-  else gToast('✓ '+ok+' artes geradas e baixadas no ZIP!');
+  if(_fBulkCancel) gToast(`Cancelado — ${ok} arte(s) prontas no pacote.`);
+  else if(_fail>0) gToast(`${ok}/${totalRenders} geradas — ${_fail} falhou(ram). O arquivo "erros.txt" no pacote diz o que deu errado.`,'error');
+  else gToast(ok+' artes geradas e baixadas no pacote!');
   _fBulkCancel = false;
   
   if(typeof fClearImgCache === 'function') fClearImgCache();
@@ -2160,7 +2848,7 @@ function fBulkApplyFill() {
     _fBulkRevalidateCol(r, col);
   });
 
-  gToast(`✓ Coluna "${col}" preenchida em todas as linhas`);
+  gToast(`Coluna "${col}" preenchida em todas as linhas`);
   fBulkRenderPreview();
 }
 
@@ -2184,7 +2872,7 @@ async function fBulkApplyDiscountPrompt() {
   if (pctStr === null) return;
   const pct = parseFloat(String(pctStr).replace(',', '.'));
   if (isNaN(pct) || pct < 0 || pct > 100) {
-    gToast('⚠ Percentual inválido (deve ser entre 0 e 100)', 'error');
+    gToast('Percentual inválido — use um número entre 0 e 100.', 'error');
     return;
   }
 
@@ -2196,7 +2884,7 @@ async function fBulkApplyDiscountPrompt() {
     }
   });
 
-  gToast(`✓ Desconto de ${pct}% aplicado à coluna "${col}"`);
+  gToast(`Desconto de ${pct}% aplicado à coluna "${col}"`);
   fBulkRenderPreview();
 }
 
@@ -2216,7 +2904,7 @@ async function fBulkApplyRounding() {
     }
   });
 
-  gToast(`✓ Valores da coluna "${col}" arredondados para final ,90`);
+  gToast(`Valores da coluna "${col}" arredondados para final ,90`);
   fBulkRenderPreview();
 }
 
@@ -2232,7 +2920,7 @@ async function fBulkApplyValidade() {
   if (val === null) return;
   const masked = (typeof fApplyMask === 'function') ? fApplyMask(col, val) : val;
   fBulkRows.forEach(r => { r.dados[col] = masked; _fBulkRevalidateCol(r, col); });
-  gToast(`✓ Validade aplicada em todas as linhas`);
+  gToast(`Validade aplicada em todas as linhas`);
   fBulkRenderPreview();
 }
 
@@ -2256,7 +2944,7 @@ async function fBulkApplyLoja() {
   }
   if (!loja.logo) { gToast('Essa loja não tem logo salvo.', 'error'); return; }
   fBulkRows.forEach(r => { r.dados[col] = loja.logo; _fBulkRevalidateCol(r, col); });
-  gToast(`✓ Logo de ${loja.nome||'sua loja'} aplicado em todas as linhas`);
+  gToast(`Logo de ${loja.nome||'sua loja'} aplicado em todas as linhas`);
   fBulkRenderPreview();
 }
 
@@ -2442,10 +3130,11 @@ async function fBulkImportFromLink() {
   restore();
   if (urlEl) urlEl.value = '';
   document.getElementById('f-bulk-status').textContent = `${fBulkRows.length} linha(s) carregada(s)`;
-  gToast(`✓ ${fBulkRows.length} exemplos de demonstração — edite com os seus produtos reais`);
+  gToast(`${fBulkRows.length} exemplos de demonstração — edite com os seus produtos reais`);
 
   _fBulkTableView = true;
   fBulkRenderPreview();
+  _fBulkGoReview();
 }
 
 // Puxa produtos já usados do histórico do franqueado como linhas do lote — zero digitação
@@ -2486,7 +3175,8 @@ function fBulkFromHistorico(){
   _fBulkTableView=true;
   const st=document.getElementById('f-bulk-status'); if(st) st.textContent=`${fBulkRows.length} linha(s) carregada(s)`;
   fBulkRenderPreview();
-  gToast(`✓ ${novos.length} produto(s) do histórico — ajuste preço/validade e gere.`);
+  _fBulkGoReview();
+  gToast(`${novos.length} produto(s) do histórico — ajuste preço/validade e gere.`);
 }
 
 /* ── LUMA SHEETS MODELOS SALVOS (IDEIA 3) ── */
@@ -2523,7 +3213,7 @@ function fBulkUpdateSavedTemplatesList() {
 async function fBulkSaveTemplate() {
   fBulkCollectCurrentInputs();
   if (!fBulkRows || fBulkRows.length === 0) {
-    gToast('A planilha está vazia. Adicione algumas linhas antes de salvar', 'warning');
+    gToast('A planilha está vazia. Adicione algumas linhas antes de salvar.', 'warning');
     return;
   }
 
@@ -2531,7 +3221,7 @@ async function fBulkSaveTemplate() {
   if (name === null) return;
   const trimmed = name.trim();
   if (!trimmed) {
-    gToast('⚠ Nome inválido', 'error');
+    gToast('Nome inválido.', 'error');
     return;
   }
 
@@ -2560,13 +3250,13 @@ async function fBulkSaveTemplate() {
   try {
     localStorage.setItem('_luma_saved_sheets', JSON.stringify(store));
   } catch (e) {
-    gToast('⚠ Não foi possível salvar — armazenamento local cheio. Apague modelos antigos e tente de novo.', 'error');
+    gToast('Não consegui salvar — a memória do navegador encheu. Apague modelos antigos e tente de novo.', 'error');
     return;
   }
 
   gToast(stripped
-    ? `✓ Modelo "${trimmed}" salvo (${stripped} imagem(ns) local(is) não ficam guardadas — reenvie ao gerar)`
-    : `✓ Modelo "${trimmed}" salvo com sucesso!`);
+    ? `Modelo "${trimmed}" salvo (${stripped} imagem(ns) local(is) não ficam guardadas — reenvie ao gerar)`
+    : `Modelo "${trimmed}" salvo!`);
   fBulkUpdateSavedTemplatesList();
 }
 
@@ -2585,7 +3275,7 @@ async function fBulkLoadTemplate() {
   
   const entry = store.entries.find(e => e.id === id);
   if (!entry) {
-    gToast('⚠ Modelo não encontrado', 'error');
+    gToast('Não achei esse modelo.', 'error');
     return;
   }
   
@@ -2598,7 +3288,7 @@ async function fBulkLoadTemplate() {
 
   fBulkRows = entry.rows.map(r => ({ dados: { ...r.dados }, erros: [] }));
   document.getElementById('f-bulk-status').textContent = `${fBulkRows.length} linha(s) carregada(s)`;
-  gToast(`✓ Modelo "${entry.name}" carregado!`);
+  gToast(`Modelo "${entry.name}" carregado!`);
   
   _fBulkTableView = true;
   fBulkRenderPreview();
@@ -2631,7 +3321,7 @@ async function fBulkDeleteTemplate() {
     localStorage.setItem('_luma_saved_sheets', JSON.stringify(store));
   } catch (e) {}
 
-  gToast(`✓ Modelo "${entry.name}" excluído`);
+  gToast(`Modelo "${entry.name}" excluído`);
   fBulkUpdateSavedTemplatesList();
 }
 
@@ -2653,11 +3343,11 @@ function fBulkUploadCellImage(input, i, k) {
   if (!file) return;
   
   if (!file.type.startsWith('image/')) {
-    gToast('⚠ O arquivo selecionado não é uma imagem.', 'error');
+    gToast('Esse arquivo não é uma imagem.', 'error');
     return;
   }
   if (file.size > 20 * 1024 * 1024) {
-    gToast('⚠ Imagem muito grande. O limite máximo é 20MB.', 'error');
+    gToast('Imagem muito grande — o limite é 20MB.', 'error');
     return;
   }
 
@@ -2673,15 +3363,15 @@ function fBulkUploadCellImage(input, i, k) {
         const img = new Image();
         img.onload = function() {
           if (img.width < 600 || img.height < 600) {
-            gToast(`⚠ Aviso: Imagem com resolução baixa (${img.width}x${img.height}px). Pode ficar pixelada no post final.`, 'warning');
+            gToast(`Foto de baixa resolução (${img.width}x${img.height}px) — pode sair pixelada na arte.`, 'warning');
           }
           fBulkRenderPreview();
         };
         img.onerror = function() {
-          gToast('Erro ao carregar a imagem. Verifique se o arquivo está íntegro.', 'error');
+          gToast('Não consegui carregar a imagem. Verifique se o arquivo está íntegro e tente de novo.', 'error');
         };
         img.src = resizedUrl;
-        gToast('✓ Imagem carregada');
+        gToast('Foto carregada.');
         fBulkRenderPreview();
       });
     } else {
@@ -2690,15 +3380,15 @@ function fBulkUploadCellImage(input, i, k) {
       const img = new Image();
       img.onload = function() {
         if (img.width < 600 || img.height < 600) {
-          gToast(`⚠ Aviso: Imagem com resolução baixa (${img.width}x${img.height}px). Pode ficar pixelada no post final.`, 'warning');
+          gToast(`Foto de baixa resolução (${img.width}x${img.height}px) — pode sair pixelada na arte.`, 'warning');
         }
         fBulkRenderPreview();
       };
       img.onerror = function() {
-        gToast('Erro ao carregar a imagem. Verifique se o arquivo está íntegro.', 'error');
+        gToast('Não consegui carregar a imagem. Verifique se o arquivo está íntegro e tente de novo.', 'error');
       };
       img.src = base64;
-      gToast('✓ Imagem carregada');
+      gToast('Foto carregada.');
       fBulkRenderPreview();
     }
   };
@@ -2755,10 +3445,10 @@ function fBulkRemoveDuplicates() {
   const removed = before - fBulkRows.length;
   if (removed > 0) {
     document.getElementById('f-bulk-status').textContent = `${fBulkRows.length} linha(s) carregada(s)`;
-    gToast(`✓ ${removed} linha(s) duplicada(s) removida(s)`);
+    gToast(`${removed} linha(s) duplicada(s) removida(s)`);
     fBulkRenderPreview();
   } else {
-    gToast('Nenhuma linha duplicada encontrada', 'info');
+    gToast('Nenhuma linha duplicada.', 'info');
   }
 }
 
@@ -2782,7 +3472,7 @@ function fBulkSortTable(type) {
     });
   }
   
-  gToast(`✓ Tabela ordenada com sucesso`);
+  gToast('Tabela ordenada.');
   fBulkRenderPreview();
   
   const sortSelect = document.getElementById('f-bulk-sort-select');
@@ -3297,7 +3987,7 @@ function fBulkCloneRow(index) {
   fBulkRows.splice(index + 1, 0, cloned);
   
   document.getElementById('f-bulk-status').textContent = `${fBulkRows.length} linha(s) carregada(s)`;
-  gToast('✓ Linha duplicada');
+  gToast('Linha duplicada.');
   fBulkRenderPreview();
 }
 
@@ -3414,7 +4104,7 @@ function fBulkShowCopyModal(i) {
           }, 2000);
         }).catch(err => {
           console.error('Failed to copy text: ', err);
-          gToast('Erro ao copiar legenda', 'error');
+          gToast('Não consegui copiar a legenda — selecione e copie na mão.', 'error');
         });
       };
       

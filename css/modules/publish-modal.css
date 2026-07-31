@@ -86,7 +86,7 @@
 .pub-section-intro code{
   background:var(--var-bg);color:var(--var-color);
   padding:1px 5px;border-radius:3px;
-  font-family:'Roboto Mono',monospace;font-size:11px;
+  font-family:'Roboto',sans-serif;font-size:11px;
 }
 .pub-field{margin-bottom:18px}
 .pub-field:last-child{margin-bottom:0}
@@ -137,7 +137,7 @@
 .pub-perm-name{font-size:13px;font-weight:600;color:var(--text)}
 .pub-perm-key{
   font-size:11px;color:var(--var-color);
-  font-family:'Roboto Mono',monospace;
+  font-family:'Roboto',sans-serif;
   margin-top:2px;
 }
 .pub-perm-toggle{
@@ -543,6 +543,19 @@
 
 .preview-note{padding:10px 18px;font-size:12px;color:var(--text-2);text-align:center;border-top:1px solid var(--gray-light);flex-shrink:0}
 .preview-hint{padding:0 18px 14px;font-size:11px;color:var(--text-3);text-align:center;font-style:italic;flex-shrink:0}
+
+/* ── Tema escuro do modal de PREVIEW (é do franqueado → aparece no dark alternativo).
+   Sem isto a caixa de vidro renderiza branca no escuro. Mesmo tom do .posted-box
+   (live-preview.css) pra vidro escuro coeso. Só .pv-multi-canvas fica de fora: é a arte
+   colorida (fundo de marca + texto branco), igual nos dois temas. */
+body:not(.theme-light) .preview-box{background:rgba(24,23,22,.92);border-color:var(--d-border2)}
+body:not(.theme-light) .preview-box-head{border-bottom-color:var(--d-border)}
+body:not(.theme-light) .preview-close{color:var(--d-text2)}
+body:not(.theme-light) .preview-close:hover{background:var(--d-surf2);color:var(--d-text)}
+body:not(.theme-light) .pv-multi-fmt-name{color:var(--d-text)}
+body:not(.theme-light) .pv-multi-fmt-dim{color:var(--d-text3)}
+body:not(.theme-light) .preview-note{color:var(--d-text2);border-top-color:var(--d-border)}
+body:not(.theme-light) .preview-hint{color:var(--d-text3)}
 
 @media (max-width:520px){
   .pv-multi{grid-template-columns:1fr;gap:14px}

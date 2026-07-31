@@ -1,0 +1,13 @@
+{
+  "screen": "Vitrine no celular",
+  "area": "Franqueado",
+  "state": "home-mobile",
+  "milestone": "M0",
+  "label": "Piloto Yungas — Módulo de Artes",
+  "commit": null,
+  "date": "2026-07-15",
+  "viewport": "390x844",
+  "captureType": "real-arquivo-original",
+  "confidence": "alto",
+  "notes": "Execução do HTML original do piloto, servido offline. Nenhuma alteração no código."
+}

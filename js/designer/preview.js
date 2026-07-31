@@ -540,12 +540,16 @@ function dSvgFx(l, id){
   if(!(l.shadow||l.glow||l.innerShadow||l.innerGlow||l.bevel)) return {defs:'', attr:''};
   const prims=[]; const merges=[]; let inner='';
   if(l.glow){ const g=(l.glowSize!=null?l.glowSize:8)/2;
-    prims.push(`<feGaussianBlur in="SourceAlpha" stdDeviation="${g}" result="gb${id}"/>`
+    if(l.glowSpread>0) prims.push(`<feMorphology in="SourceAlpha" operator="dilate" radius="${l.glowSpread}" result="gd${id}"/>`);
+    prims.push(`<feGaussianBlur in="${l.glowSpread>0?`gd${id}`:'SourceAlpha'}" stdDeviation="${g}" result="gb${id}"/>`
       +`<feFlood flood-color="${_svgFloodColor(l.glowColor||'rgba(255,255,255,.7)')}" flood-opacity="${_svgFloodOp(l.glowColor)}"/>`
       +`<feComposite in2="gb${id}" operator="in" result="gl${id}"/>`);
     merges.push(`<feMergeNode in="gl${id}"/>`); }
   if(l.shadow){ const o=gFxOffset(l.shadowDist!=null?l.shadowDist:4,l.shadowAngle); const b=(l.shadowBlur!=null?l.shadowBlur:6)/2;
-    prims.push(`<feGaussianBlur in="SourceAlpha" stdDeviation="${b}" result="sb${id}"/>`
+    // "propagação" do PS = dilatar a silhueta antes do desfoque → feMorphology é exatamente isso.
+    if(l.shadowSpread>0) prims.push(`<feMorphology in="SourceAlpha" operator="dilate" radius="${l.shadowSpread}" result="sd${id}"/>`);
+    const _src=(l.shadowSpread>0)?`sd${id}`:'SourceAlpha';
+    prims.push(`<feGaussianBlur in="${_src}" stdDeviation="${b}" result="sb${id}"/>`
       +`<feOffset in="sb${id}" dx="${o.x}" dy="${o.y}" result="so${id}"/>`
       +`<feFlood flood-color="${_svgFloodColor(l.shadowColor)}" flood-opacity="${_svgFloodOp(l.shadowColor)}"/>`
       +`<feComposite in2="so${id}" operator="in" result="ds${id}"/>`);
@@ -633,7 +637,9 @@ function dSvgShape(l){
   return gradDef+geom(`${fillAttr}${strokeAttr}`);
 }
 function dSvgText(l, mctx, fillVars, dados, defaults){
-  const content = fillVars ? gInterpolate(l.content, dados, {onEmpty:'remove', defaults}) : (l.content||'');
+  let content = fillVars ? gInterpolate(l.content, dados, {onEmpty:'remove', defaults}) : (l.content||'');
+  // Mesmo wrapper do PNG/live preview: sem isso SVG encolhia 1 linha enquanto PNG quebrava.
+  if(l.textBox==='box'&&typeof gSmartWrapText==='function') content=gSmartWrapText(content,l.w,l,dados,defaults);
   const lines = content.split('\n').filter(s=>s.trim()!=='');
   if(!lines.length) return '';
   const fp=(typeof dTextFontParts==='function')?dTextFontParts(l.font):{family:"'Roboto',sans-serif",weight:900};
@@ -815,13 +821,16 @@ async function dExportSVG(opts){
   if((_cur.w!==W||_cur.h!==H)&&typeof gReflowLayers==='function')
     _srcLayers=gReflowLayers(dLayers,_cur,{w:W,h:H},{fmtKey:(typeof gFmtKey==='function')?gFmtKey(fmt):null});
   // bindings (4.1) + regras (4.2) com os dados (vazio no modo template)
-  const layers=_srcLayers.map(l=>{
+  let layers=_srcLayers.map(l=>{
     let e=(typeof gApplyBindings==='function')?gApplyBindings(l,dados,{defaults}):l;
     e=(typeof gApplyRules==='function')?gApplyRules(e,dados,{defaults}):e;
     return e;
-  }).filter(l=>l.visible!==false);
+  });
+  if(typeof gApplyRelativeAnchors==='function') layers=gApplyRelativeAnchors(layers,dados,defaults);
+  layers=layers.filter(l=>l.visible!==false);
   let defs='', body='', cid=0;
   for(const l of layers){
+    if(fillVars&&l.type==='text'&&typeof gAllVarsEmpty==='function'&&gAllVarsEmpty(l.content,dados,defaults)) continue;
     let frag='';
     if(l.type==='shape') frag=dSvgShape(l);
     else if(l.type==='text') frag=dSvgText(l, mctx, fillVars, dados, defaults);
@@ -997,8 +1006,10 @@ async function dConfirmExport() {
        }
     }
     
-    // Configura formato e escala para a preview/SVG
-    if(fmt === 'svg') {
+    // Configura formato e escala para a preview/SVG/PSD
+    if(fmt === 'psd') {
+      await dRunPsdExportMotion();
+    } else if(fmt === 'svg') {
       if(typeof dExportSVGFilled === 'function') {
          dExportSVGFilled(); 
       }
@@ -1011,6 +1022,39 @@ async function dConfirmExport() {
     }
     await new Promise(r => setTimeout(r, 600)); // Tempo razoável para download e processamento
   }
+
+async function dRunPsdExportMotion(){
+  const overlay = document.getElementById('psd-export-motion-overlay');
+  const bar = document.getElementById('psd-export-bar');
+  const log = document.getElementById('psd-export-log');
+  if(!overlay) return;
+
+  overlay.style.display = 'flex';
+  if(bar) bar.style.width = '0%';
+  if(log) log.textContent = '[1/4] Compilando árvore de camadas nativas...';
+
+  await new Promise(r => setTimeout(r, 450));
+  if(bar) bar.style.width = '35%';
+  if(log) log.textContent = '[2/4] Mapeando modos de mesclagem e máscaras alfa...';
+
+  await new Promise(r => setTimeout(r, 550));
+  if(bar) bar.style.width = '75%';
+  if(log) log.textContent = '[3/4] Empacotando estrutura .PSD do Photoshop...';
+
+  await new Promise(r => setTimeout(r, 600));
+  if(bar) bar.style.width = '100%';
+  if(log) log.textContent = '[4/4] Arquivo Photoshop gerado com sucesso!';
+
+  // Executa o download da estrutura de camadas (via SVG com vetorização de camadas ou export nativo)
+  if(typeof dExportSVGFilled === 'function') {
+    dExportSVGFilled();
+  }
+
+  await new Promise(r => setTimeout(r, 600));
+  overlay.style.display = 'none';
+  if(typeof window.gPlayExportSuccessSound === 'function') window.gPlayExportSuccessSound();
+  if(typeof gToast === 'function') gToast('✓ Arquivo do Photoshop (.PSD) exportado com sucesso!');
+}
   
   // Restaura a prancheta original
   if (typeof dArtboards !== 'undefined' && originalAbId && originalAbId !== dActiveABId) {

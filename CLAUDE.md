@@ -12,6 +12,26 @@ Para **qualquer** pedido neste repositório (código, CSS, docs, backend, dúvid
 
 Se a skill `luma` estiver disponível, invoque-a. Se não, siga o fluxo manualmente lendo `luma-brain/06_OPERATING_SYSTEM.md` (o loop de operação) + o arquivo do assunto.
 
+## Regra nº 2 — modos sempre ativos (todo prompt)
+
+Junto do fluxo Luma, carregue **sempre** estas duas skills vendorizadas em `.claude/skills/`
+(procedência e commits em `.claude/skills/VENDORED.md`):
+
+| Skill | Nível | O que governa |
+|---|---|---|
+| **`ponytail`** | **full** | *O que você constrói.* A escada YAGNI: o recurso precisa existir? já tem no código? o nativo resolve? menor diff que funciona. |
+| **`caveman`** | **lite** | *Como você fala.* Sem enrolação, sem hedging — mas mantendo artigos e frases completas. Profissional e enxuto. |
+
+Elas valem em toda resposta, sem precisar ser pedidas. Desligar: **"stop ponytail"** / **"stop caveman"** / **"normal mode"**. Trocar de nível: `/ponytail lite|full|ultra`, `/caveman lite|full|ultra`.
+
+⛔ **Precedência em caso de conflito:** a ordem de autoridade não muda — **palavra do usuário > código real > CLAUDE.md/luma-brain > skill importada > genérico.** Onde as duas skills contrariarem o Luma, **o Luma vence**. Os choques conhecidos:
+
+- **Teste automatizado:** ponytail pede deixar um `test_*.py`/self-check para lógica não-trivial. **Aqui não** — o Luma não tem runner nem build; a verificação é **manual no navegador** (`03_ENGINEERING.md`). Não crie arquivos de teste.
+- **Idioma:** caveman preserva o idioma dominante; no Luma é sempre **PT-BR**.
+- **Dependências/stdlib:** ponytail sobe a escada até uma lib já instalada — no Luma o teto é **vanilla JS, zero dependência nova, sem build/ESM**.
+- **Prosa que o usuário pediu** (relatório, plano, passo a passo) não é dívida: entregue completa. O corte vale para prosa não solicitada.
+- Caveman já se desliga sozinho em **aviso de segurança e confirmação de ação irreversível** — o que casa com o "nunca commit automático, confirme antes" daqui.
+
 ## Atalhos de leitura do `luma-brain/`
 
 - `00_PRODUCT.md` — o que é o Luma, público, escopo.
@@ -30,6 +50,7 @@ Se a skill `luma` estiver disponível, invoque-a. Se não, siga o fluxo manualme
 - `06_OPERATING_SYSTEM.md` — **como se comportar** (o loop, guardrails, quando perguntar).
 - `07_ROADMAP.md` — **roadmap oficial da v1** (fases, bugs com file:line, decisões abertas; atualize os checks ao concluir itens).
 - Técnico detalhado: `docs/LUMA.md`. Backend: `docs/LUMA-BACKEND-CHANGELOG.md`.
+- **Academia** (formação do franqueado, prefixo `ac*`): `docs/LUMA-ACADEMIA.md`.
 
 ## Inegociáveis (resumo — detalhe no luma-brain)
 

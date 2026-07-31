@@ -1,0 +1,102 @@
+/**
+ * css/modules/upload-panel.css
+ *
+ * Painel de upload do chat do franqueado (imagens recentes + lojas + novo arquivo).
+ * Par do js/franqueado/upload-panel.js. Depende de: 00-tokens.css.
+ */
+
+#f-upload-panel{
+  position:fixed;inset:0;z-index:4000;display:flex;align-items:center;justify-content:center;
+  padding:20px;background:rgba(10,10,10,.42);
+  animation:gFadeIn var(--dur-fast) var(--ease-out);
+}
+.f-up-box{
+  width:min(460px,100%);max-height:min(80vh,620px);display:flex;flex-direction:column;overflow:hidden;
+  background:var(--white);border:1px solid var(--gray-light);border-radius:18px;
+  box-shadow:0 24px 64px rgba(10,10,10,.22);
+  animation:gPopIn var(--dur-base) var(--ease-spring-soft) both;
+}
+.f-up-head{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0;
+  padding:16px 18px;border-bottom:1px solid var(--gray-light);
+}
+.f-up-head h2{font-family:'Roboto',sans-serif;font-size:16px;font-weight:700;letter-spacing:-.01em;color:var(--text)}
+.f-up-close{
+  width:32px;height:32px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;
+  border:none;background:transparent;color:var(--text-3);border-radius:var(--r-sm);cursor:pointer;
+  transition:background var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard);
+}
+.f-up-close:hover{background:var(--gray-light);color:var(--text)}
+.f-up-close svg{width:18px;height:18px}
+.f-up-close:focus-visible,.f-up-newfile:focus-visible,.f-up-thumb:focus-visible,.f-up-loja:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+
+.f-up-body{padding:16px 18px 18px;overflow-y:auto;display:flex;flex-direction:column;gap:18px}
+
+/* Enviar novo arquivo — ação primária */
+.f-up-newfile{
+  display:flex;align-items:center;gap:12px;width:100%;padding:13px 15px;text-align:left;cursor:pointer;
+  border:1.5px dashed var(--dm-orange-tint);border-radius:12px;background:var(--dm-orange-bg);
+  font-family:'Roboto',sans-serif;color:var(--dm-orange-d);
+  transition:border-color var(--dur-fast) var(--ease-standard),background var(--dur-fast) var(--ease-standard),transform var(--dur-fast) var(--ease-spring);
+}
+.f-up-newfile:hover{border-color:var(--dm-orange);transform:translateY(-1px)}
+.f-up-newfile:active{transform:translateY(0) scale(.99)}
+.f-up-newfile-ico{width:38px;height:38px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;background:var(--white);color:var(--dm-orange-d)}
+.f-up-newfile-ico svg{width:19px;height:19px}
+.f-up-newfile strong{display:block;font-size:14px;font-weight:700;color:var(--text)}
+.f-up-newfile small{display:block;font-size:11.5px;color:var(--text-3);margin-top:1px}
+
+/* Seções (recentes / lojas) */
+.f-up-sec-head{display:flex;align-items:center;gap:7px;margin-bottom:10px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3)}
+.f-up-sec-head svg{width:14px;height:14px}
+.f-up-empty{font-size:12.5px;color:var(--text-3);line-height:1.5;padding:6px 2px}
+
+/* Grid de miniaturas */
+.f-up-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:9px}
+.f-up-thumb{
+  position:relative;aspect-ratio:1;padding:0;overflow:hidden;cursor:pointer;
+  border:1px solid var(--gray-light);border-radius:10px;background:var(--gray-light);
+  transition:border-color var(--dur-fast) var(--ease-standard),transform var(--dur-fast) var(--ease-spring),box-shadow var(--dur-fast) var(--ease-standard);
+}
+.f-up-thumb:hover{border-color:var(--dm-orange);transform:translateY(-2px);box-shadow:0 6px 16px color-mix(in srgb,var(--dm-orange-d) 14%,transparent)}
+.f-up-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+
+/* Botão excluir (recente ou loja) — canto superior, aparece no hover */
+.f-up-thumb-del{
+  position:absolute;top:4px;right:4px;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;
+  border-radius:6px;background:rgba(10,10,10,.55);color:#fff;cursor:pointer;opacity:0;
+  transition:opacity var(--dur-fast) var(--ease-standard),background var(--dur-fast) var(--ease-standard);
+}
+.f-up-thumb:hover .f-up-thumb-del,.f-up-loja:hover .f-up-thumb-del,.f-up-thumb-del:focus-visible{opacity:1}
+.f-up-thumb-del:hover{background:var(--dm-red)}
+.f-up-thumb-del svg{width:12px;height:12px}
+
+/* Lojas — card com logo + nome */
+.f-up-grid-lojas{grid-template-columns:repeat(auto-fill,minmax(96px,1fr))}
+.f-up-loja{
+  position:relative;display:flex;flex-direction:column;align-items:center;gap:7px;padding:11px 8px;cursor:pointer;
+  border:1px solid var(--gray-light);border-radius:12px;background:var(--off-white);
+  font-family:'Roboto',sans-serif;
+  transition:border-color var(--dur-fast) var(--ease-standard),transform var(--dur-fast) var(--ease-spring),box-shadow var(--dur-fast) var(--ease-standard);
+}
+.f-up-loja:hover{border-color:var(--dm-orange);transform:translateY(-2px);box-shadow:0 6px 16px color-mix(in srgb,var(--dm-orange-d) 12%,transparent)}
+.f-up-loja-logo{width:46px;height:46px;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;border-radius:10px;background:var(--white);border:1px solid var(--gray-light);color:var(--text-3)}
+.f-up-loja-logo img{width:100%;height:100%;object-fit:contain}
+.f-up-loja-logo svg{width:20px;height:20px}
+.f-up-loja-name{font-size:11.5px;font-weight:600;color:var(--text-2);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Tema escuro do chat */
+body:not(.theme-light) .f-up-box{background:var(--d-surf);border-color:var(--d-border)}
+body:not(.theme-light) .f-up-head{border-color:var(--d-border)}
+body:not(.theme-light) .f-up-head h2{color:var(--d-text)}
+body:not(.theme-light) .f-up-close:hover{background:var(--d-surf2);color:var(--d-text)}
+body:not(.theme-light) .f-up-newfile strong{color:var(--d-text)}
+body:not(.theme-light) .f-up-thumb,body:not(.theme-light) .f-up-loja{background:var(--d-surf2);border-color:var(--d-border)}
+body:not(.theme-light) .f-up-loja-logo{background:var(--d-surf3);border-color:var(--d-border)}
+body:not(.theme-light) .f-up-loja-name{color:var(--d-text2)}
+
+@media (max-width:680px){
+  #f-upload-panel{align-items:flex-end;padding:0}
+  .f-up-box{width:100%;max-height:86vh;border-radius:18px 18px 0 0;animation:gFadeInUp var(--dur-base) var(--ease-out) both}
+  .f-up-body{padding-bottom:calc(18px + var(--safe-bottom))}
+}

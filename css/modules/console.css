@@ -1,0 +1,243 @@
+/* ══════════════════════════════════════════════════════════════
+   LUMA CLI (js/core/console.js) — console de comandos do time.
+
+   Identidade: superfície do Estúdio (--d-*), acento laranja da marca e a caixa de
+   boas-vindas desenhada em TEXTO (moldura de box-drawing + mascote animado, montados
+   em js/core/console.js). Tudo por TOKEN — nenhum hex solto, nenhuma fonte nova
+   baixada (a mono é a do sistema). Piso de 12px na tipografia: abaixo disso só
+   micro-badge em caixa-alta bold (.cli-title, .cli-badge).
+   Tema: escuro é o padrão do app; body.theme-light abaixo faz o flip completo.
+══════════════════════════════════════════════════════════════ */
+
+#luma-cli{
+  position:fixed;left:50%;bottom:0;z-index:900;
+  width:min(920px,94vw);height:min(62vh,560px);
+  display:flex;flex-direction:column;overflow:hidden;
+  background:var(--d-dark);
+  border:1px solid var(--d-border2);border-bottom:none;
+  border-radius:var(--r) var(--r) 0 0;
+  box-shadow:0 -18px 60px rgba(0,0,0,.45);
+  font-family:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace;
+  font-size:12.5px;line-height:1.55;
+  color:var(--d-text);
+  /* fechado: fora da tela, sem pointer-events e sem foco alcançável por Tab */
+  transform:translate(-50%,100%);visibility:hidden;pointer-events:none;
+  transition:transform var(--dur-base) var(--ease-out),visibility 0s linear var(--dur-base);
+}
+#luma-cli.open{transform:translate(-50%,0);visibility:visible;pointer-events:auto;transition:transform var(--dur-base) var(--ease-out),visibility 0s}
+
+/* ── cabeçalho ── */
+.cli-head{
+  display:flex;align-items:center;gap:9px;flex-shrink:0;
+  padding:9px 12px;border-bottom:1px solid var(--d-border);
+  background:linear-gradient(180deg,var(--d-surf),var(--d-dark));
+}
+.cli-logo{display:flex;align-items:center;justify-content:center;width:22px;height:22px;flex-shrink:0;
+  border-radius:var(--r-sm);background:var(--dm-orange);color:var(--on-accent)}
+.cli-logo svg{width:13px;height:13px}
+.cli-title{font-weight:800;letter-spacing:.06em;text-transform:uppercase;font-size:10.5px;color:var(--d-text)}
+.cli-badge{padding:1px 7px;border-radius:var(--r-pill);background:var(--var-bg);color:var(--var-color);
+  font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.cli-badge:empty{display:none}
+.cli-head-sp{flex:1}
+.cli-hint{font-size:12px;color:var(--d-text3);letter-spacing:.03em}
+.cli-x{display:flex;align-items:center;justify-content:center;width:28px;height:28px;flex-shrink:0;
+  border:none;background:transparent;border-radius:var(--r-sm);color:var(--d-text3);cursor:pointer;
+  transition:background var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard)}
+.cli-x svg{width:13px;height:13px}
+.cli-x:hover{background:var(--d-surf3);color:var(--d-text)}
+
+/* ── corpo (a "tela" do terminal) ── */
+.cli-body{flex:1;overflow-y:auto;padding:12px 14px 8px;outline:none;scrollbar-width:thin;scroll-behavior:smooth}
+.cli-body::-webkit-scrollbar{width:9px}
+.cli-body::-webkit-scrollbar-thumb{background:var(--d-surf3);border-radius:var(--r-pill)}
+.cli-line{white-space:pre-wrap;word-break:break-word;margin:0 0 2px}
+.cli-line.cli-echo{margin-top:9px;color:var(--d-text)}
+.cli-echo-prompt{color:var(--dm-orange);font-weight:700}
+.cli-line.cli-out{color:var(--d-text2);margin-bottom:4px}
+.cli-dim{color:var(--d-text3)}
+.cli-err{color:var(--d-error)}
+.cli-warn{color:var(--var-color)}
+.cli-line b{color:var(--d-text);font-weight:700}
+
+/* Bolinha de status do diag — mesma gramática do resto do app (verde/amarelo/vermelho). */
+.cli-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px;vertical-align:1px;background:var(--d-text3)}
+.cli-dot.ok{background:var(--green)}
+.cli-dot.warn{background:var(--dm-yellow)}
+/* --d-error e não --dm-red: o #C81818 sobre o #1A1A1A do console mede 2.98:1, logo abaixo
+   dos 3:1 que a WCAG pede pra objeto gráfico. O token de TEXTO já resolve (mesma família,
+   e é o que .cli-err usa duas linhas acima). */
+.cli-dot.err{background:var(--d-error)}
+
+/* ── CAIXA DE BOAS-VINDAS (js: _gCliCaixaHTML) ──
+   A moldura é CARACTERE, não borda de CSS: é o que dá a cara de terminal e o que mantém
+   o alinhamento em qualquer largura. line-height apertado pra a moldura se fechar
+   verticalmente (com 1.55 do corpo os traços ficariam soltos). */
+.cli-banner{margin:2px 0 10px;line-height:1.12;letter-spacing:0;animation:cliBanner var(--dur-slow) var(--ease-out) both}
+@keyframes cliBanner{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.cli-fr{color:var(--dm-orange-d);opacity:.75}                 /* traços da moldura */
+/* ⚠ NADA de letter-spacing aqui dentro: a caixa é monoespaçada e qualquer espaçamento
+   extra num span soma largura só naquela linha — a borda da direita sai do lugar. */
+
+/* O MASCOTE, peça por peça (js: _gCliRoboFrame monta a grade de células e marca a
+   classe de cada uma). Cor só muda pintura: a largura segue 1 caractere por coluna,
+   que é o que mantém a moldura fechada. */
+.cli-r-body{color:var(--dm-orange)}                           /* chassi */
+.cli-r-face{color:var(--d-text)}                              /* olhos e boca */
+.cli-r-tag{color:var(--dm-yellow);font-weight:700}            /* o L U M A do peito */
+.cli-r-led{color:var(--green)}                                /* painel e antena */
+.cli-r-ball{color:var(--dm-yellow);font-weight:700}           /* a bola */
+.cli-r-trail{color:var(--dm-orange-d);opacity:.7}            /* o rastro dela */
+.cli-r-ground{color:var(--d-text3)}                           /* chão e sombra */
+.cli-r-count{color:var(--dm-orange-d);opacity:.75}            /* ×N embaixadinhas */
+body.theme-light .cli-r-body{color:var(--dm-orange-d)}
+body.theme-light .cli-r-face{color:var(--text)}
+body.theme-light .cli-r-tag{color:var(--dm-orange-text)}
+body.theme-light .cli-r-led{color:var(--green-text)}
+body.theme-light .cli-r-ball{color:var(--dm-orange-text)}
+body.theme-light .cli-r-ground{color:var(--text-3)}
+
+.cli-b-tit{color:var(--dm-yellow);font-weight:700}
+.cli-b-cmd{color:var(--dm-orange);font-weight:700}
+.cli-b-oi{color:var(--d-text);font-weight:700}
+.cli-b-meta{color:var(--d-text3)}
+.cli-b-dica{color:var(--d-text2)}
+body.theme-light .cli-fr{color:var(--dm-orange-d);opacity:.7}
+body.theme-light .cli-b-tit,body.theme-light .cli-b-cmd{color:var(--dm-orange-d)}
+body.theme-light .cli-b-oi{color:var(--text)}
+body.theme-light .cli-b-meta{color:var(--text-3)}
+body.theme-light .cli-b-dica{color:var(--text-2)}
+
+/* Spinner de linha: o "sinalzinho rodando" enquanto o comando/IA trabalha. O caractere
+   troca no JS; aqui só a cor e um respiro de opacidade pra ele parecer vivo. */
+.cli-sp{color:var(--dm-orange);animation:cliSpPulse 1.2s ease-in-out infinite}
+@keyframes cliSpPulse{0%,100%{opacity:1}50%{opacity:.45}}
+body.theme-light .cli-sp{color:var(--dm-orange-d)}
+
+/* Bloco de pensamento ao vivo (js: _gCliSpinStart/_gCliSpinPasso): o passo mais novo
+   respira pra marcar "é aqui que estou agora"; os anteriores ficam parados. */
+.cli-think{margin:4px 0 6px}
+.cli-h,.cli-think-tit{color:var(--dm-orange);font-weight:700}
+.cli-think-ult{animation:cliSpPulse 1.4s ease-in-out infinite}
+body.theme-light .cli-h,body.theme-light .cli-think-tit{color:var(--dm-orange-d)}
+
+/* Cada linha nova entra com um deslize curto — é o que dá ritmo de terminal em vez de
+   texto aparecendo seco. Curto de propósito: 1 linha de saída pode ter 30 dessas. */
+.cli-line{animation:cliLineIn 160ms var(--ease-out) both}
+@keyframes cliLineIn{from{opacity:0;transform:translateY(2px)}to{opacity:1;transform:none}}
+
+/* Saída de comando entra LINHA A LINHA (js: _gCliEscalona põe o animation-delay em cada
+   uma). display:block é o que dá a quebra: o \n foi consumido pelo split, senão a linha
+   duplicaria. `both` faz a linha já ocupar altura antes de aparecer — sem isso a caixa
+   pularia de tamanho enquanto escreve. */
+.cli-ln{display:block;animation:cliLnIn 240ms var(--ease-out) both}
+@keyframes cliLnIn{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+
+/* Console trabalhando: o prompt pulsa e a borda do campo acende. Estado visível sem
+   ocupar linha nova no histórico. */
+#luma-cli.busy .cli-prompt{animation:cliSpPulse 1.1s ease-in-out infinite}
+#luma-cli.busy .cli-inputrow{border-top-color:var(--dm-orange)}
+
+@media (prefers-reduced-motion:reduce){
+  .cli-line,.cli-banner{animation:none}
+  .cli-sp,.cli-think-ult{animation:none}
+  .cli-ln{animation:none}
+  #luma-cli.busy .cli-prompt{animation:none}
+  .cli-body{scroll-behavior:auto}
+}
+
+/* Sugestão de comando vinda da IA — pré-preenche o campo, nunca executa sozinha. */
+.cli-sug{font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;
+  padding:1px 8px;border-radius:var(--r-sm);
+  border:1px solid var(--dm-orange-tint);background:var(--dm-orange-bg);color:var(--dm-orange-text);
+  transition:background var(--dur-fast) var(--ease-standard)}
+.cli-sug:hover{background:var(--dm-orange);color:var(--on-accent)}
+
+/* ── comandos rápidos (celular) ──
+   Sem teclado físico não há Tab nem histórico com setas: os comandos de LEITURA
+   ficam a um toque. Escondido no desktop, que tem Tab e ↑/↓. */
+.cli-chips{display:none;gap:6px;flex-shrink:0;overflow-x:auto;scrollbar-width:none;
+  padding:8px 12px;border-top:1px solid var(--d-border);background:var(--d-dark)}
+.cli-chips::-webkit-scrollbar{display:none}
+.cli-chip{flex:0 0 auto;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;
+  padding:6px 14px;min-height:44px;border-radius:var(--r-pill);
+  border:1px solid var(--d-border2);background:var(--d-surf2);color:var(--d-text2);
+  transition:background var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard)}
+.cli-chip:active,.cli-chip:hover{background:var(--dm-orange);border-color:var(--dm-orange);color:var(--on-accent)}
+
+/* ── linha de comando ── */
+.cli-inputrow{display:flex;align-items:center;gap:8px;flex-shrink:0;
+  padding:10px 14px;border-top:1px solid var(--d-border);background:var(--d-surf)}
+.cli-prompt{color:var(--dm-orange);font-weight:700;flex-shrink:0}
+#cli-input{flex:1;min-width:0;align-self:stretch;border:none;background:transparent;outline:none;
+  font-family:inherit;font-size:12.5px;color:var(--d-text);caret-color:var(--dm-orange)}
+#cli-input::placeholder{color:var(--d-text3)}
+
+/* ── TEMA CLARO (flip completo: o console acompanha o app) ── */
+body.theme-light #luma-cli{
+  background:var(--white);border-color:var(--gray-light);color:var(--text);
+  box-shadow:0 -18px 50px rgba(10,10,10,.16);
+}
+body.theme-light .cli-head{background:linear-gradient(180deg,var(--off-white),var(--white));border-bottom-color:var(--gray-light)}
+body.theme-light .cli-title{color:var(--text)}
+body.theme-light .cli-hint{color:var(--text-3)}
+body.theme-light .cli-x{color:var(--text-3)}
+body.theme-light .cli-x:hover{background:var(--gray-light);color:var(--text)}
+body.theme-light .cli-line.cli-echo{color:var(--text)}
+body.theme-light .cli-line.cli-out{color:var(--text-2)}
+body.theme-light .cli-dim{color:var(--text-3)}
+body.theme-light .cli-err{color:var(--dm-red-text)}
+body.theme-light .cli-warn{color:var(--dm-orange-text)}
+body.theme-light .cli-line b{color:var(--text)}
+body.theme-light .cli-dot{background:var(--text-3)}
+body.theme-light .cli-dot.ok{background:var(--green-text)}
+/* warn e err PRECISAM estar aqui: `body.theme-light .cli-dot` tem especificidade maior
+   que `.cli-dot.warn`, então sem estas duas linhas o amarelo e o vermelho viravam cinza
+   no tema claro — a bolinha existe justamente pra distinguir verde/amarelo/vermelho.
+   As cores seguem o mapeamento que este arquivo já usa no claro (.cli-warn/.cli-err). */
+body.theme-light .cli-dot.warn{background:var(--dm-orange-text)}
+body.theme-light .cli-dot.err{background:var(--dm-red-text)}
+body.theme-light .cli-inputrow{background:var(--off-white);border-top-color:var(--gray-light)}
+body.theme-light #cli-input{color:var(--text)}
+body.theme-light #cli-input::placeholder{color:var(--text-3)}
+body.theme-light .cli-body::-webkit-scrollbar-thumb{background:var(--gray-mid)}
+
+/* ── CELULAR ──
+   Sem Ctrl+`: a entrada é o item "Console" do painel de perfil (user-profile.js).
+   dvh em vez de vh porque a barra do navegador some/aparece e vh trava no maior valor.
+   O padding de baixo respeita a home bar do iPhone; o JS (_gCliAjustaViewport) cuida
+   do teclado virtual, que `position:fixed` não enxerga sozinho. */
+@media (max-width:640px){
+  #luma-cli{width:100vw;height:82dvh;max-height:82dvh;border-radius:var(--r) var(--r) 0 0}
+  .cli-hint{display:none}
+  /* A caixa tem 57 colunas fixas, então quem manda no tamanho é a LARGURA da tela, não
+     um px cravado: a 7.5px ela usava só 257px de 364 disponíveis num iPhone comum — arte
+     minúscula com folga sobrando. ~34px de texto por px de fonte (medido), daí o 2.6vw;
+     o teto de 11px evita a caixa encostar na borda em telas grandes. */
+  .cli-banner{font-size:clamp(7.5px,2.6vw,11px)}
+  .cli-body{padding:10px 12px 6px;font-size:12px}
+  .cli-chips{display:flex}
+  .cli-inputrow{min-height:44px;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px))}
+  #cli-input{font-size:16px}       /* < 16px faz o iOS dar zoom no foco e desalinhar tudo */
+  .cli-x{width:44px;height:44px}   /* alvo de toque (mínimo da lei de Fitts) */
+  .cli-x svg{width:16px;height:16px}
+  .cli-sug{padding:4px 10px}
+}
+/* Item "Console" no painel de perfil (a entrada do celular): é AÇÃO, não aba — nunca
+   fica .active, então o ícone laranja marca a diferença. O resto herda .prof-nav-btn. */
+.prof-nav-cli svg{color:var(--dm-orange)}
+
+/* Console aberto: o aviso de instalar o PWA sai do rodapé. Ele tem z-index 13000 contra
+   os 900 do console e, no celular, cobria exatamente o campo de comando — interceptando o
+   toque. (O FAB do widget de ajuda tem o mesmo problema, mas o display dele é escrito
+   INLINE por help-widget.js; a regra é lá, no checkVisibility.) O diálogo do gConfirm
+   (11000) NÃO entra aqui de propósito: confirmação destrutiva tem que ficar por cima. */
+body.cli-on #luma-pwa-hint{display:none}
+
+body.theme-light .cli-chips{background:var(--white);border-top-color:var(--gray-light)}
+body.theme-light .cli-chip{background:var(--off-white);border-color:var(--gray-mid);color:var(--text-2)}
+body.theme-light .cli-chip:active,body.theme-light .cli-chip:hover{background:var(--dm-orange);border-color:var(--dm-orange);color:var(--on-accent)}
+@media (prefers-reduced-motion:reduce){
+  #luma-cli{transition:none}
+  .cli-banner{animation:none}
+}
