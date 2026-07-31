@@ -648,6 +648,7 @@ localStorage.clear(); location.reload();               // reset local (backend r
 - **2026-06-fim**: XSS corrigido (3 passes com `gEsc`), gate por role no front, refatoração de performance/memory leaks (Fase 3).
 - **2026-07-30**: **IA sai do improviso** — Edge Function `ai` (chave fora do front), motor único `core/ai.js` e 5 recursos plugados nele: encaixar texto no `maxLen`, ajuda aterrada na Central, ler cardápio (foto/PDF) no Sheets, casar fotos com as linhas, legenda com prompt sério. Ver §12.1.
 - **2026-07-30**: capa do card da vitrine volta a ser **a capa da pasta** — a fila de miniaturas do conteúdo (`_fCampThumbs`/`fHomeFillThumbs`, ~100 linhas) saiu: renderizava a arte com campos vazios e deixava o card em branco. Capa do Storage que não baixa agora cai na cor da pasta também na lista do Estúdio (`dRenderFolders`).
+- **2026-07-31**: **Refino da Academia** — sistema de motion sobre os tokens (`js/academia/motion.js` + `--dur-celebration`), progresso que percorre em vez de nascer pronto, acordeão com altura real, crossfade na troca de aula/aba, chat que anexa só a mensagem nova e preserva a rolagem, retomada como escolha, fim de vídeo com próxima ação, e a **experiência de conclusão** (splash + vídeo dos CEOs configurável + nova jornada). Corrigido um furo na regra de progresso: `ended` concluía a aula com 0% assistido.
 - **2026-07-31**: **Academia Delivery Much** — módulo de formação e implementação do franqueado: jornada com mapa de módulos, ambiente de aula em 3 regiões (player MP4 com retomada, materiais, anotações, transcrição, atividade), tutor de IA com prompt no servidor, gestão de conteúdo com upload de MP4, conclusão e certificado em PDF. Ver §21 e `docs/LUMA-ACADEMIA.md`.
 - **2026-07-09**: home do franqueado responsiva (thumbs reais, vitrine honesta, scroll-reveal, busca sticky), redesign do painel Campos (linha compacta + filtros + higiene), topbar (hierarquia + paleta), **auditoria de contraste WCAG aplicada** (tokens `--green-text`, `--var-color` claro, `--d-text3`, CTAs em `--dm-orange-d`). Este documento.
 
@@ -666,6 +667,8 @@ localStorage.clear(); location.reload();               // reset local (backend r
 - **Tutor de IA:** task `aula` no motor único `gAskAI`. **O prompt vive na Edge Function** — é a única task assim (as outras montam no front por causa do modo de transição). O front manda só pergunta + contexto, e **nunca** o gabarito da atividade nem dado pessoal. Gate de disponibilidade: `gAiEdgeReady()`, não `gAiReady()`.
 - **Progresso honesto:** o player soma só deltas `< 2s` de `timeupdate`; arrastar a barra até o fim não conclui a aula. Critério de conclusão (`cursos.criterios.pct_min`, padrão 85%) é o mesmo no front e na RPC.
 - **Anotações e conversas são privadas até da equipe** (policy só do dono, sem `is_designer()`).
+- **Motion:** `js/academia/motion.js` é o sistema — helpers que leem os tokens (`acDur`, `acEase`). ⛔ Nunca escreva ms/cubic-bezier em JS. A Academia acrescentou **um** token: `--dur-celebration` (720ms), só para marco de conquista.
+- **Experiência de conclusão:** `js/academia/conclusao.js` — splash + vídeo dos CEOs + próxima jornada, configurável em `luma.cursos.conclusao` e persistida em `luma.matriculas`. Dispara **uma vez por versão**, só com conclusão do servidor + certificado emitido.
 
 ---
 

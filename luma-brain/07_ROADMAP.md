@@ -37,7 +37,7 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
 | Catálogo de campanhas | **Hardcoded** (`CAMPS_*` em `00-config.js`) | Criar campanha exige deploy — fere a autonomia do designer |
 | Perfil/equipe | Parcial | "Alterar senha" e "Salvar dados" são simulações com `setTimeout` |
 | Docs/luma-brain | Fortes | Pequenas defasagens (nº de scripts, config "gitignored" que é versionado) |
-| **Academia (formação do franqueado)** | **Novo em 2026-07-31** — jornada, ambiente de aula, tutor de IA, gestão de conteúdo, certificado | Funcional e verificado no navegador. Pendências reais: deploy da function `ai` (task `aula`), aplicar a migration e a equipe publicar o conteúdo oficial (hoje há só estrutura de demonstração, rotulada). Ver `docs/LUMA-ACADEMIA.md` §13 |
+| **Academia (formação do franqueado)** | **Novo em 2026-07-31** — jornada, ambiente de aula, tutor de IA, gestão de conteúdo, certificado, sistema de motion e experiência de conclusão (splash + vídeo dos CEOs) | Funcional e verificado no navegador. Pendências reais: aplicar as 2 migrations, deploy da function `ai` (task `aula`), a equipe publicar o conteúdo oficial e **gravar o vídeo dos CEOs** (nasce desligado, sem fala inventada). Ver `docs/LUMA-ACADEMIA.md` §15 |
 
 ---
 

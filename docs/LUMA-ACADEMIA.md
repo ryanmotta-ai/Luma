@@ -1,7 +1,7 @@
 # LUMA — Academia Delivery Much
 
 > Módulo de **formação e implementação do franqueado**: a jornada que acompanha o franqueado do contrato ao primeiro mês de operação, com aulas em vídeo, materiais, anotações, tutor de IA, conclusão e certificado.
-> Criado em 2026-07-31. Backend registrado em [LUMA-BACKEND-CHANGELOG.md](LUMA-BACKEND-CHANGELOG.md).
+> Criado em 2026-07-31 · refino visual, motion e experiência de conclusão em 2026-07-31. Backend registrado em [LUMA-BACKEND-CHANGELOG.md](LUMA-BACKEND-CHANGELOG.md).
 
 ---
 
@@ -21,15 +21,19 @@
 ## 2. Onde mora
 
 ```
+js/academia/motion.js      SISTEMA DE MOTION: helpers únicos sobre os tokens (carrega 1º)
 js/academia/academia.js    estado (acState), camada de dados, roteamento, HOME DA JORNADA
 js/academia/aula.js        ambiente de aula: 3 regiões, player, abas, progresso, conclusão
 js/academia/agente.js      painel do tutor de IA (monta o CONTEXTO; o prompt é do servidor)
 js/academia/gestao.js      área da equipe_dm: curso/módulos/aulas, upload MP4, preview, publicação
-js/academia/certificado.js conclusão, emissão via RPC, certificado em canvas → PDF
+js/academia/certificado.js emissão via RPC, certificado em canvas → PDF, zoom
+js/academia/conclusao.js   EXPERIÊNCIA DE CONCLUSÃO: splash, vídeo dos CEOs, nova jornada
 css/modules/academia.css   estilo do módulo (tema claro/escuro num único bloco de vars locais)
 index.html                 #view-academia + #ac-root + aba de modo "Academia"
 js/main.js                 setMode('academia') → acInit() lazy
-supabase/migrations/20260731120000_luma_academia.sql
+css/00-tokens.css          + --dur-celebration (o único token que a Academia acrescentou)
+supabase/migrations/20260731120000_luma_academia.sql          schema base
+supabase/migrations/20260731180000_luma_academia_conclusao.sql  config + estado da conclusão
 supabase/functions/ai/index.ts   task 'aula' (prompt pedagógico no servidor)
 ```
 
@@ -178,7 +182,62 @@ Via `gTrackEvent` (reusa `analytics.fct_eventos`): `jornada_aberta`, `formacao_i
 
 ---
 
-## 13. Limitações conhecidas
+## 13. Sistema de motion
+
+**Onde mora:** `js/academia/motion.js`. Nenhuma duração ou curva nasce lá — todas vêm dos tokens de `00-tokens.css`, lidos por `acDur('base')` e `acEase('out')`. ⛔ **ms ou cubic-bezier escrito em JS é o mesmo erro que hex solto em CSS.**
+
+A Academia acrescentou **um** token: `--dur-celebration: 720ms`. As outras quatro durações já cobriam hover, botão, painel e entrada de view.
+
+| Helper | Resolve |
+|---|---|
+| `acCascata(raiz, seletor)` | Entrada escalonada (30 ms/bloco, teto de 6). A **estrutura** entra na hora; só o conteúdo escalona. |
+| `acAnimaNumero` · `acAnimaBarra` · `acAnimaAnel` | O progresso **percorre** do valor anterior ao atual. O render pinta o anterior (`acProgLembrado`) e o helper leva até o atual. |
+| `acAltura(el, abrir)` | Acordeão com altura real: mede, anima, devolve `auto` (senão conteúdo novo fica cortado). |
+| `acTroca(el, pintar)` | Crossfade curto ao trocar aula/aba, preservando a altura durante a troca. |
+| `acPulso(el, 'marco')` | Confirmação pontual no item que mudou. A classe é removida no fim. |
+| `acSequencia(passos)` | Coreografia cancelável (é o que faz o "pular animação" funcionar). |
+| `acMotionReduzido()` | Consultado por **todos** os helpers: nesse modo aplicam o estado final na hora. |
+| `acSomConquista()` | Reusa `gPlayBatchCompleteSound` de `core/sound.js`. Só no marco da formação, nunca por aula, e silencia em redução de movimento. |
+
+⚠️ **`acTrocarAba` passou a pintar depois do crossfade.** Quem chamar e mexer no DOM novo na mesma tick não encontra nada — espere o repaint ou opere no contêiner, que persiste.
+
+---
+
+## 14. Experiência de conclusão
+
+**Sequência em 4 telas** (`js/academia/conclusao.js`), num overlay: **confirmação** (o progresso fecha em 100% na frente da pessoa) → **splash** (nome, formação, selo, data, frase de nova jornada) → **vídeo dos CEOs** → **próxima jornada** (um CTA principal).
+
+**Gatilho — as três condições, todas obrigatórias:**
+1. `matricula.concluido_em` veio do **servidor** (nunca estado local);
+2. existe certificado emitido;
+3. esta pessoa ainda não viu a experiência **nesta versão** do curso.
+
+O único ponto autorizado a abrir é o retorno da RPC de emissão (`certificado.js`), mais uma checagem no boot para quem concluiu e fechou o navegador antes de ver.
+
+**Persistência** (`luma.matriculas`): `splash_vista_em`, `splash_versao`, `video_visto_em`, `video_ignorado_em`, `video_visto_versao`, `video_posicao_seg`. Local primeiro — a splash não pode voltar nem se a rede cair.
+
+**Rever:** a home ganha "Rever a conclusão" e "Rever a mensagem dos CEOs". A splash nunca volta sozinha.
+
+**Versionamento:** subir `cursos.versao` faz a conclusão valer como nova. Subir só `conclusao.video.versao` **não** reabre a splash — aparece como "Nova mensagem da liderança" marcada na home, e quem já se formou não é obrigado a rever.
+
+**Erros nunca aprisionam:** vídeo indisponível mostra erro + *tentar de novo* + *continuar*, inclusive quando é obrigatório. Falha técnica nossa não vira punição, e o certificado já foi emitido antes desta tela.
+
+**Redução de movimento:** vai direto à splash com tudo visível, sem coreografia e sem botão de pular (não há o que pular). O CSS revela `[data-passo]` por conta própria — não depende do JS.
+
+### Como a equipe configura (aba "Experiência de conclusão")
+
+Tudo em `luma.cursos.conclusao` (JSONB), editável em campos claros — não é editor visual:
+- **Tela:** ligar/desligar, rótulo, mensagem, frase de nova jornada, texto e destino do CTA (certificado · jornada · aula salva · link externo).
+- **Vídeo:** upload do MP4 (vai para `luma-aulas/conclusao/<curso>/ceos.mp4`) ou URL externa, título, introdução, thumbnail, legendas `.vtt`, duração, obrigatório ou opcional, texto do botão, **versão**.
+- **Preview:** sequência completa, só a tela, só o vídeo ou só os próximos passos — com faixa amarela fixa, impossível confundir com a experiência real. O preview usa o que está **salvo**.
+
+⚠️ **Nenhuma fala de CEO foi escrita.** O vídeo nasce desligado, sem URL, com introdução marcada como conteúdo a ser gravado pela equipe. O texto da splash vem semeado na migration só como ponto de partida editável.
+
+**Substituir o vídeo institucional:** Academia → Gerenciar conteúdo → Experiência de conclusão → enviar o MP4 novo (grava no mesmo caminho) e **subir a versão**. Quem já se formou vê "Nova mensagem da liderança"; quem se formar depois vê a nova direto.
+
+---
+
+## 15. Limitações conhecidas
 
 - **Progresso é escrito pelo cliente.** Um franqueado com DevTools consegue marcar as próprias aulas como concluídas e satisfazer a RPC. O que ele **não** consegue: forjar certificado sem esse rastro, nem emitir para outra pessoa. Fechar isso exigiria progresso só por RPC com heurística de tempo real assistido — decisão de produto.
 - **Sem streaming adaptativo.** MP4 progressivo (`<video>` nativo). O modelo já separa `video_path` de `video_url`, então trocar por HLS depois não mexe no schema.
@@ -186,6 +245,10 @@ Via `gTrackEvent` (reusa `analytics.fct_eventos`): `jornada_aberta`, `formacao_i
 - **Sem versionamento de conteúdo por linha.** `conteudo_versao` marca "mudou", não guarda o que era antes.
 - **Quiz sem banco de questões nem sorteio.** Itens fixos por aula.
 - **Progresso do vídeo é por aula, não por trecho.** Não há mapa de calor de quais partes foram vistas.
+- **A splash não é compartilhável.** Não gera imagem para o franqueado postar a conquista; se isso for desejado, o caminho é reusar o motor de PNG do franqueado.
+- **O vídeo dos CEOs não entra no progresso da formação.** É mensagem institucional, não aula: tem retomada própria (`matriculas.video_posicao_seg`) mas não conta percentual nem exige `pct_min`.
+- **Legendas do vídeo institucional são por URL.** Não há upload dedicado de `.vtt` na aba de conclusão — envie como material de aula e cole a URL, ou hospede fora.
+- **`acTrocarAba` ficou assíncrona** por causa do crossfade (ver §13). Nada em produção depende disso, mas é uma pegadinha para código novo.
 
 ---
 

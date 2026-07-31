@@ -6,6 +6,31 @@
 
 ---
 
+## 2026-07-31 — Academia: experiência de conclusão (splash + vídeo dos CEOs)
+
+**Contexto.** Concluir a formação era um overlay igual ao de fechar um módulo. A conclusão é uma **mudança de fase** do franqueado na rede — splash, mensagem institucional e vídeo dos CEOs. Nada disso pode ser hardcoded: a equipe troca texto e vídeo sem deploy.
+
+**Migration:** `supabase/migrations/20260731180000_luma_academia_conclusao.sql`
+
+**Sem tabela nova, sem bucket novo** — e o porquê importa:
+- A **configuração** é uma por curso → coluna `luma.cursos.conclusao` (JSONB: `splash` + `video`). Tabela separada seria um JOIN 1:1 garantido pra sempre.
+- O **estado** é um por (usuário, curso) → colunas em `luma.matriculas`, que já tem exatamente essa cardinalidade e a policy de dono correta: `splash_vista_em`, `splash_versao`, `video_visto_em`, `video_ignorado_em`, `video_visto_versao`, `video_posicao_seg`.
+- O vídeo institucional entra em `luma-aulas` sob `conclusao/<curso>/`, com as policies que já existem (leitura autenticada, escrita `is_designer()`).
+
+**Nenhuma policy nova.** As colunas entram numa tabela cujas policies já são "dono lê/escreve o próprio; designer lê todos" com `WITH CHECK` no UPDATE. Marcar a própria splash como vista não é decisão de segurança — o pior caso é a pessoa rever ou pular a própria celebração.
+
+**Versionamento em dois níveis, de propósito:**
+- `cursos.versao` sobe → a conclusão vale como **nova** e a splash volta.
+- `conclusao.video.versao` sobe → a splash **não** volta; o vídeo novo aparece marcado como "Nova mensagem da liderança" na jornada. Quem já se formou não é obrigado a rever, e o histórico da formação anterior não é sobrescrito.
+
+**Semente de texto (idempotente, `WHERE conclusao = '{}'`).** Texto de partida editável para a splash. ⚠ **Nenhuma fala de CEO foi inventada:** o vídeo nasce `ativo: false`, sem URL, com a introdução marcada como conteúdo a ser gravado pela equipe.
+
+**Correção de regra de progresso incluída neste pacote (front).** O handler de `ended` do player chamava `acVideoTick(aula, true)`, que forçava `pct_assistido = 1` e concluía a aula. Isso **furava** o próprio design de "seek não conta": arrastar a barra até o fim disparava `ended` e a aula era concluída com 0% assistido — medido no navegador (`{pct:0}` → `{pct:1, concluida:true}`). O fim do vídeo agora só grava o que foi de fato assistido e apresenta a próxima ação. Quem assistiu de verdade já cruzou o critério no `timeupdate` antes de chegar lá.
+
+**Ações necessárias:** aplicar a migration. A Edge Function `ai` **não** mudou neste pacote. Conferir as 3 roles: o franqueado escreve o próprio estado de splash/vídeo; a equipe continua lendo matrícula agregada e segue **sem** acesso a anotações e conversas.
+
+---
+
 ## 2026-07-31 — Academia Delivery Much: schema da formação do franqueado
 
 **Contexto.** A implementação de um franqueado novo acontecia fora do Luma (planilha + reunião + PDF solto). O módulo **Academia** traz a jornada pra dentro do produto: aulas em vídeo, materiais, anotações, tutor de IA, conclusão e certificado. Doc do módulo: [LUMA-ACADEMIA.md](LUMA-ACADEMIA.md).

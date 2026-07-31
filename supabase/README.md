@@ -23,6 +23,7 @@ O LUMA roda hoje em banco próprio, mas foi modelado pra **mesclar no projeto do
 | `…093000_analytics_schema.sql` | schema `analytics` + `fct_eventos` (Módulo 3) + RLS |
 | `…094000_storage_buckets.sql` | buckets `luma-*` + policies |
 | `…20260731120000_luma_academia.sql` | **Academia**: `cursos`/`curso_modulos`/`curso_aulas`/`matriculas`/`aula_progresso`/`aula_notas`/`aula_mensagens`/`certificados` + RLS + RPC `ac_emitir_certificado` + bucket privado `luma-aulas` |
+| `…20260731180000_luma_academia_conclusao.sql` | Experiência de conclusão: `cursos.conclusao` (JSONB) + colunas de estado em `matriculas` (splash/vídeo dos CEOs). Sem tabela nem bucket novo |
 | `seed.sql` | (opcional) variáveis base + snippet de promoção da equipe |
 | `apply_all.sql` | os 6 do **schema base** concatenados, pra colar num projeto LIMPO |
 
