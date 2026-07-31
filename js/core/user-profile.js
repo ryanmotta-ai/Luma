@@ -662,8 +662,8 @@ function gProfileShowInviteForm(){
       <span class="prof-invite-head-icon">${_ICO_USERS}</span>
       <div>
         <span class="prof-team-kicker">Novo acesso</span>
-        <h4 id="prof-invite-title">Convidar membro</h4>
-        <p>O convite chega por e-mail e o acesso já nasce com a permissão escolhida.</p>
+        <h4 id="prof-invite-title">Criar acesso</h4>
+        <p>A conta é criada na hora com a permissão escolhida e a <strong>senha inicial <code>dmbrasil@123</code></strong>. Passe o e-mail e essa senha pra pessoa — ela troca no primeiro acesso (Perfil › Segurança).</p>
       </div>
       <button type="button" class="prof-invite-close" onclick="gProfileHideInviteForm()" aria-label="Fechar formulário de convite">${_ICO_CLOSE}</button>
     </div>
@@ -675,7 +675,7 @@ function gProfileShowInviteForm(){
     </div>
     <div class="prof-invite-actions">
       <button type="button" class="prof-btn prof-btn-secondary" onclick="gProfileHideInviteForm()">Cancelar</button>
-      <button type="submit" class="prof-btn prof-btn-primary" id="prof-inv-btn">${_ICO_USERS}<span>Enviar convite</span></button>
+      <button type="submit" class="prof-btn prof-btn-primary" id="prof-inv-btn">${_ICO_USERS}<span>Criar acesso</span></button>
     </div>
   </form>`;
   form.hidden=false;
@@ -698,11 +698,13 @@ async function gProfileInviteUser(event){
   const role=document.getElementById('prof-inv-role')?.value;
   const btn=document.getElementById('prof-inv-btn');
   const originalHTML=btn?btn.innerHTML:'';
-  if(btn){btn.disabled=true;btn.innerHTML='<span class="prof-spinner" aria-hidden="true"></span><span>Enviando convite…</span>';}
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="prof-spinner" aria-hidden="true"></span><span>Criando acesso…</span>';}
   const res=await gInviteUser(email,name,role,tel);
   if(btn){btn.disabled=false;btn.innerHTML=originalHTML;}
-  if(!res.ok){gToast('Não foi possível enviar o convite: '+res.error,'error');return;}
-  gToast('Convite enviado para '+email);
+  if(!res.ok){gToast('Não foi possível criar o acesso: '+res.error,'error');return;}
+  // Conta criada JÁ com a senha padrão (a dica fixa no form mostra qual; a pessoa
+  // troca no Perfil › Segurança no 1º acesso).
+  gToast('Acesso criado para '+email+' — senha inicial: '+(res.senha_padrao||'dmbrasil@123'));
   const form=document.getElementById('prof-invite-form'); if(form){form.hidden=true;form.innerHTML='';}
   gProfileRenderEquipe(); // o profile já existe (trigger) — aparece na lista na hora
 }

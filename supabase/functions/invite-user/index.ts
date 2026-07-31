@@ -1,16 +1,23 @@
 // ============================================================
 // LUMA — Edge Function: invite-user (Fase 2 da gestão de usuários)
 // ============================================================
-// Convida um membro por e-mail (auth.admin.inviteUserByEmail) e ajusta o
-// profile (role/nome/telefone). Roda com service_role, por isso TODA a
-// autorização acontece AQUI dentro:
+// Cria um membro JÁ COM SENHA PADRÃO (createUser + email_confirm) e ajusta o
+// profile (role/nome/telefone). A gestão passa o login pra pessoa: e-mail +
+// SENHA_PADRAO; ela troca no primeiro acesso (Perfil › Segurança). Escolhido em
+// vez do convite por e-mail (inviteUserByEmail) porque o público (franqueado de
+// cidade pequena) usa direto, sem depender de clicar link no e-mail.
+// Roda com service_role, por isso TODA a autorização acontece AQUI dentro:
 //   1. Caller precisa estar autenticado (JWT no Authorization).
 //   2. Caller precisa ser 'gestao' (mesma regra do front: só gestão gerencia).
-//   3. Role convidado limitado a franqueado|equipe_dm — 'gestao' não nasce por
-//      convite (promoção a gestão é manual, decisão registrada no schema).
+//   3. Role limitado a franqueado|equipe_dm — 'gestao' não nasce por aqui
+//      (promoção a gestão é manual, decisão registrada no schema).
 // O trigger handle_new_user cria o profile como 'franqueado' (padrão seguro,
 // não confia em metadata); o UPDATE abaixo, já autorizado, define o role real.
 import { createClient } from "npm:@supabase/supabase-js@2";
+
+// Senha inicial compartilhada. NÃO é segurança — é credencial temporária de
+// primeiro acesso; a pessoa troca no Perfil. (Endurecer: forçar troca no 1º login.)
+const SENHA_PADRAO = "dmbrasil@123";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -45,13 +52,16 @@ Deno.serve(async (req) => {
     if (!["franqueado", "equipe_dm"].includes(role))
       return json({ error: "permissão inválida" }, 400);
 
-    // 4) Convite (Supabase envia o e-mail; link volta pro app via origin)
-    const { data: invited, error: invErr } = await admin.auth.admin.inviteUserByEmail(email.trim(), {
-      data: { nome: (nome ?? "").toString().trim() },
-      redirectTo: req.headers.get("origin") ?? undefined,
+    // 4) Cria a conta JÁ com a senha padrão e e-mail confirmado (login imediato,
+    //    sem depender de clicar link no e-mail). O trigger cria o profile.
+    const { data: created, error: invErr } = await admin.auth.admin.createUser({
+      email: email.trim(),
+      password: SENHA_PADRAO,
+      email_confirm: true,
+      user_metadata: { nome: (nome ?? "").toString().trim() },
     });
     if (invErr) {
-      const msg = /already.*registered|already.*exists/i.test(invErr.message)
+      const msg = /already.*registered|already.*exists|duplicate/i.test(invErr.message)
         ? "este e-mail já tem conta" : invErr.message;
       return json({ error: msg }, 400);
     }
@@ -62,10 +72,11 @@ Deno.serve(async (req) => {
     if (nomeStr) patch.nome = nomeStr;
     const telStr = (telefone ?? "").toString().trim();
     if (telStr) patch.telefone = telStr;
-    const { error: upErr } = await admin.from("profiles").update(patch).eq("id", invited.user.id);
-    if (upErr) return json({ error: "convite enviado, mas falhou ao gravar o perfil: " + upErr.message }, 500);
+    const { error: upErr } = await admin.from("profiles").update(patch).eq("id", created.user.id);
+    if (upErr) return json({ error: "conta criada, mas falhou ao gravar o perfil: " + upErr.message }, 500);
 
-    return json({ ok: true, id: invited.user.id });
+    // Devolve a senha padrão pro front mostrar à gestão (não é segredo — é temporária)
+    return json({ ok: true, id: created.user.id, senha_padrao: SENHA_PADRAO });
   } catch (e) {
     return json({ error: String((e as Error)?.message ?? e) }, 500);
   }
