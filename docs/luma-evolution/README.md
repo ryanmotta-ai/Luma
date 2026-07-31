@@ -64,11 +64,12 @@ docs/luma-evolution/
 | `cenas.js` | **Define o que é fotografado.** Cada cena sabe chegar até si mesma. |
 | `slides.js` | Narrativa da V1 (auditoria, 9 marcos). |
 | `slides-v2.js` | **Narrativa da V2** (case, 5 marcos + atlas + Much+). Os números são contados aqui a cada montagem. |
-| `historico.js` | Levanta os 77 commits com data, autor, área e se mexem em tela. Alimenta a mega linha do tempo. |
+| `historico.js` | Levanta **todos** os commits do repositório com data, autor, área e se mexem em tela. Alimenta a mega linha do tempo e o total exibido na capa. Roda sozinho no início do `publicar.js`. |
 | `atlas.js` | Mede no DOM onde cada funcionalidade está hoje, em % da viewport. |
 | `anotar.js` | Gera as capturas anotadas de `screenshots/annotated/`. |
 | `estilo.css` | A identidade visual — quatro padrões de slide, compartilhados pelas duas versões. |
-| `publicar.js` | HTML → confere o layout → PNGs → PDF → notas → índice. Aceita narrativa e prefixo. |
+| `publicar.js` | Reconta o histórico → HTML → confere o layout → PNGs → PDF → notas → índice → HTML único. Aceita narrativa e prefixo; `--sem-historico` pula o levantamento dos commits. |
+| `um-arquivo.js` | Embute CSS e capturas em base64 e escreve `*-completo.html`. **É o arquivo que se manda pra alguém** — o HTML normal aponta pras capturas por caminho relativo. |
 | `montar-pptx.py` | Empacota os PNGs no `.pptx`, com as notas no campo de notas. |
 
 ---
@@ -100,8 +101,8 @@ docs/luma-evolution/
 
 ## Problemas conhecidos
 
-- **O clone deste ambiente vem `shallow`.** Antes de qualquer análise de histórico, rode `git rev-parse --is-shallow-repository`; se der `true`, faça `git fetch --unshallow origin` e `git fetch origin '+refs/heads/*:refs/remotes/origin/*'`. Sem isso, `git log --all` mostra uma fração do repositório — aqui eram 78 de 239 commits, e a apresentação chegou a afirmar coisas falsas sobre o começo do projeto por causa disso.
-- **O histórico tem 45 dias** (16/06 a 30/07/2026), 239 commits, uma raiz só. O que o git *não* guarda é o piloto Yungas, anterior a tudo isso e preservado em `research/origem/`.
+- **O clone deste ambiente vem `shallow`.** Antes de qualquer análise de histórico, rode `git rev-parse --is-shallow-repository`; se der `true`, faça `git fetch --unshallow origin` e `git fetch origin '+refs/heads/*:refs/remotes/origin/*'`. Sem isso, `git log --all` mostra uma fração do repositório — aqui eram 78 de 239 commits (o total cresce a cada commit novo; hoje são 240), e a apresentação chegou a afirmar coisas falsas sobre o começo do projeto por causa disso.
+- **O histórico tem 45 dias** (16/06 a 30/07/2026), 240 commits, uma raiz só. O que o git *não* guarda é o piloto Yungas, anterior a tudo isso e preservado em `research/origem/`.
 - **Telas que dependem do banco aparecem com o conteúdo de exemplo do commit**, não com dados reais. Proposital: nenhuma captura toca produção.
 - **Algumas telas não são alcançáveis offline** — as que exigem um template salvo no banco. Cada caso está em `reports/limitacoes.md`.
 - **O texto do `.pptx` não é editável**: cada slide é a imagem conferida. Para mudar conteúdo, mexa em `slides.js` e rode `tudo.js --sem-captura`.

@@ -82,18 +82,27 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
 
 /* ── linha do tempo ── */
 .tl{position:relative;width:100%}
-.tl-eixo{position:absolute;left:0;right:0;top:104px;height:3px;background:var(--linha)}
-.tl-itens{display:flex;justify-content:space-between}
-.tl-item{flex:1;padding-right:20px;position:relative}
-.tl-ponto{position:absolute;top:96px;left:0;width:18px;height:18px;border-radius:50%;
+.tl-eixo{position:absolute;left:0;right:0;top:130px;height:3px;background:var(--linha)}
+.tl-itens{display:flex;justify-content:space-between;height:100%;align-items:stretch}
+.tl-item{flex:1;padding-right:26px;position:relative;display:flex;flex-direction:column}
+.tl-ponto{position:absolute;top:122px;left:0;width:18px;height:18px;border-radius:50%;
   background:var(--laranja);border:4px solid #fff;box-shadow:0 0 0 2px var(--laranja)}
 .tl-item.forte .tl-ponto{background:var(--tinta);box-shadow:0 0 0 2px var(--tinta)}
-.tl-data{font-family:var(--mono);font-size:15px;color:var(--tinta-3)}
-.tl-era{margin-top:6px;font-size:14px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;
-  color:var(--laranja-d);min-height:36px;line-height:1.3}
-.tl-rot{margin-top:56px;font-size:20px;font-weight:800;line-height:1.24;letter-spacing:-.015em;min-height:76px}
-.tl-desc{margin-top:10px;font-size:16px;color:var(--tinta-2);line-height:1.36}
-.tl-hash{margin-top:12px;font-family:var(--mono);font-size:14px;color:var(--tinta-3)}
+.tl-data{font-family:var(--mono);font-size:17px;color:var(--tinta-3)}
+.tl-era{margin-top:7px;font-size:15px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--laranja-d);min-height:40px;line-height:1.3}
+/* quantos commits separam este marco do anterior: seis pontos igualmente espaçados
+   sugerem seis saltos iguais, e não são */
+.tl-salto{margin-top:2px;font-family:var(--mono);font-size:16px;font-weight:700;color:var(--laranja-d)}
+.tl-rot{margin-top:54px;font-size:25px;font-weight:800;line-height:1.22;letter-spacing:-.018em;min-height:96px}
+.tl-desc{margin-top:12px;font-size:19px;color:var(--tinta-2);line-height:1.4}
+/* Ancorado no rodapé da coluna: as descrições têm alturas diferentes, e com o hash solto
+   as seis colunas terminavam em seis alturas distintas — lê como desalinho, não como
+   respiro. Preso embaixo, vira uma linha de base comum. */
+.tl-hash{margin-top:auto;padding-top:18px;font-family:var(--mono);font-size:15px;color:var(--tinta-3)}
+/* o mesmo salto em barra: número diz quanto, barra diz o quanto é grande perto dos outros */
+.tl-peso{margin-top:9px;height:7px;border-radius:4px;background:var(--papel-2);overflow:hidden}
+.tl-peso span{display:block;height:100%;border-radius:4px;background:var(--laranja)}
 
 /* ── lista editorial ── */
 .lista{display:flex;flex-direction:column;gap:20px;justify-content:center}
@@ -132,9 +141,12 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
 /* fill, não contain: o contorno é posicionado em % da imagem, então qualquer letterbox
    deslocaria os destaques em relação ao que eles apontam. */
 .atlas-fig img{width:100%;height:100%;object-fit:fill;display:block}
-.marca{position:absolute;border:3px solid var(--laranja);border-radius:7px;
+/* `.contorno`, não `.marca`: a capa já usava `.marca` para o selo "Delivery Much · uso
+   interno", e `.escuro .marca` não declara position nem border — então o absolute e a
+   borda daqui vazavam pra lá e o selo aparecia como uma caixa laranja no meio do título. */
+.contorno{position:absolute;border:3px solid var(--laranja);border-radius:7px;
   box-shadow:0 0 0 3px rgba(255,144,0,.26)}
-.marca-n{position:absolute;width:34px;height:34px;border-radius:50%;background:var(--laranja);color:#fff;
+.contorno-n{position:absolute;width:34px;height:34px;border-radius:50%;background:var(--laranja);color:#fff;
   font-size:19px;font-weight:900;display:flex;align-items:center;justify-content:center;
   box-shadow:0 4px 12px rgba(10,10,10,.3)}
 .atlas-lista{flex:1;display:flex;flex-direction:column;gap:22px;justify-content:center;min-width:0}
@@ -219,35 +231,60 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
 
 /* ═══ mega linha do tempo — todos os commits ══════════════════════════════════ */
 
-/* Colunas por DIA, com largura proporcional ao número de commits daquele dia. Espaçar os
-   dias por igual esconderia o que mais importa aqui: metade do trabalho aconteceu em
-   dois dias. */
-.mega{display:flex;flex-direction:column;height:100%;gap:0}
-.mega-dias{display:flex;gap:3px;margin-bottom:10px}
-.mega-dia{display:flex;flex-direction:column;align-items:center;padding:7px 4px 9px;border-radius:8px 8px 0 0;
-  background:var(--papel-2);border:1px solid var(--linha);border-bottom:none}
-.mega-dia.pico{background:#FFF3E0;border-color:#FFD9A0}
-.mega-dia .d{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--tinta)}
-.mega-dia .q{font-size:14px;color:var(--tinta-3);margin-top:2px}
-.mega-dia.pico .q{color:var(--laranja-d);font-weight:700}
+/* 26 dias × 6 faixas. A primeira versão dava a cada dia uma largura PROPORCIONAL ao
+   volume: com 57 commits num dia e 1 em outro, a coluna magra virava um risco sem
+   rótulo legível e os pontos de um dia cheio quebravam em três fileiras. Agora todo dia
+   ocupa a mesma largura, o volume vira ALTURA de barra (lê-se do fundo da sala) e a
+   distribuição por área vira intensidade + número na célula. */
+.mega{display:grid;gap:4px}
+.mg-rot{display:flex;align-items:baseline;font-size:16px;font-weight:800;color:var(--tinta-2);
+  letter-spacing:-.02em;padding-right:12px}
+.mg-rot .qt{font-family:var(--mono);font-size:15px;font-weight:400;color:var(--tinta-3);margin-left:auto}
+.mg-rot-b{align-items:flex-end;padding-bottom:4px;font-size:14px;font-weight:700;color:var(--tinta-3);
+  line-height:1.25;text-align:right;display:block}
 
-.mega-grade{flex:1;display:flex;flex-direction:column;gap:2px;min-height:0}
-.mega-faixa{display:flex;align-items:stretch;gap:3px;flex:1;min-height:0}
-.mega-rot{width:118px;flex-shrink:0;display:flex;align-items:center;font-size:14px;font-weight:800;
-  color:var(--tinta-2);letter-spacing:-.01em}
-/* centrado: alinhado à esquerda, os pontos de um dia cheio se amontoavam num canto e
-   deixavam metade da coluna vazia, o que lia como "parou no meio do dia". */
-.mega-cel{display:flex;align-items:center;justify-content:center;gap:3px;padding:0 5px;
-  border-left:1px solid var(--linha);flex-wrap:wrap;align-content:center;background:var(--papel)}
-.mega-cel:last-child{border-right:1px solid var(--linha)}
-.mega-faixa:nth-child(odd) .mega-cel{background:#FAFAF8}
-/* cada ponto é um commit: cheio quando mexe em tela, vazado quando não */
-.pt-c{width:11px;height:11px;border-radius:50%;background:var(--laranja);flex-shrink:0}
-.pt-c.doc{background:transparent;border:1.5px solid var(--tinta-3)}
-.pt-c.marco{background:var(--tinta);width:14px;height:14px;box-shadow:0 0 0 2.5px var(--laranja)}
+/* barra do dia: laranja cheio = commit que mexe em tela, hachura = commit sem mudança
+   visual. Empilhadas, a barra inteira é o total do dia. */
+.mg-bar{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:5px}
+.mg-bar .n{font-family:var(--mono);font-size:14px;color:var(--tinta-3);line-height:1}
+.mg-bar.alto .n{color:var(--laranja-d);font-weight:800;font-size:17px}
+.mg-bar .col{width:66%;min-width:20px;display:flex;flex-direction:column;justify-content:flex-end;
+  border-radius:4px 4px 0 0;overflow:hidden}
+.mg-bar .cd{background:repeating-linear-gradient(-45deg,#DEDBD6 0 3px,#F2F0EC 3px 6px)}
+.mg-bar .ct{background:var(--laranja)}
+.mg-bar.alto .ct{background:var(--laranja-d)}
 
-.mega-leg{display:flex;gap:26px;margin-top:12px;font-size:14px;color:var(--tinta-2);align-items:center}
-.mega-leg span{display:flex;align-items:center;gap:8px}
+.mg-dia{display:flex;flex-direction:column;align-items:center;gap:3px;padding-top:7px;
+  border-top:2px solid var(--linha)}
+.mg-dia.alto{border-top-color:var(--laranja-d)}
+.mg-dia .d{font-family:var(--mono);font-size:18px;font-weight:700;color:var(--tinta);line-height:1}
+.mg-dia .m{font-size:14px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--laranja-d);line-height:1}
+.mg-dia .mk{width:9px;height:9px;border-radius:50%;background:var(--tinta);box-shadow:0 0 0 2.5px var(--laranja)}
+
+/* célula: o fundo dá a forma (dá pra varrer a grade e ver onde o foco estava), o número
+   dá a precisão — a soma das células confere com o total de commits. */
+.mg-cel{display:flex;align-items:center;justify-content:center;border-radius:5px;
+  font-family:var(--mono);font-size:18px;font-weight:700;color:var(--tinta);background:#FAFAF8}
+.mg-cel.v1{background:#FFF0D8}
+.mg-cel.v2{background:#FFDCA8}
+.mg-cel.v3{background:#FFC069}
+.mg-cel.v4{background:#FFA02B}
+/* texto sempre escuro: branco sobre #F85400 dá 3,5:1 e não passa no AA */
+.mg-cel.v5{background:#F97316}
+
+/* o vão: dias sem nenhum commit. Omiti-los fazia sumir a pausa de uma semana entre
+   29/06 e 07/07 — silêncio de calendário também é informação. */
+.mg-vao{background:repeating-linear-gradient(180deg,var(--linha) 0 5px,transparent 5px 11px);
+  background-position:center;background-size:2px 100%;background-repeat:repeat-y}
+.mg-vao-r{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:7px}
+.mg-vao-r .v{font-family:var(--mono);font-size:15px;color:var(--tinta-3);font-weight:700;line-height:1}
+
+.mg-leg{display:flex;gap:30px;margin-top:14px;font-size:15px;color:var(--tinta-2);align-items:center}
+.mg-leg span{display:flex;align-items:center;gap:8px}
+.mg-leg i{width:20px;height:15px;border-radius:4px;display:block;font-style:normal}
+.mg-leg .esc{display:flex;gap:3px;align-items:center}
+.mg-leg .esc i{width:26px}
 
 /* ── lista completa dos commits ── */
 /* Grid de duas colunas preenchia na HORIZONTAL: o segundo commit do dia caía à direita

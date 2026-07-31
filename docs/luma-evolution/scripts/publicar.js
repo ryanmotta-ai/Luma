@@ -16,6 +16,16 @@ const fs = require('fs');
 // que já existia. `node publicar.js slides-v2.js luma-evolution-v2` monta a V2.
 const NARRATIVA = process.argv[2] || './slides.js';
 const PREFIXO = process.argv[3] || 'luma-evolution';
+// Recontar o histórico ANTES de montar: o JSON dos commits alimenta a mega linha do tempo
+// e o total exibido na capa. Deixá-lo envelhecer já fez a mesma apresentação afirmar 240
+// commits num slide e 239 no seguinte. São ~10s; a alternativa é um número errado no
+// telão. `--sem-historico` pula, pra iterar layout sem pagar o levantamento.
+if (!process.argv.includes('--sem-historico')) {
+  try {
+    require('child_process').execFileSync(process.execPath, [path.join(__dirname, 'historico.js')],
+      { stdio: ['ignore', 'ignore', 'inherit'] });
+  } catch (e) { console.warn('! histórico não recontado:', e.message); }
+}
 const S = require(NARRATIVA.startsWith('.') ? NARRATIVA : './' + NARRATIVA);
 
 const BASE = path.resolve(__dirname, '..');
@@ -102,20 +112,41 @@ ${corpo}
         prob.push({ t: 'slide-denso', el: '(slide)', d: chars + ' caracteres' });
       }
 
-      // Sobreposição com a faixa de conclusão. A conclusão é `position:absolute`, então
-      // texto do corpo passando por baixo dela não conta como "fora da página" — mas
-      // aparece cortado no slide. Aconteceu: a quarta diferença sumia atrás da barra.
-      const concl = s.querySelector('.conclusao');
-      if (concl && getComputedStyle(concl).position === 'absolute') {
-        const rc = concl.getBoundingClientRect();
-        s.querySelectorAll('.corpo *').forEach(e => {
-          if (!(e.textContent || '').trim() || e.children.length) return;
+      // Texto coberto por elemento fora do fluxo. Um `position:absolute` que passa por
+      // cima de texto não conta como "fora da página" e não é "texto cortado" — mas some
+      // do slide do mesmo jeito. Aconteceu duas vezes: a faixa de conclusão engolindo a
+      // quarta diferença, e o selo `.marca` da capa herdando o `position:absolute` do
+      // `.marca` do atlas (colisão de nome de classe) e pousando em cima do título.
+      //
+      // O critério é pela área do INTRUSO, não do texto: o selo tinha 460×26 sobre um
+      // título de 1180×280 — 3% da área do texto, e passava batido por qualquer limiar
+      // medido desse lado. Do outro lado eram 100%.
+      const soltos = [...s.querySelectorAll('*')].filter(e => {
+        const po = getComputedStyle(e).position;
+        return (po === 'absolute' || po === 'fixed') && e.getBoundingClientRect().width > 0;
+      });
+      // "Folha de texto" não é "elemento sem filhos": o <em> da capa tem um <br> dentro, e
+      // com o teste ingênuo o título — justamente o que estava sendo coberto — ficava de
+      // fora da varredura. Folha é quem não tem nenhum filho COM texto.
+      const folhas = [...s.querySelectorAll('*')].filter(e =>
+        (e.textContent || '').trim() && [...e.children].every(c => !(c.textContent || '').trim()));
+      for (const a of soltos) {
+        // Um intruso que CONTÉM o texto não é intruso: é o contêiner dele.
+        const ra = a.getBoundingClientRect();
+        const areaA = ra.width * ra.height;
+        if (areaA < 60) continue;
+        for (const e of folhas) {
+          if (a === e || a.contains(e) || e.contains(a)) continue;
           const re = e.getBoundingClientRect();
-          if (re.bottom > rc.top + 4 && re.top < rc.bottom - 4 && re.right > rc.left && re.left < rc.right) {
-            prob.push({ t: 'sob-a-conclusao', el: (e.className || e.tagName).toString().slice(0, 28),
-              d: `"${e.textContent.trim().slice(0, 34)}"` });
-          }
-        });
+          const w = Math.min(ra.right, re.right) - Math.max(ra.left, re.left);
+          const h = Math.min(ra.bottom, re.bottom) - Math.max(ra.top, re.top);
+          if (w <= 2 || h <= 2) continue;
+          if ((w * h) / areaA < 0.6) continue;
+          prob.push({ t: a.classList.contains('conclusao') ? 'sob-a-conclusao' : 'texto-coberto',
+            el: (a.className || a.tagName).toString().slice(0, 28),
+            d: `sobre "${e.textContent.trim().slice(0, 30)}"` });
+          break;
+        }
       }
 
       const fundoSlide = getComputedStyle(s).backgroundColor;
@@ -209,6 +240,14 @@ ${corpo}
     'Para reabrir a versão que gerou a imagem: `node scripts/versao.js <hash>`.');
   fs.writeFileSync(path.join(OUT, PREFIXO + (PREFIXO.endsWith('v2') ? '-index.md' : '-indice.md')), I.join('\n'));
   console.log('Índice: ' + PREFIXO + (PREFIXO.endsWith('v2') ? '-index.md' : '-indice.md'));
+
+  // O HTML autossuficiente sai na mesma rodada, e não num passo à parte: separado, ele
+  // envelhece calado — alguém manda o arquivo de uma montagem antiga e o destinatário
+  // recebe slides que já não existem. Gerado junto, os dois nunca divergem.
+  try {
+    require('child_process').execFileSync(process.execPath,
+      [path.join(__dirname, 'um-arquivo.js'), PREFIXO], { stdio: 'inherit' });
+  } catch (e) { console.warn('! HTML único não gerado:', e.message); }
 
   console.log(`\n${S.totalShots} capturas · ${(S.MARCOS || []).length || S.marcosComShot} marcos · ${S.slides.length} slides\n`);
   if (nProb || ruins.length) { console.log('⚠ há apontamentos em reports/conferencia-visual.md\n'); process.exitCode = 1; }

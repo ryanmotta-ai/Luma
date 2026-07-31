@@ -1,0 +1,6 @@
+# O HTML autossuficiente tem 16,8 MB de base64 e é 100% derivado do que já está aqui:
+# `node scripts/publicar.js slides-v2.js luma-evolution-v2` o refaz em segundos a partir do
+# HTML normal + screenshots/. Versioná-lo trocaria o arquivo inteiro a cada montagem e
+# inflaria o repositório sem entregar nada que o PDF e o PPTX (esses sim versionados) já
+# não entreguem. Quem precisa dele gera ou pede.
+presentation/*-completo.html

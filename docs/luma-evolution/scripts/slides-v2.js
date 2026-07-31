@@ -73,6 +73,10 @@ const M = {
   edge:       n('ls -d supabase/functions/*/ 2>/dev/null | wc -l'),
 };
 M.fnTotal = M.fnD + M.fnF + M.fnG;
+// O total de commits vem do MESMO JSON que desenha a mega linha do tempo. Contar de novo
+// com `git log | wc -l` já fez a apresentação dizer 240 num slide e 239 no seguinte.
+if (COMMITS.length) M.commits = COMMITS.length;
+M.dias = Math.round((Date.parse(M.ultimo) - Date.parse(M.primeiro)) / 864e5) + 1;
 const br = x => x.toLocaleString('pt-BR');
 
 const totalShots = fs.existsSync(SHOTS) ? fs.readdirSync(SHOTS).reduce((a, d) => {
@@ -151,8 +155,8 @@ function atlasSlide(q, i, total) {
       </div>
       <div class="atlas" style="height:calc(100% - 76px)">
         <div class="atlas-fig"><img src="${q.imagem}" alt="${esc(q.tela)}">
-          ${fs4.map((f, k) => `<div class="marca" style="left:${f.caixa.x.toFixed(2)}%;top:${f.caixa.y.toFixed(2)}%;width:${f.caixa.w.toFixed(2)}%;height:${f.caixa.h.toFixed(2)}%"></div>
-          <div class="marca-n" style="left:max(6px, calc(${f.caixa.x.toFixed(2)}% - 17px));top:max(6px, calc(${f.caixa.y.toFixed(2)}% - 17px))">${k + 1}</div>`).join('')}
+          ${fs4.map((f, k) => `<div class="contorno" style="left:${f.caixa.x.toFixed(2)}%;top:${f.caixa.y.toFixed(2)}%;width:${f.caixa.w.toFixed(2)}%;height:${f.caixa.h.toFixed(2)}%"></div>
+          <div class="contorno-n" style="left:max(6px, calc(${f.caixa.x.toFixed(2)}% - 17px));top:max(6px, calc(${f.caixa.y.toFixed(2)}% - 17px))">${k + 1}</div>`).join('')}
         </div>
         <div class="atlas-lista">
           ${fs4.map((f, k) => `<div class="atlas-item"><div class="atlas-bola">${k + 1}</div>
@@ -285,55 +289,108 @@ function ganhos({ kicker, titulo, itens, nota, evid }) {
 }
 
 // PADRÃO 9 — mega linha do tempo: todos os commits do repositório num quadro só.
-// Colunas por DIA, com largura proporcional ao número de commits daquele dia, e uma faixa
-// por área do produto. Espaçar os dias por igual esconderia o que mais importa: metade do
-// trabalho aconteceu em dois dias.
+// Uma coluna por DIA, todas da mesma largura; o volume do dia é a ALTURA da barra e a
+// distribuição por área é a intensidade da célula. A versão anterior dava largura
+// proporcional ao volume — com 57 commits num dia e 1 em outro, metade das colunas
+// virava um risco sem rótulo legível.
 function megaLinha() {
   if (!COMMITS.length) return false;
   const HASH_MARCO = new Set(MARCOS.map(m => m.hashCurto));
   const dias = [...new Set(COMMITS.map(c => c.dia))].sort();
   const porDia = d => COMMITS.filter(c => c.dia === d);
-  const AREAS = ['Franqueado', 'Designer', 'Núcleo', 'Design', 'Backend', 'IA', 'CLI', 'Pacote', 'Docs'];
+  // As quatro áreas de bastidor somam 25 commits em 26 dias: quatro faixas quase vazias
+  // comiam altura sem dizer nada. Viram uma só, e as cinco que carregam a história
+  // ganham o espaço.
+  const FAIXAS = [
+    { r: 'Franqueado', a: ['Franqueado'] },
+    { r: 'Designer', a: ['Designer'] },
+    { r: 'Núcleo', a: ['Núcleo'] },
+    { r: 'Design', a: ['Design'] },
+    { r: 'Bastidores', a: ['Backend', 'IA', 'CLI', 'Pacote'] },
+    { r: 'Documentação', a: ['Docs'] },
+  ];
+  const MES = { '06': 'jun', '07': 'jul' };
   const pico = Math.max(...dias.map(d => porDia(d).length));
   const rotDia = d => d.slice(5).replace('-', '/');
+  // Escala de intensidade em degraus absolutos, não relativos ao máximo: "4–7 commits"
+  // quer dizer a mesma coisa em toda a grade, e a legenda vira uma régua de verdade.
+  const DEG = [[15, 5], [8, 4], [4, 3], [2, 2], [1, 1]];
+  const grau = n => (DEG.find(([lim]) => n >= lim) || [0, 0])[1];
 
-  const cabecalho = dias.map(d => {
-    const n = porDia(d).length;
-    return `<div class="mega-dia${n >= pico * 0.6 ? ' pico' : ''}" style="flex:${n}">
-      <span class="d">${rotDia(d)}</span><span class="q">${n}</span></div>`;
+  // Colunas: os dias mais os VÃOS. Dias sem commit simplesmente não existiam na grade,
+  // e a pausa de uma semana entre 29/06 e 07/07 sumia — silêncio de calendário é
+  // informação. Vão de 1 dia é ruído; só entra a partir de 2.
+  const cols = [];
+  dias.forEach((d, i) => {
+    if (i) {
+      const vao = Math.round((Date.parse(d + 'T00:00:00Z') - Date.parse(dias[i - 1] + 'T00:00:00Z')) / 864e5) - 1;
+      if (vao >= 2) cols.push({ vao });
+    }
+    cols.push({ d, n: porDia(d).length });
+  });
+  const gt = `172px ${cols.map(c => c.vao ? '.62fr' : '1fr').join(' ')}`;
+
+  let mesAtual = '';
+  const barras = cols.map(c => {
+    if (c.vao) return '<div class="mg-vao"></div>';
+    const tela = porDia(c.d).filter(x => x.tela).length;
+    const alt = Math.max(3, Math.round(c.n / pico * 100));
+    return `<div class="mg-bar${c.n >= 25 ? ' alto' : ''}">
+      <span class="n">${c.n}</span>
+      <span class="col" style="height:${alt}%">
+        <span class="cd" style="flex:${c.n - tela}"></span><span class="ct" style="flex:${tela}"></span>
+      </span></div>`;
   }).join('');
 
-  const faixas = AREAS.map(ar2 => `<div class="mega-faixa">
-    <div class="mega-rot">${esc(ar2)}</div>
-    ${dias.map(d => {
-      const cs = porDia(d).filter(c => c.areas.includes(ar2));
-      return `<div class="mega-cel" style="flex:${porDia(d).length}">${cs.map(c =>
-        `<span class="pt-c${HASH_MARCO.has(c.h) ? ' marco' : (c.tela ? '' : ' doc')}" title="${esc(c.h)}"></span>`).join('')}</div>`;
-    }).join('')}
-  </div>`).join('');
+  const datas = cols.map(c => {
+    if (c.vao) return `<div class="mg-vao-r"><span class="v">${c.vao}d</span></div>`;
+    const m = c.d.slice(5, 7), novo = m !== mesAtual;
+    if (novo) mesAtual = m;
+    const temMarco = porDia(c.d).some(x => HASH_MARCO.has(x.h));
+    return `<div class="mg-dia${c.n >= 25 ? ' alto' : ''}">
+      <span class="d">${c.d.slice(8)}</span>
+      ${novo ? `<span class="m">${MES[m] || m}</span>` : ''}
+      ${temMarco ? '<span class="mk"></span>' : ''}</div>`;
+  }).join('');
 
-  add(`<section class="slide">${topo('Todo o histórico', `${COMMITS.length} commits · ${dias.length} dias com atividade`)}
+  const faixas = FAIXAS.map(f => {
+    const tot = COMMITS.filter(c => c.areas.some(a => f.a.includes(a))).length;
+    return `<div class="mg-rot">${esc(f.r)}<span class="qt">${tot}</span></div>` + cols.map(c => {
+      if (c.vao) return '<div class="mg-vao"></div>';
+      const n = porDia(c.d).filter(x => x.areas.some(a => f.a.includes(a))).length;
+      return `<div class="mg-cel v${grau(n)}">${n || ''}</div>`;
+    }).join('');
+  }).join('');
+
+  add(`<section class="slide">${topo('Todo o histórico',
+      `${COMMITS.length} commits · ${dias.length} dias com atividade em ${rotDia(dias[0])} → ${rotDia(dias[dias.length - 1])}`)}
     <div class="corpo">
-      <h2 class="titulo" style="font-size:44px;margin-bottom:18px">Onde o trabalho aconteceu, commit a commit</h2>
-      <div class="mega" style="height:calc(100% - 70px)">
-        <div class="mega-dias">${cabecalho}</div>
-        <div class="mega-grade">${faixas}</div>
-        <div class="mega-leg">
-          <span><span class="pt-c"></span> commit que mexe em tela</span>
-          <span><span class="pt-c doc"></span> commit sem mudança visual</span>
-          <span><span class="pt-c marco"></span> marco da linha do tempo</span>
-          <span style="margin-left:auto;color:var(--tinta-3)">a largura de cada coluna é o volume daquele dia</span>
-        </div>
+      <h2 class="titulo" style="font-size:44px;margin-bottom:16px">Onde o trabalho aconteceu, commit a commit</h2>
+      <div class="mega" style="height:calc(100% - 122px);grid-template-columns:${gt};
+           grid-template-rows:minmax(0,1fr) auto repeat(6, 77px)">
+        <div class="mg-rot mg-rot-b">commits<br>no dia</div>${barras}
+        <div></div>${datas}
+        ${faixas}
+      </div>
+      <div class="mg-leg">
+        <span><i style="background:var(--laranja)"></i> mexe em tela</span>
+        <span><i class="cd" style="background:repeating-linear-gradient(-45deg,#DEDBD6 0 3px,#F2F0EC 3px 6px)"></i> sem mudança visual</span>
+        <span><span class="mk" style="width:9px;height:9px;border-radius:50%;background:var(--tinta);box-shadow:0 0 0 2.5px var(--laranja)"></span> dia de um marco</span>
+        <span><i style="background:repeating-linear-gradient(180deg,var(--linha) 0 5px,transparent 5px 11px) center/2px 100% repeat-y"></i> dias sem commit nenhum</span>
+        <span class="esc">commits na área:
+          <i class="mg-cel v1" style="border:1px solid var(--linha)"></i>1
+          <i class="mg-cel v2"></i>2–3 <i class="mg-cel v3"></i>4–7
+          <i class="mg-cel v4"></i>8–14 <i class="mg-cel v5"></i>15+</span>
       </div>
     </div>
     ${rodape('')}
   </section>`,
-  `A forma do trabalho num quadro. Dois picos — ${rotDia(dias[0])} e ${rotDia(dias[dias.length-1])} — concentram mais da metade dos commits.
-O vazio no meio não é ócio: 22/07 são seis commits só de planejamento no luma-brain, sem tocar em tela.
-Deixe a plateia varrer as faixas: dá para ver o produto mudando de foco — franqueado e designer no início, IA e console no fim.
+  `A forma do trabalho num quadro só. Dois dias — 15 e 16 de julho — são 108 dos ${COMMITS.length} commits: é a semana em que o produto virou o que é hoje.
+As colunas tracejadas são calendário vazio, não desistência: a maior é a pausa de sete dias entre 29/06 e 07/07.
+Deixe a plateia varrer as faixas na horizontal — dá pra ver o foco mudar de área ao longo do tempo.
 ~1min.`,
-  { tipo: 'Captura real', imagens: [], quando: `${dias[0]} → ${dias[dias.length-1]}`,
-    obs: `git log --all, ${COMMITS.length} commits classificados por arquivo tocado.` });
+  { tipo: 'Captura real', imagens: [], quando: `${dias[0]} → ${dias[dias.length - 1]}`,
+    obs: `git log --all, ${COMMITS.length} commits classificados por arquivo tocado. A soma das células de uma faixa é o total ao lado do rótulo.` });
   return true;
 }
 
@@ -342,28 +399,44 @@ function listaCommits() {
   if (!COMMITS.length) return false;
   const HASH_MARCO = new Set(MARCOS.map(m => m.hashCurto));
   const dias = [...new Set(COMMITS.map(c => c.dia))].sort();
-  // Quebra por DIA, nunca no meio de um: um dia partido entre dois slides força a plateia
-  // a segurar contexto de um slide para o outro.
+  // Paginação por ALTURA medida, não por um contador de itens. O contador antigo parava
+  // a página do dia 16/07 em ~72% da altura e deixava o resto branco — lê como slide
+  // inacabado. Os três números abaixo são o que o Chromium realmente gasta.
+  const ALT = 836;      // corpo útil: 1080 − topo 140 − rodapé 104
+  const H_DIA = 54;     // cabeçalho do dia + respiro do bloco
+  const H_PAR = 24;     // um PAR de commits (a lista corre em duas colunas)
+  const MIN_BLOCO = H_DIA + 4 * H_PAR;   // abaixo disso, começar um bloco não compensa
+  // Um dia grande PODE ser partido entre páginas — 15/07 sozinho tem 57 commits e não
+  // cabe em página nenhuma. A continuação vem rotulada, e a faixa de commits some da
+  // dúvida: ninguém lê estas páginas em voz alta, elas existem pra conferência.
   const paginas = [];
-  let atual = [], carga = 0;
+  let atual = [], resta = ALT;
   for (const d of dias) {
-    const cs = COMMITS.filter(c => c.dia === d);
-    const custo = Math.ceil(cs.length / 2) * 2 + 3;   // duas colunas + cabeçalho do dia
-    if (carga + custo > 52 && atual.length) { paginas.push(atual); atual = []; carga = 0; }
-    atual.push([d, cs]); carga += custo;
+    const todos = COMMITS.filter(c => c.dia === d);
+    let cs = todos, de = 0;
+    while (cs.length) {
+      if (resta < MIN_BLOCO && atual.length) { paginas.push(atual); atual = []; resta = ALT; }
+      const cabem = Math.max(2, Math.floor((resta - H_DIA) / H_PAR) * 2);
+      const bloco = cs.slice(0, cabem);
+      atual.push({ d, bloco, todos, de, parte: de > 0 });
+      resta -= H_DIA + Math.ceil(bloco.length / 2) * H_PAR;
+      de += bloco.length;
+      cs = cs.slice(cabem);
+    }
   }
   if (atual.length) paginas.push(atual);
 
   paginas.forEach((pag, i) => {
-    const corpo = pag.map(([d, cs]) => `<div class="cm-grupo">
+    const corpo = pag.map(({ d, bloco, todos, de, parte }) => `<div class="cm-grupo">
       <div class="cm-dia"><b>${d.slice(8)}/${d.slice(5,7)}</b>
-        <span>${cs.length} commits · ${cs.filter(c => c.tela).length} mexem em tela</span></div>
-      <div class="cm-lista">${cs.map(c => `<div class="cm${HASH_MARCO.has(c.h) ? ' marco' : ''}">
+        <span>${parte ? `continuação · commits ${de + 1} a ${de + bloco.length} de ${todos.length}`
+          : `${todos.length} commits · ${todos.filter(c => c.tela).length} mexem em tela`}</span></div>
+      <div class="cm-lista">${bloco.map(c => `<div class="cm${HASH_MARCO.has(c.h) ? ' marco' : ''}">
         <span class="hs">${esc(c.h)}</span><span class="hr">${esc(c.hora)}</span>
         <span class="tx">${esc(c.s.length > 74 ? c.s.slice(0, 73) + '…' : c.s)}</span></div>`).join('')}</div>
     </div>`).join('');
     add(`<section class="slide" data-indice>${topo(`Todo o histórico · ${i + 1} de ${paginas.length}`,
-        pag.map(([d]) => d.slice(5).replace('-', '/')).join(' · '))}
+        [...new Set(pag.map(x => x.d))].map(d => d.slice(5).replace('-', '/')).join(' · '))}
       <div class="corpo">
         <div class="commits">${corpo}</div>
       </div>
@@ -372,7 +445,7 @@ function listaCommits() {
     `Página ${i + 1} de ${paginas.length} do histórico completo. Não leia em voz alta — está aqui para quem quiser conferir depois.
 Se alguém perguntar por um commit específico, é nestes slides que ele está.
 ~15s.`,
-    { tipo: 'Captura real', imagens: [], quando: pag.map(([d]) => d).join(', '),
+    { tipo: 'Captura real', imagens: [], quando: [...new Set(pag.map(x => x.d))].join(', '),
       obs: 'git log --all, assunto e hora de cada commit.' });
   });
   return true;
@@ -472,26 +545,52 @@ O que mudou entre uma e outra não foi a interface: foi a arquitetura, de um arq
 }
 
 // ══ 4 · LINHA DO TEMPO ══════════════════════════════════════════════════════
-add(`<section class="slide">${topo('Linha do tempo', `${MARCOS.length} marcos · ${M.commits} commits em 45 dias`)}
-  <div class="corpo" style="display:flex;align-items:center">
-    <div class="tl"><div class="tl-eixo"></div><div class="tl-itens">
-      ${MARCOS.map(m => `<div class="tl-item ${m.id === 'M0' || m.id === 'M8' ? 'forte' : ''}">
-        <div class="tl-data">${esc(m.dataExata ? m.data.slice(5) : 'antes de 07-16')}</div>
+// Cada marco carrega quantos commits separam ele do anterior. Sem isso a régua era
+// enganosa: seis pontos igualmente espaçados sugerem seis saltos do mesmo tamanho, e o
+// salto 16/07 → 20/07 vale quase o dobro de todo o mês de junho.
+const ORD = {};
+COMMITS.forEach((c, i) => { ORD[c.h] = i; });
+const posMarco = m => m.hashCurto === 'atual' ? COMMITS.length - 1
+  : (m.hashCurto in ORD ? ORD[m.hashCurto] : null);
+const ddmm = d => `${d.slice(8)}/${d.slice(5, 7)}`;
+// A escala da barra de peso: o maior salto vira 100%, os outros ficam em proporção. Sem
+// isso os seis pontos igualmente espaçados dizem que os intervalos são iguais — e o de
+// 16/06 → 16/07 vale onze vezes o de 20/07 → 30/07.
+const MAIOR_SALTO = Math.max(1, ...MARCOS.map((m, i) => {
+  const p = posMarco(m), a = i ? posMarco(MARCOS[i - 1]) : null;
+  return p == null ? 0 : (a == null ? (i ? p : 0) : p - a);
+}));
+
+add(`<section class="slide">${topo('Linha do tempo',
+    `${MARCOS.length} marcos · ${M.commits} commits em ${M.dias} dias`)}
+  <div class="corpo" style="display:flex;flex-direction:column">
+    <h2 class="titulo" style="font-size:46px">Seis paradas em ${M.dias} dias de histórico</h2>
+    <p class="sub" style="font-size:21px;margin-top:11px;max-width:1660px">Escolhidos por diferença visual clara, não por serem recentes. O número em laranja é quantos commits separam cada marco do anterior — os intervalos não têm o mesmo peso. A barra abaixo do número mostra o mesmo peso em escala.</p>
+    <div class="tl" style="margin-top:38px;flex:1;min-height:0"><div class="tl-eixo"></div><div class="tl-itens">
+      ${MARCOS.map((m, i) => {
+        const p = posMarco(m), a = i ? posMarco(MARCOS[i - 1]) : null;
+        // Do primeiro marco versionado, o salto é a distância até a raiz do repositório;
+        // o M0 é anterior ao git e legitimamente não tem de onde contar.
+        const salto = p == null ? null : (a == null ? (i ? p : null) : p - a);
+        return `<div class="tl-item ${m.id === 'M0' || m.id === 'M8' ? 'forte' : ''}">
+        <div class="tl-data">${esc(m.dataExata === false || m.tipo === 'arquivo' ? quando(m) : ddmm(m.data))}</div>
         <div class="tl-era">${esc(m.era)}</div>
+        <div class="tl-salto">${salto != null ? `+${salto} commit${salto === 1 ? '' : 's'}` : '&nbsp;'}</div>
+        <div class="tl-peso"><span style="width:${salto ? Math.max(2, Math.round(salto / MAIOR_SALTO * 100)) : 0}%"></span></div>
         <div class="tl-ponto"></div>
         <div class="tl-rot">${esc(m.rotulo)}</div>
         <div class="tl-desc">${esc(m.fatos[0])}</div>
         <div class="tl-hash">${esc(selo(m))}</div>
-      </div>`).join('')}
+      </div>`; }).join('')}
     </div></div>
   </div>
   ${rodape('')}
 </section>`,
-`Cinco marcos escolhidos por diferença visual clara — não por serem recentes.
-O histórico cobre 45 dias e ${M.commits} commits. A forma que importa: junho é de fundação com um autor só, julho traz o time e o volume, e 15 e 16/07 sozinhos concentram 45% de tudo.
+`${MARCOS.length} marcos escolhidos por diferença visual clara — não por serem recentes.
+O histórico cobre ${M.dias} dias e ${M.commits} commits. Chame atenção para os saltos: junho inteiro cabe entre os dois primeiros pontos, e 15 e 16/07 sozinhos concentram 45% de tudo.
 ~50s.`,
 { tipo: 'Captura real', imagens: [], quando: `${M.primeiro} → ${M.ultimo}`,
-  obs: 'Datas e hashes conferidos com git log.' });
+  obs: 'Datas e hashes conferidos com git log; o salto é a distância em commits no histórico linear.' });
 
 // ══ 5–7 · TRÊS GRANDES MOMENTOS ═════════════════════════════════════════════
 

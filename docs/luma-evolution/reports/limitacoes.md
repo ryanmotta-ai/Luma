@@ -20,7 +20,7 @@ O que não foi possível recuperar, e por quê. Escrito para que nenhuma lacuna 
 
 ## 2. O histórico cobre 45 dias, com um vazio no meio
 
-239 commits entre 2026-06-16 e 2026-07-30, de 3 autores — ryanmotta-ai (119), Claude (85) e Pedro Moraes (35). Sem tags de versão além de `desktop-v1.0.0`.
+240 commits entre 2026-06-16 e 2026-07-30, de 3 autores — ryanmotta-ai (119), Claude (86) e Pedro Moraes (35). O total cresce a cada commit; a apresentação o reconta a cada montagem. Sem tags de versão além de `desktop-v1.0.0`.
 
 A distribuição é muito desigual: **15 e 16 de julho concentram 108 commits**, 45% de todo o histórico. E há um vazio de 30/06 a 06/07 — sete dias sem nenhum commit.
 
