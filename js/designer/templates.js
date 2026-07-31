@@ -748,19 +748,14 @@ function dStudioHomeRender(){
   const recentCards=recent.map((entry,index)=>dStudioHomeMaterialCard(entry,'recent-'+index)).join('');
   const allCards=all.map((entry,index)=>dStudioHomeMaterialCard(entry,'all-'+index,{all:true})).join('');
 
-  // Seletor visual estético para "Salvar em"
-  const selectedFolderColor = selectedFolder.color || 'var(--dm-orange)';
-  const saveFolderBtn = '<div class="dsh-campaign" id="dsh-save-folder-wrap">'+
-    '<span>Salvar em</span>'+
-    '<button type="button" class="dsh-custom-select-btn" id="dsh-save-folder-btn" onclick="dStudioToggleSaveFolderMenu(event)" aria-label="Campanha onde o material será salvo">'+
-      '<span class="dsh-folder-badge-icon" style="background:'+selectedFolderColor+';color:#fff">'+
-        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>'+
-      '</span>'+
-      '<span class="dsh-custom-select-label">'+gEsc(selectedFolder.name||'Campanha')+'</span>'+
-      '<svg class="dsh-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>'+
-    '</button>'+
-    '<select id="dsh-folder" style="display:none">'+dStudioCampaignOptions(selected)+'</select>'+
-  '</div>';
+  // O botão visual "Salvar em" saiu daqui (2026-07-31): escolher a campanha duas
+  // vezes no mesmo fluxo era redundante — o modal "Novo material" já tem o campo
+  // CAMPANHA, e é lá que a decisão acontece.
+  // ⚠ O <select> continua no DOM, oculto, porque é a FONTE DE VERDADE de
+  // dStudioHomeFolder() — criar material e importar PSD/imagem leem daqui. Removê-lo
+  // faria os dois caírem no toast falso "Crie uma campanha antes de adicionar".
+  const saveFolderBtn = '<select id="dsh-folder" style="display:none" aria-hidden="true" tabindex="-1">'+
+    dStudioCampaignOptions(selected)+'</select>';
 
   // Seletor visual estético para Filtro de Campanhas
   const activeCampaignObj = dFolders.find(f => f.id === dStudioHomeCampaignFilter);
@@ -822,62 +817,9 @@ function dStudioHomeRender(){
   dStudioHomeApplyFilters();
 }
 
-function dStudioToggleSaveFolderMenu(ev){
-  ev.stopPropagation();
-  ev.preventDefault();
-  const existing = document.getElementById('dsh-save-folder-popover');
-  if(existing){ existing.remove(); return; }
-  document.querySelectorAll('.dsh-custom-popover').forEach(p=>p.remove());
-
-  const btn = ev.currentTarget;
-  const rect = btn.getBoundingClientRect();
-  const popover = document.createElement('div');
-  popover.id = 'dsh-save-folder-popover';
-  popover.className = 'dsh-custom-popover';
-  popover.style.left = Math.min(rect.left, window.innerWidth - 280) + 'px';
-  popover.style.top = (rect.bottom + 6) + 'px';
-
-  const selectedFolder = dFolders.find(f => f.id === dActiveTmplFolderId) || dFolders[0] || {};
-
-  const items = dFolders.map(folder => {
-    const isSelected = folder.id === selectedFolder.id;
-    const color = folder.color || 'var(--dm-orange)';
-    const count = (folder.templates || []).length;
-    const checkSvg = isSelected ? '<svg class="dsh-popover-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : '';
-
-    return '<button type="button" class="dsh-popover-item '+(isSelected?'selected':'')+'" onclick="dStudioSelectSaveFolder(\''+gEsc(folder.id)+'\')">'+
-      '<span class="dsh-popover-thumb-wrap" style="background:'+color+';color:#fff">'+
-        '<svg class="dsh-popover-folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>'+
-      '</span>'+
-      '<span class="dsh-popover-label-wrap">'+
-        '<span class="dsh-popover-label-title">'+gEsc(folder.name)+'</span>'+
-        '<span class="dsh-popover-label-sub">'+count+(count===1?' material':' materiais')+'</span>'+
-      '</span>'+
-      checkSvg+
-    '</button>';
-  }).join('');
-
-  popover.innerHTML = items;
-  document.body.appendChild(popover);
-
-  setTimeout(()=>{
-    const closeOnOut = (e)=>{
-      if(!popover.contains(e.target) && !btn.contains(e.target)){
-        popover.remove();
-        document.removeEventListener('click', closeOnOut);
-      }
-    };
-    document.addEventListener('click', closeOnOut);
-  }, 0);
-}
-
-function dStudioSelectSaveFolder(folderId){
-  dActiveTmplFolderId = folderId;
-  const select = document.getElementById('dsh-folder');
-  if(select) select.value = folderId;
-  dStudioHomeRender();
-  document.querySelectorAll('.dsh-custom-popover').forEach(p=>p.remove());
-}
+// dStudioToggleSaveFolderMenu / dStudioSelectSaveFolder foram removidas junto com
+// o botão "Salvar em" (2026-07-31) — existiam só para o popover dele. A troca de
+// campanha do material novo acontece no campo CAMPANHA do modal "Novo material".
 
 function dStudioToggleCampaignFilterMenu(ev){
   ev.stopPropagation();
@@ -1675,7 +1617,7 @@ async function dLoadTemplate(tmpl,folder,options){
   const projNameEl = document.getElementById('dt-project-name');
   if(projNameEl && tmpl) projNameEl.textContent = tmpl.name;
   document.querySelectorAll('.dt-fmt').forEach(b=>b.classList.toggle('active',b.dataset.fmt===dFmt));
-  dRenderPagesTray();
+  dRenderPagesTray();   // sincroniza também o cadeado desta página (dSyncPageLock)
   if(folder)dStudioRememberRecent(folder,tmpl);
   dStudioHomeClose();
   if(!(options&&options.silent)) gToast('Template "'+tmpl.name+'" carregado na prancheta ativa');
@@ -2198,7 +2140,13 @@ function dNewDocOpen(){
   
   dNewDocUpdate(true);dNewDocDraftDirty=false;dNewDocOpening=false;
   document.getElementById('d-newdoc-modal').classList.add('open');
-  requestAnimationFrame(()=>document.getElementById('nd-name').focus());
+  requestAnimationFrame(()=>{
+    document.getElementById('nd-name').focus();
+    // Segundo update, agora com o modal VISÍVEL: a prévia mede o palco em pixels
+    // pra manter a proporção, e com o modal oculto o palco media 0. Sem isto o
+    // Story abria com a folha no tamanho da vez anterior.
+    dNewDocUpdate(true);
+  });
 }
 
 function dNewDocSelectTab(category, tabEl){
@@ -2281,9 +2229,22 @@ function dNewDocUpdate(fromPreset){
   if(el)el.textContent=(w||'—')+' × '+(h||'—')+' px';
   const sheet=document.getElementById('nd-preview-sheet');
   if(sheet&&w>0&&h>0){
-    const ratio=w/h;
-    sheet.style.width=(ratio>=1?'88':Math.max(30,88*ratio))+'%';
-    sheet.style.height=(ratio>=1?Math.max(30,88/ratio):'88')+'%';
+    // A prévia tem de ter a MESMA proporção do material. A conta anterior usava
+    // 88% de cada eixo separadamente ("88% da largura" × "88% da altura"), o que
+    // só daria certo num palco quadrado — o palco é 250×96, largo e baixo, então
+    // um Story 1080×1920 saía com 124×83 px: HORIZONTAL, o oposto do pedido.
+    // Agora é o "cabe na caixa" clássico: a MENOR das duas escalas manda, e a
+    // proporção real sobrevive tanto no retrato quanto num panorama extremo.
+    const palco=sheet.parentElement;
+    const cx=palco?palco.clientWidth:0, cy=palco?palco.clientHeight:0;
+    if(cx>0&&cy>0){
+      const esc=Math.min(cx*0.88/w, cy*0.88/h);
+      sheet.style.width =Math.max(6,Math.round(w*esc))+'px';
+      sheet.style.height=Math.max(6,Math.round(h*esc))+'px';
+    }
+    // Palco sem medida = modal ainda oculto (o dNewDocOpen atualiza antes de
+    // exibir). Não chutamos tamanho aqui: o update que roda depois de abrir mede
+    // de verdade. O piso visual continua sendo o min-width/min-height do CSS.
     const bgSel=document.getElementById('nd-bg').value;
     sheet.dataset.bg=bgSel;
     sheet.style.background=bgSel==='color'?document.getElementById('nd-bg-color').value:'';
@@ -3270,6 +3231,10 @@ function dRenderTemplateToDOM(container, tmpl) {
 }
 
 function dRenderPagesTray() {
+  // Único ponto de sincronia das barras da prancheta: esta função já roda em toda
+  // troca, criação, exclusão e carga de página.
+  if (typeof dSyncPageLock === 'function') dSyncPageLock();
+
   const tray = document.getElementById('d-pages-tray');
   if (!tray) return;
 
@@ -3353,7 +3318,9 @@ function dSwitchPage(tmplId) {
   dLoadTemplateById(dActiveTmplFolderId, tmplId);
 }
 
-function dAddPageToCurrentFolder() {
+// afterId: id da página depois da qual a nova entra. Sem ele a nova vai pro FIM
+// (comportamento de sempre — a bandeja e o dDeletePageInTray dependem disso).
+function dAddPageToCurrentFolder(afterId) {
   if (!dActiveTmplFolderId) return;
   const folder = dFolders.find(f => f.id === dActiveTmplFolderId);
   if (!folder) return;
@@ -3381,14 +3348,95 @@ function dAddPageToCurrentFolder() {
   // dLoadTemplate lê tmpl.w/h quando presente → novas páginas mantêm o tamanho custom 1:1.
   if(isCustom){ newTmpl.w=ab.w; newTmpl.h=ab.h; }
 
-  folder.templates.push(newTmpl);
+  const _apos = afterId ? folder.templates.findIndex(t => t.id === afterId) : -1;
+  if (_apos >= 0) folder.templates.splice(_apos + 1, 0, newTmpl);
+  else folder.templates.push(newTmpl);
   if(!dPersistFolders()){
     folder.templates=folder.templates.filter(t=>t.id!==id);
     return;
   }
   dLoadTemplate(newTmpl, folder);
   dRenderPagesTray();
+  dPageEntranceAnim();
   gToast('Nova página adicionada!');
+}
+
+/* ══ PÁGINAS: AÇÕES NA PRÓPRIA PRANCHETA ══
+   As barras acima e abaixo da prancheta (#d-page-bar / .dpg-add-below) fazem o que
+   a bandeja já fazia, mas na mão de quem está desenhando. Nenhuma regra de página
+   nova: adicionar reusa dAddPageToCurrentFolder e duplicar reusa dDuplicatePageInTray. */
+
+function dAddPageAfterCurrent(ev){
+  if (ev) ev.stopPropagation();          // o #d-workspace desseleciona no clique
+  dAddPageToCurrentFolder(dActiveTmplId);
+}
+
+// A página nova sobe da parte de baixo — o gesto explica que ela nasceu DEPOIS
+// desta. Roda depois do dFitToScreen (que reenquadra em +50ms), senão o reenquadre
+// atropela a animação no meio.
+function dPageEntranceAnim(){
+  const c = document.getElementById('d-canvas-container');
+  if (!c) return;
+  if (window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+  setTimeout(()=>{
+    c.classList.remove('dpg-entra');
+    void c.offsetWidth;                   // reinicia a animação se vier duas vezes seguidas
+    c.classList.add('dpg-entra');
+    setTimeout(()=>c.classList.remove('dpg-entra'), 700);
+  }, 90);
+}
+
+/* ── BLOQUEIO DE EDIÇÃO DA PÁGINA ──
+   Freio contra edição acidental, POR DISPOSITIVO (localStorage). Não é permissão
+   nem fronteira de segurança — a RLS é a única (03_ENGINEERING) — e por isso não
+   pede coluna nova no banco nem viaja junto do template no sync. */
+const D_PAGE_LOCK_KEY = 'yngs_pages_locked_v1';
+
+function _dPageLockSet(){
+  try { const v = JSON.parse(localStorage.getItem(D_PAGE_LOCK_KEY) || '[]');
+        return new Set(Array.isArray(v) ? v : []); }
+  catch(e){ return new Set(); }
+}
+
+function dPageLocked(id){
+  const alvo = id || (typeof dActiveTmplId !== 'undefined' ? dActiveTmplId : null);
+  return !!alvo && _dPageLockSet().has(alvo);
+}
+
+function dTogglePageLock(ev){
+  if (ev) ev.stopPropagation();
+  if (!dActiveTmplId){ gToast('Salve a página antes de bloquear a edição.'); return; }
+  const set = _dPageLockSet();
+  const travando = !set.has(dActiveTmplId);
+  if (travando) set.add(dActiveTmplId); else set.delete(dActiveTmplId);
+  try { localStorage.setItem(D_PAGE_LOCK_KEY, JSON.stringify([...set])); }
+  catch(e){ gToast('Não foi possível guardar o bloqueio neste dispositivo.', 'error'); return; }
+  // Nada selecionado numa página travada: a alça de seleção não teria como sair.
+  if (travando){ dSelId = null; dMultiSel = []; if (typeof dRenderCanvas === 'function') dRenderCanvas(); }
+  dSyncPageLock();
+  gToast(travando
+    ? 'Página bloqueada. Nada nela muda até você destravar aqui.'
+    : 'Página liberada para edição.');
+}
+
+// Pinta o estado atual das barras da prancheta. A classe no body é o que desliga o
+// canvas, os painéis e a régua (CSS); o cadeado conta em que estado está. Chamada de
+// um lugar só — o topo do dRenderPagesTray, que já roda em toda troca de página.
+function dSyncPageLock(){
+  const temPagina = !!(dActiveTmplId && dActiveTmplFolderId);
+  // Sem página gravada não há o que duplicar nem travar: as barras saem de cena em
+  // vez de oferecerem botões que falhariam calados.
+  document.body.classList.toggle('d-sem-pagina', !temPagina);
+
+  const travada = temPagina && dPageLocked();
+  document.body.classList.toggle('d-page-locked', travada);
+  const btn = document.getElementById('d-page-lock-btn');
+  if (btn){
+    const rotulo = travada ? 'Liberar a edição desta página' : 'Bloquear a edição desta página';
+    btn.setAttribute('aria-pressed', String(travada));
+    btn.setAttribute('aria-label', rotulo);
+    btn.title = rotulo;
+  }
 }
 
 function dDuplicatePageInTray(ev, tmplId) {
@@ -3421,6 +3469,7 @@ function dDuplicatePageInTray(ev, tmplId) {
   // Troca direto pra duplicata
   dLoadTemplate(clone, folder);
   dRenderPagesTray();
+  dPageEntranceAnim();
   gToast('Página duplicada!');
 }
 

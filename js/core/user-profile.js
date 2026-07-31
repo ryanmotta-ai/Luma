@@ -57,6 +57,14 @@ function gOpenUserProfileModal() {
   const cliBtn = document.getElementById('prof-nav-console');
   if(cliBtn) cliBtn.style.display = (typeof gIsAdmin==='function' && gIsAdmin()) ? '' : 'none';
 
+  // Modo das ferramentas do Estúdio: mesmo gate da aba Designer (gIsAdmin). Para o
+  // franqueado a opção não existe — ele nunca entra no Estúdio.
+  const studioField = document.getElementById('prof-field-studio-mode');
+  const studioInput = document.getElementById('prof-input-studio-mode');
+  const podeEstudio = (typeof gIsAdmin==='function') && gIsAdmin();
+  if (studioField) studioField.style.display = podeEstudio ? '' : 'none';
+  if (studioInput && typeof dPropWorkspaceMode==='function') studioInput.value = dPropWorkspaceMode();
+
   // Atualizar avatares do modal
   gProfileUpdateModalAvatars(displayName, email);
 
@@ -305,6 +313,21 @@ function gProfileApplyTheme(theme) {
   const designLightIcon = document.getElementById('theme-icon-light');
   if (designDarkIcon) designDarkIcon.style.display = theme === 'dark' ? '' : 'none';
   if (designLightIcon) designLightIcon.style.display = theme === 'light' ? '' : 'none';
+}
+
+// Liga/desliga o modo complexo do Estúdio. O interruptor era o botão "Mais
+// ferramentas" na régua do Designer; virou opção daqui porque ligar ferramentas
+// profissionais é configuração, não ferramenta de desenho. O modo não mudou:
+// dPropSetWorkspaceMode continua sendo o dono da chave e das classes do body.
+function gProfileApplyStudioMode(mode) {
+  if (typeof dPropSetWorkspaceMode !== 'function') return;
+  const advanced = mode === 'advanced';
+  dPropSetWorkspaceMode(advanced ? 'advanced' : 'essential', { persist: true, announce: true });
+  if (typeof gToast === 'function') {
+    gToast(advanced
+      ? 'Modo complexo ligado. Todas as ferramentas do Estúdio estão à mostra.'
+      : 'Modo simples ligado. O Estúdio ficou só com as ferramentas principais.');
+  }
 }
 
 // Verifica a força da senha digitada

@@ -352,6 +352,22 @@ Comum: `{id, name, type, x, y, w, h, visible, locked, opacity, mask, anchor, ove
 - **image**: `imgUrl`, `imgVar`, `objectFit`.
 ⚠ `opacity` só é aplicada no render de **shape** (text/frame/image ignoram) — limitação conhecida.
 
+### Ambiente de trabalho: rodapé da régua e barras da prancheta (2026-07-31)
+
+**Rodapé da régua** (`.dpi-rail-foot`, dois botões no fim do `#d-vtoolbar`, fora da `.vt-tools-grid` de propósito — não são ferramentas de desenho e não somem no modo simples):
+
+- **Atalhos de teclado** → `dOpenCheat()`.
+- **Ocultar os painéis** → `dToggleChrome()` liga `body.d-chrome-off`, que esconde `#d-right`, `#d-pages-tray` e as ferramentas da régua, e encolhe o `#d-vtoolbar` para 48px. O próprio botão **nunca** é escondido: é o único caminho de volta. Não persiste (é gesto, não preferência) e reenquadra o canvas em +240ms.
+
+**Barras da prancheta** — vivem dentro do `#d-canvas-container` e fora do `#d-canvas-frame`: o contêiner já é medido em pixels de tela e reposicionado por `_dSyncAllPositions`, então as barras acompanham zoom, scroll e pan sem JS de posição.
+
+- **Acima, à direita** (`#d-page-bar`): bloquear edição · duplicar (`dDuplicatePageInTray`) · adicionar depois desta.
+- **Abaixo, na largura da prancheta** (`.dpg-add-below`): `dAddPageAfterCurrent()` → `dAddPageToCurrentFolder(afterId)` insere a nova **logo depois** da atual (sem `afterId` continua indo pro fim, que é o que a bandeja usa) e `dPageEntranceAnim()` sobe a página nova com `@keyframes dpgEntra` (`--dur-slow`/`--ease-out`, desligada em `prefers-reduced-motion`).
+- Sai de cena quando não há página gravada (`body.d-sem-pagina`) ou quando a bandeja de páginas está aberta (o filmstrip cobriria o botão). A pílula recolhida da bandeja foi para o canto direito para não cair sobre ele.
+- `dFitToScreen` reserva 150px de folga vertical (era 80) para as duas barras nascerem dentro da área visível.
+
+**Bloqueio de edição da página** — `dTogglePageLock`/`dPageLocked`, chave `yngs_pages_locked_v1`. É um **freio local contra edição acidental, por dispositivo**: não é permissão, não é fronteira de segurança (§16: a RLS é a única) e por isso não pede coluna no banco nem viaja no sync. `body.d-page-locked` desliga as quatro superfícies que mudam conteúdo — canvas (`#d-canvas-frame`), propriedades, lista de camadas e ferramentas da régua — e o dispatcher de atalhos (`publish.js`) barra o teclado deixando passar só Esc, zoom e `?`. A barra da página fica ativa: é por ela que se destrava. `dSyncPageLock()` é chamada de um lugar só, o topo de `dRenderPagesTray()`.
+
 ### Painel lateral direito
 
 Abas: **Camadas** (lista plana DnD + props contextuais `dShowProps` na mesma aba), **Dados** (Centro de Campos), **Campanhas** (árvore compacta Figma-style com hover preview e importação PSD/SVG contextual por campanha), **Assets/Recursos** (biblioteca, snippets, fontes).
@@ -574,6 +590,8 @@ Antes de criar/alterar tabela ou policy:
 | `yngs_tutorials_done` / `yngs_fields_onboard_v1` / `yngs_help_visited` / `yngs_help_active_tab` | Flags de UX |
 | `dm_artes_hist_v2` (`HIST_KEY`) | Histórico de artes (cap 50) |
 | `luma_tb_cols` | Preferências de colunas |
+| `dp-workspace-mode` | Modo simples/complexo do Estúdio (opção no painel de gestão do perfil) |
+| `yngs_pages_locked_v1` | Ids das páginas com edição travada **neste dispositivo** (freio contra edição acidental, não permissão — §10) |
 | `__luma_user_photo_<email>` / `__luma_user_phone_<email>` | Perfil local |
 
 Todo acesso com try/catch (quota ~5MB). `gPackImgUrl` mantém imagens ≤~70KB no JSON local; maiores vão pro Storage (URL) ou IndexedDB (`img-store.js`, refs `idb://`).

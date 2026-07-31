@@ -1042,6 +1042,7 @@ function dPaste(samePlace){
 */
 
 /* ── KEYBOARD SHORTCUTS (estilo Photoshop) ── */
+let _dAvisoTravada = 0;   // freio do aviso de página bloqueada (ver guard abaixo)
 document.addEventListener('keydown', e => {
   const inField = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT' || e.target.isContentEditable;
   
@@ -1056,6 +1057,25 @@ document.addEventListener('keydown', e => {
       if (e.key === 'Enter') {
         e.preventDefault();
         if (typeof dMaskExit === 'function') dMaskExit(true);
+        return;
+      }
+    }
+
+    // PÁGINA BLOQUEADA (cadeado na barra da prancheta): o CSS já mata o ponteiro no
+    // canvas, nos painéis e na régua, mas o teclado entra por fora deles — Ctrl+V
+    // colava camada, Delete apagava, Ctrl+Z desfazia até antes do bloqueio. Aqui só
+    // passa o que OLHA: Esc, zoom e o guia de atalhos. Dentro de um campo de texto o
+    // guard não vale (o campo é do painel, que já está desligado quando travado).
+    if (!inField && typeof dPageLocked === 'function' && dPageLocked()) {
+      const _zoom = (e.ctrlKey || e.metaKey) && ['0','1','=','+','-','_'].includes(e.key);
+      const _navega = ['Escape','?','Tab','Shift','Control','Meta','Alt','PageUp','PageDown','Home','End'].includes(e.key);
+      if (!_navega && !_zoom) {
+        // Um aviso por vez: sem o freio, segurar Delete enfileirava dezenas de toasts.
+        const agora = e.timeStamp || 0;
+        if (agora - _dAvisoTravada > 1600) {
+          _dAvisoTravada = agora;
+          gToast('🔒 Página bloqueada — destrave no cadeado acima da prancheta.');
+        }
         return;
       }
     }

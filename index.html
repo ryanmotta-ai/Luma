@@ -497,6 +497,17 @@ input:focus:-webkit-autofill {
                   </select>
                   <small class="prof-field-help">A preferência acompanha este dispositivo.</small>
                 </div>
+                <!-- Modo complexo do Estúdio. Vive junto de Aparência porque é a mesma
+                     natureza: preferência de dispositivo que vale na hora, sem Salvar.
+                     Só aparece para quem tem o módulo Designer (gate em gOpenUserProfileModal). -->
+                <div class="prof-field prof-field-full" id="prof-field-studio-mode" style="display:none">
+                  <label class="prof-label" for="prof-input-studio-mode">Ferramentas do Estúdio</label>
+                  <select class="prof-input" id="prof-input-studio-mode" onchange="gProfileApplyStudioMode(this.value)">
+                    <option value="essential">Modo simples — só as ferramentas principais</option>
+                    <option value="advanced">Modo complexo — todas as ferramentas profissionais</option>
+                  </select>
+                  <small class="prof-field-help">O modo complexo libera as ferramentas profissionais e os controles técnicos do módulo Designer. A preferência acompanha este dispositivo.</small>
+                </div>
               </div>
 
               <div class="prof-actions">
@@ -1422,6 +1433,20 @@ input:focus:-webkit-autofill {
         <input type="range" id="d-wand-tol-input" min="0" max="200" value="32" style="width:36px;writing-mode:vertical-lr;direction:rtl;height:60px" oninput="document.getElementById('d-wand-tol-val').textContent=this.value;if(typeof dSelectionTolerance!=='undefined')dSelectionTolerance=parseInt(this.value,10)" title="Tolerância">
         <span id="d-wand-tol-val" style="font-size:9px;color:var(--d-text2)">32</span>
       </div>
+
+      <!-- RODAPÉ DA RÉGUA — fica FORA da .vt-tools-grid de propósito: não são
+           ferramentas de desenho e não somem no modo simples. O botão do olho é
+           o único caminho de volta quando os painéis estão ocultos, então ele
+           nunca pode ser escondido junto com eles. -->
+      <div class="dpi-rail-foot" role="group" aria-label="Ambiente de trabalho">
+        <button type="button" class="dpi-rail-foot-btn" onclick="dOpenCheat()" title="Atalhos de teclado (?)" aria-label="Atalhos de teclado">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M7 9h.01M10.5 9h.01M14 9h.01M17.5 9h.01M7 12.5h.01M10.5 12.5h.01M14 12.5h.01M17.5 12.5h.01M7.5 16h9"/></svg>
+        </button>
+        <button type="button" class="dpi-rail-foot-btn" id="d-chrome-btn" onclick="dToggleChrome()" aria-pressed="false" title="Ocultar os painéis" aria-label="Ocultar os painéis">
+          <svg class="dpi-chrome-ico-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/></svg>
+          <svg class="dpi-chrome-ico-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
     </div>
     <!-- CENTER canvas -->
     <!-- CENTER canvas -->
@@ -1536,11 +1561,34 @@ input:focus:-webkit-autofill {
       <div id="d-canvas-wrapper">
         <div id="d-workspace" onclick="dDeselect(event)">
           <div id="d-canvas-container">
+            <!-- AÇÕES DA PÁGINA (acima da prancheta). Moram DENTRO do #d-canvas-container
+                 e fora do #d-canvas-frame: o contêiner já é medido em pixels de tela e
+                 reposicionado pelo _dSyncAllPositions, então as barras acompanham zoom,
+                 scroll e pan de graça — e o frame (que tem overflow:hidden e leva
+                 pointer-events:none quando a página está bloqueada) não as engole. -->
+            <div class="dpg-bar" id="d-page-bar" role="group" aria-label="Ações desta página">
+              <button type="button" class="dpg-btn" id="d-page-lock-btn" onclick="dTogglePageLock(event)" aria-pressed="false" title="Bloquear a edição desta página" aria-label="Bloquear a edição desta página">
+                <svg class="dpg-ico-unlocked" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.4-2"/></svg>
+                <svg class="dpg-ico-locked" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+              </button>
+              <button type="button" class="dpg-btn" onclick="dDuplicatePageInTray(event, dActiveTmplId)" title="Duplicar esta página" aria-label="Duplicar esta página">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/><path d="M15 13v4M13 15h4"/></svg>
+              </button>
+              <button type="button" class="dpg-btn" onclick="dAddPageAfterCurrent(event)" title="Adicionar página depois desta" aria-label="Adicionar página depois desta">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8"/><path d="M18 8V4M16 6h4"/><path d="M18 13v8M15 17h6"/></svg>
+              </button>
+            </div>
             <div id="d-canvas-bg"></div>
             <div id="d-canvas-frame">
               <div id="d-marquee" aria-hidden="true"></div>
               <div id="d-measure-overlay" style="position:absolute;inset:0;z-index:400;pointer-events:none;"></div>
             </div>
+            <!-- ADICIONAR PÁGINA (abaixo da prancheta) — cria a próxima logo DEPOIS
+                 desta, não no fim da campanha, e entra com animação. -->
+            <button type="button" class="dpg-add-below" id="d-page-add-below" onclick="dAddPageAfterCurrent(event)" title="Adicionar página depois desta">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              <span>Adicionar página</span>
+            </button>
           </div>
         </div>
       </div>

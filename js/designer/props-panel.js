@@ -170,19 +170,10 @@ function dPropSetWorkspaceMode(mode, options) {
   const advanced = mode === 'advanced';
   const persist = !!(options && options.persist);
   const announce = !!(options && options.announce);
-  const toggle = document.getElementById('dpi-studio-mode-switch');
-  const label = document.getElementById('dpi-studio-mode-label');
   const live = document.getElementById('dpi-studio-mode-live');
 
   document.body.classList.toggle('d-studio-essential', !advanced);
   document.body.classList.toggle('d-studio-advanced', advanced);
-
-  if (toggle) {
-    toggle.setAttribute('aria-pressed', String(advanced));
-    toggle.setAttribute('aria-label', advanced ? 'Voltar às ferramentas principais' : 'Abrir mais ferramentas');
-    toggle.title = advanced ? 'Voltar às ferramentas principais' : 'Abrir mais ferramentas';
-  }
-  if (label) label.textContent = advanced ? 'Simplificar' : 'Mais ferramentas';
 
   if (!advanced) {
     document.querySelectorAll('#d-vtoolbar .vt-flyout.open').forEach(function(flyout) {
@@ -205,40 +196,54 @@ function dPropSetWorkspaceMode(mode, options) {
   if (announce && live) {
     live.textContent = advanced
       ? 'Todas as ferramentas profissionais estão visíveis.'
-      : 'As ferramentas principais estão visíveis. Use Mais ferramentas para abrir as opções profissionais.';
+      : 'As ferramentas principais estão visíveis. O modo complexo fica no painel de gestão do perfil.';
   }
   if (typeof dPropSyncInspectorFromState === 'function') dPropSyncInspectorFromState();
 }
 
-function dPropToggleWorkspaceMode() {
-  dPropSetWorkspaceMode(dPropWorkspaceMode() === 'advanced' ? 'essential' : 'advanced', {
-    persist: true,
-    announce: true
-  });
+/* ── PAINÉIS À MOSTRA / OCULTOS (o olho no rodapé da régua) ──
+   Tira do caminho tudo o que não é a arte: painel direito, bandeja de páginas e
+   as ferramentas da régua. O rodapé da régua NÃO é escondido — é de lá que se
+   volta. Não persiste de propósito: é um gesto de "quero ver a arte agora", não
+   uma preferência (diferente do modo simples/complexo, que mora no perfil). */
+let dChromeOff = false;
+
+function dToggleChrome() {
+  dChromeOff = !dChromeOff;
+  document.body.classList.toggle('d-chrome-off', dChromeOff);
+
+  const btn = document.getElementById('d-chrome-btn');
+  if (btn) {
+    const rotulo = dChromeOff ? 'Mostrar os painéis' : 'Ocultar os painéis';
+    btn.setAttribute('aria-pressed', String(dChromeOff));
+    btn.setAttribute('aria-label', rotulo);
+    btn.title = rotulo;
+  }
+
+  // O canvas acabou de ganhar (ou devolver) a largura do painel direito. Reenquadra
+  // depois da transição de layout, senão o zoom fica calculado pela largura antiga.
+  if (typeof dFitToScreen === 'function') setTimeout(dFitToScreen, 240);
+  if (typeof gToast === 'function') {
+    gToast(dChromeOff
+      ? 'Painéis ocultos. O olho na régua traz tudo de volta.'
+      : 'Painéis de volta.');
+  }
 }
 
+// O botão "Mais ferramentas" saiu da régua de ferramentas (2026-07-31). Ligar o
+// modo complexo é uma decisão de configuração, não uma ferramenta de desenho, e
+// morava no meio das ferramentas competindo com elas. Agora é uma opção do painel
+// de gestão do perfil (gProfileApplyStudioMode). O modo em si não mudou: mesma
+// chave no localStorage, mesmas classes no body, mesma leitura pelo inspetor.
 function dPropBuildWorkspaceMode() {
   const toolbar = document.getElementById('d-vtoolbar');
   const grid = toolbar ? toolbar.querySelector('.vt-tools-grid') : null;
-  if (!toolbar || !grid || document.getElementById('dpi-studio-mode-switch')) return;
+  if (!toolbar || !grid || document.getElementById('dpi-studio-mode-live')) return;
 
   const head = document.createElement('div');
   head.className = 'dpi-studio-rail-head';
   head.innerHTML = '<strong>Adicionar</strong>';
   toolbar.insertBefore(head, toolbar.firstChild);
-
-  const modeSwitch = document.createElement('button');
-  modeSwitch.type = 'button';
-  modeSwitch.id = 'dpi-studio-mode-switch';
-  modeSwitch.className = 'dpi-studio-mode-switch';
-  modeSwitch.setAttribute('aria-pressed', 'false');
-  modeSwitch.innerHTML =
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-      '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>' +
-    '</svg>' +
-    '<span id="dpi-studio-mode-label">Mais ferramentas</span>';
-  modeSwitch.addEventListener('click', dPropToggleWorkspaceMode);
-  toolbar.insertBefore(modeSwitch, grid.nextSibling);
 
   const live = document.createElement('span');
   live.id = 'dpi-studio-mode-live';

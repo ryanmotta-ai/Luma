@@ -57,7 +57,10 @@ function dApplyFormat(animate){
 }
 function dFitToScreen(){
   const wrapper=document.getElementById('d-canvas-wrapper');
-  const pw=wrapper.clientWidth-80,ph=wrapper.clientHeight-80;
+  // A folga vertical é maior que a horizontal desde que a prancheta ganhou as barras
+  // de página colada nela (ações em cima, "Adicionar página" embaixo): com os 80px
+  // antigos o botão de baixo nascia fora da área visível e só aparecia com scroll.
+  const pw=wrapper.clientWidth-80,ph=wrapper.clientHeight-150;
   if(!pw||!ph)return;
   const ab=dGetActiveAB&&dGetActiveAB();
   const f=ab?{w:ab.w,h:ab.h}:(DFMT_SIZES[dFmt]||DFMT_SIZES.story);

@@ -3679,53 +3679,10 @@ body.mode-designer.d-studio-essential #d-topbar .dt-delivery-actions > .dt-btn-a
   display:none;
 }
 
-#d-vtoolbar .dpi-studio-mode-switch{
-  min-width:32px;
-  min-height:32px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:8px;
-  padding:0;
-  border:1px solid var(--d-border);
-  border-radius:var(--r-sm);
-  background:var(--d-surf);
-  color:var(--d-text2);
-  font:650 10.5px 'Roboto',sans-serif;
-  cursor:pointer;
-  transition:background var(--dur-micro) var(--ease-standard),border-color var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard),transform var(--dur-micro) var(--ease-spring);
-}
-
-#d-vtoolbar .dpi-studio-mode-switch svg{
-  width:16px;
-  height:16px;
-  flex:none;
-}
-
-#d-vtoolbar .dpi-studio-mode-switch:hover{
-  border-color:var(--d-border2);
-  background:var(--d-surf2);
-  color:var(--d-text);
-}
-
-#d-vtoolbar .dpi-studio-mode-switch:active{
-  transform:scale(.97);
-}
-
-#d-vtoolbar .dpi-studio-mode-switch:focus-visible{
-  outline:2px solid var(--dm-orange);
-  outline-offset:2px;
-}
-
-body.mode-designer.d-studio-advanced #d-vtoolbar .dpi-studio-mode-switch{
-  width:32px;
-  height:32px;
-  flex:0 0 32px;
-}
-
-body.mode-designer.d-studio-advanced #d-vtoolbar .dpi-studio-mode-switch span{
-  display:none;
-}
+/* O interruptor .dpi-studio-mode-switch morava aqui e saiu junto com o botão
+   "Mais ferramentas" (2026-07-31) — o modo complexo agora liga no painel de
+   gestão do perfil. As classes d-studio-essential/advanced no body continuam
+   valendo: é delas que sai tudo o que vem abaixo. */
 
 /* Essential labeled rail */
 body.mode-designer.d-studio-essential #d-vtoolbar{
@@ -3754,21 +3711,6 @@ body.mode-designer.d-studio-essential #d-vtoolbar .dpi-studio-rail-head{
 .dpi-studio-rail-head strong{
   color:var(--d-text);
   font:900 12px/1.2 'Roboto',sans-serif;
-}
-
-body.mode-designer.d-studio-essential #d-vtoolbar .dpi-studio-mode-switch{
-  width:100%;
-  min-height:40px;
-  flex:none;
-  order:3;
-  justify-content:center;
-  gap:4px;
-  margin-top:8px;
-  padding-inline:4px;
-  border-color:transparent;
-  background:transparent;
-  color:var(--d-text2);
-  font-size:12px;
 }
 
 body.mode-designer.d-studio-essential #d-vtoolbar .vt-tools-grid{
@@ -4008,7 +3950,6 @@ body.mode-designer.d-studio-essential #d-right .dpi-empty-guide{
 }
 
 @media(prefers-reduced-motion:reduce){
-  #d-vtoolbar .dpi-studio-mode-switch,
   body.mode-designer.d-studio-essential #d-vtoolbar .d-studio-tool-essential-button{
     transition:none;
   }
@@ -4216,25 +4157,6 @@ body.mode-designer.d-studio-essential #d-vtoolbar #vt-data-wrap{order:50}
 
 body.mode-designer.d-studio-essential #d-vtoolbar .dpi-tool-section-label{
   display:none!important;
-}
-
-body.mode-designer.d-studio-essential #d-vtoolbar .dpi-studio-mode-switch{
-  min-height:44px;
-  justify-content:flex-start;
-  gap:10px;
-  margin-top:8px;
-  padding:0 8px;
-  border-top:1px solid var(--d-border);
-  border-radius:0;
-  color:var(--d-text3);
-  font-size:12.5px;
-  font-weight:600;
-}
-
-body.mode-designer.d-studio-essential #d-vtoolbar .dpi-studio-mode-switch:hover{
-  border-color:var(--d-border);
-  background:transparent;
-  color:var(--d-text);
 }
 
 /* Task navigation replaces the persistent technical panel taxonomy. */
@@ -4550,14 +4472,17 @@ body.mode-designer.d-studio-essential #d-pages-tray .ptray-inner{
   box-shadow:0 12px 36px color-mix(in srgb,var(--d-bg) 48%,transparent);
 }
 
+/* A pílula recolhida saiu do centro (2026-07-31): ali ela caía exatamente sobre o
+   "Adicionar página" colado embaixo da prancheta. Canto direito resolve sem mexer
+   na bandeja aberta. */
 body.mode-designer.d-studio-essential #d-pages-tray.collapsed{
-  right:auto;
-  left:50%;
-  transform:translateX(-50%);
+  right:14px;
+  left:auto;
+  transform:none;
 }
 
 body.mode-designer.d-studio-essential #d-pages-tray.collapsed.hidden{
-  transform:translate(-50%,20px);
+  transform:translateY(20px);
 }
 
 body.mode-designer.d-studio-essential #d-pages-tray.collapsed .ptray-inner{
@@ -5393,4 +5318,214 @@ body.mode-designer.d-studio-essential #d-pages-tray.collapsed .dpi-pages-toggle-
   .dsh-all-grid .dsh-material-card{
     flex-basis:84%;
   }
+}
+
+/* ==========================================================================
+   RODAPÉ DA RÉGUA + BARRAS DA PRANCHETA (2026-07-31)
+   Dois blocos independentes:
+   1. .dpi-rail-foot — atalhos de teclado e o olho que oculta os painéis. Vive
+      fora da .vt-tools-grid: não é ferramenta de desenho e o olho é o único
+      caminho de volta, então nunca pode ser escondido junto com os painéis.
+   2. .dpg-* — ações da página colada na prancheta (Canva-like): adicionar,
+      duplicar e travar em cima; adicionar a próxima logo abaixo.
+   ========================================================================== */
+
+.dpi-rail-foot{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:4px;
+  order:9;                       /* modo simples usa order; no avançado é o fim natural */
+  margin-top:auto;               /* cola no rodapé da régua em qualquer altura */
+  padding-top:8px;
+  width:100%;
+  border-top:1px solid var(--d-border);
+}
+
+.dpi-rail-foot-btn{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:32px;
+  height:32px;
+  flex:none;
+  padding:0;
+  border:1px solid transparent;
+  border-radius:var(--r-sm);
+  background:transparent;
+  color:var(--d-text3);
+  cursor:pointer;
+  transition:background var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard),border-color var(--dur-micro) var(--ease-standard),transform var(--dur-micro) var(--ease-spring);
+}
+
+.dpi-rail-foot-btn svg{width:17px;height:17px;flex:none}
+.dpi-rail-foot-btn:hover{background:var(--d-surf2);border-color:var(--d-border);color:var(--d-text)}
+.dpi-rail-foot-btn:active{transform:scale(.94)}
+.dpi-rail-foot-btn:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+
+/* O olho troca de desenho conforme o estado: risco = "vai esconder", aberto =
+   "vai trazer de volta". Um SVG por estado em vez de reescrever o path no JS. */
+.dpi-chrome-ico-off{display:none}
+body.d-chrome-off .dpi-chrome-ico-on{display:none}
+body.d-chrome-off .dpi-chrome-ico-off{display:block}
+body.d-chrome-off #d-chrome-btn{
+  border-color:var(--dm-orange);
+  background:color-mix(in srgb,var(--dm-orange) 16%,transparent);
+  color:var(--dm-orange);
+}
+
+/* ── PAINÉIS OCULTOS ──
+   Sai tudo o que não é arte. A régua encolhe até o rodapé, que continua clicável. */
+body.mode-designer.d-chrome-off #d-right,
+body.mode-designer.d-chrome-off #d-pages-tray,
+body.mode-designer.d-chrome-off #d-vtoolbar .vt-tools-grid,
+body.mode-designer.d-chrome-off #d-vtoolbar .dpi-studio-rail-head,
+body.mode-designer.d-chrome-off #d-vtoolbar .vt-toggle,
+body.mode-designer.d-chrome-off #d-vtoolbar .vt-all-tools-panel{
+  display:none!important;
+}
+
+body.mode-designer.d-chrome-off #d-vtoolbar{
+  width:48px!important;
+  /* O min-width:144px da régua rotulada do modo simples segurava a largura mesmo
+     com o width menor — sem zerar os dois, a faixa vazia de 144px ficava. */
+  min-width:48px!important;
+  justify-content:flex-end;
+  padding:8px 0;
+}
+
+body.mode-designer.d-chrome-off .dpi-rail-foot{
+  border-top:none;
+  padding-top:0;
+}
+
+/* ── BARRA DE AÇÕES DA PÁGINA (acima da prancheta) ── */
+.dpg-bar{
+  position:absolute;
+  right:0;
+  bottom:calc(100% + 10px);
+  display:flex;
+  align-items:center;
+  gap:2px;
+  padding:3px;
+  border:1px solid var(--d-border);
+  border-radius:var(--r-sm);
+  background:var(--d-surf);
+  box-shadow:0 6px 18px color-mix(in srgb,var(--d-bg) 42%,transparent);
+  z-index:3;
+}
+
+.dpg-btn{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:30px;
+  height:30px;
+  padding:0;
+  border:none;
+  border-radius:calc(var(--r-sm) - 2px);
+  background:transparent;
+  color:var(--d-text2);
+  cursor:pointer;
+  transition:background var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard),transform var(--dur-micro) var(--ease-spring);
+}
+
+.dpg-btn svg{width:16px;height:16px;flex:none}
+.dpg-btn:hover{background:var(--d-surf2);color:var(--d-text)}
+.dpg-btn:active{transform:scale(.92)}
+.dpg-btn:focus-visible{outline:2px solid var(--dm-orange);outline-offset:1px}
+
+/* Cadeado: fechado e laranja quando a página está travada. */
+.dpg-ico-locked{display:none}
+body.d-page-locked .dpg-ico-unlocked{display:none}
+body.d-page-locked .dpg-ico-locked{display:block}
+body.d-page-locked #d-page-lock-btn{
+  background:color-mix(in srgb,var(--dm-orange) 18%,transparent);
+  color:var(--dm-orange);
+}
+
+/* ── ADICIONAR PÁGINA (abaixo da prancheta) ── */
+.dpg-add-below{
+  position:absolute;
+  left:0;
+  right:0;
+  top:calc(100% + 12px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  min-height:38px;
+  padding:0 14px;
+  border:1px dashed var(--d-border2);
+  border-radius:var(--r-sm);
+  background:var(--d-surf);
+  color:var(--d-text2);
+  font:700 12.5px 'Roboto',sans-serif;
+  cursor:pointer;
+  z-index:3;
+  transition:background var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard),transform var(--dur-fast) var(--ease-spring);
+}
+
+.dpg-add-below svg{width:15px;height:15px;flex:none}
+
+.dpg-add-below:hover{
+  border-style:solid;
+  border-color:var(--dm-orange);
+  background:color-mix(in srgb,var(--dm-orange) 10%,var(--d-surf));
+  color:var(--dm-orange);
+}
+
+.dpg-add-below:active{transform:scale(.99)}
+.dpg-add-below:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+
+/* Sem página gravada não há o que duplicar nem travar — as barras saem de cena
+   em vez de oferecer botões que falhariam calados.
+   Bandeja de páginas ABERTA: o filmstrip cobre a base da prancheta, então o
+   "Adicionar página" sai de cena em vez de ficar meio escondido atrás dela — e a
+   própria bandeja já tem o botão de adicionar. */
+body.d-sem-pagina .dpg-bar,
+body.d-sem-pagina .dpg-add-below,
+body.d-chrome-off .dpg-add-below,
+body:has(#d-pages-tray:not(.collapsed):not(.hidden)) .dpg-add-below{
+  display:none;
+}
+
+/* ── PÁGINA BLOQUEADA ──
+   Desliga as QUATRO superfícies que mudam conteúdo: o canvas, o painel de
+   propriedades, a lista de camadas e as ferramentas da régua. O teclado é barrado
+   no dispatcher de atalhos (publish.js). A barra da página fica de fora de
+   propósito: é por ela que se destrava. */
+body.d-page-locked #d-canvas-frame{pointer-events:none}
+body.d-page-locked #d-props-form,
+body.d-page-locked #d-layers-tree-wrapper,
+body.d-page-locked #d-vtoolbar .vt-tools-grid{
+  pointer-events:none;
+  opacity:.45;
+}
+
+body.d-page-locked #d-canvas-container{
+  box-shadow:0 0 0 2px var(--dm-orange),0 18px 56px color-mix(in srgb,var(--d-bg) 72%,transparent);
+}
+
+/* Animação de entrada da página nova: sobe de baixo, contando de onde ela veio. */
+@keyframes dpgEntra{
+  from{transform:translateY(30px);opacity:0}
+  to{transform:none;opacity:1}
+}
+
+#d-canvas-container.dpg-entra{
+  animation:dpgEntra var(--dur-slow) var(--ease-out) both;
+}
+
+@media(prefers-reduced-motion:reduce){
+  #d-canvas-container.dpg-entra{animation:none}
+  .dpi-rail-foot-btn,.dpg-btn,.dpg-add-below{transition:none}
+}
+
+/* Telas estreitas: a barra de ações encolhe e o "Adicionar página" perde o rótulo
+   pra não estourar a largura da prancheta. */
+@media(max-width:860px){
+  .dpg-add-below span{display:none}
+  .dpg-add-below{min-height:34px}
+  .dpg-btn{width:28px;height:28px}
 }
