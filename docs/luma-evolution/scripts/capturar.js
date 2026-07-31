@@ -195,6 +195,25 @@ async function capturarMarco(marco, porta) {
   return rel;
 }
 
+// Uma rodada com --cena cobre PARTE das cenas do marco. Sobrescrever o relatório com só
+// essa parte apaga o registro das outras — foi o que aconteceu com o M1: um `--cena
+// login,chat,...` deixou o runtime-M1.md com 5 linhas onde havia 17, e o histórico de
+// "esta cena não existe nesta versão" das outras 12 sumiu. Numa rodada parcial as linhas
+// novas SUBSTITUEM as suas homônimas e o resto do relatório fica onde estava.
+function fundirParcial(arquivo, r) {
+  if (!soCenas || !fs.existsSync(arquivo)) return r.cenas;
+  const antigo = fs.readFileSync(arquivo, 'utf8');
+  const linhas = antigo.split('\n').filter(l => /^\| .+ \| .+ \| \d+x\d+ \| (sim|não) \|/.test(l));
+  const novas = new Set(r.cenas.map(c => c.titulo));
+  const herdadas = linhas
+    .map(l => l.split('|').map(x => x.trim()))
+    .filter(p => p[1] && !novas.has(p[1]))
+    .map(p => ({ titulo: p[1], area: p[2], viewport: p[3], ok: p[4] === 'sim', arquivo: p[4] === 'sim' ? p[5] : null, motivo: p[4] === 'sim' ? null : p[5] }));
+  // A ordem do relatório é a ordem das cenas em cenas.js, não a da rodada.
+  const pos = t => { const i = CENAS.findIndex(c => c.titulo === t); return i < 0 ? 999 : i; };
+  return [...herdadas, ...r.cenas].sort((a, b) => pos(a.titulo) - pos(b.titulo));
+}
+
 function relatorio(m, r) {
   const l = [`# runtime — ${m.id} · ${m.rotulo}`, '',
     `- **Data:** ${m.data}`,
@@ -202,9 +221,9 @@ function relatorio(m, r) {
     `- **Como:** ${m.tipo === 'arquivo' ? 'HTML único servido direto de `research/origem/`' : '`git worktree` + servidor estático (scripts/versao.js)'}`,
     `- **Credenciais:** nenhuma. Supabase zerado; sessão de demonstração injetada no navegador.`,
     `- **Alteração no código da interface:** nenhuma.`,
-    `- **Duração:** ${r.duracao}`, '',
+    `- **Duração:** ${r.duracao}${soCenas ? ` (rodada parcial: ${soCenas.join(', ')})` : ''}`, '',
     '| Cena | Área | Viewport | Capturou | Arquivo / motivo |', '|---|---|---|---|---|'];
-  for (const c of r.cenas) {
+  for (const c of (r.linhas || r.cenas)) {
     l.push(`| ${c.titulo} | ${c.area} | ${c.viewport} | ${c.ok ? 'sim' : 'não'} | ${c.arquivo || c.motivo || '—'} |`);
   }
   const errs = r.cenas.flatMap(c => c.erroPagina || []);
@@ -236,7 +255,9 @@ const temPng = id => {
     try {
       const r = await capturarMarco(m, porta++);
       todos.push(r);
-      fs.writeFileSync(path.join(BASE, 'reports', `runtime-${m.id}.md`), relatorio(m, r));
+      const arqRel = path.join(BASE, 'reports', `runtime-${m.id}.md`);
+      r.linhas = fundirParcial(arqRel, r);
+      fs.writeFileSync(arqRel, relatorio(m, r));
     } catch (e) {
       console.log(`   ✗ ${m.id} falhou por inteiro: ${e.message.slice(0, 110)}`);
       todos.push({ marco: m.id, erro: e.message, cenas: [] });

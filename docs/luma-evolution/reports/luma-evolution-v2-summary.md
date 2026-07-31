@@ -116,8 +116,8 @@ Cada contorno vem de `getBoundingClientRect` na versão atual, em porcentagem da
 
 | | |
 |---|---|
-| Capturas reais em disco | 125 |
-| Imagens nos slides | 44, no máximo 3 por slide |
+| Capturas reais em disco | 126 |
+| Imagens nos slides | 45, no máximo 3 por slide |
 | Marcos capturados | 13 (10 na linha do tempo, 3 nas comparações) |
 | Telas do produto comparadas | 16 |
 | Funcionalidades mapeadas no atlas | 16 |
@@ -201,7 +201,14 @@ Isso vale como lembrete: "a captura existe" não é o mesmo que "a captura mostr
 
 Um terceiro passou pela conferência automática e só apareceu na revisão visual: a faixa de conclusão é `position:absolute` e cobria a última linha de uma lista, sem contar como "fora da página". A conferência aprendeu a checar essa colisão.
 
-**Um quarto, do mesmo tipo, apareceu depois — e mostrou que a checagem estava estreita demais.** O atlas usava a classe `.marca` para os contornos sobre a captura (`position:absolute`, borda laranja). A capa já usava `.marca` para o selo "Delivery Much · uso interno", e `.escuro .marca` não declara `position` nem `border` — então o absolute e a borda vazavam pra lá, e o selo era desenhado como uma caixa laranja em cima do título da capa. O contorno do atlas virou `.contorno`, e a conferência passou a checar **qualquer** elemento fora do fluxo por cima de texto, não só a faixa de conclusão. O critério é pela área do intruso, não do texto: o selo cobria 3% da área do título e 100% da própria — medir pelo lado errado deixava passar.
+**Um quarto defeito era de conteúdo, não de layout: quatro slides mostravam duas colunas onde o título prometia três.** A função que monta a comparação descartava em silêncio a versão sem captura, e o slide lia como print que não carregou. Duas causas diferentes por trás:
+
+- **Uma era falha de captura.** O runtime do M1 dizia "tela não existe nesta versão" para o **chat**, mas `js/franqueado/chat.js` está em `936c6d3`. A cena navegava campanha → material → chat; naquele commit o chat **já está montado no boot**, e o clique derrubava o que se queria fotografar. A cena passou a checar se já chegou antes de navegar, e o chat do primeiro commit entrou em três slides (17, 27 e 28).
+- **Três eram ausência real**, conferidas no código: login, perfil e exportar não existem em `936c6d3` — o `index.html` tem três telas (`view-franqueado`, `view-designer`, `view-dados`) e nenhum arquivo de autenticação. O chat no celular existe no desktop mas não aparece a 390px.
+
+Nesses casos a coluna **fica**, com moldura tracejada, o motivo escrito e a proporção das irmãs. A ausência é parte da história: o Luma nasceu sem porta de entrada. O rodapé conta separado — "2 execuções reais · 1 tela que ainda não existia".
+
+**Um quinto, do mesmo tipo do terceiro, apareceu depois — e mostrou que a checagem estava estreita demais.** O atlas usava a classe `.marca` para os contornos sobre a captura (`position:absolute`, borda laranja). A capa já usava `.marca` para o selo "Delivery Much · uso interno", e `.escuro .marca` não declara `position` nem `border` — então o absolute e a borda vazavam pra lá, e o selo era desenhado como uma caixa laranja em cima do título da capa. O contorno do atlas virou `.contorno`, e a conferência passou a checar **qualquer** elemento fora do fluxo por cima de texto, não só a faixa de conclusão. O critério é pela área do intruso, não do texto: o selo cobria 3% da área do título e 100% da própria — medir pelo lado errado deixava passar.
 
 ---
 

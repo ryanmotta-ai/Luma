@@ -24,7 +24,22 @@ O que não foi possível recuperar, e por quê. Escrito para que nenhuma lacuna 
 
 A distribuição é muito desigual: **15 e 16 de julho concentram 108 commits**, 45% de todo o histórico. E há um vazio de 30/06 a 06/07 — sete dias sem nenhum commit.
 
-**Consequência para a narrativa.** Os marcos foram escolhidos por mudança visível, não por espaçamento regular no calendário — e a mega linha do tempo usa colunas de largura proporcional ao volume justamente para que esse desequilíbrio apareça em vez de ser disfarçado.
+**Consequência para a narrativa.** Os marcos foram escolhidos por mudança visível, não por espaçamento regular no calendário. A mega linha do tempo dá a todos os dias a mesma largura e põe o volume na altura da barra — proporcional na largura, o dia de 1 commit virava um risco sem rótulo. Os dias sem commit nenhum entram como coluna tracejada, para que o vazio de sete dias apareça em vez de sumir.
+
+---
+
+## 2b. O que o primeiro commit ainda não tinha
+
+Quatro telas comparadas na apresentação **não existem** em `936c6d3`. A coluna correspondente aparece vazia e rotulada, nunca omitida — print que some lê como print que não carregou.
+
+| Tela | O que a verificação no código mostrou |
+|---|---|
+| Entrada (login) | Nenhum arquivo de autenticação. O `index.html` tem exatamente três telas — `view-franqueado`, `view-designer`, `view-dados` — e zero ocorrências de "entrar" ou "senha". O app abria direto. |
+| Perfil / conta | Nenhuma função de perfil em `js/`. Sem login não há usuário, e sem usuário não há conta. |
+| Exportar | O código de saída existe (`dExportSVGTemplate`, `dExportSVGFilled`, `dExportFilename`), mas nenhuma tela o chama — "exportar" não aparece no `index.html`. |
+| Chat no celular | O chat **existe** (`js/franqueado/chat.js`) e está fotografado no desktop. A 390×844 a coluna não aparece em passo nenhum: o celular ainda não era alvo. |
+
+⚠️ **Correção registrada.** Até esta rodada, o runtime do M1 dizia "tela não existe nesta versão" também para o **chat no desktop** — e a apresentação mostrava duas colunas onde deveria mostrar três. Era falso: a cena navegava campanha → material → chat, mas em `936c6d3` o chat **já está montado no boot**; o clique na campanha levava ao catálogo de materiais e derrubava o chat que já estava na tela. A cena passou a verificar se já chegou antes de navegar. Vale como regra: **um veredito de "não existe" que vem de uma automação precisa ser conferido contra o código do commit** — aqui bastou um `git ls-tree` para separar as três ausências reais da falsa.
 
 ---
 

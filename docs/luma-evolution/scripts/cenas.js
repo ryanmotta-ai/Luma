@@ -49,6 +49,12 @@ const CENAS = [
     async montar(p) {
       // Caminho longo: campanha → material → chat. Cada passo é tolerante porque as
       // versões antigas caíam direto no chat, sem a etapa de catálogo no meio.
+      //
+      // E quando caem, NÃO se navega. No primeiro commit (936c6d3) o chat já está montado
+      // no boot; clicar na campanha levava pro catálogo de materiais e derrubava o chat que
+      // já estava na tela — a cena então reportava "tela não existe nesta versão" para uma
+      // tela que existe e estava visível desde o começo. Quem já chegou, chegou.
+      if (await visivel(p, '#f-messages, #f-msg-box, #f-chat, .chat-msg')) return true;
       await p.evaluate(() => { const c = document.querySelector('.camp-card[role="button"], .camp-card[onclick]'); if (c) c.click(); });
       await espera(p, 2200);
       await p.evaluate(() => {
@@ -210,6 +216,9 @@ const CENAS = [
   {
     id: 'chat-mobile', titulo: 'O chat no celular', area: 'Franqueado', viewport: [390, 844],
     async montar(p) {
+      // Mesma armadilha da cena 'chat': versão antiga que já nasce no chat não deve ser
+      // navegada, senão a navegação desmonta o que se queria fotografar.
+      if (await visivel(p, '#f-messages, #f-msg-box, .chat-msg')) return true;
       await p.evaluate(() => {
         const c = document.querySelector('.camp-card[onclick], .camp-card[role="button"], .camp-card');
         if (c) { c.scrollIntoView({ block: 'center' }); c.click(); }

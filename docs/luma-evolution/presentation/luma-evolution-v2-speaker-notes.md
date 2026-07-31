@@ -32,12 +32,12 @@ O que mudou entre uma e outra não foi a interface: foi a arquitetura, de um arq
 ## Slide 05
 
 6 marcos escolhidos por diferença visual clara — não por serem recentes.
-O histórico cobre 45 dias e 240 commits. Chame atenção para os saltos: junho inteiro cabe entre os dois primeiros pontos, e 15 e 16/07 sozinhos concentram 45% de tudo.
+O histórico cobre 46 dias e 241 commits. Chame atenção para os saltos: junho inteiro cabe entre os dois primeiros pontos, e 15 e 16/07 sozinhos concentram 45% de tudo.
 ~50s.
 
 ## Slide 06
 
-A forma do trabalho num quadro só. Dois dias — 15 e 16 de julho — são 108 dos 240 commits: é a semana em que o produto virou o que é hoje.
+A forma do trabalho num quadro só. Dois dias — 15 e 16 de julho — são 108 dos 241 commits: é a semana em que o produto virou o que é hoje.
 As colunas tracejadas são calendário vazio, não desistência: a maior é a pausa de sete dias entre 29/06 e 07/07.
 Deixe a plateia varrer as faixas na horizontal — dá pra ver o foco mudar de área ao longo do tempo.
 ~1min.

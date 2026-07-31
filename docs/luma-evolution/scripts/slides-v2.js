@@ -78,6 +78,9 @@ M.fnTotal = M.fnD + M.fnF + M.fnG;
 if (COMMITS.length) M.commits = COMMITS.length;
 M.dias = Math.round((Date.parse(M.ultimo) - Date.parse(M.primeiro)) / 864e5) + 1;
 const br = x => x.toLocaleString('pt-BR');
+// A capa cravava "→ 30/07/2026" enquanto o slide 5 contava os dias a partir do git: um
+// commit novo e os dois passavam a discordar na mesma apresentação.
+const ddmmaaaa = d => `${d.slice(8)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
 
 const totalShots = fs.existsSync(SHOTS) ? fs.readdirSync(SHOTS).reduce((a, d) => {
   const p = path.join(SHOTS, d);
@@ -183,15 +186,28 @@ Os contornos não foram desenhados no olho: cada caixa foi medida com getBoundin
 //
 // Cada coluna traz a própria lista de diferenças. Item marcado `nao: true` é ausência:
 // mostrar o que aquela versão ainda NÃO tinha é tão informativo quanto o que ela tinha.
+// Versão sem captura NÃO some da grade. Sumindo, o slide dizia "nos três pontos" e
+// mostrava dois — lê como print que faltou carregar. Uma tela que ainda não existia é
+// informação: a coluna fica, vazia e rotulada com o motivo. Quem tem `ausente` declara o
+// motivo; quem não tem e também não tem captura é bug de captura, e o slide é pulado.
 function tres({ cena, kicker, titulo, versoes, conclusao, nota }) {
-  const ok = versoes.filter(v => tem(v.marco, cena));
+  const cols = versoes.filter(v => tem(v.marco, cena) || v.ausente);
+  const ok = cols.filter(v => tem(v.marco, cena));
   if (ok.length < 2) { console.error(`  (slide "${titulo}" pulado — falta captura de ${cena})`); return false; }
+  // A moldura vazia herda a proporção das irmãs. Fixa em 1440/1000, a coluna ausente do
+  // chat no celular virava um retângulo deitado entre dois telefones em pé.
+  const arCena = ar(img(ok[0].marco, cena));
+  const faltando = versoes.filter(v => !tem(v.marco, cena) && !v.ausente);
+  if (faltando.length) console.error(`  (slide "${titulo}": ${faltando.map(v => v.marco).join(', ')} sem captura de ${cena} e sem motivo declarado — coluna omitida)`);
   add(`<section class="slide">${topo(kicker, ok.map(v => quando(marco(v.marco))).join(' → '))}
     <div class="corpo" style="bottom:262px">
       <h2 class="titulo" style="font-size:42px;margin-bottom:16px">${esc(titulo)}</h2>
       <div class="t3" style="height:calc(100% - 66px)">
-        ${ok.map(v => `<div class="t3-col${v.marco === 'M8' ? ' atual' : ''}">
-          <div class="t3-img" style="--ar:${ar(img(v.marco, cena))}"><img src="${img(v.marco, cena)}" alt="${esc(v.rotulo)}"></div>
+        ${cols.map(v => `<div class="t3-col${v.marco === 'M8' ? ' atual' : ''}${tem(v.marco, cena) ? '' : ' vazia'}">
+          ${tem(v.marco, cena)
+            ? `<div class="t3-img" style="--ar:${ar(img(v.marco, cena))}"><img src="${img(v.marco, cena)}" alt="${esc(v.rotulo)}"></div>`
+            : `<div class="t3-img t3-nada" style="--ar:${arCena}"><div><b>Esta tela ainda não existia</b>
+                 <span>${esc(v.ausente)}</span></div></div>`}
           <div class="t3-cab"><span class="r">${esc(v.rotulo)}</span>
             <span class="d">${esc(quando(marco(v.marco)))} · ${esc(selo(marco(v.marco)))}</span></div>
           <ul class="difs">${(v.difs || []).map((d, i) => {
@@ -203,11 +219,12 @@ function tres({ cena, kicker, titulo, versoes, conclusao, nota }) {
       </div>
     </div>
     <div class="conclusao">${conclusao}</div>
-    ${rodape(`${ok.length} execuções reais`)}
+    ${rodape(`${ok.length} execuç${ok.length === 1 ? 'ão real' : 'ões reais'}${cols.length > ok.length ? ` · ${cols.length - ok.length} tela que ainda não existia` : ''}`)}
   </section>`, nota,
   { tipo: 'Captura real', imagens: ok.map(v => img(v.marco, cena)),
     quando: ok.map(v => `${quando(marco(v.marco))} (${selo(marco(v.marco))})`).join(' → '),
-    obs: `Cena "${cena}": primeiro commit → antes da 1.0 → atual.` });
+    obs: `Cena "${cena}": primeiro commit → antes da 1.0 → atual.`
+      + (cols.length > ok.length ? ` A coluna vazia não é print faltando: a tela não existia em ${cols.filter(v => !tem(v.marco, cena)).map(v => selo(marco(v.marco))).join(', ')}.` : '') });
   return true;
 }
 
@@ -242,9 +259,18 @@ function tira({ cena, kicker, titulo, chave, mudancas, conclusao, nota }) {
 // cortada em disco, e mudar a região é mudar dois números. `y` e `h` são porcentagens da
 // altura da captura; a largura é sempre a faixa inteira.
 function detalhe({ kicker, titulo, cena, regiao, versoes, conclusao, nota }) {
-  const { y, h } = regiao;
+  const { y } = regiao;
   const disponiveis = versoes.filter(v => tem(v.marco, cena));
   if (disponiveis.length < 2) return false;
+  // A faixa declarada tem que CABER. Entrar com uma terceira versão numa faixa larga
+  // empurrava as tiras 93px acima do topo e 200px abaixo do rodapé — e a conferência
+  // reprovava depois de tudo montado. A conta: a área útil é 644px (corpo 716 − título
+  // 72), cada tira gasta ~52px de legenda e obs, e 1% de faixa vira 12px de altura
+  // (1728px de largura ÷ proporção 1440:1000). O que não cabe é aparado aqui, com aviso —
+  // o texto do slide fala da faixa REALMENTE usada, nunca da pedida.
+  const hMax = Math.floor((644 / disponiveis.length - 52) / 12);
+  const h = Math.min(regiao.h, hMax);
+  if (h < regiao.h) console.error(`  (slide "${titulo}": faixa ${regiao.h}% não cabe em ${disponiveis.length} tiras — aparada para ${h}%)`);
   // 1440 de largura por (1000 × h%) de altura — a proporção real da faixa recortada.
   const prop = (1440 / (10 * h)).toFixed(3);
   const posY = (y / (100 - h) * 100).toFixed(2);
@@ -457,7 +483,7 @@ add(`<section class="slide escuro">
   <h1>Luma<br><em>de uma necessidade<br>a um produto</em></h1>
   <div class="csub">Uma visão visual da transformação da plataforma — reconstruída executando o código de cada época.</div>
   <div class="meta">
-    <div><b>Período</b>anterior a 16/06/2026 → 30/07/2026</div>
+    <div><b>Período</b>anterior a ${ddmmaaaa(M.primeiro)} → ${ddmmaaaa(M.ultimo)}</div>
     <div><b>Evidência</b>${totalShots} capturas reais, ${M.commits} commits</div>
     <div><b>Método</b>cada versão foi executada, não descrita</div>
   </div>
@@ -611,14 +637,14 @@ tres({
   cena: 'login', kicker: 'Comparação · Tela de entrada',
   titulo: 'O login, nos três pontos',
   versoes: [
-    { marco: 'M1', rotulo: 'Primeiro commit', difs: [
-      'Cartão branco no centro de um fundo <b>laranja chapado</b>.',
+    // 936c6d3 tem exatamente três telas — view-franqueado, view-designer e view-dados — e
+    // nenhum arquivo de autenticação. A ausência é o dado: o produto nasceu sem porta.
+    { marco: 'M1', rotulo: 'Primeiro commit',
+      ausente: 'O commit tem três telas — franqueado, Estúdio e Dados — e nenhum arquivo de autenticação. O app abria direto.' },
+    { marco: 'M4', rotulo: 'Véspera da 1.0', difs: [
+      'A porta nasce em julho, e nasce <b>anônima</b>: cartão branco sobre laranja chapado.',
       'Logo, dois campos, um botão. <b>Nada além do formulário</b>.',
       { t: 'Não diz o que é o Luma nem para quem.', nao: true }
-    ]},
-    { marco: 'M4', rotulo: 'Véspera da 1.0', difs: [
-      '<b>Idêntica</b> à do primeiro commit.',
-      'O produto chegou à 1.0 com a porta ainda anônima.'
     ]},
     { marco: 'M8', rotulo: 'Hoje', difs: [
       'Vira <b>duas colunas</b>: proposta à esquerda, formulário à direita.',
@@ -627,7 +653,7 @@ tres({
       'Declara o público: <b>acesso restrito a franqueados e equipe</b>.'
     ]}
   ],
-  conclusao: 'A porta do produto <b>mudou de papel</b>: era só uma catraca e virou a primeira peça de comunicação — quem chega entende o que o Luma faz antes de digitar a senha.',
+  conclusao: 'O produto <b>nasceu sem porta</b> e ganhou uma catraca anônima na véspera da 1.0. Hoje a mesma tela é a primeira peça de comunicação — quem chega entende o que o Luma faz antes de digitar a senha.',
   nota: `Comece por aqui se tiver pouco tempo: é a comparação mais imediata da apresentação.
 Repare que as artes na coluna esquerda são materiais reais do catálogo, não ilustração.
 ~50s.`
@@ -745,13 +771,13 @@ tres({
   cena: 'exportar', kicker: 'Comparação · Exportação',
   titulo: 'A saída do arquivo, nos três pontos',
   versoes: [
-    { marco: 'M1', rotulo: 'Primeiro commit', difs: [
-      'Três formatos: <b>PNG, JPG e SVG</b>.',
-      'Escala já oferece <b>2× (alta resolução)</b>.',
-      'Seleção de pranchetas com contagem.'
-    ]},
+    // Em 936c6d3 já existem dExportSVGTemplate e dExportFilename — o código de saída
+    // existe. O que não existe é tela para chamá-lo: "exportar" não aparece no index.html.
+    { marco: 'M1', rotulo: 'Primeiro commit',
+      ausente: 'O código de exportação SVG já existia, mas nenhuma tela o chamava — a saída do arquivo ainda não tinha lugar na interface.' },
     { marco: 'M4', rotulo: 'Véspera da 1.0', difs: [
-      'Mesmos três formatos na tela.',
+      'A tela existe e traz três formatos: <b>PNG, JPG e SVG</b>.',
+      'Escala já oferece <b>2× (alta resolução)</b>, com seleção de pranchetas e contagem.',
       'Por baixo, 17/07 trouxe <b>z-order confiável</b> e raster adaptativo à prancheta.'
     ]},
     { marco: 'M8', rotulo: 'Hoje', difs: [
@@ -793,13 +819,13 @@ tres({
   cena: 'perfil', kicker: 'Comparação · Conta e permissões',
   titulo: 'O painel de conta, nos três pontos',
   versoes: [
-    { marco: 'M1', rotulo: 'Primeiro commit', difs: [
-      'Modal pequeno com <b>Dados, Segurança, Estatísticas e Equipe</b>.',
-      'E-mail é <b>campo editável comum</b>.',
-      'Tema fica junto dos dados pessoais, sem explicação.'
-    ]},
+    // Sem login não há usuário, e sem usuário não há conta: nenhuma função de perfil em
+    // 936c6d3. Esta coluna e a do login contam a mesma ausência por dois ângulos.
+    { marco: 'M1', rotulo: 'Primeiro commit',
+      ausente: 'Sem login não havia usuário, e sem usuário não havia conta: nenhuma função de perfil no commit.' },
     { marco: 'M4', rotulo: 'Véspera da 1.0', difs: [
-      'Mesma estrutura.',
+      'Modal pequeno com <b>Dados, Segurança, Estatísticas e Equipe</b>.',
+      'E-mail é <b>campo editável comum</b>; tema junto dos dados pessoais, sem explicação.',
       'O período endureceu o que está <b>atrás</b> desta tela: gate de conta desativada e convite real por Edge Function.'
     ]},
     { marco: 'M8', rotulo: 'Hoje', difs: [
@@ -818,14 +844,14 @@ tres({
   cena: 'chat-mobile', kicker: 'Comparação · O chat no celular',
   titulo: 'O preenchimento no telefone, nos três pontos',
   versoes: [
-    { marco: 'M1', rotulo: 'Primeiro commit', difs: [
+    // O chat existe em 936c6d3 (está no slide da versão desktop), mas a 390×844 a coluna
+    // não aparece em nenhum passo. O celular ainda não era alvo.
+    { marco: 'M1', rotulo: 'Primeiro commit',
+      ausente: 'O chat já existia no desktop, mas a 390px de largura a coluna não aparecia em passo nenhum. O celular ainda não era alvo.' },
+    { marco: 'M4', rotulo: 'Véspera da 1.0', difs: [
       'Cabeçalho repete <b>"Material em edição"</b>; duas frases antes de perguntar.',
       'Bloco <b>"Criar várias de uma vez"</b> disputa espaço com o passo 1.',
-      'A prévia é um <b>botão de olho</b>: para ver a arte, é preciso abrir.'
-    ]},
-    { marco: 'M4', rotulo: 'Véspera da 1.0', difs: [
-      'Mesmo texto e mesmo cabeçalho.',
-      'O botão de olho vira <b>miniatura da arte</b>, sempre visível no canto.'
+      'A prévia é <b>miniatura da arte</b>, sempre visível no canto.'
     ]},
     { marco: 'M8', rotulo: 'Hoje', difs: [
       'Cabeçalho traz <b>campanha e formato</b>, só o necessário.',
@@ -898,10 +924,15 @@ Se alguém perguntar por que não mostrar mais versões: porque não há diferen
 
 detalhe({
   kicker: 'Detalhe · Chamada da vitrine', titulo: 'O topo da vitrine, ampliado',
-  cena: 'home', regiao: { y: 6, h: 29 },
+  // y=6 cortava "Boa tarde, Demo" no meio da letra: a saudação vive entre 11% e 21% da
+  // captura, não a partir do topo. 10% põe a faixa em cima dela nas três versões.
+  cena: 'home', regiao: { y: 10, h: 13 },
   versoes: [
-    { marco: 'M1', rotulo: 'Primeira vitrine no git', obs: 'A vitrine existe, mas a chamada ainda divide espaço com a estrutura de navegação.' },
-    { marco: 'M8', rotulo: 'Hoje', obs: 'Saudação com o nome, uma pergunta que orienta a próxima ação, busca com exemplo dentro do campo e o atalho para o histórico à direita.' }
+    // A obs do M1 dizia "a vitrine existe, mas divide espaço com a navegação". Não é isso:
+    // no primeiro commit não há vitrine nenhuma — a tela inicial já é o posto de trabalho.
+    { marco: 'M1', rotulo: 'Primeiro commit', obs: 'Não há chamada: a tela inicial já é o posto de trabalho, com a lista de campanhas à esquerda e o assistente no centro.' },
+    { marco: 'M4', rotulo: 'Véspera da 1.0', obs: 'A vitrine nasce: "Seu espaço criativo", saudação com o nome e uma frase que promete o tempo — "sua arte fica pronta em cerca de um minuto".' },
+    { marco: 'M8', rotulo: 'Hoje', obs: 'A frase vira <b>pergunta</b> — "Qual arte vamos criar hoje?" — e o atalho para o histórico sai do preto sólido para um botão discreto à direita.' }
   ],
   conclusao: 'O mesmo espaço passou a responder três perguntas de uma vez: <b>quem sou eu aqui, o que faço agora e onde está o que já comecei</b>.',
   nota: `Este é o recorte que melhor mostra intenção de produto: o texto "Qual arte vamos criar hoje?" não é enfeite, é o que transforma uma tela de lista numa tela de decisão.

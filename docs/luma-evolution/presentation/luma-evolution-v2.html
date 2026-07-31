@@ -215,6 +215,15 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
   overflow:hidden;background:var(--papel-2);box-shadow:0 12px 30px rgba(10,10,10,.10);position:relative}
 .t3-img img{width:100%;height:100%;object-fit:cover;object-position:top center;display:block}
 .t3-col.atual .t3-img{border:2px solid var(--laranja);box-shadow:0 12px 32px rgba(255,144,0,.24)}
+/* Tela que ainda não existia naquele commit. Some da grade e o slide vira "print que não
+   carregou"; aqui a coluna fica, com a moldura tracejada e o motivo escrito. A ausência é
+   parte da história — no primeiro commit o Luma tinha três telas e nenhuma porta. */
+.t3-nada{border:2px dashed var(--linha);box-shadow:none;
+  background:repeating-linear-gradient(-45deg,#FAFAF8 0 8px,#F2F0EC 8px 16px);
+  display:flex;align-items:center;justify-content:center;text-align:center;padding:0 34px}
+.t3-nada b{display:block;font-size:24px;font-weight:900;letter-spacing:-.02em;color:var(--tinta-2)}
+.t3-nada span{display:block;margin-top:12px;font-size:18px;line-height:1.4;color:var(--tinta-3)}
+.t3-col.vazia .t3-cab .r{color:var(--tinta-3)}
 .t3-cab{margin-top:12px;display:flex;align-items:baseline;gap:10px}
 .t3-cab .r{font-size:20px;font-weight:900;letter-spacing:-.015em}
 .t3-cab .d{font-family:var(--mono);font-size:14px;color:var(--tinta-3);margin-left:auto}
@@ -312,8 +321,8 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
   <h1>Luma<br><em>de uma necessidade<br>a um produto</em></h1>
   <div class="csub">Uma visão visual da transformação da plataforma — reconstruída executando o código de cada época.</div>
   <div class="meta">
-    <div><b>Período</b>anterior a 16/06/2026 → 30/07/2026</div>
-    <div><b>Evidência</b>125 capturas reais, 240 commits</div>
+    <div><b>Período</b>anterior a 16/06/2026 → 31/07/2026</div>
+    <div><b>Evidência</b>126 capturas reais, 241 commits</div>
     <div><b>Método</b>cada versão foi executada, não descrita</div>
   </div>
 </section>
@@ -378,9 +387,9 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
     <div class="conclusao">O piloto não foi jogado fora: ele <b>virou</b> o Luma. O monolito de 565 KB foi partido em 85 arquivos, a marca mudou de Yungas para Luma, e a tela seguiu igual — até as campanhas de exemplo são as mesmas.</div>
     <div class="num">04 / 43</div><div class="selo"><span class="pt"></span>duas execuções reais</div>
   </section>
-<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Linha do tempo</span><span class="quando">6 marcos · 240 commits em 45 dias</span></div>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Linha do tempo</span><span class="quando">6 marcos · 241 commits em 46 dias</span></div>
   <div class="corpo" style="display:flex;flex-direction:column">
-    <h2 class="titulo" style="font-size:46px">Seis paradas em 45 dias de histórico</h2>
+    <h2 class="titulo" style="font-size:46px">Seis paradas em 46 dias de histórico</h2>
     <p class="sub" style="font-size:21px;margin-top:11px;max-width:1660px">Escolhidos por diferença visual clara, não por serem recentes. O número em laranja é quantos commits separam cada marco do anterior — os intervalos não têm o mesmo peso. A barra abaixo do número mostra o mesmo peso em escala.</p>
     <div class="tl" style="margin-top:38px;flex:1;min-height:0"><div class="tl-eixo"></div><div class="tl-itens">
       <div class="tl-item forte">
@@ -431,7 +440,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div><div class="tl-item forte">
         <div class="tl-data">30/07</div>
         <div class="tl-era">Acabamento</div>
-        <div class="tl-salto">+16 commits</div>
+        <div class="tl-salto">+17 commits</div>
         <div class="tl-peso"><span style="width:9%"></span></div>
         <div class="tl-ponto"></div>
         <div class="tl-rot">Estado atual</div>
@@ -442,10 +451,10 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
   </div>
   <div class="num">05 / 43</div>
 </section>
-<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Todo o histórico</span><span class="quando">240 commits · 26 dias com atividade em 06/16 → 07/30</span></div>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Todo o histórico</span><span class="quando">241 commits · 27 dias com atividade em 06/16 → 07/31</span></div>
     <div class="corpo">
       <h2 class="titulo" style="font-size:44px;margin-bottom:16px">Onde o trabalho aconteceu, commit a commit</h2>
-      <div class="mega" style="height:calc(100% - 122px);grid-template-columns:172px 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr .62fr 1fr .62fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr .62fr 1fr 1fr;
+      <div class="mega" style="height:calc(100% - 122px);grid-template-columns:172px 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr .62fr 1fr .62fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr .62fr 1fr 1fr 1fr;
            grid-template-rows:minmax(0,1fr) auto repeat(6, 77px)">
         <div class="mg-rot mg-rot-b">commits<br>no dia</div><div class="mg-bar">
       <span class="n">2</span>
@@ -551,6 +560,10 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       <span class="n">27</span>
       <span class="col" style="height:47%">
         <span class="cd" style="flex:11"></span><span class="ct" style="flex:16"></span>
+      </span></div><div class="mg-bar">
+      <span class="n">1</span>
+      <span class="col" style="height:3%">
+        <span class="cd" style="flex:1"></span><span class="ct" style="flex:0"></span>
       </span></div>
         <div></div><div class="mg-dia">
       <span class="d">16</span>
@@ -630,8 +643,11 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div><div class="mg-dia alto">
       <span class="d">30</span>
       
-      <span class="mk"></span></div>
-        <div class="mg-rot">Franqueado<span class="qt">81</span></div><div class="mg-cel v1">1</div><div class="mg-cel v3">4</div><div class="mg-cel v2">2</div><div class="mg-cel v0"></div><div class="mg-cel v2">3</div><div class="mg-cel v2">3</div><div class="mg-cel v1">1</div><div class="mg-cel v1">1</div><div class="mg-cel v0"></div><div class="mg-vao"></div><div class="mg-cel v1">1</div><div class="mg-vao"></div><div class="mg-cel v0"></div><div class="mg-cel v2">2</div><div class="mg-cel v2">3</div><div class="mg-cel v3">4</div><div class="mg-cel v3">7</div><div class="mg-cel v2">2</div><div class="mg-cel v2">2</div><div class="mg-cel v1">1</div><div class="mg-cel v5">16</div><div class="mg-cel v5">18</div><div class="mg-cel v0"></div><div class="mg-cel v1">1</div><div class="mg-cel v2">2</div><div class="mg-cel v0"></div><div class="mg-vao"></div><div class="mg-cel v1">1</div><div class="mg-cel v3">6</div><div class="mg-rot">Designer<span class="qt">100</span></div><div class="mg-cel v1">1</div><div class="mg-cel v3">6</div><div class="mg-cel v2">3</div><div class="mg-cel v2">2</div><div class="mg-cel v3">4</div><div class="mg-cel v2">3</div><div class="mg-cel v1">1</div><div class="mg-cel v1">1</div><div class="mg-cel v0"></div><div class="mg-vao"></div><div class="mg-cel v1">1</div><div class="mg-vao"></div><div class="mg-cel v0"></div><div class="mg-cel v2">2</div><div class="mg-cel v2">3</div><div class="mg-cel v3">4</div><div class="mg-cel v4">9</div><div class="mg-cel v2">2</div><div class="mg-cel v1">1</div><div class="mg-cel v1">1</div><div class="mg-cel v5">24</div><div class="mg-cel v4">14</div><div class="mg-cel v2">2</div><div class="mg-cel v2">2</div><div class="mg-cel v2">3</div><div class="mg-cel v0"></div><div class="mg-vao"></div><div class="mg-cel v3">4</div><div class="mg-cel v3">7</div><div class="mg-rot">Núcleo<span class="qt">67</span></div><div class="mg-cel v1">1</div><div class="mg-cel v3">4</div><div class="mg-cel v3">4</div><div class="mg-cel v1">1</div><div class="mg-cel v3">4</div><div class="mg-cel v2">2</div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-vao"></div><div class="mg-cel v2">2</div><div class="mg-vao"></div><div class="mg-cel v0"></div><div class="mg-cel v2">2</div><div class="mg-cel v2">3</div><div class="mg-cel v2">3</div><div class="mg-cel v3">4</div><div class="mg-cel v2">2</div><div class="mg-cel v1">1</div><div class="mg-cel v1">1</div><div class="mg-cel v4">13</div><div class="mg-cel v4">8</div><div class="mg-cel v1">1</div><div class="mg-cel v0"></div><div class="mg-cel v2">2</div><div class="mg-cel v0"></div><div class="mg-vao"></div><div class="mg-cel v3">4</div><div class="mg-cel v3">5</div><div class="mg-rot">Design<span class="qt">45</span></div><div class="mg-cel v1">1</div><div class="mg-cel v2">3</div><div class="mg-cel v2">2</div><div class="mg-cel v0"></div><div class="mg-cel v3">4</div><div class="mg-cel v1">1</div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-vao"></div><div class="mg-cel v0"></div><div class="mg-vao"></div><div class="mg-cel v0"></div><div class="mg-cel v2">2</div><div class="mg-cel v2">3</div><div class="mg-cel v1">1</div><div class="mg-cel v2">2</div><div class="mg-cel v2">2</div><div class="mg-cel v0"></div><div class="mg-cel v1">1</div><div class="mg-cel v4">13</div><div class="mg-cel v4">8</div><div class="mg-cel v1">1</div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-vao"></div><div class="mg-cel v1">1</div><div class="mg-cel v0"></div><div class="mg-rot">Bastidores<span class="qt">25</span></div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-cel v1">1</div><div class="mg-cel v1">1</div><div class="mg-cel v0"></div><div class="mg-cel v3">5</div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-vao"></div><div class="mg-cel v0"></div><div class="mg-vao"></div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-cel v1">1</div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-cel v3">7</div><div class="mg-cel v1">1</div><div class="mg-cel v0"></div><div class="mg-cel v1">1</div><div class="mg-cel v0"></div><div class="mg-vao"></div><div class="mg-cel v0"></div><div class="mg-cel v4">8</div><div class="mg-rot">Documentação<span class="qt">86</span></div><div class="mg-cel v1">1</div><div class="mg-cel v2">2</div><div class="mg-cel v2">2</div><div class="mg-cel v2">2</div><div class="mg-cel v1">1</div><div class="mg-cel v4">9</div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-cel v1">1</div><div class="mg-vao"></div><div class="mg-cel v1">1</div><div class="mg-vao"></div><div class="mg-cel v1">1</div><div class="mg-cel v1">1</div><div class="mg-cel v1">1</div><div class="mg-cel v0"></div><div class="mg-cel v2">3</div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-cel v5">20</div><div class="mg-cel v4">13</div><div class="mg-cel v3">4</div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-cel v3">6</div><div class="mg-vao"></div><div class="mg-cel v2">2</div><div class="mg-cel v5">16</div>
+      <span class="mk"></span></div><div class="mg-dia">
+      <span class="d">31</span>
+      
+      </div>
+        <div class="mg-rot">Franqueado<span class="qt">81</span></div><div class="mg-cel v1">1</div><div class="mg-cel v3">4</div><div class="mg-cel v2">2</div><div class="mg-cel v0"></div><div class="mg-cel v2">3</div><div class="mg-cel v2">3</div><div class="mg-cel v1">1</div><div class="mg-cel v1">1</div><div class="mg-cel v0"></div><div class="mg-vao"></div><div class="mg-cel v1">1</div><div class="mg-vao"></div><div class="mg-cel v0"></div><div class="mg-cel v2">2</div><div class="mg-cel v2">3</div><div class="mg-cel v3">4</div><div class="mg-cel v3">7</div><div class="mg-cel v2">2</div><div class="mg-cel v2">2</div><div class="mg-cel v1">1</div><div class="mg-cel v5">16</div><div class="mg-cel v5">18</div><div class="mg-cel v0"></div><div class="mg-cel v1">1</div><div class="mg-cel v2">2</div><div class="mg-cel v0"></div><div class="mg-vao"></div><div class="mg-cel v1">1</div><div class="mg-cel v3">6</div><div class="mg-cel v0"></div><div class="mg-rot">Designer<span class="qt">100</span></div><div class="mg-cel v1">1</div><div class="mg-cel v3">6</div><div class="mg-cel v2">3</div><div class="mg-cel v2">2</div><div class="mg-cel v3">4</div><div class="mg-cel v2">3</div><div class="mg-cel v1">1</div><div class="mg-cel v1">1</div><div class="mg-cel v0"></div><div class="mg-vao"></div><div class="mg-cel v1">1</div><div class="mg-vao"></div><div class="mg-cel v0"></div><div class="mg-cel v2">2</div><div class="mg-cel v2">3</div><div class="mg-cel v3">4</div><div class="mg-cel v4">9</div><div class="mg-cel v2">2</div><div class="mg-cel v1">1</div><div class="mg-cel v1">1</div><div class="mg-cel v5">24</div><div class="mg-cel v4">14</div><div class="mg-cel v2">2</div><div class="mg-cel v2">2</div><div class="mg-cel v2">3</div><div class="mg-cel v0"></div><div class="mg-vao"></div><div class="mg-cel v3">4</div><div class="mg-cel v3">7</div><div class="mg-cel v0"></div><div class="mg-rot">Núcleo<span class="qt">67</span></div><div class="mg-cel v1">1</div><div class="mg-cel v3">4</div><div class="mg-cel v3">4</div><div class="mg-cel v1">1</div><div class="mg-cel v3">4</div><div class="mg-cel v2">2</div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-vao"></div><div class="mg-cel v2">2</div><div class="mg-vao"></div><div class="mg-cel v0"></div><div class="mg-cel v2">2</div><div class="mg-cel v2">3</div><div class="mg-cel v2">3</div><div class="mg-cel v3">4</div><div class="mg-cel v2">2</div><div class="mg-cel v1">1</div><div class="mg-cel v1">1</div><div class="mg-cel v4">13</div><div class="mg-cel v4">8</div><div class="mg-cel v1">1</div><div class="mg-cel v0"></div><div class="mg-cel v2">2</div><div class="mg-cel v0"></div><div class="mg-vao"></div><div class="mg-cel v3">4</div><div class="mg-cel v3">5</div><div class="mg-cel v0"></div><div class="mg-rot">Design<span class="qt">45</span></div><div class="mg-cel v1">1</div><div class="mg-cel v2">3</div><div class="mg-cel v2">2</div><div class="mg-cel v0"></div><div class="mg-cel v3">4</div><div class="mg-cel v1">1</div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-vao"></div><div class="mg-cel v0"></div><div class="mg-vao"></div><div class="mg-cel v0"></div><div class="mg-cel v2">2</div><div class="mg-cel v2">3</div><div class="mg-cel v1">1</div><div class="mg-cel v2">2</div><div class="mg-cel v2">2</div><div class="mg-cel v0"></div><div class="mg-cel v1">1</div><div class="mg-cel v4">13</div><div class="mg-cel v4">8</div><div class="mg-cel v1">1</div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-vao"></div><div class="mg-cel v1">1</div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-rot">Bastidores<span class="qt">25</span></div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-cel v1">1</div><div class="mg-cel v1">1</div><div class="mg-cel v0"></div><div class="mg-cel v3">5</div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-vao"></div><div class="mg-cel v0"></div><div class="mg-vao"></div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-cel v1">1</div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-cel v3">7</div><div class="mg-cel v1">1</div><div class="mg-cel v0"></div><div class="mg-cel v1">1</div><div class="mg-cel v0"></div><div class="mg-vao"></div><div class="mg-cel v0"></div><div class="mg-cel v4">8</div><div class="mg-cel v0"></div><div class="mg-rot">Documentação<span class="qt">87</span></div><div class="mg-cel v1">1</div><div class="mg-cel v2">2</div><div class="mg-cel v2">2</div><div class="mg-cel v2">2</div><div class="mg-cel v1">1</div><div class="mg-cel v4">9</div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-cel v1">1</div><div class="mg-vao"></div><div class="mg-cel v1">1</div><div class="mg-vao"></div><div class="mg-cel v1">1</div><div class="mg-cel v1">1</div><div class="mg-cel v1">1</div><div class="mg-cel v0"></div><div class="mg-cel v2">3</div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-cel v5">20</div><div class="mg-cel v4">13</div><div class="mg-cel v3">4</div><div class="mg-cel v0"></div><div class="mg-cel v0"></div><div class="mg-cel v3">6</div><div class="mg-vao"></div><div class="mg-cel v2">2</div><div class="mg-cel v5">16</div><div class="mg-cel v1">1</div>
       </div>
       <div class="mg-leg">
         <span><i style="background:var(--laranja)"></i> mexe em tela</span>
@@ -1178,7 +1194,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
       <div class="num">11 / 43</div>
     </section>
-<section class="slide" data-indice><div class="fio"></div><div class="topo"><span class="kicker">Todo o histórico · 6 de 6</span><span class="quando">07/22 · 07/29 · 07/30</span></div>
+<section class="slide" data-indice><div class="fio"></div><div class="topo"><span class="kicker">Todo o histórico · 6 de 6</span><span class="quando">07/22 · 07/29 · 07/30 · 07/31</span></div>
       <div class="corpo">
         <div class="commits"><div class="cm-grupo">
       <div class="cm-dia"><b>22/07</b>
@@ -1270,6 +1286,12 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
         <span class="tx">docs(evolution): mega linha do tempo com os 77 commits e o histórico comp…</span></div><div class="cm">
         <span class="hs">4eee27b</span><span class="hr">23:44</span>
         <span class="tx">docs(evolution): o clone era shallow — 239 commits, não 77, e o git guard…</span></div></div>
+    </div><div class="cm-grupo">
+      <div class="cm-dia"><b>31/07</b>
+        <span>1 commits · 0 mexem em tela</span></div>
+      <div class="cm-lista"><div class="cm">
+        <span class="hs">14ab8f1</span><span class="hr">01:09</span>
+        <span class="tx">docs(evolution): linha do tempo em matriz, HTML único e a colisão .marca</span></div></div>
     </div></div>
       </div>
       <div class="num">12 / 43</div>
@@ -1282,11 +1304,17 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
     <div class="corpo" style="bottom:262px">
       <h2 class="titulo" style="font-size:42px;margin-bottom:16px">O login, nos três pontos</h2>
       <div class="t3" style="height:calc(100% - 66px)">
-        <div class="t3-col">
+        <div class="t3-col vazia">
+          <div class="t3-img t3-nada" style="--ar:1440/1000"><div><b>Esta tela ainda não existia</b>
+                 <span>O commit tem três telas — franqueado, Estúdio e Dados — e nenhum arquivo de autenticação. O app abria direto.</span></div></div>
+          <div class="t3-cab"><span class="r">Primeiro commit</span>
+            <span class="d">2026-06-16 · 936c6d3</span></div>
+          <ul class="difs"></ul>
+        </div><div class="t3-col">
           <div class="t3-img" style="--ar:1440/1000"><img src="../screenshots/original/M4/09_login_2026-07-20_bcc61e8_1440x1000.png" alt="Véspera da 1.0"></div>
           <div class="t3-cab"><span class="r">Véspera da 1.0</span>
             <span class="d">2026-07-20 · bcc61e8</span></div>
-          <ul class="difs"><li class=""><span class="n">1</span><span><b>Idêntica</b> à do primeiro commit.</span></li><li class=""><span class="n">2</span><span>O produto chegou à 1.0 com a porta ainda anônima.</span></li></ul>
+          <ul class="difs"><li class=""><span class="n">1</span><span>A porta nasce em julho, e nasce <b>anônima</b>: cartão branco sobre laranja chapado.</span></li><li class=""><span class="n">2</span><span>Logo, dois campos, um botão. <b>Nada além do formulário</b>.</span></li><li class="nao"><span class="n">–</span><span>Não diz o que é o Luma nem para quem.</span></li></ul>
         </div><div class="t3-col atual">
           <div class="t3-img" style="--ar:1440/1000"><img src="../screenshots/original/M8/09_login_2026-07-30_atual_1440x1000.png" alt="Hoje"></div>
           <div class="t3-cab"><span class="r">Hoje</span>
@@ -1295,8 +1323,8 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
         </div>
       </div>
     </div>
-    <div class="conclusao">A porta do produto <b>mudou de papel</b>: era só uma catraca e virou a primeira peça de comunicação — quem chega entende o que o Luma faz antes de digitar a senha.</div>
-    <div class="num">14 / 43</div><div class="selo"><span class="pt"></span>2 execuções reais</div>
+    <div class="conclusao">O produto <b>nasceu sem porta</b> e ganhou uma catraca anônima na véspera da 1.0. Hoje a mesma tela é a primeira peça de comunicação — quem chega entende o que o Luma faz antes de digitar a senha.</div>
+    <div class="num">14 / 43</div><div class="selo"><span class="pt"></span>2 execuções reais · 1 tela que ainda não existia</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Comparação · Vitrine</span><span class="quando">2026-06-16 → 2026-07-20 → 2026-07-30</span></div>
     <div class="corpo" style="bottom:262px">
@@ -1348,11 +1376,16 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
     <div class="conclusao">Em junho a campanha era uma <b>promessa vazia</b> — "nosso time está trabalhando". Hoje chega com capa real, formatos e prazo, publicada pelo próprio time sem tocar em código.</div>
     <div class="num">16 / 43</div><div class="selo"><span class="pt"></span>3 execuções reais</div>
   </section>
-<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Comparação · O chat que monta a arte</span><span class="quando">2026-07-20 → 2026-07-30</span></div>
+<section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Comparação · O chat que monta a arte</span><span class="quando">2026-06-16 → 2026-07-20 → 2026-07-30</span></div>
     <div class="corpo" style="bottom:262px">
       <h2 class="titulo" style="font-size:42px;margin-bottom:16px">O preenchimento, nos três pontos</h2>
       <div class="t3" style="height:calc(100% - 66px)">
         <div class="t3-col">
+          <div class="t3-img" style="--ar:1440/1000"><img src="../screenshots/original/M1/03_chat_2026-06-16_936c6d3_1440x1000.png" alt="Primeiro commit"></div>
+          <div class="t3-cab"><span class="r">Primeiro commit</span>
+            <span class="d">2026-06-16 · 936c6d3</span></div>
+          <ul class="difs"><li class=""><span class="n">1</span><span>Cabeçalho carrega <b>"Assistente criativo"</b> e "Material em edição".</span></li><li class=""><span class="n">2</span><span>Dois botões competem no topo: <b>Gerar em lote</b> e Reconectar.</span></li><li class=""><span class="n">3</span><span>Rodapé lista <b>o que falta preencher</b>, campo a campo.</span></li><li class=""><span class="n">4</span><span>Zoom fixo em <b>20%</b>.</span></li></ul>
+        </div><div class="t3-col">
           <div class="t3-img" style="--ar:1440/1000"><img src="../screenshots/original/M4/03_chat_2026-07-20_bcc61e8_1440x1000.png" alt="Véspera da 1.0"></div>
           <div class="t3-cab"><span class="r">Véspera da 1.0</span>
             <span class="d">2026-07-20 · bcc61e8</span></div>
@@ -1366,7 +1399,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">A mecânica de perguntar em passos é <b>a mesma dos três</b>. O que saiu foi ruído no topo e no rodapé; o que entrou foi estado visível e controle de zoom.</div>
-    <div class="num">17 / 43</div><div class="selo"><span class="pt"></span>2 execuções reais</div>
+    <div class="num">17 / 43</div><div class="selo"><span class="pt"></span>3 execuções reais</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Comparação · Estúdio</span><span class="quando">2026-06-16 → 2026-07-20 → 2026-07-30</span></div>
     <div class="corpo" style="bottom:262px">
@@ -1397,11 +1430,17 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
     <div class="corpo" style="bottom:262px">
       <h2 class="titulo" style="font-size:42px;margin-bottom:16px">A saída do arquivo, nos três pontos</h2>
       <div class="t3" style="height:calc(100% - 66px)">
-        <div class="t3-col">
+        <div class="t3-col vazia">
+          <div class="t3-img t3-nada" style="--ar:1440/1000"><div><b>Esta tela ainda não existia</b>
+                 <span>O código de exportação SVG já existia, mas nenhuma tela o chamava — a saída do arquivo ainda não tinha lugar na interface.</span></div></div>
+          <div class="t3-cab"><span class="r">Primeiro commit</span>
+            <span class="d">2026-06-16 · 936c6d3</span></div>
+          <ul class="difs"></ul>
+        </div><div class="t3-col">
           <div class="t3-img" style="--ar:1440/1000"><img src="../screenshots/original/M4/06_exportar_2026-07-20_bcc61e8_1440x1000.png" alt="Véspera da 1.0"></div>
           <div class="t3-cab"><span class="r">Véspera da 1.0</span>
             <span class="d">2026-07-20 · bcc61e8</span></div>
-          <ul class="difs"><li class=""><span class="n">1</span><span>Mesmos três formatos na tela.</span></li><li class=""><span class="n">2</span><span>Por baixo, 17/07 trouxe <b>z-order confiável</b> e raster adaptativo à prancheta.</span></li></ul>
+          <ul class="difs"><li class=""><span class="n">1</span><span>A tela existe e traz três formatos: <b>PNG, JPG e SVG</b>.</span></li><li class=""><span class="n">2</span><span>Escala já oferece <b>2× (alta resolução)</b>, com seleção de pranchetas e contagem.</span></li><li class=""><span class="n">3</span><span>Por baixo, 17/07 trouxe <b>z-order confiável</b> e raster adaptativo à prancheta.</span></li></ul>
         </div><div class="t3-col atual">
           <div class="t3-img" style="--ar:1440/1000"><img src="../screenshots/original/M8/06_exportar_2026-07-30_atual_1440x1000.png" alt="Hoje"></div>
           <div class="t3-cab"><span class="r">Hoje</span>
@@ -1411,7 +1450,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">Uma linha nova no modal que muda o lugar do Luma no fluxo: a arte deixa de ser <b>ponto final</b> e passa a poder continuar no Photoshop.</div>
-    <div class="num">19 / 43</div><div class="selo"><span class="pt"></span>2 execuções reais</div>
+    <div class="num">19 / 43</div><div class="selo"><span class="pt"></span>2 execuções reais · 1 tela que ainda não existia</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Comparação · Minhas artes</span><span class="quando">2026-06-16 → 2026-07-20 → 2026-07-30</span></div>
     <div class="corpo" style="bottom:262px">
@@ -1442,11 +1481,17 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
     <div class="corpo" style="bottom:262px">
       <h2 class="titulo" style="font-size:42px;margin-bottom:16px">O painel de conta, nos três pontos</h2>
       <div class="t3" style="height:calc(100% - 66px)">
-        <div class="t3-col">
+        <div class="t3-col vazia">
+          <div class="t3-img t3-nada" style="--ar:1440/1000"><div><b>Esta tela ainda não existia</b>
+                 <span>Sem login não havia usuário, e sem usuário não havia conta: nenhuma função de perfil no commit.</span></div></div>
+          <div class="t3-cab"><span class="r">Primeiro commit</span>
+            <span class="d">2026-06-16 · 936c6d3</span></div>
+          <ul class="difs"></ul>
+        </div><div class="t3-col">
           <div class="t3-img" style="--ar:1440/1000"><img src="../screenshots/original/M4/10_perfil_2026-07-20_bcc61e8_1440x1000.png" alt="Véspera da 1.0"></div>
           <div class="t3-cab"><span class="r">Véspera da 1.0</span>
             <span class="d">2026-07-20 · bcc61e8</span></div>
-          <ul class="difs"><li class=""><span class="n">1</span><span>Mesma estrutura.</span></li><li class=""><span class="n">2</span><span>O período endureceu o que está <b>atrás</b> desta tela: gate de conta desativada e convite real por Edge Function.</span></li></ul>
+          <ul class="difs"><li class=""><span class="n">1</span><span>Modal pequeno com <b>Dados, Segurança, Estatísticas e Equipe</b>.</span></li><li class=""><span class="n">2</span><span>E-mail é <b>campo editável comum</b>; tema junto dos dados pessoais, sem explicação.</span></li><li class=""><span class="n">3</span><span>O período endureceu o que está <b>atrás</b> desta tela: gate de conta desativada e convite real por Edge Function.</span></li></ul>
         </div><div class="t3-col atual">
           <div class="t3-img" style="--ar:1440/1000"><img src="../screenshots/original/M8/10_perfil_2026-07-30_atual_1440x1000.png" alt="Hoje"></div>
           <div class="t3-cab"><span class="r">Hoje</span>
@@ -1456,17 +1501,23 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">A conta deixou de ser um formulário e virou o lugar onde <b>a permissão fica visível</b>. O e-mail travado com explicação é a diferença entre um campo que falha e um campo que ensina.</div>
-    <div class="num">21 / 43</div><div class="selo"><span class="pt"></span>2 execuções reais</div>
+    <div class="num">21 / 43</div><div class="selo"><span class="pt"></span>2 execuções reais · 1 tela que ainda não existia</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Comparação · O chat no celular</span><span class="quando">2026-07-20 → 2026-07-30</span></div>
     <div class="corpo" style="bottom:262px">
       <h2 class="titulo" style="font-size:42px;margin-bottom:16px">O preenchimento no telefone, nos três pontos</h2>
       <div class="t3" style="height:calc(100% - 66px)">
-        <div class="t3-col">
+        <div class="t3-col vazia">
+          <div class="t3-img t3-nada" style="--ar:390/844"><div><b>Esta tela ainda não existia</b>
+                 <span>O chat já existia no desktop, mas a 390px de largura a coluna não aparecia em passo nenhum. O celular ainda não era alvo.</span></div></div>
+          <div class="t3-cab"><span class="r">Primeiro commit</span>
+            <span class="d">2026-06-16 · 936c6d3</span></div>
+          <ul class="difs"></ul>
+        </div><div class="t3-col">
           <div class="t3-img" style="--ar:390/844"><img src="../screenshots/original/M4/16_chat-mobile_2026-07-20_bcc61e8_390x844.png" alt="Véspera da 1.0"></div>
           <div class="t3-cab"><span class="r">Véspera da 1.0</span>
             <span class="d">2026-07-20 · bcc61e8</span></div>
-          <ul class="difs"><li class=""><span class="n">1</span><span>Mesmo texto e mesmo cabeçalho.</span></li><li class=""><span class="n">2</span><span>O botão de olho vira <b>miniatura da arte</b>, sempre visível no canto.</span></li></ul>
+          <ul class="difs"><li class=""><span class="n">1</span><span>Cabeçalho repete <b>"Material em edição"</b>; duas frases antes de perguntar.</span></li><li class=""><span class="n">2</span><span>Bloco <b>"Criar várias de uma vez"</b> disputa espaço com o passo 1.</span></li><li class=""><span class="n">3</span><span>A prévia é <b>miniatura da arte</b>, sempre visível no canto.</span></li></ul>
         </div><div class="t3-col atual">
           <div class="t3-img" style="--ar:390/844"><img src="../screenshots/original/M8/16_chat-mobile_2026-07-30_atual_390x844.png" alt="Hoje"></div>
           <div class="t3-cab"><span class="r">Hoje</span>
@@ -1476,7 +1527,7 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       </div>
     </div>
     <div class="conclusao">No telefone cada linha custa caro. A miniatura chegou <b>antes da 1.0</b>; o que veio depois foi o corte de texto — o cabeçalho e a introdução encolheram para sobrar tela.</div>
-    <div class="num">22 / 43</div><div class="selo"><span class="pt"></span>2 execuções reais</div>
+    <div class="num">22 / 43</div><div class="selo"><span class="pt"></span>2 execuções reais · 1 tela que ainda não existia</div>
   </section>
 <section class="slide"><div class="fio"></div><div class="topo"><span class="kicker">Área · Celular</span><span class="quando">anterior a 16/06 → 2026-07-30</span></div>
     <div class="corpo" style="bottom:196px">
@@ -1558,17 +1609,24 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       <div class="det" style="height:calc(100% - 72px)">
         <div class="det-linha">
           <div class="det-quadro">
-            <div class="det-crop" style="aspect-ratio:4.966;background-image:url('../screenshots/original/M1/01_home_2026-06-16_936c6d3_1440x1000.png');background-size:100% auto;background-position:0 8.45%"></div>
-            <div class="det-cap"><span class="q">Primeira vitrine no git</span>
+            <div class="det-crop" style="aspect-ratio:11.077;background-image:url('../screenshots/original/M1/01_home_2026-06-16_936c6d3_1440x1000.png');background-size:100% auto;background-position:0 11.49%"></div>
+            <div class="det-cap"><span class="q">Primeiro commit</span>
               <span class="d">2026-06-16 · 936c6d3</span></div>
-            <div class="det-obs">A vitrine existe, mas a chamada ainda divide espaço com a estrutura de navegação.</div>
+            <div class="det-obs">Não há chamada: a tela inicial já é o posto de trabalho, com a lista de campanhas à esquerda e o assistente no centro.</div>
           </div>
         </div><div class="det-linha">
           <div class="det-quadro">
-            <div class="det-crop" style="aspect-ratio:4.966;background-image:url('../screenshots/original/M8/01_home_2026-07-30_atual_1440x1000.png');background-size:100% auto;background-position:0 8.45%"></div>
+            <div class="det-crop" style="aspect-ratio:11.077;background-image:url('../screenshots/original/M4/01_home_2026-07-20_bcc61e8_1440x1000.png');background-size:100% auto;background-position:0 11.49%"></div>
+            <div class="det-cap"><span class="q">Véspera da 1.0</span>
+              <span class="d">2026-07-20 · bcc61e8</span></div>
+            <div class="det-obs">A vitrine nasce: "Seu espaço criativo", saudação com o nome e uma frase que promete o tempo — "sua arte fica pronta em cerca de um minuto".</div>
+          </div>
+        </div><div class="det-linha">
+          <div class="det-quadro">
+            <div class="det-crop" style="aspect-ratio:11.077;background-image:url('../screenshots/original/M8/01_home_2026-07-30_atual_1440x1000.png');background-size:100% auto;background-position:0 11.49%"></div>
             <div class="det-cap"><span class="q">Hoje</span>
               <span class="d">2026-07-30 · branch atual</span></div>
-            <div class="det-obs">Saudação com o nome, uma pergunta que orienta a próxima ação, busca com exemplo dentro do campo e o atalho para o histórico à direita.</div>
+            <div class="det-obs">A frase vira <b>pergunta</b> — "Qual arte vamos criar hoje?" — e o atalho para o histórico sai do preto sólido para um botão discreto à direita.</div>
           </div>
         </div>
       </div>
@@ -1581,6 +1639,13 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       <h2 class="titulo" style="font-size:46px;margin-bottom:18px">O topo do chat, ampliado</h2>
       <div class="det" style="height:calc(100% - 72px)">
         <div class="det-linha">
+          <div class="det-quadro">
+            <div class="det-crop" style="aspect-ratio:16.000;background-image:url('../screenshots/original/M1/03_chat_2026-06-16_936c6d3_1440x1000.png');background-size:100% auto;background-position:0 4.40%"></div>
+            <div class="det-cap"><span class="q">Primeiro commit</span>
+              <span class="d">2026-06-16 · 936c6d3</span></div>
+            <div class="det-obs">Três informações competindo: o nome do assistente, o material em edição e dois botões de ação.</div>
+          </div>
+        </div><div class="det-linha">
           <div class="det-quadro">
             <div class="det-crop" style="aspect-ratio:16.000;background-image:url('../screenshots/original/M4/03_chat_2026-07-20_bcc61e8_1440x1000.png');background-size:100% auto;background-position:0 4.40%"></div>
             <div class="det-cap"><span class="q">Véspera da 1.0</span>
@@ -1605,6 +1670,13 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       <h2 class="titulo" style="font-size:46px;margin-bottom:18px">A barra de resposta, ampliada</h2>
       <div class="det" style="height:calc(100% - 72px)">
         <div class="det-linha">
+          <div class="det-quadro">
+            <div class="det-crop" style="aspect-ratio:14.400;background-image:url('../screenshots/original/M1/03_chat_2026-06-16_936c6d3_1440x1000.png');background-size:100% auto;background-position:0 100.00%"></div>
+            <div class="det-cap"><span class="q">Primeiro commit</span>
+              <span class="d">2026-06-16 · 936c6d3</span></div>
+            <div class="det-obs">Campo de resposta e, ao lado, o zoom travado num valor fixo com os controles de prova.</div>
+          </div>
+        </div><div class="det-linha">
           <div class="det-quadro">
             <div class="det-crop" style="aspect-ratio:14.400;background-image:url('../screenshots/original/M4/03_chat_2026-07-20_bcc61e8_1440x1000.png');background-size:100% auto;background-position:0 100.00%"></div>
             <div class="det-cap"><span class="q">Véspera da 1.0</span>
@@ -1921,8 +1993,8 @@ body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialia
       <div class="card"><div class="v">41.416</div><div class="r">linhas de JS hoje,<br>mais 20.766 de CSS</div></div>
       <div class="card"><div class="v">1.071</div><div class="r">funções globais nomeadas<br>(697 no Estúdio, 234 no franqueado)</div></div>
       <div class="card destaque"><div class="v">18</div><div class="r">migrations de banco —<br>a origem não tinha backend</div></div>
-      <div class="card"><div class="v">6</div><div class="r">marcos selecionados,<br>de 240 commits analisados</div></div>
-      <div class="card"><div class="v">125</div><div class="r">capturas reais produzidas,<br>nenhuma reconstruída</div></div>
+      <div class="card"><div class="v">6</div><div class="r">marcos selecionados,<br>de 241 commits analisados</div></div>
+      <div class="card"><div class="v">126</div><div class="r">capturas reais produzidas,<br>nenhuma reconstruída</div></div>
       <div class="card"><div class="v">16</div><div class="r">funcionalidades mapeadas<br>no atlas, medidas no DOM</div></div>
       <div class="card"><div class="v">0</div><div class="r">dependências de runtime<br>no front — segue vanilla</div></div>
     </div>
