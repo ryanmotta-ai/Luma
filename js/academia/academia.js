@@ -588,6 +588,13 @@ function acRenderHome(root){
       </aside>
     </div>
   </div>`;
+  // A ESTRUTURA já está na tela (o innerHTML acima); a cascata só escalona a
+  // entrada dos blocos de conteúdo. Nunca o contrário — layout que entra animado
+  // é layout que demora a existir.
+  if(typeof acCascata==='function') acCascata(root, '[data-ac-entra]');
+  // Progresso: o HTML foi pintado com o valor ANTERIOR de propósito; agora
+  // levamos até o atual, e é esse percurso que comunica "você avançou".
+  acAnimaProgressoHome(r, concluiu);
   if(typeof gTrackEvent==='function') gTrackEvent('jornada_aberta',{ curso_id:c.id, pct:r.pct });
 }
 
@@ -652,15 +659,42 @@ function acHomeCabecalho(c, r, iniciou, concluiu){
 
 // Anel de progresso em SVG. Estado NÃO depende só de cor: o número está dentro
 // e o rótulo textual fica ao lado (21 — acessibilidade).
+const AC_ANEL_R = 46;
+const AC_ANEL_C = 2*Math.PI*AC_ANEL_R;
 function acAnelProgresso(pct, concluiu){
-  const R = 46, C = 2*Math.PI*R;
-  const off = C * (1 - Math.max(0,Math.min(100,pct))/100);
+  // Pinta no valor ANTERIOR (na 1ª visita, no próprio valor): acAnimaProgressoHome
+  // leva daqui até o atual. Escrever o valor final aqui era o motivo de o anel
+  // aparecer pronto, sem nunca animar.
+  const de = (typeof acProgLembrado==='function') ? acProgLembrado('formacao', pct) : pct;
+  const off = AC_ANEL_C * (1 - Math.max(0,Math.min(100,de))/100);
   return `<svg class="ac-anel" viewBox="0 0 110 110" aria-hidden="true">
-    <circle class="ac-anel-trilho" cx="55" cy="55" r="${R}"/>
-    <circle class="ac-anel-fill${concluiu?' is-ok':''}" cx="55" cy="55" r="${R}"
-            style="stroke-dasharray:${C.toFixed(1)};stroke-dashoffset:${off.toFixed(1)}"/>
-    <text class="ac-anel-num" x="55" y="60" text-anchor="middle">${pct}%</text>
+    <circle class="ac-anel-trilho" cx="55" cy="55" r="${AC_ANEL_R}"/>
+    <circle class="ac-anel-fill${concluiu?' is-ok':''}" id="ac-anel-fill" cx="55" cy="55" r="${AC_ANEL_R}"
+            style="stroke-dasharray:${AC_ANEL_C.toFixed(1)};stroke-dashoffset:${off.toFixed(1)}"/>
+    <text class="ac-anel-num" id="ac-anel-num" x="55" y="60" text-anchor="middle">${de}%</text>
   </svg>`;
+}
+
+/**
+ * Leva anel, barra grande e número até o valor atual depois do render.
+ * Também guarda o valor pra próxima renderização saber de onde partir.
+ */
+function acAnimaProgressoHome(r, concluiu){
+  if(typeof acAnimaAnel!=='function') return;   // motion.js ausente: nada quebra
+  const de = acProgLembrado('formacao', r.pct);
+  acAnimaAnel(document.getElementById('ac-anel-fill'), r.pct, AC_ANEL_C);
+  acAnimaNumero(document.getElementById('ac-anel-num'), de, r.pct);
+  acAnimaNumero(document.getElementById('ac-prog-num'), de, r.pct, n=>Math.round(n));
+  acAnimaBarra(document.getElementById('ac-prog-barra'), r.pct);
+  // Barras dos módulos: cada uma parte do seu próprio valor anterior.
+  (acState.curso&&acState.curso.modulos||[]).forEach(m=>{
+    const aulas = m.aulas||[];
+    if(!aulas.length) return;
+    const pctMod = Math.round(aulas.filter(a=>acProg(a.id).concluida).length/aulas.length*100);
+    acAnimaBarra(document.getElementById('ac-barra-mod-'+m.id), pctMod);
+    acProgGuardar('mod:'+m.id, pctMod);
+  });
+  acProgGuardar('formacao', r.pct);
 }
 
 function acHomeContinuar(aula){
@@ -669,7 +703,7 @@ function acHomeContinuar(aula){
   const restaSeg = dur ? Math.max(0, dur - (p.posicao_seg||0)) : 0;
   const pctVideo = dur ? Math.round(((p.posicao_seg||0)/dur)*100) : 0;
   const comecou = (p.posicao_seg||0) > 5;
-  return `<section class="ac-bloco ac-continuar" aria-labelledby="ac-cont-t">
+  return `<section class="ac-bloco ac-continuar" data-ac-entra aria-labelledby="ac-cont-t">
     <h2 class="ac-bloco-titulo" id="ac-cont-t">Continue estudando</h2>
     <button type="button" class="ac-cont-card" onclick="acGo('aula','${aula.id}')"
             aria-label="${comecou?'Continuar':'Abrir'} a aula ${gEsc(aula.titulo)}">
@@ -696,7 +730,7 @@ function acHomeMapa(c, r){
       ${acVazio('cap','Nenhum módulo publicado ainda','Quando a equipe Delivery Much publicar o conteúdo, ele aparece aqui.')}</section>`;
   }
   const atualId = r.proxima ? (r.proxima._modulo&&r.proxima._modulo.id) : null;
-  return `<section class="ac-bloco" aria-labelledby="ac-mapa-t">
+  return `<section class="ac-bloco" data-ac-entra aria-labelledby="ac-mapa-t">
     <h2 class="ac-bloco-titulo" id="ac-mapa-t">Mapa da jornada</h2>
     <ol class="ac-mapa">
       ${mods.map((m,i)=>acMapaItem(m,i,atualId===m.id)).join('')}
@@ -732,7 +766,7 @@ function acMapaItem(m, i, ehAtual){
         ${aulas.length?` · ${feitas}/${aulas.length} concluída${feitas===1?'':'s'}`:''}
       </span>
       ${bloq&&prereq?`<span class="ac-mapa-bloq">${acIco('lock')} Conclua ${gEsc(prereq.nome)} para liberar</span>`:''}
-      ${aulas.length?`<span class="ac-barra ac-barra-sm${est==='concluido'?' is-ok':''}" role="img" aria-label="${Math.round(feitas/aulas.length*100)}% do módulo concluído"><i style="width:${Math.round(feitas/aulas.length*100)}%"></i></span>`:''}
+      ${aulas.length?`<span class="ac-barra ac-barra-sm${est==='concluido'?' is-ok':''}" id="ac-barra-mod-${m.id}" role="img" aria-label="${Math.round(feitas/aulas.length*100)}% do módulo concluído"><i style="width:${acProgLembrado('mod:'+m.id, Math.round(feitas/aulas.length*100))}%"></i></span>`:''}
     </${bloq?'div':'button'}>
   </li>`;
 }
@@ -745,13 +779,13 @@ function acHomeProgresso(r, concluiu){
     (acState.matricula&&acState.matricula.ultimo_acesso) ? ['Última atividade', acFmtDataHora(acState.matricula.ultimo_acesso)] : null,
     (acState.curso&&acState.curso.carga_horaria_min) ? ['Carga horária', acFmtDur(acState.curso.carga_horaria_min*60)] : null
   ].filter(Boolean);
-  return `<section class="ac-bloco ac-lado-bloco" aria-labelledby="ac-prog-t">
+  return `<section class="ac-bloco ac-lado-bloco" data-ac-entra aria-labelledby="ac-prog-t">
     <h2 class="ac-bloco-titulo" id="ac-prog-t">Seu progresso</h2>
     <div class="ac-prog-topo">
-      <span class="ac-prog-pct">${r.pct}<small>%</small></span>
+      <span class="ac-prog-pct"><span id="ac-prog-num">${acProgLembrado('formacao', r.pct)}</span><small>%</small></span>
       <span class="ac-prog-rot">${concluiu?'formação concluída':'da formação'}</span>
     </div>
-    <span class="ac-barra ac-barra-lg" role="img" aria-label="${r.pct}% da formação concluída"><i style="width:${r.pct}%"></i></span>
+    <span class="ac-barra ac-barra-lg" id="ac-prog-barra" role="img" aria-label="${r.pct}% da formação concluída"><i style="width:${acProgLembrado('formacao', r.pct)}%"></i></span>
     <dl class="ac-defs">
       ${linhas.map(([k,v])=>`<div><dt>${gEsc(k)}</dt><dd>${gEsc(v)}</dd></div>`).join('')}
     </dl>
@@ -762,7 +796,10 @@ function acHomeProgresso(r, concluiu){
 function acHomeCertificado(concluiu){
   const cert = acState.certificado;
   if(concluiu || cert){
-    return `<section class="ac-bloco ac-lado-bloco ac-cert-card is-ok" aria-labelledby="ac-cert-t">
+    const temVideo = (typeof acVideoCeoDisponivel==='function') && acVideoCeoDisponivel();
+    const videoNovo = (typeof acVideoCeoNovo==='function') && acVideoCeoNovo();
+    const jaViu = !!(acState.matricula && acState.matricula.video_visto_em);
+    return `<section class="ac-bloco ac-lado-bloco ac-cert-card is-ok" data-ac-entra aria-labelledby="ac-cert-t">
       <h2 class="ac-bloco-titulo" id="ac-cert-t">Certificado</h2>
       <div class="ac-cert-selo">${acIco('medal')}</div>
       <p class="ac-cert-txt">Formação concluída${(acState.matricula&&acState.matricula.concluido_em)?` em ${acFmtData(acState.matricula.concluido_em)}`:''}.</p>
@@ -770,11 +807,15 @@ function acHomeCertificado(concluiu){
       <button type="button" class="ac-btn ac-btn-primario ac-btn-bloco" onclick="acGo('certificado')">
         ${cert?'Ver e baixar certificado':'Emitir certificado'}
       </button>
+      ${temVideo?`<button type="button" class="ac-link ac-cert-link" onclick="acVerVideoCeos()">
+        ${videoNovo&&jaViu?'Nova mensagem da liderança':(jaViu?'Rever a mensagem dos CEOs':'Ver a mensagem dos CEOs')}
+        ${videoNovo?'<span class="ac-tag ac-tag-novo">Novo</span>':''}</button>`:''}
+      ${cert?`<button type="button" class="ac-link ac-cert-link" onclick="acReverConclusao()">Rever a conclusão</button>`:''}
     </section>`;
   }
   const r = acResumo();
   const faltam = Math.max(0, r.total - r.concluidas);
-  return `<section class="ac-bloco ac-lado-bloco ac-cert-card" aria-labelledby="ac-cert-t">
+  return `<section class="ac-bloco ac-lado-bloco ac-cert-card" data-ac-entra aria-labelledby="ac-cert-t">
     <h2 class="ac-bloco-titulo" id="ac-cert-t">Certificado</h2>
     <div class="ac-cert-selo is-lock">${acIco('lock')}</div>
     <p class="ac-cert-txt">Seu certificado é liberado quando você concluir as aulas obrigatórias da formação.</p>
@@ -802,14 +843,14 @@ function acHomeRecentes(r){
       ${acIco('nota')}<span><strong>${gEsc(String(n.texto||'').slice(0,48))}${String(n.texto||'').length>48?'…':''}</strong>
       <small>anotação${n._aula?` em ${gEsc(n._aula.titulo)}`:''}</small></span></button></li>`));
   if(!itens.length) return '';
-  return `<section class="ac-bloco ac-lado-bloco" aria-labelledby="ac-rec-t">
+  return `<section class="ac-bloco ac-lado-bloco" data-ac-entra aria-labelledby="ac-rec-t">
     <h2 class="ac-bloco-titulo" id="ac-rec-t">Retomar</h2>
     <ul class="ac-rec-lista">${itens.slice(0,6).join('')}</ul>
   </section>`;
 }
 
 function acHomeAjuda(){
-  return `<section class="ac-bloco ac-lado-bloco ac-ajuda">
+  return `<section class="ac-bloco ac-lado-bloco ac-ajuda" data-ac-entra>
     <h2 class="ac-bloco-titulo">Onde pedir ajuda</h2>
     <p class="ac-ajuda-txt">Dentro de cada aula, o agente educacional responde dúvidas sobre aquele conteúdo. Para decisões oficiais da rede, fale com a equipe Delivery Much.</p>
     <div class="ac-ajuda-bot">${acIco('bot')} <span>Agente educacional disponível nas aulas</span></div>
@@ -854,5 +895,9 @@ function acInit(){
   _acIniciado = true;
   _acCacheLer();                 // pinta rápido com o cache
   if(acState.curso) acRender();
-  acCarregar();                  // e atualiza com o banco
+  // Depois do sync (não do cache): a experiência de conclusão só abre com dado
+  // do SERVIDOR. Cobre quem concluiu e fechou o navegador antes de ver a splash.
+  Promise.resolve(acCarregar()).then(()=>{
+    if(typeof acConclusaoTalvezAbrir==='function') acConclusaoTalvezAbrir();
+  });
 }

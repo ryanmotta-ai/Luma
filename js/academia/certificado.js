@@ -64,8 +64,15 @@ function acRenderCertificado(root){
     </header>
 
     ${cert?`<section class="ac-bloco">
-      <h2 class="ac-bloco-titulo">Seu certificado</h2>
-      <div class="ac-cert-moldura">
+      <div class="ac-cert-cab">
+        <h2 class="ac-bloco-titulo">Seu certificado</h2>
+        <div class="ac-cert-zoom" role="group" aria-label="Zoom do certificado">
+          <button type="button" class="ac-pbtn" onclick="acCertZoom(-1)" aria-label="Diminuir zoom" title="Diminuir">−</button>
+          <button type="button" class="ac-pbtn ac-cert-zoom-num" id="ac-cert-zoom-num" onclick="acCertZoom(0)" title="Voltar ao tamanho da tela">100%</button>
+          <button type="button" class="ac-pbtn" onclick="acCertZoom(1)" aria-label="Aumentar zoom" title="Aumentar">+</button>
+        </div>
+      </div>
+      <div class="ac-cert-moldura" id="ac-cert-moldura">
         <canvas id="ac-cert-canvas" class="ac-cert-canvas"
                 aria-label="Certificado de conclusão da ${gEsc(cert.curso_nome)} em nome de ${gEsc(cert.nome_completo)}"></canvas>
       </div>
@@ -140,6 +147,10 @@ async function acEmitirCertificado(btn){
     acState.matricula.concluido_em = cert.concluido_em;
     acState.matricula.curso_versao = cert.curso_versao;
     if(typeof gTrackEvent==='function') gTrackEvent('certificado_emitido',{curso_id:c.id, versao:cert.curso_versao});
+    // Só agora a conclusão é FATO no servidor (matrícula concluída + certificado
+    // com código). É o único ponto do módulo autorizado a abrir a experiência —
+    // nunca a partir de estado local, que poderia celebrar algo que não gravou.
+    if(typeof acConclusaoTalvezAbrir==='function' && acConclusaoTalvezAbrir()) return;
     gToast('Certificado emitido');
     acRenderCertificado();
   }catch(e){
@@ -170,11 +181,32 @@ function _acToken(nome, fallback){
   }catch(e){ return fallback; }
 }
 
+/* ZOOM da visualização. transform:scale no canvas já pintado: nada de redesenhar
+   2000×1414 a cada clique. O PDF continua saindo na resolução cheia. */
+let _acCertZoom = 1;
+function acCertZoom(dir){
+  const cv = document.getElementById('ac-cert-canvas');
+  const box = document.getElementById('ac-cert-moldura');
+  if(!cv || !box) return;
+  if(dir===0) _acCertZoom = 1;
+  else _acCertZoom = Math.max(1, Math.min(3, _acCertZoom + dir*0.25));
+  cv.style.transformOrigin = 'top center';
+  cv.style.transform = _acCertZoom===1 ? '' : `scale(${_acCertZoom})`;
+  // >1 o canvas passa da moldura: liberamos a rolagem em vez de cortar.
+  box.classList.toggle('is-zoom', _acCertZoom>1);
+  const num = document.getElementById('ac-cert-zoom-num');
+  if(num) num.textContent = Math.round(_acCertZoom*100)+'%';
+}
+
 async function acDesenharCertificado(){
   const cv = document.getElementById('ac-cert-canvas');
   if(!cv || !acState.certificado) return;
   cv.width = AC_CERT_W; cv.height = AC_CERT_H;
   await _acPintarCertificado(cv, acState.certificado);
+  _acCertZoom = 1;
+  // Entra depois de PINTADO: animar um canvas em branco e revelar o conteúdo
+  // depois é pior que não animar.
+  if(typeof acMotionReduzido==='function' && !acMotionReduzido()) cv.classList.add('ac-cert-entra');
 }
 
 async function _acPintarCertificado(cv, cert){
@@ -209,18 +241,30 @@ async function _acPintarCertificado(cv, cert){
   const m = Math.round(W*0.045);
   ctx.strokeRect(m, faixa + Math.round(H*0.05), W-m*2, H - faixa - Math.round(H*0.11));
 
-  // Selo circular no canto
+  // Selo circular no canto. O símbolo é o LOGO REAL da Delivery Much — antes era
+  // um "DM" desenhado com fonte, que imita a marca sem ser a marca.
   const sx = W - m - Math.round(W*0.075), sy = faixa + Math.round(H*0.155), sr = Math.round(W*0.042);
   ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI*2);
   ctx.fillStyle = 'rgba(255,144,0,.10)'; ctx.fill();
   ctx.strokeStyle = laranja; ctx.lineWidth = 4; ctx.stroke();
-  ctx.fillStyle = laranjaD;
   ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.font = `900 ${Math.round(sr*0.42)}px Roboto, sans-serif`;
-  ctx.fillText('DM', sx, sy - sr*0.12);
-  ctx.font = `700 ${Math.round(sr*0.19)}px Roboto, sans-serif`;
+  let seloOk = false;
+  try{
+    const marca = await _acCarregarImagem('assets/logos/dm-h-principal.png');
+    if(marca && marca.width){
+      const lw = sr*1.24, lh = lw*(marca.height/marca.width);
+      ctx.drawImage(marca, sx-lw/2, sy-lh/2-sr*0.08, lw, lh);
+      seloOk = true;
+    }
+  }catch(e){ /* sem arquivo, cai no texto abaixo */ }
+  if(!seloOk){
+    ctx.fillStyle = laranjaD;
+    ctx.font = `900 ${Math.round(sr*0.42)}px Roboto, sans-serif`;
+    ctx.fillText('DM', sx, sy - sr*0.12);
+  }
+  ctx.font = `700 ${Math.round(sr*0.17)}px Roboto, sans-serif`;
   ctx.fillStyle = texto3;
-  ctx.fillText('ACADEMIA', sx, sy + sr*0.34);
+  ctx.fillText('ACADEMIA', sx, sy + sr*0.42);
 
   const cx = W/2;
   let y = faixa + Math.round(H*0.16);
@@ -310,16 +354,9 @@ async function _acPintarCertificado(cv, cert){
   ctx.fillStyle = texto3;
   ctx.font = `500 ${Math.round(H*0.018)}px Roboto, sans-serif`;
   ctx.fillText(`Código de validação ${cert.codigo}   ·   emitido em ${acFmtData(cert.emitido_em)}   ·   confira com a equipe Delivery Much`,
-               cx, H - Math.round(H*0.032));
-
-  // Logo da Delivery Much no canto inferior esquerdo (arquivo real, não texto)
-  try{
-    const img = await _acCarregarImagem('assets/logos/dm-h-principal.png');
-    if(img && img.width){
-      const lw = Math.round(W*0.11), lh = lw * (img.height/img.width);
-      ctx.drawImage(img, m + Math.round(W*0.012), H - lh - Math.round(H*0.055), lw, lh);
-    }
-  }catch(e){ /* sem logo o documento continua válido — não vale falhar por isso */ }
+               cx, H - Math.round(H*0.052));
+  // ⚠ Sem segundo logo no rodapé: a marca já está no selo, e a repetição
+  // empurrava o código de validação contra a borda do papel.
 }
 
 function _acTextoQuebrado(ctx, txt, cx, y, maxW, alturaLinha){

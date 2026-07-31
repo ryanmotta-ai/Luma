@@ -44,7 +44,7 @@ function acRenderGestao(root){
     </header>
     ${acGestaoAvisos()}
     <div class="ac-g-abas" role="tablist" aria-label="Seções da gestão">
-      ${[['estrutura','Módulos e aulas'],['curso','Configuração da formação'],['turma','Acompanhamento']]
+      ${[['estrutura','Módulos e aulas'],['curso','Configuração da formação'],['conclusao','Experiência de conclusão'],['turma','Acompanhamento']]
         .map(([id,rot])=>`<button type="button" role="tab" class="ac-aba${acGestaoAba===id?' is-atual':''}"
           aria-selected="${acGestaoAba===id}" onclick="acGestaoTrocarAba('${id}')">${rot}</button>`).join('')}
     </div>
@@ -78,6 +78,7 @@ function acGestaoAvisos(){
 function acGestaoRenderCorpo(){
   const el = document.getElementById('ac-g-corpo'); if(!el) return;
   if(acGestaoAba==='curso')  { el.innerHTML = acGestaoFormCurso(); return; }
+  if(acGestaoAba==='conclusao'){ el.innerHTML = acGestaoFormConclusao(); return; }
   if(acGestaoAba==='turma')  { el.innerHTML = acGestaoTurmaHTML(); acGestaoCarregarTurma(); return; }
   el.innerHTML = `<div class="ac-g-split">
     <div class="ac-g-arvore" id="ac-g-arvore">${acGestaoArvore()}</div>
@@ -218,6 +219,195 @@ function acGestaoFormCurso(){
       <button type="submit" class="ac-btn ac-btn-primario">Salvar formação</button>
     </div>
   </form>`;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   EXPERIÊNCIA DE CONCLUSÃO (splash + vídeo dos CEOs)
+   Campos claros + preview confiável. NÃO é editor visual: a equipe precisa
+   trocar texto e vídeo sem deploy, não montar layout.
+══════════════════════════════════════════════════════════════ */
+function acGestaoFormConclusao(){
+  const c = acState.curso;
+  if(!c || c._demo) return acVazio('cfg','Nenhuma formação para configurar','Crie a formação primeiro.');
+  const cfg = (typeof acConclusaoCfg==='function') ? acConclusaoCfg() : null;
+  if(!cfg) return acVazio('cfg','Módulo de conclusão não carregado','Recarregue a página.');
+  const v = cfg.video;
+  return `<form class="ac-form" onsubmit="event.preventDefault();acGestaoSalvarConclusao()">
+    <h2 class="ac-bloco-titulo">O que o franqueado vê ao concluir a formação</h2>
+    <p class="ac-form-dica">Esta experiência aparece UMA vez por versão da formação, logo depois de o certificado ser emitido. Depois disso ela fica acessível na jornada, como ação do próprio franqueado.</p>
+
+    <fieldset class="ac-form-fs">
+      <legend>Tela de conclusão</legend>
+      <label class="ac-check"><input type="checkbox" id="ac-cc-splash" ${cfg.splashAtiva?'checked':''}>
+        <span>Mostrar a tela de conclusão</span></label>
+      ${acCampo('ac-cc-titulo','Rótulo acima do nome', `<input id="ac-cc-titulo" type="text" maxlength="60" value="${gEsc(cfg.titulo)}">`)}
+      ${acCampo('ac-cc-msg','Mensagem', `<textarea id="ac-cc-msg" rows="2" maxlength="240">${gEsc(cfg.mensagem)}</textarea>`,'Uma ou duas linhas. Texto longo na splash não é lido.')}
+      ${acCampo('ac-cc-frase','Frase de nova jornada', `<textarea id="ac-cc-frase" rows="2" maxlength="180">${gEsc(cfg.fraseFinal)}</textarea>`,'É a frase que marca a mudança de fase. Aparece também na tela de próximos passos.')}
+      <div class="ac-form-linha">
+        ${acCampo('ac-cc-cta','Botão principal', `<input id="ac-cc-cta" type="text" maxlength="40" value="${gEsc(cfg.ctaLabel)}">`)}
+        ${acCampo('ac-cc-destino','Para onde ele leva', `<select id="ac-cc-destino" onchange="acGestaoCcDestino(this.value)">
+            <option value="certificado" ${cfg.ctaDestino==='certificado'?'selected':''}>Certificado</option>
+            <option value="home" ${cfg.ctaDestino==='home'?'selected':''}>Jornada (home)</option>
+            <option value="aula" ${cfg.ctaDestino==='aula'?'selected':''}>Aula salva para revisão</option>
+            <option value="url" ${cfg.ctaDestino==='url'?'selected':''}>Link externo</option>
+          </select>`)}
+      </div>
+      <div id="ac-cc-url-box" ${cfg.ctaDestino==='url'?'':'hidden'}>
+        ${acCampo('ac-cc-url','Endereço do link', `<input id="ac-cc-url" type="url" value="${gEsc(cfg.ctaUrl)}" placeholder="https://…">`)}
+      </div>
+    </fieldset>
+
+    <fieldset class="ac-form-fs">
+      <legend>Mensagem dos CEOs</legend>
+      <label class="ac-check"><input type="checkbox" id="ac-cc-vativo" ${v.ativo?'checked':''}>
+        <span>Mostrar o vídeo institucional depois da tela de conclusão</span></label>
+      ${acGestaoVideoCeoHTML(v)}
+      ${acCampo('ac-cc-vurl','Ou cole a URL de um MP4 já hospedado', `<input id="ac-cc-vurl" type="url" value="${gEsc(v.url)}" placeholder="https://…/mensagem.mp4">`)}
+      ${acCampo('ac-cc-vtitulo','Título', `<input id="ac-cc-vtitulo" type="text" maxlength="120" value="${gEsc(v.titulo)}">`)}
+      ${acCampo('ac-cc-vintro','Texto de introdução', `<textarea id="ac-cc-vintro" rows="2" maxlength="240">${gEsc(v.intro)}</textarea>`)}
+      <div class="ac-form-linha">
+        ${acCampo('ac-cc-vthumb','Thumbnail (URL)', `<input id="ac-cc-vthumb" type="url" value="${gEsc(v.thumb)}" placeholder="https://…">`)}
+        ${acCampo('ac-cc-vlegenda','Legendas .vtt (URL)', `<input id="ac-cc-vlegenda" type="url" value="${gEsc(v.legenda)}" placeholder="https://…/legendas.vtt">`,'Envie o .vtt como material e cole aqui a URL assinada, ou hospede externamente.')}
+      </div>
+      <div class="ac-form-linha">
+        ${acCampo('ac-cc-vdur','Duração (minutos)', `<input id="ac-cc-vdur" type="number" min="0" max="120" value="${v.duracao?Math.round(v.duracao/60):''}">`)}
+        ${acCampo('ac-cc-vcta','Botão depois do vídeo', `<input id="ac-cc-vcta" type="text" maxlength="40" value="${gEsc(v.ctaLabel)}">`)}
+      </div>
+      <label class="ac-check"><input type="checkbox" id="ac-cc-vobrig" ${v.obrigatorio?'checked':''}>
+        <span>Assistir é obrigatório para seguir</span></label>
+      <p class="ac-form-dica">Obrigatório não bloqueia o certificado: ele já foi emitido antes desta tela. Se o vídeo falhar por problema técnico, o franqueado segue de qualquer forma — falha nossa não vira punição.</p>
+      ${acCampo('ac-cc-vversao','Versão da mensagem', `<input id="ac-cc-vversao" type="number" min="1" max="99" value="${v.versao}">`,'Suba ao publicar uma mensagem NOVA. Quem já se formou não é obrigado a rever: a nova aparece marcada como novidade na jornada.')}
+    </fieldset>
+
+    <div class="ac-form-acoes ac-form-acoes-col">
+      <div class="ac-cc-preview">
+        <span class="ac-form-dica">Pré-visualizar como franqueado:</span>
+        <div class="ac-cc-preview-btns">
+          <button type="button" class="ac-btn ac-btn-ghost ac-btn-sm" onclick="acPreviewConclusao('confirmacao')">Sequência completa</button>
+          <button type="button" class="ac-btn ac-btn-ghost ac-btn-sm" onclick="acPreviewConclusao('splash')">Só a tela</button>
+          ${v.ativo?`<button type="button" class="ac-btn ac-btn-ghost ac-btn-sm" onclick="acPreviewConclusao('video')">Só o vídeo</button>`:''}
+          <button type="button" class="ac-btn ac-btn-ghost ac-btn-sm" onclick="acPreviewConclusao('proxima')">Próximos passos</button>
+        </div>
+        <span class="ac-form-dica">O preview usa o que já está SALVO. Salve antes de conferir uma alteração.</span>
+      </div>
+      <button type="submit" class="ac-btn ac-btn-primario">Salvar experiência de conclusão</button>
+    </div>
+  </form>`;
+}
+function acGestaoCcDestino(v){
+  const box = document.getElementById('ac-cc-url-box');
+  if(box) box.hidden = (v!=='url');
+}
+function acGestaoVideoCeoHTML(v){
+  return `<div class="ac-up" id="ac-cc-up">
+    ${v.path?`<div class="ac-up-atual">${acIco('play')}
+        <div><strong>Vídeo enviado</strong><small>${gEsc(v.path)}</small></div>
+        <button type="button" class="ac-link" onclick="acGestaoPreviewVideo('${gEsc(v.path)}')">Ver</button>
+        <button type="button" class="ac-link ac-link-perigo" onclick="acGestaoRemoverVideoCeo()">Remover</button>
+      </div>`:''}
+    <label class="ac-up-zona" id="ac-cc-up-zona"
+           ondragover="event.preventDefault();this.classList.add('is-drag')"
+           ondragleave="this.classList.remove('is-drag')"
+           ondrop="acGestaoSoltarVideoCeo(event)">
+      <input type="file" accept="video/mp4,.mp4" hidden onchange="acGestaoEnviarVideoCeo(this.files&&this.files[0])">
+      <span class="ac-up-ico">${acIco('play')}</span>
+      <span class="ac-up-txt"><strong>${v.path?'Substituir a mensagem':'Arraste o MP4 dos CEOs aqui'}</strong>
+      <small>ou clique para escolher · MP4 até 500 MB</small></span>
+    </label>
+    <div class="ac-up-prog" id="ac-cc-up-prog" hidden aria-live="polite">
+      <span class="ac-barra"><i id="ac-cc-up-bar" style="width:0%"></i></span>
+      <span class="ac-up-num" id="ac-cc-up-num">0%</span>
+      <button type="button" class="ac-link ac-link-perigo" onclick="acGestaoCancelarUpload()">Cancelar</button>
+    </div>
+  </div>`;
+}
+function acGestaoSoltarVideoCeo(ev){
+  ev.preventDefault();
+  const z=document.getElementById('ac-cc-up-zona'); if(z) z.classList.remove('is-drag');
+  const f = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
+  if(f) acGestaoEnviarVideoCeo(f);
+}
+async function acGestaoEnviarVideoCeo(file){
+  if(!file) return;
+  const c = acState.curso; if(!c || c._demo){ gToast('⚠ Crie a formação primeiro','error'); return; }
+  if(file.size > 500*1024*1024){ gToast('⚠ O vídeo passa de 500 MB. Comprima antes de enviar.','error'); return; }
+  if(!(await _acEhMp4(file))){ gToast('⚠ Só aceito vídeo MP4. Converta o arquivo e tente de novo.','error'); return; }
+  // Mesmo bucket das aulas, pasta própria: sem bucket novo pra manter policy única.
+  const path = `conclusao/${c.id}/ceos.mp4`;
+  const prog=document.getElementById('ac-cc-up-prog');
+  const bar=document.getElementById('ac-cc-up-bar'), num=document.getElementById('ac-cc-up-num');
+  if(prog) prog.hidden=false;
+  const ok = await acUploadArquivo(file, path, pct=>{ if(bar)bar.style.width=pct+'%'; if(num)num.textContent=pct+'%'; });
+  if(prog) prog.hidden=true;
+  if(!ok) return;
+  const dur = await _acDuracaoDoArquivo(file);
+  await acGestaoSalvarConclusao({ videoPath: path, videoDur: dur?Math.round(dur):0, silencioso:true });
+  _acUrlAssinada.delete(path);
+  gToast('Mensagem dos CEOs enviada');
+  acGestaoRenderCorpo();
+}
+async function acGestaoRemoverVideoCeo(){
+  const ok = await gConfirm('Remover o vídeo da mensagem dos CEOs? O arquivo é apagado do armazenamento.',
+                            {title:'Remover vídeo', okLabel:'Remover', danger:true});
+  if(!ok) return;
+  const c = acState.curso; const cfg = acConclusaoCfg();
+  const sb=_acSb();
+  if(sb && cfg.video.path){
+    try{ await sb.storage.from('luma-aulas').remove([cfg.video.path]); }catch(e){}
+    _acUrlAssinada.delete(cfg.video.path);
+  }
+  await acGestaoSalvarConclusao({ videoPath:'', silencioso:true });
+  gToast('Vídeo removido');
+  acGestaoRenderCorpo();
+}
+
+/**
+ * Grava luma.cursos.conclusao. Aceita sobreposições (upload chama com videoPath)
+ * para não depender de o formulário estar montado.
+ */
+async function acGestaoSalvarConclusao(over){
+  over = over||{};
+  const lu=_acLuma(), c=acState.curso;
+  if(!lu || !c || c._demo){ gToast('⚠ Crie a formação no banco antes de configurar','error'); return; }
+  const cfg = acConclusaoCfg();
+  const val=(id, fb)=>{ const e=document.getElementById(id); return e ? e.value : (fb!==undefined?fb:''); };
+  const chk=(id, fb)=>{ const e=document.getElementById(id); return e ? !!e.checked : !!fb; };
+  const mins = Number(val('ac-cc-vdur', ''))||0;
+  const path = over.videoPath!==undefined ? over.videoPath : cfg.video.path;
+  const dur = over.videoDur ? over.videoDur : (mins ? mins*60 : cfg.video.duracao);
+
+  const conclusao = {
+    splash: {
+      ativa: chk('ac-cc-splash', cfg.splashAtiva),
+      titulo: val('ac-cc-titulo', cfg.titulo),
+      mensagem: val('ac-cc-msg', cfg.mensagem),
+      frase_final: val('ac-cc-frase', cfg.fraseFinal),
+      cta_label: val('ac-cc-cta', cfg.ctaLabel),
+      cta_destino: val('ac-cc-destino', cfg.ctaDestino),
+      cta_url: val('ac-cc-url', cfg.ctaUrl)
+    },
+    video: {
+      // Só liga de verdade se houver arquivo ou URL — checkbox marcada sem vídeo
+      // prometeria uma tela que não existe.
+      ativo: chk('ac-cc-vativo', cfg.video.ativo) && !!(path || val('ac-cc-vurl', cfg.video.url)),
+      versao: Math.max(1, Number(val('ac-cc-vversao', cfg.video.versao))||1),
+      titulo: val('ac-cc-vtitulo', cfg.video.titulo),
+      intro: val('ac-cc-vintro', cfg.video.intro),
+      path: path,
+      url: val('ac-cc-vurl', cfg.video.url),
+      thumb_url: val('ac-cc-vthumb', cfg.video.thumb),
+      legenda_url: val('ac-cc-vlegenda', cfg.video.legenda),
+      duracao_seg: dur || null,
+      obrigatorio: chk('ac-cc-vobrig', cfg.video.obrigatorio),
+      cta_label: val('ac-cc-vcta', cfg.video.ctaLabel)
+    }
+  };
+  try{
+    const { data, error } = await lu.from('cursos').update({ conclusao }).eq('id', c.id).select().maybeSingle();
+    if(error) throw error;
+    if(data){ data.modulos = c.modulos; acState.curso = data; }
+    if(!over.silencioso){ gToast('Experiência de conclusão salva'); acGestaoRenderCorpo(); }
+  }catch(e){ _acGestaoErro(e,'a experiência de conclusão'); }
 }
 
 /* ── FORM: MÓDULO ── */

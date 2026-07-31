@@ -55,6 +55,39 @@ body.mode-academia #luma-widget-fab-wrap{ display:none!important; }
 
 #ac-root{ flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
 
+/* ══════════════════════════════════════════════════════════════
+   MOTION — as classes que js/academia/motion.js liga e desliga.
+   Nenhum ms nem cubic-bezier solto: tudo vem dos tokens.
+══════════════════════════════════════════════════════════════ */
+/* Entrada em cascata. O --ac-atraso é escrito por acCascata (30ms por item,
+   teto de 6). Fade + 10px: o suficiente pra ler como "chegou", longe de
+   parecer que a página está montando devagar. */
+@keyframes acEntra{ from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
+.ac-entra{ animation:acEntra var(--dur-base) var(--ease-out) both;animation-delay:var(--ac-atraso,0ms) }
+
+/* Pulso de confirmação — "isto mudou agora". Só transform/opacity e box-shadow
+   de anel, nada de animar width/height. */
+@keyframes acPulso{
+  0%{ box-shadow:0 0 0 0 color-mix(in srgb,var(--dm-orange) 34%,transparent) }
+  70%{ box-shadow:0 0 0 7px color-mix(in srgb,var(--dm-orange) 0%,transparent) }
+  100%{ box-shadow:0 0 0 0 color-mix(in srgb,var(--dm-orange) 0%,transparent) }
+}
+.ac-pulso{ animation:acPulso var(--dur-base) var(--ease-out) }
+/* Marco (módulo fechado): verde, mais demorado, uma vez só. */
+@keyframes acPulsoMarco{
+  0%{ box-shadow:0 0 0 0 color-mix(in srgb,var(--green) 40%,transparent);transform:none }
+  35%{ transform:scale(1.012) }
+  70%{ box-shadow:0 0 0 10px color-mix(in srgb,var(--green) 0%,transparent) }
+  100%{ box-shadow:0 0 0 0 color-mix(in srgb,var(--green) 0%,transparent);transform:none }
+}
+.ac-pulso-marco{ animation:acPulsoMarco var(--dur-celebration) var(--ease-out) }
+
+/* Check que se desenha ao concluir — o traço "risca" o certo em vez de aparecer. */
+@keyframes acRisca{ from{stroke-dashoffset:26} to{stroke-dashoffset:0} }
+.ac-side-aula.is-ok .ac-i-ok svg polyline,
+.ac-tag-concluido .ac-i svg polyline{ stroke-dasharray:26 }
+.ac-risca svg polyline{ animation:acRisca var(--dur-base) var(--ease-out) both }
+
 /* ══ PRIMITIVOS ══ */
 .ac-sr{ position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0 }
 .ac-i{ display:inline-flex;align-items:center;justify-content:center;flex:none }
@@ -311,6 +344,21 @@ button.ac-mapa-card:focus-visible{ outline:2px solid var(--dm-orange);outline-of
 .ac-cert-txt{ margin:0;font-size:13px;line-height:1.55;color:var(--ac-txt2) }
 .ac-cert-req{ margin:8px 0 0;font-size:12px;color:var(--ac-txt3) }
 .ac-cert-cod{ margin:8px 0 0;font-size:11.5px;color:var(--ac-txt3) }
+/* Ações secundárias do cartão: linha própria, discretas, alvo de toque cheio. */
+.ac-cert-link{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  width:100%;min-height:var(--tap-min);margin-top:8px;font-size:12px;
+}
+.ac-cert-link .ac-tag{ padding:2px 6px }
+
+/* Certificado: cabeçalho com zoom + entrada depois de pintado */
+.ac-cert-cab{ display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap }
+.ac-cert-cab .ac-bloco-titulo{ margin:0 }
+.ac-cert-zoom{ display:flex;align-items:center;gap:4px }
+.ac-cert-zoom-num{ min-width:56px;font-variant-numeric:tabular-nums }
+.ac-cert-moldura.is-zoom{ overflow:auto;max-height:min(72vh,760px) }
+@keyframes acCertEntra{ from{opacity:0;transform:translateY(12px) scale(.985)} to{opacity:1;transform:none} }
+.ac-cert-entra{ animation:acCertEntra var(--dur-slow) var(--ease-spring-soft) both }
 .ac-cert-cod code,.ac-cert-hero-nums code{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;font-weight:700;color:var(--ac-txt) }
 
 .ac-rec-lista{ list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px }
@@ -381,16 +429,20 @@ body.ac-agente-recolhido .ac-aula{ grid-template-columns:var(--ac-side-w) minmax
 }
 .ac-side-mod-cab:hover{ background:var(--ac-surf2) }
 .ac-side-mod-cab:focus-visible{ outline:2px solid var(--dm-orange);outline-offset:-2px }
-.ac-side-mod-ico{ flex:none;color:var(--ac-txt3);display:flex;transition:transform var(--dur-fast) var(--ease-standard) }
+.ac-side-mod-ico{ flex:none;color:var(--ac-txt3);display:flex }
+/* A transição vive no MESMO elemento que recebe o transform. Antes ela estava no
+   pai (.ac-side-mod-ico) e o giro do chevron acontecia num salto. */
+.ac-side-mod-ico .ac-i-chev{ transition:transform var(--dur-fast) var(--ease-standard) }
 .ac-side-mod.is-aberto .ac-side-mod-ico .ac-i-chev{ transform:rotate(90deg) }
 .ac-side-mod.is-concluido .ac-side-mod-ico{ color:var(--green-text) }
 .ac-side-mod.is-atualizado .ac-side-mod-ico{ color:var(--var-color) }
 .ac-side-mod-txt{ flex:1;min-width:0;display:flex;flex-direction:column }
 .ac-side-mod-nome{ font-size:12.5px;font-weight:700;color:var(--ac-txt);line-height:1.3 }
 .ac-side-mod-meta{ font-size:10.5px;color:var(--ac-txt3) }
-.ac-side-aulas{ list-style:none;margin:0;padding:0 0 4px 12px;display:none }
-.ac-side-mod.is-aberto .ac-side-aulas{ display:block;animation:acAbre var(--dur-fast) var(--ease-out) }
-@keyframes acAbre{ from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:none} }
+/* Altura é animada por acAltura() (motion.js). Aqui só o estado fechado —
+   display:none/block impediria qualquer animação de altura. */
+.ac-side-aulas{ list-style:none;margin:0;padding:0 0 4px 12px }
+.ac-side-aulas[hidden]{ display:none }
 
 .ac-side-aula{
   display:flex;align-items:center;gap:9px;width:100%;text-align:left;
@@ -473,6 +525,56 @@ div.ac-side-aula{ cursor:default;opacity:.6 }
 .ac-assistido{ display:flex;align-items:center;gap:9px;min-width:170px }
 .ac-assistido .ac-barra{ width:100px }
 .ac-assistido small{ font-size:11px;color:var(--ac-txt3);white-space:nowrap }
+
+/* Faixa de retomada — informa e oferece reiniciar, sem modal sobre o vídeo.
+   Fica no rodapé do palco pra não cobrir a imagem nem os controles nativos. */
+.ac-retomada{
+  position:absolute;left:12px;right:12px;bottom:56px;z-index:3;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  padding:9px 13px;border-radius:var(--r);
+  background:rgba(10,10,10,.82);color:#fff;font-size:12.5px;
+  backdrop-filter:var(--glass-blur);
+  opacity:0;transform:translateY(8px);
+  transition:opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+.ac-retomada.is-visivel{ opacity:1;transform:none }
+.ac-retomada strong{ font-weight:800 }
+.ac-retomada-btn{
+  flex:none;min-height:30px;padding:5px 12px;border-radius:var(--r-pill);
+  border:1px solid rgba(255,255,255,.4);background:transparent;color:#fff;
+  font:700 11.5px 'Roboto',sans-serif;cursor:pointer;
+  transition:background var(--dur-micro) var(--ease-standard),border-color var(--dur-micro) var(--ease-standard);
+}
+.ac-retomada-btn:hover{ background:rgba(255,255,255,.16);border-color:#fff }
+.ac-retomada-btn:focus-visible{ outline:2px solid #fff;outline-offset:2px }
+
+/* Fim do vídeo — apresenta a próxima ação por cima do último quadro.
+   Os controles nativos seguem alcançáveis: a caixa não cobre a barra inferior. */
+.ac-fimvideo{
+  position:absolute;inset:0 0 46px 0;z-index:4;
+  display:flex;align-items:center;justify-content:center;padding:16px;
+  background:linear-gradient(180deg,rgba(10,10,10,.55),rgba(10,10,10,.86));
+  opacity:0;transition:opacity var(--dur-base) var(--ease-out);
+}
+.ac-fimvideo.is-visivel{ opacity:1 }
+.ac-fimvideo-box{
+  display:flex;flex-direction:column;align-items:center;gap:11px;text-align:center;
+  transform:translateY(10px) scale(.985);
+  transition:transform var(--dur-base) var(--ease-spring-soft);
+}
+.ac-fimvideo.is-visivel .ac-fimvideo-box{ transform:none }
+.ac-fimvideo-t{ font-size:16px;font-weight:800;color:#fff }
+.ac-fimvideo-nota{ font-size:12.5px;line-height:1.5;color:rgba(255,255,255,.8);max-width:34ch }
+.ac-fimvideo-sec{ display:flex;gap:16px;flex-wrap:wrap;justify-content:center }
+.ac-fimvideo-sec .ac-link{ color:rgba(255,255,255,.85);font-size:12px }
+.ac-fimvideo-sec .ac-link:hover{ color:#fff }
+.ac-fimvideo-sec .ac-link:focus-visible{ outline:2px solid #fff;outline-offset:2px }
+
+/* Estados do palco: só a moldura reage (o vídeo em si nunca é filtrado —
+   filtro em vídeo custa GPU e derruba o frame rate). */
+.ac-player-palco{ transition:border-color var(--dur-base) var(--ease-standard) }
+.ac-player-palco.is-tocando{ border-color:color-mix(in srgb,var(--dm-orange) 45%,transparent) }
+.ac-player-palco.is-fim{ border-color:var(--ac-border2) }
 
 .ac-sem-video{
   display:flex;align-items:center;gap:12px;padding:16px 18px;
@@ -669,11 +771,28 @@ body.ac-agente-recolhido .ac-agente{ display:none }
 .ac-ag-limpar{ width:100%;font-size:11px;text-align:right;order:9;color:var(--ac-txt3) }
 .ac-ag-limpar:hover{ color:var(--dm-orange-text) }
 
-.ac-ag-corpo{ flex:1;min-height:0;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px }
-.ac-ag-msg{
-  max-width:94%;padding:10px 13px;border-radius:14px;font-size:13px;line-height:1.6;
-  animation:gFadeInUp var(--dur-fast) var(--ease-out);
+.ac-ag-corpo{ flex:1;min-height:0;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth }
+/* Bolha SEM animação por padrão: o histórico que já estava na tela não pode
+   re-animar quando o painel é redesenhado (era o efeito de "tudo pisca a cada
+   pergunta"). Só a mensagem recém-anexada leva .ac-ag-nova. */
+.ac-ag-msg{ max-width:94%;padding:10px 13px;border-radius:14px;font-size:13px;line-height:1.6 }
+@keyframes acAgNova{ from{opacity:0;transform:translateY(8px) scale(.99)} to{opacity:1;transform:none} }
+.ac-ag-nova{ animation:acAgNova var(--dur-fast) var(--ease-out) both }
+
+/* "Ir para a última mensagem" — aparece só quando a pessoa subiu no histórico.
+   Sem ele, preservar a rolagem esconderia a resposta que acabou de chegar. */
+.ac-ag-voltar{
+  position:absolute;left:50%;top:64px;z-index:5;transform:translate(-50%,-6px);
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 12px;border-radius:var(--r-pill);
+  border:1px solid var(--ac-border2);background:var(--ac-surf);color:var(--ac-txt2);
+  font:700 11.5px 'Roboto',sans-serif;cursor:pointer;box-shadow:var(--ac-sombra);
+  opacity:0;pointer-events:none;
+  transition:opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
 }
+.ac-ag-voltar.is-visivel{ opacity:1;pointer-events:auto;transform:translate(-50%,0) }
+.ac-ag-voltar:hover{ border-color:var(--dm-orange);color:var(--dm-orange-text) }
+.ac-agente{ position:relative }
 .ac-ag-msg p{ margin:0 0 7px }
 .ac-ag-msg p:last-child{ margin-bottom:0 }
 .ac-ag-msg.is-agente{ align-self:flex-start;background:var(--ac-surf2);color:var(--ac-txt);border-bottom-left-radius:5px }
@@ -820,6 +939,9 @@ body:not(.theme-light) .ac-up-zona:hover,body:not(.theme-light) .ac-up-zona.is-d
 .ac-mat-linha select,.ac-mat-linha input{ min-height:34px;font-size:12px;padding:6px 8px;border:1px solid var(--ac-border2);border-radius:var(--r-sm);background:var(--ac-surf);color:var(--ac-txt) }
 .ac-mat-linha input:disabled{ opacity:.6 }
 
+.ac-cc-preview{ display:flex;flex-direction:column;gap:8px;padding:14px;border-radius:var(--r);background:var(--ac-surf2);border:1px solid var(--ac-border) }
+.ac-cc-preview-btns{ display:flex;gap:7px;flex-wrap:wrap }
+
 .ac-turma-cards{ display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px }
 .ac-turma-card{ background:var(--ac-surf2);border-radius:var(--r);padding:14px 16px }
 .ac-turma-card dt{ font-size:10.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ac-txt3);margin-bottom:5px }
@@ -886,6 +1008,185 @@ body.ac-preview .ac-home,body.ac-preview .ac-main{ padding-bottom:84px }
 .ac-cert-req-lista li.is-ok .ac-i{ color:var(--green-text) }
 .ac-cert-req-lista li strong{ display:block;font-size:13.5px;color:var(--ac-txt) }
 .ac-cert-req-lista li small{ font-size:11.5px;color:var(--ac-txt3) }
+
+/* ══════════════════════════════════════════════════════════════
+   EXPERIÊNCIA DE CONCLUSÃO (splash · vídeo dos CEOs · nova jornada)
+   Tema PRÓPRIO e escuro de propósito: é o único momento do módulo que sai do
+   fluxo de trabalho. Mesmo assim, cor e curva vêm dos tokens — o escuro é o
+   --d-bg do Estúdio, não um preto inventado.
+══════════════════════════════════════════════════════════════ */
+.ac-conc{
+  /* O overlay vive no <body>, FORA de #view-academia — então as vars --ac-* do
+     módulo não chegam aqui e precisam ser redeclaradas. Mesma fonte (tokens),
+     mesmo flip de tema num bloco só. Usar --d-* direto era o bug: body.theme-light
+     redefine os --d-* pra superfícies CLARAS, e a splash saía cor de creme. */
+  --ac-bg:var(--off-white); --ac-surf:var(--white); --ac-surf2:var(--gray-light);
+  --ac-border:var(--gray-light); --ac-border2:var(--gray-mid);
+  --ac-txt:var(--text); --ac-txt2:var(--text-2); --ac-txt3:var(--text-3);
+  --ac-trilho:var(--gray-light);
+  position:fixed;inset:0;z-index:11500;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:clamp(20px,4vw,56px) clamp(16px,4vw,48px);
+  background:var(--ac-bg);color:var(--ac-txt);
+  opacity:0;transition:opacity var(--dur-base) var(--ease-out);
+  overflow-y:auto;
+}
+body:not(.theme-light) .ac-conc{
+  --ac-bg:var(--d-bg); --ac-surf:var(--ac-surf); --ac-surf2:var(--d-surf);
+  --ac-border:var(--ac-border); --ac-border2:var(--ac-border2);
+  --ac-txt:var(--ac-txt); --ac-txt2:var(--ac-txt2); --ac-txt3:var(--ac-txt3);
+  --ac-trilho:var(--ac-surf2);
+}
+.ac-conc.is-visivel{ opacity:1 }
+/* Sem overflow:hidden no body aqui: 01-reset.css:14 ja faz html,body{overflow:hidden}
+   no app inteiro (o Luma e SPA de viewport fixo). A classe .ac-conc-aberta fica
+   so como marca de estado, pra quem precisar reagir a celebracao aberta. */
+
+/* Ambiente: um halo de marca, estático. Partícula/loop constante é o que o
+   produto proíbe — e o que come bateria em celular. */
+.ac-conc-fundo{ position:absolute;inset:0;pointer-events:none;overflow:hidden }
+.ac-conc-halo{
+  position:absolute;left:50%;top:8%;width:min(560px,86vw);aspect-ratio:1;
+  transform:translateX(-50%) scale(.88);opacity:0;border-radius:50%;
+  background:radial-gradient(circle,color-mix(in srgb,var(--dm-orange) 13%,transparent),transparent 58%);
+  transition:opacity var(--dur-celebration) var(--ease-out), transform var(--dur-celebration) var(--ease-out);
+}
+.ac-conc.is-visivel .ac-conc-halo{ opacity:.9 }
+.ac-conc.is-visivel .ac-conc-halo{ opacity:1;transform:translateX(-50%) scale(1) }
+.ac-conc-palco{ position:relative;width:100%;max-width:760px;text-align:center }
+
+/* Passos da coreografia: entram por opacity+transform (nunca layout). */
+[data-passo]{
+  opacity:0;transform:translateY(14px);
+  transition:opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
+}
+[data-passo].is-visivel{ opacity:1;transform:none }
+
+.ac-conc-rodape{
+  position:absolute;left:0;right:0;bottom:0;z-index:2;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px clamp(16px,4vw,32px) calc(14px + var(--safe-bottom));
+}
+.ac-conc-pular,.ac-conc-fechar{
+  border:1px solid var(--ac-border2);background:transparent;color:var(--ac-txt2);
+  border-radius:var(--r-pill);cursor:pointer;
+  font:600 12px 'Roboto',sans-serif;
+  transition:border-color var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard);
+}
+.ac-conc-pular{ min-height:34px;padding:7px 14px }
+.ac-conc-fechar{ width:36px;height:36px;display:flex;align-items:center;justify-content:center }
+.ac-conc-fechar svg{ width:17px;height:17px }
+.ac-conc-pular:hover,.ac-conc-fechar:hover{ border-color:var(--dm-orange);color:var(--dm-orange) }
+.ac-conc-pular:focus-visible,.ac-conc-fechar:focus-visible{ outline:2px solid var(--dm-orange);outline-offset:2px }
+
+/* Etapa 1 — confirmação */
+.ac-conc-conf{ display:flex;flex-direction:column;align-items:center;gap:20px }
+.ac-conc-anel{ position:relative;width:clamp(132px,15vw,168px) }
+.ac-conc-anel svg{ width:100%;height:auto;transform:rotate(-90deg) }
+.ac-conc-anel-trilho{ fill:none;stroke:var(--ac-surf2);stroke-width:7 }
+.ac-conc-anel-fill{
+  fill:none;stroke:var(--dm-orange);stroke-width:7;stroke-linecap:round;
+  transition:stroke-dashoffset var(--dur-celebration) var(--ease-out);
+}
+.ac-conc-anel-num{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:clamp(26px,3vw,34px);font-weight:900;color:var(--ac-txt);
+}
+.ac-conc-conf-txt{ margin:0;font-size:clamp(16px,2vw,20px);font-weight:700;color:var(--ac-txt) }
+
+/* Etapa 2 — splash */
+.ac-conc-splash{ display:flex;flex-direction:column;align-items:center;gap:12px }
+.ac-conc-selo{
+  display:flex;align-items:center;justify-content:center;
+  width:clamp(72px,8vw,92px);aspect-ratio:1;border-radius:50%;
+  background:color-mix(in srgb,var(--dm-orange) 12%,transparent);
+  border:2.5px solid var(--dm-orange);
+  color:var(--dm-orange-text);margin-bottom:10px;
+  box-shadow:0 10px 30px color-mix(in srgb,var(--dm-orange-d) 22%,transparent);
+}
+.ac-conc-selo svg{ width:44%;height:44%;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round }
+.ac-conc-eyebrow{
+  display:inline-flex;align-items:center;gap:7px;
+  font-size:10.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--dm-orange);
+}
+/* O rótulo estava em cinza fraco e desaparecia ao lado do nome. Agora é o
+   título de fato; o nome cede um degrau e segue sendo o maior elemento. */
+.ac-conc-titulo{
+  margin:0;font-size:clamp(17px,2.1vw,22px);font-weight:800;letter-spacing:-.01em;
+  color:var(--ac-txt);
+}
+.ac-conc-nome{
+  margin:6px 0 0;font-size:clamp(28px,4.6vw,50px);font-weight:900;line-height:1.04;
+  letter-spacing:-.025em;text-wrap:balance;color:var(--ac-txt);
+}
+/* Fio de marca sob o nome — a mesma assinatura do certificado impresso. */
+.ac-conc-nome::after{
+  content:'';display:block;width:clamp(52px,7vw,88px);height:3px;margin:14px auto 0;
+  border-radius:var(--r-pill);background:var(--dm-yellow);
+}
+.ac-conc-msg{ margin:6px 0 0;font-size:clamp(14px,1.6vw,16px);line-height:1.6;color:var(--ac-txt2);max-width:52ch }
+.ac-conc-meta{
+  display:flex;justify-content:center;gap:clamp(18px,3.4vw,44px);flex-wrap:wrap;
+  margin:14px 0 4px;
+}
+.ac-conc-meta dt{ font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ac-txt3);margin-bottom:4px }
+.ac-conc-meta dd{ margin:0;font-size:14px;font-weight:700;color:var(--ac-txt) }
+.ac-conc-frase{
+  margin:12px 0 4px;font-size:clamp(15px,1.9vw,19px);font-weight:700;line-height:1.45;
+  color:var(--dm-orange);max-width:44ch;text-wrap:balance;
+}
+.ac-conc-acoes{ display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:14px }
+.ac-btn-conc{ min-height:44px;padding:11px 22px;font-size:14px }
+.ac-conc-ghost{ border-color:var(--ac-border2);color:var(--ac-txt2);background:transparent }
+.ac-conc-ghost:hover{ border-color:var(--dm-orange);color:var(--dm-orange);background:transparent }
+
+/* Etapa 3 — vídeo dos CEOs */
+.ac-conc-video{ display:flex;flex-direction:column;gap:14px;align-items:center }
+.ac-conc-video-cab{ display:flex;flex-direction:column;align-items:center;gap:6px }
+.ac-conc-video-t{ margin:0;font-size:clamp(19px,2.6vw,27px);font-weight:900;line-height:1.2;text-wrap:balance;color:var(--ac-txt) }
+.ac-conc-video-intro{ margin:0;font-size:13.5px;line-height:1.6;color:var(--ac-txt2);max-width:56ch }
+.ac-conc-video-palco{
+  position:relative;width:100%;aspect-ratio:16/9;border-radius:var(--r);overflow:hidden;
+  background:#000;border:1px solid var(--ac-border2);
+}
+.ac-conc-video-el{ width:100%;height:100%;display:block;object-fit:contain;background:#000 }
+.ac-conc-video-estado{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:9px;
+  background:rgba(0,0,0,.72);color:#fff;font-size:13px;text-align:center;padding:20px;
+}
+.ac-conc-video-estado.is-erro{ background:rgba(0,0,0,.86) }
+.ac-conc-video-acoes{ display:flex;flex-direction:column;align-items:center;gap:9px }
+.ac-conc-video-nota{ margin:0;font-size:12.5px;line-height:1.55;color:var(--ac-txt3);max-width:52ch;text-align:center }
+
+/* Etapa 4 — nova jornada */
+.ac-conc-proxima{ display:flex;flex-direction:column;align-items:center;gap:10px }
+.ac-conc-prox-t{ margin:2px 0 0;font-size:clamp(21px,3vw,32px);font-weight:900;line-height:1.2;text-wrap:balance;color:var(--ac-txt) }
+.ac-conc-prox-s{ margin:0;font-size:14px;line-height:1.6;color:var(--ac-txt2);max-width:56ch }
+.ac-conc-cards{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:10px;
+  width:100%;margin:16px 0 6px;text-align:left;
+}
+.ac-conc-card{
+  display:flex;flex-direction:column;gap:5px;
+  padding:14px;border-radius:var(--r);
+  background:var(--ac-surf);border:1px solid var(--ac-border);
+}
+.ac-conc-card-ico{
+  display:flex;align-items:center;justify-content:center;width:32px;height:32px;
+  border-radius:var(--r-sm);background:color-mix(in srgb,var(--dm-orange) 14%,transparent);color:var(--dm-orange);
+}
+.ac-conc-card strong{ font-size:13px;font-weight:750;color:var(--ac-txt) }
+.ac-conc-card span:last-child{ font-size:11.5px;line-height:1.5;color:var(--ac-txt3) }
+
+/* Preview da equipe: faixa inconfundível, igual à do preview de aula. */
+.ac-conc.is-preview::before{
+  content:'Preview da equipe — experiência de conclusão';
+  position:absolute;left:0;right:0;top:0;z-index:3;
+  padding:8px 16px;text-align:center;
+  background:var(--var-color);color:#0A0A0A;
+  font:800 11.5px 'Roboto',sans-serif;letter-spacing:.04em;
+}
 
 /* ══════════════════════════════════════════════════════════════
    RESPONSIVO
@@ -970,7 +1271,21 @@ body.ac-preview .ac-home,body.ac-preview .ac-main{ padding-bottom:84px }
   .ac-nav-aula .ac-nav-lbl{ display:inline }
 }
 
+@media (max-width:768px){
+  /* Conclusão no celular: o palco rola no corpo do overlay, o rodapé (pular /
+     fechar) fica fixo e alcançável, e o halo encolhe pra não pesar o GPU. */
+  .ac-conc{ justify-content:flex-start;padding:22px 16px 88px }
+  .ac-conc-halo{ width:min(520px,150vw);top:-10% }
+  .ac-conc-rodape{ position:fixed;background:linear-gradient(180deg,transparent,var(--d-bg) 55%) }
+  .ac-conc-meta{ gap:16px }
+  .ac-conc-acoes{ width:100%;flex-direction:column }
+  .ac-conc-acoes .ac-btn{ width:100% }
+  .ac-conc-cards{ grid-template-columns:1fr 1fr }
+}
+
 @media (max-width:480px){
+  .ac-conc-cards{ grid-template-columns:1fr }
+  .ac-conc-nome{ font-size:28px }
   /* Só o módulo no breadcrumb: o nome da formação quebrava em 2 linhas e
      comprimia o título da aula (o contexto do curso já está no drawer). */
   .ac-crumb > button,.ac-crumb > span[aria-hidden]{ display:none }
@@ -990,13 +1305,24 @@ body.ac-preview .ac-home,body.ac-preview .ac-main{ padding-bottom:84px }
 /* Nenhuma tela pode rolar na horizontal (checado a 320px) */
 .ac-home,.ac-main,.ac-gestao,.ac-side,.ac-agente{ overflow-x:hidden }
 
-/* ══ REDUÇÃO DE MOVIMENTO ══ */
+/* ══ REDUÇÃO DE MOVIMENTO ══
+   Regra: remover o MOVIMENTO, nunca a informação. Tudo que a coreografia
+   revelaria em etapas aparece de uma vez, com a mesma hierarquia. */
 @media (prefers-reduced-motion:reduce){
   #view-academia *,#view-academia *::before,#view-academia *::after,
-  .ac-festa,.ac-festa-box{
+  .ac-festa,.ac-festa-box,.ac-conc,.ac-conc *{
     animation-duration:.01ms!important;animation-iteration-count:1!important;
     transition-duration:.01ms!important;
   }
-  .ac-barra > i,.ac-anel-fill{ transition:none }
+  .ac-barra > i,.ac-anel-fill,.ac-conc-anel-fill{ transition:none }
   .ac-side,.ac-agente{ transition:none }
+  /* Os passos da splash não podem ficar invisíveis à espera de uma sequência
+     que não vai rodar — nem depender do JS pra revelar. */
+  [data-passo]{ opacity:1!important;transform:none!important }
+  .ac-entra{ animation:none;opacity:1;transform:none }
+  .ac-conc-halo{ opacity:1;transform:translateX(-50%) scale(1) }
+  .ac-retomada,.ac-fimvideo{ opacity:1;transform:none }
+  .ac-fimvideo .ac-fimvideo-box{ transform:none }
+  .ac-ag-corpo{ scroll-behavior:auto }
+  .ac-conc-pular{ display:none }   /* sem animação, não há o que pular */
 }

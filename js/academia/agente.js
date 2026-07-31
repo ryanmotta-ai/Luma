@@ -56,10 +56,13 @@ function acRenderAgente(aula){
       ${msgs.length?`<button type="button" class="ac-ag-limpar ac-link" onclick="acAgenteReiniciar()">Reiniciar conversa</button>`:''}
     </div>
 
-    <div class="ac-ag-corpo" id="ac-ag-corpo" aria-live="polite" aria-atomic="false">
+    <button type="button" class="ac-ag-voltar" id="ac-ag-voltar" onclick="acAgenteIrParaUltima()">
+      ${acIco('seta','ac-i-sm')} <span>Ir para a última mensagem</span>
+    </button>
+    <div class="ac-ag-corpo" id="ac-ag-corpo" aria-live="polite" aria-atomic="false" onscroll="acAgenteMostrarVoltar(!acAgenteNoFim())">
       ${!pronto ? acAgenteIndisponivel()
         : (msgs.length ? msgs.map(acAgenteBolha).join('') : acAgenteBoasVindas(aula))}
-      ${_acAgentePensando?`<div class="ac-ag-msg is-agente is-pensando"><span class="ac-ag-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="ac-sr">O tutor está escrevendo…</span></div>`:''}
+      ${_acAgentePensando?`<div class="ac-ag-msg is-agente is-pensando" id="ac-ag-pensando"><span class="ac-ag-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="ac-sr">O tutor está escrevendo…</span></div>`:''}
     </div>
 
     ${pronto?`
@@ -93,7 +96,7 @@ function acAgenteIndisponivel(){
 }
 
 function acAgenteBoasVindas(aula){
-  return `<div class="ac-ag-msg is-agente">
+  return `<div class="ac-ag-msg is-agente ac-ag-boasvindas">
     <p>Posso ajudar você a entender <strong>${gEsc(aula.titulo)}</strong>. Me diga sua dúvida — ou escolha um atalho abaixo.</p>
   </div>`;
 }
@@ -143,10 +146,30 @@ function acAgenteAutoAltura(t){
   t.style.height = 'auto';
   t.style.height = Math.min(120, t.scrollHeight) + 'px';
 }
-function acAgenteRolar(){
-  const c = document.getElementById('ac-ag-corpo');
-  if(c) c.scrollTop = c.scrollHeight;
+// A pessoa está no fim da conversa? (48px de folga: rolagem raramente para exata)
+function acAgenteNoFim(){
+  const c = document.getElementById('ac-ag-corpo'); if(!c) return true;
+  return (c.scrollHeight - c.scrollTop - c.clientHeight) < 48;
 }
+/**
+ * Rola pro fim SÓ quando faz sentido.
+ * Antes isto era incondicional: chegava uma resposta e o histórico pulava pro
+ * fim mesmo com a pessoa lendo uma mensagem de dez minutos atrás.
+ * @param {boolean} forcar ignora a posição atual (clique no botão "última")
+ */
+function acAgenteRolar(forcar){
+  const c = document.getElementById('ac-ag-corpo'); if(!c) return;
+  if(!forcar && !acAgenteNoFim()){ acAgenteMostrarVoltar(true); return; }
+  if(typeof acMotionReduzido==='function' && !acMotionReduzido() && c.scrollTo){
+    try{ c.scrollTo({top:c.scrollHeight, behavior:'smooth'}); }catch(e){ c.scrollTop=c.scrollHeight; }
+  }else c.scrollTop = c.scrollHeight;
+  acAgenteMostrarVoltar(false);
+}
+function acAgenteMostrarVoltar(mostrar){
+  const el = document.getElementById('ac-ag-voltar');
+  if(el) el.classList.toggle('is-visivel', !!mostrar);
+}
+function acAgenteIrParaUltima(){ acAgenteRolar(true); }
 
 /* ══════════════════════════════════════════════════════════════
    HISTÓRICO (persistido por usuário+aula; privado por RLS)
@@ -214,9 +237,13 @@ async function acAgentePerguntar(pergunta){
   _acUltimaPergunta = pergunta;
 
   acMsgs[aulaId] = (acMsgs[aulaId]||[]).filter(m=>!m._erro);
-  acMsgs[aulaId].push({ papel:'usuario', texto:pergunta });
+  const msgUsuario = { papel:'usuario', texto:pergunta };
+  acMsgs[aulaId].push(msgUsuario);
   _acAgentePensando = true;
-  acRenderAgente(aula);
+  // Anexa só o que é novo. Re-renderizar o painel fazia TODO o histórico
+  // re-animar a cada pergunta e a rolagem saltava pro fim sem pedir licença.
+  acAgenteAnexar(msgUsuario, {rolar:true});
+  acAgentePensandoUI(true);
   _acGravarMsg(aulaId, 'usuario', pergunta);
   // Telemetria: só o FATO da pergunta. O texto é dado educacional privado e
   // não vira evento analítico (regra do produto).
@@ -228,15 +255,67 @@ async function acAgentePerguntar(pergunta){
   }catch(e){ resposta = null; }
 
   _acAgentePensando = false;
-  if(resposta){
-    acMsgs[aulaId].push({ papel:'agente', texto:resposta });
-    _acGravarMsg(aulaId, 'agente', resposta);
-  }else{
-    acMsgs[aulaId].push({ papel:'agente', _erro:true,
-      texto:'Não consegui responder agora. Tente de novo em instantes — ou fale com a equipe Delivery Much se for urgente.' });
-  }
+  const msg = resposta
+    ? { papel:'agente', texto:resposta }
+    : { papel:'agente', _erro:true,
+        texto:'Não consegui responder agora. Tente de novo em instantes — ou fale com a equipe Delivery Much se for urgente.' };
+  acMsgs[aulaId].push(msg);
+  if(resposta) _acGravarMsg(aulaId, 'agente', resposta);
+
+  // Só toca no DOM se a pessoa ainda está NESTA aula — trocar de aula durante a
+  // espera não pode fazer a resposta antiga aparecer na aula nova.
   const atual = acAula(acState.aulaId);
-  if(atual && atual.id===aulaId && acState.rota==='aula') acRenderAgente(atual);
+  if(atual && atual.id===aulaId && acState.rota==='aula'){
+    acAgentePensandoUI(false);
+    acAgenteAnexar(msg);
+    acAgenteAtualizarAtalhos(atual);
+  }
+}
+
+/** Insere uma bolha no fim do histórico, com entrada própria. */
+function acAgenteAnexar(msg, opts){
+  opts = opts||{};
+  const corpo = document.getElementById('ac-ag-corpo'); if(!corpo) return;
+  const bemVindo = corpo.querySelector('.ac-ag-boasvindas');
+  if(bemVindo) bemVindo.remove();          // a conversa começou: o convite sai
+  const estavaNoFim = acAgenteNoFim();
+  corpo.insertAdjacentHTML('beforeend', acAgenteBolha(msg));
+  const nova = corpo.lastElementChild;
+  if(nova && typeof acMotionReduzido==='function' && !acMotionReduzido()) nova.classList.add('ac-ag-nova');
+  // Mensagem do próprio usuário sempre acompanha (ele acabou de enviar);
+  // resposta do tutor só se ele já estava acompanhando o fim.
+  if(opts.rolar || estavaNoFim) acAgenteRolar(!!opts.rolar);
+  else acAgenteMostrarVoltar(true);
+  // O cabeçalho ganha "Reiniciar conversa" na primeira mensagem.
+  const cab = document.querySelector('.ac-ag-cab');
+  if(cab && !cab.querySelector('.ac-ag-limpar')){
+    cab.insertAdjacentHTML('beforeend',
+      '<button type="button" class="ac-ag-limpar ac-link" onclick="acAgenteReiniciar()">Reiniciar conversa</button>');
+  }
+}
+
+/** Liga/desliga os três pontinhos sem redesenhar o painel. */
+function acAgentePensandoUI(pensando){
+  const corpo = document.getElementById('ac-ag-corpo'); if(!corpo) return;
+  const antigo = document.getElementById('ac-ag-pensando');
+  if(!pensando){ if(antigo) antigo.remove(); }
+  else if(!antigo){
+    corpo.insertAdjacentHTML('beforeend',
+      `<div class="ac-ag-msg is-agente is-pensando ac-ag-nova" id="ac-ag-pensando">
+        <span class="ac-ag-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="ac-sr">O tutor está escrevendo…</span></div>`);
+    acAgenteRolar(true);
+  }
+  const enviar = document.querySelector('.ac-ag-enviar');
+  if(enviar) enviar.disabled = !!pensando;
+}
+
+/** Atalhos deixam de ser decoração: mudam quando o contexto muda. */
+function acAgenteAtualizarAtalhos(aula){
+  const box = document.getElementById('ac-ag-acoes');
+  if(!box || !aula) return;
+  box.innerHTML = acAgenteAtalhos(aula).map(a=>`<button type="button" class="ac-ag-chip"
+    onclick="acAgentePerguntar(${JSON.stringify(a).replace(/"/g,'&quot;')})">${gEsc(a)}</button>`).join('');
 }
 
 /**
