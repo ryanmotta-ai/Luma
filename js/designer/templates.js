@@ -1072,6 +1072,12 @@ function dFilterCampaigns(q){
 
 // Dispara importação já mirando uma campanha específica
 function dImportToFolder(folderId, kind){
+  // Controle do produto — funil único dos dois importadores.
+  const _fk = kind==='psd' ? 'designer.import.psd' : 'designer.import.svg';
+  if(typeof gFeatureCan==='function' && !gFeatureCan(_fk,'create')){
+    if(typeof gFeatureBlockedFeedback==='function') gFeatureBlockedFeedback(_fk);
+    return;
+  }
   dImportTargetFolderId=folderId;
   if(kind==='psd'){ const inp=document.getElementById('d-psd-input'); if(inp) inp.click(); }
   else { dSvgImport(); }

@@ -682,6 +682,15 @@ function dTextPick(tool, e) {
 }
 
 function dAddTextMaskAt(x, y, vertical) {
+  // CONTROLE DO PRODUTO — funil único da máscara de texto. A vertical depende
+  // das DUAS chaves: máscaras de texto e texto vertical. Qualquer uma desligada
+  // bloqueia (gFeatureToolBlocked já resolve essa combinação).
+  const _fk = vertical ? 'designer.tools.text.vertical' : 'designer.tools.text.mask';
+  if (typeof gFeatureCan === 'function'
+      && (!gFeatureCan('designer.tools.text.mask', 'create') || !gFeatureCan(_fk, 'create'))) {
+    if (typeof gFeatureBlockedFeedback === 'function') gFeatureBlockedFeedback(_fk);
+    return;
+  }
   if (typeof dLayers === 'undefined' || typeof dSelId === 'undefined') return;
   const targetLayer = dLayers.find(lyr => lyr.id === dSelId);
   if (!targetLayer) {

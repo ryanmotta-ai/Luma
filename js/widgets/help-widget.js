@@ -476,6 +476,12 @@
   };
 
   window.lumaWidgetStartChat = function () {
+    // Controle do produto: o chat de ajuda pode ser desligado sem derrubar os
+    // artigos da Central — por isso a chave é filha de global.help, não a mesma.
+    if (typeof gFeatureCan === 'function' && !gFeatureCan('global.help.chat', 'access')) {
+      if (typeof gFeatureBlockedFeedback === 'function') gFeatureBlockedFeedback('global.help.chat');
+      return;
+    }
     widgetState.hasActiveChat = true;
     widgetState.activeTab = 'messages';
     renderWidgetModalContent();

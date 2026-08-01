@@ -347,7 +347,20 @@ function dCanvasSize(){ const ab=(typeof dGetActiveAB==='function')&&dGetActiveA
 function dAddText(){const f=dCanvasSize();dAddTextAt(20,Math.round(f.h/2));}
 function dAddShape(){dAddShapeAt(40,40);}
 function dAddImage(){dAddImageAt(40,100);}
-function dAddTextAt(x,y,vertical,w,h){  if (typeof dHistoryPush === 'function') dHistoryPush();
+function dAddTextAt(x,y,vertical,w,h){
+  /* CONTROLE DO PRODUTO — funil ÚNICO de criação de camada de texto.
+     O guard é aqui (e não só na toolbar) porque este é o ponto onde a camada
+     nasce: cobre o console, um atalho antigo, um menu de contexto e qualquer
+     fluxo secundário que chame direto.
+     ⛔ Só a CRIAÇÃO é barrada. As camadas verticais que já existem continuam
+     carregando, renderizando, sendo editadas e exportadas — nenhuma linha de
+     render foi tocada. Desativar a ferramenta não some com o que ela criou. */
+  const _fk = vertical ? 'designer.tools.text.vertical' : 'designer.tools.text';
+  if (typeof gFeatureCan === 'function' && !gFeatureCan(_fk, 'create')) {
+    if (typeof gFeatureBlockedFeedback === 'function') gFeatureBlockedFeedback(_fk);
+    return;
+  }
+  if (typeof dHistoryPush === 'function') dHistoryPush();
   const id='l-'+(++dLyrCnt);
   const isVert = !!vertical;
   const layer = {
@@ -1905,6 +1918,15 @@ function dActivatePanel(name){
   if(name==='conteudo' || name==='campaigns') name='campaigns';
   if(name==='camada' || name==='propriedades') name='camadas';
   if(name==='vars' || name==='variaveis') name='dados';
+
+  /* Controle do produto: painel desativado cai em Camadas, que não tem flag e é
+     o contexto natural de quem está editando. Redireciona em vez de recusar —
+     recusar deixaria o painel na aba anterior sem explicar por quê. */
+  const _pk={ dados:'designer.campos', campaigns:'designer.campanhas', linter:'designer.checklist' }[name];
+  if(_pk && typeof gFeatureCan==='function' && !gFeatureCan(_pk,'access')){
+    if(typeof gFeatureBlockedFeedback==='function') gFeatureBlockedFeedback(_pk);
+    name='camadas';
+  }
 
   dActivePanel=name; dActiveTab=name; // dActiveTab mantido sincronizado p/ compat
 

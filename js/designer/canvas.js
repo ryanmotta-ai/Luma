@@ -301,6 +301,22 @@ function dUpdateBrushCursor(){
 }
 
 function dSetTool(t){
+  /* CONTROLE DO PRODUTO — guard central das ferramentas.
+     Fica AQUI, e não em cada dTextPick/dFormaPick, porque este é o funil por
+     onde passa TODO caminho de ativação: botão do flyout, painel "Todas as
+     ferramentas", atalho de teclado, ciclo Shift+T, restauração de estado e
+     chamada pelo console. Um guard aqui vale por oito.
+     Ferramentas sem flag mapeada (select, hand, os resets internos) passam
+     direto — é o que mantém dSetTool('select') sempre funcionando, inclusive
+     como destino de fuga quando a ferramenta atual é desligada em uso. */
+  if(typeof gFeatureToolBlocked==='function'){
+    const _bloq=gFeatureToolBlocked(t);
+    if(_bloq){
+      if(typeof gFeatureBlockedFeedback==='function') gFeatureBlockedFeedback(_bloq);
+      if(dTool===t) t='select';        // recurso desligado com ele em uso → cai na seleção
+      else return;                     // troca recusada: a ferramenta anterior segue ativa
+    }
+  }
   dTool=t;
   window.dPainting = false; // Reset seguro para pincéis
   // Registra as tools possíveis no dSetTool loop de active toggle

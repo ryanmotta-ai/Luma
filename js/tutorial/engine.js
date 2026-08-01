@@ -43,6 +43,10 @@ function tutClearSceneTimers(){
 
 
 function tutOpen(id){
+  if(typeof gFeatureCan==='function' && !gFeatureCan('global.tutorials','access')){
+    if(typeof gFeatureBlockedFeedback==='function') gFeatureBlockedFeedback('global.tutorials');
+    return;
+  }
   const tutorial = TUTORIALS[id];
   if(!tutorial){ console.warn('Tutorial não encontrado:', id); return; }
   tutState.activeId = id;

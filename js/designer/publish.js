@@ -414,6 +414,10 @@ function _dPubFindTmpl(){
 }
 
 function dPublishOpen(){
+  if(typeof gFeatureCan==='function' && !gFeatureCan('designer.publish','execute')){
+    if(typeof gFeatureBlockedFeedback==='function') gFeatureBlockedFeedback('designer.publish');
+    return;
+  }
   if(typeof dSyncLayersToAB==='function') dSyncLayersToAB();
   const _ab=dGetActiveAB();
   if(!dLayers||!dLayers.length){gToast('Adicione camadas antes de publicar.');return;}
@@ -1175,9 +1179,17 @@ document.addEventListener('keydown', e => {
     // T - Texto (com alternância Shift+T)
     if (e.key === 't' || e.key === 'T') {
       if (e.shiftKey) {
-        const order = ['text-h', 'text-v', 'mask-text-h', 'mask-text-v'];
+        // Controle do produto: o ciclo PULA a ferramenta indisponível em vez de
+        // parar nela. dSetTool bloquearia de qualquer jeito, mas o Shift+T
+        // travaria numa ferramenta desligada e só emitiria toast — aqui ele
+        // segue direto para a próxima disponível.
+        let order = ['text-h', 'text-v', 'mask-text-h', 'mask-text-v'];
+        if (typeof gFeatureToolBlocked === 'function') {
+          const livres = order.filter(t => !gFeatureToolBlocked(t));
+          if (livres.length) order = livres;
+        }
         let idx = order.indexOf(dTool);
-        if (idx === -1) idx = 0;
+        if (idx === -1) idx = -1;   // ferramenta atual fora da lista → começa do primeiro
         let nIdx = (idx + 1) % order.length;
         if (typeof dTextPick === 'function') dTextPick(order[nIdx]);
       } else {

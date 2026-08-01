@@ -727,6 +727,9 @@ let _fArtCaptions={}; // Cache das legendas geradas indexadas pelo canvasId/snap
  * de branding da Delivery Much (voz simples, amigável, direta, próxima).
  */
 function fGenCaptionSuggestions(dados, camp, formato) {
+  // Desativado: devolve lista vazia em vez de bloquear — quem chama trata o
+  // vazio e a arte continua sendo gerada. A legenda é acessório, não o fluxo.
+  if (typeof gFeatureCan === 'function' && !gFeatureCan('franqueado.legendas','execute')) return [];
   const prod = dados.produto || dados.categoria || dados.brinde || dados.oferta || camp.name;
   // Mapeamento assertivo dos slots: preço é preço; DESCONTO vai pro slot de desconto (ativa o
   // pool comPercentual — antes virava {por} e saía "por 20% off"). Sem preço → pool semPreco.
@@ -1181,6 +1184,12 @@ async function _fRerenderArtThumb(canvasId, snap, f){
   finally{ fState.material=prevMat; }
 }
 async function fBaixar(btn, snapId){
+  // Controle do produto: o download é o entregável do franqueado — o guard fica
+  // no funil, não só no botão, para cobrir atalho e chamada programática.
+  if(typeof gFeatureCan==='function' && !gFeatureCan('franqueado.export.png','execute')){
+    if(typeof gFeatureBlockedFeedback==='function') gFeatureBlockedFeedback('franqueado.export.png');
+    return;
+  }
   // Usa o snapshot da própria bolha (não o estado atual, que pode ser de outra arte).
   const snap=(snapId&&_fArtSnapshots[snapId])||{dados:fState.dados,camp:fState.camp,fmt:fState.fmt,histId:fState._lastHistId,material:fState.material};
   const restore=gBtnLoading(btn,'Gerando…');
@@ -1283,6 +1292,10 @@ function fGetContrastColor(hex) {
 }
 
 async function fBaixarPDF(btn, snapId){
+  if(typeof gFeatureCan==='function' && !gFeatureCan('franqueado.export.pdf','execute')){
+    if(typeof gFeatureBlockedFeedback==='function') gFeatureBlockedFeedback('franqueado.export.pdf');
+    return;
+  }
   const snap=(snapId&&_fArtSnapshots[snapId])||{dados:fState.dados,camp:fState.camp,fmt:fState.fmt,histId:fState._lastHistId,material:fState.material};
   const restore=gBtnLoading(btn,'Gerando…');
   const prevMat=fState.material;
@@ -1360,6 +1373,12 @@ function fQR(val, el){
   fSaveAdv(masked);
 }
 function fSend(){
+  // Controle do produto: funil único do chat gerador. Bloqueia o AVANÇO; o
+  // histórico e as artes já geradas continuam visíveis e baixáveis.
+  if(typeof gFeatureCan==='function' && !gFeatureCan('franqueado.chat','create')){
+    if(typeof gFeatureBlockedFeedback==='function') gFeatureBlockedFeedback('franqueado.chat');
+    return;
+  }
   const b=document.getElementById('f-msg-box');
   const v=b.value.trim();
   if(!v)return;

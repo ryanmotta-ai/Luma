@@ -6,6 +6,54 @@
 
 ---
 
+## 2026-08-01 — Controle do produto: feature flags governadas pela Gestão
+
+> ⚠️ **SQL AINDA NÃO APLICADO.** A migration está versionada; o banco não foi tocado (não havia acesso ao Supabase na entrega). O front funciona sem ela — cai nos defaults do registro. Ver "Ações necessárias" no fim desta seção.
+
+**Contexto.** Desligar uma ferramenta do Luma exigia editar HTML, comentar função e fazer deploy. Não havia caminho para a gestão dizer "o texto vertical sai do ar enquanto passa por melhorias". O **Controle do produto** (5ª aba do painel da conta, exclusiva de `gestao`) passa a governar a disponibilidade de 32 recursos reais sem deploy.
+
+**Migration:** `supabase/migrations/20260731190000_luma_feature_flags.sql`
+
+**2 tabelas no schema `luma`:**
+- `luma.feature_flags` — `feature_key` (PK, a chave do registro do front), `enabled`, `disabled_behavior` (CHECK `hide|disabled|readonly|maintenance`), `role_overrides` (JSONB), `motivo`, `atualizado_por`, `updated_at`.
+- `luma.feature_flag_history` — trilha append-only: chave, operação, `valor_anterior`/`valor_novo` (linha inteira em JSONB), autor, motivo, data.
+
+**O que NÃO foi para o banco, e por quê.** Rótulo, descrição, categoria, hierarquia pai/filho e comportamentos válidos ficam em `G_FEATURE_REGISTRY` (`js/core/feature-flags.js`), versionados com o código. Duplicar no banco criaria duas fontes de verdade que saem de sincronia no primeiro rename. O banco guarda **estado operacional**, não metadado de interface.
+
+**`role_overrides` validado no banco sem função nova:**
+```sql
+CHECK (role_overrides - 'franqueado' - 'equipe_dm' - 'gestao' = '{}'::jsonb)
+```
+Subquery é proibida em CHECK; o operador `jsonb - text` resolve em uma linha. Impede que uma chave inventada (`cidade_x`, `departamento`) vire regra fantasma. ⚠ **Teto assumido:** o *tipo* do valor não é validado (exigiria função IMMUTABLE). O front só escreve booleano e a resolução compara com `=== true/false`, então valor não-booleano é tratado como "herdar".
+
+**Trigger `luma.ff_auditar()`** — `AFTER INSERT/UPDATE/DELETE`, `SECURITY DEFINER`, `SET search_path = ''`, `EXECUTE` revogado de `PUBLIC`/`anon`/`authenticated` (padrão de `20260622150000`). O DEFINER é **necessário**, não conveniência: `authenticated` não tem INSERT em `feature_flag_history` — é isso que torna a auditoria imutável. Sem DEFINER, o trigger rodaria como o usuário e a gravação seria negada justamente quando importa. Auditar no banco (e não no front) garante rastro mesmo para escrita feita pelo SQL Editor ou por PostgREST na mão.
+
+**RLS:**
+
+| Tabela | `anon` | `authenticated` | `gestao` |
+|---|---|---|---|
+| `feature_flags` | nenhum | `SELECT` (precisa, pra montar a experiência) | INSERT/UPDATE/DELETE |
+| `feature_flag_history` | nenhum | nenhum | `SELECT` |
+
+O UPDATE tem `USING` **e** `WITH CHECK` com `(select public.get_user_role()) = 'gestao'`. `feature_flag_history` tem RLS habilitada e **nenhuma** policy de escrita — deny-all para cliente, só o trigger grava.
+
+**Seed:** 32 chaves reais, todas `enabled = true`. Aplicar a migration **não muda o comportamento do Luma** — só passa a permitir mudá-lo. Nenhum switch decorativo: cada chave está ligada a um fluxo real do código (matriz de cobertura em `docs/LUMA.md`).
+
+**⛔ Isto NÃO é segurança.** Feature flag governa **experiência**; a RLS continua sendo a única fronteira dos dados. Um usuário com DevTools consegue forçar `enabled` no cache local e reabrir um botão escondido — e não consegue ler nem escrever nada que a RLS já não permitisse. Por isso o fallback do front é **fail-open**: sem backend e sem cache, o Luma funciona como funcionava antes. Uma flag indisponível não pode derrubar o produto.
+
+**`apply_all.sql` não foi alterado** — ele é bootstrap de projeto limpo e, como o próprio README diz, não inclui as migrations posteriores ao schema base.
+
+**Ações necessárias:**
+1. Aplicar `20260731190000_luma_feature_flags.sql` no SQL Editor.
+2. Conferir com um `SELECT` (lição do incidente 2026-07-16 — migration versionada e não aplicada quebrou o sync por 5 dias):
+   ```sql
+   SELECT feature_key, enabled, disabled_behavior FROM luma.feature_flags ORDER BY 1;  -- 32 linhas, todas true
+   SELECT count(*) FROM luma.feature_flag_history;                                      -- 32 (o seed é o 1º registro)
+   ```
+3. Testar as 3 roles: `gestao` vê e altera; `equipe_dm` e `franqueado` não veem a aba e recebem erro de permissão se tentarem escrever pela API; `anon` não lê nada.
+
+---
+
 ## 2026-07-31 — Academia: experiência de conclusão (splash + vídeo dos CEOs)
 
 **Contexto.** Concluir a formação era um overlay igual ao de fechar um módulo. A conclusão é uma **mudança de fase** do franqueado na rede — splash, mensagem institucional e vídeo dos CEOs. Nada disso pode ser hardcoded: a equipe troca texto e vídeo sem deploy.

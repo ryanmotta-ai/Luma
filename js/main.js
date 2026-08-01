@@ -17,11 +17,57 @@ function dUpdateTabPill() {
   }
 }
 
+/* ── CONTROLE DO PRODUTO: gate de módulo ─────────────────────────
+   A chave de cada aba da topbar. O Controle do produto pode desligar um módulo
+   inteiro sem deploy; aqui é onde isso vira navegação bloqueada. */
+const G_MODE_FEATURE = { franqueado:'module.franqueado', designer:'module.designer', academia:'module.academia' };
+
+// Um modo só abre se a role permite E a flag permite.
+function gModeAllowed(m){
+  if(m==='designer' && (typeof gIsAdmin!=='function' || !gIsAdmin())) return false;
+  if(typeof gFeatureCan!=='function') return true;   // sem o motor, nada muda
+  return gFeatureCan(G_MODE_FEATURE[m]||'', 'access');
+}
+
+// Primeiro modo que esta pessoa pode abrir agora. null = nenhum.
+function gFirstAllowedMode(){
+  return ['franqueado','academia','designer'].find(gModeAllowed) || null;
+}
+
+/* Todos os módulos desligados: em vez de deixar o app numa tela em branco (que
+   parece defeito), diz o que houve. A gestão continua com o painel da conta na
+   topbar — é de lá que ela religa. Criado por JS, com tokens inline no padrão de
+   _gDialog (toast.js): é uma view de emergência, não merece HTML/CSS versionado. */
+function _gShowNoModuleView(){
+  if(document.getElementById('g-no-module')) return;
+  const box=document.createElement('div');
+  box.id='g-no-module';
+  box.setAttribute('role','status');
+  box.style.cssText='position:fixed;inset:52px 0 0 0;z-index:400;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:32px;text-align:center;background:var(--off-white);color:var(--text-3);font-family:\'Roboto\',sans-serif';
+  box.innerHTML='<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v6c0 4.4-3 8.3-7 9-4-.7-7-4.6-7-9V6Z"/><path d="M12 9v4M12 16h.01"/></svg>'
+    +'<strong style="color:var(--text);font-size:16px;font-weight:900">O Luma está em manutenção</strong>'
+    +'<p style="max-width:380px;margin:0;font-size:13px;line-height:1.55">As áreas do produto estão temporariamente indisponíveis. Fale com a gestão da Delivery Much.</p>';
+  document.body.appendChild(box);
+}
+function _gHideNoModuleView(){
+  const el=document.getElementById('g-no-module');
+  if(el) el.remove();
+}
+
 function setMode(m){
   if(m!=='franqueado' && m!=='designer' && m!=='academia') m='franqueado';
   // Gate por role: franqueado NÃO acessa o Estúdio (trava no clique e via DOM/console).
   // A Academia é das TRÊS personas (o franqueado estuda; a equipe administra) — sem gate.
   if(m==='designer' && (typeof gIsAdmin!=='function' || !gIsAdmin())) m='franqueado';
+  // Gate por flag. Vem DEPOIS do gate de role e cobre todo caminho de entrada:
+  // clique na aba, chamada pelo console e estado restaurado de sessão anterior.
+  if(!gModeAllowed(m)){
+    const alvo=gFirstAllowedMode();
+    if(!alvo){ _gShowNoModuleView(); return; }
+    if(typeof gFeatureBlockedFeedback==='function') gFeatureBlockedFeedback(G_MODE_FEATURE[m]);
+    m=alvo;
+  }
+  _gHideNoModuleView();
   // Tema de campanha (Much+) veste só o Franqueado. Sair para o Estúdio sem despir
   // deixava o body com camp-theme-* → tokens/fonte magenta vazavam pro Estúdio inteiro.
   // Vale igual para a Academia: o magenta do Much+ não é a cor da formação.
@@ -63,9 +109,37 @@ function gApplyModeAccess(){
   const isAdmin = (typeof gIsAdmin==='function') && gIsAdmin();
   const tabDesign = document.getElementById('tab-design');
   if(tabDesign) tabDesign.style.display = isAdmin ? '' : 'none';
-  if(!isAdmin) setMode('franqueado'); // garante que o franqueado fica na própria área
+  // Módulo desativado some da topbar junto com a rota (setMode já bloqueia o
+  // acesso; aqui é o CTA que também precisa sumir, senão o clique só frustra).
+  [['tab-fran','franqueado'],['tab-academia','academia'],['tab-design','designer']].forEach(([id,modo])=>{
+    const tab=document.getElementById(id);
+    if(tab && !gModeAllowed(modo)) tab.style.display='none';
+  });
+  // Estáticos com data-feature (toolbar do Estúdio, abas, downloads).
+  if(typeof gFeatureApplyToDOM==='function') gFeatureApplyToDOM();
+
+  const atual = document.body.classList.contains('mode-designer') ? 'designer'
+              : (document.body.classList.contains('mode-academia') ? 'academia' : 'franqueado');
+  if(!gModeAllowed(atual)){
+    const alvo=gFirstAllowedMode();
+    if(alvo) setMode(alvo); else _gShowNoModuleView();
+  }
   dUpdateTabPill();
 }
+
+// A gestão mudou uma flag (nesta aba ou em outra máquina) → a navegação se
+// reconstrói na hora. Re-render localizado, nunca reload da página.
+window.addEventListener('luma:feature-flags-changed', ()=>{
+  if(typeof gCurrentUser==='function' && !gCurrentUser()) return;
+  gApplyModeAccess();
+  // Ferramenta desligada COM ELA EM USO: cai na seleção em vez de continuar
+  // ativa com o botão já escondido (o clique seguinte criaria a camada que a
+  // gestão acabou de proibir). dSetTool trata a queda; aqui é só o gatilho.
+  if(typeof dTool!=='undefined' && typeof gFeatureToolBlocked==='function'
+     && gFeatureToolBlocked(dTool) && typeof dSetTool==='function'){
+    dSetTool('select');
+  }
+});
 
 /* ══ INIT Lógica de Inicialização Global e Auth Gate ══ */
 
@@ -95,6 +169,11 @@ function gOnLoginSuccess() {
     try{ if(sessionStorage.getItem('__luma_sess')){ _novaSessao=false; } else { sessionStorage.setItem('__luma_sess','1'); } }catch(e){}
     if(_novaSessao) gTrackEvent('sessao_iniciada', {rota:'app'});
   }
+
+  // Estado remoto das flags: só agora, porque a RLS exige sessão. Assíncrono de
+  // propósito — o boot já montou com o cache e não espera a rede. Ao chegar,
+  // dispara luma:feature-flags-changed e a navegação se reconstrói sozinha.
+  if (typeof gFeatureSyncFromBackend === 'function') { gFeatureSyncFromBackend(); }
 
   // Gate de navegação por role: franqueado só vê a própria área (esconde o Estúdio).
   gApplyModeAccess();
@@ -133,6 +212,11 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (_theme && typeof gProfileApplyTheme === 'function') gProfileApplyTheme(_theme);
   } catch(e) {}
   setTimeout(dUpdateTabPill, 100);
+
+  // Controle do produto ANTES do gLoadProfile: é síncrono (registro + cache local)
+  // e precisa estar aplicado antes de qualquer módulo montar. Sem isto acontece o
+  // flash "ferramenta aparece → flags carregam → ferramenta some".
+  if (typeof gFeatureInit === 'function') { try { gFeatureInit(); } catch(e){} }
 
   // Checa a sessão REAL do Supabase (assíncrono) antes de decidir login vs app.
   if (typeof gLoadProfile === 'function') { try { await gLoadProfile(); } catch(e){} }

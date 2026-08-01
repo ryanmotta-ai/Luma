@@ -158,7 +158,7 @@ Postgres, três schemas, **RLS habilitado em tudo**:
 | Schema | Contém | Acesso |
 |--------|--------|--------|
 | `public` | `profiles` (estende `auth.users`: role, nome, departamento) | Usuário lê o próprio; staff lê todos |
-| `luma` | `pastas`, `templates`, `variaveis`, `fontes`, `snippets`, `biblioteca_assets`, `artes` + **Academia** (`cursos`, `curso_modulos`, `curso_aulas`, `matriculas`, `aula_progresso`, `aula_notas`, `aula_mensagens`, `certificados`) | Leitura autenticada; escrita de conteúdo só designer (`is_designer()`); `artes`/progresso por dono; `aula_notas` e `aula_mensagens` **só do dono** (nem a equipe lê); `certificados` sem policy de escrita (grava só a RPC `ac_emitir_certificado`) |
+| `luma` | `pastas`, `templates`, `variaveis`, `fontes`, `snippets`, `biblioteca_assets`, `artes` + **Academia** (`cursos`, `curso_modulos`, `curso_aulas`, `matriculas`, `aula_progresso`, `aula_notas`, `aula_mensagens`, `certificados`) + **Controle do produto** (`feature_flags`, `feature_flag_history`) | Leitura autenticada; escrita de conteúdo só designer (`is_designer()`); `artes`/progresso por dono; `aula_notas` e `aula_mensagens` **só do dono** (nem a equipe lê); `certificados` sem policy de escrita (grava só a RPC `ac_emitir_certificado`); `feature_flags` lidas por todo autenticado e escritas só por `gestao`; `feature_flag_history` sem policy de escrita (grava só o trigger) |
 | `analytics` | `fct_eventos` + views `vw_*` de extração | INSERT autenticado em nome próprio; SELECT só `gestao` |
 
 **Princípios de arquitetura do banco:**
@@ -241,6 +241,30 @@ Saber o que **não** existe evita a IA propor solução para camada inexistente:
 - ⛔ **Sem streaming adaptativo de vídeo.** A Academia serve MP4 progressivo por URL assinada; o modelo separa `video_path` de `video_url` pra trocar por HLS depois sem mexer no schema.
 - ⛔ **Sem multi-tenant real** no Luma hoje — todos os franqueados veem o mesmo catálogo publicado. Isolar por cidade seria uma decisão de arquitetura nova, não um dado existente.
 - ⛔ **Sem testes automatizados** — regressão se detecta abrindo o navegador (por isso _patch cirúrgico_ é regra).
+
+---
+
+## 12.1 Controle do produto (camada de disponibilidade, 2026-08-01)
+
+Uma camada transversal nova, entre o estado e as views: **o que está disponível agora**.
+
+```
+  G_FEATURE_REGISTRY (versionado)  →  o que EXISTE
+            +
+  luma.feature_flags (Supabase)    →  o que a gestão CONFIGUROU
+            +
+  cache local + override por role + cascata pai/filho
+            ↓
+  gFeatureCan(chave, ação)         →  o estado EFETIVO
+            ↓
+  data-feature no HTML (visual)  +  guard no handler (o bloqueio real)
+```
+
+Motor em `js/core/feature-flags.js` — **é o motor único**, como `gInterpolate` e `gEsc`. Nenhum outro arquivo fala com a tabela de flags. A tela da gestão (`js/core/product-control.js`) entra como 5ª aba do painel da conta que já existia, não como superfície nova.
+
+**A fronteira que importa:** isto governa **experiência**, não segurança. A RLS continua sendo a única fronteira dos dados (§5). Por isso o fallback é **fail-open** — sem backend e sem cache, o Luma funciona como antes. E por isso `render`/`export`/`load` continuam permitidos com o recurso desativado: desligar a ferramenta que cria nunca pode sumir com o conteúdo já criado.
+
+Detalhe completo e matriz de cobertura: `docs/LUMA.md` §22.
 
 ---
 

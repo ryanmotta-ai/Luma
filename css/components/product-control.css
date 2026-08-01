@@ -1,0 +1,436 @@
+/**
+ * css/components/product-control.css
+ *
+ * Controle do produto — a tela da Gestão dentro do painel da conta.
+ *
+ * Vive DENTRO de .g-profile-modal de propósito: o painel já declara as
+ * variáveis --prof-* e o bloco de tema escuro (user-profile.css §TEMA ESCURO),
+ * então herdar dali dá os dois temas de graça, sem um único override novo de
+ * tema e sem um hex solto. Zero cor literal neste arquivo.
+ */
+
+/* ══ RESUMO ══ */
+.gprod-overview{
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:20px;
+  overflow:hidden;
+  padding:20px;
+  border:1px solid var(--prof-border);
+  border-radius:var(--r);
+  background:var(--prof-surface);
+}
+.gprod-overview::before{content:'';position:absolute;inset:0 auto 0 0;width:4px;background:var(--dm-orange-d)}
+.gprod-overview-copy{display:flex;align-items:center;gap:14px;min-width:0}
+.gprod-overview-icon{
+  width:46px;height:46px;
+  display:grid;place-items:center;flex:0 0 auto;
+  border:1px solid var(--dm-orange-tint);
+  border-radius:var(--r);
+  background:var(--dm-orange-bg);
+  color:var(--dm-orange-text);
+}
+.gprod-overview-icon svg{width:23px;height:23px}
+.gprod-kicker{
+  display:block;margin-bottom:6px;
+  color:var(--dm-orange-text);
+  font-size:10px;font-weight:900;letter-spacing:.13em;text-transform:uppercase;
+}
+.gprod-overview h4{margin:0;color:var(--prof-text);font-size:17px;font-weight:900;letter-spacing:-.02em}
+.gprod-overview p{max-width:520px;margin:8px 0 0;color:var(--prof-text-3);font-size:12px;line-height:1.5}
+.gprod-overview-actions{display:flex;gap:8px;flex:0 0 auto}
+
+/* ══ MÉTRICAS ══ */
+.gprod-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:14px}
+.gprod-metric{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 14px;
+  border:1px solid var(--prof-border);
+  border-radius:var(--r);
+  background:var(--prof-surface);
+  transition:border-color var(--dur-micro) var(--ease-standard),transform var(--dur-micro) var(--ease-spring);
+}
+.gprod-metric:hover{border-color:var(--prof-border-strong);transform:translateY(-2px)}
+.gprod-metric strong{display:block;color:var(--prof-text);font-size:19px;font-weight:900;line-height:1.1}
+.gprod-metric small{display:block;margin-top:2px;color:var(--prof-text-3);font-size:11px;font-weight:600}
+
+/* Ponto de status: SEMPRE acompanhado de rótulo textual (nunca só cor). */
+.gprod-dot{width:9px;height:9px;flex:0 0 auto;border-radius:var(--r-pill);background:var(--prof-text-3)}
+.gprod-dot.is-on{background:var(--green)}
+.gprod-dot.is-off{background:var(--dm-red)}
+.gprod-dot.is-maint{background:var(--dm-yellow)}
+.gprod-dot.is-dep{background:var(--prof-text-3)}
+
+/* ══ STATUS DE SINCRONIZAÇÃO ══ */
+.gprod-sync{
+  display:flex;align-items:center;gap:7px;
+  margin:12px 0 0;
+  color:var(--prof-text-3);
+  font-size:11.5px;line-height:1.45;
+}
+.gprod-sync svg{width:14px;height:14px;flex:0 0 auto}
+/* Laranja SÓ para problema (offline/erro). Cache e defaults são contexto — em
+   laranja competiam com a árvore, que é o conteúdo da tela. */
+.gprod-sync.is-warn{color:var(--dm-orange-text)}
+.gprod-sync.is-info{color:var(--prof-text-3)}
+
+/* ══ BUSCA E FILTROS ══ */
+.gprod-tools{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:18px}
+.gprod-search-wrap{position:relative;flex:1 1 260px;min-width:220px}
+.gprod-search-ico{
+  position:absolute;top:50%;left:13px;transform:translateY(-50%);
+  display:grid;place-items:center;color:var(--prof-text-3);pointer-events:none;
+}
+.gprod-search-ico svg{width:16px;height:16px}
+.gprod-search{
+  width:100%;height:42px;
+  padding:0 14px 0 38px;
+  border:1px solid var(--prof-border-strong);
+  border-radius:var(--r);
+  outline:0;
+  background:var(--prof-surface);
+  color:var(--prof-text);
+  font-family:'Roboto',sans-serif;font-size:13px;
+  transition:border-color var(--dur-micro) var(--ease-standard),box-shadow var(--dur-micro) var(--ease-standard);
+}
+.gprod-search:hover:not(:focus){border-color:var(--prof-text-3)}
+.gprod-search:focus{border-color:var(--dm-orange);box-shadow:0 0 0 3px rgba(255,144,0,.12)}
+
+.gprod-filters{display:flex;align-items:center;gap:2px;flex-wrap:wrap;padding:3px;border-radius:var(--r-pill);background:var(--prof-muted)}
+.gprod-filter{
+  min-height:32px;
+  display:inline-flex;align-items:center;
+  padding:0 12px;
+  border:0;border-radius:var(--r-pill);
+  background:transparent;
+  color:var(--prof-text-3);
+  font-family:'Roboto',sans-serif;font-size:12px;font-weight:700;
+  cursor:pointer;
+  transition:background var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard),transform var(--dur-micro) var(--ease-spring);
+}
+.gprod-filter:hover{color:var(--prof-text);transform:translateY(-1px)}
+.gprod-filter.is-active{background:var(--dm-orange-bg);color:var(--dm-orange-text)}
+
+/* ══ ÁRVORE ══ */
+.gprod-tree{margin-top:18px;display:flex;flex-direction:column;gap:18px}
+.gprod-mod{border:1px solid var(--prof-border);border-radius:var(--r);background:var(--prof-surface);overflow:hidden}
+.gprod-mod-head{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:12px 16px;
+  border-bottom:1px solid var(--prof-border);
+  background:var(--prof-muted);
+}
+.gprod-mod-head h5{
+  margin:0;color:var(--prof-text-2);
+  font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;
+}
+.gprod-mod-count{color:var(--prof-text-3);font-size:11px;font-weight:600}
+
+.gprod-list{margin:0;padding:0;list-style:none}
+.gprod-item{border-top:1px solid var(--prof-border)}
+.gprod-mod > .gprod-list > .gprod-item:first-child{border-top:0}
+/* Sub-lista sem borda no topo: a indentação já conta a hierarquia; a linha
+   extra criava um degrau visual duplicado a cada nível. */
+.gprod-item > .gprod-list > .gprod-item:first-child{border-top:1px solid var(--prof-border)}
+
+.gprod-row{
+  display:grid;
+  grid-template-columns:24px minmax(0,1fr) auto auto;
+  align-items:center;
+  gap:10px;
+  padding:10px 16px;
+  transition:background var(--dur-micro) var(--ease-standard);
+}
+.gprod-row:hover{background:var(--prof-muted)}
+/* Indentação por nível — o recuo é o que conta a hierarquia, sem linha guia
+   nem ícone decorativo em cada degrau. */
+.gprod-item.lvl-1 > .gprod-row{padding-left:34px}
+.gprod-item.lvl-2 > .gprod-row{padding-left:52px}
+.gprod-item.lvl-3 > .gprod-row{padding-left:70px}
+.gprod-item.lvl-1 > .gprod-note,.gprod-item.lvl-1 > .gprod-confirm-slot{padding-left:34px}
+.gprod-item.lvl-2 > .gprod-note,.gprod-item.lvl-2 > .gprod-confirm-slot{padding-left:52px}
+.gprod-item.lvl-3 > .gprod-note,.gprod-item.lvl-3 > .gprod-confirm-slot{padding-left:70px}
+
+.gprod-caret{
+  width:24px;height:24px;
+  display:grid;place-items:center;
+  border:0;border-radius:var(--r-sm);
+  background:transparent;color:var(--prof-text-3);cursor:pointer;
+  transition:color var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard);
+}
+.gprod-caret:hover{background:var(--prof-border);color:var(--prof-text)}
+.gprod-caret svg{width:14px;height:14px;transition:transform var(--dur-fast) var(--ease-standard)}
+.gprod-caret.is-open svg{transform:rotate(90deg)}
+.gprod-caret-spacer{width:24px}
+
+.gprod-copy{min-width:0;display:flex;flex-direction:column;gap:2px}
+/* Peso decrescente por nível: módulo pesa mais que área, que pesa mais que
+   recurso. É o que impede a tela de virar 32 switches com o mesmo peso. */
+.gprod-name{color:var(--prof-text);font-size:13.5px;font-weight:700;letter-spacing:-.01em}
+.gprod-item.lvl-0 > .gprod-row .gprod-name{font-size:14px;font-weight:900}
+.gprod-item.lvl-2 > .gprod-row .gprod-name,
+.gprod-item.lvl-3 > .gprod-row .gprod-name{font-size:13px;font-weight:600}
+.gprod-desc{color:var(--prof-text-3);font-size:12px;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gprod-item.is-off .gprod-name{color:var(--prof-text-2)}
+
+.gprod-status{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:3px 10px;
+  border-radius:var(--r-pill);
+  background:var(--prof-muted);
+  color:var(--prof-text-3);
+  font-size:11px;font-weight:700;white-space:nowrap;
+}
+.gprod-status i{width:7px;height:7px;border-radius:var(--r-pill);background:currentColor}
+.gprod-status.is-on{color:var(--green-text)}
+.gprod-status.is-off{color:var(--dm-red)}
+.gprod-status.is-maint{color:var(--dm-orange-text)}
+.gprod-status.is-dep{color:var(--prof-text-3)}
+
+/* ══ SWITCH ══ */
+.gprod-switch{
+  position:relative;
+  width:40px;height:23px;flex:0 0 auto;
+  padding:0;
+  border:1px solid var(--prof-border-strong);
+  border-radius:var(--r-pill);
+  background:var(--prof-muted);
+  cursor:pointer;
+  transition:background var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard);
+}
+.gprod-switch i{
+  position:absolute;top:2px;left:2px;
+  width:17px;height:17px;
+  border-radius:var(--r-pill);
+  background:var(--prof-text-3);
+  transition:transform var(--dur-fast) var(--ease-spring),background var(--dur-fast) var(--ease-standard);
+}
+.gprod-switch[aria-checked="true"]{border-color:var(--dm-orange-d);background:var(--dm-orange-d)}
+.gprod-switch[aria-checked="true"] i{transform:translateX(17px);background:var(--on-accent)}
+.gprod-switch:hover:not([aria-disabled="true"]){border-color:var(--dm-orange)}
+.gprod-switch[aria-disabled="true"]{cursor:not-allowed;opacity:.45}
+.gprod-switch.is-saving{cursor:progress;opacity:.6}
+/* Estado HERDADO (o pai é que está desligado): o switch continua marcando o
+   estado CONFIGURADO — ligado — mas laranja cheio lia como "funcionando".
+   Contorno tracejado + knob neutro dizem "esta é a sua configuração, e ela não
+   está valendo agora", sem apagar a informação de que ela está ligada. */
+.gprod-switch.is-inherited{background:transparent;border-style:dashed;border-color:var(--prof-border-strong);opacity:.75}
+.gprod-switch.is-inherited i{background:var(--prof-text-3)}
+/* Alvo de toque de 44px sem inflar o desenho do switch. */
+.gprod-switch::after{content:'';position:absolute;inset:-11px -6px}
+
+/* ══ NOTAS CONTEXTUAIS ══ */
+.gprod-note{
+  display:flex;align-items:center;gap:7px;flex-wrap:wrap;
+  margin:0;
+  padding:0 16px 10px 50px;
+  color:var(--prof-text-3);
+  font-size:11.5px;line-height:1.45;
+}
+.gprod-note svg{width:13px;height:13px;flex:0 0 auto}
+.gprod-note.is-off{color:var(--dm-orange-text)}
+.gprod-note.is-ov{color:var(--prof-text-3)}
+.gprod-note strong{font-weight:700}
+.gprod-note-link{
+  padding:0;border:0;background:transparent;
+  color:var(--dm-orange-text);font-family:'Roboto',sans-serif;
+  font-size:11.5px;font-weight:700;cursor:pointer;text-decoration:underline;
+}
+
+/* ══ CONFIRMAÇÃO ══ */
+.gprod-confirm-slot:empty{display:none}
+.gprod-confirm{
+  margin:0 16px 14px 50px;
+  padding:16px;
+  border:1px solid var(--dm-orange-tint);
+  border-radius:var(--r);
+  background:var(--dm-orange-bg);
+  animation:gprodSlide var(--dur-base) var(--ease-out);
+}
+@keyframes gprodSlide{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.gprod-confirm h6{margin:0 0 10px;color:var(--prof-text);font-size:14px;font-weight:900;letter-spacing:-.01em}
+.gprod-impact{margin:0 0 12px;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+.gprod-impact li{
+  position:relative;padding-left:16px;
+  color:var(--prof-text-2);font-size:12px;line-height:1.5;
+}
+.gprod-impact li::before{
+  content:'';position:absolute;top:7px;left:0;
+  width:6px;height:6px;border-radius:var(--r-pill);background:currentColor;
+}
+.gprod-impact li.is-keep{color:var(--green-text)}
+.gprod-impact li.is-block{color:var(--dm-red)}
+.gprod-cascade{
+  margin:0 0 12px;padding:9px 11px;
+  border-radius:var(--r-sm);
+  background:var(--prof-surface);
+  color:var(--prof-text-2);
+  font-size:11.5px;line-height:1.5;
+}
+
+.gprod-fieldset{margin:0 0 12px;padding:0;border:0}
+.gprod-fieldset legend{
+  padding:0 0 8px;
+  color:var(--prof-text-2);
+  font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+}
+.gprod-radio{
+  display:flex;align-items:flex-start;gap:9px;
+  min-height:44px;
+  padding:9px 11px;
+  margin-bottom:6px;
+  border:1px solid var(--prof-border);
+  border-radius:var(--r-sm);
+  background:var(--prof-surface);
+  cursor:pointer;
+  transition:border-color var(--dur-micro) var(--ease-standard);
+}
+.gprod-radio:hover{border-color:var(--prof-border-strong)}
+.gprod-radio input{margin-top:2px;accent-color:var(--dm-orange-d);flex:0 0 auto}
+.gprod-radio:has(input:checked){border-color:var(--dm-orange)}
+.gprod-radio strong{display:block;color:var(--prof-text);font-size:12.5px;font-weight:700}
+.gprod-radio small{display:block;margin-top:2px;color:var(--prof-text-3);font-size:11.5px;line-height:1.4}
+
+.gprod-field{margin-bottom:12px}
+.gprod-label{
+  display:block;margin-bottom:6px;
+  color:var(--prof-text-2);
+  font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+}
+.gprod-label small{font-size:10px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--prof-text-3)}
+.gprod-input{
+  width:100%;height:40px;
+  padding:0 12px;
+  border:1px solid var(--prof-border-strong);
+  border-radius:var(--r-sm);
+  outline:0;
+  background:var(--prof-surface);
+  color:var(--prof-text);
+  font-family:'Roboto',sans-serif;font-size:13px;
+  transition:border-color var(--dur-micro) var(--ease-standard),box-shadow var(--dur-micro) var(--ease-standard);
+}
+.gprod-input:focus{border-color:var(--dm-orange);box-shadow:0 0 0 3px rgba(255,144,0,.12)}
+
+.gprod-advanced{margin-bottom:14px}
+.gprod-advanced summary{
+  cursor:pointer;
+  color:var(--dm-orange-text);
+  font-size:12px;font-weight:700;
+  list-style:none;
+}
+.gprod-advanced summary::-webkit-details-marker{display:none}
+.gprod-advanced summary::before{content:'▸ ';font-size:10px}
+.gprod-advanced[open] summary::before{content:'▾ '}
+.gprod-advanced-hint{margin:8px 0 10px;color:var(--prof-text-3);font-size:11.5px;line-height:1.45}
+.gprod-roles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+
+.gprod-confirm-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+
+/* ══ BOTÕES ══ */
+.gprod-btn-ghost,.gprod-btn-primary,.gprod-btn-danger{
+  min-height:36px;
+  display:inline-flex;align-items:center;gap:6px;
+  padding:0 14px;
+  border-radius:var(--r-sm);
+  font-family:'Roboto',sans-serif;font-size:12px;font-weight:700;
+  cursor:pointer;
+  transition:background var(--dur-micro) var(--ease-standard),border-color var(--dur-micro) var(--ease-standard),transform var(--dur-micro) var(--ease-spring),filter var(--dur-micro) var(--ease-standard);
+}
+.gprod-btn-ghost svg,.gprod-btn-primary svg,.gprod-btn-danger svg{width:14px;height:14px}
+.gprod-btn-ghost{border:1px solid var(--prof-border-strong);background:var(--prof-surface);color:var(--prof-text-2)}
+.gprod-btn-ghost:hover{border-color:var(--prof-text-3);color:var(--prof-text);transform:translateY(-1px)}
+/* CTA pequeno usa --dm-orange-d (3.35:1 com branco). #FF9000 puro reprova aqui. */
+.gprod-btn-primary{border:1px solid var(--dm-orange-d);background:var(--dm-orange-d);color:var(--on-accent)}
+.gprod-btn-primary:hover{filter:brightness(.94);transform:translateY(-1px)}
+.gprod-btn-danger{border:1px solid var(--dm-red);background:var(--dm-red);color:var(--on-accent)}
+.gprod-btn-danger:hover{filter:brightness(.94);transform:translateY(-1px)}
+
+/* ══ ESTADOS ══ */
+.gprod-empty,.gprod-denied{
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  padding:44px 20px;
+  border:1px dashed var(--prof-border-strong);
+  border-radius:var(--r);
+  color:var(--prof-text-3);text-align:center;
+}
+.gprod-empty svg,.gprod-denied svg{width:30px;height:30px;color:var(--prof-text-3)}
+.gprod-empty strong,.gprod-denied strong{color:var(--prof-text);font-size:14px;font-weight:700}
+.gprod-empty p,.gprod-denied p{max-width:340px;margin:0;font-size:12px;line-height:1.5}
+.gprod-denied{border-style:solid}
+
+.gprod-protected{
+  display:flex;align-items:flex-start;gap:9px;
+  margin:18px 0 0;padding:13px 15px;
+  border:1px solid var(--prof-border);
+  border-radius:var(--r);
+  background:var(--prof-muted);
+  color:var(--prof-text-3);
+  font-size:11.5px;line-height:1.55;
+}
+.gprod-protected svg{width:15px;height:15px;flex:0 0 auto;margin-top:1px;color:var(--green-text)}
+.gprod-protected strong{color:var(--prof-text-2)}
+
+/* Pulso ao localizar o recurso que está bloqueando (vindo de "Ver recurso"). */
+.gprod-item.is-flash > .gprod-row{animation:gprodFlash 1.4s var(--ease-standard)}
+@keyframes gprodFlash{0%,100%{background:transparent}25%,60%{background:var(--dm-orange-bg)}}
+
+/* ══ HISTÓRICO ══ */
+.gprod-hist{margin-top:14px;padding:16px;border:1px solid var(--prof-border);border-radius:var(--r);background:var(--prof-surface)}
+.gprod-hist-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.gprod-hist-head h5{margin:0;color:var(--prof-text);font-size:13px;font-weight:900}
+.gprod-hist-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:2px;max-height:280px;overflow-y:auto}
+.gprod-hist-item{display:flex;align-items:flex-start;gap:9px;padding:8px 0;border-bottom:1px solid var(--prof-border)}
+.gprod-hist-item:last-child{border-bottom:0}
+.gprod-hist-item div{min-width:0;color:var(--prof-text-2);font-size:12px;line-height:1.5}
+.gprod-hist-item strong{color:var(--prof-text);font-weight:700}
+.gprod-hist-item em{color:var(--prof-text-3);font-style:normal}
+.gprod-hist-item small{display:block;margin-top:1px;color:var(--prof-text-3);font-size:10.5px}
+.gprod-hist-dot{width:8px;height:8px;flex:0 0 auto;margin-top:6px;border-radius:var(--r-pill);background:var(--prof-text-3)}
+.gprod-hist-dot.is-on{background:var(--green)}
+.gprod-hist-dot.is-off{background:var(--dm-red)}
+.gprod-hist-loading,.gprod-hist-vazio,.gprod-hist-erro{margin:0;color:var(--prof-text-3);font-size:12px;line-height:1.5}
+.gprod-hist-erro{display:flex;align-items:center;gap:7px;color:var(--dm-orange-text)}
+.gprod-hist-erro svg{width:14px;height:14px;flex:0 0 auto}
+.gprod-hist-foot{display:flex;align-items:center;gap:6px;margin:12px 0 0;color:var(--prof-text-3);font-size:11px}
+.gprod-hist-foot svg{width:13px;height:13px;color:var(--green-text)}
+
+/* ══ FOCO VISÍVEL ══ */
+.gprod-switch:focus-visible,.gprod-caret:focus-visible,.gprod-filter:focus-visible,
+.gprod-btn-ghost:focus-visible,.gprod-btn-primary:focus-visible,.gprod-btn-danger:focus-visible,
+.gprod-note-link:focus-visible,.gprod-advanced summary:focus-visible{
+  outline:2px solid var(--dm-orange);
+  outline-offset:2px;
+  border-radius:var(--r-sm);
+}
+.gprod-search:focus-visible{outline:none}
+
+/* ══ RESPONSIVO ══ */
+@media (max-width:720px){
+  .gprod-overview{flex-direction:column;align-items:flex-start}
+  .gprod-overview-actions{width:100%}
+  .gprod-overview-actions .gprod-btn-ghost{flex:1;justify-content:center}
+  .gprod-tools{flex-direction:column;align-items:stretch}
+  .gprod-filters{overflow-x:auto;flex-wrap:nowrap}
+  /* Descrição some antes do nome: em tela estreita o nome + o switch são o que
+     importa; a descrição volta no toque do recurso (confirmação). */
+  .gprod-desc{display:none}
+  .gprod-row{grid-template-columns:22px minmax(0,1fr) auto;gap:8px;padding:12px}
+  .gprod-status{display:none}
+  .gprod-item.lvl-1 > .gprod-row{padding-left:24px}
+  .gprod-item.lvl-2 > .gprod-row{padding-left:36px}
+  .gprod-item.lvl-3 > .gprod-row{padding-left:48px}
+  .gprod-note{padding-left:34px}
+  .gprod-confirm{margin-left:12px;margin-right:12px}
+  .gprod-confirm-actions button{flex:1;justify-content:center}
+}
+
+/* ══ MOVIMENTO REDUZIDO ══ */
+@media (prefers-reduced-motion:reduce){
+  .gprod-confirm{animation:none}
+  .gprod-item.is-flash > .gprod-row{animation:none;background:var(--dm-orange-bg)}
+  .gprod-metric:hover,.gprod-filter:hover,
+  .gprod-btn-ghost:hover,.gprod-btn-primary:hover,.gprod-btn-danger:hover{transform:none}
+  .gprod-switch i,.gprod-caret svg{transition:none}
+}

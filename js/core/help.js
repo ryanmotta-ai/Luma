@@ -693,6 +693,11 @@ function gHelpPlay(id){
   setTimeout(()=>tutOpen(id), 300);
 }
 function gOpenHelp(trigger){
+  // Funil único da ajuda: o widget também sobrescreve esta função, mas chama de volta.
+  if(typeof gFeatureCan==='function' && !gFeatureCan('global.help','access')){
+    if(typeof gFeatureBlockedFeedback==='function') gFeatureBlockedFeedback('global.help');
+    return;
+  }
   // Franqueado usa o widget compacto (#fhw); só o Estúdio abre o modal completo.
   if(!document.body.classList.contains('mode-designer')){ gFraHelpOpen(trigger); return; }
   const modal=document.getElementById('g-help-modal');

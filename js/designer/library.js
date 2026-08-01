@@ -42,6 +42,10 @@ function dTogglePanel(panel) {
  * preservando todos os IDs internos e seus handlers. */
 let _dResMoved=false;
 function dToggleResources(open){
+  if(typeof gFeatureCan==='function' && !gFeatureCan('designer.assets','access')){
+    if(typeof gFeatureBlockedFeedback==='function') gFeatureBlockedFeedback('designer.assets');
+    return;
+  }
   const dr=document.getElementById('d-resources-drawer');
   const bd=document.getElementById('d-resources-backdrop');
   if(!dr)return;

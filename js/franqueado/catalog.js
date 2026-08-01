@@ -8,6 +8,17 @@
 
 /* ── TABS ESQUERDA ── */
 function fSwitchTab(tab,btn){
+  // Controle do produto: aba desativada devolve para a outra. Se as duas
+  // estiverem desligadas, o módulo Franqueado inteiro é que devia estar — e
+  // setMode já teria redirecionado antes de chegar aqui.
+  const _tk={ catalogo:'franqueado.catalogo', historico:'franqueado.historico' }[tab];
+  if(_tk && typeof gFeatureCan==='function' && !gFeatureCan(_tk,'access')){
+    if(typeof gFeatureBlockedFeedback==='function') gFeatureBlockedFeedback(_tk);
+    const alt = tab==='catalogo' ? 'historico' : 'catalogo';
+    if(!gFeatureCan(_tk==='franqueado.catalogo'?'franqueado.historico':'franqueado.catalogo','access')) return;
+    tab=alt;
+    btn=document.querySelector('.f-tab[data-feature="franqueado.'+alt+'"]')||null;
+  }
   fState.tab=tab;
   document.querySelectorAll('.f-tab').forEach(b=>b.classList.remove('active'));
   if(btn) btn.classList.add('active');

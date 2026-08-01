@@ -261,6 +261,24 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
 
 ---
 
+## Controle do produto (feature flags) — entregue 2026-08-01
+
+Área exclusiva da `gestao` no painel da conta: liga e desliga **32 recursos reais** sem editar código e sem deploy. Motor em `js/core/feature-flags.js`, tela em `js/core/product-control.js`. Detalhe e matriz de cobertura em `docs/LUMA.md` §22; backend no changelog.
+
+Isto move a agulha do **item 2 da definição de v1** ("o designer opera o catálogo inteiro sem tocar em código"): a gestão passa a operar a *disponibilidade* do produto inteiro pela UI.
+
+- [x] Migration `20260731190000_luma_feature_flags.sql` (2 tabelas, trigger de auditoria, RLS, seed de 32 chaves)
+- [x] Motor: registro, cache offline-first, sync, cascata pai/filho, overrides por role, evento global, fallback fail-open
+- [x] Tela: busca, filtros, árvore hierárquica, confirmação com impacto e motivo, histórico, a11y, 2 temas, responsivo
+- [x] Integração: gate de módulo + fallback de navegação · guard central em `dSetTool` · funis de criação, import, publicação, exportação, ajuda e tutoriais
+- [x] **Texto vertical desligável** — criação bloqueada por todos os caminhos; render/preview/export/edição de conteúdo existente verificados idênticos no navegador
+- [ ] 🔴 **Aplicar a migration** — o SQL está versionado e **não foi aplicado** (sem acesso ao Supabase na entrega). Conferir com o `SELECT` do rodapé do arquivo. *(Mesma lição do incidente 2026-07-16: migration só está pronta quando APLICADA.)*
+- [ ] Testar as 3 roles contra o banco real depois de aplicar (o front foi verificado com role simulada)
+
+**Fase posterior (declarado, não abandonado):** granularidade por ferramenta individual dentro dos grupos Formas/Pintura/Preenchimento/Efeitos/Medição · flags por curso/aula da Academia · guard programático em `dSvgImport`/`dImportPSD` além do funil.
+
+---
+
 ## 10. Performance & tráfego de dados (backlog técnico — não bloqueia v1)
 
 > Contexto: o app roda no navegador (inclusive web mobile) falando direto com o Supabase.

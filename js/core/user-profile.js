@@ -52,6 +52,12 @@ function gOpenUserProfileModal() {
   const equipeBtn = document.getElementById('prof-nav-equipe');
   if(equipeBtn) equipeBtn.style.display = gIsSuperAdmin() ? '' : 'none';
 
+  // Controle do produto: mesmo gate da Equipe. É por aqui que a gestão religa
+  // um módulo desligado — por isso vive no painel da conta e não dentro de um
+  // módulo que ela mesma pode ter desativado.
+  const produtoBtn = document.getElementById('prof-nav-produto');
+  if(produtoBtn) produtoBtn.style.display = gIsSuperAdmin() ? '' : 'none';
+
   // Console (Luma CLI): mesmo gate do console em si (gIsAdmin = equipe_dm + gestao).
   // Gate mais estreito aqui deixaria o designer sem caminho no celular, onde não há Ctrl+`.
   const cliBtn = document.getElementById('prof-nav-console');
@@ -139,6 +145,10 @@ function gProfileSwitchTab(tabName) {
     if (title) title.textContent = 'Gestão de equipe';
     if (subtitle) subtitle.textContent = 'Convide pessoas e mantenha cada acesso no nível certo.';
     gProfileRenderEquipe();
+  } else if (tabName === 'produto') {
+    if (title) title.textContent = 'Controle do produto';
+    if (subtitle) subtitle.textContent = 'Gerencie os módulos e recursos disponíveis no Luma.';
+    if (typeof gProdRender === 'function') gProdRender();
   }
 }
 

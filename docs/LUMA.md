@@ -690,6 +690,80 @@ localStorage.clear(); location.reload();               // reset local (backend r
 
 ---
 
+## 22. CONTROLE DO PRODUTO / FEATURE FLAGS (`gFeature*` · `gProd*`)
+
+**O que é.** A área exclusiva da `gestao` que liga e desliga recursos do Luma **sem editar código e sem deploy**. Nome na interface: **Controle do produto**. "Feature flag" é linguagem técnica interna — nunca aparece como título de tela.
+
+**Onde vive.** 5ª aba do painel da conta que já existia (`#g-profile-modal`), ao lado de Equipe. ⛔ **Não** é um modo novo na topbar: o painel da conta é justamente a superfície que continua alcançável quando todos os módulos estão desativados. Gate visual `gIsSuperAdmin()`; quem autoriza a escrita é a **RLS**.
+
+**Arquivos.**
+
+| Arquivo | Responsabilidade |
+|---|---|
+| `js/core/feature-flags.js` | O motor: registro, cache, sync, resolução, cascata, overrides, evento. **Única camada que fala com a tabela de flags.** |
+| `js/core/product-control.js` | Só a UI da Gestão. Não conhece o Supabase. |
+| `css/components/product-control.css` | Estilos (dentro de `.g-profile-modal`, herda as `--prof-*` e os dois temas) |
+| `supabase/migrations/20260731190000_luma_feature_flags.sql` | `luma.feature_flags` + `luma.feature_flag_history` + trigger + RLS + seed |
+
+**Quatro camadas, nesta ordem:**
+1. **`G_FEATURE_REGISTRY`** — o que existe (32 chaves, versionado com o código: rótulo, descrição, pai, comportamentos válidos, ações preservadas, ferramentas governadas, tags).
+2. **Estado configurado** — o que a gestão gravou (Supabase + cache `luma_feature_flags_v1`).
+3. **Estado efetivo** — `gFeatureState()`: default → global → override por role → estado dos pais.
+4. **Aplicação** — `data-feature` no HTML (visual) + guard no handler (o que realmente bloqueia).
+
+**API global:**
+```js
+gFeatureInit()                 // boot, SÍNCRONO, antes de gLoadProfile()
+gFeatureEnabled(key)           // estado efetivo
+gFeatureCan(key, acao)         // access|view|create|edit|execute|render|export|load
+gFeatureState(key)             // {configurado, efetivo, comportamento, motivo, bloqueadoPor}
+gFeatureReason(key)            // por que está indisponível, em PT-BR
+gFeatureToolBlocked(tool)      // ferramenta do Estúdio → chave que bloqueou, ou null
+gFeatureBlockedFeedback(key)   // gToast único de indisponibilidade
+gFeatureApplyToDOM(root)       // aplica os data-feature
+gFeatureSave(key, patch)       // só gestão; RLS decide
+gFeatureSyncFromBackend()      // pull + reconcilia + dispara evento
+```
+
+**⛔ A regra que sustenta tudo:** `render`, `export` e `load` continuam `true` mesmo com o recurso desativado (declarados em `preserva`). **Desativar a ferramenta que CRIA nunca some com o que ela já criou.** Nenhuma linha dos motores de render/preview/PNG recebeu condição de flag.
+
+**Cascata.** Pai desativado torna os filhos **efetivamente** indisponíveis, mas o estado **configurado** de cada filho é preservado — no cliente, nunca no banco. Religar o pai devolve cada filho ao próprio estado. Sem isso, desligar um grupo apagaria em silêncio a decisão de cada ferramenta dentro dele.
+
+**Comportamentos:** `hide` (some) · `disabled` (visível, `aria-disabled`, clique explica) · `readonly` (vê, não cria/altera) · `maintenance` (reconhecível, com motivo). Cada recurso declara quais aceita.
+
+**Fallback (fail-open, de propósito).** Sem backend e sem cache, tudo funciona como antes. Feature flag **não é segurança** — a RLS é. Uma flag indisponível não pode derrubar o produto. O erro só aparece quando a Gestão **tenta salvar**, e o estado visual reverte. Nunca "salvo" falso.
+
+**Boot.** `gFeatureInit()` roda **antes** de `gLoadProfile()` (é síncrono: registro + cache). O sync remoto vem depois da sessão e dispara `luma:feature-flags-changed`, que reconstrói só o que mudou — **sem reload**. Atualiza também no `visibilitychange` e ao reabrir a tela. Sem polling, sem Realtime.
+
+**Recursos protegidos (sem chave, de propósito):** login/logout/sessão, carregamento do perfil, o próprio sistema de flags e o painel da conta. Ausência de chave é proteção mais forte que "chave proibida" — a gestão não consegue se trancar do lado de fora.
+
+### Matriz de cobertura (32 chaves — cada uma ligada a fluxo real)
+
+| Chave | UI (`data-feature`) | Guard no handler | Atalho | Estado salvo | Render antigo |
+|---|---|---|---|---|---|
+| `module.franqueado` / `.academia` / `.designer` | aba da topbar | `setMode` + `gApplyModeAccess` | — | redireciona | preservado |
+| `franqueado.catalogo` / `.historico` | aba do franqueado | `fSwitchTab` | — | cai na outra aba | preservado |
+| `franqueado.chat` | — | `fSend` | — | — | histórico intacto |
+| `franqueado.legendas` | — | `fGenCaptionSuggestions` (devolve `[]`) | — | — | — |
+| `franqueado.sheets` | — | `fBulkOpen` (funil de `fBulkOpenFromArt`) | — | — | — |
+| `franqueado.export.png` / `.pdf` / `.zip` | — | `fBaixar` / `fBaixarPDF` / `fBulkDownloadAll` | — | — | — |
+| `designer.tools.*` (6 grupos) | proxy do grupo na régua | **`dSetTool`** (funil central) | ✅ cobre | cai em `select` | preservado |
+| **`designer.tools.text.vertical`** | flyout + painel "Todas" | `dSetTool` + `dAddTextAt` + `dAddTextMaskAt` | ✅ Shift+T pula | cai em `select` | **✅ verificado** |
+| `designer.tools.text.mask` | flyout + painel "Todas" | `dSetTool` + `dAddTextMaskAt` | ✅ | cai em `select` | preservado |
+| `designer.import.psd` / `.svg` | — | `dImportToFolder` (funil dos dois) | — | — | — |
+| `designer.publish` | 2 botões | `dPublishOpen` | — | — | — |
+| `designer.campos` / `.campanhas` / `.checklist` | aba do painel direito | `dActivatePanel` (cai em Camadas) | — | — | — |
+| `designer.assets` | botão Recursos | `dToggleResources` | — | — | — |
+| `global.help` | botão flutuante | `gOpenHelp` | — | — | — |
+| `global.help.chat` | — | `lumaWidgetStartChat` | — | — | — |
+| `global.tutorials` | — | `tutOpen` | — | — | — |
+
+**Por que tão poucos arquivos tocados:** os guards ficam nos **funis** (`dSetTool`, `dAddTextAt`, `dImportToFolder`, `setMode`), não em cada botão. Um guard em `dSetTool` cobre flyout, painel "Todas as ferramentas", atalho, ciclo Shift+T, estado restaurado e chamada pelo console — de uma vez.
+
+**Ficou para depois (declarado, não abandonado):** granularidade por ferramenta individual dentro dos grupos Formas/Pintura/Preenchimento/Efeitos/Medição (hoje o grupo inteiro é uma chave); flags por curso/aula da Academia; guard programático em `dSvgImport`/`dImportPSD` além do funil.
+
+---
+
 ## 20. GOVERNANÇA DA DOCUMENTAÇÃO
 
 - **Este arquivo (`docs/LUMA.md`)** é a documentação oficial. Feature nova, mudança de arquitetura, token novo, tabela nova → atualizar a seção correspondente AQUI.

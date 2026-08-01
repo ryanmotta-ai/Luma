@@ -1153,6 +1153,11 @@ async function fBulkOpenFromArt() {
 }
 
 async function fBulkOpen(){
+  // Controle do produto — funil único do Luma Sheets (fBulkOpenFromArt chega aqui).
+  if(typeof gFeatureCan==='function' && !gFeatureCan('franqueado.sheets','access')){
+    if(typeof gFeatureBlockedFeedback==='function') gFeatureBlockedFeedback('franqueado.sheets');
+    return;
+  }
   if(!fState.material||!fState.material.layers){gToast('Escolha um material primeiro.');return;}
   
   if (_fLastMaterialId !== fState.material.id) {
@@ -2511,6 +2516,10 @@ function fBulkCancelGen(){
   if(b){ b.disabled = true; b.textContent = 'Cancelando…'; }
 }
 async function fBulkDownloadAll(){
+  if(typeof gFeatureCan==='function' && !gFeatureCan('franqueado.export.zip','execute')){
+    if(typeof gFeatureBlockedFeedback==='function') gFeatureBlockedFeedback('franqueado.export.zip');
+    return;
+  }
   if(!fBulkRows.length){gToast('Envie uma planilha primeiro.');return;}
   if(typeof JSZip === 'undefined'){gToast('Não consegui preparar o pacote. Recarregue a página e tente de novo.','error');return;}
 

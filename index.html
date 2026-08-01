@@ -25,6 +25,9 @@
 <link rel="stylesheet" href="css/components/topbar.css">
 <link rel="stylesheet" href="css/components/help-modal.css">
 <link rel="stylesheet" href="css/components/user-profile.css">
+<!-- Depois de user-profile.css de propósito: o Controle do produto vive DENTRO
+     do painel da conta e herda as variáveis --prof-* (inclusive o tema escuro). -->
+<link rel="stylesheet" href="css/components/product-control.css">
 <link rel="stylesheet" href="css/components/tutorial.css">
 <link rel="stylesheet" href="css/modules/franqueado.css">
 <link rel="stylesheet" href="css/modules/chat.css">
@@ -371,7 +374,7 @@ input:focus:-webkit-autofill {
 </div>
 
 <!-- ══ MODAL DE PERFIL DE USUÁRIO ══ -->
-<button id="g-help-float" class="g-help-float" type="button" onclick="gOpenHelp(this)" data-help-trigger aria-controls="g-help-modal" aria-expanded="false" aria-label="Abrir Central de Ajuda" title="Central de Ajuda">
+<button id="g-help-float" class="g-help-float" data-feature="global.help" type="button" onclick="gOpenHelp(this)" data-help-trigger aria-controls="g-help-modal" aria-expanded="false" aria-label="Abrir Central de Ajuda" title="Central de Ajuda">
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
 </button>
 
@@ -422,6 +425,13 @@ input:focus:-webkit-autofill {
         <button type="button" class="prof-nav-btn" id="prof-nav-equipe" onclick="gProfileSwitchTab('equipe')" aria-controls="prof-pane-equipe" style="display:none">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg>
           <span>Equipe</span><small class="prof-nav-tag">ADMIN</small>
+        </button>
+        <!-- Controle do produto: governa o que está disponível no Luma inteiro.
+             Mesmo gate da Equipe (gIsSuperAdmin em gOpenUserProfileModal); a RLS
+             é quem autoriza a escrita de verdade. -->
+        <button type="button" class="prof-nav-btn" id="prof-nav-produto" onclick="gProfileSwitchTab('produto')" aria-controls="prof-pane-produto" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+          <span>Controle do produto</span><small class="prof-nav-tag">ADMIN</small>
         </button>
         <!-- Entrada do Luma CLI. É o único caminho no celular (não há Ctrl+` sem teclado)
              e fica aqui, escondido no painel, em vez de botão solto na tela do franqueado.
@@ -583,6 +593,8 @@ input:focus:-webkit-autofill {
         </div>
 
         <div class="prof-pane" id="prof-pane-equipe"></div>
+        <!-- Vazia de propósito: gProdRender() monta (mesmo padrão da aba Equipe). -->
+        <div class="prof-pane" id="prof-pane-produto"></div>
       </div>
     </section>
   </div>
@@ -673,8 +685,8 @@ input:focus:-webkit-autofill {
       <div id="fran-left-head">
         <div class="f-tabs">
           <button type="button" class="panel-grip-handle" data-panel-grip="left" title="Arrastar para reordenar painel" aria-label="Arrastar para reordenar painel"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></button>
-          <button class="f-tab active" onclick="fSwitchTab('catalogo',this)">Catálogo</button>
-          <button class="f-tab" onclick="fSwitchTab('historico',this)">Minhas artes <span id="hist-badge"></span></button>
+          <button class="f-tab active" data-feature="franqueado.catalogo" onclick="fSwitchTab('catalogo',this)">Catálogo</button>
+          <button class="f-tab" data-feature="franqueado.historico" onclick="fSwitchTab('historico',this)">Minhas artes <span id="hist-badge"></span></button>
         </div>
         <div class="fran-home-row">
           <button id="f-home-btn" onclick="fGoHome()" title="Voltar ao início" aria-label="Voltar ao início">
@@ -969,7 +981,7 @@ input:focus:-webkit-autofill {
       <button type="button" id="d-sim-indicator" class="dt-sim-active" onclick="dResetSim()" title="Sair da simulação" style="display:none;">
         <span class="dt-sim-dot"></span> Ativa
       </button>
-      <button class="dt-btn-primary" onclick="dPublishOpen()" title="Publicar">
+      <button class="dt-btn-primary" data-feature="designer.publish" data-feature-action="execute" onclick="dPublishOpen()" title="Publicar">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
         <span>Publicar</span>
       </button>
@@ -1054,15 +1066,17 @@ input:focus:-webkit-autofill {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
               <span>Texto Horizontal</span>
             </button>
-            <button id="dtool-text-v" class="vt-flyout-item" onclick="dTextPick('text-v',event)" title="Texto Vertical">
+            <!-- data-feature = camada VISUAL do Controle do produto. O bloqueio real
+                 mora em dSetTool + dAddTextAt; isto só tira o caminho da frente. -->
+            <button id="dtool-text-v" class="vt-flyout-item" data-feature="designer.tools.text.vertical" data-feature-action="create" onclick="dTextPick('text-v',event)" title="Texto Vertical">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4v16M5 4h8M17 6l2 2 2-2M19 8v10M17 16l2 2 2-2"/></svg>
               <span>Texto Vertical</span>
             </button>
-            <button id="dtool-mask-text-h" class="vt-flyout-item" onclick="dTextPick('mask-text-h',event)" title="Máscara de Texto Horizontal">
+            <button id="dtool-mask-text-h" class="vt-flyout-item" data-feature="designer.tools.text.mask" data-feature-action="create" onclick="dTextPick('mask-text-h',event)" title="Máscara de Texto Horizontal">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="2 2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
               <span>Máscara Horiz.</span>
             </button>
-            <button id="dtool-mask-text-v" class="vt-flyout-item" onclick="dTextPick('mask-text-v',event)" title="Máscara de Texto Vertical">
+            <button id="dtool-mask-text-v" class="vt-flyout-item" data-feature="designer.tools.text.mask designer.tools.text.vertical" data-feature-action="create" onclick="dTextPick('mask-text-v',event)" title="Máscara de Texto Vertical">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="2 2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4v16M5 4h8M17 6l2 2 2-2M19 8v10M17 16l2 2 2-2"/></svg>
               <span>Máscara Vertical</span>
             </button>
@@ -1071,7 +1085,7 @@ input:focus:-webkit-autofill {
 
         <!-- Subgrupo: Formas -->
         <div class="vt-group-wrap" id="vt-forma-wrap">
-          <button class="vt-btn has-flyout" id="dtool-forma-proxy"
+          <button class="vt-btn has-flyout" data-feature="designer.tools.shape" data-feature-action="create" id="dtool-forma-proxy"
                   onclick="dFormaActivate()"
                   oncontextmenu="dFormaFlyout(event)"
                   title="Grupo Forma&#10;R — Botão direito: mais ferramentas">
@@ -1144,7 +1158,7 @@ input:focus:-webkit-autofill {
       <div class="vt-group">
         <!-- Subgrupo: Pincel, Borracha, Carimbo -->
         <div class="vt-group-wrap" id="vt-brush-wrap">
-          <button class="vt-btn has-flyout" id="dtool-brush-proxy"
+          <button class="vt-btn has-flyout" data-feature="designer.tools.paint" data-feature-action="create" id="dtool-brush-proxy"
                   onclick="dBrushActivate()"
                   oncontextmenu="dBrushFlyout(event)"
                   title="Grupo Pintura&#10;B — Botão direito: mais ferramentas">
@@ -1177,7 +1191,7 @@ input:focus:-webkit-autofill {
 
         <!-- Subgrupo: Preenchimento (Balde & Gradiente) -->
         <div class="vt-group-wrap" id="vt-fill-wrap">
-          <button class="vt-btn has-flyout" id="dtool-fill-proxy"
+          <button class="vt-btn has-flyout" data-feature="designer.tools.fill" data-feature-action="create" id="dtool-fill-proxy"
                   onclick="dFillActivate()"
                   oncontextmenu="dFillFlyout(event)"
                   title="Grupo Preenchimento&#10;G — Botão direito: mais ferramentas">
@@ -1198,7 +1212,7 @@ input:focus:-webkit-autofill {
 
         <!-- Subgrupo: Efeitos (Nitidez/Desfoque/Dedo) -->
         <div class="vt-group-wrap" id="vt-nitidez-wrap">
-          <button class="vt-btn has-flyout" id="dtool-nitidez-proxy"
+          <button class="vt-btn has-flyout" data-feature="designer.tools.effects" data-feature-action="create" id="dtool-nitidez-proxy"
                   onclick="dNitidezActivate()"
                   oncontextmenu="dNitidezFlyout(event)"
                   title="Grupo Efeitos&#10;O — Botão direito: mais ferramentas">
@@ -1228,7 +1242,7 @@ input:focus:-webkit-autofill {
 
       <!-- Categoria 5: Recursos & IA -->
       <div class="vt-group">
-        <button class="vt-btn" id="dtool-resources" aria-label="Recursos: biblioteca e assets" title="Recursos&#10;L — Biblioteca e assets" onclick="dToggleResources()">
+        <button class="vt-btn" data-feature="designer.assets" id="dtool-resources" aria-label="Recursos: biblioteca e assets" title="Recursos&#10;L — Biblioteca e assets" onclick="dToggleResources()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="3" width="14" height="14" rx="2"/><path d="M3 7v12a2 2 0 0 0 2 2h12"/></svg>
         </button>
         <button class="vt-btn" id="dtool-ia-assist" aria-label="Assistente de IA" title="Assistente de IA&#10;Z — Recursos inteligentes" onclick="gToast('Recurso em breve: Assistente de IA')">
@@ -1241,7 +1255,7 @@ input:focus:-webkit-autofill {
       <!-- Categoria 6: Utilitários -->
       <div class="vt-group">
         <div class="vt-group-wrap" id="vt-eyedrop-wrap">
-          <button class="vt-btn has-flyout" id="dtool-eyedrop-proxy"
+          <button class="vt-btn has-flyout" data-feature="designer.tools.measure" data-feature-action="create" id="dtool-eyedrop-proxy"
                   onclick="dEyedropActivate()"
                   oncontextmenu="dEyedropFlyout(event)"
                   title="Grupo Medição&#10;I — Botão direito: mais ferramentas">
@@ -1329,13 +1343,13 @@ input:focus:-webkit-autofill {
             <button class="vat-item" onclick="dTextPick('text-h',event);dToggleAllTools()">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg> Texto Horizontal <span class="vat-shortcut">T</span>
             </button>
-            <button class="vat-item" onclick="dTextPick('text-v',event);dToggleAllTools()">
+            <button class="vat-item" data-feature="designer.tools.text.vertical" data-feature-action="create" onclick="dTextPick('text-v',event);dToggleAllTools()">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v16M8 4h8M8 20h8"/></svg> Texto Vertical
             </button>
-            <button class="vat-item" onclick="dTextPick('mask-text-h',event);dToggleAllTools()">
+            <button class="vat-item" data-feature="designer.tools.text.mask" data-feature-action="create" onclick="dTextPick('mask-text-h',event);dToggleAllTools()">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="2 2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg> Máscara de Texto Horizontal
             </button>
-            <button class="vat-item" onclick="dTextPick('mask-text-v',event);dToggleAllTools()">
+            <button class="vat-item" data-feature="designer.tools.text.mask designer.tools.text.vertical" data-feature-action="create" onclick="dTextPick('mask-text-v',event);dToggleAllTools()">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="2 2"><path d="M12 4v16M8 4h8M8 20h8"/></svg> Máscara de Texto Vertical
             </button>
             <button class="vat-item" onclick="dFramePick('frame',event);dToggleAllTools()">
@@ -1615,9 +1629,9 @@ input:focus:-webkit-autofill {
     <div id="d-right" class="show-layers">
       <div class="rpanel-tabs d-rp-tabs">
         <button class="rpanel-tab d-rp-tab active" id="rtab-layers" data-panel="camadas" onclick="dActivatePanel('camadas')" title="Camadas">Camadas</button>
-        <button class="rpanel-tab d-rp-tab" id="rtab-dados" data-panel="dados" onclick="dActivatePanel('dados')" title="Campos que o franqueado preenche">Dados</button>
-        <button class="rpanel-tab d-rp-tab" id="rtab-campaigns" data-panel="campaigns" onclick="dActivatePanel('campaigns')" title="Modelos e Campanhas">Campanhas</button>
-        <button class="rpanel-tab d-rp-tab" id="rtab-linter" data-panel="linter" onclick="dActivatePanel('linter')" title="Checklist de Qualidade do Design" style="color:var(--dm-orange);font-weight:700">Checklist</button>
+        <button class="rpanel-tab d-rp-tab" id="rtab-dados" data-feature="designer.campos" data-panel="dados" onclick="dActivatePanel('dados')" title="Campos que o franqueado preenche">Dados</button>
+        <button class="rpanel-tab d-rp-tab" id="rtab-campaigns" data-feature="designer.campanhas" data-panel="campaigns" onclick="dActivatePanel('campaigns')" title="Modelos e Campanhas">Campanhas</button>
+        <button class="rpanel-tab d-rp-tab" id="rtab-linter" data-feature="designer.checklist" data-panel="linter" onclick="dActivatePanel('linter')" title="Checklist de Qualidade do Design" style="color:var(--dm-orange);font-weight:700">Checklist</button>
       </div>
       <!-- Indicador contextual: nome+tipo da peça selecionada (visível só no painel Camada) -->
       <div class="d-rp-ctx" id="d-rp-ctx" style="display:none"></div>
@@ -2122,7 +2136,7 @@ input:focus:-webkit-autofill {
         <p style="font-size:11.5px;color:var(--d-text2);line-height:1.6;margin:0">Revise pasta, validade, variáveis editáveis e instruções, depois envie ao catálogo dos franqueados.</p>
         <div id="d-pub-panel-summary" style="display:flex;flex-direction:column;gap:8px"></div>
         <div style="flex:1"></div>
-        <button class="d-btn-pri d-pub-panel-btn" onclick="dPublishOpen()" style="width:100%;justify-content:center">
+        <button class="d-btn-pri d-pub-panel-btn" data-feature="designer.publish" data-feature-action="execute" onclick="dPublishOpen()" style="width:100%;justify-content:center">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
           Publicar template
         </button>
@@ -2931,7 +2945,13 @@ input:focus:-webkit-autofill {
 <!-- Motor único de IA: precisa do supabase.js (gSupabase) já carregado -->
 <script src="js/core/ai.js"></script>
 <script src="js/core/auth.js"></script>
+<!-- Controle do produto — o motor de disponibilidade funcional. Vem DEPOIS de
+     auth.js (usa gCurrentRole/gIsSuperAdmin) e ANTES de user-profile.js e
+     main.js: gFeatureInit() roda no começo do boot e precisa estar definido. -->
+<script src="js/core/feature-flags.js"></script>
 <script src="js/core/user-profile.js"></script>
+<!-- A TELA do Controle do produto: depende do motor acima e do painel de conta. -->
+<script src="js/core/product-control.js"></script>
 <!-- Luma CLI: por último entre os core porque só usa globais já definidos
      (gIsAdmin, gHasBackend, gAskAI, dFolders…) e é o único que abre por atalho -->
 <script src="js/core/console.js"></script>
