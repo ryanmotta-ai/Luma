@@ -38,7 +38,11 @@ function dSelLayer(id){
   const l2=dLayers.find(x=>x.id===id);
   if(l2){
     if (l2.type !== 'group') {
-      dMultiSel = [];
+      // Clicar num MEMBRO da multi-seleção não desfaz a seleção: o mousedown do canvas
+      // chama dSelLayer antes do dStartDrag, e zerar aqui deixava dDragMulti vazio —
+      // arrastar 2 camadas com Shift movia só a que estava sob o cursor.
+      // Quem quer mesmo isolar limpa antes (dStopDrag: dClearMultiSel + dSelLayer).
+      if (!dMultiSel.includes(id)) dMultiSel = [];
     } else if (l2.type === 'group') {
       const children = dLayers.filter(x => x.parentId === l2.id);
       dMultiSel = children.map(x => x.id);

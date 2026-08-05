@@ -1802,16 +1802,6 @@ input:focus:-webkit-autofill {
                   <button id="dp-convert-frame-btn" class="dpi-action is-ghost dp-convert-btn" style="display:none"></button>
                 </div>
 
-                <div class="dpi-group">
-                  <span class="dpi-group-title">Regras</span>
-                  <div class="dpi-row">
-                    <label class="dpi-row-label" for="dp-bind-visible-image">Visível se</label>
-                    <span class="dpi-select">
-                      <select class="prop-input" id="dp-bind-visible-image" onchange="dSetBinding('visible',this.value)"></select>
-                      <svg class="dpi-select-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
-                    </span>
-                  </div>
-                </div>
               </div>
             </div>
           </section>
@@ -1859,16 +1849,6 @@ input:focus:-webkit-autofill {
                     <button type="button" class="color-swatch dpi-color-swatch" id="dp-color-sw" style="background:#fff" onclick="document.getElementById('dp-color-pick').click()" aria-label="Escolher cor do texto"></button>
                     <input type="color" id="dp-color-pick" style="display:none" oninput="dHexSync('dp-color-hex',this.value);dUpdateProp('color',this.value)">
                     <input class="hex-input" id="dp-color-hex" maxlength="7" placeholder="#FFFFFF" aria-label="Cor do texto em hexadecimal" oninput="dHexInput('dp-color-pick','dp-color-sw',this.value,'color')">
-                  </span>
-                </div>
-              </div>
-              <div class="dpi-group">
-                <span class="dpi-group-title">Regras</span>
-                <div class="dpi-row">
-                  <label class="dpi-row-label" for="dp-bind-visible-text">Visível se</label>
-                  <span class="dpi-select">
-                    <select class="prop-input" id="dp-bind-visible-text" onchange="dSetBinding('visible',this.value)"></select>
-                    <svg class="dpi-select-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
                   </span>
                 </div>
               </div>
@@ -1981,28 +1961,6 @@ input:focus:-webkit-autofill {
                       <label class="dpi-row-label is-inline" for="dp-shape-inner">Interno</label>
                       <input class="prop-input dpi-number dpi-geo-num" type="number" id="dp-shape-inner" min="5" max="95" value="50" aria-label="Raio interno da estrela em porcento" oninput="dUpdateProp('inner',(parseFloat(this.value)||50)/100)">
                     </div>
-                  </div>
-                </div>
-
-                <div class="dpi-group">
-                  <span class="dpi-group-title">Dados</span>
-                  <div class="dpi-row">
-                    <label class="dpi-row-label" for="dp-bind-fill">Cor vinculada</label>
-                    <span class="dpi-select">
-                      <select class="prop-input" id="dp-bind-fill" onchange="dSetBinding('fill',this.value)"></select>
-                      <svg class="dpi-select-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
-                    </span>
-                  </div>
-                </div>
-
-                <div class="dpi-group">
-                  <span class="dpi-group-title">Regras</span>
-                  <div class="dpi-row">
-                    <label class="dpi-row-label" for="dp-bind-visible-shape">Visível se</label>
-                    <span class="dpi-select">
-                      <select class="prop-input" id="dp-bind-visible-shape" onchange="dSetBinding('visible',this.value)"></select>
-                      <svg class="dpi-select-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
-                    </span>
                   </div>
                 </div>
 
