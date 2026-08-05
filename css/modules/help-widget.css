@@ -77,6 +77,36 @@ body.mode-franqueado:has(#luma-widget-fab-wrap) #g-help-modal {
   }
 }
 
+/* CELULAR — o canto inferior direito é disputado por três coisas. O FAB de ajuda ficava
+   em bottom:24px, ou seja, EXATAMENTE sobre o botão de enviar mensagem do chat (#f-snd):
+   a ajuda roubava o toque de enviar. Aqui ele sai da frente — sobe acima da barra de input
+   e, quando o PiP da prévia está em cena (#mobile-preview-toggle, right:20px/bottom:80px),
+   senta AO LADO dele em vez de por cima. */
+@media (max-width:680px) {
+  #luma-widget-fab-wrap {
+    right:20px;
+    bottom:calc(24px + var(--safe-bottom));
+  }
+
+  /* Chat aberto: a barra de input (~80px) fica livre. */
+  body.f-mobile-chat #luma-widget-fab-wrap {
+    bottom:calc(88px + var(--safe-bottom));
+  }
+
+  /* PiP visível (todo modo de chat menos home/lista de materiais/histórico — ver
+     franqueado_effects.css): a ajuda desloca 64px do PiP + 12px de folga para a esquerda. */
+  body.f-mobile-chat:not(.f-home-mode):not(.f-material-browser):not(.f-history-mode) #luma-widget-fab-wrap {
+    right:96px;
+    bottom:calc(82px + var(--safe-bottom));
+  }
+
+  /* Com o FAB deslocado, a pílula de convite tem menos espaço à esquerda — sem este teto
+     ela vazava fora da tela. */
+  body.f-mobile-chat:not(.f-home-mode):not(.f-material-browser):not(.f-history-mode) #luma-widget-fab-pill {
+    max-width:calc(100vw - 172px);
+  }
+}
+
 #luma-widget-fab-pill {
   position:relative;
   width:max-content;

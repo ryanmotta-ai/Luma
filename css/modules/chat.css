@@ -1154,7 +1154,7 @@ body:not(.theme-light) .caption-copy-btn.copied { background: var(--green); colo
      a troca de sugestão fica embaixo, ainda secundária. */
   .caption-card-foot{flex-direction:column-reverse;align-items:stretch;gap:6px}
   .caption-copy-btn{justify-content:center;min-height:var(--tap-min)}
-  .caption-alt-btn{justify-content:center;margin-left:0;min-height:36px}
+  .caption-alt-btn{justify-content:center;margin-left:0;min-height:var(--tap-min)}
   .art-bulk-btn{min-height:var(--tap-min)}
 }
 
