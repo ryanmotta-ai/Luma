@@ -2379,6 +2379,11 @@ function _dFieldsBuildDup(){
 }
 
 const _D_FIELD_WARN='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+// Ícone de UI é SVG, nunca caractere/emoji (03_ENGINEERING §5): o '⋯' e o '🪄' que moravam
+// aqui renderizavam diferente por sistema e fugiam do peso de traço do resto do painel.
+const _D_FIELD_DOTS='<svg viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>';
+const _D_FIELD_MAGIC='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8 19 13M17.8 6.2 19 5M3 21 12 12M12.2 6.2 11 5"/><circle cx="15" cy="9" r="3"/></svg>';
+const _D_FIELD_ARROW='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
 
 // Linha compacta (fechada: nome + tipo + status) + detalhe sob demanda
 // (aberto: exemplo, chips de uso clicáveis e ações). Acordeão de 1 aberto.
@@ -2410,7 +2415,16 @@ function dFieldCardHTML(v,i){
       </div>
     </div>`;
   }
-  return `<div class="field-item${open?' open':''}" data-field="${v.name}">
+  // O cartão é ARRASTÁVEL: é isso que o painel não tinha. O resto da linha (clique no nome abre
+  // detalhes, botão "Usar" aplica no que está selecionado) é montado por `dPropEnhanceDataRows`
+  // em props-panel.js, que REESCREVE esta marcação depois do render — inclusive tirando
+  // `tabindex` e trocando o `role`. Por isso aqui não entra nem clique próprio na linha nem
+  // controle de detalhes: seria um terceiro comportamento competindo com os dois que já existem.
+  // `draggable` e os handlers ficam no .field-item, que esse passe não toca.
+  return `<div class="field-item${open?' open':''}" data-field="${v.name}" draggable="true"
+      ondragstart="dFieldDragStart(event,this)" ondragend="dFieldDragEnd()"
+      onmouseenter="dFieldHover('${v.name}')" onmouseleave="dFieldHover('')"
+      title="Arraste para a arte para ligar este campo numa camada">
     <div class="field-row" onclick="dFieldToggleOpen('${v.name}')" title="${open?'Fechar detalhes':'Ver detalhes'}">
       <span class="field-tico ft-${v.type||'text'}">${tm.svg||tm.icon}</span>
       <span class="field-row-mid">
@@ -2419,7 +2433,7 @@ function dFieldCardHTML(v,i){
       </span>
       <span class="field-row-end">
         <span class="field-sdot ${used?'used':'free'}"></span>
-        <button class="field-card-menu" onclick="event.stopPropagation();dFieldMenu(event,${i})" title="Mais ações">⋯</button>
+        <button class="field-card-menu" onclick="event.stopPropagation();dFieldMenu(event,${i})" title="Mais ações" aria-label="Mais ações do campo ${_dEsc(v.label||v.name)}">${_D_FIELD_DOTS}</button>
       </span>
     </div>
     ${det}
@@ -2428,11 +2442,11 @@ function dFieldCardHTML(v,i){
 
 function dFieldsEmptyHTML(){
   return `<div class="field-empty">
-    <div class="field-empty-icon">🪄</div>
+    <div class="field-empty-icon">${_D_FIELD_MAGIC}</div>
     <div class="field-empty-title">Campos trocam a informação sem mexer no layout.</div>
     <div class="field-empty-exs">
-      <div class="field-empty-ex"><span>Produto</span><span class="field-empty-arrow">→</span><b>Nike Air Max</b></div>
-      <div class="field-empty-ex"><span>Preço</span><span class="field-empty-arrow">→</span><b>R$ 399</b></div>
+      <div class="field-empty-ex"><span>Produto</span><span class="field-empty-arrow">${_D_FIELD_ARROW}</span><b>Nike Air Max</b></div>
+      <div class="field-empty-ex"><span>Preço</span><span class="field-empty-arrow">${_D_FIELD_ARROW}</span><b>R$ 399</b></div>
     </div>
     <button class="d-btn-pri" onclick="dOpenVarModal()" style="justify-content:center">+ Criar meu primeiro campo</button>
   </div>`;
@@ -2447,6 +2461,10 @@ function _dFieldsRenderChipbar(counts){
   cb.innerHTML=chip('all','Todos',counts.total)+chip('used','Em uso',counts.used)+chip('free','Livres',counts.free);
 }
 // Rodapé de inventário: o pulso do catálogo sem contar cartão.
+// ⚠ Está OCULTO no painel Campos por `#d-panel-dados .dados-inventory{display:none!important}`
+// (layers-panel.css:3825) — os mesmos números já vivem na chipbar acima. Mantido porque a
+// função é chamada de outros pontos; NÃO ponha aqui nada que precise ser visto (a dica do
+// arrasto mora em #d-fields-hint, que aparece de verdade).
 function _dFieldsRenderInventory(counts){
   const inv=document.getElementById('d-fields-inventory');
   if(!inv) return;
@@ -2522,7 +2540,8 @@ function dFieldUse(i){
     if(l && (l.type==='frame' || l.type==='image')){
       if(typeof dHistoryPush==='function') dHistoryPush();
       l.imgVar=v.name;
-      dActivatePanel('camadas');
+      // NÃO troca de painel: dActivatePanel('camadas') aqui expulsava o designer do painel de
+      // Campos a cada campo aplicado, e o próximo campo recomeçava o ritual todo.
       dSelLayer(l.id);
       dRenderCanvas(); dMarkUnsaved();
       gToast('✓ Campo “'+(v.label||v.name)+'” aplicado na moldura');
@@ -2541,19 +2560,183 @@ function dFieldUse(i){
     const jaTemCampo=(typeof dLayerEmbeddedFields==='function') && dLayerEmbeddedFields(l).length>0;
     if(!jaTemCampo){
       dLayerBindField(l.id, v.name); // já faz history, render, props, unsaved e toast
-      dActivatePanel('camadas');
-      dSelLayer(l.id);
+      dSelLayer(l.id);               // sem trocar de painel (ver nota acima)
       return;
     }
     if(typeof dHistoryPush==='function') dHistoryPush();
     l.content=((l.content||'')+' {{'+v.name+'}}').replace(/^\s+/,'');
-    dActivatePanel('camadas');
-    dSelLayer(l.id);
+    dSelLayer(l.id);               // sem trocar de painel (ver nota acima)
     dRenderCanvas(); dMarkUnsaved();
     gToast('✓ Campo “'+(v.label||v.name)+'” inserido no texto');
   } else {
     gToast('Selecione um texto na aba Camadas e tente de novo.');
   }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CAMPO → PRANCHETA POR ARRASTO (o mesmo gesto que o importador de PSD ensinou)
+   ------------------------------------------------------------------
+   Antes, aplicar um campo era um ritual de 4 passos em dois painéis: selecionar a camada na
+   aba Camadas → trocar pra Dados → abrir o acordeão do cartão → clicar "Inserir no texto".
+   E o `dFieldUse` terminava com `dActivatePanel('camadas')`, ou seja: aplicar um campo
+   EXPULSAVA o designer do painel de Campos, e o segundo campo recomeçava o ritual.
+   Agora o cartão é arrastável e existem três alvos:
+     · camada de texto        → o texto passa a mostrar o campo
+     · moldura/imagem/forma   → a foto do franqueado entra ali (forma vira moldura)
+     · o VAZIO da prancheta   → a camada NASCE já ligada, no ponto onde soltou
+   O terceiro não existia de jeito nenhum e é o que torna o gesto óbvio.
+   ⛔ Nenhum bind novo mora aqui: quem liga é `dLayerBindField` (history, render, props,
+   unsaved, toast). Reusa também `dPontoNoCanvas` (ponteiro→coordenada, ciente do zoom),
+   `dAddTextAt`/`dAddFrameAt` e `dConvertLayerToFrame`.
+   Undo: `dHistoryPush` é coalescido por microtask (undo-redo.js:23), então criar+ligar na
+   mesma tarefa é UM passo — um Ctrl+Z desfaz o gesto inteiro, não metade dele.
+══════════════════════════════════════════════════════════════ */
+let dFieldArrastando=null;  // campo em arrasto. Global porque o `dragover` NÃO pode ler o
+                            // dataTransfer (o navegador só libera no drop) e a compatibilidade
+                            // tem que ser checada ANTES de soltar. Mesmo esquema do
+                            // dAssetArrastando, que o canvas.js já lê.
+
+function _dFieldByName(name){ return (dVars||[]).find(v=>v&&v.name===String(name||''))||null; }
+// Guarda de compatibilidade, avaliada ANTES do drop. Sem ela o dLayerBindField recusa com
+// "Essa camada não recebe Dado" depois do gesto, e o designer não sabe o que fez de errado.
+function _dFieldCanBind(l, v){
+  if(!l || !v) return {ok:false, why:'Camada ou campo não encontrado'};
+  if(l.locked) return {ok:false, why:'Camada bloqueada — abra o cadeado na lista de camadas'};
+  const rot=(v.label||v.name);
+  if(v.type==='image'){
+    // Forma entra na lista porque o designer desenha um retângulo onde a foto vai —
+    // `dConvertLayerToFrame` resolve na hora do drop.
+    if(!(l.type==='frame'||l.type==='image'||l.type==='shape'))
+      return {ok:false, why:'“'+rot+'” é campo de imagem — solte numa moldura, imagem ou forma'};
+  } else if(l.type!=='text'){
+    return {ok:false, why:'“'+rot+'” é campo de texto — solte numa camada de texto'};
+  }
+  return {ok:true};
+}
+// Narra pro leitor de tela o que o arrasto fez (arrastar é gesto visual; sem isto o painel
+// fica mudo pra quem não vê a prancheta).
+function _dFieldAnuncia(msg){
+  const el=document.getElementById('d-fields-live');
+  if(el) el.textContent=msg||'';
+}
+
+/* ── arrastar ── */
+function dFieldDragStart(ev, el){
+  const host=el&&el.closest?el.closest('[data-field]'):null;
+  dFieldArrastando=host?host.dataset.field:'';
+  try{
+    ev.dataTransfer.setData('application/x-luma-field', dFieldArrastando);
+    ev.dataTransfer.setData('text/plain', dFieldArrastando); // alguns navegadores exigem text/plain pro arrasto iniciar
+    ev.dataTransfer.effectAllowed='copy';
+  }catch(e){}
+  if(host) host.classList.add('is-dragging');
+  document.body.classList.add('d-fielddrag'); // liga a pista visual na prancheta
+}
+function dFieldDragEnd(){
+  dFieldArrastando=null; _dFieldPaintKey='';
+  document.querySelectorAll('#d-fields-list .is-dragging').forEach(x=>x.classList.remove('is-dragging'));
+  document.body.classList.remove('d-fielddrag');
+  _dFieldClearPaint();
+}
+// Realce do alvo. Chave pra não repintar a cada evento: `dragover` dispara continuamente
+// enquanto o ponteiro se move, e trocar classe a cada pixel custa layout.
+let _dFieldPaintKey='';
+function _dFieldClearPaint(){
+  document.querySelectorAll('.d-field-alvo,.d-field-nao')
+    .forEach(x=>x.classList.remove('d-field-alvo','d-field-nao'));
+  const frame=document.getElementById('d-canvas-frame');
+  if(frame) frame.classList.remove('d-field-vazio');
+}
+function _dFieldPaintTarget(el, ok){
+  const key=(el?el.dataset.id:'@vazio')+'/'+(ok?1:0);
+  if(key===_dFieldPaintKey) return;
+  _dFieldPaintKey=key;
+  _dFieldClearPaint();
+  if(el){ el.classList.add(ok?'d-field-alvo':'d-field-nao'); return; }
+  const frame=document.getElementById('d-canvas-frame');
+  if(frame) frame.classList.add('d-field-vazio'); // soltar no vazio CRIA — a pista tem que dizer isso
+}
+// A camada sob o ponteiro. Usa o alvo do evento (que é como o navegador — e o próprio editor —
+// resolvem quem está por cima), não geometria: máscara, rotação e recorte já estão no DOM.
+function _dFieldLayerUnder(e){
+  const el=(e.target&&e.target.closest)?e.target.closest('.canvas-layer'):null;
+  if(!el||!el.dataset.id) return null;
+  return {el, l:dLayers.find(x=>x.id===el.dataset.id)||null};
+}
+// Chamadas pelo canvas.js (o pipeline de drop de lá já roteia asset e arquivo por mime).
+function dFieldDragOverCanvas(e){
+  if(!dFieldArrastando) return;
+  e.preventDefault();
+  const v=_dFieldByName(dFieldArrastando);
+  const hit=_dFieldLayerUnder(e);
+  const chk=(hit&&hit.l)?_dFieldCanBind(hit.l, v):{ok:true}; // no vazio sempre aceita: vai criar
+  try{ e.dataTransfer.dropEffect=chk.ok?'copy':'none'; }catch(err){}
+  _dFieldPaintTarget(hit?hit.el:null, chk.ok);
+}
+function dFieldDropOnCanvas(e){
+  e.preventDefault();
+  const name=dFieldArrastando
+    || ((e.dataTransfer&&e.dataTransfer.getData('application/x-luma-field'))||'');
+  const hit=_dFieldLayerUnder(e);
+  const p=(typeof dPontoNoCanvas==='function')?dPontoNoCanvas(e):null;
+  dFieldDragEnd();
+  if(!name) return;
+  if(hit&&hit.l){ dFieldApplyToLayer(hit.l.id, name); return; }
+  if(!p){ gToast('Solte dentro da prancheta'); return; }
+  dFieldCreateAt(p.x, p.y, name);
+}
+// Liga o campo numa camada que já existe.
+function dFieldApplyToLayer(layerId, name){
+  const l=dLayers.find(x=>x.id===layerId), v=_dFieldByName(name);
+  const chk=_dFieldCanBind(l, v);
+  if(!chk.ok){ gToast('⚠ '+chk.why,'error'); return false; }
+  // Forma → moldura: o retângulo que o designer desenhou passa a ser o espaço da foto.
+  if(v.type==='image' && l.type==='shape' && typeof dConvertLayerToFrame==='function') dConvertLayerToFrame(l.id);
+  dLayerBindField(l.id, v.name); // history, render, lista, props, unsaved e toast moram lá
+  if(typeof dSelLayer==='function') dSelLayer(l.id); // mostra QUEM recebeu (não troca de painel)
+  _dFieldAnuncia('“'+(v.label||v.name)+'” ligado à camada '+(l.name||''));
+  dFieldsRender();               // o contador de usos do cartão vive do mesmo estado
+  return true;
+}
+// Solta no VAZIO: a camada nasce JÁ ligada no campo, no ponto onde soltou.
+function dFieldCreateAt(x, y, name){
+  const v=_dFieldByName(name); if(!v) return false;
+  const antes=dLayers.length;
+  // O painel em que o gesto COMEÇOU. `dAddTextAt`/`dAddFrameAt` chamam `dSelLayerState`, que
+  // troca pro painel Camadas — o mesmo tipo de expulsão que este trabalho tirou do dFieldUse,
+  // entrando por outra porta. Quem arrasta campos quer soltar vários seguidos, não voltar de
+  // aba a cada um. Guardamos e devolvemos, em vez de mexer no dSelLayerState (motor
+  // compartilhado com toda criação de camada, onde ir pra Camadas é o certo).
+  const _painel=(typeof dActivePanel!=='undefined')?dActivePanel:null;
+  if(v.type==='image'){
+    if(typeof dAddFrameAt!=='function') return false;
+    dAddFrameAt(Math.round(x), Math.round(y));
+  } else {
+    if(typeof dAddTextAt!=='function') return false;
+    // Sem largura/altura: cai no "texto de ponto", cuja caixa abraça os glifos — é o que
+    // um campo quer (o valor do franqueado tem tamanho imprevisível).
+    dAddTextAt(Math.round(x), Math.round(y), false);
+  }
+  // dAddTextAt tem guard do Controle do produto e pode NÃO criar nada (ferramenta desligada
+  // pela gestão). Sem esta checagem o bind cairia na camada de cima, que é de outra pessoa.
+  if(dLayers.length===antes) return false;
+  const nova=dLayers[dLayers.length-1];
+  dLayerBindField(nova.id, v.name);
+  if(_painel && _painel!==dActivePanel && typeof dActivatePanel==='function') dActivatePanel(_painel);
+  _dFieldAnuncia('Camada criada com o campo “'+(v.label||v.name)+'”');
+  dFieldsRender();
+  return true;
+}
+
+// Hover no cartão → contorna as camadas que usam o campo. `dFieldFlashLayer` é um pisca de
+// 900ms (bom pro clique, errado pro hover, que precisa de estado contínuo).
+function dFieldHover(name){
+  document.querySelectorAll('.canvas-layer.field-hi').forEach(x=>x.classList.remove('field-hi'));
+  if(!name || dFieldArrastando) return;
+  (typeof dVarUsage==='function'?dVarUsage(name):[]).forEach(id=>{
+    const el=document.querySelector('.canvas-layer[data-id="'+id+'"]');
+    if(el) el.classList.add('field-hi');
+  });
 }
 
 // Abre o modal de novo campo já preenchido com o termo buscado.

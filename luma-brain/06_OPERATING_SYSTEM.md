@@ -158,6 +158,8 @@ Estas não são hipóteses — são coisas que aconteceram trabalhando no Luma. 
 5. **Verifique o achado antes de corrigir.** Vários "bugs" apontados eram compensados por outro código. Corrigir sem confirmar = regressão.
 6. **Respeite a árvore de trabalho.** Havia uma mudança do usuário em `layers.js`; foi mantida separada e não misturada nos commits da IA. O que não é seu, não empacote junto sem avisar.
 7. **Commits contam a intenção.** Divididos por pacote lógico, em PT-BR, explicando o porquê — nunca um "wip" que esconde três coisas.
+8. **A tela que o usuário vê pode não ser a que o arquivo descreve.** No painel Campos (08/2026), `layers.js` renderiza os cartões e `props-panel.js` os **reescreve depois** (`dPropEnhanceDataRows` + MutationObserver): tira `tabindex`, troca o `role`, injeta o botão "Usar". Meia proposta de redesign atacou problemas que essa camada já tinha resolvido, e os testes deram **falso-verde** porque mediram o DOM antes do passe. Reflexo novo: ao mexer em UI, **abra a tela e confira o DOM final** (`grep` da classe em `js/` E em `css/`, e um print) antes de afirmar o que está lá — e desconfie quando um arquivo de CSS com `#id` existir em paralelo (`layers-panel.css` vence `designer.css` por especificidade).
+9. **Asserção de classe não é asserção de aparência.** O realce do alvo de drop tinha a classe certa e a **cor errada**: uma regra mais específica (`body.d-fielddrag .canvas-layer`) sobrepunha o laranja/vermelho, e os dois estados ficavam idênticos justamente durante o arrasto. Onde a cor É a informação, meça o **estilo computado no estado real**, não a presença da classe.
 
 ---
 

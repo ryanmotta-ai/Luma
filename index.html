@@ -2160,6 +2160,16 @@ input:focus:-webkit-autofill {
           </button>
         </div>
         <div class="dados-chipbar" id="d-fields-chipbar"></div>
+        <!-- Dica do gesto. Fica AQUI e não no rodapé (#d-fields-inventory) porque o rodapé é
+             display:none!important neste painel (layers-panel.css) — a dica lá nunca apareceria.
+             Arrastar não tem affordance própria além do cursor, que só aparece no hover. -->
+        <p class="dados-hint" id="d-fields-hint">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          <span><b>Arraste um campo para a arte.</b> Em cima de uma camada, ela passa a mostrar o campo; no vazio, nasce uma camada já ligada.</span>
+        </p>
+        <!-- Narração do arrasto: arrastar é gesto visual, e sem isto o painel fica mudo para
+             quem não vê a prancheta. Preenchido por _dFieldAnuncia() em layers.js. -->
+        <p class="dados-live" id="d-fields-live" role="status" aria-live="polite"></p>
         <div id="d-fields-list" class="dados-fields-list"></div>
         <div class="dados-inventory" id="d-fields-inventory"></div>
       </div>

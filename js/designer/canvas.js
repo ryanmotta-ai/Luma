@@ -458,7 +458,18 @@ function dAttachMarquee(){
     const t=e.dataTransfer&&e.dataTransfer.types;
     return !!(t&&Array.prototype.indexOf.call(t,'Files')>=0);
   };
+  /* ── SOLTAR CAMPO NO CANVAS ──
+     Mesmo esquema do asset (mime próprio + global de fallback), mas o realce é POR CAMADA e
+     não no frame todo: o alvo importa (camada = ligar, vazio = criar já ligada), então a pista
+     visual tem que dizer em qual dos dois o ponteiro está. A lógica mora em layers.js, junto
+     do resto dos dField* — aqui é só roteamento. */
+  const ehCampo=e=>{
+    const t=e.dataTransfer&&e.dataTransfer.types;
+    return !!(t&&Array.prototype.indexOf.call(t,'application/x-luma-field')>=0)
+      || !!(typeof dFieldArrastando!=='undefined' && dFieldArrastando);
+  };
   frame.addEventListener('dragover',e=>{
+    if(ehCampo(e)){ if(typeof dFieldDragOverCanvas==='function') dFieldDragOverCanvas(e); return; }
     if(!ehAsset(e)&&!ehArquivo(e))return;
     e.preventDefault();                       // sem isto o navegador recusa o drop
     e.dataTransfer.dropEffect='copy';
@@ -469,9 +480,13 @@ function dAttachMarquee(){
     // camada filha dispara dragleave e o realce piscaria a cada elemento cruzado.
     if(e.relatedTarget&&frame.contains(e.relatedTarget))return;
     frame.classList.remove('d-drop-alvo');
+    if(typeof _dFieldClearPaint==='function') _dFieldClearPaint();
   });
   frame.addEventListener('drop',e=>{
-    // Arquivo do desktop primeiro: sem o preventDefault o navegador ABRE a imagem e
+    // Campo do painel Dados primeiro: é o único drop que pode cair EM CIMA de uma camada
+    // (ligar) em vez de virar camada nova.
+    if(ehCampo(e)){ if(typeof dFieldDropOnCanvas==='function') dFieldDropOnCanvas(e); return; }
+    // Arquivo do desktop: sem o preventDefault o navegador ABRE a imagem e
     // abandona o editor com o trabalho não salvo.
     const arqs=(e.dataTransfer&&e.dataTransfer.files)?Array.prototype.slice.call(e.dataTransfer.files):[];
     const imgs=arqs.filter(f=>/^image\//.test(f.type||'')||/\.(png|jpe?g|svg|webp|gif|avif)$/i.test(f.name||''));

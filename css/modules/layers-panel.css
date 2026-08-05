@@ -4026,3 +4026,31 @@ body.theme-light .dpi-field-primary-action{
   padding-left:9px;
 }
 
+
+/* ══════════════════════════════════════════════════════════════
+   CAMPOS · ARRASTAR O CAMPO ATÉ A ARTE
+   Estes estados moram AQUI e com o prefixo #d-panel-dados de propósito: as regras deste
+   arquivo têm especificidade de ID e venciam as minhas em designer.css — o estado "campo
+   pego", por exemplo, ficava invisível porque `#d-panel-dados .field-item` repinta o fundo.
+   As regras da PRANCHETA (realce da camada alvo) seguem em designer.css, com o resto do canvas.
+══════════════════════════════════════════════════════════════ */
+/* O cartão é a alça: a ação principal virou levar o campo até a arte. */
+#d-panel-dados .field-item[draggable="true"] .field-row{cursor:grab}
+#d-panel-dados .field-item.is-dragging{opacity:.45}
+#d-panel-dados .field-item.is-dragging .field-row{cursor:grabbing}
+/* Dica do gesto: arrastar não tem affordance própria além do cursor, que só aparece no hover.
+   Fica sob a chipbar porque o rodapé do painel é display:none!important aqui. */
+#d-panel-dados .dados-hint{
+  display:flex;align-items:flex-start;gap:7px;margin:0;
+  padding:8px 10px;
+  border:1px solid color-mix(in srgb,var(--dm-orange) 22%,var(--d-border));
+  border-radius:9px;
+  background:color-mix(in srgb,var(--dm-orange) 7%,transparent);
+  color:var(--d-text3);font-size:10px;line-height:1.45;
+}
+#d-panel-dados .dados-hint svg{width:13px;height:13px;flex:0 0 auto;margin-top:1px;color:var(--dm-orange)}
+#d-panel-dados .dados-hint b{color:var(--d-text2);font-weight:700}
+#d-panel-dados .dados-live{
+  margin:0;padding:0 2px;font-size:10px;line-height:1.35;color:var(--dm-orange);font-weight:650;
+}
+#d-panel-dados .dados-live:empty{display:none}
