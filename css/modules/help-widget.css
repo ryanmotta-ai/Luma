@@ -10,10 +10,13 @@ body:has(#sp-overlay:not(.sp-done)) #luma-widget-fab-wrap,
 body.mode-login #luma-widget-fab-wrap,
 body.login-active #luma-widget-fab-wrap,
 .luma-login-overlay:not([style*="display: none"]) ~ #luma-widget-fab-wrap,
-/* Modal aberto = decisão em curso. O botão flutuante (z-index alto) pousava por cima
-   do painel de configuração e do CTA — enquanto há modal, ele sai de cena. */
+/* Modal aberto ou prévia ao vivo aberta no mobile = não competir nem sobrepor os controles da tela. */
 body:has(.modal-overlay.open) #luma-widget-fab-wrap,
-body:has(.modal-overlay.open) #g-help-float {
+body:has(.modal-overlay.open) #g-help-float,
+body:has(#f-live-preview.open) #luma-widget-fab-wrap,
+body:has(#f-live-preview.open) #g-help-float,
+#f-live-preview.open ~ #luma-widget-fab-wrap,
+#f-live-preview.open ~ #g-help-float {
   display:none!important;
 }
 
