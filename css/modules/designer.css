@@ -4026,8 +4026,8 @@ body.mode-designer.d-studio-essential #d-topbar .dt-status-save{
 /* A plain-language creation rail: the icon supports recognition and the label
    removes the need to memorize symbols or discover actions by trial and error. */
 body.mode-designer.d-studio-essential #d-vtoolbar{
-  width:clamp(144px,9vw,168px);
-  min-width:144px;
+  width:clamp(172px,10vw,192px);
+  min-width:172px;
   padding:10px 8px 8px;
   box-shadow:5px 0 20px color-mix(in srgb,var(--d-bg) 12%,transparent);
 }
@@ -4070,7 +4070,7 @@ body.mode-designer.d-studio-essential #d-vtoolbar .d-studio-tool-essential-butto
   flex-direction:row;
   justify-content:flex-start;
   gap:10px;
-  padding:6px 48px 6px 6px;
+  padding:6px 28px 6px 6px;
   border-color:transparent;
   border-radius:var(--r);
   color:var(--d-text2);
@@ -4153,7 +4153,7 @@ body.mode-designer.d-studio-essential #d-vtoolbar .dpi-essential-tool-options{
   top:2px;
   right:2px;
   z-index:2;
-  width:44px;
+  width:26px;
   height:44px;
   display:grid;
   place-items:center;
