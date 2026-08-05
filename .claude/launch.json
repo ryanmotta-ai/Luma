@@ -3,8 +3,13 @@
   "configurations": [
     {
       "name": "luma-static",
-      "runtimeExecutable": "python",
+      "runtimeExecutable": "python3",
       "runtimeArgs": ["-m", "http.server", "5605"],
+      "port": 5605
+    },
+    {
+      "name": "luma-attach",
+      "url": "http://localhost:5605",
       "port": 5605
     }
   ]

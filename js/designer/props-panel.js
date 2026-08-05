@@ -83,7 +83,9 @@ function dPropSetAlign(val, btn) {
   document.getElementById('dp-align').value = val;
   var grp = document.getElementById('dp-align-group');
   if (grp) grp.querySelectorAll('.dp-btn-icon').forEach(function(b) {
-    b.classList.toggle('dp-active', b.dataset.val === val);
+    var on = b.dataset.val === val;
+    b.classList.toggle('dp-active', on);
+    b.setAttribute('aria-pressed', String(on)); // seleção não pode depender só da cor
   });
   dUpdateProp('textAlign', val);
 }
@@ -92,7 +94,9 @@ function dPropSyncAlign(val) {
   var grp = document.getElementById('dp-align-group');
   if (!grp) return;
   grp.querySelectorAll('.dp-btn-icon').forEach(function(b) {
-    b.classList.toggle('dp-active', b.dataset.val === val);
+    var on = b.dataset.val === val;
+    b.classList.toggle('dp-active', on);
+    b.setAttribute('aria-pressed', String(on));
   });
 }
 
@@ -647,6 +651,7 @@ function dPropSyncInspectorContext(layer) {
   dPropEnhanceDado(layer);
   dPropSyncDataContext(layer || null);
   dPropSyncImageSource();
+  dPropSyncShapeControls();
   dPropSyncCanvasEmpty();
 }
 
@@ -692,82 +697,118 @@ function dPropEnhanceDado(layer) {
   }
 }
 
+// O markup do inspector de imagem vive no index.html. Aqui s\u00f3 entra COMPORTAMENTO:
+// campo de URL sob demanda, valor/reset dos sliders e o resumo da origem.
 function dPropBuildImageControls() {
   const imageProps = document.getElementById('d-image-props');
   const urlInput = document.getElementById('dp-imgurl');
-  const fitSelect = document.getElementById('dp-imgfit');
-  if (!imageProps || !urlInput || !fitSelect || document.getElementById('dpi-image-source')) return;
+  if (!imageProps || !urlInput || imageProps.dataset.dpiReady === '1') return;
+  imageProps.dataset.dpiReady = '1';
 
-  const source = document.createElement('div');
-  source.id = 'dpi-image-source';
-  source.className = 'dpi-image-source';
-  source.innerHTML =
-    '<span class="dpi-field-label">Origem</span>' +
-    '<div class="dpi-source-summary">' +
-      '<span class="dpi-source-icon" aria-hidden="true">' + DP_SECTION_ICONS['dp-sec-content'] + '</span>' +
-      '<span class="dpi-source-copy"><strong id="dpi-source-name">Imagem</strong><small id="dpi-source-meta"></small></span>' +
-      '<button type="button" class="dpi-source-toggle" aria-expanded="false" aria-controls="dpi-source-raw">Ver origem</button>' +
-    '</div>' +
-    '<div class="dpi-source-raw" id="dpi-source-raw"></div>';
-  imageProps.insertBefore(source, urlInput);
-  source.querySelector('.dpi-source-raw').appendChild(urlInput);
-  urlInput.setAttribute('aria-label', 'URL ou origem da imagem');
-
-  const sourceToggle = source.querySelector('.dpi-source-toggle');
-  sourceToggle.addEventListener('click', function() {
-    const expanded = source.classList.toggle('is-expanded');
-    sourceToggle.setAttribute('aria-expanded', String(expanded));
-    sourceToggle.textContent = expanded ? 'Ocultar' : 'Ver origem';
-    if (expanded) urlInput.focus();
-  });
+  const sourceToggle = document.getElementById('dpi-source-toggle');
+  if (sourceToggle) {
+    sourceToggle.addEventListener('click', function() {
+      const expanded = sourceToggle.getAttribute('aria-expanded') !== 'true';
+      sourceToggle.setAttribute('aria-expanded', String(expanded));
+      urlInput.hidden = !expanded;
+      if (expanded) urlInput.focus();
+    });
+  }
   urlInput.addEventListener('input', dPropSyncImageSource);
 
-  const fitField = document.createElement('label');
-  fitField.className = 'dpi-fit-field';
-  fitField.innerHTML = '<span class="dpi-field-label">Ajuste no quadro</span>';
-  imageProps.insertBefore(fitField, fitSelect);
-  fitField.appendChild(fitSelect);
-  fitSelect.setAttribute('aria-label', 'Ajuste da imagem no quadro');
-  Array.from(fitSelect.options).forEach(function(option) {
-    if (option.value === 'cover') option.textContent = 'Preencher quadro';
-    if (option.value === 'contain') option.textContent = 'Ajustar imagem';
-    if (option.value === 'fill') option.textContent = 'Esticar para preencher';
-  });
-
-  ['dp-img-brightness', 'dp-img-contrast', 'dp-img-saturate'].forEach(function(id) {
-    const range = document.getElementById(id);
-    if (!range || !range.parentElement) return;
-    const row = range.parentElement;
-    row.classList.add('dpi-range-row');
-    const label = row.querySelector('span');
-    if (label) label.classList.add('dpi-range-label');
-    range.setAttribute('aria-label', label ? label.textContent.trim() : 'Ajuste da imagem');
-
-    const output = document.createElement('output');
-    output.className = 'dpi-range-value';
-    output.htmlFor = id;
-    row.appendChild(output);
-
-    const reset = document.createElement('button');
-    reset.type = 'button';
-    reset.className = 'dpi-range-reset';
-    reset.title = 'Restaurar para zero';
-    reset.setAttribute('aria-label', 'Restaurar ' + (label ? label.textContent.trim() : 'ajuste') + ' para zero');
-    reset.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.6"/><path d="M4 4v4.6h4.6"/></svg>';
-    row.appendChild(reset);
-
-    function syncValue() {
-      const value = parseInt(range.value || '0', 10);
-      output.value = value > 0 ? '+' + value : String(value);
-      reset.disabled = value === 0;
-    }
-    range.addEventListener('input', syncValue);
+  imageProps.querySelectorAll('.dpi-range-reset').forEach(function(reset) {
     reset.addEventListener('click', function() {
+      const range = document.getElementById(reset.dataset.reset);
+      if (!range) return;
       range.value = '0';
       range.dispatchEvent(new Event('input', { bubbles: true }));
+      dPropSyncImageRanges();
+      range.focus();
     });
-    syncValue();
   });
+  imageProps.querySelectorAll('.dpi-range-row input[type="range"]').forEach(function(range) {
+    range.addEventListener('input', dPropSyncImageRanges);
+  });
+  dPropSyncImageRanges();
+}
+
+// Valor vis\u00edvel + disponibilidade do reset. Roda tamb\u00e9m ao TROCAR de camada: o dShowProps
+// s\u00f3 escreve range.value, sem disparar 'input' \u2014 o n\u00famero ao lado ficava do layer anterior.
+function dPropSyncImageRanges() {
+  document.querySelectorAll('#d-image-props .dpi-range-row').forEach(function(row) {
+    const range = row.querySelector('input[type="range"]');
+    const output = row.querySelector('.dpi-range-value');
+    const reset = row.querySelector('.dpi-range-reset');
+    if (!range) return;
+    const value = parseInt(range.value || '0', 10) || 0;
+    if (output) output.value = value > 0 ? '+' + value : String(value);
+    if (reset) reset.disabled = value === 0;
+    row.classList.toggle('is-changed', value !== 0);
+  });
+}
+
+// Raio s\u00f3 faz efeito fora do c\u00edrculo (o c\u00edrculo usa metade do menor lado no render).
+function dPropSyncFrameShape() {
+  const shape = document.getElementById('dp-frame-shape');
+  const radius = document.getElementById('dp-frame-radius');
+  const row = document.getElementById('dp-frame-radius-row');
+  if (!shape || !radius || !row) return;
+  const layer = (typeof dLayers !== 'undefined' && typeof dSelId !== 'undefined')
+    ? dLayers.find(function(item) { return item.id === dSelId; })
+    : null;
+  if (layer && layer.radius != null) radius.value = layer.radius;
+  const isCircle = shape.value === 'circle';
+  radius.disabled = isCircle;
+  radius.title = isCircle ? 'O c\u00edrculo usa o raio m\u00e1ximo automaticamente' : '';
+  row.classList.toggle('is-disabled', isCircle);
+  // Camada de imagem simples n\u00e3o tem forma: sobra s\u00f3 o bot\u00e3o de convers\u00e3o no grupo,
+  // e um t\u00edtulo "FORMA" sozinho em cima dele mentiria sobre o que h\u00e1 ali.
+  const group = document.getElementById('dpi-grp-shape');
+  const shapeRow = document.getElementById('dp-frame-shape-row');
+  if (group && shapeRow) group.classList.toggle('is-bare', shapeRow.style.display === 'none');
+}
+
+// Inspector de forma: esconde o que o motor n\u00e3o aplica naquele shapeKind e apaga o
+// alinhamento do tra\u00e7ado quando n\u00e3o h\u00e1 tra\u00e7ado. Propriedade morta confunde mais que ajuda.
+function dPropSyncShapeControls() {
+  const shapeProps = document.getElementById('d-shape-props');
+  if (!shapeProps || shapeProps.offsetParent === null) return;
+  const layer = (typeof dLayers !== 'undefined' && typeof dSelId !== 'undefined')
+    ? dLayers.find(function(item) { return item.id === dSelId; })
+    : null;
+  const kind = (layer && layer.shapeKind) || 'rect';
+
+  // C\u00edrculo/elipse n\u00e3o t\u00eam canto: o raio n\u00e3o muda nada no render.
+  const roundable = kind !== 'circle' && kind !== 'ellipse';
+  const radiusRow = document.getElementById('dp-radius-row');
+  const corners = document.getElementById('dp-corners-block');
+  if (radiusRow) radiusRow.style.display = roundable ? '' : 'none';
+  // Cantos por canto valem s\u00f3 no ret\u00e2ngulo; pol\u00edgono/estrela usam o raio uniforme.
+  if (corners) corners.style.display = (roundable && kind === 'rect') ? '' : 'none';
+  const geoGroup = document.getElementById('dpi-grp-shape-geo');
+  const geoRow = document.getElementById('dp-shape-geo');
+  if (geoGroup) {
+    const hasGeo = geoRow && geoRow.style.display !== 'none';
+    geoGroup.style.display = (roundable || hasGeo) ? '' : 'none';
+  }
+
+  const strokeAlign = document.getElementById('dp-shape-strokeAlign');
+  const strokeRow = document.getElementById('dp-stroke-align-row');
+  const strokeW = document.getElementById('dp-shape-strokeW');
+  if (strokeAlign && strokeRow && strokeW) {
+    const off = !(parseFloat(strokeW.value) > 0);
+    strokeAlign.disabled = off;
+    strokeRow.classList.toggle('is-disabled', off);
+    strokeRow.title = off ? 'Defina uma espessura de tra\u00e7ado para escolher o alinhamento' : '';
+  }
+}
+
+// S\u00f3 marca como imagem o que o browser consegue mesmo desenhar \u2014 evita url() com lixo.
+function dPropThumbUrl(value) {
+  const url = String(value || '').trim();
+  if (!url || url.indexOf('"') !== -1 || url.indexOf(')') !== -1) return '';
+  if (/^(https?:|data:image\/|blob:)/i.test(url)) return url;
+  return '';
 }
 
 function dPropSyncImageSource() {
@@ -775,13 +816,36 @@ function dPropSyncImageSource() {
   const input = document.getElementById('dp-imgurl');
   const name = document.getElementById('dpi-source-name');
   const meta = document.getElementById('dpi-source-meta');
+  const thumb = document.getElementById('dpi-source-thumb');
   if (!source || !input || !name || !meta) return;
   const value = String(input.value || '').trim();
-  source.classList.toggle('is-empty', !value);
+  const layer = (typeof dLayers !== 'undefined' && typeof dSelId !== 'undefined')
+    ? dLayers.find(function(item) { return item.id === dSelId; })
+    : null;
+  // O upload guarda o dataURL na camada e escreve "[arquivo local]" no campo \u2014 a
+  // miniatura precisa da camada, n\u00e3o do texto do input.
+  const preview = dPropThumbUrl((layer && layer.imgUrl) || value);
+  if (thumb) {
+    thumb.style.backgroundImage = preview ? 'url("' + preview + '")' : '';
+    thumb.classList.toggle('has-image', !!preview);
+  }
+
+  const uploadLabel = document.getElementById('dp-frame-upload-label');
+  if (uploadLabel) uploadLabel.textContent = value ? 'Alterar imagem' : 'Escolher imagem';
+
+  dPropSyncImageRanges();
+  dPropSyncFrameShape();
 
   if (!value) {
-    name.textContent = 'Nenhuma imagem';
-    meta.textContent = 'Adicione uma URL ou carregue um arquivo';
+    const bound = layer && layer.imgVar;
+    // Só a moldura de foto tem upload; a imagem simples vive de URL. A frase de vazio
+    // não pode prometer "escolha um arquivo" onde não existe esse botão.
+    const upload = document.getElementById('dp-frame-upload');
+    const canUpload = !!upload && upload.style.display !== 'none';
+    name.textContent = bound ? 'Sem arquivo de exemplo' : 'Nenhuma imagem';
+    meta.textContent = bound
+      ? 'A foto vem do campo conectado'
+      : (canUpload ? 'Escolha um arquivo ou informe uma URL' : 'Informe uma URL da imagem');
     return;
   }
   if (value.indexOf('data:') === 0) {
@@ -797,7 +861,7 @@ function dPropSyncImageSource() {
   }
   try {
     const parsed = new URL(value);
-    name.textContent = 'Imagem por URL';
+    name.textContent = decodeURIComponent((parsed.pathname || '').split('/').pop() || '') || 'Imagem por URL';
     meta.textContent = parsed.hostname || 'Origem externa';
   } catch(e) {
     name.textContent = 'Origem personalizada';
@@ -2030,8 +2094,13 @@ function dPropStartFromImport(kind) {
 }
 
 function dPropBuildCanvasEmpty() {
-  const wrapper = document.getElementById('d-canvas-wrapper');
-  if (!wrapper || document.getElementById('dpi-canvas-empty')) return;
+  const container = document.getElementById('d-canvas-container') || document.getElementById('d-canvas-wrapper');
+  if (!container) return;
+  const existing = document.getElementById('dpi-canvas-empty');
+  if (existing) {
+    if (existing.parentNode !== container) container.appendChild(existing);
+    return;
+  }
 
   const empty = document.createElement('section');
   empty.id = 'dpi-canvas-empty';
@@ -2072,7 +2141,7 @@ function dPropBuildCanvasEmpty() {
     if (action === 'text' && typeof dAddText === 'function') dAddText();
     if (action === 'image' && typeof dAddFrame === 'function') dAddFrame();
   });
-  wrapper.appendChild(empty);
+  container.appendChild(empty);
 }
 
 function dPropSyncCanvasEmpty() {

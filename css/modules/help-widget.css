@@ -9,7 +9,11 @@
 body:has(#sp-overlay:not(.sp-done)) #luma-widget-fab-wrap,
 body.mode-login #luma-widget-fab-wrap,
 body.login-active #luma-widget-fab-wrap,
-.luma-login-overlay:not([style*="display: none"]) ~ #luma-widget-fab-wrap {
+.luma-login-overlay:not([style*="display: none"]) ~ #luma-widget-fab-wrap,
+/* Modal aberto = decisão em curso. O botão flutuante (z-index alto) pousava por cima
+   do painel de configuração e do CTA — enquanto há modal, ele sai de cena. */
+body:has(.modal-overlay.open) #luma-widget-fab-wrap,
+body:has(.modal-overlay.open) #g-help-float {
   display:none!important;
 }
 
@@ -332,6 +336,13 @@ body.mode-designer #luma-widget-modal {
   body.mode-designer.d-studio-essential:not(.d-studio-home-open) #luma-widget-fab-wrap,
   body.mode-designer.d-studio-essential:not(.d-studio-home-open) #luma-widget-modal {
     --luma-designer-panel-width:clamp(304px,22vw,360px);
+  }
+
+  body.mode-designer:not(.d-studio-home-open):has(#d-pages-tray.collapsed:not(.hidden)) #luma-widget-fab-wrap {
+    bottom: 60px;
+  }
+  body.mode-designer:not(.d-studio-home-open):has(#d-pages-tray.collapsed:not(.hidden)) #luma-widget-modal {
+    bottom: 70px;
   }
 
   body.mode-designer:not(.d-studio-home-open):has(#d-pages-tray:not(.hidden):not(.collapsed)) #luma-widget-fab-wrap {

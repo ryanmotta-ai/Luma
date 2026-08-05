@@ -1314,7 +1314,10 @@ body.mode-designer:not(.d-studio-home-open) #g-help-float{
 }
 
 /* Dynamic content is optional, so it stays compact until connected. */
+/* flex:none: o card é filho direto do #d-props-form (flex column) e encolhia junto com
+   o painel — com overflow:hidden, a linha "Exemplo … desvincular" era cortada. */
 #d-props-form .dp-dado{
+  flex:none;
   margin:0 9px 7px;
   border-color:var(--d-border);
   border-radius:10px;
@@ -1322,9 +1325,35 @@ body.mode-designer:not(.d-studio-home-open) #g-help-float{
   box-shadow:none;
 }
 
+/* Vínculo é sinal, não protagonista: filete de acento na lateral no lugar do halo
+   dourado que dominava o painel. */
 #d-props-form .dp-dado.bound{
-  border-color:color-mix(in srgb,var(--var-color) 55%,var(--d-border));
-  box-shadow:0 0 0 2px color-mix(in srgb,var(--var-color) 10%,transparent);
+  border-color:var(--d-border);
+  border-left:2px solid var(--var-color);
+  box-shadow:none;
+}
+
+#d-props-form .dp-dado-chip{
+  font-size:12px;
+}
+
+/* No inspector estreito o exemplo empurrava o "desvincular" pra fora do card:
+   o texto trunca, a ação continua alcançável. */
+#d-props-form .dp-dado-sample{
+  padding:0 10px 9px;
+  font-size:10.5px;
+}
+
+#d-props-form .dp-dado-sample b{
+  flex:1;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+#d-props-form .dp-dado-clear{
+  flex:none;
 }
 
 #d-props-form .dp-dado-lbl{
@@ -1386,6 +1415,53 @@ body.mode-designer:not(.d-studio-home-open) #g-help-float{
   height:12px;
 }
 
+/* Cabeçalho dos campos dinâmicos: título, contagem e ajuda na mesma linha. */
+#d-props-form .dpi-dado-head{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:8px 8px 4px 10px;
+}
+
+.dpi-dado-count{
+  min-width:16px;
+  height:16px;
+  display:grid;
+  place-items:center;
+  padding:0 4px;
+  border-radius:var(--r-pill);
+  background:var(--var-bg);
+  color:var(--var-color);
+  font-size:9px;
+  font-weight:700;
+  font-variant-numeric:tabular-nums;
+}
+
+.dpi-dado-help{
+  width:22px;
+  height:22px;
+  display:grid;
+  place-items:center;
+  margin-left:auto;
+  padding:0;
+  border:1px solid transparent;
+  border-radius:6px;
+  background:transparent;
+  color:var(--d-text3);
+  cursor:help;
+  transition:border-color var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard);
+}
+
+.dpi-dado-help:hover{
+  border-color:var(--d-border);
+  color:var(--d-text);
+}
+
+.dpi-dado-help svg{
+  width:13px;
+  height:13px;
+}
+
 .dpi-dado-hint{
   margin:0;
   padding:0 10px 9px 42px;
@@ -1394,149 +1470,466 @@ body.mode-designer:not(.d-studio-home-open) #g-help-float{
   line-height:1.35;
 }
 
-/* Image source and adjustments */
+/* ===========================================================================
+   Inspector de imagem — o painel é ferramenta, não formulário: grupos separados
+   por título + filete, superfície sólida, nada de card dentro de card.
+   ========================================================================== */
+
 #d-image-props{
-  gap:9px!important;
+  gap:0!important;
 }
 
-.dpi-image-source,
-.dpi-fit-field{
+.dpi-group{
   display:flex;
   flex-direction:column;
-  gap:5px;
+  gap:7px;
+  padding:11px 0 12px;
+  border-top:1px solid var(--d-border);
 }
 
-.dpi-source-summary{
+#d-image-props > .dpi-group:first-of-type,
+.dp-sec-body > .dpi-group:first-child{
+  padding-top:2px;
+  border-top:0;
+}
+
+.dpi-group.is-bare > .dpi-group-title{
+  display:none;
+}
+
+.dpi-group-title{
+  color:var(--d-text3);
+  font-size:9px;
+  font-weight:700;
+  letter-spacing:.09em;
+  text-transform:uppercase;
+}
+
+/* Linha padrão do inspector: rótulo fixo à esquerda, controle ocupando o resto. */
+.dpi-row{
   display:flex;
   align-items:center;
   gap:8px;
-  min-height:45px;
-  padding:6px 7px;
-  border:1px solid var(--d-border);
-  border-radius:8px;
-  background:var(--d-surf);
+  min-height:var(--dpi-control-h);
 }
 
-.dpi-source-icon{
-  width:30px;
-  height:30px;
+.dpi-row-label{
+  flex:none;
+  width:76px;
+  color:var(--d-text2);
+  font-size:10.5px;
+  font-weight:500;
+}
+
+.dpi-row > .dpi-select,
+.dpi-row > .prop-input{
+  flex:1;
+  min-width:0;
+}
+
+.dpi-row.is-disabled .dpi-row-label{
+  color:var(--d-text3);
+}
+
+/* Select do Luma: continua <select> nativo (teclado, leitor de tela, lista do SO) —
+   só a aparência do SO sai de cena, com a seta desenhada por nós. */
+.dpi-select{
+  position:relative;
+  display:block;
+}
+
+.dpi-select > select.prop-input{
+  width:100%;
+  padding-right:26px;
+  font-size:11.5px;
+  cursor:pointer;
+  appearance:none;
+  -webkit-appearance:none;
+}
+
+.dpi-select-caret{
+  position:absolute;
+  top:50%;
+  right:9px;
+  width:12px;
+  height:12px;
+  margin-top:-6px;
+  color:var(--d-text3);
+  pointer-events:none;
+}
+
+#d-right .dpi-number{
+  font-size:11.5px;
+  font-variant-numeric:tabular-nums;
+  -moz-appearance:textfield;
+}
+
+#d-right .dpi-number::-webkit-outer-spin-button,
+#d-right .dpi-number::-webkit-inner-spin-button{
+  margin:0;
+  -webkit-appearance:none;
+}
+
+#d-right .dpi-number:disabled,
+#d-right .dpi-select > select.prop-input:disabled{
+  color:var(--d-text3);
+  cursor:not-allowed;
+  opacity:.6;
+}
+
+/* Tamanho + unidade: o número manda, o "px" é metadado. */
+.dpi-unit-field{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  flex:none;
+}
+
+.dpi-unit-field > .dpi-number{
+  width:56px;
+  text-align:right;
+}
+
+/* Na linha de cor o número divide espaço com o hex: encolhe. */
+.dpi-unit-field.is-tight > .dpi-number{
+  width:44px;
+  padding:0 6px;
+}
+
+.dpi-row.is-disabled .dpi-select-caret{
+  opacity:.4;
+}
+
+.dpi-unit{
+  color:var(--d-text3);
+  font-size:9.5px;
+}
+
+/* Alinhamento divide a linha com o tamanho; encolhe antes de empurrar o rótulo. */
+#d-right .dpi-align-group{
+  flex:1;
+  min-width:0;
+  border-radius:7px;
+}
+
+#d-right .dpi-align-group .dp-btn-icon{
+  min-height:32px;
+  padding:0;
+}
+
+/* Selecionado não é só cor: ganha peso de fundo + barra inferior. */
+#d-right .dpi-align-group .dp-btn-icon.dp-active{
+  box-shadow:inset 0 -2px 0 var(--dm-orange);
+}
+
+/* Linha do raio: rótulo, prévia do canto, slider, valor e o atalho de círculo. */
+.dpi-radius-row{
+  display:grid;
+  grid-template-columns:56px 16px minmax(0,1fr) 46px 26px;
+  align-items:center;
+  gap:7px;
+  min-height:30px;
+}
+
+.dpi-radius-row input[type='range']{
+  width:100%;
+  height:20px;
+  margin:0;
+  background:transparent;
+  accent-color:var(--dm-orange);
+  cursor:pointer;
+  -webkit-appearance:none;
+}
+
+.dpi-radius-row input[type='range']::-webkit-slider-runnable-track{
+  height:3px;
+  border-radius:var(--r-pill);
+  background:var(--d-surf3);
+}
+
+.dpi-radius-row input[type='range']::-webkit-slider-thumb{
+  width:13px;
+  height:13px;
+  margin-top:-5px;
+  border:2px solid var(--d-dark);
+  border-radius:50%;
+  background:var(--dm-orange);
+  -webkit-appearance:none;
+}
+
+.dpi-radius-preview{
+  width:16px;
+  height:16px;
+  display:grid;
+  place-items:center;
+  color:var(--d-text3);
+}
+
+.dpi-radius-preview svg{
+  width:14px;
+  height:14px;
+}
+
+#d-right .dpi-radius-row .dpi-number{
+  text-align:right;
+}
+
+.dpi-radius-circle svg{
+  width:13px;
+  height:13px;
+}
+
+/* Cantos: o ícone diz QUAL canto; o aria-label diz por extenso. */
+.dpi-corners-head{
+  min-height:26px;
+  gap:6px;
+}
+
+.dpi-lock{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  min-height:26px;
+  padding:0 8px;
+  border:1px solid var(--d-border);
+  border-radius:var(--r-pill);
+  background:var(--d-surf);
+  color:var(--d-text2);
+  font-size:9.5px;
+  font-weight:600;
+  cursor:pointer;
+  transition:border-color var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard);
+}
+
+.dpi-lock svg{
+  width:12px;
+  height:12px;
+  flex:none;
+}
+
+.dpi-lock:hover{
+  border-color:var(--d-border2);
+  color:var(--d-text);
+}
+
+.dpi-lock.is-on{
+  border-color:color-mix(in srgb,var(--dm-orange) 40%,var(--d-border));
+  background:color-mix(in srgb,var(--dm-orange) 10%,var(--d-surf));
+  color:var(--dm-orange-text);
+}
+
+.dpi-corners{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:6px;
+}
+
+.dpi-corner{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  min-width:0;
+}
+
+.dpi-corner.is-tr{
+  flex-direction:row-reverse;
+}
+
+.dpi-corner svg{
+  width:13px;
+  height:13px;
+  flex:none;
+  color:var(--d-text3);
+}
+
+#d-right .dpi-corner .dpi-number{
+  flex:1;
+  min-width:0;
+  text-align:center;
+}
+
+#d-right .dpi-geo-num{
+  flex:1;
+  min-width:0;
+  text-align:center;
+}
+
+.dpi-row-label.is-inline{
+  width:auto;
+  flex:none;
+}
+
+.dpi-color-field{
+  display:flex;
+  flex:1;
+  align-items:center;
+  gap:7px;
+  min-width:0;
+}
+
+.dpi-color-swatch{
+  width:26px;
+  height:26px;
+  flex:none;
+  padding:0;
+  border-radius:6px;
+  cursor:pointer;
+}
+
+#d-right .dpi-color-field .hex-input{
+  flex:1;
+  min-width:0;
+  min-height:var(--dpi-control-h);
+  padding:0 9px;
+  font-size:11.5px;
+  font-variant-numeric:tabular-nums;
+  text-transform:uppercase;
+}
+
+/* ── Origem ── */
+.dpi-source{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  min-height:42px;
+}
+
+.dpi-source-thumb{
+  width:42px;
+  height:42px;
   display:grid;
   place-items:center;
   flex:none;
   border:1px solid var(--d-border2);
   border-radius:7px;
-  background:var(--d-dark);
-  color:var(--dm-orange);
+  background:var(--d-surf) center/cover no-repeat;
+  color:var(--d-text3);
 }
 
-.dpi-source-icon svg{
-  width:14px;
-  height:14px;
+.dpi-source-thumb svg{
+  width:15px;
+  height:15px;
+}
+
+.dpi-source-thumb.has-image{
+  border-color:var(--d-border);
+}
+
+.dpi-source-thumb.has-image svg{
+  display:none;
 }
 
 .dpi-source-copy{
   display:flex;
   flex:1;
   flex-direction:column;
+  gap:2px;
   min-width:0;
-  line-height:1.2;
+  line-height:1.25;
 }
 
 .dpi-source-copy strong{
   color:var(--d-text);
-  font-size:11px;
-  font-weight:700;
+  font-size:11.5px;
+  font-weight:600;
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
 }
 
 .dpi-source-copy small{
-  margin-top:2px;
   color:var(--d-text3);
-  font-size:9px;
+  font-size:9.5px;
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
 }
 
-.dpi-source-toggle{
-  min-height:27px;
-  padding:0 7px;
-  border:1px solid var(--d-border);
-  border-radius:6px;
-  background:var(--d-dark);
-  color:var(--d-text2);
-  font-size:9.5px;
-  font-weight:600;
-  cursor:pointer;
+.dpi-source-actions{
+  display:flex;
+  gap:6px;
 }
 
-.dpi-source-toggle:hover{
+.dpi-action{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  flex:1;
+  min-height:31px;
+  padding:0 10px;
+  border:1px solid var(--d-border);
+  border-radius:7px;
+  background:var(--d-surf);
+  color:var(--d-text);
+  font-size:10.5px;
+  font-weight:600;
+  text-align:left;
+  cursor:pointer;
+  transition:border-color var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard);
+}
+
+.dpi-action svg{
+  width:13px;
+  height:13px;
+  flex:none;
+}
+
+.dpi-action:hover{
   border-color:var(--d-border2);
+  background:var(--d-surf2);
+}
+
+.dpi-action.is-ghost{
+  flex:none;
+  border-color:transparent;
+  background:transparent;
+  color:var(--d-text2);
+  font-weight:500;
+}
+
+.dpi-action.is-ghost:hover{
+  border-color:var(--d-border);
+  background:var(--d-surf);
   color:var(--d-text);
 }
 
-.dpi-source-raw{
-  display:grid;
-  grid-template-rows:0fr;
-  opacity:0;
-  transition:grid-template-rows var(--dur-base) var(--ease-standard),opacity var(--dur-fast) var(--ease-standard);
-}
-
-.dpi-source-raw > input{
-  min-height:0!important;
-  height:0;
-  padding-top:0!important;
-  padding-bottom:0!important;
-  border-width:0!important;
-  overflow:hidden;
-  transition:height var(--dur-base) var(--ease-standard),padding var(--dur-base) var(--ease-standard),border-width var(--dur-micro) var(--ease-standard);
-}
-
-.dpi-image-source.is-expanded .dpi-source-raw{
-  grid-template-rows:1fr;
-  opacity:1;
-}
-
-.dpi-image-source.is-expanded .dpi-source-raw > input{
-  height:var(--dpi-control-h);
-  min-height:var(--dpi-control-h)!important;
-  padding:6px 9px!important;
-  border-width:1px!important;
-}
-
-.dpi-image-source.is-empty .dpi-source-icon{
-  color:var(--d-text3);
-}
-
-.dpi-fit-field #dp-imgfit{
+#d-image-props .dpi-source-url{
   width:100%;
-  font-size:11px!important;
+  font-size:11px;
 }
 
+#d-image-props .dp-convert-btn{
+  justify-content:flex-start;
+  width:100%;
+  margin-top:3px;
+  padding:0 10px;
+}
+
+/* ── Ajustes de imagem ── */
 .dpi-range-row{
-  display:grid!important;
-  grid-template-columns:58px minmax(0,1fr) 34px 25px;
-  align-items:center!important;
-  gap:7px!important;
-  min-height:29px;
-  margin:0!important;
+  display:grid;
+  grid-template-columns:64px minmax(0,1fr) 30px 26px;
+  align-items:center;
+  gap:8px;
+  min-height:26px;
 }
 
 .dpi-range-label{
-  min-width:0!important;
-  color:var(--d-text2)!important;
-  font-size:10px!important;
+  min-width:0;
+  color:var(--d-text2);
+  font-size:10.5px;
   font-weight:500;
 }
 
 .dpi-range-row input[type='range']{
   width:100%;
-  height:18px;
+  height:20px;
   margin:0;
-  accent-color:var(--dm-orange)!important;
+  background:transparent;
+  accent-color:var(--dm-orange);
   cursor:pointer;
+  -webkit-appearance:none;
 }
 
 .dpi-range-row input[type='range']::-webkit-slider-runnable-track{
@@ -1552,21 +1945,39 @@ body.mode-designer:not(.d-studio-home-open) #g-help-float{
   border:2px solid var(--d-dark);
   border-radius:50%;
   background:var(--dm-orange);
-  box-shadow:0 1px 4px color-mix(in srgb,var(--d-bg) 45%,transparent);
   -webkit-appearance:none;
 }
 
+.dpi-range-row input[type='range']::-moz-range-track{
+  height:3px;
+  border-radius:var(--r-pill);
+  background:var(--d-surf3);
+}
+
+.dpi-range-row input[type='range']::-moz-range-thumb{
+  width:11px;
+  height:11px;
+  border:2px solid var(--d-dark);
+  border-radius:50%;
+  background:var(--dm-orange);
+}
+
 .dpi-range-value{
-  min-width:30px;
   color:var(--d-text2);
-  font-size:9.5px;
+  font-size:10.5px;
   font-variant-numeric:tabular-nums;
   text-align:right;
 }
 
+.dpi-range-row.is-changed .dpi-range-value{
+  color:var(--d-text);
+  font-weight:600;
+}
+
+/* Alvo de clique de 26px para um ícone de 12px — o reset é discreto, não pequeno de clicar. */
 .dpi-range-reset{
-  width:25px;
-  height:25px;
+  width:26px;
+  height:26px;
   display:grid;
   place-items:center;
   padding:0;
@@ -1575,6 +1986,7 @@ body.mode-designer:not(.d-studio-home-open) #g-help-float{
   background:transparent;
   color:var(--d-text3);
   cursor:pointer;
+  transition:border-color var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard),opacity var(--dur-micro) var(--ease-standard);
 }
 
 .dpi-range-reset svg{
@@ -1589,8 +2001,27 @@ body.mode-designer:not(.d-studio-home-open) #g-help-float{
 }
 
 .dpi-range-reset:disabled{
-  opacity:.25;
+  opacity:.22;
   cursor:default;
+}
+
+/* Inspector estreito: o valor não pode comer o curso do slider — rótulo sobe de linha. */
+@media(max-width:1180px){
+  .dpi-range-row{
+    grid-template-columns:minmax(0,1fr) 30px 26px;
+    row-gap:1px;
+    padding-bottom:2px;
+  }
+  .dpi-radius-row{
+    grid-template-columns:16px minmax(0,1fr) 46px 26px;
+    row-gap:1px;
+  }
+  .dpi-range-label{
+    grid-column:1/-1;
+  }
+  .dpi-row-label{
+    width:66px;
+  }
 }
 
 /* Resizable layer dock */

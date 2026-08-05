@@ -1984,6 +1984,7 @@ const DNEWDOC_PRESETS = {
 
 const DNEWDOC_RECENTS_KEY='luma_newdoc_recents_v1';
 let dNewDocSelectedPreset=null;
+let dNewDocSelectedName='';
 
 function dUniqueTemplateName(folder,preferred,excludeId){
   const fallback='Sem título';
@@ -2025,92 +2026,102 @@ function dRememberNewDocPreset(){
   }catch(e){}
 }
 
+// "Recentes" so existe quando ha recentes — trilha sem atalho morto.
 function dNewDocEnsureSmartTabs(){
-  const first=document.querySelector('#d-newdoc-modal .newdoc-tab');
-  const wrap=first&&first.parentElement;
-  if(!wrap) return;
-  let recommended=wrap.querySelector('[data-smart-tab="recommended"]');
-  if(!recommended){
-    recommended=document.createElement('button');
-    recommended.type='button';recommended.className='newdoc-tab';recommended.dataset.smartTab='recommended';
-    recommended.textContent='Recomendados';recommended.onclick=()=>dNewDocSelectTab('recommended',recommended);
-    wrap.insertBefore(recommended,first);
-  }
-  if(dNewDocRecentPresets().length&&!wrap.querySelector('[data-smart-tab="recent"]')){
-    const recent=document.createElement('button');
-    recent.type='button';recent.className='newdoc-tab';recent.dataset.smartTab='recent';
-    recent.textContent='Recentes';recent.onclick=()=>dNewDocSelectTab('recent',recent);
-    wrap.insertBefore(recent,recommended);
-  }
+  const recent=document.querySelector('.newdoc-tab[data-smart-tab="recent"]');
+  if(!recent) return;
+  recent.style.display=dNewDocRecentPresets().length?'':'none';
 }
 
 let dNewDocDraftDirty=false;
 let dNewDocOpening=false;
 let dNewDocReturnFocus=null;
 
+// O markup do modal mora no index.html. Aqui fica so o COMPORTAMENTO: fechar,
+// teclado, rascunho sujo e o filtro da busca.
 function dNewDocEnhanceModal(){
   const modal=document.getElementById('d-newdoc-modal');
-  if(!modal||modal.dataset.enhanced==='1') return;
-  modal.dataset.enhanced='1';modal.setAttribute('role','dialog');modal.setAttribute('aria-modal','true');modal.setAttribute('aria-labelledby','nd-title');
-  const box=modal.querySelector('.modal');
-  const header=box&&box.children[0],main=box&&box.children[1],actions=box&&box.children[2];
-  if(!box||!header||!main||!actions) return;
-  box.classList.add('newdoc-modal');box.removeAttribute('style');
-  header.className='newdoc-header';header.removeAttribute('style');
-  const title=header.children[0],closeBtn=header.children[1];
-  title.id='nd-title';title.className='newdoc-title';title.removeAttribute('style');
-  title.innerHTML='<span class="newdoc-title-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M3 12h18"/></svg></span><span><strong>Novo material</strong><small>Escolha o formato e comece com a estrutura certa</small></span>';
-  closeBtn.className='newdoc-close';closeBtn.removeAttribute('style');closeBtn.setAttribute('aria-label','Fechar novo projeto');
-  closeBtn.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>';closeBtn.onclick=()=>dNewDocClose();
-
-  main.className='newdoc-main';main.removeAttribute('style');
-  const library=main.children[0],settings=main.children[1];
-  library.className='newdoc-library';library.removeAttribute('style');
-  library.children[0].className='newdoc-tabs';library.children[0].removeAttribute('style');
-  const presets=document.getElementById('nd-presets-container');presets.className='newdoc-presets';presets.removeAttribute('style');
-  settings.className='newdoc-settings';settings.removeAttribute('style');
-  const settingsTitle=settings.children[0];settingsTitle.className='newdoc-settings-title';settingsTitle.removeAttribute('style');settingsTitle.textContent='Configuração';
-
-  const nameField=document.createElement('label');nameField.className='newdoc-field newdoc-name-field';nameField.htmlFor='nd-name';
-  nameField.innerHTML='<span>NOME DO PROJETO</span><input class="modal-input" id="nd-name" maxlength="60" autocomplete="off" placeholder="Ex.: Campanha de inverno">';
-  settingsTitle.insertAdjacentElement('afterend',nameField);
-  const campaignField=document.createElement('label');campaignField.className='newdoc-field newdoc-campaign-field';campaignField.htmlFor='nd-folder';
-  campaignField.innerHTML='<span>CAMPANHA</span><select class="modal-select" id="nd-folder"></select>';
-  nameField.insertAdjacentElement('afterend',campaignField);
-  const w=document.getElementById('nd-w'),h=document.getElementById('nd-h'),unit=document.getElementById('nd-unit'),dpi=document.getElementById('nd-dpi'),bg=document.getElementById('nd-bg');
-  w.parentElement.className='newdoc-field';
-  h.parentElement.className='newdoc-input-action';h.parentElement.removeAttribute('style');h.parentElement.parentElement.className='newdoc-field';
-  const measures=unit.parentElement.parentElement;measures.className='newdoc-field-row';measures.removeAttribute('style');
-  unit.parentElement.className='newdoc-field';dpi.parentElement.className='newdoc-field';
-  bg.parentElement.className='newdoc-input-action';bg.parentElement.removeAttribute('style');bg.parentElement.parentElement.className='newdoc-field';
-  settings.querySelectorAll('label,.modal-input,.modal-select').forEach(el=>el.removeAttribute('style'));
-  const swap=h.parentElement.querySelector('button');swap.classList.add('newdoc-swap');swap.removeAttribute('style');swap.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 7-4 4 4 4M3 11h14a4 4 0 0 0 4-4M17 17l4-4-4-4M21 13H7a4 4 0 0 0-4 4"/></svg>';
-  const preview=document.getElementById('nd-px-preview').parentElement;preview.className='newdoc-preview';preview.removeAttribute('style');
-  preview.insertAdjacentHTML('afterbegin','<div class="newdoc-preview-stage" aria-hidden="true"><div id="nd-preview-sheet" class="newdoc-preview-sheet"><span></span></div></div><span class="newdoc-preview-label">PRÉ-VISUALIZAÇÃO</span>');
-  document.getElementById('nd-px-preview').className='newdoc-preview-size';document.getElementById('nd-px-preview').removeAttribute('style');
-  preview.insertAdjacentHTML('beforeend','<p id="nd-validation" class="newdoc-validation" aria-live="polite"></p>');
-
-  actions.classList.add('newdoc-actions');actions.removeAttribute('style');
-  const cancel=actions.children[0],confirmBtn=actions.children[1];cancel.onclick=()=>dNewDocClose();confirmBtn.id='nd-create-btn';confirmBtn.innerHTML='<span>Criar projeto</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+  if(!modal||modal.dataset.wired==='1') return;
+  modal.dataset.wired='1';
+  const settings=modal.querySelector('.newdoc-settings');
   modal.addEventListener('mousedown',e=>{if(e.target===modal)dNewDocClose();});
   modal.addEventListener('keydown',e=>{
     e.stopPropagation();
     if(e.key==='Escape'){e.preventDefault();dNewDocClose();}
-    if(e.key==='Enter'&&e.target.matches('input,select')&&!document.getElementById('nd-create-btn').disabled){e.preventDefault();dNewDocConfirm();}
+    // Enter em campo de texto cria; na busca so filtra (senao o designer cria sem querer).
+    if(e.key==='Enter'&&e.target.matches('input,select')&&e.target.id!=='nd-search'&&!document.getElementById('nd-create-btn').disabled){e.preventDefault();dNewDocConfirm();}
     if(e.key==='Tab'){
-      const focusable=[...modal.querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled)')];
+      const focusable=[...modal.querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled)')].filter(el=>el.offsetParent!==null);
       const first=focusable[0],last=focusable[focusable.length-1];
       if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
       else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
     }
   });
-  settings.addEventListener('input',e=>{
-    if(!dNewDocOpening)dNewDocDraftDirty=true;
-    if(e.target.id==='nd-name'||e.target.id==='nd-bg-color')dNewDocUpdate(true);
-  });
-  settings.addEventListener('change',e=>{
-    if(!dNewDocOpening)dNewDocDraftDirty=true;
-    if(e.target.id==='nd-folder')dNewDocUpdate(true);
+  const bgColor=document.getElementById('nd-bg-color');
+  if(bgColor) bgColor.addEventListener('input',()=>{document.getElementById('nd-bg').value='color';dNewDocSetBg('color');});
+  if(settings){
+    settings.addEventListener('input',e=>{
+      if(!dNewDocOpening)dNewDocDraftDirty=true;
+      if(e.target.id==='nd-name')dNewDocUpdate(true);
+    });
+    settings.addEventListener('change',e=>{
+      if(!dNewDocOpening)dNewDocDraftDirty=true;
+      if(e.target.id==='nd-folder')dNewDocUpdate(true);
+    });
+  }
+}
+
+// Busca varre TODAS as categorias — quem digita "a4" nao quer navegar ate Impressao.
+let dNewDocQuery='';
+function dNewDocSearch(term){
+  dNewDocQuery=String(term||'').trim();
+  if(!dNewDocQuery){ const active=document.querySelector('.newdoc-tab.active'); dNewDocSelectTab(active?active.dataset.cat:'recommended',active); return; }
+  const norm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const q=norm(dNewDocQuery);
+  const hits=Object.keys(DNEWDOC_PRESETS).reduce((acc,cat)=>acc.concat(DNEWDOC_PRESETS[cat].map(p=>({...p,category:cat}))),[])
+    .filter(p=>norm(p.name).includes(q)||norm(p.w+'x'+p.h).includes(q.replace(/\s|×/g,'')));
+  document.querySelectorAll('.newdoc-tab').forEach(b=>b.classList.remove('active'));
+  dNewDocRenderPresets(hits,'Resultados para "'+dNewDocQuery+'"',false);
+}
+
+function dNewDocSetOrientation(mode){
+  const w=document.getElementById('nd-w'),h=document.getElementById('nd-h');
+  const wv=parseFloat(w.value)||0,hv=parseFloat(h.value)||0;
+  if(!wv||!hv||wv===hv) return dNewDocSyncOrientation();
+  const isPortrait=hv>wv;
+  if((mode==='portrait')!==isPortrait) dNewDocSwapOrientation();
+  else dNewDocSyncOrientation();
+}
+
+function dNewDocSyncOrientation(){
+  const wv=parseFloat((document.getElementById('nd-w')||{}).value)||0;
+  const hv=parseFloat((document.getElementById('nd-h')||{}).value)||0;
+  const portrait=document.getElementById('nd-orient-portrait'),landscape=document.getElementById('nd-orient-landscape');
+  if(!portrait||!landscape) return;
+  const isPortrait=hv>wv,isLandscape=wv>hv;
+  portrait.classList.toggle('active',isPortrait);portrait.setAttribute('aria-pressed',String(isPortrait));
+  landscape.classList.toggle('active',isLandscape);landscape.setAttribute('aria-pressed',String(isLandscape));
+}
+
+// Botoes visuais escrevem no <select> que o motor ja le — nada de caminho novo.
+function dNewDocSetBg(value){
+  const sel=document.getElementById('nd-bg');
+  if(!sel) return;
+  sel.value=value;
+  if(!dNewDocOpening)dNewDocDraftDirty=true;
+  dNewDocSyncBgButtons();
+  dNewDocUpdate(true);
+}
+
+function dNewDocSyncBgButtons(){
+  const value=(document.getElementById('nd-bg')||{}).value||'white';
+  const picker=document.getElementById('nd-bg-color');
+  const chip=document.getElementById('nd-bg-chip');
+  if(picker&&chip){ chip.style.background=picker.value; picker.classList.toggle('is-open',value==='color'); }
+  document.querySelectorAll('.newdoc-bg-btn').forEach(btn=>{
+    const on=btn.dataset.bg===value;
+    btn.classList.toggle('active',on);
+    btn.setAttribute('aria-pressed',String(on));
   });
 }
 
@@ -2129,7 +2140,8 @@ function dNewDocOpen(){
   document.getElementById('nd-unit').value='px';
   document.getElementById('nd-dpi').value=72;
   document.getElementById('nd-bg').value='white';
-  document.getElementById('nd-bg-color').style.display='none';
+  const ndSearch=document.getElementById('nd-search'); if(ndSearch){ndSearch.value='';dNewDocQuery='';}
+  dNewDocSyncBgButtons();
   if (document.getElementById('nd-use-artboards')) {
     document.getElementById('nd-use-artboards').checked = dUseArtboards;
   }
@@ -2140,9 +2152,9 @@ function dNewDocOpen(){
   folderSelect.innerHTML=dStudioCampaignOptions((folder||dFolders[0]||{}).id||'');
   folderSelect.disabled=!dFolders.length;
   document.getElementById('nd-name').value=dUniqueTemplateName(folder,'Novo material');
-  const recentTab=document.querySelector('[data-smart-tab="recent"]');
-  const recommendedTab=document.querySelector('[data-smart-tab="recommended"]');
-  dNewDocSelectTab(recentTab?'recent':'recommended',recentTab||recommendedTab);
+  const recentTab=document.querySelector('.newdoc-tab[data-smart-tab="recent"]');
+  const hasRecent=recentTab&&recentTab.style.display!=='none';
+  dNewDocSelectTab(hasRecent?'recent':'recommended',hasRecent?recentTab:document.querySelector('.newdoc-tab[data-smart-tab="recommended"]'));
   
   dNewDocUpdate(true);dNewDocDraftDirty=false;dNewDocOpening=false;
   document.getElementById('d-newdoc-modal').classList.add('open');
@@ -2156,48 +2168,66 @@ function dNewDocOpen(){
 }
 
 function dNewDocSelectTab(category, tabEl){
+  const cat=category||'recommended';
   document.querySelectorAll('.newdoc-tab').forEach(btn => btn.classList.remove('active'));
-  if(tabEl) tabEl.classList.add('active');
-
-  const container = document.getElementById('nd-presets-container');
-  if(!container) return;
+  const target=tabEl||document.querySelector('.newdoc-tab[data-cat="'+cat+'"]');
+  if(target) target.classList.add('active');
+  const search=document.getElementById('nd-search');
+  if(search&&dNewDocQuery){ search.value=''; dNewDocQuery=''; }
 
   const recommended=['social:story','social:feed','social:post','web:fhd']
     .map(dNewDocPresetByKey).filter(Boolean);
-  const presets = category==='recent' ? dNewDocRecentPresets()
-    : category==='recommended' ? recommended
-    : (DNEWDOC_PRESETS[category] || []).map(p=>({...p,category}));
-  if(presets.length === 0){
+  const presets = cat==='recent' ? dNewDocRecentPresets()
+    : cat==='recommended' ? recommended
+    : (DNEWDOC_PRESETS[cat] || []).map(p=>({...p,category:cat}));
+  const titles={recent:'Formatos recentes',recommended:'Recomendados para você',social:'Redes sociais',web:'Web',mobile:'Mobile',print:'Impressão',custom:'Formato personalizado'};
+  dNewDocRenderPresets(presets,titles[cat]||'Formatos',cat==='custom');
+}
+
+// Um renderer só para aba e busca: card = miniatura na proporção real + dados do formato.
+function dNewDocRenderPresets(presets,caption,isCustom){
+  const container=document.getElementById('nd-presets-container');
+  if(!container) return;
+  const captionEl=document.getElementById('nd-library-caption');
+  if(captionEl) captionEl.textContent=caption+(presets.length?'  ·  '+presets.length:'');
+
+  if(!presets.length){
     dNewDocSelectedPreset=null;
-    container.innerHTML = '<div class="newdoc-empty"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v8M8 12h8"/></svg><strong>Formato personalizado</strong><span>Defina as dimensões no painel ao lado.</span></div>';
+    container.innerHTML='<div class="newdoc-empty">'
+      +'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v8M8 12h8"/></svg>'
+      +'<strong>'+(isCustom?'Formato personalizado':'Nenhum formato encontrado')+'</strong>'
+      +'<span>'+(isCustom?'Defina largura, altura e unidade no painel ao lado — a prévia acompanha.':'Tente outro termo ou escolha uma categoria à esquerda.')+'</span>'
+      +'</div>';
+    if(isCustom){ const w=document.getElementById('nd-w'); if(w) w.focus(); }
     return;
   }
 
   container.innerHTML = presets.map(p => {
-    // Calcular proporção para a caixinha visual
-    const maxDim = Math.max(p.w, p.h);
-    const boxW = Math.max((p.w / maxDim) * 44, 8);
-    const boxH = Math.max((p.h / maxDim) * 44, 8);
-    
-    return `
-      <button type="button" class="newdoc-preset-btn" data-preset-id="${p.id}" onclick="dNewDocApplyPreset('${p.category||category}', '${p.id}', this)">
-        <div class="newdoc-preset-visual">
-          <div class="newdoc-preset-sheet" style="--preset-w:${boxW}px;--preset-h:${boxH}px"></div>
-        </div>
-        <div class="newdoc-preset-copy">
-          <strong>${gEsc(p.name)}</strong>
-          <span>${p.w} × ${p.h} ${p.unit}</span>
-          <small>${p.dpi} ppi</small>
-        </div>
-      </button>
-    `;
+    const maxDim=Math.max(p.w,p.h);
+    const boxW=Math.max((p.w/maxDim)*54,10), boxH=Math.max((p.h/maxDim)*54,10);
+    const ratio=dNewDocRatioLabel(p.w,p.h);
+    return '<button type="button" role="option" aria-selected="false" class="newdoc-preset-btn" data-preset-id="'+p.id+'" onclick="dNewDocApplyPreset(\''+(p.category)+'\', \''+p.id+'\', this)">'
+      +'<span class="newdoc-preset-visual"><span class="newdoc-preset-sheet" style="--preset-w:'+boxW+'px;--preset-h:'+boxH+'px"></span></span>'
+      +'<span class="newdoc-preset-copy">'
+        +'<strong>'+gEsc(p.name)+'</strong>'
+        +'<span>'+p.w+' × '+p.h+' '+p.unit+'</span>'
+        +'<small>'+ratio+' · '+p.dpi+' ppi</small>'
+      +'</span>'
+      +'<span class="newdoc-preset-check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>'
+      +'</button>';
   }).join('');
 
-  // Auto-selecionar o primeiro preset
-  const firstPresetBtn = container.querySelector('.newdoc-preset-btn');
-  if(firstPresetBtn){
-      dNewDocApplyPreset(presets[0].category||category, presets[0].id, firstPresetBtn);
-  }
+  const firstPresetBtn=container.querySelector('.newdoc-preset-btn');
+  if(firstPresetBtn) dNewDocApplyPreset(presets[0].category, presets[0].id, firstPresetBtn);
+}
+
+// Proporção legível (16:9, 4:5…) — ajuda a bater o olho e reconhecer o formato.
+function dNewDocRatioLabel(w,h){
+  const gcd=(a,b)=>b?gcd(b,a%b):a;
+  const g=gcd(Math.round(w),Math.round(h))||1;
+  let rw=Math.round(w/g), rh=Math.round(h/g);
+  if(rw>40||rh>40){ const k=Math.max(rw,rh)/20; rw=Math.round(rw/k); rh=Math.round(rh/k); }
+  return rw+':'+rh;
 }
 
 function dNewDocApplyPreset(category, id, btnEl){
@@ -2205,10 +2235,11 @@ function dNewDocApplyPreset(category, id, btnEl){
   const p = presets.find(x => x.id === id);
   if(!p) return;
   dNewDocSelectedPreset=category+':'+id;
+  dNewDocSelectedName=p.name;
   if(!dNewDocOpening)dNewDocDraftDirty=true;
 
-  document.querySelectorAll('.newdoc-preset-btn').forEach(btn => btn.classList.remove('active'));
-  if(btnEl) btnEl.classList.add('active');
+  document.querySelectorAll('.newdoc-preset-btn').forEach(btn => { btn.classList.remove('active'); btn.setAttribute('aria-selected','false'); });
+  if(btnEl){ btnEl.classList.add('active'); btnEl.setAttribute('aria-selected','true'); }
 
   document.getElementById('nd-unit').value = p.unit;
   document.getElementById('nd-dpi').value = p.dpi;
@@ -2229,7 +2260,13 @@ function _dNewDocPx(){
 }
 
 function dNewDocUpdate(fromPreset){
-  if(!fromPreset) dNewDocSelectedPreset=null;
+  // Mexeu na dimensao na mao: o material deixou de ser o preset — o card perde o selo.
+  if(!fromPreset){
+    dNewDocSelectedPreset=null;dNewDocSelectedName='';
+    document.querySelectorAll('.newdoc-preset-btn.active').forEach(btn=>{btn.classList.remove('active');btn.setAttribute('aria-selected','false');});
+  }
+  dNewDocSyncOrientation();
+  dNewDocSyncBgButtons();
   const {w,h}=_dNewDocPx();
   const el=document.getElementById('nd-px-preview');
   if(el)el.textContent=(w||'—')+' × '+(h||'—')+' px';
@@ -2271,6 +2308,17 @@ function dNewDocUpdate(fromPreset){
     else if(dUniqueTemplateName(folder,name)!==name){message='O nome será ajustado para evitar conflito';state='warning';}
   }
   validation.textContent=message;validation.dataset.state=state;createBtn.disabled=state==='error';
+
+  // Resumo: o designer confere o que sera criado sem reler cada campo.
+  const summary=document.getElementById('nd-summary');
+  if(summary){
+    const bgSel2=document.getElementById('nd-bg').value;
+    const bgLabel=bgSel2==='transparent'?'fundo transparente':bgSel2==='color'?'fundo '+document.getElementById('nd-bg-color').value.toUpperCase():'fundo branco';
+    const folderSel=document.getElementById('nd-folder');
+    const folderName=folderSel&&folderSel.selectedOptions[0]?folderSel.selectedOptions[0].textContent:'';
+    const dpi=Math.max(1,parseFloat(document.getElementById('nd-dpi').value)||72);
+    summary.textContent=[dNewDocSelectedName||'Formato personalizado',dpi+' ppi',bgLabel,folderName].filter(Boolean).join(' · ');
+  }
 }
 
 function dNewDocSwapOrientation(){
@@ -2280,8 +2328,7 @@ function dNewDocSwapOrientation(){
 }
 
 function dNewDocBgChange(){
-  const v=document.getElementById('nd-bg').value;
-  document.getElementById('nd-bg-color').style.display=(v==='color')?'inline-block':'none';
+  dNewDocSyncBgButtons();
   dNewDocUpdate(true);
 }
 
@@ -3443,6 +3490,66 @@ function dSyncPageLock(){
     btn.setAttribute('aria-label', rotulo);
     btn.title = rotulo;
   }
+
+  const upBtn = document.getElementById('d-page-move-up-btn');
+  const downBtn = document.getElementById('d-page-move-down-btn');
+  if (upBtn && downBtn) {
+    const folder = temPagina ? dFolders.find(f => f.id === dActiveTmplFolderId) : null;
+    const list = (folder && folder.templates) || [];
+    const idx = list.findIndex(t => t.id === dActiveTmplId);
+    const isFirst = idx <= 0;
+    const isLast = idx < 0 || idx >= list.length - 1;
+
+    upBtn.disabled = isFirst || travada;
+    upBtn.style.opacity = (isFirst || travada) ? '0.35' : '1';
+    upBtn.style.pointerEvents = (isFirst || travada) ? 'none' : 'auto';
+
+    downBtn.disabled = isLast || travada;
+    downBtn.style.opacity = (isLast || travada) ? '0.35' : '1';
+    downBtn.style.pointerEvents = (isLast || travada) ? 'none' : 'auto';
+  }
+}
+
+function dMovePageUp(ev) {
+  if (ev) ev.stopPropagation();
+  if (!dActiveTmplFolderId || !dActiveTmplId) return;
+  const folder = dFolders.find(f => f.id === dActiveTmplFolderId);
+  if (!folder || !folder.templates || folder.templates.length <= 1) return;
+
+  const idx = folder.templates.findIndex(t => t.id === dActiveTmplId);
+  if (idx <= 0) return;
+
+  if (typeof dSave === 'function' && dSave({silent: true}) === false) return;
+
+  const item = folder.templates.splice(idx, 1)[0];
+  folder.templates.splice(idx - 1, 0, item);
+
+  if (!dPersistFolders()) return;
+
+  dRenderPagesTray();
+  dSyncPageLock();
+  gToast('Página movida para cima!');
+}
+
+function dMovePageDown(ev) {
+  if (ev) ev.stopPropagation();
+  if (!dActiveTmplFolderId || !dActiveTmplId) return;
+  const folder = dFolders.find(f => f.id === dActiveTmplFolderId);
+  if (!folder || !folder.templates || folder.templates.length <= 1) return;
+
+  const idx = folder.templates.findIndex(t => t.id === dActiveTmplId);
+  if (idx < 0 || idx >= folder.templates.length - 1) return;
+
+  if (typeof dSave === 'function' && dSave({silent: true}) === false) return;
+
+  const item = folder.templates.splice(idx, 1)[0];
+  folder.templates.splice(idx + 1, 0, item);
+
+  if (!dPersistFolders()) return;
+
+  dRenderPagesTray();
+  dSyncPageLock();
+  gToast('Página movida para baixo!');
 }
 
 function dDuplicatePageInTray(ev, tmplId) {

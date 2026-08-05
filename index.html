@@ -38,7 +38,7 @@
 <link rel="stylesheet" href="css/modules/catalog.css?v=2">
 <link rel="stylesheet" href="css/modules/franqueado_effects.css">
 <link rel="stylesheet" href="css/modules/publish-modal.css">
-<link rel="stylesheet" href="css/modules/designer.css">
+<link rel="stylesheet" href="css/modules/designer.css?v=2">
   <link rel="stylesheet" href="css/components/pages-tray.css">
 <link rel="stylesheet" href="css/modules/layers-panel.css">
 <link rel="stylesheet" href="css/modules/toolbar.css">
@@ -47,7 +47,7 @@
 <link rel="stylesheet" href="css/modules/upload-panel.css">
 <!-- depois de franqueado/chat/live-preview: sobrepõe o layout das 3 colunas -->
 <link rel="stylesheet" href="css/modules/panel-dock.css">
-<link rel="stylesheet" href="css/modules/help-widget.css">
+<link rel="stylesheet" href="css/modules/help-widget.css?v=2">
 <link rel="stylesheet" href="css/modules/console.css">
 <link rel="stylesheet" href="css/modules/academia.css">
 </head>
@@ -237,7 +237,7 @@ input:focus:-webkit-autofill {
 <!-- ══ TOPBAR GLOBAL ══ -->
 <header id="global-topbar">
   <div class="top-brand-cluster">
-    <div class="dm-logo dm-logo--h-branca top-dm-logo" role="img" aria-label="Luma"></div>
+    <div class="dm-logo dm-logo--h-branca top-dm-logo" role="button" tabindex="0" aria-label="Ir para a home do Luma" onclick="gGoHome()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();gGoHome();}"></div>
   </div>
   <nav class="mode-tabs" aria-label="Alternar área do Luma">
     <div class="mode-tab-pill" id="mode-tab-pill"></div>
@@ -1581,16 +1581,26 @@ input:focus:-webkit-autofill {
                  scroll e pan de graça — e o frame (que tem overflow:hidden e leva
                  pointer-events:none quando a página está bloqueada) não as engole. -->
             <div class="dpg-bar" id="d-page-bar" role="group" aria-label="Ações desta página">
-              <button type="button" class="dpg-btn" id="d-page-lock-btn" onclick="dTogglePageLock(event)" aria-pressed="false" title="Bloquear a edição desta página" aria-label="Bloquear a edição desta página">
-                <svg class="dpg-ico-unlocked" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.4-2"/></svg>
-                <svg class="dpg-ico-locked" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-              </button>
-              <button type="button" class="dpg-btn" onclick="dDuplicatePageInTray(event, dActiveTmplId)" title="Duplicar esta página" aria-label="Duplicar esta página">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/><path d="M15 13v4M13 15h4"/></svg>
-              </button>
-              <button type="button" class="dpg-btn" onclick="dAddPageAfterCurrent(event)" title="Adicionar página depois desta" aria-label="Adicionar página depois desta">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8"/><path d="M18 8V4M16 6h4"/><path d="M18 13v8M15 17h6"/></svg>
-              </button>
+              <div class="dpg-group dpg-group-left">
+                <button type="button" class="dpg-btn" id="d-page-move-up-btn" onclick="dMovePageUp(event)" title="Subir página" aria-label="Subir página">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg>
+                </button>
+                <button type="button" class="dpg-btn" id="d-page-move-down-btn" onclick="dMovePageDown(event)" title="Descer página" aria-label="Descer página">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+              </div>
+              <div class="dpg-group dpg-group-right">
+                <button type="button" class="dpg-btn" id="d-page-lock-btn" onclick="dTogglePageLock(event)" aria-pressed="false" title="Bloquear a edição desta página" aria-label="Bloquear a edição desta página">
+                  <svg class="dpg-ico-unlocked" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.4-2"/></svg>
+                  <svg class="dpg-ico-locked" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+                </button>
+                <button type="button" class="dpg-btn" onclick="dDuplicatePageInTray(event, dActiveTmplId)" title="Duplicar esta página" aria-label="Duplicar esta página">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/><path d="M15 13v4M13 15h4"/></svg>
+                </button>
+                <button type="button" class="dpg-btn" onclick="dAddPageAfterCurrent(event)" title="Adicionar página depois desta" aria-label="Adicionar página depois desta">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8"/><path d="M18 8V4M16 6h4"/><path d="M18 13v8M15 17h6"/></svg>
+                </button>
+              </div>
             </div>
             <div id="d-canvas-bg"></div>
             <div id="d-canvas-frame">
@@ -1718,36 +1728,89 @@ input:focus:-webkit-autofill {
                   </button>
                 </div>
               </div>
-              <div id="d-image-props" style="display:none;flex-direction:column;gap:4px">
+              <!-- Inspector de imagem: grupos separados por título + filete, não por cards.
+                   O markup mora aqui (não é montado em JS) pra ter uma fonte da verdade só;
+                   props-panel.js apenas liga comportamento (valor do slider, thumb, URL). -->
+              <div id="d-image-props" style="display:none;flex-direction:column">
                 <!-- dp-imgvar escondido: o controle "Dado" no topo liga a imagem a um campo. -->
                 <select class="prop-input" id="dp-imgvar" onchange="dUpdateProp('imgVar',this.value)" style="display:none"></select>
-                <input class="prop-input" type="text" id="dp-imgurl" placeholder="URL da imagem" oninput="dUpdateProp('imgUrl',this.value)" style="font-size:11px">
-                <select class="prop-input" id="dp-imgfit" onchange="dUpdateProp('objectFit',this.value)" style="font-size:11px"><option value="cover">cover</option><option value="contain">contain</option><option value="fill">fill</option></select>
-                <div class="prop-row" style="margin-top:6px;gap:8px;">
-                  <span style="font-size:10px;color:var(--d-text3);min-width:60px">Brilho</span>
-                  <input type="range" id="dp-img-brightness" min="-100" max="100" value="0" oninput="dUpdateProp('filterBrightness', parseInt(this.value, 10))" style="flex:1;accent-color:#FF9000">
+
+                <div class="dpi-group" id="dpi-image-source">
+                  <span class="dpi-group-title">Origem</span>
+                  <div class="dpi-source">
+                    <span class="dpi-source-thumb" id="dpi-source-thumb" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></span>
+                    <span class="dpi-source-copy">
+                      <strong id="dpi-source-name">Nenhuma imagem</strong>
+                      <small id="dpi-source-meta">Escolha um arquivo ou informe uma URL</small>
+                    </span>
+                  </div>
+                  <div class="dpi-source-actions">
+                    <button type="button" id="dp-frame-upload" class="dpi-action" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><span id="dp-frame-upload-label">Escolher imagem</span></button>
+                    <button type="button" id="dpi-source-toggle" class="dpi-action is-ghost" aria-expanded="false" aria-controls="dp-imgurl">Usar URL</button>
+                  </div>
+                  <input class="prop-input dpi-source-url" type="text" id="dp-imgurl" placeholder="https://…" aria-label="URL da imagem" oninput="dUpdateProp('imgUrl',this.value)" hidden>
                 </div>
-                <div class="prop-row" style="gap:8px;">
-                  <span style="font-size:10px;color:var(--d-text3);min-width:60px">Contraste</span>
-                  <input type="range" id="dp-img-contrast" min="-100" max="100" value="0" oninput="dUpdateProp('filterContrast', parseInt(this.value, 10))" style="flex:1;accent-color:#FF9000">
+
+                <div class="dpi-group">
+                  <span class="dpi-group-title">Ajuste</span>
+                  <div class="dpi-row">
+                    <label class="dpi-row-label" for="dp-imgfit">Preenchimento</label>
+                    <span class="dpi-select">
+                      <select class="prop-input" id="dp-imgfit" onchange="dUpdateProp('objectFit',this.value)"><option value="cover">Preencher quadro</option><option value="contain">Ajustar imagem</option><option value="fill">Esticar para preencher</option></select>
+                      <svg class="dpi-select-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+                    </span>
+                  </div>
                 </div>
-                <div class="prop-row" style="gap:8px;margin-bottom:6px;">
-                  <span style="font-size:10px;color:var(--d-text3);min-width:60px">Saturação</span>
-                  <input type="range" id="dp-img-saturate" min="-100" max="100" value="0" oninput="dUpdateProp('filterSaturate', parseInt(this.value, 10))" style="flex:1;accent-color:#FF9000">
+
+                <div class="dpi-group">
+                  <span class="dpi-group-title">Ajustes de imagem</span>
+                  <div class="dpi-range-row">
+                    <label class="dpi-range-label" for="dp-img-brightness">Brilho</label>
+                    <input type="range" id="dp-img-brightness" min="-100" max="100" step="1" value="0" oninput="dUpdateProp('filterBrightness', parseInt(this.value, 10))">
+                    <output class="dpi-range-value" for="dp-img-brightness">0</output>
+                    <button type="button" class="dpi-range-reset" data-reset="dp-img-brightness" title="Restaurar brilho" aria-label="Restaurar brilho" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.6"/><path d="M4 4v4.6h4.6"/></svg></button>
+                  </div>
+                  <div class="dpi-range-row">
+                    <label class="dpi-range-label" for="dp-img-contrast">Contraste</label>
+                    <input type="range" id="dp-img-contrast" min="-100" max="100" step="1" value="0" oninput="dUpdateProp('filterContrast', parseInt(this.value, 10))">
+                    <output class="dpi-range-value" for="dp-img-contrast">0</output>
+                    <button type="button" class="dpi-range-reset" data-reset="dp-img-contrast" title="Restaurar contraste" aria-label="Restaurar contraste" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.6"/><path d="M4 4v4.6h4.6"/></svg></button>
+                  </div>
+                  <div class="dpi-range-row">
+                    <label class="dpi-range-label" for="dp-img-saturate">Saturação</label>
+                    <input type="range" id="dp-img-saturate" min="-100" max="100" step="1" value="0" oninput="dUpdateProp('filterSaturate', parseInt(this.value, 10))">
+                    <output class="dpi-range-value" for="dp-img-saturate">0</output>
+                    <button type="button" class="dpi-range-reset" data-reset="dp-img-saturate" title="Restaurar saturação" aria-label="Restaurar saturação" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.6"/><path d="M4 4v4.6h4.6"/></svg></button>
+                  </div>
                 </div>
-                <button id="dp-frame-upload" class="d-btn-sec" style="display:none;font-size:11px;padding:6px;width:100%;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Carregar foto do computador</button>
-                <div id="dp-frame-shape-row" class="prop-row" style="display:none">
-                  <span style="font-size:11px;color:var(--d-text3);min-width:50px">Forma</span>
-                  <select class="prop-input" id="dp-frame-shape" onchange="dUpdateProp('frameShape',this.value);dUpdateProp('radius',this.value==='circle'?999:8)" style="font-size:11px"><option value="rect">Retângulo</option><option value="rounded">Arredondado</option><option value="circle">Círculo</option></select>
+
+                <div class="dpi-group" id="dpi-grp-shape">
+                  <span class="dpi-group-title">Forma</span>
+                  <div id="dp-frame-shape-row" class="dpi-row" style="display:none">
+                    <label class="dpi-row-label" for="dp-frame-shape">Forma</label>
+                    <span class="dpi-select">
+                      <!-- Só troca frameShape: o raio derivado (0/16/999) já é regra do dUpdateProp.
+                           O segundo dUpdateProp('radius',…) que existia aqui brigava com ela. -->
+                      <select class="prop-input" id="dp-frame-shape" onchange="dUpdateProp('frameShape',this.value);dPropSyncFrameShape()"><option value="rect">Retângulo</option><option value="rounded">Arredondado</option><option value="circle">Círculo</option></select>
+                      <svg class="dpi-select-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+                    </span>
+                  </div>
+                  <div id="dp-frame-radius-row" class="dpi-row" style="display:none">
+                    <label class="dpi-row-label" for="dp-frame-radius">Raio</label>
+                    <input class="prop-input dpi-number" type="number" id="dp-frame-radius" min="0" max="999" value="8" oninput="dUpdateProp('radius',this.value)">
+                  </div>
+                  <button id="dp-convert-frame-btn" class="dpi-action is-ghost dp-convert-btn" style="display:none"></button>
                 </div>
-                <div id="dp-frame-radius-row" class="prop-row" style="display:none">
-                  <span style="font-size:11px;color:var(--d-text3);min-width:50px">Raio</span>
-                  <input class="prop-input prop-input-sm" type="number" id="dp-frame-radius" min="0" max="999" value="8" oninput="dUpdateProp('radius',this.value)" style="font-size:11px">
-                </div>
-                <button id="dp-convert-frame-btn" class="d-btn-sec dp-convert-btn" style="display:none"></button>
-                <div class="prop-row" style="gap:6px">
-                  <span class="prop-bind-label">Visível se</span>
-                  <select class="prop-input" id="dp-bind-visible-image" style="font-size:11px;flex:1" onchange="dSetBinding('visible',this.value)"></select>
+
+                <div class="dpi-group">
+                  <span class="dpi-group-title">Regras</span>
+                  <div class="dpi-row">
+                    <label class="dpi-row-label" for="dp-bind-visible-image">Visível se</label>
+                    <span class="dpi-select">
+                      <select class="prop-input" id="dp-bind-visible-image" onchange="dSetBinding('visible',this.value)"></select>
+                      <svg class="dpi-select-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1759,47 +1822,55 @@ input:focus:-webkit-autofill {
               <span class="dp-sec-label">TIPOGRAFIA</span>
               <svg class="dp-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
+            <!-- Mesmo sistema do inspector de imagem: .dpi-group (título + filete),
+                 .dpi-row (rótulo + controle) e .dpi-select (select do Luma). -->
             <div class="dp-sec-body">
-              <div class="dp-field">
-                <label class="dp-field-label">Fonte</label>
-                <select class="prop-input" id="dp-font" onchange="dUpdateProp('font',this.value)">
-                  <option value="'Roboto Black'">Roboto Black</option>
-                  <option value="'Roboto'">Roboto</option>
-                  <option value="'Roboto',bold">Roboto Bold</option>
-                </select>
-              </div>
-              <div class="dp-row-2col">
-                <div class="dp-field">
-                  <label class="dp-field-label">Tamanho</label>
-                  <div class="dp-input-unit">
-                    <input class="prop-input prop-input-sm" type="number" id="dp-fsize" value="24" oninput="dUpdateProp('fontSize',this.value)">
-                    <span class="dp-unit">px</span>
-                  </div>
+              <div class="dpi-group">
+                <div class="dpi-row">
+                  <label class="dpi-row-label" for="dp-font">Fonte</label>
+                  <span class="dpi-select">
+                    <select class="prop-input" id="dp-font" onchange="dUpdateProp('font',this.value)">
+                      <option value="'Roboto Black'">Roboto Black</option>
+                      <option value="'Roboto'">Roboto</option>
+                      <option value="'Roboto',bold">Roboto Bold</option>
+                    </select>
+                    <svg class="dpi-select-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+                  </span>
                 </div>
-                <div class="dp-field">
-                  <label class="dp-field-label">Alinhamento</label>
-                  <div class="dp-btn-group" id="dp-align-group">
-                    <button class="dp-btn-icon" data-val="left" onclick="dPropSetAlign('left',this)" title="Esquerda"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="14" y2="12"/><line x1="3" y1="18" x2="17" y2="18"/></svg></button>
-                    <button class="dp-btn-icon" data-val="center" onclick="dPropSetAlign('center',this)" title="Centro"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="5" y1="18" x2="19" y2="18"/></svg></button>
-                    <button class="dp-btn-icon" data-val="right" onclick="dPropSetAlign('right',this)" title="Direita"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="7" y1="18" x2="21" y2="18"/></svg></button>
-                    <button class="dp-btn-icon" data-val="justify" onclick="dPropSetAlign('justify',this)" title="Justificar"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+                <div class="dpi-row">
+                  <label class="dpi-row-label" for="dp-fsize">Tamanho</label>
+                  <span class="dpi-unit-field">
+                    <input class="prop-input dpi-number" type="number" id="dp-fsize" min="1" max="999" value="24" oninput="dUpdateProp('fontSize',this.value)">
+                    <span class="dpi-unit" aria-hidden="true">px</span>
+                  </span>
+                  <div class="dp-btn-group dpi-align-group" id="dp-align-group" role="group" aria-label="Alinhamento do texto">
+                    <button class="dp-btn-icon" data-val="left" onclick="dPropSetAlign('left',this)" title="Esquerda" aria-label="Alinhar à esquerda" aria-pressed="false"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="14" y2="12"/><line x1="3" y1="18" x2="17" y2="18"/></svg></button>
+                    <button class="dp-btn-icon" data-val="center" onclick="dPropSetAlign('center',this)" title="Centro" aria-label="Centralizar" aria-pressed="false"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="5" y1="18" x2="19" y2="18"/></svg></button>
+                    <button class="dp-btn-icon" data-val="right" onclick="dPropSetAlign('right',this)" title="Direita" aria-label="Alinhar à direita" aria-pressed="false"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="7" y1="18" x2="21" y2="18"/></svg></button>
+                    <button class="dp-btn-icon" data-val="justify" onclick="dPropSetAlign('justify',this)" title="Justificar" aria-label="Justificar" aria-pressed="false"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
                   </div>
                   <!-- justify faltava aqui: dPropSetAlign espelha o valor neste select e um
                        valor sem <option> zera o campo. O botão Justificar já existia. -->
                   <select id="dp-align" style="display:none" onchange="dUpdateProp('textAlign',this.value)"><option>left</option><option>center</option><option>right</option><option>justify</option></select>
                 </div>
-              </div>
-              <div class="dp-field">
-                <label class="dp-field-label">Cor</label>
-                <div class="dp-color-row">
-                  <div class="color-swatch" id="dp-color-sw" style="background:#fff;cursor:pointer" onclick="document.getElementById('dp-color-pick').click()"></div>
-                  <input type="color" id="dp-color-pick" style="display:none" oninput="dHexSync('dp-color-hex',this.value);dUpdateProp('color',this.value)">
-                  <input class="hex-input" id="dp-color-hex" maxlength="7" placeholder="#FFFFFF" oninput="dHexInput('dp-color-pick','dp-color-sw',this.value,'color')">
+                <div class="dpi-row">
+                  <label class="dpi-row-label" for="dp-color-hex">Cor</label>
+                  <span class="dpi-color-field">
+                    <button type="button" class="color-swatch dpi-color-swatch" id="dp-color-sw" style="background:#fff" onclick="document.getElementById('dp-color-pick').click()" aria-label="Escolher cor do texto"></button>
+                    <input type="color" id="dp-color-pick" style="display:none" oninput="dHexSync('dp-color-hex',this.value);dUpdateProp('color',this.value)">
+                    <input class="hex-input" id="dp-color-hex" maxlength="7" placeholder="#FFFFFF" aria-label="Cor do texto em hexadecimal" oninput="dHexInput('dp-color-pick','dp-color-sw',this.value,'color')">
+                  </span>
                 </div>
               </div>
-              <div class="dp-field">
-                <label class="dp-field-label">Visível se</label>
-                <select class="prop-input" id="dp-bind-visible-text" style="font-size:11px" onchange="dSetBinding('visible',this.value)"></select>
+              <div class="dpi-group">
+                <span class="dpi-group-title">Regras</span>
+                <div class="dpi-row">
+                  <label class="dpi-row-label" for="dp-bind-visible-text">Visível se</label>
+                  <span class="dpi-select">
+                    <select class="prop-input" id="dp-bind-visible-text" onchange="dSetBinding('visible',this.value)"></select>
+                    <svg class="dpi-select-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+                  </span>
+                </div>
               </div>
             </div>
           </section>
@@ -1836,79 +1907,110 @@ input:focus:-webkit-autofill {
           <!-- ── SEÇÃO: APARÊNCIA (shape) ── -->
           <section class="dp-section" id="dp-sec-appear">
             <button class="dp-sec-head" onclick="dPropToggleSection(this)">
-              <span class="dp-sec-label">APARÊNCIA</span>
+              <span class="dp-sec-label">FORMA</span>
               <svg class="dp-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
+            <!-- Mesma gramática de Texto e Imagem: .dpi-group (título + filete), .dpi-row,
+                 .dpi-select, .dpi-number, .dpi-color-field. -->
             <div class="dp-sec-body">
               <div id="d-shape-props">
-                <div class="dp-field">
-                  <label class="dp-field-label">Preenchimento</label>
-                  <div class="dp-color-row">
-                    <div class="color-swatch" id="dp-fill-sw" style="background:#FF9000;cursor:pointer" onclick="document.getElementById('dp-fill-pick').click()"></div>
-                    <input type="color" id="dp-fill-pick" style="display:none" oninput="dHexSync('dp-fill-hex',this.value);dUpdateProp('fill',this.value)">
-                    <input class="hex-input" id="dp-fill-hex" maxlength="7" placeholder="#FF9000" oninput="dHexInput('dp-fill-pick','dp-fill-sw',this.value,'fill')">
-                    <input class="prop-input prop-input-sm" type="number" id="dp-opacity" min="0" max="100" value="100" title="Opacidade %" oninput="dUpdateProp('opacity',this.value)">
-                    <span class="dp-unit">%</span>
+                <div class="dpi-group">
+                  <span class="dpi-group-title">Aparência</span>
+                  <div class="dpi-row">
+                    <label class="dpi-row-label" for="dp-fill-hex">Preenchimento</label>
+                    <span class="dpi-color-field">
+                      <button type="button" class="color-swatch dpi-color-swatch" id="dp-fill-sw" style="background:#FF9000" onclick="document.getElementById('dp-fill-pick').click()" aria-label="Escolher cor de preenchimento"></button>
+                      <input type="color" id="dp-fill-pick" style="display:none" oninput="dHexSync('dp-fill-hex',this.value);dUpdateProp('fill',this.value)">
+                      <input class="hex-input" id="dp-fill-hex" maxlength="7" placeholder="#FF9000" aria-label="Cor de preenchimento em hexadecimal" oninput="dHexInput('dp-fill-pick','dp-fill-sw',this.value,'fill')">
+                    </span>
+                    <span class="dpi-unit-field is-tight">
+                      <input class="prop-input dpi-number" type="number" id="dp-opacity" min="0" max="100" value="100" aria-label="Opacidade em porcento" oninput="dUpdateProp('opacity',this.value)">
+                      <span class="dpi-unit" aria-hidden="true">%</span>
+                    </span>
+                  </div>
+                  <div class="dpi-row">
+                    <label class="dpi-row-label" for="dp-shape-strokeColor">Traçado</label>
+                    <span class="dpi-color-field">
+                      <button type="button" class="color-swatch dpi-color-swatch" id="dp-shape-stroke-sw" style="background:#000000" onclick="document.getElementById('dp-shape-stroke-pick').click()" aria-label="Escolher cor do traçado"></button>
+                      <input type="color" id="dp-shape-stroke-pick" style="display:none" oninput="dHexSync('dp-shape-strokeColor',this.value);dUpdateProp('strokeColor',this.value)">
+                      <input class="hex-input" id="dp-shape-strokeColor" maxlength="7" placeholder="#000000" aria-label="Cor do traçado em hexadecimal" oninput="dHexInput('dp-shape-stroke-pick','dp-shape-stroke-sw',this.value,'strokeColor')">
+                    </span>
+                    <span class="dpi-unit-field is-tight">
+                      <input class="prop-input dpi-number" type="number" id="dp-shape-strokeW" min="0" max="200" value="0" aria-label="Espessura do traçado em pixels" oninput="dUpdateProp('strokeW',this.value);dPropSyncShapeControls()">
+                      <span class="dpi-unit" aria-hidden="true">px</span>
+                    </span>
+                  </div>
+                  <div class="dpi-row" id="dp-stroke-align-row">
+                    <label class="dpi-row-label" for="dp-shape-strokeAlign">Alinhamento</label>
+                    <span class="dpi-select">
+                      <select class="prop-input" id="dp-shape-strokeAlign" onchange="dUpdateProp('strokeAlign',this.value)">
+                        <option value="inside">Dentro</option><option value="center">Centro</option><option value="outside">Fora</option>
+                      </select>
+                      <svg class="dpi-select-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+                    </span>
                   </div>
                 </div>
-                <div class="dp-field">
-                  <label class="dp-field-label">Raio</label>
-                  <div class="dp-radius-widget">
-                    <div class="dp-radius-head">
-                      <span class="dp-radius-preview" id="dp-radius-preview"></span>
-                      <input type="range" id="dp-radius-slider" min="0" max="200" step="1" value="0" oninput="dUpdatePropFromRadius(this.value)">
-                      <input class="prop-input prop-input-sm" type="number" id="dp-radius" min="0" max="999" value="0" oninput="dSyncRadiusUI(this.value);dUpdateProp('radius',this.value)">
+
+                <div class="dpi-group" id="dpi-grp-shape-geo">
+                  <span class="dpi-group-title">Geometria</span>
+                  <div class="dpi-radius-row" id="dp-radius-row">
+                    <label class="dpi-range-label" for="dp-radius-slider">Raio</label>
+                    <span class="dpi-radius-preview" id="dp-radius-preview" aria-hidden="true"></span>
+                    <input type="range" id="dp-radius-slider" min="0" max="200" step="1" value="0" aria-label="Raio dos cantos" oninput="dUpdatePropFromRadius(this.value)">
+                    <input class="prop-input dpi-number" type="number" id="dp-radius" min="0" max="999" value="0" aria-label="Raio em pixels" oninput="dSyncRadiusUI(this.value);dUpdateProp('radius',this.value)">
+                    <button type="button" class="dpi-range-reset dpi-radius-circle" onclick="dSetRadiusCircle()" title="Arredondar ao máximo (círculo)" aria-label="Arredondar ao máximo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><circle cx="12" cy="12" r="8"/></svg></button>
+                  </div>
+                  <div id="dp-corners-block">
+                    <div class="dpi-row dpi-corners-head">
+                      <span class="dpi-row-label" id="dp-corners-label">Cantos</span>
+                      <button type="button" id="dp-corner-link" class="dpi-lock is-on" onclick="dToggleCornerLink()" aria-pressed="true" aria-describedby="dp-corners-label" title="Cantos vinculados: um valor vale pelos quatro"></button>
                     </div>
-                    <button type="button" class="dp-radius-circle-btn" onclick="dSetRadiusCircle()" title="Cantos totalmente arredondados">○ Círculo</button>
+                    <div class="dpi-corners">
+                      <label class="dpi-corner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M20 4h-8a8 8 0 0 0-8 8v8"/></svg><input class="prop-input dpi-number" type="number" id="dp-corner-tl" min="0" value="0" aria-label="Canto superior esquerdo" oninput="dSetCorner('tl',this.value)"></label>
+                      <label class="dpi-corner is-tr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 4h8a8 8 0 0 1 8 8v8"/></svg><input class="prop-input dpi-number" type="number" id="dp-corner-tr" min="0" value="0" aria-label="Canto superior direito" oninput="dSetCorner('tr',this.value)"></label>
+                      <label class="dpi-corner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 4v8a8 8 0 0 0 8 8h8"/></svg><input class="prop-input dpi-number" type="number" id="dp-corner-bl" min="0" value="0" aria-label="Canto inferior esquerdo" oninput="dSetCorner('bl',this.value)"></label>
+                      <label class="dpi-corner is-tr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M20 4v8a8 8 0 0 1-8 8H4"/></svg><input class="prop-input dpi-number" type="number" id="dp-corner-br" min="0" value="0" aria-label="Canto inferior direito" oninput="dSetCorner('br',this.value)"></label>
+                    </div>
+                  </div>
+                  <div id="dp-shape-geo" style="display:none">
+                    <div class="dpi-row">
+                      <label class="dpi-row-label" for="dp-shape-sides">Lados</label>
+                      <input class="prop-input dpi-number dpi-geo-num" type="number" id="dp-shape-sides" min="3" max="20" value="6" aria-label="Lados do polígono" oninput="dUpdateProp('sides',this.value)">
+                      <label class="dpi-row-label is-inline" for="dp-shape-points">Pontas</label>
+                      <input class="prop-input dpi-number dpi-geo-num" type="number" id="dp-shape-points" min="3" max="20" value="5" aria-label="Pontas da estrela" oninput="dUpdateProp('points',this.value)">
+                      <label class="dpi-row-label is-inline" for="dp-shape-inner">Interno</label>
+                      <input class="prop-input dpi-number dpi-geo-num" type="number" id="dp-shape-inner" min="5" max="95" value="50" aria-label="Raio interno da estrela em porcento" oninput="dUpdateProp('inner',(parseFloat(this.value)||50)/100)">
+                    </div>
                   </div>
                 </div>
-                <div class="dp-field">
-                  <label class="dp-field-label">Cantos
-                    <button type="button" id="dp-corner-link" class="active" onclick="dToggleCornerLink()" title="Travar/destravar os 4 cantos" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 4px;color:inherit">🔗</button>
-                  </label>
-                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
-                    <input class="prop-input prop-input-sm" type="number" id="dp-corner-tl" min="0" value="0" title="Superior esquerdo" oninput="dSetCorner('tl',this.value)">
-                    <input class="prop-input prop-input-sm" type="number" id="dp-corner-tr" min="0" value="0" title="Superior direito" oninput="dSetCorner('tr',this.value)">
-                    <input class="prop-input prop-input-sm" type="number" id="dp-corner-bl" min="0" value="0" title="Inferior esquerdo" oninput="dSetCorner('bl',this.value)">
-                    <input class="prop-input prop-input-sm" type="number" id="dp-corner-br" min="0" value="0" title="Inferior direito" oninput="dSetCorner('br',this.value)">
+
+                <div class="dpi-group">
+                  <span class="dpi-group-title">Dados</span>
+                  <div class="dpi-row">
+                    <label class="dpi-row-label" for="dp-bind-fill">Cor vinculada</label>
+                    <span class="dpi-select">
+                      <select class="prop-input" id="dp-bind-fill" onchange="dSetBinding('fill',this.value)"></select>
+                      <svg class="dpi-select-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+                    </span>
                   </div>
                 </div>
-                <div class="dp-field" id="dp-shape-geo" style="display:none">
-                  <label class="dp-field-label">Geometria</label>
-                  <div style="display:flex;gap:4px;align-items:center">
-                    <input class="prop-input prop-input-sm" type="number" id="dp-shape-sides" min="3" max="20" value="6" title="Lados (polígono)" oninput="dUpdateProp('sides',this.value)">
-                    <input class="prop-input prop-input-sm" type="number" id="dp-shape-points" min="3" max="20" value="5" title="Pontas (estrela)" oninput="dUpdateProp('points',this.value)">
-                    <input class="prop-input prop-input-sm" type="number" id="dp-shape-inner" min="5" max="95" value="50" title="Raio interno % (estrela)" oninput="dUpdateProp('inner',(parseFloat(this.value)||50)/100)">
+
+                <div class="dpi-group">
+                  <span class="dpi-group-title">Regras</span>
+                  <div class="dpi-row">
+                    <label class="dpi-row-label" for="dp-bind-visible-shape">Visível se</label>
+                    <span class="dpi-select">
+                      <select class="prop-input" id="dp-bind-visible-shape" onchange="dSetBinding('visible',this.value)"></select>
+                      <svg class="dpi-select-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+                    </span>
                   </div>
                 </div>
-                <div class="dp-field">
-                  <label class="dp-field-label">Traçado</label>
-                  <div class="dp-color-row">
-                    <div class="color-swatch" id="dp-shape-stroke-sw" style="background:#000000;cursor:pointer" onclick="document.getElementById('dp-shape-stroke-pick').click()"></div>
-                    <input type="color" id="dp-shape-stroke-pick" style="display:none" oninput="dHexSync('dp-shape-strokeColor',this.value);dUpdateProp('strokeColor',this.value)">
-                    <input class="hex-input" id="dp-shape-strokeColor" maxlength="7" placeholder="#000000" oninput="dHexInput('dp-shape-stroke-pick','dp-shape-stroke-sw',this.value,'strokeColor')">
-                    <input class="prop-input prop-input-sm" type="number" id="dp-shape-strokeW" min="0" max="200" value="0" title="Espessura px" oninput="dUpdateProp('strokeW',this.value)">
-                    <span class="dp-unit">px</span>
-                  </div>
-                </div>
-                <div class="dp-field">
-                  <label class="dp-field-label">Alinh. traçado</label>
-                  <select class="prop-input" id="dp-shape-strokeAlign" style="font-size:11px" onchange="dUpdateProp('strokeAlign',this.value)">
-                    <option value="inside">Dentro</option><option value="center">Centro</option><option value="outside">Fora</option>
-                  </select>
-                </div>
-                <div class="dp-field">
-                  <label class="dp-field-label">Cor do campo</label>
-                  <select class="prop-input" id="dp-bind-fill" style="font-size:11px" onchange="dSetBinding('fill',this.value)"></select>
-                </div>
-                <div class="dp-field">
-                  <label class="dp-field-label">Visível se</label>
-                  <select class="prop-input" id="dp-bind-visible-shape" style="font-size:11px" onchange="dSetBinding('visible',this.value)"></select>
-                </div>
-                <div class="dp-field">
-                  <button class="d-btn-sec dp-convert-btn" onclick="dConvertLayerToFrame(dSelId)" title="Vira um espaço de foto que o franqueado preenche">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-                    Transformar em moldura de foto
+
+                <div class="dpi-group">
+                  <span class="dpi-group-title">Ações</span>
+                  <button type="button" class="dpi-action dp-convert-btn" onclick="dConvertLayerToFrame(dSelId)" title="Vira um espaço de foto que o franqueado preenche">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h13l-3-3"/><path d="M20 16H7l3 3"/></svg>
+                    <span>Transformar em moldura de foto</span>
                   </button>
                 </div>
               </div>
@@ -2796,83 +2898,89 @@ input:focus:-webkit-autofill {
   }
 </style>
 <div class="modal-overlay" id="d-newdoc-modal">
-  <div class="modal" style="max-width:680px; width:90%">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--d-border2);padding-bottom:12px">
-      <span style="font-size:18px;font-weight:bold;color:var(--d-text1)">Novo Documento</span>
-      <button onclick="document.getElementById('d-newdoc-modal').classList.remove('open')" style="background:transparent;border:none;color:var(--d-text2);font-size:20px;cursor:pointer;line-height:1;">&times;</button>
+  <!-- Markup final aqui (nao e montado em JS): tres zonas — trilha de categorias,
+       galeria de formatos e painel de resumo. O JS so liga comportamento. -->
+  <div class="modal newdoc-modal" data-enhanced="1" role="dialog" aria-modal="true" aria-labelledby="nd-title">
+    <div class="newdoc-header">
+      <span class="newdoc-title" id="nd-title">
+        <span class="newdoc-title-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M3 12h18"/></svg></span>
+        <span><strong>Novo material</strong><small>Escolha um formato para começar</small></span>
+      </span>
+      <button type="button" class="newdoc-close" onclick="dNewDocClose()" aria-label="Fechar novo material"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
     </div>
 
-    <div style="display:flex;gap:24px;min-height:360px">
-      <!-- Coluna da Esquerda: Abas e Grid de Presets -->
-      <div style="flex:1;display:flex;flex-direction:column;border-right:1px solid var(--d-border2);padding-right:24px">
-        <!-- Abas no topo -->
-        <div style="display:flex;gap:6px;border-bottom:1px solid var(--d-border2);padding-bottom:10px;margin-bottom:20px;overflow-x:auto">
-          <button type="button" class="newdoc-tab active" onclick="dNewDocSelectTab('social', this)">Redes Sociais</button>
-          <button type="button" class="newdoc-tab" onclick="dNewDocSelectTab('web', this)">Web</button>
-          <button type="button" class="newdoc-tab" onclick="dNewDocSelectTab('mobile', this)">Mobile</button>
-          <button type="button" class="newdoc-tab" onclick="dNewDocSelectTab('print', this)">Impressão</button>
-          <button type="button" class="newdoc-tab" onclick="dNewDocSelectTab('custom', this)">Custom</button>
+    <div class="newdoc-main">
+      <nav class="newdoc-rail" id="nd-rail" aria-label="Categorias de formato">
+        <button type="button" class="newdoc-tab" data-smart-tab="recent" data-cat="recent" onclick="dNewDocSelectTab('recent',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Recentes</span></button>
+        <button type="button" class="newdoc-tab" data-smart-tab="recommended" data-cat="recommended" onclick="dNewDocSelectTab('recommended',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 4 2.2 4.7 5.1.7-3.7 3.5.9 5.1-4.5-2.4-4.5 2.4.9-5.1L4.7 9.4l5.1-.7z"/></svg><span>Recomendados</span></button>
+        <span class="newdoc-rail-sep" aria-hidden="true"></span>
+        <button type="button" class="newdoc-tab" data-cat="social" onclick="dNewDocSelectTab('social',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 8h8M8 12h5"/></svg><span>Redes sociais</span></button>
+        <button type="button" class="newdoc-tab" data-cat="web" onclick="dNewDocSelectTab('web',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/></svg><span>Web</span></button>
+        <button type="button" class="newdoc-tab" data-cat="mobile" onclick="dNewDocSelectTab('mobile',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/></svg><span>Mobile</span></button>
+        <button type="button" class="newdoc-tab" data-cat="print" onclick="dNewDocSelectTab('print',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9V4h10v5"/><rect x="4" y="9" width="16" height="7" rx="2"/><path d="M7 14h10v6H7z"/></svg><span>Impressão</span></button>
+        <span class="newdoc-rail-sep" aria-hidden="true"></span>
+        <button type="button" class="newdoc-tab" data-cat="custom" onclick="dNewDocSelectTab('custom',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20 20 4"/><path d="M4 14v6h6"/><path d="M14 4h6v6"/></svg><span>Personalizado</span></button>
+      </nav>
+
+      <div class="newdoc-library">
+        <div class="newdoc-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg>
+          <input type="search" id="nd-search" class="modal-input" placeholder="Buscar formato (story, feed, A4…)" aria-label="Buscar formato" autocomplete="off" oninput="dNewDocSearch(this.value)">
         </div>
-        <!-- Grid de presets que muda conforme a aba ativa -->
-        <div id="nd-presets-container" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(110px, 1fr));gap:12px;flex:1;overflow-y:auto;max-height:400px;align-content:start;padding-right:8px;">
-          <!-- Inserido dinamicamente via JS -->
-        </div>
+        <p class="newdoc-library-caption" id="nd-library-caption">Recomendados</p>
+        <div id="nd-presets-container" class="newdoc-presets" role="listbox" aria-label="Formatos disponíveis"></div>
       </div>
 
-      <!-- Coluna da Direita: Painel de Configurações -->
-      <div style="width:220px;display:flex;flex-direction:column;gap:12px">
-        <div style="font-size:12px;font-weight:bold;color:var(--d-text2);margin-bottom:4px">Detalhes do Documento</div>
-        
-        <div>
-          <label class="modal-label" style="margin-bottom:4px;display:block">Largura</label>
-          <input class="modal-input" type="number" id="nd-w" min="1" style="width:100%" placeholder="Largura" oninput="dNewDocUpdate()">
+      <div class="newdoc-settings">
+        <div class="newdoc-block">
+          <span class="newdoc-block-title">Projeto</span>
+          <label class="newdoc-field" for="nd-name"><span>Nome</span><input class="modal-input" id="nd-name" maxlength="60" autocomplete="off" placeholder="Ex.: Campanha de inverno"></label>
+          <label class="newdoc-field" for="nd-folder"><span>Campanha</span><select class="modal-select" id="nd-folder"></select></label>
         </div>
-        
-        <div>
-          <label class="modal-label" style="margin-bottom:4px;display:block">Altura</label>
-          <div style="display:flex;gap:6px;align-items:center">
-            <input class="modal-input" type="number" id="nd-h" min="1" style="flex:1" placeholder="Altura" oninput="dNewDocUpdate()">
-            <button type="button" class="d-btn-sec" style="padding:6px 9px;height:34px;display:flex;align-items:center;justify-content:center" onclick="dNewDocSwapOrientation()" title="Inverter orientação (retrato/paisagem)">⇄</button>
+
+        <div class="newdoc-block">
+          <span class="newdoc-block-title">Tamanho</span>
+          <div class="newdoc-size">
+            <label class="newdoc-field" for="nd-w"><span>Largura</span><input class="modal-input" type="number" id="nd-w" min="1" oninput="dNewDocUpdate()"></label>
+            <span class="newdoc-size-x" aria-hidden="true">×</span>
+            <label class="newdoc-field" for="nd-h"><span>Altura</span><input class="modal-input" type="number" id="nd-h" min="1" oninput="dNewDocUpdate()"></label>
+            <label class="newdoc-field newdoc-field-unit" for="nd-unit"><span>Unidade</span><select class="modal-select" id="nd-unit" onchange="dNewDocUpdate()"><option value="px">px</option><option value="in">pol</option><option value="cm">cm</option><option value="mm">mm</option></select></label>
+          </div>
+          <div class="newdoc-orient" role="group" aria-label="Orientação">
+            <button type="button" class="newdoc-orient-btn" id="nd-orient-portrait" aria-pressed="false" onclick="dNewDocSetOrientation('portrait')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="2"/></svg><span>Retrato</span></button>
+            <button type="button" class="newdoc-orient-btn" id="nd-orient-landscape" aria-pressed="false" onclick="dNewDocSetOrientation('landscape')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><rect x="3" y="7" width="18" height="10" rx="2"/></svg><span>Paisagem</span></button>
+            <button type="button" class="newdoc-orient-btn newdoc-swap" onclick="dNewDocSwapOrientation()" aria-label="Inverter largura e altura" title="Inverter largura e altura"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="m7 7-4 4 4 4M3 11h14a4 4 0 0 0 4-4M17 17l4-4-4-4M21 13H7a4 4 0 0 0-4 4"/></svg></button>
           </div>
         </div>
 
-        <div style="display:flex;gap:8px">
-          <div style="flex:1">
-            <label class="modal-label" style="margin-bottom:4px;display:block">Unidade</label>
-            <select class="modal-select" id="nd-unit" style="width:100%" onchange="dNewDocUpdate()">
-              <option value="px">px</option>
-              <option value="in">pol</option>
-              <option value="cm">cm</option>
-              <option value="mm">mm</option>
-            </select>
-          </div>
-          <div style="flex:1">
-            <label class="modal-label" style="margin-bottom:4px;display:block">Resolução (DPI)</label>
-            <input class="modal-input" type="number" id="nd-dpi" min="1" value="72" oninput="dNewDocUpdate()">
-          </div>
-        </div>
-
-        <div>
-          <label class="modal-label" style="margin-bottom:4px;display:block">Fundo</label>
-          <div style="display:flex;gap:6px;align-items:center">
-            <select class="modal-select" id="nd-bg" style="flex:1;height:34px" onchange="dNewDocBgChange()">
-              <option value="white">Branco</option>
-              <option value="transparent">Transparente</option>
-              <option value="color">Cor…</option>
-            </select>
-            <input type="color" id="nd-bg-color" value="#FFFFFF" style="display:none;width:34px;height:34px;padding:0;border:none;background:none;cursor:pointer">
+        <div class="newdoc-block">
+          <span class="newdoc-block-title">Qualidade e fundo</span>
+          <label class="newdoc-field" for="nd-dpi"><span>Resolução (ppi)</span><input class="modal-input" type="number" id="nd-dpi" min="1" value="72" oninput="dNewDocUpdate()"></label>
+          <div class="newdoc-field">
+            <span>Fundo</span>
+            <div class="newdoc-bg" role="group" aria-label="Fundo do material">
+              <button type="button" class="newdoc-bg-btn" data-bg="white" aria-pressed="true" onclick="dNewDocSetBg('white')"><span class="newdoc-bg-chip is-white" aria-hidden="true"></span>Branco</button>
+              <button type="button" class="newdoc-bg-btn" data-bg="transparent" aria-pressed="false" onclick="dNewDocSetBg('transparent')"><span class="newdoc-bg-chip is-alpha" aria-hidden="true"></span>Transparente</button>
+              <button type="button" class="newdoc-bg-btn" data-bg="color" aria-pressed="false" onclick="dNewDocSetBg('color')"><span class="newdoc-bg-chip is-color" id="nd-bg-chip" aria-hidden="true"></span>Cor</button>
+              <input type="color" id="nd-bg-color" value="#FFFFFF" aria-label="Cor do fundo">
+              <select id="nd-bg" hidden onchange="dNewDocBgChange()"><option value="white">Branco</option><option value="transparent">Transparente</option><option value="color">Cor</option></select>
+            </div>
           </div>
         </div>
 
-        <div style="margin-top:auto;border-top:1px solid var(--d-border2);padding-top:12px">
-          <div id="nd-px-preview" style="font-size:12px;color:var(--d-text2);font-weight:bold;margin-bottom:8px">— × — px</div>
+        <div class="newdoc-preview">
+          <div class="newdoc-preview-stage" aria-hidden="true"><div id="nd-preview-sheet" class="newdoc-preview-sheet"><span></span></div></div>
+          <span class="newdoc-preview-label">Vai ser criado</span>
+          <div id="nd-px-preview" class="newdoc-preview-size">— × — px</div>
+          <p id="nd-summary" class="newdoc-summary"></p>
+          <p id="nd-validation" class="newdoc-validation" aria-live="polite"></p>
         </div>
       </div>
     </div>
 
-    <div class="modal-actions" style="margin-top:20px;border-top:1px solid var(--d-border2);padding-top:16px">
-      <button class="d-btn-sec" onclick="document.getElementById('d-newdoc-modal').classList.remove('open')">Cancelar</button>
-      <button class="d-btn-pri" onclick="dNewDocConfirm()">Criar</button>
+    <div class="modal-actions newdoc-actions">
+      <button type="button" class="d-btn-sec" onclick="dNewDocClose()">Cancelar</button>
+      <button type="button" class="d-btn-pri" id="nd-create-btn" onclick="dNewDocConfirm()"><span>Criar projeto</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
     </div>
   </div>
 </div>
@@ -2920,8 +3028,8 @@ input:focus:-webkit-autofill {
 <script src="js/designer/selection.js"></script>
 <script src="js/designer/brush.js"></script>
 <script src="js/designer/eraser-tools.js"></script>
-<script src="js/designer/layers.js"></script>
-<script src="js/designer/props-panel.js"></script>
+<script src="js/designer/layers.js?v=2"></script>
+<script src="js/designer/props-panel.js?v=2"></script>
 <script src="js/designer/measurement.js"></script>
 <script src="js/designer/publish.js"></script>
 <script src="js/designer/preview.js"></script>

@@ -373,8 +373,6 @@ function fRenderMaterialCatalog(camp, container){
     if(typeof fMarkCampSeen==='function') fMarkCampSeen(camp.id);
     return;
   }
-  const fmtLabels={story:'Story',feed:'Feed',wide:'Post wide',post:'Post wide'};
-  const formats=[...new Set(validMat.map(m=>fmtLabels[m.fmt]||'Story'))];
   container.innerHTML=`
     <div class="f-mat-shell">
       <header class="f-mat-hero">
@@ -385,10 +383,6 @@ function fRenderMaterialCatalog(camp, container){
           <div class="f-mat-breadcrumb">Catálogo <span aria-hidden="true">/</span> Campanha</div>
           <h1 class="f-mat-camp-name">${gEsc(camp.name)}</h1>
           <p class="f-mat-camp-sub">Escolha o formato ideal. Depois, o Luma guia você na personalização.</p>
-          <div class="f-mat-summary" aria-label="Resumo da campanha">
-            <span class="f-mat-count"><strong>${validMat.length}</strong> ${validMat.length>1?'materiais':'material'}</span>
-            ${formats.map(fmt=>`<span class="f-mat-summary-chip">${gEsc(fmt)}</span>`).join('')}
-          </div>
         </div>
         <div class="f-mat-hero-mark" aria-hidden="true">
           <span></span><span></span><span></span>

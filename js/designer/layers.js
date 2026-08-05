@@ -344,7 +344,14 @@ function dStopResize(){
 // 1080x1920 quando a prancheta tem outro tamanho (ex.: PSD importado) e evita TypeError
 // quando dFmt não está em DFMT_SIZES (ex.: 'orig'). Mesmo padrão de canvas.js/brush.js.
 function dCanvasSize(){ const ab=(typeof dGetActiveAB==='function')&&dGetActiveAB(); return ab?{w:ab.w,h:ab.h}:(DFMT_SIZES[dFmt]||DFMT_SIZES.story); }
-function dAddText(){const f=dCanvasSize();dAddTextAt(20,Math.round(f.h/2));}
+function dAddText(){
+  const f = dCanvasSize();
+  const tw = 240;
+  const th = 50;
+  const cx = Math.round((f.w - tw) / 2);
+  const cy = Math.round((f.h - th) / 2);
+  dAddTextAt(cx, cy, false, tw, th);
+}
 function dAddShape(){dAddShapeAt(40,40);}
 function dAddImage(){dAddImageAt(40,100);}
 function dAddTextAt(x,y,vertical,w,h){
@@ -369,12 +376,12 @@ function dAddTextAt(x,y,vertical,w,h){
     type: 'text',
     x,
     y,
-    w: w || (isVert ? 50 : 200),
-    h: h || (isVert ? 200 : 50),
-    content: 'Novo texto {{variavel}}',
+    w: w || (isVert ? 50 : 240),
+    h: h || (isVert ? 240 : 50),
+    content: 'Novo texto',
     font: "'Roboto Black'",
     fontSize: 32,
-    color: '#FFFFFF',
+    color: '#000000',
     textAlign: 'left',
     visible: true
   };
@@ -402,6 +409,112 @@ function dAddImageAt(x,y,w,h){  dHistoryPush();
   dLayers.push({id,name:'Imagem '+dLyrCnt,type:'image',x,y,w:w||120,h:h||120,imgUrl:'',imgVar:'',objectFit:'cover',visible:true});
   dSelLayerState(id);dRenderCanvas();dRenderLayersList();dStats();dMarkUnsaved();dSetTool('select');gToast('Camada de imagem adicionada');
   setTimeout(()=>dFlashLayer(id),30);
+}
+
+function dAddImageFromFile(file, x, y) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const dataUrl = e.target.result;
+    const img = new Image();
+    img.onload = function() {
+      if (typeof dHistoryPush === 'function') dHistoryPush();
+      
+      const f = typeof dCanvasSize === 'function' ? dCanvasSize() : { w: 1080, h: 1920 };
+      let nw = img.naturalWidth || 300;
+      let nh = img.naturalHeight || 300;
+      
+      const maxW = Math.round(f.w * 0.65);
+      const maxH = Math.round(f.h * 0.65);
+      let w = nw;
+      let h = nh;
+      if (w > maxW || h > maxH) {
+        const ratio = Math.min(maxW / w, maxH / h);
+        w = Math.round(w * ratio);
+        h = Math.round(h * ratio);
+      }
+      
+      const px = (typeof x === 'number' && !isNaN(x)) ? Math.round(x - w / 2) : Math.round((f.w - w) / 2);
+      const py = (typeof y === 'number' && !isNaN(y)) ? Math.round(y - h / 2) : Math.round((f.h - h) / 2);
+
+      const id = 'l-' + (++dLyrCnt);
+      const cleanName = (file.name || 'Objeto Inteligente').replace(/\.[^/.]+$/, '').trim();
+      const layer = {
+        id,
+        name: cleanName || ('Imagem ' + dLyrCnt),
+        type: 'image',
+        x: Math.max(0, px),
+        y: Math.max(0, py),
+        w,
+        h,
+        imgUrl: dataUrl,
+        imgVar: '',
+        objectFit: 'contain',
+        visible: true
+      };
+
+      if (typeof dLayers !== 'undefined') dLayers.push(layer);
+      if (typeof dSelLayerState === 'function') dSelLayerState(id);
+      if (typeof dRenderCanvas === 'function') dRenderCanvas();
+      if (typeof dRenderLayersList === 'function') dRenderLayersList();
+      if (typeof dStats === 'function') dStats();
+      if (typeof dMarkUnsaved === 'function') dMarkUnsaved();
+      if (typeof dSetTool === 'function') dSetTool('select');
+      if (typeof gToast === 'function') gToast(`Objeto inteligente "${layer.name}" adicionado`);
+      if (typeof dFlashLayer === 'function') setTimeout(() => dFlashLayer(id), 30);
+    };
+    img.src = dataUrl;
+  };
+  reader.readAsDataURL(file);
+}
+
+function dAddImageFromUrl(url, x, y, title) {
+  if (!url) return;
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = function() {
+    if (typeof dHistoryPush === 'function') dHistoryPush();
+    const f = typeof dCanvasSize === 'function' ? dCanvasSize() : { w: 1080, h: 1920 };
+    let nw = img.naturalWidth || 300;
+    let nh = img.naturalHeight || 300;
+    const maxW = Math.round(f.w * 0.65);
+    const maxH = Math.round(f.h * 0.65);
+    let w = nw;
+    let h = nh;
+    if (w > maxW || h > maxH) {
+      const ratio = Math.min(maxW / w, maxH / h);
+      w = Math.round(w * ratio);
+      h = Math.round(h * ratio);
+    }
+    const px = (typeof x === 'number' && !isNaN(x)) ? Math.round(x - w / 2) : Math.round((f.w - w) / 2);
+    const py = (typeof y === 'number' && !isNaN(y)) ? Math.round(y - h / 2) : Math.round((f.h - h) / 2);
+
+    const id = 'l-' + (++dLyrCnt);
+    const layer = {
+      id,
+      name: title || ('Objeto Inteligente ' + dLyrCnt),
+      type: 'image',
+      x: Math.max(0, px),
+      y: Math.max(0, py),
+      w,
+      h,
+      imgUrl: url,
+      imgVar: '',
+      objectFit: 'contain',
+      visible: true
+    };
+
+    if (typeof dLayers !== 'undefined') dLayers.push(layer);
+    if (typeof dSelLayerState === 'function') dSelLayerState(id);
+    if (typeof dRenderCanvas === 'function') dRenderCanvas();
+    if (typeof dRenderLayersList === 'function') dRenderLayersList();
+    if (typeof dStats === 'function') dStats();
+    if (typeof dMarkUnsaved === 'function') dMarkUnsaved();
+    if (typeof dSetTool === 'function') dSetTool('select');
+    if (typeof gToast === 'function') gToast('Objeto inteligente adicionado');
+    if (typeof dFlashLayer === 'function') setTimeout(() => dFlashLayer(id), 30);
+  };
+  img.src = url;
 }
 function dAddFrame(){const f=dCanvasSize();dAddFrameAt(Math.round(f.w*.05),Math.round(f.h*.04));}
 function dAddFrameAt(x,y,w,h){  dHistoryPush();
@@ -1148,7 +1261,7 @@ function dShowProps(l){
     // Cantos por canto + traçado (reaplicado)
     const _cr=dCornerRadii(l);
     ['tl','tr','br','bl'].forEach(k=>{ const el=document.getElementById('dp-corner-'+k); if(el)el.value=_cr[k]; });
-    dCornerLinked=!l.radii; const _lk=document.getElementById('dp-corner-link'); if(_lk){ _lk.classList.toggle('active',dCornerLinked); _lk.textContent=dCornerLinked?'🔗':'🔓'; }
+    dCornerLinked=!l.radii; dSyncCornerLinkUI();
     const _swEl=document.getElementById('dp-shape-strokeW'); if(_swEl)_swEl.value=l.strokeW||0;
     const _scHex=document.getElementById('dp-shape-strokeColor'); if(_scHex)_scHex.value=(l.strokeColor||'#000000').toUpperCase();
     const _scSw=document.getElementById('dp-shape-stroke-sw'); if(_scSw)_scSw.style.background=l.strokeColor||'#000000';
@@ -1189,27 +1302,31 @@ function dShowProps(l){
       const fsEl=document.getElementById('dp-frame-shape');
       if(fsEl)fsEl.value=l.frameShape||'rect';
       const frEl=document.getElementById('dp-frame-radius');
-      if(frEl)frEl.value=l.radius||8;
+      if(frEl)frEl.value=l.radius!=null?l.radius:8;
+      if(typeof dPropSyncFrameShape==='function')dPropSyncFrameShape();
     }
     // Botão de conversão: frame → forma; imagem → moldura de foto.
     const cvBtn=document.getElementById('dp-convert-frame-btn');
     if(cvBtn){
       cvBtn.style.display='';
+      // Ícone de conversão (setas), não um quadrado — quadrado lia como checkbox e isto
+      // é AÇÃO (troca o tipo da camada), não um liga/desliga.
+      const cvIco='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h13l-3-3"/><path d="M20 16H7l3 3"/></svg>';
       if(l.type==='frame'){
-        cvBtn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg> Transformar em forma';
+        cvBtn.innerHTML=cvIco+'<span>Transformar em forma</span>';
         cvBtn.onclick=()=>dConvertLayerToShape(l.id);
       } else {
-        cvBtn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg> Transformar em moldura de foto';
+        cvBtn.innerHTML=cvIco+'<span>Transformar em moldura de foto</span>';
         cvBtn.onclick=()=>dConvertLayerToFrame(l.id);
       }
     }
     // Botão de upload direto no painel
     const upPanelBtn=document.getElementById('dp-frame-upload');
     if(upPanelBtn){
-      upPanelBtn.style.display=l.type==='frame'?'block':'none';
+      upPanelBtn.style.display=l.type==='frame'?'':'none';
       upPanelBtn.onclick=()=>{
         const inp=document.createElement('input');inp.type='file';inp.accept='image/*';
-        inp.onchange=ev=>{const file=ev.target.files[0];if(!file)return;const r=new FileReader();r.onload=re=>{l.imgUrl=re.result;dRenderCanvas();dMarkUnsaved();document.getElementById('dp-imgurl').value='[arquivo local]';gToast('✓ Foto carregada!');};r.readAsDataURL(file);};
+        inp.onchange=ev=>{const file=ev.target.files[0];if(!file)return;const r=new FileReader();r.onload=re=>{l.imgUrl=re.result;dRenderCanvas();dMarkUnsaved();document.getElementById('dp-imgurl').value='[arquivo local]';if(typeof dPropSyncImageSource==='function')dPropSyncImageSource();gToast('✓ Foto carregada!');};r.readAsDataURL(file);};
         inp.click();
       };
     }
@@ -1697,7 +1814,12 @@ function dRenderDadoControl(l){
   const emb=(!v)?dLayerEmbeddedFields(l):[];
   box.classList.toggle('bound', !!v||emb.length>0);
   if(!v && emb.length){
-    let h='<div class="dp-dado-lbl"><span class="hl">◆ '+(emb.length===1?'Dado neste texto':emb.length+' dados neste texto')+'</span></div>';
+    // Cabeçalho compacto: o QUE é (campos dinâmicos), QUANTOS são e a explicação
+    // em tooltip — o parágrafo fixo que existia aqui repetia a mesma frase toda edição.
+    let h='<div class="dp-dado-lbl dpi-dado-head"><span class="hl">Campos dinâmicos</span>'
+      +'<span class="dpi-dado-count">'+emb.length+'</span>'
+      +'<button type="button" class="dpi-dado-help" aria-label="Como funcionam os campos dinâmicos" title="Este texto mistura conteúdo fixo com dados. O exemplo de cada campo aparece no lugar do dado — aqui e no chat do franqueado."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.2 2.4c-.6.2-.7.7-.7 1.3"/><path d="M12 16.6h.01"/></svg></button>'
+      +'</div>';
     let warnRS=false;
     emb.forEach(name=>{
       const ev=dVars.find(x=>x.name===name);
@@ -1713,7 +1835,6 @@ function dRenderDadoControl(l){
       if(ev&&ev.type==='currency'&&new RegExp('R\\$\\s*\\{\\{\\s*'+name+'\\s*\\}\\}','i').test(l.content||'')) warnRS=true;
     });
     if(warnRS) h+='<div class="dp-dado-warn">⚠ Campo de preço já sai formatado com “R$” — apague o “R$” escrito no texto para não sair “R$ R$ 9,90”.</div>';
-    h+='<div class="dp-dado-ex-hint">Este texto mistura conteúdo fixo com dados. O exemplo de cada campo aparece no lugar do dado — aqui e no chat do franqueado.</div>';
     box.innerHTML=h;
     return;
   }
@@ -1852,10 +1973,23 @@ function dCornerRadii(l){
   return { tl:u, tr:u, br:u, bl:u };
 }
 let dCornerLinked=true; // cadeado: edição replica nos 4 cantos (= raio uniforme)
+// Estado do vínculo em um lugar só: ícone SVG (não emoji), rótulo escrito e aria-pressed —
+// o cadeado sozinho não dizia se estava ligado ou desligado.
+function dSyncCornerLinkUI(){
+  const b=document.getElementById('dp-corner-link'); if(!b) return;
+  const on=dCornerLinked;
+  b.classList.toggle('is-on',on);
+  b.classList.toggle('active',on);
+  b.setAttribute('aria-pressed',String(on));
+  b.title=on?'Cantos vinculados: um valor vale pelos quatro':'Cantos independentes: cada canto tem seu valor';
+  b.innerHTML=(on
+    ?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.2"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.2-1.2"/></svg>'
+    :'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 14.5 4.8 19.2a3.5 3.5 0 0 1-4.6-5.2"/><path d="M14.5 9.5 19.2 4.8"/><path d="M8 5.5 5.5 8"/><path d="M16 18.5 18.5 16"/></svg>')
+    +'<span>'+(on?'Vinculados':'Independentes')+'</span>';
+}
 function dToggleCornerLink(){
   dCornerLinked=!dCornerLinked;
-  const b=document.getElementById('dp-corner-link');
-  if(b){ b.classList.toggle('active',dCornerLinked); b.textContent=dCornerLinked?'🔗':'🔓'; }
+  dSyncCornerLinkUI();
 }
 function dSetCorner(which,val){
   const l=dLayers.find(x=>x.id===dSelId); if(!l)return;
@@ -3411,7 +3545,8 @@ function dRenameLayer(id, e){
 let dCheatLastTrigger=null,dCheatCategory='all';
 
 function dCheatNormalize(value){
-  return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+  let str = String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+  return str.replace(/⌘|command|cmd/g, 'ctrl cmd ⌘');
 }
 
 function dCheatEnhance(){
@@ -3421,6 +3556,24 @@ function dCheatEnhance(){
   const box=modal.querySelector('.cheat-box'),head=modal.querySelector('.cheat-head'),body=modal.querySelector('.cheat-body');
   if(!box||!head||!body)return;
   body.id='d-cheat-body';
+
+  const isApple = /Mac|iPod|iPhone|iPad/.test(navigator.platform || '') ||
+                  /Macintosh|Mac OS X/.test(navigator.userAgent || '') ||
+                  (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent || ''));
+
+  if (isApple) {
+    modal.classList.add('is-mac');
+    modal.querySelectorAll('.cheat-keys kbd').forEach(kbd => {
+      const txt = kbd.textContent.trim();
+      if (txt === 'Ctrl') {
+        kbd.textContent = '⌘';
+        kbd.title = 'Command (Cmd)';
+      } else if (txt === 'Alt') {
+        kbd.textContent = '⌥';
+        kbd.title = 'Option';
+      }
+    });
+  }
 
   const close=modal.querySelector('.pv-close-btn');
   if(close){
@@ -3463,8 +3616,21 @@ function dCheatEnhance(){
   input.addEventListener('input',dCheatFilter);
   clear.addEventListener('click',()=>{input.value='';dCheatFilter();input.focus();});
   const foot=modal.querySelector('.cheat-foot');
-  if(foot&&!foot.querySelector('[data-cheat-search-hint]')){
-    const hint=document.createElement('span');hint.dataset.cheatSearchHint='1';hint.innerHTML='<kbd>/</kbd> buscar';foot.appendChild(hint);
+  if(foot){
+    if(!foot.querySelector('.cheat-os-tag')){
+      const osTag=document.createElement('span');
+      osTag.className='cheat-os-tag';
+      osTag.style.cssText='display:inline-flex;align-items:center;gap:4px;opacity:0.85;font-weight:600;';
+      if(isApple){
+        osTag.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:-1px;"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.6c.64-.78 1.08-1.85.96-2.93-.93.04-2.06.62-2.73 1.4-.6.69-1.12 1.78-.98 2.84 1.04.08 2.11-.53 2.75-1.31z"/></svg> macOS (⌘)';
+      }else{
+        osTag.innerHTML='💻 Windows / Linux (Ctrl)';
+      }
+      foot.insertBefore(osTag,foot.firstChild);
+    }
+    if(!foot.querySelector('[data-cheat-search-hint]')){
+      const hint=document.createElement('span');hint.dataset.cheatSearchHint='1';hint.innerHTML='<kbd>/</kbd> buscar';foot.appendChild(hint);
+    }
   }
 }
 

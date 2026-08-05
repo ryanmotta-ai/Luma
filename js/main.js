@@ -54,6 +54,15 @@ function _gHideNoModuleView(){
   if(el) el.remove();
 }
 
+// Clique na logo do topbar: sempre volta pra home do app (Franqueado > Catálogo),
+// saindo de qualquer aba/estado em que a pessoa esteja.
+function gGoHome(){
+  setMode('franqueado');
+  const btnCatalogo = document.querySelector('.f-tab[data-feature="franqueado.catalogo"]');
+  if(typeof fSwitchTab==='function') fSwitchTab('catalogo', btnCatalogo);
+  if(typeof fMobileBackToCatalog==='function') fMobileBackToCatalog();
+}
+
 function setMode(m){
   if(m!=='franqueado' && m!=='designer' && m!=='academia') m='franqueado';
   // Gate por role: franqueado NÃO acessa o Estúdio (trava no clique e via DOM/console).
