@@ -764,7 +764,7 @@ body:not(.theme-light) .prof-role-picker-opt-equipe_dm .prof-role-picker-opt-ico
 @media(max-width:768px){
   .g-profile-modal{padding:0;align-items:stretch;justify-content:stretch}
   .prof-box{width:100%;max-width:none;height:100dvh;min-height:0;border:0;border-radius:0;flex-direction:column}
-  .prof-sidebar{width:100%;flex:0 0 auto;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;padding:calc(10px + var(--safe-top)) 14px 10px;border-right:0;border-bottom:1px solid var(--prof-border)}
+  .prof-sidebar{width:100% !important;flex:0 0 auto !important;flex-basis:auto !important;height:auto !important;min-height:0 !important;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;padding:calc(10px + var(--safe-top)) 14px 10px;border-right:0;border-bottom:1px solid var(--prof-border)}
   .prof-brand{grid-column:1;padding:0;border-bottom:0}
   .prof-brand-mark{width:32px;height:32px}
   .prof-brand-mark svg{width:19px;height:19px}
@@ -1031,12 +1031,12 @@ body:not(.theme-light) .prof-role-picker-opt-equipe_dm .prof-role-picker-opt-ico
   .g-profile-modal{padding:0}
   .prof-box{width:100%;height:100dvh;min-height:0;border-radius:0}
   .prof-box::before{position:fixed}
-  .prof-sidebar{width:100%;padding:calc(10px + var(--safe-top)) 12px 9px;background:var(--prof-surface)}
+  .prof-sidebar{width:100% !important;flex:0 0 auto !important;flex-basis:auto !important;height:auto !important;min-height:0 !important;padding:calc(10px + var(--safe-top)) 12px 9px;background:var(--prof-surface)}
   .prof-brand-mark{width:34px;height:34px;box-shadow:none}
-  .prof-nav-btn{min-height:40px;padding-inline:11px}
+  .prof-nav-btn{min-height:38px;padding-inline:11px}
   .prof-nav-btn:hover{transform:none}
   .prof-nav-btn.active::before{left:11px;right:11px;top:auto;bottom:-1px;width:auto;height:3px}
-  .prof-header{min-height:88px;padding:15px 18px}
+  .prof-header{min-height:72px;padding:14px 16px}
   .prof-body{padding:18px 14px calc(26px + var(--safe-bottom))}
   .prof-avatar-edit-box{padding:16px}
   .prof-data-surface>.prof-grid,.prof-security-form>.prof-grid{padding:18px}

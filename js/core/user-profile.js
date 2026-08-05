@@ -187,33 +187,54 @@ function gProfileTriggerUpload() {
   if (fileInput) fileInput.click();
 }
 
-// Lida com o upload e conversão da imagem para Base64
+// Lida com o upload, redimensionamento automático e conversão da imagem
 function gProfileHandleUpload(input) {
   if (!input.files || !input.files[0]) return;
   const file = input.files[0];
 
-  // Validação simples de tamanho (máximo 1MB para localStorage)
-  if (file.size > 1024 * 1024) {
-    // Feedback é SEMPRE gToast (regra da casa). O alert() daqui era fallback morto —
-    // toast.js carrega antes deste arquivo, então gToast nunca falta. Erro diz o que fazer.
-    gToast('⚠ Foto acima de 1MB — escolha uma imagem menor.', 'error');
+  // Limite generoso (15MB) para suportar fotos originais de câmera mobile/desktop
+  if (file.size > 15 * 1024 * 1024) {
+    if (typeof gToast === 'function') gToast('⚠ Imagem muito grande — escolha uma foto de até 15MB.', 'error');
     return;
   }
 
   const reader = new FileReader();
   reader.onload = function(e) {
-    const base64Image = e.target.result;
-    const user = gCurrentUser();
-    const email = user ? user.email : 'ryan@deliverymuch.com.br';
+    const img = new Image();
+    img.onload = function() {
+      // Redimensiona e centraliza em canvas 512x512 (retina-ready e leve para o localStorage)
+      const canvas = document.createElement('canvas');
+      const size = 512;
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
 
-    // Salvar no localStorage
-    localStorage.setItem('__luma_user_photo_' + email, base64Image);
+      const minDim = Math.min(img.width, img.height);
+      const sx = (img.width - minDim) / 2;
+      const sy = (img.height - minDim) / 2;
 
-    // Atualizar visual da Topbar e do Modal instantaneamente
-    if (typeof gUpdateUserTopbar === 'function') gUpdateUserTopbar();
-    gProfileUpdateModalAvatars(user ? user.displayName : 'Ryan', email);
-    
-    if (typeof gToast === 'function') gToast('📸 Foto de perfil atualizada!');
+      ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, size, size);
+
+      // Comprime para JPEG de alta qualidade (~45KB no final)
+      const base64Image = canvas.toDataURL('image/jpeg', 0.88);
+      const user = gCurrentUser();
+      const email = user ? user.email : 'ryan@deliverymuch.com.br';
+
+      // Salvar no localStorage com tratamento de exceção
+      try {
+        localStorage.setItem('__luma_user_photo_' + email, base64Image);
+      } catch (err) {}
+
+      // Atualizar visual da Topbar e do Modal instantaneamente
+      if (typeof gUpdateUserTopbar === 'function') gUpdateUserTopbar();
+      gProfileUpdateModalAvatars(user ? user.displayName : 'Ryan', email);
+      
+      if (typeof gToast === 'function') gToast('📸 Foto de perfil atualizada!');
+    };
+    img.onerror = function() {
+      if (typeof gToast === 'function') gToast('⚠ Não foi possível processar a imagem selecionada.', 'error');
+    };
+    img.src = e.target.result;
   };
   reader.readAsDataURL(file);
 }
