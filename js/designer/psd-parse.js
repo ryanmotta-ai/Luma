@@ -753,7 +753,12 @@ function _dPsdSuggestImgVar(name){
   if(/logo|logomarca|marca|brand|logotipo/i.test(clean) || /logo|logomarca|marca|brand|logotipo/i.test(sing)){
     return {name:'logo_loja', mode:'frame'};
   }
-  if(/foto|imagem|img|photo|picture|pic|product|prod|banner|campanha|fundo|background|bg/i.test(clean) || /foto|imagem|img|photo|picture|pic|product|prod|banner|campanha|fundo|background|bg/i.test(sing)){
+  // ⛔ "fundo"/"background"/"bg" ficaram FORA de propósito: o fundo é a arte, não um espaço de
+  // foto. Ligá-lo em `foto_produto` fazia a foto do produto cobrir o fundo do designer (e, numa
+  // forma de cor sólida, a cor sumia de vez). O designer marca "Moldura de foto" na revisão se
+  // quiser — o que não pode é o padrão destruir o fundo.
+  const _fotoRe=/foto|imagem|img|photo|picture|pic|product|prod|banner|campanha/i;
+  if(_fotoRe.test(clean) || _fotoRe.test(sing)){
     return {name:'foto_produto', mode:'frame'};
   }
   return null;
@@ -1571,7 +1576,11 @@ function dItemToLayer(it){
   // Modo MOLDURA DE FOTO (escolhido na revisão): a camada — forma ou imagem — vira um frame que o
   // franqueado preenche com foto. Preserva x/y/w/h; formato do frame herdado da forma original.
   if(it.mode==='frame'){
-    const F=Object.assign(base,{type:'frame', imgUrl:'', imgVar:it.varName||'foto_produto', objectFit:'cover', shapeKind:it.shapeKind||'rect'});
+    // imgUrl da própria camada como conteúdo PADRÃO da moldura: o renderizador do franqueado e o
+    // do editor caem em l.imgUrl quando não há foto no campo (png-generator.js:708, canvas.js:1212),
+    // então a arte do PSD continua aparecendo e a foto do franqueado só a SUBSTITUI. Antes a
+    // moldura nascia vazia e virar moldura APAGAVA a imagem importada — perda silenciosa.
+    const F=Object.assign(base,{type:'frame', imgUrl:it.imgUrl||'', imgVar:it.varName||'foto_produto', objectFit:'cover', shapeKind:it.shapeKind||'rect'});
     if(it.radius) F.radius=it.radius;
     if(it.radii) F.radii=it.radii;
     if(it.points) F.points=it.points;

@@ -402,13 +402,17 @@ Wizard em três etapas: **Qualidade** (linter + materiais), **Configuração** (
 
 Modal multi-formato (Story/Feed/Wide sem distorção via smart resize), shells de dispositivo, export PNG/JPEG 1–3×, **export SVG** com fontes embutidas (com `{{vars}}` ou preenchido), checklist de publicação.
 
-### Import PSD (`psd-import.js`)
+### Import PSD (`psd-parse.js` + `psd-import.js`)
+
+Dois arquivos, uma responsabilidade cada: **`psd-parse.js` lê** (ag-psd, worker, camada → item intermediário, `dItemToLayer`) e **`psd-import.js` revisa/importa** (modal, abas de prancheta, prévia, relatório de fidelidade, criação dos templates). `psd-import.js` carrega DEPOIS, então **função de parse definida lá sobrescreve a de `psd-parse.js` em silêncio** — foi o que aconteceu de 29/07 a 05/08/2026 (36 funções duplicadas; o parse refinado ficou inteiro sem efeito). Leitura muda só em `psd-parse.js`.
 
 ag-psd vendorizado + Web Worker (prazo ~1s/MB, teto 10min, renovado a cada sinal de progresso; abaixo de 150MB o buffer vai duplicado e há fallback main-thread, acima ele é transferido e o worker é o único caminho). Fluxo: validação (máx 500MB, `.psd`/`.psb`) → parse → **uma única tela de revisão**: multi-prancheta vira abas dentro dela (cada prancheta com suas próprias decisões, formato e destino; parse sob demanda) e um só "Importar" cria um template rascunho por prancheta; prancheta única cria a prancheta no editor. Por camada: Texto editável / Campo `{{}}` / Cor / Moldura de foto / Imagem fiel, com auto-criação de campos e reflow.
 
 **Fidelidade:** cor e forma exatas do vetor (`vectorFill`/`keyOriginType`), gradiente linear/radial/refletido (cônico e losango rasterizam), sombra projetada/interna, brilho externo/interno, chanfro, sobreposição de cor e gradiente, contorno com alinhamento e tracejado, luz global do documento, `fontSize` por DPI + caixa de parágrafo 1:1, auto-entrelinha do PS, máscaras compostas (camada + clipping + vetorial + grupos-pai) em resolução adaptativa (700–1400px), opacidade e mesclagem de grupo herdadas, remap de fontes com upload na hora, heurística de z-order, relatório de fidelidade por diff de pixel contra o composto do Photoshop.
 
-**Viram imagem fiel** (visual 1:1, sem edição): smart object, camada de ajuste, padrão, rotação, espelho/180°, texto em curva, texto com warp, e combinações de efeito que o modelo não representa. **Perdas avisadas na revisão:** cetim, contorno customizado de efeito, escala de efeitos ≠100%, traço com gradiente/padrão, texto justificado (entra alinhado pela última linha), estilos mistos de texto. Raster de fidelidade a 2400px/q0.92; raster comum a 1600px/q0.82.
+**Viram imagem fiel** (visual 1:1, sem edição): smart object, camada de ajuste, padrão, rotação, espelho/180°, texto em curva, texto com warp, e combinações de efeito que o modelo não representa. **Perdas avisadas na revisão:** cetim, contorno customizado de efeito, escala de efeitos ≠100%, traço com gradiente/padrão, texto justificado (entra alinhado pela última linha), estilos mistos de texto.
+
+**Resolução de raster:** teto adaptativo à prancheta — comum `min(3200, max(1600, 2×maiorLado))` a q0.82; o de fidelidade (única fonte do visual) nunca abaixo de 2400px, a q0.92. **Moldura de foto** nasce com a arte importada em `imgUrl`: a foto do franqueado a substitui, não é mais um espaço vazio. Nome de camada com `fundo`/`background`/`bg` **não** vira moldura (o fundo é a arte; o designer promove na revisão se quiser).
 
 ### Import SVG (`templates.js`)
 
