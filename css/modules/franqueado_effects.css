@@ -242,20 +242,21 @@
     stroke-width: 2px;
   }
 
-  /* A prévia é uma mesa de prova quase inteira, não uma gaveta comprimida. */
+  /* A prévia é uma mesa de prova inteira, posicionada logo abaixo da topbar global. */
   #f-live-preview {
     display: flex !important;
     position: fixed;
     left: 0;
     right: 0;
     bottom: 0;
-    height: calc(100dvh - 24px);
-    max-height: calc(100dvh - 24px);
+    top: calc(52px + var(--safe-top));
+    height: calc(100dvh - 52px - var(--safe-top));
+    max-height: calc(100dvh - 52px - var(--safe-top));
     width: 100% !important;
     background: var(--white);
     border: 1px solid var(--gray-light);
     border-bottom: 0;
-    border-radius: 20px 20px 0 0;
+    border-radius: 16px 16px 0 0;
     z-index: 1200;
     box-shadow: 0 -18px 60px rgba(0, 0, 0, 0.22);
     transform: translateY(100%);
