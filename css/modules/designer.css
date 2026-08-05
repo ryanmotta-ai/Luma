@@ -2225,10 +2225,64 @@ body.theme-light .dp-dado-ex {
 .psd-modal .psd-rows-panel{padding:18px 18px 0;gap:10px;background:var(--d-surf)}
 .psd-layers-heading{padding-inline:2px}
 .psd-auto-label{padding:5px 8px;border:1px solid var(--d-border);border-radius:var(--r-pill);background:var(--d-surf2)}
-.psd-guidance{display:flex;align-items:flex-start;gap:9px;padding:9px 11px;border:1px solid rgba(255,144,0,.2);border-radius:10px;background:rgba(255,144,0,.065);color:var(--d-text2)}
-.psd-guidance svg{width:16px;height:16px;flex:0 0 auto;margin-top:1px;color:var(--dm-orange)}
-.psd-guidance p{margin:0;font-size:9.5px;line-height:1.45;color:var(--d-text3)}
-.psd-guidance strong{color:var(--d-text2);font-weight:700}
+/* ── Trilha de campos: mapeamento campo → camada por arrasto ──
+   Substituiu o bloco .psd-guidance (dica em prosa) no mesmo lugar da coluna de camadas. */
+.psd-fieldbar{display:flex;flex-direction:column;gap:8px;padding:9px 11px 8px;border:1px solid rgba(255,144,0,.2);border-radius:10px;background:rgba(255,144,0,.065)}
+.psd-fieldbar-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.psd-fieldbar-copy{display:flex;align-items:flex-start;gap:9px;min-width:0}
+.psd-fieldbar-copy svg{width:16px;height:16px;flex:0 0 auto;margin-top:1px;color:var(--dm-orange)}
+.psd-fieldbar-copy strong{display:block;font-size:10.5px;font-weight:700;color:var(--d-text2)}
+.psd-fieldbar-copy small{display:block;margin-top:1px;font-size:9px;color:var(--d-text3);font-variant-numeric:tabular-nums}
+.psd-sug-all{flex:0 0 auto;border-color:var(--dm-orange);color:var(--dm-orange);background:rgba(255,144,0,.1)}
+.psd-sug-all:hover{background:rgba(255,144,0,.2)}
+/* Rolagem horizontal: catálogo grande não pode empurrar a lista de camadas pra fora da tela. */
+.psd-fields{display:flex;align-items:center;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:thin}
+.psd-fields-empty{margin:0;font-size:9.5px;line-height:1.45;color:var(--d-text3)}
+.psd-field-chip{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;max-width:190px;
+  padding:5px 10px;border:1px solid var(--d-border2);border-radius:var(--r-pill);
+  background:var(--d-surf);color:var(--d-text2);cursor:grab;font-family:'Roboto',sans-serif;
+  transition:border-color var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard),
+    background var(--dur-micro) var(--ease-standard),transform var(--dur-micro) var(--ease-standard)}
+.psd-field-chip strong{font-size:10.5px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.psd-field-chip .psd-field-ico{display:flex;flex:0 0 auto;color:var(--d-text3)}
+.psd-field-chip .psd-field-ico svg{width:12px;height:12px}
+.psd-field-count{min-width:15px;height:15px;padding:0 4px;display:grid;place-items:center;flex:0 0 auto;
+  border-radius:var(--r-pill);background:var(--d-surf3);color:var(--d-text3);
+  font-size:8.5px;font-weight:800;font-variant-numeric:tabular-nums}
+.psd-field-chip:hover{border-color:var(--dm-orange);color:var(--d-text);transform:translateY(-1px)}
+.psd-field-chip:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+/* Campo JÁ com camada usa a linguagem de cor de campo (--var-*); campo sem camada fica
+   tracejado — é o "falta ligar" que só aparecia depois de importar. */
+.psd-field-chip.is-used{background:var(--var-bg);border-color:var(--var-color);color:var(--var-color)}
+.psd-field-chip.is-used .psd-field-ico,.psd-field-chip.is-used .psd-field-count{color:var(--var-color)}
+.psd-field-chip.is-used .psd-field-count{background:var(--var-bg)}
+.psd-field-chip.is-free{border-style:dashed}
+.psd-field-chip[aria-pressed="true"]{background:var(--dm-orange);border-color:var(--dm-orange);color:var(--d-dark);cursor:copy}
+.psd-field-chip[aria-pressed="true"] .psd-field-ico,.psd-field-chip[aria-pressed="true"] .psd-field-count{color:var(--d-dark)}
+.psd-field-chip[aria-pressed="true"] .psd-field-count{background:rgba(0,0,0,.14)}
+.psd-field-chip.is-dragging{opacity:.45;cursor:grabbing}
+.psd-map-live{margin:0;min-height:11px;font-size:9px;line-height:1.3;color:var(--dm-orange)}
+
+/* Estado de arrasto/mira: as linhas mostram que são alvo, e a arte também. */
+#d-psd-modal.psd-mapping .psd-row{border-style:dashed}
+#d-psd-modal.psd-arming .psd-row,#d-psd-modal.psd-arming .psd-preview-canvases{cursor:copy}
+.psd-row.is-drop{border-color:var(--dm-orange)!important;border-style:solid!important;background:rgba(255,144,0,.12)!important;box-shadow:0 0 0 2px rgba(255,144,0,.22)}
+.psd-row.is-drop-bad{border-color:var(--dm-red)!important;border-style:solid!important;background:color-mix(in srgb,var(--dm-red) 10%,transparent)!important;cursor:not-allowed}
+
+/* Seletor de campo da linha: o caminho por teclado do mesmo mapeamento. */
+.psd-field-sel{flex:0 1 148px;min-width:92px;height:34px;padding:0 8px;border-radius:8px;
+  border:1px solid var(--d-border2);background:var(--d-surf);color:var(--d-text3);
+  font-family:'Roboto',sans-serif;font-size:11px;
+  transition:border-color var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard)}
+.psd-field-sel.is-bound{background:var(--var-bg);border-color:var(--var-color);color:var(--var-color);font-weight:650}
+.psd-field-sel:focus-visible{outline:2px solid var(--dm-orange);outline-offset:1px}
+/* Sugestão pendente: um clique aceita. Antes ficava só no input, invisível como decisão. */
+.psd-sug{padding:1px 6px;border:1px dashed var(--var-color);border-radius:8px;background:var(--var-bg);
+  color:var(--var-color);font-family:'Roboto',sans-serif;font-size:9px;font-weight:700;
+  white-space:nowrap;flex-shrink:0;cursor:pointer;
+  transition:background var(--dur-micro) var(--ease-standard),border-style var(--dur-micro) var(--ease-standard)}
+.psd-sug:hover{border-style:solid;background:color-mix(in srgb,var(--var-color) 22%,transparent)}
+.psd-sug:focus-visible{outline:2px solid var(--dm-orange);outline-offset:1px}
 .psd-modal .psd-search-input{height:36px;padding:0 12px;border-radius:9px;background:var(--d-dark);border-color:var(--d-border2)}
 .psd-modal .psd-search-input:focus{border-color:var(--dm-orange);box-shadow:0 0 0 3px rgba(255,144,0,.1)}
 .psd-modal .psd-sel-btns{min-height:28px;padding-inline:2px}
@@ -2292,6 +2346,8 @@ body.theme-light .dp-dado-ex {
   .psd-command-note{display:none}
   .psd-modal .psd-preview-panel{width:34%;min-width:280px}
   .psd-modal .psd-var-input.visible{width:112px}
+  /* Linha estreita: o seletor de campo cede espaço ao nome da camada antes do modo. */
+  .psd-field-sel{flex:0 1 116px;min-width:80px}
 }
 @media (max-width:720px){
   .psd-modal{width:100vw;height:100dvh;max-width:none;max-height:none;border-radius:0}

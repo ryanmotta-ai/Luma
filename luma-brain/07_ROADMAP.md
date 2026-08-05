@@ -154,6 +154,7 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
 **P1 — alto valor**
 
 - [x] **Z-order confiável.** A heurística `_dPsdShouldInvert` (`psd-import.js:1208`) retornava `false` no caso "sem sinal claro", deixando pilhas sem fundo nomeado/grande com z-order TROCADO. Comprovado por round-trip do ag-psd (`writePsd`/`readPsd`): ag devolve base-primeiro, o parse faz `out.reverse` (:1069) → itens topo-primeiro, e o caso NORMAL precisa inverter de volta. O default virou `true` (inverter), preservando a exceção `firstIsBg` (PSD atípico) e o toggle manual. Verificado nos 4 casos: flat sem-sinal, fundo grande, grupo aninhado e a exceção atípica — todos com fundo em `dLayers[0]`.
+- [x] **Mapeamento camada → campo por arrastar (2026-08-05).** O motor de sugestão já existia enterrado (`_dPsdSuggestVar` consultando o `dVars` real + memória em `localStorage`); o vínculo na tela era um **input de texto livre** onde o designer digitava o nome do campo no escuro — sem ver o catálogo, sem saber se o campo existia, e sem descobrir quais campos ficaram órfãos antes de importar. Agora: trilha de campos arrastáveis com contador e "N campos sem camada"; soltura na linha **e na arte** (hit-test único `_dPsdHitLayer`, que passou a respeitar "Inverter ordem" — antes o hover pegava a camada de baixo em área sobreposta); guarda de tipo com realce vermelho antes do drop; caminho por clique (pegar → clicar) e por teclado (`<select>` de campos compatíveis + "Criar campo…"); sugestão não-automática virou botão "Sugerido: X" + "Aplicar N sugestões". Persistência de graça (o `_dPsdMemSave` já gravava `mode`/`varName`). Verificado no navegador: 32 asserções dos gestos + 4 do resultado do import (`{{campo}}`, moldura com `imgVar`, campo novo entrando no catálogo), claro e escuro, sem erro no console. *`psd-import.js` + `index.html` + `designer.css`; o parse não foi tocado.*
 - [ ] **Camadas de ajuste aplicadas (ou aviso honesto).** Levels/Curves/Hue afetam as camadas de baixo, mas o Luma não tem pipeline de ajuste → são dropadas (`_dPsdNeedsRaster`:792, contador `_dPsdAdjustCount`:811) e as cores divergem do PSD. Opção barata: usar o **composite** que o ag-psd já entrega pra rasterizar fiel a região afetada. Opção mínima: aviso na revisão dizendo **quais** camadas mudam de cor (hoje é só uma contagem). *Verificar: PSD com Curves sobre foto → cor final bate com o Photoshop, ou avisa claro.*
 
 **P2 — valor médio**
@@ -211,7 +212,7 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
 - **Sinal de demanda destilado** (IA agrupando o que a rede buscou e não tinha) — depende do **backbone de eventos**, que não existe ainda. Entra junto dele.
 - **Gerar arte/imagem por IA** — fere "zero peça fora da marca"; o valor do Luma é o trilho.
 - **IA que publica** — invariante: o Luma não envia (postar é manual).
-- **Triagem de PSD** (sugerir camada→`{{campo}}`) — roça no "copiloto de template" descartado em 18/07. Só se o Ryan reabrir.
+- ~~**Triagem de PSD** (sugerir camada→`{{campo}}`) — roça no "copiloto de template" descartado em 18/07. Só se o Ryan reabrir.~~ → **Reaberto e feito pelo Ryan (2026-08-05)**, sem IA nenhuma: o motor de sugestão já existia no parse, faltava a tela. Ver §9 (P1).
 
 **Precisa de estudo antes de comprometer:**
 

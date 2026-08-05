@@ -163,11 +163,16 @@ function dPsdOpenReview(){
     rowsEl.parentNode.insertBefore(tb,rowsEl);
   }
   // Canvas hover: hover sobre preview canvas → destaca camada + scroll na lista
+  // Os mesmos eventos servem o mapeamento: arrastar um campo sobre a arte realça a camada
+  // que vai receber (e pinta em vermelho se ela não aceitar), e soltar/clicar ali liga o campo.
   const _pCv=document.getElementById('d-psd-preview-canvas');
   if(_pCv&&!_pCv._psdHoverBound){
     _pCv._psdHoverBound=true;
     _pCv.addEventListener('mousemove',_dPsdCanvasHover);
     _pCv.addEventListener('mouseleave',()=>{ _dPsdLastHoverIdx=-1; dPsdHoverLayer(-1); });
+    _pCv.addEventListener('dragover',_dPsdCanvasDragOver);
+    _pCv.addEventListener('drop',_dPsdCanvasDrop);
+    _pCv.addEventListener('click',_dPsdCanvasClick);
   }
   _dPsdRenderBoards();   // faixa de pranchetas + campo de destino (só no multi-prancheta)
   _dPsdApplyBoardToUI();
@@ -203,9 +208,11 @@ function dPsdRenderRows(filter){
       header=`<div class="psd-group-header">${kindLabel[it.kind]||'Outros'} <span class="psd-group-count">${count[it.kind]||0}</span></div>`; }
     let modeSel='';
     if(it.kind==='text'){
+      // "Campo editável" em vez de "Variável {{ }}": nome técnico e chaves não aparecem
+      // para o usuário (03_ENGINEERING §5) — o glossário da casa é "campo".
       modeSel=`<select class="psd-mode" aria-label="Como importar a camada ${_dPsdEsc(it.name)}" onchange="dPsdSetMode(${i},this.value)">
         <option value="text" ${it.mode==='text'?'selected':''}>Texto editável</option>
-        <option value="var" ${it.mode==='var'?'selected':''}>Variável {{ }}</option>
+        <option value="var" ${it.mode==='var'?'selected':''}>Campo editável</option>
         <option value="raster" ${it.mode==='raster'?'selected':''}>Imagem fiel</option></select>`;
     } else if(it.kind==='shape'){
       modeSel=`<select class="psd-mode" aria-label="Como importar a camada ${_dPsdEsc(it.name)}" onchange="dPsdSetMode(${i},this.value)">
@@ -219,7 +226,10 @@ function dPsdRenderRows(filter){
     }
     const swatchRadius=it.shapeKind==='circle'||it.shapeKind==='ellipse'?'50%':'3px';
     const swatch=it.kind==='shape'?`<span class="psd-swatch" style="background:${it.fill};border-radius:${swatchRadius}"></span>`:'';
-    const isVarVisible = (it.kind==='text'&&it.mode==='var')||(it.mode==='frame');
+    // O nome do campo agora vive no seletor de campo. O input de texto livre só aparece quando
+    // o vínculo NÃO é um campo do catálogo — ou seja, no caminho "Criar campo…" (nome sendo
+    // digitado). Mostrar os dois deixava o mesmo dado em duplicado na linha.
+    const isVarVisible = (it.mode==='var'||it.mode==='frame') && !_dPsdFieldByName(it.varName);
     const varIn=`<input class="psd-var-input ${isVarVisible?'visible':''}" value="${_dPsdEsc(it.varName||'')}" placeholder="nome_do_campo" aria-label="Nome do campo editável da camada ${_dPsdEsc(it.name)}" oninput="dPsdSetVar(${i},this.value,this)">`;
     // O aviso é de PERDA, então só aparece quando há perda de verdade: ou o rich text não
     // resolveu (it.multiStyle), ou resolveu mas a camada virou variável — e `runs` não vai
@@ -258,36 +268,33 @@ function dPsdRenderRows(filter){
     const textPrev=it.kind==='text'&&it.content
       ?`<span class="psd-text-prev" style="color:${it.color||'#aaa'}">${_dPsdEsc(it.content.replace(/\n/g,' ').slice(0,60))}</span>`:'';
     const groupCrumb=it.group?`<span class="psd-group-crumb" title="Grupo: ${_dPsdEsc(it.group)}">${_dPsdEsc(it.group.slice(0,28))}</span>`:'';
-    return header+`<div class="psd-row ${it.include?'':'psd-row-off'}" data-psd-idx="${i}" onmouseenter="typeof dPsdHoverLayer==='function'&&dPsdHoverLayer(${i})" onmouseleave="typeof dPsdHoverLayer==='function'&&dPsdHoverLayer(-1)">
+    // Sugestão que o parser achou mas não teve certeza de ligar: vira um botão de um clique
+    // em vez de ficar escondida num input que o designer nem sabia que era editável.
+    const sugBadge=_dPsdPendingSug(it)
+      ?`<button type="button" class="psd-sug" onclick="dPsdAcceptSug(${i})" title="O Luma reconheceu este conteúdo — clique para transformar em campo editável">Sugerido: ${_dPsdEsc(_dPsdFieldLabel(it.varName))}</button>`:'';
+    return header+`<div class="psd-row ${it.include?'':'psd-row-off'}" data-psd-idx="${i}" onmouseenter="typeof dPsdHoverLayer==='function'&&dPsdHoverLayer(${i})" onmouseleave="typeof dPsdHoverLayer==='function'&&dPsdHoverLayer(-1)" ondragover="dPsdRowDragOver(event,${i})" ondragleave="dPsdRowDragLeave(event)" ondrop="dPsdRowDrop(event,${i})" onclick="dPsdRowClick(event,${i})">
       <input type="checkbox" aria-label="Importar camada ${_dPsdEsc(it.name)}" ${it.include?'checked':''} onchange="dPsdSetInclude(${i},this.checked)">
       <span class="psd-row-ico psd-row-ico-${it.kind}">${swatch||ico[it.kind]||ico.raster}</span>
       ${thumb}
       <span class="psd-row-name" title="${_dPsdEsc(it.name)}">
-        <span class="psd-row-name-top">${_dPsdEsc(it.name)}${errBadge}${flatBadge}${multiStyleBadge}${blendBadge}${grpBlendBadge}${fxWarns}${fontWarn}${opacityBadge}${vecWarn}${clipWarn}${textInfoBadge}</span>
+        <span class="psd-row-name-top">${_dPsdEsc(it.name)}${errBadge}${flatBadge}${multiStyleBadge}${blendBadge}${grpBlendBadge}${fxWarns}${fontWarn}${opacityBadge}${vecWarn}${clipWarn}${textInfoBadge}${sugBadge}</span>
         ${groupCrumb}${textPrev}
       </span>
-      ${modeSel}${varIn}</div>`;
+      ${_dPsdFieldSelHTML(it,i)}${modeSel}${varIn}</div>`;
   }).join('');
+  _dPsdRenderFieldRail(); // contadores da trilha vivem do mesmo estado da lista
   dPsdUpdateCount();
   if(typeof dPsdRenderPreview === 'function') dPsdRenderPreview();
 }
 function dPsdSetMode(i,v){
   if(dPsdItems[i]){
     dPsdItems[i].mode=v;
-    const row=document.querySelector(`#d-psd-rows [data-psd-idx="${i}"]`);
-    if(row){
-      const varIn=row.querySelector('.psd-var-input');
-      if(varIn){
-        const isVarVisible=(dPsdItems[i].kind==='text'&&v==='var')||(v==='frame');
-        if(isVarVisible){
-          varIn.classList.add('visible');
-        } else {
-          varIn.classList.remove('visible');
-        }
-      }
-    }
-    dPsdUpdateCount();
-    if(typeof dPsdRenderPreview === 'function') dPsdRenderPreview();
+    // O modo governa o vínculo (seletor de campo, badge de sugestão, contador da trilha), então
+    // a linha inteira é re-renderizada em vez de remendada em três lugares. O foco volta pro
+    // mesmo seletor porque re-render troca o DOM e jogaria o teclado pro começo do modal.
+    _dPsdAfterMap('');
+    const back=document.querySelector('#d-psd-rows [data-psd-idx="'+i+'"] .psd-mode');
+    if(back) back.focus();
   }
 }
 function dPsdSetVar(i,v,el){ if(dPsdItems[i]){ const clean=v.trim().replace(/[^a-zA-Z0-9_]/g,''); dPsdItems[i].varName=clean; if(el&&el.value!==clean) el.value=clean; } } // reescreve o input p/ refletir o valor sanitizado
@@ -297,16 +304,10 @@ function dPsdSelectNone(){ dPsdItems.forEach(it=>{ it.include=false; }); const f
 // Hover interativo sobre o canvas de preview: destaca a camada sob o cursor e rola a lista até ela.
 let _dPsdLastHoverIdx=-1;
 function _dPsdCanvasHover(e){
-  const canvas=document.getElementById('d-psd-preview-canvas');
-  if(!canvas||!dPsdMeta) return;
-  const rect=canvas.getBoundingClientRect();
-  const sx=dPsdMeta.w/Math.max(1,rect.width), sy=dPsdMeta.h/Math.max(1,rect.height);
-  const cx=(e.clientX-rect.left)*sx, cy=(e.clientY-rect.top)*sy;
-  let found=-1;
-  for(let i=dPsdItems.length-1;i>=0;i--){
-    const it=dPsdItems[i]; if(!it.include||it.isMaskBase) continue;
-    if(cx>=it.x&&cx<=it.x+it.w&&cy>=it.y&&cy<=it.y+it.h){ found=i; break; }
-  }
+  if(_dPsdDragField) return; // durante o arrasto quem pinta o realce é o _dPsdCanvasDragOver
+  // Hit-test compartilhado com o drop na arte (_dPsdHitLayer) — antes esta busca era local e
+  // ignorava o "Inverter ordem", pegando a camada de baixo em área sobreposta.
+  const found=_dPsdHitLayer(e.clientX, e.clientY);
   if(found===_dPsdLastHoverIdx) return;
   _dPsdLastHoverIdx=found;
   dPsdHoverLayer(found);
@@ -364,6 +365,9 @@ function dPsdUpdateCount(){
     // camadas" esconderia que o botão vai importar outras pranchetas junto.
     let txt=_multi?('Esta prancheta: '+n+' de '+total+' camadas'):(n+' de '+total+' camadas');
     txt+=' · '+vars+' campo'+(vars===1?' editável':'s editáveis');
+    // Sugestão pendente é trabalho parado: o parser reconheceu o conteúdo e ninguém aceitou.
+    const _pendSug=dPsdItems.filter(_dPsdPendingSug).length;
+    if(_pendSug) txt+=' · '+_pendSug+(_pendSug===1?' sugestão pendente':' sugestões pendentes');
     if(_multi) txt+=' · '+_nB+' prancheta'+(_nB===1?'':'s')+' no import';
     if(pendingFonts) txt+=' · '+pendingFonts+' fonte'+(pendingFonts===1?' pendente':'s pendentes');
     summary.textContent=txt;
@@ -417,6 +421,11 @@ function _dPsdSyncVarsFromLayers(layers){
 // Fecha o modal e zera os canvases. Comum aos dois caminhos de saída (importar/cancelar).
 function _dPsdCloseReviewUI(){
   clearTimeout(_dPsdPreviewTimer); // nada de render órfão depois de fechar
+  // Campo "pego"/em arrasto não pode sobreviver ao fechamento: a classe psd-arming ficaria
+  // no modal e o próximo PSD abriria com o cursor de copiar e uma linha armada.
+  _dPsdDragField=null; _dPsdArmedField=null;
+  const _m=document.getElementById('d-psd-modal');
+  if(_m) _m.classList.remove('psd-arming','psd-mapping');
   _dPsdShowFidelity(null);
   const m=document.getElementById('d-psd-modal'); if(m) m.classList.remove('open');
   const cv=document.getElementById('d-psd-preview-canvas'); if(cv){ cv.width=0; cv.height=0; cv._renderId=(cv._renderId||0)+1; }
@@ -684,32 +693,345 @@ function _dPsdFillTextLines(ctx, it, tx){
 }
 
 /* ── Hover Tracking no Modal (PARTE B) ── */
-function dPsdHoverLayer(idx) {
+// Cor via token: o canvas não lê CSS, então o valor é resolvido do tema atual em vez de
+// hardcodado (04_DESIGN_SYSTEM). O hex fica só como rede se o token não existir.
+function _dPsdToken(name, fb){
+  try{ const v=getComputedStyle(document.body).getPropertyValue(name).trim(); return v||fb; }catch(e){ return fb; }
+}
+// `bad` pinta o realce em vermelho: usado no arrasto de campo sobre uma camada INCOMPATÍVEL,
+// pra a recusa aparecer antes de soltar em vez de virar um toast depois.
+function dPsdHoverLayer(idx, bad) {
   const overlay = document.getElementById('d-psd-preview-overlay');
   if (!overlay || !dPsdMeta) return;
-  
+
   // Sincroniza dimensões nativas
   if (overlay.width !== dPsdMeta.w || overlay.height !== dPsdMeta.h) {
     overlay.width = dPsdMeta.w;
     overlay.height = dPsdMeta.h;
   }
-  
+
   const ctx = overlay.getContext('2d');
   ctx.clearRect(0, 0, overlay.width, overlay.height);
-  
+
   if (idx >= 0 && dPsdItems[idx]) {
     const it = dPsdItems[idx];
     if (it.include) {
+      const cor = bad ? _dPsdToken('--dm-red','#C81818') : _dPsdToken('--dm-orange','#FF9000');
       ctx.save();
-      ctx.fillStyle = 'rgba(255, 144, 0, 0.2)';
-      ctx.strokeStyle = '#FF9000';
+      ctx.globalAlpha = 0.2;
+      ctx.fillStyle = cor;
+      ctx.fillRect(it.x, it.y, it.w, it.h);
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = cor;
       const lw = Math.max(2, Math.min(overlay.width, overlay.height) * 0.003);
       ctx.lineWidth = lw;
-      ctx.fillRect(it.x, it.y, it.w, it.h);
       ctx.strokeRect(it.x - lw/2, it.y - lw/2, it.w + lw, it.h + lw); // stroke por fora para n sobrepor as bordas diretas
       ctx.restore();
     }
   }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MAPEAMENTO POR ARRASTAR — campo do catálogo → camada do PSD
+   O motor de sugestão já existia (`_dPsdSuggestVar`/`_dPsdSuggestImgVar` em psd-parse.js,
+   que consultam o `dVars` REAL antes do dicionário fixo) e a memória entre importações
+   também (`_dPsdMemSave`). O que faltava era o CORPO: o vínculo era um input de texto livre
+   onde o designer digitava o nome do campo no escuro — sem ver o catálogo, sem saber se o
+   campo existia e sem descobrir quais campos ficaram órfãos antes de importar.
+   Aqui entram: a trilha de campos arrastáveis, os dois alvos de soltura (a linha da camada
+   e a própria arte), o caminho por clique/teclado (arrastar nunca pode ser o único gesto),
+   e as sugestões pendentes que o parser tinha mas ninguém via.
+   ⚠ Nada aqui persiste sozinho: toda decisão vira `it.mode`/`it.varName`, que o
+   `_dPsdMemSave` já grava no import — o 2º PSD da campanha abre pré-mapeado de graça.
+══════════════════════════════════════════════════════════════ */
+let _dPsdDragField=null;   // campo em arrasto. Necessário porque o `dragover` NÃO pode ler o
+                           // dataTransfer (o navegador só libera no drop) e a compatibilidade
+                           // tem que ser checada ANTES de soltar.
+let _dPsdArmedField=null;  // campo "pego" por clique — o mesmo gesto para quem não arrasta.
+
+function _dPsdVarsList(){ return (typeof dVars!=='undefined' && Array.isArray(dVars)) ? dVars : []; }
+function _dPsdFieldByName(name){
+  const n=String(name||'').toLowerCase();
+  if(!n) return null;
+  return _dPsdVarsList().find(v=>v&&v.name&&v.name.toLowerCase()===n)||null;
+}
+// Rótulo PT-BR do campo. Nome técnico não aparece na tela (03_ENGINEERING §5) — mas se o
+// campo ainda não existe no catálogo (sugestão do parser), o nome é o que temos.
+function _dPsdFieldLabel(name){ const v=_dPsdFieldByName(name); return (v&&v.label)||name||''; }
+
+// A guarda que impede a arte de quebrar: campo de imagem só cabe em camada que vira MOLDURA
+// (imagem/forma) e campo de texto só em camada de texto. Sem isto, `dItemToLayer` gera uma
+// moldura sem imagem (buraco na arte) ou troca um gráfico por {{campo}}.
+function _dPsdBindCheck(it, v){
+  if(!it || !v) return {ok:false, why:'Campo não encontrado no catálogo'};
+  if(it.isMaskBase) return {ok:false, why:'Esta camada é base de recorte e não entra sozinha'};
+  const rot=(v.label||v.name);
+  const isImg=(v.type==='image');
+  if(isImg && it.kind==='text') return {ok:false, why:'“'+rot+'” é campo de imagem — solte numa imagem ou forma'};
+  if(!isImg && it.kind!=='text') return {ok:false, why:'“'+rot+'” é campo de texto — solte numa camada de texto'};
+  return {ok:true, mode:isImg?'frame':'var'};
+}
+// Modo que a camada assume ao receber um campo, pelo tipo dela. Usado quando o campo ainda
+// não está no catálogo (sugestão do parser), onde não há `v.type` para consultar.
+function _dPsdModeForKind(it){ return (it.kind==='text')?'var':'frame'; }
+
+function dPsdBindField(i, name){
+  const it=dPsdItems[i], v=_dPsdFieldByName(name);
+  const chk=_dPsdBindCheck(it, v);
+  if(!chk.ok){ gToast('⚠ '+chk.why,'error'); return false; }
+  it.include=true; // ligar um campo é dizer "quero esta camada" — desmarcada, ela nem importaria
+  it.mode=chk.mode; it.varName=v.name;
+  _dPsdAfterMap('“'+(v.label||v.name)+'” ligado à camada “'+it.name+'”');
+  return true;
+}
+function dPsdUnbindField(i){
+  const it=dPsdItems[i]; if(!it) return;
+  // Volta ao modo que o PARSER havia decidido, não a um chute fixo — senão uma forma que o
+  // parser leu como cor editável voltaria como imagem. Se o padrão já era var/frame (o vínculo
+  // veio do próprio parser), cai no modo neutro do tipo.
+  const d=it._defaultMode;
+  it.mode=(d && d!=='var' && d!=='frame') ? d : (it.kind==='text'?'text':(it.kind==='shape'?'shape':'raster'));
+  it.varName='';
+  _dPsdAfterMap('Campo removido da camada “'+it.name+'”');
+}
+// Camada com sugestão que o designer ainda NÃO aceitou: o parser achou um campo (`varName`)
+// mas não teve certeza suficiente pra ligar sozinho (`auto:false` — ex.: um rodapé que só
+// cita "R$"). Antes isso era invisível: o nome ficava no input e o designer tinha que
+// adivinhar que bastava trocar o modo.
+function _dPsdPendingSug(it){
+  return !!(it && !it.isMaskBase && it.varName && it.mode!=='var' && it.mode!=='frame');
+}
+function dPsdAcceptSug(i){
+  const it=dPsdItems[i]; if(!it||!it.varName) return;
+  it.include=true; it.mode=_dPsdModeForKind(it);
+  _dPsdAfterMap('“'+_dPsdFieldLabel(it.varName)+'” ligado à camada “'+it.name+'”');
+}
+function dPsdAcceptAllSug(){
+  let n=0;
+  dPsdItems.forEach(it=>{ if(_dPsdPendingSug(it)){ it.include=true; it.mode=_dPsdModeForKind(it); n++; } });
+  if(!n){ gToast('Nenhuma sugestão pendente'); return; }
+  _dPsdAfterMap(n+(n===1?' sugestão aplicada':' sugestões aplicadas'));
+  gToast('✓ '+n+(n===1?' sugestão aplicada':' sugestões aplicadas'));
+}
+// Ponto único de "mudou o mapeamento": re-renderiza a lista (que já repinta trilha, contadores
+// e prévia) preservando a busca, e anuncia no aria-live. Chamar dPsdRenderRows direto de cada
+// handler perdia o filtro digitado e deixava o leitor de tela muda.
+function _dPsdAfterMap(msg){
+  const f=document.getElementById('d-psd-search');
+  dPsdRenderRows((f&&f.value.trim().toLowerCase())||'');
+  const live=document.getElementById('d-psd-map-live');
+  if(live) live.textContent=msg||'';
+}
+
+/* ── trilha de campos ── */
+// Quantas camadas SELECIONADAS estão ligadas em cada campo (chave em minúsculas: o vínculo
+// aceita o nome como o parser sugeriu, que pode diferir do catálogo na caixa).
+function _dPsdFieldCounts(){
+  const c={};
+  dPsdItems.forEach(it=>{
+    if(it.include && !it.isMaskBase && (it.mode==='var'||it.mode==='frame') && it.varName){
+      const k=it.varName.toLowerCase(); c[k]=(c[k]||0)+1;
+    }
+  });
+  return c;
+}
+function _dPsdRenderFieldRail(){
+  const wrap=document.getElementById('d-psd-fields'); if(!wrap) return;
+  const vars=_dPsdVarsList();
+  const cover=document.getElementById('d-psd-fields-cover');
+  const sugBtn=document.getElementById('d-psd-sug-all');
+  const pend=dPsdItems.filter(_dPsdPendingSug).length;
+  if(sugBtn){
+    sugBtn.hidden=!pend;
+    sugBtn.textContent=pend?('Aplicar '+pend+(pend===1?' sugestão':' sugestões')):'';
+  }
+  if(!vars.length){
+    wrap.innerHTML='<p class="psd-fields-empty">Nenhum campo no catálogo ainda — use “Criar campo…” na linha da camada.</p>';
+    if(cover) cover.textContent='';
+    return;
+  }
+  const c=_dPsdFieldCounts();
+  const livres=vars.filter(v=>!c[v.name.toLowerCase()]).length;
+  if(cover){
+    // O número que ninguém tinha antes de importar: campo do catálogo que nenhuma camada usa.
+    cover.textContent=livres
+      ? (livres+(livres===1?' campo sem camada':' campos sem camada'))
+      : 'Todos os campos com camada';
+  }
+  wrap.innerHTML=vars.map(v=>{
+    const n=c[v.name.toLowerCase()]||0;
+    const meta=(typeof gFieldTypeMeta==='function')?gFieldTypeMeta(v.type):{svg:'',label:''};
+    const armed=(_dPsdArmedField===v.name);
+    // data-field em vez de interpolar o nome no onclick: nome de campo vem do usuário e
+    // montar JS com ele é convite a quebra de string.
+    return '<button type="button" class="psd-field-chip'+(n?' is-used':' is-free')+'" draggable="true"'
+      +' data-field="'+_dPsdEsc(v.name)+'" aria-pressed="'+(armed?'true':'false')+'"'
+      +' title="'+_dPsdEsc((v.label||v.name)+' · '+(meta.label||'')+(n?(' · '+n+(n===1?' camada':' camadas')):' · nenhuma camada ainda'))+'"'
+      +' ondragstart="dPsdFieldDragStart(event,this)" ondragend="dPsdFieldDragEnd()"'
+      +' onclick="dPsdFieldArm(this)">'
+      +'<span class="psd-field-ico" aria-hidden="true">'+(meta.svg||'')+'</span>'
+      +'<strong>'+_dPsdEsc(v.label||v.name)+'</strong>'
+      // Contador só quando há camada: uma bolinha vazia em todo campo livre era só ruído.
+      +(n?('<span class="psd-field-count">'+n+'</span>'):'')+'</button>';
+  }).join('');
+}
+// Seletor de campo da linha: o caminho ACESSÍVEL do mesmo mapeamento (teclado e leitor de
+// tela). Arrastar é só atalho. Só lista campos compatíveis com o tipo da camada — a guarda
+// de tipo aparece como ausência de opção, não como erro depois do gesto.
+function _dPsdFieldSelHTML(it, i){
+  const vars=_dPsdVarsList();
+  const querImg=(it.kind!=='text');
+  const opts=vars.filter(v=>querImg?(v.type==='image'):(v.type!=='image'));
+  const bound=(it.mode==='var'||it.mode==='frame')?(it.varName||''):'';
+  // Campo ligado que não está no catálogo (sugestão do parser, ou nome novo digitado) entra
+  // como opção própria — senão o select diria "sem campo" numa camada que ESTÁ mapeada.
+  const extra=(bound && !opts.some(v=>v.name.toLowerCase()===bound.toLowerCase()))?bound:'';
+  const sel=v=>(bound&&bound.toLowerCase()===v.toLowerCase())?' selected':'';
+  return '<select class="psd-field-sel'+(bound?' is-bound':'')+'"'
+    +' aria-label="Campo editável da camada '+_dPsdEsc(it.name)+'" onchange="dPsdFieldSelect('+i+',this)">'
+    +'<option value=""'+(bound?'':' selected')+'>Sem campo</option>'
+    +(extra?('<option value="'+_dPsdEsc(extra)+'"'+sel(extra)+'>'+_dPsdEsc(_dPsdFieldLabel(extra))+'</option>'):'')
+    +opts.map(v=>'<option value="'+_dPsdEsc(v.name)+'"'+sel(v.name)+'>'+_dPsdEsc(v.label||v.name)+'</option>').join('')
+    +'<option value="__new__">+ Criar campo…</option></select>';
+}
+function dPsdFieldSelect(i, el){
+  const it=dPsdItems[i]; if(!it) return;
+  const v=el.value;
+  if(!v){ dPsdUnbindField(i); return; }
+  if(v==='__new__'){
+    // Revela o input de nome livre que já existe na linha (visível quando o modo é var/frame)
+    // e deixa o `dPsdSetVar` sanitizar. O campo novo é criado no import por _dPsdSyncVarsFromLayers.
+    it.include=true; it.mode=_dPsdModeForKind(it); it.varName='';
+    _dPsdAfterMap('Digite o nome do novo campo da camada “'+it.name+'”');
+    const inp=document.querySelector('#d-psd-rows [data-psd-idx="'+i+'"] .psd-var-input');
+    if(inp) inp.focus(); // depois do re-render: o input de antes já é elemento órfão
+    return;
+  }
+  if(_dPsdFieldByName(v)){ dPsdBindField(i, v); return; }
+  // Nome fora do catálogo (a sugestão do parser): aceita e deixa o import criar o campo.
+  it.include=true; it.varName=v; it.mode=_dPsdModeForKind(it);
+  _dPsdAfterMap('“'+v+'” ligado à camada “'+it.name+'”');
+}
+
+/* ── arrastar e soltar ── */
+function dPsdFieldDragStart(ev, el){
+  _dPsdDragField=(el&&el.dataset)?el.dataset.field:'';
+  _dPsdDisarm(true); // arrastar cancela o campo "pego": um gesto por vez
+  try{ ev.dataTransfer.setData('text/plain', _dPsdDragField); ev.dataTransfer.effectAllowed='copy'; }catch(e){}
+  el.classList.add('is-dragging');
+  const m=document.getElementById('d-psd-modal'); if(m) m.classList.add('psd-mapping');
+}
+function dPsdFieldDragEnd(){
+  _dPsdDragField=null; _dPsdDragPaint='';
+  document.querySelectorAll('#d-psd-fields .is-dragging').forEach(el=>el.classList.remove('is-dragging'));
+  document.querySelectorAll('#d-psd-rows .is-drop,#d-psd-rows .is-drop-bad')
+    .forEach(el=>el.classList.remove('is-drop','is-drop-bad'));
+  const m=document.getElementById('d-psd-modal'); if(m) m.classList.remove('psd-mapping');
+  dPsdHoverLayer(-1);
+}
+// `dragover` dispara continuamente enquanto o cursor se move: sem esta chave o realce da arte
+// era repintado dezenas de vezes por segundo num canvas do tamanho do PSD.
+let _dPsdDragPaint='';
+function _dPsdPaintTarget(i, bad){
+  const key=i+'/'+(bad?1:0);
+  if(key===_dPsdDragPaint) return;
+  _dPsdDragPaint=key;
+  dPsdHoverLayer(i, bad);
+}
+function dPsdRowDragOver(ev, i){
+  if(!_dPsdDragField) return; // arrasto que não é de campo (arquivo, texto) passa direto
+  const chk=_dPsdBindCheck(dPsdItems[i], _dPsdFieldByName(_dPsdDragField));
+  ev.preventDefault();
+  try{ ev.dataTransfer.dropEffect=chk.ok?'copy':'none'; }catch(e){}
+  const row=ev.currentTarget;
+  row.classList.toggle('is-drop', chk.ok);
+  row.classList.toggle('is-drop-bad', !chk.ok);
+  _dPsdPaintTarget(i, !chk.ok); // a arte mostra QUAL camada vai receber, e se ela aceita
+}
+function dPsdRowDragLeave(ev){
+  ev.currentTarget.classList.remove('is-drop','is-drop-bad');
+}
+function dPsdRowDrop(ev, i){
+  const name=_dPsdDragField||((ev.dataTransfer&&ev.dataTransfer.getData('text/plain'))||'');
+  if(!name) return;
+  ev.preventDefault(); ev.stopPropagation();
+  dPsdFieldDragEnd();
+  dPsdBindField(i, name);
+}
+// Hit-test do cursor → índice da camada. Extraído do hover porque o drop na ARTE precisa da
+// mesma resposta ("qual camada está sob o cursor") — duas cópias divergiriam.
+// A ordem de busca segue o desenho: a camada de cima é a ÚLTIMA a desenhar. Com "Inverter
+// ordem" ligado a prévia desenha a lista de trás pra frente, então quem está no topo é o
+// PRIMEIRO item — sem isto o clique em área sobreposta pegava a camada de baixo.
+function _dPsdHitLayer(clientX, clientY){
+  const canvas=document.getElementById('d-psd-preview-canvas');
+  if(!canvas || !dPsdMeta) return -1;
+  const rect=canvas.getBoundingClientRect();
+  if(!rect.width || !rect.height) return -1;
+  const cx=(clientX-rect.left)*(dPsdMeta.w/rect.width);
+  const cy=(clientY-rect.top)*(dPsdMeta.h/rect.height);
+  const inv=document.getElementById('d-psd-invert');
+  const topoPrimeiro=!!(inv && inv.checked);
+  const hit=it=>it && it.include && !it.isMaskBase
+    && cx>=it.x && cx<=it.x+it.w && cy>=it.y && cy<=it.y+it.h;
+  if(topoPrimeiro){
+    for(let i=0;i<dPsdItems.length;i++) if(hit(dPsdItems[i])) return i;
+  } else {
+    for(let i=dPsdItems.length-1;i>=0;i--) if(hit(dPsdItems[i])) return i;
+  }
+  return -1;
+}
+function _dPsdCanvasDragOver(ev){
+  if(!_dPsdDragField) return;
+  ev.preventDefault();
+  const i=_dPsdHitLayer(ev.clientX, ev.clientY);
+  const chk=(i<0)?{ok:false}:_dPsdBindCheck(dPsdItems[i], _dPsdFieldByName(_dPsdDragField));
+  try{ ev.dataTransfer.dropEffect=chk.ok?'copy':'none'; }catch(e){}
+  _dPsdPaintTarget(i, !chk.ok);
+}
+function _dPsdCanvasDrop(ev){
+  const name=_dPsdDragField||((ev.dataTransfer&&ev.dataTransfer.getData('text/plain'))||'');
+  ev.preventDefault();
+  const i=_dPsdHitLayer(ev.clientX, ev.clientY);
+  dPsdFieldDragEnd();
+  if(!name) return;
+  if(i<0){ gToast('Solte sobre uma camada da arte'); return; }
+  if(dPsdBindField(i, name)) _dPsdScrollToRow(i); // mostra na lista o que acabou de acontecer
+}
+function _dPsdScrollToRow(i){
+  const row=document.querySelector('#d-psd-rows [data-psd-idx="'+i+'"]');
+  if(row) row.scrollIntoView({block:'nearest',behavior:'smooth'});
+}
+
+/* ── pegar e clicar (o mesmo mapeamento sem arrastar) ── */
+function dPsdFieldArm(el){
+  const name=(el&&el.dataset)?el.dataset.field:'';
+  _dPsdArmedField=(_dPsdArmedField===name)?null:name;
+  const m=document.getElementById('d-psd-modal');
+  if(m) m.classList.toggle('psd-arming', !!_dPsdArmedField);
+  _dPsdRenderFieldRail();
+  const live=document.getElementById('d-psd-map-live');
+  if(live) live.textContent=_dPsdArmedField
+    ? ('“'+_dPsdFieldLabel(_dPsdArmedField)+'” pego. Clique numa camada da lista ou da arte para ligar.')
+    : 'Campo solto.';
+}
+function _dPsdDisarm(quieto){
+  if(!_dPsdArmedField) return;
+  _dPsdArmedField=null;
+  const m=document.getElementById('d-psd-modal'); if(m) m.classList.remove('psd-arming');
+  if(!quieto) _dPsdRenderFieldRail();
+}
+function dPsdRowClick(ev, i){
+  if(!_dPsdArmedField) return;
+  // Os controles da linha (checkbox, selects, botão de sugestão) seguem sendo deles.
+  if(ev.target && ev.target.closest && ev.target.closest('input,select,button,label,a')) return;
+  if(dPsdBindField(i, _dPsdArmedField)) _dPsdDisarm();
+}
+function _dPsdCanvasClick(ev){
+  if(!_dPsdArmedField) return;
+  const i=_dPsdHitLayer(ev.clientX, ev.clientY);
+  if(i<0){ gToast('Clique sobre uma camada da arte'); return; }
+  if(dPsdBindField(i, _dPsdArmedField)){ _dPsdDisarm(); _dPsdScrollToRow(i); }
 }
 
 /* ══════════════════════════════════════════════════════════════

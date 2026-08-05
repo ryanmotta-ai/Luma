@@ -2641,9 +2641,24 @@ input:focus:-webkit-autofill {
           <div><span class="psd-panel-kicker">Conversão</span><strong>Como cada camada deve entrar?</strong></div>
           <span class="psd-auto-label">Sugestões aplicadas automaticamente</span>
         </div>
-        <div class="psd-guidance">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v3M5.64 5.64l2.12 2.12M3 12h3M18 12h3M16.24 7.76l2.12-2.12"/><path d="M9 18h6M10 21h4M8.5 15.5A5 5 0 1 1 15.5 15.5c-.8.7-1.2 1.3-1.3 2h-4.4c-.1-.7-.5-1.3-1.3-2Z"/></svg>
-          <p><strong>O Luma já reconheceu os tipos mais prováveis.</strong> Converta conteúdos que mudam em campos editáveis e preserve elementos gráficos como imagem quando a fidelidade for prioridade.</p>
+        <!-- Trilha de campos (mapeamento por arrastar). Ocupa o lugar do antigo bloco de dicas:
+             o mesmo espaço agora ENSINA fazendo. Arraste um campo para a linha da camada ou
+             para a própria arte na prévia; clicar no campo e depois na camada faz o mesmo, e o
+             seletor "Campo" de cada linha é o caminho por teclado. Preenchida por
+             _dPsdRenderFieldRail() em psd-import.js. -->
+        <div class="psd-fieldbar">
+          <div class="psd-fieldbar-head">
+            <div class="psd-fieldbar-copy">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 3h6a2 2 0 0 1 2 2v6"/><path d="M9 7 5 3 5 7Z"/><rect x="11" y="11" width="10" height="10" rx="2"/></svg>
+              <div>
+                <strong>Arraste um campo para a camada</strong>
+                <small id="d-psd-fields-cover">&nbsp;</small>
+              </div>
+            </div>
+            <button type="button" class="psd-sel-btn psd-sug-all" id="d-psd-sug-all" onclick="dPsdAcceptAllSug()" hidden></button>
+          </div>
+          <div class="psd-fields" id="d-psd-fields"></div>
+          <p class="psd-map-live" id="d-psd-map-live" role="status" aria-live="polite"></p>
         </div>
         <div id="d-psd-rows" class="psd-rows-list"></div>
       </main>
