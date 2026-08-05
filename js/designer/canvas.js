@@ -441,18 +441,25 @@ function dAttachMarquee(){
   frame._marqueeBound=true;
 
   /* ── SOLTAR ASSET NO CANVAS ──
-     Só reage ao tipo próprio da casa (`application/x-luma-asset`, posto em dAssetDragStart).
-     Arquivo vindo da área de trabalho NÃO entra por aqui — quem cuida disso é o dropzone da
-     biblioteca (library.js), que faz upload. Sem essa separação, arrastar um PNG do desktop
-     pro canvas criaria uma camada apontando pra um arquivo que não foi guardado em lugar
-     nenhum, e ela quebraria no próximo boot. */
+     Reage ao tipo próprio da casa (`application/x-luma-asset`, posto em dAssetDragStart). */
   const ehAsset=e=>{
     const t=e.dataTransfer&&e.dataTransfer.types;
     return !!(t&&Array.prototype.indexOf.call(t,'application/x-luma-asset')>=0)
-      || (typeof dAssetArrastando==='number');
+      || !!dAssetArrastando;
+  };
+  /* ── SOLTAR ARQUIVO DO DESKTOP NO CANVAS ──
+     Também vira camada (objeto inteligente). Antes só o dropzone da biblioteca aceitava
+     arquivo: uma camada com dataURL não sobrevivia ao reload. Hoje sobrevive — o
+     dPersistFolders empacota dataURL grande em 'idb://…' (gPackImgUrl, IndexedDB) e o sync
+     sobe pro Storage. Por isso o bloqueio saiu.
+     `types` (e não `files`) porque no dragover o navegador esconde os arquivos por privacidade
+     e só expõe a lista de tipos. */
+  const ehArquivo=e=>{
+    const t=e.dataTransfer&&e.dataTransfer.types;
+    return !!(t&&Array.prototype.indexOf.call(t,'Files')>=0);
   };
   frame.addEventListener('dragover',e=>{
-    if(!ehAsset(e))return;
+    if(!ehAsset(e)&&!ehArquivo(e))return;
     e.preventDefault();                       // sem isto o navegador recusa o drop
     e.dataTransfer.dropEffect='copy';
     frame.classList.add('d-drop-alvo');
@@ -464,15 +471,30 @@ function dAttachMarquee(){
     frame.classList.remove('d-drop-alvo');
   });
   frame.addEventListener('drop',e=>{
+    // Arquivo do desktop primeiro: sem o preventDefault o navegador ABRE a imagem e
+    // abandona o editor com o trabalho não salvo.
+    const arqs=(e.dataTransfer&&e.dataTransfer.files)?Array.prototype.slice.call(e.dataTransfer.files):[];
+    const imgs=arqs.filter(f=>/^image\//.test(f.type||'')||/\.(png|jpe?g|svg|webp|gif|avif)$/i.test(f.name||''));
+    if(arqs.length){
+      e.preventDefault();
+      frame.classList.remove('d-drop-alvo');
+      if(!imgs.length){ gToast('Só imagens viram camada (JPG, PNG, SVG ou WEBP)','error'); return; }
+      const p=dPontoNoCanvas(e);
+      if(!p||typeof dAddImageFromFile!=='function')return;
+      // Escada de 24px: várias imagens de uma vez, empilhadas no mesmo ponto, esconderiam
+      // umas às outras e pareceriam uma só.
+      imgs.forEach((f,k)=>dAddImageFromFile(f,p.x+k*24,p.y+k*24));
+      return;
+    }
     if(!ehAsset(e))return;
     e.preventDefault();
     frame.classList.remove('d-drop-alvo');
-    let i=-1;
-    try{ i=parseInt(e.dataTransfer.getData('application/x-luma-asset'),10); }catch(err){}
-    if(!(i>=0)&&typeof dAssetArrastando==='number') i=dAssetArrastando;   // Safari
+    // O item em arrasto vem do global (Biblioteca ou Assets — ver _dArrastarElemento):
+    // o dataTransfer carrega só o marcador do tipo.
+    const a=dAssetArrastando;
     const p=dPontoNoCanvas(e);
-    if(!(i>=0)||!p)return;
-    if(typeof dAssetSoltarNoCanvas==='function') dAssetSoltarNoCanvas(i,p.x,p.y);
+    if(!a||!p||typeof dAddImageFromUrl!=='function')return;
+    dAddImageFromUrl(a.url,p.x,p.y,a.name);   // mesmo motor do clique e do arquivo do desktop
   });
 
   frame.addEventListener('mousedown',dStartMarquee);
@@ -1301,6 +1323,9 @@ function dRenderCanvas(){
         dLastClickLayerId = _isDbl ? null : l.id; // consome o par pra não virar "triplo clique"
         dLastClickTime = _now;
         if(_isDbl){
+          // Cadeado vale para o duplo clique também: o arrasto já avisa "camada bloqueada", e
+          // abrir a edição inline por cima do cadeado deixava o bloqueio pela metade.
+          if(l.locked){ e.stopPropagation(); gToast('⚠ Camada bloqueada — desbloqueie no cadeado da lista de camadas'); return; }
           if(l.type==='text'){ e.stopPropagation(); dStartInlineEdit(lReal,el); return; }
           if((l.type==='image'||l.type==='frame') && typeof dStartCrop==='function'){ e.stopPropagation(); dStartCrop(lReal); return; }
         }

@@ -13,7 +13,9 @@
 /* ══ AUTO-FIT DE TEXTO ══ */
 // lhFactor: multiplicador de line-height (default 1.2). Passe l.lineHeight (leading do PSD)
 // para a altura medida bater com o que o render realmente usa.
-function dMeasureText(text, font, fontSize, maxWidth, lhFactor){
+// letterSpacing: tracking em px (l.letterSpacing). Sem ele a medida ficava mais estreita que
+// o render, e a caixa modular (dTextFitBox) cortava a última letra de texto com tracking.
+function dMeasureText(text, font, fontSize, maxWidth, lhFactor, letterSpacing){
   // Cria canvas escondido para medir
   if(!dMeasureCanvas){
     dMeasureCanvas=document.createElement('canvas');
@@ -21,6 +23,9 @@ function dMeasureText(text, font, fontSize, maxWidth, lhFactor){
   }
   const _fp=(typeof dTextFontParts==='function')?dTextFontParts(font):{family:"'Roboto', sans-serif",weight:900};
   dMeasureCtx.font = `${_fp.weight} ${fontSize}px ${_fp.family}`;
+  // Sempre atribuir (mesmo 0px): o ctx é reaproveitado entre chamadas e o tracking de uma
+  // medida vazaria para a próxima (overflow/auto-fit mediriam largura errada).
+  if('letterSpacing' in dMeasureCtx) dMeasureCtx.letterSpacing = (letterSpacing||0)+'px';
   const lines = (text||'').split('\n');
   let maxW = 0;
   lines.forEach(line=>{
@@ -90,6 +95,62 @@ function dTextInkTopGap(font, fontSize, lineHeightFactor, sample){
   const lh=(lineHeightFactor||1.2)*fontSize;
   const halfLeading=(lh-(gm.fontAscent+gm.fontDescent))/2;
   return halfLeading + (gm.fontAscent-gm.inkAscent);
+}
+
+/* ══ CAIXA MODULAR DE TEXTO (comportamento do Photoshop) ══
+   No Photoshop, texto de PONTO não tem caixa própria: o retângulo que aparece É o extent
+   dos glifos e acompanha o que se digita. Aqui a caixa era um w/h solto que ninguém
+   atualizava depois — daí três sintomas que pareciam bugs diferentes e eram o mesmo:
+   a seleção ficava descolada do texto, o clique pegava área vazia (roubando o clique das
+   camadas de baixo) e arrastar a alça não mudava nada na tela.
+   ⛔ Texto de PARÁGRAFO (textBox==='box') NÃO entra aqui: caixa fixa é o contrato dele —
+   o conteúdo quebra dentro dela e o selo de overflow avisa quando estoura (igual ao
+   Photoshop, onde só a alça muda a caixa de parágrafo). */
+
+// Texto COMO APARECE no canvas: {{campo}} vira o valor da simulação (quando ligada) ou o
+// valor de exemplo do campo, e textTransform é aplicado. Medir o token cru daria uma caixa
+// que não bate com o que se vê na tela.
+// opts.raw: NÃO expande {{campo}} — é o caso da edição inline, onde o usuário vê e digita
+// o token cru; ali expandir daria uma largura de caixa que não bate com o que está na tela.
+function dTextDisplayString(l, opts){
+  let s=l.content||'';
+  if(opts && opts.raw){ /* mantém os tokens como estão */ }
+  else if(typeof dSimActive!=='undefined' && dSimActive && typeof dInterpolate==='function'){
+    s=dInterpolate(s);
+  }else if(typeof gVarRegex==='function'){
+    s=s.replace(gVarRegex(),(m,n)=>{
+      const v=(typeof dVars!=='undefined')&&dVars.find(x=>x.name===n);
+      return (typeof gFieldSampleValue==='function')?gFieldSampleValue(v||{name:n}):((v&&(v.label||n))||n);
+    });
+  }
+  const tt=l.textTransform;
+  if(tt==='uppercase') s=s.toUpperCase();
+  else if(tt==='lowercase') s=s.toLowerCase();
+  else if(tt==='capitalize') s=s.replace(/(^|\s)(\S)/g,(m,a,b)=>a+b.toUpperCase());
+  return s;
+}
+
+// Re-mede a caixa do texto de ponto e RE-ANCORA. Retorna true se mudou algo.
+// A re-ancoragem é obrigatória: o render (e o png-generator) posicionam o texto DENTRO da
+// caixa via textAlign/vAlign — encolher w/h sem compensar x/y arrastaria o texto
+// centralizado/à direita para outro lugar.
+function dTextFitBox(l){
+  if(!l || l.type!=='text') return false;
+  if(l.textBox==='box') return false;        // parágrafo: caixa é fixa por definição
+  if(l.vertical) return false;               // writing-mode vertical inverte w/h — fora do escopo
+  if(l.runs && l.runs.length) return false;  // rich text (tamanho por trecho): a medida base mentiria
+  const fs=l.fontSize||24, lh=l.lineHeight||1.2;
+  // Infinity: point text não quebra por largura (render usa white-space:'pre') — mede a linha inteira.
+  const m=dMeasureText(dTextDisplayString(l), l.font||"'Roboto Black'", fs, Infinity, lh, l.letterSpacing);
+  const nw=Math.max(24, Math.ceil(m.width));   // 24px de piso: texto vazio não vira sliver inclicável
+  const nh=Math.max(Math.ceil(fs*lh), Math.ceil(m.height));
+  if(nw===l.w && nh===l.h) return false;
+  const al=l.textAlign||'left';
+  if(al==='center') l.x=Math.round(l.x+(l.w-nw)/2);
+  else if(al==='right') l.x=Math.round(l.x+(l.w-nw));
+  if(l.vAlign!=='top') l.y=Math.round(l.y+(l.h-nh)/2); // 'top' ancora pelo topo: y não muda
+  l.w=nw; l.h=nh;
+  return true;
 }
 
 function dCheckTextOverflow(layer){

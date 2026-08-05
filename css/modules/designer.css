@@ -662,12 +662,16 @@ body.theme-light .field-chip.on span{color:var(--dm-orange-d)}
 .asset-thumb{aspect-ratio:1;border-radius:5px;overflow:hidden;border:1px solid var(--d-border);background:var(--d-surf);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:22px;transition:border-color .15s;flex-direction:column;gap:4px;position:relative}
 .asset-thumb:hover{border-color:var(--dm-orange)}
 .asset-thumb img{width:100%;height:100%;object-fit:cover}
-/* Arrastar asset pro canvas (js: dAssetDragStart → drop em canvas.js).
+/* Arrastar elemento pra prancheta (js: dAssetDragStart/dLibDragStart → drop em canvas.js).
    grab/grabbing avisa que o item se move ANTES de a pessoa tentar; sem isso o arrasto
-   fica escondido e continua parecendo que só o clique funciona. */
-.asset-thumb{cursor:grab}
-.asset-thumb:active{cursor:grabbing}
-.asset-thumb.asset-dragging{opacity:.45;border-color:var(--dm-orange)}
+   fica escondido e continua parecendo que só o clique funciona.
+   O #d-lib-grid no seletor da Biblioteca é de propósito: `.lib-item{cursor:pointer}` mora em
+   layers-panel.css, que carrega depois — na mesma especificidade ele ganharia por ordem. */
+.asset-thumb,#d-lib-grid .lib-item{cursor:grab}
+.asset-thumb:active,#d-lib-grid .lib-item:active{cursor:grabbing}
+/* Estado de arrasto vale pros dois grids do painel Elementos (Assets e Biblioteca) — é o
+   mesmo gesto, tem de ter o mesmo feedback. */
+.asset-thumb.asset-dragging,.lib-item.asset-dragging{opacity:.45;border-color:var(--dm-orange)}
 /* O canvas se acende quando o asset está por cima: é o alvo do drop, e alvo sem retorno
    visual faz a pessoa soltar no lugar errado. */
 #d-canvas-frame.d-drop-alvo{outline:2px dashed var(--dm-orange);outline-offset:-2px;

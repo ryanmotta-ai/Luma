@@ -229,6 +229,7 @@ let dResizeEl = null;
 let dResizePos = null;
 let dResizeLyrX = 0;
 let dResizeLyrY = 0;
+let dResizeFs = 0;   // fontSize no início do gesto — base da escala do texto de ponto
 
 function dStartResize(e,l,pos){
   if (l.locked || l.lockPosition) return;
@@ -238,6 +239,7 @@ function dStartResize(e,l,pos){
   dResizeSY=e.clientY;
   dResizeW=l.w;
   dResizeH=l.h;
+  dResizeFs=l.fontSize||0;
   dResizePos=pos;
   dResizeLyrX=l.x;
   dResizeLyrY=l.y;
@@ -292,6 +294,17 @@ function dOnResize(e){
   dResize.w = w;
   dResize.h = h;
 
+  /* TEXTO DE PONTO: no Photoshop a alça ESCALA a tipografia — a caixa é o extent dos glifos,
+     não um container. Aqui a alça só mexia em w/h, que o render de point text ignora
+     (não quebra linha, fontSize fixo): arrastar a alça não mudava NADA na tela, parecia
+     alça quebrada. Escala pela ALTURA (o eixo que o olho lê como tamanho de fonte); a caixa
+     volta a abraçar os glifos no dStopResize. */
+  const _isPointText = dResize.type==='text' && dResize.textBox!=='box' && !dResize.vertical;
+  if (_isPointText && dResizeFs && dResizeH > 0) {
+    dResize.fontSize = Math.max(6, Math.round(dResizeFs * (h / dResizeH)));
+    if (dResizeEl) dResizeEl.style.fontSize = dResize.fontSize + 'px'; // feedback ao vivo, sem re-render
+  }
+
   if (isAlt) {
     const cx = dResizeLyrX + dResizeW / 2;
     const cy = dResizeLyrY + dResizeH / 2;
@@ -333,6 +346,9 @@ function dOnResize(e){
 }
 function dStopResize(){
   if(dResize){
+    // Texto de ponto: a alça escalou a fonte — a caixa volta a abraçar os glifos, senão
+    // sobraria o retângulo arrastado pelo mouse, descolado do texto.
+    if(typeof dTextFitBox==='function') dTextFitBox(dResize);
     dHistoryPush();
     dMarkUnsaved();
     if(typeof dRenderCanvas==='function')dRenderCanvas();
@@ -392,6 +408,13 @@ function dAddTextAt(x,y,vertical,w,h){
   if (isVert) {
     layer.vertical = true;
   }
+  /* Igual ao Photoshop: ARRASTAR com a ferramenta Texto cria caixa de PARÁGRAFO (largura
+     fixa, o texto quebra dentro dela); CLICAR cria texto de PONTO, cuja caixa abraça os
+     glifos. Antes os dois nasciam point text: o retângulo desenhado no arrasto era ignorado
+     pelo render (white-space:'pre', sem quebra) e ficava largado longe do texto — era esse
+     o "quadrado solto" que aparecia na tela. */
+  if (w && h && !isVert) layer.textBox = 'box';
+  else if (typeof dTextFitBox === 'function') dTextFitBox(layer);
   if (typeof dLayers !== 'undefined') dLayers.push(layer);
   if (typeof dSelLayerState === 'function') dSelLayerState(id);
   if (typeof dRenderCanvas === 'function') dRenderCanvas();
@@ -415,110 +438,82 @@ function dAddImageAt(x,y,w,h){  dHistoryPush();
   setTimeout(()=>dFlashLayer(id),30);
 }
 
-function dAddImageFromFile(file, x, y) {
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const dataUrl = e.target.result;
-    const img = new Image();
-    img.onload = function() {
-      if (typeof dHistoryPush === 'function') dHistoryPush();
-      
-      const f = typeof dCanvasSize === 'function' ? dCanvasSize() : { w: 1080, h: 1920 };
-      let nw = img.naturalWidth || 300;
-      let nh = img.naturalHeight || 300;
-      
-      const maxW = Math.round(f.w * 0.65);
-      const maxH = Math.round(f.h * 0.65);
-      let w = nw;
-      let h = nh;
-      if (w > maxW || h > maxH) {
-        const ratio = Math.min(maxW / w, maxH / h);
-        w = Math.round(w * ratio);
-        h = Math.round(h * ratio);
-      }
-      
-      const px = (typeof x === 'number' && !isNaN(x)) ? Math.round(x - w / 2) : Math.round((f.w - w) / 2);
-      const py = (typeof y === 'number' && !isNaN(y)) ? Math.round(y - h / 2) : Math.round((f.h - h) / 2);
-
-      const id = 'l-' + (++dLyrCnt);
-      const cleanName = (file.name || 'Objeto Inteligente').replace(/\.[^/.]+$/, '').trim();
-      const layer = {
-        id,
-        name: cleanName || ('Imagem ' + dLyrCnt),
-        type: 'image',
-        x: Math.max(0, px),
-        y: Math.max(0, py),
-        w,
-        h,
-        imgUrl: dataUrl,
-        imgVar: '',
-        objectFit: 'contain',
-        visible: true
-      };
-
-      if (typeof dLayers !== 'undefined') dLayers.push(layer);
-      if (typeof dSelLayerState === 'function') dSelLayerState(id);
-      if (typeof dRenderCanvas === 'function') dRenderCanvas();
-      if (typeof dRenderLayersList === 'function') dRenderLayersList();
-      if (typeof dStats === 'function') dStats();
-      if (typeof dMarkUnsaved === 'function') dMarkUnsaved();
-      if (typeof dSetTool === 'function') dSetTool('select');
-      if (typeof gToast === 'function') gToast(`Objeto inteligente "${layer.name}" adicionado`);
-      if (typeof dFlashLayer === 'function') setTimeout(() => dFlashLayer(id), 30);
-    };
-    img.src = dataUrl;
-  };
-  reader.readAsDataURL(file);
-}
-
+/* ══ OBJETO INTELIGENTE — imagem virando CAMADA na prancheta ══
+   Uma imagem solta na prancheta (ou clicada no painel Elementos) nasce como camada de
+   imagem de verdade: entra na lista de camadas, move/redimensiona/gira e o render escala
+   sempre a partir da origem — nada é achatado em pixel. A proporção sai do tamanho REAL
+   da imagem (naturalWidth): nascer quadrado obriga a corrigir na mão toda vez.
+   Persistência: dataURL grande vira 'idb://…' no dPersistFolders (gPackImgUrl) e sobe pro
+   Storage no sync — é por isso que soltar arquivo do desktop direto na prancheta é seguro. */
 function dAddImageFromUrl(url, x, y, title) {
   if (!url) return;
-  const img = new Image();
-  img.crossOrigin = 'anonymous';
-  img.onload = function() {
+  const criar = (nw, nh) => {
     if (typeof dHistoryPush === 'function') dHistoryPush();
-    const f = typeof dCanvasSize === 'function' ? dCanvasSize() : { w: 1080, h: 1920 };
-    let nw = img.naturalWidth || 300;
-    let nh = img.naturalHeight || 300;
-    const maxW = Math.round(f.w * 0.65);
-    const maxH = Math.round(f.h * 0.65);
-    let w = nw;
-    let h = nh;
-    if (w > maxW || h > maxH) {
-      const ratio = Math.min(maxW / w, maxH / h);
-      w = Math.round(w * ratio);
-      h = Math.round(h * ratio);
-    }
+    const f = (typeof dCanvasSize === 'function') ? dCanvasSize() : { w: 1080, h: 1920 };
+    // Teto de 65% da prancheta: uma foto de 4000px entraria cobrindo a arte inteira.
+    // Só reduz, nunca amplia — ampliar um ícone de 40px o deixaria borrado.
+    const k = Math.min(1, (f.w * 0.65) / nw, (f.h * 0.65) / nh);
+    const w = Math.max(1, Math.round(nw * k));
+    const h = Math.max(1, Math.round(nh * k));
+    // x,y são o CENTRO desejado: nascer com o canto no ponteiro desloca a peça pra
+    // baixo e pra direita de onde a pessoa soltou. Sem x,y → centro da prancheta.
     const px = (typeof x === 'number' && !isNaN(x)) ? Math.round(x - w / 2) : Math.round((f.w - w) / 2);
     const py = (typeof y === 'number' && !isNaN(y)) ? Math.round(y - h / 2) : Math.round((f.h - h) / 2);
-
     const id = 'l-' + (++dLyrCnt);
-    const layer = {
-      id,
-      name: title || ('Objeto Inteligente ' + dLyrCnt),
-      type: 'image',
-      x: Math.max(0, px),
-      y: Math.max(0, py),
-      w,
-      h,
-      imgUrl: url,
-      imgVar: '',
-      objectFit: 'contain',
-      visible: true
-    };
-
-    if (typeof dLayers !== 'undefined') dLayers.push(layer);
-    if (typeof dSelLayerState === 'function') dSelLayerState(id);
-    if (typeof dRenderCanvas === 'function') dRenderCanvas();
-    if (typeof dRenderLayersList === 'function') dRenderLayersList();
+    const nome = String(title || '').trim() || ('Imagem ' + dLyrCnt);
+    dLayers.push({ id, name: nome, type: 'image',
+      x: Math.max(0, px), y: Math.max(0, py), w, h,
+      imgUrl: url, imgVar: '', objectFit: 'contain', visible: true });
+    dSelLayerState(id);
+    dRenderCanvas(); dRenderLayersList();
     if (typeof dStats === 'function') dStats();
     if (typeof dMarkUnsaved === 'function') dMarkUnsaved();
     if (typeof dSetTool === 'function') dSetTool('select');
-    if (typeof gToast === 'function') gToast('Objeto inteligente adicionado');
+    gToast('✓ "' + nome + '" virou camada');
     if (typeof dFlashLayer === 'function') setTimeout(() => dFlashLayer(id), 30);
   };
+  const img = new Image();
+  img.onload = () => criar(img.naturalWidth || 300, img.naturalHeight || 300);
+  // Imagem que não mede (URL sem CORS, arquivo morto) NÃO pode engolir o gesto em
+  // silêncio: cai no quadrado padrão e a camada aparece do mesmo jeito.
+  img.onerror = () => criar(300, 300);
   img.src = url;
+}
+
+/* Arquivo (drop do desktop / input de upload) → mesma camada. Delega em dAddImageFromUrl:
+   um só caminho de criação, senão os dois divergem no próximo ajuste. */
+function dAddImageFromFile(file, x, y) {
+  if (!file) return;
+  const ehImagem = /^image\//.test(file.type || '') || /\.(png|jpe?g|svg|webp|gif|avif)$/i.test(file.name || '');
+  if (!ehImagem) { gToast('Só imagens viram camada (JPG, PNG, SVG ou WEBP)', 'error'); return; }
+  const reader = new FileReader();
+  reader.onload = e => dAddImageFromUrl(e.target.result, x, y, String(file.name || '').replace(/\.[^/.]+$/, ''));
+  reader.onerror = () => gToast('⚠ Não foi possível ler o arquivo. Tente arrastar de novo.', 'error');
+  reader.readAsDataURL(file);
+}
+
+/* ── CLIQUE NO PAINEL ELEMENTOS ──
+   Clicar num item (Biblioteca ou Assets) põe a imagem como CAMADA NOVA no centro da
+   prancheta. Antes exigia uma camada de imagem selecionada e, sem ela, só devolvia toast
+   de erro — o clique não fazia nada visível.
+   Exceção proposital: com uma MOLDURA selecionada o clique PREENCHE a moldura. Moldura é
+   o espaço de foto que o franqueado preenche; criar camada solta por cima dela seria o
+   oposto do que a pessoa pediu ao selecioná-la. */
+function dElementoParaCamada(url, nome) {
+  if (!url) { gToast('Este item não tem imagem', 'error'); return; }
+  const moldura = dLayers.find(x => x.id === dSelId && x.type === 'frame');
+  if (moldura) {
+    if (typeof dHistoryPush === 'function') dHistoryPush();
+    moldura.imgUrl = url;
+    if (typeof dMarkUnsaved === 'function') dMarkUnsaved();
+    dRenderCanvas();
+    // Reabre o painel pela via oficial: mexer no #dp-imgurl na mão deixava o campo
+    // fora de sincronia com o resto das props.
+    if (typeof dShowProps === 'function') dShowProps(moldura);
+    gToast('✓ "' + (nome || 'Imagem') + '" na moldura');
+    return;
+  }
+  dAddImageFromUrl(url, undefined, undefined, nome);
 }
 function dAddFrame(){const f=dCanvasSize();dAddFrameAt(Math.round(f.w*.05),Math.round(f.h*.04));}
 function dAddFrameAt(x,y,w,h){  dHistoryPush();
@@ -2031,6 +2026,13 @@ function dUpdateProp(prop,val){
   if(prop==='points') l.points=Math.max(3,Math.min(20,Math.round(val))); // estrela
   if(prop==='inner') l.inner=Math.max(0.05,Math.min(0.95,parseFloat(val)||0.5)); // raio interno estrela
   if(prop==='content')dSyncVarsFromContent(val); // auto-cria variáveis digitadas (3.1)
+  /* Caixa modular (Photoshop): mudou conteúdo ou tipografia → o texto de PONTO re-mede a
+     própria caixa. w/h ficam FORA da lista de propósito: ali o usuário digitou um tamanho
+     à mão e re-medir apagaria o que ele acabou de pedir. */
+  if(l.type==='text' && typeof dTextFitBox==='function'
+     && ['content','fontSize','font','lineHeight','letterSpacing','textTransform','textAlign','fontWeightOverride','italic'].includes(prop)){
+    dTextFitBox(l);
+  }
   // frameShape → radius automático
   if(prop==='frameShape'){
     if(val==='circle')l.radius=999;
@@ -2902,81 +2904,47 @@ function dAssetsRender(){
   // nome/url vêm do usuário (e do sync) → escape obrigatório; url restrita a
   // protocolos de imagem seguros (nada de javascript: em src)
   const _safeUrl=u=>(typeof u==='string'&&/^(data:image\/|blob:|https?:\/\/|assets\/)/i.test(u))?u:'';
-  // draggable: o asset agora vai pro canvas ARRASTANDO (ver dAssetDragStart e o drop em
-  // canvas.js). O clique continua fazendo o que fazia — aplicar na camada selecionada.
+  // Arrastar leva o asset pro ponto exato da prancheta; clicar insere no centro.
   document.getElementById('d-assets-grid').innerHTML=dAssets.map((a,i)=>`
     <div class="asset-thumb" draggable="true" ondragstart="dAssetDragStart(event,${i})" ondragend="dAssetDragEnd(event)"
-         onclick="dUseAsset(${i})" title="${_dEsc(a.name||'')} — arraste pro canvas ou clique pra aplicar na camada selecionada">
+         onclick="dUseAsset(${i})" title="${_dEsc(a.name||'')} — arraste pra prancheta ou clique pra inserir no centro">
       ${_safeUrl(a.url)?`<img src="${_dEsc(_safeUrl(a.url))}" alt="${_dEsc(a.name||'')}" draggable="false">`:`<span style="font-size:26px">${_dEsc(a.emoji||'')}</span>`}
       <span class="asset-name">${_dEsc(a.name||'')}</span>
     </div>`).join('');
 }
 function dHandleUpload(inp){ dLibUpload(inp); }
 function dUseAsset(i){
-  const a=dAssets[i];if(!a.url){gToast('Asset sem URL');return;}
-  const l=dLayers.find(x=>x.id===dSelId&&(x.type==='image'||x.type==='frame'));
-  if(!l){gToast('Selecione uma camada de imagem, ou arraste o asset pro canvas');return;}
-  l.imgUrl=a.url;dRenderCanvas();
-  const urlInp=document.getElementById('dp-imgurl');if(urlInp)urlInp.value=a.url;
-  gToast('✓ "'+a.name+'" aplicado');
+  const a=dAssets[i];if(!a)return;
+  dElementoParaCamada(a.url,a.name);
 }
 
-/* ── ARRASTAR ASSET PRO CANVAS ──
-   O índice do asset viaja pelo dataTransfer com um tipo PRÓPRIO (`application/x-luma-asset`).
-   Tipo próprio e não `text/plain` de propósito: assim o drop do canvas sabe distinguir um
-   asset da casa de um arquivo arrastado da área de trabalho, e um não rouba o outro.
-   O estado global existe porque o Safari zera o dataTransfer fora do handler de drop. */
-let dAssetArrastando=null;
-function dAssetDragStart(e,i){
-  const a=dAssets[i];
-  if(!a||!a.url){e.preventDefault();return;}
-  dAssetArrastando=i;
+/* ── ARRASTAR UM ELEMENTO PRO CANVAS (Biblioteca ou Assets) ──
+   O dataTransfer leva só um MARCADOR; o item em arrasto viaja no global `dAssetArrastando`.
+   Marcador e não a URL porque um dataURL de vários MB no dataTransfer é peso morto — e o
+   Safari zera o dataTransfer fora do handler de drop, então o global já era necessário.
+   Tipo PRÓPRIO (`application/x-luma-asset`) e não `text/plain`: é assim que o drop do canvas
+   distingue um elemento da casa de um arquivo vindo da área de trabalho, e um não rouba o outro.
+   Biblioteca resolve por ID e Assets por índice — os dois desembocam no mesmo motor, senão
+   a mesma imagem cairia na prancheta de dois jeitos diferentes conforme a aba. */
+let dAssetArrastando=null;   // {url,name} do elemento em arrasto, ou null
+function _dArrastarElemento(e,a){
+  if(!a||!a.url){e.preventDefault();return;}   // sem URL não há o que soltar
+  dAssetArrastando={url:a.url,name:a.name||''};
   try{
     e.dataTransfer.effectAllowed='copy';
-    e.dataTransfer.setData('application/x-luma-asset',String(i));
+    e.dataTransfer.setData('application/x-luma-asset','1');
   }catch(err){}
   const alvo=e.currentTarget;
   if(alvo&&alvo.classList) alvo.classList.add('asset-dragging');
 }
+function dAssetDragStart(e,i){ _dArrastarElemento(e,dAssets[i]); }
+function dLibDragStart(e,id){ _dArrastarElemento(e,dLibAssets.find(x=>x.id===id)); }
 function dAssetDragEnd(e){
   dAssetArrastando=null;
   const alvo=e&&e.currentTarget;
   if(alvo&&alvo.classList) alvo.classList.remove('asset-dragging');
   const fr=document.getElementById('d-canvas-frame');
   if(fr) fr.classList.remove('d-drop-alvo');
-}
-
-/* Cria a camada de imagem no ponto solto. A proporção sai da imagem REAL (naturalWidth):
-   soltar um logo largo e ele virar quadrado obriga a redimensionar na mão toda vez. */
-function dAssetSoltarNoCanvas(i,x,y){
-  const a=dAssets[i];
-  if(!a||!a.url){gToast('Asset sem URL');return;}
-  const criar=(w,h)=>{
-    if(typeof dHistoryPush==='function') dHistoryPush();
-    const id='l-'+(++dLyrCnt);
-    // x,y vêm do CENTRO do cursor: soltar e o elemento nascer com o canto no ponteiro
-    // desloca a peça pra baixo e pra direita de quem soltou.
-    dLayers.push({id,name:(a.name||'Asset')+'',type:'image',
-      x:Math.round(x-w/2),y:Math.round(y-h/2),w:Math.round(w),h:Math.round(h),
-      imgUrl:a.url,imgVar:'',objectFit:'contain',visible:true});
-    dSelLayerState(id);
-    dRenderCanvas();dRenderLayersList();
-    if(typeof dStats==='function')dStats();
-    if(typeof dMarkUnsaved==='function')dMarkUnsaved();
-    if(typeof dSetTool==='function')dSetTool('select');
-    gToast('✓ "'+(a.name||'Asset')+'" no canvas');
-    if(typeof dFlashLayer==='function') setTimeout(()=>dFlashLayer(id),30);
-  };
-  const LADO=220;   // maior lado padrão, em px da prancheta
-  const img=new Image();
-  img.onload=()=>{
-    const nw=img.naturalWidth||LADO, nh=img.naturalHeight||LADO;
-    const k=LADO/Math.max(nw,nh);
-    criar(nw*k,nh*k);
-  };
-  // Imagem que não carrega (URL morta, CORS) não pode travar o gesto: cai no quadrado.
-  img.onerror=()=>criar(LADO,LADO);
-  img.src=a.url;
 }
 
 /* ── SAVE / PREVIEW ── */

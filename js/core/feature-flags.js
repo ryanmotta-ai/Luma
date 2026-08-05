@@ -60,7 +60,7 @@ const G_FEATURE_REGISTRY = [
     preserva:['load'], tags:['vitrine','catálogo','home'] },
   { key:'module.academia', label:'Academia', desc:'A formação do franqueado: aulas, materiais e certificado.',
     module:'academia', parent:null, categoria:'modulos', behaviors:['hide','maintenance'],
-    preserva:['load'], tags:['formação','curso','aula'] },
+    preserva:['load'], tags:['formação','curso','aula'], defaultEnabled:false },
   { key:'module.designer', label:'Estúdio', desc:'O editor onde a equipe monta e publica os templates.',
     module:'designer', parent:null, categoria:'modulos', behaviors:['hide','maintenance'],
     preserva:['load'], tags:['designer','editor','canvas'] },

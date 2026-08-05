@@ -122,10 +122,15 @@ function dLibRender(filter) {
     return;
   }
   grid.innerHTML = assets.map(a => {
+    // draggable="false" na <img>: sem isto o navegador arrasta a IMAGEM (drag nativo) em vez
+    // do cartão, e o dragstart do item nunca dispara.
     const preview = a.isSvg
-      ? `<img src="${gEsc(a.url)}" alt="${gEsc(a.name)}" style="width:70%;height:70%;object-fit:contain">`
-      : `<img src="${gEsc(a.url)}" alt="${gEsc(a.name)}" style="width:100%;height:100%;object-fit:cover">`;
-    return `<div class="lib-item" onclick="dLibUse('${a.id}')" title="${gEsc(a.name)}">
+      ? `<img src="${gEsc(a.url)}" alt="${gEsc(a.name)}" draggable="false" style="width:70%;height:70%;object-fit:contain">`
+      : `<img src="${gEsc(a.url)}" alt="${gEsc(a.name)}" draggable="false" style="width:100%;height:100%;object-fit:cover">`;
+    // draggable: arrastar leva o item pro ponto exato da prancheta (motor em layers.js —
+    // _dArrastarElemento + o drop de canvas.js). Clicar continua criando no centro.
+    return `<div class="lib-item" draggable="true" ondragstart="dLibDragStart(event,'${a.id}')" ondragend="dAssetDragEnd(event)"
+      onclick="dLibUse('${a.id}')" title="${gEsc(a.name)} — arraste pra prancheta ou clique pra inserir no centro">
       ${preview}
       <span class="lib-item-name">${gEsc(a.name)}</span>
       <button class="lib-item-del" onclick="event.stopPropagation();dLibDelete('${a.id}')" title="Remover">×</button>
@@ -186,18 +191,12 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
+// Clique na biblioteca = camada nova na prancheta (ou preenche a moldura selecionada).
+// O motor mora em layers.js (dElementoParaCamada) — o mesmo do clique na aba Assets.
 function dLibUse(id) {
   const a = dLibAssets.find(x => x.id === id);
   if (!a) return;
-  const l = dLayers.find(x => x.id === dSelId && (x.type === 'image' || x.type === 'frame'));
-  if (!l) { gToast('Selecione uma camada de imagem ou moldura primeiro'); return; }
-  if (typeof dHistoryPush === 'function') dHistoryPush(); // trocar a imagem é desfazível
-  l.imgUrl = a.url;
-  if (typeof dMarkUnsaved === 'function') dMarkUnsaved();
-  dRenderCanvas();
-  const urlInp = document.getElementById('dp-imgurl');
-  if (urlInp) urlInp.value = '[' + a.name + ']';
-  gToast('✓ "' + a.name + '" aplicado');
+  dElementoParaCamada(a.url, a.name);
 }
 
 function dLibDelete(id) {
@@ -326,46 +325,82 @@ if(typeof ResizeObserver!=='undefined'){
 /* ── Edição inline de texto ── */
 let dInlineEl=null,dInlineLayer=null;
 function dStartInlineEdit(l,elDiv){
+  // Já editando ESTA camada → não reabre. O duplo clique tem dois caminhos (a detecção manual
+  // no mousedown e o listener 'dblclick' nativo); se os dois disparassem no mesmo gesto, o
+  // segundo fecharia e reabriria a edição, piscando e perdendo o cursor.
+  if(dInlineEl && dInlineLayer && dInlineLayer.id===l.id) return;
   dEndInlineEdit(); // fechar qualquer edição anterior
   dInlineLayer=l;
   const ta=document.createElement('textarea');
   ta.className='canvas-layer-inline-edit';
   ta.value=l.content||'';
+  const _fp=dTextFontParts(l.font);
+  const _fs=l.fontSize||24, _lh=l.lineHeight||1.2;
+  const _isBox=(l.textBox==='box');
+  /* WYSIWYG de verdade: a caixa de edição herda TUDO que muda a métrica (leading, tracking,
+     caixa alta, itálico, peso) e perde o padding e o fundo escuro. Faltando isso, o texto
+     "pulava" ao dar duplo clique e pulava de volta ao confirmar — parecia bug de posição,
+     era a textarea com outra tipografia (largura 100px mínima, line-height 1.2 fixo). */
+  ta.wrap = _isBox ? 'soft' : 'off'; // point text não quebra linha — igual ao white-space:'pre' do render
   ta.style.cssText=`
     left:${l.x}px;top:${l.y}px;
-    width:${Math.max(l.w,100)}px;
-    min-height:${Math.max(l.h,30)}px;
-    font-size:${l.fontSize||24}px;
-    font-family:${dTextFontParts(l.font).family};font-weight:${dTextFontParts(l.font).weight};
+    width:${Math.max(_isBox?l.w:0,24)}px;
+    height:${Math.max(l.h,Math.ceil(_fs*_lh))}px;
+    font-size:${_fs}px;
+    line-height:${_lh};
+    font-family:${_fp.family};font-weight:${l.fontWeightOverride||_fp.weight};
+    ${l.italic?'font-style:italic;':''}
+    ${l.textTransform?'text-transform:'+l.textTransform+';':''}
+    ${l.letterSpacing?'letter-spacing:'+l.letterSpacing+'px;':''}
     color:${l.color||'#fff'};
     text-align:${l.textAlign||'left'};
-    padding:2px 4px;
+    white-space:${_isBox?'pre-wrap':'pre'};
+    padding:0;border:0;
     box-sizing:border-box;
     position:absolute;
     z-index:200;
-    background:rgba(0,0,0,0.2);
+    background:transparent;
   `;
   if(l.vertical) ta.style.writingMode='vertical-rl'; // texto vertical: textarea acompanha
   const frame=document.getElementById('d-canvas-frame');
   frame.appendChild(ta);
   dInlineEl=ta;
+  /* A caixa cresce ENQUANTO se digita (é o mesmo contrato do dTextFitBox: no point text a
+     caixa é o texto) e se re-ancora pelo textAlign/vAlign — sem isso o texto centralizado
+     escorregava para a direita a cada tecla, porque a textarea só cresce para um lado. */
+  const _fit=()=>{
+    if(!_isBox && typeof dMeasureText==='function'){
+      // {raw:true}: mede o que está NA textarea (token {{}} cru), mas com textTransform
+      // aplicado — sem isso, texto em caixa alta media minúsculo e a caixa saía estreita.
+      const _txt=(typeof dTextDisplayString==='function')?dTextDisplayString({...l,content:ta.value},{raw:true}):ta.value;
+      const m=dMeasureText(_txt, l.font||"'Roboto Black'", _fs, Infinity, _lh, l.letterSpacing);
+      ta.style.width=Math.max(24, Math.ceil(m.width)+2)+'px'; // +2px: o caret no fim do texto tem que caber
+    }
+    // rows=1 antes de medir: em 'height:auto' a textarea cai no default de 2 linhas e o
+    // scrollHeight vinha o dobro do texto — a caixa de edição ficava alta e descentralizada.
+    ta.rows=1;
+    ta.style.height='auto';
+    ta.style.height=ta.scrollHeight+'px';
+    const _tw=ta.offsetWidth||l.w, _th=ta.offsetHeight||l.h, _al=l.textAlign||'left';
+    if(!_isBox) ta.style.left=Math.round(_al==='center'?l.x+(l.w-_tw)/2:_al==='right'?l.x+(l.w-_tw):l.x)+'px';
+    // vAlign padrão do editor centraliza o texto na caixa; a textarea começa no topo.
+    if(l.vAlign!=='top') ta.style.top=Math.round(l.y+(l.h-_th)/2)+'px';
+  };
+  _fit();
   // Autocomplete de {{var}} também na edição inline (V1/V2)
   if(typeof dAttachVarAutocomplete==='function') dAttachVarAutocomplete(ta, val=>{ if(dInlineLayer)dInlineLayer.content=val; });
   // focar e selecionar tudo
   setTimeout(()=>{ta.focus();ta.select();},30);
-  // auto-resize
-  ta.addEventListener('input',()=>{
-    ta.style.height='auto';
-    ta.style.height=ta.scrollHeight+'px';
-  });
+  ta.addEventListener('input',_fit);
   ta.addEventListener('blur',dEndInlineEdit);
   ta.addEventListener('keydown',e=>{
     e.stopPropagation(); // não dispara atalhos do canvas durante a edição
     if(e.key==='Escape'){e.preventDefault();dEndInlineEdit(null,true);}
     else if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();dEndInlineEdit();} // Enter confirma; Shift+Enter = nova linha
   });
-  // esconder o layer original visualmente enquanto edita
-  elDiv.style.opacity='0.1';
+  // Esconder o original enquanto edita. 0 (e não 0.1): agora que a textarea é fiel à
+  // tipografia, o fantasma a 10% aparecia levemente deslocado e lia-se como texto duplicado.
+  elDiv.style.opacity='0';
 }
 function dEndInlineEdit(e,cancel){
   if(!dInlineEl||!dInlineLayer)return;
@@ -403,7 +438,8 @@ function dEndInlineEdit(e,cancel){
     }
     if(typeof dLayers!=='undefined') dLayers=dLayers.filter(x=>x.id!==l.id); // remove o temp
     if(target) dSelId=target.id;
-    if(dInlineEl.isConnected)dInlineEl.remove(); dInlineEl=null; dInlineLayer=null;
+    const _elM=dInlineEl; dInlineEl=null; dInlineLayer=null;   // idem: estado antes do remove (blur reentra)
+    if(_elM.isConnected)_elM.remove();
     if(typeof dSetTool==='function')dSetTool('select');
     dRenderCanvas(); if(typeof dRenderLayersList==='function')dRenderLayersList();
     if(target&&typeof dShowProps==='function')dShowProps(target);
@@ -415,21 +451,33 @@ function dEndInlineEdit(e,cancel){
   // sobrescreveria a edição feita no painel (era isso que fazia a {{var}} "sumir").
   // Detecta pelo isConnected e descarta o valor stale; l.content já é a fonte da verdade.
   const stale = dInlineEl.isConnected===false;
-  if(!cancel && !stale){
+  // Resolver por ID na hora de gravar: undo/redo e simulação TROCAM os objetos de dLayers
+  // por clones, e a referência guardada ao abrir a edição pode estar morta — gravar nela
+  // perderia o texto digitado em silêncio.
+  const lv=(typeof dLayers!=='undefined'&&dLayers.find(x=>x.id===dInlineLayer.id))||dInlineLayer;
+  // Abrir e fechar sem digitar nada NÃO é uma edição: gravar mesmo assim empilhava um passo
+  // vazio no desfazer e acendia o "Não salvo" só por ter dado duplo clique na camada.
+  if(!cancel && !stale && dInlineEl.value!==(lv.content||'')){
     dHistoryPush();
-    dInlineLayer.content=dInlineEl.value;
-    if(typeof dSyncVarsFromContent==='function')dSyncVarsFromContent(dInlineLayer.content); // auto-cria vars (3.1)
+    lv.content=dInlineEl.value;
+    if(typeof dSyncVarsFromContent==='function')dSyncVarsFromContent(lv.content); // auto-cria vars (3.1)
+    if(typeof dTextFitBox==='function') dTextFitBox(lv); // caixa modular: abraça o texto novo
     // atualizar painel de props se visível (Fase 3: renderiza chips, não a sintaxe crua)
     const inp=document.getElementById('dp-content');
     if(inp&&document.getElementById('d-props-form').style.display!=='none'){
-      if(typeof dFieldTokensToChips==='function') inp.innerHTML=dFieldTokensToChips(dInlineLayer.content);
-      else inp.textContent=dInlineLayer.content;
+      if(typeof dFieldTokensToChips==='function') inp.innerHTML=dFieldTokensToChips(lv.content);
+      else inp.textContent=lv.content;
     }
     dMarkUnsaved();
   }
-  if(dInlineEl.isConnected)dInlineEl.remove();
+  // Zerar o estado ANTES de remover o nó: tirar do DOM um campo com foco dispara 'blur',
+  // que reentra aqui na mesma pilha. Com o estado já nulo a reentrada morre na primeira
+  // linha; na ordem inversa ela tentava remover o mesmo nó duas vezes (NotFoundError) e
+  // podia gravar o conteúdo em dobro.
+  const _el=dInlineEl;
   dInlineEl=null;
   dInlineLayer=null;
+  if(_el.isConnected)_el.remove();
   if(!stale)dRenderCanvas();
 }
 

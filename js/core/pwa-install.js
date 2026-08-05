@@ -60,7 +60,9 @@
   var LUMA_FAVICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" style="width:100%;height:100%;display:block;border-radius:10px;"><rect width="32" height="32" rx="7" fill="#FF9000"/><g transform="translate(16, 16) scale(0.68) translate(-16, -16)"><path d="M8 24 L15.5 16.5" stroke="white" stroke-width="3" stroke-linecap="round"/><path d="M17.5 14.5 L23 9" stroke="white" stroke-width="3" stroke-linecap="round"/><path d="M12 5.5 Q12 9 15.5 9 Q12 9 12 12.5 Q12 9 8.5 9 Q12 9 12 5.5 Z" fill="white"/><path d="M20 19.5 Q20 23 23.5 23 Q20 23 20 26.5 Q20 23 16.5 23 Q20 23 20 19.5 Z" fill="white"/><path d="M24 15 Q24 17 26 17 Q24 17 24 15 Z" fill="white"/><line x1="25.5" y1="6.5" x2="27.5" y2="4.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/><line x1="23.5" y1="5.5" x2="23.5" y2="3" stroke="white" stroke-width="1.5" stroke-linecap="round"/><line x1="26" y1="8.5" x2="28.5" y2="8.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/></g></svg>';
 
   function isSplashOrLoginVisible() {
-    var splash = document.getElementById('g-splash');
+    // 'sp-overlay' é o id real do splash (js/core/splash.js). Enquanto isto procurava um
+    // 'g-splash' que não existe, a checagem do splash nunca era verdadeira.
+    var splash = document.getElementById('sp-overlay');
     if (splash && splash.style.display !== 'none' && window.getComputedStyle(splash).display !== 'none') return true;
     var login = document.getElementById('g-login-screen');
     if (login && login.style.display !== 'none' && window.getComputedStyle(login).display !== 'none') return true;
@@ -105,13 +107,16 @@
   });
   window.addEventListener('appinstalled', function () { remember(); close(); });
 
-  function tryShowOnScroll() {
+  function tryShowOnScroll(e) {
     if (isStandalone() || isDismissed()) return;
     if (isSplashOrLoginVisible()) return;
     if (!document.body.classList.contains('mode-franqueado')) return;
 
-    var home = document.getElementById('f-home');
-    var st = (home && home.scrollTop) || window.scrollY || document.documentElement.scrollTop || 0;
+    // Quem rolou é o alvo do evento — não sempre o #f-home. O franqueado tem mais de um
+    // container com overflow (a vitrine, "Minhas artes", o painel de materiais); lendo só o
+    // #f-home, rolar qualquer outra tela devolvia scrollTop 0 e a dica nunca aparecia.
+    var alvo = e && e.target;
+    var st = (alvo && alvo.scrollTop) || window.scrollY || document.documentElement.scrollTop || 0;
     if (st > 30) {
       var kind = isIOS ? 'ios' : (isMacSafari ? 'mac' : 'chromium');
       show(kind);

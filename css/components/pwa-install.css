@@ -117,9 +117,12 @@ body:not(.theme-light) #luma-pwa-hint .pwah-close:hover { background: var(--d-su
   #luma-pwa-hint.leaving { transform: translate(-50%, 0); }
 }
 
-/* Trava de segurança: esconde o card no splash, login e modos fora do franqueado */
-body:not(.mode-franqueado) #luma-pwa-hint,
-body:has(#g-splash:not([style*="display: none"])) #luma-pwa-hint,
-body:has(#g-login-screen:not([style*="display: none"])) #luma-pwa-hint {
+/* Trava: o card é do Franqueado. Trocar de modo com ele aberto tem que escondê-lo.
+   Splash e login NÃO são checados aqui — eram, por substring do atributo style
+   ("display: none" com espaço), e o HTML escreve "display:none" sem espaço: a regra dava
+   match ao contrário e escondia o card. Quem barra splash/login é o isSplashOrLoginVisible()
+   do js/core/pwa-install.js (lê o estilo computado, não texto) — e ambos cobrem a tela
+   inteira num z-index acima deste card. */
+body:not(.mode-franqueado) #luma-pwa-hint {
   display: none !important;
 }

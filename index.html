@@ -38,11 +38,11 @@
 <link rel="stylesheet" href="css/modules/catalog.css?v=2">
 <link rel="stylesheet" href="css/modules/franqueado_effects.css">
 <link rel="stylesheet" href="css/modules/publish-modal.css">
-<link rel="stylesheet" href="css/modules/designer.css?v=2">
+<link rel="stylesheet" href="css/modules/designer.css?v=3">
   <link rel="stylesheet" href="css/components/pages-tray.css">
 <link rel="stylesheet" href="css/modules/layers-panel.css">
 <link rel="stylesheet" href="css/modules/toolbar.css">
-<link rel="stylesheet" href="css/components/pwa-install.css?v=2">
+<link rel="stylesheet" href="css/components/pwa-install.css?v=3">
 <link rel="stylesheet" href="css/components/login.css">
 <link rel="stylesheet" href="css/modules/upload-panel.css">
 <!-- depois de franqueado/chat/live-preview: sobrepõe o layout das 3 colunas -->
@@ -242,7 +242,7 @@ input:focus:-webkit-autofill {
   <nav class="mode-tabs" aria-label="Alternar área do Luma">
     <div class="mode-tab-pill" id="mode-tab-pill"></div>
     <button class="mode-tab active" id="tab-fran" onclick="setMode('franqueado')" aria-label="Abrir área do Franqueado"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 9l2-5h14l2 5"/><path d="M5 13v7h14v-7"/><path d="M9 20v-5h6v5"/><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/></svg><span>Franqueado</span></button>
-    <button class="mode-tab" id="tab-academia" onclick="setMode('academia')" aria-label="Abrir a Implementação Delivery Much"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12.5V17c0 1.7 2.7 3 6 3s6-1.3 6-3v-4.5"/></svg><span>Implementação</span></button>
+    <button class="mode-tab" id="tab-academia" data-feature="module.academia" onclick="setMode('academia')" aria-label="Abrir a Implementação Delivery Much"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12.5V17c0 1.7 2.7 3 6 3s6-1.3 6-3v-4.5"/></svg><span>Implementação</span></button>
     <button class="mode-tab" id="tab-design" onclick="setMode('designer')" aria-label="Abrir área do Designer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m14.5 4.5 5 5L8 21H3v-5z"/><path d="m12 7 5 5"/><path d="M3 3h7"/></svg><span>Designer</span></button>
   </nav>
   
@@ -2982,19 +2982,19 @@ input:focus:-webkit-autofill {
 <script src="js/designer/blending.js"></script>
 <script src="js/franqueado/png-generator.js"></script>
 <script src="js/designer/templates.js"></script>
-<script src="js/designer/canvas.js"></script>
+<script src="js/designer/canvas.js?v=3"></script>
 <script src="js/designer/selection.js"></script>
 <script src="js/designer/brush.js"></script>
 <script src="js/designer/eraser-tools.js"></script>
-<script src="js/designer/layers.js?v=2"></script>
+<script src="js/designer/layers.js?v=3"></script>
 <script src="js/designer/props-panel.js?v=2"></script>
 <script src="js/designer/measurement.js"></script>
 <script src="js/designer/publish.js"></script>
 <script src="js/designer/preview.js"></script>
-<script src="js/designer/library.js"></script>
+<script src="js/designer/library.js?v=5"></script>
 <script src="js/designer/undo-redo.js"></script>
 <script src="js/widgets/help-widget.js"></script>
-<script src="js/designer/tools.js"></script>
+<script src="js/designer/tools.js?v=3"></script>
 <script src="js/designer/fonts.js"></script>
 <script src="js/designer/psd-parse.js"></script>
 <script src="js/designer/psd-import.js"></script>
@@ -3667,7 +3667,7 @@ input:focus:-webkit-autofill {
 <script src="js/designer/color-picker.js"></script>
 <script src="js/designer/tooltip.js"></script>
 <script src="js/designer/linter.js"></script>
-<script src="js/core/pwa-install.js?v=2"></script>
+<script src="js/core/pwa-install.js?v=3"></script>
   <!-- Tooltip Educativo Global -->
   <div id="d-rich-tooltip" class="d-rich-tooltip" style="display:none; opacity:0;"></div>
 </body>

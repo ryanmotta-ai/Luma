@@ -352,6 +352,24 @@ Comum: `{id, name, type, x, y, w, h, visible, locked, opacity, mask, anchor, ove
 - **image**: `imgUrl`, `imgVar`, `objectFit`.
 ⚠ `opacity` só é aplicada no render de **shape** (text/frame/image ignoram) — limitação conhecida.
 
+### Caixa de texto: ponto × parágrafo (`textBox`) — 2026-08-05
+
+Espelha o Photoshop. Quem decide é o campo **`textBox`** da camada:
+
+| | **Ponto** (`textBox` ausente/`'point'`) | **Parágrafo** (`textBox:'box'`) |
+|---|---|---|
+| Como nasce | **clique** com a ferramenta Texto | **arrasto** com a ferramenta Texto |
+| Caixa (`w`/`h`) | **modular**: `dTextFitBox` re-mede a caixa a cada mudança de conteúdo/tipografia | **fixa**: é o contrato: o texto quebra dentro dela |
+| Quebra de linha | só em `\n` (`white-space:pre`) | por largura (`pre-wrap`) |
+| Alça de canto | **escala a tipografia** (`fontSize`), caixa reabraça ao soltar | redimensiona a caixa, o texto re-quebra |
+| Overflow | nunca (a caixa acompanha) | selo `text-overflow` por contagem de linhas |
+
+**`dTextFitBox(l)`** (`tools.js`) é o motor único da caixa modular: mede com `dMeasureText` (agora com `letterSpacing`) sobre `dTextDisplayString(l)` — o texto **como aparece** (token `{{campo}}` já virou valor de exemplo/simulação, `textTransform` aplicado). Ao encolher a caixa, **re-ancora `x`/`y`** pelo `textAlign`/`vAlign`, porque render e `png-generator` posicionam o texto _dentro_ da caixa: sem compensar, texto centralizado/à direita andaria na tela. Fica de fora (retorna `false`): parágrafo, texto vertical e rich text (`runs`, tamanho por trecho).
+
+Chamado nos funis de mutação — `dAddTextAt`, `dUpdateProp` (conteúdo/tipografia, **nunca** em `w`/`h`: ali o número é do usuário), `dEndInlineEdit` e `dStopResize`. ⚠ Camada antiga com caixa larga só reabraça na **primeira edição** — não há passe retroativo em massa (mexer em `w`/`h` no load quebraria o 1:1 dos PSDs importados).
+
+A **edição inline** (`dStartInlineEdit`, `library.js`) é WYSIWYG: a `textarea` herda leading, tracking, caixa alta, itálico e peso, sem padding nem fundo, `wrap='off'` no ponto, `rows=1` antes de medir a altura, e cresce/re-ancora enquanto se digita.
+
 ### Ambiente de trabalho: rodapé da régua e barras da prancheta (2026-07-31)
 
 **Rodapé da régua** (`.dpi-rail-foot`, dois botões no fim do `#d-vtoolbar`, fora da `.vt-tools-grid` de propósito — não são ferramentas de desenho e não somem no modo simples):
