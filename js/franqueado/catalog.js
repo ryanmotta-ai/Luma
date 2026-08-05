@@ -657,13 +657,11 @@ function fCampEl(c,isRec,ghost){
     : `background:${c.color}`;
   const mats = (typeof fGetMaterialsForCamp==='function') ? fGetMaterialsForCamp(c.id) : [];
   const countLabel = ghost ? 'Materiais em breve' : (mats.length ? `${mats.length} ${mats.length!==1?'materiais':'material'}` : 'Sem materiais');
-  const _icoFlame='<svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:-1px;margin-right:3px"><path d="M12 2s5 4 5 9a5 5 0 0 1-10 0c0-1 .3-2 .8-2.8C8 10 9 12 10 12c0-3 2-7 2-10z"/></svg>';
   const _icoClock='<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-1px;margin-right:3px"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
   // F: favorito (fixar no topo) + badge "novo" (material publicado depois da última visita).
-  // "novo" cede espaço pra "Popular" (mesmo canto) — não empilha dois selos no topo-esq.
   const _isFav = !ghost && typeof fIsFav==='function' && fIsFav(c.id);
   const favBtn = ghost ? '' : `<button class="camp-fav${_isFav?' is-fav':''}" onclick="fToggleFav('${c.id}',event)" aria-pressed="${_isFav}" aria-label="${_isFav?'Remover das favoritas':'Fixar nas favoritas'}" title="${_isFav?'Remover das favoritas':'Fixar nas favoritas'}"><svg width="14" height="14" viewBox="0 0 24 24" fill="${_isFav?'currentColor':'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></button>`;
-  const _hasNew = !ghost && !c.popular && typeof fCampHasNew==='function' && fCampHasNew(c);
+  const _hasNew = !ghost && typeof fCampHasNew==='function' && fCampHasNew(c);
   // 3-pontos "editar campanha" — só DM staff (gIsAdmin) E campanha com PASTA real (dFolders).
   // Campanha hardcoded do config não tem pasta → não é editável (é código). Gate de UX; a
   // segurança real é a RLS is_designer() no backend.
@@ -678,7 +676,6 @@ function fCampEl(c,isRec,ghost){
     ${ghost?'':`<div class="camp-prev-btn" onclick="event.stopPropagation();fOpenPreview(event,'${c.id}')">PRÉVIA</div>`}
     <div class="camp-thumb ${cover?'has-cover':''}" style="${thumbStyle}">
       ${c.badge?`<div class="camp-badge">${gEsc(c.badge)}</div>`:''}
-      ${!ghost&&c.popular?`<div class="camp-popular">${_icoFlame}Popular</div>`:''}
       ${_hasNew?`<div class="camp-new">novo</div>`:''}
       ${!ghost&&c.expiraDias<=3?`<div class="camp-urgency">${_icoClock}${c.expiraDias}d</div>`:''}
       ${cover?'':`<div class="camp-thumb-prod">${gEsc(previewProd)}</div>
@@ -749,33 +746,12 @@ function fResolveCamp(id){
 const _ICO_BACK=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>`;
 const _ICO_CHEV=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
 
+// Chooser Campanhas/Implementação removido (redundante com a lista de Campanhas que
+// já abre em seguida). Implementação vira módulo próprio no futuro — por ora, o
+// catálogo abre direto em Campanhas. fSelectCategoria/fRenderImplementacao continuam
+// aqui pra quem entra numa campanha de implementação direto pela home (fSelectCamp).
 function fRenderCategorias(){
-  const cat=document.getElementById('f-catalog'); if(!cat)return;
-  fState.categoria=null;
-  const {ativas:_cn1,outras:_cn2,impl:_cni}=fGetCampaigns(); const nCamps=_cn1.length+_cn2.length;
-  const nImpl=_cni.length;
-  cat.innerHTML=`<div class="cat-grid">
-    <div class="cat-card" onclick="fSelectCategoria('campanhas')">
-      <div class="cat-card-thumb" style="background:linear-gradient(135deg,#FF9000,#C84B00)">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
-      </div>
-      <div class="cat-card-body">
-        <div class="cat-card-title">Campanhas</div>
-        <div class="cat-card-sub">${nCamps} campanhas disponíveis</div>
-      </div>
-      <div class="cat-card-chevron">${_ICO_CHEV}</div>
-    </div>
-    <div class="cat-card" onclick="fSelectCategoria('implementacao')">
-      <div class="cat-card-thumb" style="background:linear-gradient(135deg,#2563eb,#1565C0)">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>
-      </div>
-      <div class="cat-card-body">
-        <div class="cat-card-title">Implementação</div>
-        <div class="cat-card-sub">Para novos franqueados · ${nImpl} materiais</div>
-      </div>
-      <div class="cat-card-chevron">${_ICO_CHEV}</div>
-    </div>
-  </div>`;
+  fSelectCategoria('campanhas');
 }
 function fSelectCategoria(cat){
   fState.categoria=cat;
@@ -787,13 +763,13 @@ function fSelectCategoria(cat){
   }
 }
 function fVoltarCategoria(){
-  fRenderCategorias();
+  fSelectCategoria('campanhas');
 }
 function fRenderImplementacao(){
   const cat=document.getElementById('f-catalog'); if(!cat)return;
   cat.innerHTML=`
     <div class="cat-back-row">
-      <button class="cat-back-btn" onclick="fVoltarCategoria()">${_ICO_BACK} Todas as categorias</button>
+      <button class="cat-back-btn" onclick="fVoltarCategoria()">${_ICO_BACK} Campanhas</button>
       <span class="cat-back-label">Implementação</span>
     </div>
     <div class="sec-title">Etapas de lançamento</div>
@@ -848,10 +824,8 @@ function fRenderCatalogs(a,o,opts){
   // Entrada do painel de arquivadas — só DM staff e só quando há campanha arquivada.
   const _arqN = (typeof gIsAdmin==='function' && gIsAdmin() && typeof fGetArchivedCamps==='function') ? fGetArchivedCamps().length : 0;
   const archBtn = _arqN ? `<button class="cat-arch-btn" onclick="fOpenArchivedPanel()" title="Ver campanhas arquivadas"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/></svg>Arquivadas · ${_arqN}</button>` : '';
-  const backRow=`<div class="cat-back-row">
-      <button class="cat-back-btn" onclick="fVoltarCategoria()">${_ICO_BACK} Todas as categorias</button>
-      ${archBtn}
-    </div>`;
+  // Campanhas é a tela inicial agora (chooser removido) — sem "voltar", só o atalho de arquivadas quando existe.
+  const backRow=archBtn?`<div class="cat-back-row">${archBtn}</div>`:'';
   // Sem nenhuma campanha → empty state (nunca títulos sobre grid vazio)
   if(!a.length && !o.length){ cat.innerHTML=backRow+_fCampEmptyState(searching?opts.search:null); return; }
   // "Recomendada agora" só fora da busca (senão fica um título órfão)
@@ -1019,7 +993,6 @@ function _fHomeHeroEl(rec){
     ?`background-color:${colorSafe};background-image:url('${coverSafe}');background-size:cover;background-position:center`
     :`background-color:${colorSafe}`;
   const fmtNames=[...new Set(mats.map(m=>({story:'Story 9:16',feed:'Feed 1:1',wide:'Post wide',post:'Post wide'}[m.fmt]||'Material')))];
-  const _flame='<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:-1px"><path d="M12 2s5 4 5 9a5 5 0 0 1-10 0c0-1 .3-2 .8-2.8C8 10 9 12 10 12c0-3 2-7 2-10z"/></svg>';
   const _star='<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:-1.5px"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9"/></svg>';
   const _temaHero=(typeof _fCampThemeOf==='function')?_fCampThemeOf(rec):''; // mesmo convite do card, no hero
   // 3-pontos do hero (só DM staff + campanha com pasta real): mesmo menu do card, mesma
@@ -1035,7 +1008,6 @@ function _fHomeHeroEl(rec){
   <button class="fh-hero" type="button"${_temaHero?` data-camp-theme="${_temaHero}"`:''} onclick="fSelectCamp('${rec.id}')" aria-label="Abrir campanha ${gEsc(rec.name)}">
     <div class="fh-hero-cover" style="${coverStyle}">
       ${rec.badge?`<span class="fh-hero-badge">${gEsc(rec.badge)}</span>`:''}
-      ${rec.popular?`<span class="fh-hero-pop">${_flame} Popular</span>`:''}
       ${cover?'':`<div class="fh-hero-prod">${gEsc(rec.previewProd||rec.name)}</div>`}
       <span class="fh-hero-cover-note">Campanha em destaque</span>
     </div>
@@ -1061,8 +1033,7 @@ let _fhFilter='todas';
 const _FH_FILTERS=[
   {id:'todas',label:'Todas'},
   {id:'prontas',label:'Prontas para usar'},
-  {id:'favoritas',label:'Favoritas'},
-  {id:'embreve',label:'Em breve'}
+  {id:'favoritas',label:'Favoritas'}
 ];
 function _fhEmptyState(title,sub){
   return `<div class="fh-empty"><span class="fh-empty-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></span><strong>${title}</strong><span>${sub}</span></div>`;
@@ -1135,14 +1106,9 @@ function _fHomeBodyHTML(query){
   const embreve=pool.filter(c=>!_fCampHasMats(c));
   // Filtro de status ativo (≠ todas): vitrine vira lista única e enxuta, sem hero/rascunhos.
   if(_fhFilter==='prontas'){
-    if(!prontas.length) return _fhEmptyState('Nenhuma campanha pronta agora','As campanhas em preparação aparecem em "Em breve".');
+    if(!prontas.length) return _fhEmptyState('Nenhuma campanha pronta agora','Todas as campanhas do catálogo já estão prontas para usar.');
     return `<section class="fh-section fh-results"><div class="fh-sec"><span>Prontas para usar</span><em>${prontas.length} campanha${prontas.length!==1?'s':''}</em></div>
       <div class="camp-grid fh-grid">${prontas.map(c=>fCampEl(c,false)).join('')}</div></section>`;
-  }
-  if(_fhFilter==='embreve'){
-    if(!embreve.length) return _fhEmptyState('Nenhuma campanha em preparação','Todas as campanhas do catálogo já estão prontas para usar.');
-    return `<section class="fh-section fh-results"><div class="fh-sec"><span>Em breve</span><em>${embreve.length} campanha${embreve.length!==1?'s':''}</em></div>
-      <div class="camp-grid fh-grid fh-grid-ghost">${embreve.map(c=>fCampEl(c,false,true)).join('')}</div></section>`;
   }
   if(_fhFilter==='favoritas'){
     const favs=favIds.map(id=>pool.find(c=>c.id===id)).filter(Boolean);
@@ -1166,11 +1132,7 @@ function _fHomeBodyHTML(query){
     <div class="camp-grid fh-grid">${favs.map(c=>fCampEl(c,false,!_fCampHasMats(c))).join('')}</div></section>`:''}
     ${rec?_fHomeHeroEl(rec):''}
     ${gridProntas.length?`<section class="fh-section"><div class="fh-sec"><span>Prontas para usar</span><em>${gridProntas.length} campanha${gridProntas.length!==1?'s':''} disponíveis</em></div>
-    <div class="camp-grid fh-grid">${gridProntas.map(c=>fCampEl(c,false)).join('')}</div></section>`:''}
-    ${impl.length?`<section class="fh-section"><div class="fh-sec"><span>Jornada de implementação</span><em>Materiais para o lançamento da sua unidade</em></div>
-    <div class="camp-grid fh-grid">${impl.map(c=>fCampEl(c,false)).join('')}</div></section>`:''}
-    ${embreve.length?`<section class="fh-section fh-coming"><div class="fh-sec"><span>Em breve</span><em>Materiais em preparação</em></div>
-    <div class="camp-grid fh-grid fh-grid-ghost">${embreve.map(c=>fCampEl(c,false,true)).join('')}</div></section>`:''}`;
+    <div class="camp-grid fh-grid">${gridProntas.map(c=>fCampEl(c,false)).join('')}</div></section>`:''}`;
 }
 
 /* ── Revelação por rolagem ─────────────────────────────────────

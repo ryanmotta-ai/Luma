@@ -35,7 +35,7 @@ function acRenderGestao(root){
     <header class="ac-g-cab">
       <div>
         <button type="button" class="ac-side-voltar" onclick="acGo('home')">${acIco('volta')} <span>Jornada</span></button>
-        <h1 class="ac-g-titulo">Gestão da Academia</h1>
+        <h1 class="ac-g-titulo">Gestão da Implementação</h1>
         <p class="ac-g-sub">Conteúdo da formação dos franqueados. O que estiver em rascunho não aparece para eles.</p>
       </div>
       <div class="ac-g-cab-acoes">

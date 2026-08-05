@@ -46,7 +46,7 @@ function acRenderAgente(aula){
       <div class="ac-ag-id">
         <span class="ac-ag-av" aria-hidden="true">${acIco('bot')}</span>
         <div class="ac-ag-txt">
-          <strong>Tutor da Academia</strong>
+          <strong>Tutor de Implementação</strong>
           <small>sobre: ${gEsc(aula.titulo)}</small>
         </div>
       </div>

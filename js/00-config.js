@@ -18,7 +18,7 @@ window.LUMA_GEMINI_MODEL = window.LUMA_GEMINI_MODEL || 'gemini-flash-latest';
 
 /* ── CAMPANHAS ── */
 const CAMPS_ATIVAS=[
-  {id:'muchplus',name:'Much+ Benefícios',color:'#FFB900',count:4,badge:'MUCH+',expiraDias:90,popular:true,theme:'muchplus',cover:'assets/covers/muchplus.png',
+  {id:'muchplus',name:'Much+ Benefícios',color:'#FFB900',count:4,badge:'',expiraDias:90,popular:true,theme:'muchplus',cover:'assets/covers/muchplus.png',
    previewProd:'CLUBE MUCH+',previewDe:'',previewPor:'MAIS BENEFÍCIOS',
    perguntas:[
     {id:'produto',texto:'Qual benefício exclusivo do Much+ você vai destacar na arte?',sugestoes:['Frete Grátis Ilimitado','Cupom de R$ 15 OFF','Cashback em Dobro','Desconto Exclusivo no Prato']},
@@ -27,7 +27,7 @@ const CAMPS_ATIVAS=[
     {id:'validade',texto:'Qual a validade da oferta Much+?',sugestoes:['Para todos os membros','Válido este mês','Por tempo limitado','Exclusivo do Clube']}
    ]},
 
-  {id:'cdm26',name:'Copa Do Mundo 2026',color:'#1565C0',count:6,badge:'2026',expiraDias:60,popular:true,cover:'assets/covers/cdm26.png',
+  {id:'cdm26',name:'Copa Do Mundo 2026',color:'#1565C0',count:6,badge:'',expiraDias:60,popular:true,cover:'assets/covers/cdm26.png',
    previewProd:'COPA DO MUNDO',previewDe:'',previewPor:'',
    perguntas:[
     {id:'produto',texto:'Qual prato ou promoção você vai destacar na arte Copa do Mundo?',sugestoes:['Combo Copa','Bandeja da Torcida','X-Tudo','Burger Especial']},

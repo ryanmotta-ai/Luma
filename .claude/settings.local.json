@@ -18,7 +18,11 @@
       "PowerShell(node --check \"js/franqueado/live-preview.js\")",
       "PowerShell(if \\($?\\) { \"OK: live-preview.js sem erros de sintaxe\" })",
       "PowerShell(node --check \"js/designer/canvas.js\")",
-      "PowerShell(if \\($?\\) { \"OK fase 2/3\" })"
+      "PowerShell(if \\($?\\) { \"OK fase 2/3\" })",
+      "Bash(nohup python3 -m http.server 5605 --directory .)",
+      "Bash(disown)",
+      "Bash(curl -sI http://localhost:5605/index.html)",
+      "Bash(pkill -f \"http.server 5605\")"
     ]
   },
   "enabledMcpjsonServers": [

@@ -53,12 +53,24 @@
 
   function close() {
     var el = document.getElementById('luma-pwa-hint');
-    if (el) { el.classList.add('leaving'); setTimeout(function () { if (el.parentNode) el.remove(); }, 220); }
+    if (el) { el.classList.add('leaving'); setTimeout(function () { if (el.parentNode) el.remove(); }, 280); }
   }
   function dismiss() { remember(); close(); }
 
+  var LUMA_FAVICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" style="width:100%;height:100%;display:block;border-radius:10px;"><rect width="32" height="32" rx="7" fill="#FF9000"/><g transform="translate(16, 16) scale(0.68) translate(-16, -16)"><path d="M8 24 L15.5 16.5" stroke="white" stroke-width="3" stroke-linecap="round"/><path d="M17.5 14.5 L23 9" stroke="white" stroke-width="3" stroke-linecap="round"/><path d="M12 5.5 Q12 9 15.5 9 Q12 9 12 12.5 Q12 9 8.5 9 Q12 9 12 5.5 Z" fill="white"/><path d="M20 19.5 Q20 23 23.5 23 Q20 23 20 26.5 Q20 23 16.5 23 Q20 23 20 19.5 Z" fill="white"/><path d="M24 15 Q24 17 26 17 Q24 17 24 15 Z" fill="white"/><line x1="25.5" y1="6.5" x2="27.5" y2="4.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/><line x1="23.5" y1="5.5" x2="23.5" y2="3" stroke="white" stroke-width="1.5" stroke-linecap="round"/><line x1="26" y1="8.5" x2="28.5" y2="8.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/></g></svg>';
+
+  function isSplashOrLoginVisible() {
+    var splash = document.getElementById('g-splash');
+    if (splash && splash.style.display !== 'none' && window.getComputedStyle(splash).display !== 'none') return true;
+    var login = document.getElementById('g-login-screen');
+    if (login && login.style.display !== 'none' && window.getComputedStyle(login).display !== 'none') return true;
+    return false;
+  }
+
   function show(kind) {
     if (isStandalone() || isDismissed()) return;
+    if (isSplashOrLoginVisible()) return;
+    if (!document.body.classList.contains('mode-franqueado')) return;
     if (document.getElementById('luma-pwa-hint')) return;
 
     var c = copyFor(kind);
@@ -67,7 +79,7 @@
     el.setAttribute('role', 'dialog');
     el.setAttribute('aria-label', 'Instalar o Luma');
     el.innerHTML =
-      '<div class="pwah-icon" aria-hidden="true"></div>' +
+      '<div class="pwah-icon" aria-hidden="true" style="background:#FF9000 !important;box-shadow:0 4px 14px -2px rgba(255,144,0,.45);">' + LUMA_FAVICON_SVG + '</div>' +
       '<div class="pwah-text"><div class="pwah-title">' + c.title + '</div>' +
         '<div class="pwah-body">' + c.body + '</div></div>' +
       (c.button ? '<button type="button" class="pwah-cta">' + c.button + '</button>' : '') +
@@ -86,18 +98,27 @@
     };
   }
 
-  // Chromium: o navegador avisa que dá pra instalar → guardamos e mostramos o botão.
+  // Chromium: o navegador avisa que dá pra instalar → guardamos a indicação
   window.addEventListener('beforeinstallprompt', function (e) {
     e.preventDefault();
     deferredPrompt = e;
-    show('chromium');
   });
   window.addEventListener('appinstalled', function () { remember(); close(); });
 
-  // Safari (iOS/Mac) não emite beforeinstallprompt — mostramos a instrução manual,
-  // com folga pro splash sair e não competir com o boot.
-  window.addEventListener('DOMContentLoaded', function () {
+  function tryShowOnScroll() {
     if (isStandalone() || isDismissed()) return;
-    if (isIOS || isMacSafari) setTimeout(function () { show(isIOS ? 'ios' : 'mac'); }, 3500);
-  });
+    if (isSplashOrLoginVisible()) return;
+    if (!document.body.classList.contains('mode-franqueado')) return;
+
+    var home = document.getElementById('f-home');
+    var st = (home && home.scrollTop) || window.scrollY || document.documentElement.scrollTop || 0;
+    if (st > 30) {
+      var kind = isIOS ? 'ios' : (isMacSafari ? 'mac' : 'chromium');
+      show(kind);
+    }
+  }
+
+  // Escuta rolagem no painel do franqueado (#f-home ou janela)
+  document.addEventListener('scroll', tryShowOnScroll, { passive: true, capture: true });
+  window.addEventListener('scroll', tryShowOnScroll, { passive: true });
 })();

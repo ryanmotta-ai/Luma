@@ -606,7 +606,7 @@ function acHomeAvisos(){
     out += `<div class="ac-aviso ac-aviso-info" role="status">
       ${acIco('alerta')}
       <div><strong>Conteúdo de demonstração.</strong>
-      <span>A estrutura abaixo é um exemplo para você conhecer a Academia — ainda não é o conteúdo oficial da Delivery Much.</span></div>
+      <span>A estrutura abaixo é um exemplo para você conhecer a Implementação — ainda não é o conteúdo oficial da Delivery Much.</span></div>
       ${staff?`<button type="button" class="ac-btn ac-btn-ghost" onclick="acGo('gestao')">Publicar a formação real</button>`:''}
     </div>`;
   }
@@ -638,7 +638,7 @@ function acHomeCabecalho(c, r, iniciou, concluiu){
   const estado = concluiu ? 'Formação concluída' : (iniciou ? `${r.pct}% concluído` : 'Não iniciada');
   return `<header class="ac-hero${concluiu?' is-concluida':''}">
     <div class="ac-hero-txt">
-      <span class="ac-hero-eyebrow">${acIco('cap')} Academia Delivery Much</span>
+      <span class="ac-hero-eyebrow">${acIco('cap')} Implementação Delivery Much</span>
       <p class="ac-hero-saudacao">${saudacao}</p>
       <h1 class="ac-hero-titulo">${gEsc(c.nome)}</h1>
       <p class="ac-hero-sub">${gEsc(orienta)}</p>

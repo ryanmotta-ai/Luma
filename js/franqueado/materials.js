@@ -400,7 +400,6 @@ function fRenderMaterialCatalog(camp, container){
             <div class="f-mat-section-kicker">Materiais disponíveis</div>
             <h2 id="f-mat-section-title">Por onde você quer começar?</h2>
           </div>
-          <p>Você poderá revisar tudo antes de baixar.</p>
         </div>
         <div class="f-mat-grid">
           ${validMat.map(m=>fRenderMaterialCard(m, camp)).join('')}

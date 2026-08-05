@@ -290,7 +290,7 @@ function acConcEtapaSplash(palco, opts){
 
   palco.innerHTML = `<div class="ac-conc-splash">
     <span class="ac-conc-selo" data-passo="1" aria-hidden="true">${AC_ICO.medal}</span>
-    <span class="ac-conc-eyebrow" data-passo="2">${acIco('cap')} Academia Delivery Much</span>
+    <span class="ac-conc-eyebrow" data-passo="2">${acIco('cap')} Implementação Delivery Much</span>
     <h1 class="ac-conc-titulo" data-passo="2">${gEsc(cfg.titulo)}</h1>
     <p class="ac-conc-nome" data-passo="3">${gEsc(nome)}</p>
     <p class="ac-conc-msg" data-passo="4">${gEsc(cfg.mensagem)}</p>

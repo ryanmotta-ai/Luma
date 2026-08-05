@@ -239,7 +239,7 @@
 }
 .f-mat-empty-action:hover{background:var(--dm-orange-d);border-color:var(--dm-orange-d);transform:translateY(-1px)}
 .f-mat-empty-action:focus-visible{outline:2px solid var(--dm-orange);outline-offset:3px}
-.f-mat-cv{position:absolute;inset:0;width:100%;height:100%;z-index:2;display:block;pointer-events:none}
+.f-mat-cv{position:absolute;inset:0;width:100%;height:100%;z-index:2;display:block;pointer-events:none;object-fit:contain;object-position:center}
 
 body:not(.theme-light) #f-material-view{
   --fm-bg:var(--d-bg);--fm-surface:var(--d-surf);--fm-surface-soft:var(--d-surf2);

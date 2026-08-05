@@ -1050,9 +1050,9 @@ function fGerarArte(){
           <div class="art-btn pri art-download" onclick="fBaixar(this,'${previewCanvasId}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>Baixar PNG</div>
         </div>
         <div class="art-bulk-row" style="padding:0 14px 12px 14px;margin-top:2px">
-          <div class="art-btn art-bulk-btn" onclick="fBulkOpenFromArt()" title="Gerar dezenas de variações desta arte em lote com o Luma Sheets" style="width:100%;background:var(--dm-orange-bg,#FFF8F5);border:1px solid var(--dm-orange-tint,#FFD0B8);color:var(--dm-orange-d,#D44500);font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;padding:9.5px 12px;border-radius:10px;cursor:pointer;transition:all 0.15s ease">
+          <div class="art-btn art-bulk-btn" onclick="fBulkOpenFromArt()" title="Gerar dezenas de variações desta arte em lote" style="width:100%;background:var(--dm-orange-bg,#FFF8F5);border:1px solid var(--dm-orange-tint,#FFD0B8);color:var(--dm-orange-d,#D44500);font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;padding:9.5px 12px;border-radius:10px;cursor:pointer;transition:all 0.15s ease">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-            <span>Gerar em Lote com Luma Sheets</span>
+            <span>Gerar em Lote</span>
           </div>
         </div>
       </div>
