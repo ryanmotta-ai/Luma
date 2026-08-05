@@ -855,25 +855,33 @@ Responda APENAS com JSON válido:
 }
 
 /**
- * Alterna a aba de legenda selecionada e atualiza o conteúdo da caixa de texto.
+ * Pinta uma das legendas geradas no card. A variação (promo/engajar/whatsapp) deixou de
+ * ser chip na superfície — virou o botão discreto "Gerar outra sugestão", que cicla a
+ * lista. `data-active-tab` continua sendo a fonte da verdade de qual texto está ativo
+ * (usado por fCopyCaption, _fActiveCaptionText e pelo download/compartilhar).
  */
-function fSwitchCaptionTab(btn, tabId, canvasId) {
-  const container = btn.closest('.caption-assistant-panel');
-  if (!container) return;
-  
-  const buttons = container.querySelectorAll('.caption-tab-btn');
-  buttons.forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  
+function fSetCaption(canvasId, tabId) {
+  const container = document.querySelector(`.caption-assistant-panel[data-canvas-id="${canvasId}"]`);
   const box = document.getElementById('caption-content-' + canvasId);
   const caps = _fArtCaptions[canvasId];
-  if (box && caps) {
-    const selected = caps.find(c => c.id === tabId);
-    if (selected) {
-      box.innerHTML = gEsc(selected.text).replace(/\n/g, '<br>');
-      container.dataset.activeTab = tabId;
-    }
-  }
+  if (!container || !box || !caps) return;
+  const selected = caps.find(c => c.id === tabId) || caps[0];
+  if (!selected) return;
+  container.dataset.activeTab = selected.id;
+  box.innerHTML = gEsc(selected.text).replace(/\n/g, '<br>');
+  box.classList.remove('is-swapping');
+  void box.offsetWidth;
+  box.classList.add('is-swapping');
+}
+
+/** Avança para a próxima sugestão de legenda (ciclo). */
+function fCycleCaption(canvasId) {
+  const caps = _fArtCaptions[canvasId];
+  if (!caps || caps.length < 2) return;
+  const container = document.querySelector(`.caption-assistant-panel[data-canvas-id="${canvasId}"]`);
+  const atual = (container && container.dataset.activeTab) || caps[0].id;
+  const i = caps.findIndex(c => c.id === atual);
+  fSetCaption(canvasId, caps[(i + 1 + caps.length) % caps.length].id);
 }
 
 /**
@@ -978,30 +986,36 @@ function fGerarArte(){
     const suggestions = await fFetchAICaptionSuggestions(d, c, fState.fmt);
     _fArtCaptions[previewCanvasId] = suggestions;
 
-    const captionHtml = `<div class="caption-assistant-panel" data-canvas-id="${previewCanvasId}" data-active-tab="promo">
-      <div class="caption-assistant-title">Legenda do Post
-        ${_fCaptionSrcTag(suggestions)}
-      </div>
-      <div class="caption-tabs">
-        ${suggestions.map((s, idx) => `
-          <button class="caption-tab-btn ${idx === 0 ? 'active' : ''}" onclick="fSwitchCaptionTab(this, '${s.id}', '${previewCanvasId}')">
-            ${s.label}
-          </button>
-        `).join('')}
-      </div>
-      <div class="caption-content-box-wrap">
-        <div class="caption-content-box" id="caption-content-${previewCanvasId}">
-          ${gEsc(suggestions[0].text).replace(/\n/g, '<br>')}
+    // ENTREGA FINAL, parte 2 de 3: a legenda. Card editorial (título + selo de origem +
+    // descrição curta + bloco de texto) em vez da textarea com chips Promo/Engajar/WhatsApp:
+    // o franqueado copia e publica, não escolhe taxonomia. As 3 variações continuam sendo
+    // geradas — viraram o "Gerar outra sugestão" discreto no rodapé do card.
+    const temAlt = suggestions.length > 1;
+    const captionHtml = `<section class="caption-assistant-panel" data-canvas-id="${previewCanvasId}" data-active-tab="${suggestions[0].id}">
+      <header class="caption-card-head">
+        <div class="caption-card-heads">
+          <h4 class="caption-card-title">Legenda pronta</h4>
+          <p class="caption-card-sub">Copie e publique junto com a arte.</p>
         </div>
-        <button class="caption-copy-btn" onclick="fCopyCaption('${previewCanvasId}')" title="Copiar legenda">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:2px">
+        ${_fCaptionSrcTag(suggestions)}
+      </header>
+      <div class="caption-content-box" id="caption-content-${previewCanvasId}">
+        ${gEsc(suggestions[0].text).replace(/\n/g, '<br>')}
+      </div>
+      <footer class="caption-card-foot">
+        ${temAlt ? `<button type="button" class="caption-alt-btn" onclick="fCycleCaption('${previewCanvasId}')" title="Trocar por outra sugestão de legenda">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Gerar outra sugestão
+        </button>` : '<span></span>'}
+        <button type="button" class="caption-copy-btn" onclick="fCopyCaption('${previewCanvasId}')" title="Copiar legenda">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
           </svg>
-          Copiar
+          Copiar legenda
         </button>
-      </div>
-    </div>`;
+      </footer>
+    </section>`;
 
     // Se há material publicado, renderiza preview real via canvas; senão, fallback HTML
     const hasMaterial = fState.material && fState.material.layers && fState.material.layers.length;
@@ -1036,7 +1050,7 @@ function fGerarArte(){
     w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div>
       <div class="bbl" style="padding-bottom:6px;display:inline-flex;align-items:center;gap:4px">Arte gerada! <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="color:#22c55e"><polyline points="20 6 9 17 4 12"/></svg></div>
       <div class="art-wrap">
-        ${canvasBlock}
+        <div class="art-preview-mat">${canvasBlock}</div>
         <div class="multi-fmt-row" style="${(fState.material && fState.material.fmt) ? 'display:none;' : ''}">
           ${FMTS.map(f=>`<div class="fmt-mini ${f.id===fState.fmt.id?'current':''}" onclick="fOutroFormato('${f.id}','${previewCanvasId}')">
             <div class="fmt-mini-thumb" style="background:${c.color}">${f.name.toUpperCase()}</div>
@@ -1044,17 +1058,19 @@ function fGerarArte(){
           </div>`).join('')}
         </div>
         ${captionHtml}
-        <div class="art-footer">
-          <div class="art-btn art-redo" onclick="fRefazer()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Refazer</div>
-          <div class="art-btn art-share" onclick="fCompartilhar(this,'${previewCanvasId}')" title="Compartilhar imagem + legenda (WhatsApp, Instagram…)" aria-label="Compartilhar"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></div>
-          <div class="art-btn pri art-download" onclick="fBaixar(this,'${previewCanvasId}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>Baixar PNG</div>
-        </div>
-        <div class="art-bulk-row" style="padding:0 14px 12px 14px;margin-top:2px">
-          <div class="art-btn art-bulk-btn" onclick="fBulkOpenFromArt()" title="Gerar dezenas de variações desta arte em lote" style="width:100%;background:var(--dm-orange-bg,#FFF8F5);border:1px solid var(--dm-orange-tint,#FFD0B8);color:var(--dm-orange-d,#D44500);font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;padding:9.5px 12px;border-radius:10px;cursor:pointer;transition:all 0.15s ease">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-            <span>Gerar em Lote</span>
+        <section class="art-actions">
+          <div class="art-actions-label">Próximas ações</div>
+          <button type="button" class="art-btn pri art-download" onclick="fBaixar(this,'${previewCanvasId}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>Baixar PNG</button>
+          <div class="art-actions-sec">
+            <button type="button" class="art-btn art-share" onclick="fCompartilhar(this,'${previewCanvasId}')" title="Compartilhar imagem + legenda (WhatsApp, Instagram…)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>Compartilhar</button>
+            <button type="button" class="art-btn art-redo" onclick="fRefazer()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Refazer</button>
           </div>
-        </div>
+        </section>
+        <button type="button" class="art-bulk-btn" onclick="fBulkOpenFromArt()" title="Gerar dezenas de variações desta arte em lote">
+          <span class="art-bulk-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
+          <span class="art-bulk-txt"><strong>Gerar em lote</strong><em>Dezenas de variações desta arte de uma vez</em></span>
+          <svg class="art-bulk-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
       </div>
     </div>`;
     msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;
@@ -1096,24 +1112,8 @@ async function fOutroFormato(id, snapId){
   // Atualiza a UI se o card correspondente estiver no DOM
   const panel = document.querySelector(`.caption-assistant-panel[data-canvas-id="${snapId}"]`);
   if (panel) {
-    const activeTabId = panel.dataset.activeTab || 'promo';
-    
-    // Atualiza os botões de abas
-    const tabsContainer = panel.querySelector('.caption-tabs');
-    if (tabsContainer) {
-      tabsContainer.innerHTML = suggestions.map((s) => `
-        <button class="caption-tab-btn ${s.id === activeTabId ? 'active' : ''}" onclick="fSwitchCaptionTab(this, '${s.id}', '${snapId}')">
-          ${s.label}
-        </button>
-      `).join('');
-    }
-    
-    // Atualiza a caixa de texto
-    const box = document.getElementById('caption-content-' + snapId);
-    if (box) {
-      const selected = suggestions.find(s => s.id === activeTabId) || suggestions[0];
-      box.innerHTML = gEsc(selected.text).replace(/\n/g, '<br>');
-    }
+    // Mantém a variação que o franqueado já estava lendo, agora com o texto do novo formato
+    fSetCaption(snapId, panel.dataset.activeTab || suggestions[0].id);
 
     // Origem pode mudar entre formatos (a IA pode falhar só numa das chamadas)
     const srcOld = panel.querySelector('.caption-src');
@@ -1326,11 +1326,21 @@ function _fUserInitials(){
     return (parts[0][0]+parts[parts.length-1][0]).toUpperCase();
   }catch(e){ return 'EU'; }
 }
+// Mesma foto do perfil (topbar/modal usam a chave __luma_user_photo_<email>).
+// Sem foto, cai nas iniciais — é o mesmo contrato do gUpdateUserTopbar.
+function _fUserAvatarInner(){
+  try{
+    const u=(typeof gCurrentUser==='function')?gCurrentUser():null;
+    const photo=u&&u.email?localStorage.getItem('__luma_user_photo_'+u.email):'';
+    if(photo) return `<img src="${gEsc(photo)}" alt="${gEsc(u.displayName||'Você')}">`;
+  }catch(e){}
+  return _fUserInitials();
+}
 function fAddUser(txt){
   const msgs=document.getElementById('f-messages');
   if(!msgs) return;
   const w=document.createElement('div');w.className='msg user active-prompt';
-  w.innerHTML=`<div class="msg-content"><div class="bbl">${gEsc(txt)}</div></div><div class="av u">${_fUserInitials()}</div>`;
+  w.innerHTML=`<div class="msg-content"><div class="bbl">${gEsc(txt)}</div></div><div class="av u">${_fUserAvatarInner()}</div>`;
   msgs.querySelectorAll('.msg').forEach(m => m.classList.remove('active-prompt'));
   _fApplyMessageGrouping(msgs,w,'user');
   msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;

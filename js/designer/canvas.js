@@ -497,6 +497,18 @@ function dAttachMarquee(){
     dAddImageFromUrl(a.url,p.x,p.y,a.name);   // mesmo motor do clique e do arquivo do desktop
   });
 
+  /* ── DUPLO CLIQUE NO VAZIO DA PRANCHETA → SELETOR DE ARQUIVO ──
+     Mesmo gesto da área cinza do Photoshop. Só no VAZIO e só com a ferramenta de seleção:
+     em cima de uma camada o duplo clique já tem dono (recortar imagem / editar texto) e
+     com forma/texto ativos ele faz parte do desenho. */
+  frame.addEventListener('dblclick',e=>{
+    if(e.target!==frame)return;                                  // clicou numa camada
+    if(typeof dTool!=='undefined' && dTool!=='select')return;     // desenhando: não roubar o gesto
+    if(typeof dPickImageFile!=='function')return;
+    const p=dPontoNoCanvas(e);
+    dPickImageFile(p?p.x:undefined, p?p.y:undefined);
+  });
+
   frame.addEventListener('mousedown',dStartMarquee);
   frame.addEventListener('mousedown', function(e) {
     if (e.button !== 0) return; // só botão esquerdo — direito abriria menu de contexto junto

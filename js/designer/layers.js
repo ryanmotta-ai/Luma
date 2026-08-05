@@ -480,16 +480,49 @@ function dAddImageFromUrl(url, x, y, title) {
   img.src = url;
 }
 
-/* Arquivo (drop do desktop / input de upload) → mesma camada. Delega em dAddImageFromUrl:
-   um só caminho de criação, senão os dois divergem no próximo ajuste. */
-function dAddImageFromFile(file, x, y) {
+/* Arquivo (drop do desktop / seletor / Ctrl+V) → mesma camada. Delega em dAddImageFromUrl:
+   um só caminho de criação, senão os dois divergem no próximo ajuste.
+   `titulo` sobrepõe o nome do arquivo — o arquivo do clipboard vem como "image.png" em
+   todo navegador, e a camada chamada "image" não diz nada na lista. */
+function dAddImageFromFile(file, x, y, titulo) {
   if (!file) return;
   const ehImagem = /^image\//.test(file.type || '') || /\.(png|jpe?g|svg|webp|gif|avif)$/i.test(file.name || '');
   if (!ehImagem) { gToast('Só imagens viram camada (JPG, PNG, SVG ou WEBP)', 'error'); return; }
   const reader = new FileReader();
-  reader.onload = e => dAddImageFromUrl(e.target.result, x, y, String(file.name || '').replace(/\.[^/.]+$/, ''));
-  reader.onerror = () => gToast('⚠ Não foi possível ler o arquivo. Tente arrastar de novo.', 'error');
+  reader.onload = e => dAddImageFromUrl(e.target.result, x, y, titulo || String(file.name || '').replace(/\.[^/.]+$/, ''));
+  reader.onerror = () => gToast('⚠ Não foi possível ler o arquivo. Tente de novo.', 'error');
   reader.readAsDataURL(file);
+}
+
+/* ── SELETOR DE ARQUIVO DO SISTEMA → CAMADA ──
+   Este é o caminho SEM ARRASTO, e ele é obrigatório, não conveniência: arrastar exige
+   movimento contínuo de ponteiro, que nem teclado nem tecnologia assistiva fazem (WCAG 2.2
+   SC 2.5.7 pede alternativa de ponteiro único pra toda ação de arrasto). Usado pelo botão
+   "Imagem do computador", pelo duplo clique na prancheta e por qualquer atalho futuro.
+   UM input reaproveitado: criar um a cada chamada deixa <input> órfão acumulando no DOM. */
+let _dSeletorImg = null;
+function dPickImageFile(x, y) {
+  if (!_dSeletorImg) {
+    _dSeletorImg = document.createElement('input');
+    _dSeletorImg.type = 'file';
+    _dSeletorImg.multiple = true;
+    _dSeletorImg.accept = 'image/png,image/jpeg,image/svg+xml,image/webp,image/gif,.png,.jpg,.jpeg,.svg,.webp,.gif';
+    _dSeletorImg.style.display = 'none';
+    _dSeletorImg.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(_dSeletorImg);
+  }
+  const inp = _dSeletorImg;
+  inp.onchange = () => {
+    const arquivos = Array.prototype.slice.call(inp.files || []);
+    // Base resolvida AQUI (e não lá dentro) pra escada de 24px valer também quando não há
+    // ponto: sem isso várias imagens nascem no mesmo centro e só a última fica à vista.
+    const f = (typeof dCanvasSize === 'function') ? dCanvasSize() : { w: 1080, h: 1920 };
+    const bx = (typeof x === 'number' && !isNaN(x)) ? x : f.w / 2;
+    const by = (typeof y === 'number' && !isNaN(y)) ? y : f.h / 2;
+    arquivos.forEach((a, k) => dAddImageFromFile(a, bx + k * 24, by + k * 24));
+    inp.value = '';   // escolher o MESMO arquivo de novo tem de disparar change outra vez
+  };
+  inp.click();
 }
 
 /* ── CLIQUE NO PAINEL ELEMENTOS ──

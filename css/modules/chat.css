@@ -94,7 +94,8 @@
 .msg.user.msg-has-continuation .bbl{border-bottom-left-radius:16px;border-bottom-right-radius:7px}
 @keyframes slideUpFade{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
 .av{width:30px;height:30px;flex-shrink:0;border-radius:10px;background:var(--dm-orange);color:var(--white);display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 4px 12px color-mix(in srgb,var(--dm-orange-d) 14%,transparent)}
-.av.u{border-radius:50%;background:var(--dm-yellow);color:var(--dm-red);font-size:9px;font-weight:800;box-shadow:none}
+.av.u{border-radius:50%;background:var(--dm-yellow);color:var(--dm-red);font-size:9px;font-weight:800;box-shadow:none;overflow:hidden}
+.av.u img{width:100%;height:100%;object-fit:cover;display:block}
 .bbl{padding:11px 15px;font-size:13px;line-height:1.58;border-radius:16px}
 .bot .bbl{background:var(--white);border:1px solid var(--gray-light);border-top-left-radius:6px;color:var(--text);box-shadow:0 3px 12px rgba(10,10,10,.025)}
 .user .bbl{background:var(--dm-orange);border-bottom-right-radius:6px;color:var(--text);font-weight:600;box-shadow:0 5px 16px color-mix(in srgb,var(--dm-orange-d) 14%,transparent)}
@@ -244,7 +245,13 @@ body:not(.theme-light) .confirm-progress-track{background:var(--d-surf2)}
   animation: gScaleInPunch var(--dur-slow) var(--ease-spring-soft) both;
   box-shadow: 0 10px 30px rgba(0,0,0,0.06);
 }
-.art-canvas-real{margin:0 auto;display:block;overflow:hidden;position:relative}
+/* ENTREGA FINAL, parte 1 de 3 — o preview. Passe-partout atrás da arte: a peça deixa de
+   encostar na borda do card e passa a parecer material entregue, não thumbnail. */
+.art-preview-mat{padding:16px 14px;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(180deg,#F7F6F3 0%,#FAF9F6 100%)}
+body:not(.theme-light) .art-preview-mat{background:var(--d-bg)}
+.art-preview-mat>.art-canvas{width:100%;border-radius:6px}
+.art-canvas-real{margin:0 auto;display:block;overflow:hidden;position:relative;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.14)}
 .art-canvas{height:130px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-family:'Roboto',sans-serif;font-weight:900;color:var(--white);text-align:center;padding:12px;position:relative;overflow:hidden}
 .art-canvas::before{content:'';position:absolute;bottom:-20px;right:-20px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,.08)}
 .art-canvas::after{content:'';position:absolute;top:-15px;left:-15px;width:60px;height:60px;border-radius:50%;background:rgba(255,255,255,.06)}
@@ -310,12 +317,68 @@ body:not(.theme-light) .confirm-progress-track{background:var(--d-surf2)}
   color: var(--dm-red);
   background: var(--dm-orange-bg);
 }
-.art-footer {
+/* ENTREGA FINAL, parte 3 de 3 — as ações. Antes: 3 botões de mesmo peso numa fileira
+   (Refazer | ícone de compartilhar | Baixar) + um "Gerar em Lote" com CSS inline.
+   Agora há uma hierarquia explícita: Baixar PNG full-width como ação principal, as duas
+   secundárias abaixo dividindo a linha, e o lote numa faixa separada com contexto. */
+.art-actions {
   display: flex;
+  flex-direction: column;
   gap: 8px;
-  padding: 12px 14px;
+  padding: 14px;
   border-top: 1px solid rgba(0,0,0,0.05);
 }
+.art-actions-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 1px;
+}
+.art-actions-sec { display: flex; gap: 8px }
+.art-actions .art-btn.pri { padding: 12px; font-size: 13px; font-weight: 700; gap: 6px }
+.art-btn:focus-visible { outline: 2px solid var(--dm-orange); outline-offset: 2px }
+
+/* Faixa do lote: bloco à parte, ação de outra natureza (produção em escala). */
+.art-bulk-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+  padding: 11px 12px;
+  text-align: left;
+  background: var(--dm-orange-bg);
+  border: none;
+  border-top: 1px solid var(--dm-orange-tint);
+  color: var(--dm-orange-d);
+  font-family: inherit;
+  cursor: pointer;
+  transition: background var(--dur-micro) var(--ease-standard);
+}
+.art-bulk-btn:hover { background: var(--dm-orange-tint) }
+.art-bulk-btn:active { background: var(--dm-orange-tint) }
+.art-bulk-btn:focus-visible { outline: 2px solid var(--dm-orange); outline-offset: -2px }
+.art-bulk-ico {
+  flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--white); color: var(--dm-orange-d);
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+}
+.art-bulk-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px }
+.art-bulk-txt strong { font-size: 12.5px; font-weight: 800; letter-spacing: -.01em }
+.art-bulk-txt em { font-style: normal; font-size: 10.5px; font-weight: 500; color: var(--text-3); line-height: 1.35 }
+.art-bulk-arrow { flex-shrink: 0; opacity: .55 }
+.art-bulk-btn:hover .art-bulk-arrow { opacity: 1; transform: translateX(2px); transition: transform var(--dur-micro) var(--ease-standard) }
+
+body:not(.theme-light) .art-actions { border-top-color: var(--d-border) }
+body:not(.theme-light) .art-actions-label { color: var(--d-text3) }
+body:not(.theme-light) .art-bulk-btn { background: var(--d-surf2); border-top-color: var(--d-border); color: var(--dm-orange) }
+body:not(.theme-light) .art-bulk-btn:hover { background: var(--d-surf3) }
+body:not(.theme-light) .art-bulk-ico { background: var(--d-surf3); color: var(--dm-orange) }
+body:not(.theme-light) .art-bulk-txt em { color: var(--d-text2) }
+
 .art-btn {
   flex: 1;
   padding: 9px 10px;
@@ -925,136 +988,147 @@ body:not(.theme-light) .f-bulk-tool-action,body:not(.theme-light) .f-bulk-table 
 /* ==========================================================================
    ══ ASSISTENTE DE LEGENDAS (COPY HELPER) ══
    ========================================================================== */
+/* ENTREGA FINAL, parte 2 de 3 — a legenda como card EDITORIAL.
+   Antes: título minúsculo + 3 chips (Promo/Engajar/WhatsApp) + caixa com cara de textarea
+   e um "Copiar" apertado no canto. O franqueado não quer escolher taxonomia de copy: quer
+   um texto pronto pra colar. Agora é título > selo de origem > descrição > texto respirado
+   > rodapé com "Copiar legenda" em destaque e a troca de variação discreta ao lado. */
 .caption-assistant-panel {
-  padding: 14px;
+  padding: 16px 16px 14px;
   border-top: 1px solid rgba(0,0,0,0.05);
-  background: #FAF9F6;
+  background: linear-gradient(180deg, #FCFBF9 0%, #FAF9F6 100%);
   display: flex;
   flex-direction: column;
+  gap: 12px;
+}
+
+.caption-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 10px;
 }
 
-.caption-assistant-title {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--text-3);
-  letter-spacing: .05em;
-}
+.caption-card-heads { min-width: 0 }
 
-.caption-tabs {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 6px;
-}
-
-.caption-tabs::-webkit-scrollbar {
-  height: 3px;
-}
-
-.caption-tabs::-webkit-scrollbar-thumb {
-  background: var(--gray-mid);
-  border-radius: 3px;
-}
-
-.caption-tab-btn {
-  padding: 6px 12px;
-  font-size: 11.5px;
-  font-weight: 600;
-  border: 1px solid var(--gray-mid);
-  background: var(--white);
-  color: var(--text-2);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.12s ease;
-  white-space: nowrap;
+.caption-card-title {
+  margin: 0;
   font-family: inherit;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  color: var(--text);
+  line-height: 1.25;
 }
 
-.caption-tab-btn:hover {
-  border-color: var(--dm-orange);
-  color: var(--dm-orange);
-  background: var(--dm-orange-bg);
+.caption-card-sub {
+  margin: 3px 0 0;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--text-3);
+  font-weight: 500;
 }
 
-.caption-tab-btn.active {
-  background: #f85400;
-  border-color: #f85400;
-  color: var(--white);
-  box-shadow: 0 3px 8px rgba(248, 84, 0, 0.25);
-}
-
-.caption-content-box-wrap {
-  position: relative;
-  border-radius: 10px;
+/* O bloco de texto: fundo branco, tipografia de leitura (13px/1.72), padding generoso e
+   uma barra de acento à esquerda — lê como copy publicada, não como campo de formulário. */
+.caption-content-box {
+  padding: 14px 16px 14px 15px;
+  border-radius: 12px;
   background: var(--white);
   border: 1px solid var(--gray-light);
-  overflow: hidden;
-  box-shadow: inset 0 1px 2px rgba(0,0,0,0.01);
-  /* Texto em cima, "Copiar" como RODAPÉ — o botão absoluto cobria a legenda quando o
-     texto passava do max-height e rolava (visível no mobile). */
-  display: flex;
-  flex-direction: column;
-}
-
-.caption-content-box {
-  padding: 12px;
-  font-size: 12px;
-  line-height: 1.6;
+  border-left: 3px solid var(--dm-orange-tint);
+  font-size: 13px;
+  line-height: 1.72;
+  letter-spacing: .005em;
   color: var(--text-2);
-  max-height: 120px;
+  max-height: 168px;
   overflow-y: auto;
-  white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: break-word;
   font-family: inherit;
+  box-shadow: 0 1px 3px rgba(0,0,0,.03);
 }
 
-.caption-content-box::-webkit-scrollbar {
-  width: 4px;
-}
+.caption-content-box::-webkit-scrollbar { width: 4px }
+.caption-content-box::-webkit-scrollbar-thumb { background: var(--gray-mid); border-radius: 4px }
+/* Troca de sugestão: o texto muda: sem um sinal de movimento parece que nada aconteceu. */
+.caption-content-box.is-swapping { animation: gFadeIn var(--dur-fast) var(--ease-out) both }
 
-.caption-content-box::-webkit-scrollbar-thumb {
-  background: var(--gray-mid);
-  border-radius: 4px;
-}
-
-.caption-copy-btn {
-  position: static;
-  align-self: flex-end;
-  margin: 0 8px 8px;
-  padding: 5px 10px;
-  font-size: 10.5px;
-  font-weight: 700;
-  color: var(--dm-orange);
-  background: var(--white);
-  border: 1px solid var(--dm-orange-tint);
-  border-radius: 6px;
-  cursor: pointer;
+.caption-card-foot {
   display: flex;
   align-items: center;
-  gap: 4px;
-  transition: all 0.12s ease;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+/* Variação de legenda rebaixada a ação terciária (era chip na superfície). */
+.caption-alt-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px;
+  margin-left: -8px;
+  border: none;
+  background: transparent;
+  color: var(--text-3);
   font-family: inherit;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: var(--r-sm);
+  transition: color var(--dur-micro) var(--ease-standard), background var(--dur-micro) var(--ease-standard);
+}
+.caption-alt-btn:hover { color: var(--dm-orange-text); background: var(--dm-orange-bg) }
+.caption-alt-btn:focus-visible { outline: 2px solid var(--dm-orange); outline-offset: 2px }
+.caption-alt-btn:active svg { transform: rotate(-45deg); transition: transform var(--dur-fast) var(--ease-spring) }
+
+.caption-copy-btn {
+  flex-shrink: 0;
+  padding: 9px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--dm-orange-d);
+  background: var(--white);
+  border: 1.5px solid var(--dm-orange-tint);
+  border-radius: 9px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all var(--dur-micro) var(--ease-standard);
+  font-family: inherit;
+  box-shadow: 0 1px 3px rgba(0,0,0,.05);
 }
 
 .caption-copy-btn:hover {
   background: var(--dm-orange-bg);
   border-color: var(--dm-orange);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--dm-orange) 18%, transparent);
 }
 
-.caption-copy-btn:active {
-  transform: scale(0.96);
-}
+.caption-copy-btn:active { transform: translateY(0) scale(0.97) }
+.caption-copy-btn:focus-visible { outline: 2px solid var(--dm-orange); outline-offset: 2px }
 
 .caption-copy-btn.copied {
   background: var(--green);
   border-color: var(--green);
-  color: var(--white);
-  box-shadow: 0 2px 8px rgba(34, 197, 150, 0.25);
+  color: var(--on-accent);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--green) 30%, transparent);
 }
+
+/* Tema escuro do card de legenda */
+body:not(.theme-light) .caption-assistant-panel { background: var(--d-dark); border-top-color: var(--d-border) }
+body:not(.theme-light) .caption-card-title { color: var(--d-text) }
+body:not(.theme-light) .caption-card-sub { color: var(--d-text3) }
+body:not(.theme-light) .caption-content-box {
+  background: var(--d-surf); border-color: var(--d-border); border-left-color: var(--dm-orange);
+  color: var(--d-text); box-shadow: none;
+}
+body:not(.theme-light) .caption-alt-btn { color: var(--d-text2) }
+body:not(.theme-light) .caption-alt-btn:hover { background: var(--d-surf2); color: var(--dm-orange) }
+body:not(.theme-light) .caption-copy-btn { background: var(--d-surf2); color: var(--dm-orange); border-color: var(--d-border2) }
+body:not(.theme-light) .caption-copy-btn:hover { background: var(--d-surf3); border-color: var(--dm-orange) }
+body:not(.theme-light) .caption-copy-btn.copied { background: var(--green); color: var(--on-accent); border-color: var(--green) }
 
 
 /* ══════════════════════════════════════════════════════════════
@@ -1076,13 +1150,18 @@ body:not(.theme-light) .f-bulk-tool-action,body:not(.theme-light) .f-bulk-table 
   .fmt-mini-thumb{height:38px}
   .fmt-mini-label{padding:5px 0}
   .confirm-edit{min-height:34px}
+  /* Rodapé do card de legenda: "Copiar legenda" ganha a largura e vira alvo de toque;
+     a troca de sugestão fica embaixo, ainda secundária. */
+  .caption-card-foot{flex-direction:column-reverse;align-items:stretch;gap:6px}
+  .caption-copy-btn{justify-content:center;min-height:var(--tap-min)}
+  .caption-alt-btn{justify-content:center;margin-left:0;min-height:36px}
+  .art-bulk-btn{min-height:var(--tap-min)}
 }
 
 /* ── Origem da legenda: IA x motor local ──
    O usuario precisa saber quando o texto foi gerado por IA (pode errar) e quando e
    sugestao pronta do Luma. Antes os dois casos eram visualmente identicos. */
-.caption-assistant-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.caption-src{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:var(--r-pill);
-  background:var(--gray-light);color:var(--text-3);font-size:9px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
-.caption-src.is-ia{background:var(--dm-orange-bg);color:var(--dm-orange-d);border:1px solid var(--dm-orange-tint)}
-body:not(.theme-light) .caption-src{background:var(--d-surf2);color:var(--d-text2)}
+.caption-src{flex-shrink:0;margin-top:1px;display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:var(--r-pill);
+  background:var(--white);border:1px solid var(--gray-light);color:var(--text-3);font-size:9px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+.caption-src.is-ia{background:var(--dm-orange-bg);color:var(--dm-orange-d);border-color:var(--dm-orange-tint)}
+body:not(.theme-light) .caption-src{background:var(--d-surf2);border-color:var(--d-border);color:var(--d-text2)}

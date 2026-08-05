@@ -866,6 +866,15 @@ function dFramePick(tool, e) {
   }
 }
 
+/* "Imagem do computador" do flyout de Mídia: abre o seletor do sistema e a imagem já nasce
+   como camada preenchida. Não é uma ferramenta de desenho — não chama dSetTool nem troca o
+   ícone do grupo, porque não há modo "inserir imagem" a manter ativo depois do clique. */
+function dToolPickImage(e) {
+  if (e) e.stopPropagation();
+  document.querySelectorAll('.vt-flyout').forEach(f => f.classList.remove('open'));
+  if (typeof dPickImageFile === 'function') dPickImageFile();
+}
+
 /* ══ GRUPO DADOS — flyout Photoshop-style ══ */
 let dDataLast = 'var-data';
 

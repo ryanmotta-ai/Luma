@@ -988,6 +988,47 @@ function dPaste(samePlace){
   gToast(n+' layer'+(n>1?'s':'')+' colado'+(n>1?'s':'')+(samePlace?' (no lugar)':''));
 }
 
+/* ── Ctrl+V: COLAR IMAGEM DO CLIPBOARD (print, cópia do navegador/Figma) ──
+   Um Ctrl+V só, que faz a coisa certa — é assim no Photoshop e é o que a pessoa espera.
+   Precisa ser no evento `paste` (e não no keydown): só ele traz o conteúdo do clipboard do
+   sistema. Por isso o keydown do Ctrl+V deixou de dar preventDefault; ver o comentário lá.
+
+   Prioridade: IMAGEM do sistema ganha do clipboard interno de camadas. Motivo — copiar um
+   print é ato deliberado e imediato, enquanto o dClipboard fica preenchido a sessão toda
+   depois de um Ctrl+C e roubaria todo Ctrl+V seguinte. Duplicar camada tem Ctrl+D, que é
+   igualmente rápido, e um colar errado morre com um Ctrl+Z.
+
+   O Shift vem do keydown (dColarNoLugar): eventos de clipboard não carregam modificador.
+   dPasteAssumido avisa o fallback do keydown que este handler tomou conta do gesto. */
+let dColarNoLugar=false;
+let dPasteAssumido=false;
+document.addEventListener('paste', e=>{
+  // Fora do Estúdio o Ctrl+V não é nosso (o chat do franqueado cola texto).
+  if(!document.body.classList.contains('mode-designer')) return;
+  const t=e.target;
+  // Campo de texto (conteúdo da camada, edição inline, busca) cola TEXTO: sequestrar o
+  // Ctrl+V de quem está digitando seria pior que não ter o recurso. Sem marcar assumido:
+  // o keydown nem agenda fallback quando o foco está num campo (guard `inField`).
+  if(t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName||''))) return;
+  const cb=e.clipboardData; if(!cb) return;
+  dPasteAssumido=true;   // daqui pra baixo o gesto é deste handler; o fallback desiste
+  const imgs=Array.prototype.slice.call(cb.items||[])
+    .filter(i=>i.kind==='file' && /^image\//.test(i.type||''))
+    .map(i=>i.getAsFile()).filter(Boolean);
+  if(imgs.length){
+    e.preventDefault();
+    const f=(typeof dCanvasSize==='function')?dCanvasSize():{w:1080,h:1920};
+    // Centro da prancheta: colar não tem ponteiro, e é onde o olho já está.
+    imgs.forEach((a,k)=>dAddImageFromFile(a, f.w/2+k*24, f.h/2+k*24, imgs.length>1?null:'Imagem colada'));
+    return;
+  }
+  // Sem imagem no clipboard → o Ctrl+V volta a ser o colar de CAMADAS de sempre.
+  if(dClipboard && dClipboard.layers && dClipboard.layers.length){
+    e.preventDefault();
+    dPaste(dColarNoLugar);
+  }
+});
+
 /*
   TABELA DE ATALHOS DE TECLADO — Luma Designer
   ===========================================
@@ -1004,7 +1045,8 @@ function dPaste(samePlace){
   - Ctrl+"+" / Ctrl+"="     : Ampliar Zoom
   - Ctrl+"-"                : Reduzir Zoom
   - Ctrl+C / Cmd+C          : Copiar Camada(s) (bloqueado em campos de texto)
-  - Ctrl+V / Cmd+V          : Colar Camada(s) (bloqueado em campos de texto)
+  - Ctrl+V / Cmd+V          : Colar — IMAGEM do clipboard (print/Figma) se houver uma;
+                              senão, Camada(s) copiada(s). Bloqueado em campos de texto.
 
   [Atalhos de Ferramenta (bloqueados em campos de texto/inputs)]
   - Esc                     : Selecionar e fechar modais / Limpar origem de carimbo
@@ -1123,7 +1165,23 @@ document.addEventListener('keydown', e => {
 
     // Ctrl+C / Ctrl+V — copiar/colar layers (só no canvas, nunca dentro de campos de texto)
     if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) { e.preventDefault(); dCopy(); return; }
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) { e.preventDefault(); dPaste(e.shiftKey); return; } // Shift = colar no mesmo lugar (Alt é colar ESTILO, interceptado acima)
+    /* Ctrl+V — ⛔ NÃO dá preventDefault de propósito. O preventDefault no keydown cancela a
+       ação de colar do navegador e com ela o evento `paste`, que é o ÚNICO caminho pro
+       conteúdo do clipboard do sistema (print, cópia do Figma). Era por isso que colar
+       imagem não tinha como funcionar.
+       O colar de CAMADAS virou fallback com prazo, e isso NÃO é preciosismo: quando o
+       clipboard do sistema está vazio o navegador não dispara `paste` nenhum (verificado no
+       Chrome) — sem o fallback, copiar camada com Ctrl+C e colar deixaria de funcionar.
+       Se o `paste` chegar, ele assume e o fallback desiste. Ele chega junto do gesto, na
+       casa de 1ms; os 120ms são folga. No pior caso os dois rodam: colava camada e entrava
+       a imagem — visível na hora e um Ctrl+Z resolve, não corrompe nada.
+       O Shift viaja em dColarNoLugar porque eventos de clipboard não carregam modificador. */
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) { // Shift = colar no mesmo lugar (Alt é colar ESTILO, interceptado acima)
+      dColarNoLugar = e.shiftKey;
+      dPasteAssumido = false;
+      setTimeout(()=>{ if(!dPasteAssumido) dPaste(dColarNoLugar); }, 120);
+      return;
+    }
     if (e.ctrlKey || e.metaKey || e.altKey) return; // outros combos com modificador NÃO disparam atalhos de ferramenta
 
     if (e.key === 'Escape') { dCloseVarModal(); dSetTool('select'); }
