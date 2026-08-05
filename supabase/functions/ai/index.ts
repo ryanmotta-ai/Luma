@@ -31,7 +31,10 @@ const json = (body: unknown, status = 200) =>
 // `cli` = console interno do time (js/core/console.js), só role equipe_dm/gestao no front.
 // `aula` = tutor da Academia (js/academia/agente.js) — a ÚNICA task cujo prompt é
 // montado AQUI: regra pedagógica e limites do tutor não podem morar no cliente.
-const TASKS = ["legenda", "encurtar", "ajuda", "cardapio", "casar-fotos", "cli", "aula"];
+// `mapear-psd` = importador de PSD do Estúdio (js/designer/psd-import.js): manda a IMAGEM da
+// arte + a lista de camadas e recebe camada→campo editável. Prompt montado no front, como as
+// outras (só `aula` monta aqui).
+const TASKS = ["legenda", "encurtar", "ajuda", "cardapio", "casar-fotos", "cli", "aula", "mapear-psd"];
 
 // Tetos por chamada: prompt de peça de marketing é curto; anexo é foto/PDF de cardápio.
 const MAX_PROMPT = 12000;      // caracteres

@@ -2655,7 +2655,15 @@ input:focus:-webkit-autofill {
                 <small id="d-psd-fields-cover">&nbsp;</small>
               </div>
             </div>
-            <button type="button" class="psd-sel-btn psd-sug-all" id="d-psd-sug-all" onclick="dPsdAcceptAllSug()" hidden></button>
+            <div class="psd-fieldbar-acts">
+              <!-- Mapear com IA: manda a IMAGEM da arte + a lista de camadas pro Gemini (via
+                   gAskAI → Edge Function `ai`) e recebe camada→campo. A IA só PROPÕE: o
+                   resultado entra como sugestão pendente, que o designer aceita aqui do lado.
+                   Fica oculto quando não há caminho pra IA (gAiReady) — botão que aparece e
+                   falha é pior que botão que não existe. -->
+              <button type="button" class="psd-sel-btn psd-ai-btn" id="d-psd-ai-btn" onclick="dPsdMapWithAI()" hidden></button>
+              <button type="button" class="psd-sel-btn psd-sug-all" id="d-psd-sug-all" onclick="dPsdAcceptAllSug()" hidden></button>
+            </div>
           </div>
           <div class="psd-fields" id="d-psd-fields"></div>
           <p class="psd-map-live" id="d-psd-map-live" role="status" aria-live="polite"></p>

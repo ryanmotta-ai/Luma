@@ -2,7 +2,7 @@
  * js/core/ai.js
  *
  * MOTOR ÚNICO de IA do front. Todo recurso de IA do Luma (legenda, encurtar
- * texto, ajuda, leitura de cardápio, casar fotos) fala com o modelo POR AQUI —
+ * texto, ajuda, leitura de cardápio, casar fotos, mapear camadas do PSD) fala com o modelo POR AQUI —
  * ninguém mais monta fetch pro Gemini na mão. Um caminho = um lugar pra trocar
  * de modelo, pôr timeout, cachear e tratar falha.
  *
@@ -65,7 +65,7 @@ function gAiModel(){
 
 /**
  * Pergunta ao modelo.
- * @param {string} task   'legenda'|'encurtar'|'ajuda'|'cardapio'|'casar-fotos'|'aula' (a function só aceita estas)
+ * @param {string} task   'legenda'|'encurtar'|'ajuda'|'cardapio'|'casar-fotos'|'aula'|'mapear-psd' (a function só aceita estas)
  * @param {string} prompt prompt completo, montado por quem chama — EXCETO na task
  *                        'aula', em que este campo é só a pergunta do estudante e
  *                        o prompt pedagógico é montado na Edge Function (ver

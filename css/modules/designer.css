@@ -2233,8 +2233,19 @@ body.theme-light .dp-dado-ex {
 .psd-fieldbar-copy svg{width:16px;height:16px;flex:0 0 auto;margin-top:1px;color:var(--dm-orange)}
 .psd-fieldbar-copy strong{display:block;font-size:10.5px;font-weight:700;color:var(--d-text2)}
 .psd-fieldbar-copy small{display:block;margin-top:1px;font-size:9px;color:var(--d-text3);font-variant-numeric:tabular-nums}
+.psd-fieldbar-acts{display:flex;align-items:center;gap:6px;flex:0 0 auto}
 .psd-sug-all{flex:0 0 auto;border-color:var(--dm-orange);color:var(--dm-orange);background:rgba(255,144,0,.1)}
 .psd-sug-all:hover{background:rgba(255,144,0,.2)}
+/* Mapear com IA: secundário ao lado do "Aplicar" (a ação principal continua sendo a do
+   designer). Sem cor própria de "IA" — a marca tem uma paleta só. */
+.psd-ai-btn{display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;font-weight:700}
+.psd-ai-btn svg{width:13px;height:13px;flex:0 0 auto}
+.psd-ai-btn:disabled{opacity:.6;cursor:progress}
+.psd-ai-spin{width:11px;height:11px;flex:0 0 auto;border-radius:50%;
+  border:2px solid color-mix(in srgb,var(--dm-orange) 30%,transparent);border-top-color:var(--dm-orange);
+  animation:psdAiSpin .7s linear infinite}
+@keyframes psdAiSpin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){ .psd-ai-spin{animation-duration:2.4s} }
 /* Rolagem horizontal: catálogo grande não pode empurrar a lista de camadas pra fora da tela. */
 .psd-fields{display:flex;align-items:center;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:thin}
 .psd-fields-empty{margin:0;font-size:9.5px;line-height:1.45;color:var(--d-text3)}
@@ -2283,6 +2294,10 @@ body.theme-light .dp-dado-ex {
   transition:background var(--dur-micro) var(--ease-standard),border-style var(--dur-micro) var(--ease-standard)}
 .psd-sug:hover{border-style:solid;background:color-mix(in srgb,var(--var-color) 22%,transparent)}
 .psd-sug:focus-visible{outline:2px solid var(--dm-orange);outline-offset:1px}
+/* Sugestão de IA usa o laranja da marca (e não a cor de campo) porque merece outro grau de
+   desconfiança: o parser casou um nome, a IA interpretou uma imagem. */
+.psd-sug-ia{border-color:var(--dm-orange);background:rgba(255,144,0,.12);color:var(--dm-orange)}
+.psd-sug-ia:hover{background:rgba(255,144,0,.24)}
 .psd-modal .psd-search-input{height:36px;padding:0 12px;border-radius:9px;background:var(--d-dark);border-color:var(--d-border2)}
 .psd-modal .psd-search-input:focus{border-color:var(--dm-orange);box-shadow:0 0 0 3px rgba(255,144,0,.1)}
 .psd-modal .psd-sel-btns{min-height:28px;padding-inline:2px}

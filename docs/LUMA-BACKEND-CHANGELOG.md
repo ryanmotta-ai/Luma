@@ -6,6 +6,25 @@
 
 ---
 
+## 2026-08-05 — Edge Function `ai`: task nova `mapear-psd`
+
+> ⚠️ **FUNCTION AINDA NÃO REPUBLICADA.** A mudança está versionada; o deploy não rodou (sem acesso ao Supabase nesta entrega). **Nada quebra sem ele:** a task desconhecida faz a function responder 400, `gAskAI` devolve `null` e cai no caminho de transição (chave do front), que não valida task nenhuma — o recurso funciona, só sem a proteção de cota do servidor. Ver "Ações necessárias".
+
+**Contexto.** O importador de PSD ganhou o botão **"Mapear com IA"** (`js/designer/psd-import.js` → `dPsdMapWithAI`): manda a **imagem da arte** + a lista de camadas (tipo, conteúdo, caixa) + o catálogo de campos, e recebe `camada → campo`. A imagem é o ponto: o motor de sugestão por nome não tem o que fazer quando metade das camadas se chama "Camada 5" — o papel de cada elemento está na arte, não no nome.
+
+**Mudança (uma linha):** `mapear-psd` entra na allowlist `TASKS` de `supabase/functions/ai/index.ts`. Sem entrada nova, sem migration, sem policy, sem tabela — **o banco não é tocado**.
+
+- Prompt montado no **front**, como todas as tasks menos `aula` (a decisão de 2026-07-30 segue valendo: prompt no servidor viraria prompt duplicado).
+- Anexo: **1 imagem JPEG** da arte, lado maior ≤900px a q0.82 — ~25KB de base64 medidos, muito abaixo do teto de ~6MB. O mime já está na allowlist de anexos.
+- Prompt medido: ~1.7k chars num PSD de 5 camadas (teto `MAX_PROMPT` é 12.000). PSD com centenas de camadas pode encostar no teto — nesse caso a function responde 400 e o front avisa; se virar caso real, cortar a lista de camadas por relevância antes de montar o prompt.
+- Cota: o rate-limit existente (20/min por usuário) já cobre. Uma revisão de PSD dispara 1 chamada por clique.
+
+**Ações necessárias:**
+1. `supabase functions deploy ai` — só isso.
+2. Conferir as **3 roles**: qualquer role autenticada pode chamar (é o mesmo critério das outras tasks — o que se protege é cota, não dado). Na prática só `equipe_dm`/`gestao` alcançam o botão, porque ele vive no Estúdio; confirmar que `franqueado` não vê o importador de PSD e que a chamada, se forçada, é aceita sem vazar nada (a resposta é só `camada → campo` do catálogo que o próprio chamador mandou).
+
+---
+
 ## 2026-08-01 — Controle do produto: feature flags governadas pela Gestão
 
 > ⚠️ **SQL AINDA NÃO APLICADO.** A migration está versionada; o banco não foi tocado (não havia acesso ao Supabase na entrega). O front funciona sem ela — cai nos defaults do registro. Ver "Ações necessárias" no fim desta seção.
