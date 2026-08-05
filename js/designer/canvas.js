@@ -935,6 +935,8 @@ function dFxShapeBg(l){
   if(l.overlay && l.overlayColor){ const o=gFxRgba(l.overlayColor, l.overlayOpacity!=null?l.overlayOpacity:1); layers.push('linear-gradient('+o+','+o+')'); }
   return layers.length? layers.join(',')+','+base : base;
 }
+// Duplo clique manual em camada (ver comentário no listener de mousedown mais abaixo).
+let dLastClickLayerId=null, dLastClickTime=0;
 function dRenderCanvas(){
   const ab=typeof dGetActiveAB==='function'?dGetActiveAB():null;
   dApplyBg(ab);
@@ -1287,6 +1289,22 @@ function dRenderCanvas(){
     el.addEventListener('mousedown',e=>{
       if(e.button && e.button!==0) return; // botão direito/meio → deixa o contextmenu agir, sem iniciar drag
       if(dTool==='hand')return; // deixa borbulhar pro pan do wrapper — senão a Mão não move quando o arrasto começa sobre uma camada (ex.: Fundo)
+      // Duplo clique manual (por tempo+camada, não pelo evento 'dblclick' nativo): dSelLayer
+      // logo abaixo chama dRenderCanvas a CADA mousedown — mesmo em cima da própria camada já
+      // selecionada — trocando o nó DOM debaixo do mouse. O navegador exige que mousedown/mouseup
+      // caiam no mesmo elemento pra sintetizar 'click'/'dblclick'; com o nó trocado no meio do
+      // gesto, o duplo clique nativo nunca disparava e a edição inline de texto (e o crop de
+      // imagem/moldura) não abria — o pedido do Ryan de "editar como Photoshop" era isso.
+      if(dTool==='select'){
+        const _now=Date.now();
+        const _isDbl = dLastClickLayerId===l.id && (_now-dLastClickTime)<400;
+        dLastClickLayerId = _isDbl ? null : l.id; // consome o par pra não virar "triplo clique"
+        dLastClickTime = _now;
+        if(_isDbl){
+          if(l.type==='text'){ e.stopPropagation(); dStartInlineEdit(lReal,el); return; }
+          if((l.type==='image'||l.type==='frame') && typeof dStartCrop==='function'){ e.stopPropagation(); dStartCrop(lReal); return; }
+        }
+      }
       e.stopPropagation();
       // Ferramentas de CRIAÇÃO: iniciar o desenho por arrasto AQUI também. O mousedown sobre uma
       // camada (o Fundo cobre o canvas inteiro) parava no stopPropagation e o dStartMarquee do frame
