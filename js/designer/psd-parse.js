@@ -566,18 +566,24 @@ function _dPsdGradient(node){
 function _dPsdRichRuns(t, res, h){
   try{
     const runs=Array.isArray(t.styleRuns)?t.styleRuns:null; if(!runs||runs.length<2) return null;
-    const full=String(t.text||'').replace(/\r\n?/g,'\n');
+    // Fatia o texto CRU: r.length conta os caracteres do EngineData, onde a quebra de linha é
+    // '\r'. Normalizar ANTES encurtava a string em cada '\r\n' e todos os runs seguintes saíam
+    // deslocados (trecho com a cor/tamanho do vizinho). Normaliza depois, por trecho.
+    const full=String(t.text||'');
     // Cor do estilo DOMINANTE como fallback: um run que só muda o tamanho costuma herdar a cor
     // (sem fillColor no EngineData) — cair em #000 fixo apagava trecho branco sobre fundo escuro.
     const _domStyle=(typeof _dPsdDominantStyle==='function'&&_dPsdDominantStyle(t))||null;
     const _domColor=(_domStyle&&_domStyle.style&&_dPsdHex(_domStyle.style.fillColor||_domStyle.style.color))||'#000000';
     const out=[]; let pos=0;
     for(const r of runs){
-      const len=r.length||0; const seg=full.substr(pos,len); pos+=len; if(!seg) continue;
+      const len=r.length||0; const seg=full.substr(pos,len).replace(/\r\n?/g,'\n'); pos+=len; if(!seg) continue;
       const st=r.style||{};
       const fname=(st.font&&st.font.name)||'';
       const remap=_dPsdRemapFont(fname);
-      const _rfs=_dPsdFontSize({style:st,transform:t.transform}, h, seg, res);
+      // shapeType vai junto: sem ele um run de caixa de PARÁGRAFO caía no caminho "point" e podia
+      // ter o tamanho real trocado pelo estimado da caixa — enquanto o tamanho da própria camada
+      // (calculado com shapeType) era respeitado 1:1. Os dois lados agora usam a mesma regra.
+      const _rfs=_dPsdFontSize({style:st,transform:t.transform,shapeType:t.shapeType}, h, seg, res);
       out.push({
         text:seg,
         color:_dPsdHex(st.fillColor||st.color)||_domColor,
@@ -1203,6 +1209,16 @@ function dPsdParseItems(psd, res, ox, oy){
   // aqui é sintético ({children:[…]}) e perderíamos a luz global lida do documento real.
   const _gl=_dPsdReadGlobalLight(psd); if(_gl!=null) _dPsdGlobalLight=_gl;
   const items=[]; let n=0;
+  // Teto de raster ADAPTATIVO à prancheta. O PNG final renderiza a 2× o tamanho da prancheta,
+  // então uma imagem grande precisa de até 2×maxDim px pra não sair mole no export — o teto fixo
+  // de 1600 borrava herói de PSD grande. Piso 1600 (comportamento antigo p/ prancheta pequena,
+  // sem regressão), teto 3200 (protege o IndexedDB de PSD gigante). psd.width/height vem dos
+  // chamadores (incluído no objeto passado ao parse); sem eles cai no piso.
+  const _artMax=Math.max((psd&&psd.width)||0, (psd&&psd.height)||0);
+  const _rasterCap=Math.min(3200, Math.max(1600, 2*_artMax));
+  // Camadas que SÓ existem como raster (warp, smart object, padrão, camada recuperada) não têm
+  // segunda chance: o piso é o 2400 de antes, mas acompanham a prancheta quando ela pede mais.
+  const _fidCap=Math.max(2400, _rasterCap);
   // parentOp: opacidade acumulada dos grupos-pai (0–1); parentHidden: grupo-pai oculto.
   // inh: o que os grupos-pai deixam de herança e o Luma não sabe representar como grupo —
   // {masks:[máscaras dos grupos], blend:mesclagem herdada, blendApprox:mesclagem é aproximação}.
@@ -1269,7 +1285,7 @@ function dPsdParseItems(psd, res, ox, oy){
         // imagem parece bug). Rotação/warp/smart object já se explicam pelo próprio visual.
         if(_dPsdTextOnPath(node)) it.textOnPath=true;
         else if(_dPsdIsFlippedLayer(node)) it.flipped=true;
-        it.imgUrl=_dPsdRasterURL(node.canvas,{maxPx:2400,q:0.92}); // única fonte de fidelidade → alta qualidade
+        it.imgUrl=_dPsdRasterURL(node.canvas,{maxPx:_fidCap,q:0.92}); // única fonte de fidelidade → alta qualidade
         if(it.imgUrl){
           // node.canvas NÃO traz os efeitos de camada (são vetoriais no PS) → re-aplica os simples
           // (sombra/glow/contorno/overlay — 1º de cada) sobre o pixel, p/ a sombra do smart object etc.
@@ -1344,7 +1360,7 @@ function dPsdParseItems(psd, res, ox, oy){
           if(pb){ it.x=Math.round(pb.x-ox); it.y=Math.round(pb.y-oy); it.w=Math.max(1,pb.w); it.h=Math.max(1,pb.h); }
           else { it.textBoxApprox=true; console.warn('[psd] caixa de parágrafo não derivável — usando bbox de glifos:', it.name); }
         }
-        if(node.canvas && node.canvas.width>0){ it.imgUrl=_dPsdRasterURL(node.canvas); } // p/ "imagem fiel"
+        if(node.canvas && node.canvas.width>0){ it.imgUrl=_dPsdRasterURL(node.canvas,{maxPx:_rasterCap}); } // p/ "imagem fiel"
       } else if(node.canvas && node.canvas.width>0 && node.canvas.height>0){
         // Camada de GRADIENTE (GdFl: tem vectorFill com colorStops) → shape com gradiente editável,
         // mesmo não sendo cor sólida (senão cairia em raster).
@@ -1387,7 +1403,7 @@ function dPsdParseItems(psd, res, ox, oy){
         }
         else {
           it.kind='raster';
-          it.imgUrl=_dPsdRasterURL(node.canvas);
+          it.imgUrl=_dPsdRasterURL(node.canvas,{maxPx:_rasterCap});
           if(!it.imgUrl) return;
           
           // Heurística de auto-frame para imagens raster
@@ -1415,7 +1431,7 @@ function dPsdParseItems(psd, res, ox, oy){
           || (it.gradientOverlay && it.gradientOverlay.blendMode)        // gradient overlay com blend
           || (it.kind==='text' && (it.innerShadow||it.innerGlow||it.bevel||it.gradientOverlay)) // efeitos que o texto não renderiza
           || (it.fillOpacity!=null && it.fillOpacity<1 && (it.shadow||it.innerShadow||it.glow||it.innerGlow||it.bevel||it.overlay||it.gradientOverlay||it.strokeW)); // fill-opacity + efeitos
-        if(_fxUnsup){ it.needsRaster=true; if(!it.imgUrl) it.imgUrl=_dPsdRasterURL(_pn.canvas,{maxPx:2400,q:0.92}); }
+        if(_fxUnsup){ it.needsRaster=true; if(!it.imgUrl) it.imgUrl=_dPsdRasterURL(_pn.canvas,{maxPx:_fidCap,q:0.92}); }
       }
       items.push(it);
       }catch(err){ _dPsdParseFail(node, items, ++n, ox, oy, err, parentName, inh); }
