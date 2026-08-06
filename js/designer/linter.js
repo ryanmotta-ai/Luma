@@ -104,19 +104,31 @@ function _dLinterEstresse() {
     }
   }
 
-  // (b) o texto saiu da prancheta
+  // (b) o texto saiu da prancheta — nos QUATRO lados. O eixo X importa porque point text não
+  //     quebra linha: um nome de produto longo simplesmente corre para fora da arte.
+  const _fugas = (rr) => {
+    const f = [];
+    if (rr.y < -2) f.push('pelo topo');
+    if (rr.y + rr.h > cv.h + 2) f.push('pelo pé');
+    if (rr.x < -2) f.push('pela esquerda');
+    if (rr.x + rr.w > cv.w + 2) f.push('pela direita');
+    return f;
+  };
   Object.values(depois).forEach(o => {
     if (o.l.type !== 'text' || !camposDa(o.l).length) return;
-    const r = o.r, antesO = antes[o.l.id];
+    const antesO = antes[o.l.id];
     if (!antesO) return;
-    const escapava = (antesO.r.y < -2) || (antesO.r.y + antesO.r.h > cv.h + 2);
-    if (escapava) return;                                     // sangra por desenho
-    const saiu = (r.y < -2) ? 'pelo topo' : (r.y + r.h > cv.h + 2) ? 'pelo pé' : '';
-    if (!saiu) return;
+    const jaEscapava = new Set(_fugas(antesO.r));             // sangra por desenho
+    const saiu = _fugas(o.r).filter(f => !jaEscapava.has(f));
+    if (!saiu.length) return;
+    // Point text não quebra nem encolhe sozinho: o conserto é outro, e vale dizer qual.
+    const conserto = (o.l.textBox !== 'box' && saiu.some(f => /esquerda|direita/.test(f)))
+      ? 'Esta camada é texto de ponto: ela não quebra linha nem reduz a fonte sozinha. Transforme em caixa de parágrafo ou reduza o limite do campo.'
+      : 'Reduza o limite do campo ou dê mais espaço ao bloco.';
     out.push({
       type: 'error',
       title: 'O pior caso não cabe',
-      desc: `${comLimite(o.l)}, “${nome(o.l)}” sai da arte ${saiu}. Reduza o limite do campo ou dê mais altura ao bloco.`,
+      desc: `${comLimite(o.l)}, “${nome(o.l)}” sai da arte ${saiu.join(' e ')}. ${conserto}`,
       layerId: o.l.id,
       layerName: o.l.name
     });

@@ -726,6 +726,21 @@ function _gStampVTop(l, altura) {
   l._vTopAuto = (altura || 0) > (l.h || 0);
 }
 
+/* Onde a TINTA começa dentro da caixa no eixo X — o irmão do `_gInkDy`.
+   A caixa de parágrafo tem largura fixa, então a tinta começa onde a caixa começa. Point text
+   abraça os glifos e o render o posiciona pelo `textAlign` (`png-generator.js`): centralizado
+   cresce para os dois lados, à direita cresce para a esquerda. Sem isto a cascata acha que
+   todo texto começa em `l.x`, e um preço centralizado que cresceu "não teria" saído da arte.
+   ⚠ Diferente do eixo Y, aqui NÃO se força âncora à esquerda quando o texto passa da caixa:
+   centralizar horizontalmente é intenção de desenho, não acidente. */
+function _gInkDx(l, largura) {
+  if (!l || l.type !== 'text' || l.textBox === 'box') return 0;
+  const sobra = (l.w || 0) - (largura || 0);
+  if (l.textAlign === 'center') return sobra / 2;
+  if (l.textAlign === 'right') return sobra;
+  return 0;
+}
+
 /* O retângulo que a TINTA ocupa de fato — o que colide, o que sai da prancheta, o que o olho
    vê. Diferente da caixa desenhada sempre que o texto não a preenche (ou passa dela).
    `fit` é o `gFitTextLayer` já resolvido (`l._fit` depois da cascata); sem ele cai na caixa. */
@@ -930,11 +945,33 @@ function _gCorrenteEhFundo(l, cv){
      && (l.w||0)>=cv.w*0.9 && (l.h||0)>=cv.h*0.9) return true;
   return false;
 }
-function _gInferirCorrentes(cloned, opts){
+function _gInferirCorrentes(cloned, opts, resolved){
   const cv=(opts&&opts.canvas)||null;
+  const _vazio=(l)=>!!(resolved && resolved[l.id] && resolved[l.id].vazio);
   // Candidatos a PAI: qualquer camada visível que não seja o fundo (um fundo de tela cheia
-  // "termina" no rodapé e adotaria a arte inteira).
-  const nós=cloned.filter(l=>l && l.visible!==false && l.type!=='group' && !_gCorrenteEhFundo(l,cv));
+  // "termina" no rodapé e adotaria a arte inteira). Texto que saiu VAZIO também fica fora:
+  // ele não ocupa nada na tela, e adotá-lo como pai congelaria o buraco que ele deixou.
+  const nós=cloned.filter(l=>l && l.visible!==false && l.type!=='group'
+                             && !_gCorrenteEhFundo(l,cv) && !_vazio(l));
+  // Faixa que sumiu entre dois blocos: campo opcional que o franqueado deixou em branco (ou
+  // que uma regra ocultou). A altura DESENHADA dela é o quanto o de baixo pode subir — e é a
+  // única exceção ao "só empurra", porque aqui não se recompõe nada: fecha-se um vão que só
+  // existe quando o conteúdo existe.
+  const _colapsoEntre=(fundoA, topoB, x1B, x2B)=>{
+    let soma=0;
+    cloned.forEach(v=>{
+      if(!v || v.type==='group' || v.type!=='text') return;
+      const some = (v.visible===false) || _vazio(v);
+      if(!some) return;
+      const t=v.y||0, f=t+(v.h||0);
+      if(t < fundoA-2 || f > topoB+2) return;                 // tem que estar ENTRE os dois
+      const x1=v.x||0, x2=x1+(v.w||0);
+      const cruz=Math.min(x2,x2B)-Math.max(x1,x1B);
+      if(cruz/Math.max(1,Math.min(x2-x1, x2B-x1B)) < 0.3) return;   // mesma coluna
+      soma += (v.h||0);
+    });
+    return soma;
+  };
   nós.forEach(B=>{
     if(B.relativeAnchor || !_gCorrenteMovivel(B)) return;   // manual vence; imóvel não entra
     const topoB=B.y||0, x1B=B.x||0, x2B=x1B+(B.w||0);
@@ -956,9 +993,41 @@ function _gInferirCorrentes(cloned, opts){
       if(respiro < -2 || respiro > linha*2) return;
       if(fundoA > fundoPai){ fundoPai=fundoA; pai=A; }       // o vizinho imediato acima
     });
-    if(!pai) return;
-    // auto:true marca a corrente inferida — é ela que só empurra e nunca puxa.
-    B._anchorAuto={ type:'top-to-bottom', layerId:pai.id, gap: Math.round(topoB-fundoPai), auto:true };
+    if(pai){
+      // auto:true marca a corrente inferida — é ela que só empurra e nunca puxa.
+      // `colapso` é o único crédito de subida: a altura das faixas que sumiram no meio.
+      const colapso=_colapsoEntre(fundoPai, topoB, x1B, x2B);
+      B._anchorAuto={ type:'top-to-bottom', layerId:pai.id,
+                      gap: Math.round(topoB-fundoPai-colapso), auto:true, colapso };
+      return;
+    }
+
+    /* CORRENTE LATERAL — o mesmo raciocínio deitado.
+       Só entra quem não achou pai acima: a leitura manda de cima para baixo, e uma camada com
+       dois pais automáticos teria duas verdades. O caso real é "De R$ 149,90 por" ao lado do
+       preço: o de trás cresce e passa por cima do da frente.
+       Mais exigente que a vertical de propósito — empurrar para o lado tem menos espaço para
+       errar do que empurrar para baixo, porque a arte é mais estreita que alta:
+       · o pai tem que ser TEXTO (só texto cresce com o que o franqueado digita);
+       · sobreposição vertical forte (≥60%), não o roçar de 30% que basta na coluna;
+       · o vão até o vizinho não passa de uma linha de texto. */
+    let paiL=null, direitaPai=-Infinity;
+    const y1B=B.y||0, y2B=y1B+(B.h||0);
+    nós.forEach(A=>{
+      if(A===B || A.type!=='text') return;
+      const direitaA=(A.x||0)+(A.w||0);
+      if(direitaA > x1B + 2) return;                          // tem que estar À ESQUERDA
+      const y1A=A.y||0, y2A=y1A+(A.h||0);
+      const cruz=Math.min(y2A,y2B)-Math.max(y1A,y1B);
+      const menor=Math.max(1, Math.min(y2A-y1A, y2B-y1B));
+      if(cruz/menor < 0.6) return;                            // mesma LINHA, não só encostando
+      const respiro=x1B-direitaA;
+      const linha=Math.max(A.fontSize||0, B.fontSize||0, 16)*1.2;
+      if(respiro < -2 || respiro > linha) return;
+      if(direitaA > direitaPai){ direitaPai=direitaA; paiL=A; }
+    });
+    if(!paiL) return;
+    B._anchorAuto={ type:'left-to-right', layerId:paiL.id, gap: Math.round(x1B-direitaPai), auto:true };
   });
 }
 
@@ -1005,15 +1074,18 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
       h = gMeasureLayerHeight(l, text);
     }
     resolved[l.id] = { x: l.x || 0, y: l.y || 0, w, h, visible: l.visible !== false,
-                       dy: _fit ? _gInkDy(l, h) : 0 };
+                       dy: _fit ? _gInkDy(l, h) : 0, dx: _fit ? _gInkDx(l, w) : 0,
+                       // Texto que não sobrou nada depois de interpolar: a corrente trata a
+                       // faixa dele como inexistente em vez de deixar um buraco na arte.
+                       vazio: _fit && l.type === 'text' && !!l._fit && l._fit.altura === 0 };
   });
 
   // Correntes inferidas do desenho (só com o layout vivo ligado).
-  if (_fit && !(opts && opts.inferir === false)) _gInferirCorrentes(cloned, opts);
+  if (_fit && !(opts && opts.inferir === false)) _gInferirCorrentes(cloned, opts, resolved);
   // Posição PUBLICADA de cada camada: a corrente inferida nunca sobe além dela (o laço abaixo
-  // muta l.y a cada iteração, então o original tem que ser guardado antes).
-  const yPub = {};
-  cloned.forEach(l => { yPub[l.id] = l.y || 0; });
+  // muta l.x/l.y a cada iteração, então o original tem que ser guardado antes).
+  const yPub = {}, xPub = {};
+  cloned.forEach(l => { yPub[l.id] = l.y || 0; xPub[l.id] = l.x || 0; });
 
   /* ESCADA, passo 4 — encolher quando o empurrão não cabe mais na arte.
      Achado ao medir: `gSmartWrapText` tem fallback de quebra DURA (busca binária em
@@ -1026,11 +1098,32 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
      hierarquia como fundo do poço — encolher é o último recurso, não o primeiro. */
   const _cv = (opts && opts.canvas) || null;
   const _limite = _cv && _cv.h ? _cv.h : 0;
+  /* ORDEM DE RESOLUÇÃO: pai antes de filho. Sem isso o laço precisa repassar a lista até
+     estabilizar — O(n²) — e numa arte de 40 blocos encadeados isso sozinho passava dos 100ms
+     por tecla. Com a ordem certa, UMA passada resolve a corrente inteira.
+     A profundidade é calculada uma vez; ciclo (A→B→A) trava na guarda de visitados e cai na
+     ordem original, que é o comportamento antigo. */
+  const _profundidade = (() => {
+    const cache = {};
+    const calc = (id, vistos) => {
+      if (cache[id] != null) return cache[id];
+      if (vistos.has(id)) return 0;                       // ciclo: para aqui
+      vistos.add(id);
+      const l = cloned.find(x => x.id === id);
+      const a = l && (l.relativeAnchor || l._anchorAuto);
+      const d = (a && a.layerId && resolved[a.layerId]) ? calc(a.layerId, vistos) + 1 : 0;
+      cache[id] = d;
+      return d;
+    };
+    cloned.forEach(l => calc(l.id, new Set()));
+    return cache;
+  })();
+  const _ordem = cloned.slice().sort((a, b) => (_profundidade[a.id] || 0) - (_profundidade[b.id] || 0));
   const _posicionar = () => {
     let mexeu = true, n = 0;
-    while (mexeu && n < cloned.length) {
+    while (mexeu && n < 2) {          // a ordem topológica resolve em 1; a 2ª volta é a prova
       mexeu = false; n++;
-      cloned.forEach(l => {
+      _ordem.forEach(l => {
         const anchor = l.relativeAnchor || l._anchorAuto;
         if (!anchor || !anchor.layerId) return;
         const parent = resolved[anchor.layerId];
@@ -1038,15 +1131,24 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
         const gap = parseInt(anchor.gap, 10) || 0;
         let newX = l.x || 0, newY = l.y || 0;
         if (anchor.type === 'left-to-right') {
-          newX = parent.visible ? (parent.x + parent.w + gap) : parent.x;
+          if (parent.visible) {
+            // Tinta com tinta também deitado: a direita da tinta do pai + respiro, convertido
+            // de volta para a esquerda da CAIXA do filho.
+            newX = parent.x + (parent.dx || 0) + parent.w + gap - (resolved[l.id].dx || 0);
+            if (anchor.auto) newX = Math.max(xPub[l.id] != null ? xPub[l.id] : newX, newX);
+          } else { newX = parent.x; }
         } else if (anchor.type === 'top-to-bottom') {
           if (parent.visible) {
             // Encadeia TINTA com TINTA: base da tinta do pai + respiro, convertido de volta
             // para o topo da CAIXA do filho (que é o que o render usa como origem).
             newY = parent.y + (parent.dy || 0) + parent.h + gap - (resolved[l.id].dy || 0);
-            // Corrente inferida SÓ EMPURRA: se o texto do pai coube na caixa dele, o filho fica
-            // onde o designer pôs. Puxar para cima recomporia uma arte que ninguém desenhou.
-            if (anchor.auto) newY = Math.max(yPub[l.id] != null ? yPub[l.id] : newY, newY);
+            // Corrente inferida SÓ EMPURRA — com uma exceção: o `colapso`, que é a altura das
+            // faixas que sumiram no meio (campo opcional em branco). Aí o filho pode subir
+            // exatamente o vão que deixou de existir, e nada além disso.
+            if (anchor.auto) {
+              const piso = (yPub[l.id] != null ? yPub[l.id] : newY) - (anchor.colapso || 0);
+              newY = Math.max(piso, newY);
+            }
           } else { newY = parent.y; }
         }
         const cur = resolved[l.id];
@@ -1054,47 +1156,81 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
       });
     }
   };
-  // Quem escapou da prancheta depois de posicionar — pelo PÉ (empurrado) ou pelo TOPO
-  // (texto centralizado que cresceu para os dois lados). Só conta quem passou da PRÓPRIA
-  // caixa: quem sangra pela borda por desenho é decisão do designer, não estrago do texto.
-  const _passouDoPe = () => {
-    if (!_limite) return false;
+  const _largura = _cv && _cv.w ? _cv.w : 0;
+  /* Quem CRESCEU além da própria caixa — os únicos que a escada encolhe. Quem sangra pela
+     borda por desenho é decisão do designer (o checklist é que cobra isso), não estrago do
+     texto do franqueado.
+     Nos dois eixos: em altura vale para qualquer texto; em LARGURA só point text entra, porque
+     a caixa de parágrafo quebra a linha e nunca passa da própria largura. */
+  const _cresceuY = (l) => l && l.type === 'text' && l._fit && l._fit.altura > (l.h || 0) + 1;
+  const _cresceuX = (l) => l && l.type === 'text' && l.textBox !== 'box' && l._fit
+                         && l._fit.larguraMax > (l.w || 0) + 1;
+  // Quem escapou da prancheta depois de posicionar — pelo PÉ (empurrado), pelo TOPO (texto
+  // centralizado que cresceu para os dois lados) ou pelos LADOS (point text, que não quebra
+  // linha: o nome longo do produto simplesmente sai da arte).
+  const _escapou = () => {
+    if (!_limite && !_largura) return false;
     return cloned.some(l => {
       if (!l || l.visible === false) return false;
       const r = resolved[l.id];
       if (!r) return false;
-      if ((l.relativeAnchor || l._anchorAuto) && (r.y + (r.dy || 0) + (r.h || 0)) > _limite) return true;
-      const cresceu = l.type === 'text' && l._fit && l._fit.altura > (l.h || 0) + 1;
-      return cresceu && (r.y + (r.dy || 0)) < 0;
+      const encadeada = !!(l.relativeAnchor || l._anchorAuto);
+      // Y: quem foi empurrado saiu pelo pé, ou quem cresceu subiu por cima da margem do topo.
+      if (_limite && encadeada && (r.y + (r.dy || 0) + (r.h || 0)) > _limite) return true;
+      if (_limite && _cresceuY(l) && (r.y + (r.dy || 0)) < 0) return true;
+      // X: só quem cresceu de verdade (por texto próprio) ou foi empurrado para o lado.
+      if (_largura && (_cresceuX(l) || encadeada)) {
+        const x = r.x + (r.dx || 0);
+        if (_cresceuX(l) && (x < 0 || x + (r.w || 0) > _largura)) return true;
+        if (encadeada && x + (r.w || 0) > _largura) return true;
+      }
+      return false;
     });
   };
-  if (_fit && _limite) {
+  if (_fit && (_limite || _largura)) {
     _posicionar();
     let tentativas = 0;
     // Quando todo mundo chega ao piso da hierarquia e AINDA não cabe, a prioridade inverte:
     // arte com o preço cortado é inútil; arte com hierarquia achatada é feia mas serve. Só aí
     // se desce abaixo do degrau, até o piso absoluto (50% do desenhado, nunca menos de 8px).
     let relaxou = false;
-    while (_passouDoPe() && tentativas < 12) {
+    // Teto de voltas: encolhendo um degrau por vez são ~9 passos para levar um degrau do
+    // tamanho desenhado ao piso, vezes os degraus da arte, vezes a volta do relaxamento.
+    // 60 cobre arte real com folga; é rede de segurança contra laço infinito, não orçamento.
+    while (_escapou() && tentativas < 60) {
       tentativas++;
       // Culpados: os textos que passaram da própria caixa (são eles que empurram).
-      const culpados = cloned.filter(l => l && l.type === 'text' && l._fit && l._fit.altura > (l.h || 0) + 1);
+      const culpados = cloned.filter(l => _cresceuY(l) || _cresceuX(l));
       if (!culpados.length) break;
-      let reduziu = false;
-      culpados.forEach(l => {
-        const atual = (l._tetoFonte != null) ? l._tetoFonte : (l.fontSize || 24);
+      /* QUEM CEDE PRIMEIRO — por ORDEM, não por ritmo.
+         Antes todos caíam 8% por volta e o resultado era o avesso do desejado: o TÍTULO ia ao
+         piso enquanto o regulamento jurídico parava um degrau antes. Pesar o passo não
+         resolveu — rodando em paralelo, o maior tem mais o que ceder e chega ao fundo do mesmo
+         jeito. O tamanho que o designer deu é a declaração de importância dele, então quem
+         encolhe é o MENOR degrau que ainda tem folga, sozinho, até acabar a folga dele. O
+         título só é tocado quando o resto da arte já cedeu tudo. */
+      const _pisoDe = (l) => {
         const pisoAbs = Math.max(8, Math.round((l.fontSize || 24) * 0.5));
-        const piso = relaxou ? pisoAbs
-                   : ((l._pisoFonte != null) ? Math.max(l._pisoFonte, pisoAbs) : pisoAbs);
-        const novo = Math.max(piso, Math.floor(atual * 0.92));
-        if (novo < atual) { l._tetoFonte = novo; reduziu = true; }
+        return relaxou ? pisoAbs
+             : ((l._pisoFonte != null) ? Math.max(l._pisoFonte, pisoAbs) : pisoAbs);
+      };
+      const _atual = (l) => (l._tetoFonte != null) ? l._tetoFonte : (l.fontSize || 24);
+      const comFolga = culpados.filter(l => Math.floor(_atual(l) * 0.92) < _atual(l)
+                                         && _atual(l) > _pisoDe(l));
+      const menor = comFolga.length
+        ? Math.min(...comFolga.map(l => Math.round(l.fontSize || 24))) : null;
+      const mexidos = [];
+      comFolga.forEach(l => {
+        if (Math.round(l.fontSize || 24) !== menor) return;   // só o degrau da vez
+        const novo = Math.max(_pisoDe(l), Math.floor(_atual(l) * 0.92));
+        if (novo < _atual(l)) { l._tetoFonte = novo; mexidos.push(l); }
       });
       // Todo mundo no piso da hierarquia: solta o piso uma vez e tenta de novo.
-      if (!reduziu && !relaxou) { relaxou = true; continue; }
-      if (!reduziu) break;   // no piso absoluto: não há mais o que ceder, o Estúdio é que avisa
-      // Re-mede com o teto novo e reposiciona do zero (a posição publicada é a base).
-      cloned.forEach(l => {
-        if (l.type !== 'text') return;
+      if (!mexidos.length && !relaxou) { relaxou = true; continue; }
+      if (!mexidos.length) break;   // no piso absoluto: não há mais o que ceder
+      // Re-mede SÓ quem ganhou teto novo. Antes remedia as 40 camadas a cada volta, e uma arte
+      // pesada custava 116ms por tecla — acima do debounce de 110ms da digitação.
+      mexidos.forEach(l => {
         let t = l.content || '';
         if (l.isVar || /\{\{/.test(t)) t = gInterpolate(t, dados, { defaults });
         const f = gFitTextLayer(l, t, ctxAux);
@@ -1102,10 +1238,30 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
         resolved[l.id].h = f.altura;
         resolved[l.id].dy = _gInkDy(l, f.altura);
         _gStampVTop(l, f.altura);
-        if (l.textBox !== 'box') resolved[l.id].w = f.larguraMax;
+        if (l.textBox !== 'box') {
+          resolved[l.id].w = f.larguraMax;
+          resolved[l.id].dx = _gInkDx(l, f.larguraMax);
+        }
       });
-      cloned.forEach(l => { l.y = yPub[l.id]; resolved[l.id].y = yPub[l.id]; });
+      cloned.forEach(l => {
+        l.y = yPub[l.id]; resolved[l.id].y = yPub[l.id];
+        l.x = xPub[l.id]; resolved[l.id].x = xPub[l.id];
+      });
       _posicionar();
+    }
+    /* O QUE SOBROU FORA DA ARTE. A escada tem limite; quando ela desiste, alguém precisa
+       saber. Sem isto o `estourou` do encaixe dizia `false` numa peça com o preço 181px fora
+       da prancheta, e nenhum consumidor a jusante tinha como perceber. */
+    if (_escapou()) {
+      cloned.forEach(l => {
+        const r = resolved[l.id];
+        if (!r || l.visible === false) return;
+        const y1 = r.y + (r.dy || 0), y2 = y1 + (r.h || 0);
+        const x1 = r.x + (r.dx || 0), x2 = x1 + (r.w || 0);
+        const fora = (_limite && (y1 < -2 || y2 > _limite + 2))
+                  || (_largura && (x1 < -2 || x2 > _largura + 2));
+        if (fora) l._foraDaArte = true;
+      });
     }
     return cloned;
   }
