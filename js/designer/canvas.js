@@ -1018,7 +1018,9 @@ function dRenderCanvas(){
     // Mesmo interruptor do franqueado: o Estúdio precisa mostrar o layout que a arte terá,
     // senão o designer publica uma coisa e o franqueado vê outra.
     const _pmAtiva=(typeof dActiveTemplateMeta==='function')?dActiveTemplateMeta():null;
-    const _vivoAtivo=(typeof gLayoutVivoAtivo==='function')?gLayoutVivoAtivo(_pmAtiva):false;
+    // `Disponivel` e não `Ativo`: a terceira chave (o botão Auto-layout) é de quem OLHA a arte
+    // na prévia do franqueado, não de quem a AUTORA. O Estúdio mostra o que o template faz.
+    const _vivoAtivo=(typeof gLayoutVivoDisponivel==='function')?gLayoutVivoDisponivel(_pmAtiva):false;
     const _abVivo=(typeof dGetActiveAB==='function')?dGetActiveAB():null;
     _renderLayers = gApplyRelativeAnchors(_renderLayers, dSimActive ? dSimValues : null, dSimActive ? _simDefs : gVarDefaults(),
       {fitText:_vivoAtivo, canvas:_abVivo?{w:_abVivo.w,h:_abVivo.h}:null});
@@ -1872,8 +1874,12 @@ async function dSimRenderPreview(){
   // coletor de overflow que o render já expõe (`png-generator.js`). Agora o designer vê QUAL
   // campo estourou, não só que a arte ficou estranha.
   const sink=new Set(); window._fOverflowSink=sink;
+  // Este render é o do franqueado, chamado de dentro do Estúdio: a chave do botão Auto-layout
+  // (preferência de quem OLHA a prévia) não pode vazar para cá e mudar o que o designer testa.
+  const _offAntes=(typeof gLayoutVivoOff!=='undefined')&&gLayoutVivoOff;
+  if(_offAntes) gLayoutVivoOff=false;
   try{ok=await fRenderPreviewToCanvas(canvas,tmpl,{maxPx:1200,dados:JSON.parse(JSON.stringify(dSimDraftValues))});}catch(e){ok=false;}
-  finally{ window._fOverflowSink=null; }
+  finally{ window._fOverflowSink=null; if(_offAntes) gLayoutVivoOff=true; }
   if(seq!==dSimRenderSeq)return;
   dSimMarkOverflow(sink);
   if(ok===false){

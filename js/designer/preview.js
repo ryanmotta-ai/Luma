@@ -828,7 +828,9 @@ async function dExportSVG(opts){
   });
   if(typeof gApplyRelativeAnchors==='function'){
     const _pmPv=(typeof dActiveTemplateMeta==='function')?dActiveTemplateMeta():null;
-    layers=gApplyRelativeAnchors(layers,dados,defaults,{fitText:(typeof gLayoutVivoAtivo==='function')?gLayoutVivoAtivo(_pmPv):false});
+    // `Disponivel`: o botão Auto-layout é chave de quem olha a prévia do franqueado; aqui o
+    // designer confere o que o TEMPLATE faz por padrão.
+    layers=gApplyRelativeAnchors(layers,dados,defaults,{fitText:(typeof gLayoutVivoDisponivel==='function')?gLayoutVivoDisponivel(_pmPv):false});
   }
   layers=layers.filter(l=>l.visible!==false);
   let defs='', body='', cid=0;

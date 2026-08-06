@@ -30,7 +30,9 @@ function _dLinterEstresse() {
   const base = DFMT_SIZES[dFmt] || DFMT_SIZES.story;
   const cv = { w: (ab && ab.w) || base.w, h: (ab && ab.h) || base.h };
   const meta = (typeof dActiveTemplateMeta === 'function') ? dActiveTemplateMeta() : null;
-  const vivo = (typeof gLayoutVivoAtivo === 'function') ? gLayoutVivoAtivo(meta) : false;
+  // `Disponivel`: o checklist audita o TEMPLATE. A chave do botão Auto-layout é de quem olha a
+  // prévia do franqueado e não pode mudar o veredito da auditoria.
+  const vivo = (typeof gLayoutVivoDisponivel === 'function') ? gLayoutVivoDisponivel(meta) : false;
   const defaults = (typeof gVarDefaults === 'function') ? gVarDefaults() : null;
 
   const montar = (dados) => {

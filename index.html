@@ -806,6 +806,14 @@ input:focus:-webkit-autofill {
                 <span>Auto-zoom</span>
                 <span class="lp-toggle" aria-hidden="true"><span class="lp-toggle-knob"></span></span>
               </button>
+              <!-- Auto-layout: a arte se acomoda ao texto digitado (bate no respiro → quebra
+                   linha → o bloco de baixo desce → se precisar, encolhe). Só aparece nos
+                   templates em que o designer ligou o Layout vivo no publicar; aqui o
+                   franqueado só pode DESLIGAR, para ver a composição original. -->
+              <button type="button" class="lp-autozoom-btn active" id="lp-auto-layout" aria-pressed="true" onclick="fLpToggleAutoLayout()" title="Desativar acomodação automática" hidden>
+                <span>Auto-layout</span>
+                <span class="lp-toggle" aria-hidden="true"><span class="lp-toggle-knob"></span></span>
+              </button>
               <!-- "Postado": abre a arte real dentro do celular (Stories/Feed/WhatsApp).
                    É ação (modal), não sobreposição — por isso fora do segmento abaixo. -->
               <button type="button" class="lp-posted-btn" onclick="fOpenPosted()" title="Ver como a arte fica postada (Stories, Feed, WhatsApp)" aria-label="Ver como a arte fica postada">

@@ -544,10 +544,41 @@ function fLpToggleAutoZoom(){
   }
 }
 
+/* ── AUTO-LAYOUT: o mesmo gesto do Auto-zoom, para a acomodação da arte ──
+   O `gLayoutVivoOff` é a terceira chave em série do layout vivo (as outras duas são a flag da
+   rede e o `publishMeta` do template). Só DESLIGA: o botão nem aparece num template onde o
+   designer não ligou o Layout vivo, então não há como reacomodar arte que ninguém aprovou.
+   Vale para a prévia E para o PNG baixado — as duas passam pelo mesmo `fRenderTemplateLayers`,
+   e prévia que mente sobre o arquivo final é o defeito que este projeto mais evita. */
+const F_LP_AUTO_LAYOUT_KEY = 'luma-lp-auto-layout';
+try { gLayoutVivoOff = localStorage.getItem(F_LP_AUTO_LAYOUT_KEY) === '0'; } catch(e){}
+
+function _fLpSyncAutoLayoutButton(){
+  const btn=document.getElementById('lp-auto-layout'); if(!btn) return;
+  const pm=(fState.material && fState.material.publishMeta) || null;
+  const tem=(typeof gLayoutVivoDisponivel==='function') && gLayoutVivoDisponivel(pm);
+  btn.hidden=!tem;
+  if(!tem) return;
+  const on=!gLayoutVivoOff;
+  btn.classList.toggle('active',on);
+  btn.setAttribute('aria-pressed',String(on));
+  btn.title=on?'Desativar acomodação automática (ver a composição original)'
+              :'Ativar acomodação automática';
+}
+function fLpToggleAutoLayout(){
+  gLayoutVivoOff=!gLayoutVivoOff;
+  try { localStorage.setItem(F_LP_AUTO_LAYOUT_KEY,gLayoutVivoOff?'0':'1'); } catch(e){}
+  _fLpSyncAutoLayoutButton();
+  try { fUpdateLivePreview(); } catch(e){}
+}
+
 async function fUpdateLivePreview(opts){
   opts = opts || {}; // animateField é ignorado: o canvas já reflete o estado atual
   const canvas = document.getElementById('lp-canvas');
   if(!canvas || canvas.tagName !== 'CANVAS') return;
+  // O botão depende do TEMPLATE aberto (nem todo template tem Layout vivo), então é
+  // re-sincronizado a cada update — diferente do Auto-zoom, que independe do material.
+  try { _fLpSyncAutoLayoutButton(); } catch(e){}
 
   // Sem template ou sem camadas → estado vazio. (Material publicado sempre tem camadas;
   // não existe caminho de preview "só com bg" — o antigo caía num fRenderCanvasHelper de

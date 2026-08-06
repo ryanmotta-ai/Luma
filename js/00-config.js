@@ -866,18 +866,32 @@ function gFitTextLayer(layer, texto, ctxAux, opts) {
     altura: Math.round(lh * linhas.length), larguraMax: Math.round(maxL), estourou };
 }
 
-/* O interruptor do layout vivo — DOIS em série.
+/* O interruptor do layout vivo — TRÊS em série.
    `franqueado.layout-vivo` (Controle do produto) governa a rede; `publishMeta.layoutVivo`
-   governa CADA template. Os dois precisam estar ligados. Motivo do segundo: ligar reacomoda
-   uma arte JÁ publicada, e essa é decisão do designer daquela arte.
-   Padrão desligado: template existente não muda de comportamento sozinho.
+   governa CADA template; `gLayoutVivoOff` é a chave de quem está OLHANDO a arte agora.
+   Os três precisam estar ligados. Motivo do segundo: ligar reacomoda uma arte JÁ publicada, e
+   essa é decisão do designer daquela arte. Motivo do terceiro: o franqueado pode preferir a
+   composição original mesmo com o texto apertado — é gosto, e gosto é dele.
+   ⚠ O terceiro só DESLIGA. Não existe caminho para o franqueado ligar o layout vivo num
+   template onde o designer deixou desligado — isso reacomodaria uma arte que ninguém aprovou.
+   Padrão desligado nos dois primeiros: template existente não muda de comportamento sozinho.
    Fail-safe como o resto do Controle do produto — na dúvida, geometria original. */
-function gLayoutVivoAtivo(publishMeta){
+let gLayoutVivoOff = false;
+
+/* O template PODE reacomodar? (rede + designer, sem a chave de quem olha)
+   É o que decide se o botão da prévia aparece: botão para algo que não existe naquele
+   template seria um interruptor ligado em nada. */
+function gLayoutVivoDisponivel(publishMeta){
   if(!publishMeta || publishMeta.layoutVivo !== true) return false;
   if(typeof gFeatureCan === 'function'){
     try{ return gFeatureCan('franqueado.layout-vivo','render') !== false; }catch(e){ return true; }
   }
   return true;
+}
+
+function gLayoutVivoAtivo(publishMeta){
+  if(gLayoutVivoOff) return false;
+  return gLayoutVivoDisponivel(publishMeta);
 }
 
 /* ══ CORRENTES INFERIDAS — ler o respiro da arte em vez de pedir ao designer ══
