@@ -70,8 +70,12 @@ function dRunLinter() {
     }
     
     // 3. ALERTA: Fora de Safe Zone no Stories (F-09)
-    if (isStory && l.type !== 'group' && l.name.toLowerCase() !== 'background' && l.name.toLowerCase() !== 'bg') {
-      const isCriticalElement = l.type === 'text' || l.id === 'logo' || l.name.toLowerCase().includes('logo') || l.name.toLowerCase().includes('marca');
+    // `l.name` pode não existir (camada montada à mão, import antigo): sem o String() um
+    // .toLowerCase() em undefined derrubava o dRunLinter inteiro — o checklist sumia da tela
+    // por causa de uma camada sem nome, sem dizer por quê.
+    const _nome = String(l.name || '').toLowerCase();
+    if (isStory && l.type !== 'group' && _nome !== 'background' && _nome !== 'bg') {
+      const isCriticalElement = l.type === 'text' || l.id === 'logo' || _nome.includes('logo') || _nome.includes('marca');
       if (isCriticalElement) {
         const topDangerZone = 250;
         const bottomDangerZone = 1920 - 250;
@@ -131,6 +135,42 @@ function dRunLinter() {
             desc: `A imagem tem resolução física muito grande (${originalW}px de largura) para o espaço de exibição (${Math.round(l.w)}px). Comprima a imagem para reduzir o peso da campanha.`,
             layerId: l.id,
             layerName: l.name
+          });
+        }
+      }
+    }
+
+    /* 6. ALERTA: Texto Fixo que Deveria Ser Campo
+       O ESPELHO do painel Campos. Lá o designer leva o campo até a arte; aqui o Luma aponta a
+       camada que ficou cravada na mão e vai sair com o valor velho na primeira promoção nova —
+       hoje isso só aparece quando o franqueado reclama.
+       ⚠ PRECISÃO acima de recall: checklist que grita demais ninguém lê. Só acusa com sinal
+       forte, e três filtros cortam o falso positivo clássico:
+       · texto corrido (>60 car.) é disclaimer/assinatura — citar "R$" ali é normal;
+       · rótulo ("Preço:", ou o texto igual ao próprio nome do campo) é legenda, não valor;
+       · o nome da camada só conta quando o motor de sugestão tem CERTEZA (`auto:true`). */
+    if (l.type === 'text' && l.content && !dLayerBoundField(l) && !gVarRegex().test(l.content)) {
+      const txt = String(l.content).replace(/\s+/g, ' ').trim();
+      if (txt && txt.length <= 60) {
+        // Mesmo motor de sugestão do importador de PSD (psd-parse.js): consulta o dVars REAL
+        // antes do dicionário fixo. Um segundo heurístico aqui divergiria do que o import faz.
+        const sug = (typeof _dPsdSuggestVar === 'function') ? _dPsdSuggestVar(l.name, txt) : null;
+        const porNome = (sug && sug.auto && dVars.some(v => v.name === sug.name)) ? sug.name : '';
+        const porPreco = (/R\$\s*\d/.test(txt) && dVars.some(v => v.name === 'precoPor')) ? 'precoPor' : '';
+        const alvo = porNome || porPreco;
+        const v = alvo ? dVars.find(x => x.name === alvo) : null;
+        const ehRotulo = !!v && (/[:：]\s*$/.test(txt)
+          || String(v.label || '').toLowerCase() === txt.toLowerCase()
+          || String(v.name || '').toLowerCase() === txt.toLowerCase());
+        if (v && !ehRotulo) {
+          issues.push({
+            type: 'warning',
+            title: 'Texto Fixo que Deveria Ser Campo',
+            desc: `“${txt.slice(0, 40)}${txt.length > 40 ? '…' : ''}” está escrito na mão: na próxima promoção esta arte sai com o valor antigo. Ligue a camada no campo “${v.label || v.name}” — arraste o campo do painel Campos até ela, ou use o atalho aqui.`,
+            layerId: l.id,
+            layerName: l.name,
+            autoFix: 'bindField',
+            autoFixParam: alvo
           });
         }
       }
@@ -271,6 +311,11 @@ function dDadoLinterAutoFix(layerId, type, param) {
     });
     gToast('Regra de ocultação condicional adicionada!');
   } 
+  else if (type === 'bindField') {
+    // Delega ao bind único (history, render, lista, props, unsaved e toast moram lá) — o mesmo
+    // motor do arrasto e do botão "Usar". Um caminho de vínculo, três portas de entrada.
+    if (typeof dLayerBindField === 'function') dLayerBindField(l.id, param);
+  }
   else if (type === 'removeRsPrefix') {
     if (l.type === 'text' && l.content) {
       dHistoryPush();

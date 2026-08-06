@@ -519,6 +519,26 @@ const DFIELD_TYPES={
   boolean: {label:'Sim/Não', icon:'🔘', svg:_gFieldSvg('<rect x="2" y="6" width="20" height="12" rx="6"/><circle cx="16" cy="12" r="3"/>')},
 };
 function gFieldTypeMeta(type){ return DFIELD_TYPES[type] || Object.assign({}, DFIELD_TYPES.text, {label:type||'Texto'}); }
+/* REGRA ÚNICA de compatibilidade campo × alvo.
+   Um campo de IMAGEM só cabe onde uma foto pode entrar; qualquer outro tipo só em texto.
+   Vive aqui porque DOIS lugares perguntam a mesma coisa em vocabulários diferentes — o
+   importador de PSD (`it.kind`: text/shape/raster) e a prancheta (`l.type`:
+   text/shape/image/frame) — e a regra estava escrita duas vezes, com duas mensagens de recusa
+   que divergiriam na primeira mudança. Cada chamador normaliza para 'text' | 'imagem' e
+   pergunta aqui; as guardas de contexto (camada travada, base de recorte) ficam com eles.
+   @param {object} field  item de dVars
+   @param {string} alvo   'text' = mostra texto · 'imagem' = comporta foto · outro = não recebe
+   @returns {{ok:boolean, why?:string}} `why` é a mensagem pronta pro usuário (diz o que fazer) */
+function gFieldFitCheck(field, alvo){
+  if(!field) return {ok:false, why:'Campo não encontrado no catálogo'};
+  const rot=field.label||field.name;
+  if(field.type==='image'){
+    if(alvo!=='imagem') return {ok:false, why:'“'+rot+'” é campo de imagem — use uma imagem, moldura ou forma'};
+  } else if(alvo!=='text'){
+    return {ok:false, why:'“'+rot+'” é campo de texto — use uma camada de texto'};
+  }
+  return {ok:true};
+}
 function gFieldCatMeta(id){ return DFIELD_CATS.find(c=>c.id===id) || DFIELD_CATS[DFIELD_CATS.length-1]; }
 // Valor de exemplo p/ exibir um campo no canvas (modo edição, sem simulação ativa).
 // Mostra algo realista no lugar do nome do campo em caixa-alta gigante — mesma

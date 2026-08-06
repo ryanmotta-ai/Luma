@@ -768,17 +768,19 @@ function _dPsdFieldByName(name){
 // campo ainda não existe no catálogo (sugestão do parser), o nome é o que temos.
 function _dPsdFieldLabel(name){ const v=_dPsdFieldByName(name); return (v&&v.label)||name||''; }
 
-// A guarda que impede a arte de quebrar: campo de imagem só cabe em camada que vira MOLDURA
-// (imagem/forma) e campo de texto só em camada de texto. Sem isto, `dItemToLayer` gera uma
-// moldura sem imagem (buraco na arte) ou troca um gráfico por {{campo}}.
+// A guarda que impede a arte de quebrar: sem ela, `dItemToLayer` gera uma moldura sem imagem
+// (buraco na arte) ou troca um gráfico por {{campo}}.
+// A regra de compatibilidade em si mora em `gFieldFitCheck` (00-config.js) — é a MESMA da
+// prancheta, e estava duplicada aqui. Aqui fica só o que é do PSD: traduzir `it.kind` para o
+// vocabulário da regra e barrar a base de recorte, que não existe como camada sozinha.
 function _dPsdBindCheck(it, v){
   if(!it || !v) return {ok:false, why:'Campo não encontrado no catálogo'};
   if(it.isMaskBase) return {ok:false, why:'Esta camada é base de recorte e não entra sozinha'};
-  const rot=(v.label||v.name);
-  const isImg=(v.type==='image');
-  if(isImg && it.kind==='text') return {ok:false, why:'“'+rot+'” é campo de imagem — solte numa imagem ou forma'};
-  if(!isImg && it.kind!=='text') return {ok:false, why:'“'+rot+'” é campo de texto — solte numa camada de texto'};
-  return {ok:true, mode:isImg?'frame':'var'};
+  const chk=(typeof gFieldFitCheck==='function')
+    ? gFieldFitCheck(v, it.kind==='text'?'text':'imagem')
+    : {ok:true};
+  if(!chk.ok) return chk;
+  return {ok:true, mode:(v.type==='image')?'frame':'var'};
 }
 // Modo que a camada assume ao receber um campo, pelo tipo dela. Usado quando o campo ainda
 // não está no catálogo (sugestão do parser), onde não há `v.type` para consultar.

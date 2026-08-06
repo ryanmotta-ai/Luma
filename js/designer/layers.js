@@ -2481,7 +2481,7 @@ function dFieldsRender(){
   if(!dVars.length){
     el.innerHTML=dFieldsEmptyHTML();
     _dFieldsRenderChipbar(null); _dFieldsRenderInventory(null);
-    dPopVarSel(); return;
+    _dFieldsAfterRender(); return;
   }
 
   const usedNames=new Set(dVars.filter(v=>dVarUsage(v.name).length>0).map(v=>v.name));
@@ -2505,7 +2505,7 @@ function dFieldsRender(){
     else if(_dFieldsStatusFilter==='used') msg='Nenhum campo em uso neste template ainda.';
     else msg='Nenhum campo livre — todos estão em uso.';
     el.innerHTML=`<div class="field-noresult">${msg}</div>`;
-    dPopVarSel(); return;
+    _dFieldsAfterRender(); return;
   }
   let html='';
   DFIELD_CATS.forEach(cat=>{
@@ -2524,7 +2524,18 @@ function dFieldsRender(){
     </div>`;
   });
   el.innerHTML=html;
+  _dFieldsAfterRender();
+}
+/* Fecho de TODO render do painel Campos.
+   `dPropEnhanceDataRows` (props-panel.js) reescreve os cartões — põe o botão "Usar", o botão de
+   detalhes no nome, o SVG do menu. Ele é religado por um MutationObserver, que é ASSÍNCRONO:
+   entre o innerHTML e o observer existia um quadro com os cartões crus, e o "Usar" piscava a
+   cada campo ligado. Repor aqui, no mesmo tique, elimina o piscar — e vale para todos os
+   chamadores (dFieldToggleOpen, dVarsRender, filtro, o arrasto), não só para o gesto novo.
+   Idempotente: o próprio passe checa se já fez (`!end.querySelector('.dpi-field-primary-action')`). */
+function _dFieldsAfterRender(){
   dPopVarSel();
+  if(typeof dPropEnhanceDataRows==='function') dPropEnhanceDataRows();
 }
 
 // Compat: vários fluxos chamam dVarsRender() ao criar/editar/remover campos.
@@ -2597,21 +2608,18 @@ let dFieldArrastando=null;  // campo em arrasto. Global porque o `dragover` NÃO
                             // dAssetArrastando, que o canvas.js já lê.
 
 function _dFieldByName(name){ return (dVars||[]).find(v=>v&&v.name===String(name||''))||null; }
-// Guarda de compatibilidade, avaliada ANTES do drop. Sem ela o dLayerBindField recusa com
-// "Essa camada não recebe Dado" depois do gesto, e o designer não sabe o que fez de errado.
+// Guarda avaliada ANTES do drop. Sem ela o dLayerBindField recusa com "Essa camada não recebe
+// Dado" depois do gesto, e o designer não sabe o que fez de errado.
+// A regra de compatibilidade mora em `gFieldFitCheck` (00-config.js) — a MESMA que o importador
+// de PSD usa. Aqui fica só o que é da prancheta: o cadeado e a tradução de `l.type`.
+// Forma conta como alvo de imagem porque o designer desenha um retângulo onde a foto vai —
+// `dConvertLayerToFrame` resolve na hora do drop.
 function _dFieldCanBind(l, v){
   if(!l || !v) return {ok:false, why:'Camada ou campo não encontrado'};
   if(l.locked) return {ok:false, why:'Camada bloqueada — abra o cadeado na lista de camadas'};
-  const rot=(v.label||v.name);
-  if(v.type==='image'){
-    // Forma entra na lista porque o designer desenha um retângulo onde a foto vai —
-    // `dConvertLayerToFrame` resolve na hora do drop.
-    if(!(l.type==='frame'||l.type==='image'||l.type==='shape'))
-      return {ok:false, why:'“'+rot+'” é campo de imagem — solte numa moldura, imagem ou forma'};
-  } else if(l.type!=='text'){
-    return {ok:false, why:'“'+rot+'” é campo de texto — solte numa camada de texto'};
-  }
-  return {ok:true};
+  const alvo=(l.type==='text') ? 'text'
+    : ((l.type==='frame'||l.type==='image'||l.type==='shape') ? 'imagem' : 'outro');
+  return (typeof gFieldFitCheck==='function') ? gFieldFitCheck(v, alvo) : {ok:true};
 }
 // Narra pro leitor de tela o que o arrasto fez (arrastar é gesto visual; sem isto o painel
 // fica mudo pra quem não vê a prancheta).
@@ -2620,10 +2628,50 @@ function _dFieldAnuncia(msg){
   if(el) el.textContent=msg||'';
 }
 
+/* ── auto-scroll: alcançar camada fora da vista sem largar o campo ──
+   Sem isto, camada fora do viewport era inalcançável pelo arrasto: soltar, dar pan, pegar de
+   novo. O `dragover` só dispara quando o ponteiro SE MOVE, então parar na borda não bastaria —
+   daí o laço de quadro, alimentado pela última posição conhecida. */
+let _dFieldScrollRAF=null, _dFieldPtr=null;
+const _DFIELD_EDGE=64;    // faixa da borda que dispara o giro
+const _DFIELD_SPEED=18;   // px por quadro no limite da faixa
+function _dFieldTrackPtr(e){ _dFieldPtr={x:e.clientX, y:e.clientY}; }
+function _dFieldAutoScrollOn(){
+  const w=document.getElementById('d-canvas-wrapper'); if(!w) return;
+  w.addEventListener('dragover', _dFieldTrackPtr);
+  if(!_dFieldScrollRAF) _dFieldScrollRAF=requestAnimationFrame(_dFieldScrollTick);
+}
+function _dFieldAutoScrollOff(){
+  const w=document.getElementById('d-canvas-wrapper');
+  if(w) w.removeEventListener('dragover', _dFieldTrackPtr);
+  if(_dFieldScrollRAF) cancelAnimationFrame(_dFieldScrollRAF);
+  _dFieldScrollRAF=null; _dFieldPtr=null;
+}
+function _dFieldScrollTick(){
+  _dFieldScrollRAF=requestAnimationFrame(_dFieldScrollTick);
+  const w=document.getElementById('d-canvas-wrapper');
+  if(!w || !_dFieldPtr) return;
+  const r=w.getBoundingClientRect();
+  // Ponteiro fora do wrapper (foi pro painel, pra fora da janela): para. Sem esta guarda a
+  // última posição conhecida ficaria girando a prancheta sozinha.
+  if(_dFieldPtr.x<r.left || _dFieldPtr.x>r.right || _dFieldPtr.y<r.top || _dFieldPtr.y>r.bottom) return;
+  // Velocidade proporcional à proximidade da borda: passo fixo faz a arte saltar e o designer
+  // perde de vista o alvo que estava mirando.
+  const passo=d=>Math.round(_DFIELD_SPEED*(1-Math.max(0,d)/_DFIELD_EDGE));
+  let dx=0, dy=0;
+  if(_dFieldPtr.x-r.left < _DFIELD_EDGE)      dx=-passo(_dFieldPtr.x-r.left);
+  else if(r.right-_dFieldPtr.x < _DFIELD_EDGE) dx= passo(r.right-_dFieldPtr.x);
+  if(_dFieldPtr.y-r.top < _DFIELD_EDGE)       dy=-passo(_dFieldPtr.y-r.top);
+  else if(r.bottom-_dFieldPtr.y < _DFIELD_EDGE) dy= passo(r.bottom-_dFieldPtr.y);
+  if(dx) w.scrollLeft+=dx;
+  if(dy) w.scrollTop+=dy;
+}
+
 /* ── arrastar ── */
 function dFieldDragStart(ev, el){
   const host=el&&el.closest?el.closest('[data-field]'):null;
   dFieldArrastando=host?host.dataset.field:'';
+  _dFieldAutoScrollOn();
   try{
     ev.dataTransfer.setData('application/x-luma-field', dFieldArrastando);
     ev.dataTransfer.setData('text/plain', dFieldArrastando); // alguns navegadores exigem text/plain pro arrasto iniciar
@@ -2634,6 +2682,7 @@ function dFieldDragStart(ev, el){
 }
 function dFieldDragEnd(){
   dFieldArrastando=null; _dFieldPaintKey='';
+  _dFieldAutoScrollOff();
   document.querySelectorAll('#d-fields-list .is-dragging').forEach(x=>x.classList.remove('is-dragging'));
   document.body.classList.remove('d-fielddrag');
   _dFieldClearPaint();
