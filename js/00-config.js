@@ -726,6 +726,73 @@ function _gStampVTop(l, altura) {
   l._vTopAuto = (altura || 0) > (l.h || 0);
 }
 
+/* O retângulo que a TINTA ocupa de fato — o que colide, o que sai da prancheta, o que o olho
+   vê. Diferente da caixa desenhada sempre que o texto não a preenche (ou passa dela).
+   `fit` é o `gFitTextLayer` já resolvido (`l._fit` depois da cascata); sem ele cai na caixa. */
+function gInkRect(l, fit) {
+  if (!l) return { x:0, y:0, w:0, h:0 };
+  const f = fit || l._fit;
+  if (l.type !== 'text' || !f) return { x:l.x||0, y:l.y||0, w:l.w||0, h:l.h||0 };
+  const alt = f.altura || 0;
+  const larg = (l.textBox === 'box') ? (l.w || 0) : (f.larguraMax || 0);
+  let x = l.x || 0;
+  if (l.textBox !== 'box') {
+    if (l.textAlign === 'center') x = (l.x||0) + ((l.w||0) - larg) / 2;
+    else if (l.textAlign === 'right') x = (l.x||0) + (l.w||0) - larg;
+  }
+  return { x, y: (l.y||0) + _gInkDy(l, alt), w: larg, h: alt };
+}
+
+/* ══ PIOR CASO PERMITIDO — o teste de estresse do Estúdio ══
+   `maxLen` limita CARACTERE e o layout quebra em PIXEL: a pergunta que o designer não
+   consegue responder olhando a prancheta é "com os 32 caracteres que eu mesmo autorizei, esta
+   arte ainda fica de pé?". Aqui a resposta é construída — o texto mais longo que o franqueado
+   PODE digitar, nunca um caractere a mais.
+   Testar além do `maxLen` seria alarme falso (ele não consegue digitar); testar aquém seria
+   não testar. Sem `maxLen` no campo, vai a frase inteira — é o que o formulário permite.
+   ⚠ Frase realista, não `WWWW…`: a string mais larga possível reprovaria toda arte e o
+   designer aprenderia a ignorar o aviso. Precisão acima de recall, como no resto do checklist. */
+const G_STRESS_FRASES = {
+  produto:   'Super Combo Duplo Mega Burger Artesanal com Batata Frita e Molho Especial da Casa',
+  descricao: 'Delicioso blend de carne bovina grelhada no fogo com muito queijo cheddar derretido, alface crespa, tomate fresco colhido no dia e molho secreto.',
+  validade:  'Válido de segunda a quinta-feira exceto feriados e vésperas',
+  generico:  'Edição especial limitada até durarem os estoques de hoje'
+};
+
+function gStressTexto(base, maxLen) {
+  const s = String(base || '');
+  if (!maxLen || maxLen <= 0) return s;
+  let out = s;
+  while (out.length < maxLen) out += ' ' + s;   // frase curta demais para o limite: repete
+  return out.slice(0, maxLen);                  // corta EXATO no limite, mesmo no meio da palavra
+}
+
+function gStressValues(usados, vars, opts) {
+  const dados = {};
+  (usados || []).forEach(vn => {
+    const v = (vars || []).find(x => x && x.name === vn) || { name: vn };
+    const tipo = v.type || 'text';
+    const maxLen = (v.maxLen > 0) ? v.maxLen : 0;
+    if (tipo === 'image') { dados[vn] = (opts && opts.imagem) || ''; return; }
+    if (tipo === 'currency') { dados[vn] = gStressTexto('R$ 1.249,00', maxLen); return; }
+    if (tipo === 'number')   { dados[vn] = gStressTexto('9.999', maxLen); return; }
+    if (tipo === 'boolean')  { dados[vn] = 'Sim'; return; }
+    if (tipo === 'date')     { dados[vn] = '31/12/2026'; return; }
+    if (tipo === 'color')    { dados[vn] = '#FF9000'; return; }
+    if (tipo === 'select' && Array.isArray(v.options) && v.options.length) {
+      dados[vn] = v.options.reduce((a, b) => String(b).length > String(a).length ? b : a);
+      return;
+    }
+    const s = (vn + ' ' + (v.label || '')).toLowerCase();
+    const frase = /(prod|combo|item|sabor)/.test(s) ? G_STRESS_FRASES.produto
+                : /(desc|detalhe|texto|ingred)/.test(s) ? G_STRESS_FRASES.descricao
+                : /(valid|data|prazo|regra)/.test(s) ? G_STRESS_FRASES.validade
+                : G_STRESS_FRASES.generico;
+    dados[vn] = gStressTexto(frase, maxLen);
+  });
+  return dados;
+}
+
 function gFitTextLayer(layer, texto, ctxAux, opts) {
   opts = opts || {};
   const l = layer || {};

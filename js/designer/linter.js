@@ -5,6 +5,138 @@
  * Varre as camadas em busca de erros estéticos, Safe Zones e otimizações de performance.
  */
 
+/* ══ TESTE DE ESTRESSE — "com 32 caracteres, o produto invade o preço" ══
+   O `maxLen` limita CARACTERE; o layout quebra em PIXEL. O designer autoriza 32 caracteres no
+   campo e não tem como saber, olhando a prancheta com os valores de exemplo, que aos 32 o
+   título encosta no preço. Isso só aparecia quando a arte já estava publicada e o franqueado
+   reclamava — tarde demais.
+   Aqui a arte é montada com o texto MAIS LONGO que o franqueado pode digitar (`gStressValues`)
+   e passada pelo MESMO caminho do render: as posições saem de `gApplyRelativeAnchors` com o
+   interruptor real do template (com o layout vivo ligado, a escada já terá acomodado o que
+   dava — o aviso é sobre o que sobrou), e a tinta sai do `gFitTextLayer`, que é o que desenha.
+   ⚠ Só acusa par que NÃO se sobrepõe no estado de exemplo: selo atrás de texto é desenho do
+   designer, não estrago do franqueado. Precisão acima de recall — é a doutrina do checklist. */
+function _dLinterEstresse() {
+  const out = [];
+  if (typeof gApplyRelativeAnchors !== 'function' || typeof gStressValues !== 'function') return out;
+  if (typeof gInkRect !== 'function' || typeof dSimUsedVars !== 'function') return out;
+  const usados = dSimUsedVars().filter(vn => {
+    const v = dVars.find(x => x.name === vn);
+    return !v || v.type !== 'image';
+  });
+  if (!usados.length) return out;
+
+  const ab = (typeof dGetActiveAB === 'function') ? dGetActiveAB() : null;
+  const base = DFMT_SIZES[dFmt] || DFMT_SIZES.story;
+  const cv = { w: (ab && ab.w) || base.w, h: (ab && ab.h) || base.h };
+  const meta = (typeof dActiveTemplateMeta === 'function') ? dActiveTemplateMeta() : null;
+  const vivo = (typeof gLayoutVivoAtivo === 'function') ? gLayoutVivoAtivo(meta) : false;
+  const defaults = (typeof gVarDefaults === 'function') ? gVarDefaults() : null;
+
+  const montar = (dados) => {
+    const r = gApplyRelativeAnchors(dLayers.map(l => ({...l})), dados, defaults, { fitText: vivo, canvas: cv });
+    const cx = document.createElement('canvas').getContext('2d');
+    const mapa = {};
+    r.forEach(l => {
+      if (l.visible === false) return;
+      let f = l._fit;
+      if (l.type === 'text' && !f) {
+        let t = l.content || '';
+        if (l.isVar || /\{\{/.test(t)) t = gInterpolate(t, dados, { defaults });
+        f = gFitTextLayer(l, t, cx);
+      }
+      mapa[l.id] = { l, f, r: gInkRect(l, f) };
+    });
+    return mapa;
+  };
+
+  const exemplo = {};
+  usados.forEach(vn => { exemplo[vn] = gFieldSampleValue(dVars.find(x => x.name === vn) || { name: vn }); });
+  const antes = montar(exemplo);
+  const depois = montar(gStressValues(usados, dVars));
+
+  // Quais campos entram no aviso e com quantos caracteres — é o número que o designer controla.
+  const limites = usados.map(vn => {
+    const v = dVars.find(x => x.name === vn);
+    return { vn, label: (v && (v.label || v.name)) || vn, n: (v && v.maxLen > 0) ? v.maxLen : 0 };
+  });
+  const camposDa = (l) => limites.filter(x => String(l.content || '').includes('{{' + x.vn + '}}'));
+  const comLimite = (l) => {
+    const cs = camposDa(l);
+    const cn = cs.filter(c => c.n > 0);
+    if (cn.length === 1) return `com ${cn[0].n} caracteres em “${cn[0].label}”`;
+    if (cn.length > 1) return `no limite dos campos ${cn.map(c => '“' + c.label + '”').join(' e ')}`;
+    return 'com um texto longo';
+  };
+  const nome = (l) => l.name || l.id;
+  const cruza = (a, b) => {
+    const ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+    const oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+    if (ox <= 2 || oy <= 2) return 0;
+    return (ox * oy) / Math.max(1, Math.min(a.w * a.h, b.w * b.h));
+  };
+
+  const textos = Object.values(depois).filter(o => o.l.type === 'text');
+  const jaVisto = new Set();
+
+  // (a) colisão: dois textos que não se tocavam no exemplo e se sobrepõem no pior caso
+  for (let i = 0; i < textos.length; i++) {
+    for (let j = i + 1; j < textos.length; j++) {
+      const A = textos[i], B = textos[j];
+      const antesA = antes[A.l.id], antesB = antes[B.l.id];
+      if (!antesA || !antesB) continue;
+      if (cruza(antesA.r, antesB.r) > 0.02) continue;         // já se sobrepunham no desenho
+      if (cruza(A.r, B.r) < 0.04) continue;                   // roçar de 2px não é invasão
+      // Quem é o culpado: o que tem campo com limite (o texto que cresceu).
+      const culpado = camposDa(A.l).length ? A : (camposDa(B.l).length ? B : A);
+      const vitima  = (culpado === A) ? B : A;
+      const chave = 'col:' + culpado.l.id + '>' + vitima.l.id;
+      if (jaVisto.has(chave)) continue;
+      jaVisto.add(chave);
+      out.push({
+        type: 'error',
+        title: 'O pior caso não cabe',
+        desc: `${comLimite(culpado.l)}, “${nome(culpado.l)}” invade “${nome(vitima.l)}”. É um texto que o franqueado pode digitar hoje — a arte sairia assim. Reduza o limite do campo, aumente a caixa, ou ligue o Layout vivo no publicar para a arte se acomodar sozinha.`,
+        layerId: culpado.l.id,
+        layerName: culpado.l.name
+      });
+    }
+  }
+
+  // (b) o texto saiu da prancheta
+  Object.values(depois).forEach(o => {
+    if (o.l.type !== 'text' || !camposDa(o.l).length) return;
+    const r = o.r, antesO = antes[o.l.id];
+    if (!antesO) return;
+    const escapava = (antesO.r.y < -2) || (antesO.r.y + antesO.r.h > cv.h + 2);
+    if (escapava) return;                                     // sangra por desenho
+    const saiu = (r.y < -2) ? 'pelo topo' : (r.y + r.h > cv.h + 2) ? 'pelo pé' : '';
+    if (!saiu) return;
+    out.push({
+      type: 'error',
+      title: 'O pior caso não cabe',
+      desc: `${comLimite(o.l)}, “${nome(o.l)}” sai da arte ${saiu}. Reduza o limite do campo ou dê mais altura ao bloco.`,
+      layerId: o.l.id,
+      layerName: o.l.name
+    });
+  });
+
+  // (c) nem encolhendo até o piso coube na própria caixa
+  Object.values(depois).forEach(o => {
+    if (o.l.type !== 'text' || !o.f || !o.f.estourou || !camposDa(o.l).length) return;
+    if (antes[o.l.id] && antes[o.l.id].f && antes[o.l.id].f.estourou) return;   // já estourava
+    out.push({
+      type: 'warning',
+      title: 'O pior caso não cabe',
+      desc: `${comLimite(o.l)}, “${nome(o.l)}” não cabe na caixa nem reduzindo a fonte até o limite da hierarquia. O texto sairia cortado ou espremido.`,
+      layerId: o.l.id,
+      layerName: o.l.name
+    });
+  });
+
+  return out;
+}
+
 function dRunLinter() {
   const container = document.getElementById('d-linter-issues');
   if (!container) return;
@@ -176,7 +308,10 @@ function dRunLinter() {
       }
     }
   });
-  
+
+  // 7. O pior caso permitido pelo maxLen (roda uma vez, sobre a arte inteira)
+  if (typeof _dLinterEstresse === 'function') issues.push(..._dLinterEstresse());
+
   if (issues.length === 0) {
     container.innerHTML = `
       <div class="dl-approved" role="status">

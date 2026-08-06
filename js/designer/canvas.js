@@ -1868,8 +1868,14 @@ async function dSimRenderPreview(){
   const src=dSimSourceSize(),target=dSimTargetSize();
   const tmpl={layers:dSimLayersForFmt(),w:target.w,h:target.h,fmt:target.fmt,bg:(typeof dGetActiveAB==='function'&&dGetActiveAB())?.bg};
   let ok=false;
+  // O selo "Revisar encaixe" de cada campo existia no HTML e nunca acendia: faltava ligar o
+  // coletor de overflow que o render já expõe (`png-generator.js`). Agora o designer vê QUAL
+  // campo estourou, não só que a arte ficou estranha.
+  const sink=new Set(); window._fOverflowSink=sink;
   try{ok=await fRenderPreviewToCanvas(canvas,tmpl,{maxPx:1200,dados:JSON.parse(JSON.stringify(dSimDraftValues))});}catch(e){ok=false;}
+  finally{ window._fOverflowSink=null; }
   if(seq!==dSimRenderSeq)return;
+  dSimMarkOverflow(sink);
   if(ok===false){
     if(state){state.className='sim-render-state error';state.innerHTML='<span>Não foi possível renderizar</span><small>Revise imagens e dados inseridos e tente novamente.</small>';}
     if(status)status.textContent='Erro de renderização';
@@ -1877,6 +1883,23 @@ async function dSimRenderPreview(){
   }
   if(state){state.className='sim-render-state';state.innerHTML='';}
   if(status)status.textContent=(src.w===target.w&&src.h===target.h)?'Layout original':'Smart resize aplicado';
+}
+
+/* Acende "Revisar encaixe" no CAMPO cujo texto estourou. O coletor devolve IDs de CAMADA;
+   o caminho de volta é o `{{campo}}` que a camada usa. Camada sem campo não tem onde acender
+   (é texto fixo — o checklist é que cobra isso). */
+function dSimMarkOverflow(sink){
+  const culpados=new Set();
+  if(sink&&sink.size){
+    dLayers.forEach(l=>{
+      if(!sink.has(l.id)||!l.content)return;
+      for(const m of String(l.content).matchAll(gVarRegex()))culpados.add(m[1]);
+    });
+  }
+  dSimUsedVars().forEach(vn=>{
+    const el=document.getElementById('sim-ovf-'+vn);
+    if(el)el.hidden=!culpados.has(vn);
+  });
 }
 
 function dSimStressTest(mode) {
@@ -1898,22 +1921,11 @@ function dSimStressTest(mode) {
       else if (type === 'boolean') dSimDraftValues[vn] = 'Não';
       else dSimDraftValues[vn] = 'Açaí';
     } else if (mode === 'max') {
-      if (type === 'price') dSimDraftValues[vn] = 'R$ 1.249,00';
-      else if (type === 'discount') dSimDraftValues[vn] = '99% OFF + Frete Grátis';
-      else if (type === 'image') dSimDraftValues[vn] = (typeof fState!=='undefined'&&fState.camp&&fState.camp.cover) || '';
-      else if (type === 'boolean') dSimDraftValues[vn] = 'Sim';
-      else {
-        const nameLower = vn.toLowerCase();
-        if (nameLower.includes('prod')) {
-          dSimDraftValues[vn] = 'Super Combo Duplo Mega Burger Artesanal com Batata Frita e Molho Especial da Casa';
-        } else if (nameLower.includes('desc') || nameLower.includes('detalhe')) {
-          dSimDraftValues[vn] = 'Delicioso blend de carne bovina grelhada no fogo com muito queijo cheddar derretido, alface crespa, tomate fresco colhido no dia e molho secreto.';
-        } else if (nameLower.includes('valid') || nameLower.includes('data')) {
-          dSimDraftValues[vn] = 'Válido de segunda a quinta-feira exceto feriados e vésperas';
-        } else {
-          dSimDraftValues[vn] = 'Edição especial limitada até durarem os estoques de hoje';
-        }
-      }
+      // O pior caso PERMITIDO pelo maxLen — mesmo motor do teste de estresse do checklist
+      // (`gStressValues`). Antes as frases estavam cravadas aqui e ignoravam o limite: o
+      // designer via reprovar um texto que o franqueado nem consegue digitar.
+      dSimDraftValues[vn] = gStressValues([vn], dVars,
+        {imagem:(typeof fState!=='undefined'&&fState.camp&&fState.camp.cover) || ''})[vn];
     } else {
       dSimDraftValues[vn]=(type==='image')?'':((typeof gFieldSampleValue==='function')?gFieldSampleValue(v||{name:vn}):(v&&v.label)||vn);
     }

@@ -451,6 +451,12 @@ A régua do gap é a **caixa desenhada**, não uma medida de referência: `gap =
 
 **Custo medido:** 0,8ms por render numa arte de 7 camadas com inferência; 12ms com 30 camadas encadeadas — dentro do debounce de 110ms da digitação (`chat-input.js:295`).
 
+**Teste de estresse (o Estúdio avisa antes de publicar).** `maxLen` limita CARACTERE e o layout quebra em PIXEL — o designer autoriza 32 caracteres e não tem como saber, olhando os valores de exemplo, que aos 32 o título encosta no preço. `gStressValues(usados, dVars)` monta o texto mais longo que o franqueado PODE digitar (frase realista cortada EXATO no `maxLen`; frase curta demais repete até encher; sem `maxLen` vai inteira). Consome isso:
+- **Checklist** (`_dLinterEstresse`, `linter.js`): monta a arte com o pior caso pelo MESMO caminho do render — posições de `gApplyRelativeAnchors` com o interruptor real do template, tinta de `gFitTextLayer` — e acusa (a) colisão, (b) saída da prancheta, (c) `estourou`. Mensagem com o número que o designer controla: *"com 32 caracteres em «Produto», «Título» invade «Preço»"*. **Só acusa par que NÃO se sobrepõe no estado de exemplo** — selo atrás de texto é desenho, não estrago. ~3ms.
+- **Simular dados reais** (`canvas.js`): o cenário "Limite" passou a usar `gStressValues` (antes tinha frases cravadas que ignoravam o `maxLen` e reprovavam texto que o franqueado nem consegue digitar). O selo "Revisar encaixe" por campo existia no HTML e nunca acendia — faltava ligar `window._fOverflowSink`, que o render já expõe; `dSimMarkOverflow` faz o caminho de volta camada → `{{campo}}`.
+
+⚠ `gStressValues` usa frase realista, **não** `WWWW…`: a string mais larga possível reprovaria toda arte e o designer aprenderia a ignorar o aviso. Precisão acima de recall, igual ao resto do checklist.
+
 ⛔ **Não** se roda `gResolveIntelligentLayout` no render: a decisão está em `png-generator.js:259` com o motivo (custo por tecla + divergência prévia/publicado). O layout vivo usa CORRENTES (`relativeAnchor`), não o solver.
 
 ### Import SVG (`templates.js`)
