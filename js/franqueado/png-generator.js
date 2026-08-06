@@ -254,7 +254,7 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
   if(typeof gApplyRelativeAnchors==='function'){
     const _pm = (typeof fState!=='undefined' && fState.material) ? fState.material.publishMeta : null;
     const _vivo = (typeof gLayoutVivoAtivo==='function') ? gLayoutVivoAtivo(_pm) : false;
-    effective = gApplyRelativeAnchors(effective, dados, _defaults, {fitText:_vivo});
+    effective = gApplyRelativeAnchors(effective, dados, _defaults, {fitText:_vivo, canvas:{w:W,h:H}});
   }
   // NÃO rodar o auto-layout (gResolveIntelligentLayout) aqui: este render é o mesmo do
   // preview ao vivo (roda a cada tecla) e do PNG. Mover camadas neste ponto custava

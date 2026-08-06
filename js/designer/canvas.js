@@ -1019,7 +1019,9 @@ function dRenderCanvas(){
     // senão o designer publica uma coisa e o franqueado vê outra.
     const _pmAtiva=(typeof dActiveTemplateMeta==='function')?dActiveTemplateMeta():null;
     const _vivoAtivo=(typeof gLayoutVivoAtivo==='function')?gLayoutVivoAtivo(_pmAtiva):false;
-    _renderLayers = gApplyRelativeAnchors(_renderLayers, dSimActive ? dSimValues : null, dSimActive ? _simDefs : gVarDefaults(), {fitText:_vivoAtivo});
+    const _abVivo=(typeof dGetActiveAB==='function')?dGetActiveAB():null;
+    _renderLayers = gApplyRelativeAnchors(_renderLayers, dSimActive ? dSimValues : null, dSimActive ? _simDefs : gVarDefaults(),
+      {fitText:_vivoAtivo, canvas:_abVivo?{w:_abVivo.w,h:_abVivo.h}:null});
   }
   _renderLayers.filter(l=>l.visible && l.type !== 'group').forEach(l=>{
     // Na simulação, 'l' pode ser um CLONE efetivo (gApplyBindings/gApplyRules retornam

@@ -748,11 +748,78 @@ function gLayoutVivoAtivo(publishMeta){
   return true;
 }
 
+/* ══ CORRENTES INFERIDAS — ler o respiro da arte em vez de pedir ao designer ══
+   `relativeAnchor` existe há tempos, mas é marcado camada a camada, à mão — e por isso a
+   cascata quase nunca entrava em ação numa arte real. Aqui as correntes saem do próprio
+   desenho: bloco alinhado logo abaixo de outro, com espaço de "mesmo grupo", vira filho dele.
+
+   O GAP é a parte sutil. O motor posiciona por `pai.y + pai.altura MEDIDA + gap`, então usar
+   a distância visual como gap deslocaria o filho já no estado normal (a caixa do designer é
+   quase sempre maior que o texto de uma linha). A régua é a CAIXA DESENHADA: o gap sai da
+   geometria publicada (`B.y − (A.y + A.h)`), e a corrente inferida só EMPURRA, nunca puxa
+   para cima (`Math.max` com a posição original). Lê-se assim:
+     · o texto cabe na caixa que o designer deu  → nada se move, arte idêntica à publicada;
+     · o texto passa da caixa                    → o de baixo desce exatamente o excedente.
+   Escolhida por ser estável e IGUAL nos dois contextos: não depende de medir um "estado de
+   referência" nem do catálogo `dVars`, que pode estar vazio na sessão do franqueado — e
+   referência diferente entre Estúdio e franqueado seria a divergência de sempre.
+
+   Só entra quem PODE se mexer: fundo, camada protegida, travada, com posição travada, filha
+   de grupo e grupo ficam fora — o logo e o selo não são empurrados por texto.
+   Âncora explícita do designer SEMPRE vence a inferida. */
+function _gCorrenteMovivel(l){
+  if(!l || l.type==='group' || l.visible===false) return false;
+  if(l.locked || l.lockPosition || l.parentId) return false;
+  if(l.layoutRole==='background' || l.layoutRole==='protected') return false;
+  return true;
+}
+function _gCorrenteEhFundo(l, cv){
+  if(!l) return true;
+  if(l.layoutRole==='background') return true;
+  const nome=String(l.name||'').trim().toLowerCase();
+  if(nome==='background'||nome==='bg'||nome==='fundo') return true;
+  if(cv && cv.w && cv.h && l.type==='shape' && (l.x||0)<=1 && (l.y||0)<=1
+     && (l.w||0)>=cv.w*0.9 && (l.h||0)>=cv.h*0.9) return true;
+  return false;
+}
+function _gInferirCorrentes(cloned, opts){
+  const cv=(opts&&opts.canvas)||null;
+  // Candidatos a PAI: qualquer camada visível que não seja o fundo (um fundo de tela cheia
+  // "termina" no rodapé e adotaria a arte inteira).
+  const nós=cloned.filter(l=>l && l.visible!==false && l.type!=='group' && !_gCorrenteEhFundo(l,cv));
+  nós.forEach(B=>{
+    if(B.relativeAnchor || !_gCorrenteMovivel(B)) return;   // manual vence; imóvel não entra
+    const topoB=B.y||0, x1B=B.x||0, x2B=x1B+(B.w||0);
+    let pai=null, fundoPai=-Infinity;
+    nós.forEach(A=>{
+      if(A===B) return;
+      const fundoA=(A.y||0)+(A.h||0);   // a CAIXA desenhada, não a medida
+      if(fundoA > topoB + 2) return;                        // tem que estar ACIMA (sem sobrepor)
+      // Mesma coluna: as faixas horizontais precisam se cruzar de verdade, senão uma coluna
+      // da esquerda viraria pai de outra da direita que só encosta.
+      const x1A=A.x||0, x2A=x1A+(A.w||0);
+      const cruz=Math.min(x2A,x2B)-Math.max(x1A,x1B);
+      const menor=Math.max(1, Math.min(x2A-x1A, x2B-x1B));
+      if(cruz/menor < 0.3) return;
+      // Perto o bastante para ser o MESMO bloco. Medida na escala tipográfica da própria arte:
+      // mais de duas linhas de distância é quebra de seção, não respiro entre irmãos.
+      const respiro=topoB-fundoA;
+      const linha=Math.max(A.fontSize||0, B.fontSize||0, 16)*1.2;
+      if(respiro < -2 || respiro > linha*2) return;
+      if(fundoA > fundoPai){ fundoPai=fundoA; pai=A; }       // o vizinho imediato acima
+    });
+    if(!pai) return;
+    // auto:true marca a corrente inferida — é ela que só empurra e nunca puxa.
+    B._anchorAuto={ type:'top-to-bottom', layerId:pai.id, gap: Math.round(topoB-fundoPai), auto:true };
+  });
+}
+
 /**
  * Resolve e atualiza as posições (X e Y) de camadas ancoradas de forma magnética/relativa.
- * @param {object} [opts] {fitText:false} — com `fitText`, a altura de cada texto sai do
- *        `gFitTextLayer` (quebra + encolhimento REAIS, os mesmos do render) em vez de contar
- *        só as quebras manuais. É o que faz o bloco de baixo descer o suficiente.
+ * @param {object} [opts] {fitText:false, canvas:{w,h}} — com `fitText`, a altura de cada texto
+ *        sai do `gFitTextLayer` (quebra + encolhimento REAIS, os mesmos do render) em vez de
+ *        contar só as quebras manuais, e as correntes são inferidas do desenho. É o que faz o
+ *        bloco de baixo descer o suficiente sem o designer marcar nada.
  */
 function gApplyRelativeAnchors(layers, dados, defaults, opts) {
   if (!layers || !layers.length) return layers;
@@ -787,7 +854,16 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
     }
     resolved[l.id] = { x: l.x || 0, y: l.y || 0, w, h, visible: l.visible !== false };
   });
-  
+
+  // Correntes inferidas do desenho (só com o layout vivo ligado). A altura de REFERÊNCIA de
+  // cada texto é a que ele tem com os valores de exemplo — o estado que o designer aprovou no
+  // Estúdio. É contra ela que o gap é medido, para o estado normal ficar idêntico ao publicado.
+  if (_fit && !(opts && opts.inferir === false)) _gInferirCorrentes(cloned, opts);
+  // Posição PUBLICADA de cada camada: a corrente inferida nunca sobe além dela (o laço abaixo
+  // muta l.y a cada iteração, então o original tem que ser guardado antes).
+  const yPub = {};
+  cloned.forEach(l => { yPub[l.id] = l.y || 0; });
+
   const maxIter = cloned.length;
   let changed = true;
   let iter = 0;
@@ -797,7 +873,8 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
     iter++;
     
     cloned.forEach(l => {
-      const anchor = l.relativeAnchor;
+      // A âncora MANUAL do designer sempre vence a inferida — ele desenhou por um motivo.
+      const anchor = l.relativeAnchor || l._anchorAuto;
       if (!anchor || !anchor.layerId) return;
       
       const parent = resolved[anchor.layerId];
@@ -816,6 +893,9 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
       } else if (anchor.type === 'top-to-bottom') {
         if (parent.visible) {
           newY = parent.y + parent.h + gap;
+          // Corrente inferida SÓ EMPURRA: se o texto do pai coube na caixa dele, o filho fica
+          // onde o designer pôs. Puxar para cima recomporia uma arte que ninguém desenhou.
+          if (anchor.auto) newY = Math.max(yPub[l.id] != null ? yPub[l.id] : newY, newY);
         } else {
           newY = parent.y; // pula elemento invisível
         }
