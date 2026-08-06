@@ -82,6 +82,17 @@ const G_FEATURE_REGISTRY = [
     module:'franqueado', parent:'module.franqueado', categoria:'areas', behaviors:['hide','disabled','maintenance'],
     preserva:_GFF_PRESERVA_CONTEUDO, tags:['lote','planilha','csv','bulk'] },
 
+  // ★ Layout vivo: com o campo preenchido, o texto quebra linha e os blocos ancorados abaixo
+  //   descem junto, mantendo o respiro que o designer desenhou. É a defesa contra a arte
+  //   "apertada" quando o nome do produto é longo.
+  //   DOIS interruptores em série, de propósito: esta chave governa a REDE, e
+  //   `publishMeta.layoutVivo` governa CADA template — porque ligar muda o layout de uma arte
+  //   já publicada, e isso é decisão do designer daquela arte, não da rede.
+  //   Desligada aqui: a geometria é exatamente a que o designer publicou (comportamento antigo).
+  { key:'franqueado.layout-vivo', label:'Layout que se adapta ao texto', desc:'Quando o texto do franqueado é maior que o espaço, a arte reacomoda os blocos em vez de apertar.',
+    module:'franqueado', parent:'module.franqueado', categoria:'areas', behaviors:['hide','disabled'],
+    preserva:_GFF_PRESERVA_CONTEUDO, tags:['layout','respiro','hierarquia','texto','quebra'] },
+
   { key:'franqueado.export', label:'Exportação', desc:'Todos os formatos de download da arte gerada.',
     module:'franqueado', parent:'module.franqueado', categoria:'exportacao', behaviors:['hide','disabled'],
     preserva:['render','view','load'], tags:['baixar','download','exportar'] },

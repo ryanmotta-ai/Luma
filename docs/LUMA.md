@@ -424,6 +424,20 @@ ag-psd vendorizado + Web Worker (prazo ~1s/MB, teto 10min, renovado a cada sinal
 
 **Checklist (`linter.js`) — "Texto Fixo que Deveria Ser Campo".** O espelho do painel Campos: aponta a camada de texto cravada na mão que vai sair com o valor velho na próxima promoção. Precisão acima de recall (checklist que grita demais ninguém lê): só acusa com sinal forte — valor em `R$`, ou nome da camada casando com o catálogo pelo `_dPsdSuggestVar` com `auto:true` (o mesmo motor do importador). Três filtros cortam o falso positivo: texto >60 caracteres é disclaimer, rótulo (`"Preço:"` ou texto igual ao nome do campo) é legenda, e camada já ligada não conta. O botão **Corrigir** usa `autoFix:'bindField'` → `dLayerBindField` — o mesmo bind do arrasto e do botão "Usar".
 
+### Layout vivo (o texto do franqueado reacomoda a arte)
+
+**O problema:** `maxLen` limita CARACTERE, mas o layout quebra em PIXEL — e quando o nome do produto ocupa 3 linhas, o bloco de baixo colide.
+
+**A causa achada em 2026-08-05:** medir e desenhar eram caminhos separados. `gApplyRelativeAnchors` (`00-config.js`) media a altura com `gMeasureLayerHeight`, que conta só as quebras MANUAIS (`split('\n')`), enquanto o render quebrava depois (`gSmartWrapText`, `png-generator.js:393`) e podia encolher a fonte. A cascata media 1 linha, empurrava 1 linha, o render desenhava 3. Mais duas divergências da mesma família: a medida usava `lineHeight` 1.25 e o render 1.2; e a medida ignorava o tracking extra que o render dá a fonte black (peso ≥900).
+
+**A correção:** `gFitTextLayer(layer, texto, ctx, opts)` (`00-config.js`) é a **única** resposta para "como este texto ocupa esta caixa" — quebra → caixa-alta → mede → encolhe, na ordem do render. O render passou a chamá-la (o encolhimento só é APLICADO depois, porque sombra/brilho/traço são dimensionados pelo tamanho desenhado), e `gApplyRelativeAnchors` mede por ela quando o layout vivo está ligado. Refactor provado **pixel-idêntico** em 16 casos, incluindo alinhamento à direita/justificado com encolhimento (onde o `innerPad`, calculado antes do encolhimento, desloca o texto).
+
+**Interruptor, dois em série** (`gLayoutVivoAtivo(publishMeta)`): a flag `franqueado.layout-vivo` no Controle do produto governa a rede; `publishMeta.layoutVivo` governa cada template (toggle na aba Instruções do publicar). Os dois precisam estar ligados. Padrão **desligado** — ligar reacomoda arte já publicada, então é decisão do designer daquela arte. O Estúdio (`canvas.js`) e a prévia do designer (`preview.js`) leem o mesmo interruptor via `dActiveTemplateMeta()`, para o designer ver o que o franqueado verá.
+
+**Custo medido:** 12ms por render com 30 camadas encadeadas — dentro do debounce de 110ms da digitação (`chat-input.js:295`).
+
+⛔ **Não** se roda `gResolveIntelligentLayout` no render: a decisão está em `png-generator.js:259` com o motivo (custo por tecla + divergência prévia/publicado). O layout vivo usa CORRENTES (`relativeAnchor`), não o solver.
+
 ### Import SVG (`templates.js`)
 
 DOMParser puro. Suporta text/tspan, rect, circle/ellipse, image, path (bbox aproximada), transforms afins com pilha de matrizes, CSS por prioridade (inline > classe > atributo > herança), fontes Illustrator mapeadas. Revisão por elemento → template rascunho. ⚠ Grupos achatados em 1 nível.

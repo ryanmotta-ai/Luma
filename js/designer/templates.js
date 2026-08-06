@@ -293,8 +293,25 @@ function dDefaultPublishMeta(){
     publicadoEm:null,           // timestamp da última publicação
     validade,                   // ISO date
     instrucoes:'',              // texto livre que aparece pro franqueado
-    permissoes:{}               // {varName: {edit:bool, maxLen:int}}
+    permissoes:{},              // {varName: {edit:bool, maxLen:int}}
+    // Layout vivo: com o texto do franqueado maior que o espaço, os blocos ancorados
+    // reacomodam em vez de apertar. Nasce DESLIGADO — ligar muda o layout de uma arte já
+    // publicada, então é decisão consciente do designer (ver gLayoutVivoAtivo).
+    layoutVivo:false
   };
+}
+// publishMeta do template ABERTO no Estúdio. O canvas e a prévia precisam dele para aplicar
+// o mesmo layout vivo que o franqueado terá — sem isso o designer publica uma coisa e o
+// franqueado vê outra. Resolve por ID (dActiveTmplId), nunca por referência viva: o sync e o
+// undo trocam os objetos de dFolders por clones.
+function dActiveTemplateMeta(){
+  if(typeof dActiveTmplId==='undefined' || !dActiveTmplId) return null;
+  if(typeof dFolders==='undefined' || !Array.isArray(dFolders)) return null;
+  for(const f of dFolders){
+    const t=(f.templates||[]).find(x=>x && x.id===dActiveTmplId);
+    if(t) return t.publishMeta||null;
+  }
+  return null;
 }
 // Extrai nomes de variáveis usadas em um conjunto de layers ({{nome}} no content / imgVar)
 function dExtractTemplateVars(layers){

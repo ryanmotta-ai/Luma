@@ -1015,7 +1015,11 @@ function dRenderCanvas(){
   });
   // Aplica Alinhamento Magnético Relativo (Auto-spacing)
   if(typeof gApplyRelativeAnchors==='function'){
-    _renderLayers = gApplyRelativeAnchors(_renderLayers, dSimActive ? dSimValues : null, dSimActive ? _simDefs : gVarDefaults());
+    // Mesmo interruptor do franqueado: o Estúdio precisa mostrar o layout que a arte terá,
+    // senão o designer publica uma coisa e o franqueado vê outra.
+    const _pmAtiva=(typeof dActiveTemplateMeta==='function')?dActiveTemplateMeta():null;
+    const _vivoAtivo=(typeof gLayoutVivoAtivo==='function')?gLayoutVivoAtivo(_pmAtiva):false;
+    _renderLayers = gApplyRelativeAnchors(_renderLayers, dSimActive ? dSimValues : null, dSimActive ? _simDefs : gVarDefaults(), {fitText:_vivoAtivo});
   }
   _renderLayers.filter(l=>l.visible && l.type !== 'group').forEach(l=>{
     // Na simulação, 'l' pode ser um CLONE efetivo (gApplyBindings/gApplyRules retornam

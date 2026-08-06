@@ -826,7 +826,10 @@ async function dExportSVG(opts){
     e=(typeof gApplyRules==='function')?gApplyRules(e,dados,{defaults}):e;
     return e;
   });
-  if(typeof gApplyRelativeAnchors==='function') layers=gApplyRelativeAnchors(layers,dados,defaults);
+  if(typeof gApplyRelativeAnchors==='function'){
+    const _pmPv=(typeof dActiveTemplateMeta==='function')?dActiveTemplateMeta():null;
+    layers=gApplyRelativeAnchors(layers,dados,defaults,{fitText:(typeof gLayoutVivoAtivo==='function')?gLayoutVivoAtivo(_pmPv):false});
+  }
   layers=layers.filter(l=>l.visible!==false);
   let defs='', body='', cid=0;
   for(const l of layers){

@@ -248,9 +248,13 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
     if(typeof gApplyRules==='function') eff = gApplyRules(eff, dados, {defaults:_defaults});
     return eff;
   });
-  // Aplica Alinhamento Magnético Relativo (Auto-spacing)
+  // Aplica Alinhamento Magnético Relativo (Auto-spacing).
+  // `fitText` = layout vivo: mede o texto como ele será DESENHADO (quebra + encolhimento),
+  // então o bloco de baixo desce o quanto precisa. Desligado, mede como antes.
   if(typeof gApplyRelativeAnchors==='function'){
-    effective = gApplyRelativeAnchors(effective, dados, _defaults);
+    const _pm = (typeof fState!=='undefined' && fState.material) ? fState.material.publishMeta : null;
+    const _vivo = (typeof gLayoutVivoAtivo==='function') ? gLayoutVivoAtivo(_pm) : false;
+    effective = gApplyRelativeAnchors(effective, dados, _defaults, {fitText:_vivo});
   }
   // NÃO rodar o auto-layout (gResolveIntelligentLayout) aqui: este render é o mesmo do
   // preview ao vivo (roda a cada tecla) e do PNG. Mover camadas neste ponto custava
@@ -389,15 +393,22 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     }
     // Substitui {{var}} pelo valor real do franqueado (interpolador único — 3.1)
     let raw = gInterpolate(l.content, dados, {onEmpty:'remove', defaults:_defaults});
-    // Se for caixa de texto (textBox === 'box'), aplica a quebra de linha inteligente (Smart Wrapping)
-    if(l.textBox === 'box' && typeof gSmartWrapText === 'function'){
-      raw = gSmartWrapText(raw, l.w, l, dados, _defaults);
+    /* ENCAIXE: quebra inteligente, caixa-alta, medida e o encolhimento vêm de gFitTextLayer
+       (00-config.js) — a MESMA função que a cascata de ancoragem relativa usa para saber a
+       altura. Antes cada lado tinha sua conta e elas divergiam: a cascata media 1 linha e o
+       render desenhava 3, então o bloco de baixo colidia. Uma regra, dois consumidores.
+       O encolhimento só é APLICADO mais abaixo (no ramo horizontal), porque sombra, brilho e
+       traço são dimensionados pelo tamanho DESENHADO — aplicar antes mudaria os efeitos. */
+    const _fit = (typeof gFitTextLayer==='function')
+      ? gFitTextLayer(l, raw, null, {escala:Math.min(scaleX,scaleY), encolher:!l.vertical})
+      : null;
+    if(_fit) raw = _fit.text;
+    else {
+      if(l.textBox === 'box' && typeof gSmartWrapText === 'function') raw = gSmartWrapText(raw, l.w, l, dados, _defaults);
+      if(l.textTransform==='uppercase') raw=raw.toUpperCase();
+      else if(l.textTransform==='lowercase') raw=raw.toLowerCase();
     }
-    // text-transform importado do PSD (All Caps, etc.) — aplicado no conteúdo pois o
-    // canvas 2D API não tem textTransform nativo
-    if(l.textTransform==='uppercase') raw=raw.toUpperCase();
-    else if(l.textTransform==='lowercase') raw=raw.toLowerCase();
-    const lines = raw.split('\n').filter(line => line.trim() !== '');
+    const lines = _fit ? _fit.lines : raw.split('\n').filter(line => line.trim() !== '');
     if(lines.length === 0){ ctx.restore(); return; }
 
     const _fp = (typeof dTextFontParts==='function') ? dTextFontParts(l.font)
@@ -590,24 +601,22 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
       // Auto-fit horizontal: começa com fontSize do designer e reduz se texto exceder l.w
       ctx.font = `${_ital}${fwt} ${fontSize}px ${ff}`;
       ctx.letterSpacing = _lsTxt || (isDisplayFont ? `${Math.max(0.5, fontSize * 0.02)}px` : '0px'); // tracking do PSD tem prioridade
-      let maxLineW = 0;
-      for(const line of lines){
-        const lw = ctx.measureText(line).width;
-        if(lw > maxLineW) maxLineW = lw;
-      }
-      const innerPad = Math.round(fontSize * 0.08);
-      const availableW = Math.max(10, w - innerPad * 2);
       // Auto-fit horizontal SÓ p/ texto de PARÁGRAFO (tem caixa de largura). Point text não tem
       // caixa no PSD: encolher pela largura do bbox justo (fonte trocada p/ Roboto) quebrava a
       // hierarquia 1:1 — deixa transbordar em vez de reduzir a fonte.
-      if(l.textBox==='box' && maxLineW > availableW){
-        const shrinkRatio = availableW / maxLineW;
-        fontSize = Math.max(minFontSize, Math.floor(fontSize * shrinkRatio));
+      // A DECISÃO de encolher (e o quanto) vem do gFitTextLayer, calculado no topo desta função;
+      // aqui ela só é APLICADA, depois de sombra/brilho já terem pegado o tamanho desenhado.
+      // O tracking encolhe junto — senão fica exagerado proporcionalmente e diverge do editor.
+      // Respiro interno da caixa (alinhamento e justificado, logo abaixo). Calculado com o
+      // fontSize AINDA NÃO encolhido — é a ordem original, e mudá-la deslocaria o texto
+      // alinhado à direita/justificado nas artes que encolhem.
+      const innerPad = Math.round(fontSize * 0.08);
+      if(_fit && _fit.fontSize !== fontSize){
+        fontSize = _fit.fontSize;
         ctx.font = `${_ital}${fwt} ${fontSize}px ${ff}`;
-        // O tracking (px do tamanho original) precisa encolher junto — senão fica exagerado
-        // proporcionalmente após o auto-fit, divergindo do editor.
-        if(_lsTxt!=null) _lsTxt = (l.letterSpacing*_scTxt*shrinkRatio)+'px';
+        if(_lsTxt!=null && _fit.letterSpacing) _lsTxt = _fit.letterSpacing;
       }
+      if(_fit && _fit.letterSpacing && _lsTxt!=null) ctx.letterSpacing = _lsTxt;
 
       const lineHeight = fontSize * (l.lineHeight||1.2);
       const totalTextH = lineHeight * lines.length;

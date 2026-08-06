@@ -649,28 +649,143 @@ function gMeasureLayerHeight(layer, text) {
   return Math.max(1, lines) * lineHeight;
 }
 
-// Resolve e atualiza as posições (X e Y) de camadas ancoradas de forma magnética/relativa
-function gApplyRelativeAnchors(layers, dados, defaults) {
+/* ══════════════════════════════════════════════════════════════
+   ENCAIXE DE TEXTO — a ÚNICA resposta para "como este texto ocupa esta caixa"
+   ──────────────────────────────────────────────────────────────
+   PROBLEMA QUE ISTO RESOLVE: medir e desenhar eram caminhos separados, e divergiam.
+   `gApplyRelativeAnchors` media a altura com `gMeasureLayerHeight`, que conta só as quebras
+   MANUAIS (`split('\n')`) — mas o render quebra o texto depois (`gSmartWrapText`) e pode
+   encolher a fonte. Resultado: a cascata media 1 linha, empurrava 1 linha, e o render
+   desenhava 3. O mecanismo criado para evitar a colisão era quem a entregava.
+   Havia mais duas divergências da mesma família: a medida usava `lineHeight` 1.25 e o render
+   1.2; e a medida ignorava o tracking extra que o render dá a fonte black (peso ≥900).
+
+   Esta função é o MODELO FIEL das decisões de geometria do render (png-generator.js), e o
+   render passou a chamá-la — não existem duas cópias da regra. A ordem importa e é a do
+   render: quebra → caixa-alta → mede → encolhe.
+   ⚠ A caixa-alta é aplicada DEPOIS da quebra porque é o que o render faz hoje. Trocar a
+   ordem daria quebras melhores (texto em caixa-alta é mais largo), mas mudaria arte já
+   publicada — é decisão de produto, não de refactor.
+   @param {object} layer  camada de texto
+   @param {string} texto  conteúdo JÁ interpolado (sem {{ }})
+   @param {CanvasRenderingContext2D} [ctxAux] canvas de medição reaproveitável
+   @param {object} [opts] {escala:1, encolher:true, pisoFonte:null}
+   @returns {{text,lines,fontSize,letterSpacing,altura,larguraMax,estourou}}
+══════════════════════════════════════════════════════════════ */
+function gFitTextLayer(layer, texto, ctxAux, opts) {
+  opts = opts || {};
+  const l = layer || {};
+  const esc = opts.escala != null ? opts.escala : 1;
+  const base = Math.round((l.fontSize || 24) * esc);
+  const vazio = { text:'', lines:[], fontSize:base, letterSpacing:null, altura:0, larguraMax:0, estourou:false };
+  if (l.type !== 'text') return vazio;
+
+  let txt = String(texto == null ? '' : texto);
+  // 1) QUEBRA — só caixa de parágrafo tem largura para quebrar. Point text não quebra: é a
+  //    regra do render (e mexer nisso quebraria a fidelidade 1:1 do PSD).
+  const ehCaixa = (l.textBox === 'box');
+  if (ehCaixa && typeof gSmartWrapText === 'function') txt = gSmartWrapText(txt, l.w, l, null, null);
+  // 2) CAIXA-ALTA do PSD (o canvas 2D não tem text-transform)
+  if (l.textTransform === 'uppercase') txt = txt.toUpperCase();
+  else if (l.textTransform === 'lowercase') txt = txt.toLowerCase();
+  const linhas = txt.split('\n').filter(s => s.trim() !== '');
+  if (!linhas.length) return Object.assign({}, vazio, { text: txt });
+
+  // 3) MEDIDA com a mesma fonte que o render monta — incluindo o tracking de fonte display,
+  //    que o render aplica e a medida antiga esquecia.
+  const cv = ctxAux ? ctxAux.canvas : document.createElement('canvas');
+  const ctx = ctxAux || cv.getContext('2d');
+  const fp = (typeof dTextFontParts === 'function') ? dTextFontParts(l.font)
+           : { family:"'Roboto', sans-serif", weight: /black|realce/i.test(l.font||'') ? 900 : 700 };
+  const peso = String(l.fontWeightOverride || fp.weight);
+  const ital = l.italic ? 'italic ' : '';
+  const display = fp.weight >= 900;
+  let fs = base;
+  let ls = (l.letterSpacing != null) ? (l.letterSpacing * esc) : null;
+  const aplicar = () => {
+    ctx.font = ital + peso + ' ' + fs + 'px ' + fp.family;
+    ctx.letterSpacing = (ls != null) ? (ls + 'px') : (display ? Math.max(0.5, fs * 0.02) + 'px' : '0px');
+  };
+  const medir = () => { aplicar(); let m = 0; for (const ln of linhas) { const w = ctx.measureText(ln).width; if (w > m) m = w; } return m; };
+  let maxL = medir();
+
+  // 4) ENCOLHER — só caixa, um passo, com piso. O piso padrão é 50% do tamanho desenhado
+  //    (regra atual do render); `opts.pisoFonte` existe para a hierarquia virar o piso real.
+  const largura = Math.round((l.w || 0) * esc);
+  const pad = Math.round(fs * 0.08);
+  const disp = Math.max(10, largura - pad * 2);
+  let estourou = false;
+  if (opts.encolher !== false && ehCaixa && maxL > disp) {
+    const piso = Math.max(8, Math.round(opts.pisoFonte != null ? (opts.pisoFonte * esc) : (base * 0.5)));
+    const ratio = disp / maxL;
+    fs = Math.max(piso, Math.floor(fs * ratio));
+    if (ls != null) ls = l.letterSpacing * esc * ratio;
+    maxL = medir();
+    if (maxL > disp) estourou = true;   // chegou no piso e ainda não cabe
+  } else if (!ehCaixa && largura > 0 && maxL > largura) {
+    estourou = true;                     // point text transborda por desenho; só informa
+  }
+
+  // lineHeight 1.2 — o do RENDER. `gMeasureLayerHeight` usava 1.25 e por isso a cascata
+  // errava a altura mesmo quando acertava o número de linhas.
+  const lh = fs * (l.lineHeight || 1.2);
+  return { text: txt, lines: linhas, fontSize: fs,
+    letterSpacing: (ls != null) ? (ls + 'px') : null,
+    altura: Math.round(lh * linhas.length), larguraMax: Math.round(maxL), estourou };
+}
+
+/* O interruptor do layout vivo — DOIS em série.
+   `franqueado.layout-vivo` (Controle do produto) governa a rede; `publishMeta.layoutVivo`
+   governa CADA template. Os dois precisam estar ligados. Motivo do segundo: ligar reacomoda
+   uma arte JÁ publicada, e essa é decisão do designer daquela arte.
+   Padrão desligado: template existente não muda de comportamento sozinho.
+   Fail-safe como o resto do Controle do produto — na dúvida, geometria original. */
+function gLayoutVivoAtivo(publishMeta){
+  if(!publishMeta || publishMeta.layoutVivo !== true) return false;
+  if(typeof gFeatureCan === 'function'){
+    try{ return gFeatureCan('franqueado.layout-vivo','render') !== false; }catch(e){ return true; }
+  }
+  return true;
+}
+
+/**
+ * Resolve e atualiza as posições (X e Y) de camadas ancoradas de forma magnética/relativa.
+ * @param {object} [opts] {fitText:false} — com `fitText`, a altura de cada texto sai do
+ *        `gFitTextLayer` (quebra + encolhimento REAIS, os mesmos do render) em vez de contar
+ *        só as quebras manuais. É o que faz o bloco de baixo descer o suficiente.
+ */
+function gApplyRelativeAnchors(layers, dados, defaults, opts) {
   if (!layers || !layers.length) return layers;
   
   const cloned = layers.map(l => ({...l}));
   const canvasAux = document.createElement('canvas');
   const ctxAux = canvasAux.getContext('2d');
   
+  // Com o layout vivo ligado, a medida vem do MESMO encaixe que o render usa: quebra
+  // inteligente, caixa-alta e encolhimento. Sem ele, mantém a medida antiga (só quebras
+  // manuais) — que é o comportamento que os templates de hoje conhecem.
+  const _fit = !!(opts && opts.fitText) && typeof gFitTextLayer === 'function';
   const resolved = {};
   cloned.forEach(l => {
     let text = l.content || '';
     if (l.isVar || /\{\{/.test(text)) {
       text = gInterpolate(text, dados, {defaults});
     }
-    
-    resolved[l.id] = {
-      x: l.x || 0,
-      y: l.y || 0,
-      w: l.type === 'text' ? gMeasureLayerWidth(l, text, ctxAux) : (l.w || 0),
-      h: l.type === 'text' ? gMeasureLayerHeight(l, text) : (l.h || 0),
-      visible: l.visible !== false
-    };
+    let w, h;
+    if (l.type !== 'text') { w = l.w || 0; h = l.h || 0; }
+    else if (_fit) {
+      const f = gFitTextLayer(l, text, ctxAux);
+      // A caixa de parágrafo tem largura FIXA por definição — quem cresce nela é a altura.
+      // Point text abraça os glifos, então a largura medida é a real.
+      w = (l.textBox === 'box') ? (l.w || 0) : f.larguraMax;
+      h = f.altura;
+      // Guarda o encaixe resolvido: a fase seguinte (aviso/escada) lê daqui sem re-medir.
+      l._fit = f;
+    } else {
+      w = gMeasureLayerWidth(l, text, ctxAux);
+      h = gMeasureLayerHeight(l, text);
+    }
+    resolved[l.id] = { x: l.x || 0, y: l.y || 0, w, h, visible: l.visible !== false };
   });
   
   const maxIter = cloned.length;
