@@ -661,8 +661,20 @@ function gMeasureLayerHeight(layer, text) {
    1.2; e a medida ignorava o tracking extra que o render dá a fonte black (peso ≥900).
 
    Esta função é o MODELO FIEL das decisões de geometria do render (png-generator.js), e o
-   render passou a chamá-la — não existem duas cópias da regra. A ordem importa e é a do
-   render: quebra → caixa-alta → mede → encolhe.
+   render passou a chamá-la — não existem duas cópias da regra.
+
+   A ESCADA DE ACOMODAÇÃO (a ordem importa, e é a do render):
+     1. cabe na caixa?        → devolve como está;
+     2. QUEBRA a linha        → `gSmartWrapText` (só caixa de parágrafo tem largura p/ quebrar);
+     3. CRESCE para baixo     → quem resolve é a cascata, fora daqui: a caixa fica mais alta e
+                                o bloco ancorado abaixo desce (gApplyRelativeAnchors);
+     4. só então ENCOLHE      → e nunca abaixo do piso da hierarquia (gStampPisosHierarquia);
+     5. nem assim coube       → marca `estourou`. Sem aviso na tela do franqueado (decisão de
+                                produto): o Estúdio é que mostra isso antes de publicar.
+   AUMENTAR não existe por desenho: a fonte parte do tamanho que o designer deu e só pode
+   descer. Crescer além dele inverteria a hierarquia pelo outro lado.
+   Encolher pela ALTURA também não: com o layout vivo, passar da altura da caixa é o gatilho
+   do passo 3 (empurrar), não de reduzir a fonte — reduzir mataria o crescimento que é a feature.
    ⚠ A caixa-alta é aplicada DEPOIS da quebra porque é o que o render faz hoje. Trocar a
    ordem daria quebras melhores (texto em caixa-alta é mais largo), mas mudaria arte já
    publicada — é decisão de produto, não de refactor.
@@ -672,11 +684,56 @@ function gMeasureLayerHeight(layer, text) {
    @param {object} [opts] {escala:1, encolher:true, pisoFonte:null}
    @returns {{text,lines,fontSize,letterSpacing,altura,larguraMax,estourou}}
 ══════════════════════════════════════════════════════════════ */
+/* PISO DE ENCOLHIMENTO POR HIERARQUIA.
+   O encolhimento resolve o encaixe DESTRUINDO o que ele deveria proteger: o piso é 50% do
+   próprio tamanho, isolado, sem olhar ninguém. Um título de 92px vira 46px e fica MENOR que o
+   subtítulo de 48px — a peça não "estoura", fica errada em silêncio, que é pior porque
+   ninguém percebe para reclamar.
+   A hierarquia do template é o conjunto de tamanhos que o designer usou. Uma camada nunca
+   encolhe abaixo do degrau imediatamente menor: o título pode chegar a 48, nunca a 46.
+   O piso antigo (50%) continua valendo quando ele é MAIS restritivo — um título de 92 com um
+   subtítulo de 20 não desce a 20, para em 46.
+   Carimbado nos clones por `gApplyRelativeAnchors`, que é quem enxerga a arte inteira; o
+   render lê do mesmo clone, então medida e desenho continuam com o mesmo piso. */
+function gStampPisosHierarquia(layers){
+  const degraus=[...new Set((layers||[])
+    .filter(l => l && l.type==='text' && l.visible!==false)
+    .map(l => Math.round(l.fontSize||24)))].sort((a,b)=>b-a);
+  (layers||[]).forEach(l => {
+    if(!l || l.type!=='text') return;
+    const s=Math.round(l.fontSize||24);
+    const abaixo=degraus.find(t => t < s);
+    l._pisoFonte = (abaixo!=null) ? Math.max(abaixo, Math.round(s*0.5)) : null;
+  });
+}
+
+/* Onde a TINTA começa dentro da caixa desenhada.
+   O render só encosta o texto no topo da caixa com `vAlign:'top'` (a âncora que vem do PSD).
+   Nos demais ele CENTRALIZA verticalmente — e aí um texto mais alto que a caixa transborda
+   metade para baixo e metade para CIMA, comendo a margem que o designer deixou no topo.
+   Com o layout vivo a regra é: TEXTO NÃO SOBE. Enquanto cabe na caixa segue centralizado
+   (é o desenho do designer); quando passa dela, ancora no topo e cresce só para baixo — que é
+   justamente o que a corrente sabe absorver. Devolve o topo da caixa → topo da tinta. */
+function _gInkDy(l, altura) {
+  if (!l || l.type !== 'text' || l.vAlign === 'top') return 0;
+  return Math.max(0, ((l.h || 0) - (altura || 0)) / 2);
+}
+
+/* O render precisa ancorar no topo exatamente quando a medida acima decidiu isso — senão
+   volta a divergir medida × desenho, que é a raiz de todo este trabalho. */
+function _gStampVTop(l, altura) {
+  if (!l || l.type !== 'text') return;
+  l._vTopAuto = (altura || 0) > (l.h || 0);
+}
+
 function gFitTextLayer(layer, texto, ctxAux, opts) {
   opts = opts || {};
   const l = layer || {};
   const esc = opts.escala != null ? opts.escala : 1;
-  const base = Math.round((l.fontSize || 24) * esc);
+  // `_tetoFonte`: teto imposto pela escada quando o empurrão não cabia mais na prancheta.
+  // Carimbado no clone por gApplyRelativeAnchors, então medida e render partem do mesmo lugar.
+  const _desenhada = (l._tetoFonte != null) ? Math.min(l._tetoFonte, l.fontSize || 24) : (l.fontSize || 24);
+  const base = Math.round(_desenhada * esc);
   const vazio = { text:'', lines:[], fontSize:base, letterSpacing:null, altura:0, larguraMax:0, estourou:false };
   if (l.type !== 'text') return vazio;
 
@@ -684,7 +741,12 @@ function gFitTextLayer(layer, texto, ctxAux, opts) {
   // 1) QUEBRA — só caixa de parágrafo tem largura para quebrar. Point text não quebra: é a
   //    regra do render (e mexer nisso quebraria a fidelidade 1:1 do PSD).
   const ehCaixa = (l.textBox === 'box');
-  if (ehCaixa && typeof gSmartWrapText === 'function') txt = gSmartWrapText(txt, l.w, l, null, null);
+  // A quebra tem que usar o tamanho EFETIVO. Com o teto da escada, quebrar no tamanho
+  // desenhado e desenhar menor gera linha demais (7 onde cabiam 3) — a arte encolhe e cresce
+  // em altura ao mesmo tempo, que é o oposto do que a escada quer. Sem teto (`_tetoFonte`
+  // nulo), o clone nem existe e o caminho é byte a byte o de hoje.
+  const _wrapL = (_desenhada !== (l.fontSize || 24)) ? Object.assign({}, l, { fontSize: _desenhada }) : l;
+  if (ehCaixa && typeof gSmartWrapText === 'function') txt = gSmartWrapText(txt, l.w, _wrapL, null, null);
   // 2) CAIXA-ALTA do PSD (o canvas 2D não tem text-transform)
   if (l.textTransform === 'uppercase') txt = txt.toUpperCase();
   else if (l.textTransform === 'lowercase') txt = txt.toLowerCase();
@@ -716,7 +778,10 @@ function gFitTextLayer(layer, texto, ctxAux, opts) {
   const disp = Math.max(10, largura - pad * 2);
   let estourou = false;
   if (opts.encolher !== false && ehCaixa && maxL > disp) {
-    const piso = Math.max(8, Math.round(opts.pisoFonte != null ? (opts.pisoFonte * esc) : (base * 0.5)));
+    // Prioridade: piso explícito > piso da hierarquia (carimbado) > o antigo 50% isolado.
+    const _pisoBase = (opts.pisoFonte != null) ? opts.pisoFonte
+                    : ((l._pisoFonte != null) ? l._pisoFonte : ((l.fontSize || 24) * 0.5));
+    const piso = Math.max(8, Math.round(_pisoBase * esc));
     const ratio = disp / maxL;
     fs = Math.max(piso, Math.floor(fs * ratio));
     if (ls != null) ls = l.letterSpacing * esc * ratio;
@@ -832,6 +897,9 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
   // inteligente, caixa-alta e encolhimento. Sem ele, mantém a medida antiga (só quebras
   // manuais) — que é o comportamento que os templates de hoje conhecem.
   const _fit = !!(opts && opts.fitText) && typeof gFitTextLayer === 'function';
+  // O piso da hierarquia é carimbado ANTES de medir: a medida e o render têm que usar o MESMO
+  // piso, e é justamente medir com uma regra e desenhar com outra que originou este trabalho.
+  if (_fit) gStampPisosHierarquia(cloned);
   const resolved = {};
   cloned.forEach(l => {
     let text = l.content || '';
@@ -848,21 +916,116 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
       h = f.altura;
       // Guarda o encaixe resolvido: a fase seguinte (aviso/escada) lê daqui sem re-medir.
       l._fit = f;
+      _gStampVTop(l, f.altura);
     } else {
       w = gMeasureLayerWidth(l, text, ctxAux);
       h = gMeasureLayerHeight(l, text);
     }
-    resolved[l.id] = { x: l.x || 0, y: l.y || 0, w, h, visible: l.visible !== false };
+    resolved[l.id] = { x: l.x || 0, y: l.y || 0, w, h, visible: l.visible !== false,
+                       dy: _fit ? _gInkDy(l, h) : 0 };
   });
 
-  // Correntes inferidas do desenho (só com o layout vivo ligado). A altura de REFERÊNCIA de
-  // cada texto é a que ele tem com os valores de exemplo — o estado que o designer aprovou no
-  // Estúdio. É contra ela que o gap é medido, para o estado normal ficar idêntico ao publicado.
+  // Correntes inferidas do desenho (só com o layout vivo ligado).
   if (_fit && !(opts && opts.inferir === false)) _gInferirCorrentes(cloned, opts);
   // Posição PUBLICADA de cada camada: a corrente inferida nunca sobe além dela (o laço abaixo
   // muta l.y a cada iteração, então o original tem que ser guardado antes).
   const yPub = {};
   cloned.forEach(l => { yPub[l.id] = l.y || 0; });
+
+  /* ESCADA, passo 4 — encolher quando o empurrão não cabe mais na arte.
+     Achado ao medir: `gSmartWrapText` tem fallback de quebra DURA (busca binária em
+     `pushToken`), então qualquer texto cabe em qualquer caixa mais larga que um glifo — o
+     encolhimento por largura quase nunca dispara. Com o layout vivo, o risco deixa de ser
+     "encolheu até sumir" e passa a ser "empurrou para fora da prancheta", que é pior: antes
+     os blocos se sobrepunham, agora o de baixo sai da arte.
+     Aqui o laço fecha: posiciona → se a corrente estourou o pé da prancheta, reduz a fonte de
+     quem CRESCEU além da própria caixa e posiciona de novo. Poucos passos, com piso da
+     hierarquia como fundo do poço — encolher é o último recurso, não o primeiro. */
+  const _cv = (opts && opts.canvas) || null;
+  const _limite = _cv && _cv.h ? _cv.h : 0;
+  const _posicionar = () => {
+    let mexeu = true, n = 0;
+    while (mexeu && n < cloned.length) {
+      mexeu = false; n++;
+      cloned.forEach(l => {
+        const anchor = l.relativeAnchor || l._anchorAuto;
+        if (!anchor || !anchor.layerId) return;
+        const parent = resolved[anchor.layerId];
+        if (!parent) return;
+        const gap = parseInt(anchor.gap, 10) || 0;
+        let newX = l.x || 0, newY = l.y || 0;
+        if (anchor.type === 'left-to-right') {
+          newX = parent.visible ? (parent.x + parent.w + gap) : parent.x;
+        } else if (anchor.type === 'top-to-bottom') {
+          if (parent.visible) {
+            // Encadeia TINTA com TINTA: base da tinta do pai + respiro, convertido de volta
+            // para o topo da CAIXA do filho (que é o que o render usa como origem).
+            newY = parent.y + (parent.dy || 0) + parent.h + gap - (resolved[l.id].dy || 0);
+            // Corrente inferida SÓ EMPURRA: se o texto do pai coube na caixa dele, o filho fica
+            // onde o designer pôs. Puxar para cima recomporia uma arte que ninguém desenhou.
+            if (anchor.auto) newY = Math.max(yPub[l.id] != null ? yPub[l.id] : newY, newY);
+          } else { newY = parent.y; }
+        }
+        const cur = resolved[l.id];
+        if (cur.x !== newX || cur.y !== newY) { cur.x = newX; cur.y = newY; l.x = newX; l.y = newY; mexeu = true; }
+      });
+    }
+  };
+  // Quem escapou da prancheta depois de posicionar — pelo PÉ (empurrado) ou pelo TOPO
+  // (texto centralizado que cresceu para os dois lados). Só conta quem passou da PRÓPRIA
+  // caixa: quem sangra pela borda por desenho é decisão do designer, não estrago do texto.
+  const _passouDoPe = () => {
+    if (!_limite) return false;
+    return cloned.some(l => {
+      if (!l || l.visible === false) return false;
+      const r = resolved[l.id];
+      if (!r) return false;
+      if ((l.relativeAnchor || l._anchorAuto) && (r.y + (r.dy || 0) + (r.h || 0)) > _limite) return true;
+      const cresceu = l.type === 'text' && l._fit && l._fit.altura > (l.h || 0) + 1;
+      return cresceu && (r.y + (r.dy || 0)) < 0;
+    });
+  };
+  if (_fit && _limite) {
+    _posicionar();
+    let tentativas = 0;
+    // Quando todo mundo chega ao piso da hierarquia e AINDA não cabe, a prioridade inverte:
+    // arte com o preço cortado é inútil; arte com hierarquia achatada é feia mas serve. Só aí
+    // se desce abaixo do degrau, até o piso absoluto (50% do desenhado, nunca menos de 8px).
+    let relaxou = false;
+    while (_passouDoPe() && tentativas < 12) {
+      tentativas++;
+      // Culpados: os textos que passaram da própria caixa (são eles que empurram).
+      const culpados = cloned.filter(l => l && l.type === 'text' && l._fit && l._fit.altura > (l.h || 0) + 1);
+      if (!culpados.length) break;
+      let reduziu = false;
+      culpados.forEach(l => {
+        const atual = (l._tetoFonte != null) ? l._tetoFonte : (l.fontSize || 24);
+        const pisoAbs = Math.max(8, Math.round((l.fontSize || 24) * 0.5));
+        const piso = relaxou ? pisoAbs
+                   : ((l._pisoFonte != null) ? Math.max(l._pisoFonte, pisoAbs) : pisoAbs);
+        const novo = Math.max(piso, Math.floor(atual * 0.92));
+        if (novo < atual) { l._tetoFonte = novo; reduziu = true; }
+      });
+      // Todo mundo no piso da hierarquia: solta o piso uma vez e tenta de novo.
+      if (!reduziu && !relaxou) { relaxou = true; continue; }
+      if (!reduziu) break;   // no piso absoluto: não há mais o que ceder, o Estúdio é que avisa
+      // Re-mede com o teto novo e reposiciona do zero (a posição publicada é a base).
+      cloned.forEach(l => {
+        if (l.type !== 'text') return;
+        let t = l.content || '';
+        if (l.isVar || /\{\{/.test(t)) t = gInterpolate(t, dados, { defaults });
+        const f = gFitTextLayer(l, t, ctxAux);
+        l._fit = f;
+        resolved[l.id].h = f.altura;
+        resolved[l.id].dy = _gInkDy(l, f.altura);
+        _gStampVTop(l, f.altura);
+        if (l.textBox !== 'box') resolved[l.id].w = f.larguraMax;
+      });
+      cloned.forEach(l => { l.y = yPub[l.id]; resolved[l.id].y = yPub[l.id]; });
+      _posicionar();
+    }
+    return cloned;
+  }
 
   const maxIter = cloned.length;
   let changed = true;

@@ -638,7 +638,10 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
       ctx.textAlign = _just ? 'left' : (l.textAlign || 'left');
       // Ancoragem vertical: 'top' (PSD) → topo da tinta encosta no topo da caixa (baseline 1:1 com
       // o node.top do Photoshop). Demais → centralização vertical (comportamento antigo).
-      const _vTop = (l.vAlign==='top');
+      // `_vTopAuto`: carimbo do layout vivo para o texto que passou da própria caixa — cresce
+      // só para baixo em vez de subir por cima da margem do topo. Ausente sem o layout vivo,
+      // então o desenho de hoje continua idêntico.
+      const _vTop = (l.vAlign==='top') || l._vTopAuto === true;
       let blockStartY;
       if(_vTop){
         ctx.textBaseline='alphabetic';
