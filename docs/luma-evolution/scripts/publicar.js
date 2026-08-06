@@ -2,112 +2,253 @@
 //
 //   node docs/luma-evolution/scripts/publicar.js
 //
-// Gera, nesta ordem: o HTML (fonte de verdade do visual), um PNG por slide, o PDF, as
-// notas do apresentador e o índice de evidências. O PPTX sai dos PNGs, em montar-pptx.py
-// — assim o PowerPoint mostra exatamente o que foi validado no HTML, sem uma segunda
-// implementação do layout pra divergir.
+// Gera, nesta ordem: o HTML (fonte de verdade do visual) → confere o layout → um PNG por
+// slide → o PDF → as notas do apresentador → o índice de evidências. O PPTX sai dos PNGs,
+// em pptx.py, pra que as três saídas mostrem exatamente o mesmo layout já conferido.
+//
+// A conferência de layout roda ANTES dos PNGs de propósito: não adianta exportar 20
+// imagens e só depois descobrir que um texto saiu da página.
 
 const { chromium } = require('/opt/node22/lib/node_modules/playwright');
 const path = require('path');
 const fs = require('fs');
+// Qual narrativa montar e com que nome sair. Sem argumento, monta a V1 — o comportamento
+// que já existia. `node publicar.js slides-v2.js luma-evolution-v2` monta a V2.
+const NARRATIVA = process.argv[2] || './slides.js';
+const PREFIXO = process.argv[3] || 'luma-evolution';
+// Recontar o histórico ANTES de montar: o JSON dos commits alimenta a mega linha do tempo
+// e o total exibido na capa. Deixá-lo envelhecer já fez a mesma apresentação afirmar 240
+// commits num slide e 239 no seguinte. São ~10s; a alternativa é um número errado no
+// telão. `--sem-historico` pula, pra iterar layout sem pagar o levantamento.
+if (!process.argv.includes('--sem-historico')) {
+  try {
+    require('child_process').execFileSync(process.execPath, [path.join(__dirname, 'historico.js')],
+      { stdio: ['ignore', 'ignore', 'inherit'] });
+  } catch (e) { console.warn('! histórico não recontado:', e.message); }
+}
+const S = require(NARRATIVA.startsWith('.') ? NARRATIVA : './' + NARRATIVA);
 
-const M = require('./narrativa-b.js');
 const BASE = path.resolve(__dirname, '..');
 const OUT = path.join(BASE, 'presentation');
-const PNGS = path.join(OUT, 'slides-png');
+const PNGS = path.join(OUT, PREFIXO === 'luma-evolution' ? 'slides-png' : PREFIXO + '-png');
+const W = 1920, H = 1080;
+const MIN_FONTE = 14;        // abaixo disso não se lê numa projeção
+const MIN_CONTRASTE = 4.5;   // WCAG AA para texto
+
 fs.mkdirSync(PNGS, { recursive: true });
+fs.mkdirSync(path.join(BASE, 'reports'), { recursive: true });
+// Limpa os PNGs da rodada anterior. Sem isso, uma apresentação que encolhe deixa os
+// slides extras em disco e o montar-pptx.py os empacota junto — o PPTX saiu com 44
+// páginas quando o HTML tinha 35.
+for (const f of fs.readdirSync(PNGS)) if (/^slide-\d+\.png$/.test(f)) fs.unlinkSync(path.join(PNGS, f));
 
-const css = fs.readFileSync(path.join(__dirname, 'estilo.css'), 'utf8');
-
-// Números que só se sabem depois de tudo montado — preenchidos aqui, nunca chutados.
-function contar() {
-  const dirs = fs.existsSync(path.join(BASE, 'screenshots', 'original')) ? fs.readdirSync(path.join(BASE, 'screenshots', 'original')) : [];
-  let shots = 0;
-  for (const d of dirs) {
-    const p = path.join(BASE, 'screenshots', 'original', d);
-    if (fs.statSync(p).isDirectory()) shots += fs.readdirSync(p).filter(f => f.endsWith('.png')).length;
-  }
-  const atlasP = path.join(BASE, 'commit-map', 'atlas.json');
-  const atlas = fs.existsSync(atlasP) ? JSON.parse(fs.readFileSync(atlasP, 'utf8')) : [];
-  const feats = atlas.reduce((n, q) => n + q.feats.length, 0);
-  const capturados = dirs.filter(d => {
-    const p = path.join(BASE, 'screenshots', 'original', d);
-    return fs.statSync(p).isDirectory() && fs.readdirSync(p).some(f => f.endsWith('.png'));
-  }).length;
-  return { shots, feats, capturados, atlasTelas: atlas.length };
-}
+const lum = ([r, g, b]) => { const f = v => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); };
+  return .2126 * f(r) + .7152 * f(g) + .0722 * f(b); };
+const razao = (a, b) => { const l1 = lum(a), l2 = lum(b); return (Math.max(l1, l2) + .05) / (Math.min(l1, l2) + .05); };
+const rgb = s => (String(s).match(/\d+/g) || [0, 0, 0]).slice(0, 3).map(Number);
 
 (async () => {
-  const n = contar();
-  const nSlides = M.slides.length;
-  // Numeração pela POSIÇÃO REAL do slide, feita slide a slide. Um replace global sobre o
-  // HTML já unido contaria só os slides QUE TÊM rodapé — capa e divisores não têm — e o
-  // número saía menor que a posição de fato (o slide 23 aparecia como "19").
-  const html = M.slides.map((sl, k) => sl
-    .replace('<span class="s-num"></span>', `<span class="s-num">${String(k + 1).padStart(2, '0')} / ${nSlides}</span>`)
-    .replace('<div class="num-v" id="n-shots">—</div>', `<div class="num-v">${n.shots}</div>`)
-    .replace('<div class="num-v" id="n-feats">—</div>', `<div class="num-v">${n.feats}</div>`)
-    .replace('<div class="num-v" id="n-marcos">9</div>', `<div class="num-v">${n.capturados}</div>`)
-  ).join('\n');
+  // ── 1. HTML ────────────────────────────────────────────────────────────────
+  // Numera por posição REAL no baralho. Um replace sequencial sobre o HTML inteiro só
+  // conta os slides que têm rodapé — os escuros (capa e divisores) não têm, e o número
+  // saía defasado: o 13º slide exibia "10".
+  const corpo = S.slides.map((s, k) =>
+    s.replace('<div class="num"></div>',
+      `<div class="num">${String(k + 1).padStart(2, '0')} / ${S.slides.length}</div>`)).join('\n');
 
+  const css = fs.readFileSync(path.join(__dirname, 'estilo.css'), 'utf8');
   const doc = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
-<title>Luma — de piloto a produto</title>
+<title>${S.titulo || 'Luma — de piloto a produto'}</title>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700;900&display=swap" rel="stylesheet">
-<style>${css}
-@page{size:1920px 1080px;margin:0}
-@media print{body{background:#fff}.slide+.slide{margin-top:0}}
-</style></head><body>\n${html}\n</body></html>`;
+<style>${css}</style></head><body>
+${corpo}
+</body></html>`;
+  fs.writeFileSync(path.join(OUT, PREFIXO + '.html'), doc);
+  console.log(`HTML: ${S.slides.length} slides`);
 
-  fs.writeFileSync(path.join(OUT, 'luma-evolution.html'), doc);
-  console.log(`HTML: ${M.slides.length} slides`);
-
-  // ── PNG por slide + PDF ────────────────────────────────────────────────────
   const nav = await chromium.launch();
-  const p = await nav.newPage({ viewport: { width: 1920, height: 1080 } });
-  await p.goto('file://' + path.join(OUT, 'luma-evolution.html'), { waitUntil: 'networkidle' });
-  await p.waitForTimeout(2500);
+  const p = await nav.newPage({ viewport: { width: W, height: H } });
+  await p.goto('file://' + path.join(OUT, PREFIXO + '.html'), { waitUntil: 'networkidle' });
+  await p.waitForTimeout(2000);
+
+  // ── 2. conferência de layout (antes de exportar nada) ──────────────────────
+  const achados = await p.evaluate(({ W, H, MIN_FONTE }) => {
+    const out = [];
+    document.querySelectorAll('.slide').forEach((s, idx) => {
+      const nSlide = idx + 1, sr = s.getBoundingClientRect(), prob = [];
+      s.querySelectorAll('*').forEach(e => {
+        const cs = getComputedStyle(e);
+        if (cs.display === 'none' || cs.visibility === 'hidden') return;
+        const r = e.getBoundingClientRect();
+        const x = r.x - sr.x, y = r.y - sr.y;
+        if (r.width < 1 || r.height < 1) return;
+
+        if (x < -2 || y < -2 || x + r.width > W + 2 || y + r.height > H + 2) {
+          prob.push({ t: 'fora-da-pagina', el: (e.className || e.tagName).toString().slice(0, 28),
+            d: `x${Math.round(x)} y${Math.round(y)} ${Math.round(r.width)}×${Math.round(r.height)}` });
+        }
+        if (e.children.length === 0 && (e.textContent || '').trim()) {
+          // Só conta como cortado quando algo CLIPA de fato. scrollHeight > clientHeight
+          // sozinho é falso positivo: dispara em qualquer line-height abaixo de 1.
+          const proprio = cs.overflow !== 'visible' &&
+            (e.scrollHeight > e.clientHeight + 3 || e.scrollWidth > e.clientWidth + 3);
+          let porPai = false;
+          for (let a = e.parentElement; a && a !== s; a = a.parentElement) {
+            if (getComputedStyle(a).overflow === 'visible') continue;
+            const ra = a.getBoundingClientRect();
+            if (r.bottom > ra.bottom + 2 || r.right > ra.right + 2 || r.top < ra.top - 2) porPai = true;
+            break;   // só o contêiner que clipa mais perto importa
+          }
+          if (proprio || porPai) prob.push({ t: 'texto-cortado', el: (e.className || e.tagName).toString().slice(0, 28),
+            d: `"${e.textContent.trim().slice(0, 38)}"` });
+          const px = parseFloat(cs.fontSize);
+          if (px < MIN_FONTE) prob.push({ t: 'fonte-pequena', el: (e.className || e.tagName).toString().slice(0, 28), d: px + 'px' });
+        }
+      });
+      // Slide marcado com data-indice é lista de referência: existe para consulta, não
+      // para projeção, e o teto de densidade não se aplica a ele.
+      const chars = (s.innerText || '').replace(/\s+/g, ' ').trim().length;
+      if (chars > 1500 && !s.hasAttribute('data-indice')) {
+        prob.push({ t: 'slide-denso', el: '(slide)', d: chars + ' caracteres' });
+      }
+
+      // Texto coberto por elemento fora do fluxo. Um `position:absolute` que passa por
+      // cima de texto não conta como "fora da página" e não é "texto cortado" — mas some
+      // do slide do mesmo jeito. Aconteceu duas vezes: a faixa de conclusão engolindo a
+      // quarta diferença, e o selo `.marca` da capa herdando o `position:absolute` do
+      // `.marca` do atlas (colisão de nome de classe) e pousando em cima do título.
+      //
+      // O critério é pela área do INTRUSO, não do texto: o selo tinha 460×26 sobre um
+      // título de 1180×280 — 3% da área do texto, e passava batido por qualquer limiar
+      // medido desse lado. Do outro lado eram 100%.
+      const soltos = [...s.querySelectorAll('*')].filter(e => {
+        const po = getComputedStyle(e).position;
+        return (po === 'absolute' || po === 'fixed') && e.getBoundingClientRect().width > 0;
+      });
+      // "Folha de texto" não é "elemento sem filhos": o <em> da capa tem um <br> dentro, e
+      // com o teste ingênuo o título — justamente o que estava sendo coberto — ficava de
+      // fora da varredura. Folha é quem não tem nenhum filho COM texto.
+      const folhas = [...s.querySelectorAll('*')].filter(e =>
+        (e.textContent || '').trim() && [...e.children].every(c => !(c.textContent || '').trim()));
+      for (const a of soltos) {
+        // Um intruso que CONTÉM o texto não é intruso: é o contêiner dele.
+        const ra = a.getBoundingClientRect();
+        const areaA = ra.width * ra.height;
+        if (areaA < 60) continue;
+        for (const e of folhas) {
+          if (a === e || a.contains(e) || e.contains(a)) continue;
+          const re = e.getBoundingClientRect();
+          const w = Math.min(ra.right, re.right) - Math.max(ra.left, re.left);
+          const h = Math.min(ra.bottom, re.bottom) - Math.max(ra.top, re.top);
+          if (w <= 2 || h <= 2) continue;
+          if ((w * h) / areaA < 0.6) continue;
+          prob.push({ t: a.classList.contains('conclusao') ? 'sob-a-conclusao' : 'texto-coberto',
+            el: (a.className || a.tagName).toString().slice(0, 28),
+            d: `sobre "${e.textContent.trim().slice(0, 30)}"` });
+          break;
+        }
+      }
+
+      const fundoSlide = getComputedStyle(s).backgroundColor;
+      s.querySelectorAll('.sub,.nota,.card .r,.li p,.conclusao,.csub,.psec,.tl-desc').forEach(e => {
+        if (!(e.textContent || '').trim()) return;
+        let bg = fundoSlide;
+        for (let no = e; no && no !== s; no = no.parentElement) {
+          const b = getComputedStyle(no).backgroundColor;
+          if (b && b !== 'rgba(0, 0, 0, 0)') { bg = b; break; }
+        }
+        out.push({ slide: nSlide, contraste: { cor: getComputedStyle(e).color, fundo: bg,
+          px: parseFloat(getComputedStyle(e).fontSize), el: (e.className || e.tagName).toString().slice(0, 22) } });
+      });
+      if (prob.length) out.push({ slide: nSlide, problemas: prob });
+    });
+    return out;
+  }, { W, H, MIN_FONTE });
+
+  const problemas = achados.filter(a => a.problemas);
+  const contrastes = achados.filter(a => a.contraste)
+    .map(a => { const r = razao(rgb(a.contraste.cor), rgb(a.contraste.fundo)); return { ...a, razao: r, ok: r >= MIN_CONTRASTE }; });
+  const ruins = contrastes.filter(c => !c.ok);
+  const nProb = problemas.reduce((n2, s) => n2 + s.problemas.length, 0);
+
+  console.log(`Layout: ${nProb} problema(s) · contraste: ${ruins.length} abaixo de ${MIN_CONTRASTE}:1 (menor ${contrastes.length ? Math.min(...contrastes.map(c => c.razao)).toFixed(2) : '—'}:1)`);
+  for (const s of problemas) for (const q of s.problemas) console.log(`   slide ${s.slide}: ${q.t} — ${q.el} ${q.d}`);
+
+  const V = ['# Conferência visual dos slides', '',
+    `\`presentation/luma-evolution.html\` — **${S.slides.length} slides**, palco de ${W}×${H}.`, '',
+    'Medido em cada slide: elemento fora da página; texto realmente cortado (só conta quando um contêiner com `overflow` diferente de `visible` clipa — `scrollHeight > clientHeight` sozinho é falso positivo);',
+    `imagem sem espaço; fonte abaixo de ${MIN_FONTE}px; mais de 1.500 caracteres num slide; e contraste do texto de corpo (mínimo ${MIN_CONTRASTE}:1, WCAG AA).`, '',
+    '| Verificação | Resultado |', '|---|---|',
+    `| Slides | ${S.slides.length} |`,
+    `| Problemas de layout | ${nProb === 0 ? '**nenhum**' : '**' + nProb + '**'} |`,
+    `| Textos de corpo medidos | ${contrastes.length} |`,
+    `| Contraste abaixo de ${MIN_CONTRASTE}:1 | ${ruins.length === 0 ? '**nenhum**' : '**' + ruins.length + '**'} |`,
+    `| Menor contraste medido | ${contrastes.length ? Math.min(...contrastes.map(c => c.razao)).toFixed(2) + ':1' : '—'} |`, ''];
+  if (nProb) { V.push('## Problemas de layout', '', '| Slide | Tipo | Elemento | Detalhe |', '|---|---|---|---|');
+    for (const s of problemas) for (const q of s.problemas) V.push(`| ${s.slide} | ${q.t} | \`${q.el}\` | ${q.d} |`); V.push(''); }
+  else V.push('## Problemas de layout', '', 'Nenhum.', '');
+  if (ruins.length) { V.push('## Contrastes abaixo do mínimo', '', '| Slide | Elemento | Razão |', '|---|---|---|');
+    for (const c of ruins) V.push(`| ${c.slide} | \`${c.contraste.el}\` | ${c.razao.toFixed(2)}:1 |`); V.push(''); }
+  else V.push('## Contraste', '', `Todos os ${contrastes.length} textos de corpo medidos passam de ${MIN_CONTRASTE}:1.`, '');
+  V.push('---', '', '## O que esta conferência NÃO cobre', '',
+    '- Se a narrativa faz sentido na ordem em que está.',
+    '- Se a captura escolhida é a que melhor mostra o ponto do slide.',
+    '- Se o texto está correto quanto ao fato — isso é o índice de evidências que responde.', '',
+    'Essas três coisas precisam de leitura humana.');
+  fs.writeFileSync(path.join(BASE, 'reports', PREFIXO + '-conferencia.md'), V.join('\n') + '\n');
+
+  // ── 3. PNGs e PDF ──────────────────────────────────────────────────────────
   const total = await p.evaluate(() => document.querySelectorAll('.slide').length);
   for (let k = 0; k < total; k++) {
-    const el = p.locator('.slide').nth(k);
-    await el.screenshot({ path: path.join(PNGS, `slide-${String(k + 1).padStart(2, '0')}.png`) });
+    await p.locator('.slide').nth(k).screenshot({ path: path.join(PNGS, `slide-${String(k + 1).padStart(2, '0')}.png`) });
   }
   console.log(`PNG: ${total} slides`);
-  await p.pdf({ path: path.join(OUT, 'luma-evolution.pdf'), width: '1920px', height: '1080px',
+
+  await p.pdf({ path: path.join(OUT, PREFIXO + '.pdf'), width: '1920px', height: '1080px',
                 printBackground: true, pageRanges: `1-${total}` });
-  console.log('PDF: luma-evolution.pdf');
+  console.log('PDF: ' + PREFIXO + '.pdf');
   await nav.close();
 
-  // ── notas do apresentador ──────────────────────────────────────────────────
-  const notas = ['# Notas do apresentador — Luma, de piloto a produto', '',
-    `${M.slides.length} slides. Tempo somado das notas: cerca de 20 minutos falando; dá pra cortar os slides de era e ficar em 12.`,
-    '', '> Tudo que está nas notas tem lastro no repositório. Onde a motivação não está registrada, a nota diz "aparenta" em vez de afirmar.', ''];
-  M.notas.forEach((t, k) => {
-    notas.push(`## Slide ${String(k + 1).padStart(2, '0')}`, '', t.trim(), '');
-  });
-  fs.writeFileSync(path.join(OUT, 'luma-evolution-speaker-notes.md'), notas.join('\n'));
-  console.log('Notas: luma-evolution-speaker-notes.md');
+  // ── 4. notas do apresentador ───────────────────────────────────────────────
+  const N = ['# Notas do apresentador — Luma, de piloto a produto', '',
+    `${S.slides.length} slides. Somando as durações das notas dá cerca de 15 minutos falando; dá pra cortar os slides de era e ficar em 10.`, '',
+    '> Tudo aqui tem lastro no repositório. Onde a motivação não está registrada, a nota diz "aparenta" em vez de afirmar.', ''];
+  S.notas.forEach((t, k) => N.push(`## Slide ${String(k + 1).padStart(2, '0')}`, '', t, ''));
+  fs.writeFileSync(path.join(OUT, PREFIXO + (PREFIXO.endsWith('v2') ? '-speaker-notes.md' : '-notas.md')), N.join('\n'));
+  console.log('Notas: ' + PREFIXO + (PREFIXO.endsWith('v2') ? '-speaker-notes.md' : '-notas.md'));
 
-  // ── índice de evidências ───────────────────────────────────────────────────
-  const idx = ['# Índice de evidências', '',
-    'Cada slide, o que o sustenta e o quanto se pode confiar. Níveis usados:', '',
-    '- **Alto** — captura real de uma execução (do commit ou do arquivo original), sem alteração no código da interface.',
-    '- **Médio** — captura real que exigiu restauração técnica. *Nenhum slide desta apresentação está neste nível.*',
-    '- **Baixo** — reconstrução visual a partir do código. *Nenhum slide desta apresentação está neste nível.*', '',
-    '| # | Slide | Tipo de evidência | Imagens | Confiança | Observação |', '|---|---|---|---|---|---|'];
-  M.indice.forEach((e, k) => {
-    const imgs = (e.imagens || []).filter(Boolean).map(s => '`' + path.basename(s) + '`').join('<br>') || '—';
-    // A ordem importa: os slides de era não têm .s-titulo, o rótulo deles é o .t-rot da
-    // legenda da captura. Sem esse fallback o índice repetia o tipo de evidência no lugar
-    // do nome do slide.
-    const tit = (M.slides[k].match(/class="s-titulo"[^>]*>([\s\S]*?)<\/h2>/) || M.slides[k].match(/<h1>([\s\S]*?)<\/h1>/)
-      || M.slides[k].match(/<h2>([\s\S]*?)<\/h2>/) || M.slides[k].match(/class="t-rot">([\s\S]*?)<\/span>/) || [, e.tipo])[1]
-      .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 62);
-    idx.push(`| ${k + 1} | ${tit} | ${e.tipo} | ${imgs} | ${e.confianca} | ${e.obs || '—'} |`);
+  // ── 5. índice de evidências ────────────────────────────────────────────────
+  const I = [`# Índice de evidências — ${S.titulo || 'Luma'}`, '',
+    'Tipos usados: **Captura real** (execução do commit), **Arquivo histórico fornecido** (o piloto preservado),',
+    '**Estado atual** (branch atual) e **Capa** (slide sem imagem de produto).', '',
+    'Não há nesta apresentação nenhuma **captura restaurada** nem **reconstrução**: toda imagem saiu de uma execução real,',
+    'sem alteração no código da interface.', '',
+    '| # | Slide | Imagens | Data ou commit | Tipo de evidência | Observações |', '|---|---|---|---|---|---|'];
+  S.indice.forEach((e, k) => {
+    const s = S.slides[k];
+    // A ordem importa: os slides de era não têm .titulo — o rótulo deles é o .rot da legenda.
+    const tit = (s.match(/class="titulo"[^>]*>([\s\S]*?)<\/h2>/) || s.match(/<h1>([\s\S]*?)<\/h1>/)
+      || s.match(/<h2>([\s\S]*?)<\/h2>/) || s.match(/class="rot">([\s\S]*?)<\/span>/) || [, e.tipo])[1]
+      .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
+    const imgs = (e.imagens || []).filter(Boolean).map(x => '`' + path.basename(x) + '`').join('<br>') || '—';
+    // Escapa o pipe: uma observação com `git log | wc -l` quebrava a coluna da tabela.
+    const cel = t => String(t).replace(/\|/g, '\\|');
+    I.push(`| ${k + 1} | ${cel(tit)} | ${imgs} | ${cel(e.quando || '—')} | ${cel(e.tipo)} | ${cel(e.obs || '—')} |`);
   });
-  idx.push('', '## Como conferir uma imagem', '',
+  I.push('', '## Como conferir uma imagem', '',
     'Cada PNG tem um JSON irmão em `screenshots/metadata/<marco>/` com a tela, o estado, o commit, a data, a viewport e o tipo de captura.',
-    'Pra reabrir a versão que gerou a imagem: `node scripts/versao.js <hash>`.');
-  fs.writeFileSync(path.join(OUT, 'luma-evolution-index.md'), idx.join('\n'));
-  console.log('Índice: luma-evolution-index.md');
-  console.log(`\n${n.shots} capturas · ${n.capturados} marcos · ${n.feats} funcionalidades no atlas\n`);
+    'Para reabrir a versão que gerou a imagem: `node scripts/versao.js <hash>`.');
+  fs.writeFileSync(path.join(OUT, PREFIXO + (PREFIXO.endsWith('v2') ? '-index.md' : '-indice.md')), I.join('\n'));
+  console.log('Índice: ' + PREFIXO + (PREFIXO.endsWith('v2') ? '-index.md' : '-indice.md'));
+
+  // O HTML autossuficiente sai na mesma rodada, e não num passo à parte: separado, ele
+  // envelhece calado — alguém manda o arquivo de uma montagem antiga e o destinatário
+  // recebe slides que já não existem. Gerado junto, os dois nunca divergem.
+  try {
+    require('child_process').execFileSync(process.execPath,
+      [path.join(__dirname, 'um-arquivo.js'), PREFIXO], { stdio: 'inherit' });
+  } catch (e) { console.warn('! HTML único não gerado:', e.message); }
+
+  console.log(`\n${S.totalShots} capturas · ${(S.MARCOS || []).length || S.marcosComShot} marcos · ${S.slides.length} slides\n`);
+  if (nProb || ruins.length) { console.log('⚠ há apontamentos em reports/conferencia-visual.md\n'); process.exitCode = 1; }
 })();

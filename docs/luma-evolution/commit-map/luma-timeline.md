@@ -1,22 +1,17 @@
 # Linha do tempo — todo o histórico do repositório
 
-**81 commits** entre **2026-07-16** e **2026-07-30** — 15 dias corridos. Sem tags, sem releases.
+**71 commits** entre **2026-07-16** e **2026-07-30** — 15 dias corridos. Sem tags, sem releases.
 
-Autores: Claude (58), ryanmotta-ai (13), Pedro Moraes (10)
+Autores: Claude (48), ryanmotta-ai (13), Pedro Moraes (10)
 
-> O git tem **duas raízes órfãs**, ambas de 2026-07-16 e ambas já com o produto inteiro (274 e 285 arquivos).
-> O nascimento do Luma não está aqui — está no arquivo `research/origem/yungas-artes-piloto.html`.
+> O git tem **duas raízes órfãs** (`74d31b5` e `df0c056`), ambas de 2026-07-16 e ambas já com o produto inteiro.
+> O nascimento do Luma não está aqui — está em `research/origem/yungas-artes-piloto.html`.
 
-## 2026-07-16 — 39 commits (26 mexem em tela)
+## 2026-07-16 — 29 commits (21 mexem em tela)
 
-Áreas: Franqueado (16), Documentação (15), Designer (11), Design system (9), Backend (6), Núcleo (6), Empacotamento (4)
+Áreas: Designer (11), Documentação (11), Franqueado (11), Backend (6), Design system (6), Núcleo (5), Empacotamento (4)
 
-- `524ce65` **Copy: overhaul do motor combinatório (bancos + montagem)** — Claude
-- `f599ab5` **Docs: documenta onde vive o motor de copy (legendas)** — Claude · _sem mudança de tela_
-- `515287b` **Docs: ponteiro pro motor de copy no luma-brain** — Claude · _sem mudança de tela_
-- `b325da8` **Skill luma: práticas de economia de uso** — Claude · _sem mudança de tela_
-- `2e892df` **Mockup: prévia da arte no celular (Stories, Feed, WhatsApp)** — Claude · _sem mudança de tela_
-- `df0c056` **Mockup: silhueta do iPhone 17 Pro Max (padrão premium)** — Claude · _sem mudança de tela_
+- `df0c056` **Mockup: silhueta do iPhone 17 Pro Max (padrão premium)** — Claude
 - `57cbe74` **Prévia: "Ver postado" — a arte real dentro do celular** — Claude
 - `b15be35` **Motion: entrada premium dos celulares (cascata + mola suave)** — Claude
 - `c7cbfb8` **Fix: fill da animação engolia o seletor da página de mockups** — Claude
@@ -24,12 +19,7 @@ Autores: Claude (58), ryanmotta-ai (13), Pedro Moraes (10)
 - `0aed746` **Desktop: casca .exe do Luma (Electron apontando pro GitHub Pages)** — Claude · _sem mudança de tela_
 - `d27efb3` **Desktop: workflow publica Release pública com links permanentes** — Claude · _sem mudança de tela_
 - `89ca896` **feat(desktop): app macOS — DMG universal + convenções do Mac na casca Electron** — ryanmotta-ai · _sem mudança de tela_
-- `24fdf80` **README: troca setas por travessão (limpeza total de símbolos)** — Claude
-- `c860231` **Mobile (franqueado): refinos de UI/UX** — Claude
-- `c0bd2b8` **Mobile (franqueado): varredura completa de telas — rodada 2** — Claude
-- `963d2a0` **Mobile: prévia viva — miniatura PiP, pinça pra zoom e swipe pra fechar** — Claude
 - `bc6f4cd` **ci(desktop): build macOS no workflow — DMG universal anexado na Release** — ryanmotta-ai · _sem mudança de tela_
-- `ca00a54` **Franqueado: "Minhas artes" não é mais atropelado pelo fade do voltar** — Claude
 - `74d31b5` **Franqueado: rail não fica mais com o histórico espremido (bug da foto)** — Claude
 - `9c5e3ff` **Copy: diagramação e assertividade por aba (passe final pro 1.0)** — Claude
 - `239c390` **Sync: template pendente na ESCRITA, limpo só no upsert confirmado** — Claude

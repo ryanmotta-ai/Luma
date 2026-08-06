@@ -1,0 +1,13 @@
+{
+  "tela": "Atalhos do Estúdio",
+  "area": "Designer",
+  "estado": "atalhos",
+  "marco": "M1d",
+  "rotulo": "Um mês de produto",
+  "commit": "8abd65b",
+  "data": "2026-07-11",
+  "viewport": "1440x1000",
+  "tipoCaptura": "real-commit",
+  "confianca": "alto",
+  "nota": "Execução do próprio commit via git worktree, offline; Supabase zerado e sessão de demonstração injetada. O código da interface não foi alterado."
+}

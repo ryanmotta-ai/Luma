@@ -1,0 +1,13 @@
+{
+  "tela": "Vitrine no celular",
+  "area": "Franqueado",
+  "estado": "home-mobile",
+  "marco": "M3",
+  "rotulo": "A vitrine passa a ser gerida pelo banco",
+  "commit": "247bcd4",
+  "data": "2026-07-16",
+  "viewport": "390x844",
+  "tipoCaptura": "real-commit",
+  "confianca": "alto",
+  "nota": "Execução do próprio commit via git worktree, offline; Supabase zerado e sessão de demonstração injetada. O código da interface não foi alterado."
+}

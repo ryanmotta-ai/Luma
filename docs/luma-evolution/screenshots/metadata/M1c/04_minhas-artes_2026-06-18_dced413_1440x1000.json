@@ -1,0 +1,13 @@
+{
+  "tela": "Minhas artes — histórico",
+  "area": "Franqueado",
+  "estado": "minhas-artes",
+  "marco": "M1c",
+  "rotulo": "O backend entra",
+  "commit": "dced413",
+  "data": "2026-06-18",
+  "viewport": "1440x1000",
+  "tipoCaptura": "real-commit",
+  "confianca": "alto",
+  "nota": "Execução do próprio commit via git worktree, offline; Supabase zerado e sessão de demonstração injetada. O código da interface não foi alterado."
+}

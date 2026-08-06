@@ -1,0 +1,13 @@
+{
+  "tela": "Entrada — a porta do produto",
+  "area": "Acesso",
+  "estado": "login",
+  "marco": "M4",
+  "rotulo": "Endurecimento: segurança, sync e PSD",
+  "commit": "bcc61e8",
+  "data": "2026-07-20",
+  "viewport": "1440x1000",
+  "tipoCaptura": "real-commit",
+  "confianca": "alto",
+  "nota": "Execução do próprio commit via git worktree, offline; Supabase zerado e sessão de demonstração injetada. O código da interface não foi alterado."
+}

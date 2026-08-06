@@ -2,26 +2,13 @@
 
 - **Data:** 2026-07-30
 - **Commit:** `HEAD`
-- **Executou:** sim
 - **Como:** `git worktree` + servidor estático (scripts/versao.js)
 - **Credenciais:** nenhuma. Supabase zerado; sessão de demonstração injetada no navegador.
-- **Correção temporária no código da interface:** nenhuma.
+- **Alteração no código da interface:** nenhuma.
+- **Duração:** 20s
 
-| Cena | Área | Viewport | Capturou | Arquivo |
+| Cena | Área | Viewport | Capturou | Arquivo / motivo |
 |---|---|---|---|---|
-| Entrada | Acesso | 1440x1000 | não | — |
-| Vitrine do franqueado | Franqueado | 1440x1000 | sim | 02_home_2026-07-30_atual_1440x1000.png |
-| Campanha aberta — materiais | Franqueado | 1440x1000 | sim | 03_catalogo_2026-07-30_atual_1440x1000.png |
-| Chat que monta a arte | Franqueado | 1440x1000 | sim | 04_chat_2026-07-30_atual_1440x1000.png |
-| Minhas artes — histórico | Franqueado | 1440x1000 | sim | 05_minhas-artes_2026-07-30_atual_1440x1000.png |
-| Estúdio — a casa do designer | Designer | 1440x1000 | sim | 06_designer_2026-07-30_atual_1440x1000.png |
-| Estúdio — template aberto no canvas | Designer | 1440x1000 | não | — |
-| Publicar template | Designer | 1440x1000 | não | — |
-| Exportar arte | Designer | 1440x1000 | sim | 09_exportar_2026-07-30_atual_1440x1000.png |
-| Central de ajuda | Suporte | 1440x1000 | não | — |
-| Luma CLI — console do time | Interno | 1440x1000 | sim | 11_cli_2026-07-30_atual_1440x1000.png |
-| Vitrine no celular | Franqueado | 390x844 | sim | 12_home-mobile_2026-07-30_atual_390x844.png |
+| Central de ajuda | Suporte | 1440x1000 | não | tela não existe nesta versão |
 
-**Telas não capturadas:** Entrada, Estúdio — template aberto no canvas, Publicar template, Central de ajuda.
-
-Tela não capturada aqui significa que ela não existia nesta versão ou não era alcançável offline — não que a captura tenha falhado por acidente. O detalhe de cada caso está em `reports/limitacoes.md`.
+Cena não capturada aqui significa, na maioria dos casos, que a tela não existia nesta versão ou não era alcançável offline — não que a captura tenha falhado por acidente. Ver `reports/limitacoes.md`.

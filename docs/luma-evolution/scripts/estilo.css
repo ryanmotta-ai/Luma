@@ -1,145 +1,314 @@
 /* docs/luma-evolution/scripts/estilo.css — identidade dos slides.
-   Um slide = 1920×1080. Tudo em px absolutos porque o destino é PNG/PDF/PPTX de tamanho
-   fixo: aqui não há responsividade a resolver, há um palco de tamanho conhecido. */
+   Um slide é 1920×1080 em px absolutos: o destino é PNG/PDF/PPTX de tamanho fixo, então
+   aqui não há responsividade a resolver — há um palco de tamanho conhecido. */
 
 :root{
-  --laranja:#FF9000; --laranja-d:#F85400; --amarelo:#FFB900;
-  --tinta:#0A0A0A; --tinta-2:#4A4A4A; --tinta-3:#8A8A8A;
-  --papel:#FFFFFF; --papel-2:#F7F7F5; --linha:#E6E4E0;
-  --verde:#15803D; --magenta:#C4005B;
-  --serif:'Roboto',-apple-system,'Segoe UI',sans-serif;
+  --laranja:#FF9000; --laranja-d:#F85400; --amarelo:#FFB900; --magenta:#C4005B;
+  --tinta:#0A0A0A; --tinta-2:#4A4A4A; --tinta-3:#7C7C7C;
+  --papel:#FFFFFF; --papel-2:#F7F7F5; --linha:#E6E4E0; --verde:#15803D;
+  --fonte:'Roboto',-apple-system,'Segoe UI',sans-serif;
   --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#1a1a1a;font-family:var(--serif);-webkit-font-smoothing:antialiased}
+body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialiased}
 
-.slide{
-  position:relative;width:1920px;height:1080px;overflow:hidden;
-  background:var(--papel);color:var(--tinta);
-  page-break-after:always;break-after:page;
-  display:flex;flex-direction:column;
-}
+.slide{position:relative;width:1920px;height:1080px;overflow:hidden;
+  background:var(--papel);color:var(--tinta);page-break-after:always;break-after:page}
 .slide + .slide{margin-top:40px}
 
-/* ── cabeçalho e rodapé comuns ── */
-.s-top{position:absolute;top:64px;left:96px;right:96px;display:flex;align-items:baseline;gap:20px;z-index:3}
-.s-kicker{font-size:19px;font-weight:900;letter-spacing:.19em;text-transform:uppercase;color:var(--laranja-d)}
-.s-tempo{font-family:var(--mono);font-size:17px;color:var(--tinta-3);letter-spacing:.03em;margin-left:auto}
-.s-titulo{font-size:66px;font-weight:900;letter-spacing:-.035em;line-height:1.02;max-width:1500px}
-.s-sub{margin-top:18px;font-size:26px;line-height:1.42;color:var(--tinta-2);max-width:1280px;font-weight:400}
-.s-corpo{position:absolute;top:150px;left:96px;right:96px;bottom:110px;z-index:2}
-.s-rodape{position:absolute;left:96px;right:96px;bottom:46px;display:flex;align-items:center;gap:16px;z-index:3;
-  font-size:18px;color:var(--tinta-3)}
-.s-rodape b{color:var(--tinta-2);font-weight:700}
-.s-num{margin-left:auto;font-family:var(--mono);font-size:16px;color:var(--tinta-3)}
-.s-fio{position:absolute;left:0;top:0;width:100%;height:7px;background:var(--laranja);z-index:4}
+/* ── moldura comum ── */
+.fio{position:absolute;left:0;top:0;width:100%;height:7px;background:var(--laranja);z-index:4}
+.topo{position:absolute;top:60px;left:96px;right:96px;display:flex;align-items:baseline;gap:20px;z-index:3}
+.kicker{font-size:19px;font-weight:900;letter-spacing:.19em;text-transform:uppercase;color:var(--laranja-d)}
+.quando{font-family:var(--mono);font-size:17px;color:var(--tinta-3);margin-left:auto}
+.corpo{position:absolute;top:140px;left:96px;right:96px;bottom:104px;z-index:2}
+.titulo{font-size:62px;font-weight:900;letter-spacing:-.035em;line-height:1.03}
+.sub{margin-top:18px;font-size:25px;line-height:1.42;color:var(--tinta-2);font-weight:400}
+.num{position:absolute;right:96px;bottom:44px;z-index:3;font-family:var(--mono);font-size:16px;color:var(--tinta-3)}
+/* o selo fica à ESQUERDA do número de página — os dois já dividiram o mesmo canto uma vez */
+.selo{position:absolute;left:96px;bottom:44px;z-index:3;display:flex;align-items:center;gap:9px;
+  font-family:var(--mono);font-size:14px;color:var(--tinta-3)}
+.selo .pt{width:8px;height:8px;border-radius:50%;background:var(--verde)}
 
-/* ── capa ── */
-.capa{background:var(--tinta);color:#fff;justify-content:center;padding:0 128px}
-.capa .c-marca{font-size:20px;font-weight:900;letter-spacing:.24em;text-transform:uppercase;color:var(--laranja);margin-bottom:44px}
-.capa h1{font-size:138px;font-weight:900;letter-spacing:-.05em;line-height:.93}
-.capa h1 em{font-style:normal;color:var(--laranja)}
-.capa .c-sub{margin-top:34px;font-size:34px;color:#C8C8C8;font-weight:300;max-width:1250px;line-height:1.36}
-.capa .c-meta{position:absolute;left:128px;bottom:80px;right:128px;display:flex;gap:64px;
-  font-family:var(--mono);font-size:19px;color:#8A8A8A;border-top:1px solid #2A2A2A;padding-top:26px}
-.capa .c-meta b{color:#fff;font-weight:700;display:block;font-size:23px;margin-bottom:5px;font-family:var(--serif)}
+/* ── capa e divisor ── */
+.escuro{background:var(--tinta);color:#fff;display:flex;flex-direction:column;justify-content:center;padding:0 128px}
+.escuro .marca{font-size:20px;font-weight:900;letter-spacing:.24em;text-transform:uppercase;color:var(--laranja);margin-bottom:40px}
+.escuro h1{font-size:132px;font-weight:900;letter-spacing:-.05em;line-height:.94}
+.escuro h1 em{font-style:normal;color:var(--laranja)}
+.escuro .csub{margin-top:32px;font-size:32px;color:#C8C8C8;font-weight:300;max-width:1300px;line-height:1.38}
+.escuro .meta{position:absolute;left:128px;bottom:76px;right:128px;display:flex;gap:64px;
+  font-family:var(--mono);font-size:18px;color:#8A8A8A;border-top:1px solid #2A2A2A;padding-top:24px}
+.escuro .meta b{color:#fff;font-weight:700;display:block;font-size:22px;margin-bottom:5px;font-family:var(--fonte)}
+.escuro .sn{font-family:var(--mono);font-size:23px;color:var(--laranja);letter-spacing:.18em;margin-bottom:24px}
+.escuro h2{font-size:98px;font-weight:900;letter-spacing:-.045em;line-height:1}
+.escuro .psec{margin-top:26px;font-size:29px;color:#B4B4B4;max-width:1250px;line-height:1.4;font-weight:300}
 
-/* ── divisor de bloco ── */
-.secao{background:var(--tinta);color:#fff;justify-content:center;padding:0 128px}
-.secao .se-n{font-family:var(--mono);font-size:24px;color:var(--laranja);letter-spacing:.18em;margin-bottom:26px}
-.secao h2{font-size:104px;font-weight:900;letter-spacing:-.045em;line-height:1}
-.secao p{margin-top:28px;font-size:30px;color:#B4B4B4;max-width:1200px;line-height:1.4;font-weight:300}
-
-/* ── grade de telas ── */
+/* ── telas (a evidência) ── */
 .telas{display:flex;gap:34px;height:100%;align-items:stretch}
 .tela{flex:1;display:flex;flex-direction:column;min-width:0}
-.tela-img{flex:1;min-height:0;border:1px solid var(--linha);border-radius:12px;overflow:hidden;background:var(--papel-2);
-  display:flex;align-items:flex-start;justify-content:center;box-shadow:0 18px 44px rgba(10,10,10,.10)}
-.tela-img img{width:100%;height:100%;object-fit:contain;object-position:top center;display:block}
-.tela-img.recorte img{object-fit:cover}
-.tela-cap{margin-top:16px;display:flex;align-items:baseline;gap:12px;flex-shrink:0}
-.tela-cap .t-rot{font-size:24px;font-weight:900;letter-spacing:-.01em}
-.tela-cap .t-meta{font-family:var(--mono);font-size:15px;color:var(--tinta-3);margin-left:auto}
-.tela-nota{margin-top:7px;font-size:18px;color:var(--tinta-2);line-height:1.34;flex-shrink:0}
+/* A moldura VESTE a captura: --ar carrega a proporção real do PNG (1440/1000 no desktop,
+   390/844 no celular). Sem isso a moldura esticava até o fim da coluna e deixava uma faixa
+   branca embaixo da imagem, que lida como erro de layout e não como respiro. */
+.moldura{flex:0 1 auto;min-height:0;max-height:100%;aspect-ratio:var(--ar,1440/1000);margin:0 auto;
+  border:1px solid var(--linha);border-radius:12px;overflow:hidden;
+  background:var(--papel-2);box-shadow:0 16px 40px rgba(10,10,10,.10)}
+/* contain, nunca cover: recortar a evidência esconde justamente o que o slide afirma */
+.moldura img{width:100%;height:100%;object-fit:contain;object-position:top center;display:block}
+.legenda{margin-top:14px;display:flex;align-items:baseline;gap:12px;flex-shrink:0}
+.legenda .rot{font-size:23px;font-weight:900;letter-spacing:-.01em}
+.legenda .meta{font-family:var(--mono);font-size:15px;color:var(--tinta-3);margin-left:auto}
+.nota{margin-top:7px;font-size:18px;color:var(--tinta-2);line-height:1.34;flex-shrink:0}
 
-/* etiquetas de comparação */
-.eti{display:inline-flex;align-items:center;height:29px;padding:0 12px;border-radius:999px;
+.eti{display:inline-flex;align-items:center;height:28px;padding:0 12px;border-radius:999px;
   font-size:14px;font-weight:900;letter-spacing:.09em;text-transform:uppercase;flex-shrink:0}
 .eti-antes{background:#EFEDEA;color:var(--tinta-2)}
-.eti-depois{background:var(--laranja);color:#fff}
+.eti-hoje{background:var(--laranja);color:#fff}
 .eti-novo{background:var(--verde);color:#fff}
-.eti-meio{background:#FFF0DA;color:var(--laranja-d)}
 
-/* ── conclusão da comparação ── */
-.conclusao{position:absolute;left:96px;right:96px;bottom:104px;z-index:3;
-  border-left:5px solid var(--laranja);padding:4px 0 4px 24px;font-size:23px;line-height:1.42;color:var(--tinta-2);max-width:1500px}
+.conclusao{position:absolute;left:96px;right:96px;bottom:96px;z-index:3;border-left:5px solid var(--laranja);
+  padding:4px 0 4px 22px;font-size:22px;line-height:1.44;color:var(--tinta-2);max-width:1560px}
 .conclusao b{color:var(--tinta);font-weight:800}
 
 /* ── números ── */
-.numeros{display:grid;gap:26px;height:100%}
-.num-card{border:1px solid var(--linha);border-radius:14px;padding:34px 32px;background:var(--papel-2);
+.numeros{display:grid;gap:24px}
+.card{border:1px solid var(--linha);border-radius:14px;padding:30px 30px;background:var(--papel-2);
   display:flex;flex-direction:column;justify-content:center}
-.num-v{font-size:82px;font-weight:900;letter-spacing:-.05em;line-height:.94;color:var(--tinta)}
-.num-v small{font-size:34px;color:var(--tinta-3);font-weight:700;letter-spacing:-.01em}
-.num-r{margin-top:12px;font-size:21px;color:var(--tinta-2);line-height:1.32}
-.num-card.destaque{background:var(--tinta);border-color:var(--tinta)}
-.num-card.destaque .num-v{color:var(--laranja)}
-.num-card.destaque .num-r{color:#C0C0C0}
+.card .v{font-size:74px;font-weight:900;letter-spacing:-.05em;line-height:1.02;color:var(--tinta)}
+.card .v small{font-size:32px;color:var(--tinta-3);font-weight:700}
+.card .r{margin-top:10px;font-size:20px;color:var(--tinta-2);line-height:1.34}
+.card.destaque{background:var(--tinta);border-color:var(--tinta)}
+.card.destaque .v{color:var(--laranja)}
+.card.destaque .r{color:#C0C0C0}
 
 /* ── linha do tempo ── */
-.tl{position:relative;height:100%;padding-top:34px}
-.tl-eixo{position:absolute;left:0;right:0;top:118px;height:3px;background:var(--linha)}
-.tl-itens{display:flex;justify-content:space-between;position:relative;height:100%}
-.tl-item{flex:1;padding-right:22px;position:relative}
-.tl-ponto{position:absolute;top:110px;left:0;width:19px;height:19px;border-radius:50%;background:var(--laranja);border:4px solid #fff;box-shadow:0 0 0 2px var(--laranja)}
-.tl-item.marco .tl-ponto{background:var(--tinta);box-shadow:0 0 0 2px var(--tinta)}
-.tl-data{font-family:var(--mono);font-size:16px;color:var(--tinta-3);letter-spacing:.02em}
-.tl-era{margin-top:6px;font-size:15px;font-weight:900;letter-spacing:.11em;text-transform:uppercase;color:var(--laranja-d);min-height:38px}
-.tl-rot{margin-top:150px;font-size:22px;font-weight:800;line-height:1.22;letter-spacing:-.015em}
-.tl-desc{margin-top:11px;font-size:17px;color:var(--tinta-2);line-height:1.36}
-.tl-hash{margin-top:13px;font-family:var(--mono);font-size:14px;color:var(--tinta-3)}
-
-/* ── atlas: destaque sobre a captura ── */
-.atlas{display:flex;gap:38px;height:100%}
-/* aspect-ratio travado no tamanho da captura (1440x1000) + flex:0 0 auto: a caixa passa
-   a ter a proporção EXATA da imagem, então o object-fit:fill não estica nada e os
-   contornos em % continuam caindo no lugar certo. Com flex:1.65 a caixa ficava 1.28 e a
-   imagem 1.44 — a tela do produto aparecia achatada no slide. */
-.atlas-fig{flex:0 0 auto;height:100%;aspect-ratio:1440/1000;position:relative;
-  border:1px solid var(--linha);border-radius:12px;overflow:hidden;background:var(--papel-2);
-  box-shadow:0 18px 44px rgba(10,10,10,.10)}
-.atlas-fig img{width:100%;height:100%;object-fit:fill;display:block}
-.marca-alvo{position:absolute;border:3px solid var(--laranja);border-radius:8px;
-  box-shadow:0 0 0 3px rgba(255,144,0,.24);pointer-events:none}
-/* O número fica DENTRO do alvo, não a cavaleiro do canto: em alvo colado na borda da
-   figura ele saía da página (a figura tem overflow:hidden e o cortava pela metade). */
-.marca-n{position:absolute;width:38px;height:38px;border-radius:50%;background:var(--laranja);color:#fff;
-  font-size:21px;font-weight:900;display:flex;align-items:center;justify-content:center;
-  box-shadow:0 4px 12px rgba(10,10,10,.28);border:2px solid #fff}
-.atlas-lista{flex:1;display:flex;flex-direction:column;gap:20px;justify-content:center;min-width:0}
-.atlas-item{display:flex;gap:17px;align-items:flex-start}
-.atlas-bola{width:36px;height:36px;border-radius:50%;background:var(--laranja);color:#fff;flex-shrink:0;
-  font-size:20px;font-weight:900;display:flex;align-items:center;justify-content:center}
-.atlas-txt h4{font-size:25px;font-weight:900;letter-spacing:-.015em;line-height:1.15}
-.atlas-txt p{margin-top:7px;font-size:19px;color:var(--tinta-2);line-height:1.38}
-.atlas-txt .cam{margin-top:9px;font-family:var(--mono);font-size:15px;color:var(--tinta-3)}
+.tl{position:relative;width:100%}
+.tl-eixo{position:absolute;left:0;right:0;top:130px;height:3px;background:var(--linha)}
+.tl-itens{display:flex;justify-content:space-between;height:100%;align-items:stretch}
+.tl-item{flex:1;padding-right:26px;position:relative;display:flex;flex-direction:column}
+.tl-ponto{position:absolute;top:122px;left:0;width:18px;height:18px;border-radius:50%;
+  background:var(--laranja);border:4px solid #fff;box-shadow:0 0 0 2px var(--laranja)}
+.tl-item.forte .tl-ponto{background:var(--tinta);box-shadow:0 0 0 2px var(--tinta)}
+.tl-data{font-family:var(--mono);font-size:17px;color:var(--tinta-3)}
+.tl-era{margin-top:7px;font-size:15px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--laranja-d);min-height:40px;line-height:1.3}
+/* quantos commits separam este marco do anterior: seis pontos igualmente espaçados
+   sugerem seis saltos iguais, e não são */
+.tl-salto{margin-top:2px;font-family:var(--mono);font-size:16px;font-weight:700;color:var(--laranja-d)}
+.tl-rot{margin-top:54px;font-size:25px;font-weight:800;line-height:1.22;letter-spacing:-.018em;min-height:96px}
+.tl-desc{margin-top:12px;font-size:19px;color:var(--tinta-2);line-height:1.4}
+/* Ancorado no rodapé da coluna: as descrições têm alturas diferentes, e com o hash solto
+   as seis colunas terminavam em seis alturas distintas — lê como desalinho, não como
+   respiro. Preso embaixo, vira uma linha de base comum. */
+.tl-hash{margin-top:auto;padding-top:18px;font-family:var(--mono);font-size:15px;color:var(--tinta-3)}
+/* o mesmo salto em barra: número diz quanto, barra diz o quanto é grande perto dos outros */
+.tl-peso{margin-top:9px;height:7px;border-radius:4px;background:var(--papel-2);overflow:hidden}
+.tl-peso span{display:block;height:100%;border-radius:4px;background:var(--laranja)}
 
 /* ── lista editorial ── */
-/* height:auto e não 100%: dentro do .s-corpo (que tem altura fixa) o 100% somava com o
-   título acima e empurrava o último item 5px pra fora da página. */
-.lista{display:flex;flex-direction:column;gap:22px;justify-content:center}
-.lista-item{display:flex;gap:26px;align-items:flex-start;padding-bottom:24px;border-bottom:1px solid var(--linha)}
-.lista-item:last-child{border-bottom:none}
-.lista-n{font-family:var(--mono);font-size:20px;color:var(--laranja-d);font-weight:700;min-width:52px;padding-top:5px}
-.lista-txt h4{font-size:29px;font-weight:900;letter-spacing:-.018em}
-.lista-txt p{margin-top:8px;font-size:21px;color:var(--tinta-2);line-height:1.4;max-width:1300px}
+.lista{display:flex;flex-direction:column;gap:20px;justify-content:center}
+.li{display:flex;gap:24px;align-items:flex-start;padding-bottom:20px;border-bottom:1px solid var(--linha)}
+.li:last-child{border-bottom:none;padding-bottom:0}
+.li .n{font-family:var(--mono);font-size:19px;color:var(--laranja-d);font-weight:700;min-width:48px;padding-top:5px}
+.li h4{font-size:28px;font-weight:900;letter-spacing:-.018em}
+.li p{margin-top:7px;font-size:20px;color:var(--tinta-2);line-height:1.4;max-width:1340px}
 
-/* ── aviso de evidência ── */
-.evid{position:absolute;right:186px;bottom:46px;z-index:5;display:flex;align-items:center;gap:9px;
-  font-family:var(--mono);font-size:14px;color:var(--tinta-3)}
-.evid .pt{width:8px;height:8px;border-radius:50%;background:var(--verde)}
-.evid.medio .pt{background:var(--amarelo)}
+/* ── marcadores de fato (bullets curtos) ── */
+.fatos{list-style:none;margin-top:12px}
+.fatos li{display:flex;gap:12px;margin-bottom:12px;font-size:19px;line-height:1.38;color:var(--tinta-2)}
+.fatos li::before{content:'—';color:var(--laranja);font-weight:900;flex-shrink:0}
 
-/* mockup de celular só onde a responsividade é o assunto */
-.fone{border:11px solid #1A1A1A;border-radius:38px;overflow:hidden;background:#1A1A1A;box-shadow:0 22px 50px rgba(10,10,10,.24)}
-.fone img{display:block;width:100%;height:100%;object-fit:cover;object-position:top center}
+@page{size:1920px 1080px;margin:0}
+@media print{body{background:#fff}.slide+.slide{margin-top:0}}
+
+/* ═══ padrões acrescentados na V2 ═══════════════════════════════════════════ */
+
+/* ── três momentos: origem → expansão → atual, no mesmo enquadramento ── */
+/* center, não stretch: três capturas 1440×1000 lado a lado em 1728px dão colunas de
+   ~560px, e a altura resultante nunca preenche o corpo. Centralizado, a sobra vira
+   respiro simétrico em vez de um bloco vazio embaixo. */
+.trio{display:flex;gap:26px;height:100%;align-items:center}
+.trio .tela{flex:1}
+.trio .rot{font-size:20px}
+.trio .nota{font-size:16px}
+.trio .legenda .meta{font-size:14px}   /* 14px é o piso de leitura numa projeção */
+/* a seta entre os momentos dá a leitura de sequência sem precisar de texto */
+.seta{align-self:center;flex:0 0 auto;font-size:30px;color:var(--linha);font-weight:900;padding-bottom:60px}
+
+/* ── atlas: a captura com os contornos medidos + a lista numerada ── */
+.atlas{display:flex;gap:36px;height:100%;align-items:center}
+.atlas-fig{flex:1.55;position:relative;border:1px solid var(--linha);border-radius:12px;overflow:hidden;
+  background:var(--papel-2);box-shadow:0 16px 40px rgba(10,10,10,.10);aspect-ratio:1440/1000}
+/* fill, não contain: o contorno é posicionado em % da imagem, então qualquer letterbox
+   deslocaria os destaques em relação ao que eles apontam. */
+.atlas-fig img{width:100%;height:100%;object-fit:fill;display:block}
+/* `.contorno`, não `.marca`: a capa já usava `.marca` para o selo "Delivery Much · uso
+   interno", e `.escuro .marca` não declara position nem border — então o absolute e a
+   borda daqui vazavam pra lá e o selo aparecia como uma caixa laranja no meio do título. */
+.contorno{position:absolute;border:3px solid var(--laranja);border-radius:7px;
+  box-shadow:0 0 0 3px rgba(255,144,0,.26)}
+.contorno-n{position:absolute;width:34px;height:34px;border-radius:50%;background:var(--laranja);color:#fff;
+  font-size:19px;font-weight:900;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 12px rgba(10,10,10,.3)}
+.atlas-lista{flex:1;display:flex;flex-direction:column;gap:22px;justify-content:center;min-width:0}
+.atlas-item{display:flex;gap:16px;align-items:flex-start}
+.atlas-bola{width:34px;height:34px;border-radius:50%;background:var(--laranja);color:#fff;flex-shrink:0;
+  font-size:19px;font-weight:900;display:flex;align-items:center;justify-content:center}
+.atlas-item h4{font-size:24px;font-weight:900;letter-spacing:-.015em;line-height:1.18}
+.atlas-item p{margin-top:6px;font-size:18px;color:var(--tinta-2);line-height:1.38}
+.atlas-item .onde{margin-top:7px;font-family:var(--mono);font-size:14px;color:var(--tinta-3)}
+.fluxo-tag{display:inline-flex;align-items:center;height:30px;padding:0 14px;border-radius:999px;
+  background:var(--tinta);color:#fff;font-size:14px;font-weight:900;letter-spacing:.1em;text-transform:uppercase}
+
+/* ═══ padrões da V2.1 — evolução em detalhe ════════════════════════════════ */
+
+/* ── tira: TODAS as versões de uma tela, em sequência cronológica ── */
+.tira{display:grid;gap:22px 16px;align-content:center;height:100%}
+.tira-item{display:flex;flex-direction:column;min-width:0}
+.tira-img{width:100%;aspect-ratio:1440/1000;border:1px solid var(--linha);border-radius:8px;overflow:hidden;
+  background:var(--papel-2);box-shadow:0 8px 20px rgba(10,10,10,.09)}
+.tira-img img{width:100%;height:100%;object-fit:cover;object-position:top center;display:block}
+/* o marco que o slide quer destacar ganha borda de acento, não tamanho diferente —
+   mudar a escala de um quadro estraga a comparação que a tira existe para fazer */
+.tira-item.chave .tira-img{border:2px solid var(--laranja);box-shadow:0 10px 26px rgba(255,144,0,.26)}
+.tira-cap{margin-top:9px;font-family:var(--mono);font-size:14px;color:var(--tinta-3);line-height:1.4}
+.tira-cap b{display:block;font-family:var(--fonte);font-size:15px;font-weight:800;color:var(--tinta);
+  letter-spacing:-.01em;margin-bottom:2px}
+.tira-item.chave .tira-cap b{color:var(--laranja-d)}
+.tira-mud{margin-top:6px;font-size:14px;color:var(--tinta-2);line-height:1.34}
+
+/* ── detalhe: a mesma faixa da tela, ampliada, em várias versões ──
+   O recorte é feito com background-position/size sobre a captura inteira: nada é cortado
+   em disco, e mudar a região é mudar dois números. */
+.det{display:flex;flex-direction:column;gap:18px;height:100%;justify-content:center}
+.det-linha{display:flex;gap:18px;align-items:stretch}
+.det-quadro{flex:1;display:flex;flex-direction:column;min-width:0}
+.det-crop{width:100%;border:1px solid var(--linha);border-radius:9px;background-repeat:no-repeat;
+  background-color:var(--papel-2);box-shadow:0 8px 20px rgba(10,10,10,.09)}
+.det-cap{margin-top:8px;display:flex;align-items:baseline;gap:10px}
+.det-cap .q{font-size:17px;font-weight:800;letter-spacing:-.01em}
+.det-cap .d{font-family:var(--mono);font-size:14px;color:var(--tinta-3);margin-left:auto}
+.det-obs{margin-top:5px;font-size:15px;color:var(--tinta-2);line-height:1.36}
+
+/* ── ganhos: o que mudou, em colunas ── */
+.ganhos{display:grid;grid-template-columns:repeat(2,1fr);gap:18px 40px;align-content:center;height:100%}
+.ganho{display:flex;gap:16px;align-items:flex-start}
+.ganho .ic{width:30px;height:30px;border-radius:8px;background:var(--laranja);color:#fff;flex-shrink:0;
+  font-size:15px;font-weight:900;display:flex;align-items:center;justify-content:center}
+.ganho h4{font-size:21px;font-weight:900;letter-spacing:-.015em;line-height:1.2}
+.ganho p{margin-top:5px;font-size:17px;color:var(--tinta-2);line-height:1.38}
+.ganho .qd{margin-top:5px;font-family:var(--mono);font-size:14px;color:var(--tinta-3)}
+
+/* ═══ padrão da V2.2 — três versões com as diferenças apontadas ════════════ */
+
+/* Três prints por slide, nunca mais: acima disso o quadro fica pequeno demais para
+   sustentar a afirmação da legenda. */
+.t3{display:flex;gap:22px;height:100%;align-items:flex-start}
+.t3-col{flex:1;display:flex;flex-direction:column;min-width:0}
+/* max-height + width:auto é o que segura a captura de celular: 390×844 numa coluna de
+   561px daria 1215px de altura e o quadro saía do slide. Com o teto, a largura encolhe
+   junto e o print de telefone fica em pé, no tamanho certo. */
+.t3-img{width:auto;max-width:100%;max-height:560px;aspect-ratio:var(--ar,1440/1000);margin:0 auto;
+  border:1px solid var(--linha);border-radius:10px;
+  overflow:hidden;background:var(--papel-2);box-shadow:0 12px 30px rgba(10,10,10,.10);position:relative}
+.t3-img img{width:100%;height:100%;object-fit:cover;object-position:top center;display:block}
+.t3-col.atual .t3-img{border:2px solid var(--laranja);box-shadow:0 12px 32px rgba(255,144,0,.24)}
+/* Tela que ainda não existia naquele commit. Some da grade e o slide vira "print que não
+   carregou"; aqui a coluna fica, com a moldura tracejada e o motivo escrito. A ausência é
+   parte da história — no primeiro commit o Luma tinha três telas e nenhuma porta. */
+.t3-nada{border:2px dashed var(--linha);box-shadow:none;
+  background:repeating-linear-gradient(-45deg,#FAFAF8 0 8px,#F2F0EC 8px 16px);
+  display:flex;align-items:center;justify-content:center;text-align:center;padding:0 34px}
+.t3-nada b{display:block;font-size:24px;font-weight:900;letter-spacing:-.02em;color:var(--tinta-2)}
+.t3-nada span{display:block;margin-top:12px;font-size:18px;line-height:1.4;color:var(--tinta-3)}
+.t3-col.vazia .t3-cab .r{color:var(--tinta-3)}
+.t3-cab{margin-top:12px;display:flex;align-items:baseline;gap:10px}
+.t3-cab .r{font-size:20px;font-weight:900;letter-spacing:-.015em}
+.t3-cab .d{font-family:var(--mono);font-size:14px;color:var(--tinta-3);margin-left:auto}
+.t3-col.atual .t3-cab .r{color:var(--laranja-d)}
+
+/* as diferenças: numeradas, curtas, uma por linha — o que se lê enquanto se olha o print */
+.difs{margin-top:11px;list-style:none;display:flex;flex-direction:column;gap:7px}
+.difs li{display:flex;gap:10px;font-size:16px;line-height:1.36;color:var(--tinta-2)}
+.difs li .n{width:22px;height:22px;border-radius:50%;background:var(--linha);color:var(--tinta-2);
+  font-size:14px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  transform:translateY(2px)}
+.t3-col.atual .difs li .n{background:var(--laranja);color:#fff}
+.difs li b{color:var(--tinta);font-weight:800}
+/* ausência também é diferença: risca o que aquela versão ainda não tinha */
+.difs li.nao{color:var(--tinta-3)}
+.difs li.nao .n{background:transparent;border:1.5px dashed var(--tinta-3);color:var(--tinta-3)}
+
+/* ═══ mega linha do tempo — todos os commits ══════════════════════════════════ */
+
+/* 26 dias × 6 faixas. A primeira versão dava a cada dia uma largura PROPORCIONAL ao
+   volume: com 57 commits num dia e 1 em outro, a coluna magra virava um risco sem
+   rótulo legível e os pontos de um dia cheio quebravam em três fileiras. Agora todo dia
+   ocupa a mesma largura, o volume vira ALTURA de barra (lê-se do fundo da sala) e a
+   distribuição por área vira intensidade + número na célula. */
+.mega{display:grid;gap:4px}
+.mg-rot{display:flex;align-items:baseline;font-size:16px;font-weight:800;color:var(--tinta-2);
+  letter-spacing:-.02em;padding-right:12px}
+.mg-rot .qt{font-family:var(--mono);font-size:15px;font-weight:400;color:var(--tinta-3);margin-left:auto}
+.mg-rot-b{align-items:flex-end;padding-bottom:4px;font-size:14px;font-weight:700;color:var(--tinta-3);
+  line-height:1.25;text-align:right;display:block}
+
+/* barra do dia: laranja cheio = commit que mexe em tela, hachura = commit sem mudança
+   visual. Empilhadas, a barra inteira é o total do dia. */
+.mg-bar{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:5px}
+.mg-bar .n{font-family:var(--mono);font-size:14px;color:var(--tinta-3);line-height:1}
+.mg-bar.alto .n{color:var(--laranja-d);font-weight:800;font-size:17px}
+.mg-bar .col{width:66%;min-width:20px;display:flex;flex-direction:column;justify-content:flex-end;
+  border-radius:4px 4px 0 0;overflow:hidden}
+.mg-bar .cd{background:repeating-linear-gradient(-45deg,#DEDBD6 0 3px,#F2F0EC 3px 6px)}
+.mg-bar .ct{background:var(--laranja)}
+.mg-bar.alto .ct{background:var(--laranja-d)}
+
+.mg-dia{display:flex;flex-direction:column;align-items:center;gap:3px;padding-top:7px;
+  border-top:2px solid var(--linha)}
+.mg-dia.alto{border-top-color:var(--laranja-d)}
+.mg-dia .d{font-family:var(--mono);font-size:18px;font-weight:700;color:var(--tinta);line-height:1}
+.mg-dia .m{font-size:14px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--laranja-d);line-height:1}
+.mg-dia .mk{width:9px;height:9px;border-radius:50%;background:var(--tinta);box-shadow:0 0 0 2.5px var(--laranja)}
+
+/* célula: o fundo dá a forma (dá pra varrer a grade e ver onde o foco estava), o número
+   dá a precisão — a soma das células confere com o total de commits. */
+.mg-cel{display:flex;align-items:center;justify-content:center;border-radius:5px;
+  font-family:var(--mono);font-size:18px;font-weight:700;color:var(--tinta);background:#FAFAF8}
+.mg-cel.v1{background:#FFF0D8}
+.mg-cel.v2{background:#FFDCA8}
+.mg-cel.v3{background:#FFC069}
+.mg-cel.v4{background:#FFA02B}
+/* texto sempre escuro: branco sobre #F85400 dá 3,5:1 e não passa no AA */
+.mg-cel.v5{background:#F97316}
+
+/* o vão: dias sem nenhum commit. Omiti-los fazia sumir a pausa de uma semana entre
+   29/06 e 07/07 — silêncio de calendário também é informação. */
+.mg-vao{background:repeating-linear-gradient(180deg,var(--linha) 0 5px,transparent 5px 11px);
+  background-position:center;background-size:2px 100%;background-repeat:repeat-y}
+.mg-vao-r{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:7px}
+.mg-vao-r .v{font-family:var(--mono);font-size:15px;color:var(--tinta-3);font-weight:700;line-height:1}
+
+.mg-leg{display:flex;gap:30px;margin-top:14px;font-size:15px;color:var(--tinta-2);align-items:center}
+.mg-leg span{display:flex;align-items:center;gap:8px}
+.mg-leg i{width:20px;height:15px;border-radius:4px;display:block;font-style:normal}
+.mg-leg .esc{display:flex;gap:3px;align-items:center}
+.mg-leg .esc i{width:26px}
+
+/* ── lista completa dos commits ── */
+/* Grid de duas colunas preenchia na HORIZONTAL: o segundo commit do dia caía à direita
+   do primeiro, e a leitura cronológica quebrava. Agora cada dia é um bloco com o
+   cabeçalho em largura cheia e os commits fluindo em coluna, de cima para baixo. */
+.commits{height:100%}
+.cm-grupo{margin-bottom:16px;break-inside:avoid}
+.cm-lista{column-count:2;column-gap:38px}
+.cm-dia{display:flex;align-items:baseline;gap:12px;margin:0 0 8px;
+  padding-bottom:5px;border-bottom:2px solid var(--laranja)}
+.cm-dia b{font-size:20px;font-weight:900;letter-spacing:-.02em}
+.cm-dia span{font-size:15px;color:var(--tinta-3)}
+.cm{display:flex;gap:9px;align-items:baseline;padding:2px 0;font-size:15px;line-height:1.32;break-inside:avoid}
+.cm .hs{font-family:var(--mono);font-size:14px;color:var(--laranja-d);flex-shrink:0;width:60px}
+.cm .hr{font-family:var(--mono);font-size:14px;color:var(--tinta-3);flex-shrink:0;width:40px}
+.cm .tx{color:var(--tinta-2);white-space:nowrap}   /* o corte é feito na origem, com … */
+.cm.marco .tx{color:var(--tinta);font-weight:700}
+.cm.marco .hs{font-weight:800}
