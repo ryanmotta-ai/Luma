@@ -252,8 +252,8 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
   // `fitText` = layout vivo: mede o texto como ele será DESENHADO (quebra + encolhimento),
   // então o bloco de baixo desce o quanto precisa. Desligado, mede como antes.
   if(typeof gApplyRelativeAnchors==='function'){
-    const _pm = (typeof fState!=='undefined' && fState.material) ? fState.material.publishMeta : null;
-    const _vivo = (typeof gLayoutVivoAtivo==='function') ? gLayoutVivoAtivo(_pm) : false;
+    // Ligado em todo template; só a flag da rede e o botão Auto-layout da prévia desligam.
+    const _vivo = (typeof gLayoutVivoAtivo==='function') ? gLayoutVivoAtivo() : false;
     effective = gApplyRelativeAnchors(effective, dados, _defaults, {fitText:_vivo, canvas:{w:W,h:H}});
   }
   // NÃO rodar o auto-layout (gResolveIntelligentLayout) aqui: este render é o mesmo do

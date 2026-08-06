@@ -39,7 +39,6 @@ function dPublishCollectDraft(){
     folderId:document.getElementById('pub-folder')?.value||'',
     validade:document.getElementById('pub-validade')?.value||'',
     instrucoes:document.getElementById('pub-instrucoes')?.value||'',
-    layoutVivo:!!document.getElementById('pub-layout-vivo')?.checked,
     permissoes:JSON.parse(JSON.stringify(dPubPermissoes)),
     selected:[...dPubSelectedABs],names,step:dPubWizardStep,savedAt:Date.now()
   };
@@ -480,18 +479,6 @@ function dPublishRender(){
 
   // Aba Instruções
   document.getElementById('pub-instrucoes').value=(_meta&&_meta.instrucoes)||'';
-  // Layout vivo (por template). Se a rede desligou a chave no Controle do produto, o toggle
-  // continua editável mas a ajuda diz a verdade — prometer o que não vai acontecer é pior.
-  const _lv=document.getElementById('pub-layout-vivo');
-  if(_lv){
-    _lv.checked=!!(_meta&&_meta.layoutVivo);
-    const _ajuda=document.getElementById('pub-layout-vivo-help');
-    const _redeOn=(typeof gFeatureCan!=='function')||gFeatureCan('franqueado.layout-vivo','render')!==false;
-    if(_ajuda) _ajuda.textContent=_redeOn
-      ? 'Vale para a prévia ao vivo e para a arte final. Simule um texto longo no Estúdio para ver o efeito antes de publicar.'
-      : '⚠ O recurso está desligado para a rede inteira no Controle do produto — mesmo ligando aqui, a arte sai na geometria publicada.';
-  }
-
   // Estado
   const stateEl=document.getElementById('pub-current-state');
   const anyPublished=!!(_meta&&_meta.publicado);
@@ -900,7 +887,6 @@ function dPublishConfirm(){
     tmpl.publishMeta.publicadoEm=Date.now();
     tmpl.publishMeta.validade=validade;
     tmpl.publishMeta.instrucoes=instrucoes;
-    tmpl.publishMeta.layoutVivo=!!(document.getElementById('pub-layout-vivo')||{}).checked;
     tmpl.publishMeta.permissoes=JSON.parse(JSON.stringify(dPubPermissoes));
     // Vincula a arte aberta ao template publicado: republicar atualiza ESTE template.
     if(typeof dActiveTmplId!=='undefined') dActiveTmplId=tmpl.id;

@@ -3276,20 +3276,9 @@ input:focus:-webkit-autofill {
 
       <!-- ABA 4: Instruções -->
       <div class="pub-panel" id="pub-panel-instrucoes">
-        <!-- Layout vivo: o interruptor POR TEMPLATE. Fica desligado por padrão porque ligar
-             reacomoda uma arte já publicada — decisão do designer desta arte, não da rede.
-             O outro interruptor (a rede inteira) é a flag no Controle do produto. -->
-        <div class="pub-field">
-          <label class="pub-switch" for="pub-layout-vivo">
-            <input type="checkbox" id="pub-layout-vivo">
-            <span class="pub-switch-control" aria-hidden="true"></span>
-            <span class="pub-switch-copy">
-              <strong>Adaptar o layout ao texto do franqueado</strong>
-              <small>Quando o texto não couber, ele quebra linha e os blocos ancorados abaixo descem junto, mantendo o respiro do seu desenho. Desligado, a arte sai exatamente na geometria publicada.</small>
-            </span>
-          </label>
-          <div class="pub-help" id="pub-layout-vivo-help"></div>
-        </div>
+        <!-- Não há interruptor de layout vivo aqui: todo template nasce com ele ligado e o
+             designer não precisa decidir (ver gLayoutVivoAtivo em 00-config.js). A única chave
+             na mão de alguém é o botão Auto-layout na prévia ao vivo do franqueado. -->
         <div class="pub-field">
           <label>Instruções de uso para o franqueado</label>
           <textarea id="pub-instrucoes" class="pub-input pub-textarea" rows="6" placeholder="Ex: Use este template para promoções de fim de semana. Sempre mencione o preço de e por. Não usar emojis no produto."></textarea>

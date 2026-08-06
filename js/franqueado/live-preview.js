@@ -545,18 +545,17 @@ function fLpToggleAutoZoom(){
 }
 
 /* ── AUTO-LAYOUT: o mesmo gesto do Auto-zoom, para a acomodação da arte ──
-   O `gLayoutVivoOff` é a terceira chave em série do layout vivo (as outras duas são a flag da
-   rede e o `publishMeta` do template). Só DESLIGA: o botão nem aparece num template onde o
-   designer não ligou o Layout vivo, então não há como reacomodar arte que ninguém aprovou.
+   Este é o ÚNICO lugar do produto onde alguém liga/desliga o layout vivo. Todo template nasce
+   com ele ligado; a outra chave é a flag da rede no Controle do produto, que é da gestão.
    Vale para a prévia E para o PNG baixado — as duas passam pelo mesmo `fRenderTemplateLayers`,
-   e prévia que mente sobre o arquivo final é o defeito que este projeto mais evita. */
+   e prévia que mente sobre o arquivo final é o defeito que este projeto mais evita.
+   O botão só some se a gestão desligar a feature para a rede inteira. */
 const F_LP_AUTO_LAYOUT_KEY = 'luma-lp-auto-layout';
 try { gLayoutVivoOff = localStorage.getItem(F_LP_AUTO_LAYOUT_KEY) === '0'; } catch(e){}
 
 function _fLpSyncAutoLayoutButton(){
   const btn=document.getElementById('lp-auto-layout'); if(!btn) return;
-  const pm=(fState.material && fState.material.publishMeta) || null;
-  const tem=(typeof gLayoutVivoDisponivel==='function') && gLayoutVivoDisponivel(pm);
+  const tem=(typeof gLayoutVivoDisponivel==='function') && gLayoutVivoDisponivel();
   btn.hidden=!tem;
   if(!tem) return;
   const on=!gLayoutVivoOff;

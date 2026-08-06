@@ -827,10 +827,9 @@ async function dExportSVG(opts){
     return e;
   });
   if(typeof gApplyRelativeAnchors==='function'){
-    const _pmPv=(typeof dActiveTemplateMeta==='function')?dActiveTemplateMeta():null;
-    // `Disponivel`: o botão Auto-layout é chave de quem olha a prévia do franqueado; aqui o
-    // designer confere o que o TEMPLATE faz por padrão.
-    layers=gApplyRelativeAnchors(layers,dados,defaults,{fitText:(typeof gLayoutVivoDisponivel==='function')?gLayoutVivoDisponivel(_pmPv):false});
+    // Sem `fitText`: o layout vivo é do lado do franqueado (ver gLayoutVivoAtivo). Esta prévia
+    // é do designer e mostra a geometria desenhada.
+    layers=gApplyRelativeAnchors(layers,dados,defaults);
   }
   layers=layers.filter(l=>l.visible!==false);
   let defs='', body='', cid=0;

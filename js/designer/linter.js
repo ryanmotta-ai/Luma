@@ -29,14 +29,13 @@ function _dLinterEstresse() {
   const ab = (typeof dGetActiveAB === 'function') ? dGetActiveAB() : null;
   const base = DFMT_SIZES[dFmt] || DFMT_SIZES.story;
   const cv = { w: (ab && ab.w) || base.w, h: (ab && ab.h) || base.h };
-  const meta = (typeof dActiveTemplateMeta === 'function') ? dActiveTemplateMeta() : null;
-  // `Disponivel`: o checklist audita o TEMPLATE. A chave do botão Auto-layout é de quem olha a
-  // prévia do franqueado e não pode mudar o veredito da auditoria.
-  const vivo = (typeof gLayoutVivoDisponivel === 'function') ? gLayoutVivoDisponivel(meta) : false;
   const defaults = (typeof gVarDefaults === 'function') ? gVarDefaults() : null;
 
+  // Audita a arte DESENHADA, sem a acomodação do layout vivo. O franqueado pode desligar o
+  // Auto-layout na prévia, então esta é a pior situação REAL — e é a que o designer tem poder
+  // de consertar, mexendo na caixa ou no limite do campo.
   const montar = (dados) => {
-    const r = gApplyRelativeAnchors(dLayers.map(l => ({...l})), dados, defaults, { fitText: vivo, canvas: cv });
+    const r = gApplyRelativeAnchors(dLayers.map(l => ({...l})), dados, defaults);
     const cx = document.createElement('canvas').getContext('2d');
     const mapa = {};
     r.forEach(l => {
@@ -98,7 +97,7 @@ function _dLinterEstresse() {
       out.push({
         type: 'error',
         title: 'O pior caso não cabe',
-        desc: `${comLimite(culpado.l)}, “${nome(culpado.l)}” invade “${nome(vitima.l)}”. É um texto que o franqueado pode digitar hoje — a arte sairia assim. Reduza o limite do campo, aumente a caixa, ou ligue o Layout vivo no publicar para a arte se acomodar sozinha.`,
+        desc: `${comLimite(culpado.l)}, “${nome(culpado.l)}” invade “${nome(vitima.l)}”. É um texto que o franqueado pode digitar hoje. O Auto-layout da prévia acomoda a arte, mas ele pode desligar — reduza o limite do campo ou aumente a caixa para a peça ficar de pé nos dois casos.`,
         layerId: culpado.l.id,
         layerName: culpado.l.name
       });
