@@ -508,6 +508,7 @@ function _fLpGuessSegment() {
 const F_LP_SIZES = {story:[1080,1920], feed:[1080,1350], wide:[1200,628], post:[1200,628]};
 
 let _lpRendering = false;
+let _lpLastErr = null; // última causa do estado de erro — vira texto na tela (diagnóstico por print)
 let _lpPendingRender = false;
 let _lpScale = 1;        // escala real prévia ÷ arte final (mostrada na toolbar)
 // (o antigo _lpGuides virou _lpView — ver fLpSetView, mais abaixo)
@@ -583,6 +584,11 @@ async function fUpdateLivePreview(opts){
   // não existe caminho de preview "só com bg" — o antigo caía num fRenderCanvasHelper de
   // assinatura incompatível que nem desenhava no lp-canvas.)
   if(!fState.material || !fState.material.layers || !fState.material.layers.length){
+    // Diagnóstico na tela: os DOIS caminhos deste vazio (sem camadas vs exceção) caíam na
+    // mesma mensagem muda — impossível diagnosticar por print. Nomeia a causa exata.
+    if(fState.material) _lpLastErr = fState.material._needsLayersFetch
+      ? 'conteúdo do material não baixou do servidor'
+      : 'material sem camadas no servidor';
     fLpShowEmpty(canvas);
     fLpUpdateMeta(false);
     try{ _fLpPaintPip(); }catch(e){} // sem material → a miniatura volta a ser o ícone
@@ -666,6 +672,7 @@ async function fUpdateLivePreview(opts){
     try{ _fLpPaintPip(); }catch(e){} // miniatura viva no celular acompanha cada resposta
   } catch(e){
     console.warn('[lp] erro ao renderizar preview:', e);
+    _lpLastErr = 'erro no render: ' + ((e && e.message) || e);
     fLpShowEmpty(canvas);
     fLpUpdateMeta(true);
   } finally {
@@ -985,9 +992,9 @@ function fLpShowEmpty(canvas){
   const s = document.getElementById('lp-empty-sub');
   if(t && s){
     if(fState.material){
-      // Render falhou (catch) — honestidade sem alarme
+      // Render falhou (catch) — honestidade sem alarme, COM o motivo (diagnóstico por print)
       t.textContent = 'Não deu pra montar a prévia';
-      s.textContent = 'A arte final não é afetada — continue respondendo normalmente.';
+      s.textContent = (_lpLastErr ? '('+_lpLastErr+') ' : '') + 'A arte final não é afetada — continue respondendo normalmente.';
     } else if(fState.materialView && fState.camp){
       t.textContent = 'Quase lá';
       s.textContent = 'Escolha um material da campanha e a prévia monta aqui em tempo real.';

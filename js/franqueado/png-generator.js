@@ -263,6 +263,18 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
   // geometria — assim prévia e PNG usam as mesmas coords, sem surpresa e sem custo aqui.
   // Renderiza só layers visíveis (geometria já está no formato alvo → escala 1:1)
   const visible = effective.filter(l => l.visible !== false);
+  // PRÉ-CARGA PARALELA: o loop abaixo espera imagem por imagem (await em série) — com os
+  // rasters de PSD por URL (pós-Storage), o 1º render custava a SOMA dos downloads.
+  // Dispara tudo junto; o loop acha no _fImgCache e o tempo vira o da imagem mais lenta.
+  try{
+    const _urls=[];
+    for(const l of visible){
+      if(typeof l.imgUrl==='string' && l.imgUrl) _urls.push(l.imgUrl);
+      if(typeof l.mask==='string' && l.mask) _urls.push(l.mask);
+      if(l.imgVar && dados && typeof dados[l.imgVar]==='string' && dados[l.imgVar]) _urls.push(dados[l.imgVar]);
+    }
+    await Promise.all(_urls.map(u=>fLoadImageDataUrl(u)));
+  }catch(e){}
   for(const l of visible){
     const _bm=l.blendMode&&l.blendMode!=='normal'?l.blendMode:'normal';
     const _native=(typeof dBlendToComposite==='function')?dBlendToComposite(_bm):null;
@@ -629,7 +641,14 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
       // (que não encolhe). Não afeta o PNG final/lote (sink ausente). Aditivo e barato.
       if(typeof window!=='undefined' && window._fOverflowSink && l.id){
         const _vOver = totalTextH > h + Math.max(2, fontSize*0.18);
-        const _hOver = (l.textBox!=='box') && (maxLineW > w + Math.max(2, w*0.02));
+        // maxLineW não existia (ReferenceError) — derrubava a prévia INTEIRA em qualquer
+        // template com point-text. Mede aqui: ctx.font já está no tamanho final (pós-fit).
+        let _hOver = false;
+        if(l.textBox!=='box'){
+          let _mw = 0;
+          for(const _li of lines){ const _w = ctx.measureText(_li).width; if(_w > _mw) _mw = _w; }
+          _hOver = _mw > w + Math.max(2, w*0.02);
+        }
         if(_vOver || _hOver) window._fOverflowSink.add(l.id);
       }
 
@@ -887,6 +906,10 @@ function fLoadImageDataUrl(dataUrl){
     let done=false;
     const fim=(v,motivo)=>{ if(done)return; done=true;
       if(motivo) console.warn('[render] imagem desistiu ('+motivo+'):', String(dataUrl).slice(0,120));
+      // CACHE NEGATIVO: sem isto, cada re-render (a prévia roda a cada tecla!) re-pagava os
+      // 20s POR imagem morta — o "travada e demorada". Falha fica cacheada na sessão;
+      // ponytail: fClearImgCache (refazer/trocar material) já é o caminho de retry.
+      if(v===null) _fImgCache.set(dataUrl, null);
       resolve(v); };
     setTimeout(()=>fim(null,'timeout 20s'), 20000);
     // URLs http(s) (bulk CSV): tenta CORS pra não "tingir" o canvas ao exportar

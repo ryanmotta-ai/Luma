@@ -534,7 +534,11 @@ async function fEnsureMaterialLayers(t){
     _fLayersFetch[t.remoteId]=(async()=>{
       try{
         const {data}=await sb.schema('luma').from('templates').select('layers').eq('id',t.remoteId).single();
-        if(data){ t.layers=Array.isArray(data.layers)?data.layers:[]; t._needsLayersFetch=false; }
+        // Só marca como carregado com layers REAIS. Linha com layers null/[] (publish
+        // parcial) desligava a flag e o material virava um "carregado vazio": prévia
+        // presa em "Não deu pra montar" pra sempre. Mantendo a flag, o fSelectMaterial
+        // dá o toast de erro honesto e o próximo clique re-tenta.
+        if(data && Array.isArray(data.layers) && data.layers.length){ t.layers=data.layers; t._needsLayersFetch=false; }
       }catch(e){ console.warn('[material] fetch de layers falhou:', e); }
       finally{ delete _fLayersFetch[t.remoteId]; }
     })();
