@@ -288,7 +288,9 @@ function dRunLinter() {
     }
     
     // 5. OTIMIZAÇÃO: Imagem Gigante
-    if ((l.type === 'image' || l.type === 'frame') && l.url) {
+    // ⚠ Esta regra nunca disparou: testava `l.url`, mas camadas image/frame guardam a fonte em
+    // `l.imgUrl` (`layers.js:382,390,408`). Regra morta desde sempre, achada na revisão pró-1.0.
+    if ((l.type === 'image' || l.type === 'frame') && l.imgUrl) {
       const imgEl = document.querySelector(`[data-id="${l.id}"] img`);
       if (imgEl && imgEl.naturalWidth) {
         const originalW = imgEl.naturalWidth;

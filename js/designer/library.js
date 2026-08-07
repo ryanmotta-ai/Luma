@@ -141,7 +141,16 @@ function dLibRender(filter) {
 function dLibFilter(q) { dLibRender(q); }
 
 function dLibUpload(inp) {
-  const files = Array.from(inp.files);
+  let files = Array.from(inp.files);
+  if (!files.length) return;
+  // Mesmo teto do upload de moldura (`canvas.js`): asset da biblioteca vira base64 e é
+  // SINCRONIZADO com o Supabase logo abaixo — sem guarda, um arquivo grande ia inteiro.
+  const _teto = (typeof _DIMG_MAX_MB === 'number') ? _DIMG_MAX_MB : 8;
+  const grandes = files.filter(f => f.size > _teto*1024*1024);
+  if (grandes.length) {
+    gToast('⚠ ' + grandes.length + ' arquivo(s) acima de ' + _teto + 'MB foram ignorados. Comprima antes de subir.', 'error');
+  }
+  files = files.filter(f => f.size <= _teto*1024*1024);
   if (!files.length) return;
   let done = 0;
   files.forEach(file => {

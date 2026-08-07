@@ -6,6 +6,11 @@
  * Depende de: designer/templates.js, designer/layers.js
  */
 
+/* Teto de upload de imagem no Estúdio (moldura e biblioteca). Fonte tem 3MB e PSD tem 500MB;
+   imagem não tinha nenhum — e ela é o pior caso, porque vira base64 DENTRO do template e vai
+   inteira para o sync. 8MB cobre foto de celular com folga. */
+const _DIMG_MAX_MB = 8;
+
 function dSetFormat(fmt,btn){
   const prevFmt=dFmt;
   // Captura o tamanho ATUAL (antes de trocar fmt/dCustomFmt) — é a origem do smart-resize.
@@ -1140,7 +1145,22 @@ function dRenderCanvas(){
         textNode.textContent=rawSim;
       }
       else if(l.runs && l.runs.length && !l.isVar){ // texto multi-estilo (rich text)
-        textNode.innerHTML=l.runs.map(r=>`<span style="color:${r.color||'inherit'};font-size:${r.fontSize||_renderFs}px;font-family:${dTextFontParts(r.font).family};font-weight:${dTextFontParts(r.font).weight};${r.letterSpacing?'letter-spacing:'+r.letterSpacing+'px;':''}">${gEsc(r.text||'').replace(/\n/g,'<br>')}</span>`).join(''); }
+        /* ⚠ XSS COMPROVADO E FECHADO (varredura pró-1.0). O TEXTO já era escapado, mas os
+           valores de ESTILO entravam crus dentro do atributo `style="…"`. `l.runs` vem do
+           import de PSD — arquivo de fora — e uma cor como `red" onmouseover="…` fechava o
+           atributo e pendurava um handler no elemento. Reproduzido no navegador: o
+           `onmouseover` aparecia nos atributos do span.
+           Sanitiza em vez de só escapar: número vira número, cor e família passam por
+           allowlist. Assim nem injeção de HTML nem de CSS (url(...) exfiltrando) passam. */
+        const _num=(v,fb)=>{ const n=Number(v); return isFinite(n)&&n>0 ? n : fb; };
+        const _cor=(v)=>{ const s=String(v==null?'':v).trim();
+          return /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|hsla?\([\d\s.,%]+\)|[a-z]+)$/i.test(s) ? s : 'inherit'; };
+        const _fam=(v)=>String(v==null?'':v).replace(/[^\w\s,'\-]/g,'') || 'inherit';
+        textNode.innerHTML=l.runs.map(r=>{
+          const fp=dTextFontParts(r.font);
+          const ls=_num(r.letterSpacing,0);
+          return `<span style="color:${_cor(r.color)};font-size:${_num(r.fontSize,_renderFs)}px;font-family:${_fam(fp.family)};font-weight:${_num(fp.weight,400)};${ls?'letter-spacing:'+ls+'px;':''}">${gEsc(r.text||'').replace(/\n/g,'<br>')}</span>`;
+        }).join(''); }
       else {
         let rawEdit = l.content || '';
         rawEdit = rawEdit.replace(gVarRegex(), (m, n) => {
@@ -1289,8 +1309,19 @@ function dRenderCanvas(){
         const inp=document.createElement('input');inp.type='file';inp.accept='image/*';
         inp.onchange=ev=>{
           const file=ev.target.files[0];if(!file)return;
+          // Teto de tamanho como fonte e PSD já fazem: base64 de uma foto de 12MP vira ~30MB
+          // no template e vai inteiro para o sync. O Estúdio era o único caminho sem guarda.
+          if(file.size > _DIMG_MAX_MB*1024*1024){
+            gToast('⚠ Imagem muito grande ('+Math.round(file.size/(1024*1024))+'MB) — o limite é '+_DIMG_MAX_MB+'MB. Comprima antes de subir.','error');
+            return;
+          }
           const r=new FileReader();
-          r.onload=re=>{lReal.imgUrl=re.result;dRenderCanvas();dMarkUnsaved();gToast('✓ Foto aplicada na moldura!');};
+          r.onload=re=>{
+            // dHistoryPush ANTES de mutar: o histórico guarda o estado anterior. Sem isto,
+            // trocar a foto da moldura não tinha Ctrl+Z (achado na revisão pró-1.0).
+            if(typeof dHistoryPush==='function') dHistoryPush();
+            lReal.imgUrl=re.result;dRenderCanvas();dMarkUnsaved();gToast('✓ Foto aplicada na moldura!');
+          };
           r.readAsDataURL(file);
         };
         inp.click();
@@ -1302,7 +1333,11 @@ function dRenderCanvas(){
         clrBtn.style.cssText='position:absolute;top:-10px;left:-10px;background:#C81818;border:2px solid #1A1A1A;color:#fff;font-size:10px;font-weight:700;width:22px;height:22px;border-radius:50%;cursor:pointer;z-index:10;display:flex;align-items:center;justify-content:center;';
         clrBtn.textContent='×';
         clrBtn.addEventListener('mousedown',e=>e.stopPropagation());
-        clrBtn.addEventListener('click',e=>{e.stopPropagation();lReal.imgUrl='';dRenderCanvas();dMarkUnsaved();});
+        clrBtn.addEventListener('click',e=>{
+          e.stopPropagation();
+          if(typeof dHistoryPush==='function') dHistoryPush();   // limpar foto também é desfazível
+          lReal.imgUrl='';dRenderCanvas();dMarkUnsaved();
+        });
         el.appendChild(clrBtn);
       }
       // Label do nome da moldura (fora do clip, abaixo)

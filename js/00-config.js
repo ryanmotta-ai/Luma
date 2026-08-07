@@ -938,8 +938,12 @@ function gLayoutVivoAtivo(){
    referência" nem do catálogo `dVars`, que pode estar vazio na sessão do franqueado — e
    referência diferente entre Estúdio e franqueado seria a divergência de sempre.
 
-   Só entra quem PODE se mexer: fundo, camada protegida, travada, com posição travada, filha
-   de grupo e grupo ficam fora — o logo e o selo não são empurrados por texto.
+   Só entra quem PODE se mexer: fundo, travada, com posição travada, filha de grupo e grupo
+   ficam fora — é assim que logo e selo não são empurrados por texto, e o caminho real para
+   isso é TRAVAR a camada.
+   ⚠ `layoutRole` ('background'/'protected') é lido aqui e em `core/layout.js`, mas NENHUMA UI
+   ou importador o escreve — a varredura pró-1.0 confirmou 6 leituras e zero escritas. Fica
+   como reserva para quando existir; hoje quem protege é `locked`/`lockPosition`.
    Âncora explícita do designer SEMPRE vence a inferida. */
 function _gCorrenteMovivel(l){
   if(!l || l.type==='group' || l.visible===false) return false;

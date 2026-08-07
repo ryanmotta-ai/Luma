@@ -677,39 +677,70 @@ function dReorder(dir){
   [dLayers[i],dLayers[ni]]=[dLayers[ni],dLayers[i]];
   dRenderCanvas();dRenderLayersList();dMarkUnsaved();
 }
+/* GRUPO não tem x/y/w/h — a geometria dele são os filhos. Sem isto, alinhar ou distribuir um
+   grupo escrevia `x=NaN` na camada (comprovado no navegador, revisão pró-1.0) e o NaN seguia
+   para o render e para o sync. Estes dois helpers dão ao grupo a caixa e o movimento que ele
+   não tem, e para qualquer outra camada são o comportamento de sempre. */
+function dLayerBox(l){
+  if(!l) return null;
+  if(l.type!=='group') return {x:l.x||0, y:l.y||0, w:l.w||0, h:l.h||0};
+  const filhos=dLayers.filter(f=>f.parentId===l.id && f.visible!==false && f.type!=='group');
+  if(!filhos.length) return null;                       // grupo vazio: não há o que alinhar
+  const x1=Math.min(...filhos.map(f=>f.x||0)), y1=Math.min(...filhos.map(f=>f.y||0));
+  const x2=Math.max(...filhos.map(f=>(f.x||0)+(f.w||0))), y2=Math.max(...filhos.map(f=>(f.y||0)+(f.h||0)));
+  return {x:x1, y:y1, w:x2-x1, h:y2-y1};
+}
+function dLayerMove(l, dx, dy){
+  if(!l || (!dx && !dy)) return;
+  if(l.type!=='group'){ l.x=Math.round((l.x||0)+dx); l.y=Math.round((l.y||0)+dy); return; }
+  dLayers.forEach(f=>{
+    if(f.parentId!==l.id || f.locked) return;
+    f.x=Math.round((f.x||0)+dx); f.y=Math.round((f.y||0)+dy);
+  });
+}
+
 function dAlign(dir){
   // 2+ selecionados → alinha ENTRE SI (bounding box do conjunto)
   const sel = dMultiSel.length>=2 ? dMultiSel.map(id=>dLayers.find(x=>x.id===id)).filter(Boolean) : null;
   if(sel && sel.length>=2){
+    // Caixa por `dLayerBox`: grupo entra pela caixa dos filhos em vez de x/y/w/h inexistentes.
+    const cxs=sel.map(l=>({l, b:dLayerBox(l)})).filter(o=>o.b);
+    if(cxs.length<2) return;
     dHistoryPush();
-    const minX=Math.min(...sel.map(l=>l.x)), maxX=Math.max(...sel.map(l=>l.x+l.w));
-    const minY=Math.min(...sel.map(l=>l.y)), maxY=Math.max(...sel.map(l=>l.y+l.h));
+    const minX=Math.min(...cxs.map(o=>o.b.x)), maxX=Math.max(...cxs.map(o=>o.b.x+o.b.w));
+    const minY=Math.min(...cxs.map(o=>o.b.y)), maxY=Math.max(...cxs.map(o=>o.b.y+o.b.h));
     const cx=(minX+maxX)/2, cy=(minY+maxY)/2;
-    sel.forEach(l=>{
+    cxs.forEach(({l,b})=>{
       if(l.locked)return;
-      if(dir==='left')l.x=minX;
-      else if(dir==='right')l.x=Math.round(maxX-l.w);
-      else if(dir==='center')l.x=Math.round(cx-l.w/2);
-      else if(dir==='top')l.y=minY;
-      else if(dir==='bottom')l.y=Math.round(maxY-l.h);
-      else if(dir==='vmid')l.y=Math.round(cy-l.h/2);
+      let alvoX=b.x, alvoY=b.y;
+      if(dir==='left')alvoX=minX;
+      else if(dir==='right')alvoX=maxX-b.w;
+      else if(dir==='center')alvoX=cx-b.w/2;
+      else if(dir==='top')alvoY=minY;
+      else if(dir==='bottom')alvoY=maxY-b.h;
+      else if(dir==='vmid')alvoY=cy-b.h/2;
+      dLayerMove(l, alvoX-b.x, alvoY-b.y);
     });
     dRenderCanvas();dRenderLayersList();dMarkUnsaved();
     return;
   }
   // 1 layer → alinha ao canvas (comportamento original)
   const l=dLayers.find(x=>x.id===dSelId);if(!l)return;
+  const b=dLayerBox(l);
+  if(!b){ gToast('Este grupo está vazio — não há o que alinhar'); return; }
   dHistoryPush();
   const f=dCanvasSize();
-  if(dir==='left')l.x=0;
-  else if(dir==='center')l.x=Math.round((f.w-l.w)/2);
-  else if(dir==='right')l.x=f.w-l.w;
-  else if(dir==='top')l.y=0;
-  else if(dir==='vmid')l.y=Math.round((f.h-l.h)/2);
-  else if(dir==='bottom')l.y=f.h-l.h;
+  let alvoX=b.x, alvoY=b.y;
+  if(dir==='left')alvoX=0;
+  else if(dir==='center')alvoX=(f.w-b.w)/2;
+  else if(dir==='right')alvoX=f.w-b.w;
+  else if(dir==='top')alvoY=0;
+  else if(dir==='vmid')alvoY=(f.h-b.h)/2;
+  else if(dir==='bottom')alvoY=f.h-b.h;
+  dLayerMove(l, alvoX-b.x, alvoY-b.y);
   dRenderCanvas();
   const dpx=document.getElementById('dp-x'),dpy=document.getElementById('dp-y');
-  if(dpx){dpx.value=l.x;dpy.value=l.y;}
+  if(dpx && l.type!=='group'){dpx.value=l.x;dpy.value=l.y;}
   dMarkUnsaved();
 }
 // Distribui 3+ layers selecionados com espaçamento (gap) igual entre eles
