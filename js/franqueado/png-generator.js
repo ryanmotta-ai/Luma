@@ -881,10 +881,18 @@ function fLoadImageDataUrl(dataUrl){
   }
   return new Promise((resolve)=>{
     const img=new Image();
+    // Watchdog: imagem que nunca dispara load/error (request estagnado) segurava o
+    // await do render PRA SEMPRE — "Montando a prévia…" infinito. 20s e desiste
+    // (mesma degradação do 404: layer sai sem a imagem), com a URL no console.
+    let done=false;
+    const fim=(v,motivo)=>{ if(done)return; done=true;
+      if(motivo) console.warn('[render] imagem desistiu ('+motivo+'):', String(dataUrl).slice(0,120));
+      resolve(v); };
+    setTimeout(()=>fim(null,'timeout 20s'), 20000);
     // URLs http(s) (bulk CSV): tenta CORS pra não "tingir" o canvas ao exportar
     if(/^https?:\/\//.test(dataUrl)) img.crossOrigin='anonymous';
-    img.onload=()=>{ _fImgCache.set(dataUrl, img); resolve(img); };
-    img.onerror=()=>resolve(null);
+    img.onload=()=>{ _fImgCache.set(dataUrl, img); fim(img); };
+    img.onerror=()=>fim(null,'erro de carregamento');
     img.src=dataUrl;
   });
 }
