@@ -726,6 +726,39 @@ function _gStampVTop(l, altura) {
   l._vTopAuto = (altura || 0) > (l.h || 0);
 }
 
+/* ══ RICH TEXT → HTML: um lugar só ══
+   O `<span style="…">` de cada run estava montado em TRÊS cópias (canvas.js ×2, templates.js),
+   e as três injetavam os valores de estilo CRUS dentro do atributo. `runs` vem do import de
+   PSD — arquivo de fora — então uma cor como `red" onmouseover="…` fechava o atributo e
+   pendurava um handler. Comprovado no navegador antes de fechar.
+   ⚠ Aqui SANITIZA, não só escapa: número vira número, cor e família passam por allowlist.
+   Escapar resolveria o HTML, mas não o CSS (um `url(...)` no meio exfiltra). Três cópias
+   também eram o bug: corrigi uma e as outras duas seguiram vulneráveis — daí o motor único. */
+function _gCssNum(v, fb){ const n = Number(v); return isFinite(n) && n > 0 ? n : fb; }
+function _gCssCor(v){
+  const s = String(v == null ? '' : v).trim();
+  return /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|hsla?\([\d\s.,%]+\)|[a-z]+)$/i.test(s) ? s : 'inherit';
+}
+function _gCssFam(v){ return String(v == null ? '' : v).replace(/[^\w\s,'\-]/g, '') || 'inherit'; }
+
+/**
+ * @param {Array} runs   trechos {text,color,fontSize,font,letterSpacing,yOffset}
+ * @param {number} fsBase tamanho de fallback quando o run não traz o próprio
+ * @param {function} [escala] (r)=>fontSize final; sem ela usa r.fontSize||fsBase
+ * @param {function} [extra]  (r)=>CSS adicional já sanitizado (ex.: o translateY do preço)
+ */
+function gRichTextHtml(runs, fsBase, escala, extra){
+  return (runs || []).map(r => {
+    const fp = (typeof dTextFontParts === 'function') ? dTextFontParts(r.font) : {family:'inherit', weight:400};
+    const fs = escala ? _gCssNum(escala(r), fsBase) : _gCssNum(r.fontSize, fsBase);
+    const ls = _gCssNum(r.letterSpacing, 0);
+    const mais = extra ? (extra(r) || '') : '';
+    return `<span style="color:${_gCssCor(r.color)};font-size:${fs}px;font-family:${_gCssFam(fp.family)};`
+         + `font-weight:${_gCssNum(fp.weight, 400)};${ls ? 'letter-spacing:' + ls + 'px;' : ''}${mais}">`
+         + `${gEsc(r.text || '').replace(/\n/g, '<br>')}</span>`;
+  }).join('');
+}
+
 /* A ENTRELINHA efetiva — um lugar só, lido pela medida e pelo desenho.
    `_entrelinha` é o degrau que a escada aperta ANTES de mexer no tamanho da fonte: designer
    fecha o espaçamento antes de diminuir a letra, porque a hierarquia mora no tamanho. Sem o

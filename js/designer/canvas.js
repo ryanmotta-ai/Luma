@@ -1132,11 +1132,12 @@ function dRenderCanvas(){
       // Se a camada contiver split-tokens de preço, gera runs virtuais e processa como HTML rico
       const virtualRuns = (typeof gBuildVirtualRuns === 'function') ? gBuildVirtualRuns(l, dSimActive ? dSimValues : null, 1, gVarDefaults()) : null;
       if (virtualRuns) {
-        textNode.innerHTML = virtualRuns.map(r => {
-          const dy = r.yOffset ? `display:inline-block;transform:translateY(${Math.round(r.yOffset * (_renderFs / (l.fontSize || 24)))}px);` : '';
-          const fs = Math.round((r.fontSize || l.fontSize || 24) * (_renderFs / (l.fontSize || 24)));
-          return `<span style="color:${r.color||'inherit'};font-size:${fs}px;font-family:${dTextFontParts(r.font).family};font-weight:${dTextFontParts(r.font).weight};${r.letterSpacing?'letter-spacing:'+r.letterSpacing+'px;':''}${dy}">${gEsc(r.text||'').replace(/\n/g,'<br>')}</span>`;
-        }).join('');
+        // Motor único (`gRichTextHtml`): sanitiza cor/fonte/número. O deslocamento vertical do
+        // preço é montado aqui porque só este ramo tem, e vai já sanitizado.
+        const _esc = _renderFs / (l.fontSize || 24);
+        textNode.innerHTML = gRichTextHtml(virtualRuns, _renderFs,
+          r => Math.round((r.fontSize || l.fontSize || 24) * _esc),
+          r => r.yOffset ? `display:inline-block;transform:translateY(${Math.round(Number(r.yOffset)*_esc)||0}px);` : '');
       } else if(dSimActive){
         let rawSim = dInterpolate(l.content||'');
         if(isBox && typeof gSmartWrapText === 'function'){
@@ -1145,22 +1146,9 @@ function dRenderCanvas(){
         textNode.textContent=rawSim;
       }
       else if(l.runs && l.runs.length && !l.isVar){ // texto multi-estilo (rich text)
-        /* ⚠ XSS COMPROVADO E FECHADO (varredura pró-1.0). O TEXTO já era escapado, mas os
-           valores de ESTILO entravam crus dentro do atributo `style="…"`. `l.runs` vem do
-           import de PSD — arquivo de fora — e uma cor como `red" onmouseover="…` fechava o
-           atributo e pendurava um handler no elemento. Reproduzido no navegador: o
-           `onmouseover` aparecia nos atributos do span.
-           Sanitiza em vez de só escapar: número vira número, cor e família passam por
-           allowlist. Assim nem injeção de HTML nem de CSS (url(...) exfiltrando) passam. */
-        const _num=(v,fb)=>{ const n=Number(v); return isFinite(n)&&n>0 ? n : fb; };
-        const _cor=(v)=>{ const s=String(v==null?'':v).trim();
-          return /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|hsla?\([\d\s.,%]+\)|[a-z]+)$/i.test(s) ? s : 'inherit'; };
-        const _fam=(v)=>String(v==null?'':v).replace(/[^\w\s,'\-]/g,'') || 'inherit';
-        textNode.innerHTML=l.runs.map(r=>{
-          const fp=dTextFontParts(r.font);
-          const ls=_num(r.letterSpacing,0);
-          return `<span style="color:${_cor(r.color)};font-size:${_num(r.fontSize,_renderFs)}px;font-family:${_fam(fp.family)};font-weight:${_num(fp.weight,400)};${ls?'letter-spacing:'+ls+'px;':''}">${gEsc(r.text||'').replace(/\n/g,'<br>')}</span>`;
-        }).join(''); }
+        // Motor único `gRichTextHtml` — ver o comentário dele em 00-config.js: os valores de
+        // estilo entravam crus no atributo e `runs` vem de PSD, arquivo de fora.
+        textNode.innerHTML = gRichTextHtml(l.runs, _renderFs); }
       else {
         let rawEdit = l.content || '';
         rawEdit = rawEdit.replace(gVarRegex(), (m, n) => {

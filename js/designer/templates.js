@@ -3207,7 +3207,9 @@ function dRenderTemplateToDOM(container, tmpl) {
         textNode.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;overflow:visible;';
       }
       if (l.runs && l.runs.length) {
-        textNode.innerHTML = l.runs.map(r => `<span style="color:${r.color || 'inherit'};font-size:${r.fontSize || _renderFs}px;font-family:${dTextFontParts(r.font).family};font-weight:${dTextFontParts(r.font).weight};${r.letterSpacing ? 'letter-spacing:' + r.letterSpacing + 'px;' : ''}">${gEsc(r.text || '').replace(/\n/g, '<br>')}</span>`).join('');
+        // Motor único `gRichTextHtml` (00-config.js): sanitiza os valores de estilo. Esta era a
+        // terceira cópia da mesma montagem — e seguia vulnerável depois de eu corrigir a primeira.
+        textNode.innerHTML = gRichTextHtml(l.runs, _renderFs);
       } else {
         textNode.innerHTML = gEsc(l.content || '').replace(gVarRegex(), (m, n) => {
           const varName = n.trim();
