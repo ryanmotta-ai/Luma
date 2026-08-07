@@ -1075,7 +1075,9 @@ function _gInferirPlacas(cloned, opts) {
     const t = dentro[0];
     const areaT = Math.max(1, (t.w || 0) * (t.h || 0));
     if ((p.w || 0) * (p.h || 0) > areaT * 6) return;             // painel, não placa
-    p._placa = { alvo: t.id, padTopo: (t.y || 0) - py1, hDesenhada: p.h || 0, yDesenhado: py1 };
+    p._placa = { alvo: t.id, padTopo: (t.y || 0) - py1,
+                 hDesenhada: p.h || 0, yDesenhado: py1,
+                 wDesenhada: p.w || 0, xDesenhado: px1 };
   });
 }
 
@@ -1229,9 +1231,20 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
       const excedente = Math.max(0, (rt.h || 0) - (t.h || 0));
       const novaY = (t.y || 0) - p._placa.padTopo;
       const novaH = p._placa.hDesenhada + excedente;
-      if (p.y !== novaY || p.h !== novaH) {
-        p.y = novaY; p.h = novaH;
+      /* LARGURA — o gêmeo horizontal, e ele só existe por causa do point text: caixa de
+         parágrafo quebra a linha e nunca passa da própria largura, mas point text cresce para
+         o lado (960px de tinta medidos numa placa de 400px). Cresce pelo excedente e SEGUE a
+         direção da tinta: texto centralizado abre para os dois lados, à esquerda abre só para
+         a direita. Enquanto o texto cabe na caixa dele, a placa fica exatamente a desenhada. */
+      const excX = Math.max(0, (rt.w || 0) - (t.w || 0));
+      const novaW = p._placa.wDesenhada + excX;
+      const novaX = excX > 0
+        ? p._placa.xDesenhado + _gInkDx(t, rt.w || 0)   // negativo quando a tinta abre à esquerda
+        : p._placa.xDesenhado;
+      if (p.y !== novaY || p.h !== novaH || p.x !== novaX || p.w !== novaW) {
+        p.y = novaY; p.h = novaH; p.x = novaX; p.w = novaW;
         resolved[p.id].y = novaY; resolved[p.id].h = novaH;
+        resolved[p.id].x = novaX; resolved[p.id].w = novaW;
         mexeu = true;
       }
     });
