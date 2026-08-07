@@ -53,8 +53,26 @@ function _dLinterEstresse() {
 
   const exemplo = {};
   usados.forEach(vn => { exemplo[vn] = gFieldSampleValue(dVars.find(x => x.name === vn) || { name: vn }); });
+  const estresse = gStressValues(usados, dVars);
   const antes = montar(exemplo);
-  const depois = montar(gStressValues(usados, dVars));
+  const depois = montar(estresse);
+
+  /* SEGUNDO NÍVEL: o mesmo pior caso, agora COM o Auto-layout ligado.
+     São dois problemas diferentes e o designer precisa saber qual tem na mão:
+     · quebra só sem o Auto-layout → o franqueado que desligar o botão vê a arte torta;
+     · quebra MESMO com ele        → não há conserto automático, a peça sai errada para todos.
+     `_foraDaArte` é o carimbo que a escada deixa quando desiste — é ele que separa os dois. */
+  const _semSalvacao = (() => {
+    const s = new Set();
+    try {
+      gApplyRelativeAnchors(dLayers.map(l => ({...l})), estresse, defaults, { fitText: true, canvas: cv })
+        .forEach(l => { if (l._foraDaArte) s.add(l.id); });
+    } catch (e) {}
+    return s;
+  })();
+  const _gravidade = (id) => _semSalvacao.has(id)
+    ? { type: 'error', nota: ' Isto NÃO é salvo pelo Auto-layout: a arte sai errada para todo mundo.' }
+    : { type: 'warning', nota: ' O Auto-layout acomoda isso na prévia, mas o franqueado pode desligá-lo.' };
 
   // Quais campos entram no aviso e com quantos caracteres — é o número que o designer controla.
   const limites = usados.map(vn => {
@@ -94,10 +112,11 @@ function _dLinterEstresse() {
       const chave = 'col:' + culpado.l.id + '>' + vitima.l.id;
       if (jaVisto.has(chave)) continue;
       jaVisto.add(chave);
+      const g = _gravidade(culpado.l.id);
       out.push({
-        type: 'error',
+        type: g.type,
         title: 'O pior caso não cabe',
-        desc: `${comLimite(culpado.l)}, “${nome(culpado.l)}” invade “${nome(vitima.l)}”. É um texto que o franqueado pode digitar hoje. O Auto-layout da prévia acomoda a arte, mas ele pode desligar — reduza o limite do campo ou aumente a caixa para a peça ficar de pé nos dois casos.`,
+        desc: `${comLimite(culpado.l)}, “${nome(culpado.l)}” invade “${nome(vitima.l)}”. É um texto que o franqueado pode digitar hoje.${g.nota} Reduza o limite do campo ou aumente a caixa.`,
         layerId: culpado.l.id,
         layerName: culpado.l.name
       });
@@ -125,10 +144,11 @@ function _dLinterEstresse() {
     const conserto = (o.l.textBox !== 'box' && saiu.some(f => /esquerda|direita/.test(f)))
       ? 'Esta camada é texto de ponto: ela não quebra linha nem reduz a fonte sozinha. Transforme em caixa de parágrafo ou reduza o limite do campo.'
       : 'Reduza o limite do campo ou dê mais espaço ao bloco.';
+    const g = _gravidade(o.l.id);
     out.push({
-      type: 'error',
+      type: g.type,
       title: 'O pior caso não cabe',
-      desc: `${comLimite(o.l)}, “${nome(o.l)}” sai da arte ${saiu.join(' e ')}. ${conserto}`,
+      desc: `${comLimite(o.l)}, “${nome(o.l)}” sai da arte ${saiu.join(' e ')}.${g.nota} ${conserto}`,
       layerId: o.l.id,
       layerName: o.l.name
     });

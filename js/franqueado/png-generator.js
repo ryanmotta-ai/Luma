@@ -473,7 +473,8 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
         });
         return {ms,wsum,maxFs};
       });
-      const _lhF=(l.lineHeight||1.2);
+      // `gLineHeightDe`: régua única de entrelinha — honra o aperto que a escada carimbou.
+      const _lhF=(typeof gLineHeightDe==='function')?gLineHeightDe(l):(l.lineHeight||1.2);
       const lineHs=measured.map(li=>li.maxFs*_lhF);
       const totalH=lineHs.reduce((a,b)=>a+b,0);
       ctx.textAlign='left'; ctx.textBaseline='alphabetic';
@@ -618,7 +619,9 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
       }
       if(_fit && _fit.letterSpacing && _lsTxt!=null) ctx.letterSpacing = _lsTxt;
 
-      const lineHeight = fontSize * (l.lineHeight||1.2);
+      // Mesma régua da medida (`gFitTextLayer`): sem isso a escada apertaria a entrelinha só
+      // no cálculo e o desenho continuaria folgado — a divergência que originou este trabalho.
+      const lineHeight = fontSize * ((typeof gLineHeightDe==='function')?gLineHeightDe(l):(l.lineHeight||1.2));
       const totalTextH = lineHeight * lines.length;
 
       // Coletor de OVERFLOW (opt-in): só a Prévia ao Vivo seta window._fOverflowSink.

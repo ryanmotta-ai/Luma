@@ -193,14 +193,16 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
   background-size: 200% 100%;
 }
 
-/* TOOLBAR
-   ⚠ QUEBRA EM DUAS LINHAS quando não cabe. O painel tem 380px fixos e a barra já transbordava
-   101px ANTES do Auto-layout: o botão "Mockups" ficava fora da tela, sem scroll e sem pista de
-   que existia. Com `nowrap` o flex não tem para onde ceder — some controle em silêncio, que é
-   o pior desfecho possível para uma barra de ferramentas. */
+/* TOOLBAR — DUAS LINHAS DE PROPÓSITO.
+   O painel tem 380px fixos e os controles somam ~510px: uma linha só não cabe nem cortando
+   rótulo (o talo dava 352px, zero respiro — e a barra já transbordava 101px antes mesmo do
+   Auto-layout, com o "Mockups" fora da tela, sem scroll e sem pista de que existia).
+   Então a quebra deixou de ser acidente e virou estrutura, uma linha por natureza de controle:
+     linha 1 — VER: ajustar, zoom, dimensão da arte;
+     linha 2 — AUTOMÁTICOS + a ação (mockups), à direita.
+   `wrap` continua ligado como rede: em painel mais estreito ainda cede em vez de sumir. */
 .lp-toolbar {
-  min-height:56px;
-  padding:9px 14px;
+  padding:11px 14px 12px;
   border-top:1px solid var(--gray-light);
   flex-shrink:0;
   display:flex;
@@ -208,7 +210,7 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
   justify-content:space-between;
   align-items:center;
   background:var(--white);
-  gap:8px 12px;
+  gap:10px 12px;
 }
 
 .lp-tool-left, .lp-tool-right {
@@ -217,9 +219,39 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
   gap:8px;
   flex-wrap:wrap;
 }
-/* Sozinho na segunda linha, o grupo da direita continua alinhado à direita
-   (`space-between` não alinha item único). */
-.lp-tool-right{margin-left:auto}
+/* Cada grupo ocupa a própria linha e o de baixo alinha à direita — `space-between` não alinha
+   item único, e sem isto o segundo grupo encostava na esquerda. */
+.lp-tool-left{flex:1 1 100%}
+.lp-tool-right{flex:1 1 100%; justify-content:flex-end}
+
+/* AUTOMÁTICOS: um grupo, dois chips. Mesma casca do `.lp-zoom-group` — controles da mesma
+   natureza têm que parecer da mesma família. */
+.lp-auto-group{
+  height:32px;display:inline-flex;align-items:center;gap:4px;
+  padding:2px 4px 2px 9px;border:1px solid var(--gray-light);
+  border-radius:10px;background:var(--off-white);
+}
+.lp-auto-label{
+  font:700 9.5px 'Roboto',sans-serif;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--text-3);padding-right:2px;
+}
+.lp-auto-chip{
+  height:26px;display:inline-flex;align-items:center;gap:6px;padding:0 6px 0 8px;
+  border:0;border-radius:7px;background:transparent;color:var(--text-3);cursor:pointer;
+  font:700 10.5px 'Roboto',sans-serif;white-space:nowrap;
+  transition:background var(--dur-micro),color var(--dur-micro),transform var(--dur-micro) var(--ease-spring);
+}
+/* `display:inline-flex` da classe vence o `[hidden]{display:none}` do navegador. */
+.lp-auto-chip[hidden]{display:none}
+.lp-auto-chip:hover{background:var(--white);color:var(--text-2)}
+.lp-auto-chip:active{transform:scale(.97)}
+.lp-auto-chip:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+.lp-auto-chip.active{background:var(--dm-orange-bg);color:var(--dm-orange-d)}
+/* Chave menor que a do botão solto: dentro do grupo ela é detalhe, não o assunto. */
+.lp-auto-chip .lp-toggle{width:24px;height:14px}
+.lp-auto-chip .lp-toggle-knob{width:10px;height:10px}
+.lp-auto-chip.active .lp-toggle{background:var(--dm-orange-d)}
+.lp-auto-chip.active .lp-toggle-knob{transform:translateX(10px)}
 
 .lp-tool-btn {
   width:32px;height:32px;background:var(--off-white);
@@ -301,16 +333,6 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
 .lp-toggle.active .lp-toggle-knob {
   transform:translateX(12px);
 }
-.lp-autozoom-btn{height:32px;display:inline-flex;align-items:center;gap:7px;padding:0 8px 0 10px;border:1px solid var(--gray-light);border-radius:10px;background:var(--off-white);color:var(--text-3);font:700 10.5px 'Roboto',sans-serif;cursor:pointer;white-space:nowrap;transition:background var(--dur-micro),border-color var(--dur-micro),color var(--dur-micro),transform var(--dur-micro) var(--ease-spring)}
-/* `display:inline-flex` da classe vence o `[hidden]{display:none}` do navegador — sem isto o
-   Auto-layout aparecia em template que não tem Layout vivo, um interruptor ligado em nada. */
-.lp-autozoom-btn[hidden]{display:none}
-.lp-autozoom-btn:hover{background:var(--gray-light);color:var(--text-2)}
-.lp-autozoom-btn:active{transform:scale(.97)}
-.lp-autozoom-btn:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
-.lp-autozoom-btn.active{border-color:var(--dm-orange-tint);background:var(--dm-orange-bg);color:var(--dm-orange-d)}
-.lp-autozoom-btn.active .lp-toggle{background:var(--dm-orange-d)}
-.lp-autozoom-btn.active .lp-toggle-knob{transform:translateX(12px)}
 
 /* Seletor de sobreposição (Limpo · Guias · Ambiente) — substitui o liga/desliga de Guias.
    Ativo segue o padrão de chip da casa (DS §8): fundo suave + borda laranja + texto vermelho

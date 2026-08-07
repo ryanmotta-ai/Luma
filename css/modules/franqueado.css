@@ -413,6 +413,43 @@ body:not(.theme-light) .lp-sub {
 body:not(.theme-light) .lp-stage {
   background: var(--d-bg);
 }
+/* BARRA DE FERRAMENTAS no escuro. Estava faltando: o painel virava escuro e a barra
+   continuava `var(--white)`, uma placa branca no pé de um painel preto. Os irmãos dela
+   (cabeçalho, palco, canvas) já tinham a versão escura desde sempre. */
+body:not(.theme-light) .lp-toolbar {
+  background: var(--d-surf);
+  border-top-color: var(--d-border);
+}
+body:not(.theme-light) .lp-zoom-group,
+body:not(.theme-light) .lp-auto-group,
+body:not(.theme-light) .lp-tool-btn {
+  background: var(--d-surf2);
+  border-color: var(--d-border2);
+  color: var(--d-text3);
+}
+body:not(.theme-light) .lp-tool-btn:hover {
+  background: var(--d-border2);
+  color: var(--d-text);
+}
+body:not(.theme-light) .lp-zoom-step,
+body:not(.theme-light) .lp-zoom-reset,
+body:not(.theme-light) .lp-auto-chip {
+  color: var(--d-text3);
+}
+body:not(.theme-light) .lp-zoom-step:hover,
+body:not(.theme-light) .lp-zoom-reset:hover,
+body:not(.theme-light) .lp-auto-chip:hover {
+  background: var(--d-surf);
+  color: var(--d-text);
+}
+body:not(.theme-light) .lp-auto-chip.active {
+  background: color-mix(in srgb,var(--dm-orange) 16%,transparent);
+  color: var(--dm-yellow);
+}
+body:not(.theme-light) .lp-auto-label,
+body:not(.theme-light) .lp-tool-dim {
+  color: var(--d-text3);
+}
 body:not(.theme-light) .lp-canvas {
   background: var(--d-surf);
   box-shadow: 0 6px 20px rgba(0,0,0,.4);

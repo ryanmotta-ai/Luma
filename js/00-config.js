@@ -726,6 +726,16 @@ function _gStampVTop(l, altura) {
   l._vTopAuto = (altura || 0) > (l.h || 0);
 }
 
+/* A ENTRELINHA efetiva — um lugar só, lido pela medida e pelo desenho.
+   `_entrelinha` é o degrau que a escada aperta ANTES de mexer no tamanho da fonte: designer
+   fecha o espaçamento antes de diminuir a letra, porque a hierarquia mora no tamanho. Sem o
+   carimbo, devolve exatamente o que o render sempre usou (1.2), então arte de hoje não muda. */
+function gLineHeightDe(l) {
+  if (!l) return 1.2;
+  if (l._entrelinha != null) return l._entrelinha;
+  return l.lineHeight || 1.2;
+}
+
 /* Onde a TINTA começa dentro da caixa no eixo X — o irmão do `_gInkDy`.
    A caixa de parágrafo tem largura fixa, então a tinta começa onde a caixa começa. Point text
    abraça os glifos e o render o posiciona pelo `textAlign` (`png-generator.js`): centralizado
@@ -874,8 +884,9 @@ function gFitTextLayer(layer, texto, ctxAux, opts) {
   }
 
   // lineHeight 1.2 — o do RENDER. `gMeasureLayerHeight` usava 1.25 e por isso a cascata
-  // errava a altura mesmo quando acertava o número de linhas.
-  const lh = fs * (l.lineHeight || 1.2);
+  // errava a altura mesmo quando acertava o número de linhas. `gLineHeightDe` é a régua única:
+  // se a escada apertou a entrelinha, medida e desenho apertam juntos.
+  const lh = fs * gLineHeightDe(l);
   return { text: txt, lines: linhas, fontSize: fs,
     letterSpacing: (ls != null) ? (ls + 'px') : null,
     altura: Math.round(lh * linhas.length), larguraMax: Math.round(maxL), estourou };
@@ -1031,6 +1042,43 @@ function _gInferirCorrentes(cloned, opts, resolved){
   });
 }
 
+/* ══ PLACAS — a forma atrás do texto cresce junto ══
+   O padrão "card": retângulo colorido com o preço ou o título em cima. A escada empurrava e
+   encolhia o TEXTO, mas nunca a forma que servia de fundo pra ele — e a cor saía debaixo da
+   letra (62px de transbordo medidos numa placa de 140px). É dos erros mais visíveis numa arte
+   de promo, porque a placa é justamente o que dá contraste ao texto.
+
+   Inferida como as correntes, do próprio desenho, e com regras apertadas para não adotar
+   decoração que só por acaso está atrás:
+   · só RETÂNGULO — esticar círculo, elipse ou polígono deformaria a forma;
+   · tem que estar ATRÁS no z-order (a ordem do array é a ordem de desenho);
+   · tem que ENVOLVER a caixa do texto pelos quatro lados;
+   · no máximo 6× a área do texto — painel de seção inteira não é placa de um título;
+   · UM texto só dentro dela: com dois, crescer por causa de um seria arbitrário;
+   · fundo, protegida e travada ficam de fora, como em toda a cascata. */
+function _gInferirPlacas(cloned, opts) {
+  const cv = (opts && opts.canvas) || null;
+  const textos = cloned.filter(l => l && l.type === 'text' && l.visible !== false);
+  cloned.forEach((p, iP) => {
+    if (!p || p.type !== 'shape' || p.visible === false) return;
+    if (p.shapeKind && p.shapeKind !== 'rect') return;
+    if (p.locked || p.lockPosition || p.parentId) return;
+    if (p.layoutRole === 'protected' || _gCorrenteEhFundo(p, cv)) return;
+    const px1 = p.x || 0, py1 = p.y || 0, px2 = px1 + (p.w || 0), py2 = py1 + (p.h || 0);
+    const dentro = textos.filter(t => {
+      if (cloned.indexOf(t) < iP) return false;                 // texto tem que estar NA FRENTE
+      const tx1 = t.x || 0, ty1 = t.y || 0;
+      return tx1 >= px1 - 1 && ty1 >= py1 - 1
+          && tx1 + (t.w || 0) <= px2 + 1 && ty1 + (t.h || 0) <= py2 + 1;
+    });
+    if (dentro.length !== 1) return;
+    const t = dentro[0];
+    const areaT = Math.max(1, (t.w || 0) * (t.h || 0));
+    if ((p.w || 0) * (p.h || 0) > areaT * 6) return;             // painel, não placa
+    p._placa = { alvo: t.id, padTopo: (t.y || 0) - py1, hDesenhada: p.h || 0, yDesenhado: py1 };
+  });
+}
+
 /**
  * Resolve e atualiza as posições (X e Y) de camadas ancoradas de forma magnética/relativa.
  * @param {object} [opts] {fitText:false, canvas:{w,h}} — com `fitText`, a altura de cada texto
@@ -1081,7 +1129,10 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
   });
 
   // Correntes inferidas do desenho (só com o layout vivo ligado).
-  if (_fit && !(opts && opts.inferir === false)) _gInferirCorrentes(cloned, opts, resolved);
+  if (_fit && !(opts && opts.inferir === false)) {
+    _gInferirCorrentes(cloned, opts, resolved);
+    _gInferirPlacas(cloned, opts);
+  }
   // Posição PUBLICADA de cada camada: a corrente inferida nunca sobe além dela (o laço abaixo
   // muta l.x/l.y a cada iteração, então o original tem que ser guardado antes).
   const yPub = {}, xPub = {};
@@ -1119,10 +1170,16 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
     return cache;
   })();
   const _ordem = cloned.slice().sort((a, b) => (_profundidade[a.id] || 0) - (_profundidade[b.id] || 0));
+  // A ordem topológica resolve a corrente em UMA volta. A segunda é a prova de que estabilizou.
+  // A terceira só existe quando há PLACA: ela cresce depois que o texto dela se acomodou, e
+  // quem está encadeado abaixo precisa de mais uma volta para enxergar a altura nova — sem
+  // isso a placa crescia por cima do bloco de baixo. Arte sem placa não paga esse passe.
+  const _temPlaca = cloned.some(l => l && l._placa);
+  const _voltasPos = _temPlaca ? 3 : 2;
   const _posicionar = () => {
     let mexeu = true, n = 0;
-    while (mexeu && n < 2) {          // a ordem topológica resolve em 1; a 2ª volta é a prova
-      mexeu = false; n++;
+    while (mexeu && n < _voltasPos) {
+      mexeu = _seguirPlacas(); n++;    // placa que cresceu conta como movimento: força mais uma volta
       _ordem.forEach(l => {
         const anchor = l.relativeAnchor || l._anchorAuto;
         if (!anchor || !anchor.layerId) return;
@@ -1155,6 +1212,30 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
         if (cur.x !== newX || cur.y !== newY) { cur.x = newX; cur.y = newY; l.x = newX; l.y = newY; mexeu = true; }
       });
     }
+    _seguirPlacas();
+  };
+  /* A placa acompanha o texto: gruda no topo dele (que pode ter sido empurrado) e cresce
+     EXATAMENTE o que o texto passou da própria caixa. Texto que cabe → placa idêntica à
+     desenhada, que é a mesma promessa da corrente.
+     Devolve se mexeu, para o laço de posicionamento dar mais uma volta e empurrar quem está
+     encadeado abaixo dela. */
+  const _seguirPlacas = () => {
+    let mexeu = false;
+    cloned.forEach(p => {
+      if (!p || !p._placa) return;
+      const t = cloned.find(x => x.id === p._placa.alvo);
+      const rt = t && resolved[t.id];
+      if (!t || !rt) return;
+      const excedente = Math.max(0, (rt.h || 0) - (t.h || 0));
+      const novaY = (t.y || 0) - p._placa.padTopo;
+      const novaH = p._placa.hDesenhada + excedente;
+      if (p.y !== novaY || p.h !== novaH) {
+        p.y = novaY; p.h = novaH;
+        resolved[p.id].y = novaY; resolved[p.id].h = novaH;
+        mexeu = true;
+      }
+    });
+    return mexeu;
   };
   const _largura = _cv && _cv.w ? _cv.w : 0;
   /* Quem CRESCEU além da própria caixa — os únicos que a escada encolhe. Quem sangra pela
@@ -1187,6 +1268,32 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
       return false;
     });
   };
+  // Re-mede SÓ quem mudou. Antes remedia todas as camadas a cada volta, e uma arte pesada
+  // custava 116ms por tecla — acima do debounce de 110ms da digitação.
+  const _remedir = (lista) => {
+    lista.forEach(l => {
+      let t = l.content || '';
+      if (l.isVar || /\{\{/.test(t)) t = gInterpolate(t, dados, { defaults });
+      const f = gFitTextLayer(l, t, ctxAux);
+      l._fit = f;
+      resolved[l.id].h = f.altura;
+      resolved[l.id].dy = _gInkDy(l, f.altura);
+      _gStampVTop(l, f.altura);
+      if (l.textBox !== 'box') {
+        resolved[l.id].w = f.larguraMax;
+        resolved[l.id].dx = _gInkDx(l, f.larguraMax);
+      }
+    });
+  };
+  // A base é sempre a posição PUBLICADA: reposicionar sobre o resultado anterior acumularia
+  // empurrão em cima de empurrão a cada volta do laço.
+  const _reposicionarDoZero = () => {
+    cloned.forEach(l => {
+      l.y = yPub[l.id]; resolved[l.id].y = yPub[l.id];
+      l.x = xPub[l.id]; resolved[l.id].x = xPub[l.id];
+    });
+    _posicionar();
+  };
   if (_fit && (_limite || _largura)) {
     _posicionar();
     let tentativas = 0;
@@ -1202,6 +1309,30 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
       // Culpados: os textos que passaram da própria caixa (são eles que empurram).
       const culpados = cloned.filter(l => _cresceuY(l) || _cresceuX(l));
       if (!culpados.length) break;
+
+      /* DEGRAU ANTERIOR AO ENCOLHIMENTO: apertar a ENTRELINHA.
+         Designer não sai reduzindo a letra — primeiro fecha o espaçamento, porque a hierarquia
+         mora no TAMANHO da fonte e não no respiro entre linhas. De 1.2 para 1.05 são ~12% de
+         altura recuperada com a tipografia intacta. Só vale para quem tem mais de uma linha
+         (em texto de uma linha a entrelinha não ocupa nada) e para de mexer no piso de 1.05,
+         onde as linhas começam a se tocar. */
+      const _apertaveis = culpados.filter(l => l._fit && l._fit.lines.length > 1
+                                            && gLineHeightDe(l) > 1.06);
+      if (_apertaveis.length) {
+        /* Calculada, não tateada: a entrelinha que faria a tinta caber na caixa é
+           `altura / (fonte × linhas)`. Uma conta, um passo, uma re-medida — tatear de 0.05 em
+           0.05 custava três voltas de re-medida em toda a arte (144ms a mais numa peça pesada)
+           e chegava no mesmo lugar. Piso 1.05: abaixo disso as linhas começam a se tocar. */
+        _apertaveis.forEach(l => {
+          const fs = (l._tetoFonte != null) ? l._tetoFonte : (l.fontSize || 24);
+          const n = l._fit.lines.length;
+          const alvo = (l.h || 0) / Math.max(1, fs * n);
+          l._entrelinha = Math.max(1.05, Math.min(gLineHeightDe(l), Math.round(alvo * 1000) / 1000));
+        });
+        _remedir(_apertaveis);
+        _reposicionarDoZero();
+        continue;                       // só encolhe fonte quando a entrelinha já deu o que tinha
+      }
       /* QUEM CEDE PRIMEIRO — por ORDEM, não por ritmo.
          Antes todos caíam 8% por volta e o resultado era o avesso do desejado: o TÍTULO ia ao
          piso enquanto o regulamento jurídico parava um degrau antes. Pesar o passo não
@@ -1228,26 +1359,8 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
       // Todo mundo no piso da hierarquia: solta o piso uma vez e tenta de novo.
       if (!mexidos.length && !relaxou) { relaxou = true; continue; }
       if (!mexidos.length) break;   // no piso absoluto: não há mais o que ceder
-      // Re-mede SÓ quem ganhou teto novo. Antes remedia as 40 camadas a cada volta, e uma arte
-      // pesada custava 116ms por tecla — acima do debounce de 110ms da digitação.
-      mexidos.forEach(l => {
-        let t = l.content || '';
-        if (l.isVar || /\{\{/.test(t)) t = gInterpolate(t, dados, { defaults });
-        const f = gFitTextLayer(l, t, ctxAux);
-        l._fit = f;
-        resolved[l.id].h = f.altura;
-        resolved[l.id].dy = _gInkDy(l, f.altura);
-        _gStampVTop(l, f.altura);
-        if (l.textBox !== 'box') {
-          resolved[l.id].w = f.larguraMax;
-          resolved[l.id].dx = _gInkDx(l, f.larguraMax);
-        }
-      });
-      cloned.forEach(l => {
-        l.y = yPub[l.id]; resolved[l.id].y = yPub[l.id];
-        l.x = xPub[l.id]; resolved[l.id].x = xPub[l.id];
-      });
-      _posicionar();
+      _remedir(mexidos);
+      _reposicionarDoZero();
     }
     /* O QUE SOBROU FORA DA ARTE. A escada tem limite; quando ela desiste, alguém precisa
        saber. Sem isto o `estourou` do encaixe dizia `false` numa peça com o preço 181px fora

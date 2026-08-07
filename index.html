@@ -802,18 +802,22 @@ input:focus:-webkit-autofill {
               <span class="lp-tool-text lp-tool-dim" id="lp-dim" title="Dimensões da arte"></span>
             </div>
             <div class="lp-tool-right">
-              <button type="button" class="lp-autozoom-btn active" id="lp-auto-zoom" aria-pressed="true" onclick="fLpToggleAutoZoom()" title="Desativar zoom automático">
-                <span>Auto-zoom</span>
-                <span class="lp-toggle" aria-hidden="true"><span class="lp-toggle-knob"></span></span>
-              </button>
-              <!-- Auto-layout: a arte se acomoda ao texto digitado (bate no respiro → quebra
-                   linha → o bloco de baixo desce → se precisar, encolhe). Só aparece nos
-                   templates em que o designer ligou o Layout vivo no publicar; aqui o
-                   franqueado só pode DESLIGAR, para ver a composição original. -->
-              <button type="button" class="lp-autozoom-btn active" id="lp-auto-layout" aria-pressed="true" onclick="fLpToggleAutoLayout()" title="Desativar acomodação automática" hidden>
-                <span>Auto-layout</span>
-                <span class="lp-toggle" aria-hidden="true"><span class="lp-toggle-knob"></span></span>
-              </button>
+              <!-- AUTOMÁTICOS num grupo só: são a mesma natureza (coisas que o Luma faz
+                   sozinho e o franqueado pode desligar), e repetir "Auto-" em dois botões
+                   soltos gastava 218px de uma barra de 380px. O rótulo sai do prefixo e vira
+                   o nome do grupo — cada chip fica com a palavra que importa.
+                   O Auto-layout some quando a gestão desliga o recurso para a rede. -->
+              <div class="lp-auto-group" role="group" aria-label="Ajustes automáticos">
+                <span class="lp-auto-label" aria-hidden="true">Auto</span>
+                <button type="button" class="lp-auto-chip active" id="lp-auto-zoom" aria-pressed="true" onclick="fLpToggleAutoZoom()" title="Desativar zoom automático">
+                  <span>Zoom</span>
+                  <span class="lp-toggle" aria-hidden="true"><span class="lp-toggle-knob"></span></span>
+                </button>
+                <button type="button" class="lp-auto-chip active" id="lp-auto-layout" aria-pressed="true" onclick="fLpToggleAutoLayout()" title="Desativar acomodação automática" hidden>
+                  <span>Layout</span>
+                  <span class="lp-toggle" aria-hidden="true"><span class="lp-toggle-knob"></span></span>
+                </button>
+              </div>
               <!-- "Postado": abre a arte real dentro do celular (Stories/Feed/WhatsApp).
                    É ação (modal), não sobreposição — por isso fora do segmento abaixo. -->
               <button type="button" class="lp-posted-btn" onclick="fOpenPosted()" title="Ver como a arte fica postada (Stories, Feed, WhatsApp)" aria-label="Ver como a arte fica postada">
