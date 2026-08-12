@@ -1,13 +1,16 @@
 /**
  * css/components/splash.css
  *
- * Splash screen de entrada do Luma (prefixo sp-). Fundo preto + logo COLORIDA.
- * Refino: glow que respira, anéis sonar, sheen varrendo a logo, barra com brilho,
- * saída com zoom suave. Disclaimer "Um produto [DM]".
+ * Splash screen de entrada do Luma (prefixo sp-). Fundo laranja DM + logo BRANCA.
+ * Coreografia: a logo se DESENHA no eixo da varinha (wipe diagonal via mask),
+ * assenta com leve subida, sheen varre a caixa, barra com brilho e saída com zoom.
+ * Disclaimer "Um produto [DM]".
  *
  * Nota de a11y: as animações usam !important de propósito pra TOCAR mesmo com
  * "reduzir movimento" ligado (decisão de produto — é uma intro breve, sem flashes
- * rápidos/estroboscópicos). Keyframes globais: gScaleInPunch, gFadeIn, spBarFill.
+ * rápidos/estroboscópicos). A exceção é o wipe da logo: como ele REVELA conteúdo,
+ * o bloco de prefers-reduced-motion no fim do arquivo troca por fade (motion.md §3).
+ * Keyframes globais: gFadeIn, spBarFill.
  * Depende de: 00-tokens.css, 02-animations.css
  */
 
@@ -29,10 +32,34 @@
   transition:transform .5s cubic-bezier(.16,1,.3,1) !important;
 }
 
-/* logo colorida com entrada "punch" + brilho varrendo (sheen) */
+/* A logo se DESENHA: uma máscara diagonal (105deg, o mesmo eixo da varinha do
+   símbolo) atravessa a peça da esquerda pra direita — primeiro a varinha, depois
+   "Luma". O wipe é o reveal; a opacidade só tira o piscão do 1º frame, senão o
+   fade competiria com a máscara e nada pareceria estar sendo desenhado. */
 .sp-logo-wrap{
   position:relative; overflow:hidden; border-radius:4px;
-  animation:gScaleInPunch .75s cubic-bezier(.2,.9,.4,1) .15s both !important;
+  /* Faixa de transição curta (46%→53%): borda nítida = traço sendo desenhado.
+     Gradiente largo demais vira fade e o desenho se perde. */
+  -webkit-mask-image:linear-gradient(105deg, #000 47%, transparent 54%);
+          mask-image:linear-gradient(105deg, #000 47%, transparent 54%);
+  -webkit-mask-size:300% 100%;          mask-size:300% 100%;
+  -webkit-mask-repeat:no-repeat;        mask-repeat:no-repeat;
+  /* !important só no fim: no meio da lista ele invalida a declaração inteira. */
+  animation:
+    spLogoWipe   var(--dur-celebration) linear                  .15s both,
+    spLogoSettle var(--dur-celebration) var(--ease-spring-soft) .15s both !important;
+}
+/* mask-size 300% => a máscara desliza sobre a peça. Com a faixa opaca no INÍCIO
+   do gradiente, ir de 100% a 0% faz a revelação entrar pela ESQUERDA (varinha
+   primeiro, wordmark depois) — a ordem em que a marca se lê. */
+@keyframes spLogoWipe{
+  from{ -webkit-mask-position:100% 0; mask-position:100% 0 }
+  to  { -webkit-mask-position:0% 0;   mask-position:0% 0 }
+}
+@keyframes spLogoSettle{
+  0%  { opacity:0; transform:translateY(8px) scale(.965) }
+  30% { opacity:1 }
+  100%{ opacity:1; transform:none }
 }
 .sp-luma-logo{ width:210px; height:auto; display:block; }
 .sp-sheen{
@@ -75,4 +102,15 @@
   width:108px; height:32px;
   background:url('../../assets/logos/dm-h-branca.png') center/contain no-repeat;
   opacity:0.9;
+}
+
+/* Reduzir movimento: tira o movimento, NUNCA a informação (motion.md §3).
+   Sem isto, uma máscara parada no início deixaria a logo invisível pra sempre. */
+@media (prefers-reduced-motion:reduce){
+  .sp-logo-wrap{
+    -webkit-mask-image:none !important; mask-image:none !important;
+    opacity:1 !important; transform:none !important;
+    animation:gFadeIn var(--dur-fast) var(--ease-out) both !important;
+  }
+  .sp-sheen{ display:none }
 }
