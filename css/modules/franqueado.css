@@ -125,6 +125,15 @@ body.f-history-mode #f-hist-tab{display:block!important}
 .hist-badge-st{display:inline-flex;align-items:center;min-height:23px;padding:3px 8px;border-radius:var(--r-pill);font-size:8.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase}
 .hist-badge-st.rascunho{background:var(--dm-orange-bg);color:var(--dm-orange-d)}
 .hist-badge-st.baixada{background:rgba(34,197,94,.1);color:var(--green-text)}
+/* Arte de material fora da validade: continua na biblioteca (é histórico, não some), mas
+   sem ação — as três terminam em PNG. Tom neutro, não alarme: não foi erro da pessoa. */
+.hist-badge-st.vencida{background:var(--gray-light);color:var(--text-3)}
+.hist-meta-vencida{color:var(--text-3);font-style:italic}
+.hist-card.is-vencida .hist-thumb{filter:grayscale(1);opacity:.55}
+/* pointer-events:none em vez de reescrever cor de hover: a regra de hover do tema escuro
+   (body:not(.theme-light) .hist-act-btn:hover) tem especificidade maior e acenderia o
+   botão desabilitado em laranja. Sem ponteiro não há hover — vale nos dois temas. */
+.hist-act-btn[disabled]{opacity:.45;pointer-events:none}
 .hist-actions{display:flex;align-items:center;gap:6px;margin-top:18px;padding-top:13px;border-top:1px solid var(--gray-light)}
 .hist-act-btn{min-height:34px;display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:6px 9px;border:1px solid var(--gray-light);border-radius:8px;background:var(--white);color:var(--text-2);font-family:'Roboto',sans-serif;font-size:10.5px;font-weight:750;cursor:pointer;white-space:nowrap;transition:color var(--dur-fast) var(--ease-standard),background var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard),transform var(--dur-fast) var(--ease-spring)}
 .hist-act-btn:hover{border-color:var(--dm-orange-tint);background:var(--dm-orange-bg);color:var(--dm-orange-d);transform:translateY(-1px)}

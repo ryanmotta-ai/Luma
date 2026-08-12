@@ -51,6 +51,46 @@ function _fHistMatch(h, q){
     .filter(Boolean).join(' ').toLowerCase();
   return hay.includes(q);
 }
+/* ══════════════════════════════════════════════════════════════
+   VALIDADE NA "MINHAS ARTES" — 01_BUSINESS §96/§226: nada fora da validade chega ao
+   franqueado. O catálogo já obedecia (fIsMaterialValid esconde material vencido), mas o
+   histórico era uma porta lateral: a arte de uma campanha que já venceu continuava
+   baixável daqui — material fora do ar circulando na rua.
+
+   A checagem é feita na LEITURA (todo render e todo clique consultam o publishMeta.validade
+   que o sync do catálogo trouxe naquele carregamento), nunca num flag gravado no histórico:
+   assim, se a gestão estender a validade no Estúdio, a arte volta a liberar sozinha — sem
+   migração e sem histórico mentindo.
+
+   ⚠ Falha ABERTA: material não encontrado (catálogo ainda sincronizando, template apagado)
+   não bloqueia nada. Travar arte válida por falta de dado seria pior que o problema. */
+function _fHistMaterial(h){
+  if(!h || !h.materialId || typeof dFolders==='undefined' || !dFolders) return null;
+  for(const folder of dFolders){
+    const t=(folder.templates||[]).find(x=>x.id===h.materialId);
+    if(t) return t;
+  }
+  return null;
+}
+function _fHistVencida(h){
+  const m=_fHistMaterial(h);
+  return !!(m && typeof fIsMaterialValid==='function' && !fIsMaterialValid(m));
+}
+// Data da validade em pt-BR pra dizer QUANDO venceu (aviso vago não ajuda ninguém).
+function _fHistVencimento(h){
+  const m=_fHistMaterial(h);
+  const v=m&&m.publishMeta&&m.publishMeta.validade;
+  if(!v) return '';
+  const d=new Date(v+'T23:59:59');
+  return isNaN(d.getTime())?'':d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
+}
+// Porteiro único das três ações do card (baixar, duplicar, editar) — todas terminam em PNG.
+function _fHistBloqueiaVencida(h){
+  if(!_fHistVencida(h)) return false;
+  const quando=_fHistVencimento(h);
+  gToast('Esse material saiu do ar'+(quando?' em '+quando:'')+' — não é possível gerar essa arte de novo.','error');
+  return true;
+}
 function fRenderHist(){
   const all = fGetHist();
   const el = document.getElementById('f-hist-tab');
@@ -121,7 +161,12 @@ function fRenderHist(){
       : `<span class="hist-badge-st baixada">baixada</span>`;
     const dateStr = fFormatHistDate(h.ts);
     const artName=h.materialName ? h.materialName : ((h.prod||'Arte')+' · '+(h.fmtName||''));
-    return `<article class="hist-card" data-status="${h.status||'rascunho'}">
+    // Material vencido: as três ações terminam em PNG, então as três desabilitam. Botão
+    // morto sem explicação é pior que botão ausente — o motivo vai no lugar da linha de meta.
+    const vencida = _fHistVencida(h);
+    const quando = vencida ? _fHistVencimento(h) : '';
+    const dis = vencida ? ' disabled aria-disabled="true"' : '';
+    return `<article class="hist-card${vencida?' is-vencida':''}" data-status="${h.status||'rascunho'}">
       <div class="hist-thumb" style="background:${gEsc(h.campColor||'var(--dm-orange)')}">
         <span class="hist-thumb-camp">${gEsc(h.campName||'Luma')}</span>
         <strong>${gEsc(h.prod||h.campName||'Sua arte')}</strong>
@@ -129,13 +174,15 @@ function fRenderHist(){
         <span class="hist-thumb-fmt">${gEsc(h.fmtName||'Material')}</span>
       </div>
       <div class="hist-info">
-        <div class="hist-card-top">${statusBadge}<time>${dateStr}</time></div>
+        <div class="hist-card-top">${statusBadge}${vencida?'<span class="hist-badge-st vencida">fora da validade</span>':''}<time>${dateStr}</time></div>
         <div class="hist-name">${gEsc(artName)}</div>
-        <div class="hist-meta"><span>${gEsc(h.campName)}</span><span class="hist-meta-sep">·</span><span>${gEsc(h.fmtName)}</span></div>
+        ${vencida
+          ? `<div class="hist-meta hist-meta-vencida">Material saiu do ar${quando?' em '+gEsc(quando):''} — não dá pra gerar de novo</div>`
+          : `<div class="hist-meta"><span>${gEsc(h.campName)}</span><span class="hist-meta-sep">·</span><span>${gEsc(h.fmtName)}</span></div>`}
         <div class="hist-actions">
-          <button class="hist-act-btn hist-act-main" onclick="fEditFromHist(${h.id},this)" title="Abrir e editar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>${isRascunho?'Continuar':'Editar'}</button>
-          <button class="hist-act-btn" onclick="fDuplicateInOtherFmt(${h.id})" title="Gerar em outro formato"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplicar</button>
-          <button class="hist-act-btn hist-act-download" onclick="fDownloadHist(${h.id})" title="Baixar PNG" aria-label="Baixar ${gEsc(artName)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M5 21h14"/></svg></button>
+          <button class="hist-act-btn hist-act-main"${dis} onclick="fEditFromHist(${h.id},this)" title="Abrir e editar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>${isRascunho?'Continuar':'Editar'}</button>
+          <button class="hist-act-btn"${dis} onclick="fDuplicateInOtherFmt(${h.id})" title="Gerar em outro formato"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplicar</button>
+          <button class="hist-act-btn hist-act-download"${dis} onclick="fDownloadHist(${h.id})" title="${vencida?'Material fora da validade':'Baixar PNG'}" aria-label="Baixar ${gEsc(artName)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M5 21h14"/></svg></button>
         </div>
       </div>
     </article>`;
@@ -153,6 +200,9 @@ function _fHistRestoreSearchFocus(){
 
 async function fDownloadHist(id){
   const h=fGetHist().find(x=>x.id===id);if(!h)return;
+  // Guarda no CLIQUE (e não só no botão desabilitado): o card pode ter sido pintado antes
+  // do catálogo sincronizar, e a validade pode ter vencido com a aba aberta.
+  if(_fHistBloqueiaVencida(h)){ fRenderHist(); return; }
   const {ativas:_ca,outras:_co}=fGetCampaigns(); const all=[..._ca,..._co];
   const c=all.find(x=>x.id===h.campId)||{id:h.campId,name:h.campName,color:h.campColor,perguntas:[]};
   const f=FMTS.find(x=>x.id===h.fmtId)||FMTS[0];
@@ -190,6 +240,9 @@ async function fDownloadHist(id){
 async function fEditFromHist(id, btn){
   const h = fGetHist().find(x=>x.id===id);
   if(!h) return;
+  // Editar também termina em PNG: liberar a edição de material vencido seria só um caminho
+  // mais longo pro mesmo download proibido.
+  if(_fHistBloqueiaVencida(h)){ fRenderHist(); return; }
   const {ativas:_ca2,outras:_co2}=fGetCampaigns(); const all=[..._ca2,..._co2];
   const c = all.find(x=>x.id===h.campId);
   if(!c){ gToast('Não achei a campanha original dessa arte.'); return; }
@@ -300,6 +353,7 @@ async function fEditFromHist(id, btn){
 function fDuplicateInOtherFmt(id){
   const h = fGetHist().find(x=>x.id===id);
   if(!h) return;
+  if(_fHistBloqueiaVencida(h)){ fRenderHist(); return; }
   const {ativas:_ca3,outras:_co3}=fGetCampaigns(); const all=[..._ca3,..._co3];
   const c = all.find(x=>x.id===h.campId) || {id:h.campId,name:h.campName,color:h.campColor,perguntas:[]};
   // Sugere o próximo formato (rotaciona)
@@ -324,6 +378,7 @@ function fDuplicateInOtherFmt(id){
 async function fConfirmDuplicate(id, fmtId){
   const h = fGetHist().find(x=>x.id===id);
   if(!h) return;
+  if(_fHistBloqueiaVencida(h)){ fRenderHist(); return; }
   const {ativas:_ca4,outras:_co4}=fGetCampaigns(); const all=[..._ca4,..._co4];
   const c = all.find(x=>x.id===h.campId) || {id:h.campId,name:h.campName,color:h.campColor,perguntas:[]};
   const f = FMTS.find(x=>x.id===fmtId) || FMTS[0];
