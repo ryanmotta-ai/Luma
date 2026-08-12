@@ -1757,69 +1757,156 @@ Responda APENAS JSON: {"casos":[{"imagem":0,"item":2},{"imagem":1,"item":null}]}
 let _fSpeechActive = false;
 let _fSpeechStarting = false;
 let _fSpeechInstance = null;
+let _fSpeechWanted = false;
+let _fSpeechButton = null;
+let _fSpeechInput = null;
+let _fSpeechBase = '';
+let _fSpeechCommitted = '';
+let _fSpeechCycleFinal = '';
+let _fSpeechFatal = false;
+let _fAudioStream = null;
+let _fMediaRecorder = null;
+let _fAudioChunks = [];
 
 // Estado visual do botão de voz via classe (sem cor hardcoded — o CSS usa tokens).
+function fSpeechButtonUI(btn, state){
+  if(!btn) return;
+  const label = btn.querySelector('.f-mic-label');
+  const isRecording = state === 'recording';
+  const isProcessing = state === 'processing';
+  btn.classList.toggle('is-recording', isRecording);
+  btn.classList.toggle('is-processing', isProcessing);
+  btn.setAttribute('aria-pressed', isRecording ? 'true' : 'false');
+  btn.disabled = isProcessing;
+  const text = isRecording ? 'Parar' : (isProcessing ? 'Transcrevendo' : 'Falar');
+  if(label) label.textContent = text;
+  btn.setAttribute('aria-label', isRecording ? 'Parar gravação' : (isProcessing ? 'Transcrevendo áudio' : 'Ditar por voz'));
+  btn.title = isRecording ? 'Parar e usar o texto' : (isProcessing ? 'Transcrevendo áudio…' : 'Falar em vez de digitar');
+}
 function fStopSpeechUI(btn){
-  if(btn){ btn.classList.remove('is-recording'); btn.setAttribute('aria-pressed','false'); }
+  fSpeechButtonUI(btn, 'idle');
+}
+function fSpeechWrite(value){
+  if(!_fSpeechInput) return;
+  _fSpeechInput.value = value;
+  _fSpeechInput.dispatchEvent(new Event('input', {bubbles:true}));
+}
+function fSpeechReset(){
+  if(_fAudioStream){ _fAudioStream.getTracks().forEach(t=>t.stop()); }
+  _fAudioStream = null; _fMediaRecorder = null; _fAudioChunks = [];
+  _fSpeechActive = false; _fSpeechStarting = false; _fSpeechInstance = null;
+  _fSpeechWanted = false; _fSpeechFatal = false;
+  fStopSpeechUI(_fSpeechButton);
+  _fSpeechButton = null; _fSpeechInput = null;
 }
 
-// Ditar por voz (Web Speech API). Robusto: exige contexto seguro (o mic é bloqueado
-// em file://), transcreve contínuo com resultados parciais ao vivo e é toggle (clicar
-// de novo para). Acumula no texto existente em vez de sobrescrever.
-function fStartSpeech(event, inputId){
-  if(event) event.preventDefault();
-
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if(!SR){ gToast('O ditado por voz funciona no Chrome ou no Edge — abra o Luma num deles.', 'error'); return; }
-  // Secure context: em file:// o navegador bloqueia o microfone — avisa ANTES de tentar.
-  if(typeof window.isSecureContext!=='undefined' && !window.isSecureContext){
-    gToast('O microfone precisa do Luma aberto pelo endereço do site. Recarregue por lá e tente de novo.', 'error');
-    return;
-  }
-
-  const btn = (event && event.currentTarget) ? event.currentTarget : document.getElementById('f-bulk-mic-btn');
-  const input = document.getElementById(inputId);
-  if(!input) return;
-
-  // Toggle: se já está gravando (ou iniciando), para.
-  if(_fSpeechActive || _fSpeechStarting){ if(_fSpeechInstance){ try{ _fSpeechInstance.stop(); }catch(e){} } return; }
-
+function fSpeechRecognitionStart(SR){
   const rec = new SR();
   _fSpeechInstance = rec;
   _fSpeechStarting = true;
   rec.lang = 'pt-BR';
-  rec.continuous = true;      // não corta na primeira pausa (dita a lista inteira)
-  rec.interimResults = true;  // mostra as palavras ao vivo
-
-  const baseText = input.value ? (input.value.replace(/\s*$/,'') + ' ') : '';
-  let finalText = '';
-
-  if(btn){ btn.classList.add('is-recording'); btn.setAttribute('aria-pressed','true'); }
-
+  // Safari/iOS encerra ou lança erro com continuous=true. Reiniciamos sessões curtas
+  // enquanto o usuário não tocar em Parar; Chrome/Edge usam a sessão contínua nativa.
+  const isAppleMobile = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+  rec.continuous = !isAppleMobile;
+  rec.interimResults = true;
+  _fSpeechCycleFinal = '';
+  fSpeechButtonUI(_fSpeechButton, 'recording');
   rec.onstart = () => { _fSpeechActive = true; _fSpeechStarting = false; gToast('Ouvindo… fale as ofertas. Clique de novo para parar.'); };
   rec.onresult = (e) => {
-    let interim = '';
-    for(let i=e.resultIndex; i<e.results.length; i++){
-      const t = e.results[i][0].transcript;
-      if(e.results[i].isFinal) finalText += t + ' '; else interim += t;
+    let cycleFinal = '', interim = '';
+    for(let i=0; i<e.results.length; i++){
+      const t = String(e.results[i][0].transcript || '').trim();
+      if(!t) continue;
+      if(e.results[i].isFinal) cycleFinal += t + ' '; else interim += t;
     }
-    input.value = baseText + finalText + interim;
-    if(input.tagName === 'INPUT') input.dispatchEvent(new Event('input', {bubbles:true}));
+    _fSpeechCycleFinal = cycleFinal;
+    fSpeechWrite(_fSpeechBase + _fSpeechCommitted + cycleFinal + interim);
   };
   rec.onerror = (e) => {
     console.error('Speech error:', e.error);
-    if(e.error === 'not-allowed' || e.error === 'service-not-allowed') gToast('Microfone bloqueado — permita o acesso ao microfone nas configurações do navegador.', 'error');
+    if(e.error === 'not-allowed' || e.error === 'service-not-allowed'){
+      _fSpeechFatal = true; _fSpeechWanted = false;
+      gToast('Microfone bloqueado — permita o acesso ao microfone nas configurações do navegador.', 'error');
+    }
     else if(e.error === 'no-speech') gToast('Nenhuma fala detectada. Fale mais perto do microfone.', 'error');
-    else if(e.error !== 'aborted') gToast('Falha no áudio. Tente de novo.', 'error');
+    else if(e.error === 'audio-capture') { _fSpeechFatal = true; _fSpeechWanted = false; gToast('Nenhum microfone disponível neste dispositivo.', 'error'); }
+    else if(e.error !== 'aborted' && e.error !== 'network') gToast('Falha no áudio. Tente de novo.', 'error');
   };
   rec.onend = () => {
-    fStopSpeechUI(btn);
+    _fSpeechCommitted += _fSpeechCycleFinal;
+    _fSpeechCycleFinal = '';
     _fSpeechActive = false; _fSpeechStarting = false; _fSpeechInstance = null;
-    if(finalText.trim()) gToast('Transcrição adicionada.');
+    if(_fSpeechWanted && !_fSpeechFatal){
+      setTimeout(()=>{ if(_fSpeechWanted) fSpeechRecognitionStart(SR); }, 180);
+      return;
+    }
+    const added = _fSpeechCommitted.trim();
+    fSpeechReset();
+    if(added) gToast('Transcrição adicionada.');
   };
-
   try{ rec.start(); }
-  catch(e){ _fSpeechStarting = false; fStopSpeechUI(btn); gToast('Não consegui iniciar o microfone — tente de novo.', 'error'); }
+  catch(e){ fSpeechReset(); gToast('Não consegui iniciar o microfone — tente de novo.', 'error'); }
+}
+
+async function fRecordedSpeechStart(){
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder){
+    gToast('Este navegador não oferece gravação de voz. Atualize-o e tente novamente.', 'error'); fSpeechReset(); return;
+  }
+  if(typeof gAiReady!=='function' || !gAiReady()){
+    gToast('A transcrição de áudio está indisponível agora. Você ainda pode digitar normalmente.', 'error'); fSpeechReset(); return;
+  }
+  try{
+    _fAudioStream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:false});
+    const preferred = ['audio/webm;codecs=opus','audio/mp4','audio/webm'].find(t=>MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t));
+    _fMediaRecorder = preferred ? new MediaRecorder(_fAudioStream,{mimeType:preferred}) : new MediaRecorder(_fAudioStream);
+    _fAudioChunks = [];
+    _fMediaRecorder.ondataavailable = e=>{ if(e.data && e.data.size) _fAudioChunks.push(e.data); };
+    _fMediaRecorder.onstop = async()=>{
+      const btn = _fSpeechButton, input = _fSpeechInput;
+      _fAudioStream.getTracks().forEach(t=>t.stop()); _fAudioStream = null;
+      if(!_fAudioChunks.length){ fSpeechReset(); gToast('Nenhum áudio foi capturado.', 'error'); return; }
+      fSpeechButtonUI(btn,'processing');
+      try{
+        const type = _fMediaRecorder.mimeType || _fAudioChunks[0].type || 'audio/webm';
+        const file = new File([new Blob(_fAudioChunks,{type})], 'fala.'+(type.includes('mp4')?'m4a':'webm'), {type});
+        const part = await gAiFileToPart(file);
+        const text = part && await gAskAI('transcrever-audio','Transcreva este áudio em português do Brasil. Retorne somente o texto falado, sem aspas, título ou explicação.',{parts:[part],cache:false});
+        if(text && input){ input.value = _fSpeechBase + String(text).trim(); input.dispatchEvent(new Event('input',{bubbles:true})); gToast('Transcrição adicionada.'); }
+        else gToast('Não consegui entender o áudio. Tente falar mais perto do microfone.', 'error');
+      }catch(e){ console.error('Audio transcription error:',e); gToast('Não consegui transcrever o áudio. Tente novamente.', 'error'); }
+      finally{ fSpeechReset(); }
+    };
+    _fMediaRecorder.start(); _fSpeechActive = true; _fSpeechStarting = false;
+    fSpeechButtonUI(_fSpeechButton,'recording'); gToast('Gravando… clique novamente para transcrever.');
+  }catch(e){
+    fSpeechReset();
+    if(e && (e.name==='NotAllowedError'||e.name==='SecurityError')) gToast('Microfone bloqueado — permita o acesso nas configurações do navegador.', 'error');
+    else gToast('Não consegui acessar o microfone deste dispositivo.', 'error');
+  }
+}
+
+// Ditar por voz em todas as superfícies do franqueado. Usa reconhecimento ao vivo
+// quando existe e cai para gravação + transcrição nos navegadores sem Web Speech.
+function fStartSpeech(event, inputId){
+  if(event) event.preventDefault();
+  if(typeof window.isSecureContext!=='undefined' && !window.isSecureContext){
+    gToast('O microfone precisa do Luma aberto pelo endereço do site. Recarregue por lá e tente de novo.', 'error'); return;
+  }
+  if(_fSpeechActive || _fSpeechStarting){
+    _fSpeechWanted = false;
+    if(_fMediaRecorder && _fMediaRecorder.state!=='inactive'){ _fMediaRecorder.stop(); return; }
+    if(_fSpeechInstance){ try{ _fSpeechInstance.stop(); }catch(e){ fSpeechReset(); } }
+    return;
+  }
+  _fSpeechButton = event && event.currentTarget ? event.currentTarget : document.getElementById('f-bulk-mic-btn');
+  _fSpeechInput = document.getElementById(inputId);
+  if(!_fSpeechInput) return;
+  _fSpeechBase = _fSpeechInput.value ? (_fSpeechInput.value.replace(/\s*$/,'')+' ') : '';
+  _fSpeechCommitted = ''; _fSpeechCycleFinal = ''; _fSpeechFatal = false; _fSpeechWanted = true; _fSpeechStarting = true;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(SR) fSpeechRecognitionStart(SR); else fRecordedSpeechStart();
 }
 
 /* ── Sugestão de prompt de IA para gerar a planilha (ChatGPT) ── */

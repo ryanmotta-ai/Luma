@@ -578,14 +578,18 @@ body:not(.theme-light) .f-upload-replace:hover{background:color-mix(in srgb,var(
 #f-snd:active{transform:scale(.92)}
 #f-snd:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
 /* Ditar por voz no chat (reusa fStartSpeech). Botão secundário; vira vermelho pulsante gravando. */
-#f-chat-mic{width:38px;height:38px;border-radius:50%;background:var(--gray-light);border:1px solid var(--gray-mid);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-2);flex-shrink:0;transition:transform var(--dur-fast) var(--ease-spring),background var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard)}
+#f-chat-mic{min-width:38px;height:38px;padding:0 11px;border-radius:var(--r-pill);background:var(--gray-light);border:1px solid var(--gray-mid);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;color:var(--text-2);flex-shrink:0;font:650 12px/1 'Roboto',sans-serif;transition:transform var(--dur-fast) var(--ease-spring),background var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard)}
+#f-chat-mic svg{width:16px;height:16px;flex:none}
 #f-chat-mic:hover{background:var(--gray-mid);color:var(--text);transform:scale(1.06)}
 #f-chat-mic:active{transform:scale(.92)}
 #f-chat-mic:disabled{opacity:.4;cursor:not-allowed;transform:none;pointer-events:none}
 #f-chat-mic.is-recording{background:var(--dm-red);border-color:var(--dm-red);color:#fff;animation:f-mic-pulse 1.2s ease-in-out infinite}
+#f-chat-mic.is-processing{border-color:var(--dm-orange);background:var(--dm-orange-bg);color:var(--dm-orange-d);cursor:wait}
 @keyframes f-mic-pulse{0%,100%{box-shadow:0 0 0 3px rgba(200,24,24,.18)}50%{box-shadow:0 0 0 7px rgba(200,24,24,.04)}}
 @media (prefers-reduced-motion: reduce){#f-chat-mic.is-recording{animation:none;box-shadow:0 0 0 3px rgba(200,24,24,.18)}}
 body:not(.theme-light) #f-chat-mic{background:var(--d-surf);border-color:var(--d-border2);color:var(--d-text)}
+body:not(.theme-light) #f-chat-mic.is-recording{background:var(--dm-red);border-color:var(--dm-red);color:var(--white)}
+body:not(.theme-light) #f-chat-mic.is-processing{background:color-mix(in srgb,var(--dm-orange) 13%,var(--d-surf));border-color:var(--dm-orange);color:var(--dm-orange)}
 
 
 /* 4.3 — Luma Sheets: workspace guiado de produção em lote */
@@ -743,6 +747,7 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
   font-size:8px;font-weight:850;letter-spacing:.06em;cursor:help;vertical-align:middle}
 .f-bulk-card .f-bulk-ia-chip{position:absolute;top:7px;left:50%;transform:translateX(-50%);z-index:2;margin:0}
 #f-bulk-mic-btn.is-recording{border-color:var(--dm-red);background:var(--dm-red);color:var(--white);animation:gPulse 1s infinite}
+#f-bulk-mic-btn.is-processing{border-color:var(--dm-orange);background:var(--dm-orange-bg);color:var(--dm-orange-d);cursor:wait}
 .f-ai-prompt-toggle{display:inline-flex;align-items:center;gap:4px;margin-left:auto;padding:5px 0;border:0;background:transparent;color:var(--text-3);font:600 10.5px 'Roboto',sans-serif;white-space:nowrap;cursor:pointer}
 .f-ai-prompt-toggle:hover{color:var(--dm-orange-d)}
 .f-ai-prompt-chevron{font-size:15px;line-height:1;transition:transform var(--dur-fast) var(--ease-standard)}
@@ -1142,6 +1147,10 @@ body:not(.theme-light) .caption-copy-btn { background: var(--d-surf2); color: va
 body:not(.theme-light) .caption-copy-btn:hover { background: var(--d-surf3); border-color: var(--dm-orange) }
 body:not(.theme-light) .caption-copy-btn.copied { background: var(--green); color: var(--on-accent); border-color: var(--green) }
 
+/* Estados do microfone vencem o remapeamento de superfícies do tema escuro. */
+body:not(.theme-light) #f-bulk-mic-btn.is-recording{background:var(--dm-red);border-color:var(--dm-red);color:var(--white)}
+body:not(.theme-light) #f-bulk-mic-btn.is-processing{background:color-mix(in srgb,var(--dm-orange) 13%,var(--d-surf));border-color:var(--dm-orange);color:var(--dm-orange)}
+
 
 /* ══════════════════════════════════════════════════════════════
    CHAT MOBILE — safe-area (home indicator do iOS) + toque.
@@ -1151,6 +1160,8 @@ body:not(.theme-light) .caption-copy-btn.copied { background: var(--green); colo
   #f-input-row{padding:12px 16px calc(12px + var(--safe-bottom));}
   #f-msg-box{font-size:16px;padding-top:11px;padding-bottom:11px} /* 16px = sem auto-zoom iOS */
   #f-snd{width:var(--tap-min);height:var(--tap-min);flex-shrink:0}
+  #f-chat-mic{width:var(--tap-min);min-width:var(--tap-min);height:var(--tap-min);padding:0;border-radius:50%}
+  #f-chat-mic .f-mic-label{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important}
   /* Bolhas de chat mais largas no celular (menos margem lateral desperdiçada).
      padding-bottom extra: a miniatura viva da prévia (até ~114px, bottom:80px) não pode
      tampar o fim do scroll (cobria o último card da revisão, ex.: "Gerar kit da campanha"). */

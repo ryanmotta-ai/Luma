@@ -42,7 +42,6 @@
   <link rel="stylesheet" href="css/components/pages-tray.css">
 <link rel="stylesheet" href="css/modules/layers-panel.css">
 <link rel="stylesheet" href="css/modules/toolbar.css">
-<link rel="stylesheet" href="css/components/pwa-install.css?v=3">
 <link rel="stylesheet" href="css/components/login.css">
 <link rel="stylesheet" href="css/modules/upload-panel.css">
 <!-- depois de franqueado/chat/live-preview: sobrepõe o layout das 3 colunas -->
@@ -744,8 +743,9 @@ body:not(.theme-light) input:-webkit-autofill:active {
               <input id="f-msg-box" aria-label="Digite sua resposta" enterkeyhint="send" placeholder="Digite sua resposta ou use os botões acima..." onkeydown="if(event.key==='Enter')fSend()"/>
               <span id="f-char-count" aria-hidden="true"></span>
             </div>
-            <button id="f-chat-mic" onclick="fStartSpeech(event,'f-msg-box')" aria-label="Ditar por voz" aria-pressed="false" title="Ditar por voz">
+            <button id="f-chat-mic" type="button" onclick="fStartSpeech(event,'f-msg-box')" aria-label="Ditar por voz" aria-pressed="false" title="Ditar por voz">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+              <span class="f-mic-label">Falar</span>
             </button>
             <button id="f-snd" onclick="fSend()" aria-label="Enviar">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m22 2-7 20-4-9-9-4 20-7z"/></svg>
@@ -2406,9 +2406,9 @@ body:not(.theme-light) input:-webkit-autofill:active {
             <label class="f-bulk-field-label" for="f-bulk-ai-raw-text">Escreva ou fale suas ofertas</label>
             <textarea id="f-bulk-ai-raw-text" placeholder="Ex.: Hambúrguer clássico por R$ 25 hoje. Amanhã, pizza de calabresa de R$ 50 por R$ 39."></textarea>
             <div class="f-bulk-ai-actions">
-              <button type="button" class="d-btn-sec f-bulk-mic-big" id="f-bulk-mic-btn" onclick="fStartSpeech(event, 'f-bulk-ai-raw-text')" title="Falar em vez de digitar" aria-label="Falar as ofertas em vez de digitar">
+              <button type="button" class="d-btn-sec f-bulk-mic-big" id="f-bulk-mic-btn" onclick="fStartSpeech(event, 'f-bulk-ai-raw-text')" title="Falar em vez de digitar" aria-label="Falar as ofertas em vez de digitar" aria-pressed="false">
                 <svg class="mic-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
-                Falar
+                <span class="f-mic-label">Falar</span>
               </button>
               <!-- Ler cardápio: o lojista manda o cardápio em foto/PDF pelo WhatsApp e
                    alguém digitava 30 linhas. O arquivo vira linhas da grade (png-generator.js:
@@ -3727,7 +3727,6 @@ body:not(.theme-light) input:-webkit-autofill:active {
 <script src="js/designer/color-picker.js"></script>
 <script src="js/designer/tooltip.js"></script>
 <script src="js/designer/linter.js"></script>
-<script src="js/core/pwa-install.js?v=3"></script>
   <!-- Tooltip Educativo Global -->
   <div id="d-rich-tooltip" class="d-rich-tooltip" style="display:none; opacity:0;"></div>
 </body>
