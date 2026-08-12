@@ -18,6 +18,13 @@ function fValidadeSuggestions(){
   return ['Válido só hoje','Válido neste fim de semana',`Válido até ${dd}/${mm}`,'Válido até o fim do mês'];
 }
 function fGetSuggestionsForVar(varName, camp){
+  // ⛔ Campo de DINHEIRO não recebe sugestão de valor. Um chip "R$ 29,90" ao lado da
+  // pergunta lê como se o template impusesse uma faixa de preço — e preço é decisão da
+  // loja, não do material. Cortado aqui (o único gerador) e não no fNextStep: assim vale
+  // também pra edição pelo card de revisão, que lê o mesmo p.sugestoes. O placeholder
+  // do input segue mostrando o FORMATO ("Ex: R$ 9,90"), que é ajuda de digitação.
+  let _tipo=''; try{ _tipo=(typeof fGetFieldType==='function')?fGetFieldType(varName).type:''; }catch(e){}
+  if(_tipo==='price') return [];
   // Validade é sensível ao tempo → sempre datas calculadas, antes de qualquer default estático.
   if(varName==='validade') return fValidadeSuggestions();
   // Tenta achar sugestões nas perguntas da campanha original
@@ -26,8 +33,7 @@ function fGetSuggestionsForVar(varName, camp){
   // Defaults básicos
   const defaults = {
     produto: ['Combo Smash', 'X-Bacon', 'Pizza Calabresa', 'Sushi Combo'],
-    precoPor: ['R$ 19,90', 'R$ 29,90', 'R$ 39,90'],
-    precoDe: ['R$ 24,90', 'R$ 34,90', 'R$ 44,90'],
+    // precoPor/precoDe saíram: campo de preço não sugere valor (guarda no topo).
     desconto: ['20% off', '30% off', '50% off'],
     codigo: ['PROMO10', 'DM20', 'SUPER30'],
     detalhes: ['Frete grátis', 'Combo família', 'Edição limitada'],
@@ -196,33 +202,8 @@ function fConfirmSaveLoja(){
   if(typeof fResizeImageIfNeeded==='function') fResizeImageIfNeeded(logo, 400, finish);
   else finish(logo);
 }
-function fAskCampSwitch(c){
-  const msgs=document.getElementById('f-messages');
-  const existing=document.getElementById('switch-confirm-msg');if(existing)existing.remove();
-  const w=document.createElement('div');w.className='msg bot';w.id='switch-confirm-msg';
-  w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div>
-    <div class="bbl">Trocar pra <strong>${gEsc(c.name)}</strong>? Você vai perder o progresso atual e poderá escolher um material da nova campanha.</div>
-    <div class="qr-wrap">
-      <div class="qr" onclick="fApplyCampSwitch(${JSON.stringify(c.id).replace(/"/g,'&quot;')},false)">Sim, trocar</div>
-      <div class="qr" onclick="fCancelSwitch()" style="background:var(--gray-light);border-color:var(--gray-mid);color:var(--text-2)">Cancelar</div>
-    </div>
-  </div>`;
-  msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;
-}
-function fApplyCampSwitch(cId, keepData){
-  const m=document.getElementById('switch-confirm-msg');if(m)m.remove();
-  const c=fResolveCamp(cId); // seam: catalog.js carrega antes (index.html)
-  if(!c)return;
-  // Limpa estado (a troca via catálogo de materiais é nova arquitetura)
-  fState.camp=c;fState.stepIdx=-1;fState.done=false;
-  fState.dados={};
-  fState.material=null;
-  fRestoreCatalog();fUpdateCtx();
-  fOpenMaterialCatalog(c);
-}
-function fCancelSwitch(){
-  const m=document.getElementById('switch-confirm-msg');if(m)m.remove();
-}
+// fAskCampSwitch/fApplyCampSwitch/fCancelSwitch saíram: trocar de pasta não pergunta
+// mais nada (o reset de estado mora no fSelectCamp, em catalog.js).
 function fSelectFmt(id){
   const novoFmt=FMTS.find(f=>f.id===id);
   if(!novoFmt || (fState.fmt && fState.fmt.id===novoFmt.id)) return;

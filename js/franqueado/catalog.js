@@ -860,10 +860,14 @@ function fSelectCamp(id){
     if(typeof fApplyCampTheme==='function') fApplyCampTheme(c);
     if(fState.materialView) return;
   }
-  const temDados = Object.keys(fState.dados).length > 0 && !fState.materialView;
-  if(temDados && !fState.done){
-    fAskCampSwitch(c);
-    return;
+  // Abrir outra pasta NÃO pergunta nada. A confirmação "Trocar pra X? Você vai perder o
+  // progresso" travava o gesto mais banal do catálogo (voltar pra home → abrir outra pasta)
+  // e a perda que ela anunciava nem era real: o rascunho é salvo por campanha+material
+  // (luma_chat_draft) e volta a ser oferecido quando a pessoa reabre aquele material.
+  // O reset do estado, porém, é obrigatório: sem ele as respostas da campanha anterior
+  // vazam pré-preenchidas nos passos da nova (fNextStep rehidrata de fState.dados).
+  if(fState.camp && fState.camp.id!==c.id){
+    fState.stepIdx=-1; fState.dados={}; fState.done=false; fState.material=null;
   }
   fState.camp=c;
   // Vindo da home (categoria ainda null): abre o rail na lista certa, não nos cards de categoria
