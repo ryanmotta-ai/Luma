@@ -116,7 +116,15 @@ function setMode(m){
 // e se o role/flag permitirem — setMode já reforça os dois gates, então é seguro chamar.
 function gRestoreMode(){
   let m=null; try{ m=localStorage.getItem('__luma_mode'); }catch(e){}
-  if(m && m!=='franqueado' && typeof setMode==='function') setMode(m);
+  if(!m || m==='franqueado' || typeof setMode!=='function') return;
+  // fGoHome (boot) deixou body.f-home-mode — a vitrine em tela cheia. setMode troca a
+  // classe de modo mas NÃO tira f-home-mode, então a home cobria o Estúdio ("voltou pra
+  // home"). fExitHome remove a classe antes de restaurar.
+  if(typeof fExitHome==='function') fExitHome();
+  setMode(m);
+  // Fora da home o splash (boas-vindas de marca) é ruído a cada F5 no Estúdio/Academia:
+  // dispensa na hora (spDismiss ignora o mínimo de 2.8s).
+  if(typeof spDismiss==='function') spDismiss();
 }
 
 // Mostra a aba Designer só pra persona Designer (equipe_dm/gestao).
