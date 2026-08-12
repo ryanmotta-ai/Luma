@@ -91,6 +91,33 @@ function _fHistBloqueiaVencida(h){
   gToast('Esse material saiu do ar'+(quando?' em '+quando:'')+' — não é possível gerar essa arte de novo.','error');
   return true;
 }
+/* Biblioteca vazia: a MARCA do Luma (a mesma varinha do favicon, mesma geometria) se
+   recompõe numa carinha triste — a estrela de baixo sobe pra fazer par com a de cima
+   (os olhos) e a varinha se curva na boca. É a única ilustração da tela, então ela pode
+   contar a história: "ainda não tem nada aqui" dito pela marca, não por um clipart.
+   Roda UMA vez, na entrada (o empty state só é pintado quando não há nenhuma arte).
+   Movimento e geometria: o SVG só declara as formas; tempos, curvas e posições finais
+   moram no CSS (.luma-sad em franqueado.css), com prefers-reduced-motion caindo direto
+   no rosto pronto — regra do motion.md: nada de ms nem cubic-bezier no JS. */
+function _fHistEmptyArtSVG(){
+  return `<svg class="luma-sad" viewBox="0 0 32 32" role="img" aria-label="A varinha do Luma faz uma carinha triste: você ainda não tem artes">
+    <g class="ls-face" fill="none" stroke="currentColor">
+      <path class="ls-star ls-star-a" d="M12 5.5 Q12 9 15.5 9 Q12 9 12 12.5 Q12 9 8.5 9 Q12 9 12 5.5 Z" fill="currentColor" stroke="none"/>
+      <path class="ls-star ls-star-b" d="M20 19.5 Q20 23 23.5 23 Q20 23 20 26.5 Q20 23 16.5 23 Q20 23 20 19.5 Z" fill="currentColor" stroke="none"/>
+      <path class="ls-spark" d="M24 15 Q24 17 26 17 Q24 17 24 19 Q24 17 22 17 Q24 17 24 15 Z" fill="currentColor" stroke="none"/>
+      <g class="ls-rays" stroke-width="1.5" stroke-linecap="round">
+        <line x1="25.5" y1="6.5" x2="27.5" y2="4.5"/>
+        <line x1="23.5" y1="5.5" x2="23.5" y2="3"/>
+        <line x1="26" y1="8.5" x2="28.5" y2="8.5"/>
+      </g>
+      <g class="ls-wand" stroke-width="3" stroke-linecap="round">
+        <path d="M8 24 L15.5 16.5"/>
+        <path d="M17.5 14.5 L23 9"/>
+      </g>
+      <path class="ls-mouth" d="M9.7 21.5 Q15.5 16.8 21.3 21.5" stroke-width="2.6" stroke-linecap="round"/>
+    </g>
+  </svg>`;
+}
 function fRenderHist(){
   const all = fGetHist();
   const el = document.getElementById('f-hist-tab');
@@ -128,9 +155,7 @@ function fRenderHist(){
   const toolbar=all.length?`<div class="f-history-toolbar">${searchBar}${filterBar}</div>`:'';
   if(!all.length){
     el.innerHTML = `<div class="f-history-shell">${pageHead}<div class="empty-state f-history-empty">
-      <div class="empty-icon">
-        <img src="assets/illustrations/empty_arts.png" alt="Uma tela pronta para receber sua primeira arte">
-      </div>
+      <div class="empty-icon">${_fHistEmptyArtSVG()}</div>
       <div class="empty-title">Sua primeira criação começa por uma campanha</div>
       <div class="empty-text">Escolha um material, personalize com a ajuda da Luma e encontre o resultado sempre aqui.</div>
       <button class="empty-cta" onclick="fGoToCampaigns()">Explorar campanhas</button>

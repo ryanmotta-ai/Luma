@@ -1211,6 +1211,59 @@ body:not(.theme-light) .f-arch-card{background:var(--d-surf2);border-color:var(-
 .f-history-empty{min-height:430px;margin-top:18px;border:1px dashed var(--gray-mid);border-radius:16px;background:var(--white)}
 .f-history-empty .empty-icon img{width:160px;height:auto}
 
+/* ── BIBLIOTECA VAZIA: a varinha do Luma vira carinha triste ──────────────────
+   A marca (mesma geometria do favicon) se recompõe: as duas estrelas viram os olhos —
+   a de baixo SOBE pra fazer par com a de cima — e a varinha se curva na boca. Faísca
+   pequena e raios saem de cena, porque um rosto não tem brilho no canto.
+   Um ciclo só: `both` congela no rosto e não há infinite. Empty state se pinta uma vez
+   por visita, então o movimento é entrada, não enfeite piscando (motion.md §Regra de Ouro).
+   As posições finais vivem AQUI (não no SVG) pra que reduced-motion seja só copiar o
+   último keyframe — sem JS e sem duplicar geometria em dois lugares. */
+.f-history-empty .empty-icon{opacity:1}                 /* .empty-icon global é cinza a 70%: a marca é laranja */
+.luma-sad{width:132px;height:132px;color:var(--dm-orange);overflow:visible}
+.luma-sad .ls-star,.luma-sad .ls-spark,.luma-sad .ls-rays,.luma-sad .ls-wand{transform-box:fill-box;transform-origin:center}
+/* 1260ms = 3× --dur-slow: três batidas (reconhecer a marca → olhos subirem → boca curvar). */
+.luma-sad .ls-star-a{animation:lsOlhoEsq 1260ms var(--ease-spring-soft) both}
+.luma-sad .ls-star-b{animation:lsOlhoDir 1260ms var(--ease-spring-soft) both}
+.luma-sad .ls-spark,.luma-sad .ls-rays{animation:lsSaiDeCena 1260ms var(--ease-in) both}
+.luma-sad .ls-wand{animation:lsVaraCurva 1260ms var(--ease-standard) both}
+.luma-sad .ls-mouth{stroke-dasharray:14;animation:lsBoca 1260ms var(--ease-out) both}
+
+/* A estrela de cima só desce um fio pra alinhar com a irmã na linha dos olhos. */
+@keyframes lsOlhoEsq{
+  0%,14%{transform:none}
+  58%,100%{transform:translate(-.5px,3px) scale(.92)}
+}
+/* A estrela de baixo é a viagem principal: sobe 11 unidades e vira o olho direito. */
+@keyframes lsOlhoDir{
+  0%,14%{transform:none}
+  58%,100%{transform:translate(.5px,-11px) scale(.92)}
+}
+@keyframes lsSaiDeCena{
+  0%,10%{opacity:1;transform:none}
+  34%,100%{opacity:0;transform:scale(.4)}
+}
+/* Gira 45° (a vara nasce na diagonal), encolhe pra largura de boca e desce pro lugar dela.
+   No fim se apaga POR CIMA da boca já desenhada — o olho lê como a vara entortando. */
+@keyframes lsVaraCurva{
+  0%,26%{transform:none;opacity:1}
+  66%{transform:translate(0,5px) rotate(45deg) scale(.55);opacity:1}
+  82%,100%{transform:translate(0,5px) rotate(45deg) scale(.55);opacity:0}
+}
+/* A boca desenha do canto ao canto no exato lugar onde a vara parou. */
+@keyframes lsBoca{
+  0%,62%{stroke-dashoffset:14;opacity:0}
+  66%{opacity:1}
+  92%,100%{stroke-dashoffset:0;opacity:1}
+}
+@media (prefers-reduced-motion:reduce){
+  .luma-sad .ls-star-a,.luma-sad .ls-star-b,.luma-sad .ls-spark,.luma-sad .ls-rays,.luma-sad .ls-wand,.luma-sad .ls-mouth{animation:none!important}
+  .luma-sad .ls-star-a{transform:translate(-.5px,3px) scale(.92)}
+  .luma-sad .ls-star-b{transform:translate(.5px,-11px) scale(.92)}
+  .luma-sad .ls-spark,.luma-sad .ls-rays,.luma-sad .ls-wand{opacity:0}
+  .luma-sad .ls-mouth{stroke-dashoffset:0}
+}
+
 body:not(.theme-light).f-history-mode #fran-left,body:not(.theme-light) #f-hist-tab{background:var(--d-bg)}
 body:not(.theme-light) .f-history-head h1,body:not(.theme-light) .hist-name{color:var(--d-text)}
 body:not(.theme-light) .f-history-head h1 span,body:not(.theme-light) .f-history-toolbar,body:not(.theme-light) .hist-card,body:not(.theme-light) .f-history-empty{background:var(--d-surf);border-color:var(--d-border)}
