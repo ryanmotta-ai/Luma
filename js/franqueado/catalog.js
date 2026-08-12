@@ -91,6 +91,23 @@ function _fHistBloqueiaVencida(h){
   gToast('Esse material saiu do ar'+(quando?' em '+quando:'')+' — não é possível gerar essa arte de novo.','error');
   return true;
 }
+/* Porteiro do "Limpar": a única confirmação da biblioteca. Usa o gConfirm da casa (danger),
+   diz QUANTAS artes somem e ONDE (aqui e no servidor), separa o que NÃO se perde (os
+   materiais das campanhas continuam no catálogo) e avisa que não desfaz — sem isso a
+   pessoa clica achando que é só um filtro. O botão OK carrega o número: quem lê "Apagar as
+   12" não confunde com "limpar a busca". A demolição em si é o fClearHist (history.js). */
+async function fAskClearHist(){
+  const n=fGetHist().length;
+  if(!n){ if(typeof gToast==='function') gToast('Sua biblioteca já está vazia.'); return; }
+  if(typeof gConfirm!=='function'){ gToast('Não consegui abrir a confirmação. Recarregue a página.','error'); return; }
+  const ok=await gConfirm(
+    `Isso apaga ${n===1?'a sua única arte':'as suas '+n+' artes'} desta biblioteca — aqui e no servidor. Os materiais das campanhas continuam no catálogo: o que sai é só o seu histórico. Não dá pra desfazer.`,
+    { title:'Limpar minhas artes?', okLabel:(n===1?'Apagar a arte':'Apagar as '+n), cancelLabel:'Manter', danger:true }
+  );
+  if(!ok) return;
+  const feito=(typeof fClearHist==='function') ? await fClearHist() : false;
+  if(feito && typeof gToast==='function') gToast('Biblioteca limpa.');
+}
 /* Biblioteca vazia: a MARCA do Luma (a mesma varinha do favicon, mesma geometria) se
    recompõe numa carinha triste — a estrela de baixo sobe pra fazer par com a de cima
    (os olhos) e a varinha se curva na boca. É a única ilustração da tela, então ela pode
@@ -152,7 +169,11 @@ function fRenderHist(){
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
     <input id="f-hist-search" type="search" aria-label="Buscar nas minhas artes" placeholder="Buscar por produto, campanha, data…" value="${gEsc(fHistSearch||'')}" oninput="fSetHistSearch(this.value)"/>
   </div>` : '';
-  const toolbar=all.length?`<div class="f-history-toolbar">${searchBar}${filterBar}</div>`:'';
+  // Limpar a biblioteca vive na barra da LISTA (não no cabeçalho, junto de "Nova arte"):
+  // é ação sobre o conjunto, e a hierarquia da página não deve pôr destruir ao lado de criar.
+  // Só existe quando há algo pra limpar.
+  const clearBtn = all.length ? `<button class="hist-clear-btn" type="button" onclick="fAskClearHist()" title="Apagar todas as artes da sua biblioteca"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>Limpar</button>` : '';
+  const toolbar=all.length?`<div class="f-history-toolbar">${searchBar}${filterBar}${clearBtn}</div>`:'';
   if(!all.length){
     el.innerHTML = `<div class="f-history-shell">${pageHead}<div class="empty-state f-history-empty">
       <div class="empty-icon">${_fHistEmptyArtSVG()}</div>

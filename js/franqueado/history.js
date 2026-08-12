@@ -156,6 +156,39 @@ async function fSyncArtesFromBackend(){
   }catch(e){}
 }
 
+/* ══════════════════════════════════════════════════════════════
+   LIMPAR A BIBLIOTECA — irreversível. Só é chamada depois do gConfirm (fAskClearHist,
+   em catalog.js): o porteiro é lá, a demolição é aqui.
+
+   Apaga no BANCO PRIMEIRO e só então no localStorage. Na ordem inversa, o
+   fSyncArtesFromBackend do próximo carregamento traria as 50 linhas de volta — limpeza
+   de mentira, o pior resultado possível numa ação destrutiva. Se o banco recusar
+   (rede/RLS), NADA é apagado e a pessoa fica sabendo: melhor falhar limpo do que dar
+   uma sensação de apagado que o F5 desmente.
+
+   O DELETE é filtrado por user_id de propósito, mesmo com a policy "dono apaga suas
+   artes" já filtrando (20260618092000): a RLS é a fronteira, o filtro é a intenção
+   explícita — e delete sem filtro nem sai do supabase-js.
+══════════════════════════════════════════════════════════════ */
+async function fClearHist(){
+  const sb=_fSbArtes();
+  const user=(typeof gCurrentUser==='function')?gCurrentUser():null;
+  if(sb && user && user.id){
+    try{
+      const { error }=await sb.schema('luma').from('artes').delete().eq('user_id', user.id);
+      if(error) throw error;
+    }catch(e){
+      console.warn('[Luma] limpar histórico falhou:', e);
+      if(typeof gToast==='function') gToast('Não consegui apagar no servidor — nada foi removido. Verifique a conexão e tente de novo.','error');
+      return false;
+    }
+  }
+  try{ localStorage.removeItem(HIST_KEY); }catch(e){}
+  if(typeof fUpdateHistBadge==='function') fUpdateHistBadge();
+  if(typeof fRenderHist==='function') fRenderHist();
+  return true;
+}
+
 // F-08: status pode ser 'rascunho' (gerou mas não baixou) ou 'baixada' (clicou em baixar de verdade)
 function fAddHist(d,c,f,status){
   const h=fGetHist();

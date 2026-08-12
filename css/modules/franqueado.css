@@ -98,6 +98,12 @@ body.f-history-mode #f-hist-tab{display:block!important}
 .f-history-new:hover{background:var(--dm-orange-d);border-color:var(--dm-orange-d);transform:translateY(-1px)}
 .f-history-head-actions button:focus-visible{outline:2px solid var(--dm-orange);outline-offset:3px}
 .f-history-toolbar{display:flex;align-items:center;gap:12px;padding:10px;background:var(--white);border:1px solid var(--gray-light);border-radius:14px;box-shadow:0 8px 28px rgba(10,10,10,.035)}
+/* Limpar biblioteca: discreto em repouso (é destrutivo, não convida), vermelho só no
+   hover/foco — a intenção aparece quando a pessoa mira, e a confirmação é quem decide.
+   margin-left:auto empurra pro fim da barra, longe dos filtros. */
+.hist-clear-btn{min-height:34px;margin-left:auto;flex-shrink:0;display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--text-3);font-family:'Roboto',sans-serif;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:color var(--dur-fast) var(--ease-standard),background var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard)}
+.hist-clear-btn:hover{border-color:color-mix(in srgb,var(--dm-red) 35%,transparent);background:color-mix(in srgb,var(--dm-red) 8%,transparent);color:var(--dm-red-text)}
+.hist-clear-btn:focus-visible{outline:2px solid var(--dm-red);outline-offset:2px}
 .hist-filter-bar{display:flex;gap:4px;flex-shrink:0;padding:3px;border-radius:10px;background:var(--off-white);overflow-x:auto;scrollbar-width:none}
 .hist-filter-bar::-webkit-scrollbar{display:none}
 .hist-filter-btn{min-height:34px;display:flex;align-items:center;justify-content:center;gap:6px;padding:6px 11px;border:0;border-radius:7px;background:transparent;color:var(--text-3);font-family:'Roboto',sans-serif;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:color var(--dur-fast) var(--ease-standard),background var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard)}
@@ -1069,6 +1075,9 @@ body.f-cols-enter #fran-right{animation:gFadeIn var(--dur-base) var(--ease-out) 
   .hist-search-row{width:100%}
   .hist-filter-bar{width:100%}
   .hist-filter-btn{flex:1;min-height:40px}
+  /* Barra vira coluna: sem isto o botão destrutivo esticaria a largura toda e ficaria
+     mais chamativo que os filtros. Encostado à direita, com alvo de toque cheio. */
+  .hist-clear-btn{margin-left:0;align-self:flex-end;min-height:var(--tap-min)}
   .f-history-grid{grid-template-columns:1fr}
   .hist-thumb{width:auto;height:180px}
   .hist-act-btn{min-height:40px;font-size:11px}

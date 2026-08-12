@@ -311,6 +311,8 @@ A fonte de verdade do tipo é `dVars[id].type`; `F_FIELD_TYPES` é fallback lega
 | `fRenderTemplateLayers` / `fRenderOneLayer` | png-generator.js | **Motor de render** (reflow smart-resize, bindings, regras, máscaras, blend modes) — usado por PNG e preview. ⚠ Lê `fState.material` (bg + tamanho nativo via `fMaterialSize`); para renderizar material arbitrário: save/restore de `fState.material` |
 | `fUpdateLivePreview` | live-preview.js | Preview lateral em tempo real com placeholders |
 | `fAddHist` / `fMarkHistBaixada` / `fGetHist` | history.js | Histórico (localStorage `dm_artes_hist_v2`, cap 50, dedup) + push pra `luma.artes` |
+| `fAskClearHist` (catalog.js) → `fClearHist` | history.js | Limpar a biblioteca. Confirmação `gConfirm` danger no porteiro; apaga `luma.artes` (policy "dono apaga suas artes") **antes** do localStorage — na ordem inversa o `fSyncArtesFromBackend` traz tudo de volta. Banco recusou → nada é apagado |
+| Validade em "Minhas artes" (`_fHistVencida` / `_fHistBloqueiaVencida`) | catalog.js | Arte de material fora da validade não baixa, não duplica e não edita (as três terminam em PNG). Checagem na leitura (`publishMeta.validade` do sync), nunca em flag salvo; material não encontrado **não** bloqueia (falha aberta) |
 | `fBulkOpen` → `fBulkDownloadAll` | png-generator.js | Geração em lote via CSV (PapaParse) com fila/yield |
 | `fResizeImageIfNeeded` | chat.js | Resize nítido via Pica (fallback canvas); Color Thief sugere paleta da foto |
 
