@@ -350,6 +350,17 @@ body:not(.theme-light) #luma-widget-modal {
   box-shadow:0 24px 64px color-mix(in srgb,var(--d-bg) 66%,transparent);
 }
 
+/* Na home o painel nasce do botão do cabeçalho, em vez de parecer preso a um FAB que
+   não existe mais. Nos demais contextos, entradas específicas continuam usando a
+   posição lateral original. */
+body.mode-franqueado.f-home-mode #luma-widget-modal {
+  top:104px;
+  right:48px;
+  bottom:auto;
+  height:min(720px,calc(100vh - 128px));
+  transform-origin:top right;
+}
+
 body.mode-designer #luma-widget-modal {
   bottom:90px;
   height:min(640px,calc(100vh - 112px));
@@ -1550,6 +1561,14 @@ body:not(.theme-light) .luma-wm-nav-btn.active {
     border-left:0;
     border-radius:0;
     transform:translateY(18px);
+  }
+
+  body.mode-franqueado.f-home-mode #luma-widget-modal {
+    top:0;
+    right:0;
+    bottom:0;
+    height:100svh;
+    transform-origin:bottom center;
   }
 
   #luma-widget-modal.widget-open {

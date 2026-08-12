@@ -459,6 +459,7 @@ body:not(.theme-light) .art-bulk-txt em { color: var(--d-text2) }
 body:not(.theme-light) .f-fit-pop{background:var(--d-surf);border-color:var(--d-border)}
 body:not(.theme-light) .f-fit-opt{color:var(--d-text)}
 body:not(.theme-light) .f-fit-opt:hover{background:var(--d-surf2)}
+body:not(.theme-light) .f-fit-btn{background:color-mix(in srgb,var(--dm-orange) 14%,var(--d-surf));border-color:color-mix(in srgb,var(--dm-orange) 34%,var(--d-border));color:var(--dm-orange)}
 .step-label{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--dm-orange-d);background:var(--dm-orange-bg);padding:2px 7px;border-radius:3px;margin-right:8px;vertical-align:middle;animation:gFadeIn .3s ease-out both}
 .field-hint{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:4px 9px;background:var(--gray-light);border-radius:var(--r-pill);font-size:10px;color:var(--text-2);font-weight:500;animation:gFadeInUp .3s ease-out .15s both;opacity:0}
 
@@ -551,6 +552,18 @@ body:not(.theme-light) .f-fit-opt:hover{background:var(--d-surf2)}
   color:var(--dm-orange-d);
   background:var(--dm-orange-bg);
 }
+body:not(.theme-light) .field-hint{background:var(--d-surf2);color:var(--d-text2)}
+body:not(.theme-light) .f-upload-zone{background:var(--d-surf);border-color:var(--d-border2)}
+body:not(.theme-light) .f-upload-zone:hover,
+body:not(.theme-light) .f-upload-zone.drag-over{background:color-mix(in srgb,var(--dm-orange) 10%,var(--d-surf));border-color:var(--dm-orange)}
+body:not(.theme-light) .f-upload-icon{background:var(--d-surf2);color:var(--dm-orange)}
+body:not(.theme-light) .f-upload-title{color:var(--d-text)}
+body:not(.theme-light) .f-upload-sub{color:var(--d-text3)}
+body:not(.theme-light) .f-upload-preview,
+body:not(.theme-light) .f-upload-preview-overlay{background:var(--d-surf);border-color:var(--d-border2)}
+body:not(.theme-light) .f-upload-preview-overlay span{color:var(--green-text)}
+body:not(.theme-light) .f-upload-replace{border-color:var(--d-border2);color:var(--d-text2)}
+body:not(.theme-light) .f-upload-replace:hover{background:color-mix(in srgb,var(--dm-orange) 12%,var(--d-surf));border-color:var(--dm-orange);color:var(--dm-orange)}
 /* ══ /UPLOAD DE IMAGEM ══ */
 .field-hint-type{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:var(--dm-orange);color:var(--white);border-radius:50%;font-size:9px;font-weight:700;font-family:'Roboto',sans-serif;letter-spacing:-.02em}
 .field-hint-text{letter-spacing:.02em}

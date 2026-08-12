@@ -56,6 +56,12 @@
 .cat-back-btn:hover{background:var(--gray-light,#F2F2F2);color:var(--text,#0A0A0A)}
 .cat-back-label{font-size:14px;font-weight:800;color:var(--text,#0A0A0A)}
 
+body:not(.theme-light) .cat-card{background:var(--d-surf);border-color:var(--d-border2)}
+body:not(.theme-light) .cat-card:hover{border-color:var(--dm-orange);box-shadow:0 12px 28px color-mix(in srgb,var(--dm-orange) 14%,transparent)}
+body:not(.theme-light) .cat-card-title,body:not(.theme-light) .cat-back-label{color:var(--d-text)}
+body:not(.theme-light) .cat-card-sub,body:not(.theme-light) .cat-card-chevron,body:not(.theme-light) .cat-back-btn{color:var(--d-text3)}
+body:not(.theme-light) .cat-back-btn:hover{background:var(--d-surf2);color:var(--d-text)}
+
 /* ══ CATÁLOGO DE MATERIAIS DO FRANQUEADO ══ */
 #f-material-view{
   --fm-bg:var(--off-white);
@@ -237,7 +243,14 @@ body:not(.theme-light) #f-material-view{
   --fm-bg:var(--d-bg);--fm-surface:var(--d-surf);--fm-surface-soft:var(--d-surf2);
   --fm-border:var(--d-border);--fm-border-strong:var(--d-border2);
   --fm-text:var(--d-text);--fm-text-soft:var(--d-text2);--fm-text-muted:var(--d-text3);
+  --dm-orange-bg:color-mix(in srgb,var(--dm-orange) 13%,transparent);
+  --dm-orange-tint:color-mix(in srgb,var(--dm-orange) 30%,transparent);
 }
+body:not(.theme-light) #f-material-view .f-mat-action,
+body:not(.theme-light) #f-material-view .f-mat-section-kicker,
+body:not(.theme-light) #f-material-view .f-mat-back:hover,
+body:not(.theme-light) #f-material-view .f-mat-urgency,
+body:not(.theme-light) #f-material-view .f-mat-empty-icon{color:var(--dm-orange)}
 
 @media (max-width:980px){
   .f-mat-shell{padding:28px 28px 56px}

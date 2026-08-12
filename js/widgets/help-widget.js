@@ -3,6 +3,7 @@
  */
 
 (function () {
+  let lastHelpTrigger = null;
   let widgetState = {
     isOpen: false,
     activeTab: 'home', // 'home' | 'messages' | 'help' | 'article'
@@ -277,22 +278,7 @@
   }
 
   function initHelpWidget() {
-    if (document.getElementById('luma-widget-fab-wrap')) return;
-
-    // Injeta HTML base do Widget
-    const wrap = document.createElement('div');
-    wrap.id = 'luma-widget-fab-wrap';
-    wrap.innerHTML = `
-      <button type="button" id="luma-widget-fab-pill" onclick="lumaWidgetOpen()" aria-label="Abrir ajuda do Luma">
-        <div class="fab-pill-title">Precisa de ajuda?</div>
-        <div class="fab-pill-sub">Busque uma resposta ou fale com a equipe.</div>
-      </button>
-      <button type="button" id="luma-widget-fab-trigger" onclick="lumaWidgetToggle()" aria-label="Abrir central de ajuda" aria-controls="luma-widget-modal" aria-expanded="false">
-        <span class="fab-badge-dot" aria-hidden="true"></span>
-        <span id="luma-widget-fab-icon">${WIDGET_SVGS.smileBubble}</span>
-      </button>
-    `;
-    document.body.appendChild(wrap);
+    if (document.getElementById('luma-widget-modal')) return;
 
     // Modal Flutuante
     const modal = document.createElement('div');
@@ -314,8 +300,6 @@
 
     renderWidgetModalContent();
     connectLegacyDesignerHelp();
-    scheduleRandomPillAnimation(4200);
-    setupVisibilityObserver();
     document.addEventListener('keydown', function(event) {
       if (!widgetState.isOpen) return;
       if (event.key === 'Escape') {
@@ -431,7 +415,8 @@
     }
   };
 
-  window.lumaWidgetOpen = function () {
+  window.lumaWidgetOpen = function (sourceTrigger) {
+    lastHelpTrigger = sourceTrigger instanceof HTMLElement ? sourceTrigger : document.activeElement;
     widgetState.isOpen = true;
     const modal = document.getElementById('luma-widget-modal');
     const pill = document.getElementById('luma-widget-fab-pill');
@@ -449,6 +434,9 @@
       trigger.setAttribute('aria-expanded', 'true');
       trigger.setAttribute('aria-label', 'Fechar central de ajuda');
     }
+    document.querySelectorAll('[data-help-trigger][aria-controls="luma-widget-modal"]').forEach(function(button) {
+      button.setAttribute('aria-expanded', 'true');
+    });
     renderWidgetModalContent();
     window.setTimeout(function() {
       const closeButton = document.querySelector('#luma-widget-modal .luma-wm-close-btn');
@@ -470,8 +458,11 @@
       trigger.innerHTML = `<span class="fab-badge-dot" aria-hidden="true"></span><span id="luma-widget-fab-icon">${WIDGET_SVGS.smileBubble}</span>`;
       trigger.setAttribute('aria-expanded', 'false');
       trigger.setAttribute('aria-label', 'Abrir central de ajuda');
-      trigger.focus();
     }
+    document.querySelectorAll('[data-help-trigger][aria-controls="luma-widget-modal"]').forEach(function(button) {
+      button.setAttribute('aria-expanded', 'false');
+    });
+    if (lastHelpTrigger && typeof lastHelpTrigger.focus === 'function' && lastHelpTrigger.isConnected) lastHelpTrigger.focus();
   };
 
   window.lumaWidgetSetTab = function (tab) {

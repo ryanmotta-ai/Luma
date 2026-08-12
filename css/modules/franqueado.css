@@ -92,8 +92,8 @@ body.f-history-mode #f-hist-tab{display:block!important}
 .f-history-head p{margin:11px 0 0;color:var(--text-3);font-size:14px}
 .f-history-head-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .f-history-head-actions button{min-height:42px;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 15px;border-radius:10px;font-family:'Roboto',sans-serif;font-size:12px;font-weight:800;cursor:pointer;transition:transform var(--dur-fast) var(--ease-spring),border-color var(--dur-fast) var(--ease-standard),background var(--dur-fast) var(--ease-standard)}
-.f-history-home,.f-history-help{border:1px solid var(--gray-mid);background:var(--white);color:var(--text-2)}
-.f-history-home:hover,.f-history-help:hover{border-color:var(--dm-orange-tint);background:var(--dm-orange-bg);color:var(--dm-orange-d);transform:translateY(-1px)}
+.f-history-home{border:1px solid var(--gray-mid);background:var(--white);color:var(--text-2)}
+.f-history-home:hover{border-color:var(--dm-orange-tint);background:var(--dm-orange-bg);color:var(--dm-orange-d);transform:translateY(-1px)}
 .f-history-new{border:1px solid var(--dm-orange);background:var(--dm-orange);color:var(--white);box-shadow:0 7px 18px color-mix(in srgb,var(--dm-orange-d) 18%,transparent)}
 .f-history-new:hover{background:var(--dm-orange-d);border-color:var(--dm-orange-d);transform:translateY(-1px)}
 .f-history-head-actions button:focus-visible{outline:2px solid var(--dm-orange);outline-offset:3px}
@@ -191,6 +191,7 @@ body:not(.theme-light) #fran-left {
   border-right-color: var(--d-border);
 }
 body:not(.theme-light) #fran-left-head {
+  background: var(--d-dark);
   border-bottom-color: var(--d-border);
 }
 body:not(.theme-light) #fran-left-head h2 {
@@ -209,6 +210,10 @@ body:not(.theme-light) .f-tab.active {
   background: color-mix(in srgb,var(--dm-orange) 12%,transparent);
   color: var(--dm-orange);
   border-color: var(--dm-orange);
+}
+body:not(.theme-light) .f-tabs {
+  background: var(--d-surf2);
+  border-color: var(--d-border);
 }
 body:not(.theme-light) #f-search-row svg {
   color: var(--d-text2);
@@ -259,7 +264,19 @@ body:not(.theme-light) #f-chat-head {
   background: var(--d-dark);
   border-bottom: 1px solid var(--d-border);
 }
+body:not(.theme-light) #fran-right {
+  background: var(--d-bg);
+}
 body:not(.theme-light) .bot-info-name {
+  color: var(--d-text);
+}
+body:not(.theme-light) .f-session-context {
+  border-left-color: var(--d-border);
+}
+body:not(.theme-light) .f-session-label {
+  color: var(--d-text3);
+}
+body:not(.theme-light) #f-ctx-tag {
   color: var(--d-text);
 }
 body:not(.theme-light) #f-right-body {
@@ -701,12 +718,8 @@ body.f-material-browser #f-chat-head{display:none}
 body.f-home-mode #f-home{display:block}
 body.f-home-mode #fran-left,
 body.f-home-mode #fran-right{display:none}
-/* Bolinha de ajuda: UM caminho por tela. Vitrine (.fh-help) e Minhas artes
-   (.f-history-help) já têm botão "Ajuda" no cabeçalho — ali a bolinha só duplicaria a
-   mesma ação. Nas telas sem esse botão (o workspace de criar arte), ela aparece. */
-body.mode-franqueado.f-home-mode #g-help-float,
-body.mode-franqueado.f-history-mode #g-help-float{display:none!important}
-body.mode-franqueado:not(.f-home-mode):not(.f-history-mode) #g-help-float{display:flex!important}
+/* Ajuda é uma decisão da home, ao lado de "Minhas artes". Não há acionador global
+   flutuando sobre criação, prévia ou histórico. */
 
 .fh-inner{
   width:100%;max-width:none;margin:0;
@@ -728,7 +741,7 @@ body.mode-franqueado:not(.f-home-mode):not(.f-history-mode) #g-help-float{displa
   padding:10px 15px;border-radius:12px;font-family:'Roboto',sans-serif;font-size:12px;font-weight:800;cursor:pointer;
   transition:transform var(--dur-fast) var(--ease-spring),border-color var(--dur-fast) var(--ease-standard),background var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard);
 }
-.fh-head-actions .fh-help{display:none}
+.fh-head-actions .fh-help{min-height:48px;border:1px solid var(--gray-mid);background:var(--white);color:var(--text-2)}
 .fh-help:hover{border-color:var(--dm-orange-tint);background:var(--dm-orange-bg);color:var(--dm-orange-d);transform:translateY(-1px)}
 .fh-head-actions .fh-mine{min-height:48px;gap:9px;padding:11px 20px;border:1px solid var(--gray-mid);background:var(--white);color:var(--text);font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
 .fh-mine svg{width:17px;height:17px}
@@ -914,15 +927,19 @@ body:not(.theme-light) #f-home{
 body:not(.theme-light) .fh-greet,body:not(.theme-light) .fh-sec,body:not(.theme-light) .fh-hero-name,body:not(.theme-light) .fh-draft-name{color:var(--d-text)}
 body:not(.theme-light) .fh-sub,body:not(.theme-light) .fh-kicker,body:not(.theme-light) .fh-sec em,body:not(.theme-light) .fh-draft-meta,body:not(.theme-light) .fh-draft-foot,body:not(.theme-light) .fh-hero-meta{color:var(--d-text2)}
 body:not(.theme-light) .fh-help,
+body:not(.theme-light) .fh-mine,
 body:not(.theme-light) .fh-search-row,
 body:not(.theme-light) .fh-draft,
 body:not(.theme-light) .fh-hero,
 body:not(.theme-light) .fh-coming,
 body:not(.theme-light) .fh-empty{background:var(--d-dark);border-color:var(--d-border2)}
 body:not(.theme-light) .fh-help{color:var(--d-text2)}
+body:not(.theme-light) .fh-mine{color:var(--d-text);box-shadow:0 2px 8px rgba(0,0,0,.18)}
 body:not(.theme-light) .fh-help:hover{background:var(--d-surf2);color:var(--dm-orange)}
+body:not(.theme-light) .fh-mine:hover{background:var(--d-surf2);border-color:var(--dm-orange);color:var(--dm-orange)}
 body:not(.theme-light) .fh-search-row.is-stuck{background:rgba(26,26,26,.84);border-color:var(--dm-orange-tint)}
 body:not(.theme-light) .fh-search-field label{color:var(--d-text2)}
+body:not(.theme-light) .fh-hero-eyebrow{color:var(--dm-orange)}
 /* `color` junto: sem ele o chip herdava --text-3 (#6B6B6B) e ficava 2.69:1 sobre o
    --d-surf2 no tema escuro. Vale pra TODO hero, não só o Much+ — só não aparecia porque
    o tema Much+ pintava o chip de amarelo por cima. */
@@ -1075,7 +1092,6 @@ body.f-cols-enter #fran-right{animation:gFadeIn var(--dur-base) var(--ease-out) 
   .f-history-head-actions{width:100%}
   .f-history-head-actions button{min-height:var(--tap-min)}
   .f-history-new{flex:1}
-  .f-history-help{width:44px;padding:0;font-size:0}
   .f-history-toolbar{align-items:stretch;flex-direction:column;padding:8px}
   .hist-search-row{width:100%}
   .hist-filter-bar{width:100%}
@@ -1209,6 +1225,8 @@ body:not(.theme-light) .camp-ana-src{background:var(--d-dark);color:var(--d-text
 body:not(.theme-light) .camp-admin-menu{background:var(--d-surf);border-color:var(--d-border)}
 body:not(.theme-light) .camp-admin-menu button{color:var(--d-text2)}
 body:not(.theme-light) .camp-admin-menu button:hover{background:var(--d-surf2);color:var(--dm-orange)}
+body:not(.theme-light) .cat-arch-btn{background:var(--d-surf);border-color:var(--d-border2);color:var(--d-text2)}
+body:not(.theme-light) .cat-arch-btn:hover{border-color:var(--dm-orange);color:var(--dm-orange)}
 body:not(.theme-light) .f-arch-box{background:var(--d-surf);border-color:var(--d-border)}
 body:not(.theme-light) .f-arch-head{border-color:var(--d-border)}
 body:not(.theme-light) .f-arch-head h2,body:not(.theme-light) .f-arch-name{color:var(--d-text)}
@@ -1283,7 +1301,7 @@ body:not(.theme-light).f-history-mode #fran-left,body:not(.theme-light) #f-hist-
 body:not(.theme-light) .f-history-head h1,body:not(.theme-light) .hist-name{color:var(--d-text)}
 body:not(.theme-light) .f-history-head h1 span,body:not(.theme-light) .f-history-toolbar,body:not(.theme-light) .hist-card,body:not(.theme-light) .f-history-empty{background:var(--d-surf);border-color:var(--d-border)}
 body:not(.theme-light) .f-history-head p,body:not(.theme-light) .hist-card-top time,body:not(.theme-light) .hist-meta,body:not(.theme-light) .f-history-results-head{color:var(--d-text3)}
-body:not(.theme-light) .f-history-home,body:not(.theme-light) .f-history-help,body:not(.theme-light) .hist-act-btn{background:var(--d-surf);border-color:var(--d-border2);color:var(--d-text2)}
+body:not(.theme-light) .f-history-home,body:not(.theme-light) .hist-act-btn{background:var(--d-surf);border-color:var(--d-border2);color:var(--d-text2)}
 body:not(.theme-light) .hist-filter-bar,body:not(.theme-light) #f-hist-search{background:var(--d-surf2)}
 body:not(.theme-light) .hist-filter-btn{color:var(--d-text2)}
 body:not(.theme-light) .hist-filter-btn:hover,body:not(.theme-light) .hist-filter-btn.active{background:var(--d-surf);color:var(--dm-orange)}

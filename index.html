@@ -66,6 +66,14 @@ input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:foc
 input:focus:-webkit-autofill {
   -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
 }
+body:not(.theme-light) input:-webkit-autofill,
+body:not(.theme-light) input:-webkit-autofill:hover,
+body:not(.theme-light) input:-webkit-autofill:focus,
+body:not(.theme-light) input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px var(--d-surf2) inset !important;
+  -webkit-text-fill-color: var(--d-text) !important;
+  caret-color: var(--d-text);
+}
 </style>
 
 <div id="g-login-screen" style="display:none;position:fixed;inset:0;z-index:99999;">
@@ -374,10 +382,6 @@ input:focus:-webkit-autofill {
 </div>
 
 <!-- ══ MODAL DE PERFIL DE USUÁRIO ══ -->
-<button id="g-help-float" class="g-help-float" data-feature="global.help" type="button" onclick="gOpenHelp(this)" data-help-trigger aria-controls="g-help-modal" aria-expanded="false" aria-label="Abrir Central de Ajuda" title="Central de Ajuda">
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-</button>
-
 <div id="g-profile-modal" class="g-profile-modal" role="dialog" aria-modal="true" aria-labelledby="prof-modal-title" onclick="if(event.target===this)gCloseUserProfileModal()">
   <div class="prof-box">
     <aside class="prof-sidebar" aria-label="Navegação da conta">
