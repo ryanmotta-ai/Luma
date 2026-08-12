@@ -163,6 +163,17 @@ body:not(.theme-light) #luma-widget-fab-pill::after {
   animation:lumaHelpPillIn 420ms var(--ease-out);
 }
 
+/* Escolha de material dentro da pasta (body.f-material-browser): a pílula de convite
+   ("Posso ajudar?") reaparece a cada 14–24s e pipocava sobre a grade de materiais —
+   interrompe justo a tela onde a pessoa só precisa escolher um card. O FAB continua ali
+   pra quem quiser ajuda; o que sai é o convite automático. */
+body.f-material-browser #luma-widget-fab-pill.pill-visible {
+  opacity:0;
+  transform:translateX(12px) scale(.96);
+  pointer-events:none;
+  animation:none;
+}
+
 #luma-widget-fab-pill .fab-pill-title {
   font-size:13px;
   font-weight:800;
