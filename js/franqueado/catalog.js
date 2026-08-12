@@ -702,7 +702,7 @@ function fGetCampaigns(){
       const ids=new Set(conhecidas.map(c=>c.id));
       const nomes=new Set(conhecidas.map(c=>c.name));
       dFolders.forEach(f=>{
-        if(!f || f.id==='f-modelo') return;              // pasta de exemplo não é campanha
+        if(!f || f.id==='f-modelo' || f.id==='f-rascunhos') return; // exemplo/rascunhos não são campanha
         if(f.campId && ids.has(f.campId)) return;        // já listada via config
         if(nomes.has(f.name)) return;                    // mesma campanha (match por nome)
         ativas.push({

@@ -3266,6 +3266,32 @@ function dSave(options){
       t._syncPending=true;
     }}));
   }
+  // DOC NOVO (nunca virou template): Ctrl+S/Salvar agora persiste NO BANCO, não só neste
+  // navegador — a montagem demora e fechar a aba no meio perdia tudo. Adota cada prancheta
+  // como template NÃO-publicado na pasta "Rascunhos": o push existente externaliza as
+  // imagens (Storage) e sobe pra luma.templates com publicado=false (franqueado nunca vê —
+  // RLS + pasta inativa). Publicar depois PROMOVE o mesmo template (dPublishConfirm acha
+  // por tmpl-ab-<id> e move pra pasta escolhida). Roda a cada save até publicar (idempotente).
+  else if(Array.isArray(dArtboards) && dArtboards.some(a=>a&&a.layers&&a.layers.length)){
+    let rasc=dFolders.find(f=>f.id==='f-rascunhos');
+    if(!rasc){
+      rasc={id:'f-rascunhos', name:'Rascunhos', color:'#9CA3AF', campId:'', cover:'',
+            grupos:['Todos os usuários'], agendamento:null, templates:[]};
+      dFolders.push(rasc);
+    }
+    rasc.ativa=false; // pasta inativa: RLS esconde do franqueado; vitrine ignora (fGetCampaigns)
+    for(const ab of dArtboards){
+      if(!ab || !ab.layers || !ab.layers.length) continue;
+      const tid='tmpl-ab-'+ab.id;
+      let t=null; for(const f of dFolders){ const x=f.templates.find(y=>y.id===tid); if(x){t=x;break;} }
+      if(!t){ t={id:tid, publishMeta:dDefaultPublishMeta()}; rasc.templates.unshift(t); }
+      t.name=ab.name||'Rascunho'; t.fmt=ab.fmt||'story';
+      if(ab.w>0){ t.w=ab.w; t.h=ab.h; }
+      if(ab.bg!==undefined) t.bg=ab.bg;
+      t.layers=JSON.parse(JSON.stringify(ab.layers));
+      t._syncPending=true; // pendente até o upsert confirmar (mesma proteção do save normal)
+    }
+  }
   const hadImgWarn=gImgPersistWarned;
   if(typeof dSetSaveState==='function')dSetSaveState('saving'); // M2.2
   const okF=dPersistFolders();
