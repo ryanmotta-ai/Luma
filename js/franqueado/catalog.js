@@ -710,7 +710,10 @@ function fCampEl(c,isRec,ghost){
   const thumbStyle = cover
     ? `background-color:${c.color};background-image:url('${coverSafe}');background-size:cover;background-position:center`
     : `background:${c.color}`;
-  const mats = (typeof fGetMaterialsForCamp==='function') ? fGetMaterialsForCamp(c.id) : [];
+  // Conta só materiais VÁLIDOS (fIsMaterialValid) — expirados saíam da tela de dentro
+  // mas continuavam no contador do card ("4 materiais" com 3 vencidos = vitrine mentindo).
+  const mats = (typeof fGetMaterialsForCamp==='function')
+    ? fGetMaterialsForCamp(c.id).filter(m=>(typeof fIsMaterialValid!=='function')||fIsMaterialValid(m)) : [];
   const countLabel = ghost ? 'Materiais em breve' : (mats.length ? `${mats.length} ${mats.length!==1?'materiais':'material'}` : 'Sem materiais');
   const _icoClock='<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-1px;margin-right:3px"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
   // F: favorito (fixar no topo) + badge "novo" (material publicado depois da última visita).
@@ -1044,7 +1047,9 @@ function fHomeOpenHist(){
 // Hero da campanha recomendada (a "popular" entre as que têm material pronto)
 function _fHomeHeroEl(rec){
   const cover=fCampCover(rec);   // capa da pasta, nunca a arte de dentro
-  const mats=(typeof fGetMaterialsForCamp==='function')?fGetMaterialsForCamp(rec.id):[];
+  // Mesma régua do card: só materiais válidos (expirado não conta no hero)
+  const mats=(typeof fGetMaterialsForCamp==='function')
+    ?fGetMaterialsForCamp(rec.id).filter(m=>(typeof fIsMaterialValid!=='function')||fIsMaterialValid(m)):[];
   const matLabel=mats.length?`${mats.length} ${mats.length!==1?'materiais':'material'}`:'Materiais em breve';
   const coverSafe=gEsc(cover).replace(/'/g,'%27');   // %27: neutraliza o ' que fecharia o url('…')
   const colorSafe=gEsc(rec.color||'var(--dm-orange)');
