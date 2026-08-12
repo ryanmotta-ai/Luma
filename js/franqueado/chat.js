@@ -309,6 +309,10 @@ function fNextStep(){
   const p=pergs[fState.stepIdx];
   try { fUpdateLivePreview(); } catch(e){}
   try { fUpdateCharCount(); } catch(e){}
+  // A prévia ao vivo grava direto em fState.dados (clique no campo no canvas). O passo
+  // chegava em branco e a resposta seguinte apagava o que o franqueado já tinha posto lá
+  // — parecia que a edição na prévia "não valia". Se já tem valor, o passo chega com ele.
+  const jaTem = fState.dados && fState.dados[p.id]!=null && fState.dados[p.id]!=='';
   // F-05: prefixo "Passo X de Y" pra dar senso de progresso numérico
   const stepLabel = `<span class="step-label">Passo ${fState.stepIdx+1} de ${pergs.length}</span>`;
   // F-07: botão "Voltar" aparece quando não é o primeiro passo
@@ -316,6 +320,9 @@ function fNextStep(){
   // Pergunta de imagem: usa fAddBotImageUpload
   if(p.isImage){
     fAddBotImageUpload(stepLabel, p, canGoBack);
+    // Foto já enviada pela prévia: mostra a foto (com "Trocar") e segue — mesmo
+    // finishing do upload no chat, sem prender o fluxo num passo já resolvido.
+    if(jaTem){ fTyping(()=>fNextStep()); return; }
     // Desabilita input de texto
     const box=document.getElementById('f-msg-box');
     if(box){box.disabled=true;box.placeholder='Use o botão de upload acima';}
@@ -330,7 +337,8 @@ function fNextStep(){
   const mic=document.getElementById('f-chat-mic'); if(mic) mic.disabled=false;
   const cfg = fGetFieldType(p.id);
   const typeIcon = {price:'R$', discount:'%', code:'#', text:'Aa'}[cfg.type] || 'Aa';
-  const fieldHint = `<div class="field-hint"><span class="field-hint-type">${typeIcon}</span><span class="field-hint-text">${gEsc(cfg.label)}</span></div>`;
+  const jaTemNota = jaTem ? ' · <strong>já preenchido na prévia</strong> — envie pra manter ou edite' : '';
+  const fieldHint = `<div class="field-hint"><span class="field-hint-type">${typeIcon}</span><span class="field-hint-text">${gEsc(cfg.label)}${jaTemNota}</span></div>`;
   
   // Sugestões ricas automáticas baseadas no tipo de dado da variável (UX do franqueado)
   let sugestoes = p.sugestoes ? p.sugestoes.slice() : [];
@@ -359,8 +367,30 @@ function fNextStep(){
   fAddBot(`${stepLabel}${p.texto}${fieldHint}`, sugestoes, canGoBack);
   // Atualiza placeholder do input com dica do tipo
   fUpdateInputPlaceholder(p.id);
+  // Rehidrata o input com o que já existe (prévia, rascunho ou perfil da loja): o valor
+  // fica visível e um Enter mantém. Cursor no fim (não seleciona: digitar não apaga tudo).
+  if(jaTem && box && cfg.type!=='image'){
+    box.value=String(fState.dados[p.id]);
+    try { box.setSelectionRange(box.value.length, box.value.length); } catch(e){}
+    try { fUpdateCharCount(); } catch(e){}
+  }
 }
 
+/* Markup ÚNICO da foto já aplicada no passo — usado tanto pelo upload novo
+   (_fApplyImageToField) quanto pelo passo que chega com foto vinda da prévia
+   (fAddBotImageUpload). Dois markups iguais viravam duas verdades. */
+function _fUploadPreviewHTML(varId, url){
+  const saveLojaBtn = (varId==='logo_loja')
+    ? `<button class="f-upload-save-loja" onclick="fSaveLojaPrompt()" title="Salvar essa loja para reusar depois"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z"/></svg>Salvar loja</button>`
+    : '';
+  return `<div class="f-upload-preview f-upload-preview-pop">
+      <img src="${gEsc(url)}" alt="Foto enviada"/>
+      <div class="f-upload-preview-overlay">
+        <span style="display:inline-flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg>Foto enviada</span>
+        <span style="display:inline-flex;gap:6px">${saveLojaBtn}<button class="f-upload-replace" onclick="fReplaceImage('${gEsc(varId)}',this)">Trocar</button></span>
+      </div>
+    </div>`;
+}
 // Pergunta especial de upload de imagem
 function fAddBotImageUpload(stepLabel, pergunta, canGoBack){
   const msgs=document.getElementById('f-messages');
@@ -371,9 +401,11 @@ function fAddBotImageUpload(stepLabel, pergunta, canGoBack){
   if(canGoBack){
     back = `<div class="qr-back-wrap"><button class="qr-back" onclick="fGoBack()" title="Voltar uma pergunta"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>Voltar uma pergunta</button></div>`;
   }
-  w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div>
-    <div class="bbl">${stepLabel}${pergunta.texto}${fieldHint}</div>
-    <div class="f-upload-zone" id="${uploadId}-zone" onclick="fOpenUploadPanel('${pergunta.id}','${uploadId}')">
+  // Já tem foto (veio da prévia ao vivo / rascunho / perfil da loja): mostra a foto no
+  // lugar da zona de upload — pedir de novo o que já está na arte é o bug, não a feature.
+  const jaTemFoto = fState.dados && fState.dados[pergunta.id];
+  const zoneHtml = jaTemFoto ? _fUploadPreviewHTML(pergunta.id, fState.dados[pergunta.id])
+    : `<div class="f-upload-zone" id="${uploadId}-zone" onclick="fOpenUploadPanel('${pergunta.id}','${uploadId}')">
       <input type="file" id="${uploadId}-input" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="fHandleImageUpload(event,'${pergunta.id}','${uploadId}')">
       <div class="f-upload-icon">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -384,7 +416,10 @@ function fAddBotImageUpload(stepLabel, pergunta, canGoBack){
       </div>
       <div class="f-upload-title">Toque pra enviar uma foto</div>
       <div class="f-upload-sub">recentes, lojas salvas ou novo arquivo</div>
-    </div>
+    </div>`;
+  w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div>
+    <div class="bbl">${stepLabel}${pergunta.texto}${fieldHint}</div>
+    ${zoneHtml}
     ${back}
   </div>`;
   msgs.querySelectorAll('.msg').forEach(m=>m.classList.remove('active-prompt'));
@@ -479,18 +514,7 @@ function _fApplyImageToField(varId, uploadId, resizedUrl){
   } catch(colorThiefErr) { console.warn('[ColorThief] Falha ao ler imagem:', colorThiefErr); }
   // Substitui a zona de upload pela prévia da foto
   const zone=document.getElementById(uploadId+'-zone');
-  if(zone){
-    const saveLojaBtn = (varId==='logo_loja')
-      ? `<button class="f-upload-save-loja" onclick="fSaveLojaPrompt()" title="Salvar essa loja para reusar depois"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z"/></svg>Salvar loja</button>`
-      : '';
-    zone.outerHTML=`<div class="f-upload-preview f-upload-preview-pop">
-      <img src="${resizedUrl}" alt="Foto enviada"/>
-      <div class="f-upload-preview-overlay">
-        <span style="display:inline-flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg>Foto enviada</span>
-        <span style="display:inline-flex;gap:6px">${saveLojaBtn}<button class="f-upload-replace" onclick="fReplaceImage('${varId}',this)">Trocar</button></span>
-      </div>
-    </div>`;
-  }
+  if(zone) zone.outerHTML=_fUploadPreviewHTML(varId, resizedUrl);
   const box=document.getElementById('f-msg-box');
   if(box){box.disabled=false;}
   try { fUpdateLivePreview({animateField:varId}); } catch(e){}
