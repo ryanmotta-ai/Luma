@@ -351,8 +351,13 @@
       // campo de comando no celular (z-index 9999 vs 900), roubando o toque. Entra aqui
       // porque o display é escrito INLINE neste laço — regra de CSS não venceria.
       const isCliActive = document.body.classList.contains('cli-on');
+      // Escolha de material dentro da pasta (body.f-material-browser): tela de decisão
+      // curta — a pessoa só olha os cards e toca num. O FAB (e a pílula de convite que
+      // vive dentro do mesmo wrap) ficava sobre a grade sem ter o que resolver ali.
+      // Entra aqui pelo mesmo motivo do cli-on: o display é INLINE, CSS não venceria.
+      const isMaterialPicker = document.body.classList.contains('f-material-browser');
 
-      if (isSplashActive || isLoginActive || isCliActive) {
+      if (isSplashActive || isLoginActive || isCliActive || isMaterialPicker) {
         wrap.style.display = 'none';
       } else {
         wrap.style.display = 'flex';
