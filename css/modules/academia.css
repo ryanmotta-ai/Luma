@@ -198,8 +198,9 @@ body:not(.theme-light) .ac-tag-atual{ background:color-mix(in srgb,var(--dm-oran
 .ac-aviso .ac-i{ color:var(--ac-txt3) }
 .ac-aviso-info{ background:var(--dm-orange-bg);border-color:var(--dm-orange-tint) }
 .ac-aviso-alerta{ background:var(--var-bg);border-color:color-mix(in srgb,var(--var-color) 35%,transparent) }
-.ac-aviso-erro{ background:color-mix(in srgb,var(--dm-red) 8%,transparent);border-color:color-mix(in srgb,var(--dm-red) 32%,transparent) }
-.ac-aviso-erro .ac-i{ color:var(--dm-red-text) }
+/* Sem vermelho (decisão de não alarmar — ver gToast em core/toast.js). */
+.ac-aviso-erro{ background:var(--off-white);border-color:var(--gray-mid) }
+.ac-aviso-erro .ac-i{ color:var(--text-2) }
 body:not(.theme-light) .ac-aviso-info{ background:color-mix(in srgb,var(--dm-orange) 10%,transparent);border-color:color-mix(in srgb,var(--dm-orange) 30%,transparent) }
 
 /* ══════════════════════════════════════════════════════════════
@@ -797,8 +798,8 @@ body.ac-agente-recolhido .ac-agente{ display:none }
 .ac-ag-msg p:last-child{ margin-bottom:0 }
 .ac-ag-msg.is-agente{ align-self:flex-start;background:var(--ac-surf2);color:var(--ac-txt);border-bottom-left-radius:5px }
 .ac-ag-msg.is-usuario{ align-self:flex-end;background:var(--dm-orange-d);color:var(--on-accent);border-bottom-right-radius:5px }
-.ac-ag-msg.is-erro{ background:color-mix(in srgb,var(--dm-red) 10%,transparent);border:1px solid color-mix(in srgb,var(--dm-red) 30%,transparent) }
-.ac-ag-msg.is-erro .ac-i{ color:var(--dm-red-text) }
+.ac-ag-msg.is-erro{ background:var(--off-white);border:1px solid var(--gray-mid) }
+.ac-ag-msg.is-erro .ac-i{ color:var(--text-2) }
 .ac-ag-t{
   display:inline-block;padding:0 5px;border-radius:4px;border:0;
   background:var(--dm-orange-bg);color:var(--dm-orange-text);

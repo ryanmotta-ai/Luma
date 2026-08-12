@@ -432,7 +432,7 @@ body:not(.theme-light) .art-bulk-txt em { color: var(--d-text2) }
 #f-msg-box{flex:1;padding:9px 56px 9px 14px;font-size:13px;border:1.5px solid var(--gray-mid);border-radius:var(--r-pill);font-family:'Roboto',sans-serif;background:var(--off-white);color:var(--text);outline:none;width:100%}
 .f-msg-box-transition{transition:opacity .15s ease,color .15s ease;opacity:.2;color:var(--dm-orange)!important}
 #f-char-count{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--text-3);font-weight:500;pointer-events:none;letter-spacing:.02em;font-variant-numeric:tabular-nums}
-#f-char-count.warn{color:var(--dm-red);font-weight:700}
+#f-char-count.warn{color:var(--dm-orange-d);font-weight:700}   /* laranja, não vermelho: chegar no limite não é erro */
 /* ENCAIXAR NO LIMITE (chat-input.js: _fFitSync/fFitTextWithAI) — o botão vive DENTRO do
    campo, à esquerda do contador; a classe .has-fit abre espaço no padding em vez de medir
    largura em JS. Só existe no DOM quando há texto cortado e IA disponível. */
@@ -459,7 +459,6 @@ body:not(.theme-light) .art-bulk-txt em { color: var(--d-text2) }
 body:not(.theme-light) .f-fit-pop{background:var(--d-surf);border-color:var(--d-border)}
 body:not(.theme-light) .f-fit-opt{color:var(--d-text)}
 body:not(.theme-light) .f-fit-opt:hover{background:var(--d-surf2)}
-.bbl-err{background:rgba(200,24,24,.08)!important;border:1px solid rgba(200,24,24,.25)!important;color:var(--dm-red)!important;font-weight:500}
 .step-label{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--dm-orange-d);background:var(--dm-orange-bg);padding:2px 7px;border-radius:3px;margin-right:8px;vertical-align:middle;animation:gFadeIn .3s ease-out both}
 .field-hint{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:4px 9px;background:var(--gray-light);border-radius:var(--r-pill);font-size:10px;color:var(--text-2);font-weight:500;animation:gFadeInUp .3s ease-out .15s both;opacity:0}
 
@@ -831,15 +830,15 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
 .f-bulk-num-chip{display:inline-flex;align-items:center;justify-content:center;min-width:23px;height:23px;padding:0 6px;border-radius:4px;background:var(--gray-light);color:var(--text-3);font-size:10px;font-weight:800}
 .f-bulk-card{position:relative;display:flex;flex-direction:column;align-items:center;padding:12px 10px 10px;border:1px solid var(--gray-light);border-radius:var(--r);background:var(--white);animation:gFadeIn var(--dur-base) var(--ease-standard) both;transition:transform var(--dur-fast) var(--ease-spring-soft),box-shadow var(--dur-fast) var(--ease-spring-soft),border-color var(--dur-fast) var(--ease-standard)}
 .f-bulk-card:hover{border-color:var(--dm-orange-tint);box-shadow:0 10px 26px color-mix(in srgb,var(--dm-orange-d) 12%,transparent);transform:translateY(-3px)}
-.f-bulk-card.has-err{border-color:var(--dm-red);background:color-mix(in srgb,var(--dm-red) 4%,var(--white))}
+.f-bulk-card.has-err{border-color:var(--gray-mid);background:var(--off-white)}   /* sem vermelho: decisão de não alarmar */
 .f-bulk-card-title{width:100%;overflow:hidden;margin:7px 0 3px;color:var(--text);font-size:11px;font-weight:750;text-align:center;text-overflow:ellipsis;white-space:nowrap}
 .f-bulk-card-num{position:absolute;top:8px;left:9px;color:var(--text-3);font-size:9.5px;font-weight:750}
 .f-bulk-canvas{max-width:100%;border-radius:var(--r-sm);background:var(--gray-light)}
 .f-bulk-card-info{width:100%}.f-bulk-field{overflow:hidden;color:var(--text-2);font-size:10px;text-align:center;text-overflow:ellipsis;white-space:nowrap}.f-bulk-field span{color:var(--text);font-weight:650}
-.f-bulk-card-status{margin-top:5px}.f-bulk-badge{padding:2px 7px;border-radius:var(--r-pill);font-size:9.5px;font-weight:700}.f-bulk-badge.ok{background:color-mix(in srgb,var(--green) 15%,transparent);color:var(--green-text)}.f-bulk-badge.warning{background:var(--var-bg);color:var(--var-color)}.f-bulk-badge.error{background:color-mix(in srgb,var(--dm-red) 12%,transparent);color:var(--dm-red)}.f-bulk-badge.loading{background:var(--gray-light);color:var(--text-3)}
+.f-bulk-card-status{margin-top:5px}.f-bulk-badge{padding:2px 7px;border-radius:var(--r-pill);font-size:9.5px;font-weight:700}.f-bulk-badge.ok{background:color-mix(in srgb,var(--green) 15%,transparent);color:var(--green-text)}.f-bulk-badge.warning{background:var(--var-bg);color:var(--var-color)}.f-bulk-badge.error{background:var(--gray-light);color:var(--text-2)}.f-bulk-badge.loading{background:var(--gray-light);color:var(--text-3)}
 .f-bulk-remove{position:absolute;top:7px;right:7px;display:flex;align-items:center;justify-content:center;width:22px;height:22px;border:0;border-radius:50%;background:var(--gray-light);color:var(--text-2);font-size:13px;cursor:pointer;opacity:0;transition:opacity var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard)}
 .f-bulk-card:hover .f-bulk-remove,.f-bulk-remove:focus-visible{opacity:1}.f-bulk-remove:hover{background:var(--dm-red);color:var(--white)}
-.f-bulk-chips{display:flex;flex-wrap:wrap;gap:4px;justify-content:center}.f-bulk-chip{padding:1px 6px;border-radius:var(--r-pill);background:var(--gray-light);color:var(--text-2);font-size:10px}.f-bulk-err{margin-top:4px;color:var(--dm-red);font-size:11px;font-weight:650}
+.f-bulk-chips{display:flex;flex-wrap:wrap;gap:4px;justify-content:center}.f-bulk-chip{padding:1px 6px;border-radius:var(--r-pill);background:var(--gray-light);color:var(--text-2);font-size:10px}.f-bulk-err{margin-top:4px;color:var(--text-2);font-size:11px;font-weight:650}
 
 .f-bulk-progress{position:absolute;right:20px;bottom:72px;left:20px;z-index:18;padding:14px;border:1px solid var(--dm-orange-tint);border-radius:var(--r);background:var(--white);box-shadow:0 16px 44px color-mix(in srgb,var(--text) 18%,transparent);animation:gFadeInUp var(--dur-fast) var(--ease-out)}
 .f-bulk-progress-head{display:flex;justify-content:space-between;gap:16px;margin-bottom:8px;color:var(--text-2);font-size:12px}.f-bulk-progress-head strong{color:var(--dm-orange-d)}

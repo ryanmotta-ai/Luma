@@ -1024,7 +1024,7 @@ body.d-studio-home-open .d-studio-home-btn{color:var(--dm-orange)!important;back
 .newdoc-validation{min-height:18px;margin:2px 0 0;font-size:11.5px;font-weight:600;color:var(--d-text2)}
 .newdoc-validation[data-state="success"]{color:var(--green-text)}
 .newdoc-validation[data-state="warning"]{color:var(--dm-yellow)}
-.newdoc-validation[data-state="error"]{color:var(--dm-red)}
+.newdoc-validation[data-state="error"]{color:var(--d-text)}   /* sem vermelho: decisão de não alarmar */
 .newdoc-actions,.save-as-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:16px 24px;border-top:1px solid var(--d-border);background:color-mix(in srgb,var(--d-surf) 40%,transparent);flex-shrink:0}
 .newdoc-actions .d-btn-pri svg{transition:transform var(--dur-micro) var(--ease-spring)}
 .newdoc-actions .d-btn-pri:hover svg{transform:translateX(2px)}
@@ -3723,14 +3723,16 @@ body.theme-light .field-pick-new:hover {
 .dl-summary-counts{display:flex;align-items:center;justify-content:flex-end;gap:5px;flex-wrap:wrap}
 .dl-count{display:inline-flex;align-items:center;gap:3px;padding:3px 6px;border:1px solid var(--d-border);border-radius:var(--r-pill);background:var(--d-dark);font-size:9.5px;font-weight:600;color:var(--d-text2);white-space:nowrap}
 .dl-count b{font-size:10px;color:var(--d-text)}
-.dl-count--error{border-color:color-mix(in srgb,var(--dm-red) 30%,var(--d-border));color:var(--dm-red)}
-.dl-count--error b{color:var(--dm-red)}
+/* Contadores e cartões do linter sem vermelho (decisão de não alarmar). A contagem e o
+   texto do problema seguem lá: saiu o alarme, não a informação. */
+.dl-count--error{border-color:var(--d-border2);color:var(--d-text)}
+.dl-count--error b{color:var(--d-text)}
 .dl-count--warning{border-color:color-mix(in srgb,var(--var-color) 34%,var(--d-border));color:var(--var-color)}
 .dl-count--warning b{color:var(--var-color)}
 
 .linter-card{--dl-accent:var(--d-text2);position:relative;display:flex;flex-direction:column;gap:9px;padding:11px;border:1px solid var(--d-border);border-left:3px solid var(--dl-accent);border-radius:var(--r);background:color-mix(in srgb,var(--dl-accent) 3%,var(--d-dark));animation:dlEnter var(--dur-fast) var(--ease-out) both;transition:background var(--dur-micro) var(--ease-standard),border-color var(--dur-micro) var(--ease-standard),box-shadow var(--dur-micro) var(--ease-standard)}
 .linter-card:hover{background:color-mix(in srgb,var(--dl-accent) 5%,var(--d-dark));border-color:color-mix(in srgb,var(--dl-accent) 34%,var(--d-border));border-left-color:var(--dl-accent);box-shadow:0 6px 18px color-mix(in srgb,var(--d-bg) 22%,transparent)}
-.dl-issue--error{--dl-accent:var(--dm-red)}
+.dl-issue--error{--dl-accent:var(--d-text2)}
 .dl-issue--warning{--dl-accent:var(--var-color)}
 .dl-issue--info{--dl-accent:var(--d-text2)}
 .dl-issue-head{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}

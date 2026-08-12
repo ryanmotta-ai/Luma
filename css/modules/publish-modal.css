@@ -382,13 +382,16 @@
 
 .pub-linter-summary{min-height:54px;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 13px;border:1px solid var(--gray-light);border-radius:var(--r);font-size:11px;color:var(--text-3);background:var(--off-white)}
 .pub-linter-main{display:inline-flex;align-items:center;gap:7px;flex-shrink:0;font-size:11.5px;font-weight:800}
-.pub-linter-summary.error{border-color:color-mix(in srgb,var(--dm-red) 32%,var(--gray-light));background:color-mix(in srgb,var(--dm-red) 5%,var(--white))}
-.pub-linter-summary.error .pub-linter-main{color:var(--dm-red)}
+/* Sem vermelho (decisão de não alarmar — ver gToast em core/toast.js). O resumo do linter
+   continua listando o que falta: o que saiu é o alarme, não a informação. */
+.pub-linter-summary.error{border-color:var(--gray-mid);background:var(--off-white)}
+.pub-linter-summary.error .pub-linter-main{color:var(--text)}
 .pub-linter-summary.warning{border-color:color-mix(in srgb,var(--dm-yellow) 45%,var(--gray-light));background:color-mix(in srgb,var(--dm-yellow) 8%,var(--white))}
 .pub-linter-summary.warning .pub-linter-main{color:var(--text)}
 .pub-linter-summary.success{border-color:color-mix(in srgb,var(--green) 30%,var(--gray-light));background:color-mix(in srgb,var(--green) 6%,var(--white))}
 .pub-linter-summary.success .pub-linter-main{color:var(--green-text)}
-.pub-wizard-error{position:sticky;top:-4px;z-index:4;display:flex;align-items:center;gap:9px;margin:0 0 14px;padding:11px 13px;border:1px solid color-mix(in srgb,var(--dm-red) 35%,var(--gray-light));border-radius:var(--r);background:color-mix(in srgb,var(--dm-red) 7%,var(--white));color:var(--dm-red);font-size:12px;font-weight:700;box-shadow:0 8px 18px color-mix(in srgb,var(--dm-red) 8%,transparent);animation:gFadeInDown var(--dur-fast) var(--ease-out) both}
+/* Barra de pendência do wizard: mesma função, sem vermelho (decisão de não alarmar). */
+.pub-wizard-error{position:sticky;top:-4px;z-index:4;display:flex;align-items:center;gap:9px;margin:0 0 14px;padding:11px 13px;border:1px solid var(--gray-mid);border-radius:var(--r);background:var(--off-white);color:var(--text);font-size:12px;font-weight:700;box-shadow:0 8px 18px rgba(10,10,10,.06);animation:gFadeInDown var(--dur-fast) var(--ease-out) both}
 .pub-wizard-error[hidden]{display:none}
 
 .pub-field{margin-bottom:16px}
@@ -396,7 +399,7 @@
 .pub-input{min-height:42px;padding:9px 12px;border:1px solid var(--gray-mid);border-radius:var(--r);transition:border-color var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard),background var(--dur-fast) var(--ease-standard)}
 .pub-input:hover{border-color:color-mix(in srgb,var(--gray-mid) 52%,var(--text-3))}
 .pub-input:focus{border-color:var(--dm-orange);box-shadow:0 0 0 3px color-mix(in srgb,var(--dm-orange) 16%,transparent);background:var(--white)}
-.pub-input.is-invalid,.pub-perm-len input.is-invalid{border-color:var(--dm-red);box-shadow:0 0 0 3px color-mix(in srgb,var(--dm-red) 12%,transparent)}
+.pub-input.is-invalid,.pub-perm-len input.is-invalid{border-color:var(--gray-mid);box-shadow:0 0 0 3px var(--gray-light)}
 .pub-help{margin-top:6px;font-size:10.5px;line-height:1.5}
 .pub-textarea{min-height:112px}
 .pub-fmt-pill{border-radius:var(--r-pill);font-size:11px}

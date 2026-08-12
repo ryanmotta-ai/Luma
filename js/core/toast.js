@@ -5,36 +5,34 @@
  * Depende de: nada (usa apenas o DOM).
  */
 
+/* ⛔ DECISÃO DE PRODUTO (2026-08-12, pedido do dono): o Luma NÃO alarma. Nenhum toast
+   vermelho, em nenhum módulo, mesmo quando algo falha. O corte é aqui, no motor único —
+   as ~106 chamadas gToast(msg,'error') espalhadas pelo app continuam existindo e não
+   precisaram ser tocadas; elas simplesmente não pintam mais nada.
+
+   ⚠ O QUE ISSO CUSTA (registrado de propósito, pra ninguém "descobrir" depois): falha
+   fica MUDA. Baixar sem rede, layers que não desceram, quota de localStorage cheia —
+   a pessoa clica e nada acontece, sem pista na tela. O console vira o único lugar onde
+   isso aparece; por isso todo erro suprimido sai como console.warn com prefixo [Luma],
+   e não em silêncio total. Reverter = apagar este bloco. */
 function gToast(msg, type, helpTopic){
+  if (type === 'error') { try{ console.warn('[Luma] (aviso suprimido)', msg); }catch(e){} return; }
   const container = document.getElementById('g-toast-container');
   if (!container) return;
-  
+
+  // Daqui pra baixo só existe toast NEUTRO — o ramo de erro morreu no return acima, junto
+  // com o botão "Ver orientação" e o role=alert, que só valiam pro toast vermelho. A
+  // assinatura mantém `helpTopic` porque há chamadas passando o 3º argumento.
   const item = document.createElement('div');
   item.className = 'g-toast-item';
-  if (type === 'error') item.classList.add('g-toast-error');
-  
-  // Acessibilidade (a11y)
-  item.setAttribute('role', type === 'error' ? 'alert' : 'status');
-  item.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
-  
+  item.setAttribute('role', 'status');
+  item.setAttribute('aria-live', 'polite');
   item.textContent = msg;
-  
-  if (type === 'error' && helpTopic) {
-    const helpBtn = document.createElement('button');
-    helpBtn.className = 'g-toast-help-btn';
-    helpBtn.type = 'button';
-    helpBtn.textContent = 'Ver orientacao';
-    helpBtn.onclick = function(e) {
-      e.stopPropagation();
-      if (typeof gOpenHelpTopic === 'function') gOpenHelpTopic(helpTopic, helpBtn);
-    };
-    item.appendChild(helpBtn);
-  }
-  
+
   container.appendChild(item);
-  
-  const duration = type === 'error' ? 4200 : 2800;
-  
+
+  const duration = 2800;
+
   // Configura a remoção com transição de fade-out
   setTimeout(() => {
     item.classList.add('hide');
@@ -51,32 +49,19 @@ function gEsc(s){
 }
 
 /* ── HANDLER GLOBAL DE ERRO (H.3) ──
-   Erro assíncrono não tratado morria em silêncio: o usuário clicava e "nada acontecia".
-   Agora todo throw/rejeição não capturados viram UM toast honesto (+ console p/ debug).
-   Throttle de 8s: um loop de erros não vira metralhadora de toasts.                  */
-const _gLastBootTime = Date.now();
-let _gLastErrToast=0;
-function _gGlobalErrToast(){
-  // Suprime toasts de erro se a splash screen estiver ativa ou se acabamos de inicializar (evita alertas de Supabase offline no boot)
-  if (document.getElementById('sp-overlay') && document.getElementById('sp-overlay').style.display !== 'none') return;
-  if (Date.now() - _gLastBootTime < 4000) return;
-
-  const now=Date.now();
-  if(now-_gLastErrToast<8000) return;
-  _gLastErrToast=now;
-  try{ gToast('⚠ Algo deu errado — tente de novo. Se persistir, recarregue a página.','error'); }catch(e){}
-}
+   Erro assíncrono não tratado ia pra um toast único com throttle de 8s. Com a decisão de
+   não alarmar (ver gToast acima), o toast — e todo o aparato de throttle/guarda de splash
+   que existia só pra ele — saiu: o registro agora é só console. Os listeners ficam porque
+   o console é o ÚNICO lugar em que essas falhas aparecem daqui pra frente.            */
 window.addEventListener('error',(e)=>{
   // Erros de carregamento de recurso (img/script) não são falha de fluxo → só console
   if(e && e.target && e.target!==window && (e.target.tagName==='IMG'||e.target.tagName==='SCRIPT'||e.target.tagName==='LINK')){
     console.warn('[recurso falhou]', e.target.src||e.target.href||''); return;
   }
   console.error('[erro global]', (e&&e.error)||(e&&e.message)||e);
-  _gGlobalErrToast();
 }, true);
 window.addEventListener('unhandledrejection',(e)=>{
   console.error('[rejeição não tratada]', e&&e.reason);
-  _gGlobalErrToast();
 });
 
 // M1.2 — estado de loading num botão de ação assíncrona: troca o conteúdo por um

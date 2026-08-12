@@ -305,7 +305,7 @@ body.theme-light .vt-color-sep { background: rgba(0,0,0,0.1); }
 .sim-stage-grid{position:absolute;inset:0;z-index:-1;opacity:.6;background-image:linear-gradient(color-mix(in srgb,var(--d-text) 4%,transparent) 1px,transparent 1px),linear-gradient(90deg,color-mix(in srgb,var(--d-text) 4%,transparent) 1px,transparent 1px);background-size:22px 22px;mask-image:radial-gradient(circle at center,var(--text),transparent 78%)}
 #d-sim-preview-canvas{display:block;max-width:calc(100% - 36px);max-height:calc(100% - 36px);width:auto;height:auto;border-radius:var(--r-sm);background:var(--d-surf2);box-shadow:0 18px 48px color-mix(in srgb,var(--text) 34%,transparent);animation:gFadeIn var(--dur-base) var(--ease-out)}
 .sim-render-state{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;padding:28px;background:color-mix(in srgb,var(--d-bg) 82%,transparent);color:var(--d-text2);font-size:12px;text-align:center;backdrop-filter:blur(4px)}
-.sim-render-state:empty{display:none}.sim-render-state small{max-width:34ch;color:var(--d-text3);font-size:11px;line-height:1.5}.sim-render-state.error{color:var(--dm-red)}
+.sim-render-state:empty{display:none}.sim-render-state small{max-width:34ch;color:var(--d-text3);font-size:11px;line-height:1.5}.sim-render-state.error{color:var(--d-text2)}   /* sem vermelho: a decisão de não alarmar vale nos painéis também */
 .sim-spinner{width:20px;height:20px;border:2px solid var(--d-border2);border-top-color:var(--dm-orange);border-radius:50%;animation:gSpin var(--dur-slow) linear infinite}
 .sim-preview-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:10px;color:var(--d-text3);font-size:10px;font-weight:600}
 #sim-preview-format{color:var(--d-text2)}
@@ -756,10 +756,6 @@ select option{background:#222}
 .g-toast-item.hide {
   opacity: 0;
   transform: translateY(8px) scale(0.95);
-}
-
-.g-toast-item.g-toast-error {
-  background: #C81818;
 }
 
 @keyframes gToastItemIn {

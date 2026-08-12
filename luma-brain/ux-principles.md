@@ -49,8 +49,31 @@ Nenhuma ação do usuário no Luma deve parecer muda ou travada:
 * **Skeletons ativos:** Para listagens e cards de templates em carregamento, use skeletons que imitam a forma dos cards finais com uma animação horizontal de shimmer sutil.
 
 ### ⚠️ Tratamento de Erros
-* **Mensagens humanas e em PT-BR:** Erros de banco de dados ou problemas no renderizador são traduzidos para mensagens curtas, claras e acionáveis (ex.: "Não foi possível carregar a imagem. Verifique o tamanho do arquivo e tente novamente").
-* **Localização visual:** Erros em formulários marcam o input exato com borda vermelha e texto auxiliar abaixo do campo, em vez de apenas disparar alertas globais.
+
+> ⛔ **Regra vigente (2026-08-12, decisão do dono do produto): o Luma NÃO ALARMA.**
+> **Nada vermelho, nenhum aviso de erro na tela — mesmo quando algo falha.** O que
+> valia antes (mensagem humana em toast/bolha vermelha, borda vermelha no campo) foi
+> **revogado**; o texto abaixo fica só como registro do que era.
+
+O que isso significa na prática, hoje:
+
+* **Toast de erro não existe.** `gToast(msg,'error')` não pinta nada — o corte é dentro do
+  `gToast` (`js/core/toast.js`), então as ~106 chamadas espalhadas pelo app seguem no
+  código sem efeito visual. Continue usando `gToast(...,'error')` em caminho de falha: é
+  o registro no console, e o dia em que a decisão mudar, tudo volta de um ponto só.
+* **Sem bolha de erro no chat.** `fShowFieldError` só sacode a barra de entrada (o tremor
+  não é vermelho nem texto) e escreve o motivo no console. Sem ele, um valor recusado
+  viraria beco sem saída silencioso.
+* **Badges/painéis sem vermelho.** Status de lote, resumo do linter de publish, estado de
+  render da simulação e KPI de expirados continuam informando — em tom neutro.
+* **O que segue vermelho de propósito:** o vermelho da MARCA (badge de campanha, urgência
+  de validade) e o botão de confirmação de ação destrutiva ("Apagar as 12"). Não são
+  avisos: um é identidade, o outro é o safe guard que a pessoa pediu.
+* **Diagnóstico mora no console.** Todo erro suprimido sai como `console.warn('[Luma] …')`.
+  ⚠ O custo aceito: falha de rede fica **muda** na tela — a pessoa clica e nada acontece.
+
+**Registro do que valia antes:** mensagens humanas em PT-BR, curtas e acionáveis, com o
+erro marcado no input exato (borda vermelha + texto auxiliar) em vez de alerta global.
 
 ### ♿ Acessibilidade (a11y)
 * **Navegação por teclado:** Foco visível (`:focus-visible`) obrigatório com outline laranja para links, botões e inputs.

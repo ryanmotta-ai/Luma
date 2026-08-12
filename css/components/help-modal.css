@@ -368,9 +368,6 @@
 .g-help-onboarding-steps .done{color:var(--green-text)}
 
 /* CTA contextual do toast, mantido fora do modulo legado de chat. */
-.g-toast-help-btn{margin-left:12px;padding:3px 8px;border:0;border-radius:var(--r-sm);background:var(--white);color:var(--dm-red);font:700 10px 'Roboto',sans-serif;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.15);transition:transform var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard)}
-.g-toast-help-btn:hover{transform:scale(1.05);background:var(--off-white)}
-.g-toast-help-btn:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
 
 @media (max-width:680px){.g-help-float{right:16px;bottom:16px;width:48px;height:48px}}
 

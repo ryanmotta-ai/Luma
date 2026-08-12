@@ -99,7 +99,9 @@
 /* Mensagens (erro/sucesso): display ligado pelo JS; aqui só aparência + entrada.
    glErrIn re-dispara sozinho quando o elemento sai de display:none. */
 .gl-msg{margin-top:16px;font-size:13px;font-weight:500;padding:12px 14px;border-radius:var(--r);line-height:1.45;animation:glErrIn var(--dur-base) var(--ease-out)}
-.gl-msg-err{background:color-mix(in srgb,var(--dm-red) 9%,transparent);color:var(--dm-red)}
+/* Sem vermelho (decisão de não alarmar — ver gToast em core/toast.js). O TEXTO fica: é o
+   único canal que diz "senha incorreta"; sem ele o login vira porta muda. */
+.gl-msg-err{background:var(--gray-light);color:var(--text)}
 .gl-msg-ok{background:color-mix(in srgb,var(--green) 12%,transparent);color:var(--green-text)}
 
 /* CTA: texto branco pequeno → fundo --dm-orange-d (AA-large bold), chapado, sem gradiente */
