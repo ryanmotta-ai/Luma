@@ -18,7 +18,39 @@
   font-family:'Roboto',sans-serif;
   color:var(--text);
   box-shadow:-18px 0 48px rgba(10,10,10,.035);
-  transition:width var(--dur-base) var(--ease-standard),background var(--dur-base),border-color var(--dur-base);
+  /* --dur-slow + mola suave: esta largura é transição de LAYOUT (a prévia entrando empurra
+     o chat), não hover. max-width/opacity entram na lista porque o estado "fora de cena"
+     (body.f-material-browser, abaixo) mexe nos dois. */
+  transition:width var(--dur-slow) var(--ease-spring-soft),max-width var(--dur-slow) var(--ease-spring-soft),
+             opacity var(--dur-base) var(--ease-out),background var(--dur-base),border-color var(--dur-base);
+}
+
+/* ══ PRÉVIA FORA DE CENA ENQUANTO SE ESCOLHE O MATERIAL ══════════════════════
+   Escolher material é tela de decisão: o catálogo e os cards da pasta merecem a largura
+   inteira, e uma prévia dizendo "sua arte nasce aqui" não tem nada pra mostrar ali (é o
+   mesmo motivo pelo qual o FAB da prévia já se esconde no mobile — franqueado_effects).
+   Ao abrir o material (fSelectMaterial tira a classe), a largura volta e a prévia ENTRA
+   empurrando o chat, que é flex:1 e cede o espaço — a transição é o próprio layout.
+   Só desktop: no mobile a prévia é gaveta fixa (translateY), não coluna.
+   !important porque o panel-dock define largura por slot com especificidade maior —
+   mesmo padrão que o body.f-history-mode já usa pra reconfigurar as colunas. */
+@media (min-width:681px){
+  body.f-material-browser #f-live-preview{
+    width:0!important;max-width:0!important;min-width:0!important;flex-basis:0!important;
+    border-left-width:0;border-right-width:0;box-shadow:none;
+    opacity:0;pointer-events:none;
+  }
+  /* Enquanto a coluna cresce, o conteúdo desliza de fora — sem isso a prévia "desdobra"
+     (o overflow:hidden revelando), que lê como corte, não como painel entrando. */
+  #f-live-preview.lp-entrando>*{animation:lpEntrandoConteudo var(--dur-slow) var(--ease-out) both}
+  @keyframes lpEntrandoConteudo{from{opacity:0;transform:translateX(22px)}to{opacity:1;transform:none}}
+}
+/* Reduced-motion: a prévia aparece no lugar, sem os 420ms de largura empurrando o chat
+   (movimento grande é justo o que essa preferência pede pra cortar). A gaveta do mobile
+   tem transition !important no bloco dela e segue como está. */
+@media (prefers-reduced-motion:reduce){
+  #f-live-preview{transition:background var(--dur-base),border-color var(--dur-base)}
+  #f-live-preview.lp-entrando>*{animation:none}
 }
 
 /* HEADER */

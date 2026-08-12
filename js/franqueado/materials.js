@@ -651,6 +651,26 @@ async function fSelectMaterial(materialId, card){
   const matView=document.getElementById('f-material-view');
   if(matView) matView.style.display='none';
   chatCol.style.display='';
+  // A prévia estava fora de cena durante a escolha (body.f-material-browser, em
+  // live-preview.css). A classe já saiu acima, então a largura volta sozinha e empurra o
+  // chat; aqui só disparamos o deslize do CONTEÚDO junto. O reflow entre remove e add é o
+  // que permite reanimar quando a pessoa entra em outro material na mesma sessão.
+  const lpPanel=document.getElementById('f-live-preview');
+  if(lpPanel){
+    lpPanel.classList.remove('lp-entrando'); void lpPanel.offsetWidth; lpPanel.classList.add('lp-entrando');
+    // A prévia mede o palco pra encaixar o canvas — e o palco só tem a largura final quando
+    // a transição termina. Mesmo par do panel-dock (render + refit) no fim do movimento,
+    // mais uma chamada imediata pro caso em que não há transição nenhuma (reduced-motion,
+    // largura já cheia): sem ela o canvas ficaria encaixado numa largura que não existe mais.
+    const _lpRefit=()=>{ try{ if(typeof fUpdateLivePreview==='function') fUpdateLivePreview(); }catch(e){}
+                         try{ if(typeof fLpRefit==='function') fLpRefit(); }catch(e){} };
+    lpPanel.addEventListener('transitionend', function _onW(ev){
+      if(ev.target!==lpPanel || ev.propertyName!=='width') return;
+      lpPanel.removeEventListener('transitionend', _onW);
+      _lpRefit();
+    });
+    requestAnimationFrame(_lpRefit);
+  }
   if(typeof _fMuchPlusHeaderPlay==='function') _fMuchPlusHeaderPlay(); // header voltou a aparecer → motion do tema toca agora
   fUpdateCtx();
   // Limpa estado anterior
