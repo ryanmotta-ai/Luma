@@ -164,6 +164,7 @@ function dBuildShowcaseLayers(fmt){
   ];
 }
 // Pré-carrega pastas no boot pra o franqueado já poder ver materiais sem entrar no designer
+let _dMockLimpo=false; // faxina de mocks legados rodou → persistir uma vez
 function dPreloadFolders(){
   // Garante dVars defaults pra o franqueado conseguir identificar variáveis tipo image.
   // Restaura o catálogo salvo (3.3/3.4: defaultValue, ordem e tipos custom sobrevivem ao reload).
@@ -214,45 +215,22 @@ function dPreloadFolders(){
   // Migração: garante que templates antigos tenham permissões pra fotos
   dFolders.forEach(f=>{
     if(!Array.isArray(f.templates)) f.templates=[]; // pasta legada/corrompida sem 'templates' não derruba o boot
-    
-    // Injeção dinâmica de mock templates para pastas vazias (ex: vindas do localStorage cache antigo).
-    // SÓ no modo demo (sem backend): num deploy real, fabricar material fake numa pasta que o
-    // designer esvaziou de propósito viola "zero peça fora da marca" — a pasta vazia deve mostrar
-    // "em breve", não uma arte inventada. A migração da fonte de campanhas p/ luma.pastas remove isto.
-    const _demoMode = !(typeof gHasBackend==='function' && gHasBackend());
-    if(_demoMode && f.templates.length === 0 && f.id !== 'f-modelo') {
-      const allCamps = fAllCampaigns();
-      const c = allCamps.find(x => x.id === f.campId || x.name === f.name);
-      if(c) {
-        const exMeta = dDefaultPublishMeta();
-        exMeta.publicado = true;
-        exMeta.publicadoEm = Date.now();
-        exMeta.instrucoes = 'Material pronto para personalização.';
-        exMeta.permissoes = {
-          produto:{edit:true,maxLen:32}, precoPor:{edit:true,maxLen:14}, precoDe:{edit:true,maxLen:14},
-          desconto:{edit:true,maxLen:14}, oferta:{edit:true,maxLen:20}, brinde:{edit:true,maxLen:20},
-          condicao:{edit:true,maxLen:20}, validade:{edit:true,maxLen:40},
-          foto_produto:{edit:true,maxLen:0}, logo_loja:{edit:true,maxLen:0},
-        };
-        f.templates = [
-          {
-            id: 't-mock-story-' + c.id,
-            name: c.name + ' — Story',
-            fmt: 'story',
-            layers: dBuildMockLayersForCamp(c, 'story'),
-            publishMeta: JSON.parse(JSON.stringify(exMeta))
-          },
-          {
-            id: 't-mock-feed-' + c.id,
-            name: c.name + ' — Feed',
-            fmt: 'feed',
-            layers: dBuildMockLayersForCamp(c, 'feed'),
-            publishMeta: JSON.parse(JSON.stringify(exMeta))
-          }
-        ];
-      }
-    }
+    // Remoção do injetor de mock (2026): fabricava t-mock-* em toda pasta vazia. Ressuscitava
+    // o que o designer ESVAZIAVA/EXCLUÍA de propósito ("não consigo tirar os modelos de exemplo"
+    // e "Esvaziar não funciona") e injetava arte fake em produção (fere "zero peça fora da marca").
+    // Pasta vazia agora mostra "em breve", como deve. Faxina do legado abaixo (removeMocks).
 
+    // Faxina única: remove mocks legados já persistidos (t-mock-*) de sessões antigas —
+    // sem isto o designer via os exemplos "presos" mesmo com o injetor desligado.
+    if(f.id!=='f-modelo' && f.templates.some(t=>t&&typeof t.id==='string'&&t.id.indexOf('t-mock-')===0)){
+      f.templates=f.templates.filter(t=>{
+        const ehMock=t&&typeof t.id==='string'&&t.id.indexOf('t-mock-')===0;
+        // Mock que chegou a subir pro banco: deleta lá também, senão o pull ressuscita.
+        if(ehMock && t.remoteId && typeof dDeleteTemplateFromBackend==='function'){ try{ dDeleteTemplateFromBackend(t.remoteId); }catch(e){} }
+        return !ehMock;
+      });
+      _dMockLimpo=true;
+    }
     f.templates.forEach(t=>{
       if(!t.publishMeta) t.publishMeta = dDefaultPublishMeta();
       if(!t.publishMeta.permissoes) t.publishMeta.permissoes = {};
@@ -273,6 +251,8 @@ function dPreloadFolders(){
       if(!t.formats) t.formats=['story','feed','wide']; // smart resize cobre os 3
     });
   });
+  // Faxina removeu mocks legados → persiste a limpeza (local + backend, se houver remoteId).
+  if(_dMockLimpo && typeof dPersistFolders==='function'){ try{ dPersistFolders(); }catch(e){} }
   // Re-hidrata imagens grandes (fundos PSD) guardadas no IndexedDB como 'idb://...' → dataURL real,
   // depois re-renderiza pra mostrar os fundos (some o reload sem fundo). Fire-and-forget.
   if(typeof gHydrateFolders==='function'){
