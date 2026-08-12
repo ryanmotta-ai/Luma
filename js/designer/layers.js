@@ -1815,7 +1815,22 @@ function dLayerBindField(layerId, fieldName){
   const v=dVars.find(x=>x.name===fieldName); if(!v){ gToast('Campo não encontrado'); return; }
   if(typeof dHistoryPush==='function') dHistoryPush();
   if(l.type==='image'||l.type==='frame'){ l.imgVar=fieldName; }
-  else if(l.type==='text'){ l.content='{{'+fieldName+'}}'; l.isVar=true; }
+  else if(l.type==='text'){
+    // O texto que o designer escreveu VIRA O EXEMPLO do campo. Antes, arrastar um Dado
+    // numa camada de texto apagava a frase e o canvas passava a mostrar o rótulo do campo
+    // ("Preço promocional") — a arte perdia a aparência real e o diagrama do layout mudava
+    // debaixo da mão de quem estava projetando. Agora a frase permanece na tela, com o selo
+    // do Dado por cima dizendo que ali entra valor do franqueado.
+    // Só EXEMPLO (gFieldSampleValue): é preview de editor. O que sai na arte do franqueado
+    // vem de defaultValue (gVarDefaults) — nada aqui vaza pro PNG final.
+    const orig=String(l.content||'').trim();
+    const jaTemExemplo=(v.example!=null && String(v.example).trim()!=='');
+    if(orig && !jaTemExemplo && !gVarRegex().test(orig)){
+      v.example=orig;
+      if(typeof dPersistVars==='function') dPersistVars();
+    }
+    l.content='{{'+fieldName+'}}'; l.isVar=true;
+  }
   else { gToast('Essa camada não recebe Dado'); return; }
   dRenderCanvas(); if(typeof dRenderLayersList==='function') dRenderLayersList();
   dShowProps(l); dMarkUnsaved();
@@ -1829,7 +1844,12 @@ function dLayerUnbindField(layerId){
   else if(l.type==='text'){
     l.isVar=false;
     const m=(l.content||'').match(/^\s*\{\{\s*([a-zA-Z0-9_]+)\s*\}\}\s*$/);
-    if(m){ const v=dVars.find(x=>x.name===m[1]); l.content=v?(v.label||v.name):(l.content||''); }
+    // Devolve o EXEMPLO (que é o texto original de quem ligou o campo arrastando), não o
+    // rótulo do campo: desvincular deixa a camada como estava, sem a frase virar "Produto".
+    if(m){
+      const v=dVars.find(x=>x.name===m[1]);
+      l.content=v?((typeof gFieldSampleValue==='function')?gFieldSampleValue(v):(v.label||v.name)):(l.content||'');
+    }
   }
   dRenderCanvas(); if(typeof dRenderLayersList==='function') dRenderLayersList();
   dShowProps(l); dMarkUnsaved();

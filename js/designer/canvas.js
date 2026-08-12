@@ -1113,7 +1113,12 @@ function dRenderCanvas(){
         // NÃO trocar para relative: reinsere no fluxo e desloca outros layers relativos.
         const lbl=document.createElement('div');
         lbl.style.cssText='position:absolute;top:-18px;left:0;font-size:9px;font-weight:800;letter-spacing:.06em;color:#241a00;background:#FFB900;padding:1px 7px;border-radius:4px;font-family:Roboto,sans-serif;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.25);';
-        lbl.textContent='◆ '+l.name;
+        // Mostra o CAMPO, não o nome da camada: como o texto na tela continua sendo a frase
+        // original (ver dLayerBindField), este selo é o único ponto que diz qual Dado entra
+        // aqui. Cai no nome da camada quando o campo não resolve.
+        const _bf=(typeof dLayerBoundField==='function')?dLayerBoundField(l):null;
+        const _bv=(_bf&&typeof dVars!=='undefined'&&dVars)?dVars.find(x=>x.name===_bf):null;
+        lbl.textContent='◆ '+((_bv&&(_bv.label||_bv.name))||l.name);
         el.appendChild(lbl);
       }
       const textNode=document.createElement('div');
