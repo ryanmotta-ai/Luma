@@ -109,6 +109,14 @@ function setMode(m){
     // trabalho não salvo). Só o foco do painel volta pra casa.
     if(typeof dActivatePanel==='function') dActivatePanel('campaigns');
   }
+  // Lembra o modo p/ o F5 voltar onde estava (restaurado no boot por gRestoreMode).
+  try{ localStorage.setItem('__luma_mode', m); }catch(e){}
+}
+// Restaura o modo salvo no boot. Só troca se NÃO for franqueado (que é o default do boot)
+// e se o role/flag permitirem — setMode já reforça os dois gates, então é seguro chamar.
+function gRestoreMode(){
+  let m=null; try{ m=localStorage.getItem('__luma_mode'); }catch(e){}
+  if(m && m!=='franqueado' && typeof setMode==='function') setMode(m);
 }
 
 // Mostra a aba Designer só pra persona Designer (equipe_dm/gestao).
@@ -199,6 +207,9 @@ function gOnLoginSuccess() {
   // silent no boot: a home entra já assentada (sem a cascata que deixava o corpo em
   // opacity:0), então ao sair do login/splash cai direto na vitrine cheia — sem flash vazio.
   if (typeof fGoHome === 'function') fGoHome({silent:true});
+  // F5 volta pro modo onde o usuário estava (Estúdio/Academia), não sempre pra home.
+  // Depois do fGoHome de propósito: a home do franqueado fica montada por trás.
+  gRestoreMode();
 
   // Sincroniza variáveis e catálogo (pastas/templates) com o Supabase (offline-first).
   // Pastas (capas/materiais) e artes (rascunhos) refrescam a home quando chegam.
