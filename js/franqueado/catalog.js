@@ -974,6 +974,7 @@ function fSelectCamp(id){
     fState.stepIdx=-1; fState.dados={}; fState.done=false; fState.material=null;
   }
   fState.camp=c;
+  try{ localStorage.setItem('__luma_camp', c.id); }catch(e){} // F5 reabre esta campanha (gRestoreFranqueado)
   // Vindo da home (categoria ainda null): abre o rail na lista certa, não nos cards de categoria
   if(!fState.categoria){
     const isImpl=fGetCampaigns().impl.some(x=>x.id===c.id);
@@ -996,6 +997,9 @@ function fGoHome(opts){
   // pôr .in nos cards, e no retorno os cards ficavam presos em opacity:0 (CSS gPopIn
   // backwards) — o menu "não carregava". Silent = cards visíveis na hora. Boot já é silent.
   opts=opts||{silent:true};
+  // Home = nenhuma campanha aberta → o F5 não deve reabrir nada. (Boot lê __luma_camp ANTES
+  // deste clear, em gOnLoginSuccess, então o fGoHome do próprio boot não apaga o restore.)
+  if(!opts.boot){ try{ localStorage.removeItem('__luma_camp'); }catch(e){} }
   if(typeof fRemoveCampTheme==='function') fRemoveCampTheme();
   document.body.classList.add('f-home-mode');
   document.body.classList.remove('f-mobile-chat','f-history-mode','f-material-browser');

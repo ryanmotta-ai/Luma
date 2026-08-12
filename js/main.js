@@ -214,7 +214,9 @@ function gOnLoginSuccess() {
   // fica como fallback por trás; escolher uma campanha sai do modo home sozinho.
   // silent no boot: a home entra já assentada (sem a cascata que deixava o corpo em
   // opacity:0), então ao sair do login/splash cai direto na vitrine cheia — sem flash vazio.
-  if (typeof fGoHome === 'function') fGoHome({silent:true});
+  // Campanha aberta antes do F5 (lida ANTES do fGoHome, que só limpa em clique real de home).
+  let _bootCamp=null; try{ _bootCamp=localStorage.getItem('__luma_camp'); }catch(e){}
+  if (typeof fGoHome === 'function') fGoHome({silent:true, boot:true});
   // F5 volta pro modo onde o usuário estava (Estúdio/Academia), não sempre pra home.
   // Depois do fGoHome de propósito: a home do franqueado fica montada por trás.
   gRestoreMode();
@@ -222,10 +224,19 @@ function gOnLoginSuccess() {
   // Sincroniza variáveis e catálogo (pastas/templates) com o Supabase (offline-first).
   // Pastas (capas/materiais) e artes (rascunhos) refrescam a home quando chegam.
   const _fhRefresh = () => { if (typeof fHomeRefreshIfIdle === 'function') fHomeRefreshIfIdle(); };
+  // F5 dentro de uma campanha reabre ela — só depois das pastas descerem (materiais dependem
+  // do catálogo). Só no Franqueado (Estúdio/Academia já foram restaurados por gRestoreMode).
+  const _restoreCamp = () => {
+    if(!_bootCamp || document.body.classList.contains('mode-designer') || document.body.classList.contains('mode-academia')) return;
+    if(typeof fResolveCamp==='function' && typeof fSelectCamp==='function' && fResolveCamp(_bootCamp)){
+      fSelectCamp(_bootCamp); _bootCamp=null; // uma vez só
+    }
+  };
   // Deleções que falharam em sessões anteriores re-tentam ANTES dos pulls (anti-ressurreição)
   if (typeof gFlushPendingDeletes === 'function') { try { gFlushPendingDeletes(); } catch(e){} }
   if (typeof dSyncVarsFromBackend === 'function') dSyncVarsFromBackend();
-  if (typeof dSyncFoldersFromBackend === 'function') Promise.resolve(dSyncFoldersFromBackend()).then(_fhRefresh).catch(()=>{});
+  if (typeof dSyncFoldersFromBackend === 'function') Promise.resolve(dSyncFoldersFromBackend()).then(()=>{ _fhRefresh(); _restoreCamp(); }).catch(()=>{});
+  else _restoreCamp(); // sem sync (offline): tenta com o catálogo local
   if (typeof dSyncFontsFromBackend === 'function') dSyncFontsFromBackend();
   if (typeof dSyncSnippetsFromBackend === 'function') dSyncSnippetsFromBackend();
   if (typeof dSyncLibFromBackend === 'function') dSyncLibFromBackend();
