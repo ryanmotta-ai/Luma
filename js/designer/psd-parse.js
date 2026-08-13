@@ -1170,6 +1170,30 @@ function _dPsdNeedsRaster(node){
   return false;
 }
 
+// Ajustes que o motor Canvas canônico consegue recalcular sobre a composição abaixo. Eles
+// continuam como CAMADAS (não viram pixels congelados), então editar foto/texto por baixo
+// preserva o tratamento de cor do PSD. Tipos fora desta lista entram visíveis na revisão,
+// mas marcados como não suportados em vez de desaparecerem silenciosamente.
+const _DPSD_ADJUST_SUPPORTED=new Set([
+  'brightness/contrast','levels','curves','exposure','vibrance','hue/saturation',
+  'invert','posterize','threshold'
+]);
+function _dPsdAdjustmentInfo(adj){
+  if(!adj||!adj.type)return null;
+  const data=JSON.parse(JSON.stringify(adj));
+  const type=String(data.type).toLowerCase();
+  // Estes algoritmos são dinâmicos e editáveis, mas o Photoshop usa curvas internas que não
+  // publica para Brilho moderno/Vibração e spline própria em Curvas. Marcamos a aproximação na
+  // revisão; melhor uma capacidade explícita do que vender "1:1" onde a matemática não é aberta.
+  let approximate=(type==='brightness/contrast'&&!data.useLegacy)||type==='vibrance'||(type==='curves'&&['rgb','red','green','blue'].some(k=>(data[k]||[]).length>2));
+  // O master de Hue/Saturation é reproduzido; faixas seletivas (reds/yellows/…) ainda não.
+  if(type==='hue/saturation'){
+    const ranged=['reds','yellows','greens','cyans','blues','magentas'];
+    approximate=ranged.some(k=>{const c=data[k]||{};return !!(+c.hue||+c.saturation||+c.lightness);});
+  }
+  return {data,type,supported:_DPSD_ADJUST_SUPPORTED.has(type),approximate};
+}
+
 // Assinatura curta de um raster para o dedupe. O comprimento do dataURL sozinho não serve:
 // duas fotos DIFERENTES que por acaso comprimem para o mesmo tamanho eram vistas como
 // duplicata e a segunda desaparecia sem aviso.
@@ -1287,6 +1311,21 @@ function dPsdParseItems(psd, res, ox, oy){
           }
         }
         return;
+      }
+      if(node.adjustment){
+        const ai=_dPsdAdjustmentInfo(node.adjustment); if(!ai)return;
+        // Camada de ajuste não possui caixa de pixels própria no PSD: ela atua sobre toda a
+        // composição do contexto (prancheta ou grupo). Uma caixa integral também permite que a
+        // máscara de camada seja reprojetada pelo mesmo pipeline das demais camadas.
+        const aw=Math.max(1,(psd&&psd.width)||1), ah=Math.max(1,(psd&&psd.height)||1);
+        const an=Object.assign({},node,{left:ox,top:oy,right:ox+aw,bottom:oy+ah});
+        const ait={n:++n,name:(node.name||ai.type).toString().slice(0,48),x:0,y:0,w:aw,h:ah,
+          visible:!accHidden,opacity:Math.round(accOp*100),include:true,kind:'adjustment',mode:'adjustment',
+          adjustment:ai.data,adjustmentType:ai.type,adjustmentSupported:ai.supported,
+          adjustmentApprox:ai.approximate,clippingLayer:node.clippingLayer||node.clipping,
+          blendMode:_dPsdBlendMode(node.blendMode),group:parentName||'',_psdNode:an};
+        if(inh.groups&&inh.groups.length)ait._groupChain=inh.groups.slice();
+        items.push(ait); return;
       }
       const x=Math.round((node.left||0)-ox), y=Math.round((node.top||0)-oy);
       const w=Math.max(1,Math.round((node.right||0)-(node.left||0)));
@@ -1491,7 +1530,7 @@ function dPsdParseItems(psd, res, ox, oy){
   items.forEach(it=>{
     // Inclui cor e tamanho do raster: sem isso, dois retângulos "Faixa" de mesma caixa mas cores
     // diferentes (ou duas fotos no mesmo frame) eram vistos como duplicata e o 2º sumia.
-    const sig=it.kind+'|'+it.name+'|'+it.x+'|'+it.y+'|'+it.w+'|'+it.h+'|'+(it.content||'')+'|'+(it.fill||'')+'|'+_dPsdImgSig(it.imgUrl);
+    const sig=it.kind+'|'+it.name+'|'+it.x+'|'+it.y+'|'+it.w+'|'+it.h+'|'+(it.content||'')+'|'+(it.fill||'')+'|'+(it.adjustment?JSON.stringify(it.adjustment):'')+'|'+_dPsdImgSig(it.imgUrl);
     if(_seen.has(sig)){ console.warn('[psd] layer duplicada descartada (assinatura idêntica):', it.name); return; }
     _seen.add(sig); out.push(it);
   });
@@ -1634,6 +1673,9 @@ function dItemToLayer(it){
   if(it.mask) base.mask=it.mask;
   if(it.clipBaseId){ base.clipBaseId=it.clipBaseId; if(it.clipBaseSnapshot)base.clipBaseSnapshot=it.clipBaseSnapshot; if(it.clipOwnMask)base.clipOwnMask=it.clipOwnMask; }
   if(it.blendMode) base.blendMode=it.blendMode;
+  if(it.kind==='adjustment'){
+    return Object.assign(base,{type:'adjustment',adjustment:JSON.parse(JSON.stringify(it.adjustment||{})),adjustmentSupported:it.adjustmentSupported!==false,adjustmentApprox:!!it.adjustmentApprox});
+  }
   // Modo MOLDURA DE FOTO (escolhido na revisão): a camada — forma ou imagem — vira um frame que o
   // franqueado preenche com foto. Preserva x/y/w/h; formato do frame herdado da forma original.
   if(it.mode==='frame'){

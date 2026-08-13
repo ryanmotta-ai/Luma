@@ -110,17 +110,18 @@ function _dPsdApplyBoardToUI(){
   const _nT=dPsdItems.filter(i=>i.kind==='text').length;
   const _nS=dPsdItems.filter(i=>i.kind==='shape').length;
   const _nI=dPsdItems.filter(i=>i.kind==='raster').length;
+  const _adjItems=dPsdItems.filter(i=>i.kind==='adjustment');
+  const _nA=_adjItems.length, _nAOk=_adjItems.filter(i=>i.adjustmentSupported!==false).length, _nABad=_nA-_nAOk;
   const _warnIcon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3 2.8 19h18.4L12 3Z"/><path d="M12 9v4M12 16h.01"/></svg>';
   // Badge DPI: aviso visual quando o doc não é 72dpi (fontes em pontos serão escaladas)
   const _hiDpi=dPsdMeta.res&&dPsdMeta.res>90;
   const _dpiHtml=_hiDpi
     ?`<span class="psd-dpi-warn" title="Fontes em pontos serão escaladas automaticamente (${Math.round(dPsdMeta.res)}dpi para 72dpi)">${_warnIcon}${Math.round(dPsdMeta.res)} dpi</span>`
     :(dPsdMeta.res&&dPsdMeta.res!==72?`<span class="psd-meta-chip">${Math.round(dPsdMeta.res)} dpi</span>`:'');
-  // Aviso de camadas de ajuste: o Luma não aplica ajustes de cor/tom (Levels/Curves/Hue…),
-  // então as cores podem diferir levemente do PSD. (Fidelidade total exigiria achatar — futuro.)
-  const _adjHtml=(_dPsdAdjustCount>0)
-    ?`<span class="psd-dpi-warn" title="O Photoshop tem ${_dPsdAdjustCount} camada(s) de ajuste que o Luma não reproduz; as cores podem variar.">${_warnIcon}${_dPsdAdjustCount} ajuste(s) de cor</span>`
-    :'';
+  // Ajuste deixou de ser sinônimo de perda: nove tipos são camadas editáveis de verdade. O badge
+  // separa o que o motor aplica do que ainda entra como no-op honesto, sem um alerta genérico.
+  const _adjHtml=(_nAOk?`<span class="psd-meta-chip" title="Camadas de ajuste preservadas e recalculadas sobre o conteúdo editável">${_nAOk} ajuste${_nAOk===1?' editável':'s editáveis'}</span>`:'')
+    +(_nABad?`<span class="psd-dpi-warn" title="${_nABad} camada(s) de ajuste usam tipos que o Luma ainda não reproduz; elas ficam identificadas na lista.">${_warnIcon}${_nABad} ajuste${_nABad===1?'':'s'} não aplicado${_nABad===1?'':'s'}</span>`:'');
   // Camadas que falharam no parse entraram como imagem fiel (ou foram puladas). Avisar é
   // obrigatório: silêncio aqui vira "a camada sumiu do nada" pro designer.
   const _errHtml=(_dPsdErrorCount>0)
@@ -185,10 +186,11 @@ function dPsdRenderRows(filter){
   const ico={
     text:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 6V4h14v2M12 4v16M8 20h8"/></svg>',
     shape:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/></svg>',
-    raster:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m4 17 4-4 3 3 3-3 6 5"/></svg>'
+    raster:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m4 17 4-4 3 3 3-3 6 5"/></svg>',
+    adjustment:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16Z" fill="currentColor" stroke="none"/></svg>'
   };
-  const kindOrder={text:0,shape:1,raster:2};
-  const kindLabel={text:'Textos',shape:'Formas',raster:'Imagens'};
+  const kindOrder={text:0,shape:1,raster:2,adjustment:3};
+  const kindLabel={text:'Textos',shape:'Formas',raster:'Imagens',adjustment:'Ajustes de cor'};
   // Indexar, filtrar por busca (nome, conteúdo, fontName, tipo em PT-BR) e agrupar por tipo
   const indexed=dPsdItems.map((it,i)=>({it,i})).filter(({it})=>!it.isMaskBase);
   const visible=filter?indexed.filter(({it})=>{
@@ -197,6 +199,7 @@ function dPsdRenderRows(filter){
       (it.fontName&&it.fontName.toLowerCase().includes(filter))||
       (it.kind==='shape'&&'forma'.includes(filter))||
       (it.kind==='raster'&&'imagem'.includes(filter))||
+      (it.kind==='adjustment'&&('ajuste cor '+(it.adjustmentType||'')).includes(filter))||
       (it.kind==='text'&&'texto'.includes(filter));
   }):indexed;
   const grouped=[...visible].sort((a,b)=>(kindOrder[a.it.kind]||0)-(kindOrder[b.it.kind]||0));
@@ -219,6 +222,8 @@ function dPsdRenderRows(filter){
         <option value="shape" ${it.mode==='shape'?'selected':''}>Cor (editável)</option>
         <option value="frame" ${it.mode==='frame'?'selected':''}>Moldura de foto</option>
         <option value="raster" ${it.mode==='raster'?'selected':''}>Imagem</option></select>`;
+    } else if(it.kind==='adjustment'){
+      modeSel=`<span class="psd-textinfo">Ajuste vinculado</span>`;
     } else { // raster/imagem: pode virar Imagem fiel OU moldura de foto (o franqueado preenche)
       modeSel=`<select class="psd-mode" aria-label="Como importar a camada ${_dPsdEsc(it.name)}" onchange="dPsdSetMode(${i},this.value)">
         <option value="raster" ${it.mode!=='frame'?'selected':''}>Imagem</option>
@@ -230,7 +235,7 @@ function dPsdRenderRows(filter){
     // o vínculo NÃO é um campo do catálogo — ou seja, no caminho "Criar campo…" (nome sendo
     // digitado). Mostrar os dois deixava o mesmo dado em duplicado na linha.
     const isVarVisible = (it.mode==='var'||it.mode==='frame') && !_dPsdFieldByName(it.varName);
-    const varIn=`<input class="psd-var-input ${isVarVisible?'visible':''}" value="${_dPsdEsc(it.varName||'')}" placeholder="nome_do_campo" aria-label="Nome do campo editável da camada ${_dPsdEsc(it.name)}" oninput="dPsdSetVar(${i},this.value,this)">`;
+    const varIn=it.kind==='adjustment'?'':`<input class="psd-var-input ${isVarVisible?'visible':''}" value="${_dPsdEsc(it.varName||'')}" placeholder="nome_do_campo" aria-label="Nome do campo editável da camada ${_dPsdEsc(it.name)}" oninput="dPsdSetVar(${i},this.value,this)">`;
     // O aviso é de PERDA, então só aparece quando há perda de verdade: ou o rich text não
     // resolveu (it.multiStyle), ou resolveu mas a camada virou variável — e `runs` não vai
     // junto com {{campo}} (ver dItemToLayer), então aí o estilo misto some mesmo.
@@ -245,6 +250,12 @@ function dPsdRenderRows(filter){
       else fontWarn=`<span class="psd-fontwarn">Fonte ausente · ${fn} <label class="psd-font-upload-btn" title="Enviar '${fn}' agora">Enviar<input type="file" accept=".ttf,.otf,.woff,.woff2" style="display:none" onchange="dPsdUploadFont(${i},this)"></label></span>`;
     }
     const opacityBadge=it.opacity<95?`<span class="psd-opacity-badge">Opacidade ${it.opacity}%</span>`:'';
+    const _adjPt={'brightness/contrast':'Brilho/Contraste',levels:'Níveis',curves:'Curvas',exposure:'Exposição',vibrance:'Vibração','hue/saturation':'Matiz/Saturação',invert:'Inverter',posterize:'Posterizar',threshold:'Limiar'};
+    const adjustmentBadge=it.kind==='adjustment'
+      ?(it.adjustmentSupported===false
+        ?`<span class="psd-fontwarn" title="Este tipo permanece identificado na pilha, mas ainda não altera os pixels no Luma">${_dPsdEsc(it.adjustmentType||'Ajuste')} ainda não aplicado</span>`
+        :`<span class="psd-fontok" title="Este ajuste acompanha qualquer edição feita nas camadas abaixo">${_dPsdEsc(_adjPt[it.adjustmentType]||it.adjustmentType||'Ajuste')} · editável</span>${it.adjustmentApprox?'<span class="psd-fontwarn" title="O ajuste é dinâmico, mas esta variação usa matemática aproximada do Photoshop">Aproximação identificada</span>':''}`)
+      :'';
     const fxWarns=[
       it.fxSatin?'Cetim não aplicado':'',
       it.fxContour?'Contorno de efeito ignorado':'',
@@ -286,7 +297,7 @@ function dPsdRenderRows(filter){
       <span class="psd-row-ico psd-row-ico-${it.kind}">${swatch||ico[it.kind]||ico.raster}</span>
       ${thumb}
       <span class="psd-row-name" title="${_dPsdEsc(it.name)}">
-        <span class="psd-row-name-top">${_dPsdEsc(it.name)}${errBadge}${flatBadge}${multiStyleBadge}${blendBadge}${grpBlendBadge}${fxWarns}${fontWarn}${opacityBadge}${vecWarn}${clipWarn}${textInfoBadge}${sugBadge}</span>
+        <span class="psd-row-name-top">${_dPsdEsc(it.name)}${errBadge}${flatBadge}${multiStyleBadge}${blendBadge}${grpBlendBadge}${fxWarns}${fontWarn}${opacityBadge}${adjustmentBadge}${vecWarn}${clipWarn}${textInfoBadge}${sugBadge}</span>
         ${groupCrumb}${textPrev}
       </span>
       ${_dPsdFieldSelHTML(it,i)}${modeSel}${varIn}</div>`;
@@ -773,6 +784,7 @@ function _dPsdFieldLabel(name){ const v=_dPsdFieldByName(name); return (v&&v.lab
 // vocabulário da regra e barrar a base de recorte, que não existe como camada sozinha.
 function _dPsdBindCheck(it, v){
   if(!it || !v) return {ok:false, why:'Campo não encontrado no catálogo'};
+  if(it.kind==='adjustment') return {ok:false, why:'Ajustes de cor não recebem campos'};
   if(it.isMaskBase) return {ok:false, why:'Esta camada é base de recorte e não entra sozinha'};
   const chk=(typeof gFieldFitCheck==='function')
     ? gFieldFitCheck(v, it.kind==='text'?'text':'imagem')
@@ -905,6 +917,7 @@ function _dPsdRenderFieldRail(){
 // tela). Arrastar é só atalho. Só lista campos compatíveis com o tipo da camada — a guarda
 // de tipo aparece como ausência de opção, não como erro depois do gesto.
 function _dPsdFieldSelHTML(it, i){
+  if(it.kind==='adjustment')return '';
   const vars=_dPsdVarsList();
   const querImg=(it.kind!=='text');
   const opts=vars.filter(v=>querImg?(v.type==='image'):(v.type!=='image'));

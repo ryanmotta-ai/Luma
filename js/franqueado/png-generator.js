@@ -212,8 +212,64 @@ async function fDrawDMLogo(ctx, w, h){
   return; // não desenha nenhuma logo de marca no resultado final
 }
 
+// ── Camadas de ajuste importadas do Photoshop ────────────────────────────────
+// Opera em ImageData para que o mesmo resultado sirva preview, PNG e mockup. A função é
+// propositalmente pública: o QA consegue testar a matemática sem montar uma tela inteira.
+function fAdjustImageData(id, adj){
+  if(!id||!id.data||!adj||!adj.type)return id;
+  const d=id.data, type=String(adj.type).toLowerCase();
+  const clamp=(v,a=0,b=255)=>Math.max(a,Math.min(b,v));
+  const curveLut=(nodes)=>{
+    const ns=(nodes&&nodes.length?nodes:[{input:0,output:0},{input:255,output:255}]).slice().sort((a,b)=>(+a.input||0)-(+b.input||0)),lut=new Uint8ClampedArray(256);
+    for(let v=0,n=1;v<256;v++){
+      while(n<ns.length&&v>ns[n].input)n++;
+      if(v<=ns[0].input)lut[v]=clamp(+ns[0].output||0);
+      else if(n>=ns.length)lut[v]=clamp(+ns[ns.length-1].output||0);
+      else{const p=ns[n-1],q=ns[n],den=(q.input-p.input)||1,t=(v-p.input)/den;lut[v]=clamp(p.output+(q.output-p.output)*t);}
+    }
+    return lut;
+  };
+  const level=(v,c)=>{if(!c)return v;const lo=+c.shadowInput||0,hi=c.highlightInput!=null?+c.highlightInput:255,den=Math.max(1,hi-lo);let n=clamp((v-lo)/den,0,1);const g=Math.max(.01,+c.midtoneInput||1);n=Math.pow(n,1/g);const a=+c.shadowOutput||0,b=c.highlightOutput!=null?+c.highlightOutput:255;return clamp(a+n*(b-a));};
+  const rgbToHsl=(r,g,b)=>{
+    r/=255;g/=255;b/=255;const mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/2;if(mx===mn)return[0,0,l];const x=mx-mn,s=l>.5?x/(2-mx-mn):x/(mx+mn);let h=mx===r?((g-b)/x+(g<b?6:0)):mx===g?((b-r)/x+2):((r-g)/x+4);return[h/6,s,l];
+  };
+  const hue=(p,q,t)=>{if(t<0)t++;if(t>1)t--;return t<1/6?p+(q-p)*6*t:t<1/2?q:t<2/3?p+(q-p)*(2/3-t)*6:p;};
+  const hslToRgb=(h,s,l)=>{if(!s){const v=l*255;return[v,v,v];}const q=l<.5?l*(1+s):l+s-l*s,p=2*l-q;return[hue(p,q,h+1/3)*255,hue(p,q,h)*255,hue(p,q,h-1/3)*255];};
+  const makeLut=fn=>{const out=new Uint8ClampedArray(256);for(let v=0;v<256;v++)out[v]=clamp(fn(v));return out;};
+  let lutR=null,lutG=null,lutB=null;
+  if(type==='brightness/contrast'){
+    const br=clamp(+adj.brightness||0,-100,100)/100,ct=clamp(+adj.contrast||0,-99,99)/100;
+    const lut=makeLut(v=>{v=br<0?v*(1+br):v+(255-v)*br;return(v-127.5)*((1+ct)/(1-ct))+127.5;});lutR=lutG=lutB=lut;
+  }else if(type==='levels'){
+    lutR=makeLut(v=>level(level(v,adj.rgb),adj.red));lutG=makeLut(v=>level(level(v,adj.rgb),adj.green));lutB=makeLut(v=>level(level(v,adj.rgb),adj.blue));
+  }else if(type==='curves'){
+    const all=curveLut(adj.rgb),r=curveLut(adj.red),g=curveLut(adj.green),b=curveLut(adj.blue);
+    lutR=makeLut(v=>r[all[v]]);lutG=makeLut(v=>g[all[v]]);lutB=makeLut(v=>b[all[v]]);
+  }else if(type==='exposure'){
+    const mul=Math.pow(2,+adj.exposure||0),off=(+adj.offset||0)*255,ga=Math.max(.01,+adj.gamma||1),lut=makeLut(v=>Math.pow(clamp((v*mul+off)/255,0,1),1/ga)*255);lutR=lutG=lutB=lut;
+  }else if(type==='invert'){
+    const lut=makeLut(v=>255-v);lutR=lutG=lutB=lut;
+  }else if(type==='posterize'){
+    const n=Math.max(2,Math.round(+adj.levels||4)),q=255/(n-1),lut=makeLut(v=>Math.round(v/q)*q);lutR=lutG=lutB=lut;
+  }
+  for(let i=0;i<d.length;i+=4){
+    if(!d[i+3])continue;
+    let r=d[i],g=d[i+1],b=d[i+2];
+    if(lutR){r=lutR[r];g=lutG[g];b=lutB[b];
+    }else if(type==='hue/saturation'||type==='vibrance'){
+      let hsl=rgbToHsl(r,g,b),dh=0,ds=0,dl=0;
+      if(type==='hue/saturation'){const m=adj.master||{};dh=(+m.hue||0)/360;ds=(+m.saturation||0)/100;dl=(+m.lightness||0)/100;}
+      else {const sat=(+adj.saturation||0)/100,vib=(+adj.vibrance||0)/100;ds=sat+vib*(1-hsl[1]);}
+      hsl[0]=(hsl[0]+dh+1)%1;hsl[1]=clamp(hsl[1]+(ds>=0?(1-hsl[1])*ds:hsl[1]*ds),0,1);hsl[2]=clamp(hsl[2]+(dl>=0?(1-hsl[2])*dl:hsl[2]*dl),0,1);[r,g,b]=hslToRgb(hsl[0],hsl[1],hsl[2]);
+    }else if(type==='threshold'){const y=.299*r+.587*g+.114*b,v=y>=(adj.level!=null?+adj.level:128)?255:0;r=g=b=v;
+    }else continue;
+    d[i]=Math.round(clamp(r));d[i+1]=Math.round(clamp(g));d[i+2]=Math.round(clamp(b));
+  }
+  return id;
+}
+
 // Renderiza os layers do template, substituindo {{var}} pelos dados reais do franqueado
-async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
+async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp, materialOverride){
   // Garante que as fontes (Roboto + enviadas pelo usuário) estejam carregadas antes
   // de desenhar texto no canvas — senão a primeira geração sai com fonte fallback.
   if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
@@ -221,7 +277,8 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
   // Fundo da prancheta/campanha
-  const _matBg=typeof fState!=='undefined'&&fState.material&&fState.material.bg&&fState.material.bg!=='transparent'?fState.material.bg:null;
+  const _renderMaterial=materialOverride||(typeof fState!=='undefined'?fState.material:null)||{layers,w:W,h:H,fmt:'orig'};
+  const _matBg=_renderMaterial.bg&&_renderMaterial.bg!=='transparent'?_renderMaterial.bg:null;
   if(_matBg){
     ctx.fillStyle=_matBg==='white'?'#ffffff':_matBg;
     ctx.fillRect(0,0,W,H);
@@ -235,7 +292,7 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
   const fmtSizes = {story:[1080,1920], feed:[1080,1350], wide:[1200,628], post:[1200,628], horizontal:[1920,1080]};
   // Espaço nativo das coords do template: w/h reais (1:1 do PSD) ou o preset do formato (legado).
   // Quando o material tem w/h reais e está sendo renderizado no próprio tamanho, tw/th==W/H → sem reflow.
-  const [tw, th] = fMaterialSize(fState.material);
+  const [tw, th] = fMaterialSize(_renderMaterial);
   let geomLayers = layers;
   if((tw !== W || th !== H) && typeof gReflowLayers === 'function'){
     const fmtKey = Object.keys(fmtSizes).find(k => fmtSizes[k][0]===W && fmtSizes[k][1]===H);
@@ -352,6 +409,41 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
     }
   }
 
+  // Ajuste não desenha um objeto: transforma a composição que já existe abaixo dele. Máscara,
+  // clipping, opacidade e blend continuam incidindo como em qualquer camada do Photoshop.
+  async function _fRenderAdjustment(target,l){
+    if(!l.adjustment||l.adjustmentSupported===false)return;
+    const tf=(typeof target.getTransform==='function')?target.getTransform():{a:1,d:1};
+    const sx=tf.a||1,sy=tf.d||1,dw=Math.max(1,Math.round(W*sx)),dh=Math.max(1,Math.round(H*sy));
+    const original=target.getImageData(0,0,dw,dh), adjusted=target.createImageData(dw,dh);
+    adjusted.data.set(original.data); fAdjustImageData(adjusted,l.adjustment);
+    let maskData=null;
+    if(l.mask||l.clipBaseId){
+      const mc=document.createElement('canvas');mc.width=dw;mc.height=dh;const mx=mc.getContext('2d');try{mx.setTransform(tf);}catch(e){}
+      mx.fillStyle='#fff';mx.fillRect(0,0,W,H);
+      if(l.mask){try{const mi=await fLoadImageDataUrl(l.mask);if(mi){mx.globalCompositeOperation='destination-in';mx.drawImage(mi,l.x||0,l.y||0,l.w||W,l.h||H);mx.globalCompositeOperation='source-over';}}catch(e){}}
+      const base=l.clipBaseId&&_layerById.get(l.clipBaseId);
+      if(base){
+        const bc=document.createElement('canvas');bc.width=dw;bc.height=dh;const bx=bc.getContext('2d');try{bx.setTransform(tf);}catch(e){}
+        const clean=Object.assign({},base,{opacity:100,blendMode:'normal',shadow:false,glow:false,innerShadow:false,innerGlow:false,bevel:false,overlay:false,gradientOverlay:null,strokeW:0});
+        await fRenderOneLayer(bx,clean,dados,1,1);
+        if(base.mask){try{const bi=await fLoadImageDataUrl(base.mask);if(bi){bx.globalCompositeOperation='destination-in';bx.drawImage(bi,base.x,base.y,base.w,base.h);}}catch(e){}}
+        mx.save();mx.setTransform(1,0,0,1,0,0);mx.globalCompositeOperation='destination-in';mx.drawImage(bc,0,0);mx.restore();
+      }
+      maskData=mx.getImageData(0,0,dw,dh).data;
+    }
+    const opacity=(l.opacity!=null?l.opacity:100)/100,bm=l.blendMode&&l.blendMode!=='normal'?l.blendMode:'normal';
+    if(bm!=='normal'&&typeof dBlendImageData==='function'){
+      for(let i=3;i<adjusted.data.length;i+=4)adjusted.data[i]=Math.round(original.data[i]*opacity*(maskData?maskData[i]/255:1));
+      dBlendImageData(bm,adjusted,original);
+    }else{
+      // O ajuste muda o RGB existente sem mudar seu alpha. Multiplicar de novo pelo alpha do
+      // backdrop deixava pixels semitransparentes com só metade do ajuste.
+      for(let i=0;i<original.data.length;i+=4){const a=opacity*(maskData?maskData[i+3]/255:1);if(!a||!original.data[i+3])continue;original.data[i]=Math.round(original.data[i]+(adjusted.data[i]-original.data[i])*a);original.data[i+1]=Math.round(original.data[i+1]+(adjusted.data[i+1]-original.data[i+1])*a);original.data[i+2]=Math.round(original.data[i+2]+(adjusted.data[i+2]-original.data[i+2])*a);}
+    }
+    target.putImageData(original,0,0);
+  }
+
   // Grupo de COMPOSIÇÃO. Grupos antigos continuam pass-through e custam zero offscreen; PSDs
   // podem pedir isolamento/opacidade/máscara/blend, que são aplicados uma vez ao composto.
   async function _fRenderGroup(target,g){
@@ -386,7 +478,9 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
     for(const l of visible){
       const actualParent=(l.parentId&&_groupById.has(l.parentId))?l.parentId:null;
       if(actualParent!==parentId)continue;
-      if(l.type==='group')await _fRenderGroup(target,l); else await _fRenderLeaf(target,l);
+      if(l.type==='group')await _fRenderGroup(target,l);
+      else if(l.type==='adjustment')await _fRenderAdjustment(target,l);
+      else await _fRenderLeaf(target,l);
     }
   }
   await _fRenderChildren(ctx,null);

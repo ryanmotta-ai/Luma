@@ -995,6 +995,7 @@ function dRenderCanvas(){
   const ab=typeof dGetActiveAB==='function'?dGetActiveAB():null;
   dApplyBg(ab);
   const frame=document.getElementById('d-canvas-frame');
+  const _adjustRenderId=frame._adjustRenderId=(frame._adjustRenderId||0)+1;
   // Detach paint canvas ANTES do innerHTML='' para preservar pixels sem toDataURL.
   // Canvas retém seu backing buffer enquanto a referência DOM existir — reinsere após render.
   const existingPaint=document.getElementById('d-paint-canvas');
@@ -1043,6 +1044,29 @@ function dRenderCanvas(){
     if(l.blendMode){
       const _css=(typeof DBLEND_TO_CSS!=='undefined')?DBLEND_TO_CSS[l.blendMode]:null;
       el.style.mixBlendMode=_css||l.blendMode.replace(/([A-Z])/g,c=>'-'+c.toLowerCase());
+    }
+    if(l.type==='adjustment'){
+      // Uma camada de ajuste cobre a COMPOSIÇÃO abaixo, não uma caixa DOM isolada. Inserimos no
+      // z-order um canvas cumulativo produzido pelo mesmo motor do PNG; o designer enxerga Curves,
+      // Levels, máscaras e grupos sem achatar as camadas que continuam editáveis por baixo.
+      el.className='canvas-layer canvas-adjustment-layer';
+      el.style.cssText=`left:0;top:0;width:${f.w}px;height:${f.h}px;position:absolute;pointer-events:none;opacity:1;mix-blend-mode:normal;`;
+      const ac=document.createElement('canvas');ac.width=f.w;ac.height=f.h;ac.style.cssText='width:100%;height:100%;display:block;pointer-events:none;';el.appendChild(ac);frame.appendChild(el);
+      const li=_renderLayers.findIndex(x=>x.id===l.id), prefix=_renderLayers.slice(0,li+1);
+      // Marcadores de grupo ficam depois dos filhos no modelo. Se o ajuste está dentro de um
+      // grupo ainda aberto, inclui só os ancestrais necessários para o renderer respeitar seu
+      // escopo/máscara, sem puxar as camadas visuais que ainda estão acima do ajuste.
+      const need=new Set(prefix.map(x=>x.parentId).filter(Boolean));
+      let grew=true;while(grew){grew=false;_renderLayers.filter(x=>x.type==='group'&&need.has(x.id)&&x.parentId&&!need.has(x.parentId)).forEach(x=>{need.add(x.parentId);grew=true;});}
+      const cumul=prefix.concat(_renderLayers.filter(x=>x.type==='group'&&need.has(x.id)&&!prefix.some(p=>p.id===x.id)));
+      const bg=(ab&&ab.bg&&ab.bg!=='transparent')?ab.bg:'rgba(0,0,0,0)';
+      Promise.resolve().then(async()=>{
+        if(frame._adjustRenderId!==_adjustRenderId||!ac.isConnected)return;
+        try{await fRenderTemplateLayers(ac.getContext('2d'),cumul,f.w,f.h,dSimActive?dSimValues:{},{color:'rgba(0,0,0,0)'},{layers:cumul,w:f.w,h:f.h,fmt:'orig',bg});}
+        catch(e){console.warn('[designer] falha na prévia do ajuste:',e);}
+        if(frame._adjustRenderId!==_adjustRenderId&&ac.parentNode)ac.parentNode.remove();
+      });
+      return;
     }
     // M2.1 — hover no canvas destaca a linha na lista de layers (e vice-versa)
     if(typeof dHoverLayer==='function'){
@@ -2170,4 +2194,3 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
-

@@ -104,12 +104,14 @@ function dPropShowSections(layerType) {
   var isText  = layerType === 'text';
   var isImg   = layerType === 'image' || layerType === 'frame';
   var isShp   = layerType === 'shape';
+  var isAdj   = layerType === 'adjustment';
 
   var secContent = document.getElementById('dp-sec-content');
   var secText    = document.getElementById('dp-sec-text');
   var secAppear  = document.getElementById('dp-sec-appear');
   var secAnchor  = document.getElementById('dp-sec-anchor');
   var secRules   = document.getElementById('dp-sec-rules');
+  var secAdjust  = document.getElementById('dp-sec-adjust');
 
   var hasLayer = isText || isImg || isShp;
 
@@ -118,9 +120,10 @@ function dPropShowSections(layerType) {
   if (secAppear)  secAppear.style.display  = isShp  ? '' : 'none';
   if (secAnchor)  secAnchor.style.display  = hasLayer ? '' : 'none';
   if (secRules)   secRules.style.display   = hasLayer ? '' : 'none';
+  if (secAdjust)  secAdjust.style.display  = isAdj ? '' : 'none';
 
   // Auto-expand the primary section for the layer type
-  var targetOpen = isText ? secText : (isShp ? secAppear : secContent);
+  var targetOpen = isAdj ? secAdjust : (isText ? secText : (isShp ? secAppear : secContent));
   if (targetOpen && !targetOpen.classList.contains('dp-section-open')) {
     var btn = targetOpen.querySelector('.dp-sec-head');
     if (btn) dPropToggleSection(btn);

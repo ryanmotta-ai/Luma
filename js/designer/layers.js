@@ -991,6 +991,7 @@ function dFxPopulate(l){
 // Miniatura da camada (estilo Photoshop): imagem real, swatch da forma, "T" do texto ou pasta.
 function _dLayerThumb(l){
   if(l.type==='group') return '<span class="lyr-th-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>';
+  if(l.type==='adjustment') return '<span class="lyr-th-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16Z" fill="currentColor" stroke="none"/></svg></span>';
   if(l.type==='image'||l.type==='frame'){
     const u=l.imgUrl;
     if(u && /^(data:|https?:|blob:)/.test(u)) return '<img src="'+u+'" alt="" loading="lazy">';
@@ -1080,6 +1081,7 @@ function dRenderLayersList(){
     else if (l.type === 'image') typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
     else if (l.type === 'frame') typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>`;
     else if (l.type === 'group') typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`;
+    else if (l.type === 'adjustment') typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16Z" fill="currentColor" stroke="none"/></svg>`;
 
     const dndAttrs = `draggable="true"
       ondragstart="dLyrDragStart(event,'${l.id}')"
@@ -1216,6 +1218,40 @@ function dToggleLock(e,id){
 }
 
 /* ── PROPS ── */
+function _dAdjNum(label,path,value,min,max,step,unit){
+  return `<div class="dpi-row"><label class="dpi-row-label">${label}</label><span class="dpi-unit-field"><input class="prop-input dpi-number" type="number" value="${value!=null?value:0}" min="${min}" max="${max}" step="${step||1}" oninput="dUpdateAdjustmentProp('${path}',this.value)">${unit?`<span class="dpi-unit">${unit}</span>`:''}</span></div>`;
+}
+function dRenderAdjustmentProps(l){
+  const host=document.getElementById('d-adjust-props');if(!host)return;
+  const a=l&&l.adjustment||{},t=String(a.type||'').toLowerCase();
+  const names={'brightness/contrast':'Brilho e contraste',levels:'Níveis',curves:'Curvas',exposure:'Exposição',vibrance:'Vibração','hue/saturation':'Matiz e saturação',invert:'Inverter',posterize:'Posterizar',threshold:'Limiar'};
+  let controls=_dAdjNum('Opacidade da camada','__opacity',l.opacity!=null?l.opacity:100,0,100,1,'%');
+  if(t==='brightness/contrast')controls+=_dAdjNum('Brilho','brightness',a.brightness||0,-100,100,1,'')+_dAdjNum('Contraste','contrast',a.contrast||0,-99,99,1,'');
+  else if(t==='levels'){
+    const c=a.rgb||{};controls+=_dAdjNum('Entrada preta','rgb.shadowInput',c.shadowInput!=null?c.shadowInput:0,0,254,1,'')+_dAdjNum('Gama','rgb.midtoneInput',c.midtoneInput!=null?c.midtoneInput:1,.01,9.99,.01,'')+_dAdjNum('Entrada branca','rgb.highlightInput',c.highlightInput!=null?c.highlightInput:255,1,255,1,'')+_dAdjNum('Saída preta','rgb.shadowOutput',c.shadowOutput!=null?c.shadowOutput:0,0,255,1,'')+_dAdjNum('Saída branca','rgb.highlightOutput',c.highlightOutput!=null?c.highlightOutput:255,0,255,1,'');
+  }else if(t==='curves'){
+    const pts=(a.rgb&&a.rgb.length?a.rgb:[{input:0,output:0},{input:255,output:255}]);
+    controls+=`<div class="dpi-group"><span class="dpi-group-title">Curva RGB</span>${pts.map((p,i)=>`<div class="dpi-row"><label class="dpi-row-label">Ponto ${i+1}</label><span class="dpi-unit-field"><input class="prop-input dpi-number" type="number" min="0" max="255" value="${p.input}" aria-label="Entrada" oninput="dUpdateAdjustmentCurve(${i},'input',this.value)"></span><span class="dpi-unit-field"><input class="prop-input dpi-number" type="number" min="0" max="255" value="${p.output}" aria-label="Saída" oninput="dUpdateAdjustmentCurve(${i},'output',this.value)"></span>${pts.length>2?`<button type="button" class="d-btn-sec" onclick="dRemoveAdjustmentCurvePoint(${i})" aria-label="Remover ponto">×</button>`:''}</div>`).join('')}<button type="button" class="d-btn-sec" onclick="dAddAdjustmentCurvePoint()">+ Adicionar ponto</button></div>`;
+  }else if(t==='exposure')controls+=_dAdjNum('Exposição','exposure',a.exposure||0,-20,20,.01,'')+_dAdjNum('Deslocamento','offset',a.offset||0,-.5,.5,.001,'')+_dAdjNum('Gama','gamma',a.gamma!=null?a.gamma:1,.01,9.99,.01,'');
+  else if(t==='vibrance')controls+=_dAdjNum('Vibração','vibrance',a.vibrance||0,-100,100,1,'')+_dAdjNum('Saturação','saturation',a.saturation||0,-100,100,1,'');
+  else if(t==='hue/saturation'){
+    const m=a.master||{};controls+=_dAdjNum('Matiz','master.hue',m.hue||0,-180,180,1,'°')+_dAdjNum('Saturação','master.saturation',m.saturation||0,-100,100,1,'')+_dAdjNum('Luminosidade','master.lightness',m.lightness||0,-100,100,1,'');
+  }else if(t==='posterize')controls+=_dAdjNum('Níveis','levels',a.levels||4,2,255,1,'');
+  else if(t==='threshold')controls+=_dAdjNum('Limiar','level',a.level!=null?a.level:128,0,255,1,'');
+  else if(t==='invert')controls+='<p class="dpi-source-meta">Sem parâmetros. Use visibilidade, opacidade e máscara para controlar o efeito.</p>';
+  else controls+='<p class="dpi-source-meta">Este tipo permanece na pilha, mas ainda não tem cálculo editável no Luma.</p>';
+  host.innerHTML=`<div class="dpi-group"><span class="dpi-group-title">${names[t]||gEsc(a.type||'Ajuste')}</span>${controls}</div>`;
+}
+function dUpdateAdjustmentProp(path,value){
+  const l=dLayers.find(x=>x.id===dSelId);if(!l||l.type!=='adjustment')return;
+  if(typeof dHistoryPush==='function')dHistoryPush();const n=Number(value);if(path==='__opacity')l.opacity=Math.max(0,Math.min(100,n));
+  else{let o=l.adjustment||(l.adjustment={});const p=path.split('.');for(let i=0;i<p.length-1;i++)o=o[p[i]]||(o[p[i]]={});o[p[p.length-1]]=n;}
+  dRenderCanvas();dMarkUnsaved();
+}
+function dUpdateAdjustmentCurve(i,key,value){const l=dLayers.find(x=>x.id===dSelId);if(!l||l.type!=='adjustment')return;if(typeof dHistoryPush==='function')dHistoryPush();const a=l.adjustment||(l.adjustment={type:'curves'});a.rgb=a.rgb||[{input:0,output:0},{input:255,output:255}];if(a.rgb[i])a.rgb[i][key]=Math.max(0,Math.min(255,Number(value)));dRenderCanvas();dMarkUnsaved();}
+function dAddAdjustmentCurvePoint(){const l=dLayers.find(x=>x.id===dSelId);if(!l||l.type!=='adjustment')return;if(typeof dHistoryPush==='function')dHistoryPush();const a=l.adjustment;a.rgb=(a.rgb||[{input:0,output:0},{input:255,output:255}]).slice().sort((p,q)=>p.input-q.input);let at=0,gap=-1;for(let i=1;i<a.rgb.length;i++){const g=a.rgb[i].input-a.rgb[i-1].input;if(g>gap){gap=g;at=i;}}const p=a.rgb[at-1],q=a.rgb[at],input=Math.round((p.input+q.input)/2),output=Math.round((p.output+q.output)/2);a.rgb.splice(at,0,{input,output});dRenderAdjustmentProps(l);dRenderCanvas();dMarkUnsaved();}
+function dRemoveAdjustmentCurvePoint(i){const l=dLayers.find(x=>x.id===dSelId),a=l&&l.adjustment;if(!a||!a.rgb||a.rgb.length<=2)return;if(typeof dHistoryPush==='function')dHistoryPush();a.rgb.splice(i,1);dRenderAdjustmentProps(l);dRenderCanvas();dMarkUnsaved();}
+
 function dShowProps(l){
   document.getElementById('d-no-sel').style.display='none';
   const pf=document.getElementById('d-props-form');pf.style.display='flex';
@@ -1268,8 +1304,9 @@ function dShowProps(l){
   // Atualizar header de contexto
   document.getElementById('dp-x').value=l.x;document.getElementById('dp-y').value=l.y;
   document.getElementById('dp-w').value=l.w;document.getElementById('dp-h').value=l.h;
-  const isText=l.type==='text',isImg=l.type==='image'||l.type==='frame',isShp=l.type==='shape';
+  const isText=l.type==='text',isImg=l.type==='image'||l.type==='frame',isShp=l.type==='shape',isAdj=l.type==='adjustment';
   if(typeof dRenderDadoControl==='function') dRenderDadoControl(l); // controle "Dado" (topo)
+  if(isAdj){const _dd=document.getElementById('dp-dado');if(_dd)_dd.style.display='none';}
   document.getElementById('d-text-props').style.display=isText?'':'none';
   var _shpEl=document.getElementById('d-shape-props');if(_shpEl)_shpEl.style.display=isShp?'':'none';
   document.getElementById('d-image-props').style.display=isImg?'flex':'none';
@@ -1278,6 +1315,7 @@ function dShowProps(l){
   if(typeof dRenderRules==='function')dRenderRules(l); // 4.2 — regras condicionais
   if(typeof dMaskRenderProps==='function')dMaskRenderProps(l); // máscaras de camada
   if(typeof dFxPopulate==='function')dFxPopulate(l); // efeitos (sombra/inner/glow/overlay) — universal
+  if(isAdj)dRenderAdjustmentProps(l);
   // Blend mode — universal para todos os tipos de layer
   var _blendSel=document.getElementById('dp-blend');
   if(_blendSel){
