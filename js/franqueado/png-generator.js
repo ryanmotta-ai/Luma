@@ -411,6 +411,10 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     }
     // Substitui {{var}} pelo valor real do franqueado (interpolador único — 3.1)
     let raw = gInterpolate(l.content, dados, {onEmpty:'remove', defaults:_defaults});
+    // Split de preço precisa entrar na MEDIDA antes de entrar no desenho: inteiro, símbolo e
+    // centavos usam tamanhos diferentes. A mesma lista é reaproveitada no ramo rich text.
+    const _vRuns = ((typeof gBuildVirtualRuns === 'function') ? gBuildVirtualRuns(l, dados, 1, _defaults) : null)
+      || (!/\{\{/.test(l.content||'') ? l.runs : null) || null;
     /* ENCAIXE: quebra inteligente, caixa-alta, medida e o encolhimento vêm de gFitTextLayer
        (00-config.js) — a MESMA função que a cascata de ancoragem relativa usa para saber a
        altura. Antes cada lado tinha sua conta e elas divergiam: a cascata media 1 linha e o
@@ -418,7 +422,7 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
        O encolhimento só é APLICADO mais abaixo (no ramo horizontal), porque sombra, brilho e
        traço são dimensionados pelo tamanho DESENHADO — aplicar antes mudaria os efeitos. */
     const _fit = (typeof gFitTextLayer==='function')
-      ? gFitTextLayer(l, raw, null, {escala:Math.min(scaleX,scaleY), encolher:true})
+      ? gFitTextLayer(l, raw, null, {escala:Math.min(scaleX,scaleY), encolher:true, runs:_vRuns})
       : null;
     if(_fit) raw = _fit.text;
     else {
@@ -453,12 +457,9 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     const _glowColor = l.glow ? (l.glowColor||'rgba(255,255,255,.7)') : null;
     const _glowBlur  = l.glow ? (l.glowSize!=null?l.glowSize:Math.max(2,(l.fontSize||24)*0.25))*_scTxt : 0;
 
-    // Se a camada contiver split-tokens de preço, gera runs virtuais e processa como rich text!
-    const _vRuns = (typeof gBuildVirtualRuns === 'function') ? gBuildVirtualRuns(l, dados, 1, _defaults) : null;
-    let runsToUse = l.runs;
-    if (_vRuns) {
-      runsToUse = _vRuns;
-    }
+    // Runs estáticos só valem para texto fixo. Se uma camada rica antiga foi vinculada depois
+    // a um campo, o valor do franqueado vence os trechos do PSD que ficaram salvos nela.
+    const runsToUse = _vRuns;
 
     // ── RICH TEXT (multi-estilo) — MULTILINHA, fiel ao editor (spans + <br> no DOM):
     // divide os trechos pelas quebras '\n' do PSD, mede cada linha, aplica textTransform,
