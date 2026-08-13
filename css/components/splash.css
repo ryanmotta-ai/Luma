@@ -3,13 +3,10 @@
  *
  * Splash screen de entrada do Luma (prefixo sp-). Fundo laranja DM + logo BRANCA.
  * Coreografia: a logo se DESENHA no eixo da varinha (wipe diagonal via mask),
- * assenta com leve subida, sheen varre a caixa, barra com brilho e saída com zoom.
+ * assenta com leve subida, sheen curto e saída em cortina revelando a home pronta.
  * Disclaimer "Um produto [DM]".
  *
- * Nota de a11y: as animações usam !important de propósito pra TOCAR mesmo com
- * "reduzir movimento" ligado (decisão de produto — é uma intro breve, sem flashes
- * rápidos/estroboscópicos). A exceção é o wipe da logo: como ele REVELA conteúdo,
- * o bloco de prefers-reduced-motion no fim do arquivo troca por fade (motion.md §3).
+ * A preferência de reduzir movimento troca toda a coreografia por fade curto.
  * Keyframes globais: gFadeIn, spBarFill.
  * Depende de: 00-tokens.css, 02-animations.css
  */
@@ -19,17 +16,18 @@
   background:#FF9000 !important;   /* laranja DM, chapado */
   display:flex; flex-direction:column; align-items:center; justify-content:center;
   overflow:hidden;
-  transition:opacity .5s ease !important;
+  clip-path:inset(0 0 0 0);
+  transition:clip-path .48s var(--ease-out),opacity .2s ease !important;
 }
-/* Saída: fade + leve zoom do conteúdo (o JS aplica .sp-done e depois display:none) */
-#sp-overlay.sp-done{ opacity:0; pointer-events:none; }
-#sp-overlay.sp-done .sp-content{ transform:scale(1.07); }
+/* O laranja sobe como uma cortina. A home já montada aparece no mesmo gesto. */
+#sp-overlay.sp-done{ clip-path:inset(0 0 100% 0); pointer-events:none; }
+#sp-overlay.sp-done .sp-content{ transform:translateY(-10px) scale(1.015); opacity:.75 }
 
 /* ── Conteúdo central ── */
 .sp-content{
   position:relative; z-index:2;
   display:flex; flex-direction:column; align-items:center;
-  transition:transform .5s cubic-bezier(.16,1,.3,1) !important;
+  transition:transform .45s var(--ease-out),opacity .3s ease !important;
 }
 
 /* A logo se DESENHA: uma máscara diagonal (105deg, o mesmo eixo da varinha do
@@ -46,8 +44,8 @@
   -webkit-mask-repeat:no-repeat;        mask-repeat:no-repeat;
   /* !important só no fim: no meio da lista ele invalida a declaração inteira. */
   animation:
-    spLogoWipe   var(--dur-celebration) linear                  .15s both,
-    spLogoSettle var(--dur-celebration) var(--ease-spring-soft) .15s both !important;
+    spLogoWipe   560ms linear                  80ms both,
+    spLogoSettle 560ms var(--ease-spring-soft) 80ms both !important;
 }
 /* mask-size 300% => a máscara desliza sobre a peça. Com a faixa opaca no INÍCIO
    do gradiente, ir de 100% a 0% faz a revelação entrar pela ESQUERDA (varinha
@@ -67,7 +65,7 @@
   background:linear-gradient(105deg, transparent 36%, rgba(255,255,255,.5) 50%, transparent 64%);
   transform:translateX(-200%);
   pointer-events:none;
-  animation:spSheen 1.15s ease-in-out 1.05s 1 both !important;
+  animation:spSheen 460ms ease-in-out 430ms 1 both !important;
 }
 @keyframes spSheen{ from{ transform:translateX(-200%); } to{ transform:translateX(320%); } }
 
@@ -75,7 +73,7 @@
 .sp-bar-wrap{
   width:150px; height:2px; margin-top:40px;
   background:rgba(255,255,255,.22); border-radius:2px; overflow:hidden;
-  animation:gFadeIn .5s ease-out .9s both !important;
+  animation:gFadeIn 220ms ease-out 180ms both !important;
 }
 .sp-bar{
   height:100%; width:0%;
@@ -83,15 +81,23 @@
   background:linear-gradient(90deg,#FFE7C2,#FFFFFF);
   border-radius:2px;
   box-shadow:0 0 12px rgba(255,255,255,.85);
-  animation:spBarFill 1.8s cubic-bezier(.45,.05,.2,1) 1s forwards !important;
+  animation:spBarFill 700ms cubic-bezier(.45,.05,.2,1) 200ms forwards !important;
 }
+
+.sp-status{
+  min-height:16px; margin-top:14px;
+  color:rgba(255,255,255,.78); font:500 11px/1.4 'Roboto',sans-serif;
+  letter-spacing:.01em; opacity:0; transform:translateY(3px);
+  transition:opacity var(--dur-fast) var(--ease-standard),transform var(--dur-fast) var(--ease-standard);
+}
+#sp-overlay.sp-slow .sp-status{opacity:1;transform:none}
 
 /* ── Disclaimer "Um produto [DM]" ancorado no rodapé ── */
 .sp-disclaimer{
   position:absolute; bottom:24px; left:0; right:0;
   display:flex; align-items:center; justify-content:center; gap:9px;
   z-index:2;
-  animation:gFadeIn .6s ease-out 1.25s both !important;
+  animation:gFadeIn 300ms ease-out 520ms both !important;
 }
 .sp-disclaimer span{
   font-family:'Roboto',sans-serif; font-size:11px;
@@ -104,13 +110,33 @@
   opacity:0.9;
 }
 
+/* Retorno no mesmo dia: confirma a marca sem obrigar a rever a apresentação. */
+#sp-overlay.sp-quick .sp-logo-wrap{
+  -webkit-mask-image:none; mask-image:none;
+  animation:gFadeIn 120ms var(--ease-out) both !important;
+}
+#sp-overlay.sp-quick .sp-luma-logo{width:180px}
+#sp-overlay.sp-quick .sp-sheen,
+#sp-overlay.sp-quick .sp-bar-wrap,
+#sp-overlay.sp-quick .sp-disclaimer,
+#sp-overlay.sp-quick .sp-status{display:none}
+#sp-overlay.sp-quick.sp-done{opacity:0;clip-path:none;transition:opacity 160ms ease!important}
+
 /* Reduzir movimento: tira o movimento, NUNCA a informação (motion.md §3).
    Sem isto, uma máscara parada no início deixaria a logo invisível pra sempre. */
 @media (prefers-reduced-motion:reduce){
+  #sp-overlay{clip-path:none!important;transition:opacity var(--dur-fast) var(--ease-standard)!important}
+  #sp-overlay.sp-done{opacity:0!important}
   .sp-logo-wrap{
     -webkit-mask-image:none !important; mask-image:none !important;
     opacity:1 !important; transform:none !important;
     animation:gFadeIn var(--dur-fast) var(--ease-out) both !important;
   }
-  .sp-sheen{ display:none }
+  .sp-sheen,.sp-bar-wrap{ display:none }
+}
+
+@media (max-width:480px){
+  .sp-luma-logo{width:184px}
+  .sp-bar-wrap{width:132px;margin-top:32px}
+  .sp-disclaimer{bottom:calc(18px + var(--safe-bottom))}
 }
