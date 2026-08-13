@@ -588,7 +588,7 @@ function _dPsdRichRuns(t, res, h){
         text:seg,
         color:_dPsdHex(st.fillColor||st.color)||_domColor,
         fontSize:_rfs,
-        font: remap||(/black|900|heavy/i.test(fname)?"'Roboto Black'":/bold|700/i.test(fname)?"'Roboto',bold":"'Roboto'"),
+        font: remap||_dPsdRobotoFont(fname),
         _fontName:fname, // nome original — permite remap posterior (upload de fonte na revisão)
         letterSpacing: st.tracking? Math.round((st.tracking/1000)*(_rfs||12)) : 0 // tracking sobre o tamanho final do trecho
       });
@@ -1021,6 +1021,18 @@ function _dPsdRemapFont(fontName){
   return partial?'custom:'+partial.family:null;
 }
 
+// Preserva as variantes da família Roboto já empacotadas no Luma. O fallback antigo
+// distinguia apenas Bold/Black e transformava Light/Thin/Medium em Regular.
+function _dPsdRobotoFont(fontName){
+  const s=String(fontName||'').toLowerCase();
+  if(/black|heavy|900/.test(s)) return "'Roboto Black'";
+  if(/bold|700/.test(s)) return "'Roboto',bold";
+  if(/medium|500/.test(s)) return "'Roboto',500";
+  if(/light|300/.test(s)) return "'Roboto',300";
+  if(/thin|100/.test(s)) return "'Roboto',100";
+  return "'Roboto'";
+}
+
 // Extrai o estilo DOMINANTE de um nó de texto considerando todos os styleRuns.
 // Run dominante = maior comprimento de texto. isMultiStyle=true quando há cores ou
 // tamanhos distintos entre runs (indica ao usuário que o layer era estilo misto).
@@ -1310,13 +1322,13 @@ function dPsdParseItems(psd, res, ox, oy){
         it.vAlign='top';
         it.fontName=(st.font&&st.font.name)||'';
         const _fRemap=_dPsdRemapFont(it.fontName);
-        it.font=_fRemap||(/black|900|heavy/i.test(it.fontName)?"'Roboto Black'":/bold|700/i.test(it.fontName)?"'Roboto',bold":"'Roboto'");
+        it.font=_fRemap||_dPsdRobotoFont(it.fontName);
         it.fontRemapped=!!_fRemap;
         // fontCaps: 0=normal, 1=small-caps, 2=all-caps (PS "All Caps" character style)
         if(st.fontCaps===2) it.textTransform='uppercase';
         else if(st.fontCaps===1) it.textTransform='uppercase'; // small-caps (versaletes) ≈ maiúsculas; NUNCA lowercase (invertia a caixa)
         // fauxBold: PS "Faux Bold" — eleva o peso quando a fonte não tem variante bold
-        if(st.fauxBold || /bold|black|heavy|700|900/i.test(it.fontName)) it.fontWeightOverride=700;
+        if(st.fauxBold) it.fontWeightOverride=/black|heavy|900/i.test(it.fontName)?900:700;
         // Itálico: faux italic do PS ou variante itálica/oblíqua no nome da fonte → font-style:italic
         if(st.fauxItalic || /italic|oblique|it[aá]lico/i.test(it.fontName)) it.italic=true;
         it.fontSize=_dPsdFontSize(t,h,it.content,res);
@@ -1329,7 +1341,9 @@ function dPsdParseItems(psd, res, ox, oy){
         // e é o único caso que segue merecendo aviso.
         it.textAlign=_al.justified ? 'justify' : _al.align;
         if(_al.justifyAll) it.textJustifyAll=true;
-        if(st.tracking) it.letterSpacing=Math.round((st.tracking/1000)*(it.fontSize||12)); // tracking (1/1000 em) → px, sobre o tamanho final
+        // `0` também é informação: impede o respiro automático usado pelos títulos nativos do
+        // Luma. Sem gravá-lo, todo Roboto Black do PSD ganhava tracking extra e ficava mais largo.
+        it.letterSpacing=Math.round(((+st.tracking||0)/1000)*(it.fontSize||12)); // tracking (1/1000 em) → px, sobre o tamanho final
         // Entrelinha. Com "Auto" ligado (st.autoLeading, o PADRÃO do Photoshop) o valor gravado em
         // st.leading é LIXO — sobra de um estado anterior do arquivo — e lê-lo trazia entrelinhas
         // absurdas. Auto = fator do parágrafo (paragraphStyle.autoLeading, 1.2 no PS) × o corpo.
@@ -1458,6 +1472,17 @@ function dPsdParseItems(psd, res, ox, oy){
   out.forEach(it=>{ if(it.kind==='text'&&it.content){ const k=it.name+'|'+it.content; _soft[k]=(_soft[k]||0)+1; } });
   Object.keys(_soft).forEach(k=>{ if(_soft[k]>1) console.warn('[psd] possível layer de texto duplicada mantida (nome+conteúdo iguais, caixas diferentes):', k.split('|')[0]); });
 
+  // ag-psd entrega os filhos BASE-PRIMEIRO. Num clipping stack do Photoshop a base vem antes
+  // e as camadas recortadas vêm logo depois; portanto a busca é para TRÁS, limitada ao mesmo
+  // grupo. A busca antiga para frente usava a próxima camada solta como máscara e fazia a foto
+  // desaparecer (sobrava só o retângulo-base branco).
+  const _clipBaseIndex=(idx)=>{
+    const group=out[idx]&&out[idx].group;
+    let j=idx-1;
+    while(j>=0 && out[j].clippingLayer && out[j].group===group) j--;
+    return (j>=0 && out[j].group===group) ? j : -1;
+  };
+
   // Resolve TODAS as máscaras de uma vez (camada + clipping + vetorial + grupos-pai), com a
   // base de clipping correta. _dPsdComputeMask multiplica os alphas, então elas se somam em
   // vez de uma sobrescrever a outra. Atribuição condicional: null não apaga o que já existe.
@@ -1465,9 +1490,8 @@ function dPsdParseItems(psd, res, ox, oy){
     const _extra={ groupMasks: out[i]._groupMasks, vecCanvas: out[i]._vecMaskCanvas };
     let _m=null;
     if(out[i].clippingLayer){
-      let baseIdx = i + 1;
-      while(baseIdx < out.length && out[baseIdx].clippingLayer) baseIdx++;
-      if(baseIdx < out.length) _m = _dPsdComputeMask(out[i]._psdNode, out[baseIdx]._psdNode, _extra);
+      const baseIdx=_clipBaseIndex(i);
+      if(baseIdx>=0) _m = _dPsdComputeMask(out[i]._psdNode, out[baseIdx]._psdNode, _extra);
     } else {
       _m = _dPsdComputeMask(out[i]._psdNode, null, _extra);
     }
@@ -1477,12 +1501,12 @@ function dPsdParseItems(psd, res, ox, oy){
     // camada-base. Apagar antes matava esse caminho (base raster caía sempre em maskFallback).
   }
 
-  // Detecção de clipping mask e rasterização de shapes-base (MVP)
+  // Fallback do clipping: reconstrói o alpha da base quando a composição acima não conseguiu.
+  // A base continua visível — no Photoshop ela participa da pilha, não é uma máscara descartável.
   for(let i=0; i<out.length; i++) {
     if(out[i].clippingLayer) {
-      let baseIdx = i + 1;
-      while(baseIdx < out.length && out[baseIdx].clippingLayer) baseIdx++; // Pula múltiplas camadas
-      if(baseIdx < out.length) {
+      const baseIdx=_clipBaseIndex(i);
+      if(baseIdx>=0) {
         const base = out[baseIdx];
         const b = out[i];
         if(!b.mask) { // Se o Luma não gerou máscara via layerMaskCanvas
@@ -1518,13 +1542,11 @@ function dPsdParseItems(psd, res, ox, oy){
             success = true;
           }
           if(success) {
-            try { b.mask = c.toDataURL('image/png'); base.isMaskBase = true; } 
+            try { b.mask = c.toDataURL('image/png'); }
             catch(e) { b.maskFallback = true; }
           } else {
             b.maskFallback = true;
           }
-        } else {
-          base.isMaskBase = true; // Mesmo se já tem mask nativa de canvas (cm/lm), ocultamos o base
         }
       }
     }
