@@ -20,8 +20,23 @@ function _dLinterEstresse() {
   const out = [];
   if (typeof gApplyRelativeAnchors !== 'function' || typeof gStressValues !== 'function') return out;
   if (typeof gInkRect !== 'function' || typeof dSimUsedVars !== 'function') return out;
+  /* No assistente de publicação, o limite que vale é o que o designer acabou de escolher
+     ali — não o maxLen antigo de dVars. Campo travado não recebe valor arbitrário do
+     franqueado e, portanto, não deve gerar um falso pior caso. */
+  const linterAlvo=document.getElementById('d-linter-issues');
+  /* dPublishOpen renderiza o modal um instante ANTES de adicionar `.open`; o alvo dentro do
+     modal é a prova confiável de que estamos auditando a publicação, sem reaproveitar
+     permissões antigas no checklist lateral do Estúdio. */
+  const pubAberto=!!(linterAlvo&&linterAlvo.closest('#d-publish-modal')
+    &&typeof dPubPermissoes!=='undefined');
+  const varsTeste=(dVars||[]).map(v=>{
+    const p=pubAberto&&dPubPermissoes&&dPubPermissoes[v.name];
+    return p?Object.assign({},v,{maxLen:p.maxLen>0?Number(p.maxLen):0,_pubEdit:p.edit!==false})
+            :Object.assign({},v,{_pubEdit:true});
+  });
   const usados = dSimUsedVars().filter(vn => {
-    const v = dVars.find(x => x.name === vn);
+    const v = varsTeste.find(x => x.name === vn);
+    if(v&&v._pubEdit===false)return false;
     return !v || v.type !== 'image';
   });
   if (!usados.length) return out;
@@ -52,8 +67,8 @@ function _dLinterEstresse() {
   };
 
   const exemplo = {};
-  usados.forEach(vn => { exemplo[vn] = gFieldSampleValue(dVars.find(x => x.name === vn) || { name: vn }); });
-  const estresse = gStressValues(usados, dVars);
+  usados.forEach(vn => { exemplo[vn] = gFieldSampleValue(varsTeste.find(x => x.name === vn) || { name: vn }); });
+  const estresse = Object.assign({},exemplo,gStressValues(usados,varsTeste));
   const antes = montar(exemplo);
   const depois = montar(estresse);
 
@@ -66,7 +81,7 @@ function _dLinterEstresse() {
     const s = new Set();
     try {
       gApplyRelativeAnchors(dLayers.map(l => ({...l})), estresse, defaults, { fitText: true, canvas: cv })
-        .forEach(l => { if (l._foraDaArte) s.add(l.id); });
+        .forEach(l => { if (l._foraDaArte||l._layoutInvalido) s.add(l.id); });
     } catch (e) {}
     return s;
   })();
@@ -76,7 +91,7 @@ function _dLinterEstresse() {
 
   // Quais campos entram no aviso e com quantos caracteres — é o número que o designer controla.
   const limites = usados.map(vn => {
-    const v = dVars.find(x => x.name === vn);
+    const v = varsTeste.find(x => x.name === vn);
     return { vn, label: (v && (v.label || v.name)) || vn, n: (v && v.maxLen > 0) ? v.maxLen : 0 };
   });
   const camposDa = (l) => limites.filter(x => String(l.content || '').includes('{{' + x.vn + '}}'));
@@ -167,12 +182,27 @@ function _dLinterEstresse() {
     });
   });
 
+  /* Obstáculos não textuais (círculo de preço, CTA, foto, logo protegido) não aparecem no
+     laço texto×texto acima. Se o solver marcou que chegou aos pisos e ainda colide, isso é
+     erro de publicação por si só. */
+  _semSalvacao.forEach(id=>{
+    if(out.some(i=>i.layerId===id&&i.type==='error'))return;
+    const l=dLayers.find(x=>x.id===id);if(!l)return;
+    out.push({
+      type:'error',
+      title:'Sem espaço seguro no pior caso',
+      desc:`${comLimite(l)}, “${nome(l)}” ainda invade uma área protegida mesmo depois de quebrar linha, ajustar a entrelinha e reduzir até o piso legível. Aumente o espaço ou reduza o limite do campo.`,
+      layerId:l.id,
+      layerName:l.name
+    });
+  });
+
   return out;
 }
 
 function dRunLinter() {
   const container = document.getElementById('d-linter-issues');
-  if (!container) return;
+  if (!container) return [];
   
   if (!dLayers || dLayers.length === 0) {
     container.innerHTML = `
@@ -183,7 +213,7 @@ function dRunLinter() {
         <strong>Nada para revisar ainda</strong>
         <span>Adicione uma camada à prancheta para iniciar a análise.</span>
       </div>`;
-    return;
+    return [];
   }
   
   const issues = [];
@@ -357,7 +387,7 @@ function dRunLinter() {
         <strong>Layout pronto para publicar</strong>
         <span>Nenhum erro ou alerta de composição foi encontrado nesta prancheta.</span>
       </div>`;
-    return;
+    return issues;
   }
 
   const counts = issues.reduce((acc, issue) => {
@@ -415,6 +445,7 @@ function dRunLinter() {
   }).join('');
 
   container.innerHTML = summaryHtml + cardsHtml;
+  return issues;
 }
 
 function dApplyIntelligentLayout(){

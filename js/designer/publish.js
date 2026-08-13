@@ -89,6 +89,7 @@ function dPublishLoadDraft(){
   });
   const status=document.getElementById('pub-draft-status');
   if(status)status.textContent='Rascunho recuperado';
+  if(typeof dPublishRefreshChecklist==='function')dPublishRefreshChecklist();
 }
 
 function dPublishClearDraft(key){
@@ -452,6 +453,47 @@ function dPublishSwitchTab(tab, btn){
   if(panel) panel.classList.add('active');
 }
 
+/* Checklist único: o HTML e as contagens vêm do MESMO array retornado pelo linter. A cópia
+   manual antiga esquecia justamente os problemas do teste de estresse e ainda quebrava em
+   camada sem nome. Pode ser reexecutado quando o limite de um campo muda. */
+function dPublishRefreshChecklist(){
+  let stats={errorsCount:0,warningsCount:0,infosCount:0};
+  if(typeof dRunLinter==='function'){
+    const current=document.getElementById('d-pub-linter-issues');
+    if(current&&current.parentNode){
+      const target=document.createElement('div');target.id='d-linter-issues';
+      current.parentNode.replaceChild(target,current);
+      const issues=dRunLinter()||[];
+      target.id='d-pub-linter-issues';
+      issues.forEach(i=>{
+        if(i.type==='error')stats.errorsCount++;
+        else if(i.type==='warning')stats.warningsCount++;
+        else stats.infosCount++;
+      });
+    }
+  }
+  dPubLinterStats=stats;
+  const summaryEl=document.getElementById('d-pub-linter-summary');
+  if(summaryEl){
+    if(stats.errorsCount>0){
+      summaryEl.className='pub-linter-summary error';
+      summaryEl.innerHTML=`<span class="pub-linter-main"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 17h.01"/></svg>${stats.errorsCount} erro(s) crítico(s)</span><span>Corrija os itens listados para continuar.</span>`;
+    }else if(stats.warningsCount>0){
+      summaryEl.className='pub-linter-summary warning';
+      summaryEl.innerHTML=`<span class="pub-linter-main"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 9v4M12 17h.01"/></svg>${stats.warningsCount} alerta(s)</span><span>Você pode continuar, mas vale revisar o respiro e a área segura.</span>`;
+    }else{
+      summaryEl.className='pub-linter-summary success';
+      summaryEl.innerHTML='<span class="pub-linter-main"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></svg>Pronto para continuar</span><span>Nenhuma inconformidade crítica foi encontrada.</span>';
+    }
+  }
+  const confirmBtn=document.querySelector('.pub-btn-confirm');
+  if(confirmBtn){
+    confirmBtn.disabled=stats.errorsCount>0;
+    confirmBtn.title=stats.errorsCount>0?'Corrija os erros críticos no Checklist para liberar a publicação.':'';
+  }
+  return stats;
+}
+
 /* ── RENDER DO MODAL ── */
 function dPublishRender(){
   dPublishRenderArtboards();
@@ -486,90 +528,7 @@ function dPublishRender(){
     ?`<span class="pub-pill pub-pill-on"><span class="pub-status-dot"></span>Publicado anteriormente</span>`
     :`<span class="pub-pill pub-pill-off"><span class="pub-status-dot"></span>Rascunho</span>`;
 
-  // Executa o linter na aba checklist de publicação
-  let linterStats = { errorsCount: 0, warningsCount: 0, infosCount: 0 };
-  if (typeof dRunLinter === 'function') {
-    const issuesContainer = document.getElementById('d-pub-linter-issues');
-    if (issuesContainer) {
-      // Temporariamente redireciona d-linter-issues para d-pub-linter-issues
-      const tempDiv = document.createElement('div');
-      tempDiv.id = 'd-linter-issues';
-      issuesContainer.parentNode.replaceChild(tempDiv, issuesContainer);
-      
-      dRunLinter();
-      
-      // Restaura a ID correta
-      tempDiv.id = 'd-pub-linter-issues';
-      
-      // Coleta as contagens da prancheta
-      const ab = (typeof dGetActiveAB === 'function') ? dGetActiveAB() : null;
-      const isStory = ab ? (ab.w === 1080 && ab.h === 1920) : (dFmt === 'story');
-      
-      dLayers.forEach(l => {
-        if (!l.visible) return;
-        const hasPrecoDe = l.id === 'precoDe' || (l.content && l.content.includes('{{precoDe}}'));
-        if (hasPrecoDe) {
-          const hasCondition = dLayers.some(other => 
-            other.rules && other.rules.some(r => r && r.var === 'precoDe' && r.when === 'empty' && r.then === 'hide')
-          );
-          if (!hasCondition) linterStats.errorsCount++;
-        }
-        if (l.type === 'text' && l.content) {
-          const currencyMatches = l.content.matchAll(/R\$\s*\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g);
-          for (const m of currencyMatches) {
-            const varName = m[1];
-            const v = dVars.find(x => x.name === varName);
-            if (v && (v.type === 'currency' || v.type === 'number')) linterStats.errorsCount++;
-          }
-        }
-        if (isStory && l.type !== 'group' && l.name.toLowerCase() !== 'background' && l.name.toLowerCase() !== 'bg') {
-          const isCriticalElement = l.type === 'text' || l.id === 'logo' || l.name.toLowerCase().includes('logo') || l.name.toLowerCase().includes('marca');
-          if (isCriticalElement) {
-            if (l.y < 250) linterStats.warningsCount++;
-            if ((l.y + l.h) > 1920 - 250) linterStats.warningsCount++;
-          }
-        }
-        if (l.type === 'text' && l.textBox === 'box') {
-          const boundField = dLayerBoundField(l);
-          const v = boundField ? dVars.find(x => x.name === boundField) : null;
-          if (v) {
-            const isCriticalField = ['produto', 'categoria', 'oferta', 'brinde', 'validade'].some(c => v.name.toLowerCase().includes(c));
-            const recommendedLimit = gCalculateRecommendedCharLimit(l);
-            if (isCriticalField && recommendedLimit < 35) linterStats.warningsCount++;
-          }
-        }
-      });
-    }
-  }
-
-  dPubLinterStats=linterStats;
-
-  // Atualiza o resumo no rodapé da aba Checklist
-  const summaryEl = document.getElementById('d-pub-linter-summary');
-  if (summaryEl) {
-    if (linterStats.errorsCount > 0) {
-      summaryEl.className='pub-linter-summary error';
-      summaryEl.innerHTML = `<span class="pub-linter-main"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 17h.01"/></svg>${linterStats.errorsCount} erro(s) crítico(s)</span><span>Corrija os itens listados para continuar.</span>`;
-    } else if (linterStats.warningsCount > 0) {
-      summaryEl.className='pub-linter-summary warning';
-      summaryEl.innerHTML = `<span class="pub-linter-main"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 9v4M12 17h.01"/></svg>${linterStats.warningsCount} alerta(s)</span><span>Você pode continuar, mas vale revisar o respiro e a área segura.</span>`;
-    } else {
-      summaryEl.className='pub-linter-summary success';
-      summaryEl.innerHTML = `<span class="pub-linter-main"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></svg>Pronto para continuar</span><span>Nenhuma inconformidade crítica foi encontrada.</span>`;
-    }
-  }
-
-  // Desabilita/Habilita botão de publicação final
-  const confirmBtn = document.querySelector('.pub-btn-confirm');
-  if (confirmBtn) {
-    if (linterStats.errorsCount > 0) {
-      confirmBtn.disabled = true;
-      confirmBtn.title = 'Corrija os erros críticos no Checklist para liberar a publicação.';
-    } else {
-      confirmBtn.disabled = false;
-      confirmBtn.title = '';
-    }
-  }
+  dPublishRefreshChecklist();
 }
 
 /* ── GRID DE PRANCHETAS ── */
@@ -728,6 +687,7 @@ function dPublishUpdatePerm(varName, key, value){
   if(!dPubPermissoes[varName]) dPubPermissoes[varName]={edit:true,maxLen:32};
   dPubPermissoes[varName][key]=value;
   if(key==='edit') dPublishRenderPerms();
+  if(typeof dPublishRefreshChecklist==='function')dPublishRefreshChecklist();
   dPublishQueueDraft();
 }
 

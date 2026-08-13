@@ -325,6 +325,9 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
       await fRenderOneLayer(ctx, l, dados, 1, 1);
     }
   }
+  /* Preview, hit-test e destaque precisam da MESMA geometria efetiva (reflow + regras +
+     layout vivo). Retornar o clone resolvido evita uma segunda implementação de coordenadas. */
+  return effective;
 }
 
 // Renderiza um único layer aplicando dados do franqueado
@@ -334,9 +337,12 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
   var _bmComp=(l.blendMode&&l.blendMode!=='normal'&&typeof dBlendToComposite==='function')
     ?dBlendToComposite(l.blendMode):null;
   ctx.globalCompositeOperation=_bmComp||'source-over';
-  const x = Math.round(l.x * scaleX);
+  const _layoutText=l.type==='text';
+  const _layoutDx=_layoutText?(l._layoutDx||0):0;
+  const _layoutW=_layoutText&&l._layoutW!=null?l._layoutW:l.w;
+  const x = Math.round(((l.x||0)+_layoutDx) * scaleX);
   const y = Math.round(l.y * scaleY);
-  const w = Math.round(l.w * scaleX);
+  const w = Math.round((_layoutW||0) * scaleX);
   const h = Math.round(l.h * scaleY);
 
   if(l.type === 'shape'){
@@ -412,7 +418,7 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
        O encolhimento só é APLICADO mais abaixo (no ramo horizontal), porque sombra, brilho e
        traço são dimensionados pelo tamanho DESENHADO — aplicar antes mudaria os efeitos. */
     const _fit = (typeof gFitTextLayer==='function')
-      ? gFitTextLayer(l, raw, null, {escala:Math.min(scaleX,scaleY), encolher:!l.vertical})
+      ? gFitTextLayer(l, raw, null, {escala:Math.min(scaleX,scaleY), encolher:true})
       : null;
     if(_fit) raw = _fit.text;
     else {
@@ -433,7 +439,6 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     const isDisplayFont = _fp.weight >= 900; // peso black ganha um leve respiro entre letras
 
     let fontSize = Math.round((l.fontSize || 24) * Math.min(scaleX, scaleY));
-    const minFontSize = Math.max(8, Math.round(fontSize * 0.5));
     const _scTxt = Math.min(scaleX, scaleY);
     // color overlay → cor efetiva do texto; senão l.color
     const _txtColor = (l.overlay&&l.overlayColor) ? gFxRgba(l.overlayColor, l.overlayOpacity!=null?l.overlayOpacity:1) : (l.color || '#fff');
@@ -471,17 +476,22 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
       });
       // Mede cada linha (fonte/tracking por trecho)
       const fallbackFs=Math.round((l.fontSize||24)*_scTxt);
+      /* A escada pode reduzir `_tetoFonte`. Antes o fit dizia 32px e os runs continuavam em
+         64/35px: preço rico e texto comum obedeciam motores diferentes. Mantém a proporção
+         entre os runs, mas aplica a decisão única do encaixe. */
+      const fitRatio=_fit?(_fit.fontSize/Math.max(1,fallbackFs)):1;
       const measured=linesRuns.map(segs=>{
-        let wsum=0, maxFs=segs.length?0:fallbackFs;
+        let wsum=0, maxFs=segs.length?0:fallbackFs*fitRatio;
         const ms=segs.map(r=>{
           const fp=(typeof dTextFontParts==='function')?dTextFontParts(r.font):{family:"'Roboto',sans-serif",weight:700};
-          const fs=Math.round((r.fontSize||l.fontSize||24)*_scTxt);
+          const fs=Math.round((r.fontSize||l.fontSize||24)*_scTxt*fitRatio);
           ctx.font=`${_ital}${fp.weight} ${fs}px ${fp.family}`;
-          ctx.letterSpacing=r.letterSpacing?(r.letterSpacing*_scTxt)+'px':'0px';
+          ctx.letterSpacing=r.letterSpacing?(r.letterSpacing*_scTxt*fitRatio)+'px':'0px';
           const t=_xf(r.text||'');
           const ww=ctx.measureText(t).width;
           wsum+=ww; if(fs>maxFs)maxFs=fs;
-          return {t,fp,fs,ww,ls:r.letterSpacing||0,color:r.color,yOffset:r.yOffset};
+          return {t,fp,fs,ww,ls:(r.letterSpacing||0)*fitRatio,color:r.color,
+            yOffset:(r.yOffset||0)*fitRatio};
         });
         return {ms,wsum,maxFs};
       });
@@ -524,7 +534,8 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     }
 
     if (l.vertical) {
-      // Auto-fit vertical
+      // Auto-fit vertical — a decisão vem da mesma régua usada pelo solver.
+      if(_fit&&_fit.fontSize!==fontSize)fontSize=_fit.fontSize;
       let maxColChars = 0;
       lines.forEach(ln => { const chars = [...ln]; if(chars.length > maxColChars) maxColChars = chars.length; });
       
@@ -532,14 +543,6 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
       let colStep = fontSize * 1.2;
       let maxColH = maxColChars * charStep;
       let totalW = lines.length * colStep;
-
-      // Se estourar a caixa da camada (w, h), encolhe
-      if (maxColH > h || totalW > w) {
-        const ratioH = h / Math.max(1, maxColH);
-        const ratioW = w / Math.max(1, totalW);
-        const shrinkRatio = Math.min(ratioH, ratioW);
-        fontSize = Math.max(minFontSize, Math.floor(fontSize * shrinkRatio));
-      }
 
       charStep = fontSize * 1.1;
       colStep = fontSize * 1.2;

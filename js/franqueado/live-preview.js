@@ -514,6 +514,8 @@ let _lpScale = 1;        // escala real prévia ÷ arte final (mostrada na toolb
 // (o antigo _lpGuides virou _lpView — ver fLpSetView, mais abaixo)
 let _lpFraming = null;   // {layer, varName} enquanto o franqueado enquadra a foto (trava o zoom automático)
 let _lpOverflow = new Set(); // ids de camadas de texto com estouro no último render (avisos)
+let _lpEffectiveLayers = []; // geometria que o render realmente desenhou (reflow + layout vivo)
+let _lpEffectiveMaterial = null;
 
 // Zoom/pan manual da prova digital (item: inspecionar a arte de perto).
 // _lpUserZoom=1 é o ajuste à tela; >1 amplia. Pan em px de tela relativo ao centro do quadro.
@@ -589,6 +591,7 @@ async function fUpdateLivePreview(opts){
     if(fState.material) _lpLastErr = fState.material._needsLayersFetch
       ? 'conteúdo do material não baixou do servidor'
       : 'material sem camadas no servidor';
+    _lpEffectiveLayers=[];_lpEffectiveMaterial=null;
     fLpShowEmpty(canvas);
     fLpUpdateMeta(false);
     try{ _fLpPaintPip(); }catch(e){} // sem material → a miniatura volta a ser o ícone
@@ -628,17 +631,19 @@ async function fUpdateLivePreview(opts){
     {
       // Coleta overflow de texto durante ESTE render (só a prévia liga o coletor).
       window._fOverflowSink = new Set();
-      await fRenderTemplateLayers(ctx, fState.material.layers, W, H, dadosPreview, fState.camp);
+      const rendered=await fRenderTemplateLayers(ctx,fState.material.layers,W,H,dadosPreview,fState.camp);
+      _lpEffectiveLayers=Array.isArray(rendered)?rendered:[];
+      _lpEffectiveMaterial=fState.material;
       _lpOverflow = window._fOverflowSink; window._fOverflowSink = null;
 
       // Véu sutil sobre os campos ainda não preenchidos (tom mais suave)
-      fLpHighlightEmpty(ctx, fState.material.layers, pendentes, W, H);
+      fLpHighlightEmpty(ctx,_lpEffectiveLayers,pendentes,W,H);
       
       // Focus Sync: Destaque sutil no campo correspondente à pergunta ativa do chat
       const activeVar = fState.camp?.perguntas?.[fState.stepIdx]?.id;
       let activeLayer = null;
       if (activeVar) {
-        activeLayer = fState.material.layers.find(l => {
+        activeLayer = _lpEffectiveLayers.find(l => {
           if (l.type === 'text' && l.content) {
             const re = gVarRegex();
             let match;
@@ -673,6 +678,8 @@ async function fUpdateLivePreview(opts){
   } catch(e){
     console.warn('[lp] erro ao renderizar preview:', e);
     _lpLastErr = 'erro no render: ' + ((e && e.message) || e);
+    _lpEffectiveLayers=[];_lpEffectiveMaterial=null;
+    window._fOverflowSink=null;
     fLpShowEmpty(canvas);
     fLpUpdateMeta(true);
   } finally {
@@ -768,8 +775,9 @@ function _fLpApplyCanvasFocus(activeLayer, W, H){
   if(!canvas) return;
   const manual = (_lpUserZoom !== 1 || _lpPanX !== 0 || _lpPanY !== 0);
   if(_lpAutoZoom && !manual && activeLayer && !fState.done && !_lpFraming){
-    const cx = activeLayer.x + activeLayer.w / 2;
-    const cy = activeLayer.y + activeLayer.h / 2;
+    const vr=_fLpVisualRect(activeLayer);
+    const cx = vr.x + vr.w / 2;
+    const cy = vr.y + vr.h / 2;
     const px = Math.min(100, Math.max(0, (cx / W) * 100));
     const py = Math.min(100, Math.max(0, (cy / H) * 100));
     canvas.style.transformOrigin = `${px.toFixed(1)}% ${py.toFixed(1)}%`;
@@ -1076,17 +1084,14 @@ function fLpInjectPlaceholders(layers, dadosPreview, defaults){
 // Só quando NÃO houve smart-resize (com reflow as coords mudam e o contorno desalinharia).
 function fLpHighlightEmpty(ctx, layers, pendentes, W, H){
   if(!pendentes || !pendentes.size) return;
-  const src = (fState.material && fState.material.w>0 && fState.material.h>0)
-    ? [fState.material.w, fState.material.h]
-    : (F_LP_SIZES[(fState.material && fState.material.fmt)] || F_LP_SIZES.story);
-  if(src[0] !== W || src[1] !== H) return; // houve reflow → omite
   ctx.save();
   const dash = Math.max(4, Math.round(W * 0.006));
   ctx.setLineDash([dash * 1.6, dash]);
   ctx.lineWidth = Math.max(2, Math.round(W * 0.003));
   (layers || []).forEach(l => {
     if(!pendentes.has(l.id)) return;
-    const x = l.x || 0, y = l.y || 0, w = l.w || W, h = l.h || 40;
+    const vr=_fLpVisualRect(l);
+    const x=vr.x,y=vr.y,w=vr.w||W,h=vr.h||40;
     const r = Math.min(l.radius || 0, w / 2, h / 2);
     // leve realce de fundo + contorno tracejado da marca
     ctx.globalAlpha = 0.06; ctx.fillStyle = '#F85400';
@@ -1101,11 +1106,6 @@ function fLpHighlightEmpty(ctx, layers, pendentes, W, H){
 
 // Desenha um destaque sutil de foco ao redor do campo correspondente à pergunta ativa do chat (Focus Sync)
 function fLpHighlightActiveField(ctx, l, W, H) {
-  const src = (fState.material && fState.material.w>0 && fState.material.h>0)
-    ? [fState.material.w, fState.material.h]
-    : (F_LP_SIZES[(fState.material && fState.material.fmt)] || F_LP_SIZES.story);
-  if(src[0] !== W || src[1] !== H) return; // ignora se houver reflow de zoom/coords
-  
   ctx.save();
   
   // Cor do destaque: Laranja oficial Delivery Much
@@ -1119,10 +1119,11 @@ function fLpHighlightActiveField(ctx, l, W, H) {
   ctx.shadowBlur = Math.max(8, Math.round(W * 0.012));
   
   const padding = 8;
-  const x = (l.x || 0) - padding;
-  const y = (l.y || 0) - padding;
-  const w = (l.w || W) + padding * 2;
-  const h = (l.h || 40) + padding * 2;
+  const vr=_fLpVisualRect(l);
+  const x = vr.x - padding;
+  const y = vr.y - padding;
+  const w = (vr.w || W) + padding * 2;
+  const h = (vr.h || 40) + padding * 2;
   const r = Math.min(l.radius || 6, w / 2, h / 2);
   
   ctx.beginPath();
@@ -1328,15 +1329,23 @@ function _fLpLayerVars(l){
   }
   return [];
 }
+function _fLpVisualRect(l){
+  if(!l)return{x:0,y:0,w:0,h:0};
+  if(l.type==='text'&&l._fit&&typeof gInkRect==='function')return gInkRect(l,l._fit);
+  const dx=l.type==='text'?(l._layoutDx||0):0;
+  const w=l.type==='text'&&l._layoutW!=null?l._layoutW:(l.w||0);
+  return{x:(l.x||0)+dx,y:l.y||0,w,h:l.h||0};
+}
 function _fLpLayerAt(x,y){
   const mat=fState.material;
-  let layers=(mat&&mat.layers)||[];
+  let layers=(_lpEffectiveMaterial===mat)
+    ?_lpEffectiveLayers:((mat&&mat.layers)||[]);
   // Espelha o reflow do render: quando o formato exibido difere do nativo do template,
   // fRenderTemplateLayers re-ancora as coords (gReflowLayers). Sem espelhar aqui, o clique/
   // hover caía no layer errado em templates legados exibidos noutro formato. Os callers só
   // leem type/imgVar/vars (preservados na cópia refluída), então devolver a cópia é seguro.
   const cv=document.getElementById('lp-canvas');
-  if(mat && cv && typeof fMaterialSize==='function' && typeof gReflowLayers==='function'){
+  if(_lpEffectiveMaterial!==mat&&mat&&cv&&typeof fMaterialSize==='function'&&typeof gReflowLayers==='function'){
     const sz=fMaterialSize(mat), tw=sz[0], th=sz[1], W=cv.width, H=cv.height;
     if((tw!==W || th!==H) && W && H){
       const fmtSizes={story:[1080,1920],feed:[1080,1350],wide:[1200,628],post:[1200,628]};
@@ -1347,7 +1356,8 @@ function _fLpLayerAt(x,y){
   for(let i=layers.length-1;i>=0;i--){
     const l=layers[i];
     if(!l||l.visible===false||!_fLpLayerVars(l).length) continue;
-    const lx=l.x||0, ly=l.y||0, lw=l.w||0, lh=l.h||0;
+    const vr=_fLpVisualRect(l);
+    const lx=vr.x,ly=vr.y,lw=vr.w,lh=vr.h;
     if(x>=lx&&x<=lx+lw&&y>=ly&&y<=ly+lh) return l;
   }
   return null;
@@ -1566,4 +1576,3 @@ document.addEventListener('DOMContentLoaded', () => {
   try { fInitMobilePreviewEvents(); } catch(e){}
   try { _fLpBindCanvasEditing(); } catch(e){}
 });
-
