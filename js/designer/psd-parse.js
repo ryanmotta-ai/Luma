@@ -183,7 +183,7 @@ function _dPsdEffects(node){
   // Pega o 1º efeito de um array e marca _fxOverflow quando há vários do mesmo tipo (PS CC permite
   // 2+ sombras/traços; o modelo Luma só representa um). _fxOverflow é consumido no fim do parse →
   // a camada rasteriza fiel (senão o 2º+ efeito sumiria em silêncio).
-  const _first=x=>{ if(Array.isArray(x)){ if(x.length>1) out._fxOverflow=true; return x[0]; } return x; };
+  const _first=x=>{ if(Array.isArray(x)){ const on=x.filter(e=>e&&e.enabled!==false); if(on.length>1) out._fxOverflow=true; return on[0]||x[0]; } return x; };
   // Sombra projetada
   let ds=_first(fx.dropShadow);
   if(ds && ds.enabled!==false){
@@ -287,7 +287,7 @@ function _dPsdEffects(node){
     if(Math.round(_pct)!==100) out.fxScale=Math.round(_pct);
   }
   // Contorno customizado muda o PERFIL do fade (curva !== linear padrão).
-  const _hasCont=e=>!!(e && e.contour && ((e.contour.curve && e.contour.curve.length>2) || e.contour.name));
+  const _hasCont=e=>!!(e && e.enabled!==false && e.contour && ((e.contour.curve && e.contour.curve.length>2) || (e.contour.name&&!/^linear$/i.test(e.contour.name))));
   if(_hasCont(ds)||_hasCont(is)||_hasCont(og)||_hasCont(ig)) out.fxContour=true;
   return out;
 }
@@ -310,6 +310,21 @@ function _dPsdVectorShapeKind(node, w, h){
     if(ot===1||ot===2) return {kind:'rect', radius:0}; // retângulo (raio por-canto vem de _dPsdCornerRadii)
     return null; // linha/custom → deixa o heurístico de pixel decidir
   }catch(e){ return null; }
+}
+// Caixa do CAMINHO vetorial, diferente de node.left/top/right/bottom (que inclui a expansão do
+// stroke). Usar o bounds do layer como path deslocava um contorno de 5px ~4px para fora.
+function _dPsdVectorShapeBox(node, ox, oy){
+  try{
+    const list=node&&node.vectorOrigination&&node.vectorOrigination.keyDescriptorList;
+    if(!list)return null;
+    for(const d of list){
+      const b=d&&d.keyOriginShapeBoundingBox; if(!b)continue;
+      const v=x=>(x&&x.value!=null)?+x.value:+x;
+      const l=v(b.left),t=v(b.top),r=v(b.right),bt=v(b.bottom);
+      if([l,t,r,bt].every(Number.isFinite)&&r>l&&bt>t)return{x:Math.round(l-(ox||0)),y:Math.round(t-(oy||0)),w:Math.max(1,Math.round(r-l)),h:Math.max(1,Math.round(bt-t))};
+    }
+  }catch(e){}
+  return null;
 }
 // #2 — detecta cor sólida uniforme num canvas → hex (ou null)
 function _dPsdSolidColor(canvas){
@@ -1225,7 +1240,7 @@ function dPsdParseItems(psd, res, ox, oy){
   // Só sobrescreve quando o objeto recebido carrega o ângulo: no fluxo multi-prancheta o psd
   // aqui é sintético ({children:[…]}) e perderíamos a luz global lida do documento real.
   const _gl=_dPsdReadGlobalLight(psd); if(_gl!=null) _dPsdGlobalLight=_gl;
-  const items=[]; let n=0;
+  const items=[]; let n=0, gseq=0;
   // Teto de raster ADAPTATIVO à prancheta. O PNG final renderiza a 2× o tamanho da prancheta,
   // então uma imagem grande precisa de até 2×maxDim px pra não sair mole no export — o teto fixo
   // de 1600 borrava herói de PSD grande. Piso 1600 (comportamento antigo p/ prancheta pequena,
@@ -1236,11 +1251,10 @@ function dPsdParseItems(psd, res, ox, oy){
   // Camadas que SÓ existem como raster (warp, smart object, padrão, camada recuperada) não têm
   // segunda chance: o piso é o 2400 de antes, mas acompanham a prancheta quando ela pede mais.
   const _fidCap=Math.max(2400, _rasterCap);
-  // parentOp: opacidade acumulada dos grupos-pai (0–1); parentHidden: grupo-pai oculto.
-  // inh: o que os grupos-pai deixam de herança e o Luma não sabe representar como grupo —
-  // {masks:[máscaras dos grupos], blend:mesclagem herdada, blendApprox:mesclagem é aproximação}.
+  // Grupos do PSD viram os grupos que o Luma JÁ possui (`parentId`). Além de organização, agora
+  // eles carregam composição (isolamento/opacidade/máscara/blend) no motor Canvas canônico.
   (function walk(nodes, parentOp, parentHidden, parentName, inh){
-    inh=inh||{masks:[], blend:null, blendApprox:false};
+    inh=inh||{groups:[], masks:[], blend:null, blendApprox:false};
     // try//catch por CAMADA: uma camada quebrada vira imagem fiel (ou é pulada) em vez de
     // derrubar o PSD inteiro. O corpo abaixo mantém a indentação original de propósito —
     // re-indentar 150 linhas esconderia as mudanças reais no diff.
@@ -1251,23 +1265,27 @@ function dPsdParseItems(psd, res, ox, oy){
       const accOp=parentOp*nodeOp;
       const accHidden=parentHidden||(node.hidden?true:false);
       if(node.children && node.children.length){
-        // O Luma NÃO tem grupo: máscara, mesclagem e fillOpacity do grupo têm que DESCER pros
-        // filhos, senão somem em silêncio. Máscara de grupo (recorte de uma composição inteira)
-        // é o caso mais comum em PSD de agência — antes a arte importava "vazando" por fora.
-        const gBlend=_dPsdBlendMode(node.blendMode); // grupo normal é 'passThrough' → undefined
-        const gInh={
-          masks: (node.mask && !node.mask.disabled && node.mask.canvas) ? inh.masks.concat([node.mask]) : inh.masks,
-          blend: gBlend || inh.blend,
-          // Mesclagem de grupo incide sobre o COMPOSTO do grupo. Aplicada camada a camada, é
-          // exata com 1 filho; com 2+ que se sobrepõem, mescla duas vezes → marcamos como
-          // aproximação para virar aviso na revisão (perder de vez seria pior e mudo).
-          blendApprox: inh.blendApprox || (!!gBlend && node.children.length>1)
-        };
-        // fillOpacity de grupo ≡ opacidade (grupo não tem pixel próprio, então não há efeito
-        // que devesse escapar da atenuação).
-        const gOp=accOp*(node.fillOpacity!=null?node.fillOpacity:1);
-        // Artboards não propagam nome como grupo (são a raiz); grupos regulares sim.
-        walk(node.children, gOp, accHidden, node.artboard?'':node.name||parentName||'', gInh);
+        if(node.artboard){ walk(node.children,accOp,accHidden,'',inh); return; }
+        const parentGroup=inh.groups.length?inh.groups[inh.groups.length-1]:null;
+        const rawGroupBlend=String(node.blendMode||'').toLowerCase();
+        const gd={id:'g-psd-'+(++gseq),type:'group',name:String(node.name||('Grupo '+gseq)).slice(0,48),visible:!accHidden,locked:false,collapsed:false,
+          opacity:Math.round(nodeOp*(node.fillOpacity!=null?node.fillOpacity:1)*100),isolation:!!rawGroupBlend&&rawGroupBlend!=='pass through'&&rawGroupBlend!=='passthrough'};
+        if(parentGroup)gd.parentId=parentGroup.id;
+        const gb=_dPsdBlendMode(node.blendMode); if(gb)gd.blendMode=gb;
+        Object.assign(gd,_dPsdEffects(node));
+        const start=items.length;
+        const gInh={groups:inh.groups.concat([gd]),masks:[],blend:null,blendApprox:false};
+        walk(node.children,1,accHidden,node.name||parentName||'',gInh);
+        const kids=items.slice(start);
+        if(kids.length){
+          const x0=Math.min.apply(null,kids.map(k=>k.x)), y0=Math.min.apply(null,kids.map(k=>k.y));
+          const x1=Math.max.apply(null,kids.map(k=>k.x+k.w)), y1=Math.max.apply(null,kids.map(k=>k.y+k.h));
+          gd.x=x0;gd.y=y0;gd.w=Math.max(1,x1-x0);gd.h=Math.max(1,y1-y0);
+          if(node.mask&&!node.mask.disabled&&node.mask.canvas){
+            const gm=_dPsdMaskToBox(node.mask,{x:x0+ox,y:y0+oy,w:gd.w,h:gd.h});
+            if(gm)gd.mask=_dPsdDownscaleMaskURL(gm,Math.max(700,Math.min(1400,Math.max(gd.w,gd.h))));
+          }
+        }
         return;
       }
       const x=Math.round((node.left||0)-ox), y=Math.round((node.top||0)-oy);
@@ -1279,6 +1297,7 @@ function dPsdParseItems(psd, res, ox, oy){
         clippingLayer: node.clippingLayer || node.clipping,
         blendMode:_dPsdBlendMode(node.blendMode),
         group:parentName||'', _psdNode:node }; // guarda p/ recorte correto
+      if(inh.groups&&inh.groups.length)it._groupChain=inh.groups.slice();
       // Herança dos grupos-pai: máscaras entram na composição do pós-processamento; mesclagem
       // só se aplica quando a própria camada não define a dela (a de baixo é mais específica).
       if(inh.masks.length) it._groupMasks=inh.masks;
@@ -1385,7 +1404,11 @@ function dPsdParseItems(psd, res, ox, oy){
         // mesmo não sendo cor sólida (senão cairia em raster).
         const grad=(node.vectorFill && node.vectorFill.colorStops)?_dPsdGradient(node):null;
         // Cor: preferir a EXATA do vetor (vectorFill), cair na amostragem de pixels só se faltar.
-        const solid=_dPsdVectorSolidColor(node)||_dPsdSolidColor(node.canvas);
+        // Photoshop permite forma só-contorno: vectorFill ainda pode carregar a última cor,
+        // mas `vectorStroke.fillEnabled:false` manda NÃO pintá-la. Ignorar a flag inventava um
+        // retângulo sólido por cima do fundo/textura (caso dos cards laranja deste PSD real).
+        const fillDisabled=!!(node.vectorStroke&&node.vectorStroke.fillEnabled===false);
+        const solid=fillDisabled?null:(_dPsdVectorSolidColor(node)||_dPsdSolidColor(node.canvas));
         // Contorno vetorial (vectorStroke) — inclui formas SÓ-CONTORNO (sem preenchimento): molduras
         // vazadas, divisores e linhas TRACEJADAS. Antes, sem fill/gradiente, essas caíam no raster e o
         // tracejado virava imagem chapada (o dash lido em _dPsdShapeStroke nem era alcançado). Agora um
@@ -1394,8 +1417,14 @@ function dPsdParseItems(psd, res, ox, oy){
         const hasStroke=stroke.strokeW>0;
         if(grad || solid || hasStroke){
           // Forma: preferir o tipo EXATO do vetor (keyOriginType), cair no heurístico de pixel.
-          const shapeInfo=_dPsdVectorShapeKind(node,w,h)||_dPsdDetectShapeKind(node.canvas);
+          const vectorShape=_dPsdVectorShapeKind(node,w,h);
+          const shapeInfo=vectorShape||_dPsdDetectShapeKind(node.canvas);
           it.kind='shape';
+          const vectorBox=vectorShape&&_dPsdVectorShapeBox(node,ox,oy);
+          if(vectorBox)Object.assign(it,vectorBox);
+          // Retângulo/elipse já são a própria primitiva vetorial do Luma. Reaplicar a mesma
+          // vectorMask como bitmap cortava o meio externo do stroke (formas só-contorno sumiam).
+          if(vectorShape&&fillDisabled)delete it._vecMaskCanvas;
           // Só-contorno (sem fill sólido/gradiente) → fundo TRANSPARENTE, não a cor padrão laranja.
           it.fill=solid || (grad && grad.stops[0] && grad.stops[0].color) || (hasStroke ? 'transparent' : '#FF9000');
           if(grad) it.gradient=grad;
@@ -1491,7 +1520,15 @@ function dPsdParseItems(psd, res, ox, oy){
     let _m=null;
     if(out[i].clippingLayer){
       const baseIdx=_clipBaseIndex(i);
-      if(baseIdx>=0) _m = _dPsdComputeMask(out[i]._psdNode, out[baseIdx]._psdNode, _extra);
+      if(baseIdx>=0){
+        const base=out[baseIdx];
+        // `mask` fica como snapshot de compatibilidade para o DOM do editor; o Canvas final usa
+        // clipBaseId e redesenha o alpha da base a cada render. Máscaras próprias ficam separadas.
+        out[i].clipBaseId='l-psd-'+base.n+'-'+(base.x+base.y);
+        out[i].clipBaseSnapshot={x:base.x,y:base.y,w:base.w,h:base.h,shapeKind:base.shapeKind||'rect',radius:base.radius||0,radii:base.radii||null,points:base.points||null,sides:base.sides||null,inner:base.inner||null,maskSize:base.mask?base.mask.length:0};
+        out[i].clipOwnMask=_dPsdComputeMask(out[i]._psdNode, null, _extra);
+        _m = _dPsdComputeMask(out[i]._psdNode, base._psdNode, _extra);
+      }
     } else {
       _m = _dPsdComputeMask(out[i]._psdNode, null, _extra);
     }
@@ -1586,6 +1623,7 @@ function _dPsdApplyFx(L, it){
 }
 function dItemToLayer(it){
   const base={ id:'l-psd-'+it.n+'-'+(it.x+it.y), name:it.name, x:it.x,y:it.y,w:it.w,h:it.h, visible:it.visible, opacity:it.opacity };
+  if(it._groupChain&&it._groupChain.length)base.parentId=it._groupChain[it._groupChain.length-1].id;
   // fillOpacity sem efeitos ≡ opacity; com efeitos, só o fill deveria atenuar (não os efeitos) →
   // não é representável no modelo atual, marca p/ P3 rasterizar fiel.
   if(it.fillOpacity!=null && it.fillOpacity<1){
@@ -1594,6 +1632,7 @@ function dItemToLayer(it){
     else it.needsRaster=true;
   }
   if(it.mask) base.mask=it.mask;
+  if(it.clipBaseId){ base.clipBaseId=it.clipBaseId; if(it.clipBaseSnapshot)base.clipBaseSnapshot=it.clipBaseSnapshot; if(it.clipOwnMask)base.clipOwnMask=it.clipOwnMask; }
   if(it.blendMode) base.blendMode=it.blendMode;
   // Modo MOLDURA DE FOTO (escolhido na revisão): a camada — forma ou imagem — vira um frame que o
   // franqueado preenche com foto. Preserva x/y/w/h; formato do frame herdado da forma original.
@@ -1627,7 +1666,7 @@ function dItemToLayer(it){
     if(it.textBox==='box'){ L.textBox='box'; } // paragraph → editor encaixa na caixa
     if(it.vAlign) L.vAlign=it.vAlign;           // ancoragem vertical (top) importada do PSD
     if(it.italic) L.italic=true;                // font-style itálico
-    if(it.letterSpacing) L.letterSpacing=it.letterSpacing;
+    if(it.letterSpacing!=null) L.letterSpacing=it.letterSpacing;
     if(it.lineHeight) L.lineHeight=it.lineHeight;
     if(it.runs && !isVar) L.runs=it.runs;       // texto multi-estilo (não p/ variável)
     if(it.gradient) L.gradient=it.gradient;     // preenchimento por gradiente no texto
@@ -1641,4 +1680,29 @@ function dItemToLayer(it){
     return S;
   }
   return _dPsdApplyFx(Object.assign(base,{type:'image',imgUrl:it.imgUrl,imgVar:'',objectFit:'cover',frameShape:'rect'}), it);
+}
+
+// Converte folhas + árvore estrutural numa lista plana compatível com `dLayers`. O marcador do
+// grupo entra logo após seu último descendente (mesma convenção de dGroupSelected), preservando
+// z-order e permitindo grupos aninhados sem expô-los como falsas "imagens" na revisão do PSD.
+function dPsdItemsToLayers(items, previewOriginalText){
+  const src=items||[], leaves=[], groups=new Map();
+  src.forEach((it,idx)=>{
+    const use=(previewOriginalText&&it.kind==='text'&&it.mode==='var')?Object.assign({},it,{mode:'text'}):it;
+    const layer=dItemToLayer(use); if(!layer)return;
+    leaves.push({layer,item:it,idx});
+    (it._groupChain||[]).forEach((g,depth)=>{
+      let rec=groups.get(g.id);
+      if(!rec){rec={g,depth,last:-1};groups.set(g.id,rec);}
+      rec.last=leaves.length-1;
+    });
+  });
+  const ends={}; groups.forEach(rec=>{(ends[rec.last]||(ends[rec.last]=[])).push(rec);});
+  const out=[];
+  leaves.forEach((rec,i)=>{
+    out.push(rec.layer);
+    const close=ends[i]; if(!close)return;
+    close.sort((a,b)=>b.depth-a.depth).forEach(({g})=>out.push(JSON.parse(JSON.stringify(g))));
+  });
+  return out;
 }

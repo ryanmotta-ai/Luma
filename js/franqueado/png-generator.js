@@ -275,18 +275,29 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
     }
     await Promise.all(_urls.map(u=>fLoadImageDataUrl(u)));
   }catch(e){}
-  for(const l of visible){
+  const _layerById=new Map(effective.filter(l=>l&&l.id).map(l=>[l.id,l]));
+  const _groupById=new Map(effective.filter(l=>l&&l.type==='group'&&l.id).map(l=>[l.id,l]));
+
+  // Desenha uma folha da árvore. `clipBaseId` é a clipping mask EDITÁVEL: o alpha vem da
+  // camada-base no estado atual, não do PNG congelado no momento da importação do PSD.
+  async function _fRenderLeaf(target,l){
     const _bm=l.blendMode&&l.blendMode!=='normal'?l.blendMode:'normal';
     const _native=(typeof dBlendToComposite==='function')?dBlendToComposite(_bm):null;
     // Modos sem equivalente nativo no Canvas 2D → fallback pixel-a-pixel via dBlendImageData
     const _needsSw=_bm!=='normal'&&_native===null&&typeof dBlendImageData==='function';
-    if(l.mask||_needsSw){
+    const _clipLink=l.clipBaseId&&_layerById.get(l.clipBaseId);
+    // Enquanto a base não foi editada, o alpha salvo pelo próprio Photoshop é mais fiel nas
+    // bordas antialias. Ao mudar geometria/formato/máscara, troca automaticamente para o vínculo
+    // vivo — precisão no primeiro render e editabilidade depois, sem botão nem estado manual.
+    const _clipNow=_clipLink&&{x:_clipLink.x,y:_clipLink.y,w:_clipLink.w,h:_clipLink.h,shapeKind:_clipLink.shapeKind||'rect',radius:_clipLink.radius||0,radii:_clipLink.radii||null,points:_clipLink.points||null,sides:_clipLink.sides||null,inner:_clipLink.inner||null,maskSize:_clipLink.mask?_clipLink.mask.length:0};
+    const _clipBase=_clipLink&&(!l.clipBaseSnapshot||JSON.stringify(_clipNow)!==JSON.stringify(l.clipBaseSnapshot))?_clipLink:null;
+    if(l.mask||_clipBase||_needsSw){
       // Ambos os casos precisam de offscreen: máscara e/ou blend software.
       // ATENÇÃO: o ctx pai pode estar com super-sampling (scale 2×) no download. O
       // offscreen precisa ter a resolução de DISPOSITIVO (W*sx × H*sy) e a mesma
       // transform — senão o conteúdo sai em meia escala no canto (bug: prévia 1× ok,
       // download 2× quebrado).
-      const _tf=(typeof ctx.getTransform==='function')?ctx.getTransform():{a:1,d:1};
+      const _tf=(typeof target.getTransform==='function')?target.getTransform():{a:1,d:1};
       const _sx=_tf.a||1, _sy=_tf.d||1;
       const oc=document.createElement('canvas');
       oc.width=Math.max(1,Math.round(W*_sx)); oc.height=Math.max(1,Math.round(H*_sy));
@@ -296,11 +307,26 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
       // Renderiza no offscreen sem blend (source-over) — blend aplicado abaixo
       const _lNoBm=_needsSw?Object.assign({},l,{blendMode:'normal'}):l;
       await fRenderOneLayer(octx, _lNoBm, dados, 1, 1);
-      if(l.mask){
+      // Com clipping dinâmico, `mask` continua como fallback do DOM legado; no Canvas usamos
+      // apenas a máscara própria (layer/vector/group) para não multiplicar a borda duas vezes.
+      const _ownMask=_clipBase?l.clipOwnMask:l.mask;
+      if(_ownMask){
         try{
-          const mimg=await fLoadImageDataUrl(l.mask);
+          const mimg=await fLoadImageDataUrl(_ownMask);
           if(mimg){ octx.save(); octx.globalCompositeOperation='destination-in'; octx.drawImage(mimg,l.x,l.y,l.w,l.h); octx.restore(); }
         }catch(e){}
+      }
+      if(_clipBase){
+        // O Photoshop usa a transparência do CONTEÚDO da base, sem sombra/glow/contorno de
+        // efeito. Renderizar a primitiva outra vez mantém o vínculo vivo quando ela é editada.
+        const mc=document.createElement('canvas'); mc.width=oc.width; mc.height=oc.height;
+        const mctx=mc.getContext('2d'); try{ mctx.setTransform(_tf); }catch(e){}
+        const clean=Object.assign({},_clipBase,{opacity:100,blendMode:'normal',shadow:false,glow:false,innerShadow:false,innerGlow:false,bevel:false,overlay:false,gradientOverlay:null,strokeW:0});
+        await fRenderOneLayer(mctx,clean,dados,1,1);
+        if(_clipBase.mask){
+          try{ const bm=await fLoadImageDataUrl(_clipBase.mask); if(bm){mctx.save();mctx.globalCompositeOperation='destination-in';mctx.drawImage(bm,_clipBase.x,_clipBase.y,_clipBase.w,_clipBase.h);mctx.restore();} }catch(e){}
+        }
+        octx.save(); octx.setTransform(1,0,0,1,0,0); octx.globalCompositeOperation='destination-in'; octx.drawImage(mc,0,0); octx.restore();
       }
       if(_needsSw){
         // Blend pixel-a-pixel restrito à bbox do layer, em coords de DISPOSITIVO
@@ -310,21 +336,60 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
         const bh=Math.min(oc.height-by,Math.max(1,Math.round(l.h*_sy)));
         if(bw>0&&bh>0){
           const topData=octx.getImageData(bx,by,bw,bh);
-          const botData=ctx.getImageData(bx,by,bw,bh);
+          const botData=target.getImageData(bx,by,bw,bh);
           dBlendImageData(_bm,topData,botData);
-          ctx.putImageData(botData,bx,by);
+          target.putImageData(botData,bx,by);
         }
       }else{
         // Camada mascarada com blend NATIVO: aplica o composite na composição final contra o
         // fundo. Antes caía em source-over → o multiply/screen/etc. sumia no PNG (editor mostrava).
-        ctx.save(); ctx.setTransform(1,0,0,1,0,0);
-        if(_bm!=='normal' && _native) ctx.globalCompositeOperation=_native;
-        ctx.drawImage(oc,0,0); ctx.restore();
+        target.save(); target.setTransform(1,0,0,1,0,0);
+        if(_bm!=='normal' && _native) target.globalCompositeOperation=_native;
+        target.drawImage(oc,0,0); target.restore();
       }
     }else{
-      await fRenderOneLayer(ctx, l, dados, 1, 1);
+      await fRenderOneLayer(target, l, dados, 1, 1);
     }
   }
+
+  // Grupo de COMPOSIÇÃO. Grupos antigos continuam pass-through e custam zero offscreen; PSDs
+  // podem pedir isolamento/opacidade/máscara/blend, que são aplicados uma vez ao composto.
+  async function _fRenderGroup(target,g){
+    const styled=g.isolation===true || g.mask || (g.opacity!=null&&g.opacity<100)
+      || (g.blendMode&&g.blendMode!=='normal') || g.shadow || g.glow;
+    if(!styled){ await _fRenderChildren(target,g.id); return; }
+    const tf=(typeof target.getTransform==='function')?target.getTransform():{a:1,d:1};
+    const sx=tf.a||1, sy=tf.d||1;
+    const oc=document.createElement('canvas'); oc.width=Math.max(1,Math.round(W*sx)); oc.height=Math.max(1,Math.round(H*sy));
+    const octx=oc.getContext('2d'); try{octx.setTransform(tf);}catch(e){}
+    octx.imageSmoothingEnabled=true; octx.imageSmoothingQuality='high';
+    await _fRenderChildren(octx,g.id);
+    if(g.mask){
+      try{ const gm=await fLoadImageDataUrl(g.mask); if(gm){octx.save();octx.globalCompositeOperation='destination-in';octx.drawImage(gm,g.x||0,g.y||0,g.w||W,g.h||H);octx.restore();} }catch(e){}
+    }
+    const bm=g.blendMode&&g.blendMode!=='normal'?g.blendMode:'normal';
+    const native=(typeof dBlendToComposite==='function')?dBlendToComposite(bm):null;
+    const sw=bm!=='normal'&&native===null&&typeof dBlendImageData==='function';
+    if(sw){
+      const top=octx.getImageData(0,0,oc.width,oc.height), bot=target.getImageData(0,0,oc.width,oc.height);
+      if(g.opacity!=null&&g.opacity<100){const a=g.opacity/100;for(let i=3;i<top.data.length;i+=4)top.data[i]=Math.round(top.data[i]*a);}
+      dBlendImageData(bm,top,bot); target.putImageData(bot,0,0);
+    }else{
+      target.save(); target.setTransform(1,0,0,1,0,0);
+      target.globalAlpha=(g.opacity!=null?g.opacity:100)/100;
+      if(native)target.globalCompositeOperation=native;
+      if(g.shadow||g.glow){target.shadowColor=g.shadow?(g.shadowColor||'rgba(0,0,0,.5)'):(g.glowColor||'rgba(255,255,255,.7)');target.shadowBlur=(g.shadow?(g.shadowBlur||6):(g.glowSize||8))*Math.min(sx,sy);const o=g.shadow?gFxOffset(g.shadowDist||4,g.shadowAngle):{x:0,y:0};target.shadowOffsetX=o.x*sx;target.shadowOffsetY=o.y*sy;}
+      target.drawImage(oc,0,0); target.restore();
+    }
+  }
+  async function _fRenderChildren(target,parentId){
+    for(const l of visible){
+      const actualParent=(l.parentId&&_groupById.has(l.parentId))?l.parentId:null;
+      if(actualParent!==parentId)continue;
+      if(l.type==='group')await _fRenderGroup(target,l); else await _fRenderLeaf(target,l);
+    }
+  }
+  await _fRenderChildren(ctx,null);
   /* Preview, hit-test e destaque precisam da MESMA geometria efetiva (reflow + regras +
      layout vivo). Retornar o clone resolvido evita uma segunda implementação de coordenadas. */
   return effective;

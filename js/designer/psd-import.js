@@ -479,9 +479,10 @@ async function dPsdConfirmImport(){
   const chosen=dPsdItems.filter(it=>it.include && !it.isMaskBase);
   if(!chosen.length){ gToast('Selecione ao menos uma camada','error'); return; }
   _dPsdMemSave(dPsdItems); // persiste mapeamentos para próximas importações
-  let layers=chosen.map(dItemToLayer).filter(Boolean);
   // #4a — inverter z-order se a ordem do PSD vier trocada
-  const inv=document.getElementById('d-psd-invert'); if(inv&&inv.checked) layers=layers.reverse();
+  const inv=document.getElementById('d-psd-invert');
+  const ordered=(inv&&inv.checked)?chosen.slice().reverse():chosen;
+  let layers=dPsdItemsToLayers(ordered,false);
   _dPsdSyncVarsFromLayers(layers);
   const fmtChoice=(document.getElementById('d-psd-fmt')||{}).value||'orig';
   const _w=dPsdMeta.w, _h=dPsdMeta.h, _name=dPsdMeta.name, _res=dPsdMeta.res||72;
@@ -530,10 +531,7 @@ function dImportLayersAsArtboard(w,h,layers,name,fmtChoice,dpi){
 // máscaras, radii, gradientes, efeitos, blend), exceto que texto marcado como
 // variável mostra o TEXTO ORIGINAL do PSD (não o token {{}}), fiel ao arquivo fonte.
 function _dPsdItemsToPreviewLayers(items){
-  return items.map(it=>{
-    const src=(it.kind==='text'&&it.mode==='var')?Object.assign({},it,{mode:'text'}):it;
-    try{ return dItemToLayer(src); }catch(e){ return null; }
-  }).filter(Boolean);
+  try{return dPsdItemsToLayers(items,true);}catch(e){return [];}
 }
 // Fallback simplificado (caixas/cores/1ª linha) — só quando o motor fiel não está disponível.
 async function _dPsdDrawItemsBasic(canvas, items, w, h){
@@ -1389,10 +1387,10 @@ async function _dPsdCollectBoards(onProgress){
     const chosen=(b.items||[]).filter(it=>it.include && !it.isMaskBase);
     if(!chosen.length){ out.push({name:b.name, vazia:true}); continue; }
     memAll.push(b.items); // uma gravação só, no fim
-    let layers=chosen.map(dItemToLayer).filter(Boolean);
     // invert null = usuario nunca abriu esta prancheta: cai na heuristica de z-order.
     const inv=(b.invert!=null)?b.invert:_dPsdShouldInvert(b.items,b.w,b.h);
-    if(inv) layers=layers.reverse();
+    const ordered=inv?chosen.slice().reverse():chosen;
+    let layers=dPsdItemsToLayers(ordered,false);
     _dPsdSyncVarsFromLayers(layers);
     out.push({name:b.name, fmt:(b.fmt||'orig'), layers, nativeW:b.w, nativeH:b.h});
   }
