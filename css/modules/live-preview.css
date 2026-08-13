@@ -11,6 +11,8 @@
 #f-live-preview{
   width:clamp(400px,31vw,520px);
   flex-shrink:0;
+  container-type:inline-size;
+  container-name:lpreview;
   background:var(--white);
   border-left:1px solid var(--gray-light);
   display:flex;flex-direction:column;
@@ -225,52 +227,46 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
   background-size: 200% 100%;
 }
 
-/* TOOLBAR — DUAS LINHAS DE PROPÓSITO.
-   O painel tem 380px fixos e os controles somam ~510px: uma linha só não cabe nem cortando
-   rótulo (o talo dava 352px, zero respiro — e a barra já transbordava 101px antes mesmo do
-   Auto-layout, com o "Mockups" fora da tela, sem scroll e sem pista de que existia).
-   Então a quebra deixou de ser acidente e virou estrutura, uma linha por natureza de controle:
-     linha 1 — VER: ajustar, zoom, dimensão da arte;
-     linha 2 — AUTOMÁTICOS + a ação (mockups), à direita.
-   `wrap` continua ligado como rede: em painel mais estreito ainda cede em vez de sumir. */
+/* TOOLBAR — UMA LINHA.
+   Todos os controles ficam visíveis juntos. Textos redundantes viram tooltip/aria-label e,
+   quando há espaço, os rótulos de Ajustar e Mockups reaparecem via container query. */
 .lp-toolbar {
-  padding:11px 14px 12px;
+  padding:9px 10px;
   border-top:1px solid var(--gray-light);
   flex-shrink:0;
   display:flex;
-  flex-wrap:wrap;
-  justify-content:space-between;
+  flex-wrap:nowrap;
+  justify-content:flex-start;
   align-items:center;
   background:var(--white);
-  gap:10px 12px;
+  gap:6px;
 }
 
 .lp-tool-left, .lp-tool-right {
   display:flex;
   align-items:center;
-  gap:8px;
-  flex-wrap:wrap;
+  gap:5px;
+  flex-wrap:nowrap;
+  min-width:0;
 }
-/* Cada grupo ocupa a própria linha e o de baixo alinha à direita — `space-between` não alinha
-   item único, e sem isto o segundo grupo encostava na esquerda. */
-.lp-tool-left{flex:1 1 100%}
-.lp-tool-right{flex:1 1 100%; justify-content:flex-end}
+.lp-tool-left{flex:0 1 auto}
+.lp-tool-right{flex:0 0 auto;justify-content:flex-start}
+.lp-tool-left>*,.lp-tool-right>*{flex-shrink:0}
 
 /* AUTOMÁTICOS: um grupo, dois chips. Mesma casca do `.lp-zoom-group` — controles da mesma
    natureza têm que parecer da mesma família. */
 .lp-auto-group{
   height:32px;display:inline-flex;align-items:center;gap:4px;
-  padding:2px 4px 2px 9px;border:1px solid var(--gray-light);
+  padding:2px 3px;border:1px solid var(--gray-light);
   border-radius:10px;background:var(--off-white);
 }
 .lp-auto-label{
-  font:700 9.5px 'Roboto',sans-serif;letter-spacing:.06em;text-transform:uppercase;
-  color:var(--text-3);padding-right:2px;
+  display:none;
 }
 .lp-auto-chip{
-  height:26px;display:inline-flex;align-items:center;gap:6px;padding:0 6px 0 8px;
+  height:26px;display:inline-flex;align-items:center;gap:4px;padding:0 4px 0 5px;
   border:0;border-radius:7px;background:transparent;color:var(--text-3);cursor:pointer;
-  font:700 10.5px 'Roboto',sans-serif;white-space:nowrap;
+  font:700 10px 'Roboto',sans-serif;white-space:nowrap;
   transition:background var(--dur-micro),color var(--dur-micro),transform var(--dur-micro) var(--ease-spring);
 }
 /* `display:inline-flex` da classe vence o `[hidden]{display:none}` do navegador. */
@@ -280,10 +276,10 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
 .lp-auto-chip:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
 .lp-auto-chip.active{background:var(--dm-orange-bg);color:var(--dm-orange-d)}
 /* Chave menor que a do botão solto: dentro do grupo ela é detalhe, não o assunto. */
-.lp-auto-chip .lp-toggle{width:24px;height:14px}
+.lp-auto-chip .lp-toggle{width:22px;height:14px}
 .lp-auto-chip .lp-toggle-knob{width:10px;height:10px}
 .lp-auto-chip.active .lp-toggle{background:var(--dm-orange-d)}
-.lp-auto-chip.active .lp-toggle-knob{transform:translateX(10px)}
+.lp-auto-chip.active .lp-toggle-knob{transform:translateX(8px)}
 
 .lp-tool-btn {
   width:32px;height:32px;background:var(--off-white);
@@ -303,11 +299,12 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
 }
 .lp-tool-btn:active{transform:scale(.94)}
 .lp-tool-btn:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
-.lp-fit-btn{width:auto;min-width:32px;padding:0 9px;gap:6px;font:700 10.5px 'Roboto',sans-serif;white-space:nowrap}
+.lp-fit-btn{width:32px;min-width:32px;padding:0;gap:6px;font:700 10.5px 'Roboto',sans-serif;white-space:nowrap}
 .lp-fit-btn svg{flex:0 0 14px}
+.lp-fit-btn>span,.lp-posted-btn>span{display:none}
 
 .lp-zoom-group{height:32px;display:inline-flex;align-items:center;padding:2px;border:1px solid var(--gray-light);border-radius:10px;background:var(--off-white)}
-.lp-zoom-step{width:28px;height:26px;display:grid;place-items:center;padding:0;border:0;border-radius:7px;background:transparent;color:var(--text-2);cursor:pointer;transition:background var(--dur-micro),color var(--dur-micro),transform var(--dur-micro) var(--ease-spring)}
+.lp-zoom-step{width:24px;height:26px;display:grid;place-items:center;padding:0;border:0;border-radius:7px;background:transparent;color:var(--text-2);cursor:pointer;transition:background var(--dur-micro),color var(--dur-micro),transform var(--dur-micro) var(--ease-spring)}
 .lp-zoom-step svg{width:13px;height:13px}
 .lp-zoom-step:hover{background:var(--white);color:var(--text)}
 .lp-zoom-step:active{transform:scale(.9)}
@@ -328,8 +325,8 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
   font-weight:650;
   color:var(--text-2);
 }
-.lp-tool-dim{min-width:62px;padding-left:8px;border-left:1px solid var(--gray-light);color:var(--text-3);font-weight:400;font-variant-numeric:tabular-nums;white-space:nowrap}
-#lp-zoom{height:26px;min-width:38px;font-variant-numeric:tabular-nums}
+.lp-tool-dim{min-width:0;padding-left:5px;border-left:1px solid var(--gray-light);color:var(--text-3);font-weight:400;font-variant-numeric:tabular-nums;white-space:nowrap}
+#lp-zoom{height:26px;min-width:34px;font-variant-numeric:tabular-nums}
 /* O % vira botão (voltar ao ajuste) — reseta o visual nativo de <button> e vira clicável. */
 .lp-zoom-reset{
   background:none;border:none;padding:2px 5px;border-radius:6px;cursor:pointer;
@@ -396,8 +393,16 @@ body:not(.theme-light) .lp-toggle.active{background:var(--dm-orange)}
   .lp-title-icon{display:none}
   .lp-sync{max-width:145px}
   .lp-stage{padding-inline:18px}
-  .lp-tool-dim{display:none}
   .lp-viewseg-btn{padding-inline:7px}
+}
+
+/* O painel é um slot redimensionável: a decisão usa a largura dele, não a viewport. */
+@container lpreview (min-width:490px){
+  .lp-fit-btn{width:auto;padding-inline:8px}
+  .lp-fit-btn>span,.lp-posted-btn>span{display:inline}
+}
+@container lpreview (max-width:390px){
+  .lp-tool-dim{display:none}
 }
 @media (max-width:680px){
   #f-live-preview{display:none}
