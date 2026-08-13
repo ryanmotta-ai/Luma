@@ -515,6 +515,8 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     const _ctl=(_rr?(+_rr.tl||0):_ru)*scaleX, _ctr=(_rr?(+_rr.tr||0):_ru)*scaleX,
           _cbr=(_rr?(+_rr.br||0):_ru)*scaleX, _cbl=(_rr?(+_rr.bl||0):_ru)*scaleX;
     const _pts = (kind!=='circle'&&kind!=='ellipse'&&typeof dShapePoints==='function') ? dShapePoints(l) : null;
+    const _fxStack=Array.isArray(l.layerEffects)?l.layerEffects:[];
+    const _fxOf=t=>_fxStack.filter(e=>e&&e.type===t);
     // traça a forma no path atual (reutilizável p/ sombras/overlay/traçado)
     const _trace = ()=>{
       if(kind==='circle'||kind==='ellipse'){ ctx.beginPath(); ctx.ellipse(x+w/2,y+h/2,w/2,h/2,0,0,Math.PI*2); }
@@ -528,7 +530,9 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     // _spread(): canvas 2D não tem spread nativo. Traçar a MESMA forma com espessura 2×spread
     // engorda a silhueta que projeta a sombra — que é o que a "propagação" do PS faz.
     const _spread=(v)=>{ if(!(v>0))return; ctx.lineWidth=v*2*_sc; ctx.strokeStyle=_fill; ctx.stroke(); };
-    if(l.shadow){ ctx.save(); _trace(); const o=gFxOffset(l.shadowDist!=null?l.shadowDist:4,l.shadowAngle);
+    const _dropFx=_fxOf('dropShadow');
+    if(_dropFx.length)_dropFx.forEach(e=>{ctx.save();_trace();const o=gFxOffset(e.distance!=null?e.distance:4,e.angle);ctx.shadowColor=e.color||'rgba(0,0,0,.5)';ctx.shadowBlur=(e.blur!=null?e.blur:6)*_sc;ctx.shadowOffsetX=o.x*_sc;ctx.shadowOffsetY=o.y*_sc;const co=e.blendMode&&typeof dBlendToComposite==='function'?dBlendToComposite(e.blendMode):null;if(co)ctx.globalCompositeOperation=co;ctx.fillStyle=_fill;ctx.fill();_spread(e.spread);ctx.restore();});
+    else if(l.shadow){ ctx.save(); _trace(); const o=gFxOffset(l.shadowDist!=null?l.shadowDist:4,l.shadowAngle);
       ctx.shadowColor=l.shadowColor||'rgba(0,0,0,.5)'; ctx.shadowBlur=(l.shadowBlur!=null?l.shadowBlur:6)*_sc; ctx.shadowOffsetX=o.x*_sc; ctx.shadowOffsetY=o.y*_sc;
       ctx.fillStyle=_fill; ctx.fill(); _spread(l.shadowSpread); ctx.restore(); }
     if(l.glow){ ctx.save(); _trace(); ctx.shadowColor=l.glowColor||'rgba(255,255,255,.7)'; ctx.shadowBlur=(l.glowSize!=null?l.glowSize:8)*_sc; ctx.fillStyle=_fill; ctx.fill(); _spread(l.glowSpread); ctx.restore(); }
@@ -536,29 +540,41 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     // traçado 'outside' (senão o re-fill simples apagava o gradientOverlay/overlay).
     const _paintFill=()=>{
       _trace(); ctx.fillStyle=_fillStyle; ctx.fill();
-      if(l.gradientOverlay && l.gradientOverlay.stops && l.gradientOverlay.stops.length && typeof gGradientCanvas==='function'){ // gradient overlay
-        _trace(); ctx.save(); ctx.globalAlpha=(l.gradientOverlay.opacity!=null?l.gradientOverlay.opacity:1); ctx.fillStyle=gGradientCanvas(ctx,l.gradientOverlay,x,y,w,h); ctx.fill(); ctx.restore(); }
-      if(_overlay){ _trace(); ctx.fillStyle=_overlay; ctx.fill(); }
+      const gos=_fxOf('gradientOverlay'),cos=_fxOf('colorOverlay');
+      if(gos.length&&typeof gGradientCanvas==='function')gos.forEach(e=>{const g=e.gradient;if(!g||!g.stops||!g.stops.length)return;_trace();ctx.save();ctx.globalAlpha*=g.opacity!=null?g.opacity:1;const co=e.blendMode&&typeof dBlendToComposite==='function'?dBlendToComposite(e.blendMode):null;if(co)ctx.globalCompositeOperation=co;ctx.fillStyle=gGradientCanvas(ctx,g,x,y,w,h);ctx.fill();ctx.restore();});
+      else if(l.gradientOverlay && l.gradientOverlay.stops && l.gradientOverlay.stops.length && typeof gGradientCanvas==='function'){ // gradient overlay
+        _trace(); ctx.save(); ctx.globalAlpha*=(l.gradientOverlay.opacity!=null?l.gradientOverlay.opacity:1); ctx.fillStyle=gGradientCanvas(ctx,l.gradientOverlay,x,y,w,h); ctx.fill(); ctx.restore(); }
+      if(cos.length)cos.forEach(e=>{_trace();ctx.save();ctx.globalAlpha*=e.opacity!=null?e.opacity:1;const co=e.blendMode&&typeof dBlendToComposite==='function'?dBlendToComposite(e.blendMode):null;if(co)ctx.globalCompositeOperation=co;ctx.fillStyle=e.color||'#000';ctx.fill();ctx.restore();});
+      else if(_overlay){ _trace(); ctx.fillStyle=_overlay; ctx.fill(); }
     };
     _paintFill();
     // 3) sombra interna / brilho interno (aprox.: traço borrado recortado p/ dentro)
-    const _innerStroke=(color,blur,o)=>{ ctx.save(); _trace(); ctx.clip(); _trace();
+    const _innerStroke=(color,blur,o,bm,spread)=>{ ctx.save(); _trace(); ctx.clip(); _trace();
+      const co=bm&&typeof dBlendToComposite==='function'?dBlendToComposite(bm):null;if(co)ctx.globalCompositeOperation=co;
       ctx.shadowColor=color; ctx.shadowBlur=blur*_sc; ctx.shadowOffsetX=(o?o.x:0)*_sc; ctx.shadowOffsetY=(o?o.y:0)*_sc;
-      ctx.lineWidth=Math.max(2,blur*_sc); ctx.strokeStyle=color; ctx.stroke(); ctx.restore(); };
-    if(l.innerShadow) _innerStroke(l.innerShadowColor||'rgba(0,0,0,.5)', (l.innerShadowBlur!=null?l.innerShadowBlur:6), gFxOffset(l.innerShadowDist!=null?l.innerShadowDist:4,l.innerShadowAngle));
+      ctx.lineWidth=Math.max(2,(blur+(spread||0)*2)*_sc); ctx.strokeStyle=color; ctx.stroke(); ctx.restore(); };
+    const _innerFx=_fxOf('innerShadow');
+    if(_innerFx.length)_innerFx.forEach(e=>_innerStroke(e.color||'rgba(0,0,0,.5)',e.blur!=null?e.blur:6,gFxOffset(e.distance!=null?e.distance:4,e.angle),e.blendMode,e.spread));
+    else if(l.innerShadow) _innerStroke(l.innerShadowColor||'rgba(0,0,0,.5)', (l.innerShadowBlur!=null?l.innerShadowBlur:6), gFxOffset(l.innerShadowDist!=null?l.innerShadowDist:4,l.innerShadowAngle));
     if(l.innerGlow) _innerStroke(l.innerGlowColor||'rgba(255,255,255,.7)', (l.innerGlowSize!=null?l.innerGlowSize:8), null);
     if(l.bevel){ const o=gFxOffset(l.bevelSize!=null?l.bevelSize:4,l.bevelAngle), b=l.bevelSize!=null?l.bevelSize:4;
       _innerStroke(l.bevelHighlight||'rgba(255,255,255,.7)', b, o); _innerStroke(l.bevelShadow||'rgba(0,0,0,.5)', b, {x:-o.x,y:-o.y}); }
     // 4) traçado com alinhamento (inside/center/outside) + dash/cap/join
-    if(l.strokeW>0){ const a=l.strokeAlign||'inside'; _trace();
-      ctx.lineWidth=Math.max(1,l.strokeW*_sc)*(a==='center'?1:2); ctx.strokeStyle=l.strokeColor||'#000';
-      ctx.lineJoin=l.strokeJoin||'round'; ctx.lineCap=l.strokeCap||'butt';
-      if(l.strokeDash && l.strokeDash.length) ctx.setLineDash(l.strokeDash.map(d=>d*_sc)); else ctx.setLineDash([]);
-      if(a==='inside'){ ctx.save(); ctx.clip(); ctx.stroke(); ctx.restore(); }
-      else if(a==='outside'){ ctx.stroke(); ctx.setLineDash([]); _paintFill(); } // re-fill completo: preserva gradientOverlay/overlay
-      else { ctx.stroke(); }
-      ctx.setLineDash([]);
+    const _strokeOne=(sw,col,a,op,bm)=>{_trace();ctx.save();ctx.globalAlpha*=op!=null?op:1;const co=bm&&typeof dBlendToComposite==='function'?dBlendToComposite(bm):null;if(co)ctx.globalCompositeOperation=co;ctx.lineWidth=Math.max(1,sw*_sc)*(a==='center'?1:2);ctx.strokeStyle=col||'#000';ctx.lineJoin=l.strokeJoin||'round';ctx.lineCap=l.strokeCap||'butt';if(l.strokeDash&&l.strokeDash.length)ctx.setLineDash(l.strokeDash.map(d=>d*_sc));else ctx.setLineDash([]);if(a==='inside'){ctx.clip();ctx.stroke();}else ctx.stroke();ctx.restore();return a==='outside';};
+    const _strokeFx=_fxOf('stroke');
+    let _refill=false;
+    if(_strokeFx.length){
+      // Os traços externos precisam ficar atrás do fill e dos traços internos. Desenha do mais
+      // largo para o mais estreito, recompõe o conteúdo uma vez e só então pinta center/inside.
+      // Sem essa separação, o re-fill do último traço externo apagava um contorno interno anterior.
+      const outside=_strokeFx.filter(e=>(e.align||'outside')==='outside').slice().sort((a,b)=>(b.width||1)-(a.width||1));
+      const front=_strokeFx.filter(e=>(e.align||'outside')!=='outside');
+      outside.forEach(e=>{_strokeOne(e.width||1,e.color,'outside',e.opacity,e.blendMode);});
+      if(outside.length)_paintFill();
+      front.forEach(e=>{_strokeOne(e.width||1,e.color,e.align||'inside',e.opacity,e.blendMode);});
     }
+    else if(l.strokeW>0)_refill=_strokeOne(l.strokeW,l.strokeColor||'#000',l.strokeAlign||'inside',1,null);
+    if(_refill)_paintFill();
 
   } else if(l.type === 'text'){
     // defaultValue por variável (3.3): campos não preenchidos / edit:false caem no default da var.

@@ -256,6 +256,8 @@ function dPsdRenderRows(filter){
         ?`<span class="psd-fontwarn" title="Este tipo permanece identificado na pilha, mas ainda não altera os pixels no Luma">${_dPsdEsc(it.adjustmentType||'Ajuste')} ainda não aplicado</span>`
         :`<span class="psd-fontok" title="Este ajuste acompanha qualquer edição feita nas camadas abaixo">${_dPsdEsc(_adjPt[it.adjustmentType]||it.adjustmentType||'Ajuste')} · editável</span>${it.adjustmentApprox?'<span class="psd-fontwarn" title="O ajuste é dinâmico, mas esta variação usa matemática aproximada do Photoshop">Aproximação identificada</span>':''}`)
       :'';
+    const effectsStackBadge=(it.layerEffects&&it.kind==='shape')
+      ?`<span class="psd-fontok" title="Sombras, contornos e sobreposições repetidas foram preservados na ordem da camada">${it.layerEffects.length} efeitos em pilha · editáveis</span>`:'';
     const fxWarns=[
       it.fxSatin?'Cetim não aplicado':'',
       it.fxContour?'Contorno de efeito ignorado':'',
@@ -263,6 +265,8 @@ function dPsdRenderRows(filter){
       it.strokeApprox?'Traço aproximado (cor sólida)':'',
       it.gradientUnsupported?('Gradiente '+(it.gradientUnsupported==='angle'?'cônico':'losango')+' → imagem fiel'):'',
       it.gradientOverlayApprox?('Sobreposição '+(it.gradientOverlayApprox==='angle'?'cônica':'losango')+' aproximada'):'',
+      it.layerEffectsApprox?'Mesclagem da pilha aproximada':'',
+      (it.layerEffects&&it.kind!=='shape')?'Pilha de efeitos → imagem fiel':'',
       it.textOnPath?'Texto em curva → imagem fiel':'',
       it.flipped?'Camada espelhada → imagem fiel':'',
       it.textJustifyAll?'Justificado total → última linha não estica':''
@@ -297,7 +301,7 @@ function dPsdRenderRows(filter){
       <span class="psd-row-ico psd-row-ico-${it.kind}">${swatch||ico[it.kind]||ico.raster}</span>
       ${thumb}
       <span class="psd-row-name" title="${_dPsdEsc(it.name)}">
-        <span class="psd-row-name-top">${_dPsdEsc(it.name)}${errBadge}${flatBadge}${multiStyleBadge}${blendBadge}${grpBlendBadge}${fxWarns}${fontWarn}${opacityBadge}${adjustmentBadge}${vecWarn}${clipWarn}${textInfoBadge}${sugBadge}</span>
+        <span class="psd-row-name-top">${_dPsdEsc(it.name)}${errBadge}${flatBadge}${multiStyleBadge}${blendBadge}${grpBlendBadge}${fxWarns}${fontWarn}${opacityBadge}${adjustmentBadge}${effectsStackBadge}${vecWarn}${clipWarn}${textInfoBadge}${sugBadge}</span>
         ${groupCrumb}${textPrev}
       </span>
       ${_dPsdFieldSelHTML(it,i)}${modeSel}${varIn}</div>`;

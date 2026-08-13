@@ -955,11 +955,15 @@ function dFxDialStart(e, propName, inputId, dialId) {
 
 // ── Reset all effects ──────────────────────────────────────
 function dFxReset() {
-  ['shadow','innerShadow','glow','overlay'].forEach(key => dUpdateProp(key, false));
+  const l=dLayers.find(x=>x.id===dSelId); if(!l)return;
+  dHistoryPush();
+  ['shadow','innerShadow','glow','overlay'].forEach(key=>{ l[key]=false; });
+  delete l.layerEffects; delete l.layerEffectsComplete; delete l.layerEffectsApprox;
   ['dp-fx-shadow','dp-fx-inner','dp-fx-glow','dp-fx-overlay'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.checked = false;
   });
+  dRenderCanvas(); dRenderLayersList(); dMarkUnsaved();
   gToast('Efeitos removidos');
 }
 
@@ -1006,7 +1010,7 @@ function _dLayerThumb(l){
   return '';
 }
 // Indicador "fx" quando a camada tem qualquer efeito aplicado.
-function _dLayerHasFx(l){ return !!(l.shadow||l.innerShadow||l.glow||l.bevel||l.overlay||l.strokeW||l.gradient); }
+function _dLayerHasFx(l){ return !!(l.shadow||l.innerShadow||l.glow||l.bevel||l.overlay||l.strokeW||l.gradient||(l.layerEffects&&l.layerEffects.length)); }
 function dRenderLayersList(){
   const el=document.getElementById('d-layers-list');
   if(!el) return;
@@ -1113,7 +1117,7 @@ function dRenderLayersList(){
         <span class="layer-label ${l.type === 'group' ? 'group-label' : ''}" ondblclick="dRenameLayer('${l.id}',event)" title="Duplo clique para renomear">${gEsc(l.name)}</span>
         ${varBadge}
         ${(l.blendMode && l.blendMode !== 'normal' && typeof dBlendModeLabel === 'function') ? `<span class="lyr-badge lyr-blend" title="Mesclagem: ${dBlendModeLabel(l.blendMode)}">${dBlendModeLabel(l.blendMode)}</span>` : ''}
-        ${_dLayerHasFx(l) ? `<span class="lyr-badge lyr-fx" title="Efeitos ativos: ${[l.shadow?'Sombra':'',l.innerShadow?'S.Interna':'',l.glow?'Brilho':'',l.overlay?'Sobreposição':''].filter(Boolean).join(', ')}">fx</span>` : ''}
+        ${_dLayerHasFx(l) ? `<span class="lyr-badge lyr-fx" title="Efeitos ativos: ${[l.shadow?'Sombra':'',l.innerShadow?'S.Interna':'',l.glow?'Brilho':'',l.overlay?'Sobreposição':'',l.layerEffects&&l.layerEffects.length?(l.layerEffects.length+' em pilha'):''].filter(Boolean).join(', ')}">fx</span>` : ''}
         ${l.mask ? `<span class="lyr-badge lyr-mask" title="Máscara aplicada — clique para remover" onclick="event.stopPropagation();dRemoveMask('${l.id}')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="display:inline-block;vertical-align:middle"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="12" cy="12" r="5"/></svg></span>` : ''}
         <button class="layer-vis ${l.locked ? 'layer-is-hidden' : ''}" onclick="dToggleLayerLock(event, 'ab-single', '${l.id}')" title="${l.locked ? 'Desbloquear' : 'Bloquear'}">${lockIcon}</button>
         <button class="layer-vis ${!l.visible ? 'layer-is-hidden' : ''}" onclick="dToggleLayerVis(event, 'ab-single', '${l.id}')" title="Visibilidade">${visIcon}</button>
@@ -2126,6 +2130,24 @@ function dSetCorner(which,val){
   }
   dMarkUnsaved(); dRenderCanvas();
 }
+// Camadas PSD podem carregar várias instâncias do mesmo efeito. O painel enxuto edita a primeira
+// instância (igual ao resumo legado), sem deixar a pilha renderizada desconectada do controle.
+function _dFxStackSync(l,prop,val){
+  if(!l||!Array.isArray(l.layerEffects))return;
+  const cfg={
+    shadow:{type:'dropShadow',toggle:true},shadowColor:{type:'dropShadow',key:'color'},shadowBlur:{type:'dropShadow',key:'blur'},shadowDist:{type:'dropShadow',key:'distance'},shadowAngle:{type:'dropShadow',key:'angle'},
+    innerShadow:{type:'innerShadow',toggle:true},innerShadowColor:{type:'innerShadow',key:'color'},innerShadowBlur:{type:'innerShadow',key:'blur'},innerShadowDist:{type:'innerShadow',key:'distance'},innerShadowAngle:{type:'innerShadow',key:'angle'},
+    overlay:{type:'colorOverlay',toggle:true},overlayColor:{type:'colorOverlay',key:'color'},overlayOpacity:{type:'colorOverlay',key:'opacity'}
+  }[prop];
+  if(!cfg)return;
+  if(cfg.toggle){
+    if(!val)l.layerEffects=l.layerEffects.filter(e=>e&&e.type!==cfg.type);
+  } else {
+    const e=l.layerEffects.find(e=>e&&e.type===cfg.type);
+    if(e)e[cfg.key]=val;
+  }
+  if(!l.layerEffects.length){delete l.layerEffects;delete l.layerEffectsComplete;delete l.layerEffectsApprox;}
+}
 function dUpdateProp(prop,val){
   const l=dLayers.find(x=>x.id===dSelId);if(!l)return;
   if(['x','y','w','h','fontSize','opacity','fillOpacity','radius','sides','points','strokeW','shadowBlur','shadowDist','shadowAngle','innerShadowBlur','innerShadowDist','innerShadowAngle','glowSize','textCurve'].includes(prop)){
@@ -2143,6 +2165,7 @@ function dUpdateProp(prop,val){
     else dHistoryPush();
   }
   l[prop]=val;
+  _dFxStackSync(l,prop,val);
   if(prop==='radius') delete l.radii; // raio uniforme manda → limpa cantos por canto
   if(prop==='sides') l.sides=Math.max(3,Math.min(20,Math.round(val)));   // polígono
   if(prop==='points') l.points=Math.max(3,Math.min(20,Math.round(val))); // estrela
