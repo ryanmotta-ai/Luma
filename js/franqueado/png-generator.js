@@ -319,6 +319,9 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp, materialOve
     const disponivel=_renderScope==='franqueado'
       &&((typeof gLayoutVivoDisponivel==='function')?gLayoutVivoDisponivel():true);
     if(disponivel){
+      // A ENTRADA do solver, guardada antes de `effective` virar o resultado: o diagnóstico
+      // re-roda o motor com valores encurtados e precisa partir do mesmo ponto de partida.
+      const entradaLayout=effective;
       const solved=gApplyRelativeAnchors(effective,dados,_defaults,{fitText:true,canvas:{w:W,h:H},scope:'franqueado'});
       const result=(typeof gDescribeFranchiseeLayout==='function')
         ?gDescribeFranchiseeLayout(original,solved)
@@ -328,8 +331,24 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp, materialOve
       effective=(prefereOriginal&&!result.requiresAdaptation)?original:solved;
       effective._layoutResult=result;
       window.gLastFranchiseeLayoutResult=result;
+      /* DIAGNÓSTICO ACIONÁVEL. Só quando a composição REPROVOU: a busca binária re-roda o solver
+         algumas vezes, e isso não pode entrar no laço da digitação. Aqui já é o caminho de
+         falha, onde o custo se paga em o franqueado saber o que fazer. */
+      if(result.invalid&&typeof gLayoutDiagnosis==='function'){
+        result.diagnostico=gLayoutDiagnosis(entradaLayout,dados,_defaults,
+          {fitText:true,canvas:{w:W,h:H},scope:'franqueado'},solved);
+      }
+      if(typeof gLayoutTelemetry==='function'){
+        if(result.meta&&typeof gLayoutFonteStatusArte==='function')
+          result.meta.fonte=gLayoutFonteStatusArte(solved);
+        gLayoutTelemetry(result,{purpose:renderOpts.purpose||'preview',
+          template:(_renderMaterial&&(_renderMaterial.templateId||_renderMaterial.template_id))||null,
+          material:(_renderMaterial&&(_renderMaterial.id||_renderMaterial.nome))||null,
+          formato:W+'x'+H});
+      }
       if(result.invalid&&renderOpts.purpose==='export'){
-        const err=new Error('A arte não tem espaço seguro para estes dados. Encurte o texto ou escolha outro material.');
+        const err=new Error((result.diagnostico&&result.diagnostico.mensagem)
+          ||'A arte não tem espaço seguro para estes dados. Encurte o texto ou escolha outro material.');
         err.code='LUMA_LAYOUT_UNSAFE';err.layoutResult=result;throw err;
       }
     }else{
