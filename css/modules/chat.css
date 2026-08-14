@@ -613,40 +613,127 @@ body:has(#f-bulk-modal.open) #mobile-preview-toggle{display:none!important}
 .f-bulk-close-btn svg{width:16px;height:16px}
 .f-bulk-faq-btn:hover,.f-bulk-close-btn:hover{border-color:var(--dm-orange);background:var(--dm-orange-bg);color:var(--dm-orange-d);transform:translateY(-1px)}
 
-/* ══ Assistente de 3 passos ══
-   Substitui o antigo grid de duas colunas (setup + planilha lado a lado), que punha
-   os três passos na tela ao mesmo tempo: a numeração prometia uma ordem que o layout
-   não cumpria. Agora o workspace é um palco só e cada .f-bulk-stage aparece na sua vez. */
+/* ══ UMA TELA SÓ: a arte ao vivo | a planilha ══
+   Antes eram três passos num palco só (.f-bulk-stage trocando de vez). O passo 1 era um menu
+   de importação e o passo 3, três controles — nenhum dos dois é fase de trabalho, e virar tela
+   fazia a planilha parecer o meio do caminho. Agora as duas coisas que importam dividem a tela:
+   a arte (o herói, design-process §3) e a grade que a alimenta.
+   A coluna da arte tem largura FIXA em vez de fração: a prancheta não deve encolher junto com
+   a janela — quem cede espaço é a planilha, que já rola na horizontal por natureza. */
 .f-bulk-workspace{display:block;min-height:0;overflow:auto;background:var(--off-white);
   scrollbar-width:thin;scrollbar-color:var(--gray-mid) transparent}
-.f-bulk-stage{display:flex;flex-direction:column;gap:14px;max-width:860px;margin:0 auto;padding:22px 22px 26px;
-  animation:gBulkStageIn var(--dur-base) var(--ease-out)}
-.f-bulk-stage[hidden]{display:none}
-@keyframes gBulkStageIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-/* Passo 2 respira mais que os outros: a planilha é larga por natureza. */
-.f-bulk-stage[data-step="2"]{max-width:none}
-.f-bulk-stage-head{display:flex;flex-direction:column;gap:4px}
-.f-bulk-stage-head h3{margin:0;font-family:'Roboto',sans-serif;font-size:20px;font-weight:900;letter-spacing:-.015em;color:var(--text)}
-.f-bulk-stage-head p{margin:0;font-size:13px;line-height:1.5;color:var(--text-3)}
-.f-bulk-stage-head .f-bulk-status-wrap{margin-top:6px}
+.f-bulk-split{display:grid;grid-template-columns:clamp(300px,26vw,392px) minmax(0,1fr);overflow:hidden}
 
-/* Trilha: onde estou, o que já passou, o que falta. Clicável pra rever um passo. */
-.f-bulk-trail{display:flex;gap:8px;padding:10px 20px;border-bottom:1px solid var(--gray-light);background:var(--white);overflow-x:auto;scrollbar-width:none}
-.f-bulk-trail::-webkit-scrollbar{display:none}
-.f-bulk-trail-item{display:flex;align-items:center;gap:9px;flex:1 1 0;min-width:170px;padding:8px 12px;
-  border:1px solid transparent;border-radius:var(--r);background:transparent;cursor:pointer;text-align:left;
-  transition:background var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard)}
-.f-bulk-trail-item:hover{background:var(--gray-light)}
-.f-bulk-trail-item:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
-.f-bulk-trail-num{display:flex;align-items:center;justify-content:center;width:26px;height:26px;flex:0 0 auto;
-  border:1px solid var(--gray-mid);border-radius:50%;background:var(--white);color:var(--text-3);font-size:11px;font-weight:800}
-.f-bulk-trail-txt{display:grid;gap:1px;min-width:0}
-.f-bulk-trail-txt strong{font-size:12.5px;font-weight:750;color:var(--text-2);line-height:1.2}
-.f-bulk-trail-txt small{font-size:10.5px;color:var(--text-3);line-height:1.3}
-.f-bulk-trail-item.is-now{border-color:var(--dm-orange-tint);background:var(--dm-orange-bg)}
-.f-bulk-trail-item.is-now .f-bulk-trail-num{border-color:var(--dm-orange);background:var(--dm-orange);color:var(--white)}
-.f-bulk-trail-item.is-now .f-bulk-trail-txt strong{color:var(--dm-orange-d)}
-.f-bulk-trail-item.is-done .f-bulk-trail-num{border-color:var(--green);background:var(--green);color:var(--white)}
+/* ── A arte ao vivo ── */
+.f-bulk-live{display:flex;flex-direction:column;gap:12px;min-width:0;min-height:0;overflow:hidden;padding:18px 18px 16px;
+  border-right:1px solid var(--gray-light);background:var(--white)}
+.f-bulk-live-top{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:24px}
+.f-bulk-live-label{color:var(--text-3);font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+.f-bulk-live-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:var(--r-pill);
+  background:var(--gray-light);color:var(--text-3);font-size:11px;font-weight:700;white-space:nowrap;
+  transition:background var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard)}
+.f-bulk-live-chip.is-ok{background:var(--dm-orange-bg);color:var(--dm-orange-d)}
+.f-bulk-live-chip.is-wait{background:var(--gray-light);color:var(--text-3)}
+.f-bulk-live-stage{position:relative;display:grid;place-items:center;flex:1;min-height:0;padding:2px}
+/* A moldura recebe a proporção do material por --f-bulk-ar (JS), então serve story e feed sem
+   duas regras.
+   ⚠ Dimensionada pela ALTURA (`height:100%` + `width:auto`), não pela largura: com
+   `max-height` sozinho, o story (9/16) calculava a altura a partir dos 356px da coluna, dava
+   633px e vazava para fora do painel — a arte aparecia cortada em cima. Assim a altura
+   disponível é que manda, e `max-width` cuida do caminho inverso nos formatos deitados. */
+.f-bulk-live-frame{position:relative;height:100%;width:auto;max-width:100%;aspect-ratio:var(--f-bulk-ar,9/16);
+  border-radius:12px;overflow:hidden;background:var(--gray-light);
+  box-shadow:0 18px 44px color-mix(in srgb,var(--text) 20%,transparent),0 2px 6px color-mix(in srgb,var(--text) 10%,transparent);
+  transition:box-shadow var(--dur-base) var(--ease-standard)}
+.f-bulk-live-frame canvas{display:block;width:100%;height:100%;object-fit:contain}
+/* Troca de linha: crossfade curto. Substituir o pixel de uma arte pela outra sem transição
+   pisca — e piscar numa tela de conferência faz duvidar do que se viu. */
+.f-bulk-live-frame.is-swapping canvas{opacity:0;transform:scale(.985);
+  transition:opacity var(--dur-micro) var(--ease-in),transform var(--dur-micro) var(--ease-in)}
+.f-bulk-live-frame canvas{opacity:1;transform:scale(1);
+  transition:opacity var(--dur-fast) var(--ease-out),transform var(--dur-fast) var(--ease-out)}
+.f-bulk-live-nav{display:flex;align-items:center;justify-content:center;gap:8px;
+  color:var(--text-3);font-size:12px;font-weight:700}
+.f-bulk-live-arrow{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;
+  border:1px solid var(--gray-mid);border-radius:50%;background:var(--white);color:var(--text-2);cursor:pointer;
+  transition:border-color var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard),
+             color var(--dur-micro) var(--ease-standard),transform var(--dur-micro) var(--ease-spring)}
+.f-bulk-live-arrow svg{width:14px;height:14px}
+.f-bulk-live-arrow:hover{border-color:var(--dm-orange);background:var(--dm-orange-bg);color:var(--dm-orange-d);transform:translateY(-1px)}
+.f-bulk-live-arrow:disabled{opacity:.4;cursor:not-allowed;transform:none;border-color:var(--gray-mid);background:var(--white);color:var(--text-3)}
+.f-bulk-live-hint{margin:0;text-align:center;color:var(--text-3);font-size:11px;line-height:1.4}
+
+/* ── Fita de miniaturas: o lote de relance ── */
+.f-bulk-strip{display:flex;gap:7px;align-items:center;justify-content:flex-start;overflow-x:auto;padding:2px 1px 6px;
+  scrollbar-width:thin;scrollbar-color:var(--gray-mid) transparent}
+.f-bulk-strip::-webkit-scrollbar{height:5px}
+.f-bulk-strip::-webkit-scrollbar-thumb{background:var(--gray-mid);border-radius:var(--r-pill)}
+.f-bulk-strip-item{position:relative;flex:0 0 auto;width:38px;padding:0;border:2px solid transparent;border-radius:7px;
+  background:var(--gray-light);cursor:pointer;overflow:hidden;line-height:0;
+  animation:gBulkThumbIn var(--dur-fast) var(--ease-spring-soft) both;
+  transition:border-color var(--dur-micro) var(--ease-standard),transform var(--dur-micro) var(--ease-spring),
+             box-shadow var(--dur-micro) var(--ease-standard)}
+.f-bulk-strip-item canvas{display:block;width:100%;height:auto;border-radius:5px}
+.f-bulk-strip-item:hover{transform:translateY(-2px);border-color:var(--dm-orange-tint)}
+.f-bulk-strip-item.is-active{border-color:var(--dm-orange);box-shadow:0 0 0 3px color-mix(in srgb,var(--dm-orange) 18%,transparent)}
+.f-bulk-strip-item:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+.f-bulk-strip-item .f-bulk-strip-n{position:absolute;left:2px;top:2px;min-width:14px;height:14px;padding:0 3px;
+  border-radius:var(--r-pill);background:color-mix(in srgb,var(--text) 62%,transparent);color:var(--white);
+  font-size:9px;font-weight:800;line-height:14px;text-align:center}
+@keyframes gBulkThumbIn{from{opacity:0;transform:scale(.86)}to{opacity:1;transform:scale(1)}}
+
+/* ── A planilha ── */
+.f-bulk-sheet{display:flex;flex-direction:column;gap:12px;min-width:0;min-height:0;overflow:auto;padding:18px 20px 22px;
+  scrollbar-width:thin;scrollbar-color:var(--gray-mid) transparent}
+/* Grudado no topo: a planilha rola, mas "quantas linhas / quantas prontas" e o botão de
+   preencher são a régua da coluna — sumir com eles ao rolar é perder o rumo. */
+.f-bulk-sheet-head{position:sticky;top:-18px;z-index:4;display:flex;align-items:flex-start;justify-content:space-between;
+  gap:14px;flex-wrap:wrap;margin:-18px -20px 0;padding:18px 20px 12px;background:var(--off-white)}
+.f-bulk-sheet-title{display:flex;flex-direction:column;gap:4px;min-width:0}
+.f-bulk-sheet-title h3{margin:0;font-family:'Roboto',sans-serif;font-size:20px;font-weight:900;letter-spacing:-.015em;color:var(--text)}
+.f-bulk-import-toggle{display:inline-flex;align-items:center;gap:8px;padding:9px 13px;border:1px solid var(--gray-mid);
+  border-radius:var(--r-pill);background:var(--white);color:var(--text-2);font:750 12px/1 'Roboto',sans-serif;cursor:pointer;
+  transition:border-color var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard),
+             color var(--dur-micro) var(--ease-standard),transform var(--dur-micro) var(--ease-spring)}
+.f-bulk-import-toggle svg:first-child{width:15px;height:15px;color:var(--dm-orange-d)}
+.f-bulk-import-toggle .f-bulk-disclosure-icon{width:14px;height:14px;color:var(--text-3);
+  transition:transform var(--dur-fast) var(--ease-standard)}
+.f-bulk-import-toggle:hover{border-color:var(--dm-orange);background:var(--dm-orange-bg);color:var(--dm-orange-d);transform:translateY(-1px)}
+.f-bulk-import-toggle[aria-expanded="true"] .f-bulk-disclosure-icon{transform:rotate(90deg)}
+/* Painel de importação: fechado é altura 0 (não display:none) para a abertura ter de onde
+   partir — o mesmo motivo do acordeão da Academia. */
+.f-bulk-import{display:grid;grid-template-rows:0fr;opacity:0;
+  transition:grid-template-rows var(--dur-base) var(--ease-standard),opacity var(--dur-fast) var(--ease-standard)}
+.f-bulk-import>*{overflow:hidden;min-height:0}
+.f-bulk-import.is-open{grid-template-rows:1fr;opacity:1}
+.f-bulk-import-inner{display:flex;flex-direction:column;gap:14px;padding-bottom:2px}
+.f-bulk-sheet .f-bulk-preview{animation:gBulkFadeIn var(--dur-fast) var(--ease-out)}
+@keyframes gBulkFadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* A linha ativa é a que está na prévia — o vínculo entre as duas colunas precisa ser visível
+   sem piscar a tabela inteira: barra de acento à esquerda + fundo levíssimo. */
+.f-bulk-table tr.is-active>td{background:color-mix(in srgb,var(--dm-orange) 6%,transparent)}
+.f-bulk-table tr.is-active>td:first-child{box-shadow:inset 3px 0 0 var(--dm-orange)}
+.f-bulk-table tr>td{transition:background var(--dur-micro) var(--ease-standard)}
+
+/* ── Rodapé: o que sai ── */
+.f-bulk-fmts-block{display:flex;align-items:center;gap:10px;min-width:0;flex-wrap:wrap}
+.f-bulk-fmts-label{color:var(--text-3);font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+.f-bulk-post-opts{position:relative}
+.f-bulk-post-opts>summary{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border:1px solid var(--gray-mid);
+  border-radius:var(--r-pill);background:var(--white);color:var(--text-2);font:700 12px/1 'Roboto',sans-serif;cursor:pointer;
+  list-style:none;white-space:nowrap;transition:border-color var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard)}
+.f-bulk-post-opts>summary::-webkit-details-marker{display:none}
+.f-bulk-post-opts>summary:hover{border-color:var(--dm-orange);background:var(--dm-orange-bg)}
+.f-bulk-post-opts>summary svg:first-child{width:14px;height:14px;color:var(--text-3)}
+.f-bulk-post-opts>summary .f-bulk-disclosure-icon{width:13px;height:13px;transition:transform var(--dur-fast) var(--ease-standard)}
+.f-bulk-post-opts[open]>summary .f-bulk-disclosure-icon{transform:rotate(90deg)}
+/* Abre PARA CIMA: o disclosure vive no rodapé e não há espaço abaixo dele. */
+.f-bulk-post-opts-body{position:absolute;bottom:calc(100% + 8px);left:0;z-index:5;min-width:280px;padding:14px;
+  border:1px solid var(--gray-mid);border-radius:var(--r);background:var(--white);
+  box-shadow:0 16px 40px color-mix(in srgb,var(--text) 18%,transparent);
+  animation:gFadeInUp var(--dur-fast) var(--ease-out) both}
+@keyframes gFadeInUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
 /* Disclosure dos caminhos alternativos e das ferramentas de planilha. */
 .f-bulk-alt{border:1px solid var(--gray-mid);border-radius:var(--r);background:var(--white);overflow:hidden}
@@ -687,13 +774,17 @@ body:has(#f-bulk-modal.open) #mobile-preview-toggle{display:none!important}
 .f-bulk-massbar-row button{font-size:12px;padding:6px 12px;border-radius:var(--r-sm);font-weight:650;cursor:pointer;white-space:nowrap}
 
 body:not(.theme-light) .f-bulk-workspace{background:var(--d-dark)}
-body:not(.theme-light) .f-bulk-trail{background:var(--d-surf);border-color:var(--d-border)}
-body:not(.theme-light) .f-bulk-trail-item:hover{background:var(--d-surf2)}
-body:not(.theme-light) .f-bulk-trail-num{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text2)}
-body:not(.theme-light) .f-bulk-trail-txt strong{color:var(--d-text)}
-body:not(.theme-light) .f-bulk-trail-txt small{color:var(--d-text3)}
-body:not(.theme-light) .f-bulk-stage-head h3{color:var(--d-text)}
-body:not(.theme-light) .f-bulk-stage-head p{color:var(--d-text2)}
+body:not(.theme-light) .f-bulk-live{background:var(--d-surf);border-color:var(--d-border)}
+body:not(.theme-light) .f-bulk-live-frame{background:var(--d-surf2)}
+body:not(.theme-light) .f-bulk-live-chip{background:var(--d-surf2);color:var(--d-text2)}
+body:not(.theme-light) .f-bulk-live-arrow{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text2)}
+body:not(.theme-light) .f-bulk-live-hint,body:not(.theme-light) .f-bulk-live-nav{color:var(--d-text3)}
+body:not(.theme-light) .f-bulk-strip-item{background:var(--d-surf2)}
+body:not(.theme-light) .f-bulk-sheet-title h3{color:var(--d-text)}
+body:not(.theme-light) .f-bulk-sheet-head{background:var(--d-dark)}
+body:not(.theme-light) .f-bulk-import-toggle,body:not(.theme-light) .f-bulk-post-opts>summary,
+body:not(.theme-light) .f-bulk-post-opts-body{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text2)}
+body:not(.theme-light) .f-bulk-table tr.is-active>td{background:color-mix(in srgb,var(--dm-orange) 12%,transparent)}
 body:not(.theme-light) .f-bulk-alt,body:not(.theme-light) .f-bulk-massbar{background:var(--d-surf);border-color:var(--d-border2)}
 body:not(.theme-light) .f-bulk-alt>summary:hover,body:not(.theme-light) .f-bulk-massbar>summary:hover{background:var(--d-surf2)}
 body:not(.theme-light) .f-bulk-alt>summary strong,body:not(.theme-light) .f-bulk-massbar>summary strong{color:var(--d-text)}
@@ -866,7 +957,35 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
 
 .f-bulk-footer{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:64px;padding:10px 20px;border-top:1px solid var(--gray-light);background:var(--white);box-shadow:0 -8px 24px color-mix(in srgb,var(--text) 4%,transparent)}
 .f-bulk-footer-note{display:flex;align-items:center;gap:8px;max-width:680px;color:var(--text-3);font-size:10.5px;line-height:1.4}.f-bulk-footer-note svg{width:15px;height:15px;flex:0 0 auto;color:var(--dm-orange-d)}
-.f-bulk-footer-actions{display:flex;align-items:center;gap:8px}.f-bulk-footer-actions .d-btn-pri{display:inline-flex;align-items:center;gap:7px;min-height:38px;padding:0 18px;font-weight:750}.f-bulk-footer-actions .d-btn-pri svg{width:15px;height:15px}
+.f-bulk-footer-actions{display:flex;align-items:center;gap:8px;margin-left:auto}.f-bulk-footer-actions .d-btn-pri{display:inline-flex;align-items:center;gap:7px;min-height:38px;padding:0 18px;font-weight:750}.f-bulk-footer-actions .d-btn-pri svg{width:15px;height:15px}
+/* Dentro do popover o par vira coluna: 280px não comportam dois campos lado a lado. */
+.f-bulk-post-opts-body.f-bulk-output-fields{grid-template-columns:1fr;gap:12px}
+
+/* ── Telas estreitas: empilha. Duas colunas não cabem no celular, e é nele que o franqueado
+      mais usa. A arte vira uma faixa no topo, com a fita rolando ao lado dela. ── */
+@media (max-width:900px){
+  .f-bulk-split{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}
+  .f-bulk-live{flex-direction:row;align-items:center;gap:14px;padding:12px 14px;
+    border-right:0;border-bottom:1px solid var(--gray-light)}
+  .f-bulk-live-top,.f-bulk-live-hint{display:none}
+  .f-bulk-live-stage{flex:0 0 auto;height:132px}
+  .f-bulk-live-frame{height:132px}
+  .f-bulk-live-nav{display:none}
+  .f-bulk-strip{flex:1;min-width:0}
+  .f-bulk-sheet{padding:14px}
+  .f-bulk-footer{flex-wrap:wrap;gap:10px}
+  .f-bulk-footer-actions{width:100%;margin-left:0}
+  .f-bulk-footer-actions .d-btn-pri{flex:1;justify-content:center}
+}
+
+/* Movimento fora, informação intacta (motion.md §3): sem crossfade nem pop, mas a arte, a
+   fita e o painel de importação continuam aparecendo — nada aqui depende da animação. */
+@media (prefers-reduced-motion:reduce){
+  .f-bulk-live-frame.is-swapping canvas{opacity:1;transform:none}
+  .f-bulk-strip-item{animation:none}
+  .f-bulk-import{transition:none}
+  .f-bulk-post-opts-body{animation:none}
+}
 
 #f-bulk-modal .d-btn-pri{border:1px solid var(--dm-orange-d)!important;border-radius:var(--r-sm);background:var(--dm-orange-d)!important;color:var(--white)!important;box-shadow:0 3px 9px color-mix(in srgb,var(--dm-orange-d) 18%,transparent);font-family:'Roboto',sans-serif;cursor:pointer;transition:transform var(--dur-micro) var(--ease-spring),box-shadow var(--dur-micro) var(--ease-standard),filter var(--dur-micro) var(--ease-standard)}
 #f-bulk-modal .d-btn-pri:hover{box-shadow:0 7px 17px color-mix(in srgb,var(--dm-orange-d) 25%,transparent);filter:brightness(.94);transform:translateY(-1px)}

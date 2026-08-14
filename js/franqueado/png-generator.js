@@ -1462,9 +1462,12 @@ async function fBulkOpen(){
   
   fBulkUpdateSavedTemplatesList();
   document.getElementById('f-bulk-modal').classList.add('open');
-  // Rascunho recuperado já tem ofertas: abre direto na conferência, senão a pessoa
-  // teria que atravessar o passo 1 de novo pra ver o que já era dela.
-  fBulkStep(restored ? 2 : 1);
+  // Sem passos: a tela já está inteira na frente. O que muda é só o painel de importação —
+  // aberto quando não há nada preenchido (o ponto de partida de quem chega), fechado quando
+  // um rascunho voltou, porque aí o assunto é conferir o que já é dela.
+  const _temOferta = fBulkRows.some(r=>Object.values(r.dados||{}).some(v=>String(v||'').trim()));
+  fBulkToggleImport(!_temOferta);
+  fBulkSetActive(0);
   if(restored)gToast('Sua produção foi recuperada automaticamente');
 }
 function fBulkClose(){
@@ -1479,65 +1482,166 @@ function fBulkClose(){
    logo na abertura. Agora aparece UMA pergunta por vez; o resto continua existindo,
    só não estorva. Nada de estado novo além do passo atual — as funções, os ids e o
    fluxo de dados são exatamente os mesmos de antes. */
-let _fBulkStepN = 1;
-function fBulkStep(n){
-  _fBulkStepN = Math.max(1, Math.min(3, n|0));
-  const modal = document.getElementById('f-bulk-modal');
-  if(!modal) return;
-  modal.querySelectorAll('.f-bulk-stage').forEach(s=>{
-    s.hidden = (+s.dataset.step !== _fBulkStepN);
-  });
-  modal.querySelectorAll('.f-bulk-trail-item').forEach(b=>{
-    const i = +b.dataset.goto;
-    b.classList.toggle('is-now', i === _fBulkStepN);
-    b.classList.toggle('is-done', i < _fBulkStepN);
-    b.setAttribute('aria-current', i === _fBulkStepN ? 'step' : 'false');
-  });
-  const back = document.getElementById('f-bulk-back-btn');
-  const next = document.getElementById('f-bulk-next-btn');
-  const dl   = document.getElementById('f-bulk-dl-btn');
-  // No passo 1 não há pra onde voltar: o botão vira "Fechar" em vez de ficar morto na tela.
-  if(back){
-    back.textContent = (_fBulkStepN===1) ? 'Fechar' : 'Voltar';
-    back.onclick = (_fBulkStepN===1) ? fBulkClose : fBulkStepBack;
-  }
-  // "Gerar" só existe no último passo — ver o botão final desde o começo faz a pessoa
-  // clicar antes de preencher e colher um erro que ela não causou.
-  if(next) next.hidden = (_fBulkStepN===3);
-  if(dl)   dl.hidden   = (_fBulkStepN!==3);
-  // A planilha só é montada quando o passo dela aparece (o render lê o DOM visível).
-  // Guard de material: fBulkVars() (abaixo dos dois) lê fState.material.layers direto. A
-  // trilha é clicável a qualquer momento — sem isto, um clique com o material trocado
-  // por baixo derruba a navegação inteira com "Cannot read properties of null".
-  const _temMat = !!(typeof fState!=='undefined' && fState.material && fState.material.layers);
-  if(_temMat && _fBulkStepN===2 && typeof fBulkRenderPreview==='function') fBulkRenderPreview();
-  if(_temMat && typeof fBulkUpdateReadiness==='function') fBulkUpdateReadiness();
-  const ws = modal.querySelector('.f-bulk-workspace');
-  if(ws) ws.scrollTop = 0;
+/* ══════════════════════════════════════════════════════════════
+   UMA TELA SÓ — a arte ao vivo ao lado da planilha.
+   A máquina de 3 passos (fBulkStep/StepNext/StepBack) saiu: o passo 1 era um MENU de
+   importação e o passo 3, três controles. Nenhum dos dois é fase de trabalho, e virar tela
+   escondia a planilha — que é onde o trabalho acontece — atrás de dois cliques.
+   O que sobrou é o vínculo entre as duas colunas: a LINHA ATIVA. Ela é o que a prévia
+   grande mostra, o que a fita destaca e o que a tabela acende.
+══════════════════════════════════════════════════════════════ */
+let _fBulkActive = 0;        // índice da linha que está na prévia
+let _fBulkHeroToken = 0;     // aborta render antigo quando a linha troca no meio
+
+// Resolve o índice ativo contra o tamanho ATUAL do lote — linhas somem (remover, limpar,
+// reimportar) e um índice guardado vira ponteiro para o nada.
+function _fBulkActiveIdx(){
+  if(!fBulkRows.length) return -1;
+  return Math.max(0, Math.min(_fBulkActive, fBulkRows.length-1));
 }
-function fBulkStepBack(){ fBulkStep(_fBulkStepN-1); }
-// Importou ofertas com sucesso → mostra o resultado. Só avança a partir do passo 1: se a
-// pessoa já está conferindo ou escolhendo formato, arrastá-la de volta seria sequestrar o foco.
-function _fBulkGoReview(){ if(_fBulkStepN===1) fBulkStep(2); }
-function fBulkStepNext(){
-  // Sair do passo 1 sem nenhuma oferta é o erro mais comum: avisa e leva pra planilha
-  // mesmo assim (ela pode digitar direto na tabela — não é um bloqueio, é um empurrão).
-  if(_fBulkStepN===1){
-    const vazio = !fBulkRows.some(r=>Object.values(r.dados||{}).some(v=>String(v||'').trim()));
-    if(vazio) gToast('Escreva suas ofertas acima, ou preencha direto na planilha do próximo passo.');
+function fBulkSetActive(i, opts){
+  const n = fBulkRows.length;
+  if(!n) return;
+  const novo = Math.max(0, Math.min(i|0, n-1));
+  const mudou = novo !== _fBulkActive;
+  _fBulkActive = novo;
+  // Acende a linha na tabela sem re-renderizar nada: re-render roubaria o foco de quem
+  // está digitando, que é exatamente quem dispara isto.
+  const tb = document.getElementById('f-bulk-preview');
+  if(tb) tb.querySelectorAll('tr[data-row]').forEach(tr=>{
+    tr.classList.toggle('is-active', +tr.dataset.row === novo);
+  });
+  const strip = document.getElementById('f-bulk-strip');
+  document.querySelectorAll('.f-bulk-strip-item').forEach(b=>{
+    const on = +b.dataset.row === novo;
+    b.classList.toggle('is-active', on);
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+    /* ⚠ NÃO usar scrollIntoView aqui: ele rola o ancestral rolável mais próximo — e rola
+       mesmo um container com `overflow:hidden`, via scrollTop. O resultado media 53px de
+       corte no topo das DUAS colunas (a arte aparecia sem o começo). Aqui só a fita rola,
+       na horizontal, que é o único movimento que esta seleção justifica. */
+    if(on && mudou && strip && !(opts&&opts.semRolar)){
+      strip.scrollLeft = b.offsetLeft - (strip.clientWidth - b.offsetWidth)/2;
+    }
+  });
+  _fBulkSyncLiveHead();
+  _fBulkRenderHero(mudou);
+}
+function fBulkStepRow(delta){
+  if(!fBulkRows.length) return;
+  const n = fBulkRows.length;
+  fBulkSetActive((_fBulkActiveIdx() + delta + n) % n);
+}
+// Rótulo, contador, setas e o selo de "pronta / faltando" — tudo o que descreve a arte
+// que está em cena, num lugar só.
+function _fBulkSyncLiveHead(){
+  const i = _fBulkActiveIdx(), n = fBulkRows.length;
+  const lab = document.getElementById('f-bulk-live-label');
+  const cnt = document.getElementById('f-bulk-live-count');
+  const chip = document.getElementById('f-bulk-live-chip');
+  if(lab) lab.textContent = n ? `A arte da linha ${i+1}` : 'Nenhuma linha ainda';
+  if(cnt) cnt.textContent = n ? `linha ${i+1} de ${n}` : '—';
+  document.querySelectorAll('.f-bulk-live-arrow').forEach(b=>{ b.disabled = n < 2; });
+  if(chip){
+    const r = fBulkRows[i];
+    const faltando = r ? (r.erros||[]).length : 0;
+    const vazia = r ? !Object.values(r.dados||{}).some(v=>String(v||'').trim()) : true;
+    chip.textContent = vazia ? 'vazia' : (faltando ? `${faltando} campo(s) a preencher` : 'pronta');
+    chip.className = 'f-bulk-live-chip ' + (vazia||faltando ? 'is-wait' : 'is-ok');
   }
-  fBulkStep(_fBulkStepN+1);
+}
+/* A prévia grande sai do MESMO motor do PNG final (fRenderTemplateLayers) — é a régua única
+   da casa, e é o que garante que esta tela não minta sobre o arquivo que vai baixar.
+   `trocou` liga o crossfade: sem ele, substituir o pixel de uma arte pela outra pisca. */
+async function _fBulkRenderHero(trocou){
+  const cv = document.getElementById('f-bulk-hero-cv');
+  const frame = document.getElementById('f-bulk-live-frame');
+  if(!cv || !fState.material || !fState.material.layers) return;
+  const i = _fBulkActiveIdx();
+  const row = fBulkRows[i];
+  const token = ++_fBulkHeroToken;
+  const [w,h] = fMaterialSize(fState.material, fState.fmt);
+  if(frame){
+    frame.style.setProperty('--f-bulk-ar', w+'/'+h);
+    if(trocou) frame.classList.add('is-swapping');
+  }
+  // Resolução da prévia: o dobro do que a coluna mostra, com teto — renderizar no tamanho
+  // nativo de um story (1080×1920) a cada tecla custaria caro e ninguém veria a diferença.
+  const alvo = Math.min(w, 760);
+  cv.width = alvo; cv.height = Math.max(1, Math.round(alvo*h/w));
+  try{
+    const off = document.createElement('canvas'); off.width=w; off.height=h;
+    await fRenderTemplateLayers(off.getContext('2d'), fState.material.layers, w, h, (row&&row.dados)||{}, fState.camp);
+    if(token !== _fBulkHeroToken) return;   // a linha trocou no meio: este desenho é velho
+    const ctx = cv.getContext('2d');
+    ctx.clearRect(0,0,cv.width,cv.height);
+    ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+    ctx.drawImage(off,0,0,w,h,0,0,cv.width,cv.height);
+  }catch(e){
+    console.warn('[bulk] prévia grande falhou:', e);
+  }finally{
+    if(frame && token === _fBulkHeroToken) frame.classList.remove('is-swapping');
+  }
+}
+/* A fita reusa os ids `f-bulk-cv-<i>` das antigas miniaturas de cartão — por isso
+   `fBulkRenderThumbs`/`fBulkRenderCardPreview` continuam valendo sem uma linha de mudança. */
+function _fBulkRenderStrip(){
+  const strip = document.getElementById('f-bulk-strip');
+  if(!strip || !fState.material || !fState.material.layers) return;
+  const [nw,nh] = fMaterialSize(fState.material, fState.fmt);
+  const cw = 34, ch = Math.max(20, Math.round(cw*nh/nw));
+  strip.innerHTML = fBulkRows.map((r,i)=>
+    `<button type="button" class="f-bulk-strip-item${i===_fBulkActiveIdx()?' is-active':''}" data-row="${i}"
+       role="tab" aria-selected="${i===_fBulkActiveIdx()}" title="Ver a arte da linha ${i+1}"
+       style="animation-delay:${Math.min(i,8)*30}ms" onclick="fBulkSetActive(${i},{semRolar:true})">
+       <span class="f-bulk-strip-n">${i+1}</span>
+       <canvas id="f-bulk-cv-${i}" width="${cw}" height="${ch}"></canvas>
+     </button>`).join('');
+  fBulkRenderThumbs();
+}
+/* O painel de importação (o antigo passo 1). Abre sozinho com a planilha vazia — é o estado
+   de quem chega — e fecha quando já há ofertas, porque aí a tabela é o assunto. */
+function fBulkToggleImport(forcar){
+  const p = document.getElementById('f-bulk-import');
+  const b = document.getElementById('f-bulk-import-toggle');
+  if(!p) return;
+  const abrir = (typeof forcar==='boolean') ? forcar : !p.classList.contains('is-open');
+  p.classList.toggle('is-open', abrir);
+  if(b) b.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+}
+/* A arte grande acompanha a digitação — é o ponto inteiro desta tela.
+   Debounce curto porque cada volta redesenha o material pelo motor do PNG: disparar por tecla
+   travaria a digitação numa arte pesada (o mesmo motivo do debounce da prévia ao vivo do chat).
+   `fBulkSaveRow(i,true,true)` é silencioso E não recalcula prontidão — re-render aqui roubaria
+   o foco do campo que está sendo digitado. */
+let _fBulkLiveT = null;
+function fBulkLiveEdit(i){
+  fBulkSetActive(i, {semRolar:true});
+  clearTimeout(_fBulkLiveT);
+  _fBulkLiveT = setTimeout(()=>{
+    fBulkSaveRow(i, true, true);
+    _fBulkSyncLiveHead();
+    _fBulkRenderHero(false);
+    if(typeof fBulkRenderCardPreview==='function') fBulkRenderCardPreview(fBulkRows[i], i);
+    if(typeof fBulkScheduleAutosave==='function') fBulkScheduleAutosave();
+  }, 160);
+}
+// Importou ofertas com sucesso → fecha o painel e leva o olho pra planilha, que é o resultado.
+function _fBulkGoReview(){
+  fBulkToggleImport(false);
+  const tb = document.getElementById('f-bulk-preview');
+  if(tb) try{ tb.scrollIntoView({block:'nearest',behavior:'smooth'}); }catch(e){}
 }
 
 /* ── DÚVIDAS FREQUENTES (FAQ) do Luma Sheets ── */
 const F_BULK_FAQ = [
-  { cat:'Começar', q:'O que é o Luma Sheets?', a:'É a geração de artes em lote: você preenche uma planilha (cada linha = uma arte) e o Luma gera todas de uma vez, prontas pra baixar num ZIP.' },
+  { cat:'Começar', q:'O que é o Luma Sheets?', a:'É a geração de artes em lote numa tela só: você preenche a planilha (cada linha = uma arte), vê cada uma na prévia ao lado enquanto digita, e o Luma gera todas de uma vez, prontas pra baixar num ZIP.' },
   { cat:'Começar', q:'Como preencho a planilha?', a:'Três jeitos: (1) digite direto na tabela; (2) baixe o “CSV Modelo”, preencha no Excel e reenvie; (3) copie do Excel/Planilhas e cole pelo botão “Excel”.' },
   { cat:'Começar', q:'“Começar com exemplos” lê meu cardápio real?', a:'Não. É uma demonstração que gera exemplos por tipo (pizza, sushi, burger) só como ponto de partida. Edite com seus produtos e preços reais antes de gerar.' },
-  { cat:'Recursos', q:'Posso ditar por voz?', a:'Sim — clique no microfone ao lado de “Preencher Tabela” e fale suas ofertas (ex.: “hambúrguer por 25, pizza de 50 por 39”). O assistente separa produto e preço. Precisa de Chrome/Edge e do site em https ou localhost (não funciona abrindo o arquivo direto).' },
-  { cat:'Recursos', q:'Como coloco fotos nos produtos?', a:'Na visualização em tabela, cada campo de imagem tem o botão “Foto” (envia do computador) ou um campo pra colar um link. Fotos abaixo de 600px avisam que podem sair pixeladas.' },
-  { cat:'Recursos', q:'Dá pra exportar vários formatos?', a:'Sim — marque os formatos (Story, Feed, Post wide…) em “Formatos para Exportar” e o ZIP vem com uma pasta por formato.' },
-  { cat:'Recursos', q:'O que são as Ações em Massa?', a:'Na tabela você preenche uma coluna inteira de uma vez, aplica desconto em % ou arredonda os preços pra final “,90” — tudo em todas as linhas ao mesmo tempo.' },
+  { cat:'Recursos', q:'Posso ditar por voz?', a:'Sim — clique em “Falar” no painel de preencher e fale suas ofertas (ex.: “hambúrguer por 25, pizza de 50 por 39”). O assistente separa produto e preço. Precisa de Chrome/Edge e do site em https ou localhost (não funciona abrindo o arquivo direto).' },
+  { cat:'Recursos', q:'Como coloco fotos nos produtos?', a:'Na planilha, cada campo de imagem tem o botão “Foto” (envia do computador) ou um campo pra colar um link. Fotos abaixo de 600px avisam que podem sair pixeladas.' },
+  { cat:'Recursos', q:'Dá pra exportar vários formatos?', a:'Sim — marque os formatos (Story, Feed, Post wide…) no rodapé e o ZIP vem com uma pasta por formato.' },
+  { cat:'Recursos', q:'O que são as Ações em Massa?', a:'Em “Mudar tudo de uma vez” você preenche uma coluna inteira de uma só vez, aplica desconto em % ou arredonda os preços pra final “,90” — tudo em todas as linhas ao mesmo tempo.' },
   { cat:'Recursos', q:'O ZIP vem com as legendas?', a:'Sim — junto das imagens vem um arquivo “legendas_posts.txt” com 3 opções de copy por produto. Escolha entre formato Feed (completo, com hashtags) ou Stories (curto) pelo seletor “Copy” na toolbar. As copys seguem o tom de voz Delivery Much e não se repetem.' },
   { cat:'Problemas', q:'Uma arte saiu em branco ou errada. Por quê?', a:'Confira se a linha não tem campos com erro (o card mostra um aviso laranja) e se o material selecionado tem as variáveis certas. Corrija a linha e gere de novo.' },
 ];
@@ -2429,13 +2533,11 @@ function fBulkHandleCSV(input){
   r.readAsText(file);
 }
 let _fBulkRenderToken=0;
-let _fBulkTableView=false;
-
-function fBulkToggleTableView() {
-  fBulkCollectCurrentInputs();
-  _fBulkTableView = !_fBulkTableView;
-  fBulkRenderPreview();
-}
+/* Só existe a grade. A "vista em cartões" era a única forma de ver as artes do lote, e a
+   coluna da esquerda passou a fazer isso melhor — grande, ao vivo e sem trocar de modo. A
+   variável fica porque o rascunho salvo guarda `tableView` e não vale invalidar rascunho de
+   quem está no meio de uma produção; o toggle é que saiu. */
+let _fBulkTableView=true;
 
 // Uma leitura única mantém cabeçalho, rodapé e pré-voo falando a mesma verdade.
 // Linha totalmente vazia não é "erro": é um espaço de trabalho ainda não usado.
@@ -2510,8 +2612,11 @@ function fBulkUpdateReadiness(readiness=fBulkGetReadiness()) {
     dlBtn.disabled = ready === 0;
     dlBtn.setAttribute('aria-disabled', ready === 0 ? 'true' : 'false');
     dlBtn.title = ready ? `${readiness.artCount} arte(s) pronta(s) para gerar` : 'Preencha e revise a planilha antes de gerar';
-    dlBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg><span>${label}</span>`;
+    dlBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg><span id="f-bulk-dl-label">${label}</span>`;
   }
+  // O selo da prévia ("pronta" / "N campos a preencher") vem da mesma apuração — sem isto ele
+  // mentiria enquanto o resto da tela já sabia a verdade.
+  if(typeof _fBulkSyncLiveHead==='function') _fBulkSyncLiveHead();
 }
 
 function fBulkRenderPreview(){
@@ -2554,12 +2659,14 @@ function fBulkRenderPreview(){
           </td>`;
         }
 
+        // onfocus acende a linha na prévia; oninput mantém a arte grande acompanhando o que
+        // está sendo digitado (com folga — ver fBulkLiveEdit).
         return `<td style="padding:6px 4px;border-bottom:1px solid var(--gray-light, #F2F2F2)">
-          <input type="text" id="f-bulk-edit-${i}-${k}" value="${safeV}" style="width:100%;min-width:120px;font-size:12px;padding:6px 8px;border:1px solid ${isFieldErr?'var(--dm-red,#C81818)':'var(--gray-mid, #D4D4D4)'};border-radius:var(--r-sm);background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);outline:none;transition:all var(--dur-micro) var(--ease-standard)" onfocus="this.style.borderColor='var(--dm-orange-d,#F85400)';this.style.boxShadow='0 0 0 3px rgba(248,84,0,0.12)'" onblur="this.style.borderColor='${isFieldErr?'var(--dm-red,#C81818)':'var(--gray-mid, #D4D4D4)'}';this.style.boxShadow='';fBulkSaveRow(${i}, true)">
+          <input type="text" id="f-bulk-edit-${i}-${k}" value="${safeV}" style="width:100%;min-width:120px;font-size:12px;padding:6px 8px;border:1px solid ${isFieldErr?'var(--dm-red,#C81818)':'var(--gray-mid, #D4D4D4)'};border-radius:var(--r-sm);background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);outline:none;transition:all var(--dur-micro) var(--ease-standard)" oninput="fBulkLiveEdit(${i})" onfocus="fBulkSetActive(${i});this.style.borderColor='var(--dm-orange-d,#F85400)';this.style.boxShadow='0 0 0 3px rgba(248,84,0,0.12)'" onblur="this.style.borderColor='${isFieldErr?'var(--dm-red,#C81818)':'var(--gray-mid, #D4D4D4)'}';this.style.boxShadow='';fBulkSaveRow(${i}, true)">
         </td>`;
       }).join('');
 
-      return `<tr>
+      return `<tr data-row="${i}"${i===_fBulkActiveIdx()?' class="is-active"':''} onmousedown="fBulkSetActive(${i},{semRolar:true})">
         <td style="padding:6px 4px;border-bottom:1px solid var(--gray-light, #F2F2F2);text-align:center;display:flex;align-items:center;justify-content:center;gap:4px">
           <button class="d-btn-sec" style="padding:0;width:22px;height:22px;border-radius:50%;color:var(--text-3,#6B6B6B);background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all var(--dur-micro) var(--ease-standard)" onmouseover="this.style.color='var(--dm-orange-d,#F85400)';this.style.background='var(--dm-orange-bg,rgba(255,144,0,.12))'" onmouseout="this.style.color='';this.style.background=''" onclick="fBulkShowCopyModal(${i})" title="Ver legendas geradas"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
           <button class="d-btn-sec" style="padding:0;width:22px;height:22px;border-radius:50%;color:var(--text-3,#6B6B6B);background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all var(--dur-micro) var(--ease-standard)" onmouseover="this.style.color='var(--dm-orange-d,#F85400)';this.style.background='var(--dm-orange-bg,rgba(255,144,0,.12))'" onmouseout="this.style.color='';this.style.background=''" onclick="fBulkCloneRow(${i})" title="Duplicar linha"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
@@ -2616,38 +2723,13 @@ function fBulkRenderPreview(){
         </button>
       </div>
     </div>`;
+    // A fita e a prévia grande se refazem junto com a tabela — são a mesma verdade em três
+    // tamanhos. (A antiga "vista em cartões" saiu: a coluna da esquerda faz o mesmo trabalho,
+    // maior e sem um clique a mais.)
+    _fBulkRenderStrip();
+    fBulkSetActive(_fBulkActiveIdx(), {semRolar:true});
     return;
   }
-  
-  // Proporção do thumbnail conforme o tamanho real do material (ou o preset, p/ legados)
-  const [nw,nh]=fMaterialSize(fState.material, fState.fmt);
-  const cw=96, ch=Math.max(40,Math.round(cw*nh/nw));
-  const query = document.getElementById('f-bulk-search')?.value.trim().toLowerCase() || '';
-  wrap.innerHTML=fBulkRows.map((r,i)=>{
-    if (query) {
-      const match = Object.values(r.dados).some(v => String(v).toLowerCase().includes(query));
-      if (!match) return '';
-    }
-    const titulo=r.dados.produto||r.dados.categoria||r.dados.brinde||Object.values(r.dados)[0]||('Linha '+(i+1));
-    const campos=Object.keys(r.dados).slice(0,2).map(k=>{
-      const label=(typeof _fLpLabel==='function')?_fLpLabel(k):k;
-      return `<div class="f-bulk-field"><span>${gEsc(label)}:</span> ${(gEsc(r.dados[k]))||'—'}</div>`;
-    }).join('');
-    const isErr = r.erros.length > 0;
-    const actionsHtml = isErr 
-      ? `<button class="d-btn-sec" style="padding:2px 6px;font-size:9px;margin-top:4px;width:100%" onclick="fBulkEditRow(${i})">Corrigir linha</button>` 
-      : `<button class="d-btn-sec" style="padding:2px 6px;font-size:9px;margin-top:4px;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:4px" onclick="fBulkShowCopyModal(${i})"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Legendas</button>`;
-    const iaChip = _fBulkIaChip(r);
-    return `<div class="f-bulk-card ${isErr?'has-err':''}" id="f-bulk-card-${i}">`
-      +`<button class="f-bulk-remove" onclick="fBulkRemoveCard(${i})" title="Remover do lote">×</button>`
-      +`<div class="f-bulk-card-num">${i+1}</div>${iaChip}`
-      +`<canvas class="f-bulk-canvas" id="f-bulk-cv-${i}" width="${cw}" height="${ch}"></canvas>`
-      +`<div class="f-bulk-card-title" title="${gEsc(titulo)}">${gEsc(titulo)}</div>`
-      +`<div class="f-bulk-card-info" id="f-bulk-info-${i}">${campos}${actionsHtml}</div>`
-      +`<div class="f-bulk-card-status"><span class="f-bulk-badge loading" id="f-bulk-badge-${i}">⏳</span></div>`
-      +`</div>`;
-  }).join('');
-  fBulkRenderThumbs();
 }
 
 function fBulkEditRow(i) {

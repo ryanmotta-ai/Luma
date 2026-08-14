@@ -2376,7 +2376,7 @@ body:not(.theme-light) input:-webkit-autofill:active {
           <h2 id="f-bulk-title">Luma Sheets</h2>
         </div>
       </div>
-      <p id="f-bulk-description">Crie várias artes de uma vez. São três passos — o Luma avisa quando cada um estiver pronto.</p>
+      <p id="f-bulk-description">Cada linha vira uma arte. A prévia à esquerda acompanha o que você digita.</p>
       <div class="f-bulk-head-actions">
         <button type="button" class="f-bulk-faq-btn" onclick="fBulkToggleFaq()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -2388,30 +2388,61 @@ body:not(.theme-light) input:-webkit-autofill:active {
       </div>
     </header>
 
-    <!-- Trilha das 3 etapas: onde estou, o que já fiz, o que falta. Clicável pra voltar. -->
-    <nav class="f-bulk-trail" id="f-bulk-trail" aria-label="Etapas">
-      <button type="button" class="f-bulk-trail-item" data-goto="1" onclick="fBulkStep(1)">
-        <span class="f-bulk-trail-num">1</span>
-        <span class="f-bulk-trail-txt"><strong>Suas ofertas</strong><small>o que você vai anunciar</small></span>
-      </button>
-      <button type="button" class="f-bulk-trail-item" data-goto="2" onclick="fBulkStep(2)">
-        <span class="f-bulk-trail-num">2</span>
-        <span class="f-bulk-trail-txt"><strong>Conferir</strong><small>revise antes de criar</small></span>
-      </button>
-      <button type="button" class="f-bulk-trail-item" data-goto="3" onclick="fBulkStep(3)">
-        <span class="f-bulk-trail-num">3</span>
-        <span class="f-bulk-trail-txt"><strong>Formatos</strong><small>onde você vai postar</small></span>
-      </button>
-    </nav>
+    <!-- ══ UMA TELA SÓ. A trilha de 3 passos saiu: o passo 1 era um MENU de importação e o
+         passo 3 eram três controles — nenhum dos dois é uma fase de trabalho, e virar tela fez
+         a planilha (onde o trabalho acontece) parecer só o meio do caminho. Agora: a arte ao
+         vivo à esquerda, a planilha à direita, o que sai no rodapé. ══ -->
+    <div class="f-bulk-workspace f-bulk-split">
 
-    <div class="f-bulk-workspace">
-      <!-- ══ ETAPA 1 — só uma pergunta na tela: o que anunciar ══ -->
-      <section class="f-bulk-stage" data-step="1" aria-label="Passo 1: suas ofertas">
-        <div class="f-bulk-stage-head">
-          <h3>O que você quer anunciar?</h3>
-          <p>Escreva do seu jeito, como se estivesse falando. O Luma separa produto e preço sozinho.</p>
+      <!-- ══ ESQUERDA — A ARTE AO VIVO ══
+           O herói da tela, como manda o design-process §3 ("no gerador, é a prévia da arte").
+           Mostra a linha ATIVA e acompanha o que está sendo digitado ao lado. -->
+      <aside class="f-bulk-live" aria-label="Prévia da arte">
+        <div class="f-bulk-live-top">
+          <span class="f-bulk-live-label" id="f-bulk-live-label">A arte da linha 1</span>
+          <span class="f-bulk-live-chip" id="f-bulk-live-chip" aria-live="polite"></span>
+        </div>
+        <div class="f-bulk-live-stage">
+          <!-- A moldura guarda a proporção do material; o canvas é pintado pelo mesmo motor do
+               PNG final (fRenderTemplateLayers), então a prévia não tem como mentir. -->
+          <div class="f-bulk-live-frame" id="f-bulk-live-frame">
+            <canvas id="f-bulk-hero-cv" width="540" height="960" role="img" aria-label="Prévia da arte da linha selecionada"></canvas>
+          </div>
+        </div>
+        <div class="f-bulk-live-nav">
+          <button type="button" class="f-bulk-live-arrow" onclick="fBulkStepRow(-1)" aria-label="Linha anterior" title="Linha anterior">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <span id="f-bulk-live-count">linha 1 de 1</span>
+          <button type="button" class="f-bulk-live-arrow" onclick="fBulkStepRow(1)" aria-label="Próxima linha" title="Próxima linha">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+        </div>
+        <!-- A fita de miniaturas é o lote inteiro de relance: substitui a antiga "vista em
+             cartões", que mostrava o mesmo com um clique a mais e sem a arte grande do lado. -->
+        <div class="f-bulk-strip" id="f-bulk-strip" role="tablist" aria-label="Artes do lote"></div>
+        <p class="f-bulk-live-hint">Clique numa linha da planilha para ver a arte dela.</p>
+      </aside>
+
+      <!-- ══ DIREITA — A PLANILHA ══ -->
+      <section class="f-bulk-sheet" aria-label="Planilha de ofertas">
+        <div class="f-bulk-sheet-head">
+          <div class="f-bulk-sheet-title">
+            <h3>Suas ofertas</h3>
+            <div class="f-bulk-status-wrap"><span class="f-bulk-live-dot" aria-hidden="true"></span><span id="f-bulk-status" aria-live="polite"></span></div>
+          </div>
+          <button type="button" class="f-bulk-import-toggle" id="f-bulk-import-toggle" onclick="fBulkToggleImport()" aria-expanded="false" aria-controls="f-bulk-import">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3v4M3 5h4M6 17v4M4 19h4M13 3l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5z"/></svg>
+            <span>Preencher com IA, cardápio ou Excel</span>
+            <svg class="f-bulk-disclosure-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
         </div>
 
+        <!-- O antigo passo 1, inteiro, virou um painel: ABERTO quando a planilha está vazia
+             (é o estado inicial de quem chega) e fechado depois — encher a planilha é uma ação
+             recorrente, não uma etapa que se atravessa uma vez. -->
+        <div class="f-bulk-import" id="f-bulk-import">
+         <div class="f-bulk-import-inner">
           <div class="f-ai-prompt-block f-bulk-ai-card" id="f-ai-prompt-block">
             <label class="f-bulk-field-label" for="f-bulk-ai-raw-text">Escreva ou fale suas ofertas</label>
             <textarea id="f-bulk-ai-raw-text" placeholder="Ex.: Hambúrguer clássico por R$ 25 hoje. Amanhã, pizza de calabresa de R$ 50 por R$ 39."></textarea>
@@ -2498,14 +2529,7 @@ body:not(.theme-light) input:-webkit-autofill:active {
             <div id="f-bulk-mapper-fields"></div>
             <div class="f-bulk-mapper-actions"><button type="button" class="d-btn-pri" onclick="fBulkConfirmMapping()">Está certo</button><button type="button" class="d-btn-sec" onclick="fBulkCancelMapping()">Cancelar</button></div>
           </div>
-      </section>
-
-      <!-- ══ ETAPA 2 — conferir a planilha ══ -->
-      <section class="f-bulk-stage" data-step="2" aria-label="Passo 2: conferir" hidden>
-        <div class="f-bulk-stage-head">
-          <h3>Confira o que vai ser criado</h3>
-          <p>Cada linha vira uma arte. Clique em qualquer campo pra corrigir.</p>
-          <div class="f-bulk-status-wrap"><span class="f-bulk-live-dot" aria-hidden="true"></span><span id="f-bulk-status" aria-live="polite"></span></div>
+         </div>
         </div>
 
         <div id="f-bulk-preview" class="f-bulk-preview"></div>
@@ -2519,10 +2543,6 @@ body:not(.theme-light) input:-webkit-autofill:active {
           </summary>
           <div class="f-bulk-alt-body f-bulk-toolbar">
             <div class="f-bulk-toolbar-group">
-              <button type="button" class="d-btn-sec f-bulk-view-toggle" onclick="fBulkToggleTableView()" title="Alternar entre tabela e cartões">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-                Ver como cartões
-              </button>
               <button type="button" class="d-btn-sec" onclick="fBulkSaveTemplate()" title="Guardar esta planilha para reusar depois">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
                 Guardar esta planilha
@@ -2554,40 +2574,48 @@ body:not(.theme-light) input:-webkit-autofill:active {
         </details>
       </section>
 
-      <!-- ══ ETAPA 3 — formatos e legenda ══ -->
-      <section class="f-bulk-stage" data-step="3" aria-label="Passo 3: formatos" hidden>
-        <div class="f-bulk-stage-head">
-          <h3>Onde você vai postar?</h3>
-          <p>Marque quantos quiser. O Luma cria a mesma oferta em cada formato escolhido.</p>
-        </div>
+    </div>
 
-        <div id="f-bulk-fmts-wrap" class="f-bulk-fmts-block">
-          <label class="f-bulk-field-label">Formatos das artes</label>
-          <div id="f-bulk-fmts-list"></div>
-        </div>
+    <!-- ══ RODAPÉ — O QUE SAI ══
+         O antigo passo 3 eram três controles: quais formatos, o tipo de legenda e a cidade.
+         Três controles não são uma tela — viraram uma faixa. Os formatos ficam à vista (mudam
+         quantas artes saem, e o botão de gerar diz o número); legenda e cidade, que se define
+         uma vez e raramente se muda, ficam num disclosure. -->
+    <footer class="f-bulk-footer" id="f-bulk-actions">
+      <div id="f-bulk-fmts-wrap" class="f-bulk-fmts-block">
+        <span class="f-bulk-fmts-label">Formatos</span>
+        <div id="f-bulk-fmts-list"></div>
+      </div>
 
-        <div class="f-bulk-output-fields">
+      <details class="f-bulk-post-opts">
+        <summary title="Como sai o texto do post e a cidade das hashtags">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span>Legenda e cidade</span>
+          <svg class="f-bulk-disclosure-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+        </summary>
+        <div class="f-bulk-post-opts-body f-bulk-output-fields">
           <label><span>Texto do post</span><select id="f-bulk-copy-format"><option value="feed">Para o Feed (mais longo)</option><option value="stories">Para os Stories (curto)</option></select></label>
           <label><span>Sua cidade</span><input type="text" id="f-bulk-city" placeholder="Ex.: Passo Fundo" oninput="try{localStorage.setItem('luma_bulk_city', this.value);}catch(e){}"><small>entra nas hashtags do post</small></label>
         </div>
+      </details>
 
-        <div id="f-bulk-progress-wrap" class="f-bulk-progress" style="display:none" role="status" aria-live="polite">
-          <div class="f-bulk-progress-head"><span id="f-bulk-progress-text">Criando suas artes…</span><strong id="f-bulk-progress-pct">0%</strong></div>
-          <div class="f-bulk-progress-track"><div id="f-bulk-progress-bar" style="width:0%"></div></div>
-          <button type="button" class="d-btn-sec" id="f-bulk-cancel-btn" onclick="fBulkCancelGen()">Parar</button>
-        </div>
-      </section>
-    </div>
-
-    <footer class="f-bulk-footer" id="f-bulk-actions">
+      <!-- A conta do que vai sair: ofertas × formatos = artes. Fica ao lado do botão porque é
+           exatamente o número que ele promete. -->
       <div class="f-bulk-footer-note">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z"/><path d="M12 16v-4M12 8h.01"/></svg>
         <span>O ZIP inclui as artes organizadas por formato e um arquivo com sugestões de legenda.</span>
       </div>
+
       <div class="f-bulk-footer-actions">
-        <button type="button" class="d-btn-sec" id="f-bulk-back-btn" onclick="fBulkStepBack()">Voltar</button>
-        <button type="button" class="d-btn-pri" id="f-bulk-next-btn" onclick="fBulkStepNext()">Continuar</button>
-        <button type="button" class="d-btn-pri" id="f-bulk-dl-btn" onclick="fBulkDownloadAll()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>Gerar artes (ZIP)</button>
+        <button type="button" class="d-btn-sec" id="f-bulk-back-btn" onclick="fBulkClose()">Fechar</button>
+        <button type="button" class="d-btn-pri" id="f-bulk-dl-btn" onclick="fBulkDownloadAll()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg><span id="f-bulk-dl-label">Gerar artes (ZIP)</span></button>
+      </div>
+
+      <!-- A geração cobre o rodapé inteiro: enquanto roda, não há outra ação legítima ali. -->
+      <div id="f-bulk-progress-wrap" class="f-bulk-progress" style="display:none" role="status" aria-live="polite">
+        <div class="f-bulk-progress-head"><span id="f-bulk-progress-text">Criando suas artes…</span><strong id="f-bulk-progress-pct">0%</strong></div>
+        <div class="f-bulk-progress-track"><div id="f-bulk-progress-bar" style="width:0%"></div></div>
+        <button type="button" class="d-btn-sec" id="f-bulk-cancel-btn" onclick="fBulkCancelGen()">Parar</button>
       </div>
     </footer>
 
