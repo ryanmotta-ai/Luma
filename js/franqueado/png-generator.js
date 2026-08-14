@@ -1474,21 +1474,40 @@ function fBulkClose(){
    O que sobrou é o vínculo entre as duas colunas: a LINHA ATIVA. Ela é o que a prévia
    grande mostra, o que a fita destaca e o que a tabela acende.
 ══════════════════════════════════════════════════════════════ */
-let _fBulkActive = 0;        // índice da linha que está na prévia
+let _fBulkActive = 0;        // posição da linha ativa (só o fallback — ver _fBulkActiveIdx)
+let _fBulkActiveRid = null;  // IDENTIDADE da linha ativa: é ela que manda
 let _fBulkHeroToken = 0;     // aborta render antigo quando a linha troca no meio
+let _fBulkRidSeq = 0;
 
-// Resolve o índice ativo contra o tamanho ATUAL do lote — linhas somem (remover, limpar,
-// reimportar) e um índice guardado vira ponteiro para o nada.
+/* Identidade estável da linha. O índice sozinho NÃO serve: ordenar reescreve o array e a
+   prévia passava a mostrar outro produto sem avisar — medido, eu estava vendo "Zebra", ordenei
+   por nome e a arte virou "Abacaxi" calada. É a regra da casa (03_ENGINEERING §3: resolva por
+   ID, nunca por posição), e vale para toda linha, venha ela de onde vier — planilha nova, CSV,
+   IA, clone ou rascunho restaurado —, por isso o carimbo é preguiçoso. */
+function _fBulkRid(row){
+  if(row && !row._rid) row._rid = 'r' + (++_fBulkRidSeq);
+  return row ? row._rid : null;
+}
+// Resolve o índice ativo contra o estado ATUAL do lote: primeiro pela identidade (sobrevive a
+// ordenar, remover, duplicar e filtrar), e só então pela posição — que é o que sobra quando a
+// linha ativa deixou de existir de verdade.
 function _fBulkActiveIdx(){
   if(!fBulkRows.length) return -1;
+  fBulkRows.forEach(_fBulkRid);
+  if(_fBulkActiveRid){
+    const i = fBulkRows.findIndex(r => r && r._rid === _fBulkActiveRid);
+    if(i >= 0) return i;
+  }
   return Math.max(0, Math.min(_fBulkActive, fBulkRows.length-1));
 }
 function fBulkSetActive(i, opts){
   const n = fBulkRows.length;
   if(!n) return;
   const novo = Math.max(0, Math.min(i|0, n-1));
-  const mudou = novo !== _fBulkActive;
+  const ridNovo = _fBulkRid(fBulkRows[novo]);
+  const mudou = ridNovo !== _fBulkActiveRid;
   _fBulkActive = novo;
+  _fBulkActiveRid = ridNovo;
   // Acende a linha na tabela sem re-renderizar nada: re-render roubaria o foco de quem
   // está digitando, que é exatamente quem dispara isto.
   const tb = document.getElementById('f-bulk-preview');
@@ -1574,10 +1593,16 @@ function _fBulkRenderStrip(){
   if(!strip || !fState.material || !fState.material.layers) return;
   const [nw,nh] = fMaterialSize(fState.material, fState.fmt);
   const cw = 34, ch = Math.max(20, Math.round(cw*nh/nw));
-  strip.innerHTML = fBulkRows.map((r,i)=>
-    `<button type="button" class="f-bulk-strip-item${i===_fBulkActiveIdx()?' is-active':''}" data-row="${i}"
-       role="tab" aria-selected="${i===_fBulkActiveIdx()}" title="Ver a arte da linha ${i+1}"
-       style="animation-delay:${Math.min(i,8)*30}ms" onclick="fBulkSetActive(${i},{semRolar:true})">
+  const ativo = _fBulkActiveIdx();
+  /* A fita obedece à MESMA busca da tabela. Sem isto ela oferecia miniaturas de linhas que o
+     filtro tinha escondido: clicar levava a uma arte que não dava para editar do lado. */
+  const query = (document.getElementById('f-bulk-search')?.value || '').trim().toLowerCase();
+  const visiveis = fBulkRows.map((r,i)=>({r,i}))
+    .filter(({r})=>!query || Object.values(r.dados).some(v=>String(v).toLowerCase().includes(query)));
+  strip.innerHTML = visiveis.map(({r,i},pos)=>
+    `<button type="button" class="f-bulk-strip-item${i===ativo?' is-active':''}" data-row="${i}"
+       role="tab" aria-selected="${i===ativo}" title="Ver a arte da linha ${i+1}"
+       style="animation-delay:${Math.min(pos,8)*30}ms" onclick="fBulkSetActive(${i},{semRolar:true})">
        <span class="f-bulk-strip-n">${i+1}</span>
        <canvas id="f-bulk-cv-${i}" width="${cw}" height="${ch}"></canvas>
      </button>`).join('');
@@ -2621,7 +2646,20 @@ function fBulkUpdateReadiness(readiness=fBulkGetReadiness()) {
 function fBulkRenderPreview(){
   const wrap=document.getElementById('f-bulk-preview');if(!wrap)return;
   fBulkUpdateReadiness();
-  if(!fBulkRows.length){wrap.innerHTML='<div class="f-bulk-empty">Nenhum CSV carregado ainda. Baixe o modelo, preencha e reenvie.</div>';return;}
+  if(!fBulkRows.length){
+    wrap.innerHTML='<div class="f-bulk-empty">Nenhuma linha na planilha. Adicione uma linha ou preencha com IA, cardápio ou Excel.</div>';
+    /* ⚠ Esvaziar a planilha TEM que apagar a coluna da esquerda junto. Sem isto a arte grande
+       e a fita continuavam mostrando as linhas que acabaram de ser excluídas — a tela dizia
+       "Nenhuma linha ainda" no rótulo e exibia três miniaturas de artes inexistentes ao lado.
+       Medido: linhas=0 e miniaturas=3, com a arte da última linha ainda pintada. */
+    _fBulkActiveRid = null; _fBulkActive = 0;
+    const _strip = document.getElementById('f-bulk-strip');
+    if(_strip) _strip.innerHTML = '';
+    const _hero = document.getElementById('f-bulk-hero-cv');
+    if(_hero){ try{ _hero.getContext('2d').clearRect(0,0,_hero.width,_hero.height); }catch(e){} }
+    _fBulkSyncLiveHead();
+    return;
+  }
   
   if (_fBulkTableView) {
     const keys = fBulkVars();
@@ -2848,8 +2886,10 @@ function fBulkSaveRow(i, isSilent=false, skipReadiness=false) {
     }
   }
   
-  fBulkRows[i] = {dados, erros};
-  
+  // Preserva a IDENTIDADE ao trocar o objeto: sem isto, salvar uma linha zerava o vínculo com a
+  // prévia e a próxima ordenação voltaria a mostrar a arte errada.
+  fBulkRows[i] = {dados, erros, _rid: (row && row._rid) || ('r' + (++_fBulkRidSeq))};
+
   if(!isSilent) {
     fBulkRenderPreview();
   } else if(!skipReadiness) {
