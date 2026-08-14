@@ -986,12 +986,17 @@ function dApplyBg(ab){
    Compartilhado pelo render do canvas e pelo thumbnail. Sem efeito → []. */
 function dFxShadowParts(l){
   const parts=[];
+  const stack=Array.isArray(l.layerEffects)?l.layerEffects:[],of=t=>stack.filter(e=>e&&e.type===t);
   // sp(): "propagação" do PS = 4ª medida do box-shadow (spread). Nativo aqui, custo zero.
   const sp=v=>v?' '+v+'px':'';
-  if(l.shadow){ const o=gFxOffset(l.shadowDist!=null?l.shadowDist:4, l.shadowAngle); const b=l.shadowBlur!=null?l.shadowBlur:6;
+  const drops=of('dropShadow');
+  if(drops.length)drops.forEach(e=>{const o=gFxOffset(e.distance!=null?e.distance:4,e.angle),b=e.blur!=null?e.blur:6;parts.push(o.x+'px '+o.y+'px '+b+'px'+sp(e.spread)+' '+(e.color||'rgba(0,0,0,.5)'));});
+  else if(l.shadow){ const o=gFxOffset(l.shadowDist!=null?l.shadowDist:4, l.shadowAngle); const b=l.shadowBlur!=null?l.shadowBlur:6;
     parts.push(o.x+'px '+o.y+'px '+b+'px'+sp(l.shadowSpread)+' '+(l.shadowColor||'rgba(0,0,0,.5)')); }
   if(l.glow){ parts.push('0 0 '+(l.glowSize!=null?l.glowSize:8)+'px'+sp(l.glowSpread)+' '+(l.glowColor||'rgba(255,255,255,.7)')); }
-  if(l.innerShadow){ const o=gFxOffset(l.innerShadowDist!=null?l.innerShadowDist:4, l.innerShadowAngle); const b=l.innerShadowBlur!=null?l.innerShadowBlur:6;
+  const inners=of('innerShadow');
+  if(inners.length)inners.forEach(e=>{const o=gFxOffset(e.distance!=null?e.distance:4,e.angle),b=e.blur!=null?e.blur:6;parts.push('inset '+o.x+'px '+o.y+'px '+b+'px'+sp(e.spread)+' '+(e.color||'rgba(0,0,0,.5)'));});
+  else if(l.innerShadow){ const o=gFxOffset(l.innerShadowDist!=null?l.innerShadowDist:4, l.innerShadowAngle); const b=l.innerShadowBlur!=null?l.innerShadowBlur:6;
     parts.push('inset '+o.x+'px '+o.y+'px '+b+'px'+sp(l.innerShadowSpread)+' '+(l.innerShadowColor||'rgba(0,0,0,.5)')); }
   if(l.innerGlow){ parts.push('inset 0 0 '+(l.innerGlowSize!=null?l.innerGlowSize:8)+'px '+(l.innerGlowColor||'rgba(255,255,255,.7)')); }
   if(l.bevel){ const o=gFxOffset(l.bevelSize!=null?l.bevelSize:4, l.bevelAngle), b=l.bevelSize!=null?l.bevelSize:4; // realce (luz) + sombra opostos, internos
@@ -1027,6 +1032,8 @@ function dDashOutlineSvg(l){
 }
 // Traçado de shape como box-shadow, respeitando o alinhamento (inside/center/outside).
 function dFxStrokeParts(l){
+  const stack=Array.isArray(l.layerEffects)?l.layerEffects.filter(e=>e&&e.type==='stroke'):[];
+  if(stack.length)return stack.map(e=>{const w=e.width||1,c=gFxRgba(e.color||'#000000',e.opacity!=null?e.opacity:1),a=e.align||'inside';if(a==='outside')return '0 0 0 '+w+'px '+c;if(a==='center')return '0 0 0 '+(w/2)+'px '+c+', inset 0 0 0 '+(w/2)+'px '+c;return 'inset 0 0 0 '+w+'px '+c;});
   if(!(l.strokeW>0) || l.strokeDash) return []; // dash é desenhado via SVG (dDashOutlineSvg)
   const w=l.strokeW, c=l.strokeColor||'#000', a=l.strokeAlign||'inside';
   if(a==='outside') return ['0 0 0 '+w+'px '+c];
@@ -1037,13 +1044,17 @@ function dFxStrokeParts(l){
 function dFxShapeBg(l){
   const base = (l.gradient && l.gradient.stops && l.gradient.stops.length) ? gGradientCss(l.gradient) : (l.fill||'#FF9000');
   const layers=[];
-  if(l.gradientOverlay && l.gradientOverlay.stops && l.gradientOverlay.stops.length){ // gradient overlay (efeito)
+  const stack=Array.isArray(l.layerEffects)?l.layerEffects:[],gos=stack.filter(e=>e&&e.type==='gradientOverlay'),cos=stack.filter(e=>e&&e.type==='colorOverlay');
+  if(gos.length)gos.forEach(e=>{const g=e.gradient?JSON.parse(JSON.stringify(e.gradient)):null;if(!g||!g.stops||!g.stops.length)return;if(g.opacity!=null&&g.opacity<1)g.stops=g.stops.map(s=>({color:s.color,pos:s.pos,opacity:(s.opacity!=null?s.opacity:1)*g.opacity}));layers.push(gGradientCss(g));});
+  else if(l.gradientOverlay && l.gradientOverlay.stops && l.gradientOverlay.stops.length){ // gradient overlay (efeito)
     const g=Object.assign({}, l.gradientOverlay);
     if(g.opacity!=null && g.opacity<1) g.stops=g.stops.map(s=>({color:s.color,pos:s.pos,opacity:(s.opacity!=null?s.opacity:1)*g.opacity}));
     layers.push(gGradientCss(g));
   }
-  if(l.overlay && l.overlayColor){ const o=gFxRgba(l.overlayColor, l.overlayOpacity!=null?l.overlayOpacity:1); layers.push('linear-gradient('+o+','+o+')'); }
-  return layers.length? layers.join(',')+','+base : base;
+  if(cos.length)cos.forEach(e=>{const o=gFxRgba(e.color||'#000000',e.opacity!=null?e.opacity:1);layers.push('linear-gradient('+o+','+o+')');});
+  else if(l.overlay && l.overlayColor){ const o=gFxRgba(l.overlayColor, l.overlayOpacity!=null?l.overlayOpacity:1); layers.push('linear-gradient('+o+','+o+')'); }
+  // Canvas 2D pinta em sequência (último efeito no topo); CSS lista o topo primeiro.
+  return layers.length? layers.reverse().join(',')+','+base : base;
 }
 // Duplo clique manual em camada (ver comentário no listener de mousedown mais abaixo).
 let dLastClickLayerId=null, dLastClickTime=0;
@@ -1051,6 +1062,7 @@ function dRenderCanvas(){
   const ab=typeof dGetActiveAB==='function'?dGetActiveAB():null;
   dApplyBg(ab);
   const frame=document.getElementById('d-canvas-frame');
+  const _adjustRenderId=frame._adjustRenderId=(frame._adjustRenderId||0)+1;
   // Detach paint canvas ANTES do innerHTML='' para preservar pixels sem toDataURL.
   // Canvas retém seu backing buffer enquanto a referência DOM existir — reinsere após render.
   const existingPaint=document.getElementById('d-paint-canvas');
@@ -1103,6 +1115,29 @@ function dRenderCanvas(){
     if(l.blendMode){
       const _css=(typeof DBLEND_TO_CSS!=='undefined')?DBLEND_TO_CSS[l.blendMode]:null;
       el.style.mixBlendMode=_css||l.blendMode.replace(/([A-Z])/g,c=>'-'+c.toLowerCase());
+    }
+    if(l.type==='adjustment'){
+      // Uma camada de ajuste cobre a COMPOSIÇÃO abaixo, não uma caixa DOM isolada. Inserimos no
+      // z-order um canvas cumulativo produzido pelo mesmo motor do PNG; o designer enxerga Curves,
+      // Levels, máscaras e grupos sem achatar as camadas que continuam editáveis por baixo.
+      el.className='canvas-layer canvas-adjustment-layer';
+      el.style.cssText=`left:0;top:0;width:${f.w}px;height:${f.h}px;position:absolute;pointer-events:none;opacity:1;mix-blend-mode:normal;`;
+      const ac=document.createElement('canvas');ac.width=f.w;ac.height=f.h;ac.style.cssText='width:100%;height:100%;display:block;pointer-events:none;';el.appendChild(ac);frame.appendChild(el);
+      const li=_renderLayers.findIndex(x=>x.id===l.id), prefix=_renderLayers.slice(0,li+1);
+      // Marcadores de grupo ficam depois dos filhos no modelo. Se o ajuste está dentro de um
+      // grupo ainda aberto, inclui só os ancestrais necessários para o renderer respeitar seu
+      // escopo/máscara, sem puxar as camadas visuais que ainda estão acima do ajuste.
+      const need=new Set(prefix.map(x=>x.parentId).filter(Boolean));
+      let grew=true;while(grew){grew=false;_renderLayers.filter(x=>x.type==='group'&&need.has(x.id)&&x.parentId&&!need.has(x.parentId)).forEach(x=>{need.add(x.parentId);grew=true;});}
+      const cumul=prefix.concat(_renderLayers.filter(x=>x.type==='group'&&need.has(x.id)&&!prefix.some(p=>p.id===x.id)));
+      const bg=(ab&&ab.bg&&ab.bg!=='transparent')?ab.bg:'rgba(0,0,0,0)';
+      Promise.resolve().then(async()=>{
+        if(frame._adjustRenderId!==_adjustRenderId||!ac.isConnected)return;
+        try{await fRenderTemplateLayers(ac.getContext('2d'),cumul,f.w,f.h,dSimActive?dSimValues:{},{color:'rgba(0,0,0,0)'},{layers:cumul,w:f.w,h:f.h,fmt:'orig',bg});}
+        catch(e){console.warn('[designer] falha na prévia do ajuste:',e);}
+        if(frame._adjustRenderId!==_adjustRenderId&&ac.parentNode)ac.parentNode.remove();
+      });
+      return;
     }
     // M2.1 — hover no canvas destaca a linha na lista de layers (e vice-versa)
     if(typeof dHoverLayer==='function'){
@@ -2233,4 +2268,3 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
-

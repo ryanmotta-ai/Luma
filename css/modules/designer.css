@@ -3304,9 +3304,10 @@ body.theme-light .drt-example {
    ───────────────────────────────────────────────────────── */
 .fx-modal-dialog {
   display: flex;
-  width: 520px;
-  min-height: 380px;
-  border-radius: 10px;
+  width: min(680px, calc(100vw - 48px));
+  min-height: 440px;
+  max-height: min(720px, calc(100vh - 48px));
+  border-radius: var(--r);
   overflow: hidden;
   background: var(--d-surf);
   box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06);
@@ -3420,6 +3421,35 @@ body.theme-light .drt-example {
   transition: color 0.1s, background 0.1s;
 }
 .fx-close-btn:hover { color: var(--d-text); background: var(--d-surf2); }
+
+/* Pilha por tipo: fica entre o título e os parâmetros, no mesmo eixo de leitura. Os chips são
+   pequenos de propósito — multiplicidade é contexto; o parâmetro selecionado continua herói. */
+.fx-stack-bar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background: var(--d-dark);
+  border-bottom: 1px solid var(--d-border);
+}
+.fx-stack-meta{ display:flex; align-items:center; gap:6px; color:var(--d-text3); font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+.fx-stack-meta strong{ min-width:18px; padding:2px 5px; border-radius:var(--r-pill); background:var(--d-surf3); color:var(--d-text2); font-size:9px; text-align:center; }
+.fx-stack-items{ min-width:0; display:flex; align-items:center; gap:5px; overflow-x:auto; scrollbar-width:thin; }
+.fx-stack-chip{ min-width:30px; height:28px; padding:0 9px; border:1px solid var(--d-border); border-radius:var(--r-pill); background:var(--d-surf); color:var(--d-text3); font:700 10px 'Roboto',sans-serif; cursor:pointer; transition:background var(--dur-micro) var(--ease-standard),border-color var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard); }
+.fx-stack-chip:hover{ border-color:var(--d-border2); color:var(--d-text); }
+.fx-stack-chip.active{ border-color:var(--dm-orange); background:rgba(255,144,0,.1); color:var(--d-text); }
+.fx-stack-empty{ color:var(--d-text3); font-size:11px; }
+.fx-stack-actions{ display:flex; align-items:center; gap:4px; }
+.fx-stack-actions button{ min-width:28px; height:28px; padding:0; display:inline-flex; align-items:center; justify-content:center; gap:5px; border:1px solid var(--d-border); border-radius:var(--r-sm); background:var(--d-surf2); color:var(--d-text2); cursor:pointer; transition:background var(--dur-micro) var(--ease-standard),border-color var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard); }
+.fx-stack-actions button:hover{ border-color:var(--dm-orange); color:var(--d-text); background:rgba(255,144,0,.08); }
+.fx-stack-actions button:disabled{ opacity:.35; cursor:not-allowed; pointer-events:none; }
+body:not(.theme-light) .fx-stack-chip.active,body:not(.theme-light) .fx-stack-actions button:hover{ color:var(--dm-orange); }
+.fx-stack-actions button:focus-visible,.fx-stack-chip:focus-visible{ outline:2px solid var(--dm-orange); outline-offset:2px; }
+.fx-stack-actions svg{ width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.fx-stack-actions .fx-stack-add{ min-width:auto; padding:0 9px; font:700 10px 'Roboto',sans-serif; }
+.fx-stack-note{ margin:10px 0 0; color:var(--d-text3); font-size:11px; line-height:1.45; }
+.fx-tab-item.is-disabled{ opacity:.38; pointer-events:none; }
 
 /* ── Panels area ── */
 .fx-panels-area {

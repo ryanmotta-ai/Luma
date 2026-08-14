@@ -883,11 +883,60 @@ function dDuplicateSelectedLayer() {
   dDuplicateLayer();
 }
 
+let dFxActiveTab='shadow';
+let dFxStackSel={layerId:null,index:-1};
+function _dFxType(tab){return ({shadow:'dropShadow',inner:'innerShadow',overlay:'colorOverlay',gradient:'gradientOverlay',stroke:'stroke'})[tab]||null;}
+function _dFxTab(type){return ({dropShadow:'shadow',innerShadow:'inner',colorOverlay:'overlay',gradientOverlay:'gradient',stroke:'stroke'})[type]||null;}
+function _dFxClone(v){return v?JSON.parse(JSON.stringify(v)):v;}
+function _dFxAlpha(c,fb){const m=String(c||'').match(/rgba\([^,]+,[^,]+,[^,]+,\s*([\d.]+)\s*\)/i);return m?Math.max(0,Math.min(1,+m[1])):(fb!=null?fb:1);}
+function _dFxRgba(c,alpha){return gFxRgba(_dFxHex(c)||'#000000',Math.max(0,Math.min(1,+alpha)));}
+function _dFxIndexes(l,type){const out=[];(l&&Array.isArray(l.layerEffects)?l.layerEffects:[]).forEach((e,i)=>{if(e&&e.type===type)out.push(i);});return out;}
+function _dFxLegacyOn(l,type){return !!(l&&({dropShadow:l.shadow,innerShadow:l.innerShadow,colorOverlay:l.overlay,gradientOverlay:l.gradientOverlay,stroke:l.strokeW>0})[type]);}
+function _dFxLegacyEffect(l,type){
+  if(type==='dropShadow')return {type,color:l.shadowColor||'rgba(0,0,0,.5)',blur:l.shadowBlur!=null?l.shadowBlur:6,distance:l.shadowDist!=null?l.shadowDist:4,angle:l.shadowAngle!=null?l.shadowAngle:120,spread:l.shadowSpread||0,blendMode:l.shadowBlend||'normal'};
+  if(type==='innerShadow')return {type,color:l.innerShadowColor||'rgba(0,0,0,.5)',blur:l.innerShadowBlur!=null?l.innerShadowBlur:6,distance:l.innerShadowDist!=null?l.innerShadowDist:4,angle:l.innerShadowAngle!=null?l.innerShadowAngle:120,spread:l.innerShadowSpread||0,blendMode:l.innerShadowBlend||'normal'};
+  if(type==='colorOverlay')return {type,color:l.overlayColor||'#000000',opacity:l.overlayOpacity!=null?l.overlayOpacity:1,blendMode:l.overlayBlend||'normal'};
+  if(type==='gradientOverlay')return {type,gradient:_dFxClone(l.gradientOverlay||{type:'linear',angle:90,opacity:1,stops:[{color:'#000000',pos:0,opacity:1},{color:'#ffffff',pos:1,opacity:1}]}),blendMode:(l.gradientOverlay&&l.gradientOverlay.blendMode)||'normal'};
+  if(type==='stroke')return {type,width:l.strokeW||2,color:l.strokeColor||'#000000',align:l.strokeAlign||'inside',opacity:1,blendMode:'normal'};
+  return null;
+}
+function _dFxDefault(type){const stub={};return _dFxLegacyEffect(stub,type);}
+function _dFxSelected(l,fxType){
+  if(!l||dFxStackSel.layerId!==l.id)return null;
+  const e=Array.isArray(l.layerEffects)?l.layerEffects[dFxStackSel.index]:null;
+  return (e&&e.type===fxType)?e:null;
+}
+function _dFxClearMeta(l){if(!l.layerEffects||!l.layerEffects.length){delete l.layerEffects;delete l.layerEffectsComplete;delete l.layerEffectsApprox;}}
+function _dFxRecalcApprox(l){
+  if(!l||!Array.isArray(l.layerEffects))return;
+  const approx=l.opacity<100||l.layerEffects.some(e=>e&&e.blendMode&&e.blendMode!=='normal');
+  if(approx)l.layerEffectsApprox=true;else delete l.layerEffectsApprox;
+}
+// O modelo legado continua espelhando a primeira instância: thumbnails, SVG e templates antigos
+// não ficam divergentes enquanto a pilha completa é consumida pelo renderer canônico.
+function _dFxMirrorFirst(l,type){
+  const idx=_dFxIndexes(l,type),e=idx.length?l.layerEffects[idx[0]]:null;
+  if(type==='dropShadow'){
+    l.shadow=!!e;if(e){l.shadowColor=e.color;l.shadowBlur=e.blur;l.shadowDist=e.distance;l.shadowAngle=e.angle;l.shadowSpread=e.spread||0;l.shadowOpacity=_dFxAlpha(e.color,.5);l.shadowBlend=e.blendMode||'normal';}
+  }else if(type==='innerShadow'){
+    l.innerShadow=!!e;if(e){l.innerShadowColor=e.color;l.innerShadowBlur=e.blur;l.innerShadowDist=e.distance;l.innerShadowAngle=e.angle;l.innerShadowSpread=e.spread||0;l.innerShadowOpacity=_dFxAlpha(e.color,.5);l.innerShadowBlend=e.blendMode||'normal';}
+  }else if(type==='colorOverlay'){
+    l.overlay=!!e;if(e){l.overlayColor=e.color;l.overlayOpacity=e.opacity!=null?e.opacity:1;l.overlayBlend=e.blendMode||'normal';}
+  }else if(type==='gradientOverlay'){
+    if(e){l.gradientOverlay=_dFxClone(e.gradient);l.gradientOverlay.blendMode=e.blendMode||'normal';}else delete l.gradientOverlay;
+  }else if(type==='stroke'){
+    if(e){l.strokeW=e.width||1;l.strokeColor=e.color||'#000000';l.strokeAlign=e.align||'inside';}else l.strokeW=0;
+  }
+}
+function _dFxFinish(l,type,full){_dFxMirrorFirst(l,type);_dFxClearMeta(l);_dFxRecalcApprox(l);dRenderCanvas();if(full!==false)dRenderLayersList();dMarkUnsaved();}
+
 function dAddEffect() {
   const modal = document.getElementById('d-fx-modal');
   if (modal) {
+    dFxStackSel={layerId:dSelId,index:-1};
     modal.classList.add('open');
-    dSelectFxTab('shadow'); // default tab
+    const l=dLayers.find(x=>x.id===dSelId),first=l&&Array.isArray(l.layerEffects)?l.layerEffects.find(e=>e&&_dFxTab(e.type)):null;
+    dSelectFxTab((first&&_dFxTab(first.type))||(l&&l.gradientOverlay?'gradient':l&&l.strokeW>0?'stroke':'shadow'));
   }
 }
 
@@ -897,6 +946,7 @@ function dCloseFxModal() {
 }
 
 function dSelectFxTab(tab) {
+  dFxActiveTab=tab;
   // Update sidebar tabs
   const tabs = document.querySelectorAll('.fx-tab-item');
   tabs.forEach(t => t.classList.remove('active'));
@@ -915,10 +965,81 @@ function dSelectFxTab(tab) {
     'shadow': 'Sombra Projetada',
     'inner': 'Sombra Interna',
     'glow': 'Brilho Externo',
-    'overlay': 'Sobreposição de Cor'
+    'overlay': 'Sobreposição de Cor',
+    'gradient':'Sobreposição de Gradiente',
+    'stroke':'Contorno'
   };
   const titleEl = document.getElementById('fx-modal-title');
   if (titleEl && titles[tab]) titleEl.innerText = titles[tab];
+  const l=dLayers.find(x=>x.id===dSelId);if(l){dFxRenderStack(l,tab);dFxPopulate(l);}
+}
+
+function dFxRenderStack(l,tab){
+  const bar=document.getElementById('fx-stack-bar'),items=document.getElementById('fx-stack-items'),count=document.getElementById('fx-stack-count');if(!bar||!items||!count)return;
+  const type=l&&l.type==='shape'?_dFxType(tab):null;bar.style.display=type?'grid':'none';if(!type)return;
+  const idxs=_dFxIndexes(l,type),legacy=!idxs.length&&_dFxLegacyOn(l,type);
+  if(!idxs.includes(dFxStackSel.index))dFxStackSel={layerId:l.id,index:idxs.length?idxs[0]:-1};
+  else dFxStackSel.layerId=l.id;
+  const total=idxs.length||(legacy?1:0);count.textContent=total;
+  bar.className='fx-stack-bar '+(!total?'is-empty':legacy?'is-legacy':idxs.length===1?'is-single':'');
+  items.innerHTML=idxs.length?idxs.map((abs,n)=>`<button type="button" class="fx-stack-chip ${abs===dFxStackSel.index?'active':''}" onclick="dFxStackSelect(${abs})" aria-label="Editar instância ${n+1}" aria-pressed="${abs===dFxStackSel.index}">${n+1}</button>`).join(''):(legacy?'<button type="button" class="fx-stack-chip active" aria-pressed="true">1</button>':'<span class="fx-stack-empty">Nenhum efeito</span>');
+  const pos=idxs.indexOf(dFxStackSel.index),up=document.getElementById('fx-stack-up'),down=document.getElementById('fx-stack-down'),remove=document.getElementById('fx-stack-remove');
+  if(up)up.disabled=pos<=0;if(down)down.disabled=pos<0||pos>=idxs.length-1;if(remove)remove.disabled=pos<0;
+}
+function dFxStackSelect(index){
+  const l=dLayers.find(x=>x.id===dSelId);if(!l||!l.layerEffects||!l.layerEffects[index])return;
+  dFxStackSel={layerId:l.id,index};const tab=_dFxTab(l.layerEffects[index].type);if(tab&&tab!==dFxActiveTab)dSelectFxTab(tab);else{dFxRenderStack(l,dFxActiveTab);dFxPopulate(l);}
+}
+function dFxToggleType(tab,on){
+  const l=dLayers.find(x=>x.id===dSelId),type=_dFxType(tab);if(!l)return;
+  if(!type){dUpdateProp(tab==='glow'?'glow':tab,on);return;}
+  if(l.type!=='shape'){
+    const legacy={shadow:'shadow',inner:'innerShadow',overlay:'overlay'}[tab];
+    if(legacy)dUpdateProp(legacy,on);else{const c=document.getElementById('dp-fx-'+tab);if(c)c.checked=false;gToast('Este efeito está disponível em formas');}
+    return;
+  }
+  const idxs=_dFxIndexes(l,type);
+  if(on&&(idxs.length||_dFxLegacyOn(l,type))){dFxRenderStack(l,tab);dFxPopulate(l);return;}
+  dHistoryPush();
+  if(on){if(!Array.isArray(l.layerEffects))l.layerEffects=[];l.layerEffects.push(_dFxDefault(type));dFxStackSel={layerId:l.id,index:l.layerEffects.length-1};}
+  else {if(Array.isArray(l.layerEffects))l.layerEffects=l.layerEffects.filter(e=>e&&e.type!==type);dFxStackSel={layerId:l.id,index:-1};}
+  _dFxFinish(l,type);dFxRenderStack(l,tab);dFxPopulate(l);
+}
+function dFxStackAdd(){
+  const l=dLayers.find(x=>x.id===dSelId),type=_dFxType(dFxActiveTab);if(!l||l.type!=='shape'||!type)return;
+  dHistoryPush();if(!Array.isArray(l.layerEffects))l.layerEffects=[];
+  const idxs=_dFxIndexes(l,type),selected=_dFxSelected(l,type),legacy=!idxs.length&&_dFxLegacyOn(l,type)?_dFxLegacyEffect(l,type):null;
+  if(legacy)l.layerEffects.push(_dFxClone(legacy));
+  const source=selected||legacy||(idxs.length?l.layerEffects[idxs[idxs.length-1]]:null)||_dFxDefault(type);
+  l.layerEffects.push(_dFxClone(source));dFxStackSel={layerId:l.id,index:l.layerEffects.length-1};
+  _dFxFinish(l,type);dFxRenderStack(l,dFxActiveTab);dFxPopulate(l);
+}
+function dFxStackRemove(){
+  const l=dLayers.find(x=>x.id===dSelId),type=_dFxType(dFxActiveTab),idx=dFxStackSel.index;if(!l||l.type!=='shape'||!type||!l.layerEffects||!l.layerEffects[idx]||l.layerEffects[idx].type!==type)return;
+  const old=_dFxIndexes(l,type),pos=old.indexOf(idx);dHistoryPush();l.layerEffects.splice(idx,1);const next=_dFxIndexes(l,type);dFxStackSel={layerId:l.id,index:next.length?next[Math.min(Math.max(pos,0),next.length-1)]:-1};
+  _dFxFinish(l,type);dFxRenderStack(l,dFxActiveTab);dFxPopulate(l);
+}
+function dFxStackMove(dir){
+  const l=dLayers.find(x=>x.id===dSelId),type=_dFxType(dFxActiveTab);if(!l||l.type!=='shape'||!type||!l.layerEffects)return;
+  const idxs=_dFxIndexes(l,type),pos=idxs.indexOf(dFxStackSel.index),to=pos+dir;if(pos<0||to<0||to>=idxs.length)return;
+  dHistoryPush();const a=idxs[pos],b=idxs[to],tmp=l.layerEffects[a];l.layerEffects[a]=l.layerEffects[b];l.layerEffects[b]=tmp;dFxStackSel.index=b;
+  _dFxFinish(l,type);dFxRenderStack(l,dFxActiveTab);dFxPopulate(l);
+}
+function _dFxEditable(l,type){
+  let e=_dFxSelected(l,type);if(e)return e;
+  if(!Array.isArray(l.layerEffects))l.layerEffects=[];e=_dFxLegacyOn(l,type)?_dFxLegacyEffect(l,type):_dFxDefault(type);l.layerEffects.push(e);dFxStackSel={layerId:l.id,index:l.layerEffects.length-1};return e;
+}
+function dFxStackUpdate(prop,val){
+  const l=dLayers.find(x=>x.id===dSelId),type=_dFxType(dFxActiveTab);if(!l||l.type!=='shape'||!type)return;
+  const n=['angle','opacity','width'].includes(prop)?parseFloat(val):val;if(['angle','opacity','width'].includes(prop)&&isNaN(n))return;
+  dHistoryPushDebounced();const e=_dFxEditable(l,type);
+  if(type==='gradientOverlay'){
+    const g=e.gradient||(e.gradient=_dFxDefault(type).gradient),st=g.stops||(g.stops=[]);
+    if(prop==='startColor'){if(!st.length)st.push({color:val,pos:0,opacity:1});else st[0].color=val;}
+    else if(prop==='endColor'){if(st.length<2)st.push({color:val,pos:1,opacity:1});else st[st.length-1].color=val;}
+    else if(prop==='gradientType')g.type=val;else if(prop==='angle')g.angle=n;else if(prop==='opacity')g.opacity=Math.max(0,Math.min(1,n));else e[prop]=val;
+  }else e[prop]=['opacity'].includes(prop)?Math.max(0,Math.min(1,n)):['width'].includes(prop)?Math.max(1,n):n;
+  _dFxFinish(l,type,false);dFxPopulate(l);
 }
 
 // ── Angle dial interaction ─────────────────────────────────
@@ -954,11 +1075,16 @@ function dFxDialStart(e, propName, inputId, dialId) {
 
 // ── Reset all effects ──────────────────────────────────────
 function dFxReset() {
-  ['shadow','innerShadow','glow','overlay'].forEach(key => dUpdateProp(key, false));
-  ['dp-fx-shadow','dp-fx-inner','dp-fx-glow','dp-fx-overlay'].forEach(id => {
+  const l=dLayers.find(x=>x.id===dSelId); if(!l)return;
+  dHistoryPush();
+  ['shadow','innerShadow','glow','overlay'].forEach(key=>{ l[key]=false; });
+  delete l.layerEffects; delete l.layerEffectsComplete; delete l.layerEffectsApprox;
+  l.strokeW=0;delete l.gradientOverlay;dFxStackSel={layerId:l.id,index:-1};
+  ['dp-fx-shadow','dp-fx-inner','dp-fx-glow','dp-fx-overlay','dp-fx-gradient','dp-fx-stroke'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.checked = false;
   });
+  dRenderCanvas(); dRenderLayersList(); dMarkUnsaved();dFxRenderStack(l,dFxActiveTab);dFxPopulate(l);
   gToast('Efeitos removidos');
 }
 
@@ -973,23 +1099,27 @@ function _dFxHex(c){
 function dFxPopulate(l){
   const set=(id,v)=>{ const e=document.getElementById(id); if(e) e.value=v; };
   const chk=(id,v)=>{ const e=document.getElementById(id); if(e) e.checked=!!v; };
-  chk('dp-fx-shadow', l.shadow);
-  set('dp-fx-shadow-color', _dFxHex(l.shadowColor)||'#000000');
-  set('dp-fx-shadow-blur', l.shadowBlur!=null?l.shadowBlur:''); set('dp-fx-shadow-dist', l.shadowDist!=null?l.shadowDist:''); set('dp-fx-shadow-angle', l.shadowAngle!=null?l.shadowAngle:'');
-  chk('dp-fx-inner', l.innerShadow);
-  set('dp-fx-inner-color', _dFxHex(l.innerShadowColor)||'#000000');
-  set('dp-fx-inner-blur', l.innerShadowBlur!=null?l.innerShadowBlur:''); set('dp-fx-inner-dist', l.innerShadowDist!=null?l.innerShadowDist:''); set('dp-fx-inner-angle', l.innerShadowAngle!=null?l.innerShadowAngle:'');
+  const style=(id,v)=>{const e=document.getElementById(id);if(e)e.style.background=v;};
+  const txt=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  const effect=type=>_dFxSelected(l,type)||(_dFxLegacyOn(l,type)?_dFxLegacyEffect(l,type):_dFxDefault(type));
+  ['gradient','stroke'].forEach(tab=>{const e=document.getElementById('fx-tab-'+tab);if(e)e.classList.toggle('is-disabled',l.type!=='shape');});
+  const sh=effect('dropShadow'),inn=effect('innerShadow'),ov=effect('colorOverlay'),gr=effect('gradientOverlay'),st=effect('stroke');
+  chk('dp-fx-shadow',_dFxIndexes(l,'dropShadow').length||l.shadow);
+  set('dp-fx-shadow-color',_dFxHex(sh.color));set('dp-fx-shadow-blur',sh.blur);set('dp-fx-shadow-dist',sh.distance);set('dp-fx-shadow-angle',sh.angle);set('dp-fx-shadow-spread',sh.spread||0);set('dp-fx-shadow-opacity',Math.round(_dFxAlpha(sh.color,.5)*100));set('dp-fx-shadow-blend',sh.blendMode||'normal');style('fx-shadow-sw',_dFxHex(sh.color));txt('fx-shadow-hex',_dFxHex(sh.color));const shNeedle=document.getElementById('fx-shadow-needle');if(shNeedle)shNeedle.style.transform='rotate('+sh.angle+'deg)';
+  chk('dp-fx-inner',_dFxIndexes(l,'innerShadow').length||l.innerShadow);
+  set('dp-fx-inner-color',_dFxHex(inn.color));set('dp-fx-inner-blur',inn.blur);set('dp-fx-inner-dist',inn.distance);set('dp-fx-inner-angle',inn.angle);set('dp-fx-inner-spread',inn.spread||0);set('dp-fx-inner-opacity',Math.round(_dFxAlpha(inn.color,.5)*100));set('dp-fx-inner-blend',inn.blendMode||'normal');style('fx-inner-sw',_dFxHex(inn.color));txt('fx-inner-hex',_dFxHex(inn.color));const inNeedle=document.getElementById('fx-inner-needle');if(inNeedle)inNeedle.style.transform='rotate('+inn.angle+'deg)';
   chk('dp-fx-glow', l.glow);
   set('dp-fx-glow-color', _dFxHex(l.glowColor)||'#ffffff');
-  set('dp-fx-glow-size', l.glowSize!=null?l.glowSize:'');
-  chk('dp-fx-overlay', l.overlay);
-  set('dp-fx-overlay-color', _dFxHex(l.overlayColor)||'#000000');
-  set('dp-fx-overlay-op', l.overlayOpacity!=null?Math.round(l.overlayOpacity*100):'');
+  set('dp-fx-glow-size', l.glowSize!=null?l.glowSize:'');set('dp-fx-glow-spread',l.glowSpread||0);
+  chk('dp-fx-overlay',_dFxIndexes(l,'colorOverlay').length||l.overlay);set('dp-fx-overlay-color',_dFxHex(ov.color));set('dp-fx-overlay-op',Math.round((ov.opacity!=null?ov.opacity:1)*100));set('dp-fx-overlay-blend',ov.blendMode||'normal');style('fx-overlay-sw',_dFxHex(ov.color));txt('fx-overlay-hex',_dFxHex(ov.color));
+  chk('dp-fx-gradient',_dFxIndexes(l,'gradientOverlay').length||l.gradientOverlay);const gst=(gr.gradient&&gr.gradient.stops)||[],gs=gst[0]||{color:'#000000'},ge=gst[gst.length-1]||{color:'#ffffff'};set('dp-fx-gradient-start',_dFxHex(gs.color));set('dp-fx-gradient-end',_dFxHex(ge.color));set('dp-fx-gradient-type',(gr.gradient&&gr.gradient.type)||'linear');set('dp-fx-gradient-angle',(gr.gradient&&gr.gradient.angle)||0);set('dp-fx-gradient-opacity',Math.round(((gr.gradient&&gr.gradient.opacity)!=null?gr.gradient.opacity:1)*100));set('dp-fx-gradient-blend',gr.blendMode||'normal');style('fx-gradient-start-sw',_dFxHex(gs.color));style('fx-gradient-end-sw',_dFxHex(ge.color));txt('fx-gradient-start-hex',_dFxHex(gs.color));txt('fx-gradient-end-hex',_dFxHex(ge.color));
+  chk('dp-fx-stroke',_dFxIndexes(l,'stroke').length||l.strokeW>0);set('dp-fx-stroke-color',_dFxHex(st.color));set('dp-fx-stroke-width',st.width||1);set('dp-fx-stroke-align',st.align||'inside');set('dp-fx-stroke-opacity',Math.round((st.opacity!=null?st.opacity:1)*100));set('dp-fx-stroke-blend',st.blendMode||'normal');style('fx-stroke-sw',_dFxHex(st.color));txt('fx-stroke-hex',_dFxHex(st.color));
 }
 
 // Miniatura da camada (estilo Photoshop): imagem real, swatch da forma, "T" do texto ou pasta.
 function _dLayerThumb(l){
   if(l.type==='group') return '<span class="lyr-th-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>';
+  if(l.type==='adjustment') return '<span class="lyr-th-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16Z" fill="currentColor" stroke="none"/></svg></span>';
   if(l.type==='image'||l.type==='frame'){
     const u=l.imgUrl;
     if(u && /^(data:|https?:|blob:)/.test(u)) return '<img src="'+u+'" alt="" loading="lazy">';
@@ -1004,7 +1134,7 @@ function _dLayerThumb(l){
   return '';
 }
 // Indicador "fx" quando a camada tem qualquer efeito aplicado.
-function _dLayerHasFx(l){ return !!(l.shadow||l.innerShadow||l.glow||l.bevel||l.overlay||l.strokeW||l.gradient); }
+function _dLayerHasFx(l){ return !!(l.shadow||l.innerShadow||l.glow||l.bevel||l.overlay||l.strokeW||l.gradient||(l.layerEffects&&l.layerEffects.length)); }
 function dRenderLayersList(){
   const el=document.getElementById('d-layers-list');
   if(!el) return;
@@ -1079,6 +1209,7 @@ function dRenderLayersList(){
     else if (l.type === 'image') typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
     else if (l.type === 'frame') typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>`;
     else if (l.type === 'group') typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`;
+    else if (l.type === 'adjustment') typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16Z" fill="currentColor" stroke="none"/></svg>`;
 
     const dndAttrs = `draggable="true"
       ondragstart="dLyrDragStart(event,'${l.id}')"
@@ -1110,7 +1241,7 @@ function dRenderLayersList(){
         <span class="layer-label ${l.type === 'group' ? 'group-label' : ''}" ondblclick="dRenameLayer('${l.id}',event)" title="Duplo clique para renomear">${gEsc(l.name)}</span>
         ${varBadge}
         ${(l.blendMode && l.blendMode !== 'normal' && typeof dBlendModeLabel === 'function') ? `<span class="lyr-badge lyr-blend" title="Mesclagem: ${dBlendModeLabel(l.blendMode)}">${dBlendModeLabel(l.blendMode)}</span>` : ''}
-        ${_dLayerHasFx(l) ? `<span class="lyr-badge lyr-fx" title="Efeitos ativos: ${[l.shadow?'Sombra':'',l.innerShadow?'S.Interna':'',l.glow?'Brilho':'',l.overlay?'Sobreposição':''].filter(Boolean).join(', ')}">fx</span>` : ''}
+        ${_dLayerHasFx(l) ? `<span class="lyr-badge lyr-fx" title="Efeitos ativos: ${[l.shadow?'Sombra':'',l.innerShadow?'S.Interna':'',l.glow?'Brilho':'',l.overlay?'Sobreposição':'',l.layerEffects&&l.layerEffects.length?(l.layerEffects.length+' em pilha'):''].filter(Boolean).join(', ')}">fx</span>` : ''}
         ${l.mask ? `<span class="lyr-badge lyr-mask" title="Máscara aplicada — clique para remover" onclick="event.stopPropagation();dRemoveMask('${l.id}')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="display:inline-block;vertical-align:middle"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="12" cy="12" r="5"/></svg></span>` : ''}
         <button class="layer-vis ${l.locked ? 'layer-is-hidden' : ''}" onclick="dToggleLayerLock(event, 'ab-single', '${l.id}')" title="${l.locked ? 'Desbloquear' : 'Bloquear'}">${lockIcon}</button>
         <button class="layer-vis ${!l.visible ? 'layer-is-hidden' : ''}" onclick="dToggleLayerVis(event, 'ab-single', '${l.id}')" title="Visibilidade">${visIcon}</button>
@@ -1215,6 +1346,40 @@ function dToggleLock(e,id){
 }
 
 /* ── PROPS ── */
+function _dAdjNum(label,path,value,min,max,step,unit){
+  return `<div class="dpi-row"><label class="dpi-row-label">${label}</label><span class="dpi-unit-field"><input class="prop-input dpi-number" type="number" value="${value!=null?value:0}" min="${min}" max="${max}" step="${step||1}" oninput="dUpdateAdjustmentProp('${path}',this.value)">${unit?`<span class="dpi-unit">${unit}</span>`:''}</span></div>`;
+}
+function dRenderAdjustmentProps(l){
+  const host=document.getElementById('d-adjust-props');if(!host)return;
+  const a=l&&l.adjustment||{},t=String(a.type||'').toLowerCase();
+  const names={'brightness/contrast':'Brilho e contraste',levels:'Níveis',curves:'Curvas',exposure:'Exposição',vibrance:'Vibração','hue/saturation':'Matiz e saturação',invert:'Inverter',posterize:'Posterizar',threshold:'Limiar'};
+  let controls=_dAdjNum('Opacidade da camada','__opacity',l.opacity!=null?l.opacity:100,0,100,1,'%');
+  if(t==='brightness/contrast')controls+=_dAdjNum('Brilho','brightness',a.brightness||0,-100,100,1,'')+_dAdjNum('Contraste','contrast',a.contrast||0,-99,99,1,'');
+  else if(t==='levels'){
+    const c=a.rgb||{};controls+=_dAdjNum('Entrada preta','rgb.shadowInput',c.shadowInput!=null?c.shadowInput:0,0,254,1,'')+_dAdjNum('Gama','rgb.midtoneInput',c.midtoneInput!=null?c.midtoneInput:1,.01,9.99,.01,'')+_dAdjNum('Entrada branca','rgb.highlightInput',c.highlightInput!=null?c.highlightInput:255,1,255,1,'')+_dAdjNum('Saída preta','rgb.shadowOutput',c.shadowOutput!=null?c.shadowOutput:0,0,255,1,'')+_dAdjNum('Saída branca','rgb.highlightOutput',c.highlightOutput!=null?c.highlightOutput:255,0,255,1,'');
+  }else if(t==='curves'){
+    const pts=(a.rgb&&a.rgb.length?a.rgb:[{input:0,output:0},{input:255,output:255}]);
+    controls+=`<div class="dpi-group"><span class="dpi-group-title">Curva RGB</span>${pts.map((p,i)=>`<div class="dpi-row"><label class="dpi-row-label">Ponto ${i+1}</label><span class="dpi-unit-field"><input class="prop-input dpi-number" type="number" min="0" max="255" value="${p.input}" aria-label="Entrada" oninput="dUpdateAdjustmentCurve(${i},'input',this.value)"></span><span class="dpi-unit-field"><input class="prop-input dpi-number" type="number" min="0" max="255" value="${p.output}" aria-label="Saída" oninput="dUpdateAdjustmentCurve(${i},'output',this.value)"></span>${pts.length>2?`<button type="button" class="d-btn-sec" onclick="dRemoveAdjustmentCurvePoint(${i})" aria-label="Remover ponto">×</button>`:''}</div>`).join('')}<button type="button" class="d-btn-sec" onclick="dAddAdjustmentCurvePoint()">+ Adicionar ponto</button></div>`;
+  }else if(t==='exposure')controls+=_dAdjNum('Exposição','exposure',a.exposure||0,-20,20,.01,'')+_dAdjNum('Deslocamento','offset',a.offset||0,-.5,.5,.001,'')+_dAdjNum('Gama','gamma',a.gamma!=null?a.gamma:1,.01,9.99,.01,'');
+  else if(t==='vibrance')controls+=_dAdjNum('Vibração','vibrance',a.vibrance||0,-100,100,1,'')+_dAdjNum('Saturação','saturation',a.saturation||0,-100,100,1,'');
+  else if(t==='hue/saturation'){
+    const m=a.master||{};controls+=_dAdjNum('Matiz','master.hue',m.hue||0,-180,180,1,'°')+_dAdjNum('Saturação','master.saturation',m.saturation||0,-100,100,1,'')+_dAdjNum('Luminosidade','master.lightness',m.lightness||0,-100,100,1,'');
+  }else if(t==='posterize')controls+=_dAdjNum('Níveis','levels',a.levels||4,2,255,1,'');
+  else if(t==='threshold')controls+=_dAdjNum('Limiar','level',a.level!=null?a.level:128,0,255,1,'');
+  else if(t==='invert')controls+='<p class="dpi-source-meta">Sem parâmetros. Use visibilidade, opacidade e máscara para controlar o efeito.</p>';
+  else controls+='<p class="dpi-source-meta">Este tipo permanece na pilha, mas ainda não tem cálculo editável no Luma.</p>';
+  host.innerHTML=`<div class="dpi-group"><span class="dpi-group-title">${names[t]||gEsc(a.type||'Ajuste')}</span>${controls}</div>`;
+}
+function dUpdateAdjustmentProp(path,value){
+  const l=dLayers.find(x=>x.id===dSelId);if(!l||l.type!=='adjustment')return;
+  if(typeof dHistoryPush==='function')dHistoryPush();const n=Number(value);if(path==='__opacity')l.opacity=Math.max(0,Math.min(100,n));
+  else{let o=l.adjustment||(l.adjustment={});const p=path.split('.');for(let i=0;i<p.length-1;i++)o=o[p[i]]||(o[p[i]]={});o[p[p.length-1]]=n;}
+  dRenderCanvas();dMarkUnsaved();
+}
+function dUpdateAdjustmentCurve(i,key,value){const l=dLayers.find(x=>x.id===dSelId);if(!l||l.type!=='adjustment')return;if(typeof dHistoryPush==='function')dHistoryPush();const a=l.adjustment||(l.adjustment={type:'curves'});a.rgb=a.rgb||[{input:0,output:0},{input:255,output:255}];if(a.rgb[i])a.rgb[i][key]=Math.max(0,Math.min(255,Number(value)));dRenderCanvas();dMarkUnsaved();}
+function dAddAdjustmentCurvePoint(){const l=dLayers.find(x=>x.id===dSelId);if(!l||l.type!=='adjustment')return;if(typeof dHistoryPush==='function')dHistoryPush();const a=l.adjustment;a.rgb=(a.rgb||[{input:0,output:0},{input:255,output:255}]).slice().sort((p,q)=>p.input-q.input);let at=0,gap=-1;for(let i=1;i<a.rgb.length;i++){const g=a.rgb[i].input-a.rgb[i-1].input;if(g>gap){gap=g;at=i;}}const p=a.rgb[at-1],q=a.rgb[at],input=Math.round((p.input+q.input)/2),output=Math.round((p.output+q.output)/2);a.rgb.splice(at,0,{input,output});dRenderAdjustmentProps(l);dRenderCanvas();dMarkUnsaved();}
+function dRemoveAdjustmentCurvePoint(i){const l=dLayers.find(x=>x.id===dSelId),a=l&&l.adjustment;if(!a||!a.rgb||a.rgb.length<=2)return;if(typeof dHistoryPush==='function')dHistoryPush();a.rgb.splice(i,1);dRenderAdjustmentProps(l);dRenderCanvas();dMarkUnsaved();}
+
 function dShowProps(l){
   document.getElementById('d-no-sel').style.display='none';
   const pf=document.getElementById('d-props-form');pf.style.display='flex';
@@ -1267,8 +1432,9 @@ function dShowProps(l){
   // Atualizar header de contexto
   document.getElementById('dp-x').value=l.x;document.getElementById('dp-y').value=l.y;
   document.getElementById('dp-w').value=l.w;document.getElementById('dp-h').value=l.h;
-  const isText=l.type==='text',isImg=l.type==='image'||l.type==='frame',isShp=l.type==='shape';
+  const isText=l.type==='text',isImg=l.type==='image'||l.type==='frame',isShp=l.type==='shape',isAdj=l.type==='adjustment';
   if(typeof dRenderDadoControl==='function') dRenderDadoControl(l); // controle "Dado" (topo)
+  if(isAdj){const _dd=document.getElementById('dp-dado');if(_dd)_dd.style.display='none';}
   document.getElementById('d-text-props').style.display=isText?'':'none';
   var _shpEl=document.getElementById('d-shape-props');if(_shpEl)_shpEl.style.display=isShp?'':'none';
   document.getElementById('d-image-props').style.display=isImg?'flex':'none';
@@ -1277,6 +1443,7 @@ function dShowProps(l){
   if(typeof dRenderRules==='function')dRenderRules(l); // 4.2 — regras condicionais
   if(typeof dMaskRenderProps==='function')dMaskRenderProps(l); // máscaras de camada
   if(typeof dFxPopulate==='function')dFxPopulate(l); // efeitos (sombra/inner/glow/overlay) — universal
+  if(isAdj)dRenderAdjustmentProps(l);
   // Blend mode — universal para todos os tipos de layer
   var _blendSel=document.getElementById('dp-blend');
   if(_blendSel){
@@ -2087,9 +2254,30 @@ function dSetCorner(which,val){
   }
   dMarkUnsaved(); dRenderCanvas();
 }
+// Controles antigos (shadowBlur etc.) continuam sendo a API do HTML. Quando uma pilha está ativa,
+// eles escrevem na instância selecionada e espelham só a primeira no legado.
+function _dFxStackSync(l,prop,val){
+  if(!l||l.type!=='shape'||!Array.isArray(l.layerEffects))return false;
+  const cfg={
+    shadow:{type:'dropShadow',toggle:true},shadowColor:{type:'dropShadow',key:'color'},shadowOpacity:{type:'dropShadow',alpha:true},shadowBlur:{type:'dropShadow',key:'blur'},shadowDist:{type:'dropShadow',key:'distance'},shadowAngle:{type:'dropShadow',key:'angle'},shadowSpread:{type:'dropShadow',key:'spread'},shadowBlend:{type:'dropShadow',key:'blendMode'},
+    innerShadow:{type:'innerShadow',toggle:true},innerShadowColor:{type:'innerShadow',key:'color'},innerShadowOpacity:{type:'innerShadow',alpha:true},innerShadowBlur:{type:'innerShadow',key:'blur'},innerShadowDist:{type:'innerShadow',key:'distance'},innerShadowAngle:{type:'innerShadow',key:'angle'},innerShadowSpread:{type:'innerShadow',key:'spread'},innerShadowBlend:{type:'innerShadow',key:'blendMode'},
+    overlay:{type:'colorOverlay',toggle:true},overlayColor:{type:'colorOverlay',key:'color'},overlayOpacity:{type:'colorOverlay',key:'opacity'},overlayBlend:{type:'colorOverlay',key:'blendMode'}
+  }[prop];
+  if(!cfg)return false;
+  if(cfg.toggle){
+    if(!val)l.layerEffects=l.layerEffects.filter(e=>e&&e.type!==cfg.type);
+  } else {
+    const selected=_dFxSelected(l,cfg.type),e=selected||l.layerEffects.find(e=>e&&e.type===cfg.type);
+    if(!e)return false;
+    if(cfg.alpha)e.color=_dFxRgba(e.color,val);
+    else if(cfg.key==='color'&&(cfg.type==='dropShadow'||cfg.type==='innerShadow'))e.color=_dFxRgba(val,_dFxAlpha(e.color,.5));
+    else e[cfg.key]=val;
+  }
+  _dFxMirrorFirst(l,cfg.type);_dFxClearMeta(l);_dFxRecalcApprox(l);return true;
+}
 function dUpdateProp(prop,val){
   const l=dLayers.find(x=>x.id===dSelId);if(!l)return;
-  if(['x','y','w','h','fontSize','opacity','fillOpacity','radius','sides','points','strokeW','shadowBlur','shadowDist','shadowAngle','innerShadowBlur','innerShadowDist','innerShadowAngle','glowSize','textCurve'].includes(prop)){
+  if(['x','y','w','h','fontSize','opacity','fillOpacity','radius','sides','points','strokeW','shadowBlur','shadowDist','shadowAngle','shadowSpread','shadowOpacity','innerShadowBlur','innerShadowDist','innerShadowAngle','innerShadowSpread','innerShadowOpacity','glowSize','textCurve'].includes(prop)){
     // oninput dispara a cada tecla: campo momentaneamente vazio NÃO pode virar 0
     // (w=0/fontSize=0 fazia a camada sumir na hora e o 0 persistia no histórico)
     const _n=parseFloat(val);
@@ -2098,12 +2286,17 @@ function dUpdateProp(prop,val){
   }
   // Props editadas via oninput contínuo usam debounce — evita serializar dLayers a cada tecla.
   // Props de seleção discreta (font, textAlign, frameShape, etc.) usam push imediato.
-  const _continuousProps=['fontSize','opacity','fillOpacity','radius','color','fill','content','sides','points','strokeW','strokeColor','shadowColor','bgColor','imgScale','imgOffsetX','imgOffsetY','shadowBlur','shadowDist','shadowAngle','innerShadowColor','innerShadowBlur','innerShadowDist','innerShadowAngle','glowColor','glowSize','overlayColor','overlayOpacity','textCurve'];
+  const _continuousProps=['fontSize','opacity','fillOpacity','radius','color','fill','content','sides','points','strokeW','strokeColor','shadowColor','bgColor','imgScale','imgOffsetX','imgOffsetY','shadowBlur','shadowDist','shadowAngle','shadowSpread','shadowOpacity','innerShadowColor','innerShadowBlur','innerShadowDist','innerShadowAngle','innerShadowSpread','innerShadowOpacity','glowColor','glowSize','overlayColor','overlayOpacity','textCurve'];
   if(!['x','y','w','h'].includes(prop)){
     if(_continuousProps.includes(prop)) dHistoryPushDebounced();
     else dHistoryPush();
   }
   l[prop]=val;
+  const _fxStackChanged=_dFxStackSync(l,prop,val);
+  // Opacidade de sombra mora no alpha da cor no Canvas/CSS. Mantém a prop numérica apenas como
+  // compatibilidade do formulário; sem esta conversão o campo mudava e a arte não.
+  if(!_fxStackChanged&&prop==='shadowOpacity')l.shadowColor=_dFxRgba(l.shadowColor||'#000000',val);
+  if(!_fxStackChanged&&prop==='innerShadowOpacity')l.innerShadowColor=_dFxRgba(l.innerShadowColor||'#000000',val);
   if(prop==='radius') delete l.radii; // raio uniforme manda → limpa cantos por canto
   if(prop==='sides') l.sides=Math.max(3,Math.min(20,Math.round(val)));   // polígono
   if(prop==='points') l.points=Math.max(3,Math.min(20,Math.round(val))); // estrela

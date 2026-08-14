@@ -180,9 +180,9 @@ function _dPsdEffects(node){
     if(e.useGlobalLight && _dPsdGlobalLight!=null) return Math.round(_dPsdGlobalLight);
     return (e.angle!=null)?Math.round(e.angle):null;
   };
-  // Pega o 1º efeito de um array e marca _fxOverflow quando há vários do mesmo tipo (PS CC permite
-  // 2+ sombras/traços; o modelo Luma só representa um). _fxOverflow é consumido no fim do parse →
-  // a camada rasteriza fiel (senão o 2º+ efeito sumiria em silêncio).
+  // O modelo legado continua recebendo o 1º efeito para compatibilidade. Quando há 2+ instâncias,
+  // a pilha completa é criada mais abaixo; _fxOverflow só permanece ligado se algo dessa pilha
+  // não puder ser descrito pelo Luma.
   const _first=x=>{ if(Array.isArray(x)){ const on=x.filter(e=>e&&e.enabled!==false); if(on.length>1) out._fxOverflow=true; return on[0]||x[0]; } return x; };
   // Sombra projetada
   let ds=_first(fx.dropShadow);
@@ -289,6 +289,32 @@ function _dPsdEffects(node){
   // Contorno customizado muda o PERFIL do fade (curva !== linear padrão).
   const _hasCont=e=>!!(e && e.enabled!==false && e.contour && ((e.contour.curve && e.contour.curve.length>2) || (e.contour.name&&!/^linear$/i.test(e.contour.name))));
   if(_hasCont(ds)||_hasCont(is)||_hasCont(og)||_hasCont(ig)) out.fxContour=true;
+  // Photoshop aceita várias instâncias de sombra/overlay/traço na MESMA camada. Preservamos a
+  // pilha só quando ela realmente é múltipla; camadas comuns continuam no modelo legado enxuto.
+  // A ordem do array é mantida para o renderer compor como no painel Layer Style.
+  const many=k=>Array.isArray(fx[k])?fx[k].filter(e=>e&&e.enabled!==false):[];
+  const multiKeys=['dropShadow','innerShadow','solidFill','gradientOverlay','stroke'];
+  if(multiKeys.some(k=>many(k).length>1)){
+    const stack=[];let complete=true;
+    many('dropShadow').forEach(e=>{const a=_ang(e);stack.push({type:'dropShadow',color:gFxRgba(_dPsdHex(e.color)||'#000000',e.opacity!=null?e.opacity:.5),blur:Math.round(_u(e.size)),distance:Math.round(_u(e.distance)),angle:a!=null?a:120,spread:Math.round(_u(e.choke)||0),blendMode:_dPsdBlendMode(e.blendMode)});});
+    many('innerShadow').forEach(e=>{const a=_ang(e);stack.push({type:'innerShadow',color:gFxRgba(_dPsdHex(e.color)||'#000000',e.opacity!=null?e.opacity:.5),blur:Math.round(_u(e.size)),distance:Math.round(_u(e.distance)),angle:a!=null?a:120,spread:Math.round(_u(e.choke)||0),blendMode:_dPsdBlendMode(e.blendMode)});});
+    many('solidFill').forEach(e=>stack.push({type:'colorOverlay',color:_dPsdHex(e.color)||'#000000',opacity:e.opacity!=null?+e.opacity:1,blendMode:_dPsdBlendMode(e.blendMode)}));
+    many('gradientOverlay').forEach(e=>{
+      if(!e.gradient||!e.gradient.colorStops){complete=false;return;}
+      const src=e.gradient;let stops=src.colorStops.map(s=>({color:_dPsdHex(s.color)||'#000000',pos:Math.max(0,Math.min(1,s.location||0)),opacity:_dPsdOpacityAt(src.opacityStops,s.location||0)}));
+      if(src.reverse)stops=stops.map(s=>({...s,pos:1-s.pos})).reverse();const gs=_dPsdGradStyle(e.type||src.style,stops);if(gs.unsupported){complete=false;return;}
+      stack.push({type:'gradientOverlay',gradient:{type:gs.type,angle:Math.round(-(e.angle!=null?e.angle:90)),opacity:e.opacity!=null?+e.opacity:1,stops:gs.stops},blendMode:_dPsdBlendMode(e.blendMode)});
+    });
+    many('stroke').forEach(e=>{
+      const fillType=e.fillType||'color';if(fillType!=='color'||!e.color){complete=false;return;}
+      const sv=(e.size&&e.size.value!=null)?e.size.value:e.size;
+      stack.push({type:'stroke',width:Math.max(1,Math.round(+sv||2)),color:_dPsdHex(e.color.color||e.color)||'#000000',align:({inside:'inside',insetFrame:'inside',center:'center',centeredFrame:'center',outside:'outside',outsetFrame:'outside'}[e.position])||'outside',opacity:e.opacity!=null?+e.opacity:1,blendMode:_dPsdBlendMode(e.blendMode)});
+    });
+    if(stack.length)out.layerEffects=stack;
+    out.layerEffectsComplete=complete;
+    out.layerEffectsApprox=stack.some(e=>e.blendMode&&e.blendMode!=='normal');
+    out._fxOverflow=!complete;
+  }
   return out;
 }
 // Cor sólida EXATA de uma camada de forma/preenchimento (vectorFill type='color').
@@ -1175,6 +1201,30 @@ function _dPsdNeedsRaster(node){
   return false;
 }
 
+// Ajustes que o motor Canvas canônico consegue recalcular sobre a composição abaixo. Eles
+// continuam como CAMADAS (não viram pixels congelados), então editar foto/texto por baixo
+// preserva o tratamento de cor do PSD. Tipos fora desta lista entram visíveis na revisão,
+// mas marcados como não suportados em vez de desaparecerem silenciosamente.
+const _DPSD_ADJUST_SUPPORTED=new Set([
+  'brightness/contrast','levels','curves','exposure','vibrance','hue/saturation',
+  'invert','posterize','threshold'
+]);
+function _dPsdAdjustmentInfo(adj){
+  if(!adj||!adj.type)return null;
+  const data=JSON.parse(JSON.stringify(adj));
+  const type=String(data.type).toLowerCase();
+  // Estes algoritmos são dinâmicos e editáveis, mas o Photoshop usa curvas internas que não
+  // publica para Brilho moderno/Vibração e spline própria em Curvas. Marcamos a aproximação na
+  // revisão; melhor uma capacidade explícita do que vender "1:1" onde a matemática não é aberta.
+  let approximate=(type==='brightness/contrast'&&!data.useLegacy)||type==='vibrance'||(type==='curves'&&['rgb','red','green','blue'].some(k=>(data[k]||[]).length>2));
+  // O master de Hue/Saturation é reproduzido; faixas seletivas (reds/yellows/…) ainda não.
+  if(type==='hue/saturation'){
+    const ranged=['reds','yellows','greens','cyans','blues','magentas'];
+    approximate=ranged.some(k=>{const c=data[k]||{};return !!(+c.hue||+c.saturation||+c.lightness);});
+  }
+  return {data,type,supported:_DPSD_ADJUST_SUPPORTED.has(type),approximate};
+}
+
 // Assinatura curta de um raster para o dedupe. O comprimento do dataURL sozinho não serve:
 // duas fotos DIFERENTES que por acaso comprimem para o mesmo tamanho eram vistas como
 // duplicata e a segunda desaparecia sem aviso.
@@ -1292,6 +1342,21 @@ function dPsdParseItems(psd, res, ox, oy){
           }
         }
         return;
+      }
+      if(node.adjustment){
+        const ai=_dPsdAdjustmentInfo(node.adjustment); if(!ai)return;
+        // Camada de ajuste não possui caixa de pixels própria no PSD: ela atua sobre toda a
+        // composição do contexto (prancheta ou grupo). Uma caixa integral também permite que a
+        // máscara de camada seja reprojetada pelo mesmo pipeline das demais camadas.
+        const aw=Math.max(1,(psd&&psd.width)||1), ah=Math.max(1,(psd&&psd.height)||1);
+        const an=Object.assign({},node,{left:ox,top:oy,right:ox+aw,bottom:oy+ah});
+        const ait={n:++n,name:(node.name||ai.type).toString().slice(0,48),x:0,y:0,w:aw,h:ah,
+          visible:!accHidden,opacity:Math.round(accOp*100),include:true,kind:'adjustment',mode:'adjustment',
+          adjustment:ai.data,adjustmentType:ai.type,adjustmentSupported:ai.supported,
+          adjustmentApprox:ai.approximate,clippingLayer:node.clippingLayer||node.clipping,
+          blendMode:_dPsdBlendMode(node.blendMode),group:parentName||'',_psdNode:an};
+        if(inh.groups&&inh.groups.length)ait._groupChain=inh.groups.slice();
+        items.push(ait); return;
       }
       const x=Math.round((node.left||0)-ox), y=Math.round((node.top||0)-oy);
       const w=Math.max(1,Math.round((node.right||0)-(node.left||0)));
@@ -1476,14 +1541,16 @@ function dPsdParseItems(psd, res, ox, oy){
       // pixel que o PS compôs está no node.canvas, então rasterizar sai 1:1 (bem melhor que
       // fingir que é uma faixa linear, que era o comportamento antigo e mudo).
       if(it.gradient && it.gradient.psStyle){ it.gradientUnsupported=it.gradient.psStyle; delete it.gradient.psStyle; }
+      if(it.layerEffects && it.opacity<100) it.layerEffectsApprox=true;     // opacity da camada × pilha exige isolamento completo
       const _pn=it._psdNode;
       if(_pn && _pn.canvas && _pn.canvas.width>0){
-        const _fxUnsup = it._fxOverflow                                   // 2+ efeitos do mesmo tipo (só o 1º era aplicado)
+        const _fxUnsup = it._fxOverflow                                   // parte da pilha não tem equivalente editável
+          || (it.layerEffects && it.kind!=='shape')                       // pilha múltipla ainda só é dinâmica em formas
           || it.gradientUnsupported                                      // gradiente sem primitiva (cônico/losango)
           || it.overlayBlend                                             // color overlay em multiply/screen/etc.
           || (it.gradientOverlay && it.gradientOverlay.blendMode)        // gradient overlay com blend
           || (it.kind==='text' && (it.innerShadow||it.innerGlow||it.bevel||it.gradientOverlay)) // efeitos que o texto não renderiza
-          || (it.fillOpacity!=null && it.fillOpacity<1 && (it.shadow||it.innerShadow||it.glow||it.innerGlow||it.bevel||it.overlay||it.gradientOverlay||it.strokeW)); // fill-opacity + efeitos
+          || (it.fillOpacity!=null && it.fillOpacity<1 && (it.shadow||it.innerShadow||it.glow||it.innerGlow||it.bevel||it.overlay||it.gradientOverlay||it.strokeW||it.layerEffects)); // fill-opacity + efeitos
         if(_fxUnsup){ it.needsRaster=true; if(!it.imgUrl) it.imgUrl=_dPsdRasterURL(_pn.canvas,{maxPx:_fidCap,q:0.92}); }
       }
       items.push(it);
@@ -1496,7 +1563,7 @@ function dPsdParseItems(psd, res, ox, oy){
   items.forEach(it=>{
     // Inclui cor e tamanho do raster: sem isso, dois retângulos "Faixa" de mesma caixa mas cores
     // diferentes (ou duas fotos no mesmo frame) eram vistos como duplicata e o 2º sumia.
-    const sig=it.kind+'|'+it.name+'|'+it.x+'|'+it.y+'|'+it.w+'|'+it.h+'|'+(it.content||'')+'|'+(it.fill||'')+'|'+_dPsdImgSig(it.imgUrl);
+    const sig=it.kind+'|'+it.name+'|'+it.x+'|'+it.y+'|'+it.w+'|'+it.h+'|'+(it.content||'')+'|'+(it.fill||'')+'|'+(it.adjustment?JSON.stringify(it.adjustment):'')+'|'+_dPsdImgSig(it.imgUrl);
     if(_seen.has(sig)){ console.warn('[psd] layer duplicada descartada (assinatura idêntica):', it.name); return; }
     _seen.add(sig); out.push(it);
   });
@@ -1610,6 +1677,7 @@ function dPsdParseItems(psd, res, ox, oy){
 // Copia efeitos do item intermediário → layer (sombra/inner/glow/overlay/contorno+align).
 // Só grava o que existe, p/ não inflar o layer nem mudar camadas sem efeito.
 function _dPsdApplyFx(L, it){
+  if(it.layerEffects){L.layerEffects=JSON.parse(JSON.stringify(it.layerEffects));L.layerEffectsComplete=it.layerEffectsComplete!==false;if(it.layerEffectsApprox)L.layerEffectsApprox=true;}
   if(it.shadow){ L.shadow=true; L.shadowColor=it.shadowColor;
     if(it.shadowBlur!=null) L.shadowBlur=it.shadowBlur; if(it.shadowDist!=null) L.shadowDist=it.shadowDist; if(it.shadowAngle!=null) L.shadowAngle=it.shadowAngle;
     if(it.shadowSpread) L.shadowSpread=it.shadowSpread; }
@@ -1632,13 +1700,16 @@ function dItemToLayer(it){
   // fillOpacity sem efeitos ≡ opacity; com efeitos, só o fill deveria atenuar (não os efeitos) →
   // não é representável no modelo atual, marca p/ P3 rasterizar fiel.
   if(it.fillOpacity!=null && it.fillOpacity<1){
-    const _hasFx=it.shadow||it.innerShadow||it.glow||it.innerGlow||it.bevel||it.overlay||it.gradientOverlay||it.strokeW;
+    const _hasFx=it.shadow||it.innerShadow||it.glow||it.innerGlow||it.bevel||it.overlay||it.gradientOverlay||it.strokeW||it.layerEffects;
     if(!_hasFx) base.opacity=Math.round((it.opacity!=null?it.opacity:100)*it.fillOpacity);
     else it.needsRaster=true;
   }
   if(it.mask) base.mask=it.mask;
   if(it.clipBaseId){ base.clipBaseId=it.clipBaseId; if(it.clipBaseSnapshot)base.clipBaseSnapshot=it.clipBaseSnapshot; if(it.clipOwnMask)base.clipOwnMask=it.clipOwnMask; }
   if(it.blendMode) base.blendMode=it.blendMode;
+  if(it.kind==='adjustment'){
+    return Object.assign(base,{type:'adjustment',adjustment:JSON.parse(JSON.stringify(it.adjustment||{})),adjustmentSupported:it.adjustmentSupported!==false,adjustmentApprox:!!it.adjustmentApprox});
+  }
   // Modo MOLDURA DE FOTO (escolhido na revisão): a camada — forma ou imagem — vira um frame que o
   // franqueado preenche com foto. Preserva x/y/w/h; formato do frame herdado da forma original.
   if(it.mode==='frame'){
