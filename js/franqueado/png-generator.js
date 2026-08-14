@@ -1479,6 +1479,9 @@ async function fBulkOpen(){
 function fBulkClose(){
   fBulkCollectCurrentInputs();
   fBulkSaveDraft();
+  // Solta o observador da fita: fechar sem desligar deixava um IntersectionObserver por
+  // abertura, cada um segurando os nós da fita anterior.
+  if(_fBulkStripObserver){ _fBulkStripObserver.disconnect(); _fBulkStripObserver = null; }
   document.getElementById('f-bulk-modal').classList.remove('open');
 }
 
@@ -2929,7 +2932,33 @@ function fBulkSaveAllRows(isSilent=true) {
 
 // Renderiza os thumbnails em fila (cede o thread entre cada um). Um token cancela
 // loops antigos quando a lista é re-renderizada (ex.: após remover um card).
-async function fBulkRenderThumbs(){
+/* As miniaturas da fita são desenhadas SÓ quando entram em cena.
+   Antes o laço percorria o lote inteiro: cada miniatura é um `fRenderTemplateLayers` completo,
+   e a fita mostra ~10 por vez. Medido com 120 linhas: 4,2s de trabalho contínuo e ainda assim
+   só 91 das 120 pintadas — numa planilha de verdade (o Sheets existe para lotes grandes) isso
+   é a máquina do franqueado ocupada desenhando arte que ninguém está olhando, enquanto ele
+   tenta digitar ao lado.
+   O padrão é o mesmo já usado nas prévias do histórico (`_fHistRenderPreviews`): observa,
+   desenha na entrada e para de observar. `rootMargin` adianta o vizinho para a rolagem não
+   mostrar buraco. Sem IntersectionObserver, cai no laço antigo — nada fica sem imagem. */
+let _fBulkStripObserver = null;
+function _fBulkDesenharFitaVisivel(){
+  if(_fBulkStripObserver){ _fBulkStripObserver.disconnect(); _fBulkStripObserver = null; }
+  const strip = document.getElementById('f-bulk-strip');
+  if(!strip) return;
+  if(!('IntersectionObserver' in window)) return _fBulkRenderThumbsSeq();
+  _fBulkStripObserver = new IntersectionObserver((entradas, obs)=>{
+    entradas.forEach(e=>{
+      if(!e.isIntersecting) return;
+      obs.unobserve(e.target);
+      const i = +e.target.dataset.row;
+      if(fBulkRows[i]) fBulkRenderCardPreview(fBulkRows[i], i);
+    });
+  }, { root: strip, rootMargin: '220px' });
+  strip.querySelectorAll('.f-bulk-strip-item').forEach(n=>_fBulkStripObserver.observe(n));
+}
+// Fallback sequencial (navegador sem IntersectionObserver).
+async function _fBulkRenderThumbsSeq(){
   const token=++_fBulkRenderToken;
   for(let i=0;i<fBulkRows.length;i++){
     if(token!==_fBulkRenderToken)return; // novo render começou → aborta o antigo
@@ -2943,6 +2972,8 @@ async function fBulkRenderThumbs(){
       : setTimeout(res,30));
   }
 }
+// Nome preservado: é o que o render da fita chama, e prefixo aqui é sagrado.
+function fBulkRenderThumbs(){ _fBulkDesenharFitaVisivel(); }
 async function fBulkRenderCardPreview(row, index){
   const cv=document.getElementById('f-bulk-cv-'+index);
   const badge=document.getElementById('f-bulk-badge-'+index);
