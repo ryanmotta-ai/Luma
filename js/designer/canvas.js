@@ -1143,7 +1143,7 @@ function dRenderCanvas(){
       const bg=(ab&&ab.bg&&ab.bg!=='transparent')?ab.bg:'rgba(0,0,0,0)';
       Promise.resolve().then(async()=>{
         if(frame._adjustRenderId!==_adjustRenderId||!ac.isConnected)return;
-        try{await fRenderTemplateLayers(ac.getContext('2d'),cumul,f.w,f.h,dSimActive?dSimValues:{},{color:'rgba(0,0,0,0)'},{layers:cumul,w:f.w,h:f.h,fmt:'orig',bg});}
+        try{await fRenderTemplateLayers(ac.getContext('2d'),cumul,f.w,f.h,dSimActive?dSimValues:{},{color:'rgba(0,0,0,0)'},{layers:cumul,w:f.w,h:f.h,fmt:'orig',bg},{scope:'designer',purpose:'preview'});}
         catch(e){console.warn('[designer] falha na prévia do ajuste:',e);}
         if(frame._adjustRenderId!==_adjustRenderId&&ac.parentNode)ac.parentNode.remove();
       });
@@ -2023,13 +2023,10 @@ async function dSimRenderPreview(){
   // coletor de overflow que o render já expõe (`png-generator.js`). Agora o designer vê QUAL
   // campo estourou, não só que a arte ficou estranha.
   const sink=new Set(); window._fOverflowSink=sink;
-  // Este é o render do FRANQUEADO chamado de dentro do Estúdio. O layout vivo fica desligado
-  // aqui: o simulador serve para o designer ver se o texto cabe na arte que ele desenhou —
-  // com a acomodação ligada ele veria o conserto, não o problema. Restaurado no `finally`.
-  const _offAntes=(typeof gLayoutVivoOff!=='undefined')&&gLayoutVivoOff;
-  gLayoutVivoOff=true;
-  try{ok=await fRenderPreviewToCanvas(canvas,tmpl,{maxPx:1200,dados:JSON.parse(JSON.stringify(dSimDraftValues))});}catch(e){ok=false;}
-  finally{ window._fOverflowSink=null; gLayoutVivoOff=_offAntes; }
+  // Escopo explícito de autoria: o simulador mostra só a composição publicada. Não toca no
+  // estado/preferência do franqueado e não executa o Auto-layout.
+  try{ok=await fRenderPreviewToCanvas(canvas,tmpl,{maxPx:1200,dados:JSON.parse(JSON.stringify(dSimDraftValues)),scope:'designer'});}catch(e){ok=false;}
+  finally{ window._fOverflowSink=null; }
   if(seq!==dSimRenderSeq)return;
   dSimMarkOverflow(sink);
   if(ok===false){

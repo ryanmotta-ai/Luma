@@ -414,7 +414,7 @@ function fRenderMaterialCatalog(camp, container){
       const card=cv.closest('.f-mat-card');
       if(card) card.classList.add('is-rendering'); // fetch tardou → mostra estado de render agora
       try{
-        Promise.resolve(fRenderPreviewToCanvas(cv, m, {maxPx:520, camp:{color:camp.color||'#FF9000'}, dados:m._demoDados}))
+        Promise.resolve(fRenderPreviewToCanvas(cv, m, {maxPx:520, camp:{color:camp.color||'#FF9000'}, dados:m._demoDados, scope:'franqueado'}))
           .then(()=>{ if(card) card.classList.remove('is-rendering'); })
           .catch(()=>{ if(card){ card.classList.remove('is-rendering'); card.classList.add('has-preview-error'); } });
       }catch(e){

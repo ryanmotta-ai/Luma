@@ -2252,11 +2252,7 @@ body:not(.theme-light) input:-webkit-autofill:active {
         <div class="section-head" style="color:var(--dm-orange)">CHECKLIST DE QUALIDADE</div>
         <p style="font-size:11px;color:var(--d-text2);line-height:1.5;margin:0 0 12px 0">Auditoria inteligente do design system para evitar quebras de layout nas redes sociais dos franqueados.</p>
         <div id="d-linter-issues" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding-right:4px;"></div>
-        <button class="d-btn-pri" onclick="dApplyIntelligentLayout()" style="width:100%;justify-content:center;margin-top:12px;flex-shrink:0;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M4 7h10M4 12h16M4 17h10"/><path d="m16 5 3 2-3 2M14 15l3 2-3 2"/></svg>
-          Corrigir layout
-        </button>
-        <button class="d-btn-sec" onclick="dRunLinter()" style="width:100%;justify-content:center;margin-top:8px;flex-shrink:0;">
+        <button class="d-btn-sec" onclick="dRunLinter()" style="width:100%;justify-content:center;margin-top:12px;flex-shrink:0;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
           Re-analisar layout
         </button>
@@ -3039,13 +3035,13 @@ body:not(.theme-light) input:-webkit-autofill:active {
 
 
 
-<script src="js/00-config.js?v=3"></script>
+<script src="js/00-config.js?v=4"></script>
 <script src="js/core/img-store.js"></script>
 <script src="js/01-state.js?v=2"></script>
 <script src="js/core/toast.js"></script>
 <script src="js/core/sound.js"></script>
 <script src="js/core/qr.js"></script>
-<script src="js/core/layout.js"></script>
+<script src="js/core/layout.js?v=2"></script>
 <script src="js/core/help.js"></script>
 <script src="js/tutorial/catalog.js"></script>
 <script src="js/tutorial/mocks.js"></script>
@@ -3054,10 +3050,10 @@ body:not(.theme-light) input:-webkit-autofill:active {
 <script src="js/tutorial/engine.js"></script>
 <script src="js/franqueado/history.js?v=2"></script>
 <script src="js/franqueado/prefs.js?v=2"></script>
-<script src="js/franqueado/catalog.js?v=2"></script>
-<script src="js/franqueado/materials.js?v=2"></script>
-<script src="js/franqueado/chat.js?v=3"></script>
-<script src="js/franqueado/live-preview.js?v=3"></script>
+<script src="js/franqueado/catalog.js?v=3"></script>
+<script src="js/franqueado/materials.js?v=3"></script>
+<script src="js/franqueado/chat.js?v=4"></script>
+<script src="js/franqueado/live-preview.js?v=4"></script>
 <script src="js/franqueado/panel-dock.js?v=2"></script>
 <script src="js/franqueado/upload-panel.js?v=2"></script>
 <script src="js/franqueado/chat-input.js?v=2"></script>
@@ -3072,9 +3068,9 @@ body:not(.theme-light) input:-webkit-autofill:active {
 <script src="js/academia/certificado.js"></script>
 <script src="js/academia/conclusao.js"></script>
 <script src="js/designer/blending.js"></script>
-<script src="js/franqueado/png-generator.js?v=4"></script>
+<script src="js/franqueado/png-generator.js?v=5"></script>
 <script src="js/designer/templates.js?v=2"></script>
-<script src="js/designer/canvas.js?v=7"></script>
+<script src="js/designer/canvas.js?v=8"></script>
 <script src="js/designer/selection.js"></script>
 <script src="js/designer/brush.js?v=2"></script>
 <script src="js/designer/eraser-tools.js"></script>
@@ -3804,7 +3800,7 @@ body:not(.theme-light) input:-webkit-autofill:active {
 
 <script src="js/designer/color-picker.js"></script>
 <script src="js/designer/tooltip.js"></script>
-<script src="js/designer/linter.js"></script>
+<script src="js/designer/linter.js?v=2"></script>
   <!-- Tooltip Educativo Global -->
   <div id="d-rich-tooltip" class="d-rich-tooltip" style="display:none; opacity:0;"></div>
 </body>
