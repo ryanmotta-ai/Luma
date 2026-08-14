@@ -1128,7 +1128,6 @@ let _fBulkAuditFingerprint='';
 let _fBulkImageAudit=new Map();
 let _fBulkAutosaveTimer=null;
 let _fBulkAutosaveSeq=0;
-let _fBulkDraftFormats=[];
 let _fBulkGenerationState=null;
 let _fBulkPreflightRunning=false;
 
@@ -1196,7 +1195,6 @@ function _fBulkDraftMeta(rows){
     materialId:fState.material&&fState.material.id,
     updatedAt:new Date().toISOString(),
     rows,
-    formats:Array.from(document.querySelectorAll('.f-bulk-fmt-cb:checked')).map(cb=>cb.value),
     copyFormat:(document.getElementById('f-bulk-copy-format')||{}).value||'feed',
     city:(document.getElementById('f-bulk-city')||{}).value||'',
     tableView:_fBulkTableView
@@ -1278,7 +1276,6 @@ async function fBulkRestoreDraft(){
   }
   fBulkRows=_fBulkRevalidateRows(rows);
   _fBulkTableView=draft.tableView!==false;
-  _fBulkDraftFormats=Array.isArray(draft.formats)?draft.formats:[];
   const copy=document.getElementById('f-bulk-copy-format');
   const city=document.getElementById('f-bulk-city');
   if(copy&&draft.copyFormat)copy.value=draft.copyFormat;
@@ -1433,22 +1430,10 @@ async function fBulkOpen(){
   const aiBtn=document.querySelector('.f-ai-prompt-toggle');
   if(aiBtn){aiBtn.setAttribute('aria-expanded','false');const c=aiBtn.querySelector('.f-ai-prompt-chevron');if(c)c.textContent='›';}
   
-  const fmtWrap = document.getElementById('f-bulk-fmts-wrap');
-  const fmtList = document.getElementById('f-bulk-fmts-list');
-  if(fmtWrap && fmtList && typeof FMTS !== 'undefined') {
-    fmtWrap.style.display = 'block';
-    fmtList.innerHTML = FMTS.map(f => {
-      const checked = fState.fmt && fState.fmt.id === f.id ? 'checked' : '';
-      return `<label class="f-bulk-fmt-chip">
-        <input type="checkbox" value="${f.id}" class="f-bulk-fmt-cb" ${checked} onchange="fBulkUpdateReadiness();fBulkScheduleAutosave()" style="margin:0;accent-color:var(--dm-orange,#FF9000)">
-        <span style="font-weight:600">${f.name}</span>
-      </label>`;
-    }).join('');
-    if(_fBulkDraftFormats.length){
-      fmtList.querySelectorAll('.f-bulk-fmt-cb').forEach(cb=>{ cb.checked=_fBulkDraftFormats.includes(cb.value); });
-      _fBulkDraftFormats=[];
-    }
-  }
+  /* Os chips de formato saíram do rodapé (13/08, pedido do dono): o franqueado já escolheu o
+     formato ao abrir o material, e repetir a escolha aqui era uma decisão a mais para chegar no
+     mesmo lugar. O `fBulkDownloadAll` sempre teve o fallback `selectedFmts=[fState.fmt]`, então
+     o ZIP sai no formato do material — que é o que a prévia ao lado mostra o tempo todo. */
   fBulkRestoreGenerationState();
   const copy=document.getElementById('f-bulk-copy-format');
   const city=document.getElementById('f-bulk-city');
@@ -1462,11 +1447,10 @@ async function fBulkOpen(){
   
   fBulkUpdateSavedTemplatesList();
   document.getElementById('f-bulk-modal').classList.add('open');
-  // Sem passos: a tela já está inteira na frente. O que muda é só o painel de importação —
-  // aberto quando não há nada preenchido (o ponto de partida de quem chega), fechado quando
-  // um rascunho voltou, porque aí o assunto é conferir o que já é dela.
-  const _temOferta = fBulkRows.some(r=>Object.values(r.dados||{}).some(v=>String(v||'').trim()));
-  fBulkToggleImport(!_temOferta);
+  // Sem passos: a tela já está inteira na frente. O painel de preencher começa FECHADO mesmo
+  // com a planilha vazia — quem chega vê a tabela, que é onde se digita; os seis caminhos de
+  // importação ficam a um clique, sem tomar a coluna de quem não vai usá-los.
+  fBulkToggleImport(false);
   fBulkSetActive(0);
   if(restored)gToast('Sua produção foi recuperada automaticamente');
 }
@@ -1640,7 +1624,7 @@ const F_BULK_FAQ = [
   { cat:'Começar', q:'“Começar com exemplos” lê meu cardápio real?', a:'Não. É uma demonstração que gera exemplos por tipo (pizza, sushi, burger) só como ponto de partida. Edite com seus produtos e preços reais antes de gerar.' },
   { cat:'Recursos', q:'Posso ditar por voz?', a:'Sim — clique em “Falar” no painel de preencher e fale suas ofertas (ex.: “hambúrguer por 25, pizza de 50 por 39”). O assistente separa produto e preço. Precisa de Chrome/Edge e do site em https ou localhost (não funciona abrindo o arquivo direto).' },
   { cat:'Recursos', q:'Como coloco fotos nos produtos?', a:'Na planilha, cada campo de imagem tem o botão “Foto” (envia do computador) ou um campo pra colar um link. Fotos abaixo de 600px avisam que podem sair pixeladas.' },
-  { cat:'Recursos', q:'Dá pra exportar vários formatos?', a:'Sim — marque os formatos (Story, Feed, Post wide…) no rodapé e o ZIP vem com uma pasta por formato.' },
+  { cat:'Recursos', q:'Em qual formato as artes saem?', a:'No formato do material que você abriu — o mesmo que a prévia mostra ao lado da planilha. Para o mesmo lote em outro formato (Story, Feed, Post wide…), abra o material naquele formato e rode o lote de novo.' },
   { cat:'Recursos', q:'O que são as Ações em Massa?', a:'Em “Mudar tudo de uma vez” você preenche uma coluna inteira de uma só vez, aplica desconto em % ou arredonda os preços pra final “,90” — tudo em todas as linhas ao mesmo tempo.' },
   { cat:'Recursos', q:'O ZIP vem com as legendas?', a:'Sim — junto das imagens vem um arquivo “legendas_posts.txt” com 3 opções de copy por produto. Escolha entre formato Feed (completo, com hashtags) ou Stories (curto) pelo seletor “Copy” na toolbar. As copys seguem o tom de voz Delivery Much e não se repetem.' },
   { cat:'Problemas', q:'Uma arte saiu em branco ou errada. Por quê?', a:'Confira se a linha não tem campos com erro (o card mostra um aviso laranja) e se o material selecionado tem as variáveis certas. Corrija a linha e gere de novo.' },
@@ -1922,11 +1906,14 @@ Responda APENAS JSON: {"itens":[{"produto":"...","precoDe":"","precoPor":"25,90"
   }).filter(Boolean);
 }
 
-// Estado de "trabalhando" da etapa 1 (a leitura de cardápio leva alguns segundos).
+// Estado de "trabalhando" do painel de preencher (a leitura de cardápio leva alguns segundos).
+// O alvo passou a ser o painel de escrever/falar (#f-bulk-ai-wrap) — o antigo cartão
+// #f-ai-prompt-block saiu da tela, e mirar num id morto deixava os botões clicáveis durante a
+// leitura, com o segundo clique atropelando o primeiro.
 function _fBulkSetBusy(on, texto){
-  const card = document.getElementById('f-ai-prompt-block');
+  const card = document.getElementById('f-bulk-ai-wrap');
   if(card) card.classList.toggle('is-busy', !!on);
-  document.querySelectorAll('#f-ai-prompt-block button, #f-bulk-menu-input').forEach(b=>{ b.disabled = !!on; });
+  document.querySelectorAll('#f-bulk-ai-wrap button, #f-bulk-menu-input').forEach(b=>{ b.disabled = !!on; });
   const st = document.getElementById('f-bulk-menu-status');
   if(st) st.textContent = on ? (texto||'Lendo…') : '';
 }
@@ -2473,6 +2460,17 @@ function fBulkTogglePaste() {
   const wrap = document.getElementById('f-bulk-paste-wrap');
   if(wrap) wrap.style.display = wrap.style.display==='none' ? 'block' : 'none';
 }
+/* Escrever/falar as ofertas. Era um cartão sempre aberto ocupando meia coluna do painel; virou
+   um caminho sob demanda como os outros cinco. O textarea, o microfone e o `fBulkFillWithAI`
+   são os MESMOS — só mudaram de lugar. Abre já com o cursor dentro: quem clicou aqui veio
+   escrever, e um campo que aparece sem foco cobra um clique a mais por nada. */
+function fBulkToggleAiText(){
+  const wrap = document.getElementById('f-bulk-ai-wrap');
+  if(!wrap) return;
+  const abrir = wrap.style.display === 'none';
+  wrap.style.display = abrir ? 'block' : 'none';
+  if(abrir){ const ta = document.getElementById('f-bulk-ai-raw-text'); if(ta) try{ ta.focus(); }catch(e){} }
+}
 
 // Detecta se o texto colado é tabular (Excel/CSV) ou texto livre de cardápio. Tabular =
 // tem tabs, OU toda linha não-vazia tem o mesmo nº de vírgulas (>=1). Senão é cardápio.
@@ -2556,10 +2554,10 @@ function fBulkGetReadiness(keys=fBulkVars(), formatCount=null) {
     }
   });
 
-  if (formatCount === null) {
-    const checked = document.querySelectorAll('.f-bulk-fmt-cb:checked').length;
-    formatCount = checked || 1; // espelha o fallback do download para o formato atual
-  }
+  // Um formato por oferta: o do material aberto. Antes isto contava os chips do rodapé, que
+  // saíram — e consultar um seletor morto para sempre cair no fallback é o tipo de linha que
+  // sobrevive a um refactor fingindo que ainda decide algo.
+  if (formatCount === null) formatCount = 1;
 
   return {
     readyRows,
@@ -2599,8 +2597,9 @@ function fBulkUpdateReadiness(readiness=fBulkGetReadiness()) {
     } else if (!ready) {
       footer.textContent = 'Preencha pelo menos uma oferta para gerar as artes.';
     } else {
-      const formatLabel = readiness.formatCount === 1 ? 'formato' : 'formatos';
-      let text = `${ready} oferta(s) × ${readiness.formatCount} ${formatLabel} = ${readiness.artCount} arte(s) no ZIP`;
+      // Sem seletor de formato, cada oferta pronta é UMA arte — a multiplicação sumiu junto
+      // com os chips, e anunciar "× 1 formato" seria explicar uma conta que não existe mais.
+      let text = `${ready} arte(s) no ZIP, no formato do material`;
       if (errors) text += ` · ${errors} linha(s) com erro serão puladas`;
       else if (empty) text += ` · ${empty} linha(s) vazia(s) serão ignoradas`;
       footer.textContent = text;
@@ -2935,16 +2934,11 @@ async function fBulkDownloadAll(){
   fBulkSaveAllRows(true);
   
   const keys = fBulkVars();
-  const checkboxes = document.querySelectorAll('.f-bulk-fmt-cb:checked');
-  let selectedFmts = [];
-  if(checkboxes.length > 0 && typeof FMTS !== 'undefined') {
-    checkboxes.forEach(cb => {
-      const f = FMTS.find(x => x.id === cb.value);
-      if(f) selectedFmts.push(f);
-    });
-  } else {
-    selectedFmts = [fState.fmt];
-  }
+  // O ZIP sai no formato do material aberto — o mesmo que a prévia ao lado mostra o tempo todo.
+  // A escolha múltipla de formatos vivia em chips no rodapé e saiu: era repetir uma decisão que
+  // o franqueado já tomou ao abrir o material. A estrutura de lista fica porque o laço de
+  // geração e as pastas do ZIP são por formato.
+  const selectedFmts = [fState.fmt];
   
   // Filtra linhas válidas que não tenham erro e que NÃO estejam completamente vazias
   const valid = fBulkRows.filter(r => {
