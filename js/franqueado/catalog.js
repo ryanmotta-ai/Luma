@@ -227,6 +227,34 @@ function _fHistRenderPreviews(run){
   _fHistPreviewObserver=observer;
   previews.forEach(img=>observer.observe(img));
 }
+/* ── O CAMINHO DE VOLTA DE "MINHAS ARTES" ──
+   Entrar aqui esconde o rail INTEIRO (`body.f-history-mode` derruba `#fran-left-head` e
+   `#fran-right` no CSS), então a aba "Catálogo" some junto: quem clicou em "Minhas artes"
+   de dentro de uma campanha — ou no meio do chat de um material — ficava sem volta. Sobrava
+   "Início", que joga na vitrine e abandona o que estava aberto.
+   Não há nada a reconstruir: campanha, material e chat continuam MONTADOS atrás do histórico
+   (medido — `#f-material-view` segue `display:flex` dentro do pai escondido), o CSS só os
+   cobre. Devolver a aba do catálogo restaura a tela exata, inclusive o rascunho do chat.
+   O botão SUBSTITUI o de Início em vez de somar mais um: de dentro de uma campanha a home
+   fica a um clique pelo próprio rail, e três ações num cabeçalho é ruído. */
+function _fHistVoltarBtn(){
+  const _ICO_VOLTA='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>';
+  const _ICO_HOME='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>';
+  const camp=(fState.camp && fState.camp.id) ? fState.camp : null;
+  // Só há para onde voltar se a campanha estiver de fato aberta atrás: na lista de materiais
+  // (materialView) ou no chat de um material. Vindo da vitrine, o destino certo é a home.
+  if(!camp || !(fState.materialView || fState.material)){
+    return `<button class="f-history-home" type="button" onclick="fGoHome()" aria-label="Voltar ao início">${_ICO_HOME}Início</button>`;
+  }
+  const nome=String(camp.name||'').trim() || 'a campanha';
+  const curto=nome.length>22 ? nome.slice(0,21).trimEnd()+'…' : nome;
+  return `<button class="f-history-home" type="button" onclick="fHistVoltar()" aria-label="Voltar para ${gEsc(nome)}" title="Voltar para ${gEsc(nome)}">${_ICO_VOLTA}Voltar para ${gEsc(curto)}</button>`;
+}
+function fHistVoltar(){
+  // A aba do catálogo é o botão que o CSS escondeu — chamá-la direto refaz o caminho que o
+  // usuário faria se ele estivesse visível.
+  fSwitchTab('catalogo', document.querySelector('.f-tab'));
+}
 function fRenderHist(){
   const previewRun=++_fHistPreviewRun;
   const all = fGetHist();
@@ -246,7 +274,7 @@ function fRenderHist(){
       <p>Continue um rascunho, reutilize uma criação ou baixe novamente.</p>
     </div>
     <div class="f-history-head-actions">
-      <button class="f-history-home" type="button" onclick="fGoHome()" aria-label="Voltar ao início"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Início</button>
+      ${_fHistVoltarBtn()}
       <button class="f-history-new" type="button" onclick="fGoToCampaigns()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Nova arte</button>
     </div>
   </header>`;
