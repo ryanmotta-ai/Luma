@@ -1108,7 +1108,21 @@ function fLpInjectPlaceholders(layers, dadosPreview, defaults){
       if(def == null || def === ''){
         const vDef=(typeof dVars!=='undefined'&&dVars)?dVars.find(v=>v.name===name):null;
         let ex=(vDef&&vDef.example!=null&&String(vDef.example).trim()!=='')?String(vDef.example).trim():'';
-        
+
+        /* O TEXTO QUE O DESIGNER COMPÔS é o melhor placeholder que existe: com ele, a prévia
+           abre mostrando exatamente a arte publicada — mesma quebra, mesmo corpo, nada
+           reacomodado. Sem isto o campo vazio caía num exemplo de dicionário ou no RÓTULO
+           ("Nome do produto"), quase sempre mais longo que a frase original, e a arte chegava
+           adaptada antes de a pessoa digitar um único caractere. É a causa mais visível do
+           "abri a prévia e está tudo pequeno".
+           ⚠ Só quando a camada é o campo INTEIRO: em "De {{de}} por", o `layoutRefText` guarda a
+           frase montada ("De R$ 49,90 por") e usá-la como valor do campo produziria
+           "De De R$ 49,90 por por". */
+        if(!ex && l.layoutRefText){
+          const so=new RegExp('^\\s*\\{\\{\\s*'+name+'(?::[a-zA-Z0-9_]+)?\\s*\\}\\}\\s*$');
+          if(so.test(String(l.content||''))) ex=String(l.layoutRefText).trim();
+        }
+
         if(!ex){
           // 1ª Linha de Defesa: Primeira sugestão da pergunta da campanha ativa (se disponível)
           const perg = fState.camp?.perguntas?.find(p => p.id === name);

@@ -981,9 +981,22 @@ function gFitTextLayer(layer, texto, ctxAux, opts) {
   // nulo), o clone nem existe e o caminho é byte a byte o de hoje.
   let _wrapL = (_desenhada !== (l.fontSize || 24)) ? Object.assign({}, l, { fontSize: _desenhada }) : l;
   if(ehCaixa&&!l.vertical&&typeof gSmartWrapText==='function')txt=gSmartWrapText(txt,larguraLayout,_wrapL,null,null);
-  /* Corredor estreito não pode transformar um título em seis linhas. Antes de reduzir por
-     colisão, procura o maior tamanho que respeita o teto de linhas do próprio corredor. */
-  const maxLinhas=l._layoutMaxLines||0;
+  /* ⚠ O TETO DE LINHAS NÃO ENCOLHE A LETRA POR CONTA PRÓPRIA.
+     Nem no corredor: apertar a largura para desviar de um obstáculo é motivo para o texto
+     QUEBRAR mais, não para a letra encolher — se as linhas a mais causarem estrago de verdade,
+     a escada aparece e resolve na ordem certa. Deixando o teto valer no corredor, metade das
+     artes ainda chegava com a letra 34% menor (medido na bancada), porque corredor é comum:
+     basta um selo ou uma foto perto do texto.
+     Antes ele curto-circuitava a escada inteira — reduzia a fonte no PRIMEIRO
+     passo, antes de tentar quebrar e empurrar. Medido: numa prancheta 1080×1350 com uma caixa
+     de 600×300 e espaço de sobra, um texto de 5 linhas saía a 36px em vez de 40px; com um selo
+     travado ao lado (que nem chegava a ser tocado), a mesma caixa saía a 24px — 40% menor, sem
+     nada colidir e sem nada sair da prancheta.
+     É exatamente o que o franqueado vê como "abri a prévia e está tudo pequeno", e é o oposto
+     do contrato: o que o designer publicou sai como publicado enquanto couber. Passar do teto
+     de linhas continua sendo REGISTRADO (`excedeuLinhas`) — pesa na nota e o checklist avisa —
+     mas quem manda encolher é a escada, e só depois de quebrar e empurrar não resolverem. */
+  const maxLinhas=(opts.aplicarTetoLinhas===true)?(l._layoutMaxLines||0):0;
   if(maxLinhas && txt.split('\n').filter(s=>s.trim()!=='').length>maxLinhas){
     const pisoBase=Math.max(8,l._pisoLegivel||0,l._pisoFonte||0,Math.round((l.fontSize||24)*0.5));
     let tentativa=_desenhada, melhorTxt=txt, melhorFonte=_desenhada;
@@ -998,8 +1011,11 @@ function gFitTextLayer(layer, texto, ctxAux, opts) {
     }
     txt=melhorTxt; base=Math.round(melhorFonte*esc);
   }
-  const excedeuLinhas=!!(maxLinhas
-    &&txt.split('\n').filter(s=>s.trim()!=='').length>maxLinhas);
+  /* O sinal vale sempre (é o que a nota e o checklist leem), mesmo quando a redução acima não
+     foi aplicada — senão o teto de linhas sumiria da avaliação junto com o encolhimento. */
+  const _tetoSemantico=l._layoutMaxLines||0;
+  const excedeuLinhas=!!(_tetoSemantico
+    &&txt.split('\n').filter(s=>s.trim()!=='').length>_tetoSemantico);
   // 2) CAIXA-ALTA do PSD (o canvas 2D não tem text-transform)
   if (l.textTransform === 'uppercase') txt = txt.toUpperCase();
   else if (l.textTransform === 'lowercase') txt = txt.toLowerCase();
@@ -1306,8 +1322,18 @@ function _gCorrenteEhFundo(l, cv){
   }
   return false;
 }
-function _gInferirCorrentes(cloned, opts, resolved){
+function _gInferirCorrentes(cloned, opts, resolved, base){
   const cv=(opts&&opts.canvas)||null;
+  /* O ZERO DA CORRENTE É O QUE O DESIGNER COMPÔS, não a caixa que ele desenhou.
+     A régua antiga era o pé da CAIXA (`A.y + A.h`). Parece a mesma coisa e não é: quando o
+     texto autorado já ocupa mais que a própria caixa — o caso normal de PSD, onde a caixa é o
+     bbox justo dos glifos da frase original — o filho era empurrado JÁ NO ESTADO PUBLICADO.
+     Medido: com o texto idêntico ao do designer, o bloco de baixo descia 64px e o veredito saía
+     `adapted`. Ou seja, a arte do franqueado divergia do Estúdio sem ninguém ter digitado nada.
+     Com a referência autorada (`baseVisual`), o zero passa a ser a composição publicada: texto
+     igual ao do designer → arte idêntica; texto maior → desce EXATAMENTE o excedente. */
+  const _fundoRef=(A)=>{ const b=base&&base[A.id]; return b?(b.y+b.h):((A.y||0)+(A.h||0)); };
+  const _direitaRef=(A)=>{ const b=base&&base[A.id]; return b?(b.x+b.w):((A.x||0)+(A.w||0)); };
   const _vazio=(l)=>!!(resolved && resolved[l.id] && resolved[l.id].vazio);
   // Candidatos a PAI: qualquer camada visível que não seja o fundo (um fundo de tela cheia
   // "termina" no rodapé e adotaria a arte inteira). Texto que saiu VAZIO também fica fora:
@@ -1360,7 +1386,7 @@ function _gInferirCorrentes(cloned, opts, resolved){
       // `colapso` é o único crédito de subida: a altura das faixas que sumiram no meio.
       const colapso=_colapsoEntre(fundoPai, topoB, x1B, x2B);
       B._anchorAuto={ type:'top-to-bottom', layerId:pai.id,
-                      gap: Math.round(topoB-fundoPai-colapso.soma), auto:true,
+                      gap: Math.round(topoB-_fundoRef(pai)-colapso.soma), auto:true,
                       colapso:colapso.soma, _raizCampoVazio:colapso.temCampo };
       return;
     }
@@ -1390,7 +1416,7 @@ function _gInferirCorrentes(cloned, opts, resolved){
       if(direitaA > direitaPai){ direitaPai=direitaA; paiL=A; }
     });
     if(!paiL) return;
-    B._anchorAuto={ type:'left-to-right', layerId:paiL.id, gap: Math.round(x1B-direitaPai), auto:true };
+    B._anchorAuto={ type:'left-to-right', layerId:paiL.id, gap: Math.round(x1B-_direitaRef(paiL)), auto:true };
   });
 
   /* Uma corrente automática só existe se nascer num CAMPO DINÂMICO. Sem esta poda, qualquer
@@ -1524,13 +1550,20 @@ function _gLayoutBaseVisual(cloned,defaults,ctxAux){
          referência com a MESMA fonte disponível no navegador calibra diferenças de métrica sem
          voltar ao antigo valor de amostra da sessão. Um "DE R$ XX,XX" não pode parecer que
          cresceu só porque a fonte substituta mede mais que o bbox justo do Photoshop. */
-      if(l.textBox!=='box'&&!l.vertical&&l.layoutRefText){
+      if(!l.vertical&&l.layoutRefText){
         const limpo=Object.assign({},l);
         delete limpo._layoutW;delete limpo._layoutDx;delete limpo._layoutMaxLines;
         delete limpo._tetoFonte;delete limpo._entrelinha;delete limpo._fit;delete limpo._vTopAuto;
         const f=gFitTextLayer(limpo,String(l.layoutRefText),ctxAux,{encolher:false});
-        const w=f.larguraMax||l.w||0;
-        out[l.id]={x:(l.x||0)+_gInkDx(limpo,w),y:(l.y||0)+_gInkDy(limpo,f.altura),w,h:f.altura||l.h||0};
+        /* CAIXA DE PARÁGRAFO TAMBÉM. A largura continua sendo a da caixa (é fixa por definição),
+           mas a ALTURA passa a ser a da tinta autorada. Enquanto ela ficava sendo a caixa, a
+           corrente empurrava o bloco de baixo mesmo com o texto IDÊNTICO ao do designer — basta
+           a frase original ocupar mais que a caixa desenhada, que é o normal num PSD. O
+           franqueado abria a prévia, não digitava nada, e a arte já saía diferente do Estúdio. */
+        const caixa=(l.textBox==='box');
+        const w=caixa?(l.w||0):(f.larguraMax||l.w||0);
+        out[l.id]={x:(l.x||0)+(caixa?0:_gInkDx(limpo,w)),
+                   y:(l.y||0)+_gInkDy(limpo,f.altura),w,h:f.altura||l.h||0};
       }else out[l.id]={x:l.x||0,y:l.y||0,w:l.w||0,h:l.h||0};
       return;
     }
@@ -1770,7 +1803,7 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
       resolved[l.id].dx=_gInkDx(l,f.larguraMax);
       _gStampVTop(l,f.altura);
     });
-    _gInferirCorrentes(cloned, opts, resolved);
+    _gInferirCorrentes(cloned, opts, resolved, baseVisual);
     _gInferirPlacas(cloned, opts);
   }
   // Posição PUBLICADA de cada camada: a corrente inferida nunca sobe além dela (o laço abaixo
@@ -2013,10 +2046,13 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
   };
   let _ultimasColisoes=[];
   let _ultimosEstouros=[];
-  /* A escada segue perseguindo os DOIS: encolher para caber no teto de linhas é justamente o
-     que um designer faria. O que mudou é só o veredito — teto excedido não reprova a arte. */
-  const _estourosRestritos=()=>cloned.filter(l=>_gLayoutTemCampo(l)&&l._fit
-    &&(l._fit.estourou||l._fit.excedeuLinhas)
+  /* ⛔ SÓ DANO ACIONA A ESCADA. Passar do teto de linhas não é motivo para reacomodar arte
+     nenhuma: se o texto coube sem colidir e sem sair da prancheta, a composição publicada é a
+     que vale, com quantas linhas forem. Deixar `excedeuLinhas` aqui reabria pela porta da
+     escada o mesmo encolhimento preventivo que foi tirado do `gFitTextLayer` — a arte chegava
+     pequena do mesmo jeito, agora via `_tetoFonte`. O teto de linhas segue pesando na NOTA
+     (escolha entre alternativas) e no checklist do Estúdio (aviso ao designer). */
+  const _estourosRestritos=()=>cloned.filter(l=>_gLayoutTemCampo(l)&&l._fit&&l._fit.estourou
     &&(l.textBox==='box'||l._layoutW!=null||l.vertical));
   const _violaComposicao=()=>{
     _ultimasColisoes=_colisoesInternas();
