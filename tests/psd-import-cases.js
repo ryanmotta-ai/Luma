@@ -42,6 +42,7 @@
   });
 
   let passed=0;
+  const falhas=[];
   for(const item of cases){
     const li=document.createElement('li');li.className='case';
     try{
@@ -51,6 +52,7 @@
       li.classList.add('fail');
       li.innerHTML='<strong>✕ '+item.name+'</strong><small>'+String(error&&error.message||error)+'</small>';
       console.error('[psd-import]',item.name,error);
+      falhas.push({name:item.name,error:String(error&&error.message||error)});
     }
     results.appendChild(li);
   }
@@ -58,4 +60,9 @@
   summary.textContent=passed+'/'+cases.length+' cenários passaram'+(failed?' · '+failed+' falharam':' · importador aprovado');
   summary.dataset.passed=String(passed);summary.dataset.total=String(cases.length);
   document.title=(failed?'FALHOU':'OK')+' — PSD ('+passed+'/'+cases.length+')';
+
+  /* Contrato do runner de CI (`scripts/run-browser-tests.js`): a suíte publica o resultado
+     aqui quando termina. Esperar o `load` da página pegaria o teste no meio — as asserções
+     são assíncronas porque medem fonte real e desenham em canvas. */
+  window.__lumaTest={passed:passed,total:cases.length,failures:falhas};
 })();

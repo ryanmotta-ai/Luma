@@ -1,0 +1,62 @@
+name: Regressão (Auto-layout · PSD · corpus · fuzzing)
+
+# Roda as suítes de `tests/` num Chromium headless a cada push e a cada PR.
+#
+# Por que num navegador de verdade: o Luma não tem build nem runner (1ª lei — ver
+# `luma-brain/03_ENGINEERING.md`). Métrica de fonte, Canvas 2D e quebra de linha SÓ existem no
+# navegador; testar isso em Node com mock mediria o mock, não o motor.
+#
+# Zero dependência: `scripts/run-browser-tests.js` fala DevTools Protocol direto, com o
+# WebSocket nativo do Node 22. Não há `npm install` neste workflow de propósito.
+#
+# O que reprova o commit:
+#   · qualquer caso vermelho em tests/*.html (invariantes do solver, importador de PSD, corpus);
+#   · fuzzing que ache exceção, `NaN`, laço que não converge ou bloqueio sem diagnóstico.
+# O golden fino (geometria/imagem) é comparado só quando a pilha de FONTES do runner bate com a
+# gravada — senão vira aviso, nunca falso vermelho. Detalhe em `tests/corpus-cases.js`.
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'js/**'
+      - 'tests/**'
+      - 'scripts/run-browser-tests.js'
+      - '.github/workflows/tests.yml'
+  pull_request:
+    paths:
+      - 'js/**'
+      - 'tests/**'
+      - 'scripts/run-browser-tests.js'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: luma-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  navegador:
+    name: Suítes no Chromium
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'          # WebSocket nativo (o cliente CDP depende dele)
+
+      - name: Instalar Chromium
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends chromium-browser || \
+          sudo apt-get install -y --no-install-recommends chromium
+          # Fontes com acento e caixa alta: sem elas a medida de texto muda e o corpus
+          # comparado ao golden viraria ruído (a suíte avisa e pula, mas queremos medir de verdade).
+          sudo apt-get install -y --no-install-recommends fonts-liberation fonts-dejavu-core
+
+      - name: Rodar as suítes
+        run: node scripts/run-browser-tests.js
