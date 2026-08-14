@@ -930,12 +930,17 @@ function dApplyBg(ab){
    Compartilhado pelo render do canvas e pelo thumbnail. Sem efeito → []. */
 function dFxShadowParts(l){
   const parts=[];
+  const stack=Array.isArray(l.layerEffects)?l.layerEffects:[],of=t=>stack.filter(e=>e&&e.type===t);
   // sp(): "propagação" do PS = 4ª medida do box-shadow (spread). Nativo aqui, custo zero.
   const sp=v=>v?' '+v+'px':'';
-  if(l.shadow){ const o=gFxOffset(l.shadowDist!=null?l.shadowDist:4, l.shadowAngle); const b=l.shadowBlur!=null?l.shadowBlur:6;
+  const drops=of('dropShadow');
+  if(drops.length)drops.forEach(e=>{const o=gFxOffset(e.distance!=null?e.distance:4,e.angle),b=e.blur!=null?e.blur:6;parts.push(o.x+'px '+o.y+'px '+b+'px'+sp(e.spread)+' '+(e.color||'rgba(0,0,0,.5)'));});
+  else if(l.shadow){ const o=gFxOffset(l.shadowDist!=null?l.shadowDist:4, l.shadowAngle); const b=l.shadowBlur!=null?l.shadowBlur:6;
     parts.push(o.x+'px '+o.y+'px '+b+'px'+sp(l.shadowSpread)+' '+(l.shadowColor||'rgba(0,0,0,.5)')); }
   if(l.glow){ parts.push('0 0 '+(l.glowSize!=null?l.glowSize:8)+'px'+sp(l.glowSpread)+' '+(l.glowColor||'rgba(255,255,255,.7)')); }
-  if(l.innerShadow){ const o=gFxOffset(l.innerShadowDist!=null?l.innerShadowDist:4, l.innerShadowAngle); const b=l.innerShadowBlur!=null?l.innerShadowBlur:6;
+  const inners=of('innerShadow');
+  if(inners.length)inners.forEach(e=>{const o=gFxOffset(e.distance!=null?e.distance:4,e.angle),b=e.blur!=null?e.blur:6;parts.push('inset '+o.x+'px '+o.y+'px '+b+'px'+sp(e.spread)+' '+(e.color||'rgba(0,0,0,.5)'));});
+  else if(l.innerShadow){ const o=gFxOffset(l.innerShadowDist!=null?l.innerShadowDist:4, l.innerShadowAngle); const b=l.innerShadowBlur!=null?l.innerShadowBlur:6;
     parts.push('inset '+o.x+'px '+o.y+'px '+b+'px'+sp(l.innerShadowSpread)+' '+(l.innerShadowColor||'rgba(0,0,0,.5)')); }
   if(l.innerGlow){ parts.push('inset 0 0 '+(l.innerGlowSize!=null?l.innerGlowSize:8)+'px '+(l.innerGlowColor||'rgba(255,255,255,.7)')); }
   if(l.bevel){ const o=gFxOffset(l.bevelSize!=null?l.bevelSize:4, l.bevelAngle), b=l.bevelSize!=null?l.bevelSize:4; // realce (luz) + sombra opostos, internos
@@ -971,6 +976,8 @@ function dDashOutlineSvg(l){
 }
 // Traçado de shape como box-shadow, respeitando o alinhamento (inside/center/outside).
 function dFxStrokeParts(l){
+  const stack=Array.isArray(l.layerEffects)?l.layerEffects.filter(e=>e&&e.type==='stroke'):[];
+  if(stack.length)return stack.map(e=>{const w=e.width||1,c=gFxRgba(e.color||'#000000',e.opacity!=null?e.opacity:1),a=e.align||'inside';if(a==='outside')return '0 0 0 '+w+'px '+c;if(a==='center')return '0 0 0 '+(w/2)+'px '+c+', inset 0 0 0 '+(w/2)+'px '+c;return 'inset 0 0 0 '+w+'px '+c;});
   if(!(l.strokeW>0) || l.strokeDash) return []; // dash é desenhado via SVG (dDashOutlineSvg)
   const w=l.strokeW, c=l.strokeColor||'#000', a=l.strokeAlign||'inside';
   if(a==='outside') return ['0 0 0 '+w+'px '+c];
@@ -981,13 +988,17 @@ function dFxStrokeParts(l){
 function dFxShapeBg(l){
   const base = (l.gradient && l.gradient.stops && l.gradient.stops.length) ? gGradientCss(l.gradient) : (l.fill||'#FF9000');
   const layers=[];
-  if(l.gradientOverlay && l.gradientOverlay.stops && l.gradientOverlay.stops.length){ // gradient overlay (efeito)
+  const stack=Array.isArray(l.layerEffects)?l.layerEffects:[],gos=stack.filter(e=>e&&e.type==='gradientOverlay'),cos=stack.filter(e=>e&&e.type==='colorOverlay');
+  if(gos.length)gos.forEach(e=>{const g=e.gradient?JSON.parse(JSON.stringify(e.gradient)):null;if(!g||!g.stops||!g.stops.length)return;if(g.opacity!=null&&g.opacity<1)g.stops=g.stops.map(s=>({color:s.color,pos:s.pos,opacity:(s.opacity!=null?s.opacity:1)*g.opacity}));layers.push(gGradientCss(g));});
+  else if(l.gradientOverlay && l.gradientOverlay.stops && l.gradientOverlay.stops.length){ // gradient overlay (efeito)
     const g=Object.assign({}, l.gradientOverlay);
     if(g.opacity!=null && g.opacity<1) g.stops=g.stops.map(s=>({color:s.color,pos:s.pos,opacity:(s.opacity!=null?s.opacity:1)*g.opacity}));
     layers.push(gGradientCss(g));
   }
-  if(l.overlay && l.overlayColor){ const o=gFxRgba(l.overlayColor, l.overlayOpacity!=null?l.overlayOpacity:1); layers.push('linear-gradient('+o+','+o+')'); }
-  return layers.length? layers.join(',')+','+base : base;
+  if(cos.length)cos.forEach(e=>{const o=gFxRgba(e.color||'#000000',e.opacity!=null?e.opacity:1);layers.push('linear-gradient('+o+','+o+')');});
+  else if(l.overlay && l.overlayColor){ const o=gFxRgba(l.overlayColor, l.overlayOpacity!=null?l.overlayOpacity:1); layers.push('linear-gradient('+o+','+o+')'); }
+  // Canvas 2D pinta em sequência (último efeito no topo); CSS lista o topo primeiro.
+  return layers.length? layers.reverse().join(',')+','+base : base;
 }
 // Duplo clique manual em camada (ver comentário no listener de mousedown mais abaixo).
 let dLastClickLayerId=null, dLastClickTime=0;

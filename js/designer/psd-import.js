@@ -257,7 +257,7 @@ function dPsdRenderRows(filter){
         :`<span class="psd-fontok" title="Este ajuste acompanha qualquer edição feita nas camadas abaixo">${_dPsdEsc(_adjPt[it.adjustmentType]||it.adjustmentType||'Ajuste')} · editável</span>${it.adjustmentApprox?'<span class="psd-fontwarn" title="O ajuste é dinâmico, mas esta variação usa matemática aproximada do Photoshop">Aproximação identificada</span>':''}`)
       :'';
     const effectsStackBadge=(it.layerEffects&&it.kind==='shape')
-      ?`<span class="psd-fontok" title="Sombras, contornos e sobreposições repetidas foram preservados na ordem da camada; o painel compacto edita a primeira instância de cada tipo">${it.layerEffects.length} efeitos em pilha · preservados</span>`:'';
+      ?`<span class="psd-fontok" title="Sombras, contornos e sobreposições repetidas foram preservados na ordem e podem ser editados individualmente no Estilo de Camada">${it.layerEffects.length} efeitos em pilha · editáveis</span>`:'';
     const fxWarns=[
       it.fxSatin?'Cetim não aplicado':'',
       it.fxContour?'Contorno de efeito ignorado':'',
