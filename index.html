@@ -31,12 +31,12 @@
 <link rel="stylesheet" href="css/components/tutorial.css">
 <link rel="stylesheet" href="css/modules/franqueado.css">
 <link rel="stylesheet" href="css/modules/chat.css?v=2">
-<link rel="stylesheet" href="css/modules/live-preview.css">
+<link rel="stylesheet" href="css/modules/live-preview.css?v=2">
 <link rel="stylesheet" href="css/modules/color-picker.css">
 <link rel="stylesheet" href="css/modules/all-tools.css">
 <link rel="stylesheet" href="css/modules/topbar.css">
 <link rel="stylesheet" href="css/modules/catalog.css?v=2">
-<link rel="stylesheet" href="css/modules/franqueado_effects.css">
+<link rel="stylesheet" href="css/modules/franqueado_effects.css?v=2">
 <link rel="stylesheet" href="css/modules/publish-modal.css">
 <link rel="stylesheet" href="css/modules/designer.css?v=4">
   <link rel="stylesheet" href="css/components/pages-tray.css">
@@ -774,8 +774,9 @@ body:not(.theme-light) input:-webkit-autofill:active {
             </div>
           </div>
           <div class="lp-stage">
-            <div class="lp-stage-meta" aria-hidden="true">
-              <span class="lp-stage-hint">Clique na arte para ajustar</span>
+            <div class="lp-stage-meta">
+              <span class="lp-stage-hint" title="Arraste a mesa para mover a arte. Use a roda do mouse ou a pinça para controlar o zoom.">Arraste para mover · role ou pince para zoom</span>
+              <span class="lp-stage-dim" id="lp-dim" title="Dimensões finais da arte"></span>
             </div>
             <!-- Estado vazio contextual (copy trocada por fLpShowEmpty conforme o passo do fluxo) -->
             <div class="lp-empty" id="lp-empty" aria-hidden="true">
@@ -791,20 +792,20 @@ body:not(.theme-light) input:-webkit-autofill:active {
           </div>
           <div class="lp-toolbar">
             <div class="lp-tool-left">
-              <button type="button" class="lp-tool-btn lp-fit-btn" onclick="fLpRefit()" title="Reajustar a prévia à tela" aria-label="Reajustar a prévia à tela">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14v4a2 2 0 0 0 2 2h4"/><path d="M4 10V6a2 2 0 0 1 2-2h4"/><path d="M14 4h4a2 2 0 0 1 2 2v4"/><path d="M20 14v4a2 2 0 0 1-2 2h-4"/></svg>
+              <button type="button" class="lp-tool-btn lp-fit-btn" id="lp-zoom-reset-btn" onclick="fLpRefit()" title="Voltar ao padrão e ajustar a arte à tela" aria-label="Redefinir zoom e ajustar a arte à tela">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
                 <span>Ajustar</span>
               </button>
               <div class="lp-zoom-group" role="group" aria-label="Controles de zoom">
-                <button type="button" class="lp-zoom-step" onclick="fLpZoomStep(-1)" title="Diminuir zoom" aria-label="Diminuir zoom">
+                <button type="button" class="lp-zoom-step" data-lp-zoom-step="-1" onclick="fLpZoomStep(-1)" title="Diminuir zoom" aria-label="Diminuir zoom">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 </button>
+                <input type="range" class="lp-zoom-range" id="lp-zoom-range" min="0" max="1000" step="1" value="369" oninput="fLpZoomSlider(this.value)" aria-label="Nível de zoom" aria-valuetext="Ajustado à tela">
                 <button type="button" class="lp-tool-text lp-zoom-reset" id="lp-zoom" onclick="fLpZoomReset()" title="Voltar ao ajuste de tela" aria-label="Nível de zoom — clique para reajustar">—</button>
-                <button type="button" class="lp-zoom-step" onclick="fLpZoomStep(1)" title="Aumentar zoom" aria-label="Aumentar zoom">
+                <button type="button" class="lp-zoom-step" data-lp-zoom-step="1" onclick="fLpZoomStep(1)" title="Aumentar zoom" aria-label="Aumentar zoom">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><line x1="12" y1="5" x2="12" y2="19"/></svg>
                 </button>
               </div>
-              <span class="lp-tool-text lp-tool-dim" id="lp-dim" title="Dimensões da arte"></span>
             </div>
             <div class="lp-tool-right">
               <!-- AUTOMÁTICOS num grupo só: são a mesma natureza (coisas que o Luma faz
@@ -815,11 +816,13 @@ body:not(.theme-light) input:-webkit-autofill:active {
               <div class="lp-auto-group" role="group" aria-label="Ajustes automáticos">
                 <span class="lp-auto-label" aria-hidden="true">Auto</span>
                 <button type="button" class="lp-auto-chip active" id="lp-auto-zoom" aria-pressed="true" onclick="fLpToggleAutoZoom()" title="Desativar zoom automático">
-                  <span>Zoom</span>
+                  <svg class="lp-auto-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4M11 8v6M8 11h6"/></svg>
+                  <span class="lp-auto-name">Zoom</span>
                   <span class="lp-toggle" aria-hidden="true"><span class="lp-toggle-knob"></span></span>
                 </button>
                 <button type="button" class="lp-auto-chip active" id="lp-auto-layout" aria-pressed="true" onclick="fLpToggleAutoLayout()" title="Desativar acomodação automática" hidden>
-                  <span>Layout</span>
+                  <svg class="lp-auto-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 4-8 4-8-4 8-4Z"/><path d="m4 12 8 4 8-4M4 17l8 4 8-4"/></svg>
+                  <span class="lp-auto-name">Layout</span>
                   <span class="lp-toggle" aria-hidden="true"><span class="lp-toggle-knob"></span></span>
                 </button>
               </div>
@@ -3059,7 +3062,7 @@ body:not(.theme-light) input:-webkit-autofill:active {
 <script src="js/franqueado/catalog.js?v=2"></script>
 <script src="js/franqueado/materials.js?v=2"></script>
 <script src="js/franqueado/chat.js?v=3"></script>
-<script src="js/franqueado/live-preview.js?v=2"></script>
+<script src="js/franqueado/live-preview.js?v=3"></script>
 <script src="js/franqueado/panel-dock.js?v=2"></script>
 <script src="js/franqueado/upload-panel.js?v=2"></script>
 <script src="js/franqueado/chat-input.js?v=2"></script>

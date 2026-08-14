@@ -116,6 +116,7 @@
 .lp-stage{
   flex:1;
   min-height:0;
+  touch-action:none;
   padding:36px 16px 24px;
   display:flex;
   flex-direction:column;
@@ -128,7 +129,8 @@
   background-size:18px 18px;
 }
 .lp-stage-meta{position:absolute;z-index:2;top:18px;left:20px;right:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;pointer-events:none;color:var(--text-3);font-size:9px;font-weight:800;letter-spacing:.11em;text-transform:uppercase}
-.lp-stage-hint{font-size:9.5px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--text-3)}
+.lp-stage-hint{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9.5px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--text-3)}
+.lp-stage-dim{flex:0 0 auto;font-size:9px;font-weight:700;letter-spacing:.04em;color:var(--text-3);font-variant-numeric:tabular-nums}
 /* Mesa arrastável (estilo Miro): grab em repouso, grabbing enquanto move. Sobre a arte o
    pointer (clique-pra-editar) vence em repouso; durante o arrasto, grabbing tem prioridade. */
 .lp-stage:not(.empty){cursor:grab}
@@ -249,7 +251,7 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
   flex-wrap:nowrap;
   min-width:0;
 }
-.lp-tool-left{flex:0 1 auto}
+.lp-tool-left{flex:1 1 auto}
 .lp-tool-right{flex:0 0 auto;justify-content:flex-start}
 .lp-tool-left>*,.lp-tool-right>*{flex-shrink:0}
 
@@ -275,6 +277,7 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
 .lp-auto-chip:active{transform:scale(.97)}
 .lp-auto-chip:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
 .lp-auto-chip.active{background:var(--dm-orange-bg);color:var(--dm-orange-d)}
+.lp-auto-icon{display:none;width:12px;height:12px;flex:0 0 12px}
 /* Chave menor que a do botão solto: dentro do grupo ela é detalhe, não o assunto. */
 .lp-auto-chip .lp-toggle{width:22px;height:14px}
 .lp-auto-chip .lp-toggle-knob{width:10px;height:10px}
@@ -303,12 +306,36 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
 .lp-fit-btn svg{flex:0 0 14px}
 .lp-fit-btn>span,.lp-posted-btn>span{display:none}
 
-.lp-zoom-group{height:32px;display:inline-flex;align-items:center;padding:2px;border:1px solid var(--gray-light);border-radius:10px;background:var(--off-white)}
+.lp-zoom-group{height:32px;min-width:134px;max-width:178px;flex:1 1 158px;display:inline-flex;align-items:center;padding:2px;border:1px solid var(--gray-light);border-radius:10px;background:var(--off-white)}
 .lp-zoom-step{width:24px;height:26px;display:grid;place-items:center;padding:0;border:0;border-radius:7px;background:transparent;color:var(--text-2);cursor:pointer;transition:background var(--dur-micro),color var(--dur-micro),transform var(--dur-micro) var(--ease-spring)}
 .lp-zoom-step svg{width:13px;height:13px}
 .lp-zoom-step:hover{background:var(--white);color:var(--text)}
 .lp-zoom-step:active{transform:scale(.9)}
 .lp-zoom-step:focus-visible{outline:2px solid var(--dm-orange);outline-offset:-1px}
+.lp-zoom-step:disabled{opacity:.32;cursor:not-allowed;transform:none}
+
+/* Slider compacto, mas com alvo de 26px. O preenchimento laranja é atualizado pelo JS para
+   acompanhar a escala logarítmica: há precisão perto do ajuste e alcance para inspecionar detalhes. */
+.lp-zoom-range{
+  --lp-zoom-progress:36.9%;
+  flex:1 1 62px;min-width:40px;width:62px;height:26px;margin:0 2px;padding:0;
+  appearance:none;-webkit-appearance:none;background:transparent;cursor:pointer;accent-color:var(--dm-orange);
+}
+.lp-zoom-range::-webkit-slider-runnable-track{
+  height:3px;border-radius:999px;
+  background:linear-gradient(to right,var(--dm-orange) 0 var(--lp-zoom-progress),var(--gray-mid) var(--lp-zoom-progress) 100%);
+}
+.lp-zoom-range::-webkit-slider-thumb{
+  appearance:none;-webkit-appearance:none;width:13px;height:13px;margin-top:-5px;border-radius:50%;
+  border:2px solid var(--white);background:var(--dm-orange);box-shadow:0 1px 4px rgba(10,10,10,.28);
+  transition:transform var(--dur-micro) var(--ease-spring),box-shadow var(--dur-micro);
+}
+.lp-zoom-range::-moz-range-track{height:3px;border:0;border-radius:999px;background:var(--gray-mid)}
+.lp-zoom-range::-moz-range-progress{height:3px;border-radius:999px;background:var(--dm-orange)}
+.lp-zoom-range::-moz-range-thumb{width:13px;height:13px;border-radius:50%;border:2px solid var(--white);background:var(--dm-orange);box-shadow:0 1px 4px rgba(10,10,10,.28)}
+.lp-zoom-range:hover::-webkit-slider-thumb{transform:scale(1.12);box-shadow:0 1px 4px rgba(10,10,10,.28),0 0 0 4px color-mix(in srgb,var(--dm-orange) 14%,transparent)}
+.lp-zoom-range:focus-visible{outline:none}
+.lp-zoom-range:focus-visible::-webkit-slider-thumb{box-shadow:0 1px 4px rgba(10,10,10,.28),0 0 0 3px var(--white),0 0 0 5px var(--dm-orange)}
 
 .lp-tool-label {
   display:none;
@@ -325,8 +352,7 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
   font-weight:650;
   color:var(--text-2);
 }
-.lp-tool-dim{min-width:0;padding-left:5px;border-left:1px solid var(--gray-light);color:var(--text-3);font-weight:400;font-variant-numeric:tabular-nums;white-space:nowrap}
-#lp-zoom{height:26px;min-width:34px;font-variant-numeric:tabular-nums}
+#lp-zoom{height:26px;min-width:38px;font-variant-numeric:tabular-nums}
 /* O % vira botão (voltar ao ajuste) — reseta o visual nativo de <button> e vira clicável. */
 .lp-zoom-reset{
   background:none;border:none;padding:2px 5px;border-radius:6px;cursor:pointer;
@@ -397,12 +423,30 @@ body:not(.theme-light) .lp-toggle.active{background:var(--dm-orange)}
 }
 
 /* O painel é um slot redimensionável: a decisão usa a largura dele, não a viewport. */
-@container lpreview (min-width:490px){
+@container lpreview (min-width:510px){
   .lp-fit-btn{width:auto;padding-inline:8px}
   .lp-fit-btn>span,.lp-posted-btn>span{display:inline}
 }
 @container lpreview (max-width:390px){
-  .lp-tool-dim{display:none}
+  .lp-toolbar{padding-inline:7px;gap:4px}
+  .lp-tool-left,.lp-tool-right{gap:4px}
+  .lp-fit-btn,.lp-posted-btn{width:30px;min-width:30px}
+  .lp-zoom-group{min-width:126px;flex-basis:136px}
+  .lp-zoom-step{width:22px}
+  #lp-zoom{min-width:35px;padding-inline:3px}
+  .lp-zoom-range{min-width:36px;margin-inline:1px}
+  .lp-auto-group{gap:2px;padding-inline:2px}
+  .lp-auto-name{display:none}
+  .lp-auto-icon{display:block}
+  .lp-auto-chip{width:39px;padding-inline:2px;gap:3px;justify-content:center}
+}
+@container lpreview (max-width:340px){
+  .lp-toolbar{padding-inline:6px}
+  .lp-fit-btn,.lp-posted-btn{width:28px;min-width:28px;height:30px}
+  .lp-zoom-group,.lp-auto-group{height:30px}
+  .lp-zoom-group{min-width:120px}
+  .lp-zoom-step,#lp-zoom,.lp-auto-chip{height:24px}
+  .lp-auto-chip{width:37px}
 }
 @media (max-width:680px){
   #f-live-preview{display:none}
