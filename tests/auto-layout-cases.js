@@ -154,22 +154,132 @@
     assert(!report.invalid,'um caso acomodável continuou bloqueado');
   });
 
-  /* ⚠ O caso ANTIGO deste teste (caixa 72×24 no topo, com um bloqueio ao lado) NÃO era
-     impossível: medindo, o texto cabia em 11px e 7 linhas, inteiro dentro da prancheta e sem
-     tocar na forma protegida. Ele só era reprovado porque `estourou` misturava "não coube" com
-     "passou do teto de linhas". O caso abaixo é impossível de verdade — a tinta escapa pelo
-     rodapé mesmo no piso da fonte. */
+  /* ⚠ Dois fixtures anteriores deste teste NÃO eram impossíveis, e medir mostrou por quê:
+     o primeiro (caixa 72×24) cabia em 11px dentro da prancheta; o segundo tinha a composição
+     AUTORADA já sangrando para fora, e sangria autorada é intenção do designer — nada que o
+     franqueado digite pode "piorar" o que já saía. Este é impossível de verdade: prancheta
+     real, o preço autorado cabe folgado, e o piso de LEGIBILIDADE (2,2% do lado curto = 24px
+     numa peça de 1080) impede encolher o bastante para o texto do franqueado caber. */
+  const _arteImpossivel=()=>[
+    shape('fundo',0,0,1080,1350),
+    text('preco',80,1250,300,80,'{{preco}}',{name:'Preço',fontSize:60,lineHeight:1.15,
+      layoutRefText:'R$ 29,90'})
+  ];
+  const _valorImpossivel='De R$ 149,90 por apenas R$ 29,90 à vista ou em até doze vezes sem juros no cartão de crédito, válido somente para pedidos feitos pelo aplicativo nas lojas participantes da região';
+
   test('composição impossível é marcada como insegura',()=>{
-    const layers=[
-      text('produto',8,150,110,40,'{{produto}}',{fontSize:34,layoutRefText:'Combo'}),
-      shape('selo',130,140,62,56,{locked:true})
-    ];
-    const out=solve(layers,{produto:'Texto impossível de acomodar em uma área minúscula sem perder legibilidade'},{w:200,h:200});
-    const l=by(out,'produto');
-    const r=gInkRect(l,l._fit);
-    assert(r.y+r.h>200,'o cenário escolhido não chega a escapar da prancheta');
+    const layers=_arteImpossivel();
+    const out=solve(layers,{preco:_valorImpossivel},{w:1080,h:1350});
+    const l=by(out,'preco'), r=gInkRect(l,l._fit);
+    assert(r.y+r.h>1350,'o cenário escolhido não chega a escapar da prancheta');
     assert(l._foraDaArte,'a fuga da prancheta não foi carimbada');
     assert(out.some(gLayoutCamadaReprovada),'a composição impossível não reprovou');
+  });
+
+  test('CONTRATO: o texto do designer sai IDÊNTICO ao publicado',()=>{
+    /* O pedido do Ryan, em uma frase: "as medidas que eu deixei quando cliquei em publicar são
+       as medidas que eu quero que sejam respeitadas". Com o texto que ele compôs, a arte do
+       franqueado tem que ser a arte do Estúdio — mesma fonte, mesma posição, veredito
+       `original`. Se isto quebrar, o franqueado abre a prévia e vê outra arte sem ter digitado
+       nada, e a confiança no produto vai junto. */
+    const layers=[
+      text('titulo',80,120,700,120,'{{titulo}}',{name:'Título',fontSize:80,lineHeight:1.15,
+        layoutRefText:'OFERTA DA SEMANA'}),
+      text('produto',80,280,700,120,'{{produto}}',{name:'Produto',fontSize:44,
+        layoutRefText:'Combo Burger'}),
+      text('preco',80,440,400,90,'{{preco}}',{name:'Preço',fontSize:64,lineHeight:1.1,
+        textBox:'point',layoutRefText:'R$ 29,90'}),
+      text('cta',80,580,340,56,'PEÇA AGORA',{name:'CTA',fontSize:34,textBox:'point'})
+    ];
+    const dados={titulo:'OFERTA DA SEMANA',produto:'Combo Burger',preco:'R$ 29,90'};
+    const out=solve(layers,dados,{w:1080,h:1350});
+    out.forEach(l=>{
+      if(l.type!=='text')return;
+      const pub=layers.find(x=>x.id===l.id);
+      assert(Math.abs(l.y-pub.y)<0.5,'“'+l.name+'” saiu de y='+pub.y+' para '+Math.round(l.y)+' com o texto do próprio designer');
+      assert(Math.abs(l._fit.fontSize-pub.fontSize)<0.5,
+        '“'+l.name+'” encolheu de '+pub.fontSize+'px para '+l._fit.fontSize+'px com o texto do próprio designer');
+      assert(l._entrelinha==null,'“'+l.name+'” teve a entrelinha apertada sem ninguém digitar nada');
+    });
+    assert(gDescribeFranchiseeLayout(layers,out).status==='original',
+      'a arte com o texto autorado não saiu como “original”');
+  });
+
+  test('CONTRATO: a prévia ABRE mostrando a arte publicada',()=>{
+    /* Antes de o franqueado digitar qualquer coisa, a prévia preenche os campos vazios com um
+       placeholder. A ordem antiga caía no exemplo de dicionário ou no RÓTULO do campo ("Nome do
+       produto") quando o campo não tinha `example` — quase sempre mais longo que a frase que o
+       designer compôs, então a arte já abria adaptada, com a letra menor, sem ninguém ter
+       digitado nada. É a causa mais visível do "abri a prévia e está tudo pequeno".
+       Agora o placeholder é o próprio texto autorado (`layoutRefText`). */
+    if(typeof fLpInjectPlaceholders!=='function'){ return; }   // página sem a prévia carregada
+    const layers=[
+      text('titulo',80,120,700,120,'{{produto}}',{name:'Título',fontSize:80,lineHeight:1.15,
+        layoutRefText:'Combo Burger'}),
+      text('depor',80,300,400,60,'De {{de}} por',{name:'De por',fontSize:32,textBox:'point',
+        layoutRefText:'De R$ 49,90 por'}),
+      text('cta',80,280,340,56,'PEÇA AGORA',{name:'CTA',fontSize:34,textBox:'point'})
+    ];
+    const antesState=window.fState, antesVars=window.dVars;
+    window.fState={dados:{},camp:{},material:{layers:layers}};
+    window.dVars=[{name:'produto',label:'Nome do produto',type:'text'},
+                  {name:'de',label:'Preço antigo',type:'text'}];
+    let dados={};
+    try{ fLpInjectPlaceholders(layers,dados,{}); }
+    finally{ window.fState=antesState; window.dVars=antesVars; }
+
+    assert(dados.produto==='Combo Burger',
+      'a prévia abriu com “'+dados.produto+'” em vez do texto que o designer compôs');
+    /* ⚠ Campo DENTRO de uma frase não pode receber a frase montada: em "De {{de}} por", usar o
+       `layoutRefText` como valor do campo produziria "De De R$ 49,90 por por". */
+    assert(dados.de!=='De R$ 49,90 por','a frase montada vazou como valor do campo');
+
+    const out=solve(layers,dados,{w:1080,h:1350});
+    const t=by(out,'titulo');
+    assert(Math.abs(t._fit.fontSize-80)<0.5,
+      'a arte abriu com o título em '+t._fit.fontSize+'px em vez dos 80px publicados');
+    assert(gDescribeFranchiseeLayout(layers,out).status==='original',
+      'a prévia recém-aberta já saiu adaptada, sem ninguém digitar nada');
+  });
+
+  test('CONTRATO: texto maior desce o de baixo e NÃO encolhe a letra',()=>{
+    /* A outra metade: quando a pessoa digita mais, o motor acomoda pela ORDEM — quebra, empurra
+       o bloco de baixo — e só encolhe quando empurrar não resolve. Encolher primeiro era o que
+       fazia a arte chegar pequena na mão do franqueado. */
+    const layers=[
+      text('titulo',80,120,700,120,'{{titulo}}',{name:'Título',fontSize:80,lineHeight:1.15,
+        layoutRefText:'OFERTA DA SEMANA'}),
+      text('produto',80,280,700,120,'{{produto}}',{name:'Produto',fontSize:44,
+        layoutRefText:'Combo Burger'}),
+      // Perto o bastante para o motor inferir a corrente: mais de duas linhas de distância é
+      // quebra de seção, não respiro entre irmãos (regra de `_gInferirCorrentes`).
+      text('cta',80,440,340,56,'PEÇA AGORA',{name:'CTA',fontSize:34,textBox:'point'})
+    ];
+    const dados={titulo:'OFERTA DA SEMANA',
+      produto:'Super Combo Duplo Mega Burger Artesanal com Batata Frita e Refrigerante'};
+    const out=solve(layers,dados,{w:1080,h:1350});
+    const prod=by(out,'produto'), cta=by(out,'cta');
+    assert(Math.abs(prod._fit.fontSize-44)<0.5,'o produto encolheu ('+prod._fit.fontSize+'px) em vez de crescer em linhas');
+    assert(Math.abs(by(out,'titulo')._fit.fontSize-80)<0.5,'o título encolheu sem precisar');
+    assert(cta.y>440,'o CTA não acompanhou o crescimento do produto');
+  });
+
+  test('teto de linhas não encolhe a letra quando há espaço',()=>{
+    /* Medido antes da correção: numa prancheta 1080×1350 com caixa de 600×300 e espaço de
+       sobra, um texto de 5 linhas saía a 36px em vez de 40px só para obedecer ao teto semântico
+       de 3 linhas; com um selo travado ao lado (que nem chegava a ser tocado), a mesma caixa
+       saía a 24px — 40% menor, sem nada colidir e sem nada sair da prancheta. */
+    const layers=[
+      text('produto',100,100,600,300,'{{produto}}',{name:'Produto',fontSize:40,layoutRefText:'Combo Burger'}),
+      shape('selo',760,80,200,200,{locked:true})
+    ];
+    const out=solve(layers,
+      {produto:'Super Combo Duplo Mega Burger Artesanal com Batata Frita Cheddar e Bacon Crocante'},
+      {w:1080,h:1350});
+    const l=by(out,'produto');
+    assert(l._fit.excedeuLinhas,'o cenário escolhido nem passou do teto de linhas');
+    assert(Math.abs(l._fit.fontSize-40)<0.5,
+      'encolheu de 40px para '+l._fit.fontSize+'px só para obedecer ao teto de linhas, com a prancheta vazia em volta');
   });
 
   test('teto de linhas é preferência, não bloqueio',()=>{
@@ -429,22 +539,19 @@
 
   test('bloqueio impossível diz o campo e o limite seguro, em PT-BR',()=>{
     const antes=window.dVars;
-    window.dVars=[{name:'produto',label:'Nome do produto',example:'Combo',type:'text'}];
+    window.dVars=[{name:'preco',label:'Preço promocional',example:'R$ 29,90',type:'text'}];
     try{
-      // Mesma geometria do caso "composição impossível" já provado nesta suíte: área minúscula
-      // com obstáculo protegido ao lado. O que se cobra aqui é a SAÍDA, não o bloqueio.
-      const layers=[
-        text('produto',8,150,110,40,'{{produto}}',{fontSize:34,layoutRefText:'Combo'}),
-        shape('selo',130,140,62,56,{locked:true})
-      ];
-      const dados={produto:'Texto impossível de acomodar em uma área minúscula sem perder legibilidade'};
-      const out=solve(layers,dados,{w:200,h:200});
+      // Mesma arte do caso "composição impossível" já provado nesta suíte. O que se cobra aqui
+      // é a SAÍDA (qual campo, quantos caracteres), não o bloqueio em si.
+      const layers=_arteImpossivel();
+      const dados={preco:_valorImpossivel};
+      const out=solve(layers,dados,{w:1080,h:1350});
       assert(out.some(gLayoutCamadaReprovada),'o caso escolhido não chegou a ser bloqueado');
-      const diag=gLayoutDiagnosis(layers,dados,{},{fitText:true,canvas:{w:200,h:200},scope:'franqueado'},out);
-      assert(diag&&diag.campo==='produto','o diagnóstico não achou o campo culpado');
-      assert(diag.mensagem.indexOf('Nome do produto')>=0,'a mensagem não usou o rótulo do campo');
+      const diag=gLayoutDiagnosis(layers,dados,{},{fitText:true,canvas:{w:1080,h:1350},scope:'franqueado'},out);
+      assert(diag&&diag.campo==='preco','o diagnóstico não achou o campo culpado');
+      assert(diag.mensagem.indexOf('Preço promocional')>=0,'a mensagem não usou o rótulo do campo');
       assert(!/\{\{|_/.test(diag.mensagem),'a mensagem vazou nome técnico: '+diag.mensagem);
-      assert(diag.limite>=0&&diag.limite<dados.produto.length,'o limite seguro não faz sentido: '+diag.limite);
+      assert(diag.limite>=0&&diag.limite<dados.preco.length,'o limite seguro não faz sentido: '+diag.limite);
     }finally{window.dVars=antes;}
   });
 

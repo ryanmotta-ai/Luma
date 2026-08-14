@@ -16,10 +16,14 @@
   <h1>Regressão do Auto-layout</h1>
   <div class="summary" id="summary">Executando no motor real do navegador…</div>
   <ol id="results"></ol>
+  <!-- DOM mínimo que `live-preview.js` exige na carga (linha 55): sem ele o arquivo aborta e
+       metade das funções fica sem inicializar. A suíte só usa `fLpInjectPlaceholders`. -->
+  <div id="f-preview-modal" hidden></div>
   <script src="../js/00-config.js"></script>
   <script src="../js/core/layout.js"></script>
   <script src="../js/core/auto-layout.js"></script>
   <script src="../js/franqueado/png-generator.js"></script>
+  <script src="../js/franqueado/live-preview.js"></script>
   <script src="auto-layout-cases.js"></script>
 </body>
 </html>

@@ -39,7 +39,7 @@
     }
   });
 
-  const bloqueadas=[];
+  const bloqueadas=[]; const encolhimentos=[]; const encolheuEm=[];
   const vitorias={},margens=[],itensQueDisparam={},vereditos={original:0,adapted:0,unsafe:0};
   const motivoUnsafe={foraDaArte:0,layoutInvalido:0,estourou:0};
   const tempos={};POLS.forEach(p=>tempos[p]=[]);
@@ -108,6 +108,18 @@
         bloqueadas.push({nome,status:d.status,fora:Math.round(fora),sobrepos:Math.round(sobrepos),info:linhasInfo.join(' | ')});
     }
 
+    /* A MÉTRICA DA QUEIXA DO RYAN: quantas artes chegam com a letra menor do que o designer
+       publicou, e quanto. É isto que o franqueado vê como "abri a prévia e está tudo pequeno". */
+    let pior=0, quemPior='';
+    real.forEach(l=>{
+      if(!l||l.type!=='text'||!l._fit)return;
+      const pub=fx.layers.find(x=>x.id===l.id); if(!pub)return;
+      const perda=1-(l._fit.fontSize/(pub.fontSize||24));
+      if(perda>pior){pior=perda;quemPior=l.name;}
+    });
+    encolhimentos.push(pior);
+    if(pior>0.001)encolheuEm.push(nome+' · '+quemPior+' -'+Math.round(pior*100)+'%');
+
     // itens de score que efetivamente disparam
     Object.keys(res.padrao.score.itens).forEach(k=>{
       if(res.padrao.score.itens[k]>0.001)itensQueDisparam[k]=(itensQueDisparam[k]||0)+1;
@@ -145,6 +157,15 @@
   log('  manteve a padrão tendo ganho abaixo da margem: '+empates);
   log('  vitórias por política: '+JSON.stringify(vitorias));
   log('  ganho quando troca: mediana '+q(margens,0.5)+' · p90 '+q(margens,0.9)+' · máx '+q(margens,1));
+  log('');
+  const comEncolhimento=encolhimentos.filter(v=>v>0.001);
+  log('LETRA ENCOLHIDA (o que o franqueado vê como "ficou tudo pequeno"):');
+  log('  artes que chegam com alguma redução: '+comEncolhimento.length+'/'+encolhimentos.length
+      +' ('+pct(comEncolhimento.length,encolhimentos.length)+')');
+  log('  redução quando acontece: mediana '+(comEncolhimento.length?(q(comEncolhimento.map(v=>v*100),0.5)+'%'):'—')
+      +' · p90 '+(comEncolhimento.length?(q(comEncolhimento.map(v=>v*100),0.9)+'%'):'—')
+      +' · máx '+(comEncolhimento.length?(q(comEncolhimento.map(v=>v*100),1)+'%'):'—'));
+  encolheuEm.slice(0,10).forEach(e=>log('    '+e));
   log('');
   log('ITENS DE PONTUAÇÃO QUE DISPARAM (em quantos cenários):');
   Object.keys(gScoreComposition([], {canvas:{w:1,h:1}}).itens).forEach(k=>{
