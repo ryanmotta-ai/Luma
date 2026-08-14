@@ -150,6 +150,18 @@ function _dPsdParagraphBox(node){
       const iy=Math.max(0, Math.min(box.y+box.h,gy1)-Math.max(box.y,gy0));
       const cover=(ix*iy)/gArea;             // 1.0 = contém todo o bbox de glifos
       if(cover<0.5) return -Infinity;        // caixa longe/torta dos glifos → descarta
+      /* Alguns PSDs clonados carregam um `boxBounds` VELHO compartilhado por várias layers
+         independentes (R$, inteiro, centavos, "POR"). Ele contém os glifos e por isso passava
+         no teste de cobertura, mas seu ponto de texto vive em outra parte da caixa: importar
+         essa origem empilhava todos os fragmentos no mesmo x/y. O Luma ainda não representa a
+         matriz interna do Photoshop; quando a âncora diverge demais, o bbox dos glifos é a única
+         geometria 1:1 segura. A tolerância usa o corpo efetivo e honra left/center/right. */
+      const st=_dPsdTextStyle(t), fs=Math.max(8,(+(st.fontSize||st.size)||12)*_dPsdFontScale(tr));
+      const align=_dPsdAlign(t).align;
+      const ancoraGlifo=align==='center'?(gx0+gx1)/2:align==='right'?gx1:gx0;
+      const ancoraBox=align==='center'?box.x+box.w/2:align==='right'?box.x+box.w:box.x;
+      if(Math.abs(ancoraGlifo-ancoraBox)>Math.max(8,fs*0.55))return -Infinity;
+      if(Math.abs(gy0-box.y)>Math.max(8,fs*1.25))return -Infinity;
       const dCorner=Math.abs(box.x-gx0)+Math.abs(box.y-gy0);
       return cover*1000 - dCorner*0.01 + (box.isTransformed ? 50 : 0);
     };
@@ -1493,7 +1505,13 @@ function dPsdParseItems(psd, res, ox, oy){
           // Caixa 1:1 do Photoshop → NÃO reencaixa/encolhe o texto na importação.
           const pb=_dPsdParagraphBox(node);
           if(pb){ it.x=Math.round(pb.x-ox); it.y=Math.round(pb.y-oy); it.w=Math.max(1,pb.w); it.h=Math.max(1,pb.h); }
-          else { it.textBoxApprox=true; console.warn('[psd] caixa de parágrafo não derivável — usando bbox de glifos:', it.name); }
+          else {
+            /* Sem caixa confiável, a geometria que sobrou é o bbox justo dos glifos — semântica
+               de point text. Mantê-la como `box` fazia o Auto-layout quebrar "R$" em R + $ e
+               "POR" em três linhas dentro da caixa estreita. */
+            it.textBox='point';it.textBoxApprox=true;
+            console.warn('[psd] caixa de parágrafo não derivável — usando bbox de glifos:', it.name);
+          }
         }
         if(node.canvas && node.canvas.width>0){ it.imgUrl=_dPsdRasterURL(node.canvas,{maxPx:_rasterCap}); } // p/ "imagem fiel"
       } else if(node.canvas && node.canvas.width>0 && node.canvas.height>0){
@@ -1766,6 +1784,9 @@ function dItemToLayer(it){
     const L=Object.assign(base,{ type:'text',
       content: isVar ? '{{'+(it.varName||'variavel')+'}}' : it.content,
       font:it.font, fontSize:it.fontSize, color:it.color, textAlign:it.textAlign, isVar:isVar });
+    // Referência DETERMINÍSTICA do desenho original para calibrar métricas no Auto-layout.
+    // Não aparece para o franqueado e não substitui o conteúdo/variável; só mede crescimento real.
+    if(isVar&&it.content) L.layoutRefText=it.content;
     _dPsdApplyFx(L, it);
     if(it.strikethrough){ L.strikethrough=true; }
     if(it.underline){ L.underline=true; }

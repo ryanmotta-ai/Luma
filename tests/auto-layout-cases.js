@@ -72,8 +72,10 @@
       shape('limite',220,0,100,260,{layoutRole:'protected'})
     ];
     const out=solve(layers,{titulo:'Título promocional extraordinariamente comprido'},{w:340,h:260});
-    const teto=by(out,'titulo')._tetoFonte;
-    assert(teto==null||teto>=32,'o título ficou menor que o degrau de apoio');
+    const titulo=by(out,'titulo'),apoio=by(out,'apoio');
+    assert(titulo._fit.fontSize>=apoio._fit.fontSize,'o título ficou menor que o texto de apoio');
+    assert(Math.abs(titulo._fit.fontSize/apoio._fit.fontSize-2)<0.15,
+      'a emergência não preservou a proporção entre título e apoio');
   });
 
   test('redução de emergência fica no componente afetado',()=>{
@@ -84,6 +86,72 @@
     ];
     const out=solve(layers,{oferta:'Oferta super extraordinária e imperdível hoje'},{w:600,h:260});
     assert(by(out,'rodape')._tetoFonte==null,'um texto sem relação com a colisão foi reduzido');
+  });
+
+  test('PSD sem campo dinâmico não é recomposto nem bloqueado',()=>{
+    const layers=[
+      text('fixo',80,90,110,34,'TEXTO FIXO',{fontSize:44,textBox:'point'}),
+      shape('sangria',-160,260,920,480,{name:'Objeto Inteligente decorativo',locked:false})
+    ];
+    const out=solve(layers,{}, {w:600,h:500});
+    const report=gDescribeFranchiseeLayout(layers,out);
+    assert(report.status==='original','uma arte sem campos foi tratada como adaptada/insegura');
+    assert(by(out,'fixo')._tetoFonte==null,'texto fixo foi reduzido sem ação do franqueado');
+    assert(by(out,'sangria').x===-160&&by(out,'sangria').y===260,'a sangria autorada foi movida');
+  });
+
+  test('componente decorativo gigante não entra na corrente do campo',()=>{
+    const layers=[
+      text('titulo',50,70,280,60,'{{produto}}',{fontSize:54,textBox:'point'}),
+      shape('decor',-120,155,900,620,{name:'Raio verde decorativo',locked:false})
+    ];
+    const out=solve(layers,{produto:'Combo artesanal com acompanhamento especial'},{w:600,h:500});
+    assert(by(out,'decor').x===-120&&by(out,'decor').y===155,'a decoração foi arrastada pelo título');
+    assert(!by(out,'decor')._foraDaArte,'a sangria original virou falha de exportação');
+  });
+
+  test('borda da prancheta cria corredor e quebra point text',()=>{
+    const layers=[text('validade',700,1180,250,32,'{{validade}}',{fontSize:30,textBox:'point'})];
+    const out=solve(layers,{validade:'Válido de segunda a quinta-feira, exceto feriados'},{w:1080,h:1350});
+    const l=by(out,'validade'),r=gInkRect(l,l._fit);
+    assert(l._layoutW!=null,'a borda direita não criou um corredor seguro');
+    assert(l._fit.lines.length>1,'o texto próximo da borda continuou em uma linha');
+    assert(r.x+r.w<=1080+2,'o texto continuou saindo da prancheta');
+  });
+
+  test('referência autorada calibra a métrica da fonte substituta',()=>{
+    const layers=[
+      text('campo',40,80,95,48,'{{oferta}}',{fontSize:46,textBox:'point',layoutRefText:'PROMOÇÃO'}),
+      shape('selo',280,50,140,130,{layoutRole:'protected'})
+    ];
+    const out=solve(layers,{oferta:'PROMOÇÃO'},{w:500,h:320});
+    const report=gDescribeFranchiseeLayout(layers,out);
+    assert(report.status==='original','o mesmo texto da referência pareceu crescer por diferença de fonte');
+    assert(by(out,'campo')._layoutW==null,'foi criado corredor para um valor idêntico ao autorado');
+  });
+
+  test('limite semântico nunca reduz as linhas autoradas',()=>{
+    const original='UM\nDOIS\nTRÊS\nQUATRO';
+    const layers=[text('produto',40,30,210,150,'{{produto}}',{
+      fontSize:28,textBox:'box',layoutRefText:original
+    })];
+    const out=solve(layers,{produto:original},{w:320,h:260});
+    const l=by(out,'produto'),report=gDescribeFranchiseeLayout(layers,out);
+    assert(l._layoutMaxLines===4,'o teto de título apagou uma linha que o designer publicou');
+    assert(!l._fit.estourou&&!report.invalid,'o conteúdo autorado foi marcado como inseguro');
+  });
+
+  test('emergência proporcional pode passar de 50% sem perder legibilidade',()=>{
+    const layers=[
+      text('produto',35,40,280,62,'{{produto}}',{fontSize:80,textBox:'point'}),
+      shape('preco',345,20,150,190,{shapeKind:'circle',layoutRole:'protected'}),
+      text('cta',35,270,240,45,'PEÇA AGORA',{fontSize:30})
+    ];
+    const out=solve(layers,{produto:'Combo Artesanal com Hambúrguer'},{w:520,h:360});
+    const l=by(out,'produto'),report=gDescribeFranchiseeLayout(layers,out);
+    assert(l._tetoFonte!=null&&l._tetoFonte<40,'o componente continuou preso ao antigo piso de 50%');
+    assert(l._tetoFonte>=l._pisoLegivel,'a emergência atravessou o piso de legibilidade');
+    assert(!report.invalid,'um caso acomodável continuou bloqueado');
   });
 
   test('composição impossível é marcada como insegura',()=>{

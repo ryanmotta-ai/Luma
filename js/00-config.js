@@ -757,7 +757,10 @@ function gStampPisosHierarquia(layers, canvas){
        destaque/campo comercial não desce de 2,2% do lado curto; apoio pode chegar a 1,35%.
        Nunca AUMENTA o que o designer desenhou — só limita até onde a automação pode destruir. */
     const sinal=String((l.name||'')+' '+(l.content||'')).toLowerCase();
-    const destaque=/(pre[cç]o|valor|produto|t[ií]tulo|oferta|desconto|cupom|cta)/.test(sinal);
+    // "descrição sobre o produto" contém a palavra produto, mas continua sendo apoio. A ordem
+    // semântica evita dar piso de título a descrição, regulamento e rodapé importados do PSD.
+    const apoio=/(descri[cç][aã]o|ingrediente|regulamento|disclaimer|observa[cç][aã]o|rodap[eé])/.test(sinal);
+    const destaque=!apoio&&/(pre[cç]o|valor|produto|t[ií]tulo|oferta|desconto|cupom|cta)/.test(sinal);
     const proporcao=destaque?0.022:0.0135;
     l._pisoLegivel=ladoCurto?Math.min(s,Math.max(8,Math.round(ladoCurto*proporcao))):8;
   });
@@ -1136,7 +1139,13 @@ function gDescribeFranchiseeLayout(original, solved){
   (solved||[]).forEach(l=>{
     if(!l)return;
     const o=antes.get(l.id)||{};
-    if(l._foraDaArte||l._layoutInvalido||(l._fit&&l._fit.estourou))invalidIds.push(l.id);
+    /* `estourou` em texto FIXO não é falha criada pelo franqueado. PSDs usam bbox justo dos
+       glifos e a fonte substituta do navegador pode medir 1–3 px maior; bloquear a arte por isso
+       transformava qualquer importação real em "insegura" mesmo sem um único campo dinâmico.
+       Fora da arte/layout inválido continuam valendo para qualquer dependente que o solver moveu. */
+    const encaixeRestrito=l&&(l.textBox==='box'||l._layoutW!=null||l.vertical);
+    if(l._foraDaArte||l._layoutInvalido
+       ||(_gLayoutTemCampo(l)&&encaixeRestrito&&l._fit&&l._fit.estourou))invalidIds.push(l.id);
     const geometry=!quaseIgual(l.x,o.x)||!quaseIgual(l.y,o.y)
       ||!quaseIgual(l.w,o.w)||!quaseIgual(l.h,o.h);
     const typography=l._layoutW!=null||l._tetoFonte!=null||l._entrelinha!=null;
@@ -1200,13 +1209,29 @@ function _gCorrenteMovivel(l, cloned){
   }
   return true;
 }
-function _gCorrenteEhFundo(l, cv){
+function _gLayoutEhFundoExplicito(l, cv){
   if(!l) return true;
   if(l.layoutRole==='background') return true;
   const nome=String(l.name||'').trim().toLowerCase();
   if(nome==='background'||nome==='bg'||nome==='fundo') return true;
-  if(cv && cv.w && cv.h && l.type==='shape' && (l.x||0)<=1 && (l.y||0)<=1
+  /* Vocabulário recorrente de PSDs reais. São camadas atmosféricas/de fundo, não blocos de
+     conteúdo: encadeá-las ao título fazia raio, textura e ornamento passearem pela arte. */
+  if(/(^|[\s_\-])(textura|texture|raio|rays?|pattern|padr[aã]o|decor(?:a[cç][aã]o|ativo)?|ornamento)([\s_\-]|$)/i.test(nome))return true;
+  // Fundo raster/foto também é fundo; limitar a shapes deixava o composto principal virar filho.
+  if(cv && cv.w && cv.h && (l.x||0)<=1 && (l.y||0)<=1
      && (l.w||0)>=cv.w*0.9 && (l.h||0)>=cv.h*0.9) return true;
+  return false;
+}
+function _gCorrenteEhFundo(l, cv){
+  if(_gLayoutEhFundoExplicito(l,cv))return true;
+  /* Sangria decorativa gigante: smart objects/texturas costumam ser maiores que a prancheta e
+     só uma fração aparece. Não são CTA nem bloco que deve acompanhar texto. */
+  if(cv&&cv.w&&cv.h){
+    const x1=Math.max(0,l.x||0),y1=Math.max(0,l.y||0);
+    const x2=Math.min(cv.w,(l.x||0)+(l.w||0)),y2=Math.min(cv.h,(l.y||0)+(l.h||0));
+    const area=Math.max(1,(l.w||0)*(l.h||0)),dentro=Math.max(0,x2-x1)*Math.max(0,y2-y1);
+    if(area>=cv.w*cv.h*0.45&&dentro/area<0.6)return true;
+  }
   return false;
 }
 function _gInferirCorrentes(cloned, opts, resolved){
@@ -1222,7 +1247,7 @@ function _gInferirCorrentes(cloned, opts, resolved){
   // única exceção ao "só empurra", porque aqui não se recompõe nada: fecha-se um vão que só
   // existe quando o conteúdo existe.
   const _colapsoEntre=(fundoA, topoB, x1B, x2B)=>{
-    let soma=0;
+    let soma=0,temCampo=false;
     cloned.forEach(v=>{
       if(!v || v.type==='group' || v.type!=='text') return;
       const some = (v.visible===false) || _vazio(v);
@@ -1233,8 +1258,9 @@ function _gInferirCorrentes(cloned, opts, resolved){
       const cruz=Math.min(x2,x2B)-Math.max(x1,x1B);
       if(cruz/Math.max(1,Math.min(x2-x1, x2B-x1B)) < 0.3) return;   // mesma coluna
       soma += (v.h||0);
+      if(_gLayoutTemCampo(v))temCampo=true;
     });
-    return soma;
+    return {soma,temCampo};
   };
   nós.forEach(B=>{
     if(B.relativeAnchor || !_gCorrenteMovivel(B, cloned)) return;   // manual vence; imóvel não entra
@@ -1262,7 +1288,8 @@ function _gInferirCorrentes(cloned, opts, resolved){
       // `colapso` é o único crédito de subida: a altura das faixas que sumiram no meio.
       const colapso=_colapsoEntre(fundoPai, topoB, x1B, x2B);
       B._anchorAuto={ type:'top-to-bottom', layerId:pai.id,
-                      gap: Math.round(topoB-fundoPai-colapso), auto:true, colapso };
+                      gap: Math.round(topoB-fundoPai-colapso.soma), auto:true,
+                      colapso:colapso.soma, _raizCampoVazio:colapso.temCampo };
       return;
     }
 
@@ -1293,6 +1320,27 @@ function _gInferirCorrentes(cloned, opts, resolved){
     if(!paiL) return;
     B._anchorAuto={ type:'left-to-right', layerId:paiL.id, gap: Math.round(x1B-direitaPai), auto:true };
   });
+
+  /* Uma corrente automática só existe se nascer num CAMPO DINÂMICO. Sem esta poda, qualquer
+     sequência visual próxima — selo → textura → faixa de sangria — virava uma corrente mesmo
+     quando o franqueado não podia alterar nada nela. O resultado era geometria mudando e export
+     bloqueado em PSDs sem campos. Propaga a autorização pela árvore: um filho fixo pode acompanhar
+     um campo, e o próximo filho pode acompanhar esse fixo; componentes sem raiz dinâmica somem. */
+  /* Campo opcional vazio não pertence a `nós` (não ocupa tinta), mas autoriza a corrente que
+     fecha exatamente o seu vão. Sem essa segunda raiz, a poda acima corrigia PSDs estáticos e
+     acidentalmente desligava o comportamento de remover o espaço de um campo em branco. */
+  const ligados=new Set(nós.filter(l=>_gLayoutTemCampo(l)
+    ||(l._anchorAuto&&l._anchorAuto._raizCampoVazio)).map(l=>l.id));
+  let cresceu=true, guarda=0;
+  while(cresceu&&guarda++<Math.max(1,nós.length)){
+    cresceu=false;
+    nós.forEach(l=>{
+      if(ligados.has(l.id))return;
+      const a=l.relativeAnchor||l._anchorAuto;
+      if(a&&a.layerId&&ligados.has(a.layerId)){ligados.add(l.id);cresceu=true;}
+    });
+  }
+  nós.forEach(l=>{if(l._anchorAuto&&!ligados.has(l.id))delete l._anchorAuto;});
 }
 
 /* ══ PLACAS — a forma atrás do texto cresce junto ══
@@ -1329,6 +1377,8 @@ function _gInferirPlacas(cloned, opts) {
     });
     if (dentro.length !== 1) return;
     const t = dentro[0];
+    // Placa de texto fixo não precisa reagir: só a placa que contém um campo pode crescer.
+    if(!_gLayoutTemCampo(t)) return;
     const areaT = Math.max(1, (t.w || 0) * (t.h || 0));
     if ((p.w || 0) * (p.h || 0) > areaT * 6) return;             // painel, não placa
     p._placa = { alvo: t.id, padTopo: (t.y || 0) - py1,
@@ -1362,6 +1412,9 @@ function _gRectContem(a,b,margem){
 function _gLayoutMaxLinhas(l){
   const s=String((l&&l.name||'')+' '+(l&&l.content||'')).toLowerCase();
   if(/(pre[cç]o|valor|cupom|c[oó]digo|desconto)/.test(s))return 2;
+  // Apoio precisa vencer "produto" quando o nome é "descrição sobre o produto".
+  if(/(descri[cç][aã]o|ingrediente|regulamento|disclaimer|observa[cç][aã]o|rodap[eé])/.test(s))return 6;
+  if(/(detalhe|subt[ií]tulo|apoio)/.test(s))return 4;
   if(/(produto|t[ií]tulo|oferta|brinde|sabor|item)/.test(s))return 3;
   return 4;
 }
@@ -1390,7 +1443,19 @@ function _gLayoutBaseVisual(cloned,defaults,ctxAux){
        referência variar conforme a sessão (e podia declarar uma colisão pequena como intenção
        do designer). O PSD/layer publicado já é o contrato estável do espaço reservado. */
     if(_gLayoutTemCampo(l)){
-      out[l.id]={x:l.x||0,y:l.y||0,w:l.w||0,h:l.h||0};return;
+      /* PSD editável guarda o texto que o designer usou ao compor (`layoutRefText`). Medir essa
+         referência com a MESMA fonte disponível no navegador calibra diferenças de métrica sem
+         voltar ao antigo valor de amostra da sessão. Um "DE R$ XX,XX" não pode parecer que
+         cresceu só porque a fonte substituta mede mais que o bbox justo do Photoshop. */
+      if(l.textBox!=='box'&&!l.vertical&&l.layoutRefText){
+        const limpo=Object.assign({},l);
+        delete limpo._layoutW;delete limpo._layoutDx;delete limpo._layoutMaxLines;
+        delete limpo._tetoFonte;delete limpo._entrelinha;delete limpo._fit;delete limpo._vTopAuto;
+        const f=gFitTextLayer(limpo,String(l.layoutRefText),ctxAux,{encolher:false});
+        const w=f.larguraMax||l.w||0;
+        out[l.id]={x:(l.x||0)+_gInkDx(limpo,w),y:(l.y||0)+_gInkDy(limpo,f.altura),w,h:f.altura||l.h||0};
+      }else out[l.id]={x:l.x||0,y:l.y||0,w:l.w||0,h:l.h||0};
+      return;
     }
     const limpo=Object.assign({},l);
     delete limpo._layoutW;delete limpo._layoutDx;delete limpo._layoutMaxLines;
@@ -1408,7 +1473,10 @@ function _gLayoutBaseVisual(cloned,defaults,ctxAux){
   return out;
 }
 function _gLayoutObstaculo(o,cloned,cv,base){
-  if(!o||!_gLayoutVisivel(o)||o.type==='group'||_gCorrenteEhFundo(o,cv))return false;
+  /* "Não acompanha a corrente" e "não protege espaço" não são a mesma pergunta. Uma foto de
+     produto enorme e recortada não deve passear com o título, mas continua sendo obstáculo.
+     Só fundo/decor explícito e cobertura integral deixam de proteger a composição. */
+  if(!o||!_gLayoutVisivel(o)||o.type==='group'||_gLayoutEhFundoExplicito(o,cv))return false;
   if(o.type==='text'||o.type==='image'||o.type==='frame')return true;
   if(o.type!=='shape')return false;
   if(o.locked||o.lockPosition||o.layoutRole==='protected')return true;
@@ -1464,6 +1532,15 @@ function _gInferirCorredores(cloned,opts,resolved,base){
         if(lim>limiteE){limiteE=lim;achouE=true;}
       }
     });
+    /* A própria PRANCHETA é um obstáculo. Point text perto da borda antes só era reduzido até o
+       piso e continuava numa linha para fora; agora ganha o mesmo corredor transitório usado para
+       selo/foto e pode quebrar. Preserva a sangria que já existia na referência, mas não deixa o
+       valor do franqueado piorá-la. */
+    const padBorda=_gLayoutRespiro(t,0,cv);
+    const overE=Math.max(0,-bt.x),overD=Math.max(0,bt.x+bt.w-cv.w);
+    const bordaE=-overE+(overE?0:padBorda),bordaD=cv.w+overD-(overD?0:padBorda);
+    if(atual.x<bordaE){limiteE=Math.max(limiteE,bordaE);achouE=true;}
+    if(atual.x+atual.w>bordaD){limiteD=Math.min(limiteD,bordaD);achouD=true;}
     let dx=0,w=0,viola=false;
     if(align==='right'&&achouE){
       const direita=(t.x||0)+(t.w||0);w=direita-limiteE;dx=(t.w||0)-w;
@@ -1507,7 +1584,24 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
   });
   // O piso da hierarquia é carimbado ANTES de medir: a medida e o render têm que usar o MESMO
   // piso, e é justamente medir com uma regra e desenhar com outra que originou este trabalho.
-  if (_fit) gStampPisosHierarquia(cloned, opts&&opts.canvas);
+  if (_fit) {
+    gStampPisosHierarquia(cloned, opts&&opts.canvas);
+    /* Caixa de parágrafo também precisa de um teto semântico. Conter a largura não basta:
+       um título de produto podia virar doze linhas dentro da prancheta e ser aprovado como
+       "seguro". Preserva qualquer quantidade de linhas que o designer realmente publicou
+       (`layoutRefText`) e só limita o crescimento produzido pelo conteúdo do franqueado. */
+    cloned.forEach(l=>{
+      if(!_gLayoutTemCampo(l)||l.vertical||l.textBox!=='box'||l._layoutMaxLines!=null)return;
+      let maxLinhas=_gLayoutMaxLinhas(l);
+      if(l.layoutRefText&&typeof gSmartWrapText==='function'){
+        const ref=Object.assign({},l);delete ref._layoutMaxLines;
+        const autoradas=gSmartWrapText(String(l.layoutRefText),l.w||0,ref,null,null)
+          .split('\n').filter(s=>s.trim()!=='').length;
+        if(autoradas>maxLinhas)maxLinhas=autoradas;
+      }
+      l._layoutMaxLines=maxLinhas;
+    });
+  }
   const resolved = {};
   cloned.forEach(l => {
     let text = l.content || '';
@@ -1688,10 +1782,30 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
      texto do franqueado.
      Nos dois eixos: em altura vale para qualquer texto; em LARGURA só point text entra, porque
      a caixa de parágrafo quebra a linha e nunca passa da própria largura. */
-  const _cresceuY = (l) => l && l.type === 'text' && l._fit && l._fit.altura > (l.h || 0) + 1;
+  const _cresceuY = (l) => {
+    const b=l&&baseVisual[l.id],r=l&&resolved[l.id];
+    return !!(l&&l.type==='text'&&l._fit&&b&&r&&(r.h||0)>(b.h||0)+1);
+  };
   const _cresceuX = (l) => l && l.type === 'text'
                          && (l.vertical||(l.textBox !== 'box'&&l._layoutW == null)) && l._fit
-                         && l._fit.larguraMax > (l.w || 0) + 1;
+                         && baseVisual[l.id]&&resolved[l.id]
+                         && (resolved[l.id].w||0)>(baseVisual[l.id].w||0)+1;
+  /* Compara a sangria ATUAL à sangria PUBLICADA. Uma textura ou placa que já começava fora do
+     canvas é intenção do designer; só vira falha quando a adaptação piora essa saída. */
+  const _piorouBorda=(l,r)=>{
+    if(!l||!r)return false;
+    const b=baseVisual[l.id]||{x:xPub[l.id]||0,y:yPub[l.id]||0,w:l.w||0,h:l.h||0};
+    const a={x:r.x+(r.dx||0),y:r.y+(r.dy||0),w:r.w||0,h:r.h||0};
+    if(_largura){
+      if(Math.max(0,-a.x)>Math.max(0,-b.x)+2)return true;
+      if(Math.max(0,a.x+a.w-_largura)>Math.max(0,b.x+b.w-_largura)+2)return true;
+    }
+    if(_limite){
+      if(Math.max(0,-a.y)>Math.max(0,-b.y)+2)return true;
+      if(Math.max(0,a.y+a.h-_limite)>Math.max(0,b.y+b.h-_limite)+2)return true;
+    }
+    return false;
+  };
   // Quem escapou da prancheta depois de posicionar — pelo PÉ (empurrado), pelo TOPO (texto
   // centralizado que cresceu para os dois lados) ou pelos LADOS (point text, que não quebra
   // linha: o nome longo do produto simplesmente sai da arte).
@@ -1702,19 +1816,7 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
       const r = resolved[l.id];
       if (!r) return false;
       const encadeada = !!(l.relativeAnchor || l._anchorAuto);
-      // Y: quem foi empurrado saiu pelo pé, ou quem cresceu subiu por cima da margem do topo.
-      if (_limite && encadeada && (r.y + (r.dy || 0) + (r.h || 0)) > _limite) return true;
-      if (_limite && _cresceuY(l)) {
-        const y=r.y+(r.dy||0);
-        if(y<0||y+(r.h||0)>_limite)return true;
-      }
-      // X: só quem cresceu de verdade (por texto próprio) ou foi empurrado para o lado.
-      if (_largura && (_cresceuX(l) || encadeada)) {
-        const x = r.x + (r.dx || 0);
-        if (_cresceuX(l) && (x < 0 || x + (r.w || 0) > _largura)) return true;
-        if (encadeada && x + (r.w || 0) > _largura) return true;
-      }
-      return false;
+      return (encadeada||_cresceuY(l)||_cresceuX(l))&&_piorouBorda(l,r);
     });
   };
   /* Colisão INTERNA é falha de composição mesmo que tudo ainda esteja dentro do canvas.
@@ -1772,9 +1874,13 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
     return out;
   };
   let _ultimasColisoes=[];
+  let _ultimosEstouros=[];
+  const _estourosRestritos=()=>cloned.filter(l=>_gLayoutTemCampo(l)&&l._fit&&l._fit.estourou
+    &&(l.textBox==='box'||l._layoutW!=null||l.vertical));
   const _violaComposicao=()=>{
     _ultimasColisoes=_colisoesInternas();
-    return _escapou()||_ultimasColisoes.length>0;
+    _ultimosEstouros=_estourosRestritos();
+    return _escapou()||_ultimasColisoes.length>0||_ultimosEstouros.length>0;
   };
   // Re-mede SÓ quem mudou. Antes remedia todas as camadas a cada volta, e uma arte pesada
   // custava 116ms por tecla — acima do debounce de 110ms da digitação.
@@ -1815,7 +1921,8 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
       tentativas++;
       // Colisão aponta o texto exato; fuga usa quem cresceu/empurrou como antes.
       const idsColisao=new Set(_ultimasColisoes.map(c=>c.culpado.id));
-      const culpados = cloned.filter(l => idsColisao.has(l.id)||_cresceuY(l)||_cresceuX(l));
+      const idsEstouro=new Set(_ultimosEstouros.map(l=>l.id));
+      const culpados = cloned.filter(l => idsColisao.has(l.id)||idsEstouro.has(l.id)||_cresceuY(l)||_cresceuX(l));
       if (!culpados.length) break;
 
       /* DEGRAU ANTERIOR AO ENCOLHIMENTO: apertar a ENTRELINHA.
@@ -1855,7 +1962,11 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
          jeito. O tamanho que o designer deu é a declaração de importância dele, então quem
          encolhe é o MENOR degrau que ainda tem folga, sozinho, até acabar a folga dele. O
          título só é tocado quando o resto da arte já cedeu tudo. */
+      // Degrau normal: uma camada isolada nunca perde mais de metade do corpo desenhado.
       const _pisoAbsDe=(l)=>Math.max(8,l._pisoLegivel||0,Math.round((l.fontSize||24)*0.5));
+      // Emergência proporcional: quando TODO o componente reduz junto, a hierarquia já está
+      // protegida pela escala comum; aí o piso correto é legibilidade, não 50% de cada layer.
+      const _pisoEmergenciaDe=(l)=>Math.max(8,l._pisoLegivel||0);
       const _pisoDe = (l) => (l._pisoFonte != null)
         ?Math.max(l._pisoFonte,_pisoAbsDe(l)):_pisoAbsDe(l);
       const _atual = (l) => (l._tetoFonte != null) ? l._tetoFonte : (l.fontSize || 24);
@@ -1888,10 +1999,10 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
         }
         const textosComponente=cloned.filter(l=>l&&l.type==='text'&&_gLayoutVisivel(l)&&ids.has(l.id));
         const escalaAtual=Math.min(...textosComponente.map(l=>_atual(l)/Math.max(1,l.fontSize||24)));
-        const escalaGlobal=Math.max(0.5,escalaAtual*0.92);
+        const escalaGlobal=Math.max(0.35,escalaAtual*0.92);
         const grupo=[];
         textosComponente.forEach(l=>{
-          const alvo=Math.max(_pisoAbsDe(l),Math.floor((l.fontSize||24)*escalaGlobal));
+          const alvo=Math.max(_pisoEmergenciaDe(l),Math.floor((l.fontSize||24)*escalaGlobal));
           if(alvo<_atual(l)){l._tetoFonte=alvo;grupo.push(l);}
         });
         if(!grupo.length)break;
@@ -1922,11 +2033,7 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
       cloned.forEach(l => {
         const r = resolved[l.id];
         if (!r || !_gLayoutVisivel(l)) return;
-        const y1 = r.y + (r.dy || 0), y2 = y1 + (r.h || 0);
-        const x1 = r.x + (r.dx || 0), x2 = x1 + (r.w || 0);
-        const fora = (_limite && (y1 < -2 || y2 > _limite + 2))
-                  || (_largura && (x1 < -2 || x2 > _largura + 2));
-        if (fora) l._foraDaArte = true;
+        if (_piorouBorda(l,r)) l._foraDaArte = true;
       });
     }
     /* Se nem quebra, entrelinha e redução resolveram sem violar os pisos, o material não é
