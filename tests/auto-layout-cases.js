@@ -154,14 +154,109 @@
     assert(!report.invalid,'um caso acomodável continuou bloqueado');
   });
 
+  /* ⚠ O caso ANTIGO deste teste (caixa 72×24 no topo, com um bloqueio ao lado) NÃO era
+     impossível: medindo, o texto cabia em 11px e 7 linhas, inteiro dentro da prancheta e sem
+     tocar na forma protegida. Ele só era reprovado porque `estourou` misturava "não coube" com
+     "passou do teto de linhas". O caso abaixo é impossível de verdade — a tinta escapa pelo
+     rodapé mesmo no piso da fonte. */
   test('composição impossível é marcada como insegura',()=>{
     const layers=[
-      text('produto',8,8,72,24,'{{produto}}',{fontSize:34}),
-      shape('bloqueio',86,0,110,196,{layoutRole:'protected'})
+      text('produto',8,150,110,40,'{{produto}}',{fontSize:34,layoutRefText:'Combo'}),
+      shape('selo',130,140,62,56,{locked:true})
     ];
     const out=solve(layers,{produto:'Texto impossível de acomodar em uma área minúscula sem perder legibilidade'},{w:200,h:200});
     const l=by(out,'produto');
-    assert(l._foraDaArte||l._layoutInvalido||(l._fit&&l._fit.estourou),'a falha impossível não foi carimbada');
+    const r=gInkRect(l,l._fit);
+    assert(r.y+r.h>200,'o cenário escolhido não chega a escapar da prancheta');
+    assert(l._foraDaArte,'a fuga da prancheta não foi carimbada');
+    assert(out.some(gLayoutCamadaReprovada),'a composição impossível não reprovou');
+  });
+
+  test('teto de linhas é preferência, não bloqueio',()=>{
+    /* O erro mais caro deste produto seria recusar a arte de um franqueado por gosto editorial.
+       Aqui o texto usa mais linhas do que o teto semântico pede, mas cabe na prancheta e não
+       toca em nada: tem que sair como ADAPTADA, nunca como bloqueada.
+       Medido na bancada antes da correção: 12 de 14 bloqueios eram exatamente isto. */
+    const layers=[
+      text('produto',8,8,72,24,'{{produto}}',{fontSize:34,name:'Produto',layoutRefText:'Combo'}),
+      shape('bloqueio',86,0,110,196,{layoutRole:'protected'})
+    ];
+    const dados={produto:'Texto impossível de acomodar em uma área minúscula sem perder legibilidade'};
+    const out=solve(layers,dados,{w:200,h:200});
+    const l=by(out,'produto'), r=gInkRect(l,l._fit);
+    assert(l._fit.excedeuLinhas,'o cenário escolhido nem chegou a passar do teto de linhas');
+    assert(!l._fit.estourou,'passar do teto de linhas está sendo tratado como "não coube"');
+    assert(r.x>=0&&r.y>=0&&r.x+r.w<=200&&r.y+r.h<=200,'o cenário escolhido escapou da prancheta');
+    const res=gDescribeFranchiseeLayout(layers,out);
+    assert(res.status!=='unsafe','arte inteira dentro da prancheta foi BLOQUEADA por gosto editorial');
+  });
+
+  test('camada fixa empurrada para cima de obstáculo é acusada',()=>{
+    /* O buraco do guardião: o varredor de colisão só olhava camadas COM CAMPO como possíveis
+       culpadas. Um CTA fixo, empurrado pela corrente para cima da foto, passava batido — três
+       artes saíam APROVADAS com o texto sobre o assunto da imagem (medido na bancada).
+       O culpado nomeado tem que ser quem CRESCEU, não a vítima que foi empurrada. */
+    const layers=[
+      text('produto',60,60,400,120,'{{produto}}',{fontSize:48,textBox:'box',name:'Produto',layoutRefText:'Combo'}),
+      text('cta',60,220,300,50,'PEÇA AGORA',{fontSize:30,textBox:'point',name:'CTA'}),
+      {id:'foto',name:'Foto',type:'image',x:60,y:300,w:400,h:260,visible:true,opacity:100}
+    ];
+    const out=solve(layers,{produto:'Super Combo Duplo Mega Burger Artesanal com Batata Frita e Refrigerante Gelado'},{w:600,h:600});
+    const cta=by(out,'cta'), foto=by(out,'foto');
+    const rc=gInkRect(cta,cta._fit);
+    /* A INVARIANTE, não o mecanismo: ou a escada resolve, ou a arte é acusada. As duas saídas
+       são aceitáveis; o que não pode é sair aprovada com o CTA sobre a foto. */
+    const invadiu=rc.y+rc.h>foto.y+2 && rc.x<foto.x+foto.w && rc.x+rc.w>foto.x;
+    assert(!invadiu||out.some(gLayoutCamadaReprovada),
+      'o CTA fixo entrou na foto e a arte saiu aprovada');
+    if(invadiu){
+      const culpado=gLayoutCulpado(out);
+      assert(culpado&&culpado.id==='produto',
+        'o culpado apontado foi “'+(culpado&&culpado.name)+'” — a vítima empurrada, não quem cresceu');
+    }
+  });
+
+  test('alternativa só destrona a padrão com ganho visível',()=>{
+    /* Medido na bancada: em metade das trocas o ganho era ~1 ponto numa penalidade de 150–390.
+       Meio por cento movendo o CTA 14px é ruído decidindo geometria — e arte que muda entre
+       versões sem ninguém ter pedido. A padrão é a de alteração mínima e vence empate prático. */
+    const layers=[
+      text('titulo',60,80,560,200,'{{titulo}}',{fontSize:76,textBox:'box',textTransform:'uppercase',
+        layoutRefText:'OFERTA DA SEMANA'}),
+      text('produto',60,320,560,180,'{{produto}}',{fontSize:44,textBox:'box',layoutRefText:'Combo Burger'}),
+      text('preco',60,540,300,90,'{{preco}}',{fontSize:60,textBox:'point',layoutRefText:'R$ 29,90'}),
+      shape('selo',640,300,320,320,{shapeKind:'circle',locked:true})
+    ];
+    const dados={titulo:'SEMANA DE OFERTAS IMPERDÍVEIS DE ANIVERSÁRIO DA REDE',
+                 produto:'Super Combo Duplo Mega Burger Artesanal com Batata',preco:'R$ 1.249,00'};
+    const out=solve(layers,dados,{w:1080,h:1080});
+    const meta=out._layoutMeta;
+    if(meta&&meta.candidatos&&meta.candidatos.length>1){
+      const padrao=meta.candidatos.find(c=>c.politica==='padrao');
+      if(meta.politica!=='padrao'){
+        const ganho=padrao.penal-meta.penal;
+        assert(ganho>=Math.max(3,padrao.penal*0.02)-0.001,
+          'trocou de política por um ganho de '+ganho.toFixed(2)+' — abaixo da margem mínima');
+      }
+    }
+  });
+
+  test('a nota mede a adaptação, não o texto do franqueado',()=>{
+    /* Densidade e equilíbrio comparavam a arte com a referência AUTORADA, então disparavam em
+       100% dos cenários — inclusive nos que saíram intocados, onde o motor não fez nada. A nota
+       saturava em zero e não servia para comparar candidatos nem para telemetria. */
+    const layers=[
+      text('titulo',60,60,600,120,'{{titulo}}',{fontSize:48,textBox:'box',layoutRefText:'Oferta'}),
+      text('apoio',60,220,600,60,'texto fixo de apoio',{fontSize:24,textBox:'box'})
+    ];
+    const out=solve(layers,{titulo:'Oferta bem maior que a referência autorada'},{w:1080,h:1080});
+    const res=gDescribeFranchiseeLayout(layers,out);
+    const nota=gScoreComposition(out,{canvas:{w:1080,h:1080}});
+    if(res.status==='original'){
+      assert(nota.itens.densidade<0.001,'arte intocada pontuou densidade '+nota.itens.densidade.toFixed(2));
+      assert(nota.itens.equilibrio<0.001,'arte intocada pontuou equilíbrio '+nota.itens.equilibrio.toFixed(2));
+      assert(nota.penal<0.001,'arte intocada saiu com penalidade '+nota.penal.toFixed(2));
+    }
   });
 
   test('solver é determinístico e não muta o template',()=>{
@@ -339,8 +434,8 @@
       // Mesma geometria do caso "composição impossível" já provado nesta suíte: área minúscula
       // com obstáculo protegido ao lado. O que se cobra aqui é a SAÍDA, não o bloqueio.
       const layers=[
-        text('produto',8,8,72,24,'{{produto}}',{fontSize:34,layoutRefText:'Combo'}),
-        shape('bloqueio',86,0,110,196,{layoutRole:'protected'})
+        text('produto',8,150,110,40,'{{produto}}',{fontSize:34,layoutRefText:'Combo'}),
+        shape('selo',130,140,62,56,{locked:true})
       ];
       const dados={produto:'Texto impossível de acomodar em uma área minúscula sem perder legibilidade'};
       const out=solve(layers,dados,{w:200,h:200});

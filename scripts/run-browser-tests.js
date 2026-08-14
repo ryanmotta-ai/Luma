@@ -167,7 +167,10 @@ async function rodarSuite(cdp, arquivo) {
   const filtro = process.argv[2] || '';
   const suites = fs.readdirSync(path.join(RAIZ, 'tests'))
     .filter(f => f.endsWith('.html'))
-    .filter(f => !filtro || f.includes(filtro))
+    /* Suíte com `_` no começo é INSTRUMENTO, não portão: mede o motor em massa e nunca reprova.
+       Fica fora da rodada padrão (e do CI) e só roda quando alguém a chama pelo nome —
+       `node scripts/run-browser-tests.js _bancada`. */
+    .filter(f => filtro ? f.includes(filtro) : !f.startsWith('_'))
     .sort()
     .map(f => path.join(RAIZ, 'tests', f));
 
@@ -222,7 +225,9 @@ async function rodarSuite(cdp, arquivo) {
     if (r.resumo) console.log('    vereditos: ' + JSON.stringify(r.resumo.contagem)
       + ' · pior solve ' + r.resumo.piorMs + 'ms'
       + (r.resumo.semDiagnostico ? ' · ' + r.resumo.semDiagnostico + ' bloqueios sem diagnóstico' : ''));
-    if (r.notas && r.notas.length) r.notas.slice(0, 6).forEach(n => console.log('    nota: ' + n));
+    // LUMA_VERBOSE=1 imprime todas as notas (o corpus emite uma por cenário; a bancada, dezenas).
+    if (r.notas && r.notas.length) r.notas.slice(0, process.env.LUMA_VERBOSE ? 500 : 6)
+      .forEach(n => console.log('    nota: ' + n));
     if (r.perf && r.perf.n) perf.push({ nome, ...r.perf });
   }
 
