@@ -668,10 +668,18 @@ async function dDeleteLayer(){
   document.getElementById('d-no-sel').style.display='';document.getElementById('d-props-form').style.display='none';
   gToast('Removido');
 }
+/* ⚠ SEM CHAMADOR HOJE. Os botões "Para frente"/"Para trás" existiam no piloto
+   (`docs/luma-evolution/research/origem/yungas-artes-piloto.html:8466`, chamando `dReorder(1)`
+   e `dReorder(-1)`) e não vieram na migração — a função sobreviveu, a UI não. Fica aqui porque
+   é a implementação pronta para quando o z-order voltar à tela, não porque alguém a usa.
+   A guarda de finitude não é decoração: `dir` não-numérico fazia `ni` virar NaN, as duas
+   comparações abaixo darem `false` (NaN não é menor nem maior que nada) e a troca gravar
+   `dLayers[NaN]`, deixando um BURACO no array. O render então quebrava em
+   `dLayers.find(x=>x.id===...)` com `x` indefinido — prancheta em branco. */
 function dReorder(dir){
   if(!dSelId)return;
   const i=dLayers.findIndex(x=>x.id===dSelId);if(i<0)return; // dSelId obsoleto → não mexe
-  const ni=i-dir;if(ni<0||ni>=dLayers.length)return;
+  const ni=i-dir;if(!Number.isFinite(ni)||ni<0||ni>=dLayers.length)return;
   dHistoryPush();
   [dLayers[i],dLayers[ni]]=[dLayers[ni],dLayers[i]];
   dRenderCanvas();dRenderLayersList();dMarkUnsaved();
@@ -689,11 +697,21 @@ function dLayerBox(l){
   const x2=Math.max(...filhos.map(f=>(f.x||0)+(f.w||0))), y2=Math.max(...filhos.map(f=>(f.y||0)+(f.h||0)));
   return {x:x1, y:y1, w:x2-x1, h:y2-y1};
 }
+/* ⚠ A TRAVA MORA AQUI, no motor único de movimento — não em cada chamador.
+   O arrasto com o mouse respeita `locked`/`lockPosition` em cinco pontos (`canvas.js:1487,
+   1509, 1562` e `layers.js:135, 235`), e o marquee nem seleciona camada travada. A intenção do
+   produto é clara. Mas três caminhos furavam a trava porque cada um repetia a conta na mão:
+   alinhar com UMA camada selecionada (o ramo de 2+ já checava — a assimetria era a prova),
+   as setas do teclado e o distribuir. Medido na bancada: uma forma travada em x=100 ia para
+   x=930 num “alinhar à direita”.
+   Travar é a única defesa que o designer tem para logo, selo e assinatura de marca; se ela vale
+   só no arrasto, não vale. */
 function dLayerMove(l, dx, dy){
   if(!l || (!dx && !dy)) return;
+  if(l.locked || l.lockPosition) return;
   if(l.type!=='group'){ l.x=Math.round((l.x||0)+dx); l.y=Math.round((l.y||0)+dy); return; }
   dLayers.forEach(f=>{
-    if(f.parentId!==l.id || f.locked) return;
+    if(f.parentId!==l.id || f.locked || f.lockPosition) return;
     f.x=Math.round((f.x||0)+dx); f.y=Math.round((f.y||0)+dy);
   });
 }
@@ -742,25 +760,30 @@ function dAlign(dir){
   if(dpx && l.type!=='group'){dpx.value=l.x;dpy.value=l.y;}
   dMarkUnsaved();
 }
-// Distribui 3+ layers selecionados com espaçamento (gap) igual entre eles
+/* Distribui 3+ camadas selecionadas com espaçamento (gap) igual entre elas.
+   ⚠ Mede por `dLayerBox`, igual ao `dAlign` — grupo NÃO tem x/y/w/h próprios. Lendo `l.w`
+   direto, um grupo na seleção envenenava `span`/`totalW` com NaN, o `gap` saía NaN e a
+   guarda do `dLayerMove` (`!dx && !dy`, e `!NaN` é `true`) engolia TODO mundo: o comando
+   não fazia nada, sem aviso, e ainda assim gravava uma entrada no histórico. */
 function dDistribute(axis){
-  const sel=dMultiSel.map(id=>dLayers.find(x=>x.id===id)).filter(Boolean);
+  const sel=dMultiSel.map(id=>dLayers.find(x=>x.id===id)).filter(Boolean)
+    .map(l=>({l, b:dLayerBox(l)})).filter(o=>o.b);
   if(sel.length<3){gToast('Selecione 3 ou mais camadas para distribuir');return;}
+  const eixo = axis==='h' ? {p:'x', t:'w'} : {p:'y', t:'h'};
+  sel.sort((a,b)=>a.b[eixo.p]-b.b[eixo.p]);
+  const ini=sel[0].b[eixo.p], fim=sel[sel.length-1].b[eixo.p]+sel[sel.length-1].b[eixo.t];
+  const total=sel.reduce((s,o)=>s+o.b[eixo.t],0);
+  const gap=((fim-ini)-total)/(sel.length-1);
+  if(!Number.isFinite(gap))return;
   dHistoryPush();
-  if(axis==='h'){
-    sel.sort((a,b)=>a.x-b.x);
-    const span=(sel[sel.length-1].x+sel[sel.length-1].w)-sel[0].x;
-    const totalW=sel.reduce((s,l)=>s+l.w,0);
-    const gap=(span-totalW)/(sel.length-1);
-    let cur=sel[0].x+sel[0].w;
-    for(let i=1;i<sel.length-1;i++){ sel[i].x=Math.round(cur+gap); cur=sel[i].x+sel[i].w; }
-  }else{
-    sel.sort((a,b)=>a.y-b.y);
-    const span=(sel[sel.length-1].y+sel[sel.length-1].h)-sel[0].y;
-    const totalH=sel.reduce((s,l)=>s+l.h,0);
-    const gap=(span-totalH)/(sel.length-1);
-    let cur=sel[0].y+sel[0].h;
-    for(let i=1;i<sel.length-1;i++){ sel[i].y=Math.round(cur+gap); cur=sel[i].y+sel[i].h; }
+  // Passa pelo motor único: camada travada fica onde está, e o espaçamento segue a partir
+  // da posição REAL dela (não da que ela teria se tivesse andado).
+  let cur=ini+sel[0].b[eixo.t];
+  for(let i=1;i<sel.length-1;i++){
+    const alvo=Math.round(cur+gap);
+    dLayerMove(sel[i].l, axis==='h'?alvo-sel[i].b[eixo.p]:0, axis==='h'?0:alvo-sel[i].b[eixo.p]);
+    const nova=dLayerBox(sel[i].l);
+    cur=(nova?nova[eixo.p]:alvo)+sel[i].b[eixo.t];
   }
   dRenderCanvas();dRenderLayersList();dMarkUnsaved();
 }
@@ -1316,7 +1339,7 @@ function dLyrDrop(e,targetId){
   dRenderCanvas();dRenderLayersList();dMarkUnsaved();
 }
 function dToggleVis(e,id){
-  e.stopPropagation();
+  if(e) e.stopPropagation();
   const l=dLayers.find(x=>x.id===id);
   if(l){
     dHistoryPush();
@@ -1333,7 +1356,7 @@ function dToggleVis(e,id){
 }
 
 function dToggleLock(e,id){
-  e.stopPropagation();
+  if(e) e.stopPropagation();
   const l=dLayers.find(x=>x.id===id);
   if(l){
     dHistoryPush();

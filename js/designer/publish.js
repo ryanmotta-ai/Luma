@@ -1387,11 +1387,17 @@ document.addEventListener('keydown', e => {
       const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
       // Grupo move pelos filhos (o contêiner não tem x/y — antes virava NaN e nada andava);
       // multi-seleção anda junta, igual ao arrasto com o mouse.
+      // Passa pelo MOTOR ÚNICO (`dLayerMove`): ele já sabe expandir grupo pelos filhos e é onde
+      // mora a trava de `locked`/`lockPosition`. Somar `t.x += dx` aqui era a terceira cópia da
+      // mesma conta — e a única das três que ignorava camada travada.
       let targets;
-      if (l.type === 'group') targets = dLayers.filter(x => x.parentId === l.id);
-      else if (dMultiSel.length > 1 && dMultiSel.includes(l.id)) targets = dLayers.filter(x => dMultiSel.includes(x.id));
+      /* ⚠ Só exclui o filho cujo GRUPO também está selecionado — senão ele andaria duas vezes
+         (uma pelo grupo, outra por si). Excluir todo mundo que tem `parentId`, como eu havia
+         escrito primeiro, congelaria a seleção de dois filhos do mesmo grupo sem o grupo. */
+      if (dMultiSel.length > 1 && dMultiSel.includes(l.id))
+        targets = dLayers.filter(x => dMultiSel.includes(x.id) && !(x.parentId && dMultiSel.includes(x.parentId)));
       else targets = [l];
-      targets.forEach(t => { if (typeof t.x === 'number') { t.x += dx; t.y += dy; } });
+      targets.forEach(t => dLayerMove(t, dx, dy));
       dRenderCanvas();
       if (typeof l.x === 'number' && document.getElementById('dp-x')) { document.getElementById('dp-x').value = l.x; document.getElementById('dp-y').value = l.y; }
       dMarkUnsaved();

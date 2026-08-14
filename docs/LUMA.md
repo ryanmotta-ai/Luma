@@ -345,6 +345,36 @@ O editor opera com **um canvas por template** (a era multi-artboard acabou; fun�
 
 Outros atalhos: Ctrl+Z/Shift+Z (undo/redo, histórico coalescido cap 30 com pintura serializada), Ctrl+S (salvar), Ctrl+D (duplicar), Ctrl+G/Shift+G (agrupar), Ctrl+0/1/± (zoom), setas (mover 1px/10px), P (pré-visualização), ? (folha de atalhos), Esc (cancela contexto).
 
+### Mover camada: `dLayerMove` é o motor ÚNICO (2026-08-14)
+
+**Nada muda `l.x`/`l.y` na mão.** Todo caminho de movimento passa por `dLayerMove(l, dx, dy)`
+(`js/designer/layers.js`) — alinhar (`dAlign`), distribuir (`dDistribute`), setas do teclado
+(`publish.js`) e o arrasto. Duas responsabilidades moram lá, e é por isso que a função existe:
+
+1. **Grupo se move pelos filhos.** Camada `type:'group'` **não tem `x`/`y`/`w`/`h`** — é um
+   marcador, e os filhos apontam para ela por `parentId`. Quem lê `l.x` de um grupo pega
+   `undefined` e propaga `NaN`. Para medir um grupo existe **`dLayerBox(l)`**, que devolve a
+   caixa envolvente dos filhos. `dAlign` e `dDistribute` medem por ela.
+2. **A trava vive aqui.** `locked` e `lockPosition` são checados no motor, não em cada chamador.
+   Antes cada caminho refazia a conta e três deles furavam a trava (medido: forma travada em
+   `x=100` indo para `x=930` num "alinhar à direita"). Travar é a defesa do designer para logo,
+   selo e assinatura — ou vale em todo caminho, ou não vale.
+
+⚠ Ao ligar um comando novo de posição, **roteie por `dLayerMove`**. `t.x += dx` reintroduz os
+dois bugs de uma vez.
+
+### Histórico: `dHistoryFlush` antes de navegar (2026-08-14)
+
+Os commits são coalescidos: `dHistoryPush` fecha numa microtask e `dHistoryPushDebounced`
+(setas do teclado, props em `oninput` contínuo) espera **400ms**. Dentro dessa janela o estado
+atual ainda **não** está no histórico — e um Ctrl+Z ali passa na frente do commit e desfaz uma
+ação a **mais**. Sintoma real: duas formas na tela, seta para a direita, Ctrl+Z imediato → o
+movimento é desfeito *e a segunda forma some*.
+
+`dUndo` e `dRedo` chamam **`dHistoryFlush()`** na primeira linha, fechando o commit pendente.
+No `dRedo` isso pode truncar a pilha de refazer, e é o certo: se havia alteração não commitada,
+o futuro que existia antes dela deixou de valer.
+
 ### Tipos de camada (`dLayers[]`)
 
 Comum: `{id, name, type, x, y, w, h, visible, locked, opacity, mask, anchor, overrides, bindings, rules, groupId, blendMode}`.

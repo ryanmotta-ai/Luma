@@ -120,7 +120,20 @@ function dApplyHistoryEntry(entry){
     if (typeof dCountRender === 'function') dCountRender();
   }
 }
+/* ⚠ FECHA O COMMIT PENDENTE ANTES DE NAVEGAR NO HISTÓRICO.
+   `dHistoryPushDebounced` (usado pelas setas do teclado e por props em `oninput` contínuo)
+   agenda o commit para 400ms depois. Nessa janela o estado atual AINDA NÃO ESTÁ no histórico —
+   e um Ctrl+Z ali passa na frente do commit e volta uma ação a MAIS.
+   Reproduzido na bancada: duas formas na tela, seta para a direita, Ctrl+Z imediato → o
+   movimento é desfeito E a segunda forma some. Depois de 600ms o mesmo roteiro se comporta.
+   O `dHistoryPush` (microtask) tem o mesmo buraco em escala menor: undo chamado no mesmo tique
+   da ação. Um flush cobre os dois. */
+function dHistoryFlush(){
+  if(_dHistDebounce){ clearTimeout(_dHistDebounce); _dHistDebounce=null; dHistoryCommit(); return; }
+  if(_dHistPending) dHistoryCommit();
+}
 function dUndo(){
+  dHistoryFlush();
   if(dHistoryIdx<=0){gToast('Nada para desfazer');return;}
   dHistoryIdx--;
   dApplyHistoryEntry(dHistory[dHistoryIdx]);
@@ -129,6 +142,9 @@ function dUndo(){
   gToast('Desfeito');
 }
 function dRedo(){
+  /* Mesmo motivo do undo. Aqui o flush pode TRUNCAR a pilha de refazer — e é o certo: se havia
+     uma alteração ainda não commitada, o futuro que existia antes dela deixou de valer. */
+  dHistoryFlush();
   if(dHistoryIdx>=dHistory.length-1){gToast('Nada para refazer');return;}
   dHistoryIdx++;
   dApplyHistoryEntry(dHistory[dHistoryIdx]);
