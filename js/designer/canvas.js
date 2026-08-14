@@ -195,11 +195,17 @@ function _dRenderPreview(frame,ab){
     if(l.blendMode)el.style.mixBlendMode=l.blendMode.replace(/([A-Z])/g,c=>'-'+c.toLowerCase());
     if(l.type==='shape'){
       const kind=l.shapeKind||'rect';
-      el.style.background=(typeof dFxShapeBg==='function')?dFxShapeBg(l):(l.fill||'#FF9000');
-      if(kind==='circle'||kind==='ellipse'){el.style.borderRadius='50%';}
-      else{ const _cr=(typeof dCornerRadii==='function')?dCornerRadii(l):{tl:l.radius||0,tr:l.radius||0,br:l.radius||0,bl:l.radius||0}; el.style.borderRadius=_cr.tl+'px '+_cr.tr+'px '+_cr.br+'px '+_cr.bl+'px'; }
-      const _bs=(typeof dFxStrokeParts==='function')?dFxStrokeParts(l).concat(dFxShadowParts(l)):[];
-      if(_bs.length) el.style.boxShadow=_bs.join(', ');
+      const vd=(kind==='path'&&typeof gVectorPathD==='function')?gVectorPathD(l.vectorPath,0,0,l.w,l.h):'';
+      if(vd){
+        const rule=gVectorPathFillRule(l.vectorPath), st=l.strokeW>0?' stroke="'+(l.strokeColor||'#000')+'" stroke-width="'+l.strokeW+'"':'';
+        el.innerHTML='<svg width="100%" height="100%" viewBox="0 0 '+l.w+' '+l.h+'" preserveAspectRatio="none"><path d="'+vd+'" fill="'+(l.fill||'#FF9000')+'" fill-rule="'+rule+'"'+st+'/></svg>';
+      }else{
+        el.style.background=(typeof dFxShapeBg==='function')?dFxShapeBg(l):(l.fill||'#FF9000');
+        if(kind==='circle'||kind==='ellipse'){el.style.borderRadius='50%';}
+        else{ const _cr=(typeof dCornerRadii==='function')?dCornerRadii(l):{tl:l.radius||0,tr:l.radius||0,br:l.radius||0,bl:l.radius||0}; el.style.borderRadius=_cr.tl+'px '+_cr.tr+'px '+_cr.br+'px '+_cr.bl+'px'; }
+        const _bs=(typeof dFxStrokeParts==='function')?dFxStrokeParts(l).concat(dFxShadowParts(l)):[];
+        if(_bs.length) el.style.boxShadow=_bs.join(', ');
+      }
     } else if(l.type==='text'){
       el.style.color=l.color||'#fff';
       el.style.fontSize=(l.fontSize||24)+'px';
@@ -960,7 +966,11 @@ function dDashOutlineSvg(l){
   const common=`fill="none" stroke="${col}" stroke-width="${sw}" stroke-dasharray="${da}"${cap}${join}`;
   const kind=l.shapeKind||'rect';
   let shape;
-  if(kind==='circle'||kind==='ellipse'){
+  const vd=(kind==='path'&&typeof gVectorPathD==='function')?gVectorPathD(l.vectorPath,0,0,w,h):'';
+  if(vd){
+    const rule=typeof gVectorPathFillRule==='function'?gVectorPathFillRule(l.vectorPath):'nonzero';
+    shape=`<path d="${vd}" fill-rule="${rule}" clip-rule="${rule}" ${common}/>`;
+  } else if(kind==='circle'||kind==='ellipse'){
     // inset de meia-espessura → traço fica DENTRO da caixa (não some metade na borda)
     shape=`<ellipse cx="${w/2}" cy="${h/2}" rx="${Math.max(0,w/2-half)}" ry="${Math.max(0,h/2-half)}" ${common}/>`;
   } else if(l.radii && typeof _dSvgRoundRectPath==='function'){
@@ -1088,7 +1098,20 @@ function dRenderCanvas(){
       el.style.opacity=(l.opacity!=null?l.opacity:100)/100; // opacity:0 é válido (||100 transformava 0 em 100)
       const kind=l.shapeKind||'rect';
       const pts=(kind!=='circle'&&kind!=='ellipse'&&typeof dShapePoints==='function')?dShapePoints(l):null;
-      if(pts){
+      const vectorD=(kind==='path'&&typeof gVectorPathD==='function')?gVectorPathD(l.vectorPath,0,0,l.w,l.h):'';
+      if(vectorD){
+        // SVG usa a mesma geometria normalizada do PNG/SVG exportado. Assim o path continua
+        // nítido durante resize e a prévia não volta a ser o retângulo heurístico antigo.
+        const inner=document.createElement('div'); inner.style.cssText='position:absolute;inset:0;';
+        const local=Object.assign({},l,{x:0,y:0,opacity:100});
+        let frag=(typeof dSvgShape==='function')?dSvgShape(local):'<path d="'+vectorD+'" fill="'+(l.fill||'#FF9000')+'" fill-rule="'+gVectorPathFillRule(l.vectorPath)+'"/>';
+        if(typeof dSvgFx==='function'&&(l.shadow||l.glow||l.innerShadow||l.innerGlow||l.bevel)){
+          const key='cv'+String(l.id||'x').replace(/[^a-z0-9]/gi,''); const fx=dSvgFx(local,key);
+          if(fx.attr)frag='<defs>'+fx.defs+'</defs><g'+fx.attr+'>'+frag+'</g>';
+        }
+        inner.innerHTML='<svg width="100%" height="100%" viewBox="0 0 '+l.w+' '+l.h+'" preserveAspectRatio="none" style="display:block;overflow:visible">'+frag+'</svg>';
+        el.appendChild(inner);
+      } else if(pts){
         // SVG path inline → suporta CANTOS ARREDONDADOS (clip-path:polygon não arredonda).
         // Fica num inner pra não clipar os handles de seleção (que ficam em el).
         const inner=document.createElement('div');
@@ -1252,7 +1275,11 @@ function dRenderCanvas(){
       let dashSvg = '';
       
       const pts = (kind !== 'circle' && kind !== 'ellipse' && typeof dShapePoints === 'function') ? dShapePoints(l) : null;
-      if (pts) {
+      const vectorD=(kind==='path'&&typeof gVectorPathD==='function')?gVectorPathD(l.vectorPath,0,0,l.w,l.h):'';
+      if(vectorD){
+        clipCss = `clip-path: path('${vectorD}'); -webkit-clip-path: path('${vectorD}');`;
+        dashSvg = `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 ${l.w} ${l.h}" preserveAspectRatio="none"><path d="${vectorD}" fill="none" stroke="rgba(255,144,0,.6)" stroke-width="2" stroke-dasharray="4,4" vector-effect="non-scaling-stroke"/></svg>`;
+      } else if (pts) {
         const abs = pts.map(p => [p[0] * l.w, p[1] * l.h]);
         const d = (typeof gRoundPolyD === 'function') ? gRoundPolyD(abs, l.radius || 0) : '';
         clipCss = `clip-path: path('${d}'); -webkit-clip-path: path('${d}');`;

@@ -258,6 +258,8 @@ function dPsdRenderRows(filter){
       :'';
     const effectsStackBadge=(it.layerEffects&&it.kind==='shape')
       ?`<span class="psd-fontok" title="Sombras, contornos e sobreposições repetidas foram preservados na ordem e podem ser editados individualmente no Estilo de Camada">${it.layerEffects.length} efeitos em pilha · editáveis</span>`:'';
+    const vectorPathBadge=it.vectorPath
+      ?`<span class="psd-fontok" title="Âncoras e alças Bézier foram preservadas; a forma continua nítida ao redimensionar">Path Bézier · editável</span>`:'';
     const fxWarns=[
       it.fxSatin?'Cetim não aplicado':'',
       it.fxContour?'Contorno de efeito ignorado':'',
@@ -301,7 +303,7 @@ function dPsdRenderRows(filter){
       <span class="psd-row-ico psd-row-ico-${it.kind}">${swatch||ico[it.kind]||ico.raster}</span>
       ${thumb}
       <span class="psd-row-name" title="${_dPsdEsc(it.name)}">
-        <span class="psd-row-name-top">${_dPsdEsc(it.name)}${errBadge}${flatBadge}${multiStyleBadge}${blendBadge}${grpBlendBadge}${fxWarns}${fontWarn}${opacityBadge}${adjustmentBadge}${effectsStackBadge}${vecWarn}${clipWarn}${textInfoBadge}${sugBadge}</span>
+        <span class="psd-row-name-top">${_dPsdEsc(it.name)}${errBadge}${flatBadge}${multiStyleBadge}${blendBadge}${grpBlendBadge}${fxWarns}${fontWarn}${opacityBadge}${adjustmentBadge}${effectsStackBadge}${vectorPathBadge}${vecWarn}${clipWarn}${textInfoBadge}${sugBadge}</span>
         ${groupCrumb}${textPrev}
       </span>
       ${_dPsdFieldSelHTML(it,i)}${modeSel}${varIn}</div>`;
@@ -567,7 +569,9 @@ async function _dPsdDrawItemsBasic(canvas, items, w, h){
       });
     } else if(it.kind==='shape' && it.fill){
       ctx.fillStyle=it.fill;
-      if(it.shapeKind==='circle' || it.shapeKind==='ellipse'){
+      if(it.shapeKind==='path'&&it.vectorPath&&typeof gTraceVectorPath==='function'){
+        gTraceVectorPath(ctx,it.vectorPath,it.x,it.y,it.w,it.h); ctx.fill(gVectorPathFillRule(it.vectorPath));
+      } else if(it.shapeKind==='circle' || it.shapeKind==='ellipse'){
         ctx.beginPath(); ctx.ellipse(it.x+it.w/2, it.y+it.h/2, it.w/2, it.h/2, 0, 0, Math.PI*2); ctx.fill();
       } else if(it.radius && ctx.roundRect){
         ctx.beginPath(); ctx.roundRect(it.x, it.y, it.w, it.h, it.radius); ctx.fill();

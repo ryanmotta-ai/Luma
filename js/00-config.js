@@ -211,6 +211,47 @@ function gRoundPolyPath2D(ctx, points, r){
   ctx.lineTo(c[0].p1[0], c[0].p1[1]); ctx.quadraticCurveTo(c[0].cur[0], c[0].cur[1], c[0].p2[0], c[0].p2[1]);
   ctx.closePath();
 }
+// Caminho Bézier normalizado compartilhado por importador PSD, editor, Canvas final e SVG.
+// Modelo: {fillRule:'nonzero'|'evenodd',paths:[{closed,knots:[{in:[x,y],anchor:[x,y],out:[x,y]}]}]}.
+// Todas as coordenadas ficam em 0..1 relativas à caixa da layer: redimensionar a forma não
+// rasteriza nem deforma o arquivo por depender da resolução original do PSD.
+function gVectorPathFillRule(v){ return v&&v.fillRule==='evenodd'?'evenodd':'nonzero'; }
+function gVectorPathValid(v){
+  if(!v||!Array.isArray(v.paths)||!v.paths.length)return false;
+  return v.paths.every(p=>p&&Array.isArray(p.knots)&&p.knots.length>=2&&p.knots.every(k=>{
+    const pts=[k.in,k.anchor,k.out];
+    return pts.every(a=>Array.isArray(a)&&a.length===2&&Number.isFinite(+a[0])&&Number.isFinite(+a[1]));
+  }));
+}
+function gTraceVectorPath(ctx,v,x,y,w,h){
+  if(!ctx||!gVectorPathValid(v))return false;
+  const X=n=>(+x||0)+(+n||0)*(+w||0), Y=n=>(+y||0)+(+n||0)*(+h||0);
+  ctx.beginPath();
+  v.paths.forEach(p=>{
+    const k=p.knots, first=k[0];
+    ctx.moveTo(X(first.anchor[0]),Y(first.anchor[1]));
+    const end=p.closed===false?k.length-1:k.length;
+    for(let i=0;i<end;i++){
+      const a=k[i],b=k[(i+1)%k.length];
+      ctx.bezierCurveTo(X(a.out[0]),Y(a.out[1]),X(b.in[0]),Y(b.in[1]),X(b.anchor[0]),Y(b.anchor[1]));
+    }
+    if(p.closed!==false)ctx.closePath();
+  });
+  return true;
+}
+function gVectorPathD(v,x,y,w,h){
+  if(!gVectorPathValid(v))return '';
+  const n=a=>Number((+a||0).toFixed(3)), X=a=>n((+x||0)+(+a||0)*(+w||0)), Y=a=>n((+y||0)+(+a||0)*(+h||0));
+  return v.paths.map(p=>{
+    const k=p.knots, first=k[0]; let d='M '+X(first.anchor[0])+' '+Y(first.anchor[1]);
+    const end=p.closed===false?k.length-1:k.length;
+    for(let i=0;i<end;i++){
+      const a=k[i],b=k[(i+1)%k.length];
+      d+=' C '+X(a.out[0])+' '+Y(a.out[1])+' '+X(b.in[0])+' '+Y(b.in[1])+' '+X(b.anchor[0])+' '+Y(b.anchor[1]);
+    }
+    return d+(p.closed===false?'':' Z');
+  }).join(' ');
+}
 // ── Efeitos de camada (sombra/glow): helpers compartilhados (designer + franqueado) ──
 // Offset px a partir de distância + ângulo (convenção Photoshop: luz vem do ângulo,
 // sombra cai no oposto). angle padrão 135°. dist em px.

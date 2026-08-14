@@ -559,20 +559,20 @@ function dAddFrameAt(x,y,w,h){  dHistoryPush();
 
 /* ── Conversão FORMA ⇄ MOLDURA DE FOTO (e imagem → moldura) ──
    Uma moldura é um espaço de foto que o franqueado preenche. Preserva posição/tamanho e herda
-   o formato (retângulo/arredondado/círculo) da forma de origem. ── */
+   toda a geometria (inclusive polígono/estrela/path Bézier) da forma de origem. ── */
 function dConvertLayerToFrame(id){
   const l=dLayers.find(x=>x.id===id); if(!l) return;
   if(l.type==='frame') return; // já é
   if(l.type!=='shape' && l.type!=='image'){ gToast('Só formas ou imagens viram moldura de foto'); return; }
   if(typeof dHistoryPush==='function') dHistoryPush();
-  const fs=(l.shapeKind==='circle'||l.shapeKind==='ellipse')?'circle':((l.radius||l.radii)?'rounded':'rect');
+  const fs=l.shapeKind||((l.radius||l.radii)?'rounded':'rect');
   l.type='frame';
   l.frameShape=fs;
   if(l.imgVar==null||l.imgVar==='') l.imgVar='foto_produto';
   l.objectFit=l.objectFit||'cover';
   if(l.imgUrl==null) l.imgUrl='';
-  // props exclusivas de forma não fazem sentido na moldura
-  delete l.fill; delete l.shapeKind; delete l.gradient; delete l.radii; delete l.sides; delete l.points; delete l.inner;
+  // Cor/gradiente pertencem ao preenchimento; a geometria precisa sobreviver à conversão.
+  delete l.fill; delete l.shapeKind; delete l.gradient;
   dRenderCanvas(); if(typeof dRenderLayersList==='function') dRenderLayersList(); dShowProps(l); dMarkUnsaved();
   gToast('✓ Virou moldura de foto — o franqueado preenche com a imagem');
 }
@@ -580,7 +580,7 @@ function dConvertLayerToShape(id){
   const l=dLayers.find(x=>x.id===id); if(!l||l.type!=='frame') return;
   if(typeof dHistoryPush==='function') dHistoryPush();
   l.type='shape';
-  l.shapeKind=(l.frameShape==='circle')?'circle':'rect';
+  l.shapeKind=l.frameShape||'rect';
   if(l.fill==null) l.fill='#FF9000';
   if(l.frameShape==='rect') l.radius=l.radius||0;
   delete l.imgUrl; delete l.imgVar; delete l.objectFit; delete l.frameShape;
