@@ -499,7 +499,7 @@ async function dPsdConfirmImport(){
   // #4a — inverter z-order se a ordem do PSD vier trocada
   const inv=document.getElementById('d-psd-invert');
   const ordered=(inv&&inv.checked)?chosen.slice().reverse():chosen;
-  let layers=dPsdItemsToLayers(ordered,false);
+  let layers=dPsdItemsToLayers(ordered,false,{w:dPsdMeta.w,h:dPsdMeta.h});
   _dPsdSyncVarsFromLayers(layers);
   const fmtChoice=(document.getElementById('d-psd-fmt')||{}).value||'orig';
   const _w=dPsdMeta.w, _h=dPsdMeta.h, _name=dPsdMeta.name, _res=dPsdMeta.res||72;
@@ -1411,7 +1411,7 @@ async function _dPsdCollectBoards(onProgress){
     // invert null = usuario nunca abriu esta prancheta: cai na heuristica de z-order.
     const inv=(b.invert!=null)?b.invert:_dPsdShouldInvert(b.items,b.w,b.h);
     const ordered=inv?chosen.slice().reverse():chosen;
-    let layers=dPsdItemsToLayers(ordered,false);
+    let layers=dPsdItemsToLayers(ordered,false,{w:b.w,h:b.h});
     _dPsdSyncVarsFromLayers(layers);
     out.push({name:b.name, fmt:(b.fmt||'orig'), layers, nativeW:b.w, nativeH:b.h});
   }

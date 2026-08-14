@@ -645,17 +645,41 @@ function gFieldSlugify(label, existingNames){
 }
 
 // Mede a largura real de uma camada de texto pós-interpolação
+/* MEMÓRIA DE MEDIDA. `measureText` é a operação mais quente do Auto-layout: a escada quebra,
+   aperta e encolhe, e a cada volta re-mede as MESMAS strings com os MESMOS parâmetros. Medido
+   com a CPU freada em 4× (`LUMA_CPU_THROTTLE=4 node scripts/run-browser-tests.js fuzz`), o pior
+   solve batia em 2,2s — acima de qualquer orçamento de digitação num celular fraco.
+   A chave carrega TUDO que muda a medida (fonte, corpo, peso, itálico, tracking, caixa e o
+   próprio texto); esquecer um parâmetro aqui devolveria medida de outra camada, então nada de
+   chave "resumida". Puro por construção: mesma entrada, mesma largura.
+   Teto de 4000 entradas com descarte simples — a sessão de digitação de um franqueado nunca
+   passa disso, e o cache não pode virar vazamento de memória numa aba aberta o dia todo. */
+const _G_MEDIDA_CACHE = new Map();
+
 function gMeasureLayerWidth(layer, text, ctxAux) {
   if (!layer || layer.type !== 'text') return layer.w || 0;
-  
+
   // Utiliza um canvas auxiliar para medir a largura do texto com fontes aplicadas
   const canvas = ctxAux ? ctxAux.canvas : document.createElement('canvas');
   const ctx = ctxAux || canvas.getContext('2d');
-  
+
   const fp = (typeof dTextFontParts === 'function') ? dTextFontParts(layer.font) : { family: "'Roboto',sans-serif", weight: 700 };
   const fontSize = layer.fontSize || 24;
   const ital = layer.italic ? 'italic ' : '';
-  
+  /* Só entra no cache o caminho SEM runs: com runs a largura depende de `gBuildVirtualRuns`,
+     que lê o layer inteiro (e `dados`), e uma chave que não cobrisse isso mentiria. */
+  const cacheavel = !(layer.runs && layer.runs.length) && !/:\s*(?:inteiro|centavos)/.test(layer.content || '');
+  if (cacheavel) {
+    const chave = fp.weight + '|' + fp.family + '|' + fontSize + '|' + ital
+      + '|' + (layer.letterSpacing || 0) + '|' + (layer.fontWeightOverride || '') + '|' + String(text || '');
+    const achou = _G_MEDIDA_CACHE.get(chave);
+    if (achou !== undefined) return achou;
+    const calc = _gMedirLarguraDireto(layer, text, ctx, fp, fontSize, ital);
+    if (_G_MEDIDA_CACHE.size > 4000) _G_MEDIDA_CACHE.clear();
+    _G_MEDIDA_CACHE.set(chave, calc);
+    return calc;
+  }
+
   ctx.font = `${ital}${fp.weight} ${fontSize}px ${fp.family}`;
   ctx.letterSpacing = layer.letterSpacing ? (layer.letterSpacing) + 'px' : '0px';
   
@@ -672,6 +696,15 @@ function gMeasureLayerWidth(layer, text, ctxAux) {
     return totalW;
   }
   
+  return _gMedirLarguraDireto(layer, text, ctx, fp, fontSize, ital);
+}
+
+/* A medida em si, sem cache — a linha mais larga entre as quebras. Extraída para que o caminho
+   memoizado e o caminho com runs usem exatamente a MESMA conta (duas réguas para a mesma
+   pergunta é como medida e desenho divergiram no passado). */
+function _gMedirLarguraDireto(layer, text, ctx, fp, fontSize, ital) {
+  ctx.font = `${ital}${fp.weight} ${fontSize}px ${fp.family}`;
+  ctx.letterSpacing = layer.letterSpacing ? (layer.letterSpacing) + 'px' : '0px';
   const lines = String(text || '').split('\n');
   let maxW = 0;
   lines.forEach(line => {
@@ -1131,6 +1164,23 @@ function gLayoutVivoAtivo(){
 /* Contrato do solver para os consumidores do franqueado. A comparação é feita entre dois
    CLONES temporários: a composição original (com âncoras manuais) e a acomodada. Nenhum dos
    carimbos abaixo é persistido no template do designer. */
+/* REPROVADA — a régua ÚNICA de "esta camada inviabiliza a arte".
+   Existia escrita à mão dentro do `gDescribeFranchiseeLayout` e o diagnóstico usava outra, mais
+   curta (só `_foraDaArte`/`_layoutInvalido`). O resultado: a causa MAIS COMUM de bloqueio —
+   texto que estourou a caixa restrita — declarava a arte insegura e depois não achava culpado
+   nenhum, e a busca binária do "maior conteúdo seguro" tratava esse mesmo estado como seguro e
+   prometia um limite que não cabia. Duas réguas para a mesma pergunta, o defeito de sempre. */
+function gLayoutCamadaReprovada(l){
+  if(!l)return false;
+  if(l._foraDaArte||l._layoutInvalido)return true;
+  /* `estourou` em texto FIXO não é falha criada pelo franqueado. PSDs usam bbox justo dos
+     glifos e a fonte substituta do navegador pode medir 1–3 px maior; bloquear a arte por isso
+     transformava qualquer importação real em "insegura" mesmo sem um único campo dinâmico. */
+  const encaixeRestrito=(l.textBox==='box'||l._layoutW!=null||l.vertical);
+  return !!(typeof _gLayoutTemCampo==='function'&&_gLayoutTemCampo(l)
+            &&encaixeRestrito&&l._fit&&l._fit.estourou);
+}
+
 function gDescribeFranchiseeLayout(original, solved){
   const antes=new Map((original||[]).filter(Boolean).map(l=>[l.id,l]));
   const changes=[];
@@ -1139,16 +1189,19 @@ function gDescribeFranchiseeLayout(original, solved){
   (solved||[]).forEach(l=>{
     if(!l)return;
     const o=antes.get(l.id)||{};
-    /* `estourou` em texto FIXO não é falha criada pelo franqueado. PSDs usam bbox justo dos
-       glifos e a fonte substituta do navegador pode medir 1–3 px maior; bloquear a arte por isso
-       transformava qualquer importação real em "insegura" mesmo sem um único campo dinâmico.
-       Fora da arte/layout inválido continuam valendo para qualquer dependente que o solver moveu. */
-    const encaixeRestrito=l&&(l.textBox==='box'||l._layoutW!=null||l.vertical);
-    if(l._foraDaArte||l._layoutInvalido
-       ||(_gLayoutTemCampo(l)&&encaixeRestrito&&l._fit&&l._fit.estourou))invalidIds.push(l.id);
+    if(gLayoutCamadaReprovada(l))invalidIds.push(l.id);
     const geometry=!quaseIgual(l.x,o.x)||!quaseIgual(l.y,o.y)
       ||!quaseIgual(l.w,o.w)||!quaseIgual(l.h,o.h);
-    const typography=l._layoutW!=null||l._tetoFonte!=null||l._entrelinha!=null;
+    /* ⚠ O TETO DE LINHAS TAMBÉM ENCOLHE, e não passa por `_tetoFonte`: quando o texto estoura o
+       limite semântico de linhas, `gFitTextLayer` procura o maior corpo que respeita o teto e
+       devolve esse tamanho direto no `_fit`. Sem ler daqui, uma arte com o título reduzido de
+       82px para 50px era reportada como "original" — e "original" é a promessa de que saiu
+       exatamente como o designer desenhou. Achado pelo corpus (`foto-safe-zone · extremo`).
+       Importa duas vezes: o botão do franqueado ("prefiro a composição original") só pode
+       oferecer o original quando ele é MESMO possível, e a telemetria conta esses vereditos. */
+    const fitFonte=l&&l._fit&&l._fit.fontSize;
+    const typography=l._layoutW!=null||l._tetoFonte!=null||l._entrelinha!=null
+      ||(fitFonte&&Math.abs(fitFonte-(l.fontSize||24))>0.5);
     if(geometry||typography){
       changes.push({id:l.id,geometry,typography,
         moved:!quaseIgual(l.x,o.x)||!quaseIgual(l.y,o.y),
@@ -1157,13 +1210,22 @@ function gDescribeFranchiseeLayout(original, solved){
   });
   const invalid=invalidIds.length>0;
   const adapted=changes.length>0;
+  /* `meta` é o rastro do solver (política vencedora, nota, voltas, tempo). Sai daqui porque é
+     este objeto que a prévia, a exportação e a telemetria já carregam — não vale criar um
+     segundo canal para dizer a mesma coisa. */
+  const meta=(solved&&solved._layoutMeta)||null;
   return {status:invalid?'unsafe':(adapted?'adapted':'original'),adapted,invalid,
-    requiresAdaptation:adapted||invalid,forced:false,changes,invalidIds};
+    requiresAdaptation:adapted||invalid,forced:false,changes,invalidIds,meta,diagnostico:null};
 }
 
 function gHandleLayoutUnsafeError(err){
   if(!err||err.code!=='LUMA_LAYOUT_UNSAFE')return false;
-  if(typeof gToast==='function')gToast('Esse texto não cabe com segurança nesta arte. Encurte o conteúdo ou escolha outro material.','error');
+  /* Mensagem acionável quando o motor conseguiu diagnosticar: QUAL campo travou e até quantos
+     caracteres cabem. Sem diagnóstico, cai na frase genérica de sempre — nunca num erro técnico.
+     ⛔ `{{campo}}` e nome interno não aparecem: quem lê é o franqueado, e o rótulo é o do Dado. */
+  const msg=(err.layoutResult&&err.layoutResult.diagnostico&&err.layoutResult.diagnostico.mensagem)
+    ||'Esse texto não cabe com segurança nesta arte. Encurte o conteúdo ou escolha outro material.';
+  if(typeof gToast==='function')gToast(msg,'error');
   return true;
 }
 
@@ -1410,6 +1472,11 @@ function _gRectContem(a,b,margem){
     &&b.x+b.w<=a.x+a.w+margem&&b.y+b.h<=a.y+a.h+margem);
 }
 function _gLayoutMaxLinhas(l){
+  /* O papel compilado (`layoutRole`, ver `core/auto-layout.js`) responde melhor que o nome:
+     ele já cruzou nome, conteúdo, posição e degrau tipográfico. O regex abaixo continua como
+     rede de segurança para camada sem papel (template antigo / arte sem compilar). */
+  const papel=l&&(l.layoutRoleManual||l.layoutSemantic);
+  if(papel&&typeof gLayoutRoleMaxLines==='function')return gLayoutRoleMaxLines(papel);
   const s=String((l&&l.name||'')+' '+(l&&l.content||'')).toLowerCase();
   if(/(pre[cç]o|valor|cupom|c[oó]digo|desconto)/.test(s))return 2;
   // Apoio precisa vencer "produto" quando o nome é "descrição sobre o produto".
@@ -1485,6 +1552,13 @@ function _gLayoutObstaculo(o,cloned,cv,base){
   const ro=base[o.id];
   return (cloned||[]).some(t=>t&&t.type==='text'&&_gLayoutVisivel(t)&&_gRectContem(ro,base[t.id],2));
 }
+/* SAFE ZONE — a caixa da foto podia estar "segura" com o texto em cima do rosto. Quando a
+   camada traz o assunto delimitado (`inkBox` do import de PSD ou `safeZones` autorado), é ELE
+   que protege espaço, não a moldura inteira. Sem essa informação devolve o retângulo de sempre,
+   então nada muda para o que já está publicado. */
+function _gLayoutRectSeguro(o,rect){
+  return (typeof gLayoutObstacleRect==='function')?gLayoutObstacleRect(o,rect):rect;
+}
 function _gLayoutRespiro(t,gap,cv){
   const curto=cv&&cv.w&&cv.h?Math.min(cv.w,cv.h):0;
   // 0,8% do lado curto / 18% do corpo: suficiente para a borda continuar respirando mesmo
@@ -1511,7 +1585,7 @@ function _gInferirCorredores(cloned,opts,resolved,base){
     let limiteE=0,limiteD=cv.w,achouE=false,achouD=false;
     obstaculos.forEach(o=>{
       if(o===t)return;
-      const bo=base[o.id];if(!bo)return;
+      const bo=_gLayoutRectSeguro(o,base[o.id]);if(!bo)return;
       // Contenção é relação intencional (texto sobre placa/foto). Sobreposição PARCIAL não dá
       // licença infinita: o corredor preserva no máximo a intrusão que já existia no desenho.
       const inter=_gRectIntersecao(bt,bo);
@@ -1578,6 +1652,13 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
   // inteligente, caixa-alta e encolhimento. Sem ele, mantém a medida antiga (só quebras
   // manuais) — que é o comportamento que os templates de hoje conhecem.
   const _fit = !!(opts && opts.fitText) && typeof gFitTextLayer === 'function';
+  /* POLÍTICA da escada. 'padrao' é a de sempre (quebrar → empurrar → apertar entrelinha →
+     encolher o menor degrau → escalar o componente). As outras existem para que o motor possa
+     GERAR alternativas e escolher a melhor por nota, em vez de ter um caminho único
+     (`gLayoutEscolherAlternativa`, em `core/auto-layout.js`). Elas só mudam a ORDEM e o PISO dos
+     degraus — nenhuma delas afrouxa a validação, então nenhuma pode aprovar arte insegura. */
+  const _politica = (opts && opts._politica) || 'padrao';
+  const _t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
   const _medirFit=(l,text)=>gFitTextLayer(l,text,ctxAux,{
     runs:(typeof gBuildVirtualRuns==='function'?gBuildVirtualRuns(l,dados,1,defaults):null)
       ||(!_gLayoutTemCampo(l)?l.runs:null)||null
@@ -1585,6 +1666,15 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
   // O piso da hierarquia é carimbado ANTES de medir: a medida e o render têm que usar o MESMO
   // piso, e é justamente medir com uma regra e desenhar com outra que originou este trabalho.
   if (_fit) {
+    /* BASELINE AUTORADO — a referência do desenho para TODA camada, não só a que veio do PSD.
+       Reconstruída aqui (no clone) quando o template é antigo: é a migração dos materiais já
+       publicados, sem deploy e sem o designer reabrir nada. Ver `core/auto-layout.js` §1. */
+    if(typeof gEnsureLayoutBaseline==='function') gEnsureLayoutBaseline(cloned, ctxAux);
+    /* PAPEL SEMÂNTICO compilado — o que alimenta teto de linhas, quebra e pontuação. Só compila
+       o que ainda não tem papel: importação e vínculo já carimbam na origem, e recompilar
+       apagaria a decisão manual de quem mandou (`layoutRoleManual` vence sempre). */
+    if(typeof gCompileLayoutRoles==='function' && cloned.some(l=>l&&l.layoutSemantic==null))
+      gCompileLayoutRoles(cloned, opts&&opts.canvas);
     gStampPisosHierarquia(cloned, opts&&opts.canvas);
     /* Caixa de parágrafo também precisa de um teto semântico. Conter a largura não basta:
        um título de produto podia virar doze linhas dentro da prancheta e ser aprovado como
@@ -1634,6 +1724,10 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
      ela que distingue uma sobreposição intencional (texto dentro de placa) de uma invasão
      causada pelo valor real do franqueado. */
   const baseVisual = _fit ? _gLayoutBaseVisual(cloned, defaults, ctxAux) : {};
+  /* A base autorada viaja NO CLONE para quem pontua a composição depois. As alternativas são
+     solves independentes: sem este carimbo, cada uma teria que remedir a referência inteira só
+     para poder ser comparada com as outras. */
+  if (_fit) cloned.forEach(l => { if (l && baseVisual[l.id]) l._layoutBase = baseVisual[l.id]; });
 
   // Correntes inferidas do desenho (só com o layout vivo ligado).
   if (_fit && !(opts && opts.inferir === false)) {
@@ -1839,12 +1933,12 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
       if(deltaT<=1)return;
       _obstaculosLayout.forEach(o=>{
         if(o===t)return;
-        const bo=baseVisual[o.id],ro=resolved[o.id];
+        const bo=_gLayoutRectSeguro(o,baseVisual[o.id]),ro=resolved[o.id];
         if(!bo||!ro)return;
         const interBase=_gRectIntersecao(bt,bo);
         if(_gRectContem(bo,bt,2))return;
-        const atualO={x:ro.x+(o.type==='text'?(ro.dx||0):0),
-          y:ro.y+(o.type==='text'?(ro.dy||0):0),w:ro.w,h:ro.h};
+        const atualO=_gLayoutRectSeguro(o,{x:ro.x+(o.type==='text'?(ro.dx||0):0),
+          y:ro.y+(o.type==='text'?(ro.dy||0):0),w:ro.w,h:ro.h});
         if(_gLayoutTemCampo(o)){
           const deltaO=Math.max(0,atualO.w-bo.w)+Math.max(0,atualO.h-bo.h)
             +Math.abs(atualO.x-bo.x)+Math.abs(atualO.y-bo.y);
@@ -1913,7 +2007,13 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
     let tentativas = 0;
     // Quando todo mundo chega ao piso da hierarquia e AINDA não cabe, a peça inteira passa a
     // reduzir na mesma escala. Assim recupera espaço sem transformar título em texto de apoio.
-    let relaxou = false;
+    // A política 'proporcional' começa direto por aqui: em arte com hierarquia apertada, reduzir
+    // o componente inteiro junto preserva melhor a proporção do que ceder degrau a degrau.
+    let relaxou = (_politica === 'proporcional');
+    /* Piso da entrelinha por política. 1.05 é onde as linhas começam a se tocar em fonte de
+       texto; 1.00 ainda é legível em fonte display de título, e é o degrau que a política
+       'entrelinha-livre' compra para NÃO precisar reduzir o corpo (preserva a hierarquia). */
+    const _pisoEntrelinha = (_politica === 'entrelinha-livre') ? 1.0 : 1.05;
     // Teto de voltas: ~9 passos levam um degrau do tamanho desenhado ao piso; 32 cobrem dois
     // degraus + a escala proporcional final. Acima disso a composição já é impossível e
     // continuar medindo só congela a digitação sem produzir uma solução diferente.
@@ -1939,15 +2039,18 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
         const fs = (l._tetoFonte != null) ? l._tetoFonte : (l.fontSize || 24);
         const n = l._fit.lines.length;
         const alvo = (l.h || 0) / Math.max(1, fs * n);
-        return Math.max(1.05, Math.min(gLineHeightDe(l), Math.round(alvo * 1000) / 1000));
+        return Math.max(_pisoEntrelinha, Math.min(gLineHeightDe(l), Math.round(alvo * 1000) / 1000));
       };
       /* ⚠ SÓ ENTRA QUEM A CONTA REALMENTE APERTA. Um texto que virou culpado por COLISÃO sem ter
          crescido (foi só empurrado) e cuja caixa é folgada devolve um alvo ACIMA da entrelinha
          atual — o clamp preserva o valor, nada muda, e o `continue` abaixo repetia o mesmo estado
          até esgotar as 32 voltas: re-medida e reposicionamento inteiros por volta, sem nunca
          chegar ao degrau de encolher a fonte. Sem esta guarda a colisão saía não resolvida. */
-      const _apertaveis = culpados.filter(l => l._fit && l._fit.lines.length > 1
-                                            && gLineHeightDe(l) > 1.06
+      /* A política 'sem-entrelinha' pula este degrau de propósito: em arte onde o espaçamento é
+         parte do desenho (bloco de apoio arejado, texto legal em coluna), apertar a entrelinha
+         estraga mais do que reduzir um ponto de corpo. Quem decide é a NOTA, não este arquivo. */
+      const _apertaveis = (_politica === 'sem-entrelinha') ? [] : culpados.filter(l => l._fit && l._fit.lines.length > 1
+                                            && gLineHeightDe(l) > _pisoEntrelinha + 0.01
                                             && _entrelinhaAlvo(l) < gLineHeightDe(l) - 0.001);
       if (_apertaveis.length) {
         _apertaveis.forEach(l => { l._entrelinha = _entrelinhaAlvo(l); });
@@ -2000,9 +2103,23 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
         const textosComponente=cloned.filter(l=>l&&l.type==='text'&&_gLayoutVisivel(l)&&ids.has(l.id));
         const escalaAtual=Math.min(...textosComponente.map(l=>_atual(l)/Math.max(1,l.fontSize||24)));
         const escalaGlobal=Math.max(0.35,escalaAtual*0.92);
+        /* ⚠ A escala proporcional protege a hierarquia DENTRO do componente — todos descem
+           juntos. Mas quem está FORA dele não desce, e sem esta trava um texto do componente
+           passava por baixo de um texto menor que ficou parado: a arte saía com o produto
+           menor que o preço. Comprovado pelo corpus (`promo-preco-circulo · extremo`).
+           O piso aqui é o maior corpo ATUAL entre os que eram menores e não estão descendo. */
+        const _pisoHierExterno=(l)=>{
+          let piso=0;
+          cloned.forEach(o=>{
+            if(!o||o===l||o.type!=='text'||!_gLayoutVisivel(o)||ids.has(o.id))return;
+            if((o.fontSize||24)>=(l.fontSize||24))return;
+            piso=Math.max(piso,_atual(o));
+          });
+          return piso;
+        };
         const grupo=[];
         textosComponente.forEach(l=>{
-          const alvo=Math.max(_pisoEmergenciaDe(l),Math.floor((l.fontSize||24)*escalaGlobal));
+          const alvo=Math.max(_pisoEmergenciaDe(l),_pisoHierExterno(l),Math.floor((l.fontSize||24)*escalaGlobal));
           if(alvo<_atual(l)){l._tetoFonte=alvo;grupo.push(l);}
         });
         if(!grupo.length)break;
@@ -2040,6 +2157,19 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
        silenciosamente aprovado: o checklist/publicação recebe a marca de composição inválida. */
     const restantes=_colisoesInternas();
     restantes.forEach(c=>{ c.culpado._layoutInvalido=true; });
+    const _ms = _t0 ? ((typeof performance!=='undefined'&&performance.now)?performance.now():0) - _t0 : 0;
+    cloned._layoutMeta = { politica:_politica, tentativas:tentativas, ms:Math.round(_ms*100)/100 };
+    if(typeof gLayoutRegistraTempo==='function' && _politica==='padrao') gLayoutRegistraTempo(_ms);
+    /* ALTERNATIVAS. Só quando a escada precisou passar do empurrão — arte que resolve em
+       quebra/empurrão JÁ é a de alteração mínima, e gerar concorrentes ali seria pagar três
+       solves para reeleger a mesma vencedora. Determinístico de propósito: prévia e exportação
+       chamam o mesmo motor e têm que escolher a MESMA composição. */
+    if(_politica==='padrao' && !(opts&&opts._semAlternativas)
+       && typeof gLayoutPrecisaAlternativas==='function' && gLayoutPrecisaAlternativas(cloned)
+       && typeof gLayoutEscolherAlternativa==='function'){
+      const escolhida = gLayoutEscolherAlternativa(layers, dados, defaults, opts, cloned);
+      if(escolhida && escolhida.length) return escolhida;
+    }
     return cloned;
   }
 
@@ -2106,21 +2236,52 @@ const G_CONNECTORS = new Set([
   'of', 'and', 'or', 'with', 'without', 'for', 'in', 'at', 'on', 'by', 'a', 'an', 'the'
 ]);
 
+/* Segmentador de grafemas e canvas de medida: um de cada, criados na carga. Antes nasciam
+   dentro do laço de quebra — um `Intl.Segmenter` e um `<canvas>` novos por chamada. */
+const _G_SEGMENTADOR = (typeof Intl!=='undefined'&&Intl.Segmenter)
+  ? new Intl.Segmenter(undefined,{granularity:'grapheme'}) : null;
+let _gCanvasWrap = null;
+
 // Quebra de linha inteligente baseada em pontuação de desequilíbrio e limites gramaticais (Knuth-Plass adaptado)
 function gSmartWrapText(text, maxW, layer, dados, defaults) {
   if (!text || typeof text !== 'string') return text;
-  
+
+  /* MEMÓRIA DE QUEBRA. A busca de partição (Knuth-Plass adaptado) é a segunda operação mais
+     cara do motor, e a escada chama a MESMA quebra dezenas de vezes: uma por volta do laço, e
+     de novo em cada uma das políticas alternativas. A função é pura — mesmo texto, mesma
+     largura e mesma tipografia sempre dão a mesma quebra —, então memoizar não muda resultado
+     nenhum, só o relógio. `dados`/`defaults` não entram na chave porque o corpo não os lê (os
+     chamadores internos passam `null`).
+     ⚠ A chave carrega tudo que muda a quebra. Faltar um campo aqui devolveria a quebra de
+     OUTRA camada — pior que lentidão, seria arte errada. */
+  const _chaveWrap = (typeof dTextFontParts === 'function' ? dTextFontParts(layer && layer.font).weight : '')
+    + '|' + ((layer && layer.font) || '') + '|' + ((layer && layer.fontSize) || 0)
+    + '|' + ((layer && layer.letterSpacing) || 0) + '|' + ((layer && layer.italic) ? 1 : 0)
+    + '|' + ((layer && layer.fontWeightOverride) || '') + '|' + Math.round(maxW || 0)
+    + '|' + ((layer && layer.content) || '') + '|' + text;
+  const _memo = _G_MEDIDA_CACHE.get('W' + _chaveWrap);
+  if (_memo !== undefined) return _memo;
+  const _guardar = (r) => {
+    if (_G_MEDIDA_CACHE.size > 4000) _G_MEDIDA_CACHE.clear();
+    _G_MEDIDA_CACHE.set('W' + _chaveWrap, r);
+    return r;
+  };
+  return _guardar(_gSmartWrapCalc(text, maxW, layer));
+}
+
+function _gSmartWrapCalc(text, maxW, layer) {
+
   // Preserva cada quebra manual, mas ainda protege CADA trecho. Antes uma única quebra feita
   // no PSD desligava todo o wrapping e uma linha longa atravessava as camadas vizinhas.
   if (text.includes('\n')) return text.split('\n')
-    .map(parte=>parte?gSmartWrapText(parte,maxW,layer,dados,defaults):'').join('\n');
+    .map(parte=>parte?gSmartWrapText(parte,maxW,layer):'').join('\n');
   
   // Limpa espaços redundantes
   const cleanText = text.replace(/\s+/g, ' ').trim();
-  const words = cleanText.split(' ');
-  
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
+  const palavras = cleanText.split(' ');
+
+  if(!_gCanvasWrap) _gCanvasWrap = document.createElement('canvas');
+  const ctx = _gCanvasWrap.getContext('2d');
   const medidas = new Map();
   
   // Medição exata da largura de cada linha usando as métricas da própria camada
@@ -2141,7 +2302,14 @@ function gSmartWrapText(text, maxW, layer, dados, defaults) {
   if (fullW <= availableW) {
     return cleanText;
   }
-  
+
+  /* QUEBRA SEMÂNTICA — algumas sequências não são duas palavras, são UMA informação: `R$ 29,90`,
+     `50 %`, `500 ml`, e a preposição que não pode ficar órfã no fim da linha. Viram uma unidade
+     só antes de particionar, então nenhuma partição consegue separá-las.
+     A cola é condicional (só quando a unidade colada continua cabendo) — ver `gSemanticUnits`. */
+  const words = (typeof gSemanticUnits === 'function')
+    ? gSemanticUnits(palavras, measure, availableW) : palavras;
+
   let bestPartition = null;
   let bestScore = Infinity;
   
@@ -2238,8 +2406,11 @@ function gSmartWrapText(text, maxW, layer, dados, defaults) {
   const wrapped = [];
   let current = '';
   const pushToken = (token) => {
-    let rest = (typeof Intl!=='undefined'&&Intl.Segmenter)
-      ?[...new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(token)].map(x=>x.segment)
+    /* ⚠ O `Intl.Segmenter` era construído A CADA TOKEN. Numa palavra gigante sem espaço — o caso
+       real de quem cola um nome de produto colado — isso custava mais que a própria busca
+       binária. Instanciado uma vez (`_G_SEGMENTADOR`), o comportamento é idêntico. */
+    let rest = _G_SEGMENTADOR
+      ?[..._G_SEGMENTADOR.segment(token)].map(x=>x.segment)
       :[...token];
     while (rest.length && measure(rest.join('')) > availableW) {
       let low = 1, high = rest.length, fit = 1;

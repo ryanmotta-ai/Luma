@@ -1995,9 +1995,24 @@ function dLayerBindField(layerId, fieldName){
       v.example=orig;
       if(typeof dPersistVars==='function') dPersistVars();
     }
+    /* BASELINE AUTORADO — o mesmo contrato que o import de PSD grava, agora em TODO vínculo.
+       É aqui que o texto que o designer compôs deixa de existir na camada; sem registrar a
+       referência neste instante, o Auto-layout do franqueado passa a comparar o valor real com
+       a CAIXA desenhada (quase sempre maior que o texto) e só reage tarde demais.
+       Grava a frase, a geometria, as métricas e uma sonda da fonte — ver `core/auto-layout.js`. */
+    if(typeof gStampLayoutBaseline==='function'){
+      gStampLayoutBaseline(l, orig || ((typeof gFieldSampleValue==='function')?gFieldSampleValue(v):''));
+    }
     l.content='{{'+fieldName+'}}'; l.isVar=true;
   }
   else { gToast('Essa camada não recebe Dado'); return; }
+  /* PAPEL SEMÂNTICO — recompilado a cada vínculo porque ligar um campo MUDA a leitura da arte
+     (a camada "Texto 3" que passou a mostrar "Preço promocional" virou preço). Compilar é
+     barato (uma passada) e invisível: nenhum formulário a mais para o designer. */
+  if(typeof gCompileLayoutRoles==='function'){
+    const ab=(typeof dGetActiveAB==='function')?dGetActiveAB():null;
+    gCompileLayoutRoles(dLayers, ab?{w:ab.w,h:ab.h}:null);
+  }
   dRenderCanvas(); if(typeof dRenderLayersList==='function') dRenderLayersList();
   dShowProps(l); dMarkUnsaved();
   gToast(''+(l.name||'Camada')+' agora mostra “'+(v.label||v.name)+'”');

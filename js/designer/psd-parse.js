@@ -395,6 +395,34 @@ function _dPsdHasAlpha(canvas){
     return false;
   }catch(e){ return true; }
 }
+/* A CAIXA DO ASSUNTO dentro da foto — o que o Auto-layout precisa proteger de verdade.
+   A moldura da imagem podia estar "segura" enquanto o texto cobria justamente o rosto ou o
+   produto; e o contrário também custava caro, porque um PNG recortado tem metade da caixa
+   transparente e tratá-la inteira como obstáculo roubava espaço que existe.
+   Só faz sentido com alpha: foto retangular não tem assunto delimitável por transparência, e
+   aí devolver `null` é a resposta honesta (o solver segue usando a caixa inteira).
+   Amostra em 160px: 1px de precisão no palpite não vale 40ms a mais na importação. */
+function _dPsdInkBox(canvas){
+  try{
+    if(!canvas||!canvas.width||!canvas.height) return null;
+    if(!_dPsdHasAlpha(canvas)) return null;
+    const MAX=160, s=Math.min(1,MAX/Math.max(canvas.width,canvas.height));
+    const w=Math.max(1,Math.round(canvas.width*s)), h=Math.max(1,Math.round(canvas.height*s));
+    const c=document.createElement('canvas'); c.width=w; c.height=h;
+    const cx=c.getContext('2d'); cx.drawImage(canvas,0,0,w,h);
+    const d=cx.getImageData(0,0,w,h).data;
+    let x1=w,y1=h,x2=-1,y2=-1;
+    for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+      if(d[(y*w+x)*4+3]>24){ if(x<x1)x1=x; if(x>x2)x2=x; if(y<y1)y1=y; if(y>y2)y2=y; }
+    }
+    if(x2<x1||y2<y1) return null;
+    const bx=x1/w, by=y1/h, bw=(x2-x1+1)/w, bh=(y2-y1+1)/h;
+    // Assunto que ocupa quase a caixa toda não é informação nova — não vale gravar o dado.
+    if(bw>0.96&&bh>0.96) return null;
+    const r=(n)=>Math.round(n*1000)/1000;
+    return {x:r(bx),y:r(by),w:r(bw),h:r(bh)};
+  }catch(e){ return null; }
+}
 // opts opcional {maxPx, q}: camadas que SÓ existem como raster fiel (warp, smart object, padrão)
 // pedem mais resolução/qualidade. Default 1600/0.82 mantém as chamadas existentes intactas.
 // O peso extra é absorvido pelo IndexedDB (idb://), então não estoura o localStorage.
@@ -1572,6 +1600,9 @@ function dPsdParseItems(psd, res, ox, oy){
           it.kind='raster';
           it.imgUrl=_dPsdRasterURL(node.canvas,{maxPx:_rasterCap});
           if(!it.imgUrl) return;
+          // Zona segura da foto: o assunto recortado, medido enquanto os pixels ainda estão
+          // na memória. Depois do import só existe a URL, e recalcular sairia caro.
+          it.inkBox=_dPsdInkBox(node.canvas);
           
           // Heurística de auto-frame para imagens raster
           const imgSug = _dPsdSuggestImgVar(it.name);
@@ -1754,6 +1785,9 @@ function dItemToLayer(it){
     else it.needsRaster=true;
   }
   if(it.mask) base.mask=it.mask;
+  // Zona segura (assunto opaco da foto) — vale para moldura, imagem fiel e raster comum, então
+  // mora na base em vez de repetida em cada ramo de retorno.
+  if(it.inkBox) base.inkBox=it.inkBox;
   if(it.clipBaseId){ base.clipBaseId=it.clipBaseId; if(it.clipBaseSnapshot)base.clipBaseSnapshot=it.clipBaseSnapshot; if(it.clipOwnMask)base.clipOwnMask=it.clipOwnMask; }
   if(it.blendMode) base.blendMode=it.blendMode;
   if(it.kind==='adjustment'){
@@ -1784,9 +1818,6 @@ function dItemToLayer(it){
     const L=Object.assign(base,{ type:'text',
       content: isVar ? '{{'+(it.varName||'variavel')+'}}' : it.content,
       font:it.font, fontSize:it.fontSize, color:it.color, textAlign:it.textAlign, isVar:isVar });
-    // Referência DETERMINÍSTICA do desenho original para calibrar métricas no Auto-layout.
-    // Não aparece para o franqueado e não substitui o conteúdo/variável; só mede crescimento real.
-    if(isVar&&it.content) L.layoutRefText=it.content;
     _dPsdApplyFx(L, it);
     if(it.strikethrough){ L.strikethrough=true; }
     if(it.underline){ L.underline=true; }
@@ -1799,6 +1830,16 @@ function dItemToLayer(it){
     if(it.lineHeight) L.lineHeight=it.lineHeight;
     if(it.runs && !isVar) L.runs=it.runs;       // texto multi-estilo (não p/ variável)
     if(it.gradient) L.gradient=it.gradient;     // preenchimento por gradiente no texto
+    /* BASELINE AUTORADO — a referência determinística do desenho original: o texto que o
+       designer compôs, a geometria, as métricas e uma sonda da fonte. Não aparece para o
+       franqueado e não substitui conteúdo/variável; serve para medir crescimento REAL e para
+       o Auto-layout decidir igual em qualquer aparelho (ver `core/auto-layout.js`).
+       ⚠ Carimbado DEPOIS de todas as propriedades: medir antes de `textBox`/`lineHeight`/
+       `letterSpacing` produziria uma referência que não é a arte que foi importada. */
+    if(isVar&&it.content){
+      if(typeof gStampLayoutBaseline==='function') gStampLayoutBaseline(L, it.content);
+      else L.layoutRefText=it.content;
+    }
     return L;
   }
   if(it.kind==='shape' && it.mode==='shape'){
@@ -1815,7 +1856,7 @@ function dItemToLayer(it){
 // Converte folhas + árvore estrutural numa lista plana compatível com `dLayers`. O marcador do
 // grupo entra logo após seu último descendente (mesma convenção de dGroupSelected), preservando
 // z-order e permitindo grupos aninhados sem expô-los como falsas "imagens" na revisão do PSD.
-function dPsdItemsToLayers(items, previewOriginalText){
+function dPsdItemsToLayers(items, previewOriginalText, canvas){
   const src=items||[], leaves=[], groups=new Map();
   src.forEach((it,idx)=>{
     const use=(previewOriginalText&&it.kind==='text'&&it.mode==='var')?Object.assign({},it,{mode:'text'}):it;
@@ -1834,5 +1875,9 @@ function dPsdItemsToLayers(items, previewOriginalText){
     const close=ends[i]; if(!close)return;
     close.sort((a,b)=>b.depth-a.depth).forEach(({g})=>out.push(JSON.parse(JSON.stringify(g))));
   });
+  /* COMPILADOR SEMÂNTICO — a importação é o melhor momento para classificar: os nomes de camada
+     do PSD ainda estão inteiros (é assim que o designer batiza por função) e a arte inteira está
+     na mão. Compilado uma vez, viaja no template. Invisível: nenhum passo a mais na revisão. */
+  if(typeof gCompileLayoutRoles==='function') gCompileLayoutRoles(out, canvas||null);
   return out;
 }
