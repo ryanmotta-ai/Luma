@@ -534,6 +534,32 @@ O único caso acima de 900ms a 4× é a entrada deliberadamente patológica (CJK
 
 **Crescer o corpus** (o "aprendizado pelo corpus"): todo PSD problemático vira um arquivo em `tests/corpus/` + um `<script>` em `corpus.html`. A partir daí não pode regredir em silêncio.
 
+#### Rodada de refino (2026-08-14) — o que a medição em massa achou
+
+`tests/_bancada.html` é **instrumento, não portão**: roda os fixtures do corpus com cada campo crescendo palavra a palavra (276 cenários) e reporta veredito, dano real, qual política venceu, quais itens da nota disparam e o tempo por política. Não reprova nada, então fica **fora do CI** — o runner pula suítes com `_` no nome a menos que você a chame: `node scripts/run-browser-tests.js _bancada`. Foi ela que achou os cinco itens abaixo; nenhum veio de leitura de código.
+
+**1. 12 de 14 bloqueios eram FALSOS.** `gFitTextLayer` misturava duas coisas num flag só. Agora são duas:
+- `excedeuLinhas` — **preferência**: o título usou 4 linhas onde o teto semântico pede 3. A arte pode estar inteira dentro da prancheta e sem tocar em nada.
+- `estourou` — **dano**: o texto não cabe na própria caixa nem no piso da fonte.
+
+Só o dano reprova. A escada continua perseguindo os dois (encolher para caber no teto é o que um designer faria) e a nota penaliza o teto excedido — mas **gosto editorial não recusa mais a arte de um franqueado**, que é o erro mais caro deste produto. Bloqueios caíram de 16% para 1%, e os que restam têm fuga ou colisão medida.
+
+**2. O guardião não via a camada FIXA empurrada.** `_colisoesInternas` só olhava camadas *com campo* como possíveis culpadas. Um CTA fixo, empurrado pela corrente para cima da foto, passava batido: **3 artes saíam APROVADAS com o texto sobre o assunto da imagem**. Agora entra qualquer texto que a adaptação mexeu (a guarda `deltaT<=1` mantém a precisão), e o culpado é resolvido subindo a corrente até a raiz dinâmica (`_raizDinamica`) — encolher a vítima empurrada não resolveria nada, e nomeá-la mandaria o franqueado encurtar um texto que ele nem digitou. Efeito colateral bom: enxergando a colisão mais cedo, a escada passou a **consertar** casos que antes saíam estragados.
+
+**3. A nota media o texto do franqueado, não o trabalho do motor.** Densidade e equilíbrio disparavam em **100%** dos cenários, inclusive nos que saíam `original`, e a nota saturava em zero — inútil para telemetria e para comparar candidatos. A causa: comparavam com a referência AUTORADA. Agora existem duas referências, para duas perguntas diferentes:
+- `_gScoreBase` (autorada) — *"este texto cresceu além do que o designer desenhou?"*, a pergunta do **culpado**;
+- `_gScoreSemAjuste` (`_layoutSemAjuste`: conteúdo real, geometria publicada, zero adaptação) — *"quanto a adaptação custou?"*, a pergunta da **nota**.
+
+Com isso, arte intocada pontua **zero** — invariante testada. Os itens passaram a disparar entre 1% e 64%.
+
+**4. Metade das trocas de política era ruído.** O ganho mediano ao trocar era ~1 ponto numa penalidade de 150–390 (meio por cento), o bastante para mover um CTA 14px e fazer a arte mudar entre versões sem ninguém pedir. A alternativa agora precisa de **margem visível** para destronar a padrão: 3 pontos absolutos ou 2% da penalidade, o que for maior. Trocas caíram de 78% para 41%, e a mediana do ganho subiu de 1,1 para 14,6.
+
+**5. Fechar a entrelinha estava barato demais.** Peso 13 (metade do deslocamento) contra 55 do corpo perdido: destruir o respiro de um bloco arejado de 1.9 para 1.05 pontuava 6, enquanto reduzir 20% da fonte pontuava 11 — **a nota preferia destruir a entrelinha**. Sintoma: a política `sem-entrelinha` não vencia nem no fixture criado para ela (`bloco-arejado`, entrelinha 1.9 como intenção de design). Peso novo: 48, proporcional à fração do respiro autorado que se perdeu. Depois disso as quatro políticas ganham espaço — padrão 50, proporcional 22, entrelinha-livre 14, sem-entrelinha 9.
+
+⛔ **Dois itens da nota nunca disparam em arte real e ficam de propósito:** `editorial` (órfã/conector/valor partido) e `alinhamento`. Não são código morto — provados funcionando em teste isolado (6, 10, 14 e 7 pontos). Marcam zero porque a quebra semântica e a estabilidade horizontal já evitam o defeito; são guardas contra regressão e custam a mesma passada.
+
+**Números depois do refino** (276 cenários): 1% bloqueadas — todas com dano medido · **0 artes aprovadas com dano** · p95 do solver 13ms no corpus e 43ms no fuzzing · com a CPU freada em 4×, p95 159ms e pior caso 945ms (o mesmo caso patológico de sempre: CJK + emoji + fullwidth nos três campos ao mesmo tempo).
+
 ### Import SVG (`templates.js`)
 
 DOMParser puro. Suporta text/tspan, rect, circle/ellipse, image, path (bbox aproximada), transforms afins com pilha de matrizes, CSS por prioridade (inline > classe > atributo > herança), fontes Illustrator mapeadas. Revisão por elemento → template rascunho. ⚠ Grupos achatados em 1 nível.
