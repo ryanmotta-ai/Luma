@@ -153,7 +153,10 @@ function pvRenderLayer(ctx, l, W, H, next){
   if(l.type==='shape'){
     ctx.fillStyle=l.fill||'#FF9000';
     const kind=l.shapeKind||'rect';
-    if(kind==='circle'||kind==='ellipse'){
+    const vector=(kind==='path'&&typeof gVectorPathValid==='function'&&gVectorPathValid(l.vectorPath))?l.vectorPath:null;
+    if(vector){
+      gTraceVectorPath(ctx,vector,l.x,l.y,l.w,l.h); ctx.fill(gVectorPathFillRule(vector));
+    } else if(kind==='circle'||kind==='ellipse'){
       ctx.beginPath(); ctx.ellipse(l.x+l.w/2,l.y+l.h/2,l.w/2,l.h/2,0,0,Math.PI*2); ctx.fill();
     } else {
       const pts=(typeof dShapePoints==='function')?dShapePoints(l):null;
@@ -598,6 +601,10 @@ function dSvgShape(l){
   // Um único gerador reusado pelo fill, pelo traço e pelo clipPath — sem duplicar a forma.
   const pts=(typeof dShapePoints==='function')?dShapePoints(l):null;
   const geom=(extra)=>{
+    if(kind==='path'&&typeof gVectorPathD==='function'){
+      const d=gVectorPathD(l.vectorPath,l.x,l.y,l.w,l.h), rule=typeof gVectorPathFillRule==='function'?gVectorPathFillRule(l.vectorPath):'nonzero';
+      if(d)return `<path d="${d}" fill-rule="${rule}" clip-rule="${rule}" ${extra}/>`;
+    }
     if(kind==='circle'||kind==='ellipse') return `<ellipse cx="${l.x+l.w/2}" cy="${l.y+l.h/2}" rx="${l.w/2}" ry="${l.h/2}" ${extra}/>`;
     if(pts){
       const abs=pts.map(p=>[l.x+p[0]*l.w, l.y+p[1]*l.h]);
@@ -759,7 +766,10 @@ function dSvgImage(l, dados, cid){
   else if(l.imgUrl && l.imgUrl!=='__local__' && l.imgUrl.length) src=l.imgUrl;
   const clip='clip'+cid;
   let clipShape;
-  if(l.frameShape==='circle') clipShape=`<circle cx="${l.x+l.w/2}" cy="${l.y+l.h/2}" r="${Math.min(l.w,l.h)/2}"/>`;
+  const kind=l.shapeKind||l.frameShape||'rect';
+  const vectorD=(kind==='path'&&typeof gVectorPathD==='function')?gVectorPathD(l.vectorPath,l.x,l.y,l.w,l.h):'';
+  if(vectorD){ const rule=gVectorPathFillRule(l.vectorPath); clipShape=`<path d="${vectorD}" fill-rule="${rule}" clip-rule="${rule}"/>`; }
+  else if(kind==='circle'||kind==='ellipse') clipShape=`<ellipse cx="${l.x+l.w/2}" cy="${l.y+l.h/2}" rx="${l.w/2}" ry="${l.h/2}"/>`;
   else { const r=Math.min(l.radius||0, l.w/2, l.h/2); clipShape=`<rect x="${l.x}" y="${l.y}" width="${l.w}" height="${l.h}" rx="${r}" ry="${r}"/>`; }
   const defs=`<clipPath id="${clip}">${clipShape}</clipPath>`;
   if(!src) return {defs, body:`<rect x="${l.x}" y="${l.y}" width="${l.w}" height="${l.h}" fill="#ffffff" fill-opacity="0.06" clip-path="url(#${clip})"/>`};

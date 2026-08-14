@@ -516,6 +516,33 @@ function _dPsdVectorMaskCanvas(node){
     return c;
   }catch(e){ return null; }
 }
+// Promove uma vectorMask do Photoshop a geometria editável do Luma sem perder curvas.
+// Operações booleanas (subtract/intersect/exclude) e máscaras invertidas permanecem no
+// pipeline raster: Canvas/SVG não reproduzem esses operadores por subpath de forma geral.
+function _dPsdEditableVectorPath(node, allowOpen){
+  try{
+    const vm=node&&node.vectorMask, b=_dPsdBox(node);
+    if(!vm||vm.disable||vm.invert||!b.w||!b.h||!Array.isArray(vm.paths)||!vm.paths.length)return null;
+    let fillRule=null; const paths=[];
+    for(const p of vm.paths){
+      if(!p||!Array.isArray(p.knots)||p.knots.length<2)return null;
+      if(p.open&&!allowOpen)return null;
+      if(p.operation&&p.operation!=='combine')return null;
+      const rule=p.fillRule==='even-odd'?'evenodd':'nonzero';
+      if(fillRule&&fillRule!==rule)return null;
+      fillRule=rule;
+      const knots=p.knots.map(k=>{
+        const a=k&&k.points;
+        if(!a||a.length<6||!a.every(Number.isFinite))throw new Error('invalid vector knot');
+        const pt=o=>[+(Math.round(((a[o]-b.x)/b.w)*1e6)/1e6), +(Math.round(((a[o+1]-b.y)/b.h)*1e6)/1e6)];
+        return {in:pt(0),anchor:pt(2),out:pt(4),linked:k.linked!==false};
+      });
+      paths.push({closed:!p.open,knots});
+    }
+    const out={fillRule:fillRule||'nonzero',paths};
+    return typeof gVectorPathValid==='function'&&gVectorPathValid(out)?out:null;
+  }catch(e){ return null; }
+}
 // Traçado vetorial (node.vectorStroke) → {strokeW, strokeColor} ou {} (sem traçado).
 function _dPsdShapeStroke(node){
   const vs=node.vectorStroke; const out={};
@@ -1489,16 +1516,20 @@ function dPsdParseItems(psd, res, ox, oy){
           // Forma: preferir o tipo EXATO do vetor (keyOriginType), cair no heurístico de pixel.
           const vectorShape=_dPsdVectorShapeKind(node,w,h);
           const shapeInfo=vectorShape||_dPsdDetectShapeKind(node.canvas);
+          // Custom shape/path: conserva âncoras e alças em vez de fingir que é um retângulo.
+          // Caminho aberto só é promovido quando a layer é apenas traço.
+          const vectorPath=!vectorShape?_dPsdEditableVectorPath(node,hasStroke&&!solid&&!grad):null;
           it.kind='shape';
           const vectorBox=vectorShape&&_dPsdVectorShapeBox(node,ox,oy);
           if(vectorBox)Object.assign(it,vectorBox);
           // Retângulo/elipse já são a própria primitiva vetorial do Luma. Reaplicar a mesma
           // vectorMask como bitmap cortava o meio externo do stroke (formas só-contorno sumiam).
-          if(vectorShape&&fillDisabled)delete it._vecMaskCanvas;
+          if((vectorShape&&fillDisabled)||vectorPath)delete it._vecMaskCanvas;
           // Só-contorno (sem fill sólido/gradiente) → fundo TRANSPARENTE, não a cor padrão laranja.
           it.fill=solid || (grad && grad.stops[0] && grad.stops[0].color) || (hasStroke ? 'transparent' : '#FF9000');
           if(grad) it.gradient=grad;
-          it.shapeKind=shapeInfo.kind;
+          it.shapeKind=vectorPath?'path':shapeInfo.kind;
+          if(vectorPath){it.vectorPath=vectorPath;delete it.vectorMaskFailed;}
           it.radius=shapeInfo.radius;
           Object.assign(it,_dPsdEffects(node));        // sombra/glow/overlay/contorno-fx
           Object.assign(it,stroke);                    // traçado do shape (vectorStroke, incl. tracejado)
@@ -1597,7 +1628,7 @@ function dPsdParseItems(psd, res, ox, oy){
         // `mask` fica como snapshot de compatibilidade para o DOM do editor; o Canvas final usa
         // clipBaseId e redesenha o alpha da base a cada render. Máscaras próprias ficam separadas.
         out[i].clipBaseId=_dPsdItemId(base);
-        out[i].clipBaseSnapshot={x:base.x,y:base.y,w:base.w,h:base.h,shapeKind:base.shapeKind||'rect',radius:base.radius||0,radii:base.radii||null,points:base.points||null,sides:base.sides||null,inner:base.inner||null,maskSize:base.mask?base.mask.length:0};
+        out[i].clipBaseSnapshot={x:base.x,y:base.y,w:base.w,h:base.h,shapeKind:base.shapeKind||'rect',radius:base.radius||0,radii:base.radii||null,points:base.points||null,sides:base.sides||null,inner:base.inner||null,vectorPath:base.vectorPath||null,maskSize:base.mask?base.mask.length:0};
         out[i].clipOwnMask=_dPsdComputeMask(out[i]._psdNode, null, _extra);
         _m = _dPsdComputeMask(out[i]._psdNode, base._psdNode, _extra);
       }
@@ -1723,6 +1754,7 @@ function dItemToLayer(it){
     if(it.points) F.points=it.points;
     if(it.sides) F.sides=it.sides;
     if(it.inner) F.inner=it.inner;
+    if(it.vectorPath) F.vectorPath=JSON.parse(JSON.stringify(it.vectorPath));
     return _dPsdApplyFx(F, it);
   }
   if(it.needsRaster && it.imgUrl){
@@ -1750,6 +1782,7 @@ function dItemToLayer(it){
   }
   if(it.kind==='shape' && it.mode==='shape'){
     const S=Object.assign(base,{type:'shape',fill:it.fill||'#FF9000',radius:it.radius||0,shapeKind:it.shapeKind||'rect'});
+    if(it.vectorPath) S.vectorPath=JSON.parse(JSON.stringify(it.vectorPath)); // Bézier editável/responsivo
     if(it.radii) S.radii=it.radii;                                  // cantos por canto
     if(it.gradient) S.gradient=it.gradient;                         // gradiente
     _dPsdApplyFx(S, it);                                            // traçado(+align)/sombra/glow/overlay

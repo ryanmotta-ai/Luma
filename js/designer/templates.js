@@ -3144,7 +3144,15 @@ function dRenderTemplateToDOM(container, tmpl) {
       el.style.opacity = (l.opacity || 100) / 100;
       const kind = l.shapeKind || 'rect';
       const pts = (kind !== 'circle' && kind !== 'ellipse' && typeof dShapePoints === 'function') ? dShapePoints(l) : null;
-      if (pts) {
+      const vectorD=(kind==='path'&&typeof gVectorPathD==='function')?gVectorPathD(l.vectorPath,0,0,l.w,l.h):'';
+      if(vectorD){
+        const inner=document.createElement('div'); inner.style.cssText='position:absolute;inset:0;';
+        const rule=typeof gVectorPathFillRule==='function'?gVectorPathFillRule(l.vectorPath):'nonzero';
+        let st=(l.strokeW>0)?' stroke="'+(l.strokeColor||'#000')+'" stroke-width="'+l.strokeW+'"':'';
+        if(l.strokeDash&&l.strokeDash.length)st+=' stroke-dasharray="'+l.strokeDash.join(' ')+'"';
+        inner.innerHTML='<svg width="100%" height="100%" viewBox="0 0 '+l.w+' '+l.h+'" preserveAspectRatio="none" style="display:block;overflow:visible"><path d="'+vectorD+'" fill="'+(l.fill||'#FF9000')+'" fill-rule="'+rule+'"'+st+'/></svg>';
+        el.appendChild(inner);
+      } else if (pts) {
         const inner = document.createElement('div');
         inner.style.cssText = 'position:absolute;inset:0;';
         const abs = pts.map(p => [p[0] * l.w, p[1] * l.h]);
