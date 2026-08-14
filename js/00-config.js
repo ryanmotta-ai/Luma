@@ -1107,10 +1107,23 @@ function gLayoutVivoAtivo(){
    ou importador o escreve — a varredura pró-1.0 confirmou 6 leituras e zero escritas. Fica
    como reserva para quando existir; hoje quem protege é `locked`/`lockPosition`.
    Âncora explícita do designer SEMPRE vence a inferida. */
-function _gCorrenteMovivel(l){
+function _gCorrenteMovivel(l, cloned){
   if(!l || l.type==='group' || !_gLayoutVisivel(l)) return false;
-  if(l.locked || l.lockPosition || l.parentId) return false;
+  if(l.locked || l.lockPosition) return false;
   if(l.layoutRole==='background' || l.layoutRole==='protected') return false;
+  /* ⚠ TER PAI NÃO IMOBILIZA. A regra antiga barrava toda camada com `parentId` — o que fazia
+     sentido quando grupo só nascia à mão no Estúdio. Desde a importação de PSD com grupos
+     (`psd-parse.js`), quase toda camada de arte de agência tem pai, e a regra desligava a
+     corrente inferida do template inteiro EM SILÊNCIO: o franqueado digitava um nome longo e
+     nada descia. Quem imobiliza é o GRUPO travado/protegido — resolvido por ID a cada consulta,
+     porque undo/simulação trocam os objetos por clones e uma referência guardada morreria. */
+  let paiId=l.parentId, guarda=0;
+  while(paiId && Array.isArray(cloned) && guarda++ < 16){
+    const g=cloned.find(x=>x && x.id===paiId);
+    if(!g) break;
+    if(g.locked || g.lockPosition || g.layoutRole==='background' || g.layoutRole==='protected') return false;
+    paiId=g.parentId;
+  }
   return true;
 }
 function _gCorrenteEhFundo(l, cv){
@@ -1150,7 +1163,7 @@ function _gInferirCorrentes(cloned, opts, resolved){
     return soma;
   };
   nós.forEach(B=>{
-    if(B.relativeAnchor || !_gCorrenteMovivel(B)) return;   // manual vence; imóvel não entra
+    if(B.relativeAnchor || !_gCorrenteMovivel(B, cloned)) return;   // manual vence; imóvel não entra
     const topoB=B.y||0, x1B=B.x||0, x2B=x1B+(B.w||0);
     let pai=null, fundoPai=-Infinity;
     nós.forEach(A=>{
@@ -1481,14 +1494,21 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
      ordem original, que é o comportamento antigo. */
   const _profundidade = (() => {
     const cache = {};
+    let _ciclo = false;   // o ramo que acabou de ser calculado passou por um corte de ciclo?
     const calc = (id, vistos) => {
       if (cache[id] != null) return cache[id];
-      if (vistos.has(id)) return 0;                       // ciclo: para aqui
+      if (vistos.has(id)) { _ciclo = true; return 0; }   // ciclo: para aqui
       vistos.add(id);
       const l = cloned.find(x => x.id === id);
       const a = l && (l.relativeAnchor || l._anchorAuto);
+      /* ⚠ Profundidade nascida de um corte de ciclo NÃO entra no cache: o 0 do corte contamina a
+         cadeia inteira acima dele, e o valor errado seria reusado por qualquer outra corrente que
+         só passa por ali. Sem cache o ciclo custa uma recursão a mais e cai na ordem original —
+         o comportamento já documentado para este caso. */
+      const antes = _ciclo; _ciclo = false;
       const d = (a && a.layerId && resolved[a.layerId]) ? calc(a.layerId, vistos) + 1 : 0;
-      cache[id] = d;
+      if (!_ciclo) cache[id] = d;
+      _ciclo = antes || _ciclo;
       return d;
     };
     cloned.forEach(l => calc(l.id, new Set()));
@@ -1709,19 +1729,26 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
          altura recuperada com a tipografia intacta. Só vale para quem tem mais de uma linha
          (em texto de uma linha a entrelinha não ocupa nada) e para de mexer no piso de 1.05,
          onde as linhas começam a se tocar. */
+      /* Calculada, não tateada: a entrelinha que faria a tinta caber na caixa é
+         `altura / (fonte × linhas)`. Uma conta, um passo, uma re-medida — tatear de 0.05 em
+         0.05 custava três voltas de re-medida em toda a arte (144ms a mais numa peça pesada)
+         e chegava no mesmo lugar. Piso 1.05: abaixo disso as linhas começam a se tocar. */
+      const _entrelinhaAlvo = (l) => {
+        const fs = (l._tetoFonte != null) ? l._tetoFonte : (l.fontSize || 24);
+        const n = l._fit.lines.length;
+        const alvo = (l.h || 0) / Math.max(1, fs * n);
+        return Math.max(1.05, Math.min(gLineHeightDe(l), Math.round(alvo * 1000) / 1000));
+      };
+      /* ⚠ SÓ ENTRA QUEM A CONTA REALMENTE APERTA. Um texto que virou culpado por COLISÃO sem ter
+         crescido (foi só empurrado) e cuja caixa é folgada devolve um alvo ACIMA da entrelinha
+         atual — o clamp preserva o valor, nada muda, e o `continue` abaixo repetia o mesmo estado
+         até esgotar as 32 voltas: re-medida e reposicionamento inteiros por volta, sem nunca
+         chegar ao degrau de encolher a fonte. Sem esta guarda a colisão saía não resolvida. */
       const _apertaveis = culpados.filter(l => l._fit && l._fit.lines.length > 1
-                                            && gLineHeightDe(l) > 1.06);
+                                            && gLineHeightDe(l) > 1.06
+                                            && _entrelinhaAlvo(l) < gLineHeightDe(l) - 0.001);
       if (_apertaveis.length) {
-        /* Calculada, não tateada: a entrelinha que faria a tinta caber na caixa é
-           `altura / (fonte × linhas)`. Uma conta, um passo, uma re-medida — tatear de 0.05 em
-           0.05 custava três voltas de re-medida em toda a arte (144ms a mais numa peça pesada)
-           e chegava no mesmo lugar. Piso 1.05: abaixo disso as linhas começam a se tocar. */
-        _apertaveis.forEach(l => {
-          const fs = (l._tetoFonte != null) ? l._tetoFonte : (l.fontSize || 24);
-          const n = l._fit.lines.length;
-          const alvo = (l.h || 0) / Math.max(1, fs * n);
-          l._entrelinha = Math.max(1.05, Math.min(gLineHeightDe(l), Math.round(alvo * 1000) / 1000));
-        });
+        _apertaveis.forEach(l => { l._entrelinha = _entrelinhaAlvo(l); });
         _remedir(_apertaveis);
         _reposicionarDoZero();
         continue;                       // só encolhe fonte quando a entrelinha já deu o que tinha
