@@ -560,6 +560,29 @@ Com isso, arte intocada pontua **zero** — invariante testada. Os itens passara
 
 **Números depois do refino** (276 cenários): 1% bloqueadas — todas com dano medido · **0 artes aprovadas com dano** · p95 do solver 13ms no corpus e 43ms no fuzzing · com a CPU freada em 4×, p95 159ms e pior caso 945ms (o mesmo caso patológico de sempre: CJK + emoji + fullwidth nos três campos ao mesmo tempo).
 
+#### O CONTRATO: a geometria publicada manda (2026-08-14)
+
+> *"As medidas que eu deixei no momento em que cliquei em publicar são as medidas que eu quero que sejam respeitadas. Caso a pessoa digite a mais, ele vai se autoajustando pra não quebrar a hierarquia que eu, como designer, pensei."* — Ryan
+
+Isso não é preferência, é **a regra do motor**, e ela tem duas metades:
+
+1. **Enquanto couber, a arte do franqueado é a arte do Estúdio.** Mesma fonte, mesma posição, mesma quebra, veredito `original`.
+2. **Quando passar, acomoda na ordem** — quebra → empurra o bloco de baixo → aperta entrelinha → só então encolhe. Encolher é o ÚLTIMO recurso porque a hierarquia mora no tamanho da fonte.
+
+O sintoma de que a regra estava quebrada era direto: *"abri a prévia ao vivo e ficou tudo muito pequeno porque ele fica se auto-layoutando toda hora"* — e arte que chega pequena sem motivo destrói a confiança do franqueado no produto. Quatro causas, todas medidas:
+
+**(a) O teto de linhas encolhia a fonte no PRIMEIRO passo.** `gFitTextLayer` reduzia o corpo até o texto caber no teto semântico (3 linhas para título, 2 para preço), antes de tentar quebrar e empurrar — curto-circuitando a escada inteira. Medido: prancheta 1080×1350, caixa de 600×300 com o resto da arte VAZIO, um texto de 5 linhas saía a 36px em vez de 40px; com um selo travado ao lado que nem chegava a ser tocado, a mesma caixa saía a **24px, 40% menor**, sem nada colidir e sem nada sair da prancheta. Hoje o teto é só sinal (`excedeuLinhas`): pesa na nota, o checklist avisa o designer, e quem manda encolher é a escada — depois de quebrar e empurrar não resolverem. **Nem no corredor:** apertar a largura para desviar de um obstáculo é motivo para o texto quebrar mais, não para a letra encolher.
+
+**(b) A corrente media o empurrão a partir da CAIXA, não do que foi composto.** O zero era o pé da caixa desenhada (`A.y + A.h`). Parece a mesma coisa e não é: quando o texto autorado já ocupa mais que a própria caixa — o caso NORMAL de PSD, onde a caixa é o bbox justo dos glifos da frase original — o bloco de baixo era empurrado **já no estado publicado**. Medido: com o texto idêntico ao do designer, o produto descia 64px e o veredito saía `adapted`. A arte do franqueado divergia do Estúdio sem ninguém ter digitado nada. Agora o zero é `baseVisual` (a composição autorada): texto igual ao do designer → arte idêntica; texto maior → desce **exatamente o excedente**.
+
+**(c) A referência autorada não valia para caixa de parágrafo.** `_gLayoutBaseVisual` só media `layoutRefText` em point text; caixa de parágrafo continuava ancorada na caixa desenhada, o que reabria (b) para metade das camadas. Agora vale para as duas — a largura continua sendo a da caixa (é fixa por definição), a **altura** passa a ser a da tinta autorada.
+
+**(d) A prévia abria com o RÓTULO do campo no lugar do texto do designer.** Antes de a pessoa digitar, `fLpInjectPlaceholders` preenche os campos vazios; a ordem antiga caía num exemplo de dicionário ou no rótulo ("Nome do produto") quando o campo não tinha `example` — quase sempre mais longo que a frase original, então a arte já abria adaptada e menor. Agora o placeholder é o próprio **texto autorado** (`layoutRefText`), que o baseline universal passou a garantir em toda camada. ⚠ Só quando a camada é o campo INTEIRO: em `De {{de}} por`, o `layoutRefText` guarda a frase montada e usá-la como valor do campo produziria *"De De R$ 49,90 por por"*.
+
+**Verificado ponta a ponta:** a prévia recém-aberta sai `original`, com o título nos 80px publicados; com o texto do designer nenhuma camada se move e nenhuma fonte muda; com texto maior o bloco de baixo desce e os corpos (80/44/64/34) ficam intactos. Quatro testes de contrato guardam isso — inclusive um que carrega a `live-preview.js` de verdade para exercitar o placeholder (a página de teste fornece o `#f-preview-modal` que o arquivo exige na carga).
+
+⛔ **O que continua encolhendo, e deve:** texto que genuinamente não cabe. Medido no pior caso do corpus, a redução de 34% do título estava certa — o CTA tinha sido empurrado para cima da foto com **72% da própria área sobre o produto, uma linha inteira**. Suspeitei de exagero do motor, medi, e o motor estava certo.
+
 ### Import SVG (`templates.js`)
 
 DOMParser puro. Suporta text/tspan, rect, circle/ellipse, image, path (bbox aproximada), transforms afins com pilha de matrizes, CSS por prioridade (inline > classe > atributo > herança), fontes Illustrator mapeadas. Revisão por elemento → template rascunho. ⚠ Grupos achatados em 1 nível.
