@@ -130,11 +130,11 @@ async function acEmitirCertificado(btn){
   const c = acState.curso;
   if(!c){ return; }
   if(c._demo){
-    gToast('⚠ Esta é a formação de demonstração — o certificado é emitido na formação publicada pela equipe','error');
+    gToast('Esta é a formação de demonstração — o certificado é emitido na formação publicada pela equipe','error');
     return;
   }
   const sb = _acSb();
-  if(!sb){ gToast('⚠ Backend indisponível — não consigo emitir agora','error'); return; }
+  if(!sb){ gToast('Backend indisponível — não consigo emitir agora','error'); return; }
   const restore = (typeof gBtnLoading==='function') ? gBtnLoading(btn,'Emitindo…') : ()=>{};
   try{
     // RPC no schema luma: a validação de conclusão acontece no servidor.
@@ -158,13 +158,13 @@ async function acEmitirCertificado(btn){
     console.warn('[academia] emissão falhou:', msg);
     // A função levanta mensagens já escritas para o usuário ("Ainda faltam N aulas…").
     if(/faltam|não tem aulas|não encontrada|login/i.test(msg)){
-      gToast('⚠ '+msg.replace(/^.*?:\s*/,''),'error');
+      gToast(''+msg.replace(/^.*?:\s*/,''),'error');
       await acCarregarProgresso();
       acRenderCertificado();
     }else if(/permission|denied|42501/i.test(msg)){
-      gToast('⚠ Sem permissão para emitir. Recarregue a página e tente de novo.','error');
+      gToast('Sem permissão para emitir. Recarregue a página e tente de novo.','error');
     }else{
-      gToast('⚠ Não consegui emitir o certificado agora. Tente de novo em instantes.','error');
+      gToast('Não consegui emitir o certificado agora. Tente de novo em instantes.','error');
     }
   }finally{ restore(); }
 }
@@ -385,7 +385,7 @@ function _acCarregarImagem(src){
 ══════════════════════════════════════════════════════════════ */
 async function acBaixarCertificado(btn){
   const cert = acState.certificado;
-  if(!cert){ gToast('⚠ Emita o certificado antes de baixar','error'); return; }
+  if(!cert){ gToast('Emita o certificado antes de baixar','error'); return; }
   const restore = (typeof gBtnLoading==='function') ? gBtnLoading(btn,'Gerando…') : ()=>{};
   try{
     // Canvas próprio (não o da tela): garante resolução cheia mesmo se o visível
@@ -421,6 +421,6 @@ async function acBaixarCertificado(btn){
     gToast('Certificado baixado');
   }catch(e){
     console.warn('[academia] PDF do certificado falhou:', e&&e.message||e);
-    gToast('⚠ Não consegui gerar o PDF agora. Tente de novo.','error');
+    gToast('Não consegui gerar o PDF agora. Tente de novo.','error');
   }finally{ restore(); }
 }

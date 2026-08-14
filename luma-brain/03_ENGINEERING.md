@@ -74,6 +74,9 @@ Porque **a RLS é a única fronteira** (o front fala direto com o banco), o cuid
 ## 5. UI, feedback e marca
 
 - ⛔ **Feedback ao usuário só via `gToast`** — nunca `alert()`, `confirm()` espalhado ou `console.log()` como UI. Toast é status curto, orientado à ação, em PT-BR.
+- ⛔ **Confirmação só via `gConfirm`/`gPrompt`** (`core/toast.js`). `confirm()`/`prompt()` nativos **não existem mais no código** — não reintroduza. Cada um vira `async`; e depois do `await`, **re-resolva o alvo por ID/nome**: índice e referência viva apontam para objeto morto quando undo/sync trocam os objetos por clones.
+- ⛔ **Sem emoji na copy** (`'⚠ ...'`, `'✓ ...'`). Ícone é SVG; emoji renderiza diferente por sistema. Varredura de 13/08 zerou os 169 que existiam em `gToast`.
+- ⛔ **Composição nova (grupo, clipping, máscara, blend) nasce nos DOIS motores** — canvas do Estúdio (`canvas.js`, DOM) e `fRenderTemplateLayers` (Canvas 2D) — ou não nasce. Prévia que diverge do arquivo final é o defeito que este projeto mais evita, e foi assim que a composição de grupo do PSD ficou meio caminho (revisão de 13/08).
 - ⛔ **Cores e espaçamentos via tokens** (`00-tokens.css`) — nunca hex hardcoded, nem em CSS, nem em JS.
 - ⛔ **Ícone de UI = SVG inline** (`stroke`, `currentColor`) — nunca emoji (renderiza diferente por sistema, quebra a marca).
 - **PT-BR em toda a copy**, com o glossário canônico (camada não "layer", campo não "variável", prancheta/Canvas não "artboard"). Erro sempre diz **o que fazer**. `{{ }}` e nome técnico **nunca** aparecem para o usuário.

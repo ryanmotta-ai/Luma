@@ -362,7 +362,7 @@ async function fDownloadHist(id){
   // renderer GENÉRICO e entregava arte errada com toast de sucesso. Avisa e para.
   if(fState.material && fState.material._needsLayersFetch){
     fState.material = prevMaterial;
-    gToast('⚠ Não consegui carregar o material original. Verifique a conexão e tente de novo.','error');
+    gToast('Não consegui carregar o material original. Verifique a conexão e tente de novo.','error');
     return;
   }
   try {

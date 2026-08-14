@@ -11,7 +11,7 @@
    inteira para o sync. 8MB cobre foto de celular com folga. */
 const _DIMG_MAX_MB = 8;
 
-function dSetFormat(fmt,btn){
+async function dSetFormat(fmt,btn){
   const prevFmt=dFmt;
   // Captura o tamanho ATUAL (antes de trocar fmt/dCustomFmt) — é a origem do smart-resize.
   // Tem que vir antes, senão dGetActiveAB já reescreve ab.w/h pro tamanho novo e from===to.
@@ -27,11 +27,12 @@ function dSetFormat(fmt,btn){
   if(ab){ab.fmt=fmt;ab.w=to.w;ab.h=to.h;}
   // 5.2 — Smart resize: oferece adaptar os elementos ao novo formato (re-ancora sem distorcer)
   if((from.w!==to.w||from.h!==to.h)&&dLayers.length>1&&typeof gReflowLayers==='function'){
-    if(confirm('Adaptar os elementos ao novo formato? (smart resize — posições e tamanhos re-ancoram sem distorcer)')){
+    if(await gConfirm('Posições e tamanhos re-ancoram no novo formato, sem distorcer (smart resize).',
+      {title:'Adaptar os elementos?',okLabel:'Adaptar',cancelLabel:'Manter como está'})){
       dHistoryPush();
       dLayers=gReflowLayers(dLayers,from,to,{fmtKey:gFmtKey(fmt)});
       if(typeof dSyncLayersToAB==='function')dSyncLayersToAB();
-      gToast('✓ Elementos adaptados para '+fmt.toUpperCase()+' — ajuste o que precisar');
+      gToast('Elementos adaptados para '+fmt.toUpperCase()+' — ajuste o que precisar');
     }
   }
   dApplyFormat();dRenderCanvas();dRenderLayersList();dMarkUnsaved();
@@ -854,7 +855,7 @@ function _dAdvSelFromEvent(e){
     }else if(!e.shiftKey&&!e.altKey){
       dSelId=null;dMultiSel=[];
       dRenderCanvas();dRenderLayersList();
-      gToast('⚠ Nenhuma camada correspondente');
+      gToast('Nenhuma camada correspondente');
     }
   }
 }
@@ -876,7 +877,7 @@ function dABToolAttach(){
 function dABWorkspaceDown(e){
   if(dTool!=='artboard')return;
   if(typeof dUseArtboards !== 'undefined' && !dUseArtboards){
-    gToast('⚠ Não é permitido adicionar pranchetas no modo de Documento Único. Ative "Usar Pranchetas" ao criar o arquivo.', 'error');
+    gToast('Não é permitido adicionar pranchetas no modo de Documento Único. Ative "Usar Pranchetas" ao criar o arquivo.', 'error');
     dSetTool('select');
     return;
   }
@@ -950,7 +951,7 @@ function dABDrawUp(e){
     dSelId=null;dMultiSel=[];
     dHistoryReset();
     dRenderWorkspace();dApplyFormat();dRenderCanvas();dRenderLayersList();dRenderABList();
-    gToast('✓ Prancheta '+fw+'×'+fh+' criada');
+    gToast('Prancheta '+fw+'×'+fh+' criada');
   }
   dSetTool('select');
 }
@@ -1364,7 +1365,7 @@ function dRenderCanvas(){
           // Teto de tamanho como fonte e PSD já fazem: base64 de uma foto de 12MP vira ~30MB
           // no template e vai inteiro para o sync. O Estúdio era o único caminho sem guarda.
           if(file.size > _DIMG_MAX_MB*1024*1024){
-            gToast('⚠ Imagem muito grande ('+Math.round(file.size/(1024*1024))+'MB) — o limite é '+_DIMG_MAX_MB+'MB. Comprima antes de subir.','error');
+            gToast('Imagem muito grande ('+Math.round(file.size/(1024*1024))+'MB) — o limite é '+_DIMG_MAX_MB+'MB. Comprima antes de subir.','error');
             return;
           }
           const r=new FileReader();
@@ -1372,7 +1373,7 @@ function dRenderCanvas(){
             // dHistoryPush ANTES de mutar: o histórico guarda o estado anterior. Sem isto,
             // trocar a foto da moldura não tinha Ctrl+Z (achado na revisão pró-1.0).
             if(typeof dHistoryPush==='function') dHistoryPush();
-            lReal.imgUrl=re.result;dRenderCanvas();dMarkUnsaved();gToast('✓ Foto aplicada na moldura!');
+            lReal.imgUrl=re.result;dRenderCanvas();dMarkUnsaved();gToast('Foto aplicada na moldura!');
           };
           r.readAsDataURL(file);
         };
@@ -1443,7 +1444,7 @@ function dRenderCanvas(){
         if(_isDbl){
           // Cadeado vale para o duplo clique também: o arrasto já avisa "camada bloqueada", e
           // abrir a edição inline por cima do cadeado deixava o bloqueio pela metade.
-          if(l.locked){ e.stopPropagation(); gToast('⚠ Camada bloqueada — desbloqueie no cadeado da lista de camadas'); return; }
+          if(l.locked){ e.stopPropagation(); gToast('Camada bloqueada — desbloqueie no cadeado da lista de camadas'); return; }
           if(l.type==='text'){ e.stopPropagation(); dStartInlineEdit(lReal,el); return; }
           if((l.type==='image'||l.type==='frame') && typeof dStartCrop==='function'){ e.stopPropagation(); dStartCrop(lReal); return; }
         }
@@ -1499,7 +1500,7 @@ function dRenderCanvas(){
         if(!l.locked){
           dPendingIsolate = (_inMulti && dMultiSel.length>1) ? l.id : null;
           dStartDrag(e,lReal);
-        } else gToast('⚠ Camada bloqueada — desbloqueie no cadeado da lista de camadas');
+        } else gToast('Camada bloqueada — desbloqueie no cadeado da lista de camadas');
       }
       // Carimbo: NÃO tratar aqui — o mousedown apenas deixa o evento morrer e o 'click'
       // do frame (que enxerga cliques sobre camadas, stamp é creationTool) chama dStampAt.

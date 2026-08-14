@@ -357,7 +357,7 @@ function dNewArtboard(fmt){
 }
 
 function dDeleteAB(){}    // no-op
-function dDuplicateAB(){gToast('⚠ Modo canvas único: operação não disponível');}
+function dDuplicateAB(){gToast('Modo canvas único: operação não disponível');}
 // dRenameAB removido: não havia prancheta nomeável no modo canvas único e o único
 // caller (F2 sem seleção) foi retirado. Reintroduzir só quando houver multi-prancheta.
 function dRenderABList(){} // no-op — sem lista de pranchetas
@@ -394,10 +394,11 @@ function dSetABBg(bg){
   if(typeof dMarkUnsaved==='function')dMarkUnsaved();
 }
 
-function dToggleOrientation(){
+async function dToggleOrientation(){
   const ab=dGetActiveAB();
   const hasContent=dLayers.length>1;
-  if(hasContent&&!confirm('Girar a prancheta? As camadas serão adaptadas (smart-resize).'))return;
+  if(hasContent&&!await gConfirm('As camadas serão adaptadas ao novo formato (smart-resize).',
+    {title:'Girar a prancheta?',okLabel:'Girar',cancelLabel:'Cancelar'}))return;
   if(typeof dHistoryPush==='function')dHistoryPush();
   const oldW=ab.w,oldH=ab.h;
   const newW=oldH,newH=oldW;
@@ -421,7 +422,7 @@ function dSetOrientation(orient){
 function dABNameUpdate(){}  // no-op
 function dABPosUpdate(){}   // no-op
 
-function dABDimUpdate(){
+async function dABDimUpdate(){
   const wEl=document.getElementById('d-ab-w-inp');
   const hEl=document.getElementById('d-ab-h-inp');
   if(!wEl||!hEl)return;
@@ -430,7 +431,8 @@ function dABDimUpdate(){
   const ab=dGetActiveAB();if(ab.w===w&&ab.h===h)return;
   const oldW=ab.w,oldH=ab.h;
   if(dLayers.length>1&&typeof gReflowLayers==='function'){
-    if(confirm('Adaptar camadas ao novo tamanho? (smart-resize)')){
+    if(await gConfirm('As camadas re-ancoram no novo tamanho, sem distorcer (smart-resize).',
+      {title:'Adaptar as camadas?',okLabel:'Adaptar',cancelLabel:'Manter como está'})){
       if(typeof dHistoryPush==='function')dHistoryPush();
       dLayers=gReflowLayers(dLayers,{w:oldW,h:oldH},{w,h});
     }
@@ -462,8 +464,8 @@ function dPersistArtboards(){
     return true;
   }catch(e){
     if(e&&(e.name==='QuotaExceededError'||e.code===22))
-      gToast('⚠ Não foi possível salvar: armazenamento cheio.','error');
-    else gToast('⚠ Não foi possível salvar a prancheta — tente de novo.','error');
+      gToast('Não foi possível salvar: armazenamento cheio.','error');
+    else gToast('Não foi possível salvar a prancheta — tente de novo.','error');
     return false;
   }
 }
@@ -1247,8 +1249,9 @@ async function dDeleteFolderFromBackend(remoteId){
   await gRemoteDelete('templates','pasta_id',remoteId); // falhou → fila (não ressuscita no pull)
   await gRemoteDelete('pastas','id',remoteId);
 }
-function dDeleteTemplate(folderId, tmplId){
-  if(!confirm('Excluir este template? Ação não pode ser desfeita.')) return;
+async function dDeleteTemplate(folderId, tmplId){
+  if(!await gConfirm('Esta ação não pode ser desfeita.',
+    {title:'Excluir este template?',okLabel:'Excluir',cancelLabel:'Cancelar',danger:true})) return;
   const f=dFolders.find(x=>x.id===folderId); if(!f) return;
   const tmpl=f.templates.find(t=>t.id===tmplId);
   if(tmpl&&tmpl.remoteId) dDeleteTemplateFromBackend(tmpl.remoteId);
@@ -1308,7 +1311,7 @@ async function dDuplicateTemplate(folderId, tmplId){
   }
   dRenderFolders();
   dLoadTemplate(clone, f);   // abre a cópia pronta pra editar
-  gToast('✓ Material duplicado (rascunho) — edite e publique quando quiser.');
+  gToast('Material duplicado (rascunho) — edite e publique quando quiser.');
 }
 
 let dSaveAsSourceFolderId=null;
@@ -1481,7 +1484,7 @@ function dQuickEditValidade(folderId, tmplId){
   }
   t.publishMeta.validade = novaData;
   dPersistFolders();
-  gToast('✓ Validade atualizada!');
+  gToast('Validade atualizada!');
 }
 // Centraliza os atalhos no fluxo oficial para nunca publicar sem checklist e revisao.
 async function dOpenTemplatePublishWizard(folderId,tmplId,step){
@@ -1568,7 +1571,7 @@ async function dLoadTemplate(tmpl,folder,options){
       }
     } else {
       // Sem backend configurado e sem layers locais: não há o que carregar.
-      gToast('⚠ Sem conexão com o banco — material não disponível offline.');
+      gToast('Sem conexão com o banco — material não disponível offline.');
       return;
     }
   }
@@ -1715,7 +1718,7 @@ function dFolderUpdateCoverPreview(){
 // Upload da capa: comprime (JPEG ~750×400) pra não estourar a quota do localStorage
 function dFolderCoverUpload(input){
   const file=input.files&&input.files[0];if(!file)return;
-  if(!file.type.startsWith('image/')){gToast('⚠ Selecione uma imagem','error');return;}
+  if(!file.type.startsWith('image/')){gToast('Selecione uma imagem','error');return;}
   const r=new FileReader();
   r.onload=e=>{ dCompressCover(e.target.result, 750, 400, 0.78, (out)=>{ dFolderDraftCover=out; dFolderUpdateCoverPreview(); }); };
   r.readAsDataURL(file);
@@ -1804,7 +1807,7 @@ function dConfirmFolder(){
   const grupos=Array.from(document.querySelectorAll('#df-groups input:checked')).map(x=>x.value);
   const schedOn=document.getElementById('df-schedule-toggle').checked;
   const agendamento=schedOn?(document.getElementById('df-schedule-date').value||null):null;
-  if(!name){gToast('⚠ Digite um nome para a pasta');return;}
+  if(!name){gToast('Digite um nome para a pasta');return;}
   if(dEditingFolderId){
     const f=dFolders.find(x=>x.id===dEditingFolderId);
     if(f){ f.name=name;f.color=color;f.campId=campId;f.grupos=grupos.length?grupos:['Todos os usuários'];f.agendamento=agendamento;f.cover=dFolderDraftCover||''; }
@@ -1813,7 +1816,7 @@ function dConfirmFolder(){
     dCloseFolderModal();
     if(typeof fGetCampaigns==='function'&&typeof fRenderCatalogs==='function')try{const{ativas,outras}=fGetCampaigns();fRenderCatalogs(ativas,outras);}catch(e){}
     if(typeof fHomeRefreshIfIdle==='function')try{fHomeRefreshIfIdle();}catch(e){} // home/vitrine reflete a capa nova sem F5
-    gToast('✓ Pasta "'+name+'" atualizada');
+    gToast('Pasta "'+name+'" atualizada');
     return;
   }
   const id='f'+Date.now();
@@ -1825,7 +1828,7 @@ function dConfirmFolder(){
   dCloseFolderModal();
   if(typeof fGetCampaigns==='function'&&typeof fRenderCatalogs==='function')try{const{ativas,outras}=fGetCampaigns();fRenderCatalogs(ativas,outras);}catch(e){}
   if(typeof fHomeRefreshIfIdle==='function')try{fHomeRefreshIfIdle();}catch(e){} // home/vitrine reflete sem F5
-  gToast('✓ Pasta "'+name+'" criada');
+  gToast('Pasta "'+name+'" criada');
 }
 // Renomear rápido (sem abrir o modal todo)
 function dRenameFolder(id){
@@ -1836,25 +1839,27 @@ function dRenameFolder(id){
   f.name=n.trim();
   dRenderFolders();dPersistFolders();
   if(typeof fGetCampaigns==='function'&&typeof fRenderCatalogs==='function')try{const{ativas,outras}=fGetCampaigns();fRenderCatalogs(ativas,outras);}catch(e){}
-  gToast('✓ Pasta renomeada');
+  gToast('Pasta renomeada');
 }
-function dClearFolder(id){
+async function dClearFolder(id){
   document.querySelectorAll('.folder-ctx-menu').forEach(m=>m.remove());
   const f=dFolders.find(x=>x.id===id);if(!f)return;
   const n=(f.templates||[]).length;
   if(n===0){ gToast('A pasta já está vazia'); return; }
-  if(!confirm(`Excluir TODOS os ${n} template(s) da pasta "${f.name}"? A pasta será mantida, mas as artes serão excluídas permanentemente.`))return;
+  if(!await gConfirm(`Os ${n} template(s) de "${f.name}" são excluídos permanentemente. A pasta continua.`,
+    {title:'Esvaziar a pasta?',okLabel:'Esvaziar',cancelLabel:'Cancelar',danger:true}))return;
   (f.templates||[]).forEach(t=>{ if(t.remoteId) dDeleteTemplateFromBackend(t.remoteId); });
   f.templates=[];
   dRenderFolders();dPersistFolders();
   if(typeof fGetCampaigns==='function'&&typeof fRenderCatalogs==='function')try{const{ativas,outras}=fGetCampaigns();fRenderCatalogs(ativas,outras);}catch(e){}
-  gToast(`✓ ${n} template(s) excluído(s) da pasta "${f.name}"`);
+  gToast(`${n} template(s) excluído(s) da pasta "${f.name}"`);
 }
-function dDeleteFolder(id){
+async function dDeleteFolder(id){
   document.querySelectorAll('.folder-ctx-menu').forEach(m=>m.remove());
   const f=dFolders.find(x=>x.id===id);if(!f)return;
   const n=(f.templates||[]).length;
-  if(!confirm(`Excluir a pasta "${f.name}"${n?` e seus ${n} template(s)`:''}? Esta ação não pode ser desfeita.`))return;
+  if(!await gConfirm(`"${f.name}"${n?` e seus ${n} template(s)`:''} some(m) daqui. Esta ação não pode ser desfeita.`,
+    {title:'Excluir a pasta?',okLabel:'Excluir',cancelLabel:'Cancelar',danger:true}))return;
   if(f.remoteId) dDeleteFolderFromBackend(f.remoteId);
   dFolders=dFolders.filter(x=>x.id!==id);
   dRenderFolders();dPersistFolders();
@@ -1894,9 +1899,9 @@ function dConfirmTemplate(){
   const name=document.getElementById('dt-name').value.trim();
   const folderId=document.getElementById('dt-folder').value;
   const fmt=document.getElementById('dt-fmt').value;
-  if(!name){gToast('⚠ Digite um nome para o template');return;}
+  if(!name){gToast('Digite um nome para o template');return;}
   const folder=dFolders.find(f=>f.id===folderId);
-  if(!folder){gToast('⚠ Selecione uma pasta');return;}
+  if(!folder){gToast('Selecione uma pasta');return;}
   const id='t'+Date.now();
   // Template novo nasce em branco — só com fundo neutro pra começar do zero
   const newTmpl={id,name,fmt,layers:dBuildBlankLayers(fmt),publishMeta:dDefaultPublishMeta()};
@@ -1906,7 +1911,7 @@ function dConfirmTemplate(){
   dLoadTemplate(newTmpl,folder);
   dPersistFolders();
   document.getElementById('d-tmpl-modal').classList.remove('open');
-  gToast('✓ Template "'+name+'" criado em "'+folder.name+'" — comece adicionando elementos pelas ferramentas (T, R, F, M)');
+  gToast('Template "'+name+'" criado em "'+folder.name+'" — comece adicionando elementos pelas ferramentas (T, R, F, M)');
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2107,10 +2112,11 @@ function dNewDocSyncBgButtons(){
   });
 }
 
-function dNewDocClose(force){
+async function dNewDocClose(force){
   const modal=document.getElementById('d-newdoc-modal');
   if(!modal) return;
-  if(!force&&dNewDocDraftDirty&&!confirm('Descartar as configurações deste novo projeto?')) return;
+  if(!force&&dNewDocDraftDirty&&!await gConfirm('As configurações deste novo projeto não são salvas.',
+    {title:'Descartar o que você preencheu?',okLabel:'Descartar',cancelLabel:'Continuar editando',danger:true})) return;
   dNewDocDraftDirty=false;modal.classList.remove('open');
   if(dNewDocReturnFocus&&document.contains(dNewDocReturnFocus)) dNewDocReturnFocus.focus();
   dNewDocReturnFocus=null;
@@ -2569,7 +2575,7 @@ function dSvgImport(){
     dStudioHomeClose();
     const reader=new FileReader();
     reader.onload=ev=>dSvgHandleFile(ev.target.result, file.name);
-    reader.onerror=()=>gToast('⚠ Não foi possível ler o arquivo — verifique se é um .psd válido','error');
+    reader.onerror=()=>gToast('Não foi possível ler o arquivo — verifique se é um .psd válido','error');
     reader.readAsText(file);
   };
   inp.click();
@@ -2579,9 +2585,9 @@ function dSvgImport(){
 function dSvgHandleFile(svgText, fileName){
   try{
     const doc=new DOMParser().parseFromString(svgText,'image/svg+xml');
-    if(doc.querySelector('parsererror')){ gToast('⚠ Erro ao ler o SVG — verifique o arquivo','error'); return; }
+    if(doc.querySelector('parsererror')){ gToast('Erro ao ler o SVG — verifique o arquivo','error'); return; }
     const svgEl=doc.querySelector('svg');
-    if(!svgEl){ gToast('⚠ Arquivo SVG inválido — verifique o arquivo','error'); return; }
+    if(!svgEl){ gToast('Arquivo SVG inválido — verifique o arquivo','error'); return; }
 
     const cssStyles = _dSvgParseStyles(doc);
 
@@ -2601,10 +2607,10 @@ function dSvgHandleFile(svgText, fileName){
     }
 
     const elements=dSvgExtractElements(svgEl, docW, docH, cssStyles);
-    if(!elements.length){ gToast('⚠ Nenhum elemento reconhecido no SVG','error'); return; }
+    if(!elements.length){ gToast('Nenhum elemento reconhecido no SVG','error'); return; }
     const fmt=(typeof dPsdDetectFmt==='function')?dPsdDetectFmt(docW,docH):'story';
     dSvgShowReviewModal(elements, {w:docW, h:docH, fmt, fileName});
-  }catch(e){ console.error('[svg] erro ao parsear:',e); gToast('⚠ Não foi possível processar o SVG','error'); }
+  }catch(e){ console.error('[svg] erro ao parsear:',e); gToast('Não foi possível processar o SVG','error'); }
 }
 
 // Extrai recursivamente os elementos do SVG aplicando a pilha de transformações afins (DFS)
@@ -2895,7 +2901,10 @@ function dSvgSuggestImgVar(name){
 }
 
 /* ── UI / Tela de revisão de SVG ── */
-function _dSvgEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+// Terceira cópia do mesmo escape, com regra mais frouxa (não pegava a aspa simples) — e o
+// destino aqui é innerHTML, não markup SVG. Delega na régua única; o nome fica por ser chamado
+// em todo o painel de revisão de SVG.
+function _dSvgEsc(s){ return (typeof gEsc==='function') ? gEsc(s) : _dEsc(s); }
 
 function dSvgShowReviewModal(elements, meta){
   const overlay=document.getElementById('d-svg-review-overlay');
@@ -3061,7 +3070,7 @@ function dSvgCreateTemplate(elements, meta, fmt){
   if(!layers.length){ gToast('Nenhum elemento selecionado para importar'); return; }
   const folder=(typeof dFolders!=='undefined'&&dFolders)
     ? (dFolders.find(x=>x.id===dImportTargetFolderId)||dFolders[0]) : null;
-  if(!folder){ gToast('⚠ Crie uma pasta antes de importar','error'); return; }
+  if(!folder){ gToast('Crie uma pasta antes de importar','error'); return; }
   // Registra variáveis no catálogo (mesma lógica do import de PSD).
   if(typeof dSyncVarsFromContent==='function')
     layers.forEach(l=>{ if(l.type==='text'&&l.isVar) dSyncVarsFromContent(l.content); });
@@ -3077,7 +3086,7 @@ function dSvgCreateTemplate(elements, meta, fmt){
   dRenderFolders();
   dLoadTemplate(tmpl, folder);
   dPersistFolders();
-  gToast('✓ '+layers.length+' camada(s) importada(s) de '+(meta.fileName||'SVG'));
+  gToast(''+layers.length+' camada(s) importada(s) de '+(meta.fileName||'SVG'));
 }
 
 function dToggleCampaignsDrawer(open) {
@@ -3570,13 +3579,17 @@ function dDuplicatePageInTray(ev, tmplId) {
   gToast('Página duplicada!');
 }
 
-function dDeletePageInTray(ev, tmplId) {
+async function dDeletePageInTray(ev, tmplId) {
   ev.stopPropagation();
+  if (!dFolders.find(f => f.id === dActiveTmplFolderId)) return;
+
+  if (!await gConfirm('A página sai deste material.',
+    {title:'Excluir esta página?',okLabel:'Excluir',cancelLabel:'Cancelar',danger:true})) return;
+
+  // Re-resolve DEPOIS do await: sync/undo trocam os objetos de dFolders por clones, e a
+  // referência capturada antes do diálogo apontaria para uma pasta morta.
   const folder = dFolders.find(f => f.id === dActiveTmplFolderId);
   if (!folder) return;
-
-  if (!confirm('Excluir esta página?')) return;
-
   const idx = folder.templates.findIndex(t => t.id === tmplId);
   if (idx === -1) return;
   const _dtmpl=folder.templates[idx];

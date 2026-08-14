@@ -148,7 +148,7 @@ function dLibUpload(inp) {
   const _teto = (typeof _DIMG_MAX_MB === 'number') ? _DIMG_MAX_MB : 8;
   const grandes = files.filter(f => f.size > _teto*1024*1024);
   if (grandes.length) {
-    gToast('⚠ ' + grandes.length + ' arquivo(s) acima de ' + _teto + 'MB foram ignorados. Comprima antes de subir.', 'error');
+    gToast('' + grandes.length + ' arquivo(s) acima de ' + _teto + 'MB foram ignorados. Comprima antes de subir.', 'error');
   }
   files = files.filter(f => f.size <= _teto*1024*1024);
   if (!files.length) return;
@@ -167,7 +167,7 @@ function dLibUpload(inp) {
       done++;
       if (done === files.length) {
         dLibRender();
-        gToast('✓ ' + done + ' asset(s) adicionado(s) à biblioteca');
+        gToast('' + done + ' asset(s) adicionado(s) à biblioteca');
         // também sincronizar com dAssets para compatibilidade
         dAssets = dLibAssets.map(a => ({name: a.name, url: a.url, emoji: '🖼'}));
         if(typeof dPushLibToBackend==='function') dPushLibToBackend(); // sync Supabase (background, só designer)
@@ -269,7 +269,7 @@ function dLibNewCat() {
   dLibActiveCat = n;
   dLibRenderCats();
   dLibRender();
-  gToast('✓ Categoria "' + n + '" criada');
+  gToast('Categoria "' + n + '" criada');
 }
 
 
@@ -298,7 +298,7 @@ function dDuplicateLayer(){
   dRenderCanvas();dRenderLayersList();dStats();dMarkUnsaved();
   dSelLayer(clone.id);
   setTimeout(()=>dFlashLayer(clone.id),50);
-  gToast('✓ "'+clone.name+'" duplicado  (Ctrl+D)');
+  gToast('"'+clone.name+'" duplicado  (Ctrl+D)');
 }
 
 // Ctrl/Cmd + wheel = zoom suave ancorado no cursor (delega a dSetZoom)
@@ -440,10 +440,10 @@ function dEndInlineEdit(e,cancel){
           lines.forEach((line,i)=>{ const tx=l.textAlign==='center'?lx+l.w/2:l.textAlign==='right'?lx+l.w:lx; mx.fillText(line, tx, ly+i*(l.fontSize||32)*1.25); });
         }
         dHistoryPush(); target.mask=mC.toDataURL('image/png'); dMarkUnsaved();
-        gToast('✓ Máscara de texto aplicada à camada');
-      }catch(err){ gToast('⚠ Não foi possível gerar a máscara de texto','error'); }
+        gToast('Máscara de texto aplicada à camada');
+      }catch(err){ gToast('Não foi possível gerar a máscara de texto','error'); }
     } else if(!cancel && target && (!(target.w>0)||!(target.h>0))){
-      gToast('⚠ Camada-alvo sem dimensões válidas para máscara','error');
+      gToast('Camada-alvo sem dimensões válidas para máscara','error');
     }
     if(typeof dLayers!=='undefined') dLayers=dLayers.filter(x=>x.id!==l.id); // remove o temp
     if(target) dSelId=target.id;
@@ -525,12 +525,18 @@ function dHexInput(colorPickId, swatchId, val, prop){
 
 /* ── BLOCOS REUTILIZÁVEIS (snippets) ── */
 let dSnippets=[];
-function _dEsc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+/* O escape do Estúdio delega no motor único (`gEsc`, em core/toast.js). Tinha regra PRÓPRIA e
+   mais frouxa — não escapava a aspa simples e transformava null/undefined nas strings "null" e
+   "undefined" na tela. Duas réguas de escape convivendo é como uma brecha entra: quem usa `_dEsc`
+   acreditando que ele equivale a `gEsc` não tem como notar a diferença. O nome fica (é chamado em
+   dezenas de lugares e prefixo aqui é sagrado); só o corpo passou a apontar para a régua única. */
+function _dEsc(s){ return (typeof gEsc==='function') ? gEsc(s)
+  : String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function dLoadSnippets(){ try{const s=localStorage.getItem('yngs_snippets_v1');dSnippets=s?JSON.parse(s):[];}catch(e){dSnippets=[];} }
 function dSaveSnippetsStore(){
   let ok=true;
   try{ localStorage.setItem('yngs_snippets_v1',JSON.stringify(dSnippets)); }
-  catch(e){ ok=false; if(e&&(e.name==='QuotaExceededError'||e.code===22))gToast('⚠ Sem espaço para salvar o bloco.','error'); }
+  catch(e){ ok=false; if(e&&(e.name==='QuotaExceededError'||e.code===22))gToast('Sem espaço para salvar o bloco.','error'); }
   if(typeof dPushSnippetsToBackend==='function') dPushSnippetsToBackend(); // sync Supabase (background, só designer)
   return ok;
 }
@@ -574,7 +580,7 @@ function dSaveSnippet(){
     // TODO(Fase 5): persistir imagens dos blocos; por ora descarta base64 (igual ao __local__)
     if(c.imgUrl&&c.imgUrl.startsWith('data:'))c.imgUrl='__local__';return c;});
   dSnippets.unshift({id:'snip-'+Date.now(),name,layers:norm});
-  if(dSaveSnippetsStore()){ dRenderSnippets(); gToast('✓ Bloco salvo: '+name); }
+  if(dSaveSnippetsStore()){ dRenderSnippets(); gToast('Bloco salvo: '+name); }
 }
 function dInsertSnippet(id){
   const s=dSnippets.find(x=>x.id===id);if(!s)return;

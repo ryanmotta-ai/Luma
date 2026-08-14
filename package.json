@@ -1,5 +1,6 @@
 {
-  "dependencies": {
+  "//": "O app NÃO usa npm em runtime (1ª lei: sem build, sem ES Modules; libs entram vendorizadas em assets/vendor/). Estes pacotes servem só aos scripts Node de backup/restore do Storage (scripts/*.js) e ao workflow de CI — por isso devDependencies, e não dependencies.",
+  "devDependencies": {
     "@supabase/server": "^1.1.0",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.2"

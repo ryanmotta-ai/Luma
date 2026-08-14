@@ -329,9 +329,9 @@ function acGestaoSoltarVideoCeo(ev){
 }
 async function acGestaoEnviarVideoCeo(file){
   if(!file) return;
-  const c = acState.curso; if(!c || c._demo){ gToast('⚠ Crie a formação primeiro','error'); return; }
-  if(file.size > 500*1024*1024){ gToast('⚠ O vídeo passa de 500 MB. Comprima antes de enviar.','error'); return; }
-  if(!(await _acEhMp4(file))){ gToast('⚠ Só aceito vídeo MP4. Converta o arquivo e tente de novo.','error'); return; }
+  const c = acState.curso; if(!c || c._demo){ gToast('Crie a formação primeiro','error'); return; }
+  if(file.size > 500*1024*1024){ gToast('O vídeo passa de 500 MB. Comprima antes de enviar.','error'); return; }
+  if(!(await _acEhMp4(file))){ gToast('Só aceito vídeo MP4. Converta o arquivo e tente de novo.','error'); return; }
   // Mesmo bucket das aulas, pasta própria: sem bucket novo pra manter policy única.
   const path = `conclusao/${c.id}/ceos.mp4`;
   const prog=document.getElementById('ac-cc-up-prog');
@@ -368,7 +368,7 @@ async function acGestaoRemoverVideoCeo(){
 async function acGestaoSalvarConclusao(over){
   over = over||{};
   const lu=_acLuma(), c=acState.curso;
-  if(!lu || !c || c._demo){ gToast('⚠ Crie a formação no banco antes de configurar','error'); return; }
+  if(!lu || !c || c._demo){ gToast('Crie a formação no banco antes de configurar','error'); return; }
   const cfg = acConclusaoCfg();
   const val=(id, fb)=>{ const e=document.getElementById(id); return e ? e.value : (fb!==undefined?fb:''); };
   const chk=(id, fb)=>{ const e=document.getElementById(id); return e ? !!e.checked : !!fb; };
@@ -577,8 +577,8 @@ async function _acEhMp4(file){
 async function acGestaoEnviarVideo(file, aulaId){
   if(!file) return;
   const aula = acAula(aulaId); if(!aula) return;
-  if(file.size > 500*1024*1024){ gToast('⚠ O vídeo passa de 500 MB. Comprima antes de enviar.','error'); return; }
-  if(!(await _acEhMp4(file))){ gToast('⚠ Só aceito vídeo MP4. Converta o arquivo e tente de novo.','error'); return; }
+  if(file.size > 500*1024*1024){ gToast('O vídeo passa de 500 MB. Comprima antes de enviar.','error'); return; }
+  if(!(await _acEhMp4(file))){ gToast('Só aceito vídeo MP4. Converta o arquivo e tente de novo.','error'); return; }
   if(aula.video_path){
     const ok = await gConfirm('Substituir o vídeo desta aula? O arquivo atual é apagado.',
                               {title:'Substituir vídeo', okLabel:'Substituir', danger:true});
@@ -629,10 +629,10 @@ function _acDuracaoDoArquivo(file){
  */
 async function acUploadArquivo(file, path, onProgresso){
   const sb = _acSb(); const cfg = window.LUMA_SUPABASE||{};
-  if(!sb || !cfg.url){ gToast('⚠ Backend indisponível — não consigo enviar arquivos agora','error'); return false; }
+  if(!sb || !cfg.url){ gToast('Backend indisponível — não consigo enviar arquivos agora','error'); return false; }
   let token = '';
   try{ const { data } = await sb.auth.getSession(); token = (data&&data.session&&data.session.access_token)||''; }catch(e){}
-  if(!token){ gToast('⚠ Sua sessão expirou. Recarregue a página e entre de novo.','error'); return false; }
+  if(!token){ gToast('Sua sessão expirou. Recarregue a página e entre de novo.','error'); return false; }
 
   return new Promise(resolve=>{
     const xhr = new XMLHttpRequest();
@@ -650,16 +650,16 @@ async function acUploadArquivo(file, path, onProgresso){
       _acUp = null;
       if(xhr.status>=200 && xhr.status<300){ resolve(true); return; }
       if(xhr.status===403 || xhr.status===401){
-        gToast('⚠ Você não tem permissão para enviar arquivos da Academia','error');
+        gToast('Você não tem permissão para enviar arquivos da Academia','error');
       }else if(xhr.status===413){
-        gToast('⚠ Arquivo grande demais para o bucket','error');
+        gToast('Arquivo grande demais para o bucket','error');
       }else{
-        gToast('⚠ Falha no envio ('+xhr.status+'). Tente de novo.','error');
+        gToast('Falha no envio ('+xhr.status+'). Tente de novo.','error');
       }
       console.warn('[academia] upload falhou', xhr.status, String(xhr.responseText||'').slice(0,200));
       resolve(false);
     };
-    xhr.onerror = ()=>{ _acUp=null; gToast('⚠ Conexão caiu durante o envio. Tente de novo.','error'); resolve(false); };
+    xhr.onerror = ()=>{ _acUp=null; gToast('Conexão caiu durante o envio. Tente de novo.','error'); resolve(false); };
     xhr.onabort = ()=>{ _acUp=null; gToast('Envio cancelado'); resolve(false); };
     xhr.send(file);
   });
@@ -686,7 +686,7 @@ async function acGestaoRemoverVideo(aulaId){
 async function acGestaoPreviewVideo(path){
   const url = await acVideoUrl({ video_path:path });
   if(url) window.open(url,'_blank','noopener');
-  else gToast('⚠ Não consegui abrir o vídeo agora','error');
+  else gToast('Não consegui abrir o vídeo agora','error');
 }
 
 /* ── Materiais ── */
@@ -714,7 +714,7 @@ async function acGestaoEnviarMaterial(input, aulaId){
   const file = input && input.files && input.files[0];
   input.value = '';
   if(!file) return;
-  if(file.size > 25*1024*1024){ gToast('⚠ Material acima de 25 MB — prefira um link','error'); return; }
+  if(file.size > 25*1024*1024){ gToast('Material acima de 25 MB — prefira um link','error'); return; }
   const st = document.getElementById('ac-mat-status');
   if(st) st.textContent = 'Enviando '+file.name+'…';
   const limpo = String(file.name).replace(/[^a-zA-Z0-9._-]/g,'_').slice(-80);
@@ -792,14 +792,14 @@ function _acGestaoErro(e, oque){
   console.warn('[academia/gestão] '+oque+':', msg);
   // 42501 = insufficient_privilege (RLS barrou): a mensagem crua não ajuda ninguém.
   if(/permission|denied|42501|row-level/i.test(msg)){
-    gToast('⚠ Você não tem permissão para editar o conteúdo da Academia','error');
+    gToast('Você não tem permissão para editar o conteúdo da Academia','error');
   }else{
-    gToast('⚠ Não consegui salvar '+oque+'. Tente de novo.','error');
+    gToast('Não consegui salvar '+oque+'. Tente de novo.','error');
   }
 }
 
 async function acGestaoCriarCurso(){
-  const lu=_acLuma(); if(!lu){ gToast('⚠ Backend indisponível','error'); return; }
+  const lu=_acLuma(); if(!lu){ gToast('Backend indisponível','error'); return; }
   try{
     const { data, error } = await lu.from('cursos').insert({
       slug: AC_SLUG_PADRAO, nome:'Formação do Franqueado',
@@ -817,7 +817,7 @@ async function acGestaoCriarCurso(){
 // Semeia a estrutura de DEMONSTRAÇÃO no banco a partir da MESMA constante que o
 // front usa em modo local — uma fonte só para o conteúdo de exemplo.
 async function acGestaoSemearDemo(btn){
-  const lu=_acLuma(); if(!lu){ gToast('⚠ Backend indisponível','error'); return; }
+  const lu=_acLuma(); if(!lu){ gToast('Backend indisponível','error'); return; }
   const ok = await gConfirm('Criar a formação com os 6 módulos e 9 aulas de demonstração? Tudo entra como RASCUNHO para você editar antes de publicar.',
                             {title:'Começar da demonstração', okLabel:'Criar'});
   if(!ok) return;
@@ -862,7 +862,7 @@ async function acGestaoSemearDemo(btn){
 
 async function acGestaoSalvarCurso(){
   const lu=_acLuma(), c=acState.curso;
-  if(!lu || !c || c._demo){ gToast('⚠ Crie a formação no banco antes de configurá-la','error'); return; }
+  if(!lu || !c || c._demo){ gToast('Crie a formação no banco antes de configurá-la','error'); return; }
   const val = (id)=>{ const e=document.getElementById(id); return e?e.value:''; };
   const horas = Number(val('ac-c-carga'))||0;
   const pct = Math.min(100, Math.max(10, Number(val('ac-c-pct'))||85));
@@ -903,7 +903,7 @@ async function acGestaoPublicarCurso(pub){
 
 async function acGestaoNovoModulo(){
   const lu=_acLuma(), c=acState.curso;
-  if(!lu||!c||c._demo){ gToast('⚠ Crie a formação primeiro','error'); return; }
+  if(!lu||!c||c._demo){ gToast('Crie a formação primeiro','error'); return; }
   const mods = c.modulos||[];
   const ultimo = mods[mods.length-1];
   try{
@@ -1009,7 +1009,7 @@ async function acGestaoSalvarAula(id){
 async function acGestaoAtualizarAula(id, campos){
   const lu=_acLuma(); const a=acAula(id);
   if(!a) return false;
-  if(!lu || (acState.curso&&acState.curso._demo)){ gToast('⚠ Backend indisponível','error'); return false; }
+  if(!lu || (acState.curso&&acState.curso._demo)){ gToast('Backend indisponível','error'); return false; }
   try{
     const { data, error } = await lu.from('curso_aulas').update(campos).eq('id', id).select().maybeSingle();
     if(error) throw error;

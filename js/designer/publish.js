@@ -715,7 +715,7 @@ async function dPermPresetSave(){
   if(!store||!Array.isArray(store.entries)) store={entries:[]};
   store.entries.push({ id:'pp-'+Date.now(), name:nm, perms:JSON.parse(JSON.stringify(dPubPermissoes)) });
   try{ localStorage.setItem('_luma_perm_presets', JSON.stringify(store)); }catch(e){ gToast('Não consegui salvar o preset (armazenamento cheio?)','error'); return; }
-  gToast('✓ Preset "'+nm+'" salvo');
+  gToast('Preset "'+nm+'" salvo');
   dPublishRenderPerms();
 }
 function dPermPresetLoad(id){
@@ -1079,7 +1079,7 @@ document.addEventListener('keydown', e => {
         const agora = e.timeStamp || 0;
         if (agora - _dAvisoTravada > 1600) {
           _dAvisoTravada = agora;
-          gToast('🔒 Página bloqueada — destrave no cadeado acima da prancheta.');
+          gToast('Página bloqueada — destrave no cadeado acima da prancheta.');
         }
         return;
       }

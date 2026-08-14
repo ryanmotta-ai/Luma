@@ -469,7 +469,7 @@ function dAddImageFromUrl(url, x, y, title) {
     if (typeof dStats === 'function') dStats();
     if (typeof dMarkUnsaved === 'function') dMarkUnsaved();
     if (typeof dSetTool === 'function') dSetTool('select');
-    gToast('✓ "' + nome + '" virou camada');
+    gToast('"' + nome + '" virou camada');
     if (typeof dFlashLayer === 'function') setTimeout(() => dFlashLayer(id), 30);
   };
   const img = new Image();
@@ -490,7 +490,7 @@ function dAddImageFromFile(file, x, y, titulo) {
   if (!ehImagem) { gToast('Só imagens viram camada (JPG, PNG, SVG ou WEBP)', 'error'); return; }
   const reader = new FileReader();
   reader.onload = e => dAddImageFromUrl(e.target.result, x, y, titulo || String(file.name || '').replace(/\.[^/.]+$/, ''));
-  reader.onerror = () => gToast('⚠ Não foi possível ler o arquivo. Tente de novo.', 'error');
+  reader.onerror = () => gToast('Não foi possível ler o arquivo. Tente de novo.', 'error');
   reader.readAsDataURL(file);
 }
 
@@ -543,7 +543,7 @@ function dElementoParaCamada(url, nome) {
     // Reabre o painel pela via oficial: mexer no #dp-imgurl na mão deixava o campo
     // fora de sincronia com o resto das props.
     if (typeof dShowProps === 'function') dShowProps(moldura);
-    gToast('✓ "' + (nome || 'Imagem') + '" na moldura');
+    gToast('"' + (nome || 'Imagem') + '" na moldura');
     return;
   }
   dAddImageFromUrl(url, undefined, undefined, nome);
@@ -574,7 +574,7 @@ function dConvertLayerToFrame(id){
   // props exclusivas de forma não fazem sentido na moldura
   delete l.fill; delete l.shapeKind; delete l.gradient; delete l.radii; delete l.sides; delete l.points; delete l.inner;
   dRenderCanvas(); if(typeof dRenderLayersList==='function') dRenderLayersList(); dShowProps(l); dMarkUnsaved();
-  gToast('✓ Virou moldura de foto — o franqueado preenche com a imagem');
+  gToast('Virou moldura de foto — o franqueado preenche com a imagem');
 }
 function dConvertLayerToShape(id){
   const l=dLayers.find(x=>x.id===id); if(!l||l.type!=='frame') return;
@@ -585,7 +585,7 @@ function dConvertLayerToShape(id){
   if(l.frameShape==='rect') l.radius=l.radius||0;
   delete l.imgUrl; delete l.imgVar; delete l.objectFit; delete l.frameShape;
   dRenderCanvas(); if(typeof dRenderLayersList==='function') dRenderLayersList(); dShowProps(l); dMarkUnsaved();
-  gToast('✓ Virou forma');
+  gToast('Virou forma');
 }
 
 /* ── Menu de botão-direito na camada (canvas ou lista) ──
@@ -643,9 +643,8 @@ async function dDeleteLayer(){
   // (só o grupo sai). Ambos removem o grupo.
   let deleteChildren=false;
   if (l && l.type === 'group') {
-    deleteChildren = (typeof gConfirm==='function')
-      ? await gConfirm('Excluir também os elementos deste grupo?', {title:'Excluir grupo', okLabel:'Excluir tudo', cancelLabel:'Manter os itens', danger:true})
-      : confirm('Deseja excluir também todos os layers deste grupo?');
+    deleteChildren = await gConfirm('Excluir também os elementos deste grupo?',
+      {title:'Excluir grupo', okLabel:'Excluir tudo', cancelLabel:'Manter os itens', danger:true});
     // O layer pode ter mudado (undo/sync trocam objetos) durante o await → re-resolve por id.
     if(!dSelId || !dLayers.some(x=>x.id===dSelId)) return;
   }
@@ -1389,7 +1388,7 @@ function dShowProps(l){
       upPanelBtn.style.display=l.type==='frame'?'':'none';
       upPanelBtn.onclick=()=>{
         const inp=document.createElement('input');inp.type='file';inp.accept='image/*';
-        inp.onchange=ev=>{const file=ev.target.files[0];if(!file)return;const r=new FileReader();r.onload=re=>{l.imgUrl=re.result;dRenderCanvas();dMarkUnsaved();document.getElementById('dp-imgurl').value='[arquivo local]';if(typeof dPropSyncImageSource==='function')dPropSyncImageSource();gToast('✓ Foto carregada!');};r.readAsDataURL(file);};
+        inp.onchange=ev=>{const file=ev.target.files[0];if(!file)return;const r=new FileReader();r.onload=re=>{l.imgUrl=re.result;dRenderCanvas();dMarkUnsaved();document.getElementById('dp-imgurl').value='[arquivo local]';if(typeof dPropSyncImageSource==='function')dPropSyncImageSource();gToast('Foto carregada!');};r.readAsDataURL(file);};
         inp.click();
       };
     }
@@ -1834,7 +1833,7 @@ function dLayerBindField(layerId, fieldName){
   else { gToast('Essa camada não recebe Dado'); return; }
   dRenderCanvas(); if(typeof dRenderLayersList==='function') dRenderLayersList();
   dShowProps(l); dMarkUnsaved();
-  gToast('✓ '+(l.name||'Camada')+' agora mostra “'+(v.label||v.name)+'”');
+  gToast(''+(l.name||'Camada')+' agora mostra “'+(v.label||v.name)+'”');
 }
 // Desvincula: texto volta a ser fixo (usa o rótulo do campo como exemplo); imagem limpa imgVar.
 function dLayerUnbindField(layerId){
@@ -1877,7 +1876,7 @@ function dDadoApplyRecommendedLimit(varName, limit){
   const l=dLayers.find(x=>x.id===dSelId);
   if(l && typeof dRenderDadoControl==='function') dRenderDadoControl(l);
   dMarkUnsaved();
-  gToast('✓ Limite de ' + limit + ' caracteres aplicado com sucesso');
+  gToast('Limite de ' + limit + ' caracteres aplicado com sucesso');
 }
 // Controle "Dado" no topo das propriedades — injetado 1× e atualizado a cada seleção.
 function dRenderDadoControl(l){
@@ -2266,7 +2265,7 @@ function dPersistVars(){
   catch(e){
     ok=false;
     if(e&&(e.name==='QuotaExceededError'||e.code===22))
-      gToast('⚠ Não foi possível salvar as variáveis: armazenamento cheio.','error');
+      gToast('Não foi possível salvar as variáveis: armazenamento cheio.','error');
   }
   // Sincroniza com o Supabase em background (só designer; não bloqueia a UI).
   if(typeof dPushVarsToBackend==='function') dPushVarsToBackend();
@@ -2606,7 +2605,7 @@ function dFieldUse(i){
       // Campos a cada campo aplicado, e o próximo campo recomeçava o ritual todo.
       dSelLayer(l.id);
       dRenderCanvas(); dMarkUnsaved();
-      gToast('✓ Campo “'+(v.label||v.name)+'” aplicado na moldura');
+      gToast('Campo “'+(v.label||v.name)+'” aplicado na moldura');
     } else {
       gToast('Selecione uma moldura ou imagem na aba Camadas e tente de novo.');
     }
@@ -2629,7 +2628,7 @@ function dFieldUse(i){
     l.content=((l.content||'')+' {{'+v.name+'}}').replace(/^\s+/,'');
     dSelLayer(l.id);               // sem trocar de painel (ver nota acima)
     dRenderCanvas(); dMarkUnsaved();
-    gToast('✓ Campo “'+(v.label||v.name)+'” inserido no texto');
+    gToast('Campo “'+(v.label||v.name)+'” inserido no texto');
   } else {
     gToast('Selecione um texto na aba Camadas e tente de novo.');
   }
@@ -2789,7 +2788,7 @@ function dFieldDropOnCanvas(e){
 function dFieldApplyToLayer(layerId, name){
   const l=dLayers.find(x=>x.id===layerId), v=_dFieldByName(name);
   const chk=_dFieldCanBind(l, v);
-  if(!chk.ok){ gToast('⚠ '+chk.why,'error'); return false; }
+  if(!chk.ok){ gToast(''+chk.why,'error'); return false; }
   // Forma → moldura: o retângulo que o designer desenhou passa a ser o espaço da foto.
   if(v.type==='image' && l.type==='shape' && typeof dConvertLayerToFrame==='function') dConvertLayerToFrame(l.id);
   dLayerBindField(l.id, v.name); // history, render, lista, props, unsaved e toast moram lá
@@ -2908,7 +2907,7 @@ function dFieldWizardGoStep(n){
 function dFieldWizardNext(){
   const labEl=document.getElementById('dv-label');
   const label=(labEl.value||'').trim();
-  if(!label){ gToast('⚠ Dê um nome ao campo'); labEl.focus(); return; }
+  if(!label){ gToast('Dê um nome ao campo'); labEl.focus(); return; }
   const q2=document.getElementById('dv-q2'); if(q2) q2.textContent='Que tipo de informação é “'+label+'”?';
   dFieldWizardGoStep(2);
 }
@@ -3033,15 +3032,15 @@ function dConfirmVar(){
       if(type==='color')v.palette=palette;else delete v.palette;
     }
     dCloseVarModal();dVarsRender();dPersistVars();dRenderCanvas();
-    gToast('✓ Campo “'+(v?(v.label||v.name):'')+'” atualizado');
+    gToast('Campo “'+(v?(v.label||v.name):'')+'” atualizado');
     return;
   }
   // Criação — o nome técnico (slug) é derivado do rótulo se não for informado.
   let name=document.getElementById('dv-name').value.trim();
   if(!name && label) name=gFieldSlugify(label, dVars.map(v=>v.name));
-  if(!name){gToast('⚠ Dê um nome ao campo');return;}
-  if(!gValidVarName(name)){gToast('⚠ Use só letras, números e _ (sem espaço/acento)');return;}
-  if(dVars.find(v=>v.name.toLowerCase()===name.toLowerCase())){gToast('⚠ Já existe um campo com esse nome');return;}
+  if(!name){gToast('Dê um nome ao campo');return;}
+  if(!gValidVarName(name)){gToast('Use só letras, números e _ (sem espaço/acento)');return;}
+  if(dVars.find(v=>v.name.toLowerCase()===name.toLowerCase())){gToast('Já existe um campo com esse nome');return;}
   const nv={name,type,label:label||name,required:req,category:catSel||gFieldGuessCategory(name,type)};
   if(example!=='')nv.example=example;
   if(def!=='')nv.defaultValue=def;
@@ -3053,17 +3052,22 @@ function dConfirmVar(){
   if(bindTo&&typeof dLayerBindField==='function'){
     dLayerBindField(bindTo,name); // já dá o toast "camada agora mostra X"
   } else {
-    gToast('✓ Campo “'+(label||name)+'” criado');
+    gToast('Campo “'+(label||name)+'” criado');
   }
   dFieldOnboardMaybe();
 }
-function dRemoveVar(i){
+async function dRemoveVar(i){
   const v=dVars[i];if(!v)return;
+  const nome=v.name;
   // V3: avisa/bloqueia remoção de var em uso
-  const usage=dVarUsage(v.name);
-  if(usage.length && !confirm(`A variável {{${v.name}}} está em uso em ${usage.length} layer(s). Remover do catálogo mesmo assim? (os tokens {{${v.name}}} continuam nos layers como texto)`))return;
-  if(typeof dDeleteVarFromBackend==='function') dDeleteVarFromBackend(v.name);
-  dVars.splice(i,1);dVarsRender();dPersistVars();gToast('Variável {{'+v.name+'}} removida');
+  const usage=dVarUsage(nome);
+  if(usage.length && !await gConfirm(`A variável {{${nome}}} está em uso em ${usage.length} layer(s). Os tokens {{${nome}}} continuam nos layers como texto.`,
+    {title:'Remover do catálogo mesmo assim?',okLabel:'Remover',cancelLabel:'Cancelar',danger:true}))return;
+  // Re-resolve pelo NOME depois do await: `i` é posição num array que sync/undo reescrevem, e
+  // splice no índice velho apagaria o campo errado.
+  const idx=dVars.findIndex(x=>x&&x.name===nome); if(idx<0)return;
+  if(typeof dDeleteVarFromBackend==='function') dDeleteVarFromBackend(nome);
+  dVars.splice(idx,1);dVarsRender();dPersistVars();gToast('Variável {{'+nome+'}} removida');
 }
 // Reordena a variável — reflete na ordem das perguntas do franqueado (V7)
 function dMoveVar(i,dir){
@@ -3076,8 +3080,8 @@ function dRenameVar(i){
   const v=dVars[i];if(!v)return;
   const novo=(prompt(`Novo nome para {{${v.name}}} (só letras, números e _):`,v.name)||'').trim();
   if(!novo||novo===v.name)return;
-  if(!gValidVarName(novo)){gToast('⚠ Nome inválido — use só letras, números e _');return;}
-  if(dVars.some(x=>x.name.toLowerCase()===novo.toLowerCase())){gToast('⚠ Já existe uma variável com esse nome');return;}
+  if(!gValidVarName(novo)){gToast('Nome inválido — use só letras, números e _');return;}
+  if(dVars.some(x=>x.name.toLowerCase()===novo.toLowerCase())){gToast('Já existe uma variável com esse nome');return;}
   const old=v.name;
   // find/replace nos layers (tokens {{old}} → {{novo}}, imgVar, bindings e regras —
   // sem bindings/rules, renomear deixava vínculos apontando pra um nome morto)
@@ -3091,7 +3095,7 @@ function dRenameVar(i){
   v.name=novo;
   dVarsRender();dRenderCanvas();dMarkUnsaved();dPersistVars();
   if(typeof dDeleteVarFromBackend==='function') dDeleteVarFromBackend(old); // remove o nome antigo do banco
-  gToast('✓ Renomeada para {{'+novo+'}} (camadas atualizadas)');
+  gToast('Renomeada para {{'+novo+'}} (camadas atualizadas)');
 }
 
 // Remove a máscara de uma camada (importada do PSD)
@@ -3322,7 +3326,7 @@ function dSave(options){
   if(typeof dSetSaveState==='function')dSetSaveState('saved'); // limpa dDirty + mostra "Guardado"
   if(typeof dRenderPagesTray==='function')dRenderPagesTray();
   // Não sobrescreve o aviso de imagens se ele acabou de aparecer neste save
-  if(!silent&&!(gImgPersistWarned&&!hadImgWarn))gToast('✓ Rascunho salvo!');
+  if(!silent&&!(gImgPersistWarned&&!hadImgWarn))gToast('Rascunho salvo!');
   return true;
 }
 function dPersistFolders(){
@@ -3345,8 +3349,8 @@ function dPersistFolders(){
     return true;
   }catch(e){
     if(e&&(e.name==='QuotaExceededError'||e.code===22))
-      gToast('⚠ Não foi possível salvar: armazenamento cheio. Remova templates ou imagens e tente de novo.','error');
-    else gToast('⚠ Erro ao salvar o template.','error');
+      gToast('Não foi possível salvar: armazenamento cheio. Remova templates ou imagens e tente de novo.','error');
+    else gToast('Erro ao salvar o template.','error');
     return false;
   }
 }
@@ -3447,7 +3451,7 @@ async function _dPushFoldersNow(){
           // Agora: pendência (badge + retry no próximo save) e a causa dita em voz alta.
           _capaPend=true;
           console.warn('[sync] a capa de "'+(f.name||'?')+'" NÃO subiu pro Storage (bucket luma-covers) — fica só neste aparelho até um save dar certo.');
-          if(typeof gToast==='function') gToast('⚠ A capa de "'+(f.name||'?')+'" não subiu pro servidor — por ora ela vale só neste aparelho.','error');
+          if(typeof gToast==='function') gToast('A capa de "'+(f.name||'?')+'" não subiu pro servidor — por ora ela vale só neste aparelho.','error');
         }
       }
       // cover_url só entra no upsert com valor DEFINITIVO: URL pronta grava; '' (capa
@@ -3552,7 +3556,7 @@ function gSyncBadgeUpdate(){
   el.style.display=n?'':'none';
   if(n) el.textContent='⟳ '+n+' não sincronizado'+(n>1?'s':'');
   // Avisa em voz alta quando ALGO NOVO deixou de subir (não repete a cada save)
-  if(n>_dLastPendCount) gToast('⚠ '+n+' material(is) não subiram pro servidor — os franqueados não os veem. Veja o aviso laranja na barra.','error');
+  if(n>_dLastPendCount) gToast(''+n+' material(is) não subiram pro servidor — os franqueados não os veem. Veja o aviso laranja na barra.','error');
   _dLastPendCount=n;
 }
 
@@ -3708,14 +3712,14 @@ function dClearMultiSel(){
 }
 function dGroupSelected(){
   const ids=dSelId?[dSelId,...dMultiSel.filter(x=>x!==dSelId)]:dMultiSel;
-  if(ids.length<2){gToast('⚠ Selecione 2 ou mais camadas para agrupar');return;}
+  if(ids.length<2){gToast('Selecione 2 ou mais camadas para agrupar');return;}
   
   const childIds = ids.filter(id => {
     const l = dLayers.find(x => x.id === id);
     return l && l.type !== 'group';
   });
   if(childIds.length < 2) {
-    gToast('⚠ Selecione 2 ou mais camadas para agrupar');
+    gToast('Selecione 2 ou mais camadas para agrupar');
     return;
   }
 
@@ -3766,7 +3770,7 @@ function dGroupSelected(){
   // (senão o "Grupo N" órfão sobrevive na lista e no save)
   dLayers = dLayers.filter(g => g.type!=='group' || g.id===groupId || dLayers.some(c=>c.parentId===g.id));
 
-  gToast('✓ '+childIds.length+' camadas agrupadas');
+  gToast(''+childIds.length+' camadas agrupadas');
   dSelId = groupId;
   dMultiSel = childIds;
   dRenderCanvas();dRenderLayersList();dMarkUnsaved();
@@ -3782,7 +3786,7 @@ function dUngroupSelected(){
     }
   }
   if (!gid) {
-    gToast('⚠ Selecione um grupo ou uma camada dentro de um grupo para desagrupar');
+    gToast('Selecione um grupo ou uma camada dentro de um grupo para desagrupar');
     return;
   }
   dHistoryPush();
@@ -3796,7 +3800,7 @@ function dUngroupSelected(){
     dSelId = null;
     dMultiSel = [];
   }
-  gToast('✓ Grupo desfeito');
+  gToast('Grupo desfeito');
   dRenderCanvas();dRenderLayersList();dMarkUnsaved();
 }
 function dGetGroupSiblings(layer){
@@ -4146,19 +4150,19 @@ const _DSTYLE_SHAPE = ['fill','gradient','radius','radii'];
 
 function dCopyStyle(){
   const l=dLayers.find(x=>x.id===dSelId);
-  if(!l){gToast('⚠ Selecione uma camada para copiar o estilo');return;}
+  if(!l){gToast('Selecione uma camada para copiar o estilo');return;}
   const clip={type:l.type};
   _DSTYLE_COMMON.forEach(k=>{ if(l[k]!=null) clip[k]=JSON.parse(JSON.stringify(l[k])); });
   if(l.type==='text') _DSTYLE_TEXT.forEach(k=>{ if(l[k]!=null) clip[k]=JSON.parse(JSON.stringify(l[k])); });
   if(l.type==='shape') _DSTYLE_SHAPE.forEach(k=>{ if(l[k]!=null) clip[k]=JSON.parse(JSON.stringify(l[k])); });
   dStyleClipboard=clip;
-  gToast('✓ Estilo copiado de "'+gEsc(l.name)+'"');
+  gToast('Estilo copiado de "'+gEsc(l.name)+'"');
 }
 
 function dPasteStyle(){
-  if(!dStyleClipboard){gToast('⚠ Copie um estilo primeiro (Ctrl+Alt+C)');return;}
+  if(!dStyleClipboard){gToast('Copie um estilo primeiro (Ctrl+Alt+C)');return;}
   const l=dLayers.find(x=>x.id===dSelId);
-  if(!l){gToast('⚠ Selecione a camada destino');return;}
+  if(!l){gToast('Selecione a camada destino');return;}
   dHistoryPush();
   // Aplica props comuns sempre
   _DSTYLE_COMMON.forEach(k=>{ if(dStyleClipboard[k]!=null) l[k]=JSON.parse(JSON.stringify(dStyleClipboard[k])); });
@@ -4168,5 +4172,5 @@ function dPasteStyle(){
   if(l.type==='shape' && dStyleClipboard.type==='shape')
     _DSTYLE_SHAPE.forEach(k=>{ if(dStyleClipboard[k]!=null) l[k]=JSON.parse(JSON.stringify(dStyleClipboard[k])); });
   dRenderCanvas();dRenderLayersList();dShowProps(l);dMarkUnsaved();
-  gToast('✓ Estilo colado em "'+gEsc(l.name)+'"');
+  gToast('Estilo colado em "'+gEsc(l.name)+'"');
 }

@@ -330,8 +330,8 @@ function _dPsdCanvasHover(e){
 function dPsdUploadFont(layerIdx, input){
   const file=input.files&&input.files[0]; input.value='';
   if(!file) return;
-  if(!/\.(ttf|otf|woff2?|woff)$/i.test(file.name)){ gToast('⚠ Use .ttf, .otf, .woff ou .woff2','error'); return; }
-  if(file.size>3*1024*1024){ gToast('⚠ Fonte muito grande (máx 3MB). Prefira .woff2.','error'); return; }
+  if(!/\.(ttf|otf|woff2?|woff)$/i.test(file.name)){ gToast('Use .ttf, .otf, .woff ou .woff2','error'); return; }
+  if(file.size>3*1024*1024){ gToast('Fonte muito grande (máx 3MB). Prefira .woff2.','error'); return; }
   const r=new FileReader();
   r.onload=e=>{
     const base=file.name.replace(/\.[^.]+$/,'');
@@ -354,7 +354,7 @@ function dPsdUploadFont(layerIdx, input){
       if(Array.isArray(it.runs)) it.runs.forEach(run=>{ if(run._fontName===fname) run.font=mapped; });
     });
     dPsdRenderRows();
-    gToast('✓ Fonte "'+base+'" enviada e aplicada às camadas');
+    gToast('Fonte "'+base+'" enviada e aplicada às camadas');
   };
   r.readAsDataURL(file);
 }
@@ -448,7 +448,7 @@ async function dPsdConfirmImport(){
     if(!marcadas.length){ gToast('Marque ao menos uma prancheta','error'); return; }
     const fSel=document.getElementById('d-psd-folder');
     const folderId=fSel?fSel.value:null;
-    if(!folderId){ gToast('⚠ Crie uma campanha antes de importar','error'); return; }
+    if(!folderId){ gToast('Crie uma campanha antes de importar','error'); return; }
     // Trava o botão: preparar N pranchetas leva tempo e um segundo clique duplicaria tudo.
     const cta=document.querySelector('#d-psd-modal .psd-import-cta');
     if(cta) cta.disabled=true;
@@ -470,7 +470,7 @@ async function dPsdConfirmImport(){
     _dPsdCloseReviewUI();
     dPsdSaveArtboardTemplates(bons, folderId, _dPsdBaseName);
     // Prancheta marcada mas sem camada nenhuma não pode sumir calada.
-    if(vazias.length) gToast('⚠ Sem camadas selecionadas: '+vazias.join(', '));
+    if(vazias.length) gToast('Sem camadas selecionadas: '+vazias.join(', '));
     _dPsdBoards=[]; _dPsdBoardIdx=0; _dPsdDocCanvas=null;
     dPsdItems=[]; dPsdMeta=null;
     return;
@@ -489,7 +489,7 @@ async function dPsdConfirmImport(){
   _dPsdCloseReviewUI();
   dImportLayersAsArtboard(_w, _h, layers, _name, fmtChoice, _res);
   const nVar=layers.filter(l=>l.isVar).length, nTxt=layers.filter(l=>l.type==='text').length;
-  gToast('✓ PSD importado: '+layers.length+' camadas · '+nTxt+' texto · '+nVar+' variável(is)');
+  gToast('PSD importado: '+layers.length+' camadas · '+nTxt+' texto · '+nVar+' variável(is)');
   _dPsdBoards=[]; _dPsdDocCanvas=null;
   dPsdItems=[]; dPsdMeta=null;
 }
@@ -787,7 +787,7 @@ function _dPsdModeForKind(it){ return (it.kind==='text')?'var':'frame'; }
 function dPsdBindField(i, name){
   const it=dPsdItems[i], v=_dPsdFieldByName(name);
   const chk=_dPsdBindCheck(it, v);
-  if(!chk.ok){ gToast('⚠ '+chk.why,'error'); return false; }
+  if(!chk.ok){ gToast(''+chk.why,'error'); return false; }
   it.include=true; // ligar um campo é dizer "quero esta camada" — desmarcada, ela nem importaria
   it.mode=chk.mode; it.varName=v.name;
   it.varSource='user'; it.varWhy=''; // decisão humana: apaga a marca de "IA sugere" da camada
@@ -822,7 +822,7 @@ function dPsdAcceptAllSug(){
   dPsdItems.forEach(it=>{ if(_dPsdPendingSug(it)){ it.include=true; it.mode=_dPsdModeForKind(it); n++; } });
   if(!n){ gToast('Nenhuma sugestão pendente'); return; }
   _dPsdAfterMap(n+(n===1?' sugestão aplicada':' sugestões aplicadas'));
-  gToast('✓ '+n+(n===1?' sugestão aplicada':' sugestões aplicadas'));
+  gToast(''+n+(n===1?' sugestão aplicada':' sugestões aplicadas'));
 }
 // Ponto único de "mudou o mapeamento": re-renderiza a lista (que já repinta trilha, contadores
 // e prévia) preservando a busca, e anuncia no aria-live. Chamar dPsdRenderRows direto de cada
@@ -1106,12 +1106,12 @@ function _dPsdLooksBackground(it){
 }
 async function dPsdMapWithAI(){
   if(_dPsdAiBusy) return;
-  if(typeof gAskAI!=='function'){ gToast('⚠ IA não disponível nesta sessão','error'); return; }
+  if(typeof gAskAI!=='function'){ gToast('IA não disponível nesta sessão','error'); return; }
   const itens=dPsdItems.map((it,i)=>({it,i})).filter(o=>o.it.include && !o.it.isMaskBase);
   if(!itens.length){ gToast('Selecione ao menos uma camada','error'); return; }
-  if(!_dPsdVarsList().length){ gToast('⚠ Crie campos no catálogo antes de mapear com IA','error'); return; }
+  if(!_dPsdVarsList().length){ gToast('Crie campos no catálogo antes de mapear com IA','error'); return; }
   const part=_dPsdArtePart();
-  if(!part){ gToast('⚠ Não foi possível preparar a imagem da arte','error'); return; }
+  if(!part){ gToast('Não foi possível preparar a imagem da arte','error'); return; }
   _dPsdAiBusy=true; _dPsdRenderFieldRail();
   let resp=null;
   try{
@@ -1156,7 +1156,7 @@ async function dPsdMapWithAI(){
     return;
   }
   _dPsdAfterMap('IA sugeriu '+n+(n===1?' vínculo':' vínculos')+'. Revise e aplique.');
-  gToast('✓ IA sugeriu '+n+(n===1?' vínculo':' vínculos')+' — revise e clique em Aplicar'
+  gToast('IA sugeriu '+n+(n===1?' vínculo':' vínculos')+' — revise e clique em Aplicar'
     +(fora?(' · '+fora+' descartado'+(fora===1?'':'s')):''));
   if(fora) console.warn('[psd] mapeamento por IA: '+fora+' sugestão(ões) descartada(s) por índice/campo/tipo inválido');
 }
@@ -1415,7 +1415,7 @@ function dPsdSaveArtboardTemplates(results, folderId, baseName){
   if(!results.length){ gToast('Nenhuma prancheta importada'); return; }
   const folder=(typeof dFolders!=='undefined'&&dFolders)
     ? (dFolders.find(f=>f.id===folderId)||dFolders[0]) : null;
-  if(!folder){ gToast('⚠ Pasta não encontrada — selecione outra campanha','error'); return; }
+  if(!folder){ gToast('Pasta não encontrada — selecione outra campanha','error'); return; }
   // Pranchetas com o MESMO nome viram templates indistinguíveis — o designer edita um
   // variante achando que é o outro. Sufixa o formato só quando o nome colide.
   const _nameCount={};
@@ -1447,7 +1447,7 @@ function dPsdSaveArtboardTemplates(results, folderId, baseName){
   // Abre o último template importado no editor.
   const last=folder.templates[folder.templates.length-1];
   if(last && typeof dLoadTemplate==='function') dLoadTemplate(last, folder);
-  gToast('✓ '+results.length+' template(s) importado(s) → '+folder.name);
+  gToast(''+results.length+' template(s) importado(s) → '+folder.name);
 }
 
 /* ── estado de leitura e análise do arquivo ── */
@@ -1491,17 +1491,17 @@ async function dImportPSD(input){
   // técnico, os arquivos grandes de campanha (que são justamente os que o designer traz).
   if(!/\.ps[db]$/i.test(file.name)){ gToast('Selecione um arquivo .psd ou .psb','error'); return; }
   if(file.size > _DPSD_MAX_MB*1024*1024){
-    gToast('⚠ PSD muito grande ('+Math.round(file.size/(1024*1024))+'MB) — o limite é '+_DPSD_MAX_MB+'MB. Achate camadas ou salve sem histórico.','error');
+    gToast('PSD muito grande ('+Math.round(file.size/(1024*1024))+'MB) — o limite é '+_DPSD_MAX_MB+'MB. Achate camadas ou salve sem histórico.','error');
     return;
   }
   _dPsdCancelled=false; // cada abertura começa com o cancelamento limpo
   _dPsdBusy(true,file);
   let agPsd;
-  try{ agPsd=await dLoadAgPsd(); }catch(e){ _dPsdBusy(false); console.error('PSD lib:',e); gToast('⚠ Não foi possível carregar o leitor de PSD — recarregue a página','error'); return; }
+  try{ agPsd=await dLoadAgPsd(); }catch(e){ _dPsdBusy(false); console.error('PSD lib:',e); gToast('Não foi possível carregar o leitor de PSD — recarregue a página','error'); return; }
   if(_dPsdCancelled){ _dPsdBusy(false); gToast('Importação cancelada'); return; }
   _dPsdBusyUpdate('Lendo estrutura, imagens e fontes…');
   let buf;
-  try{ buf=await file.arrayBuffer(); }catch(e){ _dPsdBusy(false); gToast('⚠ Não foi possível ler o arquivo — verifique se é um .psd válido','error'); return; }
+  try{ buf=await file.arrayBuffer(); }catch(e){ _dPsdBusy(false); gToast('Não foi possível ler o arquivo — verifique se é um .psd válido','error'); return; }
   if(_dPsdCancelled){ _dPsdBusy(false); gToast('Importação cancelada'); return; }
   let result;
   try{ result=await _dPsdReadPsd(buf, agPsd); }
@@ -1509,7 +1509,7 @@ async function dImportPSD(input){
   // Cancelado no meio: sai quieto (o usuário sabe o que fez), sem erro assustador.
   if(_dPsdCancelled || (result&&result.cancelled)){ _dPsdBusy(false); gToast('Importação cancelada'); return; }
   if(!result || result.error || !result.psd || !result.psd.width){
-    _dPsdBusy(false); console.error('PSD:',result&&result.error); gToast('⚠ Não foi possível ler este PSD (formato não suportado)','error'); return;
+    _dPsdBusy(false); console.error('PSD:',result&&result.error); gToast('Não foi possível ler este PSD (formato não suportado)','error'); return;
   }
   try{
     _dPsdBusyUpdate('Preparando camadas editáveis…');
@@ -1533,7 +1533,7 @@ async function dImportPSD(input){
       _dPsdAdjustCount=b0.adjust||0; _dPsdErrorCount=b0.errors||0;
       dPsdMeta={w:b0.w, h:b0.h, name:b0.name, res:_dPsdDocRes, ref:b0.ref};
       _dPsdBusy(false);
-      if(!dPsdItems.length) gToast('⚠ "'+b0.name+'" não tem camadas utilizáveis — veja as outras pranchetas');
+      if(!dPsdItems.length) gToast('"'+b0.name+'" não tem camadas utilizáveis — veja as outras pranchetas');
       dPsdOpenReview();
       return;
     }
@@ -1561,10 +1561,10 @@ async function dImportPSD(input){
     if(!dPsdItems.length){
       // Último recurso antes de recusar: a arte achatada do próprio Photoshop.
       const flat=_dPsdFlatItem(result.psd, dPsdMeta&&dPsdMeta.w, dPsdMeta&&dPsdMeta.h);
-      if(!flat){ gToast('⚠ Nenhuma camada utilizável neste PSD','error'); return; }
+      if(!flat){ gToast('Nenhuma camada utilizável neste PSD','error'); return; }
       dPsdItems=[flat];
       gToast('PSD sem camadas editáveis — importando a arte achatada');
     }
     dPsdOpenReview();
-  }catch(e){ _dPsdBusy(false); console.error('PSD parse:',e); gToast('⚠ Não foi possível interpretar as camadas do PSD','error'); }
+  }catch(e){ _dPsdBusy(false); console.error('PSD parse:',e); gToast('Não foi possível interpretar as camadas do PSD','error'); }
 }
