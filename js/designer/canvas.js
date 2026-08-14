@@ -183,15 +183,70 @@ function _dSyncAllPositions(){
   }
 }
 function _dSizeWorkspace(){ _dSyncAllPositions(); }
+
+/* ══ HERANÇA DE GRUPO NO CANVAS DO ESTÚDIO ══
+   O espelho do `_fRenderGroup` (`png-generator.js`). Desde a importação de PSD com grupos, o
+   marcador `type:'group'` carrega opacidade e máscara da composição — e o PNG do franqueado as
+   aplica. Aqui o DOM desenha camada a camada em coordenadas ABSOLUTAS (o drag e o hit-test
+   dependem disso), então o grupo NÃO vira wrapper: a herança é carimbada em cada filho.
+   ⚠ Sem isto o Estúdio mostrava os filhos a 100% e sem recorte enquanto o PNG saía composto —
+   prévia mentindo sobre o arquivo final, que é o defeito que este projeto mais evita.
+   É a mesma aproximação que o importador fazia antes dos grupos existirem: exata para máscara,
+   e para opacidade sempre que os filhos do grupo não se sobrepõem. Resolve por ID a cada render
+   porque undo/simulação trocam os objetos de `dLayers` por clones. */
+function _dGrupoHeranca(l, layers){
+  if(!l || !l.parentId || !Array.isArray(layers)) return null;
+  let op=1; const masks=[]; let paiId=l.parentId, guarda=0;
+  while(paiId && guarda++ < 16){
+    const g=layers.find(x=>x && x.id===paiId && x.type==='group');
+    if(!g) break;
+    if(g.visible===false) return {oculto:true};   // o PNG não desenha filho de grupo oculto
+    if(g.opacity!=null) op*=g.opacity/100;
+    if(g.mask) masks.push(g);
+    paiId=g.parentId;
+  }
+  return (op===1 && !masks.length) ? null : {opacity:op, masks:masks};
+}
+function _dAplicaHerancaGrupo(el, l, her){
+  if(!her || her.oculto) return;
+  if(her.opacity!==1){
+    const atual=parseFloat(el.style.opacity);
+    el.style.opacity=String((isFinite(atual)?atual:1)*her.opacity);
+  }
+  if(!her.masks.length) return;
+  /* A máscara do pai vive nas coordenadas da PRANCHETA e a do filho na caixa dele — por isso
+     cada camada de máscara entra com size/position próprios. `intersect` empilha as alfas, que é
+     a mesma conta do `destination-in` encadeado do gerador de PNG. */
+  const imgs=[], sizes=[], poss=[];
+  // Lê a máscara PRÓPRIA do elemento (quem a aplicou foi o render, cada um do seu jeito) em vez
+  // de remontá-la de `l.mask` — assim o helper não inventa recorte onde o render não pôs.
+  const _jaTem=el.style.maskImage||el.style.webkitMaskImage;
+  if(_jaTem){ imgs.push(_jaTem); sizes.push(el.style.maskSize||'100% 100%'); poss.push(el.style.maskPosition||'0 0'); }
+  her.masks.forEach(g=>{
+    imgs.push('url("'+g.mask+'")');
+    sizes.push((g.w||0)+'px '+(g.h||0)+'px');
+    poss.push(((g.x||0)-(l.x||0))+'px '+((g.y||0)-(l.y||0))+'px');
+  });
+  el.style.webkitMaskImage=el.style.maskImage=imgs.join(',');
+  el.style.webkitMaskSize=el.style.maskSize=sizes.join(',');
+  el.style.webkitMaskPosition=el.style.maskPosition=poss.join(',');
+  el.style.webkitMaskRepeat=el.style.maskRepeat='no-repeat';
+  el.style.webkitMaskComposite='source-in';
+  el.style.maskComposite='intersect';
+}
+
 function _dRenderPreview(frame,ab){
   frame.innerHTML='';
   const bg=ab&&ab.bg;
   frame.style.background=(bg&&bg!=='transparent')?(bg==='white'?'#ffffff':bg):'';
   const layers=ab.layers||[];
   layers.filter(l=>l.visible!==false&&l.type!=='group').forEach(l=>{
+    const _her=_dGrupoHeranca(l,layers);
+    if(_her&&_her.oculto)return;
     const el=document.createElement('div');
     el.style.cssText='position:absolute;left:'+l.x+'px;top:'+l.y+'px;width:'+l.w+'px;height:'+l.h+'px;overflow:hidden;';
     el.style.opacity=(typeof l.opacity==='number'?l.opacity:100)/100;
+    _dAplicaHerancaGrupo(el,l,_her);
     if(l.blendMode)el.style.mixBlendMode=l.blendMode.replace(/([A-Z])/g,c=>'-'+c.toLowerCase());
     if(l.type==='shape'){
       const kind=l.shapeKind||'rect';
@@ -1031,6 +1086,10 @@ function dRenderCanvas(){
     // cópia). Handlers que MUTAM estado precisam do original em dLayers — senão a
     // mudança (drag, foto, cor) é perdida no próximo render. Render usa 'l'; mutação usa 'lReal'.
     const lReal=dLayers.find(x=>x.id===l.id)||l;
+    // Grupo-pai oculto: o gerador de PNG não desenha o filho (o `_fRenderGroup` nem é chamado),
+    // então o Estúdio também não desenha — senão a prancheta mostra o que não vai sair.
+    const _her=_dGrupoHeranca(l,_renderLayers);
+    if(_her&&_her.oculto)return;
     const el=document.createElement('div');
     el.className='canvas-layer'+(l.id===dSelId?' selected':'')+(l.locked?' layer-locked':'')+(dMultiSel.includes(l.id)?' multi-sel':'');
     el.dataset.id=l.id;
@@ -1460,6 +1519,9 @@ function dRenderCanvas(){
         if(typeof dStartCrop==='function') dStartCrop(lReal);
       });
     }
+    // Herança do grupo por ÚLTIMO: a opacidade própria da camada é definida em cada ramo de
+    // tipo acima, e aqui ela é multiplicada pela do(s) grupo(s) — não sobrescrita.
+    _dAplicaHerancaGrupo(el,l,_her);
     frame.appendChild(el);
   });
   // Recolocar paint canvas: se já existia com tamanho certo, reinserir a mesma referência
