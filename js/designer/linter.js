@@ -149,8 +149,11 @@ function _dLinterEstresse() {
 
   // (c) nem encolhendo até o piso coube na própria caixa
   Object.values(depois).forEach(o => {
-    if (o.l.type !== 'text' || !o.f || !o.f.estourou || !camposDa(o.l).length) return;
-    if (antes[o.l.id] && antes[o.l.id].f && antes[o.l.id].f.estourou) return;   // já estourava
+    // O checklist AVISA os dois (não coube + passou do teto de linhas): aqui é conselho para o
+    // designer antes de publicar, não portão de exportação. Quem bloqueia é `gLayoutCamadaReprovada`.
+    const _apertado=(f)=>!!(f&&(f.estourou||f.excedeuLinhas));
+    if (o.l.type !== 'text' || !_apertado(o.f) || !camposDa(o.l).length) return;
+    if (antes[o.l.id] && _apertado(antes[o.l.id].f)) return;   // já estourava
     out.push({
       type: 'warning',
       title: 'O pior caso não cabe',

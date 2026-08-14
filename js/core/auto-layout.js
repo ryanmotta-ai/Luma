@@ -463,6 +463,13 @@ const G_SCORE_PESOS = {
   inversao:        90,  // título ficou menor que o preço: destrói a leitura da peça
   hierarquia:      30,  // por unidade de log2 de desvio na razão entre dois degraus
   reducao:         55,  // por 100% de corpo perdido (linear: 20% de redução = 11 pts)
+  /* Entrelinha fechada custa quase o mesmo que corpo perdido, e é PROPORCIONAL ao que o
+     desenho tinha. Estava a 13 (metade do deslocamento) e a conta saía invertida: fechar o
+     respiro de um bloco arejado de 1.9 para 1.05 — que descaracteriza a peça inteira — pontuava
+     6, enquanto reduzir 20% da fonte pontuava 11. A nota PREFERIA destruir a entrelinha.
+     Medido no corpus: com o peso antigo, a política que preserva o respiro não vencia nem no
+     fixture criado justamente para ela (`bloco-arejado`). */
+  entrelinha:      48,
   deslocamento:    26,  // por 100% do lado curto de movimento acumulado
   linhaExtra:       9,  // por linha além do que o designer publicou (×peso do papel)
   editorial:        1,  // órfãs/conector/valor partido (a penalidade já vem em escala própria)
@@ -477,8 +484,19 @@ function _gScoreRect(l){
   if(typeof gInkRect === 'function') return gInkRect(l, l && l._fit);
   return { x:l&&l.x||0, y:l&&l.y||0, w:l&&l.w||0, h:l&&l.h||0 };
 }
+/* DUAS REFERÊNCIAS, para DUAS perguntas diferentes — e confundi-las foi o que fez a nota medir
+   a coisa errada:
+   · `_gScoreBase` = a composição AUTORADA. Responde "este texto cresceu além do que o designer
+     desenhou?" — é a pergunta do CULPADO.
+   · `_gScoreSemAjuste` = a mesma arte com o conteúdo real e a geometria publicada, antes de
+     qualquer degrau da escada. Responde "quanto a ADAPTAÇÃO custou?" — é a pergunta da NOTA.
+   Pontuar contra a autorada cobrava do motor o tamanho do texto que o franqueado digitou: os
+   itens geométricos disparavam em 100% dos cenários, inclusive nos que saíram intocados. */
 function _gScoreBase(l){
   return (l && l._layoutBase) || { x:l&&l.x||0, y:l&&l.y||0, w:l&&l.w||0, h:l&&l.h||0 };
+}
+function _gScoreSemAjuste(l){
+  return (l && l._layoutSemAjuste) || _gScoreBase(l);
 }
 function _gScoreFonte(l){ return (l && l._tetoFonte != null) ? l._tetoFonte : ((l && l.fontSize) || 24); }
 
@@ -521,14 +539,16 @@ function gScoreComposition(layers, opts){
     const peso = G_SCORE_PESO_PAPEL[gLayoutRoleOf(l)] != null ? G_SCORE_PESO_PAPEL[gLayoutRoleOf(l)] : 1;
     const perda = Math.max(0, 1 - _gScoreFonte(l) / Math.max(1, l.fontSize || 24));
     itens.reducao += perda * G_SCORE_PESOS.reducao * peso;
-    const r = _gScoreRect(l), b = _gScoreBase(l);
+    const r = _gScoreRect(l), b = _gScoreSemAjuste(l);
     const d = (Math.abs(r.x - b.x) + Math.abs(r.y - b.y)) / curto;
     itens.deslocamento += d * G_SCORE_PESOS.deslocamento * peso;
-    // Entrelinha apertada é alteração barata, mas não gratuita: conta como meio deslocamento.
+    /* Entrelinha fechada entra junto com o corpo perdido: as duas respondem "quanto da
+       tipografia autorada sobrou?". O que importa é a FRAÇÃO do respiro original que se perdeu —
+       de 1.2 para 1.05 é um ajuste; de 1.9 para 1.05 é outra peça. */
     if(l._entrelinha != null){
       const lhBase = (l.layoutRef && l.layoutRef.lineHeight) || l.lineHeight || 1.2;
-      itens.deslocamento += Math.max(0, (lhBase - l._entrelinha) / Math.max(0.01, lhBase))
-                            * G_SCORE_PESOS.deslocamento * 0.5 * peso;
+      itens.reducao += Math.max(0, (lhBase - l._entrelinha) / Math.max(0.01, lhBase))
+                       * G_SCORE_PESOS.entrelinha * peso;
     }
   });
 
@@ -536,7 +556,10 @@ function gScoreComposition(layers, opts){
   textos.forEach(l => {
     const peso = G_SCORE_PESO_PAPEL[gLayoutRoleOf(l)] != null ? G_SCORE_PESO_PAPEL[gLayoutRoleOf(l)] : 1;
     const linhas = (l._fit.lines && l._fit.lines.length) || 1;
-    const refLinhas = (l.layoutRef && l.layoutRef.linhas) || 1;
+    // Linhas que o texto do franqueado já usaria SEM adaptação: cobrar dele o comprimento do
+    // que a pessoa digitou não é avaliar o motor.
+    const refLinhas = (l._layoutSemAjuste && l._layoutSemAjuste.linhas)
+      || (l.layoutRef && l.layoutRef.linhas) || 1;
     if(linhas > refLinhas) itens.linhas += (linhas - refLinhas) * G_SCORE_PESOS.linhaExtra * peso;
     const teto = gLayoutRoleMaxLines(gLayoutRoleOf(l));
     if(linhas > teto) itens.linhas += (linhas - teto) * G_SCORE_PESOS.linhaExtra * peso * 2;
@@ -546,7 +569,7 @@ function gScoreComposition(layers, opts){
   // ── RESPIRO ── quanto do vão original entre blocos sobreviveu.
   // Só entre pares que NÃO se tocavam no desenho: onde já havia sobreposição intencional
   // (texto sobre placa) não existe respiro a perder.
-  const caixas = vis.map(l => ({ l, r: _gScoreRect(l), b: _gScoreBase(l) }))
+  const caixas = vis.map(l => ({ l, r: _gScoreRect(l), b: _gScoreSemAjuste(l) }))
                     .filter(o => o.r.w > 0 && o.r.h > 0).slice(0, 40);
   let perdaRespiro = 0, paresRespiro = 0;
   for(let i = 0; i < caixas.length; i++){
@@ -562,14 +585,19 @@ function gScoreComposition(layers, opts){
   }
   if(paresRespiro) itens.respiro = (perdaRespiro / paresRespiro) * G_SCORE_PESOS.respiro;
 
-  // ── DENSIDADE ── a mancha de tinta mudou muito em relação ao desenho?
-  let inkFim = 0, inkBase = 0;
+  /* ── DENSIDADE ── quanto a ADAPTAÇÃO mexeu na mancha de tinta.
+     ⚠ A referência aqui é `_layoutSemAjuste` (a arte com o conteúdo real e a geometria
+     publicada), NÃO a referência autorada. Comparar com a autorada media o quanto o texto do
+     franqueado é maior que o do designer — que não é trabalho do motor e é igual para todos os
+     candidatos. Com a referência certa, arte não adaptada pontua zero. */
+  let inkFim = 0, inkSem = 0;
   textos.forEach(l => {
-    const r = _gScoreRect(l), b = _gScoreBase(l);
+    const r = _gScoreRect(l), s = _gScoreSemAjuste(l);
     inkFim += Math.max(0, r.w) * Math.max(0, r.h);
-    inkBase += Math.max(0, b.w) * Math.max(0, b.h);
+    inkSem += Math.max(0, s.w) * Math.max(0, s.h);
   });
-  if(inkBase > 0) itens.densidade = Math.abs(inkFim - inkBase) / inkBase * G_SCORE_PESOS.densidade;
+  if(inkSem > 0) itens.densidade = Math.abs(inkFim - inkSem) / inkSem * G_SCORE_PESOS.densidade;
+  const inkBase = inkSem;
 
   // ── ALINHAMENTO ── arestas que compartilhavam a mesma coluna e se soltaram.
   const arestas = (o) => {
@@ -595,9 +623,10 @@ function gScoreComposition(layers, opts){
     });
     return m ? { x: mx/m, y: my/m } : null;
   };
-  const cFim = centro(o => o.r), cBase = centro(o => o.b);
-  if(cFim && cBase){
-    itens.equilibrio = (Math.abs(cFim.x - cBase.x) + Math.abs(cFim.y - cBase.y)) / curto * G_SCORE_PESOS.equilibrio;
+  // Mesma correção da densidade: o desvio que interessa é o causado pela adaptação.
+  const cFim = centro(o => o.r), cSem = centro(o => _gScoreSemAjuste(o.l));
+  if(cFim && cSem){
+    itens.equilibrio = (Math.abs(cFim.x - cSem.x) + Math.abs(cFim.y - cSem.y)) / curto * G_SCORE_PESOS.equilibrio;
   }
 
   const penal = Object.keys(itens).reduce((s,k) => s + (itens[k] || 0), 0);
@@ -649,8 +678,17 @@ function gLayoutEscolherAlternativa(layers, dados, defaults, opts, padrao){
     if(!out || !out.length) return;
     cands.push({ politica, out, score: gScoreComposition(out, cvOpts) });
   });
+  /* MARGEM MÍNIMA PARA TROCAR. Medido na bancada: em metade das trocas o ganho era de ~1 ponto
+     numa penalidade de 150–390 — meio por cento, que move um CTA 14px por ruído de arredondamento
+     e faz a arte mudar entre versões sem ninguém ter pedido. A padrão é a composição que o corpus
+     conhece e a de alteração mínima; para destroná-la, a alternativa tem que ganhar de forma
+     VISÍVEL: 3 pontos absolutos ou 2% da penalidade, o que for maior. */
+  const _margem = Math.max(3, cands[0].score.penal * 0.02);
   let melhor = cands[0];
-  cands.forEach(c => { if(c.score.penal < melhor.score.penal - 0.001) melhor = c; });
+  cands.forEach(c => {
+    if(c === cands[0]) return;
+    if(c.score.penal < melhor.score.penal - (melhor === cands[0] ? _margem : 0.001)) melhor = c;
+  });
   const msTotal = cands.reduce((s,c) => s + ((c.out._layoutMeta && c.out._layoutMeta.ms) || 0), 0);
   melhor.out._layoutMeta = Object.assign({}, melhor.out._layoutMeta || {}, {
     politica: melhor.politica, ms: Math.round(msTotal * 100) / 100,

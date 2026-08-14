@@ -756,7 +756,9 @@ function gMeasureLayerHeight(layer, text) {
    @param {string} texto  conteúdo JÁ interpolado (sem {{ }})
    @param {CanvasRenderingContext2D} [ctxAux] canvas de medição reaproveitável
    @param {object} [opts] {escala:1, encolher:true, pisoFonte:null, runs:null}
-   @returns {{text,lines,fontSize,letterSpacing,altura,larguraMax,estourou}}
+   @returns {{text,lines,fontSize,letterSpacing,altura,larguraMax,estourou,excedeuLinhas}}
+           `estourou` = não coube de fato (dano). `excedeuLinhas` = passou do teto semântico de
+           linhas (preferência editorial). Só o primeiro reprova a arte.
 ══════════════════════════════════════════════════════════════ */
 /* PISO DE ENCOLHIMENTO POR HIERARQUIA.
    O encolhimento resolve o encaixe DESTRUINDO o que ele deveria proteger: o piso é 50% do
@@ -963,7 +965,7 @@ function gFitTextLayer(layer, texto, ctxAux, opts) {
   // Carimbado no clone por gApplyRelativeAnchors, então medida e render partem do mesmo lugar.
   const _desenhada = (l._tetoFonte != null) ? Math.min(l._tetoFonte, l.fontSize || 24) : (l.fontSize || 24);
   let base = Math.round(_desenhada * esc);
-  const vazio = { text:'', lines:[], fontSize:base, letterSpacing:null, altura:0, larguraMax:0, estourou:false };
+  const vazio = { text:'', lines:[], fontSize:base, letterSpacing:null, altura:0, larguraMax:0, estourou:false, excedeuLinhas:false };
   if (l.type !== 'text') return vazio;
 
   let txt = String(texto == null ? '' : texto);
@@ -1083,7 +1085,7 @@ function gFitTextLayer(layer, texto, ctxAux, opts) {
     return {text:txt,lines:linhas,fontSize:fs,
       letterSpacing:(ls!=null)?(ls+'px'):null,
       altura:Math.round(m.altura),larguraMax:Math.round(m.largura),
-      estourou:m.altura>boxH+1||m.largura>boxW+1};
+      estourou:m.altura>boxH+1||m.largura>boxW+1, excedeuLinhas:false};
   }
   const medir = () => {
     if(runsMedida)return medirRuns().largura;
@@ -1098,7 +1100,15 @@ function gFitTextLayer(layer, texto, ctxAux, opts) {
   const largura = Math.round(larguraLayout * esc);
   const pad = Math.round(fs * 0.08);
   const disp = Math.max(10, largura - pad * 2);
-  let estourou = excedeuLinhas;
+  /* ⚠ DUAS COISAS DIFERENTES, e confundi-las bloqueava arte boa.
+     `excedeuLinhas` é PREFERÊNCIA editorial: o título usou 4 linhas onde o teto semântico pede
+     3. A arte pode estar inteira dentro da prancheta, sem tocar em nada — só menos elegante.
+     `estourou` é DANO: o texto não cabe na própria caixa nem no piso da fonte.
+     Medido na bancada: 12 dos 14 bloqueios do corpus eram artes SEM fuga e SEM sobreposição,
+     barradas só pelo teto de linhas. Bloquear a exportação por preferência editorial é o erro
+     mais caro deste produto — o franqueado fica sem arte e sem saída. A preferência agora
+     guia a escada e pesa na NOTA; quem bloqueia é o dano. */
+  let estourou = false;
   if (opts.encolher !== false && ehCaixa && maxL > disp) {
     // Prioridade: piso explícito > piso da hierarquia (carimbado) > o antigo 50% isolado.
     const _pisoBase = (opts.pisoFonte != null) ? opts.pisoFonte
@@ -1122,7 +1132,7 @@ function gFitTextLayer(layer, texto, ctxAux, opts) {
   return { text: txt, lines: medidaRuns?medidaRuns.linhas:linhas, fontSize: fs,
     letterSpacing: (ls != null) ? (ls + 'px') : null,
     altura: Math.round(medidaRuns?medidaRuns.altura:lh * linhas.length),
-    larguraMax: Math.round(maxL), estourou };
+    larguraMax: Math.round(maxL), estourou, excedeuLinhas };
 }
 
 /* O interruptor do layout vivo — DOIS em série.
@@ -1720,6 +1730,21 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
                        vazio: _fit && l.type === 'text' && !!l._fit && l._fit.altura === 0 };
   });
 
+  /* A ARTE SEM AJUSTE — mesma geometria publicada, mesmo conteúdo do franqueado, nenhuma
+     adaptação ainda. É a referência certa para perguntar "quanto a ADAPTAÇÃO custou?".
+     Medido na bancada: comparando com a referência AUTORADA, os itens de densidade e equilíbrio
+     disparavam em 100% dos cenários — inclusive nos 43 que saíram `original`, onde nada foi
+     adaptado. Estavam medindo o conteúdo do franqueado, não o trabalho do motor, e por isso a
+     nota saturava em zero e não servia para telemetria nem para comparar candidatos. */
+  if (_fit) cloned.forEach(l => {
+    const r = resolved[l.id];
+    if (!r) return;
+    l._layoutSemAjuste = { x: r.x + (r.dx || 0), y: r.y + (r.dy || 0), w: r.w, h: r.h,
+      // Quantas linhas o texto do franqueado já usaria sem nenhuma adaptação. Sem isto, o item
+      // "linhas" cobrava do motor o tamanho do texto que a pessoa digitou.
+      linhas: (l._fit && l._fit.lines && l._fit.lines.length) || 1 };
+  });
+
   /* A composição de referência precisa ser registrada ANTES de criar corredores/âncoras. É
      ela que distingue uma sobreposição intencional (texto dentro de placa) de uma invasão
      causada pelo valor real do franqueado. */
@@ -1918,11 +1943,30 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
      existiam na arte de referência (texto sobre placa, selo, imagem de fundo etc.). */
   const _obstaculosLayout=(_fit&&_cv)
     ?cloned.filter(o=>_gLayoutObstaculo(o,cloned,_cv,baseVisual)):[];
+  /* A RAIZ DINÂMICA de uma camada — sobe a corrente até quem tem campo.
+     Uma camada FIXA que colide foi EMPURRADA para lá; encolhê-la não resolve nada, e nomeá-la
+     no diagnóstico mandaria o franqueado encurtar um texto que ele nem digitou. Quem responde é
+     quem cresceu lá em cima. */
+  const _raizDinamica=(l)=>{
+    let a=l,g=0;
+    while(a&&g++<16){
+      if(_gLayoutTemCampo(a))return a;
+      const an=a.relativeAnchor||a._anchorAuto;
+      a=(an&&an.layerId)?cloned.find(x=>x&&x.id===an.layerId):null;
+    }
+    return null;
+  };
   const _colisoesInternas = () => {
     if(!_fit||!_cv)return [];
     const out=[];
     cloned.forEach(t=>{
-      if(!_gLayoutTemCampo(t)||!_gLayoutVisivel(t))return;
+      /* ⚠ QUALQUER TEXTO QUE A ADAPTAÇÃO MEXEU, não só os com campo. O varredor antigo só
+         olhava campos como possíveis culpados — e por isso não enxergava o caso mais comum de
+         estrago real: o CTA FIXO empurrado pela corrente para cima da foto. Medido na bancada,
+         3 artes saíram APROVADAS com o CTA sobre o assunto da imagem.
+         A guarda `deltaT<=1` logo abaixo é que mantém a precisão: quem não cresceu nem foi
+         movido continua fora da conta. */
+      if(!t||t.type!=='text'||!_gLayoutVisivel(t))return;
       const rt=resolved[t.id],bt=baseVisual[t.id];
       if(!rt||!bt||!rt.h||!rt.w)return;
       const tinta={x:rt.x+(rt.dx||0),y:rt.y+(rt.dy||0),w:rt.w,h:rt.h};
@@ -1949,7 +1993,7 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
         if(interBase>0){
           const tolerancia=Math.max(2,Math.min(bt.w*bt.h,bo.w*bo.h)*0.005);
           if(_gRectIntersecao(tinta,atualO)>interBase+tolerancia)
-            out.push({culpado:t,obstaculo:o});
+            out.push({culpado:_raizDinamica(t)||t,obstaculo:o,vitima:t});
           return;
         }
         const gaps=[];
@@ -1962,14 +2006,17 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
            nulo. Isso não redesenha o estado normal: esta checagem só roda quando `deltaT>1`. */
         const pad=_gLayoutRespiro(t,gapBase,_cv);
         const protegido={x:atualO.x-pad,y:atualO.y-pad,w:atualO.w+pad*2,h:atualO.h+pad*2};
-        if(_gRectIntersecao(tinta,protegido)>1)out.push({culpado:t,obstaculo:o});
+        if(_gRectIntersecao(tinta,protegido)>1)out.push({culpado:_raizDinamica(t)||t,obstaculo:o,vitima:t});
       });
     });
     return out;
   };
   let _ultimasColisoes=[];
   let _ultimosEstouros=[];
-  const _estourosRestritos=()=>cloned.filter(l=>_gLayoutTemCampo(l)&&l._fit&&l._fit.estourou
+  /* A escada segue perseguindo os DOIS: encolher para caber no teto de linhas é justamente o
+     que um designer faria. O que mudou é só o veredito — teto excedido não reprova a arte. */
+  const _estourosRestritos=()=>cloned.filter(l=>_gLayoutTemCampo(l)&&l._fit
+    &&(l._fit.estourou||l._fit.excedeuLinhas)
     &&(l.textBox==='box'||l._layoutW!=null||l.vertical));
   const _violaComposicao=()=>{
     _ultimasColisoes=_colisoesInternas();
