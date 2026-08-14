@@ -522,6 +522,8 @@ let _lpEffectiveMaterial = null;
 // Tem PRIORIDADE sobre o smart-zoom do chat (que foca o campo ativo) — ver _fLpApplyCanvasFocus.
 let _lpUserZoom = 1, _lpPanX = 0, _lpPanY = 0;
 let _lpPanning = null, _lpDidPan = false, _lpSuppressClick = false;
+const F_LP_ZOOM_MIN = .35, F_LP_ZOOM_MAX = 6;
+const F_LP_ZOOM_STEPS = [.35,.5,.67,.8,1,1.25,1.5,2,2.5,3,4,5,6];
 const F_LP_AUTO_ZOOM_KEY = 'luma-lp-auto-zoom';
 let _lpAutoZoom = true;
 try { _lpAutoZoom = localStorage.getItem(F_LP_AUTO_ZOOM_KEY) !== '0'; } catch(e){}
@@ -735,10 +737,38 @@ function fLpSizeCanvas(canvas, W, H){
   }
 }
 
+// Slider logarítmico: entrega precisão perto do ajuste à tela sem sacrificar o alcance 35–600%.
+// O valor nativo 0–1000 é interno; o aria-valuetext sempre anuncia a escala real da arte.
+function _fLpZoomToSlider(z){
+  const clamped=Math.max(F_LP_ZOOM_MIN,Math.min(F_LP_ZOOM_MAX,+z||1));
+  return Math.round(Math.log(clamped/F_LP_ZOOM_MIN)/Math.log(F_LP_ZOOM_MAX/F_LP_ZOOM_MIN)*1000);
+}
+function _fLpSliderToZoom(v){
+  const t=Math.max(0,Math.min(1000,+v||0))/1000;
+  return F_LP_ZOOM_MIN*Math.pow(F_LP_ZOOM_MAX/F_LP_ZOOM_MIN,t);
+}
+
 // Rótulo honesto na toolbar: escala real (ajuste × zoom manual) da prévia sobre a arte final.
+// Sincroniza também slider, limites dos botões e leitura acessível — uma fonte de estado.
 function _fLpUpdateZoomLabel(){
   const zoomEl = document.getElementById('lp-zoom');
-  if(zoomEl) zoomEl.textContent = Math.round(_lpScale * _lpUserZoom * 100) + '%';
+  const actual=Math.round(_lpScale*_lpUserZoom*100), sliderPos=_fLpZoomToSlider(_lpUserZoom);
+  if(zoomEl){
+    zoomEl.textContent=actual+'%';
+    zoomEl.title='Zoom '+actual+'% · clique para voltar ao ajuste de tela';
+    zoomEl.setAttribute('aria-label','Zoom atual '+actual+'%. Clique para voltar ao ajuste de tela');
+  }
+  const range=document.getElementById('lp-zoom-range');
+  if(range){
+    range.value=String(sliderPos);
+    range.style.setProperty('--lp-zoom-progress',(sliderPos/10).toFixed(1)+'%');
+    range.setAttribute('aria-valuetext',actual+'% da arte final');
+    range.title='Zoom '+actual+'%';
+  }
+  const minus=document.querySelector('[data-lp-zoom-step="-1"]');
+  const plus=document.querySelector('[data-lp-zoom-step="1"]');
+  if(minus)minus.disabled=_lpUserZoom<=F_LP_ZOOM_MIN+.001;
+  if(plus)plus.disabled=_lpUserZoom>=F_LP_ZOOM_MAX-.001;
 }
 
 // Reajusta a prévia à tela e RECENTRALIZA (botão da toolbar / clique no %). O resgate do
@@ -800,8 +830,9 @@ function _fLpZoomAround(next, sx, sy){
   const wrap = document.querySelector('.lp-canvas-wrap');
   if(!wrap) return;
   const old = _lpUserZoom;
-  next = Math.max(1, Math.min(6, next));
-  if(next === old) return;
+  next = Math.max(F_LP_ZOOM_MIN, Math.min(F_LP_ZOOM_MAX, +next||1));
+  if(Math.abs(next-1)<.002)next=1;
+  if(Math.abs(next-old)<.0001){_fLpUpdateZoomLabel();return;}
   const r = wrap.getBoundingClientRect();
   const cx = sx - (r.left + r.width / 2 - _lpPanX);
   const cy = sy - (r.top + r.height / 2 - _lpPanY);
@@ -857,12 +888,22 @@ function _fLpPanUp(){
   if(_lpDidPan){ _lpSuppressClick = true; setTimeout(()=>{ _lpSuppressClick = false; }, 0); }
 }
 
-// Botões −/+ da toolbar: zoom pelo centro da mesa (sem cursor de referência).
+// Botões −/+ da toolbar: degraus previsíveis e retorno exato ao ajuste (1×).
 function fLpZoomStep(dir){
   const stage = document.querySelector('.lp-stage');
   if(!stage) return;
   const r = stage.getBoundingClientRect();
-  _fLpZoomAround(_lpUserZoom * (dir > 0 ? 1.25 : 0.8), r.left + r.width / 2, r.top + r.height / 2);
+  const eps=.001;
+  const next=dir>0
+    ? (F_LP_ZOOM_STEPS.find(v=>v>_lpUserZoom+eps)||F_LP_ZOOM_MAX)
+    : (F_LP_ZOOM_STEPS.slice().reverse().find(v=>v<_lpUserZoom-eps)||F_LP_ZOOM_MIN);
+  _fLpZoomAround(next, r.left + r.width / 2, r.top + r.height / 2);
+}
+// Slider: o mesmo motor da roda/pinça, centrado na mesa para não fazer a arte "saltar".
+function fLpZoomSlider(value){
+  const stage=document.querySelector('.lp-stage'); if(!stage)return;
+  const r=stage.getBoundingClientRect();
+  _fLpZoomAround(_fLpSliderToZoom(value),r.left+r.width/2,r.top+r.height/2);
 }
 // Clicar no % recentraliza e volta ao ajuste de tela.
 function fLpZoomReset(){ fLpRefit(); }
