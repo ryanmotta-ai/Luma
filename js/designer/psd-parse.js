@@ -337,6 +337,11 @@ function _dPsdVectorShapeKind(node, w, h){
     return null; // linha/custom → deixa o heurístico de pixel decidir
   }catch(e){ return null; }
 }
+/* O ID de uma camada importada do PSD nasce AQUI e em nenhum outro lugar. A fórmula estava
+   escrita duas vezes — em `dItemToLayer` e no `clipBaseId` do pós-processamento — e o dia em que
+   as duas divergissem o clipping editável quebraria EM SILÊNCIO: `_layerById.get(clipBaseId)`
+   devolveria undefined, o recorte sumiria do PNG e nenhum erro apareceria. */
+function _dPsdItemId(it){ return 'l-psd-'+it.n+'-'+(it.x+it.y); }
 // Caixa do CAMINHO vetorial, diferente de node.left/top/right/bottom (que inclui a expansão do
 // stroke). Usar o bounds do layer como path deslocava um contorno de 5px ~4px para fora.
 function _dPsdVectorShapeBox(node, ox, oy){
@@ -1622,7 +1627,7 @@ function dPsdParseItems(psd, res, ox, oy){
         const base=out[baseIdx];
         // `mask` fica como snapshot de compatibilidade para o DOM do editor; o Canvas final usa
         // clipBaseId e redesenha o alpha da base a cada render. Máscaras próprias ficam separadas.
-        out[i].clipBaseId='l-psd-'+base.n+'-'+(base.x+base.y);
+        out[i].clipBaseId=_dPsdItemId(base);
         out[i].clipBaseSnapshot={x:base.x,y:base.y,w:base.w,h:base.h,shapeKind:base.shapeKind||'rect',radius:base.radius||0,radii:base.radii||null,points:base.points||null,sides:base.sides||null,inner:base.inner||null,vectorPath:base.vectorPath||null,maskSize:base.mask?base.mask.length:0};
         out[i].clipOwnMask=_dPsdComputeMask(out[i]._psdNode, null, _extra);
         _m = _dPsdComputeMask(out[i]._psdNode, base._psdNode, _extra);
@@ -1721,7 +1726,7 @@ function _dPsdApplyFx(L, it){
   return L;
 }
 function dItemToLayer(it){
-  const base={ id:'l-psd-'+it.n+'-'+(it.x+it.y), name:it.name, x:it.x,y:it.y,w:it.w,h:it.h, visible:it.visible, opacity:it.opacity };
+  const base={ id:_dPsdItemId(it), name:it.name, x:it.x,y:it.y,w:it.w,h:it.h, visible:it.visible, opacity:it.opacity };
   if(it._groupChain&&it._groupChain.length)base.parentId=it._groupChain[it._groupChain.length-1].id;
   // fillOpacity sem efeitos ≡ opacity; com efeitos, só o fill deveria atenuar (não os efeitos) →
   // não é representável no modelo atual, marca p/ P3 rasterizar fiel.

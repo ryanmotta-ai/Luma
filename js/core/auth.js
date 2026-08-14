@@ -43,7 +43,7 @@ async function gLoadProfile() {
     // continua (fail-closed, correto) — mas agora com aviso do que aconteceu.
     if (profErr) {
       console.warn('[auth] profile não carregou — usando role mínima temporária:', profErr.message||profErr);
-      try { if (typeof gToast === 'function') gToast('⚠ Não consegui carregar seu perfil completo. Recarregue a página.', 'error'); } catch(e) {}
+      try { if (typeof gToast === 'function') gToast('Não consegui carregar seu perfil completo. Recarregue a página.', 'error'); } catch(e) {}
     }
     // Gate de conta desativada: sem isto, "Desativar acesso" na Equipe era cosmético —
     // o usuário com ativo=false seguia logando e usando tudo. (RLS ainda é a fronteira

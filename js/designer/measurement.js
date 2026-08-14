@@ -244,7 +244,7 @@ async function dColorSamplerAdd(x, y){
   }
   var color=await dEyedropPixel(x, y);
   if(!color){
-    gToast('⚠ Posição fora do canvas');
+    gToast('Posição fora do canvas');
     return;
   }
   dColorSamplers.push({x:x, y:y, color:color, el:null});

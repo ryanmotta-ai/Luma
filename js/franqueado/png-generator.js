@@ -328,6 +328,11 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp, materialOve
     for(const l of visible){
       if(typeof l.imgUrl==='string' && l.imgUrl) _urls.push(l.imgUrl);
       if(typeof l.mask==='string' && l.mask) _urls.push(l.mask);
+      // Máscaras da composição de grupo/clipping (PSD): sem elas aqui, cada recorte volta a ser
+      // um download EM SÉRIE dentro do loop — exatamente o custo que esta pré-carga existe para
+      // matar. A do grupo entra pelo próprio `l.mask` acima (grupo é camada); falta a do
+      // clipping editável, que mora num campo separado.
+      if(typeof l.clipOwnMask==='string' && l.clipOwnMask) _urls.push(l.clipOwnMask);
       if(l.imgVar && dados && typeof dados[l.imgVar]==='string' && dados[l.imgVar]) _urls.push(dados[l.imgVar]);
     }
     await Promise.all(_urls.map(u=>fLoadImageDataUrl(u)));

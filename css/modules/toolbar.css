@@ -758,6 +758,43 @@ select option{background:#222}
   transform: translateY(8px) scale(0.95);
 }
 
+/* ── DIÁLOGO DA CASA (gConfirm/gPrompt — js/core/toast.js) ──
+   Era o ÚNICO componente de UI montado 100% em `style=` inline dentro do JS, com hex cru
+   (#C81818, #FF9000) em vez de token: o único que não acompanhava uma mudança do design system.
+   Os valores aqui são os mesmos que estavam inline — isto é mudança de lugar, não de aparência. */
+.g-dialog-ov {
+  position: fixed; inset: 0; z-index: 11000;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(10,10,10,.5); padding: 20px;
+}
+.g-dialog {
+  background: var(--white); color: var(--text);
+  border: 1px solid var(--gray-mid); border-radius: 12px;
+  padding: 20px; width: 100%; max-width: 400px;
+  box-shadow: 0 20px 50px rgba(0,0,0,.35);
+  font-family: 'Roboto', sans-serif;
+}
+.g-dialog-title { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+.g-dialog-msg { font-size: 13px; line-height: 1.5; color: var(--text-2); margin-bottom: 18px; }
+.g-dialog.has-input .g-dialog-msg { margin-bottom: 10px; }
+.g-dialog-input {
+  width: 100%; font-size: 13px; padding: 9px 11px;
+  border: 1px solid var(--gray-mid); border-radius: 7px;
+  background: var(--white); color: var(--text); outline: none; margin-bottom: 18px;
+}
+.g-dialog-input:focus { border-color: var(--dm-orange); }
+.g-dialog-acts { display: flex; gap: 8px; justify-content: flex-end; }
+.g-dialog-cancel, .g-dialog-ok { font-size: 12px; border-radius: 7px; cursor: pointer; }
+.g-dialog-cancel {
+  font-weight: 600; padding: 8px 14px;
+  border: 1px solid var(--gray-mid); background: transparent; color: var(--text-2);
+}
+.g-dialog-ok {
+  font-weight: 700; padding: 8px 16px;
+  border: 1px solid var(--dm-orange); background: var(--dm-orange); color: var(--on-accent);
+}
+.g-dialog-ok.danger { border-color: var(--dm-red); background: var(--dm-red); }
+
 @keyframes gToastItemIn {
   from {
     opacity: 0;

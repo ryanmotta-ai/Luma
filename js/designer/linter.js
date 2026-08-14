@@ -451,7 +451,7 @@ function dRunLinter() {
 function dApplyIntelligentLayout(){
   if(typeof gResolveIntelligentLayout!=='function'||!dLayers||!dLayers.length)return;
   const ab=typeof dGetActiveAB==='function'?dGetActiveAB():null;
-  if(!ab||!ab.w||!ab.h){gToast('⚠ Não foi possível identificar o tamanho da prancheta');return;}
+  if(!ab||!ab.w||!ab.h){gToast('Não foi possível identificar o tamanho da prancheta');return;}
 
   if(typeof gIntelligentLayoutContext!=='function')return;
   const result=gResolveIntelligentLayout(dLayers,gIntelligentLayoutContext(dLayers,ab.w,ab.h));

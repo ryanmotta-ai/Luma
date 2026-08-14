@@ -158,7 +158,7 @@ function dObjSelectEnd(e) {
     } else {
       dSelLayer(bestLayer.id);
     }
-    gToast('✓ Selecionado: ' + (bestLayer.name || bestLayer.id));
+    gToast('Selecionado: ' + (bestLayer.name || bestLayer.id));
   } else {
     // Nenhuma sobreposição significativa — desselecionar
     dSelId = null;
@@ -351,7 +351,7 @@ function dMagicWandAt(x, y) {
   }
 
   if (!sourceLayer) {
-    gToast('⚠ Nenhuma camada sob o ponto');
+    gToast('Nenhuma camada sob o ponto');
     dSelId = null;
     dMultiSel = [];
     dRenderCanvas();
@@ -362,7 +362,7 @@ function dMagicWandAt(x, y) {
   // 2. Obter cor dominante do layer-fonte
   const sourceColor = _dMagicWandGetLayerColor(sourceLayer);
   if (!sourceColor) {
-    gToast('⚠ Camada sem cor dominante (imagem/frame)');
+    gToast('Camada sem cor dominante (imagem/frame)');
     return;
   }
 
@@ -384,7 +384,7 @@ function dMagicWandAt(x, y) {
   }
 
   if (matched.length === 0) {
-    gToast('⚠ Nenhuma camada correspondente');
+    gToast('Nenhuma camada correspondente');
     return;
   }
 
@@ -394,7 +394,7 @@ function dMagicWandAt(x, y) {
 
   dRenderCanvas();
   dRenderLayersList();
-  gToast('✓ Magic Wand: ' + matched.length + ' camada(s) selecionada(s) (cor: ' + sourceColor + ')');
+  gToast('Magic Wand: ' + matched.length + ' camada(s) selecionada(s) (cor: ' + sourceColor + ')');
 }
 
 /**

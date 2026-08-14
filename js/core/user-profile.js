@@ -21,7 +21,8 @@ function gOpenUserProfileModal() {
 
   // Telefone: banco (profiles.telefone, via gLoadProfile) > cache local antigo > vazio.
   // (O default fake '(55) 99123-4567' era resto de mock — sumiu.)
-  const phone = (user && user.telefone) || localStorage.getItem('__luma_user_phone_' + email) || '';
+  let _phoneLocal=''; try{ _phoneLocal = localStorage.getItem('__luma_user_phone_' + email) || ''; }catch(e){}
+  const phone = (user && user.telefone) || _phoneLocal || '';
   const theme = document.body.classList.contains('theme-light') ? 'light' : 'dark';
 
   // Preencher formulário de dados pessoais
@@ -156,7 +157,7 @@ function gProfileSwitchTab(tabName) {
 function gProfileUpdateModalAvatars(displayName, email) {
   const sidebarAv = document.getElementById('prof-sidebar-avatar');
   const editorAv = document.getElementById('prof-avatar-editor-img');
-  const savedPhoto = localStorage.getItem('__luma_user_photo_' + email);
+  let savedPhoto=null; try{ savedPhoto = localStorage.getItem('__luma_user_photo_' + email); }catch(e){}
 
   [sidebarAv, editorAv].forEach(el => {
     if (!el) return;
@@ -194,7 +195,7 @@ function gProfileHandleUpload(input) {
 
   // Limite generoso (15MB) para suportar fotos originais de câmera mobile/desktop
   if (file.size > 15 * 1024 * 1024) {
-    if (typeof gToast === 'function') gToast('⚠ Imagem muito grande — escolha uma foto de até 15MB.', 'error');
+    if (typeof gToast === 'function') gToast('Imagem muito grande — escolha uma foto de até 15MB.', 'error');
     return;
   }
 
@@ -229,10 +230,10 @@ function gProfileHandleUpload(input) {
       if (typeof gUpdateUserTopbar === 'function') gUpdateUserTopbar();
       gProfileUpdateModalAvatars(user ? user.displayName : 'Ryan', email);
       
-      if (typeof gToast === 'function') gToast('📸 Foto de perfil atualizada!');
+      if (typeof gToast === 'function') gToast('Foto de perfil atualizada!');
     };
     img.onerror = function() {
-      if (typeof gToast === 'function') gToast('⚠ Não foi possível processar a imagem selecionada.', 'error');
+      if (typeof gToast === 'function') gToast('Não foi possível processar a imagem selecionada.', 'error');
     };
     img.src = e.target.result;
   };
@@ -267,14 +268,14 @@ async function gProfileSaveData(event) {
         .eq('id', me.id);
       if (error) {
         btn.disabled = false; btn.innerHTML = originalHTML;
-        gToast('⚠️ Não salvou no servidor: ' + error.message, 'error');
+        gToast('Não salvou no servidor: ' + error.message, 'error');
         return;
       }
       if (typeof gAuthState !== 'undefined' && gAuthState.user) gAuthState.user.telefone = phoneVal;
     }
   } catch(e) {
     btn.disabled = false; btn.innerHTML = originalHTML;
-    gToast('⚠️ Não salvou no servidor. Verifique a conexão.', 'error');
+    gToast('Não salvou no servidor. Verifique a conexão.', 'error');
     return;
   }
 
@@ -301,7 +302,7 @@ async function gProfileSaveData(event) {
     }
 
     // Persistir telefone e preferências adicionais
-    localStorage.setItem('__luma_user_phone_' + emailVal, phoneVal);
+    try{ localStorage.setItem('__luma_user_phone_' + emailVal, phoneVal); }catch(e){}
 
     // Aplicar e salvar tema
     gProfileApplyTheme(themeVal);
@@ -318,7 +319,7 @@ async function gProfileSaveData(event) {
     btn.disabled = false;
     btn.innerHTML = originalHTML;
 
-    if (typeof gToast === 'function') gToast('✅ Perfil salvo com sucesso!');
+    if (typeof gToast === 'function') gToast('Perfil salvo com sucesso!');
     gCloseUserProfileModal();
   }, 600);
 }
@@ -413,17 +414,17 @@ async function gProfileChangePassword(event) {
   const confirmPass = document.getElementById('prof-input-password-confirm').value;
 
   if (newPass.length < 8) {
-    if (typeof gToast === 'function') gToast('⚠ A nova senha deve ter no mínimo 8 caracteres', 'error');
+    if (typeof gToast === 'function') gToast('A nova senha deve ter no mínimo 8 caracteres', 'error');
     return;
   }
 
   if (newPass !== confirmPass) {
-    if (typeof gToast === 'function') gToast('⚠ As senhas não coincidem', 'error');
+    if (typeof gToast === 'function') gToast('As senhas não coincidem', 'error');
     return;
   }
 
   if (typeof gResetPassword !== 'function') {
-    if (typeof gToast === 'function') gToast('⚠ Não foi possível alterar a senha agora', 'error');
+    if (typeof gToast === 'function') gToast('Não foi possível alterar a senha agora', 'error');
     return;
   }
 
@@ -443,7 +444,7 @@ async function gProfileChangePassword(event) {
     if (typeof gToast === 'function') gToast('Senha alterada');
     gCloseUserProfileModal();
   } else {
-    if (typeof gToast === 'function') gToast('⚠ ' + ((res && res.error) || 'Não foi possível alterar a senha'), 'error');
+    if (typeof gToast === 'function') gToast('' + ((res && res.error) || 'Não foi possível alterar a senha'), 'error');
   }
 }
 

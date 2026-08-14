@@ -220,7 +220,7 @@ function dStampAt(x,y){
   }
   dLayers.push(clone);
   dRenderCanvas();dRenderLayersList();dStats();dMarkUnsaved();
-  gToast('✓ "'+clone.name+'" carimbado!');
+  gToast('"'+clone.name+'" carimbado!');
   // mantém a fonte p/ múltiplos carimbos; "Limpar"/Esc reseta
 }
 
@@ -424,7 +424,7 @@ function dStampMarkSource(){
   const l = (typeof dLayers!=='undefined') ? dLayers.find(x=>x.id===dSelId) : null;
   if(!l){ gToast('Selecione uma camada para marcar como fonte'); return; }
   dStampSource = l; dStampOffset = null;
-  gToast('✓ Origem do carimbo: '+(l.name||'camada'));
+  gToast('Origem do carimbo: '+(l.name||'camada'));
   dStampUpdateStatus();
 }
 function dStampToggleAligned(){ dStampAligned=!dStampAligned; dStampOffset=null; dStampUpdateStatus(); }

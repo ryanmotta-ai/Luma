@@ -255,14 +255,14 @@ const LumaColorPicker = (function() {
   // navegador inclusive). Usa a API nativa EyeDropper (Chrome 95+/Edge 95+).
   function eyedrop(){
     if(typeof window.EyeDropper==='undefined'){
-      gToast('⚠ Conta-gotas do sistema não suportado neste navegador (use Chrome ou Edge)');
+      gToast('Conta-gotas do sistema não suportado neste navegador (use Chrome ou Edge)');
       return;
     }
     const dropper=new window.EyeDropper();
     dropper.open().then(result=>{
       if(result&&result.sRGBHex){
         setHex(result.sRGBHex);
-        gToast('✓ Cor capturada: '+result.sRGBHex);
+        gToast('Cor capturada: '+result.sRGBHex);
       }
     }).catch(()=>{/* usuário cancelou (Esc) — silencia */});
   }

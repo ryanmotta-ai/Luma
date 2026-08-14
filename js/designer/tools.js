@@ -192,7 +192,7 @@ function dAutoFitText(layerId){
     dHistoryPush();
     l.fontSize = size;
     dRenderCanvas();dMarkUnsaved();dUpdateCtxBar();
-    gToast(`✓ Auto-fit: ${originalSize}px → ${size}px`);
+    gToast(`Auto-fit: ${originalSize}px → ${size}px`);
   }else{
     gToast('Texto já está ajustado');
   }
@@ -231,7 +231,7 @@ function dEyedropFromLayer(sourceLayer){
     gToast('Não deu para ler a cor deste ponto');
     return;
   }
-  if(!color){gToast('⚠ Camada sem cor');return;}
+  if(!color){gToast('Camada sem cor');return;}
   _dEyedropApply(color, sourceLayer.id);
 }
 
@@ -291,17 +291,17 @@ function dResetColors() {
 /* ══ BUCKET FILL ══ */
 // Balde: preenche a COR do objeto clicado (texto/shape) — não é flood fill de pixels.
 function dBucketFillLayer(targetLayer){
-  if(targetLayer.locked){gToast('🔒 Camada bloqueada');return;}
+  if(targetLayer.locked){gToast('Camada bloqueada');return;}
   const _pk=document.getElementById('d-brush-color-pick'); // guard: pode não existir
   // Cor ATUAL do seletor primeiro — dEyedropLastColor é sempre truthy (nasce laranja),
   // então na ordem antiga a cor escolhida no picker nunca era usada pelo balde.
   const color = (_pk && _pk.value) || dEyedropLastColor || '#FF9000';
-  if(targetLayer.type!=='text' && targetLayer.type!=='shape'){ gToast('⚠ Balde preenche a cor de texto/forma — clique num desses'); return; }
+  if(targetLayer.type!=='text' && targetLayer.type!=='shape'){ gToast('Balde preenche a cor de texto/forma — clique num desses'); return; }
   dHistoryPush();
   if(targetLayer.type==='text')targetLayer.color=color;
   else targetLayer.fill=color;
   dRenderCanvas();dMarkUnsaved();dUpdateCtxBar();
-  gToast('🪣 Cor preenchida: '+color);
+  gToast('Cor preenchida: '+color);
 }
 
 /* ══ TOOLBAR COLUMNS (Photoshop style) ══ */
@@ -311,11 +311,11 @@ function dToggleToolbarCols() {
   if(tb.classList.contains('cols-2')) {
     tb.classList.remove('cols-2');
     tb.classList.add('cols-1');
-    localStorage.setItem('luma_tb_cols', '1');
+    try{ localStorage.setItem('luma_tb_cols', '1'); }catch(e){}
   } else {
     tb.classList.remove('cols-1');
     tb.classList.add('cols-2');
-    localStorage.setItem('luma_tb_cols', '2');
+    try{ localStorage.setItem('luma_tb_cols', '2'); }catch(e){}
   }
 }
 
@@ -346,7 +346,7 @@ document.addEventListener('mousedown', (e) => {
 document.addEventListener('DOMContentLoaded', () => {
   const tb = document.getElementById('d-vtoolbar');
   if(tb) {
-    const pref = localStorage.getItem('luma_tb_cols');
+    let pref=null; try{ pref = localStorage.getItem('luma_tb_cols'); }catch(e){}
     if(pref === '1') {
       tb.classList.remove('cols-2');
       tb.classList.add('cols-1');

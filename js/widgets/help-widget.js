@@ -12,7 +12,10 @@
     attachedFile: null,
     isListening: false,
     selectedArticleId: null,
-    selectedModel: localStorage.getItem('luma_selected_ai_model') || 'gemini-1.5-flash',
+    // try/catch obrigatório: isto roda no CORPO do objeto, na carga do script. Em modo privado
+    // (ou com storage bloqueado por política) o getItem LANÇA e o arquivo inteiro morre — o
+    // widget de ajuda simplesmente não existiria na sessão.
+    selectedModel: (function(){ try{ return localStorage.getItem('luma_selected_ai_model'); }catch(e){ return null; } })() || 'gemini-1.5-flash',
     searchQuery: '',
     pillTimer: null,
     pillHideTimer: null,
@@ -756,7 +759,7 @@
 
     window.lumaWidgetSetModel = function (modelId) {
       widgetState.selectedModel = modelId;
-      localStorage.setItem('luma_selected_ai_model', modelId);
+      try{ localStorage.setItem('luma_selected_ai_model', modelId); }catch(e){}
       if (typeof window.LUMA_GEMINI_MODEL !== 'undefined') {
         window.LUMA_GEMINI_MODEL = modelId;
       }

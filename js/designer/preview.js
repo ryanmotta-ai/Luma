@@ -445,13 +445,13 @@ function dPreviewDownload(btn){
   const restore=(typeof gBtnLoading==='function')?gBtnLoading(btn,'Gerando…'):()=>{};
   pvRenderToBlob(fmtKey, blob=>{
     restore();
-    if(!blob){gToast('⚠ Não foi possível gerar o arquivo — tente novamente','error');return;}
+    if(!blob){gToast('Não foi possível gerar o arquivo — tente novamente','error');return;}
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');
     a.href=url;a.download=dExportFilename(fmtKey);
     a.click();
     setTimeout(()=>URL.revokeObjectURL(url),1500); // M10: libera memória
-    gToast('✓ Baixado: '+fmtKey.toUpperCase()+' '+pvExportScale+'×');
+    gToast('Baixado: '+fmtKey.toUpperCase()+' '+pvExportScale+'×');
   });
 }
 
@@ -885,7 +885,7 @@ async function dExportSVG(opts){
   a.download=base+(fillVars?'_preenchido':'_template')+'.svg';
   a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),1500);
-  gToast('✓ SVG exportado'+(fillVars?'':' (com {{variáveis}})'));
+  gToast('SVG exportado'+(fillVars?'':' (com {{variáveis}})'));
 }
 
 /* Atalho P para abrir preview */
@@ -1067,7 +1067,7 @@ async function dRunPsdExportMotion(){
   await new Promise(r => setTimeout(r, 600));
   overlay.style.display = 'none';
   if(typeof window.gPlayExportSuccessSound === 'function') window.gPlayExportSuccessSound();
-  if(typeof gToast === 'function') gToast('✓ Arquivo do Photoshop (.PSD) exportado com sucesso!');
+  if(typeof gToast === 'function') gToast('Arquivo do Photoshop (.PSD) exportado com sucesso!');
 }
   
   // Restaura a prancheta original

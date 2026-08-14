@@ -913,7 +913,7 @@ function _acLimparRascunho(){
 async function acSalvarNota(){
   const t = document.getElementById('ac-nota-txt');
   const texto = t ? String(t.value||'').trim() : '';
-  if(!texto){ gToast('⚠ Escreva algo antes de salvar a anotação','error'); if(t)t.focus(); return; }
+  if(!texto){ gToast('Escreva algo antes de salvar a anotação','error'); if(t)t.focus(); return; }
   const aula = acAula(acState.aulaId); if(!aula) return;
   const mom = document.getElementById('ac-nota-mom');
   const videoSeg = (mom && mom.checked && _acVideoEl) ? Math.floor(_acVideoEl.currentTime||0)
