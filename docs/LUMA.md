@@ -490,6 +490,50 @@ A régua do gap é a **caixa desenhada**, não uma medida de referência: `gap =
 
 ⛔ O solver genérico `gResolveIntelligentLayout` foi removido. O único motor dinâmico ativo é `gApplyRelativeAnchors` no escopo do franqueado; `core/layout.js` permanece apenas com Smart Resize entre formatos.
 
+### Auto-layout — a camada de julgamento (`js/core/auto-layout.js`, 2026-08-14)
+
+⛔ **Não é um segundo motor.** O solver continua sendo UM: `gApplyRelativeAnchors`. Este arquivo não mede, não posiciona e não desenha — ele *prepara* a entrada (baseline, papel semântico, zona segura), *chama o mesmo solver* com a ordem dos degraus trocada e *julga* o resultado por nota. Tudo é aditivo: quando a arte resolve no primeiro degrau, nada aqui roda e o caminho é byte a byte o de antes.
+
+**1. Baseline autorado universal (`layoutRef` + `layoutRefText`).** Antes só o import de PSD gravava a referência do desenho; camada ligada pelo painel Campos não gravava nada e template antigo não tinha. Sem referência, o solver comparava o valor real com a CAIXA desenhada — quase sempre maior que o texto — e só reagia tarde. Agora:
+- **no vínculo** (`dLayerBindField`, `layers.js`): `gStampLayoutBaseline` grava a frase que o designer compôs, a geometria, as métricas (corpo, entrelinha, tracking, alinhamento, nº de linhas), a tinta medida e uma **sonda de fonte**;
+- **na importação** (`psd-parse.js`): o mesmo carimbo, agora DEPOIS de todas as propriedades (medir antes de `textBox`/`lineHeight` produzia referência que não era a arte importada);
+- **no material antigo** (`gEnsureLayoutBaseline`, chamado no início de cada solve): reconstruída a partir do **exemplo do campo** — que é justamente o texto original de quem ligou o Dado. Rótulo do campo nunca entra: é nome técnico travestido de conteúdo. Sem exemplo confiável, fica sem baseline em vez de ganhar um falso. É a migração dos materiais publicados, sem deploy e sem reabrir template.
+
+**2. Determinismo de fonte.** O mesmo template abre em Chrome, Safari/iOS e Android; se a fonte da marca não carregou num deles, o navegador substitui e o MESMO texto mede diferente — o solver enxergava crescimento onde houve troca de métrica e entregava outra composição. `gLayoutFontDrift` mede a sonda de novo e corrige o baseline pela razão; `gLayoutFontStatus` classifica `ok`/`substituida`/`desconhecida` e isso vai para a telemetria. ⚠ **A promessa é DECISÃO igual, não pixel igual** — rasterizadores diferentes desenham diferente, e prometer o contrário seria mentira. *(Falta exercer em Safari/iOS e Android reais — ver `luma-brain/07_ROADMAP.md`.)*
+
+**3. Compilador semântico (`layoutSemantic` + `layoutRole`).** Fecha o item aberto "`layoutRole` é lido e nunca escrito". `gCompileLayoutRoles` classifica cada camada em título/produto/preço/apoio/legal/CTA/fundo/decoração/protegida a partir de nome, conteúdo, posição/área e degrau tipográfico — na importação, no vínculo e (para material antigo) no solver. **Dois vocabulários de propósito:** `layoutSemantic` é a classificação rica (nova, ninguém depende); `layoutRole` continua sendo o contrato antigo do runtime e só recebe `'background'`/`'protected'`, que são as duas palavras que a cascata e o `core/layout.js` já leem. Campo dinâmico **nunca** é carimbado — esses dois papéis imobilizam a camada, e imobilizar um campo desligaria o Auto-layout onde ele mais precisa agir. `layoutRoleManual` vence sempre (é o que uma futura UI escreve). O papel também governa o teto de linhas (`gLayoutRoleMaxLines`: CTA e preço 2, título e produto 3, apoio 4, legal 8).
+
+**4. Safe zones de imagem.** A caixa da foto podia estar "segura" com o texto em cima do rosto; e o inverso custava caro, porque um PNG recortado tem metade da caixa transparente e tratá-la inteira como obstáculo roubava espaço real. `_dPsdInkBox` (psd-parse) mede a caixa do que é OPACO enquanto os pixels ainda estão na memória — depois do import só existe a URL. `gLayoutObstacleRect` faz o solver proteger o ASSUNTO em vez da moldura, nos corredores e na detecção de colisão. Sem `inkBox`/`safeZones` devolve a caixa de sempre: material publicado não muda.
+
+**5. Quebra semântica.** `gSemanticUnits` agrupa o que não é "duas palavras" e sim UMA informação — `R$ 29,90`, `US$ 15`, `50 %`, `500 ml`, `2 por` — e cola a preposição na palavra seguinte para não ficar órfã no fim da linha. A cola é **condicional**: só vale se a unidade colada continuar cabendo, senão cairia na quebra dura por grafema e partiria a palavra no meio — trocaria um defeito bonito por um feio.
+
+**6. Pontuação estética (`gScoreComposition`).** "Não colidiu" é o piso, não a meta. A nota é penalidade somada (menor = melhor) sobre nove itens, cada um respondendo a uma pergunta de designer: **inversão de hierarquia** (título menor que o preço), **desvio proporcional** entre degraus, **corpo perdido**, **deslocamento**, **linhas além do publicado**, **órfãs/conector/valor partido**, **respiro perdido**, **desvio de densidade de tinta**, **arestas que eram alinhadas e se soltaram** e **centro de massa**. Pesos em `G_SCORE_PESOS`/`G_SCORE_PESO_PAPEL` — são o que se calibra quando um caso do corpus mostrar escolha errada.
+
+**7. Alternativas.** A escada continua sendo quebrar → empurrar → apertar entrelinha → encolher o menor degrau → escalar o componente, mas ela deixou de ser o único caminho. `gLayoutEscolherAlternativa` roda o MESMO `gApplyRelativeAnchors` com três políticas concorrentes — `sem-entrelinha` (preserva o ritmo, cede corpo), `entrelinha-livre` (piso 1.0, preserva a hierarquia) e `proporcional` (reduz o componente inteiro junto) — e escolhe a de menor penalidade. Empate: vence a padrão, que é a que o corpus conhece. ⚠ **Determinístico e condicional:** só gera alternativas quando a escada passou do empurrão (arte que resolve antes JÁ é a de alteração mínima) e **nunca** decide por tempo/carga — prévia e exportação precisam escolher a MESMA composição.
+
+**8. Diagnóstico acionável.** Bloquear com "não tem espaço seguro" deixava o franqueado sem saída. `gLayoutDiagnosis` acha o campo culpado — a camada reprovada com campo; se ela for vítima (CTA fixo empurrado, rodapé atropelado), sobe pela corrente até o ancestral que tem campo — e descobre o **maior conteúdo seguro** por busca binária re-rodando o mesmo motor (nada de estimar por caractere, que erra com fonte proporcional). A mensagem sai em PT-BR sem jargão: *"O texto de «Nome do produto» é longo demais para esta arte. Cabem até 28 caracteres aqui — hoje tem 47."* Roda só no caminho de falha, nunca na digitação.
+
+**9. Telemetria (`layout_resolvido`).** Registra em `analytics.fct_eventos`: veredito, origem (prévia/exportação), template, material, formato, **estratégia vencedora**, nota, voltas, **tempo do solve**, camadas alteradas/inválidas, **campo culpado**, limite seguro e estado das fontes. ⚠ Nunca vai CONTEÚDO do franqueado — só o NOME do campo e o tamanho. A prévia re-renderiza a cada tecla, então há trava por chave (template+formato+status+campo); exportação sempre registra.
+
+**Desempenho (medido, não estimado).** `LUMA_CPU_THROTTLE=4 node scripts/run-browser-tests.js fuzz` freia a CPU em 4× para simular celular fraco. Duas otimizações vieram dessa medição: memória de **medida** (`_G_MEDIDA_CACHE`, chave com toda a tipografia) e de **quebra**, mais o `Intl.Segmenter` e o canvas de medida que eram criados a cada token/chamada. Resultado no fuzzing de 60 entradas hostis:
+
+| | antes | depois |
+|---|---|---|
+| p95 (CPU normal) | 118ms | **52ms** |
+| pior solve (CPU normal) | 614ms | **97ms** |
+| p95 (CPU 4× mais lenta) | 432ms | **180ms** |
+| pior solve (CPU 4× mais lenta) | 2227ms | **1076ms** |
+
+O único caso acima de 900ms a 4× é a entrada deliberadamente patológica (CJK + emoji + fullwidth + palavra gigante nos três campos ao mesmo tempo). Fica registrado como dívida, não como resolvido.
+
+**Regressão e corpus.** `node scripts/run-browser-tests.js` roda as quatro suítes num Chromium headless — sem npm, falando DevTools Protocol direto com o WebSocket nativo do Node 22. Vale como portão de CI (`.github/workflows/tests.yml`) a cada push/PR.
+- `tests/auto-layout.html` — 17 cenários do motor;
+- `tests/psd-import.html` — 4 casos de geometria de texto;
+- `tests/corpus.html` — 5 pranchetas reais sanitizadas × 3 cenários. Dois níveis: **invariantes** (mesma contagem de camadas, determinismo entre execuções, hierarquia sem inversão, tinta dentro da prancheta, veredito esperado, bloqueio com diagnóstico) e **golden** (geometria + assinatura visual dHash 8×8), este ancorado na **pilha de fontes** de quem gravou: em máquina com outra pilha a comparação fina é pulada com aviso, nunca vira falso vermelho. Regravar: `LUMA_RECORD=1 node scripts/run-browser-tests.js corpus`;
+- `tests/fuzz.html` — 60 entradas hostis com **semente fixa** (emoji, CJK, fullwidth, moeda, data, caixa-alta, campo vazio, três campos crescendo juntos) cobrando contrato: nunca lança, sempre termina, geometria finita, veredito válido, bloqueio sempre com saída.
+
+**Crescer o corpus** (o "aprendizado pelo corpus"): todo PSD problemático vira um arquivo em `tests/corpus/` + um `<script>` em `corpus.html`. A partir daí não pode regredir em silêncio.
+
 ### Import SVG (`templates.js`)
 
 DOMParser puro. Suporta text/tspan, rect, circle/ellipse, image, path (bbox aproximada), transforms afins com pilha de matrizes, CSS por prioridade (inline > classe > atributo > herança), fontes Illustrator mapeadas. Revisão por elemento → template rascunho. ⚠ Grupos achatados em 1 nível.
