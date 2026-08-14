@@ -2742,8 +2742,14 @@ function fBulkRenderPreview(){
 
         // onfocus acende a linha na prévia; oninput mantém a arte grande acompanhando o que
         // está sendo digitado (com folga — ver fBulkLiveEdit).
+        /* `aria-label` porque o vínculo com o `<th>` não chega ao leitor de tela numa célula
+           montada assim — sem ele a pessoa ouve "editar texto" 30 vezes sem saber a coluna.
+           A dica (`placeholder`) só na PRIMEIRA linha: em 20 linhas vazias, repetir "Nome do
+           produto" em cada célula vira ruído; na primeira ela é a pista de onde digitar. */
+        const rotulo=labelFor(k);
+        const dica=(i===0)?` placeholder="${gEsc(rotulo).replace(/"/g,'&quot;')}"`:'';
         return `<td style="padding:6px 4px;border-bottom:1px solid var(--gray-light, #F2F2F2)">
-          <input type="text" id="f-bulk-edit-${i}-${k}" value="${safeV}" style="width:100%;min-width:120px;font-size:12px;padding:6px 8px;border:1px solid ${isFieldErr?'var(--dm-red,#C81818)':'var(--gray-mid, #D4D4D4)'};border-radius:var(--r-sm);background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);outline:none;transition:all var(--dur-micro) var(--ease-standard)" oninput="fBulkLiveEdit(${i})" onfocus="fBulkSetActive(${i});this.style.borderColor='var(--dm-orange-d,#F85400)';this.style.boxShadow='0 0 0 3px rgba(248,84,0,0.12)'" onblur="this.style.borderColor='${isFieldErr?'var(--dm-red,#C81818)':'var(--gray-mid, #D4D4D4)'}';this.style.boxShadow='';fBulkSaveRow(${i}, true)">
+          <input type="text" id="f-bulk-edit-${i}-${k}" class="f-bulk-cell${isFieldErr?' f-bulk-cell-err':''}" value="${safeV}"${dica} aria-label="${gEsc(rotulo).replace(/"/g,'&quot;')}, linha ${i+1}" style="width:100%;min-width:120px;font-size:12px;padding:6px 8px;border:1px solid var(--gray-mid, #D4D4D4);border-radius:var(--r-sm);background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);outline:none;transition:all var(--dur-micro) var(--ease-standard)" oninput="fBulkLiveEdit(${i})" onfocus="fBulkSetActive(${i})" onblur="fBulkSaveRow(${i}, true)">
         </td>`;
       }).join('');
 
@@ -2759,7 +2765,7 @@ function fBulkRenderPreview(){
     }).join('');
     
     const optionsHtml = keys.map(k => `<option value="${k}">${gEsc(labelFor(k))}</option>`).join('');
-    wrap.innerHTML = `<div style="grid-column: 1 / -1; width:100%; display:flex; flex-direction:column; gap:12px">
+    wrap.innerHTML = `<div class="f-bulk-sheet-block">
       <!-- Mudanças em massa: poderosas, mas jargão de planilha. Ficam FECHADAS — abertas,
            eram a primeira coisa que a franqueada via, antes até da própria tabela. -->
       <details class="f-bulk-massbar">
@@ -2783,7 +2789,7 @@ function fBulkRenderPreview(){
           </div>
         </div>
       </details>
-      <div style="overflow-x:auto;width:100%;max-height:50vh;border:1px solid var(--gray-mid, #D4D4D4);border-radius:var(--r);background:var(--white,#FFFFFF)">
+      <div class="f-bulk-table-scroll">
         <table class="f-bulk-table" style="width:100%;border-collapse:collapse;margin:0">
           <thead style="position:sticky;top:0;z-index:10">
             <tr>
@@ -2795,14 +2801,12 @@ function fBulkRenderPreview(){
           <tbody>${trs}</tbody>
         </table>
       </div>
-      <div style="display:flex;gap:12px">
-        <button class="d-btn-sec" style="width:100%;border:1px dashed var(--gray-mid, #D4D4D4);padding:10px 16px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;background:transparent;cursor:pointer;border-radius:var(--r-sm);color:var(--text-2,#3A3A3A);font-weight:600;transition:all var(--dur-micro) var(--ease-standard)" onmouseover="this.style.background='var(--gray-light, #F2F2F2)';this.style.color='var(--text)'" onmouseout="this.style.background='transparent';this.style.color=''" onclick="fBulkAddEmptyRow()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Adicionar linha
-        </button>
-        <button class="d-btn-sec" style="border:1px solid var(--gray-mid, #D4D4D4);padding:10px 16px;color:var(--dm-red,#C81818);background:transparent;font-size:12px;cursor:pointer;border-radius:var(--r-sm);font-weight:600;transition:all var(--dur-micro) var(--ease-standard)" onmouseover="this.style.background='rgba(200,24,24,0.08)'" onmouseout="this.style.background='transparent'" onclick="fBulkClearAll()">
-          Limpar planilha
-        </button>
-      </div>
+      <!-- "Limpar planilha" NAO mora mais aqui: ficava a 12px de "Adicionar linha" (medido) e a
+           Lei de Fitts do ux-principles manda o contrario - acao irreversivel longe da primaria.
+           Foi para dentro de "Mais opcoes da planilha", com o resto do ferramental. -->
+      <button class="d-btn-sec f-bulk-add-row" onclick="fBulkAddEmptyRow()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Adicionar linha
+      </button>
     </div>`;
     // A fita e a prévia grande se refazem junto com a tabela — são a mesma verdade em três
     // tamanhos. (A antiga "vista em cartões" saiu: a coluna da esquerda faz o mesmo trabalho,
@@ -2903,9 +2907,10 @@ function fBulkSaveRow(i, isSilent=false, skipReadiness=false) {
         if(err) erros.push(err);
       }
 
-      if(isSilent) {
-        input.style.borderColor = err ? 'var(--dm-red,#C81818)' : 'var(--gray-mid,#D4D4D4)';
-      }
+      /* ⚠ Antes isto escrevia `borderColor` inline e o CSS casava com
+         `input[style*="--dm-red"]` — um seletor que depende do TEXTO do atributo style e some
+         em silêncio se alguém trocar o `var()` por hex. Agora é classe. */
+      if(isSilent) input.classList.toggle('f-bulk-cell-err', !!err);
     } else {
       dados[k] = row.dados[k];
     }

@@ -2550,6 +2550,12 @@ body:not(.theme-light) input:-webkit-autofill:active {
                 <select id="f-bulk-saved-select" onchange="fBulkLoadTemplate()" aria-label="Planilhas guardadas"></select>
                 <button type="button" class="f-bulk-delete-model" onclick="fBulkDeleteTemplate()" title="Excluir a planilha guardada" aria-label="Excluir a planilha guardada"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
               </div>
+              <!-- Ação irreversível: mora AQUI, dentro de "Mais opções", e não colada em
+                   "Adicionar linha" (estavam a 12px um do outro — ver ux-principles.md, Fitts). -->
+              <button type="button" class="d-btn-sec f-bulk-clear-sheet" onclick="fBulkClearAll()" title="Apaga o conteúdo de todas as linhas">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                Limpar planilha
+              </button>
               <button type="button" class="d-btn-sec" onclick="fBulkRemoveDuplicates()" title="Apaga linhas repetidas">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="13" height="13" rx="2"/><path d="M8 8h13v13H8z"/></svg>
                 Apagar linhas repetidas

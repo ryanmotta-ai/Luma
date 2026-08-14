@@ -927,7 +927,11 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
 
 .f-bulk-preview{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));grid-auto-rows:max-content;gap:8px;min-height:0;max-height:none;overflow:auto;margin:0;padding:0 0 6px;scrollbar-width:thin;scrollbar-color:var(--gray-mid) transparent}
 .f-bulk-preview>div{grid-column:1/-1;min-height:0}
-.f-bulk-preview>div>div[style*="overflow-x:auto"]{max-height:none!important;min-height:180px;flex:1;border-color:var(--gray-mid)!important;border-radius:var(--r-sm)!important;box-shadow:none}
+/* ⚠ Esta regra casava por `[style*="overflow-x:auto"]` — o TEXTO do atributo style. Ao trocar o
+   estilo inline do container por uma classe, ela deixou de casar em silêncio e a tabela perdeu
+   `min-height`/`flex`. É a mesma fragilidade que a regra do estado de erro tinha; as duas viraram
+   classe no mesmo pacote. */
+.f-bulk-preview .f-bulk-table-scroll{max-height:none!important;min-height:180px;flex:1;border-color:var(--gray-mid)!important;border-radius:var(--r-sm)!important;box-shadow:none}
 .f-bulk-empty{grid-column:1/-1;display:flex;align-items:center;justify-content:center;min-height:280px;padding:40px;border:1px dashed var(--gray-mid);border-radius:12px;background:var(--white);color:var(--text-3);font-size:12px;text-align:center}
 .f-bulk-actions-bar{position:relative;flex-wrap:wrap!important;overflow:visible;padding:7px 8px!important;border:1px solid var(--gray-mid)!important;border-radius:var(--r-sm)!important;background:var(--white)!important;color:var(--text-2)!important;white-space:normal;box-shadow:none}
 .f-bulk-actions-bar>span:first-child{color:var(--dm-orange-d)}
@@ -940,7 +944,7 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
 .f-bulk-table tbody td{border-right:1px solid var(--gray-light)!important;border-bottom:1px solid var(--gray-light)!important}
 .f-bulk-table input[type=text]{min-height:34px!important;box-sizing:border-box;border-color:transparent!important;border-radius:4px!important;background:transparent!important;transition:border-color var(--dur-micro) var(--ease-standard),box-shadow var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard)}
 .f-bulk-table tbody tr:hover input[type=text]{border-color:var(--gray-mid)!important;background:var(--white)!important}
-.f-bulk-table input[type=text][style*="--dm-red"]{border-color:var(--dm-red)!important;background:color-mix(in srgb,var(--dm-red) 4%,var(--white))!important}
+.f-bulk-table input.f-bulk-cell-err{border-color:var(--dm-red)!important;background:color-mix(in srgb,var(--dm-red) 4%,var(--white))!important}
 .f-bulk-num-chip{display:inline-flex;align-items:center;justify-content:center;min-width:23px;height:23px;padding:0 6px;border-radius:4px;background:var(--gray-light);color:var(--text-3);font-size:10px;font-weight:800}
 .f-bulk-card{position:relative;display:flex;flex-direction:column;align-items:center;padding:12px 10px 10px;border:1px solid var(--gray-light);border-radius:var(--r);background:var(--white);animation:gFadeIn var(--dur-base) var(--ease-standard) both;transition:transform var(--dur-fast) var(--ease-spring-soft),box-shadow var(--dur-fast) var(--ease-spring-soft),border-color var(--dur-fast) var(--ease-standard)}
 .f-bulk-card:hover{border-color:var(--dm-orange-tint);box-shadow:0 10px 26px color-mix(in srgb,var(--dm-orange-d) 12%,transparent);transform:translateY(-3px)}
@@ -969,7 +973,11 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
 /* ── Telas estreitas: empilha. Duas colunas não cabem no celular, e é nele que o franqueado
       mais usa. A arte vira uma faixa no topo, com a fita rolando ao lado dela. ── */
 @media (max-width:900px){
-  .f-bulk-split{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}
+  /* ⚠ `1fr` tem mínimo implícito `auto`: a trilha cresce até caber o conteúdo, e um cabeçalho
+     full-bleed (margem negativa de 20px) inflava a coluna para 412px numa tela de 390 — era
+     por isso que a planilha inteira transbordava. `minmax(0,1fr)` é o mesmo truque que a regra
+     de duas colunas já usava logo acima. */
+  .f-bulk-split{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
   .f-bulk-live{flex-direction:row;align-items:center;gap:14px;padding:12px 14px;
     border-right:0;border-bottom:1px solid var(--gray-light)}
   .f-bulk-live-top,.f-bulk-live-hint{display:none}
@@ -1097,7 +1105,9 @@ body:not(.theme-light) .f-bulk-tool-action,body:not(.theme-light) .f-bulk-table 
   .f-bulk-output-config>.f-bulk-section-heading{grid-column:auto}
   .f-bulk-output-fields{grid-template-columns:1fr 1fr}
   .f-bulk-sheet-area{gap:7px;padding:9px 8px 4px}
-  .f-bulk-sheet-head{align-items:flex-start}
+  /* No celular o full-bleed sai: 40px de margem negativa numa tela de 390 é o que empurrava
+     tudo para fora. O fundo grudento continua, agora dentro da largura da tela. */
+  .f-bulk-sheet-head{align-items:flex-start;margin-left:0;margin-right:0;padding-left:0;padding-right:0}
   .f-bulk-status-wrap{padding:0 7px}
   .f-bulk-toolbar{align-items:stretch;flex-direction:column}
   .f-bulk-toolbar-group{width:100%}
@@ -1312,3 +1322,77 @@ body:not(.theme-light) #f-bulk-mic-btn.is-processing{background:color-mix(in srg
   background:var(--white);border:1px solid var(--gray-light);color:var(--text-3);font-size:9px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
 .caption-src.is-ia{background:var(--dm-orange-bg);color:var(--dm-orange-d);border-color:var(--dm-orange-tint)}
 body:not(.theme-light) .caption-src{background:var(--d-surf2);border-color:var(--d-border);color:var(--d-text2)}
+
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   LUMA SHEETS — REVISÃO DE USABILIDADE (2026-08-14)
+   Cada regra abaixo nasceu de uma MEDIÇÃO na tela real, não de gosto. Os números estão nos
+   comentários para quem for mexer depois saber o que a regra segura.
+   ══════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. A PLANILHA VOLTA A ROLAR NO CELULAR ──
+   O container da tabela SEMPRE teve `overflow-x:auto`, e mesmo assim nada rolava: medido em
+   390px, ele estava com 554px. A causa é a herança de `min-width:auto` — item de grid/flex se
+   recusa a encolher abaixo do próprio conteúdo, então a tabela inflava os ancestrais em vez de
+   ganhar barra de rolagem. Sem estes `min-width:0`, a coluna de preço simplesmente não existe
+   para quem usa celular: 46 elementos passavam da borda da tela. */
+/* A cadeia inteira precisa poder encolher: basta UM elo com `min-width:auto` para a tabela
+   voltar a inflar os ancestrais em vez de rolar. Medido elo a elo na tela de 390px. */
+.f-bulk-workspace,.f-bulk-sheet,#f-bulk-preview,.f-bulk-sheet-block,.f-bulk-table-scroll,
+.f-bulk-modal-box,.f-bulk-live{min-width:0;max-width:100%}
+/* O cabeçalho da planilha é full-bleed (margem -20px cancelando o padding do pai, para o fundo
+   grudento cobrir a borda). Com `min-width:auto` ele se recusava a encolher e empurrava a
+   coluna do grid para 412px numa tela de 390 — o último elo da cadeia. */
+.f-bulk-sheet-head{min-width:0}
+/* A caixa do modal declara `grid-template-rows` e NENHUMA coluna — a coluna implícita nasce
+   `auto` e cresce com o conteúdo mais largo. Era ela, no fim da cadeia, quem segurava os 412px:
+   tudo abaixo já podia encolher e mesmo assim herdava a trilha inflada. */
+.f-bulk-modal-box{grid-template-columns:minmax(0,1fr)}
+.f-bulk-sheet-block{grid-column:1/-1;width:100%;display:flex;flex-direction:column;gap:12px}
+.f-bulk-table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;max-height:50vh;
+  border:1px solid var(--gray-mid);border-radius:var(--r);background:var(--white)}
+/* A sombra à direita é a única pista de que existe mais coluna adiante — sem hover, sem
+   scrollbar visível no toque, a pessoa não tem como adivinhar. Some sozinha ao chegar no fim. */
+.f-bulk-table-scroll{background-image:linear-gradient(to left,rgba(0,0,0,.10),rgba(0,0,0,0) 24px);
+  background-repeat:no-repeat;background-position:right center;background-size:24px 100%;
+  background-attachment:local}
+
+.f-bulk-add-row{width:100%;border:1px dashed var(--gray-mid);padding:10px 16px;display:flex;
+  align-items:center;justify-content:center;gap:6px;font-size:12px;background:transparent;
+  cursor:pointer;border-radius:var(--r-sm);color:var(--text-2);font-weight:600;
+  transition:background var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard)}
+.f-bulk-add-row:hover{background:var(--gray-light);color:var(--text)}
+/* "Limpar planilha" vive dentro de "Mais opções" agora — longe da ação primária. */
+.f-bulk-clear-sheet{color:var(--dm-red)}
+
+/* ── 2. NO TOQUE, CAMPO PRECISA PARECER CAMPO ──
+   As células são invisíveis de propósito (`border-color:transparent`) e só ganham contorno no
+   `tr:hover` — elegante no desktop, INEXISTENTE no dedo. Medido: no celular a pessoa vê uma
+   grade sem nenhuma pista de onde digitar. Aqui o efeito bonito fica só onde há mouse. */
+@media (hover:none){
+  .f-bulk-table input[type=text]{border-color:var(--gray-mid)!important;background:var(--white)!important}
+  /* Alvos de 44px (`ux-principles.md`, Lei de Fitts). Medido antes: os controles por linha
+     tinham 28×28 e as miniaturas da fita 38×64 — no dedo, isso é erro garantido. */
+  .f-bulk-table td button,.f-bulk-table td .d-btn-sec{min-width:44px;min-height:44px}
+  .f-bulk-strip>*{min-width:44px;min-height:56px}
+  .f-bulk-table input[type=text]{min-height:44px!important}
+}
+
+/* ── 3. A PRÉVIA PARA DE COMER A TELA DO CELULAR ──
+   Medido: 388×301px = 35% da tela, empurrando a planilha (o trabalho de verdade) para baixo da
+   dobra. A arte continua ali, do tamanho que dá para conferir — mas quem manda na tela é a
+   planilha. No desktop nada muda: a coluna da esquerda segue grande. */
+@media(max-width:620px){
+  .f-bulk-workspace{grid-template-rows:minmax(0,30%) minmax(0,70%)}
+  /* O cabeçalho reserva 240px fixos para o meio + 28px de gap dos dois lados: numa tela de 390
+     isso sozinho já não cabe, e a coluna implícita do modal crescia junto. */
+  .f-bulk-workspace-head{grid-template-columns:auto minmax(0,1fr) auto;gap:10px;padding:10px 12px}
+  .f-bulk-sheet-block{gap:9px}
+  /* O rodapé quebrava o rótulo do botão em três linhas dentro da própria caixa. */
+  .f-bulk-footer .d-btn-pri{min-height:48px;white-space:nowrap;font-size:13px}
+}
+
+/* ── 4. BOTÃO DESLIGADO NÃO CONVIDA CLIQUE ──
+   `#f-bulk-dl-btn` fica `disabled` até existir uma oferta, mas mantinha `cursor:pointer` —
+   parecia clicável e não era. */
+#f-bulk-modal button:disabled{cursor:not-allowed}
