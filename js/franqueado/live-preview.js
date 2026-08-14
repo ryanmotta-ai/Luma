@@ -112,7 +112,8 @@ async function _fPostedRenderArt(){
   const _defaults = (typeof gVarDefaults === 'function') ? gVarDefaults() : {};
   const dados = Object.assign({}, fState.dados || {});
   try { fLpInjectPlaceholders(mat.layers, dados, _defaults); } catch(e){}
-  await fRenderTemplateLayers(ctx, mat.layers, W, H, dados, fState.camp);
+  await fRenderTemplateLayers(ctx, mat.layers, W, H, dados, fState.camp, null,
+    {scope:'franqueado',purpose:'preview'});
   return { canvas: cv, w: W, h: H };
 }
 
@@ -515,6 +516,7 @@ let _lpScale = 1;        // escala real prévia ÷ arte final (mostrada na toolb
 let _lpFraming = null;   // {layer, varName} enquanto o franqueado enquadra a foto (trava o zoom automático)
 let _lpOverflow = new Set(); // ids de camadas de texto com estouro no último render (avisos)
 let _lpEffectiveLayers = []; // geometria que o render realmente desenhou (reflow + layout vivo)
+let _lpLayoutResult = null;  // contrato do solver só desta prévia (não confunde com thumbs)
 let _lpEffectiveMaterial = null;
 
 // Zoom/pan manual da prova digital (item: inspecionar a arte de perto).
@@ -563,17 +565,25 @@ function _fLpSyncAutoLayoutButton(){
   const tem=(typeof gLayoutVivoDisponivel==='function') && gLayoutVivoDisponivel();
   btn.hidden=!tem;
   if(!tem) return;
-  const on=!gLayoutVivoOff;
+  const forced=!!(_lpLayoutResult&&_lpLayoutResult.forced);
+  const on=!gLayoutVivoOff||forced;
   btn.classList.toggle('active',on);
   btn.setAttribute('aria-pressed',String(on));
-  btn.title=on?'Desativar acomodação automática (ver a composição original)'
-              :'Ativar acomodação automática';
+  btn.dataset.forced=forced?'true':'false';
+  btn.title=forced?'Acomodação mantida: a composição original não é segura com estes dados'
+    :(on?'Ver a composição original quando houver espaço seguro':'Ativar acomodação automática');
 }
 function fLpToggleAutoLayout(){
   gLayoutVivoOff=!gLayoutVivoOff;
   try { localStorage.setItem(F_LP_AUTO_LAYOUT_KEY,gLayoutVivoOff?'0':'1'); } catch(e){}
   _fLpSyncAutoLayoutButton();
-  try { fUpdateLivePreview(); } catch(e){}
+  try {
+    Promise.resolve(fUpdateLivePreview()).then(()=>{
+      _fLpSyncAutoLayoutButton();
+      if(gLayoutVivoOff&&_lpLayoutResult&&_lpLayoutResult.forced)
+        gToast('A composição original não cabe com estes dados. O Luma manteve a versão segura.');
+    });
+  } catch(e){}
 }
 
 async function fUpdateLivePreview(opts){
@@ -633,10 +643,13 @@ async function fUpdateLivePreview(opts){
     {
       // Coleta overflow de texto durante ESTE render (só a prévia liga o coletor).
       window._fOverflowSink = new Set();
-      const rendered=await fRenderTemplateLayers(ctx,fState.material.layers,W,H,dadosPreview,fState.camp);
+      const rendered=await fRenderTemplateLayers(ctx,fState.material.layers,W,H,dadosPreview,fState.camp,null,
+        {scope:'franqueado',purpose:'preview'});
       _lpEffectiveLayers=Array.isArray(rendered)?rendered:[];
+      _lpLayoutResult=rendered&&rendered._layoutResult||null;
       _lpEffectiveMaterial=fState.material;
       _lpOverflow = window._fOverflowSink; window._fOverflowSink = null;
+      _fLpSyncAutoLayoutButton();
 
       // Véu sutil sobre os campos ainda não preenchidos (tom mais suave)
       fLpHighlightEmpty(ctx,_lpEffectiveLayers,pendentes,W,H);

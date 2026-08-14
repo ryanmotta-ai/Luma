@@ -1091,9 +1091,9 @@ function gFitTextLayer(layer, texto, ctxAux, opts) {
 
 /* O interruptor do layout vivo — DOIS em série.
    `franqueado.layout-vivo` (Controle do produto) governa a REDE, para a gestão poder desligar
-   sem deploy; `gLayoutVivoOff` é o botão **Auto-layout** da prévia ao vivo, a chave de quem
-   está OLHANDO a arte agora — o franqueado pode preferir a composição original mesmo com o
-   texto apertado, e gosto é dele.
+   sem deploy; `gLayoutVivoOff` é o botão **Auto-layout** da prévia ao vivo, a preferência de
+   quem está OLHANDO a arte agora. Essa preferência só mostra a composição original quando ela
+   é segura; se o valor real quebrar a arte, o motor mantém a acomodação e protege a exportação.
    NÃO existe chave por template: todo template nasce com o layout vivo ligado (decisão do
    Ryan, 2026-08-06). Não é escolha de design peça a peça, é o comportamento do produto — o
    designer não precisa decidir nada no publicar.
@@ -1123,6 +1123,39 @@ function gLayoutVivoDisponivel(){
 
 function gLayoutVivoAtivo(){
   return !gLayoutVivoOff && gLayoutVivoDisponivel();
+}
+
+/* Contrato do solver para os consumidores do franqueado. A comparação é feita entre dois
+   CLONES temporários: a composição original (com âncoras manuais) e a acomodada. Nenhum dos
+   carimbos abaixo é persistido no template do designer. */
+function gDescribeFranchiseeLayout(original, solved){
+  const antes=new Map((original||[]).filter(Boolean).map(l=>[l.id,l]));
+  const changes=[];
+  const invalidIds=[];
+  const quaseIgual=(a,b)=>Math.abs((Number(a)||0)-(Number(b)||0))<0.5;
+  (solved||[]).forEach(l=>{
+    if(!l)return;
+    const o=antes.get(l.id)||{};
+    if(l._foraDaArte||l._layoutInvalido||(l._fit&&l._fit.estourou))invalidIds.push(l.id);
+    const geometry=!quaseIgual(l.x,o.x)||!quaseIgual(l.y,o.y)
+      ||!quaseIgual(l.w,o.w)||!quaseIgual(l.h,o.h);
+    const typography=l._layoutW!=null||l._tetoFonte!=null||l._entrelinha!=null;
+    if(geometry||typography){
+      changes.push({id:l.id,geometry,typography,
+        moved:!quaseIgual(l.x,o.x)||!quaseIgual(l.y,o.y),
+        resized:!quaseIgual(l.w,o.w)||!quaseIgual(l.h,o.h)});
+    }
+  });
+  const invalid=invalidIds.length>0;
+  const adapted=changes.length>0;
+  return {status:invalid?'unsafe':(adapted?'adapted':'original'),adapted,invalid,
+    requiresAdaptation:adapted||invalid,forced:false,changes,invalidIds};
+}
+
+function gHandleLayoutUnsafeError(err){
+  if(!err||err.code!=='LUMA_LAYOUT_UNSAFE')return false;
+  if(typeof gToast==='function')gToast('Esse texto não cabe com segurança nesta arte. Encurte o conteúdo ou escolha outro material.','error');
+  return true;
 }
 
 /* ══ CORRENTES INFERIDAS — ler o respiro da arte em vez de pedir ao designer ══
@@ -1282,11 +1315,14 @@ function _gInferirPlacas(cloned, opts) {
   cloned.forEach((p, iP) => {
     if (!p || p.type !== 'shape' || !_gLayoutVisivel(p)) return;
     if (p.shapeKind && p.shapeKind !== 'rect') return;
-    if (p.locked || p.lockPosition || p.parentId) return;
+    if (!_gCorrenteMovivel(p, cloned)) return;
     if (p.layoutRole === 'protected' || _gCorrenteEhFundo(p, cv)) return;
     const px1 = p.x || 0, py1 = p.y || 0, px2 = px1 + (p.w || 0), py2 = py1 + (p.h || 0);
     const dentro = textos.filter(t => {
       if (cloned.indexOf(t) < iP) return false;                 // texto tem que estar NA FRENTE
+      // Em PSDs agrupados, placa e texto podem se mover juntos, mas nunca adotamos um texto
+      // de outro grupo só porque as caixas coincidem visualmente.
+      if ((p.parentId||null)!==(t.parentId||null)) return false;
       const tx1 = t.x || 0, ty1 = t.y || 0;
       return tx1 >= px1 - 1 && ty1 >= py1 - 1
           && tx1 + (t.w || 0) <= px2 + 1 && ty1 + (t.h || 0) <= py2 + 1;
@@ -1350,6 +1386,12 @@ function _gLayoutBaseVisual(cloned,defaults,ctxAux){
     if(l.type!=='text'){
       out[l.id]={x:l.x||0,y:l.y||0,w:l.w||0,h:l.h||0};return;
     }
+    /* Campo dinâmico parte da geometria AUTORADA. Usar texto de amostra de `dVars` fazia a
+       referência variar conforme a sessão (e podia declarar uma colisão pequena como intenção
+       do designer). O PSD/layer publicado já é o contrato estável do espaço reservado. */
+    if(_gLayoutTemCampo(l)){
+      out[l.id]={x:l.x||0,y:l.y||0,w:l.w||0,h:l.h||0};return;
+    }
     const limpo=Object.assign({},l);
     delete limpo._layoutW;delete limpo._layoutDx;delete limpo._layoutMaxLines;
     delete limpo._tetoFonte;delete limpo._entrelinha;delete limpo._fit;
@@ -1377,8 +1419,10 @@ function _gLayoutObstaculo(o,cloned,cv,base){
 }
 function _gLayoutRespiro(t,gap,cv){
   const curto=cv&&cv.w&&cv.h?Math.min(cv.w,cv.h):0;
-  const min=Math.max(4,Math.round((t.fontSize||24)*0.12),curto?Math.round(curto*0.006):0);
-  const max=Math.max(min,Math.round((t.fontSize||24)*0.42),curto?Math.round(curto*0.018):0);
+  // 0,8% do lado curto / 18% do corpo: suficiente para a borda continuar respirando mesmo
+  // quando o desenho original deixou só um fio de vão.
+  const min=Math.max(4,Math.round((t.fontSize||24)*0.18),curto?Math.round(curto*0.008):0);
+  const max=Math.max(min,Math.round((t.fontSize||24)*0.48),curto?Math.round(curto*0.02):0);
   return Math.max(min,Math.min(max,Math.max(0,gap)));
 }
 function _gInferirCorredores(cloned,opts,resolved,base){
@@ -1400,19 +1444,23 @@ function _gInferirCorredores(cloned,opts,resolved,base){
     obstaculos.forEach(o=>{
       if(o===t)return;
       const bo=base[o.id];if(!bo)return;
-      // O obstáculo já abraçava/atravessava este texto no desenho: relação intencional.
+      // Contenção é relação intencional (texto sobre placa/foto). Sobreposição PARCIAL não dá
+      // licença infinita: o corredor preserva no máximo a intrusão que já existia no desenho.
       const inter=_gRectIntersecao(bt,bo);
-      if(_gRectContem(bo,bt,2)||inter/Math.max(1,Math.min(bt.w*bt.h,bo.w*bo.h))>0.02)return;
+      if(_gRectContem(bo,bt,2))return;
       const oy=Math.min(atual.y+atual.h,bo.y+bo.h)-Math.max(atual.y,bo.y);
       if(oy/Math.max(1,Math.min(atual.h,bo.h))<0.28)return;
       const gapD=bo.x-(bt.x+bt.w);
-      if(gapD>=-2&&bo.x>=bt.x+bt.w-2){
-        const lim=bo.x-_gLayoutRespiro(t,gapD,cv);
+      const centroT=bt.x+bt.w/2,centroO=bo.x+bo.w/2;
+      if(centroO>centroT&&bo.x>=bt.x){
+        const penetracao=Math.max(0,-gapD);
+        const lim=bo.x+penetracao-(inter>0?0:_gLayoutRespiro(t,gapD,cv));
         if(lim<limiteD){limiteD=lim;achouD=true;}
       }
       const gapE=bt.x-(bo.x+bo.w);
-      if(gapE>=-2&&bo.x+bo.w<=bt.x+2){
-        const lim=bo.x+bo.w+_gLayoutRespiro(t,gapE,cv);
+      if(centroO<centroT&&bo.x+bo.w<=bt.x+bt.w){
+        const penetracao=Math.max(0,-gapE);
+        const lim=bo.x+bo.w-penetracao+(inter>0?0:_gLayoutRespiro(t,gapE,cv));
         if(lim>limiteE){limiteE=lim;achouE=true;}
       }
     });
@@ -1692,8 +1740,7 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
         const bo=baseVisual[o.id],ro=resolved[o.id];
         if(!bo||!ro)return;
         const interBase=_gRectIntersecao(bt,bo);
-        const baseRatio=interBase/Math.max(1,Math.min(bt.w*bt.h,bo.w*bo.h));
-        if(_gRectContem(bo,bt,2)||baseRatio>0.02)return;
+        if(_gRectContem(bo,bt,2))return;
         const atualO={x:ro.x+(o.type==='text'?(ro.dx||0):0),
           y:ro.y+(o.type==='text'?(ro.dy||0):0),w:ro.w,h:ro.h};
         if(_gLayoutTemCampo(o)){
@@ -1701,15 +1748,23 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
             +Math.abs(atualO.x-bo.x)+Math.abs(atualO.y-bo.y);
           if(deltaO>deltaT+1)return;
         }
+        /* Sobreposição parcial do original é uma franquia LIMITADA, não imunidade eterna.
+           Crescer além da área que o designer publicou vira colisão. */
+        if(interBase>0){
+          const tolerancia=Math.max(2,Math.min(bt.w*bt.h,bo.w*bo.h)*0.005);
+          if(_gRectIntersecao(tinta,atualO)>interBase+tolerancia)
+            out.push({culpado:t,obstaculo:o});
+          return;
+        }
         const gaps=[];
         if(bt.x+bt.w<=bo.x)gaps.push(bo.x-(bt.x+bt.w));
         if(bo.x+bo.w<=bt.x)gaps.push(bt.x-(bo.x+bo.w));
         if(bt.y+bt.h<=bo.y)gaps.push(bo.y-(bt.y+bt.h));
         if(bo.y+bo.h<=bt.y)gaps.push(bt.y-(bo.y+bo.h));
         const gapBase=gaps.length?Math.min(...gaps):0;
-        /* Nunca exige mais ar do que havia no original: o layout vivo preserva a decisão do
-           designer, não redesenha uma composição válida ao abrir. */
-        const pad=Math.min(gapBase,_gLayoutRespiro(t,gapBase,_cv));
+        /* Campo que cresceu respeita um respiro mínimo mesmo se o original tinha um vão quase
+           nulo. Isso não redesenha o estado normal: esta checagem só roda quando `deltaT>1`. */
+        const pad=_gLayoutRespiro(t,gapBase,_cv);
         const protegido={x:atualO.x-pad,y:atualO.y-pad,w:atualO.w+pad*2,h:atualO.h+pad*2};
         if(_gRectIntersecao(tinta,protegido)>1)out.push({culpado:t,obstaculo:o});
       });
@@ -1753,7 +1808,6 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
     // Quando todo mundo chega ao piso da hierarquia e AINDA não cabe, a peça inteira passa a
     // reduzir na mesma escala. Assim recupera espaço sem transformar título em texto de apoio.
     let relaxou = false;
-    let escalaGlobal = null;
     // Teto de voltas: ~9 passos levam um degrau do tamanho desenhado ao piso; 32 cobrem dois
     // degraus + a escala proporcional final. Acima disso a composição já é impossível e
     // continuar medindo só congela a digitação sem produzir uma solução diferente.
@@ -1811,13 +1865,32 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
          título até ele ficar menor que o preço. O fator nasce do degrau mais reduzido e só
          desce; nenhuma camada volta a crescer. */
       if(relaxou){
-        if(escalaGlobal==null){
-          escalaGlobal=Math.min(...culpados.map(l=>_atual(l)/Math.max(1,l.fontSize||24)));
+        /* O último degrau preserva a proporção só do COMPONENTE afetado. Reduzir toda a arte
+           fazia rodapé, título remoto e preço encolherem por uma colisão local. */
+        const ids=new Set(culpados.map(l=>l.id));
+        let expandiu=true;
+        while(expandiu){
+          expandiu=false;
+          _ultimasColisoes.forEach(c=>{
+            if(ids.has(c.culpado.id)||ids.has(c.obstaculo.id)){
+              [c.culpado.id,c.obstaculo.id].forEach(id=>{if(!ids.has(id)){ids.add(id);expandiu=true;}});
+            }
+          });
+          cloned.forEach(l=>{
+            const a=l&&(l.relativeAnchor||l._anchorAuto);
+            if(a&&a.layerId&&(ids.has(l.id)||ids.has(a.layerId))){
+              [l.id,a.layerId].forEach(id=>{if(!ids.has(id)){ids.add(id);expandiu=true;}});
+            }
+            if(l&&l._placa&&(ids.has(l.id)||ids.has(l._placa.alvo))){
+              [l.id,l._placa.alvo].forEach(id=>{if(!ids.has(id)){ids.add(id);expandiu=true;}});
+            }
+          });
         }
-        escalaGlobal=Math.max(0.5,escalaGlobal*0.92);
+        const textosComponente=cloned.filter(l=>l&&l.type==='text'&&_gLayoutVisivel(l)&&ids.has(l.id));
+        const escalaAtual=Math.min(...textosComponente.map(l=>_atual(l)/Math.max(1,l.fontSize||24)));
+        const escalaGlobal=Math.max(0.5,escalaAtual*0.92);
         const grupo=[];
-        cloned.forEach(l=>{
-          if(!l||l.type!=='text'||!_gLayoutVisivel(l))return;
+        textosComponente.forEach(l=>{
           const alvo=Math.max(_pisoAbsDe(l),Math.floor((l.fontSize||24)*escalaGlobal));
           if(alvo<_atual(l)){l._tetoFonte=alvo;grupo.push(l);}
         });
@@ -1930,8 +2003,10 @@ const G_CONNECTORS = new Set([
 function gSmartWrapText(text, maxW, layer, dados, defaults) {
   if (!text || typeof text !== 'string') return text;
   
-  // Se contiver quebras de linha manuais do designer, respeita e não mexe
-  if (text.includes('\n')) return text;
+  // Preserva cada quebra manual, mas ainda protege CADA trecho. Antes uma única quebra feita
+  // no PSD desligava todo o wrapping e uma linha longa atravessava as camadas vizinhas.
+  if (text.includes('\n')) return text.split('\n')
+    .map(parte=>parte?gSmartWrapText(parte,maxW,layer,dados,defaults):'').join('\n');
   
   // Limpa espaços redundantes
   const cleanText = text.replace(/\s+/g, ' ').trim();
@@ -2056,18 +2131,20 @@ function gSmartWrapText(text, maxW, layer, dados, defaults) {
   const wrapped = [];
   let current = '';
   const pushToken = (token) => {
-    let rest = token;
-    while (rest && measure(rest) > availableW) {
+    let rest = (typeof Intl!=='undefined'&&Intl.Segmenter)
+      ?[...new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(token)].map(x=>x.segment)
+      :[...token];
+    while (rest.length && measure(rest.join('')) > availableW) {
       let low = 1, high = rest.length, fit = 1;
       while (low <= high) {
         const mid = Math.floor((low + high) / 2);
-        if (measure(rest.slice(0, mid)) <= availableW) { fit = mid; low = mid + 1; }
+        if (measure(rest.slice(0, mid).join('')) <= availableW) { fit = mid; low = mid + 1; }
         else high = mid - 1;
       }
-      wrapped.push(rest.slice(0, fit));
+      wrapped.push(rest.slice(0, fit).join(''));
       rest = rest.slice(fit);
     }
-    return rest;
+    return rest.join('');
   };
   words.forEach(word => {
     const next = current ? current + ' ' + word : word;

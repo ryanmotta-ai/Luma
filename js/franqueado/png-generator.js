@@ -48,7 +48,8 @@ async function fRenderCanvasHelper(d,c,fmt){
     renderCtx.imageSmoothingEnabled = true;
     renderCtx.imageSmoothingQuality = 'high';
     renderCtx.scale(SCALE, SCALE);
-    await fRenderTemplateLayers(renderCtx, fState.material.layers, w, h, d, c);
+    await fRenderTemplateLayers(renderCtx, fState.material.layers, w, h, d, c, null,
+      {scope:'franqueado',purpose:'export'});
     await fDrawDMLogo(renderCtx, w, h);
     return renderCv;
   }
@@ -201,6 +202,7 @@ async function fCompartilhar(btn, snapId){
   }catch(e){
     if(e && e.name==='AbortError') return; // usuário cancelou o share nativo — silencioso
     console.warn('Falha ao compartilhar:',e);
+    if(typeof gHandleLayoutUnsafeError==='function'&&gHandleLayoutUnsafeError(e))return;
     gToast('Não consegui compartilhar. Tente o botão Baixar.','error');
   }finally{ fState.material=prevMat; }
 }
@@ -269,7 +271,11 @@ function fAdjustImageData(id, adj){
 }
 
 // Renderiza os layers do template, substituindo {{var}} pelos dados reais do franqueado
-async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp, materialOverride){
+async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp, materialOverride, renderOpts){
+  renderOpts=renderOpts||{};
+  // Fail-safe: chamadas sem escopo são tratadas como autoria. Só um consumidor que se declara
+  // `franqueado` pode executar o Auto-layout temporário.
+  const _renderScope=renderOpts.scope||'designer';
   // Garante que as fontes (Roboto + enviadas pelo usuário) estejam carregadas antes
   // de desenhar texto no canvas — senão a primeira geração sai com fonte fallback.
   if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
@@ -305,19 +311,34 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp, materialOve
     if(typeof gApplyRules==='function') eff = gApplyRules(eff, dados, {defaults:_defaults});
     return eff;
   });
-  // Aplica Alinhamento Magnético Relativo (Auto-spacing).
-  // `fitText` = layout vivo: mede o texto como ele será DESENHADO (quebra + encolhimento),
-  // então o bloco de baixo desce o quanto precisa. Desligado, mede como antes.
+  // Âncoras manuais existem nos dois lados; Auto-layout inferido só existe no runtime do
+  // franqueado. Calculamos original e acomodado em CLONES independentes — o template publicado
+  // nunca recebe x/y/fonte temporários.
   if(typeof gApplyRelativeAnchors==='function'){
-    // Ligado em todo template; só a flag da rede e o botão Auto-layout da prévia desligam.
-    const _vivo = (typeof gLayoutVivoAtivo==='function') ? gLayoutVivoAtivo() : false;
-    effective = gApplyRelativeAnchors(effective, dados, _defaults, {fitText:_vivo, canvas:{w:W,h:H}});
+    const original=gApplyRelativeAnchors(effective,dados,_defaults,{fitText:false,canvas:{w:W,h:H},scope:_renderScope});
+    const disponivel=_renderScope==='franqueado'
+      &&((typeof gLayoutVivoDisponivel==='function')?gLayoutVivoDisponivel():true);
+    if(disponivel){
+      const solved=gApplyRelativeAnchors(effective,dados,_defaults,{fitText:true,canvas:{w:W,h:H},scope:'franqueado'});
+      const result=(typeof gDescribeFranchiseeLayout==='function')
+        ?gDescribeFranchiseeLayout(original,solved)
+        :{status:'adapted',adapted:true,invalid:false,requiresAdaptation:true,forced:false,changes:[],invalidIds:[]};
+      const prefereOriginal=(typeof gLayoutVivoOff!=='undefined')&&gLayoutVivoOff;
+      result.forced=!!(prefereOriginal&&result.requiresAdaptation);
+      effective=(prefereOriginal&&!result.requiresAdaptation)?original:solved;
+      effective._layoutResult=result;
+      window.gLastFranchiseeLayoutResult=result;
+      if(result.invalid&&renderOpts.purpose==='export'){
+        const err=new Error('A arte não tem espaço seguro para estes dados. Encurte o texto ou escolha outro material.');
+        err.code='LUMA_LAYOUT_UNSAFE';err.layoutResult=result;throw err;
+      }
+    }else{
+      effective=original;
+      effective._layoutResult={status:'original',adapted:false,invalid:false,
+        requiresAdaptation:false,forced:false,changes:[],invalidIds:[]};
+    }
   }
-  // NÃO rodar o auto-layout (gResolveIntelligentLayout) aqui: este render é o mesmo do
-  // preview ao vivo (roda a cada tecla) e do PNG. Mover camadas neste ponto custava
-  // O(layers × canvas) por tecla e fazia a prévia divergir do que o designer publicou.
-  // O auto-layout é ação EXPLÍCITA do Estúdio (dApplyIntelligentLayout), que persiste a
-  // geometria — assim prévia e PNG usam as mesmas coords, sem surpresa e sem custo aqui.
+  // O renderer continua único: prévia e exportação recebem exatamente o mesmo clone resolvido.
   // Renderiza só layers visíveis (geometria já está no formato alvo → escala 1:1)
   const visible = effective.filter(l => l.visible !== false);
   // PRÉ-CARGA PARALELA: o loop abaixo espera imagem por imagem (await em série) — com os
@@ -1313,7 +1334,8 @@ async function fRenderMaterialToDataURL(dados, camp, fmt){
   renderCv.width=w*SCALE;renderCv.height=h*SCALE;
   const rctx=renderCv.getContext('2d');
   rctx.scale(SCALE,SCALE);
-  await fRenderTemplateLayers(rctx, fState.material.layers, w, h, dados, camp);
+  await fRenderTemplateLayers(rctx, fState.material.layers, w, h, dados, camp, null,
+    {scope:'franqueado',purpose:'export'});
   await fDrawDMLogo(rctx, w, h);
   const finalCv=document.createElement('canvas');
   finalCv.width=w;finalCv.height=h;
@@ -2889,7 +2911,8 @@ async function fBulkRenderCardPreview(row, index){
     const [w,h]=fMaterialSize(fState.material, fState.fmt);
     // Render no tamanho nativo (sem super-sampling — é thumbnail) e desenha reduzido.
     const off=document.createElement('canvas');off.width=w;off.height=h;
-    await fRenderTemplateLayers(off.getContext('2d'), fState.material.layers, w, h, row.dados, fState.camp);
+    await fRenderTemplateLayers(off.getContext('2d'), fState.material.layers, w, h, row.dados, fState.camp, null,
+      {scope:'franqueado',purpose:'preview'});
     const ctx=cv.getContext('2d');
     ctx.clearRect(0,0,cv.width,cv.height);
     ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
@@ -3186,7 +3209,8 @@ async function _fpvRun(canvas, tmpl, opts){
   const prevMat=(typeof fState!=='undefined')?fState.material:null;
   try{
     if(typeof fState!=='undefined') fState.material={layers:tmpl.layers, w:W, h:H, bg:tmpl.bg, fmt:tmpl.fmt};
-    await fRenderTemplateLayers(octx, tmpl.layers, W, H, dados, camp);
+    await fRenderTemplateLayers(octx, tmpl.layers, W, H, dados, camp, tmpl,
+      {scope:opts.scope||'designer',purpose:'preview'});
   }catch(e){ console.warn('[preview] render falhou:', e); return false; }
   finally{ if(typeof fState!=='undefined') fState.material=prevMat; }
   if(canvas._fpvId!==renderId) return false; // um render mais novo assumiu este canvas
@@ -4365,7 +4389,8 @@ async function fBulkShowHoverPreview(event, i) {
     off.width = w;
     off.height = h;
     
-    await fRenderTemplateLayers(off.getContext('2d'), fState.material.layers, w, h, row.dados, fState.camp);
+    await fRenderTemplateLayers(off.getContext('2d'), fState.material.layers, w, h, row.dados, fState.camp, null,
+      {scope:'franqueado',purpose:'preview'});
     
     const ctx = cv.getContext('2d');
     ctx.clearRect(0,0,cw,ch);

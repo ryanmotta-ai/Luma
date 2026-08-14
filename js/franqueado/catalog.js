@@ -181,7 +181,8 @@ async function _fHistRenderPreview(img,run){
     const previousMaterial=fState.material;
     fState.material=material;
     try{
-      await fRenderTemplateLayers(off.getContext('2d'),material.layers,mw,mh,h.dados||{},camp);
+      await fRenderTemplateLayers(off.getContext('2d'),material.layers,mw,mh,h.dados||{},camp,null,
+        {scope:'franqueado',purpose:'preview'});
     }finally{
       // Se outro fluxo mudou o material durante o await, ele vence; não restauramos estado velho.
       if(fState.material===material) fState.material=previousMaterial;
@@ -396,6 +397,7 @@ async function fDownloadHist(id){
   try {
     await fGenPNG(h.dados,c,f);
   } catch(e) {
+    if(typeof gHandleLayoutUnsafeError==='function'&&gHandleLayoutUnsafeError(e))return;
     gToast('Não consegui baixar a arte. Tente de novo.','error');
     return; // não marca "baixada" nem toast de sucesso se o PNG não saiu
   } finally {
@@ -566,6 +568,7 @@ async function fConfirmDuplicate(id, fmtId){
     await fGenPNG(h.dados, c, f);
     fAddHist(h.dados, c, f, 'baixada'); // só registra se o PNG saiu (material ainda carregado aqui)
   } catch(e) {
+    if(typeof gHandleLayoutUnsafeError==='function'&&gHandleLayoutUnsafeError(e))return;
     gToast('Não consegui duplicar a arte. Tente de novo.','error');
     return;
   } finally {
