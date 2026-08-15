@@ -2,7 +2,14 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!-- interactive-widget=resizes-content: quando o teclado do celular abre, o navegador
+     ENCOLHE o viewport de layout em vez de só sobrepor. Sem isto o padrão é `resizes-visual`:
+     o `100dvh` continua valendo a tela inteira e a barra de digitar do chat fica DEBAIXO do
+     teclado — a pessoa digita sem ver o que digita. Medido: a 390×508 (o que sobra com o
+     teclado aberto) o layout do chat se comporta, então basta o navegador entregar esse
+     tamanho. Chrome/Android 108+ respeita; Safari ainda ignora (valor desconhecido é inerte,
+     não quebra) — o iOS continua dependendo de verificação em aparelho real. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Luma</title>
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=2">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon.svg?v=2">

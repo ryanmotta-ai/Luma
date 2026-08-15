@@ -1396,3 +1396,68 @@ body:not(.theme-light) .caption-src{background:var(--d-surf2);border-color:var(-
    `#f-bulk-dl-btn` fica `disabled` até existir uma oferta, mas mantinha `cursor:pointer` —
    parecia clicável e não era. */
 #f-bulk-modal button:disabled{cursor:not-allowed}
+
+/* ── DEDO, NÃO MOUSE (alvos de toque do chat) ─────────────────────────────────
+   A régua é `hover:none` (o aparelho é tocado), não a largura: um tablet de 800px
+   também é operado com o dedo. O `ux-principles.md` pede ≥44px (Lei de Fitts) e o
+   bloco de 680px já aplica `--tap-min` em vários controles — estes ficaram de fora
+   e foram medidos na bancada do celular.
+   ⚠ ESTE BLOCO FICA NO FIM DO ARQUIVO DE PROPÓSITO. `.qr` tem `min-height:34px` na
+   sua regra base lá em cima; com a mesma especificidade quem vem depois vence, e
+   escrito antes dela o bloco inteiro era inerte (aconteceu). */
+@media (hover:none){
+  /* Os chips de resposta rápida são o jeito PRINCIPAL de responder no celular —
+     tocar "Combo Burger" evita abrir o teclado. Mediam 38px de altura. */
+  .qr{min-height:var(--tap-min)}
+  /* "Recomeçar" vira só ícone abaixo de 1080px e encolhia para 36×36. */
+  #f-head-actions button{min-width:var(--tap-min);min-height:var(--tap-min)}
+}
+
+/* ── A ARTE DENTRO DA CONVERSA (celular) ──────────────────────────────────────
+   Mesmo corte do resto do layout mobile do chat (680px, o mesmo da gaveta e do FAB).
+   O porquê e as duas decisões de arquitetura estão em `_fLpPaintCartao`
+   (`js/franqueado/live-preview.js`) — resumo: o cartão é o último item flex por
+   `order`, absorve a sobra com `flex:1` e encolhe até o piso quando as bolhas crescem. */
+/* Fora do celular o cartão NÃO existe: o desktop tem o painel de prévia fixo ao lado, e
+   duas cópias da arte na mesma tela é ruído. Escondido por padrão e ligado só no corte
+   mobile — assim girar o aparelho para paisagem (>680px) o apaga em vez de deixar um
+   botão sem estilo no meio da conversa. */
+#f-chat-art{display:none}
+@media (max-width:680px){
+  #f-chat-art{
+    order:1;                       /* último, mesmo entrando antes no DOM */
+    flex:1 1 auto;
+    /* Piso: abaixo disto a arte vira selo ilegível e o espaço serve melhor à conversa.
+       `min-height` no piso e não `height` — é o que deixa o flex encolher até aqui e parar. */
+    min-height:140px;
+    align-self:stretch;
+    display:flex;align-items:center;justify-content:center;
+    margin:2px 0 0;padding:10px;
+    border:1px solid var(--gray-light);border-radius:16px;
+    background:var(--gray-bg,var(--gray-light));
+    cursor:pointer;-webkit-tap-highlight-color:transparent;
+    transition:transform var(--dur-fast) var(--ease-spring),box-shadow var(--dur-fast) var(--ease-standard);
+  }
+  #f-chat-art:active{transform:scale(.985)}
+  #f-chat-art:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+  /* O encaixe mora AQUI, não no JS: `width/height:auto` faz o canvas usar o bitmap como
+     tamanho intrínseco e os `max-*:100%` o reduzem preservando a proporção — a arte cabe
+     inteira (o franqueado precisa ver a peça toda, não um corte). Cravar pixel no JS
+     realimentava o flex e congelava a altura do cartão; ver `_fLpPaintCartao`. */
+  #f-chat-art canvas{
+    display:block;width:auto;height:auto;max-width:100%;max-height:100%;
+    border-radius:9px;
+    box-shadow:0 4px 16px rgba(10,10,10,.14);
+  }
+  /* Com a arte no fluxo, o FAB seria a MESMA arte flutuando por cima dela. O cartão herda
+     o papel (tocar abre a prova em tela cheia) e nunca sai de vista: como último item flex
+     de uma lista que rola sozinha pro fim, ele está sempre no rodapé da conversa. */
+  body.f-mobile-chat #mobile-preview-toggle{display:none}
+  /* ...e some com a RESERVA que existia só por causa dele. O `padding-bottom:150px` lá em
+     cima foi criado para a miniatura flutuante (~114px de altura em `bottom:80px`) não tampar
+     o fim da rolagem. Sem miniatura sobre o chat, viram 150px de vazio no rodapé de toda
+     conversa — e era exatamente esse vazio que sobrava depois do cartão entrar (medido:
+     o cartão parava de crescer porque não havia folga para ele absorver). */
+  body.f-mobile-chat #f-messages{padding-bottom:14px}
+}
+body:not(.theme-light) #f-chat-art{border-color:var(--d-line,#2A2A2A);background:var(--d-surf2,#141414)}

@@ -384,3 +384,24 @@
     transition-duration: .01ms !important;
   }
 }
+
+/* ── DEDO, NÃO MOUSE (alvos de toque da topbar) ───────────────────────────────
+   Medido na bancada do celular (390×844): logo 72×22, abas de modo 44×32 e o
+   badge de perfil 38×38 — todos abaixo dos 44px que o `ux-principles.md` exige.
+   A topbar tem 52px de altura, então dá para crescer o ALVO sem crescer o desenho. */
+@media (hover:none){
+  /* O logo é `role=button` (`gGoHome()`). `background-size:contain` + centro já eram a
+     regra, então esticar a caixa mantém a arte no mesmo tamanho e no mesmo lugar. */
+  .top-dm-logo{min-height:var(--tap-min)}
+
+  /* Abaixo de 620px o badge perde o texto e fica só avatar+chevron: 38px nos dois eixos. */
+  .top-profile-badge{min-height:var(--tap-min);min-width:var(--tap-min)}
+
+  /* ⚠ A aba de modo NÃO cresce: 32px + os 3px de padding da pílula em cima e embaixo
+     dão 40px, e levar a aba a 44 empurraria a pílula para 52px — exatamente a altura da
+     topbar, sem respiro. Isso seria redesenhar o controle-assinatura do produto, não
+     corrigir um alvo. Em vez disso o ALVO cresce e o desenho fica: o `::after` estende
+     a área tocável 6px para cima e para baixo (32+12=44) sem mover um pixel.
+     Só na vertical — na horizontal invadiria a aba vizinha, que fica a 2px de distância. */
+  .mode-tab::after{content:'';position:absolute;inset:-6px 0;border-radius:inherit}
+}

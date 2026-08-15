@@ -161,6 +161,24 @@ Revisão feita **abrindo a tela** (desktop 1440, celular 390, claro e escuro) e 
 
 ⚠ **Achado não tocado:** `fBulkEditRow` (o formulário da antiga "vista em cartões") não tem mais nenhum chamador — a vista foi removida de propósito, a função ficou. Usa o **nome cru da variável** como rótulo, então se voltar a ser alcançada mostra "preco" para o franqueado. Candidata a remoção.
 
+### 2.9 O chat do franqueado no celular — ✅ RESOLVIDO (2026-08-15)
+
+Pedido do Ryan: *"quero pensar principalmente na experiência mobile, ela precisa ser muito boa"*. O franqueado do interior opera pelo celular — é a tela que mais importa no Luma. Mesmo método: uma bancada dirige o **fluxo real** (campanha → material → chat → responder → prévia) num iPhone de 390×844 com toque emulado, e mede. Nada aqui foi deduzido lendo CSS.
+
+**A arte estava escondida e metade da tela estava vazia.** O chat abria com **441px vazios entre a pergunta e a barra de digitar — 52% da tela** — e a arte era um selo flutuante de 64px no canto. O vazio só sumia conforme a pessoa respondia (52% → 39% → 18%), ou seja: era pior justamente no **primeiro contato**, onde a confiança do franqueado se ganha ou se perde. Decisão do Ryan entre quatro opções: trazer a arte para dentro da conversa. Agora um cartão ocupa a sobra (**45% da tela**, vazio de 2%), tocar nele abre a prova em tela cheia, e ele **encolhe até um piso de 140px** conforme as bolhas crescem. Não é um segundo renderizador: `drawImage` do `#lp-canvas`, a mesma lei que a miniatura flutuante já seguia.
+
+**O `padding-bottom:150px` era herança do que foi removido.** Existia só para a miniatura flutuante (~114px em `bottom:80px`) não tampar o fim da rolagem. Com a arte no fluxo o selo some — e a reserva virava 150px de vazio no rodapé de toda conversa. Foi ela que impediu o cartão de crescer no primeiro corte: sem folga, o `flex:1` não tinha o que absorver.
+
+**8 alvos de toque abaixo de 44px → 0.** Chips de resposta rápida a 38px (o jeito **principal** de responder no celular — tocar "Combo Burger" evita abrir o teclado), "Recomeçar" a 36×36, logo a 72×22, badge de perfil a 38×38. ⛔ **A aba de modo não cresceu de propósito:** 32px + o padding da pílula dá 40px, e levá-la a 44 empurraria a pílula para 52px — a altura exata da topbar, sem respiro. Seria redesenhar o controle-assinatura do produto, não corrigir um alvo. Em vez disso o **alvo** cresce e o desenho fica: um `::after` estende a área tocável 6px para cada lado (32+12=44). Verificado por `elementFromPoint`, não pela caixa.
+
+**Teclado:** o viewport ganhou `interactive-widget=resizes-content`. Sem isso o padrão é `resizes-visual` — o `100dvh` continua valendo a tela inteira e a barra de digitar fica sob o teclado. Medido: a **390×508** (o que sobra com o teclado aberto) o layout do chat se comporta inteiro, então basta o navegador entregar esse tamanho.
+
+⛔ **Descartados na medição — não "corrigir":** `#lp-zoom-range` com fonte 13px (é `input[type=range]`; só campo de **digitação** dispara o zoom do iOS) e a gaveta de prévia "fora da tela" (fechada em `translateY(100%)` é o desenho, não defeito). O campo de mensagem já estava em 16px e o safe-area já estava aplicado em 9 lugares — a base mobile existia, o que faltava era o que a bancada achou.
+
+⚠ **Não verificado aqui:** o comportamento real do teclado no **iOS**. Não há teclado no headless; o que foi verificado são as duas condições que decidem (o app pede o encolhimento, e o layout aguenta a altura curta). Safari ainda ignora `interactive-widget` — valor desconhecido é inerte, não quebra —, então **o iPhone precisa de conferência em aparelho real**. Se o sintoma aparecer lá, o próximo degrau é o `visualViewport`, e já existe implementação da casa para espelhar (`_gCliAjustaViewport`, `js/core/console.js`).
+
+⚠ **Achado não tocado:** a arte no cartão mostra as **caixas tracejadas de campo vazio** (`fLpHighlightEmpty` — "toque pra preencher"). É comportamento deliberado do motor de prévia, herdado fielmente pela cópia de pixels; some conforme os campos são preenchidos. Tirá-las mudaria também a prova em tela cheia — decisão de design, não defeito.
+
 ## 3. O roadmap
 
 ### FASE P0 — Fundações que sangram (≈1–2 dias) 🔴

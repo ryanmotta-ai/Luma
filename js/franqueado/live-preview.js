@@ -1265,6 +1265,65 @@ function _fLpPaintPip(){
   // Arte pronta → um pulso convida pra prova final (uma vez por arte; nada de abrir sozinho)
   if(fState.done && !btn._pipPulsed){ btn._pipPulsed = true; btn.classList.add('pip-pulse'); setTimeout(()=>btn.classList.remove('pip-pulse'), 1200); }
   if(!fState.done) btn._pipPulsed = false;
+  try{ _fLpPaintCartao(src); }catch(e){}
+}
+
+/* ── A ARTE DENTRO DA CONVERSA (celular) ──
+   Medido na bancada do celular: o chat abria com **52% da tela vazia** entre a pergunta e a
+   barra de digitar (441px numa tela de 844), e o vazio só sumia conforme a pessoa respondia
+   (52% → 39% → 18%). Ou seja: era pior justamente no PRIMEIRO contato, onde a confiança do
+   franqueado se ganha ou se perde. O vazio agora é preenchido pela própria arte.
+
+   Duas decisões que valem ler antes de mexer:
+
+   1. **NÃO é um segundo renderizador** — mesma lei da miniatura acima: `drawImage` do
+      `#lp-canvas`, cópia de pixels do motor único. Se um dia a arte divergir da prova em tela
+      cheia, o bug está no motor, nunca aqui.
+   2. **O cartão é o ÚLTIMO item flex, por `order`, não por posição no DOM.** As bolhas entram
+      por `msgs.appendChild(...)` em ~6 lugares do `chat.js`; qualquer uma delas cairia depois
+      do cartão. `order:1` (contra o `0` implícito das bolhas) resolve sem que nenhum desses
+      chamadores precise saber que o cartão existe. O CSS dá a ele `flex:1 1 auto`: ele ABSORVE
+      a sobra e ENCOLHE até o piso quando as bolhas crescem — sem uma linha de conta de altura. */
+function _fLpPaintCartao(src){
+  if(!window.matchMedia || !matchMedia('(max-width:680px)').matches) return;
+  const msgs = document.getElementById('f-messages');
+  if(!msgs) return;
+  let card = document.getElementById('f-chat-art');
+  if(!card){
+    // `fStartChatComMaterial` faz `innerHTML=''` a cada arte nova, então o cartão se recria
+    // sozinho aqui em vez de depender de alguém lembrar de repô-lo.
+    card = document.createElement('button');
+    card.id = 'f-chat-art';
+    card.type = 'button';
+    card.setAttribute('aria-label', 'Ver a arte em tela cheia');
+    card.appendChild(document.createElement('canvas'));
+    card.addEventListener('click', (e)=>{
+      /* ⚠ `stopPropagation` NÃO é decoração — é a mesma guarda que o FAB já tem.
+         `fInitMobilePreviewEvents` registra no documento um "clicou fora da gaveta → fecha".
+         Sem parar aqui, o MESMO clique abre e fecha: este listener põe `open`, o evento sobe,
+         o do documento vê `open` ligado com o alvo fora da gaveta e desliga. Medido: o toque
+         no cartão não abria nada e não havia erro nenhum no console. */
+      e.stopPropagation();
+      const el = document.getElementById('f-live-preview');
+      if(el) el.classList.add('open');
+    });
+  }
+  if(card.parentElement !== msgs) msgs.appendChild(card);
+  const cv = card.querySelector('canvas');
+  /* ⚠ O JS NÃO MEDE A CAIXA. Minha primeira versão media o cartão e cravava
+     `cv.style.width/height` em pixels — e isso REALIMENTAVA o layout: a altura fixa do canvas
+     virava a altura do cartão, que então parava de acompanhar a sobra do flex. Sintoma medido:
+     o cartão congelava em 270px e sobravam 132px de vazio embaixo dele.
+     Agora o JS só define o BITMAP (a resolução) e o CSS faz o encaixe com
+     `max-width/max-height:100%` + `width/height:auto` — o canvas usa o bitmap como tamanho
+     intrínseco e o navegador o reduz preservando a proporção. Zero conta de layout, zero laço. */
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const W = Math.min(src.width, 600);              // teto de resolução: é uma prévia, não o PNG
+  const w = Math.round(W * dpr), h = Math.max(1, Math.round(w * src.height / src.width));
+  if(cv.width !== w || cv.height !== h){ cv.width = w; cv.height = h; }
+  const ctx = cv.getContext('2d');
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(src, 0, 0, cv.width, cv.height);
 }
 
 // Gestos de celular na PROVA: pinça = zoom (mesmo _fLpZoomAround da roda), 1 dedo = pan.
