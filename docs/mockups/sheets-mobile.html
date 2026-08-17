@@ -1,0 +1,719 @@
+<title>Sheets no Celular</title>
+<style>
+/* ═══ BANCADA — a moldura da página ═══
+   Ardósia fria de propósito: é o complemento do laranja da marca, então as telas
+   quentes do Luma leem como OBJETOS sobre uma mesa, não como parte do fundo. */
+:root{
+  --ground:#EEF0F4; --surface:#FFFFFF; --surface-2:#F7F8FA;
+  --ink:#12141A; --ink-2:#565D6D; --ink-3:#828A9A;
+  --line:#DCE0E8; --line-2:#C9CFDA;
+  --accent:#F85400; --accent-soft:#FFF1E8;
+  --ok:#128A4C; --warn:#9A6100; --gap:#B02020;
+  --shadow:0 1px 2px rgba(18,20,26,.05), 0 12px 32px rgba(18,20,26,.08);
+  --shadow-ph:0 2px 6px rgba(18,20,26,.10), 0 24px 60px rgba(18,20,26,.20);
+  --ui:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --app:Roboto,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#14161B; --surface:#1C1F26; --surface-2:#22262F;
+    --ink:#EDEFF3; --ink-2:#A2ABBB; --ink-3:#7A8394;
+    --line:#2B303B; --line-2:#3A4150;
+    --accent:#FF8A3D; --accent-soft:#2A1B10;
+    --ok:#3DD68C; --warn:#E8B33A; --gap:#FF7A7A;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 32px rgba(0,0,0,.45);
+    --shadow-ph:0 2px 6px rgba(0,0,0,.5), 0 24px 60px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#14161B; --surface:#1C1F26; --surface-2:#22262F;
+  --ink:#EDEFF3; --ink-2:#A2ABBB; --ink-3:#7A8394;
+  --line:#2B303B; --line-2:#3A4150;
+  --accent:#FF8A3D; --accent-soft:#2A1B10;
+  --ok:#3DD68C; --warn:#E8B33A; --gap:#FF7A7A;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 32px rgba(0,0,0,.45);
+  --shadow-ph:0 2px 6px rgba(0,0,0,.5), 0 24px 60px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:var(--ui); font-size:16px; line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1360px; margin:0 auto; padding:clamp(20px,4vw,52px) clamp(16px,4vw,40px) 64px}
+
+/* ── Cabeçalho ── */
+.eyebrow{
+  font-size:11px; font-weight:700; letter-spacing:.13em; text-transform:uppercase;
+  color:var(--accent); margin:0 0 10px;
+}
+h1{
+  font-size:clamp(28px,5.2vw,46px); line-height:1.08; font-weight:800;
+  letter-spacing:-.025em; margin:0 0 14px; text-wrap:balance; max-width:19ch;
+}
+.lede{font-size:clamp(15px,1.9vw,18px); color:var(--ink-2); margin:0; max-width:62ch}
+.lede strong{color:var(--ink); font-weight:650}
+
+/* ── O problema, com número ── */
+/* minmax(150px): dois por linha já num telefone de 358px úteis. Com 180px cada
+   cartão virava uma faixa isolada e o preâmbulo comia duas telas antes dos mockups —
+   que são o entregável. */
+.facts{
+  display:grid; gap:9px; margin:24px 0 0;
+  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+}
+.fact{
+  background:var(--surface); border:1px solid var(--line); border-radius:12px;
+  padding:12px 14px;
+}
+.fact b{
+  display:block; font-size:23px; font-weight:800; letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums; line-height:1.1;
+}
+.fact span{display:block; font-size:12px; color:var(--ink-2); margin-top:2px; line-height:1.38}
+
+.rule{height:1px; background:var(--line); border:0; margin:40px 0 32px}
+
+h2{
+  font-size:clamp(19px,2.6vw,24px); font-weight:750; letter-spacing:-.018em;
+  margin:0 0 8px; text-wrap:balance;
+}
+.sub{color:var(--ink-2); font-size:14.5px; margin:0 0 22px; max-width:64ch}
+
+/* ── Seletor de proposta (celular) ── */
+.picker{
+  display:flex; gap:6px; padding:5px; margin:0 0 22px;
+  background:var(--surface); border:1px solid var(--line); border-radius:999px;
+  position:sticky; top:10px; z-index:20; box-shadow:var(--shadow);
+}
+.picker button{
+  flex:1; min-width:0; min-height:44px; padding:0 8px;
+  border:0; border-radius:999px; background:transparent; color:var(--ink-2);
+  font:inherit; font-size:13px; font-weight:650; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; gap:6px;
+  transition:background .18s ease, color .18s ease;
+}
+.picker button .n{
+  width:20px; height:20px; border-radius:50%; flex:0 0 auto;
+  background:var(--line); color:var(--ink-2);
+  font-size:11px; font-weight:800; display:grid; place-items:center;
+  transition:background .18s ease, color .18s ease;
+}
+.picker button[aria-selected="true"]{background:var(--ink); color:var(--surface)}
+.picker button[aria-selected="true"] .n{background:var(--accent); color:#fff}
+.picker button:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+@media (min-width:1080px){ .picker{display:none} }
+
+/* ── Grade das propostas ── */
+.decks{display:grid; gap:44px}
+@media (min-width:1080px){ .decks{grid-template-columns:repeat(3,1fr); gap:28px; align-items:start} }
+.deck[hidden]{display:none}
+@media (min-width:1080px){ .deck[hidden]{display:block} }
+
+.deck-head{margin:0 0 16px}
+.tag{
+  display:inline-flex; align-items:center; gap:7px; margin:0 0 9px;
+  font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-3);
+}
+.tag i{
+  width:18px; height:18px; border-radius:50%; background:var(--accent); color:#fff;
+  font-style:normal; font-size:10px; font-weight:800; display:grid; place-items:center;
+}
+.deck h3{font-size:21px; font-weight:750; letter-spacing:-.02em; margin:0 0 6px; line-height:1.2}
+.deck .idea{font-size:14px; color:var(--ink-2); margin:0; line-height:1.5}
+
+/* ── Telefone ── */
+.stage{display:flex; justify-content:center; margin:20px 0 16px}
+.ph{
+  width:min(390px,100%); aspect-ratio:390/770;
+  background:#FAFAFA; border-radius:30px; position:relative; overflow:hidden;
+  border:1px solid var(--line-2); box-shadow:var(--shadow-ph);
+  /* As telas são do lado FRANQUEADO, que é tema claro no app real — ficam claras
+     nos dois temas da página de propósito. É mockup do app, não da página. */
+  color:#0A0A0A; font-family:var(--app); container-type:inline-size;
+}
+.ph-scr{position:absolute; inset:0; display:none; flex-direction:column; background:#FAFAFA}
+.ph-scr.on{display:flex; animation:in .26s cubic-bezier(.2,.8,.3,1) both}
+@keyframes in{from{opacity:0; transform:translateX(9px)} to{opacity:1; transform:none}}
+@media (prefers-reduced-motion:reduce){ .ph-scr.on{animation:none} }
+
+/* status bar */
+.sb{
+  height:30px; flex:0 0 30px; display:flex; align-items:center; justify-content:space-between;
+  padding:0 16px 0 20px; font-size:11px; font-weight:700; color:#0A0A0A; letter-spacing:.01em;
+}
+.sb .dots{display:flex; gap:3px; align-items:center}
+.sb .dots s{width:3px; height:9px; background:#0A0A0A; border-radius:1px; text-decoration:none; display:block}
+.sb .dots s:nth-child(1){height:5px} .sb .dots s:nth-child(2){height:7px}
+.sb .bat{width:17px; height:9px; border:1.2px solid #0A0A0A; border-radius:2.5px; position:relative}
+.sb .bat::after{content:''; position:absolute; inset:1.4px; right:5px; background:#0A0A0A; border-radius:1px}
+
+/* topbar laranja do Luma */
+.lt{
+  flex:0 0 auto; background:#FF9000; color:#fff; padding:9px 14px;
+  display:flex; align-items:center; gap:10px;
+}
+.lt .lg{font-size:15px; font-weight:900; letter-spacing:-.02em}
+.lt .ttl{font-size:12.5px; font-weight:700; opacity:.96; margin-left:auto}
+.lt .x{
+  width:26px; height:26px; border-radius:50%; background:rgba(255,255,255,.22);
+  display:grid; place-items:center; font-size:14px; font-weight:700; flex:0 0 auto;
+}
+
+/* corpo rolável */
+.bd{flex:1; min-height:0; overflow:hidden; display:flex; flex-direction:column}
+.pad{padding:12px 14px}
+.scroll{flex:1; min-height:0; overflow:hidden; padding:12px 14px; display:flex; flex-direction:column; gap:9px}
+
+/* barra de ação inferior */
+.bar{
+  flex:0 0 auto; border-top:1px solid #F2F2F2; background:#fff;
+  padding:10px 14px 14px; display:flex; gap:9px; align-items:center;
+}
+
+/* ── Vocabulário Luma (tokens reais do design-system.md) ── */
+.b{
+  min-height:44px; border-radius:6px; border:1px solid transparent; padding:0 16px;
+  font:inherit; font-size:14px; font-weight:700; cursor:pointer;
+  display:inline-flex; align-items:center; justify-content:center; gap:7px;
+  background:#F2F2F2; color:#3A3A3A; flex:0 0 auto; transition:filter .15s ease;
+}
+.b.pri{background:#F85400; color:#fff}
+.b.gho{background:transparent; border-color:#D4D4D4; color:#3A3A3A}
+.b.wide{flex:1 1 auto; width:100%}
+.b:focus-visible{outline:2px solid #FF9000; outline-offset:2px}
+.b:active{filter:brightness(.95)}
+.lbl{
+  font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+  color:#6B6B6B; display:block; margin-bottom:5px;
+}
+.fld{
+  background:#fff; border:1px solid #D4D4D4; border-radius:10px; padding:10px 12px;
+  font-size:15px; font-weight:500; color:#0A0A0A; min-height:44px;
+  display:flex; align-items:center; gap:8px;
+}
+.fld.empty{border-style:dashed; border-color:#FF9000; background:#FFF8F0; color:#9A6100; font-weight:600}
+.fld .u{margin-left:auto; font-size:11px; font-weight:700; color:#6B6B6B}
+.pill{
+  display:inline-flex; align-items:center; gap:5px; border-radius:999px;
+  padding:3px 9px; font-size:10.5px; font-weight:700; letter-spacing:.02em; white-space:nowrap;
+}
+.pill.ok{background:#E6F6ED; color:#128A4C}
+.pill.gap{background:#FFF1E8; color:#B04A00}
+.pill.mut{background:#F2F2F2; color:#6B6B6B}
+.pill s{width:5px; height:5px; border-radius:50%; background:currentColor; text-decoration:none; display:block}
+
+/* a arte */
+.art{
+  background:linear-gradient(158deg,#FF9000,#F85400); border-radius:10px; color:#fff;
+  position:relative; overflow:hidden; display:flex; flex-direction:column;
+  justify-content:flex-start; padding:13px; gap:5px; flex:0 0 auto;
+}
+.art .an{font-size:15px; font-weight:900; line-height:1.12; letter-spacing:-.01em}
+.art .ap{font-size:19px; font-weight:900; letter-spacing:-.02em; margin-top:1px}
+.art .aph{
+  margin-top:auto; height:38%; border-radius:7px;
+  background:rgba(255,255,255,.17); border:1px dashed rgba(255,255,255,.5);
+}
+.art.sm{padding:8px; border-radius:8px}
+.art.sm .an{font-size:9px; line-height:1.1} .art.sm .ap{font-size:11px}
+.art.sm .aph{height:34%; border-radius:4px}
+.art.mi{padding:5px; border-radius:6px; gap:2px}
+.art.mi .an{font-size:6px; line-height:1.05} .art.mi .ap{font-size:7.5px}
+.art.mi .aph{height:32%; border-radius:3px; border-width:.5px}
+
+/* cartão de linha */
+.row{
+  display:flex; align-items:center; gap:10px; background:#fff;
+  border:1px solid #F2F2F2; border-radius:10px; padding:8px 10px; flex:0 0 auto;
+}
+.row .th{width:34px; height:60px; flex:0 0 auto}
+.row .tx{min-width:0; flex:1}
+.row .nm{font-size:13.5px; font-weight:700; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.row .mt{font-size:11.5px; color:#6B6B6B; margin-top:2px; display:flex; align-items:center; gap:6px}
+.row.sel{border-color:#F85400; background:#FFF8F2}
+.chk{
+  width:21px; height:21px; border-radius:50%; border:1.6px solid #D4D4D4; flex:0 0 auto;
+  display:grid; place-items:center; font-size:11px; color:transparent; font-weight:800;
+}
+.chk.on{background:#F85400; border-color:#F85400; color:#fff}
+
+/* chat */
+.msg{display:flex; gap:8px; align-items:flex-start; flex:0 0 auto}
+.msg .av{
+  width:26px; height:26px; border-radius:9px; background:#FF9000; flex:0 0 auto;
+  display:grid; place-items:center; font-size:11px; font-weight:800; color:#fff;
+}
+.bbl{
+  background:#fff; border:1px solid #F2F2F2; border-radius:14px; border-top-left-radius:5px;
+  padding:9px 12px; font-size:13px; line-height:1.5; min-width:0;
+}
+.msg.me{flex-direction:row-reverse}
+.msg.me .bbl{background:#FF9000; color:#0A0A0A; font-weight:600; border-top-left-radius:14px; border-bottom-right-radius:5px; border-color:transparent}
+.chips{display:flex; flex-wrap:wrap; gap:5px; margin-top:8px}
+.chip{
+  background:#FFF2E0; border:1px solid #FFE0BD; color:#F85400;
+  border-radius:999px; padding:5px 10px; font-size:11px; font-weight:700;
+}
+
+/* faixinhas auxiliares */
+.strip{display:flex; gap:6px; overflow:hidden; flex:0 0 auto; padding:2px 0}
+.strip .art{width:34px; height:60px; flex:0 0 auto}
+.strip .art.act{outline:2px solid #F85400; outline-offset:1.5px}
+.hd{display:flex; align-items:center; gap:8px; flex:0 0 auto}
+.hd h4{font-size:14.5px; font-weight:800; margin:0; letter-spacing:-.01em}
+.hd .ct{margin-left:auto; font-size:11.5px; font-weight:700; color:#6B6B6B; font-variant-numeric:tabular-nums}
+.prog{height:5px; border-radius:999px; background:#F2F2F2; overflow:hidden; flex:0 0 auto}
+.prog i{display:block; height:100%; background:#F85400; border-radius:999px}
+.dots-nav{display:flex; gap:4px; justify-content:center; align-items:center; flex:0 0 auto; padding:2px 0}
+.dots-nav s{width:5px; height:5px; border-radius:50%; background:#D4D4D4; display:block; text-decoration:none}
+.dots-nav s.on{background:#F85400; width:14px; border-radius:999px}
+.nudge{
+  background:#FFF2E0; border:1px solid #FFE0BD; border-radius:10px; padding:9px 11px;
+  font-size:12px; color:#B04A00; font-weight:600; line-height:1.45; flex:0 0 auto;
+}
+.sheet{
+  margin-top:auto; background:#fff; border-radius:18px 18px 0 0; border:1px solid #F2F2F2;
+  border-bottom:0; box-shadow:0 -10px 30px rgba(10,10,10,.13);
+  padding:9px 14px 14px; display:flex; flex-direction:column; gap:9px; flex:0 0 auto;
+}
+.grab{width:34px; height:4px; border-radius:999px; background:#D4D4D4; margin:0 auto 3px; flex:0 0 auto}
+.dim{position:absolute; inset:0; background:rgba(10,10,10,.28)}
+
+/* ── Navegação dos passos ── */
+.steps{display:flex; gap:6px; justify-content:center; flex-wrap:wrap; margin:0 0 18px}
+.steps button{
+  min-height:38px; padding:0 13px; border-radius:999px; cursor:pointer; font:inherit;
+  font-size:12.5px; font-weight:650; background:var(--surface); color:var(--ink-2);
+  border:1px solid var(--line); transition:all .16s ease;
+}
+.steps button[aria-current="true"]{background:var(--accent); border-color:var(--accent); color:#fff}
+.steps button:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+/* ── Prós e contras ── */
+.verdict{display:grid; gap:9px}
+.v{
+  display:grid; grid-template-columns:auto 1fr; gap:9px; align-items:start;
+  font-size:13.5px; line-height:1.5; color:var(--ink-2);
+}
+.v i{
+  font-style:normal; font-size:11px; font-weight:800; width:19px; height:19px;
+  border-radius:5px; display:grid; place-items:center; margin-top:1px; flex:0 0 auto;
+}
+.v.up i{background:rgba(18,138,76,.13); color:var(--ok)}
+.v.dn i{background:rgba(176,32,32,.11); color:var(--gap)}
+.v b{color:var(--ink); font-weight:650}
+.best{
+  margin-top:14px; padding:11px 13px; border-radius:10px;
+  background:var(--accent-soft); border:1px solid color-mix(in srgb,var(--accent) 24%,transparent);
+  font-size:13px; color:var(--ink); line-height:1.5;
+}
+.best b{font-weight:750}
+
+/* ── Tabela de decisão ── */
+.tw{overflow-x:auto; border:1px solid var(--line); border-radius:12px; background:var(--surface)}
+table{border-collapse:collapse; width:100%; min-width:560px; font-size:13.5px}
+th,td{padding:11px 14px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top}
+th{
+  font-size:10.5px; font-weight:700; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--ink-3); background:var(--surface-2); white-space:nowrap;
+}
+tbody tr:last-child td{border-bottom:0}
+td:first-child{font-weight:650; color:var(--ink); white-space:nowrap}
+td{color:var(--ink-2)}
+
+.note{
+  margin-top:32px; padding:15px 17px; border-radius:12px;
+  background:var(--surface); border:1px solid var(--line); font-size:13.5px;
+  color:var(--ink-2); line-height:1.6;
+}
+.note b{color:var(--ink); font-weight:700}
+.note code{font-family:var(--mono); font-size:12px; background:var(--surface-2); padding:1px 5px; border-radius:4px; color:var(--ink)}
+.note p{margin:0 0 9px} .note p:last-child{margin:0}
+</style>
+
+<div class="wrap">
+
+<p class="eyebrow">Direção de design · Luma Sheets</p>
+<h1>Sheets no celular</h1>
+<p class="lede">Hoje o Sheets é uma <strong>planilha de computador espremida</strong> num telefone. Três propostas navegáveis de como ele seria se tivesse nascido como app de celular.</p>
+
+<div class="facts">
+  <div class="fact"><b>77</b><span>funções por trás do Sheets — nenhuma proposta pode perder função</span></div>
+  <div class="fact"><b>5</b><span>caminhos de entrada já existentes: IA/voz, colar, CSV, histórico, digitar</span></div>
+  <div class="fact"><b>260px</b><span>de planilha só alcançáveis rolando na horizontal num telefone de 390px</span></div>
+  <div class="fact"><b>1</b><span>metáfora de desktop na raiz do problema: a grade linha × coluna</span></div>
+</div>
+
+<hr class="rule">
+
+<h2>O trabalho de verdade</h2>
+<p class="sub">O lojista manda a lista de ofertas no WhatsApp. O franqueado precisa de N artes. A planilha nunca foi o objetivo — é o instrumento que o desktop emprestou. As três propostas mantêm as mesmas 77 funções e trocam só <em>o instrumento</em>.</p>
+
+<div class="picker" role="tablist" aria-label="Escolher proposta">
+  <button role="tab" aria-selected="true" data-deck="a"><span class="n">A</span>Carrossel</button>
+  <button role="tab" aria-selected="false" data-deck="b"><span class="n">B</span>Conversa</button>
+  <button role="tab" aria-selected="false" data-deck="c"><span class="n">C</span>Lista</button>
+</div>
+
+<div class="decks">
+
+<!-- ══════════════ PROPOSTA A ══════════════ -->
+<section class="deck" id="deck-a">
+  <div class="deck-head">
+    <p class="tag"><i>A</i>Uma oferta por vez</p>
+    <h3>Carrossel</h3>
+    <p class="idea">A grade some. Cada oferta vira uma tela inteira, com a arte grande em cima e os campos embaixo. Você anda de oferta em oferta como quem passa fotos.</p>
+  </div>
+
+  <div class="steps" role="group" aria-label="Passos da proposta A">
+    <button data-go="a1" aria-current="true">1 · Editando</button>
+    <button data-go="a2">2 · Falta preço</button>
+    <button data-go="a3">3 · Gerar</button>
+  </div>
+
+  <div class="stage"><div class="ph">
+
+    <div class="ph-scr on" id="a1">
+      <div class="sb"><span>9:41</span><span class="dots"><s></s><s></s><s></s><span class="bat"></span></span></div>
+      <div class="lt"><span class="lg">Luma</span><span class="ttl">Ofertas do Bom Sabor</span><span class="x">×</span></div>
+      <div class="bd">
+        <div class="scroll">
+          <div class="hd"><h4>X‑Salada Duplo</h4><span class="ct">3 / 30</span></div>
+          <div class="prog"><i style="width:10%"></i></div>
+          <div class="art" style="height:210px">
+            <div class="an">X‑Salada Duplo</div>
+            <div class="ap">R$ 24,90</div>
+            <div class="aph"></div>
+          </div>
+          <div class="dots-nav"><s></s><s></s><s class="on"></s><s></s><s></s><s></s></div>
+          <div><span class="lbl">Nome do produto</span><div class="fld">X‑Salada Duplo</div></div>
+          <div><span class="lbl">Preço</span><div class="fld">R$ 24,90<span class="u">12/12</span></div></div>
+          <div><span class="lbl">Foto</span><div class="fld empty">Toque para enviar a foto</div></div>
+        </div>
+        <div class="bar">
+          <button class="b gho" style="padding:0 14px">←</button>
+          <button class="b pri wide">Próxima oferta →</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="ph-scr" id="a2">
+      <div class="sb"><span>9:41</span><span class="dots"><s></s><s></s><s></s><span class="bat"></span></span></div>
+      <div class="lt"><span class="lg">Luma</span><span class="ttl">Ofertas do Bom Sabor</span><span class="x">×</span></div>
+      <div class="bd">
+        <div class="scroll">
+          <div class="hd"><h4>Pizza Calabresa G</h4><span class="ct">7 / 30</span></div>
+          <div class="prog"><i style="width:23%"></i></div>
+          <div class="art" style="height:190px">
+            <div class="an">Pizza Calabresa G</div>
+            <div class="ap" style="opacity:.45">R$ —</div>
+            <div class="aph"></div>
+          </div>
+          <div class="nudge">O preço não veio na lista do lojista. Sem ele a arte não sai.</div>
+          <div><span class="lbl">Preço</span><div class="fld empty">R$ <span style="opacity:.5">0,00</span><span class="u">teclado numérico</span></div></div>
+          <div class="chips">
+            <span class="chip">R$ 39,90</span><span class="chip">R$ 45,00</span><span class="chip">Pular esta</span>
+          </div>
+        </div>
+        <div class="bar">
+          <button class="b gho" style="padding:0 14px">←</button>
+          <button class="b pri wide">Salvar e continuar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="ph-scr" id="a3">
+      <div class="sb"><span>9:41</span><span class="dots"><s></s><s></s><s></s><span class="bat"></span></span></div>
+      <div class="lt"><span class="lg">Luma</span><span class="ttl">Ofertas do Bom Sabor</span><span class="x">×</span></div>
+      <div class="bd">
+        <div class="scroll">
+          <div class="hd"><h4>Tudo revisado</h4><span class="ct">30 ofertas</span></div>
+          <div class="strip">
+            <div class="art mi" style="height:60px"><div class="an">X‑Salada</div><div class="ap">24,90</div><div class="aph"></div></div>
+            <div class="art mi" style="height:60px"><div class="an">Combo Duplo</div><div class="ap">32,00</div><div class="aph"></div></div>
+            <div class="art mi" style="height:60px"><div class="an">Pizza Cal.</div><div class="ap">39,90</div><div class="aph"></div></div>
+            <div class="art mi" style="height:60px"><div class="an">Açaí 500</div><div class="ap">18,00</div><div class="aph"></div></div>
+            <div class="art mi" style="height:60px"><div class="an">Esfiha</div><div class="ap">7,50</div><div class="aph"></div></div>
+            <div class="art mi" style="height:60px"><div class="an">Coca 2L</div><div class="ap">12,00</div><div class="aph"></div></div>
+          </div>
+          <div class="row"><span class="pill ok"><s></s>28 prontas</span><span class="pill gap"><s></s>2 sem foto</span></div>
+          <div class="nudge">As 2 sem foto saem com o fundo da campanha. Dá para enviar as fotos depois e gerar de novo.</div>
+          <div style="flex:1"></div>
+        </div>
+        <div class="bar"><button class="b pri wide">Gerar as 30 artes (ZIP)</button></div>
+      </div>
+    </div>
+
+  </div></div>
+
+  <div class="verdict">
+    <p class="v up"><i>+</i><b>Confiança máxima por arte.</b> A peça ocupa a tela; ninguém gera 30 artes erradas sem ver.</p>
+    <p class="v up"><i>+</i><b>Um campo por vez.</b> Teclado certo, alvo grande, zero rolagem lateral.</p>
+    <p class="v dn"><i>−</i><b>30 ofertas = 30 telas.</b> Corrigir a oferta 24 exige chegar até ela.</p>
+    <p class="v dn"><i>−</i><b>Some a visão do conjunto.</b> Você não vê o que falta sem percorrer tudo.</p>
+  </div>
+  <p class="best"><b>Serve quando:</b> o lote é pequeno (3 a 8 ofertas) e cada arte importa individualmente — a promoção da semana, não o cardápio inteiro.</p>
+</section>
+
+<!-- ══════════════ PROPOSTA B ══════════════ -->
+<section class="deck" id="deck-b" hidden>
+  <div class="deck-head">
+    <p class="tag"><i>B</i>O idioma que o franqueado já sabe</p>
+    <h3>Conversa em lote</h3>
+    <p class="idea">Nenhuma planilha aparece. Cola ou fala a lista, a Luma devolve o que entendeu e pergunta <em>só</em> o que ficou faltando. É o chat de uma arte só, esticado para trinta.</p>
+  </div>
+
+  <div class="steps" role="group" aria-label="Passos da proposta B">
+    <button data-go="b1" aria-current="true">1 · Colei a lista</button>
+    <button data-go="b2">2 · Só o que falta</button>
+    <button data-go="b3">3 · Gerar</button>
+  </div>
+
+  <div class="stage"><div class="ph">
+
+    <div class="ph-scr on" id="b1">
+      <div class="sb"><span>9:41</span><span class="dots"><s></s><s></s><s></s><span class="bat"></span></span></div>
+      <div class="lt"><span class="lg">Luma</span><span class="ttl">Lote · Bom Sabor</span><span class="x">×</span></div>
+      <div class="bd">
+        <div class="scroll">
+          <div class="msg me"><div class="bbl">X‑Salada Duplo 24,90<br>Combo Duplo 32<br>Pizza Calabresa G<br>Açaí 500ml 18,00<br>…</div></div>
+          <div class="msg"><div class="av">L</div><div class="bbl">
+            Li <b>30 ofertas</b> na sua lista. Separei nome e preço de cada uma.
+            <div class="chips">
+              <span class="chip">X‑Salada · 24,90</span><span class="chip">Combo Duplo · 32,00</span>
+              <span class="chip">Açaí 500 · 18,00</span><span class="chip">+26</span>
+            </div>
+          </div></div>
+          <div class="msg"><div class="av">L</div><div class="bbl">
+            <b>3 ficaram sem preço.</b> Quer resolver agora ou gerar as 27 que já estão prontas?
+            <div class="chips"><span class="chip">Resolver as 3</span><span class="chip">Gerar as 27</span></div>
+          </div></div>
+        </div>
+        <div class="bar">
+          <div class="fld" style="flex:1">Escreva ou cole…</div>
+          <button class="b pri" style="padding:0 14px">➤</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="ph-scr" id="b2">
+      <div class="sb"><span>9:41</span><span class="dots"><s></s><s></s><s></s><span class="bat"></span></span></div>
+      <div class="lt"><span class="lg">Luma</span><span class="ttl">Lote · Bom Sabor</span><span class="x">×</span></div>
+      <div class="bd">
+        <div class="scroll">
+          <div class="msg"><div class="av">L</div><div class="bbl">
+            <b>1 de 3.</b> Qual o preço da <b>Pizza Calabresa G</b>?
+          </div></div>
+          <div class="art" style="height:150px; align-self:flex-end; width:60%">
+            <div class="an">Pizza Calabresa G</div><div class="ap" style="opacity:.45">R$ —</div><div class="aph"></div>
+          </div>
+          <div class="chips" style="justify-content:flex-end"><span class="chip">R$ 39,90</span><span class="chip">R$ 45,00</span><span class="chip">Pular</span></div>
+          <div style="flex:1"></div>
+          <div class="prog"><i style="width:33%"></i></div>
+        </div>
+        <div class="bar">
+          <div class="fld" style="flex:1">R$ 0,00</div>
+          <button class="b pri" style="padding:0 14px">➤</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="ph-scr" id="b3">
+      <div class="sb"><span>9:41</span><span class="dots"><s></s><s></s><s></s><span class="bat"></span></span></div>
+      <div class="lt"><span class="lg">Luma</span><span class="ttl">Lote · Bom Sabor</span><span class="x">×</span></div>
+      <div class="bd">
+        <div class="scroll">
+          <div class="msg"><div class="av">L</div><div class="bbl">
+            Prontas as <b>30 artes</b>. Confira antes de baixar — toque em qualquer uma para ajustar.
+          </div></div>
+          <div class="strip" style="flex-wrap:wrap; gap:5px; overflow:visible">
+            <div class="art mi" style="height:56px; width:32px"><div class="an">X‑Salada</div><div class="ap">24,90</div><div class="aph"></div></div>
+            <div class="art mi" style="height:56px; width:32px"><div class="an">Combo</div><div class="ap">32,00</div><div class="aph"></div></div>
+            <div class="art mi" style="height:56px; width:32px"><div class="an">Pizza</div><div class="ap">39,90</div><div class="aph"></div></div>
+            <div class="art mi" style="height:56px; width:32px"><div class="an">Açaí</div><div class="ap">18,00</div><div class="aph"></div></div>
+            <div class="art mi" style="height:56px; width:32px"><div class="an">Esfiha</div><div class="ap">7,50</div><div class="aph"></div></div>
+            <div class="art mi" style="height:56px; width:32px"><div class="an">Coca</div><div class="ap">12,00</div><div class="aph"></div></div>
+            <div class="art mi" style="height:56px; width:32px"><div class="an">Pastel</div><div class="ap">9,00</div><div class="aph"></div></div>
+            <div class="art mi" style="height:56px; width:32px"><div class="an">Suco</div><div class="ap">8,50</div><div class="aph"></div></div>
+          </div>
+          <div class="msg"><div class="av">L</div><div class="bbl">Quer as legendas prontas para postar junto?
+            <div class="chips"><span class="chip">Sim, gerar legendas</span><span class="chip">Só as artes</span></div>
+          </div></div>
+        </div>
+        <div class="bar"><button class="b pri wide">Baixar tudo (ZIP)</button></div>
+      </div>
+    </div>
+
+  </div></div>
+
+  <div class="verdict">
+    <p class="v up"><i>+</i><b>Zero metáfora nova.</b> É o mesmo chat da arte avulsa — o franqueado não aprende nada.</p>
+    <p class="v up"><i>+</i><b>Menos digitação possível.</b> Cola a lista do WhatsApp e só responde o buraco.</p>
+    <p class="v dn"><i>−</i><b>Corrigir a oferta 24 é difícil.</b> Conversa é linear; achar uma linha específica exige rolar.</p>
+    <p class="v dn"><i>−</i><b>Menos sensação de controle.</b> Quem gosta de ver a tabela inteira vai estranhar.</p>
+  </div>
+  <p class="best"><b>Serve quando:</b> a origem é uma lista solta — foto do cardápio, áudio, texto do WhatsApp. É o caso mais comum e o que mais economiza tempo.</p>
+</section>
+
+<!-- ══════════════ PROPOSTA C ══════════════ -->
+<section class="deck" id="deck-c" hidden>
+  <div class="deck-head">
+    <p class="tag"><i>C</i>Ver tudo, consertar rápido</p>
+    <h3>Lista e folha</h3>
+    <p class="idea">A grade vira lista vertical: miniatura, nome, preço, estado. Toque abre uma folha por cima com a arte ao vivo. Segurar liga o modo seleção para agir em lote.</p>
+  </div>
+
+  <div class="steps" role="group" aria-label="Passos da proposta C">
+    <button data-go="c1" aria-current="true">1 · A lista</button>
+    <button data-go="c2">2 · Editar uma</button>
+    <button data-go="c3">3 · Em lote</button>
+  </div>
+
+  <div class="stage"><div class="ph">
+
+    <div class="ph-scr on" id="c1">
+      <div class="sb"><span>9:41</span><span class="dots"><s></s><s></s><s></s><span class="bat"></span></span></div>
+      <div class="lt"><span class="lg">Luma</span><span class="ttl">Ofertas do Bom Sabor</span><span class="x">×</span></div>
+      <div class="bd">
+        <div class="scroll">
+          <div class="hd"><h4>30 ofertas</h4><span class="ct">27 prontas</span></div>
+          <div class="chips" style="margin:0">
+            <span class="chip" style="background:#F85400;border-color:#F85400;color:#fff">Falta algo · 3</span>
+            <span class="chip">Todas</span><span class="chip">Prontas</span>
+          </div>
+          <div class="row"><div class="art sm th"><div class="an">Pizza</div><div class="ap">—</div><div class="aph"></div></div>
+            <div class="tx"><div class="nm">Pizza Calabresa G</div><div class="mt"><span class="pill gap"><s></s>sem preço</span></div></div></div>
+          <div class="row"><div class="art sm th"><div class="an">Esfiha</div><div class="ap">7,50</div><div class="aph"></div></div>
+            <div class="tx"><div class="nm">Esfiha de Carne</div><div class="mt"><span class="pill gap"><s></s>sem foto</span></div></div></div>
+          <div class="row"><div class="art sm th"><div class="an">Suco</div><div class="ap">—</div><div class="aph"></div></div>
+            <div class="tx"><div class="nm">Suco Natural 500ml</div><div class="mt"><span class="pill gap"><s></s>sem preço</span></div></div></div>
+          <div class="row"><div class="art sm th"><div class="an">X‑Salada</div><div class="ap">24,90</div><div class="aph"></div></div>
+            <div class="tx"><div class="nm">X‑Salada Duplo</div><div class="mt"><span class="pill ok"><s></s>pronta</span></div></div></div>
+          <div class="row"><div class="art sm th"><div class="an">Combo</div><div class="ap">32,00</div><div class="aph"></div></div>
+            <div class="tx"><div class="nm">Combo Duplo + Batata</div><div class="mt"><span class="pill ok"><s></s>pronta</span></div></div></div>
+        </div>
+        <div class="bar"><button class="b pri wide">Gerar 27 artes (ZIP)</button></div>
+      </div>
+    </div>
+
+    <div class="ph-scr" id="c2">
+      <div class="sb"><span>9:41</span><span class="dots"><s></s><s></s><s></s><span class="bat"></span></span></div>
+      <div class="lt"><span class="lg">Luma</span><span class="ttl">Ofertas do Bom Sabor</span><span class="x">×</span></div>
+      <div class="bd" style="position:relative">
+        <div class="scroll" style="opacity:.5">
+          <div class="hd"><h4>30 ofertas</h4><span class="ct">27 prontas</span></div>
+          <div class="row"><div class="art sm th"><div class="an">Pizza</div><div class="ap">—</div><div class="aph"></div></div>
+            <div class="tx"><div class="nm">Pizza Calabresa G</div><div class="mt"><span class="pill gap"><s></s>sem preço</span></div></div></div>
+          <div class="row"><div class="art sm th"><div class="an">Esfiha</div><div class="ap">7,50</div><div class="aph"></div></div>
+            <div class="tx"><div class="nm">Esfiha de Carne</div></div></div>
+        </div>
+        <div class="dim"></div>
+        <div class="sheet" style="position:absolute; left:0; right:0; bottom:0">
+          <div class="grab"></div>
+          <div class="hd"><h4>Pizza Calabresa G</h4><span class="ct">1 de 30</span></div>
+          <div class="art" style="height:132px"><div class="an">Pizza Calabresa G</div><div class="ap" style="opacity:.45">R$ —</div><div class="aph"></div></div>
+          <div><span class="lbl">Preço</span><div class="fld empty">R$ <span style="opacity:.5">0,00</span></div></div>
+          <div class="chips"><span class="chip">R$ 39,90</span><span class="chip">R$ 45,00</span></div>
+          <div style="display:flex; gap:9px">
+            <button class="b gho" style="flex:1">Anterior</button>
+            <button class="b pri" style="flex:1">Salvar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ph-scr" id="c3">
+      <div class="sb"><span>9:41</span><span class="dots"><s></s><s></s><s></s><span class="bat"></span></span></div>
+      <div class="lt" style="background:#0A0A0A"><span class="lg">4 marcadas</span><span class="ttl">Cancelar</span></div>
+      <div class="bd">
+        <div class="scroll">
+          <div class="nudge">Segure qualquer linha para marcar várias e aplicar de uma vez.</div>
+          <div class="row sel"><span class="chk on">✓</span><div class="art sm th"><div class="an">Pizza</div><div class="ap">—</div><div class="aph"></div></div>
+            <div class="tx"><div class="nm">Pizza Calabresa G</div><div class="mt">sem preço</div></div></div>
+          <div class="row sel"><span class="chk on">✓</span><div class="art sm th"><div class="an">Pizza</div><div class="ap">—</div><div class="aph"></div></div>
+            <div class="tx"><div class="nm">Pizza Portuguesa G</div><div class="mt">sem preço</div></div></div>
+          <div class="row sel"><span class="chk on">✓</span><div class="art sm th"><div class="an">Pizza</div><div class="ap">—</div><div class="aph"></div></div>
+            <div class="tx"><div class="nm">Pizza Marguerita G</div><div class="mt">sem preço</div></div></div>
+          <div class="row sel"><span class="chk on">✓</span><div class="art sm th"><div class="an">Pizza</div><div class="ap">—</div><div class="aph"></div></div>
+            <div class="tx"><div class="nm">Pizza Frango c/ Catupiry G</div><div class="mt">sem preço</div></div></div>
+          <div class="row"><span class="chk"></span><div class="art sm th"><div class="an">Esfiha</div><div class="ap">7,50</div><div class="aph"></div></div>
+            <div class="tx"><div class="nm">Esfiha de Carne</div><div class="mt"><span class="pill ok"><s></s>pronta</span></div></div></div>
+        </div>
+        <div class="bar">
+          <button class="b gho" style="flex:1">Apagar</button>
+          <button class="b pri" style="flex:1">Pôr o mesmo preço</button>
+        </div>
+      </div>
+    </div>
+
+  </div></div>
+
+  <div class="verdict">
+    <p class="v up"><i>+</i><b>O que falta salta aos olhos.</b> Filtro “Falta algo · 3” resolve o lote inteiro em segundos.</p>
+    <p class="v up"><i>+</i><b>Ação em lote de verdade.</b> Mesmo preço nas 4 pizzas em um toque, sem repetir 4 vezes.</p>
+    <p class="v dn"><i>−</i><b>A arte fica menor.</b> Na folha de edição ela divide a tela com os campos.</p>
+    <p class="v dn"><i>−</i><b>Dois níveis de navegação.</b> Lista → folha é mais estrutura para aprender que uma conversa.</p>
+  </div>
+  <p class="best"><b>Serve quando:</b> o lote é grande (20 a 40) e o trabalho é caçar buracos — o cardápio inteiro de um parceiro novo.</p>
+</section>
+
+</div>
+
+<hr class="rule">
+
+<h2>Para decidir</h2>
+<p class="sub">Nenhuma proposta é melhor em tudo — cada uma otimiza um momento diferente do mesmo trabalho.</p>
+
+<div class="tw">
+<table>
+  <thead><tr><th>&nbsp;</th><th>A · Carrossel</th><th>B · Conversa</th><th>C · Lista e folha</th></tr></thead>
+  <tbody>
+    <tr><td>Otimiza</td><td>Confiança em cada arte</td><td>Velocidade até a primeira arte</td><td>Achar e corrigir buracos</td></tr>
+    <tr><td>Lote ideal</td><td>3 a 8</td><td>Qualquer, se a lista vier pronta</td><td>20 a 40</td></tr>
+    <tr><td>Metáfora nova</td><td>Passar fotos</td><td>Nenhuma — é o chat que já existe</td><td>Lista e folha (padrão de app)</td></tr>
+    <tr><td>Ação em lote</td><td>Não tem</td><td>Pela conversa (“põe 39,90 nas pizzas”)</td><td>Modo seleção</td></tr>
+    <tr><td>Reaproveita do código</td><td>Hero ao vivo, fita, navegação por linha</td><td>Motor de chat, parser de IA, sugestões</td><td>Validação por linha, filtros, ordenação</td></tr>
+    <tr><td>Risco maior</td><td>Lento em lote grande</td><td>Corrigir linha específica</td><td>Mais tela para manter</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note">
+  <p><b>O que estas telas ainda não são.</b> São mockups de direção, não implementação: nenhuma linha do app foi tocada. As artes são desenhos em CSS, não o render real. O objetivo é escolher o instrumento antes de construir.</p>
+  <p><b>Nenhuma proposta perde função.</b> Os cinco caminhos de entrada (IA/voz, colar do Excel, CSV, repetir ofertas antigas, digitar), o mapeamento de colunas, ordenar, buscar, apagar repetidas, guardar planilha e o ZIP com legendas continuam existindo nas três — o que muda é a tela onde o trabalho acontece.</p>
+  <p><b>As telas dos telefones ficam claras nos dois temas da página.</b> Não é descuido: o lado do franqueado é tema claro no app real, então escurecê‑las aqui mostraria um Luma que não existe.</p>
+  <p><b>Uma pista que veio do código, não do gosto:</b> a antiga “vista em cartões” do Sheets foi <em>aposentada de propósito</em> — no desktop a coluna da esquerda fazia o mesmo, maior. No celular essa coluna não existe, então o argumento que a matou não vale aqui. É o que abre espaço para A e C.</p>
+</div>
+
+</div>
+
+<script>
+// Troca de proposta (só no celular — no desktop as três ficam lado a lado)
+document.querySelectorAll('.picker button').forEach(function(b){
+  b.addEventListener('click', function(){
+    document.querySelectorAll('.picker button').forEach(function(o){ o.setAttribute('aria-selected', String(o === b)); });
+    ['a','b','c'].forEach(function(k){ document.getElementById('deck-' + k).hidden = (k !== b.dataset.deck); });
+  });
+});
+// Navegação dos passos dentro de cada telefone
+document.querySelectorAll('.steps button').forEach(function(b){
+  b.addEventListener('click', function(){
+    var grupo = b.closest('.steps');
+    grupo.querySelectorAll('button').forEach(function(o){ o.setAttribute('aria-current', String(o === b)); });
+    var tela = document.getElementById(b.dataset.go);
+    tela.closest('.ph').querySelectorAll('.ph-scr').forEach(function(s){ s.classList.toggle('on', s === tela); });
+  });
+});
+// Os botões dentro do telefone também andam: o mockup precisa ser NAVEGÁVEL, não um slide
+document.querySelectorAll('.ph .b.pri, .ph .chip').forEach(function(el){
+  el.addEventListener('click', function(){
+    var steps = el.closest('.deck').querySelector('.steps');
+    var bs = [].slice.call(steps.querySelectorAll('button'));
+    var i = bs.findIndex(function(x){ return x.getAttribute('aria-current') === 'true'; });
+    bs[(i + 1) % bs.length].click();
+  });
+});
+</script>
