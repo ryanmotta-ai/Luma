@@ -179,6 +179,28 @@ Pedido do Ryan: *"quero pensar principalmente na experiência mobile, ela precis
 
 ⚠ **Achado não tocado:** a arte no cartão mostra as **caixas tracejadas de campo vazio** (`fLpHighlightEmpty` — "toque pra preencher"). É comportamento deliberado do motor de prévia, herdado fielmente pela cópia de pixels; some conforme os campos são preenchidos. Tirá-las mudaria também a prova em tela cheia — decisão de design, não defeito.
 
+### 2.10 Luma Sheets repensado como app de celular — ✅ ENTREGUE (2026-08-15)
+
+Pedido do Ryan: *"o Luma Sheets está numa proposta de layout adaptada do computador; precisa ser pensado pra ser um aplicativo mobile"*. Antes de codar, três propostas navegáveis (`docs/mockups/sheets-mobile.html`) — **A** carrossel, **B** conversa em lote, **C** lista e folha. Escolha: **C como tela principal, com o carrossel da A dentro da folha de edição.**
+
+**O estudo mudou a recomendação.** No mockup eu tinha escrito que a proposta B "reaproveita o motor de chat". **Não reaproveita:** o parser sim (`fBulkParseHeuristicText` + `gAskAI('cardapio')`), mas a superfície de chat mora em `chat.js` amarrada a `fState`/`#f-messages` — outro estado, outro módulo. B era a mais cara, não a mais barata.
+
+**Quase nada é motor novo, e é o ponto.** `fBulkGetReadiness` já separava pronta / falta algo / vazia — a lista só desenha o que ela calcula. As setas da folha são os botões que já chamavam `fBulkStepRow(±1)`. A arte é o mesmo `_fBulkRenderHero`, no mesmo canvas. A folha **é** a `.f-bulk-live` do desktop reposicionada por CSS, não um componente novo. Os inputs usam os mesmos ids da tabela, então `fBulkSaveRow` e `fBulkCollectCurrentInputs` valem sem uma linha de mudança.
+
+**Quatro defeitos achados medindo, dois deles meus:**
+- 🔴 **Digitar na folha e fechar deixava o campo VAZIO.** Cada tecla chama `fBulkLiveEdit → fBulkSetActive → _fBulkSyncLiveHead → _fBulkRenderFolhaCampos`, que reconstruía os inputs a partir de `r.dados` — gravado só 160ms depois. Repintava por cima da letra digitada. Agora só repinta quando a linha muda (`_fBulkFolhaRid`). É a mesma armadilha que a tabela já evitava ("re-render roubaria o foco de quem está digitando").
+- 🔴 **Os campos saíam com 11px e 34px** — zoom automático do iOS ao focar e alvo abaixo dos 44px. **Erro meu de leitura de especificidade:** `#f-bulk-modal input[type=text]` vale **1‑1‑1**, porque `[type=text]` pesa como CLASSE e não como elemento; meu `#f-bulk-modal .f-bulk-fin` valia 1‑1‑0 e perdia por um ponto. Resolvido com `.f-bulk-folha-campos` no meio (1‑2‑0).
+- 🟠 **A arte na folha media 74×132px** — um selo, quando ela é o motivo de a folha existir. Causa: o tratamento mobile antigo cravava `height:132px` no palco, certo para quando a prévia era uma faixa no topo da planilha. Dentro da folha vira `34dvh`, com a largura saindo da proporção do material.
+- 🟠 **As setas do carrossel estavam `display:none` no celular** (mesma herança). Sem elas `fBulkStepRow` funcionava só por código, sem jeito de a pessoa chamar — metade da direção escolhida não existia na tela.
+
+**De quebra, defeito pré-existente:** o rodapé punha "Legenda e cidade", "Fechar" e "Gerar N artes" na mesma linha sem quebra; em 390px o primeiro ia para **x=−59** e 13 elementos vazavam pela borda esquerda. Agora quebra em duas linhas, sem tirar nenhuma ação.
+
+**Verificado no navegador:** lista no lugar da tabela, 0 elementos vazando (nos dois lados), filtros e alvos em 44px, campos em 16px, arte em 161×287, o carrossel repinta os campos, digitar e fechar grava em `fBulkRows`, e o estado da linha vira "pronta" na volta. **Desktop reconferido item a item:** tabela intacta, lista ausente, coluna de prévia `position:static`, campos e botão da folha em `display:none`, célula da tabela ainda em 12px. As 4 suítes seguem em **119 casos verdes**.
+
+⚠ **Miniatura por linha ficou de fora, de propósito:** cada uma é um `fRenderTemplateLayers` completo, e 30 delas na abertura da lista é caro. O estado (`pronta` / `N a preencher`) carrega o trabalho de varredura, e a arte aparece grande na folha. Se as miniaturas entrarem, o caminho é a mesma preguiça da fita (`_fBulkDesenharFitaVisivel`, que só desenha o que está em cena).
+
+⚠ **Ainda não implementado da proposta C:** o **modo seleção** (segurar para marcar várias e aplicar em lote). `fBulkApplyFill` já existe no código e é o motor natural dele.
+
 ## 3. O roadmap
 
 ### FASE P0 — Fundações que sangram (≈1–2 dias) 🔴
