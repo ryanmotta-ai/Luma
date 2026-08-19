@@ -57,7 +57,14 @@
       ac=new AC();
       if(ac.state==='suspended') await ac.resume();
       const osc=ac.createOscillator(); osc.frequency.value=440;
-      const g=ac.createGain(); g.gain.value=0.05;
+      // Fala–pausa–fala: 2s de tom, 2s de silêncio de verdade, 2s de tom. É o que
+      // permite afirmar que o corte automático achou a pausa no áudio real, e não
+      // só num envelope sintético.
+      const g=ac.createGain();
+      const t=ac.currentTime;
+      g.gain.setValueAtTime(0.05,t);
+      g.gain.setValueAtTime(0.0001,t+2);
+      g.gain.setValueAtTime(0.05,t+4);
       const dest=ac.createMediaStreamDestination();
       osc.connect(g); g.connect(dest); osc.start();
       const trilha=dest.stream.getAudioTracks()[0];
@@ -129,6 +136,18 @@
           vdProj?('duração lida: '+dur.toFixed(2)+'s · '+vdProj.fonte.w+'×'+vdProj.fonte.h+' · saída '+vdProj.formato):'não abriu');
       if(!vdProj){ publicar(); return; }
 
+      // Medição do áudio real: read-only, então roda antes dos cortes manuais.
+      const med=await vdMedirAudio();
+      reg('mediu o áudio do arquivo', !!med.ok, med.ok
+        ? (med.silencios.length+' pausa(s) · limiar '+med.limiar.toFixed(4)+' · piso '+med.piso.toFixed(4)+' · fala '+med.fala.toFixed(4))
+        : ('não mediu: '+med.erro));
+      if(med.ok){
+        const p=med.silencios[0];
+        reg('achou a pausa de 2s no meio do material', med.silencios.length===1 && p && p.de>1.5 && p.de<2.6 && p.ate>3.5 && p.ate<4.6,
+            p?('pausa de '+p.de.toFixed(2)+'s a '+p.ate.toFixed(2)+'s'):'nenhuma pausa encontrada');
+        notas.push('áudio: '+med.silencios.length+' pausa(s), limiar '+med.limiar.toFixed(4));
+      }
+
       await irEEsperar(1.5);
       const a=segundoNaTela();
       reg('o compositor desenha o frame do tempo pedido', a.seg===1,
@@ -168,6 +187,17 @@
             meta?('duração '+(isFinite(meta.dur)?meta.dur.toFixed(2)+'s':'não informada')+' · '+meta.w+'×'+meta.h):'não abriu');
         if(meta) notas.push('arquivo final: '+meta.w+'×'+meta.h+' dur '+(isFinite(meta.dur)?meta.dur.toFixed(2):'?'));
         URL.revokeObjectURL(url);
+      }
+      // Por último, porque substitui a lista de trechos inteira.
+      if(med.ok){
+        vdDesfazer(); vdDesfazer();               // volta ao material inteiro
+        const antes=vdDuracaoFinal();
+        const plano=vdPlanoCorteSilencio(med);
+        const ap=plano?vdAplicarPlano(plano):{ok:false,descartes:[{porque:'sem plano'}]};
+        reg('o corte automático de silêncio aplica e encurta', ap.ok && vdDuracaoFinal()<antes-1.2,
+            ap.ok?(vdFmtTempo(antes)+' → '+vdFmtTempo(vdDuracaoFinal())+' em '+vdSegs().length+' trecho(s)')
+                 :('rejeitado: '+JSON.stringify(ap.descartes)));
+        if(ap.ok) notas.push('corte de silêncio: '+vdFmtTempo(antes)+' → '+vdFmtTempo(vdDuracaoFinal()));
       }
     }catch(e){
       reg('a bancada terminou sem exceção', false, String(e&&e.message||e));

@@ -19,9 +19,22 @@
 | Timeline com corte, remoção, reordenação, undo/redo | `js/video/timeline.js` | verificado no navegador |
 | View, entrada de arquivo, inspetor contextual, exportação | `js/video/video.js` | idem |
 | Módulo ligado ao app (aba, view, flag, lazy init) | `index.html`, `js/main.js`, `js/core/feature-flags.js`, `css/modules/video.css` | nasce **desligado** (`module.video`) |
-| Bancada do portão F0 | `tests/_video-bancada.html` | 10/10 no Chromium de teste |
+| Motor de regras: **corte automático de silêncio** (sem IA) | `js/video/ingest.js` | pausa real achada no áudio da bancada |
+| Bancada do portão F0 | `tests/_video-bancada.html` | 13/13 no Chromium de teste |
 
-**Ainda não existe:** IA (fases 4 e 6), transcrição, legenda, assets da DM (fase 5), SFX, agente visual. Nenhuma mudança no Supabase — nem migration, nem deploy.
+**Ainda não existe:** IA de verdade (fases 4b e 6), transcrição, legenda, assets da DM (fase 5), SFX, agente visual. Nenhuma mudança no Supabase — nem migration, nem deploy.
+
+### O corte de silêncio, e por que ele não usa IA
+
+A parte da fase 4 que não depende de nada: `vdMedirAudio` decodifica o áudio a 16kHz (basta para energia, e derruba a memória de ~70MB para ~11MB numa gravação de 3 min), mede RMS em janelas de 50ms e acha as pausas com **limiar adaptativo** — piso de ruído no percentil 10, fala no percentil 90, limiar 12dB acima do piso. Limiar fixo não serve: gravação de celular em cozinha acharia zero pausa, e gravação limpa acharia pausa demais. Há teto na metade do nível de fala, senão material sem pausa nenhuma seria marcado como silêncio inteiro.
+
+Duas regras de edição, não de código: pausa abaixo de **0,8s não é cortada** (o ritmo da fala precisa do respiro curto) e o corte deixa **120ms de respiro** nas bordas (cortar na borda exata come a consoante inicial — "bo" em vez de "combo").
+
+**A decisão de projeto que importa:** o motor de regras devolve um **EditPlan**, o mesmo contrato que o modelo vai devolver, e entra pelo mesmo `vdAplicarPlano` → `vdValidarPlano` → histórico. Um caminho de aplicação só. Quando a IA entrar, ela não inventa um segundo — e o validador já está exercitado por um produtor real, não por um teste.
+
+Medido na bancada com áudio de verdade (tom, 2s de silêncio, tom): achou a pausa de **2,05s a 4,00s** e a edição caiu de 5,9s para 4,2s em 2 trechos.
+
+**Limite honesto:** se o navegador não decodifica o áudio do arquivo (MOV com codec exótico), a análise falha com aviso e o corte manual continua. Não construí um segundo motor de análise em tempo real para esse caso antes de ele aparecer numa máquina de verdade.
 
 **Decisões tomadas** (Ryan, 2026-08-19): desktop-only · só equipe (`gIsAdmin`) · zero mudança de backend por ora.
 
@@ -409,6 +422,7 @@ Ver §11. Só depois de o resultado ser bom — animação em cima de edição r
 | Folhas de contato (amostragem de frames) | 🟢 | canvas + seek; a Academia já mede duração no upload |
 | Envelope de silêncio (RMS) | 🟡 | WebAudio; se `decodeAudioData` engasgar com MOV, cai no `AnalyserNode` durante o ingest |
 | Transcrição | 🟡 | Gemini + 2 linhas na function |
+| Corte de silêncio (feito) | 🟡 | ✅ pronto: WebAudio, limiar adaptativo, zero IA |
 | Legenda no template da DM | 🟡 | reuso de `fRenderTemplateLayers`; word-by-word animado sobe para 🟠 |
 | EDL + validador | 🟢 | lógica pura, testável |
 | Timeline (trilhas, arrastar, undo) | 🟠 | é UI de precisão; o Estúdio dá o padrão, não o código |

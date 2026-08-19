@@ -175,6 +175,93 @@
     assert(r.descartes.some(d=>d.acao==='duração'),'não avisou que passou do alvo');
   });
 
+  /* ── MOTOR DE REGRAS: silêncio (js/video/ingest.js) ──
+     As duas funções de decisão são puras, então dá para montar o envelope à mão e
+     afirmar o corte sem precisar de áudio de verdade. O áudio real é exercitado na
+     bancada (tests/_video-bancada.html). */
+
+  // Envelope sintético: lista de [duração em segundos, nível de energia].
+  const env=(trechos,janela)=>{
+    const j=janela||0.05; const out=[];
+    trechos.forEach(([dur,nivel])=>{ const n=Math.round(dur/j); for(let i=0;i<n;i++) out.push(nivel); });
+    return out;
+  };
+
+  test('acha a pausa no lugar certo entre duas falas',()=>{
+    const r=vdSilenciosDoEnvelope(env([[2,0.20],[1.5,0.001],[2,0.20]]),0.05);
+    assert(r.silencios.length===1,'esperava uma pausa, achou '+r.silencios.length);
+    assert(perto(r.silencios[0].de,2,0.06)&&perto(r.silencios[0].ate,3.5,0.06),
+      'pausa nos tempos errados: '+JSON.stringify(r.silencios[0]));
+  });
+
+  test('pausa curta demais não vira corte',()=>{
+    const r=vdSilenciosDoEnvelope(env([[2,0.20],[0.4,0.001],[2,0.20]]),0.05);
+    assert(r.silencios.length===0,'cortou uma pausa de 0,4s — o ritmo da fala precisa dela');
+  });
+
+  test('limiar é adaptativo: piso de ruído alto ainda revela a pausa',()=>{
+    // Gravação de celular em ambiente barulhento: o "silêncio" tem energia 0.02,
+    // que um limiar fixo em -50dBFS trataria como fala.
+    const r=vdSilenciosDoEnvelope(env([[2,0.30],[1.2,0.02],[2,0.30]]),0.05);
+    assert(r.silencios.length===1,'não achou a pausa acima do chão de ruído');
+    assert(r.limiar>VD_RMS_ABS,'o limiar não se adaptou ao piso da gravação');
+  });
+
+  test('material sem pausa nenhuma não é cortado inteiro',()=>{
+    // Fala contínua com variação normal: 12dB acima do piso passaria da fala e
+    // marcaria tudo como silêncio se não houvesse o teto.
+    const trechos=[]; for(let i=0;i<40;i++) trechos.push([0.5, 0.15+(i%3)*0.02]);
+    const r=vdSilenciosDoEnvelope(env(trechos),0.05);
+    const totalSilencio=r.silencios.reduce((t,s)=>t+(s.ate-s.de),0);
+    assert(totalSilencio<2,'marcou '+totalSilencio.toFixed(1)+'s de silêncio numa fala contínua');
+  });
+
+  test('envelope vazio não quebra',()=>{
+    const r=vdSilenciosDoEnvelope([],0.05);
+    assert(r.silencios.length===0,'inventou silêncio a partir de nada');
+  });
+
+  test('inverter pausas deixa respiro nas bordas e não sobrepõe',()=>{
+    const manter=vdManterSemSilencio([{de:2,ate:3.5}],6);
+    assert(manter.length===2,'esperava dois trechos, veio '+manter.length);
+    assert(manter[0].ate>2 && manter[0].ate<=2.2,'o trecho antes da pausa ficou sem respiro: '+manter[0].ate);
+    assert(manter[1].de>=3.3 && manter[1].de<3.5,'o trecho depois da pausa ficou sem respiro: '+manter[1].de);
+    assert(manter[0].ate<=manter[1].de,'os trechos se sobrepuseram — o validador recusaria');
+  });
+
+  test('fragmento curto entre duas pausas é descartado',()=>{
+    // 0,15s de fala entre duas pausas é clique, não frase.
+    const manter=vdManterSemSilencio([{de:1,ate:2},{de:2.15,ate:3.5}],5);
+    assert(!manter.some(m=>(m.ate-m.de)<VD_FALA_MIN),'manteve um fragmento menor que o mínimo: '+JSON.stringify(manter));
+  });
+
+  test('o plano do motor de regras passa no MESMO validador da IA',()=>{
+    novo(10);
+    const medicao={ok:true,silencios:[{de:2,ate:3.2},{de:6,ate:7.5}],dur:10};
+    const plano=vdPlanoCorteSilencio(medicao);
+    assert(plano&&plano.acoes.length===1,'não gerou plano');
+    assert(plano.acoes[0].motivo&&plano.acoes[0].motivo.length>3,'plano sem motivo seria descartado pelo validador');
+    const r=vdValidarPlano(plano);
+    assert(r.ok,'o validador recusou o plano do motor de regras: '+JSON.stringify(r.descartes));
+    assert(r.descartes.length===0,'o plano gerou descarte: '+JSON.stringify(r.descartes));
+    assert(r.segmentos.length===3,'esperava 3 trechos mantidos, veio '+r.segmentos.length);
+  });
+
+  test('aplicar o corte automático é uma edição desfazível',()=>{
+    novo(10);
+    const plano=vdPlanoCorteSilencio({ok:true,silencios:[{de:2,ate:3.2}],dur:10});
+    const antes=vdDuracaoFinal();
+    assert(vdAplicarPlano(plano).ok,'não aplicou');
+    assert(vdDuracaoFinal()<antes-0.5,'a duração não caiu: '+vdDuracaoFinal());
+    assert(vdDesfazer()&&perto(vdDuracaoFinal(),10),'um desfazer não voltou o material inteiro');
+  });
+
+  test('sem pausa nenhuma o motor não devolve plano (em vez de plano vazio)',()=>{
+    novo(10);
+    assert(vdPlanoCorteSilencio({ok:true,silencios:[],dur:10})===null,'devolveu plano sem ter o que cortar');
+    assert(vdPlanoCorteSilencio({ok:false,erro:'x'})===null,'devolveu plano a partir de medição falha');
+  });
+
   let passed=0; const falhas=[];
   for(const item of cases){
     const li=document.createElement('li'); li.className='case';

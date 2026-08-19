@@ -75,6 +75,7 @@ function _vdMarkup(){
   +     '<span class="vd-nome" id="vd-nome"></span>'
   +     '<span class="vd-flex"></span>'
   +     '<button type="button" class="vd-btn" id="vd-dividir" onclick="vdAcaoDividir()" disabled>Dividir aqui</button>'
+  +     '<button type="button" class="vd-btn" id="vd-silencio" onclick="vdAcaoCortarSilencio()" disabled>Cortar silêncios</button>'
   +     '<button type="button" class="vd-btn" id="vd-undo" onclick="vdAcaoDesfazer()" disabled>Desfazer</button>'
   +     '<button type="button" class="vd-btn" id="vd-redo" onclick="vdAcaoRefazer()" disabled>Refazer</button>'
   +     '<button type="button" class="vd-btn primary" id="vd-exportar" onclick="vdAcaoExportar()" disabled>Exportar</button>'
@@ -210,6 +211,44 @@ function vdAcaoDividir(){
   vdTlRender(); _vdSincronizarTransporte();
 }
 
+/**
+ * Corte automático de silêncio — o motor de regras (video/ingest.js).
+ *
+ * Passa pelo MESMO `vdAplicarPlano` que a IA vai usar: um caminho de aplicação,
+ * um histórico, um validador. Se o plano do motor de regras não passar na
+ * validação, o problema aparece aqui e não na exportação.
+ */
+async function vdAcaoCortarSilencio(){
+  if(!vdProj) return;
+  // O plano substitui a lista de trechos inteira: trabalho manual anterior morre.
+  if(vdPodeDesfazer() && typeof gConfirm === 'function'){
+    const segue = await gConfirm('Cortar silêncios refaz os trechos e substitui os cortes que você fez à mão. Continuar?');
+    if(!segue) return;
+  }
+  const btn = document.getElementById('vd-silencio');
+  const rotulo = btn ? btn.textContent : '';
+  if(btn){ btn.disabled = true; btn.textContent = 'Ouvindo o áudio…'; }
+  const m = await vdMedirAudio();
+  if(btn){ btn.textContent = rotulo; btn.disabled = false; }
+
+  if(!m.ok){ gToast('Não consegui analisar o áudio: ' + m.erro + '. Você ainda pode cortar à mão.', 'error'); return; }
+  const plano = vdPlanoCorteSilencio(m);
+  if(!plano){ gToast('Não achei pausa longa o bastante para cortar neste vídeo.'); return; }
+
+  const antes = vdDuracaoFinal();
+  const r = vdAplicarPlano(plano);
+  if(!r.ok){
+    gToast('O corte automático não passou na validação — nada foi alterado.', 'error');
+    console.warn('[video] plano do motor de regras rejeitado:', r.descartes);
+    return;
+  }
+  vdSel = null;
+  vdIrPara(0);
+  vdTlRender(); vdRenderInspetor(); _vdSincronizarTransporte();
+  if(r.descartes.length) console.warn('[video] descartes do corte automático:', r.descartes);
+  gToast('Removi ' + m.silencios.length + ' pausa(s): ' + vdFmtTempo(antes) + ' → ' + vdFmtTempo(vdDuracaoFinal()) + '.');
+}
+
 function vdAcaoRemover(){
   if(!vdSel) return;
   if(!vdRemoverSeg(vdSel)){ gToast('O último trecho não pode ser removido.', 'error'); return; }
@@ -324,6 +363,7 @@ function _vdSincronizarTransporte(){
   }
   const set = (id, on) => { const b = document.getElementById(id); if(b) b.disabled = !on; };
   set('vd-dividir', tem);
+  set('vd-silencio', tem);
   set('vd-exportar', tem && !vdExportando());
   set('vd-undo', vdPodeDesfazer());
   set('vd-redo', vdPodeRefazer());
