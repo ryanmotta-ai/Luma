@@ -2913,133 +2913,50 @@ body:not(.theme-light) input:-webkit-autofill:active {
   </div>
 </div>
 
-<!-- Modal "Novo arquivo" — prancheta nova com dimensões/DPI personalizados (estilo "New Document") -->
-<style>
-  .newdoc-tab {
-    background: none;
-    border: none;
-    color: var(--d-text2);
-    padding: 6px 12px;
-    font-size: 12px;
-    cursor: pointer;
-    font-weight: bold;
-    border-radius: 4px;
-    transition: all 0.2s ease;
-  }
-  .newdoc-tab:hover {
-    background: var(--d-border2);
-    color: var(--d-text1);
-  }
-  .newdoc-tab.active {
-    background: var(--dm-orange);
-    color: #fff;
-  }
-  .newdoc-preset-btn {
-    background: var(--d-bg2);
-    border: 1px solid var(--d-border2);
-    border-radius: 6px;
-    padding: 12px;
-    text-align: left;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    color: var(--d-text1);
-  }
-  .newdoc-preset-btn:hover {
-    border-color: var(--dm-orange);
-    background: var(--d-border2);
-  }
-  .newdoc-preset-btn.active {
-    border-color: var(--dm-orange);
-    outline: 2px solid var(--dm-orange);
-  }
-</style>
+<!-- Modal "Novo material" — DUAS etapas e nada mais: (1) o formato, (2) onde salvar.
+     Quem cria arte aqui nao precisa saber pixel, unidade nem ppi: o formato ja
+     carrega as dimensoes oficiais (01_BUSINESS: story 1080x1920 / feed 1080x1350).
+     Markup final aqui (nao e montado em JS); o JS so liga o comportamento. -->
 <div class="modal-overlay" id="d-newdoc-modal">
-  <!-- Markup final aqui (nao e montado em JS): tres zonas — trilha de categorias,
-       galeria de formatos e painel de resumo. O JS so liga comportamento. -->
   <div class="modal newdoc-modal" data-enhanced="1" role="dialog" aria-modal="true" aria-labelledby="nd-title">
     <div class="newdoc-header">
       <span class="newdoc-title" id="nd-title">
         <span class="newdoc-title-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M3 12h18"/></svg></span>
-        <span><strong>Novo material</strong><small>Escolha um formato para começar</small></span>
+        <span><strong>Novo material</strong><small>Duas escolhas e pronto</small></span>
       </span>
       <button type="button" class="newdoc-close" onclick="dNewDocClose()" aria-label="Fechar novo material"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
     </div>
 
-    <div class="newdoc-main">
-      <nav class="newdoc-rail" id="nd-rail" aria-label="Categorias de formato">
-        <button type="button" class="newdoc-tab" data-smart-tab="recent" data-cat="recent" onclick="dNewDocSelectTab('recent',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Recentes</span></button>
-        <button type="button" class="newdoc-tab" data-smart-tab="recommended" data-cat="recommended" onclick="dNewDocSelectTab('recommended',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 4 2.2 4.7 5.1.7-3.7 3.5.9 5.1-4.5-2.4-4.5 2.4.9-5.1L4.7 9.4l5.1-.7z"/></svg><span>Recomendados</span></button>
-        <span class="newdoc-rail-sep" aria-hidden="true"></span>
-        <button type="button" class="newdoc-tab" data-cat="social" onclick="dNewDocSelectTab('social',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 8h8M8 12h5"/></svg><span>Redes sociais</span></button>
-        <button type="button" class="newdoc-tab" data-cat="web" onclick="dNewDocSelectTab('web',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/></svg><span>Web</span></button>
-        <button type="button" class="newdoc-tab" data-cat="mobile" onclick="dNewDocSelectTab('mobile',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/></svg><span>Mobile</span></button>
-        <button type="button" class="newdoc-tab" data-cat="print" onclick="dNewDocSelectTab('print',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9V4h10v5"/><rect x="4" y="9" width="16" height="7" rx="2"/><path d="M7 14h10v6H7z"/></svg><span>Impressão</span></button>
-        <span class="newdoc-rail-sep" aria-hidden="true"></span>
-        <button type="button" class="newdoc-tab" data-cat="custom" onclick="dNewDocSelectTab('custom',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20 20 4"/><path d="M4 14v6h6"/><path d="M14 4h6v6"/></svg><span>Personalizado</span></button>
-      </nav>
-
-      <div class="newdoc-library">
-        <div class="newdoc-search">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg>
-          <input type="search" id="nd-search" class="modal-input" placeholder="Buscar formato (story, feed, A4…)" aria-label="Buscar formato" autocomplete="off" oninput="dNewDocSearch(this.value)">
+    <div class="newdoc-body">
+      <section class="newdoc-step">
+        <h3 class="newdoc-step-title"><span class="newdoc-step-num" aria-hidden="true">1</span>O que você quer criar?</h3>
+        <div class="newdoc-formats" role="group" aria-label="Formato do material">
+          <button type="button" class="newdoc-format" aria-pressed="false" data-fmt="feed" onclick="dNewDocPickFormat('feed')">
+            <span class="newdoc-format-visual" aria-hidden="true"><span class="newdoc-format-sheet is-feed"></span></span>
+            <strong>Feed</strong>
+            <small>Post que aparece no feed</small>
+            <span class="newdoc-format-check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+          </button>
+          <button type="button" class="newdoc-format" aria-pressed="false" data-fmt="story" onclick="dNewDocPickFormat('story')">
+            <span class="newdoc-format-visual" aria-hidden="true"><span class="newdoc-format-sheet is-story"></span></span>
+            <strong>Story</strong>
+            <small>Tela cheia do celular</small>
+            <span class="newdoc-format-check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+          </button>
         </div>
-        <p class="newdoc-library-caption" id="nd-library-caption">Recomendados</p>
-        <div id="nd-presets-container" class="newdoc-presets" role="listbox" aria-label="Formatos disponíveis"></div>
-      </div>
+      </section>
 
-      <div class="newdoc-settings">
-        <div class="newdoc-block">
-          <span class="newdoc-block-title">Projeto</span>
-          <label class="newdoc-field" for="nd-name"><span>Nome</span><input class="modal-input" id="nd-name" maxlength="60" autocomplete="off" placeholder="Ex.: Campanha de inverno"></label>
-          <label class="newdoc-field" for="nd-folder"><span>Campanha</span><select class="modal-select" id="nd-folder"></select></label>
-        </div>
-
-        <div class="newdoc-block">
-          <span class="newdoc-block-title">Tamanho</span>
-          <div class="newdoc-size">
-            <label class="newdoc-field" for="nd-w"><span>Largura</span><input class="modal-input" type="number" id="nd-w" min="1" oninput="dNewDocUpdate()"></label>
-            <span class="newdoc-size-x" aria-hidden="true">×</span>
-            <label class="newdoc-field" for="nd-h"><span>Altura</span><input class="modal-input" type="number" id="nd-h" min="1" oninput="dNewDocUpdate()"></label>
-            <label class="newdoc-field newdoc-field-unit" for="nd-unit"><span>Unidade</span><select class="modal-select" id="nd-unit" onchange="dNewDocUpdate()"><option value="px">px</option><option value="in">pol</option><option value="cm">cm</option><option value="mm">mm</option></select></label>
-          </div>
-          <div class="newdoc-orient" role="group" aria-label="Orientação">
-            <button type="button" class="newdoc-orient-btn" id="nd-orient-portrait" aria-pressed="false" onclick="dNewDocSetOrientation('portrait')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="2"/></svg><span>Retrato</span></button>
-            <button type="button" class="newdoc-orient-btn" id="nd-orient-landscape" aria-pressed="false" onclick="dNewDocSetOrientation('landscape')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><rect x="3" y="7" width="18" height="10" rx="2"/></svg><span>Paisagem</span></button>
-            <button type="button" class="newdoc-orient-btn newdoc-swap" onclick="dNewDocSwapOrientation()" aria-label="Inverter largura e altura" title="Inverter largura e altura"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="m7 7-4 4 4 4M3 11h14a4 4 0 0 0 4-4M17 17l4-4-4-4M21 13H7a4 4 0 0 0-4 4"/></svg></button>
-          </div>
-        </div>
-
-        <div class="newdoc-block">
-          <span class="newdoc-block-title">Qualidade e fundo</span>
-          <label class="newdoc-field" for="nd-dpi"><span>Resolução (ppi)</span><input class="modal-input" type="number" id="nd-dpi" min="1" value="72" oninput="dNewDocUpdate()"></label>
-          <div class="newdoc-field">
-            <span>Fundo</span>
-            <div class="newdoc-bg" role="group" aria-label="Fundo do material">
-              <button type="button" class="newdoc-bg-btn" data-bg="white" aria-pressed="true" onclick="dNewDocSetBg('white')"><span class="newdoc-bg-chip is-white" aria-hidden="true"></span>Branco</button>
-              <button type="button" class="newdoc-bg-btn" data-bg="transparent" aria-pressed="false" onclick="dNewDocSetBg('transparent')"><span class="newdoc-bg-chip is-alpha" aria-hidden="true"></span>Transparente</button>
-              <button type="button" class="newdoc-bg-btn" data-bg="color" aria-pressed="false" onclick="dNewDocSetBg('color')"><span class="newdoc-bg-chip is-color" id="nd-bg-chip" aria-hidden="true"></span>Cor</button>
-              <input type="color" id="nd-bg-color" value="#FFFFFF" aria-label="Cor do fundo">
-              <select id="nd-bg" hidden onchange="dNewDocBgChange()"><option value="white">Branco</option><option value="transparent">Transparente</option><option value="color">Cor</option></select>
-            </div>
-          </div>
-        </div>
-
-        <div class="newdoc-preview">
-          <div class="newdoc-preview-stage" aria-hidden="true"><div id="nd-preview-sheet" class="newdoc-preview-sheet"><span></span></div></div>
-          <span class="newdoc-preview-label">Vai ser criado</span>
-          <div id="nd-px-preview" class="newdoc-preview-size">— × — px</div>
-          <p id="nd-summary" class="newdoc-summary"></p>
-          <p id="nd-validation" class="newdoc-validation" aria-live="polite"></p>
-        </div>
-      </div>
+      <section class="newdoc-step">
+        <h3 class="newdoc-step-title"><span class="newdoc-step-num" aria-hidden="true">2</span>Onde salvar?</h3>
+        <label class="newdoc-field" for="nd-folder"><span>Campanha (pasta)</span><select class="modal-select" id="nd-folder"></select></label>
+        <label class="newdoc-field" for="nd-name"><span>Nome do material</span><input class="modal-input" id="nd-name" maxlength="60" autocomplete="off" placeholder="Ex.: Promoção de terça"></label>
+        <p id="nd-validation" class="newdoc-validation" aria-live="polite"></p>
+      </section>
     </div>
 
     <div class="modal-actions newdoc-actions">
       <button type="button" class="d-btn-sec" onclick="dNewDocClose()">Cancelar</button>
-      <button type="button" class="d-btn-pri" id="nd-create-btn" onclick="dNewDocConfirm()"><span>Criar projeto</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      <button type="button" class="d-btn-pri" id="nd-create-btn" onclick="dNewDocConfirm()"><span>Criar material</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
     </div>
   </div>
 </div>

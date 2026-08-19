@@ -340,6 +340,10 @@ Gera 3 variações de **legenda** (Promo · Engajar · WhatsApp) pro post depois
 
 O editor opera com **um canvas por template** (a era multi-artboard acabou; funções `dNewArtboard`/`dRenderABList` etc. foram removidas). `dLayers` é a lista plana global de camadas; `dGetActiveAB()`/`dSyncLayersToAB()` fazem a ponte com a estrutura persistida. `dLayers[0]` = fundo visual.
 
+### Criar material: duas etapas (2026-08-19)
+
+O modal `#d-newdoc-modal` ("Novo material", `dNewDocOpen`) pede **duas** coisas: **1)** o formato — só **Feed** (1080×1350) ou **Story** (1080×1920), o mapa `DNEWDOC_FORMATS` em `templates.js` — e **2)** a campanha (pasta) + o nome, já pré-preenchido por `dUniqueTemplateName`. Não há mais trilha de categorias, busca de formato, campos de largura/altura, unidade, ppi, orientação nem escolha de fundo: todo material nasce em **72 ppi com fundo branco**. `dNewArtboardCustom(w,h,bg,dpi,fmt)` segue aceitando dimensão arbitrária — é por ele que a importação de PSD entra com tamanho nativo.
+
 ### Ferramentas (toolbar vertical, atalhos)
 
 `select` (V) · `text` (T) · `rect` (R, flyout de formas: elipse/triângulo/polígono/linha/estrela) · `frame` (F, moldura de foto) · `img` (M) · `brush` (B, presets round/soft/square/dotted/calligraphy) · `eraser` (E) · `stamp` (S) · `eyedrop` (I — só texto/forma) · `bucket` (G — só texto/forma) · grupo nitidez: `blur`/`sharpen`/`smudge` · `gradient`. Cursor dinâmico por ferramenta; pintura vive no `#d-paint-canvas` separado.

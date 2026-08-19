@@ -1947,31 +1947,17 @@ function dNewArtboardCustom(w,h,bg,dpi,fmt){
   setTimeout(dFitToScreen,60);
   return ab;
 }
-const DNEWDOC_PRESETS = {
-  social: [
-    { id: 'story', name: 'Story', w: 1080, h: 1920, unit: 'px', dpi: 72 },
-    { id: 'feed', name: 'Feed', w: 1080, h: 1350, unit: 'px', dpi: 72 },
-    { id: 'reels', name: 'Reels', w: 1080, h: 1920, unit: 'px', dpi: 72 },
-    { id: 'post', name: 'Post', w: 1200, h: 628, unit: 'px', dpi: 72 }
-  ],
-  web: [
-    { id: 'fhd', name: 'Full HD', w: 1920, h: 1080, unit: 'px', dpi: 72 },
-    { id: 'hd', name: 'HD', w: 1366, h: 768, unit: 'px', dpi: 72 }
-  ],
-  mobile: [
-    { id: 'iphone', name: 'iPhone', w: 1170, h: 2532, unit: 'px', dpi: 72 },
-    { id: 'android', name: 'Android', w: 1080, h: 2400, unit: 'px', dpi: 72 }
-  ],
-  print: [
-    { id: 'a4', name: 'A4', w: 210, h: 297, unit: 'mm', dpi: 300 },
-    { id: 'a5', name: 'A5', w: 148, h: 210, unit: 'mm', dpi: 300 }
-  ],
-  custom: []
+/* Os DOIS formatos que o Luma cria (dimensões oficiais em 01_BUSINESS). Quem cria
+   escolhe "Feed" ou "Story" — largura, altura, unidade, ppi e fundo saem daqui.
+   Tamanho ad-hoc não é mais oferecido no modal; PSD importado continua entrando
+   com o tamanho nativo por dPsdDetectFmt/dNewArtboardCustom. */
+const DNEWDOC_FORMATS={
+  feed :{name:'Feed', w:1080,h:1350},
+  story:{name:'Story',w:1080,h:1920}
 };
-
-const DNEWDOC_RECENTS_KEY='luma_newdoc_recents_v1';
-let dNewDocSelectedPreset=null;
-let dNewDocSelectedName='';
+// Último formato escolhido na sessão — reabrir no mesmo poupa um clique de quem
+// está fazendo uma leva do mesmo tipo.
+let dNewDocFmt='feed';
 
 function dUniqueTemplateName(folder,preferred,excludeId){
   const fallback='Sem título';
@@ -1989,54 +1975,19 @@ function dUniqueTemplateName(folder,preferred,excludeId){
   return stem.slice(0,46).trim()+' '+Date.now();
 }
 
-function dNewDocPresetByKey(key){
-  const parts=String(key||'').split(':');
-  const category=parts[0],id=parts[1];
-  const preset=(DNEWDOC_PRESETS[category]||[]).find(p=>p.id===id);
-  return preset?{...preset,category}:null;
-}
-
-function dNewDocRecentPresets(){
-  try{
-    const keys=JSON.parse(localStorage.getItem(DNEWDOC_RECENTS_KEY)||'[]');
-    return Array.isArray(keys)?keys.map(dNewDocPresetByKey).filter(Boolean):[];
-  }catch(e){ return []; }
-}
-
-function dRememberNewDocPreset(){
-  if(!dNewDocSelectedPreset) return;
-  try{
-    const current=JSON.parse(localStorage.getItem(DNEWDOC_RECENTS_KEY)||'[]');
-    const keys=Array.isArray(current)?current.filter(k=>k!==dNewDocSelectedPreset):[];
-    keys.unshift(dNewDocSelectedPreset);
-    localStorage.setItem(DNEWDOC_RECENTS_KEY,JSON.stringify(keys.slice(0,5)));
-  }catch(e){}
-}
-
-// "Recentes" so existe quando ha recentes — trilha sem atalho morto.
-function dNewDocEnsureSmartTabs(){
-  const recent=document.querySelector('.newdoc-tab[data-smart-tab="recent"]');
-  if(!recent) return;
-  recent.style.display=dNewDocRecentPresets().length?'':'none';
-}
-
-let dNewDocDraftDirty=false;
-let dNewDocOpening=false;
 let dNewDocReturnFocus=null;
 
-// O markup do modal mora no index.html. Aqui fica so o COMPORTAMENTO: fechar,
-// teclado, rascunho sujo e o filtro da busca.
+// O markup do modal mora no index.html. Aqui fica só o COMPORTAMENTO: fechar,
+// teclado e a validação das duas etapas.
 function dNewDocEnhanceModal(){
   const modal=document.getElementById('d-newdoc-modal');
   if(!modal||modal.dataset.wired==='1') return;
   modal.dataset.wired='1';
-  const settings=modal.querySelector('.newdoc-settings');
   modal.addEventListener('mousedown',e=>{if(e.target===modal)dNewDocClose();});
   modal.addEventListener('keydown',e=>{
     e.stopPropagation();
     if(e.key==='Escape'){e.preventDefault();dNewDocClose();}
-    // Enter em campo de texto cria; na busca so filtra (senao o designer cria sem querer).
-    if(e.key==='Enter'&&e.target.matches('input,select')&&e.target.id!=='nd-search'&&!document.getElementById('nd-create-btn').disabled){e.preventDefault();dNewDocConfirm();}
+    if(e.key==='Enter'&&e.target.matches('input,select')&&!document.getElementById('nd-create-btn').disabled){e.preventDefault();dNewDocConfirm();}
     if(e.key==='Tab'){
       const focusable=[...modal.querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled)')].filter(el=>el.offsetParent!==null);
       const first=focusable[0],last=focusable[focusable.length-1];
@@ -2044,299 +1995,72 @@ function dNewDocEnhanceModal(){
       else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
     }
   });
-  const bgColor=document.getElementById('nd-bg-color');
-  if(bgColor) bgColor.addEventListener('input',()=>{document.getElementById('nd-bg').value='color';dNewDocSetBg('color');});
-  if(settings){
-    settings.addEventListener('input',e=>{
-      if(!dNewDocOpening)dNewDocDraftDirty=true;
-      if(e.target.id==='nd-name')dNewDocUpdate(true);
-    });
-    settings.addEventListener('change',e=>{
-      if(!dNewDocOpening)dNewDocDraftDirty=true;
-      if(e.target.id==='nd-folder')dNewDocUpdate(true);
-    });
-  }
+  modal.addEventListener('input',e=>{if(e.target.id==='nd-name')dNewDocUpdate();});
+  modal.addEventListener('change',e=>{if(e.target.id==='nd-folder')dNewDocUpdate();});
 }
 
-// Busca varre TODAS as categorias — quem digita "a4" nao quer navegar ate Impressao.
-let dNewDocQuery='';
-function dNewDocSearch(term){
-  dNewDocQuery=String(term||'').trim();
-  if(!dNewDocQuery){ const active=document.querySelector('.newdoc-tab.active'); dNewDocSelectTab(active?active.dataset.cat:'recommended',active); return; }
-  const norm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  const q=norm(dNewDocQuery);
-  const hits=Object.keys(DNEWDOC_PRESETS).reduce((acc,cat)=>acc.concat(DNEWDOC_PRESETS[cat].map(p=>({...p,category:cat}))),[])
-    .filter(p=>norm(p.name).includes(q)||norm(p.w+'x'+p.h).includes(q.replace(/\s|×/g,'')));
-  document.querySelectorAll('.newdoc-tab').forEach(b=>b.classList.remove('active'));
-  dNewDocRenderPresets(hits,'Resultados para "'+dNewDocQuery+'"',false);
-}
-
-function dNewDocSetOrientation(mode){
-  const w=document.getElementById('nd-w'),h=document.getElementById('nd-h');
-  const wv=parseFloat(w.value)||0,hv=parseFloat(h.value)||0;
-  if(!wv||!hv||wv===hv) return dNewDocSyncOrientation();
-  const isPortrait=hv>wv;
-  if((mode==='portrait')!==isPortrait) dNewDocSwapOrientation();
-  else dNewDocSyncOrientation();
-}
-
-function dNewDocSyncOrientation(){
-  const wv=parseFloat((document.getElementById('nd-w')||{}).value)||0;
-  const hv=parseFloat((document.getElementById('nd-h')||{}).value)||0;
-  const portrait=document.getElementById('nd-orient-portrait'),landscape=document.getElementById('nd-orient-landscape');
-  if(!portrait||!landscape) return;
-  const isPortrait=hv>wv,isLandscape=wv>hv;
-  portrait.classList.toggle('active',isPortrait);portrait.setAttribute('aria-pressed',String(isPortrait));
-  landscape.classList.toggle('active',isLandscape);landscape.setAttribute('aria-pressed',String(isLandscape));
-}
-
-// Botoes visuais escrevem no <select> que o motor ja le — nada de caminho novo.
-function dNewDocSetBg(value){
-  const sel=document.getElementById('nd-bg');
-  if(!sel) return;
-  sel.value=value;
-  if(!dNewDocOpening)dNewDocDraftDirty=true;
-  dNewDocSyncBgButtons();
-  dNewDocUpdate(true);
-}
-
-function dNewDocSyncBgButtons(){
-  const value=(document.getElementById('nd-bg')||{}).value||'white';
-  const picker=document.getElementById('nd-bg-color');
-  const chip=document.getElementById('nd-bg-chip');
-  if(picker&&chip){ chip.style.background=picker.value; picker.classList.toggle('is-open',value==='color'); }
-  document.querySelectorAll('.newdoc-bg-btn').forEach(btn=>{
-    const on=btn.dataset.bg===value;
+// Etapa 1: o formato. Um clique resolve tamanho e proporção — sem px na tela.
+function dNewDocPickFormat(key){
+  if(!DNEWDOC_FORMATS[key]) return;
+  dNewDocFmt=key;
+  document.querySelectorAll('#d-newdoc-modal .newdoc-format').forEach(btn=>{
+    const on=btn.dataset.fmt===key;
     btn.classList.toggle('active',on);
     btn.setAttribute('aria-pressed',String(on));
   });
+  dNewDocUpdate();
 }
 
-async function dNewDocClose(force){
+function dNewDocClose(){
   const modal=document.getElementById('d-newdoc-modal');
   if(!modal) return;
-  if(!force&&dNewDocDraftDirty&&!await gConfirm('As configurações deste novo projeto não são salvas.',
-    {title:'Descartar o que você preencheu?',okLabel:'Descartar',cancelLabel:'Continuar editando',danger:true})) return;
-  dNewDocDraftDirty=false;modal.classList.remove('open');
+  modal.classList.remove('open');
   if(dNewDocReturnFocus&&document.contains(dNewDocReturnFocus)) dNewDocReturnFocus.focus();
   dNewDocReturnFocus=null;
 }
 
 function dNewDocOpen(){
   dNewDocReturnFocus=document.activeElement;
-  dNewDocOpening=true;dNewDocEnhanceModal();
-  document.getElementById('nd-unit').value='px';
-  document.getElementById('nd-dpi').value=72;
-  document.getElementById('nd-bg').value='white';
-  const ndSearch=document.getElementById('nd-search'); if(ndSearch){ndSearch.value='';dNewDocQuery='';}
-  dNewDocSyncBgButtons();
-  if (document.getElementById('nd-use-artboards')) {
-    document.getElementById('nd-use-artboards').checked = dUseArtboards;
-  }
-  
-  dNewDocEnsureSmartTabs();
+  dNewDocEnhanceModal();
   const folder=dFolders.find(f=>f.id===dActiveTmplFolderId)||null;
   const folderSelect=document.getElementById('nd-folder');
   folderSelect.innerHTML=dStudioCampaignOptions((folder||dFolders[0]||{}).id||'');
   folderSelect.disabled=!dFolders.length;
   document.getElementById('nd-name').value=dUniqueTemplateName(folder,'Novo material');
-  const recentTab=document.querySelector('.newdoc-tab[data-smart-tab="recent"]');
-  const hasRecent=recentTab&&recentTab.style.display!=='none';
-  dNewDocSelectTab(hasRecent?'recent':'recommended',hasRecent?recentTab:document.querySelector('.newdoc-tab[data-smart-tab="recommended"]'));
-  
-  dNewDocUpdate(true);dNewDocDraftDirty=false;dNewDocOpening=false;
+  dNewDocPickFormat(dNewDocFmt);
   document.getElementById('d-newdoc-modal').classList.add('open');
+  // Foco na etapa 1 (e não no nome): a primeira decisão é o formato.
   requestAnimationFrame(()=>{
-    document.getElementById('nd-name').focus();
-    // Segundo update, agora com o modal VISÍVEL: a prévia mede o palco em pixels
-    // pra manter a proporção, e com o modal oculto o palco media 0. Sem isto o
-    // Story abria com a folha no tamanho da vez anterior.
-    dNewDocUpdate(true);
+    const first=document.querySelector('#d-newdoc-modal .newdoc-format.active')||document.getElementById('nd-name');
+    if(first)first.focus();
   });
 }
 
-function dNewDocSelectTab(category, tabEl){
-  const cat=category||'recommended';
-  document.querySelectorAll('.newdoc-tab').forEach(btn => btn.classList.remove('active'));
-  const target=tabEl||document.querySelector('.newdoc-tab[data-cat="'+cat+'"]');
-  if(target) target.classList.add('active');
-  const search=document.getElementById('nd-search');
-  if(search&&dNewDocQuery){ search.value=''; dNewDocQuery=''; }
-
-  const recommended=['social:story','social:feed','social:post','web:fhd']
-    .map(dNewDocPresetByKey).filter(Boolean);
-  const presets = cat==='recent' ? dNewDocRecentPresets()
-    : cat==='recommended' ? recommended
-    : (DNEWDOC_PRESETS[cat] || []).map(p=>({...p,category:cat}));
-  const titles={recent:'Formatos recentes',recommended:'Recomendados para você',social:'Redes sociais',web:'Web',mobile:'Mobile',print:'Impressão',custom:'Formato personalizado'};
-  dNewDocRenderPresets(presets,titles[cat]||'Formatos',cat==='custom');
-}
-
-// Um renderer só para aba e busca: card = miniatura na proporção real + dados do formato.
-function dNewDocRenderPresets(presets,caption,isCustom){
-  const container=document.getElementById('nd-presets-container');
-  if(!container) return;
-  const captionEl=document.getElementById('nd-library-caption');
-  if(captionEl) captionEl.textContent=caption+(presets.length?'  ·  '+presets.length:'');
-
-  if(!presets.length){
-    dNewDocSelectedPreset=null;
-    container.innerHTML='<div class="newdoc-empty">'
-      +'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v8M8 12h8"/></svg>'
-      +'<strong>'+(isCustom?'Formato personalizado':'Nenhum formato encontrado')+'</strong>'
-      +'<span>'+(isCustom?'Defina largura, altura e unidade no painel ao lado — a prévia acompanha.':'Tente outro termo ou escolha uma categoria à esquerda.')+'</span>'
-      +'</div>';
-    if(isCustom){ const w=document.getElementById('nd-w'); if(w) w.focus(); }
-    return;
-  }
-
-  container.innerHTML = presets.map(p => {
-    const maxDim=Math.max(p.w,p.h);
-    const boxW=Math.max((p.w/maxDim)*54,10), boxH=Math.max((p.h/maxDim)*54,10);
-    const ratio=dNewDocRatioLabel(p.w,p.h);
-    return '<button type="button" role="option" aria-selected="false" class="newdoc-preset-btn" data-preset-id="'+p.id+'" onclick="dNewDocApplyPreset(\''+(p.category)+'\', \''+p.id+'\', this)">'
-      +'<span class="newdoc-preset-visual"><span class="newdoc-preset-sheet" style="--preset-w:'+boxW+'px;--preset-h:'+boxH+'px"></span></span>'
-      +'<span class="newdoc-preset-copy">'
-        +'<strong>'+gEsc(p.name)+'</strong>'
-        +'<span>'+p.w+' × '+p.h+' '+p.unit+'</span>'
-        +'<small>'+ratio+' · '+p.dpi+' ppi</small>'
-      +'</span>'
-      +'<span class="newdoc-preset-check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>'
-      +'</button>';
-  }).join('');
-
-  const firstPresetBtn=container.querySelector('.newdoc-preset-btn');
-  if(firstPresetBtn) dNewDocApplyPreset(presets[0].category, presets[0].id, firstPresetBtn);
-}
-
-// Proporção legível (16:9, 4:5…) — ajuda a bater o olho e reconhecer o formato.
-function dNewDocRatioLabel(w,h){
-  const gcd=(a,b)=>b?gcd(b,a%b):a;
-  const g=gcd(Math.round(w),Math.round(h))||1;
-  let rw=Math.round(w/g), rh=Math.round(h/g);
-  if(rw>40||rh>40){ const k=Math.max(rw,rh)/20; rw=Math.round(rw/k); rh=Math.round(rh/k); }
-  return rw+':'+rh;
-}
-
-function dNewDocApplyPreset(category, id, btnEl){
-  const presets = DNEWDOC_PRESETS[category] || [];
-  const p = presets.find(x => x.id === id);
-  if(!p) return;
-  dNewDocSelectedPreset=category+':'+id;
-  dNewDocSelectedName=p.name;
-  if(!dNewDocOpening)dNewDocDraftDirty=true;
-
-  document.querySelectorAll('.newdoc-preset-btn').forEach(btn => { btn.classList.remove('active'); btn.setAttribute('aria-selected','false'); });
-  if(btnEl){ btnEl.classList.add('active'); btnEl.setAttribute('aria-selected','true'); }
-
-  document.getElementById('nd-unit').value = p.unit;
-  document.getElementById('nd-dpi').value = p.dpi;
-  document.getElementById('nd-w').value = p.w;
-  document.getElementById('nd-h').value = p.h;
-
-  dNewDocUpdate(true);
-}
-
-// Converte os campos do modal para pixels usando a unidade + DPI
-function _dNewDocPx(){
-  const unit=document.getElementById('nd-unit').value;
-  const dpi=Math.max(1,parseFloat(document.getElementById('nd-dpi').value)||72);
-  const wv=parseFloat(document.getElementById('nd-w').value)||0;
-  const hv=parseFloat(document.getElementById('nd-h').value)||0;
-  const toPx=v=>unit==='in'?Math.round(v*dpi):unit==='cm'?Math.round(v/2.54*dpi):unit==='mm'?Math.round((v/10)/2.54*dpi):Math.round(v);
-  return {w:toPx(wv),h:toPx(hv),dpi};
-}
-
-function dNewDocUpdate(fromPreset){
-  // Mexeu na dimensao na mao: o material deixou de ser o preset — o card perde o selo.
-  if(!fromPreset){
-    dNewDocSelectedPreset=null;dNewDocSelectedName='';
-    document.querySelectorAll('.newdoc-preset-btn.active').forEach(btn=>{btn.classList.remove('active');btn.setAttribute('aria-selected','false');});
-  }
-  dNewDocSyncOrientation();
-  dNewDocSyncBgButtons();
-  const {w,h}=_dNewDocPx();
-  const el=document.getElementById('nd-px-preview');
-  if(el)el.textContent=(w||'—')+' × '+(h||'—')+' px';
-  const sheet=document.getElementById('nd-preview-sheet');
-  if(sheet&&w>0&&h>0){
-    // A prévia tem de ter a MESMA proporção do material. A conta anterior usava
-    // 88% de cada eixo separadamente ("88% da largura" × "88% da altura"), o que
-    // só daria certo num palco quadrado — o palco é 250×96, largo e baixo, então
-    // um Story 1080×1920 saía com 124×83 px: HORIZONTAL, o oposto do pedido.
-    // Agora é o "cabe na caixa" clássico: a MENOR das duas escalas manda, e a
-    // proporção real sobrevive tanto no retrato quanto num panorama extremo.
-    const palco=sheet.parentElement;
-    const cx=palco?palco.clientWidth:0, cy=palco?palco.clientHeight:0;
-    if(cx>0&&cy>0){
-      const esc=Math.min(cx*0.88/w, cy*0.88/h);
-      sheet.style.width =Math.max(6,Math.round(w*esc))+'px';
-      sheet.style.height=Math.max(6,Math.round(h*esc))+'px';
-    }
-    // Palco sem medida = modal ainda oculto (o dNewDocOpen atualiza antes de
-    // exibir). Não chutamos tamanho aqui: o update que roda depois de abrir mede
-    // de verdade. O piso visual continua sendo o min-width/min-height do CSS.
-    const bgSel=document.getElementById('nd-bg').value;
-    sheet.dataset.bg=bgSel;
-    sheet.style.background=bgSel==='color'?document.getElementById('nd-bg-color').value:'';
-  }
-  const nameInput=document.getElementById('nd-name');
+function dNewDocUpdate(){
   const validation=document.getElementById('nd-validation');
   const createBtn=document.getElementById('nd-create-btn');
   if(!validation||!createBtn) return;
+  const nameInput=document.getElementById('nd-name');
   const name=nameInput?nameInput.value.replace(/\s+/g,' ').trim():'';
+  const folderSelect=document.getElementById('nd-folder');
+  const folder=dFolders.find(f=>f.id===(folderSelect&&folderSelect.value))||null;
   let message='Tudo pronto para criar';let state='success';
-  if(!name){message='Digite um nome para o projeto';state='error';}
-  else if(w<16||h<16){message='Use dimensões de pelo menos 16 px';state='error';}
-  else if(w>8000||h>8000){message='O limite é 8.000 px por lado';state='error';}
-  else{
-    const folderSelect=document.getElementById('nd-folder');
-    const folder=dFolders.find(f=>f.id===(folderSelect&&folderSelect.value))||null;
-    if(!folder){message='Escolha ou crie uma campanha';state='error';}
-    else if(dUniqueTemplateName(folder,name)!==name){message='O nome será ajustado para evitar conflito';state='warning';}
-  }
+  if(!folder){message='Escolha ou crie uma campanha';state='error';}
+  else if(!name){message='Dê um nome para o material';state='error';}
+  else if(dUniqueTemplateName(folder,name)!==name){message='Já existe um material com esse nome — vamos numerar';state='warning';}
   validation.textContent=message;validation.dataset.state=state;createBtn.disabled=state==='error';
-
-  // Resumo: o designer confere o que sera criado sem reler cada campo.
-  const summary=document.getElementById('nd-summary');
-  if(summary){
-    const bgSel2=document.getElementById('nd-bg').value;
-    const bgLabel=bgSel2==='transparent'?'fundo transparente':bgSel2==='color'?'fundo '+document.getElementById('nd-bg-color').value.toUpperCase():'fundo branco';
-    const folderSel=document.getElementById('nd-folder');
-    const folderName=folderSel&&folderSel.selectedOptions[0]?folderSel.selectedOptions[0].textContent:'';
-    const dpi=Math.max(1,parseFloat(document.getElementById('nd-dpi').value)||72);
-    summary.textContent=[dNewDocSelectedName||'Formato personalizado',dpi+' ppi',bgLabel,folderName].filter(Boolean).join(' · ');
-  }
-}
-
-function dNewDocSwapOrientation(){
-  const w=document.getElementById('nd-w'),h=document.getElementById('nd-h');
-  const t=w.value;w.value=h.value;h.value=t;
-  dNewDocUpdate();
-}
-
-function dNewDocBgChange(){
-  dNewDocSyncBgButtons();
-  dNewDocUpdate(true);
 }
 
 function dNewDocConfirm(){
-  const {w,h,dpi}=_dNewDocPx();
-  if(w<16||h<16){gToast('Use dimensões de pelo menos 16 px','error');return;}
-  if(w>8000||h>8000){gToast('O limite é 8.000 px por lado','error');return;}
-  const bgSel=document.getElementById('nd-bg').value;
-  const bg=(bgSel==='color')?document.getElementById('nd-bg-color').value:bgSel;
+  // Tamanho, ppi e fundo vêm do formato — não há mais campo para digitar.
+  const fmt=DNEWDOC_FORMATS[dNewDocFmt]||DNEWDOC_FORMATS.feed;
+  const w=fmt.w,h=fmt.h,dpi=72,bg='white';
   const requestedName=document.getElementById('nd-name').value.replace(/\s+/g,' ').trim().slice(0,60);
-  if(!requestedName){gToast('Digite um nome para o projeto','error');return;}
+  if(!requestedName){gToast('Dê um nome para o material','error');return;}
   if(typeof dSave==='function' && dSave({silent:true})===false){
     gToast('O projeto atual não pôde ser salvo; o novo não foi criado','error');
     return;
   }
-  
-  if (document.getElementById('nd-use-artboards')) {
-    dUseArtboards = document.getElementById('nd-use-artboards').checked;
-  }
-  
   const folderSelect=document.getElementById('nd-folder');
   const folder=dFolders.find(f=>f.id===(folderSelect&&folderSelect.value))||null;
   if(!folder){gToast('Escolha uma campanha para criar o material','error');return;}
@@ -2346,7 +2070,7 @@ function dNewDocConfirm(){
   dArtboards = [];
   dActiveABId = null;
   
-  const ab=dNewArtboardCustom(w,h,bg,dpi);
+  const ab=dNewArtboardCustom(w,h,bg,dpi,dNewDocFmt);
   if(folder&&ab){
     const projectName=dUniqueTemplateName(folder,requestedName);
     createdName=projectName;
@@ -2376,16 +2100,9 @@ function dNewDocConfirm(){
     if(ab){ab.name=requestedName;const projNameEl=document.getElementById('dt-project-name');if(projNameEl)projNameEl.textContent=requestedName;}
     if(typeof dMarkUnsaved==='function') dMarkUnsaved();
   }
-  dRememberNewDocPreset();
-  dNewDocClose(true);
+  dNewDocClose();
   if(creationSaved)dStudioHomeClose();
-  
-  if(creationSaved){
-    const msg=dUseArtboards
-      ? 'Projeto "'+createdName+'" criado com prancheta de '+w+'×'+h+' px'
-      : 'Projeto "'+createdName+'" criado em '+w+'×'+h+' px';
-    gToast(msg);
-  }
+  if(creationSaved)gToast(fmt.name+' "'+createdName+'" criado em "'+folder.name+'"');
 }
 
 /* ── FORMATO / CANVAS ── */
