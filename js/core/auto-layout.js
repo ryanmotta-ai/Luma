@@ -699,7 +699,13 @@ function _gGapEntre(a, b){
      alternativas ali seria pagar 3 solves para reeleger o vencedor.
    Empate: vence a PADRÃO. Ela é a que o corpus de regressão conhece. */
 
-const G_LAYOUT_POLITICAS = ['sem-entrelinha', 'entrelinha-livre', 'proporcional'];
+/* `tracking-autoral` (2026-08-19): a política que NÃO devolve o tracking que o motor adicionou
+   (degrau 3.7 da escada, em `00-config.js`). Existe porque devolver tracking muda a QUEBRA, e
+   medindo com a tipografia display da marca em 18 cenários ela ajudou em 3 (preço +10%, título
+   +11%) e atrapalhou em 1 (manchete 78→71, porque a linha reflowou pior). Em vez de escolher no
+   escuro, o motor gera as duas e a NOTA decide — que é exatamente para isso que as políticas
+   existem. */
+const G_LAYOUT_POLITICAS = ['sem-entrelinha', 'entrelinha-livre', 'proporcional', 'tracking-autoral'];
 
 function gLayoutPrecisaAlternativas(cloned){
   return (cloned||[]).some(l => l && (l._tetoFonte != null || l._entrelinha != null

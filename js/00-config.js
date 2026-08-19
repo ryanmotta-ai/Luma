@@ -2185,6 +2185,46 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
         _reposicionarDoZero();
         continue;                       // só encolhe fonte quando a entrelinha já deu o que tinha
       }
+
+      /* DEGRAU 3.7 — DEVOLVER O TRACKING QUE O MOTOR ADICIONOU (2026-08-19).
+         Fonte display (peso ≥900) não sai do PSD com tracking: é o RENDER que adiciona 2% do
+         corpo, para a caixa-alta não ficar apertada. Esse tracking é do motor, não do designer —
+         então antes de reduzir a letra (que é a hierarquia dele), a escada devolve o que ela
+         mesma somou. Recupera ~5% da largura de uma linha de título e, em caixa de parágrafo,
+         às vezes uma linha inteira: é a diferença entre "chegou como publiquei" e "chegou menor".
+         ⛔ NUNCA fica abaixo do valor AUTORADO nem entra em tracking negativo — colar glifo é
+         estrago pior que um ponto de corpo. Tracking que o designer escreveu (`letterSpacing` do
+         PSD) só é apertado até o piso 0, na mesma conta.
+         Escrito direto no `letterSpacing` do CLONE, de propósito: é a propriedade que a MEDIDA
+         (`gFitTextLayer`) e o RENDER (`fRenderTemplateLayers`) já leem — carimbo novo seria uma
+         segunda régua, que é a origem histórica dos bugs deste motor. */
+      const _corpoAtual = (l) => (l._tetoFonte != null) ? l._tetoFonte : (l.fontSize || 24);
+      /* MESMA régua de "é display?" do `gFitTextLayer` e do render, incluindo o fallback por
+         NOME quando `dTextFontParts` não está carregado (páginas de teste e qualquer contexto sem
+         o Estúdio). Uma régua paralela aqui desligaria o degrau em silêncio justamente onde a
+         medida e o desenho consideram a fonte display — o defeito clássico das duas réguas. */
+      const _ehDisplay = (l) => {
+        const fp = (typeof dTextFontParts === 'function') ? dTextFontParts(l.font)
+                 : { weight: /black|realce/i.test(l.font || '') ? 900 : 700 };
+        return (l.fontWeightOverride || fp.weight) >= 900;
+      };
+      // A MESMA conta do fit/render para o tracking efetivo — não uma paralela.
+      const _trackEfetivo = (l) => (l.letterSpacing != null) ? l.letterSpacing
+        : (_ehDisplay(l) ? Math.max(0.5, _corpoAtual(l) * 0.02) : 0);
+      /* A política `tracking-autoral` pula este degrau de propósito: devolver tracking muda a
+         QUEBRA, e em arte onde a linha reflowa pior isso custa mais corpo do que economiza. Quem
+         decide entre as duas é a NOTA (`gLayoutEscolherAlternativa`), não este arquivo. */
+      const _apertaveisTrack = (_politica === 'tracking-autoral') ? [] :
+        culpados.filter(l => l._fit && !l.vertical && !l._trackApertado && _trackEfetivo(l) > 0.01);
+      if (_apertaveisTrack.length) {
+        _apertaveisTrack.forEach(l => {
+          l.letterSpacing = Math.max(0, _trackEfetivo(l) - _corpoAtual(l) * 0.02);
+          l._trackApertado = true;      // uma vez por camada: o ganho não se repete
+        });
+        _remedir(_apertaveisTrack);
+        _reposicionarDoZero();
+        continue;
+      }
       /* QUEM CEDE PRIMEIRO — por ORDEM, não por ritmo.
          Antes todos caíam 8% por volta e o resultado era o avesso do desejado: o TÍTULO ia ao
          piso enquanto o regulamento jurídico parava um degrau antes. Pesar o passo não
