@@ -1,0 +1,346 @@
+/**
+ * js/video/video.js
+ *
+ * O MÓDULO VÍDEO — a view, a entrada do arquivo, o transporte e a exportação.
+ * Ponto de entrada: `vdInit()`, chamada por setMode('video') na primeira vez
+ * (mesmo padrão lazy da Academia — main.js).
+ *
+ * DECISÕES DE PRODUTO já tomadas (docs/LUMA-VIDEO.md §14):
+ *  · DESKTOP-ONLY — o gate abaixo de 1024px é CSS, igual ao do Estúdio.
+ *  · Só equipe (gIsAdmin) — o franqueado não vê a aba, porque o celular dele não
+ *    exporta. Rever quando a fase 0 medir iOS.
+ *  · O vídeo NÃO sobe pra nuvem. Nada de Storage, nada de migration: o arquivo
+ *    vive no navegador enquanto a aba está aberta.
+ *
+ * ⚠ POR QUE RECARREGAR PERDE O VÍDEO: o File do usuário não pode ser guardado
+ * em localStorage e um objectURL morre com a aba. Guardar 150MB em IndexedDB
+ * seria possível e ainda não vale — a sessão de edição é curta. O EDL é pequeno
+ * e poderia persistir; sem o arquivo ele não abre nada, então também não persiste.
+ * Isso é escolha, não esquecimento.
+ *
+ * Depende de: video/projeto.js, video/compositor.js, video/timeline.js,
+ *   core/toast.js (gToast, gEsc, gConfirm).
+ */
+
+let vdPronto = false;
+let vdFonte = null;      // {file, url} — fora do EDL de propósito (não é serializável)
+
+function vdInit(){
+  if(vdPronto) return;
+  const raiz = document.getElementById('vd-root');
+  if(!raiz) return;
+  raiz.innerHTML = _vdMarkup();
+
+  vdCompositorMontar(document.getElementById('vd-canvas'), document.getElementById('vd-src'));
+  vdCompositorCallbacks(t => vdTlPlayhead(t), () => _vdSincronizarTransporte());
+
+  const palco = document.getElementById('vd-stage');
+  palco.addEventListener('dragover', ev => { ev.preventDefault(); palco.classList.add('drag'); });
+  palco.addEventListener('dragleave', () => palco.classList.remove('drag'));
+  palco.addEventListener('drop', ev => {
+    ev.preventDefault(); palco.classList.remove('drag');
+    const f = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
+    if(f) vdCarregarArquivo(f);
+  });
+
+  const trilha = document.getElementById('vd-tl-track');
+  trilha.addEventListener('pointerdown', vdTlPointerDown);
+  trilha.addEventListener('pointermove', vdTlPointerMove);
+  trilha.addEventListener('pointerup', vdTlPointerUp);
+  trilha.addEventListener('pointercancel', vdTlPointerUp);
+
+  document.addEventListener('keydown', _vdTecla);
+  vdPronto = true;
+}
+
+function _vdMarkup(){
+  return ''
+  + '<div class="vd-wrap">'
+  +   '<div class="vd-stage" id="vd-stage">'
+  +     '<canvas id="vd-canvas" class="vd-canvas" width="1080" height="1920"></canvas>'
+  +     '<video id="vd-src" class="vd-src" playsinline preload="metadata"></video>'
+  +     '<div class="vd-empty" id="vd-empty">'
+  +       '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 10l4.55-2.27A1 1 0 0121 8.62v6.76a1 1 0 01-1.45.89L15 14"/><rect x="3" y="6" width="12" height="12" rx="2"/></svg>'
+  +       '<strong>Traga um vídeo pra editar</strong>'
+  +       '<p>Arraste o arquivo aqui ou escolha no computador. Até 3 minutos.</p>'
+  +       '<button type="button" class="vd-btn primary" onclick="document.getElementById(\'vd-file\').click()">Escolher vídeo</button>'
+  +       '<input type="file" id="vd-file" accept="video/*" hidden onchange="vdCarregarArquivo(this.files[0]); this.value=\'\'">'
+  +     '</div>'
+  +     '<div class="vd-progresso" id="vd-progresso" hidden><div class="vd-progresso-barra" id="vd-progresso-barra"></div><span id="vd-progresso-txt">Exportando…</span></div>'
+  +   '</div>'
+  +   '<div class="vd-bar">'
+  +     '<button type="button" class="vd-btn icon" id="vd-play" onclick="vdAlternarPlay()" aria-label="Tocar" disabled>'
+  +       '<svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></button>'
+  +     '<span class="vd-tempo" id="vd-tempo">0:00.0 / 0:00.0</span>'
+  +     '<span class="vd-nome" id="vd-nome"></span>'
+  +     '<span class="vd-flex"></span>'
+  +     '<button type="button" class="vd-btn" id="vd-dividir" onclick="vdAcaoDividir()" disabled>Dividir aqui</button>'
+  +     '<button type="button" class="vd-btn" id="vd-undo" onclick="vdAcaoDesfazer()" disabled>Desfazer</button>'
+  +     '<button type="button" class="vd-btn" id="vd-redo" onclick="vdAcaoRefazer()" disabled>Refazer</button>'
+  +     '<button type="button" class="vd-btn primary" id="vd-exportar" onclick="vdAcaoExportar()" disabled>Exportar</button>'
+  +   '</div>'
+  +   '<div class="vd-tl">'
+  +     '<div class="vd-tl-rot">Vídeo</div>'
+  +     '<div class="vd-tl-track" id="vd-tl-track" role="slider" aria-label="Linha do tempo" tabindex="0"></div>'
+  +   '</div>'
+  +   '<div class="vd-inspector" id="vd-inspector"></div>'
+  + '</div>';
+}
+
+/* ── ENTRADA ─────────────────────────────────────────────────────────── */
+
+async function vdCarregarArquivo(file){
+  if(!file) return;
+  if(!/^video\//i.test(file.type || '')){
+    gToast('Esse arquivo não é um vídeo. Envie um MP4 ou MOV.', 'error'); return;
+  }
+  const mb = file.size / 1048576;
+  if(mb > VD_MAX_ENTRADA_MB){
+    gToast('O vídeo tem ' + Math.round(mb) + 'MB. O limite é ' + VD_MAX_ENTRADA_MB + 'MB — envie um mais curto ou mais leve.', 'error'); return;
+  }
+  // Trocar de vídeo joga a edição fora: pergunta antes (gConfirm, nunca confirm()).
+  if(vdProj && vdPodeDesfazer() && typeof gConfirm === 'function'){
+    const segue = await gConfirm('Trocar o vídeo descarta a edição atual. Continuar?');
+    if(!segue) return;
+  }
+
+  const video = document.getElementById('vd-src');
+  const urlAntiga = vdFonte && vdFonte.url;
+  const url = URL.createObjectURL(file);
+  vdPausar();
+
+  const meta = await new Promise(resolve => {
+    const ok = () => { limpar(); resolve({ w: video.videoWidth, h: video.videoHeight }); };
+    const erro = () => { limpar(); resolve(null); };
+    const limpar = () => { video.removeEventListener('loadedmetadata', ok); video.removeEventListener('error', erro); };
+    video.addEventListener('loadedmetadata', ok);
+    video.addEventListener('error', erro);
+    video.src = url;
+  });
+  if(meta) meta.dur = await _vdDuracaoConfiavel(video);
+
+  if(!meta || !isFinite(meta.dur) || meta.dur <= 0){
+    URL.revokeObjectURL(url);
+    // Caso real e frequente: MOV com codec que o navegador não decodifica.
+    gToast('Não consegui abrir esse vídeo. Converta para MP4 (H.264) e tente de novo.', 'error');
+    return;
+  }
+  if(meta.dur > VD_MAX_ENTRADA_SEG){
+    URL.revokeObjectURL(url);
+    gToast('O vídeo tem ' + vdFmtTempo(meta.dur) + '. O limite é ' + (VD_MAX_ENTRADA_SEG / 60) + ' minutos.', 'error');
+    return;
+  }
+
+  if(urlAntiga) URL.revokeObjectURL(urlAntiga);   // libera a memória do vídeo anterior
+  vdFonte = { file, url };
+  vdNovoProjeto({ nome: file.name, dur: meta.dur, w: meta.w, h: meta.h, mb: Math.round(mb) });
+  vdSel = null;
+
+  // Formato de saída segue a orientação do material: vídeo horizontal virado à
+  // força em 9:16 perde metade da cena, e ninguém pediu isso.
+  vdProj.formato = (meta.w > meta.h) ? '16:9' : '9:16';
+  vdAjustarSaida();
+
+  document.getElementById('vd-empty').hidden = true;
+  // Vídeo curto de teste dava "0MB" — abaixo de 1MB o número honesto é em KB.
+  const peso = mb < 1 ? Math.round(file.size / 1024) + 'KB' : mb.toFixed(mb < 10 ? 1 : 0) + 'MB';
+  document.getElementById('vd-nome').innerHTML = gEsc(file.name) + ' · ' + peso;
+  vdIrPara(0);
+  vdTlRender();
+  vdRenderInspetor();
+  _vdSincronizarTransporte();
+  gToast('Vídeo carregado: ' + vdFmtTempo(meta.dur) + '.');
+}
+
+/**
+ * Duração que dá pra confiar.
+ *
+ * ARMADILHA REAL (pega na bancada): WebM gravado por MediaRecorder — inclusive o
+ * que o próprio Luma exporta — não traz duração no cabeçalho, e o navegador
+ * responde `Infinity` até alguém procurar o fim do arquivo. Sem isto, o editor
+ * recusava o vídeo dizendo "converta para MP4", o que era mentira.
+ *
+ * O truque é o padrão da plataforma: buscar um tempo absurdo faz o navegador ir
+ * até o fim real e recalcular a duração.
+ */
+function _vdDuracaoConfiavel(video){
+  if(isFinite(video.duration) && video.duration > 0) return Promise.resolve(video.duration);
+  return new Promise(resolve => {
+    let respondeu = false;
+    const terminar = () => {
+      if(respondeu) return;
+      respondeu = true;
+      video.removeEventListener('seeked', terminar);
+      video.removeEventListener('timeupdate', terminar);
+      const d = video.duration;
+      // ⚠ Voltar ao início e ESPERAR: deixar um seek desta sondagem em voo faz o
+      // primeiro 'seeked' do editor ser o DELA, e a prévia abre mostrando o
+      // último frame do vídeo com o cursor no zero. (Visto na captura de tela.)
+      let zerou = false;
+      const zerado = () => {
+        if(zerou) return;
+        zerou = true;
+        video.removeEventListener('seeked', zerado);
+        resolve(isFinite(d) && d > 0 ? d : 0);
+      };
+      video.addEventListener('seeked', zerado);
+      setTimeout(zerado, 1500);
+      try{ video.currentTime = 0; }catch(e){ zerado(); }
+    };
+    video.addEventListener('seeked', terminar);
+    video.addEventListener('timeupdate', terminar);
+    // 3s de teto: arquivo corrompido não pode travar a interface pra sempre.
+    setTimeout(terminar, 3000);
+    try{ video.currentTime = 1e101; }catch(e){ terminar(); }
+  });
+}
+
+/* ── AÇÕES ───────────────────────────────────────────────────────────── */
+
+function vdAlternarPlay(){
+  if(!vdProj) return;
+  if(vdTocando()) vdPausar(); else vdTocar();
+  _vdSincronizarTransporte();
+}
+
+function vdAcaoDividir(){
+  if(!vdProj) return;
+  const t = vdTempoLinha();
+  if(!vdDividir(t)){ gToast('Não há onde dividir nesse ponto — mova o cursor para o meio de um trecho.', 'error'); return; }
+  vdTlRender(); _vdSincronizarTransporte();
+}
+
+function vdAcaoRemover(){
+  if(!vdSel) return;
+  if(!vdRemoverSeg(vdSel)){ gToast('O último trecho não pode ser removido.', 'error'); return; }
+  vdSel = null;
+  vdIrPara(Math.min(vdTempoLinha(), vdDuracaoFinal()));
+  vdTlRender(); vdRenderInspetor(); _vdSincronizarTransporte();
+}
+
+function vdAcaoMover(dir){
+  if(!vdSel || !vdMoverSeg(vdSel, dir)) return;
+  vdTlRender(); vdRenderInspetor(); _vdSincronizarTransporte();
+}
+
+function vdAcaoZoom(v){
+  if(!vdSel || !vdZoomSeg(vdSel, v)) return;
+  const hit = vdSegNoTempo(vdTempoLinha());
+  if(hit) vdDesenharFrame(hit.seg);
+  vdTlRender(); vdRenderInspetor();
+}
+
+function vdAcaoDesfazer(){
+  if(!vdDesfazer()) return;
+  _vdDepoisDoHistorico();
+}
+
+function vdAcaoRefazer(){
+  if(!vdRefazer()) return;
+  _vdDepoisDoHistorico();
+}
+
+// Desfazer/refazer TROCAM os objetos por clones: a seleção guardada pode não
+// existir mais, e o playhead pode estar além do fim. Re-resolver por ID aqui é o
+// que evita inspetor apontando pra objeto morto.
+function _vdDepoisDoHistorico(){
+  if(vdSel && vdSegIdx(vdSel) < 0) vdSel = null;
+  vdIrPara(Math.min(vdTempoLinha(), Math.max(vdDuracaoFinal() - 0.05, 0)));
+  vdTlRender(); vdRenderInspetor(); _vdSincronizarTransporte();
+}
+
+async function vdAcaoExportar(){
+  if(!vdProj || vdExportando()) return;
+  const impedimento = vdPodeExportar();
+  if(impedimento){ gToast(impedimento, 'error'); return; }
+
+  const barra = document.getElementById('vd-progresso-barra');
+  const caixa = document.getElementById('vd-progresso');
+  const txt = document.getElementById('vd-progresso-txt');
+  caixa.hidden = false; barra.style.width = '0%';
+  txt.textContent = 'Exportando em tempo real — não troque de aba.';
+  document.getElementById('vd-exportar').disabled = true;
+
+  const r = await vdExportar(p => { barra.style.width = Math.round(p * 100) + '%'; });
+
+  caixa.hidden = true;
+  document.getElementById('vd-exportar').disabled = false;
+  _vdSincronizarTransporte();
+  if(!r){ gToast('A exportação não gerou arquivo. Tente de novo com a aba em primeiro plano.', 'error'); return; }
+
+  const limpo = (typeof fSanitizeNamePart === 'function' ? fSanitizeNamePart(vdProj.nome) : String(vdProj.nome || 'video')).replace(/\.[^.]+$/, '');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(r.blob);
+  a.download = 'Luma_' + (limpo || 'video') + '.' + r.ext;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+
+  if(r.suspeito) gToast('Pronto, mas a aba saiu de foco durante a exportação — confira se o vídeo não congelou em algum trecho.', 'error');
+  else if(!vdSaidaEhH264()) gToast('Vídeo exportado em ' + r.ext.toUpperCase() + '. Este navegador não grava MP4 com H.264 — para postar direto no Instagram, use o Chrome no computador.');
+  else gToast('Vídeo exportado.');
+}
+
+/* ── INSPETOR (contextual: só o que está selecionado) ─────────────────── */
+
+function vdRenderInspetor(){
+  const el = document.getElementById('vd-inspector');
+  if(!el) return;
+  const i = vdSel ? vdSegIdx(vdSel) : -1;
+  if(i < 0){
+    el.innerHTML = vdProj
+      ? '<p class="vd-hint">Clique num trecho da linha do tempo para ajustar. <strong>Espaço</strong> toca, <strong>S</strong> divide no cursor.</p>'
+      : '';
+    return;
+  }
+  const s = vdSegs()[i];
+  el.innerHTML = ''
+    + '<div class="vd-insp-head">Trecho ' + (i + 1) + ' de ' + vdSegs().length + '</div>'
+    + '<dl class="vd-insp-grid">'
+    +   '<dt>Entra</dt><dd>' + vdFmtTempo(s.de) + '</dd>'
+    +   '<dt>Sai</dt><dd>' + vdFmtTempo(s.ate) + '</dd>'
+    +   '<dt>Duração</dt><dd>' + vdFmtTempo(vdSegDur(s)) + '</dd>'
+    + '</dl>'
+    + '<label class="vd-insp-zoom">Aproximação <output>' + s.zoom.toFixed(2) + '×</output>'
+    +   '<input type="range" min="1" max="1.6" step="0.02" value="' + s.zoom + '" oninput="vdAcaoZoom(this.value)">'
+    + '</label>'
+    + '<div class="vd-insp-acoes">'
+    +   '<button type="button" class="vd-btn" onclick="vdAcaoMover(-1)"' + (i === 0 ? ' disabled' : '') + '>Mover antes</button>'
+    +   '<button type="button" class="vd-btn" onclick="vdAcaoMover(1)"' + (i === vdSegs().length - 1 ? ' disabled' : '') + '>Mover depois</button>'
+    +   '<button type="button" class="vd-btn danger" onclick="vdAcaoRemover()"' + (vdSegs().length <= 1 ? ' disabled' : '') + '>Remover trecho</button>'
+    + '</div>';
+}
+
+/* ── ESTADO DOS BOTÕES ───────────────────────────────────────────────── */
+
+function _vdSincronizarTransporte(){
+  const tem = !!(vdProj && vdSegs().length);
+  const play = document.getElementById('vd-play');
+  if(play){
+    play.disabled = !tem;
+    play.setAttribute('aria-label', vdTocando() ? 'Pausar' : 'Tocar');
+    play.innerHTML = vdTocando()
+      ? '<svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>'
+      : '<svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+  }
+  const set = (id, on) => { const b = document.getElementById(id); if(b) b.disabled = !on; };
+  set('vd-dividir', tem);
+  set('vd-exportar', tem && !vdExportando());
+  set('vd-undo', vdPodeDesfazer());
+  set('vd-redo', vdPodeRefazer());
+  vdTlPlayhead(vdTempoLinha());
+}
+
+/* ── TECLADO ─────────────────────────────────────────────────────────────
+   Só quando o módulo está na frente e o foco não está num campo — senão o
+   atalho engole o que a pessoa está digitando em outra área do Luma. */
+function _vdTecla(ev){
+  if(!document.body.classList.contains('mode-video') || !vdProj || vdExportando()) return;
+  const alvo = ev.target;
+  if(alvo && (/^(INPUT|TEXTAREA|SELECT)$/.test(alvo.tagName) || alvo.isContentEditable)) return;
+  const k = ev.key.toLowerCase();
+  if(k === ' '){ ev.preventDefault(); vdAlternarPlay(); return; }
+  if(k === 's'){ ev.preventDefault(); vdAcaoDividir(); return; }
+  if((k === 'delete' || k === 'backspace') && vdSel){ ev.preventDefault(); vdAcaoRemover(); return; }
+  if((ev.ctrlKey || ev.metaKey) && k === 'z'){ ev.preventDefault(); if(ev.shiftKey) vdAcaoRefazer(); else vdAcaoDesfazer(); return; }
+  if((ev.ctrlKey || ev.metaKey) && k === 'y'){ ev.preventDefault(); vdAcaoRefazer(); }
+}

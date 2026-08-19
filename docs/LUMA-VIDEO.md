@@ -1,10 +1,46 @@
 # LUMA — Vídeo com IA (PLANO)
 
-> **Isto é um plano, não documentação de algo que existe.** Nada foi implementado. O objetivo é responder, com o pé no chão do Luma real: *dá para fazer um editor de vídeo em que a IA corta, legenda, põe SFX e usa os assets oficiais da DM?* Resposta curta: **dá — mas não com a arquitetura do plano original (Java + Spring + FFmpeg + fila).** Aquela arquitetura pressupõe camadas que o Luma não tem e não vai ter.
+> **Fases 0 a 3 implementadas em 2026-08-19** (ver §0 abaixo). O resto continua plano.
+>
+> **Este arquivo começou como plano.** O objetivo é responder, com o pé no chão do Luma real: *dá para fazer um editor de vídeo em que a IA corta, legenda, põe SFX e usa os assets oficiais da DM?* Resposta curta: **dá — mas não com a arquitetura do plano original (Java + Spring + FFmpeg + fila).** Aquela arquitetura pressupõe camadas que o Luma não tem e não vai ter.
 > Escrito em 2026-08-19 a partir da conversa de ideação (Ryan + Claude). Ordem de autoridade: palavra do Ryan > código real > `luma-brain` > genérico.
 > Leia junto: [`luma-brain/02_ARCHITECTURE.md`](../luma-brain/02_ARCHITECTURE.md) §12 (o que NÃO existe) · [`luma-brain/03_ENGINEERING.md`](../luma-brain/03_ENGINEERING.md) (as 3 leis) · [`LUMA-ACADEMIA.md`](LUMA-ACADEMIA.md) (o precedente de "módulo novo no Luma").
 
 ---
+
+## 0. Estado atual (2026-08-19)
+
+**Feito e verificado no navegador** — fases 0 a 3 do §9:
+
+| Peça | Onde | Situação |
+|---|---|---|
+| EDL + validador de plano de IA | `js/video/projeto.js` | 18 casos verdes em `tests/video-edl.html` (roda no CI) |
+| Compositor (prévia + exportação, um caminho só) | `js/video/compositor.js` | corte medido em pixel real na bancada |
+| Timeline com corte, remoção, reordenação, undo/redo | `js/video/timeline.js` | verificado no navegador |
+| View, entrada de arquivo, inspetor contextual, exportação | `js/video/video.js` | idem |
+| Módulo ligado ao app (aba, view, flag, lazy init) | `index.html`, `js/main.js`, `js/core/feature-flags.js`, `css/modules/video.css` | nasce **desligado** (`module.video`) |
+| Bancada do portão F0 | `tests/_video-bancada.html` | 10/10 no Chromium de teste |
+
+**Ainda não existe:** IA (fases 4 e 6), transcrição, legenda, assets da DM (fase 5), SFX, agente visual. Nenhuma mudança no Supabase — nem migration, nem deploy.
+
+**Decisões tomadas** (Ryan, 2026-08-19): desktop-only · só equipe (`gIsAdmin`) · zero mudança de backend por ora.
+
+### O que a bancada mediu (e mudou o código)
+
+1. **`MediaRecorder.isTypeSupported('video/mp4')` mente.** Num Chromium sem codec proprietário ele responde `true` e grava um mp4 com VP9/AV1 dentro — que a rede social recusa igual a um `.webm`. Por isso `vdMimeSaida()` só confia em mp4 com **`avc1` explícito**; o mp4 genérico ficou depois do webm na fila. Entre um mp4 de codec desconhecido e um webm que eu sei o que é, o segundo é mais honesto com quem vai postar.
+2. **WebM gravado por `MediaRecorder` não traz duração no cabeçalho** — inclusive o que o próprio Luma exporta. O navegador responde `Infinity` e o editor recusava o arquivo dizendo "converta para MP4", o que era mentira. Resolvido com a sondagem de fim de arquivo (`_vdDuracaoConfiavel`).
+3. **`seeked` não é garantia.** Quando o tempo pedido já é o atual, o evento nunca vem; e um seek de sondagem em voo faz o callback capturar o `seeked` errado — a prévia abria no último frame com o cursor no zero. Resolvido com cinto de 700ms no `_vdBuscar` e sondagem que espera de verdade.
+4. **Custo real de exportação:** 4,3s para 4,0s de edição (≈1,08× a duração), 233KB para 4s em 1080×1920. Confirma o teto de 90s da saída.
+
+**O que ainda NÃO foi medido:** Chrome e Safari **reais** (com H.264) e iPhone. O Chromium de teste não tem codec proprietário, então a pergunta "sai mp4 que o Instagram aceita?" segue aberta — é o único item do portão F0 que exige uma máquina de verdade. Rode `tests/_video-bancada.html` no navegador do time e leia a matriz.
+
+### Como rodar
+
+```
+node scripts/run-browser-tests.js video-edl     # o portão de lógica (CI)
+tests/_video-bancada.html                       # abra no navegador e clique em "Rodar a bancada"
+```
+Para ver o editor: ligue `module.video` no Controle do produto (aba Vídeo aparece para equipe/gestão, no desktop).
 
 ## 1. Veredito em uma página
 
