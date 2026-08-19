@@ -674,12 +674,30 @@ body:not(.theme-light) #f-live-preview::-webkit-scrollbar-thumb:hover {
   }
 }
 
-/* Botão "voltar ao catálogo" — só aparece no mobile (ver media query abaixo). */
+/* Botão "voltar ao catálogo" — aparece no mobile e no tablet quando em criação de arte. */
 #f-mobile-back{display:none;background:transparent;border:none;color:var(--text-2);cursor:pointer;padding:6px 8px;margin-right:2px;align-items:center;justify-content:center;border-radius:8px;flex-shrink:0}
 #f-mobile-back:hover{background:var(--gray-light)}
 
 /* A escolha do material já tem contexto próprio; a barra do assistente só aparece no chat. */
 body.f-material-browser #f-chat-head{display:none}
+
+/* ── TABLET (681px a 1080px): split 50/50 inteligente entre Chat e Prévia ──
+   Ao abrir um material para personalização, o rail lateral esquerdo (#fran-left)
+   colapsa automaticamente, liberando a largura total da tela para o Chat e a Prévia.
+   O botão #f-mobile-back no topo do chat permite retornar ao catálogo a qualquer momento. */
+@media (min-width: 681px) and (max-width: 1080px){
+  body:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #fran-left{
+    width:0!important;min-width:0!important;max-width:0!important;
+    border-right-width:0!important;overflow:hidden!important;
+    opacity:0;pointer-events:none;
+  }
+  body:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #fran-right{
+    display:flex!important;width:100%!important;flex:1 1 100%!important;
+  }
+  body:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-mobile-back{
+    display:flex;width:var(--tap-min,44px);height:var(--tap-min,44px);
+  }
+}
 
 /* ── MOBILE: layout de 1 coluna por vez (catálogo OU chat) ──────────────────
    O layout de 2 colunas do desktop colapsa: por padrão mostra o CATÁLOGO;
@@ -968,10 +986,13 @@ body:not(.theme-light) #f-home-btn{border-color:var(--dm-orange-d);background:va
   .fh-head{align-items:flex-start;flex-direction:column;gap:22px}
   .fh-greet{font-size:clamp(31px,10vw,43px)}
   .fh-sub{margin-top:11px;font-size:13px}
-  .fh-head-actions{width:100%}
-  .fh-head-actions button{min-height:var(--tap-min)}
-  .fh-mine{flex:1}
-  .fh-search-row{top:6px;min-height:60px;grid-template-columns:auto minmax(0,1fr) auto;padding:7px;border-radius:15px}
+  .fh-head-actions{width:100%;display:flex;gap:8px;align-items:center}
+  .fh-head-actions button{min-height:var(--tap-min);border-radius:var(--r-pill)}
+  .fh-help{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;padding:0 14px}
+  .fh-help span{display:inline-block !important;font-size:12px;font-weight:650}
+  .fh-mine{flex:1 1 auto;padding:0 16px;font-size:12.5px}
+  .fh-search-row{top:6px;min-height:60px;grid-template-columns:auto minmax(0,1fr) auto;padding:7px;border-radius:15px;transition:background var(--dur-base),box-shadow var(--dur-base),border-color var(--dur-base)}
+  .fh-search-row.is-stuck{background:color-mix(in srgb,var(--white) 94%,transparent);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);box-shadow:0 8px 24px rgba(10,10,10,.08),0 1px 2px rgba(10,10,10,.04);border-color:color-mix(in srgb,var(--gray-mid) 80%,transparent)}
   .fh-search-icon{width:44px;height:44px}
   #fh-search{font-size:16px}
   .fh-filter-btn{min-height:44px;min-width:44px;padding:8px;justify-content:center}
@@ -985,19 +1006,20 @@ body:not(.theme-light) #f-home-btn{border-color:var(--dm-orange-d);background:va
   .fh-hero-body{padding:29px 24px 30px}
   .fh-hero-name{font-size:32px}
   .fh-hero-cta{width:100%;min-height:var(--tap-min);justify-content:center}
-  .fh-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-  .fh-grid .camp-thumb{aspect-ratio:4/3}
+  .fh-grid{grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:10px !important}
+  .fh-grid .camp-thumb{aspect-ratio:16/11 !important;border-radius:12px}
   .fh-coming{padding:14px}
-  .fh-grid-ghost{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .fh-grid-ghost{grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:10px !important}
 }
 @media (max-width:480px){
   .fh-head-actions{align-items:stretch}
-  .fh-help{width:44px;padding:0}
-  .fh-help span{display:none}
+  .fh-help{padding:0 12px}
+  .fh-help span{display:inline-block !important;font-size:11.5px}
+  .fh-mine{padding:0 12px;font-size:12px}
   .fh-sec{align-items:flex-start;flex-direction:column;gap:3px}
   .fh-sec em::before{display:none}
-  .fh-grid,.fh-grid-ghost{grid-template-columns:1fr}
-  .fh-grid .camp-thumb{aspect-ratio:16/9}
+  .fh-grid,.fh-grid-ghost{grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:10px !important}
+  .fh-grid .camp-thumb{aspect-ratio:16/11 !important;border-radius:12px}
   .fh-hero-cover{min-height:205px}
   .fh-hero-formats{margin-top:13px}
   .fh-draft{grid-template-columns:68px minmax(0,1fr) 32px}

@@ -604,9 +604,9 @@ function fUpdateInputPlaceholder(id){
   if(ex){ box.placeholder = 'Ex: '+ex; return; }
   const hints = {
     price:    'Ex: R$ 9,90',
-    discount: 'Ex: 20% off ou R$ 5,00 off',
+    discount: 'Ex: 20% off ou R$ 5 off',
     code:     'Ex: BURGER10',
-    text:     'Digite ou clique numa sugestão acima'
+    text:     'Digite sua resposta...'
   };
   box.placeholder = hints[cfg.type] || hints.text;
 }

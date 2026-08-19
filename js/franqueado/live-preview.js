@@ -1302,7 +1302,10 @@ function _fLpPaintCartao(src){
          no cartão não abria nada e não havia erro nenhum no console. */
       e.stopPropagation();
       const el = document.getElementById('f-live-preview');
-      if(el) el.classList.add('open');
+      if(el) {
+        el.classList.add('open');
+        if(typeof fLpRefit==='function') setTimeout(fLpRefit, 100);
+      }
     });
   }
   if(card.parentElement !== msgs) msgs.appendChild(card);

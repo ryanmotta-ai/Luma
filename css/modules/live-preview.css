@@ -55,6 +55,19 @@
   #f-live-preview.lp-entrando>*{animation:none}
 }
 
+/* ── TABLET (681px a 1080px): divisão 50/50 equilibrada ── */
+@media (min-width: 681px) and (max-width: 1080px){
+  body:not(.f-material-browser) #f-live-preview{
+    width: 50% !important;
+    max-width: 50% !important;
+    flex: 0 0 50% !important;
+  }
+  #f-chat-col{
+    flex: 1 1 50% !important;
+    min-width: 0 !important;
+  }
+}
+
 /* HEADER */
 .lp-head{
   min-height:64px;

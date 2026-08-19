@@ -3573,11 +3573,11 @@ body:not(.theme-light) .fx-stack-chip.active,body:not(.theme-light) .fx-stack-ac
 
 
 /* ══════════════════════════════════════════════════════════════
-   GATE DESKTOP-ONLY — o editor exige tela grande. Abaixo de 1024px
-   este aviso cobre o editor (celular + tablet). Só CSS.
+   GATE DESKTOP-ONLY — o editor exige tela de computador.
+   Abaixo de 1025px (celular e tablet) este aviso cobre o editor. Só CSS.
 ══════════════════════════════════════════════════════════════ */
 #d-desktop-gate{ display:none; }
-@media (max-width:1023px){
+@media (max-width:1024px){
   body.mode-designer #d-desktop-gate{
     display:flex; align-items:center; justify-content:center;
     position:fixed; inset:0; z-index:10000;
@@ -3589,7 +3589,7 @@ body:not(.theme-light) .fx-stack-chip.active,body:not(.theme-light) .fx-stack-ac
     background:#111111 !important;
     color:#F0F0F0;
   }
-  /* Esconde o editor e elementos zumbis flutuantes por trás do gate no mobile */
+  /* Esconde o editor e elementos zumbis flutuantes por trás do gate no mobile e tablet */
   body.mode-designer #d-topbar,
   body.mode-designer #d-main,
   body.mode-designer #luma-widget-fab-wrap,

@@ -1020,14 +1020,33 @@ body:not(.theme-light) .prof-role-picker-opt-equipe_dm .prof-role-picker-opt-ico
 @keyframes profTitleSwap{from{opacity:.35;transform:translateY(5px)}to{opacity:1;transform:none}}
 @keyframes profCardIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 
-@media(max-width:1024px){
-  .prof-box{width:calc(100vw - 24px);height:calc(100dvh - 24px)}
-  .prof-sidebar{width:218px;flex-basis:218px}
-  .prof-body{padding:22px}
+/* ── TABLET (681px a 1024px): modal enxuto, elegante e proporcional ── */
+@media(min-width: 681px) and (max-width: 1024px){
+  .g-profile-modal{padding:clamp(16px, 3vw, 24px)}
+  .prof-box{
+    width:min(840px, calc(100vw - 32px));
+    height:min(720px, calc(100dvh - 36px));
+    min-height:520px;
+    border-radius:18px;
+  }
+  .prof-sidebar{width:196px;flex-basis:196px;padding:18px 10px 12px}
+  .prof-brand{padding:0 4px 14px}
+  .prof-brand-mark{width:34px;height:34px}
+  .prof-brand-copy strong{font-size:15px}
+  .prof-sidebar-user{margin:10px 0 12px;padding:8px 6px;gap:8px}
+  .prof-sidebar-av-wrap{width:36px;height:36px}
+  .prof-sidebar-name{font-size:11.5px}
+  .prof-nav-btn{min-height:40px;font-size:12px;padding:0 10px;gap:8px}
+  .prof-nav-btn svg{width:15px;height:15px}
+  .prof-header{min-height:78px;padding:16px 20px}
+  .prof-title-area h3{font-size:21px}
+  .prof-body{padding:18px 20px}
+  .prof-data-surface>.prof-grid,.prof-security-form>.prof-grid{padding:16px;gap:14px}
   .prof-security-layout{grid-template-columns:1fr}
 }
 
-@media(max-width:768px){
+/* ── MOBILE (<=680px): tela cheia com navegação horizontal ── */
+@media(max-width:680px){
   .g-profile-modal{padding:0}
   .prof-box{width:100%;height:100dvh;min-height:0;border-radius:0}
   .prof-box::before{position:fixed}
