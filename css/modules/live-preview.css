@@ -682,21 +682,16 @@ body:not(.theme-light) .posted-stage{background:var(--d-dark)}
    Em repouso a transição devolve o celular à posição reta; com o cursor dentro (.is-live)
    a transição é curta o bastante pra não arrastar atrás do mouse. */
 #f-posted-modal .pst-tilt{
-  --pst-rx:0deg; --pst-ry:0deg; --pst-gx:50%; --pst-gy:0%;
+  --pst-rx:0deg; --pst-ry:0deg;
   transform:perspective(1200px) rotateX(var(--pst-rx)) rotateY(var(--pst-ry));
   transform-style:preserve-3d;
   transition:transform var(--dur-base) var(--ease-out);
   will-change:transform;
 }
 #f-posted-modal .pst-tilt.is-live{transition:transform var(--dur-micro) linear}
-/* Brilho de vidro: reflexo que anda CONTRA o giro. É o que faz a moldura ler como
-   objeto físico em vez de screenshot. pointer-events:none — nunca rouba o hover/clique. */
-#f-posted-modal .pst-glare{
-  position:absolute;inset:0;border-radius:56px;pointer-events:none;z-index:3;opacity:0;
-  background:radial-gradient(38% 30% at var(--pst-gx) var(--pst-gy),rgba(255,255,255,.5),rgba(255,255,255,0) 70%);
-  transition:opacity var(--dur-base) var(--ease-standard);
-}
-#f-posted-modal .pst-tilt.is-live .pst-glare{opacity:1}
+/* ⛔ Sem brilho de vidro seguindo o cursor (.pst-glare, removido em 19/08): o reflexo dava
+   textura de objeto físico à moldura, mas passava por cima da TELA — um clarão branco
+   cobrindo justamente a arte que o mockup existe pra mostrar. O giro do parallax fica. */
 
 /* ── Troca de ambiente: só a TELA desliza; o chassi fica parado na mão ── */
 @keyframes gPstSlideL{ from{opacity:.25;transform:translateX(14%)} to{opacity:1;transform:translateX(0)} }
@@ -754,5 +749,4 @@ body:not(.theme-light) .pst-qr-x:hover{background:var(--d-surf2);color:var(--d-t
   #f-posted-modal .pst-screen.pst-slide-l,#f-posted-modal .pst-screen.pst-slide-r{animation:none!important}
   /* parallax é movimento puro: desliga inteiro, não só a transição */
   #f-posted-modal .pst-tilt{transform:none!important;transition:none!important}
-  #f-posted-modal .pst-glare{display:none}
 }

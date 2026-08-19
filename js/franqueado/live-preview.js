@@ -181,7 +181,6 @@ function _fPostedPaint(){
   stage.innerHTML = `<div class="pst-enter"><div class="pst-tilt"><div class="pst-phone pst-ctx-${_postedCtx}">`
     + `<div class="pst-island"></div>`
     + `<div class="pst-screen">${_fPostedScreenHTML()}</div>`
-    + `<div class="pst-glare" aria-hidden="true"></div>`
     + `</div></div></div>`;
   _fPostedMountArt(stage);
   _fPostedBindStage(stage);
@@ -228,8 +227,9 @@ function _fPostedReducedMotion(){
   try{ return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
   catch(e){ return false; }
 }
-// nx/ny em -1..1 (posição do cursor no palco). O brilho anda junto e o giro é contido:
-// passando de ~10° o celular deixa de parecer objeto e vira animação.
+// nx/ny em -1..1 (posição do cursor no palco). O giro é contido: passando de ~10° o
+// celular deixa de parecer objeto e vira animação. (Havia um brilho de vidro andando com
+// o cursor; saiu em 19/08 — o clarão branco cobria a arte, que é o que importa aqui.)
 function _fPostedTilt(nx, ny){
   const tilt = document.querySelector('#posted-stage .pst-tilt');
   if(!tilt) return;
@@ -238,8 +238,6 @@ function _fPostedTilt(nx, ny){
     _pstTiltRaf = 0;
     tilt.style.setProperty('--pst-ry', (nx*9).toFixed(2)+'deg');
     tilt.style.setProperty('--pst-rx', (-ny*7).toFixed(2)+'deg');
-    tilt.style.setProperty('--pst-gx', (50 + nx*46).toFixed(1)+'%'); // brilho contra o giro
-    tilt.style.setProperty('--pst-gy', (50 + ny*46).toFixed(1)+'%');
     tilt.classList.add('is-live');
   });
 }
@@ -249,7 +247,6 @@ function _fPostedTiltReset(){
   if(_pstTiltRaf){ cancelAnimationFrame(_pstTiltRaf); _pstTiltRaf=0; }
   tilt.classList.remove('is-live'); // volta ao repouso pela transição do CSS
   tilt.style.setProperty('--pst-ry','0deg'); tilt.style.setProperty('--pst-rx','0deg');
-  tilt.style.setProperty('--pst-gx','50%');  tilt.style.setProperty('--pst-gy','0%');
 }
 function _fPostedBindStage(stage){
   if(_pstStageBound) return;
