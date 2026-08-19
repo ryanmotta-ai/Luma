@@ -1608,12 +1608,17 @@ function _gLayoutObstaculo(o,cloned,cv,base){
 function _gLayoutRectSeguro(o,rect){
   return (typeof gLayoutObstacleRect==='function')?gLayoutObstacleRect(o,rect):rect;
 }
-function _gLayoutRespiro(t,gap,cv){
+/* DOIS PATAMARES DE RESPIRO (2026-08-19). `fator` 1 é o respiro IDEAL — 0,8% do lado curto /
+   18% do corpo, o vão que mantém dois blocos lendo como separados mesmo quando o desenho
+   original deixou só um fio. `fator` 0.5 é o respiro APERTADO, o degrau que a escada usa antes
+   de encolher a letra: designer fecha o vão antes de reduzir o corpo, porque a hierarquia mora
+   no TAMANHO da fonte e não na margem. Abaixo da metade os blocos passam a se tocar, então o
+   piso duro de 2px continua valendo. */
+function _gLayoutRespiro(t,gap,cv,fator){
+  const f=(fator!=null&&fator>0)?fator:1;
   const curto=cv&&cv.w&&cv.h?Math.min(cv.w,cv.h):0;
-  // 0,8% do lado curto / 18% do corpo: suficiente para a borda continuar respirando mesmo
-  // quando o desenho original deixou só um fio de vão.
-  const min=Math.max(4,Math.round((t.fontSize||24)*0.18),curto?Math.round(curto*0.008):0);
-  const max=Math.max(min,Math.round((t.fontSize||24)*0.48),curto?Math.round(curto*0.02):0);
+  const min=Math.max(f<1?2:4,Math.round((t.fontSize||24)*0.18*f),curto?Math.round(curto*0.008*f):0);
+  const max=Math.max(min,Math.round((t.fontSize||24)*0.48*f),curto?Math.round(curto*0.02*f):0);
   return Math.max(min,Math.min(max,Math.max(0,gap)));
 }
 function _gInferirCorredores(cloned,opts,resolved,base){
@@ -1995,6 +2000,19 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
     }
     return null;
   };
+  /* Degrau do RESPIRO (2026-08-19): a escada aperta o vão mínimo entre blocos antes de encolher
+     a letra. 1 = respiro ideal (como sempre foi); 0.5 = apertado, o último estado antes de mexer
+     na tipografia. Vive aqui, no escopo do solve, e não como global: alternativa e diagnóstico
+     rodam solves aninhados, e um flag global vazaria o estado de um para o outro. */
+  let _respiroFator = 1;
+  /* ÚLTIMO RECURSO (2026-08-19). A imunidade do preço (ver `core/auto-layout.js`) não vale ao
+     custo de BLOQUEAR a arte: arte com hierarquia achatada é feia mas serve, arte bloqueada é
+     inútil — é o contrato do motor. O travamento medido não era o preço se recusando a descer,
+     era o preço servindo de PISO de hierarquia: um título que colidia com o selo parava em 56px
+     porque o preço imóvel estava em 56px, e a arte saía `unsafe`. Então, quando ninguém mais
+     pode ceder, o preço deixa de ser piso — o título passa por baixo dele e o preço continua no
+     corpo desenhado, que é o que a regra quer. */
+  let _precoNaoEhPiso = false;
   const _colisoesInternas = () => {
     if(!_fit||!_cv)return [];
     const out=[];
@@ -2043,7 +2061,7 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
         const gapBase=gaps.length?Math.min(...gaps):0;
         /* Campo que cresceu respeita um respiro mínimo mesmo se o original tinha um vão quase
            nulo. Isso não redesenha o estado normal: esta checagem só roda quando `deltaT>1`. */
-        const pad=_gLayoutRespiro(t,gapBase,_cv);
+        const pad=_gLayoutRespiro(t,gapBase,_cv,_respiroFator);
         const protegido={x:atualO.x-pad,y:atualO.y-pad,w:atualO.w+pad*2,h:atualO.h+pad*2};
         if(_gRectIntersecao(tinta,protegido)>1)out.push({culpado:_raizDinamica(t)||t,obstaculo:o,vitima:t});
       });
@@ -2111,6 +2129,18 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
       // Colisão aponta o texto exato; fuga usa quem cresceu/empurrou como antes.
       const idsColisao=new Set(_ultimasColisoes.map(c=>c.culpado.id));
       const idsEstouro=new Set(_ultimosEstouros.map(l=>l.id));
+      /* DEGRAU 3.5 — APERTAR O RESPIRO ANTES DE ENCOLHER A LETRA.
+         O respiro mínimo é uma regra do motor, não do desenho: quando um bloco crescido chega
+         perto de outro, era ele que virava "colisão" e disparava o encolhimento. Fechar o vão
+         até a metade é o que um designer faz antes de reduzir corpo — e recupera arte que estava
+         indo encolher por 4–10px de margem. Uma vez por solve, e só se ainda houver violação
+         depois: se apertar já resolve, o laço sai daqui sem tocar na tipografia. */
+      if(_respiroFator===1){
+        _respiroFator=0.5;
+        _reposicionarDoZero();
+        if(!_violaComposicao()) break;
+        continue;
+      }
       /* ⛔ CAMPO DE PREÇO SÓ CEDE POR CAUSA DO PRÓPRIO PREÇO (regra 19/08, `core/auto-layout.js`).
          O preço é o argumento da peça: encolhê-lo porque o TÍTULO ficou longo troca a promessa
          por um detalhe — medido, um preço curto saía 36% menor por causa de um título gigante.
@@ -2215,6 +2245,8 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
           cloned.forEach(o=>{
             if(!o||o===l||o.type!=='text'||!_gLayoutVisivel(o)||ids.has(o.id))return;
             if((o.fontSize||24)>=(l.fontSize||24))return;
+            // Escada travada: o preço imune deixa de ser piso (ver `_precoNaoEhPiso` acima).
+            if(_precoNaoEhPiso&&_gLayoutPrecoImune(o))return;
             piso=Math.max(piso,_atual(o));
           });
           return piso;
@@ -2224,7 +2256,15 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
           const alvo=Math.max(_pisoEmergenciaDe(l),_pisoHierExterno(l),Math.floor((l.fontSize||24)*escalaGlobal));
           if(alvo<_atual(l)){l._tetoFonte=alvo;grupo.push(l);}
         });
-        if(!grupo.length)break;
+        if(!grupo.length){
+          /* Ninguém pôde descer. Antes de entregar arte bloqueada, tira o preço imune do papel de
+             piso de hierarquia e dá mais uma volta — a folga que falta está exatamente ali. */
+          if(!_precoNaoEhPiso && cloned.some(l=>l&&l.type==='text'&&_gLayoutVisivel(l)&&_gLayoutPrecoImune(l))){
+            _precoNaoEhPiso=true;
+            continue;
+          }
+          break;
+        }
         _remedir(grupo);
         _reposicionarDoZero();
         continue;
