@@ -136,6 +136,7 @@ Tipos: `text`, `number`, `currency`, `date`, `image`, `select`, `color`, `boolea
 - ⛔ **Um campo `image` (ex.: `foto_produto`, `logo_loja`) liga-se a molduras/imagens via `imgVar`** — não é texto.
 - Renomear um campo deve atualizar **content, imgVar, bindings E rules** — senão o vínculo aponta para nome morto.
 - Campo sem exemplo/default renderiza um placeholder amigável, nunca o token cru.
+- ⛔ **Campo de PREÇO não encolhe por causa de outro campo** (regra de 19/08/2026). O Auto-layout só reduz um campo de preço quando o PRÓPRIO valor não cabe na caixa desenhada pra ele; título longo, colisão de terceiros ou a escala do componente nunca mexem no corpo do preço. O preço é o argumento da peça — se ele encolhe porque o nome do produto ficou grande, a promessa vira detalhe. Consequência aceita: uma camada autorada maior pode terminar menor que o preço. Detalhe técnico e medições em `docs/LUMA.md` §Auto-layout 8.1.
 
 ---
 

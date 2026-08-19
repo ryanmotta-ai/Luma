@@ -315,6 +315,45 @@ function gLayoutRoleMaxLines(role){
   }
 }
 
+/* ── PREÇO SÓ CEDE POR CAUSA DO PRÓPRIO PREÇO (regra de 19/08) ───────
+   O preço é o argumento da peça: o franqueado promete "R$ 9,99" no corpo que o designer
+   desenhou, e reduzir esse corpo porque o TÍTULO ficou longo troca a promessa por um detalhe
+   (medido: um preço curto saía 36% menor por causa de um título gigante). Então a escada só
+   aperta campo de preço quando ELE mesmo cresceu/estourou a própria caixa — aí encolher é o que
+   faz o "R$ 129,90" caber no selo desenhado pra ele. Motivo alheio (colisão de terceiros, escala
+   proporcional do componente) não toca no preço; cede o resto da arte.
+
+   O que continua valendo, de propósito:
+   · a corrente ainda EMPURRA o preço — congelar a posição fazia o título crescido passar por
+     cima dele (o corpus mede isso em `de-por-lateral`);
+   · ele continua obstáculo dos outros e a placa/selo atrás dele continua crescendo;
+   · a validação de segurança não mudou.
+
+   ⚠ Conflito assumido com a nota de hierarquia (`gScoreComposition`): como o preço para de
+   descer quando a caixa dele cabe, uma camada autorada MAIOR pode terminar menor que o preço.
+   A regra do preço vence — nas artes da marca o preço costuma ser o maior elemento. A inversão
+   continua pesando na nota, só deixou de reprovar no corpus.
+
+   Quem é preço: o metadado do campo manda (`dVars[].category`/`type`, decisão de quem criou o
+   campo); no runtime do franqueado, onde `dVars` não existe, vale a MESMA heurística de nome
+   que a auto-criação já usa (`gFieldGuessType`) — não há segunda régua. */
+function gLayoutCampoEhPreco(nome){
+  if(!nome) return false;
+  if(typeof dVars !== 'undefined' && Array.isArray(dVars)){
+    const v = dVars.find(x => x && x.name === nome);
+    if(v && v.category) return v.category === 'preco';
+    if(v && v.type) return v.type === 'currency';
+  }
+  return (typeof gFieldGuessType === 'function') && gFieldGuessType(nome) === 'currency';
+}
+
+// Camada de TEXTO que carrega pelo menos um campo de preço. Texto de preço fixo (sem campo)
+// não entra: sem campo dinâmico, nada nele cresce por causa do franqueado.
+function gLayoutEhPrecoDinamico(l){
+  if(!l || l.type !== 'text') return false;
+  return gLayoutCamposDe(l).some(gLayoutCampoEhPreco);
+}
+
 /* ════════════════════════════════════════════════════════════════════
    4. SAFE ZONES DE IMAGEM — proteger o assunto, não a moldura
    ════════════════════════════════════════════════════════════════════

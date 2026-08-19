@@ -118,6 +118,13 @@
         const corpo=(l)=>(l._tetoFonte!=null?l._tetoFonte:(l.fontSize||24));
         txt.forEach(a=>txt.forEach(b=>{
           if((a.fontSize||24)<=(b.fontSize||24))return;
+          /* EXCEÇÃO DO PREÇO (regra 19/08, `core/auto-layout.js`): campo de preço só cede por
+             causa do PRÓPRIO preço — nunca porque o título ou o produto ficaram longos. Como ele
+             para de descer quando a própria caixa já cabe, uma camada autorada maior pode
+             terminar menor que ele. É decisão de produto (o preço é o argumento da peça), não
+             defeito do solver: nas artes da marca o preço costuma ser o maior elemento. A
+             inversão continua PESANDO na nota (`gScoreComposition`), só deixou de reprovar. */
+          if(typeof gLayoutEhPrecoDinamico==='function'&&gLayoutEhPrecoDinamico(b))return;
           assert(corpo(a)>=corpo(b)-0.5,'“'+a.name+'” ficou menor que “'+b.name+'” — hierarquia invertida');
         }));
 

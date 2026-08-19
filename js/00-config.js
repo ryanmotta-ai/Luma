@@ -1496,6 +1496,12 @@ function _gInferirPlacas(cloned, opts) {
 function _gLayoutTemCampo(l){
   return !!(l&&l.type==='text'&&(l.isVar||/\{\{/.test(l.content||'')));
 }
+/* Ponte para a regra do preço, que mora com o vocabulário de papéis (`core/auto-layout.js`).
+   Guarda de `typeof` porque a cascata é chamada de contextos onde aquele arquivo pode não estar
+   carregado — sem ele a escada volta a se comportar como antes da regra. */
+function _gLayoutPrecoImune(l){
+  return !!(typeof gLayoutEhPrecoDinamico==='function' && gLayoutEhPrecoDinamico(l));
+}
 function _gRectIntersecao(a,b){
   if(!a||!b)return 0;
   const w=Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x);
@@ -2105,7 +2111,15 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
       // Colisão aponta o texto exato; fuga usa quem cresceu/empurrou como antes.
       const idsColisao=new Set(_ultimasColisoes.map(c=>c.culpado.id));
       const idsEstouro=new Set(_ultimosEstouros.map(l=>l.id));
-      const culpados = cloned.filter(l => idsColisao.has(l.id)||idsEstouro.has(l.id)||_cresceuY(l)||_cresceuX(l));
+      /* ⛔ CAMPO DE PREÇO SÓ CEDE POR CAUSA DO PRÓPRIO PREÇO (regra 19/08, `core/auto-layout.js`).
+         O preço é o argumento da peça: encolhê-lo porque o TÍTULO ficou longo troca a promessa
+         por um detalhe — medido, um preço curto saía 36% menor por causa de um título gigante.
+         Então ele entra na escada só quando ELE cresceu/estourou a própria caixa (aí encolher é
+         o que faz o "R$ 129,90" caber no selo desenhado pra ele); arrastado por colisão ou pela
+         escala do componente alheio, fica como o designer desenhou. */
+      const _cedeu = l => _cresceuY(l) || _cresceuX(l) || idsEstouro.has(l.id);
+      const culpados = cloned.filter(l => (idsColisao.has(l.id) || _cedeu(l))
+                                       && (_cedeu(l) || !_gLayoutPrecoImune(l)));
       if (!culpados.length) break;
 
       /* DEGRAU ANTERIOR AO ENCOLHIMENTO: apertar a ENTRELINHA.
@@ -2183,7 +2197,12 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
             }
           });
         }
-        const textosComponente=cloned.filter(l=>l&&l.type==='text'&&_gLayoutVisivel(l)&&ids.has(l.id));
+        /* Mesma régua do preço aqui: a escala comum do componente é motivo ALHEIO, então o
+           preço que não cresceu não desce com ela. O que cresceu desce junto, preservando a
+           proporção do componente — é o degrau em que o preço grande demais para a própria caixa
+           acompanha o resto em vez de ser reduzido sozinho. */
+        const textosComponente=cloned.filter(l=>l&&l.type==='text'&&_gLayoutVisivel(l)&&ids.has(l.id)
+                                              &&(_cedeu(l)||!_gLayoutPrecoImune(l)));
         const escalaAtual=Math.min(...textosComponente.map(l=>_atual(l)/Math.max(1,l.fontSize||24)));
         const escalaGlobal=Math.max(0.35,escalaAtual*0.92);
         /* ⚠ A escala proporcional protege a hierarquia DENTRO do componente — todos descem
