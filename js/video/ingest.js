@@ -138,8 +138,10 @@ async function vdMedirAudio(){
       rms[j] = Math.sqrt(soma / porJanela);
     }
     const r = vdSilenciosDoEnvelope(rms, VD_JANELA_SEG);
+    // O WAV sai da MESMA decodificação: a legenda não paga um segundo passe pelo
+    // áudio. Guardamos o Blob (16 bits) e soltamos o Float32 — metade da memória.
     const res = { ok:true, silencios:r.silencios, limiar:r.limiar, piso:r.piso, fala:r.fala,
-                  dur:buf.duration, janelas:total };
+                  dur:buf.duration, janelas:total, wav:_vdWav(dados, buf.sampleRate) };
     if(vdProj) vdProj.audio = res;
     return res;
   }catch(e){
@@ -149,6 +151,30 @@ async function vdMedirAudio(){
   }finally{
     if(ctx) try{ await ctx.close(); }catch(e){}
   }
+}
+
+/**
+ * PCM mono → WAV 16 bits. Doze linhas de cabeçalho em vez de reencodar o áudio em
+ * tempo real (60s de vídeo custariam 60s de espera) ou de mandar o vídeo inteiro
+ * para a IA (dezenas de MB por chamada). A 16kHz mono, 1 minuto de fala vira
+ * ~1,9MB — cabe folgado numa chamada de transcrição.
+ */
+function _vdWav(pcm, taxa){
+  const n = pcm.length;
+  const buf = new ArrayBuffer(44 + n * 2);
+  const v = new DataView(buf);
+  const txt = (o, s) => { for(let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  txt(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); txt(8, 'WAVE');
+  txt(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, taxa, true); v.setUint32(28, taxa * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+  txt(36, 'data'); v.setUint32(40, n * 2, true);
+  let o = 44;
+  for(let i = 0; i < n; i++){
+    const a = Math.max(-1, Math.min(1, pcm[i]));
+    v.setInt16(o, a < 0 ? a * 0x8000 : a * 0x7fff, true);
+    o += 2;
+  }
+  return new Blob([buf], { type:'audio/wav' });
 }
 
 /**

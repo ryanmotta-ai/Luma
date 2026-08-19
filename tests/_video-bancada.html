@@ -4,6 +4,8 @@
   <meta charset="utf-8">
   <title>Luma — bancada do editor de vídeo (F0)</title>
   <link rel="stylesheet" href="../css/00-tokens.css">
+  <link rel="stylesheet" href="../css/00-tokens.css">
+  <link rel="stylesheet" href="../css/03-fonts.css">
   <link rel="stylesheet" href="../css/modules/video.css">
   <style>
     :root{color-scheme:dark;font-family:system-ui,sans-serif;background:#111;color:#f5f5f5}
@@ -37,9 +39,20 @@
   </div>
   <div id="g-toast-container"></div>
 
+  <!-- O motor de render de verdade, para a legenda ser medida com a tipografia da casa.
+       Mesmo conjunto que tests/auto-layout.html carrega; #f-preview-modal é exigido na carga. -->
+  <div id="f-preview-modal" hidden></div>
+  <script src="../js/00-config.js"></script>
+  <script src="../js/core/layout.js"></script>
+  <script src="../js/core/auto-layout.js"></script>
+  <script src="../js/franqueado/png-generator.js"></script>
   <script src="../js/core/toast.js"></script>
+  <!-- Motor único de IA: a transcrição da legenda passa por ele (só roda com ?ia=1). -->
+  <script src="../js/core/img-store.js"></script>
+  <script src="../js/core/ai.js"></script>
   <script src="../js/video/projeto.js"></script>
   <script src="../js/video/ingest.js"></script>
+  <script src="../js/video/legenda.js"></script>
   <script src="../js/video/compositor.js"></script>
   <script src="../js/video/timeline.js"></script>
   <script src="../js/video/video.js"></script>

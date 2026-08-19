@@ -110,6 +110,14 @@
   /* Lê o canal vermelho do FUNDO do canvas de saída → qual segundo está na tela.
      ⚠ Não amostre o centro: é onde o dígito BRANCO é desenhado (255,255,255), e a
      leitura vira 255 em qualquer segundo. Custou dois falsos negativos aqui. */
+  // Conta pixels quase-brancos numa faixa horizontal. Mais robusto que amostrar um
+  // ponto: o glifo tem vão entre letras, e um ponto isolado cairia no vão.
+  function brancosNaFaixa(ctx,larg,y0,y1){
+    const d=ctx.getImageData(0,y0,larg,Math.max(1,y1-y0)).data;
+    let n=0;
+    for(let i=0;i<d.length;i+=4) if(d[i]>200&&d[i+1]>200&&d[i+2]>200) n++;
+    return n;
+  }
   function corNoPonto(fx,fy){
     const ctx=vdCanvas.getContext('2d');
     const d=ctx.getImageData(Math.floor(vdCanvas.width*fx), Math.floor(vdCanvas.height*fy), 1, 1).data;
@@ -187,10 +195,24 @@
 
       const t0=performance.now();
       marco('vdExportar');
-      const r=await vdExportar(()=>{});
+      // Instrumento: separa "nosso laço engasgou" de "a reprodução andou mais devagar
+      // que o tempo real". Sem isso, 16s para 4s de vídeo é só um mistério.
+      let quadros=0, pPrimeiro=-1, pUltimo=0, tPrimeiro=0;
+      const r=await vdExportar(p=>{
+        quadros++; pUltimo=p;
+        if(pPrimeiro<0){ pPrimeiro=p; tPrimeiro=performance.now(); }
+      });
       const gastou=(performance.now()-t0)/1000;
-      reg('exportou um arquivo com bytes', !!(r&&r.blob&&r.blob.size>1000),
-          r?(r.mime+' · '+Math.round(r.blob.size/1024)+'KB · '+gastou.toFixed(1)+'s para '+vdDuracaoFinal().toFixed(1)+'s de vídeo'):'não gerou blob');
+      const segVideo=(pUltimo-Math.max(pPrimeiro,0))*vdDuracaoFinal();
+      const segParede=(performance.now()-tPrimeiro)/1000;
+      notas.push('exportação: '+quadros+' quadros · reprodução a '
+        +(segParede>0?(segVideo/segParede).toFixed(2):'?')+'× do tempo real · '
+        +(quadros/Math.max(segParede,0.001)).toFixed(1)+' quadros/s de parede');
+      // `suspeito` = o cinto cortou por falta de progresso. Sem checar isso, um
+      // arquivo TRUNCADO passa como sucesso — foi o que aconteceu aqui.
+      reg('exportou um arquivo íntegro (sem o cinto cortar)', !!(r&&r.blob&&r.blob.size>1000&&!r.suspeito),
+          r?(r.mime+' · '+Math.round(r.blob.size/1024)+'KB · '+gastou.toFixed(1)+'s para '+vdDuracaoFinal().toFixed(1)+'s de vídeo'
+           +(r.suspeito?' · SUSPEITO: o cinto cortou por falta de progresso':'')):'não gerou blob');
       if(r) notas.push('export: '+r.mime+' '+Math.round(r.blob.size/1024)+'KB em '+gastou.toFixed(1)+'s (edição de '+vdDuracaoFinal().toFixed(1)+'s)');
 
       // O arquivo exportado abre? É a pergunta que decide se o Instagram aceita.
@@ -217,6 +239,52 @@
                  :('rejeitado: '+JSON.stringify(ap.descartes)));
         if(ap.ok) notas.push('corte de silêncio: '+vdFmtTempo(antes)+' → '+vdFmtTempo(vdDuracaoFinal()));
       }
+      // LEGENDA — desenho com o motor de render da casa, custo e integração.
+      marco('legenda');
+      const cv=document.createElement('canvas'); cv.width=1080; cv.height=1920;
+      const cx=cv.getContext('2d');
+      cx.fillStyle='#000'; cx.fillRect(0,0,1080,1920);
+      const desenhou=vdDesenharLegenda(cx,'chegou o combo da semana',1080,1920,'dm_cap_01');
+      // Ler o pixel IMEDIATAMENTE, sem await, é a prova de que o desenho é síncrono —
+      // é isso que permite chamar a legenda dentro do laço de frames.
+      const brancos=brancosNaFaixa(cx,1080,1350,1660);
+      reg('a legenda desenha no mesmo tick (síncrona) com o motor da casa', !!desenhou && brancos>200,
+          desenhou?(brancos+' pixels de texto na faixa da legenda'):'vdDesenharLegenda recusou (motor ausente?)');
+
+      const tFrio=performance.now();
+      for(let i=0;i<40;i++) vdDesenharLegenda(cx,'cartão de teste número '+i,1080,1920,'dm_cap_01');
+      const msFrio=(performance.now()-tFrio)/40;
+      const tQuente=performance.now();
+      for(let i=0;i<40;i++) vdDesenharLegenda(cx,'texto fixo para medir o desenho',1080,1920,'dm_cap_01');
+      const msQuente=(performance.now()-tQuente)/40;
+      // Orçamento de um frame a 30fps é 33ms e o vídeo já consome a maior parte.
+      reg('desenhar a legenda cabe no orçamento de um frame', msQuente<8,
+          'com medição '+msFrio.toFixed(1)+'ms · com medição cacheada '+msQuente.toFixed(2)+'ms');
+      notas.push('legenda: '+msFrio.toFixed(1)+'ms frio / '+msQuente.toFixed(2)+'ms quente');
+
+      // Integração: a legenda entra no MESMO desenho de frame da prévia/exportação.
+      vdProj.legendas={ativo:true,template:'dm_cap_01',cards:[{de:0,ate:9,texto:'legenda de bancada'}]};
+      await irEEsperar(0.4);
+      const comLegenda=brancosNaFaixa(vdCanvas.getContext('2d'),vdCanvas.width,1380,1660);
+      vdProj.legendas.ativo=false;
+      await irEEsperar(0.5);
+      const semLegenda=brancosNaFaixa(vdCanvas.getContext('2d'),vdCanvas.width,1380,1660);
+      reg('a legenda aparece na prévia e o desligar a remove', comLegenda>200 && semLegenda<50,
+          'ligada: '+comLegenda+' pixels · desligada: '+semLegenda);
+      vdProj.legendas.ativo=true;
+
+      // Transcrição de verdade só com ?ia=1: gasta cota e depende de rede.
+      if(/[?&]ia=1/.test(location.search)){
+        marco('vdTranscrever');
+        const tr=await vdTranscrever();
+        notas.push('transcrição: '+(tr.ok?(tr.cards.length+' cartões'):('falhou — '+tr.erro)));
+        const nossoErro=/áudio|WAV|disponível|preparar/i.test(tr.erro||'');
+        reg('a transcrição prepara o áudio e chega até a chamada do modelo',
+            tr.ok || !nossoErro,
+            tr.ok ? (tr.cards.length+' cartões gerados pelo modelo')
+                  : ('chegou à chamada; resposta não obtida aqui ('+tr.erro+') — rede de saída bloqueada neste ambiente'));
+      }
+
       // ENQUADRAMENTO — o caso do produto: material vertical virando horizontal
       // corta em cima e embaixo, e o foco escolhe o que sobrevive.
       vdAcaoFormato('16:9');

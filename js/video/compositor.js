@@ -27,6 +27,8 @@ const VD_FORMATOS = { '9:16':[1080,1920], '1:1':[1080,1080], '16:9':[1920,1080] 
    90s de vídeo custam 90s de máquina. Acima disso o usuário acha que travou. */
 const VD_MAX_SAIDA_SEG = 90;
 const VD_FPS_SAIDA = 30;
+/* Sem um frame novo por este tempo, a exportação está travada (não lenta). */
+const VD_EXPORT_PARADO_MS = 6000;
 
 let vdCanvas = null;        // canvas de saída (resolução final)
 let vdVideoEl = null;       // <video> da fonte (escondido)
@@ -51,6 +53,16 @@ function vdCompositorMontar(canvas, video){
   _vdCtx = canvas.getContext('2d', { alpha:false });
   _vdCtx.imageSmoothingEnabled = true;
   _vdCtx.imageSmoothingQuality = 'high';
+  // O FIM NATURAL DO ARQUIVO também termina a linha do tempo.
+  //
+  // Sem isto, quando o último trecho vai até o fim do vídeo, existe uma corrida: o
+  // laço só percebe o fim quando um frame chega com currentTime >= ate - 40ms, e o
+  // navegador PARA de entregar frames ao acabar o arquivo. Com a máquina folgada o
+  // frame chega primeiro; com a CPU sob carga (medido: reprodução a 0,35× do tempo
+  // real, um frame a cada 130ms) o arquivo acaba antes — e a exportação ficava
+  // pendurada até o cinto cortar, entregando vídeo TRUNCADO. Aconteceu em 2 de 3
+  // rodadas da bancada.
+  video.addEventListener('ended', () => { if(_vdTocando) _vdFinalizar(); });
   vdAjustarSaida();
 }
 
@@ -125,6 +137,13 @@ function vdDesenharFrame(seg){
   const q = vdEnquadrar(vw, vh, W, H, (seg && seg.zoom) || 1, seg && seg.foco);
   try{ _vdCtx.drawImage(vdVideoEl, q.dx, q.dy, q.dw, q.dh); }
   catch(e){ /* frame ainda não decodificado: o próximo callback desenha */ }
+  // A legenda entra AQUI e não numa camada por cima: prévia e exportação saem do
+  // mesmo desenho, então o que se vê é o que se baixa. O cartão é escolhido pelo
+  // tempo da FONTE, então corte e reordenação não desalinham a legenda.
+  if(typeof vdCardEm === 'function' && vdProj && vdProj.legendas && vdProj.legendas.ativo){
+    const card = vdCardEm(vdVideoEl.currentTime);
+    if(card) vdDesenharLegenda(_vdCtx, card.texto, W, H, vdProj.legendas.template);
+  }
 }
 
 /** Tempo atual na LINHA DO TEMPO (o que o playhead mostra). */
@@ -319,7 +338,7 @@ function vdExportar(aoProgresso){
 
     const encerrar = () => {
       document.removeEventListener('visibilitychange', aoVisibilidade);
-      clearTimeout(cinto);
+      clearInterval(cinto);
       _vdExportando = false;
       try{ stream.getTracks().forEach(t => t.stop()); }catch(e){}
     };
@@ -334,18 +353,27 @@ function vdExportar(aoProgresso){
     };
 
     _vdExportando = true;
-    // CINTO: se o laço de frames parar (decodificação travada, aba estrangulada), o
-    // _vdAoFim nunca chega e esta promessa nunca resolve — o usuário fica com a
-    // barra girando pra sempre. Teto generoso (2× a duração + 8s) para não cortar
-    // exportação lenta legítima; ao estourar, entrega o que gravou e AVISA.
-    const tetoMs = total * 1000 * 2 + 8000;
-    cinto = setTimeout(() => {
+    // CINTO POR FALTA DE PROGRESSO, não por tempo total.
+    //
+    // A primeira versão cortava em 2× a duração + 8s — e numa máquina sob carga
+    // isso truncou exportações LEGÍTIMAS (medido: 16,0s exatos para 4s de vídeo,
+    // que é a fórmula, não o vídeo). Exportação lenta mas avançando não pode ser
+    // cortada; laço parado tem que morrer rápido. Por isso o relógio zera a cada
+    // avanço: 6s sem um frame novo é travamento em qualquer duração.
+    let ultimoAvanco = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    cinto = setInterval(() => {
       if(!_vdExportando) return;
+      const agora = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+      if(agora - ultimoAvanco < VD_EXPORT_PARADO_MS) return;
       _vdExportSuspeito = true;
       try{ if(_vdRec && _vdRec.state !== 'inactive') _vdRec.stop(); }catch(e){}
-    }, tetoMs);
+    }, 1000);
     const antesAoTempo = _vdAoTempo, antesAoFim = _vdAoFim;
-    _vdAoTempo = t => { if(aoProgresso && total) aoProgresso(Math.min(t / total, 1)); if(antesAoTempo) antesAoTempo(t); };
+    _vdAoTempo = t => {
+      ultimoAvanco = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+      if(aoProgresso && total) aoProgresso(Math.min(t / total, 1));
+      if(antesAoTempo) antesAoTempo(t);
+    };
     _vdAoFim = () => {
       _vdAoTempo = antesAoTempo; _vdAoFim = antesAoFim;
       // Um tiquinho de folga antes de parar: o último frame precisa entrar no

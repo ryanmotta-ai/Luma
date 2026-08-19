@@ -348,6 +348,90 @@
     assert(vdDesfazer()&&vdSegs()[0].foco==null,'desfazer não removeu o foco');
   });
 
+  /* ── LEGENDA: transcrição → cartões (js/video/legenda.js, funções puras) ──
+     O desenho de verdade (motor de render, fonte real) é exercitado na bancada;
+     aqui fica a parte que decide O QUE aparece e QUANDO. */
+
+  test('texto curto vira um cartão só',()=>{
+    const p=vdQuebrarFala('Chegou o combo novo',38);
+    assert(p.length===1&&p[0]==='Chegou o combo novo','quebrou sem necessidade: '+JSON.stringify(p));
+  });
+
+  test('quebra respeita o teto de caracteres e não perde palavra',()=>{
+    const fala='esse combo tem dois lanches duas batatas e dois refrigerantes por um preço muito bom';
+    const p=vdQuebrarFala(fala,38);
+    assert(p.length>1,'não quebrou um texto longo');
+    assert(p.every(x=>x.length<=38),'pedaço acima do teto: '+JSON.stringify(p));
+    assert(p.join(' ')===fala,'a quebra perdeu ou duplicou palavra: '+JSON.stringify(p));
+  });
+
+  test('quebra prefere fechar depois da pontuação',()=>{
+    const p=vdQuebrarFala('Chegou o combo da semana. Aproveita hoje mesmo',38);
+    assert(/\.$/.test(p[0]),'o primeiro cartão não fechou no ponto: '+JSON.stringify(p));
+  });
+
+  test('espaço repetido e sobra em branco não geram cartão vazio',()=>{
+    assert(vdQuebrarFala('   ',38).length===0,'texto em branco virou cartão');
+    assert(vdQuebrarFala(null,38).length===0,'nulo virou cartão');
+    assert(vdQuebrarFala('a    b',38)[0]==='a b','não normalizou o espaço');
+  });
+
+  test('o tempo do trecho é dividido por caracteres, não igualmente',()=>{
+    const cards=vdCardsDeTranscricao([{de:0,ate:6,texto:'curto '+'x'.repeat(60)}],{maxCaracteres:38});
+    assert(cards.length===2,'esperava dois cartões, veio '+cards.length);
+    const d0=cards[0].ate-cards[0].de, d1=cards[1].ate-cards[1].de;
+    assert(d1>d0,'o cartão maior deveria ficar mais tempo na tela ('+d0.toFixed(2)+' vs '+d1.toFixed(2)+')');
+  });
+
+  test('cartão não fica pendurado além do teto de duração',()=>{
+    const cards=vdCardsDeTranscricao([{de:0,ate:20,texto:'oi'}]);
+    assert(cards[0].ate-cards[0].de<=VD_CARD_DUR_MAX+0.01,'cartão de '+(cards[0].ate-cards[0].de)+'s');
+  });
+
+  test('trecho inválido da IA não vira legenda',()=>{
+    const cards=vdCardsDeTranscricao([
+      {de:5,ate:3,texto:'tempo invertido'},
+      {de:1,ate:2,texto:'   '},
+      {de:'x',ate:2,texto:'tempo não numérico'},
+      {de:2,ate:4,texto:'este vale'}
+    ]);
+    assert(cards.length===1&&/este vale/.test(cards[0].texto),'passou trecho inválido: '+JSON.stringify(cards));
+  });
+
+  test('cartão é achado pelo tempo da FONTE e respeita o liga/desliga',()=>{
+    novo(30);
+    vdProj.legendas={ativo:true,template:'dm_cap_01',cards:[{de:2,ate:4,texto:'primeiro'},{de:5,ate:7,texto:'segundo'}]};
+    assert(vdCardEm(3)&&vdCardEm(3).texto==='primeiro','não achou o cartão do segundo 3');
+    assert(vdCardEm(6)&&vdCardEm(6).texto==='segundo','não achou o cartão do segundo 6');
+    assert(vdCardEm(4.5)===null,'inventou cartão no vão entre dois');
+    assert(vdCardEm(20)===null,'inventou cartão depois do último');
+    vdProj.legendas.ativo=false;
+    assert(vdCardEm(3)===null,'legenda desligada continuou aparecendo');
+  });
+
+  test('a camada da legenda respeita a área segura e a centralização',()=>{
+    const W=1080,H=1920;
+    const c=vdLegendaCamada('CHEGOU O COMBO',W,H,'dm_cap_01');
+    assert(c.type==='text'&&c.textAlign==='center','a legenda deveria ser texto centralizado');
+    assert(c.y+c.h<=H*0.85,'o bloco invadiu a faixa reservada embaixo (UI do Reels)');
+    assert(c.x>0&&c.x+c.w<W,'o bloco encostou nas bordas laterais');
+    assert(perto(c.x,(W-c.w)/2,2),'o bloco não ficou centralizado na horizontal');
+    assert(c.strokeW>=2&&c.strokeColor,'legenda sem contorno some em cima de vídeo claro');
+    assert(c.content==='CHEGOU O COMBO','o template deveria aplicar caixa-alta');
+  });
+
+  test('a legenda escala com o formato de saída',()=>{
+    const vert=vdLegendaCamada('teste',1080,1920,'dm_cap_01');
+    const horiz=vdLegendaCamada('teste',1920,1080,'dm_cap_01');
+    assert(horiz.fontSize<vert.fontSize,'a fonte deveria acompanhar a ALTURA da saída');
+    assert(horiz.w>vert.w,'a caixa deveria acompanhar a LARGURA da saída');
+  });
+
+  test('template desconhecido cai no padrão em vez de quebrar',()=>{
+    const c=vdLegendaCamada('teste',1080,1920,'inexistente');
+    assert(c&&c.fontSize>0,'template inválido derrubou a legenda');
+  });
+
   let passed=0; const falhas=[];
   for(const item of cases){
     const li=document.createElement('li'); li.className='case';

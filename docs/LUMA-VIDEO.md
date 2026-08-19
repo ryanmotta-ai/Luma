@@ -21,9 +21,10 @@
 | Módulo ligado ao app (aba, view, flag, lazy init) | `index.html`, `js/main.js`, `js/core/feature-flags.js`, `css/modules/video.css` | nasce **desligado** (`module.video`) |
 | Motor de regras: **corte automático de silêncio** (sem IA) | `js/video/ingest.js` | pausa real achada no áudio da bancada |
 | Formato de saída (9:16 · 1:1 · 16:9) + **enquadramento com foco** | `js/video/compositor.js` | lado do corte medido em pixel na bancada |
+| **Legenda** queimada no vídeo, com a tipografia da casa | `js/video/legenda.js` | desenho e custo medidos na bancada; a resposta do modelo **não** foi verificada (rede bloqueada aqui) |
 | Bancada do portão F0 | `tests/_video-bancada.html` | 15/15 no Chromium de teste |
 
-**Ainda não existe:** IA de verdade (fases 4b e 6), transcrição, legenda, assets da DM (fase 5), SFX, agente visual. Nenhuma mudança no Supabase — nem migration, nem deploy.
+**Ainda não existe:** Auto Edit por LLM (fase 6), assets da DM (fase 5), SFX, agente visual. Nenhuma mudança no Supabase — nem migration, nem deploy.
 
 ### O corte de silêncio, e por que ele não usa IA
 
@@ -44,9 +45,25 @@ Medido na bancada com áudio de verdade (tom, 2s de silêncio, tom): achou a pau
 1. **`MediaRecorder.isTypeSupported('video/mp4')` mente.** Num Chromium sem codec proprietário ele responde `true` e grava um mp4 com VP9/AV1 dentro — que a rede social recusa igual a um `.webm`. Por isso `vdMimeSaida()` só confia em mp4 com **`avc1` explícito**; o mp4 genérico ficou depois do webm na fila. Entre um mp4 de codec desconhecido e um webm que eu sei o que é, o segundo é mais honesto com quem vai postar.
 2. **WebM gravado por `MediaRecorder` não traz duração no cabeçalho** — inclusive o que o próprio Luma exporta. O navegador responde `Infinity` e o editor recusava o arquivo dizendo "converta para MP4", o que era mentira. Resolvido com a sondagem de fim de arquivo (`_vdDuracaoConfiavel`).
 3. **`seeked` não é garantia.** Quando o tempo pedido já é o atual, o evento nunca vem; e um seek de sondagem em voo faz o callback capturar o `seeked` errado — a prévia abria no último frame com o cursor no zero. Resolvido com cinto de 700ms no `_vdBuscar` e sondagem que espera de verdade.
-4. **Custo real de exportação:** 4,3s para 4,0s de edição (≈1,08× a duração), 233KB para 4s em 1080×1920. Confirma o teto de 90s da saída.
+4. **Custo real de exportação:** ≈1,1× a duração **quando a máquina acompanha** (medido: 4,4s para 4,0s de edição, 233KB em 1080×1920). Sob carga, a reprodução caiu a **0,35× do tempo real** e a mesma exportação levou 11s — a exportação é em tempo real, então máquina fraca custa proporcionalmente mais. Confirma o teto de 90s de saída.
+5. **Corrida no fim do arquivo (bug real, corrigido).** Quando o último trecho vai até o fim do vídeo, o laço só percebe o fim se um frame chegar com `currentTime >= ate - 40ms` — e o navegador **para de entregar frames** ao acabar o arquivo. Com a máquina folgada o frame chega primeiro; sob carga (um frame a cada 130ms) o arquivo acaba antes, e a exportação ficava pendurada até o cinto cortar, entregando **vídeo truncado**. Aconteceu em 2 de 3 rodadas. Corrigido escutando `ended`; quatro rodadas seguidas estáveis depois.
+6. **Cinto por falta de progresso, não por tempo total.** A primeira versão cortava em 2× a duração + 8s — e foi ela que truncou as exportações legítimas acima (16,0s exatos para 4s de vídeo é a fórmula, não o vídeo). Agora o relógio zera a cada frame novo: 6s sem avanço é travamento em qualquer duração.
 
 **O que ainda NÃO foi medido:** Chrome e Safari **reais** (com H.264) e iPhone. O Chromium de teste não tem codec proprietário, então a pergunta "sai mp4 que o Instagram aceita?" segue aberta — é o único item do portão F0 que exige uma máquina de verdade. Rode `tests/_video-bancada.html` no navegador do time e leia a matriz.
+
+### Legenda: o reuso é mais fundo do que o plano previa
+
+O §4.2 dizia que cada cartão passaria por `fRenderTemplateLayers`. Lendo o motor, o caminho certo é mais fundo **e mais barato**: `gFitTextLayer` (o encaixador — quebra inteligente e encolhimento, o mesmo que decide o texto da arte estática) + `fRenderOneLayer` (desenha UMA camada num ctx). A legenda herda tipografia, quebra e contorno do motor único **sem** inventar material/campanha falsos e **sem** tocar em `png-generator.js`, que é caminho crítico do franqueado.
+
+Também caiu a ideia de pré-renderizar bitmap por cartão: medido na bancada, com a medição em cache o desenho custa **0,11ms** por frame (orçamento de um frame a 30fps é 33ms). Guardar bitmap custaria ~1MB por cartão para economizar 0,11ms — não paga. O que fica em cache é o `_fit`, que é um objeto de dezenas de bytes.
+
+**O cartão vive em tempo da FONTE, não da linha do tempo.** É o que faz a legenda continuar certa depois de cortar, remover e reordenar trechos: o compositor pergunta "que cartão vale no segundo X do arquivo?". Cortar não mexe nisso.
+
+**Cor fixa de propósito** (branco com contorno quase-preto, sem ler token de tema): o vídeo exportado não pode mudar de aparência porque quem editou estava no tema claro ou escuro.
+
+A transcrição reaproveita o **WAV que a medição de áudio já produziu** (16kHz mono, ~32KB/s): uma decodificação serve à detecção de silêncio e à legenda. Mandar o vídeo inteiro custaria dezenas de MB por chamada. Tempo fora do vídeo é descartado antes de virar legenda — alucinação de tempo colocaria texto no lugar errado.
+
+⚠ **O que não foi verificado:** a resposta do modelo. Neste ambiente a saída de rede para `file://` está bloqueada, então a bancada prova que o áudio é preparado e que a chamada sai (`?ia=1`), não que a transcrição volta boa. Rode com `?ia=1` numa máquina com rede antes de confiar na legenda automática.
 
 ### Enquadramento: o caso que decide o produto
 

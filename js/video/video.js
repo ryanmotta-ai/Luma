@@ -77,6 +77,7 @@ function _vdMarkup(){
   +     '<span class="vd-fmt" id="vd-fmt" role="group" aria-label="Formato de saída"></span>'
   +     '<button type="button" class="vd-btn" id="vd-dividir" onclick="vdAcaoDividir()" disabled>Dividir aqui</button>'
   +     '<button type="button" class="vd-btn" id="vd-silencio" onclick="vdAcaoCortarSilencio()" disabled>Cortar silêncios</button>'
+  +     '<button type="button" class="vd-btn" id="vd-legenda" onclick="vdAcaoLegenda()" disabled>Legendas</button>'
   +     '<button type="button" class="vd-btn" id="vd-undo" onclick="vdAcaoDesfazer()" disabled>Desfazer</button>'
   +     '<button type="button" class="vd-btn" id="vd-redo" onclick="vdAcaoRefazer()" disabled>Refazer</button>'
   +     '<button type="button" class="vd-btn primary" id="vd-exportar" onclick="vdAcaoExportar()" disabled>Exportar</button>'
@@ -251,6 +252,52 @@ async function vdAcaoCortarSilencio(){
   gToast('Removi ' + m.silencios.length + ' pausa(s): ' + vdFmtTempo(antes) + ' → ' + vdFmtTempo(vdDuracaoFinal()) + '.');
 }
 
+/**
+ * Legendas. Na primeira vez transcreve (chamada de IA); depois é só liga/desliga —
+ * refazer a transcrição a cada clique gastaria cota para receber o mesmo texto.
+ *
+ * Não passa pelo validador de EditPlan de propósito: legenda não é ação de
+ * edição de trecho, é uma camada de exibição. O que a IA devolve aqui é TEXTO
+ * COM TEMPO, e o filtro de sanidade (tempo fora do vídeo) está em vdTranscrever.
+ */
+async function vdAcaoLegenda(){
+  if(!vdProj) return;
+  const btn = document.getElementById('vd-legenda');
+
+  // Já tem legenda: o clique só alterna.
+  if(vdProj.legendas && vdProj.legendas.cards && vdProj.legendas.cards.length){
+    vdProj.legendas.ativo = !vdProj.legendas.ativo;
+    _vdRedesenhar();
+    _vdSincronizarTransporte();
+    gToast(vdProj.legendas.ativo ? 'Legendas ligadas.' : 'Legendas desligadas.');
+    return;
+  }
+
+  if(typeof gAiReady !== 'function' || !gAiReady()){
+    gToast('A transcrição não está disponível nesta sessão. Sem ela não consigo gerar legenda.', 'error');
+    return;
+  }
+  const rotulo = btn ? btn.textContent : '';
+  if(btn){ btn.disabled = true; btn.textContent = 'Transcrevendo…'; }
+  const r = await vdTranscrever();
+  if(btn){ btn.textContent = rotulo; btn.disabled = false; }
+
+  if(!r.ok){ gToast('Não consegui gerar as legendas: ' + r.erro + '.', 'error'); return; }
+  vdProj.legendas = { ativo:true, template:'dm_cap_01', cards:r.cards };
+  vdRegistrar('legendas');
+  _vdRedesenhar();
+  _vdSincronizarTransporte();
+  gToast('Legendas prontas: ' + r.cards.length + ' cartão(ões)'
+    + (r.descartados ? ', ' + r.descartados + ' trecho(s) fora do vídeo descartado(s)' : '') + '. Revise antes de exportar.');
+}
+
+// Redesenha o frame atual sem mexer no transporte — usado quando muda algo que só
+// afeta a IMAGEM (legenda, foco, formato).
+function _vdRedesenhar(){
+  const hit = vdSegNoTempo(vdTempoLinha());
+  if(hit) vdDesenharFrame(hit.seg);
+}
+
 function vdAcaoRemover(){
   if(!vdSel) return;
   if(!vdRemoverSeg(vdSel)){ gToast('O último trecho não pode ser removido.', 'error'); return; }
@@ -266,8 +313,7 @@ function vdAcaoMover(dir){
 
 function vdAcaoZoom(v){
   if(!vdSel || !vdZoomSeg(vdSel, v)) return;
-  const hit = vdSegNoTempo(vdTempoLinha());
-  if(hit) vdDesenharFrame(hit.seg);
+  _vdRedesenhar();
   vdTlRender(); vdRenderInspetor();
 }
 
@@ -349,8 +395,7 @@ function vdAcaoFormato(f){
 
 function vdAcaoFoco(v){
   if(!vdSel || !vdFocoSeg(vdSel, v)) return;
-  const hit = vdSegNoTempo(vdTempoLinha());
-  if(hit) vdDesenharFrame(hit.seg);
+  _vdRedesenhar();
   vdRenderInspetor();
   _vdSincronizarTransporte();
 }
@@ -413,6 +458,13 @@ function _vdSincronizarTransporte(){
   const set = (id, on) => { const b = document.getElementById(id); if(b) b.disabled = !on; };
   set('vd-dividir', tem);
   set('vd-silencio', tem);
+  set('vd-legenda', tem);
+  const bl = document.getElementById('vd-legenda');
+  if(bl && tem){
+    const temCards = !!(vdProj.legendas && vdProj.legendas.cards && vdProj.legendas.cards.length);
+    bl.textContent = !temCards ? 'Legendas' : (vdProj.legendas.ativo ? 'Legendas: ligadas' : 'Legendas: desligadas');
+    bl.classList.toggle('sel', temCards && vdProj.legendas.ativo);
+  }
   set('vd-exportar', tem && !vdExportando());
   set('vd-undo', vdPodeDesfazer());
   set('vd-redo', vdPodeRefazer());
