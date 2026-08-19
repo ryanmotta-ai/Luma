@@ -49,14 +49,36 @@ jobs:
         with:
           node-version: '22'          # WebSocket nativo (o cliente CDP depende dele)
 
-      - name: Instalar Chromium
+      - name: Achar o navegador
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends chromium-browser || \
-          sudo apt-get install -y --no-install-recommends chromium
-          # Fontes com acento e caixa alta: sem elas a medida de texto muda e o corpus
-          # comparado ao golden viraria ruído (a suíte avisa e pula, mas queremos medir de verdade).
-          sudo apt-get install -y --no-install-recommends fonts-liberation fonts-dejavu-core
+          # POR QUE NÃO INSTALAR MAIS PELO APT:
+          # `chromium-browser` no Ubuntu do runner virou pacote de transição para o SNAP, e snap
+          # roda com /tmp PRIVADO. O navegador subia, anunciava a porta no stderr e escrevia o
+          # DevToolsActivePort no /tmp dele — que o runner, fora do confinamento, nunca via. O CI
+          # ficou vermelho de 14/08 a 19/08 com a mensagem "o Chromium não abriu a porta de
+          # depuração", que era mentira: ele abriu. O runner agora lê a porta do stderr (conserto
+          # de verdade), e aqui preferimos o navegador que a imagem já traz — mais rápido (some
+          # 1min de apt) e sem confinamento.
+          BIN=""
+          for b in /usr/bin/google-chrome /usr/bin/google-chrome-stable /usr/bin/chromium /usr/bin/chromium-browser; do
+            [ -x "$b" ] && { BIN="$b"; break; }
+          done
+          if [ -z "$BIN" ]; then
+            echo "nenhum navegador na imagem do runner; instalando pelo apt"
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends chromium || \
+            sudo apt-get install -y --no-install-recommends chromium-browser
+            BIN="$(command -v chromium || command -v chromium-browser)"
+          fi
+          echo "navegador: $BIN"
+          "$BIN" --version || true
+          echo "CHROMIUM_PATH=$BIN" >> "$GITHUB_ENV"
+          # Fontes com acento e caixa alta: sem elas a medida de texto muda e o corpus comparado
+          # ao golden viraria ruído. Só instala se faltarem — na imagem do runner já vêm.
+          if ! fc-list 2>/dev/null | grep -qi liberation; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends fonts-liberation fonts-dejavu-core
+          fi
 
       - name: Rodar as suítes
         run: node scripts/run-browser-tests.js

@@ -81,8 +81,22 @@ async function subirNavegador(bin) {
   let erro = '';
   proc.stderr.on('data', d => { erro += String(d); });
 
+  /* DUAS FONTES PARA A PORTA, e a ordem importa.
+     O caminho clássico é o arquivo `DevToolsActivePort` dentro do perfil. Ele PARA DE
+     FUNCIONAR quando o navegador roda confinado em snap — que é o que o `apt-get install
+     chromium-browser` virou no Ubuntu do runner: o snap tem /tmp privado, escreve o arquivo
+     no /tmp DELE, e quem espera de fora nunca vê. O CI ficou vermelho dias por isso, com a
+     mensagem enganosa "o Chromium não abriu a porta" — ele abriu, e até anunciou no stderr.
+     Então o stderr é a fonte primária: o navegador imprime `DevTools listening on ws://...`
+     independente de confinamento. O arquivo fica como segunda via. */
+  const dePortaNoStderr = () => {
+    const m = /DevTools listening on ws:\/\/127\.0\.0\.1:(\d+)\//.exec(erro);
+    return m ? Number(m[1]) : 0;
+  };
   const arquivoPorta = path.join(perfil, 'DevToolsActivePort');
   for (let i = 0; i < 100; i++) {
+    const pStderr = dePortaNoStderr();
+    if (pStderr > 0) return { proc, porta: pStderr, perfil };
     if (fs.existsSync(arquivoPorta)) {
       const porta = Number(String(fs.readFileSync(arquivoPorta, 'utf8')).split('\n')[0]);
       if (porta > 0) return { proc, porta, perfil };
