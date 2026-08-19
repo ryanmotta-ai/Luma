@@ -9,8 +9,15 @@
    FRANQUEADO — dados e estado
 ══════════════════════════════════════════════════════════════ */
 const HIST_KEY='dm_artes_hist_v2';
-window.LUMA_CONFIG = window.LUMA_CONFIG || { geminiApiKey: 'AQ.Ab8RN6KTNTMzdzlSMSzfDFPk9Jx0raAvkQ-HAgUkeVlU1ft4Vw' };
-window.LUMA_GEMINI_API_KEY = window.LUMA_GEMINI_API_KEY || 'AQ.Ab8RN6KTNTMzdzlSMSzfDFPk9Jx0raAvkQ-HAgUkeVlU1ft4Vw';
+/* Chave do Gemini do caminho de transição (o front fala direto com o provedor
+   quando a Edge Function `ai` não responde). Trocada em 2026-08-19: a anterior
+   estava REVOGADA e devolvia 401 UNAUTHENTICATED em toda chamada — o que deixava
+   legenda, cardápio, ajuda, encurtar e transcrição falhando em silêncio, porque
+   gAskAI devolve null e cada recurso cai no fallback sem dizer o motivo.
+   ⚠ Formato: chave de API do Gemini hoje começa com 'AQ.' — não é mais 'AIza…'.
+   Verificado por chamada real ao provedor antes de entrar aqui. */
+window.LUMA_CONFIG = window.LUMA_CONFIG || { geminiApiKey: 'AQ.Ab8RN6Ja4R95ctSYO-2rGrdj_HRiaIEeP92xdYurOlPXu2dmEA' };
+window.LUMA_GEMINI_API_KEY = window.LUMA_GEMINI_API_KEY || 'AQ.Ab8RN6Ja4R95ctSYO-2rGrdj_HRiaIEeP92xdYurOlPXu2dmEA';
 // Modelo dos 2 agentes, em UM lugar só (já divergiu entre chat.js e help-widget.js antes).
 // 'gemini-flash-latest' é APELIDO: o Google aponta pro Flash atual, então uma aposentadoria
 // de versão não quebra os agentes de novo — foi exatamente o que matou o 'gemini-1.5-flash'.
