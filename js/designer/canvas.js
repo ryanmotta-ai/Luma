@@ -584,9 +584,16 @@ function dAttachMarquee(){
      em cima de uma camada o duplo clique já tem dono (recortar imagem / editar texto) e
      com forma/texto ativos ele faz parte do desenho. */
   frame.addEventListener('dblclick',e=>{
-    if(e.target!==frame)return;                                  // clicou numa camada
     if(typeof dTool!=='undefined' && dTool!=='select')return;     // desenhando: não roubar o gesto
     if(typeof dPickImageFile!=='function')return;
+    // ⚠ O `e.target` MENTE aqui: dSelLayer re-renderiza a cada mousedown, então o nó da camada
+    // clicada é trocado no meio do gesto e o navegador dispara o dblclick no ancestral comum —
+    // o próprio frame. Com o guard antigo (`e.target!==frame`), duplo clique em cima de um TEXTO
+    // abria a edição inline E o seletor de arquivo por cima (bug real 19/08). Quem manda é o
+    // hit-test no ponto do clique, que enxerga o DOM de agora: camada, textarea da edição inline
+    // ou overlay de crop → o gesto já tem dono e o seletor não entra.
+    const alvo=document.elementFromPoint(e.clientX,e.clientY);
+    if(alvo&&alvo!==frame)return;
     const p=dPontoNoCanvas(e);
     dPickImageFile(p?p.x:undefined, p?p.y:undefined);
   });
