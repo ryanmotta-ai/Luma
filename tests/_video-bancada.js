@@ -22,9 +22,14 @@
     results.appendChild(li);
     if(ok) passed++; else falhas.push({name:nome,error:detalhe||'falhou'});
     casos.push(nome);
+    // Progresso num global SEPARADO de propósito: o runner devolve assim que vê
+    // __lumaTest, então publicar parcial ali daria resultado incompleto como final.
+    // Aqui é só para diagnosticar travamento — sem isto, um travo não diz onde foi.
+    window.__lumaProgresso={feitos:casos.length,ultimo:nome,ok:ok};
   };
   const publicar=()=>{ window.__lumaTest={passed:passed,total:casos.length,failures:falhas,notas:notas}; };
   const esperar=ms=>new Promise(r=>setTimeout(r,ms));
+  const marco=n=>{ window.__lumaProgresso={feitos:casos.length,ultimo:'(em curso) '+n}; };
   const SEG_MATERIAL=6, COR_POR_SEG=36;
 
   /* ── 1. Matriz de gravação ── */
@@ -84,6 +89,10 @@
       const s=Math.min(Math.floor((performance.now()-t0)/1000), SEG_MATERIAL-1);
       ctx.fillStyle='rgb('+(s*COR_POR_SEG)+',20,20)';
       ctx.fillRect(0,0,c.width,c.height);
+      // Faixa AZUL no topo: é a marca que permite dizer, lendo um pixel, se o
+      // corte de enquadramento manteve o topo ou a base do quadro.
+      ctx.fillStyle='rgb(30,95,201)';
+      ctx.fillRect(0,0,c.width,Math.round(c.height*0.25));
       ctx.fillStyle='#fff'; ctx.font='bold 180px system-ui'; ctx.textAlign='center';
       ctx.fillText(String(s), c.width/2, c.height/2+60);
       raf=requestAnimationFrame(pintar);
@@ -101,10 +110,15 @@
   /* Lê o canal vermelho do FUNDO do canvas de saída → qual segundo está na tela.
      ⚠ Não amostre o centro: é onde o dígito BRANCO é desenhado (255,255,255), e a
      leitura vira 255 em qualquer segundo. Custou dois falsos negativos aqui. */
-  function segundoNaTela(){
+  function corNoPonto(fx,fy){
     const ctx=vdCanvas.getContext('2d');
-    const d=ctx.getImageData(Math.floor(vdCanvas.width*0.12), Math.floor(vdCanvas.height*0.12), 1, 1).data;
-    return { r:d[0], seg:Math.round(d[0]/COR_POR_SEG) };
+    const d=ctx.getImageData(Math.floor(vdCanvas.width*fx), Math.floor(vdCanvas.height*fy), 1, 1).data;
+    return { r:d[0], g:d[1], b:d[2] };
+  }
+  // 85% da altura: abaixo do dígito branco (centro) E abaixo da faixa azul (topo).
+  function segundoNaTela(){
+    const c=corNoPonto(0.12,0.85);
+    return { r:c.r, seg:Math.round(c.r/COR_POR_SEG) };
   }
 
   async function irEEsperar(t){
@@ -125,11 +139,13 @@
       vdInit();
       reg('o módulo monta a interface', !!document.getElementById('vd-canvas'));
 
+      marco('gravarMaterial');
       const file=await gravarMaterial();
       reg('gravou o material sintético', file.size>1000, file.type+' · '+Math.round(file.size/1024)+'KB');
       notas.push('material: '+file.type+' '+Math.round(file.size/1024)+'KB');
       if(file.size<1000){ publicar(); return; }
 
+      marco('vdCarregarArquivo');
       await vdCarregarArquivo(file);
       const dur=vdProj?vdProj.fonte.dur:0;
       reg('o editor abriu o material', !!vdProj && dur>SEG_MATERIAL*0.6,
@@ -137,6 +153,7 @@
       if(!vdProj){ publicar(); return; }
 
       // Medição do áudio real: read-only, então roda antes dos cortes manuais.
+      marco('vdMedirAudio');
       const med=await vdMedirAudio();
       reg('mediu o áudio do arquivo', !!med.ok, med.ok
         ? (med.silencios.length+' pausa(s) · limiar '+med.limiar.toFixed(4)+' · piso '+med.piso.toFixed(4)+' · fala '+med.fala.toFixed(4))
@@ -169,6 +186,7 @@
       reg('a exportação está liberada', !impedimento, impedimento||'sem impedimento');
 
       const t0=performance.now();
+      marco('vdExportar');
       const r=await vdExportar(()=>{});
       const gastou=(performance.now()-t0)/1000;
       reg('exportou um arquivo com bytes', !!(r&&r.blob&&r.blob.size>1000),
@@ -199,6 +217,21 @@
                  :('rejeitado: '+JSON.stringify(ap.descartes)));
         if(ap.ok) notas.push('corte de silêncio: '+vdFmtTempo(antes)+' → '+vdFmtTempo(vdDuracaoFinal()));
       }
+      // ENQUADRAMENTO — o caso do produto: material vertical virando horizontal
+      // corta em cima e embaixo, e o foco escolhe o que sobrevive.
+      vdAcaoFormato('16:9');
+      reg('trocar o formato redimensiona a saída', vdCanvas.width===1920 && vdCanvas.height===1080,
+          'canvas em '+vdCanvas.width+'×'+vdCanvas.height+' · eixo cortado: '+vdEixoDeCorte());
+      await irEEsperar(0.3);
+      const seg=vdSegNoTempo(0.3).seg;
+      vdFocoSeg(seg.id, 0); vdDesenharFrame(vdSegNoTempo(0.3).seg);
+      const topo=corNoPonto(0.12,0.06);
+      vdFocoSeg(seg.id, 1); vdDesenharFrame(vdSegNoTempo(0.3).seg);
+      const base=corNoPonto(0.12,0.06);
+      reg('o foco escolhe o lado do quadro que sobrevive ao corte',
+          topo.b>120 && topo.b>topo.r+80 && base.b<topo.b/3,
+          'foco no topo mostra a faixa azul (azul '+topo.b+' vs vermelho '+topo.r+') · foco na base sai dela (azul '+base.b+')');
+      notas.push('enquadramento 16:9 · topo(b'+topo.b+'/r'+topo.r+') base(r'+base.r+'/b'+base.b+')');
     }catch(e){
       reg('a bancada terminou sem exceção', false, String(e&&e.message||e));
       console.error('[bancada]',e);

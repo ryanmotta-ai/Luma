@@ -67,9 +67,54 @@ function vdAjustarSaida(){
 
 function vdCompositorCallbacks(aoTempo, aoFim){ _vdAoTempo = aoTempo; _vdAoFim = aoFim; }
 
+/**
+ * Troca o formato de saída. Redimensionar o canvas APAGA o conteúdo, então
+ * redesenhar aqui não é zelo — sem isso a prévia fica preta até o próximo frame.
+ */
+function vdMudarFormato(f){
+  if(!vdProj || !VD_FORMATOS[f] || vdProj.formato === f) return false;
+  vdProj.formato = f;
+  vdRegistrar('formato ' + f);
+  vdAjustarSaida();
+  const hit = vdSegNoTempo(vdTempoLinha());
+  if(hit) vdDesenharFrame(hit.seg);
+  return true;
+}
+
 /* ── DESENHO ─────────────────────────────────────────────────────────── */
 
-/** Cover + zoom do segmento: preenche a saída sem distorcer, cortando a sobra. */
+/**
+ * Onde o frame da fonte cai na saída — cover + zoom + FOCO, sem distorcer nunca.
+ *
+ * O foco existe porque o caso real da DM é vídeo gravado na horizontal virando
+ * Reels vertical: o corte joga fora 60% da largura, e centralizar às cegas corta
+ * justamente o produto quando ele não está no meio do quadro. `foco` de 0 a 1
+ * escolhe o lado que sobrevive (0,5 = centro = comportamento antigo).
+ *
+ * FUNÇÃO PURA (testável sem canvas nem vídeo).
+ * @returns {{dx:number,dy:number,dw:number,dh:number,escala:number,eixo:('x'|'y'|null)}}
+ */
+function vdEnquadrar(vw, vh, W, H, zoom, foco){
+  const z = zoom > 0 ? zoom : 1;
+  const f = (foco == null || !isFinite(foco)) ? 0.5 : Math.min(Math.max(foco, 0), 1);
+  const escala = Math.max(W / vw, H / vh) * z;
+  const dw = vw * escala, dh = vh * escala;
+  // Sobra só existe no eixo que estourou; no outro, (W-dw) é ~0 e o foco não
+  // muda nada — por isso um número só resolve os dois casos.
+  const sobraX = W - dw, sobraY = H - dh;
+  const eixo = sobraX < -0.5 ? 'x' : (sobraY < -0.5 ? 'y' : null);
+  return { dx: sobraX * (eixo === 'x' ? f : 0.5), dy: sobraY * (eixo === 'y' ? f : 0.5),
+           dw, dh, escala, eixo };
+}
+
+/** Qual eixo está sendo cortado com o formato atual. null = nada sobra. */
+function vdEixoDeCorte(){
+  if(!vdProj || !vdCanvas) return null;
+  const vw = vdProj.fonte.w, vh = vdProj.fonte.h;
+  if(!vw || !vh) return null;
+  return vdEnquadrar(vw, vh, vdCanvas.width, vdCanvas.height, 1, 0.5).eixo;
+}
+
 function vdDesenharFrame(seg){
   if(!_vdCtx || !vdVideoEl) return;
   const W = vdCanvas.width, H = vdCanvas.height;
@@ -77,10 +122,8 @@ function vdDesenharFrame(seg){
   _vdCtx.fillStyle = '#000';
   _vdCtx.fillRect(0, 0, W, H);
   if(!vw || !vh) return;
-  const z = (seg && seg.zoom) || 1;
-  const escala = Math.max(W / vw, H / vh) * z;
-  const dw = vw * escala, dh = vh * escala;
-  try{ _vdCtx.drawImage(vdVideoEl, (W - dw) / 2, (H - dh) / 2, dw, dh); }
+  const q = vdEnquadrar(vw, vh, W, H, (seg && seg.zoom) || 1, seg && seg.foco);
+  try{ _vdCtx.drawImage(vdVideoEl, q.dx, q.dy, q.dw, q.dh); }
   catch(e){ /* frame ainda não decodificado: o próximo callback desenha */ }
 }
 
@@ -265,6 +308,7 @@ function vdExportar(aoProgresso){
     }
 
     _vdPedacos = []; _vdExportSuspeito = false;
+    let cinto = 0;   // declarado aqui porque `encerrar` (abaixo) o limpa
     try{ _vdRec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8e6 }); }
     catch(e){ if(typeof gToast==='function') gToast('Não consegui iniciar a gravação: ' + (e && e.name || 'erro'), 'error'); resolve(null); return; }
 
@@ -275,6 +319,7 @@ function vdExportar(aoProgresso){
 
     const encerrar = () => {
       document.removeEventListener('visibilitychange', aoVisibilidade);
+      clearTimeout(cinto);
       _vdExportando = false;
       try{ stream.getTracks().forEach(t => t.stop()); }catch(e){}
     };
@@ -289,6 +334,16 @@ function vdExportar(aoProgresso){
     };
 
     _vdExportando = true;
+    // CINTO: se o laço de frames parar (decodificação travada, aba estrangulada), o
+    // _vdAoFim nunca chega e esta promessa nunca resolve — o usuário fica com a
+    // barra girando pra sempre. Teto generoso (2× a duração + 8s) para não cortar
+    // exportação lenta legítima; ao estourar, entrega o que gravou e AVISA.
+    const tetoMs = total * 1000 * 2 + 8000;
+    cinto = setTimeout(() => {
+      if(!_vdExportando) return;
+      _vdExportSuspeito = true;
+      try{ if(_vdRec && _vdRec.state !== 'inactive') _vdRec.stop(); }catch(e){}
+    }, tetoMs);
     const antesAoTempo = _vdAoTempo, antesAoFim = _vdAoFim;
     _vdAoTempo = t => { if(aoProgresso && total) aoProgresso(Math.min(t / total, 1)); if(antesAoTempo) antesAoTempo(t); };
     _vdAoFim = () => {

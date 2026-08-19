@@ -74,6 +74,7 @@ function _vdMarkup(){
   +     '<span class="vd-tempo" id="vd-tempo">0:00.0 / 0:00.0</span>'
   +     '<span class="vd-nome" id="vd-nome"></span>'
   +     '<span class="vd-flex"></span>'
+  +     '<span class="vd-fmt" id="vd-fmt" role="group" aria-label="Formato de saída"></span>'
   +     '<button type="button" class="vd-btn" id="vd-dividir" onclick="vdAcaoDividir()" disabled>Dividir aqui</button>'
   +     '<button type="button" class="vd-btn" id="vd-silencio" onclick="vdAcaoCortarSilencio()" disabled>Cortar silêncios</button>'
   +     '<button type="button" class="vd-btn" id="vd-undo" onclick="vdAcaoDesfazer()" disabled>Desfazer</button>'
@@ -148,6 +149,7 @@ async function vdCarregarArquivo(file){
   document.getElementById('vd-nome').innerHTML = gEsc(file.name) + ' · ' + peso;
   vdIrPara(0);
   vdTlRender();
+  vdRenderFormato();
   vdRenderInspetor();
   _vdSincronizarTransporte();
   gToast('Vídeo carregado: ' + vdFmtTempo(meta.dur) + '.');
@@ -319,7 +321,47 @@ async function vdAcaoExportar(){
   else gToast('Vídeo exportado.');
 }
 
+/* ── FORMATO DE SAÍDA ─────────────────────────────────────────────────────
+   Três formatos porque são os três que a rede usa: Reels/Story (9:16), feed
+   quadrado (1:1) e o horizontal de origem (16:9). Trocar o formato não redimensiona
+   o vídeo: ele CORTA — e é aí que o foco do enquadramento passa a importar. */
+const VD_FMT_ROTULOS = { '9:16':'Reels', '1:1':'Quadrado', '16:9':'Horizontal' };
+
+function vdRenderFormato(){
+  const el = document.getElementById('vd-fmt');
+  if(!el) return;
+  if(!vdProj){ el.innerHTML = ''; return; }
+  el.innerHTML = Object.keys(VD_FMT_ROTULOS).map(f =>
+    '<button type="button" class="vd-btn tiny' + (vdProj.formato === f ? ' sel' : '') + '"'
+    + ' onclick="vdAcaoFormato(\'' + f + '\')"'
+    + ' aria-pressed="' + (vdProj.formato === f ? 'true' : 'false') + '">' + f + '</button>'
+  ).join('');
+}
+
+function vdAcaoFormato(f){
+  if(!vdMudarFormato(f)) return;
+  vdRenderFormato();
+  vdRenderInspetor();       // o controle de enquadramento aparece/desaparece com o corte
+  _vdSincronizarTransporte();
+  const eixo = vdEixoDeCorte();
+  if(eixo) gToast('Formato ' + f + ': o vídeo está sendo cortado ' + (eixo === 'x' ? 'nas laterais' : 'em cima e embaixo') + '. Use o enquadramento no trecho selecionado.');
+}
+
+function vdAcaoFoco(v){
+  if(!vdSel || !vdFocoSeg(vdSel, v)) return;
+  const hit = vdSegNoTempo(vdTempoLinha());
+  if(hit) vdDesenharFrame(hit.seg);
+  vdRenderInspetor();
+  _vdSincronizarTransporte();
+}
+
 /* ── INSPETOR (contextual: só o que está selecionado) ─────────────────── */
+
+// PT-BR sem jargão: "foco 0,15" não diz nada; "esquerda" diz.
+function _vdRotuloFoco(eixo, f){
+  const nomes = eixo === 'x' ? ['esquerda', 'centro', 'direita'] : ['topo', 'centro', 'base'];
+  return f < 0.35 ? nomes[0] : (f > 0.65 ? nomes[2] : nomes[1]);
+}
 
 function vdRenderInspetor(){
   const el = document.getElementById('vd-inspector');
@@ -332,6 +374,8 @@ function vdRenderInspetor(){
     return;
   }
   const s = vdSegs()[i];
+  const eixo = vdEixoDeCorte();
+  const foco = (s.foco == null) ? 0.5 : s.foco;
   el.innerHTML = ''
     + '<div class="vd-insp-head">Trecho ' + (i + 1) + ' de ' + vdSegs().length + '</div>'
     + '<dl class="vd-insp-grid">'
@@ -342,6 +386,11 @@ function vdRenderInspetor(){
     + '<label class="vd-insp-zoom">Aproximação <output>' + s.zoom.toFixed(2) + '×</output>'
     +   '<input type="range" min="1" max="1.6" step="0.02" value="' + s.zoom + '" oninput="vdAcaoZoom(this.value)">'
     + '</label>'
+    // Só aparece quando o formato realmente corta: controle sem efeito visível
+    // ensina o usuário a desconfiar da ferramenta.
+    + (eixo ? '<label class="vd-insp-zoom">Enquadramento <output>' + _vdRotuloFoco(eixo, foco) + '</output>'
+    +   '<input type="range" min="0" max="1" step="0.02" value="' + foco + '" oninput="vdAcaoFoco(this.value)">'
+    + '</label>' : '')
     + '<div class="vd-insp-acoes">'
     +   '<button type="button" class="vd-btn" onclick="vdAcaoMover(-1)"' + (i === 0 ? ' disabled' : '') + '>Mover antes</button>'
     +   '<button type="button" class="vd-btn" onclick="vdAcaoMover(1)"' + (i === vdSegs().length - 1 ? ' disabled' : '') + '>Mover depois</button>'

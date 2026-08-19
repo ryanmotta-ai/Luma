@@ -150,6 +150,20 @@ function vdMoverSeg(id, dir){
   return true;
 }
 
+/** Foco do enquadramento (0 = borda inicial, 1 = borda final, 0,5 = centro).
+ *  Só tem efeito no eixo que o formato de saída está cortando. */
+function vdFocoSeg(id, foco){
+  const i = vdSegIdx(id);
+  if(i < 0) return false;
+  const f = Math.min(Math.max(Number(foco), 0), 1);
+  if(!isFinite(f)) return false;
+  const atual = vdProj.segmentos[i].foco;
+  if(atual != null && Math.abs(f - atual) < 0.005) return false;
+  vdProj.segmentos[i].foco = f;
+  vdRegistrar('enquadramento');
+  return true;
+}
+
 /** Zoom do segmento (1 = enquadramento cheio). Teto baixo de propósito: acima
  *  de 1,6 o vídeo do celular vira mosaico. */
 function vdZoomSeg(id, zoom){
@@ -258,10 +272,15 @@ function vdValidarPlano(plano){
     }
 
     if(tipo === 'reframe'){
-      const de = Number(a.de), ate = Number(a.ate), zoom = Number(a.zoom);
+      const de = Number(a.de), ate = Number(a.ate);
+      // zoom e foco são opcionais: um reframe pode ser só pan (achar o produto no
+      // quadro) sem aproximar, e aproximar sem mudar o lado que sobrevive.
+      const zoom = a.zoom == null ? 1 : Number(a.zoom);
+      const foco = a.foco == null ? null : Number(a.foco);
       if(!isFinite(de) || !isFinite(ate) || ate <= de){ fora(tipo, 'intervalo inválido'); continue; }
       if(!isFinite(zoom) || zoom < 1 || zoom > 1.6){ fora(tipo, 'zoom fora da faixa de 1 a 1,6'); continue; }
-      reframes.push({ de, ate, zoom });
+      if(foco !== null && (!isFinite(foco) || foco < 0 || foco > 1)){ fora(tipo, 'foco fora da faixa de 0 a 1'); continue; }
+      reframes.push({ de, ate, zoom, foco });
     }
   }
 
@@ -272,7 +291,11 @@ function vdValidarPlano(plano){
   for(const r of reframes){
     let bateu = false;
     for(const s of segmentos){
-      if(r.de < s.ate - VD_TOL && r.ate > s.de + VD_TOL){ s.zoom = r.zoom; bateu = true; }
+      if(r.de < s.ate - VD_TOL && r.ate > s.de + VD_TOL){
+        s.zoom = r.zoom;
+        if(r.foco !== null) s.foco = r.foco;
+        bateu = true;
+      }
     }
     if(!bateu) fora('reframe', 'intervalo ' + vdFmtTempo(r.de) + '–' + vdFmtTempo(r.ate) + ' não cai em nenhum trecho mantido');
   }

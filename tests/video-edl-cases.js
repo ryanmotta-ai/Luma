@@ -262,6 +262,92 @@
     assert(vdPlanoCorteSilencio({ok:false,erro:'x'})===null,'devolveu plano a partir de medição falha');
   });
 
+  /* ── ENQUADRAMENTO (js/video/compositor.js, função pura) ──
+     O caso que decide o produto: vídeo gravado na horizontal virando Reels. O corte
+     joga fora 60% da largura, e centralizar às cegas corta o produto quando ele não
+     está no meio do quadro. */
+
+  test('mesma proporção não corta nada',()=>{
+    const q=vdEnquadrar(1080,1920,1080,1920,1,0.5);
+    assert(q.eixo===null,'inventou corte onde a proporção bate');
+    assert(perto(q.dx,0)&&perto(q.dy,0),'deslocou um frame que cabia inteiro');
+    assert(perto(q.dw,1080)&&perto(q.dh,1920),'redimensionou o que já servia');
+  });
+
+  test('horizontal em 9:16 corta as laterais, nunca distorce',()=>{
+    const q=vdEnquadrar(1920,1080,1080,1920,1,0.5);
+    assert(q.eixo==='x','o corte deveria ser nas laterais');
+    assert(perto(q.dh,1920,1),'a altura deveria preencher a saída');
+    assert(q.dw>1080,'a largura deveria estourar (é o que vira corte)');
+    assert(perto(q.dw/q.dh, 1920/1080, 0.001),'a proporção da fonte foi distorcida');
+  });
+
+  test('foco escolhe o lado que sobrevive',()=>{
+    const esq=vdEnquadrar(1920,1080,1080,1920,1,0);
+    const cen=vdEnquadrar(1920,1080,1080,1920,1,0.5);
+    const dir=vdEnquadrar(1920,1080,1080,1920,1,1);
+    assert(perto(esq.dx,0),'foco 0 deveria alinhar a borda esquerda da fonte');
+    assert(perto(dir.dx,1080-dir.dw),'foco 1 deveria alinhar a borda direita');
+    assert(cen.dx<esq.dx&&cen.dx>dir.dx,'o centro deveria ficar entre os dois');
+  });
+
+  test('foco 0,5 é idêntico ao comportamento sem foco',()=>{
+    const a=vdEnquadrar(1920,1080,1080,1920,1,0.5);
+    const b=vdEnquadrar(1920,1080,1080,1920,1,null);
+    assert(perto(a.dx,b.dx)&&perto(a.dy,b.dy),'ausência de foco mudou o enquadramento antigo');
+  });
+
+  test('vertical em 16:9 corta em cima e embaixo',()=>{
+    const q=vdEnquadrar(1080,1920,1920,1080,1,0);
+    assert(q.eixo==='y','o corte deveria ser vertical');
+    assert(perto(q.dy,0),'foco 0 deveria alinhar o topo');
+    assert(vdEnquadrar(1080,1920,1920,1080,1,1).dy<q.dy,'foco 1 deveria descer o quadro');
+  });
+
+  test('zoom aproxima sem quebrar a proporção e cria corte nos dois casos',()=>{
+    const sem=vdEnquadrar(1080,1920,1080,1920,1,0.5);
+    const com=vdEnquadrar(1080,1920,1080,1920,1.4,0.5);
+    assert(perto(com.dw/sem.dw,1.4,0.01),'o zoom não escalou como pedido');
+    assert(perto(com.dw/com.dh, 1080/1920, 0.001),'o zoom distorceu a fonte');
+    assert(com.eixo!==null,'com zoom há sobra: deveria haver eixo de corte');
+  });
+
+  test('foco fora da faixa é contido, não explode',()=>{
+    const a=vdEnquadrar(1920,1080,1080,1920,1,-5);
+    const b=vdEnquadrar(1920,1080,1080,1920,1,99);
+    assert(perto(a.dx,0),'foco negativo passou do limite');
+    assert(perto(b.dx,1080-b.dw),'foco acima de 1 passou do limite');
+  });
+
+  test('reframe da IA pode pedir só o foco, sem zoom',()=>{
+    novo(20);
+    const r=vdValidarPlano({acoes:[
+      {tipo:'segmentos',manter:[{de:0,ate:10}],motivo:'mantém a abertura'},
+      {tipo:'reframe',de:1,ate:9,foco:0.2,motivo:'o produto está à esquerda do quadro'}
+    ]});
+    assert(r.ok,'recusou um reframe só de foco: '+JSON.stringify(r.descartes));
+    assert(perto(r.segmentos[0].foco,0.2),'o foco pedido não chegou ao segmento');
+    assert(perto(r.segmentos[0].zoom,1),'inventou zoom onde a IA não pediu');
+  });
+
+  test('foco inválido no plano da IA é descartado com motivo',()=>{
+    novo(20);
+    const r=vdValidarPlano({acoes:[
+      {tipo:'segmentos',manter:[{de:0,ate:10}],motivo:'mantém a abertura'},
+      {tipo:'reframe',de:1,ate:9,foco:7,motivo:'foco absurdo'}
+    ]});
+    assert(r.ok,'o corte válido deveria sobreviver');
+    assert(r.descartes.some(d=>/foco fora da faixa/.test(d.porque)),'aceitou foco fora da faixa');
+  });
+
+  test('foco no segmento é edição desfazível e não repete snapshot',()=>{
+    novo(20);
+    const id=vdSegs()[0].id;
+    assert(vdFocoSeg(id,0.2),'não aplicou o foco');
+    assert(!vdFocoSeg(id,0.2),'foco igual deveria ser no-op');
+    assert(vdDesfazer()&&vdSegs()[0].foco==null,'desfazer não removeu o foco');
+  });
+
   let passed=0; const falhas=[];
   for(const item of cases){
     const li=document.createElement('li'); li.className='case';

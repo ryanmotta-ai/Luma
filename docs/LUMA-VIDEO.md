@@ -20,7 +20,8 @@
 | View, entrada de arquivo, inspetor contextual, exportação | `js/video/video.js` | idem |
 | Módulo ligado ao app (aba, view, flag, lazy init) | `index.html`, `js/main.js`, `js/core/feature-flags.js`, `css/modules/video.css` | nasce **desligado** (`module.video`) |
 | Motor de regras: **corte automático de silêncio** (sem IA) | `js/video/ingest.js` | pausa real achada no áudio da bancada |
-| Bancada do portão F0 | `tests/_video-bancada.html` | 13/13 no Chromium de teste |
+| Formato de saída (9:16 · 1:1 · 16:9) + **enquadramento com foco** | `js/video/compositor.js` | lado do corte medido em pixel na bancada |
+| Bancada do portão F0 | `tests/_video-bancada.html` | 15/15 no Chromium de teste |
 
 **Ainda não existe:** IA de verdade (fases 4b e 6), transcrição, legenda, assets da DM (fase 5), SFX, agente visual. Nenhuma mudança no Supabase — nem migration, nem deploy.
 
@@ -46,6 +47,14 @@ Medido na bancada com áudio de verdade (tom, 2s de silêncio, tom): achou a pau
 4. **Custo real de exportação:** 4,3s para 4,0s de edição (≈1,08× a duração), 233KB para 4s em 1080×1920. Confirma o teto de 90s da saída.
 
 **O que ainda NÃO foi medido:** Chrome e Safari **reais** (com H.264) e iPhone. O Chromium de teste não tem codec proprietário, então a pergunta "sai mp4 que o Instagram aceita?" segue aberta — é o único item do portão F0 que exige uma máquina de verdade. Rode `tests/_video-bancada.html` no navegador do time e leia a matriz.
+
+### Enquadramento: o caso que decide o produto
+
+O franqueado filma na horizontal e o Reels é vertical. O corte para 9:16 joga fora ~60% da largura, e **centralizar às cegas corta o produto** quando ele não está no meio do quadro. Por isso o segmento tem `foco` (0 a 1) além do `zoom`: um número só, porque o cover-crop só estoura **um** eixo — o mesmo controle serve para escolher esquerda/direita (fonte horizontal em 9:16) e topo/base (fonte vertical em 16:9). `foco` ausente ou 0,5 é exatamente o comportamento anterior, então nada regrediu.
+
+O controle **só aparece quando o formato realmente corta** — controle sem efeito visível ensina o usuário a desconfiar da ferramenta. O rótulo é PT-BR sem jargão ("esquerda", "centro", "direita"), não "foco 0,15".
+
+O `reframe` do EditPlan já aceita `foco` opcional: a IA vai poder pedir só o pan ("o produto está à esquerda do quadro") sem aproximar. Validado na faixa 0–1, descartado com motivo fora dela.
 
 ### Como rodar
 
@@ -423,6 +432,7 @@ Ver §11. Só depois de o resultado ser bom — animação em cima de edição r
 | Envelope de silêncio (RMS) | 🟡 | WebAudio; se `decodeAudioData` engasgar com MOV, cai no `AnalyserNode` durante o ingest |
 | Transcrição | 🟡 | Gemini + 2 linhas na function |
 | Corte de silêncio (feito) | 🟡 | ✅ pronto: WebAudio, limiar adaptativo, zero IA |
+| Enquadramento 9:16 com foco (feito) | 🟡 | ✅ pronto: cover + zoom + foco, função pura testada |
 | Legenda no template da DM | 🟡 | reuso de `fRenderTemplateLayers`; word-by-word animado sobe para 🟠 |
 | EDL + validador | 🟢 | lógica pura, testável |
 | Timeline (trilhas, arrastar, undo) | 🟠 | é UI de precisão; o Estúdio dá o padrão, não o código |
