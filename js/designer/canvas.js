@@ -11,7 +11,7 @@
    inteira para o sync. 8MB cobre foto de celular com folga. */
 const _DIMG_MAX_MB = 8;
 
-function dSetFormat(fmt,btn){
+async function dSetFormat(fmt,btn){
   const prevFmt=dFmt;
   // Captura o tamanho ATUAL (antes de trocar fmt/dCustomFmt) — é a origem do smart-resize.
   // Tem que vir antes, senão dGetActiveAB já reescreve ab.w/h pro tamanho novo e from===to.
@@ -27,11 +27,12 @@ function dSetFormat(fmt,btn){
   if(ab){ab.fmt=fmt;ab.w=to.w;ab.h=to.h;}
   // 5.2 — Smart resize: oferece adaptar os elementos ao novo formato (re-ancora sem distorcer)
   if((from.w!==to.w||from.h!==to.h)&&dLayers.length>1&&typeof gReflowLayers==='function'){
-    if(confirm('Adaptar os elementos ao novo formato? (smart resize — posições e tamanhos re-ancoram sem distorcer)')){
+    if(await gConfirm('Posições e tamanhos re-ancoram no novo formato, sem distorcer (smart resize).',
+      {title:'Adaptar os elementos?',okLabel:'Adaptar',cancelLabel:'Manter como está'})){
       dHistoryPush();
       dLayers=gReflowLayers(dLayers,from,to,{fmtKey:gFmtKey(fmt)});
       if(typeof dSyncLayersToAB==='function')dSyncLayersToAB();
-      gToast('✓ Elementos adaptados para '+fmt.toUpperCase()+' — ajuste o que precisar');
+      gToast('Elementos adaptados para '+fmt.toUpperCase()+' — ajuste o que precisar');
     }
   }
   dApplyFormat();dRenderCanvas();dRenderLayersList();dMarkUnsaved();
@@ -183,23 +184,84 @@ function _dSyncAllPositions(){
   }
 }
 function _dSizeWorkspace(){ _dSyncAllPositions(); }
+
+/* ══ HERANÇA DE GRUPO NO CANVAS DO ESTÚDIO ══
+   O espelho do `_fRenderGroup` (`png-generator.js`). Desde a importação de PSD com grupos, o
+   marcador `type:'group'` carrega opacidade e máscara da composição — e o PNG do franqueado as
+   aplica. Aqui o DOM desenha camada a camada em coordenadas ABSOLUTAS (o drag e o hit-test
+   dependem disso), então o grupo NÃO vira wrapper: a herança é carimbada em cada filho.
+   ⚠ Sem isto o Estúdio mostrava os filhos a 100% e sem recorte enquanto o PNG saía composto —
+   prévia mentindo sobre o arquivo final, que é o defeito que este projeto mais evita.
+   É a mesma aproximação que o importador fazia antes dos grupos existirem: exata para máscara,
+   e para opacidade sempre que os filhos do grupo não se sobrepõem. Resolve por ID a cada render
+   porque undo/simulação trocam os objetos de `dLayers` por clones. */
+function _dGrupoHeranca(l, layers){
+  if(!l || !l.parentId || !Array.isArray(layers)) return null;
+  let op=1; const masks=[]; let paiId=l.parentId, guarda=0;
+  while(paiId && guarda++ < 16){
+    const g=layers.find(x=>x && x.id===paiId && x.type==='group');
+    if(!g) break;
+    if(g.visible===false) return {oculto:true};   // o PNG não desenha filho de grupo oculto
+    if(g.opacity!=null) op*=g.opacity/100;
+    if(g.mask) masks.push(g);
+    paiId=g.parentId;
+  }
+  return (op===1 && !masks.length) ? null : {opacity:op, masks:masks};
+}
+function _dAplicaHerancaGrupo(el, l, her){
+  if(!her || her.oculto) return;
+  if(her.opacity!==1){
+    const atual=parseFloat(el.style.opacity);
+    el.style.opacity=String((isFinite(atual)?atual:1)*her.opacity);
+  }
+  if(!her.masks.length) return;
+  /* A máscara do pai vive nas coordenadas da PRANCHETA e a do filho na caixa dele — por isso
+     cada camada de máscara entra com size/position próprios. `intersect` empilha as alfas, que é
+     a mesma conta do `destination-in` encadeado do gerador de PNG. */
+  const imgs=[], sizes=[], poss=[];
+  // Lê a máscara PRÓPRIA do elemento (quem a aplicou foi o render, cada um do seu jeito) em vez
+  // de remontá-la de `l.mask` — assim o helper não inventa recorte onde o render não pôs.
+  const _jaTem=el.style.maskImage||el.style.webkitMaskImage;
+  if(_jaTem){ imgs.push(_jaTem); sizes.push(el.style.maskSize||'100% 100%'); poss.push(el.style.maskPosition||'0 0'); }
+  her.masks.forEach(g=>{
+    imgs.push('url("'+g.mask+'")');
+    sizes.push((g.w||0)+'px '+(g.h||0)+'px');
+    poss.push(((g.x||0)-(l.x||0))+'px '+((g.y||0)-(l.y||0))+'px');
+  });
+  el.style.webkitMaskImage=el.style.maskImage=imgs.join(',');
+  el.style.webkitMaskSize=el.style.maskSize=sizes.join(',');
+  el.style.webkitMaskPosition=el.style.maskPosition=poss.join(',');
+  el.style.webkitMaskRepeat=el.style.maskRepeat='no-repeat';
+  el.style.webkitMaskComposite='source-in';
+  el.style.maskComposite='intersect';
+}
+
 function _dRenderPreview(frame,ab){
   frame.innerHTML='';
   const bg=ab&&ab.bg;
   frame.style.background=(bg&&bg!=='transparent')?(bg==='white'?'#ffffff':bg):'';
   const layers=ab.layers||[];
   layers.filter(l=>l.visible!==false&&l.type!=='group').forEach(l=>{
+    const _her=_dGrupoHeranca(l,layers);
+    if(_her&&_her.oculto)return;
     const el=document.createElement('div');
     el.style.cssText='position:absolute;left:'+l.x+'px;top:'+l.y+'px;width:'+l.w+'px;height:'+l.h+'px;overflow:hidden;';
     el.style.opacity=(typeof l.opacity==='number'?l.opacity:100)/100;
+    _dAplicaHerancaGrupo(el,l,_her);
     if(l.blendMode)el.style.mixBlendMode=l.blendMode.replace(/([A-Z])/g,c=>'-'+c.toLowerCase());
     if(l.type==='shape'){
       const kind=l.shapeKind||'rect';
-      el.style.background=(typeof dFxShapeBg==='function')?dFxShapeBg(l):(l.fill||'#FF9000');
-      if(kind==='circle'||kind==='ellipse'){el.style.borderRadius='50%';}
-      else{ const _cr=(typeof dCornerRadii==='function')?dCornerRadii(l):{tl:l.radius||0,tr:l.radius||0,br:l.radius||0,bl:l.radius||0}; el.style.borderRadius=_cr.tl+'px '+_cr.tr+'px '+_cr.br+'px '+_cr.bl+'px'; }
-      const _bs=(typeof dFxStrokeParts==='function')?dFxStrokeParts(l).concat(dFxShadowParts(l)):[];
-      if(_bs.length) el.style.boxShadow=_bs.join(', ');
+      const vd=(kind==='path'&&typeof gVectorPathD==='function')?gVectorPathD(l.vectorPath,0,0,l.w,l.h):'';
+      if(vd){
+        const rule=gVectorPathFillRule(l.vectorPath), st=l.strokeW>0?' stroke="'+(l.strokeColor||'#000')+'" stroke-width="'+l.strokeW+'"':'';
+        el.innerHTML='<svg width="100%" height="100%" viewBox="0 0 '+l.w+' '+l.h+'" preserveAspectRatio="none"><path d="'+vd+'" fill="'+(l.fill||'#FF9000')+'" fill-rule="'+rule+'"'+st+'/></svg>';
+      }else{
+        el.style.background=(typeof dFxShapeBg==='function')?dFxShapeBg(l):(l.fill||'#FF9000');
+        if(kind==='circle'||kind==='ellipse'){el.style.borderRadius='50%';}
+        else{ const _cr=(typeof dCornerRadii==='function')?dCornerRadii(l):{tl:l.radius||0,tr:l.radius||0,br:l.radius||0,bl:l.radius||0}; el.style.borderRadius=_cr.tl+'px '+_cr.tr+'px '+_cr.br+'px '+_cr.bl+'px'; }
+        const _bs=(typeof dFxStrokeParts==='function')?dFxStrokeParts(l).concat(dFxShadowParts(l)):[];
+        if(_bs.length) el.style.boxShadow=_bs.join(', ');
+      }
     } else if(l.type==='text'){
       el.style.color=l.color||'#fff';
       el.style.fontSize=(l.fontSize||24)+'px';
@@ -522,9 +584,16 @@ function dAttachMarquee(){
      em cima de uma camada o duplo clique já tem dono (recortar imagem / editar texto) e
      com forma/texto ativos ele faz parte do desenho. */
   frame.addEventListener('dblclick',e=>{
-    if(e.target!==frame)return;                                  // clicou numa camada
     if(typeof dTool!=='undefined' && dTool!=='select')return;     // desenhando: não roubar o gesto
     if(typeof dPickImageFile!=='function')return;
+    // ⚠ O `e.target` MENTE aqui: dSelLayer re-renderiza a cada mousedown, então o nó da camada
+    // clicada é trocado no meio do gesto e o navegador dispara o dblclick no ancestral comum —
+    // o próprio frame. Com o guard antigo (`e.target!==frame`), duplo clique em cima de um TEXTO
+    // abria a edição inline E o seletor de arquivo por cima (bug real 19/08). Quem manda é o
+    // hit-test no ponto do clique, que enxerga o DOM de agora: camada, textarea da edição inline
+    // ou overlay de crop → o gesto já tem dono e o seletor não entra.
+    const alvo=document.elementFromPoint(e.clientX,e.clientY);
+    if(alvo&&alvo!==frame)return;
     const p=dPontoNoCanvas(e);
     dPickImageFile(p?p.x:undefined, p?p.y:undefined);
   });
@@ -799,7 +868,7 @@ function _dAdvSelFromEvent(e){
     }else if(!e.shiftKey&&!e.altKey){
       dSelId=null;dMultiSel=[];
       dRenderCanvas();dRenderLayersList();
-      gToast('⚠ Nenhuma camada correspondente');
+      gToast('Nenhuma camada correspondente');
     }
   }
 }
@@ -821,7 +890,7 @@ function dABToolAttach(){
 function dABWorkspaceDown(e){
   if(dTool!=='artboard')return;
   if(typeof dUseArtboards !== 'undefined' && !dUseArtboards){
-    gToast('⚠ Não é permitido adicionar pranchetas no modo de Documento Único. Ative "Usar Pranchetas" ao criar o arquivo.', 'error');
+    gToast('Não é permitido adicionar pranchetas no modo de Documento Único. Ative "Usar Pranchetas" ao criar o arquivo.', 'error');
     dSetTool('select');
     return;
   }
@@ -895,7 +964,7 @@ function dABDrawUp(e){
     dSelId=null;dMultiSel=[];
     dHistoryReset();
     dRenderWorkspace();dApplyFormat();dRenderCanvas();dRenderLayersList();dRenderABList();
-    gToast('✓ Prancheta '+fw+'×'+fh+' criada');
+    gToast('Prancheta '+fw+'×'+fh+' criada');
   }
   dSetTool('select');
 }
@@ -930,12 +999,17 @@ function dApplyBg(ab){
    Compartilhado pelo render do canvas e pelo thumbnail. Sem efeito → []. */
 function dFxShadowParts(l){
   const parts=[];
+  const stack=Array.isArray(l.layerEffects)?l.layerEffects:[],of=t=>stack.filter(e=>e&&e.type===t);
   // sp(): "propagação" do PS = 4ª medida do box-shadow (spread). Nativo aqui, custo zero.
   const sp=v=>v?' '+v+'px':'';
-  if(l.shadow){ const o=gFxOffset(l.shadowDist!=null?l.shadowDist:4, l.shadowAngle); const b=l.shadowBlur!=null?l.shadowBlur:6;
+  const drops=of('dropShadow');
+  if(drops.length)drops.forEach(e=>{const o=gFxOffset(e.distance!=null?e.distance:4,e.angle),b=e.blur!=null?e.blur:6;parts.push(o.x+'px '+o.y+'px '+b+'px'+sp(e.spread)+' '+(e.color||'rgba(0,0,0,.5)'));});
+  else if(l.shadow){ const o=gFxOffset(l.shadowDist!=null?l.shadowDist:4, l.shadowAngle); const b=l.shadowBlur!=null?l.shadowBlur:6;
     parts.push(o.x+'px '+o.y+'px '+b+'px'+sp(l.shadowSpread)+' '+(l.shadowColor||'rgba(0,0,0,.5)')); }
   if(l.glow){ parts.push('0 0 '+(l.glowSize!=null?l.glowSize:8)+'px'+sp(l.glowSpread)+' '+(l.glowColor||'rgba(255,255,255,.7)')); }
-  if(l.innerShadow){ const o=gFxOffset(l.innerShadowDist!=null?l.innerShadowDist:4, l.innerShadowAngle); const b=l.innerShadowBlur!=null?l.innerShadowBlur:6;
+  const inners=of('innerShadow');
+  if(inners.length)inners.forEach(e=>{const o=gFxOffset(e.distance!=null?e.distance:4,e.angle),b=e.blur!=null?e.blur:6;parts.push('inset '+o.x+'px '+o.y+'px '+b+'px'+sp(e.spread)+' '+(e.color||'rgba(0,0,0,.5)'));});
+  else if(l.innerShadow){ const o=gFxOffset(l.innerShadowDist!=null?l.innerShadowDist:4, l.innerShadowAngle); const b=l.innerShadowBlur!=null?l.innerShadowBlur:6;
     parts.push('inset '+o.x+'px '+o.y+'px '+b+'px'+sp(l.innerShadowSpread)+' '+(l.innerShadowColor||'rgba(0,0,0,.5)')); }
   if(l.innerGlow){ parts.push('inset 0 0 '+(l.innerGlowSize!=null?l.innerGlowSize:8)+'px '+(l.innerGlowColor||'rgba(255,255,255,.7)')); }
   if(l.bevel){ const o=gFxOffset(l.bevelSize!=null?l.bevelSize:4, l.bevelAngle), b=l.bevelSize!=null?l.bevelSize:4; // realce (luz) + sombra opostos, internos
@@ -955,7 +1029,11 @@ function dDashOutlineSvg(l){
   const common=`fill="none" stroke="${col}" stroke-width="${sw}" stroke-dasharray="${da}"${cap}${join}`;
   const kind=l.shapeKind||'rect';
   let shape;
-  if(kind==='circle'||kind==='ellipse'){
+  const vd=(kind==='path'&&typeof gVectorPathD==='function')?gVectorPathD(l.vectorPath,0,0,w,h):'';
+  if(vd){
+    const rule=typeof gVectorPathFillRule==='function'?gVectorPathFillRule(l.vectorPath):'nonzero';
+    shape=`<path d="${vd}" fill-rule="${rule}" clip-rule="${rule}" ${common}/>`;
+  } else if(kind==='circle'||kind==='ellipse'){
     // inset de meia-espessura → traço fica DENTRO da caixa (não some metade na borda)
     shape=`<ellipse cx="${w/2}" cy="${h/2}" rx="${Math.max(0,w/2-half)}" ry="${Math.max(0,h/2-half)}" ${common}/>`;
   } else if(l.radii && typeof _dSvgRoundRectPath==='function'){
@@ -971,6 +1049,8 @@ function dDashOutlineSvg(l){
 }
 // Traçado de shape como box-shadow, respeitando o alinhamento (inside/center/outside).
 function dFxStrokeParts(l){
+  const stack=Array.isArray(l.layerEffects)?l.layerEffects.filter(e=>e&&e.type==='stroke'):[];
+  if(stack.length)return stack.map(e=>{const w=e.width||1,c=gFxRgba(e.color||'#000000',e.opacity!=null?e.opacity:1),a=e.align||'inside';if(a==='outside')return '0 0 0 '+w+'px '+c;if(a==='center')return '0 0 0 '+(w/2)+'px '+c+', inset 0 0 0 '+(w/2)+'px '+c;return 'inset 0 0 0 '+w+'px '+c;});
   if(!(l.strokeW>0) || l.strokeDash) return []; // dash é desenhado via SVG (dDashOutlineSvg)
   const w=l.strokeW, c=l.strokeColor||'#000', a=l.strokeAlign||'inside';
   if(a==='outside') return ['0 0 0 '+w+'px '+c];
@@ -981,13 +1061,17 @@ function dFxStrokeParts(l){
 function dFxShapeBg(l){
   const base = (l.gradient && l.gradient.stops && l.gradient.stops.length) ? gGradientCss(l.gradient) : (l.fill||'#FF9000');
   const layers=[];
-  if(l.gradientOverlay && l.gradientOverlay.stops && l.gradientOverlay.stops.length){ // gradient overlay (efeito)
+  const stack=Array.isArray(l.layerEffects)?l.layerEffects:[],gos=stack.filter(e=>e&&e.type==='gradientOverlay'),cos=stack.filter(e=>e&&e.type==='colorOverlay');
+  if(gos.length)gos.forEach(e=>{const g=e.gradient?JSON.parse(JSON.stringify(e.gradient)):null;if(!g||!g.stops||!g.stops.length)return;if(g.opacity!=null&&g.opacity<1)g.stops=g.stops.map(s=>({color:s.color,pos:s.pos,opacity:(s.opacity!=null?s.opacity:1)*g.opacity}));layers.push(gGradientCss(g));});
+  else if(l.gradientOverlay && l.gradientOverlay.stops && l.gradientOverlay.stops.length){ // gradient overlay (efeito)
     const g=Object.assign({}, l.gradientOverlay);
     if(g.opacity!=null && g.opacity<1) g.stops=g.stops.map(s=>({color:s.color,pos:s.pos,opacity:(s.opacity!=null?s.opacity:1)*g.opacity}));
     layers.push(gGradientCss(g));
   }
-  if(l.overlay && l.overlayColor){ const o=gFxRgba(l.overlayColor, l.overlayOpacity!=null?l.overlayOpacity:1); layers.push('linear-gradient('+o+','+o+')'); }
-  return layers.length? layers.join(',')+','+base : base;
+  if(cos.length)cos.forEach(e=>{const o=gFxRgba(e.color||'#000000',e.opacity!=null?e.opacity:1);layers.push('linear-gradient('+o+','+o+')');});
+  else if(l.overlay && l.overlayColor){ const o=gFxRgba(l.overlayColor, l.overlayOpacity!=null?l.overlayOpacity:1); layers.push('linear-gradient('+o+','+o+')'); }
+  // Canvas 2D pinta em sequência (último efeito no topo); CSS lista o topo primeiro.
+  return layers.length? layers.reverse().join(',')+','+base : base;
 }
 // Duplo clique manual em camada (ver comentário no listener de mousedown mais abaixo).
 let dLastClickLayerId=null, dLastClickTime=0;
@@ -995,6 +1079,7 @@ function dRenderCanvas(){
   const ab=typeof dGetActiveAB==='function'?dGetActiveAB():null;
   dApplyBg(ab);
   const frame=document.getElementById('d-canvas-frame');
+  const _adjustRenderId=frame._adjustRenderId=(frame._adjustRenderId||0)+1;
   // Detach paint canvas ANTES do innerHTML='' para preservar pixels sem toDataURL.
   // Canvas retém seu backing buffer enquanto a referência DOM existir — reinsere após render.
   const existingPaint=document.getElementById('d-paint-canvas');
@@ -1031,6 +1116,10 @@ function dRenderCanvas(){
     // cópia). Handlers que MUTAM estado precisam do original em dLayers — senão a
     // mudança (drag, foto, cor) é perdida no próximo render. Render usa 'l'; mutação usa 'lReal'.
     const lReal=dLayers.find(x=>x.id===l.id)||l;
+    // Grupo-pai oculto: o gerador de PNG não desenha o filho (o `_fRenderGroup` nem é chamado),
+    // então o Estúdio também não desenha — senão a prancheta mostra o que não vai sair.
+    const _her=_dGrupoHeranca(l,_renderLayers);
+    if(_her&&_her.oculto)return;
     const el=document.createElement('div');
     el.className='canvas-layer'+(l.id===dSelId?' selected':'')+(l.locked?' layer-locked':'')+(dMultiSel.includes(l.id)?' multi-sel':'');
     el.dataset.id=l.id;
@@ -1044,6 +1133,29 @@ function dRenderCanvas(){
       const _css=(typeof DBLEND_TO_CSS!=='undefined')?DBLEND_TO_CSS[l.blendMode]:null;
       el.style.mixBlendMode=_css||l.blendMode.replace(/([A-Z])/g,c=>'-'+c.toLowerCase());
     }
+    if(l.type==='adjustment'){
+      // Uma camada de ajuste cobre a COMPOSIÇÃO abaixo, não uma caixa DOM isolada. Inserimos no
+      // z-order um canvas cumulativo produzido pelo mesmo motor do PNG; o designer enxerga Curves,
+      // Levels, máscaras e grupos sem achatar as camadas que continuam editáveis por baixo.
+      el.className='canvas-layer canvas-adjustment-layer';
+      el.style.cssText=`left:0;top:0;width:${f.w}px;height:${f.h}px;position:absolute;pointer-events:none;opacity:1;mix-blend-mode:normal;`;
+      const ac=document.createElement('canvas');ac.width=f.w;ac.height=f.h;ac.style.cssText='width:100%;height:100%;display:block;pointer-events:none;';el.appendChild(ac);frame.appendChild(el);
+      const li=_renderLayers.findIndex(x=>x.id===l.id), prefix=_renderLayers.slice(0,li+1);
+      // Marcadores de grupo ficam depois dos filhos no modelo. Se o ajuste está dentro de um
+      // grupo ainda aberto, inclui só os ancestrais necessários para o renderer respeitar seu
+      // escopo/máscara, sem puxar as camadas visuais que ainda estão acima do ajuste.
+      const need=new Set(prefix.map(x=>x.parentId).filter(Boolean));
+      let grew=true;while(grew){grew=false;_renderLayers.filter(x=>x.type==='group'&&need.has(x.id)&&x.parentId&&!need.has(x.parentId)).forEach(x=>{need.add(x.parentId);grew=true;});}
+      const cumul=prefix.concat(_renderLayers.filter(x=>x.type==='group'&&need.has(x.id)&&!prefix.some(p=>p.id===x.id)));
+      const bg=(ab&&ab.bg&&ab.bg!=='transparent')?ab.bg:'rgba(0,0,0,0)';
+      Promise.resolve().then(async()=>{
+        if(frame._adjustRenderId!==_adjustRenderId||!ac.isConnected)return;
+        try{await fRenderTemplateLayers(ac.getContext('2d'),cumul,f.w,f.h,dSimActive?dSimValues:{},{color:'rgba(0,0,0,0)'},{layers:cumul,w:f.w,h:f.h,fmt:'orig',bg},{scope:'designer',purpose:'preview'});}
+        catch(e){console.warn('[designer] falha na prévia do ajuste:',e);}
+        if(frame._adjustRenderId!==_adjustRenderId&&ac.parentNode)ac.parentNode.remove();
+      });
+      return;
+    }
     // M2.1 — hover no canvas destaca a linha na lista de layers (e vice-versa)
     if(typeof dHoverLayer==='function'){
       el.addEventListener('mouseenter',()=>dHoverLayer(l.id,true));
@@ -1053,7 +1165,20 @@ function dRenderCanvas(){
       el.style.opacity=(l.opacity!=null?l.opacity:100)/100; // opacity:0 é válido (||100 transformava 0 em 100)
       const kind=l.shapeKind||'rect';
       const pts=(kind!=='circle'&&kind!=='ellipse'&&typeof dShapePoints==='function')?dShapePoints(l):null;
-      if(pts){
+      const vectorD=(kind==='path'&&typeof gVectorPathD==='function')?gVectorPathD(l.vectorPath,0,0,l.w,l.h):'';
+      if(vectorD){
+        // SVG usa a mesma geometria normalizada do PNG/SVG exportado. Assim o path continua
+        // nítido durante resize e a prévia não volta a ser o retângulo heurístico antigo.
+        const inner=document.createElement('div'); inner.style.cssText='position:absolute;inset:0;';
+        const local=Object.assign({},l,{x:0,y:0,opacity:100});
+        let frag=(typeof dSvgShape==='function')?dSvgShape(local):'<path d="'+vectorD+'" fill="'+(l.fill||'#FF9000')+'" fill-rule="'+gVectorPathFillRule(l.vectorPath)+'"/>';
+        if(typeof dSvgFx==='function'&&(l.shadow||l.glow||l.innerShadow||l.innerGlow||l.bevel)){
+          const key='cv'+String(l.id||'x').replace(/[^a-z0-9]/gi,''); const fx=dSvgFx(local,key);
+          if(fx.attr)frag='<defs>'+fx.defs+'</defs><g'+fx.attr+'>'+frag+'</g>';
+        }
+        inner.innerHTML='<svg width="100%" height="100%" viewBox="0 0 '+l.w+' '+l.h+'" preserveAspectRatio="none" style="display:block;overflow:visible">'+frag+'</svg>';
+        el.appendChild(inner);
+      } else if(pts){
         // SVG path inline → suporta CANTOS ARREDONDADOS (clip-path:polygon não arredonda).
         // Fica num inner pra não clipar os handles de seleção (que ficam em el).
         const inner=document.createElement('div');
@@ -1217,7 +1342,11 @@ function dRenderCanvas(){
       let dashSvg = '';
       
       const pts = (kind !== 'circle' && kind !== 'ellipse' && typeof dShapePoints === 'function') ? dShapePoints(l) : null;
-      if (pts) {
+      const vectorD=(kind==='path'&&typeof gVectorPathD==='function')?gVectorPathD(l.vectorPath,0,0,l.w,l.h):'';
+      if(vectorD){
+        clipCss = `clip-path: path('${vectorD}'); -webkit-clip-path: path('${vectorD}');`;
+        dashSvg = `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 ${l.w} ${l.h}" preserveAspectRatio="none"><path d="${vectorD}" fill="none" stroke="rgba(255,144,0,.6)" stroke-width="2" stroke-dasharray="4,4" vector-effect="non-scaling-stroke"/></svg>`;
+      } else if (pts) {
         const abs = pts.map(p => [p[0] * l.w, p[1] * l.h]);
         const d = (typeof gRoundPolyD === 'function') ? gRoundPolyD(abs, l.radius || 0) : '';
         clipCss = `clip-path: path('${d}'); -webkit-clip-path: path('${d}');`;
@@ -1305,7 +1434,7 @@ function dRenderCanvas(){
           // Teto de tamanho como fonte e PSD já fazem: base64 de uma foto de 12MP vira ~30MB
           // no template e vai inteiro para o sync. O Estúdio era o único caminho sem guarda.
           if(file.size > _DIMG_MAX_MB*1024*1024){
-            gToast('⚠ Imagem muito grande ('+Math.round(file.size/(1024*1024))+'MB) — o limite é '+_DIMG_MAX_MB+'MB. Comprima antes de subir.','error');
+            gToast('Imagem muito grande ('+Math.round(file.size/(1024*1024))+'MB) — o limite é '+_DIMG_MAX_MB+'MB. Comprima antes de subir.','error');
             return;
           }
           const r=new FileReader();
@@ -1313,7 +1442,7 @@ function dRenderCanvas(){
             // dHistoryPush ANTES de mutar: o histórico guarda o estado anterior. Sem isto,
             // trocar a foto da moldura não tinha Ctrl+Z (achado na revisão pró-1.0).
             if(typeof dHistoryPush==='function') dHistoryPush();
-            lReal.imgUrl=re.result;dRenderCanvas();dMarkUnsaved();gToast('✓ Foto aplicada na moldura!');
+            lReal.imgUrl=re.result;dRenderCanvas();dMarkUnsaved();gToast('Foto aplicada na moldura!');
           };
           r.readAsDataURL(file);
         };
@@ -1384,7 +1513,7 @@ function dRenderCanvas(){
         if(_isDbl){
           // Cadeado vale para o duplo clique também: o arrasto já avisa "camada bloqueada", e
           // abrir a edição inline por cima do cadeado deixava o bloqueio pela metade.
-          if(l.locked){ e.stopPropagation(); gToast('⚠ Camada bloqueada — desbloqueie no cadeado da lista de camadas'); return; }
+          if(l.locked){ e.stopPropagation(); gToast('Camada bloqueada — desbloqueie no cadeado da lista de camadas'); return; }
           if(l.type==='text'){ e.stopPropagation(); dStartInlineEdit(lReal,el); return; }
           if((l.type==='image'||l.type==='frame') && typeof dStartCrop==='function'){ e.stopPropagation(); dStartCrop(lReal); return; }
         }
@@ -1440,7 +1569,7 @@ function dRenderCanvas(){
         if(!l.locked){
           dPendingIsolate = (_inMulti && dMultiSel.length>1) ? l.id : null;
           dStartDrag(e,lReal);
-        } else gToast('⚠ Camada bloqueada — desbloqueie no cadeado da lista de camadas');
+        } else gToast('Camada bloqueada — desbloqueie no cadeado da lista de camadas');
       }
       // Carimbo: NÃO tratar aqui — o mousedown apenas deixa o evento morrer e o 'click'
       // do frame (que enxerga cliques sobre camadas, stamp é creationTool) chama dStampAt.
@@ -1460,6 +1589,9 @@ function dRenderCanvas(){
         if(typeof dStartCrop==='function') dStartCrop(lReal);
       });
     }
+    // Herança do grupo por ÚLTIMO: a opacidade própria da camada é definida em cada ramo de
+    // tipo acima, e aqui ela é multiplicada pela do(s) grupo(s) — não sobrescrita.
+    _dAplicaHerancaGrupo(el,l,_her);
     frame.appendChild(el);
   });
   // Recolocar paint canvas: se já existia com tamanho certo, reinserir a mesma referência
@@ -1898,13 +2030,10 @@ async function dSimRenderPreview(){
   // coletor de overflow que o render já expõe (`png-generator.js`). Agora o designer vê QUAL
   // campo estourou, não só que a arte ficou estranha.
   const sink=new Set(); window._fOverflowSink=sink;
-  // Este é o render do FRANQUEADO chamado de dentro do Estúdio. O layout vivo fica desligado
-  // aqui: o simulador serve para o designer ver se o texto cabe na arte que ele desenhou —
-  // com a acomodação ligada ele veria o conserto, não o problema. Restaurado no `finally`.
-  const _offAntes=(typeof gLayoutVivoOff!=='undefined')&&gLayoutVivoOff;
-  gLayoutVivoOff=true;
-  try{ok=await fRenderPreviewToCanvas(canvas,tmpl,{maxPx:1200,dados:JSON.parse(JSON.stringify(dSimDraftValues))});}catch(e){ok=false;}
-  finally{ window._fOverflowSink=null; gLayoutVivoOff=_offAntes; }
+  // Escopo explícito de autoria: o simulador mostra só a composição publicada. Não toca no
+  // estado/preferência do franqueado e não executa o Auto-layout.
+  try{ok=await fRenderPreviewToCanvas(canvas,tmpl,{maxPx:1200,dados:JSON.parse(JSON.stringify(dSimDraftValues)),scope:'designer'});}catch(e){ok=false;}
+  finally{ window._fOverflowSink=null; }
   if(seq!==dSimRenderSeq)return;
   dSimMarkOverflow(sink);
   if(ok===false){
@@ -2170,4 +2299,3 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
-

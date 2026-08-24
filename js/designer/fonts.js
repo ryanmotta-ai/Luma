@@ -33,7 +33,7 @@ function dFontsPersist(){
   catch(e){
     ok=false;
     if(e&&(e.name==='QuotaExceededError'||e.code===22))
-      gToast('⚠ Não foi possível salvar a fonte: armazenamento cheio.','error');
+      gToast('Não foi possível salvar a fonte: armazenamento cheio.','error');
   }
   if(typeof dPushFontsToBackend==='function') dPushFontsToBackend(); // sync Supabase (background, só designer)
   return ok;
@@ -135,11 +135,11 @@ function dFontUpload(input){
   const files=Array.from(input.files||[]);
   files.forEach(file=>{
     if(!/\.(ttf|otf|woff2?|woff)$/i.test(file.name) && !/font/i.test(file.type)){
-      gToast('⚠ Formato não suportado — use .ttf, .otf, .woff ou .woff2','error');
+      gToast('Formato não suportado — use .ttf, .otf, .woff ou .woff2','error');
       return;
     }
     if(file.size > 3*1024*1024){
-      gToast('⚠ Fonte muito grande (máx 3MB). Prefira .woff2.','error');
+      gToast('Fonte muito grande (máx 3MB). Prefira .woff2.','error');
       return;
     }
     const r=new FileReader();
@@ -158,11 +158,16 @@ function dFontUpload(input){
   });
   input.value='';
 }
-function dFontRemove(i){
+async function dFontRemove(i){
   const f=dCustomFonts[i]; if(!f) return;
-  if(!confirm(`Remover a fonte "${f.name}"? Textos que a usam voltam pra Roboto.`)) return;
+  const nome=f.name;
+  if(!await gConfirm('Textos que a usam voltam pra Roboto.',
+    {title:`Remover a fonte “${nome}”?`,okLabel:'Remover',cancelLabel:'Cancelar',danger:true})) return;
+  // Re-resolve pelo nome depois do await — o índice é posição num array que a sincronização
+  // de fontes reescreve; usar o velho removeria a fonte errada.
+  const idx=dCustomFonts.findIndex(x=>x&&x.name===nome); if(idx<0) return;
   if(f.remoteId && typeof dDeleteFontFromBackend==='function') dDeleteFontFromBackend(f.remoteId);
-  dCustomFonts.splice(i,1);
+  dCustomFonts.splice(idx,1);
   // Cumpre a promessa do confirm: desregistra do navegador e devolve as camadas
   // pra Roboto AGORA (antes nada mudava até o reload, e mudava sem aviso)
   try{ if(f._ff&&document.fonts) document.fonts.delete(f._ff); }catch(e){}

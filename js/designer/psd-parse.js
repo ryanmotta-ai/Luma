@@ -150,6 +150,18 @@ function _dPsdParagraphBox(node){
       const iy=Math.max(0, Math.min(box.y+box.h,gy1)-Math.max(box.y,gy0));
       const cover=(ix*iy)/gArea;             // 1.0 = contém todo o bbox de glifos
       if(cover<0.5) return -Infinity;        // caixa longe/torta dos glifos → descarta
+      /* Alguns PSDs clonados carregam um `boxBounds` VELHO compartilhado por várias layers
+         independentes (R$, inteiro, centavos, "POR"). Ele contém os glifos e por isso passava
+         no teste de cobertura, mas seu ponto de texto vive em outra parte da caixa: importar
+         essa origem empilhava todos os fragmentos no mesmo x/y. O Luma ainda não representa a
+         matriz interna do Photoshop; quando a âncora diverge demais, o bbox dos glifos é a única
+         geometria 1:1 segura. A tolerância usa o corpo efetivo e honra left/center/right. */
+      const st=_dPsdTextStyle(t), fs=Math.max(8,(+(st.fontSize||st.size)||12)*_dPsdFontScale(tr));
+      const align=_dPsdAlign(t).align;
+      const ancoraGlifo=align==='center'?(gx0+gx1)/2:align==='right'?gx1:gx0;
+      const ancoraBox=align==='center'?box.x+box.w/2:align==='right'?box.x+box.w:box.x;
+      if(Math.abs(ancoraGlifo-ancoraBox)>Math.max(8,fs*0.55))return -Infinity;
+      if(Math.abs(gy0-box.y)>Math.max(8,fs*1.25))return -Infinity;
       const dCorner=Math.abs(box.x-gx0)+Math.abs(box.y-gy0);
       return cover*1000 - dCorner*0.01 + (box.isTransformed ? 50 : 0);
     };
@@ -180,10 +192,10 @@ function _dPsdEffects(node){
     if(e.useGlobalLight && _dPsdGlobalLight!=null) return Math.round(_dPsdGlobalLight);
     return (e.angle!=null)?Math.round(e.angle):null;
   };
-  // Pega o 1º efeito de um array e marca _fxOverflow quando há vários do mesmo tipo (PS CC permite
-  // 2+ sombras/traços; o modelo Luma só representa um). _fxOverflow é consumido no fim do parse →
-  // a camada rasteriza fiel (senão o 2º+ efeito sumiria em silêncio).
-  const _first=x=>{ if(Array.isArray(x)){ if(x.length>1) out._fxOverflow=true; return x[0]; } return x; };
+  // O modelo legado continua recebendo o 1º efeito para compatibilidade. Quando há 2+ instâncias,
+  // a pilha completa é criada mais abaixo; _fxOverflow só permanece ligado se algo dessa pilha
+  // não puder ser descrito pelo Luma.
+  const _first=x=>{ if(Array.isArray(x)){ const on=x.filter(e=>e&&e.enabled!==false); if(on.length>1) out._fxOverflow=true; return on[0]||x[0]; } return x; };
   // Sombra projetada
   let ds=_first(fx.dropShadow);
   if(ds && ds.enabled!==false){
@@ -287,8 +299,34 @@ function _dPsdEffects(node){
     if(Math.round(_pct)!==100) out.fxScale=Math.round(_pct);
   }
   // Contorno customizado muda o PERFIL do fade (curva !== linear padrão).
-  const _hasCont=e=>!!(e && e.contour && ((e.contour.curve && e.contour.curve.length>2) || e.contour.name));
+  const _hasCont=e=>!!(e && e.enabled!==false && e.contour && ((e.contour.curve && e.contour.curve.length>2) || (e.contour.name&&!/^linear$/i.test(e.contour.name))));
   if(_hasCont(ds)||_hasCont(is)||_hasCont(og)||_hasCont(ig)) out.fxContour=true;
+  // Photoshop aceita várias instâncias de sombra/overlay/traço na MESMA camada. Preservamos a
+  // pilha só quando ela realmente é múltipla; camadas comuns continuam no modelo legado enxuto.
+  // A ordem do array é mantida para o renderer compor como no painel Layer Style.
+  const many=k=>Array.isArray(fx[k])?fx[k].filter(e=>e&&e.enabled!==false):[];
+  const multiKeys=['dropShadow','innerShadow','solidFill','gradientOverlay','stroke'];
+  if(multiKeys.some(k=>many(k).length>1)){
+    const stack=[];let complete=true;
+    many('dropShadow').forEach(e=>{const a=_ang(e);stack.push({type:'dropShadow',color:gFxRgba(_dPsdHex(e.color)||'#000000',e.opacity!=null?e.opacity:.5),blur:Math.round(_u(e.size)),distance:Math.round(_u(e.distance)),angle:a!=null?a:120,spread:Math.round(_u(e.choke)||0),blendMode:_dPsdBlendMode(e.blendMode)});});
+    many('innerShadow').forEach(e=>{const a=_ang(e);stack.push({type:'innerShadow',color:gFxRgba(_dPsdHex(e.color)||'#000000',e.opacity!=null?e.opacity:.5),blur:Math.round(_u(e.size)),distance:Math.round(_u(e.distance)),angle:a!=null?a:120,spread:Math.round(_u(e.choke)||0),blendMode:_dPsdBlendMode(e.blendMode)});});
+    many('solidFill').forEach(e=>stack.push({type:'colorOverlay',color:_dPsdHex(e.color)||'#000000',opacity:e.opacity!=null?+e.opacity:1,blendMode:_dPsdBlendMode(e.blendMode)}));
+    many('gradientOverlay').forEach(e=>{
+      if(!e.gradient||!e.gradient.colorStops){complete=false;return;}
+      const src=e.gradient;let stops=src.colorStops.map(s=>({color:_dPsdHex(s.color)||'#000000',pos:Math.max(0,Math.min(1,s.location||0)),opacity:_dPsdOpacityAt(src.opacityStops,s.location||0)}));
+      if(src.reverse)stops=stops.map(s=>({...s,pos:1-s.pos})).reverse();const gs=_dPsdGradStyle(e.type||src.style,stops);if(gs.unsupported){complete=false;return;}
+      stack.push({type:'gradientOverlay',gradient:{type:gs.type,angle:Math.round(-(e.angle!=null?e.angle:90)),opacity:e.opacity!=null?+e.opacity:1,stops:gs.stops},blendMode:_dPsdBlendMode(e.blendMode)});
+    });
+    many('stroke').forEach(e=>{
+      const fillType=e.fillType||'color';if(fillType!=='color'||!e.color){complete=false;return;}
+      const sv=(e.size&&e.size.value!=null)?e.size.value:e.size;
+      stack.push({type:'stroke',width:Math.max(1,Math.round(+sv||2)),color:_dPsdHex(e.color.color||e.color)||'#000000',align:({inside:'inside',insetFrame:'inside',center:'center',centeredFrame:'center',outside:'outside',outsetFrame:'outside'}[e.position])||'outside',opacity:e.opacity!=null?+e.opacity:1,blendMode:_dPsdBlendMode(e.blendMode)});
+    });
+    if(stack.length)out.layerEffects=stack;
+    out.layerEffectsComplete=complete;
+    out.layerEffectsApprox=stack.some(e=>e.blendMode&&e.blendMode!=='normal');
+    out._fxOverflow=!complete;
+  }
   return out;
 }
 // Cor sólida EXATA de uma camada de forma/preenchimento (vectorFill type='color').
@@ -310,6 +348,26 @@ function _dPsdVectorShapeKind(node, w, h){
     if(ot===1||ot===2) return {kind:'rect', radius:0}; // retângulo (raio por-canto vem de _dPsdCornerRadii)
     return null; // linha/custom → deixa o heurístico de pixel decidir
   }catch(e){ return null; }
+}
+/* O ID de uma camada importada do PSD nasce AQUI e em nenhum outro lugar. A fórmula estava
+   escrita duas vezes — em `dItemToLayer` e no `clipBaseId` do pós-processamento — e o dia em que
+   as duas divergissem o clipping editável quebraria EM SILÊNCIO: `_layerById.get(clipBaseId)`
+   devolveria undefined, o recorte sumiria do PNG e nenhum erro apareceria. */
+function _dPsdItemId(it){ return 'l-psd-'+it.n+'-'+(it.x+it.y); }
+// Caixa do CAMINHO vetorial, diferente de node.left/top/right/bottom (que inclui a expansão do
+// stroke). Usar o bounds do layer como path deslocava um contorno de 5px ~4px para fora.
+function _dPsdVectorShapeBox(node, ox, oy){
+  try{
+    const list=node&&node.vectorOrigination&&node.vectorOrigination.keyDescriptorList;
+    if(!list)return null;
+    for(const d of list){
+      const b=d&&d.keyOriginShapeBoundingBox; if(!b)continue;
+      const v=x=>(x&&x.value!=null)?+x.value:+x;
+      const l=v(b.left),t=v(b.top),r=v(b.right),bt=v(b.bottom);
+      if([l,t,r,bt].every(Number.isFinite)&&r>l&&bt>t)return{x:Math.round(l-(ox||0)),y:Math.round(t-(oy||0)),w:Math.max(1,Math.round(r-l)),h:Math.max(1,Math.round(bt-t))};
+    }
+  }catch(e){}
+  return null;
 }
 // #2 — detecta cor sólida uniforme num canvas → hex (ou null)
 function _dPsdSolidColor(canvas){
@@ -336,6 +394,34 @@ function _dPsdHasAlpha(canvas){
     for(let y=0;y<h;y+=sy) for(let x=0;x<w;x+=sx){ if(d[(y*w+x)*4+3]<250) return true; }
     return false;
   }catch(e){ return true; }
+}
+/* A CAIXA DO ASSUNTO dentro da foto — o que o Auto-layout precisa proteger de verdade.
+   A moldura da imagem podia estar "segura" enquanto o texto cobria justamente o rosto ou o
+   produto; e o contrário também custava caro, porque um PNG recortado tem metade da caixa
+   transparente e tratá-la inteira como obstáculo roubava espaço que existe.
+   Só faz sentido com alpha: foto retangular não tem assunto delimitável por transparência, e
+   aí devolver `null` é a resposta honesta (o solver segue usando a caixa inteira).
+   Amostra em 160px: 1px de precisão no palpite não vale 40ms a mais na importação. */
+function _dPsdInkBox(canvas){
+  try{
+    if(!canvas||!canvas.width||!canvas.height) return null;
+    if(!_dPsdHasAlpha(canvas)) return null;
+    const MAX=160, s=Math.min(1,MAX/Math.max(canvas.width,canvas.height));
+    const w=Math.max(1,Math.round(canvas.width*s)), h=Math.max(1,Math.round(canvas.height*s));
+    const c=document.createElement('canvas'); c.width=w; c.height=h;
+    const cx=c.getContext('2d'); cx.drawImage(canvas,0,0,w,h);
+    const d=cx.getImageData(0,0,w,h).data;
+    let x1=w,y1=h,x2=-1,y2=-1;
+    for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+      if(d[(y*w+x)*4+3]>24){ if(x<x1)x1=x; if(x>x2)x2=x; if(y<y1)y1=y; if(y>y2)y2=y; }
+    }
+    if(x2<x1||y2<y1) return null;
+    const bx=x1/w, by=y1/h, bw=(x2-x1+1)/w, bh=(y2-y1+1)/h;
+    // Assunto que ocupa quase a caixa toda não é informação nova — não vale gravar o dado.
+    if(bw>0.96&&bh>0.96) return null;
+    const r=(n)=>Math.round(n*1000)/1000;
+    return {x:r(bx),y:r(by),w:r(bw),h:r(bh)};
+  }catch(e){ return null; }
 }
 // opts opcional {maxPx, q}: camadas que SÓ existem como raster fiel (warp, smart object, padrão)
 // pedem mais resolução/qualidade. Default 1600/0.82 mantém as chamadas existentes intactas.
@@ -470,6 +556,33 @@ function _dPsdVectorMaskCanvas(node){
     return c;
   }catch(e){ return null; }
 }
+// Promove uma vectorMask do Photoshop a geometria editável do Luma sem perder curvas.
+// Operações booleanas (subtract/intersect/exclude) e máscaras invertidas permanecem no
+// pipeline raster: Canvas/SVG não reproduzem esses operadores por subpath de forma geral.
+function _dPsdEditableVectorPath(node, allowOpen){
+  try{
+    const vm=node&&node.vectorMask, b=_dPsdBox(node);
+    if(!vm||vm.disable||vm.invert||!b.w||!b.h||!Array.isArray(vm.paths)||!vm.paths.length)return null;
+    let fillRule=null; const paths=[];
+    for(const p of vm.paths){
+      if(!p||!Array.isArray(p.knots)||p.knots.length<2)return null;
+      if(p.open&&!allowOpen)return null;
+      if(p.operation&&p.operation!=='combine')return null;
+      const rule=p.fillRule==='even-odd'?'evenodd':'nonzero';
+      if(fillRule&&fillRule!==rule)return null;
+      fillRule=rule;
+      const knots=p.knots.map(k=>{
+        const a=k&&k.points;
+        if(!a||a.length<6||!a.every(Number.isFinite))throw new Error('invalid vector knot');
+        const pt=o=>[+(Math.round(((a[o]-b.x)/b.w)*1e6)/1e6), +(Math.round(((a[o+1]-b.y)/b.h)*1e6)/1e6)];
+        return {in:pt(0),anchor:pt(2),out:pt(4),linked:k.linked!==false};
+      });
+      paths.push({closed:!p.open,knots});
+    }
+    const out={fillRule:fillRule||'nonzero',paths};
+    return typeof gVectorPathValid==='function'&&gVectorPathValid(out)?out:null;
+  }catch(e){ return null; }
+}
 // Traçado vetorial (node.vectorStroke) → {strokeW, strokeColor} ou {} (sem traçado).
 function _dPsdShapeStroke(node){
   const vs=node.vectorStroke; const out={};
@@ -588,7 +701,7 @@ function _dPsdRichRuns(t, res, h){
         text:seg,
         color:_dPsdHex(st.fillColor||st.color)||_domColor,
         fontSize:_rfs,
-        font: remap||(/black|900|heavy/i.test(fname)?"'Roboto Black'":/bold|700/i.test(fname)?"'Roboto',bold":"'Roboto'"),
+        font: remap||_dPsdRobotoFont(fname),
         _fontName:fname, // nome original — permite remap posterior (upload de fonte na revisão)
         letterSpacing: st.tracking? Math.round((st.tracking/1000)*(_rfs||12)) : 0 // tracking sobre o tamanho final do trecho
       });
@@ -1021,6 +1134,18 @@ function _dPsdRemapFont(fontName){
   return partial?'custom:'+partial.family:null;
 }
 
+// Preserva as variantes da família Roboto já empacotadas no Luma. O fallback antigo
+// distinguia apenas Bold/Black e transformava Light/Thin/Medium em Regular.
+function _dPsdRobotoFont(fontName){
+  const s=String(fontName||'').toLowerCase();
+  if(/black|heavy|900/.test(s)) return "'Roboto Black'";
+  if(/bold|700/.test(s)) return "'Roboto',bold";
+  if(/medium|500/.test(s)) return "'Roboto',500";
+  if(/light|300/.test(s)) return "'Roboto',300";
+  if(/thin|100/.test(s)) return "'Roboto',100";
+  return "'Roboto'";
+}
+
 // Extrai o estilo DOMINANTE de um nó de texto considerando todos os styleRuns.
 // Run dominante = maior comprimento de texto. isMultiStyle=true quando há cores ou
 // tamanhos distintos entre runs (indica ao usuário que o layer era estilo misto).
@@ -1143,6 +1268,30 @@ function _dPsdNeedsRaster(node){
   return false;
 }
 
+// Ajustes que o motor Canvas canônico consegue recalcular sobre a composição abaixo. Eles
+// continuam como CAMADAS (não viram pixels congelados), então editar foto/texto por baixo
+// preserva o tratamento de cor do PSD. Tipos fora desta lista entram visíveis na revisão,
+// mas marcados como não suportados em vez de desaparecerem silenciosamente.
+const _DPSD_ADJUST_SUPPORTED=new Set([
+  'brightness/contrast','levels','curves','exposure','vibrance','hue/saturation',
+  'invert','posterize','threshold'
+]);
+function _dPsdAdjustmentInfo(adj){
+  if(!adj||!adj.type)return null;
+  const data=JSON.parse(JSON.stringify(adj));
+  const type=String(data.type).toLowerCase();
+  // Estes algoritmos são dinâmicos e editáveis, mas o Photoshop usa curvas internas que não
+  // publica para Brilho moderno/Vibração e spline própria em Curvas. Marcamos a aproximação na
+  // revisão; melhor uma capacidade explícita do que vender "1:1" onde a matemática não é aberta.
+  let approximate=(type==='brightness/contrast'&&!data.useLegacy)||type==='vibrance'||(type==='curves'&&['rgb','red','green','blue'].some(k=>(data[k]||[]).length>2));
+  // O master de Hue/Saturation é reproduzido; faixas seletivas (reds/yellows/…) ainda não.
+  if(type==='hue/saturation'){
+    const ranged=['reds','yellows','greens','cyans','blues','magentas'];
+    approximate=ranged.some(k=>{const c=data[k]||{};return !!(+c.hue||+c.saturation||+c.lightness);});
+  }
+  return {data,type,supported:_DPSD_ADJUST_SUPPORTED.has(type),approximate};
+}
+
 // Assinatura curta de um raster para o dedupe. O comprimento do dataURL sozinho não serve:
 // duas fotos DIFERENTES que por acaso comprimem para o mesmo tamanho eram vistas como
 // duplicata e a segunda desaparecia sem aviso.
@@ -1213,7 +1362,7 @@ function dPsdParseItems(psd, res, ox, oy){
   // Só sobrescreve quando o objeto recebido carrega o ângulo: no fluxo multi-prancheta o psd
   // aqui é sintético ({children:[…]}) e perderíamos a luz global lida do documento real.
   const _gl=_dPsdReadGlobalLight(psd); if(_gl!=null) _dPsdGlobalLight=_gl;
-  const items=[]; let n=0;
+  const items=[]; let n=0, gseq=0;
   // Teto de raster ADAPTATIVO à prancheta. O PNG final renderiza a 2× o tamanho da prancheta,
   // então uma imagem grande precisa de até 2×maxDim px pra não sair mole no export — o teto fixo
   // de 1600 borrava herói de PSD grande. Piso 1600 (comportamento antigo p/ prancheta pequena,
@@ -1224,11 +1373,10 @@ function dPsdParseItems(psd, res, ox, oy){
   // Camadas que SÓ existem como raster (warp, smart object, padrão, camada recuperada) não têm
   // segunda chance: o piso é o 2400 de antes, mas acompanham a prancheta quando ela pede mais.
   const _fidCap=Math.max(2400, _rasterCap);
-  // parentOp: opacidade acumulada dos grupos-pai (0–1); parentHidden: grupo-pai oculto.
-  // inh: o que os grupos-pai deixam de herança e o Luma não sabe representar como grupo —
-  // {masks:[máscaras dos grupos], blend:mesclagem herdada, blendApprox:mesclagem é aproximação}.
+  // Grupos do PSD viram os grupos que o Luma JÁ possui (`parentId`). Além de organização, agora
+  // eles carregam composição (isolamento/opacidade/máscara/blend) no motor Canvas canônico.
   (function walk(nodes, parentOp, parentHidden, parentName, inh){
-    inh=inh||{masks:[], blend:null, blendApprox:false};
+    inh=inh||{groups:[], masks:[], blend:null, blendApprox:false};
     // try//catch por CAMADA: uma camada quebrada vira imagem fiel (ou é pulada) em vez de
     // derrubar o PSD inteiro. O corpo abaixo mantém a indentação original de propósito —
     // re-indentar 150 linhas esconderia as mudanças reais no diff.
@@ -1239,24 +1387,43 @@ function dPsdParseItems(psd, res, ox, oy){
       const accOp=parentOp*nodeOp;
       const accHidden=parentHidden||(node.hidden?true:false);
       if(node.children && node.children.length){
-        // O Luma NÃO tem grupo: máscara, mesclagem e fillOpacity do grupo têm que DESCER pros
-        // filhos, senão somem em silêncio. Máscara de grupo (recorte de uma composição inteira)
-        // é o caso mais comum em PSD de agência — antes a arte importava "vazando" por fora.
-        const gBlend=_dPsdBlendMode(node.blendMode); // grupo normal é 'passThrough' → undefined
-        const gInh={
-          masks: (node.mask && !node.mask.disabled && node.mask.canvas) ? inh.masks.concat([node.mask]) : inh.masks,
-          blend: gBlend || inh.blend,
-          // Mesclagem de grupo incide sobre o COMPOSTO do grupo. Aplicada camada a camada, é
-          // exata com 1 filho; com 2+ que se sobrepõem, mescla duas vezes → marcamos como
-          // aproximação para virar aviso na revisão (perder de vez seria pior e mudo).
-          blendApprox: inh.blendApprox || (!!gBlend && node.children.length>1)
-        };
-        // fillOpacity de grupo ≡ opacidade (grupo não tem pixel próprio, então não há efeito
-        // que devesse escapar da atenuação).
-        const gOp=accOp*(node.fillOpacity!=null?node.fillOpacity:1);
-        // Artboards não propagam nome como grupo (são a raiz); grupos regulares sim.
-        walk(node.children, gOp, accHidden, node.artboard?'':node.name||parentName||'', gInh);
+        if(node.artboard){ walk(node.children,accOp,accHidden,'',inh); return; }
+        const parentGroup=inh.groups.length?inh.groups[inh.groups.length-1]:null;
+        const rawGroupBlend=String(node.blendMode||'').toLowerCase();
+        const gd={id:'g-psd-'+(++gseq),type:'group',name:String(node.name||('Grupo '+gseq)).slice(0,48),visible:!accHidden,locked:false,collapsed:false,
+          opacity:Math.round(nodeOp*(node.fillOpacity!=null?node.fillOpacity:1)*100),isolation:!!rawGroupBlend&&rawGroupBlend!=='pass through'&&rawGroupBlend!=='passthrough'};
+        if(parentGroup)gd.parentId=parentGroup.id;
+        const gb=_dPsdBlendMode(node.blendMode); if(gb)gd.blendMode=gb;
+        Object.assign(gd,_dPsdEffects(node));
+        const start=items.length;
+        const gInh={groups:inh.groups.concat([gd]),masks:[],blend:null,blendApprox:false};
+        walk(node.children,1,accHidden,node.name||parentName||'',gInh);
+        const kids=items.slice(start);
+        if(kids.length){
+          const x0=Math.min.apply(null,kids.map(k=>k.x)), y0=Math.min.apply(null,kids.map(k=>k.y));
+          const x1=Math.max.apply(null,kids.map(k=>k.x+k.w)), y1=Math.max.apply(null,kids.map(k=>k.y+k.h));
+          gd.x=x0;gd.y=y0;gd.w=Math.max(1,x1-x0);gd.h=Math.max(1,y1-y0);
+          if(node.mask&&!node.mask.disabled&&node.mask.canvas){
+            const gm=_dPsdMaskToBox(node.mask,{x:x0+ox,y:y0+oy,w:gd.w,h:gd.h});
+            if(gm)gd.mask=_dPsdDownscaleMaskURL(gm,Math.max(700,Math.min(1400,Math.max(gd.w,gd.h))));
+          }
+        }
         return;
+      }
+      if(node.adjustment){
+        const ai=_dPsdAdjustmentInfo(node.adjustment); if(!ai)return;
+        // Camada de ajuste não possui caixa de pixels própria no PSD: ela atua sobre toda a
+        // composição do contexto (prancheta ou grupo). Uma caixa integral também permite que a
+        // máscara de camada seja reprojetada pelo mesmo pipeline das demais camadas.
+        const aw=Math.max(1,(psd&&psd.width)||1), ah=Math.max(1,(psd&&psd.height)||1);
+        const an=Object.assign({},node,{left:ox,top:oy,right:ox+aw,bottom:oy+ah});
+        const ait={n:++n,name:(node.name||ai.type).toString().slice(0,48),x:0,y:0,w:aw,h:ah,
+          visible:!accHidden,opacity:Math.round(accOp*100),include:true,kind:'adjustment',mode:'adjustment',
+          adjustment:ai.data,adjustmentType:ai.type,adjustmentSupported:ai.supported,
+          adjustmentApprox:ai.approximate,clippingLayer:node.clippingLayer||node.clipping,
+          blendMode:_dPsdBlendMode(node.blendMode),group:parentName||'',_psdNode:an};
+        if(inh.groups&&inh.groups.length)ait._groupChain=inh.groups.slice();
+        items.push(ait); return;
       }
       const x=Math.round((node.left||0)-ox), y=Math.round((node.top||0)-oy);
       const w=Math.max(1,Math.round((node.right||0)-(node.left||0)));
@@ -1267,6 +1434,7 @@ function dPsdParseItems(psd, res, ox, oy){
         clippingLayer: node.clippingLayer || node.clipping,
         blendMode:_dPsdBlendMode(node.blendMode),
         group:parentName||'', _psdNode:node }; // guarda p/ recorte correto
+      if(inh.groups&&inh.groups.length)it._groupChain=inh.groups.slice();
       // Herança dos grupos-pai: máscaras entram na composição do pós-processamento; mesclagem
       // só se aplica quando a própria camada não define a dela (a de baixo é mais específica).
       if(inh.masks.length) it._groupMasks=inh.masks;
@@ -1310,13 +1478,13 @@ function dPsdParseItems(psd, res, ox, oy){
         it.vAlign='top';
         it.fontName=(st.font&&st.font.name)||'';
         const _fRemap=_dPsdRemapFont(it.fontName);
-        it.font=_fRemap||(/black|900|heavy/i.test(it.fontName)?"'Roboto Black'":/bold|700/i.test(it.fontName)?"'Roboto',bold":"'Roboto'");
+        it.font=_fRemap||_dPsdRobotoFont(it.fontName);
         it.fontRemapped=!!_fRemap;
         // fontCaps: 0=normal, 1=small-caps, 2=all-caps (PS "All Caps" character style)
         if(st.fontCaps===2) it.textTransform='uppercase';
         else if(st.fontCaps===1) it.textTransform='uppercase'; // small-caps (versaletes) ≈ maiúsculas; NUNCA lowercase (invertia a caixa)
         // fauxBold: PS "Faux Bold" — eleva o peso quando a fonte não tem variante bold
-        if(st.fauxBold || /bold|black|heavy|700|900/i.test(it.fontName)) it.fontWeightOverride=700;
+        if(st.fauxBold) it.fontWeightOverride=/black|heavy|900/i.test(it.fontName)?900:700;
         // Itálico: faux italic do PS ou variante itálica/oblíqua no nome da fonte → font-style:italic
         if(st.fauxItalic || /italic|oblique|it[aá]lico/i.test(it.fontName)) it.italic=true;
         it.fontSize=_dPsdFontSize(t,h,it.content,res);
@@ -1329,7 +1497,9 @@ function dPsdParseItems(psd, res, ox, oy){
         // e é o único caso que segue merecendo aviso.
         it.textAlign=_al.justified ? 'justify' : _al.align;
         if(_al.justifyAll) it.textJustifyAll=true;
-        if(st.tracking) it.letterSpacing=Math.round((st.tracking/1000)*(it.fontSize||12)); // tracking (1/1000 em) → px, sobre o tamanho final
+        // `0` também é informação: impede o respiro automático usado pelos títulos nativos do
+        // Luma. Sem gravá-lo, todo Roboto Black do PSD ganhava tracking extra e ficava mais largo.
+        it.letterSpacing=Math.round(((+st.tracking||0)/1000)*(it.fontSize||12)); // tracking (1/1000 em) → px, sobre o tamanho final
         // Entrelinha. Com "Auto" ligado (st.autoLeading, o PADRÃO do Photoshop) o valor gravado em
         // st.leading é LIXO — sobra de um estado anterior do arquivo — e lê-lo trazia entrelinhas
         // absurdas. Auto = fator do parágrafo (paragraphStyle.autoLeading, 1.2 no PS) × o corpo.
@@ -1363,7 +1533,13 @@ function dPsdParseItems(psd, res, ox, oy){
           // Caixa 1:1 do Photoshop → NÃO reencaixa/encolhe o texto na importação.
           const pb=_dPsdParagraphBox(node);
           if(pb){ it.x=Math.round(pb.x-ox); it.y=Math.round(pb.y-oy); it.w=Math.max(1,pb.w); it.h=Math.max(1,pb.h); }
-          else { it.textBoxApprox=true; console.warn('[psd] caixa de parágrafo não derivável — usando bbox de glifos:', it.name); }
+          else {
+            /* Sem caixa confiável, a geometria que sobrou é o bbox justo dos glifos — semântica
+               de point text. Mantê-la como `box` fazia o Auto-layout quebrar "R$" em R + $ e
+               "POR" em três linhas dentro da caixa estreita. */
+            it.textBox='point';it.textBoxApprox=true;
+            console.warn('[psd] caixa de parágrafo não derivável — usando bbox de glifos:', it.name);
+          }
         }
         if(node.canvas && node.canvas.width>0){ it.imgUrl=_dPsdRasterURL(node.canvas,{maxPx:_rasterCap}); } // p/ "imagem fiel"
       } else if(node.canvas && node.canvas.width>0 && node.canvas.height>0){
@@ -1371,7 +1547,11 @@ function dPsdParseItems(psd, res, ox, oy){
         // mesmo não sendo cor sólida (senão cairia em raster).
         const grad=(node.vectorFill && node.vectorFill.colorStops)?_dPsdGradient(node):null;
         // Cor: preferir a EXATA do vetor (vectorFill), cair na amostragem de pixels só se faltar.
-        const solid=_dPsdVectorSolidColor(node)||_dPsdSolidColor(node.canvas);
+        // Photoshop permite forma só-contorno: vectorFill ainda pode carregar a última cor,
+        // mas `vectorStroke.fillEnabled:false` manda NÃO pintá-la. Ignorar a flag inventava um
+        // retângulo sólido por cima do fundo/textura (caso dos cards laranja deste PSD real).
+        const fillDisabled=!!(node.vectorStroke&&node.vectorStroke.fillEnabled===false);
+        const solid=fillDisabled?null:(_dPsdVectorSolidColor(node)||_dPsdSolidColor(node.canvas));
         // Contorno vetorial (vectorStroke) — inclui formas SÓ-CONTORNO (sem preenchimento): molduras
         // vazadas, divisores e linhas TRACEJADAS. Antes, sem fill/gradiente, essas caíam no raster e o
         // tracejado virava imagem chapada (o dash lido em _dPsdShapeStroke nem era alcançado). Agora um
@@ -1380,12 +1560,22 @@ function dPsdParseItems(psd, res, ox, oy){
         const hasStroke=stroke.strokeW>0;
         if(grad || solid || hasStroke){
           // Forma: preferir o tipo EXATO do vetor (keyOriginType), cair no heurístico de pixel.
-          const shapeInfo=_dPsdVectorShapeKind(node,w,h)||_dPsdDetectShapeKind(node.canvas);
+          const vectorShape=_dPsdVectorShapeKind(node,w,h);
+          const shapeInfo=vectorShape||_dPsdDetectShapeKind(node.canvas);
+          // Custom shape/path: conserva âncoras e alças em vez de fingir que é um retângulo.
+          // Caminho aberto só é promovido quando a layer é apenas traço.
+          const vectorPath=!vectorShape?_dPsdEditableVectorPath(node,hasStroke&&!solid&&!grad):null;
           it.kind='shape';
+          const vectorBox=vectorShape&&_dPsdVectorShapeBox(node,ox,oy);
+          if(vectorBox)Object.assign(it,vectorBox);
+          // Retângulo/elipse já são a própria primitiva vetorial do Luma. Reaplicar a mesma
+          // vectorMask como bitmap cortava o meio externo do stroke (formas só-contorno sumiam).
+          if((vectorShape&&fillDisabled)||vectorPath)delete it._vecMaskCanvas;
           // Só-contorno (sem fill sólido/gradiente) → fundo TRANSPARENTE, não a cor padrão laranja.
           it.fill=solid || (grad && grad.stops[0] && grad.stops[0].color) || (hasStroke ? 'transparent' : '#FF9000');
           if(grad) it.gradient=grad;
-          it.shapeKind=shapeInfo.kind;
+          it.shapeKind=vectorPath?'path':shapeInfo.kind;
+          if(vectorPath){it.vectorPath=vectorPath;delete it.vectorMaskFailed;}
           it.radius=shapeInfo.radius;
           Object.assign(it,_dPsdEffects(node));        // sombra/glow/overlay/contorno-fx
           Object.assign(it,stroke);                    // traçado do shape (vectorStroke, incl. tracejado)
@@ -1410,6 +1600,9 @@ function dPsdParseItems(psd, res, ox, oy){
           it.kind='raster';
           it.imgUrl=_dPsdRasterURL(node.canvas,{maxPx:_rasterCap});
           if(!it.imgUrl) return;
+          // Zona segura da foto: o assunto recortado, medido enquanto os pixels ainda estão
+          // na memória. Depois do import só existe a URL, e recalcular sairia caro.
+          it.inkBox=_dPsdInkBox(node.canvas);
           
           // Heurística de auto-frame para imagens raster
           const imgSug = _dPsdSuggestImgVar(it.name);
@@ -1428,14 +1621,16 @@ function dPsdParseItems(psd, res, ox, oy){
       // pixel que o PS compôs está no node.canvas, então rasterizar sai 1:1 (bem melhor que
       // fingir que é uma faixa linear, que era o comportamento antigo e mudo).
       if(it.gradient && it.gradient.psStyle){ it.gradientUnsupported=it.gradient.psStyle; delete it.gradient.psStyle; }
+      if(it.layerEffects && it.opacity<100) it.layerEffectsApprox=true;     // opacity da camada × pilha exige isolamento completo
       const _pn=it._psdNode;
       if(_pn && _pn.canvas && _pn.canvas.width>0){
-        const _fxUnsup = it._fxOverflow                                   // 2+ efeitos do mesmo tipo (só o 1º era aplicado)
+        const _fxUnsup = it._fxOverflow                                   // parte da pilha não tem equivalente editável
+          || (it.layerEffects && it.kind!=='shape')                       // pilha múltipla ainda só é dinâmica em formas
           || it.gradientUnsupported                                      // gradiente sem primitiva (cônico/losango)
           || it.overlayBlend                                             // color overlay em multiply/screen/etc.
           || (it.gradientOverlay && it.gradientOverlay.blendMode)        // gradient overlay com blend
           || (it.kind==='text' && (it.innerShadow||it.innerGlow||it.bevel||it.gradientOverlay)) // efeitos que o texto não renderiza
-          || (it.fillOpacity!=null && it.fillOpacity<1 && (it.shadow||it.innerShadow||it.glow||it.innerGlow||it.bevel||it.overlay||it.gradientOverlay||it.strokeW)); // fill-opacity + efeitos
+          || (it.fillOpacity!=null && it.fillOpacity<1 && (it.shadow||it.innerShadow||it.glow||it.innerGlow||it.bevel||it.overlay||it.gradientOverlay||it.strokeW||it.layerEffects)); // fill-opacity + efeitos
         if(_fxUnsup){ it.needsRaster=true; if(!it.imgUrl) it.imgUrl=_dPsdRasterURL(_pn.canvas,{maxPx:_fidCap,q:0.92}); }
       }
       items.push(it);
@@ -1448,7 +1643,7 @@ function dPsdParseItems(psd, res, ox, oy){
   items.forEach(it=>{
     // Inclui cor e tamanho do raster: sem isso, dois retângulos "Faixa" de mesma caixa mas cores
     // diferentes (ou duas fotos no mesmo frame) eram vistos como duplicata e o 2º sumia.
-    const sig=it.kind+'|'+it.name+'|'+it.x+'|'+it.y+'|'+it.w+'|'+it.h+'|'+(it.content||'')+'|'+(it.fill||'')+'|'+_dPsdImgSig(it.imgUrl);
+    const sig=it.kind+'|'+it.name+'|'+it.x+'|'+it.y+'|'+it.w+'|'+it.h+'|'+(it.content||'')+'|'+(it.fill||'')+'|'+(it.adjustment?JSON.stringify(it.adjustment):'')+'|'+_dPsdImgSig(it.imgUrl);
     if(_seen.has(sig)){ console.warn('[psd] layer duplicada descartada (assinatura idêntica):', it.name); return; }
     _seen.add(sig); out.push(it);
   });
@@ -1458,6 +1653,17 @@ function dPsdParseItems(psd, res, ox, oy){
   out.forEach(it=>{ if(it.kind==='text'&&it.content){ const k=it.name+'|'+it.content; _soft[k]=(_soft[k]||0)+1; } });
   Object.keys(_soft).forEach(k=>{ if(_soft[k]>1) console.warn('[psd] possível layer de texto duplicada mantida (nome+conteúdo iguais, caixas diferentes):', k.split('|')[0]); });
 
+  // ag-psd entrega os filhos BASE-PRIMEIRO. Num clipping stack do Photoshop a base vem antes
+  // e as camadas recortadas vêm logo depois; portanto a busca é para TRÁS, limitada ao mesmo
+  // grupo. A busca antiga para frente usava a próxima camada solta como máscara e fazia a foto
+  // desaparecer (sobrava só o retângulo-base branco).
+  const _clipBaseIndex=(idx)=>{
+    const group=out[idx]&&out[idx].group;
+    let j=idx-1;
+    while(j>=0 && out[j].clippingLayer && out[j].group===group) j--;
+    return (j>=0 && out[j].group===group) ? j : -1;
+  };
+
   // Resolve TODAS as máscaras de uma vez (camada + clipping + vetorial + grupos-pai), com a
   // base de clipping correta. _dPsdComputeMask multiplica os alphas, então elas se somam em
   // vez de uma sobrescrever a outra. Atribuição condicional: null não apaga o que já existe.
@@ -1465,9 +1671,16 @@ function dPsdParseItems(psd, res, ox, oy){
     const _extra={ groupMasks: out[i]._groupMasks, vecCanvas: out[i]._vecMaskCanvas };
     let _m=null;
     if(out[i].clippingLayer){
-      let baseIdx = i + 1;
-      while(baseIdx < out.length && out[baseIdx].clippingLayer) baseIdx++;
-      if(baseIdx < out.length) _m = _dPsdComputeMask(out[i]._psdNode, out[baseIdx]._psdNode, _extra);
+      const baseIdx=_clipBaseIndex(i);
+      if(baseIdx>=0){
+        const base=out[baseIdx];
+        // `mask` fica como snapshot de compatibilidade para o DOM do editor; o Canvas final usa
+        // clipBaseId e redesenha o alpha da base a cada render. Máscaras próprias ficam separadas.
+        out[i].clipBaseId=_dPsdItemId(base);
+        out[i].clipBaseSnapshot={x:base.x,y:base.y,w:base.w,h:base.h,shapeKind:base.shapeKind||'rect',radius:base.radius||0,radii:base.radii||null,points:base.points||null,sides:base.sides||null,inner:base.inner||null,vectorPath:base.vectorPath||null,maskSize:base.mask?base.mask.length:0};
+        out[i].clipOwnMask=_dPsdComputeMask(out[i]._psdNode, null, _extra);
+        _m = _dPsdComputeMask(out[i]._psdNode, base._psdNode, _extra);
+      }
     } else {
       _m = _dPsdComputeMask(out[i]._psdNode, null, _extra);
     }
@@ -1477,12 +1690,12 @@ function dPsdParseItems(psd, res, ox, oy){
     // camada-base. Apagar antes matava esse caminho (base raster caía sempre em maskFallback).
   }
 
-  // Detecção de clipping mask e rasterização de shapes-base (MVP)
+  // Fallback do clipping: reconstrói o alpha da base quando a composição acima não conseguiu.
+  // A base continua visível — no Photoshop ela participa da pilha, não é uma máscara descartável.
   for(let i=0; i<out.length; i++) {
     if(out[i].clippingLayer) {
-      let baseIdx = i + 1;
-      while(baseIdx < out.length && out[baseIdx].clippingLayer) baseIdx++; // Pula múltiplas camadas
-      if(baseIdx < out.length) {
+      const baseIdx=_clipBaseIndex(i);
+      if(baseIdx>=0) {
         const base = out[baseIdx];
         const b = out[i];
         if(!b.mask) { // Se o Luma não gerou máscara via layerMaskCanvas
@@ -1518,13 +1731,11 @@ function dPsdParseItems(psd, res, ox, oy){
             success = true;
           }
           if(success) {
-            try { b.mask = c.toDataURL('image/png'); base.isMaskBase = true; } 
+            try { b.mask = c.toDataURL('image/png'); }
             catch(e) { b.maskFallback = true; }
           } else {
             b.maskFallback = true;
           }
-        } else {
-          base.isMaskBase = true; // Mesmo se já tem mask nativa de canvas (cm/lm), ocultamos o base
         }
       }
     }
@@ -1546,6 +1757,7 @@ function dPsdParseItems(psd, res, ox, oy){
 // Copia efeitos do item intermediário → layer (sombra/inner/glow/overlay/contorno+align).
 // Só grava o que existe, p/ não inflar o layer nem mudar camadas sem efeito.
 function _dPsdApplyFx(L, it){
+  if(it.layerEffects){L.layerEffects=JSON.parse(JSON.stringify(it.layerEffects));L.layerEffectsComplete=it.layerEffectsComplete!==false;if(it.layerEffectsApprox)L.layerEffectsApprox=true;}
   if(it.shadow){ L.shadow=true; L.shadowColor=it.shadowColor;
     if(it.shadowBlur!=null) L.shadowBlur=it.shadowBlur; if(it.shadowDist!=null) L.shadowDist=it.shadowDist; if(it.shadowAngle!=null) L.shadowAngle=it.shadowAngle;
     if(it.shadowSpread) L.shadowSpread=it.shadowSpread; }
@@ -1563,16 +1775,24 @@ function _dPsdApplyFx(L, it){
   return L;
 }
 function dItemToLayer(it){
-  const base={ id:'l-psd-'+it.n+'-'+(it.x+it.y), name:it.name, x:it.x,y:it.y,w:it.w,h:it.h, visible:it.visible, opacity:it.opacity };
+  const base={ id:_dPsdItemId(it), name:it.name, x:it.x,y:it.y,w:it.w,h:it.h, visible:it.visible, opacity:it.opacity };
+  if(it._groupChain&&it._groupChain.length)base.parentId=it._groupChain[it._groupChain.length-1].id;
   // fillOpacity sem efeitos ≡ opacity; com efeitos, só o fill deveria atenuar (não os efeitos) →
   // não é representável no modelo atual, marca p/ P3 rasterizar fiel.
   if(it.fillOpacity!=null && it.fillOpacity<1){
-    const _hasFx=it.shadow||it.innerShadow||it.glow||it.innerGlow||it.bevel||it.overlay||it.gradientOverlay||it.strokeW;
+    const _hasFx=it.shadow||it.innerShadow||it.glow||it.innerGlow||it.bevel||it.overlay||it.gradientOverlay||it.strokeW||it.layerEffects;
     if(!_hasFx) base.opacity=Math.round((it.opacity!=null?it.opacity:100)*it.fillOpacity);
     else it.needsRaster=true;
   }
   if(it.mask) base.mask=it.mask;
+  // Zona segura (assunto opaco da foto) — vale para moldura, imagem fiel e raster comum, então
+  // mora na base em vez de repetida em cada ramo de retorno.
+  if(it.inkBox) base.inkBox=it.inkBox;
+  if(it.clipBaseId){ base.clipBaseId=it.clipBaseId; if(it.clipBaseSnapshot)base.clipBaseSnapshot=it.clipBaseSnapshot; if(it.clipOwnMask)base.clipOwnMask=it.clipOwnMask; }
   if(it.blendMode) base.blendMode=it.blendMode;
+  if(it.kind==='adjustment'){
+    return Object.assign(base,{type:'adjustment',adjustment:JSON.parse(JSON.stringify(it.adjustment||{})),adjustmentSupported:it.adjustmentSupported!==false,adjustmentApprox:!!it.adjustmentApprox});
+  }
   // Modo MOLDURA DE FOTO (escolhido na revisão): a camada — forma ou imagem — vira um frame que o
   // franqueado preenche com foto. Preserva x/y/w/h; formato do frame herdado da forma original.
   if(it.mode==='frame'){
@@ -1586,6 +1806,7 @@ function dItemToLayer(it){
     if(it.points) F.points=it.points;
     if(it.sides) F.sides=it.sides;
     if(it.inner) F.inner=it.inner;
+    if(it.vectorPath) F.vectorPath=JSON.parse(JSON.stringify(it.vectorPath));
     return _dPsdApplyFx(F, it);
   }
   if(it.needsRaster && it.imgUrl){
@@ -1605,18 +1826,58 @@ function dItemToLayer(it){
     if(it.textBox==='box'){ L.textBox='box'; } // paragraph → editor encaixa na caixa
     if(it.vAlign) L.vAlign=it.vAlign;           // ancoragem vertical (top) importada do PSD
     if(it.italic) L.italic=true;                // font-style itálico
-    if(it.letterSpacing) L.letterSpacing=it.letterSpacing;
+    if(it.letterSpacing!=null) L.letterSpacing=it.letterSpacing;
     if(it.lineHeight) L.lineHeight=it.lineHeight;
     if(it.runs && !isVar) L.runs=it.runs;       // texto multi-estilo (não p/ variável)
     if(it.gradient) L.gradient=it.gradient;     // preenchimento por gradiente no texto
+    /* BASELINE AUTORADO — a referência determinística do desenho original: o texto que o
+       designer compôs, a geometria, as métricas e uma sonda da fonte. Não aparece para o
+       franqueado e não substitui conteúdo/variável; serve para medir crescimento REAL e para
+       o Auto-layout decidir igual em qualquer aparelho (ver `core/auto-layout.js`).
+       ⚠ Carimbado DEPOIS de todas as propriedades: medir antes de `textBox`/`lineHeight`/
+       `letterSpacing` produziria uma referência que não é a arte que foi importada. */
+    if(isVar&&it.content){
+      if(typeof gStampLayoutBaseline==='function') gStampLayoutBaseline(L, it.content);
+      else L.layoutRefText=it.content;
+    }
     return L;
   }
   if(it.kind==='shape' && it.mode==='shape'){
     const S=Object.assign(base,{type:'shape',fill:it.fill||'#FF9000',radius:it.radius||0,shapeKind:it.shapeKind||'rect'});
+    if(it.vectorPath) S.vectorPath=JSON.parse(JSON.stringify(it.vectorPath)); // Bézier editável/responsivo
     if(it.radii) S.radii=it.radii;                                  // cantos por canto
     if(it.gradient) S.gradient=it.gradient;                         // gradiente
     _dPsdApplyFx(S, it);                                            // traçado(+align)/sombra/glow/overlay
     return S;
   }
   return _dPsdApplyFx(Object.assign(base,{type:'image',imgUrl:it.imgUrl,imgVar:'',objectFit:'cover',frameShape:'rect'}), it);
+}
+
+// Converte folhas + árvore estrutural numa lista plana compatível com `dLayers`. O marcador do
+// grupo entra logo após seu último descendente (mesma convenção de dGroupSelected), preservando
+// z-order e permitindo grupos aninhados sem expô-los como falsas "imagens" na revisão do PSD.
+function dPsdItemsToLayers(items, previewOriginalText, canvas){
+  const src=items||[], leaves=[], groups=new Map();
+  src.forEach((it,idx)=>{
+    const use=(previewOriginalText&&it.kind==='text'&&it.mode==='var')?Object.assign({},it,{mode:'text'}):it;
+    const layer=dItemToLayer(use); if(!layer)return;
+    leaves.push({layer,item:it,idx});
+    (it._groupChain||[]).forEach((g,depth)=>{
+      let rec=groups.get(g.id);
+      if(!rec){rec={g,depth,last:-1};groups.set(g.id,rec);}
+      rec.last=leaves.length-1;
+    });
+  });
+  const ends={}; groups.forEach(rec=>{(ends[rec.last]||(ends[rec.last]=[])).push(rec);});
+  const out=[];
+  leaves.forEach((rec,i)=>{
+    out.push(rec.layer);
+    const close=ends[i]; if(!close)return;
+    close.sort((a,b)=>b.depth-a.depth).forEach(({g})=>out.push(JSON.parse(JSON.stringify(g))));
+  });
+  /* COMPILADOR SEMÂNTICO — a importação é o melhor momento para classificar: os nomes de camada
+     do PSD ainda estão inteiros (é assim que o designer batiza por função) e a arte inteira está
+     na mão. Compilado uma vez, viaja no template. Invisível: nenhum passo a mais na revisão. */
+  if(typeof gCompileLayoutRoles==='function') gCompileLayoutRoles(out, canvas||null);
+  return out;
 }

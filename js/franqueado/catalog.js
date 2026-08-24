@@ -135,7 +135,129 @@ function _fHistEmptyArtSVG(){
     </g>
   </svg>`;
 }
+
+/* As miniaturas de "Minhas artes" usam o MESMO render da entrega final, mas ficam só em
+   memória. Persistir a imagem duplicaria cada arte no localStorage/banco; renderizar a cada
+   tecla da busca faria o oposto e deixaria a biblioteca pesada. O cache desta sessão resolve
+   os dois lados sem criar uma segunda fonte de verdade. */
+let _fHistPreviewCache = new Map();
+let _fHistPreviewRun = 0;
+let _fHistPreviewObserver = null;
+function _fHistPreviewKey(h, material){
+  return String(h.id)+'|'+String(h._sig||'')+'|'+String((material&&(material.remoteId||material.id))||'');
+}
+function _fHistApplyPreview(img, url){
+  if(!img || !url || !img.isConnected) return;
+  img.src=url;
+  const blur=img.parentElement&&img.parentElement.querySelector('.hist-preview-blur');
+  if(blur) blur.src=url;
+  img.onload=function(){
+    const thumb=img.closest('.hist-thumb');
+    if(thumb) thumb.classList.add('is-preview-ready');
+  };
+  if(img.complete && img.naturalWidth) img.onload();
+}
+async function _fHistRenderPreview(img,run){
+  if(run!==_fHistPreviewRun || !img || !img.isConnected) return;
+  const hist=fGetHist();
+  const h=hist.find(x=>String(x.id)===img.dataset.histPreview);
+  const material=_fHistMaterial(h);
+  if(!h || !material) return; // fallback honesto: não inventa arte sem o material original
+  const key=_fHistPreviewKey(h,material);
+  const cached=_fHistPreviewCache.get(key);
+  if(cached){ _fHistApplyPreview(img,cached); return; }
+
+  try{
+    if(typeof fEnsureMaterialLayers==='function') await fEnsureMaterialLayers(material);
+    if(run!==_fHistPreviewRun || !img.isConnected) return;
+    if(!Array.isArray(material.layers) || !material.layers.length) return;
+
+    const fmt=FMTS.find(x=>x.id===h.fmtId)||FMTS[0];
+    const brandColor=getComputedStyle(document.documentElement).getPropertyValue('--dm-orange').trim();
+    const camp={id:h.campId,name:h.campName||'Luma',color:h.campColor||brandColor};
+    const size=(typeof fMaterialSize==='function')?fMaterialSize(material,fmt):[1080,1920];
+    const mw=size[0], mh=size[1];
+    const off=document.createElement('canvas'); off.width=mw; off.height=mh;
+    const previousMaterial=fState.material;
+    fState.material=material;
+    try{
+      await fRenderTemplateLayers(off.getContext('2d'),material.layers,mw,mh,h.dados||{},camp,null,
+        {scope:'franqueado',purpose:'preview'});
+    }finally{
+      // Se outro fluxo mudou o material durante o await, ele vence; não restauramos estado velho.
+      if(fState.material===material) fState.material=previousMaterial;
+    }
+    if(run!==_fHistPreviewRun || !img.isConnected) return;
+
+    // A biblioteca precisa de leitura visual, não de um segundo PNG gigante. Reduzimos uma
+    // vez com smoothing alto e guardamos apenas este JPEG leve durante a sessão.
+    const maxSide=720;
+    const scale=Math.min(1,maxSide/Math.max(mw,mh));
+    const thumb=document.createElement('canvas');
+    thumb.width=Math.max(1,Math.round(mw*scale));
+    thumb.height=Math.max(1,Math.round(mh*scale));
+    const ctx=thumb.getContext('2d');
+    ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+    ctx.drawImage(off,0,0,mw,mh,0,0,thumb.width,thumb.height);
+    const url=thumb.toDataURL('image/jpeg',.86);
+    _fHistPreviewCache.set(key,url);
+    _fHistApplyPreview(img,url);
+  }catch(e){
+    // Material indisponível, CORS ou imagem ainda sincronizando: o fallback do card continua.
+  }
+}
+function _fHistRenderPreviews(run){
+  const previews=Array.from(document.querySelectorAll('.hist-preview-art[data-hist-preview]'));
+  if(_fHistPreviewObserver){ _fHistPreviewObserver.disconnect(); _fHistPreviewObserver=null; }
+  if(!previews.length) return;
+  // Render nativo de PSD pode ser caro: só entra na fila quando o card está perto da tela.
+  // A fila é serial porque o render oficial lê fState.material; paralelizar misturaria artes.
+  let queue=Promise.resolve();
+  const enqueue=img=>{ queue=queue.then(()=>_fHistRenderPreview(img,run)).catch(()=>{}); };
+  if(typeof IntersectionObserver!=='function'){
+    previews.forEach(enqueue);
+    return;
+  }
+  const observer=new IntersectionObserver(entries=>{
+    entries.forEach(entry=>{
+      if(!entry.isIntersecting) return;
+      observer.unobserve(entry.target);
+      enqueue(entry.target);
+    });
+  },{root:document.getElementById('f-hist-tab'),rootMargin:'320px 0px'});
+  _fHistPreviewObserver=observer;
+  previews.forEach(img=>observer.observe(img));
+}
+/* ── O CAMINHO DE VOLTA DE "MINHAS ARTES" ──
+   Entrar aqui esconde o rail INTEIRO (`body.f-history-mode` derruba `#fran-left-head` e
+   `#fran-right` no CSS), então a aba "Catálogo" some junto: quem clicou em "Minhas artes"
+   de dentro de uma campanha — ou no meio do chat de um material — ficava sem volta. Sobrava
+   "Início", que joga na vitrine e abandona o que estava aberto.
+   Não há nada a reconstruir: campanha, material e chat continuam MONTADOS atrás do histórico
+   (medido — `#f-material-view` segue `display:flex` dentro do pai escondido), o CSS só os
+   cobre. Devolver a aba do catálogo restaura a tela exata, inclusive o rascunho do chat.
+   O botão SUBSTITUI o de Início em vez de somar mais um: de dentro de uma campanha a home
+   fica a um clique pelo próprio rail, e três ações num cabeçalho é ruído. */
+function _fHistVoltarBtn(){
+  const _ICO_VOLTA='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>';
+  const _ICO_HOME='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>';
+  const camp=(fState.camp && fState.camp.id) ? fState.camp : null;
+  // Só há para onde voltar se a campanha estiver de fato aberta atrás: na lista de materiais
+  // (materialView) ou no chat de um material. Vindo da vitrine, o destino certo é a home.
+  if(!camp || !(fState.materialView || fState.material)){
+    return `<button class="f-history-home" type="button" onclick="fGoHome()" aria-label="Voltar ao início">${_ICO_HOME}Início</button>`;
+  }
+  const nome=String(camp.name||'').trim() || 'a campanha';
+  const curto=nome.length>22 ? nome.slice(0,21).trimEnd()+'…' : nome;
+  return `<button class="f-history-home" type="button" onclick="fHistVoltar()" aria-label="Voltar para ${gEsc(nome)}" title="Voltar para ${gEsc(nome)}">${_ICO_VOLTA}Voltar para ${gEsc(curto)}</button>`;
+}
+function fHistVoltar(){
+  // A aba do catálogo é o botão que o CSS escondeu — chamá-la direto refaz o caminho que o
+  // usuário faria se ele estivesse visível.
+  fSwitchTab('catalogo', document.querySelector('.f-tab'));
+}
 function fRenderHist(){
+  const previewRun=++_fHistPreviewRun;
   const all = fGetHist();
   const el = document.getElementById('f-hist-tab');
   const q = (fHistSearch||'').trim().toLowerCase();
@@ -153,8 +275,7 @@ function fRenderHist(){
       <p>Continue um rascunho, reutilize uma criação ou baixe novamente.</p>
     </div>
     <div class="f-history-head-actions">
-      <button class="f-history-help" type="button" onclick="gOpenHelp(this)" data-help-trigger aria-controls="g-help-modal" aria-expanded="false" aria-label="Abrir Central de Ajuda"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 1 1 3.6 1.9c-.9.6-1.4 1.1-1.4 2.1"/><path d="M12 17h.01"/></svg>Ajuda</button>
-      <button class="f-history-home" type="button" onclick="fGoHome()" aria-label="Voltar ao início"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Início</button>
+      ${_fHistVoltarBtn()}
       <button class="f-history-new" type="button" onclick="fGoToCampaigns()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Nova arte</button>
     </div>
   </header>`;
@@ -213,10 +334,14 @@ function fRenderHist(){
     const quando = vencida ? _fHistVencimento(h) : '';
     const dis = vencida ? ' disabled aria-disabled="true"' : '';
     return `<article class="hist-card${vencida?' is-vencida':''}" data-status="${h.status||'rascunho'}">
-      <div class="hist-thumb" style="background:${gEsc(h.campColor||'var(--dm-orange)')}">
-        <span class="hist-thumb-camp">${gEsc(h.campName||'Luma')}</span>
-        <strong>${gEsc(h.prod||h.campName||'Sua arte')}</strong>
-        ${h.por?`<span class="hist-thumb-offer">${gEsc(h.por)}</span>`:''}
+      <div class="hist-thumb hist-thumb-real" style="background:${gEsc(h.campColor||'var(--dm-orange)')}">
+        <img class="hist-preview-blur" alt="" aria-hidden="true">
+        <img class="hist-preview-art" data-hist-preview="${h.id}" alt="Prévia de ${gEsc(artName)}" decoding="async">
+        <div class="hist-preview-fallback">
+          <span class="hist-thumb-camp">${gEsc(h.campName||'Luma')}</span>
+          <strong>${gEsc(h.prod||h.campName||'Sua arte')}</strong>
+          ${h.por?`<span class="hist-thumb-offer">${gEsc(h.por)}</span>`:''}
+        </div>
         <span class="hist-thumb-fmt">${gEsc(h.fmtName||'Material')}</span>
       </div>
       <div class="hist-info">
@@ -235,6 +360,7 @@ function fRenderHist(){
   }).join('');
   el.innerHTML=`<div class="f-history-shell">${pageHead}${toolbar}<div class="f-history-results"><div class="f-history-results-head"><span>${filtered.length} ${filtered.length===1?'arte':'artes'}</span><span>Mais recentes primeiro</span></div><div class="f-history-grid">${cards}</div></div></div>`;
   _fHistRestoreSearchFocus();
+  _fHistRenderPreviews(previewRun);
 }
 // Re-renderizamos o container inteiro a cada tecla → o input perde o foco/cursor.
 // Devolvemos o foco ao fim do texto só quando há busca ativa (não rouba foco à toa).
@@ -265,12 +391,13 @@ async function fDownloadHist(id){
   // renderer GENÉRICO e entregava arte errada com toast de sucesso. Avisa e para.
   if(fState.material && fState.material._needsLayersFetch){
     fState.material = prevMaterial;
-    gToast('⚠ Não consegui carregar o material original. Verifique a conexão e tente de novo.','error');
+    gToast('Não consegui carregar o material original. Verifique a conexão e tente de novo.','error');
     return;
   }
   try {
     await fGenPNG(h.dados,c,f);
   } catch(e) {
+    if(typeof gHandleLayoutUnsafeError==='function'&&gHandleLayoutUnsafeError(e))return;
     gToast('Não consegui baixar a arte. Tente de novo.','error');
     return; // não marca "baixada" nem toast de sucesso se o PNG não saiu
   } finally {
@@ -441,6 +568,7 @@ async function fConfirmDuplicate(id, fmtId){
     await fGenPNG(h.dados, c, f);
     fAddHist(h.dados, c, f, 'baixada'); // só registra se o PNG saiu (material ainda carregado aqui)
   } catch(e) {
+    if(typeof gHandleLayoutUnsafeError==='function'&&gHandleLayoutUnsafeError(e))return;
     gToast('Não consegui duplicar a arte. Tente de novo.','error');
     return;
   } finally {
@@ -1312,7 +1440,7 @@ function fRenderHome(opts){
         <p class="fh-sub">Qual arte vamos criar hoje?</p>
       </div>
       <div class="fh-head-actions">
-        <button class="fh-help" type="button" onclick="gOpenHelp(this)" data-help-trigger aria-controls="g-help-modal" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 1 1 3.6 1.9c-.9.6-1.4 1.1-1.4 2.1"/><path d="M12 17h.01"/></svg><span>Ajuda</span></button>
+        <button class="fh-help" type="button" onclick="lumaWidgetOpen(this)" data-help-trigger aria-controls="luma-widget-modal" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 1 1 3.6 1.9c-.9.6-1.4 1.1-1.4 2.1"/><path d="M12 17h.01"/></svg><span>Ajuda</span></button>
         <button class="fh-mine" type="button" onclick="fHomeOpenHist()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 4v5"/></svg><span>Minhas artes</span>${nHist?` <span class="fh-mine-badge">${nHist}</span>`:''}</button>
       </div>
     </div>

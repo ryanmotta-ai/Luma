@@ -92,8 +92,8 @@ body.f-history-mode #f-hist-tab{display:block!important}
 .f-history-head p{margin:11px 0 0;color:var(--text-3);font-size:14px}
 .f-history-head-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .f-history-head-actions button{min-height:42px;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 15px;border-radius:10px;font-family:'Roboto',sans-serif;font-size:12px;font-weight:800;cursor:pointer;transition:transform var(--dur-fast) var(--ease-spring),border-color var(--dur-fast) var(--ease-standard),background var(--dur-fast) var(--ease-standard)}
-.f-history-home,.f-history-help{border:1px solid var(--gray-mid);background:var(--white);color:var(--text-2)}
-.f-history-home:hover,.f-history-help:hover{border-color:var(--dm-orange-tint);background:var(--dm-orange-bg);color:var(--dm-orange-d);transform:translateY(-1px)}
+.f-history-home{border:1px solid var(--gray-mid);background:var(--white);color:var(--text-2)}
+.f-history-home:hover{border-color:var(--dm-orange-tint);background:var(--dm-orange-bg);color:var(--dm-orange-d);transform:translateY(-1px)}
 .f-history-new{border:1px solid var(--dm-orange);background:var(--dm-orange);color:var(--white);box-shadow:0 7px 18px color-mix(in srgb,var(--dm-orange-d) 18%,transparent)}
 .f-history-new:hover{background:var(--dm-orange-d);border-color:var(--dm-orange-d);transform:translateY(-1px)}
 .f-history-head-actions button:focus-visible{outline:2px solid var(--dm-orange);outline-offset:3px}
@@ -118,10 +118,20 @@ body.f-history-mode #f-hist-tab{display:block!important}
 .hist-card:hover{border-color:var(--dm-orange-tint);transform:translateY(-3px);box-shadow:0 16px 34px rgba(10,10,10,.08)}
 .hist-thumb{height:190px;position:relative;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;gap:4px;padding:20px;color:var(--white);overflow:hidden}
 .hist-thumb::after{content:'';position:absolute;inset:auto 18px 18px auto;width:74px;height:74px;border:1px solid rgba(255,255,255,.3);border-radius:50%}
+.hist-thumb-real{align-items:center;justify-content:center;padding:12px;isolation:isolate}
+.hist-thumb-real.is-preview-ready{background:var(--gray-light)!important}
+body:not(.theme-light) .hist-thumb-real.is-preview-ready{background:var(--d-surf2)!important}
+.hist-thumb-real::after{display:none}
+.hist-preview-blur{position:absolute;z-index:0;inset:-24px;width:calc(100% + 48px);height:calc(100% + 48px);object-fit:cover;filter:blur(22px) saturate(.82);opacity:0;transform:scale(1.08);transition:opacity var(--dur-base) var(--ease-standard)}
+.hist-preview-art{position:relative;z-index:2;display:block;width:auto;height:auto;max-width:calc(100% - 8px);max-height:100%;border-radius:var(--r-sm);box-shadow:0 8px 24px color-mix(in srgb,var(--text) 18%,transparent);opacity:0;transform:scale(.985);transition:opacity var(--dur-base) var(--ease-standard),transform var(--dur-base) var(--ease-spring-soft)}
+.hist-preview-fallback{position:absolute;z-index:1;inset:0;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;gap:4px;padding:20px;color:var(--white);transition:opacity var(--dur-fast) var(--ease-standard)}
+.hist-thumb-real.is-preview-ready .hist-preview-blur{opacity:.42}
+.hist-thumb-real.is-preview-ready .hist-preview-art{opacity:1;transform:none}
+.hist-thumb-real.is-preview-ready .hist-preview-fallback{opacity:0;pointer-events:none}
 .hist-thumb-camp{position:absolute;top:16px;left:18px;max-width:70%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;opacity:.82}
 .hist-thumb strong{position:relative;z-index:1;max-width:80%;font-family:'Roboto',sans-serif;font-size:21px;font-weight:900;letter-spacing:-.025em;line-height:1.05;text-transform:uppercase}
 .hist-thumb-offer{position:relative;z-index:1;color:var(--dm-yellow);font-size:17px;font-weight:900}
-.hist-thumb-fmt{position:absolute;top:14px;right:14px;padding:3px 7px;border:1px solid rgba(255,255,255,.3);border-radius:var(--r-pill);background:rgba(10,10,10,.18);font-size:8px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.hist-thumb-fmt{position:absolute;z-index:3;top:14px;right:14px;padding:3px 7px;border:1px solid rgba(255,255,255,.3);border-radius:var(--r-pill);background:rgba(10,10,10,.18);font-size:8px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
 .hist-info{min-width:0;display:flex;flex:1;flex-direction:column;padding:16px}
 .hist-card-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
 .hist-card-top time{color:var(--text-3);font-size:10px;font-weight:600}
@@ -181,6 +191,7 @@ body:not(.theme-light) #fran-left {
   border-right-color: var(--d-border);
 }
 body:not(.theme-light) #fran-left-head {
+  background: var(--d-dark);
   border-bottom-color: var(--d-border);
 }
 body:not(.theme-light) #fran-left-head h2 {
@@ -199,6 +210,10 @@ body:not(.theme-light) .f-tab.active {
   background: color-mix(in srgb,var(--dm-orange) 12%,transparent);
   color: var(--dm-orange);
   border-color: var(--dm-orange);
+}
+body:not(.theme-light) .f-tabs {
+  background: var(--d-surf2);
+  border-color: var(--d-border);
 }
 body:not(.theme-light) #f-search-row svg {
   color: var(--d-text2);
@@ -249,7 +264,19 @@ body:not(.theme-light) #f-chat-head {
   background: var(--d-dark);
   border-bottom: 1px solid var(--d-border);
 }
+body:not(.theme-light) #fran-right {
+  background: var(--d-bg);
+}
 body:not(.theme-light) .bot-info-name {
+  color: var(--d-text);
+}
+body:not(.theme-light) .f-session-context {
+  border-left-color: var(--d-border);
+}
+body:not(.theme-light) .f-session-label {
+  color: var(--d-text3);
+}
+body:not(.theme-light) #f-ctx-tag {
   color: var(--d-text);
 }
 body:not(.theme-light) #f-right-body {
@@ -647,12 +674,30 @@ body:not(.theme-light) #f-live-preview::-webkit-scrollbar-thumb:hover {
   }
 }
 
-/* Botão "voltar ao catálogo" — só aparece no mobile (ver media query abaixo). */
+/* Botão "voltar ao catálogo" — aparece no mobile e no tablet quando em criação de arte. */
 #f-mobile-back{display:none;background:transparent;border:none;color:var(--text-2);cursor:pointer;padding:6px 8px;margin-right:2px;align-items:center;justify-content:center;border-radius:8px;flex-shrink:0}
 #f-mobile-back:hover{background:var(--gray-light)}
 
 /* A escolha do material já tem contexto próprio; a barra do assistente só aparece no chat. */
 body.f-material-browser #f-chat-head{display:none}
+
+/* ── TABLET (681px a 1080px): split 50/50 inteligente entre Chat e Prévia ──
+   Ao abrir um material para personalização, o rail lateral esquerdo (#fran-left)
+   colapsa automaticamente, liberando a largura total da tela para o Chat e a Prévia.
+   O botão #f-mobile-back no topo do chat permite retornar ao catálogo a qualquer momento. */
+@media (min-width: 681px) and (max-width: 1080px){
+  body:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #fran-left{
+    width:0!important;min-width:0!important;max-width:0!important;
+    border-right-width:0!important;overflow:hidden!important;
+    opacity:0;pointer-events:none;
+  }
+  body:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #fran-right{
+    display:flex!important;width:100%!important;flex:1 1 100%!important;
+  }
+  body:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-mobile-back{
+    display:flex;width:var(--tap-min,44px);height:var(--tap-min,44px);
+  }
+}
 
 /* ── MOBILE: layout de 1 coluna por vez (catálogo OU chat) ──────────────────
    O layout de 2 colunas do desktop colapsa: por padrão mostra o CATÁLOGO;
@@ -691,12 +736,8 @@ body.f-material-browser #f-chat-head{display:none}
 body.f-home-mode #f-home{display:block}
 body.f-home-mode #fran-left,
 body.f-home-mode #fran-right{display:none}
-/* Bolinha de ajuda: UM caminho por tela. Vitrine (.fh-help) e Minhas artes
-   (.f-history-help) já têm botão "Ajuda" no cabeçalho — ali a bolinha só duplicaria a
-   mesma ação. Nas telas sem esse botão (o workspace de criar arte), ela aparece. */
-body.mode-franqueado.f-home-mode #g-help-float,
-body.mode-franqueado.f-history-mode #g-help-float{display:none!important}
-body.mode-franqueado:not(.f-home-mode):not(.f-history-mode) #g-help-float{display:flex!important}
+/* Ajuda é uma decisão da home, ao lado de "Minhas artes". Não há acionador global
+   flutuando sobre criação, prévia ou histórico. */
 
 .fh-inner{
   width:100%;max-width:none;margin:0;
@@ -718,7 +759,7 @@ body.mode-franqueado:not(.f-home-mode):not(.f-history-mode) #g-help-float{displa
   padding:10px 15px;border-radius:12px;font-family:'Roboto',sans-serif;font-size:12px;font-weight:800;cursor:pointer;
   transition:transform var(--dur-fast) var(--ease-spring),border-color var(--dur-fast) var(--ease-standard),background var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard);
 }
-.fh-head-actions .fh-help{display:none}
+.fh-head-actions .fh-help{min-height:48px;border:1px solid var(--gray-mid);background:var(--white);color:var(--text-2)}
 .fh-help:hover{border-color:var(--dm-orange-tint);background:var(--dm-orange-bg);color:var(--dm-orange-d);transform:translateY(-1px)}
 .fh-head-actions .fh-mine{min-height:48px;gap:9px;padding:11px 20px;border:1px solid var(--gray-mid);background:var(--white);color:var(--text);font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
 .fh-mine svg{width:17px;height:17px}
@@ -904,15 +945,19 @@ body:not(.theme-light) #f-home{
 body:not(.theme-light) .fh-greet,body:not(.theme-light) .fh-sec,body:not(.theme-light) .fh-hero-name,body:not(.theme-light) .fh-draft-name{color:var(--d-text)}
 body:not(.theme-light) .fh-sub,body:not(.theme-light) .fh-kicker,body:not(.theme-light) .fh-sec em,body:not(.theme-light) .fh-draft-meta,body:not(.theme-light) .fh-draft-foot,body:not(.theme-light) .fh-hero-meta{color:var(--d-text2)}
 body:not(.theme-light) .fh-help,
+body:not(.theme-light) .fh-mine,
 body:not(.theme-light) .fh-search-row,
 body:not(.theme-light) .fh-draft,
 body:not(.theme-light) .fh-hero,
 body:not(.theme-light) .fh-coming,
 body:not(.theme-light) .fh-empty{background:var(--d-dark);border-color:var(--d-border2)}
 body:not(.theme-light) .fh-help{color:var(--d-text2)}
+body:not(.theme-light) .fh-mine{color:var(--d-text);box-shadow:0 2px 8px rgba(0,0,0,.18)}
 body:not(.theme-light) .fh-help:hover{background:var(--d-surf2);color:var(--dm-orange)}
+body:not(.theme-light) .fh-mine:hover{background:var(--d-surf2);border-color:var(--dm-orange);color:var(--dm-orange)}
 body:not(.theme-light) .fh-search-row.is-stuck{background:rgba(26,26,26,.84);border-color:var(--dm-orange-tint)}
 body:not(.theme-light) .fh-search-field label{color:var(--d-text2)}
+body:not(.theme-light) .fh-hero-eyebrow{color:var(--dm-orange)}
 /* `color` junto: sem ele o chip herdava --text-3 (#6B6B6B) e ficava 2.69:1 sobre o
    --d-surf2 no tema escuro. Vale pra TODO hero, não só o Much+ — só não aparecia porque
    o tema Much+ pintava o chip de amarelo por cima. */
@@ -941,10 +986,13 @@ body:not(.theme-light) #f-home-btn{border-color:var(--dm-orange-d);background:va
   .fh-head{align-items:flex-start;flex-direction:column;gap:22px}
   .fh-greet{font-size:clamp(31px,10vw,43px)}
   .fh-sub{margin-top:11px;font-size:13px}
-  .fh-head-actions{width:100%}
-  .fh-head-actions button{min-height:var(--tap-min)}
-  .fh-mine{flex:1}
-  .fh-search-row{top:6px;min-height:60px;grid-template-columns:auto minmax(0,1fr) auto;padding:7px;border-radius:15px}
+  .fh-head-actions{width:100%;display:flex;gap:8px;align-items:center}
+  .fh-head-actions button{min-height:var(--tap-min);border-radius:var(--r-pill)}
+  .fh-help{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;padding:0 14px}
+  .fh-help span{display:inline-block !important;font-size:12px;font-weight:650}
+  .fh-mine{flex:1 1 auto;padding:0 16px;font-size:12.5px}
+  .fh-search-row{top:6px;min-height:60px;grid-template-columns:auto minmax(0,1fr) auto;padding:7px;border-radius:15px;transition:background var(--dur-base),box-shadow var(--dur-base),border-color var(--dur-base)}
+  .fh-search-row.is-stuck{background:color-mix(in srgb,var(--white) 94%,transparent);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);box-shadow:0 8px 24px rgba(10,10,10,.08),0 1px 2px rgba(10,10,10,.04);border-color:color-mix(in srgb,var(--gray-mid) 80%,transparent)}
   .fh-search-icon{width:44px;height:44px}
   #fh-search{font-size:16px}
   .fh-filter-btn{min-height:44px;min-width:44px;padding:8px;justify-content:center}
@@ -958,19 +1006,20 @@ body:not(.theme-light) #f-home-btn{border-color:var(--dm-orange-d);background:va
   .fh-hero-body{padding:29px 24px 30px}
   .fh-hero-name{font-size:32px}
   .fh-hero-cta{width:100%;min-height:var(--tap-min);justify-content:center}
-  .fh-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-  .fh-grid .camp-thumb{aspect-ratio:4/3}
+  .fh-grid{grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:10px !important}
+  .fh-grid .camp-thumb{aspect-ratio:16/11 !important;border-radius:12px}
   .fh-coming{padding:14px}
-  .fh-grid-ghost{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .fh-grid-ghost{grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:10px !important}
 }
 @media (max-width:480px){
   .fh-head-actions{align-items:stretch}
-  .fh-help{width:44px;padding:0}
-  .fh-help span{display:none}
+  .fh-help{padding:0 12px}
+  .fh-help span{display:inline-block !important;font-size:11.5px}
+  .fh-mine{padding:0 12px;font-size:12px}
   .fh-sec{align-items:flex-start;flex-direction:column;gap:3px}
   .fh-sec em::before{display:none}
-  .fh-grid,.fh-grid-ghost{grid-template-columns:1fr}
-  .fh-grid .camp-thumb{aspect-ratio:16/9}
+  .fh-grid,.fh-grid-ghost{grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:10px !important}
+  .fh-grid .camp-thumb{aspect-ratio:16/11 !important;border-radius:12px}
   .fh-hero-cover{min-height:205px}
   .fh-hero-formats{margin-top:13px}
   .fh-draft{grid-template-columns:68px minmax(0,1fr) 32px}
@@ -1065,7 +1114,6 @@ body.f-cols-enter #fran-right{animation:gFadeIn var(--dur-base) var(--ease-out) 
   .f-history-head-actions{width:100%}
   .f-history-head-actions button{min-height:var(--tap-min)}
   .f-history-new{flex:1}
-  .f-history-help{width:44px;padding:0;font-size:0}
   .f-history-toolbar{align-items:stretch;flex-direction:column;padding:8px}
   .hist-search-row{width:100%}
   .hist-filter-bar{width:100%}
@@ -1199,6 +1247,8 @@ body:not(.theme-light) .camp-ana-src{background:var(--d-dark);color:var(--d-text
 body:not(.theme-light) .camp-admin-menu{background:var(--d-surf);border-color:var(--d-border)}
 body:not(.theme-light) .camp-admin-menu button{color:var(--d-text2)}
 body:not(.theme-light) .camp-admin-menu button:hover{background:var(--d-surf2);color:var(--dm-orange)}
+body:not(.theme-light) .cat-arch-btn{background:var(--d-surf);border-color:var(--d-border2);color:var(--d-text2)}
+body:not(.theme-light) .cat-arch-btn:hover{border-color:var(--dm-orange);color:var(--dm-orange)}
 body:not(.theme-light) .f-arch-box{background:var(--d-surf);border-color:var(--d-border)}
 body:not(.theme-light) .f-arch-head{border-color:var(--d-border)}
 body:not(.theme-light) .f-arch-head h2,body:not(.theme-light) .f-arch-name{color:var(--d-text)}
@@ -1273,7 +1323,7 @@ body:not(.theme-light).f-history-mode #fran-left,body:not(.theme-light) #f-hist-
 body:not(.theme-light) .f-history-head h1,body:not(.theme-light) .hist-name{color:var(--d-text)}
 body:not(.theme-light) .f-history-head h1 span,body:not(.theme-light) .f-history-toolbar,body:not(.theme-light) .hist-card,body:not(.theme-light) .f-history-empty{background:var(--d-surf);border-color:var(--d-border)}
 body:not(.theme-light) .f-history-head p,body:not(.theme-light) .hist-card-top time,body:not(.theme-light) .hist-meta,body:not(.theme-light) .f-history-results-head{color:var(--d-text3)}
-body:not(.theme-light) .f-history-home,body:not(.theme-light) .f-history-help,body:not(.theme-light) .hist-act-btn{background:var(--d-surf);border-color:var(--d-border2);color:var(--d-text2)}
+body:not(.theme-light) .f-history-home,body:not(.theme-light) .hist-act-btn{background:var(--d-surf);border-color:var(--d-border2);color:var(--d-text2)}
 body:not(.theme-light) .hist-filter-bar,body:not(.theme-light) #f-hist-search{background:var(--d-surf2)}
 body:not(.theme-light) .hist-filter-btn{color:var(--d-text2)}
 body:not(.theme-light) .hist-filter-btn:hover,body:not(.theme-light) .hist-filter-btn.active{background:var(--d-surf);color:var(--dm-orange)}

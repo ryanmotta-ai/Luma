@@ -48,7 +48,8 @@ async function fRenderCanvasHelper(d,c,fmt){
     renderCtx.imageSmoothingEnabled = true;
     renderCtx.imageSmoothingQuality = 'high';
     renderCtx.scale(SCALE, SCALE);
-    await fRenderTemplateLayers(renderCtx, fState.material.layers, w, h, d, c);
+    await fRenderTemplateLayers(renderCtx, fState.material.layers, w, h, d, c, null,
+      {scope:'franqueado',purpose:'export'});
     await fDrawDMLogo(renderCtx, w, h);
     return renderCv;
   }
@@ -201,6 +202,7 @@ async function fCompartilhar(btn, snapId){
   }catch(e){
     if(e && e.name==='AbortError') return; // usuário cancelou o share nativo — silencioso
     console.warn('Falha ao compartilhar:',e);
+    if(typeof gHandleLayoutUnsafeError==='function'&&gHandleLayoutUnsafeError(e))return;
     gToast('Não consegui compartilhar. Tente o botão Baixar.','error');
   }finally{ fState.material=prevMat; }
 }
@@ -212,8 +214,68 @@ async function fDrawDMLogo(ctx, w, h){
   return; // não desenha nenhuma logo de marca no resultado final
 }
 
+// ── Camadas de ajuste importadas do Photoshop ────────────────────────────────
+// Opera em ImageData para que o mesmo resultado sirva preview, PNG e mockup. A função é
+// propositalmente pública: o QA consegue testar a matemática sem montar uma tela inteira.
+function fAdjustImageData(id, adj){
+  if(!id||!id.data||!adj||!adj.type)return id;
+  const d=id.data, type=String(adj.type).toLowerCase();
+  const clamp=(v,a=0,b=255)=>Math.max(a,Math.min(b,v));
+  const curveLut=(nodes)=>{
+    const ns=(nodes&&nodes.length?nodes:[{input:0,output:0},{input:255,output:255}]).slice().sort((a,b)=>(+a.input||0)-(+b.input||0)),lut=new Uint8ClampedArray(256);
+    for(let v=0,n=1;v<256;v++){
+      while(n<ns.length&&v>ns[n].input)n++;
+      if(v<=ns[0].input)lut[v]=clamp(+ns[0].output||0);
+      else if(n>=ns.length)lut[v]=clamp(+ns[ns.length-1].output||0);
+      else{const p=ns[n-1],q=ns[n],den=(q.input-p.input)||1,t=(v-p.input)/den;lut[v]=clamp(p.output+(q.output-p.output)*t);}
+    }
+    return lut;
+  };
+  const level=(v,c)=>{if(!c)return v;const lo=+c.shadowInput||0,hi=c.highlightInput!=null?+c.highlightInput:255,den=Math.max(1,hi-lo);let n=clamp((v-lo)/den,0,1);const g=Math.max(.01,+c.midtoneInput||1);n=Math.pow(n,1/g);const a=+c.shadowOutput||0,b=c.highlightOutput!=null?+c.highlightOutput:255;return clamp(a+n*(b-a));};
+  const rgbToHsl=(r,g,b)=>{
+    r/=255;g/=255;b/=255;const mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/2;if(mx===mn)return[0,0,l];const x=mx-mn,s=l>.5?x/(2-mx-mn):x/(mx+mn);let h=mx===r?((g-b)/x+(g<b?6:0)):mx===g?((b-r)/x+2):((r-g)/x+4);return[h/6,s,l];
+  };
+  const hue=(p,q,t)=>{if(t<0)t++;if(t>1)t--;return t<1/6?p+(q-p)*6*t:t<1/2?q:t<2/3?p+(q-p)*(2/3-t)*6:p;};
+  const hslToRgb=(h,s,l)=>{if(!s){const v=l*255;return[v,v,v];}const q=l<.5?l*(1+s):l+s-l*s,p=2*l-q;return[hue(p,q,h+1/3)*255,hue(p,q,h)*255,hue(p,q,h-1/3)*255];};
+  const makeLut=fn=>{const out=new Uint8ClampedArray(256);for(let v=0;v<256;v++)out[v]=clamp(fn(v));return out;};
+  let lutR=null,lutG=null,lutB=null;
+  if(type==='brightness/contrast'){
+    const br=clamp(+adj.brightness||0,-100,100)/100,ct=clamp(+adj.contrast||0,-99,99)/100;
+    const lut=makeLut(v=>{v=br<0?v*(1+br):v+(255-v)*br;return(v-127.5)*((1+ct)/(1-ct))+127.5;});lutR=lutG=lutB=lut;
+  }else if(type==='levels'){
+    lutR=makeLut(v=>level(level(v,adj.rgb),adj.red));lutG=makeLut(v=>level(level(v,adj.rgb),adj.green));lutB=makeLut(v=>level(level(v,adj.rgb),adj.blue));
+  }else if(type==='curves'){
+    const all=curveLut(adj.rgb),r=curveLut(adj.red),g=curveLut(adj.green),b=curveLut(adj.blue);
+    lutR=makeLut(v=>r[all[v]]);lutG=makeLut(v=>g[all[v]]);lutB=makeLut(v=>b[all[v]]);
+  }else if(type==='exposure'){
+    const mul=Math.pow(2,+adj.exposure||0),off=(+adj.offset||0)*255,ga=Math.max(.01,+adj.gamma||1),lut=makeLut(v=>Math.pow(clamp((v*mul+off)/255,0,1),1/ga)*255);lutR=lutG=lutB=lut;
+  }else if(type==='invert'){
+    const lut=makeLut(v=>255-v);lutR=lutG=lutB=lut;
+  }else if(type==='posterize'){
+    const n=Math.max(2,Math.round(+adj.levels||4)),q=255/(n-1),lut=makeLut(v=>Math.round(v/q)*q);lutR=lutG=lutB=lut;
+  }
+  for(let i=0;i<d.length;i+=4){
+    if(!d[i+3])continue;
+    let r=d[i],g=d[i+1],b=d[i+2];
+    if(lutR){r=lutR[r];g=lutG[g];b=lutB[b];
+    }else if(type==='hue/saturation'||type==='vibrance'){
+      let hsl=rgbToHsl(r,g,b),dh=0,ds=0,dl=0;
+      if(type==='hue/saturation'){const m=adj.master||{};dh=(+m.hue||0)/360;ds=(+m.saturation||0)/100;dl=(+m.lightness||0)/100;}
+      else {const sat=(+adj.saturation||0)/100,vib=(+adj.vibrance||0)/100;ds=sat+vib*(1-hsl[1]);}
+      hsl[0]=(hsl[0]+dh+1)%1;hsl[1]=clamp(hsl[1]+(ds>=0?(1-hsl[1])*ds:hsl[1]*ds),0,1);hsl[2]=clamp(hsl[2]+(dl>=0?(1-hsl[2])*dl:hsl[2]*dl),0,1);[r,g,b]=hslToRgb(hsl[0],hsl[1],hsl[2]);
+    }else if(type==='threshold'){const y=.299*r+.587*g+.114*b,v=y>=(adj.level!=null?+adj.level:128)?255:0;r=g=b=v;
+    }else continue;
+    d[i]=Math.round(clamp(r));d[i+1]=Math.round(clamp(g));d[i+2]=Math.round(clamp(b));
+  }
+  return id;
+}
+
 // Renderiza os layers do template, substituindo {{var}} pelos dados reais do franqueado
-async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
+async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp, materialOverride, renderOpts){
+  renderOpts=renderOpts||{};
+  // Fail-safe: chamadas sem escopo são tratadas como autoria. Só um consumidor que se declara
+  // `franqueado` pode executar o Auto-layout temporário.
+  const _renderScope=renderOpts.scope||'designer';
   // Garante que as fontes (Roboto + enviadas pelo usuário) estejam carregadas antes
   // de desenhar texto no canvas — senão a primeira geração sai com fonte fallback.
   if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
@@ -221,7 +283,8 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
   // Fundo da prancheta/campanha
-  const _matBg=typeof fState!=='undefined'&&fState.material&&fState.material.bg&&fState.material.bg!=='transparent'?fState.material.bg:null;
+  const _renderMaterial=materialOverride||(typeof fState!=='undefined'?fState.material:null)||{layers,w:W,h:H,fmt:'orig'};
+  const _matBg=_renderMaterial.bg&&_renderMaterial.bg!=='transparent'?_renderMaterial.bg:null;
   if(_matBg){
     ctx.fillStyle=_matBg==='white'?'#ffffff':_matBg;
     ctx.fillRect(0,0,W,H);
@@ -235,7 +298,7 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
   const fmtSizes = {story:[1080,1920], feed:[1080,1350], wide:[1200,628], post:[1200,628], horizontal:[1920,1080]};
   // Espaço nativo das coords do template: w/h reais (1:1 do PSD) ou o preset do formato (legado).
   // Quando o material tem w/h reais e está sendo renderizado no próprio tamanho, tw/th==W/H → sem reflow.
-  const [tw, th] = fMaterialSize(fState.material);
+  const [tw, th] = fMaterialSize(_renderMaterial);
   let geomLayers = layers;
   if((tw !== W || th !== H) && typeof gReflowLayers === 'function'){
     const fmtKey = Object.keys(fmtSizes).find(k => fmtSizes[k][0]===W && fmtSizes[k][1]===H);
@@ -248,19 +311,53 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
     if(typeof gApplyRules==='function') eff = gApplyRules(eff, dados, {defaults:_defaults});
     return eff;
   });
-  // Aplica Alinhamento Magnético Relativo (Auto-spacing).
-  // `fitText` = layout vivo: mede o texto como ele será DESENHADO (quebra + encolhimento),
-  // então o bloco de baixo desce o quanto precisa. Desligado, mede como antes.
+  // Âncoras manuais existem nos dois lados; Auto-layout inferido só existe no runtime do
+  // franqueado. Calculamos original e acomodado em CLONES independentes — o template publicado
+  // nunca recebe x/y/fonte temporários.
   if(typeof gApplyRelativeAnchors==='function'){
-    // Ligado em todo template; só a flag da rede e o botão Auto-layout da prévia desligam.
-    const _vivo = (typeof gLayoutVivoAtivo==='function') ? gLayoutVivoAtivo() : false;
-    effective = gApplyRelativeAnchors(effective, dados, _defaults, {fitText:_vivo, canvas:{w:W,h:H}});
+    const original=gApplyRelativeAnchors(effective,dados,_defaults,{fitText:false,canvas:{w:W,h:H},scope:_renderScope});
+    const disponivel=_renderScope==='franqueado'
+      &&((typeof gLayoutVivoDisponivel==='function')?gLayoutVivoDisponivel():true);
+    if(disponivel){
+      // A ENTRADA do solver, guardada antes de `effective` virar o resultado: o diagnóstico
+      // re-roda o motor com valores encurtados e precisa partir do mesmo ponto de partida.
+      const entradaLayout=effective;
+      const solved=gApplyRelativeAnchors(effective,dados,_defaults,{fitText:true,canvas:{w:W,h:H},scope:'franqueado'});
+      const result=(typeof gDescribeFranchiseeLayout==='function')
+        ?gDescribeFranchiseeLayout(original,solved)
+        :{status:'adapted',adapted:true,invalid:false,requiresAdaptation:true,forced:false,changes:[],invalidIds:[]};
+      const prefereOriginal=(typeof gLayoutVivoOff!=='undefined')&&gLayoutVivoOff;
+      result.forced=!!(prefereOriginal&&result.requiresAdaptation);
+      effective=(prefereOriginal&&!result.requiresAdaptation)?original:solved;
+      effective._layoutResult=result;
+      window.gLastFranchiseeLayoutResult=result;
+      /* DIAGNÓSTICO ACIONÁVEL. Só quando a composição REPROVOU: a busca binária re-roda o solver
+         algumas vezes, e isso não pode entrar no laço da digitação. Aqui já é o caminho de
+         falha, onde o custo se paga em o franqueado saber o que fazer. */
+      if(result.invalid&&typeof gLayoutDiagnosis==='function'){
+        result.diagnostico=gLayoutDiagnosis(entradaLayout,dados,_defaults,
+          {fitText:true,canvas:{w:W,h:H},scope:'franqueado'},solved);
+      }
+      if(typeof gLayoutTelemetry==='function'){
+        if(result.meta&&typeof gLayoutFonteStatusArte==='function')
+          result.meta.fonte=gLayoutFonteStatusArte(solved);
+        gLayoutTelemetry(result,{purpose:renderOpts.purpose||'preview',
+          template:(_renderMaterial&&(_renderMaterial.templateId||_renderMaterial.template_id))||null,
+          material:(_renderMaterial&&(_renderMaterial.id||_renderMaterial.nome))||null,
+          formato:W+'x'+H});
+      }
+      if(result.invalid&&renderOpts.purpose==='export'){
+        const err=new Error((result.diagnostico&&result.diagnostico.mensagem)
+          ||'A arte não tem espaço seguro para estes dados. Encurte o texto ou escolha outro material.');
+        err.code='LUMA_LAYOUT_UNSAFE';err.layoutResult=result;throw err;
+      }
+    }else{
+      effective=original;
+      effective._layoutResult={status:'original',adapted:false,invalid:false,
+        requiresAdaptation:false,forced:false,changes:[],invalidIds:[]};
+    }
   }
-  // NÃO rodar o auto-layout (gResolveIntelligentLayout) aqui: este render é o mesmo do
-  // preview ao vivo (roda a cada tecla) e do PNG. Mover camadas neste ponto custava
-  // O(layers × canvas) por tecla e fazia a prévia divergir do que o designer publicou.
-  // O auto-layout é ação EXPLÍCITA do Estúdio (dApplyIntelligentLayout), que persiste a
-  // geometria — assim prévia e PNG usam as mesmas coords, sem surpresa e sem custo aqui.
+  // O renderer continua único: prévia e exportação recebem exatamente o mesmo clone resolvido.
   // Renderiza só layers visíveis (geometria já está no formato alvo → escala 1:1)
   const visible = effective.filter(l => l.visible !== false);
   // PRÉ-CARGA PARALELA: o loop abaixo espera imagem por imagem (await em série) — com os
@@ -271,22 +368,38 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
     for(const l of visible){
       if(typeof l.imgUrl==='string' && l.imgUrl) _urls.push(l.imgUrl);
       if(typeof l.mask==='string' && l.mask) _urls.push(l.mask);
+      // Máscaras da composição de grupo/clipping (PSD): sem elas aqui, cada recorte volta a ser
+      // um download EM SÉRIE dentro do loop — exatamente o custo que esta pré-carga existe para
+      // matar. A do grupo entra pelo próprio `l.mask` acima (grupo é camada); falta a do
+      // clipping editável, que mora num campo separado.
+      if(typeof l.clipOwnMask==='string' && l.clipOwnMask) _urls.push(l.clipOwnMask);
       if(l.imgVar && dados && typeof dados[l.imgVar]==='string' && dados[l.imgVar]) _urls.push(dados[l.imgVar]);
     }
     await Promise.all(_urls.map(u=>fLoadImageDataUrl(u)));
   }catch(e){}
-  for(const l of visible){
+  const _layerById=new Map(effective.filter(l=>l&&l.id).map(l=>[l.id,l]));
+  const _groupById=new Map(effective.filter(l=>l&&l.type==='group'&&l.id).map(l=>[l.id,l]));
+
+  // Desenha uma folha da árvore. `clipBaseId` é a clipping mask EDITÁVEL: o alpha vem da
+  // camada-base no estado atual, não do PNG congelado no momento da importação do PSD.
+  async function _fRenderLeaf(target,l){
     const _bm=l.blendMode&&l.blendMode!=='normal'?l.blendMode:'normal';
     const _native=(typeof dBlendToComposite==='function')?dBlendToComposite(_bm):null;
     // Modos sem equivalente nativo no Canvas 2D → fallback pixel-a-pixel via dBlendImageData
     const _needsSw=_bm!=='normal'&&_native===null&&typeof dBlendImageData==='function';
-    if(l.mask||_needsSw){
+    const _clipLink=l.clipBaseId&&_layerById.get(l.clipBaseId);
+    // Enquanto a base não foi editada, o alpha salvo pelo próprio Photoshop é mais fiel nas
+    // bordas antialias. Ao mudar geometria/formato/máscara, troca automaticamente para o vínculo
+    // vivo — precisão no primeiro render e editabilidade depois, sem botão nem estado manual.
+    const _clipNow=_clipLink&&{x:_clipLink.x,y:_clipLink.y,w:_clipLink.w,h:_clipLink.h,shapeKind:_clipLink.shapeKind||'rect',radius:_clipLink.radius||0,radii:_clipLink.radii||null,points:_clipLink.points||null,sides:_clipLink.sides||null,inner:_clipLink.inner||null,vectorPath:_clipLink.vectorPath||null,maskSize:_clipLink.mask?_clipLink.mask.length:0};
+    const _clipBase=_clipLink&&(!l.clipBaseSnapshot||JSON.stringify(_clipNow)!==JSON.stringify(l.clipBaseSnapshot))?_clipLink:null;
+    if(l.mask||_clipBase||_needsSw){
       // Ambos os casos precisam de offscreen: máscara e/ou blend software.
       // ATENÇÃO: o ctx pai pode estar com super-sampling (scale 2×) no download. O
       // offscreen precisa ter a resolução de DISPOSITIVO (W*sx × H*sy) e a mesma
       // transform — senão o conteúdo sai em meia escala no canto (bug: prévia 1× ok,
       // download 2× quebrado).
-      const _tf=(typeof ctx.getTransform==='function')?ctx.getTransform():{a:1,d:1};
+      const _tf=(typeof target.getTransform==='function')?target.getTransform():{a:1,d:1};
       const _sx=_tf.a||1, _sy=_tf.d||1;
       const oc=document.createElement('canvas');
       oc.width=Math.max(1,Math.round(W*_sx)); oc.height=Math.max(1,Math.round(H*_sy));
@@ -296,11 +409,26 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
       // Renderiza no offscreen sem blend (source-over) — blend aplicado abaixo
       const _lNoBm=_needsSw?Object.assign({},l,{blendMode:'normal'}):l;
       await fRenderOneLayer(octx, _lNoBm, dados, 1, 1);
-      if(l.mask){
+      // Com clipping dinâmico, `mask` continua como fallback do DOM legado; no Canvas usamos
+      // apenas a máscara própria (layer/vector/group) para não multiplicar a borda duas vezes.
+      const _ownMask=_clipBase?l.clipOwnMask:l.mask;
+      if(_ownMask){
         try{
-          const mimg=await fLoadImageDataUrl(l.mask);
+          const mimg=await fLoadImageDataUrl(_ownMask);
           if(mimg){ octx.save(); octx.globalCompositeOperation='destination-in'; octx.drawImage(mimg,l.x,l.y,l.w,l.h); octx.restore(); }
         }catch(e){}
+      }
+      if(_clipBase){
+        // O Photoshop usa a transparência do CONTEÚDO da base, sem sombra/glow/contorno de
+        // efeito. Renderizar a primitiva outra vez mantém o vínculo vivo quando ela é editada.
+        const mc=document.createElement('canvas'); mc.width=oc.width; mc.height=oc.height;
+        const mctx=mc.getContext('2d'); try{ mctx.setTransform(_tf); }catch(e){}
+        const clean=Object.assign({},_clipBase,{opacity:100,blendMode:'normal',shadow:false,glow:false,innerShadow:false,innerGlow:false,bevel:false,overlay:false,gradientOverlay:null,strokeW:0});
+        await fRenderOneLayer(mctx,clean,dados,1,1);
+        if(_clipBase.mask){
+          try{ const bm=await fLoadImageDataUrl(_clipBase.mask); if(bm){mctx.save();mctx.globalCompositeOperation='destination-in';mctx.drawImage(bm,_clipBase.x,_clipBase.y,_clipBase.w,_clipBase.h);mctx.restore();} }catch(e){}
+        }
+        octx.save(); octx.setTransform(1,0,0,1,0,0); octx.globalCompositeOperation='destination-in'; octx.drawImage(mc,0,0); octx.restore();
       }
       if(_needsSw){
         // Blend pixel-a-pixel restrito à bbox do layer, em coords de DISPOSITIVO
@@ -310,21 +438,100 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp){
         const bh=Math.min(oc.height-by,Math.max(1,Math.round(l.h*_sy)));
         if(bw>0&&bh>0){
           const topData=octx.getImageData(bx,by,bw,bh);
-          const botData=ctx.getImageData(bx,by,bw,bh);
+          const botData=target.getImageData(bx,by,bw,bh);
           dBlendImageData(_bm,topData,botData);
-          ctx.putImageData(botData,bx,by);
+          target.putImageData(botData,bx,by);
         }
       }else{
         // Camada mascarada com blend NATIVO: aplica o composite na composição final contra o
         // fundo. Antes caía em source-over → o multiply/screen/etc. sumia no PNG (editor mostrava).
-        ctx.save(); ctx.setTransform(1,0,0,1,0,0);
-        if(_bm!=='normal' && _native) ctx.globalCompositeOperation=_native;
-        ctx.drawImage(oc,0,0); ctx.restore();
+        target.save(); target.setTransform(1,0,0,1,0,0);
+        if(_bm!=='normal' && _native) target.globalCompositeOperation=_native;
+        target.drawImage(oc,0,0); target.restore();
       }
     }else{
-      await fRenderOneLayer(ctx, l, dados, 1, 1);
+      await fRenderOneLayer(target, l, dados, 1, 1);
     }
   }
+
+  // Ajuste não desenha um objeto: transforma a composição que já existe abaixo dele. Máscara,
+  // clipping, opacidade e blend continuam incidindo como em qualquer camada do Photoshop.
+  async function _fRenderAdjustment(target,l){
+    if(!l.adjustment||l.adjustmentSupported===false)return;
+    const tf=(typeof target.getTransform==='function')?target.getTransform():{a:1,d:1};
+    const sx=tf.a||1,sy=tf.d||1,dw=Math.max(1,Math.round(W*sx)),dh=Math.max(1,Math.round(H*sy));
+    const original=target.getImageData(0,0,dw,dh), adjusted=target.createImageData(dw,dh);
+    adjusted.data.set(original.data); fAdjustImageData(adjusted,l.adjustment);
+    let maskData=null;
+    if(l.mask||l.clipBaseId){
+      const mc=document.createElement('canvas');mc.width=dw;mc.height=dh;const mx=mc.getContext('2d');try{mx.setTransform(tf);}catch(e){}
+      mx.fillStyle='#fff';mx.fillRect(0,0,W,H);
+      if(l.mask){try{const mi=await fLoadImageDataUrl(l.mask);if(mi){mx.globalCompositeOperation='destination-in';mx.drawImage(mi,l.x||0,l.y||0,l.w||W,l.h||H);mx.globalCompositeOperation='source-over';}}catch(e){}}
+      const base=l.clipBaseId&&_layerById.get(l.clipBaseId);
+      if(base){
+        const bc=document.createElement('canvas');bc.width=dw;bc.height=dh;const bx=bc.getContext('2d');try{bx.setTransform(tf);}catch(e){}
+        const clean=Object.assign({},base,{opacity:100,blendMode:'normal',shadow:false,glow:false,innerShadow:false,innerGlow:false,bevel:false,overlay:false,gradientOverlay:null,strokeW:0});
+        await fRenderOneLayer(bx,clean,dados,1,1);
+        if(base.mask){try{const bi=await fLoadImageDataUrl(base.mask);if(bi){bx.globalCompositeOperation='destination-in';bx.drawImage(bi,base.x,base.y,base.w,base.h);}}catch(e){}}
+        mx.save();mx.setTransform(1,0,0,1,0,0);mx.globalCompositeOperation='destination-in';mx.drawImage(bc,0,0);mx.restore();
+      }
+      maskData=mx.getImageData(0,0,dw,dh).data;
+    }
+    const opacity=(l.opacity!=null?l.opacity:100)/100,bm=l.blendMode&&l.blendMode!=='normal'?l.blendMode:'normal';
+    if(bm!=='normal'&&typeof dBlendImageData==='function'){
+      for(let i=3;i<adjusted.data.length;i+=4)adjusted.data[i]=Math.round(original.data[i]*opacity*(maskData?maskData[i]/255:1));
+      dBlendImageData(bm,adjusted,original);
+    }else{
+      // O ajuste muda o RGB existente sem mudar seu alpha. Multiplicar de novo pelo alpha do
+      // backdrop deixava pixels semitransparentes com só metade do ajuste.
+      for(let i=0;i<original.data.length;i+=4){const a=opacity*(maskData?maskData[i+3]/255:1);if(!a||!original.data[i+3])continue;original.data[i]=Math.round(original.data[i]+(adjusted.data[i]-original.data[i])*a);original.data[i+1]=Math.round(original.data[i+1]+(adjusted.data[i+1]-original.data[i+1])*a);original.data[i+2]=Math.round(original.data[i+2]+(adjusted.data[i+2]-original.data[i+2])*a);}
+    }
+    target.putImageData(original,0,0);
+  }
+
+  // Grupo de COMPOSIÇÃO. Grupos antigos continuam pass-through e custam zero offscreen; PSDs
+  // podem pedir isolamento/opacidade/máscara/blend, que são aplicados uma vez ao composto.
+  async function _fRenderGroup(target,g){
+    const styled=g.isolation===true || g.mask || (g.opacity!=null&&g.opacity<100)
+      || (g.blendMode&&g.blendMode!=='normal') || g.shadow || g.glow;
+    if(!styled){ await _fRenderChildren(target,g.id); return; }
+    const tf=(typeof target.getTransform==='function')?target.getTransform():{a:1,d:1};
+    const sx=tf.a||1, sy=tf.d||1;
+    const oc=document.createElement('canvas'); oc.width=Math.max(1,Math.round(W*sx)); oc.height=Math.max(1,Math.round(H*sy));
+    const octx=oc.getContext('2d'); try{octx.setTransform(tf);}catch(e){}
+    octx.imageSmoothingEnabled=true; octx.imageSmoothingQuality='high';
+    await _fRenderChildren(octx,g.id);
+    if(g.mask){
+      try{ const gm=await fLoadImageDataUrl(g.mask); if(gm){octx.save();octx.globalCompositeOperation='destination-in';octx.drawImage(gm,g.x||0,g.y||0,g.w||W,g.h||H);octx.restore();} }catch(e){}
+    }
+    const bm=g.blendMode&&g.blendMode!=='normal'?g.blendMode:'normal';
+    const native=(typeof dBlendToComposite==='function')?dBlendToComposite(bm):null;
+    const sw=bm!=='normal'&&native===null&&typeof dBlendImageData==='function';
+    if(sw){
+      const top=octx.getImageData(0,0,oc.width,oc.height), bot=target.getImageData(0,0,oc.width,oc.height);
+      if(g.opacity!=null&&g.opacity<100){const a=g.opacity/100;for(let i=3;i<top.data.length;i+=4)top.data[i]=Math.round(top.data[i]*a);}
+      dBlendImageData(bm,top,bot); target.putImageData(bot,0,0);
+    }else{
+      target.save(); target.setTransform(1,0,0,1,0,0);
+      target.globalAlpha=(g.opacity!=null?g.opacity:100)/100;
+      if(native)target.globalCompositeOperation=native;
+      if(g.shadow||g.glow){target.shadowColor=g.shadow?(g.shadowColor||'rgba(0,0,0,.5)'):(g.glowColor||'rgba(255,255,255,.7)');target.shadowBlur=(g.shadow?(g.shadowBlur||6):(g.glowSize||8))*Math.min(sx,sy);const o=g.shadow?gFxOffset(g.shadowDist||4,g.shadowAngle):{x:0,y:0};target.shadowOffsetX=o.x*sx;target.shadowOffsetY=o.y*sy;}
+      target.drawImage(oc,0,0); target.restore();
+    }
+  }
+  async function _fRenderChildren(target,parentId){
+    for(const l of visible){
+      const actualParent=(l.parentId&&_groupById.has(l.parentId))?l.parentId:null;
+      if(actualParent!==parentId)continue;
+      if(l.type==='group')await _fRenderGroup(target,l);
+      else if(l.type==='adjustment')await _fRenderAdjustment(target,l);
+      else await _fRenderLeaf(target,l);
+    }
+  }
+  await _fRenderChildren(ctx,null);
+  /* Preview, hit-test e destaque precisam da MESMA geometria efetiva (reflow + regras +
+     layout vivo). Retornar o clone resolvido evita uma segunda implementação de coordenadas. */
+  return effective;
 }
 
 // Renderiza um único layer aplicando dados do franqueado
@@ -334,9 +541,12 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
   var _bmComp=(l.blendMode&&l.blendMode!=='normal'&&typeof dBlendToComposite==='function')
     ?dBlendToComposite(l.blendMode):null;
   ctx.globalCompositeOperation=_bmComp||'source-over';
-  const x = Math.round(l.x * scaleX);
+  const _layoutText=l.type==='text';
+  const _layoutDx=_layoutText?(l._layoutDx||0):0;
+  const _layoutW=_layoutText&&l._layoutW!=null?l._layoutW:l.w;
+  const x = Math.round(((l.x||0)+_layoutDx) * scaleX);
   const y = Math.round(l.y * scaleY);
-  const w = Math.round(l.w * scaleX);
+  const w = Math.round((_layoutW||0) * scaleX);
   const h = Math.round(l.h * scaleY);
 
   if(l.type === 'shape'){
@@ -350,9 +560,14 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     const _ctl=(_rr?(+_rr.tl||0):_ru)*scaleX, _ctr=(_rr?(+_rr.tr||0):_ru)*scaleX,
           _cbr=(_rr?(+_rr.br||0):_ru)*scaleX, _cbl=(_rr?(+_rr.bl||0):_ru)*scaleX;
     const _pts = (kind!=='circle'&&kind!=='ellipse'&&typeof dShapePoints==='function') ? dShapePoints(l) : null;
+    const _vector=(kind==='path'&&typeof gVectorPathValid==='function'&&gVectorPathValid(l.vectorPath))?l.vectorPath:null;
+    const _fillRule=_vector&&typeof gVectorPathFillRule==='function'?gVectorPathFillRule(_vector):'nonzero';
+    const _fxStack=Array.isArray(l.layerEffects)?l.layerEffects:[];
+    const _fxOf=t=>_fxStack.filter(e=>e&&e.type===t);
     // traça a forma no path atual (reutilizável p/ sombras/overlay/traçado)
     const _trace = ()=>{
-      if(kind==='circle'||kind==='ellipse'){ ctx.beginPath(); ctx.ellipse(x+w/2,y+h/2,w/2,h/2,0,0,Math.PI*2); }
+      if(_vector){ gTraceVectorPath(ctx,_vector,x,y,w,h); }
+      else if(kind==='circle'||kind==='ellipse'){ ctx.beginPath(); ctx.ellipse(x+w/2,y+h/2,w/2,h/2,0,0,Math.PI*2); }
       else if(_pts){ const abs=_pts.map(p=>[x+p[0]*w,y+p[1]*h]); const r=Math.min((l.radius||0)*scaleX,w/2,h/2);
         if(r>0 && typeof gRoundPolyPath2D==='function'){ gRoundPolyPath2D(ctx,abs,r); }
         else { ctx.beginPath(); abs.forEach((p,i)=>{ i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]); }); ctx.closePath(); } }
@@ -363,37 +578,51 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     // _spread(): canvas 2D não tem spread nativo. Traçar a MESMA forma com espessura 2×spread
     // engorda a silhueta que projeta a sombra — que é o que a "propagação" do PS faz.
     const _spread=(v)=>{ if(!(v>0))return; ctx.lineWidth=v*2*_sc; ctx.strokeStyle=_fill; ctx.stroke(); };
-    if(l.shadow){ ctx.save(); _trace(); const o=gFxOffset(l.shadowDist!=null?l.shadowDist:4,l.shadowAngle);
+    const _dropFx=_fxOf('dropShadow');
+    if(_dropFx.length)_dropFx.forEach(e=>{ctx.save();_trace();const o=gFxOffset(e.distance!=null?e.distance:4,e.angle);ctx.shadowColor=e.color||'rgba(0,0,0,.5)';ctx.shadowBlur=(e.blur!=null?e.blur:6)*_sc;ctx.shadowOffsetX=o.x*_sc;ctx.shadowOffsetY=o.y*_sc;const co=e.blendMode&&typeof dBlendToComposite==='function'?dBlendToComposite(e.blendMode):null;if(co)ctx.globalCompositeOperation=co;ctx.fillStyle=_fill;ctx.fill(_fillRule);_spread(e.spread);ctx.restore();});
+    else if(l.shadow){ ctx.save(); _trace(); const o=gFxOffset(l.shadowDist!=null?l.shadowDist:4,l.shadowAngle);
       ctx.shadowColor=l.shadowColor||'rgba(0,0,0,.5)'; ctx.shadowBlur=(l.shadowBlur!=null?l.shadowBlur:6)*_sc; ctx.shadowOffsetX=o.x*_sc; ctx.shadowOffsetY=o.y*_sc;
-      ctx.fillStyle=_fill; ctx.fill(); _spread(l.shadowSpread); ctx.restore(); }
-    if(l.glow){ ctx.save(); _trace(); ctx.shadowColor=l.glowColor||'rgba(255,255,255,.7)'; ctx.shadowBlur=(l.glowSize!=null?l.glowSize:8)*_sc; ctx.fillStyle=_fill; ctx.fill(); _spread(l.glowSpread); ctx.restore(); }
+      ctx.fillStyle=_fill; ctx.fill(_fillRule); _spread(l.shadowSpread); ctx.restore(); }
+    if(l.glow){ ctx.save(); _trace(); ctx.shadowColor=l.glowColor||'rgba(255,255,255,.7)'; ctx.shadowBlur=(l.glowSize!=null?l.glowSize:8)*_sc; ctx.fillStyle=_fill; ctx.fill(_fillRule); _spread(l.glowSpread); ctx.restore(); }
     // 2) fill principal (gradiente/sólido) (+ overlays por cima). Closure p/ reusar no re-fill do
     // traçado 'outside' (senão o re-fill simples apagava o gradientOverlay/overlay).
     const _paintFill=()=>{
-      _trace(); ctx.fillStyle=_fillStyle; ctx.fill();
-      if(l.gradientOverlay && l.gradientOverlay.stops && l.gradientOverlay.stops.length && typeof gGradientCanvas==='function'){ // gradient overlay
-        _trace(); ctx.save(); ctx.globalAlpha=(l.gradientOverlay.opacity!=null?l.gradientOverlay.opacity:1); ctx.fillStyle=gGradientCanvas(ctx,l.gradientOverlay,x,y,w,h); ctx.fill(); ctx.restore(); }
-      if(_overlay){ _trace(); ctx.fillStyle=_overlay; ctx.fill(); }
+      _trace(); ctx.fillStyle=_fillStyle; ctx.fill(_fillRule);
+      const gos=_fxOf('gradientOverlay'),cos=_fxOf('colorOverlay');
+      if(gos.length&&typeof gGradientCanvas==='function')gos.forEach(e=>{const g=e.gradient;if(!g||!g.stops||!g.stops.length)return;_trace();ctx.save();ctx.globalAlpha*=g.opacity!=null?g.opacity:1;const co=e.blendMode&&typeof dBlendToComposite==='function'?dBlendToComposite(e.blendMode):null;if(co)ctx.globalCompositeOperation=co;ctx.fillStyle=gGradientCanvas(ctx,g,x,y,w,h);ctx.fill(_fillRule);ctx.restore();});
+      else if(l.gradientOverlay && l.gradientOverlay.stops && l.gradientOverlay.stops.length && typeof gGradientCanvas==='function'){ // gradient overlay
+        _trace(); ctx.save(); ctx.globalAlpha*=(l.gradientOverlay.opacity!=null?l.gradientOverlay.opacity:1); ctx.fillStyle=gGradientCanvas(ctx,l.gradientOverlay,x,y,w,h); ctx.fill(_fillRule); ctx.restore(); }
+      if(cos.length)cos.forEach(e=>{_trace();ctx.save();ctx.globalAlpha*=e.opacity!=null?e.opacity:1;const co=e.blendMode&&typeof dBlendToComposite==='function'?dBlendToComposite(e.blendMode):null;if(co)ctx.globalCompositeOperation=co;ctx.fillStyle=e.color||'#000';ctx.fill(_fillRule);ctx.restore();});
+      else if(_overlay){ _trace(); ctx.fillStyle=_overlay; ctx.fill(_fillRule); }
     };
     _paintFill();
     // 3) sombra interna / brilho interno (aprox.: traço borrado recortado p/ dentro)
-    const _innerStroke=(color,blur,o)=>{ ctx.save(); _trace(); ctx.clip(); _trace();
+    const _innerStroke=(color,blur,o,bm,spread)=>{ ctx.save(); _trace(); ctx.clip(_fillRule); _trace();
+      const co=bm&&typeof dBlendToComposite==='function'?dBlendToComposite(bm):null;if(co)ctx.globalCompositeOperation=co;
       ctx.shadowColor=color; ctx.shadowBlur=blur*_sc; ctx.shadowOffsetX=(o?o.x:0)*_sc; ctx.shadowOffsetY=(o?o.y:0)*_sc;
-      ctx.lineWidth=Math.max(2,blur*_sc); ctx.strokeStyle=color; ctx.stroke(); ctx.restore(); };
-    if(l.innerShadow) _innerStroke(l.innerShadowColor||'rgba(0,0,0,.5)', (l.innerShadowBlur!=null?l.innerShadowBlur:6), gFxOffset(l.innerShadowDist!=null?l.innerShadowDist:4,l.innerShadowAngle));
+      ctx.lineWidth=Math.max(2,(blur+(spread||0)*2)*_sc); ctx.strokeStyle=color; ctx.stroke(); ctx.restore(); };
+    const _innerFx=_fxOf('innerShadow');
+    if(_innerFx.length)_innerFx.forEach(e=>_innerStroke(e.color||'rgba(0,0,0,.5)',e.blur!=null?e.blur:6,gFxOffset(e.distance!=null?e.distance:4,e.angle),e.blendMode,e.spread));
+    else if(l.innerShadow) _innerStroke(l.innerShadowColor||'rgba(0,0,0,.5)', (l.innerShadowBlur!=null?l.innerShadowBlur:6), gFxOffset(l.innerShadowDist!=null?l.innerShadowDist:4,l.innerShadowAngle));
     if(l.innerGlow) _innerStroke(l.innerGlowColor||'rgba(255,255,255,.7)', (l.innerGlowSize!=null?l.innerGlowSize:8), null);
     if(l.bevel){ const o=gFxOffset(l.bevelSize!=null?l.bevelSize:4,l.bevelAngle), b=l.bevelSize!=null?l.bevelSize:4;
       _innerStroke(l.bevelHighlight||'rgba(255,255,255,.7)', b, o); _innerStroke(l.bevelShadow||'rgba(0,0,0,.5)', b, {x:-o.x,y:-o.y}); }
     // 4) traçado com alinhamento (inside/center/outside) + dash/cap/join
-    if(l.strokeW>0){ const a=l.strokeAlign||'inside'; _trace();
-      ctx.lineWidth=Math.max(1,l.strokeW*_sc)*(a==='center'?1:2); ctx.strokeStyle=l.strokeColor||'#000';
-      ctx.lineJoin=l.strokeJoin||'round'; ctx.lineCap=l.strokeCap||'butt';
-      if(l.strokeDash && l.strokeDash.length) ctx.setLineDash(l.strokeDash.map(d=>d*_sc)); else ctx.setLineDash([]);
-      if(a==='inside'){ ctx.save(); ctx.clip(); ctx.stroke(); ctx.restore(); }
-      else if(a==='outside'){ ctx.stroke(); ctx.setLineDash([]); _paintFill(); } // re-fill completo: preserva gradientOverlay/overlay
-      else { ctx.stroke(); }
-      ctx.setLineDash([]);
+    const _strokeOne=(sw,col,a,op,bm)=>{_trace();ctx.save();ctx.globalAlpha*=op!=null?op:1;const co=bm&&typeof dBlendToComposite==='function'?dBlendToComposite(bm):null;if(co)ctx.globalCompositeOperation=co;ctx.lineWidth=Math.max(1,sw*_sc)*(a==='center'?1:2);ctx.strokeStyle=col||'#000';ctx.lineJoin=l.strokeJoin||'round';ctx.lineCap=l.strokeCap||'butt';if(l.strokeDash&&l.strokeDash.length)ctx.setLineDash(l.strokeDash.map(d=>d*_sc));else ctx.setLineDash([]);if(a==='inside'){ctx.clip(_fillRule);ctx.stroke();}else ctx.stroke();ctx.restore();return a==='outside';};
+    const _strokeFx=_fxOf('stroke');
+    let _refill=false;
+    if(_strokeFx.length){
+      // Os traços externos precisam ficar atrás do fill e dos traços internos. Desenha do mais
+      // largo para o mais estreito, recompõe o conteúdo uma vez e só então pinta center/inside.
+      // Sem essa separação, o re-fill do último traço externo apagava um contorno interno anterior.
+      const outside=_strokeFx.filter(e=>(e.align||'outside')==='outside').slice().sort((a,b)=>(b.width||1)-(a.width||1));
+      const front=_strokeFx.filter(e=>(e.align||'outside')!=='outside');
+      outside.forEach(e=>{_strokeOne(e.width||1,e.color,'outside',e.opacity,e.blendMode);});
+      if(outside.length)_paintFill();
+      front.forEach(e=>{_strokeOne(e.width||1,e.color,e.align||'inside',e.opacity,e.blendMode);});
     }
+    else if(l.strokeW>0)_refill=_strokeOne(l.strokeW,l.strokeColor||'#000',l.strokeAlign||'inside',1,null);
+    if(_refill)_paintFill();
 
   } else if(l.type === 'text'){
     // defaultValue por variável (3.3): campos não preenchidos / edit:false caem no default da var.
@@ -405,6 +634,10 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     }
     // Substitui {{var}} pelo valor real do franqueado (interpolador único — 3.1)
     let raw = gInterpolate(l.content, dados, {onEmpty:'remove', defaults:_defaults});
+    // Split de preço precisa entrar na MEDIDA antes de entrar no desenho: inteiro, símbolo e
+    // centavos usam tamanhos diferentes. A mesma lista é reaproveitada no ramo rich text.
+    const _vRuns = ((typeof gBuildVirtualRuns === 'function') ? gBuildVirtualRuns(l, dados, 1, _defaults) : null)
+      || (!/\{\{/.test(l.content||'') ? l.runs : null) || null;
     /* ENCAIXE: quebra inteligente, caixa-alta, medida e o encolhimento vêm de gFitTextLayer
        (00-config.js) — a MESMA função que a cascata de ancoragem relativa usa para saber a
        altura. Antes cada lado tinha sua conta e elas divergiam: a cascata media 1 linha e o
@@ -412,7 +645,7 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
        O encolhimento só é APLICADO mais abaixo (no ramo horizontal), porque sombra, brilho e
        traço são dimensionados pelo tamanho DESENHADO — aplicar antes mudaria os efeitos. */
     const _fit = (typeof gFitTextLayer==='function')
-      ? gFitTextLayer(l, raw, null, {escala:Math.min(scaleX,scaleY), encolher:!l.vertical})
+      ? gFitTextLayer(l, raw, null, {escala:Math.min(scaleX,scaleY), encolher:true, runs:_vRuns})
       : null;
     if(_fit) raw = _fit.text;
     else {
@@ -433,7 +666,6 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     const isDisplayFont = _fp.weight >= 900; // peso black ganha um leve respiro entre letras
 
     let fontSize = Math.round((l.fontSize || 24) * Math.min(scaleX, scaleY));
-    const minFontSize = Math.max(8, Math.round(fontSize * 0.5));
     const _scTxt = Math.min(scaleX, scaleY);
     // color overlay → cor efetiva do texto; senão l.color
     const _txtColor = (l.overlay&&l.overlayColor) ? gFxRgba(l.overlayColor, l.overlayOpacity!=null?l.overlayOpacity:1) : (l.color || '#fff');
@@ -448,12 +680,9 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     const _glowColor = l.glow ? (l.glowColor||'rgba(255,255,255,.7)') : null;
     const _glowBlur  = l.glow ? (l.glowSize!=null?l.glowSize:Math.max(2,(l.fontSize||24)*0.25))*_scTxt : 0;
 
-    // Se a camada contiver split-tokens de preço, gera runs virtuais e processa como rich text!
-    const _vRuns = (typeof gBuildVirtualRuns === 'function') ? gBuildVirtualRuns(l, dados, 1, _defaults) : null;
-    let runsToUse = l.runs;
-    if (_vRuns) {
-      runsToUse = _vRuns;
-    }
+    // Runs estáticos só valem para texto fixo. Se uma camada rica antiga foi vinculada depois
+    // a um campo, o valor do franqueado vence os trechos do PSD que ficaram salvos nela.
+    const runsToUse = _vRuns;
 
     // ── RICH TEXT (multi-estilo) — MULTILINHA, fiel ao editor (spans + <br> no DOM):
     // divide os trechos pelas quebras '\n' do PSD, mede cada linha, aplica textTransform,
@@ -471,17 +700,22 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
       });
       // Mede cada linha (fonte/tracking por trecho)
       const fallbackFs=Math.round((l.fontSize||24)*_scTxt);
+      /* A escada pode reduzir `_tetoFonte`. Antes o fit dizia 32px e os runs continuavam em
+         64/35px: preço rico e texto comum obedeciam motores diferentes. Mantém a proporção
+         entre os runs, mas aplica a decisão única do encaixe. */
+      const fitRatio=_fit?(_fit.fontSize/Math.max(1,fallbackFs)):1;
       const measured=linesRuns.map(segs=>{
-        let wsum=0, maxFs=segs.length?0:fallbackFs;
+        let wsum=0, maxFs=segs.length?0:fallbackFs*fitRatio;
         const ms=segs.map(r=>{
           const fp=(typeof dTextFontParts==='function')?dTextFontParts(r.font):{family:"'Roboto',sans-serif",weight:700};
-          const fs=Math.round((r.fontSize||l.fontSize||24)*_scTxt);
+          const fs=Math.round((r.fontSize||l.fontSize||24)*_scTxt*fitRatio);
           ctx.font=`${_ital}${fp.weight} ${fs}px ${fp.family}`;
-          ctx.letterSpacing=r.letterSpacing?(r.letterSpacing*_scTxt)+'px':'0px';
+          ctx.letterSpacing=r.letterSpacing?(r.letterSpacing*_scTxt*fitRatio)+'px':'0px';
           const t=_xf(r.text||'');
           const ww=ctx.measureText(t).width;
           wsum+=ww; if(fs>maxFs)maxFs=fs;
-          return {t,fp,fs,ww,ls:r.letterSpacing||0,color:r.color,yOffset:r.yOffset};
+          return {t,fp,fs,ww,ls:(r.letterSpacing||0)*fitRatio,color:r.color,
+            yOffset:(r.yOffset||0)*fitRatio};
         });
         return {ms,wsum,maxFs};
       });
@@ -524,7 +758,8 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     }
 
     if (l.vertical) {
-      // Auto-fit vertical
+      // Auto-fit vertical — a decisão vem da mesma régua usada pelo solver.
+      if(_fit&&_fit.fontSize!==fontSize)fontSize=_fit.fontSize;
       let maxColChars = 0;
       lines.forEach(ln => { const chars = [...ln]; if(chars.length > maxColChars) maxColChars = chars.length; });
       
@@ -532,14 +767,6 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
       let colStep = fontSize * 1.2;
       let maxColH = maxColChars * charStep;
       let totalW = lines.length * colStep;
-
-      // Se estourar a caixa da camada (w, h), encolhe
-      if (maxColH > h || totalW > w) {
-        const ratioH = h / Math.max(1, maxColH);
-        const ratioW = w / Math.max(1, totalW);
-        const shrinkRatio = Math.min(ratioH, ratioW);
-        fontSize = Math.max(minFontSize, Math.floor(fontSize * shrinkRatio));
-      }
 
       charStep = fontSize * 1.1;
       colStep = fontSize * 1.2;
@@ -750,7 +977,10 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
           ctx.beginPath();
           const kind = l.shapeKind || l.frameShape || 'rect';
           const _pts = (kind !== 'circle' && kind !== 'ellipse' && typeof dShapePoints === 'function') ? dShapePoints(l) : null;
-          if(kind === 'circle' || kind === 'ellipse'){
+          const _vector=(kind==='path'&&typeof gVectorPathValid==='function'&&gVectorPathValid(l.vectorPath))?l.vectorPath:null;
+          if(_vector){
+            gTraceVectorPath(ctx,_vector,x,y,w,h);
+          } else if(kind === 'circle' || kind === 'ellipse'){
             ctx.ellipse(x + w/2, y + h/2, w/2, h/2, 0, 0, Math.PI*2);
           } else if(_pts){
             const abs = _pts.map(p => [x + p[0]*w, y + p[1]*h]);
@@ -767,7 +997,7 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
                   _cbr = (_rr ? (+_rr.br||0) : _ru) * scaleX, _cbl = (_rr ? (+_rr.bl||0) : _ru) * scaleX;
             roundedRectPath(ctx, x, y, w, h, _ctl, _ctr, _cbr, _cbl);
           }
-          ctx.clip();
+          ctx.clip(_vector?gVectorPathFillRule(_vector):'nonzero');
           const imgAR = img.width / img.height, frameAR = w / h;
           let baseW, baseH;
           if(l.objectFit === 'contain'){
@@ -808,7 +1038,10 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
       ctx.beginPath();
       const kind = l.shapeKind || l.frameShape || 'rect';
       const _pts = (kind !== 'circle' && kind !== 'ellipse' && typeof dShapePoints === 'function') ? dShapePoints(l) : null;
-      if(kind === 'circle' || kind === 'ellipse'){
+      const _vector=(kind==='path'&&typeof gVectorPathValid==='function'&&gVectorPathValid(l.vectorPath))?l.vectorPath:null;
+      if(_vector){
+        gTraceVectorPath(ctx,_vector,x,y,w,h);
+      } else if(kind === 'circle' || kind === 'ellipse'){
         ctx.ellipse(x + w/2, y + h/2, w/2, h/2, 0, 0, Math.PI*2);
       } else if(_pts){
         const abs = _pts.map(p => [x + p[0]*w, y + p[1]*h]);
@@ -825,7 +1058,7 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
               _cbr = (_rr ? (+_rr.br||0) : _ru) * scaleX, _cbl = (_rr ? (+_rr.bl||0) : _ru) * scaleX;
         roundedRectPath(ctx, x, y, w, h, _ctl, _ctr, _cbr, _cbl);
       }
-      ctx.fill();
+      ctx.fill(_vector?gVectorPathFillRule(_vector):'nonzero');
     }
   }
   ctx.restore();
@@ -935,7 +1168,6 @@ let _fBulkAuditFingerprint='';
 let _fBulkImageAudit=new Map();
 let _fBulkAutosaveTimer=null;
 let _fBulkAutosaveSeq=0;
-let _fBulkDraftFormats=[];
 let _fBulkGenerationState=null;
 let _fBulkPreflightRunning=false;
 
@@ -1003,7 +1235,6 @@ function _fBulkDraftMeta(rows){
     materialId:fState.material&&fState.material.id,
     updatedAt:new Date().toISOString(),
     rows,
-    formats:Array.from(document.querySelectorAll('.f-bulk-fmt-cb:checked')).map(cb=>cb.value),
     copyFormat:(document.getElementById('f-bulk-copy-format')||{}).value||'feed',
     city:(document.getElementById('f-bulk-city')||{}).value||'',
     tableView:_fBulkTableView
@@ -1085,7 +1316,6 @@ async function fBulkRestoreDraft(){
   }
   fBulkRows=_fBulkRevalidateRows(rows);
   _fBulkTableView=draft.tableView!==false;
-  _fBulkDraftFormats=Array.isArray(draft.formats)?draft.formats:[];
   const copy=document.getElementById('f-bulk-copy-format');
   const city=document.getElementById('f-bulk-city');
   if(copy&&draft.copyFormat)copy.value=draft.copyFormat;
@@ -1123,7 +1353,8 @@ async function fRenderMaterialToDataURL(dados, camp, fmt){
   renderCv.width=w*SCALE;renderCv.height=h*SCALE;
   const rctx=renderCv.getContext('2d');
   rctx.scale(SCALE,SCALE);
-  await fRenderTemplateLayers(rctx, fState.material.layers, w, h, dados, camp);
+  await fRenderTemplateLayers(rctx, fState.material.layers, w, h, dados, camp, null,
+    {scope:'franqueado',purpose:'export'});
   await fDrawDMLogo(rctx, w, h);
   const finalCv=document.createElement('canvas');
   finalCv.width=w;finalCv.height=h;
@@ -1240,22 +1471,10 @@ async function fBulkOpen(){
   const aiBtn=document.querySelector('.f-ai-prompt-toggle');
   if(aiBtn){aiBtn.setAttribute('aria-expanded','false');const c=aiBtn.querySelector('.f-ai-prompt-chevron');if(c)c.textContent='›';}
   
-  const fmtWrap = document.getElementById('f-bulk-fmts-wrap');
-  const fmtList = document.getElementById('f-bulk-fmts-list');
-  if(fmtWrap && fmtList && typeof FMTS !== 'undefined') {
-    fmtWrap.style.display = 'block';
-    fmtList.innerHTML = FMTS.map(f => {
-      const checked = fState.fmt && fState.fmt.id === f.id ? 'checked' : '';
-      return `<label class="f-bulk-fmt-chip">
-        <input type="checkbox" value="${f.id}" class="f-bulk-fmt-cb" ${checked} onchange="fBulkUpdateReadiness();fBulkScheduleAutosave()" style="margin:0;accent-color:var(--dm-orange,#FF9000)">
-        <span style="font-weight:600">${f.name}</span>
-      </label>`;
-    }).join('');
-    if(_fBulkDraftFormats.length){
-      fmtList.querySelectorAll('.f-bulk-fmt-cb').forEach(cb=>{ cb.checked=_fBulkDraftFormats.includes(cb.value); });
-      _fBulkDraftFormats=[];
-    }
-  }
+  /* Os chips de formato saíram do rodapé (13/08, pedido do dono): o franqueado já escolheu o
+     formato ao abrir o material, e repetir a escolha aqui era uma decisão a mais para chegar no
+     mesmo lugar. O `fBulkDownloadAll` sempre teve o fallback `selectedFmts=[fState.fmt]`, então
+     o ZIP sai no formato do material — que é o que a prévia ao lado mostra o tempo todo. */
   fBulkRestoreGenerationState();
   const copy=document.getElementById('f-bulk-copy-format');
   const city=document.getElementById('f-bulk-city');
@@ -1269,14 +1488,19 @@ async function fBulkOpen(){
   
   fBulkUpdateSavedTemplatesList();
   document.getElementById('f-bulk-modal').classList.add('open');
-  // Rascunho recuperado já tem ofertas: abre direto na conferência, senão a pessoa
-  // teria que atravessar o passo 1 de novo pra ver o que já era dela.
-  fBulkStep(restored ? 2 : 1);
+  // Sem passos: a tela já está inteira na frente. O painel de preencher começa FECHADO mesmo
+  // com a planilha vazia — quem chega vê a tabela, que é onde se digita; os seis caminhos de
+  // importação ficam a um clique, sem tomar a coluna de quem não vai usá-los.
+  fBulkToggleImport(false);
+  fBulkSetActive(0);
   if(restored)gToast('Sua produção foi recuperada automaticamente');
 }
 function fBulkClose(){
   fBulkCollectCurrentInputs();
   fBulkSaveDraft();
+  // Solta o observador da fita: fechar sem desligar deixava um IntersectionObserver por
+  // abertura, cada um segurando os nós da fita anterior.
+  if(_fBulkStripObserver){ _fBulkStripObserver.disconnect(); _fBulkStripObserver = null; }
   document.getElementById('f-bulk-modal').classList.remove('open');
 }
 
@@ -1286,65 +1510,191 @@ function fBulkClose(){
    logo na abertura. Agora aparece UMA pergunta por vez; o resto continua existindo,
    só não estorva. Nada de estado novo além do passo atual — as funções, os ids e o
    fluxo de dados são exatamente os mesmos de antes. */
-let _fBulkStepN = 1;
-function fBulkStep(n){
-  _fBulkStepN = Math.max(1, Math.min(3, n|0));
-  const modal = document.getElementById('f-bulk-modal');
-  if(!modal) return;
-  modal.querySelectorAll('.f-bulk-stage').forEach(s=>{
-    s.hidden = (+s.dataset.step !== _fBulkStepN);
-  });
-  modal.querySelectorAll('.f-bulk-trail-item').forEach(b=>{
-    const i = +b.dataset.goto;
-    b.classList.toggle('is-now', i === _fBulkStepN);
-    b.classList.toggle('is-done', i < _fBulkStepN);
-    b.setAttribute('aria-current', i === _fBulkStepN ? 'step' : 'false');
-  });
-  const back = document.getElementById('f-bulk-back-btn');
-  const next = document.getElementById('f-bulk-next-btn');
-  const dl   = document.getElementById('f-bulk-dl-btn');
-  // No passo 1 não há pra onde voltar: o botão vira "Fechar" em vez de ficar morto na tela.
-  if(back){
-    back.textContent = (_fBulkStepN===1) ? 'Fechar' : 'Voltar';
-    back.onclick = (_fBulkStepN===1) ? fBulkClose : fBulkStepBack;
-  }
-  // "Gerar" só existe no último passo — ver o botão final desde o começo faz a pessoa
-  // clicar antes de preencher e colher um erro que ela não causou.
-  if(next) next.hidden = (_fBulkStepN===3);
-  if(dl)   dl.hidden   = (_fBulkStepN!==3);
-  // A planilha só é montada quando o passo dela aparece (o render lê o DOM visível).
-  // Guard de material: fBulkVars() (abaixo dos dois) lê fState.material.layers direto. A
-  // trilha é clicável a qualquer momento — sem isto, um clique com o material trocado
-  // por baixo derruba a navegação inteira com "Cannot read properties of null".
-  const _temMat = !!(typeof fState!=='undefined' && fState.material && fState.material.layers);
-  if(_temMat && _fBulkStepN===2 && typeof fBulkRenderPreview==='function') fBulkRenderPreview();
-  if(_temMat && typeof fBulkUpdateReadiness==='function') fBulkUpdateReadiness();
-  const ws = modal.querySelector('.f-bulk-workspace');
-  if(ws) ws.scrollTop = 0;
+/* ══════════════════════════════════════════════════════════════
+   UMA TELA SÓ — a arte ao vivo ao lado da planilha.
+   A máquina de 3 passos (fBulkStep/StepNext/StepBack) saiu: o passo 1 era um MENU de
+   importação e o passo 3, três controles. Nenhum dos dois é fase de trabalho, e virar tela
+   escondia a planilha — que é onde o trabalho acontece — atrás de dois cliques.
+   O que sobrou é o vínculo entre as duas colunas: a LINHA ATIVA. Ela é o que a prévia
+   grande mostra, o que a fita destaca e o que a tabela acende.
+══════════════════════════════════════════════════════════════ */
+let _fBulkActive = 0;        // posição da linha ativa (só o fallback — ver _fBulkActiveIdx)
+let _fBulkActiveRid = null;  // IDENTIDADE da linha ativa: é ela que manda
+let _fBulkHeroToken = 0;     // aborta render antigo quando a linha troca no meio
+let _fBulkRidSeq = 0;
+
+/* Identidade estável da linha. O índice sozinho NÃO serve: ordenar reescreve o array e a
+   prévia passava a mostrar outro produto sem avisar — medido, eu estava vendo "Zebra", ordenei
+   por nome e a arte virou "Abacaxi" calada. É a regra da casa (03_ENGINEERING §3: resolva por
+   ID, nunca por posição), e vale para toda linha, venha ela de onde vier — planilha nova, CSV,
+   IA, clone ou rascunho restaurado —, por isso o carimbo é preguiçoso. */
+function _fBulkRid(row){
+  if(row && !row._rid) row._rid = 'r' + (++_fBulkRidSeq);
+  return row ? row._rid : null;
 }
-function fBulkStepBack(){ fBulkStep(_fBulkStepN-1); }
-// Importou ofertas com sucesso → mostra o resultado. Só avança a partir do passo 1: se a
-// pessoa já está conferindo ou escolhendo formato, arrastá-la de volta seria sequestrar o foco.
-function _fBulkGoReview(){ if(_fBulkStepN===1) fBulkStep(2); }
-function fBulkStepNext(){
-  // Sair do passo 1 sem nenhuma oferta é o erro mais comum: avisa e leva pra planilha
-  // mesmo assim (ela pode digitar direto na tabela — não é um bloqueio, é um empurrão).
-  if(_fBulkStepN===1){
-    const vazio = !fBulkRows.some(r=>Object.values(r.dados||{}).some(v=>String(v||'').trim()));
-    if(vazio) gToast('Escreva suas ofertas acima, ou preencha direto na planilha do próximo passo.');
+// Resolve o índice ativo contra o estado ATUAL do lote: primeiro pela identidade (sobrevive a
+// ordenar, remover, duplicar e filtrar), e só então pela posição — que é o que sobra quando a
+// linha ativa deixou de existir de verdade.
+function _fBulkActiveIdx(){
+  if(!fBulkRows.length) return -1;
+  fBulkRows.forEach(_fBulkRid);
+  if(_fBulkActiveRid){
+    const i = fBulkRows.findIndex(r => r && r._rid === _fBulkActiveRid);
+    if(i >= 0) return i;
   }
-  fBulkStep(_fBulkStepN+1);
+  return Math.max(0, Math.min(_fBulkActive, fBulkRows.length-1));
+}
+function fBulkSetActive(i, opts){
+  const n = fBulkRows.length;
+  if(!n) return;
+  const novo = Math.max(0, Math.min(i|0, n-1));
+  const ridNovo = _fBulkRid(fBulkRows[novo]);
+  const mudou = ridNovo !== _fBulkActiveRid;
+  _fBulkActive = novo;
+  _fBulkActiveRid = ridNovo;
+  // Acende a linha na tabela sem re-renderizar nada: re-render roubaria o foco de quem
+  // está digitando, que é exatamente quem dispara isto.
+  const tb = document.getElementById('f-bulk-preview');
+  if(tb) tb.querySelectorAll('tr[data-row]').forEach(tr=>{
+    tr.classList.toggle('is-active', +tr.dataset.row === novo);
+  });
+  const strip = document.getElementById('f-bulk-strip');
+  document.querySelectorAll('.f-bulk-strip-item').forEach(b=>{
+    const on = +b.dataset.row === novo;
+    b.classList.toggle('is-active', on);
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+    /* ⚠ NÃO usar scrollIntoView aqui: ele rola o ancestral rolável mais próximo — e rola
+       mesmo um container com `overflow:hidden`, via scrollTop. O resultado media 53px de
+       corte no topo das DUAS colunas (a arte aparecia sem o começo). Aqui só a fita rola,
+       na horizontal, que é o único movimento que esta seleção justifica. */
+    if(on && mudou && strip && !(opts&&opts.semRolar)){
+      strip.scrollLeft = b.offsetLeft - (strip.clientWidth - b.offsetWidth)/2;
+    }
+  });
+  _fBulkSyncLiveHead();
+  _fBulkRenderHero(mudou);
+}
+function fBulkStepRow(delta){
+  if(!fBulkRows.length) return;
+  const n = fBulkRows.length;
+  fBulkSetActive((_fBulkActiveIdx() + delta + n) % n);
+}
+// Rótulo, contador, setas e o selo de "pronta / faltando" — tudo o que descreve a arte
+// que está em cena, num lugar só.
+function _fBulkSyncLiveHead(){
+  const i = _fBulkActiveIdx(), n = fBulkRows.length;
+  const lab = document.getElementById('f-bulk-live-label');
+  const cnt = document.getElementById('f-bulk-live-count');
+  const chip = document.getElementById('f-bulk-live-chip');
+  if(lab) lab.textContent = n ? `A arte da linha ${i+1}` : 'Nenhuma linha ainda';
+  if(cnt) cnt.textContent = n ? `linha ${i+1} de ${n}` : '—';
+  document.querySelectorAll('.f-bulk-live-arrow').forEach(b=>{ b.disabled = n < 2; });
+  if(chip){
+    const r = fBulkRows[i];
+    const faltando = r ? (r.erros||[]).length : 0;
+    const vazia = r ? !Object.values(r.dados||{}).some(v=>String(v||'').trim()) : true;
+    chip.textContent = vazia ? 'vazia' : (faltando ? `${faltando} campo(s) a preencher` : 'pronta');
+    chip.className = 'f-bulk-live-chip ' + (vazia||faltando ? 'is-wait' : 'is-ok');
+  }
+}
+/* A prévia grande sai do MESMO motor do PNG final (fRenderTemplateLayers) — é a régua única
+   da casa, e é o que garante que esta tela não minta sobre o arquivo que vai baixar.
+   `trocou` liga o crossfade: sem ele, substituir o pixel de uma arte pela outra pisca. */
+async function _fBulkRenderHero(trocou){
+  const cv = document.getElementById('f-bulk-hero-cv');
+  const frame = document.getElementById('f-bulk-live-frame');
+  if(!cv || !fState.material || !fState.material.layers) return;
+  const i = _fBulkActiveIdx();
+  const row = fBulkRows[i];
+  const token = ++_fBulkHeroToken;
+  const [w,h] = fMaterialSize(fState.material, fState.fmt);
+  if(frame){
+    frame.style.setProperty('--f-bulk-ar', w+'/'+h);
+    if(trocou) frame.classList.add('is-swapping');
+  }
+  // Resolução da prévia: o dobro do que a coluna mostra, com teto — renderizar no tamanho
+  // nativo de um story (1080×1920) a cada tecla custaria caro e ninguém veria a diferença.
+  const alvo = Math.min(w, 760);
+  cv.width = alvo; cv.height = Math.max(1, Math.round(alvo*h/w));
+  try{
+    const off = document.createElement('canvas'); off.width=w; off.height=h;
+    await fRenderTemplateLayers(off.getContext('2d'), fState.material.layers, w, h, (row&&row.dados)||{}, fState.camp);
+    if(token !== _fBulkHeroToken) return;   // a linha trocou no meio: este desenho é velho
+    const ctx = cv.getContext('2d');
+    ctx.clearRect(0,0,cv.width,cv.height);
+    ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+    ctx.drawImage(off,0,0,w,h,0,0,cv.width,cv.height);
+  }catch(e){
+    console.warn('[bulk] prévia grande falhou:', e);
+  }finally{
+    if(frame && token === _fBulkHeroToken) frame.classList.remove('is-swapping');
+  }
+}
+/* A fita reusa os ids `f-bulk-cv-<i>` das antigas miniaturas de cartão — por isso
+   `fBulkRenderThumbs`/`fBulkRenderCardPreview` continuam valendo sem uma linha de mudança. */
+function _fBulkRenderStrip(){
+  const strip = document.getElementById('f-bulk-strip');
+  if(!strip || !fState.material || !fState.material.layers) return;
+  const [nw,nh] = fMaterialSize(fState.material, fState.fmt);
+  const cw = 34, ch = Math.max(20, Math.round(cw*nh/nw));
+  const ativo = _fBulkActiveIdx();
+  /* A fita obedece à MESMA busca da tabela. Sem isto ela oferecia miniaturas de linhas que o
+     filtro tinha escondido: clicar levava a uma arte que não dava para editar do lado. */
+  const query = (document.getElementById('f-bulk-search')?.value || '').trim().toLowerCase();
+  const visiveis = fBulkRows.map((r,i)=>({r,i}))
+    .filter(({r})=>!query || Object.values(r.dados).some(v=>String(v).toLowerCase().includes(query)));
+  strip.innerHTML = visiveis.map(({r,i},pos)=>
+    `<button type="button" class="f-bulk-strip-item${i===ativo?' is-active':''}" data-row="${i}"
+       role="tab" aria-selected="${i===ativo}" title="Ver a arte da linha ${i+1}"
+       style="animation-delay:${Math.min(pos,8)*30}ms" onclick="fBulkSetActive(${i},{semRolar:true})">
+       <span class="f-bulk-strip-n">${i+1}</span>
+       <canvas id="f-bulk-cv-${i}" width="${cw}" height="${ch}"></canvas>
+     </button>`).join('');
+  fBulkRenderThumbs();
+}
+/* O painel de importação (o antigo passo 1). Abre sozinho com a planilha vazia — é o estado
+   de quem chega — e fecha quando já há ofertas, porque aí a tabela é o assunto. */
+function fBulkToggleImport(forcar){
+  const p = document.getElementById('f-bulk-import');
+  const b = document.getElementById('f-bulk-import-toggle');
+  if(!p) return;
+  const abrir = (typeof forcar==='boolean') ? forcar : !p.classList.contains('is-open');
+  p.classList.toggle('is-open', abrir);
+  if(b) b.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+}
+/* A arte grande acompanha a digitação — é o ponto inteiro desta tela.
+   Debounce curto porque cada volta redesenha o material pelo motor do PNG: disparar por tecla
+   travaria a digitação numa arte pesada (o mesmo motivo do debounce da prévia ao vivo do chat).
+   `fBulkSaveRow(i,true,true)` é silencioso E não recalcula prontidão — re-render aqui roubaria
+   o foco do campo que está sendo digitado. */
+let _fBulkLiveT = null;
+function fBulkLiveEdit(i){
+  fBulkSetActive(i, {semRolar:true});
+  clearTimeout(_fBulkLiveT);
+  _fBulkLiveT = setTimeout(()=>{
+    fBulkSaveRow(i, true, true);
+    _fBulkSyncLiveHead();
+    _fBulkRenderHero(false);
+    if(typeof fBulkRenderCardPreview==='function') fBulkRenderCardPreview(fBulkRows[i], i);
+    if(typeof fBulkScheduleAutosave==='function') fBulkScheduleAutosave();
+  }, 160);
+}
+// Importou ofertas com sucesso → fecha o painel e leva o olho pra planilha, que é o resultado.
+function _fBulkGoReview(){
+  fBulkToggleImport(false);
+  const tb = document.getElementById('f-bulk-preview');
+  if(tb) try{ tb.scrollIntoView({block:'nearest',behavior:'smooth'}); }catch(e){}
 }
 
 /* ── DÚVIDAS FREQUENTES (FAQ) do Luma Sheets ── */
 const F_BULK_FAQ = [
-  { cat:'Começar', q:'O que é o Luma Sheets?', a:'É a geração de artes em lote: você preenche uma planilha (cada linha = uma arte) e o Luma gera todas de uma vez, prontas pra baixar num ZIP.' },
+  { cat:'Começar', q:'O que é o Luma Sheets?', a:'É a geração de artes em lote numa tela só: você preenche a planilha (cada linha = uma arte), vê cada uma na prévia ao lado enquanto digita, e o Luma gera todas de uma vez, prontas pra baixar num ZIP.' },
   { cat:'Começar', q:'Como preencho a planilha?', a:'Três jeitos: (1) digite direto na tabela; (2) baixe o “CSV Modelo”, preencha no Excel e reenvie; (3) copie do Excel/Planilhas e cole pelo botão “Excel”.' },
   { cat:'Começar', q:'“Começar com exemplos” lê meu cardápio real?', a:'Não. É uma demonstração que gera exemplos por tipo (pizza, sushi, burger) só como ponto de partida. Edite com seus produtos e preços reais antes de gerar.' },
-  { cat:'Recursos', q:'Posso ditar por voz?', a:'Sim — clique no microfone ao lado de “Preencher Tabela” e fale suas ofertas (ex.: “hambúrguer por 25, pizza de 50 por 39”). O assistente separa produto e preço. Precisa de Chrome/Edge e do site em https ou localhost (não funciona abrindo o arquivo direto).' },
-  { cat:'Recursos', q:'Como coloco fotos nos produtos?', a:'Na visualização em tabela, cada campo de imagem tem o botão “Foto” (envia do computador) ou um campo pra colar um link. Fotos abaixo de 600px avisam que podem sair pixeladas.' },
-  { cat:'Recursos', q:'Dá pra exportar vários formatos?', a:'Sim — marque os formatos (Story, Feed, Post wide…) em “Formatos para Exportar” e o ZIP vem com uma pasta por formato.' },
-  { cat:'Recursos', q:'O que são as Ações em Massa?', a:'Na tabela você preenche uma coluna inteira de uma vez, aplica desconto em % ou arredonda os preços pra final “,90” — tudo em todas as linhas ao mesmo tempo.' },
+  { cat:'Recursos', q:'Posso ditar por voz?', a:'Sim — clique em “Falar” no painel de preencher e fale suas ofertas (ex.: “hambúrguer por 25, pizza de 50 por 39”). O assistente separa produto e preço. Precisa de Chrome/Edge e do site em https ou localhost (não funciona abrindo o arquivo direto).' },
+  { cat:'Recursos', q:'Como coloco fotos nos produtos?', a:'Na planilha, cada campo de imagem tem o botão “Foto” (envia do computador) ou um campo pra colar um link. Fotos abaixo de 600px avisam que podem sair pixeladas.' },
+  { cat:'Recursos', q:'Em qual formato as artes saem?', a:'No formato do material que você abriu — o mesmo que a prévia mostra ao lado da planilha. Para o mesmo lote em outro formato (Story, Feed, Post wide…), abra o material naquele formato e rode o lote de novo.' },
+  { cat:'Recursos', q:'O que são as Ações em Massa?', a:'Em “Mudar tudo de uma vez” você preenche uma coluna inteira de uma só vez, aplica desconto em % ou arredonda os preços pra final “,90” — tudo em todas as linhas ao mesmo tempo.' },
   { cat:'Recursos', q:'O ZIP vem com as legendas?', a:'Sim — junto das imagens vem um arquivo “legendas_posts.txt” com 3 opções de copy por produto. Escolha entre formato Feed (completo, com hashtags) ou Stories (curto) pelo seletor “Copy” na toolbar. As copys seguem o tom de voz Delivery Much e não se repetem.' },
   { cat:'Problemas', q:'Uma arte saiu em branco ou errada. Por quê?', a:'Confira se a linha não tem campos com erro (o card mostra um aviso laranja) e se o material selecionado tem as variáveis certas. Corrija a linha e gere de novo.' },
 ];
@@ -1625,11 +1975,14 @@ Responda APENAS JSON: {"itens":[{"produto":"...","precoDe":"","precoPor":"25,90"
   }).filter(Boolean);
 }
 
-// Estado de "trabalhando" da etapa 1 (a leitura de cardápio leva alguns segundos).
+// Estado de "trabalhando" do painel de preencher (a leitura de cardápio leva alguns segundos).
+// O alvo passou a ser o painel de escrever/falar (#f-bulk-ai-wrap) — o antigo cartão
+// #f-ai-prompt-block saiu da tela, e mirar num id morto deixava os botões clicáveis durante a
+// leitura, com o segundo clique atropelando o primeiro.
 function _fBulkSetBusy(on, texto){
-  const card = document.getElementById('f-ai-prompt-block');
+  const card = document.getElementById('f-bulk-ai-wrap');
   if(card) card.classList.toggle('is-busy', !!on);
-  document.querySelectorAll('#f-ai-prompt-block button, #f-bulk-menu-input').forEach(b=>{ b.disabled = !!on; });
+  document.querySelectorAll('#f-bulk-ai-wrap button, #f-bulk-menu-input').forEach(b=>{ b.disabled = !!on; });
   const st = document.getElementById('f-bulk-menu-status');
   if(st) st.textContent = on ? (texto||'Lendo…') : '';
 }
@@ -1757,69 +2110,156 @@ Responda APENAS JSON: {"casos":[{"imagem":0,"item":2},{"imagem":1,"item":null}]}
 let _fSpeechActive = false;
 let _fSpeechStarting = false;
 let _fSpeechInstance = null;
+let _fSpeechWanted = false;
+let _fSpeechButton = null;
+let _fSpeechInput = null;
+let _fSpeechBase = '';
+let _fSpeechCommitted = '';
+let _fSpeechCycleFinal = '';
+let _fSpeechFatal = false;
+let _fAudioStream = null;
+let _fMediaRecorder = null;
+let _fAudioChunks = [];
 
 // Estado visual do botão de voz via classe (sem cor hardcoded — o CSS usa tokens).
+function fSpeechButtonUI(btn, state){
+  if(!btn) return;
+  const label = btn.querySelector('.f-mic-label');
+  const isRecording = state === 'recording';
+  const isProcessing = state === 'processing';
+  btn.classList.toggle('is-recording', isRecording);
+  btn.classList.toggle('is-processing', isProcessing);
+  btn.setAttribute('aria-pressed', isRecording ? 'true' : 'false');
+  btn.disabled = isProcessing;
+  const text = isRecording ? 'Parar' : (isProcessing ? 'Transcrevendo' : 'Falar');
+  if(label) label.textContent = text;
+  btn.setAttribute('aria-label', isRecording ? 'Parar gravação' : (isProcessing ? 'Transcrevendo áudio' : 'Ditar por voz'));
+  btn.title = isRecording ? 'Parar e usar o texto' : (isProcessing ? 'Transcrevendo áudio…' : 'Falar em vez de digitar');
+}
 function fStopSpeechUI(btn){
-  if(btn){ btn.classList.remove('is-recording'); btn.setAttribute('aria-pressed','false'); }
+  fSpeechButtonUI(btn, 'idle');
+}
+function fSpeechWrite(value){
+  if(!_fSpeechInput) return;
+  _fSpeechInput.value = value;
+  _fSpeechInput.dispatchEvent(new Event('input', {bubbles:true}));
+}
+function fSpeechReset(){
+  if(_fAudioStream){ _fAudioStream.getTracks().forEach(t=>t.stop()); }
+  _fAudioStream = null; _fMediaRecorder = null; _fAudioChunks = [];
+  _fSpeechActive = false; _fSpeechStarting = false; _fSpeechInstance = null;
+  _fSpeechWanted = false; _fSpeechFatal = false;
+  fStopSpeechUI(_fSpeechButton);
+  _fSpeechButton = null; _fSpeechInput = null;
 }
 
-// Ditar por voz (Web Speech API). Robusto: exige contexto seguro (o mic é bloqueado
-// em file://), transcreve contínuo com resultados parciais ao vivo e é toggle (clicar
-// de novo para). Acumula no texto existente em vez de sobrescrever.
-function fStartSpeech(event, inputId){
-  if(event) event.preventDefault();
-
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if(!SR){ gToast('O ditado por voz funciona no Chrome ou no Edge — abra o Luma num deles.', 'error'); return; }
-  // Secure context: em file:// o navegador bloqueia o microfone — avisa ANTES de tentar.
-  if(typeof window.isSecureContext!=='undefined' && !window.isSecureContext){
-    gToast('O microfone precisa do Luma aberto pelo endereço do site. Recarregue por lá e tente de novo.', 'error');
-    return;
-  }
-
-  const btn = (event && event.currentTarget) ? event.currentTarget : document.getElementById('f-bulk-mic-btn');
-  const input = document.getElementById(inputId);
-  if(!input) return;
-
-  // Toggle: se já está gravando (ou iniciando), para.
-  if(_fSpeechActive || _fSpeechStarting){ if(_fSpeechInstance){ try{ _fSpeechInstance.stop(); }catch(e){} } return; }
-
+function fSpeechRecognitionStart(SR){
   const rec = new SR();
   _fSpeechInstance = rec;
   _fSpeechStarting = true;
   rec.lang = 'pt-BR';
-  rec.continuous = true;      // não corta na primeira pausa (dita a lista inteira)
-  rec.interimResults = true;  // mostra as palavras ao vivo
-
-  const baseText = input.value ? (input.value.replace(/\s*$/,'') + ' ') : '';
-  let finalText = '';
-
-  if(btn){ btn.classList.add('is-recording'); btn.setAttribute('aria-pressed','true'); }
-
+  // Safari/iOS encerra ou lança erro com continuous=true. Reiniciamos sessões curtas
+  // enquanto o usuário não tocar em Parar; Chrome/Edge usam a sessão contínua nativa.
+  const isAppleMobile = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+  rec.continuous = !isAppleMobile;
+  rec.interimResults = true;
+  _fSpeechCycleFinal = '';
+  fSpeechButtonUI(_fSpeechButton, 'recording');
   rec.onstart = () => { _fSpeechActive = true; _fSpeechStarting = false; gToast('Ouvindo… fale as ofertas. Clique de novo para parar.'); };
   rec.onresult = (e) => {
-    let interim = '';
-    for(let i=e.resultIndex; i<e.results.length; i++){
-      const t = e.results[i][0].transcript;
-      if(e.results[i].isFinal) finalText += t + ' '; else interim += t;
+    let cycleFinal = '', interim = '';
+    for(let i=0; i<e.results.length; i++){
+      const t = String(e.results[i][0].transcript || '').trim();
+      if(!t) continue;
+      if(e.results[i].isFinal) cycleFinal += t + ' '; else interim += t;
     }
-    input.value = baseText + finalText + interim;
-    if(input.tagName === 'INPUT') input.dispatchEvent(new Event('input', {bubbles:true}));
+    _fSpeechCycleFinal = cycleFinal;
+    fSpeechWrite(_fSpeechBase + _fSpeechCommitted + cycleFinal + interim);
   };
   rec.onerror = (e) => {
     console.error('Speech error:', e.error);
-    if(e.error === 'not-allowed' || e.error === 'service-not-allowed') gToast('Microfone bloqueado — permita o acesso ao microfone nas configurações do navegador.', 'error');
+    if(e.error === 'not-allowed' || e.error === 'service-not-allowed'){
+      _fSpeechFatal = true; _fSpeechWanted = false;
+      gToast('Microfone bloqueado — permita o acesso ao microfone nas configurações do navegador.', 'error');
+    }
     else if(e.error === 'no-speech') gToast('Nenhuma fala detectada. Fale mais perto do microfone.', 'error');
-    else if(e.error !== 'aborted') gToast('Falha no áudio. Tente de novo.', 'error');
+    else if(e.error === 'audio-capture') { _fSpeechFatal = true; _fSpeechWanted = false; gToast('Nenhum microfone disponível neste dispositivo.', 'error'); }
+    else if(e.error !== 'aborted' && e.error !== 'network') gToast('Falha no áudio. Tente de novo.', 'error');
   };
   rec.onend = () => {
-    fStopSpeechUI(btn);
+    _fSpeechCommitted += _fSpeechCycleFinal;
+    _fSpeechCycleFinal = '';
     _fSpeechActive = false; _fSpeechStarting = false; _fSpeechInstance = null;
-    if(finalText.trim()) gToast('Transcrição adicionada.');
+    if(_fSpeechWanted && !_fSpeechFatal){
+      setTimeout(()=>{ if(_fSpeechWanted) fSpeechRecognitionStart(SR); }, 180);
+      return;
+    }
+    const added = _fSpeechCommitted.trim();
+    fSpeechReset();
+    if(added) gToast('Transcrição adicionada.');
   };
-
   try{ rec.start(); }
-  catch(e){ _fSpeechStarting = false; fStopSpeechUI(btn); gToast('Não consegui iniciar o microfone — tente de novo.', 'error'); }
+  catch(e){ fSpeechReset(); gToast('Não consegui iniciar o microfone — tente de novo.', 'error'); }
+}
+
+async function fRecordedSpeechStart(){
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder){
+    gToast('Este navegador não oferece gravação de voz. Atualize-o e tente novamente.', 'error'); fSpeechReset(); return;
+  }
+  if(typeof gAiReady!=='function' || !gAiReady()){
+    gToast('A transcrição de áudio está indisponível agora. Você ainda pode digitar normalmente.', 'error'); fSpeechReset(); return;
+  }
+  try{
+    _fAudioStream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:false});
+    const preferred = ['audio/webm;codecs=opus','audio/mp4','audio/webm'].find(t=>MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t));
+    _fMediaRecorder = preferred ? new MediaRecorder(_fAudioStream,{mimeType:preferred}) : new MediaRecorder(_fAudioStream);
+    _fAudioChunks = [];
+    _fMediaRecorder.ondataavailable = e=>{ if(e.data && e.data.size) _fAudioChunks.push(e.data); };
+    _fMediaRecorder.onstop = async()=>{
+      const btn = _fSpeechButton, input = _fSpeechInput;
+      _fAudioStream.getTracks().forEach(t=>t.stop()); _fAudioStream = null;
+      if(!_fAudioChunks.length){ fSpeechReset(); gToast('Nenhum áudio foi capturado.', 'error'); return; }
+      fSpeechButtonUI(btn,'processing');
+      try{
+        const type = _fMediaRecorder.mimeType || _fAudioChunks[0].type || 'audio/webm';
+        const file = new File([new Blob(_fAudioChunks,{type})], 'fala.'+(type.includes('mp4')?'m4a':'webm'), {type});
+        const part = await gAiFileToPart(file);
+        const text = part && await gAskAI('transcrever-audio','Transcreva este áudio em português do Brasil. Retorne somente o texto falado, sem aspas, título ou explicação.',{parts:[part],cache:false});
+        if(text && input){ input.value = _fSpeechBase + String(text).trim(); input.dispatchEvent(new Event('input',{bubbles:true})); gToast('Transcrição adicionada.'); }
+        else gToast('Não consegui entender o áudio. Tente falar mais perto do microfone.', 'error');
+      }catch(e){ console.error('Audio transcription error:',e); gToast('Não consegui transcrever o áudio. Tente novamente.', 'error'); }
+      finally{ fSpeechReset(); }
+    };
+    _fMediaRecorder.start(); _fSpeechActive = true; _fSpeechStarting = false;
+    fSpeechButtonUI(_fSpeechButton,'recording'); gToast('Gravando… clique novamente para transcrever.');
+  }catch(e){
+    fSpeechReset();
+    if(e && (e.name==='NotAllowedError'||e.name==='SecurityError')) gToast('Microfone bloqueado — permita o acesso nas configurações do navegador.', 'error');
+    else gToast('Não consegui acessar o microfone deste dispositivo.', 'error');
+  }
+}
+
+// Ditar por voz em todas as superfícies do franqueado. Usa reconhecimento ao vivo
+// quando existe e cai para gravação + transcrição nos navegadores sem Web Speech.
+function fStartSpeech(event, inputId){
+  if(event) event.preventDefault();
+  if(typeof window.isSecureContext!=='undefined' && !window.isSecureContext){
+    gToast('O microfone precisa do Luma aberto pelo endereço do site. Recarregue por lá e tente de novo.', 'error'); return;
+  }
+  if(_fSpeechActive || _fSpeechStarting){
+    _fSpeechWanted = false;
+    if(_fMediaRecorder && _fMediaRecorder.state!=='inactive'){ _fMediaRecorder.stop(); return; }
+    if(_fSpeechInstance){ try{ _fSpeechInstance.stop(); }catch(e){ fSpeechReset(); } }
+    return;
+  }
+  _fSpeechButton = event && event.currentTarget ? event.currentTarget : document.getElementById('f-bulk-mic-btn');
+  _fSpeechInput = document.getElementById(inputId);
+  if(!_fSpeechInput) return;
+  _fSpeechBase = _fSpeechInput.value ? (_fSpeechInput.value.replace(/\s*$/,'')+' ') : '';
+  _fSpeechCommitted = ''; _fSpeechCycleFinal = ''; _fSpeechFatal = false; _fSpeechWanted = true; _fSpeechStarting = true;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(SR) fSpeechRecognitionStart(SR); else fRecordedSpeechStart();
 }
 
 /* ── Sugestão de prompt de IA para gerar a planilha (ChatGPT) ── */
@@ -2089,6 +2529,17 @@ function fBulkTogglePaste() {
   const wrap = document.getElementById('f-bulk-paste-wrap');
   if(wrap) wrap.style.display = wrap.style.display==='none' ? 'block' : 'none';
 }
+/* Escrever/falar as ofertas. Era um cartão sempre aberto ocupando meia coluna do painel; virou
+   um caminho sob demanda como os outros cinco. O textarea, o microfone e o `fBulkFillWithAI`
+   são os MESMOS — só mudaram de lugar. Abre já com o cursor dentro: quem clicou aqui veio
+   escrever, e um campo que aparece sem foco cobra um clique a mais por nada. */
+function fBulkToggleAiText(){
+  const wrap = document.getElementById('f-bulk-ai-wrap');
+  if(!wrap) return;
+  const abrir = wrap.style.display === 'none';
+  wrap.style.display = abrir ? 'block' : 'none';
+  if(abrir){ const ta = document.getElementById('f-bulk-ai-raw-text'); if(ta) try{ ta.focus(); }catch(e){} }
+}
 
 // Detecta se o texto colado é tabular (Excel/CSV) ou texto livre de cardápio. Tabular =
 // tem tabs, OU toda linha não-vazia tem o mesmo nº de vírgulas (>=1). Senão é cardápio.
@@ -2149,13 +2600,11 @@ function fBulkHandleCSV(input){
   r.readAsText(file);
 }
 let _fBulkRenderToken=0;
-let _fBulkTableView=false;
-
-function fBulkToggleTableView() {
-  fBulkCollectCurrentInputs();
-  _fBulkTableView = !_fBulkTableView;
-  fBulkRenderPreview();
-}
+/* Só existe a grade. A "vista em cartões" era a única forma de ver as artes do lote, e a
+   coluna da esquerda passou a fazer isso melhor — grande, ao vivo e sem trocar de modo. A
+   variável fica porque o rascunho salvo guarda `tableView` e não vale invalidar rascunho de
+   quem está no meio de uma produção; o toggle é que saiu. */
+let _fBulkTableView=true;
 
 // Uma leitura única mantém cabeçalho, rodapé e pré-voo falando a mesma verdade.
 // Linha totalmente vazia não é "erro": é um espaço de trabalho ainda não usado.
@@ -2174,10 +2623,10 @@ function fBulkGetReadiness(keys=fBulkVars(), formatCount=null) {
     }
   });
 
-  if (formatCount === null) {
-    const checked = document.querySelectorAll('.f-bulk-fmt-cb:checked').length;
-    formatCount = checked || 1; // espelha o fallback do download para o formato atual
-  }
+  // Um formato por oferta: o do material aberto. Antes isto contava os chips do rodapé, que
+  // saíram — e consultar um seletor morto para sempre cair no fallback é o tipo de linha que
+  // sobrevive a um refactor fingindo que ainda decide algo.
+  if (formatCount === null) formatCount = 1;
 
   return {
     readyRows,
@@ -2217,8 +2666,9 @@ function fBulkUpdateReadiness(readiness=fBulkGetReadiness()) {
     } else if (!ready) {
       footer.textContent = 'Preencha pelo menos uma oferta para gerar as artes.';
     } else {
-      const formatLabel = readiness.formatCount === 1 ? 'formato' : 'formatos';
-      let text = `${ready} oferta(s) × ${readiness.formatCount} ${formatLabel} = ${readiness.artCount} arte(s) no ZIP`;
+      // Sem seletor de formato, cada oferta pronta é UMA arte — a multiplicação sumiu junto
+      // com os chips, e anunciar "× 1 formato" seria explicar uma conta que não existe mais.
+      let text = `${ready} arte(s) no ZIP, no formato do material`;
       if (errors) text += ` · ${errors} linha(s) com erro serão puladas`;
       else if (empty) text += ` · ${empty} linha(s) vazia(s) serão ignoradas`;
       footer.textContent = text;
@@ -2230,14 +2680,30 @@ function fBulkUpdateReadiness(readiness=fBulkGetReadiness()) {
     dlBtn.disabled = ready === 0;
     dlBtn.setAttribute('aria-disabled', ready === 0 ? 'true' : 'false');
     dlBtn.title = ready ? `${readiness.artCount} arte(s) pronta(s) para gerar` : 'Preencha e revise a planilha antes de gerar';
-    dlBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg><span>${label}</span>`;
+    dlBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg><span id="f-bulk-dl-label">${label}</span>`;
   }
+  // O selo da prévia ("pronta" / "N campos a preencher") vem da mesma apuração — sem isto ele
+  // mentiria enquanto o resto da tela já sabia a verdade.
+  if(typeof _fBulkSyncLiveHead==='function') _fBulkSyncLiveHead();
 }
 
 function fBulkRenderPreview(){
   const wrap=document.getElementById('f-bulk-preview');if(!wrap)return;
   fBulkUpdateReadiness();
-  if(!fBulkRows.length){wrap.innerHTML='<div class="f-bulk-empty">Nenhum CSV carregado ainda. Baixe o modelo, preencha e reenvie.</div>';return;}
+  if(!fBulkRows.length){
+    wrap.innerHTML='<div class="f-bulk-empty">Nenhuma linha na planilha. Adicione uma linha ou preencha com IA, cardápio ou Excel.</div>';
+    /* ⚠ Esvaziar a planilha TEM que apagar a coluna da esquerda junto. Sem isto a arte grande
+       e a fita continuavam mostrando as linhas que acabaram de ser excluídas — a tela dizia
+       "Nenhuma linha ainda" no rótulo e exibia três miniaturas de artes inexistentes ao lado.
+       Medido: linhas=0 e miniaturas=3, com a arte da última linha ainda pintada. */
+    _fBulkActiveRid = null; _fBulkActive = 0;
+    const _strip = document.getElementById('f-bulk-strip');
+    if(_strip) _strip.innerHTML = '';
+    const _hero = document.getElementById('f-bulk-hero-cv');
+    if(_hero){ try{ _hero.getContext('2d').clearRect(0,0,_hero.width,_hero.height); }catch(e){} }
+    _fBulkSyncLiveHead();
+    return;
+  }
   
   if (_fBulkTableView) {
     const keys = fBulkVars();
@@ -2274,12 +2740,20 @@ function fBulkRenderPreview(){
           </td>`;
         }
 
+        // onfocus acende a linha na prévia; oninput mantém a arte grande acompanhando o que
+        // está sendo digitado (com folga — ver fBulkLiveEdit).
+        /* `aria-label` porque o vínculo com o `<th>` não chega ao leitor de tela numa célula
+           montada assim — sem ele a pessoa ouve "editar texto" 30 vezes sem saber a coluna.
+           A dica (`placeholder`) só na PRIMEIRA linha: em 20 linhas vazias, repetir "Nome do
+           produto" em cada célula vira ruído; na primeira ela é a pista de onde digitar. */
+        const rotulo=labelFor(k);
+        const dica=(i===0)?` placeholder="${gEsc(rotulo).replace(/"/g,'&quot;')}"`:'';
         return `<td style="padding:6px 4px;border-bottom:1px solid var(--gray-light, #F2F2F2)">
-          <input type="text" id="f-bulk-edit-${i}-${k}" value="${safeV}" style="width:100%;min-width:120px;font-size:12px;padding:6px 8px;border:1px solid ${isFieldErr?'var(--dm-red,#C81818)':'var(--gray-mid, #D4D4D4)'};border-radius:var(--r-sm);background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);outline:none;transition:all var(--dur-micro) var(--ease-standard)" onfocus="this.style.borderColor='var(--dm-orange-d,#F85400)';this.style.boxShadow='0 0 0 3px rgba(248,84,0,0.12)'" onblur="this.style.borderColor='${isFieldErr?'var(--dm-red,#C81818)':'var(--gray-mid, #D4D4D4)'}';this.style.boxShadow='';fBulkSaveRow(${i}, true)">
+          <input type="text" id="f-bulk-edit-${i}-${k}" class="f-bulk-cell${isFieldErr?' f-bulk-cell-err':''}" value="${safeV}"${dica} aria-label="${gEsc(rotulo).replace(/"/g,'&quot;')}, linha ${i+1}" style="width:100%;min-width:120px;font-size:12px;padding:6px 8px;border:1px solid var(--gray-mid, #D4D4D4);border-radius:var(--r-sm);background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);outline:none;transition:all var(--dur-micro) var(--ease-standard)" oninput="fBulkLiveEdit(${i})" onfocus="fBulkSetActive(${i})" onblur="fBulkSaveRow(${i}, true)">
         </td>`;
       }).join('');
 
-      return `<tr>
+      return `<tr data-row="${i}"${i===_fBulkActiveIdx()?' class="is-active"':''} onmousedown="fBulkSetActive(${i},{semRolar:true})">
         <td style="padding:6px 4px;border-bottom:1px solid var(--gray-light, #F2F2F2);text-align:center;display:flex;align-items:center;justify-content:center;gap:4px">
           <button class="d-btn-sec" style="padding:0;width:22px;height:22px;border-radius:50%;color:var(--text-3,#6B6B6B);background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all var(--dur-micro) var(--ease-standard)" onmouseover="this.style.color='var(--dm-orange-d,#F85400)';this.style.background='var(--dm-orange-bg,rgba(255,144,0,.12))'" onmouseout="this.style.color='';this.style.background=''" onclick="fBulkShowCopyModal(${i})" title="Ver legendas geradas"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
           <button class="d-btn-sec" style="padding:0;width:22px;height:22px;border-radius:50%;color:var(--text-3,#6B6B6B);background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all var(--dur-micro) var(--ease-standard)" onmouseover="this.style.color='var(--dm-orange-d,#F85400)';this.style.background='var(--dm-orange-bg,rgba(255,144,0,.12))'" onmouseout="this.style.color='';this.style.background=''" onclick="fBulkCloneRow(${i})" title="Duplicar linha"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
@@ -2291,7 +2765,7 @@ function fBulkRenderPreview(){
     }).join('');
     
     const optionsHtml = keys.map(k => `<option value="${k}">${gEsc(labelFor(k))}</option>`).join('');
-    wrap.innerHTML = `<div style="grid-column: 1 / -1; width:100%; display:flex; flex-direction:column; gap:12px">
+    wrap.innerHTML = `<div class="f-bulk-sheet-block">
       <!-- Mudanças em massa: poderosas, mas jargão de planilha. Ficam FECHADAS — abertas,
            eram a primeira coisa que a franqueada via, antes até da própria tabela. -->
       <details class="f-bulk-massbar">
@@ -2315,7 +2789,7 @@ function fBulkRenderPreview(){
           </div>
         </div>
       </details>
-      <div style="overflow-x:auto;width:100%;max-height:50vh;border:1px solid var(--gray-mid, #D4D4D4);border-radius:var(--r);background:var(--white,#FFFFFF)">
+      <div class="f-bulk-table-scroll">
         <table class="f-bulk-table" style="width:100%;border-collapse:collapse;margin:0">
           <thead style="position:sticky;top:0;z-index:10">
             <tr>
@@ -2327,47 +2801,20 @@ function fBulkRenderPreview(){
           <tbody>${trs}</tbody>
         </table>
       </div>
-      <div style="display:flex;gap:12px">
-        <button class="d-btn-sec" style="width:100%;border:1px dashed var(--gray-mid, #D4D4D4);padding:10px 16px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;background:transparent;cursor:pointer;border-radius:var(--r-sm);color:var(--text-2,#3A3A3A);font-weight:600;transition:all var(--dur-micro) var(--ease-standard)" onmouseover="this.style.background='var(--gray-light, #F2F2F2)';this.style.color='var(--text)'" onmouseout="this.style.background='transparent';this.style.color=''" onclick="fBulkAddEmptyRow()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Adicionar linha
-        </button>
-        <button class="d-btn-sec" style="border:1px solid var(--gray-mid, #D4D4D4);padding:10px 16px;color:var(--dm-red,#C81818);background:transparent;font-size:12px;cursor:pointer;border-radius:var(--r-sm);font-weight:600;transition:all var(--dur-micro) var(--ease-standard)" onmouseover="this.style.background='rgba(200,24,24,0.08)'" onmouseout="this.style.background='transparent'" onclick="fBulkClearAll()">
-          Limpar planilha
-        </button>
-      </div>
+      <!-- "Limpar planilha" NAO mora mais aqui: ficava a 12px de "Adicionar linha" (medido) e a
+           Lei de Fitts do ux-principles manda o contrario - acao irreversivel longe da primaria.
+           Foi para dentro de "Mais opcoes da planilha", com o resto do ferramental. -->
+      <button class="d-btn-sec f-bulk-add-row" onclick="fBulkAddEmptyRow()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Adicionar linha
+      </button>
     </div>`;
+    // A fita e a prévia grande se refazem junto com a tabela — são a mesma verdade em três
+    // tamanhos. (A antiga "vista em cartões" saiu: a coluna da esquerda faz o mesmo trabalho,
+    // maior e sem um clique a mais.)
+    _fBulkRenderStrip();
+    fBulkSetActive(_fBulkActiveIdx(), {semRolar:true});
     return;
   }
-  
-  // Proporção do thumbnail conforme o tamanho real do material (ou o preset, p/ legados)
-  const [nw,nh]=fMaterialSize(fState.material, fState.fmt);
-  const cw=96, ch=Math.max(40,Math.round(cw*nh/nw));
-  const query = document.getElementById('f-bulk-search')?.value.trim().toLowerCase() || '';
-  wrap.innerHTML=fBulkRows.map((r,i)=>{
-    if (query) {
-      const match = Object.values(r.dados).some(v => String(v).toLowerCase().includes(query));
-      if (!match) return '';
-    }
-    const titulo=r.dados.produto||r.dados.categoria||r.dados.brinde||Object.values(r.dados)[0]||('Linha '+(i+1));
-    const campos=Object.keys(r.dados).slice(0,2).map(k=>{
-      const label=(typeof _fLpLabel==='function')?_fLpLabel(k):k;
-      return `<div class="f-bulk-field"><span>${gEsc(label)}:</span> ${(gEsc(r.dados[k]))||'—'}</div>`;
-    }).join('');
-    const isErr = r.erros.length > 0;
-    const actionsHtml = isErr 
-      ? `<button class="d-btn-sec" style="padding:2px 6px;font-size:9px;margin-top:4px;width:100%" onclick="fBulkEditRow(${i})">Corrigir linha</button>` 
-      : `<button class="d-btn-sec" style="padding:2px 6px;font-size:9px;margin-top:4px;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:4px" onclick="fBulkShowCopyModal(${i})"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Legendas</button>`;
-    const iaChip = _fBulkIaChip(r);
-    return `<div class="f-bulk-card ${isErr?'has-err':''}" id="f-bulk-card-${i}">`
-      +`<button class="f-bulk-remove" onclick="fBulkRemoveCard(${i})" title="Remover do lote">×</button>`
-      +`<div class="f-bulk-card-num">${i+1}</div>${iaChip}`
-      +`<canvas class="f-bulk-canvas" id="f-bulk-cv-${i}" width="${cw}" height="${ch}"></canvas>`
-      +`<div class="f-bulk-card-title" title="${gEsc(titulo)}">${gEsc(titulo)}</div>`
-      +`<div class="f-bulk-card-info" id="f-bulk-info-${i}">${campos}${actionsHtml}</div>`
-      +`<div class="f-bulk-card-status"><span class="f-bulk-badge loading" id="f-bulk-badge-${i}">⏳</span></div>`
-      +`</div>`;
-  }).join('');
-  fBulkRenderThumbs();
 }
 
 function fBulkEditRow(i) {
@@ -2460,9 +2907,10 @@ function fBulkSaveRow(i, isSilent=false, skipReadiness=false) {
         if(err) erros.push(err);
       }
 
-      if(isSilent) {
-        input.style.borderColor = err ? 'var(--dm-red,#C81818)' : 'var(--gray-mid,#D4D4D4)';
-      }
+      /* ⚠ Antes isto escrevia `borderColor` inline e o CSS casava com
+         `input[style*="--dm-red"]` — um seletor que depende do TEXTO do atributo style e some
+         em silêncio se alguém trocar o `var()` por hex. Agora é classe. */
+      if(isSilent) input.classList.toggle('f-bulk-cell-err', !!err);
     } else {
       dados[k] = row.dados[k];
     }
@@ -2487,8 +2935,10 @@ function fBulkSaveRow(i, isSilent=false, skipReadiness=false) {
     }
   }
   
-  fBulkRows[i] = {dados, erros};
-  
+  // Preserva a IDENTIDADE ao trocar o objeto: sem isto, salvar uma linha zerava o vínculo com a
+  // prévia e a próxima ordenação voltaria a mostrar a arte errada.
+  fBulkRows[i] = {dados, erros, _rid: (row && row._rid) || ('r' + (++_fBulkRidSeq))};
+
   if(!isSilent) {
     fBulkRenderPreview();
   } else if(!skipReadiness) {
@@ -2506,7 +2956,33 @@ function fBulkSaveAllRows(isSilent=true) {
 
 // Renderiza os thumbnails em fila (cede o thread entre cada um). Um token cancela
 // loops antigos quando a lista é re-renderizada (ex.: após remover um card).
-async function fBulkRenderThumbs(){
+/* As miniaturas da fita são desenhadas SÓ quando entram em cena.
+   Antes o laço percorria o lote inteiro: cada miniatura é um `fRenderTemplateLayers` completo,
+   e a fita mostra ~10 por vez. Medido com 120 linhas: 4,2s de trabalho contínuo e ainda assim
+   só 91 das 120 pintadas — numa planilha de verdade (o Sheets existe para lotes grandes) isso
+   é a máquina do franqueado ocupada desenhando arte que ninguém está olhando, enquanto ele
+   tenta digitar ao lado.
+   O padrão é o mesmo já usado nas prévias do histórico (`_fHistRenderPreviews`): observa,
+   desenha na entrada e para de observar. `rootMargin` adianta o vizinho para a rolagem não
+   mostrar buraco. Sem IntersectionObserver, cai no laço antigo — nada fica sem imagem. */
+let _fBulkStripObserver = null;
+function _fBulkDesenharFitaVisivel(){
+  if(_fBulkStripObserver){ _fBulkStripObserver.disconnect(); _fBulkStripObserver = null; }
+  const strip = document.getElementById('f-bulk-strip');
+  if(!strip) return;
+  if(!('IntersectionObserver' in window)) return _fBulkRenderThumbsSeq();
+  _fBulkStripObserver = new IntersectionObserver((entradas, obs)=>{
+    entradas.forEach(e=>{
+      if(!e.isIntersecting) return;
+      obs.unobserve(e.target);
+      const i = +e.target.dataset.row;
+      if(fBulkRows[i]) fBulkRenderCardPreview(fBulkRows[i], i);
+    });
+  }, { root: strip, rootMargin: '220px' });
+  strip.querySelectorAll('.f-bulk-strip-item').forEach(n=>_fBulkStripObserver.observe(n));
+}
+// Fallback sequencial (navegador sem IntersectionObserver).
+async function _fBulkRenderThumbsSeq(){
   const token=++_fBulkRenderToken;
   for(let i=0;i<fBulkRows.length;i++){
     if(token!==_fBulkRenderToken)return; // novo render começou → aborta o antigo
@@ -2520,6 +2996,8 @@ async function fBulkRenderThumbs(){
       : setTimeout(res,30));
   }
 }
+// Nome preservado: é o que o render da fita chama, e prefixo aqui é sagrado.
+function fBulkRenderThumbs(){ _fBulkDesenharFitaVisivel(); }
 async function fBulkRenderCardPreview(row, index){
   const cv=document.getElementById('f-bulk-cv-'+index);
   const badge=document.getElementById('f-bulk-badge-'+index);
@@ -2528,7 +3006,8 @@ async function fBulkRenderCardPreview(row, index){
     const [w,h]=fMaterialSize(fState.material, fState.fmt);
     // Render no tamanho nativo (sem super-sampling — é thumbnail) e desenha reduzido.
     const off=document.createElement('canvas');off.width=w;off.height=h;
-    await fRenderTemplateLayers(off.getContext('2d'), fState.material.layers, w, h, row.dados, fState.camp);
+    await fRenderTemplateLayers(off.getContext('2d'), fState.material.layers, w, h, row.dados, fState.camp, null,
+      {scope:'franqueado',purpose:'preview'});
     const ctx=cv.getContext('2d');
     ctx.clearRect(0,0,cv.width,cv.height);
     ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
@@ -2573,16 +3052,11 @@ async function fBulkDownloadAll(){
   fBulkSaveAllRows(true);
   
   const keys = fBulkVars();
-  const checkboxes = document.querySelectorAll('.f-bulk-fmt-cb:checked');
-  let selectedFmts = [];
-  if(checkboxes.length > 0 && typeof FMTS !== 'undefined') {
-    checkboxes.forEach(cb => {
-      const f = FMTS.find(x => x.id === cb.value);
-      if(f) selectedFmts.push(f);
-    });
-  } else {
-    selectedFmts = [fState.fmt];
-  }
+  // O ZIP sai no formato do material aberto — o mesmo que a prévia ao lado mostra o tempo todo.
+  // A escolha múltipla de formatos vivia em chips no rodapé e saiu: era repetir uma decisão que
+  // o franqueado já tomou ao abrir o material. A estrutura de lista fica porque o laço de
+  // geração e as pastas do ZIP são por formato.
+  const selectedFmts = [fState.fmt];
   
   // Filtra linhas válidas que não tenham erro e que NÃO estejam completamente vazias
   const valid = fBulkRows.filter(r => {
@@ -2830,7 +3304,8 @@ async function _fpvRun(canvas, tmpl, opts){
   const prevMat=(typeof fState!=='undefined')?fState.material:null;
   try{
     if(typeof fState!=='undefined') fState.material={layers:tmpl.layers, w:W, h:H, bg:tmpl.bg, fmt:tmpl.fmt};
-    await fRenderTemplateLayers(octx, tmpl.layers, W, H, dados, camp);
+    await fRenderTemplateLayers(octx, tmpl.layers, W, H, dados, camp, tmpl,
+      {scope:opts.scope||'designer',purpose:'preview'});
   }catch(e){ console.warn('[preview] render falhou:', e); return false; }
   finally{ if(typeof fState!=='undefined') fState.material=prevMat; }
   if(canvas._fpvId!==renderId) return false; // um render mais novo assumiu este canvas
@@ -4009,7 +4484,8 @@ async function fBulkShowHoverPreview(event, i) {
     off.width = w;
     off.height = h;
     
-    await fRenderTemplateLayers(off.getContext('2d'), fState.material.layers, w, h, row.dados, fState.camp);
+    await fRenderTemplateLayers(off.getContext('2d'), fState.material.layers, w, h, row.dados, fState.camp, null,
+      {scope:'franqueado',purpose:'preview'});
     
     const ctx = cv.getContext('2d');
     ctx.clearRect(0,0,cw,ch);

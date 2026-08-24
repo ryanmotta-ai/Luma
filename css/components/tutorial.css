@@ -258,6 +258,24 @@
   color:#fff;
   box-shadow:0 4px 14px rgba(255,144,0,.35);
 }
+
+/* O conteúdo demonstrado dentro da cena pode representar telas claras ou escuras; o
+   chassis do tutorial, porém, acompanha o tema real do produto. */
+body:not(.theme-light) .tut-container{background:var(--d-surf);border:1px solid var(--d-border2)}
+body:not(.theme-light) .tut-header{background:linear-gradient(180deg,var(--d-surf),var(--d-dark));border-bottom-color:var(--d-border)}
+body:not(.theme-light) .tut-title{color:var(--d-text)}
+body:not(.theme-light) .tut-close{background:var(--d-surf2);color:var(--d-text2)}
+body:not(.theme-light) .tut-close:hover{background:var(--dm-red);color:var(--on-accent)}
+body:not(.theme-light) .tut-stage-area{background:var(--d-bg);background-image:radial-gradient(circle at 20% 20%,color-mix(in srgb,var(--dm-orange) 9%,transparent),transparent 50%),radial-gradient(circle at 80% 80%,color-mix(in srgb,var(--dm-yellow) 6%,transparent),transparent 50%)}
+body:not(.theme-light) .tut-controls{background:var(--d-surf);border-top-color:var(--d-border)}
+body:not(.theme-light) .tut-progress-dot{background:var(--d-surf3)}
+body:not(.theme-light) .tut-progress-dot:hover,body:not(.theme-light) .tut-progress-dot.current{background:var(--d-border2)}
+body:not(.theme-light) .tut-btn-ghost{background:var(--d-surf2);color:var(--d-text2)}
+body:not(.theme-light) .tut-btn-ghost:hover{background:var(--d-surf3);color:var(--d-text)}
+body:not(.theme-light) .tut-finale{background:var(--d-surf)}
+body:not(.theme-light) .tut-finale-title{color:var(--d-text)}
+body:not(.theme-light) .tut-finale-desc{color:var(--d-text3)}
+body:not(.theme-light) .tut-finale-icon{color:var(--green-text)}
 .tut-btn-primary:hover{
   background:#F85400;
   transform:translateY(-1px);

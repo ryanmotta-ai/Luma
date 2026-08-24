@@ -139,6 +139,46 @@ removido e alimenta a extração por SQL/BI.
 
 ---
 
+### 2.8 Luma Sheets no celular — ✅ RESOLVIDO (2026-08-14)
+
+Revisão feita **abrindo a tela** (desktop 1440, celular 390, claro e escuro) e medindo o DOM, não lendo código. O que estava quebrado, com o número que provou:
+
+**A planilha não cabia e não rolava.** 46 elementos passavam da borda em 390px e a coluna de preço simplesmente não existia para quem usa celular. O container da tabela SEMPRE teve `overflow-x:auto` — e mesmo assim nada rolava, porque a cadeia inteira de ancestrais herdava `min-width:auto` e inflava em vez de rolar. A raiz ficava dois níveis acima do suspeito: `.f-bulk-modal-box` declara `grid-template-rows` e **nenhuma coluna**, então a coluna implícita nasce `auto` e cresce com o conteúdo mais largo. Junto: `.f-bulk-split` usava `1fr` (mínimo implícito `auto`) onde a regra de duas colunas logo acima já usava `minmax(0,1fr)`, e o cabeçalho da planilha é full-bleed com margem negativa de 20px — 40px a mais numa tela de 390. Corrigido elo a elo; **0 elementos vazando**, a tabela rola com 260px de conteúdo alcançável.
+
+**A prévia comia 35% da tela** e empurrava a planilha — o trabalho de verdade — para baixo da dobra. Agora 24%; a arte continua conferível e quem manda na tela é a planilha.
+
+**Campo não parecia campo no toque.** As células são invisíveis de propósito (`border-color:transparent`) e só ganham contorno no `tr:hover` — elegante com mouse, **inexistente no dedo**. O contorno passou a ser permanente em `@media (hover:none)`, os alvos por linha foram de 28×28 para 44×44 e as miniaturas da fita de 38×64 para 44×75 (`ux-principles.md`, Lei de Fitts). A primeira linha ganhou `placeholder` com o nome da coluna — nas demais seria ruído.
+
+**Ação irreversível colada na primária.** "Limpar planilha" ficava a **12px** de "Adicionar linha". Foi para dentro de "Mais opções da planilha", com o resto do ferramental.
+
+**Acessibilidade:** as células da tabela não tinham nome acessível — quem usa leitor de tela ouvia "editar texto" sem saber a coluna. Agora `aria-label="Nome do produto, linha 1"`. Botões desligados deixaram de anunciar `cursor:pointer`.
+
+**Dois seletores frágeis viraram classe.** `.f-bulk-table input[style*="--dm-red"]` e `.f-bulk-preview>div>div[style*="overflow-x:auto"]` casavam pelo **texto do atributo style**. O segundo cobrou o preço na hora: ao trocar o estilo inline por classe, ele parou de casar em silêncio e a tabela perdeu `min-height`/`flex` — regressão introduzida e corrigida no mesmo pacote, com o layout do container reconferido (`min-height:180px`, `flex:1 1 0%`).
+
+⛔ **Descartado ao medir — não "corrigir":** a borda vermelha em campo de preço vazio e o cabeçalho escrito `preco` em vez de "Preço". Os dois eram artefato do harness de teste (`dVars` e `fBulkRows` são `let` de script e não vivem no `window`, então a injeção não chegava no app e o campo caía em tipo desconhecido). Com o catálogo real: `erros: []`, nenhum vermelho, rótulos corretos.
+
+⚠ **Não verificado aqui:** o estado de repouso no **desktop com mouse**. Este Chromium headless responde `hover:none` mesmo com emulação de mídia, então os screenshots de desktop mostram o tratamento de toque. Em navegador real a regra não se aplica e o comportamento original (contorno só no hover) continua. Confirmar na máquina.
+
+⚠ **Achado não tocado:** `fBulkEditRow` (o formulário da antiga "vista em cartões") não tem mais nenhum chamador — a vista foi removida de propósito, a função ficou. Usa o **nome cru da variável** como rótulo, então se voltar a ser alcançada mostra "preco" para o franqueado. Candidata a remoção.
+
+### 2.9 O chat do franqueado no celular — ✅ RESOLVIDO (2026-08-15)
+
+Pedido do Ryan: *"quero pensar principalmente na experiência mobile, ela precisa ser muito boa"*. O franqueado do interior opera pelo celular — é a tela que mais importa no Luma. Mesmo método: uma bancada dirige o **fluxo real** (campanha → material → chat → responder → prévia) num iPhone de 390×844 com toque emulado, e mede. Nada aqui foi deduzido lendo CSS.
+
+**A arte estava escondida e metade da tela estava vazia.** O chat abria com **441px vazios entre a pergunta e a barra de digitar — 52% da tela** — e a arte era um selo flutuante de 64px no canto. O vazio só sumia conforme a pessoa respondia (52% → 39% → 18%), ou seja: era pior justamente no **primeiro contato**, onde a confiança do franqueado se ganha ou se perde. Decisão do Ryan entre quatro opções: trazer a arte para dentro da conversa. Agora um cartão ocupa a sobra (**45% da tela**, vazio de 2%), tocar nele abre a prova em tela cheia, e ele **encolhe até um piso de 140px** conforme as bolhas crescem. Não é um segundo renderizador: `drawImage` do `#lp-canvas`, a mesma lei que a miniatura flutuante já seguia.
+
+**O `padding-bottom:150px` era herança do que foi removido.** Existia só para a miniatura flutuante (~114px em `bottom:80px`) não tampar o fim da rolagem. Com a arte no fluxo o selo some — e a reserva virava 150px de vazio no rodapé de toda conversa. Foi ela que impediu o cartão de crescer no primeiro corte: sem folga, o `flex:1` não tinha o que absorver.
+
+**8 alvos de toque abaixo de 44px → 0.** Chips de resposta rápida a 38px (o jeito **principal** de responder no celular — tocar "Combo Burger" evita abrir o teclado), "Recomeçar" a 36×36, logo a 72×22, badge de perfil a 38×38. ⛔ **A aba de modo não cresceu de propósito:** 32px + o padding da pílula dá 40px, e levá-la a 44 empurraria a pílula para 52px — a altura exata da topbar, sem respiro. Seria redesenhar o controle-assinatura do produto, não corrigir um alvo. Em vez disso o **alvo** cresce e o desenho fica: um `::after` estende a área tocável 6px para cada lado (32+12=44). Verificado por `elementFromPoint`, não pela caixa.
+
+**Teclado:** o viewport ganhou `interactive-widget=resizes-content`. Sem isso o padrão é `resizes-visual` — o `100dvh` continua valendo a tela inteira e a barra de digitar fica sob o teclado. Medido: a **390×508** (o que sobra com o teclado aberto) o layout do chat se comporta inteiro, então basta o navegador entregar esse tamanho.
+
+⛔ **Descartados na medição — não "corrigir":** `#lp-zoom-range` com fonte 13px (é `input[type=range]`; só campo de **digitação** dispara o zoom do iOS) e a gaveta de prévia "fora da tela" (fechada em `translateY(100%)` é o desenho, não defeito). O campo de mensagem já estava em 16px e o safe-area já estava aplicado em 9 lugares — a base mobile existia, o que faltava era o que a bancada achou.
+
+⚠ **Não verificado aqui:** o comportamento real do teclado no **iOS**. Não há teclado no headless; o que foi verificado são as duas condições que decidem (o app pede o encolhimento, e o layout aguenta a altura curta). Safari ainda ignora `interactive-widget` — valor desconhecido é inerte, não quebra —, então **o iPhone precisa de conferência em aparelho real**. Se o sintoma aparecer lá, o próximo degrau é o `visualViewport`, e já existe implementação da casa para espelhar (`_gCliAjustaViewport`, `js/core/console.js`).
+
+⚠ **Achado não tocado:** a arte no cartão mostra as **caixas tracejadas de campo vazio** (`fLpHighlightEmpty` — "toque pra preencher"). É comportamento deliberado do motor de prévia, herdado fielmente pela cópia de pixels; some conforme os campos são preenchidos. Tirá-las mudaria também a prova em tela cheia — decisão de design, não defeito.
+
 ## 3. O roadmap
 
 ### FASE P0 — Fundações que sangram (≈1–2 dias) 🔴
@@ -175,6 +215,7 @@ removido e alimenta a extração por SQL/BI.
 | P2.2 | **Ajuda** (redesign leve) | Tirar emoji; unificar identidade com o tutorial; rodapé de versão real; revisar se Trilha/Catálogo/Chat de ajuda são 3 coisas ou 1 | 90 hex + emoji + copy de piloto |
 | P2.3 | **Login + Splash** (rearquitetura de montagem) | Tela própria que desmonta; transição login→app na régua de motion; sem app renderizado por baixo (depende de P0.1) | Primeiro contato com o produto; hoje é a maior violação estrutural |
 | P2.4 | **Luma Sheets** (extração + hierarquia) | Extrair os estilos inline para `css/modules/sheets.css`; agrupar a toolbar por função (Fonte de dados / Edição / Modelos / Ferramentas); manter TODAS as funções — é reorganização, não corte | Epicentro dos 343 `style=` do index; toolbar por acreção |
+| P2.4b | **Luma Sheets no celular** — ✅ FEITO (2026-08-14) | Ver §2.8 | Medido na tela real: 46 elementos vazavam da tela de 390px |
 | P2.5 | **Estúdio — estado vazio** | Empty state com CTA (Novo projeto / Recentes / Importar PSD) no lugar da tela apagada ao entrar sem documento | ⚠ verificar visualmente antes (plausível ≠ real — a auditoria viu ~30 elementos, mas sem screenshot) |
 | P2.6 | **Home franqueado — rascunhos** | Thumb real da arte no card "Continuar de onde parou" (hoje é bloco de cor); reusar a fila de thumbs que já existe (`_fRenderCampThumb`) | Última aresta da melhor tela |
 

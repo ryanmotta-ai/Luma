@@ -459,6 +459,7 @@ body:not(.theme-light) .art-bulk-txt em { color: var(--d-text2) }
 body:not(.theme-light) .f-fit-pop{background:var(--d-surf);border-color:var(--d-border)}
 body:not(.theme-light) .f-fit-opt{color:var(--d-text)}
 body:not(.theme-light) .f-fit-opt:hover{background:var(--d-surf2)}
+body:not(.theme-light) .f-fit-btn{background:color-mix(in srgb,var(--dm-orange) 14%,var(--d-surf));border-color:color-mix(in srgb,var(--dm-orange) 34%,var(--d-border));color:var(--dm-orange)}
 .step-label{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--dm-orange-d);background:var(--dm-orange-bg);padding:2px 7px;border-radius:3px;margin-right:8px;vertical-align:middle;animation:gFadeIn .3s ease-out both}
 .field-hint{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:4px 9px;background:var(--gray-light);border-radius:var(--r-pill);font-size:10px;color:var(--text-2);font-weight:500;animation:gFadeInUp .3s ease-out .15s both;opacity:0}
 
@@ -551,6 +552,18 @@ body:not(.theme-light) .f-fit-opt:hover{background:var(--d-surf2)}
   color:var(--dm-orange-d);
   background:var(--dm-orange-bg);
 }
+body:not(.theme-light) .field-hint{background:var(--d-surf2);color:var(--d-text2)}
+body:not(.theme-light) .f-upload-zone{background:var(--d-surf);border-color:var(--d-border2)}
+body:not(.theme-light) .f-upload-zone:hover,
+body:not(.theme-light) .f-upload-zone.drag-over{background:color-mix(in srgb,var(--dm-orange) 10%,var(--d-surf));border-color:var(--dm-orange)}
+body:not(.theme-light) .f-upload-icon{background:var(--d-surf2);color:var(--dm-orange)}
+body:not(.theme-light) .f-upload-title{color:var(--d-text)}
+body:not(.theme-light) .f-upload-sub{color:var(--d-text3)}
+body:not(.theme-light) .f-upload-preview,
+body:not(.theme-light) .f-upload-preview-overlay{background:var(--d-surf);border-color:var(--d-border2)}
+body:not(.theme-light) .f-upload-preview-overlay span{color:var(--green-text)}
+body:not(.theme-light) .f-upload-replace{border-color:var(--d-border2);color:var(--d-text2)}
+body:not(.theme-light) .f-upload-replace:hover{background:color-mix(in srgb,var(--dm-orange) 12%,var(--d-surf));border-color:var(--dm-orange);color:var(--dm-orange)}
 /* ══ /UPLOAD DE IMAGEM ══ */
 .field-hint-type{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:var(--dm-orange);color:var(--white);border-radius:50%;font-size:9px;font-weight:700;font-family:'Roboto',sans-serif;letter-spacing:-.02em}
 .field-hint-text{letter-spacing:.02em}
@@ -565,14 +578,18 @@ body:not(.theme-light) .f-fit-opt:hover{background:var(--d-surf2)}
 #f-snd:active{transform:scale(.92)}
 #f-snd:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
 /* Ditar por voz no chat (reusa fStartSpeech). Botão secundário; vira vermelho pulsante gravando. */
-#f-chat-mic{width:38px;height:38px;border-radius:50%;background:var(--gray-light);border:1px solid var(--gray-mid);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-2);flex-shrink:0;transition:transform var(--dur-fast) var(--ease-spring),background var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard)}
+#f-chat-mic{min-width:38px;height:38px;padding:0 11px;border-radius:var(--r-pill);background:var(--gray-light);border:1px solid var(--gray-mid);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;color:var(--text-2);flex-shrink:0;font:650 12px/1 'Roboto',sans-serif;transition:transform var(--dur-fast) var(--ease-spring),background var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard)}
+#f-chat-mic svg{width:16px;height:16px;flex:none}
 #f-chat-mic:hover{background:var(--gray-mid);color:var(--text);transform:scale(1.06)}
 #f-chat-mic:active{transform:scale(.92)}
 #f-chat-mic:disabled{opacity:.4;cursor:not-allowed;transform:none;pointer-events:none}
 #f-chat-mic.is-recording{background:var(--dm-red);border-color:var(--dm-red);color:#fff;animation:f-mic-pulse 1.2s ease-in-out infinite}
+#f-chat-mic.is-processing{border-color:var(--dm-orange);background:var(--dm-orange-bg);color:var(--dm-orange-d);cursor:wait}
 @keyframes f-mic-pulse{0%,100%{box-shadow:0 0 0 3px rgba(200,24,24,.18)}50%{box-shadow:0 0 0 7px rgba(200,24,24,.04)}}
 @media (prefers-reduced-motion: reduce){#f-chat-mic.is-recording{animation:none;box-shadow:0 0 0 3px rgba(200,24,24,.18)}}
 body:not(.theme-light) #f-chat-mic{background:var(--d-surf);border-color:var(--d-border2);color:var(--d-text)}
+body:not(.theme-light) #f-chat-mic.is-recording{background:var(--dm-red);border-color:var(--dm-red);color:var(--white)}
+body:not(.theme-light) #f-chat-mic.is-processing{background:color-mix(in srgb,var(--dm-orange) 13%,var(--d-surf));border-color:var(--dm-orange);color:var(--dm-orange)}
 
 
 /* 4.3 — Luma Sheets: workspace guiado de produção em lote */
@@ -596,40 +613,130 @@ body:has(#f-bulk-modal.open) #mobile-preview-toggle{display:none!important}
 .f-bulk-close-btn svg{width:16px;height:16px}
 .f-bulk-faq-btn:hover,.f-bulk-close-btn:hover{border-color:var(--dm-orange);background:var(--dm-orange-bg);color:var(--dm-orange-d);transform:translateY(-1px)}
 
-/* ══ Assistente de 3 passos ══
-   Substitui o antigo grid de duas colunas (setup + planilha lado a lado), que punha
-   os três passos na tela ao mesmo tempo: a numeração prometia uma ordem que o layout
-   não cumpria. Agora o workspace é um palco só e cada .f-bulk-stage aparece na sua vez. */
+/* ══ UMA TELA SÓ: a arte ao vivo | a planilha ══
+   Antes eram três passos num palco só (.f-bulk-stage trocando de vez). O passo 1 era um menu
+   de importação e o passo 3, três controles — nenhum dos dois é fase de trabalho, e virar tela
+   fazia a planilha parecer o meio do caminho. Agora as duas coisas que importam dividem a tela:
+   a arte (o herói, design-process §3) e a grade que a alimenta.
+   A coluna da arte tem largura FIXA em vez de fração: a prancheta não deve encolher junto com
+   a janela — quem cede espaço é a planilha, que já rola na horizontal por natureza. */
 .f-bulk-workspace{display:block;min-height:0;overflow:auto;background:var(--off-white);
   scrollbar-width:thin;scrollbar-color:var(--gray-mid) transparent}
-.f-bulk-stage{display:flex;flex-direction:column;gap:14px;max-width:860px;margin:0 auto;padding:22px 22px 26px;
-  animation:gBulkStageIn var(--dur-base) var(--ease-out)}
-.f-bulk-stage[hidden]{display:none}
-@keyframes gBulkStageIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-/* Passo 2 respira mais que os outros: a planilha é larga por natureza. */
-.f-bulk-stage[data-step="2"]{max-width:none}
-.f-bulk-stage-head{display:flex;flex-direction:column;gap:4px}
-.f-bulk-stage-head h3{margin:0;font-family:'Roboto',sans-serif;font-size:20px;font-weight:900;letter-spacing:-.015em;color:var(--text)}
-.f-bulk-stage-head p{margin:0;font-size:13px;line-height:1.5;color:var(--text-3)}
-.f-bulk-stage-head .f-bulk-status-wrap{margin-top:6px}
+.f-bulk-split{display:grid;grid-template-columns:clamp(300px,26vw,392px) minmax(0,1fr);overflow:hidden}
 
-/* Trilha: onde estou, o que já passou, o que falta. Clicável pra rever um passo. */
-.f-bulk-trail{display:flex;gap:8px;padding:10px 20px;border-bottom:1px solid var(--gray-light);background:var(--white);overflow-x:auto;scrollbar-width:none}
-.f-bulk-trail::-webkit-scrollbar{display:none}
-.f-bulk-trail-item{display:flex;align-items:center;gap:9px;flex:1 1 0;min-width:170px;padding:8px 12px;
-  border:1px solid transparent;border-radius:var(--r);background:transparent;cursor:pointer;text-align:left;
-  transition:background var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard)}
-.f-bulk-trail-item:hover{background:var(--gray-light)}
-.f-bulk-trail-item:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
-.f-bulk-trail-num{display:flex;align-items:center;justify-content:center;width:26px;height:26px;flex:0 0 auto;
-  border:1px solid var(--gray-mid);border-radius:50%;background:var(--white);color:var(--text-3);font-size:11px;font-weight:800}
-.f-bulk-trail-txt{display:grid;gap:1px;min-width:0}
-.f-bulk-trail-txt strong{font-size:12.5px;font-weight:750;color:var(--text-2);line-height:1.2}
-.f-bulk-trail-txt small{font-size:10.5px;color:var(--text-3);line-height:1.3}
-.f-bulk-trail-item.is-now{border-color:var(--dm-orange-tint);background:var(--dm-orange-bg)}
-.f-bulk-trail-item.is-now .f-bulk-trail-num{border-color:var(--dm-orange);background:var(--dm-orange);color:var(--white)}
-.f-bulk-trail-item.is-now .f-bulk-trail-txt strong{color:var(--dm-orange-d)}
-.f-bulk-trail-item.is-done .f-bulk-trail-num{border-color:var(--green);background:var(--green);color:var(--white)}
+/* ── A arte ao vivo ── */
+.f-bulk-live{display:flex;flex-direction:column;gap:12px;min-width:0;min-height:0;overflow:hidden;padding:18px 18px 16px;
+  border-right:1px solid var(--gray-light);background:var(--white)}
+.f-bulk-live-top{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:24px}
+.f-bulk-live-label{color:var(--text-3);font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+.f-bulk-live-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:var(--r-pill);
+  background:var(--gray-light);color:var(--text-3);font-size:11px;font-weight:700;white-space:nowrap;
+  transition:background var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard)}
+.f-bulk-live-chip.is-ok{background:var(--dm-orange-bg);color:var(--dm-orange-d)}
+.f-bulk-live-chip.is-wait{background:var(--gray-light);color:var(--text-3)}
+.f-bulk-live-stage{position:relative;display:grid;place-items:center;flex:1;min-height:0;padding:2px}
+/* A moldura recebe a proporção do material por --f-bulk-ar (JS), então serve story e feed sem
+   duas regras.
+   ⚠ Dimensionada pela ALTURA (`height:100%` + `width:auto`), não pela largura: com
+   `max-height` sozinho, o story (9/16) calculava a altura a partir dos 356px da coluna, dava
+   633px e vazava para fora do painel — a arte aparecia cortada em cima. Assim a altura
+   disponível é que manda, e `max-width` cuida do caminho inverso nos formatos deitados. */
+.f-bulk-live-frame{position:relative;height:100%;width:auto;max-width:100%;aspect-ratio:var(--f-bulk-ar,9/16);
+  border-radius:12px;overflow:hidden;background:var(--gray-light);
+  box-shadow:0 18px 44px color-mix(in srgb,var(--text) 20%,transparent),0 2px 6px color-mix(in srgb,var(--text) 10%,transparent);
+  transition:box-shadow var(--dur-base) var(--ease-standard)}
+.f-bulk-live-frame canvas{display:block;width:100%;height:100%;object-fit:contain}
+/* Troca de linha: crossfade curto. Substituir o pixel de uma arte pela outra sem transição
+   pisca — e piscar numa tela de conferência faz duvidar do que se viu. */
+.f-bulk-live-frame.is-swapping canvas{opacity:0;transform:scale(.985);
+  transition:opacity var(--dur-micro) var(--ease-in),transform var(--dur-micro) var(--ease-in)}
+.f-bulk-live-frame canvas{opacity:1;transform:scale(1);
+  transition:opacity var(--dur-fast) var(--ease-out),transform var(--dur-fast) var(--ease-out)}
+.f-bulk-live-nav{display:flex;align-items:center;justify-content:center;gap:8px;
+  color:var(--text-3);font-size:12px;font-weight:700}
+.f-bulk-live-arrow{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;
+  border:1px solid var(--gray-mid);border-radius:50%;background:var(--white);color:var(--text-2);cursor:pointer;
+  transition:border-color var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard),
+             color var(--dur-micro) var(--ease-standard),transform var(--dur-micro) var(--ease-spring)}
+.f-bulk-live-arrow svg{width:14px;height:14px}
+.f-bulk-live-arrow:hover{border-color:var(--dm-orange);background:var(--dm-orange-bg);color:var(--dm-orange-d);transform:translateY(-1px)}
+.f-bulk-live-arrow:disabled{opacity:.4;cursor:not-allowed;transform:none;border-color:var(--gray-mid);background:var(--white);color:var(--text-3)}
+.f-bulk-live-hint{margin:0;text-align:center;color:var(--text-3);font-size:11px;line-height:1.4}
+
+/* ── Fita de miniaturas: o lote de relance ── */
+.f-bulk-strip{display:flex;gap:7px;align-items:center;justify-content:flex-start;overflow-x:auto;padding:2px 1px 6px;
+  scrollbar-width:thin;scrollbar-color:var(--gray-mid) transparent}
+.f-bulk-strip::-webkit-scrollbar{height:5px}
+.f-bulk-strip::-webkit-scrollbar-thumb{background:var(--gray-mid);border-radius:var(--r-pill)}
+.f-bulk-strip-item{position:relative;flex:0 0 auto;width:38px;padding:0;border:2px solid transparent;border-radius:7px;
+  background:var(--gray-light);cursor:pointer;overflow:hidden;line-height:0;
+  animation:gBulkThumbIn var(--dur-fast) var(--ease-spring-soft) both;
+  transition:border-color var(--dur-micro) var(--ease-standard),transform var(--dur-micro) var(--ease-spring),
+             box-shadow var(--dur-micro) var(--ease-standard)}
+.f-bulk-strip-item canvas{display:block;width:100%;height:auto;border-radius:5px}
+.f-bulk-strip-item:hover{transform:translateY(-2px);border-color:var(--dm-orange-tint)}
+.f-bulk-strip-item.is-active{border-color:var(--dm-orange);box-shadow:0 0 0 3px color-mix(in srgb,var(--dm-orange) 18%,transparent)}
+.f-bulk-strip-item:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+.f-bulk-strip-item .f-bulk-strip-n{position:absolute;left:2px;top:2px;min-width:14px;height:14px;padding:0 3px;
+  border-radius:var(--r-pill);background:color-mix(in srgb,var(--text) 62%,transparent);color:var(--white);
+  font-size:9px;font-weight:800;line-height:14px;text-align:center}
+@keyframes gBulkThumbIn{from{opacity:0;transform:scale(.86)}to{opacity:1;transform:scale(1)}}
+
+/* ── A planilha ── */
+.f-bulk-sheet{display:flex;flex-direction:column;gap:12px;min-width:0;min-height:0;overflow:auto;padding:18px 20px 22px;
+  scrollbar-width:thin;scrollbar-color:var(--gray-mid) transparent}
+/* Grudado no topo: a planilha rola, mas "quantas linhas / quantas prontas" e o botão de
+   preencher são a régua da coluna — sumir com eles ao rolar é perder o rumo. */
+.f-bulk-sheet-head{position:sticky;top:-18px;z-index:4;display:flex;align-items:flex-start;justify-content:space-between;
+  gap:14px;flex-wrap:wrap;margin:-18px -20px 0;padding:18px 20px 12px;background:var(--off-white)}
+.f-bulk-sheet-title{display:flex;flex-direction:column;gap:4px;min-width:0}
+.f-bulk-sheet-title h3{margin:0;font-family:'Roboto',sans-serif;font-size:20px;font-weight:900;letter-spacing:-.015em;color:var(--text)}
+.f-bulk-import-toggle{display:inline-flex;align-items:center;gap:8px;padding:9px 13px;border:1px solid var(--gray-mid);
+  border-radius:var(--r-pill);background:var(--white);color:var(--text-2);font:750 12px/1 'Roboto',sans-serif;cursor:pointer;
+  transition:border-color var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard),
+             color var(--dur-micro) var(--ease-standard),transform var(--dur-micro) var(--ease-spring)}
+.f-bulk-import-toggle svg:first-child{width:15px;height:15px;color:var(--dm-orange-d)}
+.f-bulk-import-toggle .f-bulk-disclosure-icon{width:14px;height:14px;color:var(--text-3);
+  transition:transform var(--dur-fast) var(--ease-standard)}
+.f-bulk-import-toggle:hover{border-color:var(--dm-orange);background:var(--dm-orange-bg);color:var(--dm-orange-d);transform:translateY(-1px)}
+.f-bulk-import-toggle[aria-expanded="true"] .f-bulk-disclosure-icon{transform:rotate(90deg)}
+/* Painel de importação: fechado é altura 0 (não display:none) para a abertura ter de onde
+   partir — o mesmo motivo do acordeão da Academia. */
+.f-bulk-import{display:grid;grid-template-rows:0fr;opacity:0;
+  transition:grid-template-rows var(--dur-base) var(--ease-standard),opacity var(--dur-fast) var(--ease-standard)}
+.f-bulk-import>*{overflow:hidden;min-height:0}
+.f-bulk-import.is-open{grid-template-rows:1fr;opacity:1}
+.f-bulk-import-inner{display:flex;flex-direction:column;gap:14px;padding-bottom:2px}
+.f-bulk-sheet .f-bulk-preview{animation:gBulkFadeIn var(--dur-fast) var(--ease-out)}
+@keyframes gBulkFadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* A linha ativa é a que está na prévia — o vínculo entre as duas colunas precisa ser visível
+   sem piscar a tabela inteira: barra de acento à esquerda + fundo levíssimo. */
+.f-bulk-table tr.is-active>td{background:color-mix(in srgb,var(--dm-orange) 6%,transparent)}
+.f-bulk-table tr.is-active>td:first-child{box-shadow:inset 3px 0 0 var(--dm-orange)}
+.f-bulk-table tr>td{transition:background var(--dur-micro) var(--ease-standard)}
+
+/* ── Rodapé: o que sai ── */
+/* Rodapé: a conta à esquerda (informação), as ações à direita. Os chips de formato saíram —
+   com um formato só, o que restou é a leitura do que vai sair e os dois botões. */
+.f-bulk-footer-note{margin-right:auto}
+.f-bulk-post-opts{position:relative}
+.f-bulk-post-opts>summary{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border:1px solid var(--gray-mid);
+  border-radius:var(--r-pill);background:var(--white);color:var(--text-2);font:700 12px/1 'Roboto',sans-serif;cursor:pointer;
+  list-style:none;white-space:nowrap;transition:border-color var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard)}
+.f-bulk-post-opts>summary::-webkit-details-marker{display:none}
+.f-bulk-post-opts>summary:hover{border-color:var(--dm-orange);background:var(--dm-orange-bg)}
+.f-bulk-post-opts>summary svg:first-child{width:14px;height:14px;color:var(--text-3)}
+.f-bulk-post-opts>summary .f-bulk-disclosure-icon{width:13px;height:13px;transition:transform var(--dur-fast) var(--ease-standard)}
+.f-bulk-post-opts[open]>summary .f-bulk-disclosure-icon{transform:rotate(90deg)}
+/* Abre PARA CIMA: o disclosure vive no rodapé e não há espaço abaixo dele. */
+/* Ancorado à DIREITA: o disclosure vive no canto direito do rodapé agora, e abrir para a
+   direita jogaria os 280px do painel para fora do modal. */
+.f-bulk-post-opts-body{position:absolute;bottom:calc(100% + 8px);right:0;left:auto;z-index:5;min-width:280px;padding:14px;
+  border:1px solid var(--gray-mid);border-radius:var(--r);background:var(--white);
+  box-shadow:0 16px 40px color-mix(in srgb,var(--text) 18%,transparent);
+  animation:gFadeInUp var(--dur-fast) var(--ease-out) both}
+@keyframes gFadeInUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
 /* Disclosure dos caminhos alternativos e das ferramentas de planilha. */
 .f-bulk-alt{border:1px solid var(--gray-mid);border-radius:var(--r);background:var(--white);overflow:hidden}
@@ -670,13 +777,17 @@ body:has(#f-bulk-modal.open) #mobile-preview-toggle{display:none!important}
 .f-bulk-massbar-row button{font-size:12px;padding:6px 12px;border-radius:var(--r-sm);font-weight:650;cursor:pointer;white-space:nowrap}
 
 body:not(.theme-light) .f-bulk-workspace{background:var(--d-dark)}
-body:not(.theme-light) .f-bulk-trail{background:var(--d-surf);border-color:var(--d-border)}
-body:not(.theme-light) .f-bulk-trail-item:hover{background:var(--d-surf2)}
-body:not(.theme-light) .f-bulk-trail-num{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text2)}
-body:not(.theme-light) .f-bulk-trail-txt strong{color:var(--d-text)}
-body:not(.theme-light) .f-bulk-trail-txt small{color:var(--d-text3)}
-body:not(.theme-light) .f-bulk-stage-head h3{color:var(--d-text)}
-body:not(.theme-light) .f-bulk-stage-head p{color:var(--d-text2)}
+body:not(.theme-light) .f-bulk-live{background:var(--d-surf);border-color:var(--d-border)}
+body:not(.theme-light) .f-bulk-live-frame{background:var(--d-surf2)}
+body:not(.theme-light) .f-bulk-live-chip{background:var(--d-surf2);color:var(--d-text2)}
+body:not(.theme-light) .f-bulk-live-arrow{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text2)}
+body:not(.theme-light) .f-bulk-live-hint,body:not(.theme-light) .f-bulk-live-nav{color:var(--d-text3)}
+body:not(.theme-light) .f-bulk-strip-item{background:var(--d-surf2)}
+body:not(.theme-light) .f-bulk-sheet-title h3{color:var(--d-text)}
+body:not(.theme-light) .f-bulk-sheet-head{background:var(--d-dark)}
+body:not(.theme-light) .f-bulk-import-toggle,body:not(.theme-light) .f-bulk-post-opts>summary,
+body:not(.theme-light) .f-bulk-post-opts-body{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text2)}
+body:not(.theme-light) .f-bulk-table tr.is-active>td{background:color-mix(in srgb,var(--dm-orange) 12%,transparent)}
 body:not(.theme-light) .f-bulk-alt,body:not(.theme-light) .f-bulk-massbar{background:var(--d-surf);border-color:var(--d-border2)}
 body:not(.theme-light) .f-bulk-alt>summary:hover,body:not(.theme-light) .f-bulk-massbar>summary:hover{background:var(--d-surf2)}
 body:not(.theme-light) .f-bulk-alt>summary strong,body:not(.theme-light) .f-bulk-massbar>summary strong{color:var(--d-text)}
@@ -730,6 +841,7 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
   font-size:8px;font-weight:850;letter-spacing:.06em;cursor:help;vertical-align:middle}
 .f-bulk-card .f-bulk-ia-chip{position:absolute;top:7px;left:50%;transform:translateX(-50%);z-index:2;margin:0}
 #f-bulk-mic-btn.is-recording{border-color:var(--dm-red);background:var(--dm-red);color:var(--white);animation:gPulse 1s infinite}
+#f-bulk-mic-btn.is-processing{border-color:var(--dm-orange);background:var(--dm-orange-bg);color:var(--dm-orange-d);cursor:wait}
 .f-ai-prompt-toggle{display:inline-flex;align-items:center;gap:4px;margin-left:auto;padding:5px 0;border:0;background:transparent;color:var(--text-3);font:600 10.5px 'Roboto',sans-serif;white-space:nowrap;cursor:pointer}
 .f-ai-prompt-toggle:hover{color:var(--dm-orange-d)}
 .f-ai-prompt-chevron{font-size:15px;line-height:1;transition:transform var(--dur-fast) var(--ease-standard)}
@@ -744,7 +856,9 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
 .f-ai-prompt-open{border:1px solid var(--gray-mid);background:var(--white);color:var(--text-2)}
 
 .f-bulk-source-label{margin:0 0 8px;color:var(--text-3);font-size:9.5px;font-weight:750;letter-spacing:.06em;text-transform:uppercase}
-.f-bulk-source-grid{display:grid;grid-template-columns:repeat(4,minmax(110px,1fr));gap:6px}
+/* Seis caminhos desde que o cartão da IA virou botão (13/08): trava em 4 colunas empurrava
+   dois para uma segunda fileira meio vazia. auto-fit distribui conforme a largura real. */
+.f-bulk-source-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:6px}
 .f-bulk-source-action{display:grid;grid-template-columns:24px minmax(0,1fr);align-items:center;gap:6px;min-height:48px;padding:7px 8px;border:1px solid var(--gray-light);border-radius:var(--r-sm);background:var(--off-white);color:var(--text-2);font-family:'Roboto',sans-serif;text-align:left;cursor:pointer;transition:background var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard),transform var(--dur-fast) var(--ease-spring-soft)}
 .f-bulk-source-action>svg{width:17px;height:17px;justify-self:center;color:var(--text-3)}
 .f-bulk-source-action>span{display:grid;gap:2px;min-width:0}
@@ -813,7 +927,11 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
 
 .f-bulk-preview{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));grid-auto-rows:max-content;gap:8px;min-height:0;max-height:none;overflow:auto;margin:0;padding:0 0 6px;scrollbar-width:thin;scrollbar-color:var(--gray-mid) transparent}
 .f-bulk-preview>div{grid-column:1/-1;min-height:0}
-.f-bulk-preview>div>div[style*="overflow-x:auto"]{max-height:none!important;min-height:180px;flex:1;border-color:var(--gray-mid)!important;border-radius:var(--r-sm)!important;box-shadow:none}
+/* ⚠ Esta regra casava por `[style*="overflow-x:auto"]` — o TEXTO do atributo style. Ao trocar o
+   estilo inline do container por uma classe, ela deixou de casar em silêncio e a tabela perdeu
+   `min-height`/`flex`. É a mesma fragilidade que a regra do estado de erro tinha; as duas viraram
+   classe no mesmo pacote. */
+.f-bulk-preview .f-bulk-table-scroll{max-height:none!important;min-height:180px;flex:1;border-color:var(--gray-mid)!important;border-radius:var(--r-sm)!important;box-shadow:none}
 .f-bulk-empty{grid-column:1/-1;display:flex;align-items:center;justify-content:center;min-height:280px;padding:40px;border:1px dashed var(--gray-mid);border-radius:12px;background:var(--white);color:var(--text-3);font-size:12px;text-align:center}
 .f-bulk-actions-bar{position:relative;flex-wrap:wrap!important;overflow:visible;padding:7px 8px!important;border:1px solid var(--gray-mid)!important;border-radius:var(--r-sm)!important;background:var(--white)!important;color:var(--text-2)!important;white-space:normal;box-shadow:none}
 .f-bulk-actions-bar>span:first-child{color:var(--dm-orange-d)}
@@ -826,7 +944,7 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
 .f-bulk-table tbody td{border-right:1px solid var(--gray-light)!important;border-bottom:1px solid var(--gray-light)!important}
 .f-bulk-table input[type=text]{min-height:34px!important;box-sizing:border-box;border-color:transparent!important;border-radius:4px!important;background:transparent!important;transition:border-color var(--dur-micro) var(--ease-standard),box-shadow var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard)}
 .f-bulk-table tbody tr:hover input[type=text]{border-color:var(--gray-mid)!important;background:var(--white)!important}
-.f-bulk-table input[type=text][style*="--dm-red"]{border-color:var(--dm-red)!important;background:color-mix(in srgb,var(--dm-red) 4%,var(--white))!important}
+.f-bulk-table input.f-bulk-cell-err{border-color:var(--dm-red)!important;background:color-mix(in srgb,var(--dm-red) 4%,var(--white))!important}
 .f-bulk-num-chip{display:inline-flex;align-items:center;justify-content:center;min-width:23px;height:23px;padding:0 6px;border-radius:4px;background:var(--gray-light);color:var(--text-3);font-size:10px;font-weight:800}
 .f-bulk-card{position:relative;display:flex;flex-direction:column;align-items:center;padding:12px 10px 10px;border:1px solid var(--gray-light);border-radius:var(--r);background:var(--white);animation:gFadeIn var(--dur-base) var(--ease-standard) both;transition:transform var(--dur-fast) var(--ease-spring-soft),box-shadow var(--dur-fast) var(--ease-spring-soft),border-color var(--dur-fast) var(--ease-standard)}
 .f-bulk-card:hover{border-color:var(--dm-orange-tint);box-shadow:0 10px 26px color-mix(in srgb,var(--dm-orange-d) 12%,transparent);transform:translateY(-3px)}
@@ -848,7 +966,39 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
 
 .f-bulk-footer{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:64px;padding:10px 20px;border-top:1px solid var(--gray-light);background:var(--white);box-shadow:0 -8px 24px color-mix(in srgb,var(--text) 4%,transparent)}
 .f-bulk-footer-note{display:flex;align-items:center;gap:8px;max-width:680px;color:var(--text-3);font-size:10.5px;line-height:1.4}.f-bulk-footer-note svg{width:15px;height:15px;flex:0 0 auto;color:var(--dm-orange-d)}
-.f-bulk-footer-actions{display:flex;align-items:center;gap:8px}.f-bulk-footer-actions .d-btn-pri{display:inline-flex;align-items:center;gap:7px;min-height:38px;padding:0 18px;font-weight:750}.f-bulk-footer-actions .d-btn-pri svg{width:15px;height:15px}
+.f-bulk-footer-actions{display:flex;align-items:center;gap:8px;margin-left:auto}.f-bulk-footer-actions .d-btn-pri{display:inline-flex;align-items:center;gap:7px;min-height:38px;padding:0 18px;font-weight:750}.f-bulk-footer-actions .d-btn-pri svg{width:15px;height:15px}
+/* Dentro do popover o par vira coluna: 280px não comportam dois campos lado a lado. */
+.f-bulk-post-opts-body.f-bulk-output-fields{grid-template-columns:1fr;gap:12px}
+
+/* ── Telas estreitas: empilha. Duas colunas não cabem no celular, e é nele que o franqueado
+      mais usa. A arte vira uma faixa no topo, com a fita rolando ao lado dela. ── */
+@media (max-width:900px){
+  /* ⚠ `1fr` tem mínimo implícito `auto`: a trilha cresce até caber o conteúdo, e um cabeçalho
+     full-bleed (margem negativa de 20px) inflava a coluna para 412px numa tela de 390 — era
+     por isso que a planilha inteira transbordava. `minmax(0,1fr)` é o mesmo truque que a regra
+     de duas colunas já usava logo acima. */
+  .f-bulk-split{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
+  .f-bulk-live{flex-direction:row;align-items:center;gap:14px;padding:12px 14px;
+    border-right:0;border-bottom:1px solid var(--gray-light)}
+  .f-bulk-live-top,.f-bulk-live-hint{display:none}
+  .f-bulk-live-stage{flex:0 0 auto;height:132px}
+  .f-bulk-live-frame{height:132px}
+  .f-bulk-live-nav{display:none}
+  .f-bulk-strip{flex:1;min-width:0}
+  .f-bulk-sheet{padding:14px}
+  .f-bulk-footer{flex-wrap:wrap;gap:10px}
+  .f-bulk-footer-actions{width:100%;margin-left:0}
+  .f-bulk-footer-actions .d-btn-pri{flex:1;justify-content:center}
+}
+
+/* Movimento fora, informação intacta (motion.md §3): sem crossfade nem pop, mas a arte, a
+   fita e o painel de importação continuam aparecendo — nada aqui depende da animação. */
+@media (prefers-reduced-motion:reduce){
+  .f-bulk-live-frame.is-swapping canvas{opacity:1;transform:none}
+  .f-bulk-strip-item{animation:none}
+  .f-bulk-import{transition:none}
+  .f-bulk-post-opts-body{animation:none}
+}
 
 #f-bulk-modal .d-btn-pri{border:1px solid var(--dm-orange-d)!important;border-radius:var(--r-sm);background:var(--dm-orange-d)!important;color:var(--white)!important;box-shadow:0 3px 9px color-mix(in srgb,var(--dm-orange-d) 18%,transparent);font-family:'Roboto',sans-serif;cursor:pointer;transition:transform var(--dur-micro) var(--ease-spring),box-shadow var(--dur-micro) var(--ease-standard),filter var(--dur-micro) var(--ease-standard)}
 #f-bulk-modal .d-btn-pri:hover{box-shadow:0 7px 17px color-mix(in srgb,var(--dm-orange-d) 25%,transparent);filter:brightness(.94);transform:translateY(-1px)}
@@ -955,7 +1105,9 @@ body:not(.theme-light) .f-bulk-tool-action,body:not(.theme-light) .f-bulk-table 
   .f-bulk-output-config>.f-bulk-section-heading{grid-column:auto}
   .f-bulk-output-fields{grid-template-columns:1fr 1fr}
   .f-bulk-sheet-area{gap:7px;padding:9px 8px 4px}
-  .f-bulk-sheet-head{align-items:flex-start}
+  /* No celular o full-bleed sai: 40px de margem negativa numa tela de 390 é o que empurrava
+     tudo para fora. O fundo grudento continua, agora dentro da largura da tela. */
+  .f-bulk-sheet-head{align-items:flex-start;margin-left:0;margin-right:0;padding-left:0;padding-right:0}
   .f-bulk-status-wrap{padding:0 7px}
   .f-bulk-toolbar{align-items:stretch;flex-direction:column}
   .f-bulk-toolbar-group{width:100%}
@@ -1129,6 +1281,10 @@ body:not(.theme-light) .caption-copy-btn { background: var(--d-surf2); color: va
 body:not(.theme-light) .caption-copy-btn:hover { background: var(--d-surf3); border-color: var(--dm-orange) }
 body:not(.theme-light) .caption-copy-btn.copied { background: var(--green); color: var(--on-accent); border-color: var(--green) }
 
+/* Estados do microfone vencem o remapeamento de superfícies do tema escuro. */
+body:not(.theme-light) #f-bulk-mic-btn.is-recording{background:var(--dm-red);border-color:var(--dm-red);color:var(--white)}
+body:not(.theme-light) #f-bulk-mic-btn.is-processing{background:color-mix(in srgb,var(--dm-orange) 13%,var(--d-surf));border-color:var(--dm-orange);color:var(--dm-orange)}
+
 
 /* ══════════════════════════════════════════════════════════════
    CHAT MOBILE — safe-area (home indicator do iOS) + toque.
@@ -1138,6 +1294,8 @@ body:not(.theme-light) .caption-copy-btn.copied { background: var(--green); colo
   #f-input-row{padding:12px 16px calc(12px + var(--safe-bottom));}
   #f-msg-box{font-size:16px;padding-top:11px;padding-bottom:11px} /* 16px = sem auto-zoom iOS */
   #f-snd{width:var(--tap-min);height:var(--tap-min);flex-shrink:0}
+  #f-chat-mic{width:var(--tap-min);min-width:var(--tap-min);height:var(--tap-min);padding:0;border-radius:50%}
+  #f-chat-mic .f-mic-label{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important}
   /* Bolhas de chat mais largas no celular (menos margem lateral desperdiçada).
      padding-bottom extra: a miniatura viva da prévia (até ~114px, bottom:80px) não pode
      tampar o fim do scroll (cobria o último card da revisão, ex.: "Gerar kit da campanha"). */
@@ -1164,3 +1322,142 @@ body:not(.theme-light) .caption-copy-btn.copied { background: var(--green); colo
   background:var(--white);border:1px solid var(--gray-light);color:var(--text-3);font-size:9px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
 .caption-src.is-ia{background:var(--dm-orange-bg);color:var(--dm-orange-d);border-color:var(--dm-orange-tint)}
 body:not(.theme-light) .caption-src{background:var(--d-surf2);border-color:var(--d-border);color:var(--d-text2)}
+
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   LUMA SHEETS — REVISÃO DE USABILIDADE (2026-08-14)
+   Cada regra abaixo nasceu de uma MEDIÇÃO na tela real, não de gosto. Os números estão nos
+   comentários para quem for mexer depois saber o que a regra segura.
+   ══════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. A PLANILHA VOLTA A ROLAR NO CELULAR ──
+   O container da tabela SEMPRE teve `overflow-x:auto`, e mesmo assim nada rolava: medido em
+   390px, ele estava com 554px. A causa é a herança de `min-width:auto` — item de grid/flex se
+   recusa a encolher abaixo do próprio conteúdo, então a tabela inflava os ancestrais em vez de
+   ganhar barra de rolagem. Sem estes `min-width:0`, a coluna de preço simplesmente não existe
+   para quem usa celular: 46 elementos passavam da borda da tela. */
+/* A cadeia inteira precisa poder encolher: basta UM elo com `min-width:auto` para a tabela
+   voltar a inflar os ancestrais em vez de rolar. Medido elo a elo na tela de 390px. */
+.f-bulk-workspace,.f-bulk-sheet,#f-bulk-preview,.f-bulk-sheet-block,.f-bulk-table-scroll,
+.f-bulk-modal-box,.f-bulk-live{min-width:0;max-width:100%}
+/* O cabeçalho da planilha é full-bleed (margem -20px cancelando o padding do pai, para o fundo
+   grudento cobrir a borda). Com `min-width:auto` ele se recusava a encolher e empurrava a
+   coluna do grid para 412px numa tela de 390 — o último elo da cadeia. */
+.f-bulk-sheet-head{min-width:0}
+/* A caixa do modal declara `grid-template-rows` e NENHUMA coluna — a coluna implícita nasce
+   `auto` e cresce com o conteúdo mais largo. Era ela, no fim da cadeia, quem segurava os 412px:
+   tudo abaixo já podia encolher e mesmo assim herdava a trilha inflada. */
+.f-bulk-modal-box{grid-template-columns:minmax(0,1fr)}
+.f-bulk-sheet-block{grid-column:1/-1;width:100%;display:flex;flex-direction:column;gap:12px}
+.f-bulk-table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;max-height:50vh;
+  border:1px solid var(--gray-mid);border-radius:var(--r);background:var(--white)}
+/* A sombra à direita é a única pista de que existe mais coluna adiante — sem hover, sem
+   scrollbar visível no toque, a pessoa não tem como adivinhar. Some sozinha ao chegar no fim. */
+.f-bulk-table-scroll{background-image:linear-gradient(to left,rgba(0,0,0,.10),rgba(0,0,0,0) 24px);
+  background-repeat:no-repeat;background-position:right center;background-size:24px 100%;
+  background-attachment:local}
+
+.f-bulk-add-row{width:100%;border:1px dashed var(--gray-mid);padding:10px 16px;display:flex;
+  align-items:center;justify-content:center;gap:6px;font-size:12px;background:transparent;
+  cursor:pointer;border-radius:var(--r-sm);color:var(--text-2);font-weight:600;
+  transition:background var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard)}
+.f-bulk-add-row:hover{background:var(--gray-light);color:var(--text)}
+/* "Limpar planilha" vive dentro de "Mais opções" agora — longe da ação primária. */
+.f-bulk-clear-sheet{color:var(--dm-red)}
+
+/* ── 2. NO TOQUE, CAMPO PRECISA PARECER CAMPO ──
+   As células são invisíveis de propósito (`border-color:transparent`) e só ganham contorno no
+   `tr:hover` — elegante no desktop, INEXISTENTE no dedo. Medido: no celular a pessoa vê uma
+   grade sem nenhuma pista de onde digitar. Aqui o efeito bonito fica só onde há mouse. */
+@media (hover:none){
+  .f-bulk-table input[type=text]{border-color:var(--gray-mid)!important;background:var(--white)!important}
+  /* Alvos de 44px (`ux-principles.md`, Lei de Fitts). Medido antes: os controles por linha
+     tinham 28×28 e as miniaturas da fita 38×64 — no dedo, isso é erro garantido. */
+  .f-bulk-table td button,.f-bulk-table td .d-btn-sec{min-width:44px;min-height:44px}
+  .f-bulk-strip>*{min-width:44px;min-height:56px}
+  .f-bulk-table input[type=text]{min-height:44px!important}
+}
+
+/* ── 3. A PRÉVIA PARA DE COMER A TELA DO CELULAR ──
+   Medido: 388×301px = 35% da tela, empurrando a planilha (o trabalho de verdade) para baixo da
+   dobra. A arte continua ali, do tamanho que dá para conferir — mas quem manda na tela é a
+   planilha. No desktop nada muda: a coluna da esquerda segue grande. */
+@media(max-width:620px){
+  .f-bulk-workspace{grid-template-rows:minmax(0,30%) minmax(0,70%)}
+  /* O cabeçalho reserva 240px fixos para o meio + 28px de gap dos dois lados: numa tela de 390
+     isso sozinho já não cabe, e a coluna implícita do modal crescia junto. */
+  .f-bulk-workspace-head{grid-template-columns:auto minmax(0,1fr) auto;gap:10px;padding:10px 12px}
+  .f-bulk-sheet-block{gap:9px}
+  /* O rodapé quebrava o rótulo do botão em três linhas dentro da própria caixa. */
+  .f-bulk-footer .d-btn-pri{min-height:48px;white-space:nowrap;font-size:13px}
+}
+
+/* ── 4. BOTÃO DESLIGADO NÃO CONVIDA CLIQUE ──
+   `#f-bulk-dl-btn` fica `disabled` até existir uma oferta, mas mantinha `cursor:pointer` —
+   parecia clicável e não era. */
+#f-bulk-modal button:disabled{cursor:not-allowed}
+
+/* ── DEDO, NÃO MOUSE (alvos de toque do chat) ─────────────────────────────────
+   A régua é `hover:none` (o aparelho é tocado), não a largura: um tablet de 800px
+   também é operado com o dedo. O `ux-principles.md` pede ≥44px (Lei de Fitts) e o
+   bloco de 680px já aplica `--tap-min` em vários controles — estes ficaram de fora
+   e foram medidos na bancada do celular.
+   ⚠ ESTE BLOCO FICA NO FIM DO ARQUIVO DE PROPÓSITO. `.qr` tem `min-height:34px` na
+   sua regra base lá em cima; com a mesma especificidade quem vem depois vence, e
+   escrito antes dela o bloco inteiro era inerte (aconteceu). */
+@media (hover:none){
+  /* Os chips de resposta rápida são o jeito PRINCIPAL de responder no celular —
+     tocar "Combo Burger" evita abrir o teclado. Mediam 38px de altura. */
+  .qr{min-height:var(--tap-min)}
+  /* "Recomeçar" vira só ícone abaixo de 1080px e encolhia para 36×36. */
+  #f-head-actions button{min-width:var(--tap-min);min-height:var(--tap-min)}
+}
+
+/* ── A ARTE DENTRO DA CONVERSA (celular) ──────────────────────────────────────
+   Mesmo corte do resto do layout mobile do chat (680px, o mesmo da gaveta e do FAB).
+   O porquê e as duas decisões de arquitetura estão em `_fLpPaintCartao`
+   (`js/franqueado/live-preview.js`) — resumo: o cartão é o último item flex por
+   `order`, absorve a sobra com `flex:1` e encolhe até o piso quando as bolhas crescem. */
+/* Fora do celular o cartão NÃO existe: o desktop tem o painel de prévia fixo ao lado, e
+   duas cópias da arte na mesma tela é ruído. Escondido por padrão e ligado só no corte
+   mobile — assim girar o aparelho para paisagem (>680px) o apaga em vez de deixar um
+   botão sem estilo no meio da conversa. */
+#f-chat-art{display:none}
+@media (max-width:680px){
+  #f-chat-art{
+    order:1;                       /* último, mesmo entrando antes no DOM */
+    flex:1 1 auto;
+    /* Piso: abaixo disto a arte vira selo ilegível e o espaço serve melhor à conversa.
+       `min-height` no piso e não `height` — é o que deixa o flex encolher até aqui e parar. */
+    min-height:140px;
+    align-self:stretch;
+    display:flex;align-items:center;justify-content:center;
+    margin:2px 0 0;padding:10px;
+    border:1px solid var(--gray-light);border-radius:16px;
+    background:var(--gray-bg,var(--gray-light));
+    cursor:pointer;-webkit-tap-highlight-color:transparent;
+    transition:transform var(--dur-fast) var(--ease-spring),box-shadow var(--dur-fast) var(--ease-standard);
+  }
+  #f-chat-art:active{transform:scale(.985)}
+  #f-chat-art:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+  /* O encaixe mora AQUI, não no JS: `width/height:auto` faz o canvas usar o bitmap como
+     tamanho intrínseco e os `max-*:100%` o reduzem preservando a proporção — a arte cabe
+     inteira (o franqueado precisa ver a peça toda, não um corte). Cravar pixel no JS
+     realimentava o flex e congelava a altura do cartão; ver `_fLpPaintCartao`. */
+  #f-chat-art canvas{
+    display:block;width:auto;height:auto;max-width:100%;max-height:100%;
+    border-radius:9px;
+    box-shadow:0 4px 16px rgba(10,10,10,.14);
+  }
+  /* Com a arte no fluxo, o FAB seria a MESMA arte flutuando por cima dela. O cartão herda
+     o papel (tocar abre a prova em tela cheia) e nunca sai de vista: como último item flex
+     de uma lista que rola sozinha pro fim, ele está sempre no rodapé da conversa. */
+  body.f-mobile-chat #mobile-preview-toggle{display:none}
+  /* ...e some com a RESERVA que existia só por causa dele. O `padding-bottom:150px` lá em
+     cima foi criado para a miniatura flutuante (~114px de altura em `bottom:80px`) não tampar
+     o fim da rolagem. Sem miniatura sobre o chat, viram 150px de vazio no rodapé de toda
+     conversa — e era exatamente esse vazio que sobrava depois do cartão entrar (medido:
+     o cartão parava de crescer porque não havia folga para ele absorver). */
+  body.f-mobile-chat #f-messages{padding-bottom:14px}
+}
+body:not(.theme-light) #f-chat-art{border-color:var(--d-line,#2A2A2A);background:var(--d-surf2,#141414)}

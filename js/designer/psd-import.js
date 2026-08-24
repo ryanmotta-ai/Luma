@@ -110,17 +110,18 @@ function _dPsdApplyBoardToUI(){
   const _nT=dPsdItems.filter(i=>i.kind==='text').length;
   const _nS=dPsdItems.filter(i=>i.kind==='shape').length;
   const _nI=dPsdItems.filter(i=>i.kind==='raster').length;
+  const _adjItems=dPsdItems.filter(i=>i.kind==='adjustment');
+  const _nA=_adjItems.length, _nAOk=_adjItems.filter(i=>i.adjustmentSupported!==false).length, _nABad=_nA-_nAOk;
   const _warnIcon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3 2.8 19h18.4L12 3Z"/><path d="M12 9v4M12 16h.01"/></svg>';
   // Badge DPI: aviso visual quando o doc não é 72dpi (fontes em pontos serão escaladas)
   const _hiDpi=dPsdMeta.res&&dPsdMeta.res>90;
   const _dpiHtml=_hiDpi
     ?`<span class="psd-dpi-warn" title="Fontes em pontos serão escaladas automaticamente (${Math.round(dPsdMeta.res)}dpi para 72dpi)">${_warnIcon}${Math.round(dPsdMeta.res)} dpi</span>`
     :(dPsdMeta.res&&dPsdMeta.res!==72?`<span class="psd-meta-chip">${Math.round(dPsdMeta.res)} dpi</span>`:'');
-  // Aviso de camadas de ajuste: o Luma não aplica ajustes de cor/tom (Levels/Curves/Hue…),
-  // então as cores podem diferir levemente do PSD. (Fidelidade total exigiria achatar — futuro.)
-  const _adjHtml=(_dPsdAdjustCount>0)
-    ?`<span class="psd-dpi-warn" title="O Photoshop tem ${_dPsdAdjustCount} camada(s) de ajuste que o Luma não reproduz; as cores podem variar.">${_warnIcon}${_dPsdAdjustCount} ajuste(s) de cor</span>`
-    :'';
+  // Ajuste deixou de ser sinônimo de perda: nove tipos são camadas editáveis de verdade. O badge
+  // separa o que o motor aplica do que ainda entra como no-op honesto, sem um alerta genérico.
+  const _adjHtml=(_nAOk?`<span class="psd-meta-chip" title="Camadas de ajuste preservadas e recalculadas sobre o conteúdo editável">${_nAOk} ajuste${_nAOk===1?' editável':'s editáveis'}</span>`:'')
+    +(_nABad?`<span class="psd-dpi-warn" title="${_nABad} camada(s) de ajuste usam tipos que o Luma ainda não reproduz; elas ficam identificadas na lista.">${_warnIcon}${_nABad} ajuste${_nABad===1?'':'s'} não aplicado${_nABad===1?'':'s'}</span>`:'');
   // Camadas que falharam no parse entraram como imagem fiel (ou foram puladas). Avisar é
   // obrigatório: silêncio aqui vira "a camada sumiu do nada" pro designer.
   const _errHtml=(_dPsdErrorCount>0)
@@ -185,10 +186,11 @@ function dPsdRenderRows(filter){
   const ico={
     text:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 6V4h14v2M12 4v16M8 20h8"/></svg>',
     shape:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/></svg>',
-    raster:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m4 17 4-4 3 3 3-3 6 5"/></svg>'
+    raster:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m4 17 4-4 3 3 3-3 6 5"/></svg>',
+    adjustment:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16Z" fill="currentColor" stroke="none"/></svg>'
   };
-  const kindOrder={text:0,shape:1,raster:2};
-  const kindLabel={text:'Textos',shape:'Formas',raster:'Imagens'};
+  const kindOrder={text:0,shape:1,raster:2,adjustment:3};
+  const kindLabel={text:'Textos',shape:'Formas',raster:'Imagens',adjustment:'Ajustes de cor'};
   // Indexar, filtrar por busca (nome, conteúdo, fontName, tipo em PT-BR) e agrupar por tipo
   const indexed=dPsdItems.map((it,i)=>({it,i})).filter(({it})=>!it.isMaskBase);
   const visible=filter?indexed.filter(({it})=>{
@@ -197,6 +199,7 @@ function dPsdRenderRows(filter){
       (it.fontName&&it.fontName.toLowerCase().includes(filter))||
       (it.kind==='shape'&&'forma'.includes(filter))||
       (it.kind==='raster'&&'imagem'.includes(filter))||
+      (it.kind==='adjustment'&&('ajuste cor '+(it.adjustmentType||'')).includes(filter))||
       (it.kind==='text'&&'texto'.includes(filter));
   }):indexed;
   const grouped=[...visible].sort((a,b)=>(kindOrder[a.it.kind]||0)-(kindOrder[b.it.kind]||0));
@@ -219,6 +222,8 @@ function dPsdRenderRows(filter){
         <option value="shape" ${it.mode==='shape'?'selected':''}>Cor (editável)</option>
         <option value="frame" ${it.mode==='frame'?'selected':''}>Moldura de foto</option>
         <option value="raster" ${it.mode==='raster'?'selected':''}>Imagem</option></select>`;
+    } else if(it.kind==='adjustment'){
+      modeSel=`<span class="psd-textinfo">Ajuste vinculado</span>`;
     } else { // raster/imagem: pode virar Imagem fiel OU moldura de foto (o franqueado preenche)
       modeSel=`<select class="psd-mode" aria-label="Como importar a camada ${_dPsdEsc(it.name)}" onchange="dPsdSetMode(${i},this.value)">
         <option value="raster" ${it.mode!=='frame'?'selected':''}>Imagem</option>
@@ -230,7 +235,7 @@ function dPsdRenderRows(filter){
     // o vínculo NÃO é um campo do catálogo — ou seja, no caminho "Criar campo…" (nome sendo
     // digitado). Mostrar os dois deixava o mesmo dado em duplicado na linha.
     const isVarVisible = (it.mode==='var'||it.mode==='frame') && !_dPsdFieldByName(it.varName);
-    const varIn=`<input class="psd-var-input ${isVarVisible?'visible':''}" value="${_dPsdEsc(it.varName||'')}" placeholder="nome_do_campo" aria-label="Nome do campo editável da camada ${_dPsdEsc(it.name)}" oninput="dPsdSetVar(${i},this.value,this)">`;
+    const varIn=it.kind==='adjustment'?'':`<input class="psd-var-input ${isVarVisible?'visible':''}" value="${_dPsdEsc(it.varName||'')}" placeholder="nome_do_campo" aria-label="Nome do campo editável da camada ${_dPsdEsc(it.name)}" oninput="dPsdSetVar(${i},this.value,this)">`;
     // O aviso é de PERDA, então só aparece quando há perda de verdade: ou o rich text não
     // resolveu (it.multiStyle), ou resolveu mas a camada virou variável — e `runs` não vai
     // junto com {{campo}} (ver dItemToLayer), então aí o estilo misto some mesmo.
@@ -245,6 +250,16 @@ function dPsdRenderRows(filter){
       else fontWarn=`<span class="psd-fontwarn">Fonte ausente · ${fn} <label class="psd-font-upload-btn" title="Enviar '${fn}' agora">Enviar<input type="file" accept=".ttf,.otf,.woff,.woff2" style="display:none" onchange="dPsdUploadFont(${i},this)"></label></span>`;
     }
     const opacityBadge=it.opacity<95?`<span class="psd-opacity-badge">Opacidade ${it.opacity}%</span>`:'';
+    const _adjPt={'brightness/contrast':'Brilho/Contraste',levels:'Níveis',curves:'Curvas',exposure:'Exposição',vibrance:'Vibração','hue/saturation':'Matiz/Saturação',invert:'Inverter',posterize:'Posterizar',threshold:'Limiar'};
+    const adjustmentBadge=it.kind==='adjustment'
+      ?(it.adjustmentSupported===false
+        ?`<span class="psd-fontwarn" title="Este tipo permanece identificado na pilha, mas ainda não altera os pixels no Luma">${_dPsdEsc(it.adjustmentType||'Ajuste')} ainda não aplicado</span>`
+        :`<span class="psd-fontok" title="Este ajuste acompanha qualquer edição feita nas camadas abaixo">${_dPsdEsc(_adjPt[it.adjustmentType]||it.adjustmentType||'Ajuste')} · editável</span>${it.adjustmentApprox?'<span class="psd-fontwarn" title="O ajuste é dinâmico, mas esta variação usa matemática aproximada do Photoshop">Aproximação identificada</span>':''}`)
+      :'';
+    const effectsStackBadge=(it.layerEffects&&it.kind==='shape')
+      ?`<span class="psd-fontok" title="Sombras, contornos e sobreposições repetidas foram preservados na ordem e podem ser editados individualmente no Estilo de Camada">${it.layerEffects.length} efeitos em pilha · editáveis</span>`:'';
+    const vectorPathBadge=it.vectorPath
+      ?`<span class="psd-fontok" title="Âncoras e alças Bézier foram preservadas; a forma continua nítida ao redimensionar">Path Bézier · editável</span>`:'';
     const fxWarns=[
       it.fxSatin?'Cetim não aplicado':'',
       it.fxContour?'Contorno de efeito ignorado':'',
@@ -252,6 +267,8 @@ function dPsdRenderRows(filter){
       it.strokeApprox?'Traço aproximado (cor sólida)':'',
       it.gradientUnsupported?('Gradiente '+(it.gradientUnsupported==='angle'?'cônico':'losango')+' → imagem fiel'):'',
       it.gradientOverlayApprox?('Sobreposição '+(it.gradientOverlayApprox==='angle'?'cônica':'losango')+' aproximada'):'',
+      it.layerEffectsApprox?'Mesclagem da pilha aproximada':'',
+      (it.layerEffects&&it.kind!=='shape')?'Pilha de efeitos → imagem fiel':'',
       it.textOnPath?'Texto em curva → imagem fiel':'',
       it.flipped?'Camada espelhada → imagem fiel':'',
       it.textJustifyAll?'Justificado total → última linha não estica':''
@@ -286,7 +303,7 @@ function dPsdRenderRows(filter){
       <span class="psd-row-ico psd-row-ico-${it.kind}">${swatch||ico[it.kind]||ico.raster}</span>
       ${thumb}
       <span class="psd-row-name" title="${_dPsdEsc(it.name)}">
-        <span class="psd-row-name-top">${_dPsdEsc(it.name)}${errBadge}${flatBadge}${multiStyleBadge}${blendBadge}${grpBlendBadge}${fxWarns}${fontWarn}${opacityBadge}${vecWarn}${clipWarn}${textInfoBadge}${sugBadge}</span>
+        <span class="psd-row-name-top">${_dPsdEsc(it.name)}${errBadge}${flatBadge}${multiStyleBadge}${blendBadge}${grpBlendBadge}${fxWarns}${fontWarn}${opacityBadge}${adjustmentBadge}${effectsStackBadge}${vectorPathBadge}${vecWarn}${clipWarn}${textInfoBadge}${sugBadge}</span>
         ${groupCrumb}${textPrev}
       </span>
       ${_dPsdFieldSelHTML(it,i)}${modeSel}${varIn}</div>`;
@@ -330,8 +347,8 @@ function _dPsdCanvasHover(e){
 function dPsdUploadFont(layerIdx, input){
   const file=input.files&&input.files[0]; input.value='';
   if(!file) return;
-  if(!/\.(ttf|otf|woff2?|woff)$/i.test(file.name)){ gToast('⚠ Use .ttf, .otf, .woff ou .woff2','error'); return; }
-  if(file.size>3*1024*1024){ gToast('⚠ Fonte muito grande (máx 3MB). Prefira .woff2.','error'); return; }
+  if(!/\.(ttf|otf|woff2?|woff)$/i.test(file.name)){ gToast('Use .ttf, .otf, .woff ou .woff2','error'); return; }
+  if(file.size>3*1024*1024){ gToast('Fonte muito grande (máx 3MB). Prefira .woff2.','error'); return; }
   const r=new FileReader();
   r.onload=e=>{
     const base=file.name.replace(/\.[^.]+$/,'');
@@ -354,7 +371,7 @@ function dPsdUploadFont(layerIdx, input){
       if(Array.isArray(it.runs)) it.runs.forEach(run=>{ if(run._fontName===fname) run.font=mapped; });
     });
     dPsdRenderRows();
-    gToast('✓ Fonte "'+base+'" enviada e aplicada às camadas');
+    gToast('Fonte "'+base+'" enviada e aplicada às camadas');
   };
   r.readAsDataURL(file);
 }
@@ -448,7 +465,7 @@ async function dPsdConfirmImport(){
     if(!marcadas.length){ gToast('Marque ao menos uma prancheta','error'); return; }
     const fSel=document.getElementById('d-psd-folder');
     const folderId=fSel?fSel.value:null;
-    if(!folderId){ gToast('⚠ Crie uma campanha antes de importar','error'); return; }
+    if(!folderId){ gToast('Crie uma campanha antes de importar','error'); return; }
     // Trava o botão: preparar N pranchetas leva tempo e um segundo clique duplicaria tudo.
     const cta=document.querySelector('#d-psd-modal .psd-import-cta');
     if(cta) cta.disabled=true;
@@ -470,7 +487,7 @@ async function dPsdConfirmImport(){
     _dPsdCloseReviewUI();
     dPsdSaveArtboardTemplates(bons, folderId, _dPsdBaseName);
     // Prancheta marcada mas sem camada nenhuma não pode sumir calada.
-    if(vazias.length) gToast('⚠ Sem camadas selecionadas: '+vazias.join(', '));
+    if(vazias.length) gToast('Sem camadas selecionadas: '+vazias.join(', '));
     _dPsdBoards=[]; _dPsdBoardIdx=0; _dPsdDocCanvas=null;
     dPsdItems=[]; dPsdMeta=null;
     return;
@@ -479,16 +496,17 @@ async function dPsdConfirmImport(){
   const chosen=dPsdItems.filter(it=>it.include && !it.isMaskBase);
   if(!chosen.length){ gToast('Selecione ao menos uma camada','error'); return; }
   _dPsdMemSave(dPsdItems); // persiste mapeamentos para próximas importações
-  let layers=chosen.map(dItemToLayer).filter(Boolean);
   // #4a — inverter z-order se a ordem do PSD vier trocada
-  const inv=document.getElementById('d-psd-invert'); if(inv&&inv.checked) layers=layers.reverse();
+  const inv=document.getElementById('d-psd-invert');
+  const ordered=(inv&&inv.checked)?chosen.slice().reverse():chosen;
+  let layers=dPsdItemsToLayers(ordered,false,{w:dPsdMeta.w,h:dPsdMeta.h});
   _dPsdSyncVarsFromLayers(layers);
   const fmtChoice=(document.getElementById('d-psd-fmt')||{}).value||'orig';
   const _w=dPsdMeta.w, _h=dPsdMeta.h, _name=dPsdMeta.name, _res=dPsdMeta.res||72;
   _dPsdCloseReviewUI();
   dImportLayersAsArtboard(_w, _h, layers, _name, fmtChoice, _res);
   const nVar=layers.filter(l=>l.isVar).length, nTxt=layers.filter(l=>l.type==='text').length;
-  gToast('✓ PSD importado: '+layers.length+' camadas · '+nTxt+' texto · '+nVar+' variável(is)');
+  gToast('PSD importado: '+layers.length+' camadas · '+nTxt+' texto · '+nVar+' variável(is)');
   _dPsdBoards=[]; _dPsdDocCanvas=null;
   dPsdItems=[]; dPsdMeta=null;
 }
@@ -530,10 +548,7 @@ function dImportLayersAsArtboard(w,h,layers,name,fmtChoice,dpi){
 // máscaras, radii, gradientes, efeitos, blend), exceto que texto marcado como
 // variável mostra o TEXTO ORIGINAL do PSD (não o token {{}}), fiel ao arquivo fonte.
 function _dPsdItemsToPreviewLayers(items){
-  return items.map(it=>{
-    const src=(it.kind==='text'&&it.mode==='var')?Object.assign({},it,{mode:'text'}):it;
-    try{ return dItemToLayer(src); }catch(e){ return null; }
-  }).filter(Boolean);
+  try{return dPsdItemsToLayers(items,true);}catch(e){return [];}
 }
 // Fallback simplificado (caixas/cores/1ª linha) — só quando o motor fiel não está disponível.
 async function _dPsdDrawItemsBasic(canvas, items, w, h){
@@ -554,7 +569,9 @@ async function _dPsdDrawItemsBasic(canvas, items, w, h){
       });
     } else if(it.kind==='shape' && it.fill){
       ctx.fillStyle=it.fill;
-      if(it.shapeKind==='circle' || it.shapeKind==='ellipse'){
+      if(it.shapeKind==='path'&&it.vectorPath&&typeof gTraceVectorPath==='function'){
+        gTraceVectorPath(ctx,it.vectorPath,it.x,it.y,it.w,it.h); ctx.fill(gVectorPathFillRule(it.vectorPath));
+      } else if(it.shapeKind==='circle' || it.shapeKind==='ellipse'){
         ctx.beginPath(); ctx.ellipse(it.x+it.w/2, it.y+it.h/2, it.w/2, it.h/2, 0, 0, Math.PI*2); ctx.fill();
       } else if(it.radius && ctx.roundRect){
         ctx.beginPath(); ctx.roundRect(it.x, it.y, it.w, it.h, it.radius); ctx.fill();
@@ -775,6 +792,7 @@ function _dPsdFieldLabel(name){ const v=_dPsdFieldByName(name); return (v&&v.lab
 // vocabulário da regra e barrar a base de recorte, que não existe como camada sozinha.
 function _dPsdBindCheck(it, v){
   if(!it || !v) return {ok:false, why:'Campo não encontrado no catálogo'};
+  if(it.kind==='adjustment') return {ok:false, why:'Ajustes de cor não recebem campos'};
   if(it.isMaskBase) return {ok:false, why:'Esta camada é base de recorte e não entra sozinha'};
   const chk=(typeof gFieldFitCheck==='function')
     ? gFieldFitCheck(v, it.kind==='text'?'text':'imagem')
@@ -789,7 +807,7 @@ function _dPsdModeForKind(it){ return (it.kind==='text')?'var':'frame'; }
 function dPsdBindField(i, name){
   const it=dPsdItems[i], v=_dPsdFieldByName(name);
   const chk=_dPsdBindCheck(it, v);
-  if(!chk.ok){ gToast('⚠ '+chk.why,'error'); return false; }
+  if(!chk.ok){ gToast(''+chk.why,'error'); return false; }
   it.include=true; // ligar um campo é dizer "quero esta camada" — desmarcada, ela nem importaria
   it.mode=chk.mode; it.varName=v.name;
   it.varSource='user'; it.varWhy=''; // decisão humana: apaga a marca de "IA sugere" da camada
@@ -824,7 +842,7 @@ function dPsdAcceptAllSug(){
   dPsdItems.forEach(it=>{ if(_dPsdPendingSug(it)){ it.include=true; it.mode=_dPsdModeForKind(it); n++; } });
   if(!n){ gToast('Nenhuma sugestão pendente'); return; }
   _dPsdAfterMap(n+(n===1?' sugestão aplicada':' sugestões aplicadas'));
-  gToast('✓ '+n+(n===1?' sugestão aplicada':' sugestões aplicadas'));
+  gToast(''+n+(n===1?' sugestão aplicada':' sugestões aplicadas'));
 }
 // Ponto único de "mudou o mapeamento": re-renderiza a lista (que já repinta trilha, contadores
 // e prévia) preservando a busca, e anuncia no aria-live. Chamar dPsdRenderRows direto de cada
@@ -907,6 +925,7 @@ function _dPsdRenderFieldRail(){
 // tela). Arrastar é só atalho. Só lista campos compatíveis com o tipo da camada — a guarda
 // de tipo aparece como ausência de opção, não como erro depois do gesto.
 function _dPsdFieldSelHTML(it, i){
+  if(it.kind==='adjustment')return '';
   const vars=_dPsdVarsList();
   const querImg=(it.kind!=='text');
   const opts=vars.filter(v=>querImg?(v.type==='image'):(v.type!=='image'));
@@ -1108,12 +1127,12 @@ function _dPsdLooksBackground(it){
 }
 async function dPsdMapWithAI(){
   if(_dPsdAiBusy) return;
-  if(typeof gAskAI!=='function'){ gToast('⚠ IA não disponível nesta sessão','error'); return; }
+  if(typeof gAskAI!=='function'){ gToast('IA não disponível nesta sessão','error'); return; }
   const itens=dPsdItems.map((it,i)=>({it,i})).filter(o=>o.it.include && !o.it.isMaskBase);
   if(!itens.length){ gToast('Selecione ao menos uma camada','error'); return; }
-  if(!_dPsdVarsList().length){ gToast('⚠ Crie campos no catálogo antes de mapear com IA','error'); return; }
+  if(!_dPsdVarsList().length){ gToast('Crie campos no catálogo antes de mapear com IA','error'); return; }
   const part=_dPsdArtePart();
-  if(!part){ gToast('⚠ Não foi possível preparar a imagem da arte','error'); return; }
+  if(!part){ gToast('Não foi possível preparar a imagem da arte','error'); return; }
   _dPsdAiBusy=true; _dPsdRenderFieldRail();
   let resp=null;
   try{
@@ -1158,7 +1177,7 @@ async function dPsdMapWithAI(){
     return;
   }
   _dPsdAfterMap('IA sugeriu '+n+(n===1?' vínculo':' vínculos')+'. Revise e aplique.');
-  gToast('✓ IA sugeriu '+n+(n===1?' vínculo':' vínculos')+' — revise e clique em Aplicar'
+  gToast('IA sugeriu '+n+(n===1?' vínculo':' vínculos')+' — revise e clique em Aplicar'
     +(fora?(' · '+fora+' descartado'+(fora===1?'':'s')):''));
   if(fora) console.warn('[psd] mapeamento por IA: '+fora+' sugestão(ões) descartada(s) por índice/campo/tipo inválido');
 }
@@ -1389,10 +1408,10 @@ async function _dPsdCollectBoards(onProgress){
     const chosen=(b.items||[]).filter(it=>it.include && !it.isMaskBase);
     if(!chosen.length){ out.push({name:b.name, vazia:true}); continue; }
     memAll.push(b.items); // uma gravação só, no fim
-    let layers=chosen.map(dItemToLayer).filter(Boolean);
     // invert null = usuario nunca abriu esta prancheta: cai na heuristica de z-order.
     const inv=(b.invert!=null)?b.invert:_dPsdShouldInvert(b.items,b.w,b.h);
-    if(inv) layers=layers.reverse();
+    const ordered=inv?chosen.slice().reverse():chosen;
+    let layers=dPsdItemsToLayers(ordered,false,{w:b.w,h:b.h});
     _dPsdSyncVarsFromLayers(layers);
     out.push({name:b.name, fmt:(b.fmt||'orig'), layers, nativeW:b.w, nativeH:b.h});
   }
@@ -1417,7 +1436,7 @@ function dPsdSaveArtboardTemplates(results, folderId, baseName){
   if(!results.length){ gToast('Nenhuma prancheta importada'); return; }
   const folder=(typeof dFolders!=='undefined'&&dFolders)
     ? (dFolders.find(f=>f.id===folderId)||dFolders[0]) : null;
-  if(!folder){ gToast('⚠ Pasta não encontrada — selecione outra campanha','error'); return; }
+  if(!folder){ gToast('Pasta não encontrada — selecione outra campanha','error'); return; }
   // Pranchetas com o MESMO nome viram templates indistinguíveis — o designer edita um
   // variante achando que é o outro. Sufixa o formato só quando o nome colide.
   const _nameCount={};
@@ -1449,7 +1468,7 @@ function dPsdSaveArtboardTemplates(results, folderId, baseName){
   // Abre o último template importado no editor.
   const last=folder.templates[folder.templates.length-1];
   if(last && typeof dLoadTemplate==='function') dLoadTemplate(last, folder);
-  gToast('✓ '+results.length+' template(s) importado(s) → '+folder.name);
+  gToast(''+results.length+' template(s) importado(s) → '+folder.name);
 }
 
 /* ── estado de leitura e análise do arquivo ── */
@@ -1493,17 +1512,17 @@ async function dImportPSD(input){
   // técnico, os arquivos grandes de campanha (que são justamente os que o designer traz).
   if(!/\.ps[db]$/i.test(file.name)){ gToast('Selecione um arquivo .psd ou .psb','error'); return; }
   if(file.size > _DPSD_MAX_MB*1024*1024){
-    gToast('⚠ PSD muito grande ('+Math.round(file.size/(1024*1024))+'MB) — o limite é '+_DPSD_MAX_MB+'MB. Achate camadas ou salve sem histórico.','error');
+    gToast('PSD muito grande ('+Math.round(file.size/(1024*1024))+'MB) — o limite é '+_DPSD_MAX_MB+'MB. Achate camadas ou salve sem histórico.','error');
     return;
   }
   _dPsdCancelled=false; // cada abertura começa com o cancelamento limpo
   _dPsdBusy(true,file);
   let agPsd;
-  try{ agPsd=await dLoadAgPsd(); }catch(e){ _dPsdBusy(false); console.error('PSD lib:',e); gToast('⚠ Não foi possível carregar o leitor de PSD — recarregue a página','error'); return; }
+  try{ agPsd=await dLoadAgPsd(); }catch(e){ _dPsdBusy(false); console.error('PSD lib:',e); gToast('Não foi possível carregar o leitor de PSD — recarregue a página','error'); return; }
   if(_dPsdCancelled){ _dPsdBusy(false); gToast('Importação cancelada'); return; }
   _dPsdBusyUpdate('Lendo estrutura, imagens e fontes…');
   let buf;
-  try{ buf=await file.arrayBuffer(); }catch(e){ _dPsdBusy(false); gToast('⚠ Não foi possível ler o arquivo — verifique se é um .psd válido','error'); return; }
+  try{ buf=await file.arrayBuffer(); }catch(e){ _dPsdBusy(false); gToast('Não foi possível ler o arquivo — verifique se é um .psd válido','error'); return; }
   if(_dPsdCancelled){ _dPsdBusy(false); gToast('Importação cancelada'); return; }
   let result;
   try{ result=await _dPsdReadPsd(buf, agPsd); }
@@ -1511,7 +1530,7 @@ async function dImportPSD(input){
   // Cancelado no meio: sai quieto (o usuário sabe o que fez), sem erro assustador.
   if(_dPsdCancelled || (result&&result.cancelled)){ _dPsdBusy(false); gToast('Importação cancelada'); return; }
   if(!result || result.error || !result.psd || !result.psd.width){
-    _dPsdBusy(false); console.error('PSD:',result&&result.error); gToast('⚠ Não foi possível ler este PSD (formato não suportado)','error'); return;
+    _dPsdBusy(false); console.error('PSD:',result&&result.error); gToast('Não foi possível ler este PSD (formato não suportado)','error'); return;
   }
   try{
     _dPsdBusyUpdate('Preparando camadas editáveis…');
@@ -1535,7 +1554,7 @@ async function dImportPSD(input){
       _dPsdAdjustCount=b0.adjust||0; _dPsdErrorCount=b0.errors||0;
       dPsdMeta={w:b0.w, h:b0.h, name:b0.name, res:_dPsdDocRes, ref:b0.ref};
       _dPsdBusy(false);
-      if(!dPsdItems.length) gToast('⚠ "'+b0.name+'" não tem camadas utilizáveis — veja as outras pranchetas');
+      if(!dPsdItems.length) gToast('"'+b0.name+'" não tem camadas utilizáveis — veja as outras pranchetas');
       dPsdOpenReview();
       return;
     }
@@ -1563,10 +1582,10 @@ async function dImportPSD(input){
     if(!dPsdItems.length){
       // Último recurso antes de recusar: a arte achatada do próprio Photoshop.
       const flat=_dPsdFlatItem(result.psd, dPsdMeta&&dPsdMeta.w, dPsdMeta&&dPsdMeta.h);
-      if(!flat){ gToast('⚠ Nenhuma camada utilizável neste PSD','error'); return; }
+      if(!flat){ gToast('Nenhuma camada utilizável neste PSD','error'); return; }
       dPsdItems=[flat];
       gToast('PSD sem camadas editáveis — importando a arte achatada');
     }
     dPsdOpenReview();
-  }catch(e){ _dPsdBusy(false); console.error('PSD parse:',e); gToast('⚠ Não foi possível interpretar as camadas do PSD','error'); }
+  }catch(e){ _dPsdBusy(false); console.error('PSD parse:',e); gToast('Não foi possível interpretar as camadas do PSD','error'); }
 }

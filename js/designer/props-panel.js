@@ -104,12 +104,14 @@ function dPropShowSections(layerType) {
   var isText  = layerType === 'text';
   var isImg   = layerType === 'image' || layerType === 'frame';
   var isShp   = layerType === 'shape';
+  var isAdj   = layerType === 'adjustment';
 
   var secContent = document.getElementById('dp-sec-content');
   var secText    = document.getElementById('dp-sec-text');
   var secAppear  = document.getElementById('dp-sec-appear');
   var secAnchor  = document.getElementById('dp-sec-anchor');
   var secRules   = document.getElementById('dp-sec-rules');
+  var secAdjust  = document.getElementById('dp-sec-adjust');
 
   var hasLayer = isText || isImg || isShp;
 
@@ -118,9 +120,10 @@ function dPropShowSections(layerType) {
   if (secAppear)  secAppear.style.display  = isShp  ? '' : 'none';
   if (secAnchor)  secAnchor.style.display  = hasLayer ? '' : 'none';
   if (secRules)   secRules.style.display   = hasLayer ? '' : 'none';
+  if (secAdjust)  secAdjust.style.display  = isAdj ? '' : 'none';
 
   // Auto-expand the primary section for the layer type
-  var targetOpen = isText ? secText : (isShp ? secAppear : secContent);
+  var targetOpen = isAdj ? secAdjust : (isText ? secText : (isShp ? secAppear : secContent));
   if (targetOpen && !targetOpen.classList.contains('dp-section-open')) {
     var btn = targetOpen.querySelector('.dp-sec-head');
     if (btn) dPropToggleSection(btn);
@@ -1422,7 +1425,7 @@ function dPropBuildDataTools() {
       '<span class="dpi-data-tools-icon" aria-hidden="true">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m8 12 2.5 2.5L16 9"/><circle cx="12" cy="12" r="9"/></svg>' +
       '</span>' +
-      '<span><strong>Conferir a experi\u00eancia</strong><small id="dpi-data-tools-status">Veja o que o franqueado vai editar.</small></span>' +
+      '<span><strong>Testar arte</strong><small id="dpi-data-tools-status">Veja o que o franqueado vai editar.</small></span>' +
       '<svg class="dpi-data-tools-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>' +
     '</summary>' +
     '<div class="dpi-data-tools-body">' +
@@ -1447,7 +1450,23 @@ function dPropBuildDataTools() {
     if (action === 'stress') dPropDataOpenSimulation('max');
     if (action === 'highlight') dPropDataHighlightAll();
   });
-  panel.insertBefore(tools, list);
+  // Arrastar é a ação principal. A dica e os testes dividem uma única faixa compacta;
+  // antes eram dois cards verticais e empurravam o catálogo para fora da primeira dobra.
+  let shortcuts = document.getElementById('dpi-data-shortcuts');
+  if (!shortcuts) {
+    shortcuts = document.createElement('div');
+    shortcuts.id = 'dpi-data-shortcuts';
+    shortcuts.className = 'dpi-data-shortcuts';
+    const live = document.getElementById('d-fields-live');
+    panel.insertBefore(shortcuts, live || list);
+  }
+  const hint = document.getElementById('d-fields-hint');
+  if (hint) {
+    const copy = hint.querySelector('span');
+    if (copy) copy.innerHTML = '<b>Arraste para a arte</b>';
+    shortcuts.appendChild(hint);
+  }
+  shortcuts.appendChild(tools);
 }
 
 function dPropSyncDataTools() {
@@ -1473,7 +1492,7 @@ function dPropBuildDataIntro() {
   intro.innerHTML =
     '<span class="dpi-data-intro-icon" aria-hidden="true">' + DP_PANEL_ICONS.dados + '</span>' +
     '<span class="dpi-data-intro-copy">' +
-      '<strong>Campos da arte</strong>' +
+      '<strong>Campos</strong>' +
       '<small id="dpi-data-summary" aria-live="polite">Defina o que o franqueado poder\u00e1 alterar.</small>' +
     '</span>' +
     '<span class="dpi-data-total" id="dpi-data-total" aria-label="0 campos">0</span>';
@@ -1549,6 +1568,7 @@ function dPropSyncDataContext(layer) {
   if (!context || !title || !detail) return;
 
   const compatible = !!(layer && (layer.type === 'text' || layer.type === 'image' || layer.type === 'frame'));
+  context.classList.toggle('is-idle', !compatible);
   context.classList.toggle('is-ready', compatible);
   context.classList.remove('is-suggested', 'is-connected');
   if (!compatible) {
@@ -1614,6 +1634,7 @@ function dPropRefreshDataActions(layer) {
     const fits = dPropDataFieldFitsLayer(field, layer);
 
     item.classList.toggle('is-compatible', fits && !usedHere);
+    action.hidden = !layer;
     action.classList.toggle('is-locate', !fits && usage.length > 0);
     action.classList.toggle('is-current', usedHere);
     action.disabled = usedHere || (!fits && !usage.length);
@@ -1828,6 +1849,14 @@ function dPropEnhanceDataRows() {
       const menu = end.querySelector('.field-card-menu');
       if (menu) end.insertBefore(action, menu);
       else end.appendChild(action);
+    }
+
+    if (end && !end.querySelector('.dpi-field-drag-handle')) {
+      const handle = document.createElement('span');
+      handle.className = 'dpi-field-drag-handle';
+      handle.setAttribute('aria-hidden', 'true');
+      handle.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="7" r="1.25"/><circle cx="16" cy="7" r="1.25"/><circle cx="8" cy="12" r="1.25"/><circle cx="16" cy="12" r="1.25"/><circle cx="8" cy="17" r="1.25"/><circle cx="16" cy="17" r="1.25"/></svg>';
+      end.insertBefore(handle, end.firstChild);
     }
 
     const menu = row.querySelector('.field-card-menu');

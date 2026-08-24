@@ -11,6 +11,8 @@
 #f-live-preview{
   width:clamp(400px,31vw,520px);
   flex-shrink:0;
+  container-type:inline-size;
+  container-name:lpreview;
   background:var(--white);
   border-left:1px solid var(--gray-light);
   display:flex;flex-direction:column;
@@ -51,6 +53,19 @@
 @media (prefers-reduced-motion:reduce){
   #f-live-preview{transition:background var(--dur-base),border-color var(--dur-base)}
   #f-live-preview.lp-entrando>*{animation:none}
+}
+
+/* ── TABLET (681px a 1080px): divisão 50/50 equilibrada ── */
+@media (min-width: 681px) and (max-width: 1080px){
+  body:not(.f-material-browser) #f-live-preview{
+    width: 50% !important;
+    max-width: 50% !important;
+    flex: 0 0 50% !important;
+  }
+  #f-chat-col{
+    flex: 1 1 50% !important;
+    min-width: 0 !important;
+  }
 }
 
 /* HEADER */
@@ -114,6 +129,7 @@
 .lp-stage{
   flex:1;
   min-height:0;
+  touch-action:none;
   padding:36px 16px 24px;
   display:flex;
   flex-direction:column;
@@ -126,7 +142,8 @@
   background-size:18px 18px;
 }
 .lp-stage-meta{position:absolute;z-index:2;top:18px;left:20px;right:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;pointer-events:none;color:var(--text-3);font-size:9px;font-weight:800;letter-spacing:.11em;text-transform:uppercase}
-.lp-stage-hint{font-size:9.5px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--text-3)}
+.lp-stage-hint{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9.5px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--text-3)}
+.lp-stage-dim{flex:0 0 auto;font-size:9px;font-weight:700;letter-spacing:.04em;color:var(--text-3);font-variant-numeric:tabular-nums}
 /* Mesa arrastável (estilo Miro): grab em repouso, grabbing enquanto move. Sobre a arte o
    pointer (clique-pra-editar) vence em repouso; durante o arrasto, grabbing tem prioridade. */
 .lp-stage:not(.empty){cursor:grab}
@@ -225,52 +242,46 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
   background-size: 200% 100%;
 }
 
-/* TOOLBAR — DUAS LINHAS DE PROPÓSITO.
-   O painel tem 380px fixos e os controles somam ~510px: uma linha só não cabe nem cortando
-   rótulo (o talo dava 352px, zero respiro — e a barra já transbordava 101px antes mesmo do
-   Auto-layout, com o "Mockups" fora da tela, sem scroll e sem pista de que existia).
-   Então a quebra deixou de ser acidente e virou estrutura, uma linha por natureza de controle:
-     linha 1 — VER: ajustar, zoom, dimensão da arte;
-     linha 2 — AUTOMÁTICOS + a ação (mockups), à direita.
-   `wrap` continua ligado como rede: em painel mais estreito ainda cede em vez de sumir. */
+/* TOOLBAR — UMA LINHA.
+   Todos os controles ficam visíveis juntos. Textos redundantes viram tooltip/aria-label e,
+   quando há espaço, os rótulos de Ajustar e Mockups reaparecem via container query. */
 .lp-toolbar {
-  padding:11px 14px 12px;
+  padding:9px 10px;
   border-top:1px solid var(--gray-light);
   flex-shrink:0;
   display:flex;
-  flex-wrap:wrap;
-  justify-content:space-between;
+  flex-wrap:nowrap;
+  justify-content:flex-start;
   align-items:center;
   background:var(--white);
-  gap:10px 12px;
+  gap:6px;
 }
 
 .lp-tool-left, .lp-tool-right {
   display:flex;
   align-items:center;
-  gap:8px;
-  flex-wrap:wrap;
+  gap:5px;
+  flex-wrap:nowrap;
+  min-width:0;
 }
-/* Cada grupo ocupa a própria linha e o de baixo alinha à direita — `space-between` não alinha
-   item único, e sem isto o segundo grupo encostava na esquerda. */
-.lp-tool-left{flex:1 1 100%}
-.lp-tool-right{flex:1 1 100%; justify-content:flex-end}
+.lp-tool-left{flex:1 1 auto}
+.lp-tool-right{flex:0 0 auto;justify-content:flex-start}
+.lp-tool-left>*,.lp-tool-right>*{flex-shrink:0}
 
 /* AUTOMÁTICOS: um grupo, dois chips. Mesma casca do `.lp-zoom-group` — controles da mesma
    natureza têm que parecer da mesma família. */
 .lp-auto-group{
   height:32px;display:inline-flex;align-items:center;gap:4px;
-  padding:2px 4px 2px 9px;border:1px solid var(--gray-light);
+  padding:2px 3px;border:1px solid var(--gray-light);
   border-radius:10px;background:var(--off-white);
 }
 .lp-auto-label{
-  font:700 9.5px 'Roboto',sans-serif;letter-spacing:.06em;text-transform:uppercase;
-  color:var(--text-3);padding-right:2px;
+  display:none;
 }
 .lp-auto-chip{
-  height:26px;display:inline-flex;align-items:center;gap:6px;padding:0 6px 0 8px;
+  height:26px;display:inline-flex;align-items:center;gap:4px;padding:0 4px 0 5px;
   border:0;border-radius:7px;background:transparent;color:var(--text-3);cursor:pointer;
-  font:700 10.5px 'Roboto',sans-serif;white-space:nowrap;
+  font:700 10px 'Roboto',sans-serif;white-space:nowrap;
   transition:background var(--dur-micro),color var(--dur-micro),transform var(--dur-micro) var(--ease-spring);
 }
 /* `display:inline-flex` da classe vence o `[hidden]{display:none}` do navegador. */
@@ -279,11 +290,12 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
 .lp-auto-chip:active{transform:scale(.97)}
 .lp-auto-chip:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
 .lp-auto-chip.active{background:var(--dm-orange-bg);color:var(--dm-orange-d)}
+.lp-auto-icon{display:none;width:12px;height:12px;flex:0 0 12px}
 /* Chave menor que a do botão solto: dentro do grupo ela é detalhe, não o assunto. */
-.lp-auto-chip .lp-toggle{width:24px;height:14px}
+.lp-auto-chip .lp-toggle{width:22px;height:14px}
 .lp-auto-chip .lp-toggle-knob{width:10px;height:10px}
 .lp-auto-chip.active .lp-toggle{background:var(--dm-orange-d)}
-.lp-auto-chip.active .lp-toggle-knob{transform:translateX(10px)}
+.lp-auto-chip.active .lp-toggle-knob{transform:translateX(8px)}
 
 .lp-tool-btn {
   width:32px;height:32px;background:var(--off-white);
@@ -303,15 +315,40 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
 }
 .lp-tool-btn:active{transform:scale(.94)}
 .lp-tool-btn:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
-.lp-fit-btn{width:auto;min-width:32px;padding:0 9px;gap:6px;font:700 10.5px 'Roboto',sans-serif;white-space:nowrap}
+.lp-fit-btn{width:32px;min-width:32px;padding:0;gap:6px;font:700 10.5px 'Roboto',sans-serif;white-space:nowrap}
 .lp-fit-btn svg{flex:0 0 14px}
+.lp-fit-btn>span,.lp-posted-btn>span{display:none}
 
-.lp-zoom-group{height:32px;display:inline-flex;align-items:center;padding:2px;border:1px solid var(--gray-light);border-radius:10px;background:var(--off-white)}
-.lp-zoom-step{width:28px;height:26px;display:grid;place-items:center;padding:0;border:0;border-radius:7px;background:transparent;color:var(--text-2);cursor:pointer;transition:background var(--dur-micro),color var(--dur-micro),transform var(--dur-micro) var(--ease-spring)}
+.lp-zoom-group{height:32px;min-width:134px;max-width:178px;flex:1 1 158px;display:inline-flex;align-items:center;padding:2px;border:1px solid var(--gray-light);border-radius:10px;background:var(--off-white)}
+.lp-zoom-step{width:24px;height:26px;display:grid;place-items:center;padding:0;border:0;border-radius:7px;background:transparent;color:var(--text-2);cursor:pointer;transition:background var(--dur-micro),color var(--dur-micro),transform var(--dur-micro) var(--ease-spring)}
 .lp-zoom-step svg{width:13px;height:13px}
 .lp-zoom-step:hover{background:var(--white);color:var(--text)}
 .lp-zoom-step:active{transform:scale(.9)}
 .lp-zoom-step:focus-visible{outline:2px solid var(--dm-orange);outline-offset:-1px}
+.lp-zoom-step:disabled{opacity:.32;cursor:not-allowed;transform:none}
+
+/* Slider compacto, mas com alvo de 26px. O preenchimento laranja é atualizado pelo JS para
+   acompanhar a escala logarítmica: há precisão perto do ajuste e alcance para inspecionar detalhes. */
+.lp-zoom-range{
+  --lp-zoom-progress:36.9%;
+  flex:1 1 62px;min-width:40px;width:62px;height:26px;margin:0 2px;padding:0;
+  appearance:none;-webkit-appearance:none;background:transparent;cursor:pointer;accent-color:var(--dm-orange);
+}
+.lp-zoom-range::-webkit-slider-runnable-track{
+  height:3px;border-radius:999px;
+  background:linear-gradient(to right,var(--dm-orange) 0 var(--lp-zoom-progress),var(--gray-mid) var(--lp-zoom-progress) 100%);
+}
+.lp-zoom-range::-webkit-slider-thumb{
+  appearance:none;-webkit-appearance:none;width:13px;height:13px;margin-top:-5px;border-radius:50%;
+  border:2px solid var(--white);background:var(--dm-orange);box-shadow:0 1px 4px rgba(10,10,10,.28);
+  transition:transform var(--dur-micro) var(--ease-spring),box-shadow var(--dur-micro);
+}
+.lp-zoom-range::-moz-range-track{height:3px;border:0;border-radius:999px;background:var(--gray-mid)}
+.lp-zoom-range::-moz-range-progress{height:3px;border-radius:999px;background:var(--dm-orange)}
+.lp-zoom-range::-moz-range-thumb{width:13px;height:13px;border-radius:50%;border:2px solid var(--white);background:var(--dm-orange);box-shadow:0 1px 4px rgba(10,10,10,.28)}
+.lp-zoom-range:hover::-webkit-slider-thumb{transform:scale(1.12);box-shadow:0 1px 4px rgba(10,10,10,.28),0 0 0 4px color-mix(in srgb,var(--dm-orange) 14%,transparent)}
+.lp-zoom-range:focus-visible{outline:none}
+.lp-zoom-range:focus-visible::-webkit-slider-thumb{box-shadow:0 1px 4px rgba(10,10,10,.28),0 0 0 3px var(--white),0 0 0 5px var(--dm-orange)}
 
 .lp-tool-label {
   display:none;
@@ -328,7 +365,6 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
   font-weight:650;
   color:var(--text-2);
 }
-.lp-tool-dim{min-width:62px;padding-left:8px;border-left:1px solid var(--gray-light);color:var(--text-3);font-weight:400;font-variant-numeric:tabular-nums;white-space:nowrap}
 #lp-zoom{height:26px;min-width:38px;font-variant-numeric:tabular-nums}
 /* O % vira botão (voltar ao ajuste) — reseta o visual nativo de <button> e vira clicável. */
 .lp-zoom-reset{
@@ -396,8 +432,34 @@ body:not(.theme-light) .lp-toggle.active{background:var(--dm-orange)}
   .lp-title-icon{display:none}
   .lp-sync{max-width:145px}
   .lp-stage{padding-inline:18px}
-  .lp-tool-dim{display:none}
   .lp-viewseg-btn{padding-inline:7px}
+}
+
+/* O painel é um slot redimensionável: a decisão usa a largura dele, não a viewport. */
+@container lpreview (min-width:510px){
+  .lp-fit-btn{width:auto;padding-inline:8px}
+  .lp-fit-btn>span,.lp-posted-btn>span{display:inline}
+}
+@container lpreview (max-width:390px){
+  .lp-toolbar{padding-inline:7px;gap:4px}
+  .lp-tool-left,.lp-tool-right{gap:4px}
+  .lp-fit-btn,.lp-posted-btn{width:30px;min-width:30px}
+  .lp-zoom-group{min-width:126px;flex-basis:136px}
+  .lp-zoom-step{width:22px}
+  #lp-zoom{min-width:35px;padding-inline:3px}
+  .lp-zoom-range{min-width:36px;margin-inline:1px}
+  .lp-auto-group{gap:2px;padding-inline:2px}
+  .lp-auto-name{display:none}
+  .lp-auto-icon{display:block}
+  .lp-auto-chip{width:39px;padding-inline:2px;gap:3px;justify-content:center}
+}
+@container lpreview (max-width:340px){
+  .lp-toolbar{padding-inline:6px}
+  .lp-fit-btn,.lp-posted-btn{width:28px;min-width:28px;height:30px}
+  .lp-zoom-group,.lp-auto-group{height:30px}
+  .lp-zoom-group{min-width:120px}
+  .lp-zoom-step,#lp-zoom,.lp-auto-chip{height:24px}
+  .lp-auto-chip{width:37px}
 }
 @media (max-width:680px){
   #f-live-preview{display:none}
@@ -633,21 +695,16 @@ body:not(.theme-light) .posted-stage{background:var(--d-dark)}
    Em repouso a transição devolve o celular à posição reta; com o cursor dentro (.is-live)
    a transição é curta o bastante pra não arrastar atrás do mouse. */
 #f-posted-modal .pst-tilt{
-  --pst-rx:0deg; --pst-ry:0deg; --pst-gx:50%; --pst-gy:0%;
+  --pst-rx:0deg; --pst-ry:0deg;
   transform:perspective(1200px) rotateX(var(--pst-rx)) rotateY(var(--pst-ry));
   transform-style:preserve-3d;
   transition:transform var(--dur-base) var(--ease-out);
   will-change:transform;
 }
 #f-posted-modal .pst-tilt.is-live{transition:transform var(--dur-micro) linear}
-/* Brilho de vidro: reflexo que anda CONTRA o giro. É o que faz a moldura ler como
-   objeto físico em vez de screenshot. pointer-events:none — nunca rouba o hover/clique. */
-#f-posted-modal .pst-glare{
-  position:absolute;inset:0;border-radius:56px;pointer-events:none;z-index:3;opacity:0;
-  background:radial-gradient(38% 30% at var(--pst-gx) var(--pst-gy),rgba(255,255,255,.5),rgba(255,255,255,0) 70%);
-  transition:opacity var(--dur-base) var(--ease-standard);
-}
-#f-posted-modal .pst-tilt.is-live .pst-glare{opacity:1}
+/* ⛔ Sem brilho de vidro seguindo o cursor (.pst-glare, removido em 19/08): o reflexo dava
+   textura de objeto físico à moldura, mas passava por cima da TELA — um clarão branco
+   cobrindo justamente a arte que o mockup existe pra mostrar. O giro do parallax fica. */
 
 /* ── Troca de ambiente: só a TELA desliza; o chassi fica parado na mão ── */
 @keyframes gPstSlideL{ from{opacity:.25;transform:translateX(14%)} to{opacity:1;transform:translateX(0)} }
@@ -705,5 +762,4 @@ body:not(.theme-light) .pst-qr-x:hover{background:var(--d-surf2);color:var(--d-t
   #f-posted-modal .pst-screen.pst-slide-l,#f-posted-modal .pst-screen.pst-slide-r{animation:none!important}
   /* parallax é movimento puro: desliga inteiro, não só a transição */
   #f-posted-modal .pst-tilt{transform:none!important;transition:none!important}
-  #f-posted-modal .pst-glare{display:none}
 }

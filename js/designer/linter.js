@@ -11,17 +11,31 @@
    título encosta no preço. Isso só aparecia quando a arte já estava publicada e o franqueado
    reclamava — tarde demais.
    Aqui a arte é montada com o texto MAIS LONGO que o franqueado pode digitar (`gStressValues`)
-   e passada pelo MESMO caminho do render: as posições saem de `gApplyRelativeAnchors` com o
-   interruptor real do template (com o layout vivo ligado, a escada já terá acomodado o que
-   dava — o aviso é sobre o que sobrou), e a tinta sai do `gFitTextLayer`, que é o que desenha.
+   sobre a geometria ORIGINAL. O checklist audita o contrato que o designer publicou, mas não
+   executa nem oferece o Auto-layout — a acomodação é exclusiva do runtime do franqueado.
    ⚠ Só acusa par que NÃO se sobrepõe no estado de exemplo: selo atrás de texto é desenho do
    designer, não estrago do franqueado. Precisão acima de recall — é a doutrina do checklist. */
 function _dLinterEstresse() {
   const out = [];
   if (typeof gApplyRelativeAnchors !== 'function' || typeof gStressValues !== 'function') return out;
   if (typeof gInkRect !== 'function' || typeof dSimUsedVars !== 'function') return out;
+  /* No assistente de publicação, o limite que vale é o que o designer acabou de escolher
+     ali — não o maxLen antigo de dVars. Campo travado não recebe valor arbitrário do
+     franqueado e, portanto, não deve gerar um falso pior caso. */
+  const linterAlvo=document.getElementById('d-linter-issues');
+  /* dPublishOpen renderiza o modal um instante ANTES de adicionar `.open`; o alvo dentro do
+     modal é a prova confiável de que estamos auditando a publicação, sem reaproveitar
+     permissões antigas no checklist lateral do Estúdio. */
+  const pubAberto=!!(linterAlvo&&linterAlvo.closest('#d-publish-modal')
+    &&typeof dPubPermissoes!=='undefined');
+  const varsTeste=(dVars||[]).map(v=>{
+    const p=pubAberto&&dPubPermissoes&&dPubPermissoes[v.name];
+    return p?Object.assign({},v,{maxLen:p.maxLen>0?Number(p.maxLen):0,_pubEdit:p.edit!==false})
+            :Object.assign({},v,{_pubEdit:true});
+  });
   const usados = dSimUsedVars().filter(vn => {
-    const v = dVars.find(x => x.name === vn);
+    const v = varsTeste.find(x => x.name === vn);
+    if(v&&v._pubEdit===false)return false;
     return !v || v.type !== 'image';
   });
   if (!usados.length) return out;
@@ -31,9 +45,7 @@ function _dLinterEstresse() {
   const cv = { w: (ab && ab.w) || base.w, h: (ab && ab.h) || base.h };
   const defaults = (typeof gVarDefaults === 'function') ? gVarDefaults() : null;
 
-  // Audita a arte DESENHADA, sem a acomodação do layout vivo. O franqueado pode desligar o
-  // Auto-layout na prévia, então esta é a pior situação REAL — e é a que o designer tem poder
-  // de consertar, mexendo na caixa ou no limite do campo.
+  // Audita a arte DESENHADA, sem a acomodação exclusiva do runtime do franqueado.
   const montar = (dados) => {
     const r = gApplyRelativeAnchors(dLayers.map(l => ({...l})), dados, defaults);
     const cx = document.createElement('canvas').getContext('2d');
@@ -52,31 +64,14 @@ function _dLinterEstresse() {
   };
 
   const exemplo = {};
-  usados.forEach(vn => { exemplo[vn] = gFieldSampleValue(dVars.find(x => x.name === vn) || { name: vn }); });
-  const estresse = gStressValues(usados, dVars);
+  usados.forEach(vn => { exemplo[vn] = gFieldSampleValue(varsTeste.find(x => x.name === vn) || { name: vn }); });
+  const estresse = Object.assign({},exemplo,gStressValues(usados,varsTeste));
   const antes = montar(exemplo);
   const depois = montar(estresse);
 
-  /* SEGUNDO NÍVEL: o mesmo pior caso, agora COM o Auto-layout ligado.
-     São dois problemas diferentes e o designer precisa saber qual tem na mão:
-     · quebra só sem o Auto-layout → o franqueado que desligar o botão vê a arte torta;
-     · quebra MESMO com ele        → não há conserto automático, a peça sai errada para todos.
-     `_foraDaArte` é o carimbo que a escada deixa quando desiste — é ele que separa os dois. */
-  const _semSalvacao = (() => {
-    const s = new Set();
-    try {
-      gApplyRelativeAnchors(dLayers.map(l => ({...l})), estresse, defaults, { fitText: true, canvas: cv })
-        .forEach(l => { if (l._foraDaArte) s.add(l.id); });
-    } catch (e) {}
-    return s;
-  })();
-  const _gravidade = (id) => _semSalvacao.has(id)
-    ? { type: 'error', nota: ' Isto NÃO é salvo pelo Auto-layout: a arte sai errada para todo mundo.' }
-    : { type: 'warning', nota: ' O Auto-layout acomoda isso na prévia, mas o franqueado pode desligá-lo.' };
-
   // Quais campos entram no aviso e com quantos caracteres — é o número que o designer controla.
   const limites = usados.map(vn => {
-    const v = dVars.find(x => x.name === vn);
+    const v = varsTeste.find(x => x.name === vn);
     return { vn, label: (v && (v.label || v.name)) || vn, n: (v && v.maxLen > 0) ? v.maxLen : 0 };
   });
   const camposDa = (l) => limites.filter(x => String(l.content || '').includes('{{' + x.vn + '}}'));
@@ -112,11 +107,10 @@ function _dLinterEstresse() {
       const chave = 'col:' + culpado.l.id + '>' + vitima.l.id;
       if (jaVisto.has(chave)) continue;
       jaVisto.add(chave);
-      const g = _gravidade(culpado.l.id);
       out.push({
-        type: g.type,
+        type: 'warning',
         title: 'O pior caso não cabe',
-        desc: `${comLimite(culpado.l)}, “${nome(culpado.l)}” invade “${nome(vitima.l)}”. É um texto que o franqueado pode digitar hoje.${g.nota} Reduza o limite do campo ou aumente a caixa.`,
+        desc: `${comLimite(culpado.l)}, “${nome(culpado.l)}” invade “${nome(vitima.l)}”. É um texto que o franqueado pode digitar hoje. Reduza o limite do campo ou aumente a caixa.`,
         layerId: culpado.l.id,
         layerName: culpado.l.name
       });
@@ -144,11 +138,10 @@ function _dLinterEstresse() {
     const conserto = (o.l.textBox !== 'box' && saiu.some(f => /esquerda|direita/.test(f)))
       ? 'Esta camada é texto de ponto: ela não quebra linha nem reduz a fonte sozinha. Transforme em caixa de parágrafo ou reduza o limite do campo.'
       : 'Reduza o limite do campo ou dê mais espaço ao bloco.';
-    const g = _gravidade(o.l.id);
     out.push({
-      type: g.type,
+      type: 'warning',
       title: 'O pior caso não cabe',
-      desc: `${comLimite(o.l)}, “${nome(o.l)}” sai da arte ${saiu.join(' e ')}.${g.nota} ${conserto}`,
+      desc: `${comLimite(o.l)}, “${nome(o.l)}” sai da arte ${saiu.join(' e ')}. ${conserto}`,
       layerId: o.l.id,
       layerName: o.l.name
     });
@@ -156,8 +149,11 @@ function _dLinterEstresse() {
 
   // (c) nem encolhendo até o piso coube na própria caixa
   Object.values(depois).forEach(o => {
-    if (o.l.type !== 'text' || !o.f || !o.f.estourou || !camposDa(o.l).length) return;
-    if (antes[o.l.id] && antes[o.l.id].f && antes[o.l.id].f.estourou) return;   // já estourava
+    // O checklist AVISA os dois (não coube + passou do teto de linhas): aqui é conselho para o
+    // designer antes de publicar, não portão de exportação. Quem bloqueia é `gLayoutCamadaReprovada`.
+    const _apertado=(f)=>!!(f&&(f.estourou||f.excedeuLinhas));
+    if (o.l.type !== 'text' || !_apertado(o.f) || !camposDa(o.l).length) return;
+    if (antes[o.l.id] && _apertado(antes[o.l.id].f)) return;   // já estourava
     out.push({
       type: 'warning',
       title: 'O pior caso não cabe',
@@ -172,7 +168,7 @@ function _dLinterEstresse() {
 
 function dRunLinter() {
   const container = document.getElementById('d-linter-issues');
-  if (!container) return;
+  if (!container) return [];
   
   if (!dLayers || dLayers.length === 0) {
     container.innerHTML = `
@@ -183,7 +179,7 @@ function dRunLinter() {
         <strong>Nada para revisar ainda</strong>
         <span>Adicione uma camada à prancheta para iniciar a análise.</span>
       </div>`;
-    return;
+    return [];
   }
   
   const issues = [];
@@ -357,7 +353,7 @@ function dRunLinter() {
         <strong>Layout pronto para publicar</strong>
         <span>Nenhum erro ou alerta de composição foi encontrado nesta prancheta.</span>
       </div>`;
-    return;
+    return issues;
   }
 
   const counts = issues.reduce((acc, issue) => {
@@ -415,30 +411,7 @@ function dRunLinter() {
   }).join('');
 
   container.innerHTML = summaryHtml + cardsHtml;
-}
-
-function dApplyIntelligentLayout(){
-  if(typeof gResolveIntelligentLayout!=='function'||!dLayers||!dLayers.length)return;
-  const ab=typeof dGetActiveAB==='function'?dGetActiveAB():null;
-  if(!ab||!ab.w||!ab.h){gToast('⚠ Não foi possível identificar o tamanho da prancheta');return;}
-
-  if(typeof gIntelligentLayoutContext!=='function')return;
-  const result=gResolveIntelligentLayout(dLayers,gIntelligentLayoutContext(dLayers,ab.w,ab.h));
-  const unresolved=result.diagnostics.filter(item=>item.type!=='collision');
-  if(!result.moves.length){
-    gToast(unresolved.length?'⚠ Não há espaço seguro para corrigir todas as camadas':'Layout já está em uma área segura');
-    return;
-  }
-
-  dHistoryPush();
-  dLayers=result.layers;
-  if(typeof dRestoreSelection==='function')dRestoreSelection();
-  if(typeof dSyncLayersToAB==='function')dSyncLayersToAB();
-  dMarkUnsaved();
-  dRenderCanvas();
-  dRenderLayersList();
-  dRunLinter();
-  gToast(unresolved.length?'Layout ajustado; revise as camadas restantes':'Layout ajustado com segurança');
+  return issues;
 }
 
 // Foca, seleciona e destaca a camada com problemas no Canvas

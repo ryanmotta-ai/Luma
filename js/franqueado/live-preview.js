@@ -112,7 +112,8 @@ async function _fPostedRenderArt(){
   const _defaults = (typeof gVarDefaults === 'function') ? gVarDefaults() : {};
   const dados = Object.assign({}, fState.dados || {});
   try { fLpInjectPlaceholders(mat.layers, dados, _defaults); } catch(e){}
-  await fRenderTemplateLayers(ctx, mat.layers, W, H, dados, fState.camp);
+  await fRenderTemplateLayers(ctx, mat.layers, W, H, dados, fState.camp, null,
+    {scope:'franqueado',purpose:'preview'});
   return { canvas: cv, w: W, h: H };
 }
 
@@ -180,7 +181,6 @@ function _fPostedPaint(){
   stage.innerHTML = `<div class="pst-enter"><div class="pst-tilt"><div class="pst-phone pst-ctx-${_postedCtx}">`
     + `<div class="pst-island"></div>`
     + `<div class="pst-screen">${_fPostedScreenHTML()}</div>`
-    + `<div class="pst-glare" aria-hidden="true"></div>`
     + `</div></div></div>`;
   _fPostedMountArt(stage);
   _fPostedBindStage(stage);
@@ -227,8 +227,9 @@ function _fPostedReducedMotion(){
   try{ return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
   catch(e){ return false; }
 }
-// nx/ny em -1..1 (posição do cursor no palco). O brilho anda junto e o giro é contido:
-// passando de ~10° o celular deixa de parecer objeto e vira animação.
+// nx/ny em -1..1 (posição do cursor no palco). O giro é contido: passando de ~10° o
+// celular deixa de parecer objeto e vira animação. (Havia um brilho de vidro andando com
+// o cursor; saiu em 19/08 — o clarão branco cobria a arte, que é o que importa aqui.)
 function _fPostedTilt(nx, ny){
   const tilt = document.querySelector('#posted-stage .pst-tilt');
   if(!tilt) return;
@@ -237,8 +238,6 @@ function _fPostedTilt(nx, ny){
     _pstTiltRaf = 0;
     tilt.style.setProperty('--pst-ry', (nx*9).toFixed(2)+'deg');
     tilt.style.setProperty('--pst-rx', (-ny*7).toFixed(2)+'deg');
-    tilt.style.setProperty('--pst-gx', (50 + nx*46).toFixed(1)+'%'); // brilho contra o giro
-    tilt.style.setProperty('--pst-gy', (50 + ny*46).toFixed(1)+'%');
     tilt.classList.add('is-live');
   });
 }
@@ -248,7 +247,6 @@ function _fPostedTiltReset(){
   if(_pstTiltRaf){ cancelAnimationFrame(_pstTiltRaf); _pstTiltRaf=0; }
   tilt.classList.remove('is-live'); // volta ao repouso pela transição do CSS
   tilt.style.setProperty('--pst-ry','0deg'); tilt.style.setProperty('--pst-rx','0deg');
-  tilt.style.setProperty('--pst-gx','50%');  tilt.style.setProperty('--pst-gy','0%');
 }
 function _fPostedBindStage(stage){
   if(_pstStageBound) return;
@@ -514,12 +512,17 @@ let _lpScale = 1;        // escala real prévia ÷ arte final (mostrada na toolb
 // (o antigo _lpGuides virou _lpView — ver fLpSetView, mais abaixo)
 let _lpFraming = null;   // {layer, varName} enquanto o franqueado enquadra a foto (trava o zoom automático)
 let _lpOverflow = new Set(); // ids de camadas de texto com estouro no último render (avisos)
+let _lpEffectiveLayers = []; // geometria que o render realmente desenhou (reflow + layout vivo)
+let _lpLayoutResult = null;  // contrato do solver só desta prévia (não confunde com thumbs)
+let _lpEffectiveMaterial = null;
 
 // Zoom/pan manual da prova digital (item: inspecionar a arte de perto).
 // _lpUserZoom=1 é o ajuste à tela; >1 amplia. Pan em px de tela relativo ao centro do quadro.
 // Tem PRIORIDADE sobre o smart-zoom do chat (que foca o campo ativo) — ver _fLpApplyCanvasFocus.
 let _lpUserZoom = 1, _lpPanX = 0, _lpPanY = 0;
 let _lpPanning = null, _lpDidPan = false, _lpSuppressClick = false;
+const F_LP_ZOOM_MIN = .35, F_LP_ZOOM_MAX = 6;
+const F_LP_ZOOM_STEPS = [.35,.5,.67,.8,1,1.25,1.5,2,2.5,3,4,5,6];
 const F_LP_AUTO_ZOOM_KEY = 'luma-lp-auto-zoom';
 let _lpAutoZoom = true;
 try { _lpAutoZoom = localStorage.getItem(F_LP_AUTO_ZOOM_KEY) !== '0'; } catch(e){}
@@ -559,17 +562,25 @@ function _fLpSyncAutoLayoutButton(){
   const tem=(typeof gLayoutVivoDisponivel==='function') && gLayoutVivoDisponivel();
   btn.hidden=!tem;
   if(!tem) return;
-  const on=!gLayoutVivoOff;
+  const forced=!!(_lpLayoutResult&&_lpLayoutResult.forced);
+  const on=!gLayoutVivoOff||forced;
   btn.classList.toggle('active',on);
   btn.setAttribute('aria-pressed',String(on));
-  btn.title=on?'Desativar acomodação automática (ver a composição original)'
-              :'Ativar acomodação automática';
+  btn.dataset.forced=forced?'true':'false';
+  btn.title=forced?'Acomodação mantida: a composição original não é segura com estes dados'
+    :(on?'Ver a composição original quando houver espaço seguro':'Ativar acomodação automática');
 }
 function fLpToggleAutoLayout(){
   gLayoutVivoOff=!gLayoutVivoOff;
   try { localStorage.setItem(F_LP_AUTO_LAYOUT_KEY,gLayoutVivoOff?'0':'1'); } catch(e){}
   _fLpSyncAutoLayoutButton();
-  try { fUpdateLivePreview(); } catch(e){}
+  try {
+    Promise.resolve(fUpdateLivePreview()).then(()=>{
+      _fLpSyncAutoLayoutButton();
+      if(gLayoutVivoOff&&_lpLayoutResult&&_lpLayoutResult.forced)
+        gToast('A composição original não cabe com estes dados. O Luma manteve a versão segura.');
+    });
+  } catch(e){}
 }
 
 async function fUpdateLivePreview(opts){
@@ -589,6 +600,7 @@ async function fUpdateLivePreview(opts){
     if(fState.material) _lpLastErr = fState.material._needsLayersFetch
       ? 'conteúdo do material não baixou do servidor'
       : 'material sem camadas no servidor';
+    _lpEffectiveLayers=[];_lpEffectiveMaterial=null;
     fLpShowEmpty(canvas);
     fLpUpdateMeta(false);
     try{ _fLpPaintPip(); }catch(e){} // sem material → a miniatura volta a ser o ícone
@@ -628,17 +640,22 @@ async function fUpdateLivePreview(opts){
     {
       // Coleta overflow de texto durante ESTE render (só a prévia liga o coletor).
       window._fOverflowSink = new Set();
-      await fRenderTemplateLayers(ctx, fState.material.layers, W, H, dadosPreview, fState.camp);
+      const rendered=await fRenderTemplateLayers(ctx,fState.material.layers,W,H,dadosPreview,fState.camp,null,
+        {scope:'franqueado',purpose:'preview'});
+      _lpEffectiveLayers=Array.isArray(rendered)?rendered:[];
+      _lpLayoutResult=rendered&&rendered._layoutResult||null;
+      _lpEffectiveMaterial=fState.material;
       _lpOverflow = window._fOverflowSink; window._fOverflowSink = null;
+      _fLpSyncAutoLayoutButton();
 
       // Véu sutil sobre os campos ainda não preenchidos (tom mais suave)
-      fLpHighlightEmpty(ctx, fState.material.layers, pendentes, W, H);
+      fLpHighlightEmpty(ctx,_lpEffectiveLayers,pendentes,W,H);
       
       // Focus Sync: Destaque sutil no campo correspondente à pergunta ativa do chat
       const activeVar = fState.camp?.perguntas?.[fState.stepIdx]?.id;
       let activeLayer = null;
       if (activeVar) {
-        activeLayer = fState.material.layers.find(l => {
+        activeLayer = _lpEffectiveLayers.find(l => {
           if (l.type === 'text' && l.content) {
             const re = gVarRegex();
             let match;
@@ -673,6 +690,8 @@ async function fUpdateLivePreview(opts){
   } catch(e){
     console.warn('[lp] erro ao renderizar preview:', e);
     _lpLastErr = 'erro no render: ' + ((e && e.message) || e);
+    _lpEffectiveLayers=[];_lpEffectiveMaterial=null;
+    window._fOverflowSink=null;
     fLpShowEmpty(canvas);
     fLpUpdateMeta(true);
   } finally {
@@ -728,10 +747,38 @@ function fLpSizeCanvas(canvas, W, H){
   }
 }
 
+// Slider logarítmico: entrega precisão perto do ajuste à tela sem sacrificar o alcance 35–600%.
+// O valor nativo 0–1000 é interno; o aria-valuetext sempre anuncia a escala real da arte.
+function _fLpZoomToSlider(z){
+  const clamped=Math.max(F_LP_ZOOM_MIN,Math.min(F_LP_ZOOM_MAX,+z||1));
+  return Math.round(Math.log(clamped/F_LP_ZOOM_MIN)/Math.log(F_LP_ZOOM_MAX/F_LP_ZOOM_MIN)*1000);
+}
+function _fLpSliderToZoom(v){
+  const t=Math.max(0,Math.min(1000,+v||0))/1000;
+  return F_LP_ZOOM_MIN*Math.pow(F_LP_ZOOM_MAX/F_LP_ZOOM_MIN,t);
+}
+
 // Rótulo honesto na toolbar: escala real (ajuste × zoom manual) da prévia sobre a arte final.
+// Sincroniza também slider, limites dos botões e leitura acessível — uma fonte de estado.
 function _fLpUpdateZoomLabel(){
   const zoomEl = document.getElementById('lp-zoom');
-  if(zoomEl) zoomEl.textContent = Math.round(_lpScale * _lpUserZoom * 100) + '%';
+  const actual=Math.round(_lpScale*_lpUserZoom*100), sliderPos=_fLpZoomToSlider(_lpUserZoom);
+  if(zoomEl){
+    zoomEl.textContent=actual+'%';
+    zoomEl.title='Zoom '+actual+'% · clique para voltar ao ajuste de tela';
+    zoomEl.setAttribute('aria-label','Zoom atual '+actual+'%. Clique para voltar ao ajuste de tela');
+  }
+  const range=document.getElementById('lp-zoom-range');
+  if(range){
+    range.value=String(sliderPos);
+    range.style.setProperty('--lp-zoom-progress',(sliderPos/10).toFixed(1)+'%');
+    range.setAttribute('aria-valuetext',actual+'% da arte final');
+    range.title='Zoom '+actual+'%';
+  }
+  const minus=document.querySelector('[data-lp-zoom-step="-1"]');
+  const plus=document.querySelector('[data-lp-zoom-step="1"]');
+  if(minus)minus.disabled=_lpUserZoom<=F_LP_ZOOM_MIN+.001;
+  if(plus)plus.disabled=_lpUserZoom>=F_LP_ZOOM_MAX-.001;
 }
 
 // Reajusta a prévia à tela e RECENTRALIZA (botão da toolbar / clique no %). O resgate do
@@ -768,8 +815,9 @@ function _fLpApplyCanvasFocus(activeLayer, W, H){
   if(!canvas) return;
   const manual = (_lpUserZoom !== 1 || _lpPanX !== 0 || _lpPanY !== 0);
   if(_lpAutoZoom && !manual && activeLayer && !fState.done && !_lpFraming){
-    const cx = activeLayer.x + activeLayer.w / 2;
-    const cy = activeLayer.y + activeLayer.h / 2;
+    const vr=_fLpVisualRect(activeLayer);
+    const cx = vr.x + vr.w / 2;
+    const cy = vr.y + vr.h / 2;
     const px = Math.min(100, Math.max(0, (cx / W) * 100));
     const py = Math.min(100, Math.max(0, (cy / H) * 100));
     canvas.style.transformOrigin = `${px.toFixed(1)}% ${py.toFixed(1)}%`;
@@ -792,8 +840,9 @@ function _fLpZoomAround(next, sx, sy){
   const wrap = document.querySelector('.lp-canvas-wrap');
   if(!wrap) return;
   const old = _lpUserZoom;
-  next = Math.max(1, Math.min(6, next));
-  if(next === old) return;
+  next = Math.max(F_LP_ZOOM_MIN, Math.min(F_LP_ZOOM_MAX, +next||1));
+  if(Math.abs(next-1)<.002)next=1;
+  if(Math.abs(next-old)<.0001){_fLpUpdateZoomLabel();return;}
   const r = wrap.getBoundingClientRect();
   const cx = sx - (r.left + r.width / 2 - _lpPanX);
   const cy = sy - (r.top + r.height / 2 - _lpPanY);
@@ -849,12 +898,22 @@ function _fLpPanUp(){
   if(_lpDidPan){ _lpSuppressClick = true; setTimeout(()=>{ _lpSuppressClick = false; }, 0); }
 }
 
-// Botões −/+ da toolbar: zoom pelo centro da mesa (sem cursor de referência).
+// Botões −/+ da toolbar: degraus previsíveis e retorno exato ao ajuste (1×).
 function fLpZoomStep(dir){
   const stage = document.querySelector('.lp-stage');
   if(!stage) return;
   const r = stage.getBoundingClientRect();
-  _fLpZoomAround(_lpUserZoom * (dir > 0 ? 1.25 : 0.8), r.left + r.width / 2, r.top + r.height / 2);
+  const eps=.001;
+  const next=dir>0
+    ? (F_LP_ZOOM_STEPS.find(v=>v>_lpUserZoom+eps)||F_LP_ZOOM_MAX)
+    : (F_LP_ZOOM_STEPS.slice().reverse().find(v=>v<_lpUserZoom-eps)||F_LP_ZOOM_MIN);
+  _fLpZoomAround(next, r.left + r.width / 2, r.top + r.height / 2);
+}
+// Slider: o mesmo motor da roda/pinça, centrado na mesa para não fazer a arte "saltar".
+function fLpZoomSlider(value){
+  const stage=document.querySelector('.lp-stage'); if(!stage)return;
+  const r=stage.getBoundingClientRect();
+  _fLpZoomAround(_fLpSliderToZoom(value),r.left+r.width/2,r.top+r.height/2);
 }
 // Clicar no % recentraliza e volta ao ajuste de tela.
 function fLpZoomReset(){ fLpRefit(); }
@@ -1046,7 +1105,21 @@ function fLpInjectPlaceholders(layers, dadosPreview, defaults){
       if(def == null || def === ''){
         const vDef=(typeof dVars!=='undefined'&&dVars)?dVars.find(v=>v.name===name):null;
         let ex=(vDef&&vDef.example!=null&&String(vDef.example).trim()!=='')?String(vDef.example).trim():'';
-        
+
+        /* O TEXTO QUE O DESIGNER COMPÔS é o melhor placeholder que existe: com ele, a prévia
+           abre mostrando exatamente a arte publicada — mesma quebra, mesmo corpo, nada
+           reacomodado. Sem isto o campo vazio caía num exemplo de dicionário ou no RÓTULO
+           ("Nome do produto"), quase sempre mais longo que a frase original, e a arte chegava
+           adaptada antes de a pessoa digitar um único caractere. É a causa mais visível do
+           "abri a prévia e está tudo pequeno".
+           ⚠ Só quando a camada é o campo INTEIRO: em "De {{de}} por", o `layoutRefText` guarda a
+           frase montada ("De R$ 49,90 por") e usá-la como valor do campo produziria
+           "De De R$ 49,90 por por". */
+        if(!ex && l.layoutRefText){
+          const so=new RegExp('^\\s*\\{\\{\\s*'+name+'(?::[a-zA-Z0-9_]+)?\\s*\\}\\}\\s*$');
+          if(so.test(String(l.content||''))) ex=String(l.layoutRefText).trim();
+        }
+
         if(!ex){
           // 1ª Linha de Defesa: Primeira sugestão da pergunta da campanha ativa (se disponível)
           const perg = fState.camp?.perguntas?.find(p => p.id === name);
@@ -1076,17 +1149,14 @@ function fLpInjectPlaceholders(layers, dadosPreview, defaults){
 // Só quando NÃO houve smart-resize (com reflow as coords mudam e o contorno desalinharia).
 function fLpHighlightEmpty(ctx, layers, pendentes, W, H){
   if(!pendentes || !pendentes.size) return;
-  const src = (fState.material && fState.material.w>0 && fState.material.h>0)
-    ? [fState.material.w, fState.material.h]
-    : (F_LP_SIZES[(fState.material && fState.material.fmt)] || F_LP_SIZES.story);
-  if(src[0] !== W || src[1] !== H) return; // houve reflow → omite
   ctx.save();
   const dash = Math.max(4, Math.round(W * 0.006));
   ctx.setLineDash([dash * 1.6, dash]);
   ctx.lineWidth = Math.max(2, Math.round(W * 0.003));
   (layers || []).forEach(l => {
     if(!pendentes.has(l.id)) return;
-    const x = l.x || 0, y = l.y || 0, w = l.w || W, h = l.h || 40;
+    const vr=_fLpVisualRect(l);
+    const x=vr.x,y=vr.y,w=vr.w||W,h=vr.h||40;
     const r = Math.min(l.radius || 0, w / 2, h / 2);
     // leve realce de fundo + contorno tracejado da marca
     ctx.globalAlpha = 0.06; ctx.fillStyle = '#F85400';
@@ -1101,11 +1171,6 @@ function fLpHighlightEmpty(ctx, layers, pendentes, W, H){
 
 // Desenha um destaque sutil de foco ao redor do campo correspondente à pergunta ativa do chat (Focus Sync)
 function fLpHighlightActiveField(ctx, l, W, H) {
-  const src = (fState.material && fState.material.w>0 && fState.material.h>0)
-    ? [fState.material.w, fState.material.h]
-    : (F_LP_SIZES[(fState.material && fState.material.fmt)] || F_LP_SIZES.story);
-  if(src[0] !== W || src[1] !== H) return; // ignora se houver reflow de zoom/coords
-  
   ctx.save();
   
   // Cor do destaque: Laranja oficial Delivery Much
@@ -1119,10 +1184,11 @@ function fLpHighlightActiveField(ctx, l, W, H) {
   ctx.shadowBlur = Math.max(8, Math.round(W * 0.012));
   
   const padding = 8;
-  const x = (l.x || 0) - padding;
-  const y = (l.y || 0) - padding;
-  const w = (l.w || W) + padding * 2;
-  const h = (l.h || 40) + padding * 2;
+  const vr=_fLpVisualRect(l);
+  const x = vr.x - padding;
+  const y = vr.y - padding;
+  const w = (vr.w || W) + padding * 2;
+  const h = (vr.h || 40) + padding * 2;
   const r = Math.min(l.radius || 6, w / 2, h / 2);
   
   ctx.beginPath();
@@ -1196,6 +1262,68 @@ function _fLpPaintPip(){
   // Arte pronta → um pulso convida pra prova final (uma vez por arte; nada de abrir sozinho)
   if(fState.done && !btn._pipPulsed){ btn._pipPulsed = true; btn.classList.add('pip-pulse'); setTimeout(()=>btn.classList.remove('pip-pulse'), 1200); }
   if(!fState.done) btn._pipPulsed = false;
+  try{ _fLpPaintCartao(src); }catch(e){}
+}
+
+/* ── A ARTE DENTRO DA CONVERSA (celular) ──
+   Medido na bancada do celular: o chat abria com **52% da tela vazia** entre a pergunta e a
+   barra de digitar (441px numa tela de 844), e o vazio só sumia conforme a pessoa respondia
+   (52% → 39% → 18%). Ou seja: era pior justamente no PRIMEIRO contato, onde a confiança do
+   franqueado se ganha ou se perde. O vazio agora é preenchido pela própria arte.
+
+   Duas decisões que valem ler antes de mexer:
+
+   1. **NÃO é um segundo renderizador** — mesma lei da miniatura acima: `drawImage` do
+      `#lp-canvas`, cópia de pixels do motor único. Se um dia a arte divergir da prova em tela
+      cheia, o bug está no motor, nunca aqui.
+   2. **O cartão é o ÚLTIMO item flex, por `order`, não por posição no DOM.** As bolhas entram
+      por `msgs.appendChild(...)` em ~6 lugares do `chat.js`; qualquer uma delas cairia depois
+      do cartão. `order:1` (contra o `0` implícito das bolhas) resolve sem que nenhum desses
+      chamadores precise saber que o cartão existe. O CSS dá a ele `flex:1 1 auto`: ele ABSORVE
+      a sobra e ENCOLHE até o piso quando as bolhas crescem — sem uma linha de conta de altura. */
+function _fLpPaintCartao(src){
+  if(!window.matchMedia || !matchMedia('(max-width:680px)').matches) return;
+  const msgs = document.getElementById('f-messages');
+  if(!msgs) return;
+  let card = document.getElementById('f-chat-art');
+  if(!card){
+    // `fStartChatComMaterial` faz `innerHTML=''` a cada arte nova, então o cartão se recria
+    // sozinho aqui em vez de depender de alguém lembrar de repô-lo.
+    card = document.createElement('button');
+    card.id = 'f-chat-art';
+    card.type = 'button';
+    card.setAttribute('aria-label', 'Ver a arte em tela cheia');
+    card.appendChild(document.createElement('canvas'));
+    card.addEventListener('click', (e)=>{
+      /* ⚠ `stopPropagation` NÃO é decoração — é a mesma guarda que o FAB já tem.
+         `fInitMobilePreviewEvents` registra no documento um "clicou fora da gaveta → fecha".
+         Sem parar aqui, o MESMO clique abre e fecha: este listener põe `open`, o evento sobe,
+         o do documento vê `open` ligado com o alvo fora da gaveta e desliga. Medido: o toque
+         no cartão não abria nada e não havia erro nenhum no console. */
+      e.stopPropagation();
+      const el = document.getElementById('f-live-preview');
+      if(el) {
+        el.classList.add('open');
+        if(typeof fLpRefit==='function') setTimeout(fLpRefit, 100);
+      }
+    });
+  }
+  if(card.parentElement !== msgs) msgs.appendChild(card);
+  const cv = card.querySelector('canvas');
+  /* ⚠ O JS NÃO MEDE A CAIXA. Minha primeira versão media o cartão e cravava
+     `cv.style.width/height` em pixels — e isso REALIMENTAVA o layout: a altura fixa do canvas
+     virava a altura do cartão, que então parava de acompanhar a sobra do flex. Sintoma medido:
+     o cartão congelava em 270px e sobravam 132px de vazio embaixo dele.
+     Agora o JS só define o BITMAP (a resolução) e o CSS faz o encaixe com
+     `max-width/max-height:100%` + `width/height:auto` — o canvas usa o bitmap como tamanho
+     intrínseco e o navegador o reduz preservando a proporção. Zero conta de layout, zero laço. */
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const W = Math.min(src.width, 600);              // teto de resolução: é uma prévia, não o PNG
+  const w = Math.round(W * dpr), h = Math.max(1, Math.round(w * src.height / src.width));
+  if(cv.width !== w || cv.height !== h){ cv.width = w; cv.height = h; }
+  const ctx = cv.getContext('2d');
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(src, 0, 0, cv.width, cv.height);
 }
 
 // Gestos de celular na PROVA: pinça = zoom (mesmo _fLpZoomAround da roda), 1 dedo = pan.
@@ -1328,15 +1456,23 @@ function _fLpLayerVars(l){
   }
   return [];
 }
+function _fLpVisualRect(l){
+  if(!l)return{x:0,y:0,w:0,h:0};
+  if(l.type==='text'&&l._fit&&typeof gInkRect==='function')return gInkRect(l,l._fit);
+  const dx=l.type==='text'?(l._layoutDx||0):0;
+  const w=l.type==='text'&&l._layoutW!=null?l._layoutW:(l.w||0);
+  return{x:(l.x||0)+dx,y:l.y||0,w,h:l.h||0};
+}
 function _fLpLayerAt(x,y){
   const mat=fState.material;
-  let layers=(mat&&mat.layers)||[];
+  let layers=(_lpEffectiveMaterial===mat)
+    ?_lpEffectiveLayers:((mat&&mat.layers)||[]);
   // Espelha o reflow do render: quando o formato exibido difere do nativo do template,
   // fRenderTemplateLayers re-ancora as coords (gReflowLayers). Sem espelhar aqui, o clique/
   // hover caía no layer errado em templates legados exibidos noutro formato. Os callers só
   // leem type/imgVar/vars (preservados na cópia refluída), então devolver a cópia é seguro.
   const cv=document.getElementById('lp-canvas');
-  if(mat && cv && typeof fMaterialSize==='function' && typeof gReflowLayers==='function'){
+  if(_lpEffectiveMaterial!==mat&&mat&&cv&&typeof fMaterialSize==='function'&&typeof gReflowLayers==='function'){
     const sz=fMaterialSize(mat), tw=sz[0], th=sz[1], W=cv.width, H=cv.height;
     if((tw!==W || th!==H) && W && H){
       const fmtSizes={story:[1080,1920],feed:[1080,1350],wide:[1200,628],post:[1200,628]};
@@ -1347,7 +1483,8 @@ function _fLpLayerAt(x,y){
   for(let i=layers.length-1;i>=0;i--){
     const l=layers[i];
     if(!l||l.visible===false||!_fLpLayerVars(l).length) continue;
-    const lx=l.x||0, ly=l.y||0, lw=l.w||0, lh=l.h||0;
+    const vr=_fLpVisualRect(l);
+    const lx=vr.x,ly=vr.y,lw=vr.w,lh=vr.h;
     if(x>=lx&&x<=lx+lw&&y>=ly&&y<=ly+lh) return l;
   }
   return null;
@@ -1566,4 +1703,3 @@ document.addEventListener('DOMContentLoaded', () => {
   try { fInitMobilePreviewEvents(); } catch(e){}
   try { _fLpBindCanvasEditing(); } catch(e){}
 });
-

@@ -64,6 +64,12 @@ const G_FEATURE_REGISTRY = [
   { key:'module.designer', label:'Estúdio', desc:'O editor onde a equipe monta e publica os templates.',
     module:'designer', parent:null, categoria:'modulos', behaviors:['hide','maintenance'],
     preserva:['load'], tags:['designer','editor','canvas'] },
+  // Nasce DESLIGADO, como a Academia nasceu: o módulo depende de medição de
+  // codec no navegador de cada máquina (docs/LUMA-VIDEO.md §13) e de assets
+  // oficiais que ainda não existem. A gestão liga quando o portão passar.
+  { key:'module.video', label:'Vídeo', desc:'O editor de vídeo: corta, ajusta o enquadramento e exporta.',
+    module:'video', parent:null, categoria:'modulos', behaviors:['hide','maintenance'],
+    preserva:['load'], tags:['vídeo','reels','corte','exportar'], defaultEnabled:false },
 
   /* ── FRANQUEADO ──────────────────────────────────────────── */
   { key:'franqueado.catalogo', label:'Catálogo de campanhas', desc:'A vitrine de campanhas e materiais publicados.',
@@ -189,6 +195,7 @@ const G_FEATURE_MODULOS = [
   { id:'designer',   label:'Estúdio' },
   { id:'franqueado', label:'Franqueado' },
   { id:'academia',   label:'Academia' },
+  { id:'video',      label:'Vídeo' },
   { id:'global',     label:'Global' }
 ];
 

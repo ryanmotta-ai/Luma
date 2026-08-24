@@ -360,7 +360,7 @@ async function gProdRefresh(btn){
   gProdRenderTree();
   if (typeof gToast === 'function') {
     if (r && r.ok) gToast('Configuração atualizada');
-    else gToast('⚠ Não foi possível atualizar — ' + ((r && r.error) || 'servidor indisponível'), 'error');
+    else gToast('Não foi possível atualizar — ' + ((r && r.error) || 'servidor indisponível'), 'error');
   }
 }
 
@@ -514,7 +514,7 @@ async function gProdConfirmToggle(key, ligar){
   const nome = (meta && meta.label) || 'Recurso';
   if (typeof gToast === 'function') {
     if (r.ok) gToast(nome + (ligar ? ' reativado' : ' desativado'));
-    else gToast('⚠ ' + nome + ' não foi alterado — ' + r.error, 'error');
+    else gToast('' + nome + ' não foi alterado — ' + r.error, 'error');
   }
   // Pulso na própria linha: o toast some do canto e o olho está na árvore.
   // Reusa o keyframe do "Ver recurso" — um efeito, dois usos.

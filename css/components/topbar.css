@@ -286,7 +286,7 @@
 
   .mode-tabs {
     grid-auto-columns: minmax(92px, 1fr);
-    min-width: 208px;
+    min-width: auto;
   }
 
   .mode-tab {
@@ -298,79 +298,129 @@
   }
 }
 
+@media (max-width: 680px) {
+  /* No celular, o franqueado opera na sua área exclusiva sem poluição de abas do desktop */
+  #tab-design, #tab-academia {
+    display: none !important;
+  }
+}
+
 @media (max-width: 620px) {
   #global-topbar {
-    gap: 12px;
-    padding-right: calc(14px + var(--safe-right));
-    padding-left: calc(14px + var(--safe-left));
+    gap: 8px;
+    padding-right: calc(12px + var(--safe-right));
+    padding-left: calc(12px + var(--safe-left));
   }
 
   .top-dm-logo {
-    width: 84px;
-    height: 24px;
+    width: 80px;
+    height: 22px;
   }
 
   .mode-tabs {
-    grid-auto-columns: minmax(78px, 1fr);
-    min-width: 184px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    grid-auto-columns: auto;
+    min-width: 0;
+    padding: 2px;
+    height: 34px;
   }
 
-  .top-profile-badge {
-    grid-template-columns: 32px 12px;
+  .mode-tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     gap: 6px;
-    padding-right: 7px;
+    width: auto;
+    height: 30px;
+    padding: 0 12px;
   }
 
-  .top-profile-copy {
-    display: none;
+  .mode-tab span {
+    position: static;
+    width: auto;
+    height: auto;
+    clip: auto;
+    clip-path: none;
+    font-size: 11.5px;
+    font-weight: 750;
+    white-space: nowrap;
+    display: inline-block;
+  }
+
+  /* Avatar do perfil 100% concêntrico e centralizado no mobile */
+  .top-profile-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+    padding: 0;
+    border-radius: 50%;
+    border: 1.5px solid color-mix(in srgb, var(--white) 36%, transparent);
+    background: color-mix(in srgb, var(--white) 16%, transparent);
+    justify-self: end;
+  }
+
+  .top-profile-copy,
+  .top-profile-chevron {
+    display: none !important;
+  }
+
+  .top-av {
+    width: 30px;
+    height: 30px;
+    margin: 0;
   }
 }
 
 @media (max-width: 460px) {
   #global-topbar {
-    gap: 10px;
-    padding-right: calc(14px + var(--safe-right));
-    padding-left: calc(14px + var(--safe-left));
+    gap: 6px;
+    padding-right: calc(10px + var(--safe-right));
+    padding-left: calc(10px + var(--safe-left));
   }
 
   .top-dm-logo {
     width: 72px;
-    height: 22px;
+    height: 20px;
   }
 
   .mode-tabs {
-    grid-auto-columns: 44px;
-    min-width: 0;
+    padding: 2px;
+    height: 32px;
   }
 
   .mode-tab {
-    width: 44px;
-    padding: 0;
-  }
-
-  .mode-tab span {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    clip-path: inset(50%);
-    white-space: nowrap;
+    height: 28px;
+    padding: 0 10px;
+    gap: 5px;
   }
 
   .mode-tab svg {
-    width: 16px;
-    height: 16px;
+    width: 13px;
+    height: 13px;
+  }
+
+  .mode-tab span {
+    font-size: 11px;
+    font-weight: 750;
   }
 
   .top-profile-badge {
-    grid-template-columns: 32px;
-    padding: 2px;
-    justify-self: end;
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    min-height: 34px;
   }
 
-  .top-profile-chevron {
-    display: none;
+  .top-av {
+    width: 28px;
+    height: 28px;
+    font-size: 9.5px;
   }
 }
 
@@ -383,4 +433,11 @@
   .top-profile-chevron {
     transition-duration: .01ms !important;
   }
+}
+
+/* ── DEDO, NÃO MOUSE (alvos de toque da topbar) ─────────────────────────────── */
+@media (hover:none){
+  .top-dm-logo{min-height:var(--tap-min)}
+  .top-profile-badge::after{content:'';position:absolute;inset:-4px;border-radius:50%}
+  .mode-tab::after{content:'';position:absolute;inset:-6px 0;border-radius:inherit}
 }

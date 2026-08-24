@@ -467,6 +467,29 @@
 
 #d-publish-modal :is(button,input,select,textarea):focus-visible{outline:2px solid var(--dm-orange)!important;outline-offset:2px}
 
+/* O wizard nasceu no tema claro e usava os tokens globais diretamente. Remapear os
+   tokens dentro do próprio modal faz campos, cards, abas, revisão e sucesso mudarem
+   juntos, sem afetar a arte colorida nem os outros módulos do Estúdio. */
+body:not(.theme-light) #d-publish-modal{
+  --white:var(--d-surf);
+  --off-white:var(--d-dark);
+  --gray-light:var(--d-border);
+  --gray-mid:var(--d-border2);
+  --text:var(--d-text);
+  --text-2:var(--d-text2);
+  --text-3:var(--d-text3);
+  --dm-orange-bg:color-mix(in srgb,var(--dm-orange) 14%,transparent);
+  --dm-orange-tint:color-mix(in srgb,var(--dm-orange) 30%,transparent);
+  background:rgba(0,0,0,.76);
+}
+body:not(.theme-light) #d-publish-modal .pub-box{border-color:var(--d-border2)}
+body:not(.theme-light) #d-publish-modal .pub-head{background:linear-gradient(135deg,var(--d-surf),color-mix(in srgb,var(--dm-orange) 8%,var(--d-surf)))}
+body:not(.theme-light) #d-publish-modal .pub-btn-confirm,
+body:not(.theme-light) #d-publish-modal .pub-head-title>svg,
+body:not(.theme-light) #d-publish-modal .pub-tab.active .pub-step-num,
+body:not(.theme-light) #d-publish-modal .pub-tab.complete .pub-step-num{color:var(--d-bg)}
+body:not(.theme-light) #d-publish-modal select option{background:var(--d-surf);color:var(--d-text)}
+
 @media (max-width:768px){
   #d-publish-modal{align-items:flex-end;padding:12px 12px max(12px,var(--safe-bottom))}
   .pub-box{max-height:calc(100vh - 24px);border-radius:calc(var(--r) * 2) calc(var(--r) * 2) var(--r) var(--r)}

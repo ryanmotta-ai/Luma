@@ -71,7 +71,7 @@ function dTutToggle(i){
 function dTutLoadExample(){
   const f=(typeof dFolders!=='undefined'&&dFolders)?dFolders.find(x=>x.id==='f-modelo'):null;
   const t=f&&f.templates&&f.templates[0];
-  if(t){ dLoadTemplate(t,f); gToast('✓ Modelo de exemplo aberto — explore e edite à vontade'); return; }
+  if(t){ dLoadTemplate(t,f); gToast('Modelo de exemplo aberto — explore e edite à vontade'); return; }
   // Fallback: monta o showcase direto no artboard ativo
   if(typeof dBuildShowcaseLayers==='function'){
     dFmt='story';
@@ -82,7 +82,7 @@ function dTutLoadExample(){
     dApplyFormat(); dRenderCanvas(); dRenderLayersList();
     if(typeof dStats==='function')dStats(); if(typeof dMarkUnsaved==='function')dMarkUnsaved();
     setTimeout(()=>{ if(typeof dFitToScreen==='function')dFitToScreen(); },60);
-    gToast('✓ Modelo de exemplo carregado na prancheta');
+    gToast('Modelo de exemplo carregado na prancheta');
   }else{
     gToast('Modelo de exemplo indisponível');
   }

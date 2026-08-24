@@ -7,22 +7,24 @@
 
 /* ⛔ DECISÃO DE PRODUTO (2026-08-12, pedido do dono): o Luma NÃO alarma. Nenhum toast
    vermelho, em nenhum módulo, mesmo quando algo falha. O corte é aqui, no motor único —
-   as ~106 chamadas gToast(msg,'error') espalhadas pelo app continuam existindo e não
+   as 171 chamadas gToast(msg,'error') espalhadas pelo app continuam existindo e não
    precisaram ser tocadas; elas simplesmente não pintam mais nada.
 
-   ⚠ O QUE ISSO CUSTA (registrado de propósito, pra ninguém "descobrir" depois): falha
-   fica MUDA. Baixar sem rede, layers que não desceram, quota de localStorage cheia —
-   a pessoa clica e nada acontece, sem pista na tela. O console vira o único lugar onde
-   isso aparece; por isso todo erro suprimido sai como console.warn com prefixo [Luma],
-   e não em silêncio total. Reverter = apagar este bloco. */
+   ⚠ CORREÇÃO 2026-08-13 — o corte era um `return`, e isso ia LONGE demais: a falha ficava
+   MUDA. Boa parte dessas chamadas não é alarme, é INSTRUÇÃO ("converta o vídeo para MP4",
+   "selecione ao menos uma camada", "sua sessão expirou"). Sem a mensagem, a pessoa clicava,
+   nada acontecia e não havia caminho de saída — o oposto de "erro sempre diz o que fazer"
+   (03_ENGINEERING §5). Agora o tipo 'error' perde a COR, o role=alert e o botão de orientação,
+   mas a MENSAGEM aparece como toast NEUTRO, que é o que a decisão pedia. O console segue
+   recebendo o registro para depuração. Reverter o não-alarmar = apagar este bloco. */
 function gToast(msg, type, helpTopic){
-  if (type === 'error') { try{ console.warn('[Luma] (aviso suprimido)', msg); }catch(e){} return; }
+  if (type === 'error') { try{ console.warn('[Luma]', msg); }catch(e){} }
   const container = document.getElementById('g-toast-container');
   if (!container) return;
 
-  // Daqui pra baixo só existe toast NEUTRO — o ramo de erro morreu no return acima, junto
-  // com o botão "Ver orientação" e o role=alert, que só valiam pro toast vermelho. A
-  // assinatura mantém `helpTopic` porque há chamadas passando o 3º argumento.
+  // Daqui pra baixo só existe toast NEUTRO — não há mais ramo de erro, e com ele foram embora
+  // o botão "Ver orientação" e o role=alert, que só valiam pro toast vermelho. A assinatura
+  // mantém `helpTopic` porque há chamadas passando o 3º argumento.
   const item = document.createElement('div');
   item.className = 'g-toast-item';
   item.setAttribute('role', 'status');
@@ -97,14 +99,15 @@ function _gDialog(opts){
     const isPrompt=!!opts.prompt;
     const ov=document.createElement('div');
     ov.className='g-dialog-ov';
-    ov.style.cssText='position:fixed;inset:0;z-index:11000;display:flex;align-items:center;justify-content:center;background:rgba(10,10,10,.5);padding:20px';
-    ov.innerHTML=`<div class="g-dialog" role="dialog" aria-modal="true" style="background:var(--white,#fff);color:var(--text,#0A0A0A);border:1px solid var(--gray-mid,rgba(0,0,0,.14));border-radius:12px;padding:20px;width:100%;max-width:400px;box-shadow:0 20px 50px rgba(0,0,0,.35);font-family:'Roboto',sans-serif">
-      ${opts.title?`<div style="font-size:15px;font-weight:700;margin-bottom:8px">${gEsc(opts.title)}</div>`:''}
-      ${opts.message?`<div style="font-size:13px;line-height:1.5;color:var(--text-2,#3A3A3A);margin-bottom:${isPrompt?'10px':'18px'}">${gEsc(opts.message)}</div>`:''}
-      ${isPrompt?`<input class="g-dialog-input" type="text" value="${gEsc(opts.default||'')}" placeholder="${gEsc(opts.placeholder||'')}" style="width:100%;font-size:13px;padding:9px 11px;border:1px solid var(--gray-mid,rgba(0,0,0,.2));border-radius:7px;background:var(--white,#fff);color:var(--text,#0A0A0A);outline:none;margin-bottom:18px">`:''}
-      <div style="display:flex;gap:8px;justify-content:flex-end">
-        <button class="g-dialog-cancel" type="button" style="font-size:12px;font-weight:600;padding:8px 14px;border-radius:7px;border:1px solid var(--gray-mid,rgba(0,0,0,.2));background:transparent;color:var(--text-2,#3A3A3A);cursor:pointer">${gEsc(opts.cancelLabel||'Cancelar')}</button>
-        <button class="g-dialog-ok" type="button" style="font-size:12px;font-weight:700;padding:8px 16px;border-radius:7px;border:1px solid ${opts.danger?'#C81818':'var(--dm-orange,#FF9000)'};background:${opts.danger?'#C81818':'var(--dm-orange,#FF9000)'};color:#fff;cursor:pointer">${gEsc(opts.okLabel||'Confirmar')}</button>
+    // Estilo em css/modules/toolbar.css (.g-dialog*). Era tudo inline com hex cru aqui — o único
+    // componente da casa que não acompanhava o design system.
+    ov.innerHTML=`<div class="g-dialog${isPrompt?' has-input':''}" role="dialog" aria-modal="true">
+      ${opts.title?`<div class="g-dialog-title">${gEsc(opts.title)}</div>`:''}
+      ${opts.message?`<div class="g-dialog-msg">${gEsc(opts.message)}</div>`:''}
+      ${isPrompt?`<input class="g-dialog-input" type="text" value="${gEsc(opts.default||'')}" placeholder="${gEsc(opts.placeholder||'')}">`:''}
+      <div class="g-dialog-acts">
+        <button class="g-dialog-cancel" type="button">${gEsc(opts.cancelLabel||'Cancelar')}</button>
+        <button class="g-dialog-ok${opts.danger?' danger':''}" type="button">${gEsc(opts.okLabel||'Confirmar')}</button>
       </div>
     </div>`;
     document.body.appendChild(ov);
@@ -132,5 +135,5 @@ let gImgPersistWarned=false;
 function gWarnImagesNotPersisted(){
   if(gImgPersistWarned)return;
   gImgPersistWarned=true;
-  gToast('⚠ As imagens enviadas não são salvas nesta versão — ao recarregar elas viram placeholder.', 'error');
+  gToast('As imagens enviadas não são salvas nesta versão — ao recarregar elas viram placeholder.', 'error');
 }

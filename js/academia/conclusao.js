@@ -507,6 +507,6 @@ function acReverConclusao(){ acConclusaoAbrir({ etapa:'splash' }); }
 function acVerVideoCeos(){ acConclusaoAbrir({ etapa:'video' }); }
 // Preview da equipe: mesma experiência, marcada, sem gravar nada no progresso.
 function acPreviewConclusao(etapa){
-  if(!acState.curso){ gToast('⚠ Crie a formação antes de pré-visualizar','error'); return; }
+  if(!acState.curso){ gToast('Crie a formação antes de pré-visualizar','error'); return; }
   acConclusaoAbrir({ etapa: etapa||'confirmacao', preview:true });
 }

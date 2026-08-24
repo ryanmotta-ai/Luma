@@ -604,9 +604,9 @@ function fUpdateInputPlaceholder(id){
   if(ex){ box.placeholder = 'Ex: '+ex; return; }
   const hints = {
     price:    'Ex: R$ 9,90',
-    discount: 'Ex: 20% off ou R$ 5,00 off',
+    discount: 'Ex: 20% off ou R$ 5 off',
     code:     'Ex: BURGER10',
-    text:     'Digite ou clique numa sugestão acima'
+    text:     'Digite sua resposta...'
   };
   box.placeholder = hints[cfg.type] || hints.text;
 }
@@ -1089,7 +1089,8 @@ function fGerarArte(){
           // reduzido no canvas visível — não guarda um backing nativo por bolha de resultado.
           const off = document.createElement('canvas'); off.width=mw; off.height=mh;
           const octx = off.getContext('2d');
-          await fRenderTemplateLayers(octx, fState.material.layers, mw, mh, d, c);
+          await fRenderTemplateLayers(octx, fState.material.layers, mw, mh, d, c, null,
+            {scope:'franqueado',purpose:'preview'});
           await fDrawDMLogo(octx, mw, mh);
           const ctx = cv.getContext('2d');
           ctx.clearRect(0,0,cv.width,cv.height);
@@ -1159,6 +1160,10 @@ async function fOutroFormato(id, snapId){
     await _fRerenderArtThumb(snapId, snap, f); // thumb acompanha a nova geometria
   }catch(e){
     console.warn('Falha ao gerar no formato '+f.name+':', e);
+    if(typeof gHandleLayoutUnsafeError==='function'&&gHandleLayoutUnsafeError(e)){
+      fState.fmt=prevFmt; fRenderFmts(); fUpdateCtx();
+      return;
+    }
     gToast('Não consegui gerar nesse formato. Tente de novo.','error');
     fState.fmt=prevFmt; fRenderFmts(); fUpdateCtx(); // reverte o rail ao formato que estava
   }finally{
@@ -1180,7 +1185,8 @@ async function _fRerenderArtThumb(canvasId, snap, f){
   const octx=off.getContext('2d');
   const prevMat=fState.material; fState.material=mat; // motor lê fState.material (bg + espaço nativo)
   try{
-    await fRenderTemplateLayers(octx, mat.layers, mw, mh, snap.dados, snap.camp);
+    await fRenderTemplateLayers(octx, mat.layers, mw, mh, snap.dados, snap.camp, null,
+      {scope:'franqueado',purpose:'preview'});
     const ctx=cv.getContext('2d');
     ctx.clearRect(0,0,cv.width,cv.height);
     ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
@@ -1215,6 +1221,7 @@ async function fBaixar(btn, snapId){
     }
   }catch(e){
     console.warn('Falha ao gerar PNG:', e);
+    if(typeof gHandleLayoutUnsafeError==='function'&&gHandleLayoutUnsafeError(e))return;
     gToast('Não consegui gerar o arquivo. Tente enviar a foto de novo pelo botão de upload, ou escolha outra imagem.','error','ajuda-upload');
   }finally{ fState.material=prevMat; restore(); }
 }
@@ -1316,6 +1323,7 @@ async function fBaixarPDF(btn, snapId){
     }
   }catch(e){
     console.error('Falha ao gerar PDF:', e);
+    if(typeof gHandleLayoutUnsafeError==='function'&&gHandleLayoutUnsafeError(e))return;
     gToast('Não consegui gerar o PDF. Se a foto veio de um link, reenvie pelo botão de upload e tente de novo.','error');
   }finally{ fState.material=prevMat; restore(); }
 }
@@ -1470,4 +1478,3 @@ function fApplyRecoverDraft(confirm) {
     fNextTimeout = setTimeout(() => fNextStep(), 900);
   }
 }
-
