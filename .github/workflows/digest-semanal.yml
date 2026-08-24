@@ -1,0 +1,68 @@
+name: Relatório semanal LUMA (novos materiais)
+
+# Toda segunda-feira, 09:00 BRT: um e-mail com tudo que o marketing publicou na
+# semana. Um envio por grupo (franqueado / equipe), todo mundo em BCC — nunca
+# e-mail individual, nunca um e-mail por material. Semana sem novidade = sem envio.
+#
+# Secrets necessários (Settings > Secrets and variables > Actions):
+#   SUPABASE_URL               -> https://uqrqzjafhigjuvtjqzid.supabase.co
+#   SUPABASE_SERVICE_ROLE_KEY  -> Project Settings > API > service_role (secreta!). Só vive aqui.
+#   SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS -> conta que envia (SENHA DE APP, nunca a pessoal)
+#   EMAIL_FROM (opcional)      -> remetente exibido; default = SMTP_USER
+#   EMAIL_CC   (opcional)      -> cópia visível, ex.: o próprio marketing
+# Detalhes: scripts/digest-semanal.py
+
+on:
+  schedule:
+    - cron: '0 12 * * 1'   # 12:00 UTC = 09:00 BRT, toda segunda-feira
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Só gerar o preview (não envia)'
+        type: boolean
+        default: false
+      dias:
+        description: 'Janela em dias'
+        default: '7'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: luma-digest
+  cancel-in-progress: false
+
+jobs:
+  enviar:
+    name: Montar e enviar o relatório
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Enviar
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_CC: ${{ secrets.EMAIL_CC }}
+        # Sem pip install: o script é stdlib pura.
+        run: |
+          python scripts/digest-semanal.py \
+            ${{ inputs.dry_run && '--dry-run' || '' }} \
+            --dias "${{ inputs.dias || 7 }}"
+
+      - name: Guardar o preview (só no dry-run)
+        if: ${{ inputs.dry_run }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: luma-digest-preview-${{ github.run_number }}
+          path: preview_email-*.html
+          if-no-files-found: warn

@@ -190,13 +190,17 @@ Tipos: `text`, `number`, `currency`, `date`, `image`, `select`, `color`, `boolea
 
 **No mundo real.** Comunicação com o usuário do app (push, inapp) e, no Portal, avisos ao franqueado.
 
-**No Luma.** Duas coisas distintas:
+**No Luma.** Três coisas distintas:
 - **Notificações de UI** (feedback ao usuário do editor): sempre via `gToast` — nunca `alert()`/`console.log()`. É status curto, orientado à ação.
 - **Notificações de produto** (push/inapp para o usuário final): fazem parte do **CRM Visual planejado** (§9), não existem hoje.
+- **Relatório semanal por e-mail** (rede interna, desde 2026-08-12): toda segunda, 09:00 BRT, um e-mail com os materiais publicados nos últimos 7 dias. Roda **fora do app** (GitHub Actions + `scripts/digest-semanal.py`), não é superfície do front.
 
 **Regras / invariantes:**
 - ⛔ **`gToast` é o único canal de feedback ao usuário.** Sem `alert`, sem `confirm` nativo espalhado.
 - Push/inapp para consumidor **não é uma feature atual** do Luma — é roadmap.
+- ⛔ **O relatório semanal nunca é individual:** um envio por grupo, todo mundo em BCC, materiais agrupados por campanha. Nunca um e-mail por material, nunca um e-mail por pessoa.
+- ⛔ **Franqueado só recebe a seção de artes.** Seções internas (RH, quando existir) saem só para `equipe_dm`/`gestao`. A regra vive na tabela `SECOES` do script.
+- ⚠️ Isso **não** contradiz o invariante "o Luma não envia mensagem" (§9): aquilo é sobre **push/inapp para o consumidor do app**, que segue sendo do CleverTap. Comunicação operacional com a própria rede é outra coisa.
 
 ---
 
