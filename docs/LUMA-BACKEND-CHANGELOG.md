@@ -6,6 +6,30 @@
 
 ---
 
+## 2026-08-12 — Relatório semanal por e-mail (novos materiais)
+
+> ⚠️ **NADA APLICADO AINDA.** O banco **não é tocado** (sem migration, sem tabela, sem policy) — o script só **lê** pelo PostgREST com a service_role. Falta cadastrar os secrets no GitHub Actions. Ver "Ações necessárias".
+
+**Contexto.** Não havia canal para avisar a rede quando o marketing publica material novo — o franqueado só descobria abrindo o Luma. Agora, **toda segunda-feira às 09:00 BRT**, sai um relatório com tudo que foi publicado nos últimos 7 dias.
+
+**Onde mora:** `scripts/digest-semanal.py` (Python 3, **só stdlib** — sem pip, sem provedor de e-mail novo) + `.github/workflows/digest-semanal.yml` (cron). Encaixa na infra que já existia para o backup diário; **não** cria camada nova no Supabase (sem Edge Function, sem `pg_cron`, sem `pg_net`).
+
+**Regras de negócio embutidas:**
+- **Nunca e-mail individual.** Um envio por grupo, destinatários em **BCC** (`to_addrs`, sem header) — a lista da rede não vaza e ninguém recebe aviso por material.
+- **Nunca um e-mail por material.** Os materiais da janela são agrupados por campanha dentro de um único e-mail.
+- **Segmentação por papel.** Dois envios: `franqueado` recebe **só a seção de artes**; `equipe_dm`+`gestao` recebem o mesmo hoje e serão os únicos a receber a **seção de RH** quando ela existir. A regra vive na tabela `SECOES` do script (`roles` por seção) — adicionar RH é uma linha, sem `if` espalhado.
+- **Semana sem material novo = nenhum e-mail.**
+- Só entra material **publicado, dentro da validade e em campanha ativa** — o mesmo filtro que a RLS aplica ao franqueado. Anunciar o que não está no catálogo seria pior que não anunciar.
+
+**Leituras (service_role, só SELECT):** `luma.templates` (`publicado`, `publicado_em`, `validade`, `pasta_id`), `luma.pastas` (`nome`, `ativa`), `public.profiles` (`email`, `role`, `ativo`).
+
+**Ações necessárias:**
+1. Cadastrar os secrets em *Settings > Secrets and variables > Actions*: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` (**senha de app**, nunca a pessoal), opcionais `EMAIL_FROM` e `EMAIL_CC`. `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` já existem (backup).
+2. Rodar o workflow no braço com **`dry_run` marcado** e conferir os `preview_email-*.html` no artifact antes do primeiro envio real.
+3. Conferir as 3 roles: `franqueado` só na lista da seção de artes; `equipe_dm` e `gestao` no mesmo envio; ninguém inativo (`profiles.ativo = false`) recebe.
+
+---
+
 ## 2026-08-05 — Edge Function `ai`: task nova `mapear-psd`
 
 > ⚠️ **FUNCTION AINDA NÃO REPUBLICADA.** A mudança está versionada; o deploy não rodou (sem acesso ao Supabase nesta entrega). **Nada quebra sem ele:** a task desconhecida faz a function responder 400, `gAskAI` devolve `null` e cai no caminho de transição (chave do front), que não valida task nenhuma — o recurso funciona, só sem a proteção de cota do servidor. Ver "Ações necessárias".
