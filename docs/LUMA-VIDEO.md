@@ -1,6 +1,6 @@
 # LUMA — Vídeo com IA (PLANO)
 
-> **Fases 0 a 3 implementadas em 2026-08-19** (ver §0 abaixo). O resto continua plano.
+> **Fases 0 a 4 e o Auto Edit da F6 implementados** (ver §0 abaixo). O resto continua plano.
 >
 > **Este arquivo começou como plano.** O objetivo é responder, com o pé no chão do Luma real: *dá para fazer um editor de vídeo em que a IA corta, legenda, põe SFX e usa os assets oficiais da DM?* Resposta curta: **dá — mas não com a arquitetura do plano original (Java + Spring + FFmpeg + fila).** Aquela arquitetura pressupõe camadas que o Luma não tem e não vai ter.
 > Escrito em 2026-08-19 a partir da conversa de ideação (Ryan + Claude). Ordem de autoridade: palavra do Ryan > código real > `luma-brain` > genérico.
@@ -8,13 +8,13 @@
 
 ---
 
-## 0. Estado atual (2026-08-19)
+## 0. Estado atual (2026-08-27)
 
-**Feito e verificado no navegador** — fases 0 a 3 do §9:
+**Feito e verificado no navegador** — fases 0 a 4 do §9, mais o Auto Edit da F6:
 
 | Peça | Onde | Situação |
 |---|---|---|
-| EDL + validador de plano de IA | `js/video/projeto.js` | 18 casos verdes em `tests/video-edl.html` (roda no CI) |
+| EDL + validador de plano de IA | `js/video/projeto.js` | 57 casos verdes em `tests/video-edl.html` (roda no CI) |
 | Compositor (prévia + exportação, um caminho só) | `js/video/compositor.js` | corte medido em pixel real na bancada |
 | Timeline com corte, remoção, reordenação, undo/redo | `js/video/timeline.js` | verificado no navegador |
 | View, entrada de arquivo, inspetor contextual, exportação | `js/video/video.js` | idem |
@@ -22,9 +22,12 @@
 | Motor de regras: **corte automático de silêncio** (sem IA) | `js/video/ingest.js` | pausa real achada no áudio da bancada |
 | Formato de saída (9:16 · 1:1 · 16:9) + **enquadramento com foco** | `js/video/compositor.js` | lado do corte medido em pixel na bancada |
 | **Legenda** queimada no vídeo, com a tipografia da casa | `js/video/legenda.js` | desenho e custo medidos na bancada; a resposta do modelo **não** foi verificada (rede bloqueada aqui) |
-| Bancada do portão F0 | `tests/_video-bancada.html` | 15/15 no Chromium de teste |
+| **Folhas de contato** (os olhos do modelo) | `js/video/ingest.js` | célula certa provada por pixel na bancada |
+| **O diretor**: prompt, contexto e Auto Edit | `js/video/ia.js` | parte pura no CI; a resposta do modelo **não** foi verificada aqui (rede bloqueada) |
+| Auto Edit na interface, com o porquê de cada corte | `js/video/video.js`, `css/modules/video.css` | painel medido no navegador (6,66:1 / 6,08:1) |
+| Bancada do portão F0 | `tests/_video-bancada.html` | 23/23 no Chromium de teste |
 
-**Ainda não existe:** Auto Edit por LLM (fase 6), assets da DM (fase 5), SFX, agente visual. Nenhuma mudança no Supabase — nem migration, nem deploy.
+**Ainda não existe:** assets da DM (fase 5), SFX, vinheta, Command Center (fase 7), agente visual. Nenhuma mudança no Supabase — nem migration, nem deploy.
 
 ### O corte de silêncio, e por que ele não usa IA
 
@@ -65,6 +68,26 @@ A transcrição reaproveita o **WAV que a medição de áudio já produziu** (16
 
 ⚠ **O que não foi verificado:** a resposta do modelo. Neste ambiente a saída de rede para `file://` está bloqueada, então a bancada prova que o áudio é preparado e que a chamada sai (`?ia=1`), não que a transcrição volta boa. Rode com `?ia=1` numa máquina com rede antes de confiar na legenda automática.
 
+### Auto Edit: o que o modelo vê, e o que ele nunca decide
+
+O modelo recebe **folhas de contato** — grades 4×4 de frames, célula de 320px, JPEG q0.6, teto de 6 folhas (≈96 quadros) — com **o tempo queimado em cada célula**. É isso que transforma "vi um produto" em "o produto aparece em 12,4s". Sem o tempo na imagem, o modelo devolve tempos inventados que *parecem* certos.
+
+Amostragem de ~1 quadro por segundo, e vídeo mais longo que o teto é amostrado **mais espaçado** em vez de cortado no meio: o modelo precisa ver o FIM (é onde o CTA vive). Na bancada, 6s de material viraram 1 folha de 35KB — a chamada inteira cabe folgada.
+
+**A divisão de trabalho é a mesma de sempre:** precisão temporal é nossa, semântica é do modelo. As pausas vão no contexto já **medidas**, com a instrução explícita de não recalcular silêncio olhando frames. O modelo escolhe *o que manter e por quê*; a aritmética do corte segue em `projeto.js`.
+
+O `vdFolhasDeContato` usa o **mesmo `_vdBuscar`** do compositor — não há um segundo motor de seek — e devolve o cursor onde o usuário deixou (verificado na bancada).
+
+**Duas ações e nada mais.** O prompt diz, com letras, que só existem `segmentos` e `reframe`, e que vinheta/overlay/música/SFX **não estão disponíveis nesta versão**. Não é excesso de zelo: um modelo que propõe vinheta faz o validador descartar na cara do usuário, e o usuário lê isso como bug. Quando a F5 entregar os assets, muda-se o prompt e o validador junto.
+
+**Todo item precisa de `motivo`, e o motivo aparece na tela.** Uma edição automática sem justificativa é indistinguível de um defeito — o franqueado não tem como saber se o corte em 7,2s foi intenção. O `motivo` é obrigatório no validador (`projeto.js`), viaja **dentro de cada trecho**, e a interface mostra em dois lugares: o painel "O que a IA decidiu" (inspetor, quando nada está selecionado) e o porquê do trecho selecionado.
+
+**O log entra no mesmo ponto do histórico que a edição** (`vdReRegistrar`). Sem isso, desfazer/refazer devolvia os cortes **sem** o motivo deles — o snapshot havia sido tirado antes de o log existir. Bug encontrado pelo próprio caso de teste.
+
+**Durante o Auto Edit a interface trava o transporte** (`vdIaOcupado`), como já fazia na exportação: as dezenas de seeks do ingest disputariam o cursor com o usuário.
+
+⚠ **O que NÃO foi verificado:** a qualidade da edição. Neste ambiente a saída de rede para `file://` está bloqueada, então o que está provado é o caminho — amostra, monta contexto, chama, valida, aplica, mostra o porquê — e não que o plano do modelo é bom. Rode `tests/_video-bancada.html?ia=1` numa máquina com rede. A aferição de verdade é a F9, com vídeos reais da rede.
+
 ### Enquadramento: o caso que decide o produto
 
 O franqueado filma na horizontal e o Reels é vertical. O corte para 9:16 joga fora ~60% da largura, e **centralizar às cegas corta o produto** quando ele não está no meio do quadro. Por isso o segmento tem `foco` (0 a 1) além do `zoom`: um número só, porque o cover-crop só estoura **um** eixo — o mesmo controle serve para escolher esquerda/direita (fonte horizontal em 9:16) e topo/base (fonte vertical em 16:9). `foco` ausente ou 0,5 é exatamente o comportamento anterior, então nada regrediu.
@@ -78,6 +101,7 @@ O `reframe` do EditPlan já aceita `foco` opcional: a IA vai poder pedir só o p
 ```
 node scripts/run-browser-tests.js video-edl     # o portão de lógica (CI)
 tests/_video-bancada.html                       # abra no navegador e clique em "Rodar a bancada"
+tests/_video-bancada.html?ia=1                  # inclui transcrição e Auto Edit de verdade (gasta cota)
 ```
 Para ver o editor: ligue `module.video` no Controle do produto (aba Vídeo aparece para equipe/gestão, no desktop).
 
@@ -422,8 +446,10 @@ Folhas de contato, envelope de áudio (RMS), transcrição via Gemini, legendas 
 Migration + tela do designer (estender `library.js`, aba de vídeo/áudio, marcação de aprovado, `duracao_seg` medida no upload como a Academia já faz) + `vdBuscarAssets` + cache de Blob no IndexedDB.
 **Portão:** vinheta de encerramento e um SFX entram na timeline pela biblioteca real, com policy testada nas 3 roles.
 
-### F6 — Auto Edit (o LLM entra) — **este é o MVP**
+### F6 — Auto Edit (o LLM entra) — **este é o MVP** — *parcialmente feito*
 `video-plano` no servidor, payload montado no front, validador, aplicação no EDL, log de decisões com os `motivo`.
+**Feito** (`js/video/ia.js` + botão "Editar com IA"): folhas de contato com tempo queimado, contexto com as pausas medidas, prompt versionado, plano pelo `vdAplicarPlano` de sempre, log dos `motivo` na tela. O prompt vive **no cliente**, como todas as outras tasks do Luma hoje — a task `video-plano` na Edge Function é o estado final (§7.2).
+**Falta:** o asset e a vinheta do portão (dependem da F5) e a verificação com rede de verdade.
 **Portão (a definição de pronto do MVP):** *"jogue um vídeo e receba um Reels editável — cortes, legendas, um asset, vinheta de encerramento — e exporte."*
 
 ### F7 — Command Center + versões

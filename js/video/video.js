@@ -24,6 +24,10 @@
 
 let vdPronto = false;
 let vdFonte = null;      // {file, url} — fora do EDL de propósito (não é serializável)
+/* A IA busca o vídeo dezenas de vezes para montar as folhas de contato. Deixar o
+   transporte livre nesse meio-tempo faz o usuário disputar o cursor com o ingest
+   — daí o mesmo tratamento que a exportação já recebe. */
+let vdIaOcupado = false;
 
 function vdInit(){
   if(vdPronto) return;
@@ -76,6 +80,7 @@ function _vdMarkup(){
   +     '<span class="vd-flex"></span>'
   +     '<span class="vd-fmt" id="vd-fmt" role="group" aria-label="Formato de saída"></span>'
   +     '<button type="button" class="vd-btn" id="vd-dividir" onclick="vdAcaoDividir()" disabled>Dividir aqui</button>'
+  +     '<button type="button" class="vd-btn" id="vd-ia" onclick="vdAcaoAutoEdit()" disabled>Editar com IA</button>'
   +     '<button type="button" class="vd-btn" id="vd-silencio" onclick="vdAcaoCortarSilencio()" disabled>Cortar silêncios</button>'
   +     '<button type="button" class="vd-btn" id="vd-legenda" onclick="vdAcaoLegenda()" disabled>Legendas</button>'
   +     '<button type="button" class="vd-btn" id="vd-undo" onclick="vdAcaoDesfazer()" disabled>Desfazer</button>'
@@ -253,6 +258,62 @@ async function vdAcaoCortarSilencio(){
 }
 
 /**
+ * AUTO EDIT — a IA assiste ao vídeo e devolve um plano de corte.
+ *
+ * A interface aqui não decide NADA sobre a edição: quem escolhe é video/ia.js,
+ * quem valida é vdValidarPlano, quem aplica é vdAplicarPlano. O que este handler
+ * faz é o que só a interface pode fazer — pedir confirmação, mostrar em que etapa
+ * a espera está e, no fim, MOSTRAR O PORQUÊ de cada corte.
+ *
+ * ⚠ O porquê não é enfeite: uma edição automática sem justificativa é indistinguível
+ * de um bug, e o franqueado não tem como saber se o corte em 7,2s foi intenção ou
+ * defeito. É por isso que `motivo` é obrigatório no validador e aparece no inspetor.
+ */
+async function vdAcaoAutoEdit(){
+  if(!vdProj || vdExportando() || vdIaOcupado) return;
+  if(typeof gAiReady !== 'function' || !gAiReady()){
+    gToast('A IA não está disponível nesta sessão. Você ainda pode cortar silêncios e editar à mão.', 'error');
+    return;
+  }
+  // Mesmo aviso do corte de silêncio: o plano substitui a lista de trechos inteira.
+  if(vdPodeDesfazer() && typeof gConfirm === 'function'){
+    const segue = await gConfirm('A edição da IA refaz os trechos e substitui os cortes que você fez à mão. Continuar?');
+    if(!segue) return;
+  }
+
+  const caixa = document.getElementById('vd-progresso');
+  const barra = document.getElementById('vd-progresso-barra');
+  const txt = document.getElementById('vd-progresso-txt');
+  caixa.hidden = false; barra.style.transform = 'scaleX(0)';
+  txt.textContent = 'Preparando…';
+  vdIaOcupado = true;
+  _vdSincronizarTransporte();
+
+  const r = await vdAutoEdit((p, etapa) => {
+    barra.style.transform = 'scaleX(' + Math.min(Math.max(p, 0), 1).toFixed(4) + ')';
+    // Etapa em vez de porcentagem seca: "decidindo os cortes" explica por que a
+    // barra fica parada — é a espera da rede, e não um travamento.
+    if(etapa) txt.textContent = 'A IA está ' + etapa + '…';
+  });
+
+  vdIaOcupado = false;
+  caixa.hidden = true;
+
+  if(!r.ok){
+    gToast('A edição automática não saiu: ' + r.erro + '. Nada foi alterado.', 'error');
+    if(r.descartes) console.warn('[video] plano da IA rejeitado:', r.descartes);
+    _vdSincronizarTransporte();
+    return;
+  }
+  vdSel = null;
+  vdIrPara(0);
+  vdTlRender(); vdRenderInspetor(); _vdSincronizarTransporte();
+  if(r.descartes && r.descartes.length) console.warn('[video] descartes do plano da IA:', r.descartes);
+  gToast('A IA editou: ' + vdFmtTempo(r.antes) + ' → ' + vdFmtTempo(r.depois)
+    + ' em ' + vdSegs().length + ' trecho(s). Veja embaixo o motivo de cada escolha e revise antes de exportar.');
+}
+
+/**
  * Legendas. Na primeira vez transcreve (chamada de IA); depois é só liga/desliga —
  * refazer a transcrição a cada clique gastaria cota para receber o mesmo texto.
  *
@@ -408,13 +469,28 @@ function _vdRotuloFoco(eixo, f){
   return f < 0.35 ? nomes[0] : (f > 0.65 ? nomes[2] : nomes[1]);
 }
 
+/* O que a IA fez e por quê. Vive no inspetor porque é o painel que já responde
+   "o que está selecionado" — e depois de um Auto Edit a resposta honesta é "a IA
+   mexeu em tudo, olhe o que ela decidiu". gEsc porque o texto vem do modelo. */
+function _vdMarkupIaLog(){
+  const log = (vdProj && vdProj.iaLog) || [];
+  if(!log.length) return '';
+  const rot = { segmentos:'Corte', reframe:'Enquadramento' };
+  return '<div class="vd-ia-log">'
+    + '<div class="vd-insp-head">O que a IA decidiu</div>'
+    + '<ul>' + log.slice(0, 12).map(a =>
+        '<li><span>' + gEsc(rot[a.tipo] || a.tipo) + '</span>' + gEsc(a.motivo) + '</li>').join('')
+    + '</ul></div>';
+}
+
 function vdRenderInspetor(){
   const el = document.getElementById('vd-inspector');
   if(!el) return;
   const i = vdSel ? vdSegIdx(vdSel) : -1;
   if(i < 0){
     el.innerHTML = vdProj
-      ? '<p class="vd-hint">Clique num trecho da linha do tempo para ajustar. <strong>Espaço</strong> toca, <strong>S</strong> divide no cursor.</p>'
+      ? (_vdMarkupIaLog()
+         + '<p class="vd-hint">Clique num trecho da linha do tempo para ajustar. <strong>Espaço</strong> toca, <strong>S</strong> divide no cursor.</p>')
       : '';
     return;
   }
@@ -422,7 +498,12 @@ function vdRenderInspetor(){
   const eixo = vdEixoDeCorte();
   const foco = (s.foco == null) ? 0.5 : s.foco;
   el.innerHTML = ''
-    + '<div class="vd-insp-head">Trecho ' + (i + 1) + ' de ' + vdSegs().length + '</div>'
+    // O motivo VIAJA no trecho (projeto.js grava em cada segmento), então o
+    // "por quê" continua visível depois de selecionar — que é justo quando o
+    // usuário está decidendo se aceita o corte da IA ou desfaz.
+    + '<div class="vd-insp-ident"><div class="vd-insp-head">Trecho ' + (i + 1) + ' de ' + vdSegs().length + '</div>'
+    +   (s.motivo ? '<div class="vd-insp-porque">' + gEsc(s.motivo) + '</div>' : '')
+    + '</div>'
     + '<dl class="vd-insp-grid">'
     +   '<dt>Entra</dt><dd>' + vdFmtTempo(s.de) + '</dd>'
     +   '<dt>Sai</dt><dd>' + vdFmtTempo(s.ate) + '</dd>'
@@ -446,7 +527,7 @@ function vdRenderInspetor(){
 /* ── ESTADO DOS BOTÕES ───────────────────────────────────────────────── */
 
 function _vdSincronizarTransporte(){
-  const tem = !!(vdProj && vdSegs().length);
+  const tem = !!(vdProj && vdSegs().length) && !vdIaOcupado;
   const play = document.getElementById('vd-play');
   if(play){
     play.disabled = !tem;
@@ -458,6 +539,7 @@ function _vdSincronizarTransporte(){
   const set = (id, on) => { const b = document.getElementById(id); if(b) b.disabled = !on; };
   set('vd-dividir', tem);
   set('vd-silencio', tem);
+  set('vd-ia', tem && typeof gAiReady === 'function' && gAiReady());
   set('vd-legenda', tem);
   const bl = document.getElementById('vd-legenda');
   if(bl && tem){
@@ -466,8 +548,8 @@ function _vdSincronizarTransporte(){
     bl.classList.toggle('sel', temCards && vdProj.legendas.ativo);
   }
   set('vd-exportar', tem && !vdExportando());
-  set('vd-undo', vdPodeDesfazer());
-  set('vd-redo', vdPodeRefazer());
+  set('vd-undo', vdPodeDesfazer() && !vdIaOcupado);
+  set('vd-redo', vdPodeRefazer() && !vdIaOcupado);
   vdTlPlayhead(vdTempoLinha());
 }
 
@@ -475,7 +557,7 @@ function _vdSincronizarTransporte(){
    Só quando o módulo está na frente e o foco não está num campo — senão o
    atalho engole o que a pessoa está digitando em outra área do Luma. */
 function _vdTecla(ev){
-  if(!document.body.classList.contains('mode-video') || !vdProj || vdExportando()) return;
+  if(!document.body.classList.contains('mode-video') || !vdProj || vdExportando() || vdIaOcupado) return;
   const alvo = ev.target;
   if(alvo && (/^(INPUT|TEXTAREA|SELECT)$/.test(alvo.tagName) || alvo.isContentEditable)) return;
   const k = ev.key.toLowerCase();

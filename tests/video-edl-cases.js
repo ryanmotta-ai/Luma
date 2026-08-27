@@ -432,6 +432,81 @@
     assert(c&&c.fontSize>0,'template inválido derrubou a legenda');
   });
 
+  /* ── O DIRETOR (js/video/ia.js) ────────────────────────────────────────
+     Só a parte que é PURA. A chamada ao modelo não entra em CI: custa cota, depende
+     de rede e a resposta muda. O que dá para blindar é o que o modelo LÊ — e um
+     contexto que mente (pausa errada, asset que não existe) produz plano ruim sem
+     que nada quebre, que é o pior tipo de defeito. */
+
+  test('o contexto da IA leva as pausas MEDIDAS, não uma estimativa',()=>{
+    novo(30);
+    const ctx=vdMontarContexto({ok:true,silencios:[{de:4.8,ate:7.2},{de:19.1,ate:20.5}]});
+    assert(/4\.8 a 7\.2/.test(ctx),'a primeira pausa medida não apareceu no contexto');
+    assert(/19\.1 a 20\.5/.test(ctx),'a segunda pausa medida não apareceu no contexto');
+    assert(/2\.4s/.test(ctx),'a duração da pausa deveria vir calculada');
+  });
+
+  test('sem áudio legível o contexto DIZ que não sabe, em vez de omitir',()=>{
+    novo(30);
+    const ctx=vdMontarContexto({ok:false,erro:'trilha ausente',silencios:[]});
+    assert(/nenhuma pausa/.test(ctx),'deveria declarar que não há pausa detectada');
+    assert(/trilha ausente/.test(ctx),'o motivo da falha deveria chegar ao modelo');
+  });
+
+  test('o contexto nunca oferece asset que não existe nesta versão',()=>{
+    novo(30);
+    const ctx=vdMontarContexto({ok:true,silencios:[]});
+    assert(/ASSETS DISPONÍVEIS: nenhum/.test(ctx),'sem esta linha o modelo propõe vinheta e o validador descarta na cara do usuário');
+  });
+
+  test('material horizontal em saída vertical avisa o modelo sobre o corte',()=>{
+    vdNovoProjeto({nome:'h.mp4',dur:20,w:1920,h:1080,mb:9});
+    vdProj.formato='9:16';
+    const ctx=vdMontarContexto({ok:true,silencios:[]});
+    assert(/horizontal/.test(ctx),'a orientação do material deveria estar no contexto');
+    assert(/foco/.test(ctx),'sem o aviso, o modelo não sabe que precisa escolher o enquadramento');
+    vdProj.formato='16:9';
+    assert(!/joga fora as laterais/.test(vdMontarContexto({ok:true,silencios:[]})),'avisou de corte num formato que não corta');
+  });
+
+  test('montar o contexto não altera o projeto',()=>{
+    novo(30);
+    vdDividir(10);
+    const antes=JSON.stringify(vdProj);
+    vdMontarContexto({ok:true,silencios:[{de:1,ate:2}]});
+    assert(JSON.stringify(vdProj)===antes,'vdMontarContexto mexeu no projeto — não é mais pura');
+  });
+
+  test('a transcrição existente entra no contexto com os tempos',()=>{
+    novo(30);
+    vdProj.legendas={ativo:true,template:'dm_cap_01',cards:[{de:0,ate:2.5,texto:'chegou o combo'}]};
+    const ctx=vdMontarContexto({ok:true,silencios:[]});
+    assert(/chegou o combo/.test(ctx),'a fala transcrita não chegou ao modelo');
+    assert(/\[0\.0–2\.5\]/.test(ctx),'a fala deveria vir com o intervalo de tempo');
+  });
+
+  test('o log da IA sobrevive a desfazer e refazer',()=>{
+    novo(30);
+    const r=vdAplicarPlano({acoes:[{tipo:'segmentos',manter:[{de:0,ate:8}],motivo:'remove a pausa medida em 8s'}]});
+    assert(r.ok,'o plano de teste deveria ser válido: '+JSON.stringify(r.descartes||[]));
+    vdProj.iaLog=[{tipo:'segmentos',motivo:'remove a pausa medida em 8s'}];
+    assert(vdReRegistrar(),'vdReRegistrar deveria costurar o log ao snapshot atual');
+    assert(vdDesfazer(),'não desfez a edição da IA');
+    assert(!(vdProj.iaLog&&vdProj.iaLog.length),'o material original não deveria carregar log de IA');
+    assert(vdRefazer(),'não refez a edição da IA');
+    assert(vdProj.iaLog&&vdProj.iaLog.length===1,'refazer devolveu os cortes SEM o motivo deles');
+  });
+
+  test('vdReRegistrar não cria entrada nova no histórico',()=>{
+    novo(30);
+    vdDividir(10);
+    const podia=vdPodeDesfazer();
+    vdProj.iaLog=[{tipo:'reframe',motivo:'teste'}];
+    vdReRegistrar();
+    assert(vdDesfazer()&&podia,'deveria desfazer a divisão em UM passo');
+    assert(vdSegs().length===1,'vdReRegistrar empilhou um snapshot extra — o usuário desfaria duas vezes');
+  });
+
   let passed=0; const falhas=[];
   for(const item of cases){
     const li=document.createElement('li'); li.className='case';

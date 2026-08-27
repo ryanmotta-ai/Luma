@@ -129,6 +129,19 @@
     return { r:c.r, seg:Math.round(c.r/COR_POR_SEG) };
   }
 
+  /* Decodifica uma folha de contato de volta para pixels. É o único jeito de
+     AFIRMAR que a célula k mostra o segundo k: o retorno de vdFolhasDeContato é
+     JPEG em base64, e confiar no laço que a montou seria testar o teste. */
+  async function abrirFolha(parte){
+    const img=new Image();
+    const pronto=new Promise((ok,falhou)=>{ img.onload=()=>ok(); img.onerror=()=>falhou(new Error('a folha não abriu')); });
+    img.src='data:'+parte.mimeType+';base64,'+parte.data;
+    await pronto;
+    const c=document.createElement('canvas'); c.width=img.naturalWidth; c.height=img.naturalHeight;
+    const ctx=c.getContext('2d'); ctx.drawImage(img,0,0);
+    return { ctx:ctx, w:c.width, h:c.height };
+  }
+
   async function irEEsperar(t){
     vdIrPara(t);
     // O seek do <video> é assíncrono; sem esperar, lê-se o frame anterior.
@@ -171,6 +184,49 @@
         reg('achou a pausa de 2s no meio do material', med.silencios.length===1 && p && p.de>1.5 && p.de<2.6 && p.ate>3.5 && p.ate<4.6,
             p?('pausa de '+p.de.toFixed(2)+'s a '+p.ate.toFixed(2)+'s'):'nenhuma pausa encontrada');
         notas.push('áudio: '+med.silencios.length+' pausa(s), limiar '+med.limiar.toFixed(4));
+      }
+
+      /* FOLHAS DE CONTATO — os olhos do modelo. Read-only sobre o EDL, então roda
+         antes dos cortes. O que se prova aqui: a célula k mostra o segundo k (a cor
+         por segundo do material sintético entrega isso), o tempo está queimado, e o
+         cursor do usuário volta pro lugar. Uma folha temporalmente errada faz o
+         modelo cortar no tempo errado com toda a convicção do mundo. */
+      marco('vdFolhasDeContato');
+      const tCursor=vdVideoEl.currentTime;
+      const folhas=await vdFolhasDeContato();
+      reg('montou as folhas de contato', !!(folhas.ok && folhas.partes.length && folhas.quadros>=3),
+          folhas.ok?(folhas.partes.length+' folha(s) · '+folhas.quadros+' quadros · '+folhas.kb+'KB · 1 quadro a cada '+folhas.passo.toFixed(2)+'s')
+                   :('não montou: '+folhas.erro));
+      if(folhas.ok){
+        notas.push('folhas de contato: '+folhas.quadros+' quadros em '+folhas.partes.length+' folha(s), '+folhas.kb+'KB');
+        reg('as folhas cabem no orçamento de uma chamada', folhas.kb<2048, folhas.kb+'KB de imagem para o modelo');
+        const f=await abrirFolha(folhas.partes[0]);
+        const celW=Math.round(f.w/4), celH=Math.round(f.h/4);
+        const naCelula=(k,fx,fy)=>{
+          const col=k%4, lin=Math.floor(k/4);
+          const d=f.ctx.getImageData(col*celW+Math.round(celW*fx), lin*celH+Math.round(celH*fy),1,1).data;
+          return { r:d[0], g:d[1], b:d[2] };
+        };
+        const leituras=[];
+        for(let k=0;k<Math.min(folhas.quadros,16);k++){
+          const c=naCelula(k,0.15,0.85);            // abaixo do dígito branco e da faixa azul
+          leituras.push({ k:k, r:c.r, seg:Math.round(c.r/COR_POR_SEG),
+                          esperado:Math.min(Math.floor(k*folhas.passo), SEG_MATERIAL-1) });
+        }
+        const ordenado=leituras.every((o,i)=>!i||o.seg>=leituras[i-1].seg);
+        const cobre=leituras[0].seg<=1 && leituras[leituras.length-1].seg>=SEG_MATERIAL-2;
+        const batem=leituras.filter(o=>Math.abs(o.seg-o.esperado)<=1).length;
+        reg('cada célula da folha mostra o segundo certo do material',
+            ordenado && cobre && batem>=Math.ceil(leituras.length*0.7),
+            leituras.map(o=>o.k+':'+o.seg+(o.seg===o.esperado?'':'(esperado '+o.esperado+')')).join(' ')
+            +' · em ordem: '+ordenado+' · cobre início e fim: '+cobre);
+        // O tempo queimado é o que transforma "vi um produto" em "o produto aparece
+        // em 12,4s". Sem ele a folha é bonita e inútil.
+        const placa=brancosNaFaixa(f.ctx, Math.min(90,celW), 10, 32);
+        reg('o tempo está queimado na célula', placa>25, placa+' pixels claros na placa do canto');
+        reg('o ingest devolve o cursor onde o usuário deixou',
+            Math.abs(vdVideoEl.currentTime-tCursor)<0.35,
+            'cursor em '+vdVideoEl.currentTime.toFixed(2)+'s (estava em '+tCursor.toFixed(2)+'s)');
       }
 
       await irEEsperar(1.5);
@@ -316,6 +372,33 @@
           topo.b>120 && topo.b>topo.r+80 && base.b<topo.b/3,
           'foco no topo mostra a faixa azul (azul '+topo.b+' vs vermelho '+topo.r+') · foco na base sai dela (azul '+base.b+')');
       notas.push('enquadramento 16:9 · topo(b'+topo.b+'/r'+topo.r+') base(r'+base.r+'/b'+base.b+')');
+
+      /* AUTO EDIT DE PONTA A PONTA — por último, porque a IA substitui a lista de
+         trechos inteira. Só com ?ia=1: gasta cota e depende de rede.
+         O que se mede aqui não é "a IA editou bem" (isso é gosto, e o material é
+         sintético): é se o plano dela ATRAVESSA o validador e vira edição, e se cada
+         ação vem com motivo. Um plano bonito que o validador descarta é zero. */
+      if(/[?&]ia=1/.test(location.search)){
+        marco('vdAutoEdit');
+        const etapas=[];
+        const ia=await vdAutoEdit((p,etapa)=>{ if(etapa&&etapas[etapas.length-1]!==etapa) etapas.push(etapa); });
+        notas.push('auto edit: '+(ia.ok?(ia.acoes.length+' ação(ões), '+vdFmtTempo(ia.antes)+' → '+vdFmtTempo(ia.depois)):('falhou — '+ia.erro)));
+        const nossoErro=/carregado|disponível|amostrar|validação|formato de plano/i.test(ia.erro||'');
+        reg('o plano da IA atravessa o validador e vira edição',
+            ia.ok || !nossoErro,
+            ia.ok ? (ia.acoes.length+' ação(ões) · '+vdFmtTempo(ia.antes)+' → '+vdFmtTempo(ia.depois)
+                     +' em '+vdSegs().length+' trecho(s) · '+ia.quadros+' quadros enviados ('+ia.kb+'KB)'
+                     +' · etapas: '+etapas.join(' → '))
+                  : ('não completou aqui ('+ia.erro+') — etapas alcançadas: '+etapas.join(' → ')));
+        if(ia.ok){
+          reg('toda ação da IA chegou com motivo', ia.acoes.every(x=>x.motivo&&x.motivo.length>2),
+              ia.acoes.map(x=>x.tipo+': '+x.motivo).join(' | ').slice(0,300));
+          reg('o inspetor mostra o porquê de cada corte',
+              /vd-ia-log/.test(document.getElementById('vd-inspector').innerHTML)
+              || (vdSel=null, vdRenderInspetor(), /vd-ia-log/.test(document.getElementById('vd-inspector').innerHTML)),
+              'painel do log presente no inspetor');
+        }
+      }
     }catch(e){
       reg('a bancada terminou sem exceção', false, String(e&&e.message||e));
       console.error('[bancada]',e);
