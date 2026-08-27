@@ -275,6 +275,8 @@
 
   .lp-mobile-close {
     display: flex;
+    width: var(--tap-min);
+    height: var(--tap-min);
   }
 
   .lp-stage {
@@ -340,7 +342,7 @@
     height: 44px;
     padding: 0 16px;
     border-radius: var(--r-pill);
-    background: var(--dm-orange);
+    background: var(--dm-orange-d);
     color: var(--white);
     border: none;
     font-family: 'Roboto', sans-serif;

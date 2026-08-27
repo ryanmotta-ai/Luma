@@ -905,7 +905,7 @@ function fCampEl(c,isRec,ghost){
   return `<div class="camp-card ${!ghost&&fState.camp&&c.id===fState.camp.id?'selected':''} ${isRec?'recommended':''}${ghost?' ghost':''}"${_tema?` data-camp-theme="${_tema}"`:''}${ghost?' aria-disabled="true"':` role="button" tabindex="0" aria-label="Abrir campanha ${gEsc(c.name)}" onclick="fSelectCamp('${c.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();fSelectCamp('${c.id}')}"`}>
     ${favBtn}
     ${adminBtn}
-    ${ghost?'':`<div class="camp-prev-btn" onclick="event.stopPropagation();fOpenPreview(event,'${c.id}')">PRÉVIA</div>`}
+    ${ghost?'':`<button type="button" class="camp-prev-btn" onclick="event.stopPropagation();fOpenPreview(event,'${c.id}')" aria-label="Ver prévia de ${gEsc(c.name)}">PRÉVIA</button>`}
     <div class="camp-thumb ${cover?'has-cover':''}" style="${thumbStyle}">
       ${c.badge?`<div class="camp-badge">${gEsc(c.badge)}</div>`:''}
       ${_hasNew?`<div class="camp-new">novo</div>`:''}
@@ -1063,10 +1063,10 @@ function fRenderCatalogs(a,o,opts){
   // "Recomendada agora" só fora da busca (senão fica um título órfão)
   const rec=searching?null:(a.find(c=>c.popular)||null);
   cat.innerHTML=backRow+`
-    ${rec?`<div class="sec-title">A campanha do momento</div>
+    ${rec?`<h2 class="sec-title">A campanha do momento</h2>
     <div class="camp-grid" id="camp-rec"></div>`:''}
-    ${a.length?`<div class="sec-title">${searching?'Resultados':'Ativas agora'}</div><div class="camp-grid" id="camp-main"></div>`:''}
-    ${o.length?`<div class="sec-title">${searching?'Outros resultados':'Outras campanhas'}</div><div class="camp-grid" id="camp-other"></div>`:''}`;
+    ${a.length?`<h2 class="sec-title">${searching?'Resultados':'Ativas agora'}</h2><div class="camp-grid" id="camp-main"></div>`:''}
+    ${o.length?`<h2 class="sec-title">${searching?'Outros resultados':'Outras campanhas'}</h2><div class="camp-grid" id="camp-other"></div>`:''}`;
   if(rec) document.getElementById('camp-rec')?.insertAdjacentHTML('beforeend',fCampEl(rec,true));
   const main=document.getElementById('camp-main'); if(main) main.innerHTML=a.filter(c=>!rec||c.id!==rec.id).map(c=>fCampEl(c,false)).join('');
   if(o.length) document.getElementById('camp-other')?.insertAdjacentHTML('beforeend',o.map(c=>fCampEl(c,false)).join(''));

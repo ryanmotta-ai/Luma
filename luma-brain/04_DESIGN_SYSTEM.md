@@ -178,6 +178,19 @@ Keyframes globais em `css/02-animations.css` (`gFadeInUp`, `gPopIn`…), com gua
 
 Foco visível sempre (`:focus-visible` com outline laranja). Alvos de toque ≥44px no mobile.
 
+**Contraste do par laranja — medido, não estimado** (auditoria de 2026-08-19, no navegador):
+
+| Par | Razão | Serve para |
+|---|---|---|
+| branco sobre `--dm-orange` #FF9000 | **2,27:1** | ⛔ nada com texto. É o pior contraste do produto. |
+| branco sobre `--dm-orange-d` #F85400 | **3,35:1** | AA-large (≥18,66px bold). É o teto do par com branco. |
+| `--dm-orange-d` como TEXTO sobre branco | **3,35:1** | idem — daí a §77 mandar `--dm-red` no texto pequeno. |
+| `#0A0A0A` sobre `--dm-orange` #FF9000 | **8,6:1** | AA e AAA. A única forma de passar com o laranja claro. |
+
+Consequência prática: **CTA com texto pequeno usa `--dm-orange-d` de fundo** (é a §26) e ainda assim fica em 3,35 — abaixo do 4,5 que a AA pede para texto pequeno. Fechar esse último vão exige decisão de marca: texto quase-preto sobre o laranja, ou um laranja mais escuro que sai da paleta. Enquanto não houver decisão, `--dm-orange-d` é o melhor que a paleta documentada permite, e **`--dm-orange` como fundo de texto pequeno é regressão**.
+
+⚠️ Alvo de toque pequeno por desenho (enfeite de canto, como o favorito do card) não precisa inflar: um halo `::after` de `var(--tap-min)` centrado recebe o dedo sem mexer no visual. Padrão em uso em `.camp-fav` / `.camp-prev-btn`.
+
 ### Chips / filtros
 
 Pílula (`--r-pill`), borda fina. **Ativo = fundo `rgba(255,144,0,.12)` + borda `--dm-orange` + texto laranja**, contagem ao lado. É o padrão dos filtros do histórico do franqueado e do painel Campos (Todos / Em uso / Livres).

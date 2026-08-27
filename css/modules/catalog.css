@@ -54,6 +54,11 @@
   transition:background .12s,color .12s;
 }
 .cat-back-btn:hover{background:var(--gray-light,#F2F2F2);color:var(--text,#0A0A0A)}
+/* No celular o "voltar" media 26px de altura — abaixo do --tap-min de 44px que o
+   design system exige (§Acessibilidade). Cresce só a área, o texto não muda. */
+@media (max-width:680px){
+  .cat-back-btn{min-height:var(--tap-min);padding:6px 12px 6px 8px}
+}
 .cat-back-label{font-size:14px;font-weight:800;color:var(--text,#0A0A0A)}
 
 body:not(.theme-light) .cat-card{background:var(--d-surf);border-color:var(--d-border2)}

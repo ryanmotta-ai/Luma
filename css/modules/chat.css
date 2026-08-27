@@ -405,7 +405,7 @@ body:not(.theme-light) .art-bulk-txt em { color: var(--d-text2) }
   transform: scale(.97);
 }
 .art-btn.pri {
-  background: #f85400;
+  background: var(--dm-orange-d);   /* era #f85400 solto: mesma cor, agora pelo token */
   color: var(--white);
   border: none;
   box-shadow: 0 3px 8px rgba(248, 84, 0, 0.25);

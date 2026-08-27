@@ -94,8 +94,8 @@ body.f-history-mode #f-hist-tab{display:block!important}
 .f-history-head-actions button{min-height:42px;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 15px;border-radius:10px;font-family:'Roboto',sans-serif;font-size:12px;font-weight:800;cursor:pointer;transition:transform var(--dur-fast) var(--ease-spring),border-color var(--dur-fast) var(--ease-standard),background var(--dur-fast) var(--ease-standard)}
 .f-history-home{border:1px solid var(--gray-mid);background:var(--white);color:var(--text-2)}
 .f-history-home:hover{border-color:var(--dm-orange-tint);background:var(--dm-orange-bg);color:var(--dm-orange-d);transform:translateY(-1px)}
-.f-history-new{border:1px solid var(--dm-orange);background:var(--dm-orange);color:var(--white);box-shadow:0 7px 18px color-mix(in srgb,var(--dm-orange-d) 18%,transparent)}
-.f-history-new:hover{background:var(--dm-orange-d);border-color:var(--dm-orange-d);transform:translateY(-1px)}
+.f-history-new{border:1px solid var(--dm-orange-d);background:var(--dm-orange-d);color:var(--white);box-shadow:0 7px 18px color-mix(in srgb,var(--dm-orange-d) 18%,transparent)}
+.f-history-new:hover{filter:brightness(.94);transform:translateY(-1px)}
 .f-history-head-actions button:focus-visible{outline:2px solid var(--dm-orange);outline-offset:3px}
 .f-history-toolbar{display:flex;align-items:center;gap:12px;padding:10px;background:var(--white);border:1px solid var(--gray-light);border-radius:14px;box-shadow:0 8px 28px rgba(10,10,10,.035)}
 /* Limpar biblioteca: discreto em repouso (é destrutivo, não convida), vermelho só no
@@ -172,7 +172,7 @@ body:not(.theme-light) .hist-thumb-real.is-preview-ready{background:var(--d-surf
 .empty-title{font-size:15px;font-weight:700;color:var(--text-2);font-family:'Roboto',sans-serif}
 .empty-text{font-size:12px;color:var(--text-3);line-height:1.6;max-width:280px}
 /* Laranja escuro no fundo: texto branco passa AA-large (3.35 vs 2.27 no #FF9000). */
-.empty-cta{margin-top:8px;padding:10px 18px;font-size:13px;font-weight:700;border:none;border-radius:var(--r-pill);background:var(--dm-orange-d);color:var(--white);cursor:pointer;font-family:'Roboto',sans-serif;box-shadow:0 2px 8px color-mix(in srgb,var(--dm-orange-d) 30%,transparent);transition:all .15s}
+.empty-cta{margin-top:8px;padding:10px 18px;min-height:var(--tap-min);font-size:13px;font-weight:700;border:none;border-radius:var(--r-pill);background:var(--dm-orange-d);color:var(--white);cursor:pointer;font-family:'Roboto',sans-serif;box-shadow:0 2px 8px color-mix(in srgb,var(--dm-orange-d) 30%,transparent);transition:all .15s}
 .empty-cta:hover{filter:brightness(.92);transform:translateY(-1px);box-shadow:0 4px 12px color-mix(in srgb,var(--dm-orange-d) 40%,transparent)}
 .empty-cta.ghost{background:transparent;color:var(--dm-orange-d);border:1.5px solid var(--dm-orange);box-shadow:none;filter:none}
 .empty-cta.ghost:hover{background:var(--dm-orange-bg)}
@@ -715,6 +715,13 @@ body.f-material-browser #f-chat-head{display:none}
   /* Alvos de toque ≥44px */
   #f-snd{width:var(--tap-min);height:var(--tap-min)}
   .f-tab{min-height:var(--tap-min)}
+  #f-search{min-height:var(--tap-min)}
+  /* ALVO DE TOQUE sem mexer no desenho: o favorito e o PRÉVIA são enfeites de canto
+     (26px e 16px de altura medidos). Em vez de inflar a caixa visível — que empurraria
+     a arte do card —, um halo invisível de 44px centrado neles recebe o dedo.
+     Fica dentro do card (que tem overflow:hidden), então não rouba clique do vizinho. */
+  .camp-fav::after,.camp-prev-btn::after{content:'';position:absolute;top:50%;left:50%;
+    width:var(--tap-min);height:var(--tap-min);transform:translate(-50%,-50%)}
   /* Últimos itens do catálogo/histórico não somem sob o home indicator */
   #f-catalog,#f-hist-tab{padding-bottom:calc(16px + var(--safe-bottom))}
   /* Catálogo de materiais ocupa a tela toda no mobile (vive no #fran-right) */
