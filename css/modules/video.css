@@ -77,9 +77,10 @@ body.mode-video #view-video{
 }
 .vd-progresso[hidden]{ display:none; }   /* mesmo empate de especificidade do estado vazio */
 .vd-progresso-barra{
-  height:4px; width:0%; align-self:stretch;
+  height:4px; width:100%; align-self:stretch;
   background:var(--dm-orange); border-radius:var(--r-pill);
-  transition:width var(--dur-fast) linear;
+  transform:scaleX(0); transform-origin:left center;
+  transition:transform var(--dur-fast) linear;
 }
 
 /* ── BARRA DE TRANSPORTE ───────────────────────────────────────────── */

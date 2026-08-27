@@ -189,6 +189,8 @@ Foco visível sempre (`:focus-visible` com outline laranja). Alvos de toque ≥4
 
 Consequência prática: **CTA com texto pequeno usa `--dm-orange-d` de fundo** (é a §26) e ainda assim fica em 3,35 — abaixo do 4,5 que a AA pede para texto pequeno. Fechar esse último vão exige decisão de marca: texto quase-preto sobre o laranja, ou um laranja mais escuro que sai da paleta. Enquanto não houver decisão, `--dm-orange-d` é o melhor que a paleta documentada permite, e **`--dm-orange` como fundo de texto pequeno é regressão**.
 
+⚠️ **Hex literal em mockup de outra marca é PROPOSITAL, não dívida.** A prévia "Como fica postado" e o mockup de status reproduzem Instagram e WhatsApp (`#0B141A`, `#005C4B`, `#8696A0`, `#FAF9F6`…). Tokenizar isso é regressão: `var(--text)` seguiria o tema do Luma e deixaria o feed do Instagram com texto branco sobre branco no tema escuro. Numa varredura de 2026-08-19, dos 106 hex "soltos" no franqueado, **49 eram reais e só 4 deviam virar token** — o resto era fallback de `var()`, comentário, ou cor de outra marca.
+
 ⚠️ Alvo de toque pequeno por desenho (enfeite de canto, como o favorito do card) não precisa inflar: um halo `::after` de `var(--tap-min)` centrado recebe o dedo sem mexer no visual. Padrão em uso em `.camp-fav` / `.camp-prev-btn`.
 
 ### Chips / filtros

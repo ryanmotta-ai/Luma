@@ -1379,8 +1379,8 @@ body.camp-theme-muchplus .f-assistant-brand > :not(.muchplus-motion-wrap){displa
    Luma (e o véu aparece antes de os tokens trocarem). */
 #f-camp-veil{position:fixed;inset:0;z-index:2000;pointer-events:none;display:flex;align-items:center;justify-content:center}
 #f-camp-veil .veil-layer{position:absolute;inset:0}
-#f-camp-veil .veil-1{background:#FFB900}
-#f-camp-veil .veil-2{background:#F8006E}
+#f-camp-veil .veil-1{background:var(--dm-yellow)}
+#f-camp-veil .veil-2{background:var(--muchplus-magenta)}
 #f-camp-veil img{position:relative;width:min(42vw,300px);height:auto;filter:drop-shadow(0 18px 44px rgba(0,0,0,.22))} /* -trim é 2.7:1 — 300px de largura mantém o tamanho visual do quadrado antigo */
 /* Timeline: amarelo varre 0–750ms; magenta varre 200–950ms (o JS troca o tema aos
    ~700ms, com a tela já coberta); o véu inteiro evapora 1.2s–1.6s. O remove no JS

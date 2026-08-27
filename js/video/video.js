@@ -344,11 +344,11 @@ async function vdAcaoExportar(){
   const barra = document.getElementById('vd-progresso-barra');
   const caixa = document.getElementById('vd-progresso');
   const txt = document.getElementById('vd-progresso-txt');
-  caixa.hidden = false; barra.style.width = '0%';
+  caixa.hidden = false; barra.style.transform = 'scaleX(0)';
   txt.textContent = 'Exportando em tempo real — não troque de aba.';
   document.getElementById('vd-exportar').disabled = true;
 
-  const r = await vdExportar(p => { barra.style.width = Math.round(p * 100) + '%'; });
+  const r = await vdExportar(p => { barra.style.transform = 'scaleX(' + Math.min(Math.max(p, 0), 1).toFixed(4) + ')'; });
 
   caixa.hidden = true;
   document.getElementById('vd-exportar').disabled = false;

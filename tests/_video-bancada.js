@@ -239,6 +239,22 @@
                  :('rejeitado: '+JSON.stringify(ap.descartes)));
         if(ap.ok) notas.push('corte de silêncio: '+vdFmtTempo(antes)+' → '+vdFmtTempo(vdDuracaoFinal()));
       }
+      // BARRA DE PROGRESSO pelo caminho REAL (vdAcaoExportar), que nenhum caso
+      // tocava. Ela passou a animar por transform (compositor) em vez de width
+      // (layout): se alguém trocar de volta, este caso cai.
+      marco('vdAcaoExportar');
+      const amostras=[];
+      const relogio=setInterval(()=>{ const b=document.getElementById('vd-progresso-barra');
+        if(b&&b.style.transform) amostras.push(b.style.transform); },200);
+      await vdAcaoExportar();
+      clearInterval(relogio);
+      const virouTransform=amostras.length>=2 && amostras.every(a=>/scaleX/.test(a));
+      const avancou=amostras.some(a=>{ const m=/scaleX\(([\d.]+)\)/.exec(a); return m && Number(m[1])>0.3; });
+      const fechou=document.getElementById('vd-progresso').hidden;
+      reg('a barra de progresso anima por transform, avança e some no fim',
+          virouTransform && avancou && fechou,
+          amostras.length+' amostras: '+amostras.slice(0,4).join(' → ')+' · caixa fechada: '+fechou);
+
       // LEGENDA — desenho com o motor de render da casa, custo e integração.
       marco('legenda');
       const cv=document.createElement('canvas'); cv.width=1080; cv.height=1920;
