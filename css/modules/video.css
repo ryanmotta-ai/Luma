@@ -154,7 +154,10 @@ body.mode-video #view-video{
 }
 .vd-hint{ margin:0; color:var(--vd-txt3); }
 .vd-hint strong{ color:var(--vd-txt2); }
+.vd-insp-ident{ display:flex; flex-direction:column; gap:2px; max-width:240px; }
 .vd-insp-head{ font-size:12px; font-weight:900; color:var(--vd-txt); }
+/* O porquê do trecho. --vd-txt3 dá 5,04:1 sobre a superfície do inspetor — medido. */
+.vd-insp-porque{ font-size:11px; line-height:1.3; color:var(--vd-txt3); }
 .vd-insp-grid{ display:grid; grid-template-columns:auto auto auto auto auto auto; gap:2px 8px; margin:0; align-items:center; }
 .vd-insp-grid dt{ color:var(--vd-txt3); font-size:11px; }
 .vd-insp-grid dd{ margin:0; color:var(--vd-txt); font-variant-numeric:tabular-nums; }
@@ -162,6 +165,20 @@ body.mode-video #view-video{
 .vd-insp-zoom output{ color:var(--vd-txt); font-variant-numeric:tabular-nums; min-width:38px; }
 .vd-insp-zoom input[type=range]{ width:120px; accent-color:var(--dm-orange); }
 .vd-insp-acoes{ display:flex; gap:6px; margin-left:auto; }
+
+/* O log da IA. Coluna própria dentro do inspetor (que é uma linha flex) porque a
+   lista cresce para baixo; teto de altura com rolagem para um plano de 12 ações
+   não empurrar a linha do tempo fora da tela. */
+.vd-ia-log{ display:flex; flex-direction:column; gap:4px; max-width:520px; }
+.vd-ia-log ul{ list-style:none; margin:0; padding:0; display:grid; gap:3px; max-height:76px; overflow-y:auto; }
+.vd-ia-log li{ font-size:11px; line-height:1.35; color:var(--vd-txt2); }
+.vd-ia-log li span{
+  display:inline-block; margin-right:6px; padding:1px 6px;
+  border-radius:var(--r-pill); background:var(--vd-surf2);
+  /* --vd-txt2 e não --vd-txt3: medido, o cinza 3 dá 4,61:1 sobre a --vd-surf2 do
+     chip — passa raspando, e isto é maiúscula de 10px. O cinza 2 dá 6,08:1. */
+  color:var(--vd-txt2); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
+}
 
 /* ── GATE DESKTOP-ONLY ─────────────────────────────────────────────────
    Mesma decisão do Estúdio (#d-desktop-gate): abaixo de 1024px o editor não

@@ -196,6 +196,22 @@ function vdRegistrar(rotulo){
   _vdHistPos = _vdHist.length - 1;
 }
 
+/**
+ * Regrava o snapshot ATUAL do histórico com o vdProj de agora.
+ *
+ * ⚠ POR QUE EXISTE: `vdRegistrar` congela o projeto em JSON. Quem escreve no
+ * vdProj DEPOIS de registrar (é o caso do log da IA, que só existe quando o
+ * plano já foi aplicado) grava fora do snapshot — e um desfazer/refazer apagava
+ * o log de um corte que continuava lá. Isto costura o estado ao mesmo ponto do
+ * histórico, sem criar uma segunda entrada que o usuário teria de desfazer duas
+ * vezes. Não use para mudança de edição: para isso é `vdRegistrar`.
+ */
+function vdReRegistrar(){
+  if(!vdProj || _vdHistPos < 0) return false;
+  _vdHist[_vdHistPos].json = JSON.stringify(vdProj);
+  return true;
+}
+
 function vdPodeDesfazer(){ return _vdHistPos > 0; }
 function vdPodeRefazer(){ return _vdHistPos >= 0 && _vdHistPos < _vdHist.length - 1; }
 function vdRotuloHist(){ return (_vdHist[_vdHistPos] && _vdHist[_vdHistPos].rotulo) || ''; }

@@ -193,3 +193,101 @@ function vdPlanoCorteSilencio(medicao){
     motivo: 'remove ' + medicao.silencios.length + ' pausa(s), ' + vdFmtTempo(perdido) + ' de silêncio'
   }] };
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   FOLHAS DE CONTATO — como o modelo VÊ o vídeo
+   ─────────────────────────────────────────────────────────────────────────
+   O modelo não recebe o vídeo: recebe frames amostrados, montados em grade,
+   com o TEMPO QUEIMADO em cada célula. É o que permite ele dizer "em 12,4s o
+   produto aparece" em vez de chutar — e o que mantém a chamada barata (um vídeo
+   de 60s vira ~1,2MB de JPEG em vez de dezenas de MB).
+
+   ⚠ A amostragem é de ~1 frame por segundo: movimento rápido não aparece. Por
+   isso o modelo NUNCA decide corte de precisão aqui — silêncio e borda de fala
+   vêm da medição de áudio (acima), que é exata. Divisão registrada em
+   docs/LUMA-VIDEO.md §4.3.
+══════════════════════════════════════════════════════════════════════════ */
+
+const VD_FOLHA_COLS = 4;
+const VD_FOLHA_LINHAS = 4;
+const VD_FOLHA_CEL_W = 320;      // largura de cada célula; a altura sai da fonte
+const VD_FOLHA_QUALIDADE = 0.6;  // JPEG: acima disso o arquivo dobra sem o modelo ver melhor
+const VD_FOLHA_MAX = 6;          // teto de folhas por chamada (96 frames = 96s a 1fps)
+
+/**
+ * Amostra o vídeo em folhas de contato prontas para `gAskAI({parts})`.
+ *
+ * Reusa `_vdBuscar` (compositor) de propósito: é o único lugar da casa que sabe
+ * esperar um seek terminar, com o cinto de 700ms para o `seeked` que não vem.
+ * Duplicar isso aqui seria um segundo motor de busca.
+ *
+ * @param {function(number):void} [aoProgresso] 0..1
+ * @returns {Promise<{ok:boolean, partes?:Array<{mimeType:string,data:string}>, quadros?:number, kb?:number, erro?:string}>}
+ */
+async function vdFolhasDeContato(aoProgresso){
+  if(!vdProj || !vdVideoEl) return { ok:false, erro:'nenhum vídeo carregado' };
+  const dur = vdProj.fonte.dur || 0;
+  const vw = vdVideoEl.videoWidth, vh = vdVideoEl.videoHeight;
+  if(!dur || !vw || !vh) return { ok:false, erro:'o vídeo não reportou tamanho ou duração' };
+
+  const porFolha = VD_FOLHA_COLS * VD_FOLHA_LINHAS;
+  // 1 frame por segundo, limitado pelo teto de folhas. Vídeo mais longo que o teto
+  // é amostrado mais espaçado em vez de cortado no meio — o modelo precisa ver o FIM.
+  const alvo = Math.min(Math.ceil(dur), porFolha * VD_FOLHA_MAX);
+  const passo = dur / alvo;
+  const celH = Math.round(VD_FOLHA_CEL_W * (vh / vw));
+
+  const tempoOriginal = vdVideoEl.currentTime;
+  const estavaTocando = vdTocando();
+  if(estavaTocando) vdPausar();
+
+  const partes = [];
+  let folha = null, ctx = null, naFolha = 0, quadros = 0;
+  const novaFolha = () => {
+    folha = document.createElement('canvas');
+    folha.width = VD_FOLHA_COLS * VD_FOLHA_CEL_W;
+    folha.height = VD_FOLHA_LINHAS * celH;
+    ctx = folha.getContext('2d');
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, folha.width, folha.height);
+    naFolha = 0;
+  };
+  const fecharFolha = () => {
+    if(!folha || !naFolha) return;
+    try{ partes.push({ mimeType:'image/jpeg', data: folha.toDataURL('image/jpeg', VD_FOLHA_QUALIDADE).split(',')[1] }); }
+    catch(e){ /* canvas contaminado: já barrado na entrada, mas não derruba o ingest */ }
+    folha = null;
+  };
+
+  try{
+    for(let i = 0; i < alvo; i++){
+      const t = Math.min(i * passo, Math.max(dur - 0.05, 0));
+      await new Promise(resolve => _vdBuscar(t, resolve));
+      if(!folha) novaFolha();
+      const col = naFolha % VD_FOLHA_COLS, lin = Math.floor(naFolha / VD_FOLHA_COLS);
+      const x = col * VD_FOLHA_CEL_W, y = lin * celH;
+      try{ ctx.drawImage(vdVideoEl, x, y, VD_FOLHA_CEL_W, celH); }catch(e){}
+      // TEMPO QUEIMADO: é isto que transforma "vi um produto" em "o produto aparece
+      // em 12,4s". Placa escura atrás porque o frame pode ser claro.
+      const rot = vdFmtTempo(t);
+      ctx.font = 'bold 20px system-ui, sans-serif';
+      const larg = ctx.measureText(rot).width + 14;
+      ctx.fillStyle = 'rgba(0,0,0,.72)';
+      ctx.fillRect(x + 6, y + 6, larg, 28);
+      ctx.fillStyle = '#fff';
+      ctx.fillText(rot, x + 13, y + 26);
+      naFolha++; quadros++;
+      if(naFolha >= porFolha) fecharFolha();
+      if(aoProgresso) aoProgresso((i + 1) / alvo);
+    }
+    fecharFolha();
+  }finally{
+    // Devolve o cursor onde estava: o ingest não pode mexer no que o usuário via.
+    await new Promise(resolve => _vdBuscar(tempoOriginal, resolve));
+    const hit = vdSegNoTempo(vdTempoLinha());
+    if(hit) vdDesenharFrame(hit.seg);
+  }
+
+  if(!partes.length) return { ok:false, erro:'não consegui amostrar nenhum frame' };
+  const kb = Math.round(partes.reduce((t, p) => t + p.data.length, 0) * 0.75 / 1024);
+  return { ok:true, partes, quadros, kb, passo };
+}
