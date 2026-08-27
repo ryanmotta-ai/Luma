@@ -507,6 +507,62 @@
     assert(vdSegs().length===1,'vdReRegistrar empilhou um snapshot extra — o usuário desfaria duas vezes');
   });
 
+  /* ── DURAÇÃO ALVO ────────────────────────────────────────────────────────
+     O alvo é AJUSTE, não edição: o prompt e o validador leem, e desfazer um corte
+     não pode mudar o que o usuário escolheu. */
+
+  test('o alvo é ajuste: desfazer não devolve o alvo antigo',()=>{
+    novo(30);
+    vdDividir(10);
+    assert(vdDefinirAlvo(60),'não aceitou o alvo de 60s');
+    assert(vdDesfazer(),'não desfez a divisão');
+    assert(vdProj.alvo_seg===60,'desfazer um corte reverteu o alvo escolhido');
+    assert(vdRefazer()&&vdProj.alvo_seg===60,'refazer perdeu o alvo');
+  });
+
+  test('o alvo só aceita as durações da casa',()=>{
+    novo(30);
+    assert(!vdDefinirAlvo(7),'aceitou um alvo fora da lista');
+    assert(!vdDefinirAlvo(30),'aceitou o alvo que já estava valendo');
+    assert(vdProj.alvo_seg===30,'o alvo mudou numa chamada que deveria ser recusada');
+  });
+
+  test('o alvo entra no contexto que a IA lê',()=>{
+    novo(120);
+    vdDefinirAlvo(60);
+    assert(/duração alvo: 60s/.test(vdMontarContexto({ok:true,silencios:[]})),'o alvo escolhido não chegou ao modelo');
+  });
+
+  test('o validador avisa quando o plano estoura o alvo, sem invalidar',()=>{
+    novo(120);
+    vdDefinirAlvo(15);
+    const r=vdValidarPlano({acoes:[{tipo:'segmentos',manter:[{de:0,ate:100}],motivo:'mantém quase tudo'}]});
+    assert(r.ok,'estourar o alvo não deveria invalidar o plano — o alvo é intenção');
+    assert(r.descartes.some(d=>d.acao==='duração'),'o usuário não seria avisado de que a IA errou o tamanho');
+  });
+
+  /* ── LEGENDA: O CARTÃO É EDITÁVEL ────────────────────────────────────────
+     A legenda é QUEIMADA no pixel. Transcrição errada sem conserto é defeito
+     irreversível — daí o cartão vazio não desenhar (é o "remover" sem botão). */
+
+  test('cartão sem texto não vira legenda',()=>{
+    novo(30);
+    vdProj.legendas={ativo:true,template:'dm_cap_01',cards:[{de:0,ate:5,texto:'   '}]};
+    const c=vdCardEm(2);
+    assert(c!==null,'o cartão deveria continuar existindo na lista');
+    assert(!String(c.texto||'').trim(),'o texto em branco deveria ser reconhecível como vazio');
+  });
+
+  test('editar o texto do cartão não mexe no tempo dele',()=>{
+    novo(30);
+    vdProj.legendas={ativo:true,template:'dm_cap_01',cards:[{de:1,ate:3,texto:'combu da semana'}]};
+    const c=vdCardEm(2);
+    c.texto='combo da semana';
+    const d=vdCardEm(2);
+    assert(d===c,'o cartão no ponto deveria ser o mesmo objeto — a interface edita por referência');
+    assert(perto(d.de,1)&&perto(d.ate,3),'editar o texto deslocou o tempo do cartão');
+  });
+
   let passed=0; const falhas=[];
   for(const item of cases){
     const li=document.createElement('li'); li.className='case';

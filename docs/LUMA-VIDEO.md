@@ -14,7 +14,7 @@
 
 | Peça | Onde | Situação |
 |---|---|---|
-| EDL + validador de plano de IA | `js/video/projeto.js` | 57 casos verdes em `tests/video-edl.html` (roda no CI) |
+| EDL + validador de plano de IA | `js/video/projeto.js` | 63 casos verdes em `tests/video-edl.html` (roda no CI) |
 | Compositor (prévia + exportação, um caminho só) | `js/video/compositor.js` | corte medido em pixel real na bancada |
 | Timeline com corte, remoção, reordenação, undo/redo | `js/video/timeline.js` | verificado no navegador |
 | View, entrada de arquivo, inspetor contextual, exportação | `js/video/video.js` | idem |
@@ -25,7 +25,9 @@
 | **Folhas de contato** (os olhos do modelo) | `js/video/ingest.js` | célula certa provada por pixel na bancada |
 | **O diretor**: prompt, contexto e Auto Edit | `js/video/ia.js` | parte pura no CI; a resposta do modelo **não** foi verificada aqui (rede bloqueada) |
 | Auto Edit na interface, com o porquê de cada corte | `js/video/video.js`, `css/modules/video.css` | painel medido no navegador (6,66:1 / 6,08:1) |
-| Bancada do portão F0 | `tests/_video-bancada.html` | 23/23 no Chromium de teste |
+| **Duração alvo** (15s · 30s · 60s), lida pela IA | `js/video/projeto.js`, `js/video/video.js` | estava travada em 30s |
+| **Legenda editável no ponto do cursor** | `js/video/video.js` | correção provada por pixel na bancada |
+| Bancada do portão F0 | `tests/_video-bancada.html` | 27/27 no Chromium de teste |
 
 **Ainda não existe:** assets da DM (fase 5), SFX, vinheta, Command Center (fase 7), agente visual. Nenhuma mudança no Supabase — nem migration, nem deploy.
 
@@ -87,6 +89,68 @@ O `vdFolhasDeContato` usa o **mesmo `_vdBuscar`** do compositor — não há um 
 **Durante o Auto Edit a interface trava o transporte** (`vdIaOcupado`), como já fazia na exportação: as dezenas de seeks do ingest disputariam o cursor com o usuário.
 
 ⚠ **O que NÃO foi verificado:** a qualidade da edição. Neste ambiente a saída de rede para `file://` está bloqueada, então o que está provado é o caminho — amostra, monta contexto, chama, valida, aplica, mostra o porquê — e não que o plano do modelo é bom. Rode `tests/_video-bancada.html?ia=1` numa máquina com rede. A aferição de verdade é a F9, com vídeos reais da rede.
+
+### O alvo de duração era uma constante escondida
+
+`alvo_seg` nasceu em 30 e ninguém podia mudar — e ele é lido em dois lugares que
+decidem o resultado: o **contexto que a IA lê** ("duração alvo: 30s") e o
+**validador**, que avisa quando o plano estoura o alvo. Um vídeo de 3 minutos
+recebia "corte para 30s" sem ninguém ter pedido isso.
+
+Agora são três botões na barra: **15s** (o corte que retém), **30s** (o padrão do
+Reels) e **60s** (o teto onde o formato ainda funciona). Número livre daria ao
+usuário a chance de pedir 7s e culpar a IA pelo resultado.
+
+**O alvo é AJUSTE, não edição** (`vdDefinirAlvo`): ele é escrito em todos os pontos
+do histórico. Se ficasse só no `vdProj` atual, desfazer um corte reverteria o alvo
+escolhido — o controle mudaria sozinho na frente do usuário. E o controle só aparece
+quando há IA na sessão: sem ela, ninguém lê o alvo.
+
+### A legenda tinha de ser editável — ela é queimada no pixel
+
+O toast dizia "revise antes de exportar" e **não existia com o quê**. A transcrição
+vem de um modelo, erra nome de produto, e a legenda não é uma faixa por cima: é
+pixel dentro do arquivo. Depois de exportar não tem volta.
+
+O editor é uma **fileira própria entre a linha do tempo e o inspetor**, e mostra o
+cartão que está **no cursor** — porque o defeito é visto assistindo, não numa lista
+de 40 linhas com rolagem e busca. Fileira separada porque o inspetor é sobre o
+*trecho selecionado* e o cartão segue o *cursor*, com ou sem seleção.
+
+Três detalhes que só o navegador ensina:
+
+1. **Digitar redesenha o frame na hora.** A pessoa precisa ver o texto caber (ou
+   não) no vídeo enquanto digita.
+2. **Apagar o texto tira a legenda daquele ponto** — é o "remover cartão" sem
+   inventar um botão. O compositor pula cartão em branco.
+3. **A fileira nunca refaz o campo que está com o foco.** Durante a reprodução o
+   cartão troca a cada segundo; recriar o `<input>` no meio da digitação apagaria a
+   letra. Tem caso na bancada só para isso.
+
+O snapshot do histórico sai no `change` (fim da edição), não por tecla — e usa o
+mesmo `vdReRegistrar` do log da IA, pela mesma razão.
+
+### A barra não cabia (medido, não deduzido)
+
+Com o alvo, a barra passou a estourar **132px a 1024px**, que é o gate do módulo. E
+o medidor mentia: `flex-shrink` é 1 por padrão, então os botões eram **espremidos** e
+o rótulo quebrava em duas linhas dentro de 30px de altura — a barra "cabia" porque o
+texto virava tarja. `flex:none; white-space:nowrap` tornou a medida honesta.
+
+Os cortes, nenhum deles cosmético:
+
+- **Desfazer/refazer viraram ícone** (−82px). É a convenção mais reconhecível de um
+  editor; o nome segue no `aria-label` e no `title` com o atalho.
+- **"Legendas" parou de crescer** (−67px no pior caso). O rótulo já foi
+  "Legendas: desligadas" — além de estourar a barra, mudava a largura do botão a cada
+  clique e fazia os vizinhos pularem. O estado mora no laranja e no `aria-pressed`.
+- "Dividir aqui" → "Dividir", "Cortar silêncios" → "Silêncios" com `title`.
+- **O nome do arquivo sai abaixo de 1200px**, por escolha: ele encolhia até virar "…"
+  e roubava a folga dos botões, que são a ferramenta.
+- Um **fio entre os dois grupos de três botões**: com o selecionado em laranja nos
+  dois, colados, eles leem como um grupo de seis.
+
+Resultado medido a 1024 / 1280 / 1440: uma linha só, 42px de folga no pior caso.
 
 ### Enquadramento: o caso que decide o produto
 

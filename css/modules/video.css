@@ -85,17 +85,25 @@ body.mode-video #view-video{
 
 /* ── BARRA DE TRANSPORTE ───────────────────────────────────────────── */
 .vd-bar{
-  display:flex; align-items:center; gap:8px;
+  display:flex; align-items:center; gap:6px;   /* 6 e não 8: 11 itens × 2px são 20px de barra */
   padding:8px 12px;
   background:var(--vd-surf); border-top:1px solid var(--vd-border);
 }
 .vd-flex{ flex:1; }
-.vd-tempo{ font-size:12px; color:var(--vd-txt2); font-variant-numeric:tabular-nums; min-width:112px; }
+.vd-tempo{ font-size:12px; color:var(--vd-txt2); font-variant-numeric:tabular-nums; min-width:104px; }
 .vd-nome{ font-size:12px; color:var(--vd-txt3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:280px; }
+/* Abaixo de 1200px o nome do arquivo SAI de propósito. Ele encolhia até virar "…"
+   e roubava a folga dos botões — que são a ferramenta. Escolha explícita, não
+   sobra de layout. O nome continua no title do palco e na exportação. */
+@media (max-width:1199px){ .vd-nome{ display:none; } }
 
 .vd-btn{
   height:30px; padding:0 12px;
   display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  /* ⚠ flex-shrink é 1 por padrão: sem isto o botão é ESPREMIDO e o rótulo quebra
+     em duas linhas dentro de 30px de altura — vira tarja ilegível em vez de barra
+     cheia. Medido: acontecia a partir de 1100px. */
+  flex:none; white-space:nowrap;
   background:var(--vd-surf2); color:var(--vd-txt);
   border:1px solid var(--vd-border); border-radius:var(--r-sm);
   font-family:inherit; font-size:12px; font-weight:700; cursor:pointer;
@@ -109,7 +117,11 @@ body.mode-video #view-video{
 .vd-btn.icon{ width:30px; padding:0; }
 .vd-btn.tiny{ height:24px; padding:0 8px; font-size:11px; font-variant-numeric:tabular-nums; }
 .vd-btn.sel{ background:var(--dm-orange); border-color:var(--dm-orange); color:var(--on-orange); }
-.vd-fmt{ display:inline-flex; gap:4px; padding-right:8px; }
+.vd-fmt{ display:inline-flex; gap:4px; padding-right:6px; flex:none; }
+/* Dois grupos de três botões, ambos com o selecionado em laranja, colados: leem
+   como um grupo de seis. O fio separa "quanto tempo" de "qual formato" sem
+   precisar de rótulo — que a barra não tem largura para carregar. */
+.vd-fmt + .vd-fmt{ border-left:1px solid var(--vd-border); padding-left:8px; margin-left:2px; }
 .vd-btn:focus-visible{ outline:2px solid var(--dm-orange); outline-offset:2px; }
 
 /* ── LINHA DO TEMPO ────────────────────────────────────────────────── */
@@ -179,6 +191,27 @@ body.mode-video #view-video{
      chip — passa raspando, e isto é maiúscula de 10px. O cinza 2 dá 6,08:1. */
   color:var(--vd-txt2); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
 }
+
+/* ── LEGENDA DO PONTO ──────────────────────────────────────────────────
+   Fileira própria entre a linha do tempo e o inspetor: o cartão segue o cursor,
+   o inspetor segue a seleção. Misturar os dois faria um sumir na frente do outro. */
+.vd-cap-bar{
+  display:flex; align-items:center; gap:10px;
+  padding:8px 12px;
+  background:var(--vd-surf); border-top:1px solid var(--vd-border);
+  font-size:12px; color:var(--vd-txt2);
+}
+.vd-cap-bar[hidden]{ display:none; }   /* mesmo empate de especificidade do estado vazio */
+.vd-cap-rot{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--vd-txt3); flex:none; }
+.vd-cap-tempo{ font-variant-numeric:tabular-nums; color:var(--vd-txt3); flex:none; }
+.vd-cap-txt{
+  flex:1 1 auto; min-width:120px; max-width:520px; height:30px;
+  padding:0 10px; border-radius:var(--r-sm);
+  background:var(--vd-surf2); border:1px solid var(--vd-border);
+  color:var(--vd-txt); font:inherit; font-size:12px;
+}
+.vd-cap-txt:focus-visible{ outline:2px solid var(--dm-orange); outline-offset:1px; }
+.vd-cap-dica, .vd-cap-vazio{ font-size:11px; color:var(--vd-txt3); }
 
 /* ── GATE DESKTOP-ONLY ─────────────────────────────────────────────────
    Mesma decisão do Estúdio (#d-desktop-gate): abaixo de 1024px o editor não

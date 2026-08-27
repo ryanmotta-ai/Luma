@@ -41,6 +41,10 @@ let vdProj = null;          // o EDL em edição (null = nenhum vídeo carregado
 let _vdHist = [];           // pilha de snapshots JSON (desfazer/refazer)
 let _vdHistPos = -1;
 const VD_HIST_MAX = 40;
+/* Durações alvo. São as três que a rede usa: 15s (o corte que retém), 30s (o
+   padrão do Reels) e 60s (o teto onde o formato ainda funciona). Número livre
+   daria ao usuário a chance de pedir 7s e culpar a IA pelo resultado. */
+const VD_ALVOS = [15, 30, 60];
 
 /* ── CRIAÇÃO ─────────────────────────────────────────────────────────── */
 
@@ -209,6 +213,27 @@ function vdRegistrar(rotulo){
 function vdReRegistrar(){
   if(!vdProj || _vdHistPos < 0) return false;
   _vdHist[_vdHistPos].json = JSON.stringify(vdProj);
+  return true;
+}
+
+/**
+ * Duração alvo da edição — a intenção, lida pelo prompt do diretor (ia.js) e pelo
+ * validador (que avisa quando o plano estoura o alvo).
+ *
+ * ⚠ POR QUE ESCREVE NO HISTÓRICO INTEIRO: o alvo é AJUSTE, não edição. Se ficasse
+ * só no vdProj atual, um desfazer voltaria para um snapshot com o alvo antigo e o
+ * usuário veria o controle mudar sozinho ao desfazer um corte — comportamento que
+ * ninguém pediu e que faz a ferramenta parecer quebrada. O alvo é ortogonal aos
+ * cortes, então vale igual em todos os pontos do histórico.
+ */
+function vdDefinirAlvo(seg){
+  const n = Math.round(Number(seg) || 0);
+  if(!vdProj || !VD_ALVOS.includes(n) || vdProj.alvo_seg === n) return false;
+  vdProj.alvo_seg = n;
+  for(const h of _vdHist){
+    try{ const p = JSON.parse(h.json); p.alvo_seg = n; h.json = JSON.stringify(p); }
+    catch(e){ /* snapshot corrompido não deve impedir o ajuste */ }
+  }
   return true;
 }
 

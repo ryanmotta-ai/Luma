@@ -345,6 +345,45 @@
           'ligada: '+comLegenda+' pixels · desligada: '+semLegenda);
       vdProj.legendas.ativo=true;
 
+      /* A LEGENDA EDITÁVEL — o conserto do "revise antes de exportar". A legenda é
+         queimada no pixel: transcrição errada sem conserto é defeito irreversível.
+         Aqui se prova que o campo mostra o cartão DO PONTO, que digitar muda o frame
+         na hora, e que apagar tira a legenda daquele trecho. */
+      marco('legenda editável');
+      // Monta o cartão em torno do tempo de FONTE que está na tela agora — assim o
+      // caso não depende de como os cortes anteriores dividiram a linha do tempo.
+      const tf=vdSegNoTempo(vdTempoLinha()).tFonte;
+      vdProj.legendas.cards=[{de:Math.max(0,tf-0.05),ate:tf+1.2,texto:'combu da semana'}];
+      vdRenderCapBar();
+      const campo=document.getElementById('vd-cap-txt');
+      reg('a fileira da legenda traz o cartão do ponto do cursor',
+          !!campo && campo.value==='combu da semana',
+          campo?('campo com "'+campo.value+'" em '+vdFmtTempo(tf)+' da fonte'):'a fileira não montou o campo');
+
+      await irEEsperar(vdTempoLinha());
+      const capAntes=brancosNaFaixa(vdCanvas.getContext('2d'),vdCanvas.width,1380,1660);
+      vdAcaoCapTexto('');
+      const capVazio=brancosNaFaixa(vdCanvas.getContext('2d'),vdCanvas.width,1380,1660);
+      vdAcaoCapTexto('combo da semana');
+      const capDepois=brancosNaFaixa(vdCanvas.getContext('2d'),vdCanvas.width,1380,1660);
+      reg('digitar redesenha o frame na hora, e apagar tira a legenda daqui',
+          capAntes>200 && capVazio<50 && capDepois>200
+            && vdProj.legendas.cards[0].texto==='combo da semana',
+          'com texto: '+capAntes+' px · apagado: '+capVazio+' px · corrigido: '+capDepois+' px');
+
+      // ⚠ Regressão que dói: recriar o campo no meio da digitação apaga a letra.
+      // Durante a reprodução o cartão troca a cada segundo, então isto é real.
+      if(campo){
+        campo.focus();
+        vdProj.legendas.cards=[{de:Math.max(0,tf-0.05),ate:tf+1.2,texto:'outro cartao'}];
+        vdRenderCapBar();
+        reg('a fileira não refaz o campo que está com o foco',
+            document.getElementById('vd-cap-txt')===campo,
+            'o nó do input '+(document.getElementById('vd-cap-txt')===campo?'sobreviveu':'foi recriado — a digitação seria perdida'));
+        campo.blur();
+      }
+      vdRenderCapBar();
+
       // Transcrição de verdade só com ?ia=1: gasta cota e depende de rede.
       if(/[?&]ia=1/.test(location.search)){
         marco('vdTranscrever');

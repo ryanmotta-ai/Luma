@@ -36,7 +36,7 @@ function vdInit(){
   raiz.innerHTML = _vdMarkup();
 
   vdCompositorMontar(document.getElementById('vd-canvas'), document.getElementById('vd-src'));
-  vdCompositorCallbacks(t => vdTlPlayhead(t), () => _vdSincronizarTransporte());
+  vdCompositorCallbacks(t => { vdTlPlayhead(t); vdRenderCapBar(); }, () => _vdSincronizarTransporte());
 
   const palco = document.getElementById('vd-stage');
   palco.addEventListener('dragover', ev => { ev.preventDefault(); palco.classList.add('drag'); });
@@ -78,19 +78,26 @@ function _vdMarkup(){
   +     '<span class="vd-tempo" id="vd-tempo">0:00.0 / 0:00.0</span>'
   +     '<span class="vd-nome" id="vd-nome"></span>'
   +     '<span class="vd-flex"></span>'
+  +     '<span class="vd-fmt" id="vd-alvo" role="group" aria-label="Duração alvo da edição"></span>'
   +     '<span class="vd-fmt" id="vd-fmt" role="group" aria-label="Formato de saída"></span>'
-  +     '<button type="button" class="vd-btn" id="vd-dividir" onclick="vdAcaoDividir()" disabled>Dividir aqui</button>'
+  +     '<button type="button" class="vd-btn" id="vd-dividir" onclick="vdAcaoDividir()" disabled>Dividir</button>'
   +     '<button type="button" class="vd-btn" id="vd-ia" onclick="vdAcaoAutoEdit()" disabled>Editar com IA</button>'
-  +     '<button type="button" class="vd-btn" id="vd-silencio" onclick="vdAcaoCortarSilencio()" disabled>Cortar silêncios</button>'
-  +     '<button type="button" class="vd-btn" id="vd-legenda" onclick="vdAcaoLegenda()" disabled>Legendas</button>'
-  +     '<button type="button" class="vd-btn" id="vd-undo" onclick="vdAcaoDesfazer()" disabled>Desfazer</button>'
-  +     '<button type="button" class="vd-btn" id="vd-redo" onclick="vdAcaoRefazer()" disabled>Refazer</button>'
+  +     '<button type="button" class="vd-btn" id="vd-silencio" onclick="vdAcaoCortarSilencio()" title="Cortar as pausas do áudio" disabled>Silêncios</button>'
+  +     '<button type="button" class="vd-btn" id="vd-legenda" onclick="vdAcaoLegenda()" aria-pressed="false" disabled>Legendas</button>'
+  // Ícone e não rótulo: medido, a barra estourava 132px a 1024px (o gate do módulo)
+  // e o par desfazer/refazer é a convenção mais reconhecível de um editor. O nome
+  // continua existindo para leitor de tela e para o title.
+  +     '<button type="button" class="vd-btn icon" id="vd-undo" onclick="vdAcaoDesfazer()" aria-label="Desfazer" title="Desfazer (Ctrl+Z)" disabled>'
+  +       '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 010 10h-4"/></svg></button>'
+  +     '<button type="button" class="vd-btn icon" id="vd-redo" onclick="vdAcaoRefazer()" aria-label="Refazer" title="Refazer (Ctrl+Shift+Z)" disabled>'
+  +       '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14l5-5-5-5"/><path d="M20 9H9a5 5 0 000 10h4"/></svg></button>'
   +     '<button type="button" class="vd-btn primary" id="vd-exportar" onclick="vdAcaoExportar()" disabled>Exportar</button>'
   +   '</div>'
   +   '<div class="vd-tl">'
   +     '<div class="vd-tl-rot">Vídeo</div>'
   +     '<div class="vd-tl-track" id="vd-tl-track" role="slider" aria-label="Linha do tempo" tabindex="0"></div>'
   +   '</div>'
+  +   '<div class="vd-cap-bar" id="vd-cap-bar" hidden></div>'
   +   '<div class="vd-inspector" id="vd-inspector"></div>'
   + '</div>';
 }
@@ -149,6 +156,7 @@ async function vdCarregarArquivo(file){
   vdProj.formato = (meta.w > meta.h) ? '16:9' : '9:16';
   vdAjustarSaida();
 
+  vdRenderCapBar();
   document.getElementById('vd-empty').hidden = true;
   // Vídeo curto de teste dava "0MB" — abaixo de 1MB o número honesto é em KB.
   const peso = mb < 1 ? Math.round(file.size / 1024) + 'KB' : mb.toFixed(mb < 10 ? 1 : 0) + 'MB';
@@ -156,6 +164,7 @@ async function vdCarregarArquivo(file){
   vdIrPara(0);
   vdTlRender();
   vdRenderFormato();
+  vdRenderAlvo();
   vdRenderInspetor();
   _vdSincronizarTransporte();
   gToast('Vídeo carregado: ' + vdFmtTempo(meta.dur) + '.');
@@ -328,6 +337,7 @@ async function vdAcaoLegenda(){
   // Já tem legenda: o clique só alterna.
   if(vdProj.legendas && vdProj.legendas.cards && vdProj.legendas.cards.length){
     vdProj.legendas.ativo = !vdProj.legendas.ativo;
+    vdRenderCapBar();
     _vdRedesenhar();
     _vdSincronizarTransporte();
     gToast(vdProj.legendas.ativo ? 'Legendas ligadas.' : 'Legendas desligadas.');
@@ -346,6 +356,7 @@ async function vdAcaoLegenda(){
   if(!r.ok){ gToast('Não consegui gerar as legendas: ' + r.erro + '.', 'error'); return; }
   vdProj.legendas = { ativo:true, template:'dm_cap_01', cards:r.cards };
   vdRegistrar('legendas');
+  vdRenderCapBar();
   _vdRedesenhar();
   _vdSincronizarTransporte();
   gToast('Legendas prontas: ' + r.cards.length + ' cartão(ões)'
@@ -394,7 +405,9 @@ function vdAcaoRefazer(){
 function _vdDepoisDoHistorico(){
   if(vdSel && vdSegIdx(vdSel) < 0) vdSel = null;
   vdIrPara(Math.min(vdTempoLinha(), Math.max(vdDuracaoFinal() - 0.05, 0)));
-  vdTlRender(); vdRenderInspetor(); _vdSincronizarTransporte();
+  // Desfazer troca vdProj por um clone: o cartão que o campo apontava morreu, e
+  // comparar por identidade força a fileira a se reconstruir. É de propósito.
+  vdTlRender(); vdRenderCapBar(); vdRenderInspetor(); _vdSincronizarTransporte();
 }
 
 async function vdAcaoExportar(){
@@ -445,6 +458,32 @@ function vdRenderFormato(){
   ).join('');
 }
 
+/* ── DURAÇÃO ALVO ─────────────────────────────────────────────────────────
+   O parâmetro mais importante do Auto Edit, e o que estava travado em 30s: a IA
+   lê o alvo no contexto e o validador avisa quando o plano estoura. Sem controle,
+   um vídeo de 3 minutos recebia "corte para 30s" sem ninguém ter pedido. */
+function vdRenderAlvo(){
+  const el = document.getElementById('vd-alvo');
+  if(!el) return;
+  // O alvo só é lido pela IA. Sem IA na sessão, o controle não faria nada — e
+  // controle sem efeito visível ensina o usuário a desconfiar da ferramenta
+  // (mesma razão pela qual o enquadramento só aparece quando o formato corta).
+  if(!vdProj || typeof gAiReady !== 'function' || !gAiReady()){ el.innerHTML = ''; return; }
+  el.innerHTML = VD_ALVOS.map(n =>
+    '<button type="button" class="vd-btn tiny' + (vdProj.alvo_seg === n ? ' sel' : '') + '"'
+    + ' onclick="vdAcaoAlvo(' + n + ')" title="Duração alvo da edição"'
+    + ' aria-pressed="' + (vdProj.alvo_seg === n ? 'true' : 'false') + '">' + n + 's</button>'
+  ).join('');
+}
+
+function vdAcaoAlvo(n){
+  if(!vdDefinirAlvo(n)) return;
+  vdRenderAlvo();
+  // Não redesenha nem reaplica nada: o alvo só vale na PRÓXIMA edição da IA. Dizer
+  // isso é melhor que deixar o usuário esperando o vídeo encurtar sozinho.
+  gToast('Alvo de ' + n + 's. Vale na próxima edição com IA — o que já está cortado não muda.');
+}
+
 function vdAcaoFormato(f){
   if(!vdMudarFormato(f)) return;
   vdRenderFormato();
@@ -459,6 +498,69 @@ function vdAcaoFoco(v){
   _vdRedesenhar();
   vdRenderInspetor();
   _vdSincronizarTransporte();
+}
+
+/* ── LEGENDA DO PONTO ─────────────────────────────────────────────────────
+   O conserto do "revise antes de exportar": a transcrição vem de um modelo, erra
+   nome de produto, e a legenda é QUEIMADA no pixel — depois de exportar não tem
+   volta. Aqui se edita o cartão que está na tela agora.
+
+   POR QUE NO PLAYHEAD e não numa lista de todos os cartões: o defeito é visto
+   assistindo. Quem vê a palavra errada está olhando aquele frame, não uma lista
+   de 40 linhas — e uma lista exigiria rolagem, busca e um componente novo.
+
+   Fileira própria (não o inspetor) porque o inspetor é sobre o TRECHO
+   SELECIONADO, e o cartão segue o cursor, com ou sem seleção. */
+let _vdCardNaTela = null;   // o cartão que o campo está editando (comparação por identidade)
+
+function vdRenderCapBar(){
+  const row = document.getElementById('vd-cap-bar');
+  if(!row) return;
+  // Exportação é tempo real: mexer no DOM a cada troca de cartão rouba orçamento
+  // do laço de frames, e ninguém está editando legenda durante a exportação.
+  if(vdExportando()) return;
+  const l = vdProj && vdProj.legendas;
+  const ligado = !!(l && l.ativo && l.cards && l.cards.length);
+  row.hidden = !ligado;
+  if(!ligado){ _vdCardNaTela = null; row.innerHTML = ''; return; }
+
+  const hit = vdSegNoTempo(vdTempoLinha());
+  const c = hit ? vdCardEm(hit.tFonte) : null;
+  if(c === _vdCardNaTela) return;              // nada mudou: recriar o campo mataria o cursor
+  // ⚠ Nunca refaça o campo que está com o foco: durante a reprodução o cartão
+  // troca a cada segundo, e recriar o input no meio da digitação apaga a letra.
+  const campo = document.getElementById('vd-cap-txt');
+  if(campo && document.activeElement === campo) return;
+
+  _vdCardNaTela = c;
+  if(!c){
+    row.innerHTML = '<span class="vd-cap-rot">Legenda</span>'
+      + '<span class="vd-cap-vazio">Nenhum cartão neste ponto do vídeo.</span>';
+    return;
+  }
+  row.innerHTML = ''
+    + '<span class="vd-cap-rot">Legenda</span>'
+    + '<span class="vd-cap-tempo">' + vdFmtTempo(c.de) + ' – ' + vdFmtTempo(c.ate) + '</span>'
+    + '<input type="text" id="vd-cap-txt" class="vd-cap-txt" maxlength="120"'
+    +   ' value="' + gEsc(c.texto || '') + '"'
+    +   ' aria-label="Texto da legenda em ' + vdFmtTempo(c.de) + '"'
+    +   ' oninput="vdAcaoCapTexto(this.value)" onchange="vdAcaoCapFim()">'
+    + '<span class="vd-cap-dica">Apague o texto para tirar a legenda daqui.</span>';
+}
+
+// Digitar redesenha o frame na hora — a pessoa precisa VER o texto caber (ou não)
+// no vídeo. Nada de histórico por tecla: o snapshot sai no fim da edição.
+function vdAcaoCapTexto(v){
+  if(!_vdCardNaTela) return;
+  _vdCardNaTela.texto = String(v || '').slice(0, 120);
+  _vdRedesenhar();
+}
+
+function vdAcaoCapFim(){
+  if(!vdProj) return;
+  // O texto já está no projeto; isto só costura o snapshot atual para desfazer/
+  // refazer não devolver a legenda velha (mesma razão do log da IA).
+  if(typeof vdReRegistrar === 'function') vdReRegistrar();
 }
 
 /* ── INSPETOR (contextual: só o que está selecionado) ─────────────────── */
@@ -544,8 +646,14 @@ function _vdSincronizarTransporte(){
   const bl = document.getElementById('vd-legenda');
   if(bl && tem){
     const temCards = !!(vdProj.legendas && vdProj.legendas.cards && vdProj.legendas.cards.length);
-    bl.textContent = !temCards ? 'Legendas' : (vdProj.legendas.ativo ? 'Legendas: ligadas' : 'Legendas: desligadas');
-    bl.classList.toggle('sel', temCards && vdProj.legendas.ativo);
+    const ligado = temCards && vdProj.legendas.ativo;
+    // ⚠ O RÓTULO NÃO CRESCE. Ele já foi "Legendas: desligadas" e custava 67px que a
+    // barra não tem a 1024px — além de mudar a largura do botão a cada clique, o que
+    // faz os vizinhos pularem. O estado mora no laranja (.sel) e no aria-pressed,
+    // que é o par certo para botão de liga/desliga.
+    bl.classList.toggle('sel', ligado);
+    bl.setAttribute('aria-pressed', ligado ? 'true' : 'false');
+    bl.title = !temCards ? 'Gerar legendas com IA' : (ligado ? 'Legendas ligadas — clique para desligar' : 'Legendas desligadas — clique para ligar');
   }
   set('vd-exportar', tem && !vdExportando());
   set('vd-undo', vdPodeDesfazer() && !vdIaOcupado);

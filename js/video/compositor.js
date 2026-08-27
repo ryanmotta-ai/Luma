@@ -142,7 +142,9 @@ function vdDesenharFrame(seg){
   // tempo da FONTE, então corte e reordenação não desalinham a legenda.
   if(typeof vdCardEm === 'function' && vdProj && vdProj.legendas && vdProj.legendas.ativo){
     const card = vdCardEm(vdVideoEl.currentTime);
-    if(card) vdDesenharLegenda(_vdCtx, card.texto, W, H, vdProj.legendas.template);
+    // Cartão sem texto não desenha: é assim que "apagar o texto do cartão" vira
+    // "tirar a legenda deste ponto", sem inventar um botão de remover.
+    if(card && String(card.texto || '').trim()) vdDesenharLegenda(_vdCtx, card.texto, W, H, vdProj.legendas.template);
   }
 }
 
