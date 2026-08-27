@@ -187,7 +187,16 @@ Foco visível sempre (`:focus-visible` com outline laranja). Alvos de toque ≥4
 | `--dm-orange-d` como TEXTO sobre branco | **3,35:1** | idem — daí a §77 mandar `--dm-red` no texto pequeno. |
 | `#0A0A0A` sobre `--dm-orange` #FF9000 | **8,6:1** | AA e AAA. A única forma de passar com o laranja claro. |
 
-Consequência prática: **CTA com texto pequeno usa `--dm-orange-d` de fundo** (é a §26) e ainda assim fica em 3,35 — abaixo do 4,5 que a AA pede para texto pequeno. Fechar esse último vão exige decisão de marca: texto quase-preto sobre o laranja, ou um laranja mais escuro que sai da paleta. Enquanto não houver decisão, `--dm-orange-d` é o melhor que a paleta documentada permite, e **`--dm-orange` como fundo de texto pequeno é regressão**.
+**DECISÃO DO RYAN (2026-08-19): texto quase-preto sobre o laranja.** Existe o token `--on-orange` (`#0A0A0A`) para isso, e com ele o fundo volta a ser o **laranja vivo** `--dm-orange` — 8,71:1, medido no navegador nos dois temas.
+
+- ⛔ **Não use `--text` sobre o laranja.** Ele É remapeado para quase-branco dentro dos escopos escuros (`chat.css:1034`, `user-profile.css:709`…), então o contraste voltaria a 2,27:1 no tema escuro. Três lugares já caíam nessa armadilha antes de a regra existir.
+- `--on-accent` (branco) **continua valendo onde o fundo é vermelho** — ali é o branco que passa (5,83:1 contra 3,38:1 do escuro).
+- **Cor que vem de dado** (a cor da campanha no thumb do card) decide a tinta por **luminância**, não no olho: `_fLumHex` em `js/franqueado/catalog.js`, limiar 0,185 — acima dele o branco deixa de alcançar 4,5:1 e o escuro passa a alcançar. Sem isso, cada campanha nova era uma aposta de legibilidade.
+- **A cor não é o único sinal de estado** (§49 aplicada): a aba ativa do catálogo usa rótulo escuro + barra laranja por `inset box-shadow`, não texto laranja.
+
+**Ainda aceito como exceção:** o badge curto vermelho-sobre-amarelo (§80) em 3,39:1 — é a única falha de contraste que sobrou no Franqueado depois desta rodada.
+
+**Pendência de asset:** o selo `luma-h-branca.png` dentro do thumb do card ficou branco ao lado de texto escuro. Não existe variante escura do lockup do Luma.
 
 ⚠️ **Hex literal em mockup de outra marca é PROPOSITAL, não dívida.** A prévia "Como fica postado" e o mockup de status reproduzem Instagram e WhatsApp (`#0B141A`, `#005C4B`, `#8696A0`, `#FAF9F6`…). Tokenizar isso é regressão: `var(--text)` seguiria o tema do Luma e deixaria o feed do Instagram com texto branco sobre branco no tema escuro. Numa varredura de 2026-08-19, dos 106 hex "soltos" no franqueado, **49 eram reais e só 4 deviam virar token** — o resto era fallback de `var()`, comentário, ou cor de outra marca.
 

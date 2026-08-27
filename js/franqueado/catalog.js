@@ -868,6 +868,20 @@ function fCampCover(c){
   return (c&&c.cover&&typeof c.cover==='string'&&c.cover.length)?c.cover:'';
 }
 
+/**
+ * Luminância relativa (WCAG) de uma cor hex. Devolve null se não for hex — aí quem
+ * chama mantém o comportamento antigo em vez de adivinhar.
+ * Existe porque a cor da campanha vem de DADO: decidir a tinta do thumb no olho
+ * significa que cada campanha nova é uma aposta de legibilidade.
+ */
+function _fLumHex(h){
+  const m = /^#?([0-9a-fA-F]{6})$/.exec(String(h==null?'':h).trim());
+  if(!m) return null;
+  const n = parseInt(m[1],16);
+  const f = v => { v/=255; return v<=0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055,2.4); };
+  return 0.2126*f((n>>16)&255) + 0.7152*f((n>>8)&255) + 0.0722*f(n&255);
+}
+
 function fCampEl(c,isRec,ghost){
   // F-06: thumb mostra prévia real com produto e preço
   const previewProd = c.previewProd || c.name;
@@ -881,9 +895,11 @@ function fCampEl(c,isRec,ghost){
   // o card mostra a cor da marca em vez de um retângulo branco.
   // Scrim (gradiente topo+base) por cima da capa → badges legíveis mesmo em fotos claras.
   const coverSafe = cover && gEsc(cover).replace(/'/g,'%27'); // %27: neutraliza o ' que fecharia o url('…') — mesmo padrão das outras 2 ocorrências
+  const _lumCamp = _fLumHex(c.color);
+  const thumbTinta = (_lumCamp!=null && _lumCamp>=0.185) ? 'var(--on-orange)' : 'var(--white)';
   const thumbStyle = cover
     ? `background-color:${c.color};background-image:url('${coverSafe}');background-size:cover;background-position:center`
-    : `background:${c.color}`;
+    : `background:${c.color};color:${thumbTinta}`;
   // Conta só materiais VÁLIDOS (fIsMaterialValid) — expirados saíam da tela de dentro
   // mas continuavam no contador do card ("4 materiais" com 3 vencidos = vitrine mentindo).
   const mats = (typeof fGetMaterialsForCamp==='function')

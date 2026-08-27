@@ -342,8 +342,8 @@
     height: 44px;
     padding: 0 16px;
     border-radius: var(--r-pill);
-    background: var(--dm-orange-d);
-    color: var(--white);
+    background: var(--dm-orange);
+    color: var(--on-orange);
     border: none;
     font-family: 'Roboto', sans-serif;
     font-size: 13px;

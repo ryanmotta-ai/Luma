@@ -103,12 +103,12 @@ body.mode-video #view-video{
 }
 .vd-btn:hover:not(:disabled){ background:var(--vd-surf3); border-color:var(--vd-border2); }
 .vd-btn:disabled{ opacity:.4; cursor:default; }
-.vd-btn.primary{ background:var(--dm-orange); border-color:var(--dm-orange); color:var(--on-accent); }
+.vd-btn.primary{ background:var(--dm-orange); border-color:var(--dm-orange); color:var(--on-orange); }
 .vd-btn.primary:hover:not(:disabled){ background:var(--dm-orange-d); border-color:var(--dm-orange-d); }
 .vd-btn.danger{ color:var(--d-error); }
 .vd-btn.icon{ width:30px; padding:0; }
 .vd-btn.tiny{ height:24px; padding:0 8px; font-size:11px; font-variant-numeric:tabular-nums; }
-.vd-btn.sel{ background:var(--dm-orange); border-color:var(--dm-orange); color:var(--on-accent); }
+.vd-btn.sel{ background:var(--dm-orange); border-color:var(--dm-orange); color:var(--on-orange); }
 .vd-fmt{ display:inline-flex; gap:4px; padding-right:8px; }
 .vd-btn:focus-visible{ outline:2px solid var(--dm-orange); outline-offset:2px; }
 

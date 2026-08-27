@@ -107,7 +107,7 @@
 .qr:nth-child(3){animation-delay:100ms}
 .qr:nth-child(4){animation-delay:135ms}
 .qr:nth-child(5){animation-delay:170ms}
-.qr:hover{background:var(--dm-orange);border-color:var(--dm-orange);color:var(--text);transform:translateY(-1px);box-shadow:0 5px 14px color-mix(in srgb,var(--dm-orange-d) 16%,transparent)}
+.qr:hover{background:var(--dm-orange);border-color:var(--dm-orange);color:var(--on-orange);transform:translateY(-1px);box-shadow:0 5px 14px color-mix(in srgb,var(--dm-orange-d) 16%,transparent)}
 .qr:active{transform:scale(.96)}
 .qr:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
 .confirm-card {
@@ -170,7 +170,7 @@
   transition:transform var(--dur-fast) var(--ease-spring),background var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard);
 }
 .confirm-btn.ok {
-  flex:1.15;border:1px solid var(--dm-orange);background:var(--dm-orange);color:var(--text);box-shadow:0 6px 16px color-mix(in srgb,var(--dm-orange-d) 18%,transparent);
+  flex:1.15;border:1px solid var(--dm-orange);background:var(--dm-orange);color:var(--on-orange);box-shadow:0 6px 16px color-mix(in srgb,var(--dm-orange-d) 18%,transparent);
 }
 .confirm-btn.ok:hover {
   background:var(--dm-orange);box-shadow:0 9px 22px color-mix(in srgb,var(--dm-orange-d) 24%,transparent);transform:translateY(-1px);
@@ -405,8 +405,8 @@ body:not(.theme-light) .art-bulk-txt em { color: var(--d-text2) }
   transform: scale(.97);
 }
 .art-btn.pri {
-  background: var(--dm-orange-d);   /* era #f85400 solto: mesma cor, agora pelo token */
-  color: var(--white);
+  background: var(--dm-orange);
+  color: var(--on-orange);   /* 8,6:1 — decisão de 2026-08-19 */
   border: none;
   box-shadow: 0 3px 8px rgba(248, 84, 0, 0.25);
 }
