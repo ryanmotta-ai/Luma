@@ -2442,10 +2442,17 @@ body:not(.theme-light) input:-webkit-autofill:active {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
           </button>
         </div>
+        <!-- Campos da oferta ativa — SÓ no celular, onde esta coluna vira a folha de edição
+             (`body.f-bulk-folha`, ver chat.css). No desktop fica vazio: ali quem edita é a
+             tabela ao lado, e duas superfícies de edição para a mesma linha seria armadilha.
+             Preenchido por `_fBulkRenderFolhaCampos`. -->
+        <div class="f-bulk-folha-campos" id="f-bulk-folha-campos"></div>
         <!-- A fita de miniaturas é o lote inteiro de relance: substitui a antiga "vista em
              cartões", que mostrava o mesmo com um clique a mais e sem a arte grande do lado. -->
         <div class="f-bulk-strip" id="f-bulk-strip" role="tablist" aria-label="Artes do lote"></div>
         <p class="f-bulk-live-hint">Clique numa linha da planilha para ver a arte dela.</p>
+        <!-- Fechar a folha no celular. Invisível no desktop, onde a coluna não é folha. -->
+        <button type="button" class="f-bulk-folha-fechar" onclick="fBulkFecharFolha()">Salvar e voltar à lista</button>
       </aside>
 
       <!-- ══ DIREITA — A PLANILHA ══ -->
