@@ -1461,3 +1461,174 @@ body:not(.theme-light) .caption-src{background:var(--d-surf2);border-color:var(-
   body.f-mobile-chat #f-messages{padding-bottom:14px}
 }
 body:not(.theme-light) #f-chat-art{border-color:var(--d-line,#2A2A2A);background:var(--d-surf2,#141414)}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   LUMA SHEETS NO CELULAR — lista + folha de edição
+   ══════════════════════════════════════════════════════════════════════════════
+   A grade linha × coluna precisa de largura para existir; num telefone ela virava
+   260px de planilha atrás de rolagem horizontal. Aqui a mesma verdade troca de
+   instrumento: a tabela vira lista, e a COLUNA DE PRÉVIA vira a folha que sobe.
+   O JS e o porquê estão em `_fBulkRenderLista` (js/franqueado/png-generator.js).
+
+   ⚠ A folha NÃO é um componente novo — é a `.f-bulk-live` que já existia, reposicionada.
+   Por isso a arte, o selo de estado e as setas “anterior/próxima” já vêm dentro dela
+   sem uma linha de JS: são os mesmos elementos do desktop. */
+
+.f-bulk-folha-campos{display:none}
+.f-bulk-folha-fechar{display:none}
+
+@media (max-width:680px){
+
+  /* ── A LISTA ── */
+  .f-bulk-lista{display:flex; flex-direction:column; gap:7px; padding:2px 0 10px}
+  .f-bulk-lfiltros{
+    display:flex; gap:6px; overflow-x:auto; padding:2px 0 8px; margin:0 0 2px;
+    scrollbar-width:none; -webkit-overflow-scrolling:touch;
+  }
+  .f-bulk-lfiltros::-webkit-scrollbar{display:none}
+  .f-bulk-lchip{
+    flex:0 0 auto; min-height:var(--tap-min); padding:0 14px; border-radius:var(--r-pill);
+    border:1px solid var(--gray-mid); background:var(--white); color:var(--text-2);
+    font:inherit; font-size:12.5px; font-weight:700; cursor:pointer; white-space:nowrap;
+    display:inline-flex; align-items:center;
+    transition:background var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard);
+  }
+  .f-bulk-lchip.is-on{background:var(--dm-orange-d); border-color:var(--dm-orange-d); color:var(--white)}
+  .f-bulk-lchip:focus-visible{outline:2px solid var(--dm-orange); outline-offset:2px}
+
+  .f-bulk-litem{
+    display:flex; align-items:center; gap:11px; width:100%; text-align:left;
+    min-height:56px; padding:9px 11px;                       /* bem acima dos 44px da Lei de Fitts */
+    border:1px solid var(--gray-light); border-radius:var(--r); background:var(--white);
+    font:inherit; color:var(--text); cursor:pointer;
+    transition:border-color var(--dur-fast) var(--ease-standard),background var(--dur-fast) var(--ease-standard),transform var(--dur-fast) var(--ease-spring);
+    -webkit-tap-highlight-color:transparent;
+  }
+  .f-bulk-litem:active{transform:scale(.99)}
+  .f-bulk-litem.is-active{border-color:var(--dm-orange); background:var(--dm-orange-bg)}
+  .f-bulk-litem:focus-visible{outline:2px solid var(--dm-orange); outline-offset:2px}
+  .f-bulk-lnum{
+    flex:0 0 auto; width:26px; height:26px; border-radius:var(--r-sm);
+    background:var(--gray-light); color:var(--text-3);
+    font-size:11.5px; font-weight:800; font-variant-numeric:tabular-nums;
+    display:grid; place-items:center;
+  }
+  .f-bulk-litem.is-active .f-bulk-lnum{background:var(--dm-orange-tint); color:var(--dm-orange-d)}
+  .f-bulk-ltx{min-width:0; flex:1; display:flex; flex-direction:column; gap:3px}
+  .f-bulk-lnome{
+    font-size:14px; font-weight:700; line-height:1.25;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .f-bulk-lnome i{color:var(--text-3); font-weight:500}
+  .f-bulk-lmeta{
+    font-size:11.5px; color:var(--text-3); line-height:1.3;
+    display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+  }
+  .f-bulk-lpill{
+    display:inline-flex; align-items:center; border-radius:var(--r-pill);
+    padding:2px 8px; font-size:10.5px; font-weight:700; white-space:nowrap;
+  }
+  /* O estado é a informação que a lista existe para dar — por isso ele tem COR e FORMA,
+     não só texto: dá para varrer 30 ofertas e achar as 3 furadas sem ler nenhuma palavra. */
+  .f-bulk-lpill.is-ok{background:rgba(34,197,94,.13); color:#0F7A3D}
+  .f-bulk-lpill.is-gap{background:var(--dm-orange-bg); color:var(--dm-orange-d)}
+  .f-bulk-lpill.is-mut{background:var(--gray-light); color:var(--text-3)}
+  .f-bulk-lgo{flex:0 0 auto; color:var(--gray-mid); font-size:20px; line-height:1}
+  .f-bulk-lvazio{padding:26px 12px; text-align:center; color:var(--text-3); font-size:13px}
+
+  /* ── A FOLHA (a coluna de prévia, reposicionada) ── */
+  .f-bulk-live{
+    position:fixed; left:0; right:0; bottom:0; z-index:1300;
+    /* Nunca encosta no topo: a faixa que sobra mostra a lista atrás e diz “isto está POR CIMA
+       de alguma coisa”, que é o que faz a folha ser reversível aos olhos de quem abriu. */
+    max-height:calc(100dvh - 56px - var(--safe-top));
+    width:auto !important; border-radius:18px 18px 0 0;
+    background:var(--white); border:1px solid var(--gray-light); border-bottom:0;
+    box-shadow:0 -16px 44px rgba(10,10,10,.24);
+    padding:14px 14px calc(14px + var(--safe-bottom));
+    display:flex; flex-direction:column; gap:10px; overflow-y:auto; overscroll-behavior:contain;
+    transform:translateY(101%); visibility:hidden;
+    transition:transform var(--dur-slow) var(--ease-out), visibility var(--dur-slow);
+  }
+  body.f-bulk-folha .f-bulk-live{transform:translateY(0); visibility:visible}
+  /* A alça promete arrastar; hoje ela só sinaliza “isto sobe e desce”. Prometer gesto que não
+     existe seria pior — então ela fica quieta e quem fecha é o botão do rodapé. */
+  .f-bulk-live::before{
+    content:''; width:36px; height:4px; border-radius:var(--r-pill);
+    background:var(--gray-mid); margin:0 auto 2px; flex:0 0 auto;
+  }
+  /* Véu: sem ele a folha flutua sem dizer sobre o quê, e o toque atrás continuaria valendo. */
+  body.f-bulk-folha .f-bulk-sheet::after{
+    content:''; position:fixed; inset:0; z-index:1290; background:rgba(10,10,10,.34);
+  }
+  /* ⚠ Desfaz o `height:132px` que o tratamento mobile ANTIGO crava no palco (linhas ~984):
+     ali a prévia era uma faixa espremida no topo da planilha, e 132px era o certo. Dentro da
+     folha a arte é o motivo de ela existir — medido em 74×132px antes desta regra, um selo.
+     A altura manda e a largura vem da proporção do material (`--f-bulk-ar`), então story,
+     feed e wide cabem sem cada um precisar da sua regra. */
+  .f-bulk-live-stage{flex:0 1 auto; height:auto; min-height:0}
+  .f-bulk-live-frame{height:34dvh; max-height:34dvh}
+  .f-bulk-live-hint{display:none}                 /* “clique numa linha” não vale dentro da folha */
+  /* ⚠ AS SETAS VOLTAM. O tratamento mobile antigo fazia `.f-bulk-live-nav{display:none}`
+     (~linha 987) porque a prévia era uma faixa de 132px no topo da planilha — ali navegar
+     não fazia sentido. Dentro da folha elas SÃO o carrossel: passar de oferta em oferta sem
+     voltar à lista é metade da direção escolhida. Escondê-las deixaria `fBulkStepRow`
+     funcionando só por código, sem nenhum jeito de a pessoa chamar. */
+  .f-bulk-live-nav{display:flex; align-items:center; justify-content:space-between; gap:10px; flex:0 0 auto}
+  .f-bulk-live-arrow{min-width:var(--tap-min); min-height:var(--tap-min)}
+  .f-bulk-live-nav #f-bulk-live-count{font-size:12px; font-weight:700; color:var(--text-3); font-variant-numeric:tabular-nums}
+
+  /* O rodapé punha “Legenda e cidade”, “Fechar” e “Gerar N artes” na MESMA linha sem quebra:
+     medido em 390px, o primeiro era empurrado para x=-59 e saía pela borda esquerda, com
+     13 elementos vazando. Deixar quebrar resolve sem tirar nenhuma ação da tela. */
+  .f-bulk-footer-actions{flex-wrap:wrap; gap:8px}
+  .f-bulk-footer-actions .f-bulk-post-opts{flex:1 0 100%}
+  .f-bulk-footer-actions .f-bulk-post-opts>summary{width:100%; justify-content:center; min-height:var(--tap-min)}
+  .f-bulk-footer-actions .d-btn-sec,
+  .f-bulk-footer-actions .d-btn-pri{flex:1 1 0; min-width:0; min-height:var(--tap-min)}
+
+  /* ── Os campos da oferta, dentro da folha ── */
+  .f-bulk-folha-campos{display:flex; flex-direction:column; gap:9px; flex:0 0 auto}
+  .f-bulk-fcampo{display:flex; flex-direction:column; gap:5px}
+  .f-bulk-flabel{
+    font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3);
+  }
+  /* ⚠ DOIS ancestrais no seletor, e não é enfeite. A regra genérica do modal é
+     `#f-bulk-modal input[type=text]{min-height:34px;font-size:11px}` — e `[type=text]` pesa
+     como CLASSE, não como elemento: ela vale 1‑1‑1, enquanto `#f-bulk-modal .f-bulk-fin`
+     valeria 1‑1‑0 e PERDERIA por um ponto. Com `.f-bulk-folha-campos` no meio a conta vira
+     1‑2‑0 e a regra passa a valer. Medido antes da correção: os campos saíam com 11px de
+     fonte (zoom automático do iOS ao focar) e 34px de altura (alvo abaixo dos 44px). */
+  #f-bulk-modal .f-bulk-folha-campos .f-bulk-fin,
+  #f-bulk-modal .f-bulk-folha-campos .f-bulk-ffoto{
+    min-height:var(--tap-min); padding:10px 12px; border-radius:var(--r);
+    border:1px solid var(--gray-mid); background:var(--white); color:var(--text);
+    font-family:inherit; font-size:16px;          /* 16px = sem o zoom automático do iOS ao focar */
+    font-weight:500; outline:none; width:100%;
+    transition:border-color var(--dur-micro) var(--ease-standard),box-shadow var(--dur-micro) var(--ease-standard);
+  }
+  #f-bulk-modal .f-bulk-folha-campos .f-bulk-fin:focus{border-color:var(--dm-orange); box-shadow:0 0 0 3px color-mix(in srgb,var(--dm-orange) 15%,transparent)}
+  /* Campo pendente é CONVITE, não alarme: tracejado laranja da marca, como o Luma marca
+     campo vazio na prévia. Vermelho aqui contrariaria a regra “o Luma não alarma”. */
+  #f-bulk-modal .f-bulk-folha-campos .f-bulk-fin.tem-erro{border-style:dashed; border-color:var(--dm-orange); background:#FFF8F0}
+  #f-bulk-modal .f-bulk-folha-campos .f-bulk-ffoto{text-align:left; cursor:pointer; font-weight:700; color:var(--dm-orange-d)}
+  #f-bulk-modal .f-bulk-folha-campos .f-bulk-ffoto.tem{color:var(--text-2); font-weight:500}
+
+  .f-bulk-folha-fechar{
+    display:flex; align-items:center; justify-content:center; flex:0 0 auto;
+    min-height:var(--tap-min); width:100%; margin-top:2px;
+    border:0; border-radius:var(--r-sm); background:var(--dm-orange-d); color:var(--white);
+    font:inherit; font-size:14px; font-weight:700; cursor:pointer;
+  }
+  .f-bulk-folha-fechar:focus-visible{outline:2px solid var(--dm-orange); outline-offset:2px}
+
+  /* Com a lista no lugar da grade, a planilha ocupa a tela inteira. */
+  .f-bulk-split{grid-template-rows:minmax(0,1fr) !important}
+  .f-bulk-table-scroll{overflow-x:visible}
+}
+
+body:not(.theme-light) .f-bulk-litem{background:var(--d-surf); border-color:var(--d-border); color:var(--d-text)}
+body:not(.theme-light) .f-bulk-lchip{background:var(--d-surf); border-color:var(--d-border2); color:var(--d-text2)}
+body:not(.theme-light) .f-bulk-live{background:var(--d-surf); border-color:var(--d-border)}
+body:not(.theme-light) #f-bulk-modal .f-bulk-folha-campos .f-bulk-fin,
+body:not(.theme-light) #f-bulk-modal .f-bulk-folha-campos .f-bulk-ffoto{background:var(--d-surf2); border-color:var(--d-border2); color:var(--d-text)}

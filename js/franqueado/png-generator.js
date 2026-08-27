@@ -1554,9 +1554,12 @@ function fBulkSetActive(i, opts){
   _fBulkActiveRid = ridNovo;
   // Acende a linha na tabela sem re-renderizar nada: re-render roubaria o foco de quem
   // está digitando, que é exatamente quem dispara isto.
+  /* `[data-row]` e não `tr[data-row]`: no celular a mesma linha é um `<button>` da lista,
+     não um `<tr>`. O seletor amplo acende as duas vistas com a mesma regra — só elementos
+     que carregam `data-row` são tocados, e só a classe `is-active` muda. */
   const tb = document.getElementById('f-bulk-preview');
-  if(tb) tb.querySelectorAll('tr[data-row]').forEach(tr=>{
-    tr.classList.toggle('is-active', +tr.dataset.row === novo);
+  if(tb) tb.querySelectorAll('[data-row]').forEach(el=>{
+    el.classList.toggle('is-active', +el.dataset.row === novo);
   });
   const strip = document.getElementById('f-bulk-strip');
   document.querySelectorAll('.f-bulk-strip-item').forEach(b=>{
@@ -1596,6 +1599,10 @@ function _fBulkSyncLiveHead(){
     chip.textContent = vazia ? 'vazia' : (faltando ? `${faltando} campo(s) a preencher` : 'pronta');
     chip.className = 'f-bulk-live-chip ' + (vazia||faltando ? 'is-wait' : 'is-ok');
   }
+  /* As setas do carrossel entram por aqui (fBulkStepRow → fBulkSetActive → este ponto),
+     então repintar os campos da folha aqui faz a navegação funcionar sem que `fBulkStepRow`
+     saiba que a folha existe. A função sai sozinha quando não é celular ou a folha está fechada. */
+  try{ _fBulkRenderFolhaCampos(); }catch(e){}
 }
 /* A prévia grande sai do MESMO motor do PNG final (fRenderTemplateLayers) — é a régua única
    da casa, e é o que garante que esta tela não minta sobre o arquivo que vai baixar.
@@ -2687,6 +2694,163 @@ function fBulkUpdateReadiness(readiness=fBulkGetReadiness()) {
   if(typeof _fBulkSyncLiveHead==='function') _fBulkSyncLiveHead();
 }
 
+/* ══════════════════════════════════════════════════════════════════════════════
+   O SHEETS NO CELULAR — lista + folha de edição
+   ══════════════════════════════════════════════════════════════════════════════
+   A grade linha × coluna é uma metáfora de MESA: precisa de largura para existir.
+   Num telefone de 390px ela virava 260px de planilha só alcançáveis rolando na
+   horizontal. Aqui a mesma verdade muda de instrumento, sem perder função:
+
+     · a TABELA vira LISTA vertical — nome, detalhe e o estado de cada oferta;
+     · a COLUNA DE PRÉVIA vira FOLHA que sobe por cima (só CSS, ver chat.css).
+
+   ⚠ Quase nada disto é motor novo, e é de propósito:
+     `fBulkGetReadiness` já separava pronta / falta algo / vazia — a lista só desenha
+     o que ela calcula. As setas “anterior/próxima” da folha são os botões que já
+     existiam na coluna de prévia chamando `fBulkStepRow(±1)`. A arte é o mesmo
+     `_fBulkRenderHero` do desktop, no mesmo `#f-bulk-hero-cv`.
+   ⚠ Os inputs da folha usam os MESMOS ids `f-bulk-edit-{i}-{k}` da tabela. É isso que
+     deixa `fBulkSaveRow` e `fBulkCollectCurrentInputs` valerem sem uma linha de mudança:
+     os dois leem por id e caem em `row.dados` quando o input não está na tela — e na
+     folha só a linha ativa está. */
+
+function _fBulkEhCelular(){
+  return !!(window.matchMedia && matchMedia('(max-width:680px)').matches);
+}
+let _fBulkFiltro = 'todas';   // 'todas' | 'falta' | 'prontas'
+
+/* Mesma régua do `fBulkGetReadiness`, por linha. Repetida aqui em vez de chamada porque
+   aquela varre o lote inteiro e devolve três arrays — pedir isso por linha seria O(n²). */
+function _fBulkEstadoLinha(r, keys){
+  if(!r) return 'vazia';
+  const vazia = keys.every(k => !String((r.dados||{})[k] || '').trim());
+  if(vazia) return 'vazia';
+  return (r.erros && r.erros.length) ? 'falta' : 'pronta';
+}
+
+/* Título e detalhe da linha na lista. Heurística honesta: o primeiro campo de texto é o
+   nome e o segundo é o detalhe — é como todo material de promo do Luma é montado
+   (produto + preço). Campo de imagem nunca vira título: viraria uma URL gigante. */
+function _fBulkResumoLinha(r, keys){
+  const txt = keys.filter(k => !fIsImageVar(k));
+  const val = k => String(((r&&r.dados)||{})[k] || '').trim();
+  return { titulo: val(txt[0]), detalhe: val(txt[1]) };
+}
+
+function _fBulkRenderLista(){
+  const wrap = document.getElementById('f-bulk-preview');
+  if(!wrap) return;
+  const keys = fBulkVars();
+  const ativa = _fBulkActiveIdx();
+  const busca = (document.getElementById('f-bulk-search')?.value || '').trim().toLowerCase();
+
+  const estados = fBulkRows.map(r => _fBulkEstadoLinha(r, keys));
+  const nFalta = estados.filter(e => e !== 'pronta').length;
+  const nPronta = estados.filter(e => e === 'pronta').length;
+
+  const chip = (id, rot, n) => `<button type="button" class="f-bulk-lchip${_fBulkFiltro===id?' is-on':''}"
+    aria-pressed="${_fBulkFiltro===id?'true':'false'}" onclick="fBulkFiltrarLista('${id}')">${gEsc(rot)}${n!=null?` · ${n}`:''}</button>`;
+
+  const itens = fBulkRows.map((r, i) => {
+    const est = estados[i];
+    if(_fBulkFiltro==='falta' && est==='pronta') return '';
+    if(_fBulkFiltro==='prontas' && est!=='pronta') return '';
+    if(busca && !Object.values(r.dados||{}).some(v => String(v).toLowerCase().includes(busca))) return '';
+    const {titulo, detalhe} = _fBulkResumoLinha(r, keys);
+    const selo = est==='pronta' ? '<span class="f-bulk-lpill is-ok">pronta</span>'
+      : est==='vazia' ? '<span class="f-bulk-lpill is-mut">vazia</span>'
+      : `<span class="f-bulk-lpill is-gap">${(r.erros||[]).length} a preencher</span>`;
+    /* O nome cai para "Oferta N" quando ainda não há texto — mostrar uma linha em branco
+       na lista é pior que assumir o rótulo: a pessoa não sabe onde tocar. */
+    return `<button type="button" class="f-bulk-litem${i===ativa?' is-active':''}" data-row="${i}"
+      onclick="fBulkAbrirFolha(${i})" aria-label="Abrir a oferta ${i+1}">
+      <span class="f-bulk-lnum">${i+1}</span>
+      <span class="f-bulk-ltx">
+        <span class="f-bulk-lnome">${gEsc(titulo) || `<i>Oferta ${i+1}</i>`}</span>
+        <span class="f-bulk-lmeta">${detalhe?gEsc(detalhe)+' · ':''}${selo}</span>
+      </span>
+      <span class="f-bulk-lgo" aria-hidden="true">›</span>
+    </button>`;
+  }).join('');
+
+  wrap.innerHTML = `<div class="f-bulk-lista">
+    <div class="f-bulk-lfiltros" role="group" aria-label="Filtrar ofertas">
+      ${chip('falta','Falta algo',nFalta)}${chip('todas','Todas',fBulkRows.length)}${chip('prontas','Prontas',nPronta)}
+    </div>
+    ${itens || '<p class="f-bulk-lvazio">Nenhuma oferta neste filtro.</p>'}
+  </div>`;
+
+  _fBulkRenderStrip();
+  fBulkSetActive(ativa, {semRolar:true});
+}
+
+function fBulkFiltrarLista(f){
+  _fBulkFiltro = f;
+  _fBulkRenderLista();
+}
+
+/* Abre a folha na oferta `i`. `fBulkSetActive` é quem manda a arte e o cabeçalho
+   acompanharem — aqui só entra o estado de "folha aberta" e os campos da linha. */
+function fBulkAbrirFolha(i){
+  fBulkCollectCurrentInputs();          // não perde o que estava digitado na folha anterior
+  document.body.classList.add('f-bulk-folha');
+  fBulkSetActive(i);
+  _fBulkRenderFolhaCampos(true);        // forçado: reabrir a MESMA linha tem que repintar
+}
+function fBulkFecharFolha(){
+  const i = _fBulkActiveIdx();
+  if(i >= 0) fBulkSaveRow(i, true);     // sair sem salvar seria perder o que a pessoa digitou
+  document.body.classList.remove('f-bulk-folha');
+  _fBulkRenderLista();
+}
+
+/* Os campos da linha ativa dentro da folha. Chamado por `_fBulkSyncLiveHead`, então as
+   setas do carrossel repintam os campos de graça — sem que elas precisem saber da folha. */
+let _fBulkFolhaRid = null;
+function _fBulkRenderFolhaCampos(forcar){
+  const alvo = document.getElementById('f-bulk-folha-campos');
+  if(!alvo) return;
+  if(!_fBulkEhCelular() || !document.body.classList.contains('f-bulk-folha')){
+    alvo.innerHTML=''; _fBulkFolhaRid = null; return;
+  }
+  const i = _fBulkActiveIdx();
+  const r = fBulkRows[i];
+  if(i < 0 || !r){ alvo.innerHTML=''; _fBulkFolhaRid = null; return; }
+  /* ⚠ SÓ REPINTA QUANDO A LINHA MUDA. Cada tecla chama `fBulkLiveEdit` → `fBulkSetActive` →
+     `_fBulkSyncLiveHead` → aqui; repintar nessa hora reconstrói os inputs a partir de
+     `r.dados`, que só é gravado 160ms depois — ou seja, apaga a letra recém-digitada.
+     Medido: digitar na folha e fechar deixava o campo VAZIO. É a mesma armadilha que a
+     tabela já evitava ("re-render roubaria o foco de quem está digitando"). */
+  const rid = _fBulkRid(r);
+  if(!forcar && rid === _fBulkFolhaRid) return;
+  _fBulkFolhaRid = rid;
+  const rotuloDe = k => (typeof _fLpLabel === 'function' ? _fLpLabel(k) : k);
+
+  alvo.innerHTML = fBulkVars().map(k => {
+    const rot = gEsc(rotuloDe(k)).replace(/"/g,'&quot;');
+    const val = gEsc(r.dados[k] || '').replace(/"/g,'&quot;');
+    const erro = (r.erros||[]).some(e => e.includes(k));
+    if(fIsImageVar(k)){
+      return `<label class="f-bulk-fcampo">
+        <span class="f-bulk-flabel">${rot}</span>
+        <button type="button" class="f-bulk-ffoto${val?' tem':''}" onclick="fBulkUploadCellImage(${i},'${gEsc(k)}')">
+          ${val ? 'Trocar a foto' : 'Enviar a foto'}
+        </button>
+      </label>`;
+    }
+    /* `type="text"` e não `number`: preço no Brasil é "29,90" e o campo numérico do celular
+       recusa a vírgula em boa parte dos aparelhos. `inputmode="decimal"` traz o teclado de
+       números sem impor o formato — o `fValidate` continua sendo quem julga o valor. */
+    const numerico = /pre[çc]o|valor|de_|por_/i.test(k);
+    return `<label class="f-bulk-fcampo">
+      <span class="f-bulk-flabel">${rot}</span>
+      <input type="text" id="f-bulk-edit-${i}-${k}" class="f-bulk-fin${erro?' tem-erro':''}" value="${val}"
+        ${numerico?'inputmode="decimal" ':''}placeholder="${rot}" aria-label="${rot}"
+        oninput="fBulkLiveEdit(${i})" onblur="fBulkSaveRow(${i}, true)">
+    </label>`;
+  }).join('');
+}
+
 function fBulkRenderPreview(){
   const wrap=document.getElementById('f-bulk-preview');if(!wrap)return;
   fBulkUpdateReadiness();
@@ -2704,7 +2868,11 @@ function fBulkRenderPreview(){
     _fBulkSyncLiveHead();
     return;
   }
-  
+
+  // No celular a grade dá lugar à lista. O desvio fica DEPOIS da guarda de lote vazio para
+  // que "planilha sem linhas" continue com a mesma mensagem e a mesma limpeza nos dois casos.
+  if (_fBulkEhCelular()) { _fBulkRenderLista(); return; }
+
   if (_fBulkTableView) {
     const keys = fBulkVars();
     const labelFor = k => (typeof _fLpLabel === 'function' ? _fLpLabel(k) : k);
