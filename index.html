@@ -56,7 +56,6 @@
 <link rel="stylesheet" href="css/modules/help-widget.css?v=2">
 <link rel="stylesheet" href="css/modules/console.css">
 <link rel="stylesheet" href="css/modules/academia.css">
-<link rel="stylesheet" href="css/modules/video.css">
 </head>
 <body class="mode-franqueado theme-light">
 
@@ -260,7 +259,6 @@ body:not(.theme-light) input:-webkit-autofill:active {
     <button class="mode-tab active" id="tab-fran" onclick="setMode('franqueado')" aria-label="Abrir área do Franqueado"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 9l2-5h14l2 5"/><path d="M5 13v7h14v-7"/><path d="M9 20v-5h6v5"/><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/></svg><span>Franqueado</span></button>
     <button class="mode-tab" id="tab-academia" data-feature="module.academia" onclick="setMode('academia')" aria-label="Abrir a Implementação Delivery Much"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12.5V17c0 1.7 2.7 3 6 3s6-1.3 6-3v-4.5"/></svg><span>Implementação</span></button>
     <button class="mode-tab" id="tab-design" onclick="setMode('designer')" aria-label="Abrir área do Designer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m14.5 4.5 5 5L8 21H3v-5z"/><path d="m12 7 5 5"/><path d="M3 3h7"/></svg><span>Designer</span></button>
-    <button class="mode-tab" id="tab-video" data-feature="module.video" onclick="setMode('video')" aria-label="Abrir o editor de vídeo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 10l4.55-2.27A1 1 0 0121 8.62v6.76a1 1 0 01-1.45.89L15 14"/><rect x="3" y="6" width="12" height="12" rx="2"/></svg><span>Vídeo</span></button>
   </nav>
   
   <!-- Cluster direito: contexto do modo e perfil -->
@@ -896,18 +894,6 @@ body:not(.theme-light) input:-webkit-autofill:active {
      gestão de conteúdo e certificado) — o mesmo padrão de #f-home. -->
 <div id="view-academia" class="view-container">
   <div id="ac-root"></div>
-</div>
-
-<div id="view-video" class="view-container">
-  <div id="vd-root"></div>
-  <!-- Gate desktop-only (decisão de produto): abaixo de 1024px o editor de vídeo
-       não abre — o celular não exporta. Só CSS, como o gate do Estúdio. -->
-  <div id="vd-desktop-gate">
-    <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-    <strong>O editor de vídeo abre no computador</strong>
-    <p>Editar e exportar vídeo exige tela grande e a força do computador. Abra o Luma no desktop para usar esta área.</p>
-    <button class="vd-btn primary" onclick="setMode('franqueado')">Voltar para o Franqueado</button>
-  </div>
 </div>
 
 <!-- ══ VIEW DESIGNER ══ -->
@@ -3023,13 +3009,6 @@ body:not(.theme-light) input:-webkit-autofill:active {
 <script src="js/academia/gestao.js"></script>
 <script src="js/academia/certificado.js"></script>
 <script src="js/academia/conclusao.js"></script>
-<script src="js/video/projeto.js"></script>
-<script src="js/video/ingest.js"></script>
-<script src="js/video/legenda.js"></script>
-<script src="js/video/ia.js"></script>
-<script src="js/video/compositor.js"></script>
-<script src="js/video/timeline.js"></script>
-<script src="js/video/video.js"></script>
 <script src="js/designer/blending.js"></script>
 <script src="js/franqueado/png-generator.js?v=5"></script>
 <script src="js/designer/templates.js?v=2"></script>

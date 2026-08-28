@@ -60,11 +60,10 @@ O Luma é uma **SPA estática que fala direto com o Supabase**. Não há servido
 | `tut*` | Tutoriais | `js/tutorial/*` |
 | `pv*` | Preview engine | `js/designer/preview.js` |
 | `ac*` | Academia (formação do franqueado) | `js/academia/*` |
-| `vd*` | Vídeo (editor de vídeo, desktop-only) | `js/video/*` |
 
 **Estado.** Variáveis `let` **globais** (`dLayers`, `fState`, `dVars`, `dFolders`, `gAuthState`…), mutadas diretamente + re-render manual. Não há store, signals ou virtual DOM.
 
-**Views.** O `index.html` tem containers por modo (`#view-franqueado`, `#view-academia`, `#view-designer`, `#view-video`). O boot (`main.js`, `DOMContentLoaded` async) checa a sessão, decide login × app, e `setMode()` troca a classe do `body` e inicializa Estúdio e Academia _lazy_ (só na primeira entrada de cada um).
+**Views.** O `index.html` tem containers por modo (`#view-franqueado`, `#view-academia`, `#view-designer`). O boot (`main.js`, `DOMContentLoaded` async) checa a sessão, decide login × app, e `setMode()` troca a classe do `body` e inicializa Estúdio e Academia _lazy_ (só na primeira entrada de cada um).
 
 ⚠️ **Armadilha do `viewEntrance`:** as views guardam o `transform` final da animação de entrada (`animation-fill-mode: forwards`). `transform` ≠ `none` cria **bloco de contenção**, então um filho `position:fixed` ancora na view, não no viewport. Painel/drawer dentro de uma view usa `position:absolute` num pai explícito. _(Bug real da Academia: os drawers saíam 52px deslocados.)_
 

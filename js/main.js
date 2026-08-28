@@ -20,7 +20,7 @@ function dUpdateTabPill() {
 /* ── CONTROLE DO PRODUTO: gate de módulo ─────────────────────────
    A chave de cada aba da topbar. O Controle do produto pode desligar um módulo
    inteiro sem deploy; aqui é onde isso vira navegação bloqueada. */
-const G_MODE_FEATURE = { franqueado:'module.franqueado', designer:'module.designer', academia:'module.academia', video:'module.video' };
+const G_MODE_FEATURE = { franqueado:'module.franqueado', designer:'module.designer', academia:'module.academia' };
 
 // Um modo só abre se a role permite E a flag permite.
 function gModeAllowed(m){
@@ -86,18 +86,13 @@ function setMode(m){
   // Sair da Academia fecha os drawers de aula (senão o painel fixo do agente/estrutura
   // fica pairando por cima do Franqueado, que não tem como fechá-lo).
   if(m!=='academia' && typeof acFecharPaineis==='function') acFecharPaineis();
-  // Sair do Vídeo sem pausar deixaria o áudio do material tocando por cima de
-  // outra área — o <video> é global e não morre com a troca de aba.
-  if(m!=='video' && typeof vdPausar==='function') vdPausar();
   // Troca só a classe de modo, preservando as demais (theme-light, rulers-on, simulating...)
-  document.body.classList.remove('mode-franqueado','mode-designer','mode-academia','mode-video');
+  document.body.classList.remove('mode-franqueado','mode-designer','mode-academia');
   document.body.classList.add('mode-'+m);
   document.getElementById('tab-fran').classList.toggle('active', m==='franqueado');
   document.getElementById('tab-design').classList.toggle('active', m==='designer');
   const tabAcad = document.getElementById('tab-academia');
   if(tabAcad) tabAcad.classList.toggle('active', m==='academia');
-  const tabVideo = document.getElementById('tab-video');
-  if(tabVideo) tabVideo.classList.toggle('active', m==='video');
 
   dUpdateTabPill();
 
@@ -107,9 +102,6 @@ function setMode(m){
   if(ctxDesign) ctxDesign.style.display = m==='designer'?'':'none';
   // Academia carrega lazy, como o Estúdio: só na primeira entrada paga o sync.
   if(m==='academia' && typeof acInit==='function') acInit();
-  // Vídeo carrega lazy pelo mesmo motivo da Academia: monta o editor só na
-  // primeira entrada, em vez de no boot de todo mundo.
-  if(m==='video' && typeof vdInit==='function') vdInit();
   if(m==='designer'){
     dInit();
     // Entrar no Estúdio sempre cai na CASA (aba Campanhas), nunca no painel de Camadas —
