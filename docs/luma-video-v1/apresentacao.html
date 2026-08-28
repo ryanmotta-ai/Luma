@@ -1,0 +1,995 @@
+<title>Luma Vídeo · Copiloto do Franqueado</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700;800;900&display=swap" rel="stylesheet">
+<style>
+/* docs/luma-video-v1/apresentacao.html — o deck do reposicionamento.
+   Identidade herdada de docs/luma-evolution/presentation/luma-evolution-v2.html: mesmos
+   tokens, mesma moldura, mesmo palco de 1920×1080. Um slide é um retângulo de tamanho
+   conhecido porque o destino é projeção/PDF.
+
+   SEM <!doctype>/<html>/<body> de propósito: o arquivo é publicável como Artifact (que
+   monta o esqueleto) e o navegador monta sozinho ao abrir local. Nada se perde.
+
+   DUAS CORREÇÕES ao deck de origem, medidas, não estéticas:
+   · #FFF sobre --laranja dá 2,27:1 (a origem usa em .eti-hoje e nas bolas numeradas).
+     Aqui texto sobre laranja é sempre --tinta: 8,71:1. Mesma decisão de --on-orange
+     registrada em luma-brain/04_DESIGN_SYSTEM.md.
+   · --tinta-3 (#7C7C7C) dá 4,17:1 no papel — só serve para ≥19px/700 (texto grande pelo
+     WCAG). Metadado pequeno usa --tinta-2 (8,86:1), que a casa já tem. */
+
+:root{
+  --laranja:#FF9000; --laranja-d:#F85400; --amarelo:#FFB900; --magenta:#C4005B;
+  --tinta:#0A0A0A; --tinta-2:#4A4A4A; --tinta-3:#7C7C7C;
+  --papel:#FFFFFF; --papel-2:#F7F7F5; --linha:#E6E4E0; --verde:#15803D;
+  /* o magenta da casa dá 3,30:1 sobre a tinta — ilegível em slide escuro. Esta é a
+     mesma cor clareada até 5,22:1, para uso EXCLUSIVO em fundo escuro. */
+  --magenta-claro:#E8447A;
+  --fonte:'Roboto',-apple-system,'Segoe UI',sans-serif;
+  --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1a1a;font-family:var(--fonte);-webkit-font-smoothing:antialiased;
+  /* superfícies que o navegador desenha e que também são do projeto */
+  accent-color:var(--laranja); }
+::selection{background:var(--laranja);color:var(--tinta)}
+
+/* ── O PALCO ───────────────────────────────────────────────────────────────
+   O slide é 1920×1080 fixo. O quadro em volta encolhe o palco para caber em
+   qualquer tela sem barra horizontal — o desenho não muda, só a escala. Na
+   impressão o quadro sai da frente e o slide volta ao tamanho real. */
+.deck{max-width:1920px;margin:0 auto;padding:28px 20px 60px;display:flex;flex-direction:column;gap:26px}
+.quadro{position:relative;width:100%;aspect-ratio:1920/1080;overflow:hidden;container-type:inline-size;
+  border-radius:6px;box-shadow:0 18px 50px rgba(0,0,0,.5)}
+.quadro>.slide{position:absolute;top:0;left:0;transform:scale(calc(100cqw / 1920));transform-origin:top left}
+
+.slide{width:1920px;height:1080px;overflow:hidden;background:var(--papel);color:var(--tinta)}
+
+/* ── moldura comum ── */
+.fio{position:absolute;left:0;top:0;width:100%;height:7px;background:var(--laranja);z-index:4}
+.topo{position:absolute;top:60px;left:96px;right:96px;display:flex;align-items:baseline;gap:20px;z-index:3}
+/* rótulo de seção, não enfeite: diz em que fase do fluxo o slide está */
+.secao{font-size:19px;font-weight:900;letter-spacing:.19em;text-transform:uppercase;color:var(--laranja-d)}
+.quando{font-family:var(--mono);font-size:19px;font-weight:700;color:var(--tinta-3);margin-left:auto}
+/* Coluna flex: título e subtítulo têm altura própria, o diagrama fica com flex:1 e
+   centraliza no que sobrar. Como bloco simples, cada diagrama precisava de height:auto
+   para não invadir o título — e sobrava uma faixa morta de ~250px no meio do slide. */
+.corpo{position:absolute;top:150px;left:96px;right:96px;bottom:104px;z-index:2;
+  display:flex;flex-direction:column}
+.corpo>.titulo,.corpo>.sub,.corpo>table{flex:none}
+/* slide com conclusão: o corpo termina antes dela em vez de passar por baixo */
+.corpo.com-fim{bottom:214px}
+.titulo{font-size:62px;font-weight:900;letter-spacing:-.035em;line-height:1.03}
+.titulo em{font-style:normal;color:var(--laranja-d)}
+.sub{margin-top:18px;font-size:25px;line-height:1.42;color:var(--tinta-2);font-weight:400;max-width:1500px}
+.num{position:absolute;right:96px;bottom:44px;z-index:3;font-family:var(--mono);font-size:19px;font-weight:700;color:var(--tinta-3)}
+.selo{position:absolute;left:96px;bottom:44px;z-index:3;font-family:var(--mono);font-size:16px;color:var(--tinta-2)}
+.conclusao{position:absolute;left:96px;right:96px;bottom:88px;z-index:3;border-left:5px solid var(--laranja);
+  padding:4px 0 4px 22px;font-size:23px;line-height:1.44;color:var(--tinta-2);max-width:1620px}
+.conclusao b{color:var(--tinta);font-weight:800}
+
+/* ── capa e divisores ── */
+.escuro{background:var(--tinta);color:#fff;display:flex;flex-direction:column;justify-content:center;padding:0 128px;position:relative}
+.escuro .marca{font-size:20px;font-weight:900;letter-spacing:.24em;text-transform:uppercase;color:var(--laranja);margin-bottom:40px}
+.escuro h1{font-size:118px;font-weight:900;letter-spacing:-.05em;line-height:.95;max-width:1560px}
+.escuro h1 em{font-style:normal;color:var(--laranja)}
+.escuro .csub{margin-top:34px;font-size:33px;color:#C8C8C8;font-weight:300;max-width:1420px;line-height:1.38}
+.escuro .meta{position:absolute;left:128px;bottom:76px;right:128px;display:flex;gap:64px;
+  font-family:var(--mono);font-size:18px;color:#9A9A9A;border-top:1px solid #2A2A2A;padding-top:24px}
+.escuro .meta b{color:#fff;font-weight:700;display:block;font-size:22px;margin-bottom:5px;font-family:var(--fonte)}
+.escuro .sn{font-family:var(--mono);font-size:23px;color:var(--laranja);letter-spacing:.18em;margin-bottom:24px;font-weight:700}
+.escuro h2{font-size:92px;font-weight:900;letter-spacing:-.045em;line-height:1}
+.escuro .psec{margin-top:26px;font-size:29px;color:#B4B4B4;max-width:1350px;line-height:1.4;font-weight:300}
+
+/* ── etiquetas ── */
+.eti{display:inline-flex;align-items:center;height:29px;padding:0 13px;border-radius:999px;
+  font-size:14px;font-weight:900;letter-spacing:.09em;text-transform:uppercase;flex-shrink:0}
+.eti-antes{background:#EFEDEA;color:var(--tinta-2)}
+/* texto ESCURO sobre laranja: branco daria 2,27:1 */
+.eti-agora{background:var(--laranja);color:var(--tinta)}
+.eti-pronto{background:var(--verde);color:#fff}
+.eti-falta{background:var(--magenta);color:#fff}
+.eti-medido{background:var(--tinta);color:#fff}
+
+/* ── A VIRADA: comparação em duas colunas, sem cartão ── */
+.virada{display:grid;grid-template-columns:1fr 1.15fr;height:100%;align-content:center;
+  column-gap:64px;row-gap:0}
+.virada .cab{padding-bottom:20px;border-bottom:2px solid var(--tinta);display:flex;align-items:baseline;gap:14px}
+.virada .cab.b{border-bottom-color:var(--laranja)}
+.virada .cab h3{font-size:31px;font-weight:900;letter-spacing:-.022em}
+.virada .cab.a h3{color:var(--tinta-2)}
+.virada .r{padding:19px 0;border-bottom:1px solid var(--linha);font-size:24px;line-height:1.3}
+.virada .a .r{color:var(--tinta-2)}
+.virada .b .r{font-weight:800}
+.virada .b .r b{color:var(--laranja-d)}
+.virada .col{display:flex;flex-direction:column}
+.virada .r .q{display:block;font-size:15px;font-family:var(--mono);color:var(--tinta-2);
+  text-transform:uppercase;letter-spacing:.12em;font-weight:700;margin-bottom:7px}
+
+/* ── TRILHAS: o fluxo de hoje contra o fluxo do Luma, na mesma escala ── */
+.trilhas{display:flex;flex-direction:column;gap:58px;justify-content:center;flex:1;min-height:0}
+.trilha .rot{display:flex;align-items:baseline;gap:16px;margin-bottom:18px}
+.trilha .rot h4{font-size:27px;font-weight:900;letter-spacing:-.02em}
+.trilha .rot .tempo{font-family:var(--mono);font-size:21px;font-weight:700;color:var(--tinta-2);margin-left:auto}
+.passos{display:flex;gap:8px;align-items:stretch}
+.passo{background:var(--papel-2);border:1px solid var(--linha);border-radius:9px;padding:17px 18px;
+  display:flex;flex-direction:column;gap:7px;min-width:0}
+.passo .t{font-size:20px;font-weight:800;letter-spacing:-.012em;line-height:1.2}
+.passo .d{font-size:16px;color:var(--tinta-2);line-height:1.3}
+.passo.dor{border-color:var(--magenta);background:#FDF2F6}
+.passo.dor .t{color:var(--magenta)}
+.passo.ok{border-color:var(--laranja);background:#FFF6EA}
+.passo.ok .t{color:var(--laranja-d)}
+.vazio{flex:1;border-radius:9px;border:1px dashed var(--linha);display:flex;align-items:center;
+  justify-content:center;font-family:var(--mono);font-size:17px;color:var(--tinta-2);font-weight:700}
+
+/* ── PORTAS: as duas entradas da fase 1 ── */
+.portas{display:flex;gap:34px;flex:1;min-height:0;align-items:center}
+.porta{flex:1;border:2px solid var(--linha);border-radius:16px;padding:40px 38px;display:flex;flex-direction:column;gap:16px}
+.porta.viva{border-color:var(--laranja)}
+.porta h4{font-size:38px;font-weight:900;letter-spacing:-.03em;line-height:1.08}
+.porta p{font-size:21px;color:var(--tinta-2);line-height:1.42}
+.porta .vias{margin-top:6px;display:flex;flex-direction:column;gap:11px}
+.via{display:flex;gap:13px;align-items:baseline;font-size:19px;line-height:1.32}
+.via .b{width:9px;height:9px;border-radius:50%;background:var(--laranja);flex-shrink:0;margin-top:8px}
+.via s{text-decoration:none;color:var(--magenta);font-weight:800}
+.via .porq{color:var(--tinta-2)}
+
+/* ── O DNA: a folha de contato ao lado do objeto ── */
+.dna-wrap{display:flex;gap:52px;flex:1;min-height:0;align-items:center}
+/* 560px e 4×2: com 4×4 de células 9:16 a folha pedia 1060px de altura e estourava o
+   palco em 312px (medido). O argumento — 1 quadro/s, tempo queimado — não depende de
+   mostrar as 16 células, e a legenda diz que são as 8 primeiras. */
+.folha{flex:0 0 560px}
+.folha .grade{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;background:var(--tinta);
+  padding:5px;border-radius:10px}
+.cel{aspect-ratio:9/16;background:#242424;border-radius:4px;position:relative;overflow:hidden}
+.cel span{position:absolute;left:5px;top:5px;background:rgba(0,0,0,.72);color:#fff;
+  font-family:var(--mono);font-size:13px;font-weight:700;padding:2px 6px;border-radius:3px}
+.cel.g{background:#3A2A16}
+.folha .leg{margin-top:15px;font-family:var(--mono);font-size:17px;color:var(--tinta-2);line-height:1.5;font-weight:700}
+.obj{flex:1;min-width:0}
+.obj .lin{display:flex;gap:14px;align-items:baseline;padding:11px 0;border-bottom:1px solid var(--linha)}
+.obj .lin:last-child{border-bottom:none}
+.obj .k{font-family:var(--mono);font-size:20px;font-weight:700;min-width:170px;flex-shrink:0}
+.obj .v{font-size:20px;color:var(--tinta-2);line-height:1.34}
+.obj .v b{color:var(--tinta);font-weight:800}
+.obj .med .k{color:var(--tinta)}
+.obj .sem .k{color:var(--laranja-d)}
+.obj .fonte{margin-left:auto;flex-shrink:0;font-family:var(--mono);font-size:14px;font-weight:700;
+  letter-spacing:.08em;text-transform:uppercase;padding:3px 9px;border-radius:4px}
+.obj .med .fonte{background:var(--tinta);color:#fff}
+.obj .sem .fonte{background:var(--laranja);color:var(--tinta)}
+
+/* ── MECANISMO: caixas ligadas por seta, para explicar um caminho ── */
+.mec{display:flex;align-items:center;gap:0;flex:1;min-height:0;justify-content:center}
+.cx{border:2px solid var(--linha);border-radius:13px;padding:26px 26px;min-width:0;flex:1;
+  display:flex;flex-direction:column;gap:10px;align-self:stretch;justify-content:center}
+.cx.acento{border-color:var(--laranja);background:#FFF9F1}
+.cx.recusa{border-color:var(--magenta);background:#FDF2F6}
+.cx h5{font-size:23px;font-weight:900;letter-spacing:-.016em;line-height:1.18}
+.cx p{font-size:18px;color:var(--tinta-2);line-height:1.36}
+.cx code{font-family:var(--mono);font-size:19px;font-weight:700;color:var(--tinta);
+  background:var(--papel-2);padding:2px 7px;border-radius:4px;border:1px solid var(--linha)}
+.liga{flex:0 0 54px;height:2px;background:var(--linha);position:relative}
+.liga::after{content:'';position:absolute;right:0;top:-5px;border-left:11px solid var(--linha);
+  border-top:6px solid transparent;border-bottom:6px solid transparent}
+.bif{flex:1;align-self:stretch;display:flex;flex-direction:column;gap:20px;justify-content:center}
+
+/* ── TUBO: onde cada byte vive ── */
+.tubo{display:flex;align-items:center;gap:0;flex:1;min-height:0}
+.maquina{flex:1.25;border:3px solid var(--tinta);border-radius:18px;padding:38px 36px;align-self:stretch;
+  display:flex;flex-direction:column;justify-content:center;gap:16px}
+.maquina h4{font-size:34px;font-weight:900;letter-spacing:-.028em;line-height:1.08}
+.maquina .peso{font-family:var(--mono);font-size:23px;font-weight:700;color:var(--laranja-d)}
+.maquina ul{list-style:none;display:flex;flex-direction:column;gap:9px}
+.maquina li{display:flex;gap:11px;font-size:19px;color:var(--tinta-2);line-height:1.34}
+.maquina li::before{content:'—';color:var(--laranja);font-weight:900;flex-shrink:0}
+.canal{flex:0.85;align-self:stretch;display:flex;flex-direction:column;justify-content:center;gap:44px;padding:0 26px}
+.seta-l{position:relative}
+.seta-l .tra{height:3px;background:var(--laranja);border-radius:2px;position:relative}
+.seta-l .tra::after{content:'';position:absolute;right:-1px;top:-6px;border-left:14px solid var(--laranja);
+  border-top:7px solid transparent;border-bottom:7px solid transparent}
+.seta-l.volta .tra::after{left:-1px;right:auto;border-left:none;border-right:14px solid var(--laranja);}
+.seta-l .rot{font-size:20px;font-weight:900;letter-spacing:-.012em;margin-bottom:9px}
+.seta-l .pes{margin-top:9px;font-family:var(--mono);font-size:17px;font-weight:700;color:var(--tinta-2)}
+.modelo{flex:0.72;background:var(--tinta);color:#fff;border-radius:18px;padding:34px 30px;align-self:stretch;
+  display:flex;flex-direction:column;justify-content:center;gap:13px}
+.modelo h4{font-size:30px;font-weight:900;letter-spacing:-.025em;color:var(--laranja)}
+.modelo p{font-size:19px;color:#C0C0C0;line-height:1.38}
+.modelo .tag{font-family:var(--mono);font-size:15px;color:#8A8A8A;font-weight:700}
+
+/* ── ORÇAMENTO: a barra dos 8 minutos, em escala ── */
+.orc{display:flex;flex-direction:column;justify-content:center;flex:1;min-height:0;gap:0}
+.barra{display:flex;height:112px;border-radius:12px;overflow:hidden;border:1px solid var(--linha)}
+.fx{position:relative;display:flex;align-items:center;justify-content:center;border-right:1px solid rgba(255,255,255,.28)}
+.fx:last-child{border-right:none}
+.fx b{font-family:var(--mono);font-size:19px;font-weight:700}
+.fx.humano{background:var(--papel-2);color:var(--tinta-2)}
+.fx.ia{background:var(--laranja);color:var(--tinta)}
+.fx.local{background:var(--tinta);color:#fff}
+.fx.export{background:var(--magenta);color:#fff}
+.eixo{display:flex;margin-top:11px}
+.eixo .m{border-left:1px solid var(--linha);padding:7px 0 0 9px;font-family:var(--mono);font-size:17px;
+  font-weight:700;color:var(--tinta-2)}
+.rotulos{display:flex;margin-top:26px;gap:0}
+.rotulos .rr{padding-right:22px}
+.rotulos .rr h5{font-size:20px;font-weight:900;letter-spacing:-.014em;line-height:1.2}
+.rotulos .rr p{margin-top:5px;font-size:16px;color:var(--tinta-2);line-height:1.32}
+.chave{margin-top:36px;display:flex;gap:44px;align-items:stretch}
+.chave .kv{flex:1;border-top:4px solid var(--laranja);padding-top:17px}
+.chave .kv.mag{border-top-color:var(--magenta)}
+.chave .kv h5{font-size:27px;font-weight:900;letter-spacing:-.022em;line-height:1.15}
+.chave .kv p{margin-top:9px;font-size:19px;color:var(--tinta-2);line-height:1.4}
+
+/* ── INVENTÁRIO / TABELAS EDITORIAIS ── */
+.tab{width:100%;border-collapse:collapse}
+.tab th{text-align:left;font-family:var(--mono);font-size:16px;font-weight:700;color:var(--tinta-2);
+  text-transform:uppercase;letter-spacing:.12em;padding:0 18px 14px 0;border-bottom:2px solid var(--tinta)}
+.tab td{padding:15px 18px 15px 0;border-bottom:1px solid var(--linha);font-size:21px;
+  color:var(--tinta-2);line-height:1.32;vertical-align:top}
+.tab td.p{color:var(--tinta);font-weight:800;font-size:22px}
+.tab td .onde{display:block;margin-top:4px;font-family:var(--mono);font-size:15px;color:var(--tinta-2)}
+.tab td.n{font-family:var(--mono);font-weight:700;color:var(--tinta);white-space:nowrap}
+.tab tr:last-child td{border-bottom:none}
+
+/* ── LISTA EDITORIAL (fatias, correções, decisões) ── */
+.lista{display:flex;flex-direction:column;gap:19px;justify-content:center;flex:1;min-height:0}
+.li{display:flex;gap:26px;align-items:flex-start;padding-bottom:19px;border-bottom:1px solid var(--linha)}
+.li:last-child{border-bottom:none;padding-bottom:0}
+.li .n{font-family:var(--mono);font-size:21px;color:var(--laranja-d);font-weight:700;min-width:56px;padding-top:5px}
+.li .txt{min-width:0;flex:1}
+.li h4{font-size:29px;font-weight:900;letter-spacing:-.02em;line-height:1.16}
+.li h4 s{text-decoration:line-through;text-decoration-thickness:2px;color:var(--tinta-3);font-weight:800}
+.li p{margin-top:7px;font-size:20px;color:var(--tinta-2);line-height:1.4;max-width:1420px}
+.li p b{color:var(--tinta);font-weight:800}
+/* 2px, não 3: a régua da conclusão tem 5px e é a voz do slide. Duas réguas de peso
+   parecido no mesmo slide competem — esta é subordinada, e a espessura tem de dizer isso. */
+.li .portao{margin-top:9px;font-size:18px;color:var(--tinta);line-height:1.36;
+  border-left:2px solid var(--laranja);padding-left:14px}
+/* ⚠ `> b:first-child`, não `b`: a regra solta pegava TAMBÉM o negrito de ênfase dentro
+   da frase do portão — o texto saía em mono, caixa alta e laranja de 3,35:1. O rótulo é
+   só o primeiro filho; o resto é ênfase normal. */
+.li .portao > b:first-child{font-family:var(--mono);font-size:15px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--tinta-2);display:block;margin-bottom:3px;font-weight:700}
+.li .portao b{color:var(--tinta);font-weight:800}
+.li .marca-eti{flex-shrink:0;padding-top:6px}
+
+/* ── DUAS COLUNAS de fatos curtos ── */
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:48px 64px;flex:1;min-height:0;align-content:center}
+.duo section h4{font-size:27px;font-weight:900;letter-spacing:-.02em;padding-bottom:13px;
+  border-bottom:2px solid var(--tinta);margin-bottom:17px}
+.duo section.b h4{border-bottom-color:var(--laranja);color:var(--laranja-d)}
+.fatos{list-style:none}
+.fatos li{display:flex;gap:13px;margin-bottom:13px;font-size:20px;line-height:1.38;color:var(--tinta-2)}
+.fatos li::before{content:'—';color:var(--laranja);font-weight:900;flex-shrink:0}
+.fatos li b{color:var(--tinta);font-weight:800}
+
+/* ── impressão: o quadro sai da frente, o slide volta ao tamanho real ── */
+@page{size:1920px 1080px;margin:0}
+@media print{
+  body{background:#fff}
+  .deck{max-width:none;margin:0;padding:0;gap:0}
+  .quadro{aspect-ratio:auto;overflow:visible;border-radius:0;box-shadow:none;height:1080px}
+  .quadro>.slide{position:static;transform:none;page-break-after:always;break-after:page}
+}
+</style>
+
+<div class="deck">
+
+<!-- ══ 1 · CAPA ══════════════════════════════════════════════════════════ -->
+<div class="quadro"><div class="slide escuro">
+  <div class="fio"></div>
+  <div class="marca">Delivery Much · Luma · uso interno</div>
+  <h1>O Luma Vídeo não é<br>um editor de vídeo.<br><em>É um copiloto de conteúdo.</em></h1>
+  <div class="csub">Transformar uma referência em um Reel local, pronto para publicar,
+    sem exigir que o franqueado aprenda edição.</div>
+  <div class="meta">
+    <div><b>Reposicionamento</b>28 de agosto de 2026</div>
+    <div><b>Escopo</b>V1 · desktop · zero dependência nova</div>
+    <div><b>Alicerce</b>Editor pronto: 63 casos no CI, 27 na bancada</div>
+    <div><b>Falta</b>O analisador de referência — zero linha escrita</div>
+  </div>
+</div></div>
+
+<!-- ══ 2 · A VIRADA ══════════════════════════════════════════════════════ -->
+<div class="quadro"><div class="slide">
+  <div class="fio"></div>
+  <div class="topo"><div class="secao">O reposicionamento</div><div class="quando">1 mudança · 6 consequências</div></div>
+  <div class="corpo">
+    <div class="virada">
+      <div class="col a">
+        <div class="cab a"><span class="eti eti-antes">Até aqui</span><h3>Editor de vídeo com IA</h3></div>
+        <div class="r"><span class="q">Primeira tela</span>Timeline vazia, “traga um vídeo”</div>
+        <div class="r"><span class="q">Entidade central</span>O EDL — uma lista de trechos</div>
+        <div class="r"><span class="q">Papel da IA</span>Cortar o que já existe</div>
+        <div class="r"><span class="q">Vida do trabalho</span>Morre ao fechar a aba</div>
+        <div class="r"><span class="q">Sucesso</span>“Exportou”</div>
+        <div class="r"><span class="q">Dor resolvida</span>“Como eu edito isso?”</div>
+      </div>
+      <div class="col b">
+        <div class="cab b"><span class="eti eti-agora">A V1</span><h3>Copiloto de conteúdo</h3></div>
+        <div class="r"><span class="q">Primeira tela</span><b>“O que você quer publicar hoje?”</b></div>
+        <div class="r"><span class="q">Entidade central</span>O <b>projeto</b> — referência, roteiro, gravação, Reel</div>
+        <div class="r"><span class="q">Papel da IA</span><b>Decidir o que gravar</b>, depois cortar</div>
+        <div class="r"><span class="q">Vida do trabalho</span><b>Sobrevive entre sessões</b></div>
+        <div class="r"><span class="q">Sucesso</span>Exportou <b>em menos de 10 minutos</b></div>
+        <div class="r"><span class="q">Dor resolvida</span><b>“O que eu posto?”</b> e “como eu edito isso?”</div>
+      </div>
+    </div>
+  </div>
+  <div class="selo">docs/LUMA-VIDEO-V1.md §1</div>
+  <div class="num">02</div>
+</div></div>
+
+<!-- ══ 3 · A DOR REAL ════════════════════════════════════════════════════ -->
+<div class="quadro"><div class="slide">
+  <div class="fio"></div>
+  <div class="topo"><div class="secao">A dor</div><div class="quando">o franqueado não sofre por não saber editar</div></div>
+  <div class="corpo com-fim">
+    <div class="titulo" style="font-size:52px;margin-bottom:8px">Ele sofre porque <em>precisa publicar toda semana</em>.</div>
+    <div class="trilhas" style="flex:1;min-height:0;margin-top:40px">
+      <div class="trilha">
+        <div class="rot"><span class="eti eti-antes">Hoje</span><h4>Seis etapas, e três delas são atrito puro</h4>
+          <span class="tempo">horas · e frustração</span></div>
+        <div class="passos">
+          <div class="passo" style="flex:1"><span class="t">Procura</span><span class="d">uma trend que sirva</span></div>
+          <div class="passo dor" style="flex:1.2"><span class="t">Adapta</span><span class="d">mentalmente, sem método</span></div>
+          <div class="passo" style="flex:1"><span class="t">Escreve</span><span class="d">o roteiro</span></div>
+          <div class="passo" style="flex:1"><span class="t">Grava</span><span class="d">com o celular</span></div>
+          <div class="passo dor" style="flex:1.5"><span class="t">Abre o CapCut</span><span class="d">e descobre como reproduzir o efeito</span></div>
+          <div class="passo dor" style="flex:1"><span class="t">Desiste</span><span class="d">ou publica sem gostar</span></div>
+        </div>
+      </div>
+      <div class="trilha">
+        <div class="rot"><span class="eti eti-agora">Com o Luma</span><h4>Duas fases visíveis. O resto é bastidor.</h4>
+          <span class="tempo">menos de 10 minutos</span></div>
+        <div class="passos">
+          <div class="passo ok" style="flex:1.2"><span class="t">Criar roteiro</span><span class="d">a referência vira algo gravável</span></div>
+          <div class="passo ok" style="flex:1.2"><span class="t">Editar vídeo</span><span class="d">a gravação vira conteúdo publicado</span></div>
+          <div class="vazio">as outras quatro etapas deixam de existir</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="conclusao">O Luma não promete <b>copiar tendência</b>. Promete <b>adaptar a estrutura dela</b>
+    para o contexto da Delivery Much — que é a única coisa que a franquia não consegue terceirizar.</div>
+  <div class="num">03</div>
+</div></div>
+
+<!-- ══ 4 · O PRINCÍPIO ═══════════════════════════════════════════════════ -->
+<div class="quadro"><div class="slide escuro">
+  <div class="fio"></div>
+  <div class="sn">O PRINCÍPIO QUE ORIENTA TODO O PRODUTO</div>
+  <h2>A timeline nunca<br>é o começo.</h2>
+  <div class="psec">Todo concorrente abre numa timeline vazia — e uma timeline vazia devolve
+    a pergunta para quem não sabe a resposta. O Luma abre perguntando.</div>
+  <div style="position:absolute;right:128px;top:50%;transform:translateY(-50%);width:620px;
+       border:2px solid #2A2A2A;border-radius:18px;padding:44px 40px;background:#141414">
+    <div style="font-family:var(--mono);font-size:16px;color:var(--laranja);letter-spacing:.16em;font-weight:700">LUMA · VÍDEO</div>
+    <div style="margin-top:22px;font-size:44px;font-weight:900;letter-spacing:-.035em;line-height:1.08">
+      O que você quer publicar hoje?</div>
+    <div style="margin-top:30px;display:flex;flex-direction:column;gap:13px">
+      <div style="border:2px solid var(--laranja);border-radius:11px;padding:18px 20px;font-size:23px;font-weight:800;color:var(--laranja)">Tenho uma referência</div>
+      <div style="border:1px solid #333;border-radius:11px;padding:18px 20px;font-size:23px;font-weight:700;color:#C8C8C8">Quero uma ideia</div>
+    </div>
+  </div>
+  <div class="num" style="color:#8A8A8A">04</div>
+</div></div>
+
+<!-- ══ 5 · DIVISOR FASE 1 ════════════════════════════════════════════════ -->
+<div class="quadro"><div class="slide escuro">
+  <div class="fio"></div>
+  <div class="sn">FASE 1 DE 2</div>
+  <h2>Criar o roteiro</h2>
+  <div class="psec">Transformar uma referência em algo <b style="color:#fff;font-weight:700">gravável</b>.
+    É aqui que mora o diferencial — e é a parte que ainda não existe.</div>
+  <div class="num" style="color:#8A8A8A">05</div>
+</div></div>
+
+<!-- ══ 6 · AS DUAS PORTAS ════════════════════════════════════════════════ -->
+<div class="quadro"><div class="slide">
+  <div class="fio"></div>
+  <div class="topo"><div class="secao">Fase 1 · entrada</div><div class="quando">nem todo franqueado começa por uma trend</div></div>
+  <div class="corpo">
+    <div class="titulo">Duas portas, um só pipeline.</div>
+    <div class="sub">Às vezes ele não tem referência — tem uma promoção de terça-feira. O caminho
+      “quero uma ideia” existe para não perder esse caso, que é a maioria.</div>
+    <div class="portas" style="flex:1;min-height:0;margin-top:48px">
+      <div class="porta viva">
+        <span class="eti eti-agora" style="align-self:flex-start">Porta 1</span>
+        <h4>Tenho uma referência</h4>
+        <p>Três entradas, um pipeline só — o que evita depender de qualquer API de terceiro.</p>
+        <div class="vias">
+          <div class="via"><span class="b"></span><div><b>Upload do vídeo</b> — o caso mais simples.</div></div>
+          <div class="via"><span class="b"></span><div><b>Gravação de tela</b> — <code style="font-family:var(--mono);font-size:17px">getDisplayMedia</code>. Abre o Reel, dá play, o Luma grava 20s.</div></div>
+          <div class="via"><span class="b"></span><div><s>Baixar do link do Instagram</s><span class="porq"> — impossível do navegador: CORS, sessão autenticada e termos de uso. A gravação de tela <b>é</b> o caminho do Instagram.</span></div></div>
+        </div>
+      </div>
+      <div class="porta">
+        <span class="eti eti-antes" style="align-self:flex-start">Porta 2</span>
+        <h4>Quero uma ideia</h4>
+        <p>Sem referência, o briefing e a marca bastam para gerar os três roteiros. O DNA entra vazio
+          e o roteiro nasce do contexto da campanha.</p>
+        <div class="vias">
+          <div class="via"><span class="b"></span><div>“Promoção de pizza na terça”</div></div>
+          <div class="via"><span class="b"></span><div>A marca escolhida define tom e CTA</div></div>
+          <div class="via"><span class="b"></span><div>O mesmo formato de saída: <b>3 roteiros graváveis</b></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="num">06</div>
+</div></div>
+
+<!-- ══ 7 · O DNA ═════════════════════════════════════════════════════════ -->
+<div class="quadro"><div class="slide">
+  <div class="fio"></div>
+  <div class="topo"><div class="secao">Fase 1 · o cérebro</div><div class="quando">o diferencial do produto, na palavra do CPO</div></div>
+  <div class="corpo com-fim">
+    <div class="titulo" style="font-size:54px">O DNA da referência. <em>O usuário nunca vê esta etapa.</em></div>
+    <div class="dna-wrap" style="flex:1;min-height:0;margin-top:38px">
+      <div class="folha">
+        <div class="grade">
+          <div class="cel"><span>0:00.0</span></div><div class="cel"><span>0:01.0</span></div>
+          <div class="cel g"><span>0:02.0</span></div><div class="cel g"><span>0:03.0</span></div>
+          <div class="cel g"><span>0:04.0</span></div><div class="cel"><span>0:05.0</span></div>
+          <div class="cel"><span>0:06.0</span></div><div class="cel"><span>0:07.0</span></div>
+        </div>
+        <div class="leg">folha de contato · 4×4 · 1 quadro/s<br>16 células por folha — aqui as 8 primeiras<br>tempo QUEIMADO em cada célula · 35KB<br><br>o AGRUPAMENTO de células parecidas é<br>o que a densidade de corte mede</div>
+      </div>
+      <div class="obj">
+        <div class="lin med"><span class="k">duracao</span><span class="v"><b>21,4s</b></span><span class="fonte">medido</span></div>
+        <div class="lin med"><span class="k">ritmo</span><span class="v">classe <b>rápido</b> — densidade de corte entre células vizinhas</span><span class="fonte">medido</span></div>
+        <div class="lin med"><span class="k">energia</span><span class="v"><b>alta</b> — envelope RMS do áudio, janela de 50ms</span><span class="fonte">medido</span></div>
+        <div class="lin med"><span class="k">legenda</span><span class="v">presente, embaixo, <b>caixa alta</b></span><span class="fonte">medido</span></div>
+        <div class="lin sem"><span class="k">gancho</span><span class="v"><b>0–2,8s</b> · tipo <b>pergunta</b></span><span class="fonte">modelo</span></div>
+        <div class="lin sem"><span class="k">estrutura</span><span class="v">gancho → contexto → prova → <b>oferta</b> → cta</span><span class="fonte">modelo</span></div>
+        <div class="lin sem"><span class="k">cta</span><span class="v"><b>18,9–21,4s</b> · pede <b>comentário</b></span><span class="fonte">modelo</span></div>
+        <div class="lin sem"><span class="k">confianca</span><span class="v"><b>0,82</b> — abaixo de 0,4 o DNA degrada</span><span class="fonte">modelo</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="conclusao">A mesma divisão de trabalho do editor, um nível acima:
+    <b>precisão temporal é nossa, semântica é do modelo.</b> Perguntar a um LLM “onde tem corte”
+    seria pagar por um chute pior que a nossa aritmética.</div>
+  <div class="num">07</div>
+</div></div>
+
+<!-- ══ 8 · POR QUE OBJETO ════════════════════════════════════════════════ -->
+<div class="quadro"><div class="slide">
+  <div class="fio"></div>
+  <div class="topo"><div class="secao">Fase 1 · o cérebro</div><div class="quando">a diferença entre demo e produto</div></div>
+  <div class="corpo com-fim">
+    <div class="titulo">O DNA é um <em>objeto fechado, versionado e validado</em>.<br>Não é prosa.</div>
+    <div class="duo" style="flex:1;min-height:0;margin-top:46px">
+      <section>
+        <h4>Prosa não é acionável</h4>
+        <ul class="fatos">
+          <li>“O vídeo tem energia alta e cortes rápidos” não vira corte, não vira roteiro e <b>não dá para testar</b>.</li>
+          <li>Um campo a mais na resposta do modelo quebra silenciosamente quem lê.</li>
+          <li>Sem versão (<b>v:1</b>), trocar o prompt invalida todo DNA guardado sem ninguém perceber.</li>
+        </ul>
+      </section>
+      <section class="b">
+        <h4>O validador, no espírito do que já existe</h4>
+        <ul class="fatos">
+          <li><b>Nunca lança.</b> Devolve o que sobrou e o que caiu, com motivo legível — igual ao <b>vdValidarPlano</b>, que já tem 63 casos verdes.</li>
+          <li>Tempo fora do vídeo, papel fora da lista fechada, blocos sobrepostos: <b>descartados um a um</b>.</li>
+          <li><b>Confiança abaixo de 0,4 degrada</b>: o DNA vira só o que foi medido, e o roteiro nasce sem a estrutura narrativa.</li>
+        </ul>
+      </section>
+    </div>
+  </div>
+  <div class="conclusao">Por que degradar em vez de falhar: <b>um DNA meio-certo que gera três roteiros
+    medianos ainda é produto.</b> Um erro na cara do franqueado, no primeiro clique, é abandono.</div>
+  <div class="num">08</div>
+</div></div>
+
+<!-- ══ 9 · TRÊS ROTEIROS ═════════════════════════════════════════════════ -->
+<div class="quadro"><div class="slide">
+  <div class="fio"></div>
+  <div class="topo"><div class="secao">Fase 1 · a entrega</div><div class="quando">três, e não cinco</div></div>
+  <div class="corpo">
+    <div class="titulo">Três opções. Nada de storyboard.<br>Nada de instrução de câmera.</div>
+    <div class="sub">Só algo <b style="color:var(--tinta)">gravável</b> — porque o franqueado vai apontar o celular
+      para si mesmo daqui a dois minutos.</div>
+    <table class="tab" style="margin-top:44px">
+      <tr><th style="width:170px">Opção</th><th style="width:240px">Objetivo</th><th>O que muda no roteiro</th><th style="width:290px">Herda da referência</th></tr>
+      <tr><td class="p">Engajamento</td><td>Gerar comentário</td><td>Gancho em pergunta, CTA que pede resposta, ritmo da referência preservado</td><td class="n">o gancho</td></tr>
+      <tr><td class="p">Conversão</td><td>Incentivar pedido</td><td>Oferta explícita, CTA aprovado da marca, duração mais curta</td><td class="n">a estrutura</td></tr>
+      <tr><td class="p">Trend</td><td>Manter a sensação</td><td>Espelha a estrutura e o ritmo da referência com o contexto local</td><td class="n">gancho + ritmo</td></tr>
+    </table>
+    <div class="chave" style="margin-top:52px">
+      <div class="kv"><h5>Carga cognitiva</h5><p>Três opções cabem numa tela e numa cabeça. Cinco viram
+        uma decisão que ninguém quer tomar antes de gravar.</p></div>
+      <div class="kv"><h5>Custo e risco</h5><p>Menos tokens de saída, e menos chance de uma opção ruim
+        passar no meio das boas.</p></div>
+      <div class="kv"><h5>O que o franqueado escolhe</h5><p>O <b>título</b> — quatro a seis palavras.
+        Ele não lê três roteiros inteiros; ele escolhe uma direção.</p></div>
+    </div>
+  </div>
+  <div class="num">09</div>
+</div></div>
+
+<!-- ══ 10 · ANTI-ALUCINAÇÃO ══════════════════════════════════════════════ -->
+<div class="quadro"><div class="slide">
+  <div class="fio"></div>
+  <div class="topo"><div class="secao">Fase 1 · confiança</div><div class="quando">o risco que mais assusta, resolvido por mecanismo</div></div>
+  <div class="corpo com-fim">
+    <div class="titulo" style="font-size:54px">A IA não inventa promoção porque <em>ela não escreve CTA</em>.<br>Ela escolhe um id.</div>
+    <div class="mec" style="flex:1;min-height:0;margin-top:52px">
+      <div class="cx"><h5>O modelo devolve</h5><p>Um roteiro com o campo</p><code>cta_usado: "cta_003"</code>
+        <p>Nunca texto livre de oferta.</p></div>
+      <div class="liga"></div>
+      <div class="cx acento"><h5>A lista aprovada da marca</h5>
+        <p><code>cta_001</code> Baixe o app e peça agora<br><code>cta_002</code> Comente “EU QUERO”<br>
+        <b style="color:var(--tinta)"><code>cta_003</code> Peça pelo Delivery Much</b></p>
+        <p>Escrita pelo marketing da DM. Versionada.</p></div>
+      <div class="liga"></div>
+      <div class="cx"><h5>O linter varre as falas</h5>
+        <p>Lista de palavras proibidas da marca, verificação <b>determinística</b> — o Estúdio já tem
+          esse precedente em <code style="font-size:16px">linter.js</code>.</p></div>
+      <div class="liga"></div>
+      <div class="bif">
+        <div class="cx acento" style="flex:none;padding:20px 24px"><h5>Passou</h5><p>Vira uma das opções na tela.</p></div>
+        <div class="cx recusa" style="flex:none;padding:20px 24px"><h5>Reprovou</h5>
+          <p>A opção <b style="color:var(--magenta)">cai</b>. O franqueado vê <b style="color:var(--magenta)">duas</b> em vez de três —
+            e <b style="color:var(--magenta)">nunca</b> vê uma promoção inventada.</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="conclusao">O mecanismo anti-alucinação <b>não é o prompt</b> — é o
+    <b>vocabulário fechado</b>. Pedir com educação para o modelo não inventar é esperança; recusar
+    um id que não existe é engenharia.</div>
+  <div class="num">10</div>
+</div></div>
+
+<!-- ══ 11 · DIVISOR FASE 2 ═══════════════════════════════════════════════ -->
+<div class="quadro"><div class="slide escuro">
+  <div class="fio"></div>
+  <div class="sn">FASE 2 DE 2</div>
+  <h2>Editar o vídeo</h2>
+  <div class="psec">Transformar a gravação em conteúdo publicado. Esta é a parte que
+    <b style="color:#fff;font-weight:700">já está construída e medida</b>.</div>
+  <div class="num" style="color:#8A8A8A">11</div>
+</div></div>
+
+<!-- ══ 12 · CHECKLIST ═══════════════════════════════════════════════════ -->
+<div class="quadro"><div class="slide">
+  <div class="fio"></div>
+  <div class="topo"><div class="secao">Fase 2 · antes de editar</div><div class="quando">o maior risco do fluxo é a gravação ruim</div></div>
+  <div class="corpo com-fim">
+    <div class="titulo">O checklist não custa <em>uma chamada de IA</em>.</div>
+    <div class="sub">Três dos quatro itens são matemática que o navegador já faz. O quarto pega
+      carona na chamada que ia acontecer de todo jeito.</div>
+    <table class="tab" style="margin-top:44px">
+      <tr><th style="width:280px">Item</th><th>Como se mede</th><th style="width:230px">Custo</th><th style="width:170px">Precisa do modelo?</th></tr>
+      <tr><td class="p">Está vertical?</td><td><code style="font-family:var(--mono);font-size:19px">videoHeight &gt; videoWidth</code></td><td class="n">zero · instantâneo</td><td><span class="eti eti-medido">não</span></td></tr>
+      <tr><td class="p">O áudio dá?</td><td>Relação sinal-ruído: <code style="font-family:var(--mono);font-size:19px">20·log10(fala / piso)</code> — a medição de áudio já devolve os dois números<span class="onde">js/video/ingest.js · vdMedirAudio</span></td><td class="n">zero · já acontece</td><td><span class="eti eti-medido">não</span></td></tr>
+      <tr><td class="p">A luz dá?</td><td>Luma média e percentual de pixels estourados em 5 quadros amostrados</td><td class="n">~200ms</td><td><span class="eti eti-medido">não</span></td></tr>
+      <tr><td class="p">O enquadramento dá?</td><td>É semântico — “a pessoa ou o produto está cortado?”</td><td class="n">1 folha na chamada que já vai</td><td><span class="eti eti-agora">sim</span></td></tr>
+    </table>
+  </div>
+  <div class="conclusao">O que o checklist <b>não</b> faz: bloquear. Barrar o vídeo de
+    um franqueado que gravou na cozinha às 22h é <b>perder o conteúdo</b>, não melhorá-lo. Ele avisa
+    e sugere regravar — a decisão é de quem gravou.</div>
+  <div class="num">12</div>
+</div></div>
+
+<!-- ══ 13 · O MOTOR JÁ EXISTE ════════════════════════════════════════════ -->
+<div class="quadro"><div class="slide">
+  <div class="fio"></div>
+  <div class="topo"><div class="secao">Fase 2 · a edição</div><div class="quando">por que o reposicionamento é barato</div></div>
+  <div class="corpo">
+    <div class="titulo">A edição guiada pela referência<br>usa <em>o motor que já está pronto</em>.</div>
+    <div class="duo" style="flex:1;min-height:0;margin-top:44px">
+      <section>
+        <h4>O que muda</h4>
+        <ul class="fatos">
+          <li>O contexto da chamada ganha <b>o DNA da referência</b> e <b>o roteiro escolhido</b>.</li>
+          <li>Nada mais.</li>
+        </ul>
+        <h4 style="margin-top:36px">O que não muda</h4>
+        <ul class="fatos">
+          <li>A saída continua sendo o <b>mesmo EditPlan</b> — <code style="font-family:var(--mono);font-size:18px">segmentos</code> e <code style="font-family:var(--mono);font-size:18px">reframe</code>.</li>
+          <li>Passa pelo <b>mesmo validador</b>, entra no <b>mesmo histórico</b>, desenha pelo <b>mesmo compositor</b>.</li>
+          <li>Um caminho de aplicação só. O dia em que o modelo mudar, não nasce um segundo.</li>
+        </ul>
+      </section>
+      <section class="b">
+        <h4>Já medido no navegador, hoje</h4>
+        <ul class="fatos">
+          <li><b>Corte automático de silêncio</b> sem IA: pausa real achada entre 2,00s e 3,95s; a edição caiu de 5,9s para 4,2s.</li>
+          <li><b>Legenda</b> com a tipografia da casa, desenhada em <b>0,09ms</b> por frame — orçamento de um frame a 30fps é 33ms.</li>
+          <li><b>Enquadramento</b> com foco: o lado do quadro que sobrevive ao corte, provado lendo pixel.</li>
+          <li><b>Auto edit por IA</b>: folhas de contato, plano validado, e o <b>motivo de cada corte na tela</b>.</li>
+          <li><b>Exportação</b> a 1,1× a duração final quando a máquina acompanha.</li>
+        </ul>
+      </section>
+    </div>
+  </div>
+  <div class="num">13</div>
+</div></div>
+
+<!-- ══ 14 · O QUE NÃO CHAMA O MODELO ═════════════════════════════════════ -->
+<div class="quadro"><div class="slide">
+  <div class="fio"></div>
+  <div class="topo"><div class="secao">Fase 2 · interação</div><div class="quando">botão antes de chat</div></div>
+  <div class="corpo">
+    <div class="titulo">Duas das cinco ações mais pedidas <em>nunca saem do navegador</em>.</div>
+    <div class="sub">É o que separa “responde em 100ms e é de graça” de “espera oito segundos e gasta cota”.</div>
+    <table class="tab" style="margin-top:44px">
+      <tr><th style="width:300px">Ação rápida</th><th>Como resolve</th><th style="width:220px">Chama o modelo?</th><th style="width:180px">Resposta</th></tr>
+      <tr><td class="p">Mais rápido</td><td>Reaplica a regra de silêncio com limiar mais agressivo — a mesma que já roda</td><td><span class="eti eti-medido">não</span></td><td class="n">instantânea</td></tr>
+      <tr><td class="p">Legenda maior</td><td>Um número no template <code style="font-family:var(--mono);font-size:18px">dm_cap_01</code></td><td><span class="eti eti-medido">não</span></td><td class="n">instantânea</td></tr>
+      <tr><td class="p">Mais comercial / mais engraçado</td><td>Reescreve o texto das legendas</td><td><span class="eti eti-agora">sim</span> — texto só</td><td class="n">~4s</td></tr>
+      <tr><td class="p">Igual à referência</td><td>Novo plano com o DNA pesando mais</td><td><span class="eti eti-agora">sim</span></td><td class="n">~15s</td></tr>
+    </table>
+    <div class="chave" style="margin-top:54px">
+      <div class="kv"><h5>E o chat?</h5><p>Uma task só — <code style="font-family:var(--mono);font-size:18px">video-comando</code> —
+        que devolve um <b>delta</b> de EditPlan. “Corta esse começo” vira um plano validado como
+        qualquer outro. <b>Nunca um agente solto.</b></p></div>
+      <div class="kv mag"><h5>Quando o comando é impossível</h5><p>O validador recusa e a resposta é
+        <b>“não consegui fazer isso”</b>. O que não pode acontecer é a edição quebrar porque alguém
+        pediu algo estranho.</p></div>
+    </div>
+  </div>
+  <div class="num">14</div>
+</div></div>
+
+<!-- ══ 15 · DIVISOR ARQUITETURA ══════════════════════════════════════════ -->
+<div class="quadro"><div class="slide escuro">
+  <div class="fio"></div>
+  <div class="sn">COMO FAZER ISSO NO LUMA QUE EXISTE</div>
+  <h2>Arquitetura</h2>
+  <div class="psec">Sem servidor de aplicação, sem build, sem dependência nova.
+    A estação de edição <b style="color:#fff;font-weight:700">é o navegador</b>.</div>
+  <div class="num" style="color:#8A8A8A">15</div>
+</div></div>
+
+<!-- ══ 16 · O TUBO ═══════════════════════════════════════════════════════ -->
+<div class="quadro"><div class="slide">
+  <div class="fio"></div>
+  <div class="topo"><div class="secao">Arquitetura</div><div class="quando">o vídeo do franqueado nunca sobe</div></div>
+  <div class="corpo com-fim">
+    <div class="titulo" style="font-size:52px">Sobe <em>entendimento</em>. Desce <em>decisão</em>.<br>O arquivo pesado nunca sai da máquina.</div>
+    <div class="tubo" style="flex:1;min-height:0;margin-top:54px">
+      <div class="maquina">
+        <span class="eti eti-antes" style="align-self:flex-start">O navegador do franqueado</span>
+        <h4>O vídeo nasce, é editado e é exportado aqui</h4>
+        <div class="peso">até 150MB · File / objectURL / IndexedDB</div>
+        <ul>
+          <li>decodifica, busca quadro, desenha no canvas</li>
+          <li>mede silêncio, luz e sinal-ruído</li>
+          <li>corta, legenda, enquadra, exporta</li>
+        </ul>
+      </div>
+      <div class="canal">
+        <div class="seta-l">
+          <div class="rot">sobe entendimento</div>
+          <div class="tra"></div>
+          <div class="pes">6 folhas JPEG · 35KB cada<br>+ WAV 16kHz mono</div>
+        </div>
+        <div class="seta-l volta">
+          <div class="rot">desce decisão</div>
+          <div class="tra"></div>
+          <div class="pes">um JSON validado<br>segmentos · reframe · motivo</div>
+        </div>
+      </div>
+      <div class="modelo">
+        <div class="tag">EDGE FUNCTION · CHAVE NO SERVIDOR</div>
+        <h4>O modelo</h4>
+        <p>Entende a referência, escreve o roteiro, propõe o plano.</p>
+        <p><b style="color:#fff">Não toca em byte de vídeo.</b></p>
+        <div class="tag" style="margin-top:6px">gemini-flash-latest · trocável em 1 linha</div>
+      </div>
+    </div>
+  </div>
+  <div class="conclusao"><b>“Gemini decide, o editor executa”</b> — a separação que o
+    Ryan propôs já é o que o código faz. Nenhuma operação determinística (tempo, corte, silêncio,
+    render) sai da máquina do usuário.</div>
+  <div class="num">16</div>
+</div></div>
+
+<!-- ══ 17 · AS TRÊS CORREÇÕES ════════════════════════════════════════════ -->
+<div class="quadro"><div class="slide">
+  <div class="fio"></div>
+  <div class="topo"><div class="secao">Arquitetura</div><div class="quando">três trocas de meio, zero troca de objetivo</div></div>
+  <div class="corpo">
+    <div class="lista">
+      <div class="li">
+        <div class="n">01</div>
+        <div class="txt">
+          <h4><s>FFmpeg · Remotion · worker de render</s> &nbsp;→&nbsp; o motor já é outro, e já está pronto</h4>
+          <p>FFmpeg e Remotion pressupõem Node, build e servidor. No Luma isso não é “difícil”: é
+            <b>outro produto</b>. O motor que existe e está medido é <b>MediaRecorder + canvas.captureStream + WebAudio</b>,
+            com <b>WebCodecs como escotilha de escape</b> para quando a exportação em tempo real doer.</p>
+        </div>
+        <div class="marca-eti"><span class="eti eti-pronto">já resolvido</span></div>
+      </div>
+      <div class="li">
+        <div class="n">02</div>
+        <div class="txt">
+          <h4><s>Baixar o vídeo de um link do Instagram</s> &nbsp;→&nbsp; gravação de tela <b>é</b> o caminho do Instagram</h4>
+          <p>O navegador não consegue: CORS bloqueia, o conteúdo exige sessão autenticada e raspar
+            viola os termos. Sem servidor, não há de onde buscar. A troca custa <b>um clique</b>,
+            resolve 100% dos casos e usa o mesmo pipeline do upload.</p>
+        </div>
+        <div class="marca-eti"><span class="eti eti-agora">troca de meio</span></div>
+      </div>
+      <div class="li">
+        <div class="n">03</div>
+        <div class="txt">
+          <h4>O nome do modelo &nbsp;→&nbsp; <b>não apostar em nome de modelo</b></h4>
+          <p>Não confirmo que exista um modelo com o nome citado — e chutar não é engenharia. O Luma
+            já resolveu isso: <code style="font-family:var(--mono);font-size:18px">gAiModel()</code> lê
+            <code style="font-family:var(--mono);font-size:18px">localStorage.luma_gemini_model</code>, senão
+            <code style="font-family:var(--mono);font-size:18px">gemini-flash-latest</code>. O time troca no console, sem deploy.
+            <b>O que a V1 trava não é o modelo — é o contrato.</b> Modelo pior com JSON válido degrada o
+            resultado; contrato frouxo derruba o produto.</p>
+        </div>
+        <div class="marca-eti"><span class="eti eti-pronto">1 linha</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="num">17</div>
+</div></div>
+
+<!-- ══ 18 · O QUE JÁ ESTÁ PRONTO ═════════════════════════════════════════ -->
+<div class="quadro"><div class="slide">
+  <div class="fio"></div>
+  <div class="topo"><div class="secao">Arquitetura</div><div class="quando">o inventário do que a V1 reusa sem escrever nada</div></div>
+  <div class="corpo com-fim">
+    <div class="titulo">O reposicionamento pede uma <em>entrada nova</em>,<br>não um motor novo.</div>
+    <table class="tab" style="margin-top:40px">
+      <tr><th style="width:390px">Peça</th><th>Por que importa para a V1</th><th style="width:290px">Estado</th></tr>
+      <tr><td class="p">EDL + validador de plano<span class="onde">js/video/projeto.js</span></td><td>O contrato onde toda decisão de IA aterrissa</td><td class="n">63 casos verdes no CI</td></tr>
+      <tr><td class="p">Compositor<span class="onde">js/video/compositor.js</span></td><td>Prévia e exportação num caminho só; 9:16, 1:1, 16:9 com foco</td><td class="n">corte provado em pixel</td></tr>
+      <tr><td class="p">Folhas de contato<span class="onde">js/video/ingest.js</span></td><td><b>Os olhos do modelo.</b> Tempo queimado em cada célula</td><td class="n">6s de material = 35KB</td></tr>
+      <tr><td class="p">Medição de áudio<span class="onde">js/video/ingest.js</span></td><td>Silêncio, piso de ruído, nível de fala — e o WAV da transcrição</td><td class="n">pausa achada em 2,00–3,95s</td></tr>
+      <tr><td class="p">Motor de render da casa<span class="onde">gFitTextLayer · fRenderOneLayer</span></td><td>A legenda herda a tipografia da marca sem um segundo motor</td><td class="n">0,09ms por frame</td></tr>
+      <tr><td class="p">IndexedDB vanilla<span class="onde">js/core/img-store.js</span></td><td><b>É o motor de persistência da V1.</b> Já degrada sozinho quando falta</td><td class="n">já em produção</td></tr>
+      <tr><td class="p">Feature flag com lazy init<span class="onde">js/core/feature-flags.js:70</span></td><td>A V1 entra desligada, sem risco para o franqueado</td><td class="n">module.video</td></tr>
+      <tr><td class="p">Runner de regressão<span class="onde">scripts/run-browser-tests.js</span></td><td>Navegador real, zero dependência. É o portão de cada fatia</td><td class="n">182 casos no CI</td></tr>
+    </table>
+  </div>
+  <div class="conclusao">O que <b>não</b> existe: o analisador de referência.
+    <b>Zero linha escrita</b> — e é justamente o que o parecer do CPO chama de diferencial.</div>
+  <div class="num">18</div>
+</div></div>
+
+<!-- ══ 19 · A MEMÓRIA ════════════════════════════════════════════════════ -->
+<div class="quadro"><div class="slide">
+  <div class="fio"></div>
+  <div class="topo"><div class="secao">Arquitetura</div><div class="quando">o requisito que transforma o card de mockup em produto</div></div>
+  <div class="corpo">
+    <div class="titulo">O projeto sobrevive à aba fechada.<br><em>Sem escrever motor novo.</em></div>
+    <div class="sub">O <code style="font-family:var(--mono);font-size:22px">img-store.js</code> já é IndexedDB vanilla
+      com degradação silenciosa. A V1 acrescenta um store para blobs e reusa o resto.</div>
+    <table class="tab" style="margin-top:42px">
+      <tr><th style="width:400px">O quê</th><th style="width:280px">Onde</th><th>Por quê</th></tr>
+      <tr><td class="p">O projeto — roteiro, DNA, EDL, eventos</td><td class="n">localStorage</td><td>Poucos KB, leitura no boot. É o que a lista de cards precisa para mostrar “80% · aguardando vídeo”</td></tr>
+      <tr><td class="p">Poster da referência e da gravação</td><td class="n">IndexedDB</td><td>Um JPEG por projeto. O localStorage estouraria — o precedente do img-store é exatamente este</td></tr>
+      <tr><td class="p"><b style="color:var(--laranja-d)">A gravação (o vídeo)</b></td><td class="n">IndexedDB</td><td><b>É a decisão nova.</b> Sem ela, “volte de onde parou” é mentira</td></tr>
+      <tr><td class="p">A referência (o vídeo da trend)</td><td class="n">descartada</td><td>O DNA é o produto da análise. Guardar 50MB de vídeo de terceiro não paga — nem em peso, nem em direito</td></tr>
+    </table>
+    <div class="chave" style="margin-top:50px">
+      <div class="kv"><h5>A decisão que se inverte</h5><p>Hoje o código diz, em comentário: “guardar 150MB
+        em IndexedDB seria possível e ainda não vale — a sessão de edição é curta”.
+        <b>O reposicionamento acabou com a sessão curta:</b> ela agora atravessa “gravar no celular e voltar depois”.</p></div>
+      <div class="kv mag"><h5>O teto, para não virar bomba</h5><p>Um projeto com vídeo por vez, teto de
+        ~200MB, limpeza do blob ao exportar ou após 7 dias. <b>Sem isso o IndexedDB cresce para sempre</b>
+        e o navegador começa a recusar escrita — falha silenciosa, a pior espécie.</p></div>
+    </div>
+  </div>
+  <div class="num">19</div>
+</div></div>
+
+<!-- ══ 20 · OS TETOS REAIS ═══════════════════════════════════════════════ -->
+<div class="quadro"><div class="slide">
+  <div class="fio"></div>
+  <div class="topo"><div class="secao">Arquitetura</div><div class="quando">lidos no código, não estimados</div></div>
+  <div class="corpo com-fim">
+    <div class="titulo">Os tetos da chamada de IA<br><em>mudam decisão de produto</em>.</div>
+    <table class="tab" style="margin-top:40px">
+      <tr><th style="width:330px">Teto</th><th style="width:230px">Valor</th><th>O que isso decide</th></tr>
+      <tr><td class="p">Anexos por chamada</td><td class="n">8</td><td><b>O teto de 6 folhas de contato não foi chute:</b> 6 folhas + 1 WAV = 7. Sobra uma vaga. Quem quiser mandar mais precisa tirar outra coisa</td></tr>
+      <tr><td class="p">Base64 somado</td><td class="n">6 MB</td><td>O <b>WAV de 3 minutos</b> ocupa ~5,7MB sozinho. Conserto: transcrever só os trechos mantidos, ou cair para 8kHz — metade do peso, fala ainda inteligível</td></tr>
+      <tr><td class="p">Prompt</td><td class="n">12 000 caracteres</td><td>DNA + marca + briefing tem de caber. É orçamento, não sugestão</td></tr>
+      <tr><td class="p">Chamadas por minuto</td><td class="n">20 por usuário</td><td>O fluxo da V1 gasta <b>4 a 5 por projeto</b> — não encosta. <b>Um chat solto encostaria</b></td></tr>
+      <tr><td class="p">Tasks na allowlist</td><td class="n">8 hoje</td><td>Nem <code style="font-family:var(--mono);font-size:18px">transcrever-audio</code> nem <code style="font-family:var(--mono);font-size:18px">video-plano</code> estão nela. <b>É a única mudança de backend que a V1 exige</b></td></tr>
+    </table>
+  </div>
+  <div class="conclusao">A mudança de backend inteira: <b>cinco strings entram no array
+    <code style="font-family:var(--mono);font-size:19px">TASKS</code></b> e duas ganham builder de prompt no servidor —
+    onde o tom de voz da marca precisa morar, pelo mesmo motivo do tutor da Academia.
+    <b>Nenhuma migration, nenhum endpoint novo.</b></div>
+  <div class="num">20</div>
+</div></div>
+
+<!-- ══ 21 · O ORÇAMENTO DE 10 MINUTOS ════════════════════════════════════ -->
+<div class="quadro"><div class="slide">
+  <div class="fio"></div>
+  <div class="topo"><div class="secao">A métrica-mãe</div><div class="quando">referência de 25s · gravação de 60s · Reel de 30s · 1 unidade = 1 segundo</div></div>
+  <div class="corpo">
+    <div class="titulo" style="font-size:54px">O orçamento fecha em <em>7min30</em>.<br>E a IA não é o gargalo.</div>
+    <div class="orc" style="flex:1;min-height:0;margin-top:46px">
+      <div class="barra">
+        <div class="fx humano" style="flex:30"><b>30s</b></div>
+        <div class="fx ia" style="flex:25"><b>25s</b></div>
+        <div class="fx ia" style="flex:10"><b>10s</b></div>
+        <div class="fx humano" style="flex:240"><b>4min · o franqueado grava</b></div>
+        <div class="fx local" style="flex:10"><b>10s</b></div>
+        <div class="fx ia" style="flex:40"><b>40s</b></div>
+        <div class="fx humano" style="flex:60"><b>60s · revisa</b></div>
+        <div class="fx export" style="flex:35"><b>35s</b></div>
+      </div>
+      <!-- eixo e rótulos na MESMA escala da barra: 450 unidades = 450s. Sete marcas de
+           60 cobrem 0–7min e a cauda de 30 fecha os 7min30. Com oito marcas de 60 o eixo
+           somava 480 e mentia 6% em cada rótulo. -->
+      <div class="eixo">
+        <div class="m" style="flex:60">0</div><div class="m" style="flex:60">1min</div>
+        <div class="m" style="flex:60">2min</div><div class="m" style="flex:60">3min</div>
+        <div class="m" style="flex:60">4min</div><div class="m" style="flex:60">5min</div>
+        <div class="m" style="flex:60">6min</div><div class="m" style="flex:30">7min</div>
+      </div>
+      <div class="rotulos">
+        <div class="rr" style="flex:65"><h5>Preparar a referência</h5><p>gravar a tela em tempo real, depois extrair o DNA — 25 buscas ≈ 6s, medido</p></div>
+        <div class="rr" style="flex:240"><h5>O humano grava com o celular</h5><p>o maior pedaço do orçamento, e o único que não é nosso</p></div>
+        <div class="rr" style="flex:50"><h5>Auto edit</h5><p>folhas de 60s ≈ 15s medido + a chamada</p></div>
+        <div class="rr" style="flex:95"><h5>Revisar e exportar</h5><p>duas ações rápidas são instantâneas</p></div>
+      </div>
+      <div class="chave" style="margin-top:46px">
+        <div class="kv"><h5>A IA soma 1min15 dos 7min30</h5><p>Quatro chamadas. O gargalo é o humano
+          gravando — e isso é <b>exatamente onde o gargalo deveria estar</b>.</p></div>
+        <div class="kv mag"><h5>O pior momento é a exportação</h5><p>Ela é <b>em tempo real</b>: um Reel de
+          60s custa 60s olhando uma barra. <b>É o único lugar onde WebCodecs se paga</b> — e só depois de
+          medir num Chrome de verdade.</p></div>
+        <div class="kv"><h5>Sobram 2min30 de margem</h5><p>Contra a promessa de 10 minutos. É a folga que deixa o
+          franqueado regravar uma vez sem estourar nada.</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="num">21</div>
+</div></div>
+
+<!-- ══ 22 · AS FATIAS ════════════════════════════════════════════════════ -->
+<div class="quadro"><div class="slide">
+  <div class="fio"></div>
+  <div class="topo"><div class="secao">Entrega</div><div class="quando">a V1 inteira de uma vez é grande demais para verificar</div></div>
+  <div class="corpo com-fim">
+    <div class="lista" style="gap:16px">
+      <div class="li">
+        <div class="n">V1·a</div>
+        <div class="txt">
+          <h4>O cérebro — o diferencial primeiro</h4>
+          <p>DNA da referência, validador, marca estruturada, três roteiros.
+            <b>Sem gravação, sem timeline.</b> A tela é “o que você quer publicar hoje?”.</p>
+          <div class="portao"><b>Portão</b>Grave a tela de um Reel real e receba três roteiros que passam
+            no linter da marca, com CTA escolhido de uma lista aprovada. <b>Isso já resolve “o que eu posto?” — metade do valor.</b></div>
+        </div>
+        <div class="marca-eti"><span class="eti eti-falta">nada escrito</span></div>
+      </div>
+      <div class="li">
+        <div class="n">V1·b</div>
+        <div class="txt">
+          <h4>A memória</h4>
+          <p>Projeto persistente reusando o <b>img-store</b>, lista de cards com estado e progresso.</p>
+          <div class="portao"><b>Portão</b>Feche a aba no meio. Volte. O roteiro e a referência estão lá,
+            e o card diz “aguardando vídeo”.</div>
+        </div>
+        <div class="marca-eti"><span class="eti eti-agora">motor pronto</span></div>
+      </div>
+      <div class="li">
+        <div class="n">V1·c</div>
+        <div class="txt">
+          <h4>A ponte</h4>
+          <p>Checklist da gravação, auto edit com o DNA no contexto, as quatro ações rápidas.</p>
+          <div class="portao"><b>Portão</b>Referência → roteiro → gravação → Reel exportado,
+            <b>cronometrado abaixo de 10 minutos</b>, com material real de franqueado.</div>
+        </div>
+        <div class="marca-eti"><span class="eti eti-agora">80% pronto</span></div>
+      </div>
+      <div class="li">
+        <div class="n">V1·d</div>
+        <div class="txt">
+          <h4>A voz</h4>
+          <p>Chat de comando com delta validado, e o registro de <b>aceito / rejeitado / modificado</b> —
+            o dataset que a V2 vai precisar e que só existe se começar no dia 1.</p>
+          <div class="portao"><b>Portão</b>“Corta esse começo” funciona. Um comando impossível responde
+            que não consegue, sem estragar a edição.</div>
+        </div>
+        <div class="marca-eti"><span class="eti eti-falta">depois</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="conclusao">A ordem é a do parecer do CPO: <b>se a fatia (a) não convencer,
+    nada depois dela importa</b> — e ela é a única que ainda não tem uma linha escrita.</div>
+  <div class="num">22</div>
+</div></div>
+
+<!-- ══ 23 · O QUE NÃO CONSTRUIR ══════════════════════════════════════════ -->
+<div class="quadro"><div class="slide">
+  <div class="fio"></div>
+  <div class="topo"><div class="secao">Disciplina de escopo</div><div class="quando">o corte que protege o MVP</div></div>
+  <div class="corpo">
+    <div class="titulo">O que eu <em>não</em> construiria.</div>
+    <table class="tab" style="margin-top:40px">
+      <tr><th style="width:620px">Não fazer</th><th>Por quê</th></tr>
+      <tr><td class="p">Buscar o vídeo de um link do Instagram</td><td>Impossível do navegador. Gravação de tela resolve com um clique</td></tr>
+      <tr><td class="p">FFmpeg, Remotion, worker de render</td><td>Outro produto. O motor existe e está medido</td></tr>
+      <tr><td class="p">Duas chamadas “paralelas” comparando referência e gravação</td><td>O DNA já está guardado. <b>Uma chamada, duas entradas</b> — dois calls dobram custo e latência pelo mesmo resultado</td></tr>
+      <tr><td class="p">Chat como interação principal</td><td>Duas das cinco ações mais pedidas são aritmética local</td></tr>
+      <tr><td class="p">Contagem exata de cortes na referência</td><td>Um quadro por segundo não dá isso. <b>A classe</b> (lento / médio / rápido) dá, e basta. Prometer precisão que não temos é caro</td></tr>
+      <tr><td class="p">Guardar o vídeo da referência</td><td>O DNA é o produto da análise. O arquivo de terceiro não</td></tr>
+      <tr><td class="p">Música automática, color grading, efeitos</td><td>O corte de escopo está certo. Não reabrir</td></tr>
+      <tr><td class="p">Storyboard e instrução de câmera</td><td>Já cortado, e corretamente: o franqueado quer <b>algo gravável</b></td></tr>
+    </table>
+  </div>
+  <div class="num">23</div>
+</div></div>
+
+<!-- ══ 24 · RISCOS ═══════════════════════════════════════════════════════ -->
+<div class="quadro"><div class="slide">
+  <div class="fio"></div>
+  <div class="topo"><div class="secao">Honestidade</div><div class="quando">o que continua de pé depois das revisões</div></div>
+  <div class="corpo">
+    <div class="titulo">Riscos que ainda não estão resolvidos.</div>
+    <table class="tab" style="margin-top:40px">
+      <tr><th style="width:560px">Risco</th><th style="width:150px">Tamanho</th><th>O que reduz</th></tr>
+      <tr><td class="p">Sai mp4 com H.264? Ninguém sabe ainda</td><td class="n">alto</td><td>Rodar a bancada num Chrome e num Safari de verdade. O Chromium de teste não tem codec proprietário</td></tr>
+      <tr><td class="p">A exportação em tempo real é o pior momento do fluxo</td><td class="n">alto</td><td>Medir primeiro; WebCodecs só depois de doer de verdade</td></tr>
+      <tr><td class="p">Desktop-only exclui quem só tem celular</td><td class="n">alto (de produto)</td><td>É decisão tomada. Rever quando a fase 0 medir o iPhone</td></tr>
+      <tr><td class="p">O DNA errar a estrutura e envenenar os três roteiros</td><td class="n">médio</td><td><code style="font-family:var(--mono);font-size:18px">confianca</code> + degradação para “só o que foi medido”</td></tr>
+      <tr><td class="p">As seis marcas sem conteúdo aprovado</td><td class="n">médio</td><td>Depende do marketing da DM, não de sprint. <b>Nenhuma marca aparece hoje no repositório</b></td></tr>
+      <tr><td class="p">IndexedDB crescer sem fim</td><td class="n">médio</td><td>Teto de 200MB e limpeza em 7 dias</td></tr>
+      <tr><td class="p">O franqueado gravar mal</td><td class="n">médio</td><td>Checklist que avisa e não bloqueia</td></tr>
+    </table>
+  </div>
+  <div class="num">24</div>
+</div></div>
+
+<!-- ══ 25 · DECISÕES ═════════════════════════════════════════════════════ -->
+<div class="quadro"><div class="slide escuro">
+  <div class="fio"></div>
+  <div class="sn">O QUE PRECISA DE DECISÃO SUA</div>
+  <h2 style="font-size:74px">Cinco decisões,<br>e uma delas é de gente.</h2>
+  <div style="position:absolute;left:128px;right:128px;top:436px;display:flex;flex-direction:column;gap:19px">
+    <div style="display:flex;gap:24px;align-items:baseline;border-bottom:1px solid #262626;padding-bottom:17px">
+      <span style="font-family:var(--mono);font-size:20px;color:var(--laranja);font-weight:700;min-width:44px">01</span>
+      <div style="flex:1"><b style="font-size:26px;font-weight:900;letter-spacing:-.02em">Guardar a gravação em IndexedDB</b>
+        <span style="display:block;margin-top:5px;font-size:20px;color:#B4B4B4;line-height:1.36">Até ~200MB, limpeza em 7 dias. É o que faz o “volte de onde parou” existir.</span></div>
+      <span style="font-family:var(--mono);font-size:18px;color:var(--laranja);font-weight:700;white-space:nowrap">recomendo sim</span>
+    </div>
+    <div style="display:flex;gap:24px;align-items:baseline;border-bottom:1px solid #262626;padding-bottom:17px">
+      <span style="font-family:var(--mono);font-size:20px;color:var(--laranja);font-weight:700;min-width:44px">02</span>
+      <div style="flex:1"><b style="font-size:26px;font-weight:900;letter-spacing:-.02em">A tabela <code style="font-family:var(--mono)">luma.video_eventos</code></b>
+        <span style="display:block;margin-top:5px;font-size:20px;color:#B4B4B4;line-height:1.36">A única migration que eu faria cedo. Sem ela, as métricas da V1 morrem com a aba e a decisão da V2 vira opinião.</span></div>
+      <span style="font-family:var(--mono);font-size:18px;color:var(--laranja);font-weight:700;white-space:nowrap">recomendo sim</span>
+    </div>
+    <div style="display:flex;gap:24px;align-items:baseline;border-bottom:1px solid #262626;padding-bottom:17px">
+      <span style="font-family:var(--mono);font-size:20px;color:var(--laranja);font-weight:700;min-width:44px">03</span>
+      <div style="flex:1"><b style="font-size:26px;font-weight:900;letter-spacing:-.02em">Quem preenche as seis marcas, e quando</b>
+        <span style="display:block;margin-top:5px;font-size:20px;color:#B4B4B4;line-height:1.36">Tom, CTAs aprovados e palavras proibidas são <b style="color:#fff">regra de negócio</b>. Inventar aqui seria a alucinação que queremos evitar. Sem isso, a fatia V1·a fica sem a metade que dá confiança.</span></div>
+      <span style="font-family:var(--mono);font-size:18px;color:var(--magenta-claro);font-weight:700;white-space:nowrap">bloqueia a V1·a</span>
+    </div>
+    <div style="display:flex;gap:24px;align-items:baseline;border-bottom:1px solid #262626;padding-bottom:17px">
+      <span style="font-family:var(--mono);font-size:20px;color:var(--laranja);font-weight:700;min-width:44px">04</span>
+      <div style="flex:1"><b style="font-size:26px;font-weight:900;letter-spacing:-.02em">Franqueado ou equipe primeiro?</b>
+        <span style="display:block;margin-top:5px;font-size:20px;color:#B4B4B4;line-height:1.36">O módulo é desktop-only e hoje só equipe. O reposicionamento é sobre o franqueado — mas ele grava no celular.</span></div>
+      <span style="font-family:var(--mono);font-size:18px;color:var(--laranja);font-weight:700;white-space:nowrap">equipe com material real</span>
+    </div>
+    <div style="display:flex;gap:24px;align-items:baseline">
+      <span style="font-family:var(--mono);font-size:20px;color:var(--laranja);font-weight:700;min-width:44px">05</span>
+      <div style="flex:1"><b style="font-size:26px;font-weight:900;letter-spacing:-.02em">A referência é descartada depois do DNA?</b>
+        <span style="display:block;margin-top:5px;font-size:20px;color:#B4B4B4;line-height:1.36">Peso e direito de terceiro.</span></div>
+      <span style="font-family:var(--mono);font-size:18px;color:var(--laranja);font-weight:700;white-space:nowrap">recomendo sim</span>
+    </div>
+  </div>
+  <div style="position:absolute;left:128px;right:128px;bottom:72px;border-top:1px solid #2A2A2A;padding-top:26px;
+       font-size:27px;color:#fff;font-weight:300;line-height:1.4;max-width:1500px">
+    <b style="font-weight:900;color:var(--laranja)">A frase-norte:</b> o Luma Vídeo V1 existe para transformar uma
+    referência em um conteúdo local pronto para publicar, sem exigir que o franqueado aprenda edição.</div>
+  <div class="num" style="color:#8A8A8A">25</div>
+</div></div>
+
+</div>
