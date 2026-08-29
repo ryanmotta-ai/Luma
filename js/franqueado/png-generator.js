@@ -173,38 +173,132 @@ async function fGenPDF(d,c,fmt){
   setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
 }
 
-// Compartilha a arte (imagem + legenda) via Web Share API — atalho pra WhatsApp/Instagram
-// sem "baixar → abrir app → anexar". O Luma continua só ENTREGANDO o arquivo (não posta).
-// Sem suporte a compartilhar arquivos (ex.: desktop), cai em baixar + copiar legenda.
-async function fCompartilhar(btn, snapId){
+/* ══ ENTREGA DA ARTE — Instagram, WhatsApp e download ══════════════════════════
+   O destino de quase toda arte do franqueado é o Instagram (feed/story) ou o
+   WhatsApp (parceiro e status). Por isso os dois canais são ação de primeira
+   linha, e não um "Compartilhar" genérico.
+
+   ⛔ INVARIANTE (01_BUSINESS §10): o Luma NÃO envia mensagem nem publica. Ele
+   entrega o arquivo e a legenda; quem posta é a pessoa, na folha nativa do
+   sistema ou no site aberto em outra aba. Nada aqui fala com API de rede social.
+
+   Um núcleo (`_fArtePreparar`) renderiza UMA vez com o material DAQUELA arte;
+   cada canal só muda o que faz com o resultado. */
+
+// Renderiza a arte do snapshot e devolve tudo que os canais precisam.
+async function _fArtePreparar(snapId){
   const snap=(snapId && typeof _fArtSnapshots!=='undefined' && _fArtSnapshots[snapId])
     || {dados:fState.dados,camp:fState.camp,fmt:fState.fmt,histId:fState._lastHistId,material:fState.material};
   const cap=(typeof _fActiveCaptionText==='function') ? _fActiveCaptionText(snapId) : '';
   const prevMat=fState.material;
-  if(snap.material) fState.material=snap.material; // renderiza com o material DESTA arte
+  if(snap.material) fState.material=snap.material;   // o motor lê fState.material
   try{
     const canvas=await fRenderCanvasHelper(snap.dados,snap.camp,snap.fmt);
     const fname=fBuildFilename(snap.camp,snap.fmt,snap.dados);
     const blob=await new Promise(res=>canvas.toBlob(res,'image/png'));
     const file=blob ? new File([blob],fname,{type:'image/png'}) : null;
-    const canShareFiles = file && navigator.canShare && navigator.canShare({files:[file]});
-    if(canShareFiles){
-      await navigator.share({files:[file], text:cap||undefined, title:'Delivery Much'});
-      if(snap.histId){ fMarkHistBaixada(snap.histId); } else { fAddHist(snap.dados,snap.camp,snap.fmt,'baixada'); }
-      if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt_id:snap.fmt.id,tipo:'png',via:'share'});
+    let podeShare=false;
+    try{ podeShare=!!(file && navigator.canShare && navigator.canShare({files:[file]})); }catch(e){}
+    return {snap, cap, canvas, fname, blob, file, podeShare};
+  } finally { fState.material=prevMat; }
+}
+
+// Mesmo guard do download: sair daqui com o PNG É exportar (Controle do produto).
+function _fArtePodeExportar(){
+  if(typeof gFeatureCan==='function' && !gFeatureCan('franqueado.export.png','execute')){
+    if(typeof gFeatureBlockedFeedback==='function') gFeatureBlockedFeedback('franqueado.export.png');
+    return false;
+  }
+  return true;
+}
+function _fArteBaixarArquivo(prep){
+  const a=document.createElement('a'); a.download=prep.fname;
+  a.href=prep.canvas.toDataURL('image/png'); a.click();
+}
+// Arte que saiu do Luma deixa de ser rascunho — e vira evento de analytics.
+function _fArteEntregue(prep, evento, payload){
+  const snap=prep.snap;
+  if(snap.histId){ fMarkHistBaixada(snap.histId); }
+  else { fAddHist(snap.dados,snap.camp,snap.fmt,'baixada'); }
+  if(typeof gTrackEvent==='function'){
+    gTrackEvent(evento, Object.assign({camp_id:snap.camp.id, fmt_id:snap.fmt.id}, payload||{}));
+  }
+}
+// window.open depois de um await pode cair no bloqueador de pop-up: se voltar nulo,
+// diz o que fazer em vez de deixar o clique morrer em silêncio.
+function _fArteAbrirSite(url, comoAbrirNaMao){
+  let win=null;
+  try{ win=window.open(url,'_blank','noopener'); }catch(e){}
+  if(!win) gToast(comoAbrirNaMao,'warning');
+  return !!win;
+}
+function _fArteErro(e, canal){
+  if(e && e.name==='AbortError') return;         // cancelou a folha nativa — silencioso
+  console.warn('Falha ao entregar a arte ('+canal+'):',e);
+  if(typeof gHandleLayoutUnsafeError==='function' && gHandleLayoutUnsafeError(e)) return;
+  gToast('Não consegui preparar a arte. Tente o botão Baixar PNG.','error');
+}
+
+/* ── INSTAGRAM ──
+   Celular: folha nativa com a imagem (o franqueado escolhe o Instagram) e a legenda
+   já na área de transferência — o app não aceita texto vindo do share.
+   Desktop: o Instagram web só publica com arquivo do disco, então baixa + copia
+   a legenda + abre o site. */
+async function fPostarInstagram(btn, snapId){
+  if(!_fArtePodeExportar()) return;
+  const restore=gBtnLoading(btn,'Preparando…');
+  try{
+    const prep=await _fArtePreparar(snapId);
+    if(prep.cap && typeof _fCopyText==='function') _fCopyText(prep.cap);
+    if(prep.podeShare){
+      await navigator.share({files:[prep.file], text:prep.cap||undefined, title:'Delivery Much'});
+      _fArteEntregue(prep,'arte_postada',{canal:'instagram',via:'share'});
+      gToast(prep.cap ? 'Arte enviada • legenda copiada, é só colar na publicação.' : 'Arte enviada pro Instagram.');
     } else {
-      // Fallback (desktop / sem Web Share de arquivos): baixa a imagem e copia a legenda.
-      const a=document.createElement('a'); a.download=fname; a.href=canvas.toDataURL('image/png'); a.click();
-      if(cap && typeof _fCopyText==='function') _fCopyText(cap);
-      if(snap.histId){ fMarkHistBaixada(snap.histId); } else { fAddHist(snap.dados,snap.camp,snap.fmt,'baixada'); }
-      gToast(cap ? 'Compartilhamento não disponível aqui — baixei a imagem e copiei a legenda.' : 'Compartilhamento não disponível aqui — baixei a imagem.');
+      _fArteBaixarArquivo(prep);
+      _fArteEntregue(prep,'arte_postada',{canal:'instagram',via:'web'});
+      _fArteAbrirSite('https://www.instagram.com/','Baixei a arte e copiei a legenda. Abra o instagram.com pra publicar.');
+      gToast(prep.cap
+        ? 'Arte baixada • legenda copiada! No Instagram, clique em (+) Criar e cole o texto.'
+        : 'Arte baixada! No Instagram, clique em (+) Criar e escolha o arquivo.');
     }
-  }catch(e){
-    if(e && e.name==='AbortError') return; // usuário cancelou o share nativo — silencioso
-    console.warn('Falha ao compartilhar:',e);
-    if(typeof gHandleLayoutUnsafeError==='function'&&gHandleLayoutUnsafeError(e))return;
-    gToast('Não consegui compartilhar. Tente o botão Baixar.','error');
-  }finally{ fState.material=prevMat; }
+  }catch(e){ _fArteErro(e,'instagram'); }
+  finally{ restore(); }
+}
+
+/* ── WHATSAPP ──
+   Celular: folha nativa (imagem + texto vão juntos pra conversa escolhida).
+   Desktop: tenta pôr a IMAGEM na área de transferência — é ela que o Ctrl+V cola
+   na conversa. ⚠ Copiar a legenda depois SOBRESCREVERIA a imagem (a área de
+   transferência é uma só), então ou vai a imagem, ou vai a legenda. O arquivo é
+   baixado nos dois caminhos, como rede de segurança. */
+async function fEnviarWhatsApp(btn, snapId){
+  if(!_fArtePodeExportar()) return;
+  const restore=gBtnLoading(btn,'Preparando…');
+  try{
+    const prep=await _fArtePreparar(snapId);
+    if(prep.podeShare){
+      await navigator.share({files:[prep.file], text:prep.cap||undefined, title:'Delivery Much'});
+      _fArteEntregue(prep,'arte_compartilhada',{canal:'whatsapp',via:'share'});
+      return;
+    }
+    let imagemNaArea=false;
+    try{
+      if(prep.blob && navigator.clipboard && window.ClipboardItem && navigator.clipboard.write){
+        await navigator.clipboard.write([new ClipboardItem({'image/png':prep.blob})]);
+        imagemNaArea=true;
+      }
+    }catch(e){ /* navegador sem suporte (Firefox) ou permissão negada — segue sem drama */ }
+    if(!imagemNaArea && prep.cap && typeof _fCopyText==='function') _fCopyText(prep.cap);
+    _fArteBaixarArquivo(prep);
+    _fArteEntregue(prep,'arte_compartilhada',{canal:'whatsapp',via:'web'});
+    _fArteAbrirSite('https://web.whatsapp.com/','Baixei a arte. Abra o web.whatsapp.com pra enviar.');
+    gToast(imagemNaArea
+      ? 'Imagem copiada! No WhatsApp Web, abra a conversa e aperte Ctrl+V.'
+      : (prep.cap ? 'Arte baixada • legenda copiada! No WhatsApp Web, anexe a imagem e cole o texto.'
+                  : 'Arte baixada! No WhatsApp Web, abra a conversa e anexe o arquivo.'));
+  }catch(e){ _fArteErro(e,'whatsapp'); }
+  finally{ restore(); }
 }
 
 // Rodapé de marca da ferramenta (Luma) — DESATIVADO: a arte gerada é da loja do

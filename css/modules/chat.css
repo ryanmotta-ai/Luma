@@ -336,9 +336,34 @@ body:not(.theme-light) .art-preview-mat{background:var(--d-bg)}
   color: var(--text-3);
   margin-bottom: 1px;
 }
-.art-actions-sec { display: flex; gap: 8px }
+/* Os dois destinos reais da arte (Instagram e WhatsApp) abrem a seção, um por
+   linha: a bolha do chat tem ~340px e "Postar no Instagram" lado a lado com
+   "Enviar no WhatsApp" quebrava os dois rótulos em duas linhas — o verbo é o que
+   diz o que vai acontecer, então quem cede é a largura, não a palavra.
+   O peso separa os dois: o laranja da marca fica com UM botão só — dois cheios
+   viram dois primários, que é o mesmo que nenhum. Cor de marca de rede social
+   está fora de questão (hex fora dos tokens); a distinção é de peso, não de cor. */
+.art-actions-pri { display: flex; flex-direction: column; gap: 8px }
+.art-actions-sec { display: flex; gap: 8px; align-items: stretch }
 .art-actions .art-btn.pri { padding: 12px; font-size: 13px; font-weight: 700; gap: 6px }
+.art-actions-pri .art-btn { padding: 12px 10px; font-size: 12.5px; font-weight: 700; gap: 6px }
+.art-actions-pri .art-wa { border-color: var(--text-3); color: var(--text) }
+.art-actions-pri .art-wa:hover { border-color: var(--text-2); background: var(--gray-light) }
 .art-btn:focus-visible { outline: 2px solid var(--dm-orange); outline-offset: 2px }
+
+/* Refazer é terciário: existe, mas não disputa com quem entrega a arte. */
+.art-redo-link {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 9px 12px;
+  border: 1px solid transparent; border-radius: 8px;
+  background: none; color: var(--text-3);
+  font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: color var(--dur-micro) var(--ease-standard), background var(--dur-micro) var(--ease-standard);
+}
+.art-redo-link:hover { background: var(--gray-light); color: var(--text-2) }
+.art-redo-link:active { transform: scale(.97) }
+.art-redo-link:focus-visible { outline: 2px solid var(--dm-orange); outline-offset: 2px }
 
 /* Faixa do lote: bloco à parte, ação de outra natureza (produção em escala). */
 .art-bulk-btn {
@@ -373,6 +398,10 @@ body:not(.theme-light) .art-preview-mat{background:var(--d-bg)}
 .art-bulk-btn:hover .art-bulk-arrow { opacity: 1; transform: translateX(2px); transition: transform var(--dur-micro) var(--ease-standard) }
 
 body:not(.theme-light) .art-actions { border-top-color: var(--d-border) }
+body:not(.theme-light) .art-actions-pri .art-wa { border-color: var(--d-border2); color: var(--d-text) }
+body:not(.theme-light) .art-actions-pri .art-wa:hover { border-color: var(--d-text3); background: var(--d-surf3) }
+body:not(.theme-light) .art-redo-link { color: var(--d-text3) }
+body:not(.theme-light) .art-redo-link:hover { background: var(--d-surf3); color: var(--d-text2) }
 body:not(.theme-light) .art-actions-label { color: var(--d-text3) }
 body:not(.theme-light) .art-bulk-btn { background: var(--d-surf2); border-top-color: var(--d-border); color: var(--dm-orange) }
 body:not(.theme-light) .art-bulk-btn:hover { background: var(--d-surf3) }
@@ -1304,6 +1333,7 @@ body:not(.theme-light) #f-bulk-mic-btn.is-processing{background:color-mix(in srg
   .confirm-btn{min-height:var(--tap-min)}
   /* Resultado da arte: botões de download/formato tocáveis */
   .art-btn{min-height:var(--tap-min);font-size:13px}
+  .art-redo-link{min-height:var(--tap-min)}
   .fmt-mini-thumb{height:38px}
   .fmt-mini-label{padding:5px 0}
   .confirm-edit{min-height:34px}
