@@ -6,6 +6,20 @@
 
 ---
 
+## 2026-08-29 — Edge Function `ai`: task nova `girias`
+
+> ⚠️ **Precisa de deploy da function** (`supabase functions deploy ai`). Sem ele a task cai no caminho de transição (chave do front) e continua funcionando; quando a chave for rotacionada, sem o deploy o recurso simplesmente não roda — e a legenda sai sem o tempero, como sempre saiu.
+
+**O que mudou no servidor:** uma linha — `"girias"` entra na allowlist `TASKS`. Nada de prompt novo no servidor (a decisão de 2026-07-30 segue valendo: prompt mora no front, menos `aula`), nada de tabela, nada de policy, nada de migration. O banco **não é tocado**.
+
+**O que a task faz:** levanta as expressões realmente usadas na cidade do franqueado, **uma vez por cidade**. O resultado mora no `localStorage` do próprio franqueado (`dm_girias_v1`), nunca no banco — é preferência de conteúdo, não dado da rede. Entra no prompt da legenda como tempero opcional (no máximo uma expressão por legenda). Detalhe e guardas em `docs/LUMA.md` §9.
+
+**Custo:** uma chamada a mais ao modelo **por cidade, por aparelho** — não por legenda. Lista vazia também é guardada, senão cidade que o modelo não conhece viraria uma chamada por legenda para sempre.
+
+**Achado no caminho (não corrigido aqui):** `transcrever-audio` (usado em `png-generator.js:2329`) **não está em `TASKS`** — hoje a function recusa com 400 e o recurso vive do caminho de transição. Quando a chave do front for rotacionada, ele para. Vale entrar na mesma leva do próximo deploy, junto com uma conferida no teto de bytes para áudio.
+
+---
+
 ## 2026-08-12 — Relatório semanal por e-mail (novos materiais)
 
 > ⚠️ **NADA APLICADO AINDA.** O banco **não é tocado** (sem migration, sem tabela, sem policy) — o script só **lê** pelo PostgREST com a service_role. Falta cadastrar os secrets no GitHub Actions. Ver "Ações necessárias".

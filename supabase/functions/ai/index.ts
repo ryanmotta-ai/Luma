@@ -34,7 +34,9 @@ const json = (body: unknown, status = 200) =>
 // `mapear-psd` = importador de PSD do Estúdio (js/designer/psd-import.js): manda a IMAGEM da
 // arte + a lista de camadas e recebe camada→campo editável. Prompt montado no front, como as
 // outras (só `aula` monta aqui).
-const TASKS = ["legenda", "encurtar", "ajuda", "cardapio", "casar-fotos", "cli", "aula", "mapear-psd"];
+// `girias` = o jeito de falar da cidade do franqueado (js/franqueado/chat.js): roda UMA vez
+// por cidade, o resultado fica no localStorage e entra no prompt da legenda como tempero.
+const TASKS = ["legenda", "encurtar", "ajuda", "cardapio", "casar-fotos", "cli", "aula", "mapear-psd", "girias"];
 
 // Tetos por chamada: prompt de peça de marketing é curto; anexo é foto/PDF de cardápio.
 const MAX_PROMPT = 12000;      // caracteres

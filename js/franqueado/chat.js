@@ -807,6 +807,88 @@ function _fCaptionSrcTag(suggestions){
  * O motor local (fBuildCopy, via fGenCaptionSuggestions) segue sendo o fallback —
  * sem rede, sem chave ou com resposta torta, a legenda continua saindo.
  */
+/* ══ JEITO LOCAL — as expressões da cidade, pesquisadas uma vez ═══════════════════════════
+   O franqueado é vizinho de quem lê ("o dono do app mora na cidade", 00_PRODUCT §1). Uma
+   legenda escrita em português neutro perde exatamente isso. Aqui o modelo levanta as
+   expressões da cidade UMA vez por franqueado, e elas entram no prompt da legenda como
+   TEMPERO — no máximo uma, e só quando couber sozinha.
+
+   ⚠ O QUE ISTO É E O QUE NÃO É. Não há busca na web: o modelo responde do que sabe, e para
+   cidade pequena ele pode não saber. Por isso o prompt pede lista CURTA e certa em vez de
+   longa, aceita `[]` como resposta legítima, e a legenda nunca depende da lista para sair.
+   A revisão final é de quem publica — a legenda já é oferecida como sugestão editável.
+
+   Cache no localStorage por CIDADE. Sumiu (aba limpa, outro aparelho, franqueado mudou a
+   cidade) → pesquisa de novo na próxima legenda. Prazo de 180 dias porque lista errada não
+   pode ficar para sempre; gíria não muda em um mês. */
+const F_GIRIAS_KEY = 'dm_girias_v1';
+const F_GIRIAS_DIAS = 180;
+const F_GIRIAS_MAX = 6;
+
+/* A cidade do franqueado NÃO é entidade do Luma (01_BUSINESS §1) — ela aparece de raspão em
+   dois lugares que já existem. Aqui é só a leitura, na ordem do mais específico: o campo da
+   arte que está sendo feita, o "Sua cidade" do Sheets, e o que já foi visto antes. Sem
+   nenhum dos três não há cidade — e sem cidade o recurso simplesmente não roda. */
+const F_CIDADE_KEY = 'dm_cidade_v1';
+function fCidadeAtual(){
+  let c = '';
+  try{ c = (fState && fState.dados && fState.dados.cidade) || ''; }catch(e){}
+  try{ c = c || localStorage.getItem('luma_bulk_city') || localStorage.getItem(F_CIDADE_KEY) || ''; }catch(e){}
+  c = String(c || '').trim();
+  // Lembra pra próxima sessão quando a cidade veio da arte — a cobertura cresce com o uso,
+  // sem inventar uma tela de cadastro pra um dado que mora no Portal.
+  if(c){ try{ localStorage.setItem(F_CIDADE_KEY, c); }catch(e){} }
+  return c;
+}
+const _fGiriaChave = (c) => String(c||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+
+function fGiriasCache(cidade){
+  try{
+    const g = JSON.parse(localStorage.getItem(F_GIRIAS_KEY) || 'null');
+    if(!g || !Array.isArray(g.termos)) return null;
+    if(_fGiriaChave(g.cidade) !== _fGiriaChave(cidade)) return null;         // outra cidade
+    if(Date.now() - (g.ts||0) > F_GIRIAS_DIAS*864e5) return null;            // venceu
+    return g.termos;
+  }catch(e){ return null; }
+}
+
+/* Pesquisa (uma vez por cidade) e guarda. Devolve [] quando não há nada confiável — e `[]`
+   também é resposta guardada: sem isso, cidade que o modelo não conhece viraria uma chamada
+   nova a cada legenda, para sempre. */
+async function fGiriasDaCidade(cidade){
+  if(!cidade) return [];
+  const cache = fGiriasCache(cidade);
+  if(cache) return cache;
+  if(typeof gAskAI !== 'function' || typeof gAiReady !== 'function' || !gAiReady()) return [];
+
+  const prompt = `Você conhece o modo de falar das cidades do interior do Brasil. Liste expressões REALMENTE usadas no dia a dia em ${cidade}.
+
+REGRAS:
+1. Só entra expressão que você tem certeza de que é usada nessa cidade ou na região dela. Na dúvida, devolva MENOS — lista curta e certa vale mais que lista longa e inventada.
+2. Nada de gíria nacional genérica que se fala no Brasil inteiro, nada de palavrão e nada que possa soar pejorativo ou debochado com quem mora lá.
+3. Só serve o que caberia numa legenda sobre comida, pedido ou promoção.
+4. No máximo ${F_GIRIAS_MAX} expressões.
+5. Se você não conhece nada específico dessa cidade, devolva a lista vazia — é resposta certa.
+
+Responda APENAS com JSON válido:
+{"termos":[{"termo":"a expressão","significado":"o que quer dizer, em 4 palavras","exemplo":"frase curta de delivery usando a expressão"}]}`;
+
+  let termos = [];
+  try{
+    const txt = await gAskAI('girias', prompt, { json:true });
+    const parsed = txt && (typeof gAiParseJson==='function' ? gAiParseJson(txt) : null);
+    termos = (parsed && Array.isArray(parsed.termos) ? parsed.termos : [])
+      .map(t => ({ termo:String((t&&t.termo)||'').trim(), significado:String((t&&t.significado)||'').trim() }))
+      // Filtro de formato, não de conteúdo: expressão é curta. Frase inteira aqui é o modelo
+      // devolvendo outra coisa — e emoji nunca entra em nada desta base.
+      .filter(t => t.termo && t.termo.length <= 24
+        && !/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(t.termo + t.significado))
+      .slice(0, F_GIRIAS_MAX);
+  }catch(e){ termos = []; }
+  try{ localStorage.setItem(F_GIRIAS_KEY, JSON.stringify({cidade, ts:Date.now(), termos})); }catch(e){}
+  return termos;
+}
+
 async function fFetchAICaptionSuggestions(dados, camp, formato) {
   const fallback = fGenCaptionSuggestions(dados, camp, formato);
   fallback._ia = false;   // marca a ORIGEM: a UI rotula IA x motor local (ver painel de legenda)
@@ -818,7 +900,8 @@ async function fFetchAICaptionSuggestions(dados, camp, formato) {
   const val = dados.validade || '';
   const desc = dados.desconto || dados.detalhes || '';
   const campName = (camp && camp.name) ? camp.name : 'Delivery Much';
-  const cidade = dados.cidade || (typeof fState !== 'undefined' && fState.dados && fState.dados.cidade) || '';
+  const cidade = dados.cidade || (typeof fState !== 'undefined' && fState.dados && fState.dados.cidade) || ''
+    || (typeof fCidadeAtual === 'function' ? fCidadeAtual() : '');
   const cidadeTag = cidade.replace(/[^a-zA-Z0-9]/g, '');
   const fmtId = (formato && formato.id) || (typeof fState !== 'undefined' && fState.fmt && fState.fmt.id) || 'feed';
   const ehStory = fmtId === 'story';
@@ -839,6 +922,18 @@ async function fFetchAICaptionSuggestions(dados, camp, formato) {
     ? `Termine com hashtags: #${cidadeTag} #Delivery${cidadeTag} #DeliveryMuch`
     : `Termine com hashtags: #DeliveryMuch #Delivery`;
 
+  /* O tempero local. Pesquisado uma vez por cidade (fGiriasDaCidade) e guardado; daqui em
+     diante é leitura de localStorage. Sem cidade, sem IA ou sem lista confiável, o bloco
+     simplesmente não existe e a legenda sai como sempre saiu. */
+  let blocoGirias = '';
+  try{
+    const girias = await fGiriasDaCidade(cidade);
+    if(girias && girias.length){
+      const lista = girias.map(g => `"${g.termo}"${g.significado ? ` (${g.significado})` : ''}`).join(', ');
+      blocoGirias = `\n\nJEITO DE FALAR EM ${cidade.toUpperCase()} (opcional): ${lista}.`;
+    }
+  }catch(e){}
+
   const prompt = `Você escreve legendas para o Delivery Much, o app de delivery das cidades do interior do Brasil. Quem publica é o franqueado da cidade — dono do app ali, vizinho do cliente. Tom: simples, amigável, direto e próximo; português do Brasil; frase curta; nada de jargão de agência nem de "imperdível/incrível".
 
 FATOS DA PEÇA (a legenda acompanha uma arte com estes dados):
@@ -850,7 +945,8 @@ REGRAS OBRIGATÓRIAS:
 3. As 3 opções têm ângulos DIFERENTES entre si — não reescreva a mesma frase.
 4. ${ehStory ? 'Formato STORY: no máximo 2 linhas curtas em "promo" e "engajar" (texto que caiba num story, leitura de 2 segundos).' : 'Formato FEED: "promo" e "engajar" podem ter 2 a 4 linhas.'}
 5. ${hashtags} — só em "promo" e "engajar". A opção "whatsapp" NÃO leva hashtag.
-6. "whatsapp" é mensagem pra lista de transmissão: usa *asteriscos* pra negrito e chama pra pedir no app.
+6. "whatsapp" é mensagem pra lista de transmissão: usa *asteriscos* pra negrito e chama pra pedir no app.${blocoGirias ? `
+7. Sobre o jeito de falar da cidade: use NO MÁXIMO UMA dessas expressões, em UMA das três opções, e só se ela couber com naturalidade na frase. Se nenhuma couber, NÃO force — gíria enfiada soa falsa e o franqueado é vizinho de quem lê. Nunca explique a expressão nem use mais de uma.` : ''}${blocoGirias}
 
 Responda APENAS com JSON válido:
 {"promo":"legenda que vende (foco na oferta)","engajar":"legenda que puxa comentário/marcação de amigo","whatsapp":"mensagem curta pra lista do WhatsApp com *negrito*"}`;

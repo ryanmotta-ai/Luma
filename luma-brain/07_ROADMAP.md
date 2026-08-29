@@ -275,6 +275,7 @@ O que **não** é v1 (fronteiras conscientes, ver `00_PRODUCT.md` §9): CRM Visu
 - **4. Legenda séria** — prompt com fato-que-existe, ângulo por opção, story x feed; emoji removido no código; selo de origem passou a dizer a verdade (dizia "Gerado por IA" sempre).
 - **5. Casar fotos com as linhas** — nome de arquivo primeiro (local), visão só nas sobras, em uma chamada.
 
+- **7. Jeito local na legenda** *(2026-08-29)* — o agente levanta as expressões da cidade do franqueado **uma vez** (task `girias`), guarda em `localStorage` e elas entram no prompt da legenda como tempero: no máximo uma, e só se couber sozinha. Cidade lida do que já existe (campo da arte → "Sua cidade" do Sheets), sem tela nova. ⚠ Não é busca na web — o modelo responde do que sabe, então o prompt prefere lista curta e certa, aceita vazio e o `girias` do CLI mostra/limpa o que ficou guardado.
 - **6. Luma CLI** *(pedido do Ryan na mesma sessão)* — console do time (`Ctrl+\``, só `gIsAdmin()`): `diag`, `sync`, `pastas`, `cache` + conversa com a IA no próprio terminal, com banner em pixel art e os dois temas. Nasceu pra matar o "snippet colado no DevTools" do diagnóstico de sync. Detalhe no `docs/LUMA.md` §12.2. **Descartado no caminho:** terminal de shell de verdade — a casca desktop é burra de propósito (`contextIsolation`, carrega a URL de produção) e dar shell a ela troca um .exe inofensivo por superfície de ataque.
 
 **Fora, com motivo:**

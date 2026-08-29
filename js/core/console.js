@@ -326,6 +326,35 @@ const G_CLI_CMDS = {
     }
   },
 
+  /* O jeito de falar da cidade entra na legenda por baixo do pano (chat.js) — sem uma
+     janela pra ele, "de onde saiu esse termo?" viraria caça ao localStorage no DevTools,
+     que é exatamente o que este console existe pra aposentar. */
+  girias: {
+    uso: 'girias [ver|limpar]',
+    desc: 'Mostra ou apaga as expressões locais que entram na legenda',
+    run: async (args) => {
+      const acao = (args[0] || 'ver').toLowerCase();
+      const cidade = (typeof fCidadeAtual === 'function') ? fCidadeAtual() : '';
+      if (acao === 'limpar') {
+        try { localStorage.removeItem('dm_girias_v1'); } catch (e) { return '<span class="cli-err">falhou ao apagar.</span>'; }
+        return 'lista apagada. <span class="cli-dim">A próxima legenda pesquisa de novo.</span>';
+      }
+      let g = null;
+      try { g = JSON.parse(localStorage.getItem('dm_girias_v1') || 'null'); } catch (e) {}
+      if (!g) {
+        return cidade
+          ? `nenhuma lista guardada ainda · cidade lida: <b>${gEsc(cidade)}</b>\n<span class="cli-dim">A primeira legenda com IA pesquisa e guarda.</span>`
+          : '<span class="cli-warn">sem cidade</span> — o recurso não roda.\n<span class="cli-dim">A cidade vem do campo da arte ou do "Sua cidade" do Sheets.</span>';
+      }
+      const dias = Math.floor((Date.now() - (g.ts || 0)) / 864e5);
+      const termos = Array.isArray(g.termos) ? g.termos : [];
+      const linhas = termos.length
+        ? termos.map(t => `  <b>${gEsc(t.termo)}</b>${t.significado ? ' <span class="cli-dim">' + gEsc(t.significado) + '</span>' : ''}`).join('\n')
+        : '  <span class="cli-dim">lista vazia — o modelo não conhecia nada específico dessa cidade.</span>';
+      return `<span class="cli-h">${gEsc(g.cidade || '?')}</span> · ${termos.length} expressão(ões) · guardada há ${dias} dia(s)\n${linhas}\n\n<span class="cli-dim">Entram no prompt da legenda como opcional — no máximo uma por legenda. <b>girias limpar</b> força nova pesquisa.</span>`;
+    }
+  },
+
   cache: {
     uso: 'cache [ls|clear <chave>]',
     desc: 'Inspeciona ou limpa o localStorage do Luma',
