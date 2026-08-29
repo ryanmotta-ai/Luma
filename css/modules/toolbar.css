@@ -314,6 +314,30 @@ body.theme-light .vt-color-sep { background: rgba(0,0,0,0.1); }
 .sim-scenarios{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:12px 14px;border-bottom:1px solid var(--d-border);background:var(--d-bg)}
 .sim-scenarios button{min-width:0;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:7px;border:1px solid var(--d-border);border-radius:var(--r);background:var(--d-surf);color:var(--d-text2);font-size:10px;font-weight:700;cursor:pointer;transition:border-color var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard),transform var(--dur-micro) var(--ease-spring)}
 .sim-scenarios button svg{color:var(--dm-orange)}.sim-scenarios button:hover{border-color:var(--dm-orange);background:color-mix(in srgb,var(--dm-orange) 8%,var(--d-surf));color:var(--d-text);transform:translateY(-1px)}.sim-scenarios button:active{transform:scale(.97)}
+/* ══ TESTE DE TENSÃO — a régua entre "sai igual" e "trava" ══ */
+.sim-tensao{padding:12px 14px 14px;border-bottom:1px solid var(--d-border);background:var(--d-bg)}
+.sim-tensao-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
+.sim-tensao-head label{color:var(--d-text2);font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+#sim-tensao-val{color:var(--dm-orange);font-size:12px;font-weight:800;font-variant-numeric:tabular-nums}
+#sim-tensao-range{width:100%;margin:0;appearance:none;background:transparent;cursor:pointer}
+#sim-tensao-range::-webkit-slider-runnable-track{height:4px;border-radius:var(--r-pill);background:linear-gradient(90deg,var(--d-border2),var(--dm-orange))}
+#sim-tensao-range::-moz-range-track{height:4px;border-radius:var(--r-pill);background:linear-gradient(90deg,var(--d-border2),var(--dm-orange))}
+#sim-tensao-range::-webkit-slider-thumb{appearance:none;width:16px;height:16px;margin-top:-6px;border-radius:var(--r-pill);border:2px solid var(--d-surf);background:var(--dm-orange);box-shadow:0 2px 6px rgba(0,0,0,.35);transition:transform var(--dur-micro) var(--ease-spring)}
+#sim-tensao-range::-moz-range-thumb{width:16px;height:16px;border-radius:var(--r-pill);border:2px solid var(--d-surf);background:var(--dm-orange);box-shadow:0 2px 6px rgba(0,0,0,.35)}
+#sim-tensao-range:active::-webkit-slider-thumb{transform:scale(1.15)}
+#sim-tensao-range:focus-visible{outline:2px solid var(--dm-orange);outline-offset:4px;border-radius:var(--r-pill)}
+.sim-tensao-scale{display:flex;justify-content:space-between;margin-top:5px;color:var(--d-text3);font-size:9.5px;font-weight:600;letter-spacing:.02em}
+.sim-tensao-foot{display:flex;align-items:center;gap:8px;margin-top:10px}
+.sim-tensao-chip{flex:1;min-width:0;padding:6px 9px;border:1px solid var(--d-border);border-radius:var(--r-sm);background:var(--d-surf);color:var(--d-text2);font-size:10.5px;font-weight:600;line-height:1.35}
+/* O veredito é a informação, então ele é quem carrega a cor — verde sai igual, laranja o motor
+   acomodou, vermelho travou. Mesma leitura dos três estados do runtime do franqueado. */
+.sim-tensao-chip[data-status="original"]{border-color:color-mix(in srgb,var(--green) 45%,var(--d-border));color:var(--green-text)}
+.sim-tensao-chip[data-status="adapted"]{border-color:color-mix(in srgb,var(--dm-orange) 45%,var(--d-border));color:var(--dm-orange)}
+.sim-tensao-chip[data-status="unsafe"]{border-color:color-mix(in srgb,var(--d-error) 55%,var(--d-border));color:var(--d-error)}
+.sim-tensao-btn{flex:0 0 auto;min-height:30px;padding:0 11px;border:1px solid var(--d-border);border-radius:var(--r-sm);background:var(--d-surf);color:var(--d-text2);font-family:inherit;font-size:10.5px;font-weight:700;cursor:pointer;transition:border-color var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard)}
+.sim-tensao-btn:hover{border-color:var(--dm-orange);background:color-mix(in srgb,var(--dm-orange) 8%,var(--d-surf));color:var(--d-text)}
+.sim-tensao-btn:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+
 .sim-fields{flex:1;min-height:0;overflow-y:auto;padding:14px 16px 22px;scrollbar-width:thin;scrollbar-color:var(--d-border2) transparent}
 .sim-row{margin-bottom:14px}.sim-row:last-child{margin-bottom:0}
 .sim-label-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}

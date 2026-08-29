@@ -1945,7 +1945,7 @@ function dOpenSimModal(){
           <button type="button" onclick="dSimStressTest('max')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 15 4-4 3 3 7-8"/><path d="M14 6h5v5"/></svg><span>Limite</span></button>
           <button type="button" onclick="dSimStressTest('min')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg><span>Mínimo</span></button>
           <button type="button" onclick="dSimStressTest('empty')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="m7 7 10 10"/></svg><span>Vazio</span></button>
-        </div><div class="sim-fields" id="d-sim-body">${varsArr.map(dSimFieldMarkup).join('')}</div>`:
+        </div>${dSimTensaoHTML()}<div class="sim-fields" id="d-sim-body">${varsArr.map(dSimFieldMarkup).join('')}</div>`:
         `<div class="sim-empty"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5"/></svg><strong>Nenhum campo para simular</strong><p>Adicione variáveis como {{produto}} ou uma imagem vinculada para testar dados reais.</p></div>`}
       </aside>
     </div>
@@ -2060,6 +2060,168 @@ function dSimMarkOverflow(sink){
     const el=document.getElementById('sim-ovf-'+vn);
     if(el)el.hidden=!culpados.has(vn);
   });
+}
+
+/* ══ TESTE DE TENSÃO ═══════════════════════════════════════════════════════════════════════
+   Os cenários (Exemplo · Limite · Mínimo · Vazio) mostram PONTOS; o que o designer não vê é o
+   caminho entre eles — em que ponto a arte deixa de sair como ele desenhou, e em que ponto ela
+   trava. Este controle estica todos os campos juntos, de vazio até o pior caso PERMITIDO
+   (`gStressValues`, o mesmo do checklist), e diz o veredito a cada parada.
+
+   ⚠ EXCEÇÃO CONSCIENTE AO ESCOPO DO ESTÚDIO. A prévia do simulador mostra a geometria
+   DESENHADA de propósito (bloco escorregando sob o cursor é o oposto de uma ferramenta de
+   autoria). O veredito aqui é a outra pergunta — "o que o FRANQUEADO vai receber?" —, então
+   ele roda o motor com `fitText` e compara pelo mesmo contrato do runtime
+   (`gDescribeFranchiseeLayout`). Nada disso toca a prancheta nem o template: são clones. */
+let dSimTensao = 0;
+let _dSimTensaoTimer = null;
+
+function dSimTensaoHTML(){
+  if(typeof gStressValues !== 'function' || typeof gApplyRelativeAnchors !== 'function') return '';
+  return `<div class="sim-tensao">
+    <div class="sim-tensao-head">
+      <label for="sim-tensao-range">Teste de tensão</label>
+      <output id="sim-tensao-val" for="sim-tensao-range">0%</output>
+    </div>
+    <input id="sim-tensao-range" type="range" min="0" max="100" step="5" value="0"
+      aria-describedby="sim-tensao-veredito" oninput="dSimSetTensao(this.value)">
+    <div class="sim-tensao-scale" aria-hidden="true"><span>vazio</span><span>limite do campo</span></div>
+    <div class="sim-tensao-foot">
+      <span class="sim-tensao-chip" id="sim-tensao-veredito" role="status" aria-live="polite">Estique os campos e veja onde a arte cede.</span>
+      <button type="button" class="sim-tensao-btn" onclick="dSimOndeTrava()">Onde trava?</button>
+    </div>
+  </div>`;
+}
+
+/* Corta no espaço para o texto de teste continuar parecendo texto — cortar no meio da palavra
+   mede a mesma quantidade de tinta, mas o designer lê "bug" em vez de "teste". */
+function _dSimCorta(s, n){
+  const t = String(s || '');
+  if(n >= t.length) return t;
+  if(n <= 0) return '';
+  const corte = t.lastIndexOf(' ', n);
+  return t.slice(0, corte > n * 0.6 ? corte : n).trim();
+}
+
+function _dSimTensaoValores(pct){
+  const vars = dSimUsedVars();
+  const cheio = gStressValues(vars, dVars,
+    { imagem: (typeof fState!=='undefined' && fState.camp && fState.camp.cover) || '' });
+  const out = {};
+  vars.forEach(vn => {
+    const v = dVars.find(x => x.name === vn) || {};
+    // Imagem não tem "meio termo": ou a arte tem foto, ou não tem.
+    if((v.type||'text') === 'image'){ out[vn] = pct > 0 ? (cheio[vn]||'') : ''; return; }
+    out[vn] = _dSimCorta(cheio[vn], Math.round(String(cheio[vn]||'').length * pct / 100));
+  });
+  return out;
+}
+
+/* O veredito do RUNTIME do franqueado para um conjunto de dados: dois solves (com e sem
+   acomodação) comparados pelo mesmo contrato que a prévia e o PNG usam. */
+function _dSimVeredito(dados){
+  if(typeof gApplyRelativeAnchors !== 'function' || typeof gDescribeFranchiseeLayout !== 'function') return null;
+  const defaults = (typeof gVarDefaults === 'function') ? gVarDefaults() : null;
+  const ab = (typeof dGetActiveAB === 'function') ? dGetActiveAB() : null;
+  const base = DFMT_SIZES[dFmt] || DFMT_SIZES.story;
+  const canvas = { w:(ab&&ab.w)||base.w, h:(ab&&ab.h)||base.h };
+  const clonar = () => dSimLayersForFmt().map(l => ({...l}));
+  try{
+    const solved = gApplyRelativeAnchors(clonar(), dados, defaults, {fitText:true, canvas, scope:'franqueado'});
+    const orig   = gApplyRelativeAnchors(clonar(), dados, defaults, {fitText:false, canvas, scope:'franqueado'});
+    return gDescribeFranchiseeLayout(orig, solved);
+  }catch(e){ return null; }
+}
+
+/* Qual CAMPO travou — do id da camada reprovada de volta ao `{{campo}}` que ela usa. Sai o
+   rótulo do Dado, nunca o token: quem lê é gente. */
+function _dSimCampoCulpado(res){
+  if(!res || !res.invalidIds || !res.invalidIds.length) return '';
+  const rotulos = [];
+  (dLayers||[]).forEach(l => {
+    if(!res.invalidIds.includes(l.id) || !l.content) return;
+    for(const m of String(l.content).matchAll(gVarRegex())){
+      const v = dVars.find(x => x.name === m[1]);
+      const r = (v && v.label) || m[1];
+      if(rotulos.indexOf(r) < 0) rotulos.push(r);
+    }
+  });
+  return rotulos.slice(0,2).join(' e ');
+}
+
+function _dSimPintaVeredito(res){
+  const chip = document.getElementById('sim-tensao-veredito');
+  if(!chip) return;
+  const st = res ? res.status : null;
+  chip.dataset.status = st || '';
+  if(st === 'unsafe'){
+    const campo = _dSimCampoCulpado(res);
+    chip.textContent = campo ? `Trava aqui — ${campo} não cabe com segurança.` : 'Trava aqui — não cabe com segurança.';
+  } else if(st === 'adapted'){
+    chip.textContent = 'O motor acomoda — o franqueado recebe a arte adaptada.';
+  } else if(st === 'original'){
+    chip.textContent = 'Sai exatamente como você desenhou.';
+  } else {
+    chip.textContent = 'Estique os campos e veja onde a arte cede.';
+  }
+}
+
+function dSimSetTensao(pct){
+  dSimTensao = Math.max(0, Math.min(100, Number(pct)||0));
+  const val = document.getElementById('sim-tensao-val');
+  if(val) val.textContent = dSimTensao + '%';
+  const range = document.getElementById('sim-tensao-range');
+  if(range && Number(range.value) !== dSimTensao) range.value = dSimTensao;
+
+  dSimDraftValues = _dSimTensaoValores(dSimTensao);
+  dSimUsedVars().forEach(vn => {
+    const input = document.getElementById('sim-input-' + vn);
+    if(input) input.value = dSimDraftValues[vn] || '';
+    const v = dVars.find(x => x.name === vn);
+    dSimVarUpdateMeta(vn, dSimDraftValues[vn] || '', (v && v.maxLen) ? v.maxLen : 0);
+  });
+  dSimScheduleRender();
+  // O veredito custa 2 solves: sai do caminho do arrasto e só roda quando o dedo para.
+  clearTimeout(_dSimTensaoTimer);
+  _dSimTensaoTimer = setTimeout(() => _dSimPintaVeredito(_dSimVeredito(dSimDraftValues)), 160);
+}
+
+/* Varre a régua de 10 em 10 e conta a história em uma frase: até onde sai igual, de onde o
+   motor acomoda e onde trava. 11 paradas × 2 solves — com a memória de encaixe isso é barato,
+   e roda só no clique, nunca no arrasto. */
+function dSimOndeTrava(){
+  const chip = document.getElementById('sim-tensao-veredito');
+  if(chip){ chip.dataset.status=''; chip.textContent = 'Procurando o ponto de ruptura…'; }
+  setTimeout(() => {
+    let ultimoOriginal = -1, primeiroAdaptado = -1, primeiroUnsafe = -1;
+    for(let p = 0; p <= 100; p += 10){
+      const res = _dSimVeredito(_dSimTensaoValores(p));
+      const st = res ? res.status : null;
+      if(st === 'original') ultimoOriginal = p;
+      if(st === 'adapted' && primeiroAdaptado < 0) primeiroAdaptado = p;
+      if(st === 'unsafe'){ primeiroUnsafe = p; break; }
+    }
+    const partes = [];
+    if(ultimoOriginal >= 0) partes.push(`sai igual até ${ultimoOriginal}%`);
+    if(primeiroAdaptado >= 0) partes.push(`o motor acomoda a partir de ${primeiroAdaptado}%`);
+    partes.push(primeiroUnsafe >= 0 ? `trava aos ${primeiroUnsafe}%` : 'não trava nem no limite do campo');
+    if(chip){
+      chip.dataset.status = primeiroUnsafe >= 0 ? 'unsafe' : (primeiroAdaptado >= 0 ? 'adapted' : 'original');
+      chip.textContent = partes.join(' · ').replace(/^./, c => c.toUpperCase()) + '.';
+    }
+    // Leva a régua para o ponto que interessa olhar.
+    const alvo = primeiroUnsafe >= 0 ? primeiroUnsafe : (primeiroAdaptado >= 0 ? primeiroAdaptado : 100);
+    const range = document.getElementById('sim-tensao-range');
+    if(range){
+      range.value = alvo;
+      const texto = chip ? chip.textContent : '';
+      dSimSetTensao(alvo);
+      // dSimSetTensao repinta o chip com o veredito daquele ponto; a frase da varredura é mais
+      // informativa, então volta a valer depois que ele terminar.
+      clearTimeout(_dSimTensaoTimer);
+      if(chip) setTimeout(() => { chip.textContent = texto; }, 180);
+    }
+  }, 30);
 }
 
 function dSimStressTest(mode) {

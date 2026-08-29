@@ -964,7 +964,47 @@ function gStressValues(usados, vars, opts) {
   return dados;
 }
 
+/* MEMÓRIA DE ENCAIXE (2026-08-29). O encaixe é a operação mais cara do motor — quebra, mede
+   linha a linha e ainda encolhe —, e a escada o repete à exaustão: cada volta re-mede os
+   culpados, e depois as 4 políticas alternativas re-rodam o solve INTEIRO sobre as mesmas
+   camadas. Medido na bancada (fuzz hostil): 198 encaixes e 1109 `measureText` num único solve.
+   `gFitTextLayer` é PURA — mesmas entradas, mesmo encaixe —, então memoizar não muda resultado
+   nenhum, só o relógio. Mora no MESMO mapa de `gMeasureLayerWidth`/`gSmartWrapText` (prefixo
+   'F'), pra que o teto e o descarte já existentes valham para os três de uma vez.
+   ⚠ A chave carrega TUDO que muda o encaixe. Faltar um campo aqui devolveria o encaixe de
+   OUTRO estado — e isso não é lentidão, é arte errada. Por isso nada de chave "resumida":
+   quem mexer em `gFitTextLayer` lendo uma propriedade nova mexe aqui junto.
+   A cópia na volta é de propósito: o chamador guarda o resultado em `l._fit`, e devolver a
+   MESMA referência a dois clones deixaria um capaz de envenenar o encaixe do outro. */
+function _gFitChave(l, texto, opts){
+  const runs = (opts && opts.runs && opts.runs.length)
+    ? opts.runs.map(r => [r.text, r.font, r.fontSize, r.letterSpacing, r.fontWeightOverride].join('~')).join('§')
+    : '';
+  return 'F' + [
+    l.font, l.fontSize, l._tetoFonte, l.italic ? 1 : 0, l.fontWeightOverride, l.letterSpacing,
+    l.textTransform, l.textBox, l._layoutW, l.w, l.h, l.vertical ? 1 : 0,
+    l.lineHeight, l._entrelinha, l._layoutMaxLines, l._pisoFonte, l._pisoLegivel, l.content,
+    opts.escala, opts.encolher === false ? 0 : 1, opts.pisoFonte, opts.aplicarTetoLinhas === true ? 1 : 0,
+    runs, String(texto == null ? '' : texto)
+  ].join('|');
+}
+
 function gFitTextLayer(layer, texto, ctxAux, opts) {
+  opts = opts || {};
+  const l = layer || {};
+  if (l.type === 'text') {
+    const _chaveFit = _gFitChave(l, texto, opts);
+    const _achou = _G_MEDIDA_CACHE.get(_chaveFit);
+    if (_achou !== undefined) return Object.assign({}, _achou, { lines: _achou.lines.slice() });
+    const _calc = _gFitTextCalc(layer, texto, ctxAux, opts);
+    if (_G_MEDIDA_CACHE.size > 4000) _G_MEDIDA_CACHE.clear();
+    _G_MEDIDA_CACHE.set(_chaveFit, _calc);
+    return Object.assign({}, _calc, { lines: _calc.lines.slice() });
+  }
+  return _gFitTextCalc(layer, texto, ctxAux, opts);
+}
+
+function _gFitTextCalc(layer, texto, ctxAux, opts) {
   opts = opts || {};
   const l = layer || {};
   const esc = opts.escala != null ? opts.escala : 1;
@@ -2427,6 +2467,58 @@ const G_CONNECTORS = new Set([
 
 /* Segmentador de grafemas e canvas de medida: um de cada, criados na carga. Antes nasciam
    dentro do laço de quebra — um `Intl.Segmenter` e um `<canvas>` novos por chamada. */
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   HIFENIZAÇÃO pt-BR — para o CORTE DURO ficar legível
+   ══════════════════════════════════════════════════════════════════════════════════════════
+   Quando uma palavra sozinha não cabe na largura da caixa (`pushToken`), a quebra já cortava —
+   mas no grafema que coubesse: "SUPERPROMOÇÃOIMPER / DÍVELDEANIVERSÁRIO". O corte existe de
+   qualquer jeito; o que faltava era ele cair numa sílaba e levar o hífen, que é o sinal de que
+   a palavra continua na linha de baixo.
+
+   ⚠ O QUE ISTO NÃO FAZ: não evita encolhimento de fonte. Medido no motor — depois do corte
+   todas as linhas cabem, então o `estourou` não dispara e a escada não chega a reduzir corpo.
+   O ganho é de LEITURA, não de tamanho.
+
+   Regras (sem dicionário, ~40 linhas): dígrafo inseparável (ch/lh/nh/gu/qu), encontro
+   consonantal com l/r que abre sílaba (bl, br, cl, cr, dr, fl, fr, gl, gr, pl, pr, tr, vr),
+   ditongo que não se separa, e consoante final de sílaba (l, r, s, x, n, m, z) antes de outra
+   consoante. Determinístico: mesma palavra, mesmo corte, em qualquer máquina.
+   Fora de escopo de propósito: palavra curta (<6 letras), pedaço órfão de 1 letra, e qualquer
+   token que não seja alfabético latino — CJK não hifeniza, número e código não se cortam. */
+const _G_HIF_VOGAIS = 'aeiouáéíóúâêôàãõyAEIOUÁÉÍÓÚÂÊÔÀÃÕY';
+const _G_HIF_DITONGOS = new Set(['ai','ei','oi','ui','au','eu','ou','iu','ão','ãe','õe','ae','ao','ea','eo','ia','ie','io','ua','ue','uo','ui']);
+const _G_HIF_DIGRAFOS = new Set(['ch','lh','nh','gu','qu']);
+const _G_HIF_CLUSTERS = new Set(['bl','br','cl','cr','dr','fl','fr','gl','gr','pl','pr','tl','tr','vl','vr','pn','ps']);
+const _gHifVogal = (c) => !!c && _G_HIF_VOGAIS.indexOf(c) >= 0;
+
+/* Devolve os índices onde a palavra pode receber hífen (posição = nº de letras à esquerda). */
+function gHifenizaPt(palavra){
+  const p = String(palavra || '');
+  if(p.length < 6 || !/^[A-Za-zÀ-ÿ]+$/.test(p)) return [];
+  const b = p.toLowerCase();
+  const cortes = [];
+  for(let i = 1; i < b.length - 1; i++){
+    const ant = b[i-1], atual = b[i], prox = b[i+1];
+    let corte = false;
+    if(_gHifVogal(ant) && _gHifVogal(atual)){
+      // Vogal + vogal: só corta em hiato (ditongo é uma sílaba só).
+      corte = !_G_HIF_DITONGOS.has(ant + atual);
+    } else if(_gHifVogal(ant) && !_gHifVogal(atual)){
+      if(_G_HIF_DIGRAFOS.has(atual + prox)) corte = true;            // ba-nho, a-guenta
+      else if(_gHifVogal(prox)) corte = true;                        // ca-sa
+      else if(_G_HIF_CLUSTERS.has(atual + prox)) corte = true;       // a-brir
+      else corte = false;                                            // a coda fecha a sílaba: par-te
+    } else if(!_gHifVogal(ant) && !_gHifVogal(atual)){
+      // Consoante + consoante: corta ENTRE elas quando a segunda abre a próxima sílaba.
+      if(_G_HIF_DIGRAFOS.has(ant + atual) || _G_HIF_CLUSTERS.has(ant + atual)) corte = false;
+      else if('lrsxnmz'.indexOf(ant) >= 0) corte = true;             // par-te, cons-ta
+    }
+    // Nunca deixa pedaço de 1 letra em nenhum dos lados — órfã não é quebra, é erro.
+    if(corte && i >= 2 && (b.length - i) >= 2) cortes.push(i);
+  }
+  return cortes;
+}
+
 const _G_SEGMENTADOR = (typeof Intl!=='undefined'&&Intl.Segmenter)
   ? new Intl.Segmenter(undefined,{granularity:'grapheme'}) : null;
 let _gCanvasWrap = null;
@@ -2608,7 +2700,21 @@ function _gSmartWrapCalc(text, maxW, layer) {
         if (measure(rest.slice(0, mid).join('')) <= availableW) { fit = mid; low = mid + 1; }
         else high = mid - 1;
       }
-      wrapped.push(rest.slice(0, fit).join(''));
+      /* HÍFEN NA SÍLABA. O corte vai acontecer de qualquer jeito; o que muda aqui é ele cair
+         numa fronteira silábica e levar o hífen — "EXTRAOR-/DINÁRIO" em vez de "EXTRAO/RDINÁRIO".
+         Só desce da posição que já coube (nunca sobe): o hífen ocupa largura, então o pedaço
+         com ele precisa caber na mesma linha. Sem sílaba válida abaixo do corte, fica o corte
+         seco de sempre — hifenizar errado é pior que não hifenizar. */
+      const _pedaco = rest.slice(0, fit).join('');
+      let _saida = _pedaco;
+      const _silabas = (typeof gHifenizaPt === 'function') ? gHifenizaPt(rest.join('')) : [];
+      for(let k = _silabas.length - 1; k >= 0; k--){
+        const c = _silabas[k];
+        if(c > fit) continue;                                   // ainda não coube
+        const cand = rest.slice(0, c).join('') + '-';
+        if(measure(cand) <= availableW){ _saida = cand; fit = c; break; }
+      }
+      wrapped.push(_saida);
       rest = rest.slice(fit);
     }
     return rest.join('');
