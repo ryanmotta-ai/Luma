@@ -92,13 +92,27 @@ function fStartChatComMaterial(material){
 }
 
 /* ── Atalhos de pré-início (perfil de loja salva + reusar última arte) ──
-   Decisão de produto: "só um passo no chat" — sem tela de gerência de lojas. */
+   O atalho é "só um passo no chat"; renomear/apagar/criar loja mora na aba
+   "Lojas e fotos" do painel de conta (js/franqueado/prefs-panel.js). */
 function _fPergExists(id){ return (fState.camp.perguntas||[]).some(p=>p.id===id); }
+
+/* Os campos que um perfil de loja sabe responder. Nomes variam por template
+   (o designer batiza o campo), então cada dado tem seus apelidos conhecidos. */
+const F_LOJA_CAMPOS = {
+  logo:     ['logo_loja'],
+  nome:     ['nome_loja','nomeLoja','loja','nome_da_loja','estabelecimento'],
+  whatsapp: ['whatsapp','telefone','contato'],
+  cor:      ['cor','cor_marca','cor_loja']
+};
+// A loja tem algo a oferecer neste material? (antes só olhava o logo — nome/whatsapp/cor
+// também são redigitação, e material sem campo de logo ficava sem o atalho.)
+function _fLojaServeMaterial(){
+  return Object.keys(F_LOJA_CAMPOS).some(k=>F_LOJA_CAMPOS[k].some(_fPergExists));
+}
 
 function fMaterialPreStart(material){
   const lojas = (typeof fGetLojas==='function') ? fGetLojas() : [];
-  const hasLogoField = _fPergExists('logo_loja');
-  const lojaOffer = hasLogoField && lojas.length;
+  const lojaOffer = _fLojaServeMaterial() && lojas.length;
   // Última arte: entrada mais recente do histórico com o MESMO material.
   let lastArte=null;
   try{ lastArte=(typeof fGetHist==='function') ? fGetHist().find(h=>h.materialId===material.id) : null; }catch(e){}
@@ -131,9 +145,11 @@ function fPickLoja(lojaId){
   _fClearPreStart();
   const loja=(typeof fGetLojas==='function') ? fGetLojas().find(l=>l.id===lojaId) : null;
   if(!loja){ _fProceedMaterialStart(fState.material); return; }
-  if(loja.logo && _fPergExists('logo_loja')) fState.dados['logo_loja']=loja.logo;
-  if(loja.whatsapp){ ['whatsapp','telefone','contato'].forEach(k=>{ if(_fPergExists(k)) fState.dados[k]=loja.whatsapp; }); }
-  if(loja.cor){ ['cor','cor_marca','cor_loja'].forEach(k=>{ if(_fPergExists(k)) fState.dados[k]=loja.cor; }); }
+  const _preenche=(valor,chaves)=>{ if(!valor) return; chaves.forEach(k=>{ if(_fPergExists(k)) fState.dados[k]=valor; }); };
+  _preenche(loja.logo,     F_LOJA_CAMPOS.logo);
+  _preenche(loja.nome,     F_LOJA_CAMPOS.nome);      // o nome da loja também é dado da loja
+  _preenche(loja.whatsapp, F_LOJA_CAMPOS.whatsapp);
+  _preenche(loja.cor,      F_LOJA_CAMPOS.cor);
   // Remove do fluxo tudo que a loja já respondeu.
   fState.camp.perguntas = (fState.camp.perguntas||[]).filter(p=>fState.dados[p.id]==null);
   if(typeof gToast==='function') gToast(`Dados de ${loja.nome||'sua loja'} aplicados`);
@@ -193,8 +209,8 @@ function fConfirmSaveLoja(){
   const finish=(smallLogo)=>{
     const loja={nome, logo:smallLogo};
     // Aproveita whatsapp/cor se o material tiver esses campos preenchidos.
-    ['whatsapp','telefone','contato'].forEach(k=>{ if(fState.dados[k]) loja.whatsapp=fState.dados[k]; });
-    ['cor','cor_marca','cor_loja'].forEach(k=>{ if(fState.dados[k]) loja.cor=fState.dados[k]; });
+    F_LOJA_CAMPOS.whatsapp.forEach(k=>{ if(fState.dados[k]) loja.whatsapp=fState.dados[k]; });
+    F_LOJA_CAMPOS.cor.forEach(k=>{ if(fState.dados[k]) loja.cor=fState.dados[k]; });
     if(typeof fAddLoja==='function') fAddLoja(loja);
     if(typeof gToast==='function') gToast(`Loja "${nome}" salva! Vai aparecer na próxima arte.`);
     const m=document.getElementById('loja-save-msg'); if(m) m.remove();

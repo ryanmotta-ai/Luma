@@ -32,6 +32,7 @@
 <link rel="stylesheet" href="css/components/topbar.css">
 <link rel="stylesheet" href="css/components/help-modal.css">
 <link rel="stylesheet" href="css/components/user-profile.css">
+<link rel="stylesheet" href="css/components/prefs-panel.css">
 <!-- Depois de user-profile.css de propósito: o Controle do produto vive DENTRO
      do painel da conta e herda as variáveis --prof-* (inclusive o tema escuro). -->
 <link rel="stylesheet" href="css/components/product-control.css">
@@ -433,6 +434,13 @@ body:not(.theme-light) input:-webkit-autofill:active {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V5M16 20v-7M22 20V3"/></svg>
           <span>Atividade</span>
         </button>
+        <!-- Lojas e fotos: os atalhos que o franqueado acumula usando o Luma (perfil de
+             loja + fotos recentes). Fica no painel de conta de propósito — é configuração,
+             não fluxo diário; a home e o catálogo seguem sem mais um bloco. -->
+        <button type="button" class="prof-nav-btn" id="prof-nav-atalhos" onclick="gProfileSwitchTab('atalhos')" aria-controls="prof-pane-atalhos">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/><path d="M3 9h18"/></svg>
+          <span>Lojas e fotos</span>
+        </button>
         <button type="button" class="prof-nav-btn" id="prof-nav-equipe" onclick="gProfileSwitchTab('equipe')" aria-controls="prof-pane-equipe" style="display:none">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg>
           <span>Equipe</span><small class="prof-nav-tag">ADMIN</small>
@@ -602,6 +610,8 @@ body:not(.theme-light) input:-webkit-autofill:active {
           </div>
           <div class="prof-activity-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><p>Os números usam apenas dados já disponíveis no Luma. Nenhum relatório ou histórico adicional é criado por esta tela.</p></div>
         </div>
+
+        <div class="prof-pane" id="prof-pane-atalhos"></div>
 
         <div class="prof-pane" id="prof-pane-equipe"></div>
         <!-- Vazia de propósito: gProdRender() monta (mesmo padrão da aba Equipe). -->
@@ -2998,6 +3008,7 @@ body:not(.theme-light) input:-webkit-autofill:active {
 <script src="js/franqueado/live-preview.js?v=4"></script>
 <script src="js/franqueado/panel-dock.js?v=2"></script>
 <script src="js/franqueado/upload-panel.js?v=2"></script>
+<script src="js/franqueado/prefs-panel.js?v=1"></script>
 <script src="js/franqueado/chat-input.js?v=2"></script>
 <!-- ACADEMIA (formação do franqueado). Ordem importa: motion.js define os helpers
      de animação que os outros usam; academia.js define o estado que

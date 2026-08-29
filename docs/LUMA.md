@@ -318,6 +318,24 @@ A fonte de verdade do tipo é `dVars[id].type`; `F_FIELD_TYPES` é fallback lega
 | `_fBulkRenderLista` / `fBulkAbrirFolha` / `_fBulkRenderFolhaCampos` | png-generator.js | **O Sheets no celular (15/08).** Abaixo de 680px a grade linha × coluna dá lugar a uma **lista** (nome, detalhe e o estado de cada oferta: pronta / N a preencher / vazia) e a **coluna de prévia vira a folha** que sobe por cima — só CSS, `body.f-bulk-folha`. Quase nada é motor novo: `fBulkGetReadiness` já separava os três estados, as setas "anterior/próxima" da folha são os botões que já chamavam `fBulkStepRow(±1)`, e a arte é o mesmo `_fBulkRenderHero`. Os inputs da folha usam os **mesmos ids** `f-bulk-edit-{i}-{k}` da tabela — é isso que deixa `fBulkSaveRow`/`fBulkCollectCurrentInputs` valerem sem mudança (leem por id e caem em `row.dados` quando o input não está na tela). ⚠ `_fBulkRenderFolhaCampos` **só repinta quando a linha muda** (`_fBulkFolhaRid`): cada tecla passa por `fBulkLiveEdit → fBulkSetActive → _fBulkSyncLiveHead`, e repintar ali reconstrói os inputs a partir de `r.dados`, que só é gravado 160ms depois — apagando a letra recém-digitada. ⚠ `fBulkSetActive` usa `[data-row]` e não `tr[data-row]`: no celular a linha é um `<button>` da lista |
 | `fResizeImageIfNeeded` | chat.js | Resize nítido via Pica (fallback canvas); Color Thief sugere paleta da foto |
 
+### Lojas e fotos (atalhos do franqueado) — tela em 2026-08-29
+
+Dois atalhos que o franqueado acumula usando o Luma. Os dados **já existiam**; o que entrou foi a tela pra mexer neles.
+
+| Peça | Onde | Papel |
+|---|---|---|
+| Perfil de loja | `prefs.js` (`fGetLojas`/`fAddLoja`/`fRemoveLoja`/`fSaveLojas`, chave `dm_lojas_v1`, cap 12) | `{id, nome, logo, cor, whatsapp}` do restaurante parceiro |
+| Oferta no chat | `chat.js` (`fMaterialPreStart` → `fPickLoja`) | Chips antes da 1ª pergunta; aplicar preenche os campos e **remove as perguntas já respondidas** |
+| Apelidos de campo | `chat.js` → `F_LOJA_CAMPOS` | Nome do campo varia por template: `logo_loja` · `nome_loja`/`nomeLoja`/`loja`/… · `whatsapp`/`telefone`/`contato` · `cor`/`cor_marca`/`cor_loja`. Fonte única — `fPickLoja`, `fConfirmSaveLoja` e o gate do atalho leem daqui |
+| Fotos recentes | `upload-panel.js` (`fRecordRecentImg`/`fGetRecentImgs`, chave `dm_recent_imgs_v1`, cap 12) | Índice leve no localStorage (`{ref:'idb://…', thumb, ts, field}`); a imagem mora no IndexedDB |
+| Escolha no chat | `upload-panel.js` (`fOpenUploadPanel`) | Recentes + lojas + "enviar novo arquivo", com link **Gerenciar** pra tela |
+| **Tela de gerência** | `prefs-panel.js` (`fPrefsPanelRender`) + `css/components/prefs-panel.css` | Aba **"Lojas e fotos"** do painel de conta (`gProfileSwitchTab('atalhos')`, pane `#prof-pane-atalhos`). CRUD de loja (nome/logo/cor/WhatsApp), grade de fotos com apagar/ampliar |
+| Entrada externa | `prefs-panel.js` (`fPrefsPanelOpen`) | Abre o painel de conta já nesta aba (usado pelo link Gerenciar) |
+
+⚠ Apagar uma foto tira o índice **e** a imagem (`gIdbDel`, `img-store.js`) — só o índice deixaria blob órfão no aparelho pra sempre.
+⚠ O logo entra redimensionado a 400px (`fResizeImageIfNeeded`): logo cru estoura a cota do localStorage.
+⚠ Tudo é local (localStorage + IndexedDB), não sincroniza entre aparelhos. Prefs cross-device seguem no roadmap (v1.1).
+
 ### Motor de copy / legendas (combinatório, NÃO IA)
 
 Gera 3 variações de **legenda** (Promo · Engajar · WhatsApp) pro post depois que a arte é criada — o "assistente de legenda". É **combinatório** (combina frases pré-definidas), não IA: alinhado ao `00_PRODUCT.md` §9 ("sugestão de conteúdo é auxiliar, não o produto"). Onde mora:
@@ -837,6 +855,8 @@ Antes de criar/alterar tabela ou policy:
 | `yngs_layers_v1` / `yngs_bg_v1` / `yngs_fmt_v1` / `yngs_wh_v1` | Estado do canvas em edição |
 | `yngs_tutorials_done` / `yngs_fields_onboard_v1` / `yngs_help_visited` / `yngs_help_active_tab` | Flags de UX |
 | `dm_artes_hist_v2` (`HIST_KEY`) | Histórico de artes (cap 50) |
+| `dm_lojas_v1` | Perfis de loja do franqueado (nome/logo/cor/WhatsApp), cap 12 |
+| `dm_recent_imgs_v1` | Índice das fotos recentes (ref `idb://` + thumb), cap 12 — imagem no IndexedDB |
 | `luma_tb_cols` | Preferências de colunas |
 | `dp-workspace-mode` | Modo simples/complexo do Estúdio (opção no painel de gestão do perfil) |
 | `yngs_pages_locked_v1` | Ids das páginas com edição travada **neste dispositivo** (freio contra edição acidental, não permissão — §10) |

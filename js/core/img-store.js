@@ -65,6 +65,21 @@ function gIdbGet(key){
   })).catch(()=>null);
 }
 
+// Apaga uma imagem do IndexedDB. Promise<boolean>. Nunca rejeita.
+// Usado quando o dono descarta a imagem de verdade (ex.: apagar uma foto recente):
+// tirar só o índice do localStorage deixaria o blob órfão no aparelho pra sempre.
+function gIdbDel(key){
+  return _gIdbOpen().then(db=>new Promise((resolve)=>{
+    try{
+      const tx = db.transaction(G_IDB_STORE, 'readwrite');
+      tx.objectStore(G_IDB_STORE).delete(key);
+      tx.oncomplete = ()=>resolve(true);
+      tx.onerror = ()=>resolve(false);
+      tx.onabort = ()=>resolve(false);
+    }catch(e){ resolve(false); }
+  })).catch(()=>false);
+}
+
 // Resolve um imgUrl que pode ser 'idb://<chave>' → dataURL real. Outros valores passam direto.
 // Promise<string|null>.
 function gResolveImgUrl(url){

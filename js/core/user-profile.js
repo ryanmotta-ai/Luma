@@ -142,6 +142,10 @@ function gProfileSwitchTab(tabName) {
     const elapsedMinutes = Math.floor((Date.now() - gSessionStartTime) / 60000);
     const sessionEl = document.getElementById('prof-stat-session-time');
     if (sessionEl) sessionEl.textContent = `${elapsedMinutes} min`;
+  } else if (tabName === 'atalhos') {
+    if (title) title.textContent = 'Lojas e fotos';
+    if (subtitle) subtitle.textContent = 'Os atalhos que preenchem suas artes sozinho: perfis de loja e as fotos que você já enviou.';
+    if (typeof fPrefsPanelRender === 'function') fPrefsPanelRender();
   } else if (tabName === 'equipe') {
     if (title) title.textContent = 'Gestão de equipe';
     if (subtitle) subtitle.textContent = 'Convide pessoas e mantenha cada acesso no nível certo.';

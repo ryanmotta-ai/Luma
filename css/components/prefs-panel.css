@@ -1,0 +1,231 @@
+/**
+ * css/components/prefs-panel.css
+ *
+ * Aba "Lojas e fotos" do painel de conta (js/franqueado/prefs-panel.js).
+ * Vive DENTRO do .g-profile-modal — herda as variáveis --prof-* dele (inclusive
+ * o remapeamento do tema escuro), então aqui não se redeclara cor de tema.
+ * Carregar DEPOIS de user-profile.css.
+ */
+
+.fpp-sec{margin-bottom:34px}
+.fpp-sec:last-of-type{margin-bottom:8px}
+
+/* Botão de ação no cabeçalho da seção: não encolhe quando o texto ao lado cresce */
+.fpp-add{flex:0 0 auto;white-space:nowrap}
+/* Sem tamanho fixo o SVG do botão herda a altura da linha e vira um "+" gigante. */
+.fpp-add svg,.fpp-empty .prof-btn svg{width:15px;height:15px;flex:0 0 auto}
+.fpp-add:disabled{cursor:not-allowed;opacity:.5}
+
+.fpp-note{margin:12px 0 0;color:var(--prof-text-3);font-size:11.5px;line-height:1.5}
+
+/* Link textual (remover logo, apagar todas) — ação secundária que não pede peso de botão */
+.fpp-link-btn{
+  flex:0 0 auto;padding:6px 2px;border:0;background:none;
+  color:var(--prof-text-3);font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;
+  text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px;
+  text-decoration-color:color-mix(in srgb,currentColor 40%,transparent);
+  transition:color var(--dur-micro) var(--ease-standard),text-decoration-color var(--dur-micro) var(--ease-standard);
+}
+.fpp-link-btn:hover{color:var(--prof-text);text-decoration-color:currentColor}
+.fpp-link-danger:hover{color:var(--dm-red-text,var(--dm-red))}
+
+/* ══ LISTA DE LOJAS ══ */
+.fpp-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+
+.fpp-row{
+  --fpp-accent:var(--prof-border-strong);
+  display:flex;align-items:center;gap:14px;
+  padding:12px 14px;
+  border:1px solid var(--prof-border);
+  border-radius:var(--r);
+  background:var(--prof-surface);
+  transition:border-color var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard);
+  animation:fpp-in var(--dur-base) var(--ease-out) both;
+  animation-delay:calc(var(--fi,0) * 22ms);
+}
+.fpp-row:hover{border-color:var(--prof-border-strong);background:var(--prof-muted)}
+
+@keyframes fpp-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){
+  .fpp-row,.fpp-photo{animation:none}
+  #fpp-zoom,#fpp-zoom .fpp-zoom-box{transition:none}
+}
+
+/* Avatar da loja: o logo quando existe, senão a inicial sobre a cor da marca */
+.fpp-avatar{
+  flex:0 0 auto;width:52px;height:52px;
+  display:flex;align-items:center;justify-content:center;overflow:hidden;
+  border:1px solid var(--prof-border);border-radius:var(--r-sm);
+  background:var(--prof-muted);
+}
+.fpp-avatar img{max-width:82%;max-height:82%;object-fit:contain}
+.fpp-avatar-txt{
+  width:100%;height:100%;display:flex;align-items:center;justify-content:center;
+  background:var(--fpp-accent);color:var(--d-text);
+  font-size:19px;font-weight:900;letter-spacing:-.02em;
+  /* Fundo é cor escolhida pelo franqueado: o contorno garante leitura em tom claro */
+  text-shadow:0 1px 2px rgba(0,0,0,.38);
+}
+
+.fpp-row-copy{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:5px}
+.fpp-row-copy strong{
+  color:var(--prof-text);font-size:14px;font-weight:800;letter-spacing:-.01em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.fpp-row-meta{display:flex;flex-wrap:wrap;gap:6px 12px;color:var(--prof-text-3);font-size:11.5px}
+.fpp-meta-item{display:inline-flex;align-items:center;gap:5px;font-variant-numeric:tabular-nums}
+.fpp-meta-item svg{width:12px;height:12px;flex:0 0 auto}
+.fpp-meta-warn{color:var(--dm-orange-text)}
+.fpp-swatch{width:11px;height:11px;border-radius:3px;border:1px solid var(--prof-border-strong)}
+
+.fpp-row-acts{flex:0 0 auto;display:flex;gap:4px}
+.fpp-act{
+  width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid transparent;border-radius:var(--r-sm);
+  background:none;color:var(--prof-text-3);cursor:pointer;
+  transition:color var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard),border-color var(--dur-micro) var(--ease-standard);
+}
+.fpp-act svg{width:16px;height:16px}
+.fpp-act:hover{border-color:var(--prof-border-strong);background:var(--prof-surface);color:var(--prof-text)}
+.fpp-act-danger:hover{border-color:var(--dm-red);color:var(--dm-red-text,var(--dm-red))}
+.fpp-act:focus-visible,.fpp-link-btn:focus-visible,.fpp-photo-btn:focus-visible,
+.fpp-photo-del:focus-visible,.fpp-logo-drop:focus-visible,.fpp-zoom-close:focus-visible{
+  outline:2px solid var(--dm-orange-d);outline-offset:2px;
+}
+
+/* ══ FORMULÁRIO DA LOJA ══ */
+.fpp-form{
+  margin-bottom:14px;padding:16px;
+  border:1px solid var(--prof-border-strong);border-radius:var(--r);
+  background:var(--prof-muted);
+  animation:fpp-in var(--dur-base) var(--ease-out) both;
+}
+.fpp-form-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.fpp-form-head h5{margin:0;color:var(--prof-text);font-size:13px;font-weight:800;letter-spacing:-.01em}
+.fpp-form-grid{display:flex;gap:16px;align-items:flex-start}
+.fpp-form-fields{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:12px}
+.fpp-form-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+.fpp-logo-drop{
+  flex:0 0 auto;width:116px;height:116px;position:relative;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+  padding:8px;overflow:hidden;
+  border:1px dashed var(--prof-border-strong);border-radius:var(--r);
+  background:var(--prof-surface);color:var(--prof-text-3);cursor:pointer;
+  font-family:inherit;
+  transition:border-color var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard);
+}
+.fpp-logo-drop:hover{border-color:var(--dm-orange);color:var(--prof-text-2)}
+.fpp-logo-drop.has-img{border-style:solid;padding:10px}
+.fpp-logo-drop img{max-width:100%;max-height:100%;object-fit:contain}
+.fpp-logo-drop-ico svg{width:22px;height:22px}
+.fpp-logo-drop-txt{display:flex;flex-direction:column;gap:2px;font-size:12px;font-weight:700;line-height:1.2;text-align:center}
+.fpp-logo-drop-txt small{color:var(--prof-text-3);font-size:10.5px;font-weight:600}
+
+.fpp-color-wrap{display:flex;gap:8px;align-items:center}
+.fpp-color-wrap input[type=color]{
+  flex:0 0 auto;width:48px;height:48px;padding:4px;cursor:pointer;
+  border:1px solid var(--prof-border-strong);border-radius:var(--r);
+  background:var(--prof-surface);
+}
+.fpp-color-wrap input[type=color]::-webkit-color-swatch{border:0;border-radius:calc(var(--r) - 5px)}
+.fpp-color-wrap input[type=color]::-moz-color-swatch{border:0;border-radius:calc(var(--r) - 5px)}
+.fpp-color-hex{flex:1 1 auto;min-width:0;font-variant-numeric:tabular-nums;text-transform:uppercase}
+
+.fpp-form-acts{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px}
+.fpp-form-btns{display:flex;gap:8px}
+
+/* ══ FOTOS ══ */
+.fpp-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:12px}
+.fpp-photo{
+  position:relative;margin:0;
+  animation:fpp-in var(--dur-base) var(--ease-out) both;
+  animation-delay:calc(var(--fi,0) * 22ms);
+}
+.fpp-photo-btn{
+  display:block;width:100%;aspect-ratio:1;padding:0;overflow:hidden;cursor:pointer;
+  border:1px solid var(--prof-border);border-radius:var(--r);
+  background:var(--prof-muted);
+  transition:border-color var(--dur-micro) var(--ease-standard),transform var(--dur-micro) var(--ease-standard);
+}
+.fpp-photo-btn img{width:100%;height:100%;object-fit:cover;display:block}
+.fpp-photo-btn:hover{border-color:var(--prof-border-strong);transform:translateY(-2px)}
+.fpp-photo figcaption{
+  display:flex;justify-content:space-between;gap:6px;margin-top:6px;
+  color:var(--prof-text-2);font-size:11px;font-weight:700;
+}
+.fpp-photo figcaption span{color:var(--prof-text-3);font-weight:600;font-variant-numeric:tabular-nums}
+.fpp-photo-del{
+  position:absolute;top:6px;right:6px;width:28px;height:28px;
+  display:inline-flex;align-items:center;justify-content:center;cursor:pointer;
+  border:0;border-radius:var(--r-sm);
+  background:color-mix(in srgb,var(--d-bg) 62%,transparent);color:var(--d-text);
+  opacity:0;transform:scale(.9);
+  transition:opacity var(--dur-micro) var(--ease-standard),transform var(--dur-micro) var(--ease-spring),background var(--dur-micro) var(--ease-standard);
+}
+.fpp-photo-del svg{width:14px;height:14px}
+.fpp-photo:hover .fpp-photo-del,.fpp-photo-del:focus-visible{opacity:1;transform:none}
+.fpp-photo-del:hover{background:var(--dm-red)}
+/* Sem hover (toque): a ação não pode ficar invisível */
+@media(hover:none){.fpp-photo-del{opacity:1;transform:none}}
+
+/* ══ VAZIO ══ */
+.fpp-empty{
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  padding:34px 24px;text-align:center;
+  border:1px dashed var(--prof-border-strong);border-radius:var(--r);
+  background:var(--prof-muted);
+}
+.fpp-empty-ico{
+  width:44px;height:44px;display:flex;align-items:center;justify-content:center;margin-bottom:2px;
+  border-radius:var(--r-pill);background:var(--dm-orange-bg);color:var(--dm-orange-text);
+}
+.fpp-empty-ico svg{width:21px;height:21px}
+.fpp-empty strong{color:var(--prof-text);font-size:14px;font-weight:800}
+.fpp-empty>span:not(.fpp-empty-ico){max-width:44ch;color:var(--prof-text-3);font-size:12.5px;line-height:1.55}
+.fpp-empty .prof-btn{margin-top:8px;white-space:nowrap}
+
+/* ══ FOTO AMPLIADA ══ (fora do modal de conta: sobe acima dele) */
+#fpp-zoom{
+  position:fixed;inset:0;z-index:620;
+  display:flex;align-items:center;justify-content:center;padding:32px;
+  background:color-mix(in srgb,var(--d-bg) 72%,transparent);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  opacity:0;transition:opacity var(--dur-fast) var(--ease-out);
+}
+#fpp-zoom.open{opacity:1}
+#fpp-zoom .fpp-zoom-box{
+  position:relative;margin:0;max-width:min(720px,92vw);max-height:86vh;
+  transform:scale(.96);transition:transform var(--dur-base) var(--ease-spring-soft);
+}
+#fpp-zoom.open .fpp-zoom-box{transform:none}
+#fpp-zoom img{
+  display:block;max-width:100%;max-height:86vh;object-fit:contain;
+  border-radius:var(--r);box-shadow:0 18px 48px rgba(0,0,0,.42);
+}
+.fpp-zoom-close{
+  position:absolute;top:-14px;right:-14px;width:36px;height:36px;
+  display:inline-flex;align-items:center;justify-content:center;cursor:pointer;
+  border:0;border-radius:var(--r-pill);
+  background:var(--white);color:var(--text);
+  box-shadow:0 4px 14px rgba(0,0,0,.3);
+  transition:transform var(--dur-micro) var(--ease-spring);
+}
+.fpp-zoom-close svg{width:17px;height:17px}
+.fpp-zoom-close:hover{transform:scale(1.08)}
+
+/* ══ RESPONSIVO ══ */
+@media(max-width:768px){
+  .fpp-sec .prof-section-head{flex-wrap:wrap;gap:12px}
+  .fpp-add{width:100%;justify-content:center}
+  .fpp-form-grid{flex-direction:column;align-items:stretch}
+  .fpp-logo-drop{width:100%;height:96px;flex-direction:row;gap:12px}
+  .fpp-form-pair{grid-template-columns:1fr}
+  .fpp-form-acts{flex-direction:column-reverse;align-items:stretch}
+  .fpp-form-btns{width:100%}
+  .fpp-form-btns .prof-btn{flex:1}
+  .fpp-photos{grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:10px}
+  .fpp-row{gap:11px;padding:11px 12px}
+  .fpp-avatar{width:46px;height:46px}
+  .fpp-zoom-close{top:6px;right:6px}
+}

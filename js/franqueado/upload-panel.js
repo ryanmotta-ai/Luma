@@ -60,7 +60,11 @@ function fRecordRecentImg(resizedUrl, field){
 function fRemoveRecentImg(i, ev){
   if(ev){ try{ ev.stopPropagation(); }catch(e){} }
   const arr=fGetRecentImgs(); if(i<0||i>=arr.length) return;
-  arr.splice(i,1); _fSaveRecentImgs(arr);
+  const [gone]=arr.splice(i,1); _fSaveRecentImgs(arr);
+  // Tirar só o índice deixaria a imagem órfã no IndexedDB pra sempre.
+  if(gone && typeof gIdbDel==='function' && typeof gone.ref==='string' && gone.ref.indexOf('idb://')===0){
+    try{ gIdbDel(gone.ref.slice(6)); }catch(e){}
+  }
   _fRenderUploadPanel(); // re-render in place
 }
 
@@ -105,7 +109,7 @@ function _fRenderUploadPanel(){
 
   const lojasBlock = isLogo ? `
     <div class="f-up-sec">
-      <div class="f-up-sec-head">${_icoStore}<span>Minhas lojas</span></div>
+      <div class="f-up-sec-head">${_icoStore}<span>Minhas lojas</span><button type="button" class="f-up-manage" onclick="fUploadPanelManage()">Gerenciar</button></div>
       ${lojas.length
         ? `<div class="f-up-grid f-up-grid-lojas">${lojas.map(l=>`
             <button type="button" class="f-up-loja" onclick="fUploadPanelPickLoja('${l.id}')" title="Usar o logo de ${gEsc(l.nome||'loja')}">
@@ -129,7 +133,7 @@ function _fRenderUploadPanel(){
         </button>
         ${lojasBlock}
         <div class="f-up-sec">
-          <div class="f-up-sec-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Imagens recentes</span></div>
+          <div class="f-up-sec-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Imagens recentes</span><button type="button" class="f-up-manage" onclick="fUploadPanelManage()">Gerenciar</button></div>
           ${recentGrid}
         </div>
       </div>
@@ -163,6 +167,11 @@ function fUploadPanelPickLoja(id){
   if(!loja || !loja.logo){ if(typeof gToast==='function') gToast('Essa loja não tem logo salvo.','error'); return; }
   if(typeof _fApplyImageToField==='function') _fApplyImageToField('logo_loja', uploadId, loja.logo);
   if(typeof gToast==='function') gToast(`Logo de ${loja.nome||'sua loja'} aplicado`);
+}
+// Sai do painel de escolha e vai pra tela onde dá pra renomear/apagar de verdade.
+function fUploadPanelManage(){
+  fCloseUploadPanel();
+  if(typeof fPrefsPanelOpen==='function') fPrefsPanelOpen();
 }
 function fUploadPanelDeleteLoja(id, ev){
   if(ev){ try{ ev.stopPropagation(); }catch(e){} }
