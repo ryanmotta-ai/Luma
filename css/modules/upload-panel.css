@@ -49,7 +49,7 @@
 /* Seções (recentes / lojas) */
 .f-up-sec-head{display:flex;align-items:center;gap:7px;margin-bottom:10px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3)}
 .f-up-sec-head svg{width:14px;height:14px}
-/* "Gerenciar": leva pra tela onde dá pra renomear/apagar (aba Lojas e fotos da conta).
+/* "Gerenciar": leva pra tela onde dá pra apagar as fotos (aba Minhas fotos da conta).
    Empurrado pra direita do cabeçalho — é saída, não a ação principal do painel. */
 .f-up-manage{margin-left:auto;padding:2px 4px;border:0;background:none;color:var(--text-3);font-family:inherit;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;text-decoration:underline;text-underline-offset:3px;text-decoration-color:color-mix(in srgb,currentColor 40%,transparent);transition:color var(--dur-micro) var(--ease-standard)}
 .f-up-manage:hover{color:var(--dm-orange-text)}

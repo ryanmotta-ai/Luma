@@ -1,7 +1,7 @@
 /**
  * css/components/prefs-panel.css
  *
- * Aba "Lojas e fotos" do painel de conta (js/franqueado/prefs-panel.js).
+ * Aba "Minhas fotos" do painel de conta (js/franqueado/prefs-panel.js).
  * Vive DENTRO do .g-profile-modal — herda as variáveis --prof-* dele (inclusive
  * o remapeamento do tema escuro), então aqui não se redeclara cor de tema.
  * Carregar DEPOIS de user-profile.css.

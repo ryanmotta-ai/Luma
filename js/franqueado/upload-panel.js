@@ -109,7 +109,7 @@ function _fRenderUploadPanel(){
 
   const lojasBlock = isLogo ? `
     <div class="f-up-sec">
-      <div class="f-up-sec-head">${_icoStore}<span>Minhas lojas</span><button type="button" class="f-up-manage" onclick="fUploadPanelManage()">Gerenciar</button></div>
+      <div class="f-up-sec-head">${_icoStore}<span>Minhas lojas</span></div>
       ${lojas.length
         ? `<div class="f-up-grid f-up-grid-lojas">${lojas.map(l=>`
             <button type="button" class="f-up-loja" onclick="fUploadPanelPickLoja('${l.id}')" title="Usar o logo de ${gEsc(l.nome||'loja')}">
