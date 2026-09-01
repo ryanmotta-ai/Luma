@@ -1816,6 +1816,18 @@ body:not(.theme-light) #f-chat-art{border-color:var(--d-line,#2A2A2A);background
   .f-bulk-ffoto-mini svg{width:20px; height:20px}
   .f-bulk-ffoto-tx{display:flex; flex-direction:column; gap:2px; min-width:0}
   .f-bulk-ffoto-tx small{font-size:11.5px; font-weight:500; color:var(--text-3)}
+  /* A mesma foto costuma valer para o lote inteiro (uma foto do combo, doze ofertas).
+     O atalho mora ao lado da foto, no momento em que ela existe — não numa barra de
+     "ações em massa" que o celular nem tem. */
+  .f-bulk-ffoto-acoes{display:flex; align-items:center; gap:4px; flex-wrap:wrap}
+  .f-bulk-ffoto-todas{
+    align-self:flex-start; min-height:38px; padding:0 10px; border:0; border-radius:var(--r-sm);
+    background:var(--dm-orange-bg); color:var(--dm-orange-d);
+    font:inherit; font-size:12.5px; font-weight:700; cursor:pointer;
+    transition:background var(--dur-micro) var(--ease-standard);
+  }
+  .f-bulk-ffoto-todas:active{background:var(--dm-orange-tint)}
+  .f-bulk-ffoto-todas:focus-visible{outline:2px solid var(--dm-orange); outline-offset:2px}
   .f-bulk-ffoto-del{
     align-self:flex-start; min-height:34px; padding:0 2px; border:0; background:none;
     color:var(--text-3); font:inherit; font-size:12.5px; font-weight:600; cursor:pointer;
@@ -1916,3 +1928,4 @@ body:not(.theme-light) .f-bulk-lnova{border-color:var(--d-border2); color:var(--
 body:not(.theme-light) .f-bulk-lzero strong{color:var(--d-text)}
 body:not(.theme-light) .f-bulk-frow-acoes{border-color:var(--d-border)}
 body:not(.theme-light) .f-bulk-frow-act{color:var(--d-text2)}
+body:not(.theme-light) .f-bulk-ffoto-todas{background:var(--d-surf3); color:var(--dm-orange)}

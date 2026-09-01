@@ -208,6 +208,16 @@ function fValidate(id, val){
   const cfg = fGetFieldType(id);
   // Se o franqueado escolheu pular o campo opcional, valida com sucesso (retorna null)
   if(val && String(val).toLowerCase() === 'pular') return null;
+  /* ⚠ CAMPO DE IMAGEM NÃO TEM REGRA DE TEXTO. A foto chega como dataURL — milhares de
+     caracteres — e caía na regra de tamanho abaixo: toda linha COM foto era marcada com
+     "O Foto do produto ficou muito longo (máx 60 caracteres)" e, no Luma Sheets, contada
+     como linha com erro (ou seja, pulada na geração). Medido ao aplicar a mesma foto em
+     todas as ofertas: 3 de 3 ficaram "falta algo" logo depois de receberem a imagem.
+     Para imagem só existem dois estados: tem foto ou não tem. */
+  if(typeof fIsImageVar === 'function' && fIsImageVar(id)){
+    const vazio = (val == null || !String(val).trim());
+    return (vazio && cfg.required) ? `Envie a ${cfg.label}.` : null;
+  }
   // 3.3: campo vazio só bloqueia se a variável for obrigatória (honra dVars.required).
   if(!val || !val.trim()) return cfg.required ? `Preencha o campo de ${cfg.label}.` : null;
   if(cfg.type!=='price' && cfg.type!=='discount' && val.length > cfg.maxLen) return `O ${cfg.label} ficou muito longo (máx ${cfg.maxLen} caracteres).`; // preço/desconto: tamanho vem da máscara, não do usuário

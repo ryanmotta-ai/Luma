@@ -3046,7 +3046,10 @@ function _fBulkRenderFolhaCampos(forcar){
           <span class="f-bulk-ffoto-tx">${tem?'Trocar a foto':'Enviar a foto'}<small>${tem?'toque para escolher outra':'do seu celular'}</small></span>
           <input type="file" accept="image/*" hidden onchange="fBulkUploadCellImage(this, ${i}, '${gEsc(k)}')">
         </label>
-        ${tem?`<button type="button" class="f-bulk-ffoto-del" onclick="fBulkLimparFoto(${i},'${gEsc(k)}')">Remover a foto</button>`:''}
+        ${tem?`<div class="f-bulk-ffoto-acoes">
+          ${fBulkRows.length>1?`<button type="button" class="f-bulk-ffoto-todas" onclick="fBulkUsarFotoEmTodas(${i},'${gEsc(k)}')">Usar em todas as ofertas</button>`:''}
+          <button type="button" class="f-bulk-ffoto-del" onclick="fBulkLimparFoto(${i},'${gEsc(k)}')">Remover a foto</button>
+        </div>`:(fBulkRows.length>1?`<button type="button" class="f-bulk-ffoto-todas" onclick="fBulkFotoEmTodas('${gEsc(k)}')">Enviar uma foto para todas as ofertas</button>`:'')}
       </div>`;
     }
     /* `type="text"` e não `number`: preço no Brasil é "29,90" e o campo numérico do celular
@@ -3322,15 +3325,16 @@ function fBulkRenderPreview(){
         <div class="f-bulk-massbar-body">
           <div class="f-bulk-massbar-row">
             <label for="f-bulk-action-col">Qual informação</label>
-            <select id="f-bulk-action-col">${optionsHtml}</select>
+            <select id="f-bulk-action-col" onchange="_fBulkSyncMassbarCampo()">${optionsHtml}</select>
             <input type="text" id="f-bulk-action-val" placeholder="O que escrever em todas">
-            <button class="d-btn-pri" onclick="fBulkApplyFill()">Aplicar a todas</button>
+            <button class="d-btn-pri" id="f-bulk-action-go" onclick="fBulkApplyFill()">Aplicar a todas</button>
           </div>
           <div class="f-bulk-massbar-row">
             <button class="d-btn-sec" onclick="fBulkApplyDiscountPrompt()" title="Baixa um percentual de todos os preços">Dar desconto em tudo</button>
             <button class="d-btn-sec" onclick="fBulkApplyRounding()" title="Deixa todos os preços com final ,90">Arredondar para ,90</button>
             <button class="d-btn-sec" onclick="fBulkApplyValidade()" title="A mesma data de validade em todas as linhas">Mesma validade</button>
             <button class="d-btn-sec" onclick="fBulkApplyLoja()" title="O logo de uma loja salva em todas as linhas">Mesmo logo</button>
+            ${keys.some(fIsImageVar)?'<button class="d-btn-sec" onclick="fBulkFotoEmTodas()" title="Envia uma foto e usa em todas as linhas">Mesma foto</button>':''}
           </div>
         </div>
       </details>
@@ -3357,6 +3361,7 @@ function fBulkRenderPreview(){
     // tamanhos. (A antiga "vista em cartões" saiu: a coluna da esquerda faz o mesmo trabalho,
     // maior e sem um clique a mais.)
     _fBulkRenderStrip();
+    try{ _fBulkSyncMassbarCampo(); }catch(e){}
     fBulkSetActive(_fBulkActiveIdx(), {semRolar:true});
     return;
   }
@@ -3906,11 +3911,74 @@ function fFormatPriceNumber(val) {
   return 'R$ ' + val.toFixed(2).replace('.', ',');
 }
 
+/* ── A MESMA FOTO EM TODAS AS OFERTAS ──
+   Campo de imagem não se preenche digitando: `fBulkApplyFill` gravava o TEXTO da caixa em
+   todas as linhas (medido: escolher "Foto do produto" e digitar "foto do combo" deixava a
+   string "foto do combo" no campo de imagem das duas linhas, e a arte saía sem foto).
+   Aqui a mesma ação existe de verdade — um seletor de arquivo, o mesmo redimensionamento
+   do upload por célula (`fResizeImageIfNeeded`, teto de 1500px) e a mesma revalidação. */
+function fBulkFotoEmTodas(col){
+  const keys = fBulkVars();
+  const alvo = col || keys.find(fIsImageVar);
+  if(!alvo){ gToast('Este material não tem campo de foto.', 'warning'); return; }
+  fBulkCollectCurrentInputs();
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = 'image/*';
+  input.onchange = () => {
+    const file = input.files && input.files[0];
+    if(!file) return;
+    if(!file.type.startsWith('image/')){ gToast('Esse arquivo não é uma imagem.', 'error'); return; }
+    if(file.size > 20*1024*1024){ gToast('Imagem muito grande — o limite é 20MB.', 'error'); return; }
+    const rd = new FileReader();
+    rd.onerror = () => gToast('Não consegui ler essa imagem. Tente outra.', 'error');
+    rd.onload = e => {
+      const grava = (url) => {
+        fBulkRows.forEach(r => { r.dados[alvo] = url; _fBulkRevalidateCol(r, alvo); });
+        const n = fBulkRows.length;
+        gToast(`Foto aplicada em ${n} oferta${n===1?'':'s'}`);
+        fBulkRenderPreview();
+        if(document.body.classList.contains('f-bulk-folha')) _fBulkRenderFolhaCampos(true);
+      };
+      if(typeof fResizeImageIfNeeded === 'function') fResizeImageIfNeeded(e.target.result, 1500, grava);
+      else grava(e.target.result);
+    };
+    rd.readAsDataURL(file);
+  };
+  input.click();
+}
+
+/* Reaproveita a foto que JÁ está numa oferta nas outras — o caso real do lote: a pessoa
+   sobe a foto na primeira e as 11 seguintes usam a mesma. Sem isto, era subir 12 vezes. */
+function fBulkUsarFotoEmTodas(i, col){
+  const r = fBulkRows[i];
+  const url = r && r.dados && r.dados[col];
+  if(!url){ gToast('Envie a foto nesta oferta primeiro.', 'warning'); return; }
+  fBulkCollectCurrentInputs();
+  fBulkRows.forEach(x => { x.dados[col] = url; _fBulkRevalidateCol(x, col); });
+  const n = fBulkRows.length;
+  gToast(`Foto usada em ${n} oferta${n===1?'':'s'}`);
+  fBulkRenderPreview();
+  if(document.body.classList.contains('f-bulk-folha')) _fBulkRenderFolhaCampos(true);
+}
+
+/* A caixa "o que escrever" não vale para foto: com uma coluna de imagem escolhida ela sai
+   de cena e o botão passa a dizer o que vai acontecer de verdade. */
+function _fBulkSyncMassbarCampo(){
+  const col = document.getElementById('f-bulk-action-col')?.value;
+  const val = document.getElementById('f-bulk-action-val');
+  const go  = document.getElementById('f-bulk-action-go');
+  const ehFoto = !!(col && typeof fIsImageVar==='function' && fIsImageVar(col));
+  if(val){ val.hidden = ehFoto; val.disabled = ehFoto; }
+  if(go) go.textContent = ehFoto ? 'Escolher a foto' : 'Aplicar a todas';
+}
+
 function fBulkApplyFill() {
   fBulkCollectCurrentInputs();
   const col = document.getElementById('f-bulk-action-col')?.value;
   const val = document.getElementById('f-bulk-action-val')?.value;
   if (!col) return;
+  // Campo de imagem não aceita texto: o gesto certo é escolher um arquivo.
+  if (typeof fIsImageVar === 'function' && fIsImageVar(col)) { fBulkFotoEmTodas(col); return; }
   if (val === undefined || val === '') {
     gToast('Digite um valor para preencher todas as linhas', 'warning');
     return;
