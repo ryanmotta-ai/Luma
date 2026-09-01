@@ -1247,7 +1247,15 @@ function _fLpPaintPip(){
   if(!btn) return;
   if(!window.matchMedia || !matchMedia('(max-width:680px)').matches) return;
   const src = document.getElementById('lp-canvas');
-  if(!src || !src.width || !fState.material){ btn.classList.remove('pip-has-art'); return; }
+  if(!src || !src.width || !fState.material){
+    btn.classList.remove('pip-has-art');
+    /* Sem material montado, os pixels do #lp-canvas são da arte ANTERIOR. Deixar o cartão
+       na conversa fazia ele mentir: mostrava a arte velha enquanto a prévia já estava
+       vazia — e o toque abria a gaveta no estado "Sua arte nasce aqui" (bug medido no
+       celular). O cartão se recria sozinho no próximo render bom. */
+    const velho=document.getElementById('f-chat-art'); if(velho) velho.remove();
+    return;
+  }
   let cv = btn.querySelector('.pip-cv');
   if(!cv){ cv = document.createElement('canvas'); cv.className = 'pip-cv'; btn.appendChild(cv); }
   // Altura acompanha a proporção da arte (story alto, wide baixo), com limites de bolso.
@@ -1263,6 +1271,18 @@ function _fLpPaintPip(){
   if(fState.done && !btn._pipPulsed){ btn._pipPulsed = true; btn.classList.add('pip-pulse'); setTimeout(()=>btn.classList.remove('pip-pulse'), 1200); }
   if(!fState.done) btn._pipPulsed = false;
   try{ _fLpPaintCartao(src); }catch(e){}
+}
+
+/* Abrir a prova é sempre um RE-RENDER, nunca só mostrar o que estava lá. O palco pode
+   ter ficado com `.empty` de um update antigo (voltar da pasta, trocar de campanha) e o
+   canvas escondido — a gaveta abria vazia com a arte já montada no estado. Renderizar de
+   novo é barato (motor único) e faz a gaveta mostrar sempre a verdade de agora. */
+function _fLpAbrirGaveta(){
+  const el = document.getElementById('f-live-preview');
+  if(!el) return;
+  el.classList.add('open');
+  try{ fUpdateLivePreview(); }catch(e){}
+  if(typeof fLpRefit==='function') setTimeout(fLpRefit, 100);
 }
 
 /* ── A ARTE DENTRO DA CONVERSA (celular) ──
@@ -1301,11 +1321,7 @@ function _fLpPaintCartao(src){
          o do documento vê `open` ligado com o alvo fora da gaveta e desliga. Medido: o toque
          no cartão não abria nada e não havia erro nenhum no console. */
       e.stopPropagation();
-      const el = document.getElementById('f-live-preview');
-      if(el) {
-        el.classList.add('open');
-        if(typeof fLpRefit==='function') setTimeout(fLpRefit, 100);
-      }
+      _fLpAbrirGaveta();
     });
   }
   if(card.parentElement !== msgs) msgs.appendChild(card);
@@ -1392,9 +1408,9 @@ function fInitMobilePreviewEvents() {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const previewEl = document.getElementById('f-live-preview');
-      if (previewEl) {
-        previewEl.classList.toggle('open');
-      }
+      if (!previewEl) return;
+      if (previewEl.classList.contains('open')) previewEl.classList.remove('open');
+      else _fLpAbrirGaveta();
     });
 
     document.addEventListener('click', (e) => {
