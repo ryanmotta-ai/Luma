@@ -784,7 +784,34 @@ body:has(#f-bulk-modal.open) #mobile-preview-toggle{display:none!important}
 .f-bulk-alt-example-row{display:flex;gap:8px}
 .f-bulk-alt-example-row input{flex:1;min-width:0;padding:8px 10px;border:1px solid var(--gray-mid);border-radius:var(--r);background:var(--off-white);color:var(--text);font:400 12px/1.4 'Roboto',sans-serif}
 .f-bulk-alt-example>small{font-size:10.5px;color:var(--text-3);line-height:1.4}
-.f-bulk-alt-tools .f-bulk-toolbar{border:none;padding:4px 0 0}
+/* ── "MAIS OPÇÕES": DUAS FILEIRAS, PAPÉIS SEPARADOS ──
+   Estava tudo numa linha só, empurrado para a direita por um `margin-left:auto`: guardar,
+   limpar, apagar repetidas, fotos, busca e ordenação disputando a mesma faixa, com a busca
+   e o "colocar em ordem" flutuando no meio do vazio. Agora: em cima o que MEXE na planilha,
+   embaixo o que a ATRAVESSA (buscar e ordenar). Tudo ancorado à esquerda, que é por onde a
+   leitura começa; o destrutivo vai para o fim da própria fileira. */
+.f-bulk-alt-tools .f-bulk-toolbar{
+  border:none; padding:4px 0 0;
+  display:flex; flex-direction:column; align-items:stretch; gap:10px;
+}
+.f-bulk-alt-tools .f-bulk-toolbar-group{flex-wrap:wrap; gap:8px}
+.f-bulk-alt-tools .f-bulk-toolbar-end{
+  margin-left:0; padding-top:10px; border-top:1px dashed var(--gray-mid);
+  gap:10px; flex-wrap:wrap;
+}
+/* A busca é o controle que mais usa espaço útil: ela estica, o resto tem largura de conteúdo. */
+.f-bulk-alt-tools .f-bulk-search-wrap{flex:1 1 240px; width:auto; max-width:420px}
+.f-bulk-alt-tools .f-bulk-more-row{flex:0 0 auto; padding:0; gap:8px; font-size:11px}
+/* Limpar planilha apaga tudo: fica no fim da fileira e só ganha o vermelho no hover —
+   alarme permanente numa ação que ninguém chamou é ruído (05_DESIGN_PHILOSOPHY). */
+.f-bulk-alt-tools .f-bulk-clear-sheet{order:9; margin-left:auto}   /* order: no DOM ela é a 2ª */
+.f-bulk-alt-tools .f-bulk-clear-sheet:hover{border-color:var(--dm-red); color:var(--dm-red)}
+.f-bulk-alt-tools .f-bulk-clear-sheet:hover svg{color:var(--dm-red)}
+@media (max-width:680px){
+  .f-bulk-alt-tools .f-bulk-clear-sheet{margin-left:0}
+  .f-bulk-alt-tools .f-bulk-toolbar-group>.d-btn-sec,
+  .f-bulk-alt-tools .f-bulk-photos-btn{flex:1 1 calc(50% - 4px); justify-content:center}
+}
 
 /* "Mudar tudo de uma vez" (dentro da tabela) — fechado por padrão. */
 @keyframes gBulkPop{from{opacity:0;transform:scale(.82)}to{opacity:1;transform:scale(1)}}
@@ -1549,7 +1576,13 @@ body:not(.theme-light) #f-chat-art{border-color:var(--d-line,#2A2A2A);background
    sem uma linha de JS: são os mesmos elementos do desktop. */
 
 .f-bulk-folha-campos{display:none}
-.f-bulk-folha-fechar{display:none}
+/* ⚠ O rodapé da folha é do CELULAR. Faltou esconder o CONTAINER no desktop: `.f-bulk-folha-
+   fechar` já tinha `display:none`, mas `.f-bulk-folha-acoes` e o botão "Próxima oferta"
+   nasceram sem — e apareciam crus na coluna de prévia do desktop (regressão vista em
+   produção: um retângulo cinza com a seta gigante embaixo da prévia). */
+.f-bulk-folha-fechar,
+.f-bulk-folha-acoes,
+.f-bulk-folha-next{display:none}
 
 @media (max-width:680px){
 
