@@ -1619,6 +1619,38 @@ body:not(.theme-light) #f-chat-art{border-color:var(--d-line,#2A2A2A);background
   .f-bulk-lgo{flex:0 0 auto; color:var(--gray-mid); font-size:20px; line-height:1}
   .f-bulk-lvazio{padding:26px 12px; text-align:center; color:var(--text-3); font-size:13px}
 
+  /* Adicionar oferta: tracejado porque é um lugar VAZIO esperando conteúdo — a mesma
+     gramática do "arraste aqui" que o resto do Luma usa para espaço por preencher. */
+  .f-bulk-lnova{
+    display:flex; align-items:center; justify-content:center; gap:8px; width:100%;
+    min-height:52px; margin-top:2px; border-radius:var(--r);
+    border:1px dashed var(--gray-mid); background:none; color:var(--text-2);
+    font:inherit; font-size:14px; font-weight:700; cursor:pointer;
+    transition:border-color var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard),background var(--dur-fast) var(--ease-standard);
+  }
+  .f-bulk-lnova svg{width:17px; height:17px}
+  .f-bulk-lnova:active{background:var(--dm-orange-bg); border-color:var(--dm-orange); color:var(--dm-orange-d)}
+  .f-bulk-lnova:focus-visible{outline:2px solid var(--dm-orange); outline-offset:2px}
+  .f-bulk-lnova.is-pri{
+    border:0; background:linear-gradient(180deg,var(--dm-orange),var(--dm-orange-d)); color:var(--white);
+    box-shadow:0 10px 24px -12px color-mix(in srgb,var(--dm-orange-d) 85%,transparent);
+  }
+
+  /* Estado zero: uma frase, uma ação principal, uma alternativa. Nada além disso. */
+  .f-bulk-lzero{
+    display:flex; flex-direction:column; align-items:center; gap:10px; text-align:center;
+    padding:34px 18px 24px;
+  }
+  .f-bulk-lzero strong{font-size:17px; font-weight:800; color:var(--text)}
+  .f-bulk-lzero span{font-size:13px; line-height:1.5; color:var(--text-3); max-width:30ch}
+  .f-bulk-lzero .f-bulk-lnova{margin-top:6px}
+  .f-bulk-lzero-alt{
+    min-height:var(--tap-min); border:0; background:none; color:var(--text-2);
+    font:inherit; font-size:13px; font-weight:600; cursor:pointer;
+    text-decoration:underline; text-underline-offset:3px;
+    text-decoration-color:color-mix(in srgb,currentColor 40%,transparent);
+  }
+
   /* ══ A FOLHA — três zonas: pager fixo, arte fixa, campos rolando ══
      A regra que governa tudo aqui: A ARTE NUNCA SAI DA TELA. Ela é o motivo de o Luma
      existir, e na versão anterior o teclado a cobria inteira — a pessoa digitava às cegas
@@ -1792,6 +1824,25 @@ body:not(.theme-light) #f-chat-art{border-color:var(--d-line,#2A2A2A);background
   }
   .f-bulk-ffoto-del:active{color:var(--dm-red)}
 
+  /* Duplicar / apagar a oferta: texto, no fim da folha, longe do polegar que digita. */
+  .f-bulk-frow-acoes{
+    display:flex; gap:6px; flex-wrap:wrap; margin-top:4px; padding-top:14px;
+    border-top:1px solid var(--gray-light);
+  }
+  .f-bulk-frow-act{
+    display:inline-flex; align-items:center; gap:7px; min-height:var(--tap-min);
+    padding:0 12px; border:0; border-radius:var(--r-sm); background:none;
+    color:var(--text-2); font:inherit; font-size:13px; font-weight:600; cursor:pointer;
+    transition:background var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard);
+  }
+  .f-bulk-frow-act svg{width:16px; height:16px; opacity:.8}
+  .f-bulk-frow-act:active{background:var(--gray-light)}
+  /* O rótulo fica neutro e o vermelho aparece no toque: alarme permanente numa ação que a
+     pessoa nem chamou contraria o "o Luma não alarma" (05_DESIGN_PHILOSOPHY). */
+  .f-bulk-frow-act.is-danger svg{color:var(--dm-red); opacity:1}
+  .f-bulk-frow-act.is-danger:active{background:rgba(200,24,24,.08); color:var(--dm-red)}
+  .f-bulk-frow-act:focus-visible{outline:2px solid var(--dm-orange); outline-offset:2px}
+
   /* 5 · O RODAPÉ — a fila. “Próxima oferta” é a ação primária porque o trabalho real é
      preencher várias em sequência; voltar à lista a cada uma custava dois toques por oferta. */
   .f-bulk-folha-acoes{
@@ -1861,3 +1912,7 @@ body:not(.theme-light) .f-bulk-lthumb,body:not(.theme-light) .f-bulk-ffoto-mini{
 body:not(.theme-light) .f-bulk-lprog-bar{background:var(--d-surf2)}
 body:not(.theme-light) .f-bulk-lprog-tx{color:var(--d-text2)}
 body:not(.theme-light) .f-bulk-lprog-tx strong{color:var(--d-text)}
+body:not(.theme-light) .f-bulk-lnova{border-color:var(--d-border2); color:var(--d-text2)}
+body:not(.theme-light) .f-bulk-lzero strong{color:var(--d-text)}
+body:not(.theme-light) .f-bulk-frow-acoes{border-color:var(--d-border)}
+body:not(.theme-light) .f-bulk-frow-act{color:var(--d-text2)}

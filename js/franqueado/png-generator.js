@@ -2930,12 +2930,48 @@ function _fBulkRenderLista(){
       ${chip('falta','Falta algo',nFalta)}${chip('todas','Todas',total)}${chip('prontas','Prontas',nPronta)}
     </div>
     ${itens || '<p class="f-bulk-lvazio">Nenhuma oferta neste filtro.</p>'}
+    <!-- Adicionar oferta só existia na tabela do desktop: no celular a pessoa ficava sem
+         nenhum jeito de criar a próxima arte do lote sem voltar pro computador. -->
+    <button type="button" class="f-bulk-lnova" onclick="fBulkNovaOferta()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      <span>Adicionar oferta</span>
+    </button>
   </div>`;
 
   /* A fita de 34px não entra no celular: aqui quem mostra o lote é a própria lista, e duas
      réguas de miniatura disputariam os MESMOS ids `f-bulk-cv-<i>`. */
-  _fBulkRenderThumbsSeq();
+  _fBulkObservarThumbsLista();
   fBulkSetActive(ativa, {semRolar:true});
+}
+
+/* ⚠ PINTAR SÓ O QUE ESTÁ À VISTA. A primeira versão desta lista chamava
+   `_fBulkRenderThumbsSeq()`, que renderiza o template inteiro (1080×1080) uma vez POR LINHA:
+   medido com 30 ofertas, 30 renders completos disparados de uma vez só para mostrar 5
+   miniaturas de 46px na tela. A fita do desktop já resolvia isso com IntersectionObserver —
+   aqui é o mesmo remédio, com a lista como raiz. */
+let _fBulkListaObserver = null;
+function _fBulkObservarThumbsLista(){
+  if(_fBulkListaObserver){ _fBulkListaObserver.disconnect(); _fBulkListaObserver = null; }
+  const itens = document.querySelectorAll('.f-bulk-litem');
+  if(!itens.length) return;
+  if(!('IntersectionObserver' in window)) return _fBulkRenderThumbsSeq();
+  _fBulkListaObserver = new IntersectionObserver((entradas, obs)=>{
+    entradas.forEach(e=>{
+      if(!e.isIntersecting) return;
+      obs.unobserve(e.target);
+      const i = +e.target.dataset.row;
+      if(fBulkRows[i]) fBulkRenderCardPreview(fBulkRows[i], i);
+    });
+  }, { rootMargin: '260px' });
+  itens.forEach(n=>_fBulkListaObserver.observe(n));
+}
+
+/* Criar uma oferta e cair na LISTA seria parar no meio do gesto: quem toca em "adicionar"
+   quer preencher, não admirar uma linha vazia no fim de 30. Cria, abre e põe o cursor. */
+function fBulkNovaOferta(){
+  fBulkAddEmptyRow();
+  const i = fBulkRows.length - 1;
+  if(i >= 0) fBulkAbrirFolha(i);
 }
 
 function fBulkFiltrarLista(f){
@@ -2953,6 +2989,7 @@ function fBulkAbrirFolha(i){
   try{ _fBulkBindTeclado(); _fBulkBindSwipeArte(); }catch(e){}
   const folha = document.querySelector('.f-bulk-live');
   if(folha) folha.scrollTop = 0;
+  _fBulkFocarPrimeiroVazio();
 }
 function fBulkFecharFolha(){
   const i = _fBulkActiveIdx();
@@ -3023,7 +3060,47 @@ function _fBulkRenderFolhaCampos(forcar){
         oninput="fBulkLiveEdit(${i})" onblur="fBulkSaveRow(${i}, true)">
     </label>`;
   }).join('');
+
+  /* Duplicar e apagar existiam só na tabela do desktop. São as duas manobras mais comuns do
+     dia a dia: "mesmo combo, outro preço" (duplicar) e "essa linha nasceu errada" (apagar).
+     Ficam DEPOIS dos campos, longe do polegar que digita — Fitts ao contrário, de propósito. */
+  alvo.insertAdjacentHTML('beforeend', `<div class="f-bulk-frow-acoes">
+    <button type="button" class="f-bulk-frow-act" onclick="fBulkDuplicarNaFolha(${i})">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      Duplicar oferta
+    </button>
+    <button type="button" class="f-bulk-frow-act is-danger" onclick="fBulkApagarNaFolha(${i})">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6"/></svg>
+      Apagar oferta
+    </button>
+  </div>`);
   _fBulkSyncFolhaAcoes();
+}
+
+/* Duplicar de dentro da folha cai NA CÓPIA: quem duplica quer mexer no clone (trocar o
+   preço), não olhar de novo o original. `fBulkCloneRow` já insere logo depois e re-renderiza. */
+function fBulkDuplicarNaFolha(i){
+  fBulkCloneRow(i);
+  fBulkAbrirFolha(Math.min(i+1, fBulkRows.length-1));
+}
+/* Apagar reusa o `fBulkRemoveCard` (que já confirma e re-renderiza) e devolve a pessoa à
+   lista: continuar numa folha cuja oferta não existe mais seria mentira. */
+async function fBulkApagarNaFolha(i){
+  const r = fBulkRows[i];
+  const nome = ((r&&r.dados&&_fBulkResumoLinha(r, fBulkVars()).titulo) || `a oferta ${i+1}`);
+  /* `fBulkRemoveCard` apaga direto (na tabela do desktop o alvo é um X minúsculo, difícil de
+     acertar sem querer). No celular o alvo tem 44px e mora do lado do polegar — aqui a
+     confirmação é obrigatória, como toda ação irreversível do Luma. */
+  if(typeof gConfirm === 'function'){
+    const ok = await gConfirm(`Apagar ${nome}? Os dados dessa linha somem do lote.`,
+      {title:'Apagar oferta', okLabel:'Apagar', danger:true});
+    if(!ok) return;
+  }
+  const n = fBulkRows.length;
+  fBulkRemoveCard(i);
+  if(fBulkRows.length === n) return;
+  document.body.classList.remove('f-bulk-folha','f-bulk-teclado');
+  _fBulkRenderLista();
 }
 
 /* Apagar a foto sem precisar abrir a galeria e escolher outra — "trocar" não é "remover". */
@@ -3035,17 +3112,60 @@ function fBulkLimparFoto(i, k){
   fBulkSetActive(i, {semRolar:true});
 }
 
-/* O rodapé da folha muda de discurso na última oferta: empurrar "próxima" quando não há
-   próxima seria mentir. Na última, a ação primária é concluir e voltar à lista. */
+/* ── A FILA PERSEGUE O QUE FALTA ──
+   A primeira versão avançava por índice: quem filtrava "falta algo" e tocava em "próxima"
+   caía numa oferta PRONTA (medido: filtro mostrando 1,4,7,10 e o botão levando à 2). Agora
+   o alvo é a próxima oferta que ainda precisa de alguma coisa; sem nenhuma pendente, o
+   discurso muda para concluir. O índice continua disponível nas setas do pager. */
+function _fBulkProximaPendente(de){
+  const n = fBulkRows.length, keys = fBulkVars();
+  for(let d=1; d<=n; d++){
+    const j = (de + d) % n;
+    if(_fBulkEstadoLinha(fBulkRows[j], keys) !== 'pronta') return j;
+  }
+  return -1;
+}
 function _fBulkSyncFolhaAcoes(){
   const btn = document.getElementById('f-bulk-folha-next');
   if(!btn) return;
   const i = _fBulkActiveIdx(), n = fBulkRows.length;
-  const ultima = (i >= n-1);
-  btn.innerHTML = ultima
-    ? '<span>Concluir</span>'
-    : `<span>Próxima oferta</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>`;
-  btn.dataset.ultima = ultima ? 'true' : 'false';
+  const alvo = _fBulkProximaPendente(i);
+  const seta = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>';
+  if(alvo < 0){
+    btn.innerHTML = '<span>Concluir</span>';
+    btn.dataset.ultima = 'true';
+  } else {
+    // "Volta" quando a pendente está ATRÁS: prometer "próxima" e andar para trás confunde.
+    const paraTras = alvo < i;
+    btn.innerHTML = `<span>${paraTras ? `Falta a oferta ${alvo+1}` : 'Próxima oferta'}</span>${seta}`;
+    btn.dataset.ultima = 'false';
+  }
+}
+
+/* O primeiro campo vazio recebe o cursor sozinho. Sem isto era um toque extra POR OFERTA só
+   para começar a digitar — 12 toques num lote de 12. Só quando falta algo: numa oferta
+   pronta, abrir o teclado por cima da arte seria atrapalhar quem só veio conferir. */
+function _fBulkFocarPrimeiroVazio(){
+  const folha = document.querySelector('.f-bulk-live');
+  /* ⚠ ESPERAR A FOLHA APARECER. Enquanto ela sobe, o CSS ainda a mantém `visibility:hidden`
+     — e ninguém foca um campo dentro de subárvore invisível (medido: `focus()` chamado logo
+     depois de abrir não fazia nada, e 500ms depois funcionava). `transitionend` é o gancho
+     certo: nada de milissegundo escrito em JS, que é o mesmo erro que hex solto no CSS. */
+  if(folha && getComputedStyle(folha).visibility === 'hidden'){
+    if(folha._fBulkFocoArmado) return;
+    folha._fBulkFocoArmado = true;
+    folha.addEventListener('transitionend', function _ok(ev){
+      if(ev.target !== folha || ev.propertyName !== 'transform') return;
+      folha.removeEventListener('transitionend', _ok);
+      folha._fBulkFocoArmado = false;
+      _fBulkFocarPrimeiroVazio();
+    });
+    return;
+  }
+  const campos = document.querySelectorAll('#f-bulk-folha-campos .f-bulk-fin');
+  for(const c of campos){
+    if(!c.value.trim()){ try{ c.focus({preventScroll:true}); }catch(e){ c.focus(); } return; }
+  }
 }
 
 /* A fila: salvar esta oferta e cair na próxima SEM voltar à lista. É o gesto do dia a dia —
@@ -3053,11 +3173,13 @@ function _fBulkSyncFolhaAcoes(){
 function fBulkProximaOferta(){
   const i = _fBulkActiveIdx();
   if(i >= 0) fBulkSaveRow(i, true);
-  if(i >= fBulkRows.length-1){ fBulkFecharFolha(); return; }
-  fBulkStepRow(1);
+  const alvo = _fBulkProximaPendente(_fBulkActiveIdx());
+  if(alvo < 0){ fBulkFecharFolha(); return; }   // nada pendente → o lote está fechado
+  fBulkSetActive(alvo);
   _fBulkRenderFolhaCampos(true);
   const folha = document.querySelector('.f-bulk-live');
   if(folha) folha.scrollTop = 0;               // a oferta nova começa do começo
+  _fBulkFocarPrimeiroVazio();
 }
 
 /* ── O TECLADO NÃO PODE ESCONDER A ARTE ──
@@ -3098,7 +3220,19 @@ function fBulkRenderPreview(){
   const wrap=document.getElementById('f-bulk-preview');if(!wrap)return;
   fBulkUpdateReadiness();
   if(!fBulkRows.length){
-    wrap.innerHTML='<div class="f-bulk-empty">Nenhuma linha na planilha. Adicione uma linha ou preencha com IA, cardápio ou Excel.</div>';
+    /* No celular o texto "adicione uma linha" era um beco sem saída: a única ação de criar
+       linha morava na tabela do desktop. Agora o estado vazio carrega as duas saídas reais. */
+    wrap.innerHTML = _fBulkEhCelular()
+      ? `<div class="f-bulk-lzero">
+           <strong>Nenhuma oferta ainda</strong>
+           <span>Comece uma do zero ou traga tudo de uma vez do cardápio, da IA ou de uma planilha.</span>
+           <button type="button" class="f-bulk-lnova is-pri" onclick="fBulkNovaOferta()">
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+             <span>Adicionar a primeira oferta</span>
+           </button>
+           <button type="button" class="f-bulk-lzero-alt" onclick="fBulkToggleImport(true)">Preencher com IA, cardápio ou Excel</button>
+         </div>`
+      : '<div class="f-bulk-empty">Nenhuma linha na planilha. Adicione uma linha ou preencha com IA, cardápio ou Excel.</div>';
     /* ⚠ Esvaziar a planilha TEM que apagar a coluna da esquerda junto. Sem isto a arte grande
        e a fita continuavam mostrando as linhas que acabaram de ser excluídas — a tela dizia
        "Nenhuma linha ainda" no rótulo e exibia três miniaturas de artes inexistentes ao lado.
