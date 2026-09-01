@@ -2447,8 +2447,16 @@ body:not(.theme-light) input:-webkit-autofill:active {
              cartões", que mostrava o mesmo com um clique a mais e sem a arte grande do lado. -->
         <div class="f-bulk-strip" id="f-bulk-strip" role="tablist" aria-label="Artes do lote"></div>
         <p class="f-bulk-live-hint">Clique numa linha da planilha para ver a arte dela.</p>
-        <!-- Fechar a folha no celular. Invisível no desktop, onde a coluna não é folha. -->
-        <button type="button" class="f-bulk-folha-fechar" onclick="fBulkFecharFolha()">Salvar e voltar à lista</button>
+        <!-- Rodapé da folha no celular. Invisível no desktop, onde a coluna não é folha.
+             A ação primária é SEGUIR: quem abre o Sheets no celular tem uma fila de ofertas
+             para preencher, e voltar à lista a cada uma custava dois toques por oferta. -->
+        <div class="f-bulk-folha-acoes">
+          <button type="button" class="f-bulk-folha-fechar" onclick="fBulkFecharFolha()">Lista</button>
+          <button type="button" class="f-bulk-folha-next" id="f-bulk-folha-next" onclick="fBulkProximaOferta()">
+            <span>Próxima oferta</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+        </div>
       </aside>
 
       <!-- ══ DIREITA — A PLANILHA ══ -->

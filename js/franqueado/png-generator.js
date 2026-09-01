@@ -1724,19 +1724,20 @@ function _fBulkSyncLiveHead(){
   const cnt = document.getElementById('f-bulk-live-count');
   const chip = document.getElementById('f-bulk-live-chip');
   if(lab) lab.textContent = n ? `A arte da linha ${i+1}` : 'Nenhuma linha ainda';
-  if(cnt) cnt.textContent = n ? `linha ${i+1} de ${n}` : '—';
+  if(cnt) cnt.textContent = n ? `Oferta ${i+1} de ${n}` : '—';   // a tela chama de oferta, não de linha
   document.querySelectorAll('.f-bulk-live-arrow').forEach(b=>{ b.disabled = n < 2; });
   if(chip){
     const r = fBulkRows[i];
     const faltando = r ? (r.erros||[]).length : 0;
     const vazia = r ? !Object.values(r.dados||{}).some(v=>String(v||'').trim()) : true;
-    chip.textContent = vazia ? 'vazia' : (faltando ? `${faltando} campo(s) a preencher` : 'pronta');
+    chip.textContent = vazia ? 'vazia' : (faltando ? `${faltando} campo${faltando===1?'':'s'} a preencher` : 'pronta');
     chip.className = 'f-bulk-live-chip ' + (vazia||faltando ? 'is-wait' : 'is-ok');
   }
   /* As setas do carrossel entram por aqui (fBulkStepRow → fBulkSetActive → este ponto),
      então repintar os campos da folha aqui faz a navegação funcionar sem que `fBulkStepRow`
      saiba que a folha existe. A função sai sozinha quando não é celular ou a folha está fechada. */
   try{ _fBulkRenderFolhaCampos(); }catch(e){}
+  try{ _fBulkSyncFolhaAcoes(); }catch(e){}   // "próxima" vira "concluir" na última oferta
 }
 /* A prévia grande sai do MESMO motor do PNG final (fRenderTemplateLayers) — é a régua única
    da casa, e é o que garante que esta tela não minta sobre o arquivo que vai baixar.
@@ -2881,6 +2882,7 @@ function _fBulkRenderLista(){
   const estados = fBulkRows.map(r => _fBulkEstadoLinha(r, keys));
   const nFalta = estados.filter(e => e !== 'pronta').length;
   const nPronta = estados.filter(e => e === 'pronta').length;
+  const total = fBulkRows.length;
 
   const chip = (id, rot, n) => `<button type="button" class="f-bulk-lchip${_fBulkFiltro===id?' is-on':''}"
     aria-pressed="${_fBulkFiltro===id?'true':'false'}" onclick="fBulkFiltrarLista('${id}')">${gEsc(rot)}${n!=null?` · ${n}`:''}</button>`;
@@ -2894,11 +2896,16 @@ function _fBulkRenderLista(){
     const selo = est==='pronta' ? '<span class="f-bulk-lpill is-ok">pronta</span>'
       : est==='vazia' ? '<span class="f-bulk-lpill is-mut">vazia</span>'
       : `<span class="f-bulk-lpill is-gap">${(r.erros||[]).length} a preencher</span>`;
+    /* A miniatura é a ARTE, não um número: numa lista de 30 ofertas a pessoa reconhece a
+       própria peça pela cara dela antes de ler qualquer palavra. Reusa os ids
+       `f-bulk-cv-<i>` — quem pinta é o mesmo `fBulkRenderCardPreview` da fita do desktop. */
+    const [tw,th] = fMaterialSize(fState.material, fState.fmt);
+    const cw = 46, ch = Math.max(28, Math.round(cw*th/tw));
     /* O nome cai para "Oferta N" quando ainda não há texto — mostrar uma linha em branco
        na lista é pior que assumir o rótulo: a pessoa não sabe onde tocar. */
     return `<button type="button" class="f-bulk-litem${i===ativa?' is-active':''}" data-row="${i}"
       onclick="fBulkAbrirFolha(${i})" aria-label="Abrir a oferta ${i+1}">
-      <span class="f-bulk-lnum">${i+1}</span>
+      <span class="f-bulk-lthumb" data-n="${i+1}"><canvas id="f-bulk-cv-${i}" width="${cw}" height="${ch}"></canvas></span>
       <span class="f-bulk-ltx">
         <span class="f-bulk-lnome">${gEsc(titulo) || `<i>Oferta ${i+1}</i>`}</span>
         <span class="f-bulk-lmeta">${detalhe?gEsc(detalhe)+' · ':''}${selo}</span>
@@ -2907,14 +2914,23 @@ function _fBulkRenderLista(){
     </button>`;
   }).join('');
 
+  /* O progresso responde à única pergunta que a lista existe para responder: quanto falta
+     para eu poder gerar? Barra + número, no topo, antes de qualquer filtro. */
+  const pct = total ? Math.round(nPronta/total*100) : 0;
   wrap.innerHTML = `<div class="f-bulk-lista">
+    <div class="f-bulk-lprog">
+      <div class="f-bulk-lprog-tx"><strong>${nPronta} de ${total}</strong> ${total===1?'oferta pronta':'ofertas prontas'}</div>
+      <div class="f-bulk-lprog-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${pct}%"></i></div>
+    </div>
     <div class="f-bulk-lfiltros" role="group" aria-label="Filtrar ofertas">
-      ${chip('falta','Falta algo',nFalta)}${chip('todas','Todas',fBulkRows.length)}${chip('prontas','Prontas',nPronta)}
+      ${chip('falta','Falta algo',nFalta)}${chip('todas','Todas',total)}${chip('prontas','Prontas',nPronta)}
     </div>
     ${itens || '<p class="f-bulk-lvazio">Nenhuma oferta neste filtro.</p>'}
   </div>`;
 
-  _fBulkRenderStrip();
+  /* A fita de 34px não entra no celular: aqui quem mostra o lote é a própria lista, e duas
+     réguas de miniatura disputariam os MESMOS ids `f-bulk-cv-<i>`. */
+  _fBulkRenderThumbsSeq();
   fBulkSetActive(ativa, {semRolar:true});
 }
 
@@ -2930,11 +2946,14 @@ function fBulkAbrirFolha(i){
   document.body.classList.add('f-bulk-folha');
   fBulkSetActive(i);
   _fBulkRenderFolhaCampos(true);        // forçado: reabrir a MESMA linha tem que repintar
+  try{ _fBulkBindTeclado(); _fBulkBindSwipeArte(); }catch(e){}
+  const folha = document.querySelector('.f-bulk-live');
+  if(folha) folha.scrollTop = 0;
 }
 function fBulkFecharFolha(){
   const i = _fBulkActiveIdx();
   if(i >= 0) fBulkSaveRow(i, true);     // sair sem salvar seria perder o que a pessoa digitou
-  document.body.classList.remove('f-bulk-folha');
+  document.body.classList.remove('f-bulk-folha','f-bulk-teclado');
   _fBulkRenderLista();
 }
 
@@ -2960,17 +2979,34 @@ function _fBulkRenderFolhaCampos(forcar){
   _fBulkFolhaRid = rid;
   const rotuloDe = k => (typeof _fLpLabel === 'function' ? _fLpLabel(k) : k);
 
-  alvo.innerHTML = fBulkVars().map(k => {
+  /* ORDEM DE CABEÇA, não ordem de template. O que identifica a oferta (produto, detalhe,
+     preço) vem primeiro; foto e logo vão para o fim porque abrem a galeria e tiram a pessoa
+     do teclado. Medido no print do franqueado: "preço original" abria a folha e o "produto"
+     era o quarto campo. */
+  const vars = fBulkVars();
+  const ordenadas = vars.filter(k=>!fIsImageVar(k)).concat(vars.filter(fIsImageVar));
+
+  alvo.innerHTML = ordenadas.map(k => {
     const rot = gEsc(rotuloDe(k)).replace(/"/g,'&quot;');
     const val = gEsc(r.dados[k] || '').replace(/"/g,'&quot;');
     const erro = (r.erros||[]).some(e => e.includes(k));
     if(fIsImageVar(k)){
-      return `<label class="f-bulk-fcampo">
+      const tem = !!(r.dados[k]);
+      /* ⚠ O botão antigo chamava `fBulkUploadCellImage(i,k)` — assinatura errada: a função
+         espera o INPUT de arquivo como 1º argumento (`fBulkUploadCellImage(this,i,k)`, como
+         a tabela do desktop sempre fez) e ainda não havia input nenhum na folha. Resultado
+         medido: os dois campos de foto do celular não faziam absolutamente nada. */
+      return `<div class="f-bulk-fcampo f-bulk-fcampo-foto">
         <span class="f-bulk-flabel">${rot}</span>
-        <button type="button" class="f-bulk-ffoto${val?' tem':''}" onclick="fBulkUploadCellImage(${i},'${gEsc(k)}')">
-          ${val ? 'Trocar a foto' : 'Enviar a foto'}
-        </button>
-      </label>`;
+        <label class="f-bulk-ffoto${tem?' tem':''}${erro&&!tem?' tem-erro':''}">
+          <span class="f-bulk-ffoto-mini" aria-hidden="true">${tem
+            ? `<img src="${val}" alt="">`
+            : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.8"/><path d="m5 17 4.5-4.5 3 3L16 12l3 3"/></svg>`}</span>
+          <span class="f-bulk-ffoto-tx">${tem?'Trocar a foto':'Enviar a foto'}<small>${tem?'toque para escolher outra':'do seu celular'}</small></span>
+          <input type="file" accept="image/*" hidden onchange="fBulkUploadCellImage(this, ${i}, '${gEsc(k)}')">
+        </label>
+        ${tem?`<button type="button" class="f-bulk-ffoto-del" onclick="fBulkLimparFoto(${i},'${gEsc(k)}')">Remover a foto</button>`:''}
+      </div>`;
     }
     /* `type="text"` e não `number`: preço no Brasil é "29,90" e o campo numérico do celular
        recusa a vírgula em boa parte dos aparelhos. `inputmode="decimal"` traz o teclado de
@@ -2983,6 +3019,75 @@ function _fBulkRenderFolhaCampos(forcar){
         oninput="fBulkLiveEdit(${i})" onblur="fBulkSaveRow(${i}, true)">
     </label>`;
   }).join('');
+  _fBulkSyncFolhaAcoes();
+}
+
+/* Apagar a foto sem precisar abrir a galeria e escolher outra — "trocar" não é "remover". */
+function fBulkLimparFoto(i, k){
+  const r = fBulkRows[i]; if(!r) return;
+  delete r.dados[k];
+  fBulkSaveRow(i, true);
+  _fBulkRenderFolhaCampos(true);
+  fBulkSetActive(i, {semRolar:true});
+}
+
+/* O rodapé da folha muda de discurso na última oferta: empurrar "próxima" quando não há
+   próxima seria mentir. Na última, a ação primária é concluir e voltar à lista. */
+function _fBulkSyncFolhaAcoes(){
+  const btn = document.getElementById('f-bulk-folha-next');
+  if(!btn) return;
+  const i = _fBulkActiveIdx(), n = fBulkRows.length;
+  const ultima = (i >= n-1);
+  btn.innerHTML = ultima
+    ? '<span>Concluir</span>'
+    : `<span>Próxima oferta</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>`;
+  btn.dataset.ultima = ultima ? 'true' : 'false';
+}
+
+/* A fila: salvar esta oferta e cair na próxima SEM voltar à lista. É o gesto do dia a dia —
+   quem abre o Sheets no celular tem 3, 10, 30 ofertas para preencher em sequência. */
+function fBulkProximaOferta(){
+  const i = _fBulkActiveIdx();
+  if(i >= 0) fBulkSaveRow(i, true);
+  if(i >= fBulkRows.length-1){ fBulkFecharFolha(); return; }
+  fBulkStepRow(1);
+  _fBulkRenderFolhaCampos(true);
+  const folha = document.querySelector('.f-bulk-live');
+  if(folha) folha.scrollTop = 0;               // a oferta nova começa do começo
+}
+
+/* ── O TECLADO NÃO PODE ESCONDER A ARTE ──
+   Com o teclado aberto sobra ~45% da tela. A arte fixa no topo continua lá, mas encolhe
+   para uma faixa: a pessoa vê o texto entrar na peça enquanto digita, que é a única razão
+   de a prévia existir. `visualViewport` é a única medida confiável disso no iOS. */
+function _fBulkBindTeclado(){
+  const vv = window.visualViewport;
+  if(!vv || vv._fBulkBound) return;
+  vv._fBulkBound = true;
+  const sync = ()=>{
+    const encolheu = (window.innerHeight - vv.height) > 140;   // teclado aberto
+    document.body.classList.toggle('f-bulk-teclado', encolheu && document.body.classList.contains('f-bulk-folha'));
+  };
+  vv.addEventListener('resize', sync);
+  vv.addEventListener('scroll', sync);
+}
+
+/* Arrastar a arte para o lado troca de oferta — o mesmo `fBulkStepRow` das setas, no gesto
+   que o polegar já espera de um carrossel. Só na horizontal: o vertical é a rolagem. */
+function _fBulkBindSwipeArte(){
+  const palco = document.querySelector('.f-bulk-live-stage');
+  if(!palco || palco._fBulkSwipe) return;
+  palco._fBulkSwipe = true;
+  let x0=null, y0=null;
+  palco.addEventListener('touchstart', e=>{ const t=e.touches[0]; x0=t.clientX; y0=t.clientY; }, {passive:true});
+  palco.addEventListener('touchend', e=>{
+    if(x0==null) return;
+    const t=e.changedTouches[0], dx=t.clientX-x0, dy=t.clientY-y0;
+    x0=null;
+    if(Math.abs(dx) < 56 || Math.abs(dx) < Math.abs(dy)*1.6) return;   // rolagem, não swipe
+    fBulkStepRow(dx < 0 ? 1 : -1);
+    _fBulkRenderFolhaCampos(true);
+  }, {passive:true});
 }
 
 function fBulkRenderPreview(){
