@@ -232,6 +232,26 @@ function _fArteAbrirSite(url, comoAbrirNaMao){
   if(!win) gToast(comoAbrirNaMao,'warning');
   return !!win;
 }
+function _fArteEhCelular(){
+  return !!(window.matchMedia && matchMedia('(max-width:680px)').matches);
+}
+// No celular o `window.open` depois de um await é engolido pelo bloqueador (iOS
+// Safari faz isso sempre) — o clique morria num toast. O esquema do app
+// (`whatsapp://`, `instagram://`) navega a própria aba e NÃO descarrega a página:
+// o sistema entrega pro app e o Luma continua vivo atrás. Por isso o destino do
+// celular é o app, e o do desktop segue sendo o site.
+function _fArteAbrirDestino(deepLink, siteUrl, comoAbrirNaMao){
+  if(_fArteEhCelular() && deepLink){
+    try{ window.location.href=deepLink; return true; }catch(e){}
+  }
+  return _fArteAbrirSite(siteUrl, comoAbrirNaMao);
+}
+// A folha nativa é o caminho bom no celular, mas ela exige o "gesto do usuário"
+// ainda válido: depois de renderizar a arte o WebKit pode recusar com
+// NotAllowedError. Isso NÃO é erro pra mostrar — é o sinal de cair no deep link.
+function _fArteShareRecusado(e){
+  return !!(e && e.name!=='AbortError');
+}
 function _fArteErro(e, canal){
   if(e && e.name==='AbortError') return;         // cancelou a folha nativa — silencioso
   console.warn('Falha ao entregar a arte ('+canal+'):',e);
@@ -241,7 +261,8 @@ function _fArteErro(e, canal){
 
 /* ── INSTAGRAM ──
    Celular: folha nativa com a imagem (o franqueado escolhe o Instagram) e a legenda
-   já na área de transferência — o app não aceita texto vindo do share.
+   na área de transferência — o app não aceita texto vindo do share. Se o navegador
+   recusar a folha, o app abre pelo `instagram://app` com a arte já no aparelho.
    Desktop: o Instagram web só publica com arquivo do disco, então baixa + copia
    a legenda + abre o site. */
 async function fPostarInstagram(btn, snapId){
@@ -249,15 +270,25 @@ async function fPostarInstagram(btn, snapId){
   const restore=gBtnLoading(btn,'Preparando…');
   try{
     const prep=await _fArtePreparar(snapId);
-    if(prep.cap && typeof _fCopyText==='function') _fCopyText(prep.cap);
+    // A legenda é copiada DEPOIS da folha nativa: escrever na área de transferência
+    // gasta o gesto do usuário e o navegador recusaria o share logo em seguida.
+    let compartilhou=false;
     if(prep.podeShare){
-      await navigator.share({files:[prep.file], text:prep.cap||undefined, title:'Delivery Much'});
+      try{
+        await navigator.share({files:[prep.file], text:prep.cap||undefined, title:'Delivery Much'});
+        compartilhou=true;
+      }catch(e){ if(!_fArteShareRecusado(e)) throw e; }
+    }
+    if(prep.cap && typeof _fCopyText==='function') _fCopyText(prep.cap);
+    if(compartilhou){
       _fArteEntregue(prep,'arte_postada',{canal:'instagram',via:'share'});
       gToast(prep.cap ? 'Arte enviada • legenda copiada, é só colar na publicação.' : 'Arte enviada pro Instagram.');
     } else {
       _fArteBaixarArquivo(prep);
       _fArteEntregue(prep,'arte_postada',{canal:'instagram',via:'web'});
-      _fArteAbrirSite('https://www.instagram.com/','Baixei a arte e copiei a legenda. Abra o instagram.com pra publicar.');
+      // O Instagram não aceita imagem por link: o app abre no feed e a arte já está
+      // salva no aparelho — a pessoa escolhe ela no (+) Criar.
+      _fArteAbrirDestino('instagram://app','https://www.instagram.com/','Baixei a arte e copiei a legenda. Abra o instagram.com pra publicar.');
       gToast(prep.cap
         ? 'Arte baixada • legenda copiada! No Instagram, clique em (+) Criar e cole o texto.'
         : 'Arte baixada! No Instagram, clique em (+) Criar e escolha o arquivo.');
@@ -267,7 +298,8 @@ async function fPostarInstagram(btn, snapId){
 }
 
 /* ── WHATSAPP ──
-   Celular: folha nativa (imagem + texto vão juntos pra conversa escolhida).
+   Celular: folha nativa (imagem + texto vão juntos pra conversa escolhida); se ela
+   for recusada, o `whatsapp://send` abre o app com a legenda e a arte baixada.
    Desktop: tenta pôr a IMAGEM na área de transferência — é ela que o Ctrl+V cola
    na conversa. ⚠ Copiar a legenda depois SOBRESCREVERIA a imagem (a área de
    transferência é uma só), então ou vai a imagem, ou vai a legenda. O arquivo é
@@ -278,9 +310,11 @@ async function fEnviarWhatsApp(btn, snapId){
   try{
     const prep=await _fArtePreparar(snapId);
     if(prep.podeShare){
-      await navigator.share({files:[prep.file], text:prep.cap||undefined, title:'Delivery Much'});
-      _fArteEntregue(prep,'arte_compartilhada',{canal:'whatsapp',via:'share'});
-      return;
+      try{
+        await navigator.share({files:[prep.file], text:prep.cap||undefined, title:'Delivery Much'});
+        _fArteEntregue(prep,'arte_compartilhada',{canal:'whatsapp',via:'share'});
+        return;
+      }catch(e){ if(!_fArteShareRecusado(e)) throw e; }   // recusou o share → segue pro app
     }
     let imagemNaArea=false;
     try{
@@ -292,11 +326,17 @@ async function fEnviarWhatsApp(btn, snapId){
     if(!imagemNaArea && prep.cap && typeof _fCopyText==='function') _fCopyText(prep.cap);
     _fArteBaixarArquivo(prep);
     _fArteEntregue(prep,'arte_compartilhada',{canal:'whatsapp',via:'web'});
-    _fArteAbrirSite('https://web.whatsapp.com/','Baixei a arte. Abra o web.whatsapp.com pra enviar.');
-    gToast(imagemNaArea
-      ? 'Imagem copiada! No WhatsApp Web, abra a conversa e aperte Ctrl+V.'
-      : (prep.cap ? 'Arte baixada • legenda copiada! No WhatsApp Web, anexe a imagem e cole o texto.'
-                  : 'Arte baixada! No WhatsApp Web, abra a conversa e anexe o arquivo.'));
+    // O `whatsapp://send` abre o app já numa conversa com a legenda; a imagem vai
+    // anexada à mão (link nenhum anexa arquivo — 01_BUSINESS §10: quem envia é a pessoa).
+    _fArteAbrirDestino('whatsapp://send'+(prep.cap?('?text='+encodeURIComponent(prep.cap)):''),
+                       'https://web.whatsapp.com/','Baixei a arte. Abra o web.whatsapp.com pra enviar.');
+    // A instrução muda com o destino: no celular abriu o app, no desktop o site.
+    gToast(_fArteEhCelular()
+      ? 'Arte salva no aparelho! No WhatsApp, anexe a imagem na conversa.'
+      : (imagemNaArea
+          ? 'Imagem copiada! No WhatsApp Web, abra a conversa e aperte Ctrl+V.'
+          : (prep.cap ? 'Arte baixada • legenda copiada! No WhatsApp Web, anexe a imagem e cole o texto.'
+                      : 'Arte baixada! No WhatsApp Web, abra a conversa e anexe o arquivo.')));
   }catch(e){ _fArteErro(e,'whatsapp'); }
   finally{ restore(); }
 }
