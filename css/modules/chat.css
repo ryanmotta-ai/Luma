@@ -1196,7 +1196,11 @@ body:not(.theme-light) .f-bulk-tool-action,body:not(.theme-light) .f-bulk-table 
   .f-bulk-brand{min-width:0}
   .f-bulk-brand-mark{width:36px;height:36px}
   .f-bulk-brand h2{font-size:18px}
-  .f-bulk-faq-btn{width:36px;padding:0;font-size:0}
+  /* ⚠ `gap:7px` da regra base sobrevivia aqui: mesmo com o rótulo em `font-size:0`, o nó de
+     texto continua sendo um item flex, e o gap empurrava o ícone ~3,5px para a esquerda do
+     centro (o "?" fora do meio, visto no celular). Sem gap e com o mesmo raio do X ao lado,
+     os dois viram o mesmo botão redondo. */
+  .f-bulk-faq-btn{width:36px;height:36px;padding:0;gap:0;font-size:0;border-radius:50%}
   .f-bulk-faq-btn svg{width:16px;height:16px}
   .f-bulk-workspace{grid-template-rows:minmax(280px,44%) minmax(0,56%)}
   .f-bulk-setup-section{padding:12px}
