@@ -720,22 +720,8 @@ body:has(#f-bulk-modal.open) #mobile-preview-toggle{display:none!important}
   gap:14px;flex-wrap:wrap;margin:-18px -20px 0;padding:18px 20px 12px;background:var(--off-white)}
 .f-bulk-sheet-title{display:flex;flex-direction:column;gap:4px;min-width:0}
 .f-bulk-sheet-title h3{margin:0;font-family:'Roboto',sans-serif;font-size:20px;font-weight:900;letter-spacing:-.015em;color:var(--text)}
-.f-bulk-import-toggle{display:inline-flex;align-items:center;gap:8px;padding:9px 13px;border:1px solid var(--gray-mid);
-  border-radius:var(--r-pill);background:var(--white);color:var(--text-2);font:750 12px/1 'Roboto',sans-serif;cursor:pointer;
-  transition:border-color var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard),
-             color var(--dur-micro) var(--ease-standard),transform var(--dur-micro) var(--ease-spring)}
-.f-bulk-import-toggle svg:first-child{width:15px;height:15px;color:var(--dm-orange-d)}
-.f-bulk-import-toggle .f-bulk-disclosure-icon{width:14px;height:14px;color:var(--text-3);
-  transition:transform var(--dur-fast) var(--ease-standard)}
-.f-bulk-import-toggle:hover{border-color:var(--dm-orange);background:var(--dm-orange-bg);color:var(--dm-orange-d);transform:translateY(-1px)}
-.f-bulk-import-toggle[aria-expanded="true"] .f-bulk-disclosure-icon{transform:rotate(90deg)}
 /* Painel de importação: fechado é altura 0 (não display:none) para a abertura ter de onde
    partir — o mesmo motivo do acordeão da Academia. */
-.f-bulk-import{display:grid;grid-template-rows:0fr;opacity:0;
-  transition:grid-template-rows var(--dur-base) var(--ease-standard),opacity var(--dur-fast) var(--ease-standard)}
-.f-bulk-import>*{overflow:hidden;min-height:0}
-.f-bulk-import.is-open{grid-template-rows:1fr;opacity:1}
-.f-bulk-import-inner{display:flex;flex-direction:column;gap:14px;padding-bottom:2px}
 .f-bulk-sheet .f-bulk-preview{animation:gBulkFadeIn var(--dur-fast) var(--ease-out)}
 @keyframes gBulkFadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
@@ -885,7 +871,7 @@ body:not(.theme-light) .f-bulk-live-hint,body:not(.theme-light) .f-bulk-live-nav
 body:not(.theme-light) .f-bulk-strip-item{background:var(--d-surf2)}
 body:not(.theme-light) .f-bulk-sheet-title h3{color:var(--d-text)}
 body:not(.theme-light) .f-bulk-sheet-head{background:var(--d-dark)}
-body:not(.theme-light) .f-bulk-import-toggle,body:not(.theme-light) .f-bulk-post-opts>summary,
+body:not(.theme-light) .f-bulk-post-opts>summary,
 body:not(.theme-light) .f-bulk-post-opts-body{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text2)}
 body:not(.theme-light) .f-bulk-table tr.is-active>td{background:color-mix(in srgb,var(--dm-orange) 12%,transparent)}
 body:not(.theme-light) .f-bulk-alt,body:not(.theme-light) .f-bulk-massbar{background:var(--d-surf);border-color:var(--d-border2)}
@@ -899,8 +885,6 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
 .f-bulk-section-heading small{color:var(--text-3);font-size:10.5px;line-height:1.3}
 .f-bulk-step{display:flex;align-items:center;justify-content:center;width:24px;height:24px;flex:0 0 auto;border:1px solid var(--dm-orange-tint);border-radius:50%;background:var(--dm-orange-bg);color:var(--dm-orange-d);font-size:10px;font-weight:800}
 
-.f-bulk-ai-card{margin:10px 0;padding:10px 12px;border:1px solid var(--dm-orange-tint);border-radius:var(--r);background:var(--white);box-shadow:0 4px 14px color-mix(in srgb,var(--dm-orange-d) 7%,transparent);transition:border-color var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard),transform var(--dur-fast) var(--ease-spring-soft)}
-.f-bulk-ai-card:hover{border-color:var(--dm-orange);box-shadow:0 12px 30px color-mix(in srgb,var(--dm-orange-d) 12%,transparent);transform:translateY(-1px)}
 .f-bulk-card-head{display:flex;align-items:center;gap:9px;margin-bottom:12px}
 .f-bulk-card-head>div{display:grid;gap:2px;min-width:0}
 .f-bulk-card-head strong{color:var(--text);font-size:12px;line-height:1.2}
@@ -909,31 +893,16 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
 .f-bulk-card-icon svg{width:15px;height:15px}
 .f-bulk-recommended{margin-left:auto;padding:3px 7px;border-radius:var(--r-pill);background:var(--dm-orange-bg);color:var(--dm-orange-d);font-size:8.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
 .f-bulk-field-label{display:block;margin:0 0 6px;color:var(--text-3);font-size:9.5px;font-weight:750;letter-spacing:.06em;text-transform:uppercase}
-#f-bulk-ai-raw-text,#f-bulk-paste-ta{display:block;width:100%;box-sizing:border-box;border:1px solid var(--gray-mid);border-radius:var(--r);background:var(--off-white);color:var(--text);font:400 12px/1.5 'Roboto',sans-serif;resize:vertical}
 /* O campo principal do passo 1 agora manda na tela — antes vivia espremido em 76px de
    altura numa coluna estreita, competindo com outros 5 caminhos abertos ao lado. */
-#f-bulk-ai-raw-text{min-height:110px;max-height:none;padding:12px 14px;font-size:14px;line-height:1.6}
-#f-bulk-paste-ta{min-height:100px;padding:10px}
-.f-bulk-ai-actions{display:flex;align-items:center;gap:7px;margin-top:9px}
-.f-bulk-ai-actions svg{width:14px;height:14px}
-.f-bulk-ai-submit{display:inline-flex!important;align-items:center;gap:6px;min-height:34px;padding-right:12px!important;padding-left:12px!important;white-space:nowrap}
 /* O microfone ganhou rótulo: ícone sozinho não comunica "pode falar em vez de digitar"
    pra quem não é fluente em iconografia de app. Vira botão com palavra. */
 #f-bulk-mic-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:40px;flex:0 0 auto;padding:0 14px;border:1px solid var(--gray-mid);border-radius:var(--r-pill);background:var(--white);color:var(--text-2);font-size:13px;font-weight:650}
-.f-bulk-ai-actions{flex-wrap:wrap}
-.f-bulk-ai-submit{min-height:40px!important;font-size:13px}
 #f-bulk-mic-btn:hover{border-color:var(--dm-orange);background:var(--dm-orange-bg);color:var(--dm-orange-d)}
 /* LER CARDÁPIO (png-generator.js: fBulkReadMenu) — <label> por causa do input de arquivo,
    mas veste igual ao botão "Falar" pra ler como irmão dele, não como campo. */
 .f-bulk-menu-btn,.f-bulk-photos-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer}
-.f-bulk-menu-btn{height:40px;flex:0 0 auto;padding:0 14px;border:1px solid var(--gray-mid);border-radius:var(--r-pill);
-  background:var(--white);color:var(--text-2);font-size:13px;font-weight:650;white-space:nowrap}
-.f-bulk-menu-btn:hover{border-color:var(--dm-orange);background:var(--dm-orange-bg);color:var(--dm-orange-d)}
-.f-bulk-menu-btn svg{width:15px;height:15px}
-.f-bulk-menu-status{margin-top:7px;font-size:11px;color:var(--dm-orange-d);font-weight:650;min-height:14px}
 /* Enquanto lê o cardápio, o cartão inteiro fica em espera (a chamada leva segundos). */
-#f-ai-prompt-block.is-busy{opacity:.72;pointer-events:none}
-#f-ai-prompt-block.is-busy .f-bulk-menu-btn svg{animation:gSpin 1s linear infinite}
 /* Chip "IA" na linha lida por cardápio/foto casada: pede conferência sem virar erro.
    Inline na TABELA (visão padrão, ao lado do número da linha) e absoluto no CARTÃO. */
 .f-bulk-ia-chip{display:inline-block;margin-left:4px;padding:1px 5px;border-radius:var(--r-pill);
@@ -942,32 +911,11 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
 .f-bulk-card .f-bulk-ia-chip{position:absolute;top:7px;left:50%;transform:translateX(-50%);z-index:2;margin:0}
 #f-bulk-mic-btn.is-recording{border-color:var(--dm-red);background:var(--dm-red);color:var(--white);animation:gPulse 1s infinite}
 #f-bulk-mic-btn.is-processing{border-color:var(--dm-orange);background:var(--dm-orange-bg);color:var(--dm-orange-d);cursor:wait}
-.f-ai-prompt-toggle{display:inline-flex;align-items:center;gap:4px;margin-left:auto;padding:5px 0;border:0;background:transparent;color:var(--text-3);font:600 10.5px 'Roboto',sans-serif;white-space:nowrap;cursor:pointer}
-.f-ai-prompt-toggle:hover{color:var(--dm-orange-d)}
-.f-ai-prompt-chevron{font-size:15px;line-height:1;transition:transform var(--dur-fast) var(--ease-standard)}
-.f-ai-prompt-toggle[aria-expanded=true] .f-ai-prompt-chevron{transform:rotate(90deg)}
-.f-ai-prompt-body{margin-top:12px;padding-top:12px;border-top:1px solid var(--gray-light);animation:gFadeInDown var(--dur-fast) var(--ease-out)}
-.f-ai-prompt-desc{margin:0 0 8px;color:var(--text-3);font-size:11px;line-height:1.5}
-.f-ai-prompt-box{max-height:150px;overflow:auto;margin-bottom:8px;padding:10px;border:1px solid var(--gray-light);border-radius:var(--r-sm);background:var(--off-white)}
-.f-ai-prompt-pre{margin:0;color:var(--text-2);font:10px/1.55 'Roboto',sans-serif;white-space:pre-wrap;word-break:break-word}
-.f-ai-prompt-actions{display:flex;gap:8px}
-.f-ai-prompt-copy,.f-ai-prompt-open{display:inline-flex;align-items:center;justify-content:center;min-height:30px;padding:0 10px;border-radius:var(--r-sm);font:650 10.5px 'Roboto',sans-serif;text-decoration:none;cursor:pointer}
-.f-ai-prompt-copy{border:1px solid var(--dm-orange-d);background:var(--dm-orange-d);color:var(--white)}
-.f-ai-prompt-open{border:1px solid var(--gray-mid);background:var(--white);color:var(--text-2)}
 
-.f-bulk-source-label{margin:0 0 8px;color:var(--text-3);font-size:9.5px;font-weight:750;letter-spacing:.06em;text-transform:uppercase}
 /* Seis caminhos desde que o cartão da IA virou botão (13/08): trava em 4 colunas empurrava
    dois para uma segunda fileira meio vazia. auto-fit distribui conforme a largura real. */
-.f-bulk-source-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:6px}
-.f-bulk-source-action{display:grid;grid-template-columns:24px minmax(0,1fr);align-items:center;gap:6px;min-height:48px;padding:7px 8px;border:1px solid var(--gray-light);border-radius:var(--r-sm);background:var(--off-white);color:var(--text-2);font-family:'Roboto',sans-serif;text-align:left;cursor:pointer;transition:background var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard),transform var(--dur-fast) var(--ease-spring-soft)}
-.f-bulk-source-action>svg{width:17px;height:17px;justify-self:center;color:var(--text-3)}
-.f-bulk-source-action>span{display:grid;gap:2px;min-width:0}
-.f-bulk-source-action strong{color:var(--text);font-size:11px;line-height:1.2}
-.f-bulk-source-action small{display:none}
-.f-bulk-source-action:hover{border-color:var(--dm-orange-tint);background:var(--white);box-shadow:0 6px 16px color-mix(in srgb,var(--text) 6%,transparent);transform:translateY(-1px)}
-.f-bulk-source-action:hover>svg{color:var(--dm-orange-d)}
 .f-bulk-visually-hidden{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;clip-path:inset(50%)!important;white-space:nowrap!important}
-.f-bulk-inline-panel,.f-bulk-mapper{margin-top:10px;padding:12px;border:1px solid var(--dm-orange-tint);border-radius:var(--r);background:var(--dm-orange-bg);animation:gFadeInDown var(--dur-fast) var(--ease-out)}
+.f-bulk-inline-panel{margin-top:10px;padding:12px;border:1px solid var(--dm-orange-tint);border-radius:var(--r);background:var(--dm-orange-bg);animation:gFadeInDown var(--dur-fast) var(--ease-out)}
 .f-bulk-inline-panel .d-btn-pri{margin-top:8px}
 .f-bulk-examples{margin-top:8px;border:1px solid var(--gray-light);border-radius:var(--r);background:var(--white);overflow:hidden}
 .f-bulk-examples>summary{display:grid;grid-template-columns:30px minmax(0,1fr) 18px;align-items:center;gap:9px;padding:9px 10px;list-style:none;cursor:pointer}
@@ -981,9 +929,6 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
 .f-bulk-examples-body p{margin:0 0 8px;color:var(--text-3);font-size:10px;line-height:1.45}
 .f-bulk-examples-body>div{display:flex;gap:6px}
 .f-bulk-examples-body input{min-width:0;flex:1}
-.f-bulk-mapper .f-bulk-card-head{margin-bottom:10px}
-#f-bulk-mapper-fields{display:flex;flex-direction:column;gap:5px}
-.f-bulk-mapper-actions{display:flex;gap:8px;margin-top:12px}
 
 .f-bulk-output-config{display:grid;align-content:start;gap:10px;background:var(--off-white)}
 #f-bulk-fmts-list{display:flex;flex-wrap:wrap;gap:6px}
@@ -1096,7 +1041,6 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
 @media (prefers-reduced-motion:reduce){
   .f-bulk-live-frame.is-swapping canvas{opacity:1;transform:none}
   .f-bulk-strip-item{animation:none}
-  .f-bulk-import{transition:none}
   .f-bulk-post-opts-body{animation:none}
 }
 
@@ -1155,7 +1099,7 @@ body:not(.theme-light) #f-bulk-modal textarea,body:not(.theme-light) #f-bulk-mod
    antes na cascata com mesma especificidade). Restaura o fundo laranja suave do chip checado. */
 body:not(.theme-light) .f-bulk-fmt-chip:has(input:checked){background:color-mix(in srgb,var(--dm-orange) 18%,transparent)!important}
 /* Superfícies "afundadas" (search, source-action, tool-action, thead) → um degrau mais escuro. */
-body:not(.theme-light) .f-bulk-search-wrap,body:not(.theme-light) .f-bulk-source-action,
+body:not(.theme-light) .f-bulk-search-wrap,
 body:not(.theme-light) .f-bulk-tool-action,body:not(.theme-light) .f-bulk-table thead th{
   background:var(--d-dark)!important;
 }
@@ -1166,7 +1110,6 @@ body:not(.theme-light) .f-bulk-tool-action,body:not(.theme-light) .f-bulk-table 
   .f-bulk-workspace-head>p{max-width:360px}
   .f-bulk-setup{grid-template-columns:minmax(0,1.4fr) minmax(300px,.6fr)}
   .f-bulk-setup>.f-bulk-setup-section:first-child{grid-template-columns:minmax(300px,1fr) minmax(280px,1fr)}
-  .f-bulk-source-grid{grid-template-columns:repeat(2,minmax(110px,1fr))}
   .f-bulk-sheet-area{padding:10px 12px 6px}
   .f-bulk-toolbar{align-items:flex-start}
   .f-bulk-toolbar-group{flex-wrap:wrap}
@@ -1182,8 +1125,6 @@ body:not(.theme-light) .f-bulk-tool-action,body:not(.theme-light) .f-bulk-table 
   .f-bulk-setup-section{overflow:visible;padding:12px 16px}
   .f-bulk-setup-section+.f-bulk-setup-section{border-top:1px solid var(--gray-light);border-left:0}
   .f-bulk-setup>.f-bulk-setup-section:first-child{display:block}
-  .f-bulk-source-grid{grid-template-columns:repeat(4,minmax(130px,1fr));overflow-x:auto}
-  .f-bulk-source-action{min-width:140px}
   .f-bulk-output-config{grid-template-columns:1.2fr 1fr;align-items:start}
   .f-bulk-output-config>.f-bulk-section-heading{grid-column:1/-1}
   .f-bulk-progress{right:18px;bottom:72px;left:18px}
@@ -1204,7 +1145,6 @@ body:not(.theme-light) .f-bulk-tool-action,body:not(.theme-light) .f-bulk-table 
   .f-bulk-faq-btn svg{width:16px;height:16px}
   .f-bulk-workspace{grid-template-rows:minmax(280px,44%) minmax(0,56%)}
   .f-bulk-setup-section{padding:12px}
-  .f-bulk-source-grid{grid-template-columns:repeat(2,minmax(138px,1fr))}
   .f-bulk-output-config{grid-template-columns:1fr}
   .f-bulk-output-config>.f-bulk-section-heading{grid-column:auto}
   .f-bulk-output-fields{grid-template-columns:1fr 1fr}
@@ -1229,7 +1169,7 @@ body:not(.theme-light) .f-bulk-tool-action,body:not(.theme-light) .f-bulk-table 
   #f-bulk-modal .d-btn-sec,#f-bulk-modal .d-btn-pri{min-height:38px}
 }
 
-@media(prefers-reduced-motion:reduce){.f-bulk-modal-box,.f-bulk-ai-card,.f-bulk-source-action,.f-bulk-card,.f-bulk-faq,.f-bulk-faq-item,.f-bulk-progress{animation:none!important;transition-duration:.01ms!important}}
+@media(prefers-reduced-motion:reduce){.f-bulk-modal-box,.f-bulk-card,.f-bulk-faq,.f-bulk-faq-item,.f-bulk-progress{animation:none!important;transition-duration:.01ms!important}}
 
 /* M1.2 — skeleton/progress durante upload de imagem */
 .f-upload-zone.f-upload-loading{cursor:progress}
@@ -1595,8 +1535,6 @@ body:not(.theme-light) #f-chat-art{border-color:var(--d-line,#2A2A2A);background
   /* Ritmo vertical: o cabeçalho da planilha empurrava a lista para baixo da dobra com um
      respiro de tela grande. No celular a lista começa cedo — é ela o assunto. */
   .f-bulk-sheet-head{gap:10px; padding-bottom:8px}
-  .f-bulk-import-toggle{margin-bottom:0}
-  #f-bulk-import:not(.is-open){margin:0}
   /* "Mais opções da planilha" é gaveta de quem procura, não uma oferta: perde o cartão
      branco para parar de competir com as linhas da lista. */
   .f-bulk-alt-tools{background:none; border:0; box-shadow:none; margin-top:6px}
@@ -1715,9 +1653,8 @@ body:not(.theme-light) #f-chat-art{border-color:var(--d-line,#2A2A2A);background
   #f-bulk-modal .f-bulk-footer-actions .d-btn-pri:disabled svg{opacity:.6}
 
   /* ── O CONVITE DE PARTIDA (só enquanto nada foi preenchido) ── */
-  /* No convite, o chip "Preencher com IA…" do cabeçalho e a gaveta de opções somem: o bloco
-     já carrega a ação, e ver o mesmo botão duas vezes na mesma tela é pior que não vê-lo. */
-  body.f-bulk-virgem .f-bulk-import-toggle,
+  /* No convite, a gaveta de opções some: ninguém procura ferramenta de planilha antes de
+     ter a primeira oferta. */
   body.f-bulk-virgem .f-bulk-alt-tools{display:none}
   /* O convite se monta: título, frase e ação entram em cascata de 60ms. É o primeiro
      movimento que a pessoa vê no Sheets — vale ter ritmo, não aparecer pronto de uma vez. */

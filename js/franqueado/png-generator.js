@@ -1473,10 +1473,6 @@ function fBulkRestoreGenerationState(){
   if(_fBulkGenerationState&&_fBulkGenerationState.fingerprint!==_fBulkRowsFingerprint())_fBulkGenerationState=null;
 }
 
-function fBulkResumeCount(){
-  if(!_fBulkGenerationState||_fBulkGenerationState.fingerprint!==_fBulkRowsFingerprint()||!Array.isArray(_fBulkGenerationState.jobs))return 0;
-  return _fBulkGenerationState.jobs.filter(j=>j.status!=='done').length;
-}
 
 // Renderiza o material atual num canvas e devolve o dataURL — SEM disparar download.
 // Reaproveita o mesmo caminho de super-sampling 2× do fGenPNG.
@@ -1622,10 +1618,6 @@ async function fBulkOpen(){
   
   fBulkUpdateSavedTemplatesList();
   document.getElementById('f-bulk-modal').classList.add('open');
-  // Sem passos: a tela já está inteira na frente. O painel de preencher começa FECHADO mesmo
-  // com a planilha vazia — quem chega vê a tabela, que é onde se digita; os seis caminhos de
-  // importação ficam a um clique, sem tomar a coluna de quem não vai usá-los.
-  fBulkToggleImport(false);
   fBulkSetActive(0);
   if(restored)gToast('Sua produção foi recuperada automaticamente');
 }
@@ -1802,14 +1794,6 @@ function _fBulkRenderStrip(){
 }
 /* O painel de importação (o antigo passo 1). Abre sozinho com a planilha vazia — é o estado
    de quem chega — e fecha quando já há ofertas, porque aí a tabela é o assunto. */
-function fBulkToggleImport(forcar){
-  const p = document.getElementById('f-bulk-import');
-  const b = document.getElementById('f-bulk-import-toggle');
-  if(!p) return;
-  const abrir = (typeof forcar==='boolean') ? forcar : !p.classList.contains('is-open');
-  p.classList.toggle('is-open', abrir);
-  if(b) b.setAttribute('aria-expanded', abrir ? 'true' : 'false');
-}
 /* A arte grande acompanha a digitação — é o ponto inteiro desta tela.
    Debounce curto porque cada volta redesenha o material pelo motor do PNG: disparar por tecla
    travaria a digitação numa arte pesada (o mesmo motivo do debounce da prévia ao vivo do chat).
@@ -1829,7 +1813,6 @@ function fBulkLiveEdit(i){
 }
 // Importou ofertas com sucesso → fecha o painel e leva o olho pra planilha, que é o resultado.
 function _fBulkGoReview(){
-  fBulkToggleImport(false);
   const tb = document.getElementById('f-bulk-preview');
   if(tb) try{ tb.scrollIntoView({block:'nearest',behavior:'smooth'}); }catch(e){}
 }
@@ -1891,64 +1874,6 @@ function fSmartTitleCase(str) {
   }).join(' ');
 }
 
-function fBulkParseHeuristicText(text) {
-  // Splitter melhorado: separa por pontos, ponto-e-vírgula, quebras de linha e também por vírgula seguida de nome de produto
-  const sentences = text.split(/[.;\n\r]+|,\s*(?=[A-ZÁÉÍÓÚÀÂÊÔÃÕÇ])/)
-    .map(s => s.trim()).filter(Boolean);
-  const vars = fBulkVars();
-  
-  return sentences.map(sentence => {
-    let name = sentence;
-    
-    // 1. Extração de validade
-    const dateMatch = name.match(/(\b(?:hoje|amanhã|amanha|segunda|terça|terca|quarta|quinta|sexta|sábado|sabado|domingo|fim de semana|fds|esta semana|este mês|este mes|válido|valido)\b)/i);
-    let validade = '';
-    if (dateMatch) {
-      validade = dateMatch[1];
-      name = name.replace(dateMatch[0], '');
-    }
-    
-    // 2. Extração de desconto percentual
-    let desconto = '';
-    const pctMatch = name.match(/(\d+)\s*%\s*(?:off|de?\s*desconto|desc)/i);
-    if (pctMatch) {
-      desconto = pctMatch[1] + '%';
-      name = name.replace(pctMatch[0], '');
-    }
-    
-    // 3. Extração de preços (de X por Y / era X agora Y)
-    let precoDe = '';
-    let precoPor = '';
-    const dePorMatch = name.match(/(?:de\s+)?(?:r\$\s*)?(\d+(?:[.,]\d+)?)\s*(?:por\s+)(?:r\$\s*)?(\d+(?:[.,]\d+)?)/i)
-      || name.match(/(?:era\s+)(?:r\$\s*)?(\d+(?:[.,]\d+)?)\s*(?:e\s+)?(?:agora|hoje)\s*(?:(?:tá|ta|está)\s+)?(?:r\$\s*)?(\d+(?:[.,]\d+)?)/i);
-    if (dePorMatch) {
-      precoDe = dePorMatch[1];
-      precoPor = dePorMatch[2];
-      name = name.replace(dePorMatch[0], '');
-    } else {
-      // Preço único (fix: reais duplicado removido, adicionado "conto")
-      const singlePriceMatch = name.match(/(?:por|apenas|r\$\s*)\s*(\d+(?:[.,]\d+)?)/i) || name.match(/(\d+(?:[.,]\d+)?)\s*(?:reais|conto)/i);
-      if (singlePriceMatch) {
-        precoPor = singlePriceMatch[1];
-        name = name.replace(singlePriceMatch[0], '');
-      }
-    }
-    
-    // 4. Limpeza do nome do produto
-    name = name.replace(/\s+/g, ' ')
-               .replace(/^[e\s,]+|[e\s,]+$/gi, '')
-               .replace(/\b(?:tem|compre|leve|promoção de|oferta de|promoção|promo|oferta)\b/gi, '')
-               .replace(/(?:\bpor\b|\bde\b|\ba\b)$/gi, '')
-               .trim();
-    
-    // Title Case inteligente
-    if (name.length > 2) {
-      name = fSmartTitleCase(name);
-    }
-    
-    return _fBulkRowFromCampos({nome:name, precoDe, precoPor, validade, desconto});
-  });
-}
 
 /* Monta UMA linha da grade a partir de campos canônicos. É a única tradução
    "produto/de/por/validade/desconto" → vocabulário do material (as vars do template),
@@ -2010,45 +1935,7 @@ function _fBulkRowTemNome(r){
 function _fBulkRowTemPreco(r){
   return Object.values(r&&r.dados||{}).some(v=>_F_SO_NUMERO.test(String(v||'').trim()));
 }
-// Linha aproveitável = tem nome. Linha sem nome vira arte vazia, então é descartada.
-function _fBulkRowsUteis(rows){ return (rows||[]).filter(_fBulkRowTemNome); }
-// O parser heurístico nunca "falha" — em cardápio colado do WhatsApp ele devolve LIXO
-// arrumadinho: uma linha com o título da seção ("LANCHES") e outras só com preço solto.
-// Sinal de fracasso: o texto TEM número, mas nenhuma linha saiu com nome E preço juntos.
-// (Texto sem número nenhum — só uma lista de nomes — é caso legítimo do parser local.)
-function _fBulkHeuristicaFalhou(texto, rows){
-  if((rows||[]).some(r=>_fBulkRowTemNome(r) && _fBulkRowTemPreco(r))) return false;
-  return /\d/.test(String(texto||''));
-}
 
-async function fBulkFillWithAI() {
-  const ta = document.getElementById('f-bulk-ai-raw-text');
-  if(!ta) return;
-  const text = ta.value.trim();
-  if(!text) { gToast('Digite ou cole um texto com as ofertas primeiro.', 'error'); return; }
-
-  // Escada: o parser local resolve o caso comum ("burger por 25, pizza de 50 por 39") de
-  // graça e na hora. A IA entra só quando ele não achou produto nenhum — texto de cardápio
-  // colado do WhatsApp, com seção, emoji e quebra torta.
-  let parsedRows = fBulkParseHeuristicText(text);
-  let veioDaIA = false;
-  if(_fBulkHeuristicaFalhou(text, parsedRows) && typeof gAskAI==='function' && gAiReady()){
-    _fBulkSetBusy(true, 'Entendendo suas ofertas…');
-    const daIA = await _fBulkItensPorIA('texto', text, null);
-    _fBulkSetBusy(false);
-    if(daIA && daIA.length){ parsedRows = daIA; veioDaIA = true; }
-  }
-
-  parsedRows = _fBulkRowsUteis(parsedRows);
-  if(!parsedRows.length) {
-    gToast('Não achei nenhum produto ou preço nesse texto.', 'error');
-    return;
-  }
-
-  fBulkRows = parsedRows;
-  _fBulkAfterImport(veioDaIA ? 'texto lido pela IA' : '');
-  ta.value = '';
-}
 
 /* ══════════════════════════════════════════════════════════════
    LER CARDÁPIO (foto/PDF) — o gargalo real do Sheets não é preencher (voz e ações em
@@ -2058,70 +1945,7 @@ async function fBulkFillWithAI() {
    a linha entra MARCADA como lida por IA, passa pela mesma validação das outras e o
    franqueado revisa na grade antes de gerar — nunca vai direto pro ZIP.
 ══════════════════════════════════════════════════════════════ */
-async function fBulkReadMenu(input){
-  const files = input && input.files ? Array.from(input.files).slice(0,4) : [];
-  if(input) input.value = '';
-  if(!files.length) return;
-  if(typeof gAskAI!=='function' || !gAiReady()){
-    gToast('A leitura de cardápio precisa do assistente de IA, que está indisponível agora.','error');
-    return;
-  }
-  const grandes = files.filter(f=>f.size > 8*1024*1024);
-  if(grandes.length){ gToast('Arquivo muito grande (máx. 8 MB por cardápio).','error'); return; }
 
-  _fBulkSetBusy(true, 'Lendo o cardápio…');
-  const partes = [];
-  for(const f of files){
-    const p = await gAiFileToPart(f);
-    if(p) partes.push(p);
-  }
-  if(!partes.length){ _fBulkSetBusy(false); gToast('Não consegui ler esse arquivo.','error'); return; }
-
-  const itens = await _fBulkItensPorIA('arquivo', '', partes);
-  _fBulkSetBusy(false);
-  if(!itens || !itens.length){
-    gToast('Não achei produtos com preço nesse cardápio. Tente uma foto mais nítida ou digite as ofertas.','error');
-    return;
-  }
-  fBulkRows = itens;
-  _fBulkAfterImport('cardápio lido pela IA');
-}
-
-// Núcleo compartilhado: pede itens ao modelo (de texto OU de anexo) e devolve linhas
-// prontas da grade. Um prompt, duas entradas.
-async function _fBulkItensPorIA(origem, texto, partes){
-  const prompt = `Você extrai itens de cardápio para uma planilha de artes de promoção (Delivery Much, delivery no interior do Brasil).
-
-${origem==='arquivo' ? 'O anexo é um cardápio (foto ou PDF) de um restaurante.' : 'O texto abaixo foi escrito ou colado pelo franqueado:\n"""\n'+texto+'\n"""'}
-
-TAREFA: liste os itens que dá pra anunciar, com preço.
-
-REGRAS:
-1. NÃO invente item nem preço. Se o preço não aparece, deixe "" — não estime.
-2. Preço como está no original, só número com vírgula decimal (ex.: "25,90"). Sem "R$".
-3. Se houver preço normal E promocional, o normal vai em "precoDe" e o promocional em "precoPor". Só um preço: vai em "precoPor".
-4. Ignore título de seção ("Lanches", "Bebidas"), endereço, telefone e horário.
-5. Nome do produto curto e limpo, sem descrição longa de ingredientes.
-6. No máximo 40 itens, na ordem em que aparecem.
-
-Responda APENAS JSON: {"itens":[{"produto":"...","precoDe":"","precoPor":"25,90"}]}`;
-
-  const resp = await gAskAI('cardapio', prompt, {parts:partes||[], json:true, cache:!partes});
-  const parsed = resp && (typeof gAiParseJson==='function' ? gAiParseJson(resp) : null);
-  const brutos = parsed && Array.isArray(parsed.itens) ? parsed.itens : [];
-  const limpaPreco = v => String(v==null?'':v).replace(/r\$\s*/i,'').replace(/[^\d.,]/g,'').trim();
-  return brutos.slice(0,40).map(it=>{
-    const nome = String(it&&it.produto||'').replace(/\s+/g,' ').trim().slice(0,60);
-    if(!nome) return null;
-    const row = _fBulkRowFromCampos({
-      nome: (typeof fSmartTitleCase==='function') ? fSmartTitleCase(nome) : nome,
-      precoDe: limpaPreco(it.precoDe), precoPor: limpaPreco(it.precoPor),
-      validade:'', desconto:''
-    });
-    row._ia = true;   // chip na grade: revisar preço antes de gerar
-    return row;
-  }).filter(Boolean);
-}
 
 // Estado de "trabalhando" do painel de preencher (a leitura de cardápio leva alguns segundos).
 // O alvo passou a ser o painel de escrever/falar (#f-bulk-ai-wrap) — o antigo cartão
@@ -2135,17 +1959,6 @@ function _fBulkSetBusy(on, texto){
   if(st) st.textContent = on ? (texto||'Lendo…') : '';
 }
 
-// Fim de importação: status, grade e ida pra revisão — o mesmo desfecho pros 3 caminhos.
-function _fBulkAfterImport(fonte){
-  const st = document.getElementById('f-bulk-status');
-  if(st) st.textContent = `${fBulkRows.length} linha(s) carregada(s)`;
-  fBulkRenderPreview();
-  _fBulkGoReview();
-  const nIA = fBulkRows.filter(r=>r&&r._ia).length;
-  if(nIA) gToast(`${nIA} linha(s) do ${fonte} — confira os preços antes de gerar.`);
-  else gToast('Tabela preenchida com ' + fBulkRows.length + ' oferta(s).');
-  try{ fBulkScheduleAutosave(); }catch(e){}
-}
 
 /* ══════════════════════════════════════════════════════════════
    FOTOS EM LOTE — 30 produtos = 30 cliques em "Foto". Aqui o franqueado solta a pasta
@@ -2410,57 +2223,6 @@ function fStartSpeech(event, inputId){
   if(SR) fSpeechRecognitionStart(SR); else fRecordedSpeechStart();
 }
 
-/* ── Sugestão de prompt de IA para gerar a planilha (ChatGPT) ── */
-function fBuildAIPrompt(material){
-  if(!material||!material.layers)return '';
-  const vars=fBulkVars(); // mesmas colunas/variáveis do modelo CSV
-  const varList=vars.map(v=>`- ${v}: [preencha aqui]`).join('\n');
-  const csvHeader=vars.join(',');
-  const csvExample=vars.map(v=>`"valor do ${v}"`).join(',');
-  return `Preciso que você me ajude a criar uma planilha CSV para gerar artes de marketing.
-
-O CSV deve ter as seguintes colunas:
-${csvHeader}
-
-Regras:
-- Cada linha é uma arte diferente
-- Preencha com produtos reais do meu cardápio
-${varList}
-
-Me retorne APENAS o CSV pronto para eu baixar, sem explicações.
-Formato: primeira linha com os headers, demais linhas com os dados.
-Exemplo de linha: ${csvExample}
-
-Vou te passar agora os produtos que quero incluir:`;
-}
-function fToggleAIPrompt(){
-  const body=document.getElementById('f-ai-prompt-body');
-  const btn=document.querySelector('.f-ai-prompt-toggle');
-  if(!body||!btn)return;
-  const isOpen=body.style.display!=='none';
-  body.style.display=isOpen?'none':'';
-  btn.setAttribute('aria-expanded',String(!isOpen));
-  const chev=btn.querySelector('.f-ai-prompt-chevron');if(chev)chev.textContent=isOpen?'›':'‹';
-  if(!isOpen){
-    const pre=document.getElementById('f-ai-prompt-text');
-    if(pre)pre.textContent=fBuildAIPrompt(fState.material);
-  }
-}
-function fCopyAIPrompt(){
-  const text=document.getElementById('f-ai-prompt-text')?.textContent;
-  if(!text)return;
-  const ok=()=>gToast('Prompt copiado — cole no ChatGPT.');
-  if(navigator.clipboard&&navigator.clipboard.writeText){
-    navigator.clipboard.writeText(text).then(ok).catch(()=>fCopyAIPromptFallback(text,ok));
-  }else fCopyAIPromptFallback(text,ok);
-}
-function fCopyAIPromptFallback(text,ok){
-  const ta=document.createElement('textarea');
-  ta.value=text;ta.style.position='fixed';ta.style.opacity='0';
-  document.body.appendChild(ta);ta.select();
-  try{document.execCommand('copy');ok();}catch(e){gToast('Não consegui copiar sozinha — selecione o texto e copie.','error');}
-  document.body.removeChild(ta);
-}
 
 // Ordena variáveis pela ordem do catálogo dVars (igual ao fluxo normal)
 function fBulkVars(){
@@ -2488,265 +2250,18 @@ const F_BULK_MIN      =['R$ 20,00','R$ 30,00','R$ 25,00','R$ 40,00','R$ 15,00'];
 const F_BULK_DISCOUNT =['30%','25%','20%','50%','15%'];
 const F_BULK_CODES    =['DM10','BACON15','PIZZA20','ACAI5','FAMILIA30'];
 
-// Escapa uma célula CSV (aspas/vírgula/quebra de linha)
-function fBulkCsvCell(v){
-  v=(v==null)?'':String(v);
-  return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v;
-}
-// Devolve um exemplo plausível pra uma variável — por nome conhecido, depois por tipo.
-function fBulkSampleValue(varName,i){
-  const cfg=(typeof fGetFieldType==='function')?fGetFieldType(varName):{type:'text',maxLen:60};
-  const pick=arr=>arr[i%arr.length];
-  if(F_BULK_SAMPLES[varName]) return pick(F_BULK_SAMPLES[varName]);
-  if(varName==='precoDe')   return pick(F_BULK_PRICE_DE);
-  if(varName==='precoPor')  return pick(F_BULK_PRICE_POR);
-  if(varName==='pedidoMin') return pick(F_BULK_MIN);
-  if(varName==='desconto')  return pick(F_BULK_DISCOUNT);
-  if(varName==='codigo')    return pick(F_BULK_CODES);
-  switch(cfg.type){
-    case 'image':   return 'https://site.com/foto'+(i+1)+'.jpg';
-    case 'price':   return pick(F_BULK_PRICE_POR);
-    case 'discount':return pick(F_BULK_DISCOUNT);
-    case 'code':    return pick(F_BULK_CODES);
-    case 'select':  return (cfg.options&&cfg.options.length)?cfg.options[i%cfg.options.length]:('Opção '+(i+1));
-    case 'boolean': return (i%2===0)?'sim':'não';
-    case 'color':   return pick(['#FF9000','#C8102E','#1A1A1A','#22C55E','#7C6EFF']);
-    case 'date':    return pick(['30/06/2026','15/07/2026','01/08/2026','20/06/2026','10/07/2026']);
-    default:        return cfg.label?('Ex: '+cfg.label):('Exemplo '+(i+1));
-  }
-}
-function fBulkTemplateCSV(){
-  const vars=fBulkVars();
-  if(!vars.length){gToast('Este material não tem campos pra preencher.');return;}
-  const N=5; // linhas de exemplo
-  const lines=[vars.map(fBulkCsvCell).join(',')]; // cabeçalho = nomes das variáveis
-  for(let i=0;i<N;i++){
-    lines.push(vars.map(v=>{
-      const cfg=(typeof fGetFieldType==='function')?fGetFieldType(v):{maxLen:60};
-      let val=fBulkSampleValue(v,i);
-      const max=cfg.maxLen||60;
-      if(cfg.type!=='image' && val.length>max) val=val.slice(0,max); // respeita o limite do campo
-      return fBulkCsvCell(val);
-    }).join(','));
-  }
-  // BOM (﻿) faz o Excel abrir o UTF-8 com acentos corretos
-  const csv='﻿'+lines.join('\n')+'\n';
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download='modelo_'+(fSanitizeNamePart(fState.material.name)||'material')+'.csv';
-  a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-  gToast('Modelo de planilha com '+N+' exemplos baixado — edite e reenvie.');
-  if (typeof gTriggerOnboardingStep === 'function') {
-    gTriggerOnboardingStep('triedCsv');
-  }
-}
-// Parser CSV simples com suporte a aspas e vírgula escapada
-function fBulkParseCSV(text){
-  if(window.Papa){
-    const res = Papa.parse(text, {
-      header: true,
-      skipEmptyLines: 'greedy'
-    });
-    return res.data;
-  }
-  // Fallback case
-  const src=String(text).replace(/^﻿/,'').replace(/\r\n?/g,'\n');
-  const lines=src.split('\n');
-  if(!lines.length) return [];
-  const header=lines[0].split(',').map(h=>h.trim());
-  const out=[];
-  for(let i=1;i<lines.length;i++){
-    const line=lines[i].trim();
-    if(!line)continue;
-    const cells=line.split(',');
-    const obj={};
-    header.forEach((h,j)=>obj[h]=String(cells[j]||'').trim());
-    out.push(obj);
-  }
-  return out;
-}
-function fBulkProcessRawData(raw) {
-  if(!raw || !raw.length){ gToast('A planilha está vazia.','error'); return; }
-  
-  // Detecção Inteligente de Mapeamento de Colunas
-  const vars = fBulkVars();
-  const rawKeys = Object.keys(raw[0]);
-  const hasMatches = vars.some(v => rawKeys.includes(v));
-  
-  if (!hasMatches && rawKeys.length > 0) {
-    fBulkShowMapper(raw, rawKeys, vars);
-    return;
-  }
-  
-  fBulkRows=raw.map(row=>{
-    const dados={},erros=[];
-    Object.keys(row).forEach(k=>{
-      const cfg=fGetFieldType(k);
-      let v=(cfg.type==='image')?row[k]:fApplyMask(k,row[k]);
-      dados[k]=v;
-      const err=fValidate(k,v);
-      if(err)erros.push(err);
-    });
-    return {dados,erros};
-  });
-  document.getElementById('f-bulk-status').textContent=`${fBulkRows.length} linha(s) carregada(s)`;
-  fBulkRenderPreview();
-  const wrap = document.getElementById('f-bulk-paste-wrap');
-  if(wrap) wrap.style.display = 'none';
-}
 
 let _fBulkRawToMap = null;
 
-function fBulkShowMapper(raw, rawKeys, vars) {
-  _fBulkRawToMap = raw;
-  const wrap = document.getElementById('f-bulk-mapper-wrap');
-  const fieldsDiv = document.getElementById('f-bulk-mapper-fields');
-  const previewDiv = document.getElementById('f-bulk-preview');
-  
-  if(!wrap || !fieldsDiv) return;
-  
-  if(previewDiv) previewDiv.style.display = 'none';
-  wrap.style.display = 'block';
-  
-  fieldsDiv.innerHTML = vars.map(v => {
-    const label = gEsc(v);
-    
-    // Tenta adivinhar qual campo bate
-    let bestGuess = '';
-    const cleanV = v.toLowerCase().replace(/[^a-z0-9]/g, '');
-    for(let rk of rawKeys) {
-      const cleanRk = rk.toLowerCase().replace(/[^a-z0-9]/g, '');
-      if(cleanRk.includes(cleanV) || cleanV.includes(cleanRk)) {
-        bestGuess = rk;
-        break;
-      }
-    }
-    
-    const options = [`<option value="">-- Ignorar --</option>`]
-      .concat(rawKeys.map(rk => {
-        const selected = rk === bestGuess ? 'selected' : '';
-        const safeRk = gEsc(rk);
-        return `<option value="${safeRk}" ${selected}>${safeRk}</option>`;
-      })).join('');
-      
-    const idV = String(v).replace(/[^a-zA-Z0-9_-]/g,'_'); // nome de campo vem de cabeçalho CSV do usuário → sanitiza p/ atributo id
-    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px">
-      <span style="font-size:11px;font-weight:bold;color:var(--text)">${label}:</span>
-      <select id="f-bulk-map-select-${idV}" style="font-size:11px;padding:6px;border:1px solid var(--gray-mid);border-radius:4px;background:var(--white);color:var(--text);width:60%;outline:none">
-        ${options}
-      </select>
-    </div>`;
-  }).join('');
-}
 
-function fBulkConfirmMapping() {
-  if(!_fBulkRawToMap) return;
-  const vars = fBulkVars();
-  const mapping = {};
-  
-  vars.forEach(v => {
-    const idV = String(v).replace(/[^a-zA-Z0-9_-]/g,'_'); // mesmo slug do id gerado em fRenderBulkMapper
-    const select = document.getElementById(`f-bulk-map-select-${idV}`);
-    if(select) mapping[v] = select.value;
-  });
-  
-  const mappedRaw = _fBulkRawToMap.map(row => {
-    const newRow = {};
-    vars.forEach(v => {
-      const csvCol = mapping[v];
-      newRow[v] = csvCol ? row[csvCol] : '';
-    });
-    return newRow;
-  });
-  
-  fBulkCancelMapping();
-  fBulkProcessRawData(mappedRaw);
-}
 
-function fBulkCancelMapping() {
-  _fBulkRawToMap = null;
-  const wrap = document.getElementById('f-bulk-mapper-wrap');
-  const previewDiv = document.getElementById('f-bulk-preview');
-  if(wrap) wrap.style.display = 'none';
-  if(previewDiv) previewDiv.style.display = 'block';
-}
 
-function fBulkTogglePaste() {
-  const wrap = document.getElementById('f-bulk-paste-wrap');
-  if(wrap) wrap.style.display = wrap.style.display==='none' ? 'block' : 'none';
-}
 /* Escrever/falar as ofertas. Era um cartão sempre aberto ocupando meia coluna do painel; virou
    um caminho sob demanda como os outros cinco. O textarea, o microfone e o `fBulkFillWithAI`
    são os MESMOS — só mudaram de lugar. Abre já com o cursor dentro: quem clicou aqui veio
    escrever, e um campo que aparece sem foco cobra um clique a mais por nada. */
-function fBulkToggleAiText(){
-  const wrap = document.getElementById('f-bulk-ai-wrap');
-  if(!wrap) return;
-  const abrir = wrap.style.display === 'none';
-  wrap.style.display = abrir ? 'block' : 'none';
-  if(abrir){ const ta = document.getElementById('f-bulk-ai-raw-text'); if(ta) try{ ta.focus(); }catch(e){} }
-}
 
-// Detecta se o texto colado é tabular (Excel/CSV) ou texto livre de cardápio. Tabular =
-// tem tabs, OU toda linha não-vazia tem o mesmo nº de vírgulas (>=1). Senão é cardápio.
-function _fBulkLooksTabular(text){
-  if(text.includes('\t')) return true;
-  const lines=text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
-  if(lines.length<2) return false;
-  const commas=lines.map(l=>(l.match(/,/g)||[]).length);
-  return commas[0]>=1 && commas.every(n=>n===commas[0]);
-}
-function fBulkHandlePaste() {
-  const ta = document.getElementById('f-bulk-paste-ta');
-  if(!ta) return;
-  const text = ta.value.trim();
-  if(!text) { gToast('Cole a planilha ou o texto do cardápio primeiro','error'); return; }
 
-  // Texto de cardápio (sem colunas) → parser heurístico (extrai produto/preço/validade).
-  if(!_fBulkLooksTabular(text)){
-    if(typeof fBulkParseHeuristicText!=='function'){ gToast('Não consegui ler esse texto.','error'); return; }
-    const rows=fBulkParseHeuristicText(text).filter(r=>Object.values(r.dados).some(v=>v&&String(v).trim()));
-    if(!rows.length){ gToast('Não achei produtos nesse texto. Tente uma linha por item (ex.: "Pizza Calabresa de 40 por 30").','warning'); return; }
-    fBulkRows=rows;
-    _fBulkTableView=true;
-    const st=document.getElementById('f-bulk-status'); if(st) st.textContent=`${rows.length} linha(s) carregada(s)`;
-    fBulkRenderPreview();
-    _fBulkGoReview();
-    ta.value='';
-    gToast(`${rows.length} item(ns) do cardápio — confira preço/validade e gere.`);
-    return;
-  }
-
-  let raw;
-  try{
-    const delim = text.includes('\t') ? '\t' : ',';
-    if(window.Papa) {
-      const res = Papa.parse(text, { header: true, skipEmptyLines: 'greedy', delimiter: delim });
-      raw = res.data;
-    } else {
-      raw = fBulkParseCSV(text);
-    }
-  }catch(err){ gToast('Dados inválidos.','error'); return; }
-
-  fBulkProcessRawData(raw);
-  ta.value = '';
-}
-
-function fBulkHandleCSV(input){
-  const file=input.files[0];if(!file)return;
-  const r=new FileReader();
-  r.onload=e=>{
-    let raw;
-    try{ raw=fBulkParseCSV(e.target.result); }catch(err){ gToast('Planilha inválida.','error'); return; }
-    fBulkProcessRawData(raw);
-    if (typeof gTriggerOnboardingStep === 'function') {
-      gTriggerOnboardingStep('triedCsv');
-    }
-  };
-  r.readAsText(file);
-}
 let _fBulkRenderToken=0;
 /* Só existe a grade. A "vista em cartões" era a única forma de ver as artes do lote, e a
    coluna da esquerda passou a fazer isso melhor — grande, ao vivo e sem trocar de modo. A
@@ -2943,13 +2458,12 @@ function _fBulkRenderLista(){
   const pct = total ? Math.round(nPronta/total*100) : 0;
   const cabeca = virgem
     ? `<div class="f-bulk-lstart">
-         <h4>Comece do jeito mais rápido</h4>
-         <p>Traga o cardápio, uma planilha ou peça pra IA. Depois é só revisar.</p>
-         <button type="button" class="f-bulk-lstart-pri" onclick="fBulkToggleImport(true)">
-           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3v4M3 5h4M6 17v4M4 19h4M13 3l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5z"/></svg>
-           Preencher com IA, cardápio ou Excel
+         <h4>Três ofertas esperando</h4>
+         <p>Preencha uma por uma: a arte se monta enquanto você digita.</p>
+         <button type="button" class="f-bulk-lstart-pri" onclick="fBulkAbrirFolha(0)">
+           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+           Começar pela primeira
          </button>
-         <button type="button" class="f-bulk-lstart-alt" onclick="fBulkAbrirFolha(0)">ou preencher à mão</button>
        </div>`
     : `<div class="f-bulk-lprog">
          <div class="f-bulk-lprog-tx" aria-live="polite"><strong>${nPronta} de ${total}</strong> ${total===1?'oferta pronta':'ofertas prontas'}</div>
@@ -3280,12 +2794,11 @@ function fBulkRenderPreview(){
     wrap.innerHTML = _fBulkEhCelular()
       ? `<div class="f-bulk-lzero">
            <strong>Nenhuma oferta ainda</strong>
-           <span>Crie a primeira ou traga tudo do cardápio, da IA ou de uma planilha.</span>
+           <span>Crie a primeira e a arte se monta enquanto você digita.</span>
            <button type="button" class="f-bulk-lnova is-pri" onclick="fBulkNovaOferta()">
              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
              <span>Criar a primeira oferta</span>
            </button>
-           <button type="button" class="f-bulk-lzero-alt" onclick="fBulkToggleImport(true)">Preencher com IA, cardápio ou Excel</button>
          </div>`
       : '<div class="f-bulk-empty">Nenhuma linha na planilha. Adicione uma linha ou preencha com IA, cardápio ou Excel.</div>';
     /* ⚠ Esvaziar a planilha TEM que apagar a coluna da esquerda junto. Sem isto a arte grande
@@ -4187,236 +3700,8 @@ async function fBulkApplyRounding() {
   fBulkRenderPreview();
 }
 
-function fGenerateDemoItems(type) {
-  const items = [];
-  const randElement = arr => arr[Math.floor(Math.random() * arr.length)];
-  const randRange = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-  const fmtPrice = val => `R$ ${val.toFixed(2).replace('.', ',')}`;
 
-  const validadePool = {
-    pizza: ['Válido até domingo', 'Só neste final de semana', 'Terça a quinta-feira', 'Promoção por tempo limitado'],
-    sushi: ['Hoje no jantar', 'Válido de terça a quinta', 'Exclusivo no delivery', 'Só hoje'],
-    burger: ['Promoção da semana', 'Válido hoje', 'Exclusivo no aplicativo', 'Happy Hour DM'],
-    universal: ['Almoço de segunda a sexta', 'Válido hoje', 'Por tempo limitado', 'Exclusivo no app']
-  }[type] || ['Por tempo limitado'];
 
-  if (type === 'pizza') {
-    const sabores = ['Margherita', 'Calabresa', 'Quatro Queijos', 'Pepperoni', 'Portuguesa', 'Frango com Catupiry', 'Lombo com Cream Cheese', 'Frango com Cheddar', 'Rúcula com Tomate Seco'];
-    const adicionais = ['Borda Recheada de Catupiry', 'Borda de Chocolate', 'Coca-Cola 2 Litros', 'Guaraná 2 Litros', 'Batata Rústica Assada', 'Suco Del Valle Uva 1L'];
-    const validade = randElement(validadePool);
-    
-    // Embaralha e pega 3 sabores
-    const selectedSabores = sabores.sort(() => 0.5 - Math.random()).slice(0, 3);
-    selectedSabores.forEach(s => {
-      const precoDeVal = randRange(48, 68);
-      const precoPorVal = precoDeVal - randRange(8, 15);
-      items.push({
-        produto: `Pizza ${s} G`,
-        precoDe: fmtPrice(precoDeVal),
-        precoPor: fmtPrice(precoPorVal),
-        validade: validade,
-        categoria: 'Pizzas'
-      });
-    });
-    
-    // Pega 2 adicionais
-    const selectedAdic = adicionais.sort(() => 0.5 - Math.random()).slice(0, 2);
-    selectedAdic.forEach(a => {
-      const precoDeVal = randRange(12, 18);
-      const precoPorVal = precoDeVal - randRange(3, 5);
-      items.push({
-        produto: a,
-        precoDe: fmtPrice(precoDeVal),
-        precoPor: fmtPrice(precoPorVal),
-        validade: validade,
-        categoria: a.includes('Coca') || a.includes('Guaraná') || a.includes('Suco') ? 'Bebidas' : 'Adicionais'
-      });
-    });
-  } else if (type === 'sushi') {
-    const pecas = [
-      { name: 'Combo Premium 30 Peças', cat: 'Combos', basePrice: [75, 95] },
-      { name: 'Temaki Filadélfia Dobrado', cat: 'Temakis', basePrice: [35, 45] },
-      { name: 'Hot Roll 10 unidades', cat: 'Entradas', basePrice: [22, 28] },
-      { name: 'Yakisoba Misto Especial', cat: 'Pratos Quentes', basePrice: [38, 48] },
-      { name: 'Combinado Chef 40 Peças', cat: 'Combos', basePrice: [89, 110] },
-      { name: 'Sunomono Especial', cat: 'Entradas', basePrice: [15, 22] },
-      { name: 'Uramaki Salmão 8 un', cat: 'Sushis', basePrice: [22, 28] },
-      { name: 'Hossomaki Filadélfia 8 un', cat: 'Sushis', basePrice: [18, 24] }
-    ];
-    const validade = randElement(validadePool);
-    const selected = pecas.sort(() => 0.5 - Math.random()).slice(0, 5);
-    
-    selected.forEach(p => {
-      const precoDeVal = randRange(p.basePrice[0], p.basePrice[1]);
-      const precoPorVal = precoDeVal - randRange(5, Math.floor(precoDeVal * 0.25));
-      items.push({
-        produto: p.name,
-        precoDe: fmtPrice(precoDeVal),
-        precoPor: fmtPrice(precoPorVal),
-        validade: validade,
-        categoria: p.cat
-      });
-    });
-  } else if (type === 'burger') {
-    const burgers = ['X-Bacon Cheddar Duplo', 'Monster Burger Crispy', 'Smash Burger Clássico', 'Chicken Burger Mayo', 'Veggie Burger Especial', 'Double Smash Cheddar', 'Cheddar Melt Onion'];
-    const acompanhamentos = ['Batata Frita Turbinada G', 'Anéis de Cebola Crocantes', 'Nuggets com Molho Barbecue', 'Milkshake de Ovomaltine 400ml', 'Refrigerante Lata', 'Batata Canoa com Cheddar'];
-    const validade = randElement(validadePool);
-
-    const selectedBurgers = burgers.sort(() => 0.5 - Math.random()).slice(0, 3);
-    selectedBurgers.forEach(b => {
-      const precoDeVal = randRange(28, 45);
-      const precoPorVal = precoDeVal - randRange(6, 11);
-      items.push({
-        produto: b,
-        precoDe: fmtPrice(precoDeVal),
-        precoPor: fmtPrice(precoPorVal),
-        validade: validade,
-        categoria: 'Lanches'
-      });
-    });
-
-    const selectedAcomp = acompanhamentos.sort(() => 0.5 - Math.random()).slice(0, 2);
-    selectedAcomp.forEach(a => {
-      const precoDeVal = randRange(12, 24);
-      const precoPorVal = precoDeVal - randRange(3, 6);
-      items.push({
-        produto: a,
-        precoDe: fmtPrice(precoDeVal),
-        precoPor: fmtPrice(precoPorVal),
-        validade: validade,
-        categoria: a.includes('Refrigerante') || a.includes('Milkshake') ? 'Bebidas' : 'Acompanhamentos'
-      });
-    });
-  } else {
-    // Universal
-    const pratos = [
-      { name: 'Prato Feito Executivo', cat: 'Pratos Quentes', basePrice: [24, 30] },
-      { name: 'Marmita Econômica M', cat: 'Pratos Quentes', basePrice: [18, 24] },
-      { name: 'Salada Caesar com Grelhado', cat: 'Saladas', basePrice: [22, 28] },
-      { name: 'Açaí 500ml Turbinado', cat: 'Sobremesas', basePrice: [18, 24] },
-      { name: 'Suco de Laranja Natural 500ml', cat: 'Bebidas', basePrice: [8, 12] },
-      { name: 'Pudim de Leite Condensado', cat: 'Sobremesas', basePrice: [7, 10] },
-      { name: 'Strogonoff de Frango G', cat: 'Pratos Quentes', basePrice: [26, 32] }
-    ];
-    const validade = randElement(validadePool);
-    const selected = pratos.sort(() => 0.5 - Math.random()).slice(0, 5);
-
-    selected.forEach(p => {
-      const precoDeVal = randRange(p.basePrice[0], p.basePrice[1]);
-      const precoPorVal = precoDeVal - randRange(2, Math.floor(precoDeVal * 0.20));
-      items.push({
-        produto: p.name,
-        precoDe: fmtPrice(precoDeVal),
-        precoPor: fmtPrice(precoPorVal),
-        validade: validade,
-        categoria: p.cat
-      });
-    });
-  }
-  return items;
-}
-
-// DEMONSTRAÇÃO: NÃO lê cardápio real (o navegador nem conseguiria, por CORS).
-// Gera uma planilha de EXEMPLO conforme o tipo (pizza/sushi/burger…) como ponto de
-// partida editável. A UI deixa isso explícito ("Demonstração") — sem fingir que
-// baixou os produtos reais do franqueado.
-async function fBulkImportFromLink() {
-  const urlEl = document.getElementById('f-bulk-import-url');
-  const url = urlEl ? urlEl.value.trim() : '';
-  if (!url) {
-    gToast('Digite um tipo (pizza, sushi, burger…) ou cole um link primeiro', 'warning');
-    return;
-  }
-
-  const btn = document.querySelector('[onclick="fBulkImportFromLink()"]');
-  const restore = gBtnLoading(btn, 'Gerando…');
-
-  gToast('Gerando planilha de exemplo (demonstração)…');
-  await new Promise(r => setTimeout(r, 500));
-
-  // Escolhe o conjunto de exemplos pela palavra-chave (funciona com tipo OU link).
-  let items = [];
-  const lowerUrl = url.toLowerCase();
-  
-  if (lowerUrl.includes('pizza') || lowerUrl.includes('pizzaria')) {
-    items = fGenerateDemoItems('pizza');
-  } else if (lowerUrl.includes('sushi') || lowerUrl.includes('japa') || lowerUrl.includes('japanese')) {
-    items = fGenerateDemoItems('sushi');
-  } else if (lowerUrl.includes('burger') || lowerUrl.includes('burguer') || lowerUrl.includes('lanche')) {
-    items = fGenerateDemoItems('burger');
-  } else {
-    items = fGenerateDemoItems('universal');
-  }
-  
-  // Agora vamos injetar na planilha
-  const keys = fBulkVars();
-  fBulkRows = items.map(item => {
-    const dados = {};
-    keys.forEach(k => {
-      // MAPEIA variáveis
-      if (k === 'produto') dados[k] = item.produto;
-      else if (k === 'precoDe') dados[k] = item.precoDe;
-      else if (k === 'precoPor') dados[k] = item.precoPor;
-      else if (k === 'validade') dados[k] = item.validade;
-      else if (k === 'categoria') dados[k] = item.categoria;
-      else {
-        dados[k] = F_BULK_SAMPLES[k] ? F_BULK_SAMPLES[k][Math.floor(Math.random() * F_BULK_SAMPLES[k].length)] : '';
-      }
-    });
-    return { dados, erros: [] };
-  });
-  
-  restore();
-  if (urlEl) urlEl.value = '';
-  document.getElementById('f-bulk-status').textContent = `${fBulkRows.length} linha(s) carregada(s)`;
-  gToast(`${fBulkRows.length} exemplos de demonstração — edite com os seus produtos reais`);
-
-  _fBulkTableView = true;
-  fBulkRenderPreview();
-  _fBulkGoReview();
-}
-
-// Puxa produtos já usados do histórico do franqueado como linhas do lote — zero digitação
-// pra quem repete o cardápio. Dedup por nome de produto; APPEND (não apaga o que já está).
-function fBulkFromHistorico(){
-  if(!fState.material){ gToast('Abra um material primeiro.'); return; }
-  let hist=[];
-  try{ hist=(typeof fGetHist==='function')?fGetHist():[]; }catch(e){}
-  if(!hist.length){ gToast('Você ainda não gerou nenhuma arte.','warning'); return; }
-  const keys=fBulkVars();
-  const nameKey=keys.find(v=>/produto|titulo|nome/i.test(v))||keys[0];
-  // Já considera os produtos que estão na planilha p/ não duplicar ao adicionar.
-  fBulkCollectCurrentInputs();
-  const seen=new Set(fBulkRows.map(r=>String(r.dados[nameKey]||'').trim().toLowerCase()).filter(Boolean));
-  const novos=[];
-  hist.forEach(h=>{
-    const src=h.dados||{};
-    const dados={};
-    keys.forEach(k=>{
-      let v=src[k];
-      if(v==null||v===''){ // fallback pros campos "achatados" do histórico
-        if(/produto|titulo|nome/i.test(k)) v=h.prod;
-        else if(/^de$|antigo/i.test(k)) v=h.de;
-        else if(/por|preco|preço|valor/i.test(k)) v=h.por;
-      }
-      if(typeof v==='string' && v.startsWith('data:')) v=''; // não traz foto base64 pesada
-      dados[k]=v||'';
-    });
-    const nome=String(dados[nameKey]||'').trim().toLowerCase();
-    if(!nome || seen.has(nome)) return;
-    seen.add(nome);
-    const erros=[];
-    keys.forEach(k=>{ const e=(typeof fValidate==='function')?fValidate(k,dados[k]):null; if(e) erros.push(e); });
-    novos.push({dados, erros});
-  });
-  if(!novos.length){ gToast('Nada novo no histórico pra adicionar.','warning'); return; }
-  fBulkRows = fBulkRows.concat(novos);
-  _fBulkTableView=true;
-  const st=document.getElementById('f-bulk-status'); if(st) st.textContent=`${fBulkRows.length} linha(s) carregada(s)`;
-  fBulkRenderPreview();
-  _fBulkGoReview();
-  gToast(`${novos.length} produto(s) do histórico — ajuste preço/validade e gere.`);
-}
 
 /* ── LUMA SHEETS MODELOS SALVOS (IDEIA 3) ── */
 function fBulkUpdateSavedTemplatesList() {
