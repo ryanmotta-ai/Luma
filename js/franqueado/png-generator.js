@@ -2824,6 +2824,13 @@ function fBulkUpdateReadiness(readiness=fBulkGetReadiness()) {
   }
 
   if (dlBtn) {
+    /* Passou de bloqueado para liberado: o ZIP existe agora. Um pulso único marca a virada —
+       sem ele, a mudança mais importante da tela acontecia em silêncio. */
+    if (ready > 0 && dlBtn.disabled) {
+      dlBtn.classList.remove('acabou-de-liberar'); void dlBtn.offsetWidth;
+      dlBtn.classList.add('acabou-de-liberar');
+      dlBtn.addEventListener('animationend', ()=>dlBtn.classList.remove('acabou-de-liberar'), {once:true});
+    }
     const label = ready ? `Gerar ${readiness.artCount} arte${readiness.artCount === 1 ? '' : 's'}` : (errors ? 'Revise para gerar' : 'Preencha uma oferta');
     dlBtn.disabled = ready === 0;
     dlBtn.setAttribute('aria-disabled', ready === 0 ? 'true' : 'false');
@@ -2937,12 +2944,12 @@ function _fBulkRenderLista(){
   const cabeca = virgem
     ? `<div class="f-bulk-lstart">
          <h4>Comece do jeito mais rápido</h4>
-         <p>Traga o cardápio, uma planilha ou peça pra IA montar — depois é só revisar oferta por oferta.</p>
+         <p>Traga o cardápio, uma planilha ou peça pra IA. Depois é só revisar.</p>
          <button type="button" class="f-bulk-lstart-pri" onclick="fBulkToggleImport(true)">
            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3v4M3 5h4M6 17v4M4 19h4M13 3l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5z"/></svg>
            Preencher com IA, cardápio ou Excel
          </button>
-         <button type="button" class="f-bulk-lstart-alt" onclick="fBulkAbrirFolha(0)">ou preencher a primeira à mão</button>
+         <button type="button" class="f-bulk-lstart-alt" onclick="fBulkAbrirFolha(0)">ou preencher à mão</button>
        </div>`
     : `<div class="f-bulk-lprog">
          <div class="f-bulk-lprog-tx" aria-live="polite"><strong>${nPronta} de ${total}</strong> ${total===1?'oferta pronta':'ofertas prontas'}</div>
@@ -2966,7 +2973,27 @@ function _fBulkRenderLista(){
   /* A fita de 34px não entra no celular: aqui quem mostra o lote é a própria lista, e duas
      réguas de miniatura disputariam os MESMOS ids `f-bulk-cv-<i>`. */
   _fBulkObservarThumbsLista();
+  _fBulkMoverSaidaParaOpcoes();
   fBulkSetActive(ativa, {semRolar:true});
+}
+
+/* "Legenda e cidade" são AJUSTES DE SAÍDA (formato do texto do post e a cidade das
+   hashtags), não o gesto do dia. No celular ocupavam uma linha inteira do rodapé, ao lado
+   de Fechar e Gerar. Aqui eles descem para a gaveta "Mais opções da planilha" — o rodapé
+   fica com duas ações, e nenhum ajuste se perde. O elemento é MOVIDO, não copiado: os ids
+   `f-bulk-copy-format` e `f-bulk-city` continuam os mesmos que a geração lê. */
+function _fBulkMoverSaidaParaOpcoes(){
+  const opts = document.querySelector('.f-bulk-post-opts');
+  const gaveta = document.querySelector('.f-bulk-alt-tools');
+  if(!opts || !gaveta) return;
+  const corpo = gaveta.querySelector('.f-bulk-alt-body') || gaveta;
+  const noRodape = !!opts.closest('.f-bulk-footer-actions');
+  if(_fBulkEhCelular()){
+    if(noRodape) corpo.appendChild(opts);
+  } else if(!noRodape){
+    const rodape = document.querySelector('.f-bulk-footer-actions');
+    if(rodape) rodape.insertBefore(opts, rodape.firstChild);   // desktop: volta pro lugar
+  }
 }
 
 /* ⚠ PINTAR SÓ O QUE ESTÁ À VISTA. A primeira versão desta lista chamava
@@ -3068,13 +3095,13 @@ function _fBulkRenderFolhaCampos(forcar){
           <span class="f-bulk-ffoto-mini" aria-hidden="true">${tem
             ? `<img src="${val}" alt="">`
             : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.8"/><path d="m5 17 4.5-4.5 3 3L16 12l3 3"/></svg>`}</span>
-          <span class="f-bulk-ffoto-tx">${tem?'Trocar a foto':'Enviar a foto'}<small>${tem?'toque para escolher outra':'do seu celular'}</small></span>
+          <span class="f-bulk-ffoto-tx">${tem?'Trocar a foto':'Enviar a foto'}<small>${tem?'toque para trocar':'do seu celular'}</small></span>
           <input type="file" accept="image/*" hidden onchange="fBulkUploadCellImage(this, ${i}, '${gEsc(k)}')">
         </label>
         ${tem?`<div class="f-bulk-ffoto-acoes">
-          ${fBulkRows.length>1?`<button type="button" class="f-bulk-ffoto-todas" onclick="fBulkUsarFotoEmTodas(${i},'${gEsc(k)}')">Usar em todas as ofertas</button>`:''}
-          <button type="button" class="f-bulk-ffoto-del" onclick="fBulkLimparFoto(${i},'${gEsc(k)}')">Remover a foto</button>
-        </div>`:(fBulkRows.length>1?`<button type="button" class="f-bulk-ffoto-todas" onclick="fBulkFotoEmTodas('${gEsc(k)}')">Enviar uma foto para todas as ofertas</button>`:'')}
+          ${fBulkRows.length>1?`<button type="button" class="f-bulk-ffoto-todas" onclick="fBulkUsarFotoEmTodas(${i},'${gEsc(k)}')">Usar em todas</button>`:''}
+          <button type="button" class="f-bulk-ffoto-del" onclick="fBulkLimparFoto(${i},'${gEsc(k)}')">Remover</button>
+        </div>`:(fBulkRows.length>1?`<button type="button" class="f-bulk-ffoto-todas" onclick="fBulkFotoEmTodas('${gEsc(k)}')">Enviar uma foto para todas</button>`:'')}
       </div>`;
     }
     /* `type="text"` e não `number`: preço no Brasil é "29,90" e o campo numérico do celular
@@ -3095,11 +3122,11 @@ function _fBulkRenderFolhaCampos(forcar){
   alvo.insertAdjacentHTML('beforeend', `<div class="f-bulk-frow-acoes">
     <button type="button" class="f-bulk-frow-act" onclick="fBulkDuplicarNaFolha(${i})">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-      Duplicar oferta
+      Duplicar
     </button>
     <button type="button" class="f-bulk-frow-act is-danger" onclick="fBulkApagarNaFolha(${i})">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6"/></svg>
-      Apagar oferta
+      Apagar
     </button>
   </div>`);
   _fBulkSyncFolhaAcoes();
@@ -3253,10 +3280,10 @@ function fBulkRenderPreview(){
     wrap.innerHTML = _fBulkEhCelular()
       ? `<div class="f-bulk-lzero">
            <strong>Nenhuma oferta ainda</strong>
-           <span>Comece uma do zero ou traga tudo de uma vez do cardápio, da IA ou de uma planilha.</span>
+           <span>Crie a primeira ou traga tudo do cardápio, da IA ou de uma planilha.</span>
            <button type="button" class="f-bulk-lnova is-pri" onclick="fBulkNovaOferta()">
              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-             <span>Adicionar a primeira oferta</span>
+             <span>Criar a primeira oferta</span>
            </button>
            <button type="button" class="f-bulk-lzero-alt" onclick="fBulkToggleImport(true)">Preencher com IA, cardápio ou Excel</button>
          </div>`
@@ -3349,7 +3376,7 @@ function fBulkRenderPreview(){
       <details class="f-bulk-massbar"${_fBulkMassbarAberta?' open':''} ontoggle="_fBulkMassbarAberta=this.open">
         <summary>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-          <span><strong>Mudar tudo de uma vez</strong><small>o mesmo preço, validade, logo ou foto em todas as ofertas</small></span>
+          <span><strong>Mudar tudo de uma vez</strong><small>o mesmo valor em todas as ofertas</small></span>
           <svg class="f-bulk-disclosure-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
         </summary>
         <!-- ══ UMA BARRA, TRÊS ATALHOS ══
@@ -4032,7 +4059,7 @@ function _fBulkSyncMassbarCampo(){
 
   // A caixa de texto some quando não há texto a digitar; o botão diz o que vai acontecer.
   if(ehFoto){
-    slot.innerHTML = `<span class="f-bulk-massbar-hint">${ehLogo?'Escolha um logo salvo ao lado ou envie um arquivo':'A foto vale para todas as ofertas'}</span>`;
+    slot.innerHTML = `<span class="f-bulk-massbar-hint">${ehLogo?'Escolha um logo salvo ou envie um arquivo':'A foto vale para todas'}</span>`;
     go.textContent = ehFoto ? 'Escolher a foto' : 'Aplicar em todas';
   } else {
     slot.innerHTML = `<input type="text" id="f-bulk-action-val" placeholder="${ehPreco?'Ex.: R$ 19,90':'O que escrever em todas'}"${ehPreco?' inputmode="decimal"':''}>`;

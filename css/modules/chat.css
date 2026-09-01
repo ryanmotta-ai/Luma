@@ -787,6 +787,16 @@ body:has(#f-bulk-modal.open) #mobile-preview-toggle{display:none!important}
 .f-bulk-alt-tools .f-bulk-toolbar{border:none;padding:4px 0 0}
 
 /* "Mudar tudo de uma vez" (dentro da tabela) — fechado por padrão. */
+@keyframes gBulkPop{from{opacity:0;transform:scale(.82)}to{opacity:1;transform:scale(1)}}
+@keyframes gBulkVeu{from{opacity:0}to{opacity:1}}
+/* O momento de conquista do Sheets: a primeira oferta ficou pronta e o ZIP passou a existir.
+   Um pulso ÚNICO no botão (nunca laço) — 05_DESIGN_PHILOSOPHY: movimento é sinal, não enfeite. */
+@keyframes gBulkLiberou{
+  0%{transform:scale(1);box-shadow:0 0 0 0 color-mix(in srgb,var(--dm-orange) 55%,transparent)}
+  45%{transform:scale(1.035);box-shadow:0 0 0 10px color-mix(in srgb,var(--dm-orange) 0%,transparent)}
+  100%{transform:scale(1);box-shadow:0 0 0 0 color-mix(in srgb,var(--dm-orange) 0%,transparent)}
+}
+#f-bulk-modal .f-bulk-footer-actions .d-btn-pri.acabou-de-liberar{animation:gBulkLiberou var(--dur-slow) var(--ease-spring) 1}
 .f-bulk-massbar{border:1px solid var(--gray-mid);border-radius:var(--r-sm);background:var(--white)}
 .f-bulk-massbar>summary{display:flex;align-items:center;gap:9px;padding:9px 12px;cursor:pointer;list-style:none;color:var(--text-2)}
 .f-bulk-massbar>summary::-webkit-details-marker{display:none}
@@ -1647,7 +1657,10 @@ body:not(.theme-light) #f-chat-art{border-color:var(--d-line,#2A2A2A);background
   }
   /* O estado é a informação que a lista existe para dar — por isso ele tem COR e FORMA,
      não só texto: dá para varrer 30 ofertas e achar as 3 furadas sem ler nenhuma palavra. */
-  .f-bulk-lpill.is-ok{background:rgba(34,197,94,.13); color:#0F7A3D}
+  /* O selo "pronta" NASCE — é a única boa notícia da lista, e chegar com um pop de mola é
+     o que faz a pessoa registrar que aquela oferta saiu da fila. */
+  .f-bulk-lpill.is-ok{background:rgba(34,197,94,.13); color:#0F7A3D;
+    animation:gBulkPop var(--dur-base) var(--ease-spring) both}
   .f-bulk-lpill.is-gap{background:var(--dm-orange-bg); color:var(--dm-orange-d)}
   .f-bulk-lpill.is-mut{background:var(--gray-light); color:var(--text-3)}
   .f-bulk-lgo{flex:0 0 auto; color:var(--gray-mid); font-size:20px; line-height:1}
@@ -1669,8 +1682,15 @@ body:not(.theme-light) #f-chat-art{border-color:var(--d-line,#2A2A2A);background
      já carrega a ação, e ver o mesmo botão duas vezes na mesma tela é pior que não vê-lo. */
   body.f-bulk-virgem .f-bulk-import-toggle,
   body.f-bulk-virgem .f-bulk-alt-tools{display:none}
+  /* O convite se monta: título, frase e ação entram em cascata de 60ms. É o primeiro
+     movimento que a pessoa vê no Sheets — vale ter ritmo, não aparecer pronto de uma vez. */
+  .f-bulk-lstart > *{animation:gBulkFadeIn var(--dur-base) var(--ease-out) both}
+  .f-bulk-lstart > :nth-child(2){animation-delay:60ms}
+  .f-bulk-lstart > :nth-child(3){animation-delay:120ms}
+  .f-bulk-lstart > :nth-child(4){animation-delay:180ms}
   .f-bulk-lstart{
     display:flex; flex-direction:column; gap:8px; padding:14px 14px 16px; margin:0 0 12px;
+    animation:gBulkFadeIn var(--dur-slow) var(--ease-spring-soft) both;
     border-radius:14px; border:1px solid var(--dm-orange-tint);
     background:linear-gradient(180deg,color-mix(in srgb,var(--dm-orange-bg) 90%,var(--white)),var(--white));
     box-shadow:0 10px 26px -18px color-mix(in srgb,var(--dm-orange-d) 70%,transparent);
@@ -1698,7 +1718,9 @@ body:not(.theme-light) #f-chat-art{border-color:var(--d-line,#2A2A2A);background
 
   /* Slot: a oferta que ainda espera. Quieta — sem selo, sem peso — mas com a miniatura do
      template, que é o que diz "a sua arte vai nascer aqui". */
-  .f-bulk-lslot-tx{font-size:11.5px; color:var(--text-3)}
+  /* --text-3 sobre o cartão translúcido do slot dava 3,9:1 (medido) — abaixo do AA para
+     texto pequeno. O tom acima mantém o slot quieto e passa com folga. */
+  .f-bulk-lslot-tx{font-size:11.5px; color:var(--text-2)}
   /* ⚠ NÃO tocar no `background` aqui. Cravar `--white` neste seletor (0‑3‑0) derrubava a
      regra de tema escuro do item (0‑2‑0): o slot ativo saía BRANCO no escuro, com texto
      cinza em cima — 2,6:1, medido. Só o realce laranja precisa sair na fase de convite. */
@@ -1767,7 +1789,8 @@ body:not(.theme-light) #f-chat-art{border-color:var(--d-line,#2A2A2A);background
        conteúdo — medido: o pager com 214px e o rodapé com 227px numa tela de 390px. */
     display:flex; flex-direction:column; align-items:stretch; overflow-y:auto; overscroll-behavior:contain;
     transform:translateY(101%); visibility:hidden;
-    transition:transform var(--dur-slow) var(--ease-out), visibility var(--dur-slow);
+    /* Mola suave no lugar do ease-out puro: a folha POUSA em vez de parar de repente. */
+    transition:transform var(--dur-slow) var(--ease-spring-soft), visibility var(--dur-slow);
   }
   body.f-bulk-folha .f-bulk-live{transform:translateY(0); visibility:visible}
   /* A alça promete arrastar; hoje ela só sinaliza “isto sobe e desce”. Prometer gesto que não
@@ -1779,6 +1802,7 @@ body:not(.theme-light) #f-chat-art{border-color:var(--d-line,#2A2A2A);background
   /* Véu: sem ele a folha flutua sem dizer sobre o quê, e o toque atrás continuaria valendo. */
   body.f-bulk-folha .f-bulk-sheet::after{
     content:''; position:fixed; inset:0; z-index:1290; background:rgba(10,10,10,.34);
+    animation:gBulkVeu var(--dur-slow) var(--ease-out) both;   /* entrava seco, num corte */
   }
 
   /* 1 · PAGER FIXO — a única barra de navegação da folha. `order` reposiciona sem tocar no
@@ -1931,6 +1955,15 @@ body:not(.theme-light) #f-chat-art{border-color:var(--d-line,#2A2A2A);background
     text-decoration-color:color-mix(in srgb,currentColor 40%,transparent);
   }
   .f-bulk-ffoto-del:active{color:var(--dm-red)}
+
+  /* ⚠ O "Legenda e cidade" foi MOVIDO do rodapé para dentro da gaveta (JS), e trouxe junto o
+     posicionamento de lá: `position:absolute; bottom:100%`, que abria o painel FLUTUANDO por
+     cima dos botões da gaveta (medido). Dentro da gaveta ele é fluxo normal, largura cheia. */
+  .f-bulk-alt-tools .f-bulk-post-opts{width:100%}
+  .f-bulk-alt-tools .f-bulk-post-opts>summary{width:100%; min-height:var(--tap-min); justify-content:flex-start}
+  .f-bulk-alt-tools .f-bulk-post-opts-body{
+    position:static; min-width:0; width:100%; margin-top:8px; box-shadow:none;
+  }
 
   /* Duplicar / apagar a oferta: texto, no fim da folha, longe do polegar que digita. */
   .f-bulk-frow-acoes{
