@@ -32,13 +32,13 @@
 <link rel="stylesheet" href="css/components/topbar.css">
 <link rel="stylesheet" href="css/components/help-modal.css">
 <link rel="stylesheet" href="css/components/user-profile.css">
-<link rel="stylesheet" href="css/components/prefs-panel.css">
+<link rel="stylesheet" href="css/components/prefs-panel.css?v=2">
 <!-- Depois de user-profile.css de propósito: o Controle do produto vive DENTRO
      do painel da conta e herda as variáveis --prof-* (inclusive o tema escuro). -->
 <link rel="stylesheet" href="css/components/product-control.css">
 <link rel="stylesheet" href="css/components/tutorial.css">
 <link rel="stylesheet" href="css/modules/franqueado.css">
-<link rel="stylesheet" href="css/modules/chat.css?v=2">
+<link rel="stylesheet" href="css/modules/chat.css?v=3">
 <link rel="stylesheet" href="css/modules/live-preview.css?v=2">
 <link rel="stylesheet" href="css/modules/color-picker.css">
 <link rel="stylesheet" href="css/modules/all-tools.css">
@@ -51,7 +51,7 @@
 <link rel="stylesheet" href="css/modules/layers-panel.css">
 <link rel="stylesheet" href="css/modules/toolbar.css">
 <link rel="stylesheet" href="css/components/login.css">
-<link rel="stylesheet" href="css/modules/upload-panel.css">
+<link rel="stylesheet" href="css/modules/upload-panel.css?v=2">
 <!-- depois de franqueado/chat/live-preview: sobrepõe o layout das 3 colunas -->
 <link rel="stylesheet" href="css/modules/panel-dock.css">
 <link rel="stylesheet" href="css/modules/help-widget.css?v=2">
@@ -3013,11 +3013,11 @@ body:not(.theme-light) input:-webkit-autofill:active {
 <script src="js/franqueado/catalog.js?v=3"></script>
 <script src="js/franqueado/materials.js?v=3"></script>
 <script src="js/franqueado/chat.js?v=4"></script>
-<script src="js/franqueado/live-preview.js?v=4"></script>
+<script src="js/franqueado/live-preview.js?v=5"></script>
 <script src="js/franqueado/panel-dock.js?v=2"></script>
-<script src="js/franqueado/upload-panel.js?v=2"></script>
-<script src="js/franqueado/prefs-panel.js?v=1"></script>
-<script src="js/franqueado/chat-input.js?v=2"></script>
+<script src="js/franqueado/upload-panel.js?v=3"></script>
+<script src="js/franqueado/prefs-panel.js?v=2"></script>
+<script src="js/franqueado/chat-input.js?v=3"></script>
 <!-- ACADEMIA (formação do franqueado). Ordem importa: motion.js define os helpers
      de animação que os outros usam; academia.js define o estado que
      aula/agente/gestao/certificado/conclusao consomem. -->
@@ -3029,7 +3029,7 @@ body:not(.theme-light) input:-webkit-autofill:active {
 <script src="js/academia/certificado.js"></script>
 <script src="js/academia/conclusao.js"></script>
 <script src="js/designer/blending.js"></script>
-<script src="js/franqueado/png-generator.js?v=5"></script>
+<script src="js/franqueado/png-generator.js?v=6"></script>
 <script src="js/designer/templates.js?v=2"></script>
 <script src="js/designer/canvas.js?v=8"></script>
 <script src="js/designer/selection.js"></script>
@@ -3064,7 +3064,7 @@ body:not(.theme-light) input:-webkit-autofill:active {
      auth.js (usa gCurrentRole/gIsSuperAdmin) e ANTES de user-profile.js e
      main.js: gFeatureInit() roda no começo do boot e precisa estar definido. -->
 <script src="js/core/feature-flags.js"></script>
-<script src="js/core/user-profile.js"></script>
+<script src="js/core/user-profile.js?v=2"></script>
 <!-- A TELA do Controle do produto: depende do motor acima e do painel de conta. -->
 <script src="js/core/product-control.js"></script>
 <!-- Luma CLI: por último entre os core porque só usa globais já definidos
