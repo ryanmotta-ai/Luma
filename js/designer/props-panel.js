@@ -409,7 +409,7 @@ const DP_PANEL_ICONS = {
 const DP_SECTION_ICONS = {
   'dp-sec-ab-size': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 4v16M3 9h18"/></svg>',
   'dp-sec-ab-bg': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 7 7-7 11-7-11 7-7Z"/><path d="M5 10h14"/></svg>',
-  'dp-sec-ab-orient': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M10 6h4"/></svg>',
+  'dp-sec-ab-orient': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="6.75" y="2.5" width="10.5" height="19" rx="3"/><path d="M10.5 5.8h3"/><path d="M10.25 18.2h3.5"/></svg>',
   'dp-sec-content': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>',
   'dp-sec-text': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 5V3h14v2M9 21h6M12 3v18"/></svg>',
   'dp-sec-pos': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M22 12l-3-3M22 12l-3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3"/></svg>',
