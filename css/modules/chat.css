@@ -1653,6 +1653,68 @@ body:not(.theme-light) #f-chat-art{border-color:var(--d-line,#2A2A2A);background
   .f-bulk-lgo{flex:0 0 auto; color:var(--gray-mid); font-size:20px; line-height:1}
   .f-bulk-lvazio{padding:26px 12px; text-align:center; color:var(--text-3); font-size:13px}
 
+  /* Rodapé com o gerar ainda bloqueado: laranja a 50% lê como botão quebrado. Cinza sólido
+     com texto legível diz "ainda não" sem parecer defeito (e passa no contraste). */
+  /* ⚠ `!important` porque a regra base (#f-bulk-modal .d-btn-pri, linha ~1066) crava
+     background e color com !important — sem repetir aqui, o botão bloqueado continuava
+     laranja com texto branco, lendo como se fosse clicável. */
+  #f-bulk-modal .f-bulk-footer-actions .d-btn-pri:disabled{
+    background:var(--gray-light)!important; border-color:var(--gray-mid)!important;
+    color:var(--text-3)!important; box-shadow:none; opacity:1;
+  }
+  #f-bulk-modal .f-bulk-footer-actions .d-btn-pri:disabled svg{opacity:.6}
+
+  /* ── O CONVITE DE PARTIDA (só enquanto nada foi preenchido) ── */
+  /* No convite, o chip "Preencher com IA…" do cabeçalho e a gaveta de opções somem: o bloco
+     já carrega a ação, e ver o mesmo botão duas vezes na mesma tela é pior que não vê-lo. */
+  body.f-bulk-virgem .f-bulk-import-toggle,
+  body.f-bulk-virgem .f-bulk-alt-tools{display:none}
+  .f-bulk-lstart{
+    display:flex; flex-direction:column; gap:8px; padding:14px 14px 16px; margin:0 0 12px;
+    border-radius:14px; border:1px solid var(--dm-orange-tint);
+    background:linear-gradient(180deg,color-mix(in srgb,var(--dm-orange-bg) 90%,var(--white)),var(--white));
+    box-shadow:0 10px 26px -18px color-mix(in srgb,var(--dm-orange-d) 70%,transparent);
+  }
+  .f-bulk-lstart h4{margin:0; font-size:16px; font-weight:800; letter-spacing:-.01em; color:var(--text)}
+  .f-bulk-lstart p{margin:0; font-size:12.5px; line-height:1.45; color:var(--text-2); max-width:40ch}
+  .f-bulk-lstart-pri{
+    display:inline-flex; align-items:center; justify-content:center; gap:9px; width:100%;
+    min-height:48px; margin-top:2px; border:0; border-radius:var(--r);
+    background:linear-gradient(180deg,var(--dm-orange),var(--dm-orange-d)); color:var(--white);
+    font:inherit; font-size:14px; font-weight:800; cursor:pointer;
+    box-shadow:0 10px 24px -12px color-mix(in srgb,var(--dm-orange-d) 85%,transparent),
+               0 1px 0 rgba(255,255,255,.28) inset;
+    transition:transform var(--dur-micro) var(--ease-spring),box-shadow var(--dur-micro) var(--ease-spring);
+  }
+  .f-bulk-lstart-pri svg{width:18px; height:18px}
+  .f-bulk-lstart-pri:active{transform:scale(.975)}
+  .f-bulk-lstart-alt{
+    align-self:center; min-height:var(--tap-min); border:0; background:none; color:var(--text-2);
+    font:inherit; font-size:13px; font-weight:600; cursor:pointer;
+    text-decoration:underline; text-underline-offset:3px;
+    text-decoration-color:color-mix(in srgb,currentColor 35%,transparent);
+  }
+  .f-bulk-lstart-pri:focus-visible,.f-bulk-lstart-alt:focus-visible{outline:2px solid var(--dm-orange); outline-offset:2px}
+
+  /* Slot: a oferta que ainda espera. Quieta — sem selo, sem peso — mas com a miniatura do
+     template, que é o que diz "a sua arte vai nascer aqui". */
+  .f-bulk-lslot-tx{font-size:11.5px; color:var(--text-3)}
+  /* ⚠ NÃO tocar no `background` aqui. Cravar `--white` neste seletor (0‑3‑0) derrubava a
+     regra de tema escuro do item (0‑2‑0): o slot ativo saía BRANCO no escuro, com texto
+     cinza em cima — 2,6:1, medido. Só o realce laranja precisa sair na fase de convite. */
+  .f-bulk-lista.is-virgem .f-bulk-litem.is-active{
+    border-color:var(--gray-mid); box-shadow:none;
+  }
+  .f-bulk-lista.is-virgem .f-bulk-litem.is-active .f-bulk-lthumb::after{background:rgba(10,10,10,.62)}
+  .f-bulk-litem.is-vazia{background:color-mix(in srgb,var(--white) 60%,transparent); border-style:dashed}
+  .f-bulk-litem.is-vazia .f-bulk-lnome{color:var(--text-3)}
+
+  /* Na fase de convite, "Adicionar oferta" é uma LINHA, não um card do tamanho de uma oferta:
+     ali o gesto principal é preencher as três que já existem, não criar a quarta. */
+  .f-bulk-lista.is-virgem .f-bulk-lnova{
+    min-height:44px; border:0; color:var(--text-3); font-size:13px; font-weight:600;
+  }
+
   /* Adicionar oferta: tracejado porque é um lugar VAZIO esperando conteúdo — a mesma
      gramática do "arraste aqui" que o resto do Luma usa para espaço por preencher. */
   .f-bulk-lnova{
@@ -1936,8 +1998,11 @@ body:not(.theme-light) #f-chat-art{border-color:var(--d-line,#2A2A2A);background
   .f-bulk-footer-actions{flex-wrap:wrap; gap:8px}
   .f-bulk-footer-actions .f-bulk-post-opts{flex:1 0 100%}
   .f-bulk-footer-actions .f-bulk-post-opts>summary{width:100%; justify-content:center; min-height:var(--tap-min)}
-  .f-bulk-footer-actions .d-btn-sec,
-  .f-bulk-footer-actions .d-btn-pri{flex:1 1 0; min-width:0; min-height:var(--tap-min)}
+  /* ⚠ `#f-bulk-modal` no seletor: a regra de desktop `.f-bulk-footer-actions .d-btn-pri`
+     (linha ~1032) crava 38px com a MESMA especificidade — e medido no celular os dois botões
+     do rodapé saíam com 38px, abaixo do alvo mínimo de toque. */
+  #f-bulk-modal .f-bulk-footer-actions .d-btn-sec,
+  #f-bulk-modal .f-bulk-footer-actions .d-btn-pri{flex:1 1 0; min-width:0; min-height:var(--tap-min)}
 }
 
 body:not(.theme-light) .f-bulk-litem{background:var(--d-surf); border-color:var(--d-border); color:var(--d-text)}
@@ -1959,6 +2024,14 @@ body:not(.theme-light) .f-bulk-lprog-bar{background:var(--d-surf2)}
 body:not(.theme-light) .f-bulk-lprog-tx{color:var(--d-text2)}
 body:not(.theme-light) .f-bulk-lprog-tx strong{color:var(--d-text)}
 body:not(.theme-light) .f-bulk-lnova{border-color:var(--d-border2); color:var(--d-text2)}
+body:not(.theme-light) .f-bulk-lstart{background:var(--d-surf); border-color:var(--d-border2)}
+body:not(.theme-light) .f-bulk-lstart h4{color:var(--d-text)}
+body:not(.theme-light) .f-bulk-lstart p,body:not(.theme-light) .f-bulk-lstart-alt{color:var(--d-text2)}
+body:not(.theme-light) .f-bulk-litem.is-vazia{background:color-mix(in srgb,var(--d-surf) 70%,transparent)}
+/* No escuro o --text-3 dá 3.4:1 sobre a superfície da lista (medido) — abaixo do AA para
+   texto pequeno. O tom de apoio do tema escuro resolve sem mudar a hierarquia. */
+body:not(.theme-light) .f-bulk-lslot-tx{color:var(--d-text2)}
+body:not(.theme-light) .f-bulk-lista.is-virgem .f-bulk-litem.is-active{border-color:var(--d-border2)}
 body:not(.theme-light) .f-bulk-lzero strong{color:var(--d-text)}
 body:not(.theme-light) .f-bulk-frow-acoes{border-color:var(--d-border)}
 body:not(.theme-light) .f-bulk-frow-act{color:var(--d-text2)}

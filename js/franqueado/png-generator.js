@@ -1632,6 +1632,8 @@ async function fBulkOpen(){
 function fBulkClose(){
   fBulkCollectCurrentInputs();
   fBulkSaveDraft();
+  // A fase de convite é do Sheets, não do app: fechar leva a classe embora.
+  try{ document.body.classList.remove('f-bulk-virgem'); }catch(e){}
   // Solta o observador da fita: fechar sem desligar deixava um IntersectionObserver por
   // abertura, cada um segurando os nós da fita anterior.
   if(_fBulkStripObserver){ _fBulkStripObserver.disconnect(); _fBulkStripObserver = null; }
@@ -2897,8 +2899,10 @@ function _fBulkRenderLista(){
     if(_fBulkFiltro==='prontas' && est!=='pronta') return '';
     if(busca && !Object.values(r.dados||{}).some(v => String(v).toLowerCase().includes(busca))) return '';
     const {titulo, detalhe} = _fBulkResumoLinha(r, keys);
+    /* Oferta vazia não ganha selo: o tracejado da miniatura e o "toque para preencher" já
+       dizem isso. Três cards repetindo a palavra "vazia" era ruído no primeiro uso. */
     const selo = est==='pronta' ? '<span class="f-bulk-lpill is-ok">pronta</span>'
-      : est==='vazia' ? '<span class="f-bulk-lpill is-mut">vazia</span>'
+      : est==='vazia' ? '<span class="f-bulk-lslot-tx">toque para preencher</span>'
       : `<span class="f-bulk-lpill is-gap">${(r.erros||[]).length} a preencher</span>`;
     /* A miniatura é a ARTE, não um número: numa lista de 30 ofertas a pessoa reconhece a
        própria peça pela cara dela antes de ler qualquer palavra. Reusa os ids
@@ -2908,7 +2912,7 @@ function _fBulkRenderLista(){
     /* O nome cai para "Oferta N" quando ainda não há texto — mostrar uma linha em branco
        na lista é pior que assumir o rótulo: a pessoa não sabe onde tocar. */
     return `<button type="button" class="f-bulk-litem${i===ativa?' is-active':''} is-${est}" data-row="${i}"
-      style="--fi:${Math.min(i,9)}" onclick="fBulkAbrirFolha(${i})" aria-label="Abrir a oferta ${i+1}">
+      style="--fi:${Math.min(i,9)}" onclick="fBulkAbrirFolha(${i})" aria-label="Oferta ${i+1}${est==='pronta'?', pronta':est==='vazia'?', vazia — toque para preencher':', faltam '+((r.erros||[]).length)+' campos'}">
       <span class="f-bulk-lthumb" data-n="${i+1}"><canvas id="f-bulk-cv-${i}" width="${cw}" height="${ch}"></canvas></span>
       <span class="f-bulk-ltx">
         <span class="f-bulk-lnome">${gEsc(titulo) || `<i>Oferta ${i+1}</i>`}</span>
@@ -2918,17 +2922,38 @@ function _fBulkRenderLista(){
     </button>`;
   }).join('');
 
-  /* O progresso responde à única pergunta que a lista existe para responder: quanto falta
-     para eu poder gerar? Barra + número, no topo, antes de qualquer filtro. */
+  /* ── O PRIMEIRO USO TEM CARA DE COMEÇO, NÃO DE PLACAR ZERADO ──
+     O Sheets abre com três ofertas vazias. Barra em 0%, três filtros que não filtram nada
+     ("Prontas · 0") e três cards dizendo "vazia" recebem a pessoa com o relatório do que ela
+     ainda não fez. Enquanto NADA estiver preenchido, a tela é convite: os dois caminhos de
+     entrada e os slots esperando embaixo. Progresso e filtros voltam sozinhos no primeiro
+     dado — aí eles têm o que contar. */
+  const virgem = nPronta === 0 && estados.every(e => e === 'vazia');
+  /* A fase de convite governa também o que está FORA da lista (o chip de importar no
+     cabeçalho, que o bloco assume; a gaveta de opções, que ninguém procura no primeiro uso).
+     Uma classe no body é o único jeito de alcançar irmãos sem reescrever o cabeçalho. */
+  try{ document.body.classList.toggle('f-bulk-virgem', virgem && _fBulkEhCelular()); }catch(e){}
   const pct = total ? Math.round(nPronta/total*100) : 0;
-  wrap.innerHTML = `<div class="f-bulk-lista">
-    <div class="f-bulk-lprog">
-      <div class="f-bulk-lprog-tx"><strong>${nPronta} de ${total}</strong> ${total===1?'oferta pronta':'ofertas prontas'}</div>
-      <div class="f-bulk-lprog-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="--f-bulk-pronto:${total?(nPronta/total).toFixed(3):0}"></i></div>
-    </div>
-    <div class="f-bulk-lfiltros" role="group" aria-label="Filtrar ofertas">
-      ${chip('falta','Falta algo',nFalta)}${chip('todas','Todas',total)}${chip('prontas','Prontas',nPronta)}
-    </div>
+  const cabeca = virgem
+    ? `<div class="f-bulk-lstart">
+         <h4>Comece do jeito mais rápido</h4>
+         <p>Traga o cardápio, uma planilha ou peça pra IA montar — depois é só revisar oferta por oferta.</p>
+         <button type="button" class="f-bulk-lstart-pri" onclick="fBulkToggleImport(true)">
+           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3v4M3 5h4M6 17v4M4 19h4M13 3l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5z"/></svg>
+           Preencher com IA, cardápio ou Excel
+         </button>
+         <button type="button" class="f-bulk-lstart-alt" onclick="fBulkAbrirFolha(0)">ou preencher a primeira à mão</button>
+       </div>`
+    : `<div class="f-bulk-lprog">
+         <div class="f-bulk-lprog-tx" aria-live="polite"><strong>${nPronta} de ${total}</strong> ${total===1?'oferta pronta':'ofertas prontas'}</div>
+         <div class="f-bulk-lprog-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="--f-bulk-pronto:${total?(nPronta/total).toFixed(3):0}"></i></div>
+       </div>
+       <div class="f-bulk-lfiltros" role="group" aria-label="Filtrar ofertas">
+         ${chip('falta','Falta algo',nFalta)}${chip('todas','Todas',total)}${chip('prontas','Prontas',nPronta)}
+       </div>`;
+
+  wrap.innerHTML = `<div class="f-bulk-lista${virgem?' is-virgem':''}">
+    ${cabeca}
     ${itens || '<p class="f-bulk-lvazio">Nenhuma oferta neste filtro.</p>'}
     <!-- Adicionar oferta só existia na tabela do desktop: no celular a pessoa ficava sem
          nenhum jeito de criar a próxima arte do lote sem voltar pro computador. -->
