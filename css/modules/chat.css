@@ -804,7 +804,40 @@ body:has(#f-bulk-modal.open) #mobile-preview-toggle{display:none!important}
 .f-bulk-massbar-row select,.f-bulk-massbar-row input{padding:6px 9px;border:1px solid var(--gray-mid);border-radius:var(--r-sm);background:var(--white);color:var(--text);font:400 12px/1.3 'Roboto',sans-serif}
 .f-bulk-massbar-row input{flex:1;min-width:150px}
 .f-bulk-massbar-row button{font-size:12px;padding:6px 12px;border-radius:var(--r-sm);font-weight:650;cursor:pointer;white-space:nowrap}
+/* O lugar do valor: uma caixa de texto, um aviso ou nada, conforme o campo escolhido.
+   Ele é quem estica — o seletor e o botão têm largura de conteúdo. */
+.f-bulk-massbar-slot{display:flex;align-items:center;flex:1;min-width:170px}
+.f-bulk-massbar-slot input{width:100%}
+.f-bulk-massbar-hint{font-size:11.5px;color:var(--text-3);line-height:1.35}
+/* Chips = atalho de valor (datas prontas, lojas salvas). Ficam colados na barra, indentados
+   à esquerda, para lerem como "sugestões DESTE campo" e não como mais uma fileira de ações. */
+.f-bulk-massbar-sug{display:flex;flex-wrap:wrap;gap:6px;padding-left:2px}
+.f-bulk-massbar-chip{
+  padding:5px 11px;border:1px solid var(--dm-orange-tint);border-radius:var(--r-pill);
+  background:var(--dm-orange-bg);color:var(--dm-orange-d);
+  font:700 11.5px/1 'Roboto',sans-serif;cursor:pointer;white-space:nowrap;
+  transition:background var(--dur-micro) var(--ease-standard),transform var(--dur-micro) var(--ease-spring);
+}
+.f-bulk-massbar-chip:hover{background:var(--dm-orange-tint);transform:translateY(-1px)}
+.f-bulk-massbar-chip:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+/* As três ações que sobraram: linha própria, separadas da barra por um fio, espalhadas em
+   colunas iguais. Sem isto elas voltavam a parecer irmãs do "Aplicar em todas" — e não são:
+   estas mexem no que JÁ existe, a barra escreve valor novo. */
+.f-bulk-massbar-tools{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
+  margin-top:2px;padding-top:10px;border-top:1px dashed var(--gray-mid);
+}
+.f-bulk-massbar-tools button{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:36px;
+  font-size:12px;font-weight:650;
+}
+.f-bulk-massbar-tools svg{width:15px;height:15px;flex:0 0 auto;color:var(--text-3)}
+.f-bulk-massbar-tools button:hover svg{color:var(--dm-orange-d)}
+@media (max-width:900px){ .f-bulk-massbar-tools{grid-template-columns:1fr} }
 
+body:not(.theme-light) .f-bulk-massbar-hint{color:var(--d-text3)}
+body:not(.theme-light) .f-bulk-massbar-chip{background:var(--d-surf3);border-color:var(--d-border2);color:var(--dm-orange)}
+body:not(.theme-light) .f-bulk-massbar-tools{border-top-color:var(--d-border2)}
 body:not(.theme-light) .f-bulk-workspace{background:var(--d-dark)}
 body:not(.theme-light) .f-bulk-live{background:var(--d-surf);border-color:var(--d-border)}
 body:not(.theme-light) .f-bulk-live-frame{background:var(--d-surf2)}

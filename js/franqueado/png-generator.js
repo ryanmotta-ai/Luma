@@ -3312,29 +3312,51 @@ function fBulkRenderPreview(){
       </tr>`;
     }).join('');
     
-    const optionsHtml = keys.map(k => `<option value="${k}">${gEsc(labelFor(k))}</option>`).join('');
+    /* ⚠ O painel e o campo escolhido SOBREVIVEM ao re-render. Toda aplicação chama
+       `fBulkRenderPreview`, que reconstrói a tabela inteira: sem isto o painel fechava e o
+       seletor voltava pro primeiro campo a cada ação — aplicar preço e depois validade
+       custava reabrir e reescolher tudo (medido: o `<details>` voltava fechado). */
+    const optionsHtml = keys.map(k =>
+      `<option value="${k}"${k===_fBulkMassbarCampo?' selected':''}>${gEsc(labelFor(k))}</option>`).join('');
     wrap.innerHTML = `<div class="f-bulk-sheet-block">
       <!-- Mudanças em massa: poderosas, mas jargão de planilha. Ficam FECHADAS — abertas,
            eram a primeira coisa que a franqueada via, antes até da própria tabela. -->
-      <details class="f-bulk-massbar">
+      <details class="f-bulk-massbar"${_fBulkMassbarAberta?' open':''} ontoggle="_fBulkMassbarAberta=this.open">
         <summary>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-          <span><strong>Mudar tudo de uma vez</strong><small>o mesmo preço, validade ou logo em todas as linhas</small></span>
+          <span><strong>Mudar tudo de uma vez</strong><small>o mesmo preço, validade, logo ou foto em todas as ofertas</small></span>
           <svg class="f-bulk-disclosure-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
         </summary>
+        <!-- ══ UMA BARRA, TRÊS ATALHOS ══
+             Eram SEIS botões, e quatro deles faziam o mesmo gesto — "escrever o mesmo valor
+             em todas" — separados só porque esta barra não sabia lidar com data, logo e foto.
+             Dois ainda pediam o valor num prompt de texto ("qual loja? digite o número"),
+             que é conversa, não formulário. Agora a barra CONHECE O TIPO do campo: escolheu,
+             o controle de valor muda de forma, e um botão só aplica. Embaixo ficam as três
+             ações que não cabem em "valor + campo", porque mexem no que já existe. -->
         <div class="f-bulk-massbar-body">
           <div class="f-bulk-massbar-row">
-            <label for="f-bulk-action-col">Qual informação</label>
+            <label for="f-bulk-action-col">Em todas as ofertas, o campo</label>
             <select id="f-bulk-action-col" onchange="_fBulkSyncMassbarCampo()">${optionsHtml}</select>
-            <input type="text" id="f-bulk-action-val" placeholder="O que escrever em todas">
-            <button class="d-btn-pri" id="f-bulk-action-go" onclick="fBulkApplyFill()">Aplicar a todas</button>
+            <span class="f-bulk-massbar-slot" id="f-bulk-action-slot">
+              <input type="text" id="f-bulk-action-val" placeholder="O que escrever em todas">
+            </span>
+            <button class="d-btn-pri" id="f-bulk-action-go" onclick="fBulkApplyFill()">Aplicar em todas</button>
           </div>
-          <div class="f-bulk-massbar-row">
-            <button class="d-btn-sec" onclick="fBulkApplyDiscountPrompt()" title="Baixa um percentual de todos os preços">Dar desconto em tudo</button>
-            <button class="d-btn-sec" onclick="fBulkApplyRounding()" title="Deixa todos os preços com final ,90">Arredondar para ,90</button>
-            <button class="d-btn-sec" onclick="fBulkApplyValidade()" title="A mesma data de validade em todas as linhas">Mesma validade</button>
-            <button class="d-btn-sec" onclick="fBulkApplyLoja()" title="O logo de uma loja salva em todas as linhas">Mesmo logo</button>
-            ${keys.some(fIsImageVar)?'<button class="d-btn-sec" onclick="fBulkFotoEmTodas()" title="Envia uma foto e usa em todas as linhas">Mesma foto</button>':''}
+          <div class="f-bulk-massbar-sug" id="f-bulk-action-sug" hidden></div>
+          <div class="f-bulk-massbar-tools">
+            <button class="d-btn-sec" onclick="fBulkCopiarDaPrimeira()" title="Repete nas outras ofertas o que está na primeira">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              Copiar da 1ª oferta
+            </button>
+            <button class="d-btn-sec" onclick="fBulkApplyDiscountPrompt()" title="Baixa um percentual dos preços já preenchidos">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M19 5 5 19"/><circle cx="7.5" cy="7.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/></svg>
+              Dar desconto
+            </button>
+            <button class="d-btn-sec" onclick="fBulkApplyRounding()" title="Deixa os preços com final ,90">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h6M4 7h10M4 17h4"/><path d="M17 8v8M14 11l3-3 3 3"/></svg>
+              Arredondar para ,90
+            </button>
           </div>
         </div>
       </details>
@@ -3961,15 +3983,77 @@ function fBulkUsarFotoEmTodas(i, col){
   if(document.body.classList.contains('f-bulk-folha')) _fBulkRenderFolhaCampos(true);
 }
 
-/* A caixa "o que escrever" não vale para foto: com uma coluna de imagem escolhida ela sai
-   de cena e o botão passa a dizer o que vai acontecer de verdade. */
+let _fBulkMassbarAberta = false;   // o painel fica como a pessoa deixou
+let _fBulkMassbarCampo = '';       // e no campo que ela escolheu
+
+/* ── O CONTROLE DE VALOR SEGUE O TIPO DO CAMPO ──
+   Foto não se digita; validade tem datas prontas; logo pode vir de uma loja já salva.
+   Antes cada um desses casos era um BOTÃO separado (e dois deles pediam o valor num
+   prompt). Aqui é a mesma barra mudando de forma — o gesto continua sendo um só:
+   escolher o campo, dar o valor, aplicar. */
 function _fBulkSyncMassbarCampo(){
   const col = document.getElementById('f-bulk-action-col')?.value;
-  const val = document.getElementById('f-bulk-action-val');
-  const go  = document.getElementById('f-bulk-action-go');
-  const ehFoto = !!(col && typeof fIsImageVar==='function' && fIsImageVar(col));
-  if(val){ val.hidden = ehFoto; val.disabled = ehFoto; }
-  if(go) go.textContent = ehFoto ? 'Escolher a foto' : 'Aplicar a todas';
+  const slot = document.getElementById('f-bulk-action-slot');
+  const go   = document.getElementById('f-bulk-action-go');
+  const sug  = document.getElementById('f-bulk-action-sug');
+  if(!col || !slot || !go) return;
+  _fBulkMassbarCampo = col;
+
+  const ehFoto = (typeof fIsImageVar==='function') && fIsImageVar(col);
+  const ehLogo = ehFoto && /logo/i.test(col);
+  const tipo   = (typeof fGetFieldType==='function') ? (fGetFieldType(col).type||'') : '';
+  const ehData = /validade|valid|data/i.test(col) || tipo==='date';
+  const ehPreco= tipo==='price' || /pre[çc]o|valor/i.test(col);
+
+  // A caixa de texto some quando não há texto a digitar; o botão diz o que vai acontecer.
+  if(ehFoto){
+    slot.innerHTML = `<span class="f-bulk-massbar-hint">${ehLogo?'Escolha um logo salvo ao lado ou envie um arquivo':'A foto vale para todas as ofertas'}</span>`;
+    go.textContent = ehFoto ? 'Escolher a foto' : 'Aplicar em todas';
+  } else {
+    slot.innerHTML = `<input type="text" id="f-bulk-action-val" placeholder="${ehPreco?'Ex.: R$ 19,90':'O que escrever em todas'}"${ehPreco?' inputmode="decimal"':''}>`;
+    go.textContent = 'Aplicar em todas';
+  }
+
+  // Chips = atalho de valor, não outra ação: preenchem a caixa (ou aplicam o logo salvo).
+  let chips = '';
+  if(ehData && typeof fValidadeSuggestions==='function'){
+    chips = fValidadeSuggestions().map(v=>
+      `<button type="button" class="f-bulk-massbar-chip" onclick="_fBulkMassbarUsarSug('${gEsc(v).replace(/'/g,"\\'")}')">${gEsc(v)}</button>`).join('');
+  } else if(ehLogo && typeof fGetLojas==='function'){
+    chips = fGetLojas().filter(l=>l.logo).map(l=>
+      `<button type="button" class="f-bulk-massbar-chip" onclick="_fBulkAplicarLogoDaLoja('${gEsc(l.id)}','${gEsc(col)}')">${gEsc(l.nome||'Minha loja')}</button>`).join('');
+  }
+  if(sug){ sug.innerHTML = chips; sug.hidden = !chips; }
+}
+function _fBulkMassbarUsarSug(v){
+  const el = document.getElementById('f-bulk-action-val');
+  if(el){ el.value = v; el.focus(); }
+}
+/* O logo de uma loja salva: era o botão "Mesmo logo", que perguntava o NÚMERO da loja num
+   prompt ("1) Pizzaria  2) Burger — digite o número"). Agora a loja é um chip com o nome. */
+function _fBulkAplicarLogoDaLoja(id, col){
+  const loja = (typeof fGetLojas==='function') ? fGetLojas().find(l=>l.id===id) : null;
+  if(!loja || !loja.logo){ gToast('Essa loja não tem logo salvo.', 'error'); return; }
+  fBulkCollectCurrentInputs();
+  fBulkRows.forEach(r => { r.dados[col] = loja.logo; _fBulkRevalidateCol(r, col); });
+  gToast(`Logo de ${loja.nome||'sua loja'} aplicado em todas as ofertas`);
+  fBulkRenderPreview();
+}
+/* Copiar da 1ª oferta: o gesto que a pessoa fazia à mão, redigitando o mesmo valor linha a
+   linha. Usa o MESMO campo escolhido na barra — nenhum conceito novo na tela. */
+function fBulkCopiarDaPrimeira(){
+  fBulkCollectCurrentInputs();
+  const col = document.getElementById('f-bulk-action-col')?.value;
+  if(!col || !fBulkRows.length) return;
+  const val = fBulkRows[0].dados[col];
+  if(val === undefined || String(val).trim() === ''){
+    gToast('A primeira oferta ainda não tem esse campo preenchido.', 'warning');
+    return;
+  }
+  fBulkRows.forEach((r,i) => { if(i){ r.dados[col] = val; _fBulkRevalidateCol(r, col); } });
+  const rot = (typeof _fLpLabel==='function') ? _fLpLabel(col) : col;
+  gToast(`"${rot}" da 1ª oferta repetido nas outras`);
+  fBulkRenderPreview();
 }
 
 function fBulkApplyFill() {
@@ -4048,46 +4132,6 @@ async function fBulkApplyRounding() {
   });
 
   gToast(`Valores da coluna "${col}" arredondados para final ,90`);
-  fBulkRenderPreview();
-}
-
-// Aplica a MESMA validade a todas as linhas. Reusa fValidadeSuggestions (datas reais) como
-// sugestão editável e a máscara/validação de campo — irmão de "Aplicar Desconto/Arredondar".
-async function fBulkApplyValidade() {
-  fBulkCollectCurrentInputs();
-  const keys = fBulkVars();
-  const col = keys.find(k => /validade|data/i.test(k));
-  if (!col) { gToast('Este material não tem campo de validade.', 'warning'); return; }
-  const sugg = (typeof fValidadeSuggestions === 'function') ? fValidadeSuggestions() : ['Válido até o fim do mês'];
-  const val = await gPrompt(`Validade para todas as linhas:\n(sugestões: ${sugg.join(' · ')})`, sugg[sugg.length-1], {placeholder:'Ex.: Válido até o fim do mês', title:'Aplicar validade'});
-  if (val === null) return;
-  const masked = (typeof fApplyMask === 'function') ? fApplyMask(col, val) : val;
-  fBulkRows.forEach(r => { r.dados[col] = masked; _fBulkRevalidateCol(r, col); });
-  gToast(`Validade aplicada em todas as linhas`);
-  fBulkRenderPreview();
-}
-
-// Preenche o logo de uma loja salva (perfil de loja) em todas as linhas — franqueado que
-// monta o cardápio inteiro de um parceiro não reenvia o mesmo logo 20 vezes. Reusa fGetLojas.
-async function fBulkApplyLoja() {
-  fBulkCollectCurrentInputs();
-  const keys = fBulkVars();
-  const col = keys.find(k => /logo/i.test(k));
-  if (!col) { gToast('Este material não tem campo de logo.', 'warning'); return; }
-  const lojas = (typeof fGetLojas === 'function') ? fGetLojas() : [];
-  if (!lojas.length) { gToast('Nenhuma loja salva ainda — salve uma no chat ao enviar um logo.', 'warning'); return; }
-  let loja = lojas[0];
-  if (lojas.length > 1) {
-    const nomes = lojas.map((l,i)=>`${i+1}) ${l.nome||'Loja '+(i+1)}`).join('  ');
-    const pick = await gPrompt(`Qual loja aplicar?\n${nomes}`, '1', {placeholder:'Número da loja', title:'Logo da loja'});
-    if (pick === null) return;
-    const idx = parseInt(String(pick).trim(), 10) - 1;
-    if (isNaN(idx) || idx < 0 || idx >= lojas.length) { gToast('Número inválido.', 'error'); return; }
-    loja = lojas[idx];
-  }
-  if (!loja.logo) { gToast('Essa loja não tem logo salvo.', 'error'); return; }
-  fBulkRows.forEach(r => { r.dados[col] = loja.logo; _fBulkRevalidateCol(r, col); });
-  gToast(`Logo de ${loja.nome||'sua loja'} aplicado em todas as linhas`);
   fBulkRenderPreview();
 }
 
