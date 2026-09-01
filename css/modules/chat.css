@@ -809,9 +809,10 @@ body:has(#f-bulk-modal.open) #mobile-preview-toggle{display:none!important}
 .f-bulk-massbar-slot{display:flex;align-items:center;flex:1;min-width:170px}
 .f-bulk-massbar-slot input{width:100%}
 .f-bulk-massbar-hint{font-size:11.5px;color:var(--text-3);line-height:1.35}
-/* Chips = atalho de valor (datas prontas, lojas salvas). Ficam colados na barra, indentados
-   à esquerda, para lerem como "sugestões DESTE campo" e não como mais uma fileira de ações. */
-.f-bulk-massbar-sug{display:flex;flex-wrap:wrap;gap:6px;padding-left:2px}
+/* Chips = atalho de valor (datas prontas, lojas salvas). CENTRADOS: eles são a fileira do
+   meio entre a barra (que ocupa a largura toda) e os três botões em colunas iguais — ancorar
+   à esquerda deixava a composição caindo para um lado só. */
+.f-bulk-massbar-sug{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;padding:2px 0}
 .f-bulk-massbar-chip{
   padding:5px 11px;border:1px solid var(--dm-orange-tint);border-radius:var(--r-pill);
   background:var(--dm-orange-bg);color:var(--dm-orange-d);
