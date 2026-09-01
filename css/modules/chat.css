@@ -1510,7 +1510,16 @@ body:not(.theme-light) #f-chat-art{border-color:var(--d-line,#2A2A2A);background
 @media (max-width:680px){
 
   /* ── A LISTA ── */
-  .f-bulk-lista{display:flex; flex-direction:column; gap:7px; padding:2px 0 10px}
+  .f-bulk-lista{display:flex; flex-direction:column; gap:8px; padding:2px 0 10px}
+  /* Ritmo vertical: o cabeçalho da planilha empurrava a lista para baixo da dobra com um
+     respiro de tela grande. No celular a lista começa cedo — é ela o assunto. */
+  .f-bulk-sheet-head{gap:10px; padding-bottom:8px}
+  .f-bulk-import-toggle{margin-bottom:0}
+  #f-bulk-import:not(.is-open){margin:0}
+  /* "Mais opções da planilha" é gaveta de quem procura, não uma oferta: perde o cartão
+     branco para parar de competir com as linhas da lista. */
+  .f-bulk-alt-tools{background:none; border:0; box-shadow:none; margin-top:6px}
+  .f-bulk-alt-tools>summary{padding-left:0; padding-right:0; opacity:.8}
   /* O selo "1 pronta(s) · 1 para revisar" do cabeçalho diz o MESMO que a barra de progresso
      logo abaixo, com uma copy pior. Duas leituras da mesma verdade a 40px de distância é
      ruído: no celular quem conta é a barra. */
@@ -1518,28 +1527,36 @@ body:not(.theme-light) #f-chat-art{border-color:var(--d-line,#2A2A2A);background
 
   /* O progresso responde à pergunta da tela: quanto falta pra eu gerar? Vem antes dos
      filtros porque é leitura, não ação — e some assim que a pessoa começa a rolar. */
-  .f-bulk-lprog{display:flex; flex-direction:column; gap:7px; padding:2px 2px 10px}
+  /* ⚠ Sem margem negativa aqui: puxar a barra pra cima a metia embaixo do cabeçalho da
+     planilha e o texto saía CORTADO ("2 de 4" com a metade de cima comida). Medido no print. */
+  .f-bulk-lprog{display:flex; flex-direction:column; gap:7px; padding:0 2px 12px}
   .f-bulk-lprog-tx{font-size:13px; color:var(--text-2)}
   .f-bulk-lprog-tx strong{color:var(--text); font-weight:800; font-variant-numeric:tabular-nums}
-  .f-bulk-lprog-bar{height:5px; border-radius:var(--r-pill); background:var(--gray-light); overflow:hidden}
+  .f-bulk-lprog-bar{height:6px; border-radius:var(--r-pill); background:var(--gray-light); overflow:hidden}
+  /* Anima por `transform`, não por `width`: escala é composta na GPU e não reflui o
+     layout a cada oferta preenchida. A origem à esquerda faz a barra crescer, não esticar. */
   .f-bulk-lprog-bar i{
-    display:block; height:100%; border-radius:inherit; background:var(--dm-orange-d);
-    transition:width var(--dur-slow) var(--ease-out);
+    display:block; height:100%; width:100%; border-radius:inherit;
+    transform:scaleX(var(--f-bulk-pronto,0)); transform-origin:left center;
+    background:linear-gradient(90deg,var(--dm-orange),var(--dm-orange-d));
+    box-shadow:0 1px 6px -1px color-mix(in srgb,var(--dm-orange-d) 55%,transparent);
+    transition:transform var(--dur-slow) var(--ease-out);
   }
 
   .f-bulk-lfiltros{
-    display:flex; gap:6px; overflow-x:auto; padding:2px 0 8px; margin:0 0 2px;
+    display:flex; gap:6px; overflow-x:auto; padding:0 0 10px; margin:0;
     scrollbar-width:none; -webkit-overflow-scrolling:touch;
   }
   .f-bulk-lfiltros::-webkit-scrollbar{display:none}
   .f-bulk-lchip{
-    flex:0 0 auto; min-height:var(--tap-min); padding:0 14px; border-radius:var(--r-pill);
-    border:1px solid var(--gray-mid); background:var(--white); color:var(--text-2);
+    flex:0 0 auto; min-height:var(--tap-min); padding:0 15px; border-radius:var(--r-pill);
+    border:1px solid var(--gray-light); background:var(--white); color:var(--text-2);
     font:inherit; font-size:12.5px; font-weight:700; cursor:pointer; white-space:nowrap;
     display:inline-flex; align-items:center;
     transition:background var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard);
   }
-  .f-bulk-lchip.is-on{background:var(--dm-orange-d); border-color:var(--dm-orange-d); color:var(--white)}
+  .f-bulk-lchip.is-on{background:var(--dm-orange-d); border-color:var(--dm-orange-d); color:var(--white);
+    box-shadow:0 6px 16px -10px color-mix(in srgb,var(--dm-orange-d) 90%,transparent)}
   .f-bulk-lchip:focus-visible{outline:2px solid var(--dm-orange); outline-offset:2px}
 
   .f-bulk-litem{
@@ -1550,16 +1567,29 @@ body:not(.theme-light) #f-chat-art{border-color:var(--d-line,#2A2A2A);background
     transition:border-color var(--dur-fast) var(--ease-standard),background var(--dur-fast) var(--ease-standard),transform var(--dur-fast) var(--ease-spring);
     -webkit-tap-highlight-color:transparent;
   }
-  .f-bulk-litem:active{transform:scale(.99)}
-  .f-bulk-litem.is-active{border-color:var(--dm-orange); background:var(--dm-orange-bg)}
+  .f-bulk-litem:active{transform:scale(.985)}
+  /* Cascata na entrada: a lista se monta em vez de aparecer pronta. 26ms por linha é
+     percepção de velocidade (05_DESIGN_PHILOSOPHY), não espera. */
+  .f-bulk-litem{animation:gBulkFadeIn var(--dur-fast) var(--ease-out) both; animation-delay:calc(var(--fi,0) * 26ms)}
+  .f-bulk-litem.is-active{
+    border-color:var(--dm-orange); background:var(--dm-orange-bg);
+    box-shadow:0 6px 18px -10px color-mix(in srgb,var(--dm-orange-d) 60%,transparent);
+  }
   .f-bulk-litem:focus-visible{outline:2px solid var(--dm-orange); outline-offset:2px}
   /* A miniatura É a arte. O número vira um selo no canto dela — informação de apoio, não o
      protagonista: numa lista de 30 ofertas quem reconhece a peça é o desenho, não o "17". */
   .f-bulk-lthumb{
-    position:relative; flex:0 0 auto; width:46px; border-radius:var(--r-sm); overflow:hidden;
+    position:relative; flex:0 0 auto; width:46px; border-radius:8px; overflow:hidden;
     background:var(--gray-light); display:grid; place-items:center; line-height:0;
+    box-shadow:0 3px 10px -4px rgba(10,10,10,.34), 0 0 0 1px rgba(10,10,10,.06) inset;
   }
-  .f-bulk-lthumb canvas{display:block; width:46px; height:auto; border-radius:inherit}
+  .f-bulk-lthumb canvas{display:block; width:46px; height:auto; border-radius:inherit;
+    animation:gBulkThumbIn var(--dur-fast) var(--ease-spring-soft) both}
+  /* Oferta vazia não tem arte para mostrar — o tracejado diz isso sem inventar um desenho. */
+  .f-bulk-litem.is-vazia .f-bulk-lthumb{
+    box-shadow:none; background:var(--white);
+    border:1px dashed var(--gray-mid); opacity:.75;
+  }
   .f-bulk-lthumb::after{
     content:attr(data-n); position:absolute; left:2px; bottom:2px;
     min-width:15px; height:15px; padding:0 3px; border-radius:4px;
@@ -1602,7 +1632,7 @@ body:not(.theme-light) #f-chat-art{border-color:var(--d-line,#2A2A2A);background
     height:calc(100dvh - 44px - var(--safe-top)); max-height:none;
     width:auto !important; border-radius:18px 18px 0 0;
     background:var(--white); border:1px solid var(--gray-light); border-bottom:0;
-    box-shadow:0 -16px 44px rgba(10,10,10,.24);
+    box-shadow:0 -2px 0 rgba(255,255,255,.6) inset, 0 -18px 48px -8px rgba(10,10,10,.28);
     padding:0; gap:0;
     /* ⚠ `align-items:stretch` explícito: o tratamento mobile ANTIGO desta coluna (linha ~1010)
        crava `align-items:center`, e sem desfazer aqui cada zona encolhia até o tamanho do
@@ -1628,25 +1658,51 @@ body:not(.theme-light) #f-chat-art{border-color:var(--d-line,#2A2A2A);background
   .f-bulk-live-nav{
     order:1; position:sticky; top:0; z-index:3;
     display:flex; align-items:center; justify-content:space-between; gap:10px; flex:0 0 auto;
-    padding:6px 12px 8px; background:var(--white); border-bottom:1px solid var(--gray-light);
+    padding:6px 12px 9px; background:var(--white); border-bottom:1px solid var(--gray-light);
   }
-  .f-bulk-live-arrow{min-width:var(--tap-min); min-height:var(--tap-min)}
-  .f-bulk-live-nav #f-bulk-live-count{font-size:14px; font-weight:800; color:var(--text); font-variant-numeric:tabular-nums}
+  /* O FIO DA FILA. Onde estou nas N ofertas, num traço de 2px sob o pager — a informação
+     sem uma linha de texto para lê-la. A largura vem do JS (--f-bulk-fila). */
+  .f-bulk-live-nav::after{
+    content:''; position:absolute; left:0; bottom:-1px; height:2px; width:100%;
+    transform:scaleX(var(--f-bulk-fila,0)); transform-origin:left center;
+    background:linear-gradient(90deg,var(--dm-orange),var(--dm-orange-d));
+    border-radius:0 var(--r-pill) var(--r-pill) 0;
+    transition:transform var(--dur-base) var(--ease-out);
+  }
+  .f-bulk-live-arrow{
+    min-width:var(--tap-min); min-height:var(--tap-min); border-radius:50%;
+    transition:transform var(--dur-micro) var(--ease-spring),background var(--dur-micro) var(--ease-standard),border-color var(--dur-micro) var(--ease-standard);
+  }
+  .f-bulk-live-arrow:active:not(:disabled){transform:scale(.9); background:var(--dm-orange-bg); border-color:var(--dm-orange); color:var(--dm-orange-d)}
+  .f-bulk-live-arrow svg{width:17px; height:17px}
+  .f-bulk-live-nav #f-bulk-live-count{font-size:15px; font-weight:900; color:var(--text); letter-spacing:-.01em; font-variant-numeric:tabular-nums}
 
   /* 2 · A ARTE FIXA */
+  /* O PALCO. A mesma mesa pontilhada da prévia do chat (.lp-stage): a arte deixa de flutuar
+     num vazio branco e passa a ser um OBJETO sobre uma superfície — é o que faz a peça
+     parecer uma peça, e não um placeholder. Consistência acima de criatividade. */
   .f-bulk-live-stage{
-    order:2; position:sticky; top:57px; z-index:2;
+    order:2; position:sticky; top:58px; z-index:2;
     flex:0 0 auto; height:auto; min-height:0;
-    padding:12px 12px 10px; background:var(--white);
-    border-bottom:1px solid var(--gray-light);
+    padding:16px 12px 14px; border-bottom:1px solid var(--gray-light);
+    background-color:var(--off-white);
+    background-image:radial-gradient(rgba(10,10,10,.075) .75px,transparent .9px);
+    background-size:16px 16px;
   }
   .f-bulk-live-frame{
-    height:30dvh; max-height:30dvh; margin:0 auto;
-    transition:height var(--dur-slow) var(--ease-out), max-height var(--dur-slow) var(--ease-out);
+    height:30dvh; max-height:30dvh; margin:0 auto; border-radius:var(--r);
+    /* Sombra da marca: deslocamento + desfoque, laranja no lugar do cinza morto. */
+    box-shadow:0 14px 34px -14px color-mix(in srgb,var(--dm-orange-d) 45%,transparent),
+               0 2px 10px -3px rgba(10,10,10,.16);
+    transition:height var(--dur-slow) var(--ease-out), max-height var(--dur-slow) var(--ease-out),
+               box-shadow var(--dur-slow) var(--ease-out);
   }
+  .f-bulk-live-frame canvas{border-radius:inherit}
   /* Teclado aberto: a arte vira faixa em vez de sumir. 84px ainda mostra o preço entrando
      na peça — é pouco, e é infinitamente mais que nada. */
-  body.f-bulk-teclado .f-bulk-live-frame{height:84px; max-height:84px}
+  body.f-bulk-teclado .f-bulk-live-frame{height:84px; max-height:84px;
+    box-shadow:0 6px 16px -8px color-mix(in srgb,var(--dm-orange-d) 40%,transparent)}
+  body.f-bulk-teclado .f-bulk-live-stage{padding:10px 12px}
   .f-bulk-live-hint{display:none}                 /* “clique numa linha” não vale dentro da folha */
   /* A fita de 34px sai: dentro da folha ela era um enfeite ilegível, e a lista atrás já
      mostra o lote inteiro com miniatura de verdade. */
@@ -1655,16 +1711,36 @@ body:not(.theme-light) #f-chat-art{border-color:var(--d-line,#2A2A2A);background
   /* 3 · O ESTADO DA OFERTA — logo abaixo da arte, onde a pergunta “falta o quê?” nasce. */
   /* `display:flex` explícito desfaz o `display:none` do tratamento mobile antigo (~1012),
      onde esta linha era ruído numa faixa de 132px. Dentro da folha ela é o estado da oferta. */
-  .f-bulk-live-top{order:3; display:flex; flex:0 0 auto; padding:12px 14px 0; justify-content:flex-start}
+  .f-bulk-live-top{order:3; display:flex; flex:0 0 auto; padding:14px 14px 0; justify-content:flex-start}
   .f-bulk-live-label{display:none}                /* o pager já diz de qual oferta se trata */
-  .f-bulk-live-chip{font-size:12px; padding:5px 12px}
+  /* Estado como LINHA, não como pílula solta num vazio: ponto + texto, do tamanho de um
+     rótulo. A pílula flutuando sozinha numa faixa branca era o enfeite mais caro da tela. */
+  .f-bulk-live-chip{
+    gap:7px; padding:0; background:none !important; border-radius:0;
+    /* Minúscula e em --text-2: quem carrega o estado é o PONTO, não o grito. Em caixa alta
+       laranja ela competia com os rótulos dos campos, que também são caixa alta. */
+    font-size:12px; font-weight:600; letter-spacing:0; text-transform:none; color:var(--text-2);
+  }
+  .f-bulk-live-chip::before{
+    content:''; flex:0 0 auto; width:7px; height:7px; border-radius:50%; background:currentColor;
+    box-shadow:0 0 0 3px color-mix(in srgb,currentColor 16%,transparent);
+  }
+  /* Dois seletores de classe: as regras base `.f-bulk-live-chip.is-ok/.is-wait` (0‑2‑0)
+     pintavam o texto de laranja e venciam a regra de uma classe só. Aqui o texto é neutro
+     e o ponto carrega a cor — hierarquia, não semáforo. */
+  .f-bulk-live-chip.is-ok,
+  .f-bulk-live-chip.is-wait{color:var(--text-2)}
+  .f-bulk-live-chip::before{color:var(--text-3)}
+  .f-bulk-live-chip.is-ok::before{color:var(--green-text,#15803D)}
+  .f-bulk-live-chip.is-wait::before{color:var(--dm-orange-d)}
 
   /* 4 · OS CAMPOS */
   .f-bulk-folha-campos{
     order:4; display:flex; flex-direction:column; gap:14px; flex:1 0 auto;
     padding:12px 14px 18px;
   }
-  .f-bulk-fcampo{display:flex; flex-direction:column; gap:6px}
+  .f-bulk-fcampo{display:flex; flex-direction:column; gap:6px;
+    animation:gBulkFadeIn var(--dur-fast) var(--ease-out) both; animation-delay:calc(var(--fi,0) * 30ms)}
   .f-bulk-flabel{
     font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3);
   }
@@ -1721,25 +1797,35 @@ body:not(.theme-light) #f-chat-art{border-color:var(--d-line,#2A2A2A);background
   .f-bulk-folha-acoes{
     order:5; position:sticky; bottom:0; z-index:3;
     display:flex; align-items:center; gap:10px; flex:0 0 auto;
-    padding:10px 12px calc(10px + var(--safe-bottom));
-    background:var(--white); border-top:1px solid var(--gray-light);
-    box-shadow:0 -6px 18px rgba(10,10,10,.06);
+    padding:12px 12px calc(12px + var(--safe-bottom));
+    background:color-mix(in srgb,var(--white) 86%,transparent);
+    -webkit-backdrop-filter:saturate(180%) blur(12px); backdrop-filter:saturate(180%) blur(12px);
+    border-top:1px solid var(--gray-light);
+    box-shadow:0 -8px 22px -12px rgba(10,10,10,.22);
   }
   .f-bulk-folha-fechar{
     display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto;
-    min-height:var(--tap-min); padding:0 18px;
+    min-height:48px; padding:0 18px; border-radius:var(--r);
+    transition:background var(--dur-micro) var(--ease-standard),transform var(--dur-micro) var(--ease-spring);
     border:1px solid var(--gray-mid); border-radius:var(--r-sm);
     background:var(--white); color:var(--text-2);
     font:inherit; font-size:14px; font-weight:700; cursor:pointer;
   }
+  .f-bulk-folha-fechar:active{transform:scale(.975); background:var(--gray-light)}
   .f-bulk-folha-next{
-    display:inline-flex; align-items:center; justify-content:center; gap:6px; flex:1 1 auto;
-    min-height:var(--tap-min); border:0; border-radius:var(--r-sm);
-    background:var(--dm-orange-d); color:var(--white);
-    font:inherit; font-size:15px; font-weight:800; cursor:pointer;
-    transition:transform var(--dur-fast) var(--ease-spring);
+    display:inline-flex; align-items:center; justify-content:center; gap:7px; flex:1 1 auto;
+    min-height:48px; border:0; border-radius:var(--r);
+    background:linear-gradient(180deg,var(--dm-orange),var(--dm-orange-d));
+    color:var(--white); font:inherit; font-size:15px; font-weight:800; letter-spacing:-.01em;
+    cursor:pointer;
+    box-shadow:0 10px 24px -12px color-mix(in srgb,var(--dm-orange-d) 85%,transparent),
+               0 1px 0 rgba(255,255,255,.28) inset;
+    transition:transform var(--dur-micro) var(--ease-spring),box-shadow var(--dur-micro) var(--ease-spring),filter var(--dur-micro) var(--ease-standard);
   }
-  .f-bulk-folha-next:active{transform:scale(.985)}
+  .f-bulk-folha-next:active{transform:scale(.975); filter:brightness(.97);
+    box-shadow:0 4px 12px -8px color-mix(in srgb,var(--dm-orange-d) 85%,transparent)}
+  /* Na última oferta a ação é concluir: o mesmo botão, sem a seta que prometia continuar. */
+  .f-bulk-folha-next[data-ultima="true"]{background:var(--dm-orange-d)}
   .f-bulk-folha-next svg{width:17px; height:17px}
   .f-bulk-folha-fechar:focus-visible,.f-bulk-folha-next:focus-visible{outline:2px solid var(--dm-orange); outline-offset:2px}
 
@@ -1763,8 +1849,13 @@ body:not(.theme-light) .f-bulk-live{background:var(--d-surf); border-color:var(-
 body:not(.theme-light) #f-bulk-modal .f-bulk-folha-campos .f-bulk-fin,
 body:not(.theme-light) #f-bulk-modal .f-bulk-folha-campos .f-bulk-ffoto{background:var(--d-surf2); border-color:var(--d-border2); color:var(--d-text)}
 body:not(.theme-light) .f-bulk-live-nav,
-body:not(.theme-light) .f-bulk-live-stage,
 body:not(.theme-light) .f-bulk-folha-acoes{background:var(--d-surf); border-color:var(--d-border)}
+/* O palco escuro guarda a mesa pontilhada — só o ponto inverte. Usar o atalho `background`
+   aqui apagaria a trama e devolveria o vazio chapado que esta tela acabou de perder. */
+body:not(.theme-light) .f-bulk-live-stage{
+  background-color:var(--d-dark); border-color:var(--d-border);
+  background-image:radial-gradient(rgba(255,255,255,.06) .75px,transparent .9px);
+}
 body:not(.theme-light) .f-bulk-folha-fechar{background:var(--d-surf2); border-color:var(--d-border2); color:var(--d-text2)}
 body:not(.theme-light) .f-bulk-lthumb,body:not(.theme-light) .f-bulk-ffoto-mini{background:var(--d-surf2)}
 body:not(.theme-light) .f-bulk-lprog-bar{background:var(--d-surf2)}

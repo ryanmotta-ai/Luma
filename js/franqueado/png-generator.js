@@ -1725,6 +1725,10 @@ function _fBulkSyncLiveHead(){
   const chip = document.getElementById('f-bulk-live-chip');
   if(lab) lab.textContent = n ? `A arte da linha ${i+1}` : 'Nenhuma linha ainda';
   if(cnt) cnt.textContent = n ? `Oferta ${i+1} de ${n}` : '—';   // a tela chama de oferta, não de linha
+  /* O fio de progresso no topo da folha: onde estou na fila, sem ocupar uma linha de texto.
+     A largura é um token de instância (--f-bulk-fila), o desenho é todo do CSS. */
+  const folha = document.querySelector('.f-bulk-live');
+  if(folha) folha.style.setProperty('--f-bulk-fila', n ? ((i+1)/n).toFixed(3) : '0');
   document.querySelectorAll('.f-bulk-live-arrow').forEach(b=>{ b.disabled = n < 2; });
   if(chip){
     const r = fBulkRows[i];
@@ -2903,8 +2907,8 @@ function _fBulkRenderLista(){
     const cw = 46, ch = Math.max(28, Math.round(cw*th/tw));
     /* O nome cai para "Oferta N" quando ainda não há texto — mostrar uma linha em branco
        na lista é pior que assumir o rótulo: a pessoa não sabe onde tocar. */
-    return `<button type="button" class="f-bulk-litem${i===ativa?' is-active':''}" data-row="${i}"
-      onclick="fBulkAbrirFolha(${i})" aria-label="Abrir a oferta ${i+1}">
+    return `<button type="button" class="f-bulk-litem${i===ativa?' is-active':''} is-${est}" data-row="${i}"
+      style="--fi:${Math.min(i,9)}" onclick="fBulkAbrirFolha(${i})" aria-label="Abrir a oferta ${i+1}">
       <span class="f-bulk-lthumb" data-n="${i+1}"><canvas id="f-bulk-cv-${i}" width="${cw}" height="${ch}"></canvas></span>
       <span class="f-bulk-ltx">
         <span class="f-bulk-lnome">${gEsc(titulo) || `<i>Oferta ${i+1}</i>`}</span>
@@ -2920,7 +2924,7 @@ function _fBulkRenderLista(){
   wrap.innerHTML = `<div class="f-bulk-lista">
     <div class="f-bulk-lprog">
       <div class="f-bulk-lprog-tx"><strong>${nPronta} de ${total}</strong> ${total===1?'oferta pronta':'ofertas prontas'}</div>
-      <div class="f-bulk-lprog-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${pct}%"></i></div>
+      <div class="f-bulk-lprog-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="--f-bulk-pronto:${total?(nPronta/total).toFixed(3):0}"></i></div>
     </div>
     <div class="f-bulk-lfiltros" role="group" aria-label="Filtrar ofertas">
       ${chip('falta','Falta algo',nFalta)}${chip('todas','Todas',total)}${chip('prontas','Prontas',nPronta)}
@@ -2986,7 +2990,7 @@ function _fBulkRenderFolhaCampos(forcar){
   const vars = fBulkVars();
   const ordenadas = vars.filter(k=>!fIsImageVar(k)).concat(vars.filter(fIsImageVar));
 
-  alvo.innerHTML = ordenadas.map(k => {
+  alvo.innerHTML = ordenadas.map((k, pos) => {
     const rot = gEsc(rotuloDe(k)).replace(/"/g,'&quot;');
     const val = gEsc(r.dados[k] || '').replace(/"/g,'&quot;');
     const erro = (r.erros||[]).some(e => e.includes(k));
@@ -2996,7 +3000,7 @@ function _fBulkRenderFolhaCampos(forcar){
          espera o INPUT de arquivo como 1º argumento (`fBulkUploadCellImage(this,i,k)`, como
          a tabela do desktop sempre fez) e ainda não havia input nenhum na folha. Resultado
          medido: os dois campos de foto do celular não faziam absolutamente nada. */
-      return `<div class="f-bulk-fcampo f-bulk-fcampo-foto">
+      return `<div class="f-bulk-fcampo f-bulk-fcampo-foto" style="--fi:${Math.min(pos,7)}">
         <span class="f-bulk-flabel">${rot}</span>
         <label class="f-bulk-ffoto${tem?' tem':''}${erro&&!tem?' tem-erro':''}">
           <span class="f-bulk-ffoto-mini" aria-hidden="true">${tem
@@ -3012,7 +3016,7 @@ function _fBulkRenderFolhaCampos(forcar){
        recusa a vírgula em boa parte dos aparelhos. `inputmode="decimal"` traz o teclado de
        números sem impor o formato — o `fValidate` continua sendo quem julga o valor. */
     const numerico = /pre[çc]o|valor|de_|por_/i.test(k);
-    return `<label class="f-bulk-fcampo">
+    return `<label class="f-bulk-fcampo" style="--fi:${Math.min(pos,7)}">
       <span class="f-bulk-flabel">${rot}</span>
       <input type="text" id="f-bulk-edit-${i}-${k}" class="f-bulk-fin${erro?' tem-erro':''}" value="${val}"
         ${numerico?'inputmode="decimal" ':''}placeholder="${rot}" aria-label="${rot}"
