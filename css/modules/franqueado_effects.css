@@ -320,12 +320,6 @@
     transform: none;
   }
 
-  .lp-warnings {
-    left: 10px;
-    right: 10px;
-    bottom: 10px;
-  }
-
   .lp-toolbar {
     display: flex;
     flex-shrink: 0;

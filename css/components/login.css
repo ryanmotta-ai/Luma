@@ -66,12 +66,12 @@
 /* fileira de baixo ancora no BOTTOM: preenche o painel em qualquer altura */
 .gl-art-4{--rot:2deg;width:29%;aspect-ratio:1/1;left:17%;bottom:4%;z-index:3;animation-delay:.5s}
 .gl-art-5{--rot:-2.5deg;width:31%;aspect-ratio:1/1;right:15%;bottom:0;z-index:2;animation:glDealIn .6s var(--ease-spring) .58s both,glArtFloat 6s ease-in-out 2.3s infinite alternate}
-.gl-badge{position:absolute;top:8px;left:8px;background:#F8006E;color:var(--white);font-size:10px;font-weight:900;letter-spacing:.6px;padding:3px 8px;border-radius:var(--r-pill)}
+.gl-badge{position:absolute;top:8px;left:8px;background:var(--muchplus-magenta);color:var(--white);font-size:10px;font-weight:900;letter-spacing:.6px;padding:3px 8px;border-radius:var(--r-pill)}
 /* carta Much+: palco magenta com o logo -trim (alpha) — o contorno branco do
    logo segura a leitura do "+" magenta sobre magenta */
-.gl-muchplus{background:#F8006E;display:flex;align-items:center;justify-content:center}
+.gl-muchplus{background:var(--muchplus-magenta);display:flex;align-items:center;justify-content:center}
 .gl-muchplus img{width:78%;height:auto;object-fit:contain}
-.gl-muchplus .gl-badge{background:var(--white);color:#F8006E}
+.gl-muchplus .gl-badge{background:var(--white);color:var(--muchplus-magenta)}
 
 .gl-brand-foot{margin-top:auto;padding-top:32px;margin-bottom:14px;font-size:12.5px;font-weight:500;color:var(--white)}
 

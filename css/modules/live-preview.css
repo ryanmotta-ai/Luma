@@ -504,35 +504,25 @@ body:not(.theme-light) .lp-toggle.active{background:var(--dm-orange)}
   transition:background var(--dur-micro,140ms) var(--ease-standard,ease), border-color var(--dur-micro,140ms) var(--ease-standard,ease)}
 .lp-frame-reset:hover{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.6)}
 
-/* ── Bandeja de validação: preserva o canvas e mantém cada aviso acionável ── */
-.lp-warnings{
-  position:absolute;z-index:8;left:16px;right:16px;bottom:14px;
-  display:flex;flex-wrap:nowrap;gap:6px;min-width:0;padding:7px;
-  overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;
-  background:rgba(255,255,255,.92);border:1px solid rgba(10,10,10,.09);border-radius:13px;
-  box-shadow:0 8px 28px rgba(10,10,10,.09);backdrop-filter:blur(12px);
-  animation:gFadeInUp var(--dur-base) var(--ease-out) both;
-}
-.lp-warnings::-webkit-scrollbar{display:none}
-.lp-warnings:empty{display:none}
-.lp-warn{flex:0 0 auto;max-width:260px;font-size:10.5px;font-weight:650;font-family:'Roboto',sans-serif;padding:6px 10px;border-radius:9px;
-  cursor:pointer;border:1px solid transparent;display:inline-flex;align-items:center;gap:6px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  transition:transform var(--dur-micro) var(--ease-spring),filter var(--dur-micro) var(--ease-standard);text-align:left}
-.lp-warn::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;opacity:.9}
-.lp-warn:hover{transform:translateY(-1px);filter:brightness(.98)}
-.lp-warn:focus-visible{outline:2px solid var(--dm-orange);outline-offset:1px}
-.lp-warn-miss{background:var(--off-white,#FAFAFA);color:var(--text-2,#3A3A3A);border-color:var(--gray-light,#F2F2F2)}
-.lp-warn-over{background:rgba(200,24,24,.10);color:var(--dm-red,#C81818);border-color:rgba(200,24,24,.30)}
-.lp-warn-low{background:rgba(255,185,0,.18);color:#92400E;border-color:rgba(255,185,0,.45)}
-/* "+N avisos" — resumo dos que passaram do teto; neutro e não-clicável (sem hover/ponto) */
-.lp-warn-more{background:transparent;color:var(--text-3,#6B6B6B);border-color:var(--gray-mid,#D4D4D4);cursor:default}
-.lp-warn-more::before{display:none}
-.lp-warn-more:hover{transform:none;filter:none}
+/* ── A BANDEJA DE VALIDAÇÃO FOI REMOVIDA (02/09) ──
+   Aqui viviam ~30 linhas estilando `.lp-warnings` e quatro chips
+   (`.lp-warn-miss/-over/-low/-more`). **Nada disso era alcançável:**
+   `fLpUpdateWarnings()` (live-preview.js) só fazia `box.innerHTML=''` — a bandeja
+   tinha sido desativada de carona no commit `ef07faf` ("feat(historico): exibe
+   preview real das artes"), sem decisão de design registrada.
 
-body:not(.theme-light) .lp-warnings{background:rgba(24,23,22,.9);border-color:var(--d-border2);box-shadow:0 10px 34px rgba(0,0,0,.26)}
+   Medido antes de remover, para o registro de quem for ressuscitá-la: no tema
+   escuro os chips **nunca tiveram regra** e herdavam o par do tema claro. Aritmética
+   sobre o fundo real da bandeja escura: `.lp-warn-low` (#92400E sobre amarelo a 18%)
+   ficava em ~1,7:1 — invisível; `.lp-warn-over` em ~2,9:1; `.lp-warn-more` em ~3,5:1.
+   Ou seja: a bandeja não voltaria como estava de todo jeito.
+
+   Onde a validação REALMENTE acontece hoje: erro por campo no chat
+   (`fShowFieldError`, `fValidate` em `chat-input.js`) e o estado `tem-erro` da folha
+   do Sheets. Eram três lugares dizendo a mesma coisa; sobraram os dois que funcionam. */
 
 @media (prefers-reduced-motion:reduce){
-  .lp-canvas-wrap,.lp-warnings,.lp-empty-art{animation:none!important;transition:none!important}
+  .lp-canvas-wrap,.lp-empty-art{animation:none!important;transition:none!important}
 }
 
 /* ── Chip flutuante de descoberta (hover na prévia) ── */

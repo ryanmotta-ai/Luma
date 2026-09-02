@@ -1408,8 +1408,14 @@ body.camp-theme-muchplus .f-assistant-brand > :not(.muchplus-motion-wrap){displa
 }
 
 /* Beat de saída: wipe reverso curto — o magenta chapado recolhe e devolve o Luma
-   (criado por fRemoveCampTheme; bem mais rápido que a entrada, de propósito). */
-#f-camp-veil-out{position:fixed;inset:0;z-index:2000;pointer-events:none;background:#F8006E;clip-path:circle(141% at 50% 44%)}
+   (criado por fRemoveCampTheme; bem mais rápido que a entrada, de propósito).
+   ⚠ A cor é `--muchplus-magenta` FIXA, não `--dm-orange`, e é de propósito: quem cria
+   o véu é o `fRemoveCampTheme`, que já tirou a classe do tema — nesse instante
+   `--dm-orange` voltou a ser laranja e o wipe sairia da cor errada. Consequência
+   conhecida: se um dia entrar uma segunda campanha com tema (não-magenta), a saída
+   dela vai recolher em magenta. Hoje o Much+ é o único tema, então não é defeito
+   vivo — mas é aqui que se conserta quando o segundo chegar. */
+#f-camp-veil-out{position:fixed;inset:0;z-index:2000;pointer-events:none;background:var(--muchplus-magenta);clip-path:circle(141% at 50% 44%)}
 #f-camp-veil-out.on{animation:fCampVeilOut .32s var(--ease-in) forwards}
 @keyframes fCampVeilOut{to{clip-path:circle(0% at 50% 44%)}}
 

@@ -699,7 +699,6 @@ async function fUpdateLivePreview(opts){
     if(wrap){ wrap.classList.remove('updated'); void wrap.offsetWidth; wrap.classList.add('updated'); }
 
     fLpUpdateMeta(true);
-    try{ fLpUpdateWarnings(); }catch(e){}
     try{ _fLpPaintPip(); }catch(e){} // miniatura viva no celular acompanha cada resposta
   } catch(e){
     console.warn('[lp] erro ao renderizar preview:', e);
@@ -883,7 +882,7 @@ function _fLpWheelZoom(e){
 // Arrastar em qualquer lugar da mesa = mover a arte (em qualquer zoom). Clique sem arrasto edita.
 function _fLpPanDown(e){
   if(_lpFraming || e.button !== 0) return;
-  if(e.target.closest('.lp-warnings, .lp-stage-meta, button, a, input, textarea, select')) return;
+  if(e.target.closest('.lp-stage-meta, button, a, input, textarea, select')) return;
   _lpPanning = { sx:e.clientX, sy:e.clientY, px:_lpPanX, py:_lpPanY };
   _lpDidPan = false;
   const wrap = document.querySelector('.lp-canvas-wrap');
@@ -1687,11 +1686,6 @@ function _fLpOnCanvasClick(ev){
   const vars=_fLpLayerVars(l); if(!vars.length) return;
   if(vars.length===1){ const perm=_fLpPerm(vars[0]); if(!perm.editable){ _fLpLockToast(vars[0]); return; } _fLpTextEditor(vars[0],perm.maxLen,ev); }
   else { _fLpVarChooser(l,vars,ev); }
-}
-// A bandeja permanece no DOM por compatibilidade, mas os avisos visuais foram desativados.
-function fLpUpdateWarnings(){
-  const box=document.getElementById('lp-warnings'); if(!box) return;
-  box.innerHTML='';
 }
 
 // ── Hover: chip flutuante indicando que o campo é editável (descoberta) ──
