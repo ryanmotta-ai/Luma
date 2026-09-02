@@ -2054,3 +2054,202 @@ body:not(.theme-light) .f-bulk-lzero strong{color:var(--d-text)}
 body:not(.theme-light) .f-bulk-frow-acoes{border-color:var(--d-border)}
 body:not(.theme-light) .f-bulk-frow-act{color:var(--d-text2)}
 body:not(.theme-light) .f-bulk-ffoto-todas{background:var(--d-surf3); color:var(--dm-orange)}
+
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   CHAT DO FRANQUEADO — PASSAGEM DE ACABAMENTO (2026-09-02)
+   ══════════════════════════════════════════════════════════════════════════════
+   Cada regra abaixo nasceu de um print medido da tela real (1440×900 e 390×844),
+   não de gosto. O diagnóstico do print: a conversa tinha SEIS coisas gritando no
+   mesmo volume (três avatares laranja-sólido com sombra de marca, dois selos "EU"
+   sem informação, o selo "PASSO 3 DE 3" na frente da própria pergunta) e nada
+   dizendo onde a pessoa deveria olhar. Acabamento aqui = hierarquia, não enfeite.
+
+   ⚠ Este bloco fica no FIM do arquivo de propósito — várias regras aqui têm a
+   MESMA especificidade das originais lá em cima e só vencem por vir depois.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. UM FOCO POR TELA: o avatar da pergunta ativa ──
+   No print, os três avatares do bot eram idênticos: laranja sólido + sombra de
+   marca, empilhados na calha esquerda. Peso de destaque gasto no histórico.
+   Agora o histórico usa a tinta da marca (discreto) e SÓ a pergunta ativa fica
+   sólida. Zero JS: a classe `.active-prompt` já existia e já era mantida. */
+.msg.bot .av{
+  background:var(--dm-orange-bg);color:var(--dm-orange-d);
+  border:1px solid var(--dm-orange-tint);box-shadow:none;
+  transition:background var(--dur-base) var(--ease-standard),
+             color var(--dur-base) var(--ease-standard),
+             border-color var(--dur-base) var(--ease-standard),
+             box-shadow var(--dur-base) var(--ease-standard);
+}
+.msg.bot.active-prompt .av{
+  background:var(--dm-orange);color:var(--white);border-color:var(--dm-orange);
+  box-shadow:0 5px 16px color-mix(in srgb,var(--dm-orange-d) 24%,transparent);
+}
+body:not(.theme-light) .msg.bot .av{
+  background:color-mix(in srgb,var(--dm-orange) 14%,var(--d-surf));color:var(--dm-orange);
+  border-color:color-mix(in srgb,var(--dm-orange) 34%,transparent);
+}
+body:not(.theme-light) .msg.bot.active-prompt .av{
+  background:var(--dm-orange);color:var(--white);border-color:var(--dm-orange);
+}
+
+/* A bolha ativa ganha o contorno da marca e um halo de 3px — a pergunta que
+   está em jogo se separa do histórico sem precisar de cor de fundo diferente
+   (fundo diferente quebraria a leitura de "é o mesmo interlocutor"). */
+.bot .bbl{transition:border-color var(--dur-base) var(--ease-standard),box-shadow var(--dur-base) var(--ease-standard)}
+.msg.bot.active-prompt .bbl{
+  border-color:var(--dm-orange-tint);
+  box-shadow:0 6px 22px color-mix(in srgb,var(--dm-orange-d) 10%,transparent),
+             0 0 0 3px color-mix(in srgb,var(--dm-orange) 8%,transparent);
+  animation:fChatFocoEntra var(--dur-slow) var(--ease-out) both;
+}
+body:not(.theme-light) .msg.bot.active-prompt .bbl{
+  border-color:color-mix(in srgb,var(--dm-orange) 42%,transparent);
+  box-shadow:0 6px 22px rgba(0,0,0,.34),
+             0 0 0 3px color-mix(in srgb,var(--dm-orange) 13%,transparent);
+}
+/* O halo entra de fora para dentro: o olho é puxado para a pergunta nova em vez
+   de ter que procurá-la. Assenta no valor estático acima (por isso `both`).
+   O guarda global de `prefers-reduced-motion` (02-animations.css) zera tudo. */
+@keyframes fChatFocoEntra{
+  from{box-shadow:0 6px 22px color-mix(in srgb,var(--dm-orange-d) 10%,transparent),
+                  0 0 0 10px color-mix(in srgb,var(--dm-orange) 0%,transparent)}
+  45% {box-shadow:0 6px 22px color-mix(in srgb,var(--dm-orange-d) 10%,transparent),
+                  0 0 0 7px  color-mix(in srgb,var(--dm-orange) 11%,transparent)}
+  to  {box-shadow:0 6px 22px color-mix(in srgb,var(--dm-orange-d) 10%,transparent),
+                  0 0 0 3px  color-mix(in srgb,var(--dm-orange) 8%,transparent)}
+}
+
+/* ── 2. O SELO "EU" NÃO DIZIA NADA ──
+   Dois discos amarelos com "EU" em vermelho eram o elemento de maior contraste
+   da tela e carregavam informação zero: a bolha já está alinhada à direita e já
+   é laranja. Some quando é só a inicial; a FOTO da pessoa continua aparecendo
+   (aí sim há informação). `:has` faz a distinção sem uma linha de JS. */
+.msg.user .av:not(:has(img)){display:none}
+.msg.user.msg-continuation{margin-right:0}
+.msg.user:has(.av img).msg-continuation{margin-right:38px}
+/* Sem o disco, a bolha do usuário pode usar a largura que ele ocupava. */
+.msg.user:not(:has(.av img)){max-width:min(80%,600px)}
+
+/* ── 3. O PASSO É LEGENDA, A PERGUNTA É MANCHETE ──
+   No print, "PASSO 3 DE 3" era um chip laranja em caixa alta ANTES do texto —
+   mais pesado que a própria pergunta e empurrando-a para a segunda posição de
+   leitura. Vira uma linha de meta acima, e a pergunta volta a ser o que se lê
+   primeiro. Contraste medido: `--text-2` (#3A3A3A) sobre branco = 10,6:1 (e
+   6,5:1 nas bolhas de histórico, que ficam a 76% de opacidade). */
+.step-label{
+  display:block;width:fit-content;margin:0 0 6px;padding:0;
+  background:none;border-radius:0;color:var(--text-2);
+  font-size:9.5px;letter-spacing:.11em;
+}
+body:not(.theme-light) .step-label{background:none;color:var(--d-text2)}
+
+/* ── 4. BORDA TRACEJADA LÊ COMO RASCUNHO ──
+   "Voltar uma pergunta" era o único controle da tela com borda pontilhada — no
+   resto do Luma, tracejado significa "zona de solta/vazio a preencher". Vira um
+   botão terminado, ainda silencioso (é ação secundária). */
+.qr-back{
+  border-style:solid;border-color:var(--gray-light);background:var(--white);
+  color:var(--text-2);font-weight:600;padding:6px 12px;
+  box-shadow:0 1px 3px rgba(10,10,10,.04);
+  transition:background var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard),
+             border-color var(--dur-fast) var(--ease-standard),transform var(--dur-fast) var(--ease-spring);
+}
+.qr-back:hover{background:var(--dm-orange-bg);border-color:var(--dm-orange-tint);color:var(--dm-orange-d);transform:translateY(-1px)}
+.qr-back:active{transform:scale(.97)}
+.qr-back-wrap{margin-top:8px}
+body:not(.theme-light) .qr-back{background:var(--d-surf);border-color:var(--d-border2);color:var(--d-text2)}
+body:not(.theme-light) .qr-back:hover{border-color:var(--dm-orange);color:var(--dm-orange)}
+
+/* ── 5. RITMO: PERGUNTA + RESPOSTA SÃO UM PAR ──
+   O gap era único (12px), então tudo ficava equidistante e a conversa lia como
+   uma lista. Um pouco mais de ar antes de CADA pergunta nova agrupa o par
+   pergunta→resposta. O `:not(.msg-continuation)` protege o encaixe negativo das
+   bolhas emendadas (mesma especificidade não bastaria: aqui é 0-3-0 vs 0-2-0). */
+.msg.user + .msg.bot:not(.msg-continuation){margin-top:9px}
+
+/* ── 6. O VAZIO DO DESKTOP ──
+   Medido no print de 1440×900: 470px de branco entre a última bolha e a barra de
+   digitar — quase metade da coluna. A conversa agora se apoia no rodapé, como
+   todo chat de verdade, e a pergunta ativa nasce ao alcance do olho e do campo.
+   O espaçador com `margin-top:auto` (em vez de `justify-content:flex-end`) é o
+   que faz isso SEM tornar o topo inalcançável quando a conversa passa da altura
+   — a margem automática resolve para 0 assim que o conteúdo transborda.
+   Só no desktop: no celular o cartão da arte já absorve a sobra (`flex:1`). */
+@media (min-width:681px){
+  #f-messages::before{content:'';flex:none;margin-top:auto}
+}
+
+/* ── 7. UM CONTROLE BRILHANTE NA BARRA, NÃO DOIS ──
+   A barra tinha o "Falar" numa cápsula cinza sólida disputando com o Enviar.
+   O microfone é alternativa, não a ação — fica silencioso até o hover/foco. */
+#f-chat-mic{background:transparent;border-color:transparent;color:var(--text-3)}
+#f-chat-mic:hover{background:var(--gray-light);border-color:var(--gray-mid);color:var(--text)}
+#f-chat-mic:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+body:not(.theme-light) #f-chat-mic{background:transparent;border-color:transparent;color:var(--d-text2)}
+body:not(.theme-light) #f-chat-mic:hover{background:var(--d-surf);border-color:var(--d-border2);color:var(--d-text)}
+
+/* ── 8. A ARTE NA CONVERSA VIRA PALCO (celular) ──
+   No print, a arte flutuava num retângulo cinza chapado, do mesmo cinza do
+   fundo — parecia área não carregada. Recebe o mesmo tratamento de palco já
+   usado no Sheets (malha pontilhada + sombra de marca sob a peça), que diz
+   "isto é a prova da arte" em vez de "isto é uma caixa". */
+@media (max-width:680px){
+  #f-chat-art{
+    position:relative;padding:12px 10px 26px;
+    border-color:var(--gray-light);
+    background:
+      radial-gradient(circle at 1px 1px,color-mix(in srgb,var(--text) 9%,transparent) 1px,transparent 0) 0 0/14px 14px,
+      var(--off-white);
+  }
+  /* Rótulo decorativo: o botão já tem `aria-label="Ver a arte em tela cheia"`,
+     então o leitor de tela não perde nada e ninguém precisa de DOM novo. */
+  #f-chat-art::after{
+    content:'Prévia · toque para ampliar';
+    position:absolute;left:0;right:0;bottom:8px;text-align:center;
+    font:700 9.5px/1 'Roboto',sans-serif;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--text-3);pointer-events:none;
+  }
+  /* A peça precisa POUSAR no palco. Só a camada de marca (laranja) desaparecia
+     contra a malha clara — medido no print: a arte lia como recorte chapado. A
+     camada neutra curta é quem faz a borda existir; a de marca dá o calor. */
+  #f-chat-art canvas{
+    box-shadow:0 14px 34px color-mix(in srgb,var(--dm-orange-d) 20%,transparent),
+               0 4px 12px rgba(10,10,10,.16),
+               0 1px 2px rgba(10,10,10,.10);
+  }
+}
+body:not(.theme-light) #f-chat-art{
+  border-color:var(--d-border2);
+  background:
+    radial-gradient(circle at 1px 1px,color-mix(in srgb,var(--white) 9%,transparent) 1px,transparent 0) 0 0/14px 14px,
+    var(--d-surf2,#141414);
+}
+body:not(.theme-light) #f-chat-art::after{color:var(--d-text2)}
+
+/* ── 9. SOMBRA DE BOLHA É AR, NÃO FUMAÇA ──
+   A sombra do bot (`0 3px 12px`) e a do usuário (`0 5px 16px`) davam um halo
+   cinza-frio largo que sujava o branco entre as bolhas. Duas camadas curtas
+   assentam a bolha na superfície sem borrar a vizinha. */
+.bot .bbl{box-shadow:0 2px 8px rgba(10,10,10,.035),0 1px 2px rgba(10,10,10,.02)}
+.user .bbl{box-shadow:0 3px 12px color-mix(in srgb,var(--dm-orange-d) 17%,transparent)}
+
+/* ── 10. "VOLTAR UMA PERGUNTA" NO DEDO ──
+   Medido depois do acabamento: 147×28px. É ação secundária, mas errar o toque
+   aqui significa mandar a resposta errada adiante. Régua do `ux-principles.md`
+   (Lei de Fitts) e do bloco de toque acima: 44px onde não há mouse. */
+@media (hover:none){
+  .qr-back{min-height:var(--tap-min);padding-inline:14px}
+}
+
+/* ── 11. BUG ENCONTRADO NA REVISÃO DO TEMA ESCURO: texto invisível ──
+   O tema escuro remapeava só a COR do texto do campo (`franqueado.css`), não o
+   fundo: o `#f-msg-box` seguia com `background:var(--off-white)` da regra base.
+   Resultado medido: `--d-text` (#F0F0F0) sobre #FAFAFA = **1,04:1** — quem usa o
+   tema escuro digitava a resposta no escuro, sem ver uma letra. Só o placeholder
+   (cinza) se salvava, e era isso que disfarçava o defeito nos prints. */
+body:not(.theme-light) #f-msg-box{background:var(--d-surf);border-color:var(--d-border2)}
+body:not(.theme-light) #f-msg-box::placeholder{color:var(--d-text2)}
+body:not(.theme-light) #f-msg-box:focus{border-color:var(--dm-orange);box-shadow:0 0 0 3px color-mix(in srgb,var(--dm-orange) 18%,transparent)}
+body:not(.theme-light) #f-msg-box:disabled{background:var(--d-surf2);color:var(--d-text2)}
