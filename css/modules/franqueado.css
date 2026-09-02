@@ -1419,6 +1419,47 @@ body.camp-theme-muchplus .f-assistant-brand > :not(.muchplus-motion-wrap){displa
 #f-camp-veil-out.on{animation:fCampVeilOut .32s var(--ease-in) forwards}
 @keyframes fCampVeilOut{to{clip-path:circle(0% at 50% 44%)}}
 
+/* ══ SUPERFÍCIE DE MARCA PREENCHIDA, DENTRO DO MUCH+ ══
+   Com `--on-orange` virando branco (00-tokens.css), todo botão preenchido de marca
+   precisa do magenta ESCURO — e isso não é gosto, é a mesma conta que o
+   `.fh-hero-cta` já fazia logo abaixo: branco sobre #F8006E dá 4,03:1 e reprova;
+   sobre #C4005B dá 5,98:1 e passa. Rótulos aqui têm 12px e menos, então não há
+   isenção de "texto grande".
+   A lista é explícita de propósito: são TODAS as superfícies que casam `background:
+   var(--dm-orange)` com `color:var(--on-orange)` e que o franqueado alcança dentro de
+   uma campanha (as 8 abaixo; a 9ª e a 10ª são do Estúdio e do tema escuro, cobertas
+   por outras regras). Ela tem que estar completa: virar `--on-orange` para branco sem
+   completá-la não conserta o bug, MOVE ele — eu tinha deixado 4 botões (confirmar,
+   baixar PNG, ação da arte, chip no hover) com branco a 4,03:1 nesse meio-caminho.
+   **Botão de marca novo entra aqui.** Escolhi a lista em vez de remapear `--dm-orange`
+   para o magenta escuro no tema: isso escureceria bordas, anéis de foco e acentos da
+   campanha inteira — mudança de design que ninguém pediu.
+   Especificidade conferida: (0,3,1) contra (0,2,0) das regras originais, então vence
+   independentemente da ordem de carga dos arquivos.
+   ⚠ O `:not(:disabled)` no "Baixar PNG" não é enfeite: esse botão nasce desabilitado
+   (só libera quando o chat fecha o fluxo) e a regra pintava o fundo de magenta
+   mantendo o texto cinza do estado desligado — medido em 1,55:1, um botão que parecia
+   ativo e não era. Botão desligado não usa a superfície de marca. */
+body.camp-theme-muchplus #f-home-btn,
+body.camp-theme-muchplus .f-history-new,
+body.camp-theme-muchplus .empty-cta,
+body.camp-theme-muchplus .confirm-btn.ok,
+body.camp-theme-muchplus .confirm-btn.ok:hover,
+body.camp-theme-muchplus .art-btn.pri,
+body.camp-theme-muchplus .lp-btn-down-png:not(:disabled),
+body.camp-theme-muchplus .qr:hover{
+  background:var(--muchplus-magenta-d);border-color:var(--muchplus-magenta-d);
+}
+body.camp-theme-muchplus #f-home-btn:hover{
+  box-shadow:0 7px 18px color-mix(in srgb,var(--muchplus-magenta-d) 30%,transparent);
+}
+/* O subtítulo era `--on-orange` a 74%: com preto isso dava 6,18:1, mas branco a 74%
+   sobre magenta cai para ~3,6:1. Sobe para 88% — o suficiente para continuar
+   secundário sem deixar de ser legível. */
+body.camp-theme-muchplus .f-home-btn-copy small{
+  color:color-mix(in srgb,var(--on-orange) 88%,transparent);
+}
+
 /* Seleção de texto dentro do tema — detalhe que ninguém pede e todo mundo sente */
 body.camp-theme-muchplus #global-topbar,body.camp-theme-muchplus #view-franqueado,body.camp-theme-muchplus #view-franqueado button,body.camp-theme-muchplus #view-franqueado input,body.camp-theme-muchplus #view-franqueado textarea,body.camp-theme-muchplus #view-franqueado select{font-family:'Ubuntu','Roboto',sans-serif}
 body.camp-theme-muchplus ::selection{background:color-mix(in srgb,var(--dm-orange) 24%,transparent)}

@@ -223,6 +223,15 @@ body.camp-theme-muchplus {
   --var-color: var(--muchplus-magenta);
   --var-bg: rgba(248, 0, 110, .10);
   --dm-orange-text: var(--muchplus-magenta-d); /* #C4005B já dá 6:1 sobre branco */
+  /* Texto SOBRE a superfície de marca. O tema trocava `--dm-orange` por magenta e
+     deixava `--on-orange` em #0A0A0A: dentro do Much+ o botão ficava magenta com
+     letra preta (achado pelo Ryan em 02/09 no "Início / Visão geral"). Medido no
+     navegador: preto dava 4,92:1 no título e 4,20:1 no subtítulo — este último já
+     reprovava os 4,5:1. Uma linha aqui acerta os 10 usos de `--on-orange` de uma vez.
+     ⚠ Branco sobre o magenta CLARO (#F8006E) é só 4,03:1. Quem preenche superfície
+     de marca dentro do Much+ tem que usar o magenta ESCURO — é o que dá 5,98:1 e é
+     a decisão que a casa já tinha tomado no `.fh-hero-cta` (franqueado.css). */
+  --on-orange: var(--white);
 }
 /* O tema claro re-define --var-color DEPOIS deste arquivo (designer.css, dourado AA).
    A dupla classe vence a ordem de carga: dentro do Much+ o campo fica magenta AA. */
