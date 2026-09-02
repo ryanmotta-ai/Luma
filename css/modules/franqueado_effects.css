@@ -376,32 +376,19 @@
     transition: transform var(--dur-micro) var(--ease-spring), filter var(--dur-micro);
   }
 
-  .lp-btn-down-png:active {
+  .lp-btn-down-png:active:not(:disabled) {
     transform: scale(0.97);
   }
 
-  .lp-btn-down-pdf {
-    flex: 0 0 auto;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    height: 44px;
-    padding: 0 16px;
-    border-radius: var(--r-pill);
-    background: var(--off-white);
-    color: var(--text);
-    border: 1px solid var(--gray-mid);
-    font-family: 'Roboto', sans-serif;
-    font-size: 12.5px;
-    font-weight: 650;
-    cursor: pointer;
-    transition: background var(--dur-micro), transform var(--dur-micro);
+  /* Bloqueado enquanto o chat não terminou: cinza sólido com texto legível. Laranja a 50%
+     lê como botão quebrado — e aqui o "ainda não" é a informação. */
+  .lp-btn-down-png:disabled {
+    background: var(--gray-light);
+    color: var(--text-3);
+    box-shadow: none;
+    cursor: not-allowed;
   }
-
-  .lp-btn-down-pdf:active {
-    transform: scale(0.97);
-  }
+  .lp-btn-down-png:disabled svg { opacity: .55; }
 
   body:has(#f-live-preview.open) #mobile-preview-toggle {
     opacity: 0;

@@ -548,6 +548,19 @@ function fLpToggleAutoZoom(){
   }
 }
 
+/* ── BAIXAR PNG SÓ COM A ARTE PRONTA ──
+   A barra de download da gaveta (celular) ficava clicável desde a primeira pergunta: baixar
+   ali entregava a peça com `{{campo}}` no lugar do preço — arte pela metade, com a marca da
+   DM. O botão agora acompanha `fState.done`, que é o que o chat marca ao gerar, e diz por que
+   está bloqueado enquanto não está. */
+function _fLpSyncBaixar(){
+  const btn = document.querySelector('.lp-btn-down-png');
+  if(!btn) return;
+  const pronto = !!(fState && fState.done && fState.material);
+  btn.disabled = !pronto;
+  btn.title = pronto ? 'Baixar arte em PNG' : 'Responda o chat até o fim para baixar';
+}
+
 /* ── AUTO-LAYOUT: o mesmo gesto do Auto-zoom, para a acomodação da arte ──
    Este é o ÚNICO lugar do produto onde alguém liga/desliga o layout vivo. Todo template nasce
    com ele ligado; a outra chave é a flag da rede no Controle do produto, que é da gestão.
@@ -590,6 +603,7 @@ async function fUpdateLivePreview(opts){
   // O botão depende do TEMPLATE aberto (nem todo template tem Layout vivo), então é
   // re-sincronizado a cada update — diferente do Auto-zoom, que independe do material.
   try { _fLpSyncAutoLayoutButton(); } catch(e){}
+  try { _fLpSyncBaixar(); } catch(e){}
 
   // Sem template ou sem camadas → estado vazio. (Material publicado sempre tem camadas;
   // não existe caminho de preview "só com bg" — o antigo caía num fRenderCanvasHelper de
