@@ -50,7 +50,7 @@
   <link rel="stylesheet" href="css/components/pages-tray.css">
 <link rel="stylesheet" href="css/modules/layers-panel.css">
 <link rel="stylesheet" href="css/modules/toolbar.css">
-<link rel="stylesheet" href="css/components/login.css?v=3">
+<link rel="stylesheet" href="css/components/login.css?v=4">
 <link rel="stylesheet" href="css/modules/upload-panel.css?v=2">
 <!-- depois de franqueado/chat/live-preview: sobrepõe o layout das 3 colunas -->
 <link rel="stylesheet" href="css/modules/panel-dock.css">
@@ -206,25 +206,84 @@ body:not(.theme-light) input:-webkit-autofill:active {
     setTimeout(fim, 1600); // cinto: aba oculta não dispara animationend
   }
 
-  // ── O BARALHO MUDA A CADA VISITA ──
-  // A pasta `assets/covers/` tem 13 capas reais de campanha (1500×900) e o painel
-  // só tem 4 slots de capa: sortear é de graça e faz a composição não repetir dois
-  // dias seguidos. A carta Much+ NÃO entra no sorteio — ela é declaração de marca
-  // (palco magenta + logo), não capa de campanha, e é a única 1:1 da pasta.
-  // ⚠ Roda no PARSE, não quando o login vira visível: a tela só aparece depois da
-  // checagem de sessão, então as imagens chegam decodificadas e nenhuma carta é
-  // "dada na mesa" em branco. Trocar isso para um listener de exibição reintroduz
-  // o flash. Se o JS não rodar, ficam as capas cravadas no markup.
+  // ── O BARALHO SE RENDE AO VIVO ──
+  // A pasta `assets/covers/` tem 13 capas reais de campanha e o painel tem 4 slots
+  // de capa. Duas coisas acontecem aqui: a MÃO INICIAL é sorteada (nenhuma visita
+  // repete a composição da anterior) e depois UMA carta por vez se rende, em
+  // rodízio, enquanto a pessoa está na tela.
+  //
+  // Por que uma por vez e não todas juntas: quatro trocas simultâneas leem como
+  // carrossel e disputam atenção com quem está digitando a senha. Uma a cada 4,5s
+  // em rodízio = cada carta troca a cada 18s, e o painel nunca está parado nem
+  // nunca está agitado. As nove capas fora da mesa esperam numa FILA (a que sai
+  // volta para o fim), então nenhuma capa aparece duas vezes ao mesmo tempo e as
+  // 13 acabam passando.
+  //
+  // A carta Much+ NÃO entra em nada disso: é declaração de marca (palco magenta +
+  // logo), não capa de campanha, e é a única 1:1 da pasta.
   (function(){
-    var capas = ['aai','ac','bsn','cc','cd','dd','eg','gb','mna','otp','pt','rbp','tr25'];
-    for (var i = capas.length - 1; i > 0; i--) {           // Fisher-Yates
+    var CAPAS = ['aai','ac','bsn','cc','cd','dd','eg','gb','mna','otp','pt','rbp','tr25'];
+    var SLOTS = ['gl-art-1','gl-art-2','gl-art-3','gl-art-5'];
+    var PAUSA = 4500;  // uma carta por vez, em rodízio => 18s por carta
+    var CINTO = 900;   // ver "cinto" abaixo
+
+    for (var i = CAPAS.length - 1; i > 0; i--) {            // Fisher-Yates
       var j = Math.floor(Math.random() * (i + 1));
-      var t = capas[i]; capas[i] = capas[j]; capas[j] = t;
+      var t = CAPAS[i]; CAPAS[i] = CAPAS[j]; CAPAS[j] = t;
     }
-    ['gl-art-1','gl-art-2','gl-art-3','gl-art-5'].forEach(function(cls, k){
-      var img = document.querySelector('#g-login-screen .' + cls + ' img');
-      if (img) img.src = 'assets/covers/' + capas[k] + '.png';
+    var cartas = SLOTS.map(function(c){ return document.querySelector('#g-login-screen .' + c); });
+    var naMesa = CAPAS.slice(0, SLOTS.length);              // as 4 que estão no baralho
+    var fila   = CAPAS.slice(SLOTS.length);                 // as 9 esperando a vez
+
+    // ⚠ Roda no PARSE, não quando o login vira visível: a tela só aparece depois da
+    // checagem de sessão, então as imagens chegam decodificadas e nenhuma carta é
+    // "dada na mesa" em branco. Trocar isso por um listener de exibição traz o
+    // flash de volta. Sem JS, ficam as capas cravadas no markup.
+    cartas.forEach(function(carta, k){
+      var img = carta && carta.querySelector('img');
+      if (img) img.src = 'assets/covers/' + naMesa[k] + '.png';
     });
+
+    // Movimento reduzido: a mão sorteada fica, o rodízio nunca começa. Uma imagem
+    // que se troca sozinha É movimento, não só enfeite.
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    var vez = 0;
+    setInterval(function(){
+      // Aba oculta não gasta rede, e depois do login a tela não existe mais.
+      if (document.hidden) return;
+      var tela = document.getElementById('g-login-screen');
+      if (!tela || getComputedStyle(tela).display === 'none') return;
+
+      var k = vez++ % SLOTS.length;
+      var carta = cartas[k];
+      var img = carta && carta.querySelector('img');
+      if (!img || !fila.length || carta.classList.contains('gl-trocando')) return;
+
+      var nova = fila.shift();
+      fila.push(naMesa[k]);      // a que sai volta para o fim da fila
+      naMesa[k] = nova;
+
+      // A troca só começa DEPOIS de a nova capa estar decodificada. Sem esta
+      // espera, a carta pisca branca no 4G — o `src` novo entra antes do pixel.
+      var pre = new Image();
+      pre.onload = function(){
+        var feito = false;
+        var aplicar = function(){
+          if (feito) return; feito = true;
+          img.src = pre.src;
+          carta.classList.remove('gl-trocando');
+        };
+        // Quem manda no tempo é o CSS (`--dur-base` na transição do `<img>`), não
+        // um número aqui. O timer é só o CINTO: aba que perde o foco no meio da
+        // saída não dispara `transitionend`, e a carta ficaria invisível para
+        // sempre. Mesmo padrão do `gPlayLoginTransition` acima.
+        img.addEventListener('transitionend', aplicar, { once: true });
+        setTimeout(aplicar, CINTO);
+        carta.classList.add('gl-trocando');
+      };
+      pre.src = 'assets/covers/' + nova + '.png';
+    }, PAUSA);
   })();
 
   // Parallax sutil do mosaico do login seguindo o ponteiro (Arc-like: a UI responde

@@ -211,20 +211,23 @@
 
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   TELA DE LOGIN — LUZ E MOVIMENTO (2026-09-02)
+   TELA DE LOGIN — MOVIMENTO (2026-09-02)
    ══════════════════════════════════════════════════════════════════════════════
    O que o print de 1440×900 mostrava: o baralho de artes já era bonito, mas ele
-   flutuava sobre um SLAB de #FF9000 de 677×1250px sem uma única variação de luz —
-   plástico, não superfície. E o lado direito era um retângulo off-white chapado,
-   sem nenhum vínculo com a marca do outro lado. A coreografia de entrada (painel,
-   cartas dadas, cascata do form) existia e é boa; o que faltava era **luz**.
+   flutuava sobre um SLAB de #FF9000 de 677×1250px e as quatro capas eram sempre as
+   mesmas, num painel que nunca mudava. A coreografia de entrada (painel, cartas
+   dadas, cascata do form) existia e é boa; o que faltava era o painel **acontecer
+   algo** depois dela — e é isso, não luz, que ficou de pé aqui.
 
-   As quatro camadas novas, em ordem de quem carrega mais peso:
-     1. aurora  — a luz se move devagar atrás do baralho (26s, quase imperceptível
-                  por quadro, inconfundível ao olhar por 3s);
+   O que ficou, em ordem de quem carrega mais peso:
+     1. troca   — as cartas se rendem ao vivo (o motor mora no `index.html`);
      2. sheen   — UMA varredura diagonal atravessa o baralho quando ele assenta;
      3. relevo  — as cartas sobem ao ponteiro (o painel fica tocável);
-     4. calor   — o lado do formulário puxa um véu da marca vindo do painel.
+     4. foco    — o anel do campo floresce e o CTA responde ao ponteiro com luz.
+
+   Nenhuma delas pinta o painel: são movimento e resposta ao toque. Toda camada de
+   GRADIENTE que esta passagem já teve saiu a pedido do Ryan em 02/09 — o registro
+   do que elas faziam e do que custou tirá-las está no item 1, logo abaixo.
 
    Regras da casa respeitadas: nada de asset novo, nada de JS novo (o parallax de
    ponteiro que já existe no `index.html` segue intocado), cor só por token, e o
@@ -232,56 +235,25 @@
    inclusive `::before`/`::after`, com `!important`.
    ══════════════════════════════════════════════════════════════════════════════ */
 
-/* ── 1. AURORA: o laranja deixa de ser chapado ──
-   `isolation:isolate` transforma o painel em contexto de empilhamento, e é o que
-   deixa o `z-index:-1` funcionar como se espera: as camadas de luz pintam ACIMA
-   do fundo laranja e ABAIXO do texto e do baralho, sem que nenhum filho precise
-   ganhar `position`/`z-index` (mexer nos filhos brigaria com o parallax do JS).
-   A luz é da própria família da marca — amarelo (#FFB900) como fonte quente e
-   laranja escuro (#F85400) como sombra quente. Nenhuma cor nova entra na tela. */
-.gl-brand{isolation:isolate}
-.gl-brand::before{
-  content:'';position:absolute;inset:-25%;z-index:-1;pointer-events:none;
-  background:
-    /* ⚠ ONDE A LUZ CAI NÃO É GOSTO — É CONTRASTE. Primeira versão punha a fonte de
-       luz no topo-centro e o amarelo em 20%/22%: medido no navegador, o fundo sob a
-       headline subia para rgb(255,171,14) e o branco caía a **1,89:1** — pior que a
-       linha de base de 2,27:1 que a cláusula de marca aceita (branco sobre #FF9000).
-       A luz mudou de lado: ela cai sobre O BARALHO (que é o herói do painel) e a
-       coluna de texto fica na parte FUNDA, onde o laranja escuro melhora o branco.
-       Medições finais no comentário do fim deste bloco. */
-    radial-gradient(46% 52% at 4% 6%,color-mix(in srgb,var(--dm-orange-d) 52%,transparent),transparent 76%),
-    radial-gradient(40% 34% at 2% 98%,color-mix(in srgb,var(--dm-orange-d) 46%,transparent),transparent 76%),
-    radial-gradient(44% 34% at 78% -8%,color-mix(in srgb,var(--white) 26%,transparent),transparent 72%),
-    radial-gradient(34% 38% at 86% 44%,color-mix(in srgb,var(--dm-yellow) 62%,transparent),transparent 72%),
-    radial-gradient(36% 40% at 92% 90%,color-mix(in srgb,var(--dm-orange-d) 60%,transparent),transparent 72%);
-  filter:blur(6px);
-  will-change:transform;
-  animation:glAurora 26s var(--ease-standard) infinite alternate;
-}
-/* ── Grão: a mesma malha pontilhada do palco do Sheets, em 5% de branco. É o que
-   tira o "plástico" de uma cor chapada em tela grande — de perto não se vê, de
-   longe a superfície existe. */
-.gl-brand::after{
-  content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;
-  background:
-    /* Grão (camada de cima): a mesma malha pontilhada do palco do Sheets, 5,5% de
-       branco em grade de 3px. De perto não se vê; de longe a cor deixa de ser
-       plástico e passa a ser superfície. */
-    radial-gradient(circle at 1px 1px,rgba(255,255,255,.055) 1px,transparent 0) 0 0/3px 3px,
-    /* Véu da coluna de texto (camada de baixo, e PARADA de propósito — mora aqui e
-       não na aurora justamente para não deslizar sob as letras). É o que devolve o
-       contraste do branco: laranja escuro por cima do claro, exatamente na metade
-       onde a headline, o parágrafo e o rodapé vivem. */
-    linear-gradient(96deg,color-mix(in srgb,var(--dm-orange-d) 46%,transparent) 0%,
-                          color-mix(in srgb,var(--dm-orange-d) 30%,transparent) 40%,
-                          transparent 78%);
-}
-@keyframes glAurora{
-  0%  {transform:translate3d(0,0,0)        scale(1)}
-  50% {transform:translate3d(3%,-2.6%,0)   scale(1.09)}
-  100%{transform:translate3d(-2.6%,2.2%,0) scale(1.04)}
-}
+/* ── 1. O LARANJA É CHAPADO, E ISSO É DECISÃO DO RYAN ──
+   Esta passagem já teve, sobre o painel, três camadas pintadas com gradiente: uma
+   aurora de cinco radiais de marca deslizando em 26s, um véu de laranja escuro sob
+   a coluna de texto e um calor no lado do formulário. **O Ryan pediu para tirar o
+   gradiente** (02/09) e não sobrou nenhuma — o painel é #FF9000 chapado, como
+   nasceu. Saiu também um grão pontilhado de 3px que eu havia posto junto: é
+   `radial-gradient` como as outras e, medido, custava contraste (abaixo).
+
+   ⚠ O QUE ISSO CUSTA, REGISTRADO PARA NÃO SER REDESCOBERTO. Era o véu escuro que
+   segurava o branco em 2,36–2,60:1 sobre o laranja. Sem ele o contraste volta para
+   **2,27:1** — que é exatamente a cláusula de marca que o `04_DESIGN_SYSTEM` já
+   aceita para display branco sobre #FF9000, e é onde a tela estava antes de eu
+   mexer. Não é regressão abaixo do documentado: é o valor documentado, no ponto.
+   (O grão sozinho derrubava a média para 2,23:1 e o pior pixel para 2,18:1 — 4
+   centésimos por textura não valem sair do número que o design system fixou.)
+
+   Quem for reintroduzir luz aqui: MEÇA O FUNDO SOB OS GLIFOS antes de julgar pelo
+   print. A primeira tentativa desta passagem (fonte de luz no topo-centro, amarelo
+   em 20%/22%) derrubou o branco para 1,89:1 e nada na tela denunciava. */
 
 /* ── 2. SHEEN: o beat de marca quando o baralho assenta ──
    UMA vez, nunca em laço: a última carta pousa em ~1,18s (delay .58s + .6s de
@@ -319,21 +291,6 @@
     box-shadow:0 32px 62px rgba(0,0,0,.26),0 4px 12px rgba(0,0,0,.14);
   }
 }
-
-/* ── 4. CALOR: os dois lados passam a ser a mesma imagem ──
-   O off-white do lado do form não tinha nenhum vínculo com o painel. Um véu da
-   marca a 7%, nascendo na borda que encosta no laranja, costura os dois lados
-   sem pintar nada de laranja de verdade. */
-.gl-form-side{position:relative}
-.gl-form-side::before{
-  content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
-  background:
-    radial-gradient(58% 56% at 0% 46%,color-mix(in srgb,var(--dm-orange) 8%,transparent),transparent 72%),
-    radial-gradient(46% 40% at 96% 100%,color-mix(in srgb,var(--dm-yellow) 6%,transparent),transparent 74%);
-}
-/* Elemento posicionado com `z-index:0` pinta ACIMA de conteúdo estático — sem
-   este par o véu cobriria o formulário inteiro. */
-.gl-form{position:relative;z-index:1}
 
 /* ── 5. O CAMPO EM FOCO FLORESCE ──
    O anel de foco era um `box-shadow` estático que aparecia de uma vez. Agora ele
@@ -378,25 +335,32 @@
 .gl-art-4{animation-delay:.62s}
 .gl-art-5{animation:glDealIn .6s var(--ease-spring) .74s both,glArtFloat 6s ease-in-out 2.5s infinite alternate}
 
-/* ── 8. CELULAR: a luz vem, a coreografia não ──
+/* ── 8. AS CARTAS SE RENDEM AO VIVO ──
+   O baralho troca de capa sozinho enquanto a pessoa está na tela; o motor (fila,
+   pré-carregamento e ritmo) mora no `index.html`, junto do sorteio. Aqui só a
+   travessia: a capa velha some, a nova entra.
+
+   ⚠ A transição é no `<img>`, NUNCA na carta. `.gl-art` roda `glDealIn` com
+   `fill-mode:both` (e `glArtFloat` em três delas): qualquer transição de
+   `transform`/`opacity` na carta perderia para o valor preenchido da animação —
+   é a mesma pedra em que o relevo do item 3 já bateu, e a razão dele usar
+   `scale`. O `<img>` não tem animação nenhuma, então lá a transição vale.
+
+   `--dur-base` (260ms) por metade da troca: rápido o bastante para não competir
+   com quem está digitando a senha, lento o bastante para não piscar. Quem lê o
+   `transitionend` é o JS — nenhum número de ms está cravado lá. */
+.gl-art img{transition:opacity var(--dur-base) var(--ease-standard)}
+.gl-art.gl-trocando img{opacity:0}
+/* Enquanto a capa está fora, o que se vê é o miolo da carta. Branco puro fazia a
+   troca ler como "piscada de erro"; o creme da marca lê como carta virada de
+   costas — o mesmo `--dm-orange-bg` do resto da casa. */
+.gl-art.gl-trocando{background:var(--dm-orange-bg)}
+
+/* ── 9. CELULAR: a luz vem, a coreografia não ──
    No corte de 860px o baralho já é uma fita estática de três cartas (`position:
    static`, `animation:none`): a varredura diagonal não tem palco para atravessar
-   e o relevo não tem ponteiro. Ficam a aurora e o calor, que são o que dá
-   superfície à faixa laranja compacta. */
+   e o relevo não tem ponteiro. Fica o grão, que é o que dá superfície à faixa
+   laranja compacta. */
 @media(max-width:860px){
   .gl-mosaic::after{display:none}
-  .gl-brand::before{inset:-40%;filter:blur(8px)}
-  /* O véu do texto muda de EIXO aqui, e é medição que manda: no celular a faixa
-     tem 366px de largura e o texto atravessa ela toda, então um véu vindo da
-     esquerda deixava a headline entrando na parte clara (medido: branco a
-     2,13:1, abaixo da linha de base de 2,27:1 da cláusula de marca). Deitado,
-     ele cobre a metade de CIMA — onde o texto vive — e libera a de baixo, que é
-     onde a fita de cartas mora. */
-  .gl-brand::after{
-    background:
-      radial-gradient(circle at 1px 1px,rgba(255,255,255,.055) 1px,transparent 0) 0 0/3px 3px,
-      linear-gradient(178deg,color-mix(in srgb,var(--dm-orange-d) 46%,transparent) 0%,
-                             color-mix(in srgb,var(--dm-orange-d) 34%,transparent) 46%,
-                             transparent 84%);
-  }
 }
