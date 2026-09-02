@@ -210,12 +210,28 @@
     left: 0;
     right: 0;
     top: calc(52px + var(--safe-top));
-    height: calc(100dvh - 52px - var(--safe-top)) !important;
-    max-height: calc(100dvh - 52px - var(--safe-top)) !important;
+    /* ⚠ SEM `height` CALCULADA. A conta `100dvh - 52px - var(--safe-top)` divergia do
+       `top` real: medido no Chromium a 390×844, o topo caía em 104 e a altura saía 792 —
+       a gaveta ia até 896, ou seja 52px ALÉM da tela, e a barra "Baixar PNG / PDF"
+       (63px) ficava inteira fora. Com `top` e `bottom` fixos o navegador calcula a
+       altura sozinho e não há termo para errar. */
+    height: auto !important;
+    max-height: none !important;
+    /* `left:0` + `right:0` já dão a largura; com `width:100%` a borda de 1px somava POR FORA
+       (medido a 320px: conteúdo em 322, dois pixels cortados na direita). */
+    /* A largura precisa do `!important`: a regra de tela média (live-preview.css,
+       `@media (max-width:1100px)`) crava `clamp(360px,39vw,430px)` e vale no celular
+       também — num aparelho de 320px isso deixava 40px do conteúdo fora da tela.
+       O `border-box` é o par obrigatório: com `content-box`, a borda de 1px somava
+       por fora e cortava 2px na direita (medido). */
     width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
     background: var(--white);
-    border: 1px solid var(--gray-light);
-    border-bottom: 0;
+    /* Só a borda de cima: a gaveta encosta nas duas laterais, e as bordas esquerda/direita
+       não separavam nada — só empurravam os filhos 2px além da tela (medido a 320px). */
+    border: 0;
+    border-top: 1px solid var(--gray-light);
     border-radius: 16px 16px 0 0;
     z-index: 1200;
     box-shadow: 0 -18px 60px rgba(0, 0, 0, 0.22);
@@ -227,6 +243,13 @@
   #f-live-preview.open {
     transform: translateY(0) !important;
   }
+
+  /* ⚠ Em grid, o item NÃO encolhe abaixo do `min-content` do próprio conteúdo: o
+     cabeçalho (título + chip "aguardando respostas…" + botão fechar) pedia 321px e
+     estourava 1px numa tela de 320 — e com texto mais longo o corte seria maior.
+     `min-width:0` devolve ao grid o direito de apertar, e cada faixa já sabe encurtar
+     o que precisa (o chip tem ellipsis). */
+  #f-live-preview > * { min-width: 0; }
 
   /* Adiciona drag bar sutil no topo do modal lateral */
   #f-live-preview::before {
