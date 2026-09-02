@@ -785,6 +785,25 @@ function fGenCaptionSuggestions(dados, camp, formato) {
 // agora o selo segue o flag _ia que fFetchAICaptionSuggestions já devolvia.
 const _ICO_SPARK = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg>';
 const _ICO_PEN = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+/* Substitui a legenda do motor local pela da IA quando ela chega. Se a IA falhou (o
+   `fFetchAICaptionSuggestions` devolve o fallback com `_ia:false`), não mexe em nada —
+   trocar texto igual por texto igual só piscaria a tela. */
+function _fAplicarLegendaIA(canvasId, sug){
+  if(!sug || !sug._ia || !sug.length) return;
+  const painel = document.querySelector(`.caption-assistant-panel[data-canvas-id="${canvasId}"]`);
+  if(!painel) return;                       // a pessoa já saiu da tela — nada a fazer
+  _fArtCaptions[canvasId] = sug;
+  const aba = painel.dataset.activeTab || sug[0].id;
+  const sel = sug.find(x => x.id === aba) || sug[0];
+  const box = document.getElementById('caption-content-' + canvasId);
+  if(box){
+    box.innerHTML = gEsc(sel.text).replace(/\n/g, '<br>');
+    box.classList.remove('is-trocando'); void box.offsetWidth; box.classList.add('is-trocando');
+  }
+  const selo = painel.querySelector('.caption-src');
+  if(selo) selo.outerHTML = _fCaptionSrcTag(sug);   // o rótulo passa a dizer a verdade
+}
+
 function _fCaptionSrcTag(suggestions){
   const ia = !!(suggestions && suggestions._ia);
   const modelo = (typeof gAiModel === 'function') ? gAiModel() : '';
@@ -1102,9 +1121,17 @@ function fGerarArte(){
     // de uma bolha antiga após trocar de material renderizava o template errado.
     _fArtSnapshots[previewCanvasId] = {dados:{...d}, camp:c, fmt:fState.fmt, histId:fState._lastHistId, material:fState.material};
     
-    // Gera as legendas da arte
-    const suggestions = await fFetchAICaptionSuggestions(d, c, fState.fmt);
+    /* ⚠ A ARTE NÃO ESPERA A LEGENDA. Antes havia um `await` da IA aqui: a bolha inteira —
+       arte, botões, tudo — só nascia depois que a legenda voltasse. Medido com a IA fora do
+       ar: 13,5s até a arte aparecer, e num 4G ruim vai a 60s (dois timeouts de 30s em
+       série, gírias + legenda). O franqueado do interior ficava olhando "Gerando sua arte
+       agora…" com a arte pronta em memória.
+       Agora a bolha nasce com a legenda do MOTOR LOCAL (síncrona, sempre boa o bastante) e
+       a versão da IA entra por cima quando chega — `_fAplicarLegendaIA` faz a troca. */
+    const suggestions = fGenCaptionSuggestions(d, c, fState.fmt);
+    suggestions._ia = false;
     _fArtCaptions[previewCanvasId] = suggestions;
+    const _legendaIA = fFetchAICaptionSuggestions(d, c, fState.fmt);
 
     // ENTREGA FINAL, parte 2 de 3: a legenda. Card editorial (título + selo de origem +
     // descrição curta + bloco de texto) em vez da textarea com chips Promo/Engajar/WhatsApp:
@@ -1197,6 +1224,7 @@ function fGerarArte(){
       </div>
     </div>`;
     msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;
+    _legendaIA.then(sug => _fAplicarLegendaIA(previewCanvasId, sug)).catch(()=>{});
     // Renderiza canvas thumbnail real
     if(hasMaterial){
       try {

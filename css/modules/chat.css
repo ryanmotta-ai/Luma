@@ -800,6 +800,11 @@ body:has(#f-bulk-modal.open) #mobile-preview-toggle{display:none!important}
 }
 
 /* "Mudar tudo de uma vez" (dentro da tabela) — fechado por padrão. */
+/* A legenda da IA chegando por cima da do motor local: um fade curto avisa que o texto
+   mudou sem piscar a tela inteira. */
+@keyframes gCaptionSwap{from{opacity:.35}to{opacity:1}}
+.caption-content-box.is-trocando{animation:gCaptionSwap var(--dur-base) var(--ease-out) 1}
+
 @keyframes gBulkPop{from{opacity:0;transform:scale(.82)}to{opacity:1;transform:scale(1)}}
 @keyframes gBulkVeu{from{opacity:0}to{opacity:1}}
 /* O momento de conquista do Sheets: a primeira oferta ficou pronta e o ZIP passou a existir.
@@ -1531,7 +1536,11 @@ body:not(.theme-light) #f-chat-art{border-color:var(--d-line,#2A2A2A);background
 @media (max-width:680px){
 
   /* ── A LISTA ── */
-  .f-bulk-lista{display:flex; flex-direction:column; gap:8px; padding:2px 0 10px}
+  /* A corrente inteira precisa de `min-width:0`: bastava um elo com `auto` para o conteúdo
+     gigante empurrar a largura (medido: cartão com 943px numa tela de 390 mesmo com o item
+     já limitado). Aqui é a lista; abaixo, o próprio cartão. */
+  .f-bulk-lista{display:flex; flex-direction:column; gap:8px; padding:2px 0 10px; min-width:0; max-width:100%}
+  #f-bulk-preview{min-width:0}
   /* Ritmo vertical: o cabeçalho da planilha empurrava a lista para baixo da dobra com um
      respiro de tela grande. No celular a lista começa cedo — é ela o assunto. */
   .f-bulk-sheet-head{gap:10px; padding-bottom:8px}
@@ -1579,7 +1588,9 @@ body:not(.theme-light) #f-chat-art{border-color:var(--d-line,#2A2A2A);background
   .f-bulk-lchip:focus-visible{outline:2px solid var(--dm-orange); outline-offset:2px}
 
   .f-bulk-litem{
-    display:flex; align-items:center; gap:11px; width:100%; text-align:left;
+    /* `min-width:0` + `max-width` seguram o cartão quando o conteúdo é enorme: em flex, o
+       filho cresce com o texto e o ellipsis do título não impede isso. */
+    display:flex; align-items:center; gap:11px; width:100%; min-width:0; max-width:100%; text-align:left;
     min-height:64px; padding:8px 11px 8px 8px;               /* bem acima dos 44px da Lei de Fitts */
     border:1px solid var(--gray-light); border-radius:var(--r); background:var(--white);
     font:inherit; color:var(--text); cursor:pointer;
@@ -1616,7 +1627,7 @@ body:not(.theme-light) #f-chat-art{border-color:var(--d-line,#2A2A2A);background
     font-size:9.5px; font-weight:800; line-height:15px; text-align:center;
     font-variant-numeric:tabular-nums;
   }
-  .f-bulk-ltx{min-width:0; flex:1; display:flex; flex-direction:column; gap:3px}
+  .f-bulk-ltx{min-width:0; max-width:100%; flex:1; display:flex; flex-direction:column; gap:3px}
   .f-bulk-lnome{
     font-size:14px; font-weight:700; line-height:1.25;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;

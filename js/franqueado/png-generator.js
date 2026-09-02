@@ -2396,7 +2396,10 @@ function _fBulkEstadoLinha(r, keys){
    (produto + preço). Campo de imagem nunca vira título: viraria uma URL gigante. */
 function _fBulkResumoLinha(r, keys){
   const txt = keys.filter(k => !fIsImageVar(k));
-  const val = k => String(((r&&r.dados)||{})[k] || '').trim();
+  /* Corta no que a linha consegue mostrar. Sem teto, um campo com o cardápio inteiro colado
+     (medido com 4000 caracteres) esticava o cartão da lista para 37.790px de largura — o
+     `text-overflow` do CSS não segura porque quem cresce é a caixa, não o texto. */
+  const val = k => String(((r&&r.dados)||{})[k] || '').trim().slice(0, 90);
   return { titulo: val(txt[0]), detalhe: val(txt[1]) };
 }
 

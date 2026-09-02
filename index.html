@@ -38,7 +38,7 @@
 <link rel="stylesheet" href="css/components/product-control.css">
 <link rel="stylesheet" href="css/components/tutorial.css">
 <link rel="stylesheet" href="css/modules/franqueado.css">
-<link rel="stylesheet" href="css/modules/chat.css?v=4">
+<link rel="stylesheet" href="css/modules/chat.css?v=5">
 <link rel="stylesheet" href="css/modules/live-preview.css?v=2">
 <link rel="stylesheet" href="css/modules/color-picker.css">
 <link rel="stylesheet" href="css/modules/all-tools.css">
@@ -846,11 +846,11 @@ body:not(.theme-light) input:-webkit-autofill:active {
             </div>
           </div>
           <div class="lp-mobile-download-bar">
-            <button type="button" class="lp-btn-down-png" onclick="if(typeof fDownloadArt==='function') fDownloadArt()" title="Baixar arte em PNG" aria-label="Baixar arte em PNG">
+            <button type="button" class="lp-btn-down-png" onclick="fBaixar(this)" title="Baixar arte em PNG" aria-label="Baixar arte em PNG">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               <span>Baixar PNG</span>
             </button>
-            <button type="button" class="lp-btn-down-pdf" onclick="if(typeof fDownloadPdf==='function') fDownloadPdf()" title="Baixar arte em PDF" aria-label="Baixar arte em PDF">
+            <button type="button" class="lp-btn-down-pdf" onclick="fBaixarPDF(this)" title="Baixar arte em PDF" aria-label="Baixar arte em PDF">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
               <span>PDF</span>
             </button>
@@ -2917,7 +2917,7 @@ body:not(.theme-light) input:-webkit-autofill:active {
 <script src="js/franqueado/prefs.js?v=2"></script>
 <script src="js/franqueado/catalog.js?v=3"></script>
 <script src="js/franqueado/materials.js?v=3"></script>
-<script src="js/franqueado/chat.js?v=4"></script>
+<script src="js/franqueado/chat.js?v=5"></script>
 <script src="js/franqueado/live-preview.js?v=5"></script>
 <script src="js/franqueado/panel-dock.js?v=2"></script>
 <script src="js/franqueado/upload-panel.js?v=3"></script>
@@ -2934,7 +2934,7 @@ body:not(.theme-light) input:-webkit-autofill:active {
 <script src="js/academia/certificado.js"></script>
 <script src="js/academia/conclusao.js"></script>
 <script src="js/designer/blending.js"></script>
-<script src="js/franqueado/png-generator.js?v=7"></script>
+<script src="js/franqueado/png-generator.js?v=8"></script>
 <script src="js/designer/templates.js?v=2"></script>
 <script src="js/designer/canvas.js?v=8"></script>
 <script src="js/designer/selection.js"></script>
