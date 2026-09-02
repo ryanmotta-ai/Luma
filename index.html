@@ -50,7 +50,7 @@
   <link rel="stylesheet" href="css/components/pages-tray.css">
 <link rel="stylesheet" href="css/modules/layers-panel.css">
 <link rel="stylesheet" href="css/modules/toolbar.css">
-<link rel="stylesheet" href="css/components/login.css?v=2">
+<link rel="stylesheet" href="css/components/login.css?v=3">
 <link rel="stylesheet" href="css/modules/upload-panel.css?v=2">
 <!-- depois de franqueado/chat/live-preview: sobrepõe o layout das 3 colunas -->
 <link rel="stylesheet" href="css/modules/panel-dock.css">
@@ -205,6 +205,27 @@ body:not(.theme-light) input:-webkit-autofill:active {
     setTimeout(function(){ if(done) done(); }, 460); // login some coberto pelo laranja
     setTimeout(fim, 1600); // cinto: aba oculta não dispara animationend
   }
+
+  // ── O BARALHO MUDA A CADA VISITA ──
+  // A pasta `assets/covers/` tem 13 capas reais de campanha (1500×900) e o painel
+  // só tem 4 slots de capa: sortear é de graça e faz a composição não repetir dois
+  // dias seguidos. A carta Much+ NÃO entra no sorteio — ela é declaração de marca
+  // (palco magenta + logo), não capa de campanha, e é a única 1:1 da pasta.
+  // ⚠ Roda no PARSE, não quando o login vira visível: a tela só aparece depois da
+  // checagem de sessão, então as imagens chegam decodificadas e nenhuma carta é
+  // "dada na mesa" em branco. Trocar isso para um listener de exibição reintroduz
+  // o flash. Se o JS não rodar, ficam as capas cravadas no markup.
+  (function(){
+    var capas = ['aai','ac','bsn','cc','cd','dd','eg','gb','mna','otp','pt','rbp','tr25'];
+    for (var i = capas.length - 1; i > 0; i--) {           // Fisher-Yates
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = capas[i]; capas[i] = capas[j]; capas[j] = t;
+    }
+    ['gl-art-1','gl-art-2','gl-art-3','gl-art-5'].forEach(function(cls, k){
+      var img = document.querySelector('#g-login-screen .' + cls + ' img');
+      if (img) img.src = 'assets/covers/' + capas[k] + '.png';
+    });
+  })();
 
   // Parallax sutil do mosaico do login seguindo o ponteiro (Arc-like: a UI responde
   // física). Só mouse fino + sem reduced-motion; o transition de .35s no container dá

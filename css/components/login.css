@@ -48,10 +48,21 @@
 .gl-art img{display:block;width:100%;height:100%;object-fit:cover}
 /* capas são PAISAGEM 1500×900 (1.67) — frames 5/3 mostram a arte inteira; os
    quadrados ficam pros centros de composição que aguentam corte. Cartas menores e
-   afastadas das bordas: o laranja ao redor É o respiro (sobreposição só no centro). */
+   afastadas das bordas: o laranja ao redor É o respiro (sobreposição só no centro).
+
+   ⚠ A GEOMETRIA VIROU CONTRATO quando o baralho passou a SORTEAR as capas
+   (`index.html`, junto do parallax): antes as quatro capas eram fixas e dava para
+   escolher uma arte cujo título sobrevivesse ao corte; agora qualquer uma das 13
+   pode cair em qualquer slot, e o que se perde é imprevisível. Medido no navegador
+   em 1100/1280/1440/1680/1920/2560: a carta 3 tinha **21% da área escondida** sob a
+   carta 2 (uma capa desconhecida perdia um quinto de si). Com c2 34% / c3 36% e a
+   carta 3 em top:28%/right:0 a pior sobreposição do baralho caiu para 13% (1280,
+   onde a carta 5 encosta) e fica em 7–10% no resto. Mexer em largura ou posição
+   destas cartas exige refazer essa medição — não é enquadramento, é o teto de
+   quanto de uma arte sorteada pode desaparecer. */
 .gl-art-1{--rot:-4deg;width:36%;aspect-ratio:5/3;left:1%;top:8%;animation:glDealIn .6s var(--ease-spring) .34s both,glArtFloat 5.5s ease-in-out 1.7s infinite alternate}
-.gl-art-2{--rot:0deg;width:36%;aspect-ratio:1/1;left:34%;top:0;z-index:2;animation-delay:.26s}
-.gl-art-3{--rot:3.5deg;width:38%;aspect-ratio:5/3;right:3%;top:26%;animation:glDealIn .6s var(--ease-spring) .42s both,glArtFloat 6.5s ease-in-out 2s infinite alternate}
+.gl-art-2{--rot:0deg;width:34%;aspect-ratio:1/1;left:34%;top:0;z-index:2;animation-delay:.26s}
+.gl-art-3{--rot:3.5deg;width:36%;aspect-ratio:5/3;right:0;top:28%;animation:glDealIn .6s var(--ease-spring) .42s both,glArtFloat 6.5s ease-in-out 2s infinite alternate}
 /* fileira de baixo ancora no BOTTOM: preenche o painel em qualquer altura */
 .gl-art-4{--rot:2deg;width:29%;aspect-ratio:1/1;left:17%;bottom:4%;z-index:3;animation-delay:.5s}
 .gl-art-5{--rot:-2.5deg;width:31%;aspect-ratio:1/1;right:15%;bottom:0;z-index:2;animation:glDealIn .6s var(--ease-spring) .58s both,glArtFloat 6s ease-in-out 2.3s infinite alternate}
