@@ -283,6 +283,35 @@ function _dRenderPreview(frame,ab){
   });
 }
 
+/* ── Escolher a foto de uma moldura ──────────────────────────────────────────
+   Era um handler anônimo dentro do botão "+ FOTO" e ganhou nome porque DOIS gestos
+   chegam aqui agora: o botão do canto e o DUPLO CLIQUE na moldura (pedido do Ryan,
+   02/09 — duplo clique numa moldura VAZIA abria o recorte, que não tinha o que
+   recortar). Um caminho só para as duas portas: mesmo teto de 8MB, mesmo
+   `dHistoryPush` antes de mutar (senão a troca não tem Ctrl+Z) e mesmo toast. */
+function dEscolherFotoDaMoldura(lReal){
+  if(!lReal) return;
+  const inp=document.createElement('input');inp.type='file';inp.accept='image/*';
+  inp.onchange=ev=>{
+    const file=ev.target.files[0];if(!file)return;
+    // Teto de tamanho como fonte e PSD já fazem: base64 de uma foto de 12MP vira ~30MB
+    // no template e vai inteiro para o sync. O Estúdio era o único caminho sem guarda.
+    if(file.size > _DIMG_MAX_MB*1024*1024){
+      gToast('Imagem muito grande ('+Math.round(file.size/(1024*1024))+'MB) — o limite é '+_DIMG_MAX_MB+'MB. Comprima antes de subir.','error');
+      return;
+    }
+    const r=new FileReader();
+    r.onload=re=>{
+      // dHistoryPush ANTES de mutar: o histórico guarda o estado anterior. Sem isto,
+      // trocar a foto da moldura não tinha Ctrl+Z (achado na revisão pró-1.0).
+      if(typeof dHistoryPush==='function') dHistoryPush();
+      lReal.imgUrl=re.result;dRenderCanvas();dMarkUnsaved();gToast('Foto aplicada na moldura!');
+    };
+    r.readAsDataURL(file);
+  };
+  inp.click();
+}
+
 function dRenderWorkspace(){
   const ws=document.getElementById('d-workspace');if(!ws)return;
   const container=document.getElementById('d-canvas-container');
@@ -1426,28 +1455,7 @@ function dRenderCanvas(){
       upBtn.style.cssText='position:absolute;top:-10px;right:-10px;background:#FF9000;border:2px solid #1A1A1A;color:#fff;font-size:9px;font-weight:700;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:Roboto,sans-serif;letter-spacing:.04em;z-index:10;white-space:nowrap;';
       upBtn.textContent='+ FOTO';
       upBtn.addEventListener('mousedown',e=>e.stopPropagation());
-      upBtn.addEventListener('click',e=>{
-        e.stopPropagation();
-        const inp=document.createElement('input');inp.type='file';inp.accept='image/*';
-        inp.onchange=ev=>{
-          const file=ev.target.files[0];if(!file)return;
-          // Teto de tamanho como fonte e PSD já fazem: base64 de uma foto de 12MP vira ~30MB
-          // no template e vai inteiro para o sync. O Estúdio era o único caminho sem guarda.
-          if(file.size > _DIMG_MAX_MB*1024*1024){
-            gToast('Imagem muito grande ('+Math.round(file.size/(1024*1024))+'MB) — o limite é '+_DIMG_MAX_MB+'MB. Comprima antes de subir.','error');
-            return;
-          }
-          const r=new FileReader();
-          r.onload=re=>{
-            // dHistoryPush ANTES de mutar: o histórico guarda o estado anterior. Sem isto,
-            // trocar a foto da moldura não tinha Ctrl+Z (achado na revisão pró-1.0).
-            if(typeof dHistoryPush==='function') dHistoryPush();
-            lReal.imgUrl=re.result;dRenderCanvas();dMarkUnsaved();gToast('Foto aplicada na moldura!');
-          };
-          r.readAsDataURL(file);
-        };
-        inp.click();
-      });
+      upBtn.addEventListener('click',e=>{ e.stopPropagation(); dEscolherFotoDaMoldura(lReal); });
       el.appendChild(upBtn);
       // Botão X limpar foto (só quando tem foto)
       if(simImg||l.imgUrl){
@@ -1515,7 +1523,15 @@ function dRenderCanvas(){
           // abrir a edição inline por cima do cadeado deixava o bloqueio pela metade.
           if(l.locked){ e.stopPropagation(); gToast('Camada bloqueada — desbloqueie no cadeado da lista de camadas'); return; }
           if(l.type==='text'){ e.stopPropagation(); dStartInlineEdit(lReal,el); return; }
-          if((l.type==='image'||l.type==='frame') && typeof dStartCrop==='function'){ e.stopPropagation(); dStartCrop(lReal); return; }
+          if(l.type==='image'||l.type==='frame'){
+            e.stopPropagation();
+            // O MESMO gesto, dois significados, resolvidos pelo ESTADO da moldura:
+            // vazia não tem o que recortar, então o duplo clique abre a pasta; com
+            // foto ele recorta o que está ali (comportamento antigo, certo com foto).
+            if(!lReal.imgUrl){ dEscolherFotoDaMoldura(lReal); return; }
+            if(typeof dStartCrop==='function'){ dStartCrop(lReal); return; }
+            return;
+          }
         }
       }
       e.stopPropagation();

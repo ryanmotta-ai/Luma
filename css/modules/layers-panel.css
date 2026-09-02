@@ -1718,10 +1718,34 @@ body.mode-designer:not(.d-studio-home-open) #g-help-float{
   color:var(--dm-orange-text);
 }
 
+/* ── O VÍNCULO MORA NO MEIO DOS QUATRO CANTOS ──
+   Antes ele era um chip sozinho numa linha própria acima da grade: sem nada por
+   perto para se ancorar, lia como controle solto ("está perdido", Ryan, 02/09) e a
+   linha inteira existia só para ele. Agora é a coluna do meio, atravessando as duas
+   fileiras — a mesma solução de Figma/Illustrator, e que diz o que ele faz sem
+   precisar explicar: a corrente está literalmente entre os quatro campos.
+   O rótulo escrito FICA (empilhado sob o ícone). Não virou só ícone de propósito:
+   `dSyncCornerLinkUI` registra que "o cadeado sozinho não dizia se estava ligado ou
+   desligado" — trocar o texto por ícone puro reabriria esse bug.
+   ⚠ A coluna do meio é FIXA em 84px, não `auto`: com `auto` ela media 67px em
+   "Vinculados" e 83px em "Independentes", e os quatro campos pulavam 9px a cada
+   toque no botão (medido). 84px é a largura do rótulo mais longo — assim alternar o
+   vínculo não reflui nada. Num painel de 347px sobram ~90px por campo, folgado
+   para 3 dígitos. */
 .dpi-corners{
   display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:6px;
+  grid-template-columns:minmax(0,1fr) 84px minmax(0,1fr);
+  gap:6px 8px;
+  align-items:center;
+}
+#dp-corner-link{
+  grid-column:2;grid-row:1 / span 2;   /* os 4 campos fluem sozinhos nas colunas 1 e 3 */
+  flex-direction:column;gap:3px;
+  padding:6px 7px;min-height:0;
+  /* `--r-pill` foi desenhado para o chip de 26px numa linha; em 40px com duas linhas
+     a cápsula vira pastilha. `--r` mantém a leitura de controle. */
+  border-radius:var(--r);
+  line-height:1.15;text-align:center;
 }
 
 .dpi-corner{
