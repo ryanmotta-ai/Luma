@@ -24,39 +24,64 @@
 <meta name="apple-mobile-web-app-title" content="Luma">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;0,700;0,900;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/03-fonts.css">
-<link rel="stylesheet" href="css/00-tokens.css">
-<link rel="stylesheet" href="css/01-reset.css">
-<link rel="stylesheet" href="css/02-animations.css">
-<link rel="stylesheet" href="css/components/splash.css">
-<link rel="stylesheet" href="css/components/topbar.css">
-<link rel="stylesheet" href="css/components/help-modal.css">
-<link rel="stylesheet" href="css/components/user-profile.css">
-<link rel="stylesheet" href="css/components/prefs-panel.css?v=2">
+<!-- ══════════════════════════════════════════════════════════════════════════════
+     ?v=9 — O NÚMERO DE DEPLOY. UM SÓ, PARA TODOS OS 95 ASSETS.
+     ══════════════════════════════════════════════════════════════════════════════
+     O GitHub Pages serve a branch default e NÃO deixa configurar cabeçalho de
+     cache: a query string é a única alavanca que existe aqui. Até 02/09 o número
+     era POR ARQUIVO, e o resultado medido foi: 59 dos 95 assets sem `?v=` nenhum
+     (entre eles `core/auth.js`, `core/supabase.js`, `core/feature-flags.js` e
+     `modules/franqueado.css`) e seis números diferentes em uso nos outros 36.
+     Ou seja: consertar bug nesses arquivos não chegava em quem já tinha aberto o
+     Luma, e o ritual de bumpar dependia de alguém lembrar — por arquivo.
+
+     A CONVENÇÃO AGORA (decisão do Ryan, 02/09):
+       • Todo asset local de `js/` e `css/` carrega o MESMO `?v=N`.
+       • **Mexeu em qualquer js/css? Suba o N em TODOS antes de dar push.** Um
+         comando resolve:
+             sed -i 's/?v=9/?v=10/g' index.html
+       • Custo aceito: um cache miss geral por deploy (~1MB) num app que o
+         franqueado abre uma ou duas vezes por dia. Em troca, a classe de bug
+         "esqueci de bumpar e a correção não chegou" deixa de existir.
+       • `assets/` fica FORA disto de propósito, por dois motivos diferentes:
+         imagem lá muda de NOME, não de conteúdo (as capas do login são buscadas
+         por nome pelo JS); e as libs de `assets/vendor/` são versões pinadas que
+         não se editam — se um dia trocar uma, troque o NOME do arquivo, que é
+         cache-busting de verdade e não depende de ninguém lembrar de nada.
+     ══════════════════════════════════════════════════════════════════════════════ -->
+<link rel="stylesheet" href="css/03-fonts.css?v=9">
+<link rel="stylesheet" href="css/00-tokens.css?v=9">
+<link rel="stylesheet" href="css/01-reset.css?v=9">
+<link rel="stylesheet" href="css/02-animations.css?v=9">
+<link rel="stylesheet" href="css/components/splash.css?v=9">
+<link rel="stylesheet" href="css/components/topbar.css?v=9">
+<link rel="stylesheet" href="css/components/help-modal.css?v=9">
+<link rel="stylesheet" href="css/components/user-profile.css?v=9">
+<link rel="stylesheet" href="css/components/prefs-panel.css?v=9">
 <!-- Depois de user-profile.css de propósito: o Controle do produto vive DENTRO
      do painel da conta e herda as variáveis --prof-* (inclusive o tema escuro). -->
-<link rel="stylesheet" href="css/components/product-control.css">
-<link rel="stylesheet" href="css/components/tutorial.css">
-<link rel="stylesheet" href="css/modules/franqueado.css">
-<link rel="stylesheet" href="css/modules/chat.css?v=6">
-<link rel="stylesheet" href="css/modules/live-preview.css?v=2">
-<link rel="stylesheet" href="css/modules/color-picker.css">
-<link rel="stylesheet" href="css/modules/all-tools.css">
-<link rel="stylesheet" href="css/modules/topbar.css">
-<link rel="stylesheet" href="css/modules/catalog.css?v=2">
-<link rel="stylesheet" href="css/modules/franqueado_effects.css?v=4">
-<link rel="stylesheet" href="css/modules/publish-modal.css">
-<link rel="stylesheet" href="css/modules/designer.css?v=4">
-  <link rel="stylesheet" href="css/components/pages-tray.css">
-<link rel="stylesheet" href="css/modules/layers-panel.css">
-<link rel="stylesheet" href="css/modules/toolbar.css">
-<link rel="stylesheet" href="css/components/login.css?v=4">
-<link rel="stylesheet" href="css/modules/upload-panel.css?v=2">
+<link rel="stylesheet" href="css/components/product-control.css?v=9">
+<link rel="stylesheet" href="css/components/tutorial.css?v=9">
+<link rel="stylesheet" href="css/modules/franqueado.css?v=9">
+<link rel="stylesheet" href="css/modules/chat.css?v=9">
+<link rel="stylesheet" href="css/modules/live-preview.css?v=9">
+<link rel="stylesheet" href="css/modules/color-picker.css?v=9">
+<link rel="stylesheet" href="css/modules/all-tools.css?v=9">
+<link rel="stylesheet" href="css/modules/topbar.css?v=9">
+<link rel="stylesheet" href="css/modules/catalog.css?v=9">
+<link rel="stylesheet" href="css/modules/franqueado_effects.css?v=9">
+<link rel="stylesheet" href="css/modules/publish-modal.css?v=9">
+<link rel="stylesheet" href="css/modules/designer.css?v=9">
+  <link rel="stylesheet" href="css/components/pages-tray.css?v=9">
+<link rel="stylesheet" href="css/modules/layers-panel.css?v=9">
+<link rel="stylesheet" href="css/modules/toolbar.css?v=9">
+<link rel="stylesheet" href="css/components/login.css?v=9">
+<link rel="stylesheet" href="css/modules/upload-panel.css?v=9">
 <!-- depois de franqueado/chat/live-preview: sobrepõe o layout das 3 colunas -->
-<link rel="stylesheet" href="css/modules/panel-dock.css">
-<link rel="stylesheet" href="css/modules/help-widget.css?v=2">
-<link rel="stylesheet" href="css/modules/console.css">
-<link rel="stylesheet" href="css/modules/academia.css">
+<link rel="stylesheet" href="css/modules/panel-dock.css?v=9">
+<link rel="stylesheet" href="css/modules/help-widget.css?v=9">
+<link rel="stylesheet" href="css/modules/console.css?v=9">
+<link rel="stylesheet" href="css/modules/academia.css?v=9">
 </head>
 <body class="mode-franqueado theme-light">
 
@@ -328,7 +353,7 @@ body:not(.theme-light) input:-webkit-autofill:active {
     <div class="sp-dm-logo" role="img" aria-label="Delivery Much"></div>
   </div>
 </div>
-<script src="js/core/splash.js"></script>
+<script src="js/core/splash.js?v=9"></script>
 
 <!-- ══ TOPBAR GLOBAL ══ -->
 <header id="global-topbar">
@@ -2975,83 +3000,109 @@ body:not(.theme-light) input:-webkit-autofill:active {
 
 
 
-<script src="js/00-config.js?v=5"></script>
-<script src="js/core/img-store.js"></script>
-<script src="js/01-state.js?v=2"></script>
-<script src="js/core/toast.js"></script>
-<script src="js/core/sound.js"></script>
-<script src="js/core/qr.js"></script>
-<script src="js/core/layout.js?v=2"></script>
-<script src="js/core/auto-layout.js"></script>
-<script src="js/core/help.js"></script>
-<script src="js/tutorial/catalog.js"></script>
-<script src="js/tutorial/mocks.js"></script>
-<script src="js/tutorial/mocks-studio.js"></script>
-<script src="js/tutorial/catalog-studio.js"></script>
-<script src="js/tutorial/engine.js"></script>
-<script src="js/franqueado/history.js?v=2"></script>
-<script src="js/franqueado/prefs.js?v=2"></script>
-<script src="js/franqueado/catalog.js?v=3"></script>
-<script src="js/franqueado/materials.js?v=3"></script>
-<script src="js/franqueado/chat.js?v=6"></script>
-<script src="js/franqueado/live-preview.js?v=6"></script>
-<script src="js/franqueado/panel-dock.js?v=2"></script>
-<script src="js/franqueado/upload-panel.js?v=3"></script>
-<script src="js/franqueado/prefs-panel.js?v=2"></script>
-<script src="js/franqueado/chat-input.js?v=3"></script>
+<script src="js/00-config.js?v=9"></script>
+<script src="js/core/img-store.js?v=9"></script>
+<script src="js/01-state.js?v=9"></script>
+<script src="js/core/toast.js?v=9"></script>
+<script src="js/core/sound.js?v=9"></script>
+<script src="js/core/qr.js?v=9"></script>
+<script src="js/core/layout.js?v=9"></script>
+<script src="js/core/auto-layout.js?v=9"></script>
+<script src="js/core/help.js?v=9"></script>
+<script src="js/tutorial/catalog.js?v=9"></script>
+<script src="js/tutorial/mocks.js?v=9"></script>
+<script src="js/tutorial/mocks-studio.js?v=9"></script>
+<script src="js/tutorial/catalog-studio.js?v=9"></script>
+<script src="js/tutorial/engine.js?v=9"></script>
+<script src="js/franqueado/history.js?v=9"></script>
+<script src="js/franqueado/prefs.js?v=9"></script>
+<script src="js/franqueado/catalog.js?v=9"></script>
+<script src="js/franqueado/materials.js?v=9"></script>
+<script src="js/franqueado/chat.js?v=9"></script>
+<script src="js/franqueado/live-preview.js?v=9"></script>
+<script src="js/franqueado/panel-dock.js?v=9"></script>
+<script src="js/franqueado/upload-panel.js?v=9"></script>
+<script src="js/franqueado/prefs-panel.js?v=9"></script>
+<script src="js/franqueado/chat-input.js?v=9"></script>
 <!-- ACADEMIA (formação do franqueado). Ordem importa: motion.js define os helpers
      de animação que os outros usam; academia.js define o estado que
      aula/agente/gestao/certificado/conclusao consomem. -->
-<script src="js/academia/motion.js"></script>
-<script src="js/academia/academia.js"></script>
-<script src="js/academia/aula.js"></script>
-<script src="js/academia/agente.js"></script>
-<script src="js/academia/gestao.js"></script>
-<script src="js/academia/certificado.js"></script>
-<script src="js/academia/conclusao.js"></script>
-<script src="js/designer/blending.js"></script>
-<script src="js/franqueado/png-generator.js?v=8"></script>
-<script src="js/designer/templates.js?v=2"></script>
-<script src="js/designer/canvas.js?v=8"></script>
-<script src="js/designer/selection.js"></script>
-<script src="js/designer/brush.js?v=2"></script>
-<script src="js/designer/eraser-tools.js"></script>
-<script src="js/designer/layers.js?v=8"></script>
-<script src="js/designer/props-panel.js?v=4"></script>
-<script src="js/designer/measurement.js"></script>
-<script src="js/designer/publish.js?v=2"></script>
-<script src="js/designer/preview.js?v=2"></script>
-<script src="js/designer/library.js?v=5"></script>
-<script src="js/designer/undo-redo.js"></script>
-<script src="js/widgets/help-widget.js"></script>
-<script src="js/designer/tools.js?v=3"></script>
-<script src="js/designer/fonts.js"></script>
-<script src="js/designer/psd-parse.js?v=5"></script>
-<script src="js/designer/psd-import.js?v=5"></script>
-<script src="js/designer/mask.js"></script>
-<script src="js/designer/tutorial-panel.js"></script>
+<script src="js/academia/motion.js?v=9"></script>
+<script src="js/academia/academia.js?v=9"></script>
+<script src="js/academia/aula.js?v=9"></script>
+<script src="js/academia/agente.js?v=9"></script>
+<script src="js/academia/gestao.js?v=9"></script>
+<script src="js/academia/certificado.js?v=9"></script>
+<script src="js/academia/conclusao.js?v=9"></script>
+<script src="js/designer/blending.js?v=9"></script>
+<script src="js/franqueado/png-generator.js?v=9"></script>
+<script src="js/designer/templates.js?v=9"></script>
+<script src="js/designer/canvas.js?v=9"></script>
+<script src="js/designer/selection.js?v=9"></script>
+<script src="js/designer/brush.js?v=9"></script>
+<script src="js/designer/eraser-tools.js?v=9"></script>
+<script src="js/designer/layers.js?v=9"></script>
+<script src="js/designer/props-panel.js?v=9"></script>
+<script src="js/designer/measurement.js?v=9"></script>
+<script src="js/designer/publish.js?v=9"></script>
+<script src="js/designer/preview.js?v=9"></script>
+<script src="js/designer/library.js?v=9"></script>
+<script src="js/designer/undo-redo.js?v=9"></script>
+<script src="js/widgets/help-widget.js?v=9"></script>
+<script src="js/designer/tools.js?v=9"></script>
+<script src="js/designer/fonts.js?v=9"></script>
+<script src="js/designer/psd-parse.js?v=9"></script>
+<script src="js/designer/psd-import.js?v=9"></script>
+<script src="js/designer/mask.js?v=9"></script>
+<script src="js/designer/tutorial-panel.js?v=9"></script>
 <script src="assets/vendor/colorthief.js"></script>
 <script src="assets/vendor/pica.js"></script>
-<script src="assets/vendor/papaparse.js"></script>
 <script src="assets/vendor/jszip.min.js"></script>
-<script src="assets/vendor/pdf-lib.js"></script>
+<!-- ══ pdf-lib NÃO entra no boot ══
+     Medido em 02/09: o boot baixava 4.738 KB de js+css, e o pdf-lib sozinho eram
+     **513 KB = 11% disso** — para uma feature atrás de flag (`franqueado.export.pdf`)
+     e para o certificado da Academia (`module.academia`, desligada no lançamento).
+     Ou seja: todo franqueado pagava meio mega no primeiro acesso por um caminho que
+     a esmagadora maioria das sessões nunca toca. No 4G isso é a diferença entre o
+     app abrir e a pessoa desistir.
+
+     Carregar tarde não inventa caminho de erro novo: os DOIS pontos de uso já
+     tratavam a ausência da lib antes disto (`fGenPDF` lança com mensagem própria e
+     `_acBaixarCertificado` cai para PNG). O `?v=` aqui é string dentro do
+     index.html de propósito — o `sed` do número único (ver o bloco no topo) pega. -->
+<script>
+  window.gPdfLibPronta = function(){
+    if (window.PDFLib) return Promise.resolve(true);
+    if (window.__gPdfLibCarregando) return window.__gPdfLibCarregando;
+    window.__gPdfLibCarregando = new Promise(function(ok){
+      var s = document.createElement('script');
+      s.src = 'assets/vendor/pdf-lib.js?v=9';
+      s.onload  = function(){ ok(!!window.PDFLib); };
+      // Falha de rede não pode deixar a promessa envenenada: zera para a próxima
+      // tentativa poder baixar de novo.
+      s.onerror = function(){ window.__gPdfLibCarregando = null; ok(false); };
+      document.head.appendChild(s);
+    });
+    return window.__gPdfLibCarregando;
+  };
+</script>
 <script src="assets/vendor/supabase.js"></script>
-<script src="js/core/supabase-config.js"></script>
-<script src="js/core/supabase.js"></script>
+<script src="js/core/supabase-config.js?v=9"></script>
+<script src="js/core/supabase.js?v=9"></script>
 <!-- Motor único de IA: precisa do supabase.js (gSupabase) já carregado -->
-<script src="js/core/ai.js"></script>
-<script src="js/core/auth.js"></script>
+<script src="js/core/ai.js?v=9"></script>
+<script src="js/core/auth.js?v=9"></script>
 <!-- Controle do produto — o motor de disponibilidade funcional. Vem DEPOIS de
      auth.js (usa gCurrentRole/gIsSuperAdmin) e ANTES de user-profile.js e
      main.js: gFeatureInit() roda no começo do boot e precisa estar definido. -->
-<script src="js/core/feature-flags.js"></script>
-<script src="js/core/user-profile.js?v=2"></script>
+<script src="js/core/feature-flags.js?v=9"></script>
+<script src="js/core/user-profile.js?v=9"></script>
 <!-- A TELA do Controle do produto: depende do motor acima e do painel de conta. -->
-<script src="js/core/product-control.js"></script>
+<script src="js/core/product-control.js?v=9"></script>
 <!-- Luma CLI: por último entre os core porque só usa globais já definidos
      (gIsAdmin, gHasBackend, gAskAI, dFolders…) e é o único que abre por atalho -->
-<script src="js/core/console.js"></script>
-<script src="js/main.js"></script>
+<script src="js/core/console.js?v=9"></script>
+<script src="js/main.js?v=9"></script>
 
 
 
@@ -3740,9 +3791,9 @@ body:not(.theme-light) input:-webkit-autofill:active {
   </div>
 </div>
 
-<script src="js/designer/color-picker.js"></script>
-<script src="js/designer/tooltip.js"></script>
-<script src="js/designer/linter.js?v=2"></script>
+<script src="js/designer/color-picker.js?v=9"></script>
+<script src="js/designer/tooltip.js?v=9"></script>
+<script src="js/designer/linter.js?v=9"></script>
   <!-- Tooltip Educativo Global -->
   <div id="d-rich-tooltip" class="d-rich-tooltip" style="display:none; opacity:0;"></div>
 </body>

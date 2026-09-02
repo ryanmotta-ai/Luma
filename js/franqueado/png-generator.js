@@ -137,6 +137,9 @@ async function fGenPNG(d,c,fmt){
 }
 
 async function fGenPDF(d,c,fmt){
+  // pdf-lib sai do boot (513KB) e é buscada aqui, no primeiro PDF da sessão.
+  // O porquê está no bloco do `gPdfLibPronta` no `index.html`.
+  if (typeof window.gPdfLibPronta === 'function') await window.gPdfLibPronta();
   if(!window.PDFLib) {
     throw new Error('Biblioteca pdf-lib não está disponível.');
   }

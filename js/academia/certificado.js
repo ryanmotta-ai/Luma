@@ -395,8 +395,12 @@ async function acBaixarCertificado(btn){
     await _acPintarCertificado(cv, cert);
     const nomeArq = 'certificado-' + String(cert.codigo||'luma').toLowerCase() + '.pdf';
 
+    // pdf-lib sai do boot (513KB) e é buscada aqui, no primeiro certificado da
+    // sessão. O porquê está no bloco do `gPdfLibPronta` no `index.html`.
+    if (typeof window.gPdfLibPronta === 'function') await window.gPdfLibPronta();
     if(!window.PDFLib){
-      // pdf-lib não carregou: em vez de falhar, entrega o PNG (o documento é o mesmo).
+      // pdf-lib não carregou (rede caiu ou o arquivo sumiu): em vez de falhar,
+      // entrega o PNG (o documento é o mesmo).
       const a = document.createElement('a');
       a.download = nomeArq.replace(/\.pdf$/,'.png');
       a.href = cv.toDataURL('image/png');

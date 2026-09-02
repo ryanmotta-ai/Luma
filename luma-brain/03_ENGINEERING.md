@@ -92,6 +92,40 @@ Porque **a RLS é a única fronteira** (o front fala direto com o banco), o cuid
 
 ---
 
+## 6.1 Deploy e cache — o número único
+
+O GitHub Pages serve a branch default (`talpaipai`) e **não deixa configurar cabeçalho
+de cache**: a query string dos assets é a única alavanca. Por isso:
+
+> **Todo asset local de `js/` e `css/` carrega o MESMO `?v=N` no `index.html`.
+> Mexeu em qualquer um deles? Suba o N em TODOS antes do push:**
+> ```
+> sed -i 's/?v=9/?v=10/g' index.html
+> ```
+
+Por que número único e não por arquivo (decisão do Ryan, 02/09): o esquema por arquivo
+foi medido e estava furado — **59 dos 95 assets não tinham `?v=` nenhum**, incluindo
+`core/auth.js`, `core/supabase.js`, `core/feature-flags.js` e `modules/franqueado.css`,
+e os outros 36 usavam seis números diferentes. Conserto nesses arquivos simplesmente
+não chegava em quem já tinha aberto o Luma, e nada na tela denunciava. O custo do
+número único é um cache miss geral por deploy (~1MB, num app aberto 1–2× por dia);
+o ganho é que a classe de bug "esqueci de bumpar" deixa de existir.
+
+`assets/` fica fora por dois motivos: imagem lá muda de nome, não de conteúdo; e as
+libs de `assets/vendor/` são versões pinadas — se trocar uma, troque o **nome do
+arquivo**, que é cache-busting de verdade e não depende de ninguém lembrar de nada.
+
+### E o que entra no boot é decisão, não acidente
+
+Medido em 02/09: o boot baixava **4.738 KB** de js+css. Antes de somar arquivo novo à
+lista do `index.html`, pergunte se ele precisa estar lá no primeiro acesso. O padrão
+para lib pesada atrás de flag é o `gPdfLibPronta()` (no `index.html`): busca sob
+demanda, memoiza a promessa e zera em falha de rede. O pdf-lib saiu do boot assim —
+513 KB, 11% do total, para um caminho que a maioria das sessões nunca toca.
+
+*Lição registrada, da mesma família da do SQL do Pedro: **correção só está entregue
+quando chega no navegador de quem usa** — "commitei" não é "chegou".*
+
 ## 7. Testes e verificação — a verdade, sem fingimento
 
 O exemplo _"sempre criar testes"_ merece honestidade: **hoje o Luma não tem testes automatizados nem runner** (é consequência do "sem build"). Fingir que tem é pior que não ter. A regra real é:
