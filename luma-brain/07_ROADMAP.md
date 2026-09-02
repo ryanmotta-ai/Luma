@@ -49,6 +49,8 @@ modo, mais uma aba, mais uma flag.
 - [x] **"Mudar tudo de uma vez"** — de seis botões para uma barra que conhece o tipo do campo (texto, data com chips, logo de loja, foto) e três atalhos.
 - [x] **Instagram e WhatsApp** — abriam no vazio no celular; agora a folha nativa vem primeiro e o app abre por deep link quando ela é recusada.
 - [x] **Teste de fogo (02/09)** — dois botões que chamavam funções inexistentes, a arte esperando a legenda por IA (13,5s → 0,9s) e texto gigante estourando a lista (37.790px → 360px).
+- [x] **Chat do franqueado (02/09)** — hierarquia: avatar sólido só na pergunta ativa, selo "EU" fora, "Passo X de Y" como legenda (não chip na frente da pergunta), a conversa apoiada no rodapé (eram 470px de vazio) e a arte da conversa em palco no celular. Achado no caminho: no tema escuro o campo de resposta tinha texto a **1,04:1** — invisível.
+- [x] **Tela de login (02/09)** — o painel laranja era um slab chapado de 677×1250px. Ganhou aurora lenta (26s), varredura de marca ao baralho assentar, relevo das cartas ao ponteiro, calor da marca no lado do formulário e floração do anel de foco. **Contraste medido antes e depois**: a luz melhorou o branco sobre laranja (2,27:1 da cláusula de marca → 2,36–2,60:1 no desktop, 2,40–2,58:1 no celular) em vez de piorar.
 
 ### Aberto
 

@@ -49,8 +49,8 @@
 /* capas são PAISAGEM 1500×900 (1.67) — frames 5/3 mostram a arte inteira; os
    quadrados ficam pros centros de composição que aguentam corte. Cartas menores e
    afastadas das bordas: o laranja ao redor É o respiro (sobreposição só no centro). */
-.gl-art-1{--rot:-4deg;width:38%;aspect-ratio:5/3;left:3%;top:8%;animation:glDealIn .6s var(--ease-spring) .34s both,glArtFloat 5.5s ease-in-out 1.7s infinite alternate}
-.gl-art-2{--rot:0deg;width:36%;aspect-ratio:1/1;left:32%;top:0;z-index:2;animation-delay:.26s}
+.gl-art-1{--rot:-4deg;width:36%;aspect-ratio:5/3;left:1%;top:8%;animation:glDealIn .6s var(--ease-spring) .34s both,glArtFloat 5.5s ease-in-out 1.7s infinite alternate}
+.gl-art-2{--rot:0deg;width:36%;aspect-ratio:1/1;left:34%;top:0;z-index:2;animation-delay:.26s}
 .gl-art-3{--rot:3.5deg;width:38%;aspect-ratio:5/3;right:3%;top:26%;animation:glDealIn .6s var(--ease-spring) .42s both,glArtFloat 6.5s ease-in-out 2s infinite alternate}
 /* fileira de baixo ancora no BOTTOM: preenche o painel em qualquer altura */
 .gl-art-4{--rot:2deg;width:29%;aspect-ratio:1/1;left:17%;bottom:4%;z-index:3;animation-delay:.5s}
@@ -196,4 +196,196 @@
 
 @media(prefers-reduced-motion:reduce){
   .gl-brand,.gl-brand-logo,.gl-brand-copy h1,.gl-brand-copy p,.gl-form,.gl-form>*,.gl-art,.gl-msg{animation:none}
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   TELA DE LOGIN — LUZ E MOVIMENTO (2026-09-02)
+   ══════════════════════════════════════════════════════════════════════════════
+   O que o print de 1440×900 mostrava: o baralho de artes já era bonito, mas ele
+   flutuava sobre um SLAB de #FF9000 de 677×1250px sem uma única variação de luz —
+   plástico, não superfície. E o lado direito era um retângulo off-white chapado,
+   sem nenhum vínculo com a marca do outro lado. A coreografia de entrada (painel,
+   cartas dadas, cascata do form) existia e é boa; o que faltava era **luz**.
+
+   As quatro camadas novas, em ordem de quem carrega mais peso:
+     1. aurora  — a luz se move devagar atrás do baralho (26s, quase imperceptível
+                  por quadro, inconfundível ao olhar por 3s);
+     2. sheen   — UMA varredura diagonal atravessa o baralho quando ele assenta;
+     3. relevo  — as cartas sobem ao ponteiro (o painel fica tocável);
+     4. calor   — o lado do formulário puxa um véu da marca vindo do painel.
+
+   Regras da casa respeitadas: nada de asset novo, nada de JS novo (o parallax de
+   ponteiro que já existe no `index.html` segue intocado), cor só por token, e o
+   guarda global de `prefers-reduced-motion` (02-animations.css) zera tudo isto —
+   inclusive `::before`/`::after`, com `!important`.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. AURORA: o laranja deixa de ser chapado ──
+   `isolation:isolate` transforma o painel em contexto de empilhamento, e é o que
+   deixa o `z-index:-1` funcionar como se espera: as camadas de luz pintam ACIMA
+   do fundo laranja e ABAIXO do texto e do baralho, sem que nenhum filho precise
+   ganhar `position`/`z-index` (mexer nos filhos brigaria com o parallax do JS).
+   A luz é da própria família da marca — amarelo (#FFB900) como fonte quente e
+   laranja escuro (#F85400) como sombra quente. Nenhuma cor nova entra na tela. */
+.gl-brand{isolation:isolate}
+.gl-brand::before{
+  content:'';position:absolute;inset:-25%;z-index:-1;pointer-events:none;
+  background:
+    /* ⚠ ONDE A LUZ CAI NÃO É GOSTO — É CONTRASTE. Primeira versão punha a fonte de
+       luz no topo-centro e o amarelo em 20%/22%: medido no navegador, o fundo sob a
+       headline subia para rgb(255,171,14) e o branco caía a **1,89:1** — pior que a
+       linha de base de 2,27:1 que a cláusula de marca aceita (branco sobre #FF9000).
+       A luz mudou de lado: ela cai sobre O BARALHO (que é o herói do painel) e a
+       coluna de texto fica na parte FUNDA, onde o laranja escuro melhora o branco.
+       Medições finais no comentário do fim deste bloco. */
+    radial-gradient(46% 52% at 4% 6%,color-mix(in srgb,var(--dm-orange-d) 52%,transparent),transparent 76%),
+    radial-gradient(40% 34% at 2% 98%,color-mix(in srgb,var(--dm-orange-d) 46%,transparent),transparent 76%),
+    radial-gradient(44% 34% at 78% -8%,color-mix(in srgb,var(--white) 26%,transparent),transparent 72%),
+    radial-gradient(34% 38% at 86% 44%,color-mix(in srgb,var(--dm-yellow) 62%,transparent),transparent 72%),
+    radial-gradient(36% 40% at 92% 90%,color-mix(in srgb,var(--dm-orange-d) 60%,transparent),transparent 72%);
+  filter:blur(6px);
+  will-change:transform;
+  animation:glAurora 26s var(--ease-standard) infinite alternate;
+}
+/* ── Grão: a mesma malha pontilhada do palco do Sheets, em 5% de branco. É o que
+   tira o "plástico" de uma cor chapada em tela grande — de perto não se vê, de
+   longe a superfície existe. */
+.gl-brand::after{
+  content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:
+    /* Grão (camada de cima): a mesma malha pontilhada do palco do Sheets, 5,5% de
+       branco em grade de 3px. De perto não se vê; de longe a cor deixa de ser
+       plástico e passa a ser superfície. */
+    radial-gradient(circle at 1px 1px,rgba(255,255,255,.055) 1px,transparent 0) 0 0/3px 3px,
+    /* Véu da coluna de texto (camada de baixo, e PARADA de propósito — mora aqui e
+       não na aurora justamente para não deslizar sob as letras). É o que devolve o
+       contraste do branco: laranja escuro por cima do claro, exatamente na metade
+       onde a headline, o parágrafo e o rodapé vivem. */
+    linear-gradient(96deg,color-mix(in srgb,var(--dm-orange-d) 46%,transparent) 0%,
+                          color-mix(in srgb,var(--dm-orange-d) 30%,transparent) 40%,
+                          transparent 78%);
+}
+@keyframes glAurora{
+  0%  {transform:translate3d(0,0,0)        scale(1)}
+  50% {transform:translate3d(3%,-2.6%,0)   scale(1.09)}
+  100%{transform:translate3d(-2.6%,2.2%,0) scale(1.04)}
+}
+
+/* ── 2. SHEEN: o beat de marca quando o baralho assenta ──
+   UMA vez, nunca em laço: a última carta pousa em ~1,18s (delay .58s + .6s de
+   `glDealIn`), então a varredura entra em 1,15s e passa em 1,5s. Instrumento
+   igual ao da transição login→app (`.gl-trans-sheen`): faixa branca CHAPADA
+   suavizada por blur, não gradiente — a casa não usa gradiente em superfície.
+   `z-index:9` passa por cima das cartas (elas vão até 3). */
+.gl-mosaic::after{
+  content:'';position:absolute;top:-16%;bottom:-16%;left:0;width:26%;z-index:9;
+  background:rgba(255,255,255,.34);filter:blur(18px);pointer-events:none;
+  transform:translateX(-220%) skewX(-14deg);opacity:0;
+  animation:glBaralhoSheen 1.5s var(--ease-standard) 1.15s both;
+}
+@keyframes glBaralhoSheen{
+  0%  {transform:translateX(-220%) skewX(-14deg);opacity:0}
+  22% {opacity:1}
+  78% {transform:translateX(400%)  skewX(-14deg);opacity:0}
+  100%{transform:translateX(400%)  skewX(-14deg);opacity:0}
+}
+
+/* ── 3. RELEVO: a carta sobe ao ponteiro ──
+   ⚠ O lift usa a propriedade `scale`, NÃO `transform` — e isso não é estilo, é a
+   única coisa que funciona aqui. `glDealIn` roda com `fill-mode:both` e o valor
+   de `transform` da animação vence qualquer regra declarativa (é assim que a
+   cascata trata animação preenchida): um `.gl-art:hover{transform:...}` seria
+   silenciosamente ignorado. `scale` e `translate` são propriedades separadas,
+   aplicadas DEPOIS de `transform` — e `translate` já é de `glArtFloat`, então
+   sobra `scale` para nós, livre de briga. Só onde há ponteiro fino. */
+@media (hover:hover) and (pointer:fine){
+  .gl-art{
+    transition:scale var(--dur-base) var(--ease-spring),box-shadow var(--dur-base) var(--ease-standard);
+  }
+  .gl-art:hover{
+    scale:1.06;z-index:9;
+    box-shadow:0 32px 62px rgba(0,0,0,.26),0 4px 12px rgba(0,0,0,.14);
+  }
+}
+
+/* ── 4. CALOR: os dois lados passam a ser a mesma imagem ──
+   O off-white do lado do form não tinha nenhum vínculo com o painel. Um véu da
+   marca a 7%, nascendo na borda que encosta no laranja, costura os dois lados
+   sem pintar nada de laranja de verdade. */
+.gl-form-side{position:relative}
+.gl-form-side::before{
+  content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(58% 56% at 0% 46%,color-mix(in srgb,var(--dm-orange) 8%,transparent),transparent 72%),
+    radial-gradient(46% 40% at 96% 100%,color-mix(in srgb,var(--dm-yellow) 6%,transparent),transparent 74%);
+}
+/* Elemento posicionado com `z-index:0` pinta ACIMA de conteúdo estático — sem
+   este par o véu cobriria o formulário inteiro. */
+.gl-form{position:relative;z-index:1}
+
+/* ── 5. O CAMPO EM FOCO FLORESCE ──
+   O anel de foco era um `box-shadow` estático que aparecia de uma vez. Agora ele
+   abre de dentro para fora e a etiqueta acende na cor da marca — o olho confirma
+   onde está digitando sem precisar procurar o cursor. */
+.gl-lbl{transition:color var(--dur-fast) var(--ease-standard)}
+.gl-field:focus-within .gl-lbl{color:var(--dm-orange-d)}
+.gl-in input:focus{animation:glAnelAbre var(--dur-base) var(--ease-out)}
+@keyframes glAnelAbre{
+  from{box-shadow:0 0 0 0 color-mix(in srgb,var(--dm-orange) 30%,transparent)}
+  to  {box-shadow:0 0 0 4px color-mix(in srgb,var(--dm-orange) 14%,transparent)}
+}
+
+/* ── 6. O CTA RESPONDE AO PONTEIRO COM LUZ, NÃO SÓ COM SOMBRA ──
+   Mesma faixa chapada + blur do sheen de marca, uma passada por hover. O
+   `overflow:hidden` recorta a faixa no raio do botão; o `z-index` no conteúdo
+   mantém o rótulo e o spinner acima dela (o `auth.js` só liga/desliga o
+   `display` desses dois — nada aqui mexe no contrato). */
+.gl-btn{position:relative;overflow:hidden;isolation:isolate}
+.gl-btn::after{
+  content:'';position:absolute;top:-30%;bottom:-30%;left:0;width:38%;z-index:-1;
+  background:rgba(255,255,255,.26);filter:blur(10px);pointer-events:none;
+  transform:translateX(-200%) skewX(-16deg);
+}
+.gl-btn:hover:not(:disabled)::after{animation:glBtnLuz .78s var(--ease-standard)}
+.gl-btn:disabled::after{display:none}
+@keyframes glBtnLuz{
+  from{transform:translateX(-200%) skewX(-16deg)}
+  to  {transform:translateX(360%)  skewX(-16deg)}
+}
+/* O spinner de "entrando..." gira sobre a luz, não sob ela. */
+.gl-btn-text,.gl-spinner{position:relative;z-index:1}
+
+/* ── 7. O BARALHO ENTRA COM MAIS ORQUESTRAÇÃO ──
+   A cascata das cartas era 0,26 → 0,58s (320ms de janela para cinco cartas): elas
+   caíam quase juntas e o efeito "dadas na mesa" se perdia. Abrindo para
+   0,20 → 0,74s a mão inteira se lê carta por carta, e o sheen (1,15s) entra logo
+   depois da última pousar. Só os delays mudam — quem anima segue `glDealIn`. */
+.gl-art-2{animation-delay:.20s}
+.gl-art-1{animation:glDealIn .6s var(--ease-spring) .34s both,glArtFloat 5.5s ease-in-out 1.9s infinite alternate}
+.gl-art-3{animation:glDealIn .6s var(--ease-spring) .48s both,glArtFloat 6.5s ease-in-out 2.2s infinite alternate}
+.gl-art-4{animation-delay:.62s}
+.gl-art-5{animation:glDealIn .6s var(--ease-spring) .74s both,glArtFloat 6s ease-in-out 2.5s infinite alternate}
+
+/* ── 8. CELULAR: a luz vem, a coreografia não ──
+   No corte de 860px o baralho já é uma fita estática de três cartas (`position:
+   static`, `animation:none`): a varredura diagonal não tem palco para atravessar
+   e o relevo não tem ponteiro. Ficam a aurora e o calor, que são o que dá
+   superfície à faixa laranja compacta. */
+@media(max-width:860px){
+  .gl-mosaic::after{display:none}
+  .gl-brand::before{inset:-40%;filter:blur(8px)}
+  /* O véu do texto muda de EIXO aqui, e é medição que manda: no celular a faixa
+     tem 366px de largura e o texto atravessa ela toda, então um véu vindo da
+     esquerda deixava a headline entrando na parte clara (medido: branco a
+     2,13:1, abaixo da linha de base de 2,27:1 da cláusula de marca). Deitado,
+     ele cobre a metade de CIMA — onde o texto vive — e libera a de baixo, que é
+     onde a fita de cartas mora. */
+  .gl-brand::after{
+    background:
+      radial-gradient(circle at 1px 1px,rgba(255,255,255,.055) 1px,transparent 0) 0 0/3px 3px,
+      linear-gradient(178deg,color-mix(in srgb,var(--dm-orange-d) 46%,transparent) 0%,
+                             color-mix(in srgb,var(--dm-orange-d) 34%,transparent) 46%,
+                             transparent 84%);
+  }
 }
