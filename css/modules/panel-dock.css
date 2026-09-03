@@ -43,10 +43,14 @@
   body.panel-dock-active:not(.f-history-mode) #f-live-preview[data-panel-slot="1"] {
     order: 1; flex: 1 1 0; width: auto; max-width: none; min-width: 0;
   }
+  /* Slot 2 cresce com a tela: em 1600px o chat fica ~512px (chega na altura do
+     selo "aguardando respostas..." do cabeçalho da prévia, que era o pedido) e
+     em 1024px volta aos 380px de antes, senão o centro (o HERÓI) sufoca. */
   body.panel-dock-active:not(.f-history-mode) #fran-left[data-panel-slot="2"],
   body.panel-dock-active:not(.f-history-mode) #f-chat-col[data-panel-slot="2"],
   body.panel-dock-active:not(.f-history-mode) #f-live-preview[data-panel-slot="2"] {
-    order: 2; flex: 0 0 380px; width: 380px; max-width: 380px;
+    --slot2-w: clamp(380px, 32%, 520px);
+    order: 2; flex: 0 0 var(--slot2-w); width: var(--slot2-w); max-width: var(--slot2-w);
   }
 
   /* Separador coerente: cada painel mostra 1 borda à direita, exceto o último.

@@ -210,7 +210,7 @@ esses a verificação continua sendo o navegador. Suíte verde não substitui ab
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 67 arquivos JS (53.406 linhas, 2.134 funções) · 31 arquivos CSS (26.112 linhas) · `index.html` com 3.818 linhas e 69 `<script>`.
+**Tamanho real de hoje:** 67 arquivos JS (53.406 linhas, 2.134 funções) · 31 arquivos CSS (26.121 linhas) · `index.html` com 3.818 linhas e 69 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -591,11 +591,11 @@ tutMockCampaign, tutMockMaterial, tutMockHist — builders de HTML de mock usado
 | `css/components/user-profile.css` | 1084 |
 | `css/modules/academia.css` | 1330 |
 | `css/modules/all-tools.css` | 113 |
-| `css/modules/catalog.css` | 289 |
+| `css/modules/catalog.css` | 291 |
 | `css/modules/chat.css` | 2298 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
-| `css/modules/designer.css` | 5815 |
+| `css/modules/designer.css` | 5822 |
 | `css/modules/franqueado.css` | 1506 |
 | `css/modules/franqueado_effects.css` | 418 |
 | `css/modules/help-widget.css` | 1698 |

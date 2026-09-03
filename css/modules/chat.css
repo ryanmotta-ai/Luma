@@ -647,11 +647,12 @@ body:has(#f-bulk-modal.open) #mobile-preview-toggle{display:none!important}
    de importação e o passo 3, três controles — nenhum dos dois é fase de trabalho, e virar tela
    fazia a planilha parecer o meio do caminho. Agora as duas coisas que importam dividem a tela:
    a arte (o herói, design-process §3) e a grade que a alimenta.
-   A coluna da arte tem largura FIXA em vez de fração: a prancheta não deve encolher junto com
-   a janela — quem cede espaço é a planilha, que já rola na horizontal por natureza. */
+   A coluna da arte pega 40% da largura (piso 340px, teto 640px): a prancheta é o herói e
+   precisa de área pra ser lida, e a planilha, que já rola na horizontal por natureza, é quem
+   cede. O piso e o teto existem pra ela nunca virar selo em tela pequena nem deserto em 4K. */
 .f-bulk-workspace{display:block;min-height:0;overflow:auto;background:var(--off-white);
   scrollbar-width:thin;scrollbar-color:var(--gray-mid) transparent}
-.f-bulk-split{display:grid;grid-template-columns:clamp(300px,26vw,392px) minmax(0,1fr);overflow:hidden}
+.f-bulk-split{display:grid;grid-template-columns:clamp(340px,40%,640px) minmax(0,1fr);overflow:hidden}
 
 /* ── A arte ao vivo ── */
 .f-bulk-live{display:flex;flex-direction:column;gap:12px;min-width:0;min-height:0;overflow:hidden;padding:18px 18px 16px;
