@@ -210,7 +210,7 @@ esses a verificação continua sendo o navegador. Suíte verde não substitui ab
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 67 arquivos JS (53.246 linhas, 2.131 funções) · 31 arquivos CSS (25.968 linhas) · `index.html` com 3.802 linhas e 69 `<script>`.
+**Tamanho real de hoje:** 67 arquivos JS (53.285 linhas, 2.132 funções) · 31 arquivos CSS (26.070 linhas) · `index.html` com 3.812 linhas e 69 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -284,7 +284,7 @@ CONTROLE DO PRODUTO — a tela da Gestão, dentro do painel da conta.
 **`js/core/pwa-install.js`** · 130 linhas
 dica de instalação do Luma como app (PWA) Mostra UMA dica discreta e dispensável para deixar o Luma na tela de início (celular) ou no Dock (Mac).
 
-**`js/core/qr.js`** · 254 linhas
+**`js/core/qr.js`** · 257 linhas
 Gerador de QR Code (modo byte, correção nível M) em Canvas — vanilla, zero dependência.
 · API: gQRCanvas
 
@@ -450,13 +450,13 @@ Accordion, sub-nav scroll, alignment button group para o painel de props.
 · API: dPropToggleSection, dPropSaveSections, dPropRestoreSections, dPropScrollTo, dPropSetAlign, dPropSyncAlign, dPropShowSections, dPropWorkspaceMode, dPropReadWorkspaceMode, dPropSetWorkspaceMode, dToggleChrome, dPropBuildWorkspaceMode, dPropBuildEssentialChrome, dPropBuildPanelNav … (+62; 76 funções no total)
 · Estado global: dChromeOff, dPropDataProblemsOnly
 
-**`js/designer/psd-import.js`** · 1592 linhas
+**`js/designer/psd-import.js`** · 1612 linhas
 REVISÃO e IMPORTAÇÃO do .psd — a metade do importador que é tela.
-· API: dPsdOpenReview, dPsdRenderRows, dPsdSetMode, dPsdSetVar, dPsdSetInclude, dPsdSelectAll, dPsdSelectNone, dPsdUploadFont, dPsdUpdateCount, dPsdCancel, dPsdConfirmImport, dImportLayersAsArtboard, dPsdRenderPreview, dPsdHoverLayer … (+18; 81 funções no total)
+· API: dPsdOpenReview, dPsdRenderRows, dPsdSetMode, dPsdSetVar, dPsdSetInclude, dPsdSelectAll, dPsdSelectNone, dPsdUploadFont, dPsdUpdateCount, dPsdCancel, dPsdConfirmImport, dImportLayersAsArtboard, dPsdRenderPreview, dPsdHoverLayer … (+18; 82 funções no total)
 · Estado global: dPsdItems, _dPsdAdjustCount, _dPsdLastHoverIdx, _dPsdPreviewTimer, _dPsdDragField, _dPsdArmedField, _dPsdDragPaint, _dPsdAiBusy, _dPsdBoards, _dPsdBoardIdx (+3)
 · Depende de: designer/templates.js, core/layout.js, core/toast.js, 00-config.js.
 
-**`js/designer/psd-parse.js`** · 1884 linhas
+**`js/designer/psd-parse.js`** · 1900 linhas
 LEITURA e FIDELIDADE do .psd — a metade do importador que não toca a tela.
 · API: dLoadAgPsd, dPsdCancelLoad, dPsdDetectFmt, dPsdParseItems, dItemToLayer, dPsdItemsToLayers
 · Estado global: _agPsdPromise, _dPsdGlobalLight, _dPsdYieldChan, _dPsdCancelled, _dPsdActiveWorker, _dPsdErrorCount
@@ -595,7 +595,7 @@ tutMockCampaign, tutMockMaterial, tutMockHist — builders de HTML de mock usado
 | `css/modules/chat.css` | 2256 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
-| `css/modules/designer.css` | 5713 |
+| `css/modules/designer.css` | 5815 |
 | `css/modules/franqueado.css` | 1506 |
 | `css/modules/franqueado_effects.css` | 418 |
 | `css/modules/help-widget.css` | 1698 |

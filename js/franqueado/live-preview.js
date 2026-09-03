@@ -1467,8 +1467,10 @@ function _fLpPerm(v){
   return { editable: p.edit!==false, maxLen: (p.maxLen||cfg.maxLen||32) };
 }
 // Ponto do clique em espaço da ARTE (W×H) — robusto a qualquer transform CSS do canvas.
-function _fLpArtCoords(ev){
-  const canvas=document.getElementById('lp-canvas');
+/* `cvAlvo` (03/09): o Sheets reusa este teste de acerto no `#f-bulk-hero-cv`. Sem
+   parâmetro o padrão é o canvas do chat, então nenhum caller antigo muda. */
+function _fLpArtCoords(ev, cvAlvo){
+  const canvas=cvAlvo||document.getElementById('lp-canvas');
   if(!canvas||!canvas.width) return null;
   const r=canvas.getBoundingClientRect();
   if(!r.width||!r.height) return null;
@@ -1492,7 +1494,10 @@ function _fLpVisualRect(l){
   const w=l.type==='text'&&l._layoutW!=null?l._layoutW:(l.w||0);
   return{x:(l.x||0)+dx,y:l.y||0,w,h:l.h||0};
 }
-function _fLpLayerAt(x,y){
+/* `cvAlvo`: idem. Note que este teste lê `fState.material` — e isso está certo para os
+   dois, porque o Sheets trabalha no MESMO material do chat; o que difere entre eles é só
+   o `dados` (aqui uma arte, lá uma linha da planilha), e o `dados` não entra neste cálculo. */
+function _fLpLayerAt(x,y,cvAlvo){
   const mat=fState.material;
   let layers=(_lpEffectiveMaterial===mat)
     ?_lpEffectiveLayers:((mat&&mat.layers)||[]);
@@ -1500,7 +1505,7 @@ function _fLpLayerAt(x,y){
   // fRenderTemplateLayers re-ancora as coords (gReflowLayers). Sem espelhar aqui, o clique/
   // hover caía no layer errado em templates legados exibidos noutro formato. Os callers só
   // leem type/imgVar/vars (preservados na cópia refluída), então devolver a cópia é seguro.
-  const cv=document.getElementById('lp-canvas');
+  const cv=cvAlvo||document.getElementById('lp-canvas');
   if(_lpEffectiveMaterial!==mat&&mat&&cv&&typeof fMaterialSize==='function'&&typeof gReflowLayers==='function'){
     const sz=fMaterialSize(mat), tw=sz[0], th=sz[1], W=cv.width, H=cv.height;
     if((tw!==W || th!==H) && W && H){

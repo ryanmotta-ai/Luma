@@ -2253,3 +2253,48 @@ body:not(.theme-light) #f-msg-box{background:var(--d-surf);border-color:var(--d-
 body:not(.theme-light) #f-msg-box::placeholder{color:var(--d-text2)}
 body:not(.theme-light) #f-msg-box:focus{border-color:var(--dm-orange);box-shadow:0 0 0 3px color-mix(in srgb,var(--dm-orange) 18%,transparent)}
 body:not(.theme-light) #f-msg-box:disabled{background:var(--d-surf2);color:var(--d-text2)}
+
+
+/* ── LAYOUT VIVO E CLIQUE-PARA-EDITAR NO PALCO DO SHEETS (2026-09-03) ──
+   O Ryan pediu "a mesma prévia ao vivo no Sheets". A arte já era a mesma (mesmo
+   motor de render); o que faltava eram dois controles em volta, e são estes.
+   O "Auto-zoom" da prévia do chat ficou de fora com motivo: ele só existe para
+   enquadrar a mesa com zoom/pan, que este palco não tem. */
+.f-bulk-live-auto{
+  margin-left:auto;                     /* encosta na direita do cabeçalho do palco */
+  display:inline-flex;align-items:center;gap:5px;flex:none;
+  min-height:26px;padding:0 9px;
+  border:1px solid var(--gray-mid);border-radius:var(--r-pill);
+  background:var(--white);color:var(--text-3);
+  font:700 9.5px/1 'Roboto',sans-serif;letter-spacing:.02em;cursor:pointer;
+  transition:background var(--dur-fast) var(--ease-standard),
+             border-color var(--dur-fast) var(--ease-standard),
+             color var(--dur-fast) var(--ease-standard);
+}
+.f-bulk-live-auto svg{width:12px;height:12px;flex:none}
+.f-bulk-live-auto:hover{border-color:var(--dm-orange);color:var(--text)}
+.f-bulk-live-auto:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+.f-bulk-live-auto.active{
+  border-color:var(--dm-orange-tint);background:var(--dm-orange-bg);color:var(--dm-orange-d);
+}
+body:not(.theme-light) .f-bulk-live-auto{background:var(--d-surf);border-color:var(--d-border2);color:var(--d-text2)}
+body:not(.theme-light) .f-bulk-live-auto.active{
+  background:color-mix(in srgb,var(--dm-orange) 12%,var(--d-surf));
+  border-color:color-mix(in srgb,var(--dm-orange) 38%,transparent);color:var(--dm-orange);
+}
+/* No dedo o alvo é 44px, como manda o `ux-principles.md` (Lei de Fitts). */
+@media (hover:none){ .f-bulk-live-auto{min-height:var(--tap-min);padding-inline:12px} }
+
+/* O campo que o clique na arte acabou de buscar: um pulso curto diz "é este aqui",
+   senão o foco em tela cheia de campos passa batido. Sai sozinho no `animationend`. */
+.f-bulk-fin-alvo{animation:fBulkCampoAlvo var(--dur-slow) var(--ease-out) both}
+@keyframes fBulkCampoAlvo{
+  0%  {box-shadow:0 0 0 0 color-mix(in srgb,var(--dm-orange) 55%,transparent)}
+  40% {box-shadow:0 0 0 5px color-mix(in srgb,var(--dm-orange) 22%,transparent)}
+  100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--dm-orange) 0%,transparent)}
+}
+/* A arte responde ao ponteiro: ela virou ferramenta, não retrato. */
+@media (hover:hover) and (pointer:fine){
+  #f-bulk-hero-cv{transition:filter var(--dur-fast) var(--ease-standard)}
+  #f-bulk-hero-cv:hover{filter:brightness(1.03)}
+}

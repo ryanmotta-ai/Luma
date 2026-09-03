@@ -1453,10 +1453,6 @@ async function fBulkRestoreDraft(){
   }
   fBulkRows=_fBulkRevalidateRows(rows);
   _fBulkTableView=draft.tableView!==false;
-  const copy=document.getElementById('f-bulk-copy-format');
-  const city=document.getElementById('f-bulk-city');
-  if(copy&&draft.copyFormat)copy.value=draft.copyFormat;
-  if(city&&draft.city!=null)city.value=draft.city;
   _fBulkSetSaveStatus('Produção recuperada','saved');
   return true;
 }
@@ -1535,34 +1531,27 @@ function fBulkClearAll() {
   gToast('Planilha limpa.');
 }
 
+/* ⚠ BUG DE ORDEM, CONSERTADO EM 03/09 (achado pelo Ryan: "saindo do chat e abrindo o
+   Sheets ele não pega as informações da arte").
+   Esta função semeava `fBulkRows[0]` com os dados da arte e SÓ DEPOIS chamava o
+   `fBulkOpen` — que logo no começo faz `fBulkRows=[]` quando o material mudou. E ele
+   MUDOU justamente aqui: vindo do chat, é a primeira abertura do Sheets para aquele
+   material, então `_fLastMaterialId` nunca casa. A linha recém-semeada era jogada fora
+   e o Sheets caía no rascunho antigo (dados de outra sessão!) ou em três linhas vazias.
+   O toast ainda dizia "aberto com os dados desta arte" — a tela mentia.
+   A semeadura agora viaja DENTRO do `fBulkOpen`, que a aplica depois do reset. */
 async function fBulkOpenFromArt() {
   if (!fState.material || !fState.material.layers) {
     gToast('Escolha um material primeiro.');
     return;
   }
-  
-  // Pré-carrega a Linha 1 do Luma Sheets com os dados atuais preenchidos na arte
-  if (fState.dados && Object.keys(fState.dados).length > 0) {
-    const vars = fBulkVars();
-    const rowData = {};
-    vars.forEach(v => {
-      rowData[v] = fState.dados[v] !== undefined ? fState.dados[v] : '';
-    });
-    
-    const currentArtRow = { dados: rowData, status: 'idle' };
-    
-    if (!fBulkRows || fBulkRows.length === 0) {
-      fBulkRows = [currentArtRow, fBulkCreateEmptyRow(), fBulkCreateEmptyRow()];
-    } else {
-      fBulkRows[0] = currentArtRow;
-    }
-  }
-
-  await fBulkOpen();
-  gToast('Luma Sheets aberto com os dados desta arte!');
+  await fBulkOpen({ semearDaArte: true });
 }
 
-async function fBulkOpen(){
+async function fBulkOpen(opcoes){
+  // `semearDaArte`: só o fBulkOpenFromArt manda, e só vale se a arte tem algo preenchido.
+  const semearDaArte = !!(opcoes && opcoes.semearDaArte)
+    && !!(fState.dados && Object.keys(fState.dados).some(k => String(fState.dados[k] || '').trim()));
   // Controle do produto — funil único do Luma Sheets (fBulkOpenFromArt chega aqui).
   if(typeof gFeatureCan==='function' && !gFeatureCan('franqueado.sheets','access')){
     if(typeof gFeatureBlockedFeedback==='function') gFeatureBlockedFeedback('franqueado.sheets');
@@ -1586,16 +1575,38 @@ async function fBulkOpen(){
     }
     _fBulkTableView = true; // default para tabela ao começar do zero
   }
-  
-  const cityInput = document.getElementById('f-bulk-city');
-  if (cityInput) {
-    try {
-      cityInput.value = localStorage.getItem('luma_bulk_city') || '';
-    } catch (e) {
-      console.warn('Error reading city from localStorage', e);
-    }
-  }
 
+  /* ── A ARTE DO CHAT ENTRA AQUI, e não antes ──
+     Depois do reset por troca de material E depois do rascunho, senão um dos dois a
+     apaga (era o bug). Quando o rascunho já trouxe conteúdo na linha 1, a arte entra
+     como linha NOVA no topo em vez de sobrescrever: a versão antiga desta função
+     sobrescrevia, e isso destruía trabalho recuperado sem avisar. */
+  if (semearDaArte) {
+    /* ⚠ A linha nasce do `fBulkCreateEmptyRow()` e SÓ DEPOIS recebe os valores.
+       A versão antiga montava `{dados, status:'idle'}` à mão — forma errada nos dois
+       sentidos: `status` não existe no modelo e `erros` faltava. `fBulkRenderPreview`
+       faz `r.erros.find(...)` na montagem da tabela, então a linha semeada DERRUBAVA
+       a tela inteira com "Cannot read properties of undefined (reading 'find')".
+       Nunca apareceu porque o bug de ordem (acima) jogava essa linha fora antes de
+       alguém pintá-la: os dois defeitos se escondiam um no outro, e consertar a ordem
+       foi o que fez o segundo aparecer. Construindo pelo construtor, a forma não pode
+       mais divergir — e `erros` vem validado de graça. */
+    const linhaDaArte = fBulkCreateEmptyRow();
+    Object.keys(linhaDaArte.dados).forEach(v => {
+      if (fState.dados && fState.dados[v] !== undefined) linhaDaArte.dados[v] = fState.dados[v];
+    });
+    linhaDaArte.erros = [];
+    Object.keys(linhaDaArte.dados).forEach(v => {
+      const err = (typeof fValidate === 'function') ? fValidate(v, linhaDaArte.dados[v]) : null;
+      if (err) linhaDaArte.erros.push(err);
+    });
+    const l0 = fBulkRows && fBulkRows[0];
+    const l0Vazia = !l0 || !l0.dados || !Object.keys(l0.dados).some(k => String(l0.dados[k] || '').trim());
+    if (!fBulkRows || fBulkRows.length === 0) fBulkRows = [linhaDaArte, fBulkCreateEmptyRow(), fBulkCreateEmptyRow()];
+    else if (l0Vazia) fBulkRows[0] = linhaDaArte;
+    else fBulkRows.unshift(linhaDaArte);
+  }
+  
   document.getElementById('f-bulk-status').textContent=`${fBulkRows.length} linha(s) carregada(s)`;
   fBulkRenderPreview();
   // Reseta o bloco de IA pro estado colapsado a cada abertura (evita prompt de material antigo)
@@ -1609,10 +1620,6 @@ async function fBulkOpen(){
      mesmo lugar. O `fBulkDownloadAll` sempre teve o fallback `selectedFmts=[fState.fmt]`, então
      o ZIP sai no formato do material — que é o que a prévia ao lado mostra o tempo todo. */
   fBulkRestoreGenerationState();
-  const copy=document.getElementById('f-bulk-copy-format');
-  const city=document.getElementById('f-bulk-city');
-  if(copy&&!copy.dataset.autosaveBound){ copy.addEventListener('change',fBulkScheduleAutosave); copy.dataset.autosaveBound='1'; }
-  if(city&&!city.dataset.autosaveBound){ city.addEventListener('input',fBulkScheduleAutosave); city.dataset.autosaveBound='1'; }
   if(!window._fBulkBeforeUnloadBound){
     window.addEventListener('beforeunload',_fBulkSaveDraftSync);
     window._fBulkBeforeUnloadBound=true;
@@ -1622,7 +1629,10 @@ async function fBulkOpen(){
   fBulkUpdateSavedTemplatesList();
   document.getElementById('f-bulk-modal').classList.add('open');
   fBulkSetActive(0);
-  if(restored)gToast('Sua produção foi recuperada automaticamente');
+  if(semearDaArte) gToast(restored
+    ? 'Sua produção foi recuperada e esta arte entrou na primeira linha'
+    : 'Luma Sheets aberto com os dados desta arte');
+  else if(restored) gToast('Sua produção foi recuperada automaticamente');
 }
 function fBulkClose(){
   fBulkCollectCurrentInputs();
@@ -1743,10 +1753,98 @@ function _fBulkSyncLiveHead(){
 /* A prévia grande sai do MESMO motor do PNG final (fRenderTemplateLayers) — é a régua única
    da casa, e é o que garante que esta tela não minta sobre o arquivo que vai baixar.
    `trocou` liga o crossfade: sem ele, substituir o pixel de uma arte pela outra pisca. */
+/* ══ LAYOUT VIVO NO SHEETS ══ (Ryan, 03/09)
+   O motor de render já lia o `gLayoutVivoOff` (linha ~466 deste arquivo), então a acomodação
+   automática SEMPRE valeu para a arte do Sheets — o que faltava era o interruptor.
+
+   ⚠ Não chamo o `fLpToggleAutoLayout()` de propósito, embora ele exista: aquele repinta o
+   canvas do CHAT e pode disparar um toast sobre a composição dos dados do chat, que não é o
+   que está na tela aqui. O que importa dividir é o ESTADO, não o gesto — e ele é dividido:
+   mesma variável global e mesma chave guardada (`luma-lp-auto-layout`), então ligar num lado
+   vale no outro. As duas linhas de flip são cópia consciente de duas linhas, não um segundo
+   motor de layout. */
+function fBulkToggleLayoutVivo(){
+  if(typeof gLayoutVivoOff === 'undefined') return;
+  gLayoutVivoOff = !gLayoutVivoOff;
+  try{ localStorage.setItem('luma-lp-auto-layout', gLayoutVivoOff ? '0' : '1'); }catch(e){}
+  _fBulkSyncLayoutBtn();
+  fBulkRenderPreview();
+  if(typeof _fLpSyncAutoLayoutButton === 'function'){ try{ _fLpSyncAutoLayoutButton(); }catch(e){} }
+}
+function _fBulkSyncLayoutBtn(){
+  const b = document.getElementById('f-bulk-layout-btn');
+  if(!b) return;
+  const on = (typeof gLayoutVivoOff === 'undefined') || !gLayoutVivoOff;
+  b.classList.toggle('active', on);
+  b.setAttribute('aria-pressed', String(on));
+  b.title = on
+    ? 'Acomodação automática LIGADA: o Luma reencaixa o texto que não cabe'
+    : 'Acomodação automática desligada: a composição original vale mesmo se o texto estourar';
+}
+
+/* ══ CLICAR NA ARTE LEVA AO CAMPO DAQUELA LINHA ══ (pedido do Ryan, 03/09)
+   O que ele pediu foi "a mesma prévia ao vivo no Sheets". A arte JÁ era a mesma — os dois
+   palcos pintam pelo `fRenderTemplateLayers`. O que faltava eram os controles em volta, e
+   este é o que ele escolheu como principal.
+
+   Reusa o teste de acerto da prévia do chat (`_fLpArtCoords`/`_fLpLayerAt`/`_fLpLayerVars`),
+   que só precisou aceitar outro canvas: eles leem `fState.material`, que o Sheets
+   compartilha, e não tocam em `dados` — que é justamente o que difere entre os dois.
+
+   ⛔ NÃO abre editor próprio. O campo da planilha JÁ é o editor, com validação por célula,
+   marca de erro e o "Preencher um campo de uma vez". Um segundo editor do mesmo dado seria
+   a segunda verdade dele — o oposto da lei do motor único. Então o clique FOCA o campo. */
+function _fBulkIrParaCampo(k){
+  const i = _fBulkActiveIdx();
+  const focar = () => {
+    const el = document.getElementById('f-bulk-edit-' + i + '-' + k);
+    if(!el){ gToast('Esse campo não está nesta linha'); return; }
+    el.focus();
+    try{ el.setSelectionRange(el.value.length, el.value.length); }catch(e){}
+    try{ el.scrollIntoView({block:'nearest', behavior:'smooth'}); }catch(e){}
+    el.classList.add('f-bulk-fin-alvo');
+    el.addEventListener('animationend', () => el.classList.remove('f-bulk-fin-alvo'), {once:true});
+  };
+  const folha = document.querySelector('.f-bulk-live');
+  if(_fBulkEhCelular() && typeof fBulkAbrirFolha === 'function'){
+    fBulkAbrirFolha(i);
+    /* ⚠ MESMA pedra do `_fBulkFocarPrimeiroVazio`: enquanto a folha sobe o CSS a mantém
+       `visibility:hidden`, e `focus()` em subárvore invisível é ignorado. `transitionend`
+       é o gancho — nada de milissegundo cravado em JS. */
+    if(folha && getComputedStyle(folha).visibility === 'hidden'){
+      folha.addEventListener('transitionend', function _ok(ev){
+        if(ev.target !== folha || ev.propertyName !== 'transform') return;
+        folha.removeEventListener('transitionend', _ok);
+        focar();
+      });
+      return;
+    }
+  }
+  focar();
+}
+function _fBulkBindHeroClick(){
+  const cv = document.getElementById('f-bulk-hero-cv');
+  if(!cv || cv._fBulkCliqueLigado) return;
+  cv._fBulkCliqueLigado = true;
+  cv.style.cursor = 'pointer';
+  cv.title = 'Clique numa parte da arte para editar o campo dela';
+  cv.addEventListener('click', ev => {
+    if(typeof _fLpArtCoords !== 'function' || typeof _fLpLayerAt !== 'function') return;
+    const pt = _fLpArtCoords(ev, cv);
+    if(!pt) return;
+    const l = _fLpLayerAt(pt.x, pt.y, cv);
+    const vars = (l && typeof _fLpLayerVars === 'function') ? _fLpLayerVars(l) : [];
+    if(!vars.length){ gToast('Essa parte da arte é fixa do template'); return; }
+    _fBulkIrParaCampo(vars[0]);
+  });
+}
+
 async function _fBulkRenderHero(trocou){
   const cv = document.getElementById('f-bulk-hero-cv');
   const frame = document.getElementById('f-bulk-live-frame');
   if(!cv || !fState.material || !fState.material.layers) return;
+  _fBulkBindHeroClick();   // idempotente: a guarda no próprio canvas impede religar
+  _fBulkSyncLayoutBtn();
   const i = _fBulkActiveIdx();
   const row = fBulkRows[i];
   const token = ++_fBulkHeroToken;
@@ -1828,8 +1926,8 @@ const F_BULK_FAQ = [
   { cat:'Recursos', q:'Posso ditar por voz?', a:'Sim — clique em “Falar” no painel de preencher e fale suas ofertas (ex.: “hambúrguer por 25, pizza de 50 por 39”). O assistente separa produto e preço. Precisa de Chrome/Edge e do site em https ou localhost (não funciona abrindo o arquivo direto).' },
   { cat:'Recursos', q:'Como coloco fotos nos produtos?', a:'Na planilha, cada campo de imagem tem o botão “Foto” (envia do computador) ou um campo pra colar um link. Fotos abaixo de 600px avisam que podem sair pixeladas.' },
   { cat:'Recursos', q:'Em qual formato as artes saem?', a:'No formato do material que você abriu — o mesmo que a prévia mostra ao lado da planilha. Para o mesmo lote em outro formato (Story, Feed, Post wide…), abra o material naquele formato e rode o lote de novo.' },
-  { cat:'Recursos', q:'O que são as Ações em Massa?', a:'Em “Mudar tudo de uma vez” você preenche uma coluna inteira de uma só vez, aplica desconto em % ou arredonda os preços pra final “,90” — tudo em todas as linhas ao mesmo tempo.' },
-  { cat:'Recursos', q:'O ZIP vem com as legendas?', a:'Sim — junto das imagens vem um arquivo “legendas_posts.txt” com 3 opções de copy por produto. Escolha entre formato Feed (completo, com hashtags) ou Stories (curto) pelo seletor “Copy” na toolbar. As copys seguem o tom de voz Delivery Much e não se repetem.' },
+  { cat:'Recursos', q:'O que são as Ações em Massa?', a:'Em “Preencher um campo de uma vez” você preenche uma coluna inteira de uma só vez, aplica desconto em % ou arredonda os preços pra final “,90” — tudo em todas as linhas ao mesmo tempo.' },
+  { cat:'Recursos', q:'O ZIP vem com as legendas?', a:'Sim — junto das imagens vem um arquivo “legendas_posts.txt” com 3 opções de copy por produto. As legendas saem no formato Feed (completo, com hashtags) e seguem o tom de voz Delivery Much e não se repetem.' },
   { cat:'Problemas', q:'Uma arte saiu em branco ou errada. Por quê?', a:'Confira se a linha não tem campos com erro (o card mostra um aviso laranja) e se o material selecionado tem as variáveis certas. Corrija a linha e gere de novo.' },
 ];
 let _fFaqKeyHandler = null;
@@ -2493,28 +2591,11 @@ function _fBulkRenderLista(){
   /* A fita de 34px não entra no celular: aqui quem mostra o lote é a própria lista, e duas
      réguas de miniatura disputariam os MESMOS ids `f-bulk-cv-<i>`. */
   _fBulkObservarThumbsLista();
-  _fBulkMoverSaidaParaOpcoes();
   fBulkSetActive(ativa, {semRolar:true});
 }
 
-/* "Legenda e cidade" são AJUSTES DE SAÍDA (formato do texto do post e a cidade das
-   hashtags), não o gesto do dia. No celular ocupavam uma linha inteira do rodapé, ao lado
-   de Fechar e Gerar. Aqui eles descem para a gaveta "Mais opções da planilha" — o rodapé
-   fica com duas ações, e nenhum ajuste se perde. O elemento é MOVIDO, não copiado: os ids
-   `f-bulk-copy-format` e `f-bulk-city` continuam os mesmos que a geração lê. */
-function _fBulkMoverSaidaParaOpcoes(){
-  const opts = document.querySelector('.f-bulk-post-opts');
-  const gaveta = document.querySelector('.f-bulk-alt-tools');
-  if(!opts || !gaveta) return;
-  const corpo = gaveta.querySelector('.f-bulk-alt-body') || gaveta;
-  const noRodape = !!opts.closest('.f-bulk-footer-actions');
-  if(_fBulkEhCelular()){
-    if(noRodape) corpo.appendChild(opts);
-  } else if(!noRodape){
-    const rodape = document.querySelector('.f-bulk-footer-actions');
-    if(rodape) rodape.insertBefore(opts, rodape.firstChild);   // desktop: volta pro lugar
-  }
-}
+/* `_fBulkMoverSaidaParaOpcoes` saiu junto com o painel "Legenda e cidade" (03/09):
+   ela só existia para mover aquele `<details>` entre o rodapé e a gaveta "Mais opções". */
 
 /* ⚠ PINTAR SÓ O QUE ESTÁ À VISTA. A primeira versão desta lista chamava
    `_fBulkRenderThumbsSeq()`, que renderiza o template inteiro (1080×1080) uma vez POR LINHA:
@@ -2895,7 +2976,7 @@ function fBulkRenderPreview(){
       <details class="f-bulk-massbar"${_fBulkMassbarAberta?' open':''} ontoggle="_fBulkMassbarAberta=this.open">
         <summary>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-          <span><strong>Mudar tudo de uma vez</strong><small>o mesmo valor em todas as ofertas</small></span>
+          <span><strong>Preencher um campo de uma vez</strong><small>o mesmo valor em todas as ofertas</small></span>
           <svg class="f-bulk-disclosure-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
         </summary>
         <!-- ══ UMA BARRA, TRÊS ATALHOS ══
@@ -4398,9 +4479,13 @@ function _fAssembleCopy(prod, de, por, val, desc, mode, segment, used, forceShor
   // FEED: CTA coerente com a aba — "Promo" vende (pedido), "Engajar" conversa (marca/salva/comenta).
   const cta = _pickCta(mode === 'engajar' ? 'engajamento' : 'delivery');
   
-  // Hashtags: 2 universais + 2-3 do segmento + hashtags locais (cidade)
-  const cityInput = document.getElementById('f-bulk-city');
-  const city = cityInput ? cityInput.value.trim() : '';
+  // Hashtags: 2 universais + 2-3 do segmento + hashtags locais (cidade).
+  /* A cidade vem do `fCidadeAtual()` (chat.js) e não mais de um input próprio do Sheets.
+     Ele é o getter canônico e JÁ lia o `luma_bulk_city` que aquele input gravava — mais a
+     cidade da própria arte e a chave do perfil, e ainda aprende quando a cidade aparece
+     numa arte. Ou seja: o painel "Legenda e cidade" saiu (03/09) e a hashtag local NÃO
+     se perdeu; ela passou a ter uma fonte só, como manda a lei do motor único. */
+  const city = (typeof fCidadeAtual === 'function') ? fCidadeAtual() : '';
   
   const segTags = B.hashtags[segment] || [];
   const uniTags = _fPickRandom(B.hashtags.universal, 2);
