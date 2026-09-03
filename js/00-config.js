@@ -1329,6 +1329,24 @@ function _gCorrenteMovivel(l, cloned){
   if(!l || l.type==='group' || !_gLayoutVisivel(l)) return false;
   if(l.locked || l.lockPosition) return false;
   if(l.layoutRole==='background' || l.layoutRole==='protected') return false;
+  /* ⛔ O CAMPO DE PRECO NAO E EMPURRADO (regra 03/09, complemento da regra de 19/08).
+     Desde 19/08 o preco nao ENCOLHE por motivo alheio (`_gLayoutPrecoImune`, usado na
+     escada). Faltava a outra metade: ele ainda DESCIA. Com o titulo quebrando em duas
+     linhas, a corrente inferida arrastava o preco pra baixo — nao encolhia, mas saia do
+     lugar que o designer deu pra ele.
+     Sair da corrente como FILHO nao o tira do jogo: `nos` (a lista de candidatos a PAI)
+     nao passa por aqui, entao o preco continua podendo EMPURRAR os outros. E exatamente
+     o que "predominancia" quer dizer — ele desloca, nao e deslocado.
+     Consequencia aceita: com uma saida menos na escada, os outros textos encolhem mais
+     cedo. Foi a decisao do produto, medida no corpus antes de entrar. */
+  if(_gLayoutBlocoPrecoFixo(l)) return false;
+  /* A placa do preco (a base solida atras dele) segue a mesma regra: se ela cede e ele
+     nao, o par se separa e o texto sai da base. `_placa` ja foi carimbado — a inferencia
+     de placas roda antes desta. */
+  if(l._placa && Array.isArray(cloned)){
+    const alvo = cloned.find(x => x && x.id === l._placa.alvo);
+    if(alvo && _gLayoutBlocoPrecoFixo(alvo)) return false;
+  }
   /* ⚠ TER PAI NÃO IMOBILIZA. A regra antiga barrava toda camada com `parentId` — o que fazia
      sentido quando grupo só nascia à mão no Estúdio. Desde a importação de PSD com grupos
      (`psd-parse.js`), quase toda camada de arte de agência tem pai, e a regra desligava a
@@ -1548,6 +1566,28 @@ function _gLayoutTemCampo(l){
    carregado — sem ele a escada volta a se comportar como antes da regra. */
 function _gLayoutPrecoImune(l){
   return !!(typeof gLayoutEhPrecoDinamico==='function' && gLayoutEhPrecoDinamico(l));
+}
+/* ── O BLOCO DO PRECO NAO SAI DO LUGAR (03/09) ─────────────────────────────────────────
+   Duas imunidades diferentes, de proposito:
+   · `_gLayoutPrecoImune` (19/08) responde "pode ENCOLHER por motivo alheio?" e continua na
+     regua estreita da CATEGORIA do campo — e a que a escada usa, e ela e testada assim.
+   · esta responde "pode SER EMPURRADA?" e vale para o BLOCO inteiro.
+   A distincao nasceu medida: usando so a categoria, no padrao "De R$ 149,90 por / R$ 109,90"
+   a camada do "de" (campo de texto) continuava sendo filha de corrente. Resultado: o preco
+   ficava parado, o "de" descia 66px sozinho, o par se separava e o "de" caia em cima do
+   cupom — tres colisoes que encolher fonte nao resolve (15 voltas da escada com as mesmas
+   tres) e que terminavam moendo a arte inteira pela escala do componente.
+   Usar a MESMA regua larga nas duas imunidades tambem nao serve: o "de" parava de ceder
+   tamanho e terminava MAIOR que o cupom — hierarquia invertida, pega pelo corpus. Entao a
+   largura vale so pra posicao: o bloco fica onde o designer pos, e cede tamanho como antes.
+   O papel COMPILADO (`layoutSemantic`, em `core/auto-layout.js`) e a regua boa aqui — ele ja
+   cruzou nome, conteudo, posicao e degrau tipografico. Texto FIXO fica de fora: sem campo
+   dinamico nada nele cresce por causa do franqueado. */
+function _gLayoutBlocoPrecoFixo(l){
+  if(!l || l.type!=='text') return false;
+  const papel = l.layoutRoleManual || l.layoutSemantic;
+  if(papel==='preco' && typeof _gLayoutTemCampo==='function' && _gLayoutTemCampo(l)) return true;
+  return _gLayoutPrecoImune(l);
 }
 function _gRectIntersecao(a,b){
   if(!a||!b)return 0;
@@ -1861,8 +1901,12 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
       resolved[l.id].dx=_gInkDx(l,f.larguraMax);
       _gStampVTop(l,f.altura);
     });
-    _gInferirCorrentes(cloned, opts, resolved, baseVisual);
+    /* Placas ANTES das correntes (03/09): a corrente precisa saber quem e a placa de um
+       preco imune pra nao adotar nenhum dos dois como filho. As duas passagens sao
+       independentes — uma escreve `_anchorAuto`, a outra `_placa`, e nenhuma le o campo da
+       outra — entao a inversao nao muda mais nada. */
     _gInferirPlacas(cloned, opts);
+    _gInferirCorrentes(cloned, opts, resolved, baseVisual);
   }
   // Posição PUBLICADA de cada camada: a corrente inferida nunca sobe além dela (o laço abaixo
   // muta l.x/l.y a cada iteração, então o original tem que ser guardado antes).

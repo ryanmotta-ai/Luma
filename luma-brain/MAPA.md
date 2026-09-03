@@ -210,7 +210,7 @@ esses a verificação continua sendo o navegador. Suíte verde não substitui ab
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 67 arquivos JS (53.395 linhas, 2.134 funções) · 31 arquivos CSS (26.115 linhas) · `index.html` com 3.821 linhas e 69 `<script>`.
+**Tamanho real de hoje:** 67 arquivos JS (53.460 linhas, 2.135 funções) · 31 arquivos CSS (26.115 linhas) · `index.html` com 3.821 linhas e 69 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -323,9 +323,9 @@ Catalogo de campanhas: fRenderCatalogs, fFilterCamps, fSelectCamp, fSwitchTab, f
 · Estado global: fHistFilter, _fHistPreviewCache, _fHistPreviewRun, _fHistPreviewObserver, _fhFilter, _fhRevealIO, _fhRevealGen, _fhStickyBound
 · Depende de: 00-config.js, 01-state.js
 
-**`js/franqueado/chat-input.js`** · 551 linhas
+**`js/franqueado/chat-input.js`** · 616 linhas
 F-02: tipos de campo, mascaras de input, validacao por campo. F_FIELD_TYPES define o comportamento de cada variavel do template.
-· API: fGetFieldType, fCleanTextNumber, fApplyMask, fValidate, fShowFieldError, fAttachInputGuard, fUpdateCharCount, fFitTextWithAI, fFitApply, fSaveAdv, fInitSmartInputFormatter
+· API: fMaxLenDaCaixa, fGetFieldType, fCleanTextNumber, fApplyMask, fValidate, fShowFieldError, fAttachInputGuard, fUpdateCharCount, fFitTextWithAI, fFitApply, fSaveAdv, fInitSmartInputFormatter
 · Estado global: _fFitOpts, _fFitBusy
 · Depende de: 00-config.js
 
