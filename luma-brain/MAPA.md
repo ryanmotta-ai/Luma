@@ -210,7 +210,7 @@ esses a verificação continua sendo o navegador. Suíte verde não substitui ab
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 67 arquivos JS (53.406 linhas, 2.134 funções) · 31 arquivos CSS (26.126 linhas) · `index.html` com 3.818 linhas e 69 `<script>`.
+**Tamanho real de hoje:** 67 arquivos JS (53.395 linhas, 2.134 funções) · 31 arquivos CSS (26.107 linhas) · `index.html` com 3.821 linhas e 69 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -393,7 +393,7 @@ Sistema de pincel/borracha/carimbo: dPaintStart, dPaintMove, dPaintEnd, dStampAt
 · Estado global: dStampSource, dStampOffset, dGradStart, dBrush, dStampAligned, _dSharpenC1, _dSharpenC2, dNitidezLast, _dNitidezHinted, dFormaLast (+7)
 · Depende de: designer/canvas.js
 
-**`js/designer/canvas.js`** · 2480 linhas
+**`js/designer/canvas.js`** · 2486 linhas
 Render do canvas, zoom, pan, formato, réguas, barra contextual, smart guides, simulacao de dados e interacoes de mouse.
 · API: dSetFormat, dApplyFormat, dFitToScreen, dPositionArtboard, dZoom, dSetZoom, dSampleImg, dSetPhTest, dEscolherFotoDaMoldura, dRenderWorkspace, dABAddResizeHandles, dABToolAttach, dUpdateBrushCursor, dSetTool … (+55; 81 funções no total)
 · Estado global: dPhTestAR, dMarquee, dDrawShapeState, dABDraw, dLastClickLayerId, dLastClickTime, dPainting, dPaintLast, dSnapEnabled, dSimValues (+10)
@@ -412,7 +412,7 @@ Fontes customizadas enviadas pelo usuário (.ttf/.otf/.woff/.woff2).
 · Estado global: dCustomFonts
 · Depende de: 00-config.js, core/toast.js, designer/canvas.js (dRenderCanvas).
 
-**`js/designer/layers.js`** · 4408 linhas
+**`js/designer/layers.js`** · 4407 linhas
 CRUD de layers, painel lateral, props, multi-select, rename: dSelLayer, dDeselect, dRenderLayersList, dShowProps, dAddText, dAddShape, dToggleMultiSel, dRenameLayer, dAddIcon, dAddLine.
 · API: dSelLayer, dHoverLayer, dSelLayerState, dDeselect, dStartCrop, dStopCrop, dOnCropDrag, dStopCropDrag, dStartDrag, dOnDrag, dStopDrag, dStartResize, dOnResize, dStopResize … (+193; 255 funções no total)
 · Estado global: dDragEls, dPendingIsolate, dDragMoved, dCropState, dDragCrop, dResizeEl, dResizePos, dResizeLyrX, dResizeLyrY, dResizeFs (+35)
@@ -445,7 +445,7 @@ Preview engine do designer: pvRender, pvRenderLayers, pvRenderLayer, dPreviewOpe
 · Estado global: pvFmt, pvDevice, pvRendering, pvRenderQueued, pvExportScale, pvExportType, pvExportQuality, dExportSelectedFmt
 · Depende de: designer/canvas.js, designer/layers.js
 
-**`js/designer/props-panel.js`** · 2374 linhas
+**`js/designer/props-panel.js`** · 2358 linhas
 Accordion, sub-nav scroll, alignment button group para o painel de props.
 · API: dPropToggleSection, dPropSaveSections, dPropRestoreSections, dPropScrollTo, dPropSetAlign, dPropSyncAlign, dPropShowSections, dPropWorkspaceMode, dPropReadWorkspaceMode, dPropSetWorkspaceMode, dToggleChrome, dPropBuildWorkspaceMode, dPropBuildEssentialChrome, dPropBuildPanelNav … (+62; 76 funções no total)
 · Estado global: dChromeOff, dPropDataProblemsOnly
@@ -599,7 +599,7 @@ tutMockCampaign, tutMockMaterial, tutMockHist — builders de HTML de mock usado
 | `css/modules/franqueado.css` | 1506 |
 | `css/modules/franqueado_effects.css` | 418 |
 | `css/modules/help-widget.css` | 1698 |
-| `css/modules/layers-panel.css` | 4336 |
+| `css/modules/layers-panel.css` | 4317 |
 | `css/modules/live-preview.css` | 756 |
 | `css/modules/panel-dock.css` | 116 |
 | `css/modules/publish-modal.css` | 628 |

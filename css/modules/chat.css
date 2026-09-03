@@ -2287,11 +2287,19 @@ body:not(.theme-light) #f-msg-box:disabled{background:var(--d-surf2);color:var(-
 .f-bulk-live.tem-previa-viva .f-bulk-live-nav{flex:none;margin-top:8px;order:1}
 .f-bulk-live.tem-previa-viva #f-bulk-strip{flex:none;order:2}
 .f-bulk-live.tem-previa-viva .f-bulk-live-hint{flex:none;order:3}
-/* A alça de arrastar coluna vem colada no painel e não significa nada aqui: dentro do
-   modal não há três colunas para reordenar. */
-#f-bulk-modal #f-live-preview.is-no-sheets [data-panel-grip]{display:none}
-/* O botão de fechar a gaveta no celular também não: quem fecha aqui é o "Lista". */
-#f-bulk-modal #f-live-preview.is-no-sheets .lp-mobile-close{display:none}
+/* O cabeçalho inteiro do painel sai aqui, e com ele as três coisas que só fazem sentido
+   no chat: a alça de arrastar coluna (dentro do modal não há três colunas pra reordenar),
+   o X que fecha a gaveta do celular (aqui quem fecha é o "Lista") e o selo de estado, que
+   a própria planilha já diz melhor em "N pronta(s) · N para revisar". Sem ele a mesa
+   pontilhada encosta no topo da coluna e vira fundo, não card. */
+#f-bulk-modal #f-live-preview.is-no-sheets .lp-head{display:none}
+/* Sem cabeçalho, o respiro de 18px da coluna virava uma moldura branca em volta da mesa
+   pontilhada — ela lia "card". Zerando o respiro, a mesa encosta nas três bordas e vira
+   FUNDO. O navegador de ofertas, que ficou solto, recupera o respiro por conta própria. */
+.f-bulk-live.tem-previa-viva{padding:0;gap:0}
+.f-bulk-live.tem-previa-viva .f-bulk-live-nav{margin-top:12px}
+.f-bulk-live.tem-previa-viva #f-bulk-strip{padding-inline:18px}
+.f-bulk-live.tem-previa-viva .f-bulk-live-hint{padding:0 18px 16px}
 
 /* Não há regra de celular aqui de propósito: o empréstimo NÃO acontece no telefone.
    O porquê está no `_fBulkTomarPrevia` — lá a gaveta é `position:fixed` com `!important`
