@@ -1548,8 +1548,8 @@ function _fLpMakePop(ev){
   document.body.appendChild(p);
   const px=(ev&&(ev.clientX||(ev.touches&&ev.touches[0].clientX)))||window.innerWidth/2;
   const py=(ev&&(ev.clientY||(ev.touches&&ev.touches[0].clientY)))||window.innerHeight/2;
-  p.style.left=Math.max(8,Math.min(px, window.innerWidth-270))+'px';
-  p.style.top=Math.max(8,Math.min(py+10, window.innerHeight-210))+'px';
+  p.style.left=Math.max(12,Math.min(px-30, window.innerWidth-290))+'px';
+  p.style.top=Math.max(12,Math.min(py+10, window.innerHeight-260))+'px';
   setTimeout(()=>{ document.addEventListener('mousedown',_fLpPopOutside,true); document.addEventListener('keydown',_fLpPopKey,true); },0);
   return p;
 }
@@ -1558,13 +1558,26 @@ function _fLpMakePop(ev){
 function _fLpTextEditor(v,maxLen,ev){
   const p=_fLpMakePop(ev);
   const cur=(fState.dados&&fState.dados[v]!=null)?String(fState.dados[v]):'';
-  p.innerHTML=`<div class="lp-edit-lbl">${gEsc(_fLpLabel(v))}</div>
-    <input type="text" class="lp-edit-input" maxlength="${maxLen}" placeholder="${gEsc(_fLpExample(v))}">
-    <div class="lp-edit-row"><span class="lp-edit-count"></span><button class="lp-edit-ok" type="button">Salvar</button></div>`;
+  const labelText = _fLpLabel(v);
+  p.innerHTML=`<div class="lp-edit-pop-header">
+    <div class="lp-edit-pop-title-wrap">
+      <div class="lp-edit-pop-icon">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+      </div>
+      <div class="lp-edit-pop-title" title="${gEsc(labelText)}">${gEsc(labelText)}</div>
+    </div>
+    <button class="lp-edit-pop-close" type="button" aria-label="Fechar" title="Fechar (Esc)">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <input type="text" class="lp-edit-input" maxlength="${maxLen}" placeholder="${gEsc(_fLpExample(v))}">
+  <div class="lp-edit-row"><span class="lp-edit-count"></span><button class="lp-edit-ok" type="button">Salvar</button></div>`;
+  const closeBtn = p.querySelector('.lp-edit-pop-close');
+  if(closeBtn) closeBtn.onclick = () => _fLpCloseEditor();
   const inp=p.querySelector('.lp-edit-input'), cnt=p.querySelector('.lp-edit-count');
   inp.value=cur;
   const refresh=()=>{ cnt.textContent=inp.value.length+'/'+maxLen; };
-  inp.addEventListener('input',()=>{ refresh(); if(!fState.dados)fState.dados={}; fState.dados[v]=inp.value; _fLpRender(); }); // preview ao vivo (cru)
+  inp.addEventListener('input',()=>{ refresh(); if(!fState.dados)fState.dados={}; fState.dados[v]=inp.value; _fLpRender(); });
   inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); _fLpCommit(v,inp.value); _fLpCloseEditor(); } });
   p.querySelector('.lp-edit-ok').onclick=()=>{ _fLpCommit(v,inp.value); _fLpCloseEditor(); };
   refresh();
@@ -1574,23 +1587,71 @@ function _fLpTextEditor(v,maxLen,ev){
 // ── Editor de imagem ──
 function _fLpImageEditor(l,v,ev){
   const p=_fLpMakePop(ev);
-  const has=!!(fState.dados&&fState.dados[v]);
-  p.innerHTML=`<div class="lp-edit-lbl">${gEsc(_fLpLabel(v))}</div>
-    <div class="lp-edit-actions">
-      <button class="lp-edit-btn" data-a="upload" type="button">${has?'Trocar foto':'Enviar foto'}</button>
-      ${has?'<button class="lp-edit-btn" data-a="frame" type="button">Reposicionar</button>':''}
-      ${has?'<button class="lp-edit-btn lp-edit-danger" data-a="remove" type="button">Remover</button>':''}
+  const val=fState.dados&&fState.dados[v];
+  const has=!!val;
+  const hasThumb = has && typeof val==='string' && val.startsWith('data:image');
+  const labelText = _fLpLabel(v);
+
+  p.innerHTML=`<div class="lp-edit-pop-header">
+    <div class="lp-edit-pop-title-wrap">
+      <div class="lp-edit-pop-icon">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+        </svg>
+      </div>
+      <div class="lp-edit-pop-title" title="${gEsc(labelText)}">${gEsc(labelText)}</div>
     </div>
-    <div class="lp-edit-orlink">ou cole um link de imagem:</div>
-    <div class="lp-edit-row"><input type="text" class="lp-edit-input" placeholder="https://..."><button class="lp-edit-ok" type="button">OK</button></div>
-    <input type="file" accept="image/png,image/jpeg,image/webp" class="lp-edit-file" style="display:none">`;
+    <button class="lp-edit-pop-close" type="button" aria-label="Fechar" title="Fechar (Esc)">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  ${hasThumb ? `
+  <div class="lp-edit-thumb-preview">
+    <img src="${val}" alt="${gEsc(labelText)}">
+    <span class="lp-edit-thumb-badge">Foto ativa</span>
+  </div>` : ''}
+  <div class="lp-edit-actions">
+    <button class="lp-edit-btn lp-btn-upload" data-a="upload" type="button">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      <span>${has ? 'Trocar foto' : 'Enviar foto'}</span>
+    </button>
+    ${has ? `
+    <button class="lp-edit-btn" data-a="frame" type="button">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/>
+      </svg>
+      <span>Reposicionar e Zoom</span>
+    </button>` : ''}
+    ${has ? `
+    <button class="lp-edit-btn lp-edit-danger" data-a="remove" type="button">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+      </svg>
+      <span>Remover foto</span>
+    </button>` : ''}
+  </div>
+  <input type="file" accept="image/png,image/jpeg,image/webp" class="lp-edit-file" style="display:none">`;
+
+  const closeBtn = p.querySelector('.lp-edit-pop-close');
+  if(closeBtn) closeBtn.onclick = () => _fLpCloseEditor();
+
   const file=p.querySelector('.lp-edit-file');
   p.querySelector('[data-a="upload"]').onclick=()=>file.click();
   file.onchange=e=>{ const f=e.target.files&&e.target.files[0]; if(f) _fLpUploadImage(f,v); };
-  const fb=p.querySelector('[data-a="frame"]'); if(fb) fb.onclick=()=>{ _fLpCloseEditor(); fLpStartFraming(l,v); };
-  const rb=p.querySelector('[data-a="remove"]'); if(rb) rb.onclick=()=>{ delete fState.dados[v]; delete fState.dados['__fit__'+v]; try{fSaveChatDraft&&fSaveChatDraft();}catch(e){} _fLpRender(); _fLpCloseEditor(); };
-  const link=p.querySelector('.lp-edit-input');
-  p.querySelector('.lp-edit-ok').onclick=()=>{ const u=link.value.trim(); if(!u)return; if(!fState.dados)fState.dados={}; fState.dados[v]=u; delete fState.dados['__fit__'+v]; try{fSaveChatDraft&&fSaveChatDraft();}catch(e){} _fLpRender(); _fLpCloseEditor(); };
+
+  const fb=p.querySelector('[data-a="frame"]');
+  if(fb) fb.onclick=()=>{ _fLpCloseEditor(); fLpStartFraming(l,v); };
+
+  const rb=p.querySelector('[data-a="remove"]');
+  if(rb) rb.onclick=()=>{
+    delete fState.dados[v];
+    delete fState.dados['__fit__'+v];
+    try{if(typeof fSaveChatDraft==='function') fSaveChatDraft();}catch(e){}
+    _fLpRender();
+    _fLpCloseEditor();
+  };
 }
 function _fLpUploadImage(file,v){
   const reader=new FileReader();
@@ -1598,72 +1659,235 @@ function _fLpUploadImage(file,v){
     const done=(url)=>{
       if(!fState.dados)fState.dados={};
       fState.dados[v]=url; delete fState.dados['__fit__'+v];
-      try{fSaveChatDraft&&fSaveChatDraft();}catch(e){}
+      try{if(typeof fSaveChatDraft==='function') fSaveChatDraft();}catch(e){}
       _fLpRender();
-      const im=new Image(); im.onload=()=>{ if(im.naturalWidth<600||im.naturalHeight<600) gToast('Foto de baixa resolução ('+im.naturalWidth+'×'+im.naturalHeight+'px) — pode sair pixelada na arte.','error'); }; im.src=url;
+      const im=new Image();
+      im.onload=()=>{ if(im.naturalWidth<600||im.naturalHeight<600) gToast('Foto de baixa resolução ('+im.naturalWidth+'×'+im.naturalHeight+'px) — pode sair pixelada na arte.','error'); };
+      im.src=url;
       _fLpCloseEditor();
     };
-    if(typeof fResizeImageIfNeeded==='function') fResizeImageIfNeeded(e.target.result,2500,done); else done(e.target.result); // 2500: cobre story a 2× sem esticar (mesmo cap do upload no chat)
+    if(typeof fResizeImageIfNeeded==='function') fResizeImageIfNeeded(e.target.result,2500,done); else done(e.target.result);
   };
   reader.readAsDataURL(file);
 }
 
-// ── Modo enquadrar foto (arrasta = posição, roda/pinça = zoom) ──
+// ── Modo enquadrar foto (arrasta = posição, roda/pinça/slider = zoom) ──
 let _fLpFrameDrag=null;
 let _fLpPinch=null;
 function _fLpTouchDist(e){ const a=e.touches[0], b=e.touches[1]; return Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY); }
 function _fLpFrameMove(e){
   if(!_fLpFrameDrag||!_lpFraming) return;
   const l=_lpFraming.layer, v=_lpFraming.varName;
-  const dx=(e.clientX-_fLpFrameDrag.sx)/((_lpScale||1)*(l.w||1));
-  const dy=(e.clientY-_fLpFrameDrag.sy)/((_lpScale||1)*(l.h||1));
+  const cx=(e.touches?e.touches[0].clientX:e.clientX);
+  const cy=(e.touches?e.touches[0].clientY:e.clientY);
+  const dx=(cx-_fLpFrameDrag.sx)/((_lpScale||1)*(l.w||1));
+  const dy=(cy-_fLpFrameDrag.sy)/((_lpScale||1)*(l.h||1));
   const offX=Math.max(-.5,Math.min(.5,_fLpFrameDrag.ox-dx));
   const offY=Math.max(-.5,Math.min(.5,_fLpFrameDrag.oy-dy));
   const f=fState.dados['__fit__'+v]||{scale:1};
   fState.dados['__fit__'+v]={scale:f.scale||1,offX,offY};
   _fLpRender();
 }
-function _fLpFrameUp(){ _fLpFrameDrag=null; }
+function _fLpFrameUp(){
+  _fLpFrameDrag=null;
+  const ov=document.getElementById('lp-frame-ov');
+  if(ov) ov.classList.remove('is-dragging');
+}
+function _fLpFrameKey(e){
+  if(!_lpFraming) return;
+  if(e.key==='Escape'||e.key==='Enter'){ e.preventDefault(); fLpStopFraming(); return; }
+  const v=_lpFraming.varName;
+  const f=fState.dados['__fit__'+v]||{scale:1,offX:0,offY:0};
+  let changed=false;
+  if(e.key==='ArrowLeft'){ f.offX=Math.min(.5,(f.offX||0)+0.02); changed=true; }
+  else if(e.key==='ArrowRight'){ f.offX=Math.max(-.5,(f.offX||0)-0.02); changed=true; }
+  else if(e.key==='ArrowUp'){ f.offY=Math.min(.5,(f.offY||0)+0.02); changed=true; }
+  else if(e.key==='ArrowDown'){ f.offY=Math.max(-.5,(f.offY||0)-0.02); changed=true; }
+  else if(e.key==='+'||e.key==='='){
+    const sc=Math.min(3.5,(f.scale||1)+0.1);
+    f.scale=sc; changed=true;
+    _fLpUpdateFramingHUD();
+  }
+  else if(e.key==='-'||e.key==='_'){
+    const sc=Math.max(1,(f.scale||1)-0.1);
+    f.scale=sc; changed=true;
+    _fLpUpdateFramingHUD();
+  }
+  if(changed){ e.preventDefault(); fState.dados['__fit__'+v]=f; _fLpRender(); }
+}
+function _fLpUpdateFramingHUD(){
+  if(!_lpFraming) return;
+  const v=_lpFraming.varName;
+  const f=(fState.dados&&fState.dados['__fit__'+v])||{scale:1};
+  const sc=f.scale||1;
+  const slider=document.getElementById('lp-frame-slider');
+  if(slider) slider.value=sc;
+  const pct=document.getElementById('lp-frame-pct');
+  if(pct) pct.textContent=Math.round(sc*100)+'%';
+}
 function fLpStartFraming(l,v){
   const canvas=document.getElementById('lp-canvas'); const wrap=canvas&&canvas.closest('.lp-canvas-wrap'); if(!wrap) return;
   _lpFraming={layer:l,varName:v};
   const init=(fState.dados&&fState.dados['__fit__'+v])||{scale:(l.imgScale||1),offX:(l.imgOffsetX||0),offY:(l.imgOffsetY||0)};
   fState.dados['__fit__'+v]={scale:init.scale||1,offX:init.offX||0,offY:init.offY||0};
-  _fLpRender(); // trava scale 1 e aplica o fit
+  _fLpRender();
+
   let ov=document.getElementById('lp-frame-ov');
   if(!ov){ ov=document.createElement('div'); ov.id='lp-frame-ov'; ov.className='lp-frame-ov'; wrap.appendChild(ov); }
-  ov.innerHTML=`<div class="lp-frame-hint">Arraste pra posicionar · role pra dar zoom <button class="lp-frame-reset" type="button" title="Voltar ao enquadramento original">Restaurar</button><button class="lp-frame-done" type="button">Concluir</button></div>`;
-  ov.querySelector('.lp-frame-done').onclick=()=>fLpStopFraming();
-  ov.querySelector('.lp-frame-reset').onclick=()=>fLpResetFraming();
-  // Botões da barra não podem iniciar arrasto (senão "Restaurar" move a foto antes de resetar).
-  ov.onmousedown=(e)=>{ if(e.target.closest('.lp-frame-hint'))return; e.preventDefault(); const f=fState.dados['__fit__'+v]||{}; _fLpFrameDrag={sx:e.clientX,sy:e.clientY,ox:f.offX||0,oy:f.offY||0}; };
-  ov.onwheel=(e)=>{ e.preventDefault(); const f=fState.dados['__fit__'+v]||{scale:1,offX:0,offY:0}; const sc=Math.max(1,Math.min(5,(f.scale||1)*(e.deltaY>0?0.94:1.06))); fState.dados['__fit__'+v]={scale:sc,offX:f.offX||0,offY:f.offY||0}; _fLpRender(); };
-  // Toque (mobile): 1 dedo = posição, 2 dedos = pinça-zoom
-  ov.ontouchstart=(e)=>{ if(e.target.closest('.lp-frame-hint'))return; const f=fState.dados['__fit__'+v]||{}; if(e.touches.length>=2){ _fLpPinch={d:_fLpTouchDist(e),sc:f.scale||1}; _fLpFrameDrag=null; } else { _fLpFrameDrag={sx:e.touches[0].clientX,sy:e.touches[0].clientY,ox:f.offX||0,oy:f.offY||0}; } e.preventDefault(); };
-  ov.ontouchmove=(e)=>{ e.preventDefault(); const f=fState.dados['__fit__'+v]||{scale:1,offX:0,offY:0}; if(e.touches.length>=2&&_fLpPinch){ const nd=_fLpTouchDist(e); const sc=Math.max(1,Math.min(5,_fLpPinch.sc*(nd/(_fLpPinch.d||1)))); fState.dados['__fit__'+v]={scale:sc,offX:f.offX||0,offY:f.offY||0}; _fLpRender(); } else if(_fLpFrameDrag){ const dx=(e.touches[0].clientX-_fLpFrameDrag.sx)/((_lpScale||1)*(l.w||1)); const dy=(e.touches[0].clientY-_fLpFrameDrag.sy)/((_lpScale||1)*(l.h||1)); fState.dados['__fit__'+v]={scale:f.scale||1,offX:Math.max(-.5,Math.min(.5,_fLpFrameDrag.ox-dx)),offY:Math.max(-.5,Math.min(.5,_fLpFrameDrag.oy-dy))}; _fLpRender(); } };
-  ov.ontouchend=(e)=>{ if(!e.touches.length){ _fLpFrameDrag=null; _fLpPinch=null; } };
+
+  const vr=(typeof _fLpVisualRect==='function')?_fLpVisualRect(l):{x:0,y:0,w:canvas.width,h:canvas.height};
+  const hasValidRect=vr&&vr.w>0&&vr.h>0;
+  const leftPct=hasValidRect?(vr.x/canvas.width)*100:0;
+  const topPct=hasValidRect?(vr.y/canvas.height)*100:0;
+  const widthPct=hasValidRect?(vr.w/canvas.width)*100:100;
+  const heightPct=hasValidRect?(vr.h/canvas.height)*100:100;
+  const isCircle=l.frameShape==='circle'||l.shapeKind==='circle';
+  const radiusVal=isCircle?'50%':(l.radius?Math.min(24,Math.round((l.radius/(vr.w||1))*100))+'%':'8px');
+
+  const curScale=fState.dados['__fit__'+v].scale||1;
+  const curPct=Math.round(curScale*100);
+
+  ov.innerHTML=`
+    <div class="lp-frame-crop-box${isCircle?' is-circle':''}" style="left:${leftPct}%;top:${topPct}%;width:${widthPct}%;height:${heightPct}%;border-radius:${radiusVal};">
+      <div class="lp-crop-corner tl"></div>
+      <div class="lp-crop-corner tr"></div>
+      <div class="lp-crop-corner bl"></div>
+      <div class="lp-crop-corner br"></div>
+      <div class="lp-crop-grid">
+        <div class="lp-crop-line h1"></div>
+        <div class="lp-crop-line h2"></div>
+        <div class="lp-crop-line v1"></div>
+        <div class="lp-crop-line v2"></div>
+      </div>
+    </div>
+    <div class="lp-frame-hud">
+      <div class="lp-frame-hud-group">
+        <button class="lp-frame-hud-btn" id="lp-frame-zoom-out" type="button" title="Diminuir zoom (-)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <input type="range" class="lp-frame-hud-slider" id="lp-frame-slider" min="1" max="3.5" step="0.05" value="${curScale}" title="Zoom da imagem">
+        <span class="lp-frame-hud-pct" id="lp-frame-pct">${curPct}%</span>
+        <button class="lp-frame-hud-btn" id="lp-frame-zoom-in" type="button" title="Aumentar zoom (+)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+      <div class="lp-frame-hud-divider"></div>
+      <div class="lp-frame-hud-group">
+        <button class="lp-frame-hud-text-btn" id="lp-frame-center" type="button" title="Centralizar foto">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:3px"><circle cx="12" cy="12" r="7"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>Centralizar
+        </button>
+        <button class="lp-frame-hud-text-btn" id="lp-frame-reset" type="button" title="Voltar ao enquadramento original">Restaurar</button>
+      </div>
+      <div class="lp-frame-hud-divider"></div>
+      <button class="lp-frame-hud-done" id="lp-frame-done" type="button">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><polyline points="20 6 9 17 4 12"/></svg>Concluir
+      </button>
+    </div>
+  `;
+
+  const slider=ov.querySelector('#lp-frame-slider');
+  const pctLabel=ov.querySelector('#lp-frame-pct');
+
+  const updateScale=(newSc)=>{
+    const sc=Math.max(1,Math.min(3.5,Math.round(newSc*100)/100));
+    const f=fState.dados['__fit__'+v]||{};
+    fState.dados['__fit__'+v]={scale:sc,offX:f.offX||0,offY:f.offY||0};
+    if(slider) slider.value=sc;
+    if(pctLabel) pctLabel.textContent=Math.round(sc*100)+'%';
+    _fLpRender();
+  };
+
+  if(slider) slider.oninput=(e)=>updateScale(parseFloat(e.target.value));
+  const zOut=ov.querySelector('#lp-frame-zoom-out');
+  if(zOut) zOut.onclick=()=>{ const f=fState.dados['__fit__'+v]||{scale:1}; updateScale((f.scale||1)-0.15); };
+  const zIn=ov.querySelector('#lp-frame-zoom-in');
+  if(zIn) zIn.onclick=()=>{ const f=fState.dados['__fit__'+v]||{scale:1}; updateScale((f.scale||1)+0.15); };
+  const btnCenter=ov.querySelector('#lp-frame-center');
+  if(btnCenter) btnCenter.onclick=()=>{
+    const f=fState.dados['__fit__'+v]||{scale:1};
+    fState.dados['__fit__'+v]={scale:f.scale||1,offX:0,offY:0};
+    _fLpRender();
+  };
+  ov.querySelector('#lp-frame-reset').onclick=()=>{
+    fLpResetFraming();
+    _fLpUpdateFramingHUD();
+  };
+  ov.querySelector('#lp-frame-done').onclick=()=>fLpStopFraming();
+
+  ov.onmousedown=(e)=>{
+    if(e.target.closest('.lp-frame-hud')) return;
+    e.preventDefault();
+    ov.classList.add('is-dragging');
+    const f=fState.dados['__fit__'+v]||{};
+    _fLpFrameDrag={sx:e.clientX,sy:e.clientY,ox:f.offX||0,oy:f.offY||0};
+  };
+
+  ov.onwheel=(e)=>{
+    e.preventDefault();
+    const f=fState.dados['__fit__'+v]||{scale:1,offX:0,offY:0};
+    const delta=e.deltaY>0?-0.08:0.08;
+    updateScale((f.scale||1)+delta);
+  };
+
+  ov.ontouchstart=(e)=>{
+    if(e.target.closest('.lp-frame-hud')) return;
+    const f=fState.dados['__fit__'+v]||{};
+    if(e.touches.length>=2){
+      _fLpPinch={d:_fLpTouchDist(e),sc:f.scale||1};
+      _fLpFrameDrag=null;
+    } else {
+      _fLpFrameDrag={sx:e.touches[0].clientX,sy:e.touches[0].clientY,ox:f.offX||0,oy:f.offY||0};
+    }
+  };
+
+  ov.ontouchmove=(e)=>{
+    if(e.target.closest('.lp-frame-hud')) return;
+    e.preventDefault();
+    if(e.touches.length>=2&&_fLpPinch){
+      const nd=_fLpTouchDist(e);
+      updateScale(_fLpPinch.sc*(nd/(_fLpPinch.d||1)));
+    } else if(_fLpFrameDrag){
+      const dx=(e.touches[0].clientX-_fLpFrameDrag.sx)/((_lpScale||1)*(l.w||1));
+      const dy=(e.touches[0].clientY-_fLpFrameDrag.sy)/((_lpScale||1)*(l.h||1));
+      const f=fState.dados['__fit__'+v]||{scale:1};
+      fState.dados['__fit__'+v]={
+        scale:f.scale||1,
+        offX:Math.max(-.5,Math.min(.5,_fLpFrameDrag.ox-dx)),
+        offY:Math.max(-.5,Math.min(.5,_fLpFrameDrag.oy-dy))
+      };
+      _fLpRender();
+    }
+  };
+
+  ov.ontouchend=(e)=>{
+    if(!e.touches.length){
+      _fLpFrameDrag=null;
+      _fLpPinch=null;
+      ov.classList.remove('is-dragging');
+    }
+  };
+
   window.addEventListener('mousemove',_fLpFrameMove);
   window.addEventListener('mouseup',_fLpFrameUp);
+  window.addEventListener('keydown',_fLpFrameKey);
 }
-// Volta ao enquadramento que o DESIGNER definiu no template, descartando o que o
-// franqueado mexeu. Sem isto, o único jeito de desfazer era reenviar a foto — e o medo
-// de "estragar" mata o valor da prévia (05_DESIGN_PHILOSOPHY §2: impossível errar).
-// Mantém o modo enquadramento aberto: restaurar é um passo atrás, não uma saída.
 function fLpResetFraming(){
   if(!_lpFraming) return;
   const l=_lpFraming.layer, v=_lpFraming.varName;
   fState.dados['__fit__'+v]={scale:(l.imgScale||1),offX:(l.imgOffsetX||0),offY:(l.imgOffsetY||0)};
   _fLpFrameDrag=null; _fLpPinch=null;
-  try{fSaveChatDraft&&fSaveChatDraft();}catch(e){}
+  try{if(typeof fSaveChatDraft==='function') fSaveChatDraft();}catch(e){}
   _fLpRender();
+  _fLpUpdateFramingHUD();
   if(typeof gToast==='function') gToast('Enquadramento restaurado');
 }
 function fLpStopFraming(){
   window.removeEventListener('mousemove',_fLpFrameMove);
   window.removeEventListener('mouseup',_fLpFrameUp);
+  window.removeEventListener('keydown',_fLpFrameKey);
   _fLpFrameDrag=null; _fLpPinch=null; _lpFraming=null;
   const ov=document.getElementById('lp-frame-ov'); if(ov) ov.remove();
-  try{fSaveChatDraft&&fSaveChatDraft();}catch(e){}
+  try{if(typeof fSaveChatDraft==='function') fSaveChatDraft();}catch(e){}
   _fLpRender();
 }
 
