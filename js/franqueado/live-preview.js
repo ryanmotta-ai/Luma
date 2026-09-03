@@ -1157,52 +1157,37 @@ function fLpInjectPlaceholders(layers, dadosPreview, defaults){
   return pendentes;
 }
 
-// Marca os campos ainda vazios como EDITÁVEIS (contorno tracejado laranja), em vez de
-// escurecer — o objetivo é convidar ao toque ("toque pra preencher"), não parecer travado.
-// Só quando NÃO houve smart-resize (com reflow as coords mudam e o contorno desalinharia).
+// Marca os campos ainda vazios na prévia.
+// Opção 1: Em repouso a arte fica 100% limpa (sem contornos pontilhados poluindo a peça).
+// A descoberta dos campos interativos ocorre no hover (_fLpHoverBox) e no campo ativo do chat (fLpHighlightActiveField).
 function fLpHighlightEmpty(ctx, layers, pendentes, W, H){
-  if(!pendentes || !pendentes.size) return;
-  ctx.save();
-  const dash = Math.max(4, Math.round(W * 0.006));
-  ctx.setLineDash([dash * 1.6, dash]);
-  ctx.lineWidth = Math.max(2, Math.round(W * 0.003));
-  (layers || []).forEach(l => {
-    if(!pendentes.has(l.id)) return;
-    const vr=_fLpVisualRect(l);
-    const x=vr.x,y=vr.y,w=vr.w||W,h=vr.h||40;
-    const r = Math.min(l.radius || 0, w / 2, h / 2);
-    // leve realce de fundo + contorno tracejado da marca
-    ctx.globalAlpha = 0.06; ctx.fillStyle = '#F85400';
-    if(typeof roundedRect === 'function'){ roundedRect(ctx, x, y, w, h, r || 0); ctx.fill(); }
-    else ctx.fillRect(x, y, w, h);
-    ctx.globalAlpha = 0.55; ctx.strokeStyle = '#F85400';
-    if(typeof roundedRect === 'function'){ roundedRect(ctx, x, y, w, h, r || 0); ctx.stroke(); }
-    else ctx.strokeRect(x, y, w, h);
-  });
-  ctx.restore();
+  // Mantido no-op para retrocompatibilidade sem desenhar contornos sobre a arte
+  return;
 }
 
 // Desenha um destaque sutil de foco ao redor do campo correspondente à pergunta ativa do chat (Focus Sync)
 function fLpHighlightActiveField(ctx, l, W, H) {
+  if(!l) return;
   ctx.save();
   
-  // Cor do destaque: Laranja oficial Delivery Much
-  ctx.strokeStyle = '#F85400';
-  ctx.lineWidth = Math.max(3, Math.round(W * 0.005));
+  // Cor do destaque: Laranja oficial Delivery Much com traço contínuo fino e elegante
+  ctx.strokeStyle = '#FF9000';
+  ctx.lineWidth = Math.max(2.5, Math.round(W * 0.0035));
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   
-  // Efeito de Glow/Sombra
-  ctx.shadowColor = 'rgba(248, 84, 0, 0.45)';
+  // Efeito suave de Glow/Sombra
+  ctx.shadowColor = 'rgba(255, 144, 0, 0.42)';
   ctx.shadowBlur = Math.max(8, Math.round(W * 0.012));
   
-  const padding = 8;
-  const vr=_fLpVisualRect(l);
+  const padding = Math.max(4, Math.round(W * 0.005));
+  const vr = _fLpVisualRect(l);
   const x = vr.x - padding;
   const y = vr.y - padding;
   const w = (vr.w || W) + padding * 2;
   const h = (vr.h || 40) + padding * 2;
-  const r = Math.min(l.radius || 6, w / 2, h / 2);
+  const isCircle = l.frameShape === 'circle' || l.shapeKind === 'circle';
+  const r = isCircle ? Math.min(w / 2, h / 2) : Math.min(l.radius || 8, w / 2, h / 2);
   
   ctx.beginPath();
   if (typeof roundedRect === 'function') {
@@ -1212,6 +1197,8 @@ function fLpHighlightActiveField(ctx, l, W, H) {
   } else {
     ctx.rect(x, y, w, h);
   }
+  ctx.fillStyle = 'rgba(255, 144, 0, 0.04)';
+  ctx.fill();
   ctx.stroke();
   
   ctx.restore();
@@ -1917,26 +1904,89 @@ function _fLpOnCanvasClick(ev){
   else { _fLpVarChooser(l,vars,ev); }
 }
 
-// ── Hover: chip flutuante indicando que o campo é editável (descoberta) ──
+// ── Hover: moldura sutil sobre a camada e chip com ícone SVG (sem emojis) ──
 let _fLpHoverChip=null;
-function _fLpHideHoverChip(){ if(_fLpHoverChip) _fLpHoverChip.style.display='none'; }
+let _fLpHoverBox=null;
+function _fLpHideHover(){
+  if(_fLpHoverChip) _fLpHoverChip.style.display='none';
+  if(_fLpHoverBox) _fLpHoverBox.style.display='none';
+}
+function _fLpHideHoverChip(){ _fLpHideHover(); }
+
 function _fLpOnCanvasMove(ev){
   const cv=document.getElementById('lp-canvas');
-  if(_lpFraming||!fState.material||!fState.material.layers||!fState.material.layers.length){ _fLpHideHoverChip(); return; }
-  const pt=_fLpArtCoords(ev); if(!pt){ _fLpHideHoverChip(); return; }
+  if(_lpFraming||!fState.material||!fState.material.layers||!fState.material.layers.length){ _fLpHideHover(); return; }
+  const pt=_fLpArtCoords(ev); if(!pt){ _fLpHideHover(); return; }
   const l=_fLpLayerAt(pt.x,pt.y);
-  if(!l){ _fLpHideHoverChip(); if(cv) cv.style.cursor='default'; return; }
-  if(cv) cv.style.cursor='pointer';
-  const v=(l.type==='image'||l.type==='frame')?l.imgVar:_fLpLayerVars(l)[0];
-  const editable=_fLpPerm(v).editable;
-  const label=(l.type==='image'||l.type==='frame')?'foto':_fLpLabel(v);
+  if(!l){ _fLpHideHover(); if(cv) cv.style.cursor='default'; return; }
+  
+  const isImg=(l.type==='image'||l.type==='frame');
+  const v=isImg?l.imgVar:_fLpLayerVars(l)[0];
+  if(!v){ _fLpHideHover(); if(cv) cv.style.cursor='default'; return; }
+  
+  const perm=_fLpPerm(v);
+  const editable=!!perm.editable;
+  const label=isImg?'foto':(typeof _fLpLabel==='function'?_fLpLabel(v):v);
+  if(cv) cv.style.cursor=editable?'pointer':'not-allowed';
+
+  // 1. Moldura sutil contínua sobre a camada editável (Opção 1)
+  const wrap=cv.closest('.lp-canvas-wrap');
+  if(wrap && editable){
+    if(!_fLpHoverBox){
+      _fLpHoverBox=document.createElement('div');
+      _fLpHoverBox.id='lp-hover-box';
+      _fLpHoverBox.className='lp-hover-box';
+      wrap.appendChild(_fLpHoverBox);
+    }
+    const vr=_fLpVisualRect(l);
+    if(vr && vr.w>0 && vr.h>0 && cv.width>0 && cv.height>0){
+      const isCircle=l.frameShape==='circle'||l.shapeKind==='circle';
+      const pad=3;
+      const leftPct=Math.max(0,((vr.x-pad)/cv.width)*100);
+      const topPct=Math.max(0,((vr.y-pad)/cv.height)*100);
+      const widthPct=Math.min(100-leftPct,((vr.w+pad*2)/cv.width)*100);
+      const heightPct=Math.min(100-topPct,((vr.h+pad*2)/cv.height)*100);
+      const radiusVal=isCircle?'50%':(l.radius?Math.min(24,Math.round((l.radius/(vr.w||1))*100))+'%':'7px');
+
+      _fLpHoverBox.style.left=leftPct+'%';
+      _fLpHoverBox.style.top=topPct+'%';
+      _fLpHoverBox.style.width=widthPct+'%';
+      _fLpHoverBox.style.height=heightPct+'%';
+      _fLpHoverBox.style.borderRadius=radiusVal;
+      _fLpHoverBox.className='lp-hover-box'+(isCircle?' is-circle':'');
+      _fLpHoverBox.style.display='block';
+    } else {
+      if(_fLpHoverBox) _fLpHoverBox.style.display='none';
+    }
+  } else {
+    if(_fLpHoverBox) _fLpHoverBox.style.display='none';
+  }
+
+  // 2. Chip flutuante elegante com ícone SVG (sem emoji)
   let c=_fLpHoverChip;
-  if(!c){ c=document.createElement('div'); c.id='lp-hover-chip'; document.body.appendChild(c); _fLpHoverChip=c; }
+  if(!c){
+    c=document.createElement('div');
+    c.id='lp-hover-chip';
+    document.body.appendChild(c);
+    _fLpHoverChip=c;
+  }
   c.className='lp-hover-chip'+(editable?'':' locked');
-  c.textContent = editable ? ('Editar '+label) : 'Fixo da marca';
-  c.style.left=Math.min((ev.clientX||0)+14, window.innerWidth-150)+'px';
+  
+  let iconSvg='';
+  if(!editable){
+    iconSvg='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+  } else if(isImg){
+    iconSvg='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>';
+  } else {
+    iconSvg='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>';
+  }
+  
+  const safeLabel=(typeof gEsc==='function')?gEsc(label):label;
+  const textMsg=editable?(isImg?'Trocar foto':('Editar '+safeLabel)):'Fixo da marca';
+  c.innerHTML=iconSvg+'<span>'+textMsg+'</span>';
+  c.style.left=Math.min((ev.clientX||0)+14, window.innerWidth-170)+'px';
   c.style.top=Math.min((ev.clientY||0)+14, window.innerHeight-38)+'px';
-  c.style.display='block';
+  c.style.display='inline-flex';
 }
 function _fLpBindCanvasEditing(){
   const cv=document.getElementById('lp-canvas');
@@ -1944,7 +1994,7 @@ function _fLpBindCanvasEditing(){
     cv._fLpBound=true;
     cv.addEventListener('click',_fLpOnCanvasClick);
     cv.addEventListener('mousemove',_fLpOnCanvasMove);
-    cv.addEventListener('mouseleave',_fLpHideHoverChip);
+    cv.addEventListener('mouseleave',_fLpHideHover);
   }
 }
 

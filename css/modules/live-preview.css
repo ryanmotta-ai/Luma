@@ -665,11 +665,30 @@ body:not(.theme-light) .lp-edit-input{background:var(--d-card,#242424);border-co
   .lp-canvas-wrap,.lp-empty-art{animation:none!important;transition:none!important}
 }
 
-/* ── Chip flutuante de descoberta (hover na prévia) ── */
-#lp-hover-chip{position:fixed;z-index:12500;pointer-events:none;display:none;font-size:11px;font-weight:600;
-  font-family:'Roboto',sans-serif;color:#fff;background:rgba(20,20,20,.86);padding:4px 10px;border-radius:var(--r-pill,999px);
-  box-shadow:0 4px 12px rgba(0,0,0,.28);white-space:nowrap}
-#lp-hover-chip.locked{background:rgba(120,120,120,.9)}
+/* ── Revelação no Hover: Moldura sutil + Chip flutuante ── */
+.lp-hover-box{
+  position:absolute;pointer-events:none;z-index:25;display:none;
+  border:1.5px solid var(--dm-orange,#FF9000);
+  background:color-mix(in srgb,var(--dm-orange,#FF9000) 7%,transparent);
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--dm-orange,#FF9000) 18%,transparent), 0 2px 10px rgba(0,0,0,.12);
+  border-radius:8px;
+  transition:border-color var(--dur-micro) var(--ease-standard),box-shadow var(--dur-micro) var(--ease-standard);
+}
+.lp-hover-box.is-circle{border-radius:50%!important}
+
+#lp-hover-chip{
+  position:fixed;z-index:12500;pointer-events:none;display:none;
+  align-items:center;gap:6px;font-size:11px;font-weight:600;
+  font-family:'Roboto',sans-serif;color:#fff;
+  background:rgba(18,18,18,0.92);backdrop-filter:blur(8px);
+  border:1px solid rgba(255,255,255,0.14);padding:5px 11px;border-radius:var(--r-pill,999px);
+  box-shadow:0 4px 14px rgba(0,0,0,.32);white-space:nowrap;user-select:none;
+}
+#lp-hover-chip svg{flex-shrink:0;color:var(--dm-orange,#FF9000)}
+#lp-hover-chip.locked{
+  background:rgba(40,40,40,0.94);border-color:rgba(255,255,255,0.08);color:rgba(255,255,255,0.75);
+}
+#lp-hover-chip.locked svg{color:rgba(255,255,255,0.6)}
 
 
 /* ════════════════════════════════════════════════════════════════════
