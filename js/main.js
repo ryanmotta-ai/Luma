@@ -60,6 +60,12 @@ function _gHideNoModuleView(){
 // saindo de qualquer aba/estado em que a pessoa esteja.
 function gGoHome(){
   setMode('franqueado');
+  if(typeof fState!=='undefined') fState.materialView = false;
+  const matView = document.getElementById('f-material-view');
+  if(matView) matView.style.display = 'none';
+  const chatCol = document.getElementById('f-chat-col');
+  if(chatCol) chatCol.style.display = '';
+  if(typeof fGoHome==='function') fGoHome({silent:true});
   const btnCatalogo = document.querySelector('.f-tab[data-feature="franqueado.catalogo"]');
   if(typeof fSwitchTab==='function') fSwitchTab('catalogo', btnCatalogo);
   if(typeof fMobileBackToCatalog==='function') fMobileBackToCatalog();

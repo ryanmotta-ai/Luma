@@ -42,7 +42,13 @@
   height: 30px;
   object-fit: contain;
   object-position: left center;
+  border: 0;
+  background-color: transparent;
+  padding: 0;
   cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .top-brand {
@@ -141,6 +147,7 @@
   transform: scale(.975);
 }
 
+.top-dm-logo:focus-visible,
 .mode-tab:focus-visible,
 .top-profile-badge:focus-visible {
   outline: 2px solid var(--white) !important;
