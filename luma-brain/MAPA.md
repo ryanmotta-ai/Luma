@@ -210,7 +210,7 @@ esses a verificação continua sendo o navegador. Suíte verde não substitui ab
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 67 arquivos JS (53.285 linhas, 2.132 funções) · 31 arquivos CSS (26.070 linhas) · `index.html` com 3.812 linhas e 69 `<script>`.
+**Tamanho real de hoje:** 67 arquivos JS (53.375 linhas, 2.135 funções) · 31 arquivos CSS (26.115 linhas) · `index.html` com 3.827 linhas e 69 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -341,7 +341,7 @@ Historico de artes do franqueado: fGetHist, fSaveHist, fAddHist, fMarkHistBaixad
 · Estado global: _fArtesPushBusy, _fArtesPushQueued
 · Depende de: 00-config.js (HIST_KEY), 01-state.js (fState)
 
-**`js/franqueado/live-preview.js`** · 1730 linhas
+**`js/franqueado/live-preview.js`** · 1735 linhas
 Preview lateral em tempo real (fUpdateLivePreview) e modal de preview multi-formato (fOpenPreview, fClosePreview, fStartFromPreview).
 · API: fOpenPreview, fStartFromPreview, fClosePreview, fPostedSetCtx, fPostedCloseQR, fPostedOpenQR, fPostedCopyQRLink, fOpenPosted, fClosePosted, fLpToggleAutoZoom, fLpToggleAutoLayout, fUpdateLivePreview, fLpSizeCanvas, fLpRefit … (+14; 96 funções no total)
 · Estado global: _postedArt, renderizada, _postedCtx, _pstStageBound, _pstTiltRaf, _pstQRUrl, _pstQRBusy, _lpRendering, _lpLastErr, _lpPendingRender (+19)
@@ -359,9 +359,9 @@ Drag & drop das 3 colunas do workspace do franqueado (só desktop largo).
 · Estado global: _panelOrder, _panelDrag
 · Depende de: index.html (grips + #fran-main), css/modules/panel-dock.css,
 
-**`js/franqueado/png-generator.js`** · 4661 linhas
+**`js/franqueado/png-generator.js`** · 4746 linhas
 Geracao de PNG a partir dos templates: fGenPNG, fRenderTemplateLayers, fBaixar, fOutroFormato. Sistema de nomenclatura padronizado para downloads.
-· API: fLoadLogoBranca, fMaterialSize, fRenderCanvasHelper, fGenPNG, fGenPDF, fPostarInstagram, fEnviarWhatsApp, fDrawDMLogo, fAdjustImageData, fRenderTemplateLayers, fRenderOneLayer, roundedRect, roundedRectPath, fLoadImageDataUrl … (+77; 155 funções no total)
+· API: fLoadLogoBranca, fMaterialSize, fRenderCanvasHelper, fGenPNG, fGenPDF, fPostarInstagram, fEnviarWhatsApp, fDrawDMLogo, fAdjustImageData, fRenderTemplateLayers, fRenderOneLayer, roundedRect, roundedRectPath, fLoadImageDataUrl … (+78; 158 funções no total)
 · Estado global: _fLogoBrancaImg, fBulkRows, _fBulkAudit, _fBulkAsyncAudit, _fBulkAuditFingerprint, _fBulkImageAudit, _fBulkAutosaveTimer, _fBulkAutosaveSeq, _fBulkGenerationState, _fBulkPreflightRunning (+32)
 · Depende de: 00-config.js, 01-state.js, designer/canvas.js (dRenderCanvas)
 
@@ -592,7 +592,7 @@ tutMockCampaign, tutMockMaterial, tutMockHist — builders de HTML de mock usado
 | `css/modules/academia.css` | 1330 |
 | `css/modules/all-tools.css` | 113 |
 | `css/modules/catalog.css` | 289 |
-| `css/modules/chat.css` | 2256 |
+| `css/modules/chat.css` | 2301 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
 | `css/modules/designer.css` | 5815 |
