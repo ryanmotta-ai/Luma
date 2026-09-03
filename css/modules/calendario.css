@@ -52,9 +52,13 @@
      usa os tokens de motion do 00-tokens.css. */
   --cal-dur-slide: 320ms;
 
-  /* Proporção da arte de campanha (assets/banners/). Num token só: se a arte
-     mudar de formato, muda aqui e todos os lugares acompanham. */
-  --cal-banner-ar: 768 / 140;
+  /* Proporção da arte de campanha (assets/banners/) — MEDIDA nos arquivos
+     reais: 764×204. Num token só: se a arte mudar de formato, muda aqui e todos
+     os lugares acompanham. A caixa usa exatamente esta proporção, então o
+     `object-fit:cover` nunca chega a cortar nada — ele é só a rede de proteção
+     para um arquivo que venha alguns pixels fora do padrão. */
+  --cal-banner-ar: 764 / 204;
+  --cal-banner-w: 240px;   /* largura da arte no cartão horizontal */
   --cal-h-hora: 56px;    /* altura de uma hora na régua (JS espelha) */
   --cal-lado:   340px;   /* coluna lateral do dashboard e do dia */
   --cal-gap:    16px;
@@ -480,50 +484,66 @@ body:not(.theme-light) #view-calendario .cal-seg-pill{ background:var(--d-surf3)
    Regra de uso: onde o banner entra, o texto ao lado NÃO repete o nome da
    campanha — a arte já o carrega, em corpo grande. O texto fica com o que a
    arte não diz: a data, a regra e o alcance.
-   `object-fit:cover` + proporção fixa: a arte real pode variar alguns pixels
-   e mesmo assim nenhuma peça muda de altura.
+
+   ⛔ NUNCA CORTAR. A intuição era fixar uma altura e cortar o excesso; medido
+   nos arquivos reais, o set é MISTO — `tr25` tem o texto à esquerda e a foto à
+   direita, `cd` tem o inverso. Qualquer corte fixo decapita metade das artes.
+   Em coluna larga a solução é o cartão virar HORIZONTAL (arte à esquerda, com
+   largura fixa), não a arte encolher em altura.
+
+   A arte já vem com canto arredondado e fundo transparente: por isso ela ganha
+   um respiro dentro do cartão em vez de encostar na borda.
 ══════════════════════════════════════════════════════════════ */
 .cal-banner{
   display:block; width:100%; aspect-ratio:var(--cal-banner-ar);
   object-fit:cover; object-position:center;
-  background:var(--cal-surf2);   /* enquanto carrega, não pisca branco */
 }
 
 /* ── no cartão de evento ─────────────────────────────────── */
-.cal-ev.com-banner{ flex-direction:column; gap:0 }
-.cal-ev.com-banner .cal-ev-rail{
-  width:auto; height:3px; border-radius:0; order:2;   /* o trilho passa a sublinhar a arte */
+/* Coluna larga: arte à esquerda, texto à direita. */
+.cal-ev.com-banner{ align-items:center; gap:0; padding:8px 8px 8px 0 }
+.cal-ev.com-banner .cal-banner{
+  flex:0 0 var(--cal-banner-w); width:var(--cal-banner-w);
+  margin-left:8px; border-radius:var(--r-sm);
+  transition:transform var(--dur-base) var(--ease-spring-soft);
 }
-/* Teto de altura para coluna larga. Sem ele, um cartão de 700px dava um banner
-   de 127px e a lista virava um mural. Acima do teto o corte vem da DIREITA
-   (`left center`), porque nesta família de arte o nome da campanha fica à
-   esquerda e a foto do prato à direita — perder prato é aceitável, perder o
-   nome da campanha destruiria a única função do banner aqui. */
-.cal-ev.com-banner .cal-banner{ order:1; max-height:104px; object-position:left center }
-.cal-ev.com-banner .cal-ev-corpo{ order:3; padding:10px 12px }
-.cal-ev.com-banner:hover .cal-banner{ filter:saturate(1.06) }
-.cal-ev.com-banner .cal-banner{ transition:filter var(--dur-base) var(--ease-standard) }
+.cal-ev.com-banner .cal-ev-corpo{ padding:2px 4px 2px 12px }
+.cal-ev.com-banner .cal-ev-rail{ margin:2px 0 }
+.cal-ev.com-banner:hover .cal-banner{ transform:scale(1.015) }
 .cal-ev.com-banner.concluido .cal-banner{ filter:grayscale(.75) opacity(.7) }
 
+/* Coluna estreita (lateral do Dia, lista do Mês no celular): empilha e a arte
+   ocupa a largura toda — 240px fixos ali sobrariam da caixa. */
+.cal-dia-lado .cal-ev.com-banner,
+.cal-mes-lista .cal-ev.com-banner{ flex-direction:column; align-items:stretch; padding:8px }
+.cal-dia-lado .cal-ev.com-banner .cal-banner,
+.cal-mes-lista .cal-ev.com-banner .cal-banner{ flex:0 0 auto; width:100%; margin:0 }
+.cal-dia-lado .cal-ev.com-banner .cal-ev-rail,
+.cal-mes-lista .cal-ev.com-banner .cal-ev-rail{ display:none }
+.cal-dia-lado .cal-ev.com-banner .cal-ev-corpo,
+.cal-mes-lista .cal-ev.com-banner .cal-ev-corpo{ padding:10px 4px 2px }
+
 /* ── na tira "sempre no ar" ──────────────────────────────── */
+/* Sem borda e sem fundo: a arte JÁ é o chip (tem canto e cor próprios). */
 .cal-chao-i.e-banner{
-  padding:0; height:34px; overflow:hidden; border-radius:var(--r-sm);
-  border-color:var(--cal-borda);
+  padding:0; height:38px; border:0; background:none; border-radius:var(--r-sm);
 }
-.cal-chao-i.e-banner .cal-banner{ width:auto; height:100%; aspect-ratio:var(--cal-banner-ar) }
+.cal-chao-i.e-banner .cal-banner{ width:auto; height:100%; border-radius:var(--r-sm) }
 .cal-chao-i.e-banner:hover{ transform:translateY(-1px) }
 
 /* ── no cabeçalho da folha ───────────────────────────────── */
-.cal-fh.com-banner{ position:relative; padding:0; border-bottom:0; display:block }
-.cal-banner--folha{ border-radius:0 }
-/* O × precisa ficar legível sobre QUALQUER arte: pastilha escura, não só
-   contraste torcido. Vale o mesmo raciocínio do --on-accent nos tokens. */
+.cal-fh.com-banner{ position:relative; padding:10px 10px 0; border-bottom:0; display:block }
+.cal-banner--folha{ border-radius:var(--r-sm) }
+/* O × precisa ficar legível sobre QUALQUER arte: pastilha escura, não contraste
+   torcido. Mesmo raciocínio do --on-accent nos tokens. */
 .cal-fh.com-banner .cal-fh-l{
-  position:absolute; inset:0 0 auto 0; display:flex; align-items:center;
-  justify-content:space-between; padding:10px 12px;
-  background:linear-gradient(180deg, rgba(10,10,10,.55), transparent);
+  position:absolute; inset:10px 10px auto 10px; display:flex; align-items:flex-start;
+  justify-content:space-between; padding:8px 10px;
 }
-.cal-fh.com-banner .cal-fh-tipo{ color:var(--on-accent); text-shadow:0 1px 3px rgba(10,10,10,.5) }
+.cal-fh.com-banner .cal-fh-tipo{
+  color:var(--on-accent); background:rgba(10,10,10,.42); backdrop-filter:blur(4px);
+  padding:3px 9px; border-radius:var(--r-pill);
+}
 .cal-fh.com-banner .cal-fh-x{
   color:var(--on-accent); background:rgba(10,10,10,.42); backdrop-filter:blur(4px);
 }
@@ -531,11 +551,8 @@ body:not(.theme-light) #view-calendario .cal-seg-pill{ background:var(--d-surf3)
 .cal-fh:not(.com-banner) .cal-fh-l{ display:flex; align-items:center; justify-content:space-between; width:100% }
 
 /* ── na prévia do ponteiro ───────────────────────────────── */
-.cal-prev[data-banner]{ padding:0; overflow:hidden; max-width:280px }
-.cal-prev[data-banner] > :not(.cal-banner){ margin-left:12px; margin-right:12px }
-.cal-prev[data-banner] > :nth-child(2){ margin-top:10px }
-.cal-prev[data-banner] > :last-child{ margin-bottom:12px }
-.cal-banner--prev{ border-radius:0 }
+.cal-prev[data-banner]{ max-width:300px }
+.cal-banner--prev{ border-radius:var(--r-sm); margin-bottom:2px }
 
 /* ══════════════════════════════════════════════════════════════
    COMPONENTE — MINI CALENDAR
@@ -592,7 +609,14 @@ body:not(.theme-light) #view-calendario .cal-seg-pill{ background:var(--d-surf3)
   font-size:9.5px; font-weight:900; letter-spacing:.09em; text-transform:uppercase;
   color:var(--cal-txt3); flex:0 0 auto;
 }
-.cal-chao-is{ display:flex; gap:6px; flex-wrap:wrap; flex:1; min-width:0 }
+/* Trilho de UMA linha, sempre. Com arte dentro, quebrar em três fileiras vira
+   contato de folha: a tira deixa de ser "o chão do mês" e vira um segundo
+   conteúdo disputando atenção. Em tela larga cabe tudo e a rolagem nem aparece. */
+.cal-chao-is{
+  display:flex; gap:6px; flex:1; min-width:0;
+  flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none;
+}
+.cal-chao-is::-webkit-scrollbar{ display:none }
 .cal-chao-i{
   display:inline-flex; align-items:center; gap:6px; height:24px; padding:0 10px;
   border:1px solid var(--cal-borda); background:var(--cal-surf);
@@ -602,9 +626,9 @@ body:not(.theme-light) #view-calendario .cal-seg-pill{ background:var(--d-surf3)
 }
 .cal-chao-i:hover{ border-color:var(--cal-ac); color:var(--cal-txt); transform:translateY(-1px) }
 .cal-chao-i .cal-ponto{ width:6px; height:6px }
-/* Na coluna estreita da vista Dia o rótulo ao lado espremia os chips numa
-   pilha de 5 linhas. Ali ele sobe para cima deles. */
-.cal-dia-lado .cal-chao{ flex-direction:column; align-items:flex-start; gap:8px }
+/* Na coluna estreita da vista Dia o rótulo ao lado espremia os chips. Ali ele
+   sobe para cima do trilho, que segue rolando na horizontal. */
+.cal-dia-lado .cal-chao{ flex-direction:column; align-items:stretch; gap:8px }
 
 /* ══════════════════════════════════════════════════════════════
    VISTA — MÊS
@@ -1148,9 +1172,7 @@ body:not(.theme-light) .cal-prev{ background:color-mix(in srgb, var(--d-surf) 88
   .cal-seg-b{ flex:1; padding:0 8px; font-size:12px }
   /* O chão do mês vira trilho horizontal: empilhado eram mais 164px de altura. */
   .cal-chao{ gap:8px; padding:8px 10px }
-  .cal-chao-is{ flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none }
-  .cal-chao-is::-webkit-scrollbar{ display:none }
-  .cal-dia-lado .cal-chao{ flex-direction:row; align-items:center }
+  .cal-dia-lado .cal-chao{ flex-direction:column; align-items:stretch }
   /* Só o CTA DO TOPO vira ícone (a barra é estreita). O da folha e o dos
      estados vazios mantêm o rótulo — botão redondo sem palavra no rodapé de
      um evento não diz o que faz. */
@@ -1159,6 +1181,12 @@ body:not(.theme-light) .cal-prev{ background:color-mix(in srgb, var(--d-surf) 88
   .cal-palco{ padding:12px 14px }
   .cal-filtros{ padding:8px 14px }
   .cal-dash-b{ grid-template-columns:1fr }
+  /* Cartão com arte empilha no celular: 240px de banner + texto ao lado não
+     cabem em 375px sem espremer os dois. */
+  .cal-ev.com-banner{ flex-direction:column; align-items:stretch; padding:8px }
+  .cal-ev.com-banner .cal-banner{ flex:0 0 auto; width:100%; margin:0 }
+  .cal-ev.com-banner .cal-ev-rail{ display:none }
+  .cal-ev.com-banner .cal-ev-corpo{ padding:10px 4px 2px }
   .cal-hero{ flex-direction:column; align-items:flex-start; gap:14px; padding:18px }
   .cal-hero-data{ display:flex; align-items:baseline; gap:10px; text-align:left; min-width:0 }
   .cal-hero-num span{ font-size:38px }

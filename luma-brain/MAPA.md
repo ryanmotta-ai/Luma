@@ -224,15 +224,16 @@ esses a verificação continua sendo o navegador. Suíte verde não substitui ab
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 70 arquivos JS (55.895 linhas, 2.275 funções) · 32 arquivos CSS (27.463 linhas) · `index.html` com 3.835 linhas e 72 `<script>`.
+**Tamanho real de hoje:** 70 arquivos JS (55.953 linhas, 2.279 funções) · 32 arquivos CSS (27.558 linhas) · `index.html` com 3.835 linhas e 72 `<script>`.
 
 ## JS — o que cada arquivo é
 
 ### js (raiz)
 
-**`js/00-config.js`** · 3007 linhas
+**`js/00-config.js`** · 3015 linhas
 Constantes globais imutaveis: HIST_KEY, CAMPS_ATIVAS, CAMPS_OUTRAS, FMTS. Deve ser carregado PRIMEIRO (todos os modulos dependem destas constantes).
 · API: gVarRegex, gValidVarName, gXmlEsc, gRoundPolyD, gRoundPolyPath2D, gVectorPathFillRule, gVectorPathValid, gTraceVectorPath, gVectorPathD, gFxOffset, gFxRgba, gGradStopsCss, gGradientCss, gGradientCanvas … (+42; 85 funções no total)
+· Estado global: gLayoutVivoOff, _gCanvasWrap
 
 **`js/01-state.js`** · 11 linhas
 Estado global do franqueado: fState. Deve ser carregado apos 00-config.js.
@@ -551,13 +552,13 @@ CALENDÁRIO — as vistas de TEMPO: semana e dia. A grade do mês responde "quan
 · Estado global: _calRelogio
 · Depende de: calendario.js (estado, helpers de data, calCardEvento).
 
-**`js/calendario/calendario.js`** · 1155 linhas
+**`js/calendario/calendario.js`** · 1197 linhas
 CALENDÁRIO — o módulo que responde "o que a rede comunica e quando".
-· API: calIco, calData, calISO, calHoje, calAddDias, calAddMeses, calDiasNoMes, calDiff, calDiaSemana, calSegundaDe, calMesmoMes, calFimDeSemana, calGradeMes, calSemanaDe … (+73; 87 funções no total)
+· API: calIco, calData, calISO, calHoje, calAddDias, calAddMeses, calDiasNoMes, calDiff, calDiaSemana, calSegundaDe, calMesmoMes, calFimDeSemana, calGradeMes, calSemanaDe … (+77; 91 funções no total)
 · Estado global: calState, _calBuscaT, _calFocoGrade, _calArrasto
 · Depende de: 00-config.js (CAMPS_ATIVAS/CAMPS_OUTRAS), core/toast.js (gToast,
 
-**`js/calendario/evento.js`** · 551 linhas
+**`js/calendario/evento.js`** · 559 linhas
 CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o resumo que aparece ao passar o ponteiro, sem modal · Detalhe do evento — a folha que expande do cartão clicado · Criar/editar — o fluxo progressivo (um…
 · API: calNovoEvento, calEditarEvento, calAbreFolha, calPintaFolha, calFecharFolha, calFecharTudo, calAbrirDetalhe, calDetalheHtml, calPreviewEntra, calPreviewMostra, calPreviewSai, calQuickAddBarra, calQuickDica, calQuickAdd … (+16; 31 funções no total)
 · Estado global: calEd, _calPrevT, _calPrevEl
@@ -583,7 +584,7 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 | `css/components/user-profile.css` | 1084 |
 | `css/modules/academia.css` | 1330 |
 | `css/modules/all-tools.css` | 113 |
-| `css/modules/calendario.css` | 1182 |
+| `css/modules/calendario.css` | 1277 |
 | `css/modules/catalog.css` | 291 |
 | `css/modules/chat.css` | 2307 |
 | `css/modules/color-picker.css` | 153 |

@@ -783,7 +783,10 @@ function calHero(hoje, doDia){
 function calBlocoHoje(doDia){
   // Duas camadas separadas: o que hoje tem de próprio primeiro, o chão
   // recorrente depois — e em densidade menor, porque ele não muda.
-  const muda=doDia.filter(e=>e.tipo!=='recorrente');
+  // Peso do tipo, não hora: o bloco "Hoje" é RESUMO, não linha do tempo. Com a
+  // ordem cronológica os dois pushes de CRM das 11h ficavam acima da campanha-mãe
+  // que carrega o dia. Cronologia é o trabalho da vista Dia, que tem régua.
+  const muda=doDia.filter(e=>e.tipo!=='recorrente').sort(calComparaGrade);
   const chao=doDia.filter(e=>e.tipo==='recorrente');
   const feitos=muda.filter(e=>e.concluido).length;
   return `<section class="cal-bloco">
@@ -795,13 +798,7 @@ function calBlocoHoje(doDia){
       ? `<div class="cal-lista">${muda.map((e,i)=>`<div class="cal-cascata" style="--i:${i}">${calCardEvento(e,'card')}</div>`).join('')}</div>`
       : calVazio('Nada começa nem termina hoje','As recorrentes abaixo seguem no ar. Bom dia para adiantar a semana.',
           `<button class="cal-cta cal-cta--calmo" onclick="calVista('semana')">Ver a semana</button>`)}
-    ${chao.length?`<div class="cal-chao cal-chao--dash">
-      <span class="cal-chao-l">Sempre no ar</span>
-      <div class="cal-chao-is">${chao.map(e=>`<button class="cal-chao-i cal-t-recorrente" data-id="${gEsc(e.id)}"
-        onclick="calAbrirDetalhe('${gEsc(e.id)}',event)"
-        onmouseenter="calPreviewEntra(this,'${gEsc(e.id)}')" onmouseleave="calPreviewSai()">
-        <span class="cal-ponto"></span>${gEsc(e.titulo)}</button>`).join('')}</div>
-    </div>`:''}
+    ${calChaoTira(chao, 'cal-chao--dash')}
   </section>`;
 }
 
@@ -939,11 +936,17 @@ function calSempreNoAr(){
   const mes=String(calState.ancora).slice(0,7);
   const rec=calFiltrado().filter(e=>e.tipo==='recorrente' && String(e.inicio).slice(0,7)===mes);
   if(!rec.length) return '';
-  return `<div class="cal-chao" role="group" aria-label="Campanhas que rodam o mês inteiro">
+  return calChaoTira(rec);
+}
+// UM construtor da tira, usado pelo Mês, pela Semana, pelo Dia e pelo dashboard.
+// Já existiu uma segunda cópia inline no dashboard: ela ficou para trás quando o
+// chip ganhou banner, e a tira do dashboard voltou a ser só texto. É a regra dos
+// motores únicos do 03_ENGINEERING valendo para um componente pequeno.
+function calChaoTira(lista, cls){
+  if(!lista || !lista.length) return '';
+  return `<div class="cal-chao${cls?' '+cls:''}" role="group" aria-label="Campanhas que rodam o mês inteiro">
     <span class="cal-chao-l">Sempre no ar</span>
-    <div class="cal-chao-is">
-      ${rec.map(e=>calChaoItem(e)).join('')}
-    </div>
+    <div class="cal-chao-is">${lista.map(calChaoItem).join('')}</div>
   </div>`;
 }
 // Com banner o chip VIRA o banner (a arte já diz o nome); sem banner, continua
@@ -962,7 +965,9 @@ function calChaoItem(e){
 // O bloco existe sempre no HTML; o CSS o esconde acima de 768px — assim não
 // há um segundo caminho de render só para o telefone.
 function calListaDoDiaSel(){
-  const d=calState.selecionado, lista=calDoDia(d);
+  // Mesma ordem do bloco "Hoje": peso do tipo. Cronologia é assunto da régua da
+  // vista Dia — aqui é resumo, e resumo lidera pelo que carrega o dia.
+  const d=calState.selecionado, lista=calDoDia(d).sort(calComparaGrade);
   return `<section class="cal-mes-lista" aria-label="Eventos do dia selecionado">
     <div class="cal-bloco-topo">
       <h2 class="cal-bloco-h">${gEsc(calFmtDiaLongo(d))}${d===calHoje()?' · hoje':''}</h2>
