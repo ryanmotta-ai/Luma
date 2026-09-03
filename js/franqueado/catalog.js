@@ -480,7 +480,7 @@ async function fEditFromHist(id, btn){
     try { fUpdateLivePreview(); } catch(e){}
     try { fAttachInputGuard(); } catch(e){}
     fAddBot(`Reabri sua arte de <strong>${gEsc(material.name)}</strong> (${gEsc(f.name)}). Os campos editáveis foram restaurados.`, []);
-    setTimeout(()=>fMostrarConfirm(), 700);
+    setTimeout(()=>fGerarArte(), 500);
     return;
   }
 
@@ -521,7 +521,7 @@ async function fEditFromHist(id, btn){
     ? `Reabri sua arte (material original "${gEsc(h.materialName)}" não está mais disponível, usando estrutura padrão).`
     : `Reabri sua arte de <strong>${gEsc(c.name)}</strong> (${gEsc(f.name)}). Você pode editar qualquer campo ou gerar de novo direto.`;
   fAddBot(msg, []);
-  setTimeout(()=>fMostrarConfirm(), 700);
+  setTimeout(()=>fGerarArte(), 500);
 }
 
 // F-04: duplicar a arte em outro formato sem refazer perguntas

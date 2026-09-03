@@ -536,7 +536,7 @@ function fSaveAdv(val){
     fState.editIdx=null;
     const confirmMsg = document.getElementById('confirm-msg');
     if (confirmMsg) confirmMsg.remove();
-    fTyping(()=>fMostrarConfirm());
+    fTyping(()=>fGerarArte());
   }
   else{fTyping(()=>fNextStep());}
 }

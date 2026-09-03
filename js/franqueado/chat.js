@@ -165,9 +165,8 @@ function fUseLastArte(histId){
   fState.stepIdx=fState.camp.perguntas.length; // pula as perguntas → confirmação
   fState.done=false; fState.editIdx=null;
   fUpdateProg();
-  try{ fUpdateLivePreview(); }catch(e){}
-  fAddBot(`Peguei os dados da sua última arte de <strong>${gEsc(fState.material.name)}</strong>. Confira e ajuste o que quiser antes de gerar.`,[]);
-  setTimeout(()=>fMostrarConfirm(),600);
+  fAddBot(`Peguei os dados da sua última arte de <strong>${gEsc(fState.material.name)}</strong>.`,[]);
+  setTimeout(()=>fGerarArte(),500);
 }
 function _fProceedMaterialStart(material){
   fState.stepIdx=-1; fState.done=false; fUpdateProg();
@@ -302,7 +301,7 @@ function fStartChat(){
 function fNextStep(){
   fState.stepIdx++;fUpdateProg();
   const pergs=fState.camp.perguntas;
-  if(fState.stepIdx>=pergs.length){fMostrarConfirm();return;}
+  if(fState.stepIdx>=pergs.length){fGerarArte();return;}
   const p=pergs[fState.stepIdx];
   try { fUpdateLivePreview(); } catch(e){}
   try { fUpdateCharCount(); } catch(e){}
@@ -520,7 +519,7 @@ function _fApplyImageToField(varId, uploadId, resizedUrl){
   try { fUpdateLivePreview({animateField:varId}); } catch(e){}
   if(typeof window.gPlayPhotoSnapSound==='function') window.gPlayPhotoSnapSound();
   setTimeout(()=>{
-    if(fState.editIdx !== null){fState.editIdx=null; fTyping(()=>fMostrarConfirm());}
+    if(fState.editIdx !== null){fState.editIdx=null; fTyping(()=>fGerarArte());}
     else { fTyping(()=>fNextStep()); }
   }, 600);
 }
@@ -630,59 +629,9 @@ function fUpdateInputPlaceholder(id){
   box.placeholder = hints[cfg.type] || hints.text;
 }
 function fMostrarConfirm(){
-  // Nunca empilha 2 cards (digitar+Enter no confirm re-disparava fNextStep→fMostrarConfirm)
+  // Balão de revisão removido: gera a arte diretamente sem etapa intermediária de confirmação
   const existing=document.getElementById('confirm-msg'); if(existing) existing.remove();
-  // Input pausado enquanto o resumo está na tela — Editar/Alterar reabilitam.
-  const _box=document.getElementById('f-msg-box');
-  if(_box){ _box.disabled=true; _box.placeholder='Confira o resumo acima e confirme 👆'; }
-  const _snd=document.getElementById('f-snd'); if(_snd) _snd.disabled=true;
-  const _mic=document.getElementById('f-chat-mic'); if(_mic) _mic.disabled=true;
-  const d=fState.dados,c=fState.camp;
-  const labels={produto:'Produto',precoDe:'Preço original',precoPor:'Preço promo',validade:'Validade',desconto:'Desconto',pedidoMin:'Pedido mínimo',bairros:'Cobertura',codigo:'Código',condicao:'Condição',brinde:'Brinde',categoria:'Categoria',oferta:'Oferta'};
-  const rows=c.perguntas.map((p,i)=>{
-    const valor = d[p.id];
-    let labelRaw = labels[p.id] || p.label || p.id;
-    const label = labelRaw.charAt(0).toUpperCase() + labelRaw.slice(1);
-    let valDisplay;
-    if(p.isImage){
-      if(valor && valor.startsWith('data:image')){
-        valDisplay = `<img class="confirm-thumb" src="${valor}" alt="${gEsc(label)}"/>`;
-      } else {
-        valDisplay = `<span class="confirm-val confirm-val-empty">— sem foto —</span>`;
-      }
-    } else {
-      valDisplay = `<span class="confirm-val" title="${gEsc(valor||'')}">${gEsc(valor||'—')}</span>`;
-    }
-    const isEmpty=valor==null||valor==='';
-    return `<div class="confirm-row${isEmpty?' is-empty':''}">
-      <span class="confirm-label" title="${gEsc(label)}">${gEsc(label)}</span>
-      <div class="confirm-val-wrap">${valDisplay}</div>
-      <button class="confirm-edit" onclick="fEditCampo(${i})" title="Editar ${gEsc(label)}" aria-label="Editar ${gEsc(label)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
-    </div>`;
-  }).join('');
-  const msgs=document.getElementById('f-messages');
-  const w=document.createElement('div');w.className='msg bot active-prompt';w.id='confirm-msg';
-  w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8.01" y2="16"/><line x1="16" y1="16" x2="16.01" y2="16"/></svg></div><div class="msg-content confirm-message-content">
-    <section class="confirm-card" role="region" aria-labelledby="confirm-title">
-      <div class="confirm-header">
-        <div class="confirm-header-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
-        <div class="confirm-header-copy"><span>Revisão final</span><h2 id="confirm-title">Tudo certo para gerar?</h2></div>
-        <div class="confirm-context"><span>${gEsc(c.name)}</span><span>${gEsc(fState.fmt&&fState.fmt.name||'Material')}</span></div>
-      </div>
-      <div class="confirm-fields">${rows}</div>
-      <div class="confirm-actions">
-        <button class="confirm-btn cancel" onclick="fEditarTudo()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 3 3 9 9 9"/></svg>Revisar respostas</button>
-        <button class="confirm-btn ok" onclick="fConfirmarGerar()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>Gerar minha arte</button>
-      </div>
-      <div id="f-kit-progress" class="confirm-progress" style="display:none">
-        <div class="confirm-progress-label"><span id="f-kit-progress-text">Preparando kit…</span><span id="f-kit-progress-pct">0%</span></div>
-        <div class="confirm-progress-track"><div id="f-kit-progress-bar"></div></div>
-      </div>
-    </section>
-  </div>`;
-  msgs.querySelectorAll('.msg').forEach(m=>m.classList.remove('active-prompt'));
-  _fApplyMessageGrouping(msgs,w,'bot');
-  msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;
+  fGerarArte();
 }
 function fEditCampo(idx){
   fState.stepIdx=idx;fState.editIdx=idx;
@@ -1103,6 +1052,19 @@ function _fCopyText(text){
 function fGerarArte(){
   fState.done=true;fUpdateProg();
   fClearChatDraft();
+  fState.editIdx=null;
+  const wrap = document.querySelector('.lp-canvas-wrap');
+  if(wrap){
+    wrap.classList.remove('is-rendering');
+    void wrap.offsetWidth;
+    wrap.classList.add('is-rendering');
+    setTimeout(() => wrap.classList.remove('is-rendering'), 650);
+  }
+  const existing=document.getElementById('confirm-msg'); if(existing) existing.remove();
+  const box=document.getElementById('f-msg-box');
+  if(box){box.disabled=false;box.placeholder='Arte gerada! Escolha um formato ou gere outra…';}
+  const snd=document.getElementById('f-snd'); if(snd) snd.disabled=false;
+  const mic=document.getElementById('f-chat-mic'); if(mic) mic.disabled=false;
   const d=fState.dados,c=fState.camp;
   fAddBot('Gerando sua arte agora…',[]);
   setTimeout(async ()=>{
