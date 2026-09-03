@@ -210,7 +210,7 @@ esses a verificação continua sendo o navegador. Suíte verde não substitui ab
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 67 arquivos JS (53.406 linhas, 2.134 funções) · 31 arquivos CSS (26.121 linhas) · `index.html` com 3.818 linhas e 69 `<script>`.
+**Tamanho real de hoje:** 67 arquivos JS (53.406 linhas, 2.134 funções) · 31 arquivos CSS (26.126 linhas) · `index.html` com 3.818 linhas e 69 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -592,7 +592,7 @@ tutMockCampaign, tutMockMaterial, tutMockHist — builders de HTML de mock usado
 | `css/modules/academia.css` | 1330 |
 | `css/modules/all-tools.css` | 113 |
 | `css/modules/catalog.css` | 291 |
-| `css/modules/chat.css` | 2298 |
+| `css/modules/chat.css` | 2299 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
 | `css/modules/designer.css` | 5822 |
@@ -601,7 +601,7 @@ tutMockCampaign, tutMockMaterial, tutMockHist — builders de HTML de mock usado
 | `css/modules/help-widget.css` | 1698 |
 | `css/modules/layers-panel.css` | 4336 |
 | `css/modules/live-preview.css` | 756 |
-| `css/modules/panel-dock.css` | 112 |
+| `css/modules/panel-dock.css` | 116 |
 | `css/modules/publish-modal.css` | 628 |
 | `css/modules/toolbar.css` | 956 |
 | `css/modules/topbar.css` | 217 |

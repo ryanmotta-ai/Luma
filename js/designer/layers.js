@@ -1572,15 +1572,14 @@ function dShowProps(l){
         cvBtn.onclick=()=>dConvertLayerToFrame(l.id);
       }
     }
-    // Botão de upload direto no painel
+    // Botão de upload direto no painel. Vale para moldura E imagem simples: sem a
+    // entrada por URL, o arquivo é o único caminho, e a imagem simples ficaria sem
+    // nenhum. Delega pro dEscolherFotoDaMoldura (teto de MB + Ctrl+Z), que o handler
+    // duplicado que vivia aqui não tinha.
     const upPanelBtn=document.getElementById('dp-frame-upload');
     if(upPanelBtn){
-      upPanelBtn.style.display=l.type==='frame'?'':'none';
-      upPanelBtn.onclick=()=>{
-        const inp=document.createElement('input');inp.type='file';inp.accept='image/*';
-        inp.onchange=ev=>{const file=ev.target.files[0];if(!file)return;const r=new FileReader();r.onload=re=>{l.imgUrl=re.result;dRenderCanvas();dMarkUnsaved();document.getElementById('dp-imgurl').value='[arquivo local]';if(typeof dPropSyncImageSource==='function')dPropSyncImageSource();gToast('Foto carregada!');};r.readAsDataURL(file);};
-        inp.click();
-      };
+      upPanelBtn.style.display=(l.type==='frame'||l.type==='image')?'':'none';
+      upPanelBtn.onclick=()=>{ if(typeof dEscolherFotoDaMoldura==='function') dEscolherFotoDaMoldura(l); };
     }
   }
   

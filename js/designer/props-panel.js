@@ -701,23 +701,11 @@ function dPropEnhanceDado(layer) {
 }
 
 // O markup do inspector de imagem vive no index.html. Aqui s\u00f3 entra COMPORTAMENTO:
-// campo de URL sob demanda, valor/reset dos sliders e o resumo da origem.
+// valor/reset dos sliders e o resumo da origem.
 function dPropBuildImageControls() {
   const imageProps = document.getElementById('d-image-props');
-  const urlInput = document.getElementById('dp-imgurl');
-  if (!imageProps || !urlInput || imageProps.dataset.dpiReady === '1') return;
+  if (!imageProps || imageProps.dataset.dpiReady === '1') return;
   imageProps.dataset.dpiReady = '1';
-
-  const sourceToggle = document.getElementById('dpi-source-toggle');
-  if (sourceToggle) {
-    sourceToggle.addEventListener('click', function() {
-      const expanded = sourceToggle.getAttribute('aria-expanded') !== 'true';
-      sourceToggle.setAttribute('aria-expanded', String(expanded));
-      urlInput.hidden = !expanded;
-      if (expanded) urlInput.focus();
-    });
-  }
-  urlInput.addEventListener('input', dPropSyncImageSource);
 
   imageProps.querySelectorAll('.dpi-range-reset').forEach(function(reset) {
     reset.addEventListener('click', function() {
@@ -841,14 +829,10 @@ function dPropSyncImageSource() {
 
   if (!value) {
     const bound = layer && layer.imgVar;
-    // Só a moldura de foto tem upload; a imagem simples vive de URL. A frase de vazio
-    // não pode prometer "escolha um arquivo" onde não existe esse botão.
-    const upload = document.getElementById('dp-frame-upload');
-    const canUpload = !!upload && upload.style.display !== 'none';
+    // Moldura e imagem simples tem o mesmo botao de arquivo desde que a entrada por
+    // URL saiu — a frase de vazio nao se ramifica mais.
     name.textContent = bound ? 'Sem arquivo de exemplo' : 'Nenhuma imagem';
-    meta.textContent = bound
-      ? 'A foto vem do campo conectado'
-      : (canUpload ? 'Escolha um arquivo ou informe uma URL' : 'Informe uma URL da imagem');
+    meta.textContent = bound ? 'A foto vem do campo conectado' : 'Escolha um arquivo de imagem';
     return;
   }
   if (value.indexOf('data:') === 0) {

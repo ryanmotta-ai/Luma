@@ -305,7 +305,13 @@ function dEscolherFotoDaMoldura(lReal){
       // dHistoryPush ANTES de mutar: o histórico guarda o estado anterior. Sem isto,
       // trocar a foto da moldura não tinha Ctrl+Z (achado na revisão pró-1.0).
       if(typeof dHistoryPush==='function') dHistoryPush();
-      lReal.imgUrl=re.result;dRenderCanvas();dMarkUnsaved();gToast('Foto aplicada na moldura!');
+      lReal.imgUrl=re.result;dRenderCanvas();dMarkUnsaved();
+      // O painel de propriedades le a origem do #dp-imgurl; sem isto o resumo ficava
+      // em "Nenhuma imagem" depois do upload (valia para o duplo-clique tambem).
+      const espelho=document.getElementById('dp-imgurl');
+      if(espelho) espelho.value='[arquivo local]';
+      if(typeof dPropSyncImageSource==='function') dPropSyncImageSource();
+      gToast('Foto aplicada na moldura!');
     };
     r.readAsDataURL(file);
   };

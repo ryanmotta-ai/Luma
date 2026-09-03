@@ -1904,25 +1904,6 @@ body.mode-designer:not(.d-studio-home-open) #g-help-float{
   background:var(--d-surf2);
 }
 
-.dpi-action.is-ghost{
-  flex:none;
-  border-color:transparent;
-  background:transparent;
-  color:var(--d-text2);
-  font-weight:500;
-}
-
-.dpi-action.is-ghost:hover{
-  border-color:var(--d-border);
-  background:var(--d-surf);
-  color:var(--d-text);
-}
-
-#d-image-props .dpi-source-url{
-  width:100%;
-  font-size:11px;
-}
-
 #d-image-props .dp-convert-btn{
   justify-content:flex-start;
   width:100%;
