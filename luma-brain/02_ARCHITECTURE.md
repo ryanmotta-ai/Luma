@@ -13,7 +13,7 @@ O Luma é uma **SPA estática que fala direto com o Supabase**. Não há servido
 ```
         NAVEGADOR (o "servidor" é o navegador do usuário)
  ┌─────────────────────────────────────────────────────────────┐
- │  index.html  →  ~60 <script> globais (Vanilla JS, sem build)  │
+ │  index.html  →  69 <script> globais (Vanilla JS, sem build)   │
  │                                                               │
  │  VIEWS/MÓDULOS        MOTORES                 ESTADO          │
  │  · Franqueado (f*)    · Render (Canvas 2D)    variáveis let   │
@@ -48,7 +48,7 @@ O Luma é uma **SPA estática que fala direto com o Supabase**. Não há servido
 
 **O que é.** Uma **Single Page Application em Vanilla JS puro** — sem framework, sem bundler, sem npm no runtime. Roda abrindo o `index.html` (Live Server em dev). O trade-off central: **zero fricção de setup/deploy** em troca de não ter modularidade real, tipos ou testes automatizados. O acoplamento é controlado por **convenção**, não por ferramenta.
 
-**Como carrega.** O `index.html` traz **~60 `<script>` em ordem** — tudo global, sem `import`/`export`. A ordem importa (um arquivo depende do anterior já ter definido suas funções globais).
+**Como carrega.** O `index.html` traz **69 `<script>` em ordem** (a lista, sempre atual, em `luma-brain/MAPA.md`) — tudo global, sem `import`/`export`. A ordem importa (um arquivo depende do anterior já ter definido suas funções globais).
 
 **Como se organiza.** Não há módulos ES; a separação é por **prefixo de função** e por **arquivo por subdomínio**:
 
@@ -95,23 +95,38 @@ O Estúdio é a parte mais pesada do frontend. Sua arquitetura tem três superf�
 
 ## 4. Canvas / Motor de render
 
-O ponto arquitetural mais importante do produto: **um único motor de render, três alvos de saída, um interpolador de campos compartilhado.**
+O ponto arquitetural mais importante do produto: **um interpolador de campos compartilhado — e, ao contrário do que este arquivo afirmava, QUATRO caminhos de render.**
 
 ```
                        CAMPOS ({{var}})  +  dados
                               │
-                    ┌─────────┴──────────┐  (gInterpolate — UM interpolador)
+                    ┌─────────┴──────────┐  (gInterpolate — UM interpolador, de verdade)
                     ▼                    ▼
-   ┌────────────────────────────────────────────────────┐
-   │           MOTOR DE RENDER (mesmas camadas)           │
-   └───────┬───────────────┬───────────────────┬─────────┘
-           ▼               ▼                   ▼
-   DOM absoluto      Canvas 2D            SVG (export)
-   (edição no        (prévia + PNG/JPG    (vetorial, com
-    Estúdio)          final 2×)            fontes embutidas)
+   ┌──────────────────────────────────────────────────────────────┐
+   │   CAMINHOS DE RENDER (as mesmas camadas, 4 implementações)     │
+   └──┬──────────────┬──────────────────┬───────────────────┬──────┘
+      ▼              ▼                  ▼                   ▼
+ DOM absoluto   Canvas 2D nº1      Canvas 2D nº2        SVG (export)
+ dRenderCanvas  pvRenderLayer      fRenderOneLayer      dSvgShape/Text/Fx
+ canvas.js:1107 preview.js:145     png-generator.js:675 preview.js:523+
+ (edição no     (prévia e export   (prévia do           (vetorial, com
+  Estúdio)       do Estúdio)        franqueado + PNG)    fontes embutidas)
 ```
 
-**Por que importa:** a simulação do designer, a prévia ao vivo do franqueado e o PNG final passam pelo **mesmo motor e o mesmo interpolador**. Por isso **o que o designer monta é exatamente o que o franqueado obtém** — não há dois renderizadores para divergir.
+⚠️ **Correção (2026-09-03): o "motor único de render" não existe.** Este arquivo afirmava
+"um único motor, três alvos"; o código foi medido e **o código venceu**. `preview.js` não
+chama `fRenderTemplateLayers` em lugar nenhum — é um renderizador paralelo vivo, entrando
+por `dPreviewOpen`. E `measureText` (a quebra de linha, a parte difícil) aparece em **6
+arquivos**.
+
+**O que continua verdade:** `gInterpolate` é único, e a prévia do franqueado e o PNG final
+compartilham `fRenderTemplateLayers` — por isso **o que o franqueado vê é o que ele baixa**.
+
+**A consequência ao mexer:** composição nova de camada (grupo, clipping, máscara, blend,
+efeito) precisa nascer em **todo caminho que a exibe**, ou a prévia passa a divergir do
+arquivo final — foi assim que a composição de grupo do PSD ficou meio caminho. Comece por
+`fRenderOneLayer` (é o que o franqueado baixa) e confira o espelho em `pvRenderLayer`.
+Mapa dos pontos de entrada: `luma-brain/MAPA.md` → "Os motores únicos".
 
 **Smart resize:** um motor de âncoras (`js/core/layout.js`) re-ancora as camadas entre formatos (Story/Feed/Wide) por fator único de escala — nunca distorce. Usado no editor, na prévia e no PNG.
 
@@ -240,7 +255,7 @@ Saber o que **não** existe evita a IA propor solução para camada inexistente:
 - ⛔ **Sem API intermediária.** O front fala direto com PostgREST/Storage. As duas Edge Functions são exceções pontuais (segredo/regra), não uma camada de passagem — ver §5.
 - ⛔ **Sem streaming adaptativo de vídeo.** A Academia serve MP4 progressivo por URL assinada; o modelo separa `video_path` de `video_url` pra trocar por HLS depois sem mexer no schema.
 - ⛔ **Sem multi-tenant real** no Luma hoje — todos os franqueados veem o mesmo catálogo publicado. Isolar por cidade seria uma decisão de arquitetura nova, não um dado existente.
-- ⛔ **Sem testes automatizados** — regressão se detecta abrindo o navegador (por isso _patch cirúrgico_ é regra).
+- ⚠ **Testes automatizados existem** (correção de 2026-09-03 — este arquivo dizia que não): `tests/*.html` rodam em Chromium real via `scripts/run-browser-tests.js`, **119 casos**, portao de CI em `.github/workflows/tests.yml`. Cobrem o **solver de Auto-layout** e o **importador de PSD** — e só eles. Interpolador, gerador de PNG, chat, catálogo e toda a UI **continuam sem cobertura**: para esses, regressão se detecta abrindo o navegador (por isso _patch cirúrgico_ segue regra).
 
 ---
 

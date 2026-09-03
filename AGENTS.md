@@ -14,6 +14,7 @@
 
 Nunca suponha — abra e confira. Qual dúvida → qual arquivo:
 
+- `@luma-brain/MAPA.md` — **PRIMEIRO de todos, antes de qualquer `grep`/leitura de arquivo:** em que arquivo mora cada coisa (67 arquivos JS, 53 mil linhas), os motores únicos com `arquivo:linha` e **quais docs deste repositório não ler**. Gerado do código por `node scripts/mapa.js`.
 - `@luma-brain/00_PRODUCT.md` — o que é o Luma, público, escopo.
 - `@luma-brain/01_BUSINESS.md` — **regras de domínio** (sempre que envolver negócio).
 - `@luma-brain/02_ARCHITECTURE.md` — como o sistema é dividido; **o que NÃO existe**.
@@ -45,7 +46,7 @@ Mínimo por tarefa: `06` + o arquivo do assunto. Código → some `03`. UI → `
 - Vanilla JS: **sem `import`/`export`, sem build, sem dependência nova.** `let` global só se compartilhado + re-render manual.
 - Estado **por ID, não por referência viva** (undo/simulação/sync trocam objetos por clones).
 - `gEsc`/`_dEsc` em todo dado de usuário; cor/motion via **token** (nunca hex solto); ícone = SVG `currentColor` (nunca emoji); feedback via `gToast`; `localStorage` em `try/catch`.
-- **Verifique no navegador** — não há teste automatizado; "compilou" não é verificação.
+- **Verifique.** `node scripts/run-browser-tests.js` (119 casos, portão de CI) cobre **só** o solver de Auto-layout e o importador de PSD — rode ao tocar nesses dois. Todo o resto (interpolador, PNG, chat, catálogo, Estúdio, UI) **não tem cobertura**: abra o navegador. "Compilou" não é verificação, e suíte verde não é verificação do que você tocou.
 - **Nunca commit automático. Nunca `git add .`.** Mostre o diff, peça confirmação.
 
 Ordem de autoridade: **palavra do usuário > código real > luma-brain/docs > genérico.**

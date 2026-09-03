@@ -13,8 +13,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo \"[Luma] Siga a skill luma / CLAUDE.md: 1) leia luma-brain/ (06_OPERATING_SYSTEM + o arquivo do assunto; 01_BUSINESS p/ regra de negocio) 2) planeje 3) implemente cirurgico. Nunca commit automatico; verifique no navegador antes de dar por feito. MODOS SEMPRE ATIVOS: carregue as skills 'ponytail' (nivel full) e 'caveman' (nivel lite). Em conflito, CLAUDE.md/luma-brain vencem: sem teste automatizado (verificacao e no navegador), sem dependencia nova, PT-BR.\"",
-            "statusMessage": "Reforcando o fluxo Luma (+ponytail full, caveman lite)"
+            "command": "node scripts/mapa.js --se-mudou",
+            "statusMessage": "Mantendo luma-brain/MAPA.md em dia"
+          },
+          {
+            "type": "command",
+            "command": "echo \"[Luma] 1) ABRA luma-brain/MAPA.md ANTES de qualquer grep/read: ele diz em que arquivo mora cada coisa (67 arquivos JS, 53 mil linhas, 2131 funcoes), onde estao os motores unicos e QUAIS DOCS NAO LER (tem doc neste repo que e de outro projeto). 2) Fluxo: luma-brain (06_OPERATING_SYSTEM + o arquivo do assunto; 01_BUSINESS p/ regra de negocio) -> planeje -> patch cirurgico. 3) Verificacao: o Luma TEM teste automatizado - 'node scripts/run-browser-tests.js' (119 casos, portao de CI, cobre o solver de layout e o importador de PSD) MAIS o navegador no fluxo tocado (a suite nao cobre UI, chat, PNG nem interpolador). MODOS SEMPRE ATIVOS: skills 'ponytail' (full) e 'caveman' (lite). Nunca commit automatico, nunca 'git add .' - mostre o diff e peca confirmacao. Em conflito, CLAUDE.md/luma-brain vencem: sem dependencia nova, sem build/ESM, PT-BR.\"",
+            "statusMessage": "Reforcando o fluxo Luma (MAPA + ponytail full + caveman lite)"
           }
         ]
       }

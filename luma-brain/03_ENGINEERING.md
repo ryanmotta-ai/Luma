@@ -1,7 +1,7 @@
 # 03 — ENGENHARIA · O manual técnico do time
 
 > As regras de como se escreve código no Luma. É o manual do time — para gente e para IA.
-> **Aviso importante:** este projeto tem restrições incomuns (Vanilla JS, sem build, sem framework, sem testes automatizados, estado global por design). Por isso, **alguns "best practices" genéricos aqui aparecem TRADUZIDOS para a realidade do Luma** — e, onde a regra clássica não se aplica, o arquivo diz a verdade em vez de fingir. Seguir cegamente conselho genérico aqui **quebra** o projeto.
+> **Aviso importante:** este projeto tem restrições incomuns (Vanilla JS, sem build, sem framework, estado global por design, e testes só onde dá — ver §7). Por isso, **alguns "best practices" genéricos aqui aparecem TRADUZIDOS para a realidade do Luma** — e, onde a regra clássica não se aplica, o arquivo diz a verdade em vez de fingir. Seguir cegamente conselho genérico aqui **quebra** o projeto.
 > Ordem de autoridade quando algo divergir: **o código > este arquivo > conselho genérico de fora.**
 > Última revisão: 2026-07-15. Ver `02_ARCHITECTURE.md` (o "onde") e `docs/LUMA.md` (o detalhe).
 
@@ -128,7 +128,22 @@ quando chega no navegador de quem usa** — "commitei" não é "chegou".*
 
 ## 7. Testes e verificação — a verdade, sem fingimento
 
-O exemplo _"sempre criar testes"_ merece honestidade: **hoje o Luma não tem testes automatizados nem runner** (é consequência do "sem build"). Fingir que tem é pior que não ter. A regra real é:
+⚠ **Correção de 2026-09-03.** Este parágrafo dizia "o Luma não tem testes automatizados nem runner". **Tem** — e o código vence o doc:
+
+```
+node scripts/run-browser-tests.js         # 119 casos, verdes em 2026-09-03
+```
+
+As suítes são `tests/*.html` rodando em **Chromium de verdade** (métrica de fonte e Canvas 2D só existem no navegador; testar isso com mock mediria o mock). O runner fala DevTools Protocol direto com o WebSocket nativo do Node 22 — **zero dependência, nenhum `npm install`, nada entra no `index.html`**, ou seja não fere a 1ª lei. `.github/workflows/tests.yml` roda a cada push e PR que toque `js/**`: **é portão, reprova o commit.**
+
+| Suíte | Cobre | Casos |
+|---|---|---|
+| `tests/auto-layout.html` | invariantes do solver | 34 |
+| `tests/corpus.html` | composições reais + golden de geometria | 18 |
+| `tests/fuzz.html` | exceção, `NaN`, laço que não converge | 63 |
+| `tests/psd-import.html` | importador de PSD | 4 |
+
+**O que NÃO tem cobertura:** interpolador, gerador de PNG, chat, catálogo, Estúdio, toda a UI. **Suíte verde não é verificação do que você tocou** — se mexeu em qualquer coisa fora do solver e do PSD, o navegador segue obrigatório. A regra real:
 
 - **Verificação manual após cada fase é obrigatória.** Abra o navegador e exercite o fluxo tocado (não só "compilou"). Roteiro mínimo: franqueado gera arte ponta a ponta; designer edita → publica → aparece no catálogo; troca de tema claro/escuro; console sem erro novo.
 - **Revisão adversarial** para mudanças de risco: procurar o cenário de falha concreto, não só ler o diff. (Foi assim que a caça a bugs desta base encontrou colisão de ID na publicação, `count` não declarado, clone de simulação, etc.)

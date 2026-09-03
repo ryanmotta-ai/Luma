@@ -55,7 +55,7 @@ A ponte entre designer e franqueado é o **sistema de campos** (`{{produto}}`, `
 |---|---|
 | Front | Vanilla JS puro, sem framework, sem bundler, sem npm |
 | Libs vendorizadas | `assets/vendor/`: Color Thief (paleta de fotos), Pica (resize Lanczos3), PapaParse (CSV), pdf-lib (PDF client-side), ag-psd (import PSD), supabase-js v2 UMD |
-| Carregamento | `index.html` carrega ~60 `<script>` em ordem; tudo global |
+| Carregamento | `index.html` carrega 69 `<script>` em ordem; tudo global (lista em `luma-brain/MAPA.md`) |
 | Estado | Variáveis `let` globais (`fState`, `dLayers`, `dFolders`, `dVars`, `gAuthState`…) modificadas diretamente + re-render manual |
 | Persistência | **Offline-first**: localStorage é cache (boot rápido, síncrono); **Supabase é a fonte compartilhada** (cross-device). IndexedDB (`js/core/img-store.js`) como cache local de imagens grandes |
 | Backend | Supabase (projeto **`uqrqzjafhigjuvtjqzid`**, plano Free) — Postgres + Auth + Storage. Front fala direto via anon key; **RLS é a única fronteira de segurança** |
@@ -75,51 +75,31 @@ A ponte entre designer e franqueado é o **sistema de campos** (`{{produto}}`, `
 
 ---
 
-## 4. ESTRUTURA REAL DE ARQUIVOS (verificada 2026-07-09)
+## 4. ESTRUTURA DE ARQUIVOS → `luma-brain/MAPA.md`
+
+⚠️ **Esta seção era uma árvore de arquivos escrita à mão, "verificada 2026-07-09". Ela
+envelheceu e passou a mentir:** listava 44 arquivos JS quando o código já tinha **67** —
+`core/ai.js`, `core/console.js`, `core/feature-flags.js`, `core/product-control.js`,
+`core/auto-layout.js`, `core/qr.js`, `core/sound.js`, `core/pwa-install.js`,
+`js/widgets/` inteiro, `franqueado/prefs.js`, `prefs-panel.js`, `upload-panel.js`,
+`panel-dock.js`, `designer/linter.js`, `psd-parse.js`, `academia/conclusao.js` e
+`academia/motion.js` eram invisíveis para quem lia este doc.
+
+**A árvore foi removida em vez de atualizada** — manter duas cópias garante que uma esteja
+errada. O mapa agora é **gerado do código**:
 
 ```
-Luma/
-├── index.html                     # SPA: markup completo + 60 <script> em ordem
-├── css/
-│   ├── 00-tokens.css              # TODOS os tokens (paleta, motion, glass, logos)
-│   ├── 01-reset.css
-│   ├── 02-animations.css          # keyframes g* + guarda reduced-motion
-│   ├── 03-fonts.css               # vazio (Realce Black aposentada; Roboto via Google Fonts no <head>)
-│   ├── components/                # topbar, splash, tutorial, help-modal, user-profile, pages-tray
-│   └── modules/                   # franqueado, franqueado_effects, designer, chat, catalog,
-│                                  # live-preview, layers-panel, toolbar, all-tools, color-picker,
-│                                  # publish-modal, topbar, academia
-├── js/
-│   ├── 00-config.js               # HIST_KEY, CAMPS_ATIVAS/OUTRAS/IMPLEMENTACAO, FMTS,
-│   │                              # regex/validação de var, gInterpolate, bindings, regras,
-│   │                              # DFIELD_CATS/DFIELD_TYPES (ícones SVG), gPackImgUrl, polígonos
-│   ├── 01-state.js                # fState inicial
-│   ├── main.js                    # bootstrap: setMode(), boot async, syncs
-│   ├── core/                      # auth, user-profile, supabase(.config)(.example), img-store,
-│   │                              # layout (smart resize), toast (gToast+gEsc), help, splash
-│   ├── franqueado/                # catalog (com HOME), materials, chat, chat-input, history,
-│   │                              # live-preview, png-generator
-│   ├── academia/                  # academia (estado/dados/home), aula (player+abas), agente (IA),
-│   │                              # gestao (equipe_dm), certificado — ver §21
-│   ├── designer/                  # canvas, layers, templates, tools, brush, mask, blending,
-│   │                              # eraser-tools, color-picker, measurement, selection, props-panel,
-│   │                              # undo-redo, publish, preview, library, fonts, psd-import,
-│   │                              # tooltip, tutorial-panel
-│   └── tutorial/                  # engine, catalog (4), catalog-studio (14), mocks, mocks-studio
-├── assets/
-│   ├── logos/                     # luma-h-branca.png, luma-h-cor.png (+ DM legadas no disco)
-│   ├── illustrations/             # empty states
-│   ├── favicon.svg
-│   └── vendor/                    # colorthief, pica, papaparse, pdf-lib, ag-psd, supabase.js
-├── supabase/
-│   ├── migrations/                # 13 migrations (schema luma.* completo — ver §14)
-│   ├── seed.sql · apply_all.sql · config.toml · README.md
-├── scripts/                       # backup-storage.js, restore-storage.js, gen-favicon.js
-├── .github/workflows/backup.yml   # backup diário automatizado (ver §14.8)
-└── docs/                          # LUMA.md (este) + LUMA-BACKEND-CHANGELOG.md
+node scripts/mapa.js      # regenera luma-brain/MAPA.md
 ```
 
-⚠️ Docs antigos citavam arquivos que **não existem** (`core/storage.js`, `core/utils.js`, `franqueado/upload.js`, `franqueado/confirm.js`, `designer/shortcuts.js`, `designer/theme.js`, `designer/topbar.js`) — a lógica deles vive consolidada nos arquivos acima. Confie nesta árvore.
+`luma-brain/MAPA.md` traz, sempre atual: o propósito de cada arquivo (tirado do cabeçalho do
+próprio arquivo), as funções globais que ele expõe, o estado global que ele detém, suas
+dependências declaradas, a lista de CSS, a ordem de carga dos 69 `<script>` — e mais uma
+tabela semântica escrita à mão ("quero mexer em X → vai no arquivo Y"), os motores únicos com
+`arquivo:linha` e as **armadilhas de leitura** (docs deste repositório que não devem ser lidos).
+
+Um hook de `UserPromptSubmit` (`.claude/settings.json`) regenera o mapa quando `js/`, `css/`
+ou `index.html` mudam, então ele não depende de ninguém lembrar de rodar o script.
 
 ---
 
@@ -903,7 +883,7 @@ Todo acesso com try/catch (quota ~5MB). `gPackImgUrl` mantém imagens ≤~70KB n
 
 **Funcionais:** `opacity` só em shape · `gToast` sem fila · eyedrop/bucket só texto/forma · PSD (texto justificado não distribui palavras; smart object/ajuste/padrão/rotação/espelho/warp entram como imagem fiel; z-order às vezes manual) · SVG (classes em `<style>` não lidas, grupos 1 nível, bbox de path aproximada).
 
-**Técnicas:** arquivos grandes (`canvas.js`, `layers.js`, `templates.js` ~1k linhas) · sem testes automatizados (regressão só no navegador) · pontas soltas conhecidas (`fStartChatPreservandoDados` órfã; `fDownloadHist` marca "baixada" mesmo se o PNG falhar; `return` morto em `dMeasureText`; `realce-black.woff2` órfã no disco).
+**Técnicas:** arquivos grandes (`canvas.js`, `layers.js`, `templates.js` ~1k linhas) · cobertura de teste estreita (só solver de Auto-layout e importador de PSD; o resto, regressão só no navegador — §4 e `luma-brain/MAPA.md`) · pontas soltas conhecidas (`fStartChatPreservandoDados` órfã; `fDownloadHist` marca "baixada" mesmo se o PNG falhar; `return` morto em `dMeasureText`; `realce-black.woff2` órfã no disco).
 
 **Produto:** plano Free do Supabase (retenção curta de logs/backup — mitigado pela rotina própria) · multi-prancheta de PSD vira templates separados mas o editor é canvas único.
 
@@ -1059,4 +1039,6 @@ gFeatureSyncFromBackend()      // pull + reconcilia + dispara evento
 - **`docs/LUMA-ACADEMIA.md`** — doc do módulo Academia (formação do franqueado). O §21 aqui é o resumo; o detalhe mora lá.
 - Docs substituídos por este (podem ser removidos): `LUMA-CONTEXTO.md`, `LUMA-FEATURES.md`, `LUMA-INVENTARIO.md`, `LUMA-BACKUP.md`, `UX-WRITING-DESIGN.md`.
 - `LUMA-BACK_CONTEXT.md` e `LUMA-REGRAS_BACKEND.md` (removidos em 2026-07-16) documentavam **outro projeto** (Portal de Franqueados / DM CRM, Supabase `gplxnzgsculryjykbcuo`) — as lições relevantes vivem no §14.9; os originais, no repo do portal. Também removidos na mesma limpeza: `BACKLOG-EDITOR-FASE5.md` e `CENTRAL-AJUDA-DIAGNOSTICO.md` (auditorias concluídas; o que seguia aberto foi absorvido pelo `luma-brain/07_ROADMAP.md`, e o estado da Central de Ajuda está no §12).
-- Para inventário exaustivo de funções/IDs além do que está aqui: o código é o inventário — `grep` pelos prefixos.
+- **`luma-brain/MAPA.md`** — o mapa do código (onde mora cada coisa). Metade é **gerada** por `node scripts/mapa.js` dos cabeçalhos do próprio código; a outra metade (rota rápida, motores únicos, armadilhas de leitura) é escrita à mão e sobrevive à regeneração. Substituiu a árvore de arquivos que era o §4 daqui. **Não descreva estrutura de arquivos neste doc** — vai desencontrar do código como o §4 desencontrou.
+- ⚠️ **Correção (2026-09-03): a linha acima sobre docs "removidos em 2026-07-16" é falsa.** `LUMA-BACK_CONTEXT.md` (1.000 linhas), `LUMA-REGRAS_BACKEND.md` (1.865), `BACKLOG-EDITOR-FASE5.md` (84) e `CENTRAL-AJUDA-DIAGNOSTICO.md` (194) **continuam em `docs/`** — ~3.100 linhas que este doc jura não existirem, e as duas primeiras descrevem **outro projeto** (Portal de Franqueados / DM CRM). Estão marcadas como armadilha de leitura no `MAPA.md`. Apagar de verdade é decisão do Ryan.
+- Para inventário exaustivo de funções/IDs além do que está aqui: o `MAPA.md` lista as globais por arquivo; para o resto, o código é o inventário — `grep` pelos prefixos.

@@ -26,13 +26,15 @@ Elas valem em toda resposta, sem precisar ser pedidas. Desligar: **"stop ponytai
 
 ⛔ **Precedência em caso de conflito:** a ordem de autoridade não muda — **palavra do usuário > código real > CLAUDE.md/luma-brain > skill importada > genérico.** Onde as duas skills contrariarem o Luma, **o Luma vence**. Os choques conhecidos:
 
-- **Teste automatizado:** ponytail pede deixar um `test_*.py`/self-check para lógica não-trivial. **Aqui não** — o Luma não tem runner nem build; a verificação é **manual no navegador** (`03_ENGINEERING.md`). Não crie arquivos de teste.
+- **Teste automatizado:** ponytail pede deixar um `test_*.py`/self-check para lógica não-trivial. Aqui o formato é outro: **existe** runner (`scripts/run-browser-tests.js`, suítes em `tests/*.html`, zero dependência), então caso novo de solver/PSD entra numa suíte que já existe — **nunca** um `test_*.py`, nunca Jest/npm, nunca arquivo de teste solto. Para todo o resto, a verificação é **manual no navegador** (`03_ENGINEERING.md` §7).
 - **Idioma:** caveman preserva o idioma dominante; no Luma é sempre **PT-BR**.
 - **Dependências/stdlib:** ponytail sobe a escada até uma lib já instalada — no Luma o teto é **vanilla JS, zero dependência nova, sem build/ESM**.
 - **Prosa que o usuário pediu** (relatório, plano, passo a passo) não é dívida: entregue completa. O corte vale para prosa não solicitada.
 - Caveman já se desliga sozinho em **aviso de segurança e confirmação de ação irreversível** — o que casa com o "nunca commit automático, confirme antes" daqui.
 
 ## Atalhos de leitura do `luma-brain/`
+
+- **`MAPA.md` — LEIA PRIMEIRO, antes de qualquer `grep`/`read`.** Diz em que arquivo mora cada coisa (67 arquivos JS, 53 mil linhas, 2.131 funções), onde estão os motores únicos e **quais docs deste repositório não ler**. É gerado por `node scripts/mapa.js` a partir dos cabeçalhos do próprio código, e o hook de cada prompt o mantém em dia.
 
 - `00_PRODUCT.md` — o que é o Luma, público, escopo.
 - `01_BUSINESS.md` — **regras de domínio** (nunca assuma regra de negócio; consulte).
@@ -59,7 +61,7 @@ Elas valem em toda resposta, sem precisar ser pedidas. Desligar: **"stop ponytai
 - **Patch cirúrgico**; `f*`/`d*` não regridem; a maioria das features toca 1–2 arquivos.
 - **RLS é a única fronteira de segurança** — nada de segurança no front; sem segredo hardcoded.
 - Escape (`gEsc`/`_dEsc`) em todo dado de usuário; cor/motion via **token**; feedback via `gToast`; ícone = SVG (não emoji).
-- Verificar no navegador é recomendado (não há teste automatizado; "compilou" não é verificação), mas não é obrigatório para concluir a tarefa.
+- **Existe teste automatizado, estreito:** `node scripts/run-browser-tests.js` (119 casos, portão de CI) cobre o solver de Auto-layout e o importador de PSD — rode ao tocar nesses dois. O resto (interpolador, PNG, chat, catálogo, Estúdio, UI) não tem cobertura. Verificar no navegador é recomendado ("compilou" não é verificação), mas não é obrigatório para concluir a tarefa.
 - **Nunca commit automático. Nunca `git add .`** — mostre o `git diff`, peça confirmação.
 - **PT-BR** na comunicação e na copy.
 - Dúvida de **negócio/gosto → pergunte**; dúvida **técnica → vá ao código**.

@@ -31,6 +31,7 @@ Quando duas fontes divergirem, obedeça nesta ordem:
 |---|---|
 | Por que o produto existe, público, escopo | `00_PRODUCT.md` |
 | Regra de negócio, o que uma entidade significa | `01_BUSINESS.md` |
+| **Em que arquivo mora X (antes de qualquer grep/read)** | **`MAPA.md`** |
 | Onde algo mora, como as partes conversam | `02_ARCHITECTURE.md` |
 | Como escrever/organizar código | `03_ENGINEERING.md` |
 | Cor, tipografia, componente, layout | `04_DESIGN_SYSTEM.md` |
@@ -45,7 +46,7 @@ Toda tarefa não-trivial segue este loop. Pular etapas é como a maioria dos bug
 
 ```
  1. ENTENDER   → o que o usuário quer de verdade? qual o resultado?
- 2. CONSULTAR  → luma-brain + código relevante. Nunca supor.
+ 2. CONSULTAR  → MAPA.md (acha o arquivo) + luma-brain + o código. Nunca supor.
  3. PLANEJAR   → os 1–2 arquivos, a abordagem, o impacto.
  4. CONFIRMAR  → se for grande/de design/irreversível: mostrar o plano antes.
  5. REUTILIZAR → achar o motor único que já existe (grep). Não clonar.
@@ -84,7 +85,7 @@ Tarefa trivial (typo, ajuste de 1 linha óbvio) pode colapsar etapas — mas **7
 ## 4. Verificar (a disciplina que separa sênior de júnior)
 
 - ⛔ **Nunca diga que testou sem ter exercitado o fluxo.** "Compilou" / "a sintaxe passou" **não é** verificação. Abra o navegador, rode o caminho tocado ponta a ponta.
-- **Não existe teste automatizado neste projeto** — então a verificação manual é obrigatória, não opcional. Ver `03_ENGINEERING.md` §7.
+- **Existe suíte automatizada, e ela é estreita.** `node scripts/run-browser-tests.js` (119 casos, portão de CI) cobre o **solver de Auto-layout** e o **importador de PSD**. Rode-a sempre que tocar esses dois. Fora deles — interpolador, PNG, chat, catálogo, Estúdio, UI — **não há cobertura nenhuma**, e a verificação manual no navegador é obrigatória, não opcional. Suíte verde nunca é prova de que o que você tocou funciona. Ver `03_ENGINEERING.md` §7.
 - **Para mudança de risco, revisão adversarial:** procure o **cenário de falha concreto** (inputs → comportamento errado), não só leia o diff bonito.
 - ⛔ **Achado plausível ≠ achado real.** Ao revisar/corrigir bugs, **verifique cada um na fonte antes de agir**. Na caça a bugs desta base, revisores apontaram ~40 suspeitas; várias eram compensadas por outro código e foram descartadas na verificação. Corrigir fantasma introduz regressão.
 - **Reporte fielmente:** falhou → diga com a saída; pulou um passo → diga; está feito e verificado → afirme sem hedge.
