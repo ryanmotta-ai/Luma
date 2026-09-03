@@ -1628,6 +1628,9 @@ async function fBulkOpen(opcoes){
   
   fBulkUpdateSavedTemplatesList();
   document.getElementById('f-bulk-modal').classList.add('open');
+  /* Depois do `open`: o painel precisa de caixa MEDIDA para se ajustar (o `fLpRefit` lê
+     largura real), e dentro de um modal ainda fechado ela é zero. */
+  _fBulkTomarPrevia();
   fBulkSetActive(0);
   if(semearDaArte) gToast(restored
     ? 'Sua produção foi recuperada e esta arte entrou na primeira linha'
@@ -1642,6 +1645,10 @@ function fBulkClose(){
   // Solta o observador da fita: fechar sem desligar deixava um IntersectionObserver por
   // abertura, cada um segurando os nós da fita anterior.
   if(_fBulkStripObserver){ _fBulkStripObserver.disconnect(); _fBulkStripObserver = null; }
+  /* Antes de remover o `open`: devolver o painel com o modal ainda montado evita um quadro
+     em que o nó fica sem pai visível. E devolve o `fState.dados` do chat — senão o chat
+     seguiria mostrando a linha da planilha. */
+  _fBulkDevolverPrevia();
   document.getElementById('f-bulk-modal').classList.remove('open');
 }
 
@@ -1693,6 +1700,7 @@ function fBulkSetActive(i, opts){
   const mudou = ridNovo !== _fBulkActiveRid;
   _fBulkActive = novo;
   _fBulkActiveRid = ridNovo;
+  _fBulkApontarPreviaNaLinha();   // a prévia emprestada acompanha a linha ativa
   // Acende a linha na tabela sem re-renderizar nada: re-render roubaria o foco de quem
   // está digitando, que é exatamente quem dispara isto.
   /* `[data-row]` e não `tr[data-row]`: no celular a mesma linha é um `<button>` da lista,
@@ -1753,98 +1761,99 @@ function _fBulkSyncLiveHead(){
 /* A prévia grande sai do MESMO motor do PNG final (fRenderTemplateLayers) — é a régua única
    da casa, e é o que garante que esta tela não minta sobre o arquivo que vai baixar.
    `trocou` liga o crossfade: sem ele, substituir o pixel de uma arte pela outra pisca. */
-/* ══ LAYOUT VIVO NO SHEETS ══ (Ryan, 03/09)
-   O motor de render já lia o `gLayoutVivoOff` (linha ~466 deste arquivo), então a acomodação
-   automática SEMPRE valeu para a arte do Sheets — o que faltava era o interruptor.
+/* ══════════════════════════════════════════════════════════════════════════════════════
+   O SHEETS USA O MESMO PAINEL DE PRÉVIA AO VIVO DO CHAT  (Ryan, 03/09)
+   ══════════════════════════════════════════════════════════════════════════════════════
+   Ele pediu "o mesmo", e é literal: o `#f-live-preview` MUDA DE LUGAR em vez de ser
+   copiado. Uma instância, um motor, e todo controle dele (zoom/pan, clique-para-editar,
+   Layout vivo, Auto-zoom, estado vazio, ponto de sincronia) chega de graça e não pode
+   divergir entre as duas telas — a lei do motor único.
 
-   ⚠ Não chamo o `fLpToggleAutoLayout()` de propósito, embora ele exista: aquele repinta o
-   canvas do CHAT e pode disparar um toast sobre a composição dos dados do chat, que não é o
-   que está na tela aqui. O que importa dividir é o ESTADO, não o gesto — e ele é dividido:
-   mesma variável global e mesma chave guardada (`luma-lp-auto-layout`), então ligar num lado
-   vale no outro. As duas linhas de flip são cópia consciente de duas linhas, não um segundo
-   motor de layout. */
-function fBulkToggleLayoutVivo(){
-  if(typeof gLayoutVivoOff === 'undefined') return;
-  gLayoutVivoOff = !gLayoutVivoOff;
-  try{ localStorage.setItem('luma-lp-auto-layout', gLayoutVivoOff ? '0' : '1'); }catch(e){}
-  _fBulkSyncLayoutBtn();
-  fBulkRenderPreview();
-  if(typeof _fLpSyncAutoLayoutButton === 'function'){ try{ _fLpSyncAutoLayoutButton(); }catch(e){} }
+   Por que MOVER e não refatorar: o `live-preview.js` lê `fState.dados` em 16 funções
+   espalhadas por 1735 linhas. Passar fonte de dados por parâmetro seria mexer nas 16 e
+   arriscar o fluxo principal do franqueado. Mover o nó é o padrão que o
+   `_fBulkMoverSaidaParaOpcoes` já usava neste arquivo.
+
+   ⚠ ISTO SUPEROU DUAS COISAS QUE EU MESMO FIZ HORAS ANTES, e as duas SAÍRAM daqui:
+   um `_fBulkBindHeroClick` (clicar na arte focava a célula da linha) e um
+   `fBulkToggleLayoutVivo` com botão próprio. Ambos viviam em `.f-bulk-live-stage` /
+   `.f-bulk-live-top`, que este porte esconde — viraram controle morto, e o painel traz
+   os dois de fábrica. Foi a minha própria bateria de clique que denunciou: depois do
+   porte os alvos pararam de focar campo, porque o canvas onde eu amarrei o clique não
+   está mais na tela.
+
+   O TRUQUE E O RISCO, escritos porque não são óbvios:
+   • `fState.dados` passa a APONTAR (mesma referência) para `fBulkRows[ativa].dados`, então
+     tudo que o painel edita cai direto na linha, sem sincronizar nada.
+   • O `dados` do chat é guardado e DEVOLVIDO ao fechar — mesma disciplina que o
+     `fBaixarPDF` já usa com o `fState.material`.
+   • ⚠ O painel chama `fSaveChatDraft()` em 6 pontos. Sem o guarda que pus no `chat.js`,
+     o texto de uma linha da planilha ia para o rascunho do CHAT e reabrir o chat traria a
+     oferta errada. O guarda desvia para o autosave do Sheets, que é o dono do dado.     */
+let _fBulkDonoDaPrevia = false;      // o guarda do chat.js lê esta bandeira
+let _fBulkDadosDoChat = null;        // o `dados` do chat, para devolver ao fechar
+let _fBulkPreviaVolta = null;        // onde o painel morava, para devolver o nó
+
+function _fBulkApontarPreviaNaLinha(){
+  if(!_fBulkDonoDaPrevia) return;
+  const linha = fBulkRows && fBulkRows[_fBulkActiveIdx()];
+  if(!linha) return;
+  if(!linha.dados) linha.dados = {};
+  fState.dados = linha.dados;        // MESMA referência: editar na prévia edita a linha
+  try{ if(typeof fUpdateLivePreview === 'function') fUpdateLivePreview(); }catch(e){}
 }
-function _fBulkSyncLayoutBtn(){
-  const b = document.getElementById('f-bulk-layout-btn');
-  if(!b) return;
-  const on = (typeof gLayoutVivoOff === 'undefined') || !gLayoutVivoOff;
-  b.classList.toggle('active', on);
-  b.setAttribute('aria-pressed', String(on));
-  b.title = on
-    ? 'Acomodação automática LIGADA: o Luma reencaixa o texto que não cabe'
-    : 'Acomodação automática desligada: a composição original vale mesmo se o texto estourar';
+
+function _fBulkTomarPrevia(){
+  /* ⛔ SÓ NO DESKTOP, e não é preguiça — é a premissa do layout.
+     No celular o `#f-live-preview` é uma GAVETA `position:fixed` com `!important`
+     (franqueado_effects.css, corte de 680px), e a coluna do Sheets ali não é coluna de
+     prévia: ela É a folha de edição que sobe com os campos. Emprestar a gaveta para
+     dentro dela produziu 1.100px de vazio no topo e o cabeçalho da prévia sobreposto ao
+     navegador de ofertas — medido no print. Vencer isso exigiria `!important` sobre
+     `!important`, e o resultado seria uma gaveta fingindo ser coluna.
+     No telefone fica o palco que já existe (malha pontilhada + campos), que é o que o
+     Ryan aprovou hoje mais cedo. O pedido dele veio com dois prints de DESKTOP. */
+  if(typeof _fBulkEhCelular === 'function' && _fBulkEhCelular()) return;
+  const painel = document.getElementById('f-live-preview');
+  const destino = document.querySelector('#f-bulk-modal .f-bulk-live');
+  if(!painel || !destino || _fBulkDonoDaPrevia) return;
+  _fBulkPreviaVolta = { pai: painel.parentElement, antes: painel.nextElementSibling };
+  _fBulkDadosDoChat = fState.dados;
+  _fBulkDonoDaPrevia = true;
+  destino.classList.add('tem-previa-viva');
+  /* ANTES do navegador de ofertas, não no fim: com `appendChild` a coluna lia
+     "navegação → arte", o inverso do layout original. Visto no print. */
+  const nav = destino.querySelector('.f-bulk-live-nav');
+  if(nav) destino.insertBefore(painel, nav); else destino.appendChild(painel);
+  painel.classList.add('is-no-sheets');
+  _fBulkApontarPreviaNaLinha();
 }
 
-/* ══ CLICAR NA ARTE LEVA AO CAMPO DAQUELA LINHA ══ (pedido do Ryan, 03/09)
-   O que ele pediu foi "a mesma prévia ao vivo no Sheets". A arte JÁ era a mesma — os dois
-   palcos pintam pelo `fRenderTemplateLayers`. O que faltava eram os controles em volta, e
-   este é o que ele escolheu como principal.
-
-   Reusa o teste de acerto da prévia do chat (`_fLpArtCoords`/`_fLpLayerAt`/`_fLpLayerVars`),
-   que só precisou aceitar outro canvas: eles leem `fState.material`, que o Sheets
-   compartilha, e não tocam em `dados` — que é justamente o que difere entre os dois.
-
-   ⛔ NÃO abre editor próprio. O campo da planilha JÁ é o editor, com validação por célula,
-   marca de erro e o "Preencher um campo de uma vez". Um segundo editor do mesmo dado seria
-   a segunda verdade dele — o oposto da lei do motor único. Então o clique FOCA o campo. */
-function _fBulkIrParaCampo(k){
-  const i = _fBulkActiveIdx();
-  const focar = () => {
-    const el = document.getElementById('f-bulk-edit-' + i + '-' + k);
-    if(!el){ gToast('Esse campo não está nesta linha'); return; }
-    el.focus();
-    try{ el.setSelectionRange(el.value.length, el.value.length); }catch(e){}
-    try{ el.scrollIntoView({block:'nearest', behavior:'smooth'}); }catch(e){}
-    el.classList.add('f-bulk-fin-alvo');
-    el.addEventListener('animationend', () => el.classList.remove('f-bulk-fin-alvo'), {once:true});
-  };
-  const folha = document.querySelector('.f-bulk-live');
-  if(_fBulkEhCelular() && typeof fBulkAbrirFolha === 'function'){
-    fBulkAbrirFolha(i);
-    /* ⚠ MESMA pedra do `_fBulkFocarPrimeiroVazio`: enquanto a folha sobe o CSS a mantém
-       `visibility:hidden`, e `focus()` em subárvore invisível é ignorado. `transitionend`
-       é o gancho — nada de milissegundo cravado em JS. */
-    if(folha && getComputedStyle(folha).visibility === 'hidden'){
-      folha.addEventListener('transitionend', function _ok(ev){
-        if(ev.target !== folha || ev.propertyName !== 'transform') return;
-        folha.removeEventListener('transitionend', _ok);
-        focar();
-      });
-      return;
-    }
+function _fBulkDevolverPrevia(){
+  if(!_fBulkDonoDaPrevia) return;
+  const painel = document.getElementById('f-live-preview');
+  const destino = document.querySelector('#f-bulk-modal .f-bulk-live');
+  // O DADO antes do nó: o painel repinta ao voltar e tem que repintar a arte do chat.
+  fState.dados = _fBulkDadosDoChat || {};
+  _fBulkDonoDaPrevia = false;
+  _fBulkDadosDoChat = null;
+  if(destino) destino.classList.remove('tem-previa-viva');
+  if(painel){
+    painel.classList.remove('is-no-sheets');
+    const v = _fBulkPreviaVolta;
+    if(v && v.pai) v.pai.insertBefore(painel, v.antes || null);
+    try{ if(typeof fUpdateLivePreview === 'function') fUpdateLivePreview(); }catch(e){}
   }
-  focar();
-}
-function _fBulkBindHeroClick(){
-  const cv = document.getElementById('f-bulk-hero-cv');
-  if(!cv || cv._fBulkCliqueLigado) return;
-  cv._fBulkCliqueLigado = true;
-  cv.style.cursor = 'pointer';
-  cv.title = 'Clique numa parte da arte para editar o campo dela';
-  cv.addEventListener('click', ev => {
-    if(typeof _fLpArtCoords !== 'function' || typeof _fLpLayerAt !== 'function') return;
-    const pt = _fLpArtCoords(ev, cv);
-    if(!pt) return;
-    const l = _fLpLayerAt(pt.x, pt.y, cv);
-    const vars = (l && typeof _fLpLayerVars === 'function') ? _fLpLayerVars(l) : [];
-    if(!vars.length){ gToast('Essa parte da arte é fixa do template'); return; }
-    _fBulkIrParaCampo(vars[0]);
-  });
+  _fBulkPreviaVolta = null;
 }
 
 async function _fBulkRenderHero(trocou){
   const cv = document.getElementById('f-bulk-hero-cv');
   const frame = document.getElementById('f-bulk-live-frame');
   if(!cv || !fState.material || !fState.material.layers) return;
-  _fBulkBindHeroClick();   // idempotente: a guarda no próprio canvas impede religar
-  _fBulkSyncLayoutBtn();
+  /* Com o painel de prévia emprestado, este palco está escondido — pintar nele seria um
+     render completo do template por tecla digitada, para um canvas que ninguém vê. */
+  if(_fBulkDonoDaPrevia) return;
   const i = _fBulkActiveIdx();
   const row = fBulkRows[i];
   const token = ++_fBulkHeroToken;

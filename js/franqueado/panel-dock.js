@@ -21,7 +21,13 @@ const PANEL_ORDER_KEY = 'luma_panel_layout_order_v1';
 const PANEL_KEYS = ['left', 'chat', 'preview'];
 const PANEL_EL  = { left: 'fran-left', chat: 'f-chat-col', preview: 'f-live-preview' };
 const PANEL_DOCK_MINW = 1024;                 // abaixo disto o layout de 3 colunas colapsa → drag off
-let _panelOrder = ['left', 'chat', 'preview']; // ordem esquerda→direita (default = layout atual)
+/* Ordem esquerda→direita. PADRÃO trocado em 03/09 a pedido do Ryan: a prévia ao vivo
+   vai para o MEIO e o chat para a direita. Motivo de produto: a arte é o herói da tela
+   (design-process §3), então ela fica no centro do olhar, e o chat — que é uma coluna de
+   conversa estreita — encosta na borda como um painel de conversa costuma ficar.
+   ⚠ Quem já arrastou as colunas antes disto NÃO é afetado: o `fLoadPanelOrder()` (ordem
+   salva) vence este padrão, e é assim que deve ser — preferência de gente > padrão novo. */
+let _panelOrder = ['left', 'preview', 'chat'];
 let _panelDrag  = null;
 
 // key ('left'/'chat'/'preview') a partir do elemento do painel

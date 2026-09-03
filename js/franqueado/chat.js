@@ -1565,6 +1565,22 @@ function fSend(){
 }
 
 function fSaveChatDraft() {
+  /* ⚠ GUARDA CONTRA CONTAMINAÇÃO (03/09). Quando o Luma Sheets toma emprestado o painel
+     de prévia ao vivo, o `fState.dados` passa a APONTAR para a linha ativa da planilha —
+     é assim que o mesmo painel serve os dois lugares sem duplicar motor. Só que o
+     `live-preview.js` chama esta função em SEIS pontos (todo commit de edição pela
+     prévia), e sem este `return` o texto de uma linha da planilha era gravado dentro do
+     rascunho do CHAT: reabrir o chat traria a oferta errada. Verificado nos 6 chamadores
+     antes de escrever isto.
+     A edição não se perde: ela pertence à linha, então vai para o rascunho do SHEETS. */
+  if (typeof _fBulkDonoDaPrevia !== 'undefined' && _fBulkDonoDaPrevia) {
+    try { if (typeof fBulkScheduleAutosave === 'function') fBulkScheduleAutosave(); } catch (e) {}
+    /* E repinta a planilha: editar pela prévia mudava a arte e deixava a CÉLULA com o
+       valor velho — a mesma linha dizendo duas coisas. Este é o funil certo porque é
+       exatamente por aqui que passam os 6 commits de edição do painel. */
+    try { if (typeof fBulkRenderPreview === 'function') fBulkRenderPreview(); } catch (e) {}
+    return;
+  }
   try {
     if (!fState.camp || fState.done) {
       localStorage.removeItem('luma_chat_draft');
