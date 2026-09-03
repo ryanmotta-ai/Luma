@@ -3639,14 +3639,21 @@ body:not(.theme-light) .ddg-text{ color:#A0A0A0 !important; }
 }
 body:not(.theme-light) .ddg-hint{ color:#707070 !important; }
 
+/* Mesmo padrão dos outros "sair da página / voltar pra home" (.d-btn-sec do
+   Sheets, .f-history-home, .f-bulk-folha-fechar): secundário — branco +
+   --text-2 + borda --gray-mid. Sair de uma tela não disputa peso visual com a
+   ação principal dela; era o único laranja sólido dessa família. */
 .ddg-btn{
   min-height:44px; padding:0 24px;
-  background:var(--dm-orange-d,#F85400); color:#FFFFFF !important; border:none; border-radius:var(--r-pill,999px);
+  background:var(--white,#FFFFFF); color:var(--text-2,#3A3A3A);
+  border:1px solid var(--gray-mid,#D4D4D4); border-radius:var(--r-pill,999px);
   font-family:'Roboto',sans-serif; font-weight:700; font-size:14px; cursor:pointer;
-  box-shadow:0 6px 20px rgba(248,84,0,.32); transition:background .15s,transform .12s,filter .15s;
+  transition:background .15s,border-color .15s,color .15s,transform .12s;
 }
-.ddg-btn:hover{ filter:brightness(1.08); }
+.ddg-btn:hover{ background:var(--dm-orange-bg); border-color:var(--dm-orange); color:var(--dm-orange-d); }
 .ddg-btn:active{ transform:scale(.97); }
+body:not(.theme-light) .ddg-btn{ background:var(--d-surf); border-color:var(--d-border2); color:var(--d-text2); }
+body:not(.theme-light) .ddg-btn:hover{ background:var(--d-surf2); border-color:var(--dm-orange); color:var(--d-text); }
 
 /* ── Light Theme Overrides for Variable Picker Popup (.field-pick-pop) ── */
 body.theme-light .field-pick-pop {

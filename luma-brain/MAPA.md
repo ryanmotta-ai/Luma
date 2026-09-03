@@ -210,7 +210,7 @@ esses a verificação continua sendo o navegador. Suíte verde não substitui ab
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 67 arquivos JS (53.375 linhas, 2.135 funções) · 31 arquivos CSS (26.115 linhas) · `index.html` com 3.827 linhas e 69 `<script>`.
+**Tamanho real de hoje:** 67 arquivos JS (53.406 linhas, 2.134 funções) · 31 arquivos CSS (26.112 linhas) · `index.html` com 3.818 linhas e 69 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -329,7 +329,7 @@ F-02: tipos de campo, mascaras de input, validacao por campo. F_FIELD_TYPES defi
 · Estado global: _fFitOpts, _fFitBusy
 · Depende de: 00-config.js
 
-**`js/franqueado/chat.js`** · 1627 linhas
+**`js/franqueado/chat.js`** · 1643 linhas
 Fluxo conversacional completo: fStartChat, fNextStep, fAddBot, fAddUser, fSend, fQR, fTyping, fGoBack, upload de imagem, confirm card, fGerarArte.
 · API: fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSaveLojaPrompt, fConfirmSaveLoja, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fShowWelcome … (+40; 68 funções no total)
 · Estado global: fNextTimeout, _fArtSnapshots, _fArtCaptions
@@ -353,16 +353,16 @@ Catalogo de materiais do franqueado: fOpenMaterialCatalog, fRenderMaterialCatalo
 · Estado global: _fCampThemeAtivo
 · Depende de: 00-config.js, 01-state.js, franqueado/chat.js
 
-**`js/franqueado/panel-dock.js`** · 164 linhas
+**`js/franqueado/panel-dock.js`** · 170 linhas
 Drag & drop das 3 colunas do workspace do franqueado (só desktop largo).
 · API: fLoadPanelOrder, fSavePanelOrder, fSetPanelOrder, fInitPanelDock
 · Estado global: _panelOrder, _panelDrag
 · Depende de: index.html (grips + #fran-main), css/modules/panel-dock.css,
 
-**`js/franqueado/png-generator.js`** · 4746 linhas
+**`js/franqueado/png-generator.js`** · 4755 linhas
 Geracao de PNG a partir dos templates: fGenPNG, fRenderTemplateLayers, fBaixar, fOutroFormato. Sistema de nomenclatura padronizado para downloads.
-· API: fLoadLogoBranca, fMaterialSize, fRenderCanvasHelper, fGenPNG, fGenPDF, fPostarInstagram, fEnviarWhatsApp, fDrawDMLogo, fAdjustImageData, fRenderTemplateLayers, fRenderOneLayer, roundedRect, roundedRectPath, fLoadImageDataUrl … (+78; 158 funções no total)
-· Estado global: _fLogoBrancaImg, fBulkRows, _fBulkAudit, _fBulkAsyncAudit, _fBulkAuditFingerprint, _fBulkImageAudit, _fBulkAutosaveTimer, _fBulkAutosaveSeq, _fBulkGenerationState, _fBulkPreflightRunning (+32)
+· API: fLoadLogoBranca, fMaterialSize, fRenderCanvasHelper, fGenPNG, fGenPDF, fPostarInstagram, fEnviarWhatsApp, fDrawDMLogo, fAdjustImageData, fRenderTemplateLayers, fRenderOneLayer, roundedRect, roundedRectPath, fLoadImageDataUrl … (+77; 157 funções no total)
+· Estado global: _fLogoBrancaImg, fBulkRows, _fBulkAudit, _fBulkAsyncAudit, _fBulkAuditFingerprint, _fBulkImageAudit, _fBulkAutosaveTimer, _fBulkAutosaveSeq, _fBulkGenerationState, _fBulkPreflightRunning (+37)
 · Depende de: 00-config.js, 01-state.js, designer/canvas.js (dRenderCanvas)
 
 **`js/franqueado/prefs-panel.js`** · 131 linhas
@@ -592,7 +592,7 @@ tutMockCampaign, tutMockMaterial, tutMockHist — builders de HTML de mock usado
 | `css/modules/academia.css` | 1330 |
 | `css/modules/all-tools.css` | 113 |
 | `css/modules/catalog.css` | 289 |
-| `css/modules/chat.css` | 2301 |
+| `css/modules/chat.css` | 2298 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
 | `css/modules/designer.css` | 5815 |

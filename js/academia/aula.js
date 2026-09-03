@@ -80,7 +80,7 @@ function acAulaBloqueada(aula){
     ${acVazio('lock','Esta aula ainda não está liberada',
       prereq?`Conclua as aulas obrigatórias de ${prereq.nome} para seguir para ${mod.nome}.`
             :'Conclua o módulo anterior para seguir.',
-      `<button type="button" class="ac-btn ac-btn-primario" onclick="acGo('home')">Voltar à jornada</button>`)}
+      `<button type="button" class="ac-btn ac-btn-ghost" onclick="acGo('home')">Voltar à jornada</button>`)}
   </div></div>`;
 }
 
@@ -497,7 +497,7 @@ function acMostrarFimDoVideo(aula){
   }else if(prox){
     acao = `<button type="button" class="ac-btn ac-btn-primario" onclick="acAbrirAula('${prox.id}')">Próxima aula</button>`;
   }else{
-    acao = `<button type="button" class="ac-btn ac-btn-primario" onclick="acGo('home')">Voltar à jornada</button>`;
+    acao = `<button type="button" class="ac-btn ac-btn-ghost" onclick="acGo('home')">Voltar à jornada</button>`;
   }
 
   const el = document.createElement('div');

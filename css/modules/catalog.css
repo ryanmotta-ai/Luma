@@ -48,7 +48,7 @@
 .cat-back-btn{
   display:flex;align-items:center;gap:5px;
   background:none;border:none;cursor:pointer;
-  font-size:12px;font-weight:600;color:var(--text-3,#6B6B6B);
+  font-size:12px;font-weight:600;color:var(--text-2,#3A3A3A);
   padding:6px 10px 6px 6px;border-radius:8px;
   font-family:'Roboto',sans-serif;
   transition:background .12s,color .12s;
@@ -64,7 +64,9 @@
 body:not(.theme-light) .cat-card{background:var(--d-surf);border-color:var(--d-border2)}
 body:not(.theme-light) .cat-card:hover{border-color:var(--dm-orange);box-shadow:0 12px 28px color-mix(in srgb,var(--dm-orange) 14%,transparent)}
 body:not(.theme-light) .cat-card-title,body:not(.theme-light) .cat-back-label{color:var(--d-text)}
-body:not(.theme-light) .cat-card-sub,body:not(.theme-light) .cat-card-chevron,body:not(.theme-light) .cat-back-btn{color:var(--d-text3)}
+body:not(.theme-light) .cat-card-sub,body:not(.theme-light) .cat-card-chevron{color:var(--d-text3)}
+/* O "voltar" acompanha o secundário do tema escuro (--d-text2), igual .d-btn-sec */
+body:not(.theme-light) .cat-back-btn{color:var(--d-text2)}
 body:not(.theme-light) .cat-back-btn:hover{background:var(--d-surf2);color:var(--d-text)}
 
 /* ══ CATÁLOGO DE MATERIAIS DO FRANQUEADO ══ */
