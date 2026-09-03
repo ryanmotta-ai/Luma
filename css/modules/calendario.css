@@ -1,0 +1,1248 @@
+/**
+ * css/modules/calendario.css
+ *
+ * CALENDÁRIO — a pele do módulo. Depende de 00-tokens.css (cor, radius,
+ * motion, breakpoints) e 02-animations.css (viewEntrance, reduced-motion).
+ *
+ * TEMA EM UM LUGAR SÓ: como a Academia, este módulo declara vars LOCAIS
+ * (--cal-*) derivadas dos tokens globais e vira o tema num único bloco. Não
+ * existe hex solto neste arquivo — o acento de cada tipo de evento também
+ * sai de token (o magenta do Much+ serve a "data especial" porque já é cor
+ * do sistema; inventar um roxo novo seria hex de marca fora do brandbook).
+ *
+ * DUAS DECISÕES DE DESENHO QUE O ARQUIVO INTEIRO SEGUE:
+ *  1. HAIRLINE, NÃO CAIXA. A grade é feita de linhas de 1px e respiro. Célula
+ *     com borda cheia vira tabela; a leitura fica pesada e o dia não respira.
+ *  2. TRILHO DE COR, NÃO BLOCO DE COR. O tipo do evento aparece num filete de
+ *     3px + ponto, sobre superfície neutra. Cinco blocos saturados na mesma
+ *     semana brigam entre si e o "hoje" (que é laranja de marca) some no meio.
+ */
+
+/* ⚠ ARMADILHA JÁ PAGA UMA VEZ (a Academia registrou a mesma em academia.css:1020):
+   a folha, o preview e os pickers são criados por JS em `document.body` — FORA
+   de #view-calendario. Declarar --cal-* só no container deixava esses três com
+   `background:var(--cal-surf)` sem valor, ou seja transparentes por cima do
+   calendário. Por isso a paleta nasce numa LISTA de seletores, e só o layout
+   (flex, altura, overflow) fica no container. */
+#view-calendario,
+.cal-folha,.cal-prev,.cal-pick{
+  /* ── claro (padrão do Franqueado) ───────────────────────────── */
+  --cal-chao:    var(--off-white);   /* o fundo por trás de tudo */
+  --cal-surf:    var(--white);       /* o palco: grade, cartões, folha */
+  --cal-surf2:   var(--gray-light);  /* superfície recuada: fim de semana, vão */
+  --cal-borda:   color-mix(in srgb, var(--gray-mid) 46%, transparent);
+  --cal-borda2:  var(--gray-mid);
+  --cal-txt:     var(--text);
+  --cal-txt2:    var(--text-2);
+  --cal-txt3:    var(--text-3);
+  --cal-sombra:  0 1px 2px rgba(10,10,10,.04), 0 8px 28px rgba(10,10,10,.06);
+  --cal-sombra-a:0 2px 6px rgba(10,10,10,.06), 0 18px 48px rgba(10,10,10,.12);
+  --cal-fora:    color-mix(in srgb, var(--text-3) 40%, transparent);
+
+  /* Acento por tipo — todos tokens do projeto. */
+  --cal-t-mae:        var(--dm-orange);
+  --cal-t-crm:        var(--dm-red);
+  --cal-t-especial:   var(--muchplus-magenta);
+  --cal-t-social:     var(--text-2);
+  --cal-t-recorrente: var(--dm-yellow);
+  --cal-ac: var(--cal-t-mae);            /* acento corrente; .cal-t-* troca */
+
+  /* Uma duração a mais que a escala global não tinha: o deslize de mês pede
+     um degrau entre --dur-base (260) e --dur-slow (420). Fora isso, tudo
+     usa os tokens de motion do 00-tokens.css. */
+  --cal-dur-slide: 320ms;
+
+  /* Proporção da arte de campanha (assets/banners/). Num token só: se a arte
+     mudar de formato, muda aqui e todos os lugares acompanham. */
+  --cal-banner-ar: 768 / 140;
+  --cal-h-hora: 56px;    /* altura de uma hora na régua (JS espelha) */
+  --cal-lado:   340px;   /* coluna lateral do dashboard e do dia */
+  --cal-gap:    16px;
+}
+#view-calendario{
+  display:flex; flex-direction:column;
+  height:calc(100vh - 52px);
+  height:calc(100dvh - 52px - var(--safe-top));
+  background:var(--cal-chao); color:var(--cal-txt);
+  font-family:'Roboto',sans-serif;
+  overflow:hidden;
+}
+body:not(.theme-light) #view-calendario,
+body:not(.theme-light) .cal-folha,
+body:not(.theme-light) .cal-prev,
+body:not(.theme-light) .cal-pick{
+  --cal-chao:   var(--d-bg);
+  --cal-surf:   var(--d-dark);
+  --cal-surf2:  var(--d-surf);
+  --cal-borda:  var(--d-border);
+  --cal-borda2: var(--d-border2);
+  --cal-txt:    var(--d-text);
+  --cal-txt2:   var(--d-text2);
+  --cal-txt3:   var(--d-text3);
+  --cal-sombra: 0 1px 2px rgba(0,0,0,.3), 0 8px 28px rgba(0,0,0,.35);
+  --cal-sombra-a:0 2px 6px rgba(0,0,0,.4), 0 18px 48px rgba(0,0,0,.5);
+  --cal-fora:   color-mix(in srgb, var(--d-text3) 45%, transparent);
+  --cal-t-social: var(--d-text2);
+  --cal-t-crm:  var(--d-error);
+}
+body.mode-calendario #view-calendario{
+  display:flex!important;
+  animation:viewEntrance var(--dur-slow) var(--ease-spring-soft) forwards;
+}
+#cal-root{ flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
+
+/* Ícone: os SVGs vêm sem width/height — o CSS manda no tamanho. */
+.cal-i{ display:inline-flex; width:1em; height:1em; flex:0 0 auto; }
+.cal-i svg{ width:100%; height:100%; display:block; }
+.cal-i.girando{ animation:calGira 1.1s linear infinite; }
+@keyframes calGira{ to{ transform:rotate(360deg) } }
+
+/* Ponto de tipo — o átomo da linguagem de cor deste módulo. */
+.cal-ponto{ width:7px; height:7px; border-radius:50%; background:var(--cal-ac); flex:0 0 auto; }
+
+/* O seletor que troca o acento. Uma linha por tipo, e todo componente
+   abaixo lê --cal-ac: nenhum componente repete cor. */
+.cal-t-mae{        --cal-ac:var(--cal-t-mae) }
+.cal-t-crm{        --cal-ac:var(--cal-t-crm) }
+.cal-t-especial{   --cal-ac:var(--cal-t-especial) }
+.cal-t-social{     --cal-ac:var(--cal-t-social) }
+.cal-t-recorrente{ --cal-ac:var(--cal-t-recorrente) }
+
+/* ══════════════════════════════════════════════════════════════
+   TOPO
+══════════════════════════════════════════════════════════════ */
+.cal-topo{
+  display:flex; align-items:center; gap:20px;
+  padding:16px 24px 12px; flex:0 0 auto;
+  border-bottom:1px solid var(--cal-borda);
+  background:var(--cal-chao);
+}
+.cal-topo-a{ display:flex; align-items:center; gap:14px; min-width:0; flex:1 }
+.cal-h1{
+  margin:0; font-size:21px; font-weight:900; letter-spacing:-.02em;
+  color:var(--cal-txt);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+/* `capitalize` sobe TODA palavra ("Setembro De 2026"). A primeira letra é a
+   única que a gente quer maiúscula — em PT-BR mês e preposição são minúsculos. */
+.cal-h1::first-letter,.cal-mini-mes::first-letter,.cal-dia-sem::first-letter{ text-transform:uppercase }
+.cal-nav{ display:flex; align-items:center; gap:4px; flex:0 0 auto }
+.cal-nav-b{
+  width:32px; height:32px; display:grid; place-items:center; font-size:16px;
+  border:1px solid var(--cal-borda); background:var(--cal-surf); color:var(--cal-txt2);
+  border-radius:var(--r-sm); cursor:pointer;
+  transition:background var(--dur-micro) var(--ease-standard), color var(--dur-micro) var(--ease-standard), border-color var(--dur-micro) var(--ease-standard);
+}
+.cal-nav-b:hover{ background:var(--cal-surf2); color:var(--cal-txt); border-color:var(--cal-borda2) }
+.cal-nav-hoje{
+  height:32px; padding:0 12px; font-size:12.5px; font-weight:800; letter-spacing:.01em;
+  border:1px solid var(--cal-borda); background:var(--cal-surf); color:var(--cal-txt);
+  border-radius:var(--r-sm); cursor:pointer;
+  transition:background var(--dur-micro) var(--ease-standard), border-color var(--dur-micro) var(--ease-standard);
+}
+.cal-nav-hoje:hover{ background:var(--cal-surf2); border-color:var(--cal-borda2) }
+
+/* ── Segmented control ────────────────────────────────────── */
+.cal-seg{
+  position:relative; display:flex; gap:2px; padding:3px; flex:0 0 auto;
+  background:var(--cal-surf2); border-radius:var(--r-pill);
+  border:1px solid var(--cal-borda);
+}
+.cal-seg-pill{
+  position:absolute; top:3px; bottom:3px; left:0;
+  background:var(--cal-surf); border-radius:var(--r-pill);
+  box-shadow:0 1px 3px rgba(10,10,10,.10);
+  transition:transform var(--dur-base) var(--ease-spring-soft), width var(--dur-base) var(--ease-spring-soft);
+  pointer-events:none;
+}
+body:not(.theme-light) #view-calendario .cal-seg-pill{ background:var(--d-surf3); box-shadow:none }
+.cal-seg-b{
+  position:relative; z-index:1; border:0; background:none; cursor:pointer;
+  height:28px; padding:0 14px; border-radius:var(--r-pill);
+  font-size:12.5px; font-weight:800; color:var(--cal-txt3); font-family:inherit;
+  transition:color var(--dur-fast) var(--ease-standard);
+  white-space:nowrap;
+}
+.cal-seg-b:hover{ color:var(--cal-txt2) }
+.cal-seg-b.ativo{ color:var(--cal-txt) }
+
+.cal-topo-c{ display:flex; align-items:center; gap:10px; flex:0 0 auto }
+.cal-busca{
+  display:flex; align-items:center; gap:7px; height:34px; padding:0 12px;
+  background:var(--cal-surf); border:1px solid var(--cal-borda); border-radius:var(--r-pill);
+  color:var(--cal-txt3); font-size:13px;
+  transition:border-color var(--dur-fast) var(--ease-standard), box-shadow var(--dur-fast) var(--ease-standard);
+}
+.cal-busca:focus-within{ border-color:var(--dm-orange); box-shadow:0 0 0 3px color-mix(in srgb, var(--dm-orange) 20%, transparent) }
+.cal-busca input{
+  border:0; background:none; outline:0; font:inherit; color:var(--cal-txt);
+  width:clamp(96px, 12vw, 170px); padding:0; min-width:0;
+}
+.cal-busca input::placeholder{ color:var(--cal-txt3) }
+
+/* CTA primário — fundo laranja ESCURO porque o rótulo é texto pequeno
+   (04_DESIGN_SYSTEM §2: branco sobre #FF9000 dá 2,27:1 e reprova). */
+.cal-cta{
+  display:inline-flex; align-items:center; gap:7px; height:34px; padding:0 15px;
+  border:0; border-radius:var(--r-pill); cursor:pointer; font-family:inherit;
+  background:var(--dm-orange-d); color:var(--on-accent);
+  font-size:12.5px; font-weight:900; letter-spacing:.01em;
+  box-shadow:0 2px 10px color-mix(in srgb, var(--dm-orange-d) 30%, transparent);
+  transition:transform var(--dur-fast) var(--ease-spring), box-shadow var(--dur-fast) var(--ease-standard), filter var(--dur-fast) var(--ease-standard);
+}
+.cal-cta:hover{ transform:translateY(-1px); box-shadow:0 6px 18px color-mix(in srgb, var(--dm-orange-d) 38%, transparent) }
+.cal-cta:disabled{ opacity:.45; cursor:not-allowed; box-shadow:none; transform:none }
+.cal-cta .cal-i{ font-size:15px }
+.cal-cta--calmo{
+  background:var(--cal-surf); color:var(--cal-txt); border:1px solid var(--cal-borda2); box-shadow:none;
+}
+.cal-cta--calmo:hover{ background:var(--cal-surf2); box-shadow:none }
+.cal-b-fantasma{
+  display:inline-flex; align-items:center; gap:6px; height:34px; padding:0 13px;
+  border:1px solid var(--cal-borda); background:none; color:var(--cal-txt2);
+  border-radius:var(--r-pill); cursor:pointer; font-family:inherit;
+  font-size:12.5px; font-weight:800;
+  transition:background var(--dur-micro) var(--ease-standard), color var(--dur-micro) var(--ease-standard);
+}
+.cal-b-fantasma:hover{ background:var(--cal-surf2); color:var(--cal-txt) }
+.cal-b-perigo{ color:var(--dm-red-text) }
+.cal-b-perigo:hover{ background:color-mix(in srgb, var(--dm-red) 12%, transparent); color:var(--dm-red-text) }
+.cal-link{
+  border:0; background:none; cursor:pointer; font-family:inherit; padding:0;
+  display:inline-flex; align-items:center; gap:4px;
+  font-size:12px; font-weight:800; color:var(--dm-orange-text);
+  transition:gap var(--dur-micro) var(--ease-standard);
+}
+.cal-link:hover{ gap:7px }
+.cal-link .cal-i{ font-size:13px }
+
+/* ══════════════════════════════════════════════════════════════
+   FILTROS
+══════════════════════════════════════════════════════════════ */
+.cal-filtros{
+  display:flex; gap:7px; padding:10px 24px; flex:0 0 auto;
+  overflow-x:auto; scrollbar-width:none;
+  border-bottom:1px solid var(--cal-borda); background:var(--cal-chao);
+}
+.cal-filtros::-webkit-scrollbar{ display:none }
+.cal-chip{
+  display:inline-flex; align-items:center; gap:6px; flex:0 0 auto;
+  height:28px; padding:0 12px; border-radius:var(--r-pill); cursor:pointer;
+  border:1px solid var(--cal-borda); background:var(--cal-surf);
+  color:var(--cal-txt2); font-family:inherit; font-size:12px; font-weight:700;
+  transition:background var(--dur-micro) var(--ease-standard), border-color var(--dur-micro) var(--ease-standard), color var(--dur-micro) var(--ease-standard);
+}
+.cal-chip:hover{ border-color:var(--cal-borda2); color:var(--cal-txt) }
+.cal-chip.ativo{
+  background:color-mix(in srgb, var(--cal-ac) 14%, var(--cal-surf));
+  border-color:color-mix(in srgb, var(--cal-ac) 46%, transparent);
+  color:var(--cal-txt);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PALCO — a área que troca de vista
+══════════════════════════════════════════════════════════════ */
+.cal-palco{ flex:1; min-height:0; overflow:auto; padding:20px 24px 8px }
+.cal-entra,.cal-entra-dir,.cal-entra-esq{ opacity:0 }
+.cal-entra-dir{ transform:translateX(22px) }
+.cal-entra-esq{ transform:translateX(-22px) }
+.cal-entra.cal-em,.cal-entra-dir.cal-em,.cal-entra-esq.cal-em{
+  opacity:1; transform:none;
+  transition:opacity var(--cal-dur-slide) var(--ease-out), transform var(--cal-dur-slide) var(--ease-out);
+}
+/* Cascata: cada item entra um passo depois do anterior, com teto — 40 itens
+   escalonados viram espera, não elegância. */
+.cal-cascata{ animation:calSobe var(--dur-base) var(--ease-out) backwards; animation-delay:calc(min(var(--i,0),8) * 34ms) }
+@keyframes calSobe{ from{ opacity:0; transform:translateY(8px) } to{ opacity:1; transform:none } }
+
+/* ══════════════════════════════════════════════════════════════
+   COMPONENTE — EVENT CARD (uma peça, três densidades, cinco estados)
+══════════════════════════════════════════════════════════════ */
+.cal-ev{
+  position:relative; display:flex; gap:10px; align-items:stretch;
+  background:var(--cal-surf); border:1px solid var(--cal-borda);
+  border-radius:var(--r); cursor:pointer; overflow:hidden;
+  transition:transform var(--dur-fast) var(--ease-spring-soft),
+             box-shadow var(--dur-fast) var(--ease-standard),
+             border-color var(--dur-fast) var(--ease-standard),
+             background var(--dur-fast) var(--ease-standard);
+}
+.cal-ev-rail{ width:3px; flex:0 0 auto; background:var(--cal-ac); border-radius:var(--r-pill) }
+.cal-ev-corpo{ flex:1; min-width:0; padding:9px 12px 9px 2px; display:flex; flex-direction:column; gap:3px }
+.cal-ev-l1{ display:flex; align-items:center; gap:6px; min-width:0 }
+.cal-ev-titulo{
+  font-size:13px; font-weight:800; color:var(--cal-txt); letter-spacing:-.005em;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.cal-ev-l2{ display:flex; align-items:center; gap:8px; flex-wrap:wrap }
+.cal-ev-quando{ font-size:11.5px; font-weight:600; color:var(--cal-txt3) }
+.cal-ev-escopo{
+  font-size:10px; font-weight:900; letter-spacing:.04em; text-transform:uppercase;
+  padding:1px 6px; border-radius:var(--r-pill);
+  background:color-mix(in srgb, var(--cal-ac) 15%, transparent);
+  color:var(--cal-txt2);
+}
+.cal-ev-regra{ margin:4px 0 0; font-size:12px; line-height:1.5; color:var(--cal-txt2) }
+.cal-ev-ok{ font-size:13px; color:var(--green-text); flex:0 0 auto }
+.cal-ev-conf{ display:inline-flex; align-items:center; gap:3px; font-size:10.5px; font-weight:800; color:var(--dm-red-text) }
+.cal-ev-conf .cal-i{ font-size:12px }
+.cal-ev-artes{
+  align-self:flex-start; margin-top:8px;
+  display:inline-flex; align-items:center; gap:6px; height:28px; padding:0 11px;
+  border:1px solid color-mix(in srgb, var(--cal-ac) 40%, transparent);
+  background:color-mix(in srgb, var(--cal-ac) 10%, transparent);
+  color:var(--cal-txt); border-radius:var(--r-pill); cursor:pointer;
+  font-family:inherit; font-size:11.5px; font-weight:800;
+  transition:gap var(--dur-micro) var(--ease-standard), background var(--dur-micro) var(--ease-standard);
+}
+.cal-ev-artes:hover{ gap:9px; background:color-mix(in srgb, var(--cal-ac) 18%, transparent) }
+.cal-ev-artes .cal-i{ font-size:13px }
+
+/* ── estados ─────────────────────────────────────────────── */
+.cal-ev:hover{ transform:translateY(-1px); box-shadow:var(--cal-sombra); border-color:var(--cal-borda2) }
+.cal-ev.sel{
+  border-color:var(--cal-ac);
+  box-shadow:0 0 0 2px color-mix(in srgb, var(--cal-ac) 26%, transparent), var(--cal-sombra);
+}
+.cal-ev.concluido{ opacity:.62 }
+.cal-ev.concluido .cal-ev-titulo{ text-decoration:line-through; text-decoration-thickness:1.5px; color:var(--cal-txt3) }
+.cal-ev.conflito{ border-color:color-mix(in srgb, var(--dm-red) 45%, transparent) }
+.cal-ev.agora .cal-ev-rail{ box-shadow:0 0 10px color-mix(in srgb, var(--cal-ac) 60%, transparent) }
+.cal-ev:focus-visible,.cal-faixa:focus-visible,.cal-bloco-ev:focus-visible{
+  outline:2px solid var(--dm-orange); outline-offset:2px;
+}
+
+/* densidade "chip": a linha fininha dentro da célula do mês */
+.cal-ev--chip{ border-radius:var(--r-sm); border-color:transparent; background:var(--cal-surf2) }
+.cal-ev--chip .cal-ev-corpo{ padding:3px 7px 3px 1px; gap:0 }
+.cal-ev--chip .cal-ev-titulo{ font-size:11px; font-weight:700 }
+.cal-ev--chip .cal-ev-l2{ display:none }
+.cal-ev--chip:hover{ background:var(--cal-surf); border-color:var(--cal-borda2) }
+
+/* ══════════════════════════════════════════════════════════════
+   VISTA — DASHBOARD
+══════════════════════════════════════════════════════════════ */
+.cal-dash{ display:flex; flex-direction:column; gap:var(--cal-gap); max-width:1320px; margin:0 auto }
+
+.cal-hero{
+  display:flex; align-items:center; gap:26px;
+  padding:24px 28px; border-radius:calc(var(--r) * 1.6);
+  background:var(--cal-surf); border:1px solid var(--cal-borda);
+  box-shadow:var(--cal-sombra); position:relative; overflow:hidden;
+}
+/* Calor de marca no canto — o único gradiente da tela, e ele é do sistema. */
+.cal-hero::before{
+  content:''; position:absolute; inset:0; pointer-events:none;
+  background:var(--gradient-glow); opacity:.9;
+}
+.cal-hero-data{ position:relative; flex:0 0 auto; text-align:center; min-width:96px }
+.cal-hero-sem{
+  margin:0 0 2px; font-size:10.5px; font-weight:900; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--cal-txt3);
+}
+.cal-hero-num{ margin:0; display:flex; align-items:baseline; justify-content:center; gap:6px }
+.cal-hero-num span{
+  font-size:56px; font-weight:900; line-height:.9; letter-spacing:-.04em;
+  color:var(--dm-orange);   /* display grande: o laranja vivo é permitido aqui */
+}
+.cal-hero-num em{
+  font-style:normal; font-size:17px; font-weight:900; letter-spacing:-.01em;
+  text-transform:uppercase; color:var(--cal-txt2);
+}
+.cal-hero-txt{ position:relative; flex:1; min-width:0; display:flex; flex-direction:column; gap:14px }
+.cal-hero-resumo{
+  margin:0; font-size:17px; font-weight:700; line-height:1.45;
+  letter-spacing:-.015em; color:var(--cal-txt); max-width:56ch;
+}
+.cal-hero-b{
+  align-self:flex-start; display:inline-flex; align-items:center; gap:8px;
+  height:36px; padding:0 14px; border-radius:var(--r-pill); cursor:pointer;
+  border:1px solid var(--cal-borda2); background:var(--cal-surf); color:var(--cal-txt);
+  font-family:inherit; font-size:12.5px; font-weight:800;
+  transition:gap var(--dur-micro) var(--ease-standard), background var(--dur-micro) var(--ease-standard);
+}
+.cal-hero-b:hover{ gap:11px; background:var(--cal-surf2) }
+
+/* ── Quick Add ────────────────────────────────────────────── */
+.cal-qa{
+  position:relative; display:flex; align-items:center; gap:9px;
+  height:44px; padding:0 6px 0 14px; max-width:520px;
+  background:var(--cal-surf); border:1px solid var(--cal-borda2);
+  border-radius:var(--r-pill);
+  transition:border-color var(--dur-fast) var(--ease-standard), box-shadow var(--dur-fast) var(--ease-standard);
+}
+.cal-qa:focus-within{ border-color:var(--dm-orange); box-shadow:0 0 0 4px color-mix(in srgb, var(--dm-orange) 16%, transparent) }
+.cal-qa-i{ font-size:15px; color:var(--dm-orange-text); flex:0 0 auto }
+.cal-qa-in{
+  flex:1; min-width:0; border:0; background:none; outline:0; font:inherit;
+  font-size:14px; font-weight:600; color:var(--cal-txt);
+}
+.cal-qa-in::placeholder{ color:var(--cal-txt3); font-weight:500 }
+.cal-qa-b{
+  width:32px; height:32px; flex:0 0 auto; display:grid; place-items:center;
+  border:0; border-radius:50%; cursor:pointer; font-size:16px;
+  background:var(--dm-orange-d); color:var(--on-accent);
+  transition:transform var(--dur-fast) var(--ease-spring);
+}
+.cal-qa-b:hover{ transform:scale(1.08) }
+.cal-qa-dica{
+  position:absolute; left:38px; top:calc(100% + 6px);
+  font-size:11.5px; font-weight:700; color:var(--cal-txt3);
+  opacity:0; transform:translateY(-3px); pointer-events:none;
+  transition:opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+.cal-qa-dica.on{ opacity:1; transform:none }
+
+.cal-dash-grade{ display:grid; grid-template-columns:1fr var(--cal-lado); gap:var(--cal-gap); align-items:start }
+.cal-dash-a,.cal-dash-b{ display:flex; flex-direction:column; gap:var(--cal-gap); min-width:0 }
+
+/* ── Bloco (a caixa de conteúdo do dashboard) ─────────────── */
+.cal-bloco{
+  background:var(--cal-surf); border:1px solid var(--cal-borda);
+  border-radius:calc(var(--r) * 1.4); padding:18px 20px;
+}
+.cal-bloco--calmo{ background:none; border-style:dashed }
+.cal-bloco-topo{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px }
+.cal-bloco-h{
+  margin:0 0 12px; font-size:11px; font-weight:900; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--cal-txt3);
+}
+.cal-bloco-topo .cal-bloco-h{ margin:0 }
+.cal-bloco-meta{ font-size:11.5px; font-weight:700; color:var(--cal-txt3) }
+.cal-lista{ display:flex; flex-direction:column; gap:8px }
+
+/* ── Próximos ─────────────────────────────────────────────── */
+.cal-prox{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column }
+.cal-prox-i{
+  display:grid; grid-template-columns:104px 1fr auto; align-items:center; gap:12px;
+  padding:11px 8px; border-radius:var(--r-sm); cursor:pointer;
+  border-top:1px solid var(--cal-borda);
+  transition:background var(--dur-micro) var(--ease-standard), padding-left var(--dur-micro) var(--ease-standard);
+}
+.cal-prox-i:first-child{ border-top:0 }
+.cal-prox-i:hover{ background:var(--cal-surf2); padding-left:12px }
+.cal-prox-quando{ display:flex; flex-direction:column; gap:1px; min-width:0 }
+.cal-prox-quando b{ font-size:12.5px; font-weight:900; color:var(--cal-txt) }
+.cal-prox-quando em{ font-style:normal; font-size:11px; font-weight:600; color:var(--cal-txt3) }
+.cal-prox-tit{
+  font-size:13px; font-weight:700; color:var(--cal-txt2);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.cal-prox-tipo{
+  font-size:10px; font-weight:900; letter-spacing:.05em; text-transform:uppercase;
+  padding:3px 8px; border-radius:var(--r-pill);
+  background:color-mix(in srgb, var(--cal-ac) 14%, transparent); color:var(--cal-txt2);
+}
+
+/* ── Métricas ─────────────────────────────────────────────── */
+.cal-met{ display:grid; grid-template-columns:1fr 1fr; gap:9px }
+.cal-met-c{
+  padding:14px; border-radius:var(--r);
+  background:color-mix(in srgb, var(--cal-ac) 8%, var(--cal-surf));
+  border:1px solid color-mix(in srgb, var(--cal-ac) 22%, transparent);
+  display:flex; flex-direction:column; gap:2px;
+}
+.cal-met-v{ font-size:27px; font-weight:900; line-height:1; letter-spacing:-.03em; color:var(--cal-txt); font-variant-numeric:tabular-nums }
+.cal-met-l{ font-size:10.5px; font-weight:800; letter-spacing:.02em; color:var(--cal-txt3); line-height:1.3 }
+
+/* ── Avisos ───────────────────────────────────────────────── */
+.cal-avisos{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:7px }
+.cal-aviso{
+  display:flex; gap:9px; align-items:flex-start; cursor:pointer;
+  padding:10px 12px; border-radius:var(--r-sm);
+  background:color-mix(in srgb, var(--dm-orange) 8%, transparent);
+  border:1px solid color-mix(in srgb, var(--dm-orange) 22%, transparent);
+  font-size:12.5px; line-height:1.45; font-weight:600; color:var(--cal-txt2);
+  transition:background var(--dur-micro) var(--ease-standard);
+}
+.cal-aviso:hover{ background:color-mix(in srgb, var(--dm-orange) 14%, transparent) }
+.cal-aviso .cal-i{ font-size:15px; color:var(--dm-orange-text); margin-top:1px }
+.cal-aviso--conflito{
+  background:color-mix(in srgb, var(--dm-red) 8%, transparent);
+  border-color:color-mix(in srgb, var(--dm-red) 24%, transparent);
+}
+.cal-aviso--conflito .cal-i{ color:var(--dm-red-text) }
+.cal-aviso b{ color:var(--cal-txt); font-weight:800 }
+.cal-calmo{
+  margin:0; display:flex; align-items:center; gap:8px;
+  font-size:12.5px; font-weight:700; color:var(--cal-txt3);
+}
+.cal-calmo .cal-i{ font-size:15px; color:var(--green-text) }
+
+/* ── Espaço livre ─────────────────────────────────────────── */
+.cal-livres{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px }
+.cal-livres li{ display:flex; align-items:center; gap:10px; font-size:12.5px; color:var(--cal-txt3) }
+.cal-livres b{ font-weight:900; color:var(--cal-txt2); font-variant-numeric:tabular-nums }
+
+/* ══════════════════════════════════════════════════════════════
+   BANNER DE CAMPANHA
+   A arte larga que identifica a campanha (js/00-config.js → `banner`).
+   Regra de uso: onde o banner entra, o texto ao lado NÃO repete o nome da
+   campanha — a arte já o carrega, em corpo grande. O texto fica com o que a
+   arte não diz: a data, a regra e o alcance.
+   `object-fit:cover` + proporção fixa: a arte real pode variar alguns pixels
+   e mesmo assim nenhuma peça muda de altura.
+══════════════════════════════════════════════════════════════ */
+.cal-banner{
+  display:block; width:100%; aspect-ratio:var(--cal-banner-ar);
+  object-fit:cover; object-position:center;
+  background:var(--cal-surf2);   /* enquanto carrega, não pisca branco */
+}
+
+/* ── no cartão de evento ─────────────────────────────────── */
+.cal-ev.com-banner{ flex-direction:column; gap:0 }
+.cal-ev.com-banner .cal-ev-rail{
+  width:auto; height:3px; border-radius:0; order:2;   /* o trilho passa a sublinhar a arte */
+}
+/* Teto de altura para coluna larga. Sem ele, um cartão de 700px dava um banner
+   de 127px e a lista virava um mural. Acima do teto o corte vem da DIREITA
+   (`left center`), porque nesta família de arte o nome da campanha fica à
+   esquerda e a foto do prato à direita — perder prato é aceitável, perder o
+   nome da campanha destruiria a única função do banner aqui. */
+.cal-ev.com-banner .cal-banner{ order:1; max-height:104px; object-position:left center }
+.cal-ev.com-banner .cal-ev-corpo{ order:3; padding:10px 12px }
+.cal-ev.com-banner:hover .cal-banner{ filter:saturate(1.06) }
+.cal-ev.com-banner .cal-banner{ transition:filter var(--dur-base) var(--ease-standard) }
+.cal-ev.com-banner.concluido .cal-banner{ filter:grayscale(.75) opacity(.7) }
+
+/* ── na tira "sempre no ar" ──────────────────────────────── */
+.cal-chao-i.e-banner{
+  padding:0; height:34px; overflow:hidden; border-radius:var(--r-sm);
+  border-color:var(--cal-borda);
+}
+.cal-chao-i.e-banner .cal-banner{ width:auto; height:100%; aspect-ratio:var(--cal-banner-ar) }
+.cal-chao-i.e-banner:hover{ transform:translateY(-1px) }
+
+/* ── no cabeçalho da folha ───────────────────────────────── */
+.cal-fh.com-banner{ position:relative; padding:0; border-bottom:0; display:block }
+.cal-banner--folha{ border-radius:0 }
+/* O × precisa ficar legível sobre QUALQUER arte: pastilha escura, não só
+   contraste torcido. Vale o mesmo raciocínio do --on-accent nos tokens. */
+.cal-fh.com-banner .cal-fh-l{
+  position:absolute; inset:0 0 auto 0; display:flex; align-items:center;
+  justify-content:space-between; padding:10px 12px;
+  background:linear-gradient(180deg, rgba(10,10,10,.55), transparent);
+}
+.cal-fh.com-banner .cal-fh-tipo{ color:var(--on-accent); text-shadow:0 1px 3px rgba(10,10,10,.5) }
+.cal-fh.com-banner .cal-fh-x{
+  color:var(--on-accent); background:rgba(10,10,10,.42); backdrop-filter:blur(4px);
+}
+.cal-fh.com-banner .cal-fh-x:hover{ background:rgba(10,10,10,.62); color:var(--on-accent) }
+.cal-fh:not(.com-banner) .cal-fh-l{ display:flex; align-items:center; justify-content:space-between; width:100% }
+
+/* ── na prévia do ponteiro ───────────────────────────────── */
+.cal-prev[data-banner]{ padding:0; overflow:hidden; max-width:280px }
+.cal-prev[data-banner] > :not(.cal-banner){ margin-left:12px; margin-right:12px }
+.cal-prev[data-banner] > :nth-child(2){ margin-top:10px }
+.cal-prev[data-banner] > :last-child{ margin-bottom:12px }
+.cal-banner--prev{ border-radius:0 }
+
+/* ══════════════════════════════════════════════════════════════
+   COMPONENTE — MINI CALENDAR
+══════════════════════════════════════════════════════════════ */
+.cal-mini{
+  background:var(--cal-surf); border:1px solid var(--cal-borda);
+  border-radius:calc(var(--r) * 1.4); padding:14px 16px 16px;
+}
+.cal-mini.compacto{ border:0; padding:0; background:none }
+.cal-mini-topo{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px }
+.cal-mini-mes{ font-size:12.5px; font-weight:900; color:var(--cal-txt) }
+.cal-mini-nav{
+  width:26px; height:26px; display:grid; place-items:center; font-size:13px;
+  border:0; background:none; color:var(--cal-txt3); border-radius:var(--r-sm); cursor:pointer;
+  transition:background var(--dur-micro) var(--ease-standard), color var(--dur-micro) var(--ease-standard);
+}
+.cal-mini-nav:hover{ background:var(--cal-surf2); color:var(--cal-txt) }
+.cal-mini-head{ display:grid; grid-template-columns:repeat(7,1fr); margin-bottom:4px }
+.cal-mini-head span{
+  text-align:center; font-size:9.5px; font-weight:900; letter-spacing:.06em;
+  color:var(--cal-txt3);
+}
+.cal-mini-grade{ display:grid; grid-template-columns:repeat(7,1fr); gap:1px }
+.cal-mini-d{
+  position:relative; aspect-ratio:1; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:2px;
+  border:0; background:none; cursor:pointer; border-radius:var(--r-sm);
+  font-family:inherit; color:var(--cal-txt2);
+  transition:background var(--dur-micro) var(--ease-standard), color var(--dur-micro) var(--ease-standard), transform var(--dur-fast) var(--ease-spring);
+}
+.cal-mini-d i{ font-style:normal; font-size:11.5px; font-weight:700; line-height:1 }
+.cal-mini-d.fora{ color:var(--cal-fora) }
+.cal-mini-d:hover{ background:var(--cal-surf2); transform:scale(1.06) }
+.cal-mini-d.hoje i{ color:var(--dm-orange-text); font-weight:900 }
+.cal-mini-d.sel{ background:var(--dm-orange-d); color:var(--on-accent) }
+.cal-mini-d.sel i{ color:var(--on-accent) }
+.cal-mini-d.sel .cal-mini-pts u{ background:var(--on-accent) }
+.cal-mini-pts{ display:flex; gap:2px; height:3px }
+.cal-mini-pts u{ width:3px; height:3px; border-radius:50%; background:var(--cal-borda2); text-decoration:none }
+
+/* ══════════════════════════════════════════════════════════════
+   O CHÃO DO MÊS — "sempre no ar"
+   As recorrentes ditas UMA vez, em densidade baixa. Fora da grade porque
+   repetir a mesma barra em 30 células é ruído com cara de informação.
+══════════════════════════════════════════════════════════════ */
+.cal-chao{
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:9px 12px; margin-bottom:12px;
+  border:1px dashed var(--cal-borda2); border-radius:var(--r);
+  background:color-mix(in srgb, var(--cal-surf) 60%, transparent);
+}
+.cal-chao--dash{ margin:14px 0 0 }
+.cal-chao-l{
+  font-size:9.5px; font-weight:900; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--cal-txt3); flex:0 0 auto;
+}
+.cal-chao-is{ display:flex; gap:6px; flex-wrap:wrap; flex:1; min-width:0 }
+.cal-chao-i{
+  display:inline-flex; align-items:center; gap:6px; height:24px; padding:0 10px;
+  border:1px solid var(--cal-borda); background:var(--cal-surf);
+  border-radius:var(--r-pill); cursor:pointer; font-family:inherit;
+  font-size:11px; font-weight:700; color:var(--cal-txt2); white-space:nowrap;
+  transition:border-color var(--dur-micro) var(--ease-standard), color var(--dur-micro) var(--ease-standard), transform var(--dur-fast) var(--ease-spring);
+}
+.cal-chao-i:hover{ border-color:var(--cal-ac); color:var(--cal-txt); transform:translateY(-1px) }
+.cal-chao-i .cal-ponto{ width:6px; height:6px }
+/* Na coluna estreita da vista Dia o rótulo ao lado espremia os chips numa
+   pilha de 5 linhas. Ali ele sobe para cima deles. */
+.cal-dia-lado .cal-chao{ flex-direction:column; align-items:flex-start; gap:8px }
+
+/* ══════════════════════════════════════════════════════════════
+   VISTA — MÊS
+   Hairline: a moldura tem borda, as células só têm as linhas internas.
+══════════════════════════════════════════════════════════════ */
+.cal-mes{ max-width:1560px; margin:0 auto }
+.cal-mes-head{ display:grid; grid-template-columns:repeat(7,1fr); padding:0 2px 8px }
+.cal-mes-head span{
+  font-size:10px; font-weight:900; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--cal-txt3); padding-left:10px;
+}
+.cal-mes-head span:nth-child(6),.cal-mes-head span:nth-child(7){ color:var(--dm-orange-text) }
+.cal-mes-grade{
+  background:var(--cal-surf); border:1px solid var(--cal-borda);
+  border-radius:calc(var(--r) * 1.4); overflow:hidden; box-shadow:var(--cal-sombra);
+}
+.cal-sem{
+  position:relative; display:grid; grid-template-columns:repeat(7,1fr);
+  border-top:1px solid var(--cal-borda);
+}
+.cal-sem:first-child{ border-top:0 }
+.cal-dia{
+  position:relative; min-height:calc(112px + var(--pistas,0) * 22px);
+  padding:6px 6px 8px; border-left:1px solid var(--cal-borda); cursor:pointer;
+  transition:background var(--dur-micro) var(--ease-standard);
+}
+.cal-dia:first-child{ border-left:0 }
+.cal-dia.fds{ background:color-mix(in srgb, var(--cal-surf2) 55%, transparent) }
+.cal-dia.fora{ background:color-mix(in srgb, var(--cal-surf2) 30%, transparent) }
+.cal-dia.fora .cal-dia-num{ color:var(--cal-fora) }
+.cal-dia:hover{ background:var(--cal-surf2) }
+.cal-dia.sel{ background:color-mix(in srgb, var(--dm-orange) 7%, var(--cal-surf)); box-shadow:inset 0 0 0 2px color-mix(in srgb, var(--dm-orange) 40%, transparent) }
+.cal-dia.cal-alvo{ background:color-mix(in srgb, var(--dm-orange) 14%, var(--cal-surf)); box-shadow:inset 0 0 0 2px var(--dm-orange) }
+.cal-dia:focus-visible{ outline:2px solid var(--dm-orange); outline-offset:-3px }
+
+.cal-dia-topo{ display:flex; align-items:center; justify-content:space-between; height:26px }
+.cal-dia-num{
+  display:grid; place-items:center; min-width:24px; height:24px; padding:0 4px;
+  font-size:12.5px; font-weight:800; color:var(--cal-txt2);
+  font-variant-numeric:tabular-nums; border-radius:var(--r-pill);
+  transition:background var(--dur-fast) var(--ease-spring-soft), color var(--dur-fast) var(--ease-standard);
+}
+/* HOJE: o único disco cheio de marca na grade. `--on-orange` é a tinta
+   medida sobre #FF9000 (8,6:1) — nunca branco aqui. */
+.cal-dia.hoje .cal-dia-num{ background:var(--dm-orange); color:var(--on-orange); font-weight:900 }
+.cal-dia-add{
+  width:22px; height:22px; display:grid; place-items:center; font-size:13px;
+  border:0; background:none; color:var(--cal-txt3); border-radius:var(--r-sm); cursor:pointer;
+  opacity:0; transform:scale(.8);
+  transition:opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-spring), background var(--dur-micro) var(--ease-standard);
+}
+.cal-dia:hover .cal-dia-add,.cal-dia:focus-within .cal-dia-add{ opacity:1; transform:none }
+.cal-dia-add:hover{ background:var(--cal-surf2); color:var(--cal-txt) }
+.cal-dia-corpo{ display:flex; flex-direction:column; gap:3px; margin-top:calc(var(--pistas,0) * 22px) }
+.cal-dia-mais{
+  align-self:flex-start; border:0; background:none; cursor:pointer; font-family:inherit;
+  padding:2px 6px; border-radius:var(--r-sm);
+  font-size:10.5px; font-weight:800; color:var(--cal-txt3);
+  transition:background var(--dur-micro) var(--ease-standard), color var(--dur-micro) var(--ease-standard);
+}
+.cal-dia-mais:hover{ background:var(--cal-surf2); color:var(--cal-txt) }
+
+/* ── FAIXAS: a campanha de vários dias atravessa a semana ── */
+.cal-faixas{ position:absolute; left:0; right:0; top:32px; pointer-events:none }
+.cal-faixa{
+  position:absolute; pointer-events:auto; cursor:pointer;
+  left:calc(var(--c) / 7 * 100%); width:calc(var(--n) / 7 * 100% - 8px);
+  top:calc(var(--p) * 22px); height:19px; margin-left:4px;
+  display:flex; align-items:center; gap:5px; padding:0 8px;
+  border:0; border-radius:var(--r-sm); font-family:inherit;
+  background:color-mix(in srgb, var(--cal-ac) 16%, var(--cal-surf));
+  box-shadow:inset 2px 0 0 var(--cal-ac);
+  color:var(--cal-txt); overflow:hidden;
+  transition:background var(--dur-fast) var(--ease-standard), transform var(--dur-fast) var(--ease-spring-soft), box-shadow var(--dur-fast) var(--ease-standard);
+}
+.cal-faixa:hover{ background:color-mix(in srgb, var(--cal-ac) 26%, var(--cal-surf)); transform:translateY(-1px); box-shadow:inset 2px 0 0 var(--cal-ac), var(--cal-sombra) }
+.cal-faixa.sel{ box-shadow:inset 2px 0 0 var(--cal-ac), 0 0 0 2px color-mix(in srgb, var(--cal-ac) 40%, transparent) }
+.cal-faixa.concluido{ opacity:.55 }
+.cal-faixa.concluido .cal-faixa-t{ text-decoration:line-through }
+/* Continua fora da semana: o canto some do lado do corte e o rótulo repetido
+   fica esmaecido — quem entra pela segunda linha precisa saber o que é a barra,
+   mas ela não pode competir com a semana que começa ali. */
+.cal-faixa.corta-esq{ border-top-left-radius:0; border-bottom-left-radius:0; box-shadow:none; margin-left:0; width:calc(var(--n) / 7 * 100% - 4px) }
+.cal-faixa.corta-dir{ border-top-right-radius:0; border-bottom-right-radius:0; width:calc(var(--n) / 7 * 100% - 4px) }
+.cal-faixa-t{
+  font-size:10.5px; font-weight:800; letter-spacing:-.005em;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.cal-faixa.corta-esq .cal-faixa-t{ opacity:.55 }
+/* O selo "tem arte" anda colado no título. Com margin-left:auto ele ia parar
+   na outra ponta da faixa de sete dias e virava glifo solto no fim da semana. */
+.cal-faixa-tag{ font-size:11px; opacity:.55; flex:0 0 auto }
+.cal-mes-vazio{ padding:40px 0 }
+/* A lista do dia selecionado só existe abaixo de 768px (ver responsivo). */
+.cal-mes-lista{ display:none; margin-top:14px }
+
+/* ── arrastar ─────────────────────────────────────────────── */
+.cal-ev.arrastando,.cal-faixa.arrastando,.cal-bloco-ev.arrastando{
+  opacity:.4; transform:scale(1.03); box-shadow:var(--cal-sombra-a);
+}
+body.cal-arrastando{ cursor:grabbing }
+body.cal-arrastando .cal-ev,body.cal-arrastando .cal-faixa{ transition:none }
+/* O pouso: mola curta ao soltar — o "físico" que o brief pede, sem exagero. */
+.cal-pousou{ animation:calPousa var(--dur-base) var(--ease-spring) }
+@keyframes calPousa{ 0%{ transform:scale(1.06) } 60%{ transform:scale(.98) } 100%{ transform:none } }
+.cal-nasceu{ animation:calNasce var(--dur-slow) var(--ease-spring-soft) }
+@keyframes calNasce{
+  0%{ transform:scale(.9); box-shadow:0 0 0 0 color-mix(in srgb, var(--dm-orange) 55%, transparent) }
+  60%{ transform:scale(1.02) }
+  100%{ transform:none; box-shadow:0 0 0 14px transparent }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   VISTAS — SEMANA E DIA (a régua)
+══════════════════════════════════════════════════════════════ */
+.cal-semana,.cal-dia-v{ max-width:1560px; margin:0 auto; height:100%; display:flex; flex-direction:column; gap:0 }
+.cal-dia-v{ flex-direction:row; gap:var(--cal-gap); align-items:stretch }
+.cal-dia-lado{ width:var(--cal-lado); flex:0 0 auto; display:flex; flex-direction:column; gap:var(--cal-gap); overflow:auto }
+.cal-dia-tl{ flex:1; min-width:0; display:flex }
+
+.cal-dia-cab{ padding:2px 2px 0 }
+.cal-dia-sem{ margin:0; font-size:11px; font-weight:900; letter-spacing:.08em; text-transform:uppercase; color:var(--cal-txt3) }
+.cal-dia-big{ margin:2px 0 0; display:flex; align-items:baseline; gap:8px; font-size:44px; font-weight:900; letter-spacing:-.04em; line-height:1; color:var(--dm-orange) }
+.cal-dia-big em{ font-style:normal; font-size:16px; font-weight:900; text-transform:uppercase; color:var(--cal-txt2) }
+
+/* ── cabeçalho de dias da semana ─────────────────────────── */
+.cal-sh{ display:flex; flex:0 0 auto; border-bottom:1px solid var(--cal-borda) }
+.cal-sh-canto{ width:64px; flex:0 0 auto; display:grid; place-items:center; color:var(--cal-txt3); font-size:14px }
+.cal-sh-dias{ flex:1; display:grid; grid-template-columns:repeat(7,1fr); gap:6px; padding:0 0 10px }
+.cal-sh-d{
+  display:flex; flex-direction:column; align-items:center; gap:2px;
+  padding:8px 4px; border:0; border-radius:var(--r); cursor:pointer;
+  background:none; font-family:inherit; color:var(--cal-txt2);
+  transition:background var(--dur-micro) var(--ease-standard), color var(--dur-micro) var(--ease-standard);
+}
+.cal-sh-d:hover{ background:var(--cal-surf2) }
+.cal-sh-sem{ font-size:10px; font-weight:900; letter-spacing:.08em; text-transform:uppercase; color:var(--cal-txt3) }
+.cal-sh-num{ font-size:19px; font-weight:900; letter-spacing:-.02em; font-variant-numeric:tabular-nums }
+.cal-sh-d.fds .cal-sh-sem{ color:var(--dm-orange-text) }
+.cal-sh-d.hoje{ background:var(--dm-orange); color:var(--on-orange) }
+.cal-sh-d.hoje .cal-sh-sem{ color:var(--on-orange); opacity:.72 }
+.cal-sh-d.sel:not(.hoje){ background:var(--cal-surf2); box-shadow:inset 0 0 0 1.5px var(--cal-borda2) }
+
+/* ── faixa de dia inteiro ─────────────────────────────────── */
+.cal-allday{ display:flex; flex:0 0 auto; border-bottom:1px solid var(--cal-borda); padding:8px 0 }
+.cal-allday-l{
+  width:64px; flex:0 0 auto; padding-right:10px; text-align:right;
+  font-size:9.5px; font-weight:900; letter-spacing:.07em; text-transform:uppercase;
+  color:var(--cal-txt3); padding-top:3px;
+}
+.cal-allday-p{ position:relative; flex:1; min-height:calc(var(--pistas,1) * 22px) }
+.cal-allday-p .cal-faixa{ margin-left:2px; width:calc(var(--n) / 7 * 100% - 4px) }
+
+/* ── a régua ──────────────────────────────────────────────── */
+.cal-tl{ flex:1; min-height:0; display:flex; overflow:auto; position:relative; scroll-behavior:auto }
+.cal-tl-regua{ width:64px; flex:0 0 auto; position:sticky; left:0; z-index:2; background:var(--cal-chao) }
+.cal-regua-h{
+  display:block; height:var(--cal-h-hora); position:relative;
+}
+.cal-regua-h i{
+  position:absolute; right:10px; top:-7px; font-style:normal;
+  font-size:10.5px; font-weight:700; color:var(--cal-txt3);
+  font-variant-numeric:tabular-nums; background:var(--cal-chao); padding:0 2px;
+}
+.cal-regua-h:first-child i{ top:0 }
+.cal-tl-cols{ flex:1; display:grid; grid-template-columns:repeat(7,1fr); gap:6px; min-width:0 }
+.cal-tl-cols--um{ grid-template-columns:1fr }
+.cal-tl-col{
+  position:relative; border-radius:var(--r);
+  background:var(--cal-surf); border:1px solid var(--cal-borda);
+  transition:background var(--dur-micro) var(--ease-standard), box-shadow var(--dur-micro) var(--ease-standard);
+}
+.cal-tl-col.fds{ background:color-mix(in srgb, var(--cal-surf2) 45%, var(--cal-surf)) }
+.cal-tl-col.hoje{ box-shadow:inset 0 0 0 1.5px color-mix(in srgb, var(--dm-orange) 40%, transparent) }
+.cal-tl-col.cal-alvo{ box-shadow:inset 0 0 0 2px var(--dm-orange) }
+.cal-linha-h{ display:block; height:var(--cal-h-hora); border-top:1px solid var(--cal-borda) }
+.cal-linha-h:first-child{ border-top:0 }
+.cal-linha-h[data-meia]{ border-top-style:dashed }
+.cal-tl-nota{
+  flex:0 0 auto; margin:10px 0 0; display:flex; align-items:center; gap:7px;
+  font-size:12px; font-weight:600; color:var(--cal-txt3);
+}
+.cal-tl-nota .cal-i{ font-size:14px }
+.cal-semana-vazio{ flex:1; display:grid; place-items:center }
+
+/* ── vão livre ────────────────────────────────────────────── */
+.cal-vao{
+  position:absolute; left:4px; right:4px;
+  top:calc(var(--t) * var(--cal-h-hora)); height:calc(var(--h) * var(--cal-h-hora) - 4px);
+  border-radius:var(--r-sm); display:grid; place-items:center;
+  background:repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--cal-borda2) 26%, transparent) 6px 7px);
+}
+.cal-vao span{ font-size:10.5px; font-weight:800; color:var(--cal-txt3); letter-spacing:.02em }
+
+/* ── bloco de evento com hora ─────────────────────────────── */
+.cal-bloco-ev{
+  position:absolute; overflow:hidden; cursor:pointer;
+  top:calc(var(--t) * var(--cal-h-hora) + 2px);
+  height:calc(var(--h) * var(--cal-h-hora) - 4px);
+  left:calc(var(--i) / var(--n) * (100% - 8px) + 4px);
+  width:calc((100% - 8px) / var(--n) - 3px);
+  display:flex; flex-direction:column; gap:1px; padding:5px 8px 5px 10px;
+  border-radius:var(--r-sm);
+  background:color-mix(in srgb, var(--cal-ac) 14%, var(--cal-surf));
+  border:1px solid color-mix(in srgb, var(--cal-ac) 34%, transparent);
+  transition:transform var(--dur-fast) var(--ease-spring-soft), box-shadow var(--dur-fast) var(--ease-standard), background var(--dur-fast) var(--ease-standard);
+}
+.cal-bloco-ev .cal-ev-rail{ position:absolute; left:0; top:0; bottom:0; width:3px; border-radius:0 }
+.cal-bloco-ev:hover{ transform:translateY(-1px) scale(1.005); box-shadow:var(--cal-sombra); z-index:3 }
+.cal-bloco-ev.sel{ box-shadow:0 0 0 2px var(--cal-ac), var(--cal-sombra); z-index:4 }
+.cal-bloco-ev.conflito{ border-style:dashed }
+.cal-bloco-ev.concluido{ opacity:.55 }
+.cal-bloco-t{ font-size:11.5px; font-weight:800; color:var(--cal-txt); line-height:1.25; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.cal-bloco-h2{ font-size:10.5px; font-weight:700; color:var(--cal-txt3); font-variant-numeric:tabular-nums }
+/* Curto: uma linha só, hora primeiro (é o que ancora), título depois. */
+.cal-bloco-ev.curto{ flex-direction:row; align-items:baseline; gap:6px; padding-top:3px }
+.cal-bloco-ev.curto .cal-bloco-t{ order:2; min-width:0 }
+.cal-bloco-ev.curto .cal-bloco-h2{ order:1; flex:0 0 auto }
+.cal-bloco-ev.curto .cal-ev-escopo{ display:none }
+
+/* ── linha do agora ───────────────────────────────────────── */
+.cal-agora{
+  position:absolute; left:0; right:0; top:calc(var(--t) * var(--cal-h-hora));
+  display:flex; align-items:center; pointer-events:none; z-index:5;
+  transition:top var(--dur-slow) var(--ease-standard);
+}
+.cal-agora-pt{
+  width:9px; height:9px; border-radius:50%; background:var(--dm-red);
+  margin-left:-4px; flex:0 0 auto;
+  box-shadow:0 0 0 0 color-mix(in srgb, var(--dm-red) 50%, transparent);
+  animation:calPulsa 2.6s var(--ease-out) infinite;
+}
+@keyframes calPulsa{ 70%{ box-shadow:0 0 0 8px transparent } 100%{ box-shadow:0 0 0 0 transparent } }
+.cal-agora-l{ flex:1; height:1.5px; background:var(--dm-red) }
+.cal-agora-h{
+  font-size:9.5px; font-weight:900; color:var(--on-accent); background:var(--dm-red);
+  padding:1px 5px; border-radius:var(--r-pill); margin-right:3px; flex:0 0 auto;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   RODAPÉ — o estado honesto da fonte
+══════════════════════════════════════════════════════════════ */
+.cal-rodape{
+  flex:0 0 auto; display:flex; align-items:center; justify-content:space-between; gap:16px;
+  padding:8px 24px; border-top:1px solid var(--cal-borda); background:var(--cal-chao);
+  font-size:11px; font-weight:600; color:var(--cal-txt3);
+}
+.cal-rodape-est{ display:inline-flex; align-items:center; gap:6px }
+.cal-rodape-est .cal-i{ font-size:13px }
+.cal-rodape--ok .cal-rodape-est .cal-i{ color:var(--green-text) }
+.cal-rodape--off .cal-rodape-est,.cal-rodape--erro .cal-rodape-est{ color:var(--dm-red-text); font-weight:800 }
+.cal-rodape-fonte{ text-align:right; opacity:.8 }
+
+/* ══════════════════════════════════════════════════════════════
+   ESTADOS — carregando, erro, vazio
+══════════════════════════════════════════════════════════════ */
+.cal-sk{ display:flex; flex-direction:column; gap:var(--cal-gap); max-width:1320px; margin:0 auto }
+.cal-sk-hero{ height:118px; border-radius:calc(var(--r) * 1.6) }
+.cal-sk-grade{ display:grid; grid-template-columns:repeat(4,1fr); gap:9px }
+.cal-sk-linha{ height:86px; border-radius:var(--r) }
+.cal-sk-hero,.cal-sk-linha{
+  background:linear-gradient(100deg, var(--cal-surf) 30%, var(--cal-surf2) 50%, var(--cal-surf) 70%);
+  background-size:220% 100%;
+  animation:calBrilho 1.5s var(--ease-standard) infinite;
+  animation-delay:calc(var(--i,0) * 55ms);
+}
+@keyframes calBrilho{ from{ background-position:180% 0 } to{ background-position:-40% 0 } }
+
+.cal-estado{
+  display:flex; flex-direction:column; align-items:center; gap:10px;
+  padding:38px 24px; text-align:center;
+  border:1px dashed var(--cal-borda2); border-radius:calc(var(--r) * 1.4);
+  background:color-mix(in srgb, var(--cal-surf) 55%, transparent);
+}
+.cal-estado-ico{
+  width:44px; height:44px; display:grid; place-items:center; font-size:22px;
+  border-radius:50%; color:var(--cal-txt3);
+  background:color-mix(in srgb, var(--dm-orange) 10%, transparent);
+}
+.cal-estado h2{ margin:0; font-size:15px; font-weight:900; color:var(--cal-txt); letter-spacing:-.01em }
+.cal-estado p{ margin:0; max-width:44ch; font-size:12.5px; line-height:1.55; color:var(--cal-txt3) }
+.cal-estado--erro .cal-estado-ico{ background:color-mix(in srgb, var(--dm-red) 12%, transparent); color:var(--dm-red-text) }
+
+/* ══════════════════════════════════════════════════════════════
+   CONTEXT PREVIEW — resumo sem modal
+══════════════════════════════════════════════════════════════ */
+.cal-prev{
+  position:fixed; z-index:900; max-width:290px;
+  display:flex; flex-direction:column; gap:5px; padding:12px 14px;
+  background:var(--glass-bg); backdrop-filter:var(--glass-blur); -webkit-backdrop-filter:var(--glass-blur);
+  border:1px solid var(--cal-borda2); border-radius:var(--r);
+  box-shadow:var(--cal-sombra-a); pointer-events:none;
+  opacity:0; transform:translateY(5px) scale(.97);
+  transition:opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-spring-soft);
+}
+body:not(.theme-light) .cal-prev{ background:color-mix(in srgb, var(--d-surf) 88%, transparent) }
+.cal-prev.on{ opacity:1; transform:none }
+.cal-prev.abaixo{ transform:translateY(-5px) scale(.97) }
+.cal-prev.abaixo.on{ transform:none }
+.cal-prev-tipo{
+  display:inline-flex; align-items:center; gap:6px;
+  font-size:9.5px; font-weight:900; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--cal-txt3);
+}
+.cal-prev-t{ font-size:13.5px; font-weight:900; color:var(--cal-txt); letter-spacing:-.01em; line-height:1.3 }
+.cal-prev-q{ font-size:11.5px; font-weight:700; color:var(--cal-txt2) }
+.cal-prev-r{ font-size:11.5px; line-height:1.45; color:var(--cal-txt3) }
+.cal-prev-e{
+  align-self:flex-start; font-size:9.5px; font-weight:900; letter-spacing:.05em;
+  text-transform:uppercase; padding:2px 7px; border-radius:var(--r-pill);
+  background:color-mix(in srgb, var(--cal-ac) 18%, transparent); color:var(--cal-txt2);
+}
+.cal-prev-c{
+  display:inline-flex; align-items:center; gap:5px; margin-top:2px; padding-top:7px;
+  border-top:1px solid var(--cal-borda); font-size:11px; font-weight:700; color:var(--dm-orange-text);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   FOLHA — detalhe e editor
+   Expand a partir do cartão: nasce do ponto clicado (--cal-ox/--cal-oy),
+   não "aparece" no centro.
+══════════════════════════════════════════════════════════════ */
+/* Começa ABAIXO da topbar (52px): ela é a chrome permanente do Luma e continua
+   clicável com a folha aberta — trocar de aba não deveria exigir fechar o
+   evento primeiro. Também elimina a sobreposição com o chip da conta. */
+.cal-folha{
+  position:fixed; inset:calc(52px + var(--safe-top)) 0 0 0; z-index:950; display:flex; justify-content:flex-end;
+  background:rgba(10,10,10,0); backdrop-filter:blur(0px);
+  transition:background var(--dur-base) var(--ease-standard), backdrop-filter var(--dur-base) var(--ease-standard);
+}
+.cal-folha.aberta{ background:rgba(10,10,10,.28); backdrop-filter:blur(3px) }
+.cal-folha-cx{
+  width:min(430px, 100vw); height:100%; display:flex; flex-direction:column;
+  background:var(--cal-surf); border-left:1px solid var(--cal-borda);
+  box-shadow:var(--cal-sombra-a);
+  transform:translateX(26px) scale(.985); opacity:0;
+  transform-origin:var(--cal-ox, 100%) var(--cal-oy, 50%);
+  transition:transform var(--dur-base) var(--ease-spring-soft), opacity var(--dur-fast) var(--ease-out);
+}
+.cal-folha.aberta .cal-folha-cx{ transform:none; opacity:1 }
+.cal-folha.saindo .cal-folha-cx{ transform:translateX(26px); opacity:0 }
+
+.cal-fh{
+  flex:0 0 auto; display:flex; align-items:center; justify-content:space-between;
+  padding:16px 18px 12px; border-bottom:1px solid var(--cal-borda);
+}
+.cal-fh-l{ display:flex; align-items:center; justify-content:space-between; flex:1; gap:12px }
+.cal-fh-tipo{
+  display:inline-flex; align-items:center; gap:7px;
+  font-size:10.5px; font-weight:900; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--cal-txt3);
+}
+.cal-fh-x{
+  width:30px; height:30px; display:grid; place-items:center; font-size:15px;
+  border:0; background:none; color:var(--cal-txt3); border-radius:var(--r-sm); cursor:pointer;
+  transition:background var(--dur-micro) var(--ease-standard), color var(--dur-micro) var(--ease-standard);
+}
+.cal-fh-x:hover{ background:var(--cal-surf2); color:var(--cal-txt) }
+.cal-fb{ flex:1; min-height:0; overflow:auto; padding:18px }
+.cal-fb-t{ margin:0 0 16px; font-size:21px; font-weight:900; letter-spacing:-.025em; line-height:1.25; color:var(--cal-txt) }
+.cal-fb-dl{ margin:0; display:flex; flex-direction:column; gap:2px }
+.cal-fb-dl > div{ display:grid; grid-template-columns:112px 1fr; gap:12px; padding:9px 0; border-top:1px solid var(--cal-borda) }
+.cal-fb-dl > div:first-child{ border-top:0 }
+.cal-fb-dl dt{
+  display:flex; align-items:center; gap:6px;
+  font-size:11px; font-weight:800; letter-spacing:.02em; color:var(--cal-txt3);
+}
+.cal-fb-dl dt .cal-i{ font-size:13px }
+.cal-fb-dl dd{ margin:0; font-size:13px; font-weight:700; color:var(--cal-txt); line-height:1.45 }
+.cal-fb-dl dd em{ font-style:normal; display:block; font-size:11.5px; font-weight:600; color:var(--cal-txt3); margin-top:1px }
+.cal-fb-nota{ margin:16px 0 0; padding:12px 14px; border-radius:var(--r); background:var(--cal-surf2); font-size:12.5px; line-height:1.6; color:var(--cal-txt2) }
+.cal-fb-conf,.cal-fb-of{
+  margin:12px 0 0; display:flex; gap:8px; align-items:flex-start;
+  padding:10px 12px; border-radius:var(--r-sm); font-size:12px; line-height:1.5; font-weight:600;
+}
+.cal-fb-conf{ background:color-mix(in srgb, var(--dm-red) 9%, transparent); color:var(--dm-red-text) }
+.cal-fb-of{ background:color-mix(in srgb, var(--green) 10%, transparent); color:var(--cal-txt2) }
+.cal-fb-of .cal-i{ color:var(--green-text) }
+.cal-fb-conf .cal-i,.cal-fb-of .cal-i{ font-size:14px; margin-top:1px; flex:0 0 auto }
+.cal-ff{
+  flex:0 0 auto; display:flex; flex-wrap:wrap; gap:8px;
+  padding:14px 18px; border-top:1px solid var(--cal-borda); background:var(--cal-surf);
+}
+.cal-folha-vazia{ padding:24px }
+
+/* ── EDITOR — revelação progressiva ───────────────────────── */
+.cal-form{ display:flex; flex-direction:column; gap:18px }
+.cal-campo{ display:flex; flex-direction:column; gap:6px; position:relative }
+.cal-campo-l{
+  font-size:11px; font-weight:900; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--cal-txt3); display:flex; align-items:baseline; gap:6px;
+}
+.cal-campo-l em{ font-style:normal; text-transform:none; letter-spacing:0; font-weight:600; font-size:10.5px; opacity:.85 }
+.cal-campo-ct{ position:absolute; right:2px; bottom:-15px; font-size:10px; font-weight:700; color:var(--cal-txt3) }
+.cal-in{
+  width:100%; height:40px; padding:0 12px; font-family:inherit;
+  font-size:13.5px; font-weight:600; color:var(--cal-txt);
+  background:var(--cal-surf2); border:1px solid transparent; border-radius:var(--r-sm);
+  outline:0;
+  transition:border-color var(--dur-fast) var(--ease-standard), box-shadow var(--dur-fast) var(--ease-standard), background var(--dur-fast) var(--ease-standard);
+}
+.cal-in:focus{ background:var(--cal-surf); border-color:var(--dm-orange); box-shadow:0 0 0 3px color-mix(in srgb, var(--dm-orange) 18%, transparent) }
+.cal-in::placeholder{ color:var(--cal-txt3); font-weight:500 }
+.cal-in--ta{ height:auto; padding:10px 12px; line-height:1.5; resize:vertical }
+.cal-in--b{ display:flex; align-items:center; gap:8px; cursor:pointer; text-align:left; color:var(--cal-txt3) }
+.cal-in--b b{ font-weight:800; color:var(--cal-txt); font-size:13.5px }
+.cal-in--b:hover{ background:var(--cal-surf); border-color:var(--cal-borda2) }
+.cal-in--b .cal-i{ font-size:15px }
+.cal-quando{ display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:8px }
+.cal-quando-ate{ font-size:11px; font-weight:700; color:var(--cal-txt3) }
+.cal-quando2{ display:flex; align-items:center; gap:10px; margin-top:8px }
+.cal-quando2 .cal-in--b{ flex:1 }
+
+/* O passo que ainda não chegou NÃO EXISTE: fora do fluxo, fora do Tab, sem
+   altura. Foi `display:none` de propósito e não o truque do grid 0fr→1fr:
+   (a) `0fr` só dimensiona a PRIMEIRA linha, e cada passo aqui tem três filhos
+   diretos — medido na tela, um passo "fechado" ainda ocupava 95px; e (b) a
+   folha é repintada inteira a cada revelação, então o elemento nasce novo e
+   transição de altura nunca chegaria a rodar. Quem anima é a entrada. */
+.cal-passo{ display:none }
+.cal-passo.on{
+  display:block;
+  animation:calSobe var(--dur-base) var(--ease-out) backwards;
+  animation-delay:calc(var(--i,0) * 40ms);
+}
+
+.cal-tipos{ display:flex; flex-wrap:wrap; gap:6px }
+.cal-tipo-b{
+  display:inline-flex; align-items:center; gap:6px; height:32px; padding:0 12px;
+  border:1px solid var(--cal-borda); background:var(--cal-surf2); color:var(--cal-txt2);
+  border-radius:var(--r-pill); cursor:pointer; font-family:inherit; font-size:12px; font-weight:800;
+  transition:background var(--dur-micro) var(--ease-standard), border-color var(--dur-micro) var(--ease-standard), color var(--dur-micro) var(--ease-standard);
+}
+.cal-tipo-b:hover{ border-color:var(--cal-borda2); color:var(--cal-txt) }
+.cal-tipo-b.ativo{
+  background:color-mix(in srgb, var(--cal-ac) 16%, var(--cal-surf));
+  border-color:var(--cal-ac); color:var(--cal-txt);
+}
+.cal-tipo-d{ margin:8px 0 0; font-size:11.5px; line-height:1.5; color:var(--cal-txt3) }
+.cal-mais-campos{ align-self:flex-start }
+.cal-alerta{
+  margin:10px 0 0; display:flex; gap:8px; align-items:flex-start;
+  padding:10px 12px; border-radius:var(--r-sm); font-size:12px; line-height:1.5;
+  background:color-mix(in srgb, var(--dm-red) 9%, transparent); color:var(--cal-txt2);
+}
+.cal-alerta .cal-i{ font-size:14px; color:var(--dm-red-text); margin-top:1px; flex:0 0 auto }
+.cal-alerta b{ color:var(--cal-txt); font-weight:800 }
+.cal-sug{ display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin-top:10px }
+.cal-sug-l{ display:inline-flex; align-items:center; gap:5px; font-size:10.5px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:var(--cal-txt3) }
+.cal-sug-l .cal-i{ font-size:13px; color:var(--dm-orange-text) }
+.cal-sug-b{
+  height:26px; padding:0 10px; border-radius:var(--r-pill); cursor:pointer; font-family:inherit;
+  border:1px solid color-mix(in srgb, var(--dm-orange) 34%, transparent);
+  background:color-mix(in srgb, var(--dm-orange) 10%, transparent);
+  color:var(--cal-txt); font-size:11.5px; font-weight:800; font-variant-numeric:tabular-nums;
+  transition:background var(--dur-micro) var(--ease-standard);
+}
+.cal-sug-b:hover{ background:color-mix(in srgb, var(--dm-orange) 20%, transparent) }
+
+/* ══════════════════════════════════════════════════════════════
+   PICKERS — data e hora
+══════════════════════════════════════════════════════════════ */
+.cal-pick{
+  position:fixed; inset:calc(52px + var(--safe-top)) 0 0 0; z-index:980; display:grid; place-items:center;
+  background:rgba(10,10,10,0); backdrop-filter:blur(0);
+  transition:background var(--dur-fast) var(--ease-standard), backdrop-filter var(--dur-fast) var(--ease-standard);
+}
+.cal-pick.on{ background:rgba(10,10,10,.34); backdrop-filter:blur(3px) }
+.cal-pick-cx{
+  width:min(320px, calc(100vw - 32px)); padding:16px;
+  background:var(--cal-surf); border:1px solid var(--cal-borda2);
+  border-radius:calc(var(--r) * 1.6); box-shadow:var(--cal-sombra-a);
+  transform:scale(.94) translateY(10px); opacity:0;
+  transition:transform var(--dur-base) var(--ease-spring-soft), opacity var(--dur-fast) var(--ease-out);
+}
+.cal-pick.on .cal-pick-cx{ transform:none; opacity:1 }
+.cal-pick-h{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px }
+.cal-pick-h b{ font-size:12px; font-weight:900; letter-spacing:.05em; text-transform:uppercase; color:var(--cal-txt3) }
+.cal-pick-rap{ display:flex; gap:6px; margin-top:14px; padding-top:12px; border-top:1px solid var(--cal-borda); flex-wrap:wrap }
+.cal-pick-rap button{
+  height:28px; padding:0 11px; border-radius:var(--r-pill); cursor:pointer; font-family:inherit;
+  border:1px solid var(--cal-borda); background:var(--cal-surf2); color:var(--cal-txt2);
+  font-size:11.5px; font-weight:800;
+  transition:background var(--dur-micro) var(--ease-standard), color var(--dur-micro) var(--ease-standard);
+}
+.cal-pick-rap button:hover{ background:var(--cal-surf); border-color:var(--cal-borda2); color:var(--cal-txt) }
+
+.cal-pick-cx--hora{ width:min(300px, calc(100vw - 32px)) }
+.cal-hp{ display:grid; grid-template-columns:1fr 1fr; gap:10px; height:230px }
+.cal-hp-col{
+  overflow:auto; display:flex; flex-direction:column; gap:2px; padding:2px;
+  background:var(--cal-surf2); border-radius:var(--r-sm); scrollbar-width:thin;
+}
+.cal-hp-i{
+  flex:0 0 auto; height:34px; border:0; background:none; cursor:pointer; font-family:inherit;
+  border-radius:var(--r-sm); color:var(--cal-txt2);
+  font-size:13px; font-weight:700; font-variant-numeric:tabular-nums;
+  transition:background var(--dur-micro) var(--ease-standard), color var(--dur-micro) var(--ease-standard);
+}
+.cal-hp-i:hover{ background:var(--cal-surf); color:var(--cal-txt) }
+.cal-hp-i.on{ background:var(--dm-orange-d); color:var(--on-accent); font-weight:900 }
+
+/* ══════════════════════════════════════════════════════════════
+   RESPONSIVO
+   Desktop: grade manda. Tablet: a lateral desce. Celular: a LISTA manda e a
+   grade vira bússola (07_ROADMAP §4 passo 4) — cabeçalho, número, pontos.
+══════════════════════════════════════════════════════════════ */
+@media (max-width:1280px){
+  #view-calendario{ --cal-lado:300px }
+  .cal-busca input{ width:110px }
+  .cal-dia{ min-height:calc(98px + var(--pistas,0) * 22px) }
+}
+
+@media (max-width:1024px){
+  .cal-topo{ flex-wrap:wrap; gap:12px; padding:14px 16px 10px }
+  .cal-topo-a{ order:1; flex:1 1 100% }
+  .cal-seg{ order:2 }
+  .cal-topo-c{ order:3; margin-left:auto }
+  .cal-filtros{ padding:9px 16px }
+  .cal-palco{ padding:16px }
+  .cal-dash-grade{ grid-template-columns:1fr }
+  .cal-dash-b{ display:grid; grid-template-columns:1fr 1fr; gap:var(--cal-gap); align-items:start }
+  .cal-dia-v{ flex-direction:column; overflow:auto }
+  .cal-dia-lado{ width:auto; overflow:visible }
+  .cal-dia-tl{ min-height:420px }
+  .cal-hero{ padding:20px }
+  .cal-hero-num span{ font-size:46px }
+}
+
+@media (max-width:768px){
+  #view-calendario{ --cal-gap:12px; --cal-h-hora:52px }
+  .cal-topo{ padding:12px 14px 8px }
+  .cal-h1{ font-size:18px }
+  .cal-busca{ display:none }
+  /* O topo mobile cabe em DUAS linhas: título+ações, depois as vistas. Antes o
+     botão de ação ganhava uma linha só para ele (36px) e o cabeçalho comia
+     173px dos 812 da tela antes de qualquer conteúdo — medido. */
+  .cal-topo-a{ flex:1 1 auto }
+  .cal-topo-c{ order:2; flex:0 0 auto }
+  .cal-seg{ flex:1 1 100%; order:3 }
+  .cal-seg-b{ flex:1; padding:0 8px; font-size:12px }
+  /* O chão do mês vira trilho horizontal: empilhado eram mais 164px de altura. */
+  .cal-chao{ gap:8px; padding:8px 10px }
+  .cal-chao-is{ flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none }
+  .cal-chao-is::-webkit-scrollbar{ display:none }
+  .cal-dia-lado .cal-chao{ flex-direction:row; align-items:center }
+  /* Só o CTA DO TOPO vira ícone (a barra é estreita). O da folha e o dos
+     estados vazios mantêm o rótulo — botão redondo sem palavra no rodapé de
+     um evento não diz o que faz. */
+  .cal-topo-c .cal-cta span{ display:none }
+  .cal-topo-c .cal-cta{ width:36px; padding:0; justify-content:center }
+  .cal-palco{ padding:12px 14px }
+  .cal-filtros{ padding:8px 14px }
+  .cal-dash-b{ grid-template-columns:1fr }
+  .cal-hero{ flex-direction:column; align-items:flex-start; gap:14px; padding:18px }
+  .cal-hero-data{ display:flex; align-items:baseline; gap:10px; text-align:left; min-width:0 }
+  .cal-hero-num span{ font-size:38px }
+  .cal-hero-resumo{ font-size:15px }
+  .cal-qa{ max-width:none; width:100% }
+  .cal-met{ grid-template-columns:1fr 1fr }
+
+  /* ── MÊS no celular: bússola + lista ───────────────────── */
+  .cal-mes-grade{ border-radius:var(--r) }
+  .cal-dia{ min-height:0; aspect-ratio:1; padding:4px 2px; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; gap:3px }
+  .cal-dia-topo{ height:auto; justify-content:center }
+  .cal-dia-add{ display:none }
+  .cal-dia-corpo{ margin-top:0; align-items:center; gap:2px; flex-direction:row }
+  .cal-dia-mais{ display:none }
+  /* O chip vira ponto: na largura do celular o rótulo não cabe honestamente.
+     `pointer-events:none` de propósito — um alvo de 5px é hostil ao dedo, e
+     quem recebe o toque é a célula inteira, que abre a lista abaixo. */
+  .cal-ev--chip{ width:5px; height:5px; padding:0; border-radius:50%; background:var(--cal-ac); border:0; overflow:hidden; pointer-events:none }
+  .cal-ev--chip .cal-ev-corpo,.cal-ev--chip .cal-ev-rail{ display:none }
+  .cal-mes-lista{ display:block }
+  .cal-faixas{ top:auto; bottom:5px; height:4px }
+  .cal-faixa{ height:3px; top:0; padding:0; border-radius:var(--r-pill); background:var(--cal-ac); box-shadow:none; pointer-events:none }
+  .cal-faixa-t,.cal-faixa-tag{ display:none }
+  .cal-mes-head span{ padding-left:0; text-align:center; font-size:9px }
+
+  /* ── AGENDA no celular ────────────────────────────────── */
+  .cal-sh-canto,.cal-allday-l{ width:44px }
+  .cal-tl-regua{ width:44px }
+  .cal-regua-h i{ right:6px; font-size:9.5px }
+  .cal-sh-num{ font-size:15px }
+  .cal-sh-d{ padding:6px 2px }
+  .cal-tl-cols{ gap:3px }
+  .cal-bloco-t{ font-size:11px }
+
+  /* ── folha vira gaveta de baixo ───────────────────────── */
+  .cal-folha{ align-items:flex-end; justify-content:center }
+  .cal-folha-cx{
+    width:100%; height:auto; max-height:88vh;
+    border-left:0; border-top:1px solid var(--cal-borda);
+    border-radius:calc(var(--r) * 2) calc(var(--r) * 2) 0 0;
+    transform:translateY(30px); padding-bottom:var(--safe-bottom);
+  }
+  .cal-folha.saindo .cal-folha-cx{ transform:translateY(30px) }
+  .cal-ff{ padding-bottom:calc(14px + var(--safe-bottom)) }
+  .cal-fb-dl > div{ grid-template-columns:1fr; gap:3px }
+
+  /* Toque confortável: o mínimo do HIG/Material em tudo que se clica. */
+  .cal-nav-b,.cal-nav-hoje,.cal-chip,.cal-seg-b,.cal-fh-x,.cal-hp-i{ min-height:var(--tap-min) }
+  .cal-seg{ padding:2px }
+  .cal-chip{ height:34px }
+}
+
+@media (max-width:480px){
+  .cal-met{ grid-template-columns:1fr }
+  .cal-prox-i{ grid-template-columns:84px 1fr; row-gap:2px }
+  .cal-prox-tipo{ grid-column:2; justify-self:start }
+  .cal-hp{ grid-template-columns:1fr 1fr; height:200px }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MOVIMENTO REDUZIDO
+   O guarda global do 02-animations.css cobre o app; aqui desligamos o que
+   é próprio do módulo (cascata, pulso, deslize, brilho do esqueleto).
+══════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce){
+  #view-calendario *,#view-calendario *::before,#view-calendario *::after,
+  .cal-folha *,.cal-pick *,.cal-prev{
+    animation-duration:.01ms!important; animation-iteration-count:1!important;
+    transition-duration:.01ms!important;
+  }
+  .cal-entra,.cal-entra-dir,.cal-entra-esq{ opacity:1; transform:none }
+  .cal-cascata{ animation:none }
+}
+
+/* Impressão: o mês numa folha, sem interface. A operação imprime o calendário
+   e cola na parede — era o único acerto da tela antiga, e ele fica. */
+@media print{
+  body.mode-calendario .topbar,
+  body.mode-calendario .cal-topo,
+  body.mode-calendario .cal-filtros,
+  body.mode-calendario .cal-rodape,
+  body.mode-calendario .cal-dia-add{ display:none!important }
+  body.mode-calendario #view-calendario{ height:auto; background:#fff; color:#000 }
+  .cal-palco{ overflow:visible; padding:0 }
+  .cal-mes-grade{ box-shadow:none }
+  .cal-dia{ min-height:96px }
+}

@@ -96,6 +96,13 @@ Em uma frase: *o calendário responde "o que eu posto essa semana?" e entrega a 
 
 ### O que já existe de fundação
 
+*O módulo foi construído em setembro/2026 (`js/calendario/*`, `css/modules/calendario.css`).
+Falta só ligar a fonte oficial — passos 1 e 2 abaixo. Duas decisões tomadas na construção,
+para não se perderem: **quem edita é só a equipe DM** (`gIsAdmin`; o franqueado lê, filtra e
+clica), e **as recorrentes ficam fora da grade** — elas cobrem o mês inteiro e, como barras,
+empurravam a campanha-mãe para dentro do "+3 eventos", que era o defeito do calendário antigo.
+Elas aparecem uma vez, na tira "sempre no ar".*
+
 | Peça | Onde | Serve para |
 |---|---|---|
 | Sistema de modos e abas | `js/main.js:23-115` | a aba nova entra no mesmo trilho, com flag e role |
@@ -109,11 +116,11 @@ oficial das datas e a tela.
 ### Os passos
 
 1. [ ] **Decidir a fonte do dado** (decisão aberta #1 — é o que trava tudo).
-2. [ ] **Trazer o calendário para uma tabela** (`luma.calendario`: data, título, campanha, descrição curta, status). Atualização automática pela fonte escolhida; nada de digitar à mão.
-3. [ ] **A aba** — modo `calendario` + `#view-calendario` + flag `module.calendario`, no mesmo padrão dos outros três modos.
-4. [ ] **A tela** — mês corrente com os dias marcados, e a lista "próximos" embaixo (no celular, a lista manda; o grid é bônus de tela grande).
-5. [ ] **O clique** — dia → campanha → catálogo daquela campanha, reusando `fSelectCamp`.
-6. [ ] **Estado honesto** — dia sem campanha não inventa nada; falha de sincronismo mostra a data da última atualização em vez de fingir que está em dia.
+2. [ ] **Trazer o calendário para uma tabela** (`luma.calendario`: data, título, campanha, descrição curta, status). Atualização automática pela fonte escolhida; nada de digitar à mão. *O front já está pronto para receber: `calFetch()` (`js/calendario/calendario.js`) é o único ponto de troca — nenhuma vista lê o seed direto.*
+3. [x] **A aba** — modo `calendario` + `#view-calendario` + flag `module.calendario`, no mesmo padrão dos outros três modos (setembro/2026).
+4. [x] **A tela** — quatro vistas: Visão geral, Mês, Semana e Dia. No celular a grade vira bússola (número + pontos) e a lista do dia manda, como o passo previa.
+5. [x] **O clique** — evento → campanha → catálogo daquela campanha, via `calAbrirArtes` → `fSelectCamp`.
+6. [x] **Estado honesto** — dia sem campanha não inventa nada; o rodapé mostra a fonte e a data da última carga, e diz com todas as letras quando o calendário é o de demonstração.
 
 ### O que fica para depois (mesmo sendo tentador)
 

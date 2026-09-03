@@ -23,7 +23,15 @@ window.LUMA_GEMINI_API_KEY = window.LUMA_GEMINI_API_KEY || 'AQ.Ab8RN6Ja4R95ctSYO
 // de versão não quebra os agentes de novo — foi exatamente o que matou o 'gemini-1.5-flash'.
 window.LUMA_GEMINI_MODEL = window.LUMA_GEMINI_MODEL || 'gemini-flash-latest';
 
-/* ── CAMPANHAS ── */
+/* ── CAMPANHAS ──
+   `cover`  = a arte 5:3 da vitrine (assets/covers/) — já existia.
+   `banner` = a arte LARGA (~5.5:1) que identifica a campanha à distância
+              (assets/banners/). É por ela que o franqueado reconhece a campanha
+              no Calendário: o nome já está DENTRO da imagem, então o banner
+              carrega a identidade e o texto ao lado carrega a data e a regra.
+   Campanha sem `banner` não quebra nada — quem exibe cai no tratamento
+   tipográfico (trilho de cor + título). O mesmo vale se o arquivo faltar: o
+   `onerror` do <img> some com ele. Ver `calBanner` em js/calendario/calendario.js. */
 const CAMPS_ATIVAS=[
   {id:'muchplus',name:'Much+ Benefícios',color:'#FFB900',count:4,badge:'',expiraDias:90,popular:true,theme:'muchplus',cover:'assets/covers/muchplus.png',
    previewProd:'CLUBE MUCH+',previewDe:'',previewPor:'MAIS BENEFÍCIOS',
@@ -42,7 +50,7 @@ const CAMPS_ATIVAS=[
     {id:'validade',texto:'Qual a validade da promoção?',sugestoes:['Durante os jogos','Este mês','Por tempo limitado','Sem validade']},
    ]},
 
-  {id:'cd',name:'Combo Com Desconto',color:'#E35C00',count:4,badge:'',expiraDias:5,popular:false,cover:'assets/covers/cd.png',
+  {id:'cd',name:'Combo Com Desconto',color:'#E35C00',count:4,badge:'',expiraDias:5,popular:false,cover:'assets/covers/cd.png',banner:'assets/banners/cd.png',
    previewProd:'COMBO FAMÍLIA',previewDe:'',previewPor:'20% OFF',
    perguntas:[
     {id:'produto',texto:'Qual o nome do combo que vai estar em destaque?',sugestoes:['Combo Família','Combo Casal','Combo Executivo','Combo Especial']},
@@ -50,7 +58,7 @@ const CAMPS_ATIVAS=[
     {id:'precoPor',texto:'Qual o preço final do combo com desconto?',sugestoes:['R$ 24,90','R$ 29,90','R$ 34,90','R$ 39,90']},
     {id:'validade',texto:'Qual é a validade da promoção?',sugestoes:['Hoje só','Esta semana','Este mês','Sem validade']},
    ]},
-  {id:'tr25',name:'Tudo até R$ 25 - Baratíssimo',color:'#E06000',count:3,badge:'',expiraDias:7,popular:false,cover:'assets/covers/tr25.png',
+  {id:'tr25',name:'Tudo até R$ 25 - Baratíssimo',color:'#E06000',count:3,badge:'',expiraDias:7,popular:false,cover:'assets/covers/tr25.png',banner:'assets/banners/tr25.png',
    previewProd:'CARDÁPIO TODO',previewDe:'',previewPor:'ATÉ R$ 25',
    perguntas:[
     {id:'produto',texto:'Quais pratos ou categorias entram no "tudo até R$ 25"?',sugestoes:['Hamburgueres','Porções','Combos leves','Lanches simples']},
@@ -70,7 +78,7 @@ const CAMPS_ATIVAS=[
     {id:'desconto',texto:'Qual o desconto dobrado? Ex: 30% off.',sugestoes:['20% off','30% off','40% off','50% off']},
     {id:'validade',texto:'Qual a validade?',sugestoes:['Hoje só','Este final de semana','Esta semana','Por tempo limitado']},
    ]},
-  {id:'rbp',name:'Rangos Que Baixaram O Preço',color:'#B8860B',count:3,badge:'',expiraDias:10,popular:false,cover:'assets/covers/rbp.png',
+  {id:'rbp',name:'Rangos Que Baixaram O Preço',color:'#B8860B',count:3,badge:'',expiraDias:10,popular:false,cover:'assets/covers/rbp.png',banner:'assets/banners/rbp.png',
    previewProd:'PREÇOS BAIXOS',previewDe:'',previewPor:'DESCONTO REAL',
    perguntas:[
     {id:'produto',texto:'Quais pratos baixaram de preço?',sugestoes:['X-Burguer','Combo Frango','Pizza calabresa','Açaí 500ml']},
@@ -80,14 +88,14 @@ const CAMPS_ATIVAS=[
    ]},
 ];
 const CAMPS_OUTRAS=[
-  {id:'pt',name:'Promo Turbinada',color:'#7B1FA2',count:4,badge:'',expiraDias:14,popular:false,cover:'assets/covers/pt.png',
+  {id:'pt',name:'Promo Turbinada',color:'#7B1FA2',count:4,badge:'',expiraDias:14,popular:false,cover:'assets/covers/pt.png',banner:'assets/banners/pt.png',
    previewProd:'HAMBÚRGUERES',previewDe:'',previewPor:'LEVE 2 PAGUE 1',
    perguntas:[
     {id:'produto',texto:'Qual produto ou categoria está em promoção turbinada?',sugestoes:['Hambúrgueres','Pizzas','Porções','Bebidas']},
     {id:'oferta',texto:'Como é a promoção? Ex: leve 2 pague 1.',sugestoes:['Leve 2 pague 1','50% no 2º item','Frete grátis + desconto','Combo surpresa']},
     {id:'validade',texto:'Qual é a validade?',sugestoes:['Hoje','Este final de semana','Esta semana','Por tempo limitado']},
    ]},
-  {id:'gb',name:'Bora Ganhar Brindes',color:'#C81818',count:4,badge:'',expiraDias:30,popular:false,cover:'assets/covers/gb.png',
+  {id:'gb',name:'Bora Ganhar Brindes',color:'#C81818',count:4,badge:'',expiraDias:30,popular:false,cover:'assets/covers/gb.png',banner:'assets/banners/gb.png',
    previewProd:'SOBREMESA',previewDe:'',previewPor:'GRÁTIS',
    perguntas:[
     {id:'brinde',texto:'Qual é o brinde que o cliente pode ganhar?',sugestoes:['Sobremesa grátis','Bebida grátis','Porção grátis','Cupom de desconto']},
@@ -118,14 +126,14 @@ const CAMPS_OUTRAS=[
     {id:'condicao',texto:'Tem alguma condição para usar o cupom?',sugestoes:['Pedido mínimo R$ 20','Primeira compra','Qualquer pedido','Somente app']},
     {id:'validade',texto:'Qual é a validade do cupom?',sugestoes:['Hoje só','Esta semana','Este mês','Sem validade']},
    ]},
-  {id:'aai',name:'Açaí Aqui',color:'#6A0DAD',count:3,badge:'',expiraDias:14,popular:false,cover:'assets/covers/aai.png',
+  {id:'aai',name:'Açaí Aqui',color:'#6A0DAD',count:3,badge:'',expiraDias:14,popular:false,cover:'assets/covers/aai.png',banner:'assets/banners/aai.png',
    previewProd:'AÇAÍ',previewDe:'',previewPor:'NA PROMOÇÃO',
    perguntas:[
     {id:'produto',texto:'Qual é o açaí ou combo em destaque?',sugestoes:['Açaí 500ml','Combo 2 açaís','Açaí com granola','Bowl especial']},
     {id:'precoPor',texto:'Qual o preço promocional?',sugestoes:['R$ 9,90','R$ 14,90','R$ 19,90','R$ 24,90']},
     {id:'validade',texto:'Qual a validade?',sugestoes:['Hoje só','Este final de semana','Esta semana','Por tempo limitado']},
    ]},
-  {id:'mna',name:'Mercado no App',color:'#2E7D32',count:3,badge:'',expiraDias:14,popular:false,cover:'assets/covers/mna.png',
+  {id:'mna',name:'Mercado no App',color:'#2E7D32',count:3,badge:'',expiraDias:14,popular:false,cover:'assets/covers/mna.png',banner:'assets/banners/mna.png',
    previewProd:'MERCADO',previewDe:'',previewPor:'USO EXCLUSIVO',
    perguntas:[
     {id:'produto',texto:'Qual categoria de mercado você quer divulgar?',sugestoes:['Hortifruti','Bebidas','Limpeza','Produtos básicos']},

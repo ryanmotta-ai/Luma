@@ -20,7 +20,7 @@ function dUpdateTabPill() {
 /* ── CONTROLE DO PRODUTO: gate de módulo ─────────────────────────
    A chave de cada aba da topbar. O Controle do produto pode desligar um módulo
    inteiro sem deploy; aqui é onde isso vira navegação bloqueada. */
-const G_MODE_FEATURE = { franqueado:'module.franqueado', designer:'module.designer', academia:'module.academia' };
+const G_MODE_FEATURE = { franqueado:'module.franqueado', designer:'module.designer', academia:'module.academia', calendario:'module.calendario' };
 
 // Um modo só abre se a role permite E a flag permite.
 function gModeAllowed(m){
@@ -33,7 +33,7 @@ function gModeAllowed(m){
 
 // Primeiro modo que esta pessoa pode abrir agora. null = nenhum.
 function gFirstAllowedMode(){
-  return ['franqueado','academia','designer','video'].find(gModeAllowed) || null;
+  return ['franqueado','calendario','academia','designer','video'].find(gModeAllowed) || null;
 }
 
 /* Todos os módulos desligados: em vez de deixar o app numa tela em branco (que
@@ -72,7 +72,7 @@ function gGoHome(){
 }
 
 function setMode(m){
-  if(m!=='franqueado' && m!=='designer' && m!=='academia' && m!=='video') m='franqueado';
+  if(m!=='franqueado' && m!=='designer' && m!=='academia' && m!=='calendario' && m!=='video') m='franqueado';
   // Gate por role: franqueado NÃO acessa o Estúdio (trava no clique e via DOM/console).
   // A Academia é das TRÊS personas (o franqueado estuda; a equipe administra) — sem gate.
   if((m==='designer' || m==='video') && (typeof gIsAdmin!=='function' || !gIsAdmin())) m='franqueado';
@@ -93,12 +93,14 @@ function setMode(m){
   // fica pairando por cima do Franqueado, que não tem como fechá-lo).
   if(m!=='academia' && typeof acFecharPaineis==='function') acFecharPaineis();
   // Troca só a classe de modo, preservando as demais (theme-light, rulers-on, simulating...)
-  document.body.classList.remove('mode-franqueado','mode-designer','mode-academia');
+  document.body.classList.remove('mode-franqueado','mode-designer','mode-academia','mode-calendario');
   document.body.classList.add('mode-'+m);
   document.getElementById('tab-fran').classList.toggle('active', m==='franqueado');
   document.getElementById('tab-design').classList.toggle('active', m==='designer');
   const tabAcad = document.getElementById('tab-academia');
   if(tabAcad) tabAcad.classList.toggle('active', m==='academia');
+  const tabCal = document.getElementById('tab-calendario');
+  if(tabCal) tabCal.classList.toggle('active', m==='calendario');
 
   dUpdateTabPill();
 
@@ -108,6 +110,8 @@ function setMode(m){
   if(ctxDesign) ctxDesign.style.display = m==='designer'?'':'none';
   // Academia carrega lazy, como o Estúdio: só na primeira entrada paga o sync.
   if(m==='academia' && typeof acInit==='function') acInit();
+  // Calendário no mesmo trilho: monta na primeira entrada, re-renderiza depois.
+  if(m==='calendario' && typeof calInit==='function') calInit();
   if(m==='designer'){
     dInit();
     // Entrar no Estúdio sempre cai na CASA (aba Campanhas), nunca no painel de Camadas —
@@ -144,7 +148,7 @@ function gApplyModeAccess(){
   if(tabDesign) tabDesign.style.display = isAdmin ? '' : 'none';
   // Módulo desativado some da topbar junto com a rota (setMode já bloqueia o
   // acesso; aqui é o CTA que também precisa sumir, senão o clique só frustra).
-  [['tab-fran','franqueado'],['tab-academia','academia'],['tab-design','designer']].forEach(([id,modo])=>{
+  [['tab-fran','franqueado'],['tab-calendario','calendario'],['tab-academia','academia'],['tab-design','designer']].forEach(([id,modo])=>{
     const tab=document.getElementById(id);
     if(tab && !gModeAllowed(modo)) tab.style.display='none';
   });
@@ -152,7 +156,8 @@ function gApplyModeAccess(){
   if(typeof gFeatureApplyToDOM==='function') gFeatureApplyToDOM();
 
   const atual = document.body.classList.contains('mode-designer') ? 'designer'
-              : (document.body.classList.contains('mode-academia') ? 'academia' : 'franqueado');
+              : (document.body.classList.contains('mode-academia') ? 'academia'
+              : (document.body.classList.contains('mode-calendario') ? 'calendario' : 'franqueado'));
   if(!gModeAllowed(atual)){
     const alvo=gFirstAllowedMode();
     if(alvo) setMode(alvo); else _gShowNoModuleView();
@@ -235,7 +240,8 @@ function gOnLoginSuccess() {
   // F5 dentro de uma campanha reabre ela — só depois das pastas descerem (materiais dependem
   // do catálogo). Só no Franqueado (Estúdio/Academia já foram restaurados por gRestoreMode).
   const _restoreCamp = () => {
-    if(!_bootCamp || document.body.classList.contains('mode-designer') || document.body.classList.contains('mode-academia')) return;
+    if(!_bootCamp || document.body.classList.contains('mode-designer') || document.body.classList.contains('mode-academia')
+       || document.body.classList.contains('mode-calendario')) return;
     if(typeof fResolveCamp==='function' && typeof fSelectCamp==='function' && fResolveCamp(_bootCamp)){
       fSelectCamp(_bootCamp); _bootCamp=null; // uma vez só
     }
