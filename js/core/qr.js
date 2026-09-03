@@ -204,7 +204,10 @@ function _qrMatrix(text){
     for(let r=0;r<N;r++) for(let c=0;c<N;c++) if(!rsv[r][c] && _QR_MASKS[k](r,c)) t[r][c]^=1;
     // Informação de formato, gravada DUAS vezes (a norma exige a redundância: se um canto
     // estiver danificado, o leitor ainda descobre nível e máscara pelo outro).
-    const fb=_qrFormatBits(k), fbit=i=>(fb>>i)&1;
+    // A norma grava os 15 bits do MAIS significativo pro menos: a posição i recebe o bit
+    // 14-i. Lendo LSB-first o leitor decodifica nível/máscara errados e descarta o código
+    // inteiro — o QR até "desenha", mas nenhuma câmera lê. Não inverter.
+    const fb=_qrFormatBits(k), fbit=i=>(fb>>(14-i))&1;
     for(let i=0;i<15;i++){
       // cópia 1 — em L, em volta do finder superior-esquerdo
       if(i<6)        t[8][i]=fbit(i);
