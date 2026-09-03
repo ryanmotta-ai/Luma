@@ -5710,3 +5710,105 @@ body.d-page-locked #d-canvas-container{
   .dpg-add-below{min-height:34px}
   .dpg-btn{width:28px;height:28px}
 }
+
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   PSD IMPORT — ACABAMENTO (2026-09-03)
+   ══════════════════════════════════════════════════════════════════════════════
+   Esta passagem é consequência direta da outra mudança do dia: o import PAROU de
+   adivinhar qual campo é cada camada (ver o gate em `psd-parse.js`). Antes o
+   designer auditava palpites; agora ele MAPEIA. São trabalhos diferentes, e a tela
+   tem que servir o segundo:
+
+     • a decisão de campo virou a ação principal da linha — e disputava atenção
+       em pé de igualdade com o seletor de modo, do mesmo tamanho e do mesmo tom;
+     • "o que eu já liguei" precisa ser varrível de relance, porque agora é
+       progresso de trabalho manual, não conferência de chute;
+     • cada vínculo merece confirmação — é o único retorno que o designer tem de
+       que o clique dele valeu.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. A LINHA MOSTRA O QUE JÁ FOI LIGADO ──
+   Filete na borda esquerda: some quando não há vínculo e nasce na cor do campo
+   quando há. Varrer a lista passa a responder "quanto falta" sem ler um select.
+   `--var-color` é o mesmo token que o `.psd-field-sel.is-bound` já usa, então a
+   linha e o seletor falam a mesma cor sem inventar nada. */
+.psd-row{
+  position:relative;overflow:hidden;
+  transition:border-color var(--dur-fast) var(--ease-standard),
+             background var(--dur-fast) var(--ease-standard);
+}
+.psd-row::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:var(--var-color);
+  transform:scaleY(0);transform-origin:center;
+  transition:transform var(--dur-base) var(--ease-spring);
+  pointer-events:none;
+}
+.psd-row.is-mapped::before{transform:scaleY(1)}
+.psd-row.is-mapped{background:color-mix(in srgb,var(--var-color) 5%,var(--d-surf))}
+
+/* ── 2. O CAMPO É A DECISÃO; O MODO É DETALHE ──
+   Os dois selects tinham a mesma largura, o mesmo fundo e a mesma borda — na
+   bancada não se sabia qual era qual. O campo cresce e ganha corpo; o modo fica
+   silencioso até o ponteiro chegar. Nada de esconder: o modo segue alcançável por
+   teclado e com a mesma altura de alvo. */
+.psd-field-sel{
+  font-weight:600;
+  transition:border-color var(--dur-fast) var(--ease-standard),
+             background var(--dur-fast) var(--ease-standard),
+             box-shadow var(--dur-fast) var(--ease-standard);
+}
+.psd-field-sel:not(.is-bound):hover{border-color:var(--dm-orange);color:var(--d-text)}
+.psd-mode{
+  height:34px;                       /* casa com o campo: a linha para de serrilhar */
+  background:transparent;border-color:var(--d-border);color:var(--d-text2);
+  transition:border-color var(--dur-fast) var(--ease-standard),
+             background var(--dur-fast) var(--ease-standard),
+             color var(--dur-fast) var(--ease-standard);
+}
+.psd-mode:hover,.psd-mode:focus{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text)}
+
+/* ── 3. O VÍNCULO SE CONFIRMA ──
+   Um pulso curto no seletor quando o campo acabou de ser ligado. É o único retorno
+   que o designer tem de que o clique valeu — e ele vai repetir esse clique dezenas
+   de vezes num PSD de verdade. Uma vez, nunca em laço.
+   A classe é posta e retirada por `_dPsdPulseRow` (psd-import.js). */
+.psd-field-sel.just-bound{animation:psdLigou var(--dur-slow) var(--ease-out) both}
+@keyframes psdLigou{
+  0%  {box-shadow:0 0 0 0 color-mix(in srgb,var(--var-color) 55%,transparent)}
+  45% {box-shadow:0 0 0 6px color-mix(in srgb,var(--var-color) 0%,transparent)}
+  100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--var-color) 0%,transparent)}
+}
+
+/* ── 4. A LISTA ENTRA EM CASCATA ──
+   Um PSD de verdade traz 20–60 camadas: tudo aparecendo no mesmo quadro é um
+   paredão. A cascata é CURTA e TEM TETO — `--psd-i` é escrito pelo render só nas
+   12 primeiras linhas (psd-import.js), então a 40ª não espera 2 segundos para
+   existir. O guarda global de reduced-motion (02-animations.css) zera tudo isto. */
+.psd-row{animation:psdLinhaEntra var(--dur-base) var(--ease-out) both;animation-delay:calc(var(--psd-i,0) * 22ms)}
+@keyframes psdLinhaEntra{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ── 5. A TRILHA DE CAMPOS DIZ QUE ROLA ──
+   Medido: 698px de conteúdo em 670px de caixa — o último chip fica cortado no meio
+   da palavra. Ela SEMPRE teve `overflow-x:auto`, então rolava; o que faltava era
+   dizer isso. Sem barra visível no toque e sem hover, a única pista de que existe
+   mais campo adiante era a palavra picada — e agora que o designer mapeia tudo à
+   mão, a trilha é a ferramenta principal dele, não um enfeite.
+   Mesmo instrumento que a planilha do Sheets já usa (`.f-bulk-table-scroll`):
+   sombra na borda direita que SOME sozinha ao chegar no fim, via
+   `background-attachment:local`. Uma solução na casa, não duas. */
+.psd-fields{
+  background-image:linear-gradient(to left,rgba(0,0,0,.34),rgba(0,0,0,0) 26px);
+  background-repeat:no-repeat;background-position:right center;background-size:26px 100%;
+  background-attachment:local;
+}
+
+/* ── 6. O SELO DIZ A VERDADE, ENTÃO PODE TER PRESENÇA ──
+   Enquanto ele mentia ("sugestões aplicadas automaticamente") o certo era ser
+   discreto. Agora ele é a instrução da tela — ganha a tinta da marca. */
+#d-psd-auto-label{
+  border-color:color-mix(in srgb,var(--dm-orange) 34%,var(--d-border));
+  background:color-mix(in srgb,var(--dm-orange) 9%,var(--d-surf2));
+  color:var(--dm-orange-text);
+}

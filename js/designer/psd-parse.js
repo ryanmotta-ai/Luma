@@ -750,7 +750,9 @@ function _dPsdCatalogMatch(clean, sing){
 function _dPsdSuggestVar(name, content){
   const raw=String(name||'');
   const m=raw.match(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/);
-  if(m) return {name:m[1], auto:true};
+  // `explicit`: o designer ESCREVEU {{campo}} no nome da camada no Photoshop. Não é palpite,
+  // é instrução — e é o único caminho que o import honra sozinho (ver o gate na linha ~1527).
+  if(m) return {name:m[1], auto:true, explicit:true};
   
   let clean=raw.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
   const sing=_dSingularize(clean);
@@ -1524,8 +1526,22 @@ function dPsdParseItems(psd, res, ox, oy){
         }
         const _tg=_dPsdGradient(node); if(_tg) it.gradient=_tg;        // preenchimento por gradiente no texto
         Object.assign(it,_dPsdEffects(node));
-        it.varName=sv.name;
-        it.mode=sv.auto?'var':'text';
+        /* ⛔ O IMPORT NÃO ADIVINHA MAIS QUAL CAMPO É A CAMADA (decisão do Ryan, 03/09).
+           `_dPsdSuggestVar` tem cinco camadas de palpite e só UMA não é chute: o `{{campo}}`
+           escrito pelo designer no nome da camada, que é instrução explícita. As outras
+           quatro — o mapa fixo (`preco`→`precoPor`, `off`→`desconto`…), a lista de campos
+           conhecidos, o casamento com o catálogo pelo nome e a heurística de conteúdo
+           ("tem R$ no texto, então é preço") — decidiam pelo designer e erravam calado:
+           um rodapé que cita um valor virava `{{precoPor}}` e o texto original ia embora.
+           Pior: quando acertavam metade, ele tinha que auditar TUDO para descobrir qual
+           metade — mais caro que ligar do zero.
+           Agora a camada nasce sem campo e quem liga é o designer, no `<select>` da linha
+           (catálogo inteiro + "Criar campo"). O motor de sugestão CONTINUA existindo e é
+           usado de propósito em outras superfícies, onde é pedido: o linter (`linter.js`),
+           a dica do painel de propriedades (`props-panel.js`) e o botão "Mapear com IA",
+           que só roda quando o designer aperta. Nada aqui roda sem ele pedir. */
+        if(sv && sv.explicit){ it.varName=sv.name; it.mode='var'; }
+        else { it.varName=''; it.mode='text'; }
         // Tipo de caixa. Campo real do ag-psd: text.shapeType ('box'|'point'). Só PARAGRAPH (box)
         // substitui x/y/w/h pela caixa do designer; POINT mantém o bbox de glifos 1:1 (posição real).
         it.textBox=(t.shapeType==='box')?'box':'point';

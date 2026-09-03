@@ -44,12 +44,13 @@ function _dPsdMemApply(items){
     const s=mem[key]; if(!s) return;
     const validText=['text','var','raster'], validShape=['shape','raster','frame'], validRaster=['raster','frame'];
     if(s.mode==='var' && it.kind==='text'){
-      // Converter texto → variável REESCREVE o conteúdo por {{var}}. Entre PSDs diferentes, uma
-      // camada "valor" que num arquivo era var e noutro é um disclaimer teria o texto destruído.
-      // Só converte se o conteúdo for compatível (vazio/curto ou a heurística sugere a mesma var);
-      // senão preserva o texto e apenas pré-preenche o varName.
-      const sug=(typeof _dPsdSuggestVar==='function')?_dPsdSuggestVar(it.name,it.content):null;
-      if(!it.content || String(it.content).length<=24 || (sug&&sug.name===s.varName)) it.mode='var';
+      /* A memória PRÉ-PREENCHE o nome do campo, mas NÃO liga a variável sozinha (03/09).
+         Converter texto → variável REESCREVE o conteúdo por {{var}}: entre PSDs diferentes,
+         uma camada "valor" que num arquivo era campo e noutro é um disclaimer teria o texto
+         destruído — e a única coisa que segurava isso era a heurística de palpite, que saiu
+         daqui junto com a do parser. Sem ela, converter calado é aposta pura.
+         O que a memória faz agora: devolve o `varName` (abaixo) para o designer reconhecer a
+         escolha antiga em um clique no `<select>` da linha. A decisão continua sendo dele. */
     } else if(s.mode&&(
       (it.kind==='text'&&validText.includes(s.mode))||
       (it.kind==='shape'&&validShape.includes(s.mode))||
@@ -280,7 +281,10 @@ function dPsdRenderRows(filter){
     const clipWarn=it.maskFallback?`<span class="psd-fontwarn" title="A forma complexa de base não pôde ser rasterizada">Recorte simplificado</span>`:'';
     // Alinhamento em PT-BR: o valor do modelo é técnico ('left'/'justify') e não vai pra tela.
     const _alinhoPt={left:'esquerda',center:'centro',right:'direita',justify:'justificado'};
-    const textInfoBadge=it.kind==='text'?`<span class="psd-textinfo">${it.fontSize}px · ${_alinhoPt[it.textAlign]||'esquerda'}</span>`:'';
+    // `${it.fontSize}px` sem guarda imprimia literalmente "undefinedpx" quando o tamanho não
+    // era derivável do PSD (visto na bancada). Sem tamanho, mostra só o alinhamento.
+    const _tam=(it.fontSize!=null && !isNaN(it.fontSize)) ? Math.round(it.fontSize)+'px · ' : '';
+    const textInfoBadge=it.kind==='text'?`<span class="psd-textinfo">${_tam}${_alinhoPt[it.textAlign]||'esquerda'}</span>`:'';
     const thumb=it.kind==='raster'&&it.imgUrl?`<img class="psd-thumb" src="${it.imgUrl}" alt="" loading="lazy">`:'';
     const textPrev=it.kind==='text'&&it.content
       ?`<span class="psd-text-prev" style="color:${it.color||'#aaa'}">${_dPsdEsc(it.content.replace(/\n/g,' ').slice(0,60))}</span>`:'';
@@ -298,7 +302,12 @@ function dPsdRenderRows(filter){
         : 'O Luma reconheceu este conteúdo pelo nome da camada — clique para transformar em campo editável';
       sugBadge=`<button type="button" class="psd-sug${_ia?' psd-sug-ia':''}" onclick="dPsdAcceptSug(${i})" title="${_dPsdEsc(_why)}">${_ia?'IA sugere':'Sugerido'}: ${_dPsdEsc(_dPsdFieldLabel(it.varName))}</button>`;
     }
-    return header+`<div class="psd-row ${it.include?'':'psd-row-off'}" data-psd-idx="${i}" onmouseenter="typeof dPsdHoverLayer==='function'&&dPsdHoverLayer(${i})" onmouseleave="typeof dPsdHoverLayer==='function'&&dPsdHoverLayer(-1)" ondragover="dPsdRowDragOver(event,${i})" ondragleave="dPsdRowDragLeave(event)" ondrop="dPsdRowDrop(event,${i})" onclick="dPsdRowClick(event,${i})">
+    // `is-mapped` acende o filete da borda (o "já liguei este") e `--psd-i` dá o degrau da
+    // cascata de entrada. O teto de 12 não é estético: num PSD de 40 camadas, sem teto a
+    // última esperaria ~0,9s só de delay para existir.
+    const _mapeada=((it.mode==='var'||it.mode==='frame') && it.varName)?' is-mapped':'';
+    const _casc=` style="--psd-i:${Math.min(i,12)}"`;
+    return header+`<div class="psd-row ${it.include?'':'psd-row-off'}${_mapeada}"${_casc} data-psd-idx="${i}" onmouseenter="typeof dPsdHoverLayer==='function'&&dPsdHoverLayer(${i})" onmouseleave="typeof dPsdHoverLayer==='function'&&dPsdHoverLayer(-1)" ondragover="dPsdRowDragOver(event,${i})" ondragleave="dPsdRowDragLeave(event)" ondrop="dPsdRowDrop(event,${i})" onclick="dPsdRowClick(event,${i})">
       <input type="checkbox" aria-label="Importar camada ${_dPsdEsc(it.name)}" ${it.include?'checked':''} onchange="dPsdSetInclude(${i},this.checked)">
       <span class="psd-row-ico psd-row-ico-${it.kind}">${swatch||ico[it.kind]||ico.raster}</span>
       ${thumb}
@@ -322,6 +331,15 @@ function dPsdSetMode(i,v){
     const back=document.querySelector('#d-psd-rows [data-psd-idx="'+i+'"] .psd-mode');
     if(back) back.focus();
   }
+}
+/* Pulso de confirmação no seletor da linha que ACABOU de ganhar campo. Roda depois do
+   re-render (`_dPsdAfterMap` troca o DOM inteiro, então o elemento de antes é órfão) e a
+   classe sai sozinha no `animationend` — sem número de ms cravado aqui. */
+function _dPsdPulseRow(i){
+  const sel=document.querySelector('#d-psd-rows [data-psd-idx="'+i+'"] .psd-field-sel');
+  if(!sel) return;
+  sel.classList.add('just-bound');
+  sel.addEventListener('animationend',()=>sel.classList.remove('just-bound'),{once:true});
 }
 function dPsdSetVar(i,v,el){ if(dPsdItems[i]){ const clean=v.trim().replace(/[^a-zA-Z0-9_]/g,''); dPsdItems[i].varName=clean; if(el&&el.value!==clean) el.value=clean; } } // reescreve o input p/ refletir o valor sanitizado
 function dPsdSetInclude(i,on){ if(dPsdItems[i]){ dPsdItems[i].include=on; const f=document.getElementById('d-psd-search'); dPsdRenderRows(f&&f.value.trim().toLowerCase()||''); } }
@@ -812,6 +830,7 @@ function dPsdBindField(i, name){
   it.mode=chk.mode; it.varName=v.name;
   it.varSource='user'; it.varWhy=''; // decisão humana: apaga a marca de "IA sugere" da camada
   _dPsdAfterMap('“'+(v.label||v.name)+'” ligado à camada “'+it.name+'”');
+  _dPsdPulseRow(i);   // confirma o clique: é o único retorno que o designer tem
   return true;
 }
 function dPsdUnbindField(i){
@@ -958,6 +977,7 @@ function dPsdFieldSelect(i, el){
   // Nome fora do catálogo (a sugestão do parser): aceita e deixa o import criar o campo.
   it.include=true; it.varName=v; it.mode=_dPsdModeForKind(it); it.varSource='user'; it.varWhy='';
   _dPsdAfterMap('“'+v+'” ligado à camada “'+it.name+'”');
+  _dPsdPulseRow(i);
 }
 
 /* ── arrastar e soltar ── */

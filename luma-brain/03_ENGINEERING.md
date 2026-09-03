@@ -100,7 +100,8 @@ de cache**: a query string dos assets é a única alavanca. Por isso:
 > **Todo asset local de `js/` e `css/` carrega o MESMO `?v=N` no `index.html`.
 > Mexeu em qualquer um deles? Suba o N em TODOS antes do push:**
 > ```
-> sed -i 's/?v=9/?v=10/g' index.html
+> # troque VELHO pelo número atual e NOVO pelo próximo
+> sed -i 's/[?]v=VELHO/[?]v=NOVO/g' index.html
 > ```
 
 Por que número único e não por arquivo (decisão do Ryan, 02/09): o esquema por arquivo
@@ -110,6 +111,11 @@ e os outros 36 usavam seis números diferentes. Conserto nesses arquivos simples
 não chegava em quem já tinha aberto o Luma, e nada na tela denunciava. O custo do
 número único é um cache miss geral por deploy (~1MB, num app aberto 1–2× por dia);
 o ganho é que a classe de bug "esqueci de bumpar" deixa de existir.
+
+⚠ Os nomes vão em MAIÚSCULA e o `?` entre colchetes **de propósito**: escrito com números
+de verdade, o próprio `sed` do bump reescreve os dois lados do exemplo e ele vira
+`s/?v=16/?v=16/g` — um no-op que ensina errado. Aconteceu em 03/09, no `index.html`, e só
+apareceu num conflito de rebase.
 
 `assets/` fica fora por dois motivos: imagem lá muda de nome, não de conteúdo; e as
 libs de `assets/vendor/` são versões pinadas — se trocar uma, troque o **nome do
