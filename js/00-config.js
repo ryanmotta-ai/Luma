@@ -639,6 +639,77 @@ function gFieldGuessType(name){
   return 'text';
 }
 
+// Peso semântico para ordenação cognitiva das perguntas do chat (Modelo Mental em 3 Blocos):
+// 1. O QUÊ: Produto e detalhes descritivos (sujeito)
+// 2. MÍDIA: Foto do produto (âncora visual e paleta de cores)
+// 3. O QUANTO: Preço original "De" -> Preço promocional "Por" -> Descontos/Cupons
+// 4. O COMO/QUANDO: Validade da oferta -> Regras/Condições
+// 5. QUEM: Identificação da Loja/Parceiro (assinatura no rodapé)
+function gFieldSortWeight(name, type){
+  const s = String(name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[\s-]+/g, '_');
+  const t = type || gFieldGuessType(name);
+  const isImg = t === 'image' || /(^|_)(foto|imagem|img|banner|capa|thumb|pic)($|_)/.test(s);
+  const isStore = /(^|_)(logo|loja|marca|estabelecimento|restaurante|parceir|whatsapp|telefone|contato)($|_)/.test(s);
+
+  // Bloco 1: Identificação principal do produto / item
+  if(/^(produto|item|prato|combo|titulo|lanche|pizza|nome_produto|nome_item|nome)$/.test(s)) return 10;
+  if(/(sabor|opcao|tipo_)/.test(s)) return 12;
+  if(/(detalhes|descricao|subtitulo|sub_titulo|ingredientes|acompanhamento|texto_apoio|complemento)/.test(s)) return 15;
+
+  // Bloco 2: Foto do produto (exceto logos de loja/marca)
+  if(isImg && !isStore) return 20;
+
+  // Bloco 3: Preço original / Âncora ("De")
+  if(/(preco_?de|valor_?de|preco_?original|valor_?original|preco_?antigo|preco_?cheio|\bde\b)/.test(s)) return 30;
+
+  // Bloco 4: Preço promocional / Oferta ("Por")
+  if(/(preco_?por|valor_?por|preco_?promo|valor_?promo|preco_?final|novo_?preco|\bpor\b|preco|valor)/.test(s)) return 40;
+
+  // Bloco 5: Desconto, cupom, benefícios extras
+  if(/(desconto|porcentagem|off|economia)/.test(s)) return 50;
+  if(/(cupom|codigo|voucher)/.test(s)) return 52;
+  if(/(beneficio|vantagem|cashback|brinde|oferta)/.test(s)) return 54;
+  if(/(pedido_?min|valor_?min)/.test(s)) return 56;
+
+  // Bloco 6: Validade, prazos e condições
+  if(/(validade|data|vencimento|periodo|prazo|dias|horario)/.test(s)) return 60;
+  if(/(condicao|regra|bairros|cobertura|observacao|obs|aviso|legal)/.test(s)) return 65;
+
+  // Bloco 7: Assinatura da loja / parceiro / contato
+  if(isStore){
+    if(/^(nome_loja|nome_restaurante|loja|restaurante)$/.test(s)) return 70;
+    if(isImg) return 72; // logo_loja, logo
+    return 75; // whatsapp, telefone, contato
+  }
+
+  // Bloco 8: Demais campos (outros)
+  return 80;
+}
+
+// Ordena um array de variáveis de template respeitando a hierarquia cognitiva
+function gSortTemplateVars(vars){
+  if(!Array.isArray(vars) || vars.length <= 1) return vars;
+  const getType = (n) => {
+    if(typeof dVars !== 'undefined' && Array.isArray(dVars)){
+      const v = dVars.find(x => x && x.name === n);
+      if(v && v.type) return v.type;
+    }
+    return gFieldGuessType(n);
+  };
+  return vars.sort((a, b) => {
+    const wa = gFieldSortWeight(a, getType(a));
+    const wb = gFieldSortWeight(b, getType(b));
+    if(wa !== wb) return wa - wb;
+    if(typeof dVars !== 'undefined' && Array.isArray(dVars)){
+      const ia = dVars.findIndex(v => v && v.name === a);
+      const ib = dVars.findIndex(v => v && v.name === b);
+      if(ia >= 0 && ib >= 0 && ia !== ib) return ia - ib;
+    }
+    return 0;
+  });
+}
+
+
 // Gera um nome técnico (slug) único a partir do rótulo amigável. Nunca exibido ao usuário.
 function gFieldSlugify(label, existingNames){
   let base=String(label||'').normalize('NFD').replace(/[̀-ͯ]/g,'')

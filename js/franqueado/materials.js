@@ -597,9 +597,9 @@ async function fSelectMaterial(materialId, card){
   try{ document.body.classList.remove('f-material-browser'); }catch(e){}
   // Constrói perguntas a partir das variáveis do template + permissões definidas pelo designer
   const vars = dExtractTemplateVars(found.layers);
-  // V7: respeita a ordem do catálogo dVars (designer reordena → muda a ordem das perguntas).
-  // Vars sem entrada no catálogo vão para o fim, preservando a ordem original.
-  if(typeof dVars!=='undefined' && dVars && dVars.length){
+  // Ordenação cognitiva (Modelo Mental em 3 Blocos): Produto -> Foto -> Preço De -> Preço Por -> Descontos -> Validade -> Loja
+  if(typeof gSortTemplateVars==='function') gSortTemplateVars(vars);
+  else if(typeof dVars!=='undefined' && dVars && dVars.length){
     const ord=n=>{const i=dVars.findIndex(v=>v.name===n);return i<0?Infinity:i;};
     vars.sort((a,b)=>{const da=ord(a),db=ord(b);return da===db?0:da-db;});
   }
@@ -631,9 +631,26 @@ async function fSelectMaterial(materialId, card){
       else if(vDef && vDef.type==='boolean') sugestoes=['Sim','Não'];
       else if(vDef && vDef.type==='color' && vDef.palette && vDef.palette.length) sugestoes=vDef.palette.slice();
       else sugestoes=fGetSuggestionsForVar(v, fState.camp);
+
+      // Frases conversacionais humanizadas por tipo de campo
+      let texto;
+      const s = v.toLowerCase().replace(/[\s_-]+/g, '');
+      if(s === 'produto' || s === 'item' || s === 'prato') texto = `Qual é o <strong>${gEsc(label.toLowerCase())}</strong> que vai estar em destaque?`;
+      else if(s === 'detalhes' || s === 'subtitulo' || s === 'descricao') texto = `Quer adicionar uma <strong>descrição ou detalhes</strong> do produto?`;
+      else if(/(precode|valororiginal|valorde)/.test(s)) texto = `Qual era o <strong>preço original</strong> antes do desconto (De)?`;
+      else if(/(precopor|valorpromocional|valorpor|precopromo)/.test(s)) texto = `Por quanto vai sair na promoção (<strong>Preço Por</strong>)?`;
+      else if(s === 'desconto') texto = `Qual é o <strong>desconto</strong> da promoção?`;
+      else if(s === 'cupom' || s === 'codigo') texto = `Qual é o <strong>código do cupom</strong>?`;
+      else if(/(validade|data)/.test(s)) texto = `Qual é a <strong>validade</strong> desta promoção?`;
+      else if(/(condicao|regras)/.test(s)) texto = `Quais são as <strong>condições ou regras</strong> da ação?`;
+      else {
+        const fem = /^(validade|condição|regra|descrição|foto|imagem|logo|taxa|cobertura)/i.test(label) || label.endsWith('a');
+        texto = `Qual é ${fem ? 'a' : 'o'} <strong>${gEsc(label.toLowerCase())}</strong> que você quer usar?`;
+      }
+
       perguntas.push({
         id: v,
-        texto: `Qual é o <strong>${gEsc(label.toLowerCase())}</strong> que você quer usar?`,
+        texto,
         sugestoes,
         maxLen: perm?.maxLen || 32,
         label: label

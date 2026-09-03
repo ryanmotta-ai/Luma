@@ -453,6 +453,7 @@ async function fEditFromHist(id, btn){
     fState.done = false;
     // Reconstrói perguntas via mesma lógica do fSelectMaterial
     const vars = dExtractTemplateVars(material.layers);
+    if(typeof gSortTemplateVars==='function') gSortTemplateVars(vars);
     const permissoes = material.publishMeta?.permissoes || {};
     const imgVars = fMaterialImageVars(material.layers); // mesma detecção do fSelectMaterial (M14)
     const perguntas=[];
@@ -492,6 +493,7 @@ async function fEditFromHist(id, btn){
   fState.editIdx = null;
   const fbLabels={produto:'Produto',precoDe:'Preço original',precoPor:'Preço promo',validade:'Validade',desconto:'Desconto',pedidoMin:'Pedido mínimo',bairros:'Cobertura',codigo:'Código',condicao:'Condição',brinde:'Brinde',categoria:'Categoria',oferta:'Oferta'};
   const dadosKeys = Object.keys(h.dados||{});
+  if(typeof gSortTemplateVars==='function') gSortTemplateVars(dadosKeys);
   let fbPerguntas;
   if(dadosKeys.length){
     fbPerguntas = dadosKeys.map(k=>{

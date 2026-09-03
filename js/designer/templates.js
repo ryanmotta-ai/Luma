@@ -172,10 +172,10 @@ function dPreloadFolders(){
     if(typeof dRestoreVars!=='function' || !dRestoreVars()){
       dVars=[
         {name:'produto',label:'Produto',type:'text',required:true},
-        {name:'precoPor',label:'Preço Promo',type:'number',required:true},
-        {name:'precoDe',label:'Preço Original',type:'number',required:false},
-        {name:'validade',label:'Validade',type:'text',required:false,defaultValue:'Promoção por tempo limitado'},
         {name:'foto_produto',label:'Foto do produto',type:'image',required:false},
+        {name:'precoDe',label:'Preço Original',type:'number',required:false},
+        {name:'precoPor',label:'Preço Promo',type:'number',required:true},
+        {name:'validade',label:'Validade',type:'text',required:false,defaultValue:'Promoção por tempo limitado'},
         {name:'logo_loja',label:'Logo da loja',type:'image',required:false},
       ];
     }
@@ -488,10 +488,10 @@ function dInit(){
     if(typeof dRestoreVars!=='function' || !dRestoreVars()){
       dVars=[
         {name:'produto',label:'Produto',type:'text',required:true},
-        {name:'precoPor',label:'Preço Promo',type:'number',required:true},
-        {name:'precoDe',label:'Preço Original',type:'number',required:false},
-        {name:'validade',label:'Validade',type:'text',required:false,defaultValue:'Promoção por tempo limitado'},
         {name:'foto_produto',label:'Foto do produto',type:'image',required:false},
+        {name:'precoDe',label:'Preço Original',type:'number',required:false},
+        {name:'precoPor',label:'Preço Promo',type:'number',required:true},
+        {name:'validade',label:'Validade',type:'text',required:false,defaultValue:'Promoção por tempo limitado'},
         {name:'logo_loja',label:'Logo da loja',type:'image',required:false},
       ];
     }
