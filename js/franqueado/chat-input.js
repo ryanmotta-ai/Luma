@@ -23,17 +23,69 @@ const F_FIELD_TYPES = {
   condicao:  {type:'text',     maxLen:60,  label:'condição'},
 };
 
+/* ── LIMITE MEDIDO NA CAIXA (03/09) ──────────────────────────────────────────────────
+   O `maxLen` era escolhido a dedo por NOME de campo — 32 pra produto, 40 pra oferta — e
+   nao conhecia a arte. "Detalhes" de uma marmita (arroz, frango, feijao e 450g de salada)
+   nao cabe em 32 caracteres, e 32 nunca foi medido em lugar nenhum.
+   A caixa que o designer desenhou e fixa e sabe responder quanto texto cabe nela. Entao o
+   limite passa a ser MEDIDO: busca binaria no numero de caracteres com o motor de medida
+   unico (`gFitTextLayer`), no corpo AUTORADO (nao vale "cabe se encolher a fonte" — isso e
+   justamente o que o franqueado reclama) e dentro do teto de linhas do papel da camada.
+
+   ⚠ O medido so LEVANTA o limite, nunca aperta (`Math.max` no `fGetFieldType`). Motivo
+   medido, nao preguica: em PSD a caixa de point text e o bbox justo da frase que o designer
+   escreveu, entao medir pra baixo apertaria quase todo campo da casa — o oposto do pedido.
+   E o Auto-layout continua sendo a rede embaixo: limite de caractere nunca e exato, porque
+   "WWWW" e "iiii" tem a mesma contagem e larguras diferentes.
+
+   ⛔ Preco, desconto e codigo ficam fora: neles o tamanho vem da MASCARA, nao do usuario
+   (ver `fMaskInput`/`fValidate`), e a caixa de um preco e apertada por desenho. */
+const _F_MAXLEN_MED = new Map();      // 'materialId|campo' → limite medido (0 = nao deu pra medir)
+const _F_MAXLEN_FRASE = 'arroz feijao frango salada batata farofa vinagrete refrigerante ';
+const _F_MAXLEN_TETO = 200;           // acima disto nenhum campo de chat faz sentido
+
+function fMaxLenDaCaixa(id){
+  const mat = (typeof fState !== 'undefined' && fState) ? fState.material : null;
+  if(!id || !mat || !Array.isArray(mat.layers)) return 0;
+  if(typeof gFitTextLayer !== 'function' || typeof gInterpolate !== 'function') return 0;
+  const chave = (mat.id || '?') + '|' + id;
+  if(_F_MAXLEN_MED.has(chave)) return _F_MAXLEN_MED.get(chave);
+  let limite = 0;
+  try{
+    const marca = new RegExp('\\{\\{\\s*' + id.replace(/[^\w]/g,'') + '\\b');
+    mat.layers.forEach(l => {
+      if(!l || l.type !== 'text' || l.visible === false) return;
+      if(!marca.test(l.content || '')) return;
+      const base = l.fontSize || 24;
+      // Clone com o teto de linhas do papel carimbado: e o que liga `excedeuLinhas`.
+      const alvo = Object.assign({}, l);
+      if(typeof _gLayoutMaxLinhas === 'function') alvo._layoutMaxLines = _gLayoutMaxLinhas(l);
+      const cabe = (n) => {
+        const dados = Object.assign({}, (fState && fState.dados) || {});
+        dados[id] = (typeof gStressTexto === 'function')
+          ? gStressTexto(_F_MAXLEN_FRASE, n) : _F_MAXLEN_FRASE.slice(0, n);
+        const f = gFitTextLayer(alvo, gInterpolate(l.content || '', dados, {onEmpty:'remove'}));
+        // Corpo autorado intacto + nao estourou a caixa + dentro do teto de linhas.
+        return !!f && !f.estourou && !f.excedeuLinhas && f.fontSize >= base - 0.5;
+      };
+      let baixo = 1, alto = _F_MAXLEN_TETO, achou = 0;
+      while(baixo <= alto){
+        const meio = (baixo + alto) >> 1;
+        if(cabe(meio)){ achou = meio; baixo = meio + 1; } else alto = meio - 1;
+      }
+      // O campo pode aparecer em duas camadas: vale a MENOR, senao uma delas estoura.
+      if(achou && (!limite || achou < limite)) limite = achou;
+    });
+  }catch(e){ limite = 0; }
+  _F_MAXLEN_MED.set(chave, limite);
+  return limite;
+}
+
 function fGetFieldType(id){
   // 3.2: o TIPO da variável (dVars[id].type) dirige o comportamento. F_FIELD_TYPES
   // vira só fallback por nome (legado), eliminando a dependência de nomes mágicos.
   const vDef = (typeof dVars !== 'undefined' && dVars) ? dVars.find(x=>x.name===id) : null;
   const fallback = F_FIELD_TYPES[id] || {type:'text', maxLen:60, label:id};
-
-  // maxLen: permissão do designer > maxLen da var > fallback por nome
-  let maxLen = fallback.maxLen;
-  const perm = fState.material?.publishMeta?.permissoes?.[id];
-  if(perm && perm.maxLen) maxLen = perm.maxLen;
-  else if(vDef && vDef.maxLen) maxLen = vDef.maxLen;
 
   // tipo de comportamento: dVars.type manda; senão cai no mapa por nome
   let type = fallback.type;
@@ -42,6 +94,19 @@ function fGetFieldType(id){
     else if(vDef.type === 'image')  type = 'image';   // imagem → upload (não passa por máscara de texto)
     else if(vDef.type === 'text')   type = fallback.type; // texto → mantém nuance por nome (code/discount/price)
     else                            type = vDef.type; // tipos ricos (4.1): date/select/color/boolean
+  }
+
+  /* maxLen: permissão do designer (explícita, no publish) > o MEDIDO na caixa deste
+     material > maxLen do catálogo de campos > fallback por nome. O tipo é resolvido antes de
+     propósito: preço/desconto/código não passam pela medida (a máscara manda neles). */
+  let maxLen = fallback.maxLen;
+  const perm = fState.material?.publishMeta?.permissoes?.[id];
+  if(perm && perm.maxLen) maxLen = perm.maxLen;
+  else {
+    if(vDef && vDef.maxLen) maxLen = vDef.maxLen;
+    if(type !== 'price' && type !== 'discount' && type !== 'code' && type !== 'image'){
+      maxLen = Math.max(maxLen, fMaxLenDaCaixa(id));
+    }
   }
 
   const label = vDef?.label || fallback.label;
