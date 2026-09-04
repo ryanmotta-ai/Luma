@@ -775,7 +775,7 @@ function calHero(hoje, doDia){
     </div>
     <div class="cal-hero-txt">
       <p class="cal-hero-resumo">${gEsc(resumo)}</p>
-      ${calPodeEditar()?calQuickAddBarra():`<button class="cal-hero-b" onclick="calVista('mes')">${calIco('cal')}<span>Ver o mês inteiro</span>${calIco('seta')}</button>`}
+      <button class="cal-hero-b" onclick="calVista('mes')">${calIco('cal')}<span>Ver o mês inteiro</span>${calIco('seta')}</button>
     </div>
   </section>`;
 }

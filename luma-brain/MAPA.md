@@ -92,12 +92,14 @@
 | **A fonte do dado** (trocar o seed pela tabela/CSV oficial) | `js/calendario/calendario.js` — `calFetch()`, o **único** ponto de troca |
 | Estado, helpers de data, Visão geral, grade do Mês, faixas de vários dias | `js/calendario/calendario.js` |
 | Vista Semana e Dia, régua de horas, linha do agora, conflito, vão livre | `js/calendario/agenda.js` |
-| Criar/editar evento, Quick Add, date/time picker, preview do ponteiro | `js/calendario/evento.js` |
+| Criar/editar evento, date/time picker, preview do ponteiro | `js/calendario/evento.js` |
 | Qualquer estilo do módulo | `css/modules/calendario.css` |
 
-⚠️ Duas regras que o módulo assume e que não estão óbvias no código:
-**recorrente não ocupa pista na grade** (cobre o mês inteiro; sai na tira "sempre no ar")
-e **só `gIsAdmin` cria/edita/arrasta** — o franqueado lê.
+⚠️ Três regras que o módulo assume e que não estão óbvias no código:
+**recorrente não ocupa pista na grade** (cobre o mês inteiro; sai na tira "sempre no ar");
+**só `gIsAdmin` cria/edita/arrasta** — o franqueado lê; e **não existe "adicionar na
+minha agenda"** — é o calendário de marketing da REDE, não a agenda pessoal do
+franqueado (o Quick Add em linguagem natural existiu e saiu em 03/09).
 
 ### Academia (`ac*`) e Tutorial (`tut*`)
 
@@ -224,7 +226,7 @@ esses a verificação continua sendo o navegador. Suíte verde não substitui ab
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 70 arquivos JS (55.953 linhas, 2.279 funções) · 32 arquivos CSS (27.558 linhas) · `index.html` com 3.835 linhas e 72 `<script>`.
+**Tamanho real de hoje:** 70 arquivos JS (55.834 linhas, 2.274 funções) · 32 arquivos CSS (27.527 linhas) · `index.html` com 3.835 linhas e 72 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -558,9 +560,9 @@ CALENDÁRIO — o módulo que responde "o que a rede comunica e quando".
 · Estado global: calState, _calBuscaT, _calFocoGrade, _calArrasto
 · Depende de: 00-config.js (CAMPS_ATIVAS/CAMPS_OUTRAS), core/toast.js (gToast,
 
-**`js/calendario/evento.js`** · 559 linhas
+**`js/calendario/evento.js`** · 440 linhas
 CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o resumo que aparece ao passar o ponteiro, sem modal · Detalhe do evento — a folha que expande do cartão clicado · Criar/editar — o fluxo progressivo (um…
-· API: calNovoEvento, calEditarEvento, calAbreFolha, calPintaFolha, calFecharFolha, calFecharTudo, calAbrirDetalhe, calDetalheHtml, calPreviewEntra, calPreviewMostra, calPreviewSai, calQuickAddBarra, calQuickDica, calQuickAdd … (+16; 31 funções no total)
+· API: calNovoEvento, calEditarEvento, calAbreFolha, calPintaFolha, calFecharFolha, calFecharTudo, calAbrirDetalhe, calDetalheHtml, calPreviewEntra, calPreviewMostra, calPreviewSai, calEditorHtml, calCampsOpcoes, calEdSet … (+12; 26 funções no total)
 · Estado global: calEd, _calPrevT, _calPrevEl
 · Depende de: calendario.js (estado, helpers), agenda.js (calVaos),
 
@@ -584,7 +586,7 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 | `css/components/user-profile.css` | 1084 |
 | `css/modules/academia.css` | 1330 |
 | `css/modules/all-tools.css` | 113 |
-| `css/modules/calendario.css` | 1277 |
+| `css/modules/calendario.css` | 1246 |
 | `css/modules/catalog.css` | 291 |
 | `css/modules/chat.css` | 2307 |
 | `css/modules/color-picker.css` | 153 |

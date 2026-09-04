@@ -5,12 +5,19 @@
  *   · Context preview — o resumo que aparece ao passar o ponteiro, sem modal
  *   · Detalhe do evento — a folha que expande do cartão clicado
  *   · Criar/editar — o fluxo progressivo (um campo puxa o próximo)
- *   · Quick Add — "Reunião amanhã às 14h" vira evento
  *   · Date picker e Time picker — as duas experiências próprias
  *   · Smart suggestions — horários livres sugeridos na hora de escolher
  *
  * ⚠ Só a equipe DM cria e edita (`calPodeEditar`). Para o franqueado este
  * arquivo entrega apenas leitura: preview e detalhe.
+ *
+ * ⛔ NÃO EXISTE "adicionar na minha agenda". Aqui já morou um Quick Add em
+ * linguagem natural ("Reunião amanhã às 14h") na home; saiu por decisão do Ryan
+ * em 03/09, e o motivo vale para o que vier depois: este é o calendário de
+ * MARKETING DA REDE, não a agenda pessoal do franqueado. O que se publica aqui
+ * é campanha, disparo e data da operação — o que a rede comunica, não
+ * compromisso de quem lê. É a mesma fronteira do `07_ROADMAP` §4 ("não tem
+ * lembrete, nem planner pessoal, nem 'minha agenda'").
  *
  * Depende de: calendario.js (estado, helpers), agenda.js (calVaos),
  * core/toast.js (gToast, gEsc), core/auth.js (gIsAdmin).
@@ -184,132 +191,6 @@ function calPreviewSai(imediato){
   el.classList.remove('on');
   setTimeout(()=>{ if(el.parentNode) el.parentNode.removeChild(el); }, imediato?0:160);
   return true;
-}
-
-/* ══════════════════════════════════════════════════════════════
-   QUICK ADD
-   "Reunião amanhã às 14h" → título + data + hora, sem abrir formulário.
-   Parser de PT-BR, determinístico (não é IA): entende hoje/amanhã, dia da
-   semana, "dia 15", "15/09", e hora em 14h / 14h30 / 14:30 / às 9.
-══════════════════════════════════════════════════════════════ */
-function calQuickAddBarra(){
-  return `<form class="cal-qa" onsubmit="event.preventDefault();calQuickAdd(this.q.value,this)">
-    <span class="cal-qa-i">${calIco('raio')}</span>
-    <input name="q" class="cal-qa-in" type="text" autocomplete="off" data-foco
-      placeholder="Reunião amanhã às 14h" aria-label="Criar evento escrevendo"
-      oninput="calQuickDica(this)">
-    <button class="cal-qa-b" type="submit" aria-label="Criar">${calIco('mais')}</button>
-    <span class="cal-qa-dica" id="cal-qa-dica" aria-live="polite"></span>
-  </form>`;
-}
-function calQuickDica(input){
-  const el=document.getElementById('cal-qa-dica'); if(!el) return;
-  const r=calParseQuick(input.value);
-  if(!input.value.trim()){ el.textContent=''; el.classList.remove('on'); return; }
-  el.textContent = r.titulo
-    ? `${r.titulo} · ${calFmtDiaCurto(r.inicio)}${r.hora?` às ${r.hora}`:''}`
-    : 'escreva o que acontece e quando';
-  el.classList.add('on');
-}
-function calQuickAdd(texto, form){
-  const r=calParseQuick(texto);
-  if(!r.titulo){ gToast('Escreva o que acontece — a data eu entendo sozinho.','info'); return; }
-  const ev=calSalvarEvento({ id:null, titulo:r.titulo, tipo:r.tipo, inicio:r.inicio, fim:r.inicio,
-                             hora:r.hora, duracao:r.hora?60:null, escopo:'Nacional' });
-  if(!ev) return;
-  if(form) form.reset();
-  const d=document.getElementById('cal-qa-dica'); if(d){ d.textContent=''; d.classList.remove('on'); }
-  gToast(`"${ev.titulo}" marcado para ${calFmtDiaCurto(ev.inicio)}${ev.hora?` às ${ev.hora}`:''}.`,'success');
-  calState.selecionado=ev.inicio;
-  calRender();
-  // Confirmação visual no próprio calendário: o evento novo pulsa uma vez.
-  requestAnimationFrame(()=>{
-    const el=document.querySelector(`[data-id="${CSS.escape(ev.id)}"]`);
-    if(el){ el.classList.add('cal-nasceu'); el.scrollIntoView({block:'nearest'}); }
-  });
-}
-
-const CAL_QA_DIAS = {domingo:0, segunda:1, terca:2, quarta:3, quinta:4, sexta:5, sabado:6};
-const CAL_QA_STOP = ['as','a','em','no','na','de','do','da','para','pra','o','os','the'];
-
-// Tira acento para comparar palavra. `\b` do JS é ASCII: "amanhã\b" NUNCA casa
-// (ã não é word char, então não há fronteira antes do espaço) e "peças" perdia
-// o "as" porque ç criava uma fronteira falsa no meio da palavra. Por isso o
-// parser trabalha em TOKENS, não em regex sobre a frase inteira.
-function _calSemAc(t){ return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(); }
-
-function calParseQuick(txt){
-  const toks=String(txt||'').trim().split(/\s+/).filter(Boolean);
-  const base=calHoje();
-  let iso=base, hora=null, achouData=false;
-  const sobra=[];
-
-  for(let i=0;i<toks.length;i++){
-    const t=toks[i], p=_calSemAc(t).replace(/[.,;:!?]+$/,'');
-
-    // ── hora ──────────────────────────────────────────────
-    let mh=p.match(/^(\d{1,2})[:h](\d{2})$/) || p.match(/^(\d{1,2})h$/);
-    if(!mh && /^(as|a)$/.test(_calSemAc(toks[i-1]||'')) && /^\d{1,2}$/.test(p)) mh=[p,p,'0'];
-    if(mh && hora==null){
-      const h=+mh[1], m=+(mh[2]||0);
-      if(h>=0&&h<=23&&m<60){ hora=calHora(h*60+m); continue; }
-    }
-
-    // ── data explícita 12/10 ou 12/10/2026 ────────────────
-    const md=p.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/);
-    if(md && !achouData){
-      const ano=md[3]?(md[3].length===2?2000+ +md[3]:+md[3]):calData(base).getFullYear();
-      iso=`${ano}-${String(+md[2]).padStart(2,'0')}-${String(+md[1]).padStart(2,'0')}`;
-      achouData=true; continue;
-    }
-
-    // ── "dia 23" ──────────────────────────────────────────
-    if(p==='dia' && /^\d{1,2}$/.test(_calSemAc(toks[i+1]||'')) && !achouData){
-      const d=calData(base), n=Math.min(+toks[i+1], calDiasNoMes(d.getFullYear(), d.getMonth()));
-      let cand=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(n).padStart(2,'0')}`;
-      if(cand<base) cand=calAddMeses(cand,1);
-      iso=cand; achouData=true; i++; continue;
-    }
-
-    // ── relativos ─────────────────────────────────────────
-    if(!achouData && p==='hoje'){ iso=base; achouData=true; continue; }
-    if(!achouData && p==='amanha'){
-      // "depois de amanhã": o "depois" já caiu em sobra — tiramos de lá.
-      const doisDias = _calSemAc(sobra[sobra.length-1]||'')==='depois'
-                    || (_calSemAc(sobra[sobra.length-1]||'')==='de' && _calSemAc(sobra[sobra.length-2]||'')==='depois');
-      if(doisDias){ while(sobra.length && _calSemAc(sobra[sobra.length-1])!=='depois') sobra.pop(); sobra.pop(); }
-      iso=calAddDias(base, doisDias?2:1); achouData=true; continue;
-    }
-
-    // ── dia da semana → a PRÓXIMA ocorrência ──────────────
-    const nomeDia=p.replace(/-?feira$/,'');
-    if(!achouData && CAL_QA_DIAS[nomeDia]!==undefined){
-      const alvo=CAL_QA_DIAS[nomeDia];
-      let d=calAddDias(base,1), guarda=0;
-      while(calData(d).getDay()!==alvo && guarda++<8) d=calAddDias(d,1);
-      iso=d; achouData=true;
-      if(_calSemAc(sobra[sobra.length-1]||'')==='na'||_calSemAc(sobra[sobra.length-1]||'')==='no') sobra.pop();
-      continue;
-    }
-
-    sobra.push(t);
-  }
-
-  // ── tipo por palavra-chave: o que o texto revela, sem perguntar ──
-  const plano=sobra.map(_calSemAc).join(' ');
-  const tipo = /\b(push|crm|inapp|disparo)\b/.test(plano) ? 'crm'
-             : /\b(post|story|stories|feed|reels|conteudo)\b/.test(plano) ? 'social'
-             : /\b(feriado|dia d[oa])\b/.test(plano) ? 'especial'
-             : 'mae';
-
-  // Preposição solta só cai no FIM ou no COMEÇO ("Live na sexta" → "Live").
-  // No meio ela costuma ser parte do nome ("Dia do Cliente"), e cortar ali
-  // estraga o título — foi o que aconteceu com "Push Dia do Sorvete".
-  while(sobra.length && CAL_QA_STOP.indexOf(_calSemAc(sobra[sobra.length-1]))>=0) sobra.pop();
-  while(sobra.length && CAL_QA_STOP.indexOf(_calSemAc(sobra[0]))>=0) sobra.shift();
-
-  const titulo=sobra.join(' ').replace(/^[,\-–·]+|[,\-–·]+$/g,'').trim();
-  return { titulo: titulo.charAt(0).toUpperCase()+titulo.slice(1), inicio:iso, hora, tipo };
 }
 
 /* ══════════════════════════════════════════════════════════════

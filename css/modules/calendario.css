@@ -367,36 +367,6 @@ body:not(.theme-light) #view-calendario .cal-seg-pill{ background:var(--d-surf3)
 }
 .cal-hero-b:hover{ gap:11px; background:var(--cal-surf2) }
 
-/* ── Quick Add ────────────────────────────────────────────── */
-.cal-qa{
-  position:relative; display:flex; align-items:center; gap:9px;
-  height:44px; padding:0 6px 0 14px; max-width:520px;
-  background:var(--cal-surf); border:1px solid var(--cal-borda2);
-  border-radius:var(--r-pill);
-  transition:border-color var(--dur-fast) var(--ease-standard), box-shadow var(--dur-fast) var(--ease-standard);
-}
-.cal-qa:focus-within{ border-color:var(--dm-orange); box-shadow:0 0 0 4px color-mix(in srgb, var(--dm-orange) 16%, transparent) }
-.cal-qa-i{ font-size:15px; color:var(--dm-orange-text); flex:0 0 auto }
-.cal-qa-in{
-  flex:1; min-width:0; border:0; background:none; outline:0; font:inherit;
-  font-size:14px; font-weight:600; color:var(--cal-txt);
-}
-.cal-qa-in::placeholder{ color:var(--cal-txt3); font-weight:500 }
-.cal-qa-b{
-  width:32px; height:32px; flex:0 0 auto; display:grid; place-items:center;
-  border:0; border-radius:50%; cursor:pointer; font-size:16px;
-  background:var(--dm-orange-d); color:var(--on-accent);
-  transition:transform var(--dur-fast) var(--ease-spring);
-}
-.cal-qa-b:hover{ transform:scale(1.08) }
-.cal-qa-dica{
-  position:absolute; left:38px; top:calc(100% + 6px);
-  font-size:11.5px; font-weight:700; color:var(--cal-txt3);
-  opacity:0; transform:translateY(-3px); pointer-events:none;
-  transition:opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
-}
-.cal-qa-dica.on{ opacity:1; transform:none }
-
 .cal-dash-grade{ display:grid; grid-template-columns:1fr var(--cal-lado); gap:var(--cal-gap); align-items:start }
 .cal-dash-a,.cal-dash-b{ display:flex; flex-direction:column; gap:var(--cal-gap); min-width:0 }
 
@@ -1191,7 +1161,6 @@ body:not(.theme-light) .cal-prev{ background:color-mix(in srgb, var(--d-surf) 88
   .cal-hero-data{ display:flex; align-items:baseline; gap:10px; text-align:left; min-width:0 }
   .cal-hero-num span{ font-size:38px }
   .cal-hero-resumo{ font-size:15px }
-  .cal-qa{ max-width:none; width:100% }
   .cal-met{ grid-template-columns:1fr 1fr }
 
   /* ── MÊS no celular: bússola + lista ───────────────────── */
