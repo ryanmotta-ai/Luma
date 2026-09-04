@@ -226,7 +226,7 @@ esses a verificação continua sendo o navegador. Suíte verde não substitui ab
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 72 arquivos JS (57.340 linhas, 2.293 funções) · 32 arquivos CSS (27.827 linhas) · `index.html` com 3.838 linhas e 74 `<script>`.
+**Tamanho real de hoje:** 72 arquivos JS (57.023 linhas, 2.282 funções) · 32 arquivos CSS (27.823 linhas) · `index.html` com 3.793 linhas e 74 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -359,9 +359,10 @@ Drag & drop das 3 colunas do workspace do franqueado (só desktop largo).
 · API: fLoadPanelOrder, fSavePanelOrder, fSetPanelOrder, fInitPanelDock
 · Depende de: index.html (grips + #fran-main), css/modules/panel-dock.css,
 
-**`js/franqueado/png-generator.js`** · 4755 linhas
+**`js/franqueado/png-generator.js`** · 4438 linhas
 Geracao de PNG a partir dos templates: fGenPNG, fRenderTemplateLayers, fBaixar, fOutroFormato. Sistema de nomenclatura padronizado para downloads.
-· API: fLoadLogoBranca, fMaterialSize, fRenderCanvasHelper, fGenPNG, fGenPDF, fPostarInstagram, fEnviarWhatsApp, fDrawDMLogo, fAdjustImageData, fRenderTemplateLayers, fRenderOneLayer, roundedRect, roundedRectPath, fLoadImageDataUrl … (+77; 157 funções no total)
+· API: fLoadLogoBranca, fMaterialSize, fRenderCanvasHelper, fGenPNG, fGenPDF, fPostarInstagram, fEnviarWhatsApp, fDrawDMLogo, fAdjustImageData, fRenderTemplateLayers, fRenderOneLayer, roundedRect, roundedRectPath, fLoadImageDataUrl … (+69; 146 funções no total)
+· Estado global: _fLogoBrancaImg, fBulkRows, _fBulkAudit, _fBulkAsyncAudit, _fBulkAuditFingerprint, _fBulkImageAudit, _fBulkAutosaveTimer, _fBulkAutosaveSeq, _fBulkGenerationState, _fBulkPreflightRunning (+37)
 · Depende de: 00-config.js, 01-state.js, designer/canvas.js (dRenderCanvas)
 
 **`js/franqueado/prefs-panel.js`** · 131 linhas
@@ -598,7 +599,7 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 | `css/modules/all-tools.css` | 113 |
 | `css/modules/calendario.css` | 1544 |
 | `css/modules/catalog.css` | 291 |
-| `css/modules/chat.css` | 2309 |
+| `css/modules/chat.css` | 2305 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
 | `css/modules/designer.css` | 5822 |
