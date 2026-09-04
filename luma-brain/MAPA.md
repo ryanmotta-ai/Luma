@@ -226,7 +226,7 @@ esses a verificação continua sendo o navegador. Suíte verde não substitui ab
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 70 arquivos JS (55.834 linhas, 2.274 funções) · 32 arquivos CSS (27.527 linhas) · `index.html` com 3.835 linhas e 72 `<script>`.
+**Tamanho real de hoje:** 72 arquivos JS (57.340 linhas, 2.293 funções) · 32 arquivos CSS (27.827 linhas) · `index.html` com 3.838 linhas e 74 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -264,9 +264,10 @@ LUMA CLI Console de comandos do Luma, só pra quem é da casa (equipe_dm/gestao)
 · API: gCliOpen, gCliClose, gCliToggle
 · Depende de: core/toast.js (gToast/gConfirm), core/auth.js (gIsAdmin/gCurrentRole),
 
-**`js/core/feature-flags.js`** · 658 linhas
+**`js/core/feature-flags.js`** · 697 linhas
 CONTROLE DO PRODUTO — o motor único de disponibilidade funcional do Luma.
 · API: gFeatureLoadCache, gFeatureState, gFeatureEnabled, gFeatureCan, gFeatureReason, gFeatureBlockedFeedback, gFeatureToolBlocked, gFeatureApplyToDOM, gFeatureSyncFromBackend, gFeatureSave, gFeatureRefresh, gFeatureHistory, gFeatureInit, gFeatureResolveTree … (+1; 23 funções no total)
+· Estado global: _gFFValores, _gFFSyncedAt, _gFFOrigem, _gFFErroSync, _gFFIniciado, _gFFPorChave, _gFFFilhos, _gFFPorTool
 · Depende de: core/toast.js (gToast, gEsc), core/auth.js (gCurrentRole,
 
 **`js/core/help.js`** · 760 linhas
@@ -548,21 +549,30 @@ tutMockCampaign, tutMockMaterial, tutMockHist — builders de HTML de mock usado
 
 ### js/calendario
 
-**`js/calendario/agenda.js`** · 344 linhas
+**`js/calendario/agenda.js`** · 358 linhas
 CALENDÁRIO — as vistas de TEMPO: semana e dia. A grade do mês responde "quando"; estas duas respondem "a que horas" e "onde sobra espaço". Aqui moram: a régua de horas, a faixa de dia inteiro, o posicionamento proporcional, a…
 · API: calAlturaHora, calVistaSemana, calPistasSemana, calFaixaSemana, calVistaDia, calVaos, calVaosHtml, calBlocoLivre, calReguaHtml, calGradeHoras, calBlocosDoDia, calLinhaAgora, calAgendaMontada, calAtualizaAgora … (+2; 16 funções no total)
 · Estado global: _calRelogio
 · Depende de: calendario.js (estado, helpers de data, calCardEvento).
 
-**`js/calendario/calendario.js`** · 1197 linhas
+**`js/calendario/apresentacao.js`** · 288 linhas
+CALENDÁRIO — A APRESENTAÇÃO DO MÊS. O ritual que a operação fazia em PowerPoint (ver `Calendário JULHO - 2025.pdf`): capa do mês → o que é novidade → as campanhas que ficam → e o mês assenta no calendário. Aqui isso vira uma…
+· API: calApresCenas, calApresAbrir, calApresFechar, calApresJaViu, calApresMarcaVista, calApresTalvez, calApresPinta, calApresAgenda, calApresIr, calApresPlay, calApresTecla, calApresNumeros
+· Estado global: calApres
+· Depende de: calendario.js (estado, helpers, calBannerImg, CAL_TIPOS).
+
+**`js/calendario/calendario.js`** · 1190 linhas
 CALENDÁRIO — o módulo que responde "o que a rede comunica e quando".
-· API: calIco, calData, calISO, calHoje, calAddDias, calAddMeses, calDiasNoMes, calDiff, calDiaSemana, calSegundaDe, calMesmoMes, calFimDeSemana, calGradeMes, calSemanaDe … (+77; 91 funções no total)
+· API: calIco, calData, calISO, calHoje, calAddDias, calAddMeses, calDiasNoMes, calDiff, calDiaSemana, calSegundaDe, calMesmoMes, calFimDeSemana, calGradeMes, calSemanaDe … (+83; 97 funções no total)
 · Estado global: calState, _calBuscaT, _calFocoGrade, _calArrasto
 · Depende de: 00-config.js (CAMPS_ATIVAS/CAMPS_OUTRAS), core/toast.js (gToast,
 
-**`js/calendario/evento.js`** · 440 linhas
+**`js/calendario/conteudo.js`** · 1133 linhas
+CALENDÁRIO — o CONTEÚDO do calendário oficial de marketing da rede.
+
+**`js/calendario/evento.js`** · 479 linhas
 CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o resumo que aparece ao passar o ponteiro, sem modal · Detalhe do evento — a folha que expande do cartão clicado · Criar/editar — o fluxo progressivo (um…
-· API: calNovoEvento, calEditarEvento, calAbreFolha, calPintaFolha, calFecharFolha, calFecharTudo, calAbrirDetalhe, calDetalheHtml, calPreviewEntra, calPreviewMostra, calPreviewSai, calEditorHtml, calCampsOpcoes, calEdSet … (+12; 26 funções no total)
+· API: calNovoEvento, calEditarEvento, calAbreFolha, calPintaFolha, calFecharFolha, calFecharTudo, calAbrirDetalhe, calDetalheHtml, calDetalheRico, calPreviewEntra, calPreviewMostra, calPreviewSai, calEditorHtml, calCampsOpcoes … (+13; 27 funções no total)
 · Estado global: calEd, _calPrevT, _calPrevEl
 · Depende de: calendario.js (estado, helpers), agenda.js (calVaos),
 
@@ -586,9 +596,9 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 | `css/components/user-profile.css` | 1084 |
 | `css/modules/academia.css` | 1330 |
 | `css/modules/all-tools.css` | 113 |
-| `css/modules/calendario.css` | 1246 |
+| `css/modules/calendario.css` | 1544 |
 | `css/modules/catalog.css` | 291 |
-| `css/modules/chat.css` | 2307 |
+| `css/modules/chat.css` | 2309 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
 | `css/modules/designer.css` | 5822 |
@@ -640,46 +650,48 @@ A ordem **é** a arquitetura: sem ESM, um arquivo depende de o anterior já ter 
 30. js/academia/gestao.js
 31. js/academia/certificado.js
 32. js/academia/conclusao.js
-33. js/calendario/calendario.js
-34. js/calendario/agenda.js
-35. js/calendario/evento.js
-36. js/designer/blending.js
-37. js/franqueado/png-generator.js
-38. js/designer/templates.js
-39. js/designer/canvas.js
-40. js/designer/selection.js
-41. js/designer/brush.js
-42. js/designer/eraser-tools.js
-43. js/designer/layers.js
-44. js/designer/props-panel.js
-45. js/designer/measurement.js
-46. js/designer/publish.js
-47. js/designer/preview.js
-48. js/designer/library.js
-49. js/designer/undo-redo.js
-50. js/widgets/help-widget.js
-51. js/designer/tools.js
-52. js/designer/fonts.js
-53. js/designer/psd-parse.js
-54. js/designer/psd-import.js
-55. js/designer/mask.js
-56. js/designer/tutorial-panel.js
-57. assets/vendor/colorthief.js
-58. assets/vendor/pica.js
-59. assets/vendor/jszip.min.js
-60. assets/vendor/supabase.js
-61. js/core/supabase-config.js
-62. js/core/supabase.js
-63. js/core/ai.js
-64. js/core/auth.js
-65. js/core/feature-flags.js
-66. js/core/user-profile.js
-67. js/core/product-control.js
-68. js/core/console.js
-69. js/main.js
-70. js/designer/color-picker.js
-71. js/designer/tooltip.js
-72. js/designer/linter.js
+33. js/calendario/conteudo.js
+34. js/calendario/calendario.js
+35. js/calendario/agenda.js
+36. js/calendario/evento.js
+37. js/calendario/apresentacao.js
+38. js/designer/blending.js
+39. js/franqueado/png-generator.js
+40. js/designer/templates.js
+41. js/designer/canvas.js
+42. js/designer/selection.js
+43. js/designer/brush.js
+44. js/designer/eraser-tools.js
+45. js/designer/layers.js
+46. js/designer/props-panel.js
+47. js/designer/measurement.js
+48. js/designer/publish.js
+49. js/designer/preview.js
+50. js/designer/library.js
+51. js/designer/undo-redo.js
+52. js/widgets/help-widget.js
+53. js/designer/tools.js
+54. js/designer/fonts.js
+55. js/designer/psd-parse.js
+56. js/designer/psd-import.js
+57. js/designer/mask.js
+58. js/designer/tutorial-panel.js
+59. assets/vendor/colorthief.js
+60. assets/vendor/pica.js
+61. assets/vendor/jszip.min.js
+62. assets/vendor/supabase.js
+63. js/core/supabase-config.js
+64. js/core/supabase.js
+65. js/core/ai.js
+66. js/core/auth.js
+67. js/core/feature-flags.js
+68. js/core/user-profile.js
+69. js/core/product-control.js
+70. js/core/console.js
+71. js/main.js
+72. js/designer/color-picker.js
+73. js/designer/tooltip.js
+74. js/designer/linter.js
 ```
 
 <!-- AUTO-FIM -->

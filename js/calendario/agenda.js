@@ -217,9 +217,23 @@ function calGradeHoras(){
 
 // Eventos com hora, posicionados por proporção. Conflito vira lado a lado:
 // o grupo que se sobrepõe divide a largura, como agenda de verdade.
+// Um disparo de CRM traz TRÊS horários (almoço, tarde, jantar). Na régua cada
+// um é um bloco próprio — é a pergunta que esta vista responde. No mês e nas
+// listas o evento continua sendo UM, senão a mesma ação apareceria três vezes
+// numa célula que já corta em duas.
 function calBlocosDoDia(iso){
-  const lista=calDoDia(iso).filter(e=>e.hora && calMin(e.hora)!=null)
-    .sort((a,b)=>calMin(a.hora)-calMin(b.hora));
+  const lista=[];
+  calDoDia(iso).forEach(e=>{
+    if(e.disparos && e.disparos.length){
+      e.disparos.forEach((d,i)=>{ if(d.hora) lista.push({
+        ...e, id:e.id+'#'+i, hora:d.hora, duracao:30,
+        titulo:e.titulo.replace(/^CRM:\s*/,'')+(d.tipo?' · '+d.tipo:''), _disparo:true
+      }); });
+      return;
+    }
+    if(e.hora && calMin(e.hora)!=null) lista.push(e);
+  });
+  lista.sort((a,b)=>calMin(a.hora)-calMin(b.hora));
   if(!lista.length) return '';
   // Agrupa em "clusters" que se tocam; dentro do cluster cada um pega 1/n.
   const grupos=[]; let atual=[], fimAtual=-1;
@@ -243,9 +257,9 @@ function calBlocosDoDia(iso){
         data-id="${gEsc(e.id)}" tabindex="0" role="button"
         ${calPodeEditar()&&e.origem!=='oficial'?'draggable="true"':''}
         aria-label="${gEsc(e.titulo)}, ${gEsc(e.hora)}"
-        onclick="calAbrirDetalhe('${gEsc(e.id)}',event)"
-        onkeydown="calTeclaEvento(event,'${gEsc(e.id)}')"
-        onmouseenter="calPreviewEntra(this,'${gEsc(e.id)}')" onmouseleave="calPreviewSai()">
+        onclick="calAbrirDetalhe('${gEsc(String(e.id).split('#')[0])}',event)"
+        onkeydown="calTeclaEvento(event,'${gEsc(String(e.id).split('#')[0])}')"
+        onmouseenter="calPreviewEntra(this,'${gEsc(String(e.id).split('#')[0])}')" onmouseleave="calPreviewSai()">
       <span class="cal-ev-rail" aria-hidden="true"></span>
       <b class="cal-bloco-t">${gEsc(e.titulo)}</b>
       <span class="cal-bloco-h2">${gEsc(e.hora)}–${calHora(a+dur)}</span>

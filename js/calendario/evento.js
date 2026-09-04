@@ -134,18 +134,57 @@ function calDetalheHtml(){
       ${ev.regra?`<div><dt>${calIco('raio')}Regra</dt><dd>${gEsc(ev.regra)}</dd></div>`:''}
       ${camp?`<div><dt>${calIco('arte')}Campanha</dt><dd>${gEsc(camp.name)}</dd></div>`:''}
     </dl>
+    ${ev.resumo?`<p class="cal-fb-nota">${gEsc(ev.resumo)}</p>`:''}
     ${ev.nota?`<p class="cal-fb-nota">${gEsc(ev.nota)}</p>`:''}
+    ${calDetalheRico(ev)}
     ${conf?`<p class="cal-fb-conf">${calIco('alerta')}Este horário se cruza com outro evento do mesmo dia.</p>`:''}
     ${ev.origem==='oficial'?`<p class="cal-fb-of">${calIco('check')}Evento oficial da rede. A data vem da operação — aqui é leitura.</p>`:''}
   </div>
   <footer class="cal-ff">
-    ${camp?`<button class="cal-cta" onclick="calAbrirArtes('${gEsc(ev.id)}')">${calIco('arte')}<span>Ver as artes</span>${calIco('seta')}</button>`
+    ${camp && calTemArtes()?`<button class="cal-cta" onclick="calAbrirArtes('${gEsc(ev.id)}')">${calIco('arte')}<span>Ver as artes</span>${calIco('seta')}</button>`
           :`<button class="cal-cta cal-cta--calmo" onclick="calSelecionar('${ev.inicio}',{abrirDia:true});calFecharFolha()">${calIco('cal')}<span>Abrir o dia</span></button>`}
     ${calPodeEditar()?`<button class="cal-b-fantasma" onclick="calAlternaConcluido('${gEsc(ev.id)}');calPintaFolha()">
         ${calIco('check')}<span>${ev.concluido?'Reabrir':'Concluir'}</span></button>`:''}
     ${editavel?`<button class="cal-b-fantasma" onclick="calEditarEvento('${gEsc(ev.id)}')">${calIco('lapis')}<span>Editar</span></button>
       <button class="cal-b-fantasma cal-b-perigo" onclick="calApagarEvento('${gEsc(ev.id)}').then(ok=>{if(ok)calFecharFolha()})">Apagar</button>`:''}
   </footer>`;
+}
+
+/* O conteúdo que veio do calendário oficial: o que cadastrar, as regras, os
+   exemplos, os disparos e a dica da operação. Nada disto existe em evento
+   criado pela equipe — cada bloco só aparece se tiver conteúdo, então a folha
+   encolhe sozinha em vez de mostrar seção vazia. */
+function calDetalheRico(ev){
+  const bloco=(titulo, corpo)=>corpo?`<section class="cal-rico">
+    <h3 class="cal-rico-h">${gEsc(titulo)}</h3>${corpo}</section>`:'';
+  const lista=arr=>arr && arr.length
+    ? `<ul class="cal-rico-ul">${arr.map(t=>`<li>${gEsc(t)}</li>`).join('')}</ul>` : '';
+
+  const alerta = ev.alerta ? `<div class="cal-rico-alerta">
+    ${calIco('alerta')}<div><b>${gEsc(ev.alerta.titulo)}</b><p>${gEsc(ev.alerta.texto)}</p></div></div>` : '';
+
+  const janela = (ev.cadastro||ev.ativo) ? `<dl class="cal-fb-dl">
+    ${ev.cadastro?`<div><dt>${calIco('lapis')}Cadastro</dt><dd>${gEsc(ev.cadastro)}</dd></div>`:''}
+    ${ev.ativo?`<div><dt>${calIco('relog')}No ar</dt><dd>${gEsc(ev.ativo)}</dd></div>`:''}
+  </dl>` : '';
+
+  const regras = ev.regras && ev.regras.length ? `<ul class="cal-rico-regras">
+    ${ev.regras.map(r=>`<li class="cal-r-${r.t||'neutra'}">
+      ${r.t==='ok'?calIco('check'):(r.t==='alerta'?calIco('alerta'):'')}
+      <span>${gEsc(r.txt)}</span></li>`).join('')}</ul>` : '';
+
+  const disparos = ev.disparos && ev.disparos.length ? `<ol class="cal-rico-disp">
+    ${ev.disparos.map(d=>`<li><b>${gEsc(d.hora||'')}</b>
+      <span><em>${gEsc(d.tipo||'')}</em>${gEsc(d.desc||'')}</span></li>`).join('')}</ol>` : '';
+
+  return alerta
+    + janela
+    + bloco('O que cadastrar', lista(ev.cadastrar))
+    + bloco('Exemplos', lista(ev.exemplos))
+    + bloco('Regras', regras)
+    + bloco('Disparos do dia', disparos)
+    + (ev.incentivo?bloco('Incentivo', `<p class="cal-rico-p">${gEsc(ev.incentivo)}</p>`):'')
+    + (ev.dica?`<div class="cal-rico-dica">${calIco('raio')}<p>${gEsc(ev.dica)}</p></div>`:'');
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -174,7 +213,7 @@ function calPreviewMostra(node, id){
     <span class="cal-prev-q">${gEsc(calFmtIntervalo(ev))}${ev.hora?` · ${gEsc(ev.hora)}`:''} · ${gEsc(calFmtRelativo(ev.inicio))}</span>
     ${ev.regra?`<span class="cal-prev-r">${gEsc(ev.regra)}</span>`:''}
     ${ev.escopo!=='Nacional'?`<span class="cal-prev-e">${gEsc(ev.escopo)}</span>`:''}
-    ${camp?`<span class="cal-prev-c">${calIco('arte')}${gEsc(camp.name)} · clique para ver as artes</span>`:''}`;
+    ${camp&&calTemArtes()?`<span class="cal-prev-c">${calIco('arte')}${gEsc(camp.name)} · clique para ver as artes</span>`:''}`;
   document.body.appendChild(el);
   const r=node.getBoundingClientRect(), b=el.getBoundingClientRect();
   let x=r.left+r.width/2-b.width/2, y=r.top-b.height-10;

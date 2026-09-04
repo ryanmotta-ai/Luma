@@ -67,6 +67,38 @@ const G_FEATURE_REGISTRY = [
   { key:'module.designer', label:'Estúdio', desc:'O editor onde a equipe monta e publica os templates.',
     module:'designer', parent:null, categoria:'modulos', behaviors:['hide','maintenance'],
     preserva:['load'], tags:['designer','editor','canvas'] },
+  /* ── CALENDÁRIO ──────────────────────────────────────────────
+     Quatro chaves, não uma por botão. O critério foi "a gestão desligaria
+     isto sozinho, num dia real?" — e só estas quatro passam:
+
+     · a APRESENTAÇÃO é a peça mais barulhenta do módulo e a primeira que a
+       gestão vai querer calar num mês cujo conteúdo ainda não fechou, sem
+       derrubar o calendário junto;
+     · a AGENDA (semana + dia) é uma chave só porque é UM conceito, a régua de
+       horas. Lançar só com Visão geral + Mês e ligar a régua depois é a mesma
+       alavanca que a Academia usa hoje com defaultEnabled:false;
+     · VER AS ARTES é a ponte para o catálogo — com template não publicado, o
+       botão só frustra;
+     · EDIÇÃO é a área da equipe. Passa por `calPodeEditar()`, que é o gate
+       único do módulo: uma chave aqui alcança o CTA, o "+" do dia, o arrastar,
+       o concluir e o apagar de uma vez.
+
+     Busca, filtros e as vistas Visão geral/Mês ficaram DE FORA de propósito:
+     não existe cenário em que a gestão desligue "o mês" e o módulo continue
+     fazendo sentido. Chave que ninguém vira é ruído no painel. */
+  { key:'calendario.apresentacao', label:'Apresentação do mês', desc:'A sequência em tela cheia que abre o mês para o franqueado.',
+    module:'calendario', parent:'module.calendario', categoria:'areas', behaviors:['hide','maintenance'],
+    preserva:['load'], tags:['apresentação','slides','mês','abertura'] },
+  { key:'calendario.agenda', label:'Semana e Dia', desc:'As vistas com régua de horas. Sem elas o calendário fica em Visão geral e Mês.',
+    module:'calendario', parent:'module.calendario', categoria:'areas', behaviors:['hide','maintenance'],
+    preserva:['load'], tags:['semana','dia','agenda','hora','régua'] },
+  { key:'calendario.artes', label:'Ver as artes da campanha', desc:'O atalho que leva do evento direto para os materiais no catálogo.',
+    module:'calendario', parent:'module.calendario', categoria:'areas', behaviors:['hide','disabled'],
+    preserva:['view','load'], tags:['artes','material','catálogo','atalho'] },
+  { key:'calendario.edicao', label:'Editar o calendário', desc:'Criar, editar, arrastar e concluir evento. Só a equipe DM enxerga.',
+    module:'calendario', parent:'module.calendario', categoria:'ferramentas', behaviors:['hide','disabled','readonly'],
+    preserva:_GFF_PRESERVA_CONTEUDO, tags:['criar','editar','arrastar','equipe'] },
+
   /* ── FRANQUEADO ──────────────────────────────────────────── */
   { key:'franqueado.catalogo', label:'Catálogo de campanhas', desc:'A vitrine de campanhas e materiais publicados.',
     module:'franqueado', parent:'module.franqueado', categoria:'areas', behaviors:['hide','maintenance'],
@@ -187,9 +219,16 @@ const G_FEATURE_REGISTRY = [
 
 /* Ordem e rótulo dos módulos na tela. Não vem do registro pra não repetir
    o nome em 20 entradas. */
+/* ⚠ ESTA LISTA É QUEM DESENHA A ÁRVORE do Controle do produto (`gProdRenderTree`
+   itera por ela, não pelo registro). Módulo que não está aqui existe no motor,
+   responde a `gFeatureCan` — e é INVISÍVEL para a gestão, que fica sem como
+   virar a chave. Foi o que aconteceu com o Calendário: `module.calendario` era
+   registrado desde o primeiro commit e nunca apareceu na tela.
+   Registrou chave num módulo novo? Acrescente o módulo aqui também. */
 const G_FEATURE_MODULOS = [
   { id:'designer',   label:'Estúdio' },
   { id:'franqueado', label:'Franqueado' },
+  { id:'calendario', label:'Calendário' },
   { id:'academia',   label:'Academia' },
   { id:'video',      label:'Vídeo' },
   { id:'global',     label:'Global' }

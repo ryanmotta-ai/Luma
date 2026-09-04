@@ -11,11 +11,13 @@
  * + re-render manual, como o resto da casa. Sem import/export, sem build.
  *
  * ⚠ FONTE DO DADO (decisão #1 do 07_ROADMAP, ainda aberta): hoje o calendário
- * nasce de um SEED local (CAL_SEED_*) persistido em localStorage. `calFetch()`
- * é o ÚNICO ponto de troca: quando a fonte oficial for decidida (planilha CSV,
- * tabela luma.calendario, Yungas), só ela muda — nenhuma vista sabe de onde o
- * evento veio. O rodapé mostra a fonte e a data da última atualização, porque
- * o roadmap exige estado honesto: nunca fingir que está em dia.
+ * nasce de `js/calendario/conteudo.js` — o conteúdo REAL do calendário que a
+ * operação publica, portado por script em 03/09 (agosto e setembro de 2026).
+ * `calFetch()` é o ÚNICO ponto de troca: quando a fonte virar planilha, tabela
+ * ou Yungas, só ela muda — nenhuma vista sabe de onde o evento veio.
+ * O rodapé mostra a fonte, a data do porte e QUAIS MESES existem, porque o
+ * roadmap exige estado honesto: mês que a operação não publicou aparece vazio,
+ * com o motivo escrito — não com uma recorrente projetada para parecer cheio.
  *
  * ⚠ QUEM EDITA: só a equipe DM (`gIsAdmin`). O franqueado lê, filtra e clica
  * para cair nas artes da campanha — é a fronteira que o 07_ROADMAP §4 define.
@@ -77,6 +79,7 @@ const CAL_ICO = {
   relog:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>',
   check:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>',
   alerta: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 4.3 2.6 17.4A1.9 1.9 0 0 0 4.3 20.3h15.4a1.9 1.9 0 0 0 1.7-2.9L13.7 4.3a1.9 1.9 0 0 0-3.4 0Z"/><path d="M12 9.5v4"/><path d="M12 17h.01"/></svg>',
+  play:   '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>',
   seta:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13"/><path d="m12 6 6 6-6 6"/></svg>',
   x:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>',
   filtro: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4 2v-8Z"/></svg>',
@@ -137,6 +140,7 @@ function calGradeMes(iso){
 }
 function calSemanaDe(iso){ const seg=calSegundaDe(iso); return Array.from({length:7},(_,i)=>calAddDias(seg,i)); }
 
+function calFmtMesPub(ym){ const d=calData(ym+'-01'); return `${CAL_MESES_C[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`; }
 function calFmtMesAno(iso){ const d=calData(iso); return `${CAL_MESES[d.getMonth()]} de ${d.getFullYear()}`; }
 function calFmtDiaLongo(iso){ const d=calData(iso); return `${CAL_DIAS[d.getDay()]}, ${d.getDate()} de ${CAL_MESES[d.getMonth()]}`; }
 function calFmtDiaCurto(iso){ const d=calData(iso); return `${d.getDate()} ${CAL_MESES_C[d.getMonth()]}`; }
@@ -177,76 +181,6 @@ function calHora(min){
 }
 
 /* ══════════════════════════════════════════════════════════════
-   SEED — o calendário oficial de setembro/2026, transcrito da fonte que a
-   operação publica hoje. É DADO DE DEMONSTRAÇÃO até a decisão #1 do roadmap
-   sair; por isso o rodapé diz de onde veio e quando.
-
-   As RECORRENTES não têm data: elas rodam o mês inteiro, todo mês. Guardar
-   30 linhas por mês seria dado morto — `calExpandeRecorrentes` materializa
-   o intervalo do mês pedido. Um registro, todos os meses.
-══════════════════════════════════════════════════════════════ */
-const CAL_SEED_RECORRENTES = [
-  { id:'r-cc',  titulo:'Combos Coca-Cola',   camp:'cc',   regra:'Combo com bebida em destaque' },
-  { id:'r-tr',  titulo:'Baratíssimo',        camp:'tr25', regra:'Tudo até R$ 25' },
-  { id:'r-pt',  titulo:'Promo Turbinada',    camp:'pt',   regra:'Leve 2 pague 1 ou 50% no 2º item' },
-  { id:'r-mv',  titulo:'Mais Vendidos do App', camp:null, regra:'25% off ou mais nos campeões de pedido',
-    banner:'assets/banners/mais-vendidos.png' },
-  { id:'r-cd',  titulo:'Combão com Desconto', camp:'cd',  regra:'A partir de 20% off no combo' }
-];
-
-const CAL_SEED_EVENTOS = [
-  /* ── Campanhas-mãe ─────────────────────────────────────────── */
-  { id:'s-semcli', tipo:'mae', titulo:'Semana do Cliente · Mãe do mês', inicio:'2026-09-08', fim:'2026-09-15',
-    escopo:'Nacional', regra:'A partir de 15% off no esquenta · 30% no Dia do Cliente (15/09)',
-    nota:'Sete dias de esquenta com pico no Dia do Cliente. É a campanha que carrega o mês — cadastro novo, atenção máxima.', camp:'cd' },
-  { id:'s-diacli', tipo:'mae', titulo:'Dia do Cliente · 30% OFF + Live', inicio:'2026-09-15', fim:'2026-09-15',
-    escopo:'Nacional', regra:'A partir de 30% off', nota:'Pico da Semana do Cliente, com live nas operações.', camp:'dd' },
-  { id:'s-semgau', tipo:'mae', titulo:'Semana do Gaúcho · Mãe do mês', inicio:'2026-09-16', fim:'2026-09-20',
-    escopo:'Só RS', regra:'A partir de 15% off · 30% no Dia do Gaúcho (20/09)',
-    nota:'Emenda na Semana do Cliente. Nichada em xis, churrasco e típicas.', camp:'otp' },
-  { id:'s-diagau', tipo:'mae', titulo:'Dia do Gaúcho · 30% OFF', inicio:'2026-09-20', fim:'2026-09-20',
-    escopo:'Só RS', regra:'A partir de 30% off', nota:'Pico da Semana do Gaúcho.', camp:'dd' },
-
-  /* ── Disparos de CRM ───────────────────────────────────────── */
-  { id:'s-crm1', tipo:'crm', titulo:'Push · abre a Semana do Cliente', inicio:'2026-09-08', fim:'2026-09-08', hora:'11:00', duracao:30,
-    escopo:'Nacional', regra:'Base completa', nota:'Abertura do esquenta.' },
-  { id:'s-crm2', tipo:'crm', titulo:'Push · véspera do Dia do Cliente', inicio:'2026-09-14', fim:'2026-09-14', hora:'18:30', duracao:30,
-    escopo:'Nacional', regra:'Base ativa 90 dias' },
-  { id:'s-crm3', tipo:'crm', titulo:'Push · Dia do Cliente 30% off', inicio:'2026-09-15', fim:'2026-09-15', hora:'11:00', duracao:30,
-    escopo:'Nacional', regra:'Base completa' },
-  { id:'s-crm4', tipo:'crm', titulo:'Inapp · live do Dia do Cliente', inicio:'2026-09-15', fim:'2026-09-15', hora:'19:00', duracao:60,
-    escopo:'Nacional', regra:'Quem abriu o app no dia' },
-  { id:'s-crm5', tipo:'crm', titulo:'Push · abre a Semana do Gaúcho', inicio:'2026-09-16', fim:'2026-09-16', hora:'11:00', duracao:30,
-    escopo:'Só RS', regra:'Base RS' },
-  { id:'s-crm6', tipo:'crm', titulo:'Push · Dia do Gaúcho 30% off', inicio:'2026-09-20', fim:'2026-09-20', hora:'11:00', duracao:30,
-    escopo:'Só RS', regra:'Base RS' },
-
-  /* ── Datas especiais ───────────────────────────────────────── */
-  { id:'s-indep', tipo:'especial', titulo:'Independência do Brasil', inicio:'2026-09-07', fim:'2026-09-07', escopo:'Nacional',
-    nota:'Feriado. Volume alto de almoço e jantar em casa.' },
-  { id:'s-cliente', tipo:'especial', titulo:'Dia do Cliente', inicio:'2026-09-15', fim:'2026-09-15', escopo:'Nacional' },
-  { id:'s-gaucho', tipo:'especial', titulo:'Dia do Gaúcho', inicio:'2026-09-20', fim:'2026-09-20', escopo:'Só RS' },
-  { id:'s-prima', tipo:'especial', titulo:'Início da Primavera', inicio:'2026-09-23', fim:'2026-09-23', escopo:'Nacional' },
-
-  /* ── Conteúdo para redes ───────────────────────────────────── */
-  { id:'s-hotdog', tipo:'social', titulo:'Dia do Hot Dog', inicio:'2026-09-09', fim:'2026-09-09', escopo:'Nacional' },
-  { id:'s-milk',   tipo:'social', titulo:'Dia do Milkshake', inicio:'2026-09-10', fim:'2026-09-10', escopo:'Nacional' },
-  { id:'s-sorv',   tipo:'social', titulo:'Dia do Sorvete', inicio:'2026-09-23', fim:'2026-09-23', escopo:'Nacional' },
-
-  /* ── Outubro (para a navegação de mês não cair no vazio) ───── */
-  { id:'s-out-crianca', tipo:'mae', titulo:'Dia das Crianças · Mãe do mês', inicio:'2026-10-05', fim:'2026-10-12',
-    escopo:'Nacional', regra:'A partir de 20% off · combo família em destaque', camp:'cd' },
-  { id:'s-out-dc', tipo:'especial', titulo:'Dia das Crianças', inicio:'2026-10-12', fim:'2026-10-12', escopo:'Nacional' },
-  { id:'s-out-piz', tipo:'social', titulo:'Dia da Pizza', inicio:'2026-10-10', fim:'2026-10-10', escopo:'Nacional' },
-  { id:'s-out-hall', tipo:'especial', titulo:'Halloween', inicio:'2026-10-31', fim:'2026-10-31', escopo:'Nacional' },
-
-  /* ── Agosto (mês anterior, para o "voltar" ter conteúdo) ───── */
-  { id:'s-ago-pais', tipo:'mae', titulo:'Dia dos Pais · Mãe do mês', inicio:'2026-08-03', fim:'2026-08-09',
-    escopo:'Nacional', regra:'A partir de 15% off · 25% no domingo (09/08)', camp:'cd' },
-  { id:'s-ago-dp', tipo:'especial', titulo:'Dia dos Pais', inicio:'2026-08-09', fim:'2026-08-09', escopo:'Nacional' }
-];
-
-/* ══════════════════════════════════════════════════════════════
    CAMADA DE DADOS
    calFetch() é o ÚNICO ponto de troca da fonte. Trocar para Supabase/CSV é
    reescrever esta função — nenhuma vista lê localStorage nem seed direto.
@@ -262,25 +196,6 @@ function calSalvaLocais(lista){
   catch(e){ gToast('Não consegui salvar: o armazenamento do navegador está cheio.','error'); return false; }
 }
 
-// Recorrente vira evento de verdade só na hora de exibir: um registro cobre
-// todos os meses. `janela` é um par [isoIni, isoFim] — expandimos mês a mês.
-function calExpandeRecorrentes(isoIni, isoFim){
-  const out=[];
-  let cursor=String(isoIni).slice(0,7)+'-01';
-  const limite=String(isoFim).slice(0,7)+'-01';
-  let guarda=0;
-  while(cursor<=limite && guarda++<36){
-    const d=calData(cursor);
-    const ultimo=`${cursor.slice(0,7)}-${String(calDiasNoMes(d.getFullYear(), d.getMonth())).padStart(2,'0')}`;
-    CAL_SEED_RECORRENTES.forEach(r=>{
-      out.push({ ...r, id:`${r.id}-${cursor.slice(0,7)}`, tipo:'recorrente',
-                 inicio:`${cursor.slice(0,7)}-01`, fim:ultimo, escopo:'Nacional', origem:'oficial' });
-    });
-    cursor=calAddMeses(cursor,1);
-  }
-  return out;
-}
-
 /**
  * PONTO DE TROCA DA FONTE. Hoje: seed + eventos locais da equipe.
  * Amanhã (decisão #1 do roadmap): `await sb.from('calendario').select(...)`,
@@ -288,11 +203,21 @@ function calExpandeRecorrentes(isoIni, isoFim){
  * devolve { eventos, fonte, atualizadoEm } e o resto do módulo segue igual.
  */
 async function calFetch(){
-  const oficiais = CAL_SEED_EVENTOS.map(e=>({ ...e, origem:'oficial' }));
-  const recorrentes = calExpandeRecorrentes(calAddMeses(calHoje(),-6), calAddMeses(calHoje(),6));
+  const oficiais = [];
+  const c = (typeof CAL_CONTEUDO!=='undefined') ? CAL_CONTEUDO : {};
+  Object.keys(c).forEach(mes=>{
+    (c[mes].eventos||[]).forEach(e=>oficiais.push({ ...e, origem:'oficial' }));
+  });
   const locais = calLocais().map(e=>({ ...e, origem:'local' }));
-  return { eventos:[...oficiais, ...recorrentes, ...locais], fonte:'seed', atualizadoEm:new Date().toISOString() };
+  return { eventos:[...oficiais, ...locais], fonte:'portado', atualizadoEm:new Date().toISOString() };
 }
+// Os meses que a fonte oficial publicou. Fora deles o calendário NÃO inventa
+// recorrente projetada: mês sem publicação é mês sem publicação, e a tela diz
+// isso em vez de desenhar um mês plausível.
+function calMesesPublicados(){
+  return Object.keys((typeof CAL_CONTEUDO!=='undefined') ? CAL_CONTEUDO : {}).sort();
+}
+function calMesPublicado(iso){ return calMesesPublicados().indexOf(String(iso).slice(0,7))>=0; }
 
 async function calCarregar(){
   calState.carregando = true; calState.erro=''; calState.sync='sincronizando';
@@ -331,7 +256,20 @@ function calNormaliza(lista){
     regra: e.regra || '',
     nota: e.nota || '',
     concluido: !!e.concluido,
-    origem: e.origem || 'local'
+    origem: e.origem || 'local',
+    // Conteúdo rico da fonte oficial (js/calendario/conteudo.js). Opcional:
+    // evento criado pela equipe nasce sem nada disto e a folha se adapta.
+    bucket: e.bucket || '',
+    resumo: e.resumo || '',
+    cadastro: e.cadastro || '',
+    ativo: e.ativo || '',
+    cadastrar: Array.isArray(e.cadastrar) ? e.cadastrar : [],
+    exemplos: Array.isArray(e.exemplos) ? e.exemplos : [],
+    regras: Array.isArray(e.regras) ? e.regras : [],
+    dica: e.dica || '',
+    disparos: Array.isArray(e.disparos) ? e.disparos : [],
+    incentivo: e.incentivo || '',
+    alerta: e.alerta || null
   })).sort(calCompara);
 }
 
@@ -380,7 +318,23 @@ function calCamp(ev){
   const todas=[].concat(typeof CAMPS_ATIVAS!=='undefined'?CAMPS_ATIVAS:[], typeof CAMPS_OUTRAS!=='undefined'?CAMPS_OUTRAS:[]);
   return todas.find(c=>c.id===ev.camp) || null;
 }
-function calPodeEditar(){ return typeof gIsAdmin==='function' && gIsAdmin(); }
+// O GATE ÚNICO de edição do módulo. Role E flag, nesta ordem — igual ao
+// `gModeAllowed` do main.js. Como CTA, "+" do dia, arrastar, concluir e apagar
+// todos passam por aqui, a chave do Controle do produto alcança os cinco de uma
+// vez; não existe caminho de edição que escape deste `if`.
+function calPodeEditar(){
+  if(typeof gIsAdmin!=='function' || !gIsAdmin()) return false;
+  if(typeof gFeatureCan!=='function') return true;   // sem o motor, nada muda
+  return gFeatureCan('calendario.edicao','create');
+}
+// Atalhos de leitura das outras três chaves. Sem o motor carregado tudo passa:
+// flag indisponível nunca pode derrubar o módulo (feature-flags.js, fail-open).
+function calFlag(chave, acao){
+  return typeof gFeatureCan!=='function' || gFeatureCan(chave, acao||'access');
+}
+function calTemAgenda(){ return calFlag('calendario.agenda'); }
+function calTemArtes(){  return calFlag('calendario.artes'); }
+function calTemApres(){  return calFlag('calendario.apresentacao'); }
 
 // A ARTE que identifica o evento. Vem do próprio evento (`banner`) ou, o caso
 // comum, da campanha ligada (`banner` em CAMPS_*, js/00-config.js). O nome da
@@ -462,6 +416,7 @@ function calLePrefs(){
   try{
     const p=JSON.parse(localStorage.getItem(CAL_PREFS)||'{}');
     if(p.vista && ['dash','mes','semana','dia'].indexOf(p.vista)>=0) calState.vista=p.vista;
+    if((calState.vista==='semana'||calState.vista==='dia') && !calTemAgenda()) calState.vista='mes';
     if(Array.isArray(p.filtros)) calState.filtros=p.filtros.filter(t=>CAL_TIPOS[t]);
   }catch(e){}
 }
@@ -473,6 +428,9 @@ function calGravaPrefs(){
    NAVEGAÇÃO
 ══════════════════════════════════════════════════════════════ */
 function calVista(v, botao){
+  // Vale para TODO caminho de entrada — clique, atalho de teclado, preferência
+  // restaurada do F5 e chamada pelo console. Mesmo raciocínio do setMode.
+  if((v==='semana'||v==='dia') && !calTemAgenda()) v='mes';
   if(calState.vista===v) return;
   calState.vista=v; calGravaPrefs();
   calRender({direcao:0});
@@ -496,7 +454,9 @@ function calSelecionar(iso, opts){
   opts=opts||{};
   calState.selecionado=iso;
   if(!calMesmoMes(iso, calState.ancora) || calState.vista!=='mes') calState.ancora=iso;
-  if(opts.abrirDia){ calState.vista='dia'; calGravaPrefs(); }
+  // Sem a agenda, "abrir o dia" seleciona o dia e fica no mês: trocar para uma
+  // vista desligada devolveria o palco vazio.
+  if(opts.abrirDia && calTemAgenda()){ calState.vista='dia'; calGravaPrefs(); }
   calRender();
 }
 function calFiltro(tipo){
@@ -510,6 +470,10 @@ function calLimpaFiltros(){ calState.filtros=[]; calState.busca=''; calGravaPref
 // ligada, abrimos o detalhe em vez de fingir que há material.
 function calAbrirArtes(id){
   const ev=calById(id); if(!ev) return;
+  if(!calTemArtes()){
+    if(typeof gFeatureBlockedFeedback==='function') gFeatureBlockedFeedback('calendario.artes');
+    return;
+  }
   const camp=calCamp(ev);
   if(!camp){ gToast('Este evento ainda não tem campanha ligada.','info'); return; }
   if(typeof setMode==='function') setMode('franqueado');
@@ -566,7 +530,8 @@ function calTituloVista(){
 }
 function calTopo(){
   const v=calState.vista;
-  const abas=[['dash','Visão geral'],['mes','Mês'],['semana','Semana'],['dia','Dia']];
+  const abas=[['dash','Visão geral'],['mes','Mês']]
+    .concat(calTemAgenda()?[['semana','Semana'],['dia','Dia']]:[]);
   const podeNavegar = v!=='dash';
   return `<header class="cal-topo">
     <div class="cal-topo-a">
@@ -588,6 +553,8 @@ function calTopo(){
         <input type="search" id="cal-busca" placeholder="Buscar campanha" value="${gEsc(calState.busca)}"
           oninput="calBuscaInput(this.value)" aria-label="Buscar no calendário">
       </div>
+      ${calMesPublicado(calState.ancora) && calTemApres()?`<button class="cal-b-fantasma cal-b-apres" onclick="calApresAbrir()">
+        ${calIco('play')}<span>Apresentação</span></button>`:''}
       ${calPodeEditar()?`<button class="cal-cta" onclick="calNovoEvento()">${calIco('mais')}<span>Novo evento</span></button>`:''}
     </div>
   </header>`;
@@ -621,9 +588,10 @@ function calRodape(){
     erro:      [calIco('alerta'), 'Falha ao sincronizar · o que está na tela pode estar velho', 'erro']
   };
   const [ico,txt,cls]=mapa[s]||mapa.ok;
-  const fonte = calState.fonte==='seed'
-    ? 'Calendário de demonstração — a fonte oficial ainda não está conectada'
-    : 'Fonte oficial da operação';
+  const meses=calMesesPublicados();
+  const fonte = calState.fonte==='portado'
+    ? `Conteúdo do calendário oficial, portado em 03/09 · publicado: ${meses.map(calFmtMesPub).join(' e ')}`
+    : 'Fonte oficial da operação, ao vivo';
   return `<footer class="cal-rodape cal-rodape--${cls}">
     <span class="cal-rodape-est">${ico}${gEsc(txt)}</span>
     <span class="cal-rodape-fonte">${gEsc(fonte)}</span>
@@ -697,7 +665,7 @@ function calCardEvento(ev, dens){
         ${conf?`<span class="cal-ev-conf">${calIco('alerta')}Conflito</span>`:''}
       </div>
       ${dens==='card' && ev.regra?`<p class="cal-ev-regra">${gEsc(ev.regra)}</p>`:''}
-      ${dens==='card' && camp?`<button class="cal-ev-artes" onclick="event.stopPropagation();calAbrirArtes('${gEsc(ev.id)}')">
+      ${dens==='card' && camp && calTemArtes()?`<button class="cal-ev-artes" onclick="event.stopPropagation();calAbrirArtes('${gEsc(ev.id)}')">
           ${calIco('arte')}<span>Ver as artes</span>${calIco('seta')}</button>`:''}
     </div>
   </article>`;
@@ -917,14 +885,26 @@ function calMiniNav(p){ calState.ancora=calAddMeses(calState.ancora,p); calRende
 function calVistaMes(){
   const grade=calGradeMes(calState.ancora);
   const mesRef=String(calState.ancora).slice(0,7);
+  // Mês que a operação NÃO publicou não ganha grade. Desenhar 42 células vazias
+  // e explicar embaixo esconde o motivo atrás da dobra (medido: a mensagem caía
+  // em y=886 num palco de 704) — a pessoa vê um mês em branco e conclui que
+  // quebrou. Sem publicação, a explicação É a tela.
+  if(!calMesPublicado(calState.ancora)){
+    const ult=calMesesPublicados().slice(-1)[0]||'';
+    return `<div class="cal-mes cal-mes--sem">${calVazio(
+      'A operação ainda não publicou este mês',
+      `O calendário oficial vai até ${calFmtMesPub(ult)}. Mês sem publicação fica vazio de propósito — o calendário não inventa data.`,
+      `<button class="cal-cta cal-cta--calmo" onclick="calHojeIr()">Voltar para hoje</button>`)}</div>`;
+  }
   const semanas=grade.map(sem=>calSemanaHtml(sem, mesRef)).join('');
   const vazio = !calNoIntervalo(grade[0][0], grade[5][6]).length;
   return `<div class="cal-mes">
     ${calSempreNoAr()}
     <div class="cal-mes-head" aria-hidden="true">${CAL_HEAD.map(d=>`<span>${d}</span>`).join('')}</div>
     <div class="cal-mes-grade" role="grid" aria-label="${gEsc(calFmtMesAno(calState.ancora))}">${semanas}</div>
-    ${vazio?`<div class="cal-mes-vazio">${calVazio('Nenhum evento neste mês','Troque o filtro ou volte para o mês corrente.',
-      `<button class="cal-cta cal-cta--calmo" onclick="calHojeIr()">Ir para hoje</button>`)}</div>`:''}
+    ${vazio?`<div class="cal-mes-vazio">${calVazio('Nenhum evento com este filtro',
+      'Todos os eventos do mês estão escondidos pelo filtro atual.',
+      `<button class="cal-cta cal-cta--calmo" onclick="calLimpaFiltros()">Mostrar tudo</button>`)}</div>`:''}
     ${calListaDoDiaSel()}
   </div>`;
 }
@@ -1168,17 +1148,30 @@ function calInit(){
   calLePrefs();
   calState.ancora=calHoje(); calState.selecionado=calHoje();
   calRender();
-  calCarregar();
+  // A apresentação do mês só pode ser decidida DEPOIS que o conteúdo chegou —
+  // ela lê os eventos do mês para montar as cenas.
+  calCarregar().then(()=>{ if(typeof calApresTalvez==='function') calApresTalvez(); });
   window.addEventListener('resize', calPillSeg);
   window.addEventListener('online',  ()=>{ calState.sync='ok'; calCarregar(); });
   window.addEventListener('offline', ()=>{ calState.sync='offline'; calRender(); });
   document.addEventListener('keydown', calAtalhosGlobais);
+  // A gestão mudou uma chave (aqui ou em outra máquina) → o módulo se reconstrói
+  // na hora, sem reload. Se a vista corrente acabou de ser desligada, calVista
+  // já derruba para o Mês. Mesmo padrão do listener em main.js.
+  window.addEventListener('luma:feature-flags-changed', ()=>{
+    if(!document.body.classList.contains('mode-calendario')) return;
+    if((calState.vista==='semana'||calState.vista==='dia') && !calTemAgenda()) calState.vista='mes';
+    if(document.getElementById('cal-apres') && !calTemApres()) calApresFechar();
+    calRender();
+  });
   if(typeof gTrackEvent==='function') gTrackEvent('calendario_aberto',{});
 }
 // Atalhos do módulo (só quando a aba está na frente): M/S/D/G trocam a vista,
 // T volta pra hoje, N cria, Esc fecha o que estiver aberto.
 function calAtalhosGlobais(e){
   if(!document.body.classList.contains('mode-calendario')) return;
+  // Com a apresentação aberta ela manda no teclado (tem handler próprio).
+  if(document.getElementById('cal-apres')) return;
   const alvo=e.target, tag=(alvo&&alvo.tagName||'').toLowerCase();
   if(tag==='input'||tag==='textarea'||tag==='select'||(alvo&&alvo.isContentEditable)){
     if(e.key==='Escape') alvo.blur();
@@ -1188,8 +1181,8 @@ function calAtalhosGlobais(e){
   const k=e.key.toLowerCase();
   if(k==='g'){ e.preventDefault(); calVista('dash'); }
   else if(k==='m'){ e.preventDefault(); calVista('mes'); }
-  else if(k==='s'){ e.preventDefault(); calVista('semana'); }
-  else if(k==='d'){ e.preventDefault(); calVista('dia'); }
+  else if(k==='s' && calTemAgenda()){ e.preventDefault(); calVista('semana'); }
+  else if(k==='d' && calTemAgenda()){ e.preventDefault(); calVista('dia'); }
   else if(k==='t'){ e.preventDefault(); calHojeIr(); }
   else if(k==='n' && calPodeEditar()){ e.preventDefault(); calNovoEvento(calState.selecionado); }
   else if(e.key==='Escape'){ if(calFecharTudo()) e.preventDefault(); }
