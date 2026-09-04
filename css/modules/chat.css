@@ -988,16 +988,140 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
 .f-bulk-actions-bar{position:relative;flex-wrap:wrap!important;overflow:visible;padding:7px 8px!important;border:1px solid var(--gray-mid)!important;border-radius:var(--r-sm)!important;background:var(--white)!important;color:var(--text-2)!important;white-space:normal;box-shadow:none}
 .f-bulk-actions-bar>span:first-child{color:var(--dm-orange-d)}
 .f-bulk-actions-bar input,.f-bulk-actions-bar select{min-height:32px!important}
+/* ══ A PLANILHA — papel com pauta, não grade ═══════════════════════════════════
+   O herói desta tela é a PRÉVIA AO VIVO à esquerda (05_DESIGN_PHILOSOPHY §3:
+   "a arte em progresso é o herói"). A tabela é coadjuvante e foi desenhada para
+   sumir: cada moldura removida aqui é atenção que sobra pra arte.
+
+   As três decisões que carregam o resto:
+    1. HAIRLINE HORIZONTAL, ZERO VERTICAL. Linha vertical fecha a célula e o
+       conjunto vira grade — grade pesa e compete. Só a pauta fica; a coluna se
+       lê pelo alinhamento, que é de graça.
+    2. CROMO SOB DEMANDA. Antes cada campo tinha borda permanente: 6 colunas ×
+       6 linhas = 36 caixinhas competindo com a arte. Agora o campo é texto sobre
+       papel, e a moldura só nasce onde a mão está (linha sob o ponteiro) ou onde
+       o cursor está (foco).
+    3. COR SÓ NA LINHA ATIVA. É o único laranja da tabela, e é informação: diz
+       qual linha a prévia está mostrando. Tudo o mais é neutro.
+   ────────────────────────────────────────────────────────────────────────────── */
 .f-bulk-table{border-collapse:separate!important;border-spacing:0;font-size:12px}
-.f-bulk-table thead th{position:sticky;top:0;z-index:10;background:var(--gray-light)!important;border-right:1px solid var(--gray-mid)!important;border-bottom:1px solid var(--gray-mid)!important;color:var(--text-2)!important;font-size:9.5px!important;font-weight:800!important;letter-spacing:.08em!important}
+
+/* Cabeçalho: hierarquia por PESO e tracking, não por fundo cinza. O fundo é o
+   mesmo papel da tabela — só a hairline de baixo separa. */
+.f-bulk-table thead th{
+  position:sticky;top:0;z-index:10;
+  background:var(--white)!important;
+  border-right:0!important;
+  border-bottom:1px solid var(--gray-mid)!important;
+  color:var(--text-3)!important;
+  padding:13px 10px 10px!important;
+  font-size:9px!important;font-weight:800!important;letter-spacing:.11em!important;
+}
 .f-bulk-table tbody tr{background:var(--white);transition:background var(--dur-micro) var(--ease-standard)}
 .f-bulk-table tbody tr:nth-child(even){background:var(--white)}
-.f-bulk-table tbody tr:hover{background:color-mix(in srgb,var(--dm-orange-bg) 58%,var(--white))}
-.f-bulk-table tbody td{border-right:1px solid var(--gray-light)!important;border-bottom:1px solid var(--gray-light)!important}
-.f-bulk-table input[type=text]{min-height:34px!important;box-sizing:border-box;border-color:transparent!important;border-radius:4px!important;background:transparent!important;transition:border-color var(--dur-micro) var(--ease-standard),box-shadow var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard)}
-.f-bulk-table tbody tr:hover input[type=text]{border-color:var(--gray-mid)!important;background:var(--white)!important}
+/* Realce de ponteiro quase invisível: ele orienta, não decora. O laranja forte
+   fica reservado pra linha ativa, senão as duas competem. */
+.f-bulk-table tbody tr:hover{background:color-mix(in srgb,var(--dm-orange) 3%,var(--white))}
+.f-bulk-table tbody td{
+  border-right:0!important;
+  border-bottom:1px solid var(--gray-light)!important;
+  padding:5px 6px!important;
+}
+.f-bulk-table tbody tr:last-child td{border-bottom:0!important}
+
+/* O campo é texto sobre papel. A moldura aparece na linha sob o ponteiro e
+   endurece no foco — nunca as duas ao mesmo tempo em toda a tabela. */
+.f-bulk-table input[type=text]{
+  min-height:34px!important;box-sizing:border-box;
+  border:1px solid transparent!important;border-radius:var(--r-sm)!important;
+  background:transparent!important;
+  transition:border-color var(--dur-micro) var(--ease-standard),
+             box-shadow var(--dur-micro) var(--ease-standard),
+             background var(--dur-micro) var(--ease-standard);
+}
+.f-bulk-table tbody tr:hover input[type=text]{
+  border-color:color-mix(in srgb,var(--gray-mid) 55%,transparent)!important;
+  background:var(--white)!important;
+}
+.f-bulk-table input[type=text]:focus{
+  border-color:var(--dm-orange)!important;background:var(--white)!important;
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--dm-orange) 14%,transparent)!important;
+}
 .f-bulk-table input.f-bulk-cell-err{border-color:var(--dm-red)!important;background:color-mix(in srgb,var(--dm-red) 4%,var(--white))!important}
-.f-bulk-num-chip{display:inline-flex;align-items:center;justify-content:center;min-width:23px;height:23px;padding:0 6px;border-radius:4px;background:var(--gray-light);color:var(--text-3);font-size:10px;font-weight:800}
+
+/* Número da linha: numeral tabular, não pastilha. A pastilha cinza dava peso de
+   componente a um rótulo de uma casa. Na linha ativa ele vira laranja e pesado —
+   o mesmo sinal do trilho, dito duas vezes sem custar espaço. */
+.f-bulk-num-cell{text-align:center;cursor:help;white-space:nowrap}
+.f-bulk-num-chip{
+  display:inline-block;min-width:auto;height:auto;padding:0;border-radius:0;
+  background:transparent;color:var(--text-3);
+  font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;
+}
+.f-bulk-table tr.is-active .f-bulk-num-chip{color:var(--dm-orange-text);font-weight:900}
+
+/* Ações da linha: 3 ícones × N linhas eram 18 alvos cinzas disputando a tela.
+   Agora só existem onde a mão está. No toque não há ponteiro — lá ficam sempre. */
+.f-bulk-rowact-cell{
+  text-align:center;white-space:nowrap;
+  display:flex!important;align-items:center;justify-content:center;gap:2px;
+}
+.f-bulk-rowact{
+  width:24px;height:24px;padding:0;flex:0 0 auto;
+  display:flex;align-items:center;justify-content:center;
+  border:0;border-radius:50%;background:transparent;color:var(--text-3);cursor:pointer;
+  opacity:0;
+  transition:opacity var(--dur-micro) var(--ease-standard),
+             background var(--dur-micro) var(--ease-standard),
+             color var(--dur-micro) var(--ease-standard);
+}
+.f-bulk-table tbody tr:hover .f-bulk-rowact,
+.f-bulk-table tbody tr:focus-within .f-bulk-rowact,
+.f-bulk-table tbody tr.is-active .f-bulk-rowact{opacity:1}
+.f-bulk-rowact:focus-visible{opacity:1;outline:2px solid var(--dm-orange);outline-offset:1px}
+.f-bulk-rowact:hover{background:var(--dm-orange-bg);color:var(--dm-orange-text)}
+.f-bulk-rowact--del:hover{background:color-mix(in srgb,var(--dm-red) 10%,transparent);color:var(--dm-red-text)}
+@media (hover:none){ .f-bulk-rowact{opacity:1} }
+
+/* Botão "Foto" e o campo de link: fantasmas até serem procurados. Eram dois
+   controles emoldurados por célula de imagem — o dobro de caixas das outras. */
+.f-bulk-table td label.d-btn-sec{
+  border-color:transparent!important;background:transparent!important;
+  color:var(--text-2)!important;
+  transition:border-color var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard);
+}
+.f-bulk-table tbody tr:hover td label.d-btn-sec{
+  border-color:color-mix(in srgb,var(--gray-mid) 55%,transparent)!important;background:var(--white)!important;
+}
+.f-bulk-table td label.d-btn-sec:hover{border-color:var(--dm-orange-tint)!important;color:var(--dm-orange-text)!important}
+
+/* "Excluir" da foto: era o objeto mais alto da tabela — caixa branca com letra
+   vermelha, repetida em toda célula preenchida. Vermelho aqui não é aviso, é só
+   uma ação secundária; ele fica cinza e só ganha a cor quando o ponteiro chega,
+   como todo o resto da linha. */
+.f-bulk-img-del{
+  padding:4px 8px;flex:0 0 auto;
+  border:1px solid transparent;border-radius:var(--r-sm);background:transparent;
+  color:var(--text-3);font:600 11px 'Roboto',sans-serif;cursor:pointer;
+  opacity:0;
+  transition:opacity var(--dur-micro) var(--ease-standard),
+             color var(--dur-micro) var(--ease-standard),
+             border-color var(--dur-micro) var(--ease-standard);
+}
+.f-bulk-table tbody tr:hover .f-bulk-img-del,
+.f-bulk-table tbody tr:focus-within .f-bulk-img-del,
+.f-bulk-table tbody tr.is-active .f-bulk-img-del{opacity:1}
+.f-bulk-img-del:hover{color:var(--dm-red-text);border-color:color-mix(in srgb,var(--dm-red) 40%,transparent)}
+.f-bulk-img-del:focus-visible{opacity:1;outline:2px solid var(--dm-orange);outline-offset:1px}
+@media (hover:none){ .f-bulk-img-del{opacity:1} }
+
+/* Barra de rolagem da planilha: fina e neutra. A nativa do Windows é um bloco
+   cinza de 17px que fecha a tabela por baixo como se fosse moldura. */
+.f-bulk-table-scroll{scrollbar-width:thin;scrollbar-color:var(--gray-mid) transparent}
+.f-bulk-table-scroll::-webkit-scrollbar{height:8px}
+.f-bulk-table-scroll::-webkit-scrollbar-track{background:transparent}
+.f-bulk-table-scroll::-webkit-scrollbar-thumb{background:var(--gray-mid);border-radius:var(--r-pill);border:2px solid transparent;background-clip:content-box}
+.f-bulk-table-scroll::-webkit-scrollbar-thumb:hover{background:var(--text-3);background-clip:content-box}
 .f-bulk-card{position:relative;display:flex;flex-direction:column;align-items:center;padding:12px 10px 10px;border:1px solid var(--gray-light);border-radius:var(--r);background:var(--white);animation:gFadeIn var(--dur-base) var(--ease-standard) both;transition:transform var(--dur-fast) var(--ease-spring-soft),box-shadow var(--dur-fast) var(--ease-spring-soft),border-color var(--dur-fast) var(--ease-standard)}
 .f-bulk-card:hover{border-color:var(--dm-orange-tint);box-shadow:0 10px 26px color-mix(in srgb,var(--dm-orange-d) 12%,transparent);transform:translateY(-3px)}
 .f-bulk-card.has-err{border-color:var(--gray-mid);background:var(--off-white)}   /* sem vermelho: decisão de não alarmar */

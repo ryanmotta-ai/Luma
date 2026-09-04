@@ -226,7 +226,7 @@ esses a verificação continua sendo o navegador. Suíte verde não substitui ab
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 72 arquivos JS (57.023 linhas, 2.282 funções) · 32 arquivos CSS (27.823 linhas) · `index.html` com 3.793 linhas e 74 `<script>`.
+**Tamanho real de hoje:** 72 arquivos JS (57.023 linhas, 2.282 funções) · 32 arquivos CSS (27.947 linhas) · `index.html` com 3.793 linhas e 74 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -599,7 +599,7 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 | `css/modules/all-tools.css` | 113 |
 | `css/modules/calendario.css` | 1544 |
 | `css/modules/catalog.css` | 291 |
-| `css/modules/chat.css` | 2305 |
+| `css/modules/chat.css` | 2429 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
 | `css/modules/designer.css` | 5822 |
