@@ -524,8 +524,8 @@ var _dNoteSvg='<svg width="20" height="20" viewBox="0 0 24 24" fill="#FFD600" st
  * @param {number} x — coordenada X no espaço do canvas
  * @param {number} y — coordenada Y no espaço do canvas
  */
-function dNoteAdd(x, y){
-  var text=prompt('Texto da nota:');
+async function dNoteAdd(x, y){
+  var text=await gPrompt('Texto da nota:','',{title:'Nova nota',okLabel:'Adicionar'});
   if(!text||!text.trim()) return;
   dNotes.push({
     id:_dMeasureId(),
@@ -638,10 +638,10 @@ function dNoteRemove(id){
  * Edita o texto de uma nota existente.
  * @param {string} id
  */
-function dNoteEdit(id){
+async function dNoteEdit(id){
   var note=dNotes.find(function(n){return n.id===id;});
   if(!note) return;
-  var newText=prompt('✏️ Editar nota:', note.text);
+  var newText=await gPrompt('Editar nota:', note.text,{title:'Editar nota',okLabel:'Salvar'});
   if(newText===null) return; // Cancelou
   if(!newText.trim()){
     // Texto vazio → remover nota

@@ -27,8 +27,8 @@ function fOpenPreview(e,id){
   const multi = document.getElementById('pv-multi');
   multi.innerHTML = FMTS.map(f=>{
     const cls = `pv-multi-canvas pv-fmt-${f.id}`;
-    return `<div class="pv-multi-item" onclick="fStartFromPreview('${c.id}','${f.id}')" role="button" tabindex="0">
-      <div class="${cls}" style="background:${c.color}">
+    return `<div class="pv-multi-item" onclick="fStartFromPreview('${gEsc(c.id)}','${f.id}')" role="button" tabindex="0">
+      <div class="${cls}" style="background:${gSafeColor(c.color)}">
         <div class="pv-multi-tag">${gEsc(c.name.toUpperCase())}</div>
         <div class="pv-multi-prod">${gEsc(c.previewProd||c.name)}</div>
         ${c.previewDe?`<div class="pv-multi-de">${gEsc(c.previewDe)}</div>`:''}

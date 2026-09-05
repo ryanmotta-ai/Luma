@@ -102,7 +102,7 @@ function _fRenderUploadPanel(){
   const recentGrid = recents.length
     ? `<div class="f-up-grid">${recents.map((r,i)=>`
         <button type="button" class="f-up-thumb" onclick="fPickRecentImg(${i})" title="Usar esta imagem">
-          <img src="${r.thumb}" alt="Imagem recente"/>
+          <img src="${gEsc(r.thumb)}" alt="Imagem recente"/>
           <span class="f-up-thumb-del" onclick="fRemoveRecentImg(${i},event)" title="Remover dos recentes" aria-label="Remover dos recentes">${_icoTrash}</span>
         </button>`).join('')}</div>`
     : `<p class="f-up-empty">Suas fotos usadas vão aparecer aqui pra reaproveitar.</p>`;
@@ -112,10 +112,10 @@ function _fRenderUploadPanel(){
       <div class="f-up-sec-head">${_icoStore}<span>Minhas lojas</span></div>
       ${lojas.length
         ? `<div class="f-up-grid f-up-grid-lojas">${lojas.map(l=>`
-            <button type="button" class="f-up-loja" onclick="fUploadPanelPickLoja('${l.id}')" title="Usar o logo de ${gEsc(l.nome||'loja')}">
-              <span class="f-up-loja-logo">${l.logo?`<img src="${l.logo}" alt=""/>`:_icoStore}</span>
+            <button type="button" class="f-up-loja" onclick="fUploadPanelPickLoja('${gEsc(l.id)}')" title="Usar o logo de ${gEsc(l.nome||'loja')}">
+              <span class="f-up-loja-logo">${l.logo?`<img src="${gEsc(l.logo)}" alt=""/>`:_icoStore}</span>
               <span class="f-up-loja-name">${gEsc(l.nome||'Minha loja')}</span>
-              <span class="f-up-thumb-del" onclick="fUploadPanelDeleteLoja('${l.id}',event)" title="Excluir loja" aria-label="Excluir loja">${_icoTrash}</span>
+              <span class="f-up-thumb-del" onclick="fUploadPanelDeleteLoja('${gEsc(l.id)}',event)" title="Excluir loja" aria-label="Excluir loja">${_icoTrash}</span>
             </button>`).join('')}</div>`
         : `<p class="f-up-empty">Salve uma loja ao enviar um logo — o perfil aparece aqui.</p>`}
     </div>` : '';

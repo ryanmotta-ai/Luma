@@ -1155,11 +1155,11 @@ function dLoadTemplateById(folderId, tmplId){
   if(t) dLoadTemplate(t, f);
 }
 // Menu de ações rápidas do template
-function dRenameTemplate(folderId,tmplId){
+async function dRenameTemplate(folderId,tmplId){
   document.querySelectorAll('.tmpl-context-menu').forEach(menu=>menu.remove());
   const folder=dFolders.find(item=>item.id===folderId);if(!folder)return;
   const tmpl=(folder.templates||[]).find(item=>item.id===tmplId);if(!tmpl)return;
-  const requested=prompt('Nome do material:',tmpl.name||'Material');
+  const requested=await gPrompt('Nome do material:',tmpl.name||'Material',{title:'Renomear material',okLabel:'Renomear'});
   if(requested===null)return;
   const next=dUniqueTemplateName(folder,requested,tmpl.id);
   if(!next.trim())return;
@@ -1470,12 +1470,12 @@ function dBindSaveAsProjectAction(){
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',dBindSaveAsProjectAction,{once:true});
 else dBindSaveAsProjectAction();
 // Atalho rápido: edita só validade num modalzinho menor
-function dQuickEditValidade(folderId, tmplId){
+async function dQuickEditValidade(folderId, tmplId){
   document.querySelectorAll('.tmpl-context-menu').forEach(m=>m.remove());
   const f=dFolders.find(x=>x.id===folderId); if(!f) return;
   const t=f.templates.find(x=>x.id===tmplId); if(!t) return;
   if(!t.publishMeta) t.publishMeta = dDefaultPublishMeta();
-  const novaData = prompt('Nova data de validade (YYYY-MM-DD):', t.publishMeta.validade||'');
+  const novaData = await gPrompt('Nova data de validade (YYYY-MM-DD):', t.publishMeta.validade||'',{title:'Editar validade',placeholder:'2026-12-31',okLabel:'Salvar'});
   if(!novaData) return;
   // Valida formato simples
   if(!/^\d{4}-\d{2}-\d{2}$/.test(novaData)){
@@ -1831,10 +1831,10 @@ function dConfirmFolder(){
   gToast('Pasta "'+name+'" criada');
 }
 // Renomear rápido (sem abrir o modal todo)
-function dRenameFolder(id){
+async function dRenameFolder(id){
   document.querySelectorAll('.folder-ctx-menu').forEach(m=>m.remove());
   const f=dFolders.find(x=>x.id===id);if(!f)return;
-  const n=prompt('Novo nome da pasta:',f.name);
+  const n=await gPrompt('Novo nome da pasta:',f.name,{title:'Renomear pasta',okLabel:'Renomear'});
   if(!n||!n.trim())return;
   f.name=n.trim();
   dRenderFolders();dPersistFolders();

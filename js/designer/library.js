@@ -260,8 +260,8 @@ async function dSyncLibFromBackend(){
   }catch(e){}
 }
 
-function dLibNewCat() {
-  const name = prompt('Nome da nova categoria:');
+async function dLibNewCat() {
+  const name = await gPrompt('Nome da nova categoria:','',{title:'Nova categoria',placeholder:'Ex.: Selos',okLabel:'Criar'});
   if (!name || !name.trim()) return;
   const n = name.trim();
   if (dLibCats.includes(n)) { gToast('Categoria já existe'); return; }
@@ -568,11 +568,11 @@ async function dSyncSnippetsFromBackend(){
     if(typeof dRenderSnippets==='function') dRenderSnippets();
   }catch(e){}
 }
-function dSaveSnippet(){
+async function dSaveSnippet(){
   const ids = dMultiSel.length ? dMultiSel.slice() : (dSelId?[dSelId]:[]);
   const layers = ids.map(id=>dLayers.find(l=>l.id===id)).filter(Boolean);
   if(!layers.length){gToast('Selecione 1 ou mais camadas para salvar como bloco');return;}
-  const name=(prompt('Nome do bloco:', 'Bloco '+(dSnippets.length+1))||'').trim();
+  const name=(await gPrompt('Nome do bloco:', 'Bloco '+(dSnippets.length+1),{title:'Salvar bloco',okLabel:'Salvar'})||'').trim();
   if(!name)return;
   // Normaliza para o canto sup-esq do conjunto e remove ids
   const minX=Math.min(...layers.map(l=>l.x)), minY=Math.min(...layers.map(l=>l.y));

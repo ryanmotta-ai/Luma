@@ -253,8 +253,8 @@ function _dRenderPreview(frame,ab){
       const kind=l.shapeKind||'rect';
       const vd=(kind==='path'&&typeof gVectorPathD==='function')?gVectorPathD(l.vectorPath,0,0,l.w,l.h):'';
       if(vd){
-        const rule=gVectorPathFillRule(l.vectorPath), st=l.strokeW>0?' stroke="'+(l.strokeColor||'#000')+'" stroke-width="'+l.strokeW+'"':'';
-        el.innerHTML='<svg width="100%" height="100%" viewBox="0 0 '+l.w+' '+l.h+'" preserveAspectRatio="none"><path d="'+vd+'" fill="'+(l.fill||'#FF9000')+'" fill-rule="'+rule+'"'+st+'/></svg>';
+        const rule=gVectorPathFillRule(l.vectorPath), st=l.strokeW>0?' stroke="'+gSafeColor(l.strokeColor,'#000')+'" stroke-width="'+l.strokeW+'"':'';
+        el.innerHTML='<svg width="100%" height="100%" viewBox="0 0 '+l.w+' '+l.h+'" preserveAspectRatio="none"><path d="'+vd+'" fill="'+gSafeColor(l.fill,'#FF9000')+'" fill-rule="'+rule+'"'+st+'/></svg>';
       }else{
         el.style.background=(typeof dFxShapeBg==='function')?dFxShapeBg(l):(l.fill||'#FF9000');
         if(kind==='circle'||kind==='ellipse'){el.style.borderRadius='50%';}
@@ -1206,7 +1206,7 @@ function dRenderCanvas(){
         // nítido durante resize e a prévia não volta a ser o retângulo heurístico antigo.
         const inner=document.createElement('div'); inner.style.cssText='position:absolute;inset:0;';
         const local=Object.assign({},l,{x:0,y:0,opacity:100});
-        let frag=(typeof dSvgShape==='function')?dSvgShape(local):'<path d="'+vectorD+'" fill="'+(l.fill||'#FF9000')+'" fill-rule="'+gVectorPathFillRule(l.vectorPath)+'"/>';
+        let frag=(typeof dSvgShape==='function')?dSvgShape(local):'<path d="'+vectorD+'" fill="'+gSafeColor(l.fill,'#FF9000')+'" fill-rule="'+gVectorPathFillRule(l.vectorPath)+'"/>';
         if(typeof dSvgFx==='function'&&(l.shadow||l.glow||l.innerShadow||l.innerGlow||l.bevel)){
           const key='cv'+String(l.id||'x').replace(/[^a-z0-9]/gi,''); const fx=dSvgFx(local,key);
           if(fx.attr)frag='<defs>'+fx.defs+'</defs><g'+fx.attr+'>'+frag+'</g>';
@@ -1220,11 +1220,11 @@ function dRenderCanvas(){
         inner.style.cssText='position:absolute;inset:0;';
         const abs=pts.map(p=>[p[0]*l.w, p[1]*l.h]);
         const d=gRoundPolyD(abs, l.radius||0);
-        let _st=(l.strokeW>0)?' stroke="'+(l.strokeColor||'#000')+'" stroke-width="'+l.strokeW+'"':''; // traçado no polígono
+        let _st=(l.strokeW>0)?' stroke="'+gSafeColor(l.strokeColor,'#000')+'" stroke-width="'+l.strokeW+'"':''; // traçado no polígono
         if(l.strokeW>0 && l.strokeDash && l.strokeDash.length) _st+=' stroke-dasharray="'+l.strokeDash.join(' ')+'"'; // tracejado real
         if(l.strokeW>0 && l.strokeCap) _st+=' stroke-linecap="'+l.strokeCap+'"';     // ponta (mesmo do PNG/SVG)
         if(l.strokeW>0 && l.strokeJoin) _st+=' stroke-linejoin="'+l.strokeJoin+'"';  // junção (estrela/triângulo)
-        inner.innerHTML='<svg width="100%" height="100%" viewBox="0 0 '+l.w+' '+l.h+'" preserveAspectRatio="none" style="display:block;overflow:visible"><path d="'+d+'" fill="'+(l.fill||'#FF9000')+'"'+_st+'/></svg>';
+        inner.innerHTML='<svg width="100%" height="100%" viewBox="0 0 '+l.w+' '+l.h+'" preserveAspectRatio="none" style="display:block;overflow:visible"><path d="'+d+'" fill="'+gSafeColor(l.fill,'#FF9000')+'"'+_st+'/></svg>';
         el.appendChild(inner);
       }else{
         el.style.background=dFxShapeBg(l); // fill + color overlay

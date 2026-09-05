@@ -50,6 +50,19 @@ function gEsc(s){
   return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+// gSafeColor(v, fb) — cor vinda do banco/localStorage (cor da campanha) entrava crua em
+// style="background:…". gEsc não resolve aqui: o vetor não é a aspa, é o ";" — um valor
+// como "#fff;display:none" injeta CSS e some com o card. Whitelist das formas que o Luma
+// realmente usa; qualquer outra coisa cai no fallback (laranja da marca).
+function gSafeColor(v, fb){
+  const s = String(v==null?'':v).trim();
+  if(/^#[0-9a-fA-F]{3,8}$/.test(s)) return s;              // hex 3/4/6/8
+  if(/^rgba?\(\s*[0-9.,%\s/]+\)$/.test(s)) return s;       // rgb() / rgba()
+  if(/^var\(--[a-zA-Z0-9-]+\)$/.test(s)) return s;         // token do design system
+  if(/^[a-zA-Z]{3,20}$/.test(s)) return s;                 // nome CSS (white, transparent…)
+  return fb || 'var(--dm-orange)';
+}
+
 /* ── HANDLER GLOBAL DE ERRO (H.3) ──
    Erro assíncrono não tratado ia pra um toast único com throttle de 8s. Com a decisão de
    não alarmar (ver gToast acima), o toast — e todo o aparato de throttle/guarda de splash

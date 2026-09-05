@@ -1136,16 +1136,16 @@ function fGerarArte(){
       const [mw, mh] = (typeof fMaterialSize==='function') ? fMaterialSize(fState.material, fState.fmt) : [1080,1920];
       const previewH = 280;
       const previewW = Math.round(previewH * (mw/mh));
-      canvasBlock = `<div class="art-canvas-real" style="background:${c.color};width:${previewW}px;height:${previewH}px"><canvas id="${previewCanvasId}" width="${previewW}" height="${previewH}" style="display:block;width:100%;height:100%"></canvas></div>`;
+      canvasBlock = `<div class="art-canvas-real" style="background:${gSafeColor(c.color)};width:${previewW}px;height:${previewH}px"><canvas id="${previewCanvasId}" width="${previewW}" height="${previewH}" style="display:block;width:100%;height:100%"></canvas></div>`;
     } else {
       // Fallback HTML antigo
       const fotoProduto = d.foto_produto;
       const logoLoja = d.logo_loja;
       const fotoBlock = (fotoProduto && fotoProduto.startsWith('data:image'))
-        ? `<div class="art-foto-wrap"><img class="art-foto" src="${fotoProduto}" alt=""/></div>` : '';
+        ? `<div class="art-foto-wrap"><img class="art-foto" src="${gEsc(fotoProduto)}" alt=""/></div>` : '';
       const logoBlock = (logoLoja && logoLoja.startsWith('data:image'))
-        ? `<img class="art-logo-loja" src="${logoLoja}" alt=""/>` : '';
-      canvasBlock = `<div class="art-canvas ${fotoProduto?'has-foto':''}" style="background:${c.color}">
+        ? `<img class="art-logo-loja" src="${gEsc(logoLoja)}" alt=""/>` : '';
+      canvasBlock = `<div class="art-canvas ${fotoProduto?'has-foto':''}" style="background:${gSafeColor(c.color)}">
         ${logoBlock}
         ${fotoBlock}
         <div class="art-tag">${gEsc(c.name.toUpperCase())} · ${gEsc(fState.fmt.name.toUpperCase())}</div>
@@ -1162,7 +1162,7 @@ function fGerarArte(){
         <div class="art-preview-mat">${canvasBlock}</div>
         <div class="multi-fmt-row" style="${(fState.material && fState.material.fmt) ? 'display:none;' : ''}">
           ${FMTS.map(f=>`<div class="fmt-mini ${f.id===fState.fmt.id?'current':''}" onclick="fOutroFormato('${f.id}','${previewCanvasId}')">
-            <div class="fmt-mini-thumb" style="background:${c.color}">${f.name.toUpperCase()}</div>
+            <div class="fmt-mini-thumb" style="background:${gSafeColor(c.color)}">${f.name.toUpperCase()}</div>
             <div class="fmt-mini-label" style="display:flex;align-items:center;justify-content:center;gap:3px">${f.name}${f.id===fState.fmt.id?' <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':''}</div>
           </div>`).join('')}
         </div>

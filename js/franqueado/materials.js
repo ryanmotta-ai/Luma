@@ -439,9 +439,9 @@ function fRenderMaterialCard(material, camp){
   const fmtName = {story:'Story 9:16',feed:'Feed 1:1',wide:'Post wide',post:'Post wide'}[material.fmt] || 'Story';
   const isNew = (typeof fMaterialIsNew==='function') && fMaterialIsNew(material, camp.id);
   const renderState=(material.layers&&material.layers.length)?' is-rendering':'';
-  return `<button class="f-mat-card${renderState}" type="button" onclick="fSelectMaterial('${material.id}',this)" aria-label="Personalizar ${gEsc(material.name)}, formato ${gEsc(fmtName)}">
+  return `<button class="f-mat-card${renderState}" type="button" onclick="fSelectMaterial('${gEsc(material.id)}',this)" aria-label="Personalizar ${gEsc(material.name)}, formato ${gEsc(fmtName)}">
     <div class="f-mat-preview">
-      <div class="f-mat-thumb f-mat-thumb-${material.fmt||'story'}" style="background:${camp.color}">
+      <div class="f-mat-thumb f-mat-thumb-${material.fmt||'story'}" style="background:${gSafeColor(camp.color)}">
         ${isNew?`<div class="f-mat-new">Novo</div>`:''}
         <div class="f-mat-thumb-prod">${gEsc(camp.previewProd||camp.name)}</div>
         ${camp.previewPor?`<div class="f-mat-thumb-por">${gEsc(camp.previewPor)}</div>`:''}

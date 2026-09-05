@@ -3306,9 +3306,9 @@ function dMoveVar(i,dir){
   dVarsRender();dPersistVars();
 }
 // Renomeia a variável com find/replace nos contents e imgVar dos layers (V3)
-function dRenameVar(i){
+async function dRenameVar(i){
   const v=dVars[i];if(!v)return;
-  const novo=(prompt(`Novo nome para {{${v.name}}} (só letras, números e _):`,v.name)||'').trim();
+  const novo=(await gPrompt(`Novo nome para {{${v.name}}} (só letras, números e _):`,v.name,{title:'Renomear variável',okLabel:'Renomear'})||'').trim();
   if(!novo||novo===v.name)return;
   if(!gValidVarName(novo)){gToast('Nome inválido — use só letras, números e _');return;}
   if(dVars.some(x=>x.name.toLowerCase()===novo.toLowerCase())){gToast('Já existe uma variável com esse nome');return;}

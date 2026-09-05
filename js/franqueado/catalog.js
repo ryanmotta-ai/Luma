@@ -601,9 +601,9 @@ function fCampAdminMenu(ev, folderId){
   const menu = document.createElement('div');
   menu.className = 'camp-admin-menu';
   menu.innerHTML =
-    `<button type="button" onclick="fCloseCampAdminMenu();fCampAnalyticsOpen('${folderId}')">${_ICO_STATS}<span>Analisar campanha</span></button>`+
-    `<button type="button" onclick="fCloseCampAdminMenu();fEditCampFolder('${folderId}')">${_ICO_EDIT}<span>Editar campanha</span></button>`+
-    `<button type="button" onclick="fCloseCampAdminMenu();fArchiveFolder('${folderId}')">${_ICO_ARCHIVE}<span>Arquivar campanha</span></button>`;
+    `<button type="button" onclick="fCloseCampAdminMenu();fCampAnalyticsOpen('${gEsc(folderId)}')">${_ICO_STATS}<span>Analisar campanha</span></button>`+
+    `<button type="button" onclick="fCloseCampAdminMenu();fEditCampFolder('${gEsc(folderId)}')">${_ICO_EDIT}<span>Editar campanha</span></button>`+
+    `<button type="button" onclick="fCloseCampAdminMenu();fArchiveFolder('${gEsc(folderId)}')">${_ICO_ARCHIVE}<span>Arquivar campanha</span></button>`;
   document.body.appendChild(menu);
   if(btn){
     const r = btn.getBoundingClientRect();
@@ -830,7 +830,7 @@ function fRenderArchivedPanel(){
         return `<div class="f-arch-card">
           <div class="f-arch-thumb" style="${style}">${c.badge?`<span class="f-arch-badge">${gEsc(c.badge)}</span>`:''}</div>
           <div class="f-arch-info"><div class="f-arch-name">${gEsc(c.name||'Campanha')}</div>
-            <button type="button" class="f-arch-unbtn" onclick="fUnarchiveFolder('${c._folderId}')">Desarquivar</button>
+            <button type="button" class="f-arch-unbtn" onclick="fUnarchiveFolder('${gEsc(c._folderId)}')">Desarquivar</button>
           </div>
         </div>`;
       }).join('')}</div>`
@@ -900,8 +900,8 @@ function fCampEl(c,isRec,ghost){
   const _lumCamp = _fLumHex(c.color);
   const thumbTinta = (_lumCamp!=null && _lumCamp>=0.185) ? 'var(--on-orange)' : 'var(--white)';
   const thumbStyle = cover
-    ? `background-color:${c.color};background-image:url('${coverSafe}');background-size:cover;background-position:center`
-    : `background:${c.color};color:${thumbTinta}`;
+    ? `background-color:${gSafeColor(c.color)};background-image:url('${coverSafe}');background-size:cover;background-position:center`
+    : `background:${gSafeColor(c.color)};color:${thumbTinta}`;
   // Conta só materiais VÁLIDOS (fIsMaterialValid) — expirados saíam da tela de dentro
   // mas continuavam no contador do card ("4 materiais" com 3 vencidos = vitrine mentindo).
   const mats = (typeof fGetMaterialsForCamp==='function')
@@ -910,20 +910,20 @@ function fCampEl(c,isRec,ghost){
   const _icoClock='<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-1px;margin-right:3px"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
   // F: favorito (fixar no topo) + badge "novo" (material publicado depois da última visita).
   const _isFav = !ghost && typeof fIsFav==='function' && fIsFav(c.id);
-  const favBtn = ghost ? '' : `<button class="camp-fav${_isFav?' is-fav':''}" onclick="fToggleFav('${c.id}',event)" aria-pressed="${_isFav}" aria-label="${_isFav?'Remover das favoritas':'Fixar nas favoritas'}" title="${_isFav?'Remover das favoritas':'Fixar nas favoritas'}"><svg width="14" height="14" viewBox="0 0 24 24" fill="${_isFav?'currentColor':'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></button>`;
+  const favBtn = ghost ? '' : `<button class="camp-fav${_isFav?' is-fav':''}" onclick="fToggleFav('${gEsc(c.id)}',event)" aria-pressed="${_isFav}" aria-label="${_isFav?'Remover das favoritas':'Fixar nas favoritas'}" title="${_isFav?'Remover das favoritas':'Fixar nas favoritas'}"><svg width="14" height="14" viewBox="0 0 24 24" fill="${_isFav?'currentColor':'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></button>`;
   const _hasNew = !ghost && typeof fCampHasNew==='function' && fCampHasNew(c);
   // 3-pontos "editar campanha" — só DM staff (gIsAdmin) E campanha com PASTA real (dFolders).
   // Campanha hardcoded do config não tem pasta → não é editável (é código). Gate de UX; a
   // segurança real é a RLS is_designer() no backend.
   const _campFolder = (!ghost && typeof gIsAdmin==='function' && gIsAdmin() && typeof fFolderForCamp==='function') ? fFolderForCamp(c) : null;
-  const adminBtn = _campFolder ? `<button class="camp-admin-btn" onclick="fCampAdminMenu(event,'${_campFolder.id}')" aria-label="Ações da campanha" title="Ações da campanha"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>` : '';
+  const adminBtn = _campFolder ? `<button class="camp-admin-btn" onclick="fCampAdminMenu(event,'${gEsc(_campFolder.id)}')" aria-label="Ações da campanha" title="Ações da campanha"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>` : '';
   // Campanha com tema (Much+): o card carrega o atributo e o CSS faz o convite
   // (badge magenta + shine 1x + aura no hover) ANTES do clique. Slug já sai sanitizado.
   const _tema=(typeof _fCampThemeOf==='function')?_fCampThemeOf(c):'';
-  return `<div class="camp-card ${!ghost&&fState.camp&&c.id===fState.camp.id?'selected':''} ${isRec?'recommended':''}${ghost?' ghost':''}"${_tema?` data-camp-theme="${_tema}"`:''}${ghost?' aria-disabled="true"':` role="button" tabindex="0" aria-label="Abrir campanha ${gEsc(c.name)}" onclick="fSelectCamp('${c.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();fSelectCamp('${c.id}')}"`}>
+  return `<div class="camp-card ${!ghost&&fState.camp&&c.id===fState.camp.id?'selected':''} ${isRec?'recommended':''}${ghost?' ghost':''}"${_tema?` data-camp-theme="${_tema}"`:''}${ghost?' aria-disabled="true"':` role="button" tabindex="0" aria-label="Abrir campanha ${gEsc(c.name)}" onclick="fSelectCamp('${gEsc(c.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();fSelectCamp('${gEsc(c.id)}')}"`}>
     ${favBtn}
     ${adminBtn}
-    ${ghost?'':`<button type="button" class="camp-prev-btn" onclick="event.stopPropagation();fOpenPreview(event,'${c.id}')" aria-label="Ver prévia de ${gEsc(c.name)}">PRÉVIA</button>`}
+    ${ghost?'':`<button type="button" class="camp-prev-btn" onclick="event.stopPropagation();fOpenPreview(event,'${gEsc(c.id)}')" aria-label="Ver prévia de ${gEsc(c.name)}">PRÉVIA</button>`}
     <div class="camp-thumb ${cover?'has-cover':''}" style="${thumbStyle}">
       ${c.badge?`<div class="camp-badge">${gEsc(c.badge)}</div>`:''}
       ${_hasNew?`<div class="camp-new">novo</div>`:''}
@@ -1261,7 +1261,7 @@ function _fHomeHeroEl(rec){
   // botão dentro de botão é HTML inválido e o clique não chega.
   const _heroFolder=(typeof gIsAdmin==='function'&&gIsAdmin()&&typeof fFolderForCamp==='function')?fFolderForCamp(rec):null;
   const heroAdmin=_heroFolder
-    ? `<button class="camp-admin-btn fh-hero-admin" onclick="fCampAdminMenu(event,'${_heroFolder.id}')" aria-label="Ações da campanha em destaque" title="Editar campanha, capa e mais"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>`
+    ? `<button class="camp-admin-btn fh-hero-admin" onclick="fCampAdminMenu(event,'${gEsc(_heroFolder.id)}')" aria-label="Ações da campanha em destaque" title="Editar campanha, capa e mais"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>`
     : '';
   return `<section class="fh-featured" aria-label="Campanha recomendada">
   ${heroAdmin}
