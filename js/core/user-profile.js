@@ -41,7 +41,7 @@ function gOpenUserProfileModal() {
   const sidebarRole = document.getElementById('prof-sidebar-role');
   if (sidebarName) sidebarName.textContent = displayName;
   if (sidebarRole) {
-    if(role==='gestao'||role==='superadmin'){sidebarRole.style.background='var(--dm-red)';sidebarRole.style.color='#fff';sidebarRole.textContent= role==='gestao'?'GESTÃO':'SUPER ADMIN';}
+    if(role==='gestao'||role==='superadmin'){sidebarRole.style.background='var(--dm-red)';sidebarRole.style.color = 'var(--white)';sidebarRole.textContent= role==='gestao'?'GESTÃO':'SUPER ADMIN';}
     else if(role==='equipe_dm'||role==='admin'){sidebarRole.style.background='var(--dm-yellow)';sidebarRole.style.color='var(--dm-red)';sidebarRole.textContent= role==='equipe_dm'?'EQUIPE DM':'ADMIN';}
     else{sidebarRole.style.background='rgba(255,144,0,.15)';sidebarRole.style.color='var(--dm-orange-d)';sidebarRole.textContent='FRANQUEADO';}
   }
@@ -181,7 +181,7 @@ function gProfileUpdateModalAvatars(displayName, email) {
       const hash = Array.from(displayName).reduce((acc, char) => acc + char.charCodeAt(0), 0);
       const colors = ['#e11d48', '#2563eb', '#16a34a', '#d97706', '#7c3aed', '#db2777', '#0284c7'];
       el.style.background = colors[hash % colors.length];
-      el.style.color = '#fff';
+      el.style.color = 'var(--white)';
     }
   });
 }
@@ -394,9 +394,9 @@ function gProfileCheckPasswordStrength(password) {
   const hasNumber = /[0-9]/.test(password);
 
   if (hasUpperCase && hasNumber) {
-    if (seg1) seg1.style.background = '#22c55e'; // Verde
-    if (seg2) seg2.style.background = '#22c55e';
-    if (seg3) seg3.style.background = '#22c55e';
+    if (seg1) seg1.style.background = 'var(--green)'; // Verde
+    if (seg2) seg2.style.background = 'var(--green)';
+    if (seg3) seg3.style.background = 'var(--green)';
     if (label) label.textContent = 'Senha Forte';
   } else if (hasUpperCase || hasNumber) {
     if (seg1) seg1.style.background = '#eab308'; // Amarelo

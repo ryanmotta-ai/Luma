@@ -417,9 +417,13 @@ function pvUpdateSidebar(){
   if(bgLayer)checks.push({ok:true,msg:'Fundo de tela configurado'});
   else checks.push({ok:false,msg:'Sem layer de fundo (opcional)'});
 
+  // Icone = SVG inline com currentColor (nunca glifo/emoji: o ✓ e o ⚠ mudavam de forma e de
+  // peso conforme a fonte do sistema, e o ⚠ vinha colorido em alguns aparelhos). Cor por token.
+  const _icoOk='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+  const _icoWarn='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>';
   document.getElementById('pv-checklist').innerHTML=checks.map(ch=>`
-    <div style="display:flex;align-items:center;gap:7px;padding:4px 0;font-size:11px;color:${ch.ok?'#22C55E':'#FFB900'}">
-      <span style="font-size:13px">${ch.ok?'✓':'⚠'}</span>
+    <div style="display:flex;align-items:center;gap:7px;padding:4px 0;font-size:11px;color:${ch.ok?'var(--green)':'var(--dm-yellow)'}">
+      <span style="display:inline-flex">${ch.ok?_icoOk:_icoWarn}</span>
       <span>${ch.msg}</span>
     </div>`).join('');
 }

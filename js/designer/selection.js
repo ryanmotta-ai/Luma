@@ -57,7 +57,7 @@ function dObjSelectStart(e, frame) {
   const preview = document.createElement('div');
   preview.className = 'd-objsel-preview';
   preview.style.cssText =
-    'position:absolute;border:2px dashed #4A90D9;background:rgba(74,144,217,0.12);' +
+    'position:absolute;border:2px dashed var(--d-sel);background:var(--d-sel-fill);' +
     'pointer-events:none;z-index:9999;box-sizing:border-box;';
   frame.appendChild(preview);
 
@@ -519,7 +519,8 @@ function dRenderSelectionOverlay() {
     rectEl.setAttribute('width', Math.max(0, l.w - 1) + '');
     rectEl.setAttribute('height', Math.max(0, l.h - 1) + '');
     rectEl.setAttribute('fill', 'none');
-    rectEl.setAttribute('stroke', '#4A90D9');
+    // style, nao setAttribute: atributo de apresentacao SVG NAO resolve var() -- a propriedade CSS resolve.
+    rectEl.style.stroke = 'var(--d-sel)';
     rectEl.setAttribute('stroke-width', '1.5');
     rectEl.setAttribute('stroke-dasharray', '6 4');
     rectEl.style.cssText = 'animation:d-marching-ants .4s linear infinite;';

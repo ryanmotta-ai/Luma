@@ -226,16 +226,15 @@ esses a verificação continua sendo o navegador. Suíte verde não substitui ab
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 72 arquivos JS (57.023 linhas, 2.282 funções) · 32 arquivos CSS (27.947 linhas) · `index.html` com 3.793 linhas e 74 `<script>`.
+**Tamanho real de hoje:** 72 arquivos JS (57.174 linhas, 2.288 funções) · 32 arquivos CSS (27.955 linhas) · `index.html` com 3.793 linhas e 74 `<script>`.
 
 ## JS — o que cada arquivo é
 
 ### js (raiz)
 
-**`js/00-config.js`** · 3015 linhas
+**`js/00-config.js`** · 3026 linhas
 Constantes globais imutaveis: HIST_KEY, CAMPS_ATIVAS, CAMPS_OUTRAS, FMTS. Deve ser carregado PRIMEIRO (todos os modulos dependem destas constantes).
-· API: gVarRegex, gValidVarName, gXmlEsc, gRoundPolyD, gRoundPolyPath2D, gVectorPathFillRule, gVectorPathValid, gTraceVectorPath, gVectorPathD, gFxOffset, gFxRgba, gGradStopsCss, gGradientCss, gGradientCanvas … (+42; 85 funções no total)
-· Estado global: gLayoutVivoOff, _gCanvasWrap
+· API: gVarRegex, gValidVarName, gXmlEsc, gRoundPolyD, gRoundPolyPath2D, gVectorPathFillRule, gVectorPathValid, gTraceVectorPath, gVectorPathD, gFxOffset, gFxRgba, gGradStopsCss, gGradientCss, gGradientCanvas … (+43; 86 funções no total)
 
 **`js/01-state.js`** · 11 linhas
 Estado global do franqueado: fState. Deve ser carregado apos 00-config.js.
@@ -251,7 +250,7 @@ MOTOR ÚNICO de IA do front. Todo recurso de IA do Luma (legenda, encurtar texto
 · API: gAiReady, gAiEdgeReady, gAiModel, gAskAI, gAiParseJson, gAiFileToPart
 · Depende de: core/supabase.js (gSupabase), core/img-store.js (gImgHash).
 
-**`js/core/auth.js`** · 340 linhas
+**`js/core/auth.js`** · 343 linhas
 AUTH via Supabase (Fase 5.1). Login/logout/recuperação usam supabase.auth (window.sb, criado em js/core/supabase.js). gLoadProfile() carrega a sessão + o role do profile e popula gAuthState, pra que gCurrentUser/gCurrentRole…
 · API: gRoleLevel, gLoadProfile, gLogin, gLogout, gCurrentUser, gCurrentRole, gIsAdmin, gIsSuperAdmin, gCanManageUsers, gForgotPassword, gResetPassword, gGetAllUsers, gSetUserRole, gSetUserAtivo … (+9; 24 funções no total)
 
@@ -275,7 +274,7 @@ gOpenHelp, gCloseHelp — modal de ajuda com trilha de aprendizado e catálogo l
 · API: gHelpContactSupport, gFraHelpEmail, gFhRenderCols, gFhSearch, gFhOpenCol, gFhOpenArt, gFhVote, gFhBack, gFhSetActive, gFhGo, gFraHelpOpen, gFraHelpClose, gHelpIcon, gHelpKnowledge … (+23; 46 funções no total)
 · Depende de: tutorial/engine.js (tutOpen), core/auth.js (gCurrentUser)
 
-**`js/core/img-store.js`** · 117 linhas
+**`js/core/img-store.js`** · 126 linhas
 Armazenamento de imagens grandes (fundos de PSD, fotos) em IndexedDB, fora do localStorage.
 · API: gImgHash, gIdbPut, gIdbGet, gIdbDel, gResolveImgUrl, gHydrateLayers, gHydrateFolders
 
@@ -313,9 +312,9 @@ Credenciais do projeto Supabase. PREENCHA com a Project URL e a anon key. A anon
 Cria o client Supabase global `window.sb`, usado pela auth e pela camada de persistência (fase 5.1).
 · API: gSupabase, gHasBackend, gTrackEvent, gPendingDeletes, gRemoteDelete, gIsPendingDelete, gFlushPendingDeletes
 
-**`js/core/toast.js`** · 140 linhas
+**`js/core/toast.js`** · 177 linhas
 gToast(msg) — exibe notificacao flutuante de 2.8s.
-· API: gToast, gEsc, gBtnLoading, gConfirm, gPrompt, gWarnImagesNotPersisted
+· API: gToast, gEsc, gEscJs, gSafeColor, gNormBusca, gBtnLoading, gConfirm, gPrompt, gWarnImagesNotPersisted
 · Depende de: nada (usa apenas o DOM).
 
 **`js/core/user-profile.js`** · 921 linhas
@@ -324,32 +323,32 @@ Controladores do Modal e Configurações de Perfil do Usuário. Suporta edição
 
 ### js/franqueado
 
-**`js/franqueado/catalog.js`** · 1503 linhas
+**`js/franqueado/catalog.js`** · 1509 linhas
 Catalogo de campanhas: fRenderCatalogs, fFilterCamps, fSelectCamp, fSwitchTab, fSetHistFilter, fRenderHist, fEditFromHist, fDuplicateInOtherFmt.
 · API: fSwitchTab, fSetHistFilter, fGoToCampaigns, fAskClearHist, fHistVoltar, fRenderHist, fDownloadHist, fEditFromHist, fDuplicateInOtherFmt, fConfirmDuplicate, fEditCampFolder, fCampAdminMenu, fCampAnalyticsClose, fCampAnalyticsOpen … (+32; 79 funções no total)
 · Depende de: 00-config.js, 01-state.js
 
-**`js/franqueado/chat-input.js`** · 616 linhas
+**`js/franqueado/chat-input.js`** · 613 linhas
 F-02: tipos de campo, mascaras de input, validacao por campo. F_FIELD_TYPES define o comportamento de cada variavel do template.
 · API: fMaxLenDaCaixa, fGetFieldType, fCleanTextNumber, fApplyMask, fValidate, fShowFieldError, fAttachInputGuard, fUpdateCharCount, fFitTextWithAI, fFitApply, fSaveAdv, fInitSmartInputFormatter
 · Depende de: 00-config.js
 
-**`js/franqueado/chat.js`** · 1605 linhas
+**`js/franqueado/chat.js`** · 1607 linhas
 Fluxo conversacional completo: fStartChat, fNextStep, fAddBot, fAddUser, fSend, fQR, fTyping, fGoBack, upload de imagem, confirm card, fGerarArte.
 · API: fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSaveLojaPrompt, fConfirmSaveLoja, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fShowWelcome … (+40; 68 funções no total)
 · Depende de: 00-config.js, 01-state.js, franqueado/chat-input.js
 
-**`js/franqueado/history.js`** · 270 linhas
+**`js/franqueado/history.js`** · 281 linhas
 Historico de artes do franqueado: fGetHist, fSaveHist, fAddHist, fMarkHistBaixada, fUpdateHistBadge, fRenderHist, fDownloadHist. Persiste em localStorage (HIST_KEY).
 · API: fGetHist, fSaveHist, fPushArtesToBackend, fMarkBaixadaBackend, fSyncArtesFromBackend, fClearHist, fAddHist, fMarkHistBaixada, fUpdateHistBadge, fFormatHistDate
 · Depende de: 00-config.js (HIST_KEY), 01-state.js (fState)
 
-**`js/franqueado/live-preview.js`** · 2009 linhas
+**`js/franqueado/live-preview.js`** · 2018 linhas
 Preview lateral em tempo real (fUpdateLivePreview) e modal de preview multi-formato (fOpenPreview, fClosePreview, fStartFromPreview).
-· API: fOpenPreview, fStartFromPreview, fClosePreview, fPostedSetCtx, fPostedCloseQR, fPostedOpenQR, fPostedCopyQRLink, fOpenPosted, fClosePosted, fLpToggleAutoZoom, fLpToggleAutoLayout, fUpdateLivePreview, fLpSizeCanvas, fLpRefit … (+14; 99 funções no total)
+· API: fOpenPreview, fStartFromPreview, fClosePreview, fPostedSetCtx, fPostedCloseQR, fPostedOpenQR, fPostedCopyQRLink, fOpenPosted, fClosePosted, fLpToggleAutoZoom, fLpToggleAutoLayout, fUpdateLivePreview, fLpSizeCanvas, fLpRefit … (+15; 100 funções no total)
 · Depende de: 00-config.js, 01-state.js
 
-**`js/franqueado/materials.js`** · 700 linhas
+**`js/franqueado/materials.js`** · 712 linhas
 Catalogo de materiais do franqueado: fOpenMaterialCatalog, fRenderMaterialCatalog, fRenderMaterialCard, fCloseMaterialCatalog, fSelectMaterial.
 · API: fGetMaterialsForCamp, fIsMaterialValid, fGenerateCampaignKit, fApplyCampTheme, fRemoveCampTheme, fOpenMaterialCatalog, fRenderMaterialCatalog, fRenderMaterialCard, fCloseMaterialCatalog, fMaterialImageVars, fEnsureMaterialLayers, fSelectMaterial
 · Depende de: 00-config.js, 01-state.js, franqueado/chat.js
@@ -359,7 +358,7 @@ Drag & drop das 3 colunas do workspace do franqueado (só desktop largo).
 · API: fLoadPanelOrder, fSavePanelOrder, fSetPanelOrder, fInitPanelDock
 · Depende de: index.html (grips + #fran-main), css/modules/panel-dock.css,
 
-**`js/franqueado/png-generator.js`** · 4438 linhas
+**`js/franqueado/png-generator.js`** · 4433 linhas
 Geracao de PNG a partir dos templates: fGenPNG, fRenderTemplateLayers, fBaixar, fOutroFormato. Sistema de nomenclatura padronizado para downloads.
 · API: fLoadLogoBranca, fMaterialSize, fRenderCanvasHelper, fGenPNG, fGenPDF, fPostarInstagram, fEnviarWhatsApp, fDrawDMLogo, fAdjustImageData, fRenderTemplateLayers, fRenderOneLayer, roundedRect, roundedRectPath, fLoadImageDataUrl … (+69; 146 funções no total)
 · Estado global: _fLogoBrancaImg, fBulkRows, _fBulkAudit, _fBulkAsyncAudit, _fBulkAuditFingerprint, _fBulkImageAudit, _fBulkAutosaveTimer, _fBulkAutosaveSeq, _fBulkGenerationState, _fBulkPreflightRunning (+37)
@@ -375,7 +374,7 @@ Preferências do franqueado persistidas localmente (cache offline-first):
 · API: fGetLojas, fSaveLojas, fAddLoja, fRemoveLoja, fGetFavs, fIsFav, fToggleFav, fGetSeen, fMarkCampSeen, fMaterialIsNew, fCampHasNew, fSetHistSearch
 · Depende de: 00-config.js. Consumido por catalog.js, materials.js, chat.js.
 
-**`js/franqueado/upload-panel.js`** · 181 linhas
+**`js/franqueado/upload-panel.js`** · 195 linhas
 Painel de upload do chat do franqueado: ao enviar uma foto, abre um painel com · Imagens recentes — as últimas usadas, pra reaproveitar sem re-upload. · Minhas lojas — perfis de loja salvos (logo), quando o campo é o logo. ·…
 · API: fGetRecentImgs, fRecordRecentImg, fRemoveRecentImg, fOpenUploadPanel, fCloseUploadPanel, fUploadPanelNewFile, fPickRecentImg, fUploadPanelPickLoja, fUploadPanelManage, fUploadPanelDeleteLoja
 · Depende de: franqueado/chat.js (_fApplyImageToField, fState, fProcessImageFile),
@@ -432,7 +431,7 @@ Ferramentas de medição e amostragem do designer Luma, inspiradas no Photoshop.
 · API: dEyedropPixel, dEyedropPreview, dEyedropHidePreview, dColorSamplerAdd, dColorSamplerRemove, dColorSamplerRender, dColorSamplerClear, dRulerStart, dRulerMove, dRulerEnd, dRulerClear, dNoteAdd, dNoteRender, dNoteRemove … (+8; 27 funções no total)
 · Depende de: designer/canvas.js, designer/layers.js, designer/tools.js,
 
-**`js/designer/preview.js`** · 1087 linhas
+**`js/designer/preview.js`** · 1091 linhas
 Preview engine do designer: pvRender, pvRenderLayers, pvRenderLayer, dPreviewOpen, dPreviewClose, dPreviewSetFmt, dPreviewDownload.
 · API: dPreviewSetScale, dPreviewSetType, dPreviewOpen, dPreviewClose, dPreviewSetFmt, dPreviewSetDevice, pvRender, pvRenderLayers, pvRenderLayer, pvRenderFramePlaceholder, pvRoundRect, pvApplyDevice, pvUpdateSidebar, dBuildTemplateFilename … (+21; 40 funções no total)
 · Depende de: designer/canvas.js, designer/layers.js
@@ -455,7 +454,7 @@ Modal de publicacao de templates (4 abas): dPublishOpen, dPublishClose, dPublish
 · API: dPublishDraftKey, dPublishCollectDraft, dPublishPersistDraft, dPublishQueueDraft, dPublishLoadDraft, dPublishClearDraft, dPublishSaveDraft, dGetActiveTemplate, dPublishSetupWizard, dPublishShowError, dPublishClearError, dPublishValidateStep, dPublishGoStep, dPublishShowStep … (+31; 48 funções no total)
 · Depende de: designer/templates.js
 
-**`js/designer/selection.js`** · 808 linhas
+**`js/designer/selection.js`** · 809 linhas
 Ferramentas avançadas de seleção inspiradas no Photoshop: 1. Object Selection (obj-select) — retângulo + IOU 2. Quick Selection (quick-select) — hit-test por clique/arrasto 3. Magic Wand (magic-wand) — seleção por cor dominante
 · API: dIsLayerVisible, dObjSelectStart, dObjSelectMove, dObjSelectEnd, dQuickSelectAt, dQuickSelectCoordsFromEvent, dMagicWandAt, dRenderSelectionOverlay, dObjSelectInRect, dMagicWandSelect
 · Depende de: designer/canvas.js, designer/layers.js
@@ -486,7 +485,7 @@ Historico de acoes do designer: dHistoryPush, dUndo, dRedo, dUpdateUndoButtons, 
 
 ### js/academia
 
-**`js/academia/academia.js`** · 904 linhas
+**`js/academia/academia.js`** · 908 linhas
 ACADEMIA DELIVERY MUCH — núcleo do módulo de formação do franqueado.
 · API: acIco, acAulas, acAula, acModulo, acProg, acConcluiu, acIniciou, acModuloLiberado, acAulaLiberada, acAulaAtualizada, acModuloEstado, acResumo, acFmtDur, acFmtTempo … (+29; 48 funções no total)
 · Depende de: core/supabase.js (gSupabase, gTrackEvent), core/toast.js (gToast,
@@ -495,16 +494,16 @@ ACADEMIA DELIVERY MUCH — núcleo do módulo de formação do franqueado.
 ACADEMIA — AGENTE EDUCACIONAL. A coluna direita do ambiente de aula: um tutor que ajuda o franqueado a ENTENDER a aula atual, com método socrático. ONDE MORA O PROMPT: no SERVIDOR (supabase/functions/ai, task 'aula'). Este…
 · API: acRenderAgente, acAgenteIndisponivel, acAgenteBoasVindas, acAgenteBolha, acAgenteTexto, acAgenteAtalhos, acAgenteAutoAltura, acAgenteNoFim, acAgenteRolar, acAgenteMostrarVoltar, acAgenteIrParaUltima, acAgenteCarregarHistorico, acAgenteReiniciar, acAgenteEnviar … (+6; 21 funções no total)
 
-**`js/academia/aula.js`** · 1140 linhas
+**`js/academia/aula.js`** · 1152 linhas
 ACADEMIA — AMBIENTE DE AULA. O núcleo do módulo: três regiões no desktop (estrutura do curso · aula · agente educacional), player MP4 com retomada e as ferramentas de aprendizado em abas. DECISÃO DE PLAYER: `<video controls>`…
-· API: acRenderAula, acAulaBloqueada, acRenderSidebar, acSidebarModulo, acSidebarAula, acToggleModulo, acAbrirAula, acRenderAulaMain, acPlayerHTML, acMontarPlayer, acVideoTick, acPlayerEstado, acMostrarRetomada, acReiniciarVideo … (+41; 57 funções no total)
+· API: acRenderAula, acAulaBloqueada, acRenderSidebar, acSidebarModulo, acSidebarAula, acToggleModulo, acAbrirAula, acRenderAulaMain, acPlayerHTML, acMontarPlayer, acVideoTick, acPlayerEstado, acMostrarRetomada, acReiniciarVideo … (+42; 58 funções no total)
 · Depende de: academia.js (acState, acProg, acSalvarProgresso, acVideoUrl…),
 
 **`js/academia/certificado.js`** · 431 linhas
 ACADEMIA — CONCLUSÃO E CERTIFICADO. EMISSÃO: sempre pela RPC `luma.ac_emitir_certificado` (SECURITY DEFINER). O cliente NÃO insere em luma.certificados — a tabela não tem policy de INSERT, então quem valida a conclusão é o…
 · API: acRenderCertificado, acCertRequisitos, acCertRevisao, acEmitirCertificado, acCertZoom, acDesenharCertificado, acBaixarCertificado
 
-**`js/academia/conclusao.js`** · 513 linhas
+**`js/academia/conclusao.js`** · 519 linhas
 ACADEMIA — EXPERIÊNCIA DE CONCLUSÃO DA FORMAÇÃO. O momento em que o franqueado deixa de estar "em implementação" e passa a fazer parte da rede como formado. Sequência em 4 telas dentro de um overlay: 1. CONFIRMAÇÃO progresso…
 · API: acConclusaoCfg, acConclusaoJaVista, acVideoCeoNovo, acVideoCeoDisponivel, acConclusaoTalvezAbrir, acConclusaoAbrir, acConclusaoFechar, acConclusaoPular, acConclusaoIr, acConcEtapaConfirmacao, acConcEtapaSplash, acConcEtapaVideo, acConcVideoFalhou, acConcVideoSeguir … (+6; 25 funções no total)
 · Depende de: motion.js (acSequencia, acDur, acMotionReduzido, acSomConquista),
@@ -524,7 +523,7 @@ ACADEMIA — SISTEMA DE MOTION. As decisões de movimento do módulo moram AQUI,
 Tutoriais animados adicionais (franqueado + designer/Estúdio).
 · Depende de: tutorial/catalog.js (TUTORIALS), tutorial/mocks.js, tutorial/mocks-studio.js
 
-**`js/tutorial/catalog.js`** · 441 linhas
+**`js/tutorial/catalog.js`** · 446 linhas
 TUTORIALS = {...} — catalogo dos 4 tutoriais interativos. Cada tutorial define titulo, descricao e array de cenas com build().
 · Depende de: tutorial/mocks.js (tutMockCampaign etc)
 
@@ -545,7 +544,7 @@ tutMockCampaign, tutMockMaterial, tutMockHist — builders de HTML de mock usado
 
 ### js/widgets
 
-**`js/widgets/help-widget.js`** · 1035 linhas
+**`js/widgets/help-widget.js`** · 1048 linhas
 ── LUMA HELP WIDGET ── Ajuda contextual, artigos e mensagens com a mesma linguagem visual do Luma.
 
 ### js/calendario
@@ -581,7 +580,7 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 
 | Arquivo | Linhas |
 |---|---|
-| `css/00-tokens.css` | 239 |
+| `css/00-tokens.css` | 244 |
 | `css/01-reset.css` | 27 |
 | `css/02-animations.css` | 179 |
 | `css/03-fonts.css` | 60 |
@@ -612,7 +611,7 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 | `css/modules/publish-modal.css` | 628 |
 | `css/modules/toolbar.css` | 956 |
 | `css/modules/topbar.css` | 217 |
-| `css/modules/upload-panel.css` | 108 |
+| `css/modules/upload-panel.css` | 111 |
 
 ## Ordem de carga do `index.html`
 

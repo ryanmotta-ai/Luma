@@ -50,6 +50,21 @@ function gEsc(s){
   return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+// gEscJs(s) — para dado que entra DENTRO de uma string JS num handler inline:
+// onclick="fSelectCamp('${gEscJs(id)}')". gEsc NÃO serve aqui e isso não é óbvio:
+// ele vira o ' em &#39;, mas o navegador DECODIFICA a entidade antes de compilar o
+// JS do atributo — o valor "x') ; alert('1" voltava a ser aspa e fechava a chamada.
+// Medido no navegador: com gEsc, o onclick saía como fSelectCamp('x') ; alert('1').
+// Aqui escapamos primeiro para JS (\ e ') e só então para HTML, nessa ordem: a
+// decodificação da entidade devolve \' — aspa escapada DENTRO da string, não o fim dela.
+function gEscJs(s){
+  const js = String(s==null?'':s)
+    .replace(/\\/g, '\\\\')     // a barra PRIMEIRO: senao as que adicionamos abaixo seriam re-escapadas
+    .replace(/'/g, "\\'")
+    .replace(/[\r\n]/g, ' ');   // quebra de linha encerra o handler inline
+  return gEsc(js);
+}
+
 // gSafeColor(v, fb) — cor vinda do banco/localStorage (cor da campanha) entrava crua em
 // style="background:…". gEsc não resolve aqui: o vetor não é a aspa, é o ";" — um valor
 // como "#fff;display:none" injeta CSS e some com o card. Whitelist das formas que o Luma
@@ -61,6 +76,15 @@ function gSafeColor(v, fb){
   if(/^var\(--[a-zA-Z0-9-]+\)$/.test(s)) return s;         // token do design system
   if(/^[a-zA-Z]{3,20}$/.test(s)) return s;                 // nome CSS (white, transparent…)
   return fb || 'var(--dm-orange)';
+}
+
+// gNormBusca(s) -- termo de busca comparavel: minusculas e SEM acento. Sem isso, quem
+// digita "almoco", "promocao" ou "terca" no catalogo recebe "nenhum material encontrado"
+// e tem que adivinhar que o sistema exige a cedilha. U+0300-U+036F = marcas de acento que
+// NFD solta do caractere base. Existem ~10 copias locais desta regex no codigo (help.js,
+// layers.js, props-panel.js, 00-config.js); esta e a publica -- use ela em busca nova.
+function gNormBusca(s){
+  return String(s==null?'':s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
 }
 
 /* ── HANDLER GLOBAL DE ERRO (H.3) ──

@@ -35,8 +35,17 @@ function _gIdbOpen(){
 // Hash determinístico (FNV-1a 32-bit) + comprimento → chave estável por conteúdo.
 // Mesma imagem → mesma chave → não duplica no IndexedDB.
 function gImgHash(str){
+  // AMOSTRAGEM em string grande. Uma foto de 10MB do celular (48MP) vira ~14 milhoes de
+  // charCodeAt na thread principal: 3 a 8s de aba congelada no meio do upload, com o
+  // aparelho esquentando e nenhum clique respondendo. Acima de 4k chars hasheamos so
+  // inicio+fim -- o comprimento continua na chave, entao duas fotos diferentes com os
+  // mesmos 2k primeiros E 2k ultimos caracteres de base64 E o mesmo tamanho exato nao
+  // acontece na pratica. String curta (chave de cache da IA) segue com hash integral.
+  // Trocar o hash NAO quebra o que ja esta gravado: a leitura usa a chave guardada no
+  // 'idb://<chave>', nunca recalculada -- so a deduplicacao de um reenvio antigo se perde.
+  const alvo = str.length > 4096 ? (str.slice(0,2048) + str.slice(-2048)) : str;
   let h = 0x811c9dc5;
-  for(let i=0;i<str.length;i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  for(let i=0;i<alvo.length;i++){ h ^= alvo.charCodeAt(i); h = Math.imul(h, 0x01000193); }
   return (h>>>0).toString(36) + '-' + str.length.toString(36);
 }
 

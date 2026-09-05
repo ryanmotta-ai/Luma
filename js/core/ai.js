@@ -93,7 +93,7 @@ async function gAskAI(task, prompt, opts){
   // simplesmente não responde (a UI avisa) em vez de responder sem as regras.
   if(texto==null && !contexto) texto = await _gAiViaChaveLocal(prompt, parts, querJson);
   if(texto!=null && chaveCache){
-    if(_gAiCache.size>200) _gAiCache.clear(); // teto bobo, suficiente pra uma sessão
+    if(typeof gCachePodar==='function') gCachePodar(_gAiCache, 200); else if(_gAiCache.size>200) _gAiCache.clear();   // teto de sessão, descarte parcial
     _gAiCache.set(chaveCache, texto);
   }
   return texto;

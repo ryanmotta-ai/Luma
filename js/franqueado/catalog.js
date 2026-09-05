@@ -47,8 +47,8 @@ function fGoToCampaigns(){
 // Busca textual: casa o termo contra produto, campanha, formato, material e a data amigável.
 function _fHistMatch(h, q){
   if(!q) return true;
-  const hay=[h.prod,h.campName,h.fmtName,h.materialName,h.de,h.por,(typeof fFormatHistDate==='function'?fFormatHistDate(h.ts):'')]
-    .filter(Boolean).join(' ').toLowerCase();
+  const hay=gNormBusca([h.prod,h.campName,h.fmtName,h.materialName,h.de,h.por,(typeof fFormatHistDate==='function'?fFormatHistDate(h.ts):'')]
+    .filter(Boolean).join(' '));
   return hay.includes(q);
 }
 /* ══════════════════════════════════════════════════════════════
@@ -260,7 +260,7 @@ function fRenderHist(){
   const previewRun=++_fHistPreviewRun;
   const all = fGetHist();
   const el = document.getElementById('f-hist-tab');
-  const q = (fHistSearch||'').trim().toLowerCase();
+  const q = gNormBusca((fHistSearch||'').trim());
   const byStatus = fHistFilter === 'todos' ? all : all.filter(h => (h.status||'rascunho') === fHistFilter);
   const filtered = q ? byStatus.filter(h=>_fHistMatch(h,q)) : byStatus;
   const counts = {
@@ -353,7 +353,7 @@ function fRenderHist(){
         <div class="hist-actions">
           <button class="hist-act-btn hist-act-main"${dis} onclick="fEditFromHist(${h.id},this)" title="Abrir e editar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>${isRascunho?'Continuar':'Editar'}</button>
           <button class="hist-act-btn"${dis} onclick="fDuplicateInOtherFmt(${h.id})" title="Gerar em outro formato"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplicar</button>
-          <button class="hist-act-btn hist-act-download"${dis} onclick="fDownloadHist(${h.id})" title="${vencida?'Material fora da validade':'Baixar PNG'}" aria-label="Baixar ${gEsc(artName)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M5 21h14"/></svg></button>
+          <button class="hist-act-btn hist-act-download"${dis} onclick="fDownloadHist(${h.id},this)" title="${vencida?'Material fora da validade':'Baixar PNG'}" aria-label="Baixar ${gEsc(artName)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M5 21h14"/></svg></button>
         </div>
       </div>
     </article>`;
@@ -370,7 +370,7 @@ function _fHistRestoreSearchFocus(){
   if(inp && document.activeElement!==inp){ inp.focus(); const n=inp.value.length; try{ inp.setSelectionRange(n,n); }catch(e){} }
 }
 
-async function fDownloadHist(id){
+async function fDownloadHist(id, btn){
   const h=fGetHist().find(x=>x.id===id);if(!h)return;
   // Guarda no CLIQUE (e não só no botão desabilitado): o card pode ter sido pintado antes
   // do catálogo sincronizar, e a validade pode ter vencido com a aba aberta.
@@ -386,6 +386,11 @@ async function fDownloadHist(id){
       if(t){ fState.material = t; break; }
     }
   }
+  // O botao so reagia DEPOIS de fEnsureMaterialLayers e do download das fontes -- em 3G
+  // sao ate 10s de botao mudo, e a pessoa clica de novo achando que nao pegou. O loading
+  // entra AQUI, antes do primeiro await, e sai no finally (todo caminho de saida passa la).
+  const _restore = (typeof gBtnLoading==='function') ? gBtnLoading(btn) : (()=>{});
+  try{
   if(fState.material && typeof fEnsureMaterialLayers==='function') await fEnsureMaterialLayers(fState.material);
   // Honestidade: se os layers do material não desceram (sem rede), o fGenPNG cairia no
   // renderer GENÉRICO e entregava arte errada com toast de sucesso. Avisa e para.
@@ -407,6 +412,7 @@ async function fDownloadHist(id){
   fRenderHist();
   if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:h.campId,fmt_id:h.fmtId,tipo:'png',origem:'historico'});
   gToast('Arte baixada!');
+  } finally { _restore(); }
 }
 
 // F-04: retomar uma entrada do histórico no chat, com dados pré-preenchidos
@@ -477,7 +483,7 @@ async function fEditFromHist(id, btn){
     fUpdateCtx();
     document.getElementById('f-messages').innerHTML='';
     fUpdateProg();
-    try { fUpdateLivePreview(); } catch(e){}
+    fLpRefresh();
     try { fAttachInputGuard(); } catch(e){}
     fAddBot(`Reabri sua arte de <strong>${gEsc(material.name)}</strong> (${gEsc(f.name)}). Os campos editáveis foram restaurados.`, []);
     setTimeout(()=>fGerarArte(), 500);
@@ -515,7 +521,7 @@ async function fEditFromHist(id, btn){
   fUpdateCtx();
   document.getElementById('f-messages').innerHTML='';
   fUpdateProg();
-  try { fUpdateLivePreview(); } catch(e){}
+  fLpRefresh();
   try { fAttachInputGuard(); } catch(e){}
   const msg = h.materialName
     ? `Reabri sua arte (material original "${gEsc(h.materialName)}" não está mais disponível, usando estrutura padrão).`
@@ -601,9 +607,9 @@ function fCampAdminMenu(ev, folderId){
   const menu = document.createElement('div');
   menu.className = 'camp-admin-menu';
   menu.innerHTML =
-    `<button type="button" onclick="fCloseCampAdminMenu();fCampAnalyticsOpen('${gEsc(folderId)}')">${_ICO_STATS}<span>Analisar campanha</span></button>`+
-    `<button type="button" onclick="fCloseCampAdminMenu();fEditCampFolder('${gEsc(folderId)}')">${_ICO_EDIT}<span>Editar campanha</span></button>`+
-    `<button type="button" onclick="fCloseCampAdminMenu();fArchiveFolder('${gEsc(folderId)}')">${_ICO_ARCHIVE}<span>Arquivar campanha</span></button>`;
+    `<button type="button" onclick="fCloseCampAdminMenu();fCampAnalyticsOpen('${gEscJs(folderId)}')">${_ICO_STATS}<span>Analisar campanha</span></button>`+
+    `<button type="button" onclick="fCloseCampAdminMenu();fEditCampFolder('${gEscJs(folderId)}')">${_ICO_EDIT}<span>Editar campanha</span></button>`+
+    `<button type="button" onclick="fCloseCampAdminMenu();fArchiveFolder('${gEscJs(folderId)}')">${_ICO_ARCHIVE}<span>Arquivar campanha</span></button>`;
   document.body.appendChild(menu);
   if(btn){
     const r = btn.getBoundingClientRect();
@@ -713,7 +719,7 @@ async function fCampAnalyticsOpen(folderId){
     || '<span class="camp-ana-empty">nenhum material publicado</span>';
   box.innerHTML=`<div class="camp-ana-box">
     <div class="camp-ana-head">
-      <span class="camp-ana-dot" style="background:${gEsc(f.color||'#FF9000')}"></span>
+      <span class="camp-ana-dot" style="background:${gSafeColor(f.color)}"></span>
       <div class="camp-ana-title"><span>Análise da campanha</span><strong>${gEsc(f.name||'Campanha')}</strong></div>
       <button type="button" class="camp-ana-x" onclick="fCampAnalyticsClose()" aria-label="Fechar análise">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
@@ -830,7 +836,7 @@ function fRenderArchivedPanel(){
         return `<div class="f-arch-card">
           <div class="f-arch-thumb" style="${style}">${c.badge?`<span class="f-arch-badge">${gEsc(c.badge)}</span>`:''}</div>
           <div class="f-arch-info"><div class="f-arch-name">${gEsc(c.name||'Campanha')}</div>
-            <button type="button" class="f-arch-unbtn" onclick="fUnarchiveFolder('${gEsc(c._folderId)}')">Desarquivar</button>
+            <button type="button" class="f-arch-unbtn" onclick="fUnarchiveFolder('${gEscJs(c._folderId)}')">Desarquivar</button>
           </div>
         </div>`;
       }).join('')}</div>`
@@ -910,20 +916,20 @@ function fCampEl(c,isRec,ghost){
   const _icoClock='<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-1px;margin-right:3px"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
   // F: favorito (fixar no topo) + badge "novo" (material publicado depois da última visita).
   const _isFav = !ghost && typeof fIsFav==='function' && fIsFav(c.id);
-  const favBtn = ghost ? '' : `<button class="camp-fav${_isFav?' is-fav':''}" onclick="fToggleFav('${gEsc(c.id)}',event)" aria-pressed="${_isFav}" aria-label="${_isFav?'Remover das favoritas':'Fixar nas favoritas'}" title="${_isFav?'Remover das favoritas':'Fixar nas favoritas'}"><svg width="14" height="14" viewBox="0 0 24 24" fill="${_isFav?'currentColor':'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></button>`;
+  const favBtn = ghost ? '' : `<button class="camp-fav${_isFav?' is-fav':''}" onclick="fToggleFav('${gEscJs(c.id)}',event)" aria-pressed="${_isFav}" aria-label="${_isFav?'Remover das favoritas':'Fixar nas favoritas'}" title="${_isFav?'Remover das favoritas':'Fixar nas favoritas'}"><svg width="14" height="14" viewBox="0 0 24 24" fill="${_isFav?'currentColor':'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></button>`;
   const _hasNew = !ghost && typeof fCampHasNew==='function' && fCampHasNew(c);
   // 3-pontos "editar campanha" — só DM staff (gIsAdmin) E campanha com PASTA real (dFolders).
   // Campanha hardcoded do config não tem pasta → não é editável (é código). Gate de UX; a
   // segurança real é a RLS is_designer() no backend.
   const _campFolder = (!ghost && typeof gIsAdmin==='function' && gIsAdmin() && typeof fFolderForCamp==='function') ? fFolderForCamp(c) : null;
-  const adminBtn = _campFolder ? `<button class="camp-admin-btn" onclick="fCampAdminMenu(event,'${gEsc(_campFolder.id)}')" aria-label="Ações da campanha" title="Ações da campanha"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>` : '';
+  const adminBtn = _campFolder ? `<button class="camp-admin-btn" onclick="fCampAdminMenu(event,'${gEscJs(_campFolder.id)}')" aria-label="Ações da campanha" title="Ações da campanha"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>` : '';
   // Campanha com tema (Much+): o card carrega o atributo e o CSS faz o convite
   // (badge magenta + shine 1x + aura no hover) ANTES do clique. Slug já sai sanitizado.
   const _tema=(typeof _fCampThemeOf==='function')?_fCampThemeOf(c):'';
-  return `<div class="camp-card ${!ghost&&fState.camp&&c.id===fState.camp.id?'selected':''} ${isRec?'recommended':''}${ghost?' ghost':''}"${_tema?` data-camp-theme="${_tema}"`:''}${ghost?' aria-disabled="true"':` role="button" tabindex="0" aria-label="Abrir campanha ${gEsc(c.name)}" onclick="fSelectCamp('${gEsc(c.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();fSelectCamp('${gEsc(c.id)}')}"`}>
+  return `<div class="camp-card ${!ghost&&fState.camp&&c.id===fState.camp.id?'selected':''} ${isRec?'recommended':''}${ghost?' ghost':''}"${_tema?` data-camp-theme="${_tema}"`:''}${ghost?' aria-disabled="true"':` role="button" tabindex="0" aria-label="Abrir campanha ${gEsc(c.name)}" onclick="fSelectCamp('${gEscJs(c.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();fSelectCamp('${gEscJs(c.id)}')}"`}>
     ${favBtn}
     ${adminBtn}
-    ${ghost?'':`<button type="button" class="camp-prev-btn" onclick="event.stopPropagation();fOpenPreview(event,'${gEsc(c.id)}')" aria-label="Ver prévia de ${gEsc(c.name)}">PRÉVIA</button>`}
+    ${ghost?'':`<button type="button" class="camp-prev-btn" onclick="event.stopPropagation();fOpenPreview(event,'${gEscJs(c.id)}')" aria-label="Ver prévia de ${gEsc(c.name)}">PRÉVIA</button>`}
     <div class="camp-thumb ${cover?'has-cover':''}" style="${thumbStyle}">
       ${c.badge?`<div class="camp-badge">${gEsc(c.badge)}</div>`:''}
       ${_hasNew?`<div class="camp-new">novo</div>`:''}
@@ -1092,10 +1098,10 @@ function fRenderCatalogs(a,o,opts){
 function fFilterCamps(q){
   if(fState.categoria!=='campanhas') return;
   const {ativas,outras}=fGetCampaigns();
-  const qq=(q||'').trim().toLowerCase();
+  const qq=gNormBusca((q||'').trim());
   if(!qq){ fRenderCatalogs(ativas,outras); return; }
-  const f1=ativas.filter(c=>c.name.toLowerCase().includes(qq));
-  const f2=outras.filter(c=>c.name.toLowerCase().includes(qq));
+  const f1=ativas.filter(c=>gNormBusca(c.name).includes(qq));
+  const f2=outras.filter(c=>gNormBusca(c.name).includes(qq));
   // NÃO cai de volta em "ativas" quando não há match — mostra empty state honesto.
   fRenderCatalogs(f1,f2,{search:q});
 }
@@ -1261,7 +1267,7 @@ function _fHomeHeroEl(rec){
   // botão dentro de botão é HTML inválido e o clique não chega.
   const _heroFolder=(typeof gIsAdmin==='function'&&gIsAdmin()&&typeof fFolderForCamp==='function')?fFolderForCamp(rec):null;
   const heroAdmin=_heroFolder
-    ? `<button class="camp-admin-btn fh-hero-admin" onclick="fCampAdminMenu(event,'${gEsc(_heroFolder.id)}')" aria-label="Ações da campanha em destaque" title="Editar campanha, capa e mais"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>`
+    ? `<button class="camp-admin-btn fh-hero-admin" onclick="fCampAdminMenu(event,'${gEscJs(_heroFolder.id)}')" aria-label="Ações da campanha em destaque" title="Editar campanha, capa e mais"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>`
     : '';
   return `<section class="fh-featured" aria-label="Campanha recomendada">
   ${heroAdmin}
@@ -1341,7 +1347,7 @@ function fHomeSetFilter(id){
 // Corpo da home (seções). query preenchida = modo busca (lista achatada de resultados).
 // _fhFilter aplica por cima: tanto na busca quanto na vitrine parada.
 function _fHomeBodyHTML(query){
-  const q=(query||'').trim().toLowerCase();
+  const q=gNormBusca((query||'').trim());
   const {ativas,outras}=fGetCampaigns();
   const impl=fGetCampaigns().impl;
   let favIds=[]; try{ favIds=fGetFavs(); }catch(e){}
@@ -1352,7 +1358,7 @@ function _fHomeBodyHTML(query){
     return true;
   };
   if(q){
-    const match=[...ativas,...outras,...impl].filter(c=>c.name.toLowerCase().includes(q)&&passStatus(c));
+    const match=[...ativas,...outras,...impl].filter(c=>gNormBusca(c.name).includes(q)&&passStatus(c));
     if(!match.length) return _fhEmptyState('Nenhuma campanha encontrada',`Não encontramos resultados para “${gEsc(query)}”. Tente outro termo${_fhFilter!=='todas'?' ou remova o filtro':''}.`);
     const isImpl=c=>impl.some(x=>x.id===c.id);
     return `<section class="fh-section fh-results"><div class="fh-sec"><span>Resultados</span><em>${match.length} campanha${match.length!==1?'s':''}</em></div>

@@ -259,7 +259,7 @@ function dPreloadFolders(){
     gHydrateFolders(dFolders).then(changed=>{
       if(!changed) return;
       if(typeof dRenderFolders==='function') dRenderFolders();
-      if(typeof fUpdateLivePreview==='function') try{ fUpdateLivePreview(); }catch(e){}
+      if(typeof fLpRefresh==='function') fLpRefresh();
     });
   }
 }

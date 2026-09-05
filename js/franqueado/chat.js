@@ -84,7 +84,7 @@ function fStartChatComMaterial(material){
 
   fState.stepIdx=-1;fState.done=false;fUpdateProg();
   fState.extractedColors={};
-  try { fUpdateLivePreview(); } catch(e){}
+  fLpRefresh();
   try { fAttachInputGuard(); } catch(e){}
   // Antes de perguntar, oferece atalhos: reusar uma loja salva (logo/cor) e/ou os dados
   // da última arte deste material. Se não houver nada a oferecer, vai direto às perguntas.
@@ -153,7 +153,7 @@ function fPickLoja(lojaId){
   // Remove do fluxo tudo que a loja já respondeu.
   fState.camp.perguntas = (fState.camp.perguntas||[]).filter(p=>fState.dados[p.id]==null);
   if(typeof gToast==='function') gToast(`Dados de ${loja.nome||'sua loja'} aplicados`);
-  try{ fUpdateLivePreview(); }catch(e){}
+  fLpRefresh();
   _fProceedMaterialStart(fState.material);
 }
 // Reusa os dados de uma arte anterior deste material e pula direto pro resumo.
@@ -258,7 +258,7 @@ function fUpdateCtx(){
   const t=fState.camp?(fState.camp.name+' · '+fState.fmt.name):'Escolha uma campanha';
   const ctx=document.getElementById('f-ctx-tag'); if(ctx) ctx.textContent=t;
   const pill=document.getElementById('top-camp-pill'); if(pill) pill.textContent=t;
-  try { fUpdateLivePreview(); } catch(e){}
+  fLpRefresh();
 }
 function fUpdateProg(){
   const tot=(fState.camp&&fState.camp.perguntas)?fState.camp.perguntas.length:0, done=Math.max(0,fState.stepIdx);
@@ -284,7 +284,7 @@ function fStartChat(){
   const _b=document.getElementById('f-msg-box'); if(_b){ _b.disabled=false; } // reabilita (welcome desabilitou)
   fState.stepIdx=-1;fState.dados={};fState.done=false;fUpdateProg();
   fState.extractedColors={};
-  try { fUpdateLivePreview(); } catch(e){}
+  fLpRefresh();
   try { fAttachInputGuard(); } catch(e){}
   // F-05: mensagem inicial com contexto (quantas perguntas, tempo estimado)
   const total = fState.camp.perguntas.length;
@@ -303,7 +303,7 @@ function fNextStep(){
   const pergs=fState.camp.perguntas;
   if(fState.stepIdx>=pergs.length){fGerarArte();return;}
   const p=pergs[fState.stepIdx];
-  try { fUpdateLivePreview(); } catch(e){}
+  fLpRefresh();
   try { fUpdateCharCount(); } catch(e){}
   // A prévia ao vivo grava direto em fState.dados (clique no campo no canvas). O passo
   // chegava em branco e a resposta seguinte apagava o que o franqueado já tinha posto lá
@@ -1207,7 +1207,7 @@ function fGerarArte(){
         }
       } catch(e){ console.warn('Erro ao renderizar preview:', e); }
     }
-    try { fUpdateLivePreview(); } catch(e){}
+    fLpRefresh();
     setTimeout(()=>fAddBot('Arte salva em <strong>Minhas artes</strong>! Clique em outro formato para gerar variações.',[]),500);
   },800);
 }
@@ -1386,7 +1386,7 @@ function fAddBot(html,qrs,canGoBack){
     q=`<div class="qr-wrap">${qrs.map(x=>{
       const isColor = /^#[0-9A-F]{6}$/i.test(x.trim());
       if(isColor) {
-        return `<div class="qr qr-color" data-qr="${gEsc(x)}" onclick="fQR(this.dataset.qr,this)" style="background:${gEsc(x)} !important; color:${fGetContrastColor(x)} !important; border-color:${gEsc(x)} !important; font-family:'Roboto',sans-serif; display:inline-flex; align-items:center; gap:6px;"><span style="width:10px; height:10px; border-radius:50%; background:#fff; border:1px solid rgba(0,0,0,0.25); display:inline-block;"></span>${gEsc(x)}</div>`;
+        return `<div class="qr qr-color" data-qr="${gEsc(x)}" onclick="fQR(this.dataset.qr,this)" style="background:${gEsc(x)} !important; color:${fGetContrastColor(x)} !important; border-color:${gEsc(x)} !important; font-family:'Roboto',sans-serif; display:inline-flex; align-items:center; gap:6px;"><span style="width:10px; height:10px; border-radius:50%; background:var(--white); border:1px solid rgba(0,0,0,0.25); display:inline-block;"></span>${gEsc(x)}</div>`;
       }
       return `<div class="qr" data-qr="${gEsc(x)}" onclick="fQR(this.dataset.qr,this)">${gEsc(x)}</div>`;
     }).join('')}</div>`;
@@ -1408,7 +1408,9 @@ function fGetContrastColor(hex) {
   const g = parseInt(cleanHex.substring(2, 4), 16);
   const b = parseInt(cleanHex.substring(4, 6), 16);
   const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-  return (yiq >= 128) ? '#000000' : '#ffffff';
+  // Tokens, nao hex: o retorno so alimenta style inline (a bolinha da cor no chat), onde
+  // var() resolve. NAO use esta funcao para ctx.fillStyle -- Canvas 2D ignora var().
+  return (yiq >= 128) ? 'var(--text)' : 'var(--white)';
 }
 
 async function fBaixarPDF(btn, snapId){
@@ -1580,7 +1582,7 @@ function fApplyRecoverDraft(confirm) {
     fState.extractedColors = draft.extractedColors || {};
     fState.stepIdx = draft.stepIdx - 1; // fNextStep incrementa para o passo correto
     fAddBot("Rascunho recuperado! Vamos continuar…", []);
-    try { fUpdateLivePreview(); } catch(e){}
+    fLpRefresh();
     clearTimeout(fNextTimeout);
     fNextTimeout = setTimeout(() => fNextStep(), 900);
   } else {
@@ -1590,7 +1592,7 @@ function fApplyRecoverDraft(confirm) {
     fState.done = false;
     fState.extractedColors = {};
     fUpdateProg();
-    try { fUpdateLivePreview(); } catch(e){}
+    fLpRefresh();
     
     const total = fState.camp.perguntas.length;
     let intro = `Vamos preencher sua arte em <strong>${total} passo${total>1?'s':''} rápido${total>1?'s':''}</strong>.`;

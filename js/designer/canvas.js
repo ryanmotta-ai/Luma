@@ -239,7 +239,7 @@ function _dAplicaHerancaGrupo(el, l, her){
 function _dRenderPreview(frame,ab){
   frame.innerHTML='';
   const bg=ab&&ab.bg;
-  frame.style.background=(bg&&bg!=='transparent')?(bg==='white'?'#ffffff':bg):'';
+  frame.style.background=(bg&&bg!=='transparent')?(bg==='white'?'var(--white)':bg):'';
   const layers=ab.layers||[];
   layers.filter(l=>l.visible!==false&&l.type!=='group').forEach(l=>{
     const _her=_dGrupoHeranca(l,layers);
@@ -1027,7 +1027,7 @@ function dApplyBg(ab){
   const bgEl=document.getElementById('d-canvas-bg');
   if(!bgEl)return;
   const bg=ab&&ab.bg;
-  bgEl.style.background=(bg&&bg!=='transparent')?(bg==='white'?'#ffffff':bg):'';
+  bgEl.style.background=(bg&&bg!=='transparent')?(bg==='white'?'var(--white)':bg):'';
 }
 
 /* ── Efeitos de camada (sombra projetada/interna, glow) → partes de box-shadow ──

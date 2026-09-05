@@ -25,6 +25,7 @@
   --r-sm: 6px;
   --r-pill: 999px;
   --green: #22C55E;
+  --green-d: #15803D;   /* verde escuro do par (gradiente do tutorial, estados de sucesso fortes) */
   /* verde para TEXTO: vivo (#22C55E) sobre fundo escuro; escuro (#15803D, AA)
      sobre fundo claro. O flip é feito em body.theme-light logo abaixo.
      Use --green para pontos/bordas/fundos; --green-text para texto legível. */
@@ -64,6 +65,10 @@
   --d-text2: #A0A0A0;
   --d-text3: #8A8A8A;
   --d-error: #FF6B6B;
+  /* Azul da SELECAO no Estudio (caixa de marquee e marching ants). Estava solto em dois
+     pontos do selection.js; e cor de chrome de UI, entao nasce aqui como qualquer outra. */
+  --d-sel: #4A90D9;
+  --d-sel-fill: rgba(74, 144, 217, .12);
   --var-color: #FFB900;
   --var-bg: rgba(255, 185, 0, .12);
 

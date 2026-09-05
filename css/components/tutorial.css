@@ -420,7 +420,7 @@ body:not(.theme-light) .tut-finale-icon{color:var(--green-text)}
 .tut-mock-msg.user{flex-direction:row-reverse}
 .tut-mock-av{
   width:26px;height:26px;border-radius:50%;
-  background:var(--dm-orange);color:#fff;
+  background:var(--dm-orange);color:var(--white);
   display:flex;align-items:center;justify-content:center;
   font-size:12px;flex-shrink:0;
 }
@@ -436,7 +436,7 @@ body:not(.theme-light) .tut-finale-icon{color:var(--green-text)}
   border-radius:4px 14px 14px 14px;
 }
 .tut-mock-msg.user .tut-mock-bbl{
-  background:var(--dm-orange);color:#fff;
+  background:var(--dm-orange);color:var(--white);
   border-radius:14px 4px 14px 14px;
   font-weight:500;
 }

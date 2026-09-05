@@ -196,6 +196,9 @@ function acConclusaoAbrir(opts){
 function acConclusaoFechar(){
   const ov = document.getElementById('ac-conc'); if(!ov) return;
   if(_acConclusaoCancelar){ _acConclusaoCancelar(); _acConclusaoCancelar=null; }
+  // O debounce de 4s do video institucional sobrevivia ao fechamento: gravava
+  // video_posicao_seg segundos depois do overlay ja ter sumido.
+  clearTimeout(_acVideoCeoTimer); _acVideoCeoTimer=null;
   if(_acVideoCeoEl){ try{ _acVideoCeoEl.pause(); }catch(e){} _acVideoCeoEl=null; }
   if(ov._onKey) document.removeEventListener('keydown', ov._onKey, true);
   ov.classList.remove('is-visivel');
@@ -229,6 +232,9 @@ function acConclusaoIr(etapa, opts){
   _acConclusaoEtapa = etapa;
   const palco = document.getElementById('ac-conc-palco'); if(!palco) return;
   if(_acConclusaoCancelar){ _acConclusaoCancelar(); _acConclusaoCancelar=null; }
+  // O debounce de 4s do video institucional sobrevivia ao fechamento: gravava
+  // video_posicao_seg segundos depois do overlay ja ter sumido.
+  clearTimeout(_acVideoCeoTimer); _acVideoCeoTimer=null;
   if(_acVideoCeoEl){ try{ _acVideoCeoEl.pause(); }catch(e){} _acVideoCeoEl=null; }
   const btnPular = document.getElementById('ac-conc-pular');
   if(btnPular) btnPular.hidden = (etapa!=='confirmacao' && etapa!=='splash') || acMotionReduzido();

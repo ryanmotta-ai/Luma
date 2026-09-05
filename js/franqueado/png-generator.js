@@ -905,11 +905,6 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
       let maxColH = maxColChars * charStep;
       let totalW = lines.length * colStep;
 
-      charStep = fontSize * 1.1;
-      colStep = fontSize * 1.2;
-      maxColH = maxColChars * charStep;
-      totalW = lines.length * colStep;
-
       ctx.font = `${_ital}${fwt} ${fontSize}px ${ff}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -1784,7 +1779,7 @@ function _fBulkApontarPreviaNaLinha(){
   if(!linha) return;
   if(!linha.dados) linha.dados = {};
   fState.dados = linha.dados;        // MESMA referência: editar na prévia edita a linha
-  try{ if(typeof fUpdateLivePreview === 'function') fUpdateLivePreview(); }catch(e){}
+  if(typeof fLpRefresh === 'function') fLpRefresh();
 }
 
 function _fBulkTomarPrevia(){
@@ -1826,7 +1821,7 @@ function _fBulkDevolverPrevia(){
     painel.classList.remove('is-no-sheets');
     const v = _fBulkPreviaVolta;
     if(v && v.pai) v.pai.insertBefore(painel, v.antes || null);
-    try{ if(typeof fUpdateLivePreview === 'function') fUpdateLivePreview(); }catch(e){}
+    if(typeof fLpRefresh === 'function') fLpRefresh();
   }
   _fBulkPreviaVolta = null;
 }

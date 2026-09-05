@@ -85,7 +85,10 @@
   transition:border-color var(--dur-fast) var(--ease-standard),transform var(--dur-fast) var(--ease-spring),box-shadow var(--dur-fast) var(--ease-standard);
 }
 .f-up-loja:hover{border-color:var(--dm-orange);transform:translateY(-2px);box-shadow:0 6px 16px color-mix(in srgb,var(--dm-orange-d) 12%,transparent)}
-.f-up-loja-logo{width:46px;height:46px;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;border-radius:10px;background:var(--white);border:1px solid var(--gray-light);color:var(--text-3)}
+/* Xadrez de transparencia em vez de branco chapado: logo PNG branca (a maioria das
+   marcas parceiras tem uma, pra aplicar sobre fundo colorido) sumia por completo aqui --
+   o card parecia vazio ou upload quebrado. O xadrez mostra que existe imagem com alfa. */
+.f-up-loja-logo{width:46px;height:46px;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;border-radius:10px;background:repeating-conic-gradient(var(--gray-light) 0% 25%,var(--white) 0% 50%) 50% / 10px 10px;border:1px solid var(--gray-light);color:var(--text-3)}
 .f-up-loja-logo img{width:100%;height:100%;object-fit:contain}
 .f-up-loja-logo svg{width:20px;height:20px}
 .f-up-loja-name{font-size:11.5px;font-weight:600;color:var(--text-2);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

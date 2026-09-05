@@ -64,9 +64,30 @@ async function fPushArtesToBackend(){
   _fArtesPushBusy=true;
   try{
   const hist=fGetHist(); let changed=false;
+  // RELE o storage antes de gravar: uma arte criada/baixada DURANTE os awaits abaixo nao
+  // pode ser sobrescrita pelo snapshot velho. Mescla so os campos de sync (remoteId/_synced/
+  // dados com URLs) sobre a lista atual -- status/baixada recentes vencem.
+  const _persistirSync = ()=>{
+    if(!changed) return;
+    try{
+      const cur=fGetHist();
+      const byId=new Map(hist.map(h=>[h.id,h]));
+      const merged=cur.map(c=>{
+        const u=byId.get(c.id);
+        return u ? Object.assign({}, c, {remoteId:u.remoteId, _synced:u._synced, dados:u.dados}) : c;
+      });
+      localStorage.setItem(HIST_KEY, JSON.stringify(merged.slice(0,50))); // setItem direto (nao fSaveHist) p/ nao recursar
+      changed=false;
+    }catch(e){}
+  };
+  // Os UUIDs nascem ANTES de qualquer await e vao pro storage NA HORA. Antes eles so eram
+  // gravados no fim do lote: bastava a rede cair na 6a arte para as 5 ja enviadas perderem
+  // o remoteId, ganharem UUID novo no proximo boot e o upsert (onConflict:'id') criar LINHA
+  // NOVA -- era assim que a mesma arte aparecia 2, 3, 4 vezes em Minhas Artes.
+  for(const h of hist){ if(!h._synced && !h.remoteId){ h.remoteId=gUuid(); changed=true; } }
+  _persistirSync();
   for(const h of hist){
     if(h._synced) continue; // já no banco (status muda via fMarkBaixadaBackend)
-    if(!h.remoteId) h.remoteId=gUuid();
     // sobe fotos ENVIADAS (base64) do dados pro Storage (bucket público); URLs externas ficam como estão
     const dados={...(h.dados||{})};
     let fotoPendente=false;
@@ -101,21 +122,11 @@ async function fPushArtesToBackend(){
     }
     if(!error){ h._synced=true; changed=true; }
   }
-  if(changed){
-    // RELÊ o storage antes de gravar: uma arte criada/baixada DURANTE os awaits acima não pode
-    // ser sobrescrita pelo snapshot velho. Mescla só os campos de sync (remoteId/_synced/dados
-    // com URLs) sobre a lista atual — status/baixada recentes vencem.
-    try{
-      const cur=fGetHist();
-      const byId=new Map(hist.map(h=>[h.id,h]));
-      const merged=cur.map(c=>{
-        const u=byId.get(c.id);
-        return u ? Object.assign({}, c, {remoteId:u.remoteId, _synced:u._synced, dados:u.dados}) : c;
-      });
-      localStorage.setItem(HIST_KEY, JSON.stringify(merged.slice(0,50))); // setItem direto (não fSaveHist) p/ não recursar
-    }catch(e){}
-  }
+  _persistirSync();
   } finally {
+    // Tambem no finally: se um upload ou upsert lancar no meio do lote, o que JA subiu
+    // precisa ficar marcado _synced -- senao volta a subir e duplica na proxima sessao.
+    _persistirSync();
     _fArtesPushBusy=false;
     if(_fArtesPushQueued){ _fArtesPushQueued=false; setTimeout(()=>fPushArtesToBackend(),0); }
   }

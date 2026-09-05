@@ -537,6 +537,18 @@ function acPctMin(){
   return (v>0 && v<=1) ? v : 0.85;
 }
 // Gravação periódica (10s) — não a cada timeupdate (seriam ~4 por segundo).
+// Desmontagem da aula (acGo saindo de 'aula'). O re-render troca o innerHTML do
+// #ac-root, mas o <video> continua vivo em _acVideoEl: o audio segue tocando em
+// segundo plano e o timer de 10s ainda grava progresso de uma aula ja desmontada.
+// Grava a posicao agora (o que ja cancela o timer), pausa e solta a referencia.
+// O listener de 'pause' dispara depois com _acVideoEl nulo -> sai cedo, sem 2a gravacao.
+function acAulaDesmontar(){
+  const v = _acVideoEl;
+  if(!v) return;
+  try{ acSalvarPosicao(true); }catch(e){}
+  try{ v.pause(); }catch(e){}
+  _acVideoEl = null; _acAssistido = 0; _acUltimoTick = 0;
+}
 function acAgendarSalvar(aulaId, pos, pct){
   if(_acSalvarTimer) return;
   _acSalvarTimer = setTimeout(()=>{

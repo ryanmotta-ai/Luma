@@ -304,7 +304,7 @@ function gUpdateUserTopbar() {
     // Cores sempre do brandbook (tokens de 00-tokens.css) — nada de hex solto.
     if (role === 'gestao') {
       roleEl.style.background = 'var(--dm-red)';
-      roleEl.style.color = '#fff';
+      roleEl.style.color = 'var(--white)';
     } else if (role === 'equipe_dm') {
       roleEl.style.background = 'var(--dm-yellow)';
       roleEl.style.color = 'var(--dm-red)';
@@ -315,7 +315,10 @@ function gUpdateUserTopbar() {
   }
 
   if (avEl) {
-    const savedPhoto = localStorage.getItem('__luma_user_photo_' + email);
+    // Safari/Firefox com storage bloqueado LANÇAM aqui (não devolvem null) — sem o try
+    // o avatar derrubava o resto do cabeçalho (nome, role) junto.
+    let savedPhoto = null;
+    try{ savedPhoto = localStorage.getItem('__luma_user_photo_' + email); }catch(e){}
     if (savedPhoto) {
       avEl.innerHTML = `<img src="${gEsc(savedPhoto)}" alt="${gEsc(displayName)}">`;
       avEl.style.background = 'transparent';

@@ -6,6 +6,24 @@
 
 ---
 
+## 2026-09-05 — RLS: `WITH CHECK` no Storage e conta desativada barrada no banco
+
+> ⚠️ **Precisa aplicar a migration** `20260905120000_luma_rls_with_check_e_conta_ativa.sql`. Até aplicar, as duas falhas abaixo seguem abertas em produção. Nenhuma Edge Function mudou.
+
+**§1 — policy de UPDATE sem `WITH CHECK` (falha real, corrigida).** As policies de UPDATE de `storage.objects` criadas em `20260618094000_storage_buckets.sql` definiam só o `USING`. `USING` valida a linha ANTES da alteração; sem `WITH CHECK` nada valida a linha DEPOIS. Na prática: o dono de `<uid>/foto.png` podia fazer `UPDATE storage.objects SET name = '<uid-de-outro>/foto.png'` e mover/sobrescrever arquivo alheio com uma requisição PostgREST — o mesmo valendo para trocar o `bucket_id`. As duas policies (`dono atualiza seus uploads luma privados` e `designer atualiza em buckets luma públicos`) foram recriadas com `WITH CHECK` espelhando o `USING`.
+
+**§2 — conta desativada continuava lendo (backlog que estava anotado em `js/core/auth.js:50`).** `ativo = false` derrubava a sessão no front, mas o JWT já emitido seguia válido até expirar e as policies de leitura pediam apenas `auth.uid() IS NOT NULL`. Com o token na mão, o desativado continuava lendo `luma.variaveis`, `luma.fontes` e a vitrine de `luma.pastas`. Nova função `public.is_ativo()` (`STABLE SECURITY DEFINER`, `EXECUTE` revogado de `anon`/`authenticated` como as demais) passa a ser o gate dessas três policies.
+
+A formulação é **"autenticado E NÃO explicitamente desativado"**, não `ativo = TRUE`: no primeiro login o trigger `handle_new_user` pode ainda não ter gravado o profile, e `= TRUE` daria deny-all a um usuário legítimo numa corrida de milissegundos. Fail-open em linha ausente, fail-closed em linha que diz `ativo = false`.
+
+**Fora do escopo, de propósito:** `luma.templates`. A policy dele já não usa `auth.uid() IS NOT NULL` (é `publicado = TRUE AND validade >= hoje`) e template publicado é conteúdo da rede, não dado pessoal — trancá-lo por `ativo` é decisão de produto, não correção de falha.
+
+**Verificado e NÃO alterado:** a suspeita de auto-reativação (`UPDATE profiles SET ativo = true WHERE id = auth.uid()`) **não existe**. O trigger `guard_profile_role()` foi estendido em `20260618095000_luma_hardening.sql` §11.1 para bloquear `role`, `departamento` **e** `ativo` para quem não é `gestao`. Quem leu só a migration 1 não vê a versão 6, que a sobrescreve.
+
+**Ações necessárias:** aplicar a migration. Testar as 3 roles: (a) franqueado ativo continua abrindo catálogo, prevendo e gerando arte; (b) franqueado desativado não lê `variaveis`/`fontes`/`pastas` nem com token válido; (c) designer segue publicando e trocando capa (o `WITH CHECK` novo não pode barrar upload legítimo em `luma-covers`).
+
+---
+
 ## 2026-08-29 — Edge Function `ai`: task nova `girias`
 
 > ⚠️ **Precisa de deploy da function** (`supabase functions deploy ai`). Sem ele a task cai no caminho de transição (chave do front) e continua funcionando; quando a chave for rotacionada, sem o deploy o recurso simplesmente não roda — e a legenda sai sem o tempero, como sempre saiu.

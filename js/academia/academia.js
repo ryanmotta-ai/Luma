@@ -517,6 +517,10 @@ function acGo(rota, arg){
   if(rota==='gestao' && !(typeof gIsAdmin==='function' && gIsAdmin())){
     gToast('Esta área é da equipe Delivery Much.','error'); return;
   }
+  // Saindo da aula: acRender troca o innerHTML do #ac-root e o <video> sai do DOM,
+  // mas segue vivo na referencia do player -- em varios navegadores o AUDIO continua
+  // tocando e o timer de progresso ainda grava numa aula desmontada. Desmonta antes.
+  if(acState.rota==='aula' && rota!=='aula' && typeof acAulaDesmontar==='function') acAulaDesmontar();
   const anterior = acState.rota;
   acState.rota = rota;
   if(rota==='aula' && arg) acState.aulaId = arg;

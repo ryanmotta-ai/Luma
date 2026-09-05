@@ -994,7 +994,19 @@ REGRAS:
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
+    // Teto do historico. O array segurava a conversa INTEIRA da sessao, com cada print
+    // anexado vivo como dataURL: uma sessao longa de suporte (algumas fotos de tela) somava
+    // dezenas de MB presos na aba, e o render (map sobre messages) repintava tudo a cada
+    // mensagem nova. Mantem as ultimas 40 falas; a imagem, so nas 4 ultimas -- e ela que pesa,
+    // o texto e barato e preserva a leitura do historico.
+    const _podarMensagens = () => {
+      const M = widgetState.messages;
+      if(M.length > 40) M.splice(0, M.length - 40);
+      for(let i = 0; i < M.length - 4; i++) if(M[i] && M[i].image) M[i].image = null;
+    };
+
     widgetState.messages.push(newMsg);
+    _podarMensagens();
     widgetState.attachedFile = null;
     if (input) input.value = '';
 
@@ -1022,6 +1034,7 @@ REGRAS:
       text: r.text,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     });
+    _podarMensagens();
     renderWidgetModalContent();
   };
 

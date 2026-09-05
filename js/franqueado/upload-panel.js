@@ -20,9 +20,20 @@ const F_RECENT_THUMB = 140;            // px da miniatura guardada (leve p/ o lo
 let _fUpPanelVar = null, _fUpPanelUploadId = null;
 
 /* ── STORE DE RECENTES (índice no localStorage; imagem no IndexedDB) ── */
+// Teto da miniatura gravada. 12 entradas x 80KB = ~1MB, folgado dentro dos 5MB do
+// localStorage. O teto nasceu de um bug real: quando _fMakeThumb falhava, o fallback
+// gravava o BASE64 INTEIRO (uma foto de 10MB do celular) como se fosse thumb -- o
+// setItem estourava a quota, o catch vazio engolia, e a partir dali NENHUMA foto
+// nova entrava em 'Fotos recentes'. A morte era silenciosa e permanente.
+const F_RECENT_THUMB_MAX = 80 * 1024;
 function fGetRecentImgs(){
-  try{ const a=JSON.parse(localStorage.getItem(F_RECENT_KEY)||'[]'); return Array.isArray(a)?a:[]; }
-  catch(e){ return []; }
+  try{
+    const a=JSON.parse(localStorage.getItem(F_RECENT_KEY)||'[]');
+    if(!Array.isArray(a)) return [];
+    // Descarta na LEITURA o que uma versao antiga gravou grande: sem isto a quota
+    // continuaria cheia e o proximo setItem seguiria falhando. Autolimpa no 1o save.
+    return a.filter(x=>x && (!x.thumb || x.thumb.length<=F_RECENT_THUMB_MAX));
+  }catch(e){ return []; }
 }
 function _fSaveRecentImgs(arr){
   try{ localStorage.setItem(F_RECENT_KEY, JSON.stringify((arr||[]).slice(0,F_RECENT_CAP))); }catch(e){}
@@ -38,11 +49,11 @@ function _fMakeThumb(dataUrl, size, cb){
         const c=document.createElement('canvas'); c.width=w; c.height=h;
         c.getContext('2d').drawImage(img,0,0,w,h);
         cb(c.toDataURL('image/jpeg',0.7));
-      }catch(e){ cb(dataUrl); }
+      }catch(e){ cb(null); }   // null, NUNCA o original: o dataUrl cru estourava a quota
     };
-    img.onerror=()=>cb(dataUrl);
+    img.onerror=()=>cb(null);
     img.src=dataUrl;
-  }catch(e){ cb(dataUrl); }
+  }catch(e){ cb(null); }
 }
 // Registra uma imagem já usada nos recentes. Fire-and-forget (não bloqueia o chat).
 function fRecordRecentImg(resizedUrl, field){
@@ -52,8 +63,11 @@ function fRecordRecentImg(resizedUrl, field){
   const ref = 'idb://'+key;
   try{ gIdbPut(key, resizedUrl); }catch(e){ return; }
   _fMakeThumb(resizedUrl, F_RECENT_THUMB, (thumb)=>{
+    // Miniatura ausente ou acima do teto nao vai pro localStorage. A foto continua no
+    // IndexedDB e reaproveitavel: o card so aparece com o icone em vez do preview.
+    const th = (thumb && thumb.length<=F_RECENT_THUMB_MAX) ? thumb : '';
     let arr=fGetRecentImgs().filter(x=>x.ref!==ref);   // dedup: mesma imagem sobe pro topo
-    arr.unshift({ref, thumb, ts:Date.now(), field:field||''});
+    arr.unshift({ref, thumb:th, ts:Date.now(), field:field||''});
     _fSaveRecentImgs(arr);
   });
 }
@@ -102,7 +116,7 @@ function _fRenderUploadPanel(){
   const recentGrid = recents.length
     ? `<div class="f-up-grid">${recents.map((r,i)=>`
         <button type="button" class="f-up-thumb" onclick="fPickRecentImg(${i})" title="Usar esta imagem">
-          <img src="${gEsc(r.thumb)}" alt="Imagem recente"/>
+          ${r.thumb?`<img src="${gEsc(r.thumb)}" alt="Imagem recente"/>`:_icoUp}
           <span class="f-up-thumb-del" onclick="fRemoveRecentImg(${i},event)" title="Remover dos recentes" aria-label="Remover dos recentes">${_icoTrash}</span>
         </button>`).join('')}</div>`
     : `<p class="f-up-empty">Suas fotos usadas vão aparecer aqui pra reaproveitar.</p>`;
@@ -112,10 +126,10 @@ function _fRenderUploadPanel(){
       <div class="f-up-sec-head">${_icoStore}<span>Minhas lojas</span></div>
       ${lojas.length
         ? `<div class="f-up-grid f-up-grid-lojas">${lojas.map(l=>`
-            <button type="button" class="f-up-loja" onclick="fUploadPanelPickLoja('${gEsc(l.id)}')" title="Usar o logo de ${gEsc(l.nome||'loja')}">
+            <button type="button" class="f-up-loja" onclick="fUploadPanelPickLoja('${gEscJs(l.id)}')" title="Usar o logo de ${gEsc(l.nome||'loja')}">
               <span class="f-up-loja-logo">${l.logo?`<img src="${gEsc(l.logo)}" alt=""/>`:_icoStore}</span>
               <span class="f-up-loja-name">${gEsc(l.nome||'Minha loja')}</span>
-              <span class="f-up-thumb-del" onclick="fUploadPanelDeleteLoja('${gEsc(l.id)}',event)" title="Excluir loja" aria-label="Excluir loja">${_icoTrash}</span>
+              <span class="f-up-thumb-del" onclick="fUploadPanelDeleteLoja('${gEscJs(l.id)}',event)" title="Excluir loja" aria-label="Excluir loja">${_icoTrash}</span>
             </button>`).join('')}</div>`
         : `<p class="f-up-empty">Salve uma loja ao enviar um logo — o perfil aparece aqui.</p>`}
     </div>` : '';

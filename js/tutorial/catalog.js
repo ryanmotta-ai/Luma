@@ -6,6 +6,11 @@
  * Depende de: tutorial/mocks.js (tutMockCampaign etc)
  */
 
+// Icone do bot nas cenas mockadas. SVG inline com currentColor, nunca emoji: o robo
+// emoji sai colorido e com desenho diferente em cada sistema -- no mock do chat isso
+// aparecia lado a lado com o avatar real do Luma, que ja e este mesmo SVG (chat.js).
+const _TUT_ICO_BOT = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8.01" y2="16"/><line x1="16" y1="16" x2="16.01" y2="16"/></svg>';
+
 const TUTORIALS = {
   // ════════════════════════════════════════
   // TUTORIAL 1 — Como criar minha primeira arte (polido)
@@ -36,9 +41,9 @@ const TUTORIALS = {
         build: () => `
           <div class="tut-scene-content">
             <div style="display:flex;gap:14px" id="tut-camp-grid">
-              ${tutMockCampaign('Hamburguer Fest','linear-gradient(135deg,#C81818,#FF9000)','Combo Smash','R$ 19,90', false)}
-              ${tutMockCampaign('Combão','linear-gradient(135deg,#FFB900,#FF9000)','Combo Família','R$ 39,90', true)}
-              ${tutMockCampaign('Entrega Grátis','linear-gradient(135deg,#22C55E,#15803D)','Frete Grátis','R$ 0,00', false)}
+              ${tutMockCampaign('Hamburguer Fest','linear-gradient(135deg,var(--dm-red),var(--dm-orange))','Combo Smash','R$ 19,90', false)}
+              ${tutMockCampaign('Combão','linear-gradient(135deg,var(--dm-yellow),var(--dm-orange))','Combo Família','R$ 39,90', true)}
+              ${tutMockCampaign('Entrega Grátis','linear-gradient(135deg,var(--green),var(--green-d))','Frete Grátis','R$ 0,00', false)}
             </div>
           </div>`,
         tooltip: { text: 'Clique numa campanha para abrir os materiais disponíveis dela.', target: '.tut-mock-camp.highlight-target', placement: 'bottom' },
@@ -69,7 +74,7 @@ const TUTORIALS = {
           <div class="tut-scene-content">
             <div class="tut-mock-chat" id="tut-mock-chat-1">
               <div class="tut-mock-msg bot" data-delay="100">
-                <div class="tut-mock-av">🤖</div>
+                <div class="tut-mock-av">${_TUT_ICO_BOT}</div>
                 <div class="tut-mock-bbl"><span class="tut-mock-step-badge">Passo 1</span>Qual é o <strong>produto</strong>?</div>
               </div>
               <div class="tut-mock-msg user" data-delay="1500">
@@ -77,7 +82,7 @@ const TUTORIALS = {
                 <div class="tut-mock-bbl">Combo Smash</div>
               </div>
               <div class="tut-mock-msg bot" data-delay="2500">
-                <div class="tut-mock-av">🤖</div>
+                <div class="tut-mock-av">${_TUT_ICO_BOT}</div>
                 <div class="tut-mock-bbl"><span class="tut-mock-step-badge">Passo 2</span>Qual o <strong>preço promocional</strong>?</div>
               </div>
               <div class="tut-mock-msg user" data-delay="3800">
@@ -162,9 +167,9 @@ const TUTORIALS = {
           <div class="tut-scene-content">
             <div style="display:flex;flex-direction:column;gap:12px;width:360px">
               <div style="display:flex;gap:6px">
-                <div style="flex:1;padding:7px;font-size:11px;font-weight:600;border:1px solid var(--dm-orange);background:var(--dm-orange-bg);color:var(--dm-red);border-radius:5px;text-align:center">Todas <span style="background:var(--dm-orange);color:#fff;font-size:9px;padding:1px 5px;border-radius:8px;margin-left:4px">12</span></div>
-                <div style="flex:1;padding:7px;font-size:11px;font-weight:600;border:1px solid #e4e4e4;background:#fff;color:var(--text-3);border-radius:5px;text-align:center">Rascunhos <span style="background:#f0f0f0;font-size:9px;padding:1px 5px;border-radius:8px;margin-left:4px">4</span></div>
-                <div style="flex:1;padding:7px;font-size:11px;font-weight:600;border:1px solid #e4e4e4;background:#fff;color:var(--text-3);border-radius:5px;text-align:center">Baixadas <span style="background:#f0f0f0;font-size:9px;padding:1px 5px;border-radius:8px;margin-left:4px">8</span></div>
+                <div style="flex:1;padding:7px;font-size:11px;font-weight:600;border:1px solid var(--dm-orange);background:var(--dm-orange-bg);color:var(--dm-red);border-radius:5px;text-align:center">Todas <span style="background:var(--dm-orange);color:var(--white);font-size:9px;padding:1px 5px;border-radius:8px;margin-left:4px">12</span></div>
+                <div style="flex:1;padding:7px;font-size:11px;font-weight:600;border:1px solid #e4e4e4;background:var(--white);color:var(--text-3);border-radius:5px;text-align:center">Rascunhos <span style="background:#f0f0f0;font-size:9px;padding:1px 5px;border-radius:8px;margin-left:4px">4</span></div>
+                <div style="flex:1;padding:7px;font-size:11px;font-weight:600;border:1px solid #e4e4e4;background:var(--white);color:var(--text-3);border-radius:5px;text-align:center">Baixadas <span style="background:#f0f0f0;font-size:9px;padding:1px 5px;border-radius:8px;margin-left:4px">8</span></div>
               </div>
               ${tutMockHist('Combo Smash · Story','Hamburguer Fest','Hoje 14:32', true)}
               ${tutMockHist('Frete Grátis · Feed','Entrega Grátis','Ontem 09:15', false)}
@@ -337,7 +342,7 @@ const TUTORIALS = {
         build: () => `
           <div class="tut-scene-content">
             <div style="text-align:center;max-width:480px">
-              <div class="tut-finale-icon" style="margin:0 auto 24px;background:linear-gradient(135deg, var(--dm-orange), var(--dm-red));color:#fff;animation-delay:0s">
+              <div class="tut-finale-icon" style="margin:0 auto 24px;background:linear-gradient(135deg, var(--dm-orange), var(--dm-red));color:var(--white);animation-delay:0s">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
               </div>
               <h3 style="font-family:'Roboto',sans-serif;font-weight:900;font-size:28px;letter-spacing:.02em;margin-bottom:10px;animation:tutFinaleFadeUp .5s .2s both;opacity:0">A identidade DM</h3>
@@ -394,12 +399,12 @@ const TUTORIALS = {
             <div style="display:flex;flex-direction:column;align-items:center;gap:18px;max-width:520px">
               <h4 style="font-family:'Roboto',sans-serif;font-weight:900;font-size:18px;letter-spacing:.04em;color:var(--text);opacity:0;animation:tutFinaleFadeUp .4s .1s both">TIPOGRAFIA</h4>
               <div style="display:flex;flex-direction:column;gap:14px;width:100%">
-                <div style="background:#fff;border:1.5px solid #f0f0f0;border-radius:10px;padding:18px;opacity:0;animation:tutFinaleFadeUp .5s .25s both">
+                <div style="background:var(--white);border:1.5px solid #f0f0f0;border-radius:10px;padding:18px;opacity:0;animation:tutFinaleFadeUp .5s .25s both">
                   <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--dm-orange-d);margin-bottom:6px">Display / Títulos</div>
                   <div style="font-family:'Roboto',sans-serif;font-weight:900;font-size:32px;letter-spacing:.03em;color:var(--text);line-height:1">ROBOTO BLACK</div>
                   <div style="font-size:11px;color:var(--text-3);margin-top:4px">Para títulos, preços e elementos de destaque</div>
                 </div>
-                <div style="background:#fff;border:1.5px solid #f0f0f0;border-radius:10px;padding:18px;opacity:0;animation:tutFinaleFadeUp .5s .45s both">
+                <div style="background:var(--white);border:1.5px solid #f0f0f0;border-radius:10px;padding:18px;opacity:0;animation:tutFinaleFadeUp .5s .45s both">
                   <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--dm-orange-d);margin-bottom:6px">Corpo / UI</div>
                   <div style="font-family:'Roboto',sans-serif;font-size:22px;font-weight:500;color:var(--text);line-height:1">Roboto Regular &amp; Bold</div>
                   <div style="font-size:11px;color:var(--text-3);margin-top:4px">Para textos longos, legendas e interface</div>
@@ -417,7 +422,7 @@ const TUTORIALS = {
             <div style="display:flex;flex-direction:column;align-items:center;gap:18px">
               <h4 style="font-family:'Roboto',sans-serif;font-weight:900;font-size:18px;letter-spacing:.04em;color:var(--text);opacity:0;animation:tutFinaleFadeUp .4s .1s both">LOGO DM</h4>
               <div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center">
-                <div style="background:#fff;border-radius:12px;padding:24px 30px;border:1px solid #f0f0f0;display:flex;flex-direction:column;align-items:center;gap:12px;opacity:0;animation:tutFinaleFadeUp .5s .25s both">
+                <div style="background:var(--white);border-radius:12px;padding:24px 30px;border:1px solid #f0f0f0;display:flex;flex-direction:column;align-items:center;gap:12px;opacity:0;animation:tutFinaleFadeUp .5s .25s both">
                   <div style="height:18px;width:62px;background:var(--logo-h-principal) center/contain no-repeat"></div>
                   <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em">Em fundo claro</div>
                 </div>

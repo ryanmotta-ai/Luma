@@ -74,7 +74,7 @@ function fSetPanelOrder(order, opts) {
   // Preview mudou de espaço (esp. entrando/saindo do centro) → re-encaixa o canvas.
   // Reusa o motor único da prévia; rAF pra medir DEPOIS do layout assentar.
   requestAnimationFrame(() => {
-    try { if (typeof fUpdateLivePreview === 'function') fUpdateLivePreview(); } catch (e) {}
+    if (typeof fLpRefresh === 'function') fLpRefresh();
     try { if (typeof fLpRefit === 'function') fLpRefit(); } catch (e) {}
   });
 }

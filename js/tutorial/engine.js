@@ -12,7 +12,7 @@
    ────────────────────────────────────────────────────────────── */
 
 // Estado global do tutorial
-const tutState = {
+let tutState = {
   activeId: null,        // id do tutorial em execução
   scenes: [],            // array de cenas do tutorial atual
   sceneIdx: -1,          // índice da cena atual

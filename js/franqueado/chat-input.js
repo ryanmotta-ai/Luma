@@ -40,7 +40,7 @@ const F_FIELD_TYPES = {
 
    ⛔ Preco, desconto e codigo ficam fora: neles o tamanho vem da MASCARA, nao do usuario
    (ver `fMaskInput`/`fValidate`), e a caixa de um preco e apertada por desenho. */
-const _F_MAXLEN_MED = new Map();      // 'materialId|campo' → limite medido (0 = nao deu pra medir)
+let _F_MAXLEN_MED = new Map();      // 'materialId|campo' → limite medido (0 = nao deu pra medir)
 const _F_MAXLEN_FRASE = 'arroz feijao frango salada batata farofa vinagrete refrigerante ';
 const _F_MAXLEN_TETO = 200;           // acima disto nenhum campo de chat faz sentido
 
@@ -305,11 +305,16 @@ function fValidate(id, val){
 
 /* Erro de campo no chat. A BOLHA vermelha saiu junto com o resto do alarme (ver gToast em
    core/toast.js — decisão de não alarmar). Ficou só o tremor da barra de entrada: não é
-   vermelho, não é aviso escrito, e é o que impede o beco sem saída — sem ele, digitar "abc"
-   num campo de preço e dar Enter simplesmente não faria NADA, sem nenhuma pista de que o
-   valor é que estava recusado. A razão exata continua no console. */
+   vermelho e nao tem role=alert. O tremor aponta QUAL campo foi recusado; o toast neutro
+   abaixo diz POR QUE. Sem o texto, digitar "abc" num campo de preco e dar Enter nao fazia
+   NADA visivel e a pessoa concluia que o Luma travou. */
 function fShowFieldError(msg){
-  try{ console.warn('[Luma] campo recusado (aviso suprimido):', msg); }catch(e){}
+  // O tremor sozinho dizia QUE algo foi recusado, nunca O QUE. Quem digitava data fora do
+  // formato clicava em Avancar dez vezes achando que o Luma travou. A decisao de nao
+  // alarmar (gToast em core/toast.js) tirou a COR e o role=alert do erro -- nao a MENSAGEM:
+  // o proprio comentario de la diz que ela deve sair como toast neutro. O tremor fica: ele
+  // aponta QUAL campo; o toast diz POR QUE.
+  if(msg && typeof gToast==='function') gToast(msg);
   const existing = document.getElementById('field-err-msg');
   if(existing) existing.remove();
 
@@ -340,6 +345,13 @@ function fAttachInputGuard(){
     const id = fState.camp?.perguntas?.[fState.stepIdx]?.id;
     const cfg = id ? fGetFieldType(id) : {maxLen:120};
     _fFitRemember(box, id, newVal, cfg.maxLen);   // guarda a tentativa ANTES do corte
+    // Colar a descricao do cardapio num campo de 30 cortava no 30o caractere sem dizer
+    // nada: a arte saia com "File de Tilapia Grelhado com L" e a pessoa nem via. O corte
+    // continua (e o limite do designer), mas agora ele e ANUNCIADO -- e o botao Encurtar
+    // aparece logo abaixo porque _fFitRemember guardou a tentativa inteira.
+    if(newVal.length > cfg.maxLen && typeof gToast==='function'){
+      gToast('Colei so os primeiros '+cfg.maxLen+' caracteres -- e o limite deste campo.');
+    }
     box.value = newVal.slice(0, cfg.maxLen);
     const cursor = Math.min(box.value.length, start + clean.length);
     box.setSelectionRange(cursor, cursor);
@@ -364,7 +376,14 @@ function fAttachInputGuard(){
     fState.dados[id]=box.value.replace(/[\r\n\t]/g,' ');
     // Debounce leve: gSmartWrapText mede texto por tecla; sem isso trava em texto longo.
     clearTimeout(box._lpPreviewT);
-    box._lpPreviewT=setTimeout(()=>{ try{ fUpdateLivePreview(); }catch(e){} }, 110);
+    box._lpPreviewT=setTimeout(()=>{ fLpRefresh(); }, 110);
+    // Rascunho por tecla (400ms). fState.dados ja recebe o texto acima a cada tecla, mas
+    // fSaveChatDraft so era chamado no submit -- quem digitava a regra da promocao e
+    // minimizava o navegador pra conferir no WhatsApp voltava com o campo em branco: o
+    // Chrome/Safari do celular descarta a aba por pressao de memoria e o que nao foi
+    // gravado morre junto. 400ms nao pesa (o save e um JSON pequeno no localStorage).
+    clearTimeout(box._draftT);
+    box._draftT=setTimeout(()=>{ try{ fSaveChatDraft(); }catch(e){} }, 400);
   });
 }
 function fUpdateCharCount(){
@@ -470,10 +489,19 @@ REGRAS:
 
 Responda APENAS JSON: {"opcoes":["...","...","..."]}`;
 
-  const texto=await gAskAI('encurtar', prompt, {json:true});
-  const parsed=texto && (typeof gAiParseJson==='function'?gAiParseJson(texto):null);
-  if(btn){ btn.classList.remove('is-loading'); btn.disabled=false; }
-  _fFitBusy=false;
+  // try/finally: gAskAI trata os proprios erros de rede, mas qualquer excecao antes dela
+  // (gImgHash na chave de cache, por exemplo) rejeitava esta funcao com _fFitBusy=true e
+  // o botao disabled -- o spinner 'Pensando...' girava pra sempre e travava o Avancar.
+  let texto=null, parsed=null;
+  try{
+    texto=await gAskAI('encurtar', prompt, {json:true});
+    parsed=texto && (typeof gAiParseJson==='function'?gAiParseJson(texto):null);
+  }catch(e){
+    console.warn('[Luma] encurtar falhou:', e);
+  }finally{
+    if(btn){ btn.classList.remove('is-loading'); btn.disabled=false; }
+    _fFitBusy=false;
+  }
 
   // Validação no CÓDIGO: modelo erra contagem de caractere com frequência.
   const brutas=(parsed&&Array.isArray(parsed.opcoes))?parsed.opcoes:[];
@@ -546,46 +574,15 @@ function fInitSmartInputFormatter() {
   const b = document.getElementById('f-msg-box');
   if(!b) return;
   
-  let fInputFormatTimeout = null;
-  
-  const formatFn = () => {
-    const v = b.value.trim();
-    if(!v) return;
-    const id = fState.camp?.perguntas?.[fState.stepIdx]?.id;
-    if (!id) return;
-    
-    // Só formata se o tipo de campo for numérico/monetário/desconto ou pedidoMin
-    const cfg = fGetFieldType(id);
-    const isNumberType = cfg.type === 'price' || cfg.type === 'discount' || id === 'pedidoMin';
-    if (!isNumberType) return;
-    
-    // Ignora se o valor for muito curto ou incompleto para não incomodar a digitação
-    if (v.length < 2 && !/^\d+$/.test(v)) return;
-    
-    const masked = fApplyMask(id, v);
-    if (masked === v) return;
-    
-    // Se o usuário estiver no meio da digitação (termina em vírgula ou ponto), não formata
-    if (v.endsWith(',') || v.endsWith('.')) return;
-    
-    // Transição suave
-    b.classList.add('f-msg-box-transition');
-    setTimeout(() => {
-      const start = b.selectionStart;
-      const end = b.selectionEnd;
-      b.value = masked;
-      try { b.setSelectionRange(start, end); } catch(e){}
-      b.classList.remove('f-msg-box-transition');
-    }, 130);
-  };
-  
-  b.addEventListener('input', () => {
-    clearTimeout(fInputFormatTimeout);
-    fInputFormatTimeout = setTimeout(formatFn, 1200); // 1.2s após parar de digitar
-  });
-  
+  // A mascara de moeda roda no BLUR e no submit (fSend/fQR chamam fApplyMask) -- nunca
+  // durante a digitacao. Antes havia um debounce de 1.2s no 'input' que reescrevia b.value
+  // e devolvia setSelectionRange(start,end) com os offsets do texto ANTIGO: quem digitava
+  // "9,9", parava 1,2s (olhar a nota, falar com o garcom) e digitava "5" via "R$ 9,90"
+  // virar "R$ 59,90" -- o digito entrava no meio do valor e a promocao saia errada no
+  // Instagram. Formatar so quando a pessoa termina e a unica forma de a mascara nunca
+  // disputar o cursor com quem esta digitando.
+
   b.addEventListener('blur', () => {
-    clearTimeout(fInputFormatTimeout);
     const v = b.value.trim();
     if(!v) return;
     const id = fState.camp?.perguntas?.[fState.stepIdx]?.id;

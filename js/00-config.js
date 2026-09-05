@@ -738,9 +738,20 @@ function gFieldSlugify(label, existingNames){
    A chave carrega TUDO que muda a medida (fonte, corpo, peso, itálico, tracking, caixa e o
    próprio texto); esquecer um parâmetro aqui devolveria medida de outra camada, então nada de
    chave "resumida". Puro por construção: mesma entrada, mesma largura.
-   Teto de 4000 entradas com descarte simples — a sessão de digitação de um franqueado nunca
+   Teto de 4000 entradas com descarte parcial (gCachePodar) — a sessão de digitação de um franqueado nunca
    passa disso, e o cache não pode virar vazamento de memória numa aba aberta o dia todo. */
-const _G_MEDIDA_CACHE = new Map();
+let _G_MEDIDA_CACHE = new Map();
+
+// gCachePodar(map, teto) -- descarte PARCIAL num Map usado como cache.
+// `.clear()` no teto era mais barato de escrever e pior de usar: zerava as 4000 medidas
+// de uma vez e a proxima repintura pagava 4000 measureText seguidos -- um engasgo visivel
+// no meio da digitacao, justo quando o cache mais servia. Map preserva ordem de insercao,
+// entao remover as 20% mais antigas da o mesmo teto de memoria sem o precipicio.
+function gCachePodar(map, teto){
+  if(!map || map.size <= teto) return;
+  let sobra = Math.max(1, Math.ceil(teto * 0.2));
+  for(const k of map.keys()){ map.delete(k); if(--sobra <= 0) break; }
+}
 
 function gMeasureLayerWidth(layer, text, ctxAux) {
   if (!layer || layer.type !== 'text') return layer.w || 0;
@@ -761,7 +772,7 @@ function gMeasureLayerWidth(layer, text, ctxAux) {
     const achou = _G_MEDIDA_CACHE.get(chave);
     if (achou !== undefined) return achou;
     const calc = _gMedirLarguraDireto(layer, text, ctx, fp, fontSize, ital);
-    if (_G_MEDIDA_CACHE.size > 4000) _G_MEDIDA_CACHE.clear();
+    gCachePodar(_G_MEDIDA_CACHE, 4000);
     _G_MEDIDA_CACHE.set(chave, calc);
     return calc;
   }
@@ -1076,7 +1087,7 @@ function gFitTextLayer(layer, texto, ctxAux, opts) {
     const _achou = _G_MEDIDA_CACHE.get(_chaveFit);
     if (_achou !== undefined) return Object.assign({}, _achou, { lines: _achou.lines.slice() });
     const _calc = _gFitTextCalc(layer, texto, ctxAux, opts);
-    if (_G_MEDIDA_CACHE.size > 4000) _G_MEDIDA_CACHE.clear();
+    gCachePodar(_G_MEDIDA_CACHE, 4000);
     _G_MEDIDA_CACHE.set(_chaveFit, _calc);
     return Object.assign({}, _calc, { lines: _calc.lines.slice() });
   }
@@ -2666,7 +2677,7 @@ function gSmartWrapText(text, maxW, layer, dados, defaults) {
   const _memo = _G_MEDIDA_CACHE.get('W' + _chaveWrap);
   if (_memo !== undefined) return _memo;
   const _guardar = (r) => {
-    if (_G_MEDIDA_CACHE.size > 4000) _G_MEDIDA_CACHE.clear();
+    gCachePodar(_G_MEDIDA_CACHE, 4000);
     _G_MEDIDA_CACHE.set('W' + _chaveWrap, r);
     return r;
   };

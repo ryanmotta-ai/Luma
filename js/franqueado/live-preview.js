@@ -27,7 +27,7 @@ function fOpenPreview(e,id){
   const multi = document.getElementById('pv-multi');
   multi.innerHTML = FMTS.map(f=>{
     const cls = `pv-multi-canvas pv-fmt-${f.id}`;
-    return `<div class="pv-multi-item" onclick="fStartFromPreview('${gEsc(c.id)}','${f.id}')" role="button" tabindex="0">
+    return `<div class="pv-multi-item" onclick="fStartFromPreview('${gEscJs(c.id)}','${f.id}')" role="button" tabindex="0">
       <div class="${cls}" style="background:${gSafeColor(c.color)}">
         <div class="pv-multi-tag">${gEsc(c.name.toUpperCase())}</div>
         <div class="pv-multi-prod">${gEsc(c.previewProd||c.name)}</div>
@@ -544,7 +544,7 @@ function fLpToggleAutoZoom(){
   } else {
     _lpUserZoom=1; _lpPanX=0; _lpPanY=0;
     _fLpApplyUserView();
-    try { fUpdateLivePreview(); } catch(e){}
+    fLpRefresh();
   }
 }
 
@@ -942,7 +942,7 @@ function fLpSetView(v){
     const b = document.getElementById(map[k]);
     if(b){ const on = (k===_lpView); b.classList.toggle('active', on); b.setAttribute('aria-checked', String(on)); }
   });
-  try { fUpdateLivePreview(); } catch(e){}
+  fLpRefresh();
 }
 // No-op defensivo: o liga/desliga de Guias virou o seletor de 3 estados e não tem mais
 // chamador. Mantida (f* não regride) caso algum ponto antigo ainda chame — alterna
@@ -1281,7 +1281,7 @@ function _fLpAbrirGaveta(){
   const el = document.getElementById('f-live-preview');
   if(!el) return;
   el.classList.add('open');
-  try{ fUpdateLivePreview(); }catch(e){}
+  fLpRefresh();
   if(typeof fLpRefit==='function') setTimeout(fLpRefit, 100);
 }
 
@@ -1432,7 +1432,16 @@ function fInitMobilePreviewEvents() {
    (edit:false → cadeado) e maxLen. Depende de: png-generator (render,
    fResizeImageIfNeeded), chat-input (fApplyMask, fGetFieldType).
 ══════════════════════════════════════════════════════════════ */
-function _fLpRender(){ try{ fUpdateLivePreview(); }catch(e){} }
+// fLpRefresh() -- UNICO jeito de pedir repintura da previa sem esperar por ela.
+// fUpdateLivePreview e ASYNC: o `fLpRefresh();` espalhado em 15
+// pontos nao capturava nada (a rejeicao chega depois do catch fechar) e ia parar no
+// unhandledrejection global. O try externo continua valendo -- ele pega o caso de a funcao
+// nao existir ainda na ordem de carga; o .catch pega a falha de render de verdade.
+function fLpRefresh(){
+  try{ const p=fUpdateLivePreview(); if(p&&p.catch) p.catch(e=>console.warn('[Luma] previa nao repintou:',e)); }
+  catch(e){ console.warn('[Luma] previa nao repintou:',e); }
+}
+function _fLpRender(){ fLpRefresh(); }
 function _fLpLabel(v){
   const perg=fState.camp&&fState.camp.perguntas&&fState.camp.perguntas.find(p=>p.id===v);
   if(perg&&perg.label) return perg.label;
@@ -2002,7 +2011,7 @@ function _fLpBindCanvasEditing(){
 document.addEventListener('DOMContentLoaded', () => {
   try { dPreloadFolders(); } catch(e){}
   try { _fLpSyncAutoZoomButton(); } catch(e){}
-  try { fUpdateLivePreview(); } catch(e){}
+  fLpRefresh();
   try { fInitMobilePreviewEvents(); } catch(e){}
   try { _fLpBindCanvasEditing(); } catch(e){}
 });

@@ -439,7 +439,7 @@ function fRenderMaterialCard(material, camp){
   const fmtName = {story:'Story 9:16',feed:'Feed 1:1',wide:'Post wide',post:'Post wide'}[material.fmt] || 'Story';
   const isNew = (typeof fMaterialIsNew==='function') && fMaterialIsNew(material, camp.id);
   const renderState=(material.layers&&material.layers.length)?' is-rendering':'';
-  return `<button class="f-mat-card${renderState}" type="button" onclick="fSelectMaterial('${gEsc(material.id)}',this)" aria-label="Personalizar ${gEsc(material.name)}, formato ${gEsc(fmtName)}">
+  return `<button class="f-mat-card${renderState}" type="button" onclick="fSelectMaterial('${gEscJs(material.id)}',this)" aria-label="Personalizar ${gEsc(material.name)}, formato ${gEsc(fmtName)}">
     <div class="f-mat-preview">
       <div class="f-mat-thumb f-mat-thumb-${material.fmt||'story'}" style="background:${gSafeColor(camp.color)}">
         ${isNew?`<div class="f-mat-new">Novo</div>`:''}
@@ -679,7 +679,7 @@ async function fSelectMaterial(materialId, card){
     // a transição termina. Mesmo par do panel-dock (render + refit) no fim do movimento,
     // mais uma chamada imediata pro caso em que não há transição nenhuma (reduced-motion,
     // largura já cheia): sem ela o canvas ficaria encaixado numa largura que não existe mais.
-    const _lpRefit=()=>{ try{ if(typeof fUpdateLivePreview==='function') fUpdateLivePreview(); }catch(e){}
+    const _lpRefit=()=>{ if(typeof fLpRefresh==='function') fLpRefresh();
                          try{ if(typeof fLpRefit==='function') fLpRefit(); }catch(e){} };
     lpPanel.addEventListener('transitionend', function _onW(ev){
       if(ev.target!==lpPanel || ev.propertyName!=='width') return;
@@ -690,8 +690,20 @@ async function fSelectMaterial(materialId, card){
   }
   if(typeof _fMuchPlusHeaderPlay==='function') _fMuchPlusHeaderPlay(); // header voltou a aparecer → motion do tema toca agora
   fUpdateCtx();
-  // Limpa estado anterior
-  fState.dados={};
+  // Trocar de formato (Story -> Feed) da MESMA campanha passa por aqui. Zerar tudo fazia
+  // o franqueado que ja tinha digitado preco, prato, regras e subido a foto redigitar do
+  // zero -- e a foto, reenviar. Agora sobrevive so o que o material NOVO realmente
+  // pergunta: mesmo id de variavel, mesmo valor. Campo que o template novo nao tem sai
+  // (nao vira lixo no fState). Quem troca de CAMPANHA nao chega aqui -- fSelectCamp em
+  // catalog.js ja zera o fState.dados naquele caminho.
+  // O chat sabe lidar com valor pre-existente: fNextStep pre-popula a caixa e pula o passo
+  // de imagem ja resolvido (o 'jaTem'), entao nada fica preso num passo ja respondido.
+  const _idsNovos = new Set(perguntas.map(p=>p.id));
+  const _antes = fState.dados || {};
+  fState.dados = {};
+  Object.keys(_antes).forEach(k=>{
+    if(_idsNovos.has(k) && _antes[k]!=null && _antes[k]!=='') fState.dados[k]=_antes[k];
+  });
   fState.done=false;
   fState.stepIdx=-1;
   // Inicia chat com mensagem específica deste material
