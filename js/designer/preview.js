@@ -338,7 +338,13 @@ function pvRenderFramePlaceholder(ctx,l,r){
 }
 
 function pvRoundRect(ctx,x,y,w,h,r){
-  if(r<=0){ctx.rect(x,y,w,h);return;}
+  // beginPath OBRIGATÓRIO também no canto reto. Sem ele o `rect` só ANEXAVA ao caminho que
+  // ainda estava aberto, e o `fill()` da camada seguinte repintava todas as caixas anteriores
+  // com a opacidade e a mesclagem DELA: um retângulo em multiply escurecia a prancheta inteira
+  // na prévia e no PNG do Estúdio, enquanto o motor do franqueado escurecia só a área da forma.
+  // Medido na bancada de paridade (tests/_paridade-render.js): 80% dos pixels divergiam.
+  // Os dois outros chamadores já fazem beginPath antes — repetir aqui não muda nada para eles.
+  if(r<=0){ctx.beginPath();ctx.rect(x,y,w,h);return;}
   r=Math.min(r,w/2,h/2);
   ctx.beginPath();
   ctx.moveTo(x+r,y);

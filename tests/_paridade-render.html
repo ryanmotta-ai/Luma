@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Luma — bancada de paridade entre os renderizadores</title>
+  <style>
+    :root{color-scheme:dark;font-family:ui-monospace,monospace;background:#111;color:#f5f5f5}
+    body{max-width:1100px;margin:32px auto;padding:0 24px}
+    h1{font-size:20px}p{color:#aaa;line-height:1.5}
+    pre{background:#181818;border:1px solid #333;border-radius:10px;padding:16px;white-space:pre-wrap}
+    .par{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}
+    .par figure{margin:0}.par figcaption{font-size:11px;color:#888;margin-top:4px}
+    canvas{border:1px solid #333;border-radius:6px;background:#222;width:200px;height:250px}
+  </style>
+</head>
+<body>
+  <h1>Paridade entre os renderizadores</h1>
+  <p>Mede quanto a prévia/exportação do Estúdio (<code>pvRenderLayers</code>) se afasta do motor
+     que o franqueado baixa (<code>fRenderTemplateLayers</code>), recurso a recurso. É o critério de
+     aceite do ticket 5 do estudo de fidelidade — <strong>bancada, não portão</strong>: o nome
+     começa com <code>_</code>, então o runner de CI a ignora. Rodar:
+     <code>node scripts/run-browser-tests.js _paridade</code>.</p>
+  <pre id="saida">Medindo…</pre>
+  <div id="amostras"></div>
+  <script src="../js/00-config.js"></script>
+  <script src="../js/core/layout.js"></script>
+  <script src="../js/core/auto-layout.js"></script>
+  <script src="../js/designer/blending.js"></script>
+  <script src="../js/franqueado/png-generator.js"></script>
+  <script src="../js/designer/preview.js"></script>
+  <script src="_paridade-render.js"></script>
+</body>
+</html>
