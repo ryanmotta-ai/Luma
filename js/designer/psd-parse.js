@@ -386,14 +386,19 @@ function _dPsdSolidColor(canvas){
     return _dPsdHex({r:r0,g:g0,b:b0});
   }catch(e){ return null; }
 }
-// #4c — raster comprimido: downscale (máx 1600) + JPEG p/ opaco, PNG p/ transparência
+// #4c — raster comprimido: downscale + PNG p/ transparência (e p/ o pixel que é fonte única).
+// A detecção de alpha é EXATA, não amostrada. A grade antiga de 50×50 pulava até 64px de cada
+// vez num raster de 3200: recorte de borda fina, furo pequeno ou fade sutil passava por "opaco",
+// virava JPEG — que não tem canal alpha — e a transparência morria sem volta (estudo de
+// fidelidade 05/09 §5.2). Custo medido no Edge, pior caso (10 MP 100% opaco, sem saída
+// antecipada): 43ms de varredura contra os 159ms do `getImageData` que já se pagava.
+// Limiar 255, não 250: alpha 254 é transparência de verdade (antialias da borda do Photoshop).
 function _dPsdHasAlpha(canvas){
   try{
-    const w=canvas.width,h=canvas.height,d=canvas.getContext('2d').getImageData(0,0,w,h).data;
-    const sx=Math.max(1,Math.floor(w/50)),sy=Math.max(1,Math.floor(h/50));
-    for(let y=0;y<h;y+=sy) for(let x=0;x<w;x+=sx){ if(d[(y*w+x)*4+3]<250) return true; }
+    const d=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
+    for(let i=3;i<d.length;i+=4){ if(d[i]<255) return true; }
     return false;
-  }catch(e){ return true; }
+  }catch(e){ return true; }   // na dúvida, PNG: preserva alpha e não inventa fundo
 }
 /* A CAIXA DO ASSUNTO dentro da foto — o que o Auto-layout precisa proteger de verdade.
    A moldura da imagem podia estar "segura" enquanto o texto cobria justamente o rosto ou o
@@ -423,8 +428,16 @@ function _dPsdInkBox(canvas){
     return {x:r(bx),y:r(by),w:r(bw),h:r(bh)};
   }catch(e){ return null; }
 }
-// opts opcional {maxPx, q}: camadas que SÓ existem como raster fiel (warp, smart object, padrão)
-// pedem mais resolução/qualidade. Default 1600/0.82 mantém as chamadas existentes intactas.
+// Teto do raster SEM PERDAS. Acima disto o PNG deixa de ser razoável para o franqueado baixar
+// no 4G e a camada cai no JPEG — mas aí a perda fica registrada no próprio dataURL
+// (`data:image/jpeg`) e a revisão avisa, em vez de acontecer em silêncio.
+const _DPSD_RASTER_LOSSLESS_MAX = 3 * 1024 * 1024;
+// opts opcional {maxPx, q, lossless}: camadas que SÓ existem como raster fiel (warp, smart
+// object, padrão, camada recuperada) pedem mais resolução E `lossless` — nelas o pixel é a
+// ÚNICA fonte de verdade, então passar por JPEG já entrega a arte alterada pelo importador
+// (estudo de fidelidade §5.2). Foto comum segue em JPEG: ali o pixel do Photoshop também é
+// uma foto, e o custo de banda do franqueado é real.
+// Default 1600/0.82 mantém as chamadas existentes intactas.
 // O peso extra é absorvido pelo IndexedDB (idb://), então não estoura o localStorage.
 function _dPsdRasterURL(canvas, opts){
   try{
@@ -438,7 +451,13 @@ function _dPsdRasterURL(canvas, opts){
       const c=document.createElement('canvas'); c.width=tw; c.height=th;
       const cx=c.getContext('2d'); cx.imageSmoothingQuality='high'; cx.drawImage(canvas,0,0,tw,th); src=c;
     }
-    return hasAlpha ? src.toDataURL('image/png') : src.toDataURL('image/jpeg',q);
+    if(hasAlpha) return src.toDataURL('image/png');   // JPEG não tem alpha: nem se cogita
+    if(opts.lossless){
+      const png=src.toDataURL('image/png');
+      if(png.length<=_DPSD_RASTER_LOSSLESS_MAX) return png;
+      console.warn('[psd] raster fiel acima do teto sem perdas ('+Math.round(png.length/1048576)+'MB) — caiu para JPEG');
+    }
+    return src.toDataURL('image/jpeg',q);
   }catch(e){ try{ return canvas.toDataURL('image/png'); }catch(_){ return null; } }
 }
 // Dimensões/origem da caixa de um node
@@ -1311,7 +1330,7 @@ function _dPsdParseFail(node, items, n, ox, oy, err, parentName, inh){
   console.warn('[psd] camada não parseável:', (node&&node.name)||'?', err);
   try{
     if(!node || !node.canvas || !node.canvas.width || !node.canvas.height) return;
-    const url=_dPsdRasterURL(node.canvas,{maxPx:2400,q:0.92});
+    const url=_dPsdRasterURL(node.canvas,{maxPx:2400,q:0.92,lossless:true});
     if(!url) return;
     const it={ n, name:String(node.name||('Camada '+n)).slice(0,48),
       x:Math.round((node.left||0)-(ox||0)), y:Math.round((node.top||0)-(oy||0)),
@@ -1334,7 +1353,7 @@ function _dPsdParseFail(node, items, n, ox, oy, err, parentName, inh){
 function _dPsdFlatItem(psd, w, h){
   try{
     if(!psd || !psd.canvas || !psd.canvas.width || !psd.canvas.height) return null;
-    const url=_dPsdRasterURL(psd.canvas,{maxPx:2400,q:0.92});
+    const url=_dPsdRasterURL(psd.canvas,{maxPx:2400,q:0.92,lossless:true});
     if(!url) return null;
     return { n:1, name:'Arte (PSD achatado)', x:0, y:0,
       w:Math.max(1, w||psd.width||psd.canvas.width),
@@ -1446,7 +1465,7 @@ function dPsdParseItems(psd, res, ox, oy){
         // imagem parece bug). Rotação/warp/smart object já se explicam pelo próprio visual.
         if(_dPsdTextOnPath(node)) it.textOnPath=true;
         else if(_dPsdIsFlippedLayer(node)) it.flipped=true;
-        it.imgUrl=_dPsdRasterURL(node.canvas,{maxPx:_fidCap,q:0.92}); // única fonte de fidelidade → alta qualidade
+        it.imgUrl=_dPsdRasterURL(node.canvas,{maxPx:_fidCap,q:0.92,lossless:true}); // única fonte de fidelidade → sem perdas
         if(it.imgUrl){
           // node.canvas NÃO traz os efeitos de camada (são vetoriais no PS) → re-aplica os simples
           // (sombra/glow/contorno/overlay — 1º de cada) sobre o pixel, p/ a sombra do smart object etc.
@@ -1633,7 +1652,7 @@ function dPsdParseItems(psd, res, ox, oy){
           || (it.gradientOverlay && it.gradientOverlay.blendMode)        // gradient overlay com blend
           || (it.kind==='text' && (it.innerShadow||it.innerGlow||it.bevel||it.gradientOverlay)) // efeitos que o texto não renderiza
           || (it.fillOpacity!=null && it.fillOpacity<1 && (it.shadow||it.innerShadow||it.glow||it.innerGlow||it.bevel||it.overlay||it.gradientOverlay||it.strokeW||it.layerEffects)); // fill-opacity + efeitos
-        if(_fxUnsup){ it.needsRaster=true; if(!it.imgUrl) it.imgUrl=_dPsdRasterURL(_pn.canvas,{maxPx:_fidCap,q:0.92}); }
+        if(_fxUnsup){ it.needsRaster=true; if(!it.imgUrl) it.imgUrl=_dPsdRasterURL(_pn.canvas,{maxPx:_fidCap,q:0.92,lossless:true}); }
       }
       items.push(it);
       }catch(err){ _dPsdParseFail(node, items, ++n, ox, oy, err, parentName, inh); }

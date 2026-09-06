@@ -54,6 +54,33 @@
     assert(items[0].opacity!==items[1].opacity,'as duas camadas voltaram com a mesma opacidade');
   });
 
+  /* ── Preservação do pixel importado (§5.2) ─────────────────────────────────────────────
+     A detecção de alpha era amostrada numa grade de 50×50 e o conteúdo "opaco" virava JPEG,
+     que não tem canal alpha. Recorte de borda fina passava por opaco e perdia a transparência
+     sem volta.                                                                              */
+  test('um pixel transparente fora da grade antiga não passa por opaco',()=>{
+    const k=document.createElement('canvas');k.width=k.height=512;
+    const x=k.getContext('2d');x.fillStyle='#c33';x.fillRect(0,0,512,512);
+    // (7,7): a grade antiga andava de 10 em 10 a partir de (0,0) e nunca olhava aqui.
+    x.clearRect(7,7,1,1);
+    assert(_dPsdHasAlpha(k),'a transparência de 1px foi lida como opaca — o JPEG a destruiria');
+  });
+
+  test('alpha 254 conta como transparência',()=>{
+    const k=document.createElement('canvas');k.width=k.height=8;
+    const x=k.getContext('2d');x.fillStyle='rgba(200,40,40,0.996)';x.fillRect(0,0,8,8);
+    assert(_dPsdHasAlpha(k),'o limiar antigo (250) tratava o antialias da borda do Photoshop como opaco');
+  });
+
+  test('raster de fonte única não passa por JPEG',()=>{
+    const k=document.createElement('canvas');k.width=k.height=64;
+    const x=k.getContext('2d');x.fillStyle='#1a4';x.fillRect(0,0,64,64);
+    assert(_dPsdRasterURL(k,{lossless:true}).indexOf('data:image/png')===0,
+      'a camada cujo pixel é a única fonte de verdade saiu recomprimida em JPEG');
+    assert(_dPsdRasterURL(k).indexOf('data:image/jpeg')===0,
+      'foto comum opaca deixou de usar JPEG — o custo de banda do franqueado não era pra mudar aqui');
+  });
+
   /* ── Honestidade do selo de fidelidade (§5.1) ──────────────────────────────────────────
      A medição por cobertura com tolerância ±16 anunciava 100% para uma arte inteira em cinza
      claro comparada com branco: cada pixel, isolado, cabia na tolerância.                  */
