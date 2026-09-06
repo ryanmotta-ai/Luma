@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Luma — regressão do importador PSD</title>
+  <title>Luma — contrato de exportação</title>
   <style>
     :root{color-scheme:light dark;font-family:system-ui,sans-serif;background:#111;color:#f5f5f5}
     body{max-width:920px;margin:40px auto;padding:0 24px}
@@ -13,16 +13,13 @@
   </style>
 </head>
 <body>
-  <h1>Regressão do importador PSD</h1>
+  <h1>Contrato de exportação</h1>
   <div class="summary" id="summary">Executando no motor real do navegador…</div>
   <ol id="results"></ol>
   <script src="../js/00-config.js"></script>
+  <script src="../js/core/layout.js"></script>
   <script src="../js/core/auto-layout.js"></script>
-  <script src="../js/designer/blending.js"></script>
-  <script src="../js/designer/psd-parse.js"></script>
-  <!-- O selo de fidelidade (_dPsdFidelity/_dPsdShowFidelity) mora na metade de tela do
-       importador. Carrega sem efeito colateral: o arquivo só declara funções. -->
-  <script src="../js/designer/psd-import.js"></script>
-  <script src="psd-import-cases.js"></script>
+  <script src="../js/franqueado/png-generator.js"></script>
+  <script src="export-cases.js"></script>
 </body>
 </html>

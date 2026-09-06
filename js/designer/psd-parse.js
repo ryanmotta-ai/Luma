@@ -1294,22 +1294,8 @@ function _dPsdAdjustmentInfo(adj){
   return {data,type,supported:_DPSD_ADJUST_SUPPORTED.has(type),approximate};
 }
 
-// Assinatura curta de um raster para o dedupe. O comprimento do dataURL sozinho não serve:
-// duas fotos DIFERENTES que por acaso comprimem para o mesmo tamanho eram vistas como
-// duplicata e a segunda desaparecia sem aviso.
-// Três blocos CONTÍGUOS (início, meio, fim) em vez de amostragem espaçada: com passo
-// uniforme, um byte diferente que caia entre duas amostras passa batido — foi o que um
-// teste com duas strings de mesmo tamanho mostrou. Bloco contíguo pega qualquer diferença
-// dentro dele, e o custo segue constante (3KB lidos, não o dataURL inteiro).
-function _dPsdImgSig(url){
-  if(!url) return '';
-  const L=url.length, B=1024;
-  let h=5381;
-  const bloco=(ini)=>{ const fim=Math.min(L, ini+B);
-    for(let i=Math.max(0,ini);i<fim;i++) h=((h<<5)+h+url.charCodeAt(i))|0; };
-  bloco(0); bloco((L>>1)-(B>>1)); bloco(L-B);
-  return L+':'+(h>>>0).toString(36);
-}
+// (_dPsdImgSig saiu em 05/09: era a assinatura de raster do dedupe por aparência, que agora
+//  é por identidade de nó. Nenhum outro caminho a usava.)
 
 /* ── PSD → itens intermediários (modo escolhível na revisão) ──
    dPsdItems/dPsdMeta/_dPsdAdjustCount vivem só em psd-import.js (estado real da revisão,
@@ -1654,14 +1640,19 @@ function dPsdParseItems(psd, res, ox, oy){
     });
   })(psd.children, 1, false, '', null);
   // Dedupe defensivo (NÃO altera grupos): 1 layer no Photoshop deve virar 1 item.
-  // Assinatura exata (tipo+nome+caixa+conteúdo) repetida → duplicata de parsing: descarta + avisa.
+  // A chave é a IDENTIDADE do nó do PSD, nunca a aparência. Duas camadas INTENCIONAIS podem ser
+  // iguais em tipo, nome, caixa e conteúdo e diferir só em opacity/blend/grupo — a assinatura por
+  // atributos apagava a segunda em silêncio (estudo de fidelidade 05/09 §5.7: dois textos iguais,
+  // um a 100% e outro a 50%, voltavam como UM item). Só é duplicata quando o MESMO nó foi
+  // percorrido duas vezes; aí é bug de parsing, não decisão do designer.
+  // Assimetria que manda aqui: camada perdida é invisível e irreversível; camada sobrando o
+  // designer vê na revisão e desmarca.
   const _seen=new Set(); const out=[];
   items.forEach(it=>{
-    // Inclui cor e tamanho do raster: sem isso, dois retângulos "Faixa" de mesma caixa mas cores
-    // diferentes (ou duas fotos no mesmo frame) eram vistos como duplicata e o 2º sumia.
-    const sig=it.kind+'|'+it.name+'|'+it.x+'|'+it.y+'|'+it.w+'|'+it.h+'|'+(it.content||'')+'|'+(it.fill||'')+'|'+(it.adjustment?JSON.stringify(it.adjustment):'')+'|'+_dPsdImgSig(it.imgUrl);
-    if(_seen.has(sig)){ console.warn('[psd] layer duplicada descartada (assinatura idêntica):', it.name); return; }
-    _seen.add(sig); out.push(it);
+    const node=it._psdNode;
+    if(node && _seen.has(node)){ console.warn('[psd] nó do PSD percorrido duas vezes, item duplicado descartado:', it.name); return; }
+    if(node) _seen.add(node);
+    out.push(it);
   });
   // Aviso (NÃO remove): textos com mesmo nome+conteúdo em caixas diferentes — pode ser sombra/contorno
   // manual do designer (2 layers reais) ou duplicação inesperada. Mantém ambas para decisão na revisão.

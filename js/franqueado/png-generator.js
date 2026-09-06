@@ -31,16 +31,25 @@ function fMaterialSize(material, fmt){
   const id=(fmt&&fmt.id)||(material&&material.fmt)||'story';
   return fmtMap[id]||[1080,1920];
 }
-async function fRenderCanvasHelper(d,c,fmt){
+/* ── ESCALA DE EXPORTAÇÃO ────────────────────────────────────────────────────────────────
+   2× é o PADRÃO (super-sampling: PNG mais nítido pra tela, zoom e impressão), não uma verdade
+   da arte — a prancheta de 1080×1350 continua sendo 1080×1350. O modo NATIVO (1×) existe
+   porque comparar a saída com o composto do Photoshop exige as MESMAS dimensões: 2160×2700 ao
+   lado de 1080×1350 é outra resolução, não é igualdade pixel a pixel (estudo de fidelidade
+   05/09 §5.8). Quem quiser outra escala passa `{scale:N}`; o 2× deixa de ser número na mão.
+   ⚠ `fRenderMaterialToDataURL` (Sheets) NÃO usa isto: lá o 2× é só anti-serrilhado, a saída
+   já é nativa porque ele reduz de volta antes de gerar o dataURL.                          */
+const F_EXPORT_SCALE_DEFAULT = 2;
+function fExportScale(opts){
+  const s = opts && +opts.scale;
+  return (s > 0) ? s : F_EXPORT_SCALE_DEFAULT;
+}
+async function fRenderCanvasHelper(d,c,fmt,opts){
   const [w,h]=fMaterialSize(fState.material, fmt);
 
   // ─── CAMINHO NOVO: renderiza layers do template publicado pelo designer ───
   if(fState.material && fState.material.layers && fState.material.layers.length){
-    // Exporta em 2× a resolução nativa. Antes renderizava 2× e fazia downscale de
-    // volta pro nativo — o dobro de pixel era jogado fora, servindo só de anti-serrilhado.
-    // Manter o 2× = PNG bem mais nítido pra tela/zoom/impressão. Custo zero de storage:
-    // o PNG só existe no clique de baixar, não fica salvo. w/h nativos seguem sendo a base.
-    const SCALE = 2;
+    const SCALE = fExportScale(opts);
     const renderCv = document.createElement('canvas');
     renderCv.width = w * SCALE;
     renderCv.height = h * SCALE;
@@ -127,8 +136,9 @@ async function fRenderCanvasHelper(d,c,fmt){
   return cv;
 }
 
-async function fGenPNG(d,c,fmt){
-  const canvas = await fRenderCanvasHelper(d,c,fmt);
+// opts.scale: 1 = tamanho nativo da prancheta; ausente = o 2× padrão.
+async function fGenPNG(d,c,fmt,opts){
+  const canvas = await fRenderCanvasHelper(d,c,fmt,opts);
   const a=document.createElement('a');
   a.download=fBuildFilename(c,fmt,d);
   a.href=canvas.toDataURL('image/png');
@@ -136,14 +146,14 @@ async function fGenPNG(d,c,fmt){
   if(typeof window.gPlayExportSuccessSound==='function') window.gPlayExportSuccessSound();
 }
 
-async function fGenPDF(d,c,fmt){
+async function fGenPDF(d,c,fmt,opts){
   // pdf-lib sai do boot (513KB) e é buscada aqui, no primeiro PDF da sessão.
   // O porquê está no bloco do `gPdfLibPronta` no `index.html`.
   if (typeof window.gPdfLibPronta === 'function') await window.gPdfLibPronta();
   if(!window.PDFLib) {
     throw new Error('Biblioteca pdf-lib não está disponível.');
   }
-  const canvas = await fRenderCanvasHelper(d,c,fmt);
+  const canvas = await fRenderCanvasHelper(d,c,fmt,opts);
   const pngDataUrl = canvas.toDataURL('image/png');
   
   // Cria documento PDF

@@ -677,12 +677,22 @@ function _dPsdFidelity(rendered, ref, ordered, metaW, metaH){
     const A=tx.getImageData(0,0,w,h).data;
     const B=ref.getContext('2d').getImageData(0,0,w,h).data;
     // Mapa de divergência por pixel (1/0), reaproveitado no ranking por camada.
-    const bad=new Uint8Array(w*h); let nBad=0;
+    const bad=new Uint8Array(w*h); let nBad=0, nExact=0, sumErr=0;
     for(let p=0,i=0;p<bad.length;p++,i+=4){
-      const d=(Math.abs(A[i]-B[i])+Math.abs(A[i+1]-B[i+1])+Math.abs(A[i+2]-B[i+2]))/3;
+      // MAIOR desvio de canal, não a média dos três: a média dilui um canal inteiro errado
+      // (azul virando roxo entra com 1/3 do peso e cabe na tolerância).
+      const d=Math.max(Math.abs(A[i]-B[i]), Math.abs(A[i+1]-B[i+1]), Math.abs(A[i+2]-B[i+2]));
+      sumErr+=d; if(d===0) nExact++;
       if(d>_DPSD_FID_TOL){ bad[p]=1; nBad++; }
     }
-    const pct=Math.max(0, Math.min(100, Math.round(100-(nBad/bad.length)*100)));
+    const total=bad.length;
+    const meanErr=sumErr/total;
+    // 100% exige DUAS provas: nenhum pixel fora da tolerância E erro médio de ruído (≤1).
+    // Sem a segunda, a arte inteira deslocada 15/255 (cinza claro no lugar do branco) passava por
+    // "Fidelidade 100%" — cada pixel, isolado, cabia na tolerância. E `round` subia: 0,4% dos
+    // pixels divergindo virava 100%. Por isso o resto do caminho é `floor` com teto em 99.
+    const pct=(nBad===0 && meanErr<=1) ? 100 : Math.max(0, Math.min(99, Math.floor(100-(nBad/total)*100)));
+    const exactPct=Math.floor(nExact/total*100);   // pixels IDÊNTICOS — a única evidência de igualdade
     // Culpa por camada. Atribuir por SOBREPOSIÇÃO de caixa não serve: o fundo cobre a arte
     // inteira e herdaria a divergência de todo mundo — apareceria sempre no pódio sendo
     // pixel-perfeito. Cada pixel pertence à camada mais ao TOPO cuja caixa o contém (a última
@@ -700,7 +710,7 @@ function _dPsdFidelity(rendered, ref, ordered, metaW, metaH){
     for(let p=0;p<owner.length;p++){ const k=owner[p]; if(k<0) continue; tot[k]++; if(bad[p]) div[k]++; }
     const worst=list.map((o,k)=>(tot[k]<16)?null:{idx:o.i, name:o.it.name, pct:Math.round(div[k]/tot[k]*100)})
       .filter(o=>o&&o.pct>=8).sort((a,b)=>b.pct-a.pct).slice(0,3);
-    return {pct, worst};
+    return {pct, exactPct, meanErr:Math.round(meanErr*10)/10, worst};
   }catch(e){ return null; } // canvas contaminado / sem composto: some o número, o import segue
 }
 // Pinta o resultado: o selo do painel de prévia vira a medição real e as 3 piores camadas
@@ -709,11 +719,21 @@ function _dPsdShowFidelity(rep){
   document.querySelectorAll('#d-psd-rows .psd-fid-badge').forEach(el=>el.remove()); // medição anterior
   const badge=document.querySelector('#d-psd-modal .psd-fidelity-badge');
   if(!badge) return;
-  if(!rep){ badge.innerHTML='<span></span>Fiel ao arquivo'; badge.removeAttribute('title'); return; }
+  // Ausência de referência NÃO é aprovação. O selo antigo dizia "Fiel ao arquivo" quando o PSD
+  // sequer trazia composto para comparar — anunciava como fato o que nunca foi medido.
+  if(!rep){
+    badge.innerHTML='<span style="background:var(--d-text3)"></span>Não verificado';
+    badge.title='Este arquivo não trouxe um composto do Photoshop para comparar — nada foi medido. Sem referência não há aprovação.';
+    return;
+  }
   // Semáforo por token (nunca hex): verde bate, laranja merece olhada, vermelho pede ação.
-  const dot=rep.pct>=95?'var(--green)':(rep.pct>=85?'var(--dm-orange)':'var(--dm-red)');
-  badge.innerHTML='<span style="background:'+dot+'"></span>Fidelidade '+rep.pct+'%';
-  badge.title='Comparação com o composto do Photoshop: '+rep.pct+'% dos pixels batem.'
+  // O erro médio entra no verde porque cobertura sozinha mente: um desvio uniforme abaixo da
+  // tolerância deixa 100% dos pixels "dentro" com a arte inteira na cor errada.
+  const dot=(rep.pct>=95&&rep.meanErr<=4)?'var(--green)':(rep.pct>=85?'var(--dm-orange)':'var(--dm-red)');
+  badge.innerHTML='<span style="background:'+dot+'"></span>Fidelidade visual '+rep.pct+'%';
+  badge.title='Comparação reduzida (400 px, tolerância ±'+_DPSD_FID_TOL+' por canal) com o composto do Photoshop: '
+    +rep.pct+'% dos pixels batem dentro da tolerância, '+rep.exactPct+'% são idênticos, erro médio '+rep.meanErr+' de 255. '
+    +'É aprovação visual, não prova de igualdade exata.'
     +(rep.worst.length?(' Maior divergência: '+rep.worst.map(o=>o.name+' ('+o.pct+'%)').join(', ')+'.')
                       :' Nenhuma camada com divergência relevante.');
   // Marca as linhas direto no DOM em vez de re-renderizar a lista: dPsdRenderRows dispara

@@ -41,6 +41,42 @@
     assert(layer.textBox!=='box','o bbox justo voltou a quebrar R$ como caixa de parágrafo');
   });
 
+  /* ── Integridade da importação (estudo de fidelidade 05/09, §5.7) ───────────────────────
+     O dedupe antigo era por APARÊNCIA: duas camadas reais com mesmo nome, caixa e conteúdo
+     viravam uma só. Perder camada é silencioso e irreversível — a chave passou a ser a
+     identidade do nó do PSD.                                                              */
+  test('duas camadas iguais com opacidades diferentes continuam duas',()=>{
+    const no=(op)=>({name:'Preço',left:40,top:60,right:240,bottom:120,opacity:op,
+      text:{text:'R$ 19,90',shapeType:'point',transform:[1,0,0,1,0,0],
+        style:{fontSize:36},paragraphStyle:{justification:'left'}}});
+    const items=dPsdParseItems({children:[no(1),no(0.5)],width:1080,height:1350},72,0,0);
+    assert(items.length===2,'o dedupe apagou uma camada real do designer (voltaram '+items.length+' item[ns])');
+    assert(items[0].opacity!==items[1].opacity,'as duas camadas voltaram com a mesma opacidade');
+  });
+
+  /* ── Honestidade do selo de fidelidade (§5.1) ──────────────────────────────────────────
+     A medição por cobertura com tolerância ±16 anunciava 100% para uma arte inteira em cinza
+     claro comparada com branco: cada pixel, isolado, cabia na tolerância.                  */
+  test('cinza claro contra branco não é anunciado como 100%',()=>{
+    const chapa=(cor)=>{const k=document.createElement('canvas');k.width=k.height=64;
+      const x=k.getContext('2d');x.fillStyle=cor;x.fillRect(0,0,64,64);return k;};
+    const rep=_dPsdFidelity(chapa('#f0f0f0'),chapa('#ffffff'),[],64,64);
+    assert(rep,'a medição não devolveu relatório');
+    assert(rep.pct<100,'240 contra 255 voltou como 100% fiel — era o furo do selo');
+    assert(rep.exactPct===0,'nenhum pixel é idêntico, mas o relatório disse que há');
+  });
+
+  test('sem referência o selo mostra não verificado',()=>{
+    const host=document.createElement('div');host.id='d-psd-modal';
+    host.innerHTML='<span class="psd-fidelity-badge"><span></span>Fiel ao arquivo</span>';
+    document.body.appendChild(host);
+    try{
+      _dPsdShowFidelity(null);
+      const texto=host.querySelector('.psd-fidelity-badge').textContent;
+      assert(/não verificado/i.test(texto),'sem composto para comparar, o selo continuou aprovando o arquivo: "'+texto+'"');
+    }finally{ host.remove(); }
+  });
+
   let passed=0;
   const falhas=[];
   for(const item of cases){

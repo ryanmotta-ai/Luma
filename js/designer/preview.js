@@ -1036,10 +1036,8 @@ async function dConfirmExport() {
        }
     }
     
-    // Configura formato e escala para a preview/SVG/PSD
-    if(fmt === 'psd') {
-      await dRunPsdExportMotion();
-    } else if(fmt === 'svg') {
+    // Configura formato e escala para a preview/SVG
+    if(fmt === 'svg') {
       if(typeof dExportSVGFilled === 'function') {
          dExportSVGFilled(); 
       }
@@ -1053,39 +1051,12 @@ async function dConfirmExport() {
     await new Promise(r => setTimeout(r, 600)); // Tempo razoável para download e processamento
   }
 
-async function dRunPsdExportMotion(){
-  const overlay = document.getElementById('psd-export-motion-overlay');
-  const bar = document.getElementById('psd-export-bar');
-  const log = document.getElementById('psd-export-log');
-  if(!overlay) return;
+/* O botão "PSD (Photoshop)" saiu em 05/09 (estudo de fidelidade §5.9, ticket 6). Ele não
+   escrevia PSD nenhum: rodava uma barra de progresso encenada ("Empacotando estrutura .PSD…"),
+   chamava o MESMO `dExportSVGFilled()` do botão SVG ao lado e avisava "Arquivo do Photoshop
+   (.PSD) exportado com sucesso". Entregava um .svg anunciando .psd — a interface tem que
+   prometer o que entrega. Escrever PSD de verdade é outra iniciativa, não um rótulo. */
 
-  overlay.style.display = 'flex';
-  if(bar) bar.style.width = '0%';
-  if(log) log.textContent = '[1/4] Compilando árvore de camadas nativas...';
-
-  await new Promise(r => setTimeout(r, 450));
-  if(bar) bar.style.width = '35%';
-  if(log) log.textContent = '[2/4] Mapeando modos de mesclagem e máscaras alfa...';
-
-  await new Promise(r => setTimeout(r, 550));
-  if(bar) bar.style.width = '75%';
-  if(log) log.textContent = '[3/4] Empacotando estrutura .PSD do Photoshop...';
-
-  await new Promise(r => setTimeout(r, 600));
-  if(bar) bar.style.width = '100%';
-  if(log) log.textContent = '[4/4] Arquivo Photoshop gerado com sucesso!';
-
-  // Executa o download da estrutura de camadas (via SVG com vetorização de camadas ou export nativo)
-  if(typeof dExportSVGFilled === 'function') {
-    dExportSVGFilled();
-  }
-
-  await new Promise(r => setTimeout(r, 600));
-  overlay.style.display = 'none';
-  if(typeof window.gPlayExportSuccessSound === 'function') window.gPlayExportSuccessSound();
-  if(typeof gToast === 'function') gToast('Arquivo do Photoshop (.PSD) exportado com sucesso!');
-}
-  
   // Restaura a prancheta original
   if (typeof dArtboards !== 'undefined' && originalAbId && originalAbId !== dActiveABId) {
        const ab = dArtboards.find(a => a.id === originalAbId);
