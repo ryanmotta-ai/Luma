@@ -137,27 +137,31 @@ franqueado (o Quick Add em linguagem natural existiu e saiu em 03/09).
 | Tubulação de IA | `js/core/ai.js` (`gAskAI:78`) | Ninguém monta `fetch` para o modelo na mão |
 | Tokens | `css/00-tokens.css` | Cor e motion nascem aqui |
 
-### ⚠️ O render NÃO é um motor único — são quatro (medido em 2026-09-03)
+### ⚠️ O render de raster virou UM só em 05/09 — o DOM e o SVG continuam à parte
 
-O `02_ARCHITECTURE` §4 promete "um único motor de render, três alvos". **O código diz outra
-coisa.** Existem quatro implementações independentes de "desenhar uma camada":
+O `02_ARCHITECTURE` §4 promete "um único motor de render, três alvos". Até 05/09/2026 o código
+tinha **quatro** implementações de "desenhar uma camada". A do Estúdio saiu:
 
 | Caminho | Onde | Serve |
 |---|---|---|
-| DOM absoluto | `js/designer/canvas.js:1107` (`dRenderCanvas`) | edição no Estúdio |
-| Canvas 2D nº 1 | `js/designer/preview.js:145` (`pvRenderLayer`, ~225 linhas) | prévia e export do Estúdio |
-| Canvas 2D nº 2 | `js/franqueado/png-generator.js:675` (`fRenderOneLayer`, ~536 linhas) | prévia do franqueado e PNG final |
+| **Canvas 2D — o motor** | `js/franqueado/png-generator.js:675` (`fRenderOneLayer`, ~536 linhas) | PNG do franqueado, prévia do franqueado **e agora a prévia e o PNG/JPG do Estúdio** |
+| DOM absoluto | `js/designer/canvas.js:1107` (`dRenderCanvas`) | edição no Estúdio (seleção, arrasto, hit-test) |
 | SVG | `js/designer/preview.js:523+` (`dSvgShape`/`dSvgText`/`dSvgFx`, ~563 linhas) | export vetorial |
 
-`preview.js` **não chama** `fRenderTemplateLayers` em lugar nenhum — é renderizador paralelo
-vivo, entrando por `dPreviewOpen`. E `measureText` (quebra de linha, a parte difícil) aparece
-em **6 arquivos**.
+`js/designer/preview.js` entra no motor por **`pvRenderViaMotor`**, usado pelos dois pontos de
+saída (`pvRender` e `_pvRenderToBlobNow`). `pvRenderLayers`/`pvRenderLayer` continuam no arquivo
+como **rede** para o caso de `png-generator.js` não ter carregado — não são mais o caminho normal
+e **não devem receber feature nova**. `measureText` ainda aparece em 6 arquivos.
 
-**Consequência prática ao mexer em composição:** feature nova de camada (grupo, clipping,
-máscara, blend, efeito) precisa nascer em **todos os caminhos que a exibem**, ou a prévia
-passa a divergir do arquivo final. Foi assim que a composição de grupo do PSD ficou meio
-caminho. Ponto de entrada de cada caminho está na tabela acima — comece por `fRenderOneLayer`
-(é o que o franqueado baixa) e confira o espelho no `pvRenderLayer`.
+**O que mudou na prática:** o ajuste de cor (que a prévia do Estúdio ignorava por inteiro) e a
+opacidade de grupo (aplicada filho a filho, em vez de no composto) passaram a bater com o arquivo
+final. Medido em `tests/_paridade-render.js`: ajuste 100% → 0% dos pixels divergindo, grupo com
+opacidade 22,7% → 0%.
+
+**Consequência ao mexer em composição:** feature nova de camada nasce em `fRenderOneLayer`. Se
+ela precisar aparecer na edição, o espelho é o DOM do `canvas.js`; se precisar sair em vetor, o
+`dSvg*`. Antes de dar por fechado, rode `node scripts/run-browser-tests.js _paridade` — é a
+bancada que mede a distância entre o que o Estúdio mostra e o que o franqueado baixa.
 
 ---
 
@@ -192,8 +196,10 @@ CHROMIUM_PATH=/caminho/chrome node scripts/run-browser-tests.js
 | `tests/auto-layout.html` | invariantes do solver de layout | 34 |
 | `tests/corpus.html` | corpus de composições reais + golden de geometria | 18 |
 | `tests/fuzz.html` | exceção, `NaN`, laço que não converge, bloqueio sem diagnóstico | 63 |
-| `tests/psd-import.html` | regressão do importador de PSD | 4 |
-| `tests/_bancada.html` | bancada de sondagem (exploração, não é portão) | — |
+| `tests/psd-import.html` | regressão do importador de PSD (geometria de texto, alpha, raster, selo de fidelidade) | 10 |
+| `tests/export.html` | contrato de saída: dimensões e escala do que o franqueado baixa | 3 |
+| `tests/_bancada.html` | bancada de sondagem do Auto-layout (exploração, não é portão) | — |
+| `tests/_paridade-render.html` | bancada: distância entre a saída do Estúdio e a do franqueado | — |
 
 **Como respeita a 1ª lei:** o runner fala DevTools Protocol direto, com o WebSocket nativo do
 Node 22 e o Chromium que já existe na máquina. Zero dependência, nenhum `npm install`, nada
@@ -226,7 +232,7 @@ esses a verificação continua sendo o navegador. Suíte verde não substitui ab
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 72 arquivos JS (57.360 linhas, 2.290 funções) · 32 arquivos CSS (27.889 linhas) · `index.html` com 3.775 linhas e 74 `<script>`.
+**Tamanho real de hoje:** 72 arquivos JS (57.385 linhas, 2.290 funções) · 32 arquivos CSS (27.889 linhas) · `index.html` com 3.775 linhas e 74 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -431,7 +437,7 @@ Ferramentas de medição e amostragem do designer Luma, inspiradas no Photoshop.
 · API: dEyedropPixel, dEyedropPreview, dEyedropHidePreview, dColorSamplerAdd, dColorSamplerRemove, dColorSamplerRender, dColorSamplerClear, dRulerStart, dRulerMove, dRulerEnd, dRulerClear, dNoteAdd, dNoteRender, dNoteRemove … (+8; 27 funções no total)
 · Depende de: designer/canvas.js, designer/layers.js, designer/tools.js,
 
-**`js/designer/preview.js`** · 1074 linhas
+**`js/designer/preview.js`** · 1080 linhas
 Preview engine do designer: pvRender, pvRenderLayers, pvRenderLayer, dPreviewOpen, dPreviewClose, dPreviewSetFmt, dPreviewDownload.
 · API: dPreviewSetScale, dPreviewSetType, dPreviewOpen, dPreviewClose, dPreviewSetFmt, dPreviewSetDevice, pvRender, pvRenderLayers, pvRenderLayer, pvRenderFramePlaceholder, pvRoundRect, pvApplyDevice, pvUpdateSidebar, dBuildTemplateFilename … (+20; 39 funções no total)
 · Depende de: designer/canvas.js, designer/layers.js
@@ -445,9 +451,10 @@ REVISÃO e IMPORTAÇÃO do .psd — a metade do importador que é tela.
 · API: dPsdOpenReview, dPsdRenderRows, dPsdSetMode, dPsdSetVar, dPsdSetInclude, dPsdSelectAll, dPsdSelectNone, dPsdUploadFont, dPsdUpdateCount, dPsdCancel, dPsdConfirmImport, dImportLayersAsArtboard, dPsdRenderPreview, dPsdHoverLayer … (+18; 82 funções no total)
 · Depende de: designer/templates.js, core/layout.js, core/toast.js, 00-config.js.
 
-**`js/designer/psd-parse.js`** · 1891 linhas
+**`js/designer/psd-parse.js`** · 1910 linhas
 LEITURA e FIDELIDADE do .psd — a metade do importador que não toca a tela.
 · API: dLoadAgPsd, dPsdCancelLoad, dPsdDetectFmt, dPsdParseItems, dItemToLayer, dPsdItemsToLayers
+· Estado global: _agPsdPromise, _dPsdGlobalLight, _dPsdYieldChan, _dPsdCancelled, _dPsdActiveWorker, _dPsdErrorCount
 
 **`js/designer/publish.js`** · 1464 linhas
 Modal de publicacao de templates (4 abas): dPublishOpen, dPublishClose, dPublishSwitchTab, dPublishRender, dPublishConfirm.

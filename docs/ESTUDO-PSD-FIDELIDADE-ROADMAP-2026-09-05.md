@@ -237,14 +237,24 @@ A preparação manual de blocos no Photoshop pode começar na fase 1 para valida
 
 ### Primeiros tickets, pequenos e revisáveis
 
-| Ordem | Ticket | Arquivos de foco | Aceite |
-|---|---|---|---|
-| 1 | Impedir 100% indevido e aprovação sem referência | `psd-import.js` + fixture de fidelidade | RGB 240/255 não é igualdade exata; sem referência mostra não verificado |
-| 2 | Preservar camadas legítimas repetidas | `psd-parse.js` + `tests/psd-import-cases.js` | Dois nós intencionais continuam dois, inclusive com opacity/blend/grupo diferentes |
-| 3 | Formalizar escala nativa de exportação | `png-generator.js` + teste de saída | 1080×1350 exporta 1080×1350 no modo nativo; 2× continua opção explícita |
-| 4 | Separar original raster de preview reduzido | `psd-parse.js` + teste de raster | O export não usa JPEG nem thumbnail no modo exato; validar persistência antes de expandir |
-| 5 | Migrar PNG/prévia do Estúdio para o render existente | `preview.js` + teste de paridade | Grupo + máscara + multiply + ajuste + texto ficam iguais entre saídas |
-| 6 | Corrigir a promessa de export PSD | `preview.js` | A interface anuncia e entrega o formato real; writer PSD fica fora deste ticket |
+| Ordem | Ticket | Arquivos de foco | Aceite | Estado |
+|---|---|---|---|---|
+| 1 | Impedir 100% indevido e aprovação sem referência | `psd-import.js` + fixture de fidelidade | RGB 240/255 não é igualdade exata; sem referência mostra não verificado | ✅ 05/09 |
+| 2 | Preservar camadas legítimas repetidas | `psd-parse.js` + `tests/psd-import-cases.js` | Dois nós intencionais continuam dois, inclusive com opacity/blend/grupo diferentes | ✅ 05/09 |
+| 3 | Formalizar escala nativa de exportação | `png-generator.js` + teste de saída | 1080×1350 exporta 1080×1350 no modo nativo; 2× continua opção explícita | ✅ 05/09 (sem UI de escolha) |
+| 4 | Separar original raster de preview reduzido | `psd-parse.js` + teste de raster | O export não usa JPEG nem thumbnail no modo exato; validar persistência antes de expandir | ◐ 05/09 — alpha exato e PNG sem perdas onde o pixel é fonte única; **falta** o par original+miniatura (decisão de custo de Storage) |
+| 5 | Migrar PNG/prévia do Estúdio para o render existente | `preview.js` + teste de paridade | Grupo + máscara + multiply + ajuste + texto ficam iguais entre saídas | ✅ 05/09 — `pvRenderViaMotor`; bancada em `tests/_paridade-render.js` zerada |
+| 6 | Corrigir a promessa de export PSD | `preview.js` | A interface anuncia e entrega o formato real; writer PSD fica fora deste ticket | ✅ 05/09 — botão removido (era o SVG com encenação) |
+
+**Achado fora do plano, corrigido junto:** `pvRoundRect` não chamava `beginPath()` no canto reto,
+então cada `fill()` repintava as caixas anteriores com a mesclagem da camada atual — uma camada em
+multiply escurecia a prancheta inteira na prévia e no PNG do Estúdio. Uma linha; 80% → 0% de
+divergência na bancada de paridade.
+
+**O que continua aberto da fase 0/1:** o pacote de referência (PSD + PNG do Photoshop por
+prancheta) não existe no repositório, então a comparação integral em resolução de saída (§8) e o
+corpus de 20–30 pranchetas seguem sem base. Sem esses arquivos, o selo mede a prévia contra o
+composto reduzido — melhor que antes, longe de certificação.
 
 O limite é 1–2 arquivos de produção por patch, subdividindo o trabalho quando houver dependências. Testes podem exigir fixtures próprias. Mudanças no core passam por plano/diff e revisão conforme as regras do projeto. Não renomear prefixos/IDs, não adicionar build/framework e não criar novo renderer paralelo.
 
