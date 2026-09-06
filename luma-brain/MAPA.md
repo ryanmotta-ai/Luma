@@ -232,7 +232,7 @@ esses a verificação continua sendo o navegador. Suíte verde não substitui ab
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 72 arquivos JS (57.385 linhas, 2.290 funções) · 32 arquivos CSS (27.889 linhas) · `index.html` com 3.775 linhas e 74 `<script>`.
+**Tamanho real de hoje:** 72 arquivos JS (57.449 linhas, 2.293 funções) · 32 arquivos CSS (27.889 linhas) · `index.html` com 3.775 linhas e 74 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -437,9 +437,9 @@ Ferramentas de medição e amostragem do designer Luma, inspiradas no Photoshop.
 · API: dEyedropPixel, dEyedropPreview, dEyedropHidePreview, dColorSamplerAdd, dColorSamplerRemove, dColorSamplerRender, dColorSamplerClear, dRulerStart, dRulerMove, dRulerEnd, dRulerClear, dNoteAdd, dNoteRender, dNoteRemove … (+8; 27 funções no total)
 · Depende de: designer/canvas.js, designer/layers.js, designer/tools.js,
 
-**`js/designer/preview.js`** · 1080 linhas
+**`js/designer/preview.js`** · 1119 linhas
 Preview engine do designer: pvRender, pvRenderLayers, pvRenderLayer, dPreviewOpen, dPreviewClose, dPreviewSetFmt, dPreviewDownload.
-· API: dPreviewSetScale, dPreviewSetType, dPreviewOpen, dPreviewClose, dPreviewSetFmt, dPreviewSetDevice, pvRender, pvRenderLayers, pvRenderLayer, pvRenderFramePlaceholder, pvRoundRect, pvApplyDevice, pvUpdateSidebar, dBuildTemplateFilename … (+20; 39 funções no total)
+· API: dPreviewSetScale, dPreviewSetType, dPreviewOpen, dPreviewClose, dPreviewSetFmt, dPreviewSetDevice, pvRender, pvRenderViaMotor, pvSimDados, pvRenderLayers, pvRenderLayer, pvRenderFramePlaceholder, pvRoundRect, pvApplyDevice … (+22; 41 funções no total)
 · Depende de: designer/canvas.js, designer/layers.js
 
 **`js/designer/props-panel.js`** · 2358 linhas
@@ -466,10 +466,9 @@ Ferramentas avançadas de seleção inspiradas no Photoshop: 1. Object Selection
 · API: dIsLayerVisible, dObjSelectStart, dObjSelectMove, dObjSelectEnd, dQuickSelectAt, dQuickSelectCoordsFromEvent, dMagicWandAt, dRenderSelectionOverlay, dObjSelectInRect, dMagicWandSelect
 · Depende de: designer/canvas.js, designer/layers.js
 
-**`js/designer/templates.js`** · 3442 linhas
+**`js/designer/templates.js`** · 3467 linhas
 Estado e CRUD de templates/pastas: dFolders, dInit, dRenderFolders, dLoadTemplateById, dBuildLayers, dLoadTemplate, dOpenNewFolder, dConfirmTemplate.
-· API: dSyncLyrCnt, dBuildMockLayersForCamp, dDefaultFolders, dBuildShowcaseLayers, dPreloadFolders, dDefaultPublishMeta, dExtractTemplateVars, dBuildLayers, dBuildBlankLayers, dBuildBlankLayersWH, dGetActiveAB, dSyncLayersToAB, dSetActiveAB, dNewArtboard … (+136; 159 funções no total)
-· Estado global: dDeckViews, dDeckSwitching
+· API: dSyncLyrCnt, dBuildMockLayersForCamp, dDefaultFolders, dBuildShowcaseLayers, dPreloadFolders, dDefaultPublishMeta, dExtractTemplateVars, dBuildLayers, dBuildBlankLayers, dBuildBlankLayersWH, dGetActiveAB, dSyncLayersToAB, dSetActiveAB, dNewArtboard … (+137; 160 funções no total)
 · Depende de: 00-config.js
 
 **`js/designer/tools.js`** · 362 linhas

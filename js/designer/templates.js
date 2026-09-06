@@ -3157,7 +3157,7 @@ function dRenderPageDeck(){
     const size=DFMT_SIZES[tmpl.fmt]||DFMT_SIZES.story;
     card.dataset.width=tmpl.w>0?tmpl.w:size.w;card.dataset.height=tmpl.h>0?tmpl.h:size.h;
     const preview=document.createElement('div');preview.className='d-deck-preview';preview.setAttribute('aria-hidden','true');
-    if(tmpl._needsLayersFetch){preview.textContent=tmpl.name;preview.classList.add('d-deck-placeholder');}
+    if(tmpl._needsLayersFetch){preview.textContent=tmpl.name;preview.classList.add('d-deck-placeholder');dDeckPrefetchLayers(tmpl);}
     else dRenderTemplateToDOM(preview,tmpl);
     card.replaceChildren(preview);if(fresh)deck.appendChild(card);
   });
@@ -3171,6 +3171,31 @@ function dRenderPageDeck(){
   button('Próximo material','m9 18 6-6-6-6',()=>dSwitchPage(pages[index+1].id),index===pages.length-1);
   button('Adicionar material','M12 5v14M5 12h14',()=>dAddPageAfterCurrent());
   dPositionPageDeck();
+}
+// O catálogo leve baixa a lista de materiais SEM layers (`_needsLayersFetch`) — só o material
+// que o designer abre no editor recebe o fetch completo (`dLoadTemplate`). O baralho mostra o
+// vizinho sem abri-lo nele, então antes desta função o card ficava uma chapa lisa da cor de
+// fundo: nem placeholder de texto aparecia de forma legível (blur + rotação + opacidade .65
+// em cima de texto centralizado). Busca os layers em segundo plano — mesma query do lazy-load
+// do editor, sem o overlay de carregamento, porque isto é decoração do baralho, não uma ação
+// do usuário — e redesenha só o card que ainda está visível quando a resposta chega.
+const _dDeckFetching=new Set();
+async function dDeckPrefetchLayers(tmpl){
+  if(!tmpl||!tmpl.remoteId||!tmpl._needsLayersFetch||_dDeckFetching.has(tmpl.id))return;
+  const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
+  if(!sb)return; // offline ou sem backend: o card fica no nome, sem toast — ninguém pediu essa busca
+  _dDeckFetching.add(tmpl.id);
+  try{
+    const {data,error}=await sb.schema('luma').from('templates').select('layers').eq('id',tmpl.remoteId).single();
+    if(!error && data && Array.isArray(data.layers)){
+      tmpl.layers=data.layers; tmpl._needsLayersFetch=false;
+      if(typeof dPersistFolders==='function') dPersistFolders(); // próxima visita ao baralho já chega pronta
+      const deck=document.getElementById('d-page-deck');
+      const aindaVisivel=deck && Array.from(deck.children).some(c=>c.dataset.id===tmpl.id);
+      if(aindaVisivel) dRenderPageDeck(); // o usuário pode ter navegado enquanto a busca corria
+    }
+  }catch(e){ /* falha de rede: fica no nome — não é ação do usuário, não interrompe nada */ }
+  finally{ _dDeckFetching.delete(tmpl.id); }
 }
 function dPositionPageDeck(){
   const deck=document.getElementById('d-page-deck');
