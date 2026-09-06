@@ -1723,6 +1723,7 @@ function _fLpUpdateFramingHUD(){
 }
 function fLpStartFraming(l,v){
   const canvas=document.getElementById('lp-canvas'); const wrap=canvas&&canvas.closest('.lp-canvas-wrap'); if(!wrap) return;
+  document.getElementById('lp-frame-hud')?.remove();
   _lpFraming={layer:l,varName:v};
   const init=(fState.dados&&fState.dados['__fit__'+v])||{scale:(l.imgScale||1),offX:(l.imgOffsetX||0),offY:(l.imgOffsetY||0)};
   fState.dados['__fit__'+v]={scale:init.scale||1,offX:init.offX||0,offY:init.offY||0};
@@ -1810,6 +1811,24 @@ function fLpStartFraming(l,v){
   };
   ov.querySelector('#lp-frame-done').onclick=()=>fLpStopFraming();
 
+  // O card recorta a arte e recebe pan/zoom: os controles precisam ficar fora dele.
+  // Como irmão do palco, o HUD reserva espaço e nunca cobre a foto nem escala com ela.
+  const hud=ov.querySelector('.lp-frame-hud');
+  const stage=wrap.closest('.lp-stage');
+  if(hud && stage){
+    hud.id='lp-frame-hud';
+    hud.setAttribute('role','group');
+    hud.setAttribute('aria-label','Enquadramento da foto');
+    Object.assign(hud.style,{
+      position:'relative',left:'auto',bottom:'auto',transform:'none',
+      flex:'0 0 auto',alignSelf:'center',margin:'12px',boxSizing:'border-box',
+      width:'max-content',maxWidth:'calc(100% - 24px)',flexWrap:'wrap',justifyContent:'center'
+    });
+    // Separadores soltos entre linhas roubariam espaço dos botões em painéis estreitos.
+    hud.querySelectorAll('.lp-frame-hud-divider').forEach(el=>el.style.display='none');
+    stage.after(hud);
+  }
+
   ov.onmousedown=(e)=>{
     if(e.target.closest('.lp-frame-hud')) return;
     e.preventDefault();
@@ -1883,6 +1902,7 @@ function fLpStopFraming(){
   window.removeEventListener('keydown',_fLpFrameKey);
   _fLpFrameDrag=null; _fLpPinch=null; _lpFraming=null;
   const ov=document.getElementById('lp-frame-ov'); if(ov) ov.remove();
+  document.getElementById('lp-frame-hud')?.remove();
   try{if(typeof fSaveChatDraft==='function') fSaveChatDraft();}catch(e){}
   _fLpRender();
 }

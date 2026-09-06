@@ -1576,6 +1576,7 @@ async function dLoadTemplate(tmpl,folder,options){
     }
   }
 
+  dDeckRememberView();
   dActiveTmplId=tmpl.id;
   if(folder)dActiveTmplFolderId=folder.id; // destaca a pasta da arte ativa na grade
   else dActiveTmplFolderId=null;
@@ -1602,7 +1603,18 @@ async function dLoadTemplate(tmpl,folder,options){
   dRenderFolders();
   if(typeof dRenderWorkspace==='function')dRenderWorkspace();
   dApplyFormat();
-  setTimeout(dFitToScreen,50);
+  setTimeout(()=>{
+    if(dActiveTmplId!==tmpl.id)return;
+    const view=dDeckViews.get(JSON.stringify([dActiveTmplFolderId,tmpl.id]));
+    if(view){
+      dZoomLevel=view.zoom;
+      const label=document.getElementById('d-zoom-val');
+      if(label)label.textContent=dZoomLevel+'%';
+      dApplyFormat();
+      const wrapper=document.getElementById('d-canvas-wrapper');
+      if(wrapper)wrapper.scrollTo({left:view.x,top:view.y,behavior:'instant'});
+    }else dFitToScreen();
+  },50);
   dRenderCanvas();dRenderLayersList();dStats();dRenderABList();
   if(typeof dSetSaveState==='function') dSetSaveState('saved');
   const projNameEl = document.getElementById('dt-project-name');
@@ -3002,6 +3014,7 @@ function dRenderTemplateToDOM(container, tmpl) {
 }
 
 function dRenderPagesTray() {
+  dRenderPageDeck();
   // Único ponto de sincronia das barras da prancheta: esta função já roda em toda
   // troca, criação, exclusão e carga de página.
   if (typeof dSyncPageLock === 'function') dSyncPageLock();
@@ -3079,14 +3092,105 @@ function dRenderPagesTray() {
   });
 }
 
-function dSwitchPage(tmplId) {
-  if (tmplId === dActiveTmplId) return; // Já está na página
+async function dSwitchPage(tmplId) {
+  if (tmplId === dActiveTmplId || dDeckSwitching) return;
+  const folder=dFolders.find(f=>f.id===dActiveTmplFolderId);
+  const target=folder&&folder.templates.find(t=>t.id===tmplId);
+  if(!target)return;
   
   // Salva a página atual automaticamente antes de trocar
   if (typeof dSave === 'function' && dSave({silent:true})===false) return;
   
   // Carrega a nova
-  dLoadTemplateById(dActiveTmplFolderId, tmplId);
+  dDeckSwitching=true;
+  const canvas=document.getElementById('d-canvas-container');
+  const direction=folder.templates.findIndex(t=>t.id===tmplId)>folder.templates.findIndex(t=>t.id===dActiveTmplId)?1:-1;
+  try{
+    await dLoadTemplate(target,folder,{silent:true});
+    if(dActiveTmplId===tmplId&&canvas){
+      canvas.style.setProperty('--deck-enter-x',(direction*80)+'px');
+      canvas.classList.remove('d-deck-enter');
+      void canvas.offsetWidth;
+      canvas.classList.add('d-deck-enter');
+    }
+  }finally{dDeckSwitching=false;}
+}
+
+// Só o material central usa o editor. As laterais reutilizam as prévias da bandeja.
+let dDeckViews=new Map();
+let dDeckSwitching=false;
+function dDeckRememberView(){
+  const wrapper=document.getElementById('d-canvas-wrapper');
+  if(wrapper&&dActiveTmplId)dDeckViews.set(JSON.stringify([dActiveTmplFolderId,dActiveTmplId]),{zoom:dZoomLevel,x:wrapper.scrollLeft,y:wrapper.scrollTop});
+}
+function dRenderPageDeck(){
+  const workspace=document.getElementById('d-workspace');
+  const canvas=document.getElementById('d-canvas-container');
+  const center=document.getElementById('d-center');
+  if(!workspace||!canvas||!center)return;
+  let deck=document.getElementById('d-page-deck');
+  let nav=document.getElementById('d-deck-nav');
+  if(!deck){
+    deck=document.createElement('div');deck.id='d-page-deck';workspace.prepend(deck);
+    nav=document.createElement('nav');nav.id='d-deck-nav';nav.setAttribute('aria-label','Materiais da campanha');center.appendChild(nav);
+    new ResizeObserver(dPositionPageDeck).observe(canvas);
+    new ResizeObserver(dPositionPageDeck).observe(workspace);
+    new MutationObserver(dPositionPageDeck).observe(canvas,{attributes:true,attributeFilter:['style']});
+  }
+  const folder=dFolders.find(f=>f.id===dActiveTmplFolderId);
+  const pages=folder&&folder.templates||[];
+  const index=pages.findIndex(t=>t.id===dActiveTmplId);
+  deck.hidden=nav.hidden=index<0;
+  center.classList.toggle('d-has-deck',index>=0);
+  nav.replaceChildren();
+  if(index<0){deck.replaceChildren();return;}
+  const visibleIds=new Set([-2,-1,1,2].map(offset=>pages[index+offset]?.id));
+  Array.from(deck.children).forEach(card=>{if(!visibleIds.has(card.dataset.id))card.remove();});
+  [-2,-1,1,2].forEach(offset=>{
+    const tmpl=pages[index+offset];if(!tmpl)return;
+    const card=Array.from(deck.children).find(el=>el.dataset.id===tmpl.id)||document.createElement('button');
+    const fresh=!card.parentElement;
+    card.type='button';card.className='d-deck-card';card.dataset.id=tmpl.id;
+    card.dataset.offset=offset;card.setAttribute('aria-label','Editar '+tmpl.name);card.title=tmpl.name;
+    if(fresh)card.addEventListener('pointerdown',e=>e.stopPropagation());
+    card.onclick=e=>{e.stopPropagation();dSwitchPage(tmpl.id);};
+    const size=DFMT_SIZES[tmpl.fmt]||DFMT_SIZES.story;
+    card.dataset.width=tmpl.w>0?tmpl.w:size.w;card.dataset.height=tmpl.h>0?tmpl.h:size.h;
+    const preview=document.createElement('div');preview.className='d-deck-preview';preview.setAttribute('aria-hidden','true');
+    if(tmpl._needsLayersFetch){preview.textContent=tmpl.name;preview.classList.add('d-deck-placeholder');}
+    else dRenderTemplateToDOM(preview,tmpl);
+    card.replaceChildren(preview);if(fresh)deck.appendChild(card);
+  });
+  const button=(label,path,action,disabled)=>{
+    const b=document.createElement('button');b.type='button';b.className='dpg-btn';b.title=label;b.setAttribute('aria-label',label);b.disabled=!!disabled;
+    b.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="'+path+'"/></svg>';
+    b.onclick=action;nav.appendChild(b);
+  };
+  button('Material anterior','m15 18-6-6 6-6',()=>dSwitchPage(pages[index-1].id),index===0);
+  const label=document.createElement('span');label.className='d-deck-label';label.setAttribute('aria-live','polite');label.textContent=(index+1)+' de '+pages.length+' · '+pages[index].name;nav.appendChild(label);
+  button('Próximo material','m9 18 6-6-6-6',()=>dSwitchPage(pages[index+1].id),index===pages.length-1);
+  button('Adicionar material','M12 5v14M5 12h14',()=>dAddPageAfterCurrent());
+  dPositionPageDeck();
+}
+function dPositionPageDeck(){
+  const deck=document.getElementById('d-page-deck');
+  const canvas=document.getElementById('d-canvas-container');
+  if(!deck||deck.hidden||!canvas)return;
+  const wrapper=document.getElementById('d-canvas-wrapper');
+  const zoomed=canvas.offsetHeight>wrapper.clientHeight-80||canvas.offsetWidth>wrapper.clientWidth-160;
+  deck.classList.toggle('d-deck-zoomed',zoomed);
+  deck.querySelectorAll('.d-deck-card').forEach(card=>{
+    const offset=Number(card.dataset.offset),distance=Math.abs(offset);
+    const w=Number(card.dataset.width),h=Number(card.dataset.height);
+    const scale=Math.min(canvas.offsetWidth/w,canvas.offsetHeight/h)* (distance===1?.78:.64);
+    const width=w*scale,height=h*scale;
+    card.style.width=width+'px';card.style.height=height+'px';
+    card.style.left=(canvas.offsetLeft+canvas.offsetWidth/2+Math.sign(offset)*(canvas.offsetWidth/2+width*.36+(distance-1)*70)-width/2)+'px';
+    card.style.top=(canvas.offsetTop+(canvas.offsetHeight-height)/2)+'px';
+    card.style.setProperty('--deck-tilt',(offset*4)+'deg');card.style.zIndex=3-distance;
+    const preview=card.firstElementChild;
+    preview.style.width=w+'px';preview.style.height=h+'px';preview.style.transform='scale('+scale+')';
+  });
 }
 
 // afterId: id da página depois da qual a nova entra. Sem ele a nova vai pro FIM

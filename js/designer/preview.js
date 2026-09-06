@@ -153,22 +153,30 @@ function pvRenderLayer(ctx, l, W, H, next){
   if(l.type==='shape'){
     ctx.fillStyle=l.fill||'#FF9000';
     const kind=l.shapeKind||'rect';
-    const vector=(kind==='path'&&typeof gVectorPathValid==='function'&&gVectorPathValid(l.vectorPath))?l.vectorPath:null;
-    if(vector){
-      gTraceVectorPath(ctx,vector,l.x,l.y,l.w,l.h); ctx.fill(gVectorPathFillRule(vector));
-    } else if(kind==='circle'||kind==='ellipse'){
-      ctx.beginPath(); ctx.ellipse(l.x+l.w/2,l.y+l.h/2,l.w/2,l.h/2,0,0,Math.PI*2); ctx.fill();
+    if(kind==='line'){
+      ctx.save();
+      ctx.translate(l.x,l.y+l.h/2);
+      ctx.rotate((l.rotation||0)*Math.PI/180);
+      ctx.fillRect(0,-l.h/2,l.w,l.h);
+      ctx.restore();
     } else {
-      const pts=(typeof dShapePoints==='function')?dShapePoints(l):null;
-      if(pts){
-        const abs=pts.map(p=>[l.x+p[0]*l.w, l.y+p[1]*l.h]);
-        const r=Math.min(l.radius||0, l.w/2, l.h/2);
-        if(r>0 && typeof gRoundPolyPath2D==='function'){ gRoundPolyPath2D(ctx,abs,r); }
-        else { ctx.beginPath(); abs.forEach((p,i)=>{ i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]); }); ctx.closePath(); }
-        ctx.fill();
+      const vector=(kind==='path'&&typeof gVectorPathValid==='function'&&gVectorPathValid(l.vectorPath))?l.vectorPath:null;
+      if(vector){
+        gTraceVectorPath(ctx,vector,l.x,l.y,l.w,l.h); ctx.fill(gVectorPathFillRule(vector));
+      } else if(kind==='circle'||kind==='ellipse'){
+        ctx.beginPath(); ctx.ellipse(l.x+l.w/2,l.y+l.h/2,l.w/2,l.h/2,0,0,Math.PI*2); ctx.fill();
       } else {
-        const r=Math.min(l.radius||0, l.w/2, l.h/2);
-        pvRoundRect(ctx,l.x,l.y,l.w,l.h,r); ctx.fill();
+        const pts=(typeof dShapePoints==='function')?dShapePoints(l):null;
+        if(pts){
+          const abs=pts.map(p=>[l.x+p[0]*l.w, l.y+p[1]*l.h]);
+          const r=Math.min(l.radius||0, l.w/2, l.h/2);
+          if(r>0 && typeof gRoundPolyPath2D==='function'){ gRoundPolyPath2D(ctx,abs,r); }
+          else { ctx.beginPath(); abs.forEach((p,i)=>{ i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]); }); ctx.closePath(); }
+          ctx.fill();
+        } else {
+          const r=Math.min(l.radius||0, l.w/2, l.h/2);
+          pvRoundRect(ctx,l.x,l.y,l.w,l.h,r); ctx.fill();
+        }
       }
     }
     ctx.restore();next();
@@ -605,6 +613,10 @@ function dSvgShape(l){
   // Um único gerador reusado pelo fill, pelo traço e pelo clipPath — sem duplicar a forma.
   const pts=(typeof dShapePoints==='function')?dShapePoints(l):null;
   const geom=(extra)=>{
+    if(kind==='line'){
+      const cy=l.y+l.h/2;
+      return `<rect x="${l.x}" y="${l.y}" width="${l.w}" height="${l.h}" transform="rotate(${l.rotation||0} ${l.x} ${cy})" ${extra}/>`;
+    }
     if(kind==='path'&&typeof gVectorPathD==='function'){
       const d=gVectorPathD(l.vectorPath,l.x,l.y,l.w,l.h), rule=typeof gVectorPathFillRule==='function'?gVectorPathFillRule(l.vectorPath):'nonzero';
       if(d)return `<path d="${d}" fill-rule="${rule}" clip-rule="${rule}" ${extra}/>`;

@@ -106,6 +106,9 @@
   --glass-border: rgba(255, 255, 255, 0.5);
   --glass-blur: blur(16px);
   --glass-shadow: 0 8px 32px 0 rgba(15, 23, 42, 0.08);
+  /* Sombra de modal não acompanha a superfície: no tema claro, fazê-la derivar
+     de --d-bg criava um halo branco em volta da caixa. */
+  --modal-shadow: 0 24px 80px rgba(0, 0, 0, .32);
 
   /* ── SISTEMA DE BREAKPOINTS (responsividade) ──────────────────────────────
      CSS não aceita var() dentro de @media, então estes valores são a CONVENÇÃO

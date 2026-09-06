@@ -947,12 +947,12 @@ function dPaste(samePlace){
   gToast(n+' layer'+(n>1?'s':'')+' colado'+(n>1?'s':'')+(samePlace?' (no lugar)':''));
 }
 
-/* ── Ctrl+V: COLAR IMAGEM DO CLIPBOARD (print, cópia do navegador/Figma) ──
+/* ── Ctrl+V: COLAR SVG OU IMAGEM DO CLIPBOARD (Illustrator, print, navegador/Figma) ──
    Um Ctrl+V só, que faz a coisa certa — é assim no Photoshop e é o que a pessoa espera.
    Precisa ser no evento `paste` (e não no keydown): só ele traz o conteúdo do clipboard do
    sistema. Por isso o keydown do Ctrl+V deixou de dar preventDefault; ver o comentário lá.
 
-   Prioridade: IMAGEM do sistema ganha do clipboard interno de camadas. Motivo — copiar um
+   Prioridade: SVG > imagem do sistema > clipboard interno de camadas. Motivo — copiar um
    print é ato deliberado e imediato, enquanto o dClipboard fica preenchido a sessão toda
    depois de um Ctrl+C e roubaria todo Ctrl+V seguinte. Duplicar camada tem Ctrl+D, que é
    igualmente rápido, e um colar errado morre com um Ctrl+Z.
@@ -971,6 +971,43 @@ document.addEventListener('paste', e=>{
   if(t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName||''))) return;
   const cb=e.clipboardData; if(!cb) return;
   dPasteAssumido=true;   // daqui pra baixo o gesto é deste handler; o fallback desiste
+  // SVG ganha da prévia PNG que o Illustrator pode enviar no mesmo gesto.
+  const svgFile=Array.from(cb.items||[])
+    .filter(i=>i.kind==='file' && i.type==='image/svg+xml')
+    .map(i=>i.getAsFile()).find(Boolean);
+  if(svgFile){
+    e.preventDefault();
+    dAddImageFromFile(svgFile, undefined, undefined, 'Vetor colado');
+    return;
+  }
+  const svgText=['image/svg+xml','text/plain','text/html']
+    .map(type=>cb.getData(type)).find(value=>/<svg(?:\s|>)/i.test(value));
+  if(svgText){
+    e.preventDefault();
+    try{
+      // HTML pode envolver o SVG; XML completo preserva as entidades do Illustrator.
+      const source=/^\s*(?:<\?xml\b|<!DOCTYPE\b|<svg\b)/i.test(svgText)
+        ? svgText.trim() : (svgText.match(/<svg\b[\s\S]*<\/svg\s*>/i)||[])[0];
+      const doc=new DOMParser().parseFromString(source||'', 'image/svg+xml');
+      const svg=doc.documentElement;
+      if(doc.querySelector('parsererror') || !svg || svg.localName!=='svg')
+        throw new Error('SVG inválido');
+      if(!svg.getAttribute('xmlns')) svg.setAttribute('xmlns','http://www.w3.org/2000/svg');
+      const vb=(svg.getAttribute('viewBox')||'').trim().split(/[\s,]+/).map(Number);
+      if(vb.length===4 && vb.every(Number.isFinite) && vb[2]>0 && vb[3]>0){
+        ['width','height'].forEach((attr,i)=>{
+          const value=svg.getAttribute(attr)||'';
+          if(!value || value.includes('%')) svg.setAttribute(attr,String(vb[i+2]));
+        });
+      }
+      // Permanece SVG em contexto de imagem: nunca injetar o conteúdo no DOM da página.
+      const file=new File([new XMLSerializer().serializeToString(svg)], 'vetor.svg', {type:'image/svg+xml'});
+      dAddImageFromFile(file, undefined, undefined, 'Vetor colado');
+    }catch(err){
+      gToast('Não foi possível ler o SVG. Copie o vetor novamente no Illustrator com Incluir código SVG ativado', 'error');
+    }
+    return;
+  }
   const imgs=Array.prototype.slice.call(cb.items||[])
     .filter(i=>i.kind==='file' && /^image\//.test(i.type||''))
     .map(i=>i.getAsFile()).filter(Boolean);

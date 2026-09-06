@@ -305,7 +305,9 @@ function dEscolherFotoDaMoldura(lReal){
       // dHistoryPush ANTES de mutar: o histórico guarda o estado anterior. Sem isto,
       // trocar a foto da moldura não tinha Ctrl+Z (achado na revisão pró-1.0).
       if(typeof dHistoryPush==='function') dHistoryPush();
-      lReal.imgUrl=re.result;dRenderCanvas();dMarkUnsaved();
+      // Uma foto escolhida pelo designer deixa de ser espaço reservado: vira imagem fixa,
+      // mantendo geometria e recorte para que a arte renderize igual em todos os destinos.
+      lReal.type='image';lReal.imgUrl=re.result;dRenderCanvas();dMarkUnsaved();
       // O painel de propriedades le a origem do #dp-imgurl; sem isto o resumo ficava
       // em "Nenhuma imagem" depois do upload (valia para o duplo-clique tambem).
       const espelho=document.getElementById('dp-imgurl');
@@ -1199,6 +1201,12 @@ function dRenderCanvas(){
     if(l.type==='shape'){
       el.style.opacity=(l.opacity!=null?l.opacity:100)/100; // opacity:0 é válido (||100 transformava 0 em 100)
       const kind=l.shapeKind||'rect';
+      if(kind==='line'){
+        // A caixa continua sendo a área de seleção; só a pintura gira a partir do primeiro
+        // ponto. A mesma rotação existe nos três renderizadores de saída.
+        el.style.transform='rotate('+(l.rotation||0)+'deg)';
+        el.style.transformOrigin='0 50%';
+      }
       const pts=(kind!=='circle'&&kind!=='ellipse'&&typeof dShapePoints==='function')?dShapePoints(l):null;
       const vectorD=(kind==='path'&&typeof gVectorPathD==='function')?gVectorPathD(l.vectorPath,0,0,l.w,l.h):'';
       if(vectorD){

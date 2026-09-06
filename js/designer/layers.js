@@ -4262,24 +4262,25 @@ function dAddLine(){
   const f=dCanvasSize();
   const id='l-'+(++dLyrCnt);
   dHistoryPush();
-  dLayers.push({id,name:'Linha '+dLyrCnt,type:'shape',x:Math.round(f.w*.1),y:Math.round(f.h/2),w:Math.round(f.w*.8),h:3,fill:'#FFFFFF',opacity:100,radius:2,visible:true});
+  dLayers.push({id,name:'Linha '+dLyrCnt,type:'shape',shapeKind:'line',x:Math.round(f.w*.1),y:Math.round(f.h/2)-1.5,w:Math.round(f.w*.8),h:3,rotation:0,fill:'#FFFFFF',opacity:100,radius:2,visible:true});
   dSelLayerState(id);dRenderCanvas();dRenderLayersList();dStats();dMarkUnsaved();dSetTool('select');
   setTimeout(()=>dFlashLayer(id),30);
   gToast('Linha adicionada');
 }
 
-// Linha desenhada por arrasto (ferramenta 'line'). Camadas não têm rotação no motor,
-// então a linha assume o eixo DOMINANTE do arrasto (horizontal ou vertical).
+// Linha desenhada por arrasto: a caixa é rotacionada a partir do primeiro ponto. Guardar o
+// ângulo evita transformar uma diagonal numa barra de eixo dominante na prévia/exportação.
 function dAddLineAt(x1,y1,x2,y2){
-  const horiz=Math.abs(x2-x1)>=Math.abs(y2-y1);
-  const len=Math.round(horiz?Math.abs(x2-x1):Math.abs(y2-y1));
+  const len=Math.round(Math.hypot(x2-x1,y2-y1));
   const id='l-'+(++dLyrCnt);
   dHistoryPush();
-  let x,y,w,h;
-  if(len<10){ x=Math.round(x1)-100; y=Math.round(y1)-1; w=200; h=3; } // clique sem arrasto: linha padrão no ponto
-  else if(horiz){ x=Math.round(Math.min(x1,x2)); y=Math.round(y1)-1; w=len; h=3; }
-  else{ x=Math.round(x1)-1; y=Math.round(Math.min(y1,y2)); w=3; h=len; }
-  dLayers.push({id,name:'Linha '+dLyrCnt,type:'shape',x,y,w,h,fill:'#FFFFFF',opacity:100,radius:2,visible:true});
+  const h=3;
+  const isClick=len<10;
+  const w=isClick?200:len;
+  const x=Math.round(x1);
+  const y=Math.round(y1)-h/2;
+  const rotation=isClick?0:Math.atan2(y2-y1,x2-x1)*180/Math.PI;
+  dLayers.push({id,name:'Linha '+dLyrCnt,type:'shape',shapeKind:'line',x,y,w,h,rotation,fill:'#FFFFFF',opacity:100,radius:2,visible:true});
   dSelLayerState(id);dRenderCanvas();dRenderLayersList();dStats();dMarkUnsaved();dSetTool('select');
   setTimeout(()=>dFlashLayer(id),30);
   gToast('Linha adicionada');

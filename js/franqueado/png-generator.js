@@ -689,6 +689,18 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
   if(l.type === 'shape'){
     const _fill = l.fill || '#FF9000';
     const kind = l.shapeKind || 'rect';
+    if(kind==='line'){
+      // Linha é uma caixa fina rotacionada no ponto inicial. Não reduza para um eixo: o
+      // franqueado precisa baixar a mesma diagonal que o designer desenhou.
+      ctx.save();
+      ctx.translate(x,y+h/2);
+      ctx.rotate((l.rotation||0)*Math.PI/180);
+      ctx.fillStyle=_fill;
+      ctx.fillRect(0,-h/2,w,h);
+      ctx.restore();
+      ctx.restore();
+      return;
+    }
     const _sc=Math.min(scaleX,scaleY);
     // gradiente (l.gradient) → CanvasGradient na caixa; senão cor sólida
     const _fillStyle = (l.gradient&&l.gradient.stops&&l.gradient.stops.length&&typeof gGradientCanvas==='function') ? gGradientCanvas(ctx,l.gradient,x,y,w,h) : _fill;
