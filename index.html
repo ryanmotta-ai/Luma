@@ -67,6 +67,7 @@
 <!-- Depois de user-profile.css de propósito: o Controle do produto vive DENTRO
      do painel da conta e herda as variáveis --prof-* (inclusive o tema escuro). -->
 <link rel="stylesheet" href="css/components/product-control.css?v=39">
+<link rel="stylesheet" href="css/modules/feedback.css?v=39">
 <link rel="stylesheet" href="css/components/tutorial.css?v=39">
 <link rel="stylesheet" href="css/modules/franqueado.css?v=39">
 <link rel="stylesheet" href="css/modules/chat.css?v=39">
@@ -568,6 +569,10 @@ body:not(.theme-light) input:-webkit-autofill:active {
         <!-- Entrada do Luma CLI. É o único caminho no celular (não há Ctrl+` sem teclado)
              e fica aqui, escondido no painel, em vez de botão solto na tela do franqueado.
              Revelado por gIsAdmin() em gOpenUserProfileModal — o MESMO gate do console. -->
+        <button type="button" class="prof-nav-btn" id="prof-nav-feedback" onclick="gProfileSwitchTab('feedback')" aria-controls="prof-pane-feedback" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-12.3 7.4L3 21l2.2-5.5A8.4 8.4 0 1 1 21 11.5z"/><path d="M8 10h8M8 14h5"/></svg>
+          <span>Feedback dos franqueados</span>
+        </button>
         <button type="button" class="prof-nav-btn prof-nav-cli" id="prof-nav-console" onclick="gProfileOpenCli()" style="display:none">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 17 6-6-6-6"/><path d="M12 19h8"/></svg>
           <span>Console</span><small class="prof-nav-tag">DEV</small>
@@ -729,6 +734,7 @@ body:not(.theme-light) input:-webkit-autofill:active {
         <div class="prof-pane" id="prof-pane-equipe"></div>
         <!-- Vazia de propósito: gProdRender() monta (mesmo padrão da aba Equipe). -->
         <div class="prof-pane" id="prof-pane-produto"></div>
+        <div class="prof-pane" id="prof-pane-feedback"></div>
       </div>
     </section>
   </div>
@@ -833,7 +839,7 @@ body:not(.theme-light) input:-webkit-autofill:active {
         </div>
         <div id="f-search-row">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          <input id="f-search" type="search" aria-label="Buscar campanha" placeholder="Buscar campanha..." oninput="fFilterCamps(this.value)"/>
+          <input id="f-search" type="search" aria-label="Buscar campanha" maxlength="240" placeholder="Campanha, produto ou ocasião…" oninput="if(!event.isComposing)fFilterCamps(this.value)" oncompositionend="fFilterCamps(this.value)"/>
         </div>
       </div>
       <div id="f-catalog"></div>
@@ -3001,6 +3007,7 @@ body:not(.theme-light) input:-webkit-autofill:active {
 <script src="js/franqueado/history.js?v=39"></script>
 <script src="js/franqueado/prefs.js?v=39"></script>
 <script src="js/franqueado/catalog.js?v=39"></script>
+<script src="js/franqueado/search.js?v=39"></script>
 <script src="js/franqueado/materials.js?v=39"></script>
 <script src="js/franqueado/chat.js?v=39"></script>
 <script src="js/franqueado/live-preview.js?v=39"></script>
@@ -3084,6 +3091,7 @@ body:not(.theme-light) input:-webkit-autofill:active {
 <!-- Motor único de IA: precisa do supabase.js (gSupabase) já carregado -->
 <script src="js/core/ai.js?v=39"></script>
 <script src="js/core/auth.js?v=39"></script>
+<script src="js/franqueado/feedback.js?v=39"></script>
 <!-- Controle do produto — o motor de disponibilidade funcional. Vem DEPOIS de
      auth.js (usa gCurrentRole/gIsSuperAdmin) e ANTES de user-profile.js e
      main.js: gFeatureInit() roda no começo do boot e precisa estar definido. -->

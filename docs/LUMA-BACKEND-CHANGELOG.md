@@ -6,6 +6,24 @@
 
 ---
 
+## 2026-09-06 — Busca de campanhas e feedback contextual V1
+
+**Migration:** `20260906152238_luma_campaign_search_feedback.sql`. **Preparada e testada localmente; ainda não aplicada no Supabase do Luma.** Em 06/09 o conector recusou até a consulta de leitura no projeto `uqrqzjafhigjuvtjqzid` (`You do not have permission to perform this action`). Não houve acesso a outro projeto nem alteração remota.
+
+**Persistência:** `luma.campaign_feedback` guarda avaliações e solicitações de conteúdo com identidade do usuário, campanha/material/formato quando disponíveis, motivo, comentário, consulta, origem e horários. O horário de recebimento é definido pelo banco; `client_created_at` é apenas contexto enviado pelo cliente. `franchise_id` permanece nulo no V1 porque esse vínculo não existe no Luma. UUID e `UNIQUE(user_id,action_id,type)` evitam duplicação em retries. Pedido de conteúdo agrupa somente consulta equivalente após caixa, acentos e espaços; não agrupa intenções por semelhança aproximada.
+
+**Contratos da Data API, todos `SECURITY INVOKER`:** `luma.submit_feedback(p_feedback jsonb)` retorna o UUID confirmado; `luma.content_requests(p_limit,p_offset)` retorna `query_normalized`, `query`, `request_count`, `last_requested_at`; `luma.registrar_evento(p_id,p_evento,p_payload)` retorna boolean. Esta última escreve no motor existente de analytics sem exigir expor o schema `analytics` na API. O `ON CONFLICT DO NOTHING` deliberadamente não especifica `(id)`: o alvo explícito faz o PostgreSQL exigir a policy de leitura de analytics e barrava o INSERT do franqueado.
+
+**Permissões:** contas ativas gravam apenas em seu próprio nome; franqueado lê apenas seu feedback; `equipe_dm` e `gestao` leem a rede e o agregado de solicitações. Sem UPDATE/DELETE pelo cliente. Anônimo e conta desativada não consultam nem enviam feedback. As funções validam identidade e formato, e a tabela mantém constraints, RLS e grants explícitos. O trigger de feedback grava `content_requested` ou `campaign_feedback_submitted` na mesma transação do registro canônico, sem duplicar evento no JavaScript.
+
+**Transporte:** `gTrackEvent` usa RPC no schema `luma`, fila limitada por usuário em memória/localStorage e UUID estável; confirma perfil e sessão antes do envio e mantém o evento para retry em falha. Sessão/RPC têm limite de 12 segundos para liberar a fila quando a rede trava. Não promete entrega se o armazenamento local estiver indisponível e a página for fechada.
+
+**Verificação executada:** migrations de profiles, analytics e hardening do repositório + nova migration em PostgreSQL WASM (PGlite 0.3.14), instalado exclusivamente em diretório temporário externo ao projeto. `supabase/tests/campaign_feedback.sql` passou com transação revertida: escrita/leitura nas três roles, isolamento entre franqueados, bloqueio de anônimo/inativo e UPDATE/DELETE, spoofing de identidade, formatos inválidos, consulta de 240 caracteres, normalização, retry por UUID/action_id e um único evento por feedback. Teste isolado do JavaScript passou para offline, reload, troca de conta, timeout e retry com o mesmo UUID. O ambiente local simula apenas `auth.users`/`auth.uid()` do Supabase; não substitui validação do PostgREST e advisors no projeto real.
+
+**Para ativar:** aplicar a migration no projeto do Luma, executar o teste SQL transacional como administrador, rodar advisors e verificar as três roles pela API real. A publicação do frontend deve acompanhar essa aplicação; até lá as escritas ficam pendentes localmente.
+
+---
+
 ## 2026-09-05 — RLS: `WITH CHECK` no Storage e conta desativada barrada no banco
 
 > ⚠️ **Precisa aplicar a migration** `20260905120000_luma_rls_with_check_e_conta_ativa.sql`. Até aplicar, as duas falhas abaixo seguem abertas em produção. Nenhuma Edge Function mudou.

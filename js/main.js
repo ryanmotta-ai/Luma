@@ -183,6 +183,7 @@ window.addEventListener('luma:feature-flags-changed', ()=>{
 
 // Função chamada após um login bem-sucedido ou quando a sessão já está ativa
 function gOnLoginSuccess() {
+  if(typeof fFeedbackFlush==='function')fFeedbackFlush().catch(()=>{});
   // Saída do login. Se o login estava VISÍVEL (usuário clicou Entrar), toca a tela
   // de transição de marca; o app monta por baixo enquanto o laranja cobre. No boot
   // com sessão ativa o login nunca apareceu → saída seca (sem transição fantasma).

@@ -232,7 +232,7 @@ esses a verificação continua sendo o navegador. Suíte verde não substitui ab
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 72 arquivos JS (57.449 linhas, 2.293 funções) · 32 arquivos CSS (27.889 linhas) · `index.html` com 3.775 linhas e 74 `<script>`.
+**Tamanho real de hoje:** 75 arquivos JS (58.092 linhas, 2.322 funções) · 33 arquivos CSS (27.927 linhas) · `index.html` com 3.775 linhas e 74 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -275,6 +275,10 @@ CONTROLE DO PRODUTO — o motor único de disponibilidade funcional do Luma.
 · Estado global: _gFFValores, _gFFSyncedAt, _gFFOrigem, _gFFErroSync, _gFFIniciado, _gFFPorChave, _gFFFilhos, _gFFPorTool
 · Depende de: core/toast.js (gToast, gEsc), core/auth.js (gCurrentRole,
 
+**`js/core/feedback-admin.js`** · 193 linhas
+Consulta da equipe no painel da conta, carregada sob demanda. A RLS e a RPC autorizam os dados; gIsAdmin é apenas o gate da interface.
+· Depende de: core/auth.js, core/supabase.js, core/toast.js.
+
 **`js/core/help.js`** · 760 linhas
 gOpenHelp, gCloseHelp — modal de ajuda com trilha de aprendizado e catálogo livre.
 · API: gHelpContactSupport, gFraHelpEmail, gFhRenderCols, gFhSearch, gFhOpenCol, gFhOpenArt, gFhVote, gFhBack, gFhSetActive, gFhGo, gFraHelpOpen, gFraHelpClose, gHelpIcon, gHelpKnowledge … (+23; 46 funções no total)
@@ -314,9 +318,9 @@ MODELO versionado. Copie para `supabase-config.js` (que é gitignored) e preench
 **`js/core/supabase-config.js`** · 16 linhas
 Credenciais do projeto Supabase. PREENCHA com a Project URL e a anon key. A anon key é PÚBLICA por design — vai no front e está protegida pela RLS (ver supabase/migrations/). NUNCA coloque aqui a chave `service_role`. Este…
 
-**`js/core/supabase.js`** · 99 linhas
+**`js/core/supabase.js`** · 165 linhas
 Cria o client Supabase global `window.sb`, usado pela auth e pela camada de persistência (fase 5.1).
-· API: gSupabase, gHasBackend, gTrackEvent, gPendingDeletes, gRemoteDelete, gIsPendingDelete, gFlushPendingDeletes
+· API: gSupabase, gHasBackend, gPendingDeletes, gRemoteDelete, gIsPendingDelete, gFlushPendingDeletes
 
 **`js/core/toast.js`** · 177 linhas
 gToast(msg) — exibe notificacao flutuante de 2.8s.
@@ -343,6 +347,10 @@ F-02: tipos de campo, mascaras de input, validacao por campo. F_FIELD_TYPES defi
 Fluxo conversacional completo: fStartChat, fNextStep, fAddBot, fAddUser, fSend, fQR, fTyping, fGoBack, upload de imagem, confirm card, fGerarArte.
 · API: fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSaveLojaPrompt, fConfirmSaveLoja, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fShowWelcome … (+40; 68 funções no total)
 · Depende de: 00-config.js, 01-state.js, franqueado/chat-input.js
+
+**`js/franqueado/feedback.js`** · 228 linhas
+Feedback contextual e pedidos de conteúdo. Depende de gEsc/gUuid/gCurrentUser. Guarda apenas IDs e metadados da ação; nunca retém o snapshot vivo do editor. O banco confirma o envio e emite os eventos, sem um segundo coletor…
+· API: fFeedbackFlush, fFeedbackMount, fFeedbackAfterDownload, fFeedbackRequest
 
 **`js/franqueado/history.js`** · 281 linhas
 Historico de artes do franqueado: fGetHist, fSaveHist, fAddHist, fMarkHistBaixada, fUpdateHistBadge, fRenderHist, fDownloadHist. Persiste em localStorage (HIST_KEY).
@@ -379,6 +387,10 @@ Tela "Minhas fotos" — aba do painel de conta (gOpenUserProfileModal).
 Preferências do franqueado persistidas localmente (cache offline-first):
 · API: fGetLojas, fSaveLojas, fAddLoja, fRemoveLoja, fGetFavs, fIsFav, fToggleFav, fGetSeen, fMarkCampSeen, fMaterialIsNew, fCampHasNew, fSetHistSearch
 · Depende de: 00-config.js. Consumido por catalog.js, materials.js, chat.js.
+
+**`js/franqueado/search.js`** · 156 linhas
+Busca local do catálogo. Adaptador, ranking e eventos separados da apresentação. Só lê metadados/camadas já carregados: buscar nunca inicia download de um PSD. Depende de gNormBusca, catálogo/materiais e gTrackEvent (na hora…
+· API: fSearchTokens, fSearchDocument, fSearchRank, fSearchCampaigns, fSearchFormatsHTML, fSearchFooterHTML, fSearchRecord, fSearchRecordOpen
 
 **`js/franqueado/upload-panel.js`** · 195 linhas
 Painel de upload do chat do franqueado: ao enviar uma foto, abre um painel com · Imagens recentes — as últimas usadas, pra reaproveitar sem re-upload. · Minhas lojas — perfis de loja salvos (logo), quando o campo é o logo. ·…
@@ -609,6 +621,7 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
 | `css/modules/designer.css` | 5753 |
+| `css/modules/feedback.css` | 38 |
 | `css/modules/franqueado.css` | 1506 |
 | `css/modules/franqueado_effects.css` | 418 |
 | `css/modules/help-widget.css` | 1698 |

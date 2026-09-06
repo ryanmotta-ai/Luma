@@ -890,7 +890,7 @@ function _fLumHex(h){
   return 0.2126*f((n>>16)&255) + 0.7152*f((n>>8)&255) + 0.0722*f(n&255);
 }
 
-function fCampEl(c,isRec,ghost){
+function fCampEl(c,isRec,ghost,searching){
   // F-06: thumb mostra prévia real com produto e preço
   const previewProd = c.previewProd || c.name;
   const previewPor = c.previewPor || '';
@@ -939,7 +939,7 @@ function fCampEl(c,isRec,ghost){
       ${previewPor?`<div class="camp-thumb-por">${gEsc(previewPor)}</div>`:''}
       <div class="camp-thumb-logo" role="img" aria-label="Luma"></div>`}
     </div>
-    <div class="camp-body"><div class="camp-name">${gEsc(c.name)}</div><div class="camp-sub">${countLabel}</div></div>
+    <div class="camp-body"><div class="camp-name">${gEsc(c.name)}</div><div class="camp-sub">${countLabel}</div>${searching?fSearchFormatsHTML(c):''}</div>
   </div>`;
 }
 /* ── SEAM DAS CAMPANHAS (Fase 2 — migração do hardcode) ──
@@ -1050,8 +1050,8 @@ function _fCampEmptyState(query){
   const ico='<div class="empty-icon"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></div>';
   if(query){
     return `<div class="empty-state empty-state-sm">${ico}
-      <div class="empty-title">Nenhuma campanha encontrada</div>
-      <div class="empty-text">Não achamos nada para “${gEsc(query)}”. Tente outro termo.</div>
+      <div class="empty-title">Não encontramos exatamente isso</div>
+      <div class="empty-text">Nenhum resultado para “${gEsc(query)}”. Tente outro termo ou sugira um conteúdo.</div>
       <button class="empty-cta ghost" onclick="var s=document.getElementById('f-search');if(s)s.value='';fFilterCamps('')">Limpar busca</button>
     </div>`;
   }
@@ -1077,6 +1077,12 @@ function fRenderCatalogs(a,o,opts){
   opts=opts||{};
   const cat=document.getElementById('f-catalog'); if(!cat)return;
   const searching=!!opts.search;
+  if(searching){
+    cat.innerHTML=`<div class="f-search-summary" role="status">Resultados para “${gEsc(opts.search)}” · ${a.length+o.length}</div>`+
+      (a.length||o.length?`<div class="camp-grid">${[...a,...o].map(c=>fCampEl(c,false,!_fCampHasMats(c),true)).join('')}</div>`:_fCampEmptyState(opts.search))+
+      fSearchFooterHTML(opts.search,opts.suggestions);
+    return;
+  }
   // Entrada do painel de arquivadas — só DM staff e só quando há campanha arquivada.
   const _arqN = (typeof gIsAdmin==='function' && gIsAdmin() && typeof fGetArchivedCamps==='function') ? fGetArchivedCamps().length : 0;
   const archBtn = _arqN ? `<button class="cat-arch-btn" onclick="fOpenArchivedPanel()" title="Ver campanhas arquivadas"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/></svg>Arquivadas · ${_arqN}</button>` : '';
@@ -1099,14 +1105,14 @@ function fFilterCamps(q){
   if(fState.categoria!=='campanhas') return;
   const {ativas,outras}=fGetCampaigns();
   const qq=gNormBusca((q||'').trim());
-  if(!qq){ fRenderCatalogs(ativas,outras); return; }
-  const f1=ativas.filter(c=>gNormBusca(c.name).includes(qq));
-  const f2=outras.filter(c=>gNormBusca(c.name).includes(qq));
-  // NÃO cai de volta em "ativas" quando não há match — mostra empty state honesto.
-  fRenderCatalogs(f1,f2,{search:q});
+  if(!qq){ fSearchRecord('',null,'catalog'); fRenderCatalogs(ativas,outras); return; }
+  const result=fSearchCampaigns(q,[...ativas,...outras]);
+  fRenderCatalogs(result.campaigns,[],{search:q,suggestions:result.suggestions});
+  fSearchRecord(q,result,'catalog');
 }
 function fSelectCamp(id){
   const c=fResolveCamp(id);if(!c)return;
+  fSearchRecordOpen(c.id);
   fExitHome(); // vindo da home → devolve o layout de 3 colunas antes de seguir o fluxo normal
   if(fState.camp && fState.camp.id===c.id) {
     // Reabrir a MESMA campanha (pasta ou chat ainda abertos atrás da home): o
@@ -1358,12 +1364,15 @@ function _fHomeBodyHTML(query){
     return true;
   };
   if(q){
-    const match=[...ativas,...outras,...impl].filter(c=>gNormBusca(c.name).includes(q)&&passStatus(c));
-    if(!match.length) return _fhEmptyState('Nenhuma campanha encontrada',`Não encontramos resultados para “${gEsc(query)}”. Tente outro termo${_fhFilter!=='todas'?' ou remova o filtro':''}.`);
+    const result=fSearchCampaigns(query,[...ativas,...outras,...impl].filter(passStatus));
+    const match=result.campaigns;
+    fSearchRecord(query,result,'home');
+    if(!match.length) return _fhEmptyState('Não encontramos exatamente isso',`Nenhum resultado para “${gEsc(query)}”. Tente outro termo${_fhFilter!=='todas'?' ou remova o filtro':''}.`)+fSearchFooterHTML(query,result.suggestions);
     const isImpl=c=>impl.some(x=>x.id===c.id);
-    return `<section class="fh-section fh-results"><div class="fh-sec"><span>Resultados</span><em>${match.length} campanha${match.length!==1?'s':''}</em></div>
-      <div class="camp-grid fh-grid">${match.map(c=>fCampEl(c,false,!isImpl(c)&&!_fCampHasMats(c))).join('')}</div></section>`;
+    return `<section class="fh-section fh-results"><div class="fh-sec" role="status"><span>Resultados para “${gEsc(query)}”</span><em>${match.length} campanha${match.length!==1?'s':''}</em></div>
+      <div class="camp-grid fh-grid">${match.map(c=>fCampEl(c,false,!isImpl(c)&&!_fCampHasMats(c),true)).join('')}</div></section>`+fSearchFooterHTML(query,[]);
   }
+  fSearchRecord('',null,'home');
   // Vitrine honesta: só entra em "Prontas pra usar" quem tem material publicado
   // e válido; o resto vai pra "Em breve" (cards menores, sem clique). A recomendada
   // NUNCA é uma campanha vazia.
@@ -1470,7 +1479,7 @@ function fRenderHome(opts){
     </div>
     <div class="fh-search-row" role="search">
       <span class="fh-search-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
-      <div class="fh-search-field"><label for="fh-search">Encontre sua próxima campanha</label><input id="fh-search" type="search" autocomplete="off" placeholder="Buscar por tema, prato ou ocasião (ex: Sushi, Almoço)..." oninput="fHomeFilter(this.value)"/></div>
+      <div class="fh-search-field"><label for="fh-search">O que você quer divulgar?</label><input id="fh-search" type="search" autocomplete="off" maxlength="240" placeholder="Busque uma campanha, produto ou ocasião…" oninput="if(!event.isComposing)fHomeFilter(this.value)" oncompositionend="fHomeFilter(this.value)"/></div>
       <div class="fh-search-tools">
         <div class="fh-filter-wrap">
           <button class="fh-filter-btn${_fhFilter!=='todas'?' is-active':''}" type="button" onclick="fHomeToggleFilter(this,event)" aria-haspopup="true" aria-expanded="false" aria-controls="fh-filter-panel">
@@ -1503,6 +1512,6 @@ function fHomeFilter(q){
 function fHomeRefreshIfIdle(){
   if(!document.body.classList.contains('f-home-mode'))return;
   const s=document.getElementById('fh-search');
-  if(s&&s.value)return;
+  if(s&&s.value){fHomeFilter(s.value);return;}
   fRenderHome({silent:true});
 }

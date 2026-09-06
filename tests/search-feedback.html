@@ -1,0 +1,78 @@
+<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Luma — busca e feedback</title>
+<link rel="stylesheet" href="../css/00-tokens.css"><link rel="stylesheet" href="../css/modules/feedback.css">
+<body class="theme-light"><h1>Busca e feedback — contratos</h1><ol id="results"></ol>
+<div id="f-home"><div id="fh-body"></div></div><div id="f-catalog"></div><div id="fixture"></div><div id="prof-pane-feedback"></div>
+<script>
+// Rede substituída apenas nesta bancada. Nenhuma credencial nem escrita em produção.
+var dFolders=[], gAuthState={user:{id:'11111111-1111-4111-8111-111111111111',role:'franqueado'}};
+var calls=[], authListeners=[], offline=false, held=null, downloads=0, failDownload=false, adminRows=[];
+function gCurrentUser(){return gAuthState.user;}function gIsAdmin(){return ['equipe_dm','gestao'].includes(gCurrentUser()?.role);}
+function gFeatureCan(){return true;}function fGetFavs(){return [];}
+const client={auth:{getSession:async()=>({data:{session:{user:gCurrentUser()}}}),onAuthStateChange:fn=>{authListeners.push(fn);return {data:{subscription:{unsubscribe(){}}}};}},schema(){return {
+  rpc(name,args){calls.push({name,args});const p=held?held:Promise.resolve(offline?{error:{message:'offline'}}:{data:name==='submit_feedback'?args.p_feedback.id:name==='content_requests'?[]:true,error:null});p.abortSignal=()=>p;return p;},
+  from(){let filter;const q={select(){return q;},order(){return q;},eq(k,v){filter=v;return q;},range(){return q;},then(resolve){return Promise.resolve({data:adminRows.filter(r=>!filter||r.type===filter)}).then(resolve);}};return q;}
+};}};
+window.LUMA_SUPABASE={url:'https://test.invalid',anonKey:'fixture'};window.supabase={createClient:()=>client};
+</script>
+<script src="../js/00-config.js"></script><script src="../js/01-state.js"></script><script src="../js/core/toast.js"></script>
+<script src="../js/core/supabase.js"></script><script src="../js/franqueado/materials.js"></script><script src="../js/franqueado/catalog.js"></script>
+<script src="../js/franqueado/search.js"></script><script src="../js/franqueado/chat.js"></script><script src="../js/franqueado/feedback.js"></script><script src="../js/core/feedback-admin.js"></script>
+<script>
+(async()=>{
+const failures=[];let total=0;
+const assert=(x,m)=>{if(!x)throw new Error(m||'asserção falhou');};
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function test(name,fn){total++;try{await fn();document.getElementById('results').insertAdjacentHTML('beforeend','<li>OK '+gEsc(name)+'</li>');}catch(e){failures.push({name,error:e.message});}}
+const mat=(id,name,fmt,extra)=>Object.assign({id,name,fmt,publishMeta:{publicado:true},layers:[]},extra);
+const camps=[{id:'burger-feed',name:'Festival de Hambúrguer'},{id:'burger-story',name:'Burger do domingo'},{id:'pizza-story',name:'Promoção de pizza'},{id:'mixed',name:'Seleção da semana'},{id:'old',name:'Campanha antiga',description:'Cupom na entrega gratuita'},{id:'draft',name:'Açaí secreto'},{id:'scheduled',name:'Hambúrguer futuro'}];
+dFolders=[
+ {id:'f1',campId:'burger-feed',templates:[mat('bf','Hambúrguer','feed')]},
+ {id:'f2',campId:'burger-story',templates:[mat('bs','Burger','story')]},
+ {id:'f3',campId:'pizza-story',templates:[mat('ps','Pizza','story')]},
+ {id:'f4',campId:'mixed',templates:[mat('mf','Hambúrguer','feed'),mat('ms','Pizza','story')]},
+ {id:'f5',campId:'draft',templates:[mat('draft1','Açaí secreto','story',{publishMeta:{publicado:false}})]},
+ {id:'f6',campId:'scheduled',agendamento:'2999-01-01',templates:[mat('future','Burger','story')]}
+];
+fGetCampaigns=()=>({ativas:camps,outras:[],impl:[]});
+const ids=q=>fSearchCampaigns(q,camps).campaigns.map(c=>c.id);
+await test('Nome exato e acentos',()=>assert(ids('festival de hamburguer')[0]==='burger-feed'));
+await test('Linguagem natural com formato',()=>assert(ids('quero uma arte de hambúrguer para story')[0]==='burger-story'));
+await test('Não mistura produto de um material e formato de outro',()=>assert(!ids('hamburguer story').includes('mixed')));
+await test('Sinônimo stories + burger',()=>assert(ids('burger stories')[0]==='burger-story'));
+await test('Sinônimo frete grátis',()=>assert(ids('arte de frete gratis').includes('old')));
+await test('Pequeno erro e transposição',()=>assert(ids('hambuguer')[0]&&ids('hamburuger')[0]));
+await test('Produto desconhecido não vira resultado só por formato',()=>{const r=fSearchCampaigns('açaí story',camps.filter(c=>c.id!=='draft'));assert(!r.campaigns.length&&!r.suggestions.length);});
+await test('Formato não disponível oferece aproximação identificada',()=>{const r=fSearchCampaigns('pizza feed',camps);assert(!r.campaigns.length&&r.suggestions.length>0);});
+await test('Agendamento futuro não aparece',()=>assert(!ids('hamburguer').includes('scheduled')));
+await test('Conteúdo de rascunho não indexa',()=>assert(!ids('secreto story').length));
+await test('Metadados opcionais e formato declarado legado',()=>assert(fSearchCampaigns('combo story',[{id:'x',title:'Combo',formats:['story']}]).campaigns.length===1));
+await test('Conteúdo de camada publicada disponível',()=>{dFolders[0].templates[0].layers=[{type:'text',content:'Sabor especial de cheddar'}];assert(ids('cheddar')[0]==='burger-feed');});
+await test('Expirado não entra no índice',()=>{dFolders[0].templates[0].publishMeta.validade='2000-01-01';assert(!ids('cheddar').length);delete dFolders[0].templates[0].publishMeta.validade;});
+await test('Busca antiga funciona sem metadados',()=>assert(ids('antiga')[0]==='old'));
+await test('Tokens sem intenção não retornam catálogo inteiro',()=>assert(!ids('quero uma campanha').length));
+await test('UI home e rail usam o mesmo ranking',()=>{fState.categoria='campanhas';fFilterCamps('hamburguer story');fHomeFilter('hamburguer story');assert(document.getElementById('fh-body').textContent.includes('Burger do domingo'));assert(document.getElementById('f-catalog').textContent.includes('Story'));});
+await test('Estado vazio oferece solicitação com consulta escapada',()=>{fHomeFilter('<img src=x onerror=alert(1)> açaí');assert(document.querySelector('#fh-body [data-query]'));assert(!document.querySelector('#fh-body img[src=x]'));fHomeFilter('');});
+await test('Debounce registra consulta final uma vez',async()=>{fSearchRecord('',null,'catalog');calls.length=0;const r=fSearchCampaigns('pizza',camps);fSearchRecord('p',r,'home');fSearchRecord('pizza',r,'home');fSearchRecord('pizza',r,'home');await sleep(750);const events=calls.filter(c=>c.name==='registrar_evento'&&c.args.p_evento==='search_performed'&&c.args.p_payload.source==='home');assert(events.length===1&&events[0].args.p_payload.query==='pizza');});
+await test('Abertura antes do debounce preserva busca e posição',async()=>{calls.length=0;document.body.classList.add('f-home-mode');fSearchRecord('burger',fSearchCampaigns('burger',camps),'home');fSearchRecordOpen('burger-story');await sleep(40);assert(calls.some(c=>c.args.p_evento==='search_result_opened'));document.body.classList.remove('f-home-mode');});
+const host=document.getElementById('fixture');
+const snap={camp:{id:'burger-story',name:'Burger'},material:{id:'local',remoteId:'remote',name:'Story'},fmt:{id:'story'},histId:'h1',dados:{}};
+await test('Feedback positivo em um clique e ID do material remoto',async()=>{const s=fFeedbackMount(snap,host,'snap1');s.querySelector('[data-feedback=positive]').click();await sleep(30);assert(s.textContent.includes('Feedback enviado'));const row=calls.filter(c=>c.name==='submit_feedback').at(-1).args.p_feedback;assert(row.rating==='positive'&&row.template_id==='remote'&&row.camp_id==='burger-story');});
+await test('Não repete convite para mesma ação após confirmação',()=>assert(fFeedbackMount(snap,host,'snap1')===null));
+await test('Negativo com motivo e sem comentário',async()=>{const s=fFeedbackMount({...snap,histId:'h2'},host,'snap2');s.querySelector('[data-feedback=negative]').click();const radio=s.querySelector('input[value=missing_format]');radio.click();s.querySelector('form').requestSubmit();await sleep(30);const row=calls.filter(c=>c.name==='submit_feedback').at(-1).args.p_feedback;assert(row.rating==='negative'&&row.reason==='missing_format'&&row.comment===null);});
+await test('Falha mantém pendência e retry reutiliza UUID',async()=>{offline=true;const s=fFeedbackMount({...snap,histId:'h3'},host,'snap3');s.querySelector('[data-feedback=positive]').click();await sleep(20);const id=calls.filter(c=>c.name==='submit_feedback').at(-1).args.p_feedback.id;assert(s.textContent.includes('Envio pendente'));offline=false;s.querySelector('[data-feedback=retry]').click();await sleep(30);assert(calls.filter(c=>c.name==='submit_feedback').at(-1).args.p_feedback.id===id&&s.textContent.includes('Feedback enviado'));});
+await test('Pedido pré-preenchido e persistido como content_request',async()=>{const s=fFeedbackRequest('pizza em dobro',host);assert(s.querySelector('[name=query]').value==='pizza em dobro');s.querySelector('form').requestSubmit();await sleep(30);assert(calls.filter(c=>c.name==='submit_feedback').at(-1).args.p_feedback.type==='content_request');});
+await test('Resposta em trânsito não aparece na nova conta',async()=>{let resolve;held=new Promise(r=>resolve=r);const s=fFeedbackMount({...snap,histId:'h4'},host,'snap4');s.querySelector('[data-feedback=positive]').click();await sleep(5);const row=calls.filter(c=>c.name==='submit_feedback').at(-1).args.p_feedback;const previous=gAuthState.user;gAuthState.user={id:'22222222-2222-4222-8222-222222222222',role:'franqueado'};authListeners.forEach(fn=>fn('SIGNED_IN',{user:gAuthState.user}));resolve({data:row.id});await sleep(20);assert(!s.isConnected);held=null;gAuthState.user=previous;});
+// Mantemos o download real em chat.js, substituindo só o render caro e dependências de outras telas.
+fGenPNG=async()=>{if(failDownload)throw new Error('render failed');downloads++;};fGenPDF=fGenPNG;
+fMarkHistBaixada=()=>{};fAddHist=()=>1;_fActiveCaptionText=()=>'';gBtnLoading=()=>()=>{};
+await test('Download não espera nem exige feedback',async()=>{host.innerHTML='<div class="art-wrap"><button id="download">Baixar</button></div>';_fArtSnapshots.test={...snap,histId:'download'};await fBaixar(document.getElementById('download'),'test');assert(downloads===1&&host.textContent.includes('Tudo certo'));});
+await test('Falha de geração não abre feedback de download',async()=>{host.innerHTML='<div class="art-wrap"><button id="download">Baixar</button></div>';failDownload=true;await fBaixar(document.getElementById('download'),'test');assert(!host.querySelector('.f-feedback'));failDownload=false;});
+await test('Download PDF também oferece feedback sem bloqueio',async()=>{await fBaixarPDF(document.getElementById('download'),'test');assert(downloads===2&&host.querySelector('.f-feedback'));});
+await test('Admin recusa franqueado',async()=>{await gFeedbackAdminOpen();assert(document.getElementById('prof-pane-feedback').textContent.includes('exclusiva'));});
+await test('Admin filtra avaliações pelo tipo canônico e traduz motivos',async()=>{gAuthState.user.role='equipe_dm';adminRows=[{type:'campaign_feedback',camp_name:'<img src=x>',rating:'negative',reason:'missing_format',created_at:new Date().toISOString()}];await gFeedbackAdminOpen();await gFeedbackAdminFilter('campaign_feedback');const pane=document.getElementById('prof-pane-feedback');assert(pane.textContent.includes('Faltou um formato')&&!pane.querySelector('img'));});
+await test('Logout descarta comentários administrativos',()=>{authListeners.forEach(fn=>fn('SIGNED_OUT',null));assert(!document.getElementById('prof-pane-feedback').textContent);});
+await test('Eventos offline sobrevivem e não duplicam no retry',async()=>{offline=true;const id=gUuid();await gTrackEvent('search_performed',{query:'teste offline'},id);assert(localStorage.getItem('luma_events_v1:'+gCurrentUser().id).includes(id));offline=false;await gTrackEvent.flush();const count=calls.filter(c=>c.args.p_id===id).length;await gTrackEvent('search_performed',{query:'teste offline'},id);assert(calls.filter(c=>c.args.p_id===id).length===count);});
+window.__lumaTest={total,passed:total-failures.length,failures};
+})().catch(e=>window.__lumaTest={total:1,passed:0,failures:[{name:'bancada',error:e.stack}]});
+</script></body></html>

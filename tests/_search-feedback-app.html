@@ -1,0 +1,11 @@
+<!doctype html><meta charset="utf-8"><title>Luma — bancada visual isolada</title>
+<p>Carregando o aplicativo com campanhas de teste e rede simulada…</p>
+<script>
+// Usa o HTML e todos os módulos reais. Só esta rota remove o backend de produção.
+fetch('../index.html').then(r=>r.text()).then(html=>{
+  html=html.replace('<head>','<head><base href="../">')
+    .replace(/<script src="js\/core\/supabase-config\.js[^>]*><\/script>/,'')
+    .replace(/(<script src="js\/main\.js)/,'<script src="tests/search-feedback-fixture.js"></'+'script>$1');
+  document.open();document.write(html);document.close();
+});
+</script>

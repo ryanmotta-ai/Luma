@@ -8,6 +8,27 @@
 
 // Tempo de início da sessão para as estatísticas
 const gSessionStartTime = Date.now();
+// A consulta administrativa só pesa quando a equipe abre esta aba.
+const G_FEEDBACK_ADMIN_URL = new URL('feedback-admin.js'+new URL(document.currentScript.src).search,document.currentScript.src).href;
+let _gFeedbackAdminLoading = null;
+async function gProfileOpenFeedback(){
+  if(!gIsAdmin())return;
+  const pane=document.getElementById('prof-pane-feedback');
+  try{
+    if(typeof gFeedbackAdminOpen!=='function'){
+      if(!_gFeedbackAdminLoading) _gFeedbackAdminLoading=new Promise((resolve,reject)=>{
+        const script=document.createElement('script');script.src=G_FEEDBACK_ADMIN_URL;
+        script.onload=resolve;script.onerror=()=>{script.remove();_gFeedbackAdminLoading=null;reject(new Error('load'));};
+        document.head.appendChild(script);
+      });
+      if(pane)pane.innerHTML='<p role="status">Carregando respostas…</p>';
+      await _gFeedbackAdminLoading;
+    }
+    if(gIsAdmin()&&pane?.classList.contains('active'))await gFeedbackAdminOpen();
+  }catch(e){
+    if(pane&&gIsAdmin())pane.innerHTML='<p role="status">Não foi possível carregar as respostas.</p><button type="button" class="g-feedback-button" onclick="gProfileOpenFeedback()">Tentar novamente</button>';
+  }
+}
 
 // Abre o Modal do Perfil de Usuário e inicializa os campos
 function gOpenUserProfileModal() {
@@ -58,6 +79,8 @@ function gOpenUserProfileModal() {
   // módulo que ela mesma pode ter desativado.
   const produtoBtn = document.getElementById('prof-nav-produto');
   if(produtoBtn) produtoBtn.style.display = gIsSuperAdmin() ? '' : 'none';
+  const feedbackBtn=document.getElementById('prof-nav-feedback');
+  if(feedbackBtn)feedbackBtn.style.display=gIsAdmin()?'':'none';
 
   // Console (Luma CLI): mesmo gate do console em si (gIsAdmin = equipe_dm + gestao).
   // Gate mais estreito aqui deixaria o designer sem caminho no celular, onde não há Ctrl+`.
@@ -84,6 +107,7 @@ function gOpenUserProfileModal() {
 
 // Fecha o Modal
 function gCloseUserProfileModal() {
+  if(typeof gFeedbackAdminReset==='function')gFeedbackAdminReset();
   const modal = document.getElementById('g-profile-modal');
   if (modal) {
     modal.classList.remove('open');
@@ -100,6 +124,7 @@ function gProfileOpenCli(){
 }
 
 function gProfileSwitchTab(tabName) {
+  if(tabName==='feedback'&&!gIsAdmin())return;
   // Ajustar botões da navegação lateral
   document.querySelectorAll('.prof-nav-btn').forEach(btn => {
     const isActive = btn.id === `prof-nav-${tabName}`;
@@ -150,6 +175,10 @@ function gProfileSwitchTab(tabName) {
     if (title) title.textContent = 'Gestão de equipe';
     if (subtitle) subtitle.textContent = 'Convide pessoas e mantenha cada acesso no nível certo.';
     gProfileRenderEquipe();
+  } else if (tabName === 'feedback') {
+    if(title)title.textContent='Feedback dos franqueados';
+    if(subtitle)subtitle.textContent='Dificuldades e conteúdos pedidos pela rede';
+    gProfileOpenFeedback();
   } else if (tabName === 'produto') {
     if (title) title.textContent = 'Controle do produto';
     if (subtitle) subtitle.textContent = 'Gerencie os módulos e recursos disponíveis no Luma.';

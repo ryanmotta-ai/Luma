@@ -1208,6 +1208,7 @@ function fGerarArte(){
       } catch(e){ console.warn('Erro ao renderizar preview:', e); }
     }
     fLpRefresh();
+    if(typeof fFeedbackMount==='function') fFeedbackMount(_fArtSnapshots[previewCanvasId],w.querySelector('.art-wrap'),previewCanvasId,'generation');
     setTimeout(()=>fAddBot('Arte salva em <strong>Minhas artes</strong>! Clique em outro formato para gerar variações.',[]),500);
   },800);
 }
@@ -1320,6 +1321,7 @@ async function fBaixar(btn, snapId){
     if(snap.histId){ fMarkHistBaixada(snap.histId); }
     else { fAddHist(snap.dados,snap.camp,snap.fmt,'baixada'); }
     if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt_id:snap.fmt.id,tipo:'png'});
+    if(typeof fFeedbackAfterDownload==='function') fFeedbackAfterDownload(snap,btn,snapId,'png');
     // Baixa a imagem e já deixa a legenda na área de transferência — 1 passo a menos pra postar.
     const cap=_fActiveCaptionText(snapId);
     if(cap){ _fCopyText(cap); gToast('Arte baixada • legenda copiada!'); }
@@ -1427,6 +1429,7 @@ async function fBaixarPDF(btn, snapId){
     if(snap.histId){ fMarkHistBaixada(snap.histId); }
     else { fAddHist(snap.dados,snap.camp,snap.fmt,'baixada'); }
     if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt_id:snap.fmt.id,tipo:'pdf'});
+    if(typeof fFeedbackAfterDownload==='function') fFeedbackAfterDownload(snap,btn,snapId,'pdf');
     gToast('PDF baixado!');
     if (typeof gTriggerOnboardingStep === 'function') {
       gTriggerOnboardingStep('downloadedPng');
