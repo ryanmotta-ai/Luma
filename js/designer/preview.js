@@ -90,7 +90,7 @@ function pvRender(){
   if((_cur.w!==W||_cur.h!==H)&&typeof gReflowLayers==='function')
     _src=gReflowLayers(dLayers,_cur,{w:W,h:H},{fmtKey:gFmtKey(fmtKey)});
   const renderQueue=_src.filter(l=>l.visible);
-  pvRenderLayers(ctx, renderQueue, W, H, 0, ()=>{
+  pvRenderViaMotor(ctx, renderQueue, W, H, 'preview', ()=>{
     // Sobrepor paint canvas se existir
     const paintCv=document.getElementById('d-paint-canvas');
     if(paintCv&&paintCv.width>0){
@@ -101,6 +101,45 @@ function pvRender(){
     pvApplyDevice();
     if(pvRenderQueued){pvRenderQueued=false;pvRender();}
   });
+}
+
+/* ── PONTE PARA O MOTOR ÚNICO (ticket 5 do estudo de fidelidade, §5.4) ────────────────────
+   A prévia e o PNG do Estúdio passavam por `pvRenderLayers`, um SEGUNDO renderizador: sem
+   pipeline de ajuste de cor (ignorava a camada inteira) e com opacidade de grupo aplicada
+   filho a filho em vez de no composto. O que o designer aprovava não era o que o franqueado
+   baixava. Medido em tests/_paridade-render.js: 100% dos pixels divergiam num ajuste de cor,
+   22,7% num grupo com opacidade. Agora os dois lados desenham pelo mesmo
+   `fRenderTemplateLayers` — o motor do arquivo final.
+
+   Três cuidados que o motor exige e o pv* não pedia:
+   • `camp.color` vira 'transparent' — o motor pinta um fundo de campanha quando não encontra
+     camada de fundo, e a prancheta do Estúdio pode ser transparente de propósito;
+   • o material declara w/h iguais aos do alvo: o reflow de formato já foi feito por quem
+     chama, e o motor reflowaria de novo por cima;
+   • campo sem valor de simulação continua saindo como `[Rótulo]`, que é o que o Estúdio
+     mostrava antes — o motor sozinho deixaria o texto vazio.
+
+   `pvRenderLayers` fica como rede: se `png-generator.js` não tiver carregado, a prévia
+   desenha pelo caminho antigo em vez de sumir. */
+function pvRenderViaMotor(ctx, layers, W, H, purpose, done){
+  if(typeof fRenderTemplateLayers!=='function'){ pvRenderLayers(ctx,layers,W,H,0,done); return; }
+  const material={layers:layers, w:W, h:H, fmt:'orig', bg:'transparent'};
+  Promise.resolve(fRenderTemplateLayers(ctx, layers, W, H, pvSimDados(layers),
+      {color:'transparent'}, material, {scope:'designer', purpose:purpose}))
+    .catch(e=>{ console.error('[preview] motor único falhou:', e); })
+    .then(()=>done());
+}
+// Valores da simulação com a MESMA queda do editor: campo sem valor mostra [Rótulo].
+function pvSimDados(layers){
+  const out={};
+  const nomes=(typeof dExtractTemplateVars==='function')?dExtractTemplateVars(layers):[];
+  const sim=(typeof dSimValues!=='undefined'&&dSimValues)?dSimValues:{};
+  nomes.forEach(n=>{
+    const v=(typeof dVars!=='undefined'&&dVars)?dVars.find(x=>x.name===n):null;
+    const val=sim[n];
+    out[n]=(val!=null&&val!=='')?val:('['+((v&&v.label)||n)+']');
+  });
+  return out;
 }
 
 function pvRenderLayers(ctx, layers, W, H, idx, done){
@@ -518,7 +557,7 @@ function _pvRenderToBlobNow(fmt, cb){
   if((_cur2.w!==sz.w||_cur2.h!==sz.h)&&typeof gReflowLayers==='function')
     _src2=gReflowLayers(dLayers,_cur2,{w:sz.w,h:sz.h},{fmtKey:gFmtKey(fmt)});
   const visible=_src2.filter(l=>l.visible);
-  pvRenderLayers(ctx,visible,sz.w,sz.h,0,()=>{
+  pvRenderViaMotor(ctx,visible,sz.w,sz.h,'export',()=>{
     const paintCv=document.getElementById('d-paint-canvas');
     if(paintCv&&paintCv.width>0)ctx.drawImage(paintCv,0,0,sz.w,sz.h);
     // JPG não tem transparência → fundo branco atrás de tudo

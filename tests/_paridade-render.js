@@ -64,7 +64,13 @@
   }
   async function motorEstudio(layers){
     const cv=novoCanvas(), ctx=cv.getContext('2d');
-    const r=await comTeto(new Promise(res=>pvRenderLayers(ctx,JSON.parse(JSON.stringify(layers)),W,H,0,res)),4000);
+    // `pvRenderViaMotor` é a ponte de produção (o que a prévia e o PNG do Estúdio chamam);
+    // caindo para `pvRenderLayers` a bancada volta a medir o renderizador antigo, que é
+    // exatamente o que se quer se a ponte for removida ou a rede for acionada.
+    const desenhar=(res)=>(typeof pvRenderViaMotor==='function')
+      ? pvRenderViaMotor(ctx,JSON.parse(JSON.stringify(layers)),W,H,'export',res)
+      : pvRenderLayers(ctx,JSON.parse(JSON.stringify(layers)),W,H,0,res);
+    const r=await comTeto(new Promise(desenhar),4000);
     return r==='timeout' ? null : cv;
   }
 
