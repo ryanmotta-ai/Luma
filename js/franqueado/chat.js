@@ -475,8 +475,15 @@ function fNextStep(){
   fUpdateInputPlaceholder(p.id);
   // Rehidrata o input com o que já existe (prévia, rascunho ou perfil da loja): o valor
   // fica visível e um Enter mantém. Cursor no fim (não seleciona: digitar não apaga tudo).
-  if(jaTem && box && cfg.type!=='image'){
-    box.value=String(fState.dados[p.id]);
+  if(box && cfg.type!=='image'){
+    /* ⚠ A CAIXA PERTENCE AO PASSO — e o `else` é a metade que faltava. Só o `fSend` limpava o
+       campo; chip de sugestão (`fQR`) e "Manter" (`fManterValor`) avançavam deixando o texto
+       do passo ANTERIOR ali. O passo novo abria com o valor do vizinho na caixa e, na primeira
+       tecla, o `input` do `chat-input.js` gravava "<texto velho>+letra" no campo NOVO — valor
+       mudando porque o fluxo andou, exatamente o que este contrato proíbe.
+       Aparecia mais agora porque o "Manter" nasce em cima de uma caixa JÁ preenchida (o
+       `jaTem`), então o texto velho era a regra e não a exceção. Achado pela sonda da bancada. */
+    box.value = jaTem ? String(fState.dados[p.id]) : '';
     try { box.setSelectionRange(box.value.length, box.value.length); } catch(e){}
     try { fUpdateCharCount(); } catch(e){}
   }

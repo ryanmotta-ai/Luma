@@ -291,6 +291,83 @@ await test('Repintar a prévia não escreve nada em fState.dados', async()=>{
     'a prévia gravou na fonte de verdade ao repintar: '+JSON.stringify(fState.dados));
 });
 
+
+/* ── 12. A CAIXA DE DIGITAR PERTENCE AO PASSO ─────────────────────────────────────────────
+   Chip que avança (sugestão ou "Manter") deixava o texto do passo anterior na caixa: o passo
+   novo abria com o valor do vizinho e a primeira tecla gravava "<velho>+letra" no campo NOVO.
+   Valor mudando porque o fluxo andou — o que o contrato proíbe. */
+await test('A caixa não leva o texto de um passo para o seguinte', async()=>{
+  reset();
+  _fLpCommit('produto','X-Bacon Duplo');
+  irAoPasso('produto');
+  const box=document.getElementById('f-msg-box');
+  assert(box.value==='X-Bacon Duplo','o passo devia abrir com o valor da prévia na caixa');
+  Array.from(document.querySelectorAll('.qr')).find(c=>/Manter/.test(c.textContent)).click();
+  await espera(PASSO);
+  assert(idDoPasso()==='precoDe','não avançou para o passo seguinte: '+idDoPasso());
+  assert(box.value==='','a caixa levou "'+box.value+'" para o passo seguinte');
+  assert(fState.dados.precoDe==null,'o passo seguinte já nasceu com valor sem ninguém responder');
+});
+
+await test('O mesmo vale para chip de sugestão, não só para o Manter', async()=>{
+  reset();
+  irAoPasso('produto');
+  const box=document.getElementById('f-msg-box');
+  const chip=Array.from(document.querySelectorAll('.qr')).find(c=>!/Manter|Pular/.test(c.textContent));
+  assert(chip,'o passo não ofereceu sugestão nenhuma para exercitar o fQR');
+  chip.click();
+  await espera(PASSO+300);   // fQR anima 200ms antes de submeter
+  assert(box.value==='','a caixa levou "'+box.value+'" depois de um chip de sugestão');
+});
+
+/* ── 13. PRÉVIA → CHAT → PRÉVIA (a volta completa da lista de regressão) ─────────────────── */
+await test('Prévia → chat → prévia: a última edição é a que vale, em qualquer ordem', async()=>{
+  reset();
+  _fLpCommit('produto','Feito na prévia');
+  irAoPasso('produto');
+  const box=document.getElementById('f-msg-box');
+  box.value='Feito no chat';
+  fSend();
+  await espera(PASSO);
+  assert(fState.dados.produto==='Feito no chat','o chat não gravou por cima da prévia (ação explícita)');
+  _fLpCommit('produto','Feito na prévia de novo');
+  assert(fState.dados.produto==='Feito na prévia de novo','a prévia não gravou por cima do chat');
+  // E repintar não pode desfazer: é leitura.
+  await fUpdateLivePreview();
+  assert(fState.dados.produto==='Feito na prévia de novo','repintar a prévia mexeu no valor');
+});
+
+/* ── 14. REABRIR ARTE (o item da lista que passava pelo caminho pobre do catalog.js) ─────── */
+await test('Reabrir arte restaura os valores e não vaza nome de variável na pergunta', async()=>{
+  reset();
+  // O caminho real de reabrir monta as perguntas a partir das CHAVES dos dados salvos.
+  const salvos={produto:'Pizza Grande',precoPor:'R$ 29,90',foto_produto:'data:image/png;base64,x',
+                '__fit__foto_produto':{scale:1.2,offX:0,offY:0}};
+  const chaves=Object.keys(salvos).filter(k=>!/^__/.test(k));
+  if(typeof gSortTemplateVars==='function') gSortTemplateVars(chaves);
+  const perguntas=fBuildPerguntas(chaves,{camp:{name:'Campanha de bancada'},
+    isImage:(k)=>typeof salvos[k]==='string' && salvos[k].startsWith('data:image')});
+  fState.camp={...fState.camp,perguntas};
+  fState.dados={...salvos};
+  fState.stepIdx=perguntas.length;
+  assert(perguntas.length===3,'reabrir montou '+perguntas.length+' perguntas para 3 campos salvos (metadado __fit__ virou pergunta?)');
+  perguntas.forEach(p=>{
+    const texto=String(p.texto).replace(/<[^>]*>/g,'');
+    assert(!/[a-z]_[a-z]/i.test(texto)&&!/[a-z][A-Z]/.test(texto),
+      'reabrir arte vazou nome técnico na pergunta: "'+texto+'"');
+  });
+  // Editar um campo da arte reaberta grava de verdade (era o `done` que cortava).
+  fState.done=true;
+  const idx=perguntas.findIndex(p=>p.id==='produto');
+  fEditCampo(idx);
+  document.getElementById('f-msg-box').value='Pizza Calabresa';
+  fSend();
+  await espera(PASSO);
+  assert(fState.dados.produto==='Pizza Calabresa','editar campo de arte reaberta não gravou');
+  assert(fState.dados.precoPor==='R$ 29,90','editar um campo apagou outro da arte reaberta');
+  assert(fState.dados['__fit__foto_produto'],'o enquadramento salvo da foto se perdeu ao reabrir');
+});
+
 window.__lumaTest={total,passed:total-failures.length,failures};
 })().catch(e=>window.__lumaTest={total:1,passed:0,failures:[{name:'bancada',error:e.stack}]});
 </script></body></html>
