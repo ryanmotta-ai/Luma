@@ -1,0 +1,296 @@
+<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Luma — fluxo de criação do franqueado</title>
+<link rel="stylesheet" href="../css/00-tokens.css">
+<body class="theme-light"><h1>Fluxo do franqueado — chat e prévia, uma verdade só</h1><ol id="results"></ol>
+
+<!-- ══════════════════════════════════════════════════════════════════════════════════════════
+     POR QUE ESTA SUÍTE EXISTE
+     ------------------------------------------------------------------------------------------
+     O teste de usabilidade com o time (09/2026) achou o defeito central da V1: chat e prévia
+     pareciam DUAS ferramentas concorrentes, e uma edição feita na prévia podia ser reescrita
+     pelo chat depois. O contrato novo é que os dois são interfaces da MESMA fonte de verdade
+     (`fState.dados`), e que **valor só muda por ação explícita de quem está criando**.
+
+     Contrato é promessa; sem teste é promessa de boca. Aqui os módulos REAIS do franqueado
+     (chat.js, chat-input.js, live-preview.js) são carregados e o fluxo é dirigido de verdade —
+     nada de mock do que está sendo testado. Cada caso é uma das sequências que o pedido lista:
+     chat→prévia→chat, prévia→chat→prévia, editar campo já respondido, voltar passo, trocar
+     formato, abrir rascunho, reabrir arte.
+     ══════════════════════════════════════════════════════════════════════════════════════════ -->
+
+<!-- Palco mínimo: os nós que o chat e a prévia procuram por id na carga e no render. -->
+<div id="f-messages"></div>
+<input id="f-msg-box"><button id="f-snd"></button><button id="f-chat-mic"></button>
+<span id="f-char-count"></span><div id="prog-fill"></div><div id="f-ctx-tag"></div>
+<div class="lp-stage"><div class="lp-canvas-wrap"><canvas id="lp-canvas" width="1080" height="1920"></canvas></div></div>
+<div id="lp-empty"><span id="lp-empty-title"></span><span id="lp-empty-sub"></span></div>
+<span id="lp-dim"></span><span id="lp-sub"></span><span id="lp-layout-nota" hidden></span>
+<!-- `live-preview.js` liga um listener em `#f-preview-modal` no topo do arquivo, fora de
+     qualquer guarda: sem este nó o script morre na linha 56 e metade da prévia nunca inicializa.
+     (Achado montando esta bancada — no app o nó existe no index.html.) -->
+<div id="f-preview-modal"><div id="pv-title"></div><div id="pv-note"></div><div id="pv-multi"></div></div>
+<div id="fixture"></div>
+
+<script>
+// Bancada sem rede e sem credencial. Só o que o código do franqueado consulta na carga.
+var dFolders=[], dVars=[];
+function gCurrentUser(){return {id:'11111111-1111-4111-8111-111111111111'};}
+function gIsAdmin(){return false;}
+function gFeatureCan(){return true;}
+function gTrackEvent(){}
+function gAiReady(){return false;}
+var sbFake={schema(){return {from(){return {
+  upsert(){return Promise.resolve({error:null});},
+  select(){return {eq(){return {single(){return Promise.resolve({data:null});}};}};}
+};}};}};
+function gSupabase(){return sbFake;} window.sb=sbFake;
+</script>
+<script src="../js/00-config.js"></script>
+<script src="../js/01-state.js"></script>
+<script src="../js/core/toast.js"></script>
+<script src="../js/core/layout.js"></script>
+<script src="../js/core/auto-layout.js"></script>
+<script src="../js/franqueado/prefs.js"></script>
+<script src="../js/franqueado/history.js"></script>
+<script src="../js/franqueado/materials.js"></script>
+<script src="../js/franqueado/catalog.js"></script>
+<script src="../js/franqueado/chat.js"></script>
+<script src="../js/franqueado/chat-input.js"></script>
+<script src="../js/franqueado/live-preview.js"></script>
+<script src="../js/franqueado/png-generator.js"></script>
+<script>
+(async()=>{
+const failures=[];let total=0;
+const assert=(x,m)=>{if(!x)throw new Error(m||'asserção falhou');};
+async function test(name,fn){total++;try{await fn();
+    document.getElementById('results').insertAdjacentHTML('beforeend','<li>OK '+gEsc(name)+'</li>');}
+  catch(e){failures.push({name,error:e.message});
+    document.getElementById('results').insertAdjacentHTML('beforeend','<li>FALHOU '+gEsc(name)+'</li>');}}
+
+/* O chat conversa por setTimeout (fTyping = 900ms, o passo inicial = 900ms). Esperar o relógio
+   de verdade é o que torna o teste honesto: é assim que o fluxo roda para quem usa. */
+const espera=ms=>new Promise(r=>setTimeout(r,ms));
+const PASSO=1100;
+
+// Material de bancada: três campos de texto e uma foto, que é a forma da esmagadora maioria
+// das artes reais (produto, preço de, preço por, foto).
+const LAYERS=[
+  {id:'fundo',name:'Fundo',type:'shape',shapeKind:'rect',x:0,y:0,w:1080,h:1920,fill:'#E8231A',visible:true,opacity:100},
+  {id:'produto',name:'Produto',type:'text',content:'{{produto}}',isVar:true,x:90,y:400,w:900,h:180,
+   font:'Arial',fontSize:90,lineHeight:1.05,textAlign:'left',textBox:'box',visible:true,opacity:100},
+  {id:'de',name:'De',type:'text',content:'{{precoDe}}',isVar:true,x:90,y:700,w:340,h:60,
+   font:'Arial',fontSize:38,lineHeight:1.2,textAlign:'left',textBox:'point',visible:true,opacity:100},
+  {id:'por',name:'Por',type:'text',content:'{{precoPor}}',isVar:true,x:470,y:672,w:400,h:110,
+   font:'Arial',fontSize:84,lineHeight:1.1,textAlign:'left',textBox:'point',visible:true,opacity:100},
+  {id:'foto',name:'Foto',type:'frame',imgVar:'foto_produto',x:90,y:1000,w:900,h:700,visible:true,opacity:100}
+];
+const material=()=>({id:'mat-1',name:'Promo de bancada',fmt:'story',w:1080,h:1920,
+  layers:JSON.parse(JSON.stringify(LAYERS)),publishMeta:{publicado:true}});
+
+// Estado limpo antes de cada caso — o fState é global e um caso não pode herdar o anterior.
+function reset(){
+  /* ⚠ E o RELÓGIO também. O chat agenda o próximo passo em `fNextTimeout` (900ms): um caso que
+     dispara `fApplyRecoverDraft` e não espera o passo seguinte deixa um `fNextStep()` armado
+     que cai no meio do caso SEGUINTE e o faz avançar sozinho. Foi o que aconteceu montando
+     esta bancada — o caso do passo de foto acusou "avançou sozinho" por causa do caso do
+     rascunho, três casos antes. Contaminação de bancada não pode virar diagnóstico de bug. */
+  try{clearTimeout(fNextTimeout);}catch(e){}
+  try{localStorage.removeItem('luma_chat_draft');}catch(e){}
+  fState.material=material();
+  fState.fmt=FMTS.find(f=>f.id==='story')||FMTS[0];
+  fState.camp={id:'camp-1',name:'Campanha de bancada',color:'#FF9000',
+    perguntas:fBuildPerguntas(['produto','precoDe','precoPor','foto_produto'],
+      {camp:{name:'Campanha de bancada'},imageVars:new Set(['foto_produto'])})};
+  fState.dados={}; fState.stepIdx=-1; fState.done=false; fState.editIdx=null; fState.extractedColors={};
+  document.getElementById('f-messages').innerHTML='';
+  document.getElementById('f-msg-box').value='';
+}
+const idDoPasso=()=>fState.camp.perguntas[fState.stepIdx] && fState.camp.perguntas[fState.stepIdx].id;
+const irAoPasso=(id)=>{ fState.stepIdx=fState.camp.perguntas.findIndex(p=>p.id===id)-1; fNextStep(); };
+
+/* ── 1. PRÉVIA → CHAT ─────────────────────────────────────────────────────────────────────
+   A queixa literal do teste: escrevo na prévia, o chat chega no campo e apaga o que escrevi. */
+await test('Prévia → chat: o passo chega com o valor da prévia, não em branco', async()=>{
+  reset();
+  _fLpCommit('produto','X-Bacon Duplo');          // é isto que a prévia faz ao salvar o popover
+  assert(fState.dados.produto==='X-Bacon Duplo','a prévia não gravou na fonte de verdade');
+  irAoPasso('produto');
+  assert(fState.dados.produto==='X-Bacon Duplo','o chat apagou o que a prévia escreveu ao abrir o passo');
+  assert(document.getElementById('f-msg-box').value==='X-Bacon Duplo',
+    'o campo do chat não veio preenchido com o valor da prévia');
+});
+
+await test('Prévia → chat: o passo já respondido oferece MANTER, e manter não muda nada', async()=>{
+  reset();
+  _fLpCommit('produto','X-Bacon Duplo');
+  irAoPasso('produto');
+  const chips=Array.from(document.querySelectorAll('.qr'));
+  const manter=chips.find(c=>/Manter/.test(c.textContent));
+  assert(manter,'o passo já preenchido não ofereceu “Manter”');
+  assert(/X-Bacon Duplo/.test(manter.textContent),'o chip “Manter” não mostra o valor que será mantido');
+  manter.click();
+  await espera(PASSO);
+  assert(fState.dados.produto==='X-Bacon Duplo','manter trocou o valor');
+});
+
+await test('Prévia → chat: campo já preenchido não oferece PULAR (pular apagaria a resposta)', async()=>{
+  reset();
+  _fLpCommit('produto','X-Bacon Duplo');
+  irAoPasso('produto');
+  const chips=Array.from(document.querySelectorAll('.qr')).map(c=>c.textContent.trim());
+  assert(!chips.some(t=>t==='Pular'),'“Pular” apareceu sobre um valor já escrito — clicar apagaria a resposta');
+});
+
+/* ── 2. CHAT → PRÉVIA → CHAT ─────────────────────────────────────────────────────────────── */
+await test('Chat → prévia → chat: a prévia vence, porque é a edição mais recente', async()=>{
+  reset();
+  irAoPasso('produto');
+  document.getElementById('f-msg-box').value='Pizza Grande';
+  fSend();
+  await espera(PASSO);
+  assert(fState.dados.produto==='Pizza Grande','o chat não gravou a resposta');
+  _fLpCommit('produto','Pizza Gigante');           // a pessoa corrige pela arte
+  assert(fState.dados.produto==='Pizza Gigante','a prévia não sobrescreveu o valor antigo do chat');
+  irAoPasso('produto');                            // e volta ao passo pelo chat
+  assert(fState.dados.produto==='Pizza Gigante','o chat restaurou o valor velho por cima do novo');
+});
+
+/* ── 3. VOLTAR UM PASSO ───────────────────────────────────────────────────────────────────
+   O laço antigo apagava TODAS as respostas dali pra frente — inclusive as feitas na prévia. */
+await test('Voltar um passo move o cursor e não apaga resposta nenhuma', async()=>{
+  reset();
+  fState.dados={produto:'Pizza Grande',precoDe:'R$ 49,90',precoPor:'R$ 29,90'};
+  fState.stepIdx=2;                                 // está no "precoPor"
+  fGoBack();
+  await espera(50);
+  assert(fState.dados.produto==='Pizza Grande','voltar apagou uma resposta anterior');
+  assert(fState.dados.precoDe==='R$ 49,90','voltar apagou a resposta do passo alvo');
+  assert(fState.dados.precoPor==='R$ 29,90','voltar apagou a resposta seguinte — a edição da prévia se perderia aqui');
+});
+
+/* ── 4. EDITAR CAMPO JÁ RESPONDIDO, COM A ARTE JÁ GERADA ─────────────────────────────────── */
+await test('Editar um campo depois da arte pronta volta ao fluxo (e a resposta é salva)', async()=>{
+  reset();
+  fState.dados={produto:'Pizza Grande',precoDe:'R$ 49,90',precoPor:'R$ 29,90'};
+  fState.done=true;                                 // arte gerada
+  fEditCampo(0);
+  assert(fState.done===false,'`done` continuou de pé — fSaveAdv cortaria e a edição não salvaria');
+  assert(fState.editIdx===0,'a edição não marcou qual campo está sendo editado');
+  document.getElementById('f-msg-box').value='Pizza Calabresa';
+  fSend();
+  await espera(PASSO);
+  assert(fState.dados.produto==='Pizza Calabresa','a edição pelo lápis não gravou a resposta');
+});
+
+/* ── 5. TROCAR DE FORMATO ─────────────────────────────────────────────────────────────────── */
+await test('Trocar de formato mantém tudo que já foi respondido', async()=>{
+  reset();
+  fState.dados={produto:'Pizza Grande',precoPor:'R$ 29,90'};
+  fState.done=false;
+  const outro=FMTS.find(f=>f.id!==fState.fmt.id);
+  fSelectFmt(outro.id);
+  assert(fState.dados.produto==='Pizza Grande','trocar de formato apagou uma resposta');
+  assert(fState.dados.precoPor==='R$ 29,90','trocar de formato apagou uma resposta');
+});
+
+/* ── 6. ABRIR RASCUNHO ────────────────────────────────────────────────────────────────────
+   Recuperar rascunho fazia `fState.dados = draft.dados` — um `=` que descartava em silêncio o
+   que já estava em cena (o `fSelectMaterial` preserva respostas ao trocar de material). */
+await test('Recuperar rascunho mescla: o rascunho manda no que ele conhece, o resto sobrevive', async()=>{
+  reset();
+  fState.dados={precoPor:'R$ 19,90'};               // veio do material anterior, ainda em cena
+  fState._pendingDraft={dados:{produto:'Pizza Grande'},extractedColors:{},stepIdx:1};
+  fApplyRecoverDraft(true);
+  await espera(50);
+  assert(fState.dados.produto==='Pizza Grande','o rascunho não foi aplicado');
+  assert(fState.dados.precoPor==='R$ 19,90','o rascunho descartou um valor que estava em cena');
+});
+
+/* ── 7. PERFIL DE LOJA ────────────────────────────────────────────────────────────────────
+   Escolher a loja é uma ação sobre o CONJUNTO. Ela preenche o que falta; não decide por campo. */
+await test('Perfil de loja preenche o vazio e não passa por cima do que já foi escrito', async()=>{
+  reset();
+  fState.camp.perguntas=fBuildPerguntas(['nome_loja','logo_loja'],{camp:{},imageVars:new Set(['logo_loja'])});
+  fState.dados={nome_loja:'Pizzaria do João'};      // escrito pela prévia
+  window.fGetLojas=()=>[{id:'l1',nome:'Outra Loja',logo:'data:image/png;base64,x'}];
+  fPickLoja('l1');
+  await espera(50);
+  assert(fState.dados.nome_loja==='Pizzaria do João','o perfil salvo sobrescreveu o nome que a pessoa escreveu');
+  assert(fState.dados.logo_loja==='data:image/png;base64,x','o perfil não preencheu o campo que estava vazio');
+});
+
+/* ── 8. ENQUADRAMENTO: CANCELAR RESTAURA SÓ ISSO ──────────────────────────────────────────── */
+await test('Cancelar enquadramento restaura o snapshot de quando o modo abriu', async()=>{
+  reset();
+  fState.dados={produto:'Pizza Grande',foto_produto:'data:image/png;base64,x'};
+  fState.dados['__fit__foto_produto']={scale:1.4,offX:0.1,offY:-0.2};   // ajuste que já existia
+  const camada=fState.material.layers.find(l=>l.id==='foto');
+  fLpStartFraming(camada,'foto_produto');
+  fState.dados['__fit__foto_produto']={scale:3,offX:0.5,offY:0.5};      // a pessoa mexe
+  fLpCancelFraming();
+  const f=fState.dados['__fit__foto_produto'];
+  assert(f && f.scale===1.4 && f.offX===0.1 && f.offY===-0.2,
+    'cancelar não devolveu o enquadramento de quando o modo abriu: '+JSON.stringify(f));
+  assert(fState.dados.foto_produto==='data:image/png;base64,x','cancelar apagou o upload');
+  assert(fState.dados.produto==='Pizza Grande','cancelar mexeu em outro campo da arte');
+});
+
+await test('Cancelar sem enquadramento anterior não deixa ajuste nenhum para trás', async()=>{
+  reset();
+  fState.dados={foto_produto:'data:image/png;base64,x'};
+  const camada=fState.material.layers.find(l=>l.id==='foto');
+  fLpStartFraming(camada,'foto_produto');
+  fState.dados['__fit__foto_produto']={scale:2.5,offX:0.3,offY:0};
+  fLpCancelFraming();
+  assert(fState.dados['__fit__foto_produto']==null,
+    'não havia enquadramento antes e sobrou um depois de cancelar');
+});
+
+await test('Aplicar enquadramento mantém o que a pessoa ajustou', async()=>{
+  reset();
+  fState.dados={foto_produto:'data:image/png;base64,x'};
+  const camada=fState.material.layers.find(l=>l.id==='foto');
+  fLpStartFraming(camada,'foto_produto');
+  fState.dados['__fit__foto_produto']={scale:2,offX:0.25,offY:0};
+  fLpStopFraming();
+  const f=fState.dados['__fit__foto_produto'];
+  assert(f && f.scale===2 && f.offX===0.25,'aplicar descartou o ajuste: '+JSON.stringify(f));
+});
+
+/* ── 9. PASSO DE IMAGEM NÃO PULA SOZINHO ──────────────────────────────────────────────────── */
+await test('Passo de foto já respondida mostra a imagem e ESPERA (não pula sozinho)', async()=>{
+  reset();
+  fState.dados={foto_produto:'data:image/png;base64,x'};
+  irAoPasso('foto_produto');
+  assert(idDoPasso()==='foto_produto','o passo de foto nem chegou a abrir');
+  await espera(PASSO);
+  assert(idDoPasso()==='foto_produto','o passo de foto avançou sozinho — a pessoa nem viu qual imagem entrou');
+  assert(document.querySelector('.f-upload-preview img'),'a imagem escolhida não apareceu no passo');
+  assert(document.querySelector('.f-upload-ok'),'o passo não ofereceu a confirmação do arquivo');
+});
+
+/* ── 10. O CONTEXTO DO PREÇO ──────────────────────────────────────────────────────────────── */
+await test('A pergunta do preço promocional carrega o preço original já respondido', async()=>{
+  reset();
+  const por=fState.camp.perguntas.find(p=>p.id==='precoPor');
+  fState.dados={};
+  assert(!/49,90/.test(fPerguntaTexto(por)),'a pergunta citou um preço original que ninguém respondeu');
+  fState.dados={precoDe:'R$ 49,90'};
+  const comContexto=fPerguntaTexto(por);
+  assert(/49,90/.test(comContexto),'a pergunta do preço promocional não trouxe o preço original: '+comContexto);
+});
+
+/* ── 11. A PRÉVIA NÃO INVENTA VALOR ───────────────────────────────────────────────────────
+   Repintar a prévia é leitura, nunca escrita: placeholder e default entram numa CÓPIA. */
+await test('Repintar a prévia não escreve nada em fState.dados', async()=>{
+  reset();
+  fState.dados={produto:'Pizza Grande'};
+  const antes=JSON.stringify(fState.dados);
+  await fUpdateLivePreview();
+  assert(JSON.stringify(fState.dados)===antes,
+    'a prévia gravou na fonte de verdade ao repintar: '+JSON.stringify(fState.dados));
+});
+
+window.__lumaTest={total,passed:total-failures.length,failures};
+})().catch(e=>window.__lumaTest={total:1,passed:0,failures:[{name:'bancada',error:e.stack}]});
+</script></body></html>

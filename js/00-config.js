@@ -647,6 +647,111 @@ function gFieldGuessType(name){
   return 'text';
 }
 
+/* ══ RÓTULO DO CAMPO — o motor ÚNICO que decide como um campo se chama para quem lê ══════
+   ⛔ NOME TÉCNICO NUNCA APARECE PARA O FRANQUEADO. O teste de usabilidade pegou o chat
+   perguntando por `precoPor` e por `foto_produto`: identificador de variável virando copy.
+   O buraco não era um ponto, eram CINCO caminhos com o mesmo fallback preguiçoso `|| v`
+   (`materials.js`, `catalog.js`, `chat.js` no fEditCampo, `live-preview.js` no _fLpLabel e
+   `chat-input.js` no fGetFieldType). Cinco fallbacks = cinco verdades; por isso vira motor.
+
+   A hierarquia, do mais autoral ao mais genérico:
+     1. o rótulo que o DESIGNER escreveu   — `dVars[].label`, ou o `label` já montado na pergunta;
+     2. o CATÁLOGO CANÔNICO desta casa     — G_FIELD_LABELS (precoDe → "preço original");
+     3. HUMANIZAÇÃO SEGURA do nome técnico — camelCase e `_` viram palavras, acento pelo léxico;
+     4. FALLBACK GENÉRICO                  — quando nem humanizar salva (`var_1`, `txt3`, `c2`).
+
+   O degrau 3 só é aceito se o resultado PARECER linguagem: nome que é só sigla, só número ou
+   que sobrou com uma letra solta cai no degrau 4. É o que impede "txt3" de virar "Txt3" e
+   passar por rótulo. Devolve SEMPRE em caixa de frase — quem quiser minúscula usa toLowerCase. */
+const G_FIELD_LABELS = {
+  produto:'Produto', item:'Produto', prato:'Produto', combo:'Combo', lanche:'Produto',
+  nome_produto:'Produto', nome_item:'Produto', titulo:'Título', subtitulo:'Subtítulo',
+  categoria:'Categoria', sabor:'Sabor', brinde:'Brinde', oferta:'Oferta',
+  detalhes:'Detalhes', descricao:'Descrição', ingredientes:'Ingredientes',
+  preco:'Preço', precoDe:'Preço original', preco_de:'Preço original',
+  precoPor:'Preço promocional', preco_por:'Preço promocional',
+  preco_original:'Preço original', preco_promocional:'Preço promocional',
+  valor:'Preço', valor_de:'Preço original', valor_por:'Preço promocional',
+  desconto:'Desconto', pedidoMin:'Pedido mínimo', pedido_min:'Pedido mínimo',
+  codigo:'Código do cupom', cupom:'Código do cupom', voucher:'Código do cupom',
+  validade:'Validade', data:'Data', periodo:'Período', horario:'Horário',
+  condicao:'Condição', regras:'Regras', bairros:'Cobertura', cobertura:'Cobertura',
+  frete:'Frete', taxa:'Taxa', cashback:'Cashback',
+  foto:'Foto', foto_produto:'Foto do produto', imagem:'Imagem', imagem_produto:'Foto do produto',
+  logo:'Logo', logo_loja:'Logo da loja', banner:'Banner', capa:'Capa',
+  nome_loja:'Nome da loja', nomeLoja:'Nome da loja', loja:'Nome da loja',
+  restaurante:'Nome da loja', estabelecimento:'Nome da loja',
+  whatsapp:'WhatsApp', telefone:'Telefone', contato:'Contato', cidade:'Cidade',
+  cor:'Cor', cor_marca:'Cor da marca'
+};
+/* Léxico de acentuação: humanizar não inventa acento, só devolve o que a palavra tem em PT-BR.
+   Sem isto "preco" sairia "Preco" — nome técnico maquiado, que é o que se quer evitar. */
+const _G_LABEL_ACENTO = {
+  preco:'preço', precos:'preços', codigo:'código', validade:'validade', promocao:'promoção',
+  condicao:'condição', descricao:'descrição', endereco:'endereço', numero:'número',
+  minimo:'mínimo', maximo:'máximo', periodo:'período', horario:'horário', titulo:'título',
+  subtitulo:'subtítulo', logotipo:'logotipo', usuario:'usuário', servico:'serviço',
+  observacao:'observação', restricao:'restrição', unidade:'unidade', adicional:'adicional'
+};
+/* Palavras que existem só para colar o nome técnico e não dizem nada a quem lê. */
+const _G_LABEL_RUIDO = new Set(['campo','var','txt','text','texto','label','field','layer','camada','id','tmp']);
+
+function _gLabelHumaniza(name){
+  const cru = String(name==null?'':name).trim();
+  if(!cru) return '';
+  // camelCase e PascalCase viram espaço ANTES do resto: "precoPor" precisa virar duas palavras.
+  const palavras = cru
+    .replace(/([a-z0-9])([A-Z])/g,'$1 $2')
+    .replace(/([a-zA-Z])([0-9])/g,'$1 $2')   // "txt3" tem de virar "txt 3" p/ o ruído ser reconhecido
+    .replace(/[_\-.]+/g,' ')
+    .trim().split(/\s+/)
+    .filter(p=>p && !_G_LABEL_RUIDO.has(p.toLowerCase()));
+  if(!palavras.length) return '';
+  const limpas = palavras.map(p=>{
+    const base = p.toLowerCase();
+    const semAcento = base.normalize('NFD').replace(/[̀-ͯ]/g,'');
+    return _G_LABEL_ACENTO[semAcento] || base;
+  });
+  // Sobrou coisa que não é linguagem? Uma letra solta, um número puro, nada com 3+ letras.
+  const temPalavra = limpas.some(p=>/[a-zà-ú]{3,}/.test(p));
+  if(!temPalavra) return '';
+  const frase = limpas.join(' ');
+  return frase.charAt(0).toUpperCase()+frase.slice(1);
+}
+
+/* `pergunta` é opcional: quando o chamador já tem a pergunta montada, o `label` dela é o
+   degrau 1 (foi o designer quem o escreveu, via dVars, lá no fSelectMaterial). */
+function gFieldLabel(name, pergunta){
+  // 1. O designer escreveu — em `dVars` ou já carimbado na pergunta.
+  const vDef = (typeof dVars!=='undefined' && Array.isArray(dVars)) ? dVars.find(x=>x && x.name===name) : null;
+  const doDesigner = (vDef && vDef.label) || (pergunta && pergunta.label) || '';
+  // ⚠ O `label` pode ser o PRÓPRIO nome técnico: `fSelectMaterial` carimba `v.replace(/_/g,' ')`
+  // quando não há catálogo, e o Estúdio deixa o designer digitar o que quiser. Só passa se
+  // for diferente do identificador — senão o degrau 1 devolveria o cru de volta.
+  if(doDesigner && String(doDesigner).trim() && String(doDesigner).trim()!==String(name)) return String(doDesigner).trim();
+  // 2. Catálogo canônico desta casa.
+  if(G_FIELD_LABELS[name]) return G_FIELD_LABELS[name];
+  const chave = String(name==null?'':name).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+  if(G_FIELD_LABELS[chave]) return G_FIELD_LABELS[chave];
+  // 3. Humanização segura.
+  const humano = _gLabelHumaniza(name);
+  if(humano) return humano;
+  // 4. Genérico: melhor "Campo" do que `txt3` na cara do franqueado.
+  return (typeof gFieldGuessType==='function' && gFieldGuessType(name)==='image') ? 'Imagem' : 'Campo';
+}
+
+/* ── "ISTO É UM LOGO?" — um lugar só ──────────────────────────────────────────────────────
+   A pergunta é feita em quatro lugares (a copy do passo, a validação do arquivo, o desenho na
+   moldura e a prévia) e não pode responder diferente em nenhum deles. O sinal forte é o
+   `semantic` do campo, quando o designer marcou; o fraco é o nome, que é como 100% dos
+   templates de hoje dizem "logo" (`logo_loja`, `logo`, `marca_parceiro`). */
+function gCampoEhLogo(nome){
+  const vDef = (typeof dVars !== 'undefined' && Array.isArray(dVars)) ? dVars.find(x=>x && x.name===nome) : null;
+  if(vDef && vDef.semantic === 'logo') return true;
+  const s = String(nome||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+  return /(^|_)(logo|logotipo|marca)($|_)/.test(s);
+}
+
 // Peso semântico para ordenação cognitiva das perguntas do chat (Modelo Mental em 3 Blocos):
 // 1. O QUÊ: Produto e detalhes descritivos (sujeito)
 // 2. MÍDIA: Foto do produto (âncora visual e paleta de cores)

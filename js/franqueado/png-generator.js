@@ -473,9 +473,25 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp, materialOve
       const result=(typeof gDescribeFranchiseeLayout==='function')
         ?gDescribeFranchiseeLayout(original,solved)
         :{status:'adapted',adapted:true,invalid:false,requiresAdaptation:true,forced:false,changes:[],invalidIds:[]};
-      const prefereOriginal=(typeof gLayoutVivoOff!=='undefined')&&gLayoutVivoOff;
-      result.forced=!!(prefereOriginal&&result.requiresAdaptation);
-      effective=(prefereOriginal&&!result.requiresAdaptation)?original:solved;
+      /* ══ ORIGINAL FIRST (rodada de usabilidade, 09/2026) ═══════════════════════════════════
+         A regra passou a ser incondicional: **se o conteúdo cabe no layout que o designer fez,
+         nada se mexe**. Antes, o desenhado só ganhava quando o franqueado tinha DESLIGADO o
+         Auto-layout no botão da prévia — sem o botão (ele saiu da UI), a arte que já cabia
+         ainda era desenhada a partir do clone `solved`.
+         `requiresAdaptation` é `adapted || invalid`: `adapted` só é verdade quando o solver
+         MEXEU de fato (geometria ou tipografia, medido em `gDescribeFranchiseeLayout`). Então
+         `!requiresAdaptation` é exatamente "o solver não teve nada a fazer" — e nesse caso o
+         `original` é a resposta certa por definição, não uma preferência.
+         Por que trocar se os dois são equivalentes: `solved` volta carimbado (`_fit`,
+         `_layoutW`, `_tetoFonte`, `_entrelinha`) e a tolerância de comparação é de 0,5px. Meio
+         pixel não é "igual ao que o designer desenhou" — e o critério de aceite desta rodada é
+         geometria IDÊNTICA quando o conteúdo cabe. Devolvendo o `original`, a igualdade deixa
+         de depender de tolerância: é o mesmo clone que a arte publicada produz.
+         A rede de proteção não muda: `requiresAdaptation` verdadeiro → continua o `solved`. */
+      effective=result.requiresAdaptation?solved:original;
+      /* `forced` era "o franqueado pediu o original e não deu" — sem o botão, ninguém pede.
+         Fica `false` para não mentir a quem lê o resultado (telemetria e a nota da prévia). */
+      result.forced=false;
       effective._layoutResult=result;
       window.gLastFranchiseeLayoutResult=result;
       /* DIAGNÓSTICO ACIONÁVEL. Só quando a composição REPROVOU: a busca binária re-roda o solver
@@ -1154,7 +1170,17 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
           ctx.clip(_vector?gVectorPathFillRule(_vector):'nonzero');
           const imgAR = img.width / img.height, frameAR = w / h;
           let baseW, baseH;
-          if(l.objectFit === 'contain'){
+          /* LOGO NUNCA É CORTADO. O padrão da moldura é `cover` (o `else` abaixo), que é certo
+             para FOTO — enche o quadro e o corte é enquadramento. Para LOGO é destrutivo: corta
+             a marca do parceiro, que é exatamente o que ninguém pode publicar. O teste de
+             usabilidade pegou isso no passo do logo, e a regra vale no desenho, não só no aviso.
+             ⚠ Isto NÃO desrespeita a intenção do designer: `contain` só entra onde o campo é
+             semanticamente logo (`gCampoEhLogo`) E o designer não escolheu `objectFit`
+             explicitamente. Quem marcou `cover` num campo de logo de propósito continua com o
+             que marcou. Foto de produto não passa por aqui. */
+          const _ehLogoAuto = !l.objectFit && l.imgVar
+            && typeof gCampoEhLogo==='function' && gCampoEhLogo(l.imgVar);
+          if(l.objectFit === 'contain' || _ehLogoAuto){
             if(imgAR > frameAR){ baseW = w; baseH = w/imgAR; } else { baseH = h; baseW = h*imgAR; }
           } else { // cover
             if(imgAR > frameAR){ baseH = h; baseW = h*imgAR; } else { baseW = w; baseH = w/imgAR; }

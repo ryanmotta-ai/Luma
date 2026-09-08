@@ -377,7 +377,7 @@ function fOpenMaterialCatalog(camp){
   // Mobile: o catálogo de materiais vive no #fran-right (escondido por padrão no
   // celular). Sem trazer o painel pra frente, tocar numa campanha caía numa tela
   // vazia. O "voltar" (fCloseMaterialCatalog) remove a classe e devolve o catálogo.
-  try{ document.body.classList.add('f-mobile-chat','f-material-browser'); }catch(e){}
+  try{ document.body.classList.add('f-mobile-chat','f-material-browser'); document.body.classList.remove('f-catalogo-aberto'); }catch(e){}
   const chatCol=document.getElementById('f-chat-col');
   let matView=document.getElementById('f-material-view');
   if(!matView){
@@ -614,6 +614,102 @@ async function fEnsureMaterialLayers(t){
   await _fLayersFetch[t.remoteId];
   return t;
 }
+/* ══ AS PERGUNTAS DO CHAT — o montador ÚNICO ══════════════════════════════════════════════
+   Existiam DUAS montagens de pergunta: esta (`fSelectMaterial`) e a de reabrir arte
+   (`catalog.js`, `fReabrirArte`). A segunda era a versão pobre — `Qual é o <label>?` para
+   tudo —, então a MESMA arte perguntava diferente dependendo de por onde a pessoa entrou.
+   Duas verdades para a mesma pergunta é o defeito que esta casa mais evita; virou função.
+
+   O que o teste de usabilidade com o time cobrou aqui:
+   · "Qual é o produto que você quer usar?" — ninguém "usa" um produto, se ANUNCIA um. A copy
+     passa a ser de comunicação/venda.
+   · Preço cheio e preço promocional chegavam como dois campos de formulário sem parentesco.
+     Agora são um PAR: `precoPar` marca quem é o "de" e quem é o "por", e o chat completa a
+     segunda pergunta com o valor já respondido na primeira (`fPerguntaTexto`, chat.js).
+     Quando o template só tem UM preço, ele não é "o preço por" de nada — a pergunta é a da
+     oferta ("Qual é o preço que vai aparecer na oferta?").
+   ⛔ Nenhum ramo aqui pode imprimir `v` cru: o rótulo sai do `gFieldLabel` (00-config.js). */
+const _F_RE_PRECO_DE  = /(precode|valorde|precooriginal|valororiginal|precoantigo|precocheio)/;
+const _F_RE_PRECO_POR = /(precopor|valorpor|precopromo|valorpromo|precofinal|novopreco|precopromocional|valorpromocional)/;
+const _fNormId = (v) => String(v||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[\s_-]+/g,'');
+
+function fBuildPerguntas(vars, opts){
+  opts = opts || {};
+  const permissoes = opts.permissoes || {};
+  const imageVars = opts.imageVars || new Set();
+  const camp = opts.camp || (typeof fState!=='undefined' ? fState.camp : null);
+  const ehImagem = (v, vDef) => (typeof opts.isImage==='function')
+    ? opts.isImage(v, vDef)
+    : ((vDef ? vDef.type==='image' : false) || imageVars.has(v));
+
+  // O par de preço é decidido ANTES da primeira pergunta: a copy do "por" depende de existir
+  // um "de" no mesmo template, e a do preço único depende de NÃO existir.
+  const nomes = vars.map(_fNormId);
+  const temDe  = nomes.some(n=>_F_RE_PRECO_DE.test(n));
+  const temPor = nomes.some(n=>_F_RE_PRECO_POR.test(n));
+
+  const perguntas = [];
+  vars.forEach(v=>{
+    const perm = permissoes[v];
+    if(perm && perm.edit === false) return;                     // campo fixo da marca
+    const vDef = (typeof dVars !== 'undefined' && dVars) ? dVars.find(x=>x.name===v) : null;
+    const label = (typeof gFieldLabel==='function') ? gFieldLabel(v) : ((vDef && vDef.label) || v);
+    if(ehImagem(v, vDef)){
+      const ehLogo = (typeof gCampoEhLogo==='function') && gCampoEhLogo(v);
+      perguntas.push({
+        id: v,
+        texto: ehLogo ? `Envie o <strong>logo da sua loja</strong>` : `Envie a <strong>${gEsc(label.toLowerCase())}</strong>`,
+        sugestoes: [], isImage: true, label, maxLen: 0
+      });
+      return;
+    }
+    // Tipos ricos (4.1): select/boolean/color viram Quick Replies prontas
+    let sugestoes;
+    if(vDef && vDef.type==='select' && vDef.options && vDef.options.length) sugestoes=vDef.options.slice();
+    else if(vDef && vDef.type==='boolean') sugestoes=['Sim','Não'];
+    else if(vDef && vDef.type==='color' && vDef.palette && vDef.palette.length) sugestoes=vDef.palette.slice();
+    else sugestoes = (typeof fGetSuggestionsForVar==='function') ? fGetSuggestionsForVar(v, camp) : [];
+
+    const s = _fNormId(v);
+    let texto, precoPar = null;
+    if(s === 'produto' || s === 'item' || s === 'prato' || s === 'nomeproduto' || s === 'nomeitem'){
+      texto = `Qual produto você quer anunciar?`;
+    } else if(s === 'detalhes' || s === 'subtitulo' || s === 'descricao'){
+      texto = `Quer acrescentar uma <strong>descrição</strong> do produto?`;
+    } else if(_F_RE_PRECO_DE.test(s)){
+      precoPar = 'de';
+      texto = `Qual era o <strong>preço original</strong>?`;
+    } else if(_F_RE_PRECO_POR.test(s)){
+      precoPar = 'por';
+      // Sem um "de" no template não há promoção a contar — é só O preço da oferta.
+      texto = temDe ? `E qual será o <strong>preço promocional</strong>?`
+                    : `Qual é o <strong>preço</strong> que vai aparecer na oferta?`;
+    } else if(s === 'preco' || s === 'valor'){
+      precoPar = temPor ? null : 'unico';
+      texto = (temDe && !temPor) ? `E qual será o <strong>preço promocional</strong>?`
+                                 : `Qual é o <strong>preço</strong> que vai aparecer na oferta?`;
+    } else if(s === 'desconto'){
+      texto = `Qual é o <strong>desconto</strong> da promoção?`;
+    } else if(s === 'cupom' || s === 'codigo' || s === 'voucher'){
+      texto = `Qual é o <strong>código do cupom</strong>?`;
+    } else if(/(validade|data|vencimento|periodo)/.test(s)){
+      texto = `Até quando vale essa oferta?`;
+    } else if(/(condicao|regra)/.test(s)){
+      texto = `Tem alguma <strong>condição ou regra</strong> pra avisar?`;
+    } else if(/(nomeloja|nomerestaurante|^loja$|estabelecimento)/.test(s)){
+      texto = `Qual é o <strong>nome da sua loja</strong>?`;
+    } else {
+      // Genérico — ainda em linguagem de anúncio, e sempre pelo rótulo, nunca pelo id.
+      const fem = /^(validade|condição|regra|descrição|foto|imagem|cor|taxa|cobertura)/i.test(label) || /a$/.test(label);
+      texto = `Qual é ${fem ? 'a' : 'o'} <strong>${gEsc(label.toLowerCase())}</strong> que vai na arte?`;
+    }
+    const p = { id: v, texto, sugestoes, maxLen: (perm && perm.maxLen) || 32, label };
+    if(precoPar) p.precoPar = precoPar;
+    perguntas.push(p);
+  });
+  return perguntas;
+}
+
 // Usuário clicou num material — entra no chat com perguntas geradas das variáveis do template
 async function fSelectMaterial(materialId, card){
   // Acha o material em qualquer pasta
@@ -662,7 +758,9 @@ async function fSelectMaterial(materialId, card){
     gTriggerOnboardingStep('choseMaterial');
   }
   fState.materialView=false;
-  try{ document.body.classList.remove('f-material-browser'); }catch(e){}
+  // `f-catalogo-aberto` é o catálogo que o franqueado reabriu pelo "← Campanhas". Entrar num
+  // material é justamente sair dali: o modo focado volta a valer.
+  try{ document.body.classList.remove('f-material-browser','f-catalogo-aberto'); }catch(e){}
   // Constrói perguntas a partir das variáveis do template + permissões definidas pelo designer
   const vars = dExtractTemplateVars(found.layers);
   // Ordenação cognitiva (Modelo Mental em 3 Blocos): Produto -> Foto -> Preço De -> Preço Por -> Descontos -> Validade -> Loja
@@ -671,59 +769,11 @@ async function fSelectMaterial(materialId, card){
     const ord=n=>{const i=dVars.findIndex(v=>v.name===n);return i<0?Infinity:i;};
     vars.sort((a,b)=>{const da=ord(a),db=ord(b);return da===db?0:da-db;});
   }
-  const permissoes = found.publishMeta?.permissoes || {};
-  // Detecção robusta de variáveis tipo imagem: usa dVars OU verifica se a var é usada em layer frame/image
-  const imageVarsByLayer = fMaterialImageVars(found.layers);
-  const perguntas=[];
-  vars.forEach(v=>{
-    const perm = permissoes[v];
-    // Se editável foi marcado como false, pula
-    if(perm && perm.edit === false) return;
-    const vDef = (typeof dVars !== 'undefined' && dVars) ? dVars.find(x=>x.name===v) : null;
-    const label = vDef ? vDef.label : v.replace(/_/g,' ');
-    const isImage = (vDef ? vDef.type==='image' : false) || imageVarsByLayer.has(v);
-    if(isImage){
-      // Pergunta especial de upload de imagem
-      perguntas.push({
-        id: v,
-        texto: `Envie a <strong>${gEsc(label.toLowerCase())}</strong>`,
-        sugestoes: [],
-        isImage: true,
-        label: label,
-        maxLen: 0
-      });
-    } else {
-      // Tipos ricos (4.1): select/boolean/color viram Quick Replies prontas
-      let sugestoes;
-      if(vDef && vDef.type==='select' && vDef.options && vDef.options.length) sugestoes=vDef.options.slice();
-      else if(vDef && vDef.type==='boolean') sugestoes=['Sim','Não'];
-      else if(vDef && vDef.type==='color' && vDef.palette && vDef.palette.length) sugestoes=vDef.palette.slice();
-      else sugestoes=fGetSuggestionsForVar(v, fState.camp);
-
-      // Frases conversacionais humanizadas por tipo de campo
-      let texto;
-      const s = v.toLowerCase().replace(/[\s_-]+/g, '');
-      if(s === 'produto' || s === 'item' || s === 'prato') texto = `Qual é o <strong>${gEsc(label.toLowerCase())}</strong> que vai estar em destaque?`;
-      else if(s === 'detalhes' || s === 'subtitulo' || s === 'descricao') texto = `Quer adicionar uma <strong>descrição ou detalhes</strong> do produto?`;
-      else if(/(precode|valororiginal|valorde)/.test(s)) texto = `Qual era o <strong>preço original</strong> antes do desconto (De)?`;
-      else if(/(precopor|valorpromocional|valorpor|precopromo)/.test(s)) texto = `Por quanto vai sair na promoção (<strong>Preço Por</strong>)?`;
-      else if(s === 'desconto') texto = `Qual é o <strong>desconto</strong> da promoção?`;
-      else if(s === 'cupom' || s === 'codigo') texto = `Qual é o <strong>código do cupom</strong>?`;
-      else if(/(validade|data)/.test(s)) texto = `Qual é a <strong>validade</strong> desta promoção?`;
-      else if(/(condicao|regras)/.test(s)) texto = `Quais são as <strong>condições ou regras</strong> da ação?`;
-      else {
-        const fem = /^(validade|condição|regra|descrição|foto|imagem|logo|taxa|cobertura)/i.test(label) || label.endsWith('a');
-        texto = `Qual é ${fem ? 'a' : 'o'} <strong>${gEsc(label.toLowerCase())}</strong> que você quer usar?`;
-      }
-
-      perguntas.push({
-        id: v,
-        texto,
-        sugestoes,
-        maxLen: perm?.maxLen || 32,
-        label: label
-      });
-    }
+  const perguntas = fBuildPerguntas(vars, {
+    permissoes: found.publishMeta?.permissoes || {},
+    // Detecção robusta de variáveis tipo imagem: usa dVars OU verifica se a var é usada em layer frame/image
+    imageVars: fMaterialImageVars(found.layers),
+    camp: fState.camp
   });
   // Se o template não tem nenhuma variável editável, mostra direto a confirmação
   if(!perguntas.length){

@@ -460,20 +460,12 @@ async function fEditFromHist(id, btn){
     // Reconstrói perguntas via mesma lógica do fSelectMaterial
     const vars = dExtractTemplateVars(material.layers);
     if(typeof gSortTemplateVars==='function') gSortTemplateVars(vars);
-    const permissoes = material.publishMeta?.permissoes || {};
-    const imgVars = fMaterialImageVars(material.layers); // mesma detecção do fSelectMaterial (M14)
-    const perguntas=[];
-    vars.forEach(v=>{
-      const perm = permissoes[v];
-      if(perm && perm.edit === false) return;
-      const vDef = (typeof dVars !== 'undefined' && dVars) ? dVars.find(x=>x.name===v) : null;
-      const label = vDef ? vDef.label : v.replace(/_/g,' ');
-      const isImage = (vDef ? vDef.type==='image' : false) || imgVars.has(v);
-      if(isImage){
-        perguntas.push({id:v, texto:`Envie a <strong>${gEsc(label.toLowerCase())}</strong>`, sugestoes:[], isImage:true, label, maxLen:0});
-      } else {
-        perguntas.push({id:v, texto:`Qual é o <strong>${gEsc(label.toLowerCase())}</strong>?`, sugestoes:fGetSuggestionsForVar(v, c), maxLen:perm?.maxLen||32, label});
-      }
+    // Mesmo montador do fSelectMaterial (materials.js). Antes esta cópia perguntava
+    // "Qual é o <label>?" para tudo — a MESMA arte falava diferente conforme a porta de entrada.
+    const perguntas = fBuildPerguntas(vars, {
+      permissoes: material.publishMeta?.permissoes || {},
+      imageVars: fMaterialImageVars(material.layers), // mesma detecção do fSelectMaterial (M14)
+      camp: c
     });
     fState.camp = {...c, perguntas, materialName: material.name};
     fState.dados = {...h.dados};
@@ -497,18 +489,15 @@ async function fEditFromHist(id, btn){
   fState.fmt = f;
   fState.done = false;
   fState.editIdx = null;
-  const fbLabels={produto:'Produto',precoDe:'Preço original',precoPor:'Preço promo',validade:'Validade',desconto:'Desconto',pedidoMin:'Pedido mínimo',bairros:'Cobertura',codigo:'Código',condicao:'Condição',brinde:'Brinde',categoria:'Categoria',oferta:'Oferta'};
-  const dadosKeys = Object.keys(h.dados||{});
+  const dadosKeys = Object.keys(h.dados||{}).filter(k=>!/^__/.test(k)); // __fit__/__skipped__ são metadado, não campo
   if(typeof gSortTemplateVars==='function') gSortTemplateVars(dadosKeys);
   let fbPerguntas;
   if(dadosKeys.length){
-    fbPerguntas = dadosKeys.map(k=>{
-      const val = h.dados[k];
-      const isImg = typeof val==='string' && val.startsWith('data:image');
-      const vDef = (typeof dVars!=='undefined' && dVars) ? dVars.find(x=>x.name===k) : null;
-      const label = (vDef && vDef.label) || fbLabels[k] || k.replace(/_/g,' ');
-      if(isImg) return {id:k, texto:`Envie a <strong>${gEsc(label.toLowerCase())}</strong>`, sugestoes:[], isImage:true, label, maxLen:0};
-      return {id:k, texto:`Qual é o <strong>${gEsc(label.toLowerCase())}</strong>?`, sugestoes:fGetSuggestionsForVar(k, c), maxLen:32, label};
+    // Sem o template não há `dVars` nem permissões: o tipo imagem sai do próprio valor salvo.
+    // O rótulo continua saindo do motor único — nome de variável não vira copy nem aqui.
+    fbPerguntas = fBuildPerguntas(dadosKeys, {
+      camp: c,
+      isImage: (k)=>{ const val=h.dados[k]; return typeof val==='string' && val.startsWith('data:image'); }
     });
   } else {
     fbPerguntas = c.perguntas; // sem dados salvos → usa as perguntas da campanha
@@ -1168,7 +1157,7 @@ function fGoHome(opts){
   if(!opts.boot){ try{ localStorage.removeItem('__luma_camp'); }catch(e){} }
   if(typeof fRemoveCampTheme==='function') fRemoveCampTheme();
   document.body.classList.add('f-home-mode');
-  document.body.classList.remove('f-mobile-chat','f-history-mode','f-material-browser');
+  document.body.classList.remove('f-mobile-chat','f-history-mode','f-material-browser','f-catalogo-aberto');
   // Saindo do HISTÓRICO pela home: reseta a aba do rail. fGoHome removia só a classe, mas o
   // fSwitchTab tinha deixado displays inline (catálogo none, histórico flex) — ao entrar numa
   // campanha depois, o rail voltava com o histórico ESPREMIDO e sem catálogo (bug da foto).

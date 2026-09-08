@@ -466,7 +466,6 @@ body:not(.theme-light) .lp-toolbar {
   border-top-color: var(--d-border);
 }
 body:not(.theme-light) .lp-zoom-group,
-body:not(.theme-light) .lp-auto-group,
 body:not(.theme-light) .lp-tool-btn {
   background: var(--d-surf2);
   border-color: var(--d-border2);
@@ -478,20 +477,14 @@ body:not(.theme-light) .lp-tool-btn:hover {
 }
 body:not(.theme-light) .lp-zoom-step,
 body:not(.theme-light) .lp-zoom-reset,
-body:not(.theme-light) .lp-auto-chip {
+body:not(.theme-light) .lp-layout-nota {
   color: var(--d-text3);
 }
 body:not(.theme-light) .lp-zoom-step:hover,
-body:not(.theme-light) .lp-zoom-reset:hover,
-body:not(.theme-light) .lp-auto-chip:hover {
+body:not(.theme-light) .lp-zoom-reset:hover {
   background: var(--d-surf);
   color: var(--d-text);
 }
-body:not(.theme-light) .lp-auto-chip.active {
-  background: color-mix(in srgb,var(--dm-orange) 16%,transparent);
-  color: var(--dm-yellow);
-}
-body:not(.theme-light) .lp-auto-label,
 body:not(.theme-light) .lp-tool-dim {
   color: var(--d-text3);
 }
@@ -689,23 +682,43 @@ body:not(.theme-light) #f-live-preview::-webkit-scrollbar-thumb:hover {
 /* A escolha do material já tem contexto próprio; a barra do assistente só aparece no chat. */
 body.f-material-browser #f-chat-head{display:none}
 
-/* ── TABLET (681px a 1080px): split 50/50 inteligente entre Chat e Prévia ──
-   Ao abrir um material para personalização, o rail lateral esquerdo (#fran-left)
-   colapsa automaticamente, liberando a largura total da tela para o Chat e a Prévia.
-   O botão #f-mobile-back no topo do chat permite retornar ao catálogo a qualquer momento. */
-@media (min-width: 681px) and (max-width: 1080px){
-  body:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #fran-left{
+/* ── MODO FOCADO DE CRIAÇÃO — o catálogo sai de cena (681px pra cima) ──────────────────────
+   Era só do TABLET (681–1080px). Virou a regra de TODA tela ≥681px depois do teste de
+   usabilidade: campanha escolhida + material escolhido = o catálogo já cumpriu o papel dele, e
+   no desktop ele continuava ocupando 328px de coluna ao lado da arte que a pessoa está fazendo.
+   O palco da criação é PRÉVIA | CHAT, e nada mais.
+   ⛔ Nada é apagado: é só largura/opacidade. O `#fran-left` continua no DOM com o estado, o
+   rascunho e a arte intactos — voltar por "Campanhas" (#f-mobile-back) devolve a coluna
+   exatamente como estava, e a criação continua de onde parou.
+   O gate é `body:not(.f-material-browser)`: enquanto a pessoa ESCOLHE o material a coluna
+   ainda serve, e só some quando a criação começa de fato. */
+@media (min-width: 681px){
+  body:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode):not(.f-catalogo-aberto) #fran-left{
     width:0!important;min-width:0!important;max-width:0!important;
     border-right-width:0!important;overflow:hidden!important;
     opacity:0;pointer-events:none;
   }
-  body:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #fran-right{
+  /* ⚠ `:not(.panel-dock-active)`: em desktop largo (≥1024px) o dock promove #fran-right a
+     `display:contents` para que chat e prévia virem irmãos flex de #fran-main. Um
+     `display:flex!important` aqui venceria isso e desmontaria as 3 colunas arrastáveis.
+     Com o catálogo colapsado acima, os dois painéis restantes já tomam a largura toda pelos
+     próprios slots — o dock não precisa de ajuda, precisa que a gente saia do caminho. */
+  body:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode):not(.f-catalogo-aberto):not(.panel-dock-active) #fran-right{
     display:flex!important;width:100%!important;flex:1 1 100%!important;
   }
+  /* O caminho de volta. Com rótulo, não só a seta: "← Campanhas" diz para ONDE se volta —
+     a seta sozinha, no desktop, não deixava claro que o catálogo continuava a um clique. */
   body:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-mobile-back{
-    display:flex;width:var(--tap-min,44px);height:var(--tap-min,44px);
+    display:inline-flex;gap:5px;width:auto;min-width:var(--tap-min,44px);height:var(--tap-min,44px);
+    padding-inline:8px 11px;font:700 11.5px 'Roboto',sans-serif;
   }
+  body:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-mobile-back .f-back-label{display:inline}
+  /* Reaberto de propósito: o botão passa a dizer que fecha, e não que volta. */
+  body.f-catalogo-aberto #f-mobile-back{background:var(--gray-light)}
 }
+/* No celular o catálogo é a tela ANTERIOR (body.f-mobile-chat cuida disso) — a classe de
+   desktop não pode deixar rastro lá, e o botão continua sendo só a seta. */
+.f-back-label{display:none}
 
 /* ── MOBILE: layout de 1 coluna por vez (catálogo OU chat) ──────────────────
    O layout de 2 colunas do desktop colapsa: por padrão mostra o CATÁLOGO;

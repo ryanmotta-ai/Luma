@@ -268,34 +268,18 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
 .lp-tool-right{flex:0 0 auto;justify-content:flex-start}
 .lp-tool-left>*,.lp-tool-right>*{flex-shrink:0}
 
-/* AUTOMÁTICOS: um grupo, dois chips. Mesma casca do `.lp-zoom-group` — controles da mesma
-   natureza têm que parecer da mesma família. */
-.lp-auto-group{
-  height:32px;display:inline-flex;align-items:center;gap:4px;
-  padding:2px 3px;border:1px solid var(--gray-light);
-  border-radius:10px;background:var(--off-white);
+/* O grupo "Auto" (chips Zoom e Layout) saiu na rodada de usabilidade de 09/2026 — com ele,
+   ~25 linhas de `.lp-auto-group`/`.lp-auto-chip`/`.lp-auto-icon`. No lugar, uma linha de texto:
+   o sistema protege a arte e AVISA, em vez de pedir que o franqueado administre o solver. */
+.lp-layout-nota{
+  display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 10px;
+  font:600 10.5px 'Roboto',sans-serif;color:var(--text-3);white-space:nowrap;
+  max-width:100%;overflow:hidden;text-overflow:ellipsis;
 }
-.lp-auto-label{
-  display:none;
+.lp-layout-nota::before{
+  content:'';width:5px;height:5px;flex:0 0 5px;border-radius:50%;background:var(--dm-orange-tint);
 }
-.lp-auto-chip{
-  height:26px;display:inline-flex;align-items:center;gap:4px;padding:0 4px 0 5px;
-  border:0;border-radius:7px;background:transparent;color:var(--text-3);cursor:pointer;
-  font:700 10px 'Roboto',sans-serif;white-space:nowrap;
-  transition:background var(--dur-micro),color var(--dur-micro),transform var(--dur-micro) var(--ease-spring);
-}
-/* `display:inline-flex` da classe vence o `[hidden]{display:none}` do navegador. */
-.lp-auto-chip[hidden]{display:none}
-.lp-auto-chip:hover{background:var(--white);color:var(--text-2)}
-.lp-auto-chip:active{transform:scale(.97)}
-.lp-auto-chip:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
-.lp-auto-chip.active{background:var(--dm-orange-bg);color:var(--dm-orange-d)}
-.lp-auto-icon{display:none;width:12px;height:12px;flex:0 0 12px}
-/* Chave menor que a do botão solto: dentro do grupo ela é detalhe, não o assunto. */
-.lp-auto-chip .lp-toggle{width:22px;height:14px}
-.lp-auto-chip .lp-toggle-knob{width:10px;height:10px}
-.lp-auto-chip.active .lp-toggle{background:var(--dm-orange-d)}
-.lp-auto-chip.active .lp-toggle-knob{transform:translateX(8px)}
+.lp-layout-nota[hidden]{display:none}
 
 .lp-tool-btn {
   width:32px;height:32px;background:var(--off-white);
@@ -448,18 +432,15 @@ body:not(.theme-light) .lp-toggle.active{background:var(--dm-orange)}
   .lp-zoom-step{width:22px}
   #lp-zoom{min-width:35px;padding-inline:3px}
   .lp-zoom-range{min-width:36px;margin-inline:1px}
-  .lp-auto-group{gap:2px;padding-inline:2px}
-  .lp-auto-name{display:none}
-  .lp-auto-icon{display:block}
-  .lp-auto-chip{width:39px;padding-inline:2px;gap:3px;justify-content:center}
+  .lp-layout-nota{padding-inline:6px;font-size:10px}
 }
 @container lpreview (max-width:340px){
   .lp-toolbar{padding-inline:6px}
   .lp-fit-btn,.lp-posted-btn{width:28px;min-width:28px;height:30px}
-  .lp-zoom-group,.lp-auto-group{height:30px}
-  .lp-zoom-group{min-width:120px}
-  .lp-zoom-step,#lp-zoom,.lp-auto-chip{height:24px}
-  .lp-auto-chip{width:37px}
+  .lp-zoom-group{height:30px;min-width:120px}
+  .lp-zoom-step,#lp-zoom{height:24px}
+  /* Espaço apertado: o aviso vira só o ponto laranja — a arte é que importa aqui. */
+  .lp-layout-nota{font-size:0;padding-inline:6px}
 }
 @media (max-width:680px){
   #f-live-preview{display:none}
@@ -643,6 +624,15 @@ body:not(.theme-light) .lp-edit-input{background:var(--d-card,#242424);border-co
 }
 .lp-frame-hud-done:hover{background:var(--dm-orange,#FF9000);transform:scale(1.03)}
 .lp-frame-hud-done:active{transform:scale(0.97)}
+/* CANCELAR — descarta o enquadramento e devolve o snapshot de quando o modo abriu.
+   Neutro de propósito: Aplicar é a ação primária (laranja), esta é a saída sem custo. */
+.lp-frame-hud-cancel{
+  background:transparent;border:1px solid rgba(255,255,255,0.3);color:rgba(255,255,255,0.9);
+  padding:5px 12px;border-radius:var(--r-pill,999px);font-size:11.5px;font-weight:600;cursor:pointer;
+  transition:all var(--dur-micro) var(--ease-standard);white-space:nowrap;
+}
+.lp-frame-hud-cancel:hover{background:rgba(255,255,255,0.16);border-color:rgba(255,255,255,0.55)}
+.lp-frame-hud-cancel:active{transform:scale(0.97)}
 
 /* ── A BANDEJA DE VALIDAÇÃO FOI REMOVIDA (02/09) ──
    Aqui viviam ~30 linhas estilando `.lp-warnings` e quatro chips
@@ -927,7 +917,7 @@ body:not(.theme-light) .pst-qr-x:hover{background:var(--d-surf2);color:var(--d-t
   /* `.lp-posted-btn` (Mockups) NÃO carrega `.lp-tool-btn` — precisa ser nomeado. */
   .lp-tool-btn,.lp-fit-btn,.lp-posted-btn{height:var(--tap-min)}
   .lp-fit-btn,.lp-posted-btn{width:40px;min-width:40px}
-  .lp-zoom-group,.lp-auto-group{height:var(--tap-min)}
+  .lp-zoom-group{height:var(--tap-min)}
   .lp-zoom-step{width:36px;height:38px}
-  .lp-auto-chip,.lp-tool-text{min-height:38px}
+  .lp-tool-text{min-height:38px}
 }

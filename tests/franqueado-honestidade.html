@@ -228,6 +228,126 @@ await test('Prévia que não carrega marca erro em vez de girar para sempre',asy
   assert(!card.classList.contains('is-rendering'));
 });
 
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   RODADA DE USABILIDADE V1 (09/2026) — o que o teste com o time cobrou
+   ------------------------------------------------------------------------------------------
+   Três contratos que nasceram de gente real travando no fluxo:
+   1. NENHUM nome de variável aparece para o franqueado (viram `precoPor` numa pergunta);
+   2. as perguntas seguem a lógica da OFERTA, e preço "de"/"por" são um par, não dois campos;
+   3. a copy é de comunicação/venda ("anunciar"), não de formulário ("usar").
+   ══════════════════════════════════════════════════════════════════════════════════════════ */
+
+// Nomes técnicos que existem nos templates reais + os casos degenerados que a humanização
+// não salva. Nenhum deles pode voltar como está para a tela.
+const _crus=['precoPor','precoDe','preco_por','foto_produto','nome_produto','logo_loja',
+             'txt3','var_1','c2','campo_x','subtitulo_apoio','minha_promo_top','pedidoMin'];
+
+await test('Rótulo nunca devolve o identificador técnico cru', async()=>{
+  window.dVars=[];
+  _crus.forEach(n=>{
+    const r=gFieldLabel(n);
+    assert(r && r.trim(), '“'+n+'” ficou sem rótulo');
+    assert(r!==n, '“'+n+'” voltou como o próprio nome técnico');
+    assert(!/[_{}]/.test(r), '“'+n+'” virou “'+r+'” — ainda tem marca de identificador');
+    assert(!/[a-z][A-Z]/.test(r), '“'+n+'” virou “'+r+'” — camelCase é nome de variável, não rótulo');
+  });
+});
+
+await test('Rótulo do designer vence o catálogo, e o catálogo vence a humanização', async()=>{
+  window.dVars=[{name:'precoPor',label:'Preço da promo do dia'}];
+  assert(gFieldLabel('precoPor')==='Preço da promo do dia','o rótulo escrito pelo designer foi ignorado');
+  window.dVars=[];
+  assert(gFieldLabel('precoPor')==='Preço promocional','o catálogo canônico não respondeu');
+  assert(gFieldLabel('sabor_da_semana')==='Sabor da semana','a humanização não respondeu');
+  // O `label` que é o PRÓPRIO nome técnico não pode passar por rótulo do designer.
+  window.dVars=[{name:'precoPor',label:'precoPor'}];
+  assert(gFieldLabel('precoPor')==='Preço promocional','rótulo igual ao nome técnico passou como se fosse do designer');
+  window.dVars=[];
+});
+
+await test('Nenhuma pergunta do chat vaza nome de variável', async()=>{
+  window.dVars=[];
+  const perguntas=fBuildPerguntas(_crus.concat(['produto','validade','desconto']),{camp:{name:'Promo'}});
+  assert(perguntas.length,'o montador não devolveu pergunta nenhuma');
+  perguntas.forEach(p=>{
+    const texto=String(p.texto).replace(/<[^>]*>/g,'');   // a pergunta é HTML; o que conta é o que se lê
+    assert(!/\{\{/.test(texto),'“'+texto+'” mostrou um {{campo}}');
+    assert(!/[a-z]_[a-z]/i.test(texto),'“'+texto+'” mostrou um nome com underline');
+    assert(!/[a-z][A-Z]/.test(texto),'“'+texto+'” mostrou um nome em camelCase');
+    assert(p.label && !/[_{}]/.test(p.label),'o rótulo “'+p.label+'” é técnico');
+  });
+});
+
+await test('Preço De e Por são um par, com a segunda pergunta puxando a primeira', async()=>{
+  window.dVars=[];
+  const par=fBuildPerguntas(['precoDe','precoPor'],{camp:{}});
+  const de=par.find(p=>p.id==='precoDe'), por=par.find(p=>p.id==='precoPor');
+  assert(de && de.precoPar==='de','o preço original não foi marcado como o “de” do par');
+  assert(por && por.precoPar==='por','o preço promocional não foi marcado como o “por” do par');
+  assert(/original/i.test(de.texto),'a pergunta do preço cheio não fala em preço original');
+  assert(/^E /.test(por.texto.replace(/<[^>]*>/g,'')),'a segunda pergunta não se liga à primeira (“E qual…”)');
+  assert(/promocional/i.test(por.texto),'a pergunta do preço promocional não se nomeia');
+});
+
+await test('Preço único não finge ser promoção', async()=>{
+  window.dVars=[];
+  const so=fBuildPerguntas(['precoPor'],{camp:{}});
+  const txt=so[0].texto.replace(/<[^>]*>/g,'');
+  assert(!/^E /.test(txt),'sem preço original, a pergunta ainda se liga a uma anterior que não existe');
+  assert(/oferta/i.test(txt),'a pergunta do preço único devia ser a da oferta: “'+txt+'”');
+});
+
+await test('A copy do produto é de anúncio, não de formulário', async()=>{
+  window.dVars=[];
+  const p=fBuildPerguntas(['produto'],{camp:{}})[0];
+  const txt=p.texto.replace(/<[^>]*>/g,'');
+  assert(!/quer usar/i.test(txt),'a pergunta ainda diz “quer usar”: “'+txt+'”');
+  assert(/anunciar|aparecer|vai na arte/i.test(txt),'a pergunta perdeu a linguagem de anúncio: “'+txt+'”');
+});
+
+await test('As perguntas seguem a lógica da oferta, não a ordem das variáveis', async()=>{
+  window.dVars=[];
+  // De propósito fora de ordem: é o gSortTemplateVars que tem de arrumar.
+  const vars=['validade','precoPor','logo_loja','produto','precoDe','desconto'];
+  gSortTemplateVars(vars);
+  const pos=n=>vars.indexOf(n);
+  assert(pos('produto')<pos('precoDe'),'o preço foi perguntado antes do produto');
+  assert(pos('precoDe')<pos('precoPor'),'o preço promocional veio antes do preço original');
+  assert(pos('precoPor')<pos('desconto'),'o desconto veio antes do preço');
+  assert(pos('desconto')<pos('validade'),'a validade veio antes do desconto');
+  assert(pos('validade')<pos('logo_loja'),'a identidade da loja veio antes da oferta');
+});
+
+await test('A pergunta só existe se o template usa o campo', async()=>{
+  window.dVars=[];
+  const perguntas=fBuildPerguntas(['produto','precoPor'],{camp:{}});
+  assert(perguntas.length===2,'o montador inventou pergunta para campo que o template não tem');
+  // E campo que o designer travou não vira pergunta nenhuma.
+  const travado=fBuildPerguntas(['produto','precoPor'],{camp:{},permissoes:{precoPor:{edit:false}}});
+  assert(travado.length===1 && travado[0].id==='produto','campo fixo da marca virou pergunta');
+});
+
+await test('Campo de logo é reconhecido em um lugar só', async()=>{
+  window.dVars=[];
+  ['logo','logo_loja','marca_parceiro','logotipo'].forEach(n=>
+    assert(gCampoEhLogo(n),'“'+n+'” devia ser reconhecido como logo'));
+  ['foto_produto','produto','precoPor','imagem_fundo'].forEach(n=>
+    assert(!gCampoEhLogo(n),'“'+n+'” foi confundido com logo'));
+  // O `semantic` do designer manda mesmo quando o nome não entrega.
+  window.dVars=[{name:'assinatura',semantic:'logo'}];
+  assert(gCampoEhLogo('assinatura'),'o `semantic` marcado pelo designer foi ignorado');
+  window.dVars=[];
+});
+
+await test('O passo de logo pede logo, e o de foto pede foto', async()=>{
+  window.dVars=[];
+  const ps=fBuildPerguntas(['logo_loja','foto_produto'],{camp:{},imageVars:new Set(['logo_loja','foto_produto'])});
+  const logo=ps.find(p=>p.id==='logo_loja'), foto=ps.find(p=>p.id==='foto_produto');
+  assert(logo.isImage && foto.isImage,'campo de imagem não virou passo de upload');
+  assert(/logo/i.test(logo.texto),'o passo do logo não diz que é o logo');
+  assert(!/logo/i.test(foto.texto),'o passo da foto do produto fala em logo');
+});
+
 window.__lumaTest={total,passed:total-failures.length,failures};
 })().catch(e=>window.__lumaTest={total:1,passed:0,failures:[{name:'bancada',error:e.stack}]});
 </script></body></html>

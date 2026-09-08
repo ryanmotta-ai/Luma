@@ -199,13 +199,18 @@ function fPickLoja(lojaId){
   _fClearPreStart();
   const loja=(typeof fGetLojas==='function') ? fGetLojas().find(l=>l.id===lojaId) : null;
   if(!loja){ _fProceedMaterialStart(fState.material); return; }
-  const _preenche=(valor,chaves)=>{ if(!valor) return; chaves.forEach(k=>{ if(_fPergExists(k)) fState.dados[k]=valor; }); };
+  /* Só preenche campo VAZIO. Escolher a loja é uma ação explícita sobre o conjunto, não sobre
+     cada campo: se a pessoa já tinha escrito o nome da loja (pela prévia ou vindo de outro
+     material), o perfil salvo não pode passar por cima — valor novo vence valor guardado. */
+  const _preenche=(valor,chaves)=>{ if(!valor) return; chaves.forEach(k=>{
+    if(_fPergExists(k) && (fState.dados[k]==null || fState.dados[k]==='')) fState.dados[k]=valor;
+  }); };
   _preenche(loja.logo,     F_LOJA_CAMPOS.logo);
   _preenche(loja.nome,     F_LOJA_CAMPOS.nome);      // o nome da loja também é dado da loja
   _preenche(loja.whatsapp, F_LOJA_CAMPOS.whatsapp);
   _preenche(loja.cor,      F_LOJA_CAMPOS.cor);
-  // Remove do fluxo tudo que a loja já respondeu.
-  fState.camp.perguntas = (fState.camp.perguntas||[]).filter(p=>fState.dados[p.id]==null);
+  // Remove do fluxo tudo que já está respondido (pela loja agora ou pela prévia antes).
+  fState.camp.perguntas = (fState.camp.perguntas||[]).filter(p=>fState.dados[p.id]==null||fState.dados[p.id]==='');
   if(typeof gToast==='function') gToast(`Dados de ${loja.nome||'sua loja'} aplicados`);
   fLpRefresh();
   _fProceedMaterialStart(fState.material);
@@ -215,7 +220,7 @@ function fUseLastArte(histId){
   _fClearPreStart();
   const h=(typeof fGetHist==='function') ? fGetHist().find(x=>x.id===histId) : null;
   if(!h){ _fProceedMaterialStart(fState.material); return; }
-  fState.dados={...h.dados};
+  fState.dados={...fState.dados, ...h.dados};   // mesma regra do rascunho: mescla, não descarta o atual
   fState.stepIdx=fState.camp.perguntas.length; // pula as perguntas → confirmação
   fState.done=false; fState.editIdx=null;
   fUpdateProg();
@@ -268,7 +273,7 @@ function fConfirmSaveLoja(){
     if(typeof gToast==='function') gToast(`Loja "${nome}" salva! Vai aparecer na próxima arte.`);
     const m=document.getElementById('loja-save-msg'); if(m) m.remove();
   };
-  if(typeof fResizeImageIfNeeded==='function') fResizeImageIfNeeded(logo, 400, finish);
+  if(typeof fResizeImageIfNeeded==='function') fResizeImageIfNeeded(logo, 400, finish, true); // é logo: PNG
   else finish(logo);
 }
 // fAskCampSwitch/fApplyCampSwitch/fCancelSwitch saíram: trocar de pasta não pergunta
@@ -360,6 +365,40 @@ function fStartChat(){
   clearTimeout(fNextTimeout);
   fNextTimeout = setTimeout(()=>fNextStep(),900);
 }
+/* ── O PASSO QUE CHEGA COM RESPOSTA ────────────────────────────────────────────────────────
+   Contrato do teste de usabilidade: chat e prévia são duas interfaces da MESMA verdade
+   (`fState.dados`). Quando o passo abre num campo que já tem valor — digitado na prévia,
+   vindo do rascunho ou do perfil da loja —, o chat RECONHECE em vez de perguntar do zero:
+   o campo já vem preenchido (`jaTem`, no fNextStep) e o chip "Manter" fecha o passo sem
+   inventar mudança nenhuma. Nada aqui escreve valor: só reencaminha o que já está lá. */
+/* ⚠ `_ICO_CHECK` JÁ EXISTE em `js/core/user-profile.js:544` — e como TODO arquivo desta base
+   compartilha o escopo global (sem módulos, 1ª lei), um segundo `const` com o mesmo nome derruba
+   o arquivo inteiro com "Identifier has already been declared". Prefixo `_F_` porque este é do
+   chat do franqueado; o outro é do painel de conta. Achado abrindo o app no navegador — o
+   `node --check` de cada arquivo passa, porque a colisão só existe quando os dois carregam juntos. */
+const _F_ICO_CHECK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:4px"><polyline points="20 6 9 17 4 12"/></svg>';
+function fManterValor(){
+  const p = fState.camp && fState.camp.perguntas && fState.camp.perguntas[fState.stepIdx];
+  if(!p) return;
+  const atual = fState.dados ? fState.dados[p.id] : null;
+  if(atual==null || atual==='') return;
+  fAddUser(String(atual));
+  fSaveAdv(String(atual));   // grava o MESMO valor: o fluxo anda, a resposta não muda
+}
+
+/* Texto da pergunta NA HORA DE PERGUNTAR — e não na hora de montar o material. O preço
+   promocional precisa do preço original JÁ RESPONDIDO na frase, e esse valor só existe agora.
+   Era a queixa literal do teste: "preço cheio e preço promocional pareciam campos soltos". */
+function fPerguntaTexto(p){
+  if(!p) return '';
+  if(p.precoPar !== 'por') return p.texto;
+  const pergs = (fState.camp && fState.camp.perguntas) || [];
+  const pDe = pergs.find(x=>x && x.precoPar==='de');
+  const de = pDe && fState.dados ? fState.dados[pDe.id] : null;
+  if(!de) return p.texto;   // ainda não respondeu o "de" (pulou, voltou) → pergunta sem contexto
+  return `${p.texto}<span class="perg-ctx">O preço original é ${gEsc(String(de))}.</span>`;
+}
+
 function fNextStep(){
   fState.stepIdx++;fUpdateProg();
   const pergs=fState.camp.perguntas;
@@ -378,9 +417,11 @@ function fNextStep(){
   // Pergunta de imagem: usa fAddBotImageUpload
   if(p.isImage){
     fAddBotImageUpload(stepLabel, p, canGoBack);
-    // Foto já enviada pela prévia: mostra a foto (com "Trocar") e segue — mesmo
-    // finishing do upload no chat, sem prender o fluxo num passo já resolvido.
-    if(jaTem){ fTyping(()=>fNextStep()); return; }
+    /* Foto já enviada (pela prévia, pelo rascunho ou pelo perfil da loja): o passo mostra a
+       imagem e ESPERA. Antes pulava sozinho — a pessoa via o passo passar em branco e ficava
+       sem saber se o que estava lá era o que ela tinha escolhido. Mesmo contrato do chip
+       "Manter" do passo de texto: reconhecer o que existe, e deixar manter, trocar ou ajustar. */
+    if(jaTem){ return; }
     // Desabilita input de texto
     const box=document.getElementById('f-msg-box');
     if(box){box.disabled=true;box.placeholder='Use o botão de upload acima';}
@@ -395,7 +436,7 @@ function fNextStep(){
   const mic=document.getElementById('f-chat-mic'); if(mic) mic.disabled=false;
   const cfg = fGetFieldType(p.id);
   const typeIcon = {price:'R$', discount:'%', code:'#', text:'Aa'}[cfg.type] || 'Aa';
-  const jaTemNota = jaTem ? ' · <strong>já preenchido na prévia</strong> — envie pra manter ou edite' : '';
+  const jaTemNota = jaTem ? ' · <strong>já preenchido</strong> — mantenha ou edite' : '';
   const fieldHint = `<div class="field-hint"><span class="field-hint-type">${typeIcon}</span><span class="field-hint-text">${gEsc(cfg.label)}${jaTemNota}</span></div>`;
   
   // Sugestões ricas automáticas baseadas no tipo de dado da variável (UX do franqueado)
@@ -417,12 +458,19 @@ function fNextStep(){
     }
   }
   
-  // Se a variável for opcional (não requerida), auto-injeta a opção de pular
-  if (!cfg.required && !sugestoes.includes('Pular')) {
+  /* ⛔ "PULAR" NUNCA APARECE EM CIMA DE UM VALOR QUE JÁ EXISTE. Pular grava string vazia
+     (`fSaveAdv`), então num campo que a pessoa preencheu PELA PRÉVIA o chip apagava a resposta
+     — e ela lê "pular esta pergunta", não "apagar o que escrevi". Campo já preenchido ganha
+     o chip MANTER no lugar; campo vazio e opcional continua com o Pular de sempre. */
+  if (jaTem) {
+    const _atual = String(fState.dados[p.id]);
+    const _curto = _atual.length > 24 ? _atual.slice(0,22)+'…' : _atual;
+    sugestoes = [{html:`${_F_ICO_CHECK}Manter “${gEsc(_curto)}”`, acao:'fManterValor()'}].concat(sugestoes);
+  } else if (!cfg.required && !sugestoes.includes('Pular')) {
     sugestoes.push('Pular');
   }
 
-  fAddBot(`${stepLabel}${p.texto}${fieldHint}`, sugestoes, canGoBack);
+  fAddBot(`${stepLabel}${fPerguntaTexto(p)}${fieldHint}`, sugestoes, canGoBack);
   // Atualiza placeholder do input com dica do tipo
   fUpdateInputPlaceholder(p.id);
   // Rehidrata o input com o que já existe (prévia, rascunho ou perfil da loja): o valor
@@ -437,17 +485,67 @@ function fNextStep(){
 /* Markup ÚNICO da foto já aplicada no passo — usado tanto pelo upload novo
    (_fApplyImageToField) quanto pelo passo que chega com foto vinda da prévia
    (fAddBotImageUpload). Dois markups iguais viravam duas verdades. */
-function _fUploadPreviewHTML(varId, url){
-  const saveLojaBtn = (varId==='logo_loja')
+function _fUploadPreviewHTML(varId, url, opts){
+  opts = opts || {};
+  const ehLogo = (typeof gCampoEhLogo==='function') && gCampoEhLogo(varId);
+  const saveLojaBtn = ehLogo
     ? `<button class="f-upload-save-loja" onclick="fSaveLojaPrompt()" title="Salvar essa loja para reusar depois"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z"/></svg>Salvar loja</button>`
     : '';
-  return `<div class="f-upload-preview f-upload-preview-pop">
-      <img src="${gEsc(url)}" alt="Foto enviada"/>
-      <div class="f-upload-preview-overlay">
-        <span style="display:inline-flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg>Foto enviada</span>
-        <span style="display:inline-flex;gap:6px">${saveLojaBtn}<button class="f-upload-replace" onclick="fReplaceImage('${gEsc(varId)}',this)">Trocar</button></span>
+  /* ── O ARQUIVO À VISTA ANTES DE AVANÇAR ─────────────────────────────────────────────────
+     O upload avançava sozinho 600ms depois de aplicar a imagem: quem escolheu o arquivo errado
+     só descobria adiante, e no celular a arte nem estava na tela (a prévia é gaveta). Agora o
+     passo PARA aqui, mostra o arquivo escolhido e espera uma ação — "é essa imagem que vai
+     entrar" tem que ser uma resposta que a pessoa dá, não uma suposição do sistema.
+     O aviso de logo, quando existe, entra ACIMA e traz as duas saídas que o pedido define:
+     trocar o arquivo ou seguir mesmo assim. Nunca bloqueia — só informa (logo horizontal
+     legítimo é comum, e reprovar por proporção seria pior que o problema). */
+  const aviso = opts.aviso ? `<div class="f-upload-aviso" role="status">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.6 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <span>${gEsc(opts.aviso)}</span>
+    </div>` : '';
+  const barra = `<div class="f-upload-confirm">
+      ${aviso}
+      <div class="f-upload-confirm-row">
+        <button class="f-upload-ok" onclick="fConfirmarImagem('${gEsc(varId)}')">${opts.aviso ? 'Usar mesmo assim' : (opts.jaEstava ? 'Manter esta imagem' : 'Usar esta imagem')}</button>
+        <button class="f-upload-replace" onclick="fReplaceImage('${gEsc(varId)}',this)">${opts.aviso ? 'Trocar arquivo' : 'Trocar'}</button>
       </div>
     </div>`;
+  return `<div class="f-upload-preview f-upload-preview-pop">
+      <img src="${gEsc(url)}" alt="Imagem enviada"/>
+      <div class="f-upload-preview-overlay">
+        <span style="display:inline-flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg>${ehLogo?'Logo enviado':'Foto enviada'}</span>
+        <span style="display:inline-flex;gap:6px">${saveLojaBtn}<button class="f-upload-frame" onclick="fAjustarFoto('${gEsc(varId)}')" title="Reposicionar e dar zoom na imagem dentro da arte"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>Ajustar</button></span>
+      </div>
+    </div>${opts.semConfirmar ? '' : barra}`;
+}
+
+/* ── LOGO: validação DETERMINÍSTICA (nada de IA para classificar imagem) ───────────────────
+   Três perguntas objetivas, medidas nos pixels do arquivo:
+   · resolução mínima — logo abaixo de 200px no maior lado sai serrilhado em arte de 1080px;
+   · proporção absurda — acima de 12:1 é fita/linha, não marca. ⚠ 12:1 é DE PROPÓSITO folgado:
+     logo horizontal legítimo (assinatura, wordmark) vive entre 3:1 e 6:1 e não pode ser
+     reprovado — o pedido é explícito nisso;
+   · área útil — imagem quase toda vazia costuma ser um print com a marca perdida no meio.
+   Nenhuma delas bloqueia: todas devolvem TEXTO, e a decisão continua sendo de quem publica. */
+function fValidarLogo(url, cb){
+  const im = new Image();
+  im.onerror = ()=>cb('');
+  im.onload = ()=>{
+    const w = im.naturalWidth||0, h = im.naturalHeight||0;
+    if(!w || !h) return cb('');
+    const maior = Math.max(w,h), razao = Math.max(w/h, h/w);
+    if(maior < 200) return cb(`Esse arquivo é pequeno (${w}×${h}px) e pode ficar difícil de ler nesta área.`);
+    if(razao > 12)  return cb(`Esse arquivo é muito alongado (${w}×${h}px) e pode ficar difícil de ler nesta área.`);
+    cb('');
+  };
+  im.src = url;
+}
+
+/* Confirmação do passo de imagem: é AQUI que o fluxo anda, e só por ação da pessoa. */
+function fConfirmarImagem(varId){
+  if(!fState.dados || !fState.dados[varId]) return;
+  if(fState.editIdx !== null){ fState.editIdx=null; fTyping(()=>fGerarArte()); return; }
+  fTyping(()=>fNextStep());
 }
 // Pergunta especial de upload de imagem
 function fAddBotImageUpload(stepLabel, pergunta, canGoBack){
@@ -462,7 +560,8 @@ function fAddBotImageUpload(stepLabel, pergunta, canGoBack){
   // Já tem foto (veio da prévia ao vivo / rascunho / perfil da loja): mostra a foto no
   // lugar da zona de upload — pedir de novo o que já está na arte é o bug, não a feature.
   const jaTemFoto = fState.dados && fState.dados[pergunta.id];
-  const zoneHtml = jaTemFoto ? _fUploadPreviewHTML(pergunta.id, fState.dados[pergunta.id])
+  // `jaEstava`: a imagem não acabou de ser escolhida, ela já estava no campo → "Manter", não "Usar".
+  const zoneHtml = jaTemFoto ? _fUploadPreviewHTML(pergunta.id, fState.dados[pergunta.id], {jaEstava:true})
     : `<div class="f-upload-zone" id="${uploadId}-zone" onclick="fOpenUploadPanel('${pergunta.id}','${uploadId}')">
       <!-- O input fica DENTRO da zona, que abre o painel no clique. O clique
            programático de fUploadPanelNewFile borbulhava até aqui e REABRIA o
@@ -540,12 +639,13 @@ function fProcessImageFile(file, varId, uploadId){
     const dataUrl=e.target.result;
     // Redimensiona se for muito grande (>2500px). 2500 cobre story a 2× (2160px) sem
     // esticar a foto — 1500 antes borrava em arte grande. Ainda limita o peso do draft.
+    const _ehLogo = (typeof gCampoEhLogo==='function') && gCampoEhLogo(varId);
     fResizeImageIfNeeded(dataUrl, 2500, (resizedUrl)=>{
       _fApplyImageToField(varId, uploadId, resizedUrl);
       // Guarda nos "recentes" (referência no IndexedDB + thumb leve; NUNCA base64 cru no
       // localStorage — regra da casa §7). O painel de upload reusa esta lista.
       if(typeof fRecordRecentImg==='function') fRecordRecentImg(resizedUrl, varId);
-    });
+    }, _ehLogo);   // logo mantém a transparência (ver fResizeImageIfNeeded)
   };
   reader.readAsDataURL(file);
 }
@@ -573,19 +673,43 @@ function _fApplyImageToField(varId, uploadId, resizedUrl){
       imgTemp.src = resizedUrl;
     }
   } catch(colorThiefErr) { console.warn('[ColorThief] Falha ao ler imagem:', colorThiefErr); }
-  // Substitui a zona de upload pela prévia da foto
+  // Substitui a zona de upload pela prévia da imagem escolhida
   const zone=document.getElementById(uploadId+'-zone');
-  if(zone) zone.outerHTML=_fUploadPreviewHTML(varId, resizedUrl);
+  const pintaPreview=(aviso)=>{
+    const z=document.getElementById(uploadId+'-zone');
+    const alvo=z||document.getElementById(uploadId+'-preview');
+    if(!alvo) return;
+    const wrap=document.createElement('div');
+    wrap.id=uploadId+'-preview';
+    wrap.innerHTML=_fUploadPreviewHTML(varId, resizedUrl, {aviso});
+    alvo.replaceWith(wrap);
+    const msgs=document.getElementById('f-messages'); if(msgs) msgs.scrollTop=msgs.scrollHeight;
+  };
+  if(zone) pintaPreview('');
   const box=document.getElementById('f-msg-box');
   if(box){box.disabled=false;}
   try { fUpdateLivePreview({animateField:varId}); } catch(e){}
   if(typeof window.gPlayPhotoSnapSound==='function') window.gPlayPhotoSnapSound();
-  setTimeout(()=>{
-    if(fState.editIdx !== null){fState.editIdx=null; fTyping(()=>fGerarArte());}
-    else { fTyping(()=>fNextStep()); }
-  }, 600);
+  /* ⛔ O `setTimeout(600)` que avançava sozinho saiu. O passo agora ESPERA a confirmação
+     (`fConfirmarImagem`, no botão do próprio preview): quem subiu o arquivo errado descobre
+     aqui, olhando, e não três passos adiante. Campo de logo ainda passa pela validação
+     determinística antes — o aviso repinta o preview com as duas saídas do pedido. */
+  if(typeof gCampoEhLogo==='function' && gCampoEhLogo(varId) && typeof fValidarLogo==='function'){
+    fValidarLogo(resizedUrl, (aviso)=>{ if(aviso) pintaPreview(aviso); });
+  }
 }
-function fResizeImageIfNeeded(dataUrl, maxDim, cb){
+/* `preservarAlpha`: a saída sai em PNG em vez de JPEG. Existe por causa do LOGO — o JPEG NÃO
+   TEM canal alfa, então um logo PNG com fundo transparente acima do teto voltava daqui com
+   fundo PRETO chapado atrás da marca. O caminho passava despercebido porque só dispara acima de
+   `maxDim` (logo pequeno nunca redimensiona e escapava íntegro), mas quando disparava
+   estragava justamente o arquivo que mais precisa da transparência.
+   ⚠ Continua opcional e desligado por padrão: foto de produto em PNG pesaria muitas vezes mais
+   que o JPEG a 0,88, e ela não tem transparência nenhuma a preservar. */
+function fResizeImageIfNeeded(dataUrl, maxDim, cb, preservarAlpha){
+  const tipo = preservarAlpha ? 'image/png' : 'image/jpeg';
+  const paraUrl = (canvasOuRes) => preservarAlpha
+    ? canvasOuRes.toDataURL('image/png')
+    : canvasOuRes.toDataURL('image/jpeg', 0.88);
   const img=new Image();
   img.onload=()=>{
     const {width:w, height:h} = img;
@@ -593,29 +717,30 @@ function fResizeImageIfNeeded(dataUrl, maxDim, cb){
     const scale = Math.min(maxDim/w, maxDim/h);
     const cv=document.createElement('canvas');
     cv.width=Math.round(w*scale); cv.height=Math.round(h*scale);
-    
+
     if(window.pica){
       try {
         const pInstance = window.pica();
         pInstance.resize(img, cv, { quality: 3, alpha: true })
-          .then(res => cb(res.toDataURL('image/jpeg', 0.88)))
+          .then(res => cb(paraUrl(res)))
           .catch(err => {
             console.warn('[Pica] Erro de render, fallback nativo:', err);
             const ctx=cv.getContext('2d');
             ctx.imageSmoothingQuality='high';
             ctx.drawImage(img,0,0,cv.width,cv.height);
-            cb(cv.toDataURL('image/jpeg',0.88));
+            cb(paraUrl(cv));
           });
         return;
       } catch(e) {
         console.warn('[Pica] Falha ao iniciar, fallback nativo:', e);
       }
     }
-    
+
     const ctx=cv.getContext('2d');
     ctx.imageSmoothingQuality='high';
     ctx.drawImage(img,0,0,cv.width,cv.height);
-    cb(cv.toDataURL('image/jpeg',0.88));
+    cb(paraUrl(cv));
+    void tipo;
   };
   img.onerror=()=>cb(dataUrl);
   img.src=dataUrl;
@@ -666,9 +791,14 @@ function fGoBack(){
       }
     }
   }
-  // Volta um passo: limpa o dado de TODOS os passos a partir do alvo (evita valor velho na preview)
+  /* ⛔ APAGAR AS RESPOSTAS SEGUINTES SAIU (teste de usabilidade, 09/2026). Este laço limpava
+     o dado de TODOS os passos a partir do alvo — inclusive o que a pessoa tinha acabado de
+     escrever PELA PRÉVIA, num campo à frente. Voltar uma pergunta apagava trabalho que o chat
+     nem sabia que existia: é exatamente o "a prévia não vale" que o time relatou.
+     Voltar é mover o CURSOR, não desfazer. O motivo original ("evita valor velho na preview")
+     morreu quando o `fNextStep` passou a chegar com o valor no campo (o `jaTem`): o passo alvo
+     abre preenchido, e um Enter mantém — quem quer trocar, digita por cima. */
   const target = fState.stepIdx - 1;
-  fState.camp.perguntas.forEach((p,idx)=>{ if(idx>=target) delete fState.dados[p.id]; });
   fState.stepIdx = target - 1; // fNextStep incrementa pra chegar no alvo
   fSaveChatDraft();
   fNextStep();
@@ -704,11 +834,18 @@ function fMostrarConfirm(){
   fGerarArte();
 }
 function fEditCampo(idx){
+  /* ⚠ `done` PRECISA CAIR AQUI. Com a arte já gerada, `fSaveAdv` corta na primeira linha
+     ("Quer gerar outra arte?") e a resposta da edição nunca era salva — o campo abria, a
+     pessoa digitava e nada acontecia. O `fReplaceImage` já zerava `done` na mão antes de
+     chamar; agora quem edita não precisa lembrar disso, porque editar É voltar ao fluxo.
+     Sem isto, o lápis da lista de campos seria um botão que não faz nada. */
+  fState.done=false;
   fState.stepIdx=idx;fState.editIdx=idx;
   fSaveChatDraft();
   const p=fState.camp.perguntas[idx];
-  const labels={produto:'Produto',precoDe:'Preço original',precoPor:'Preço promo',validade:'Validade',desconto:'Desconto',pedidoMin:'Pedido mínimo',bairros:'Cobertura',codigo:'Código',condicao:'Condição',brinde:'Brinde',categoria:'Categoria',oferta:'Oferta'};
-  const label = labels[p.id] || p.label || p.id;
+  // Mapa próprio + `|| p.id` no fim: era o quarto lugar com sua própria tabela de rótulos, e o
+  // único cujo fallback mostrava o nome da variável. Agora é o motor único (00-config.js).
+  const label = (typeof gFieldLabel==='function') ? gFieldLabel(p.id, p) : (p.label || 'Campo');
   
   // Em vez de remover o card inteiro, aplicamos classes de opacidade parcial
   const confirmMsg = document.getElementById('confirm-msg');
@@ -1119,6 +1256,42 @@ function _fCopyText(text){
   } else fCopyFallback(text,()=>{});
 }
 
+/* ── OS CAMPOS DA ARTE, COM O LÁPIS À VISTA ───────────────────────────────────────────────
+   Achado do teste de usabilidade: depois da arte pronta, ninguém percebia que dava para
+   reeditar. O caminho existia (clicar no campo na prévia, ou `fEditCampo`), mas nada na tela
+   dizia isso — e affordance que só aparece no hover não existe para quem está no celular.
+   Então a bolha da arte passa a listar os campos com um lápis PEQUENO E FIXO ao lado de cada
+   um: alvo de 32px, `aria-label` e `title` próprios, funciona no toque.
+   ⛔ O lápis mora AQUI e não desenhado sobre a arte: dezenas de lápis por cima da peça é o
+   oposto do pedido ("entendi que isso é editável", não "minha arte está cheia de controles"). */
+const _ICO_LAPIS = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>';
+function _fCamposEditaveisHTML(){
+  const pergs=(fState.camp&&fState.camp.perguntas)||[];
+  const linhas=pergs.map((p,idx)=>{
+    if(!p||p.id==='_dummy') return '';
+    const rot=(typeof gFieldLabel==='function')?gFieldLabel(p.id,p):(p.label||'Campo');
+    const bruto=fState.dados?fState.dados[p.id]:null;
+    const vazio=(bruto==null||bruto==='');
+    // Foto é um data:/idb: de milhares de caracteres — o que informa é que ela existe.
+    const ehFoto=p.isImage||(typeof bruto==='string'&&/^(data:image|idb:)/.test(bruto));
+    let valor;
+    if(vazio) valor='<em class="art-campo-vazio">não preenchido</em>';
+    else if(ehFoto) valor='<span class="art-campo-foto">Foto enviada</span>';
+    else { const t=String(bruto); valor=gEsc(t.length>38?t.slice(0,36)+'…':t); }
+    return `<li class="art-campo-row">
+      <span class="art-campo-rot">${gEsc(rot)}</span>
+      <span class="art-campo-val">${valor}</span>
+      <button type="button" class="art-campo-edit" onclick="fEditCampo(${idx})"
+        title="Editar ${gEsc(rot)}" aria-label="Editar ${gEsc(rot)}">${_ICO_LAPIS}</button>
+    </li>`;
+  }).filter(Boolean).join('');
+  if(!linhas) return '';
+  return `<section class="art-campos" aria-label="Campos desta arte">
+    <div class="art-campos-label">Campos desta arte — toque no lápis para trocar</div>
+    <ul class="art-campos-list">${linhas}</ul>
+  </section>`;
+}
+
 function fGerarArte(){
   fState.done=true;fUpdateProg();
   fClearChatDraft();
@@ -1230,6 +1403,7 @@ function fGerarArte(){
       <div class="bbl" style="padding-bottom:6px;display:inline-flex;align-items:center;gap:4px">Arte gerada! <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="color:#22c55e"><polyline points="20 6 9 17 4 12"/></svg></div>
       <div class="art-wrap">
         <div class="art-preview-mat">${canvasBlock}</div>
+        ${_fCamposEditaveisHTML()}
         <div class="multi-fmt-row" style="${(fState.material && fState.material.fmt) ? 'display:none;' : ''}">
           ${FMTS.map(f=>`<div class="fmt-mini ${f.id===fState.fmt.id?'current':''}" onclick="fOutroFormato('${f.id}','${previewCanvasId}')">
             <div class="fmt-mini-thumb" style="background:${gSafeColor(c.color)}">${f.name.toUpperCase()}</div>
@@ -1407,8 +1581,17 @@ async function fBaixar(btn, snapId){
 }
 function fRefazer(){fState.stepIdx=-1;fState.dados={};fState.done=false;fClearImgCache();_fArtSnapshots={};_fArtCaptions={};const msgs=document.getElementById('f-messages');if(msgs)msgs.innerHTML='';fUpdateProg();fAddBot(`Vamos refazer a arte da <strong>${gEsc(fState.camp.name)}</strong>.`,[]);clearTimeout(fNextTimeout);fNextTimeout=setTimeout(()=>fNextStep(),500);}
 // Mobile: volta do chat para o catálogo (desfaz o colapso de colunas).
+/* "← Campanhas" — o caminho de volta do modo focado de criação.
+   ⛔ NÃO reinicia nada: não mexe em `fState.dados`, não apaga o rascunho, não troca o material
+   e não fecha a arte. Só devolve a coluna do catálogo à cena (no celular, a tela anterior;
+   no desktop, a coluna que o modo focado colapsou). Voltar para a arte é reabrir o material —
+   e ela continua exatamente onde estava, porque o estado nunca saiu do lugar.
+   Segundo toque fecha de novo: o botão é o interruptor do catálogo, não uma viagem só de ida. */
 function fMobileBackToCatalog(){
-  try{ document.body.classList.remove('f-mobile-chat'); }catch(e){}
+  try{
+    document.body.classList.remove('f-mobile-chat');
+    document.body.classList.toggle('f-catalogo-aberto');
+  }catch(e){}
 }
 function fResetFlow(){
   // Se não há nada preenchido, reseta direto sem perguntar
@@ -1456,6 +1639,12 @@ function fAddBot(html,qrs,canGoBack){
   let q='';
   if(qrs&&qrs.length){
     q=`<div class="qr-wrap">${qrs.map(x=>{
+      /* Chip de AÇÃO (objeto `{html, acao}`) em vez de chip de VALOR (string). Nasceu com o
+         "Manter" do passo já preenchido: ele não responde a pergunta com um texto novo, ele
+         confirma o que já existe. Os 9 pontos que passam string continuam idênticos. */
+      if(x && typeof x === 'object' && x.html){
+        return `<div class="qr qr-acao" role="button" tabindex="0" onclick="${gEsc(x.acao)}">${x.html}</div>`;
+      }
       const isColor = /^#[0-9A-F]{6}$/i.test(x.trim());
       if(isColor) {
         return `<div class="qr qr-color" role="button" tabindex="0" data-qr="${gEsc(x)}" onclick="fQR(this.dataset.qr,this)" style="background:${gEsc(x)} !important; color:${fGetContrastColor(x)} !important; border-color:${gEsc(x)} !important; font-family:'Roboto',sans-serif; display:inline-flex; align-items:center; gap:6px;"><span style="width:10px; height:10px; border-radius:50%; background:var(--white); border:1px solid rgba(0,0,0,0.25); display:inline-block;"></span>${gEsc(x)}</div>`;
@@ -1659,7 +1848,10 @@ function fApplyRecoverDraft(confirm) {
   delete fState._pendingDraft;
   
   if (confirm && draft) {
-    fState.dados = draft.dados;
+    /* Mescla, não substitui: o `fSelectMaterial` preserva o que a pessoa já respondeu ao trocar
+       de formato/material, e um `=` aqui jogava esses valores fora em silêncio. O rascunho vence
+       nas chaves que ele conhece (é o que a pessoa mandou recuperar); o resto sobrevive. */
+    fState.dados = Object.assign({}, fState.dados || {}, draft.dados || {});
     fState.extractedColors = draft.extractedColors || {};
     fState.stepIdx = draft.stepIdx - 1; // fNextStep incrementa para o passo correto
     fAddBot("Rascunho recuperado! Vamos continuar…", []);

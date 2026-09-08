@@ -110,6 +110,17 @@
 .qr:hover{background:var(--dm-orange);border-color:var(--dm-orange);color:var(--on-orange);transform:translateY(-1px);box-shadow:0 5px 14px color-mix(in srgb,var(--dm-orange-d) 16%,transparent)}
 .qr:active{transform:scale(.96)}
 .qr:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+/* CHIP DE AÇÃO — confirma o que já existe ("Manter “X-Bacon Duplo”"), não propõe valor novo.
+   Verde do sistema em vez do laranja de sugestão: a diferença de cor é a informação — um
+   chip continua a conversa, o outro fecha um passo que a pessoa já resolveu pela prévia. */
+.qr.qr-acao{border-color:var(--gray-mid);background:var(--gray-light);color:var(--text-1)}
+.qr.qr-acao:hover{background:var(--text-1);border-color:var(--text-1);color:var(--white);box-shadow:0 5px 14px color-mix(in srgb,var(--text-1) 16%,transparent)}
+.qr.qr-acao svg{color:#22c55e}
+.qr.qr-acao:hover svg{color:inherit}
+
+/* Contexto colado na pergunta: "E qual será o preço promocional? O preço original é R$ 49,90."
+   Linha própria e discreta — informa sem competir com a pergunta. */
+.perg-ctx{display:block;margin-top:5px;font-size:11.5px;font-weight:600;color:var(--text-3)}
 .confirm-card {
   width:min(540px,calc(100cqi - 40px));margin-top:10px;overflow:hidden;
   background:var(--white);border:1px solid var(--gray-light);border-radius:18px;
@@ -317,6 +328,39 @@ body:not(.theme-light) .art-preview-mat{background:var(--d-bg)}
   color: var(--dm-red);
   background: var(--dm-orange-bg);
 }
+/* ══ OS CAMPOS DA ARTE — a affordance de reedição ══════════════════════════════════════════
+   Discreta por contrato: o lápis não pode competir com o conteúdo (é o rótulo e o valor que
+   a pessoa lê), mas precisa de alvo confortável. Daí o botão de 32px com ícone de 13px —
+   a área de toque é grande, o desenho é pequeno. */
+.art-campos{
+  padding:12px 14px;
+  border-top:1px solid rgba(0,0,0,0.05);
+}
+.art-campos-label{
+  font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--text-3);margin-bottom:8px;
+}
+.art-campos-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px}
+.art-campo-row{
+  display:grid;grid-template-columns:minmax(64px,auto) 1fr 32px;align-items:center;gap:10px;
+  padding:3px 0;min-height:32px;font-size:12px;
+}
+.art-campo-rot{font-weight:700;color:var(--text-2);white-space:nowrap}
+.art-campo-val{
+  color:var(--text-1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;
+}
+.art-campo-vazio{color:var(--text-3);font-style:italic;font-weight:500}
+.art-campo-foto{color:var(--green-text,#15803d);font-weight:600}
+.art-campo-edit{
+  width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;
+  background:transparent;border:1px solid transparent;border-radius:var(--r-sm,6px);
+  color:var(--text-3);cursor:pointer;
+  transition:color var(--dur-fast) var(--ease-standard),background var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard);
+}
+.art-campo-edit:hover{color:var(--dm-orange-d);background:var(--dm-orange-bg);border-color:var(--dm-orange-tint)}
+.art-campo-edit:focus-visible{outline:2px solid var(--dm-orange);outline-offset:1px}
+.art-campo-edit:active{transform:scale(.94)}
+
 /* ENTREGA FINAL, parte 3 de 3 — as ações. Antes: 3 botões de mesmo peso numa fileira
    (Refazer | ícone de compartilhar | Baixar) + um "Gerar em Lote" com CSS inline.
    Agora há uma hierarquia explícita: Baixar PNG full-width como ação principal, as duas
@@ -403,6 +447,12 @@ body:not(.theme-light) .art-actions-pri .art-wa:hover { border-color: var(--d-te
 body:not(.theme-light) .art-redo-link { color: var(--d-text3) }
 body:not(.theme-light) .art-redo-link:hover { background: var(--d-surf3); color: var(--d-text2) }
 body:not(.theme-light) .art-actions-label { color: var(--d-text3) }
+body:not(.theme-light) .art-campos-label,
+body:not(.theme-light) .art-campo-edit { color: var(--d-text3) }
+body:not(.theme-light) .art-campo-rot { color: var(--d-text2) }
+body:not(.theme-light) .art-campo-val { color: var(--d-text) }
+body:not(.theme-light) .art-campos { border-top-color: var(--d-border2) }
+body:not(.theme-light) .art-campo-edit:hover { color: var(--dm-orange); background: color-mix(in srgb,var(--dm-orange) 12%,var(--d-surf)); border-color: var(--dm-orange) }
 body:not(.theme-light) .art-bulk-btn { background: var(--d-surf2); border-top-color: var(--d-border); color: var(--dm-orange) }
 body:not(.theme-light) .art-bulk-btn:hover { background: var(--d-surf3) }
 body:not(.theme-light) .art-bulk-ico { background: var(--d-surf3); color: var(--dm-orange) }
@@ -565,6 +615,10 @@ body:not(.theme-light) .f-fit-btn{background:color-mix(in srgb,var(--dm-orange) 
   font-size:12px;font-weight:600;
   color:var(--green-text);
 }
+/* "Ajustar foto" nasce com o MESMO desenho do "Trocar": são a mesma família de ação sobre o
+   arquivo já enviado, e o enquadramento não pode parecer mais importante que trocar a foto.
+   Ele existe aqui porque o teste mostrou que ninguém achava o reposicionamento clicando na arte. */
+.f-upload-frame,
 .f-upload-replace{
   padding:4px 10px;
   font-size:11px;font-weight:500;
@@ -576,11 +630,38 @@ body:not(.theme-light) .f-fit-btn{background:color-mix(in srgb,var(--dm-orange) 
   font-family:'Roboto',sans-serif;
   transition:all .15s;
 }
+.f-upload-frame:hover,
 .f-upload-replace:hover{
   border-color:var(--dm-orange);
   color:var(--dm-orange-d);
   background:var(--dm-orange-bg);
 }
+/* ── CONFIRMAÇÃO DO ARQUIVO ────────────────────────────────────────────────────────────────
+   O passo de imagem para aqui até a pessoa dizer que é essa mesma. "Usar" é a ação primária;
+   "Trocar" fica ao lado, com o mesmo peso do botão de trocar do overlay. */
+.f-upload-confirm{margin-top:8px;display:flex;flex-direction:column;gap:7px}
+.f-upload-confirm-row{display:flex;gap:7px;flex-wrap:wrap}
+.f-upload-ok{
+  flex:1 1 auto;min-height:36px;padding:7px 14px;
+  font:700 12px 'Roboto',sans-serif;
+  background:var(--dm-orange);border:1px solid var(--dm-orange);color:var(--on-orange);
+  border-radius:var(--r-sm);cursor:pointer;
+  transition:background var(--dur-fast) var(--ease-standard),transform var(--dur-fast) var(--ease-spring);
+}
+.f-upload-ok:hover{background:var(--dm-orange-d);border-color:var(--dm-orange-d)}
+.f-upload-ok:active{transform:scale(.97)}
+.f-upload-ok:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+.f-upload-confirm .f-upload-replace{flex:0 0 auto;min-height:36px}
+
+/* O aviso do logo: informa, não bloqueia. Âmbar, nunca vermelho — não é erro, é um "olha isto". */
+.f-upload-aviso{
+  display:flex;align-items:flex-start;gap:7px;padding:8px 10px;
+  background:var(--dm-orange-bg);border:1px solid var(--dm-orange-tint);
+  border-radius:var(--r-sm);color:var(--dm-orange-d);
+  font:600 11.5px 'Roboto',sans-serif;line-height:1.4;
+}
+.f-upload-aviso svg{flex:0 0 14px;margin-top:1px}
+
 body:not(.theme-light) .field-hint{background:var(--d-surf2);color:var(--d-text2)}
 body:not(.theme-light) .f-upload-zone{background:var(--d-surf);border-color:var(--d-border2)}
 body:not(.theme-light) .f-upload-zone:hover,
@@ -591,7 +672,10 @@ body:not(.theme-light) .f-upload-sub{color:var(--d-text3)}
 body:not(.theme-light) .f-upload-preview,
 body:not(.theme-light) .f-upload-preview-overlay{background:var(--d-surf);border-color:var(--d-border2)}
 body:not(.theme-light) .f-upload-preview-overlay span{color:var(--green-text)}
+body:not(.theme-light) .f-upload-frame,
 body:not(.theme-light) .f-upload-replace{border-color:var(--d-border2);color:var(--d-text2)}
+body:not(.theme-light) .f-upload-frame:hover,
+body:not(.theme-light) .f-upload-aviso{background:color-mix(in srgb,var(--dm-orange) 12%,var(--d-surf));border-color:var(--dm-orange);color:var(--dm-yellow,var(--dm-orange))}
 body:not(.theme-light) .f-upload-replace:hover{background:color-mix(in srgb,var(--dm-orange) 12%,var(--d-surf));border-color:var(--dm-orange);color:var(--dm-orange)}
 /* ══ /UPLOAD DE IMAGEM ══ */
 .field-hint-type{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:var(--dm-orange);color:var(--white);border-radius:50%;font-size:9px;font-weight:700;font-family:'Roboto',sans-serif;letter-spacing:-.02em}

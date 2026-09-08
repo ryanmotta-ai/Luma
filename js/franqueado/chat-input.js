@@ -109,7 +109,9 @@ function fGetFieldType(id){
     }
   }
 
-  const label = vDef?.label || fallback.label;
+  // `fallback.label` é o próprio `id` quando o campo não está no F_FIELD_TYPES — e esse rótulo
+  // vai para a `field-hint` embaixo da pergunta, à vista do franqueado. Motor único decide.
+  const label = (typeof gFieldLabel==='function') ? gFieldLabel(id) : (vDef?.label || fallback.label);
   // required: se a var existe no catálogo, honra dVars.required; senão (campo legado) exige por padrão
   const required = vDef ? !!vDef.required : true;
   return {type, maxLen, label, required, vDef, options:vDef?.options, palette:vDef?.palette};

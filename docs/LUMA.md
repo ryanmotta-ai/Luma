@@ -494,7 +494,13 @@ A régua do gap é a **caixa desenhada**, não uma medida de referência: `gap =
 
 **A regra que resolveu a (2): texto não sobe.** Enquanto cabe na caixa segue centralizado (é o desenho do designer); quando passa dela, ancora no topo e cresce só para baixo — que é exatamente o que a corrente sabe absorver. `_gStampVTop` carimba `_vTopAuto` na medida e o render lê o mesmo carimbo (`_vTop = l.vAlign==='top' || l._vTopAuto===true`). Sem layout vivo o carimbo não existe e o desenho de hoje é byte a byte o mesmo.
 
-**Interruptor, DOIS em série**: a flag `franqueado.layout-vivo` no Controle do produto governa a **rede** (é da gestão), e `gLayoutVivoOff` é a preferência do botão **Auto-layout** ao lado do Auto-zoom na prévia (`live-preview.js`). Fica em `localStorage` (`luma-lp-auto-layout`), igual ao Auto-zoom. A preferência pela composição original só é obedecida quando ela é segura; se os dados reais exigirem adaptação, o botão permanece ativo/forçado e explica o motivo.
+**Interruptor, UM só**: a flag `franqueado.layout-vivo` no Controle do produto governa a **rede** (é da gestão). `gLayoutVivoOff` continua existindo em `00-config.js` como estado dessa flag, mas **não tem mais botão**.
+
+⚠ **Mudou em 09/2026 (rodada de usabilidade V1).** O botão **Auto-layout** e o botão **Auto-zoom** saíram da barra da prévia, com estado, preferência em `localStorage` e copy. Motivo: os dois pediam ao franqueado administrar mecanismo interno ("acomodação automática", "composição original", "versão segura" — vocabulário de solver na tela de quem só quer a arte da promoção). A preferência `luma-lp-auto-layout` é **apagada** na carga: salva como `"0"`, ela desligaria a proteção para sempre naquele aparelho, sem UI para religar.
+
+**A política virou incondicional — ORIGINAL FIRST** (`png-generator.js`, `fRenderTemplateLayers`): `effective = result.requiresAdaptation ? solved : original`. Conteúdo que cabe é desenhado a partir do clone ORIGINAL, não do resolvido — o resolvido volta carimbado (`_fit`, `_layoutW`, `_tetoFonte`, `_entrelinha`) e a comparação de mudança tem tolerância de 0,5px; meio pixel não é "igual ao que o designer desenhou". Quando o solver precisa mesmo agir, a prévia diz **uma linha** (`#lp-layout-nota`: "Layout ajustado para o conteúdo caber") em vez de pedir que alguém entenda o solver.
+
+O contrato está travado em teste: `tests/corpus-cases.js`, caso `… · autoral · cabe → geometria intacta`, mede x/y/w/h e corpo de cada camada contra o **desenho publicado** (`fx.layers` cru) com igualdade exata, nos 6 fixtures do corpus.
 
 ⛔ **NÃO existe chave por template.** Todo template nasce com o layout vivo ligado e o designer não decide nada no publicar (decisão do Ryan, 2026-08-06): não é escolha de design peça a peça, é o comportamento do produto. `publishMeta.layoutVivo` foi removido de `dDefaultPublishMeta`, do publicar e do render — se aparecer num publishMeta antigo, é ignorado.
 

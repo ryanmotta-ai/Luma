@@ -519,35 +519,22 @@ let _lpEffectiveMaterial = null;
 
 // Zoom/pan manual da prova digital (item: inspecionar a arte de perto).
 // _lpUserZoom=1 é o ajuste à tela; >1 amplia. Pan em px de tela relativo ao centro do quadro.
-// Tem PRIORIDADE sobre o smart-zoom do chat (que foca o campo ativo) — ver _fLpApplyCanvasFocus.
+// É o ÚNICO zoom da prévia desde que o Auto-zoom saiu: só a pessoa move a mesa.
 let _lpUserZoom = 1, _lpPanX = 0, _lpPanY = 0;
 let _lpPanning = null, _lpDidPan = false, _lpSuppressClick = false;
 const F_LP_ZOOM_MIN = .35, F_LP_ZOOM_MAX = 6;
 const F_LP_ZOOM_STEPS = [.35,.5,.67,.8,1,1.25,1.5,2,2.5,3,4,5,6];
-const F_LP_AUTO_ZOOM_KEY = 'luma-lp-auto-zoom';
-let _lpAutoZoom = true;
-try { _lpAutoZoom = localStorage.getItem(F_LP_AUTO_ZOOM_KEY) !== '0'; } catch(e){}
-
-function _fLpSyncAutoZoomButton(){
-  const btn=document.getElementById('lp-auto-zoom'); if(!btn) return;
-  btn.classList.toggle('active',_lpAutoZoom);
-  btn.setAttribute('aria-pressed',String(_lpAutoZoom));
-  btn.title=_lpAutoZoom?'Desativar zoom automático':'Ativar zoom automático';
-}
-function fLpToggleAutoZoom(){
-  _lpAutoZoom=!_lpAutoZoom;
-  try { localStorage.setItem(F_LP_AUTO_ZOOM_KEY,_lpAutoZoom?'1':'0'); } catch(e){}
-  _fLpSyncAutoZoomButton();
-  const canvas=document.getElementById('lp-canvas');
-  if(!_lpAutoZoom && canvas){
-    canvas.style.transformOrigin='center center';
-    canvas.style.transform='scale(1)';
-  } else {
-    _lpUserZoom=1; _lpPanX=0; _lpPanY=0;
-    _fLpApplyUserView();
-    fLpRefresh();
-  }
-}
+/* ── AUTO-ZOOM REMOVIDO (teste de usabilidade, 09/2026) ────────────────────────────────────
+   Aqui viviam `F_LP_AUTO_ZOOM_KEY`, `_lpAutoZoom`, `_fLpSyncAutoZoomButton` e
+   `fLpToggleAutoZoom`: a chave que aproximava a prévia (scale 1.8) no campo da pergunta ativa,
+   com um botão "Auto · Zoom" na barra. Saiu por inteiro — botão, estado, preferência salva,
+   copy e tooltip. O franqueado não tem por que administrar o zoom do assistente: ele mexia
+   sozinho na arte enquanto a pessoa digitava, e virou "por que a arte pulou?".
+   ⚠ ISTO NÃO É O "CABER NA TELA". O ajuste à área disponível (`fLpRefit` + `fLpSizeCanvas`)
+   continua igual, assim como o zoom/pan MANUAIS da mesa (roda, pinça, slider, Ajustar).
+   O que saiu foi o conceito de "zoom automático" como chave do franqueado.
+   O destaque do campo ativo continua: ele é PINTADO no canvas (`fLpHighlightActiveField`),
+   não é transform — sinaliza sem mover a arte de lugar. */
 
 /* ── BAIXAR PNG SÓ COM A ARTE PRONTA ──
    A barra de download da gaveta (celular) ficava clicável desde a primeira pergunta: baixar
@@ -562,39 +549,28 @@ function _fLpSyncBaixar(){
   btn.title = pronto ? 'Baixar arte em PNG' : 'Responda o chat até o fim para baixar';
 }
 
-/* ── AUTO-LAYOUT: o mesmo gesto do Auto-zoom, para a acomodação da arte ──
-   Este é o ÚNICO lugar do produto onde alguém liga/desliga o layout vivo. Todo template nasce
-   com ele ligado; a outra chave é a flag da rede no Controle do produto, que é da gestão.
-   Vale para a prévia E para o PNG baixado — as duas passam pelo mesmo `fRenderTemplateLayers`,
-   e prévia que mente sobre o arquivo final é o defeito que este projeto mais evita.
-   O botão só some se a gestão desligar a feature para a rede inteira. */
-const F_LP_AUTO_LAYOUT_KEY = 'luma-lp-auto-layout';
-try { gLayoutVivoOff = localStorage.getItem(F_LP_AUTO_LAYOUT_KEY) === '0'; } catch(e){}
+/* ── AUTO-LAYOUT: o franqueado não administra mais isto ────────────────────────────────────
+   Aqui viviam `F_LP_AUTO_LAYOUT_KEY`, o botão "Auto · Layout" e o `fLpToggleAutoLayout`. A
+   chave ensinava uma complexidade interna: "acomodação automática", "composição original",
+   "versão segura" — vocabulário de solver na barra de quem só quer a arte da promoção.
+   O MOTOR CONTINUA INTEIRO. O que mudou é a política, e ela virou incondicional
+   (`png-generator.js`, ORIGINAL FIRST): cabe → não se toca em nada; não cabe → o Luma protege.
+   `gLayoutVivoOff` continua existindo em `00-config.js` como chave da GESTÃO (feature flag da
+   rede) — só deixou de ter um interruptor na tela do franqueado.
+   ⚠ A preferência antiga podia estar salva como "0" e desligaria a proteção para sempre nesse
+   aparelho, sem UI para religar. Por isso ela é apagada, não lida. */
+const F_LP_AUTO_LAYOUT_KEY_LEGADO = 'luma-lp-auto-layout';
+try { localStorage.removeItem(F_LP_AUTO_LAYOUT_KEY_LEGADO); } catch(e){}
 
+/* O aviso discreto que substitui o botão: uma linha, só quando houve intervenção DE VERDADE
+   (o solver mudou geometria ou tipografia). Nada de explicar o solver — o que importa para
+   quem publica é saber que a arte foi protegida, não como. */
 function _fLpSyncAutoLayoutButton(){
-  const btn=document.getElementById('lp-auto-layout'); if(!btn) return;
-  const tem=(typeof gLayoutVivoDisponivel==='function') && gLayoutVivoDisponivel();
-  btn.hidden=!tem;
-  if(!tem) return;
-  const forced=!!(_lpLayoutResult&&_lpLayoutResult.forced);
-  const on=!gLayoutVivoOff||forced;
-  btn.classList.toggle('active',on);
-  btn.setAttribute('aria-pressed',String(on));
-  btn.dataset.forced=forced?'true':'false';
-  btn.title=forced?'Acomodação mantida: a composição original não é segura com estes dados'
-    :(on?'Ver a composição original quando houver espaço seguro':'Ativar acomodação automática');
-}
-function fLpToggleAutoLayout(){
-  gLayoutVivoOff=!gLayoutVivoOff;
-  try { localStorage.setItem(F_LP_AUTO_LAYOUT_KEY,gLayoutVivoOff?'0':'1'); } catch(e){}
-  _fLpSyncAutoLayoutButton();
-  try {
-    Promise.resolve(fUpdateLivePreview()).then(()=>{
-      _fLpSyncAutoLayoutButton();
-      if(gLayoutVivoOff&&_lpLayoutResult&&_lpLayoutResult.forced)
-        gToast('A composição original não cabe com estes dados. O Luma manteve a versão segura.');
-    });
-  } catch(e){}
+  const nota=document.getElementById('lp-layout-nota'); if(!nota) return;
+  const r=_lpLayoutResult;
+  const mexeu=!!(r && (r.adapted || r.invalid));
+  nota.hidden=!mexeu;
+  nota.textContent=mexeu?'Layout ajustado para o conteúdo caber.':'';
 }
 
 async function fUpdateLivePreview(opts){
@@ -689,7 +665,7 @@ async function fUpdateLivePreview(opts){
       // Mesa infinita: o zoom/pan manual transforma o CARD; o smart-zoom do chat fica no canvas
       // e só age quando não há view manual.
       _fLpApplyUserView();
-      _fLpApplyCanvasFocus(activeLayer, W, H);
+      _fLpApplyCanvasFocus();
     }
 
     if(_lpView==='guides') _fLpDrawGuides(ctx, W, H);
@@ -805,7 +781,7 @@ function fLpRefit(){
   if(stage) _fLpStageWidthCache = stage.clientWidth;
   fLpSizeCanvas(canvas, canvas.width, canvas.height);
   _fLpApplyUserView();                                  // recentra o card (com a mola do CSS)
-  _fLpApplyCanvasFocus(null, canvas.width, canvas.height);
+  _fLpApplyCanvasFocus();
 }
 
 /* ══ ZOOM / PAN DA PROVA DIGITAL — mesa infinita (estilo Miro) ══
@@ -823,23 +799,15 @@ function _fLpApplyUserView(){
   _fLpUpdateZoomLabel();
 }
 
-// Smart-zoom do chat no CANVAS — só quando NÃO há view manual (senão cederia e composição confusa).
-function _fLpApplyCanvasFocus(activeLayer, W, H){
+/* Com o Auto-zoom fora, o canvas nunca mais recebe transform próprio — a mesa inteira é quem
+   move (`_fLpApplyUserView`, no `.lp-canvas-wrap`). A função continua existindo e sendo chamada
+   porque é ela que GARANTE isso: sessão que já tinha a arte ampliada precisa ser normalizada,
+   e é aqui que qualquer resíduo de transform no canvas é zerado a cada render. */
+function _fLpApplyCanvasFocus(){
   const canvas = document.getElementById('lp-canvas');
   if(!canvas) return;
-  const manual = (_lpUserZoom !== 1 || _lpPanX !== 0 || _lpPanY !== 0);
-  if(_lpAutoZoom && !manual && activeLayer && !fState.done && !_lpFraming){
-    const vr=_fLpVisualRect(activeLayer);
-    const cx = vr.x + vr.w / 2;
-    const cy = vr.y + vr.h / 2;
-    const px = Math.min(100, Math.max(0, (cx / W) * 100));
-    const py = Math.min(100, Math.max(0, (cy / H) * 100));
-    canvas.style.transformOrigin = `${px.toFixed(1)}% ${py.toFixed(1)}%`;
-    canvas.style.transform = 'scale(1.8)';
-  } else {
-    canvas.style.transformOrigin = 'center center';
-    canvas.style.transform = 'scale(1)';
-  }
+  canvas.style.transformOrigin = 'center center';
+  canvas.style.transform = 'scale(1)';
 }
 
 // Cursor de mesa: grabbing enquanto arrasta (classe no palco; o CSS mostra grab em repouso).
@@ -1444,10 +1412,11 @@ function fLpRefresh(){
 }
 function _fLpRender(){ fLpRefresh(); }
 function _fLpLabel(v){
+  // ⛔ O `|| v` do fim mostrava `precoPor` no chip de hover e no título do popover. O motor
+  // único (gFieldLabel) já resolve designer > catálogo > humanização > genérico, nesta ordem.
   const perg=fState.camp&&fState.camp.perguntas&&fState.camp.perguntas.find(p=>p.id===v);
-  if(perg&&perg.label) return perg.label;
-  const vDef=(typeof dVars!=='undefined'&&dVars)?dVars.find(x=>x.name===v):null;
-  return (vDef&&vDef.label)||F_FIELD_LABELS[v]||v;
+  if(typeof gFieldLabel==='function') return gFieldLabel(v, perg);
+  return (perg&&perg.label)||F_FIELD_LABELS[v]||'Campo';
 }
 function _fLpExample(v){
   const perg=fState.camp&&fState.camp.perguntas&&fState.camp.perguntas.find(p=>p.id===v);
@@ -1533,7 +1502,14 @@ function _fLpCommit(v,val){
 
 // ── Popover ──
 function _fLpCloseEditor(){
-  const p=document.getElementById('lp-edit-pop'); if(p) p.remove();
+  const p=document.getElementById('lp-edit-pop');
+  /* ⚠ O EDITOR DE TEXTO ESCREVIA EM `fState.dados` A CADA TECLA (é o que faz a arte responder
+     ao vivo) mas só APLICAVA MÁSCARA e salvava o rascunho no "Salvar"/Enter. Fechar pelo X, pelo
+     Esc ou clicando fora deixava o valor cru dentro do estado e fora do rascunho: a prévia
+     mostrava uma coisa, o rascunho guardava outra. Todo caminho de saída passa por aqui, então
+     o commit mora aqui — uma saída, uma verdade. */
+  if(p && typeof p._lpCommitOnClose==='function'){ try{ p._lpCommitOnClose(); }catch(e){} }
+  if(p) p.remove();
   document.removeEventListener('mousedown',_fLpPopOutside,true);
   document.removeEventListener('keydown',_fLpPopKey,true);
 }
@@ -1575,8 +1551,9 @@ function _fLpTextEditor(v,maxLen,ev){
   inp.value=cur;
   const refresh=()=>{ cnt.textContent=inp.value.length+'/'+maxLen; };
   inp.addEventListener('input',()=>{ refresh(); if(!fState.dados)fState.dados={}; fState.dados[v]=inp.value; _fLpRender(); });
-  inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); _fLpCommit(v,inp.value); _fLpCloseEditor(); } });
-  p.querySelector('.lp-edit-ok').onclick=()=>{ _fLpCommit(v,inp.value); _fLpCloseEditor(); };
+  p._lpCommitOnClose=()=>_fLpCommit(v,inp.value);   // qualquer saída fecha o valor (ver _fLpCloseEditor)
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); _fLpCloseEditor(); } });
+  p.querySelector('.lp-edit-ok').onclick=()=>_fLpCloseEditor();
   refresh();
   setTimeout(()=>{ inp.focus(); inp.select(); },20);
 }
@@ -1658,12 +1635,20 @@ function _fLpUploadImage(file,v){
       fState.dados[v]=url; delete fState.dados['__fit__'+v];
       try{if(typeof fSaveChatDraft==='function') fSaveChatDraft();}catch(e){}
       _fLpRender();
-      const im=new Image();
-      im.onload=()=>{ if(im.naturalWidth<600||im.naturalHeight<600) gToast('Foto de baixa resolução ('+im.naturalWidth+'×'+im.naturalHeight+'px) — pode sair pixelada na arte.','error'); };
-      im.src=url;
+      /* Campo de logo tem régua PRÓPRIA: 600px é o mínimo de uma FOTO que preenche a arte, e
+         reprovaria logo legítimo (marca de 300px vetorizada em PNG é rotina). O `fValidarLogo`
+         é a mesma medida usada no passo do chat — uma régua só para os dois caminhos. */
+      if(typeof gCampoEhLogo==='function' && gCampoEhLogo(v) && typeof fValidarLogo==='function'){
+        fValidarLogo(url,(aviso)=>{ if(aviso) gToast(aviso,'error'); });
+      } else {
+        const im=new Image();
+        im.onload=()=>{ if(im.naturalWidth<600||im.naturalHeight<600) gToast('Foto de baixa resolução ('+im.naturalWidth+'×'+im.naturalHeight+'px) — pode sair pixelada na arte.','error'); };
+        im.src=url;
+      }
       _fLpCloseEditor();
     };
-    if(typeof fResizeImageIfNeeded==='function') fResizeImageIfNeeded(e.target.result,2500,done); else done(e.target.result);
+    const ehLogo=(typeof gCampoEhLogo==='function') && gCampoEhLogo(v);
+    if(typeof fResizeImageIfNeeded==='function') fResizeImageIfNeeded(e.target.result,2500,done,ehLogo); else done(e.target.result);
   };
   reader.readAsDataURL(file);
 }
@@ -1692,7 +1677,10 @@ function _fLpFrameUp(){
 }
 function _fLpFrameKey(e){
   if(!_lpFraming) return;
-  if(e.key==='Escape'||e.key==='Enter'){ e.preventDefault(); fLpStopFraming(); return; }
+  // Esc DESCARTA, Enter APLICA. Antes os dois gravavam — a tecla universal de "deixa pra lá"
+  // era um jeito de confirmar sem querer.
+  if(e.key==='Escape'){ e.preventDefault(); fLpCancelFraming(); return; }
+  if(e.key==='Enter'){ e.preventDefault(); fLpStopFraming(); return; }
   const v=_lpFraming.varName;
   const f=fState.dados['__fit__'+v]||{scale:1,offX:0,offY:0};
   let changed=false;
@@ -1721,12 +1709,28 @@ function _fLpUpdateFramingHUD(){
   if(slider) slider.value=sc;
   const pct=document.getElementById('lp-frame-pct');
   if(pct) pct.textContent=Math.round(sc*100)+'%';
+  /* "Desfazer ajuste" só existe quando HÁ ajuste. Botão que não faz nada ensina a ignorar
+     botão — e aqui ele compete por espaço com Cancelar e Aplicar, que sempre valem. */
+  const l=_lpFraming.layer||{};
+  const mexido=Math.abs(sc-(l.imgScale||1))>0.005
+    ||Math.abs((f.offX||0)-(l.imgOffsetX||0))>0.005
+    ||Math.abs((f.offY||0)-(l.imgOffsetY||0))>0.005;
+  const btnReset=document.getElementById('lp-frame-reset');
+  if(btnReset) btnReset.hidden=!mexido;
 }
 function fLpStartFraming(l,v){
   const canvas=document.getElementById('lp-canvas'); const wrap=canvas&&canvas.closest('.lp-canvas-wrap'); if(!wrap) return;
   document.getElementById('lp-frame-hud')?.remove();
-  _lpFraming={layer:l,varName:v};
   const init=(fState.dados&&fState.dados['__fit__'+v])||{scale:(l.imgScale||1),offX:(l.imgOffsetX||0),offY:(l.imgOffsetY||0)};
+  /* SNAPSHOT DO QUE EXISTIA AO ABRIR — é isto, e só isto, que o "Cancelar" devolve. O modo não
+     tinha saída de descarte: "Concluir" gravava e Esc fazia a MESMA coisa que Concluir, então
+     quem entrava por curiosidade saía com a foto deslocada e sem como voltar. Cancelar não
+     reinicia o fluxo, não apaga o upload e não mexe em nenhum outro campo: restaura o
+     `__fit__<campo>` ao valor que ele tinha neste instante. `tinha` distingue "não havia
+     enquadramento" de "havia um zerado" — sem isso, cancelar deixaria um objeto onde não havia. */
+  _lpFraming={layer:l,varName:v,
+    snap:{scale:init.scale||1,offX:init.offX||0,offY:init.offY||0},
+    tinha:!!(fState.dados&&fState.dados['__fit__'+v])};
   fState.dados['__fit__'+v]={scale:init.scale||1,offX:init.offX||0,offY:init.offY||0};
   _fLpRender();
 
@@ -1774,11 +1778,12 @@ function fLpStartFraming(l,v){
         <button class="lp-frame-hud-text-btn" id="lp-frame-center" type="button" title="Centralizar foto">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:3px"><circle cx="12" cy="12" r="7"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>Centralizar
         </button>
-        <button class="lp-frame-hud-text-btn" id="lp-frame-reset" type="button" title="Voltar ao enquadramento original">Restaurar</button>
+        <button class="lp-frame-hud-text-btn" id="lp-frame-reset" type="button" title="Voltar ao enquadramento que o designer deu">Desfazer ajuste</button>
       </div>
       <div class="lp-frame-hud-divider"></div>
-      <button class="lp-frame-hud-done" id="lp-frame-done" type="button">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><polyline points="20 6 9 17 4 12"/></svg>Concluir
+      <button class="lp-frame-hud-cancel" id="lp-frame-cancel" type="button" title="Descartar este ajuste (Esc)">Cancelar</button>
+      <button class="lp-frame-hud-done" id="lp-frame-done" type="button" title="Aplicar o enquadramento (Enter)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><polyline points="20 6 9 17 4 12"/></svg>Aplicar
       </button>
     </div>
   `;
@@ -1811,6 +1816,8 @@ function fLpStartFraming(l,v){
     _fLpUpdateFramingHUD();
   };
   ov.querySelector('#lp-frame-done').onclick=()=>fLpStopFraming();
+  ov.querySelector('#lp-frame-cancel').onclick=()=>fLpCancelFraming();
+  _fLpUpdateFramingHUD();   // estado inicial do "Desfazer ajuste" (some quando não há ajuste)
 
   // O card recorta a arte e recebe pan/zoom: os controles precisam ficar fora dele.
   // Como irmão do palco, o HUD reserva espaço e nunca cobre a foto nem escala com ela.
@@ -1887,6 +1894,30 @@ function fLpStartFraming(l,v){
   window.addEventListener('mouseup',_fLpFrameUp);
   window.addEventListener('keydown',_fLpFrameKey);
 }
+/* ── ENQUADRAR SEM CAÇAR O CLIQUE NA ARTE ────────────────────────────────────────────────
+   O teste de usabilidade foi direto: ninguém descobriu que dá pra reposicionar a foto, porque
+   o único caminho era clicar na arte, achar o popover e ver a terceira opção. Agora o passo de
+   foto do chat oferece "Ajustar foto" (`_fUploadPreviewHTML`) e cai aqui — mesmo modo, mesma
+   HUD, um caminho só. A camada é achada pelo VÍNCULO (`imgVar`), não por coordenada de clique.
+   Prefere a geometria EFETIVA (a que o render desenhou); sem ela, a do template. */
+function fLpFrameVar(v){
+  if(!v) return false;
+  const mat=fState.material;
+  const acha=(ls)=>(ls||[]).find(l=>l&&(l.type==='image'||l.type==='frame')&&l.imgVar===v);
+  const l=(_lpEffectiveMaterial===mat && acha(_lpEffectiveLayers)) || acha(mat&&mat.layers);
+  if(!l) return false;
+  const perm=(typeof _fLpPerm==='function')?_fLpPerm(v):{editable:true};
+  if(!perm.editable){ _fLpLockToast(v); return false; }
+  fLpStartFraming(l,v);
+  return true;
+}
+/* Ponte para o chat: no celular a prévia mora numa gaveta, então abrir o enquadramento sem
+   abrir a gaveta deixaria a pessoa mexendo numa foto que ela não vê. */
+function fAjustarFoto(v){
+  try{ if(typeof _fLpAbrirGaveta==='function' && window.matchMedia && matchMedia('(max-width:680px)').matches) _fLpAbrirGaveta(); }catch(e){}
+  if(!fLpFrameVar(v) && typeof gToast==='function') gToast('Esta foto não pode ser reposicionada nesta arte.');
+}
+
 function fLpResetFraming(){
   if(!_lpFraming) return;
   const l=_lpFraming.layer, v=_lpFraming.varName;
@@ -1895,7 +1926,18 @@ function fLpResetFraming(){
   try{if(typeof fSaveChatDraft==='function') fSaveChatDraft();}catch(e){}
   _fLpRender();
   _fLpUpdateFramingHUD();
-  if(typeof gToast==='function') gToast('Enquadramento restaurado');
+  if(typeof gToast==='function') gToast('Enquadramento do designer restaurado');
+}
+
+/* CANCELAR — devolve o snapshot de quando o modo abriu, e só ele.
+   ⛔ Não é "refazer a arte": o upload, os outros campos e o resto do fluxo não são tocados. */
+function fLpCancelFraming(){
+  if(!_lpFraming){ return; }
+  const v=_lpFraming.varName, snap=_lpFraming.snap, tinha=_lpFraming.tinha;
+  if(tinha && snap) fState.dados['__fit__'+v]={scale:snap.scale,offX:snap.offX,offY:snap.offY};
+  else delete fState.dados['__fit__'+v];   // não havia enquadramento → volta a não haver
+  fLpStopFraming();
+  if(typeof gToast==='function') gToast('Ajuste descartado');
 }
 function fLpStopFraming(){
   window.removeEventListener('mousemove',_fLpFrameMove);
@@ -2031,7 +2073,7 @@ function _fLpBindCanvasEditing(){
 // Update inicial assim que DOM tá pronto
 document.addEventListener('DOMContentLoaded', () => {
   try { dPreloadFolders(); } catch(e){}
-  try { _fLpSyncAutoZoomButton(); } catch(e){}
+  try { localStorage.removeItem('luma-lp-auto-zoom'); } catch(e){}   // preferência de um botão que não existe mais
   fLpRefresh();
   try { fInitMobilePreviewEvents(); } catch(e){}
   try { _fLpBindCanvasEditing(); } catch(e){}

@@ -764,11 +764,15 @@ function gLayoutCamposDe(l){
 }
 
 function gLayoutRotuloCampo(nome){
+  // O `return nome` do fim punha o nome da variável dentro do diagnóstico que o franqueado LÊ
+  // ("A arte não tem espaço seguro para 'precoPor'") — o oposto do que o próprio bloco promete.
+  // Motor único de rótulo (00-config.js); `v.name` também era o cru travestido de label.
+  if(typeof gFieldLabel === 'function') return gFieldLabel(nome);
   if(typeof dVars !== 'undefined' && Array.isArray(dVars)){
     const v = dVars.find(x => x && x.name === nome);
-    if(v && (v.label || v.name)) return v.label || v.name;
+    if(v && v.label) return v.label;
   }
-  return nome;
+  return 'este campo';
 }
 
 /* O campo culpado: entre as camadas marcadas, a que mais cresceu em relação ao próprio desenho.

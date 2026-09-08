@@ -184,6 +184,63 @@
     });
   });
 
+  /* ══ ORIGINAL FIRST — o contrato da rodada de usabilidade de 09/2026 ═══════════════════════
+     "Conteúdo que já cabe permanece pixel/geometricamente igual." Não é uma tolerância de 3%
+     como o golden acima: é IGUALDADE EXATA. O golden mede "a arte continua parecida"; isto mede
+     "o Luma não encostou na arte".
+     O cenário é o AUTORAL: cada campo recebe o `example` do próprio fixture, que é o texto que o
+     designer tinha na tela quando compôs (é dele que sai o `layoutRefText`). Por construção,
+     esse conteúdo cabe — se o solver mexer aqui, ele está redesenhando arte saudável.
+     A asserção é sobre o que o RENDER devolve (`fRenderTemplateLayers`), não sobre o solver
+     isolado: é lá que mora a escolha entre `original` e `solved`, e é ela que se quer travar.
+     ⚠ Um `effective=solved` de volta reprova aqui de duas formas: pelos carimbos do solver
+     (`_tetoFonte`/`_layoutW`/`_entrelinha`) e por qualquer meio pixel de diferença. */
+  const cenarioAutoral=(fx)=>{
+    const d={};
+    (fx.campos||[]).forEach(c=>{ if(c&&c.name&&c.example!=null) d[c.name]=String(c.example); });
+    return d;
+  };
+  let intactas=0;
+  fixtures.forEach(fx=>{
+    test(fx.nome+' · autoral · cabe → geometria intacta',async()=>{
+      usarCampos(fx.campos);
+      const dados=cenarioAutoral(fx);
+      assert(Object.keys(dados).length,'o fixture não tem `example` em nenhum campo — sem conteúdo autoral não há contrato a medir');
+      const cv=document.createElement('canvas');cv.width=fx.canvas.w;cv.height=fx.canvas.h;
+      const rendered=await fRenderTemplateLayers(cv.getContext('2d'),clonar(fx.layers),
+        fx.canvas.w,fx.canvas.h,dados,{color:'#FF9000'},
+        {layers:[],w:fx.canvas.w,h:fx.canvas.h,bg:'#ffffff'},{scope:'franqueado',purpose:'preview'});
+      const res=rendered&&rendered._layoutResult;
+      assert(res,'o render não devolveu o contrato de layout (_layoutResult)');
+      if(res.requiresAdaptation){
+        // Não é falha: há fixture no corpus desenhado para NÃO caber (é para isso que ele existe).
+        // O contrato só fala do caso que cabe — e o resumo registra quantos exerceram de fato.
+        avisos.push(fx.nome+' · autoral → '+res.status+' (o contrato de geometria intacta não se aplica)');
+        return;
+      }
+      intactas++;
+      /* A régua é o DESENHO PUBLICADO — `fx.layers` cru, o x/y/w/h que o designer salvou —
+         e não o resultado de mais uma passada do solver. Comparar solver com solver deixaria
+         passar um deslocamento que os dois caminhos fizessem igual; a promessa de "geometria
+         idêntica" é sobre a arte do designer, e é contra ela que se mede. */
+      const porId=new Map(fx.layers.filter(l=>l&&l.id).map(l=>[l.id,l]));
+      rendered.forEach(l=>{
+        if(!l||!l.id)return;
+        const o=porId.get(l.id);
+        assert(o,'a camada “'+l.id+'” apareceu no render e não existe no desenho publicado');
+        ['x','y','w','h'].forEach(k=>assert((Number(l[k])||0)===(Number(o[k])||0),
+          'a camada “'+l.id+'” mudou '+k+': '+o[k]+' → '+l[k]+' com conteúdo que cabe'));
+        assert((Number(l.fontSize)||0)===(Number(o.fontSize)||0),
+          'a camada “'+l.id+'” teve o corpo trocado com conteúdo que cabe');
+        assert(l._tetoFonte==null&&l._layoutW==null&&l._entrelinha==null,
+          'a camada “'+l.id+'” voltou carimbada pelo solver — a arte que cabia foi desenhada pelo caminho adaptado');
+      });
+    });
+  });
+  test('o contrato de geometria intacta é exercido por algum fixture',async()=>{
+    assert(intactas>0,'nenhum fixture do corpus chegou a “cabe” com o conteúdo autoral — o contrato ORIGINAL FIRST ficaria sem prova');
+  });
+
   let passed=0;
   for(const item of cases){
     const li=document.createElement('li');li.className='case';
