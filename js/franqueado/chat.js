@@ -240,42 +240,8 @@ function _fProceedMaterialStart(material){
   clearTimeout(fNextTimeout);
   fNextTimeout = setTimeout(()=>fNextStep(),900);
 }
-// Pergunta o nome da loja (inline no chat — sem prompt() nativo, feedback é via UI da casa).
-function fSaveLojaPrompt(){
-  const logo=fState.dados && fState.dados.logo_loja;
-  if(!logo){ if(typeof gToast==='function') gToast('Envie o logo primeiro.','error'); return; }
-  const existing=document.getElementById('loja-save-msg'); if(existing) existing.remove();
-  const msgs=document.getElementById('f-messages');
-  const w=document.createElement('div'); w.className='msg bot'; w.id='loja-save-msg';
-  w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div>
-    <div class="bbl">Como quer chamar essa loja pra reusar o logo depois?</div>
-    <div class="loja-save-row">
-      <input id="loja-save-name" maxlength="30" placeholder="Ex: Pizzaria do João" onkeydown="if(event.key==='Enter')fConfirmSaveLoja()"/>
-      <button class="loja-save-btn" onclick="fConfirmSaveLoja()">Salvar</button>
-    </div>
-  </div>`;
-  msgs.appendChild(w); msgs.scrollTop=msgs.scrollHeight;
-  const inp=document.getElementById('loja-save-name'); if(inp) inp.focus();
-}
-function fConfirmSaveLoja(){
-  const inp=document.getElementById('loja-save-name');
-  const nome=(inp && inp.value.trim())||'';
-  if(!nome){ if(typeof gToast==='function') gToast('Dê um nome para a loja.','error'); if(inp) inp.focus(); return; }
-  const logo=fState.dados && fState.dados.logo_loja;
-  if(!logo){ if(typeof gToast==='function') gToast('Envie o logo primeiro.','error'); return; }
-  // Encolhe o logo (máx 400px) antes de guardar no localStorage — logo grande estoura a quota.
-  const finish=(smallLogo)=>{
-    const loja={nome, logo:smallLogo};
-    // Aproveita whatsapp/cor se o material tiver esses campos preenchidos.
-    F_LOJA_CAMPOS.whatsapp.forEach(k=>{ if(fState.dados[k]) loja.whatsapp=fState.dados[k]; });
-    F_LOJA_CAMPOS.cor.forEach(k=>{ if(fState.dados[k]) loja.cor=fState.dados[k]; });
-    if(typeof fAddLoja==='function') fAddLoja(loja);
-    if(typeof gToast==='function') gToast(`Loja "${nome}" salva! Vai aparecer na próxima arte.`);
-    const m=document.getElementById('loja-save-msg'); if(m) m.remove();
-  };
-  if(typeof fResizeImageIfNeeded==='function') fResizeImageIfNeeded(logo, 400, finish, true); // é logo: PNG
-  else finish(logo);
-}
+// `fSaveLojaPrompt` e `fConfirmSaveLoja` (~35 linhas) saíram com o botão "Salvar loja" em
+// 09/09. Ver o porquê no `_fUploadPreviewHTML`.
 // fAskCampSwitch/fApplyCampSwitch/fCancelSwitch saíram: trocar de pasta não pergunta
 // mais nada (o reset de estado mora no fSelectCamp, em catalog.js).
 function fSelectFmt(id){
@@ -495,9 +461,15 @@ function fNextStep(){
 function _fUploadPreviewHTML(varId, url, opts){
   opts = opts || {};
   const ehLogo = (typeof gCampoEhLogo==='function') && gCampoEhLogo(varId);
-  const saveLojaBtn = ehLogo
-    ? `<button class="f-upload-save-loja" onclick="fSaveLojaPrompt()" title="Salvar essa loja para reusar depois"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z"/></svg>Salvar loja</button>`
-    : '';
+  /* O botão "Salvar loja" saiu a pedido do Ryan (09/09) — feature morta, e era mesmo: a tela
+     de GESTÃO de lojas já tinha saído do painel de conta ("não faz sentido no momento do
+     produto", prefs-panel.js), então sobrava um botão que criava um perfil que ninguém podia
+     renomear nem apagar. Com ele saem `fSaveLojaPrompt` e `fConfirmSaveLoja`, que não tinham
+     outro chamador.
+     ⚠ CONSEQUÊNCIA, para quem for ler isto depois: `fAddLoja` era o ÚNICO ponto de criação.
+     Sem ele, ninguém cria loja nova — o atalho de pré-início (`fPickLoja`) só aparece para
+     quem já tem uma salva no aparelho. A leitura fica de pé de propósito, para não sumir com
+     o dado de quem já usou. */
   /* ── O ARQUIVO À VISTA ANTES DE AVANÇAR ─────────────────────────────────────────────────
      O upload avançava sozinho 600ms depois de aplicar a imagem: quem escolheu o arquivo errado
      só descobria adiante, e no celular a arte nem estava na tela (a prévia é gaveta). Agora o
@@ -521,7 +493,7 @@ function _fUploadPreviewHTML(varId, url, opts){
       <img src="${gEsc(url)}" alt="Imagem enviada"/>
       <div class="f-upload-preview-overlay">
         <span style="display:inline-flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg>${ehLogo?'Logo enviado':'Foto enviada'}</span>
-        <span style="display:inline-flex;gap:6px">${saveLojaBtn}<button class="f-upload-frame" onclick="fAjustarFoto('${gEsc(varId)}')" title="Reposicionar e dar zoom na imagem dentro da arte"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>Ajustar</button></span>
+        <span style="display:inline-flex;gap:6px"><button class="f-upload-frame" onclick="fAjustarFoto('${gEsc(varId)}')" title="Reposicionar e dar zoom na imagem dentro da arte"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>Ajustar</button></span>
       </div>
     </div>${opts.semConfirmar ? '' : barra}`;
 }
@@ -1420,24 +1392,27 @@ function fGerarArte(){
         </div>
         ${captionHtml}
         <section class="art-actions">
-          <!-- ⛔ A ENTREGA DO V1 TERMINA EM "BAIXAR". Aqui havia quatro CTAs disputando: Postar
-               no Instagram e Enviar no WhatsApp em destaque (os dois PRIMÁRIOS, laranja),
-               Baixar PNG rebaixado a secundário e ainda uma faixa de "Gerar em lote" logo
-               abaixo. O teste foi direto: a tela final está cheia — e a ação que a pessoa
-               veio fazer estava em terceiro lugar visual.
-               Agora: Baixar PNG é o primário e Refazer é o link secundário. Só isso.
-               ATENÇÃO: este comentário vive DENTRO de um template literal — nada de crase
-               aqui, ela fecha a string (o node --check pegou na primeira tentativa).
-               OS MOTORES CONTINUAM: fPostarInstagram, fEnviarWhatsApp, fBaixarPDF e
-               fBulkOpenFromArt estão intactos e continuam sendo chamados de outros pontos
-               (o lote tem entrada no cabeçalho do chat). O que saiu foi a ENTRADA daqui. -->
-          <div class="art-actions-pri">
+          <!-- Baixar e Refazer com o MESMO PESO, a pedido do Ryan (09/09): mesma caixa, mesma
+               altura, mesmo corpo de texto, cada um com metade da linha. O Refazer era um link
+               cinza de 12px ao lado de uma barra laranja de largura cheia — não era hierarquia,
+               era um sumindo ao lado do outro.
+               O laranja fica só no Baixar porque ele é a cor da MARCA na ação de entrega; o que
+               igualou foi a geometria e a tipografia, que é o que o olho pesa primeiro. Se for
+               para igualar também o preenchimento, é tirar o 'pri' da classe.
+               ATENÇÃO: comentário DENTRO de template literal — nada de crase aqui. -->
+          <div class="art-actions-dupla">
             <button type="button" class="art-btn pri art-download" onclick="fBaixar(this,'${previewCanvasId}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="4" x2="12" y2="16"/><polyline points="18 11 12 17 6 11"/><path d="M5 20h14"/></svg>Baixar PNG</button>
-          </div>
-          <div class="art-actions-sec">
-            <button type="button" class="art-redo-link" onclick="fRefazer()" title="Reiniciar as respostas desta arte"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Refazer</button>
+            <button type="button" class="art-btn art-redo" onclick="fRefazer()" title="Reiniciar as respostas desta arte"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Refazer</button>
           </div>
         </section>
+        <!-- Gerar em lote DE VOLTA no card, a pedido do Ryan (09/09). Ele saiu na rodada de
+             enxugamento e é uma ação de outra natureza (produção em escala), então volta como
+             faixa própria embaixo das duas ações da arte — não disputa a linha com elas. -->
+        <button type="button" class="art-bulk-btn" onclick="fBulkOpenFromArt()" title="Gerar dezenas de variações desta arte em lote">
+          <span class="art-bulk-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
+          <span class="art-bulk-txt"><strong>Gerar em lote</strong><em>Dezenas de variações desta arte de uma vez</em></span>
+          <svg class="art-bulk-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
       </div>
     </div>`;
     msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;

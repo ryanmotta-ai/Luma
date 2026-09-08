@@ -1236,39 +1236,14 @@ function fLpHighlightActiveField(ctx, l, W, H) {
   ctx.restore();
 }
 
-// Atualiza o sub-header (#lp-sub).
-function fLpUpdateMeta(hasTemplate){
-  const subEl = document.getElementById('lp-sub');
-  const syncParent = subEl ? subEl.closest('.lp-sync') : null;
-  const c = fState.camp, d = fState.dados || {};
-  const perguntas = (hasTemplate && c && c.perguntas) ? c.perguntas : [];
-  
-  if(subEl){
-    if(!hasTemplate){ 
-      subEl.textContent = 'Selecione um material'; 
-      if(syncParent) syncParent.classList.remove('ready'); 
-      return; 
-    }
-    const total = perguntas.length;
-    const preenchidos = perguntas.filter(p => d[p.id] != null && d[p.id] !== '').length;
-    if(fState.done){ 
-      subEl.textContent = 'arte pronta'; 
-      if(syncParent) syncParent.classList.add('ready'); 
-    }
-    else if(preenchidos === 0){ 
-      subEl.textContent = 'aguardando respostas...'; 
-      if(syncParent) syncParent.classList.remove('ready'); 
-    }
-    else if(preenchidos === total){ 
-      subEl.textContent = 'tudo pronto, gerar arte'; 
-      if(syncParent) syncParent.classList.add('ready'); 
-    }
-    else { 
-      subEl.textContent = `${preenchidos} de ${total} preenchidos`; 
-      if(syncParent) syncParent.classList.remove('ready'); 
-    }
-  }
-}
+/* O selo de status do cabeçalho da prévia (#lp-sub) foi removido em 09/09 — era o terceiro
+   lugar contando o mesmo progresso que o "Passo X de Y" do chat e a barra de progresso já
+   contavam. Aqui viviam ~28 linhas montando as cinco frases dele.
+   A função fica como no-op nomeado porque três pontos do render ainda a chamam; tirar as
+   chamadas seria mexer em três arquivos para não fazer nada. Se um dia voltar um selo, ele
+   nasce aqui e os chamadores não precisam saber. */
+function fLpUpdateMeta(){ /* sem selo de status na prévia */ }
+
 /* ── MINIATURA VIVA (PiP) ──
    No celular a prévia ficava escondida atrás de um botão-olho — o franqueado respondia às
    cegas e perdia a mágica de VER a arte nascer. O botão flutuante vira um mini-canvas com a

@@ -48,7 +48,6 @@
 #f-head-actions #f-bulk-head-btn{border-color:var(--dm-orange-tint);background:var(--dm-orange-bg);color:var(--dm-orange-d)}
 #f-head-actions #f-bulk-head-btn:hover{border-color:var(--dm-orange);background:var(--dm-orange-bg);color:var(--dm-orange-d);box-shadow:0 5px 14px color-mix(in srgb,var(--dm-orange-d) 10%,transparent)}
 #f-head-actions #f-bulk-head-btn{display:none}
-#f-head-actions #f-theme-btn{width:36px;padding:0}
 
 @media (max-width:1080px){
   #f-chat-head{gap:12px;padding-inline:14px}
@@ -62,7 +61,6 @@
   .f-assistant-copy{display:none}
   .f-session-context{padding-left:0;border-left:0;flex:1}
   #f-ctx-tag{max-width:100%;font-size:11.5px}
-  #f-head-actions #f-theme-btn{display:none}
 }
 /* ── CONTAINER QUERIES ── condensam o header pela largura DO CHAT (não da viewport).
    Espelham os media queries acima, mas cobrem o caso novo: chat num slot estreito do
@@ -394,27 +392,26 @@ body:not(.theme-light) .art-preview-mat{background:var(--d-bg)}
    O peso separa os dois: o laranja da marca fica com UM botão só — dois cheios
    viram dois primários, que é o mesmo que nenhum. Cor de marca de rede social
    está fora de questão (hex fora dos tokens); a distinção é de peso, não de cor. */
-.art-actions-pri { display: flex; flex-direction: column; gap: 8px }
-.art-actions-sec { display: flex; gap: 8px; align-items: stretch }
-.art-actions .art-btn.pri { padding: 12px; font-size: 13px; font-weight: 700; gap: 6px }
-.art-actions-pri .art-btn { padding: 12px 10px; font-size: 12.5px; font-weight: 700; gap: 6px }
-.art-actions-pri .art-wa { border-color: var(--text-3); color: var(--text) }
-.art-actions-pri .art-wa:hover { border-color: var(--text-2); background: var(--gray-light) }
-.art-btn:focus-visible { outline: 2px solid var(--dm-orange); outline-offset: 2px }
-
-/* Refazer é terciário: existe, mas não disputa com quem entrega a arte. */
-.art-redo-link {
-  flex: 0 0 auto;
-  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
-  padding: 9px 12px;
-  border: 1px solid transparent; border-radius: 8px;
-  background: none; color: var(--text-3);
-  font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
-  transition: color var(--dur-micro) var(--ease-standard), background var(--dur-micro) var(--ease-standard);
+/* ── BAIXAR E REFAZER, MESMO PESO (pedido do Ryan, 09/09) ──────────────────────────────────
+   Aqui viviam `.art-actions-pri` (coluna), `.art-actions-sec` e o `.art-redo-link`: um link
+   cinza de 12px, sem caixa, ao lado de uma barra laranja de largura cheia. Não era hierarquia,
+   era um sumindo ao lado do outro.
+   Agora os dois dividem a linha em partes iguais e compartilham TUDO que o olho pesa primeiro:
+   mesma altura, mesmo padding, mesmo corpo, mesmo ícone de 15px. `flex:1 1 0` com `min-width:0`
+   força as metades a serem iguais de verdade — sem o `0` de base, a largura do texto decidiria,
+   e "Baixar PNG" é mais longo que "Refazer".
+   O laranja fica só no Baixar: é a cor da MARCA na ação de entrega, não um degrau de
+   hierarquia. Para igualar também o preenchimento, tira-se o `pri` do markup. */
+.art-actions-dupla { display: flex; gap: 8px; align-items: stretch }
+.art-actions-dupla .art-btn {
+  flex: 1 1 0; min-width: 0;
+  min-height: 44px; padding: 12px 10px;
+  font-size: 13px; font-weight: 700; gap: 6px;
 }
-.art-redo-link:hover { background: var(--gray-light); color: var(--text-2) }
-.art-redo-link:active { transform: scale(.97) }
-.art-redo-link:focus-visible { outline: 2px solid var(--dm-orange); outline-offset: 2px }
+.art-btn:focus-visible { outline: 2px solid var(--dm-orange); outline-offset: 2px }
+/* Refazer usa a caixa base do `.art-btn` (branco, borda cinza). O hover puxa para o laranja
+   porque ele é ação de correção, não de perigo — nada de vermelho numa arte que está pronta. */
+.art-redo:hover { border-color: var(--dm-orange-tint); background: var(--dm-orange-bg); color: var(--dm-orange-d) }
 
 /* Faixa do lote: bloco à parte, ação de outra natureza (produção em escala). */
 .art-bulk-btn {
@@ -449,10 +446,9 @@ body:not(.theme-light) .art-preview-mat{background:var(--d-bg)}
 .art-bulk-btn:hover .art-bulk-arrow { opacity: 1; transform: translateX(2px); transition: transform var(--dur-micro) var(--ease-standard) }
 
 body:not(.theme-light) .art-actions { border-top-color: var(--d-border) }
-body:not(.theme-light) .art-actions-pri .art-wa { border-color: var(--d-border2); color: var(--d-text) }
-body:not(.theme-light) .art-actions-pri .art-wa:hover { border-color: var(--d-text3); background: var(--d-surf3) }
-body:not(.theme-light) .art-redo-link { color: var(--d-text3) }
-body:not(.theme-light) .art-redo-link:hover { background: var(--d-surf3); color: var(--d-text2) }
+/* `.art-wa` era o Enviar no WhatsApp, que saiu do card; o `.art-redo-link` virou `.art-redo`
+   e usa a caixa base do `.art-btn`, que já tem tema escuro. Só o hover é próprio. */
+body:not(.theme-light) .art-redo:hover { border-color: var(--dm-orange); background: color-mix(in srgb,var(--dm-orange) 12%,var(--d-surf)); color: var(--dm-orange) }
 body:not(.theme-light) .art-actions-label { color: var(--d-text3) }
 body:not(.theme-light) .art-campos-label,
 body:not(.theme-light) .art-campo-edit { color: var(--d-text3) }
@@ -493,7 +489,9 @@ body:not(.theme-light) .art-bulk-txt em { color: var(--d-text2) }
 .art-btn.pri {
   background: var(--dm-orange);
   color: var(--on-orange);   /* 8,6:1 — decisão de 2026-08-19 */
-  border: none;
+  /* Borda TRANSPARENTE, não `none`: a variante base tem 1px de cada lado, e `none` deixava o
+     primário 2px mais estreito que o vizinho na linha de peso igual. Medido: 151 vs 153. */
+  border: 1px solid transparent;
   box-shadow: 0 3px 8px rgba(248, 84, 0, 0.25);
 }
 .art-btn.pri:hover {
@@ -1571,7 +1569,7 @@ body:not(.theme-light) #f-bulk-mic-btn.is-processing{background:color-mix(in srg
   .confirm-btn{min-height:var(--tap-min)}
   /* Resultado da arte: botões de download/formato tocáveis */
   .art-btn{min-height:var(--tap-min);font-size:13px}
-  .art-redo-link{min-height:var(--tap-min)}
+  .art-actions-dupla .art-btn{min-height:var(--tap-min)}
   .fmt-mini-thumb{height:38px}
   .fmt-mini-label{padding:5px 0}
   .confirm-edit{min-height:34px}

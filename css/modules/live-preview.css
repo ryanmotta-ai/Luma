@@ -93,33 +93,8 @@
   font-size:14px;font-weight:750;line-height:1.2;letter-spacing:-.015em;
 }
 
-.lp-sync {
-  display:flex;
-  align-items:center;
-  gap:6px;
-  max-width:170px;padding:7px 10px;border:1px solid var(--gray-light);border-radius:var(--r-pill);
-  background:var(--off-white);font-size:10.5px;color:var(--text-3);font-weight:550;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-}
-.lp-sync-text{overflow:hidden;text-overflow:ellipsis}
+/* As ~25 linhas de `.lp-sync*` (selo de status do cabeçalho) saíram com o selo, em 09/09. */
 
-.lp-sync-dot {
-  width:6px;
-  height:6px;
-  border-radius:50%;
-  background:var(--gray-mid);
-  transition:background var(--dur-base) var(--ease-standard),box-shadow var(--dur-base) var(--ease-standard);
-}
-
-.lp-sync.ready .lp-sync-dot {
-  background:var(--green);
-  box-shadow:0 0 0 3px rgba(34,197,94,.13);
-}
-.lp-sync.ready {
-  color:var(--green-text);
-  border-color:rgba(34,197,94,.2);
-  background:rgba(34,197,94,.06);
-}
 .lp-mobile-close{display:none;width:34px;height:34px;border:1px solid var(--gray-light);border-radius:10px;background:var(--white);color:var(--text-2);cursor:pointer;align-items:center;justify-content:center}
 .lp-mobile-close svg{width:16px;height:16px}
 .lp-mobile-close:hover{background:var(--gray-light);color:var(--text)}
@@ -160,7 +135,6 @@
    (arte carregada). :has() alcança os irmãos fora do .lp-stage. */
 #f-live-preview:has(.lp-stage.empty) .lp-toolbar,
 #f-live-preview:has(.lp-stage.empty) .lp-stage-meta,
-#f-live-preview:has(.lp-stage.empty) .lp-sync{display:none}
 /* Miniatura fantasma de uma arte (story 9:16) — foto + título + preço */
 .lp-empty-art{
   width:118px;aspect-ratio:9/16;border-radius:14px;position:relative;overflow:hidden;
@@ -418,7 +392,6 @@ body:not(.theme-light) .lp-toggle.active{background:var(--dm-orange)}
   #f-live-preview{width:clamp(360px,39vw,430px)}
   .lp-head{padding-inline:14px}
   .lp-title-icon{display:none}
-  .lp-sync{max-width:145px}
   .lp-stage{padding-inline:18px}
   .lp-viewseg-btn{padding-inline:7px}
 }

@@ -250,7 +250,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 75 arquivos JS (59.182 linhas, 2.359 funções) · 33 arquivos CSS (28.276 linhas) · `index.html` com 3.794 linhas e 76 `<script>`.
+**Tamanho real de hoje:** 75 arquivos JS (59.132 linhas, 2.357 funções) · 33 arquivos CSS (28.247 linhas) · `index.html` com 3.796 linhas e 76 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -374,9 +374,9 @@ F-02: tipos de campo, mascaras de input, validacao por campo. F_FIELD_TYPES defi
 · Estado global: _F_MAXLEN_MED, _fFitOpts, _fFitBusy
 · Depende de: 00-config.js
 
-**`js/franqueado/chat.js`** · 2047 linhas
+**`js/franqueado/chat.js`** · 2022 linhas
 Fluxo conversacional completo: fStartChat, fNextStep, fAddBot, fAddUser, fSend, fQR, fTyping, fGoBack, upload de imagem, confirm card, fGerarArte.
-· API: fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSaveLojaPrompt, fConfirmSaveLoja, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fShowWelcome … (+47; 82 funções no total)
+· API: fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fShowWelcome, fStartChat, fManterValor … (+45; 80 funções no total)
 · Estado global: fNextTimeout, _fArtSnapshots, _fArtCaptions, _fUndoSlot
 · Depende de: 00-config.js, 01-state.js, franqueado/chat-input.js
 
@@ -391,7 +391,7 @@ Historico de artes do franqueado: fGetHist, fSaveHist, fAddHist, fMarkHistBaixad
 · Estado global: _fArtesPushBusy, _fArtesPushQueued
 · Depende de: 00-config.js (HIST_KEY), 01-state.js (fState)
 
-**`js/franqueado/live-preview.js`** · 2177 linhas
+**`js/franqueado/live-preview.js`** · 2152 linhas
 Preview lateral em tempo real (fUpdateLivePreview) e modal de preview multi-formato (fOpenPreview, fClosePreview, fStartFromPreview).
 · API: fOpenPreview, fStartFromPreview, fClosePreview, fPostedSetCtx, fPostedCloseQR, fPostedOpenQR, fPostedCopyQRLink, fPostedContextForFormat, fOpenPosted, fClosePosted, fUpdateLivePreview, fLpSizeCanvas, fLpRefit, fLpZoomStep … (+17; 104 funções no total)
 · Estado global: _postedArt, renderizada, _postedCtx, _pstStageBound, _pstTiltRaf, _pstQRUrl, _pstQRBusy, _lpRendering, _lpLastErr, _lpPendingRender (+19)
@@ -677,7 +677,7 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 | `css/modules/all-tools.css` | 113 |
 | `css/modules/calendario.css` | 1544 |
 | `css/modules/catalog.css` | 299 |
-| `css/modules/chat.css` | 2532 |
+| `css/modules/chat.css` | 2530 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
 | `css/modules/designer.css` | 5753 |
@@ -686,7 +686,7 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 | `css/modules/franqueado_effects.css` | 418 |
 | `css/modules/help-widget.css` | 1698 |
 | `css/modules/layers-panel.css` | 4317 |
-| `css/modules/live-preview.css` | 928 |
+| `css/modules/live-preview.css` | 901 |
 | `css/modules/panel-dock.css` | 116 |
 | `css/modules/publish-modal.css` | 628 |
 | `css/modules/toolbar.css` | 1017 |

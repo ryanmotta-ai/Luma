@@ -561,12 +561,20 @@ await test('A entrega da arte não carrega mais o feedback grudado', async()=>{
 await test('O card final prioriza Baixar PNG e não oferece rede social', async()=>{
   const fonte=String(fGerarArte);
   assert(/art-btn pri art-download/.test(fonte),'Baixar PNG não é a ação primária do card');
+  /* Baixar e Refazer com o MESMO PESO (pedido do Ryan, 09/09): os dois na mesma linha, os
+     dois com a caixa do `.art-btn`. O Refazer era um link sem caixa ao lado de uma barra de
+     largura cheia — um sumia ao lado do outro. */
+  assert(/art-actions-dupla/.test(fonte),'os dois botões não estão na linha de peso igual');
+  assert(/class="art-btn art-redo"/.test(fonte),'Refazer voltou a ser um link sem caixa');
+  assert(!/art-redo-link/.test(fonte),'sobrou o Refazer terciário antigo');
   /* Procura a ENTRADA (o onclick), não o nome: o comentário do próprio código cita as
      funções para dizer que os motores continuam vivos, e um /fPostarInstagram/ solto casava
      com o comentário em vez do botão. Achado rodando o caso. */
   assert(!/onclick="fPostarInstagram/.test(fonte),'o card ainda oferece Postar no Instagram');
   assert(!/onclick="fEnviarWhatsApp/.test(fonte),'o card ainda oferece Enviar no WhatsApp');
-  assert(!/class="art-bulk-btn"/.test(fonte),'o card ainda carrega a faixa de Gerar em lote');
+  // Gerar em lote VOLTOU ao card por pedido do Ryan (09/09) — ele saiu no enxugamento e a
+  // palavra do dono vence a decisão anterior. É ação de outra natureza, então é faixa própria.
+  assert(/class="art-bulk-btn"/.test(fonte),'o Gerar em lote não voltou ao card');
   assert(/fRefazer/.test(fonte),'Refazer sumiu do card — ele é a ação secundária');
   // Os motores continuam vivos: o que saiu foi a entrada da UI.
   assert(typeof fPostarInstagram==='function' && typeof fEnviarWhatsApp==='function',

@@ -283,17 +283,8 @@
     flex-shrink: 0;
   }
 
-  .lp-sync {
-    max-width: 156px;
-    padding-inline: 10px;
-  }
 
   @media (max-width: 380px) {
-    .lp-sync {
-      max-width: 105px;
-      padding-inline: 6px;
-      font-size: 10px;
-    }
   }
 
   .lp-mobile-close {
@@ -402,9 +393,6 @@
     display: none;
   }
 
-  .lp-sync {
-    max-width: 112px;
-  }
 
   .lp-toolbar {
     gap: 6px;
