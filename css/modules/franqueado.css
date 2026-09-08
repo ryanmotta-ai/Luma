@@ -310,6 +310,16 @@ body:not(.theme-light) #f-msg-box {
   color: var(--d-text);
 }
 
+/* O "← Campanhas" do cabeçalho da prévia veste a mesma casca dos botões do chat. */
+body:not(.theme-light) #f-back-campanhas{
+  background: var(--d-surf); color: var(--d-text2); border-color: var(--d-border2);
+}
+body:not(.theme-light) #f-back-campanhas:hover{
+  border-color: var(--dm-orange); color: var(--dm-orange); background: var(--d-surf2);
+}
+body:not(.theme-light).f-catalogo-aberto #f-back-campanhas{background: var(--d-surf2)}
+body:not(.theme-light) .lp-head-sep{background: var(--d-border2)}
+
 /* Botões do header do chat */
 body:not(.theme-light) #f-undo-btn,
 body:not(.theme-light) #f-reset-btn {
@@ -692,6 +702,43 @@ body.f-material-browser #f-chat-head{display:none}
     border-right-width:0!important;overflow:hidden!important;
     opacity:0;pointer-events:none;
   }
+  /* ── A VOLTA DO CATÁLOGO TEM MOVIMENTO ────────────────────────────────────────────────
+     Estava seco: a largura ia de 0 a 328px sem transição fora do dock (o `panel-dock.css`
+     só anima em ≥1024px), e a opacidade nunca esteve na lista de transição — ela saltava em
+     qualquer largura. O painel simplesmente PISCAVA no lugar.
+     `--dur-base` (260ms) é o degrau que o `motion.md` reserva para "movimentação de painéis
+     laterais"; `--ease-spring-soft` é a curva de container elástico da casa. A opacidade
+     entra um pouco mais curta (`--dur-fast`) para a coluna já estar legível quando a largura
+     termina de assentar — chegar opaco no fim faria a leitura esperar o movimento. */
+  body:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #fran-left{
+    /* ⚠ DUAS ARMADILHAS, as duas medidas antes de escrever esta regra.
+       1) ESPECIFICIDADE. O `panel-dock.css` carrega DEPOIS e declara a própria transição em
+          `body.panel-dock-active:not(.f-history-mode) #fran-left` — (1,2,1), que ganhava de um
+          `#fran-left` solto (1,0,0). A lista dele só tem `width` e `flex-basis`. Este seletor
+          é (1,3,1) e vence, então é ele que decide o que anima.
+       2) QUEM COLAPSA É O `max-width`. Sob o dock a largura vem do `flex: 0 0 328px`, então
+          animar `width` não move nada — o que fecha a coluna é o `max-width:0!important`.
+          E `max-width` só interpola entre COMPRIMENTOS: de `0` para `none` não há animação
+          nenhuma. Daí o `max-width:328px` explícito abaixo, que é o mesmo valor que o dock já
+          usa no slot 0 e o que o `#fran-left` tem de largura fora dele.
+       Medido antes: 0 → 328px em menos de um quadro. */
+    max-width:328px;
+    transition:width var(--dur-base) var(--ease-spring-soft),
+               min-width var(--dur-base) var(--ease-spring-soft),
+               max-width var(--dur-base) var(--ease-spring-soft),
+               flex-basis var(--dur-base) var(--ease-spring-soft),
+               opacity var(--dur-fast) var(--ease-out);
+  }
+  /* O CONTEÚDO acompanha em vez de aparecer pronto: a busca entra primeiro e a vitrine logo
+     atrás (30ms, a cascata de entrada do motion.md §"Cascata"). Sem isto a coluna cresce e o
+     conteúdo já está lá — o movimento fica na moldura e não no que a pessoa veio ver.
+     É `animation` e não `transition` de propósito: dispara no instante em que a classe entra,
+     que é exatamente quando o catálogo volta. */
+  body.f-catalogo-aberto #fran-left-head,
+  body.f-catalogo-aberto #f-catalog{
+    animation:gFadeInRight var(--dur-base) var(--ease-out) both;
+  }
+  body.f-catalogo-aberto #f-catalog{animation-delay:30ms}
   /* ⚠ `:not(.panel-dock-active)`: em desktop largo (≥1024px) o dock promove #fran-right a
      `display:contents` para que chat e prévia virem irmãos flex de #fran-main. Um
      `display:flex!important` aqui venceria isso e desmontaria as 3 colunas arrastáveis.
@@ -700,15 +747,38 @@ body.f-material-browser #f-chat-head{display:none}
   body:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode):not(.f-catalogo-aberto):not(.panel-dock-active) #fran-right{
     display:flex!important;width:100%!important;flex:1 1 100%!important;
   }
-  /* O caminho de volta. Com rótulo, não só a seta: "← Campanhas" diz para ONDE se volta —
-     a seta sozinha, no desktop, não deixava claro que o catálogo continuava a um clique. */
-  body:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-mobile-back{
-    display:inline-flex;gap:5px;width:auto;min-width:var(--tap-min,44px);height:var(--tap-min,44px);
-    padding-inline:8px 11px;font:700 11.5px 'Roboto',sans-serif;
+  /* ⛔ O gêmeo do CHAT fica fora daqui. Ele é do celular; no desktop quem faz o papel é o
+     `#f-back-campanhas`, no cabeçalho da prévia. Dois botões visíveis para a mesma ação, um
+     em cada cabeçalho, seria a poluição que este pedido veio resolver. */
+  #f-mobile-back{display:none!important}
+
+  /* O caminho de volta, agora ao lado de "Prévia ao vivo". Com rótulo, não só a seta:
+     "← Campanhas" diz para ONDE se volta. */
+  body:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-back-campanhas{
+    display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;
+    min-height:32px;padding:6px 11px 6px 8px;
+    border:1px solid var(--gray-light);border-radius:9px;
+    background:var(--white);color:var(--text-2);
+    font:700 11.5px 'Roboto',sans-serif;white-space:nowrap;cursor:pointer;
+    transition:color var(--dur-fast) var(--ease-standard),background var(--dur-fast) var(--ease-standard),
+               border-color var(--dur-fast) var(--ease-standard),transform var(--dur-fast) var(--ease-spring);
   }
-  body:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-mobile-back .f-back-label{display:inline}
+  body:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-back-campanhas:hover{
+    background:var(--off-white);border-color:var(--gray-mid);color:var(--text);transform:translateX(-1px);
+  }
+  #f-back-campanhas:active{transform:scale(.97)}
+  #f-back-campanhas:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+  #f-back-campanhas svg{flex:0 0 16px}
   /* Reaberto de propósito: o botão passa a dizer que fecha, e não que volta. */
-  body.f-catalogo-aberto #f-mobile-back{background:var(--gray-light)}
+  body.f-catalogo-aberto #f-back-campanhas{background:var(--gray-light);border-color:var(--gray-mid)}
+  /* Filete entre o "voltar" e a identidade do painel: são dois assuntos (navegação e título). */
+  .lp-head-sep{width:1px;height:18px;flex:0 0 1px;background:var(--gray-light);margin-inline:2px}
+}
+/* Fora do modo focado (home, histórico, escolha de material) o botão não tem o que fazer. */
+#f-back-campanhas{display:none}
+.lp-head-sep{display:none}
+@media (min-width:681px){
+  body:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .lp-head-sep{display:block}
 }
 /* No celular o catálogo é a tela ANTERIOR (body.f-mobile-chat cuida disso) — a classe de
    desktop não pode deixar rastro lá, e o botão continua sendo só a seta. */
