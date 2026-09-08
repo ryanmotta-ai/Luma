@@ -250,7 +250,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 75 arquivos JS (59.132 linhas, 2.357 funções) · 33 arquivos CSS (28.247 linhas) · `index.html` com 3.796 linhas e 76 `<script>`.
+**Tamanho real de hoje:** 75 arquivos JS (59.132 linhas, 2.357 funções) · 33 arquivos CSS (28.219 linhas) · `index.html` com 3.800 linhas e 76 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -682,8 +682,8 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 | `css/modules/console.css` | 244 |
 | `css/modules/designer.css` | 5753 |
 | `css/modules/feedback.css` | 118 |
-| `css/modules/franqueado.css` | 1539 |
-| `css/modules/franqueado_effects.css` | 418 |
+| `css/modules/franqueado.css` | 1523 |
+| `css/modules/franqueado_effects.css` | 406 |
 | `css/modules/help-widget.css` | 1698 |
 | `css/modules/layers-panel.css` | 4317 |
 | `css/modules/live-preview.css` | 901 |
