@@ -666,6 +666,7 @@ body:not(.theme-light) .lp-edit-input{background:var(--d-card,#242424);border-co
 
 /* Botão da toolbar da prévia (irmão de Limpo·Guias·Ambiente, mas é ação) */
 .lp-posted-btn{height:32px;display:inline-flex;align-items:center;gap:5px;font-family:'Roboto',sans-serif;
+  white-space:nowrap;
   font-size:11px;font-weight:700;color:var(--dm-orange-d);background:var(--dm-orange-bg);
   border:1px solid transparent;border-radius:var(--r-pill);padding:5px 11px;cursor:pointer;
   transition:transform var(--dur-micro) var(--ease-spring),filter var(--dur-micro),background var(--dur-micro)}
@@ -891,9 +892,17 @@ body:not(.theme-light) .pst-qr-x:hover{background:var(--d-surf2);color:var(--d-t
 @media (hover:none){
   .lp-toolbar{flex-wrap:wrap;row-gap:6px}
   .lp-tool-left,.lp-tool-right{flex-wrap:wrap;row-gap:6px}
-  /* `.lp-posted-btn` (Mockups) NÃO carrega `.lp-tool-btn` — precisa ser nomeado. */
+  /* `.lp-posted-btn` NÃO carrega `.lp-tool-btn` — precisa ser nomeado. */
   .lp-tool-btn,.lp-fit-btn,.lp-posted-btn{height:var(--tap-min)}
-  .lp-fit-btn,.lp-posted-btn{width:40px;min-width:40px}
+  /* ⚠ `min-width`, NÃO `width`. Este bloco é o tratamento de TOQUE e nasceu pensando em tela
+     estreita, onde os dois botões são só ícone. Mas `hover:none` não fala de largura de tela —
+     fala de PONTEIRO. Num tablet ou notebook de toque com o painel largo, a outra regra
+     (`@container lpreview (min-width:510px)`) mostra a etiqueta E esta aqui prendia a caixa em
+     40px: "Ajustar" e "Ver como fica" quebravam em três linhas e saíam cortados.
+     Medido num painel de 979px com ponteiro grosso: caixa de 40×44 com 13 caracteres dentro.
+     Com `min-width` o alvo de toque continua garantido e o botão cresce quando há rótulo.
+     ⚠ Não é regressão da rodada de 09/09 — "Mockups" cortava igual, só que menos. */
+  .lp-fit-btn,.lp-posted-btn{min-width:40px}
   .lp-zoom-group{height:var(--tap-min)}
   .lp-zoom-step{width:36px;height:38px}
   .lp-tool-text{min-height:38px}
