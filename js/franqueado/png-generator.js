@@ -2745,16 +2745,36 @@ function fBulkProximaOferta(){
    Com o teclado aberto sobra ~45% da tela. A arte fixa no topo continua lá, mas encolhe
    para uma faixa: a pessoa vê o texto entrar na peça enquanto digita, que é a única razão
    de a prévia existir. `visualViewport` é a única medida confiável disso no iOS. */
+/* ⚠ A COMPARAÇÃO ANTIGA ERA `window.innerHeight - vv.height > 140` E NUNCA ACUSAVA TECLADO
+   NO CHROME/ANDROID. O `index.html` declara `interactive-widget=resizes-content`, que encolhe
+   TAMBÉM o `window.innerHeight` quando o teclado sobe — os dois caem juntos e a diferença
+   fica ~0. No iOS (que ignora o `interactive-widget` e usa `resizes-visual`) funcionava; no
+   Android, a faixa de 84px desenhada logo abaixo (`chat.css`, "A ARTE FIXA") nunca aparecia.
+   Medido a 390×420 sem a classe: o campo "Preço Original" ficava em y 332–382 e o rodapé
+   grudento em y 346–419 — 36px do campo DEBAIXO do botão, digitando às cegas. Com a classe
+   ligada à mão: campo em y 280–330, rodapé em 346, 16px de folga. O desenho estava certo;
+   só a detecção estava morta.
+   Agora mede a QUEDA a partir da maior altura já vista — funciona nos dois modos. Esconder a
+   barra de URL (que AUMENTA a altura, ~60px) não dispara: o teto de 140px cobre a diferença. */
 function _fBulkBindTeclado(){
   const vv = window.visualViewport;
   if(!vv || vv._fBulkBound) return;
   vv._fBulkBound = true;
+  let cheio = vv.height, larg = vv.width;
   const sync = ()=>{
-    const encolheu = (window.innerHeight - vv.height) > 140;   // teclado aberto
+    // Girar o aparelho muda a LARGURA; teclado nunca muda. Sem esta guarda, a passagem
+    // retrato→paisagem (844→390) contaria como teclado aberto e a arte virava faixa em pé.
+    if(vv.width !== larg){ larg = vv.width; cheio = vv.height; }
+    if(vv.height > cheio) cheio = vv.height;
+    const encolheu = (cheio - vv.height) > 140;   // teclado aberto
     document.body.classList.toggle('f-bulk-teclado', encolheu && document.body.classList.contains('f-bulk-folha'));
   };
   vv.addEventListener('resize', sync);
   vv.addEventListener('scroll', sync);
+  // ⚠ O `resizes-content` encolhe o viewport de LAYOUT: no Chrome/Android o sinal do teclado
+  // chega por `window.resize`, não pelo `visualViewport` (que no iOS é quem avisa). Os dois
+  // ouvintes chamam o mesmo `sync`, que lê sempre o `visualViewport` — um só julgamento.
+  window.addEventListener('resize', sync);
 }
 
 /* Arrastar a arte para o lado troca de oferta — o mesmo `fBulkStepRow` das setas, no gesto

@@ -202,6 +202,14 @@ body:not(.theme-light) .cat-back-btn:hover{background:var(--d-surf2);color:var(-
 .f-mat-preview-loading span{width:28px;height:28px;border:2px solid var(--fm-border-strong);border-top-color:var(--dm-orange);border-radius:50%;animation:gSpin .8s linear infinite}
 .f-mat-card.is-rendering .f-mat-preview-loading{opacity:1}
 .f-mat-card.has-preview-error .f-mat-preview-loading{display:none}
+/* Selo de material de DEMONSTRACAO (fDemoModeOn, so equipe): a peca nao e da rede e a
+   tela precisa dizer isso sem depender de o nome do material caber na linha. */
+.f-mat-demo-tag{
+  display:block;margin-top:6px;padding:3px 7px;border-radius:var(--radius-sm,6px);
+  background:var(--fm-surface-soft);border:1px dashed var(--fm-border-strong);
+  color:var(--fm-text);font-size:9.5px;font-weight:800;letter-spacing:.04em;
+  text-transform:uppercase;white-space:normal;line-height:1.35;text-align:left;
+}
 .f-mat-info{padding:16px 17px 17px;background:var(--fm-surface)}
 .f-mat-info-main{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .f-mat-name{

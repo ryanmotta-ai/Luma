@@ -203,6 +203,32 @@
   .gl-form-side{padding:12px 8px 36px}
   /* inputs 16px no mobile evitam o auto-zoom do iOS ao focar */
   .gl-in input{font-size:16px}
+  /* "Esqueci minha senha" / "← Voltar ao login": medido 280×17px. É a única saída de quem
+     não consegue entrar — errar o toque aqui deixa a pessoa presa na porta. `display:block`
+     com padding em vez de `min-height`: o link já ocupa a linha inteira, então o alvo cresce
+     sem mexer no desenho (o texto continua centrado no mesmo lugar). */
+  .gl-link{padding:14px 0;margin-top:8px}
+}
+
+/* ── TELA BAIXA: o "Entrar" precisa nascer visível ──
+   O corte mobile acima é só por LARGURA. Medido a 320×568: painel de marca 314px +
+   formulário 467px = 853px de conteúdo em 568px de tela — "Entrar" em y 636 e
+   "Esqueci minha senha" em y 700, os dois fora da tela. A tela rola
+   (`#g-login-screen{overflow-y:auto}`), então não trava; mas o primeiro contato do
+   franqueado é uma tela onde o botão de entrar está atrás de 314px de arte decorativa.
+   Vale também para iPhone SE real (375×667 menos a barra de URL ≈ 560px úteis) e para
+   qualquer aparelho com o teclado aberto.
+   ⚠ NÃO mexe na geometria do baralho a 860px (contrato medido, `MAPA.md`): aqui o baralho
+   simplesmente SAI, junto com o que é enfeite. A hierarquia continua a mesma — marca em
+   cima, formulário embaixo. */
+@media (max-height:640px){
+  .gl-page{gap:8px;padding-top:calc(8px + var(--safe-top));padding-bottom:calc(8px + var(--safe-bottom))}
+  .gl-brand{padding:14px 18px 12px}
+  .gl-brand-copy{margin-top:8px}
+  .gl-brand-copy h1{font-size:19px}
+  .gl-brand-copy p{display:none}
+  .gl-mosaic{display:none}
+  .gl-form-side{padding:8px 8px 20px}
 }
 
 @media(prefers-reduced-motion:reduce){

@@ -149,6 +149,8 @@ body:not(.theme-light) .hist-thumb-real.is-preview-ready{background:var(--d-surf
 /* Arte de material fora da validade: continua na biblioteca (é histórico, não some), mas
    sem ação — as três terminam em PNG. Tom neutro, não alarme: não foi erro da pessoa. */
 .hist-badge-st.vencida{background:var(--gray-light);color:var(--text-3)}
+/* Arte gerada a partir de material de DEMONSTRACAO: nao e peca da rede e nao sobe pro banco. */
+.hist-badge-st.demo{background:var(--gray-light);color:var(--text-3);border:1px dashed var(--border)}
 .hist-meta-vencida{color:var(--text-3);font-style:italic}
 .hist-card.is-vencida .hist-thumb{filter:grayscale(1);opacity:.55}
 /* pointer-events:none em vez de reescrever cor de hover: a regra de hover do tema escuro
@@ -734,6 +736,14 @@ body.f-material-browser #f-chat-head{display:none}
   #f-material-view{padding-bottom:calc(20px + var(--safe-bottom))}
   .f-mat-back{min-width:var(--tap-min);min-height:var(--tap-min)}
   .f-head-actions button{min-height:var(--tap-min)}
+  /* ⚠ `#f-hist-search` NÃO cabe aqui: a regra base dele mora na linha ~1288, DEPOIS deste
+     bloco, e com a mesma especificidade (1-0-0) quem vem por último vence. O tratamento
+     mobile dele está junto da regra base. */
+  /* Ações do card de arte. Medido a 390px: "Continuar" 202×40, "Duplicar" 80×40 e
+     BAIXAR 34×40. A altura é corrigida no bloco de 768px (linha ~1150) — que vem DEPOIS
+     deste e venceria por ordem; aqui fica só o que não está lá. */
+  .hist-act-download{width:var(--tap-min)}
+  .hist-actions{gap:8px}
 }
 
 
@@ -1136,7 +1146,10 @@ body.f-cols-enter #fran-right{animation:gFadeIn var(--dur-base) var(--ease-out) 
   .hist-clear-btn{margin-left:0;align-self:flex-end;min-height:var(--tap-min)}
   .f-history-grid{grid-template-columns:1fr}
   .hist-thumb{width:auto;height:180px}
-  .hist-act-btn{min-height:40px;font-size:11px}
+  /* 40px estava a 4px da régua da casa (`--tap-min`), e o "baixar" — a razão desta tela
+     existir — era o menor dos três, só ícone (34px de largura medidos) e encostado no
+     "Duplicar". Errar entre baixar e duplicar cria lixo no histórico. */
+  .hist-act-btn{min-height:var(--tap-min);font-size:11px}
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1174,7 +1187,7 @@ body.f-cols-enter #fran-right{animation:gFadeIn var(--dur-base) var(--ease-out) 
 
 /* Painel de campanhas arquivadas (modal) */
 #f-archived-panel{position:fixed;inset:0;z-index:4000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(10,10,10,.42);animation:gFadeIn var(--dur-fast) var(--ease-out)}
-.f-arch-box{width:min(560px,100%);max-height:min(80vh,640px);display:flex;flex-direction:column;overflow:hidden;background:var(--white);border:1px solid var(--gray-light);border-radius:18px;box-shadow:0 24px 64px rgba(10,10,10,.22);animation:gPopIn var(--dur-base) var(--ease-spring-soft) both}
+.f-arch-box{width:min(560px,100%);max-height:min(80dvh,640px);display:flex;flex-direction:column;overflow:hidden;background:var(--white);border:1px solid var(--gray-light);border-radius:18px;box-shadow:0 24px 64px rgba(10,10,10,.22);animation:gPopIn var(--dur-base) var(--ease-spring-soft) both}
 .f-arch-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0;padding:16px 18px;border-bottom:1px solid var(--gray-light)}
 .f-arch-head h2{font-family:'Roboto',sans-serif;font-size:16px;font-weight:700;color:var(--text)}
 .f-arch-close{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border:none;background:transparent;color:var(--text-3);border-radius:var(--r-sm);cursor:pointer;transition:background var(--dur-micro) var(--ease-standard)}
@@ -1195,7 +1208,7 @@ body.f-cols-enter #fran-right{animation:gFadeIn var(--dur-base) var(--ease-out) 
    corpo rolável. Números em Roboto 900 tabular pra alinhar coluna a coluna. */
 .camp-ana-overlay{position:fixed;inset:0;z-index:4000;display:flex;align-items:center;justify-content:center;
   padding:20px;background:rgba(10,10,10,.42);animation:gFadeIn var(--dur-fast) var(--ease-out)}
-.camp-ana-box{width:min(520px,100%);max-height:min(84vh,700px);display:flex;flex-direction:column;overflow:hidden;
+.camp-ana-box{width:min(520px,100%);max-height:min(84dvh,700px);display:flex;flex-direction:column;overflow:hidden;
   background:var(--white);border:1px solid var(--gray-light);border-radius:18px;
   box-shadow:0 24px 64px rgba(10,10,10,.22);animation:gPopIn var(--dur-base) var(--ease-spring-soft) both}
 .camp-ana-head{display:flex;align-items:center;gap:12px;flex-shrink:0;padding:16px 18px;border-bottom:1px solid var(--gray-light)}
@@ -1276,6 +1289,11 @@ body:not(.theme-light) .f-arch-card{background:var(--d-surf2);border-color:var(-
 .hist-search-row svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-3);pointer-events:none}
 #f-hist-search{width:100%;min-height:40px;padding:9px 12px 9px 38px;border:1px solid transparent;border-radius:9px;background:var(--off-white);color:var(--text);outline:none;font-family:'Roboto',sans-serif;font-size:12px;transition:border-color var(--dur-fast) var(--ease-standard),background var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard)}
 #f-hist-search:focus{border-color:var(--dm-orange);background:var(--white);box-shadow:0 0 0 3px var(--dm-orange-bg)}
+/* Era o ÚLTIMO campo do caminho do franqueado abaixo de 16px — e abaixo de 16px o Safari do
+   iPhone dá zoom no layout ao focar, obrigando a pinçar de volta. A regra mora aqui, e não no
+   bloco mobile lá de cima (~linha 726), porque a base acima tem a mesma especificidade (1-0-0)
+   e venceria por ordem. */
+@media (max-width:680px){ #f-hist-search{font-size:16px} }
 .f-history-empty{min-height:430px;margin-top:18px;border:1px dashed var(--gray-mid);border-radius:16px;background:var(--white)}
 .f-history-empty .empty-icon img{width:160px;height:auto}
 

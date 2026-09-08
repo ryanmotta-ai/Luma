@@ -198,6 +198,8 @@ CHROMIUM_PATH=/caminho/chrome node scripts/run-browser-tests.js
 | `tests/fuzz.html` | exceção, `NaN`, laço que não converge, bloqueio sem diagnóstico | 63 |
 | `tests/psd-import.html` | regressão do importador de PSD (geometria de texto, alpha, raster, selo de fidelidade) | 10 |
 | `tests/export.html` | contrato de saída: dimensões e escala do que o franqueado baixa | 3 |
+| `tests/search-feedback.html` | busca do catálogo, feedback e eventos offline | 32 |
+| `tests/franqueado-honestidade.html` | material-demo vs. material real, validade real, estados vazios/erro do catálogo | 26 |
 | `tests/_bancada.html` | bancada de sondagem do Auto-layout (exploração, não é portão) | — |
 | `tests/_paridade-render.html` | bancada: distância entre a saída do Estúdio e a do franqueado | — |
 
@@ -232,7 +234,7 @@ esses a verificação continua sendo o navegador. Suíte verde não substitui ab
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 75 arquivos JS (58.092 linhas, 2.322 funções) · 33 arquivos CSS (27.927 linhas) · `index.html` com 3.775 linhas e 74 `<script>`.
+**Tamanho real de hoje:** 75 arquivos JS (58.315 linhas, 2.331 funções) · 33 arquivos CSS (28.044 linhas) · `index.html` com 3.783 linhas e 76 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -245,7 +247,7 @@ Constantes globais imutaveis: HIST_KEY, CAMPS_ATIVAS, CAMPS_OUTRAS, FMTS. Deve s
 **`js/01-state.js`** · 11 linhas
 Estado global do franqueado: fState. Deve ser carregado apos 00-config.js.
 
-**`js/main.js`** · 288 linhas
+**`js/main.js`** · 289 linhas
 Bootstrap: setMode (troca entre franqueado/designer) e chamadas de inicializacao. Deve ser carregado por ULTIMO (apos todos os modulos).
 · API: dUpdateTabPill, gModeAllowed, gFirstAllowedMode, gGoHome, setMode, gRestoreMode, gApplyModeAccess, gOnLoginSuccess
 
@@ -275,7 +277,7 @@ CONTROLE DO PRODUTO — o motor único de disponibilidade funcional do Luma.
 · Estado global: _gFFValores, _gFFSyncedAt, _gFFOrigem, _gFFErroSync, _gFFIniciado, _gFFPorChave, _gFFFilhos, _gFFPorTool
 · Depende de: core/toast.js (gToast, gEsc), core/auth.js (gCurrentRole,
 
-**`js/core/feedback-admin.js`** · 193 linhas
+**`js/core/feedback-admin.js`** · 186 linhas
 Consulta da equipe no painel da conta, carregada sob demanda. A RLS e a RPC autorizam os dados; gIsAdmin é apenas o gate da interface.
 · Depende de: core/auth.js, core/supabase.js, core/toast.js.
 
@@ -318,7 +320,7 @@ MODELO versionado. Copie para `supabase-config.js` (que é gitignored) e preench
 **`js/core/supabase-config.js`** · 16 linhas
 Credenciais do projeto Supabase. PREENCHA com a Project URL e a anon key. A anon key é PÚBLICA por design — vai no front e está protegida pela RLS (ver supabase/migrations/). NUNCA coloque aqui a chave `service_role`. Este…
 
-**`js/core/supabase.js`** · 165 linhas
+**`js/core/supabase.js`** · 177 linhas
 Cria o client Supabase global `window.sb`, usado pela auth e pela camada de persistência (fase 5.1).
 · API: gSupabase, gHasBackend, gPendingDeletes, gRemoteDelete, gIsPendingDelete, gFlushPendingDeletes
 
@@ -327,13 +329,14 @@ gToast(msg) — exibe notificacao flutuante de 2.8s.
 · API: gToast, gEsc, gEscJs, gSafeColor, gNormBusca, gBtnLoading, gConfirm, gPrompt, gWarnImagesNotPersisted
 · Depende de: nada (usa apenas o DOM).
 
-**`js/core/user-profile.js`** · 921 linhas
+**`js/core/user-profile.js`** · 950 linhas
 Controladores do Modal e Configurações de Perfil do Usuário. Suporta edição de perfil, troca de avatar via Base64 persistente, validação de senha e monitoramento de tempo de sessão.
-· API: gOpenUserProfileModal, gCloseUserProfileModal, gProfileOpenCli, gProfileSwitchTab, gProfileUpdateModalAvatars, gProfileTriggerUpload, gProfileHandleUpload, gProfileSaveData, gProfileApplyTheme, gProfileApplyStudioMode, gProfileCheckPasswordStrength, gProfileChangePassword, gProfileRenderStats, fToggleTheme … (+14; 30 funções no total)
+· API: gProfileOpenFeedback, gOpenUserProfileModal, gCloseUserProfileModal, gProfileOpenCli, gProfileSwitchTab, gProfileUpdateModalAvatars, gProfileTriggerUpload, gProfileHandleUpload, gProfileSaveData, gProfileApplyTheme, gProfileApplyStudioMode, gProfileCheckPasswordStrength, gProfileChangePassword, gProfileRenderStats … (+15; 31 funções no total)
+· Estado global: _gFeedbackAdminLoading
 
 ### js/franqueado
 
-**`js/franqueado/catalog.js`** · 1509 linhas
+**`js/franqueado/catalog.js`** · 1531 linhas
 Catalogo de campanhas: fRenderCatalogs, fFilterCamps, fSelectCamp, fSwitchTab, fSetHistFilter, fRenderHist, fEditFromHist, fDuplicateInOtherFmt.
 · API: fSwitchTab, fSetHistFilter, fGoToCampaigns, fAskClearHist, fHistVoltar, fRenderHist, fDownloadHist, fEditFromHist, fDuplicateInOtherFmt, fConfirmDuplicate, fEditCampFolder, fCampAdminMenu, fCampAnalyticsClose, fCampAnalyticsOpen … (+32; 79 funções no total)
 · Depende de: 00-config.js, 01-state.js
@@ -343,28 +346,28 @@ F-02: tipos de campo, mascaras de input, validacao por campo. F_FIELD_TYPES defi
 · API: fMaxLenDaCaixa, fGetFieldType, fCleanTextNumber, fApplyMask, fValidate, fShowFieldError, fAttachInputGuard, fUpdateCharCount, fFitTextWithAI, fFitApply, fSaveAdv, fInitSmartInputFormatter
 · Depende de: 00-config.js
 
-**`js/franqueado/chat.js`** · 1607 linhas
+**`js/franqueado/chat.js`** · 1662 linhas
 Fluxo conversacional completo: fStartChat, fNextStep, fAddBot, fAddUser, fSend, fQR, fTyping, fGoBack, upload de imagem, confirm card, fGerarArte.
-· API: fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSaveLojaPrompt, fConfirmSaveLoja, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fShowWelcome … (+40; 68 funções no total)
+· API: fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSaveLojaPrompt, fConfirmSaveLoja, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fShowWelcome … (+40; 69 funções no total)
 · Depende de: 00-config.js, 01-state.js, franqueado/chat-input.js
 
-**`js/franqueado/feedback.js`** · 228 linhas
+**`js/franqueado/feedback.js`** · 237 linhas
 Feedback contextual e pedidos de conteúdo. Depende de gEsc/gUuid/gCurrentUser. Guarda apenas IDs e metadados da ação; nunca retém o snapshot vivo do editor. O banco confirma o envio e emite os eventos, sem um segundo coletor…
 · API: fFeedbackFlush, fFeedbackMount, fFeedbackAfterDownload, fFeedbackRequest
 
-**`js/franqueado/history.js`** · 281 linhas
+**`js/franqueado/history.js`** · 293 linhas
 Historico de artes do franqueado: fGetHist, fSaveHist, fAddHist, fMarkHistBaixada, fUpdateHistBadge, fRenderHist, fDownloadHist. Persiste em localStorage (HIST_KEY).
 · API: fGetHist, fSaveHist, fPushArtesToBackend, fMarkBaixadaBackend, fSyncArtesFromBackend, fClearHist, fAddHist, fMarkHistBaixada, fUpdateHistBadge, fFormatHistDate
 · Depende de: 00-config.js (HIST_KEY), 01-state.js (fState)
 
-**`js/franqueado/live-preview.js`** · 2038 linhas
+**`js/franqueado/live-preview.js`** · 2039 linhas
 Preview lateral em tempo real (fUpdateLivePreview) e modal de preview multi-formato (fOpenPreview, fClosePreview, fStartFromPreview).
 · API: fOpenPreview, fStartFromPreview, fClosePreview, fPostedSetCtx, fPostedCloseQR, fPostedOpenQR, fPostedCopyQRLink, fOpenPosted, fClosePosted, fLpToggleAutoZoom, fLpToggleAutoLayout, fUpdateLivePreview, fLpSizeCanvas, fLpRefit … (+15; 100 funções no total)
 · Depende de: 00-config.js, 01-state.js
 
-**`js/franqueado/materials.js`** · 712 linhas
+**`js/franqueado/materials.js`** · 780 linhas
 Catalogo de materiais do franqueado: fOpenMaterialCatalog, fRenderMaterialCatalog, fRenderMaterialCard, fCloseMaterialCatalog, fSelectMaterial.
-· API: fGetMaterialsForCamp, fIsMaterialValid, fGenerateCampaignKit, fApplyCampTheme, fRemoveCampTheme, fOpenMaterialCatalog, fRenderMaterialCatalog, fRenderMaterialCard, fCloseMaterialCatalog, fMaterialImageVars, fEnsureMaterialLayers, fSelectMaterial
+· API: fDemoModeOn, fSetDemoMode, fGetMaterialsForCamp, fIsMaterialValid, fIsMaterialReal, fRealMaterialsForCamp, fDiasRestantes, fCampValidade, fCampDiasRestantes, fGenerateCampaignKit, fApplyCampTheme, fRemoveCampTheme, fOpenMaterialCatalog, fRenderMaterialCatalog … (+5; 28 funções no total)
 · Depende de: 00-config.js, 01-state.js, franqueado/chat.js
 
 **`js/franqueado/panel-dock.js`** · 170 linhas
@@ -372,10 +375,9 @@ Drag & drop das 3 colunas do workspace do franqueado (só desktop largo).
 · API: fLoadPanelOrder, fSavePanelOrder, fSetPanelOrder, fInitPanelDock
 · Depende de: index.html (grips + #fran-main), css/modules/panel-dock.css,
 
-**`js/franqueado/png-generator.js`** · 4455 linhas
+**`js/franqueado/png-generator.js`** · 4475 linhas
 Geracao de PNG a partir dos templates: fGenPNG, fRenderTemplateLayers, fBaixar, fOutroFormato. Sistema de nomenclatura padronizado para downloads.
 · API: fLoadLogoBranca, fMaterialSize, fExportScale, fRenderCanvasHelper, fGenPNG, fGenPDF, fPostarInstagram, fEnviarWhatsApp, fDrawDMLogo, fAdjustImageData, fRenderTemplateLayers, fRenderOneLayer, roundedRect, roundedRectPath … (+70; 147 funções no total)
-· Estado global: _fLogoBrancaImg, fBulkRows, _fBulkAudit, _fBulkAsyncAudit, _fBulkAuditFingerprint, _fBulkImageAudit, _fBulkAutosaveTimer, _fBulkAutosaveSeq, _fBulkGenerationState, _fBulkPreflightRunning (+37)
 · Depende de: 00-config.js, 01-state.js, designer/canvas.js (dRenderCanvas)
 
 **`js/franqueado/prefs-panel.js`** · 131 linhas
@@ -388,7 +390,7 @@ Preferências do franqueado persistidas localmente (cache offline-first):
 · API: fGetLojas, fSaveLojas, fAddLoja, fRemoveLoja, fGetFavs, fIsFav, fToggleFav, fGetSeen, fMarkCampSeen, fMaterialIsNew, fCampHasNew, fSetHistSearch
 · Depende de: 00-config.js. Consumido por catalog.js, materials.js, chat.js.
 
-**`js/franqueado/search.js`** · 156 linhas
+**`js/franqueado/search.js`** · 157 linhas
 Busca local do catálogo. Adaptador, ranking e eventos separados da apresentação. Só lê metadados/camadas já carregados: buscar nunca inicia download de um PSD. Depende de gNormBusca, catálogo/materiais e gTrackEvent (na hora…
 · API: fSearchTokens, fSearchDocument, fSearchRank, fSearchCampaigns, fSearchFormatsHTML, fSearchFooterHTML, fSearchRecord, fSearchRecordOpen
 
@@ -604,7 +606,7 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 | `css/02-animations.css` | 179 |
 | `css/03-fonts.css` | 60 |
 | `css/components/help-modal.css` | 719 |
-| `css/components/login.css` | 367 |
+| `css/components/login.css` | 388 |
 | `css/components/pages-tray.css` | 335 |
 | `css/components/prefs-panel.css` | 232 |
 | `css/components/product-control.css` | 437 |
@@ -616,20 +618,20 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 | `css/modules/academia.css` | 1330 |
 | `css/modules/all-tools.css` | 113 |
 | `css/modules/calendario.css` | 1544 |
-| `css/modules/catalog.css` | 291 |
-| `css/modules/chat.css` | 2429 |
+| `css/modules/catalog.css` | 299 |
+| `css/modules/chat.css` | 2437 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
 | `css/modules/designer.css` | 5753 |
-| `css/modules/feedback.css` | 38 |
-| `css/modules/franqueado.css` | 1506 |
+| `css/modules/feedback.css` | 48 |
+| `css/modules/franqueado.css` | 1524 |
 | `css/modules/franqueado_effects.css` | 418 |
 | `css/modules/help-widget.css` | 1698 |
 | `css/modules/layers-panel.css` | 4317 |
-| `css/modules/live-preview.css` | 915 |
+| `css/modules/live-preview.css` | 934 |
 | `css/modules/panel-dock.css` | 116 |
 | `css/modules/publish-modal.css` | 628 |
-| `css/modules/toolbar.css` | 956 |
+| `css/modules/toolbar.css` | 989 |
 | `css/modules/topbar.css` | 217 |
 | `css/modules/upload-panel.css` | 111 |
 
@@ -656,62 +658,64 @@ A ordem **é** a arquitetura: sem ESM, um arquivo depende de o anterior já ter 
 16. js/franqueado/history.js
 17. js/franqueado/prefs.js
 18. js/franqueado/catalog.js
-19. js/franqueado/materials.js
-20. js/franqueado/chat.js
-21. js/franqueado/live-preview.js
-22. js/franqueado/panel-dock.js
-23. js/franqueado/upload-panel.js
-24. js/franqueado/prefs-panel.js
-25. js/franqueado/chat-input.js
-26. js/academia/motion.js
-27. js/academia/academia.js
-28. js/academia/aula.js
-29. js/academia/agente.js
-30. js/academia/gestao.js
-31. js/academia/certificado.js
-32. js/academia/conclusao.js
-33. js/calendario/conteudo.js
-34. js/calendario/calendario.js
-35. js/calendario/agenda.js
-36. js/calendario/evento.js
-37. js/calendario/apresentacao.js
-38. js/designer/blending.js
-39. js/franqueado/png-generator.js
-40. js/designer/templates.js
-41. js/designer/canvas.js
-42. js/designer/selection.js
-43. js/designer/brush.js
-44. js/designer/eraser-tools.js
-45. js/designer/layers.js
-46. js/designer/props-panel.js
-47. js/designer/measurement.js
-48. js/designer/publish.js
-49. js/designer/preview.js
-50. js/designer/library.js
-51. js/designer/undo-redo.js
-52. js/widgets/help-widget.js
-53. js/designer/tools.js
-54. js/designer/fonts.js
-55. js/designer/psd-parse.js
-56. js/designer/psd-import.js
-57. js/designer/mask.js
-58. js/designer/tutorial-panel.js
-59. assets/vendor/colorthief.js
-60. assets/vendor/pica.js
-61. assets/vendor/jszip.min.js
-62. assets/vendor/supabase.js
-63. js/core/supabase-config.js
-64. js/core/supabase.js
-65. js/core/ai.js
-66. js/core/auth.js
-67. js/core/feature-flags.js
-68. js/core/user-profile.js
-69. js/core/product-control.js
-70. js/core/console.js
-71. js/main.js
-72. js/designer/color-picker.js
-73. js/designer/tooltip.js
-74. js/designer/linter.js
+19. js/franqueado/search.js
+20. js/franqueado/materials.js
+21. js/franqueado/chat.js
+22. js/franqueado/live-preview.js
+23. js/franqueado/panel-dock.js
+24. js/franqueado/upload-panel.js
+25. js/franqueado/prefs-panel.js
+26. js/franqueado/chat-input.js
+27. js/academia/motion.js
+28. js/academia/academia.js
+29. js/academia/aula.js
+30. js/academia/agente.js
+31. js/academia/gestao.js
+32. js/academia/certificado.js
+33. js/academia/conclusao.js
+34. js/calendario/conteudo.js
+35. js/calendario/calendario.js
+36. js/calendario/agenda.js
+37. js/calendario/evento.js
+38. js/calendario/apresentacao.js
+39. js/designer/blending.js
+40. js/franqueado/png-generator.js
+41. js/designer/templates.js
+42. js/designer/canvas.js
+43. js/designer/selection.js
+44. js/designer/brush.js
+45. js/designer/eraser-tools.js
+46. js/designer/layers.js
+47. js/designer/props-panel.js
+48. js/designer/measurement.js
+49. js/designer/publish.js
+50. js/designer/preview.js
+51. js/designer/library.js
+52. js/designer/undo-redo.js
+53. js/widgets/help-widget.js
+54. js/designer/tools.js
+55. js/designer/fonts.js
+56. js/designer/psd-parse.js
+57. js/designer/psd-import.js
+58. js/designer/mask.js
+59. js/designer/tutorial-panel.js
+60. assets/vendor/colorthief.js
+61. assets/vendor/pica.js
+62. assets/vendor/jszip.min.js
+63. assets/vendor/supabase.js
+64. js/core/supabase-config.js
+65. js/core/supabase.js
+66. js/core/ai.js
+67. js/core/auth.js
+68. js/franqueado/feedback.js
+69. js/core/feature-flags.js
+70. js/core/user-profile.js
+71. js/core/product-control.js
+72. js/core/console.js
+73. js/main.js
+74. js/designer/color-picker.js
+75. js/designer/tooltip.js
+76. js/designer/linter.js
 ```
 
 <!-- AUTO-FIM -->

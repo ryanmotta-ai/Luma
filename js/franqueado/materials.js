@@ -6,12 +6,41 @@
  * Depende de: 00-config.js, 01-state.js, franqueado/chat.js
  */
 
-/* ── DEMO: material genérico por campanha (só quando a pasta NÃO tem material real publicado) ──
-   Existe para a vitrine não ficar vazia em demonstrações enquanto o backend não publica templates
-   (as capas já são hardcoded no config pelo mesmo motivo). NÃO entra em dFolders → não é
-   sincronizado nem persistido, e é substituído pelos materiais reais assim que existirem.
-   O template usa tokens {{var}} (chat de personalização funciona) e carrega _demoDados p/ a thumb
-   sair preenchida (valores de preview da campanha) em vez de mostrar os placeholders crus. ── */
+/* ── DEMO: material genérico por campanha — DESLIGADO POR PADRÃO ────────────────────────
+   Existe só para DEMONSTRAÇÃO INTERNA (mostrar o fluxo com a vitrine cheia antes de o
+   backend publicar templates). Nunca sai ligado sozinho: `fDemoModeOn()` exige as DUAS
+   coisas ao mesmo tempo — ser da casa (gIsAdmin) E ter armado a chave à mão. Franqueado
+   real nunca vê material-demo, nem que a chave vaze pro localStorage dele.
+
+   Armar/desarmar (console do navegador ou o CLI da equipe):
+       fSetDemoMode(true)   ·   fSetDemoMode(false)
+
+   O material-demo NÃO é publicado e NÃO é real: `_demo:true` + `publishMeta.publicado:false`.
+   Por isso ele reprova em `fIsMaterialReal()` — o único critério de "material de verdade" —
+   e portanto não conta na vitrine ("Prontas para usar"), não conta no card, não conta no
+   hero, não entra na busca e não sobe pro banco (history.js pula `_demo`). Ele aparece,
+   rotulado como DEMONSTRAÇÃO, apenas dentro da pasta e apenas com o modo armado.
+   NÃO entra em dFolders → não é sincronizado nem persistido. ── */
+const _F_DEMO_KEY='luma_demo_materiais_v1';
+function fDemoModeOn(){
+  try{
+    if(typeof gIsAdmin!=='function' || !gIsAdmin()) return false;   // franqueado real: nunca
+    return localStorage.getItem(_F_DEMO_KEY)==='1';
+  }catch(e){ return false; }
+}
+function fSetDemoMode(on){
+  try{
+    if(on && (typeof gIsAdmin!=='function' || !gIsAdmin())){
+      if(typeof gToast==='function') gToast('O modo demonstração é só para a equipe Delivery Much.','error');
+      return false;
+    }
+    if(on) localStorage.setItem(_F_DEMO_KEY,'1'); else localStorage.removeItem(_F_DEMO_KEY);
+  }catch(e){ return false; }
+  if(typeof fRenderCatalogs==='function'){ try{ const{ativas,outras}=fGetCampaigns(); fRenderCatalogs(ativas,outras); }catch(e){} }
+  if(typeof _fhRefresh==='function'){ try{ _fhRefresh(); }catch(e){} }
+  if(typeof gToast==='function') gToast(on?'Modo demonstração ARMADO — os materiais marcados como DEMONSTRAÇÃO não são reais.':'Modo demonstração desarmado.');
+  return true;
+}
 const _F_DEMO_MAT_CACHE={};
 function _fDemoMaterial(camp){
   if(!camp || !camp.cover) return null;               // só pastas com capa associada
@@ -32,13 +61,15 @@ function _fDemoMaterial(camp){
   const _demoDados={};
   _demoDados[headVar]=camp.previewProd||camp.name||'SEU PRODUTO';
   if(subVar){ const sp=perg.find(p=>p.id===subVar); _demoDados[subVar]=camp.previewPor||(sp&&sp.sugestoes&&sp.sugestoes[0])||'OFERTA'; }
-  const mat={id:'demo-'+camp.id, name:'Modelo '+camp.name, fmt:'story', w:W, h:H, publishMeta:{publicado:true}, layers, _demo:true, _demoDados};
+  // publicado:false de propósito — material-demo NUNCA satisfaz "publicado" (fIsMaterialReal).
+  const mat={id:'demo-'+camp.id, name:'Modelo '+camp.name+' (demonstração)', fmt:'story', w:W, h:H,
+             publishMeta:{publicado:false, demo:true}, layers, _demo:true, _demoDados};
   _F_DEMO_MAT_CACHE[camp.id]=mat;
   return mat;
 }
 function _fAllCamps(){ const g=(typeof fGetCampaigns==='function')?fGetCampaigns():{ativas:CAMPS_ATIVAS,outras:CAMPS_OUTRAS}; return [...g.ativas, ...g.outras]; }
-function _fDemoMaterialsForCamp(campId){ const c=_fAllCamps().find(x=>x.id===campId); const m=c?_fDemoMaterial(c):null; return m?[m]:[]; }
-function _fFindDemoMaterial(materialId){ for(const c of _fAllCamps()){ const m=_fDemoMaterial(c); if(m && m.id===materialId) return m; } return null; }
+function _fDemoMaterialsForCamp(campId){ if(!fDemoModeOn()) return []; const c=_fAllCamps().find(x=>x.id===campId); const m=c?_fDemoMaterial(c):null; return m?[m]:[]; }
+function _fFindDemoMaterial(materialId){ if(!fDemoModeOn()) return null; for(const c of _fAllCamps()){ const m=_fDemoMaterial(c); if(m && m.id===materialId) return m; } return null; }
 
 function fGetMaterialsForCamp(campId){
   let real=[];
@@ -57,10 +88,39 @@ function fGetMaterialsForCamp(campId){
   return _fDemoMaterialsForCamp(campId); // pasta sem material real → material-demo (vitrine na demo)
 }
 function fIsMaterialValid(material){
-  if(!material.publishMeta || !material.publishMeta.validade) return true;
+  if(!material || !material.publishMeta || !material.publishMeta.validade) return true;
   const v=new Date(material.publishMeta.validade+'T23:59:59');
+  if(isNaN(v.getTime())) return true;           // data corrompida: não inventa vencimento
   return v.getTime() >= Date.now();
 }
+/* CRITÉRIO ÚNICO de "material de verdade, publicado". Toda contagem que a vitrine mostra
+   ("2 materiais", "Prontas para usar", o hero, a prévia) passa por aqui — material-demo
+   reprova por definição, e template despublicado também. Quem quer a lista pronta usa
+   fRealMaterialsForCamp(). */
+function fIsMaterialReal(m){ return !!(m && !m._demo && m.publishMeta && m.publishMeta.publicado===true); }
+function fRealMaterialsForCamp(campId){
+  try{ return fGetMaterialsForCamp(campId).filter(m=>fIsMaterialReal(m)&&fIsMaterialValid(m)); }
+  catch(e){ return []; }
+}
+
+/* ── VALIDADE: a data real manda; o expiraDias do config não é fonte de verdade ──────────
+   `expiraDias` (00-config.js / pastas.expira_dias) é um número ESTÁTICO: escrito uma vez,
+   nunca decrementa. Mostrá-lo como "faltam 3 dias" é mentira que se repete todo dia.
+   A verdade é `publishMeta.validade` (data ISO do material), e daí sai o dia de hoje.
+   Sem data real, estas funções devolvem null — e a UI CALA em vez de chutar. */
+function fDiasRestantes(validade){
+  if(!validade) return null;
+  const v=new Date(validade+'T23:59:59');
+  if(isNaN(v.getTime())) return null;
+  return Math.ceil((v.getTime()-Date.now())/86400000);
+}
+// Validade da CAMPANHA = a data em que o último material real ainda válido sai do ar.
+// null = nenhum material real tem data → a campanha não tem prazo a anunciar.
+function fCampValidade(campId){
+  const ds=fRealMaterialsForCamp(campId).map(m=>m.publishMeta&&m.publishMeta.validade).filter(Boolean).sort();
+  return ds.length?ds[ds.length-1]:null;
+}
+function fCampDiasRestantes(campId){ return fDiasRestantes(fCampValidade(campId)); }
 
 /* ── KIT DA CAMPANHA: preencher uma vez → gerar todos os materiais ──
    Reusa os dados já respondidos (fState.dados) e renderiza cada material publicado da
@@ -408,10 +468,15 @@ function fRenderMaterialCatalog(camp, container){
       // Catálogo leve: material chega sem layers (_needsLayersFetch). Sem buscar aqui,
       // o thumb nunca renderiza e o card fica só com a cor — a pessoa não vê qual material é.
       if(typeof fEnsureMaterialLayers==='function'){ try{ await fEnsureMaterialLayers(m); }catch(e){} }
-      if(!(m.layers&&m.layers.length)) return;
       const cv=document.getElementById('f-mat-cv-'+m.id);
       if(!cv) return;
       const card=cv.closest('.f-mat-card');
+      // Layers não desceram (rede/publish parcial): o card ficava girando o spinner PRA SEMPRE,
+      // dizendo "estou montando" sobre algo que nunca vem. Estado de erro honesto e para.
+      if(!(m.layers&&m.layers.length)){
+        if(card){ card.classList.remove('is-rendering'); card.classList.add('has-preview-error'); }
+        return;
+      }
       if(card) card.classList.add('is-rendering'); // fetch tardou → mostra estado de render agora
       try{
         Promise.resolve(fRenderPreviewToCanvas(cv, m, {maxPx:520, camp:{color:camp.color||'#FF9000'}, dados:m._demoDados, scope:'franqueado'}))
@@ -427,17 +492,19 @@ function fRenderMaterialCatalog(camp, container){
   if(typeof fMarkCampSeen==='function') fMarkCampSeen(camp.id);
 }
 function fRenderMaterialCard(material, camp){
-  const validade = material.publishMeta.validade;
+  const validade = material.publishMeta && material.publishMeta.validade;
   let validadeLabel='';
-  if(validade){
+  const diff = fDiasRestantes(validade);   // recalculado a cada render — amanhã o número muda sozinho
+  if(diff!=null){
     const v=new Date(validade+'T23:59:59');
-    const diff=Math.ceil((v.getTime()-Date.now())/(24*60*60*1000));
     if(diff<=3) validadeLabel=`<span class="f-mat-urgency" style="display:inline-flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${diff}d restantes</span>`;
     else validadeLabel=`<span class="f-mat-validade">válido até ${v.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}</span>`;
   }
   // Mini-prévia: usa fmt do template
   const fmtName = {story:'Story 9:16',feed:'Feed 1:1',wide:'Post wide',post:'Post wide'}[material.fmt] || 'Story';
-  const isNew = (typeof fMaterialIsNew==='function') && fMaterialIsNew(material, camp.id);
+  const isNew = !material._demo && (typeof fMaterialIsNew==='function') && fMaterialIsNew(material, camp.id);
+  // Material-demo entra rotulado: quem está na tela precisa saber que aquilo não é da rede.
+  const demoTag = material._demo ? '<span class="f-mat-demo-tag">DEMONSTRAÇÃO — não é material da rede</span>' : '';
   const renderState=(material.layers&&material.layers.length)?' is-rendering':'';
   return `<button class="f-mat-card${renderState}" type="button" onclick="fSelectMaterial('${gEscJs(material.id)}',this)" aria-label="Personalizar ${gEsc(material.name)}, formato ${gEsc(fmtName)}">
     <div class="f-mat-preview">
@@ -454,6 +521,7 @@ function fRenderMaterialCard(material, camp){
     <div class="f-mat-info">
       <div class="f-mat-info-main">
         <div class="f-mat-name">${gEsc(material.name)}</div>
+        ${demoTag}
         <div class="f-mat-action" aria-hidden="true">Personalizar <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
       </div>
       <div class="f-mat-meta">

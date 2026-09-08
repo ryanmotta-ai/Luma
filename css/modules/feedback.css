@@ -1,25 +1,42 @@
-/* Feedback secundário junto à arte; tokens d-* acompanham os dois temas. */
-.f-feedback{margin-top:16px;padding:16px;border-top:1px solid var(--d-border2);color:var(--d-text);font-family:'Roboto',sans-serif;text-align:left;min-width:0}
-.f-feedback-title{margin:0 0 12px;font-size:14px;line-height:1.4;font-weight:700}
-.f-feedback-help,.f-feedback-confirmed{margin:8px 0;font-size:13px;line-height:1.5;color:var(--d-text2)}
-.f-feedback-confirmed{color:var(--green-text)}
+/* Feedback é o último nível da ENTREGA da arte. Sem margem externa: a borda compartilhada
+   faz a seção pertencer ao mesmo card de legenda/ações, em vez de parecer um formulário
+   anexado depois. O fundo off-white a mantém secundária sem perder leitura. */
+.f-feedback{margin-top:16px;padding:16px;color:var(--text);font-family:'Roboto',sans-serif;text-align:left;min-width:0}
+.art-wrap>.f-feedback.is-art-feedback{margin:0;padding:14px;border-top:1px solid var(--gray-light);background:var(--off-white)}
+.f-feedback-head{display:flex;align-items:flex-start;gap:10px;min-width:0}
+.f-feedback-mark{display:inline-flex;align-items:center;justify-content:center;flex:0 0 30px;width:30px;height:30px;border-radius:var(--r);background:var(--dm-orange-bg);color:var(--dm-orange-d)}
+.f-feedback-mark svg{width:16px;height:16px}
+.f-feedback-head-copy{min-width:0;flex:1}
+.f-feedback-eyebrow{display:block;margin-bottom:3px;color:var(--dm-orange-text);font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;line-height:1.2}
+.f-feedback-title{margin:0;font-size:13.5px;line-height:1.35;font-weight:800;letter-spacing:-.01em;color:var(--text)}
+.f-feedback-help,.f-feedback-confirmed{margin:3px 0 0;font-size:11.5px;line-height:1.4;color:var(--text-3)}
+.f-feedback-confirmed{display:flex;align-items:center;gap:9px;margin:0;padding:2px 0;color:var(--green-text);font-size:12.5px;font-weight:700}
+.f-feedback-confirmed-mark{display:inline-flex;align-items:center;justify-content:center;flex:0 0 26px;width:26px;height:26px;border-radius:var(--r-pill);background:color-mix(in srgb,var(--green) 12%,transparent);color:var(--green-text)}
+.f-feedback-confirmed-mark svg{width:15px;height:15px}
 .f-feedback-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.f-feedback button,.g-feedback-button{min-height:var(--tap-min);padding:8px 12px;border:1px solid var(--d-border2);border-radius:var(--r-sm);background:var(--d-surf);color:var(--d-text);font:600 13px 'Roboto',sans-serif;cursor:pointer;transition:background var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard)}
-.f-feedback button:hover,.g-feedback-button:hover{background:var(--d-surf2);border-color:var(--dm-orange)}
+.f-feedback-choices{margin-top:12px;display:grid;grid-template-columns:1fr 1fr}
+.f-feedback button,.g-feedback-button{min-height:var(--tap-min);padding:8px 12px;border:1px solid var(--gray-mid);border-radius:var(--r-sm);background:var(--white);color:var(--text-2);font:600 12px 'Roboto',sans-serif;cursor:pointer;transition:background var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard),transform var(--dur-micro) var(--ease-standard)}
+.f-feedback button:hover,.g-feedback-button:hover{background:var(--gray-light);border-color:var(--text-3);color:var(--text)}
+.f-feedback button:active,.g-feedback-button:active{transform:scale(.98)}
+.f-feedback .f-feedback-choice{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:0;padding:9px 8px;white-space:nowrap}
+.f-feedback-choice svg{width:15px;height:15px;flex:0 0 auto}
+.f-feedback .f-feedback-choice.is-positive{background:var(--dm-orange-bg);border-color:var(--dm-orange-tint);color:var(--dm-orange-d)}
+.f-feedback .f-feedback-choice.is-positive:hover{background:var(--dm-orange-tint);border-color:var(--dm-orange)}
 .f-feedback .f-feedback-submit{background:var(--dm-orange-d);border-color:var(--dm-orange-d);color:var(--on-orange)}
 .f-feedback .f-feedback-submit:hover{background:var(--dm-orange);border-color:var(--dm-orange)}
 .f-feedback :is(button,input,select,textarea):focus-visible,.g-feedback-admin :is(button,input,select,textarea):focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
 .f-feedback :disabled,.g-feedback-admin :disabled{opacity:.5;cursor:not-allowed}
-.f-feedback-form{display:grid;gap:12px;margin:0}
+.f-feedback-form{display:grid;gap:12px;margin:14px 0 0;padding-top:14px;border-top:1px solid var(--gray-light)}
 .f-feedback-form fieldset{display:grid;gap:8px;min-width:0;padding:0;margin:0;border:0}
 .f-feedback-form label{font-size:12px;font-weight:700;line-height:1.4;color:var(--d-text2)}
 .f-feedback-form label:not(:first-child){margin-top:4px}
 .f-feedback-form label span{font-weight:400}
 .f-feedback-form :is(input,select,textarea),.g-feedback-filter{box-sizing:border-box;width:100%;min-width:0;min-height:var(--tap-min);border:1px solid var(--d-border2);border-radius:var(--r);background:var(--d-surf);color:var(--d-text);padding:10px 12px;font:400 14px 'Roboto',sans-serif;transition:border-color var(--dur-fast) var(--ease-standard)}
 .f-feedback-form textarea{resize:vertical;line-height:1.5}
-.f-feedback-form .f-feedback-reasons{gap:4px}
-.f-feedback-reasons legend{font-size:13px;font-weight:700;margin-bottom:8px}
-.f-feedback-form .f-feedback-reasons label{display:flex;align-items:center;gap:8px;min-height:var(--tap-min);font-weight:400;font-size:13px;margin:0;cursor:pointer}
+.f-feedback-form .f-feedback-reasons{gap:6px}
+.f-feedback-reasons legend{font-size:12px;font-weight:800;margin-bottom:8px;color:var(--text-2)}
+.f-feedback-form .f-feedback-reasons label{display:flex;align-items:center;gap:8px;min-height:var(--tap-min);padding:7px 10px;border:1px solid var(--gray-light);border-radius:var(--r-sm);background:var(--white);color:var(--text-2);font-weight:500;font-size:12px;margin:0;cursor:pointer}
+.f-feedback-form .f-feedback-reasons label:has(input:checked){border-color:var(--dm-orange);background:var(--dm-orange-bg);color:var(--text)}
 .f-feedback-form .f-feedback-reasons input{width:18px;height:18px;min-height:18px;flex-shrink:0;margin:0;accent-color:var(--dm-orange)}
 .f-search-feedback{margin:24px 0;min-width:0;color:var(--d-text);font-size:14px}
 .f-search-feedback>p{margin:0 0 12px;color:var(--d-text2)}
@@ -28,6 +45,19 @@
 .fh-results .fh-sec>span{overflow-wrap:anywhere;min-width:0}
 .f-search-feedback .f-feedback{max-width:640px}
 .f-feedback-form :is(input,textarea)::placeholder{color:var(--d-text3)}
+body:not(.theme-light) .art-wrap>.f-feedback.is-art-feedback{background:var(--d-dark);border-top-color:var(--d-border)}
+body:not(.theme-light) .f-feedback{color:var(--d-text)}
+body:not(.theme-light) .f-feedback-title{color:var(--d-text)}
+body:not(.theme-light) .f-feedback-help{color:var(--d-text3)}
+body:not(.theme-light) .f-feedback-mark{background:var(--d-surf2);color:var(--dm-orange)}
+body:not(.theme-light) .f-feedback button{background:var(--d-surf);border-color:var(--d-border2);color:var(--d-text2)}
+body:not(.theme-light) .f-feedback button:hover{background:var(--d-surf2);border-color:var(--d-text3);color:var(--d-text)}
+body:not(.theme-light) .g-feedback-button{background:var(--d-surf);border-color:var(--d-border2);color:var(--d-text)}
+body:not(.theme-light) .g-feedback-button:hover{background:var(--d-surf2);border-color:var(--dm-orange)}
+body:not(.theme-light) .f-feedback .f-feedback-choice.is-positive{background:var(--d-surf2);border-color:var(--dm-orange);color:var(--dm-orange)}
+body:not(.theme-light) .f-feedback-form{border-top-color:var(--d-border)}
+body:not(.theme-light) .f-feedback-form .f-feedback-reasons label{background:var(--d-surf);border-color:var(--d-border);color:var(--d-text2)}
+body:not(.theme-light) .f-feedback-form .f-feedback-reasons label:has(input:checked){background:var(--d-surf2);border-color:var(--dm-orange);color:var(--d-text)}
 .g-feedback-admin{display:grid;gap:24px;min-width:0;color:var(--d-text);font-family:'Roboto',sans-serif;font-size:14px}
 .g-feedback-toolbar{display:flex;align-items:flex-end;flex-wrap:wrap;gap:12px}
 .g-feedback-toolbar label{display:grid;gap:8px;flex:1;min-width:0;font-size:12px;font-weight:700;color:var(--d-text2)}
@@ -43,5 +73,9 @@
 .g-feedback-state{padding:20px 0;color:var(--d-text2);font-size:14px;line-height:1.5}
 .g-feedback-positive{color:var(--green-text)}
 .g-feedback-negative{color:var(--dm-red-text)}
-@media(max-width:480px){.f-feedback{padding:12px}.g-feedback-toolbar{align-items:stretch}.g-feedback-toolbar label{flex-basis:100%}.f-feedback-form :is(input,select,textarea){font-size:16px}}
+@media(max-width:480px){.f-feedback{padding:12px}.art-wrap>.f-feedback.is-art-feedback{padding:12px 14px 14px}.g-feedback-toolbar{align-items:stretch}.g-feedback-toolbar label{flex-basis:100%}}
+/* 16px = sem auto-zoom do iOS ao focar. A regra vivia no corte de 480px acima, junto do
+   layout — mas isto não é largura, é TOQUE: em paisagem de celular (844×390) o formulário
+   voltava para 14px e o iPhone dava zoom. `(hover:none)` é a condição verdadeira. */
+@media(hover:none){.f-feedback-form :is(input,select,textarea){font-size:16px}}
 @media(prefers-reduced-motion:reduce){.f-feedback *,.g-feedback-admin *{transition:none!important}}

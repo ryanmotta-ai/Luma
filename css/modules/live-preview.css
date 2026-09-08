@@ -713,7 +713,7 @@ body:not(.theme-light) .lp-posted-btn{background:color-mix(in srgb,var(--dm-oran
   background:rgba(0,0,0,.62);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);
   align-items:center;justify-content:center;animation:gFadeIn var(--dur-fast) var(--ease-out)}
 #f-posted-modal.open{display:flex}
-.posted-box{width:min(720px,100%);max-height:92vh;display:flex;flex-direction:column;overflow:hidden;
+.posted-box{width:min(720px,100%);max-height:92dvh;display:flex;flex-direction:column;overflow:hidden;
   background:var(--glass-bg);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
   border:1px solid var(--glass-border);border-radius:18px;box-shadow:var(--glass-shadow);
   animation:gPopIn var(--dur-base) var(--ease-spring-soft)}
@@ -911,4 +911,23 @@ body:not(.theme-light) .pst-qr-x:hover{background:var(--d-surf2);color:var(--d-t
   #f-posted-modal .pst-screen.pst-slide-l,#f-posted-modal .pst-screen.pst-slide-r{animation:none!important}
   /* parallax é movimento puro: desliga inteiro, não só a transição */
   #f-posted-modal .pst-tilt{transform:none!important;transition:none!important}
+}
+
+/* ── A FITA DA PRÉVIA NO DEDO (revisão mobile 2026-09-06) ──
+   Medido na gaveta aberta a 390px: `−`/`+` de zoom 22×26, o `27%` 35×26, os chips
+   `Zoom` e `Layout` 39×26, `Ajustar` e `Mockups` 30×32 — sete controles numa fita de 40px.
+   O "Baixar PNG" logo abaixo já estava certo (357×43); a fita ficou de fora do tratamento
+   de toque que o resto do módulo recebeu.
+   Só ALTURA e a largura dos passos de zoom mudam, e a fita passa a poder quebrar em duas
+   linhas: assim nenhum controle é empurrado para fora numa tela de 320px — que é o que
+   aconteceria se a largura crescesse numa linha só (o conteúdo mínimo já ocupa ~290px). */
+@media (hover:none){
+  .lp-toolbar{flex-wrap:wrap;row-gap:6px}
+  .lp-tool-left,.lp-tool-right{flex-wrap:wrap;row-gap:6px}
+  /* `.lp-posted-btn` (Mockups) NÃO carrega `.lp-tool-btn` — precisa ser nomeado. */
+  .lp-tool-btn,.lp-fit-btn,.lp-posted-btn{height:var(--tap-min)}
+  .lp-fit-btn,.lp-posted-btn{width:40px;min-width:40px}
+  .lp-zoom-group,.lp-auto-group{height:var(--tap-min)}
+  .lp-zoom-step{width:36px;height:38px}
+  .lp-auto-chip,.lp-tool-text{min-height:38px}
 }

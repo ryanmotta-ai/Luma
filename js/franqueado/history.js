@@ -62,7 +62,13 @@ async function fPushArtesToBackend(){
   if(!sb || !user || !user.id) return;
   if(_fArtesPushBusy){ _fArtesPushQueued=true; return; }
   _fArtesPushBusy=true;
-  try{
+  /* hist/changed/_persistirSync moram AQUI, no escopo da função, e não dentro do `try`.
+     Enquanto eram `const` do bloco do try, o `_persistirSync()` do `finally` estourava
+     ReferenceError em TODA chamada — inclusive no caminho de sucesso. O erro acontecia
+     ANTES de `_fArtesPushBusy=false`, então o lock ficava preso pra sempre: depois do
+     primeiro push da sessão, nenhuma arte voltava a subir e a interface seguia dizendo que
+     a biblioteca estava no servidor. Só aparecia como rejeição engolida pelo `.catch(()=>{})`
+     do fSaveHist. Pego pela suíte tests/franqueado-honestidade.html. */
   const hist=fGetHist(); let changed=false;
   // RELE o storage antes de gravar: uma arte criada/baixada DURANTE os awaits abaixo nao
   // pode ser sobrescrita pelo snapshot velho. Mescla so os campos de sync (remoteId/_synced/
@@ -80,6 +86,7 @@ async function fPushArtesToBackend(){
       changed=false;
     }catch(e){}
   };
+  try{
   // Os UUIDs nascem ANTES de qualquer await e vao pro storage NA HORA. Antes eles so eram
   // gravados no fim do lote: bastava a rede cair na 6a arte para as 5 ja enviadas perderem
   // o remoteId, ganharem UUID novo no proximo boot e o upsert (onConflict:'id') criar LINHA
@@ -88,6 +95,10 @@ async function fPushArtesToBackend(){
   _persistirSync();
   for(const h of hist){
     if(h._synced) continue; // já no banco (status muda via fMarkBaixadaBackend)
+    // Arte de material de DEMONSTRAÇÃO nunca sobe: no banco ela viraria linha igual à de
+    // uma arte real (template_id null) e contaminaria o uso que a rede lê. Fica local, e o
+    // card em "Minhas artes" diz que é demonstração.
+    if(h._demo) continue;
     // sobe fotos ENVIADAS (base64) do dados pro Storage (bucket público); URLs externas ficam como estão
     const dados={...(h.dados||{})};
     let fotoPendente=false;
@@ -233,6 +244,7 @@ function fAddHist(d,c,f,status){
     fmtId:f.id, fmtName:f.name,
     materialId: fState.material?.id || null,
     materialName: fState.material?.name || null,
+    _demo: !!(fState.material && fState.material._demo),
     dados:{...d},
     prod: d.produto || d.categoria || d.brinde || d.oferta || c.name,
     por: d.precoPor || d.desconto || '',

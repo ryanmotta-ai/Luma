@@ -222,7 +222,11 @@
   background: var(--white);
   background-position: center;
   background-size: cover;
-  color: var(--dm-orange-d);
+  /* As INICIAIS do usuário sobre o disco branco. `--dm-orange-d` puro dá 3,35:1 — medido —
+     e isto é texto de 10px, onde a régua é 4,5:1. O mix com `--text` escurece o mínimo para
+     passar (4,67:1 em 205,71,2) e a pílula continua lendo como laranja da marca: é a mesma
+     família, não uma cor nova. Só as iniciais mudam; quem tem foto nunca as vê. */
+  color: color-mix(in srgb, var(--dm-orange-d) 82%, var(--text));
   font-size: 10px;
   font-weight: 800;
   line-height: 1;

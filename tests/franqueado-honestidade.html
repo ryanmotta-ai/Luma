@@ -1,0 +1,233 @@
+<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Luma — honestidade do fluxo do franqueado</title>
+<link rel="stylesheet" href="../css/00-tokens.css">
+<body class="theme-light"><h1>Honestidade do franqueado — contratos</h1><ol id="results"></ol>
+<!-- Palco mínimo: os módulos do franqueado tocam nestes nós na carga e no render. -->
+<div id="f-home"><div id="fh-body"></div></div>
+<div id="f-catalog"></div><div id="f-hist-tab"></div><div id="fixture"></div>
+<div id="f-preview-modal"><div id="pv-title"></div><div id="pv-note"></div><div id="pv-multi"></div></div>
+<script>
+// Bancada: nenhuma credencial, nenhuma escrita em produção. O Supabase é um dublê que só anota.
+var dFolders=[], upserts=[], _role='franqueado';
+function gCurrentUser(){return {id:'11111111-1111-4111-8111-111111111111'};}
+function gIsAdmin(){return _role==='equipe_dm'||_role==='gestao';}
+function gFeatureCan(){return true;}
+function gTrackEvent(){}
+var sbFake={schema(){return {from(){return {
+  upsert(row){upserts.push(row);return Promise.resolve({error:null});},
+  update(){return {eq(){return Promise.resolve({error:null});}};},
+  delete(){return {eq(){return Promise.resolve({error:null});}};},
+  select(){return {eq(){return {single(){return Promise.resolve({data:null});}};},order(){return {ascending:true};}};}
+};}};}};
+function gSupabase(){return sbFake;}
+window.sb=sbFake;
+</script>
+<script src="../js/00-config.js"></script><script src="../js/01-state.js"></script>
+<script src="../js/core/toast.js"></script>
+<script src="../js/franqueado/prefs.js"></script>
+<script src="../js/franqueado/materials.js"></script>
+<script src="../js/franqueado/history.js"></script>
+<script src="../js/franqueado/catalog.js"></script>
+<script src="../js/franqueado/live-preview.js"></script>
+<script src="../js/franqueado/search.js"></script>
+<script>
+(async()=>{
+const failures=[];let total=0;
+const assert=(x,m)=>{if(!x)throw new Error(m||'asserção falhou');};
+async function test(name,fn){total++;try{await fn();document.getElementById('results').insertAdjacentHTML('beforeend','<li>OK '+gEsc(name)+'</li>');}
+  catch(e){failures.push({name,error:e.message});document.getElementById('results').insertAdjacentHTML('beforeend','<li>FALHOU '+gEsc(name)+'</li>');}}
+
+// Datas relativas ao AGORA — o ponto do teste é justamente que o número anda com o calendário.
+const dia=86400000;
+const iso=off=>new Date(Date.now()+off*dia).toISOString().slice(0,10);
+const mat=(id,extra)=>Object.assign({id,name:id,fmt:'story',publishMeta:{publicado:true},layers:[{type:'text',content:'oi'}]},extra||{});
+
+// Campanhas da bancada: uma abastecida, uma vazia (só capa), uma com validade curta.
+const camps=[
+  {id:'cheia',name:'Campanha cheia',color:'#FF9000',cover:'assets/covers/cd.png',expiraDias:2,perguntas:[{id:'produto'}]},
+  {id:'vazia',name:'Campanha vazia',color:'#FF9000',cover:'assets/covers/cd.png',expiraDias:2,perguntas:[{id:'produto'}]},
+  {id:'curta',name:'Campanha curta',color:'#FF9000',cover:'assets/covers/cd.png',expiraDias:90,perguntas:[{id:'produto'}]}
+];
+fGetCampaigns=()=>({ativas:camps,outras:[],impl:[]});
+fGetFavs=()=>[];
+const reset=()=>{
+  dFolders=[
+    {id:'f-cheia',campId:'cheia',templates:[mat('t1'),mat('t2')]},
+    {id:'f-curta',campId:'curta',templates:[mat('t3',{publishMeta:{publicado:true,validade:iso(2)}})]}
+  ];
+  _role='franqueado';
+  try{localStorage.removeItem('luma_demo_materiais_v1');localStorage.removeItem(HIST_KEY);}catch(e){}
+  Object.keys(_F_DEMO_MAT_CACHE).forEach(k=>delete _F_DEMO_MAT_CACHE[k]);
+  upserts.length=0;
+};
+const armaDemo=()=>{_role='equipe_dm';localStorage.setItem('luma_demo_materiais_v1','1');};
+
+
+/* ── PRIORIDADE 1 — MATERIAL DEMO ─────────────────────────────────────────────────── */
+reset();
+await test('Demo desligado por padrão: campanha sem material real devolve lista vazia',()=>{
+  assert(fDemoModeOn()===false);
+  assert(fGetMaterialsForCamp('vazia').length===0);
+});
+await test('Chave armada NÃO liga demo para franqueado real',()=>{
+  localStorage.setItem('luma_demo_materiais_v1','1');
+  assert(fDemoModeOn()===false,'franqueado não pode ver material-demo');
+  assert(fGetMaterialsForCamp('vazia').length===0);
+});
+await test('fSetDemoMode recusa armar fora da equipe',()=>{
+  reset(); assert(fSetDemoMode(true)===false); assert(fDemoModeOn()===false);
+});
+reset(); armaDemo();
+await test('Demo armado pela equipe aparece — e jamais é material real/publicado',()=>{
+  const mm=fGetMaterialsForCamp('vazia');
+  assert(mm.length===1&&mm[0]._demo===true,'demo deveria aparecer com o modo armado');
+  assert(mm[0].publishMeta.publicado===false,'demo não pode se declarar publicado');
+  assert(fIsMaterialReal(mm[0])===false,'demo jamais satisfaz fIsMaterialReal');
+  assert(fRealMaterialsForCamp('vazia').length===0,'demo não conta como material real');
+});
+await test('Demo não faz a campanha parecer "Pronta para usar"',()=>{
+  assert(_fCampHasMats(camps[1])===false,'campanha só com demo não é pronta para usar');
+  assert(_fCampHasMats(camps[0])===true);
+});
+await test('Card da campanha não conta demo como material',()=>{
+  const html=fCampEl(camps[1],false);
+  assert(!/1 material<|\d+ materiais/.test(html),'card não pode contar material-demo');
+  assert(html.includes('Só demonstração'),'card deveria dizer que só há demonstração');
+});
+await test('Card do material-demo sai rotulado como demonstração',()=>{
+  const html=fRenderMaterialCard(fGetMaterialsForCamp('vazia')[0],camps[1]);
+  assert(html.includes('f-mat-demo-tag')&&html.includes('DEMONSTRAÇÃO'));
+});
+await test('Demo não entra no índice de busca (o índice exige publicado===true)',()=>{
+  assert(_fSearchMaterials(camps[1]).length===0,'material-demo não pode ser indexado');
+  assert(_fSearchMaterials(camps[0]).length===2,'material real continua indexado');
+});
+await test('Prévia da campanha vazia não anuncia material',()=>{
+  fOpenPreview({stopPropagation(){}},'vazia');
+  assert(document.getElementById('pv-note').textContent==='Materiais em breve');
+  fClosePreview();
+});
+await test('Deep link para material-demo morre com o modo desarmado',()=>{
+  const id=fGetMaterialsForCamp('vazia')[0].id;
+  reset();
+  assert(_fFindDemoMaterial(id)===null,'sem o modo armado o demo não pode ser resolvido por id');
+});
+
+/* ── PRIORIDADE 1b — HISTÓRICO NÃO CONFUNDÍVEL ─────────────────────────────────────── */
+reset(); armaDemo();
+await test('Arte de demo entra marcada no histórico e NÃO sobe pro banco',async()=>{
+  fState.material=fGetMaterialsForCamp('vazia')[0];
+  fAddHist({produto:'X'},camps[1],FMTS[0],'baixada');
+  const h=fGetHist();
+  assert(h.length===1&&h[0]._demo===true,'entrada de demo precisa ficar marcada');
+  await fPushArtesToBackend();
+  await new Promise(r=>setTimeout(r,80));   // fSaveHist também dispara um push em segundo plano
+  assert(upserts.length===0,'arte de demonstração não pode virar linha em luma.artes');
+  // Regressão do lock: o push tem de LIBERAR a fila. Enquanto o `finally` estourava
+  // ReferenceError, esta flag ficava presa e nenhuma arte subia pelo resto da sessão.
+  assert(_fArtesPushBusy===false,'o push precisa liberar o lock ao terminar');
+});
+await test('Arte de material real continua subindo normalmente',async()=>{
+  reset();
+  fState.material=dFolders[0].templates[0];
+  fAddHist({produto:'Y'},camps[0],FMTS[0],'baixada');
+  assert(fGetHist()[0]._demo===false);
+  await new Promise(r=>setTimeout(r,80));
+  await fPushArtesToBackend();
+  assert(upserts.length>=1,'arte real precisa sincronizar (não pode haver regressão)');
+  assert(_fArtesPushBusy===false);
+});
+await test('Card do histórico marca a arte de demonstração',()=>{
+  reset(); armaDemo();
+  fState.material=fGetMaterialsForCamp('vazia')[0];
+  fAddHist({produto:'X'},camps[1],FMTS[0],'baixada');
+  fRenderHist();
+  assert(document.getElementById('f-hist-tab').innerHTML.includes('demonstração'));
+});
+
+/* ── PRIORIDADE 2 — VALIDADE ──────────────────────────────────────────────────────── */
+reset();
+await test('fDiasRestantes conta da data real e anda com o calendário',()=>{
+  assert(fDiasRestantes(iso(0))===1,'hoje = último dia');
+  assert(fDiasRestantes(iso(5))===6);
+  assert(fDiasRestantes(iso(30))===31);
+  assert(fDiasRestantes(null)===null,'sem data não inventa prazo');
+  assert(fDiasRestantes('data-invalida')===null,'data corrompida não vira prazo');
+});
+await test('Material vencido não é válido; data corrompida não inventa vencimento',()=>{
+  assert(fIsMaterialValid(mat('x',{publishMeta:{publicado:true,validade:iso(-1)}}))===false);
+  assert(fIsMaterialValid(mat('x',{publishMeta:{publicado:true,validade:iso(1)}}))===true);
+  assert(fIsMaterialValid(mat('x',{publishMeta:{publicado:true,validade:'xx'}}))===true);
+});
+await test('Campanha só com material vencido não é "Pronta para usar"',()=>{
+  dFolders[1].templates[0].publishMeta.validade=iso(-3);
+  assert(_fCampHasMats(camps[2])===false);
+  assert(fCampDiasRestantes('curta')===null,'campanha vencida não anuncia prazo');
+  dFolders[1].templates[0].publishMeta.validade=iso(2);
+});
+await test('Validade da campanha é a data mais distante entre os materiais reais',()=>{
+  dFolders[1].templates.push(mat('t4',{publishMeta:{publicado:true,validade:iso(9)}}));
+  assert(fCampValidade('curta')===iso(9));
+  assert(fCampDiasRestantes('curta')===10);
+  dFolders[1].templates.pop();
+});
+await test('expiraDias estático NUNCA vira badge de urgência',()=>{
+  // 'cheia' tem expiraDias:2 no config e nenhuma validade real nos materiais.
+  const html=fCampEl(camps[0],false);
+  assert(!html.includes('camp-urgency'),'sem data real não pode haver contagem regressiva');
+});
+await test('Urgência aparece só com data real e com o número do dia de hoje',()=>{
+  const html=fCampEl(camps[2],false);           // validade daqui a 2 dias → 3d
+  assert(html.includes('camp-urgency')&&html.includes('>3d<'),'deveria mostrar os dias reais');
+});
+await test('Hero não usa expiraDias do config',()=>{
+  const html=_fHomeHeroEl(camps[0]);
+  assert(!html.includes('disponível por 2 dias'),'o hero repetia o número congelado do config');
+  assert(html.includes('2 materiais'));
+});
+await test('Hero anuncia o prazo real quando ele existe',()=>{
+  assert(_fHomeHeroEl(camps[2]).includes('disponível por mais 3 dias'));
+});
+await test('Card do material mostra os dias reais, não o expiraDias',()=>{
+  const html=fRenderMaterialCard(dFolders[1].templates[0],camps[2]);
+  assert(html.includes('3d restantes'));
+  assert(fRenderMaterialCard(mat('z',{publishMeta:{publicado:true,validade:iso(40)}}),camps[2]).includes('válido até'));
+  assert(!fRenderMaterialCard(mat('z'),camps[2]).includes('f-mat-validade'),'sem data, sem selo de validade');
+});
+await test('Prévia da campanha mostra a contagem e o prazo reais',()=>{
+  fOpenPreview({stopPropagation(){}},'curta');
+  const t=document.getElementById('pv-note').textContent;
+  assert(t.includes('1 material')&&t.includes('expira em 3 dias'),t);
+  fClosePreview();
+});
+
+/* ── PRIORIDADE 3 — ESTADOS ───────────────────────────────────────────────────────── */
+await test('Campanha sem material real cai no estado vazio honesto',()=>{
+  reset();
+  const host=document.getElementById('fixture');
+  fRenderMaterialCatalog(camps[1],host);
+  assert(host.textContent.includes('Novos materiais em preparação'));
+  assert(!host.querySelector('.f-mat-card'),'não pode existir card onde não há material');
+});
+await test('Todos vencidos: a tela diz que expiraram em vez de fingir vazio',()=>{
+  reset();
+  dFolders[1].templates[0].publishMeta.validade=iso(-2);
+  const host=document.getElementById('fixture');
+  fRenderMaterialCatalog(camps[2],host);
+  assert(host.textContent.includes('expiraram'));
+});
+await test('Prévia que não carrega marca erro em vez de girar para sempre',async()=>{
+  reset();
+  const host=document.getElementById('fixture');
+  dFolders[0].templates[0].layers=[];          // publish parcial: material sem layers
+  fRenderPreviewToCanvas=()=>Promise.resolve();
+  fRenderMaterialCatalog(camps[0],host);
+  await new Promise(r=>setTimeout(r,30));
+  const card=host.querySelector('.f-mat-card');
+  assert(card&&card.classList.contains('has-preview-error'),'card ficaria em "carregando" para sempre');
+  assert(!card.classList.contains('is-rendering'));
+});
+
+window.__lumaTest={total,passed:total-failures.length,failures};
+})().catch(e=>window.__lumaTest={total:1,passed:0,failures:[{name:'bancada',error:e.stack}]});
+</script></body></html>

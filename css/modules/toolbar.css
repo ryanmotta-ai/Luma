@@ -782,6 +782,28 @@ select option{background:#222}
   transform: translateY(8px) scale(0.95);
 }
 
+/* ── TOAST NO CELULAR (revisão mobile 2026-09-06) ──
+   Duas medições, no mesmo componente:
+   1. `white-space:nowrap` cortava a frase. Medido a 320px: "Não consegui carregar seu perfil
+      completo. Recarregue a página." = 421px de texto numa pílula de 288px. E o toast é o
+      ÚNICO canal de erro do chat — `fShowFieldError` (chat-input.js) manda o motivo por aqui;
+      o tremor da barra só aponta QUAL campo. Meia frase = erro sem motivo.
+   2. `bottom:24px` punha o aviso EM CIMA da barra de digitar. Medido a 320×568: toast em
+      y 507–544, `#f-input-row` em y ~510–560. Com o teclado aberto o aviso cobre justamente
+      o campo que ele está pedindo para corrigir. Dentro do chat ele sobe. */
+@media (max-width:680px){
+  /* `width` (não só `max-width`): o container é flex e encolhe até o min-content. Com a
+     quebra de linha ligada, medido, ele se espremia em 160px e a frase virava 5 linhas.
+     Com a largura reservada, o aviso usa o espaço e cabe em duas. */
+  #g-toast-container{width:calc(100vw - 32px);max-width:calc(100vw - 32px);align-items:center;bottom:calc(24px + var(--safe-bottom))}
+  .g-toast-item{white-space:normal;text-align:center;max-width:100%}
+  /* `f-mobile-chat` sem `f-material-browser` = a conversa de verdade, a única tela do
+     franqueado com barra de digitar no rodapé (mesmo par que o help-widget já usa). */
+  /* 104px = a barra de digitar medida (69px) + folga. O `--safe-bottom` entra de novo porque
+     a barra também o reserva no próprio padding: as duas sobem juntas no iPhone. */
+  body.f-mobile-chat:not(.f-material-browser) #g-toast-container{bottom:calc(104px + var(--safe-bottom))}
+}
+
 /* ── DIÁLOGO DA CASA (gConfirm/gPrompt — js/core/toast.js) ──
    Era o ÚNICO componente de UI montado 100% em `style=` inline dentro do JS, com hex cru
    (#C81818, #FF9000) em vez de token: o único que não acompanhava uma mudança do design system.
@@ -818,6 +840,17 @@ select option{background:#222}
   border: 1px solid var(--dm-orange); background: var(--dm-orange); color: var(--on-accent);
 }
 .g-dialog-ok.danger { border-color: var(--dm-red); background: var(--dm-red); }
+
+/* ── O DIÁLOGO DA CASA NO DEDO (revisão mobile 2026-09-06) ──
+   Este é o `gConfirm` de TODA ação irreversível (limpar planilha, apagar oferta, gerar em
+   lote) — onde errar o toque custa mais caro. Medido a 390px: "Cancelar" 81×32 e "Gerar 2"
+   76×32, separados por 8px. Régua de 44px do `ux-principles.md` (Lei de Fitts).
+   O input é o `gPrompt` (nomear loja salva): 13px fazia o iPhone dar zoom ao focar. */
+@media (max-width:680px){
+  .g-dialog-acts{gap:10px}
+  .g-dialog-cancel,.g-dialog-ok{min-height:var(--tap-min);padding-inline:18px;font-size:13px}
+  .g-dialog-input{font-size:16px}   /* 16px = sem auto-zoom no iOS */
+}
 
 @keyframes gToastItemIn {
   from {

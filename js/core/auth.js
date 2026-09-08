@@ -331,8 +331,13 @@ function gUpdateUserTopbar() {
 
       // Sem foto → avatar branco com iniciais em laranja escuro (identidade da
       // marca sobre a barra laranja; cores de fora da paleta destoavam).
+      // ⚠ A COR SAIU DAQUI (revisão mobile 2026-09-06). `--dm-orange-d` puro sobre o disco
+      // branco dá 3,35:1 — medido — e isto é texto de 10px, onde a régua é 4,5:1. O tom
+      // corrigido vive em `.top-av` (`css/components/topbar.css`), onde cor é decidida nesta
+      // casa. Enquanto estava aqui como `style=` inline, ele VENCIA a folha e qualquer ajuste
+      // no CSS era inerte — foi assim que o defeito sobreviveu.
+      // O `background` fica: ele desfaz o `transparent` do ramo com foto, não é escolha de cor.
       avEl.style.background = 'var(--white)';
-      avEl.style.color = 'var(--dm-orange-d)';
     }
   }
 

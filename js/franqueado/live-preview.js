@@ -12,17 +12,18 @@ function fOpenPreview(e,id){
   const c=fResolveCamp(id); // seam: catalog.js carrega antes (index.html)
   if(!c)return;
   document.getElementById('pv-title').textContent=c.name;
-  // Contagem HONESTA: materiais realmente publicados e válidos (não o count estático do
-  // config). Fallback: count do config → templates.length.
-  let _count;
-  try{
-    _count=(typeof fGetMaterialsForCamp==='function')
-      ? fGetMaterialsForCamp(c.id).filter(m=>(typeof fIsMaterialValid!=='function')||fIsMaterialValid(m)).length
-      : null;
-  }catch(e){ _count=null; }
-  if(_count==null||_count===0) _count=(c.count!=null)?c.count:(c.templates?c.templates.length:0);
-  const _exp=(c.expiraDias!=null)?` · Expira em ${c.expiraDias} dias`:'';
-  document.getElementById('pv-note').textContent=`${_count} materiais${_exp}`;
+  // Contagem HONESTA: só material real, publicado e dentro da validade.
+  let _count=0;
+  try{ _count=(typeof fRealMaterialsForCamp==='function')?fRealMaterialsForCamp(c.id).length:0; }catch(e){ _count=0; }
+  // Sem material real, o número honesto é ZERO. O fallback pro `count` do config enchia a
+  // nota com uma quantidade que ninguém tinha publicado (o count é estimativa escrita à mão).
+  // Prazo: da validade real dos materiais; `expiraDias` é estático e nunca decrementa.
+  let _dias=null;
+  try{ _dias=(typeof fCampDiasRestantes==='function')?fCampDiasRestantes(c.id):null; }catch(e){ _dias=null; }
+  const _exp=(_dias!=null)?` · ${_dias===1?'último dia disponível':'expira em '+_dias+' dias'}`:'';
+  document.getElementById('pv-note').textContent=_count
+    ? `${_count} ${_count===1?'material':'materiais'}${_exp}`
+    : 'Materiais em breve';
   // F-09: monta os 3 formatos lado a lado, cada um clicável
   const multi = document.getElementById('pv-multi');
   multi.innerHTML = FMTS.map(f=>{

@@ -40,10 +40,64 @@ function fGetSuggestionsForVar(varName, camp){
   };
   return defaults[varName] || [];
 }
+/* ── OS CHIPS DO CHAT VIRAM BOTÃO DE VERDADE ──
+   Os quick-replies são `<div class="qr" onclick>` em 9 pontos deste arquivo. O TOQUE sempre
+   funcionou (e os alvos já são de 38px no celular, `chat.css`), mas sem `role`/`tabindex` o
+   VoiceOver lê "Começar do zero" como texto solto — não como algo que se aperta — e o Tab
+   passa por cima. Quem navega por leitor de tela ficava sem o caminho principal do chat:
+   recuperar rascunho, usar a última arte, pular um passo, escolher uma sugestão.
+   O `role="button" tabindex="0"` está no markup dos 9 (greppável por `class="qr`); o
+   `.qr:focus-visible` já existia no CSS desde antes, esperando um elemento focável.
+   O Enter/Espaço fica AQUI, delegado no documento uma única vez: cobre os 9 e os que vierem,
+   sem que nenhum dos pontos de montagem precise saber disso. `.qr` só existe no chat. */
+document.addEventListener('keydown', (e)=>{
+  if(e.key !== 'Enter' && e.key !== ' ') return;
+  const qr = e.target && e.target.closest && e.target.closest('.qr');
+  if(!qr) return;
+  e.preventDefault();   // Espaço em elemento focável rolaria a conversa
+  qr.click();
+});
+
+/* ── O TECLADO NÃO PODE LEVAR A PERGUNTA EMBORA ──
+   Medido a 390×844: com a tela cheia a conversa CABE (scrollHeight 661 = clientHeight 661,
+   folga 0). O teclado abre, o `interactive-widget=resizes-content` encolhe o layout para
+   ~420px, `#f-messages` cai para 237px de caixa com 460px de conteúdo — e o `scrollTop`
+   continua 0. Resultado: 223px de conversa abaixo da dobra, incluindo a pergunta do passo e
+   os chips ("Frete grátis", "Pular"). A pessoa toca o campo para responder e a pergunta some.
+   O `chat.js` re-ancora no fim a cada mensagem nova (8 chamadas de `scrollTop=scrollHeight`),
+   mas nenhuma delas roda quando o que muda é o TAMANHO da caixa.
+   Mesmo instrumento que o Sheets já usa (`_fBulkBindTeclado`): o `visualViewport`. */
+function _fChatBindTeclado(){
+  const vv = window.visualViewport;
+  if(!vv || vv._fChatBound) return;
+  vv._fChatBound = true;
+  const fim = ()=>{
+    // Só o layout de celular. No desktop `resize` é a pessoa mexendo na janela — puxar a
+    // conversa para o fim ali roubaria a leitura de quem está olhando um passo anterior.
+    if(!window.matchMedia || !matchMedia('(max-width:680px)').matches) return;
+    const msgs = document.getElementById('f-messages');
+    if(!msgs || !msgs.offsetParent) return;   // chat fora de cena → nada a re-ancorar
+    msgs.scrollTop = msgs.scrollHeight;
+  };
+  // Duas passadas: a imediata resolve o caso já assentado; a de 120ms cobre o navegador que
+  // ainda estava refazendo o layout quando o evento chegou (medir cedo devolve o
+  // scrollHeight velho e a âncora erra por uma tela inteira).
+  const sync = ()=>{ fim(); setTimeout(fim, 120); };
+  vv.addEventListener('resize', sync);
+  // ⚠ O `resizes-content` do `index.html` encolhe o viewport de LAYOUT: no Chrome/Android o
+  // teclado aparece como `window.resize`, e o `visualViewport` pode nem disparar. No iOS é o
+  // contrário. Os dois ouvintes chamam o mesmo `sync`.
+  window.addEventListener('resize', sync);
+  const box = document.getElementById('f-msg-box');
+  // O foco cobre o iOS, que ignora `interactive-widget` e nem sempre dispara `resize` a tempo.
+  if(box && !box._fChatFocusBound){ box._fChatFocusBound = true; box.addEventListener('focus', ()=>setTimeout(fim, 250)); }
+}
+
 function fStartChatComMaterial(material){
   document.getElementById('f-messages').innerHTML='';
   // Mobile: ao começar o chat, traz o painel do chat pra frente (o layout de 2 colunas colapsa).
   try{ document.body.classList.add('f-mobile-chat'); }catch(e){}
+  try{ _fChatBindTeclado(); }catch(e){}
   const _b=document.getElementById('f-msg-box'); if(_b){ _b.disabled=false; }
 
   fState.material = material;
@@ -74,8 +128,8 @@ function fStartChatComMaterial(material){
     const w = document.createElement('div');
     w.className = 'msg bot';
     w.innerHTML = `<div class="qr-wrap">
-      <div class="qr" onclick="fApplyRecoverDraft(true)">Sim, continuar</div>
-      <div class="qr" onclick="fApplyRecoverDraft(false)" style="background:var(--gray-light);border-color:var(--gray-mid);color:var(--text-2)">Não, começar do zero</div>
+      <div class="qr" role="button" tabindex="0" onclick="fApplyRecoverDraft(true)">Sim, continuar</div>
+      <div class="qr" role="button" tabindex="0" onclick="fApplyRecoverDraft(false)" style="background:var(--gray-light);border-color:var(--gray-mid);color:var(--text-2)">Não, começar do zero</div>
     </div>`;
     msgs.appendChild(w);
     msgs.scrollTop = msgs.scrollHeight;
@@ -124,12 +178,12 @@ function fMaterialPreStart(material){
   const _rewindIco='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>';
   let chips='';
   if(lojaOffer){
-    chips += lojas.map(l=>`<div class="qr qr-loja" onclick="fPickLoja('${l.id}')">${_lojaIco}${gEsc(l.nome||'Minha loja')}</div>`).join('');
+    chips += lojas.map(l=>`<div class="qr qr-loja" role="button" tabindex="0" onclick="fPickLoja('${l.id}')">${_lojaIco}${gEsc(l.nome||'Minha loja')}</div>`).join('');
   }
   if(lastArte){
-    chips += `<div class="qr" onclick="fUseLastArte(${lastArte.id})">${_rewindIco}Usar dados da última arte</div>`;
+    chips += `<div class="qr" role="button" tabindex="0" onclick="fUseLastArte(${lastArte.id})">${_rewindIco}Usar dados da última arte</div>`;
   }
-  chips += `<div class="qr" onclick="fSkipPreStart()" style="background:var(--gray-light);border-color:var(--gray-mid);color:var(--text-2)">Começar do zero</div>`;
+  chips += `<div class="qr" role="button" tabindex="0" onclick="fSkipPreStart()" style="background:var(--gray-light);border-color:var(--gray-mid);color:var(--text-2)">Começar do zero</div>`;
   w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div>
     <div class="bbl">Antes de começar a arte de <strong>${gEsc(material.name)}</strong>, quer adiantar?</div>
     <div class="qr-wrap">${chips}</div>
@@ -271,9 +325,13 @@ function fShowWelcome(){
   fState.stepIdx=-1; fState.dados={}; fState.done=false; fState.material=null;
   try{ fUpdateProg(); }catch(e){}
   try{ fUpdateCtx(); }catch(e){}
+  /* ⚠ "ao lado" / "aqui do lado" saiu das duas frases: no celular o catálogo é a tela
+     ANTERIOR, não uma coluna ao lado — a instrução apontava para um lugar que não existe.
+     A correção é tirar a palavra, não ramificar por `matchMedia`: sem ela a frase fica
+     verdadeira nos dois layouts e não há dois textos para manter em sincronia. */
   const box=document.getElementById('f-msg-box');
-  if(box){ box.disabled=true; box.placeholder='Escolha uma campanha ao lado para começar'; }
-  try{ fAddBot('Oi! Eu sou a <strong>Luma</strong>. Escolha uma campanha aqui do lado que eu monto a arte com você — leva ~1 minutinho.',[]); }catch(e){}
+  if(box){ box.disabled=true; box.placeholder='Escolha uma campanha para começar'; }
+  try{ fAddBot('Oi! Eu sou a <strong>Luma</strong>. Escolha uma campanha que eu monto a arte com você — leva ~1 minutinho.',[]); }catch(e){}
 }
 
 
@@ -281,7 +339,11 @@ function fShowWelcome(){
 function fStartChat(){
   if(!fState.camp){ fShowWelcome(); return; } // sem campanha → boas-vindas, nunca interroga
   document.getElementById('f-messages').innerHTML='';
-  const _b=document.getElementById('f-msg-box'); if(_b){ _b.disabled=false; } // reabilita (welcome desabilitou)
+  /* Reabilita (o welcome desabilitou) — e DEVOLVE o placeholder junto. Sem isto o campo
+     voltava habilitado ainda dizendo "Escolha uma campanha para começar", com a campanha
+     já escolhida: instrução falsa em cima de um campo que aceita digitação. O placeholder
+     por passo é reposto depois pelo `fUpdateInputPlaceholder`. */
+  const _b=document.getElementById('f-msg-box'); if(_b){ _b.disabled=false; _b.placeholder='Digite sua resposta...'; }
   fState.stepIdx=-1;fState.dados={};fState.done=false;fUpdateProg();
   fState.extractedColors={};
   fLpRefresh();
@@ -616,6 +678,14 @@ function fUpdateInputPlaceholder(id){
   const box = document.getElementById('f-msg-box');
   if(!box) return;
   const cfg = fGetFieldType(id);
+  /* TECLADO DO CELULAR POR TIPO DE CAMPO. O `#f-msg-box` é um `type="text"` só — sem
+     `inputmode`, o passo de preço abria o QWERTY para digitar "29,90". O Sheets já resolveu
+     isto e o porquê está lá (`png-generator.js`, `fBulkRenderFolhaCampos`): `type="text"` e
+     NÃO `number`, porque o campo numérico do celular recusa a vírgula em boa parte dos
+     aparelhos; `inputmode="decimal"` traz o teclado de números sem impor formato — quem
+     julga o valor continua sendo o `fValidate`. Aqui é o mesmo campo, o caminho principal.
+     Desconto ("20% off ou R$ 5 off") e código ("BURGER10") precisam de letras: seguem texto. */
+  box.setAttribute('inputmode', cfg.type === 'price' ? 'decimal' : 'text');
   // Exemplo definido pelo designer (no campo) tem prioridade — é o que ele escolheu mostrar aqui.
   const vDef = (typeof dVars!=='undefined' && dVars) ? dVars.find(x=>x.name===id) : null;
   const ex = (vDef && vDef.example!=null && String(vDef.example).trim()!=='') ? String(vDef.example).trim() : '';
@@ -1356,8 +1426,8 @@ function fResetFlow(){
   w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div>
     <div class="bbl">Tem certeza que quer recomeçar? Você vai perder as respostas dadas até aqui.</div>
     <div class="qr-wrap">
-      <div class="qr" onclick="fConfirmReset()">Sim, recomeçar</div>
-      <div class="qr" onclick="fCancelReset()" style="background:var(--gray-light);border-color:var(--gray-mid);color:var(--text-2)">Cancelar</div>
+      <div class="qr" role="button" tabindex="0" onclick="fConfirmReset()">Sim, recomeçar</div>
+      <div class="qr" role="button" tabindex="0" onclick="fCancelReset()" style="background:var(--gray-light);border-color:var(--gray-mid);color:var(--text-2)">Cancelar</div>
     </div>
   </div>`;
   msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;
@@ -1388,9 +1458,9 @@ function fAddBot(html,qrs,canGoBack){
     q=`<div class="qr-wrap">${qrs.map(x=>{
       const isColor = /^#[0-9A-F]{6}$/i.test(x.trim());
       if(isColor) {
-        return `<div class="qr qr-color" data-qr="${gEsc(x)}" onclick="fQR(this.dataset.qr,this)" style="background:${gEsc(x)} !important; color:${fGetContrastColor(x)} !important; border-color:${gEsc(x)} !important; font-family:'Roboto',sans-serif; display:inline-flex; align-items:center; gap:6px;"><span style="width:10px; height:10px; border-radius:50%; background:var(--white); border:1px solid rgba(0,0,0,0.25); display:inline-block;"></span>${gEsc(x)}</div>`;
+        return `<div class="qr qr-color" role="button" tabindex="0" data-qr="${gEsc(x)}" onclick="fQR(this.dataset.qr,this)" style="background:${gEsc(x)} !important; color:${fGetContrastColor(x)} !important; border-color:${gEsc(x)} !important; font-family:'Roboto',sans-serif; display:inline-flex; align-items:center; gap:6px;"><span style="width:10px; height:10px; border-radius:50%; background:var(--white); border:1px solid rgba(0,0,0,0.25); display:inline-block;"></span>${gEsc(x)}</div>`;
       }
-      return `<div class="qr" data-qr="${gEsc(x)}" onclick="fQR(this.dataset.qr,this)">${gEsc(x)}</div>`;
+      return `<div class="qr" role="button" tabindex="0" data-qr="${gEsc(x)}" onclick="fQR(this.dataset.qr,this)">${gEsc(x)}</div>`;
     }).join('')}</div>`;
   }
   // F-07: botão Voltar quando habilitado
@@ -1518,6 +1588,14 @@ function fSend(){
   const b=document.getElementById('f-msg-box');
   const v=b.value.trim();
   if(!v)return;
+  /* ⚠ `stepIdx < 0` é PERGUNTA DE FLUXO, não de campo — "quer continuar o rascunho?" e o
+     pré-início ("usar dados da última arte" / "começar do zero"). Elas se respondem por chip,
+     mas a barra de digitar fica HABILITADA ao lado. Quem digitava ali e mandava caía no
+     `fSaveAdv`, que lê `perguntas[-1].id` e ESTOURA: a bolha do usuário entrava na conversa,
+     o erro morria no console e o chat parava — sem resposta, sem aviso, sem avançar.
+     No celular é o caso provável, não o raro: o teclado já está aberto e os chips são o alvo
+     menor. A guarda aqui (e não no `fSaveAdv`) evita a bolha órfã — `fAddUser` vem depois. */
+  if(fState.stepIdx < 0){ fShowFieldError('Escolha uma das opções acima para começar.'); return; }
   // Aplica máscara e valida antes de salvar
   const id = fState.camp.perguntas[fState.stepIdx]?.id;
   const masked = id ? fApplyMask(id, v) : v;

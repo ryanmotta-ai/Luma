@@ -1269,7 +1269,11 @@ body:not(.theme-light) .f-bulk-tool-action,body:not(.theme-light) .f-bulk-table 
      texto continua sendo um item flex, e o gap empurrava o ícone ~3,5px para a esquerda do
      centro (o "?" fora do meio, visto no celular). Sem gap e com o mesmo raio do X ao lado,
      os dois viram o mesmo botão redondo. */
-  .f-bulk-faq-btn{width:36px;height:36px;padding:0;gap:0;font-size:0;border-radius:50%}
+  /* 44px em vez de 36: os dois são os ÚNICOS controles do cabeçalho, e um deles fecha o
+     Sheets (perde-se o lote em andamento se for toque errado). Régua do `ux-principles.md`.
+     Cabem: medido a 320px, o cabeçalho tem título + 2 botões e sobrava folga. */
+  .f-bulk-faq-btn{width:var(--tap-min);height:var(--tap-min);padding:0;gap:0;font-size:0;border-radius:50%}
+  .f-bulk-close-btn{width:var(--tap-min);height:var(--tap-min)}
   .f-bulk-faq-btn svg{width:16px;height:16px}
   .f-bulk-workspace{grid-template-rows:minmax(280px,44%) minmax(0,56%)}
   .f-bulk-setup-section{padding:12px}
@@ -1486,6 +1490,14 @@ body:not(.theme-light) #f-bulk-mic-btn.is-processing{background:color-mix(in srg
   .caption-copy-btn{justify-content:center;min-height:var(--tap-min)}
   .caption-alt-btn{justify-content:center;margin-left:0;min-height:var(--tap-min)}
   .art-bulk-btn{min-height:var(--tap-min)}
+  /* ── A ENTREGA FINAL PARA DE ROLAR PARA O LADO ──
+     `.art-wrap` (bloco ~237) declara `min-width:280px` — piso de desktop, onde a coluna é
+     larga. Medido a 320px: a bolha do bot tem 263px de conteúdo, o cartão se recusa a
+     encolher e `#f-messages` fica com 334px em 314px de caixa, ou seja, barra de rolagem
+     horizontal no fim do fluxo. O que sobrava fora da tela era "Refazer", a borda do
+     "Gerar em lote" e parte do "Baixar PNG" — a ação que justifica o produto.
+     No celular quem manda na largura é a bolha, não o piso. */
+  .art-wrap{min-width:0}
 }
 
 /* ── Origem da legenda: IA x motor local ──
@@ -1522,7 +1534,7 @@ body:not(.theme-light) .caption-src{background:var(--d-surf2);border-color:var(-
    tudo abaixo já podia encolher e mesmo assim herdava a trilha inflada. */
 .f-bulk-modal-box{grid-template-columns:minmax(0,1fr)}
 .f-bulk-sheet-block{grid-column:1/-1;width:100%;display:flex;flex-direction:column;gap:12px}
-.f-bulk-table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;max-height:50vh;
+.f-bulk-table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;max-height:50dvh;
   border:1px solid var(--gray-mid);border-radius:var(--r);background:var(--white)}
 /* A sombra à direita é a única pista de que existe mais coluna adiante — sem hover, sem
    scrollbar visível no toque, a pessoa não tem como adivinhar. Some sozinha ao chegar no fim. */

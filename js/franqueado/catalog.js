@@ -345,7 +345,7 @@ function fRenderHist(){
         <span class="hist-thumb-fmt">${gEsc(h.fmtName||'Material')}</span>
       </div>
       <div class="hist-info">
-        <div class="hist-card-top">${statusBadge}${vencida?'<span class="hist-badge-st vencida">fora da validade</span>':''}<time>${dateStr}</time></div>
+        <div class="hist-card-top">${statusBadge}${h._demo?'<span class="hist-badge-st demo">demonstração</span>':''}${vencida?'<span class="hist-badge-st vencida">fora da validade</span>':''}<time>${dateStr}</time></div>
         <div class="hist-name">${gEsc(artName)}</div>
         ${vencida
           ? `<div class="hist-meta hist-meta-vencida">Material saiu do ar${quando?' em '+gEsc(quando):''} — não dá pra gerar de novo</div>`
@@ -908,11 +908,19 @@ function fCampEl(c,isRec,ghost,searching){
   const thumbStyle = cover
     ? `background-color:${gSafeColor(c.color)};background-image:url('${coverSafe}');background-size:cover;background-position:center`
     : `background:${gSafeColor(c.color)};color:${thumbTinta}`;
-  // Conta só materiais VÁLIDOS (fIsMaterialValid) — expirados saíam da tela de dentro
-  // mas continuavam no contador do card ("4 materiais" com 3 vencidos = vitrine mentindo).
-  const mats = (typeof fGetMaterialsForCamp==='function')
-    ? fGetMaterialsForCamp(c.id).filter(m=>(typeof fIsMaterialValid!=='function')||fIsMaterialValid(m)) : [];
-  const countLabel = ghost ? 'Materiais em breve' : (mats.length ? `${mats.length} ${mats.length!==1?'materiais':'material'}` : 'Sem materiais');
+  // Conta só material REAL, publicado e válido (fRealMaterialsForCamp). Duas mentiras já
+  // moraram aqui: material vencido no contador ("4 materiais" com 3 fora do ar) e o
+  // material-demo, que fazia campanha sem nenhum template parecer abastecida.
+  const mats = (typeof fRealMaterialsForCamp==='function') ? fRealMaterialsForCamp(c.id) : [];
+  const _demoAqui = !ghost && typeof fDemoModeOn==='function' && fDemoModeOn()
+    && typeof fGetMaterialsForCamp==='function' && fGetMaterialsForCamp(c.id).some(m=>m&&m._demo);
+  const countLabel = ghost ? 'Materiais em breve'
+    : (mats.length ? `${mats.length} ${mats.length!==1?'materiais':'material'}`
+      : (_demoAqui ? 'Só demonstração' : 'Sem materiais'));
+  // Urgência REAL: dias até a validade do último material da campanha, recontados a cada
+  // render. O `expiraDias` do config é número estático — dizia "3d" no primeiro e no
+  // centésimo dia. Sem data real, o selo simplesmente não aparece.
+  const _diasReais = (!ghost && typeof fCampDiasRestantes==='function') ? fCampDiasRestantes(c.id) : null;
   const _icoClock='<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-1px;margin-right:3px"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
   // F: favorito (fixar no topo) + badge "novo" (material publicado depois da última visita).
   const _isFav = !ghost && typeof fIsFav==='function' && fIsFav(c.id);
@@ -933,7 +941,7 @@ function fCampEl(c,isRec,ghost,searching){
     <div class="camp-thumb ${cover?'has-cover':''}" style="${thumbStyle}">
       ${c.badge?`<div class="camp-badge">${gEsc(c.badge)}</div>`:''}
       ${_hasNew?`<div class="camp-new">novo</div>`:''}
-      ${!ghost&&c.expiraDias<=3?`<div class="camp-urgency">${_icoClock}${c.expiraDias}d</div>`:''}
+      ${_diasReais!=null&&_diasReais<=3?`<div class="camp-urgency">${_icoClock}${_diasReais}d</div>`:''}
       ${cover?'':`<div class="camp-thumb-prod">${gEsc(previewProd)}</div>
       ${previewDe?`<div class="camp-thumb-de">${gEsc(previewDe)}</div>`:''}
       ${previewPor?`<div class="camp-thumb-por">${gEsc(previewPor)}</div>`:''}
@@ -1256,9 +1264,12 @@ function fHomeOpenHist(){
 function _fHomeHeroEl(rec){
   const cover=fCampCover(rec);   // capa da pasta, nunca a arte de dentro
   // Mesma régua do card: só materiais válidos (expirado não conta no hero)
-  const mats=(typeof fGetMaterialsForCamp==='function')
-    ?fGetMaterialsForCamp(rec.id).filter(m=>(typeof fIsMaterialValid!=='function')||fIsMaterialValid(m)):[];
+  const mats=(typeof fRealMaterialsForCamp==='function')?fRealMaterialsForCamp(rec.id):[];
   const matLabel=mats.length?`${mats.length} ${mats.length!==1?'materiais':'material'}`:'Materiais em breve';
+  // "disponível por X dias" saía do expiraDias do config — um número congelado. Agora sai da
+  // validade real dos materiais; sem data real o hero não promete prazo nenhum.
+  const _heroDias=(typeof fCampDiasRestantes==='function')?fCampDiasRestantes(rec.id):null;
+  const _heroPrazo=_heroDias!=null?` · ${_heroDias===1?'último dia disponível':'disponível por mais '+_heroDias+' dias'}`:'';
   const coverSafe=gEsc(cover).replace(/'/g,'%27');   // %27: neutraliza o ' que fecharia o url('…')
   const colorSafe=gEsc(rec.color||'var(--dm-orange)');
   const coverStyle=cover
@@ -1286,7 +1297,7 @@ function _fHomeHeroEl(rec){
     <div class="fh-hero-body">
       <span class="fh-hero-eyebrow">${_star} EM DESTAQUE NESTA SEMANA</span>
       <span class="fh-hero-name">${gEsc(rec.name)}</span>
-      <span class="fh-hero-meta">${matLabel}${rec.expiraDias?` · disponível por ${rec.expiraDias} dias`:''}</span>
+      <span class="fh-hero-meta">${matLabel}${_heroPrazo}</span>
       ${fmtNames.length?`<span class="fh-hero-formats">${fmtNames.slice(0,3).map(fmt=>`<span>${gEsc(fmt)}</span>`).join('')}</span>`:''}
       <span class="fh-hero-cta">Criar arte agora <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span>
     </div>
@@ -1296,7 +1307,9 @@ function _fHomeHeroEl(rec){
 
 // Campanha tem material publicado e válido? (vitrine honesta: prontas vs em breve)
 function _fCampHasMats(c){
-  try{ return fGetMaterialsForCamp(c.id).filter(fIsMaterialValid).length>0; }catch(e){ return false; }
+  // "Pronta para usar" = tem material REAL publicado e dentro da validade. Material-demo
+  // reprova em fIsMaterialReal — campanha sem template não entra mais nesta prateleira.
+  try{ return fRealMaterialsForCamp(c.id).length>0; }catch(e){ return false; }
 }
 
 // Filtro de status da vitrine (independente do texto buscado). Reseta ao recarregar —

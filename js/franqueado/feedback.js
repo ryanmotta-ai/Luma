@@ -99,7 +99,7 @@ function _fFeedbackRender(id){
   const host = document.getElementById(id);
   const request = view.type === 'content_request';
   if (_fFeedbackReceipt(view.uid, view.action)){
-    host.innerHTML = '<p class="f-feedback-confirmed" role="status">' + (request ? 'Sugestão enviada à equipe. Obrigado!' : 'Feedback enviado. Obrigado por ajudar a melhorar os materiais!') + '</p>';
+    host.innerHTML = '<p class="f-feedback-confirmed" role="status"><span class="f-feedback-confirmed-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span><span>' + (request ? 'Sugestão enviada à equipe. Obrigado!' : 'Feedback enviado. Obrigado por ajudar a melhorar os materiais!') + '</span></p>';
     return;
   }
   const pending = _fFeedbackPending(view.uid, view.action);
@@ -107,9 +107,16 @@ function _fFeedbackRender(id){
   const detail = request || view.negative || (pending && pending.rating === 'negative');
   const values = pending || view;
   const disabled = pending ? ' disabled' : '';
-  host.innerHTML = '<h3 class="f-feedback-title">' + (request ? 'Que tipo de conteúdo você estava procurando?' : 'Tudo certo com essa campanha?') + '</h3>' +
-    (request ? '<p class="f-feedback-help">Conte à equipe o que faltou no catálogo.</p>' : '') +
-    (!detail ? '<div class="f-feedback-actions"><button type="button" data-feedback="positive"' + disabled + '>Sim</button><button type="button" data-feedback="negative"' + disabled + '>Tive dificuldade</button></div>' : '') +
+  const mark = request
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/><path d="m9 11 2 2 4-4"/></svg>';
+  const yesIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>';
+  const issueIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/><path d="M8 9h8M8 13h5"/></svg>';
+  host.innerHTML = '<div class="f-feedback-head"><span class="f-feedback-mark">' + mark + '</span><div class="f-feedback-head-copy">' +
+      '<span class="f-feedback-eyebrow">' + (request ? 'Sugestão à equipe' : 'Feedback rápido') + '</span>' +
+      '<h3 class="f-feedback-title">' + (request ? 'Que tipo de conteúdo você estava procurando?' : 'Tudo certo com essa campanha?') + '</h3>' +
+      '<p class="f-feedback-help">' + (request ? 'Conte à equipe o que faltou no catálogo.' : 'Sua resposta ajuda a melhorar os próximos materiais.') + '</p></div></div>' +
+    (!detail ? '<div class="f-feedback-actions f-feedback-choices"><button type="button" class="f-feedback-choice is-positive" data-feedback="positive"' + disabled + '>' + yesIcon + '<span>Sim, tudo certo</span></button><button type="button" class="f-feedback-choice" data-feedback="negative"' + disabled + '>' + issueIcon + '<span>Tive dificuldade</span></button></div>' : '') +
     (detail ? '<form class="f-feedback-form"><fieldset' + disabled + '>' +
       (request ? '<label for="' + id + '-query">Conteúdo ou formato</label><input id="' + id + '-query" name="query" maxlength="240" required value="' + gEsc(values.query || '') + '" placeholder="Ex.: combo de hambúrguer para Story">' :
         '<fieldset class="f-feedback-reasons"><legend>O que aconteceu?</legend>' + Object.keys(F_FEEDBACK_REASONS).map((key,i) => '<label><input '+(i===0?'id="'+id+'-reason" ':'')+'type="radio" name="reason" required value="' + key + '"' + (values.reason === key ? ' checked' : '') + '>' + F_FEEDBACK_REASONS[key] + '</label>').join('') + '</fieldset>') +
@@ -174,7 +181,7 @@ function _fFeedbackCreate(host, view){
   }
   const section = document.createElement('section');
   section.id = 'f-feedback-' + gUuid();
-  section.className = 'f-feedback';
+  section.className = 'f-feedback ' + (view.type === 'content_request' ? 'is-request' : 'is-art-feedback');
   section.setAttribute('aria-label', view.type === 'content_request' ? 'Sugestão de conteúdo' : 'Avaliar material');
   host.appendChild(section);
   _fFeedbackViews.set(section.id, view);
