@@ -29,6 +29,8 @@
      qualquer guarda: sem este nó o script morre na linha 56 e metade da prévia nunca inicializa.
      (Achado montando esta bancada — no app o nó existe no index.html.) -->
 <div id="f-preview-modal"><div id="pv-title"></div><div id="pv-note"></div><div id="pv-multi"></div></div>
+<div id="g-toast-container"></div>
+<div id="f-head-actions"><button id="f-undo-btn" hidden onclick="fDesfazer()"></button></div>
 <div id="fixture"></div>
 
 <script>
@@ -58,6 +60,7 @@ function gSupabase(){return sbFake;} window.sb=sbFake;
 <script src="../js/franqueado/chat-input.js"></script>
 <script src="../js/franqueado/live-preview.js"></script>
 <script src="../js/franqueado/png-generator.js"></script>
+<script src="../js/franqueado/feedback.js"></script>
 <script>
 (async()=>{
 const failures=[];let total=0;
@@ -368,6 +371,209 @@ await test('Reabrir arte restaura os valores e não vaza nome de variável na pe
   assert(fState.dados['__fit__foto_produto'],'o enquadramento salvo da foto se perdeu ao reabrir');
 });
 
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   CONTROLE E CONFIANÇA (09/2026) — "me arrependi, e agora?"
+   ------------------------------------------------------------------------------------------
+   Nenhuma ação destrutiva pode ser um beco. Estes casos travam as saídas.
+   ══════════════════════════════════════════════════════════════════════════════════════════ */
+
+// O gConfirm é um diálogo real com Promise. Na bancada ele é dublê: responde o que o caso
+// mandar e ANOTA que foi chamado — é isso que prova "todo CTA visível confirma".
+let _perguntou=0, _respostaConfirm=true, _confirmOpts=null;
+const _gConfirmReal=window.gConfirm;
+window.gConfirm=(msg,opts)=>{ _perguntou++; _confirmOpts={msg,opts}; return Promise.resolve(_respostaConfirm); };
+
+await test('Refazer pelo card da arte PERGUNTA antes de destruir', async()=>{
+  reset();
+  fState.dados={produto:'Pizza Grande',precoPor:'R$ 29,90'};
+  fState.done=true;
+  _perguntou=0; _respostaConfirm=false;
+  await fRefazer();
+  assert(_perguntou===1,'o CTA do card não passou pela confirmação');
+  assert(fState.dados.produto==='Pizza Grande','cancelar na confirmação destruiu a arte assim mesmo');
+});
+
+await test('Recomeçar pelo cabeçalho passa pela MESMA porta', async()=>{
+  reset();
+  fState.dados={produto:'Pizza Grande'};
+  _perguntou=0; _respostaConfirm=false;
+  await fResetFlow();
+  assert(_perguntou===1,'o CTA do cabeçalho não pediu confirmação — era o caminho que não avisava');
+  assert(fState.dados.produto==='Pizza Grande','cancelou e reiniciou mesmo assim');
+});
+
+await test('A confirmação explica a consequência e oferece o desfazer', async()=>{
+  reset();
+  fState.dados={produto:'Pizza Grande'};
+  _perguntou=0; _respostaConfirm=false;
+  await fAskRestartArt();
+  const t=String(_confirmOpts&&_confirmOpts.opts&&_confirmOpts.opts.title||'');
+  const m=String(_confirmOpts&&_confirmOpts.msg||'');
+  assert(/refazer/i.test(t),'o título não diz o que vai acontecer: "'+t+'"');
+  assert(/reiniciar|respostas/i.test(m),'a mensagem não explica a consequência: "'+m+'"');
+  assert(/desfazer/i.test(m),'a mensagem não avisa que dá para desfazer: "'+m+'"');
+});
+
+await test('Arte sem nenhuma resposta reinicia direto — não há o que perder', async()=>{
+  reset();
+  fState.dados={};
+  _perguntou=0; _respostaConfirm=true;
+  await fAskRestartArt();
+  assert(_perguntou===0,'perguntou sobre destruir um formulário vazio');
+});
+
+await test('Refazer pode ser desfeito logo depois, e volta a arte INTEIRA', async()=>{
+  reset();
+  fState.dados={produto:'Pizza Grande',precoDe:'R$ 49,90',precoPor:'R$ 29,90',
+                foto_produto:'data:image/png;base64,x','__fit__foto_produto':{scale:1.3,offX:.1,offY:0}};
+  fState.stepIdx=3; fState.done=true;
+  document.getElementById('f-messages').innerHTML='<div class="msg bot">bolha de teste</div>';
+  const fmtAntes=fState.fmt, matAntes=fState.material;
+  _respostaConfirm=true;
+  await fAskRestartArt();
+  await espera(60);
+  assert(Object.keys(fState.dados).length===0,'o refazer não reiniciou nada');
+  assert(fUndoDisponivel(),'não sobrou nenhuma saída depois de destruir a arte');
+  fDesfazer();
+  assert(fState.dados.produto==='Pizza Grande','desfazer não trouxe as respostas de volta');
+  assert(fState.dados.precoPor==='R$ 29,90','desfazer trouxe só parte das respostas');
+  assert(fState.dados.foto_produto==='data:image/png;base64,x','desfazer não trouxe a foto');
+  assert(fState.dados['__fit__foto_produto'].scale===1.3,'desfazer perdeu o enquadramento da foto');
+  assert(fState.done===true,'desfazer não restaurou o estado de conclusão');
+  assert(fState.stepIdx===3,'desfazer não restaurou o passo');
+  assert(fState.fmt===fmtAntes && fState.material===matAntes,'desfazer trocou material ou formato');
+  assert(/bolha de teste/.test(document.getElementById('f-messages').innerHTML),
+    'a conversa não voltou — o chat ficaria vazio com a prévia cheia, as duas metades divergindo');
+});
+
+await test('O snapshot é uma cópia: mexer depois não contamina o desfazer', async()=>{
+  reset();
+  fState.dados={produto:'Original','__fit__foto_produto':{scale:1,offX:0,offY:0}};
+  _respostaConfirm=true;
+  await fAskRestartArt();
+  await espera(60);
+  fState.dados.produto='Escrito depois do reset';
+  fState.dados['__fit__foto_produto']={scale:9,offX:9,offY:9};
+  fDesfazer();
+  assert(fState.dados.produto==='Original','o snapshot apontava para o objeto vivo');
+  assert(fState.dados['__fit__foto_produto'].scale===1,'o enquadramento do snapshot foi mutado por referência');
+});
+
+await test('Desfazer consome o slot: não dá para desfazer duas vezes o mesmo reset', async()=>{
+  reset();
+  fState.dados={produto:'Pizza Grande'};
+  _respostaConfirm=true;
+  await fAskRestartArt();
+  await espera(60);
+  assert(fDesfazer()===true,'o primeiro desfazer falhou');
+  assert(fUndoDisponivel()===false,'o slot continuou cheio depois de consumido');
+  assert(fDesfazer()===false,'desfazer duas vezes seguidas deveria não ter o que fazer');
+});
+
+await test('Aplicar enquadramento deixa saída; cancelar não registra desfazer', async()=>{
+  reset();
+  fState.dados={foto_produto:'data:image/png;base64,x'};
+  fState.dados['__fit__foto_produto']={scale:1.2,offX:0,offY:0};
+  const camada=fState.material.layers.find(l=>l.id==='foto');
+  // APLICAR com mudança → vira desfazível
+  fLpStartFraming(camada,'foto_produto');
+  fState.dados['__fit__foto_produto']={scale:2.4,offX:.3,offY:0};
+  fLpStopFraming();
+  assert(fUndoDisponivel(),'aplicar um ajuste não deixou como voltar atrás');
+  fDesfazer();
+  const f=fState.dados['__fit__foto_produto'];
+  assert(f.scale===1.2 && f.offX===0,'desfazer o ajuste não devolveu o enquadramento anterior: '+JSON.stringify(f));
+  assert(fState.dados.foto_produto==='data:image/png;base64,x','desfazer o ajuste apagou a foto');
+  // CANCELAR já restaura na hora → não deve deixar um undo pendurado
+  fLpStartFraming(camada,'foto_produto');
+  fState.dados['__fit__foto_produto']={scale:3,offX:.4,offY:0};
+  fLpCancelFraming();
+  assert(!fUndoDisponivel(),'cancelar registrou um desfazer para uma mudança que já foi descartada');
+});
+
+await test('Editar pela prévia também é desfazível', async()=>{
+  reset();
+  fState.dados={produto:'Pizza Grande'};
+  _fLpCommit('produto','Pizza Calabresa',{antes:'Pizza Grande'});
+  assert(fState.dados.produto==='Pizza Calabresa','a edição não gravou');
+  assert(fUndoDisponivel(),'editar pela arte não deixou saída');
+  fDesfazer();
+  assert(fState.dados.produto==='Pizza Grande','desfazer não devolveu o valor anterior');
+});
+
+await test('Editar sem mudar valor não vira uma ação desfazível', async()=>{
+  reset();
+  fState.dados={produto:'Pizza Grande'};
+  _fLpCommit('produto','Pizza Grande',{antes:'Pizza Grande'});
+  assert(!fUndoDisponivel(),'abrir e fechar o editor sem trocar nada registrou um desfazer vazio');
+});
+
+/* ── CONTEXTO POR FORMATO ────────────────────────────────────────────────────────────────── */
+await test('O ambiente de publicação sai da geometria, e some quando não há equivalente', async()=>{
+  reset();
+  const comTamanho=(w,h)=>{ fState.material={...material(),w,h}; return fPostedContextForFormat(null); };
+  assert(comTamanho(1080,1920)==='story','Story 9:16 devia abrir em Stories');
+  assert(comTamanho(1080,1350)==='feed','Feed 4:5 devia abrir no Feed');
+  assert(comTamanho(1080,1080)==='feed','quadrado devia abrir no Feed');
+  assert(comTamanho(1200,628)==='feed','post wide devia abrir no Feed (o feed aceita 1,91:1)');
+  assert(comTamanho(1200,200)===null,'uma faixa 6:1 não tem ambiente honesto — a ação tem de sumir');
+  // Material sem w/h cai no preset do FORMATO (é como fMaterialSize trabalha no app inteiro) —
+  // então continua havendo geometria. Sem material E sem formato é que não há o que decidir.
+  fState.material={...material(),w:0,h:0}; fState.fmt={id:'story'};
+  assert(fPostedContextForFormat(null)==='story','material sem w/h devia cair no preset do formato');
+  fState.material=null; fState.fmt={id:'inexistente'};
+  assert(fPostedContextForFormat(null)===null,'sem geometria e sem preset não há como decidir; some');
+});
+
+await test('Story nunca é oferecido dentro do Feed, nem o contrário', async()=>{
+  reset();
+  const ids=(p)=>_fPostedContextsFor(p).map(c=>c.id);
+  assert(ids('story').indexOf('feed')<0,'uma arte de Story podia ser vista como publicação de Feed');
+  assert(ids('feed').indexOf('story')<0,'uma arte de Feed podia ser vista como Stories');
+  assert(ids('story').indexOf('story')===0,'o ambiente principal do Story não veio primeiro');
+  assert(ids(null).length===0,'sem ambiente principal, o seletor devia ficar vazio');
+});
+
+/* ── FEEDBACK: só depois do download, e com carência ─────────────────────────────────────── */
+await test('Feedback respeita a carência de 7 dias e não repete campanha', async()=>{
+  try{ localStorage.removeItem('luma_feedback_convite_v1'); }catch(e){}
+  _fFeedbackConviteNaSessao=false;
+  const agora=Date.now(), dia=86400000;
+  assert(fFeedbackPodeConvidar('camp-1',agora),'o primeiro convite devia ser permitido');
+  _fFeedbackRegistraConvite('camp-1');
+  assert(!fFeedbackPodeConvidar('camp-2',agora),'convidou duas vezes na mesma sessão');
+  _fFeedbackConviteNaSessao=false;                    // simula outra sessão
+  assert(!fFeedbackPodeConvidar('camp-2',agora+dia),'convidou de novo 1 dia depois — a carência é de 7');
+  assert(!fFeedbackPodeConvidar('camp-1',agora+dia*8),'repetiu a MESMA campanha dentro da janela dela');
+  assert(fFeedbackPodeConvidar('camp-2',agora+dia*8),'depois de 8 dias, outra campanha devia poder');
+});
+
+await test('A entrega da arte não carrega mais o feedback grudado', async()=>{
+  reset();
+  // O card final é montado pelo fGerarArte; aqui basta provar que o mount de geração sumiu.
+  const fonte=String(fGerarArte);
+  assert(!/fFeedbackMount/.test(fonte),'a geração da arte ainda monta o cartão de feedback junto');
+  assert(/fFeedbackAfterDownload/.test(String(fBaixar)),'o feedback deixou de ser oferecido após o download');
+});
+
+/* ── A ENTREGA ENXUTA ────────────────────────────────────────────────────────────────────── */
+await test('O card final prioriza Baixar PNG e não oferece rede social', async()=>{
+  const fonte=String(fGerarArte);
+  assert(/art-btn pri art-download/.test(fonte),'Baixar PNG não é a ação primária do card');
+  /* Procura a ENTRADA (o onclick), não o nome: o comentário do próprio código cita as
+     funções para dizer que os motores continuam vivos, e um /fPostarInstagram/ solto casava
+     com o comentário em vez do botão. Achado rodando o caso. */
+  assert(!/onclick="fPostarInstagram/.test(fonte),'o card ainda oferece Postar no Instagram');
+  assert(!/onclick="fEnviarWhatsApp/.test(fonte),'o card ainda oferece Enviar no WhatsApp');
+  assert(!/class="art-bulk-btn"/.test(fonte),'o card ainda carrega a faixa de Gerar em lote');
+  assert(/fRefazer/.test(fonte),'Refazer sumiu do card — ele é a ação secundária');
+  // Os motores continuam vivos: o que saiu foi a entrada da UI.
+  assert(typeof fPostarInstagram==='function' && typeof fEnviarWhatsApp==='function',
+    'os motores de publicação foram removidos junto — só a entrada devia sair');
+});
+
+window.gConfirm=_gConfirmReal;
 window.__lumaTest={total,passed:total-failures.length,failures};
 })().catch(e=>window.__lumaTest={total:1,passed:0,failures:[{name:'bancada',error:e.stack}]});
 </script></body></html>

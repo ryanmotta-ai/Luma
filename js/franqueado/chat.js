@@ -891,7 +891,8 @@ function fEditCampo(idx){
     try { fUpdateCharCount(); } catch(e){}
   }
 }
-function fEditarTudo(){const m=document.getElementById('confirm-msg');if(m)m.remove();fState.stepIdx=-1;fState.dados={};fState.editIdx=null;fStartChat();}
+// fEditarTudo saiu: era um TERCEIRO reset, sem confirmação e sem nenhum chamador desde que
+// o card de revisão foi removido. Restart agora tem uma porta só (fAskRestartArt).
 function fConfirmarGerar(){
   const wrap = document.querySelector('.lp-canvas-wrap');
   if(wrap){
@@ -1419,21 +1420,24 @@ function fGerarArte(){
         </div>
         ${captionHtml}
         <section class="art-actions">
-          <div class="art-actions-label">Próximas ações</div>
+          <!-- ⛔ A ENTREGA DO V1 TERMINA EM "BAIXAR". Aqui havia quatro CTAs disputando: Postar
+               no Instagram e Enviar no WhatsApp em destaque (os dois PRIMÁRIOS, laranja),
+               Baixar PNG rebaixado a secundário e ainda uma faixa de "Gerar em lote" logo
+               abaixo. O teste foi direto: a tela final está cheia — e a ação que a pessoa
+               veio fazer estava em terceiro lugar visual.
+               Agora: Baixar PNG é o primário e Refazer é o link secundário. Só isso.
+               ATENÇÃO: este comentário vive DENTRO de um template literal — nada de crase
+               aqui, ela fecha a string (o node --check pegou na primeira tentativa).
+               OS MOTORES CONTINUAM: fPostarInstagram, fEnviarWhatsApp, fBaixarPDF e
+               fBulkOpenFromArt estão intactos e continuam sendo chamados de outros pontos
+               (o lote tem entrada no cabeçalho do chat). O que saiu foi a ENTRADA daqui. -->
           <div class="art-actions-pri">
-            <button type="button" class="art-btn pri art-ig" onclick="fPostarInstagram(this,'${previewCanvasId}')" title="Arte + legenda prontas pra publicar no Instagram"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1.1" fill="currentColor" stroke="none"/></svg>Postar no Instagram</button>
-            <button type="button" class="art-btn art-wa" onclick="fEnviarWhatsApp(this,'${previewCanvasId}')" title="Mandar a arte pro parceiro ou pro seu status"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-12.3 7.4L3 21l2.2-5.5A8.4 8.4 0 1 1 21 11.5z"/><path d="M9.4 9.6c0-.4.3-.7.7-.7h.5c.3 0 .5.2.6.4l.5 1.2c.1.3 0 .5-.2.7l-.4.4c.5.9 1.2 1.6 2.1 2.1l.4-.4c.2-.2.5-.3.7-.2l1.2.5c.3.1.4.4.4.6v.5c0 .5-.4.8-.9.8-3 0-5.6-2.5-5.6-5.6z" fill="currentColor" stroke="none"/></svg>Enviar no WhatsApp</button>
+            <button type="button" class="art-btn pri art-download" onclick="fBaixar(this,'${previewCanvasId}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="4" x2="12" y2="16"/><polyline points="18 11 12 17 6 11"/><path d="M5 20h14"/></svg>Baixar PNG</button>
           </div>
           <div class="art-actions-sec">
-            <button type="button" class="art-btn art-download" onclick="fBaixar(this,'${previewCanvasId}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="4" x2="12" y2="16"/><polyline points="18 11 12 17 6 11"/><path d="M5 20h14"/></svg>Baixar PNG</button>
-            <button type="button" class="art-redo-link" onclick="fRefazer()" title="Voltar ao chat e ajustar as respostas"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Refazer</button>
+            <button type="button" class="art-redo-link" onclick="fRefazer()" title="Reiniciar as respostas desta arte"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Refazer</button>
           </div>
         </section>
-        <button type="button" class="art-bulk-btn" onclick="fBulkOpenFromArt()" title="Gerar dezenas de variações desta arte em lote">
-          <span class="art-bulk-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
-          <span class="art-bulk-txt"><strong>Gerar em lote</strong><em>Dezenas de variações desta arte de uma vez</em></span>
-          <svg class="art-bulk-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
-        </button>
       </div>
     </div>`;
     msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;
@@ -1459,7 +1463,10 @@ function fGerarArte(){
       } catch(e){ console.warn('Erro ao renderizar preview:', e); }
     }
     fLpRefresh();
-    if(typeof fFeedbackMount==='function') fFeedbackMount(_fArtSnapshots[previewCanvasId],w.querySelector('.art-wrap'),previewCanvasId,'generation');
+    /* ⛔ O FEEDBACK SAIU DA ENTREGA. Aqui ele era montado dentro do `.art-wrap` no momento da
+       GERAÇÃO — grudado na arte, em toda arte, antes mesmo de a pessoa baixar. Virou convite
+       pós-download com carência (`fFeedbackAfterDownload`, feedback.js). A feature é a mesma;
+       o que mudou é quando e onde ela pede. */
     setTimeout(()=>fAddBot('Arte salva em <strong>Minhas artes</strong>! Clique em outro formato para gerar variações.',[]),500);
   },800);
 }
@@ -1586,7 +1593,180 @@ async function fBaixar(btn, snapId){
     gToast('Não consegui gerar o arquivo. Tente enviar a foto de novo pelo botão de upload, ou escolha outra imagem.','error','ajuda-upload');
   }finally{ fState.material=prevMat; restore(); }
 }
-function fRefazer(){fState.stepIdx=-1;fState.dados={};fState.done=false;fClearImgCache();_fArtSnapshots={};_fArtCaptions={};const msgs=document.getElementById('f-messages');if(msgs)msgs.innerHTML='';fUpdateProg();fAddBot(`Vamos refazer a arte da <strong>${gEsc(fState.camp.name)}</strong>.`,[]);clearTimeout(fNextTimeout);fNextTimeout=setTimeout(()=>fNextStep(),500);}
+/* ══ CONTROLE E CONFIANÇA — o desfazer de UMA ação do franqueado ═══════════════════════════
+   Achado do teste: a pessoa clicou em "Refazer minha arte", se arrependeu e não achou volta.
+
+   ⛔ ISTO NÃO É UM HISTÓRICO, e não tem parentesco com o undo do Estúdio
+   (`js/designer/undo-redo.js`, `dUndo`/`dRedo`, que empilha estados de camada). Aqui é UM
+   SLOT: a última ação desfazível do franqueado, com o estado necessário para voltar e um
+   rótulo para a UI. Slot novo a cada ação; sem pilha, sem redo, sem memória entre sessões.
+   Foi de propósito — pilha aqui significaria decidir o que acontece quando a pessoa desfaz
+   três passos e digita, e o V1 não precisa dessa pergunta.
+
+   Quem registra chama `_fUndoRegistra(rotulo, restaurar)`. Quem oferece são os dois lugares
+   onde a ação acontece: o toast (`gToast` com ação) e o botão do cabeçalho do chat. O atalho
+   Ctrl/Cmd+Z entra pelo mesmo funil.  */
+let _fUndoSlot = null;   // {rotulo, restaurar, ts}
+
+function _fUndoRegistra(rotulo, restaurar){
+  if(typeof restaurar !== 'function') return;
+  _fUndoSlot = { rotulo: String(rotulo||'ação'), restaurar, ts: Date.now() };
+  _fUndoSyncBotao();
+}
+function _fUndoLimpa(){ _fUndoSlot = null; _fUndoSyncBotao(); }
+function fUndoDisponivel(){ return !!_fUndoSlot; }
+
+/* O botão do cabeçalho é a metade DESCOBRÍVEL do desfazer: o toast passa, ele fica.
+   Só existe quando há o que desfazer — botão permanentemente desabilitado ensina a ignorar. */
+function _fUndoSyncBotao(){
+  const btn = document.getElementById('f-undo-btn');
+  if(!btn) return;
+  const tem = !!_fUndoSlot;
+  btn.hidden = !tem;
+  if(tem){
+    const t = 'Desfazer: ' + _fUndoSlot.rotulo;
+    btn.title = t;
+    btn.setAttribute('aria-label', t);
+  }
+}
+function fDesfazer(){
+  const slot = _fUndoSlot;
+  if(!slot){ if(typeof gToast==='function') gToast('Não há nada para desfazer agora.'); return false; }
+  _fUndoSlot = null;                 // consome ANTES de restaurar: restaurar repinta e pode registrar de novo
+  _fUndoSyncBotao();
+  try { slot.restaurar(); }
+  catch(e){ console.warn('[Luma] desfazer falhou:', e); if(typeof gToast==='function') gToast('Não consegui desfazer.'); return false; }
+  if(typeof gToast==='function') gToast(slot.rotulo + ' — desfeito.');
+  return true;
+}
+
+/* Ctrl/Cmd+Z SÓ do lado do franqueado e só quando não se está digitando: no Estúdio a mesma
+   tecla é do `dUndo`, e dentro de um campo ela é o desfazer do NAVEGADOR (que a pessoa espera
+   ao corrigir uma palavra). Sem essas duas guardas o atalho roubaria os dois. */
+document.addEventListener('keydown', (e)=>{
+  if(!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey) return;
+  if(String(e.key).toLowerCase() !== 'z') return;
+  if(!document.body.classList.contains('mode-franqueado')) return;
+  const alvo = e.target;
+  if(alvo && (alvo.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(alvo.tagName||''))) return;
+  if(!_fUndoSlot) return;            // nada a desfazer → deixa o atalho passar
+  e.preventDefault();
+  fDesfazer();
+});
+
+/* ══ REFAZER A ARTE — o que ele faz hoje, medido antes de mexer ════════════════════════════
+   Levantamento pedido, feito nos três caminhos que existiam:
+     · `fRefazer()`   (botão "Refazer" no card da arte): zerava `dados`, `stepIdx`, `done`,
+       `_fArtSnapshots`, `_fArtCaptions`, o cache de imagem e a conversa inteira — SEM PERGUNTAR.
+     · `fResetFlow()` (botão "Recomeçar" no cabeçalho): mesma destruição, mas com confirmação
+       por chips no chat — e só quando já havia dados.
+     · `fEditarTudo()`: um terceiro reset, sem confirmação e SEM NENHUM CHAMADOR (código morto
+       desde que o card de revisão saiu). Removido.
+   O que NENHUM deles fazia: limpar o rascunho do localStorage (ficava um fantasma até a
+   próxima gravação), trocar o material ou o formato (esses sobrevivem, e é o certo), ou
+   guardar como voltar atrás.
+   Daí o desenho novo: UMA porta de UI (`fAskRestartArt`) que confirma, e UM motor
+   (`fRestartArt`) que executa. Teste e código interno podem chamar o motor direto. */
+
+// Tudo que precisa voltar junto para o chat e a prévia contarem a MESMA história. Cópia rasa
+// de `dados` é suficiente porque os valores são strings/dataURLs; `__fit__*` é objeto e por
+// isso vai clonado — sem isso, cancelar um enquadramento depois do undo mexeria no snapshot.
+function _fSnapshotArte(){
+  const d = fState.dados || {};
+  const dados = {};
+  Object.keys(d).forEach(k=>{
+    const v = d[k];
+    dados[k] = (v && typeof v === 'object') ? JSON.parse(JSON.stringify(v)) : v;
+  });
+  return {
+    dados,
+    stepIdx: fState.stepIdx,
+    done: !!fState.done,
+    editIdx: fState.editIdx,
+    material: fState.material,           // referência: o material é imutável nesta sessão
+    fmt: fState.fmt,
+    camp: fState.camp,                   // carrega as `perguntas` — o fPickLoja as filtra
+    extractedColors: Object.assign({}, fState.extractedColors || {}),
+    // A CONVERSA também é estado: sem ela o chat volta vazio com a prévia cheia — as duas
+    // metades contando histórias diferentes, que é o defeito que a rodada anterior matou.
+    mensagens: (document.getElementById('f-messages')||{}).innerHTML || '',
+    snapshots: Object.assign({}, _fArtSnapshots),
+    captions: Object.assign({}, _fArtCaptions),
+    draft: (()=>{ try{ return localStorage.getItem('luma_chat_draft'); }catch(e){ return null; } })()
+  };
+}
+
+function _fRestauraArte(s){
+  if(!s) return;
+  fState.dados = s.dados;
+  fState.stepIdx = s.stepIdx;
+  fState.done = s.done;
+  fState.editIdx = s.editIdx;
+  fState.material = s.material;
+  fState.fmt = s.fmt;
+  fState.camp = s.camp;
+  fState.extractedColors = s.extractedColors;
+  _fArtSnapshots = s.snapshots;
+  _fArtCaptions = s.captions;
+  const msgs = document.getElementById('f-messages');
+  if(msgs) msgs.innerHTML = s.mensagens;
+  try{
+    if(s.draft == null) localStorage.removeItem('luma_chat_draft');
+    else localStorage.setItem('luma_chat_draft', s.draft);
+  }catch(e){}
+  clearTimeout(fNextTimeout);            // o reset agendou o passo 1; ele não pode chegar depois
+  try{ fUpdateProg(); }catch(e){}
+  try{ fUpdateCtx(); }catch(e){}
+  try{ fLpRefresh(); }catch(e){}
+  if(msgs) msgs.scrollTop = msgs.scrollHeight;
+}
+
+/* A PORTA DE UI. Todo CTA visível de refazer/recomeçar entra por aqui — é o que impede o
+   "às vezes não avisa" que o time relatou (eram dois botões, um com confirmação e outro sem). */
+async function fAskRestartArt(){
+  // Nada respondido ainda: não há o que perder, então perguntar é só uma porta a mais.
+  const temDados = fState.dados && Object.keys(fState.dados).some(k=>!/^__/.test(k) && fState.dados[k]!=='' && fState.dados[k]!=null);
+  if(!temDados && !fState.done){ fRestartArt({silencioso:true}); return true; }
+  const ok = (typeof gConfirm==='function')
+    ? await gConfirm('Isso vai reiniciar as respostas desta arte. A versão atual fica disponível para desfazer logo depois.',
+        { title:'Refazer esta arte?', okLabel:'Refazer arte', cancelLabel:'Cancelar', danger:true })
+    : true;
+  if(!ok) return false;
+  fRestartArt();
+  return true;
+}
+
+/* O MOTOR. Não pergunta nada — quem pergunta é o fAskRestartArt. */
+function fRestartArt(opts){
+  opts = opts || {};
+  const antes = opts.silencioso ? null : _fSnapshotArte();
+  fState.stepIdx = -1;
+  fState.dados = {};
+  fState.done = false;
+  fState.editIdx = null;
+  fState.extractedColors = {};
+  try{ fClearImgCache(); }catch(e){}
+  _fArtSnapshots = {};
+  _fArtCaptions = {};
+  try{ fClearChatDraft(); }catch(e){}   // o rascunho velho não pode sobreviver ao reset
+  const msgs = document.getElementById('f-messages');
+  if(msgs) msgs.innerHTML = '';
+  fUpdateProg();
+  try{ fLpRefresh(); }catch(e){}
+  clearTimeout(fNextTimeout);
+  if(fState.camp && fState.camp.perguntas && fState.camp.perguntas.length){
+    fAddBot(`Vamos refazer a arte da <strong>${gEsc(fState.camp.name||'campanha')}</strong>.`,[]);
+    fNextTimeout = setTimeout(()=>fNextStep(), 500);
+  } else {
+    fStartChat();
+  }
+  if(antes){
+    _fUndoRegistra('Refazer arte', ()=>_fRestauraArte(antes));
+    if(typeof gToast==='function')
+      gToast('Arte reiniciada.', null, null, { acao:{ rotulo:'Desfazer', onClick:fDesfazer } });
+  }
+}
+
 // Mobile: volta do chat para o catálogo (desfaz o colapso de colunas).
 /* "← Campanhas" — o caminho de volta do modo focado de criação.
    ⛔ NÃO reinicia nada: não mexe em `fState.dados`, não apaga o rascunho, não troca o material
@@ -1600,37 +1780,17 @@ function fMobileBackToCatalog(){
     document.body.classList.toggle('f-catalogo-aberto');
   }catch(e){}
 }
-function fResetFlow(){
-  // Se não há nada preenchido, reseta direto sem perguntar
-  const temDados = Object.keys(fState.dados).length > 0 || fState.stepIdx >= 0;
-  if(!temDados){
-    fState.stepIdx=-1;fState.dados={};fState.done=false;
-    document.getElementById('f-messages').innerHTML='';fUpdateProg();fStartChat();
-    return;
-  }
-  // Já tem dados — pede confirmação inline no chat
-  const msgs=document.getElementById('f-messages');
-  // Evita empilhar múltiplas confirmações
-  const existing=document.getElementById('reset-confirm-msg');if(existing)existing.remove();
-  const w=document.createElement('div');w.className='msg bot';w.id='reset-confirm-msg';
-  w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div>
-    <div class="bbl">Tem certeza que quer recomeçar? Você vai perder as respostas dadas até aqui.</div>
-    <div class="qr-wrap">
-      <div class="qr" role="button" tabindex="0" onclick="fConfirmReset()">Sim, recomeçar</div>
-      <div class="qr" role="button" tabindex="0" onclick="fCancelReset()" style="background:var(--gray-light);border-color:var(--gray-mid);color:var(--text-2)">Cancelar</div>
-    </div>
-  </div>`;
-  msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;
-}
-function fConfirmReset(){
-  const m=document.getElementById('reset-confirm-msg');if(m)m.remove();
-  fState.stepIdx=-1;fState.dados={};fState.done=false;fClearImgCache();
-  _fArtSnapshots={};_fArtCaptions={}; // evita acúmulo de snapshots/legendas de artes antigas
-  document.getElementById('f-messages').innerHTML='';fUpdateProg();fStartChat();
-}
-function fCancelReset(){
-  const m=document.getElementById('reset-confirm-msg');if(m)m.remove();
-}
+/* Os três nomes antigos continuam existindo porque HTML e código chamam por eles — mas agora
+   são a MESMA porta. Era aqui que morava a inconsistência que o time viu: `fResetFlow` pedia
+   confirmação por chips no chat (e só quando havia dados) enquanto o `fRefazer` do card não
+   pedia nada. Dois botões, dois comportamentos, o mesmo estrago. */
+function fResetFlow(){ return fAskRestartArt(); }
+function fRefazer(){ return fAskRestartArt(); }
+// fConfirmReset/fCancelReset eram os chips da confirmação inline, que saiu em favor do
+// gConfirm (o diálogo da casa). Mantidos como no-op defensivo: há markup antigo em cache de
+// navegador chamando por nome, e um onclick que estoura mata o resto do handler.
+function fConfirmReset(){ fRestartArt(); }
+function fCancelReset(){ const m=document.getElementById('reset-confirm-msg'); if(m) m.remove(); }
 
 function _fApplyMessageGrouping(msgs,message,type){
   const previous=msgs&&msgs.lastElementChild;

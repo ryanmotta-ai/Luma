@@ -38,6 +38,13 @@
 #f-head-actions button:hover{background:var(--off-white);border-color:var(--gray-mid);color:var(--text);transform:translateY(-1px)}
 #f-head-actions button:active{transform:translateY(0) scale(.97)}
 #f-head-actions button:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+/* ⚠ `display:inline-flex` na regra acima VENCE o `[hidden]` do navegador (mesma armadilha já
+   documentada no `.lp-auto-chip`). Sem esta linha o botão de desfazer nasceria visível e
+   permanente — exatamente o "botão morto" que ele existe para não ser. */
+#f-head-actions button[hidden]{display:none}
+/* Desfazer é reparo, não ação de rotina: fica neutro ao lado do Recomeçar, e só ganha cor
+   no hover. Ele já chama atenção por aparecer do nada quando há o que desfazer. */
+#f-head-actions #f-undo-btn:hover{border-color:var(--dm-orange-tint);background:var(--dm-orange-bg);color:var(--dm-orange-d)}
 #f-head-actions #f-bulk-head-btn{border-color:var(--dm-orange-tint);background:var(--dm-orange-bg);color:var(--dm-orange-d)}
 #f-head-actions #f-bulk-head-btn:hover{border-color:var(--dm-orange);background:var(--dm-orange-bg);color:var(--dm-orange-d);box-shadow:0 5px 14px color-mix(in srgb,var(--dm-orange-d) 10%,transparent)}
 #f-head-actions #f-bulk-head-btn{display:none}

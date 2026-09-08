@@ -114,7 +114,7 @@ function _fFeedbackRender(id){
   const issueIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/><path d="M8 9h8M8 13h5"/></svg>';
   host.innerHTML = '<div class="f-feedback-head"><span class="f-feedback-mark">' + mark + '</span><div class="f-feedback-head-copy">' +
       '<span class="f-feedback-eyebrow">' + (request ? 'Sugestão à equipe' : 'Feedback rápido') + '</span>' +
-      '<h3 class="f-feedback-title">' + (request ? 'Que tipo de conteúdo você estava procurando?' : 'Tudo certo com essa campanha?') + '</h3>' +
+      '<h3 class="f-feedback-title">' + (request ? 'Que tipo de conteúdo você estava procurando?' : 'Tudo certo com essa arte?') + '</h3>' +
       '<p class="f-feedback-help">' + (request ? 'Conte à equipe o que faltou no catálogo.' : 'Sua resposta ajuda a melhorar os próximos materiais.') + '</p></div></div>' +
     (!detail ? '<div class="f-feedback-actions f-feedback-choices"><button type="button" class="f-feedback-choice is-positive" data-feedback="positive"' + disabled + '>' + yesIcon + '<span>Sim, tudo certo</span></button><button type="button" class="f-feedback-choice" data-feedback="negative"' + disabled + '>' + issueIcon + '<span>Tive dificuldade</span></button></div>' : '') +
     (detail ? '<form class="f-feedback-form"><fieldset' + disabled + '>' +
@@ -206,15 +206,105 @@ function fFeedbackMount(snap, host, snapId, source){
   } catch(e){ return null; }
 }
 
+/* ══ QUANDO PERGUNTAR — a estratégia de apresentação (rodada de controle e confiança) ══════
+   A feature não mudou; mudou QUANDO e ONDE ela aparece.
+
+   Antes: o cartão de feedback nascia GRUDADO na entrega, dentro do `.art-wrap`, já na geração
+   da arte — antes de a pessoa ter baixado qualquer coisa. Toda arte, toda vez. Pedir opinião
+   sobre um trabalho que ainda nem terminou é ruído, e ruído repetido vira cego.
+
+   Agora: só DEPOIS de um download concluído, num convite pequeno e centralizado, com carência.
+   ⛔ A carência é 100% LOCAL e determinística — nada de perguntar ao Supabase se pode
+   perguntar. A persistência remota do feedback continua exatamente como era.
+
+   A regra, escolhida para caber num parágrafo (V1 não precisa de mais):
+     · no máximo 1 convite a cada 7 dias, por dispositivo;
+     · nunca duas vezes para a MESMA campanha em 30 dias;
+     · nunca em downloads repetidos na mesma sessão;
+     · se já existe recibo de feedback daquela arte, nem chega aqui (o mount devolve null).
+
+     ⚠ POR QUE 30 E NÃO 7 NA CAMPANHA. Com as duas janelas iguais, a regra da campanha nunca
+     mordia: quando a global expirava, a da campanha expirava no mesmo instante, e a segunda
+     cláusula virava decoração. O teste pegou isso. As duas medem coisas diferentes — a global
+     é "não encher o saco", a da campanha é "sobre esta eu já perguntei" — então precisam de
+     prazos diferentes para as duas existirem de verdade. */
+const F_FEEDBACK_COOLDOWN_KEY = 'luma_feedback_convite_v1';
+const F_FEEDBACK_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+const F_FEEDBACK_CAMP_MS = 30 * 24 * 60 * 60 * 1000;
+let _fFeedbackConviteNaSessao = false;
+
+function _fFeedbackCooldownLe(){
+  try { return JSON.parse(localStorage.getItem(F_FEEDBACK_COOLDOWN_KEY) || 'null') || {}; }
+  catch(e){ return {}; }
+}
+function _fFeedbackCooldownGrava(dados){
+  try { localStorage.setItem(F_FEEDBACK_COOLDOWN_KEY, JSON.stringify(dados)); } catch(e){}
+}
+/* Exportada com nome próprio porque é ela que o teste exercita: a regra de frequência é a
+   parte que mais dá errado em silêncio (perguntar demais é o defeito que estamos consertando). */
+function fFeedbackPodeConvidar(campId, agora){
+  agora = agora || Date.now();
+  if (_fFeedbackConviteNaSessao) return false;           // um por sessão, sempre
+  const c = _fFeedbackCooldownLe();
+  if (c.ultimo && (agora - c.ultimo) < F_FEEDBACK_COOLDOWN_MS) return false;
+  const camps = c.camps || {};
+  const chave = String(campId == null ? '' : campId);
+  if (chave && camps[chave] && (agora - camps[chave]) < F_FEEDBACK_CAMP_MS) return false;
+  return true;
+}
+function _fFeedbackRegistraConvite(campId){
+  _fFeedbackConviteNaSessao = true;
+  const c = _fFeedbackCooldownLe();
+  c.ultimo = Date.now();
+  c.camps = c.camps || {};
+  const chave = String(campId == null ? '' : campId);
+  if (chave) c.camps[chave] = c.ultimo;
+  // Não deixa o mapa crescer para sempre: só campanhas dentro da janela importam.
+  Object.keys(c.camps).forEach(k => { if (Date.now() - c.camps[k] > F_FEEDBACK_CAMP_MS) delete c.camps[k]; });
+  _fFeedbackCooldownGrava(c);
+}
+
+/* O convite: pequeno, centralizado, e sem culpa na saída. X e Esc fecham e pronto — nada de
+   "por que não respondeu?", que é cobrar duas vezes pela mesma coisa. */
+function _fFeedbackAbreConvite(snap, snapId){
+  if (document.getElementById('f-feedback-convite')) return;
+  const ov = document.createElement('div');
+  ov.id = 'f-feedback-convite';
+  ov.className = 'f-fb-ov';
+  ov.innerHTML = '<div class="f-fb-box" role="dialog" aria-modal="true" aria-label="Feedback sobre a arte">' +
+    '<button type="button" class="f-fb-x" aria-label="Fechar" title="Fechar (Esc)">' +
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>' +
+    '<div class="f-fb-host"></div></div>';
+  document.body.appendChild(ov);
+  const fechar = () => {
+    ov.remove();
+    document.removeEventListener('keydown', onKey, true);
+  };
+  function onKey(e){ if (e.key === 'Escape'){ e.preventDefault(); fechar(); } }
+  document.addEventListener('keydown', onKey, true);
+  ov.querySelector('.f-fb-x').onclick = fechar;
+  ov.addEventListener('mousedown', e => { if (e.target === ov) fechar(); });
+  const section = fFeedbackMount(snap, ov.querySelector('.f-fb-host'), snapId, 'download');
+  if (!section) { fechar(); return; }          // já tinha recibo desta arte
+  _fFeedbackRegistraConvite(snap && snap.camp ? snap.camp.id : null);
+  // Respondeu? O convite se fecha sozinho depois do recibo aparecer — ninguém quer clicar em
+  // "fechar" depois de já ter ajudado.
+  const obs = new MutationObserver(() => {
+    if (section.querySelector('.f-feedback-confirmed')) { obs.disconnect(); setTimeout(fechar, 1400); }
+  });
+  obs.observe(section, {childList:true, subtree:true});
+  setTimeout(() => { const b = section.querySelector('button'); if (b) b.focus(); }, 60);
+}
+
 function fFeedbackAfterDownload(snap, btn, snapId, tipo){
   // Jamais transformar um download concluído em erro por uma falha secundária de UI.
   try {
-    const host = btn && btn.closest('.art-wrap');
-    if (!host) return;
-    const section = fFeedbackMount(snap, host, snapId, 'download');
-    if (!section) return;
-    const view = _fFeedbackViews.get(section.id);
-    if (view && !_fFeedbackPending(view.uid, view.action)) view.source = 'download';
+    if (!snap) return;
+    const campId = snap.camp ? snap.camp.id : null;
+    if (!fFeedbackPodeConvidar(campId)) return;
+    /* O respiro é de propósito: o convite não pode competir com o "Arte baixada!" nem
+       aparecer enquanto a folha de download do navegador ainda está na tela. */
+    setTimeout(() => { try { _fFeedbackAbreConvite(snap, snapId); } catch(e){} }, 2200);
   } catch(e){}
 }
 

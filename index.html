@@ -25,7 +25,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;0,700;0,900;1,400&display=swap" rel="stylesheet">
 <!-- ══════════════════════════════════════════════════════════════════════════════
-     ?v=43 — O NÚMERO DE DEPLOY. UM SÓ, PARA TODOS OS 95 ASSETS.
+     ?v=44 — O NÚMERO DE DEPLOY. UM SÓ, PARA TODOS OS 95 ASSETS.
      ══════════════════════════════════════════════════════════════════════════════
      O GitHub Pages serve a branch default e NÃO deixa configurar cabeçalho de
      cache: a query string é a única alavanca que existe aqui. Até 02/09 o número
@@ -55,41 +55,41 @@
          não se editam — se um dia trocar uma, troque o NOME do arquivo, que é
          cache-busting de verdade e não depende de ninguém lembrar de nada.
      ══════════════════════════════════════════════════════════════════════════════ -->
-<link rel="stylesheet" href="css/03-fonts.css?v=43">
-<link rel="stylesheet" href="css/00-tokens.css?v=43">
-<link rel="stylesheet" href="css/01-reset.css?v=43">
-<link rel="stylesheet" href="css/02-animations.css?v=43">
-<link rel="stylesheet" href="css/components/splash.css?v=43">
-<link rel="stylesheet" href="css/components/topbar.css?v=43">
-<link rel="stylesheet" href="css/components/help-modal.css?v=43">
-<link rel="stylesheet" href="css/components/user-profile.css?v=43">
-<link rel="stylesheet" href="css/components/prefs-panel.css?v=43">
+<link rel="stylesheet" href="css/03-fonts.css?v=44">
+<link rel="stylesheet" href="css/00-tokens.css?v=44">
+<link rel="stylesheet" href="css/01-reset.css?v=44">
+<link rel="stylesheet" href="css/02-animations.css?v=44">
+<link rel="stylesheet" href="css/components/splash.css?v=44">
+<link rel="stylesheet" href="css/components/topbar.css?v=44">
+<link rel="stylesheet" href="css/components/help-modal.css?v=44">
+<link rel="stylesheet" href="css/components/user-profile.css?v=44">
+<link rel="stylesheet" href="css/components/prefs-panel.css?v=44">
 <!-- Depois de user-profile.css de propósito: o Controle do produto vive DENTRO
      do painel da conta e herda as variáveis --prof-* (inclusive o tema escuro). -->
-<link rel="stylesheet" href="css/components/product-control.css?v=43">
-<link rel="stylesheet" href="css/modules/feedback.css?v=43">
-<link rel="stylesheet" href="css/components/tutorial.css?v=43">
-<link rel="stylesheet" href="css/modules/franqueado.css?v=43">
-<link rel="stylesheet" href="css/modules/chat.css?v=43">
-<link rel="stylesheet" href="css/modules/live-preview.css?v=43">
-<link rel="stylesheet" href="css/modules/color-picker.css?v=43">
-<link rel="stylesheet" href="css/modules/all-tools.css?v=43">
-<link rel="stylesheet" href="css/modules/topbar.css?v=43">
-<link rel="stylesheet" href="css/modules/catalog.css?v=43">
-<link rel="stylesheet" href="css/modules/franqueado_effects.css?v=43">
-<link rel="stylesheet" href="css/modules/publish-modal.css?v=43">
-<link rel="stylesheet" href="css/modules/designer.css?v=43">
-  <link rel="stylesheet" href="css/components/pages-tray.css?v=43">
-<link rel="stylesheet" href="css/modules/layers-panel.css?v=43">
-<link rel="stylesheet" href="css/modules/toolbar.css?v=43">
-<link rel="stylesheet" href="css/components/login.css?v=43">
-<link rel="stylesheet" href="css/modules/upload-panel.css?v=43">
+<link rel="stylesheet" href="css/components/product-control.css?v=44">
+<link rel="stylesheet" href="css/modules/feedback.css?v=44">
+<link rel="stylesheet" href="css/components/tutorial.css?v=44">
+<link rel="stylesheet" href="css/modules/franqueado.css?v=44">
+<link rel="stylesheet" href="css/modules/chat.css?v=44">
+<link rel="stylesheet" href="css/modules/live-preview.css?v=44">
+<link rel="stylesheet" href="css/modules/color-picker.css?v=44">
+<link rel="stylesheet" href="css/modules/all-tools.css?v=44">
+<link rel="stylesheet" href="css/modules/topbar.css?v=44">
+<link rel="stylesheet" href="css/modules/catalog.css?v=44">
+<link rel="stylesheet" href="css/modules/franqueado_effects.css?v=44">
+<link rel="stylesheet" href="css/modules/publish-modal.css?v=44">
+<link rel="stylesheet" href="css/modules/designer.css?v=44">
+  <link rel="stylesheet" href="css/components/pages-tray.css?v=44">
+<link rel="stylesheet" href="css/modules/layers-panel.css?v=44">
+<link rel="stylesheet" href="css/modules/toolbar.css?v=44">
+<link rel="stylesheet" href="css/components/login.css?v=44">
+<link rel="stylesheet" href="css/modules/upload-panel.css?v=44">
 <!-- depois de franqueado/chat/live-preview: sobrepõe o layout das 3 colunas -->
-<link rel="stylesheet" href="css/modules/panel-dock.css?v=43">
-<link rel="stylesheet" href="css/modules/help-widget.css?v=43">
-<link rel="stylesheet" href="css/modules/console.css?v=43">
-<link rel="stylesheet" href="css/modules/academia.css?v=43">
-<link rel="stylesheet" href="css/modules/calendario.css?v=43">
+<link rel="stylesheet" href="css/modules/panel-dock.css?v=44">
+<link rel="stylesheet" href="css/modules/help-widget.css?v=44">
+<link rel="stylesheet" href="css/modules/console.css?v=44">
+<link rel="stylesheet" href="css/modules/academia.css?v=44">
+<link rel="stylesheet" href="css/modules/calendario.css?v=44">
 </head>
 <body class="mode-franqueado theme-light">
 
@@ -156,8 +156,12 @@ body:not(.theme-light) input:-webkit-autofill:active {
           <div class="gl-in">
             <input id="gl-pass" type="password" required placeholder="••••••••" autocomplete="current-password" style="padding-right:48px"
               onkeyup="document.getElementById('gl-caps').classList.toggle('show', event.getModifierState && event.getModifierState('CapsLock'))">
-            <button class="gl-eye" type="button" aria-label="Mostrar senha" aria-pressed="false"
-              onclick="var p=document.getElementById('gl-pass');var mostra=p.type==='password';gTogglePass();this.setAttribute('aria-pressed',mostra);this.setAttribute('aria-label',mostra?'Ocultar senha':'Mostrar senha')">
+            <!-- ⛔ O onclick tinha 4 comandos e calculava aria-pressed/aria-label por conta
+                 própria, a partir do type lido ANTES da troca — um segundo dono do mesmo
+                 estado. Agora chama só o toggle canônico; quem pinta o ícone e o aria é o
+                 gSyncPassToggle (auth.js), sempre a partir do input.type real. -->
+            <button class="gl-eye" type="button" aria-label="Mostrar senha" aria-pressed="false" title="Mostrar senha"
+              onclick="gTogglePass()">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
           </div>
@@ -361,7 +365,7 @@ body:not(.theme-light) input:-webkit-autofill:active {
     <div class="sp-dm-logo" role="img" aria-label="Delivery Much"></div>
   </div>
 </div>
-<script src="js/core/splash.js?v=43"></script>
+<script src="js/core/splash.js?v=44"></script>
 
 <!-- ══ TOPBAR GLOBAL ══ -->
 <header id="global-topbar">
@@ -867,6 +871,11 @@ body:not(.theme-light) input:-webkit-autofill:active {
               <div id="f-ctx-tag" aria-live="polite">Escolha uma campanha</div>
             </div>
             <div id="f-head-actions" aria-label="Ações da criação">
+              <!-- A metade DESCOBRÍVEL do desfazer. O toast passa em 7s; este fica enquanto
+                   houver o que desfazer, e some quando não houver (botão morto permanente
+                   ensina a ignorar botão). Rótulo e title vêm do próprio slot, então dizem
+                   O QUE será desfeito — "Desfazer: Refazer arte", não um "Desfazer" solto. -->
+              <button id="f-undo-btn" onclick="fDesfazer()" hidden aria-label="Desfazer" title="Desfazer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg><span>Desfazer</span></button>
               <button id="f-reset-btn" onclick="fResetFlow()" title="Recomeçar esta criação"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><polyline points="3 3 3 8 8 8"/></svg><span>Recomeçar</span></button>
               <button id="f-bulk-head-btn" onclick="fBulkOpenFromArt()" title="Gerar artes em lote a partir de uma planilha"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span>Gerar em lote</span></button>
               <button id="f-theme-btn" onclick="fToggleTheme()" title="Alternar tema claro ou escuro" aria-label="Alternar tema claro ou escuro">
@@ -881,10 +890,13 @@ body:not(.theme-light) input:-webkit-autofill:active {
               <input id="f-msg-box" aria-label="Digite sua resposta" enterkeyhint="send" placeholder="Digite sua resposta..." onkeydown="if(event.key==='Enter')fSend()"/>
               <span id="f-char-count" aria-hidden="true"></span>
             </div>
-            <button id="f-chat-mic" type="button" onclick="fStartSpeech(event,'f-msg-box')" aria-label="Ditar por voz" aria-pressed="false" title="Ditar por voz">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-              <span class="f-mic-label">Falar</span>
-            </button>
+            <!-- O botão de ÁUDIO ("Falar", ditado por voz) saiu da barra do chat na rodada de
+                 controle e confiança: era o único controle de áudio da experiência do
+                 franqueado e não ajuda a concluir a tarefa — ficava entre o campo de resposta
+                 e o Enviar, disputando o alvo com a ação principal.
+                 ⚠ O MOTOR FICA: `fStartSpeech` continua existindo e o Estúdio segue usando.
+                 O feedback sonoro interno (gPlayPhotoSnapSound e companhia) não é controle de
+                 ponta e não foi tocado. -->
             <button id="f-snd" onclick="fSend()" aria-label="Enviar">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m22 2-7 20-4-9-9-4 20-7z"/></svg>
             </button>
@@ -952,9 +964,12 @@ body:not(.theme-light) input:-webkit-autofill:active {
                    O sistema simplesmente protege a arte agora; quando ele precisa intervir, diz
                    isso numa linha (o aviso discreto em `lp-layout-nota`). -->
               <span class="lp-layout-nota" id="lp-layout-nota" role="status" aria-live="polite" hidden></span>
-              <button type="button" class="lp-posted-btn" onclick="fOpenPosted()" title="Ver como a arte fica postada (Stories, Feed, WhatsApp)" aria-label="Ver como a arte fica postada">
+              <!-- "Mockups" era jargão de designer na tela de quem vende lanche. E o botão só
+                   aparece quando existe um ambiente compatível com o FORMATO desta arte
+                   (fPostedContextForFormat) — melhor esconder que ensinar algo falso. -->
+              <button type="button" class="lp-posted-btn" hidden onclick="fOpenPosted()" title="Ver como esta arte fica publicada" aria-label="Ver como esta arte fica publicada">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6.75" y="2" width="10.5" height="20" rx="3"/><path d="M10.5 5.5h3"/><path d="M10.25 18.5h3.5"/></svg>
-                <span>Mockups</span>
+                <span>Ver como fica</span>
               </button>
             </div>
           </div>
@@ -2986,70 +3001,70 @@ body:not(.theme-light) input:-webkit-autofill:active {
 
 
 
-<script src="js/00-config.js?v=43"></script>
-<script src="js/core/img-store.js?v=43"></script>
-<script src="js/01-state.js?v=43"></script>
-<script src="js/core/toast.js?v=43"></script>
-<script src="js/core/sound.js?v=43"></script>
-<script src="js/core/qr.js?v=43"></script>
-<script src="js/core/layout.js?v=43"></script>
-<script src="js/core/auto-layout.js?v=43"></script>
-<script src="js/core/help.js?v=43"></script>
-<script src="js/tutorial/catalog.js?v=43"></script>
-<script src="js/tutorial/mocks.js?v=43"></script>
-<script src="js/tutorial/mocks-studio.js?v=43"></script>
-<script src="js/tutorial/catalog-studio.js?v=43"></script>
-<script src="js/tutorial/engine.js?v=43"></script>
-<script src="js/franqueado/history.js?v=43"></script>
-<script src="js/franqueado/prefs.js?v=43"></script>
-<script src="js/franqueado/catalog.js?v=43"></script>
-<script src="js/franqueado/search.js?v=43"></script>
-<script src="js/franqueado/materials.js?v=43"></script>
-<script src="js/franqueado/chat.js?v=43"></script>
-<script src="js/franqueado/live-preview.js?v=43"></script>
-<script src="js/franqueado/panel-dock.js?v=43"></script>
-<script src="js/franqueado/upload-panel.js?v=43"></script>
-<script src="js/franqueado/prefs-panel.js?v=43"></script>
-<script src="js/franqueado/chat-input.js?v=43"></script>
+<script src="js/00-config.js?v=44"></script>
+<script src="js/core/img-store.js?v=44"></script>
+<script src="js/01-state.js?v=44"></script>
+<script src="js/core/toast.js?v=44"></script>
+<script src="js/core/sound.js?v=44"></script>
+<script src="js/core/qr.js?v=44"></script>
+<script src="js/core/layout.js?v=44"></script>
+<script src="js/core/auto-layout.js?v=44"></script>
+<script src="js/core/help.js?v=44"></script>
+<script src="js/tutorial/catalog.js?v=44"></script>
+<script src="js/tutorial/mocks.js?v=44"></script>
+<script src="js/tutorial/mocks-studio.js?v=44"></script>
+<script src="js/tutorial/catalog-studio.js?v=44"></script>
+<script src="js/tutorial/engine.js?v=44"></script>
+<script src="js/franqueado/history.js?v=44"></script>
+<script src="js/franqueado/prefs.js?v=44"></script>
+<script src="js/franqueado/catalog.js?v=44"></script>
+<script src="js/franqueado/search.js?v=44"></script>
+<script src="js/franqueado/materials.js?v=44"></script>
+<script src="js/franqueado/chat.js?v=44"></script>
+<script src="js/franqueado/live-preview.js?v=44"></script>
+<script src="js/franqueado/panel-dock.js?v=44"></script>
+<script src="js/franqueado/upload-panel.js?v=44"></script>
+<script src="js/franqueado/prefs-panel.js?v=44"></script>
+<script src="js/franqueado/chat-input.js?v=44"></script>
 <!-- ACADEMIA (formação do franqueado). Ordem importa: motion.js define os helpers
      de animação que os outros usam; academia.js define o estado que
      aula/agente/gestao/certificado/conclusao consomem. -->
-<script src="js/academia/motion.js?v=43"></script>
-<script src="js/academia/academia.js?v=43"></script>
-<script src="js/academia/aula.js?v=43"></script>
-<script src="js/academia/agente.js?v=43"></script>
-<script src="js/academia/gestao.js?v=43"></script>
-<script src="js/academia/certificado.js?v=43"></script>
-<script src="js/academia/conclusao.js?v=43"></script>
+<script src="js/academia/motion.js?v=44"></script>
+<script src="js/academia/academia.js?v=44"></script>
+<script src="js/academia/aula.js?v=44"></script>
+<script src="js/academia/agente.js?v=44"></script>
+<script src="js/academia/gestao.js?v=44"></script>
+<script src="js/academia/certificado.js?v=44"></script>
+<script src="js/academia/conclusao.js?v=44"></script>
 <!-- CALENDÁRIO (o que a rede comunica e quando). Ordem importa: conteudo.js é
      só dado e vem primeiro; calendario.js define estado e helpers de data;
      agenda.js e evento.js consomem. -->
-<script src="js/calendario/conteudo.js?v=43"></script>
-<script src="js/calendario/calendario.js?v=43"></script>
-<script src="js/calendario/agenda.js?v=43"></script>
-<script src="js/calendario/evento.js?v=43"></script>
-<script src="js/calendario/apresentacao.js?v=43"></script>
-<script src="js/designer/blending.js?v=43"></script>
-<script src="js/franqueado/png-generator.js?v=43"></script>
-<script src="js/designer/templates.js?v=43"></script>
-<script src="js/designer/canvas.js?v=43"></script>
-<script src="js/designer/selection.js?v=43"></script>
-<script src="js/designer/brush.js?v=43"></script>
-<script src="js/designer/eraser-tools.js?v=43"></script>
-<script src="js/designer/layers.js?v=43"></script>
-<script src="js/designer/props-panel.js?v=43"></script>
-<script src="js/designer/measurement.js?v=43"></script>
-<script src="js/designer/publish.js?v=43"></script>
-<script src="js/designer/preview.js?v=43"></script>
-<script src="js/designer/library.js?v=43"></script>
-<script src="js/designer/undo-redo.js?v=43"></script>
-<script src="js/widgets/help-widget.js?v=43"></script>
-<script src="js/designer/tools.js?v=43"></script>
-<script src="js/designer/fonts.js?v=43"></script>
-<script src="js/designer/psd-parse.js?v=43"></script>
-<script src="js/designer/psd-import.js?v=43"></script>
-<script src="js/designer/mask.js?v=43"></script>
-<script src="js/designer/tutorial-panel.js?v=43"></script>
+<script src="js/calendario/conteudo.js?v=44"></script>
+<script src="js/calendario/calendario.js?v=44"></script>
+<script src="js/calendario/agenda.js?v=44"></script>
+<script src="js/calendario/evento.js?v=44"></script>
+<script src="js/calendario/apresentacao.js?v=44"></script>
+<script src="js/designer/blending.js?v=44"></script>
+<script src="js/franqueado/png-generator.js?v=44"></script>
+<script src="js/designer/templates.js?v=44"></script>
+<script src="js/designer/canvas.js?v=44"></script>
+<script src="js/designer/selection.js?v=44"></script>
+<script src="js/designer/brush.js?v=44"></script>
+<script src="js/designer/eraser-tools.js?v=44"></script>
+<script src="js/designer/layers.js?v=44"></script>
+<script src="js/designer/props-panel.js?v=44"></script>
+<script src="js/designer/measurement.js?v=44"></script>
+<script src="js/designer/publish.js?v=44"></script>
+<script src="js/designer/preview.js?v=44"></script>
+<script src="js/designer/library.js?v=44"></script>
+<script src="js/designer/undo-redo.js?v=44"></script>
+<script src="js/widgets/help-widget.js?v=44"></script>
+<script src="js/designer/tools.js?v=44"></script>
+<script src="js/designer/fonts.js?v=44"></script>
+<script src="js/designer/psd-parse.js?v=44"></script>
+<script src="js/designer/psd-import.js?v=44"></script>
+<script src="js/designer/mask.js?v=44"></script>
+<script src="js/designer/tutorial-panel.js?v=44"></script>
 <script src="assets/vendor/colorthief.js"></script>
 <script src="assets/vendor/pica.js"></script>
 <script src="assets/vendor/jszip.min.js"></script>
@@ -3071,7 +3086,7 @@ body:not(.theme-light) input:-webkit-autofill:active {
     if (window.__gPdfLibCarregando) return window.__gPdfLibCarregando;
     window.__gPdfLibCarregando = new Promise(function(ok){
       var s = document.createElement('script');
-      s.src = 'assets/vendor/pdf-lib.js?v=43';
+      s.src = 'assets/vendor/pdf-lib.js?v=44';
       s.onload  = function(){ ok(!!window.PDFLib); };
       // Falha de rede não pode deixar a promessa envenenada: zera para a próxima
       // tentativa poder baixar de novo.
@@ -3082,23 +3097,23 @@ body:not(.theme-light) input:-webkit-autofill:active {
   };
 </script>
 <script src="assets/vendor/supabase.js"></script>
-<script src="js/core/supabase-config.js?v=43"></script>
-<script src="js/core/supabase.js?v=43"></script>
+<script src="js/core/supabase-config.js?v=44"></script>
+<script src="js/core/supabase.js?v=44"></script>
 <!-- Motor único de IA: precisa do supabase.js (gSupabase) já carregado -->
-<script src="js/core/ai.js?v=43"></script>
-<script src="js/core/auth.js?v=43"></script>
-<script src="js/franqueado/feedback.js?v=43"></script>
+<script src="js/core/ai.js?v=44"></script>
+<script src="js/core/auth.js?v=44"></script>
+<script src="js/franqueado/feedback.js?v=44"></script>
 <!-- Controle do produto — o motor de disponibilidade funcional. Vem DEPOIS de
      auth.js (usa gCurrentRole/gIsSuperAdmin) e ANTES de user-profile.js e
      main.js: gFeatureInit() roda no começo do boot e precisa estar definido. -->
-<script src="js/core/feature-flags.js?v=43"></script>
-<script src="js/core/user-profile.js?v=43"></script>
+<script src="js/core/feature-flags.js?v=44"></script>
+<script src="js/core/user-profile.js?v=44"></script>
 <!-- A TELA do Controle do produto: depende do motor acima e do painel de conta. -->
-<script src="js/core/product-control.js?v=43"></script>
+<script src="js/core/product-control.js?v=44"></script>
 <!-- Luma CLI: por último entre os core porque só usa globais já definidos
      (gIsAdmin, gHasBackend, gAskAI, dFolders…) e é o único que abre por atalho -->
-<script src="js/core/console.js?v=43"></script>
-<script src="js/main.js?v=43"></script>
+<script src="js/core/console.js?v=44"></script>
+<script src="js/main.js?v=44"></script>
 
 
 
@@ -3769,9 +3784,9 @@ body:not(.theme-light) input:-webkit-autofill:active {
   </div>
 </div>
 
-<script src="js/designer/color-picker.js?v=43"></script>
-<script src="js/designer/tooltip.js?v=43"></script>
-<script src="js/designer/linter.js?v=43"></script>
+<script src="js/designer/color-picker.js?v=44"></script>
+<script src="js/designer/tooltip.js?v=44"></script>
+<script src="js/designer/linter.js?v=44"></script>
   <!-- Tooltip Educativo Global -->
   <div id="d-rich-tooltip" class="d-rich-tooltip" style="display:none; opacity:0;"></div>
 </body>

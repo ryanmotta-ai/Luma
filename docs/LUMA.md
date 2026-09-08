@@ -469,6 +469,20 @@ ag-psd vendorizado + Web Worker (prazo ~1s/MB, teto 10min, renovado a cada sinal
 
 **Checklist (`linter.js`) — "Texto Fixo que Deveria Ser Campo".** O espelho do painel Campos: aponta a camada de texto cravada na mão que vai sair com o valor velho na próxima promoção. Precisão acima de recall (checklist que grita demais ninguém lê): só acusa com sinal forte — valor em `R$`, ou nome da camada casando com o catálogo pelo `_dPsdSuggestVar` com `auto:true` (o mesmo motor do importador). Três filtros cortam o falso positivo: texto >60 caracteres é disclaimer, rótulo (`"Preço:"` ou texto igual ao nome do campo) é legenda, e camada já ligada não conta. O botão **Corrigir** usa `autoFix:'bindField'` → `dLayerBindField` — o mesmo bind do arrasto e do botão "Usar".
 
+### Controle e confiança do franqueado (09/2026)
+
+**Restart tem UMA porta.** `fAskRestartArt()` é o único caminho de UI (confirma via `gConfirm`); `fRestartArt()` é o motor e não pergunta nada — código interno e teste chamam ele. `fRefazer`/`fResetFlow` viraram alias; `fEditarTudo` (um terceiro reset, sem confirmação e sem chamador) foi removido. Antes do reset, `_fSnapshotArte()` guarda respostas, passo, conclusão, material, formato, cores extraídas, fotos, enquadramentos **e o HTML da conversa** — sem este último o chat volta vazio com a prévia cheia. O reset agora também limpa o rascunho do `localStorage`, que antes sobrevivia como fantasma.
+
+**Desfazer é UM SLOT, não um histórico.** `_fUndoRegistra(rotulo, restaurar)` guarda a última ação desfazível do franqueado; `fDesfazer()` consome. Alimentado por refazer arte, aplicar enquadramento e editar pela prévia. ⛔ Não tem parentesco com `dUndo`/`dRedo` (`js/designer/undo-redo.js`), que empilha estados de camada no Estúdio. Ctrl/Cmd+Z só vale no modo franqueado e fora de campo de texto — senão roubaria o atalho do Estúdio e o desfazer nativo do navegador.
+
+**`gToast` aceita ação:** `gToast(msg, tipo, helpTopic, {acao:{rotulo, onClick}})`. Com ação o toast vive 7s (2,8s é tempo de ler, não de decidir voltar atrás).
+
+**Feedback é convite pós-download com carência local.** Não nasce mais grudado na entrega. `fFeedbackPodeConvidar(campId)`: 1 convite a cada 7 dias por dispositivo, 30 dias por campanha, um por sessão. ⛔ A decisão é local por design — o Supabase não é consultado para saber se pode perguntar; a persistência remota do feedback em si não mudou.
+
+**`fPostedContextForFormat(fmt)`** decide o ambiente de publicação pela GEOMETRIA do material (`w/h` reais, ou o preset do formato): `≤0,72 → 'story'`, `≤2,20 → 'feed'`, senão `null` — e `null` esconde o botão "Ver como fica". Story nunca aparece como Feed nem o contrário.
+
+**Olho da senha:** `gTogglePass()` troca o `type`; `gSyncPassToggle()` pinta ícone, `aria-pressed` e `aria-label` a partir do `input.type` real; `gResetPassToggle()` reesconde ao voltar da recuperação. O ícone tem dois estados (antes era um olho aberto fixo, que contradizia o campo metade do tempo).
+
 ### Layout vivo (o texto do franqueado reacomoda a arte)
 
 **O problema:** `maxLen` limita CARACTERE, mas o layout quebra em PIXEL — e quando o nome do produto ocupa 3 linhas, o bloco de baixo colide.

@@ -17,23 +17,44 @@
    (03_ENGINEERING §5). Agora o tipo 'error' perde a COR, o role=alert e o botão de orientação,
    mas a MENSAGEM aparece como toast NEUTRO, que é o que a decisão pedia. O console segue
    recebendo o registro para depuração. Reverter o não-alarmar = apagar este bloco. */
-function gToast(msg, type, helpTopic){
+/* `opts.acao` = {rotulo, onClick} — o toast passa a poder CARREGAR UMA AÇÃO. Nasceu do
+   "Arte reiniciada · Desfazer": um aviso que conta o que aconteceu e não dá saída é metade
+   de um aviso. Continua sendo o motor único de toast; quem não passa `acao` não muda em nada.
+   O toast com ação vive mais (7s): 2,8s é tempo de ler, não de decidir se quer voltar atrás. */
+function gToast(msg, type, helpTopic, opts){
   if (type === 'error') { try{ console.warn('[Luma]', msg); }catch(e){} }
   const container = document.getElementById('g-toast-container');
   if (!container) return;
+  opts = opts || {};
+  const acao = opts.acao && opts.acao.rotulo && typeof opts.acao.onClick === 'function' ? opts.acao : null;
 
   // Daqui pra baixo só existe toast NEUTRO — não há mais ramo de erro, e com ele foram embora
   // o botão "Ver orientação" e o role=alert, que só valiam pro toast vermelho. A assinatura
   // mantém `helpTopic` porque há chamadas passando o 3º argumento.
   const item = document.createElement('div');
-  item.className = 'g-toast-item';
+  item.className = 'g-toast-item' + (acao ? ' has-acao' : '');
   item.setAttribute('role', 'status');
   item.setAttribute('aria-live', 'polite');
-  item.textContent = msg;
+  if (acao) {
+    const txt = document.createElement('span');
+    txt.className = 'g-toast-txt';
+    txt.textContent = msg;                       // textContent: a mensagem nunca é HTML
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'g-toast-acao';
+    btn.textContent = acao.rotulo;
+    btn.onclick = () => {
+      item.remove();                             // some antes de agir: a ação já é a resposta
+      try { acao.onClick(); } catch(e){ console.warn('[Luma] ação do toast falhou:', e); }
+    };
+    item.appendChild(txt); item.appendChild(btn);
+  } else {
+    item.textContent = msg;
+  }
 
   container.appendChild(item);
 
-  const duration = 2800;
+  const duration = acao ? 7000 : 2800;
 
   // Configura a remoção com transição de fade-out
   setTimeout(() => {

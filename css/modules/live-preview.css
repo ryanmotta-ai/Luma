@@ -302,6 +302,10 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
 .lp-fit-btn{width:32px;min-width:32px;padding:0;gap:6px;font:700 10.5px 'Roboto',sans-serif;white-space:nowrap}
 .lp-fit-btn svg{flex:0 0 14px}
 .lp-fit-btn>span,.lp-posted-btn>span{display:none}
+/* `display:inline-flex` na regra do botão vence o `[hidden]` do navegador — mesma armadilha
+   já documentada nos chips da barra. Sem isto o "Ver como fica" apareceria em arte sem
+   ambiente compatível, que é justamente o que ele passou a evitar. */
+.lp-posted-btn[hidden]{display:none}
 
 .lp-zoom-group{height:32px;min-width:134px;max-width:178px;flex:1 1 158px;display:inline-flex;align-items:center;padding:2px;border:1px solid var(--gray-light);border-radius:10px;background:var(--off-white)}
 .lp-zoom-step{width:24px;height:26px;display:grid;place-items:center;padding:0;border:0;border-radius:7px;background:transparent;color:var(--text-2);cursor:pointer;transition:background var(--dur-micro),color var(--dur-micro),transform var(--dur-micro) var(--ease-spring)}

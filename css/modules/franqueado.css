@@ -311,11 +311,13 @@ body:not(.theme-light) #f-msg-box {
 }
 
 /* Botões do header do chat */
+body:not(.theme-light) #f-undo-btn,
 body:not(.theme-light) #f-reset-btn {
   background: var(--d-surf);
   color: var(--d-text2);
   border-color: var(--d-border2);
 }
+body:not(.theme-light) #f-undo-btn:hover,
 body:not(.theme-light) #f-reset-btn:hover {
   border-color: var(--dm-orange);
   color: var(--dm-orange);

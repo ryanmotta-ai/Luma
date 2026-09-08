@@ -79,3 +79,39 @@ body:not(.theme-light) .f-feedback-form .f-feedback-reasons label:has(input:chec
    voltava para 14px e o iPhone dava zoom. `(hover:none)` é a condição verdadeira. */
 @media(hover:none){.f-feedback-form :is(input,select,textarea){font-size:16px}}
 @media(prefers-reduced-motion:reduce){.f-feedback *,.g-feedback-admin *{transition:none!important}}
+
+/* ══ O CONVITE DE FEEDBACK — pequeno, centralizado, sem culpa na saída ══════════════════════
+   Substitui o cartão que ficava grudado dentro da entrega. Não é um modal de bloqueio: é um
+   pedido de favor depois que a pessoa já conseguiu o que veio buscar. Por isso o overlay é
+   leve, a caixa é estreita e o X está sempre à vista. */
+.f-fb-ov{
+  position:fixed;inset:0;z-index:9500;
+  display:flex;align-items:center;justify-content:center;padding:20px;
+  background:color-mix(in srgb,var(--text-1,#1A1A1A) 42%,transparent);
+  animation:gFadeIn var(--dur-fast,.16s) var(--ease-out,ease) both;
+}
+.f-fb-box{
+  position:relative;width:100%;max-width:400px;
+  background:var(--white);border:1px solid var(--gray-light);
+  border-radius:var(--r,12px);box-shadow:0 24px 60px rgba(0,0,0,.22);
+  padding:8px;max-height:calc(100vh - 40px);overflow-y:auto;
+  animation:gPopIn var(--dur-base,.28s) var(--ease-spring,ease) both;
+}
+.f-fb-x{
+  position:absolute;top:8px;right:8px;z-index:2;
+  width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;
+  background:transparent;border:none;border-radius:var(--r-sm,6px);
+  color:var(--text-3);cursor:pointer;
+}
+.f-fb-x:hover{background:var(--gray-light);color:var(--text-1)}
+.f-fb-x:focus-visible{outline:2px solid var(--dm-orange);outline-offset:1px}
+/* O cartão herdado nasceu para viver DENTRO da entrega (borda + fundo próprios). Dentro da
+   caixa isso vira moldura dupla — aqui ele é o conteúdo, não um bloco sobre outro. */
+.f-fb-host .f-feedback{border:none;background:transparent;margin:0;box-shadow:none}
+body:not(.theme-light) .f-fb-box{background:var(--d-surf);border-color:var(--d-border2)}
+body:not(.theme-light) .f-fb-x{color:var(--d-text3)}
+body:not(.theme-light) .f-fb-x:hover{background:var(--d-surf2);color:var(--d-text)}
+@media (max-width:680px){
+  .f-fb-box{max-width:none}
+  .f-fb-x{width:var(--tap-min,44px);height:var(--tap-min,44px)}
+}

@@ -782,6 +782,28 @@ select option{background:#222}
   transform: translateY(8px) scale(0.95);
 }
 
+/* ── TOAST COM AÇÃO ("Arte reiniciada · Desfazer") ──
+   O botão precisa parecer clicável DENTRO de uma pílula escura, sem virar um segundo CTA da
+   tela. Sublinhado + peso: é um link de correção, não um botão de confirmação. O alvo tem
+   32px de altura (a pílula cresce com ele) — desfazer é a saída de emergência, não pode
+   depender de mira fina, ainda mais no celular. */
+.g-toast-item.has-acao {
+  display: inline-flex; align-items: center; gap: 12px;
+  padding: 6px 8px 6px 20px;
+}
+.g-toast-txt { min-width: 0 }
+.g-toast-acao {
+  flex: 0 0 auto; min-height: 32px; padding: 0 12px;
+  background: transparent; border: 1px solid rgba(255,255,255,.28);
+  border-radius: var(--r-pill);
+  color: #fff; font: 700 12px 'Roboto', sans-serif; cursor: pointer;
+  text-decoration: underline; text-underline-offset: 2px;
+  transition: background var(--dur-micro) var(--ease-standard), border-color var(--dur-micro) var(--ease-standard);
+}
+.g-toast-acao:hover { background: rgba(255,255,255,.16); border-color: rgba(255,255,255,.55) }
+.g-toast-acao:focus-visible { outline: 2px solid var(--dm-orange); outline-offset: 2px }
+.g-toast-acao:active { transform: scale(.96) }
+
 /* ── TOAST NO CELULAR (revisão mobile 2026-09-06) ──
    Duas medições, no mesmo componente:
    1. `white-space:nowrap` cortava a frase. Medido a 320px: "Não consegui carregar seu perfil
@@ -797,6 +819,12 @@ select option{background:#222}
      Com a largura reservada, o aviso usa o espaço e cabe em duas. */
   #g-toast-container{width:calc(100vw - 32px);max-width:calc(100vw - 32px);align-items:center;bottom:calc(24px + var(--safe-bottom))}
   .g-toast-item{white-space:normal;text-align:center;max-width:100%}
+  /* Com a frase em 2 linhas, ação ao lado vira 40px de texto. Empilha e ocupa a largura.
+     ⚠ `width:100%` é obrigatório: o container é flex com `align-items:center`, então a pílula
+     encolhe até o conteúdo. Medido a 390px, sem isto ela ficava com 112px de largura — a
+     frase quebrando em três linhas dentro de uma tarja fina, com o botão espremido embaixo. */
+  .g-toast-item.has-acao{flex-direction:column;gap:8px;padding:12px 16px;width:100%}
+  .g-toast-acao{width:100%;min-height:var(--tap-min,44px)}
   /* `f-mobile-chat` sem `f-material-browser` = a conversa de verdade, a única tela do
      franqueado com barra de digitar no rodapé (mesmo par que o help-widget já usa). */
   /* 104px = a barra de digitar medida (69px) + folga. O `--safe-bottom` entra de novo porque

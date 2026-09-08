@@ -153,7 +153,9 @@ function _fPostedWhats(slot){
 }
 
 // Ordem dos ambientes: define a DIREÇÃO do swipe e das setas do teclado.
-const _PST_ORDER = ['story','feed','whatsapp'];
+/* A ordem do swipe e das setas: derivada dos ambientes REAIS desta arte, não fixa. Com a
+   lista fixa, a seta levava a pessoa para um chassi que o seletor nem oferecia. */
+function _fPostedOrder(){ return _fPostedContextsFor(fPostedContextForFormat(null)).map(c=>c.id); }
 
 // Conteúdo da TELA (sysbar + chrome do app + slot vazio da arte). Separado do chassi de
 // propósito: trocar de ambiente repinta só isto, e o celular fica parado na mão.
@@ -203,9 +205,10 @@ function _fPostedSwapScreen(dir){
 
 // dir opcional: quando vem do swipe/teclado já sabemos o sentido; do clique, deduz pela ordem.
 function fPostedSetCtx(ctx, dir){
-  const next = (_PST_ORDER.indexOf(ctx)>=0) ? ctx : 'story';
+  const ordem = _fPostedOrder();
+  const next = (ordem.indexOf(ctx)>=0) ? ctx : (ordem[0]||'story');
   if(next === _postedCtx) return;
-  const d = (dir!=null) ? dir : (_PST_ORDER.indexOf(next) - _PST_ORDER.indexOf(_postedCtx));
+  const d = (dir!=null) ? dir : (ordem.indexOf(next) - ordem.indexOf(_postedCtx));
   _postedCtx = next;
   document.querySelectorAll('#posted-seg .pst-seg-btn').forEach(b=>{
     const on = b.dataset.ctx === _postedCtx;
@@ -216,7 +219,8 @@ function fPostedSetCtx(ctx, dir){
 // Anda um ambiente pro lado (swipe e setas). Não circula: parar na ponta dá a
 // sensação física de fim de lista, e evita o carrossel infinito desorientar.
 function _fPostedStep(dir){
-  const next = _PST_ORDER[_PST_ORDER.indexOf(_postedCtx) + dir];
+  const ordem = _fPostedOrder();
+  const next = ordem[ordem.indexOf(_postedCtx) + dir];
   if(next) fPostedSetCtx(next, dir);
 }
 
@@ -353,6 +357,59 @@ function fPostedCopyQRLink(btn){
   } else { gToast('Não foi possível copiar o link','error'); }
 }
 
+/* ══ QUAL AMBIENTE ESTA ARTE PODE HABITAR ══════════════════════════════════════════════════
+   Achado do teste: o seletor oferecia Stories | Feed | WhatsApp para QUALQUER arte. Um post
+   wide (1200×628) dentro do chassi de Stories vira uma tarja no meio de um degradê laranja, e
+   uma arte de Story dentro do feed some com metade da composição. Prévia contextual errada é
+   pior que prévia nenhuma: ela ENSINA uma coisa falsa sobre onde a peça funciona.
+
+   ⛔ Não se adivinha pelo nome do arquivo nem pelo rótulo do formato. A régua é a GEOMETRIA
+   canônica do material (w/h reais quando o template veio 1:1 do PSD; o preset do formato como
+   segunda via). Proporção é o que decide onde uma imagem cabe — é assim que Instagram e
+   WhatsApp decidem também.
+
+   Devolve o ambiente PRINCIPAL, ou `null` quando nenhum é honesto — e `null` ESCONDE a ação. */
+function fPostedContextForFormat(fmt){
+  let w = 0, h = 0;
+  const mat = (fmt && fmt.material) || (typeof fState!=='undefined' ? fState.material : null);
+  if(mat && mat.w > 0 && mat.h > 0){ w = mat.w; h = mat.h; }
+  else {
+    const id = (fmt && (fmt.id || fmt)) || (typeof fState!=='undefined' && fState.fmt && fState.fmt.id) || '';
+    const sz = F_LP_SIZES[String(id)] || null;
+    if(sz){ w = sz[0]; h = sz[1]; }
+  }
+  if(!w || !h) return null;
+  const r = w / h;
+  /* Os cortes, com o motivo de cada um:
+     ≤0,72  → vertical alto (9:16 = 0,5625). É Stories e é Status do WhatsApp.
+     ≤2,20  → do 4:5 (0,8) ao 1,91:1 (1,91) do landscape: tudo isso é publicação de FEED.
+     fora   → faixa/banner (um 1200×200 da vida). Nenhum dos três chassis conta a verdade
+              sobre isso, então a ação some em vez de mentir. */
+  if(r <= 0.72) return 'story';
+  if(r <= 2.20) return 'feed';
+  return null;
+}
+
+/* Os ambientes OFERECIDOS no seletor, a partir do principal. O chassi de WhatsApp é um CHAT
+   (bolha de conversa), não a tela de Status — e mandar a arte no chat funciona em qualquer
+   proporção, então ele acompanha os dois casos. O que nunca acontece é uma arte de feed
+   aparecer como Stories, ou vice-versa. */
+function _fPostedContextsFor(principal){
+  if(principal === 'story') return [{id:'story',label:'Stories'},{id:'whatsapp',label:'WhatsApp'}];
+  if(principal === 'feed')  return [{id:'feed',label:'Feed'},{id:'whatsapp',label:'WhatsApp'}];
+  return [];
+}
+
+/* O botão só existe quando há ambiente honesto para esta arte. Chamado a cada repintura da
+   prévia (é lá que o material e o formato podem ter mudado). */
+function _fLpSyncVerComoFica(){
+  const btn = document.querySelector('.lp-posted-btn');
+  if(!btn) return;
+  const tem = !!(fState.material && fState.material.layers && fState.material.layers.length
+                 && fPostedContextForFormat(null));
+  btn.hidden = !tem;
+}
+
 async function fOpenPosted(){
   if(!fState.material || !fState.material.layers || !fState.material.layers.length){
     if(typeof gToast==='function') gToast('Monte a arte primeiro pra ver como ela fica postada.');
@@ -362,10 +419,15 @@ async function fOpenPosted(){
   const stage = document.getElementById('posted-stage');
   const seg = document.getElementById('posted-seg');
   if(!modal || !stage || !seg) return;
-  // Abre já no formato nativo da arte (Story vira Stories; o resto começa no Feed).
-  const fmtId = (fState.fmt && fState.fmt.id) || fState.material.fmt || 'story';
-  _postedCtx = (fmtId==='story') ? 'story' : 'feed';
-  const CTXS = [{id:'story',label:'Stories'},{id:'feed',label:'Feed'},{id:'whatsapp',label:'WhatsApp'}];
+  /* O ambiente sai da GEOMETRIA da arte, não do rótulo do formato — e quando não há ambiente
+     honesto, a ação nem abre (o botão já deveria estar escondido; isto é o cinto). */
+  const principal = fPostedContextForFormat(null);
+  if(!principal){
+    if(typeof gToast==='function') gToast('Esta arte não tem um ambiente de publicação equivalente para mostrar.');
+    return;
+  }
+  _postedCtx = principal;
+  const CTXS = _fPostedContextsFor(principal);
   seg.innerHTML = CTXS.map(c=>`<button type="button" class="pst-seg-btn${c.id===_postedCtx?' active':''}" data-ctx="${c.id}" role="radio" aria-checked="${c.id===_postedCtx}" onclick="fPostedSetCtx('${c.id}')">${c.label}</button>`).join('');
   modal.classList.add('open'); modal.setAttribute('aria-hidden','false');
   stage.innerHTML = '<div class="pst-loading">Montando a prévia…</div>';
@@ -581,6 +643,7 @@ async function fUpdateLivePreview(opts){
   // re-sincronizado a cada update — diferente do Auto-zoom, que independe do material.
   try { _fLpSyncAutoLayoutButton(); } catch(e){}
   try { _fLpSyncBaixar(); } catch(e){}
+  try { _fLpSyncVerComoFica(); } catch(e){}
 
   // Sem template ou sem camadas → estado vazio. (Material publicado sempre tem camadas;
   // não existe caminho de preview "só com bg" — o antigo caía num fRenderCanvasHelper de
@@ -1492,12 +1555,26 @@ function _fLpLayerAt(x,y,cvAlvo){
 function _fLpLockToast(v){ gToast('Campo fixo da marca — não editável neste material.'); }
 
 // ── Setter + commit ──
-function _fLpCommit(v,val){
+function _fLpCommit(v,val,opts){
   if(!fState.dados) fState.dados={};
+  /* O valor ANTES — capturado aqui porque este é o funil por onde toda edição pela arte passa.
+     ⚠ `_fLpTextEditor` escreve em `fState.dados[v]` a cada tecla (é o que faz a prévia
+     responder ao vivo), então o "antes" tem que ser lido quando o popover ABRE, não agora.
+     Quem tem esse valor é o chamador; sem ele, este commit não registra desfazer nenhum —
+     melhor não oferecer do que oferecer um undo que devolve o texto meio digitado. */
   const mv=(typeof fApplyMask==='function')?fApplyMask(v,val):val;
+  const antes = opts && ('antes' in opts) ? opts.antes : undefined;
   if(mv===''||mv==null) delete fState.dados[v]; else fState.dados[v]=mv;
   try{ if(typeof fSaveChatDraft==='function') fSaveChatDraft(); }catch(e){}
   _fLpRender();
+  if(antes!==undefined && String(antes)!==String(mv==null?'':mv) && typeof _fUndoRegistra==='function'){
+    const rot=(typeof _fLpLabel==='function')?_fLpLabel(v):'campo';
+    _fUndoRegistra('Edição de '+String(rot).toLowerCase(), ()=>{
+      if(antes===''||antes==null) delete fState.dados[v]; else fState.dados[v]=antes;
+      try{ if(typeof fSaveChatDraft==='function') fSaveChatDraft(); }catch(e){}
+      _fLpRender();
+    });
+  }
 }
 
 // ── Popover ──
@@ -1531,6 +1608,7 @@ function _fLpMakePop(ev){
 function _fLpTextEditor(v,maxLen,ev){
   const p=_fLpMakePop(ev);
   const cur=(fState.dados&&fState.dados[v]!=null)?String(fState.dados[v]):'';
+  const _antes=cur;   // o valor de ABERTURA — o `input` ao vivo já terá sobrescrito o estado
   const labelText = _fLpLabel(v);
   p.innerHTML=`<div class="lp-edit-pop-header">
     <div class="lp-edit-pop-title-wrap">
@@ -1551,7 +1629,7 @@ function _fLpTextEditor(v,maxLen,ev){
   inp.value=cur;
   const refresh=()=>{ cnt.textContent=inp.value.length+'/'+maxLen; };
   inp.addEventListener('input',()=>{ refresh(); if(!fState.dados)fState.dados={}; fState.dados[v]=inp.value; _fLpRender(); });
-  p._lpCommitOnClose=()=>_fLpCommit(v,inp.value);   // qualquer saída fecha o valor (ver _fLpCloseEditor)
+  p._lpCommitOnClose=()=>_fLpCommit(v,inp.value,{antes:_antes});   // qualquer saída fecha o valor (ver _fLpCloseEditor)
   inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); _fLpCloseEditor(); } });
   p.querySelector('.lp-edit-ok').onclick=()=>_fLpCloseEditor();
   refresh();
@@ -1940,6 +2018,24 @@ function fLpCancelFraming(){
   if(typeof gToast==='function') gToast('Ajuste descartado');
 }
 function fLpStopFraming(){
+  /* APLICAR também deixa saída. Cancelar cobre "desisti enquanto mexia"; isto cobre
+     "apliquei e me arrependi", que é o caso que o teste pegou. Registra no MESMO slot único
+     do franqueado (`_fUndoRegistra`, chat.js) — não é um segundo histórico, e o enquadramento
+     é a única coisa que volta: a foto e o resto da arte não são tocados. */
+  if(_lpFraming && typeof _fUndoRegistra==='function'){
+    const v=_lpFraming.varName, snap=_lpFraming.snap, tinha=_lpFraming.tinha;
+    const agora=fState.dados&&fState.dados['__fit__'+v];
+    const mudou=!agora||!snap||Math.abs((agora.scale||1)-(snap.scale||1))>0.005
+      ||Math.abs((agora.offX||0)-(snap.offX||0))>0.005||Math.abs((agora.offY||0)-(snap.offY||0))>0.005;
+    if(mudou){
+      _fUndoRegistra('Ajuste da foto', ()=>{
+        if(tinha && snap) fState.dados['__fit__'+v]={scale:snap.scale,offX:snap.offX,offY:snap.offY};
+        else delete fState.dados['__fit__'+v];
+        try{ if(typeof fSaveChatDraft==='function') fSaveChatDraft(); }catch(e){}
+        _fLpRender();
+      });
+    }
+  }
   window.removeEventListener('mousemove',_fLpFrameMove);
   window.removeEventListener('mouseup',_fLpFrameUp);
   window.removeEventListener('keydown',_fLpFrameKey);

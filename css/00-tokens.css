@@ -53,22 +53,43 @@
      já usa em erro resolve. No claro volta ao vermelho da marca (5.83:1).
      Use --dm-red para fundos/badges; --dm-red-text para texto e link. */
   --dm-red-text: var(--d-error);
-  /* designer dark */
-  --d-bg: #111111;
-  --d-dark: #1A1A1A;
-  --d-surf: #222222;
-  --d-surf2: #2A2A2A;
-  --d-surf3: #333333;
-  --d-border: rgba(255, 255, 255, .08);
-  --d-border2: rgba(255, 255, 255, .14);
-  --d-text: #F0F0F0;
-  --d-text2: #A0A0A0;
-  --d-text3: #8A8A8A;
-  --d-error: #FF6B6B;
+  /* ══ TEMA ESCURO — cinza AZULADO (rodada de controle e confiança, 09/2026) ══════════════
+     Era preto puro numa escada de cinza neutro (#111 → #222 → #2A → #333). O retorno foi
+     "pesado": preto absoluto não tem profundidade, e o olho não separa uma superfície da
+     outra quando as três só variam em luminosidade.
+     A família nova é um cinza com um fio de azul (matiz ~218°, saturação baixíssima). É
+     TEMPERATURA, não uma segunda cor de marca — o laranja da DM continua sendo o único
+     acento. Nada de azul saturado, nada de neon: a diferença entre `--d-bg` e `--d-surf3`
+     se lê como profundidade, não como cor.
+     ⛔ NÃO TOCAR: as cores de terceiros dentro das prévias reais (o verde do WhatsApp, o
+     chassi do iPhone, o branco do feed do Instagram, em `#f-posted-modal`) são hex crus de
+     propósito — tokenizar aquilo seria mentir sobre o que o franqueado vai ver publicado.
+     CONTRASTE MEDIDO, não estimado (`scripts` do runner à parte, cálculo WCAG 2.1). Antes →
+     depois, com a nota preservada em todos os 13 pares principais:
+       texto/fundo 16,57 → 15,29 (AAA) · texto/superfície 13,96 → 13,74 (AAA)
+       secundário/superfície 6,08 → 7,39 (AA→AAA) · terciário/superfície 4,61 → 5,35 (AA)
+       laranja/superfície 7,00 → 7,11 (AAA) · erro/superfície 5,73 → 6,44 (AA)
+       seleção/fundo 5,65 → 6,17 (AA) · preto sobre laranja 8,71 (AAA, intocado)
+     A queda no texto principal é o fundo clareando de propósito — e 15,29:1 é AAA com folga.
+     Quem mexer nesta escada mede de novo: a régua é o pior par, não o mais bonito. */
+  --d-bg: #14171C;
+  --d-dark: #171B21;
+  --d-surf: #1C212A;
+  --d-surf2: #232935;
+  --d-surf3: #2C3341;
+  /* Borda azul-cinza em alfa: acompanha a superfície de baixo em vez de virar uma linha
+     chapada, e o tom frio evita o cinza "sujo" que o branco puro cria sobre fundo azulado. */
+  --d-border: rgba(160, 178, 206, .13);
+  --d-border2: rgba(160, 178, 206, .22);
+  /* Off-white, não branco: #FFF sobre fundo escuro vibra e cansa em leitura longa. */
+  --d-text: #E9EDF3;
+  --d-text2: #A7B0BF;
+  --d-text3: #8C95A5;
+  --d-error: #FF7B7B;
   /* Azul da SELECAO no Estudio (caixa de marquee e marching ants). Estava solto em dois
      pontos do selection.js; e cor de chrome de UI, entao nasce aqui como qualquer outra. */
-  --d-sel: #4A90D9;
-  --d-sel-fill: rgba(74, 144, 217, .12);
+  --d-sel: #5B9BE0;
+  --d-sel-fill: rgba(91, 155, 224, .14);
   --var-color: #FFB900;
   --var-bg: rgba(255, 185, 0, .12);
 

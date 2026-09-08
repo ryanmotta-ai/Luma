@@ -130,6 +130,10 @@ franqueado (o Quick Add em linguagem natural existiu e saiu em 03/09).
 |---|---|---|
 | `gInterpolate` | `js/00-config.js:349` | Troca `{{campo}}` por valor. **Um só**, ou designer e franqueado divergem |
 | `gEsc` / `_dEsc` | `js/core/toast.js:49` | Escape antes de `innerHTML`. Escapar "na mão" em um ponto = brecha de XSS |
+| Restart do franqueado | `js/franqueado/chat.js` | `fAskRestartArt` (porta de UI, confirma) → `fRestartArt` (motor). Eram TRÊS caminhos com comportamentos diferentes — daí o "às vezes não avisa" |
+| Desfazer do franqueado | `js/franqueado/chat.js` (`_fUndoRegistra`/`fDesfazer`) | UM SLOT, não histórico. ⛔ Nada a ver com `dUndo`/`dRedo` do Estúdio |
+| Ambiente de publicação | `js/franqueado/live-preview.js` (`fPostedContextForFormat`) | Decide pela GEOMETRIA se a arte pode ser vista como Stories/Feed. `null` esconde a ação |
+| Toggle da senha | `js/core/auth.js` (`gTogglePass` + `gSyncPassToggle`) | O ícone e o aria são SEMPRE derivados do `input.type`. Nunca calcule em paralelo |
 | `gFieldLabel` | `js/00-config.js` | Como um campo se CHAMA para quem lê. Designer > catálogo > humanização > genérico. **Nome técnico nunca aparece** (`precoPor`, `foto_produto`). Havia 6 fallbacks `\|\| v` espalhados — 6 verdades |
 | `gCampoEhLogo` | `js/00-config.js` | "Isto é um logo?" — usado pela copy do passo, pela validação do arquivo, pelo `contain` no render e pela prévia |
 | `fBuildPerguntas` | `js/franqueado/materials.js` | Monta as perguntas do chat (ordem, copy, par de preço). O `catalog.js` tinha a segunda montagem, mais pobre: a mesma arte perguntava diferente conforme a porta de entrada |
@@ -185,7 +189,7 @@ bancada que mede a distância entre o que o Estúdio mostra e o que o franqueado
 ## Verificação — o Luma TEM teste automatizado
 
 ⚠️ **O `CLAUDE.md`, o `03_ENGINEERING` §7 e o `06_OPERATING_SYSTEM` §4 dizem que este projeto
-não tem teste nem runner. Isso deixou de ser verdade.** Rodado em 2026-09-08: **218 casos
+não tem teste nem runner. Isso deixou de ser verdade.** Rodado em 2026-09-08: **239 casos
 verdes**. Os docs são de antes da suíte existir.
 
 ```
@@ -201,9 +205,9 @@ CHROMIUM_PATH=/caminho/chrome node scripts/run-browser-tests.js
 | `tests/fuzz.html` | exceção, `NaN`, laço que não converge, bloqueio sem diagnóstico | 63 |
 | `tests/psd-import.html` | regressão do importador de PSD (geometria de texto, alpha, raster, selo de fidelidade) | 10 |
 | `tests/export.html` | contrato de saída: dimensões e escala do que o franqueado baixa | 3 |
-| `tests/search-feedback.html` | busca do catálogo, feedback e eventos offline | 32 |
+| `tests/search-feedback.html` | busca do catálogo, feedback (convite pós-download + carência) e eventos offline | 34 |
 | `tests/franqueado-honestidade.html` | material-demo vs. material real, validade real, estados vazios/erro do catálogo + **rótulo nunca cru**, ordem semântica das perguntas, par de preço | 36 |
-| `tests/franqueado-fluxo.html` | **chat e prévia como uma verdade só**: prévia→chat, chat→prévia→chat, voltar passo, editar campo já respondido, trocar formato, abrir rascunho, perfil de loja, cancelar enquadramento, passo de foto que não pula | 15 |
+| `tests/franqueado-fluxo.html` | **chat e prévia como uma verdade só** + **controle e confiança**: refazer confirma e desfaz, snapshot completo, enquadramento, contexto por formato, carência do feedback, entrega enxuta | 34 |
 | `tests/_bancada.html` | bancada de sondagem do Auto-layout (exploração, não é portão) | — |
 | `tests/_paridade-render.html` | bancada: distância entre a saída do Estúdio e a do franqueado | — |
 
@@ -246,7 +250,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 75 arquivos JS (58.763 linhas, 2.340 funções) · 33 arquivos CSS (28.178 linhas) · `index.html` com 3.779 linhas e 76 `<script>`.
+**Tamanho real de hoje:** 75 arquivos JS (59.182 linhas, 2.359 funções) · 33 arquivos CSS (28.276 linhas) · `index.html` com 3.794 linhas e 76 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -273,9 +277,9 @@ MOTOR ÚNICO de IA do front. Todo recurso de IA do Luma (legenda, encurtar texto
 · Estado global: _gAiEdgeOk
 · Depende de: core/supabase.js (gSupabase), core/img-store.js (gImgHash).
 
-**`js/core/auth.js`** · 348 linhas
+**`js/core/auth.js`** · 393 linhas
 AUTH via Supabase (Fase 5.1). Login/logout/recuperação usam supabase.auth (window.sb, criado em js/core/supabase.js). gLoadProfile() carrega a sessão + o role do profile e popula gAuthState, pra que gCurrentUser/gCurrentRole…
-· API: gRoleLevel, gLoadProfile, gLogin, gLogout, gCurrentUser, gCurrentRole, gIsAdmin, gIsSuperAdmin, gCanManageUsers, gForgotPassword, gResetPassword, gGetAllUsers, gSetUserRole, gSetUserAtivo … (+9; 24 funções no total)
+· API: gRoleLevel, gLoadProfile, gLogin, gLogout, gCurrentUser, gCurrentRole, gIsAdmin, gIsSuperAdmin, gCanManageUsers, gForgotPassword, gResetPassword, gGetAllUsers, gSetUserRole, gSetUserAtivo … (+11; 26 funções no total)
 · Estado global: gAuthState
 
 **`js/core/auto-layout.js`** · 957 linhas
@@ -345,7 +349,7 @@ Credenciais do projeto Supabase. PREENCHA com a Project URL e a anon key. A anon
 Cria o client Supabase global `window.sb`, usado pela auth e pela camada de persistência (fase 5.1).
 · API: gSupabase, gHasBackend, gPendingDeletes, gRemoteDelete, gIsPendingDelete, gFlushPendingDeletes
 
-**`js/core/toast.js`** · 177 linhas
+**`js/core/toast.js`** · 198 linhas
 gToast(msg) — exibe notificacao flutuante de 2.8s.
 · API: gToast, gEsc, gEscJs, gSafeColor, gNormBusca, gBtnLoading, gConfirm, gPrompt, gWarnImagesNotPersisted
 · Estado global: gImgPersistWarned
@@ -370,15 +374,16 @@ F-02: tipos de campo, mascaras de input, validacao por campo. F_FIELD_TYPES defi
 · Estado global: _F_MAXLEN_MED, _fFitOpts, _fFitBusy
 · Depende de: 00-config.js
 
-**`js/franqueado/chat.js`** · 1880 linhas
+**`js/franqueado/chat.js`** · 2047 linhas
 Fluxo conversacional completo: fStartChat, fNextStep, fAddBot, fAddUser, fSend, fQR, fTyping, fGoBack, upload de imagem, confirm card, fGerarArte.
-· API: fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSaveLojaPrompt, fConfirmSaveLoja, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fShowWelcome … (+44; 74 funções no total)
-· Estado global: fNextTimeout, _fArtSnapshots, _fArtCaptions
+· API: fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSaveLojaPrompt, fConfirmSaveLoja, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fShowWelcome … (+47; 82 funções no total)
+· Estado global: fNextTimeout, _fArtSnapshots, _fArtCaptions, _fUndoSlot
 · Depende de: 00-config.js, 01-state.js, franqueado/chat-input.js
 
-**`js/franqueado/feedback.js`** · 244 linhas
+**`js/franqueado/feedback.js`** · 334 linhas
 Feedback contextual e pedidos de conteúdo. Depende de gEsc/gUuid/gCurrentUser. Guarda apenas IDs e metadados da ação; nunca retém o snapshot vivo do editor. O banco confirma o envio e emite os eventos, sem um segundo coletor…
-· API: fFeedbackFlush, fFeedbackMount, fFeedbackAfterDownload, fFeedbackRequest
+· API: fFeedbackFlush, fFeedbackMount, fFeedbackPodeConvidar, fFeedbackAfterDownload, fFeedbackRequest
+· Estado global: _fFeedbackConviteNaSessao
 
 **`js/franqueado/history.js`** · 293 linhas
 Historico de artes do franqueado: fGetHist, fSaveHist, fAddHist, fMarkHistBaixada, fUpdateHistBadge, fRenderHist, fDownloadHist. Persiste em localStorage (HIST_KEY).
@@ -386,9 +391,9 @@ Historico de artes do franqueado: fGetHist, fSaveHist, fAddHist, fMarkHistBaixad
 · Estado global: _fArtesPushBusy, _fArtesPushQueued
 · Depende de: 00-config.js (HIST_KEY), 01-state.js (fState)
 
-**`js/franqueado/live-preview.js`** · 2081 linhas
+**`js/franqueado/live-preview.js`** · 2177 linhas
 Preview lateral em tempo real (fUpdateLivePreview) e modal de preview multi-formato (fOpenPreview, fClosePreview, fStartFromPreview).
-· API: fOpenPreview, fStartFromPreview, fClosePreview, fPostedSetCtx, fPostedCloseQR, fPostedOpenQR, fPostedCopyQRLink, fOpenPosted, fClosePosted, fUpdateLivePreview, fLpSizeCanvas, fLpRefit, fLpZoomStep, fLpZoomSlider … (+16; 100 funções no total)
+· API: fOpenPreview, fStartFromPreview, fClosePreview, fPostedSetCtx, fPostedCloseQR, fPostedOpenQR, fPostedCopyQRLink, fPostedContextForFormat, fOpenPosted, fClosePosted, fUpdateLivePreview, fLpSizeCanvas, fLpRefit, fLpZoomStep … (+17; 104 funções no total)
 · Estado global: _postedArt, renderizada, _postedCtx, _pstStageBound, _pstTiltRaf, _pstQRUrl, _pstQRBusy, _lpRendering, _lpLastErr, _lpPendingRender (+19)
 · Depende de: 00-config.js, 01-state.js
 
@@ -654,7 +659,7 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 
 | Arquivo | Linhas |
 |---|---|
-| `css/00-tokens.css` | 247 |
+| `css/00-tokens.css` | 268 |
 | `css/01-reset.css` | 27 |
 | `css/02-animations.css` | 179 |
 | `css/03-fonts.css` | 60 |
@@ -672,19 +677,19 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 | `css/modules/all-tools.css` | 113 |
 | `css/modules/calendario.css` | 1544 |
 | `css/modules/catalog.css` | 299 |
-| `css/modules/chat.css` | 2525 |
+| `css/modules/chat.css` | 2532 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
 | `css/modules/designer.css` | 5753 |
-| `css/modules/feedback.css` | 82 |
-| `css/modules/franqueado.css` | 1537 |
+| `css/modules/feedback.css` | 118 |
+| `css/modules/franqueado.css` | 1539 |
 | `css/modules/franqueado_effects.css` | 418 |
 | `css/modules/help-widget.css` | 1698 |
 | `css/modules/layers-panel.css` | 4317 |
-| `css/modules/live-preview.css` | 924 |
+| `css/modules/live-preview.css` | 928 |
 | `css/modules/panel-dock.css` | 116 |
 | `css/modules/publish-modal.css` | 628 |
-| `css/modules/toolbar.css` | 989 |
+| `css/modules/toolbar.css` | 1017 |
 | `css/modules/topbar.css` | 217 |
 | `css/modules/upload-panel.css` | 111 |
 
