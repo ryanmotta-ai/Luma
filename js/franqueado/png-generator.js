@@ -1848,10 +1848,21 @@ function _fBulkTomarPrevia(){
   _fBulkDadosDoChat = fState.dados;
   _fBulkDonoDaPrevia = true;
   destino.classList.add('tem-previa-viva');
-  /* ANTES do navegador de ofertas, não no fim: com `appendChild` a coluna lia
-     "navegação → arte", o inverso do layout original. Visto no print. */
-  const nav = destino.querySelector('.f-bulk-live-nav');
-  if(nav) destino.insertBefore(painel, nav); else destino.appendChild(painel);
+  /* DENTRO do `.f-bulk-live-body`, ao lado do rail de miniaturas (09/09). Antes o painel
+     entrava como filho direto da coluna, ANTES do navegador de ofertas — e a fita ficava
+     embaixo dele. Com o rail vertical, o corpo é uma LINHA [miniaturas | arte], então é lá
+     que o painel precisa cair; entrar como filho da coluna deixaria o rail ao lado de um
+     palco vazio (o `tem-previa-viva` esconde o palco nativo).
+     O `appendChild` no corpo põe a arte DEPOIS do rail, que é a ordem de leitura certa:
+     lista à esquerda, peça grande à direita.
+     Fallback para o comportamento antigo se o wrapper não existir — o painel nunca pode
+     ficar sem pai visível. */
+  const corpo = destino.querySelector('.f-bulk-live-body');
+  if(corpo){ corpo.appendChild(painel); }
+  else {
+    const nav = destino.querySelector('.f-bulk-live-nav');
+    if(nav) destino.insertBefore(painel, nav); else destino.appendChild(painel);
+  }
   painel.classList.add('is-no-sheets');
   _fBulkApontarPreviaNaLinha();
 }
@@ -1913,7 +1924,12 @@ function _fBulkRenderStrip(){
   const strip = document.getElementById('f-bulk-strip');
   if(!strip || !fState.material || !fState.material.layers) return;
   const [nw,nh] = fMaterialSize(fState.material, fState.fmt);
-  const cw = 34, ch = Math.max(20, Math.round(cw*nh/nw));
+  /* A miniatura acompanha a direção do rail: no desktop ele é uma COLUNA ao lado da arte e
+     cabe uma miniatura de 64px; no celular a fita continua deitada e 34px é o que passa sem
+     comer a largura da arte. Medir a tela aqui (e não só no CSS) porque o número é a
+     resolução do canvas — CSS esticaria um bitmap de 34px em 68 e a fita sairia borrada. */
+  const _railVertical = !(window.matchMedia && window.matchMedia('(max-width:900px)').matches);
+  const cw = _railVertical ? 64 : 34, ch = Math.max(20, Math.round(cw*nh/nw));
   const ativo = _fBulkActiveIdx();
   /* A fita obedece à MESMA busca da tabela. Sem isto ela oferecia miniaturas de linhas que o
      filtro tinha escondido: clicar levava a uma arte que não dava para editar do lado. */
