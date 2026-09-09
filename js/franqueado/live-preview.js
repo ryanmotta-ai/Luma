@@ -720,6 +720,8 @@ async function fUpdateLivePreview(opts){
           fLpHighlightActiveField(ctx, activeLayer, W, H);
         }
       }
+      // O lápis mora no MESMO objeto que o Focus Sync destaca — um por arte, nunca uma fileira.
+      try{ _fLpPaintEditBadge(canvas, activeLayer); }catch(e){}
       
       // Mesa infinita: o zoom/pan manual transforma o CARD; o smart-zoom do chat fica no canvas
       // e só age quando não há view manual.
@@ -1193,41 +1195,68 @@ function fLpHighlightEmpty(ctx, layers, pendentes, W, H){
   return;
 }
 
+/* Traça a MESMA silhueta usada pelo render final. O hover antigo era uma DIV retangular:
+   ignorava `radii` por canto, elipse, polígono e o path vetorial da moldura — por isso a
+   seleção quadrada denunciava a caixa técnica, não o objeto que a pessoa estava vendo. */
+function _fLpTraceLayerPath(ctx, l, vr, padding){
+  if(!ctx||!l||!vr||!(vr.w>0)||!(vr.h>0)) return null;
+  const ehObjeto=l.type==='image'||l.type==='frame'||l.type==='shape';
+  const pad=ehObjeto?0:Math.max(0,+padding||0);
+  const x=vr.x-pad,y=vr.y-pad,w=vr.w+pad*2,h=vr.h+pad*2;
+  const kind=l.shapeKind||l.frameShape||'rect';
+  const vector=kind==='path'&&typeof gVectorPathValid==='function'&&gVectorPathValid(l.vectorPath)
+    ?l.vectorPath:null;
+  if(vector&&typeof gTraceVectorPath==='function'){
+    gTraceVectorPath(ctx,vector,x,y,w,h);
+    return typeof gVectorPathFillRule==='function'?gVectorPathFillRule(vector):'nonzero';
+  }
+  if(kind==='circle'||kind==='ellipse'){
+    ctx.beginPath();ctx.ellipse(x+w/2,y+h/2,w/2,h/2,0,0,Math.PI*2);
+    return 'nonzero';
+  }
+  const pts=ehObjeto&&typeof dShapePoints==='function'?dShapePoints(l):null;
+  if(pts&&pts.length>=3){
+    const abs=pts.map(p=>[x+p[0]*w,y+p[1]*h]);
+    const r=Math.min(+l.radius||0,w/2,h/2);
+    if(r>0&&typeof gRoundPolyPath2D==='function') gRoundPolyPath2D(ctx,abs,r);
+    else { ctx.beginPath();abs.forEach((p,i)=>{i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]);});ctx.closePath(); }
+    return 'nonzero';
+  }
+  const ru=ehObjeto?(+l.radius||0):Math.max(6,pad);
+  const rr=ehObjeto&&l.radii;
+  const tl=rr?(+rr.tl||0):ru,tr=rr?(+rr.tr||0):ru,
+        br=rr?(+rr.br||0):ru,bl=rr?(+rr.bl||0):ru;
+  if(typeof roundedRectPath==='function') roundedRectPath(ctx,x,y,w,h,tl,tr,br,bl);
+  else if(ctx.roundRect){ctx.beginPath();ctx.roundRect(x,y,w,h,[tl,tr,br,bl]);}
+  else {ctx.beginPath();ctx.rect(x,y,w,h);}
+  return 'nonzero';
+}
+
 // Desenha um destaque sutil de foco ao redor do campo correspondente à pergunta ativa do chat (Focus Sync)
 function fLpHighlightActiveField(ctx, l, W, H) {
   if(!l) return;
   ctx.save();
   
   // Cor do destaque: Laranja oficial Delivery Much com traço contínuo fino e elegante
-  ctx.strokeStyle = '#FF9000';
+  const accent=getComputedStyle(document.documentElement).getPropertyValue('--dm-orange').trim();
+  if(accent) ctx.strokeStyle=accent;
   ctx.lineWidth = Math.max(2.5, Math.round(W * 0.0035));
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   
   // Efeito suave de Glow/Sombra
-  ctx.shadowColor = 'rgba(255, 144, 0, 0.42)';
+  if(accent) ctx.shadowColor=accent;
+  ctx.globalAlpha=.42;
   ctx.shadowBlur = Math.max(8, Math.round(W * 0.012));
   
   const padding = Math.max(4, Math.round(W * 0.005));
   const vr = _fLpVisualRect(l);
-  const x = vr.x - padding;
-  const y = vr.y - padding;
-  const w = (vr.w || W) + padding * 2;
-  const h = (vr.h || 40) + padding * 2;
-  const isCircle = l.frameShape === 'circle' || l.shapeKind === 'circle';
-  const r = isCircle ? Math.min(w / 2, h / 2) : Math.min(l.radius || 8, w / 2, h / 2);
-  
-  ctx.beginPath();
-  if (typeof roundedRect === 'function') {
-    roundedRect(ctx, x, y, w, h, r);
-  } else if (ctx.roundRect) {
-    ctx.roundRect(x, y, w, h, r);
-  } else {
-    ctx.rect(x, y, w, h);
+  const fillRule=_fLpTraceLayerPath(ctx,l,vr,padding);
+  if(fillRule){
+    if(accent) ctx.fillStyle=accent;
+    ctx.globalAlpha=.04;ctx.fill(fillRule);
+    ctx.globalAlpha=.82;ctx.stroke();
   }
-  ctx.fillStyle = 'rgba(255, 144, 0, 0.04)';
-  ctx.fill();
-  ctx.stroke();
   
   ctx.restore();
 }
@@ -1428,7 +1457,9 @@ function fInitMobilePreviewEvents() {
 /* ══════════════════════════════════════════════════════════════
    EDIÇÃO DIRETA NA PRÉVIA (clique-para-preencher) + ENQUADRAR FOTO
    O franqueado clica num campo da arte e edita ali: texto inline ou
-   foto (enviar/link/reposicionar/trocar/remover). NUNCA edita camadas
+   foto (enviar/trocar, reposicionar+zoom, remover — NÃO existe entrada
+   por link em nenhum ponto do front; a do Sheets saiu em 09/09/2026 e
+   este comentário descrevia uma que nunca existiu aqui). NUNCA edita camadas
    — texto/foto vão pra fState.dados; o enquadramento vai pra
    fState.dados['__fit__'+var] (override por-arte lido pelo motor, sem
    mutar o template compartilhado). Respeita permissão do designer
@@ -1519,7 +1550,17 @@ function _fLpLayerAt(x,y,cvAlvo){
     if(!l||l.visible===false||!_fLpLayerVars(l).length) continue;
     const vr=_fLpVisualRect(l);
     const lx=vr.x,ly=vr.y,lw=vr.w,lh=vr.h;
-    if(x>=lx&&x<=lx+lw&&y>=ly&&y<=ly+lh) return l;
+    if(!(x>=lx&&x<=lx+lw&&y>=ly&&y<=ly+lh)) continue;
+    // Texto mantém a caixa inteira como alvo confortável; foto/moldura só responde dentro da
+    // silhueta visível, sem clicar no vazio transparente de um canto arredondado ou estrela.
+    if(l.type==='text') return l;
+    if(!_fLpLayerAt._ctx){
+      const hit=document.createElement('canvas');
+      _fLpLayerAt._ctx=hit.getContext('2d');
+    }
+    const hctx=_fLpLayerAt._ctx;
+    const fillRule=_fLpTraceLayerPath(hctx,l,vr,0);
+    if(fillRule&&hctx.isPointInPath(x,y,fillRule)) return l;
   }
   return null;
 }
@@ -2072,27 +2113,27 @@ function _fLpOnCanvasMove(ev){
   const wrap=cv.closest('.lp-canvas-wrap');
   if(wrap && editable){
     if(!_fLpHoverBox){
-      _fLpHoverBox=document.createElement('div');
+      _fLpHoverBox=document.createElement('canvas');
       _fLpHoverBox.id='lp-hover-box';
-      _fLpHoverBox.className='lp-hover-box';
+      _fLpHoverBox.setAttribute('aria-hidden','true');
+      Object.assign(_fLpHoverBox.style,{position:'absolute',left:'0',top:'0',pointerEvents:'none',zIndex:'25',display:'none'});
       wrap.appendChild(_fLpHoverBox);
     }
     const vr=_fLpVisualRect(l);
     if(vr && vr.w>0 && vr.h>0 && cv.width>0 && cv.height>0){
-      const isCircle=l.frameShape==='circle'||l.shapeKind==='circle';
-      const pad=3;
-      const leftPct=Math.max(0,((vr.x-pad)/cv.width)*100);
-      const topPct=Math.max(0,((vr.y-pad)/cv.height)*100);
-      const widthPct=Math.min(100-leftPct,((vr.w+pad*2)/cv.width)*100);
-      const heightPct=Math.min(100-topPct,((vr.h+pad*2)/cv.height)*100);
-      const radiusVal=isCircle?'50%':(l.radius?Math.min(24,Math.round((l.radius/(vr.w||1))*100))+'%':'7px');
-
-      _fLpHoverBox.style.left=leftPct+'%';
-      _fLpHoverBox.style.top=topPct+'%';
-      _fLpHoverBox.style.width=widthPct+'%';
-      _fLpHoverBox.style.height=heightPct+'%';
-      _fLpHoverBox.style.borderRadius=radiusVal;
-      _fLpHoverBox.className='lp-hover-box'+(isCircle?' is-circle':'');
+      _fLpHoverBox.width=cv.width;_fLpHoverBox.height=cv.height;
+      _fLpHoverBox.style.width=cv.style.width;_fLpHoverBox.style.height=cv.style.height;
+      const hctx=_fLpHoverBox.getContext('2d');
+      const cssScale=cv.getBoundingClientRect().width/(cv.width||1);
+      const unit=1/Math.max(.001,cssScale);
+      const accent=getComputedStyle(wrap).getPropertyValue('--dm-orange').trim();
+      hctx.clearRect(0,0,cv.width,cv.height);
+      hctx.save();
+      if(accent){hctx.strokeStyle=accent;hctx.fillStyle=accent;hctx.shadowColor=accent;}
+      hctx.lineWidth=1.5*unit;hctx.lineJoin='round';hctx.lineCap='round';hctx.shadowBlur=7*unit;
+      const fillRule=_fLpTraceLayerPath(hctx,l,vr,l.type==='text'?3*unit:0);
+      if(fillRule){hctx.globalAlpha=.07;hctx.fill(fillRule);hctx.globalAlpha=.95;hctx.stroke();}
+      hctx.restore();
       _fLpHoverBox.style.display='block';
     } else {
       if(_fLpHoverBox) _fLpHoverBox.style.display='none';
@@ -2127,6 +2168,89 @@ function _fLpOnCanvasMove(ev){
   c.style.top=Math.min((ev.clientY||0)+14, window.innerHeight-38)+'px';
   c.style.display='inline-flex';
 }
+/* ── SELO "DÁ PRA EDITAR" — o lápis ancorado no objeto ──
+   Em repouso a arte fica limpa (fLpHighlightEmpty é no-op) e no celular não existe hover:
+   sem nenhum sinal parado, o franqueado não descobre que pode editar clicando na própria
+   peça — o segundo fluxo, ao lado do chat.
+   É UM lápis por arte, e ele anda: mora sempre no objeto do campo que o chat está
+   perguntando (o mesmo que `fLpHighlightActiveField` contorna). Um selo por campo editável
+   virava fileira de lápis — o sinal perde peso justo por se repetir. Andando com o passo,
+   a pessoa vê o convite tantas vezes quantos forem os campos, sem nunca ver dois.
+   Mora numa camada PRÓPRIA (#lp-edit-badges, irmã do #lp-hover-box) e NUNCA no ctx da arte:
+   pintado na arte, o selo vazaria pro PiP do celular e pro cartão da conversa, que copiam
+   pixels do #lp-canvas (_fLpPaintPip → drawImage).
+   O raio é em px de TELA (o `unit` desfaz a escala CSS), então o selo não engorda com o zoom. */
+const _LP_PEN_D='M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z';
+let _fLpBadgeLayer=null,_fLpBadgePath=null;
+function _fLpPenPath(){
+  if(_fLpBadgePath) return _fLpBadgePath;
+  if(typeof Path2D==='undefined') return null;
+  try{ _fLpBadgePath=new Path2D(_LP_PEN_D); }catch(e){ _fLpBadgePath=null; }
+  return _fLpBadgePath;
+}
+function _fLpDrawBadge(ctx,cx,cy,r,accent){
+  ctx.save();
+  ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);
+  /* Fundo preto + caneta laranja: o mesmo par do #lp-hover-chip, então o selo parado e o
+     chip do hover são lidos como UMA coisa. Preto também é o único fundo que sobrevive
+     tanto em cima de foto clara quanto do vermelho/laranja da peça. */
+  ctx.shadowColor='rgba(10,10,10,.34)';ctx.shadowBlur=r*.8;ctx.shadowOffsetY=r*.18;
+  ctx.fillStyle='rgba(18,18,18,.94)';ctx.fill();
+  ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetY=0;
+  ctx.lineWidth=Math.max(.4,r*.055);ctx.strokeStyle='rgba(255,255,255,.16)';ctx.stroke();
+  const pen=_fLpPenPath();
+  if(pen){
+    const s=(r*1.05)/24;
+    ctx.translate(cx-12*s,cy-12*s);ctx.scale(s,s);
+    ctx.strokeStyle=accent||'#FF9000';ctx.lineWidth=2.6;ctx.lineJoin='round';ctx.lineCap='round';
+    ctx.stroke(pen);
+  }
+  ctx.restore();
+}
+// `l` é a camada do campo ativo do chat. Sem campo ativo (arte pronta) não há selo: a arte
+// limpa é o estado final, e ali o hover/chip assume no desktop.
+function _fLpPaintEditBadge(cv,l){
+  const canvas=cv||document.getElementById('lp-canvas');
+  const wrap=canvas&&canvas.closest('.lp-canvas-wrap');
+  if(!wrap||!canvas.width||!canvas.height) return;
+  if(!_fLpBadgeLayer||!_fLpBadgeLayer.isConnected){
+    _fLpBadgeLayer=document.createElement('canvas');
+    _fLpBadgeLayer.id='lp-edit-badges';
+    _fLpBadgeLayer.setAttribute('aria-hidden','true');
+    wrap.appendChild(_fLpBadgeLayer);
+  }
+  const layer=_fLpBadgeLayer;
+  const vars=l?_fLpLayerVars(l):[];
+  // Enquadrando foto o palco tem gestos e chrome próprios — o selo sai da frente.
+  // Campo fixo da marca não ganha lápis: o cadeado dele já aparece no hover e no clique.
+  if(_lpFraming||!l||l.visible===false||!vars.some(v=>_fLpPerm(v).editable)){
+    layer.style.display='none'; return;
+  }
+  const vr=_fLpVisualRect(l);
+  if(!(vr.w>0&&vr.h>0)){ layer.style.display='none'; return; }
+  layer.width=canvas.width;layer.height=canvas.height;
+  layer.style.width=canvas.style.width;layer.style.height=canvas.style.height;
+  const ctx=layer.getContext('2d');
+  ctx.clearRect(0,0,layer.width,layer.height);
+  const cssScale=canvas.getBoundingClientRect().width/(canvas.width||1);
+  const unit=1/Math.max(.001,cssScale);          // 1px de tela → n px de arte
+  const r=9*unit,pad=r+3*unit;
+  const cx=Math.max(pad,Math.min(vr.x+vr.w,layer.width-pad));
+  const cy=Math.max(pad,Math.min(vr.y,layer.height-pad));
+  _fLpDrawBadge(ctx,cx,cy,r,getComputedStyle(wrap).getPropertyValue('--dm-orange').trim());
+  layer.style.display='block';
+  /* A camada inteira tem o tamanho da arte, então o `scale` do pulso precisa nascer NO selo —
+     com a origem no centro, o lápis chegava deslizando de viés em vez de crescer no lugar. */
+  layer.style.transformOrigin=(cx/layer.width*100).toFixed(2)+'% '+(cy/layer.height*100).toFixed(2)+'%';
+  /* O selo ANDA de campo em campo, e a prévia repinta a cada tecla digitada. O pulso é a
+     chegada num campo NOVO — repetir a cada tecla seria um lápis piscando sem parar. */
+  const chave=l.id||vars[0]||'';
+  if(layer._lpBadgeKey!==chave){
+    layer._lpBadgeKey=chave;
+    layer.classList.remove('pop');void layer.offsetWidth;layer.classList.add('pop');
+  }
+}
+
 function _fLpBindCanvasEditing(){
   const cv=document.getElementById('lp-canvas');
   if(cv && !cv._fLpBound){

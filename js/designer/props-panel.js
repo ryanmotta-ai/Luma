@@ -436,6 +436,19 @@ const DP_PANEL_VIEW_META = {
     panel: 'dados',
     controls: 'd-panel-dados',
     icon: DP_PANEL_ICONS.dados
+  },
+  /* ══ CATÁLOGO ══
+     O painel de campanhas (pastas, materiais, publicar) já existia — mas só a aba LEGADA
+     (`.d-rp-tabs`, escondida no Estúdio simples) sabia abri-lo. Quando algo chamava
+     `dActivatePanel('campaigns')` — e o Estúdio faz isso ao abrir sem material —, a nav não
+     tinha esse destino: nenhum botão acendia e o painel aparecia solto, sem moldura nem
+     título, "fugindo" da tela. Agora ele é o quarto destino da nav, com o mesmo enquadramento
+     dos outros três. Nenhuma lógica de pasta, publicação ou material mudou. */
+  catalogo: {
+    label: 'Catálogo',
+    panel: 'campaigns',
+    controls: 'd-panel-campaigns',
+    icon: DP_PANEL_ICONS.campaigns
   }
 };
 
@@ -2182,69 +2195,6 @@ function dPropInitCanvasEmpty() {
   }).observe(frame, { childList: true });
 }
 
-function dPropSyncPagesTray() {
-  const tray = document.getElementById('d-pages-tray');
-  const list = document.getElementById('ptray-list');
-  const toggle = tray ? tray.querySelector('.ptray-toggle') : null;
-  if (!tray || !list || !toggle) return;
-
-  const items = Array.from(list.querySelectorAll('.ptray-item'));
-  const count = items.length;
-  if (count && tray.dataset.dpiDefaultCollapsed !== '1') {
-    tray.dataset.dpiDefaultCollapsed = '1';
-    tray.classList.add('collapsed');
-    if (typeof dPagesTrayCollapsed !== 'undefined') dPagesTrayCollapsed = true;
-  }
-
-  tray.classList.toggle('dpi-pages-single', count <= 1);
-  let label = toggle.querySelector('.dpi-pages-toggle-label');
-  if (!label) {
-    label = document.createElement('span');
-    label.className = 'dpi-pages-toggle-label';
-    toggle.appendChild(label);
-  }
-  label.textContent = count + (count === 1 ? ' página' : ' páginas');
-  const expanded = !tray.classList.contains('collapsed');
-  toggle.setAttribute('aria-expanded', String(expanded));
-  toggle.setAttribute('aria-controls', 'ptray-list');
-  toggle.setAttribute('aria-label', (expanded ? 'Recolher ' : 'Mostrar ') + label.textContent);
-  toggle.title = expanded ? 'Recolher páginas' : 'Mostrar páginas';
-
-  list.setAttribute('role', 'list');
-  list.setAttribute('aria-label', 'Páginas do material');
-  items.forEach(function(item, index) {
-    const active = item.classList.contains('active');
-    item.setAttribute('role', 'button');
-    item.setAttribute('aria-current', active ? 'page' : 'false');
-    item.setAttribute('aria-label', 'Abrir página ' + (index + 1) + ': ' +
-      ((item.querySelector('.ptray-item-label') || {}).textContent || 'Sem nome'));
-    item.tabIndex = active || (!items.some(function(row) { return row.classList.contains('active'); }) && index === 0) ? 0 : -1;
-  });
-
-  const add = tray.querySelector('.ptray-add');
-  if (add) add.setAttribute('aria-label', 'Adicionar nova página');
-}
-
-function dPropInitPagesTray() {
-  const tray = document.getElementById('d-pages-tray');
-  const list = document.getElementById('ptray-list');
-  const toggle = tray ? tray.querySelector('.ptray-toggle') : null;
-  if (!tray || !list || !toggle || tray.dataset.dpiReady === '1') return;
-  tray.dataset.dpiReady = '1';
-
-  toggle.addEventListener('click', function() {
-    requestAnimationFrame(dPropSyncPagesTray);
-  });
-  list.addEventListener('keydown', function(event) {
-    const item = event.target.closest('.ptray-item');
-    if (!item || (event.key !== 'Enter' && event.key !== ' ')) return;
-    event.preventDefault();
-    item.click();
-  });
-  new MutationObserver(dPropSyncPagesTray).observe(list, { childList: true });
-  dPropSyncPagesTray();
-}
-
 const dPropBaseShowProps = typeof dShowProps === 'function' ? dShowProps : null;
 if (dPropBaseShowProps) {
   dShowProps = function(layer) {
@@ -2267,8 +2217,8 @@ if (dPropBaseActivatePanel) {
       vars: 'dados',
       variaveis: 'dados',
       linter: 'linter',
-      campaigns: 'campaigns',
-      conteudo: 'campaigns'
+      campaigns: 'catalogo',
+      conteudo: 'catalogo'
     };
     const rightPanel = document.getElementById('d-right');
     const keepOrganize = rightPanel && rightPanel.dataset.dpiKeepOrganize === '1' &&
@@ -2345,7 +2295,6 @@ document.addEventListener('DOMContentLoaded', function() {
   dPropInitDataPanel();
   dPropInitFieldWizard();
   dPropInitCanvasEmpty();
-  dPropInitPagesTray();
   dPropSyncInspectorFromState();
 
   const form = document.getElementById('d-props-form');

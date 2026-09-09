@@ -57,6 +57,49 @@
     assert(by(out,'placa').h>110,'a placa agrupada não acompanhou a nova altura');
   });
 
+  test('placa usa a tinta de referência quando o bbox nominal do PSD sobra',()=>{
+    const layers=[
+      shape('placa',145,85,150,90,{locked:false,parentId:'grupo'}),
+      text('texto',100,100,240,60,'{{produto}}',{fontSize:40,textBox:'point',textAlign:'center',
+        parentId:'grupo',layoutRefText:'VAMO'}),
+      {id:'grupo',name:'Grupo',type:'group',x:100,y:80,w:240,h:100,visible:true,opacity:100}
+    ];
+    const out=solve(layers,{produto:'VAMOS JUNTOS'},{w:700,h:400});
+    const p=by(out,'placa'),t=by(out,'texto'),r=gInkRect(t,t._fit);
+    assert(p._placa&&p._placa.alvo==='texto','a tinta real não vinculou texto e placa');
+    assert(p.w>150,'a placa não cresceu porque o bbox nominal desligou a relação');
+    assert(p.x<=r.x&&p.x+p.w>=r.x+r.w,'a placa não envolveu a tinta maior');
+  });
+
+  test('placa encolhe preservando o respiro da copy curta',()=>{
+    const layers=[
+      shape('placa',70,85,360,90,{locked:false,parentId:'grupo'}),
+      text('texto',95,100,310,60,'{{produto}}',{fontSize:40,textBox:'point',textAlign:'center',
+        parentId:'grupo',layoutRefText:'COMBO FAMÍLIA'}),
+      {id:'grupo',name:'Grupo',type:'group',x:70,y:80,w:360,h:100,visible:true,opacity:100}
+    ];
+    const out=solve(layers,{produto:'Dale'},{w:700,h:400});
+    const p=by(out,'placa'),t=by(out,'texto'),r=gInkRect(t,t._fit);
+    assert(p._placa&&p._placa.padE>0&&p._placa.padD>0,'os respiros laterais não foram preservados');
+    assert(p.w<360,'a placa manteve a largura autorada mesmo com uma copy muito menor');
+    assert(p.x<r.x&&p.x+p.w>r.x+r.w,'a placa curta cortou a tinta');
+  });
+
+  test('pill oval acompanha o campo quando ele muda de posição',()=>{
+    const layers=[
+      text('titulo',80,40,360,55,'{{titulo}}',{fontSize:42}),
+      shape('pill',150,190,180,70,{locked:false,shapeKind:'ellipse',parentId:'grupo'}),
+      text('cta',170,202,140,46,'{{cta}}',{fontSize:34,textBox:'point',textAlign:'center',
+        parentId:'grupo',layoutRefText:'Dale',relativeAnchor:{layerId:'titulo',type:'top-to-bottom',gap:95}}),
+      {id:'grupo',name:'Grupo',type:'group',x:140,y:180,w:200,h:90,visible:true,opacity:100}
+    ];
+    const out=solve(layers,{titulo:'Festival de sabores artesanais por tempo limitado',cta:'Dale'},{w:600,h:500});
+    const p=by(out,'pill'),t=by(out,'cta'),r=gInkRect(t,t._fit);
+    assert(p._placa&&p._placa.alvo==='cta','o pill oval não foi reconhecido como caixa do campo');
+    assert(p.y>190,'o pill ficou para trás quando o texto foi empurrado');
+    assert(p.y<=r.y&&p.y+p.h>=r.y+r.h,'o pill se separou verticalmente da copy');
+  });
+
   test('quebra manual não desliga a proteção das linhas longas',()=>{
     const l=text('manual',0,0,260,100,'',{fontSize:30});
     const wrapped=gSmartWrapText('Linha manual\nSUPERMEGAULTRAPROMOÇÃO🔥🔥🔥🔥🔥',260,l,{},{});

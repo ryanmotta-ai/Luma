@@ -146,8 +146,8 @@ function fStartChatComMaterial(material){
 }
 
 /* ── Atalhos de pré-início (perfil de loja salva + reusar última arte) ──
-   O atalho é "só um passo no chat"; renomear/apagar/criar loja mora na aba
-   "Lojas e fotos" do painel de conta (js/franqueado/prefs-panel.js). */
+   O atalho é "só um passo no chat". Não há mais tela de gestão de loja nem de
+   fotos — a aba "Minhas fotos" do painel de conta saiu em 09/09/2026. */
 function _fPergExists(id){ return (fState.camp.perguntas||[]).some(p=>p.id===id); }
 
 /* Os campos que um perfil de loja sabe responder. Nomes variam por template
@@ -463,7 +463,7 @@ function _fUploadPreviewHTML(varId, url, opts){
   const ehLogo = (typeof gCampoEhLogo==='function') && gCampoEhLogo(varId);
   /* O botão "Salvar loja" saiu a pedido do Ryan (09/09) — feature morta, e era mesmo: a tela
      de GESTÃO de lojas já tinha saído do painel de conta ("não faz sentido no momento do
-     produto", prefs-panel.js), então sobrava um botão que criava um perfil que ninguém podia
+     produto"), então sobrava um botão que criava um perfil que ninguém podia
      renomear nem apagar. Com ele saem `fSaveLojaPrompt` e `fConfirmSaveLoja`, que não tinham
      outro chamador.
      ⚠ CONSEQUÊNCIA, para quem for ler isto depois: `fAddLoja` era o ÚNICO ponto de criação.
@@ -1236,42 +1236,6 @@ function _fCopyText(text){
   } else fCopyFallback(text,()=>{});
 }
 
-/* ── OS CAMPOS DA ARTE, COM O LÁPIS À VISTA ───────────────────────────────────────────────
-   Achado do teste de usabilidade: depois da arte pronta, ninguém percebia que dava para
-   reeditar. O caminho existia (clicar no campo na prévia, ou `fEditCampo`), mas nada na tela
-   dizia isso — e affordance que só aparece no hover não existe para quem está no celular.
-   Então a bolha da arte passa a listar os campos com um lápis PEQUENO E FIXO ao lado de cada
-   um: alvo de 32px, `aria-label` e `title` próprios, funciona no toque.
-   ⛔ O lápis mora AQUI e não desenhado sobre a arte: dezenas de lápis por cima da peça é o
-   oposto do pedido ("entendi que isso é editável", não "minha arte está cheia de controles"). */
-const _ICO_LAPIS = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>';
-function _fCamposEditaveisHTML(){
-  const pergs=(fState.camp&&fState.camp.perguntas)||[];
-  const linhas=pergs.map((p,idx)=>{
-    if(!p||p.id==='_dummy') return '';
-    const rot=(typeof gFieldLabel==='function')?gFieldLabel(p.id,p):(p.label||'Campo');
-    const bruto=fState.dados?fState.dados[p.id]:null;
-    const vazio=(bruto==null||bruto==='');
-    // Foto é um data:/idb: de milhares de caracteres — o que informa é que ela existe.
-    const ehFoto=p.isImage||(typeof bruto==='string'&&/^(data:image|idb:)/.test(bruto));
-    let valor;
-    if(vazio) valor='<em class="art-campo-vazio">não preenchido</em>';
-    else if(ehFoto) valor='<span class="art-campo-foto">Foto enviada</span>';
-    else { const t=String(bruto); valor=gEsc(t.length>38?t.slice(0,36)+'…':t); }
-    return `<li class="art-campo-row">
-      <span class="art-campo-rot">${gEsc(rot)}</span>
-      <span class="art-campo-val">${valor}</span>
-      <button type="button" class="art-campo-edit" onclick="fEditCampo(${idx})"
-        title="Editar ${gEsc(rot)}" aria-label="Editar ${gEsc(rot)}">${_ICO_LAPIS}</button>
-    </li>`;
-  }).filter(Boolean).join('');
-  if(!linhas) return '';
-  return `<section class="art-campos" aria-label="Campos desta arte">
-    <div class="art-campos-label">Campos desta arte — toque no lápis para trocar</div>
-    <ul class="art-campos-list">${linhas}</ul>
-  </section>`;
-}
-
 function fGerarArte(){
   fState.done=true;fUpdateProg();
   fClearChatDraft();
@@ -1383,7 +1347,6 @@ function fGerarArte(){
       <div class="bbl" style="padding-bottom:6px;display:inline-flex;align-items:center;gap:4px">Arte gerada! <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="color:#22c55e"><polyline points="20 6 9 17 4 12"/></svg></div>
       <div class="art-wrap">
         <div class="art-preview-mat">${canvasBlock}</div>
-        ${_fCamposEditaveisHTML()}
         <div class="multi-fmt-row" style="${(fState.material && fState.material.fmt) ? 'display:none;' : ''}">
           ${FMTS.map(f=>`<div class="fmt-mini ${f.id===fState.fmt.id?'current':''}" onclick="fOutroFormato('${f.id}','${previewCanvasId}')">
             <div class="fmt-mini-thumb" style="background:${gSafeColor(c.color)}">${f.name.toUpperCase()}</div>

@@ -342,39 +342,6 @@ body:not(.theme-light) .art-preview-mat{background:var(--d-bg)}
   color: var(--dm-red);
   background: var(--dm-orange-bg);
 }
-/* ══ OS CAMPOS DA ARTE — a affordance de reedição ══════════════════════════════════════════
-   Discreta por contrato: o lápis não pode competir com o conteúdo (é o rótulo e o valor que
-   a pessoa lê), mas precisa de alvo confortável. Daí o botão de 32px com ícone de 13px —
-   a área de toque é grande, o desenho é pequeno. */
-.art-campos{
-  padding:12px 14px;
-  border-top:1px solid rgba(0,0,0,0.05);
-}
-.art-campos-label{
-  font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
-  color:var(--text-3);margin-bottom:8px;
-}
-.art-campos-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px}
-.art-campo-row{
-  display:grid;grid-template-columns:minmax(64px,auto) 1fr 32px;align-items:center;gap:10px;
-  padding:3px 0;min-height:32px;font-size:12px;
-}
-.art-campo-rot{font-weight:700;color:var(--text-2);white-space:nowrap}
-.art-campo-val{
-  color:var(--text-1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;
-}
-.art-campo-vazio{color:var(--text-3);font-style:italic;font-weight:500}
-.art-campo-foto{color:var(--green-text,#15803d);font-weight:600}
-.art-campo-edit{
-  width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;
-  background:transparent;border:1px solid transparent;border-radius:var(--r-sm,6px);
-  color:var(--text-3);cursor:pointer;
-  transition:color var(--dur-fast) var(--ease-standard),background var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard);
-}
-.art-campo-edit:hover{color:var(--dm-orange-d);background:var(--dm-orange-bg);border-color:var(--dm-orange-tint)}
-.art-campo-edit:focus-visible{outline:2px solid var(--dm-orange);outline-offset:1px}
-.art-campo-edit:active{transform:scale(.94)}
-
 /* ENTREGA FINAL, parte 3 de 3 — as ações. Antes: 3 botões de mesmo peso numa fileira
    (Refazer | ícone de compartilhar | Baixar) + um "Gerar em Lote" com CSS inline.
    Agora há uma hierarquia explícita: Baixar PNG full-width como ação principal, as duas
@@ -459,12 +426,6 @@ body:not(.theme-light) .art-actions { border-top-color: var(--d-border) }
    e usa a caixa base do `.art-btn`, que já tem tema escuro. Só o hover é próprio. */
 body:not(.theme-light) .art-redo:hover { border-color: var(--dm-orange); background: color-mix(in srgb,var(--dm-orange) 12%,var(--d-surf)); color: var(--dm-orange) }
 body:not(.theme-light) .art-actions-label { color: var(--d-text3) }
-body:not(.theme-light) .art-campos-label,
-body:not(.theme-light) .art-campo-edit { color: var(--d-text3) }
-body:not(.theme-light) .art-campo-rot { color: var(--d-text2) }
-body:not(.theme-light) .art-campo-val { color: var(--d-text) }
-body:not(.theme-light) .art-campos { border-top-color: var(--d-border2) }
-body:not(.theme-light) .art-campo-edit:hover { color: var(--dm-orange); background: color-mix(in srgb,var(--dm-orange) 12%,var(--d-surf)); border-color: var(--dm-orange) }
 body:not(.theme-light) .art-bulk-btn { background: var(--d-surf2); border-top-color: var(--d-border); color: var(--dm-orange) }
 body:not(.theme-light) .art-bulk-btn:hover { background: var(--d-surf3) }
 body:not(.theme-light) .art-bulk-ico { background: var(--d-surf3); color: var(--dm-orange) }
@@ -868,14 +829,26 @@ body:has(#f-bulk-modal.open) #mobile-preview-toggle{display:none!important}
 @keyframes gBulkThumbIn{from{opacity:0;transform:scale(.86)}to{opacity:1;transform:scale(1)}}
 
 /* ── A planilha ── */
-.f-bulk-sheet{display:flex;flex-direction:column;gap:12px;min-width:0;min-height:0;overflow:auto;padding:18px 20px 22px;
+.f-bulk-sheet{--f-sheet-pad-x:20px;--f-sheet-pad-y:18px;
+  display:flex;flex-direction:column;gap:12px;min-width:0;min-height:0;overflow:auto;
+  padding:var(--f-sheet-pad-y) var(--f-sheet-pad-x) 22px;
   scrollbar-width:thin;scrollbar-color:var(--gray-mid) transparent}
 /* Grudado no topo: a planilha rola, mas "quantas linhas / quantas prontas" e o botão de
    preencher são a régua da coluna — sumir com eles ao rolar é perder o rumo. */
-.f-bulk-sheet-head{position:sticky;top:-18px;z-index:4;display:flex;align-items:flex-start;justify-content:space-between;
-  gap:14px;flex-wrap:wrap;margin:-18px -20px 0;padding:18px 20px 12px;background:var(--off-white)}
-.f-bulk-sheet-title{display:flex;flex-direction:column;gap:4px;min-width:0}
-.f-bulk-sheet-title h3{margin:0;font-family:'Roboto',sans-serif;font-size:20px;font-weight:900;letter-spacing:-.015em;color:var(--text)}
+/* O full-bleed agora LÊ o padding da coluna em vez de repetir o número: mudou o padding no
+   corte, a margem negativa acompanha, e o cabeçalho não estoura mais a caixa. */
+.f-bulk-sheet-head{position:sticky;top:calc(var(--f-sheet-pad-y,18px) * -1);z-index:4;
+  display:flex;align-items:flex-start;justify-content:space-between;
+  gap:14px;flex-wrap:wrap;
+  margin:calc(var(--f-sheet-pad-y,18px) * -1) calc(var(--f-sheet-pad-x,20px) * -1) 0;
+  padding:var(--f-sheet-pad-y,18px) var(--f-sheet-pad-x,20px) 12px;
+  background:var(--off-white)}
+/* Título e estado na MESMA linha: eram dois blocos empilhados, e o selo "1 pronta(s) para
+   gerar" tinha peso de badge de destaque para uma informação de conferência. Agora ele é
+   texto ao lado do título, com o ponto de status como único cromo. */
+.f-bulk-sheet-title{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;min-width:0}
+.f-bulk-sheet-title h3{margin:0;font-family:'Roboto',sans-serif;font-size:19px;font-weight:900;letter-spacing:-.015em;color:var(--text)}
+.f-bulk-sheet-title .f-bulk-status-wrap{display:inline-flex;align-items:center;gap:6px;padding:0;background:none;border:0;color:var(--text-3);font-size:11.5px;font-weight:600}
 /* Painel de importação: fechado é altura 0 (não display:none) para a abertura ter de onde
    partir — o mesmo motivo do acordeão da Academia. */
 .f-bulk-sheet .f-bulk-preview{animation:gBulkFadeIn var(--dur-fast) var(--ease-out)}
@@ -883,9 +856,7 @@ body:has(#f-bulk-modal.open) #mobile-preview-toggle{display:none!important}
 
 /* A linha ativa é a que está na prévia — o vínculo entre as duas colunas precisa ser visível
    sem piscar a tabela inteira: barra de acento à esquerda + fundo levíssimo. */
-.f-bulk-table tr.is-active>td{background:color-mix(in srgb,var(--dm-orange) 6%,transparent)}
-.f-bulk-table tr.is-active>td:first-child{box-shadow:inset 3px 0 0 var(--dm-orange)}
-.f-bulk-table tr>td{transition:background var(--dur-micro) var(--ease-standard)}
+/* (a seleção da oferta mora em `.f-bulk-of.is-active`, no bloco do offer grid) */
 
 /* ── Rodapé: o que sai ── */
 /* Rodapé: a conta à esquerda (informação), as ações à direita. Os chips de formato saíram —
@@ -971,18 +942,27 @@ body:has(#f-bulk-modal.open) #mobile-preview-toggle{display:none!important}
   100%{transform:scale(1);box-shadow:0 0 0 0 color-mix(in srgb,var(--dm-orange) 0%,transparent)}
 }
 #f-bulk-modal .f-bulk-footer-actions .d-btn-pri.acabou-de-liberar{animation:gBulkLiberou var(--dur-slow) var(--ease-spring) 1}
-.f-bulk-massbar{border:1px solid var(--gray-mid);border-radius:var(--r-sm);background:var(--white)}
-.f-bulk-massbar>summary{display:flex;align-items:center;gap:9px;padding:9px 12px;cursor:pointer;list-style:none;color:var(--text-2)}
+/* "Preencher em todas" era um banner de duas linhas — o primeiro objeto da tela, antes dos
+   dados. Virou um botão da barra que abre o painel embaixo dele. Mesmo `<details>`, mesmos
+   ids, mesma função: só o peso visual mudou. */
+.f-bulk-massbar{position:relative;border:0;background:none;border-radius:0}
+.f-bulk-massbar>summary{cursor:pointer;list-style:none}
 .f-bulk-massbar>summary::-webkit-details-marker{display:none}
-.f-bulk-massbar>summary:hover{background:var(--gray-light)}
-.f-bulk-massbar>summary:focus-visible{outline:2px solid var(--dm-orange);outline-offset:-2px}
-.f-bulk-massbar>summary>span{display:grid;gap:1px;min-width:0;margin-right:auto}
-.f-bulk-massbar>summary strong{font-size:12px;font-weight:750;color:var(--text)}
-.f-bulk-massbar>summary small{font-size:10.5px;color:var(--text-3)}
-.f-bulk-massbar>summary>svg:first-child{width:14px;height:14px;flex:0 0 auto;color:var(--dm-orange-d)}
-.f-bulk-massbar .f-bulk-disclosure-icon{width:15px;height:15px;flex:0 0 auto;color:var(--text-3);transition:transform var(--dur-fast) var(--ease-standard)}
+.f-bulk-massbar[open]>summary{border-color:var(--dm-orange);color:var(--dm-orange-d);background:var(--dm-orange-bg)}
+.f-bulk-massbar>summary>svg:first-child{color:var(--dm-orange-d)}
+.f-bulk-massbar[open]>summary>svg:first-child{color:inherit}
+.f-bulk-massbar .f-bulk-disclosure-icon{width:13px;height:13px;flex:0 0 auto;opacity:.7;transition:transform var(--dur-fast) var(--ease-standard)}
 .f-bulk-massbar[open] .f-bulk-disclosure-icon{transform:rotate(90deg)}
-.f-bulk-massbar-body{display:flex;flex-direction:column;gap:9px;padding:10px 12px 12px;border-top:1px solid var(--gray-light)}
+.f-bulk-massbar-body{
+  position:absolute;top:calc(100% + 7px);left:0;z-index:20;
+  display:flex;flex-direction:column;gap:10px;
+  width:max(380px,100%);max-width:min(520px,calc(100vw - 48px));
+  padding:12px;
+  border:1px solid var(--gray-mid);border-radius:var(--r);
+  background:var(--white);
+  box-shadow:0 14px 38px color-mix(in srgb,var(--text) 12%,transparent);
+  animation:gFadeInUp var(--dur-fast) var(--ease-out) both;
+}
 .f-bulk-massbar-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .f-bulk-massbar-row label{font-size:11px;font-weight:700;color:var(--text-3)}
 .f-bulk-massbar-row select,.f-bulk-massbar-row input{padding:6px 9px;border:1px solid var(--gray-mid);border-radius:var(--r-sm);background:var(--white);color:var(--text);font:400 12px/1.3 'Roboto',sans-serif}
@@ -1034,7 +1014,44 @@ body:not(.theme-light) .f-bulk-sheet-title h3{color:var(--d-text)}
 body:not(.theme-light) .f-bulk-sheet-head{background:var(--d-dark)}
 body:not(.theme-light) .f-bulk-post-opts>summary,
 body:not(.theme-light) .f-bulk-post-opts-body{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text2)}
-body:not(.theme-light) .f-bulk-table tr.is-active>td{background:color-mix(in srgb,var(--dm-orange) 12%,transparent)}
+/* ══ TEMA ESCURO DO OFFER GRID ══
+   O divisor entre ofertas some quase por completo: no escuro, 5% de BRANCO já é uma linha
+   nítida sobre #1C212A. 7% do texto claro dá a mesma percepção de divisão sem virar grade. */
+body:not(.theme-light) .f-bulk-grade{background:var(--d-surf);border-color:var(--d-border2)}
+body:not(.theme-light) .f-bulk-of{border-bottom-color:color-mix(in srgb,var(--d-text) 7%,transparent)}
+body:not(.theme-light) .f-bulk-of:hover{background:color-mix(in srgb,var(--dm-orange) 6%,var(--d-surf))}
+body:not(.theme-light) .f-bulk-of.is-active{background:color-mix(in srgb,var(--dm-orange) 10%,var(--d-surf))}
+body:not(.theme-light) .f-bulk-campo-rot{color:var(--d-text3)}
+body:not(.theme-light) .f-bulk-campo input[type=text]{
+  color:var(--d-text);
+  border-color:color-mix(in srgb,var(--d-text) 12%,transparent);
+  background:color-mix(in srgb,var(--d-text) 4%,var(--d-surf));
+}
+body:not(.theme-light) .f-bulk-campo-foto{
+  border-color:color-mix(in srgb,var(--d-text) 12%,transparent);
+  background:color-mix(in srgb,var(--d-text) 4%,var(--d-surf));
+}
+body:not(.theme-light) .f-bulk-campo:hover .f-bulk-campo-foto{border-color:color-mix(in srgb,var(--d-text) 20%,transparent)}
+body:not(.theme-light) .f-bulk-campo.is-falta input[type=text]{background:color-mix(in srgb,var(--dm-yellow) 7%,var(--d-surf))}
+body:not(.theme-light) .f-bulk-campo input[type=text]::placeholder{color:var(--d-text3)}
+body:not(.theme-light) .f-bulk-campo:hover input[type=text]:not(:focus){
+  background:color-mix(in srgb,var(--d-text) 8%,var(--d-surf));
+  border-color:color-mix(in srgb,var(--d-text) 20%,transparent);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238C95A5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 7px center;background-size:11px 11px;
+}
+body:not(.theme-light) .f-bulk-campo input[type=text]:focus{background:var(--d-surf2)}
+body:not(.theme-light) .f-bulk-campo.is-falta:hover input[type=text]:not(:focus){background:color-mix(in srgb,var(--dm-yellow) 9%,var(--d-surf))}
+body:not(.theme-light) .f-bulk-foto-thumb{background:var(--d-surf2);border-color:var(--d-border2)}
+body:not(.theme-light) .f-bulk-campo:hover .f-bulk-foto-btn{background:var(--d-surf2);border-color:var(--d-border2)}
+body:not(.theme-light) .f-bulk-tb{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text2)}
+body:not(.theme-light) .f-bulk-tb:hover{background:var(--d-surf3);border-color:var(--dm-orange);color:var(--dm-orange)}
+body:not(.theme-light) .f-bulk-tb-pri{background:color-mix(in srgb,var(--dm-orange) 16%,transparent);border-color:color-mix(in srgb,var(--dm-orange) 45%,transparent);color:var(--dm-orange)}
+body:not(.theme-light) .f-bulk-tb-pri svg{color:var(--dm-orange)}
+body:not(.theme-light) .f-bulk-tb-pri:hover{background:color-mix(in srgb,var(--dm-orange) 24%,transparent);border-color:var(--dm-orange)}
+body:not(.theme-light) .f-bulk-massbar-body{background:var(--d-surf);border-color:var(--d-border2)}
+body:not(.theme-light) .f-bulk-progresso{color:var(--d-text2)}
+body:not(.theme-light) .f-bulk-sheet-title .f-bulk-status-wrap{color:var(--d-text3)}
 body:not(.theme-light) .f-bulk-alt,body:not(.theme-light) .f-bulk-massbar{background:var(--d-surf);border-color:var(--d-border2)}
 body:not(.theme-light) .f-bulk-alt>summary:hover,body:not(.theme-light) .f-bulk-massbar>summary:hover{background:var(--d-surf2)}
 body:not(.theme-light) .f-bulk-alt>summary strong,body:not(.theme-light) .f-bulk-massbar>summary strong{color:var(--d-text)}
@@ -1104,11 +1121,11 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
 .f-bulk-sheet-head{display:flex;align-items:center;justify-content:space-between;gap:16px}
 .f-bulk-status-wrap{display:inline-flex;align-items:center;gap:7px;min-height:28px;padding:0 10px;border:1px solid var(--gray-light);border-radius:var(--r-pill);background:var(--white);color:var(--text-2);font-size:10.5px;font-weight:650;white-space:nowrap}
 .f-bulk-live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px color-mix(in srgb,var(--green) 14%,transparent)}
-.f-bulk-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;margin:0;padding:6px 8px;border:1px solid var(--gray-mid);border-radius:var(--r-sm);background:var(--white);box-shadow:none}
-.f-bulk-toolbar-group{display:flex;align-items:center;gap:6px;min-width:0}
-.f-bulk-toolbar-end{margin-left:auto}
-.f-bulk-toolbar svg{width:14px;height:14px}
-.f-bulk-toolbar .d-btn-sec{display:inline-flex;align-items:center;gap:6px;min-height:34px;white-space:nowrap}
+/* A barra ANTIGA (caixa branca com `justify-content:space-between` e os filhos
+   `-group`/`-end`) morreu com o markup dela — o que sobrava aqui estava vencendo a barra
+   nova por vir depois no arquivo: era ela quem punha a moldura em volta e jogava
+   "Preencher em todas" contra a borda direita. A regra viva é a de `.f-bulk-toolbar`
+   no bloco da planilha. */
 #f-bulk-saved-wrap{align-items:center;gap:4px;min-width:0}
 #f-bulk-saved-select{max-width:170px;min-height:34px;border:1px solid var(--gray-mid);border-radius:var(--r-sm);background:var(--white);color:var(--text);font-size:10.5px}
 .f-bulk-delete-model{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border:1px solid var(--gray-mid);border-radius:var(--r-sm);background:var(--white);color:var(--dm-red);cursor:pointer}
@@ -1137,91 +1154,218 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
    estilo inline do container por uma classe, ela deixou de casar em silêncio e a tabela perdeu
    `min-height`/`flex`. É a mesma fragilidade que a regra do estado de erro tinha; as duas viraram
    classe no mesmo pacote. */
-.f-bulk-preview .f-bulk-table-scroll{max-height:none!important;min-height:180px;flex:1;border-color:var(--gray-mid)!important;border-radius:var(--r-sm)!important;box-shadow:none}
 .f-bulk-empty{grid-column:1/-1;display:flex;align-items:center;justify-content:center;min-height:280px;padding:40px;border:1px dashed var(--gray-mid);border-radius:12px;background:var(--white);color:var(--text-3);font-size:12px;text-align:center}
 .f-bulk-actions-bar{position:relative;flex-wrap:wrap!important;overflow:visible;padding:7px 8px!important;border:1px solid var(--gray-mid)!important;border-radius:var(--r-sm)!important;background:var(--white)!important;color:var(--text-2)!important;white-space:normal;box-shadow:none}
 .f-bulk-actions-bar>span:first-child{color:var(--dm-orange-d)}
 .f-bulk-actions-bar input,.f-bulk-actions-bar select{min-height:32px!important}
-/* ══ A PLANILHA — papel com pauta, não grade ═══════════════════════════════════
-   O herói desta tela é a PRÉVIA AO VIVO à esquerda (05_DESIGN_PHILOSOPHY §3:
-   "a arte em progresso é o herói"). A tabela é coadjuvante e foi desenhada para
-   sumir: cada moldura removida aqui é atenção que sobra pra arte.
+/* ══ OFFER GRID — A OFERTA É A UNIDADE, NÃO A COLUNA ══════════════════════════════════════
+   A tabela saiu por um motivo só: com 8 campos ela não cabe em 1440px, e o excedente virava
+   barra de rolagem horizontal. Rolar de lado para DESCOBRIR um campo é falha — ninguém
+   procura o que não sabe que existe. Zero scroll horizontal é regra, não meta.
 
-   As três decisões que carregam o resto:
-    1. HAIRLINE HORIZONTAL, ZERO VERTICAL. Linha vertical fecha a célula e o
-       conjunto vira grade — grade pesa e compete. Só a pauta fica; a coluna se
-       lê pelo alinhamento, que é de graça.
-    2. CROMO SOB DEMANDA. Antes cada campo tinha borda permanente: 6 colunas ×
-       6 linhas = 36 caixinhas competindo com a arte. Agora o campo é texto sobre
-       papel, e a moldura só nasce onde a mão está (linha sob o ponteiro) ou onde
-       o cursor está (foco).
-    3. COR SÓ NA LINHA ATIVA. É o único laranja da tabela, e é informação: diz
-       qual linha a prévia está mostrando. Tudo o mais é neutro.
-   ────────────────────────────────────────────────────────────────────────────── */
-.f-bulk-table{border-collapse:separate!important;border-spacing:0;font-size:12px}
+   O modelo novo mantém densidade e linguagem de planilha, mas a hierarquia passa a ser
+   OFERTA → CAMPO → VALOR:
 
-/* Cabeçalho: hierarquia por PESO e tracking, não por fundo cinza. O fundo é o
-   mesmo papel da tabela — só a hairline de baixo separa. */
-.f-bulk-table thead th{
-  position:sticky;top:0;z-index:10;
-  background:var(--white)!important;
-  border-right:0!important;
-  border-bottom:1px solid var(--gray-mid)!important;
-  color:var(--text-3)!important;
-  padding:13px 10px 10px!important;
-  font-size:9px!important;font-weight:800!important;letter-spacing:.11em!important;
-}
-.f-bulk-table tbody tr{background:var(--white);transition:background var(--dur-micro) var(--ease-standard)}
-.f-bulk-table tbody tr:nth-child(even){background:var(--white)}
-/* Realce de ponteiro quase invisível: ele orienta, não decora. O laranja forte
-   fica reservado pra linha ativa, senão as duas competem. */
-.f-bulk-table tbody tr:hover{background:color-mix(in srgb,var(--dm-orange) 3%,var(--white))}
-.f-bulk-table tbody td{
-  border-right:0!important;
-  border-bottom:1px solid var(--gray-light)!important;
-  padding:5px 6px!important;
-}
-.f-bulk-table tbody tr:last-child td{border-bottom:0!important}
+    1. CADA OFERTA É UM BLOCO com grid próprio de 12 colunas. Os campos quebram em faixas
+       DENTRO da mesma oferta; a oferta cresce para baixo e a tela nunca cresce para o lado.
+    2. O RÓTULO VIAJA COM O VALOR (10px, discreto, em cima). Isso mata de uma vez a leitura
+       "R$ 29,00 Batata Combo família Dale" como frase contínua, e dispensa o cabeçalho
+       global — que era justamente o que exigia colunas alinhadas em toda a largura.
+    3. LARGURA SEMÂNTICA: preço ocupa 2 de 12, descrição ocupa 12. O span vem do tipo e do
+       maxLen que o produto já conhece (`_fBulkSpanCampo`), nunca de largura fixa.
+    4. NADA DE CARD POR CAMPO. A separação é whitespace, alinhamento e um divisor de 5% de
+       alpha entre ofertas. O único cromo é o da oferta ativa e o do campo em edição.
+   ────────────────────────────────────────────────────────────────────────────────────────── */
+.f-bulk-sheet-block{position:relative;display:flex;flex-direction:column;gap:10px;min-width:0}
+.f-bulk-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 
-/* O campo é texto sobre papel. A moldura aparece na linha sob o ponteiro e
-   endurece no foco — nunca as duas ao mesmo tempo em toda a tabela. */
-.f-bulk-table input[type=text]{
-  min-height:34px!important;box-sizing:border-box;
-  border:1px solid transparent!important;border-radius:var(--r-sm)!important;
-  background:transparent!important;
-  transition:border-color var(--dur-micro) var(--ease-standard),
-             box-shadow var(--dur-micro) var(--ease-standard),
-             background var(--dur-micro) var(--ease-standard);
+/* ── A BARRA DE AÇÕES ─────────────────────────────────────────────────────────────────── */
+.f-bulk-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.f-bulk-tb{
+  display:inline-flex;align-items:center;gap:7px;
+  min-height:34px;padding:0 14px;
+  border:1px solid var(--gray-mid);border-radius:var(--r-pill);
+  background:var(--white);color:var(--text-2);
+  font:650 12px 'Roboto',sans-serif;cursor:pointer;list-style:none;white-space:nowrap;
+  transition:border-color var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard),
+             background var(--dur-fast) var(--ease-standard),transform var(--dur-micro) var(--ease-standard);
 }
-.f-bulk-table tbody tr:hover input[type=text]{
-  border-color:color-mix(in srgb,var(--gray-mid) 55%,transparent)!important;
-  background:var(--white)!important;
-}
-.f-bulk-table input[type=text]:focus{
-  border-color:var(--dm-orange)!important;background:var(--white)!important;
-  box-shadow:0 0 0 3px color-mix(in srgb,var(--dm-orange) 14%,transparent)!important;
-}
-.f-bulk-table input.f-bulk-cell-err{border-color:var(--dm-red)!important;background:color-mix(in srgb,var(--dm-red) 4%,var(--white))!important}
+.f-bulk-tb::-webkit-details-marker{display:none}
+.f-bulk-tb svg{width:14px;height:14px;flex:0 0 auto}
+.f-bulk-tb:hover{border-color:var(--dm-orange);color:var(--dm-orange-d);background:var(--dm-orange-bg)}
+.f-bulk-tb:active{transform:scale(.98)}
+.f-bulk-tb:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+/* ⛔ Nenhum laranja chapado aqui: o único botão sólido da tela é "Gerar N artes", no rodapé. */
+.f-bulk-tb-pri{border-color:var(--dm-orange-tint);background:var(--dm-orange-bg);color:var(--dm-orange-d);font-weight:750}
+.f-bulk-tb-pri svg{color:var(--dm-orange-d)}
+.f-bulk-tb-pri:hover{border-color:var(--dm-orange);background:color-mix(in srgb,var(--dm-orange) 14%,transparent)}
+.f-bulk-massbar{flex:0 0 auto}
 
-/* Número da linha: numeral tabular, não pastilha. A pastilha cinza dava peso de
-   componente a um rótulo de uma casa. Na linha ativa ele vira laranja e pesado —
-   o mesmo sinal do trilho, dito duas vezes sem custar espaço. */
-.f-bulk-num-cell{text-align:center;cursor:help;white-space:nowrap}
-.f-bulk-num-chip{
-  display:inline-block;min-width:auto;height:auto;padding:0;border-radius:0;
-  background:transparent;color:var(--text-3);
-  font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;
+/* ── A GRADE DE OFERTAS ───────────────────────────────────────────────────────────────── */
+.f-bulk-grade{
+  display:flex;flex-direction:column;
+  min-width:0;
+  border:1px solid var(--gray-light);border-radius:var(--r);
+  background:var(--white);
+  overflow:hidden;         /* nada escapa para os lados */
 }
-.f-bulk-table tr.is-active .f-bulk-num-chip{color:var(--dm-orange-text);font-weight:900}
+.f-bulk-of{
+  position:relative;
+  display:grid;grid-template-columns:60px minmax(0,1fr);
+  gap:0 10px;
+  min-width:0;
+  padding:9px 14px 11px;
+  border-bottom:1px solid color-mix(in srgb,var(--text) 5%,transparent);
+  transition:background var(--dur-fast) var(--ease-standard);
+}
+.f-bulk-of:last-child{border-bottom:0}
+.f-bulk-of:hover{background:color-mix(in srgb,var(--dm-orange) 2%,var(--white))}
+/* Oferta ativa: trilho fino + tint baixíssimo. "Você está nesta oferta" não precisa ser o
+   elemento mais pesado da tela. */
+.f-bulk-of.is-active{background:color-mix(in srgb,var(--dm-orange) 3.5%,var(--white))}
+.f-bulk-of.is-active::before{
+  content:'';position:absolute;top:0;bottom:0;left:0;width:3px;
+  background:var(--dm-orange);
+}
 
-/* Ações da linha: 3 ícones × N linhas eram 18 alvos cinzas disputando a tela.
-   Agora só existem onde a mão está. No toque não há ponteiro — lá ficam sempre. */
-.f-bulk-rowact-cell{
-  text-align:center;white-space:nowrap;
-  display:flex!important;align-items:center;justify-content:center;gap:2px;
+/* Cabeçalho da oferta: número, estado e ações. Coluna estreita à esquerda — a âncora
+   visual que a antiga coluna "#" cumpria, agora sem depender de tabela. */
+.f-bulk-of-cab{grid-column:1;display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-width:0}
+.f-bulk-of-num{display:inline-flex;align-items:center;gap:5px;cursor:help;white-space:nowrap}
+.f-bulk-of-num strong{
+  color:var(--text-3);font-size:13px;font-weight:800;
+  font-variant-numeric:tabular-nums;letter-spacing:.02em;
+  transition:color var(--dur-fast) var(--ease-standard);
 }
+.f-bulk-of[data-estado="vazia"] .f-bulk-of-num strong{opacity:.45}
+.f-bulk-of[data-estado="vazia"]:hover .f-bulk-of-num strong{opacity:1}
+.f-bulk-of.is-active .f-bulk-of-num strong{color:var(--dm-orange-text)}
+.f-bulk-num-ok{display:inline-flex;align-items:center;color:var(--green-text)}
+.f-bulk-num-ok svg{width:11px;height:11px}
+/* Falta algo: aviso leve em texto, não linha pintada de vermelho. */
+.f-bulk-num-falta{
+  padding:1px 6px;border-radius:var(--r-pill);
+  background:color-mix(in srgb,var(--dm-yellow) 18%,transparent);color:var(--var-color);
+  font-size:9px;font-weight:700;letter-spacing:.02em;white-space:nowrap;
+}
+.f-bulk-of-acoes{display:flex;align-items:center;gap:1px}
+
+/* ── OS CAMPOS: 12 colunas, span por semântica ────────────────────────────────────────── */
+/* ⚠ GRID FLUIDO, NÃO 12 COLUNAS FIXAS. A régua de 12 colunas com span por breakpoint de
+   VIEWPORT errava a conta: a largura que importa é a do painel (a coluna da prévia come
+   metade da tela e muda de tamanho), então em 1024px sobrava espaço vazio e o campo caía
+   para a faixa seguinte sem necessidade. Com `auto-fit` a trilha nasce a cada ~148px REAIS
+   e o span vira multiplicador — 3 a 5 campos por faixa no desktop, 2 a 3 no tablet, sem
+   uma linha de media query e sem nenhuma conta no JS.
+   Faixas enxutas: a oferta cresce para baixo, então cada faixa paga o preço da altura. */
+.f-bulk-of-campos{
+  grid-column:2;
+  /* ⚠ `1fr` no máximo, não um teto em px: medido, `minmax(134px,240px)` criava MENOS trilhas
+     (240 cada) e a oferta subia de 4 para 6 faixas. Com `1fr` o grid cria o máximo de
+     trilhas de 134px que couberem e divide o resto entre elas. */
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(134px,1fr));
+  gap:6px 10px;min-width:0;
+}
+.f-bulk-campo{display:flex;flex-direction:column;gap:2px;min-width:0}
+/* Span de no máximo 2 trilhas: medido, span 3 num painel de 3 colunas fragmentava a faixa
+   (o campo não cabia no que restava e ia inteiro para a linha seguinte, deixando buraco).
+   Uma trilha é ~148px, que já acomoda "Combo família" e um preço com folga. */
+.f-bulk-campo[data-span="p"]{grid-column:span 1}
+.f-bulk-campo[data-span="m"]{grid-column:span 1}
+.f-bulk-campo[data-span="g"]{grid-column:span 1}
+.f-bulk-campo[data-span="gg"]{grid-column:span 2}
+.f-bulk-campo[data-span="full"]{grid-column:1/-1}
+/* O rótulo é secundário por contrato: o valor é o protagonista. */
+.f-bulk-campo-rot{
+  overflow:hidden;
+  padding-left:2px;
+  color:var(--text-3);
+  font-size:10px;font-weight:600;letter-spacing:0;
+  text-overflow:ellipsis;white-space:nowrap;
+}
+/* Só a primeira letra: o rótulo vem de `gFieldLabel`, que devolve o texto do designer em
+   caixa qualquer ("descricao sobre o produto…"). CSS não conserta ortografia, mas evita o
+   grito de oito caixas-altas por oferta. */
+.f-bulk-campo-rot::first-letter{text-transform:uppercase}
+/* ⛔ ESTA CAIXA EXISTE EM REPOUSO — DE PROPÓSITO. A versão anterior só pintava superfície
+   no hover ("estrutura sob demanda"), e o custo apareceu na tela: campo vazio virava um
+   rótulo órfão flutuando, sem nada embaixo. Com 8 campos por oferta e 20 ofertas, o olho
+   não tinha como ligar título → valor → coluna, e a planilha lia como "monte de coisa
+   voando". Um pouso de 2,5% e uma borda de 9% bastam: o campo diz onde cada coisa entra,
+   e continua leve o suficiente para o VALOR seguir sendo o protagonista da linha. */
+.f-bulk-campo input[type=text]{
+  width:100%;min-width:0;min-height:28px;box-sizing:border-box;
+  padding:4px 8px;
+  border:1px solid color-mix(in srgb,var(--text) 9%,transparent);border-radius:var(--r-sm);
+  background:color-mix(in srgb,var(--text) 2.5%,var(--white));color:var(--text);
+  font:400 12.5px 'Roboto',sans-serif;outline:none;
+  text-overflow:ellipsis;
+  transition:border-color var(--dur-fast) var(--ease-standard),
+             box-shadow var(--dur-fast) var(--ease-standard),
+             background var(--dur-fast) var(--ease-standard);
+}
+.f-bulk-campo input[type=text]::placeholder{color:var(--text-3);opacity:.6}
+/* O hover não estreia mais a caixa (ela já está lá) — estreia o LÁPIS e um degrau de
+   contraste. Isso libera o hover para dizer só uma coisa: "esta é a célula sob a sua mão". */
+.f-bulk-campo:hover input[type=text]:not(:focus){
+  background:color-mix(in srgb,var(--text) 5%,var(--white));
+  border-color:color-mix(in srgb,var(--text) 16%,transparent);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236B6B6B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 7px center;background-size:11px 11px;
+  padding-right:24px;
+}
+.f-bulk-campo input[type=text]:focus{
+  border-color:var(--dm-orange);background:var(--white);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--dm-orange) 14%,transparent);
+  text-overflow:clip;
+}
+/* "Falta algo" é ressalva, não erro: uma sublinha âmbar sob o campo em vez de uma caixa
+   amarela inteira — que, num campo full-width, era o objeto mais chamativo da planilha. */
+.f-bulk-campo.is-falta input[type=text]{
+  border-bottom-color:color-mix(in srgb,var(--dm-yellow) 75%,transparent);
+  background:color-mix(in srgb,var(--dm-yellow) 3.5%,var(--white));
+}
+.f-bulk-campo.is-falta:hover input[type=text]:not(:focus){background:color-mix(in srgb,var(--dm-yellow) 5%,var(--white))}
+.f-bulk-campo.is-falta input[type=text]:focus{border-color:var(--dm-orange)}
+
+/* Campo de foto: mesma caixa dos outros, sem virar cartão. */
+/* Mesma caixa dos campos de texto: sem ela, a célula mais ALTA da faixa era justamente a
+   única sem contorno — a foto e o botão pareciam soltos no meio da oferta. O `padding` de
+   3px abraça a miniatura de 28px sem empurrar a faixa para baixo. */
+.f-bulk-campo-foto{
+  display:flex;align-items:center;flex-wrap:wrap;gap:6px;min-width:0;min-height:28px;
+  box-sizing:border-box;padding:3px;
+  border:1px solid color-mix(in srgb,var(--text) 9%,transparent);border-radius:var(--r-sm);
+  background:color-mix(in srgb,var(--text) 2.5%,var(--white));
+}
+.f-bulk-campo:hover .f-bulk-campo-foto{border-color:color-mix(in srgb,var(--text) 16%,transparent)}
+.f-bulk-foto-thumb{
+  position:relative;width:28px;height:28px;flex:0 0 auto;overflow:hidden;
+  border:1px solid var(--gray-mid);border-radius:var(--r-sm);background:var(--gray-light);
+}
+.f-bulk-foto-thumb img{width:100%;height:100%;object-fit:cover}
+.f-bulk-foto-thumb.is-erro{border-color:var(--dm-red)}
+.f-bulk-foto-thumb.is-baixa{border-color:var(--dm-yellow)}
+/* Sem o campo de link, "Enviar foto" é o único ocupante da caixa quando não há imagem —
+   então ele PREENCHE o slot. `flex:0 0 auto` deixava meia caixa vazia ao lado do botão. */
+.f-bulk-foto-btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;flex:1 1 auto;
+  min-height:28px;padding:0 9px;
+  border:1px solid transparent;border-radius:var(--r-sm);
+  background:transparent;color:var(--text-2);
+  font:600 11px 'Roboto',sans-serif;cursor:pointer;
+  transition:border-color var(--dur-fast) var(--ease-standard),background var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard);
+}
+.f-bulk-foto-btn svg{width:12px;height:12px}
+.f-bulk-foto-btn input{display:none}
+.f-bulk-campo:hover .f-bulk-foto-btn{border-color:color-mix(in srgb,var(--gray-mid) 55%,transparent);background:var(--white)}
+.f-bulk-foto-btn:hover{border-color:var(--dm-orange-tint);color:var(--dm-orange-text)}
+.f-bulk-foto-btn:focus-within{outline:2px solid var(--dm-orange);outline-offset:1px}
+
+
+/* ── AÇÕES DA OFERTA: só onde a mão está; no toque, sempre ─────────────────────────────── */
 .f-bulk-rowact{
-  width:24px;height:24px;padding:0;flex:0 0 auto;
+  width:26px;height:26px;padding:0;flex:0 0 auto;
   display:flex;align-items:center;justify-content:center;
   border:0;border-radius:50%;background:transparent;color:var(--text-3);cursor:pointer;
   opacity:0;
@@ -1229,25 +1373,45 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
              background var(--dur-micro) var(--ease-standard),
              color var(--dur-micro) var(--ease-standard);
 }
-.f-bulk-table tbody tr:hover .f-bulk-rowact,
-.f-bulk-table tbody tr:focus-within .f-bulk-rowact,
-.f-bulk-table tbody tr.is-active .f-bulk-rowact{opacity:1}
+.f-bulk-rowact svg{width:12px;height:12px}
+.f-bulk-of:hover .f-bulk-rowact,
+.f-bulk-of:focus-within .f-bulk-rowact,
+.f-bulk-of.is-active .f-bulk-rowact{opacity:1}
 .f-bulk-rowact:focus-visible{opacity:1;outline:2px solid var(--dm-orange);outline-offset:1px}
 .f-bulk-rowact:hover{background:var(--dm-orange-bg);color:var(--dm-orange-text)}
 .f-bulk-rowact--del:hover{background:color-mix(in srgb,var(--dm-red) 10%,transparent);color:var(--dm-red-text)}
-@media (hover:none){ .f-bulk-rowact{opacity:1} }
+@media (hover:none){ .f-bulk-rowact{opacity:1;width:var(--tap-min,44px);height:var(--tap-min,44px)} }
 
-/* Botão "Foto" e o campo de link: fantasmas até serem procurados. Eram dois
-   controles emoldurados por célula de imagem — o dobro de caixas das outras. */
-.f-bulk-table td label.d-btn-sec{
-  border-color:transparent!important;background:transparent!important;
-  color:var(--text-2)!important;
-  transition:border-color var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard);
+/* ── FAIXAS POR LARGURA ────────────────────────────────────────────────────────────────
+   Sem media query para o número de campos por faixa: o `auto-fit` acima resolve pela
+   largura real do painel. O que sobra aqui é só o aperto de respiro em telas médias. */
+@media (max-width:900px){
+  .f-bulk-of{grid-template-columns:52px minmax(0,1fr);padding:9px 12px 11px}
+  .f-bulk-of-campos{gap:6px 8px}
 }
-.f-bulk-table tbody tr:hover td label.d-btn-sec{
-  border-color:color-mix(in srgb,var(--gray-mid) 55%,transparent)!important;background:var(--white)!important;
+/* Abaixo de 700px quem manda é a LISTA do celular (`_fBulkRenderLista`), que já empilha
+   rótulo e valor. Esta regra é a rede: se a grade aparecer nessa faixa, ela empilha também. */
+@media (max-width:700px){
+  .f-bulk-of{grid-template-columns:minmax(0,1fr);gap:8px}
+  .f-bulk-of-cab{grid-column:1;flex-direction:row;align-items:center;justify-content:space-between;width:100%}
+  .f-bulk-of-campos{grid-column:1;grid-template-columns:minmax(0,1fr)}
+  .f-bulk-campo[data-span]{grid-column:1/-1}
 }
-.f-bulk-table td label.d-btn-sec:hover{border-color:var(--dm-orange-tint)!important;color:var(--dm-orange-text)!important}
+
+/* ── MOTION ──────────────────────────────────────────────────────────────────────────── */
+@keyframes fBulkLinhaEntra{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@keyframes fBulkLinhaSai{to{opacity:0;transform:translateY(-2px)}}
+@keyframes fBulkPulso{0%{background-color:color-mix(in srgb,var(--green) 18%,transparent)}100%{background-color:transparent}}
+@keyframes fBulkPropaga{0%{background-color:color-mix(in srgb,var(--dm-orange) 22%,transparent)}100%{background-color:transparent}}
+.f-bulk-of.is-nova{animation:fBulkLinhaEntra var(--dur-base,.22s) var(--ease-out) both}
+.f-bulk-of.is-saindo{animation:fBulkLinhaSai 150ms var(--ease-standard) both}
+.f-bulk-campo input.is-salvo{animation:fBulkPulso 420ms var(--ease-out) both}
+/* Cascata do "preencher em todas": 34ms por oferta, de cima para baixo. */
+.f-bulk-campo input.is-propagado{animation:fBulkPropaga 460ms var(--ease-out) both;animation-delay:calc(var(--fi,0) * 34ms)}
+@media (prefers-reduced-motion:reduce){
+  .f-bulk-of.is-nova,.f-bulk-of.is-saindo,
+  .f-bulk-campo input.is-salvo,.f-bulk-campo input.is-propagado{animation:none!important}
+}
 
 /* "Excluir" da foto: era o objeto mais alto da tabela — caixa branca com letra
    vermelha, repetida em toda célula preenchida. Vermelho aqui não é aviso, é só
@@ -1262,20 +1426,15 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
              color var(--dur-micro) var(--ease-standard),
              border-color var(--dur-micro) var(--ease-standard);
 }
-.f-bulk-table tbody tr:hover .f-bulk-img-del,
-.f-bulk-table tbody tr:focus-within .f-bulk-img-del,
-.f-bulk-table tbody tr.is-active .f-bulk-img-del{opacity:1}
+.f-bulk-of:hover .f-bulk-img-del,
+.f-bulk-of:focus-within .f-bulk-img-del,
+.f-bulk-of.is-active .f-bulk-img-del{opacity:1}
 .f-bulk-img-del:hover{color:var(--dm-red-text);border-color:color-mix(in srgb,var(--dm-red) 40%,transparent)}
 .f-bulk-img-del:focus-visible{opacity:1;outline:2px solid var(--dm-orange);outline-offset:1px}
 @media (hover:none){ .f-bulk-img-del{opacity:1} }
 
-/* Barra de rolagem da planilha: fina e neutra. A nativa do Windows é um bloco
-   cinza de 17px que fecha a tabela por baixo como se fosse moldura. */
-.f-bulk-table-scroll{scrollbar-width:thin;scrollbar-color:var(--gray-mid) transparent}
-.f-bulk-table-scroll::-webkit-scrollbar{height:8px}
-.f-bulk-table-scroll::-webkit-scrollbar-track{background:transparent}
-.f-bulk-table-scroll::-webkit-scrollbar-thumb{background:var(--gray-mid);border-radius:var(--r-pill);border:2px solid transparent;background-clip:content-box}
-.f-bulk-table-scroll::-webkit-scrollbar-thumb:hover{background:var(--text-3);background-clip:content-box}
+/* A barra de rolagem HORIZONTAL da planilha sumiu junto com a tabela: o offer grid quebra
+   em faixas e nunca ultrapassa a largura. A rolagem que sobra é a vertical do painel. */
 .f-bulk-card{position:relative;display:flex;flex-direction:column;align-items:center;padding:12px 10px 10px;border:1px solid var(--gray-light);border-radius:var(--r);background:var(--white);animation:gFadeIn var(--dur-base) var(--ease-standard) both;transition:transform var(--dur-fast) var(--ease-spring-soft),box-shadow var(--dur-fast) var(--ease-spring-soft),border-color var(--dur-fast) var(--ease-standard)}
 .f-bulk-card:hover{border-color:var(--dm-orange-tint);box-shadow:0 10px 26px color-mix(in srgb,var(--dm-orange-d) 12%,transparent);transform:translateY(-3px)}
 .f-bulk-card.has-err{border-color:var(--gray-mid);background:var(--off-white)}   /* sem vermelho: decisão de não alarmar */
@@ -1295,7 +1454,18 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
 .f-bulk-progress .d-btn-sec{float:right;margin-top:10px;color:var(--dm-red)}
 
 .f-bulk-footer{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:64px;padding:10px 20px;border-top:1px solid var(--gray-light);background:var(--white);box-shadow:0 -8px 24px color-mix(in srgb,var(--text) 4%,transparent)}
-.f-bulk-footer-note{display:flex;align-items:center;gap:8px;max-width:680px;color:var(--text-3);font-size:10.5px;line-height:1.4}.f-bulk-footer-note svg{width:15px;height:15px;flex:0 0 auto;color:var(--dm-orange-d)}
+.f-bulk-footer-note{display:flex;flex-direction:column;gap:2px;max-width:520px;color:var(--text-3);font-size:10.5px;line-height:1.4}
+/* O progresso é a linha que decide se o botão funciona: 12,5px, peso alto, com o ✓ à
+   frente. O detalhe do ZIP fica abaixo, em 10,5px — informação de conferência. */
+.f-bulk-progresso{display:inline-flex;align-items:center;gap:6px;color:var(--text-2);font-size:12.5px;font-weight:750}
+.f-bulk-progresso:empty{display:none}
+.f-bulk-progresso svg{width:13px;height:13px;flex:0 0 auto;color:var(--text-3)}
+.f-bulk-progresso.is-ok{color:var(--green-text)}
+.f-bulk-progresso.is-ok svg{color:var(--green-text)}
+.f-bulk-progresso.is-zero{color:var(--text-3)}
+.f-bulk-progresso.is-trocando>span{animation:fBulkContador var(--dur-base) var(--ease-out) both}
+@keyframes fBulkContador{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.f-bulk-progresso.is-trocando>span{animation:none}}
 .f-bulk-footer-actions{display:flex;align-items:center;gap:8px;margin-left:auto}.f-bulk-footer-actions .d-btn-pri{display:inline-flex;align-items:center;gap:7px;min-height:38px;padding:0 18px;font-weight:750}.f-bulk-footer-actions .d-btn-pri svg{width:15px;height:15px}
 /* Dentro do popover o par vira coluna: 280px não comportam dois campos lado a lado. */
 .f-bulk-post-opts-body.f-bulk-output-fields{grid-template-columns:1fr;gap:12px}
@@ -1330,7 +1500,7 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
   .f-bulk-live-nav #f-bulk-live-count{display:inline}
   .f-bulk-strip-item{width:38px}
   .f-bulk-strip-item:hover{transform:translateY(-2px)}
-  .f-bulk-sheet{padding:14px}
+  .f-bulk-sheet{--f-sheet-pad-x:14px;--f-sheet-pad-y:14px;padding-bottom:14px}
   .f-bulk-footer{flex-wrap:wrap;gap:10px}
   .f-bulk-footer-actions{width:100%;margin-left:0}
   .f-bulk-footer-actions .d-btn-pri{flex:1;justify-content:center}
@@ -1349,8 +1519,8 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
 #f-bulk-modal .d-btn-pri:active{transform:translateY(0) scale(.98)}
 #f-bulk-modal .d-btn-sec{border-color:var(--gray-mid);background:var(--white);color:var(--text-2);font-family:'Roboto',sans-serif;cursor:pointer;transition:background var(--dur-micro) var(--ease-standard),border-color var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard),transform var(--dur-micro) var(--ease-spring)}
 #f-bulk-modal .d-btn-sec:hover{border-color:var(--dm-orange);background:var(--dm-orange-bg);color:var(--dm-orange-d);transform:translateY(-1px)}
-#f-bulk-modal input[type=text],#f-bulk-modal input[type=search],#f-bulk-modal textarea,#f-bulk-modal select{border:1px solid var(--gray-mid);border-radius:var(--r-sm);background:var(--white);color:var(--text);font-family:'Roboto',sans-serif;outline:0}
-#f-bulk-modal input[type=text],#f-bulk-modal select{min-height:34px;padding:6px 9px;font-size:11px}
+#f-bulk-modal input[type=text]:not(.f-bulk-cell),#f-bulk-modal input[type=search],#f-bulk-modal textarea,#f-bulk-modal select{border:1px solid var(--gray-mid);border-radius:var(--r-sm);background:var(--white);color:var(--text);font-family:'Roboto',sans-serif;outline:0}
+#f-bulk-modal input[type=text]:not(.f-bulk-cell),#f-bulk-modal select{min-height:34px;padding:6px 9px;font-size:11px}
 #f-bulk-modal input:focus,#f-bulk-modal textarea:focus,#f-bulk-modal select:focus{border-color:var(--dm-orange)!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--dm-orange) 13%,transparent)!important}
 #f-bulk-modal button:focus-visible,#f-bulk-modal summary:focus-visible,#f-bulk-modal label[for=f-bulk-file]:focus-within{outline:2px solid var(--dm-orange)!important;outline-offset:2px}
 
@@ -1386,12 +1556,11 @@ body:not(.theme-light) .f-bulk-fmt-chip,body:not(.theme-light) .f-bulk-status-wr
 body:not(.theme-light) .f-bulk-toolbar,body:not(.theme-light) #f-bulk-saved-select,
 body:not(.theme-light) .f-bulk-delete-model,body:not(.theme-light) .f-bulk-more-pop,
 body:not(.theme-light) .f-bulk-more-row select,body:not(.theme-light) .f-bulk-empty,
-body:not(.theme-light) .f-bulk-actions-bar,body:not(.theme-light) .f-bulk-table tbody tr,
-body:not(.theme-light) .f-bulk-table input[type=text],body:not(.theme-light) .f-bulk-card,
+body:not(.theme-light) .f-bulk-actions-bar,body:not(.theme-light) .f-bulk-card,
 body:not(.theme-light) .f-bulk-progress,body:not(.theme-light) .f-bulk-footer,
 body:not(.theme-light) .f-bulk-faq,body:not(.theme-light) .f-bulk-faq-close,
 body:not(.theme-light) .f-bulk-faq-item,body:not(.theme-light) #f-bulk-modal .d-btn-sec,
-body:not(.theme-light) #f-bulk-modal input[type=text],body:not(.theme-light) #f-bulk-modal input[type=search],
+body:not(.theme-light) #f-bulk-modal input[type=text]:not(.f-bulk-cell),body:not(.theme-light) #f-bulk-modal input[type=search],
 body:not(.theme-light) #f-bulk-modal textarea,body:not(.theme-light) #f-bulk-modal select{
   background:var(--d-surf)!important;
 }
@@ -1400,7 +1569,7 @@ body:not(.theme-light) #f-bulk-modal textarea,body:not(.theme-light) #f-bulk-mod
 body:not(.theme-light) .f-bulk-fmt-chip:has(input:checked){background:color-mix(in srgb,var(--dm-orange) 18%,transparent)!important}
 /* Superfícies "afundadas" (search, source-action, tool-action, thead) → um degrau mais escuro. */
 body:not(.theme-light) .f-bulk-search-wrap,
-body:not(.theme-light) .f-bulk-tool-action,body:not(.theme-light) .f-bulk-table thead th{
+body:not(.theme-light) .f-bulk-tool-action{
   background:var(--d-dark)!important;
 }
 
@@ -1412,8 +1581,6 @@ body:not(.theme-light) .f-bulk-tool-action,body:not(.theme-light) .f-bulk-table 
   .f-bulk-setup{grid-template-columns:minmax(0,1.4fr) minmax(300px,.6fr)}
   .f-bulk-setup>.f-bulk-setup-section:first-child{grid-template-columns:minmax(300px,1fr) minmax(280px,1fr)}
   .f-bulk-sheet-area{padding:10px 12px 6px}
-  .f-bulk-toolbar{align-items:flex-start}
-  .f-bulk-toolbar-group{flex-wrap:wrap}
   .f-bulk-search-wrap{width:160px}
 }
 @media(max-width:840px){
@@ -1457,9 +1624,6 @@ body:not(.theme-light) .f-bulk-tool-action,body:not(.theme-light) .f-bulk-table 
      tudo para fora. O fundo grudento continua, agora dentro da largura da tela. */
   .f-bulk-sheet-head{align-items:flex-start;margin-left:0;margin-right:0;padding-left:0;padding-right:0}
   .f-bulk-status-wrap{padding:0 7px}
-  .f-bulk-toolbar{align-items:stretch;flex-direction:column}
-  .f-bulk-toolbar-group{width:100%}
-  .f-bulk-toolbar-end{margin-left:0}
   .f-bulk-search-wrap{width:100%;flex:1}
   .f-bulk-more-pop{right:0;width:min(260px,calc(100vw - 32px))}
   .f-bulk-preview{grid-template-columns:1fr}
@@ -1695,8 +1859,8 @@ body:not(.theme-light) .caption-src{background:var(--d-surf2);border-color:var(-
    para quem usa celular: 46 elementos passavam da borda da tela. */
 /* A cadeia inteira precisa poder encolher: basta UM elo com `min-width:auto` para a tabela
    voltar a inflar os ancestrais em vez de rolar. Medido elo a elo na tela de 390px. */
-.f-bulk-workspace,.f-bulk-sheet,#f-bulk-preview,.f-bulk-sheet-block,.f-bulk-table-scroll,
-.f-bulk-modal-box,.f-bulk-live{min-width:0;max-width:100%}
+.f-bulk-workspace,.f-bulk-sheet,#f-bulk-preview,.f-bulk-sheet-block,.f-bulk-grade,.f-bulk-of,
+.f-bulk-of-campos,.f-bulk-campo,.f-bulk-modal-box,.f-bulk-live{min-width:0;max-width:100%}
 /* O cabeçalho da planilha é full-bleed (margem -20px cancelando o padding do pai, para o fundo
    grudento cobrir a borda). Com `min-width:auto` ele se recusava a encolher e empurrava a
    coluna do grid para 412px numa tela de 390 — o último elo da cadeia. */
@@ -1706,19 +1870,12 @@ body:not(.theme-light) .caption-src{background:var(--d-surf2);border-color:var(-
    tudo abaixo já podia encolher e mesmo assim herdava a trilha inflada. */
 .f-bulk-modal-box{grid-template-columns:minmax(0,1fr)}
 .f-bulk-sheet-block{grid-column:1/-1;width:100%;display:flex;flex-direction:column;gap:12px}
-.f-bulk-table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;max-height:50dvh;
-  border:1px solid var(--gray-mid);border-radius:var(--r);background:var(--white)}
-/* A sombra à direita é a única pista de que existe mais coluna adiante — sem hover, sem
-   scrollbar visível no toque, a pessoa não tem como adivinhar. Some sozinha ao chegar no fim. */
-.f-bulk-table-scroll{background-image:linear-gradient(to left,rgba(0,0,0,.10),rgba(0,0,0,0) 24px);
-  background-repeat:no-repeat;background-position:right center;background-size:24px 100%;
-  background-attachment:local}
+/* ⛔ O SCROLLER HORIZONTAL SAIU DE CENA. Ele existia porque a tabela não caber era o normal;
+   com o offer grid, campo que não cabe na faixa desce para a próxima, dentro da mesma oferta.
+   A sombra de "tem mais coluna adiante" foi embora com ele — não há mais coluna adiante. */
 
-.f-bulk-add-row{width:100%;border:1px dashed var(--gray-mid);padding:10px 16px;display:flex;
-  align-items:center;justify-content:center;gap:6px;font-size:12px;background:transparent;
-  cursor:pointer;border-radius:var(--r-sm);color:var(--text-2);font-weight:600;
-  transition:background var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard)}
-.f-bulk-add-row:hover{background:var(--gray-light);color:var(--text)}
+/* Sobrou UMA ação de criar oferta, e ela mora na barra de cima. Nem a caixa tracejada de
+   largura total nem o link "Nova oferta" do fim da grade existem mais. */
 /* "Limpar planilha" vive dentro de "Mais opções" agora — longe da ação primária. */
 .f-bulk-clear-sheet{color:var(--dm-red)}
 
@@ -1727,12 +1884,11 @@ body:not(.theme-light) .caption-src{background:var(--d-surf2);border-color:var(-
    `tr:hover` — elegante no desktop, INEXISTENTE no dedo. Medido: no celular a pessoa vê uma
    grade sem nenhuma pista de onde digitar. Aqui o efeito bonito fica só onde há mouse. */
 @media (hover:none){
-  .f-bulk-table input[type=text]{border-color:var(--gray-mid)!important;background:var(--white)!important}
-  /* Alvos de 44px (`ux-principles.md`, Lei de Fitts). Medido antes: os controles por linha
+  .f-bulk-campo input[type=text]{border-color:var(--gray-mid);background:var(--white);min-height:44px}
+  /* Alvos de 44px (`ux-principles.md`, Lei de Fitts). Medido antes: os controles por oferta
      tinham 28×28 e as miniaturas da fita 38×64 — no dedo, isso é erro garantido. */
-  .f-bulk-table td button,.f-bulk-table td .d-btn-sec{min-width:44px;min-height:44px}
+  .f-bulk-of-acoes button,.f-bulk-foto-btn{min-width:44px;min-height:44px}
   .f-bulk-strip>*{min-width:44px;min-height:56px}
-  .f-bulk-table input[type=text]{min-height:44px!important}
 }
 
 /* ── 3. A PRÉVIA PARA DE COMER A TELA DO CELULAR ──
@@ -2314,7 +2470,6 @@ body:not(.theme-light) #f-chat-art{border-color:var(--d-line,#2A2A2A);background
 
   /* Com a lista no lugar da grade, a planilha ocupa a tela inteira. */
   .f-bulk-split{grid-template-rows:minmax(0,1fr) !important}
-  .f-bulk-table-scroll{overflow-x:visible}
 
   /* O rodapé punha “Legenda e cidade”, “Fechar” e “Gerar N artes” na MESMA linha sem quebra:
      medido em 390px, o primeiro era empurrado para x=-59 e saía pela borda esquerda, com

@@ -1709,18 +1709,23 @@ function _gInferirCorrentes(cloned, opts, resolved, base){
 
    Inferida como as correntes, do próprio desenho, e com regras apertadas para não adotar
    decoração que só por acaso está atrás:
-   · só RETÂNGULO — esticar círculo, elipse ou polígono deformaria a forma;
+   · retângulo ou PILL horizontal — círculo e ornamento continuam intocáveis;
    · tem que estar ATRÁS no z-order (a ordem do array é a ordem de desenho);
-   · tem que ENVOLVER a caixa do texto pelos quatro lados;
+   · tem que ENVOLVER a TINTA autorada pelos quatro lados (bbox do PSD pode ser maior);
    · no máximo 6× a área do texto — painel de seção inteira não é placa de um título;
    · UM texto só dentro dela: com dois, crescer por causa de um seria arbitrário;
    · fundo, protegida e travada ficam de fora, como em toda a cascata. */
-function _gInferirPlacas(cloned, opts) {
+function _gInferirPlacas(cloned, opts, baseVisual) {
   const cv = (opts && opts.canvas) || null;
   const textos = cloned.filter(l => l && l.type === 'text' && _gLayoutVisivel(l));
   cloned.forEach((p, iP) => {
     if (!p || p.type !== 'shape' || !_gLayoutVisivel(p)) return;
-    if (p.shapeKind && p.shapeKind !== 'rect') return;
+    const kind=p.shapeKind||'rect';
+    /* Pills vindas do PSD chegam como `ellipse`, não como retângulo com radius. Só aceitamos
+       a elipse claramente horizontal: um círculo perto de preço/CTA continua sendo decoração e
+       nunca é deformado pela copy. */
+    const pill=kind==='ellipse'&&(p.w||0)>=(p.h||0)*1.5;
+    if (kind !== 'rect' && !pill) return;
     if (!_gCorrenteMovivel(p, cloned)) return;
     if (p.layoutRole === 'protected' || _gCorrenteEhFundo(p, cv)) return;
     const px1 = p.x || 0, py1 = p.y || 0, px2 = px1 + (p.w || 0), py2 = py1 + (p.h || 0);
@@ -1729,19 +1734,26 @@ function _gInferirPlacas(cloned, opts) {
       // Em PSDs agrupados, placa e texto podem se mover juntos, mas nunca adotamos um texto
       // de outro grupo só porque as caixas coincidem visualmente.
       if ((p.parentId||null)!==(t.parentId||null)) return false;
-      const tx1 = t.x || 0, ty1 = t.y || 0;
-      return tx1 >= px1 - 1 && ty1 >= py1 - 1
-          && tx1 + (t.w || 0) <= px2 + 1 && ty1 + (t.h || 0) <= py2 + 1;
+      /* Point text importado guarda o bbox nominal do Photoshop, que pode sobrar dezenas de
+         pixels além das letras. Exigir aquela caixa inteira desligava a relação mesmo quando a
+         tinta estava nitidamente dentro da placa — exatamente o que separava o pill de "Dale". */
+      const r=(baseVisual&&baseVisual[t.id])||{x:t.x||0,y:t.y||0,w:t.w||0,h:t.h||0};
+      return r.x >= px1 - 1 && r.y >= py1 - 1
+          && r.x + (r.w || 0) <= px2 + 1 && r.y + (r.h || 0) <= py2 + 1;
     });
     if (dentro.length !== 1) return;
     const t = dentro[0];
     // Placa de texto fixo não precisa reagir: só a placa que contém um campo pode crescer.
     if(!_gLayoutTemCampo(t)) return;
-    const areaT = Math.max(1, (t.w || 0) * (t.h || 0));
+    const ref=(baseVisual&&baseVisual[t.id])||{x:t.x||0,y:t.y||0,w:t.w||0,h:t.h||0};
+    const areaT = Math.max(1, (ref.w || 0) * (ref.h || 0));
     if ((p.w || 0) * (p.h || 0) > areaT * 6) return;             // painel, não placa
-    p._placa = { alvo: t.id, padTopo: (t.y || 0) - py1,
-                 hDesenhada: p.h || 0, yDesenhado: py1,
-                 wDesenhada: p.w || 0, xDesenhado: px1 };
+    /* Quatro paddings, medidos contra a TINTA de referência. Quando a copy muda, a forma pode
+       crescer OU encolher sem perder o encaixe que o designer compôs. Com o texto autorado, a
+       conta devolve exatamente x/y/w/h publicados (ORIGINAL FIRST). */
+    p._placa = { alvo:t.id,refW:ref.w||0,refH:ref.h||0,
+      padE:ref.x-px1, padT:ref.y-py1,
+      padD:px2-(ref.x+(ref.w||0)), padB:py2-(ref.y+(ref.h||0)) };
   });
 }
 
@@ -2100,7 +2112,7 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
        preco imune pra nao adotar nenhum dos dois como filho. As duas passagens sao
        independentes — uma escreve `_anchorAuto`, a outra `_placa`, e nenhuma le o campo da
        outra — entao a inversao nao muda mais nada. */
-    _gInferirPlacas(cloned, opts);
+    _gInferirPlacas(cloned, opts, baseVisual);
     _gInferirCorrentes(cloned, opts, resolved, baseVisual);
   }
   // Posição PUBLICADA de cada camada: a corrente inferida nunca sobe além dela (o laço abaixo
@@ -2191,9 +2203,10 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
     }
     _seguirPlacas();
   };
-  /* A placa acompanha o texto: gruda no topo dele (que pode ter sido empurrado) e cresce
-     EXATAMENTE o que o texto passou da própria caixa. Texto que cabe → placa idêntica à
-     desenhada, que é a mesma promessa da corrente.
+  /* A placa acompanha a TINTA do texto (que pode ter sido empurrada, crescido ou encolhido).
+     Texto de referência → preserva os quatro paddings autorados e devolve a placa idêntica à
+     desenhada (ORIGINAL FIRST). Copy que mudou de tamanho → equilibra os lados e o eixo vertical:
+     a placa abraça a palavra pelo centro, com respiro mínimo de 0,45em nas laterais.
      Devolve se mexeu, para o laço de posicionamento dar mais uma volta e empurrar quem está
      encadeado abaixo dela. */
   const _seguirPlacas = () => {
@@ -2203,19 +2216,15 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
       const t = cloned.find(x => x.id === p._placa.alvo);
       const rt = t && resolved[t.id];
       if (!t || !rt) return;
-      const excedente = Math.max(0, (rt.h || 0) - (t.h || 0));
-      const novaY = (t.y || 0) - p._placa.padTopo;
-      const novaH = p._placa.hDesenhada + excedente;
-      /* LARGURA — o gêmeo horizontal, e ele só existe por causa do point text: caixa de
-         parágrafo quebra a linha e nunca passa da própria largura, mas point text cresce para
-         o lado (960px de tinta medidos numa placa de 400px). Cresce pelo excedente e SEGUE a
-         direção da tinta: texto centralizado abre para os dois lados, à esquerda abre só para
-         a direita. Enquanto o texto cabe na caixa dele, a placa fica exatamente a desenhada. */
-      const excX = Math.max(0, (rt.w || 0) - (t.w || 0));
-      const novaW = p._placa.wDesenhada + excX;
-      const novaX = excX > 0
-        ? p._placa.xDesenhado + _gInkDx(t, rt.w || 0)   // negativo quando a tinta abre à esquerda
-        : p._placa.xDesenhado;
+      const tintaX=(rt.x||0)+(rt.dx||0), tintaY=(rt.y||0)+(rt.dy||0);
+      const mudouTamanho=Math.abs((rt.w||0)-p._placa.refW)>1||Math.abs((rt.h||0)-p._placa.refH)>1;
+      const padX=mudouTamanho?Math.max(p._placa.padE,p._placa.padD,(t.fontSize||24)*.45):null;
+      const padY=mudouTamanho?Math.max(p._placa.padT,p._placa.padB):null;
+      const padE=mudouTamanho?padX:p._placa.padE, padD=mudouTamanho?padX:p._placa.padD;
+      const padT=mudouTamanho?padY:p._placa.padT, padB=mudouTamanho?padY:p._placa.padB;
+      const novaX=tintaX-padE, novaY=tintaY-padT;
+      const novaW=(rt.w||0)+padE+padD;
+      const novaH=(rt.h||0)+padT+padB;
       if (p.y !== novaY || p.h !== novaH || p.x !== novaX || p.w !== novaW) {
         p.y = novaY; p.h = novaH; p.x = novaX; p.w = novaW;
         resolved[p.id].y = novaY; resolved[p.id].h = novaH;

@@ -15,7 +15,6 @@
     // try/catch obrigatório: isto roda no CORPO do objeto, na carga do script. Em modo privado
     // (ou com storage bloqueado por política) o getItem LANÇA e o arquivo inteiro morre — o
     // widget de ajuda simplesmente não existiria na sessão.
-    selectedModel: (function(){ try{ return localStorage.getItem('luma_selected_ai_model'); }catch(e){ return null; } })() || 'gemini-1.5-flash',
     searchQuery: '',
     pillTimer: null,
     pillHideTimer: null,
@@ -196,7 +195,7 @@
     },
     {
       title: 'Quer uma mãozinha?',
-      detail: 'Busque uma dúvida ou fale com a equipe.'
+      detail: 'Busque uma dúvida ou pergunte ao assistente.'
     }
   ];
 
@@ -246,12 +245,12 @@
 
   function wmHeaderCopy() {
     if (widgetState.activeTab === 'messages') {
-      return { title: 'Mensagens', detail: 'Converse com a equipe de suporte do Luma.' };
+      return { title: 'Assistente do Luma', detail: 'Pergunte sobre o produto — as respostas vêm da Central de Ajuda.' };
     }
     if (widgetState.activeTab === 'help' || widgetState.activeTab === 'article') {
       return { title: 'Central de ajuda', detail: 'Encontre respostas rápidas sobre o seu fluxo.' };
     }
-    return { title: 'Como podemos ajudar?', detail: 'Busque uma resposta ou fale com a equipe.' };
+    return { title: 'Como podemos ajudar?', detail: 'Busque uma resposta ou pergunte ao assistente.' };
   }
 
   function connectLegacyDesignerHelp() {
@@ -410,6 +409,54 @@
     }, 5200);
   }
 
+  /* ── O DOCK NASCE DO BOTÃO QUE FOI CLICADO ───────────────────────────────────────────────
+     Antes a posição vinha só de regras de CSS por contexto (`body.mode-designer`,
+     `f-home-mode`, slot do dock do franqueado): o painel abria no canto de sempre mesmo
+     quando o clique tinha saído de um botão no topo da tela, e a animação crescia de um
+     canto onde não havia botão nenhum. Agora medimos o acionador e encostamos o painel
+     nele — borda direita alinhada com a do botão, abrindo para baixo se o botão está na
+     metade de cima da tela e para cima se está embaixo.
+     ⛔ Só no desktop: abaixo de 900px o CSS transforma o painel em folha de tela cheia, e
+     ancorar num botão de 44px ali não faz sentido. Fora desses casos, tudo volta ao CSS —
+     por isso o reset limpa as propriedades em vez de gravar valores "neutros". */
+  function wmAncorar() {
+    const modal = document.getElementById('luma-widget-modal');
+    if (!modal) return;
+    ['right', 'left', 'top', 'bottom', 'height', 'transform-origin'].forEach(function (prop) {
+      modal.style.removeProperty(prop);
+    });
+    const el = lastHelpTrigger;
+    if (!el || !el.isConnected || window.innerWidth < 900) return;
+    const r = el.getBoundingClientRect();
+    if (!r.width || !r.height) return;                    // botão escondido: mantém o CSS
+
+    const MARGEM = 16, FOLGA = 12;
+    const largura = Math.min(760, window.innerWidth - 32);
+    const direita = Math.min(
+      Math.max(window.innerWidth - r.right, MARGEM),
+      Math.max(MARGEM, window.innerWidth - largura - MARGEM)
+    );
+    const paraBaixo = r.top < window.innerHeight / 2;
+    const espaco = paraBaixo ? window.innerHeight - r.bottom - FOLGA - MARGEM
+                             : r.top - FOLGA - MARGEM;
+
+    modal.style.right = direita + 'px';
+    modal.style.height = 'min(720px,' + Math.max(360, espaco) + 'px)';
+    if (paraBaixo) {
+      modal.style.top = (r.bottom + FOLGA) + 'px';
+      modal.style.bottom = 'auto';
+      modal.style.transformOrigin = 'top right';
+    } else {
+      modal.style.bottom = (window.innerHeight - r.top + FOLGA) + 'px';
+      modal.style.top = 'auto';
+      modal.style.transformOrigin = 'bottom right';
+    }
+  }
+
+  // Girar o aparelho ou redimensionar a janela com o painel aberto deixava o dock preso a
+  // uma posição medida em outra viewport.
+  window.addEventListener('resize', function () { if (widgetState.isOpen) wmAncorar(); });
+
   window.lumaWidgetToggle = function () {
     if (widgetState.isOpen) {
       lumaWidgetClose();
@@ -441,9 +488,11 @@
       button.setAttribute('aria-expanded', 'true');
     });
     renderWidgetModalContent();
+    wmAncorar();
     window.setTimeout(function() {
-      const closeButton = document.querySelector('#luma-widget-modal .luma-wm-close-btn');
-      if (closeButton) closeButton.focus();
+      const campo = document.getElementById('luma-wm-input-box');
+      const alvo = campo || document.querySelector('#luma-widget-modal .luma-wm-close-btn');
+      if (alvo) alvo.focus();
     }, 80);
   };
 
@@ -659,7 +708,6 @@
             <span class="luma-wm-brand-label">Ajuda</span>
           </div>
           <div class="luma-wm-header-actions">
-            <span class="luma-wm-availability"><span aria-hidden="true"></span>Suporte Luma</span>
             <button type="button" class="luma-wm-close-btn" onclick="lumaWidgetClose()" aria-label="Fechar central de ajuda">${WIDGET_SVGS.close}</button>
           </div>
         </div>
@@ -734,53 +782,66 @@
       <button type="button" class="luma-wm-ask-card" onclick="lumaWidgetStartChat()">
         <span class="luma-wm-ask-icon" aria-hidden="true">${WIDGET_SVGS.chatBubble}</span>
         <div class="luma-wm-ask-copy">
-          <strong>Precisa falar com alguém?</strong>
-          <span>Envie sua dúvida para a equipe do Luma.</span>
+          <strong>Não achou a resposta?</strong>
+          <span>Pergunte ao assistente do Luma.</span>
         </div>
         <span class="luma-wm-list-arrow" aria-hidden="true">${WIDGET_SVGS.chevronRight}</span>
       </button>
     `;
   }
 
+  /* ── A CONVERSA ──────────────────────────────────────────────────────────────────────────
+     Três avisos diziam a MESMA coisa em lugares diferentes (a tarja de escopo no topo, a
+     caixa laranja dentro da primeira bolha e a linha "atendimento automático" no pé). Aviso
+     repetido não informa mais: vira ruído e a pessoa para de ler os três. Agora é UM cartão
+     de abertura, com as duas informações que de fato mudam o comportamento de quem lê —
+     "isto é máquina e pode errar" e "aprovação é com o seu marketing".
+     ⛔ O seletor de modelo saiu. Escolher entre Gemini Flash e 1.5 Pro não é decisão do
+     franqueado (nem informação que faça sentido para ele) — e o lever continua existindo
+     para a equipe no console (`js/core/console.js`, que também escreve LUMA_GEMINI_MODEL).
+     O vão embaixo da saudação virou sugestão de pergunta, tirada dos artigos REAIS da base:
+     assim a pergunta do atalho sempre casa com material e nunca cai no "não está na Central". */
+  const WM_SUGESTOES = ['campanha-personalizar', 'download-alta-res', 'falta-preencher-erro'];
+
   function renderMessagesTab() {
     if (!widgetState.hasActiveChat) {
       return `
         <div class="luma-wm-chat-empty">
           <div class="luma-wm-chat-empty-icon">${WIDGET_SVGS.chatBubble}</div>
-          <span class="luma-wm-eyebrow">Suporte Luma</span>
-          <strong>Nenhuma conversa ainda</strong>
-          <span>Conte o que aconteceu e inclua uma imagem se ajudar.</span>
+          <span class="luma-wm-eyebrow">Assistente do Luma</span>
+          <strong>Nenhuma pergunta ainda</strong>
+          <span>Descreva o que aconteceu e em qual tela. Pode anexar um print se ajudar.</span>
           <button type="button" class="luma-wm-btn-primary" onclick="lumaWidgetStartChat()">
-            Iniciar conversa
+            Fazer uma pergunta
           </button>
         </div>
       `;
     }
 
-    window.lumaWidgetSetModel = function (modelId) {
-      widgetState.selectedModel = modelId;
-      try{ localStorage.setItem('luma_selected_ai_model', modelId); }catch(e){}
-      if (typeof window.LUMA_GEMINI_MODEL !== 'undefined') {
-        window.LUMA_GEMINI_MODEL = modelId;
-      }
-      renderWidgetModalContent();
-    };
-
-    const selModel = widgetState.selectedModel || 'gemini-flash-latest';
+    const sugestoes = widgetState.messages.length ? '' : `
+      <div class="luma-wm-sugestoes">
+        <span class="luma-wm-sugestoes-label">Perguntas comuns</span>
+        ${WM_SUGESTOES.map(id => {
+          const art = LUMA_ARTICLES.find(a => a.id === id);
+          if (!art) return '';
+          return `<button type="button" class="luma-wm-sugestao" onclick="lumaWidgetPerguntar(this)" data-pergunta="${wmEsc(art.title)}">${wmEsc(art.title)}</button>`;
+        }).join('')}
+      </div>`;
 
     return `
       <div class="luma-wm-chat-active">
         <div class="luma-wm-chat-messages">
-          <div class="luma-wm-msg-info">
-            ${WIDGET_SVGS.info}
-            <div>Para aprovações e pedidos de criação, fale com o marketing da sua empresa. Para usar o Luma, conte com a gente.</div>
-          </div>
-
           <div class="luma-wm-bubble bot">
-            Olá! Descreva sua dúvida e, se puder, diga em qual tela ela aconteceu.
-            <div class="luma-wm-ia-aviso">${WIDGET_SVGS.info}Você fala com um assistente automático — respostas geradas por IA podem conter erros. Confira antes de agir.</div>
+            Descreva sua dúvida e diga em qual tela ela aconteceu. Quanto mais específico, melhor eu acho a resposta.
             <div class="luma-wm-bubble-meta">Assistente Luma · agora</div>
           </div>
+
+          <p class="luma-wm-ressalva">
+            ${WIDGET_SVGS.info}
+            <span><strong>Assistente automático:</strong> responde pela Central de Ajuda e pode errar — confira antes de agir. Aprovação de peça e pedido de criação são com o marketing da sua empresa.</span>
+          </p>
+
+          ${sugestoes}
 
           ${widgetState.messages.map(m => `
             <div class="luma-wm-bubble ${m.sender === 'user' ? 'user' : 'bot'}">
@@ -793,31 +854,32 @@
           ${widgetState.pensando ? `<div class="luma-wm-bubble bot luma-wm-digitando" role="status" aria-label="Assistente digitando">
             <span></span><span></span><span></span>
           </div>` : ''}
-
-          <div class="luma-wm-chat-status" role="status"><span aria-hidden="true"></span>Atendimento automático — não há fila de humano por aqui.</div>
         </div>
 
         <div id="luma-wm-attach-area"></div>
 
         <div class="luma-wm-chat-input-bar">
-          <textarea id="luma-wm-input-box" placeholder="Escreva sua mensagem" aria-label="Mensagem para o suporte" oninput="lumaWidgetInputCheck(this)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();lumaWidgetSendMsg();}"></textarea>
+          <textarea id="luma-wm-input-box" placeholder="Escreva sua pergunta" aria-label="Pergunta para o assistente do Luma" oninput="lumaWidgetInputCheck(this)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();lumaWidgetSendMsg();}"></textarea>
           <div class="luma-wm-chat-input-tools">
             <div class="luma-wm-input-actions">
               <button type="button" class="luma-wm-tool-btn" onclick="lumaWidgetTriggerFileSelect()" aria-label="Anexar imagem ou arquivo" title="Anexar arquivo">${WIDGET_SVGS.paperclip}</button>
-              <button type="button" class="luma-wm-tool-btn" id="luma-wm-mic-btn" onclick="lumaWidgetStartVoiceDictation()" aria-label="Ditar mensagem por voz" title="Ditar por voz">${WIDGET_SVGS.mic}</button>
-              <select class="luma-wm-inline-model-select" onchange="lumaWidgetSetModel(this.value)" aria-label="Selecione o Modelo de IA" title="Modelo de IA">
-                <option value="gemini-flash-latest" ${selModel === 'gemini-flash-latest' ? 'selected' : ''}>Gemini Flash</option>
-                <option value="gemini-2.0-flash" ${selModel === 'gemini-2.0-flash' ? 'selected' : ''}>Gemini 2.0 Flash</option>
-                <option value="gemini-1.5-pro" ${selModel === 'gemini-1.5-pro' ? 'selected' : ''}>Gemini 1.5 Pro</option>
-                <option value="gemini-1.5-flash-8b" ${selModel === 'gemini-1.5-flash-8b' ? 'selected' : ''}>Gemini Flash 8B</option>
-              </select>
+              <button type="button" class="luma-wm-tool-btn" id="luma-wm-mic-btn" onclick="lumaWidgetStartVoiceDictation()" aria-label="Ditar pergunta por voz" title="Ditar por voz">${WIDGET_SVGS.mic}</button>
             </div>
-            <button type="button" class="luma-wm-send-btn" id="luma-wm-send-trigger" onclick="lumaWidgetSendMsg()" aria-label="Enviar mensagem">${WIDGET_SVGS.send}</button>
+            <button type="button" class="luma-wm-send-btn" id="luma-wm-send-trigger" onclick="lumaWidgetSendMsg()" aria-label="Enviar pergunta">${WIDGET_SVGS.send}</button>
           </div>
         </div>
       </div>
     `;
   }
+
+  // Atalho de pergunta: escreve no campo e envia pelo MESMO caminho do teclado —
+  // nada de rota paralela de envio (o histórico, o teto e o rótulo de origem são os de lá).
+  window.lumaWidgetPerguntar = function (btn) {
+    const input = document.getElementById('luma-wm-input-box');
+    if (!input || !btn) return;
+    input.value = btn.dataset.pergunta || '';
+    window.lumaWidgetSendMsg();
+  };
 
   function renderHelpTab() {
     return `
@@ -991,7 +1053,7 @@ REGRAS:
       author: 'Você',
       text: msgText,
       image: widgetState.attachedFile ? widgetState.attachedFile.dataUrl : null,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
     };
 
     // Teto do historico. O array segurava a conversa INTEIRA da sessao, com cada print
@@ -1032,7 +1094,7 @@ REGRAS:
       author: AUTORES[r.fonte] || 'Assistente Luma',
       fonte: r.fonte,
       text: r.text,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
     });
     _podarMensagens();
     renderWidgetModalContent();

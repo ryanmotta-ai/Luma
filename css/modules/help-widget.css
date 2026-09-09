@@ -317,7 +317,9 @@ body:not(.theme-light) #luma-widget-fab-trigger:focus-visible {
   right:24px;
   bottom:90px;
   z-index:10000;
-  width:min(540px,calc(100vw - 24px));
+  /* Dock mais largo: 540px era medida de bolha de chat, e o painel virou tela (artigos com
+     passos, conversa com sugestões, resumo). Continua flutuante — não é modal de tela cheia. */
+  width:min(760px,calc(100vw - 32px));
   height:min(720px,calc(100vh - 84px));
   display:flex;
   flex-direction:column;
@@ -382,24 +384,8 @@ body.mode-designer #luma-widget-modal {
     --luma-designer-panel-width:clamp(304px,22vw,360px);
   }
 
-  body.mode-designer:not(.d-studio-home-open):has(#d-pages-tray.collapsed:not(.hidden)) #luma-widget-fab-wrap {
-    bottom: 60px;
-  }
-  body.mode-designer:not(.d-studio-home-open):has(#d-pages-tray.collapsed:not(.hidden)) #luma-widget-modal {
-    bottom: 70px;
-  }
+  /* (as regras que desviavam da bandeja de páginas saíram com ela) */
 
-  body.mode-designer:not(.d-studio-home-open):has(#d-pages-tray:not(.hidden):not(.collapsed)) #luma-widget-fab-wrap {
-    bottom:138px;
-  }
-
-  body.mode-designer:not(.d-studio-home-open):has(#d-pages-tray:not(.hidden):not(.collapsed)) #luma-widget-modal {
-    bottom:148px;
-    height:min(640px,calc(100vh - 168px));
-  }
-}
-
-@media (min-width:1024px) and (max-width:1180px) {
   body.mode-designer:not(.d-studio-essential):not(.d-studio-home-open) #luma-widget-fab-wrap,
   body.mode-designer:not(.d-studio-essential):not(.d-studio-home-open) #luma-widget-modal {
     --luma-designer-panel-width:316px;
@@ -497,24 +483,6 @@ body:not(.theme-light) .luma-wm-logo-dark {
   display:flex;
   align-items:center;
   gap:8px;
-}
-
-.luma-wm-availability {
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  color:var(--wm-text-3);
-  font-size:11px;
-  font-weight:600;
-  white-space:nowrap;
-}
-
-.luma-wm-availability > span {
-  width:7px;
-  height:7px;
-  border-radius:50%;
-  background:var(--green);
-  box-shadow:0 0 0 3px color-mix(in srgb,var(--green) 12%,transparent);
 }
 
 .luma-wm-close-btn {
@@ -1191,31 +1159,99 @@ body:not(.theme-light) .luma-wm-chat-empty-icon {
   padding:0 2px 8px;
 }
 
-.luma-wm-msg-info {
+/* Conversa curta encosta no CAMPO, não fica pendurada no topo com meia tela de branco no
+   meio — é como todo chat se comporta: a mensagem nova nasce junto de onde se escreve.
+   O espaçador com `margin-top:auto` faz isso sem `justify-content:flex-end`, que em coluna
+   com rolagem corta o começo da lista quando a conversa cresce. */
+.luma-wm-chat-messages::before { content:''; margin-top:auto }
+
+/* ── ABERTURA DA CONVERSA ──────────────────────────────────────────────────────────────────
+   Três avisos diziam a mesma coisa (tarja no topo + caixa laranja na bolha + linha no pé).
+   A primeira tentativa juntou tudo num cartão laranja — que virou o elemento mais pesado da
+   tela, acima da própria saudação: a ressalva ganhava mais destaque que a conversa.
+   Agora a ordem é a natural do chat: a saudação vem primeiro, como bolha, e a ressalva é
+   RODAPÉ dela — sem fundo, sem moldura, 11.5px. Continua sempre visível (a regra é que a
+   pessoa saiba que fala com máquina), só deixou de gritar. */
+.luma-wm-ressalva {
   display:flex;
   align-items:flex-start;
+  gap:7px;
+  margin:-2px 0 2px;
+  padding:0 2px;
+  max-width:62ch;
+  color:var(--wm-text-3);
+  font-size:11.5px;
+  line-height:1.5;
+}
+
+.luma-wm-ressalva strong { color:var(--wm-text-2); font-weight:700 }
+
+.luma-wm-ressalva svg {
+  flex:none;
+  width:13px;
+  height:13px;
+  margin-top:2px;
+  color:var(--dm-orange-d);
+}
+
+/* ── SUGESTÕES DE PERGUNTA ──
+   Ocupam o vão entre a saudação e o campo — e, por virem dos artigos reais da base, a
+   resposta do atalho nunca cai no "isso não está na Central de Ajuda". Somem na primeira
+   mensagem: atalho de partida não serve de nada depois que a conversa começou. */
+.luma-wm-sugestoes { display:flex; flex-direction:column; align-items:flex-start; gap:7px; margin-top:6px }
+
+.luma-wm-sugestoes-label {
+  padding:0 2px;
+  color:var(--wm-text-3);
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+
+.luma-wm-sugestao {
+  max-width:min(100%,62ch);
+  display:flex;
+  align-items:center;
   gap:8px;
-  padding:9px 10px;
+  padding:9px 14px;
   border:1px solid var(--wm-border-soft);
-  border-radius:var(--r-sm);
+  border-radius:var(--r-pill);
   background:var(--wm-surface);
   color:var(--wm-text-2);
-  font-size:12px;
-  line-height:1.45;
+  font:600 12.5px 'Roboto',sans-serif;
+  text-align:left;
+  cursor:pointer;
+  transition:border-color var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard),background var(--dur-fast) var(--ease-standard),transform var(--dur-micro) var(--ease-standard);
 }
 
-.luma-wm-msg-info svg {
+/* A seta é decoração de affordance: diz "isto envia", não é um segundo botão. */
+.luma-wm-sugestao::after {
+  content:'';
   flex:none;
-  margin-top:1px;
-  color:var(--dm-red);
+  width:5px;
+  height:5px;
+  border-top:1.6px solid currentColor;
+  border-right:1.6px solid currentColor;
+  transform:rotate(45deg);
+  opacity:.55;
 }
 
-body:not(.theme-light) .luma-wm-msg-info svg {
-  color:var(--dm-orange);
+.luma-wm-sugestao:hover {
+  border-color:var(--dm-orange);
+  color:var(--dm-orange-d);
+  background:var(--dm-orange-bg);
+  transform:translateX(2px);
+}
+
+.luma-wm-sugestao:active { transform:translateX(2px) scale(.99) }
+
+@media (prefers-reduced-motion:reduce) {
+  .luma-wm-sugestao:hover,.luma-wm-sugestao:active { transform:none }
 }
 
 .luma-wm-bubble {
-  max-width:84%;
+  max-width:min(84%,62ch);
   padding:9px 11px;
   border-radius:var(--r);
   color:var(--wm-text);
@@ -1257,23 +1293,6 @@ body:not(.theme-light) .luma-wm-msg-info svg {
   display:block;
   margin-bottom:7px;
   border-radius:var(--r-sm);
-}
-
-.luma-wm-chat-status {
-  display:inline-flex;
-  align-items:center;
-  align-self:center;
-  gap:6px;
-  margin-top:2px;
-  color:var(--wm-text-3);
-  font-size:10.5px;
-}
-
-.luma-wm-chat-status > span {
-  width:6px;
-  height:6px;
-  border-radius:50%;
-  background:var(--green);
 }
 
 .luma-wm-chat-input-bar {
@@ -1600,15 +1619,6 @@ body:not(.theme-light) .luma-wm-nav-btn.active {
     padding-bottom:calc(8px + env(safe-area-inset-bottom));
   }
 
-  .luma-wm-availability {
-    font-size:0;
-  }
-
-  .luma-wm-availability > span {
-    width:8px;
-    height:8px;
-  }
-
   .luma-wm-search-prompt {
     grid-template-columns:22px minmax(0,1fr);
   }
@@ -1652,13 +1662,9 @@ body:not(.theme-light) .luma-wm-nav-btn.active {
   }
 }
 
-/* ── Sinalizacao de IA no widget de suporte ──
-   Regra: o usuario sempre sabe que fala com maquina. Aviso na bolha de abertura,
-   selo "IA" nas respostas do modelo e indicador de digitacao durante a espera. */
-.luma-wm-ia-aviso{display:flex;align-items:flex-start;gap:6px;margin-top:8px;padding:7px 9px;
-  border-radius:var(--r-sm);background:var(--dm-orange-bg);color:var(--dm-orange-d);
-  font-size:10.5px;line-height:1.45;font-weight:600}
-.luma-wm-ia-aviso svg{width:13px;height:13px;flex-shrink:0;margin-top:1px}
+/* ── Sinalização de IA no widget de suporte ──
+   Regra: a pessoa sempre sabe que fala com máquina. A ressalva mora no cartão de abertura
+   (`.luma-wm-intro`); aqui ficam o selo "IA" nas respostas do modelo e a digitação. */
 .luma-wm-ia-tag{display:inline-flex;align-items:center;margin-right:5px;padding:1px 5px;border-radius:var(--r-pill);
   background:var(--dm-orange);color:var(--white);font-size:8.5px;font-weight:900;letter-spacing:.06em}
 .luma-wm-digitando{display:inline-flex;align-items:center;gap:4px;padding:11px 13px!important;width:auto}
@@ -1669,29 +1675,3 @@ body:not(.theme-light) .luma-wm-nav-btn.active {
 @keyframes lumaWmDot{0%,60%,100%{opacity:.28;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
 @media (prefers-reduced-motion:reduce){.luma-wm-digitando span{animation:none;opacity:.5}}
 
-/* ── Seletor Inline de Modelo de IA (Ao lado do ícone de Voz) ───────── */
-.luma-wm-inline-model-select {
-  height: 28px;
-  padding: 0 8px;
-  margin-left: 4px;
-  border: 1px solid var(--wm-border);
-  border-radius: var(--r-pill);
-  background: var(--wm-surface-hover);
-  color: var(--wm-text-2);
-  font-size: 11px;
-  font-weight: 700;
-  outline: 0;
-  cursor: pointer;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-  transition: border-color var(--dur-fast) var(--ease-standard), background var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
-}
-
-.luma-wm-inline-model-select:hover {
-  border-color: var(--dm-orange-d);
-  color: var(--wm-text);
-  background: var(--wm-surface);
-}
-
-body:not(.theme-light) .luma-wm-inline-model-select:hover {
-  border-color: var(--dm-orange);
-}

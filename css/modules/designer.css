@@ -102,7 +102,6 @@
 #d-deck-nav button{flex-shrink:0}
 #d-deck-nav button:disabled{opacity:.3;cursor:default;transform:none}
 .d-has-deck .dpg-add-below{display:none}
-.d-has-deck:has(#d-pages-tray:not(.collapsed):not(.hidden)) #d-deck-nav{bottom:170px}
 body.d-chrome-off #d-deck-nav,body.d-chrome-off #d-page-deck{display:none}
 @keyframes dDeckEnter{from{translate:var(--deck-enter-x) 0;opacity:.65}to{translate:0 0;opacity:1}}
 #d-canvas-container.d-deck-enter{animation:dDeckEnter var(--dur-slow) var(--ease-out)}
@@ -4282,7 +4281,8 @@ body.mode-designer.d-studio-essential #d-right .d-rp-tabs{
 
 body.mode-designer.d-studio-essential #d-right .dpi-panel-nav{
   display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
+  /* Quatro destinos: Editar · Organizar · Campos · Catálogo. */
+  grid-template-columns:repeat(4,minmax(0,1fr));
   gap:4px;
   flex:none;
   min-height:58px;
@@ -4555,74 +4555,6 @@ body.mode-designer.d-studio-essential.dpi-empty-canvas:not(.d-studio-home-open) 
 .dpi-canvas-empty-create svg{
   width:15px;
   height:15px;
-}
-
-/* Pages are a compact control by default and a dock only when opened. */
-body.mode-designer.d-studio-essential #d-pages-tray{
-  right:10px;
-  bottom:10px;
-  left:10px;
-  transform:none;
-}
-
-body.mode-designer.d-studio-essential #d-pages-tray.hidden{
-  transform:translateY(20px);
-}
-
-body.mode-designer.d-studio-essential #d-pages-tray .ptray-inner{
-  width:100%;
-  max-width:none;
-  height:112px;
-  padding:8px 10px;
-  border-color:var(--d-border2);
-  border-radius:12px;
-  background:color-mix(in srgb,var(--d-dark) 95%,transparent);
-  box-shadow:0 12px 36px color-mix(in srgb,var(--d-bg) 48%,transparent);
-}
-
-/* A pílula recolhida saiu do centro (2026-07-31): ali ela caía exatamente sobre o
-   "Adicionar página" colado embaixo da prancheta. Canto direito resolve sem mexer
-   na bandeja aberta. */
-body.mode-designer.d-studio-essential #d-pages-tray.collapsed{
-  right:14px;
-  left:auto;
-  transform:none;
-}
-
-body.mode-designer.d-studio-essential #d-pages-tray.collapsed.hidden{
-  transform:translateY(20px);
-}
-
-body.mode-designer.d-studio-essential #d-pages-tray.collapsed .ptray-inner{
-  width:auto;
-  height:38px;
-  padding:4px 7px;
-  border-radius:var(--r-pill);
-}
-
-body.mode-designer.d-studio-essential #d-pages-tray .ptray-toggle{
-  min-width:30px;
-  min-height:30px;
-  gap:5px;
-  padding:4px 7px;
-  color:var(--d-text2);
-  font:650 10.5px/1 'Roboto',sans-serif;
-}
-
-body.mode-designer.d-studio-essential #d-pages-tray .ptray-toggle:focus-visible,
-body.mode-designer.d-studio-essential #d-pages-tray .ptray-add:focus-visible,
-body.mode-designer.d-studio-essential #d-pages-tray .ptray-item:focus-visible{
-  outline:2px solid var(--dm-orange);
-  outline-offset:2px;
-}
-
-.dpi-pages-toggle-label{
-  display:none;
-  white-space:nowrap;
-}
-
-body.mode-designer.d-studio-essential #d-pages-tray.collapsed .dpi-pages-toggle-label{
-  display:inline;
 }
 
 @media(max-width:1180px){
@@ -5487,7 +5419,6 @@ body.d-chrome-off #d-chrome-btn{
 /* ── PAINÉIS OCULTOS ──
    Sai tudo o que não é arte. A régua encolhe até o rodapé, que continua clicável. */
 body.mode-designer.d-chrome-off #d-right,
-body.mode-designer.d-chrome-off #d-pages-tray,
 body.mode-designer.d-chrome-off #d-vtoolbar .vt-tools-grid,
 body.mode-designer.d-chrome-off #d-vtoolbar .dpi-studio-rail-head,
 body.mode-designer.d-chrome-off #d-vtoolbar .vt-toggle,
@@ -5598,14 +5529,11 @@ body.d-page-locked #d-page-lock-btn{
 .dpg-add-below:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
 
 /* Sem página gravada não há o que duplicar nem travar — as barras saem de cena
-   em vez de oferecer botões que falhariam calados.
-   Bandeja de páginas ABERTA: o filmstrip cobre a base da prancheta, então o
-   "Adicionar página" sai de cena em vez de ficar meio escondido atrás dela — e a
-   própria bandeja já tem o botão de adicionar. */
+   em vez de oferecer botões que falhariam calados. (A cláusula da bandeja de páginas
+   saiu junto com a bandeja: nada mais cobre a base da prancheta.) */
 body.d-sem-pagina .dpg-bar,
 body.d-sem-pagina .dpg-add-below,
-body.d-chrome-off .dpg-add-below,
-body:has(#d-pages-tray:not(.collapsed):not(.hidden)) .dpg-add-below{
+body.d-chrome-off .dpg-add-below{
   display:none;
 }
 

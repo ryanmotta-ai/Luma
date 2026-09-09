@@ -643,6 +643,26 @@ body:not(.theme-light) .lp-edit-input{background:var(--d-card,#242424);border-co
 }
 .lp-hover-box.is-circle{border-radius:50%!important}
 
+/* Selo "dá pra editar" — o lápis ancorado em cada objeto liberado (JS: _fLpPaintEditBadges).
+   Camada própria sobre a arte: não entra nos pixels do #lp-canvas, então não vaza pro PiP
+   nem pro cartão da conversa. Entra com um fade e recua quando a pessoa já está mexendo:
+   com o hover ativo o chip e a moldura já dizem a mesma coisa, e dois sinais poluem. */
+#lp-edit-badges{
+  position:absolute;left:0;top:0;display:none;pointer-events:none;z-index:24;
+  opacity:.92;transform-origin:center;
+  transition:opacity var(--dur-base) var(--ease-standard);
+}
+.lp-canvas-wrap:hover #lp-edit-badges{opacity:.3}
+/* .pop entra pelo JS a cada troca de campo (não a cada tecla) — a chegada do selo no
+   objeto novo. Escala fraca de propósito: é um piscar de olho, não um chamado. */
+#lp-edit-badges.pop{animation:lpBadgeIn .42s var(--ease-spring-soft) both}
+@keyframes lpBadgeIn{
+  0%{opacity:0;transform:scale(.88)}
+  60%{opacity:.92;transform:scale(1.02)}
+  100%{opacity:.92;transform:scale(1)}
+}
+@media (prefers-reduced-motion:reduce){#lp-edit-badges.pop{animation:none}}
+
 #lp-hover-chip{
   position:fixed;z-index:12500;pointer-events:none;display:none;
   align-items:center;gap:6px;font-size:11px;font-weight:600;

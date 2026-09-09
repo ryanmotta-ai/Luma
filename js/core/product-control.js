@@ -134,9 +134,12 @@ function _gProdSummaryHTML(){
 
     <div class="gprod-metrics" id="gprod-metrics" aria-label="Resumo dos recursos">
       <div class="gprod-metric"><span class="gprod-dot is-on"></span><span><strong>${t.ativos}</strong><small>Ativos</small></span></div>
-      <div class="gprod-metric"><span class="gprod-dot is-off"></span><span><strong>${t.desativados}</strong><small>Desativados</small></span></div>
+      <!-- TRÊS métricas, não quatro: a quarta quebrava linha sozinha. "Por dependência" virou a
+           segunda linha de Desativados — é a mesma família (está fora do ar), só que a causa é o
+           pai desligado, e não uma decisão sobre o próprio recurso. Contagem inalterada: as duas
+           somas continuam vindo separadas de gFeatureResolveTree(). -->
+      <div class="gprod-metric"><span class="gprod-dot is-off"></span><span><strong>${t.desativados}</strong><small>Desativados</small>${t.porDependencia?`<small class="gprod-metric-sub"><i class="gprod-dot is-dep"></i>+${t.porDependencia} por dependência</small>`:''}</span></div>
       <div class="gprod-metric"><span class="gprod-dot is-maint"></span><span><strong>${t.manutencao}</strong><small>Em manutenção</small></span></div>
-      <div class="gprod-metric"><span class="gprod-dot is-dep"></span><span><strong>${t.porDependencia}</strong><small>Por dependência</small></span></div>
     </div>
 
     <p class="gprod-sync ${statusCls}" id="gprod-sync" role="status" aria-live="polite">

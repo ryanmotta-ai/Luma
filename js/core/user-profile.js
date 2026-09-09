@@ -167,10 +167,8 @@ function gProfileSwitchTab(tabName) {
     const elapsedMinutes = Math.floor((Date.now() - gSessionStartTime) / 60000);
     const sessionEl = document.getElementById('prof-stat-session-time');
     if (sessionEl) sessionEl.textContent = `${elapsedMinutes} min`;
-  } else if (tabName === 'atalhos') {
-    if (title) title.textContent = 'Minhas fotos';
-    if (subtitle) subtitle.textContent = 'As fotos que você já enviou, prontas para reusar na próxima arte.';
-    if (typeof fPrefsPanelRender === 'function') fPrefsPanelRender();
+    // O histórico muda enquanto o painel está fechado: recalcula ao abrir a aba.
+    gProfileRenderFacts();
   } else if (tabName === 'equipe') {
     if (title) title.textContent = 'Gestão de equipe';
     if (subtitle) subtitle.textContent = 'Convide pessoas e mantenha cada acesso no nível certo.';
@@ -506,13 +504,81 @@ function gProfileRenderStats(role) {
   // 2. Nível baseado no papel e na quantidade de templates
   if (levelVal) {
     if (role === 'gestao' || role === 'superadmin') {
-      levelVal.textContent = 'Dono da Plataforma 👑';
+      levelVal.textContent = 'Dono da Plataforma';
     } else if (role === 'equipe_dm' || role === 'admin') {
-      levelVal.textContent = templateCount > 15 ? 'Diretor de Design 👑' : 'Administrador Luma ⚙️';
+      levelVal.textContent = templateCount > 15 ? 'Diretor de Design' : 'Administrador Luma';
     } else {
-      levelVal.textContent = templateCount > 5 ? 'Designer Avançado ⚡' : 'Franqueado Ativo 🚀';
+      levelVal.textContent = templateCount > 5 ? 'Designer Avançado' : 'Franqueado Ativo';
     }
   }
+  gProfileRenderFacts();
+}
+
+/* ══ CURIOSIDADES DA CONTA ═════════════════════════════════════════════════════════════════
+   A aba Atividade terminava em três números e meia tela branca. O que preenche esse vão sem
+   inventar dado é o que a conta JÁ guarda: o histórico de artes (`fGetHist` — cache local
+   espelhado de `luma.artes`).
+   ⛔ Nada de contagem de cliques ou de sessões: `gTrackEvent` escreve em
+   `analytics.fct_eventos`, e a RLS de lá só dá SELECT para a equipe — o próprio dono da conta
+   não pode ler os seus eventos. Prometer "você já deu 10 mil cliques" seria número inventado.
+   Cada curiosidade só entra se tiver dado; sem histórico, a seção assume o estado vazio. */
+const _PROF_FACT_ICO = {
+  artes:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 15 3-3.5 2.5 2.5L16 10l3 4"/></svg>',
+  baixou:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0 4-4m-4 4-4-4"/><path d="M4 19h16"/></svg>',
+  camp:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l16-7-3 16-5-5-4 3z"/></svg>',
+  fmt:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="10" height="18" rx="2"/><path d="M18 8h2v8h-2"/></svg>',
+  dia:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+  desde:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>'
+};
+const _PROF_DIAS = ['domingos','segundas','terças','quartas','quintas','sextas','sábados'];
+
+function _gProfTopKey(hist, campo){
+  const contas = {};
+  hist.forEach(h => { const v = h && h[campo]; if (v) contas[v] = (contas[v] || 0) + 1; });
+  const chaves = Object.keys(contas);
+  if (!chaves.length) return null;
+  const top = chaves.sort((a,b) => contas[b] - contas[a])[0];
+  return {nome: top, qtd: contas[top]};
+}
+
+function gProfileRenderFacts(){
+  const grid = document.getElementById('prof-facts-grid');
+  if (!grid) return;
+  const hist = (typeof fGetHist === 'function') ? fGetHist().filter(h => h && !h._demo) : [];
+  if (!hist.length){
+    grid.innerHTML = `<div class="prof-facts-empty">
+      <span class="prof-facts-empty-ico">${_PROF_FACT_ICO.artes}</span>
+      <strong>Suas curiosidades aparecem depois da primeira arte</strong>
+      <span>Assim que você gerar uma arte, esta seção passa a contar a sua história de uso: campanha preferida, formato favorito e o dia em que você produz mais.</span>
+    </div>`;
+    return;
+  }
+  const baixadas = hist.filter(h => h.status === 'baixada').length;
+  const pct = Math.round(baixadas / hist.length * 100);
+  const camp = _gProfTopKey(hist, 'campName');
+  const fmt = _gProfTopKey(hist, 'fmtName');
+  const dias = {};
+  hist.forEach(h => { const t = Number(h.ts || h.id); if (t) { const d = new Date(t).getDay(); dias[d] = (dias[d] || 0) + 1; } });
+  const diaTop = Object.keys(dias).sort((a,b) => dias[b] - dias[a])[0];
+  const primeira = Math.min.apply(null, hist.map(h => Number(h.ts || h.id) || Date.now()));
+  const diasDesde = Math.max(0, Math.floor((Date.now() - primeira) / 86400000));
+
+  const fatos = [
+    {ico:'artes', valor: hist.length, label: hist.length === 1 ? 'arte no seu histórico' : 'artes no seu histórico', destaque: true},
+    // Sempre entra, mesmo em zero: seis curiosidades fecham a grelha de três colunas em duas
+    // linhas exatas — e "nenhuma baixada ainda" é, ela mesma, a informação mais útil aqui.
+    {ico:'baixou', valor: baixadas, label: baixadas ? `baixadas de verdade — ${pct}% do que você criou` : 'baixadas até agora — o download é o passo que fecha a arte'},
+    camp ? {ico:'camp', valor: camp.nome, label: `é a sua campanha mais usada, com ${camp.qtd} ${camp.qtd === 1 ? 'arte' : 'artes'}`, texto: true} : null,
+    fmt ? {ico:'fmt', valor: fmt.nome, label: `é o formato que você mais escolhe (${fmt.qtd}×)`, texto: true} : null,
+    diaTop != null ? {ico:'dia', valor: _PROF_DIAS[diaTop], label: `é quando você produz mais — ${dias[diaTop]} ${dias[diaTop] === 1 ? 'arte' : 'artes'} nesse dia`, texto: true} : null,
+    {ico:'desde', valor: diasDesde === 0 ? 'hoje' : diasDesde + (diasDesde === 1 ? ' dia' : ' dias'), label: diasDesde === 0 ? 'foi quando você criou a sua primeira arte' : 'desde a sua primeira arte no Luma', texto: diasDesde === 0}
+  ].filter(Boolean);
+
+  grid.innerHTML = fatos.map((f, i) => `<article class="prof-fact${f.destaque ? ' is-hero' : ''}" style="--fi:${i}">
+    <span class="prof-fact-ico">${_PROF_FACT_ICO[f.ico]}</span>
+    <strong class="prof-fact-value${f.texto ? ' is-text' : ''}">${gEsc(String(f.valor))}</strong>
+    <span class="prof-fact-label">${gEsc(f.label)}</span>
+  </article>`).join('');
 }
 
 // Alterna o tema a partir da aba do Franqueado

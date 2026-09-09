@@ -41,7 +41,7 @@
 | Legendas sugeridas do post (combinatório, **não é IA**) | `js/franqueado/png-generator.js:4435` (`fBuildCopy`, bancos em `_COPY_BLOCKS:4016`) |
 | Postar no Instagram / enviar no WhatsApp | `js/franqueado/png-generator.js` (`fPostarInstagram`, `fEnviarWhatsApp`) |
 | Histórico de artes, badge, "baixada" | `js/franqueado/history.js` |
-| Lojas salvas, favoritos, fotos recentes | `js/franqueado/prefs.js` + `prefs-panel.js` + `upload-panel.js` |
+| Lojas salvas, favoritos, fotos recentes | `js/franqueado/prefs.js` + `upload-panel.js` (a tela "Minhas fotos" do painel de conta saiu em 09/09/2026) |
 | Arrastar as 3 colunas do workspace (desktop largo) | `js/franqueado/panel-dock.js` |
 
 ### Estúdio (`d*`) — quem cria o template
@@ -250,13 +250,13 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 75 arquivos JS (59.166 linhas, 2.357 funções) · 33 arquivos CSS (28.383 linhas) · `index.html` com 3.830 linhas e 76 `<script>`.
+**Tamanho real de hoje:** 74 arquivos JS (59.514 linhas, 2.354 funções) · 32 arquivos CSS (28.450 linhas) · `index.html` com 3.833 linhas e 75 `<script>`.
 
 ## JS — o que cada arquivo é
 
 ### js (raiz)
 
-**`js/00-config.js`** · 3131 linhas
+**`js/00-config.js`** · 3140 linhas
 Constantes globais imutaveis: HIST_KEY, CAMPS_ATIVAS, CAMPS_OUTRAS, FMTS. Deve ser carregado PRIMEIRO (todos os modulos dependem destas constantes).
 · API: gVarRegex, gValidVarName, gXmlEsc, gRoundPolyD, gRoundPolyPath2D, gVectorPathFillRule, gVectorPathValid, gTraceVectorPath, gVectorPathD, gFxOffset, gFxRgba, gGradStopsCss, gGradientCss, gGradientCanvas … (+45; 89 funções no total)
 · Estado global: _G_MEDIDA_CACHE, gLayoutVivoOff, _gCanvasWrap
@@ -299,7 +299,7 @@ CONTROLE DO PRODUTO — o motor único de disponibilidade funcional do Luma.
 · Estado global: _gFFValores, _gFFSyncedAt, _gFFOrigem, _gFFErroSync, _gFFIniciado, _gFFPorChave, _gFFFilhos, _gFFPorTool
 · Depende de: core/toast.js (gToast, gEsc), core/auth.js (gCurrentRole,
 
-**`js/core/feedback-admin.js`** · 186 linhas
+**`js/core/feedback-admin.js`** · 329 linhas
 Consulta da equipe no painel da conta, carregada sob demanda. A RLS e a RPC autorizam os dados; gIsAdmin é apenas o gate da interface.
 · Depende de: core/auth.js, core/supabase.js, core/toast.js.
 
@@ -319,7 +319,7 @@ Armazenamento de imagens grandes (fundos de PSD, fotos) em IndexedDB, fora do lo
 · API: gInferAnchor, gEnsureAnchors, gReflowLayers, gFmtKey
 · Depende de: nada (puro). Carregar antes de franqueado/ e designer/.
 
-**`js/core/product-control.js`** · 570 linhas
+**`js/core/product-control.js`** · 573 linhas
 CONTROLE DO PRODUTO — a tela da Gestão, dentro do painel da conta.
 · API: gProdRender, gProdRenderTree, gProdFilter, gProdSetFilter, gProdClearFilters, gProdToggleGroup, gProdFocusKey, gProdRefresh, gProdAskToggle, gProdCancelToggle, gProdConfirmToggle, gProdOpenHistory
 · Estado global: _gProdQuery, _gProdFiltro, _gProdFechados, _gProdConfirmKey, _gProdSalvando
@@ -355,9 +355,9 @@ gToast(msg) — exibe notificacao flutuante de 2.8s.
 · Estado global: gImgPersistWarned
 · Depende de: nada (usa apenas o DOM).
 
-**`js/core/user-profile.js`** · 950 linhas
+**`js/core/user-profile.js`** · 1016 linhas
 Controladores do Modal e Configurações de Perfil do Usuário. Suporta edição de perfil, troca de avatar via Base64 persistente, validação de senha e monitoramento de tempo de sessão.
-· API: gProfileOpenFeedback, gOpenUserProfileModal, gCloseUserProfileModal, gProfileOpenCli, gProfileSwitchTab, gProfileUpdateModalAvatars, gProfileTriggerUpload, gProfileHandleUpload, gProfileSaveData, gProfileApplyTheme, gProfileApplyStudioMode, gProfileCheckPasswordStrength, gProfileChangePassword, gProfileRenderStats … (+15; 31 funções no total)
+· API: gProfileOpenFeedback, gOpenUserProfileModal, gCloseUserProfileModal, gProfileOpenCli, gProfileSwitchTab, gProfileUpdateModalAvatars, gProfileTriggerUpload, gProfileHandleUpload, gProfileSaveData, gProfileApplyTheme, gProfileApplyStudioMode, gProfileCheckPasswordStrength, gProfileChangePassword, gProfileRenderStats … (+16; 33 funções no total)
 · Estado global: _gFeedbackAdminLoading
 
 ### js/franqueado
@@ -374,9 +374,9 @@ F-02: tipos de campo, mascaras de input, validacao por campo. F_FIELD_TYPES defi
 · Estado global: _F_MAXLEN_MED, _fFitOpts, _fFitBusy
 · Depende de: 00-config.js
 
-**`js/franqueado/chat.js`** · 2022 linhas
+**`js/franqueado/chat.js`** · 1985 linhas
 Fluxo conversacional completo: fStartChat, fNextStep, fAddBot, fAddUser, fSend, fQR, fTyping, fGoBack, upload de imagem, confirm card, fGerarArte.
-· API: fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fShowWelcome, fStartChat, fManterValor … (+45; 80 funções no total)
+· API: fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fShowWelcome, fStartChat, fManterValor … (+45; 79 funções no total)
 · Estado global: fNextTimeout, _fArtSnapshots, _fArtCaptions, _fUndoSlot
 · Depende de: 00-config.js, 01-state.js, franqueado/chat-input.js
 
@@ -391,10 +391,10 @@ Historico de artes do franqueado: fGetHist, fSaveHist, fAddHist, fMarkHistBaixad
 · Estado global: _fArtesPushBusy, _fArtesPushQueued
 · Depende de: 00-config.js (HIST_KEY), 01-state.js (fState)
 
-**`js/franqueado/live-preview.js`** · 2152 linhas
+**`js/franqueado/live-preview.js`** · 2272 linhas
 Preview lateral em tempo real (fUpdateLivePreview) e modal de preview multi-formato (fOpenPreview, fClosePreview, fStartFromPreview).
-· API: fOpenPreview, fStartFromPreview, fClosePreview, fPostedSetCtx, fPostedCloseQR, fPostedOpenQR, fPostedCopyQRLink, fPostedContextForFormat, fOpenPosted, fClosePosted, fUpdateLivePreview, fLpSizeCanvas, fLpRefit, fLpZoomStep … (+17; 104 funções no total)
-· Estado global: _postedArt, renderizada, _postedCtx, _pstStageBound, _pstTiltRaf, _pstQRUrl, _pstQRBusy, _lpRendering, _lpLastErr, _lpPendingRender (+19)
+· API: fOpenPreview, fStartFromPreview, fClosePreview, fPostedSetCtx, fPostedCloseQR, fPostedOpenQR, fPostedCopyQRLink, fPostedContextForFormat, fOpenPosted, fClosePosted, fUpdateLivePreview, fLpSizeCanvas, fLpRefit, fLpZoomStep … (+17; 108 funções no total)
+· Estado global: _postedArt, renderizada, _postedCtx, _pstStageBound, _pstTiltRaf, _pstQRUrl, _pstQRBusy, _lpRendering, _lpLastErr, _lpPendingRender (+21)
 · Depende de: 00-config.js, 01-state.js
 
 **`js/franqueado/materials.js`** · 830 linhas
@@ -409,16 +409,11 @@ Drag & drop das 3 colunas do workspace do franqueado (só desktop largo).
 · Estado global: _panelOrder, _panelDrag
 · Depende de: index.html (grips + #fran-main), css/modules/panel-dock.css,
 
-**`js/franqueado/png-generator.js`** · 4535 linhas
+**`js/franqueado/png-generator.js`** · 4653 linhas
 Geracao de PNG a partir dos templates: fGenPNG, fRenderTemplateLayers, fBaixar, fOutroFormato. Sistema de nomenclatura padronizado para downloads.
-· API: fLoadLogoBranca, fMaterialSize, fExportScale, fRenderCanvasHelper, fGenPNG, fGenPDF, fPostarInstagram, fEnviarWhatsApp, fDrawDMLogo, fAdjustImageData, fRenderTemplateLayers, fRenderOneLayer, roundedRect, roundedRectPath … (+70; 147 funções no total)
-· Estado global: _fLogoBrancaImg, fBulkRows, _fBulkAudit, _fBulkAsyncAudit, _fBulkAuditFingerprint, _fBulkImageAudit, _fBulkAutosaveTimer, _fBulkAutosaveSeq, _fBulkGenerationState, _fBulkPreflightRunning (+37)
+· API: fLoadLogoBranca, fMaterialSize, fExportScale, fRenderCanvasHelper, fGenPNG, fGenPDF, fPostarInstagram, fEnviarWhatsApp, fDrawDMLogo, fAdjustImageData, fRenderTemplateLayers, fRenderOneLayer, roundedRect, roundedRectPath … (+70; 149 funções no total)
+· Estado global: _fLogoBrancaImg, fBulkRows, _fBulkAudit, _fBulkAsyncAudit, _fBulkAuditFingerprint, _fBulkImageAudit, _fBulkAutosaveTimer, _fBulkAutosaveSeq, _fBulkGenerationState, _fBulkPreflightRunning (+38)
 · Depende de: 00-config.js, 01-state.js, designer/canvas.js (dRenderCanvas)
-
-**`js/franqueado/prefs-panel.js`** · 131 linhas
-Tela "Minhas fotos" — aba do painel de conta (gOpenUserProfileModal).
-· API: fPrefsPanelOpen, fPrefsPanelRender, fPrefsPanelDeletePhoto, fPrefsPanelClearPhotos, fPrefsPanelZoom, fPrefsPanelCloseZoom
-· Depende de: upload-panel.js, core/img-store.js (gResolveImgUrl/gIdbDel),
 
 **`js/franqueado/prefs.js`** · 78 linhas
 Preferências do franqueado persistidas localmente (cache offline-first):
@@ -430,9 +425,9 @@ Preferências do franqueado persistidas localmente (cache offline-first):
 Busca local do catálogo. Adaptador, ranking e eventos separados da apresentação. Só lê metadados/camadas já carregados: buscar nunca inicia download de um PSD. Depende de gNormBusca, catálogo/materiais e gTrackEvent (na hora…
 · API: fSearchTokens, fSearchDocument, fSearchRank, fSearchCampaigns, fSearchFormatsHTML, fSearchFooterHTML, fSearchRecord, fSearchRecordOpen
 
-**`js/franqueado/upload-panel.js`** · 195 linhas
+**`js/franqueado/upload-panel.js`** · 190 linhas
 Painel de upload do chat do franqueado: ao enviar uma foto, abre um painel com · Imagens recentes — as últimas usadas, pra reaproveitar sem re-upload. · Minhas lojas — perfis de loja salvos (logo), quando o campo é o logo. ·…
-· API: fGetRecentImgs, fRecordRecentImg, fRemoveRecentImg, fOpenUploadPanel, fCloseUploadPanel, fUploadPanelNewFile, fPickRecentImg, fUploadPanelPickLoja, fUploadPanelManage, fUploadPanelDeleteLoja
+· API: fGetRecentImgs, fRecordRecentImg, fRemoveRecentImg, fOpenUploadPanel, fCloseUploadPanel, fUploadPanelNewFile, fPickRecentImg, fUploadPanelPickLoja, fUploadPanelDeleteLoja
 · Estado global: _fUpPanelVar, _fUpPanelUploadId
 · Depende de: franqueado/chat.js (_fApplyImageToField, fState, fProcessImageFile),
 
@@ -623,7 +618,7 @@ tutMockCampaign, tutMockMaterial, tutMockHist — builders de HTML de mock usado
 
 ### js/widgets
 
-**`js/widgets/help-widget.js`** · 1048 linhas
+**`js/widgets/help-widget.js`** · 1110 linhas
 ── LUMA HELP WIDGET ── Ajuda contextual, artigos e mensagens com a mesma linguagem visual do Luma.
 
 ### js/calendario
@@ -666,32 +661,31 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 | `css/components/help-modal.css` | 719 |
 | `css/components/login.css` | 393 |
 | `css/components/pages-tray.css` | 335 |
-| `css/components/prefs-panel.css` | 232 |
-| `css/components/product-control.css` | 437 |
+| `css/components/product-control.css` | 443 |
 | `css/components/pwa-install.css` | 129 |
 | `css/components/splash.css` | 143 |
 | `css/components/topbar.css` | 455 |
 | `css/components/tutorial.css` | 740 |
-| `css/components/user-profile.css` | 1084 |
+| `css/components/user-profile.css` | 1130 |
 | `css/modules/academia.css` | 1330 |
 | `css/modules/all-tools.css` | 113 |
 | `css/modules/calendario.css` | 1544 |
 | `css/modules/catalog.css` | 299 |
-| `css/modules/chat.css` | 2615 |
+| `css/modules/chat.css` | 2770 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
 | `css/modules/designer.css` | 5753 |
-| `css/modules/feedback.css` | 118 |
+| `css/modules/feedback.css` | 199 |
 | `css/modules/franqueado.css` | 1593 |
 | `css/modules/franqueado_effects.css` | 406 |
-| `css/modules/help-widget.css` | 1698 |
+| `css/modules/help-widget.css` | 1694 |
 | `css/modules/layers-panel.css` | 4317 |
-| `css/modules/live-preview.css` | 910 |
+| `css/modules/live-preview.css` | 930 |
 | `css/modules/panel-dock.css` | 116 |
 | `css/modules/publish-modal.css` | 628 |
 | `css/modules/toolbar.css` | 1017 |
 | `css/modules/topbar.css` | 217 |
-| `css/modules/upload-panel.css` | 111 |
+| `css/modules/upload-panel.css` | 106 |
 
 ## Ordem de carga do `index.html`
 
@@ -722,58 +716,57 @@ A ordem **é** a arquitetura: sem ESM, um arquivo depende de o anterior já ter 
 22. js/franqueado/live-preview.js
 23. js/franqueado/panel-dock.js
 24. js/franqueado/upload-panel.js
-25. js/franqueado/prefs-panel.js
-26. js/franqueado/chat-input.js
-27. js/academia/motion.js
-28. js/academia/academia.js
-29. js/academia/aula.js
-30. js/academia/agente.js
-31. js/academia/gestao.js
-32. js/academia/certificado.js
-33. js/academia/conclusao.js
-34. js/calendario/conteudo.js
-35. js/calendario/calendario.js
-36. js/calendario/agenda.js
-37. js/calendario/evento.js
-38. js/calendario/apresentacao.js
-39. js/designer/blending.js
-40. js/franqueado/png-generator.js
-41. js/designer/templates.js
-42. js/designer/canvas.js
-43. js/designer/selection.js
-44. js/designer/brush.js
-45. js/designer/eraser-tools.js
-46. js/designer/layers.js
-47. js/designer/props-panel.js
-48. js/designer/measurement.js
-49. js/designer/publish.js
-50. js/designer/preview.js
-51. js/designer/library.js
-52. js/designer/undo-redo.js
-53. js/widgets/help-widget.js
-54. js/designer/tools.js
-55. js/designer/fonts.js
-56. js/designer/psd-parse.js
-57. js/designer/psd-import.js
-58. js/designer/mask.js
-59. js/designer/tutorial-panel.js
-60. assets/vendor/colorthief.js
-61. assets/vendor/pica.js
-62. assets/vendor/jszip.min.js
-63. assets/vendor/supabase.js
-64. js/core/supabase-config.js
-65. js/core/supabase.js
-66. js/core/ai.js
-67. js/core/auth.js
-68. js/franqueado/feedback.js
-69. js/core/feature-flags.js
-70. js/core/user-profile.js
-71. js/core/product-control.js
-72. js/core/console.js
-73. js/main.js
-74. js/designer/color-picker.js
-75. js/designer/tooltip.js
-76. js/designer/linter.js
+25. js/franqueado/chat-input.js
+26. js/academia/motion.js
+27. js/academia/academia.js
+28. js/academia/aula.js
+29. js/academia/agente.js
+30. js/academia/gestao.js
+31. js/academia/certificado.js
+32. js/academia/conclusao.js
+33. js/calendario/conteudo.js
+34. js/calendario/calendario.js
+35. js/calendario/agenda.js
+36. js/calendario/evento.js
+37. js/calendario/apresentacao.js
+38. js/designer/blending.js
+39. js/franqueado/png-generator.js
+40. js/designer/templates.js
+41. js/designer/canvas.js
+42. js/designer/selection.js
+43. js/designer/brush.js
+44. js/designer/eraser-tools.js
+45. js/designer/layers.js
+46. js/designer/props-panel.js
+47. js/designer/measurement.js
+48. js/designer/publish.js
+49. js/designer/preview.js
+50. js/designer/library.js
+51. js/designer/undo-redo.js
+52. js/widgets/help-widget.js
+53. js/designer/tools.js
+54. js/designer/fonts.js
+55. js/designer/psd-parse.js
+56. js/designer/psd-import.js
+57. js/designer/mask.js
+58. js/designer/tutorial-panel.js
+59. assets/vendor/colorthief.js
+60. assets/vendor/pica.js
+61. assets/vendor/jszip.min.js
+62. assets/vendor/supabase.js
+63. js/core/supabase-config.js
+64. js/core/supabase.js
+65. js/core/ai.js
+66. js/core/auth.js
+67. js/franqueado/feedback.js
+68. js/core/feature-flags.js
+69. js/core/user-profile.js
+70. js/core/product-control.js
+71. js/core/console.js
+72. js/main.js
+73. js/designer/color-picker.js
+74. js/designer/tooltip.js
+75. js/designer/linter.js
 ```
 
 <!-- AUTO-FIM -->

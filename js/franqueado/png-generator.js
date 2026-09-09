@@ -1552,10 +1552,21 @@ function fBulkCreateEmptyRow() {
 
 function fBulkAddEmptyRow() {
   fBulkCollectCurrentInputs();
-  fBulkRows.push(fBulkCreateEmptyRow());
+  const nova = fBulkCreateEmptyRow();
+  fBulkRows.push(nova);
   const st = document.getElementById('f-bulk-status');
   if(st) st.textContent = `${fBulkRows.length} linha(s) carregada(s)`;
+  // A linha nasce com altura/opacidade animadas (classe `is-nova` no render) e recebe o
+  // cursor no primeiro campo — criar oferta e ter que caçar onde digitar eram dois passos.
+  _fBulkLinhaNova = _fBulkRid(nova);
   fBulkRenderPreview();
+  _fBulkLinhaNova = null;
+  const idx = fBulkRows.length - 1;
+  fBulkSetActive(idx, {semRolar:true});
+  const keys = fBulkVars();
+  const primeiro = keys.find(k => !(typeof fIsImageVar === 'function' && fIsImageVar(k)));
+  const campo = primeiro && document.getElementById(`f-bulk-edit-${idx}-${primeiro}`);
+  if (campo) { try{ campo.focus({preventScroll:false}); }catch(e){ campo.focus(); } }
   fBulkScheduleAutosave();
 }
 
@@ -2375,16 +2386,34 @@ function fBulkUpdateReadiness(readiness=fBulkGetReadiness()) {
   const dlBtn = document.getElementById('f-bulk-dl-btn');
 
   if (status) {
-    if (!total) status.textContent = 'Planilha vazia';
-    else if (!ready && !errors) status.textContent = `${total} linha(s) disponível(is) · preencha uma oferta`;
-    else if (errors) status.textContent = `${ready} pronta(s) · ${errors} para revisar`;
-    else status.textContent = `${ready} pronta(s) para gerar`;
+    if (!total) status.textContent = 'Nenhuma oferta ainda';
+    else if (!ready && !errors) status.textContent = `${total} oferta${total===1?'':'s'} para preencher`;
+    else if (errors) status.textContent = `${ready} pronta${ready===1?'':'s'} · ${errors} para revisar`;
+    else status.textContent = `${ready} pronta${ready===1?'':'s'} para gerar`;
   }
 
   if (dot) {
     const color = ready ? (errors ? 'var(--dm-yellow)' : 'var(--green)') : (errors ? 'var(--dm-red)' : 'var(--gray-mid)');
     dot.style.background = color;
     dot.style.boxShadow = `0 0 0 3px color-mix(in srgb,${color} 14%,transparent)`;
+  }
+
+  /* O contador de prontas: informação de conferência que antes só existia dentro de uma
+     frase sobre o ZIP. Fica no rodapé porque é lá que a decisão acontece — e à esquerda,
+     longe do botão, porque é para ler, não para clicar. */
+  const prog = document.getElementById('f-bulk-progresso');
+  if (prog) {
+    const txt = !total ? '' : (ready
+      ? `${ready} de ${total} oferta${total===1?'':'s'} pronta${total===1?'':'s'}`
+      : `Nenhuma das ${total} ofertas está pronta`);
+    if (prog.dataset.txt !== txt) {
+      prog.dataset.txt = txt;
+      prog.innerHTML = txt ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg><span>${gEsc(txt)}</span>` : '';
+      prog.classList.toggle('is-ok', ready > 0 && ready === total);
+      prog.classList.toggle('is-zero', ready === 0);
+      // Microtransição vertical quando o número vira: o olho pega a mudança sem toast.
+      prog.classList.remove('is-trocando'); void prog.offsetWidth; prog.classList.add('is-trocando');
+    }
   }
 
   if (footer) {
@@ -2395,9 +2424,9 @@ function fBulkUpdateReadiness(readiness=fBulkGetReadiness()) {
     } else {
       // Sem seletor de formato, cada oferta pronta é UMA arte — a multiplicação sumiu junto
       // com os chips, e anunciar "× 1 formato" seria explicar uma conta que não existe mais.
-      let text = `${ready} arte(s) no ZIP, no formato do material`;
-      if (errors) text += ` · ${errors} linha(s) com erro serão puladas`;
-      else if (empty) text += ` · ${empty} linha(s) vazia(s) serão ignoradas`;
+      let text = `${ready} arte${ready===1?'':'s'} no ZIP, no formato do material`;
+      if (errors) text += ` · ${errors} oferta${errors===1?'':'s'} com erro ${errors===1?'será pulada':'serão puladas'}`;
+      else if (empty) text += ` · ${empty} oferta${empty===1?'':'s'} vazia${empty===1?'':'s'} ${empty===1?'será ignorada':'serão ignoradas'}`;
       footer.textContent = text;
     }
   }
@@ -2855,6 +2884,44 @@ function _fBulkBindSwipeArte(){
   }, {passive:true});
 }
 
+/* ══ SUPERFÍCIE DA GRADE — motion e bordas de rolagem ══════════════════════════════════════
+   Três funções de UI, nenhuma toca dado. Ficam juntas porque respondem à mesma pergunta:
+   "o que a tela mostra quando algo acontece?".
+
+   ⛔ Nada aqui decide o que é salvo, gerado ou validado — só marca classes que o CSS anima
+   e remove no `animationend`. Com `prefers-reduced-motion` o CSS zera as animações e estas
+   funções continuam corretas (a classe entra e sai, sem efeito visual).                     */
+let _fBulkLinhaNova = null;   // rid da linha que acabou de nascer (entra com altura animada)
+
+/* ══ LARGURA SEMÂNTICA ══════════════════════════════════════════════════════════════════
+   Dar a mesma largura a "R$ 29,00" e a uma descrição de 120 caracteres desperdiça metade da
+   faixa e ainda aperta o texto longo. O span vem do que o campo É — e essa informação já
+   existe no produto: `fGetFieldType` resolve tipo e `maxLen` na ordem permissão do designer
+   > medida da caixa deste material > catálogo de campos.
+   ⛔ Nada disto é persistido nem vira schema: é decisão de APRESENTAÇÃO do Sheets, calculada
+   a cada render. Se o designer mudar a permissão do campo, o span acompanha sozinho.
+   Escala em 12 colunas: p=2 · m=3 · g=4 · gg=6 · full=12. */
+function _fBulkSpanCampo(k){
+  if (typeof fIsImageVar === 'function' && fIsImageVar(k)) return 'gg';  // botão + campo de link não cabem em uma trilha
+  const cfg = (typeof fGetFieldType === 'function') ? fGetFieldType(k) : null;
+  const tipo = (cfg && cfg.type) || 'text';
+  // Preço, desconto, código, data, seleção e booleano têm tamanho ditado pela máscara.
+  if (['price','discount','code','date','boolean','select','color'].includes(tipo)) return 'p';
+  const maxLen = (cfg && +cfg.maxLen) || 32;
+  if (maxLen <= 24) return 'm';
+  if (maxLen <= 48) return 'g';
+  if (maxLen <= 90) return 'gg';
+  return 'full';
+}
+
+// Um pulso de fundo na célula que acabou de guardar valor. Substitui o toast por edição:
+// confirmar 30 campos com 30 avisos empilhados é ruído, não confirmação.
+function _fBulkPiscarCelula(el, classe){
+  if(!el) return;
+  el.classList.remove(classe); void el.offsetWidth; el.classList.add(classe);
+  el.addEventListener('animationend', () => el.classList.remove(classe), {once:true});
+}
+
 function fBulkRenderPreview(){
   const wrap=document.getElementById('f-bulk-preview');if(!wrap)return;
   fBulkUpdateReadiness();
@@ -2891,75 +2958,106 @@ function fBulkRenderPreview(){
   if (_fBulkTableView) {
     const keys = fBulkVars();
     const labelFor = k => (typeof _fLpLabel === 'function' ? _fLpLabel(k) : k);
-    const ths = keys.map(k => `<th style="padding:10px 8px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-2,#3A3A3A);font-weight:700;white-space:nowrap">${gEsc(labelFor(k))}</th>`).join('');
-    
+
     const query = document.getElementById('f-bulk-search')?.value.trim().toLowerCase() || '';
-    let trs = fBulkRows.map((r,i) => {
+    /* ══ OFFER GRID — POR QUE A TABELA SAIU ═══════════════════════════════════════════════
+       A grade linha × coluna tem um custo que não dá para pagar aqui: com 8 campos ela não
+       cabe em 1440px, e o que sobra vai para uma barra de rolagem horizontal. Rolar de lado
+       para DESCOBRIR que existe um campo é falha de UX — a pessoa não sabe o que não vê.
+       Agora cada oferta é um BLOCO com um grid próprio de 12 colunas: os campos quebram em
+       faixas dentro da MESMA oferta, e o rótulo viaja junto do valor (o que também mata a
+       leitura "R$ 29,00 Batata Combo família Dale" como frase contínua — cada valor tem seu
+       título em cima). A oferta cresce para baixo; a tela nunca cresce para o lado.
+       ⚠ Os ids `f-bulk-edit-{i}-{k}`, o `data-row` e todos os handlers são os MESMOS: é o que
+       mantém `fBulkSaveRow`, `fBulkCollectCurrentInputs` e `fBulkSetActive` sem uma linha de
+       mudança. Só a caixa mudou. */
+    const ofertas = fBulkRows.map((r,i) => {
       if (query) {
         const match = Object.values(r.dados).some(v => String(v).toLowerCase().includes(query));
         if (!match) return '';
       }
-      const tds = keys.map(k => {
+      const estado = _fBulkEstadoLinha(r, keys);
+      const campos = keys.map(k => {
         const val = r.dados[k] || '';
         const isFieldErr = r.erros.find(e => e.includes(k));
         const safeV = gEsc(val).replace(/"/g, '&quot;');
-        
+        const rotulo = labelFor(k);
+        const rotSeguro = gEsc(rotulo).replace(/"/g,'&quot;');
+        const span = _fBulkSpanCampo(k);
+
+        /* ⛔ SÓ ENVIAR FOTO — o campo "ou cole um link" saiu (09/09/2026). Era a única
+           entrada da planilha que aceitava um endereço externo: a arte passava a depender
+           de um host que ninguém controla (link que expira, hotlink bloqueado, imagem
+           trocada por outra no servidor de origem) e a falha só aparecia na hora de gerar.
+           Nenhum leitor precisou mudar: `fBulkSaveRow` e `fBulkCollectCurrentInputs` já
+           guardavam com `if(input)` e caem no `row.dados[k]` — é o mesmo caminho que a
+           célula de foto JÁ preenchida sempre usou, porque ela também não tem input. */
         if (fIsImageVar(k)) {
-          return `<td style="padding:6px 4px;border-bottom:1px solid var(--gray-light, #F2F2F2)">
-            <div style="display:flex;align-items:center;gap:8px;min-width:170px">
+          return `<div class="f-bulk-campo" data-span="${span}">
+            <span class="f-bulk-campo-rot" title="${rotSeguro}">${gEsc(rotulo)}</span>
+            <div class="f-bulk-campo-foto">
               ${val ? `
-                <div style="position:relative;width:28px;height:28px;border-radius:var(--r-sm);border:1px solid var(--gray-mid,#D4D4D4);overflow:hidden;background:var(--gray-light);flex-shrink:0" title="Prévia da foto">
-                  <img src="${safeV}" style="width:100%;height:100%;object-fit:cover" onerror="this.src='';this.parentElement.style.borderColor='var(--dm-red,#C81818)';gToast('Link de imagem inválido ou quebrado!','error')" onload="if(this.naturalWidth && (this.naturalWidth < 600 || this.naturalHeight < 600)){ this.parentElement.style.borderColor='var(--dm-yellow,#FFB900)'; this.parentElement.title='Aviso: Resolução baixa ('+this.naturalWidth+'x'+this.naturalHeight+'px)'; } else { this.parentElement.style.borderColor='var(--gray-mid,#D4D4D4)'; }">
-                </div>
+                <span class="f-bulk-foto-thumb" title="Prévia da foto">
+                  <img src="${safeV}" alt="" onerror="this.src='';this.parentElement.classList.add('is-erro');gToast('Link de imagem inválido ou quebrado!','error')" onload="this.parentElement.classList.toggle('is-baixa', !!(this.naturalWidth && (this.naturalWidth < 600 || this.naturalHeight < 600)))">
+                </span>
                 <button type="button" class="f-bulk-img-del" onclick="fBulkClearImage(${i}, '${k}')">Excluir</button>
               ` : `
-                <label class="d-btn-sec" style="padding:5px 9px;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;border-radius:var(--r-sm);border:1px solid var(--gray-mid,#D4D4D4);background:var(--white);font-weight:600">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Foto
-                  <input type="file" accept="image/*" style="display:none" onchange="fBulkUploadCellImage(this, ${i}, '${k}')">
+                <label class="f-bulk-foto-btn">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Enviar foto
+                  <input type="file" accept="image/*" onchange="fBulkUploadCellImage(this, ${i}, '${k}')">
                 </label>
-                <input type="text" placeholder="Cole link..." value="" id="f-bulk-edit-${i}-${k}" onblur="fBulkSaveRow(${i}, true)" style="font-size:12px;padding:5px 8px;border:1px solid var(--gray-mid,#D4D4D4);border-radius:var(--r-sm);width:80px;background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);outline:none">
               `}
             </div>
-          </td>`;
+          </div>`;
         }
 
-        // onfocus acende a linha na prévia; oninput mantém a arte grande acompanhando o que
-        // está sendo digitado (com folga — ver fBulkLiveEdit).
-        /* `aria-label` porque o vínculo com o `<th>` não chega ao leitor de tela numa célula
-           montada assim — sem ele a pessoa ouve "editar texto" 30 vezes sem saber a coluna.
-           A dica (`placeholder`) só na PRIMEIRA linha: em 20 linhas vazias, repetir "Nome do
-           produto" em cada célula vira ruído; na primeira ela é a pista de onde digitar. */
-        const rotulo=labelFor(k);
-        const dica=(i===0)?` placeholder="${gEsc(rotulo).replace(/"/g,'&quot;')}"`:'';
-        return `<td style="padding:6px 4px;border-bottom:1px solid var(--gray-light, #F2F2F2)">
-          <input type="text" id="f-bulk-edit-${i}-${k}" class="f-bulk-cell${isFieldErr?' f-bulk-cell-err':''}" value="${safeV}"${dica} aria-label="${gEsc(rotulo).replace(/"/g,'&quot;')}, linha ${i+1}" style="width:100%;min-width:120px;font-size:12px;padding:6px 8px;border:1px solid var(--gray-mid, #D4D4D4);border-radius:var(--r-sm);background:var(--white,#FFFFFF);color:var(--text,#0A0A0A);outline:none;transition:all var(--dur-micro) var(--ease-standard)" oninput="fBulkLiveEdit(${i})" onfocus="fBulkSetActive(${i})" onblur="fBulkSaveRow(${i}, true)">
-        </td>`;
+        /* `<label>` de verdade envolvendo o campo: o rótulo visível JÁ é o nome acessível
+           (era `aria-label` numa célula sem cabeçalho alcançável) e clicar no título foca o
+           campo, de graça. A dica só entra em oferta vazia — repetir "Produto" dentro de um
+           campo que já tem título em cima é dizer a mesma coisa duas vezes. */
+        const dica = (estado==='vazia') ? ` placeholder="${rotSeguro}"` : '';
+        const tit = val ? ` title="${safeV}"` : '';
+        return `<label class="f-bulk-campo${isFieldErr?' is-falta':''}" data-span="${span}">
+          <span class="f-bulk-campo-rot" title="${rotSeguro}">${gEsc(rotulo)}</span>
+          <input type="text" id="f-bulk-edit-${i}-${k}" class="f-bulk-cell${isFieldErr?' f-bulk-cell-err':''}" value="${safeV}"${dica}${tit} oninput="fBulkLiveEdit(${i})" onfocus="fBulkSetActive(${i})" onchange="_fBulkPiscarCelula(this,'is-salvo')" onblur="fBulkSaveRow(${i}, true)">
+        </label>`;
       }).join('');
 
-      return `<tr data-row="${i}"${i===_fBulkActiveIdx()?' class="is-active"':''} onmousedown="fBulkSetActive(${i},{semRolar:true})">
-        <td class="f-bulk-rowact-cell">
-          <button type="button" class="f-bulk-rowact" onclick="fBulkShowCopyModal(${i})" title="Ver legendas geradas"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
-          <button type="button" class="f-bulk-rowact" onclick="fBulkCloneRow(${i})" title="Duplicar linha"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
-          <button type="button" class="f-bulk-rowact f-bulk-rowact--del" onclick="fBulkRemoveCard(${i})" title="Remover linha"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-        </td>
-        <td class="f-bulk-num-cell" onmouseenter="fBulkShowHoverPreview(event, ${i})" onmouseleave="fBulkHideHoverPreview()"><span class="f-bulk-num-chip">${i+1}</span>${_fBulkIaChip(r)}</td>
-        ${tds}
-      </tr>`;
+      const classes=['f-bulk-of']; if(i===_fBulkActiveIdx()) classes.push('is-active');
+      if(_fBulkLinhaNova && _fBulkRid(r)===_fBulkLinhaNova) classes.push('is-nova');
+      return `<article class="${classes.join(' ')}" data-row="${i}" data-estado="${estado}" onmousedown="fBulkSetActive(${i},{semRolar:true})">
+        <header class="f-bulk-of-cab">
+          <span class="f-bulk-of-num" onmouseenter="fBulkShowHoverPreview(event, ${i})" onmouseleave="fBulkHideHoverPreview()">
+            <strong>${String(i+1).padStart(2,'0')}</strong>
+            ${estado==='pronta'?`<span class="f-bulk-num-ok" role="img" aria-label="Oferta pronta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>`:''}
+            ${estado==='falta'?`<span class="f-bulk-num-falta">falta algo</span>`:''}
+            ${_fBulkIaChip(r)}
+          </span>
+          <span class="f-bulk-of-acoes">
+            <button type="button" class="f-bulk-rowact" onclick="fBulkShowCopyModal(${i})" title="Ver legendas geradas" aria-label="Legendas da oferta ${i+1}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
+            <button type="button" class="f-bulk-rowact" onclick="fBulkCloneRow(${i})" title="Duplicar oferta" aria-label="Duplicar a oferta ${i+1}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+            <button type="button" class="f-bulk-rowact f-bulk-rowact--del" onclick="fBulkRemoveCard(${i})" title="Remover oferta" aria-label="Remover a oferta ${i+1}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          </span>
+        </header>
+        <div class="f-bulk-of-campos">${campos}</div>
+      </article>`;
     }).join('');
-    
+
     /* ⚠ O painel e o campo escolhido SOBREVIVEM ao re-render. Toda aplicação chama
-       `fBulkRenderPreview`, que reconstrói a tabela inteira: sem isto o painel fechava e o
-       seletor voltava pro primeiro campo a cada ação — aplicar preço e depois validade
-       custava reabrir e reescolher tudo (medido: o `<details>` voltava fechado). */
+       `fBulkRenderPreview`, que reconstrói o bloco inteiro: sem isto o painel fechava e o
+       seletor voltava pro primeiro campo a cada ação. */
     const optionsHtml = keys.map(k =>
       `<option value="${k}"${k===_fBulkMassbarCampo?' selected':''}>${gEsc(labelFor(k))}</option>`).join('');
     wrap.innerHTML = `<div class="f-bulk-sheet-block">
-      <!-- Mudanças em massa: poderosas, mas jargão de planilha. Ficam FECHADAS — abertas,
-           eram a primeira coisa que a franqueada via, antes até da própria tabela. -->
+      <div class="f-bulk-toolbar">
+        <button type="button" class="f-bulk-tb f-bulk-tb-pri" onclick="fBulkAddEmptyRow()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          <span>Adicionar oferta</span>
+        </button>
       <details class="f-bulk-massbar"${_fBulkMassbarAberta?' open':''} ontoggle="_fBulkMassbarAberta=this.open">
-        <summary>
+        <summary class="f-bulk-tb">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-          <span><strong>Preencher um campo de uma vez</strong><small>o mesmo valor em todas as ofertas</small></span>
+          <span>Preencher em todas</span>
           <svg class="f-bulk-disclosure-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
         </summary>
         <!-- ══ UMA BARRA, TRÊS ATALHOS ══
@@ -2995,24 +3093,11 @@ function fBulkRenderPreview(){
           </div>
         </div>
       </details>
-      <div class="f-bulk-table-scroll">
-        <table class="f-bulk-table" style="width:100%;border-collapse:collapse;margin:0">
-          <thead style="position:sticky;top:0;z-index:10">
-            <tr>
-              <th style="padding:10px 8px;width:30px"></th>
-              <th style="padding:10px 8px;width:30px;color:var(--text-2,#3A3A3A)">#</th>
-              ${ths}
-            </tr>
-          </thead>
-          <tbody>${trs}</tbody>
-        </table>
       </div>
-      <!-- "Limpar planilha" NAO mora mais aqui: ficava a 12px de "Adicionar linha" (medido) e a
-           Lei de Fitts do ux-principles manda o contrario - acao irreversivel longe da primaria.
-           Foi para dentro de "Mais opcoes da planilha", com o resto do ferramental. -->
-      <button class="d-btn-sec f-bulk-add-row" onclick="fBulkAddEmptyRow()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Adicionar linha
-      </button>
+      <!-- ⛔ NÃO devolver um "Nova oferta" no fim da grade: "Adicionar oferta" na barra de
+           cima já é essa ação, e dois botões para o mesmo gesto é a duplicidade que a
+           direção manda evitar (Ryan, 09/09). -->
+      <div class="f-bulk-grade">${ofertas}</div>
     </div>`;
     // A fita e a prévia grande se refazem junto com a tabela — são a mesma verdade em três
     // tamanhos. (A antiga "vista em cartões" saiu: a coluna da esquerda faz o mesmo trabalho,
@@ -3232,11 +3317,20 @@ async function fBulkRenderCardPreview(row, index){
 function fBulkRemoveCard(index){
   if(index<0||index>=fBulkRows.length)return;
   fBulkCollectCurrentInputs();
-  fBulkRows.splice(index,1);
-  const st=document.getElementById('f-bulk-status');
-  if(st)st.textContent=fBulkRows.length?`${fBulkRows.length} linha(s) carregada(s)`:'';
-  fBulkRenderPreview();
-  gToast('Arte removida do lote');
+  /* A linha SAI antes de o array mudar: sem isso a exclusão era um corte seco e as linhas
+     de baixo saltavam para cima sem explicar de onde vinha o buraco. A remoção do dado
+     acontece igual — só depois de 160ms, ou na hora se o aparelho pede menos movimento. */
+  const tr = document.querySelector(`.f-bulk-grade .f-bulk-of[data-row="${index}"]`);
+  const semMovimento = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const remover = () => {
+    fBulkRows.splice(index,1);
+    const st=document.getElementById('f-bulk-status');
+    if(st)st.textContent=fBulkRows.length?`${fBulkRows.length} linha(s) carregada(s)`:'';
+    fBulkRenderPreview();
+    gToast('Oferta removida do lote');
+  };
+  if (tr && !semMovimento) { tr.classList.add('is-saindo'); setTimeout(remover, 160); }
+  else remover();
 }
 // (fBulkCloneRow definido mais abaixo — versão única mantida para evitar duplicata)
 // Cancelamento cooperativo do lote: o botão seta a flag; o loop de geração checa entre artes
@@ -3710,8 +3804,28 @@ function fBulkApplyFill() {
     _fBulkRevalidateCol(r, col);
   });
 
-  gToast(`Coluna "${col}" preenchida em todas as linhas`);
+  const rotulo = (typeof _fLpLabel === 'function') ? _fLpLabel(col) : col;
+  gToast(`"${rotulo}" preenchido em ${fBulkRows.length} oferta${fBulkRows.length===1?'':'s'}`);
+  /* O painel FECHA ao aplicar. Ele abre por cima da grade — deixá-lo aberto escondia
+     justamente as células que acabaram de mudar, e a cascata (abaixo) acontecia atrás dele.
+     Aplicou, some, e a pessoa vê onde o valor caiu. */
+  _fBulkMassbarAberta = false;
   fBulkRenderPreview();
+  /* ══ A PROPAGAÇÃO PRECISA SER VISTA ══
+     "Aplicar em todas" mudava N linhas de uma vez e a tela só... aparecia diferente. Sem ver
+     ONDE o valor caiu, a pessoa reabre a grade e confere linha por linha — e o gesto que
+     existe para poupar trabalho gera trabalho. Agora as células afetadas acendem em cascata,
+     de cima para baixo, 34ms entre linhas: a sequência desenha o caminho do valor.
+     É a MESMA coluna que acabou de ser escrita — a animação não afirma nada além do que o
+     dado já diz. Com `prefers-reduced-motion` o CSS zera a animação. */
+  requestAnimationFrame(() => {
+    document.querySelectorAll('.f-bulk-grade .f-bulk-of').forEach((tr, i) => {
+      const cel = tr.querySelector(`input[id$="-${col}"]`);
+      if (!cel) return;
+      cel.style.setProperty('--fi', i);
+      _fBulkPiscarCelula(cel, 'is-propagado');
+    });
+  });
 }
 
 // Revalida UMA coluna de uma linha após uma transformação em massa: em vez de só
@@ -4392,8 +4506,12 @@ function fBulkCloneRow(index) {
   fBulkRows.splice(index + 1, 0, cloned);
   
   document.getElementById('f-bulk-status').textContent = `${fBulkRows.length} linha(s) carregada(s)`;
-  gToast('Linha duplicada.');
+  gToast('Oferta duplicada');
+  // A cópia nasce com a mesma animação da oferta nova — sem isso ela aparecia pronta e a
+  // pessoa não sabia QUAL das duas linhas iguais era a nova.
+  _fBulkLinhaNova = _fBulkRid(cloned);
   fBulkRenderPreview();
+  _fBulkLinhaNova = null;
 }
 
 /* ─── HELPERS E INTEGRAÇÃO DE COPYS (LUMA SHEETS) ─── */

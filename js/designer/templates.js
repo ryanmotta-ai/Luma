@@ -2830,14 +2830,6 @@ function dToggleCampaignsDrawer(open) {
    PAGES TRAY (Bandeja de Páginas estilo Canva)
 ══════════════════════════════════════════════════════════════ */
 
-let dPagesTrayCollapsed = false;
-
-function dTogglePagesTray() {
-  dPagesTrayCollapsed = !dPagesTrayCollapsed;
-  const tray = document.getElementById('d-pages-tray');
-  if(tray) tray.classList.toggle('collapsed', dPagesTrayCollapsed);
-}
-
 function dRenderTemplateToDOM(container, tmpl) {
   if (!container || !tmpl) return;
   container.innerHTML = '';
@@ -3013,83 +3005,13 @@ function dRenderTemplateToDOM(container, tmpl) {
   });
 }
 
+/* O nome fica: seis lugares chamam esta função em toda troca, criação, exclusão e carga de
+   página. O que ela pinta é que mudou — a bandeja saiu e o baralho de pranchetas ficou. */
 function dRenderPagesTray() {
   dRenderPageDeck();
   // Único ponto de sincronia das barras da prancheta: esta função já roda em toda
   // troca, criação, exclusão e carga de página.
   if (typeof dSyncPageLock === 'function') dSyncPageLock();
-
-  const tray = document.getElementById('d-pages-tray');
-  if (!tray) return;
-
-  // Se não tem pasta ativa (ex: tá na prancheta default avulsa)
-  if (!dActiveTmplFolderId) {
-    tray.classList.add('hidden');
-    return;
-  }
-
-  const folder = dFolders.find(f => f.id === dActiveTmplFolderId);
-  if (!folder || !folder.templates || folder.templates.length === 0) {
-    tray.classList.add('hidden');
-    return;
-  }
-
-  tray.classList.remove('hidden');
-  const list = document.getElementById('ptray-list');
-  if (!list) return;
-
-  list.innerHTML = folder.templates.map((t, idx) => {
-    const isActive = t.id === dActiveTmplId;
-    
-    // Calcula proporções do canvas para caber no box de 84x84
-    const sizes = { story: [9, 16], feed: [4, 5], wide: [16, 9], post: [16, 9] };
-    const [aspectW, aspectH] = sizes[t.fmt] || [9, 16];
-    
-    let cw = 84;
-    let ch = 84;
-    if (aspectW > aspectH) {
-      ch = Math.round(84 * aspectH / aspectW);
-    } else if (aspectW < aspectH) {
-      cw = Math.round(84 * aspectW / aspectH);
-    }
-
-    // Dimensões do template original
-    const tmplSizes = { story: [1080, 1920], feed: [1080, 1350], wide: [1200, 628], post: [1200, 628] };
-    const [tw, th] = tmplSizes[t.fmt] || [1080, 1920];
-    const scale = cw / tw;
-
-    return `
-      <div class="ptray-item ${isActive ? 'active' : ''}" onclick="dSwitchPage('${t.id}')">
-        <div class="ptray-preview-container">
-          <span class="ptray-item-num">${idx + 1}</span>
-          
-          <div class="ptray-dom-wrapper" style="width:${cw}px; height:${ch}px;">
-            <div class="ptray-dom-canvas" data-tmpl-id="${t.id}" style="width:${tw}px; height:${th}px; transform: scale(${scale}); transform-origin: top left;">
-              <!-- Elementos de layer inseridos dinamicamente -->
-            </div>
-          </div>
-          
-          <div class="ptray-item-actions">
-            <button class="ptray-act-btn" onclick="dDuplicatePageInTray(event, '${t.id}')" title="Duplicar">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-            </button>
-            <button class="ptray-act-btn danger" onclick="dDeletePageInTray(event, '${t.id}')" title="Excluir">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-            </button>
-          </div>
-        </div>
-        <div class="ptray-item-label" title="${gEsc(t.name)}">${gEsc(t.name)}</div>
-      </div>
-    `;
-  }).join('');
-
-  // Renderiza cada template no seu respectivo contêiner DOM
-  folder.templates.forEach(t => {
-    const container = list.querySelector(`.ptray-dom-canvas[data-tmpl-id="${t.id}"]`);
-    if (container) {
-      dRenderTemplateToDOM(container, t);
-    }
-  });
 }
 
 async function dSwitchPage(tmplId) {
