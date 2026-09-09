@@ -45,6 +45,7 @@ modo, mais uma aba, mais uma flag.
 ### Fechado nesta rodada (setembro/2026)
 
 - [x] **Sheets no celular** — a folha de edição inteira: arte fixa que encolhe com o teclado, campos em ordem de cabeça, foto com miniatura, fila de ofertas ("próxima pendente"), duplicar/apagar, criar oferta, miniaturas sob demanda.
+  - ⛔ **Desligado em 09/09 por decisão do Ryan** ("sem o luma sheets no mobile por enquanto"). O código todo continua onde está — a guarda é um `return` no funil `fBulkOpen`. A volta é apagar o bloco, não reescrever a tela.
 - [x] **Foto em todas as ofertas** — a raiz era `fValidate` tratando dataURL como texto e marcando toda linha com foto como "muito longa" (linha com erro é pulada na geração).
 - [x] **"Mudar tudo de uma vez"** — de seis botões para uma barra que conhece o tipo do campo (texto, data com chips, logo de loja, foto) e três atalhos.
 - [x] **Instagram e WhatsApp** — abriam no vazio no celular; agora a folha nativa vem primeiro e o app abre por deep link quando ela é recusada.
@@ -84,6 +85,16 @@ modo, mais uma aba, mais uma flag.
   - **Dark mode virou cinza azulado** (matiz ~218°, saturação baixíssima). É temperatura, não segunda cor de marca. Contraste **medido**, com a nota preservada nos 13 pares: texto/fundo 16,57 → 15,29 (AAA), secundário/superfície 6,08 → **7,39** (AA→AAA), terciário/superfície 4,61 → 5,35 (AA), laranja/superfície 7,00 → 7,11 (AAA). A queda no texto principal é o fundo clareando de propósito. ⛔ As marcas de terceiros nas prévias (verde do WhatsApp, branco do feed, chassi do iPhone) continuam hex cru — tokenizar aquilo seria mentir sobre o que sai publicado.
   - **Achado no meio do caminho:** o chip "Manter" da rodada anterior fazia a caixa de digitar levar o texto de um passo para o seguinte. Corrigido antes desta rodada (`801d067`).
   - **Sem Supabase**, como pedido: nenhuma migration, nenhuma RLS, nenhum deploy. A carência do feedback é local por decisão, não por limitação.
+
+- [x] **Correções de bancada e Luma Sheets em tela cheia (09/09).** Pedidos diretos do Ryan, um a um, mais o redesenho do Sheets no desktop:
+  - **Peso igual na entrega.** Baixar PNG e Refazer na mesma linha, os dois com a caixa do `.art-btn` (o Refazer era um link sem caixa ao lado de uma barra de largura cheia). O **Gerar em lote voltou ao card** em faixa própria — saiu no enxugamento de 08/09 e a palavra do dono vence a decisão anterior.
+  - **Peso morto fora:** badge "arte pronta", botão "Salvar loja" (feature morta) e o botão de trocar tema. ⚠ Sobrou o seletor de tema no painel da Conta e um `__luma_theme` órfão no localStorage — não mexi sem decisão.
+  - **"← Campanhas" mudou de cabeçalho.** Estava poluindo o head do chat; foi para o head da prévia (desktop; no celular continua o `#f-mobile-back`). A volta do catálogo passou a ser **animada**: 0 → 328px em ~220ms. ⚠ Dois motivos por que a animação não existia: o `panel-dock.css` carrega depois e sua especificidade `(1,2,1)` vencia o `#fran-left` cru, e a lista de transição dele só tinha `width`/`flex-basis` — mas quem colapsa é o `max-width:0!important`, e **`max-width` só interpola entre comprimentos** (`0 → none` não anima). Medido antes: 0→328 em menos de um quadro.
+  - **Luma Sheets virou tela cheia** (era um dock flutuante que espremia a prévia em resoluções menores): `100vw × 100dvh`, sem raio e sem sombra.
+  - **As miniaturas do lote viraram um rail vertical ao lado da arte**, não uma fita embaixo dela. As setas de navegar foram para o **pé do rail** — o fim da própria lista que percorrem — e viraram ∧/∨ (o mesmo chevron do pager, girado 90°: evita dois SVGs por botão e mantém o celular horizontal). **Sem copy**: saiu o contador do desktop e a dica "Clique numa linha da planilha…". As miniaturas **entram numa sombra** em vez de encostar nas setas (`mask-image` esmaecendo 26px em cada ponta — máscara e não véu, porque o rail rola e um véu absoluto comeria o clique de baixo).
+  - **Print de bancada é prova, mas mente fácil.** O primeiro print do fluxo do chat saiu com as colunas trocadas porque a sonda fez `body.className='…'` e apagou o `panel-dock-active` — era a sonda, não o app (`prévia(0) | chat(979)` depois de corrigir). O print correto **denunciou um bug real, não desta rodada**: em `hover:none` a barra da prévia trava os botões em 40px enquanto o container query mostra os rótulos — 13 caracteres numa caixa de 40×44, `scrollWidth` 986 contra 978. Virou `min-width:40px` + `white-space:nowrap`.
+  - **Regressão travada na suíte:** o portão do celular é testado pelas duas entradas (`fBulkOpen` e `fBulkOpenFromArt`) e nas duas direções — recusa **com aviso** no celular, passa no desktop. Suíte: **240 casos verdes**.
+  - **Sem Supabase**, de novo: nada de migration, RLS ou deploy nesta rodada.
 
 ### Aberto
 

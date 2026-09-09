@@ -56,6 +56,15 @@
   #f-ctx-tag{max-width:28vw}
 }
 @media (max-width:680px){
+
+  /* ── SHEETS FORA DO CELULAR (decisão do Ryan, 09/09) ──────────────────────────────────
+     As três portas somem da tela: o chip "Gerar em Lote" da mensagem de boas-vindas do chat,
+     o "Gerar em lote" do cabeçalho e a faixa no card da arte pronta. A guarda de verdade
+     está no `fBulkOpen` (png-generator.js) — esconder botão não impede chegada por teclado
+     nem por uma entrada nova; o CSS aqui é só para não oferecer o que não abre. */
+  #f-bulk-head-btn,
+  .art-bulk-btn,
+  .f-bulk-entrada{display:none!important}
   #f-chat-head{min-height:58px;padding:7px 10px;gap:9px}
   .bot-circle{width:36px;height:36px;border-radius:10px}
   .f-assistant-copy{display:none}
@@ -772,6 +781,9 @@ body:has(#f-bulk-modal.open) #mobile-preview-toggle{display:none!important}
 /* A linha [rail | palco] dentro da coluna vertical. É este wrapper que tira a fita de baixo
    da arte e a põe ao lado — ver o comentário no index.html. */
 .f-bulk-live-body{display:flex;gap:12px;flex:1;min-height:0;min-width:0}
+/* O rail = a fila (que rola) + as setas (que ficam). As setas são `flex:none` no pé, então a
+   lista nunca as empurra para fora, por mais ofertas que existam. */
+.f-bulk-rail{display:flex;flex-direction:column;flex:0 0 96px;width:96px;min-height:0}
 .f-bulk-live-stage{position:relative;display:grid;place-items:center;flex:1;min-height:0;min-width:0;padding:2px}
 /* A moldura recebe a proporção do material por --f-bulk-ar (JS), então serve story e feed sem
    duas regras.
@@ -790,8 +802,16 @@ body:has(#f-bulk-modal.open) #mobile-preview-toggle{display:none!important}
   transition:opacity var(--dur-micro) var(--ease-in),transform var(--dur-micro) var(--ease-in)}
 .f-bulk-live-frame canvas{opacity:1;transform:scale(1);
   transition:opacity var(--dur-fast) var(--ease-out),transform var(--dur-fast) var(--ease-out)}
-.f-bulk-live-nav{display:flex;align-items:center;justify-content:center;gap:8px;
-  color:var(--text-3);font-size:12px;font-weight:700}
+/* No pé do rail e em COLUNA: cima vai para a arte de cima, baixo para a de baixo. */
+.f-bulk-live-nav{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+  flex:none;padding:8px 0 2px;color:var(--text-3);font-size:12px;font-weight:700}
+/* O glifo é o MESMO do pager do celular (chevron ‹ ›), girado 90°: à esquerda vira ∧, à
+   direita vira ∨. Girar evita dois SVGs por botão e mantém o celular — onde o pager é
+   horizontal — com a seta certa, sem uma linha de markup a mais. */
+.f-bulk-live-nav .f-bulk-live-arrow svg{transform:rotate(90deg)}
+/* Sem copy no desktop, como pedido: quem diz onde se está é a miniatura ativa. O contador
+   continua no DOM para o pager do celular, que o usa como informação principal. */
+.f-bulk-live-nav #f-bulk-live-count{display:none}
 .f-bulk-live-arrow{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;
   border:1px solid var(--gray-mid);border-radius:50%;background:var(--white);color:var(--text-2);cursor:pointer;
   transition:border-color var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard),
@@ -799,7 +819,7 @@ body:has(#f-bulk-modal.open) #mobile-preview-toggle{display:none!important}
 .f-bulk-live-arrow svg{width:14px;height:14px}
 .f-bulk-live-arrow:hover{border-color:var(--dm-orange);background:var(--dm-orange-bg);color:var(--dm-orange-d);transform:translateY(-1px)}
 .f-bulk-live-arrow:disabled{opacity:.4;cursor:not-allowed;transform:none;border-color:var(--gray-mid);background:var(--white);color:var(--text-3)}
-.f-bulk-live-hint{margin:0;text-align:center;color:var(--text-3);font-size:11px;line-height:1.4}
+/* `.f-bulk-live-hint` saiu com a copy "Clique numa linha da planilha…" (09/09). */
 
 /* ── Rail de miniaturas: o lote inteiro de relance, de cima para baixo ──────────────────────
    Era uma fita horizontal embaixo do palco (38px por miniatura, rolagem lateral). Virou rail
@@ -811,8 +831,23 @@ body:has(#f-bulk-modal.open) #mobile-preview-toggle{display:none!important}
 .f-bulk-strip{display:flex;flex-direction:column;gap:8px;align-items:center;justify-content:flex-start;
   /* 96px de rail para uma miniatura de 68px: com 84 o item ficava 2px MAIOR que o miolo
      (84 − 12 − 6 de respiro = 66) e encostava nas duas bordas. Medido. */
-  flex:0 0 96px;width:96px;overflow-y:auto;overflow-x:hidden;padding:2px 6px 6px 2px;
+  /* `0 1 auto` e não `1 1 auto`: a fita ocupa a ALTURA DAS ARTES e encolhe se não couber. Com
+     `1` ela esticava até o pé do rail e empurrava as setas para o rodapé da tela — a 700px da
+     última miniatura, com três ofertas. As setas pertencem ao fim da LISTA, não da janela. */
+  flex:0 1 auto;width:auto;overflow-y:auto;overflow-x:hidden;padding:2px 6px 6px 2px;
   scrollbar-width:thin;scrollbar-color:var(--gray-mid) transparent}
+/* AS ARTES ENTRAM NUMA SOMBRA em vez de atravessar as setas: a máscara esmaece os 30px do
+   PÉ da lista, então a miniatura que está saindo se dissolve antes de encostar nas setas. Um
+   corte seco faria a lista parecer cortada; assim ela parece continuar.
+   Só embaixo: em cima não há seta para atravessar, e o esmaecimento ali lavava o anel laranja
+   da miniatura ativa quando ela era a primeira — defeito onde não havia problema.
+   É `mask` e não um véu sobreposto porque o rail ROLA: um degradê absoluto teria de ser
+   reposicionado a cada scroll e ainda comeria o clique da miniatura debaixo dele.
+   ⚠ Só com `.tem-rolagem` (posta por `_fBulkRenderStrip`): a máscara é cega a overflow e,
+   com poucas ofertas, apagava o topo da miniatura 1 sem ter nada para esconder. */
+.f-bulk-strip.tem-rolagem{
+  mask-image:linear-gradient(to bottom,#000 calc(100% - 30px),transparent 100%);
+  -webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 30px),transparent 100%)}
 .f-bulk-strip::-webkit-scrollbar{width:5px;height:5px}
 .f-bulk-strip::-webkit-scrollbar-thumb{background:var(--gray-mid);border-radius:var(--r-pill)}
 .f-bulk-strip:empty{display:none}
@@ -993,7 +1028,7 @@ body:not(.theme-light) .f-bulk-live{background:var(--d-surf);border-color:var(--
 body:not(.theme-light) .f-bulk-live-frame{background:var(--d-surf2)}
 body:not(.theme-light) .f-bulk-live-chip{background:var(--d-surf2);color:var(--d-text2)}
 body:not(.theme-light) .f-bulk-live-arrow{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text2)}
-body:not(.theme-light) .f-bulk-live-hint,body:not(.theme-light) .f-bulk-live-nav{color:var(--d-text3)}
+body:not(.theme-light) .f-bulk-live-nav{color:var(--d-text3)}
 body:not(.theme-light) .f-bulk-strip-item{background:var(--d-surf2)}
 body:not(.theme-light) .f-bulk-sheet-title h3{color:var(--d-text)}
 body:not(.theme-light) .f-bulk-sheet-head{background:var(--d-dark)}
@@ -1275,7 +1310,7 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
   .f-bulk-split{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
   .f-bulk-live{flex-direction:row;align-items:center;gap:14px;padding:12px 14px;
     border-right:0;border-bottom:1px solid var(--gray-light)}
-  .f-bulk-live-top,.f-bulk-live-hint{display:none}
+  .f-bulk-live-top{display:none}
   .f-bulk-live-stage{flex:0 0 auto;height:132px}
   .f-bulk-live-frame{height:132px}
   .f-bulk-live-nav{display:none}
@@ -1283,9 +1318,16 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
      uma faixa deitada (arte pequena à esquerda, lote à direita) e um rail vertical de 84px
      comeria a largura que a arte não tem. O wrapper novo desmancha junto — `display:contents`
      devolve os dois filhos para a linha do `.f-bulk-live`, sem duplicar regra de layout. */
-  .f-bulk-live-body{display:contents}
-  .f-bulk-strip{flex:1 1 auto;width:auto;flex-direction:row;align-items:center;
-    justify-content:flex-start;overflow-x:auto;overflow-y:hidden;padding:2px 1px 6px;min-width:0}
+  .f-bulk-live-body,.f-bulk-rail{display:contents}
+  .f-bulk-strip,.f-bulk-strip.tem-rolagem{flex:1 1 auto;width:auto;flex-direction:row;align-items:center;
+    justify-content:flex-start;overflow-x:auto;overflow-y:hidden;padding:2px 1px 6px;min-width:0;
+    /* A máscara vertical do rail não vale numa fita deitada — aqui quem esmaece seria a
+       ponta errada. O pager do celular é outro desenho (bloco de 680px). */
+    mask-image:none;-webkit-mask-image:none}
+  /* O pager do celular volta a ser horizontal, com o contador e o glifo sem giro. */
+  .f-bulk-live-nav{flex-direction:row;padding:0}
+  .f-bulk-live-nav .f-bulk-live-arrow svg{transform:none}
+  .f-bulk-live-nav #f-bulk-live-count{display:inline}
   .f-bulk-strip-item{width:38px}
   .f-bulk-strip-item:hover{transform:translateY(-2px)}
   .f-bulk-sheet{padding:14px}
@@ -2105,7 +2147,6 @@ body:not(.theme-light) #f-chat-art{border-color:var(--d-line,#2A2A2A);background
   body.f-bulk-teclado .f-bulk-live-frame{height:84px; max-height:84px;
     box-shadow:0 6px 16px -8px color-mix(in srgb,var(--dm-orange-d) 40%,transparent)}
   body.f-bulk-teclado .f-bulk-live-stage{padding:10px 12px}
-  .f-bulk-live-hint{display:none}                 /* “clique numa linha” não vale dentro da folha */
   /* A fita de 34px sai: dentro da folha ela era um enfeite ilegível, e a lista atrás já
      mostra o lote inteiro com miniatura de verdade. */
   .f-bulk-live .f-bulk-strip{display:none}
@@ -2546,13 +2587,11 @@ body:not(.theme-light) #f-msg-box:disabled{background:var(--d-surf2);color:var(-
    coluna lia "navegação → arte", ao contrário do layout original e do próprio sentido.
    `order` resolve sem mexer no DOM (o painel entra por `insertBefore`, e o resto da coluna
    é ordenado por aqui). */
-/* ⚠ A FITA SAIU DAQUI (09/09). Ela era o bloco `order:2`, EMBAIXO da prévia; agora vive
-   dentro do `.f-bulk-live-body`, ao lado dela, como rail vertical. Sobrou nesta coluna só
-   o navegador de linhas e a dica — os dois continuam embaixo. */
+/* ⚠ A FITA E AS SETAS SAÍRAM DAQUI (09/09). Eram dois blocos EMBAIXO da prévia (`order:2`
+   e `order:1`); agora as duas vivem dentro do `.f-bulk-live-body`, no rail à esquerda da
+   arte. Sobrou só o corpo — a coluna virou um bloco só, e a ordenação com ele. */
 .f-bulk-live.tem-previa-viva .f-bulk-live-body{flex:1 1 auto;min-height:0;order:0}
 .f-bulk-live.tem-previa-viva #f-live-preview.is-no-sheets{order:0;flex:1 1 auto;min-width:0}
-.f-bulk-live.tem-previa-viva .f-bulk-live-nav{flex:none;margin-top:8px;order:1}
-.f-bulk-live.tem-previa-viva .f-bulk-live-hint{flex:none;order:2}
 
 /* O cabeçalho inteiro do painel sai aqui, e com ele as três coisas que só fazem sentido
    no chat: a alça de arrastar coluna (dentro do modal não há três colunas pra reordenar),
@@ -2564,12 +2603,11 @@ body:not(.theme-light) #f-msg-box:disabled{background:var(--d-surf2);color:var(-
    pontilhada — ela lia "card". Zerando o respiro, a mesa encosta nas três bordas e vira
    FUNDO. O navegador de ofertas, que ficou solto, recupera o respiro por conta própria. */
 .f-bulk-live.tem-previa-viva{padding:0;gap:0}
-.f-bulk-live.tem-previa-viva .f-bulk-live-nav{margin-top:12px}
 /* Sem cabeçalho da prévia, o rail encostaria no topo do modal — daí o respiro vertical.
-   10px na horizontal e não 18: o miolo do rail é `96 − 2×respiro`, e com 18 sobravam 60px
-   para uma miniatura de 68, que então encostava nas duas bordas. Medido. */
-.f-bulk-live.tem-previa-viva #f-bulk-strip{padding:12px 10px}
-.f-bulk-live.tem-previa-viva .f-bulk-live-hint{padding:0 18px 16px}
+   10px na horizontal e não 18: o miolo é `96 − 2×respiro`, e com 18 sobravam 60px para uma
+   miniatura de 68, que então encostava nas duas bordas. Medido. */
+.f-bulk-live.tem-previa-viva .f-bulk-rail{padding:12px 10px 10px}
+.f-bulk-live.tem-previa-viva #f-bulk-strip{padding:2px 0}
 
 /* Não há regra de celular aqui de propósito: o empréstimo NÃO acontece no telefone.
    O porquê está no `_fBulkTomarPrevia` — lá a gaveta é `position:fixed` com `!important`

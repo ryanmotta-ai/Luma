@@ -581,6 +581,43 @@ await test('O card final prioriza Baixar PNG e não oferece rede social', async(
     'os motores de publicação foram removidos junto — só a entrada devia sair');
 });
 
+/* ── 8. LUMA SHEETS FORA DO CELULAR ───────────────────────────────────────────────────────
+   Decisão do Ryan em 09/09: "sem o luma sheets no mobile por enquanto". A guarda mora no
+   FUNIL (`fBulkOpen`) e não nos botões, porque são três entradas e o CSS que as esconde não
+   impede chegada por teclado nem uma entrada nova. Este caso trava as duas metades do
+   contrato: o celular é recusado COM AVISO, e o desktop continua passando.
+   O espião é o `fBulkRows`: quem passa do portão sempre monta linhas; quem é barrado, não. */
+await test('Sheets: o celular é recusado com aviso, o desktop passa', async()=>{
+  reset();
+  const mmReal=window.matchMedia, toastReal=window.gToast, idReal=_fLastMaterialId;
+  let avisos=[];
+  window.gToast=(m)=>{avisos.push(String(m));};
+  const finge=(celular)=>{ window.matchMedia=(q)=>({matches:!!celular && /max-width:\s*680px/.test(q),
+    media:q,onchange:null,addListener(){},removeListener(){},addEventListener(){},removeEventListener(){}}); };
+  try{
+    // CELULAR — pela porta do chip do chat
+    finge(true); _fLastMaterialId=null; fBulkRows=[]; avisos=[];
+    try{ await fBulkOpen(); }catch(e){}
+    assert(_fLastMaterialId===null,'o Sheets passou do portão no celular');
+    assert(fBulkRows.length===0,'o Sheets montou linhas no celular');
+    assert(avisos.some(m=>/computador|monitor/i.test(m)),'recusou calado — o usuário não soube por quê');
+    // CELULAR — e pela porta do card da arte, que é a outra entrada real
+    _fLastMaterialId=null; fBulkRows=[]; avisos=[];
+    try{ await fBulkOpenFromArt(); }catch(e){}
+    assert(_fLastMaterialId===null,'o fBulkOpenFromArt fura o portão no celular');
+    /* DESKTOP — o portão não pode barrar quem tem monitor.
+       ⚠ Aqui a bancada acaba antes do produto: `fBulkCreateEmptyRow` chama
+       `dExtractTemplateVars`, que mora em `js/designer/templates.js` — 3.4 mil linhas de
+       Estúdio que esta suíte não carrega (e que faz binding de DOM ao carregar). Então o
+       espião é `_fLastMaterialId`, gravado DEPOIS do portão e ANTES de montar as linhas:
+       se ele mudou, o desktop passou. Melhor um espião honesto do que um motor falso. */
+    finge(false); _fLastMaterialId=null; fBulkRows=[]; avisos=[];
+    try{ await fBulkOpen(); }catch(e){}
+    assert(_fLastMaterialId===fState.material.id,'o portão barrou o desktop também');
+    assert(!avisos.some(m=>/computador|monitor/i.test(m)),'o desktop levou o aviso de celular');
+  } finally { window.matchMedia=mmReal; window.gToast=toastReal; _fLastMaterialId=idReal; fBulkRows=[]; }
+});
+
 window.gConfirm=_gConfirmReal;
 window.__lumaTest={total,passed:total-failures.length,failures};
 })().catch(e=>window.__lumaTest={total:1,passed:0,failures:[{name:'bancada',error:e.stack}]});

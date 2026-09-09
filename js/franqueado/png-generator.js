@@ -1577,6 +1577,19 @@ async function fBulkOpenFromArt() {
 }
 
 async function fBulkOpen(opcoes){
+  /* ⛔ SHEETS NÃO ABRE NO CELULAR — decisão do Ryan em 09/09/2026, e "por enquanto".
+     Aqui, no FUNIL ÚNICO, e não em cada botão: são três entradas (o chip do início do chat,
+     o "Gerar em lote" do cabeçalho e a faixa no card da arte) e uma delas ficaria de fora
+     mais cedo ou mais tarde. Os botões também somem por CSS na faixa do celular — este
+     `return` é o que garante a decisão para quem chegar por teclado, por link ou por uma
+     entrada nova que alguém acrescente sem lembrar disto.
+     ⚠ O CÓDIGO DO CELULAR FICA INTEIRO: a folha de edição, o pager, as miniaturas de 34px e
+     as regras de toque continuam onde estão. "Por enquanto" quer dizer que a volta é apagar
+     este bloco, não reescrever a tela. */
+  if(typeof _fBulkEhCelular === 'function' && _fBulkEhCelular()){
+    if(typeof gToast === 'function') gToast('O Luma Sheets ainda é só no computador. Abra o Luma num monitor para produzir em lote.');
+    return;
+  }
   // `semearDaArte`: só o fBulkOpenFromArt manda, e só vale se a arte tem algo preenchido.
   const semearDaArte = !!(opcoes && opcoes.semearDaArte)
     && !!(fState.dados && Object.keys(fState.dados).some(k => String(fState.dados[k] || '').trim()));
@@ -1943,6 +1956,11 @@ function _fBulkRenderStrip(){
        <span class="f-bulk-strip-n">${i+1}</span>
        <canvas id="f-bulk-cv-${i}" width="${cw}" height="${ch}"></canvas>
      </button>`).join('');
+  /* A SOMBRA das pontas só existe quando há rolagem. O `mask-image` é cego a isso: com três
+     ofertas ele apagava o topo da miniatura 1 sem ter nada para esconder — parecia defeito.
+     Quem sabe se rola é o layout, então a classe sai daqui e o CSS só pinta quando ela está.
+     Depois do `innerHTML`, senão a medida é a da lista anterior. */
+  strip.classList.toggle('tem-rolagem', strip.scrollHeight > strip.clientHeight + 1);
   fBulkRenderThumbs();
 }
 /* O painel de importação (o antigo passo 1). Abre sozinho com a planilha vazia — é o estado
