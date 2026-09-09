@@ -624,15 +624,11 @@ function _fLpSyncBaixar(){
 const F_LP_AUTO_LAYOUT_KEY_LEGADO = 'luma-lp-auto-layout';
 try { localStorage.removeItem(F_LP_AUTO_LAYOUT_KEY_LEGADO); } catch(e){}
 
-/* O aviso discreto que substitui o botão: uma linha, só quando houve intervenção DE VERDADE
-   (o solver mudou geometria ou tipografia). Nada de explicar o solver — o que importa para
-   quem publica é saber que a arte foi protegida, não como. */
+/* O motor continua protegendo a composição sem expor esse detalhe técnico no rodapé. */
 function _fLpSyncAutoLayoutButton(){
   const nota=document.getElementById('lp-layout-nota'); if(!nota) return;
-  const r=_lpLayoutResult;
-  const mexeu=!!(r && (r.adapted || r.invalid));
-  nota.hidden=!mexeu;
-  nota.textContent=mexeu?'Layout ajustado para o conteúdo caber.':'';
+  nota.hidden=true;
+  nota.textContent='';
 }
 
 async function fUpdateLivePreview(opts){
