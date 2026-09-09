@@ -1223,9 +1223,9 @@ function dRenderLayersList(){
     // (ver .lyr-bind no designer.css) pra não poluir uma lista cheia de camadas.
     const _canBind = (typeof dLayerIsBindable==='function') && dLayerIsBindable(l) && l.type!=='group';
     const varBadge = _boundV
-      ? `<span class="lyr-badge lyr-var lyr-dado" title="Dado: ${gEsc(_boundV.label||_boundV.name)}">◆ ${gEsc(_boundV.label||_boundV.name)}</span>`
+      ? `<span class="lyr-badge lyr-var lyr-dado" title="Campo: ${gEsc(_boundV.label||_boundV.name)}">◆ ${gEsc(_boundV.label||_boundV.name)}</span>`
       : (hasVarEmbedded ? `<span class="lyr-badge lyr-var" title="Contém um campo"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;color:var(--var-color, #a855f7)"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>`
-        : (_canBind ? `<button type="button" class="lyr-badge lyr-bind" title="Vincular campo (X) — o franqueado passa a preencher esta camada" onclick="dBindFieldForLayer('${l.id}',event)">vincular</button>` : ''));
+        : (_canBind ? `<button type="button" class="lyr-badge lyr-bind" title="Tornar personalizável (X)" onclick="dBindFieldForLayer('${l.id}',event)">personalizar</button>` : ''));
 
     let typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="10" height="10" rx="1"/><circle cx="16" cy="16" r="5"/></svg>`; // shape default
     if (l.type === 'text') typeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>`;
@@ -1959,7 +1959,7 @@ function _dFieldPickerOpen(opts){
 
 // Picker amigável de inserção de chip no texto (substitui o antigo <select>).
 function dFieldInsertPickerOpen(ev){
-  if(!dVars.length){ gToast('Crie um campo primeiro na aba Dados.'); return; }
+  if(!dVars.length){ gToast('Crie um campo primeiro em Campos da arte.'); return; }
   // captura o caret atual do editor antes de abrir (o foco vai pro popover).
   const host=document.getElementById('dp-content');
   const s=window.getSelection();
@@ -2027,7 +2027,7 @@ function dLayerBindField(layerId, fieldName){
     }
     l.content='{{'+fieldName+'}}'; l.isVar=true;
   }
-  else { gToast('Essa camada não recebe Dado'); return; }
+  else { gToast('Essa camada não pode ser personalizada'); return; }
   /* PAPEL SEMÂNTICO — recompilado a cada vínculo porque ligar um campo MUDA a leitura da arte
      (a camada "Texto 3" que passou a mostrar "Preço promocional" virou preço). Compilar é
      barato (uma passada) e invisível: nenhum formulário a mais para o designer. */
@@ -2082,107 +2082,74 @@ function dDadoApplyRecommendedLimit(varName, limit){
   dMarkUnsaved();
   gToast('Limite de ' + limit + ' caracteres aplicado com sucesso');
 }
-// Controle "Dado" no topo das propriedades — injetado 1× e atualizado a cada seleção.
+function dLayerFieldInference(l){
+  if(!l||typeof gFieldInfer!=='function')return null;
+  const isImg=l.type==='image'||l.type==='frame';
+  const ab=(typeof dGetActiveAB==='function')?dGetActiveAB():null;
+  const area=ab?Math.max(1,(l.w||0)*(l.h||0))/Math.max(1,(ab.w||1)*(ab.h||1)):0;
+  return gFieldInfer({layerName:l.name||'',content:l.type==='text'?(l.content||''):'',
+    target:isImg?'imagem':'text',fields:dVars,areaRatio:area,isBackground:area>=.7||/^(fundo|background|bg|base)$/i.test(String(l.name||'').trim())});
+}
+function dLayerUseSuggestedField(layerId,name){
+  const l=dLayers.find(x=>x.id===layerId);if(!l)return;
+  let v=dVars.find(x=>x.name===name);
+  if(!v){
+    const inf=dLayerFieldInference(l);
+    const defs=inf?[inf.field].concat(inf.alternatives||[]):[];
+    const def=defs.find(x=>x&&x.name===name)||((typeof gFieldCanonicalDefinition==='function')?gFieldCanonicalDefinition(name,l.type==='text'?'text':'imagem'):null);
+    if(!def)return;
+    v=Object.assign({},def,{name:def.name||name});dVars.push(v);
+    if(typeof dPersistVars==='function')dPersistVars();
+  }
+  dLayerBindField(layerId,v.name);
+  if(typeof dFieldsRender==='function')dFieldsRender();
+}
+function dLayerSetPersonalizable(layerId,on){
+  const l=dLayers.find(x=>x.id===layerId);if(!l)return;
+  if(!on){dLayerUnbindField(layerId);if(typeof dFieldsRender==='function')dFieldsRender();return;}
+  const inf=dLayerFieldInference(l);
+  if(inf&&inf.field&&inf.confidence==='high'){dLayerUseSuggestedField(layerId,inf.field.name);return;}
+  if(typeof dFieldBindPickerOpen==='function')dFieldBindPickerOpen();
+}
+
+// Personalização layer-first no topo de Editar. O conteúdo técnico continua no modelo, mas
+// a superfície fala apenas em fixo/editável, significado e uso visual.
 function dRenderDadoControl(l){
-  const pf=document.getElementById('d-props-form'); if(!pf) return;
+  const pf=document.getElementById('d-props-form');if(!pf)return;
   let box=document.getElementById('dp-dado');
-  if(!dLayerIsBindable(l)){ if(box) box.style.display='none'; return; }
-  if(!box){
-    box=document.createElement('div'); box.id='dp-dado'; box.className='dp-dado';
-    // IMPORTANTE: inserir como filho DIRETO do #d-props-form (topo). #d-text-props é NETO
-    // (fica dentro de .dp-sec-body), então insertBefore com ele lançava DOMException e
-    // quebrava dShowProps → o auto-switch (dActivatePanel) na sequência não rodava.
-    pf.insertBefore(box, pf.firstChild);
-  }
+  if(!dLayerIsBindable(l)){if(box)box.style.display='none';return;}
+  if(!box){box=document.createElement('div');box.id='dp-dado';box.className='dp-dado';pf.insertBefore(box,pf.firstChild);}
   box.style.display='';
-  const fn=dLayerBoundField(l); const v=fn?dVars.find(x=>x.name===fn):null;
-  // Texto MISTO (fixo + {{dados}}): não é "nenhum" nem bind de camada inteira — estado próprio.
+  const fn=dLayerBoundField(l),v=fn?dVars.find(x=>x.name===fn):null;
   const emb=(!v)?dLayerEmbeddedFields(l):[];
-  box.classList.toggle('bound', !!v||emb.length>0);
-  if(!v && emb.length){
-    // Cabeçalho compacto: o QUE é (campos dinâmicos), QUANTOS são e a explicação
-    // em tooltip — o parágrafo fixo que existia aqui repetia a mesma frase toda edição.
-    let h='<div class="dp-dado-lbl dpi-dado-head"><span class="hl">Campos dinâmicos</span>'
-      +'<span class="dpi-dado-count">'+emb.length+'</span>'
-      +'<button type="button" class="dpi-dado-help" aria-label="Como funcionam os campos dinâmicos" title="Este texto mistura conteúdo fixo com dados. O exemplo de cada campo aparece no lugar do dado — aqui e no chat do franqueado."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.2 2.4c-.6.2-.7.7-.7 1.3"/><path d="M12 16.6h.01"/></svg></button>'
-      +'</div>';
-    let warnRS=false;
-    emb.forEach(name=>{
-      const ev=dVars.find(x=>x.name===name);
-      const tm=gFieldTypeMeta(ev?ev.type:'text');
-      const ph=_dEsc(gFieldSampleValue({type:ev?ev.type:'text'})||'ex.: valor');
-      h+='<div class="dp-dado-ex-row">'
-        +'<span class="dp-dado-mixchip" title="{{'+_dEsc(name)+'}}"><span class="dp-dado-ico">'+tm.icon+'</span>'+_dEsc(ev?(ev.label||name):name)+'</span>'
-        +(ev
-          ?'<input type="text" class="dp-dado-ex" value="'+_dEsc(ev.example||'')+'" placeholder="'+ph+'" oninput="dDadoSetExample(\''+name+'\', this.value)">'
-          :'<span class="dp-dado-none" style="font-size:10.5px">campo novo — salve o texto pra criar</span>')
-        +'</div>';
-      // Lint: campo de preço já formata com "R$" — "R$ {{precoPor}}" sairia "R$ R$ 9,90"
-      if(ev&&ev.type==='currency'&&new RegExp('R\\$\\s*\\{\\{\\s*'+name+'\\s*\\}\\}','i').test(l.content||'')) warnRS=true;
-    });
-    if(warnRS) h+='<div class="dp-dado-warn">⚠ Campo de preço já sai formatado com “R$” — apague o “R$” escrito no texto para não sair “R$ R$ 9,90”.</div>';
-    box.innerHTML=h;
-    return;
-  }
-  let h='<div class="dp-dado-lbl">'+(v?'<span class="hl">◆ Dado ligado</span>':'Dado')+'</div>';
-  h+='<button type="button" class="dp-dado-pick" id="dp-dado-pick" onclick="dFieldBindPickerOpen(event)">';
-  if(v){ const tm=gFieldTypeMeta(v.type); h+='<span class="dp-dado-chip"><span class="dp-dado-ico">'+tm.icon+'</span>'+_dEsc(v.label||v.name)+'</span>'; }
-  else { h+='<span class="dp-dado-none">— nenhum (conteúdo fixo)</span>'; }
-  h+='<span class="dp-dado-car">▾</span></button>';
+  const connected=!!v||emb.length>0;
+  const inf=!connected?dLayerFieldInference(l):null;
+  box.classList.toggle('bound',connected);
+  let h='<div class="dp-personal-head"><span>Personalização</span>'
+    +'<small>'+(connected?'Configurado':'Conteúdo fixo')+'</small></div>'
+    +'<div class="dp-personal-state" role="group" aria-label="Quem pode alterar esta camada">'
+    +'<button type="button" class="'+(!connected?'is-active':'')+'" onclick="dLayerSetPersonalizable(\''+l.id+'\',false)"><span class="dp-personal-radio"></span>Fixo na arte</button>'
+    +'<button type="button" class="'+(connected?'is-active':'')+'" onclick="dLayerSetPersonalizable(\''+l.id+'\',true)"><span class="dp-personal-radio"></span>Franqueado pode editar</button></div>';
   if(v){
-    if(v.type==='image'){
-      h+='<div class="dp-dado-sample">Exemplo: <b>imagem enviada pelo franqueado</b><button type="button" class="dp-dado-clear" onclick="dLayerUnbindField(dSelId)">desvincular</button></div>';
-    } else {
-      // Exemplo EDITÁVEL: o que aparece no preview e como placeholder pro franqueado. Fica no
-      // CAMPO (variável), então vale onde ele for usado. Placeholder = fallback genérico por tipo.
-      const ph=_dEsc(gFieldSampleValue({type:v.type})||'ex.: valor');
-      h+='<div class="dp-dado-ex-row">'
-        +'<span class="dp-dado-ex-lbl">Exemplo</span>'
-        +'<input type="text" class="dp-dado-ex" value="'+_dEsc(v.example||'')+'" placeholder="'+ph+'" oninput="dDadoSetExample(\''+fn+'\', this.value)">'
-        +'<button type="button" class="dp-dado-clear" onclick="dLayerUnbindField(dSelId)" title="Desvincular">✕</button>'
-        +'</div>';
-      
-      const curLen = (v.example || '').length;
-      const maxLen = v.maxLen || 0;
-      if (maxLen > 0) {
-        const pct = Math.min(100, (curLen / maxLen) * 100);
-        const barColor = pct > 90 ? '#ef4444' : pct > 75 ? '#f59e0b' : '#10b981';
-        const textColor = pct > 90 ? '#ef4444' : '#888';
-        const labelMsg = pct > 90 ? '⚠ Risco de quebra de layout' : pct > 75 ? 'Respiro de segurança apertado' : 'Dentro do limite de segurança';
-        
-        h += '<div style="margin: 4px 0 8px 52px;">'
-          + '<div style="width:100%;height:4px;background:var(--d-border);border-radius:2px;overflow:hidden;" title="'+curLen+' de '+maxLen+' caracteres">'
-          + '<div style="width:'+pct+'%;height:100%;background:'+barColor+';transition:width 0.2s ease;"></div>'
-          + '</div>'
-          + '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px;">'
-          + '<span style="font-size:9.5px;color:'+textColor+';font-weight:700">'+curLen+' / '+maxLen+' car.</span>'
-          + '<span style="font-size:9px;color:'+textColor+';font-style:italic">'+labelMsg+'</span>'
-          + '</div>'
-          + '</div>';
-      }
-      
-      h+='<div class="dp-dado-ex-row" style="margin-top:6px">'
-        +'<span class="dp-dado-ex-lbl">Limite</span>'
-        +'<input type="number" min="0" class="dp-dado-ex" style="width:70px;text-align:center" value="'+(v.maxLen||'')+'" placeholder="sem limite" oninput="dDadoSetMaxLen(\''+fn+'\', this.value)">'
-        +'<span style="font-size:10px;color:var(--d-text3);margin-left:4px">caracteres</span>'
-        +'</div>';
-      
-      const recommendedLimit = (typeof gCalculateRecommendedCharLimit === 'function') ? gCalculateRecommendedCharLimit(l) : 0;
-      if (recommendedLimit > 0) {
-        h+='<div class="dp-dado-ex-hint" style="margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
-          +'<span>Respiro recomendado: <b>'+recommendedLimit+' car.</b></span>'
-          +'<button type="button" class="d-btn-sec" style="font-size:9.5px;padding:2px 6px;height:auto;line-height:1" onclick="dDadoApplyRecommendedLimit(\''+fn+'\','+recommendedLimit+')">Usar recomendado</button>'
-          +'</div>';
-      }
-      // Alerta proativo de margem/estúdio se o limite for apertado demais para variáveis críticas
-      const isCriticalField = ['produto', 'categoria', 'oferta', 'brinde', 'validade'].some(c => v.name.toLowerCase().includes(c));
-      if (isCriticalField && recommendedLimit > 0 && recommendedLimit < 35) {
-        h += '<div class="dp-dado-warn" style="margin-top:6px;margin-bottom:6px;background:rgba(255,144,0,0.08);border:1px solid rgba(255,144,0,0.2);color:var(--dm-orange);font-size:10.5px;padding:8px 10px;border-radius:6px;line-height:1.4">'
-          + '⚠ <b>Caixa de texto muito estreita</b>: O limite recomendado para esta variável (' + recommendedLimit + ' car.) é curto para textos comuns de franqueados. Aumente a largura da caixa ou reduza a fonte padrão para evitar que as letras encolham muito.'
-          + '</div>';
-      }
-      h+='<div class="dp-dado-ex-hint">Vale para o campo “'+_dEsc(v.label||v.name)+'” em todo lugar (inclusive o chat do franqueado).</div>';
+    const tm=gFieldTypeMeta(v.type);
+    h+='<div class="dp-personal-field"><span class="dp-personal-field-ico">'+(tm.svg||'')+'</span><span><small>Campo</small><strong>'+_dEsc(v.label||v.name)+'</strong><em>Usado como '+_dEsc(v.type==='image'?'Imagem':'Texto')+'</em></span></div>'
+      +'<div class="dp-personal-actions"><button type="button" onclick="dFieldBindPickerOpen(event)">Trocar campo</button><button type="button" onclick="dLayerSetPersonalizable(\''+l.id+'\',false)">Tornar fixa</button></div>';
+    if(v.type!=='image'){
+      const ph=_dEsc(gFieldSampleValue({type:v.type})||'Exemplo');
+      h+='<details class="dp-personal-advanced"><summary>Ajustes do campo</summary><div>'
+        +'<label>Exemplo<input type="text" value="'+_dEsc(v.example||'')+'" placeholder="'+ph+'" oninput="dDadoSetExample(\''+fn+'\',this.value)"></label>'
+        +'<label>Limite de caracteres<input type="number" min="0" value="'+(v.maxLen||'')+'" placeholder="Sem limite" oninput="dDadoSetMaxLen(\''+fn+'\',this.value)"></label>'
+        +'</div></details>';
     }
+  }else if(emb.length){
+    h+='<div class="dp-personal-mixed"><small>Campos neste texto</small><div>'+emb.map(name=>{const ev=dVars.find(x=>x.name===name);return '<span>'+_dEsc(ev?(ev.label||ev.name):name)+'</span>';}).join('')+'</div></div>';
+  }else if(inf&&inf.field&&inf.confidence!=='low'){
+    h+='<div class="dp-personal-suggestion"><span><small>Parece ser</small><strong>'+_dEsc(inf.field.label||inf.field.name)+'</strong></span>'
+      +'<button type="button" onclick="dLayerUseSuggestedField(\''+l.id+'\',\''+inf.field.name+'\')">Usar</button></div>'
+      +'<button type="button" class="dp-personal-other" id="dp-dado-pick" onclick="dFieldBindPickerOpen(event)">Escolher outro campo</button>';
+  }else{
+    h+='<div class="dp-personal-empty"><strong>O que poderá mudar aqui?</strong><small>Escolha um campo existente ou crie um somente se precisar.</small>'
+      +'<button type="button" id="dp-dado-pick" onclick="dFieldBindPickerOpen(event)">Escolher campo</button></div>';
   }
   box.innerHTML=h;
 }
@@ -2218,8 +2185,8 @@ function dBindFieldForLayer(id, ev){
 // Ponto de entrada da ferramenta/atalho "Vincular campo" (X) e do menu de contexto.
 function dOpenBindForSelected(){
   const l=dLayers.find(x=>x.id===dSelId);
-  if(!l){ gToast('Selecione uma camada e clique em Vincular campo'); return; }
-  if(!dLayerIsBindable(l)){ gToast('Essa camada não recebe Dado (só texto/imagem)'); return; }
+  if(!l){ gToast('Selecione uma camada para personalizar'); return; }
+  if(!dLayerIsBindable(l)){ gToast('Apenas textos e imagens podem ser personalizados'); return; }
   if(typeof dActivatePanel==='function') dActivatePanel('camada');
   setTimeout(()=>{ const btn=document.getElementById('dp-dado-pick'); if(btn) btn.click(); }, 90);
 }
@@ -2607,12 +2574,14 @@ function dVarUsage(name){
 // Destaca (flash) os layers que usam a variável clicada na aba. (V3)
 function dHighlightVarLayers(name){
   const ids=dVarUsage(name);
-  if(!ids.length){gToast('Variável {{'+name+'}} não está em uso');return;}
+  const field=(dVars||[]).find(v=>v&&v.name===name);
+  const label=(field&&(field.label||field.name))||name;
+  if(!ids.length){gToast('O campo “'+label+'” ainda não aparece na arte');return;}
   ids.forEach(id=>{
     const el=document.querySelector(`.canvas-layer[data-id="${id}"]`);
     if(el){el.classList.remove('var-flash');void el.offsetWidth;el.classList.add('var-flash');setTimeout(()=>el.classList.remove('var-flash'),900);}
   });
-  gToast('Destacando '+ids.length+' camada(s) que usam {{'+name+'}}');
+  gToast(ids.length===1?'Mostrando onde “'+label+'” aparece':'Mostrando '+ids.length+' lugares onde “'+label+'” aparece');
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2641,8 +2610,12 @@ function dFieldUsageLayers(name){
 }
 // Pisca UMA camada no canvas (chip de uso do detalhe).
 function dFieldFlashLayer(id){
+  const layer=dLayers.find(x=>x.id===id);
+  if(!layer){gToast('Elemento não encontrado na arte');return;}
+  if(typeof dSelLayer==='function')dSelLayer(id);
+  if(typeof dActivatePanel==='function')dActivatePanel('dados');
   const el=document.querySelector(`.canvas-layer[data-id="${id}"]`);
-  if(!el){gToast('Camada não está visível no canvas');return;}
+  if(!el){gToast('Elemento não está visível na arte');return;}
   el.classList.remove('var-flash');void el.offsetWidth;el.classList.add('var-flash');
   setTimeout(()=>el.classList.remove('var-flash'),900);
 }
@@ -2683,15 +2656,12 @@ function dFieldCardHTML(v,i){
     const dupNote=dupOf?`<div class="field-dup-note">${_D_FIELD_WARN}<span>Possível duplicata de <b>“${_dEsc(dupOf)}”</b> — considere excluir este campo ou usar o outro.</span></div>`:'';
     const exLine=exVal?`<div class="field-det-ex">Ex.: <b>${_dEsc(exVal)}</b></div>`:'';
     const usoBlock=used
-      ?`<div class="field-det-lbl">Usada em</div><div class="field-det-chips">${usage.map(u=>`<button class="field-uchip" onclick="event.stopPropagation();dFieldFlashLayer('${u.id}')" title="Destacar no canvas">${_dEsc(u.name)}</button>`).join('')}</div>`
-      :`<div class="field-det-free">Ainda não aparece em nenhuma camada deste template.</div>`;
-    const insLbl=(v.type==='image')?'＋ Usar em moldura':'＋ Inserir no texto';
+      ?`<div class="field-det-lbl">Onde aparece</div><div class="field-det-chips">${usage.map(u=>`<button class="field-uchip" onclick="event.stopPropagation();dFieldFlashLayer('${u.id}')" title="Selecionar na arte">${_dEsc(u.name)}</button>`).join('')}</div>`
+      :`<div class="field-det-free">Disponível para usar nesta arte.</div>`;
     det=`<div class="field-det">
       ${dupNote}${exLine}${usoBlock}
       <div class="field-det-acts">
-        <button class="field-act pri" onclick="event.stopPropagation();dFieldUse(${i})">${insLbl}</button>
-        <button class="field-act" onclick="event.stopPropagation();dEditVar(${i})">Editar</button>
-        <button class="field-act danger" onclick="event.stopPropagation();dRemoveVar(${i})">Excluir</button>
+        <button class="field-act" onclick="event.stopPropagation();dEditVar(${i})">Editar campo</button>
       </div>
     </div>`;
   }
@@ -2788,8 +2758,13 @@ function dFieldsRender(){
     _dFieldsAfterRender(); return;
   }
   let html='';
-  DFIELD_CATS.forEach(cat=>{
-    const group=items.filter(({v})=>(v.category||'outros')===cat.id);
+  const groups=[
+    {id:'atencao',label:'Precisa de atenção',pick:v=>!!_dFieldsDup[v.name]},
+    {id:'conteudo',label:'Conteúdo',pick:v=>v.type!=='image'&&!_dFieldsDup[v.name]},
+    {id:'midia',label:'Mídia',pick:v=>v.type==='image'&&!_dFieldsDup[v.name]}
+  ];
+  groups.forEach(cat=>{
+    const group=items.filter(({v})=>cat.pick(v));
     if(!group.length) return;
     const collapsed=!!_dFieldsCatCollapsed[cat.id];
     html+=`<div class="field-cat">
@@ -3083,7 +3058,7 @@ function dFieldOnboardMaybe(){
   try{
     if(localStorage.getItem('yngs_fields_onboard_v1')) return;
     localStorage.setItem('yngs_fields_onboard_v1','1');
-    setTimeout(()=>gToast('Agora selecione um texto na aba Camadas e clique em “usar” para inserir o campo.'),900);
+    setTimeout(()=>gToast('Agora selecione uma camada e escolha o campo em Personalização.'),900);
   }catch(e){}
 }
 
@@ -3095,7 +3070,7 @@ function dFieldMenu(ev,i){
   const mk=(label,fn,cls)=>{const b=document.createElement('button');b.textContent=label;if(cls)b.className=cls;b.onmousedown=(e)=>{e.preventDefault();e.stopPropagation();pop.remove();document.removeEventListener('mousedown',close);fn();};return b;};
   pop.appendChild(mk('Editar',()=>dEditVar(i)));
   pop.appendChild(mk('Renomear',()=>dRenameVar(i)));
-  pop.appendChild(mk('Onde é usada',()=>dHighlightVarLayers(v.name)));
+  pop.appendChild(mk('Onde aparece',()=>dHighlightVarLayers(v.name)));
   pop.appendChild(mk('Remover',()=>dRemoveVar(i),'field-menu-del'));
   document.body.appendChild(pop);
   const r=ev.currentTarget.getBoundingClientRect();
@@ -3131,15 +3106,14 @@ function dFieldPickType(type, el){
 }
 function dFieldWizardGoStep(n){
   const s1=document.getElementById('dv-step-1'), s2=document.getElementById('dv-step-2');
-  if(s1) s1.style.display=(n===1)?'':'none';
-  if(s2) s2.style.display=(n===2)?'':'none';
+  if(s1) s1.style.display='';
+  if(s2) s2.style.display='none';
 }
 function dFieldWizardNext(){
   const labEl=document.getElementById('dv-label');
   const label=(labEl.value||'').trim();
   if(!label){ gToast('Dê um nome ao campo'); labEl.focus(); return; }
-  const q2=document.getElementById('dv-q2'); if(q2) q2.textContent='Que tipo de informação é “'+label+'”?';
-  dFieldWizardGoStep(2);
+  dConfirmVar();
 }
 function dFieldWizardBack(){
   dFieldWizardGoStep(1);
@@ -3196,10 +3170,8 @@ function dOpenVarModal(opts){
   const exEl=document.getElementById('dv-example'); if(exEl)exEl.value=preExample;
   dFieldRenderTypeGrid(preType);
   dVarTypeFields();
-  // Com exemplo pré-preenchido, mostra os "Detalhes" — o designer vê o que veio da camada
-  const hasPre=preExample!=='';
-  const det=document.getElementById('dv-details'); if(det) det.style.display=hasPre?'':'none';
-  const dt=document.getElementById('dv-details-toggle'); if(dt) dt.classList.toggle('open',hasPre);
+  const det=document.getElementById('dv-details'); if(det) det.style.display='none';
+  const dt=document.getElementById('dv-details-toggle'); if(dt) dt.classList.remove('open');
   document.getElementById('dv-confirm-btn').textContent=dVarBindAfterCreate?'Criar e ligar à camada':'Criar campo';
   dFieldWizardGoStep(1);
   m.classList.add('open');
@@ -3224,7 +3196,7 @@ function dEditVar(i){
   dFieldRenderTypeGrid(v.type||'text');
   dVarTypeFields();
   // Abre os "Detalhes" só se já houver algo preenchido lá.
-  const hasDetails=(!!v.example&&v.example!=='')||(!!v.defaultValue&&v.defaultValue!=='')||!!v.required;
+  const hasDetails=(!!v.defaultValue&&v.defaultValue!=='')||!!v.required||!!v.category;
   const det=document.getElementById('dv-details'); if(det) det.style.display=hasDetails?'':'none';
   const dt=document.getElementById('dv-details-toggle'); if(dt) dt.classList.toggle('open', hasDetails);
   const q2=document.getElementById('dv-q2'); if(q2) q2.textContent='Que tipo de informação é “'+(v.label||v.name)+'”?';
@@ -3266,6 +3238,17 @@ function dConfirmVar(){
     return;
   }
   // Criação — o nome técnico (slug) é derivado do rótulo se não for informado.
+  if(typeof gFieldInfer==='function'&&label){
+    const reuse=gFieldInfer({layerName:label,target:type==='image'?'imagem':'text',fields:dVars});
+    if(reuse&&reuse.field&&dVars.indexOf(reuse.field)>=0&&reuse.confidence==='high'){
+      const existing=reuse.field,bindTo=dVarBindAfterCreate;
+      dCloseVarModal();
+      if(bindTo&&typeof dLayerBindField==='function')dLayerBindField(bindTo,existing.name);
+      else gToast('“'+(existing.label||existing.name)+'” já existe — use o campo existente');
+      if(typeof dFieldsRender==='function')dFieldsRender();
+      return;
+    }
+  }
   let name=document.getElementById('dv-name').value.trim();
   if(!name && label) name=gFieldSlugify(label, dVars.map(v=>v.name));
   if(!name){gToast('Dê um nome ao campo');return;}
@@ -3291,13 +3274,13 @@ async function dRemoveVar(i){
   const nome=v.name;
   // V3: avisa/bloqueia remoção de var em uso
   const usage=dVarUsage(nome);
-  if(usage.length && !await gConfirm(`A variável {{${nome}}} está em uso em ${usage.length} layer(s). Os tokens {{${nome}}} continuam nos layers como texto.`,
+  if(usage.length && !await gConfirm(`“${v.label||nome}” aparece em ${usage.length} elemento(s). Ao remover o campo, esses elementos manterão o conteúdo atual.`,
     {title:'Remover do catálogo mesmo assim?',okLabel:'Remover',cancelLabel:'Cancelar',danger:true}))return;
   // Re-resolve pelo NOME depois do await: `i` é posição num array que sync/undo reescrevem, e
   // splice no índice velho apagaria o campo errado.
   const idx=dVars.findIndex(x=>x&&x.name===nome); if(idx<0)return;
   if(typeof dDeleteVarFromBackend==='function') dDeleteVarFromBackend(nome);
-  dVars.splice(idx,1);dVarsRender();dPersistVars();gToast('Variável {{'+nome+'}} removida');
+  dVars.splice(idx,1);dVarsRender();dPersistVars();gToast('Campo “'+(v.label||nome)+'” removido');
 }
 // Reordena a variável — reflete na ordem das perguntas do franqueado (V7)
 function dMoveVar(i,dir){
@@ -3305,27 +3288,17 @@ function dMoveVar(i,dir){
   [dVars[i],dVars[ni]]=[dVars[ni],dVars[i]];
   dVarsRender();dPersistVars();
 }
-// Renomeia a variável com find/replace nos contents e imgVar dos layers (V3)
+// Renomeia o RÓTULO que o designer e o franqueado veem. O identificador técnico permanece
+// estável e escondido; mudar tokens, imgVar, bindings e rules por uma ação comum seria uma
+// operação de migração disfarçada de simples edição de copy.
 async function dRenameVar(i){
   const v=dVars[i];if(!v)return;
-  const novo=(await gPrompt(`Novo nome para {{${v.name}}} (só letras, números e _):`,v.name,{title:'Renomear variável',okLabel:'Renomear'})||'').trim();
-  if(!novo||novo===v.name)return;
-  if(!gValidVarName(novo)){gToast('Nome inválido — use só letras, números e _');return;}
-  if(dVars.some(x=>x.name.toLowerCase()===novo.toLowerCase())){gToast('Já existe uma variável com esse nome');return;}
-  const old=v.name;
-  // find/replace nos layers (tokens {{old}} → {{novo}}, imgVar, bindings e regras —
-  // sem bindings/rules, renomear deixava vínculos apontando pra um nome morto)
-  const reTok=new RegExp('\\{\\{\\s*'+old.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*\\}\\}','g');
-  dLayers.forEach(l=>{
-    if(l.content)l.content=l.content.replace(reTok,'{{'+novo+'}}');
-    if(l.imgVar===old)l.imgVar=novo;
-    if(l.bindings)Object.keys(l.bindings).forEach(k=>{if(l.bindings[k]===old)l.bindings[k]=novo;});
-    if(Array.isArray(l.rules))l.rules.forEach(r=>{if(r&&r.var===old)r.var=novo;});
-  });
-  v.name=novo;
+  const atual=v.label||v.name;
+  const novo=(await gPrompt('Como este campo deve aparecer para o usuário?',atual,{title:'Renomear campo',okLabel:'Renomear'})||'').trim();
+  if(!novo||novo===atual)return;
+  v.label=novo;
   dVarsRender();dRenderCanvas();dMarkUnsaved();dPersistVars();
-  if(typeof dDeleteVarFromBackend==='function') dDeleteVarFromBackend(old); // remove o nome antigo do banco
-  gToast('Renomeada para {{'+novo+'}} (camadas atualizadas)');
+  gToast('Campo renomeado para “'+novo+'”');
 }
 
 // Remove a máscara de uma camada (importada do PSD)
@@ -3347,9 +3320,10 @@ function dSyncVarsFromContent(content, skipPersist){
       // O nome já carrega a intenção: {{preco_por}} nasce Preço, {{logo_loja}} nasce Imagem,
       // {{validade}} nasce Data. Antes tudo nascia 'text' em 'outros' e o designer reabria o
       // campo pra corrigir na mão — o que anulava o ganho de digitar o token direto na camada.
-      const type=(typeof gFieldGuessType==='function')?gFieldGuessType(name):'text';
-      const category=(typeof gFieldGuessCategory==='function')?gFieldGuessCategory(name,type):'outros';
-      dVars.push({name, label:name.replace(/_/g,' '), type, category, required:false});
+      const def=(typeof gFieldCanonicalDefinition==='function')?gFieldCanonicalDefinition(name,'text'):null;
+      const type=(def&&def.type)||((typeof gFieldGuessType==='function')?gFieldGuessType(name):'text');
+      const category=(def&&def.category)||((typeof gFieldGuessCategory==='function')?gFieldGuessCategory(name,type):'outros');
+      dVars.push(Object.assign({name,label:(typeof gFieldLabel==='function'?gFieldLabel(name):name.replace(/_/g,' ')),type,category,required:false},def||{},{name}));
       changed=true;
     }
   }

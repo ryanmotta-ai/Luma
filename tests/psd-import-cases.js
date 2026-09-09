@@ -34,6 +34,96 @@
     assert(layer.layoutRefText==='Pizza Calabresa','o texto autorado não foi preservado para calibrar métricas');
   });
 
+  test('convenção @campo associa com confiança máxima sem expor token',()=>{
+    const fields=[{name:'precoPor',label:'Preço promocional',type:'currency'}];
+    const hit=gFieldInfer({layerName:'@preco_promocional',content:'R$ 29,90',target:'text',fields});
+    assert(hit.confidence==='high','@campo não recebeu confiança alta');
+    assert(hit.field&&hit.field.name==='precoPor','@preco_promocional não reutilizou o campo canônico existente');
+    assert(hit.source==='explicit','a convenção explícita perdeu precedência');
+  });
+
+  test('nome semântico exato reutiliza catálogo e conteúdo isolado pede decisão',()=>{
+    const fields=[
+      {name:'precoDe',label:'Preço original',type:'currency'},
+      {name:'precoPor',label:'Preço promocional',type:'currency'}
+    ];
+    const named=gFieldInfer({layerName:'PREÇO POR',content:'R$ 29,90',target:'text',fields});
+    assert(named.confidence==='high'&&named.field.name==='precoPor',
+      'nome inequívoco não ficou pronto automaticamente');
+    const contentOnly=gFieldInfer({layerName:'Texto 12',content:'R$ 29,90',target:'text',fields});
+    assert(contentOnly.confidence==='medium','um preço sem contexto decidiu sozinho entre original e promocional');
+    assert(contentOnly.alternatives.length>0,'a ambiguidade de preço não trouxe alternativa');
+  });
+
+  test('título de oferta oferece Produto e Headline sem decidir sozinho',()=>{
+    const fields=[
+      {name:'produto',label:'Produto',type:'text'},
+      {name:'headline',label:'Headline',type:'text'}
+    ];
+    const hit=gFieldInfer({layerName:'Texto 8',content:'COMBO FAMÍLIA',target:'text',fields});
+    assert(hit.confidence==='medium'&&hit.field.name==='produto',
+      'o título de produto não chegou como decisão simples');
+    assert(hit.alternatives.some(v=>v.name==='headline'),
+      'a leitura alternativa como Headline não foi oferecida');
+  });
+
+  test('CTA e fundo permanecem fixos quando não há sinal autoral',()=>{
+    const text=gFieldInfer({layerName:'Texto 4',content:'APROVEITE',target:'text',fields:[{name:'produto',label:'Produto',type:'text'}]});
+    assert(text.confidence==='low'&&!text.field,'CTA virou campo só porque é texto');
+    const image=gFieldInfer({layerName:'Fundo',target:'imagem',areaRatio:.95,isBackground:true,
+      fields:[{name:'foto_produto',label:'Foto do produto',type:'image'}]});
+    assert(image.confidence==='low','o fundo da arte voltou a virar foto do produto');
+  });
+
+  test('parser aplica alta confiança e conserva sugestão média como transitória',()=>{
+    const textNode=(name,text)=>({name,left:40,top:60,right:240,bottom:120,
+      text:{text,shapeType:'point',transform:[1,0,0,1,0,0],style:{fontSize:36},paragraphStyle:{justification:'left'}}});
+    const explicit=dPsdParseItems({children:[textNode('@produto','Combo Família')],width:1080,height:1350},72,0,0)[0];
+    assert(explicit.mode==='var'&&explicit.varName==='produto','@produto não entrou configurado');
+    const ambiguous=dPsdParseItems({children:[textNode('Texto 12','R$ 29,90')],width:1080,height:1350},72,0,0)[0];
+    assert(ambiguous.mode==='text'&&ambiguous.varName==='precoPor','sugestão média alterou a arte ou desapareceu');
+    assert(ambiguous._fieldInference&&ambiguous._fieldInference.confidence==='medium','confiança não chegou à revisão');
+  });
+
+  test('memória aprovada vence a inferência do PSD, inclusive para manter fixo',()=>{
+    const old=localStorage.getItem(_PSD_MEM_KEY);
+    try{
+      localStorage.setItem(_PSD_MEM_KEY,JSON.stringify({
+        'preço por':{mode:'var',varName:'precoDe'},
+        '@produto':{mode:'text'}
+      }));
+      const items=[
+        {name:'Preço Por',kind:'text',mode:'var',varName:'precoPor',_defaultMode:'var'},
+        {name:'@produto',kind:'text',mode:'var',varName:'produto',_defaultMode:'var'}
+      ];
+      _dPsdMemApply(items);
+      assert(items[0].mode==='var'&&items[0].varName==='precoDe'&&items[0].varSource==='memory',
+        'a escolha aprovada não venceu a nova inferência');
+      assert(items[1].mode==='text'&&!items[1].varName,
+        'a decisão explícita de manter fixo foi sobrescrita pela convenção @campo');
+    }finally{
+      if(old==null)localStorage.removeItem(_PSD_MEM_KEY);else localStorage.setItem(_PSD_MEM_KEY,old);
+    }
+  });
+
+  test('memória guarda moldura aprovada e não promove inferência automática',()=>{
+    const old=localStorage.getItem(_PSD_MEM_KEY);
+    try{
+      localStorage.removeItem(_PSD_MEM_KEY);
+      _dPsdMemSave([
+        {name:'Foto hero',kind:'raster',mode:'frame',varName:'foto_produto',varSource:'user',_defaultMode:'raster'},
+        {name:'Produto automático',kind:'text',mode:'var',varName:'produto',varSource:'',_defaultMode:'var'}
+      ]);
+      const mem=_dPsdMemLoad();
+      assert(mem['foto hero']&&mem['foto hero'].varName==='foto_produto',
+        'a escolha de campo de imagem não foi lembrada');
+      assert(!mem['produto automático'],
+        'uma inferência nunca aprovada virou autoridade de memória');
+    }finally{
+      if(old==null)localStorage.removeItem(_PSD_MEM_KEY);else localStorage.setItem(_PSD_MEM_KEY,old);
+    }
+  });
+
   test('fallback de glifos mantém semântica de point text',()=>{
     const layer=dItemToLayer({n:2,name:'R$',kind:'text',mode:'text',content:'R$',
       x:40,y:50,w:28,h:34,visible:true,opacity:100,font:'Arial',fontSize:30,

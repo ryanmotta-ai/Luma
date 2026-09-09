@@ -771,7 +771,17 @@ function _dPsdSuggestVar(name, content){
   const m=raw.match(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/);
   // `explicit`: o designer ESCREVEU {{campo}} no nome da camada no Photoshop. Não é palpite,
   // é instrução — e é o único caminho que o import honra sozinho (ver o gate na linha ~1527).
-  if(m) return {name:m[1], auto:true, explicit:true};
+  if(m) return {name:m[1], auto:true, explicit:true, confidence:'high',source:'explicit',alternatives:[]};
+  // Motor semântico compartilhado: mantém esta função como adaptador do vocabulário do PSD,
+  // sem criar um segundo resolvedor no importador. `@campo` também é reconhecido aqui.
+  if(typeof gFieldInfer==='function'){
+    const inf=gFieldInfer({layerName:raw,content:content||'',target:'text'});
+    if(inf&&inf.field){
+      return {name:inf.field.name,field:inf.field,auto:inf.confidence==='high',
+        explicit:!!inf.explicit,confidence:inf.confidence,source:inf.source,
+        reason:inf.reason,alternatives:inf.alternatives||[]};
+    }
+  }
   
   let clean=raw.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
   const sing=_dSingularize(clean);
@@ -838,7 +848,7 @@ function _dPsdSuggestVar(name, content){
   // `chamada_promo` que já existia, e o designer religava tudo à mão na revisão. O catálogo
   // ganha porque é a verdade do projeto — o mapa fixo continua como rede de segurança.
   const _cat=_dPsdCatalogMatch(clean, sing);
-  if(_cat) return {name:_cat, auto: !(AMBIGUOUS.has(clean)||AMBIGUOUS.has(sing))};
+  if(_cat) return {name:_cat, auto: !(AMBIGUOUS.has(clean)||AMBIGUOUS.has(sing)), confidence:AMBIGUOUS.has(clean)||AMBIGUOUS.has(sing)?'medium':'high',source:'catalog',alternatives:[]};
 
   const matchedKey = map[clean] || map[sing];
   if(matchedKey) return {name:matchedKey, auto: !(AMBIGUOUS.has(clean)||AMBIGUOUS.has(sing))};
@@ -865,7 +875,15 @@ function _dPsdSuggestVar(name, content){
 }
 
 // Sugere variável e modo moldura para camadas de imagem baseando-se no nome
-function _dPsdSuggestImgVar(name){
+function _dPsdSuggestImgVar(name, opts){
+  if(typeof gFieldInfer==='function'){
+    const inf=gFieldInfer(Object.assign({layerName:name||'',content:'',target:'imagem'},opts||{}));
+    if(inf&&inf.field){
+      return {name:inf.field.name,field:inf.field,mode:'frame',auto:inf.confidence==='high',
+        explicit:!!inf.explicit,confidence:inf.confidence,source:inf.source,
+        reason:inf.reason,alternatives:inf.alternatives||[]};
+    }
+  }
   const clean=String(name||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
   const sing=_dSingularize(clean);
   
@@ -1545,8 +1563,11 @@ function dPsdParseItems(psd, res, ox, oy){
            usado de propósito em outras superfícies, onde é pedido: o linter (`linter.js`),
            a dica do painel de propriedades (`props-panel.js`) e o botão "Mapear com IA",
            que só roda quando o designer aperta. Nada aqui roda sem ele pedir. */
-        if(sv && sv.explicit){ it.varName=sv.name; it.mode='var'; }
-        else { it.varName=''; it.mode='text'; }
+        if(sv && (sv.confidence==='high'||sv.explicit)){
+          it.varName=sv.name; it.mode='var'; it._fieldInference=sv;
+        } else if(sv && sv.confidence==='medium'){
+          it.varName=sv.name; it.mode='text'; it._fieldInference=sv;
+        } else { it.varName=''; it.mode='text'; }
         // Tipo de caixa. Campo real do ag-psd: text.shapeType ('box'|'point'). Só PARAGRAPH (box)
         // substitui x/y/w/h pela caixa do designer; POINT mantém o bbox de glifos 1:1 (posição real).
         it.textBox=(t.shapeType==='box')?'box':'point';
@@ -1609,10 +1630,14 @@ function dPsdParseItems(psd, res, ox, oy){
           }
 
           // Heurística de auto-frame para shapes (se o nome da camada contiver imagem/foto)
-          const imgSug = _dPsdSuggestImgVar(it.name);
-          if (imgSug) {
+          const _area=(Math.max(1,w*h)/Math.max(1,(psd.width||1)*(psd.height||1)));
+          const imgSug = _dPsdSuggestImgVar(it.name,{areaRatio:_area,isBackground:_area>=0.7||/^(background|fundo|bg|base)$/i.test(String(it.name||'').trim())});
+          if (imgSug&&imgSug.confidence==='high') {
             it.mode = imgSug.mode;
             it.varName = imgSug.name;
+            it._fieldInference=imgSug;
+          } else if(imgSug&&imgSug.confidence==='medium'){
+            it.mode='shape'; it.varName=imgSug.name; it._fieldInference=imgSug;
           } else {
             it.mode = 'shape';
           }
@@ -1626,10 +1651,14 @@ function dPsdParseItems(psd, res, ox, oy){
           it.inkBox=_dPsdInkBox(node.canvas);
           
           // Heurística de auto-frame para imagens raster
-          const imgSug = _dPsdSuggestImgVar(it.name);
-          if (imgSug) {
+          const _area=(Math.max(1,w*h)/Math.max(1,(psd.width||1)*(psd.height||1)));
+          const imgSug = _dPsdSuggestImgVar(it.name,{areaRatio:_area,isBackground:_area>=0.7||/^(background|fundo|bg|base)$/i.test(String(it.name||'').trim())});
+          if (imgSug&&imgSug.confidence==='high') {
             it.mode = imgSug.mode;
             it.varName = imgSug.name;
+            it._fieldInference=imgSug;
+          } else if(imgSug&&imgSug.confidence==='medium'){
+            it.mode='raster'; it.varName=imgSug.name; it._fieldInference=imgSug;
           } else {
             it.mode = 'raster';
           }

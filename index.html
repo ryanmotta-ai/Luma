@@ -1832,7 +1832,7 @@ body:not(.theme-light) input:-webkit-autofill:active {
     <div id="d-right" class="show-layers">
       <div class="rpanel-tabs d-rp-tabs">
         <button class="rpanel-tab d-rp-tab active" id="rtab-layers" data-panel="camadas" onclick="dActivatePanel('camadas')" title="Camadas">Camadas</button>
-        <button class="rpanel-tab d-rp-tab" id="rtab-dados" data-feature="designer.campos" data-panel="dados" onclick="dActivatePanel('dados')" title="Campos que o franqueado preenche">Dados</button>
+        <button class="rpanel-tab d-rp-tab" id="rtab-dados" data-feature="designer.campos" data-panel="dados" onclick="dActivatePanel('dados')" title="Campos que o franqueado preenche">Campos</button>
         <button class="rpanel-tab d-rp-tab" id="rtab-campaigns" data-feature="designer.campanhas" data-panel="campaigns" onclick="dActivatePanel('campaigns')" title="Modelos e Campanhas">Campanhas</button>
         <button class="rpanel-tab d-rp-tab" id="rtab-linter" data-feature="designer.checklist" data-panel="linter" onclick="dActivatePanel('linter')" title="Checklist de Qualidade do Design" style="color:var(--dm-orange);font-weight:700">Checklist</button>
       </div>
@@ -1910,7 +1910,7 @@ body:not(.theme-light) input:-webkit-autofill:active {
             <div class="dp-sec-body">
               <div id="d-text-props" style="display:none">
                 <div style="margin-bottom:6px">
-                  <div class="prop-input dp-content-editable" id="dp-content" contenteditable="true" data-ph="Escreva o texto fixo. Para dado dinâmico, use “Dado” no topo." oninput="dFieldContentSync(this)" onpaste="dFieldContentPaste(event)"></div>
+                  <div class="prop-input dp-content-editable" id="dp-content" contenteditable="true" data-ph="Escreva o texto fixo. Para personalizar, use a seção acima." oninput="dFieldContentSync(this)" onpaste="dFieldContentPaste(event)"></div>
                 </div>
                 <!-- "+ Inserir campo" (campo embutido numa frase) escondido: o controle "Dado" no
                      topo cobre o caso comum (camada inteira = 1 campo). Reexibir = tirar o display:none. -->
@@ -2454,25 +2454,16 @@ body:not(.theme-light) input:-webkit-autofill:active {
 </div>
 
 <!-- MODAIS DESIGNER -->
-<!-- Wizard de campo (2 passos): "o que" → "que tipo". Nada de sintaxe na cara do usuário. -->
+<!-- Criação contextual de campo. Nome técnico e opções raras ficam fora do fluxo principal. -->
 <div class="modal-overlay" id="d-var-modal">
   <div class="modal field-wizard">
     <div class="modal-title" id="dv-title">Novo campo</div>
-
-    <!-- PASSO 1 — o que -->
     <div class="field-step" id="dv-step-1">
-      <div class="field-q">Qual é o título deste campo?</div>
-      <input class="modal-input field-q-input" id="dv-label" placeholder="Ex.: Produto, Preço, Cupom…" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();dFieldWizardNext()}">
-      <div class="field-q-hint">Digite como o franqueado lerá no chat (ex.: Preço do Combo, Nome do Produto).</div>
-      <div class="modal-actions">
-        <button class="d-btn-sec" onclick="dCloseVarModal()">Cancelar</button>
-        <button class="d-btn-pri" onclick="dFieldWizardNext()">Continuar</button>
-      </div>
-    </div>
+      <label class="modal-label" for="dv-label">Nome para o usuário</label>
+      <input class="modal-input field-q-input" id="dv-label" placeholder="Ex.: Sabor" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();dConfirmVar()}">
+      <div class="field-q-hint">É assim que este campo aparecerá para quem preencher a arte.</div>
 
-    <!-- PASSO 2 — que tipo -->
-    <div class="field-step" id="dv-step-2" style="display:none">
-      <div class="field-q" id="dv-q2">Que tipo de informação é?</div>
+      <div class="field-q field-q-compact" id="dv-q2">Tipo</div>
       <div class="field-type-grid" id="dv-type-grid"></div>
       <input type="hidden" id="dv-type" value="text">
 
@@ -2485,16 +2476,16 @@ body:not(.theme-light) input:-webkit-autofill:active {
         <input class="modal-input" id="dv-palette" placeholder="#C8102E, #FF9000, #FFFFFF">
       </div>
 
+      <div class="modal-field field-example-main">
+        <label class="modal-label">Exemplo</label>
+        <input class="modal-input" id="dv-example" placeholder="Ex.: Bacon">
+      </div>
+
       <button class="field-details-toggle" id="dv-details-toggle" onclick="dFieldToggleDetails()">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="field-details-chev"><polyline points="6 9 12 15 18 9"/></svg>
         Detalhes (opcional)
       </button>
       <div class="field-details" id="dv-details" style="display:none">
-        <div class="modal-field">
-          <label class="modal-label">Exemplo <span style="font-weight:400;opacity:.7">(só demonstração)</span></label>
-          <input class="modal-input" id="dv-example" placeholder="ex: iPhone 17">
-          <span style="font-size:10px;color:var(--d-text3);margin-top:2px">Aparece na prancheta e como dica no chat do franqueado. Nunca sai na arte final.</span>
-        </div>
         <div class="modal-field">
           <label class="modal-label">Categoria</label>
           <select class="modal-select" id="dv-cat">
@@ -2522,10 +2513,11 @@ body:not(.theme-light) input:-webkit-autofill:active {
       <input type="hidden" id="dv-name">
 
       <div class="modal-actions">
-        <button class="d-btn-sec" id="dv-back-btn" onclick="dFieldWizardBack()">Voltar</button>
+        <button class="d-btn-sec" onclick="dCloseVarModal()">Cancelar</button>
         <button class="d-btn-pri" id="dv-confirm-btn" onclick="dConfirmVar()">Criar campo</button>
       </div>
     </div>
+    <div class="field-step" id="dv-step-2" style="display:none"></div>
   </div>
 </div>
 
@@ -2773,20 +2765,14 @@ body:not(.theme-light) input:-webkit-autofill:active {
 
       <main class="psd-rows-panel">
         <div class="psd-panel-heading psd-layers-heading">
-          <div><span class="psd-panel-kicker">Conversão</span><strong>Como cada camada deve entrar?</strong></div>
-          <!-- Esta copy dizia "Sugestões aplicadas automaticamente" e virou MENTIRA em
-               03/09, quando o import parou de adivinhar qual campo é cada camada. Agora ela
-               diz a verdade nova, que também é a instrução: quem liga é o designer. -->
+          <div><span class="psd-panel-kicker">Preparação</span><strong>Campos da arte</strong></div>
           <span class="psd-auto-label" id="d-psd-auto-label">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:11px;height:11px;flex:none"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-            Você escolhe o campo de cada camada
+            O Luma prepara; você resolve as exceções
           </span>
         </div>
-        <!-- Trilha de campos (mapeamento por arrastar). Ocupa o lugar do antigo bloco de dicas:
-             o mesmo espaço agora ENSINA fazendo. Arraste um campo para a linha da camada ou
-             para a própria arte na prévia; clicar no campo e depois na camada faz o mesmo, e o
-             seletor "Campo" de cada linha é o caminho por teclado. Preenchida por
-             _dPsdRenderFieldRail() em psd-import.js. -->
+        <!-- Resumo das associações e decisões ambíguas. O inventário completo e o mapeamento
+             por arrastar continuam disponíveis em "Ver todas as camadas". -->
         <div class="psd-fieldbar">
           <div class="psd-fieldbar-head">
             <div class="psd-fieldbar-copy">

@@ -1274,21 +1274,8 @@ function dRenderCanvas(){
       }
       // Se é campo variável, mostrar label acima + borda. Cor de DADO = amarelo (--var-color),
       // coerente com o controle "Dado" e o selo na lista de camadas (antes era roxo solto).
-      if(l.isVar){
-        el.style.border='1.5px dashed rgba(255,185,0,0.75)';
-        el.style.padding='2px 4px';
-        // el já é position:absolute (contexto de posicionamento para o label abaixo).
-        // NÃO trocar para relative: reinsere no fluxo e desloca outros layers relativos.
-        const lbl=document.createElement('div');
-        lbl.style.cssText='position:absolute;top:-18px;left:0;font-size:9px;font-weight:800;letter-spacing:.06em;color:#241a00;background:#FFB900;padding:1px 7px;border-radius:4px;font-family:Roboto,sans-serif;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.25);';
-        // Mostra o CAMPO, não o nome da camada: como o texto na tela continua sendo a frase
-        // original (ver dLayerBindField), este selo é o único ponto que diz qual Dado entra
-        // aqui. Cai no nome da camada quando o campo não resolve.
-        const _bf=(typeof dLayerBoundField==='function')?dLayerBoundField(l):null;
-        const _bv=(_bf&&typeof dVars!=='undefined'&&dVars)?dVars.find(x=>x.name===_bf):null;
-        lbl.textContent='◆ '+((_bv&&(_bv.label||_bv.name))||l.name);
-        el.appendChild(lbl);
-      }
+      // O mapa dos campos é uma camada de inspeção opcional. Não altera padding, caixa ou
+      // geometria do texto e nunca participa dos renderizadores de exportação.
       const textNode=document.createElement('div');
       // vAlign 'top' (texto importado do PSD): ancora pelo TOPO com o topo da tinta encostando no
       // topo da caixa (== node.top do PSD) → posição vertical 1:1. Demais textos: centralização
@@ -1510,6 +1497,7 @@ function dRenderCanvas(){
         el.innerHTML=`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg><span>${l.imgVar||'imagem'}</span>`;
       }
     }
+    dAppendFieldMapBadge(el,l);
     if(l.id===dSelId){
       ['br','bl','tr','tl'].forEach(pos=>{
         const h=document.createElement('div');h.className='layer-handle handle-'+pos;
@@ -1879,6 +1867,32 @@ function dClearGuides(){
 /* ══ SIMULAR DADOS REAIS ══ */
 let dSimValues = {};  // {nomeVar: valor}
 let dSimActive = false;
+let dFieldMapVisible = false;
+function dToggleFieldMap(force){
+  dFieldMapVisible=(typeof force==='boolean')?force:!dFieldMapVisible;
+  document.body.classList.toggle('d-field-map-visible',dFieldMapVisible);
+  dRenderCanvas();
+  if(typeof dPropSyncDataDisclosure==='function')dPropSyncDataDisclosure();
+}
+function dFieldMapNames(l){
+  const names=[];
+  if(l&&(l.type==='image'||l.type==='frame')&&l.imgVar)names.push(l.imgVar);
+  if(l&&l.type==='text'&&l.content){
+    const re=gVarRegex();let m;
+    while((m=re.exec(l.content))){if(!names.includes(m[1]))names.push(m[1]);}
+  }
+  return names;
+}
+function dAppendFieldMapBadge(el,l){
+  if(!dFieldMapVisible||dSimActive||!el||!l)return;
+  const names=dFieldMapNames(l);if(!names.length)return;
+  const badge=document.createElement('div');badge.className='field-map-badge';
+  badge.textContent=names.map(name=>{
+    const v=(typeof dVars!=='undefined'&&dVars)?dVars.find(x=>x.name===name):null;
+    return (v&&(v.label||v.name))||((typeof gFieldLabel==='function')?gFieldLabel(name):name);
+  }).join(' · ');
+  el.classList.add('has-field-map');el.appendChild(badge);
+}
 let dSimDraftValues = {};
 let dSimFmt = 'original';
 let dSimRenderTimer = null;

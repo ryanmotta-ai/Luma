@@ -647,6 +647,167 @@ function gFieldGuessType(name){
   return 'text';
 }
 
+/* ══ SIGNIFICADO DE CAMPO — resolvedor determinístico único ════════════════════════════
+   Traduz sinais autorais (nome da camada, conteúdo e papel visual) para o catálogo REAL.
+   Não grava nada: o resultado é um parecer transitório consumido pelo importador e pelo
+   inspector. Assim, toda associação continua terminando em dVars/dLayerBindField/imgVar.
+
+   Contrato de saída:
+     confidence  high | medium | low
+     field       campo existente ou definição canônica sugerida
+     alternatives campos próximos quando a decisão é ambígua
+     source      explicit | catalog | semantic-name | content | visual | none
+   Alta confiança exige um sinal específico e vantagem clara sobre a segunda opção. */
+const G_FIELD_CONCEPTS=[
+  {id:'produto',name:'produto',label:'Produto',type:'text',aliases:['produto','nome produto','nome do produto','item','nome item','nome do item','prato','combo','lanche']},
+  {id:'headline',name:'headline',label:'Headline',type:'text',aliases:['headline','chamada','titulo','título','titulo principal','chamada principal']},
+  {id:'preco_por',name:'precoPor',label:'Preço promocional',type:'currency',aliases:['preco por','preço por','preco promo','preço promo','preco promocional','preço promocional','valor promocional','valor por','novo preco','novo preço','sale price']},
+  {id:'preco_de',name:'precoDe',label:'Preço original',type:'currency',aliases:['preco de','preço de','preco original','preço original','preco antigo','preço antigo','valor original','valor de','old price']},
+  {id:'foto_produto',name:'foto_produto',label:'Foto do produto',type:'image',aliases:['foto produto','foto do produto','imagem produto','imagem do produto','product photo','product image']},
+  {id:'validade',name:'validade',label:'Validade',type:'date',aliases:['validade','data validade','data de validade','valido ate','válido até','periodo','período']},
+  {id:'descricao',name:'descricao',label:'Descrição',type:'text',aliases:['descricao','descrição','detalhes','texto apoio','texto de apoio','subtitulo','subtítulo']},
+  {id:'cupom',name:'cupom',label:'Cupom',type:'text',aliases:['cupom','codigo cupom','código cupom','codigo do cupom','código do cupom','voucher']},
+  {id:'desconto',name:'desconto',label:'Desconto',type:'text',aliases:['desconto','percentual desconto','porcentagem','off','economia']},
+  {id:'logo',name:'logo_loja',label:'Logo',type:'image',aliases:['logo','logo loja','logo da loja','logomarca','marca','brand']},
+  {id:'telefone',name:'telefone',label:'Telefone',type:'text',aliases:['telefone','whatsapp','contato']},
+  {id:'endereco',name:'endereco',label:'Endereço',type:'text',aliases:['endereco','endereço','localizacao','localização']}
+];
+function gFieldSemanticNormalize(value){
+  return String(value||'').replace(/([a-z0-9])([A-Z])/g,'$1 $2')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
+    .replace(/\{\{|\}\}/g,' ').replace(/[_\-.]+/g,' ').replace(/[^a-z0-9]+/g,' ').trim();
+}
+function _gFieldConceptScores(value){
+  const n=gFieldSemanticNormalize(value); if(!n)return [];
+  return G_FIELD_CONCEPTS.map(c=>{
+    let score=0;
+    c.aliases.forEach(alias=>{
+      const a=gFieldSemanticNormalize(alias); if(!a)return;
+      if(n===a)score=Math.max(score,105);
+      else if(a.length>3 && (' '+n+' ').indexOf(' '+a+' ')>=0)score=Math.max(score,72);
+    });
+    return {concept:c,score};
+  }).filter(x=>x.score>0).sort((a,b)=>b.score-a.score);
+}
+function gFieldCanonicalDefinition(value, target){
+  const hits=_gFieldConceptScores(value);
+  const c=hits.length?hits[0].concept:null;
+  if(c)return {name:c.name,label:c.label,type:c.type,required:false,category:gFieldGuessCategory(c.name,c.type)};
+  const label=String(value||'').replace(/^@/,'').trim();
+  const name=gFieldSlugify(label,[]);
+  const type=target==='imagem'?'image':gFieldGuessType(name);
+  return {name,label:(typeof gFieldLabel==='function'?gFieldLabel(name):label)||label||'Campo',type,required:false,category:gFieldGuessCategory(name,type)};
+}
+function gFieldInfer(opts){
+  opts=opts||{};
+  const layerName=String(opts.layerName||'').trim();
+  const content=String(opts.content||'').trim();
+  const target=opts.target==='imagem'?'imagem':'text';
+  let fields=Array.isArray(opts.fields)?opts.fields:null;
+  if(!fields){try{fields=(typeof dVars!=='undefined'&&Array.isArray(dVars))?dVars:[];}catch(e){fields=[];}}
+  const fits=f=>f && (target==='imagem'?f.type==='image':f.type!=='image');
+  const compatible=fields.filter(fits);
+  const explicit=layerName.match(/^\s*(?:@([a-zA-Z0-9_]+)|\{\{\s*([a-zA-Z0-9_]+)\s*\}\})\s*$/);
+  if(explicit){
+    const raw=explicit[1]||explicit[2];
+    const rn=gFieldSemanticNormalize(raw);
+    let field=compatible.find(f=>gFieldSemanticNormalize(f.name)===rn)||null;
+    const canonical=gFieldCanonicalDefinition(raw,target);
+    if(!field){
+      const cid=(_gFieldConceptScores(raw)[0]||{}).concept;
+      if(cid){
+        field=compatible.find(f=>{
+          const hit=_gFieldConceptScores((f.label||'')+' '+(f.name||''))[0];
+          return hit&&hit.concept.id===cid.id;
+        })||null;
+      }
+    }
+    field=field||canonical;
+    return {confidence:'high',field,alternatives:[],source:'explicit',explicit:true,reason:'Convenção explícita no nome da camada'};
+  }
+
+  const nameNorm=gFieldSemanticNormalize(layerName);
+  const nameCompact=nameNorm.replace(/\s+/g,'');
+  const nameWords=nameNorm.split(/\s+/).filter(w=>w.length>2);
+  const layerConcepts=_gFieldConceptScores(layerName);
+  const contentConcepts=_gFieldConceptScores(content);
+  const cta=/^(peca agora|peça agora|aproveite|confira|saiba mais|compre agora|clique aqui|chame agora)$/i.test(content);
+  const price=/(?:r\$|\$)\s*\d[\d.,]*/i.test(content);
+  const date=/(?:^|\s)(?:\d{1,2}[\/-]\d{1,2}(?:[\/-]\d{2,4})?|\d{1,2}\s+de\s+[a-zç]+)(?:\s|$)/i.test(content);
+  const scored=[];
+  compatible.forEach((field,index)=>{
+    const label=(field.label||'')+' '+(field.name||'');
+    const fn=gFieldSemanticNormalize(field.name), fl=gFieldSemanticNormalize(field.label);
+    const fc=(fl+' '+fn).trim();
+    const words=fc.split(/\s+/).filter(w=>w.length>2);
+    let score=0,source='none',reason='';
+    if(nameNorm && (nameNorm===fn||nameNorm===fl||nameCompact===fn.replace(/\s+/g,'')||nameCompact===fl.replace(/\s+/g,''))){
+      score=135;source='catalog';reason='Nome igual ao campo existente';
+    }
+    const fieldConcepts=_gFieldConceptScores(field.label).concat(_gFieldConceptScores(field.name));
+    layerConcepts.forEach(lc=>fieldConcepts.forEach(fcHit=>{
+      if(lc.concept.id===fcHit.concept.id){
+        const s=Math.min(lc.score,fcHit.score);
+        if(s>score){score=s;source='semantic-name';reason='Significado reconhecido no nome da camada';}
+      }
+    }));
+    // O texto visível também é sinal, mas nunca vira decisão silenciosa: “Combo Família”
+    // pode ser Produto ou Headline. O teto de 72 mantém esse caso na faixa de revisão.
+    if(target==='text'&&!cta)contentConcepts.forEach(cc=>fieldConcepts.forEach(fcHit=>{
+      if(cc.concept.id===fcHit.concept.id){
+        const s=Math.min(72,cc.score,fcHit.score);
+        if(s>score){score=s;source='content';reason='Significado provável no texto da arte';}
+      }
+    }));
+    const overlap=words.filter(w=>nameWords.includes(w)).length;
+    if(overlap && score<45+overlap*14){score=45+overlap*14;source='semantic-name';reason='Palavras em comum com o campo';}
+    if(price && field.type==='currency' && score<58){score=58;source='content';reason='Conteúdo com formato de preço';}
+    if(date && (field.type==='date'||_gFieldConceptScores(label).some(x=>x.concept.id==='validade')) && score<62){score=62;source='content';reason='Conteúdo com formato de data';}
+    if(target==='imagem'&&!opts.isBackground&&opts.areaRatio>=0.08&&opts.areaRatio<=0.68 &&
+       fieldConcepts.some(x=>x.concept.id==='foto_produto') && score<52){score=52;source='visual';reason='Área de imagem com papel provável de produto';}
+    if(cta && score<80)score=0;
+    if(score)scored.push({field,score,source,reason,index});
+  });
+  scored.sort((a,b)=>b.score-a.score||a.index-b.index);
+
+  // Catálogo vazio ainda pode reconhecer um conceito canônico bem nomeado. Isso permite que
+  // um PSD organizado inaugure o catálogo sem fazer o designer cadastrar os campos antes.
+  const semanticSignal=layerConcepts.length?layerConcepts:contentConcepts;
+  if(!scored.length&&semanticSignal.length&&!cta){
+    const top=semanticSignal[0];
+    if((target==='imagem')===(top.concept.type==='image')){
+      scored.push({field:gFieldCanonicalDefinition(top.concept.name,target),score:Math.min(top.score,layerConcepts.length?105:72),source:layerConcepts.length?'semantic-name':'content',reason:'Conceito canônico reconhecido',index:0});
+    }
+  }
+  if(!scored.length&&price&&target==='text'){
+    ['precoPor','precoDe'].forEach((n,i)=>scored.push({field:gFieldCanonicalDefinition(n,target),score:52-i,source:'content',reason:'Conteúdo com formato de preço',index:i}));
+  }
+  if(!scored.length&&date&&target==='text')scored.push({field:gFieldCanonicalDefinition('validade',target),score:58,source:'content',reason:'Conteúdo com formato de data',index:0});
+  if(!scored.length)return {confidence:'low',field:null,alternatives:[],source:'none',reason:'Sem sinal suficiente; manter fixo'};
+
+  const best=scored[0],second=scored[1];
+  const lead=second?best.score-second.score:best.score;
+  const high=best.score>=100 || (best.score>=82&&lead>=20);
+  const medium=!high&&best.score>=45;
+  const alternatives=medium?scored.filter(x=>best.score-x.score<=20).slice(1,3).map(x=>x.field):[];
+  // Títulos promocionais com nome de produto são a ambiguidade recorrente mais importante.
+  // Oferece as duas leituras sem inventar um segundo motor nem aplicar uma delas sozinho.
+  const phrase=gFieldSemanticNormalize(content||layerName);
+  const bestConcept=(_gFieldConceptScores((best.field.label||'')+' '+(best.field.name||''))[0]||{}).concept;
+  if(medium&&target==='text'&&bestConcept&&bestConcept.id==='produto'&&phrase.split(/\s+/).length>1){
+    const headline=compatible.find(f=>_gFieldConceptScores((f.label||'')+' '+(f.name||'')).some(x=>x.concept.id==='headline'))
+      ||gFieldCanonicalDefinition('headline','text');
+    if(headline&&!alternatives.some(f=>f.name===headline.name))alternatives.unshift(headline);
+  }
+  return {
+    confidence:high?'high':(medium?'medium':'low'),
+    field:best.field,
+    alternatives:alternatives.slice(0,2),
+    source:best.source,
+    reason:best.reason||'Correspondência semântica'
+  };
+}
+
 /* ══ RÓTULO DO CAMPO — o motor ÚNICO que decide como um campo se chama para quem lê ══════
    ⛔ NOME TÉCNICO NUNCA APARECE PARA O FRANQUEADO. O teste de usabilidade pegou o chat
    perguntando por `precoPor` e por `foto_produto`: identificador de variável virando copy.

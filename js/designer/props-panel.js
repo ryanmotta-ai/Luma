@@ -676,6 +676,9 @@ function dPropEnhanceDado(layer) {
   if (!box || !layer || box.style.display === 'none') return;
   box.setAttribute('role', 'group');
   box.setAttribute('aria-label', 'Conte\u00fado din\u00e2mico');
+  // O renderer novo já entrega a experiência layer-first completa. O passe legado abaixo
+  // continua apenas para documentos que ainda tenham o markup antigo durante a sessão.
+  if (box.querySelector('.dp-personal-head')) return;
 
   const label = box.querySelector('.dp-dado-lbl');
   const highlight = label ? label.querySelector('.hl') : null;
@@ -1114,6 +1117,7 @@ const DP_DATA_CATEGORY_ICONS = {
 };
 
 let dPropDataProblemsOnly = false;
+let dPropDataShowInventory = false;
 
 const DP_DATA_STARTER_FIELDS = [
   { name: 'produto', label: 'Produto', type: 'text', required: true, category: 'produto' },
@@ -1170,6 +1174,15 @@ function dPropDataBoundNames(layer) {
 
 function dPropDataSuggestedField(layer) {
   if (!layer || typeof dVars === 'undefined' || !Array.isArray(dVars)) return null;
+  if (typeof gFieldInfer === 'function') {
+    const inferred = gFieldInfer({
+      layerName: layer.name || '',
+      content: layer.type === 'text' ? layer.content || '' : '',
+      target: layer.type === 'text' ? 'text' : 'imagem',
+      fields: dVars
+    });
+    if (inferred && inferred.field && inferred.confidence !== 'low') return inferred.field;
+  }
   const compatible = dVars.filter(function(field) { return dPropDataFieldFitsLayer(field, layer); });
   if (!compatible.length) return null;
 
@@ -1233,8 +1246,11 @@ function dPropDataFieldIndex(name) {
 
 function dPropDataFieldFitsLayer(field, layer) {
   if (!field || !layer) return false;
-  if (field.type === 'image') return layer.type === 'image' || layer.type === 'frame';
-  return layer.type === 'text';
+  if (typeof gFieldFitCheck === 'function') {
+    const target = layer.type === 'text' ? 'text' : ((layer.type === 'image' || layer.type === 'frame') ? 'imagem' : 'outro');
+    return gFieldFitCheck(field, target).ok;
+  }
+  return field.type === 'image' ? layer.type === 'image' || layer.type === 'frame' : layer.type === 'text';
 }
 
 function dPropDataProblemCount() {
@@ -1269,6 +1285,7 @@ function dPropCompareField(name) {
 
 function dPropSetDataProblemsFilter(active) {
   dPropDataProblemsOnly = !!active;
+  if (active) dPropDataShowInventory = true;
   if (active && typeof dFieldSetStatusFilter === 'function') {
     dFieldSetStatusFilter('all');
     return;
@@ -1289,8 +1306,9 @@ function dPropDataUseSuggestion(fieldName) {
   const layer = dPropDataSelectedLayer();
   const index = dPropDataFieldIndex(fieldName);
   const field = index >= 0 && typeof dVars !== 'undefined' ? dVars[index] : null;
-  if (!layer || !field || !dPropDataFieldFitsLayer(field, layer)) return;
-  if (typeof dLayerBindField === 'function') dLayerBindField(layer.id, field.name);
+  if (!layer) return;
+  if (field && dPropDataFieldFitsLayer(field, layer) && typeof dLayerBindField === 'function') dLayerBindField(layer.id, field.name);
+  else if (typeof dLayerUseSuggestedField === 'function') dLayerUseSuggestedField(layer.id, fieldName);
   dPropSyncDataContext(layer);
 }
 
@@ -1489,7 +1507,7 @@ function dPropBuildDataIntro() {
   intro.innerHTML =
     '<span class="dpi-data-intro-icon" aria-hidden="true">' + DP_PANEL_ICONS.dados + '</span>' +
     '<span class="dpi-data-intro-copy">' +
-      '<strong>Campos</strong>' +
+      '<strong>Campos da arte</strong>' +
       '<small id="dpi-data-summary" aria-live="polite">Defina o que o franqueado poder\u00e1 alterar.</small>' +
     '</span>' +
     '<span class="dpi-data-total" id="dpi-data-total" aria-label="0 campos">0</span>';
@@ -1510,6 +1528,22 @@ function dPropBuildDataIntro() {
     '</span>' +
     '<span class="dpi-data-context-actions" id="dpi-data-context-actions"></span>';
   panel.insertBefore(context, toolbar);
+
+  const health = document.createElement('div');
+  health.id = 'dpi-data-health';
+  health.className = 'dpi-data-health';
+  health.innerHTML =
+    '<span class="dpi-data-health-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg></span>' +
+    '<span class="dpi-data-health-copy"><strong id="dpi-data-health-title"></strong><small id="dpi-data-health-detail"></small></span>' +
+    '<span class="dpi-data-health-actions"><button type="button" id="dpi-data-map-toggle">Mostrar campos</button><button type="button" id="dpi-data-inventory-toggle">Ver todos</button></span>';
+  panel.insertBefore(health, toolbar);
+  health.querySelector('#dpi-data-inventory-toggle').addEventListener('click', function() {
+    dPropDataShowInventory = !dPropDataShowInventory;
+    dPropSyncDataDisclosure();
+  });
+  health.querySelector('#dpi-data-map-toggle').addEventListener('click', function() {
+    if (typeof dToggleFieldMap === 'function') dToggleFieldMap();
+  });
 
   toolbar.setAttribute('role', 'search');
   toolbar.setAttribute('aria-label', 'Buscar ou criar campo');
@@ -1556,6 +1590,42 @@ function dPropSyncDataIntro() {
     summary.textContent = 'Defina o que o franqueado poder\u00e1 alterar.';
   }
   dPropSyncDataTools();
+  dPropSyncDataDisclosure();
+}
+
+function dPropSyncDataDisclosure() {
+  const panel = document.getElementById('d-panel-dados');
+  const health = document.getElementById('dpi-data-health');
+  if (!panel || !health) return;
+  const fields = (typeof dVars !== 'undefined' && Array.isArray(dVars)) ? dVars : [];
+  const problems = dPropDataProblemCount();
+  const used = typeof dVarUsage === 'function' ? fields.filter(function(field) { return dVarUsage(field.name).length; }).length : 0;
+  const title = document.getElementById('dpi-data-health-title');
+  const detail = document.getElementById('dpi-data-health-detail');
+  const inventoryToggle = document.getElementById('dpi-data-inventory-toggle');
+  const mapToggle = document.getElementById('dpi-data-map-toggle');
+  const empty = fields.length === 0;
+  health.hidden = empty;
+  health.classList.toggle('has-problem', problems > 0);
+  if (title) title.textContent = problems
+    ? problems + (problems === 1 ? ' item precisa da sua ajuda' : ' itens precisam da sua ajuda')
+    : used + (used === 1 ? ' campo configurado' : ' campos configurados');
+  if (detail) detail.textContent = problems ? 'Revise os campos parecidos antes de publicar.' : 'Nenhum conflito encontrado.';
+  if (inventoryToggle) inventoryToggle.textContent = dPropDataShowInventory ? 'Ocultar lista' : (problems ? 'Revisar' : 'Ver todos os campos');
+  if (mapToggle) {
+    const active = typeof dFieldMapVisible !== 'undefined' && dFieldMapVisible;
+    mapToggle.textContent = active ? 'Ocultar campos' : 'Mostrar campos na arte';
+    mapToggle.setAttribute('aria-pressed', String(active));
+  }
+  const show = empty || dPropDataShowInventory || !!document.getElementById('d-fields-search') && !!document.getElementById('d-fields-search').value;
+  ['.dados-toolbar','#d-fields-chipbar','#dpi-data-shortcuts','#d-fields-live','#d-fields-list'].forEach(function(selector) {
+    const el = panel.querySelector(selector);
+    if (el) el.hidden = !show;
+  });
+  if (problems && dPropDataShowInventory && typeof dPropSetDataProblemsFilter === 'function' && !dPropDataProblemsOnly) {
+    dPropDataProblemsOnly = true;
+    if (typeof dFieldsRender === 'function') dFieldsRender();
+  }
 }
 
 function dPropSyncDataContext(layer) {
@@ -1914,6 +1984,13 @@ const DP_FIELD_TYPE_HELP = {
 
 function dPropFindExistingField(label) {
   if (typeof dVars === 'undefined' || !Array.isArray(dVars)) return null;
+  if (typeof gFieldInfer === 'function') {
+    const type = (document.getElementById('dv-type') || {}).value || 'text';
+    const inferred = gFieldInfer({layerName: label, target: type === 'image' ? 'imagem' : 'text', fields: dVars});
+    if (inferred && inferred.field && dVars.indexOf(inferred.field) >= 0 && inferred.confidence !== 'low') {
+      return {field: inferred.field, exact: inferred.confidence === 'high'};
+    }
+  }
   const normalized = dPropDataNormalize(label);
   const compact = normalized.replace(/\s+/g, '');
   if (compact.length < 3) return null;
@@ -1984,6 +2061,7 @@ function dPropBuildFieldWizard() {
   if (!modal || !wizard || !title || document.getElementById('dpi-field-wizard-head')) return;
 
   wizard.classList.add('dpi-field-wizard');
+  wizard.classList.add('dpi-field-compact');
   wizard.setAttribute('role', 'dialog');
   wizard.setAttribute('aria-modal', 'true');
   wizard.setAttribute('aria-labelledby', 'dv-title');
@@ -1992,12 +2070,7 @@ function dPropBuildFieldWizard() {
   head.id = 'dpi-field-wizard-head';
   head.className = 'dpi-field-wizard-head';
   head.innerHTML =
-    '<div class="dpi-field-wizard-progress" aria-label="Etapa do campo">' +
-      '<span class="dpi-field-step-dot is-active" data-step="1">1</span>' +
-      '<span class="dpi-field-step-line" aria-hidden="true"></span>' +
-      '<span class="dpi-field-step-dot" data-step="2">2</span>' +
-      '<span class="dpi-field-step-label" id="dpi-field-step-label">Defini\u00e7\u00e3o</span>' +
-    '</div>' +
+    '<span class="dpi-field-step-label">Campo da arte</span>' +
     '<button type="button" class="dpi-field-close" aria-label="Fechar editor de campo">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>' +
     '</button>';
@@ -2056,7 +2129,7 @@ function dPropSyncFieldWizard() {
 
   modal.classList.toggle('dpi-field-editing', editing);
   if (title) title.textContent = editing ? 'Editar campo' : 'Novo campo';
-  if (stepLabel) stepLabel.textContent = isFirstStep ? 'Nome do campo' : 'Formato e orienta\u00e7\u00f5es';
+  if (stepLabel) stepLabel.textContent = 'Campo da arte';
   dots.forEach(function(dot) {
     dot.classList.toggle('is-active', Number(dot.dataset.step) === (isFirstStep ? 1 : 2));
     dot.classList.toggle('is-done', Number(dot.dataset.step) < (isFirstStep ? 1 : 2));

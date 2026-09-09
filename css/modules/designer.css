@@ -279,6 +279,12 @@ body:not([data-tool]) .canvas-layer{cursor:move}
 .handle-tr{top:-12px;right:-12px;cursor:ne-resize}
 .handle-tl{top:-12px;left:-12px;cursor:nw-resize}
 .var-badge{display:inline-block;background:var(--var-bg);color:var(--var-color);border:1px solid rgba(255,185,0,.3);border-radius:3px;font-size:11px;font-weight:600;padding:0 4px;font-family:'Roboto',sans-serif;pointer-events:none}
+.canvas-layer.has-field-map{outline:1.5px dashed color-mix(in srgb,var(--var-color) 78%,transparent);outline-offset:2px}
+.field-map-badge{position:absolute;z-index:40;top:-22px;left:50%;width:max-content;max-width:220px;transform:translateX(-50%);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none;padding:3px 7px;
+  border:1px solid color-mix(in srgb,var(--var-color) 42%,var(--d-border));border-radius:var(--r-pill);
+  background:color-mix(in srgb,var(--d-dark) 92%,transparent);box-shadow:var(--shadow-sm);
+  color:var(--var-color);font:750 9px/1.2 'Roboto',sans-serif;letter-spacing:.02em;text-align:center}
 
 /* LAYERS BOTTOM */
 #d-layers-panel{height:200px;min-height:90px;max-height:50vh;background:var(--d-dark);border-top:1px solid var(--d-border);flex-shrink:0;display:flex;flex-direction:column;overflow:hidden;position:relative;}
@@ -2181,6 +2187,34 @@ body.theme-light .dp-dado-ex {
 .psd-field-chip[aria-pressed="true"] .psd-field-count{background:rgba(0,0,0,.14)}
 .psd-field-chip.is-dragging{opacity:.45;cursor:grabbing}
 .psd-map-live{margin:0;min-height:11px;font-size:9px;line-height:1.3;color:var(--dm-orange)}
+
+/* Revisão orientada a exceções: o inventário continua disponível em "Ver todas as camadas",
+   mas o primeiro quadro contém apenas decisões que a inferência não pode tomar com segurança. */
+.psd-fields.is-decisions{display:flex;flex-direction:column;align-items:stretch;gap:7px;overflow:visible;
+  padding:0;background:none}
+#d-psd-modal .psd-rows-list[hidden],#d-psd-modal .psd-search-input[hidden],#d-psd-modal #d-psd-sel-btns[hidden]{display:none!important}
+.psd-prep-ready{display:flex;align-items:center;gap:10px;padding:10px 11px;border:1px solid var(--d-border);
+  border-radius:9px;background:var(--d-surf);color:var(--d-text2)}
+.psd-prep-ready>span{width:24px;height:24px;display:grid;place-items:center;flex:0 0 auto;
+  border-radius:var(--r-pill);background:color-mix(in srgb,var(--green) 13%,transparent);color:var(--green)}
+.psd-prep-ready svg{width:14px;height:14px}
+.psd-prep-ready strong,.psd-prep-ready small{display:block}
+.psd-prep-ready strong{font-size:11px;color:var(--d-text)}
+.psd-prep-ready small{margin-top:2px;font-size:9.5px;line-height:1.35;color:var(--d-text3)}
+.psd-decision{display:grid;grid-template-columns:minmax(120px,1fr) auto;align-items:center;gap:4px 12px;
+  padding:10px 11px;border:1px solid var(--d-border2);border-radius:9px;background:var(--d-surf)}
+.psd-decision-kicker{grid-column:1;font-size:8.5px;font-weight:750;letter-spacing:.07em;text-transform:uppercase;color:var(--d-text3)}
+.psd-decision-layer{grid-column:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:11px;font-weight:650;color:var(--d-text)}
+.psd-decision-options{grid-column:2;grid-row:1 / span 2;display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap}
+.psd-decision-options button{min-height:30px;padding:5px 10px;border:1px solid var(--d-border2);border-radius:8px;
+  background:var(--d-surf2);color:var(--d-text2);font:650 10px/1.2 'Roboto',sans-serif;cursor:pointer;
+  transition:border-color var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard)}
+.psd-decision-options button:first-child{border-color:color-mix(in srgb,var(--dm-orange) 45%,var(--d-border));color:var(--dm-orange-text)}
+.psd-decision-options button:hover{border-color:var(--dm-orange);background:color-mix(in srgb,var(--dm-orange) 9%,var(--d-surf2));color:var(--d-text)}
+.psd-decision-options button:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+.psd-decision>small{grid-column:1 / -1;font-size:9px;line-height:1.35;color:var(--d-text3)}
+.psd-advanced-toggle{white-space:nowrap}
 
 /* Estado de arrasto/mira: as linhas mostram que são alvo, e a arte também. */
 #d-psd-modal.psd-mapping .psd-row{border-style:dashed}

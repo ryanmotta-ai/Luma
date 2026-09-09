@@ -19,6 +19,7 @@
 
 /* ── estado da revisão (só aqui; o parse mora em psd-parse.js) ── */
 let dPsdItems=[]; let dPsdMeta=null;
+let _dPsdReviewAll=false; // revisão normal mostra decisões; inventário completo é avançado
 // Nº de camadas de ajuste (Levels/Curves/Hue…) vistas no último parse. O Luma não tem pipeline
 // de ajuste, então elas são dropadas e as cores podem diferir do PSD → vira aviso na revisão.
 let _dPsdAdjustCount=0;
@@ -43,20 +44,21 @@ function _dPsdMemApply(items){
     if(_dPsdMemIsGeneric(key)) return;
     const s=mem[key]; if(!s) return;
     const validText=['text','var','raster'], validShape=['shape','raster','frame'], validRaster=['raster','frame'];
-    if(s.mode==='var' && it.kind==='text'){
-      /* A memória PRÉ-PREENCHE o nome do campo, mas NÃO liga a variável sozinha (03/09).
-         Converter texto → variável REESCREVE o conteúdo por {{var}}: entre PSDs diferentes,
-         uma camada "valor" que num arquivo era campo e noutro é um disclaimer teria o texto
-         destruído — e a única coisa que segurava isso era a heurística de palpite, que saiu
-         daqui junto com a do parser. Sem ela, converter calado é aposta pura.
-         O que a memória faz agora: devolve o `varName` (abaixo) para o designer reconhecer a
-         escolha antiga em um clique no `<select>` da linha. A decisão continua sendo dele. */
-    } else if(s.mode&&(
+    if(s.mode&&(
       (it.kind==='text'&&validText.includes(s.mode))||
       (it.kind==='shape'&&validShape.includes(s.mode))||
       (it.kind==='raster'&&validRaster.includes(s.mode))
     )) it.mode=s.mode;
-    if(s.varName&&it.kind==='text') it.varName=s.varName;
+    if(s.varName&&(s.mode==='var'||s.mode==='frame')) it.varName=s.varName;
+    else if(s.mode!=='var'&&s.mode!=='frame') it.varName='';
+    // Memória só contém escolhas confirmadas no import anterior; por isso vence inclusive a
+    // convenção do PSD. Se o designer tornou a camada fixa, a ausência de varName é deliberada.
+    it.varSource='memory'; it.varWhy='Escolha aprovada em uma importação anterior';
+    it._memoryApplied=true;
+    it._fixedByUser=s.mode!=='var'&&s.mode!=='frame';
+    it._fieldInference=(s.mode==='var'||s.mode==='frame')
+      ?{name:it.varName,field:_dPsdFieldByName(it.varName)||null,confidence:'high',source:'memory',alternatives:[],reason:it.varWhy}
+      :null;
   });
 }
 // Aceita UM array de itens ou vários (multi-prancheta). Importar 14 pranchetas fazia 14
@@ -66,8 +68,9 @@ function _dPsdMemSave(...listas){
   listas.forEach(items=>(items||[]).forEach(it=>{
     const key=it.name.toLowerCase().trim().slice(0,48);
     if(_dPsdMemIsGeneric(key)) return;
-    const isDecision=(it._defaultMode!=null && it.mode!==it._defaultMode);
-    const hasVar=(it.kind==='text' && it.mode==='var' && it.varName);
+    const approved=it.varSource==='user'||it.varSource==='memory';
+    const isDecision=approved&&((it._defaultMode!=null&&it.mode!==it._defaultMode)||it._fixedByUser);
+    const hasVar=approved&&(it.mode==='var'||it.mode==='frame')&&it.varName;
     if(isDecision||hasVar){
       mem[key]={mode:it.mode};
       if(hasVar) mem[key].varName=it.varName;
@@ -144,6 +147,7 @@ function _dPsdApplyBoardToUI(){
   }
   const _sf0=document.getElementById('d-psd-search'); if(_sf0) _sf0.value='';
   _dPsdLastHoverIdx=-1;
+  _dPsdReviewAll=false;
   _dPsdMemApply(dPsdItems);
   dPsdRenderRows();
 }
@@ -180,10 +184,20 @@ function dPsdOpenReview(){
   _dPsdApplyBoardToUI();
   modal.classList.add('open');
 }
+
+function dPsdToggleAdvanced(){
+  _dPsdReviewAll=!_dPsdReviewAll;
+  dPsdRenderRows(String((document.getElementById('d-psd-search')||{}).value||'').trim().toLowerCase());
+}
 // Converte blend mode do ag-psd (camelCase) → CSS (kebab-case); 'normal'→'' (sem propriedade)
 function _dPsdBlendModeCSS(bm){ return bm?bm.replace(/([A-Z])/g,c=>'-'+c.toLowerCase()):''; }
 function dPsdRenderRows(filter){
   const wrap=document.getElementById('d-psd-rows'); if(!wrap) return;
+  const search=document.getElementById('d-psd-search');
+  const selects=document.getElementById('d-psd-sel-btns');
+  if(search) search.hidden=!_dPsdReviewAll;
+  if(selects) selects.hidden=!_dPsdReviewAll;
+  wrap.hidden=!_dPsdReviewAll;
   const ico={
     text:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 6V4h14v2M12 4v16M8 20h8"/></svg>',
     shape:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/></svg>',
@@ -324,6 +338,8 @@ function dPsdRenderRows(filter){
 function dPsdSetMode(i,v){
   if(dPsdItems[i]){
     dPsdItems[i].mode=v;
+    dPsdItems[i].varSource='user';
+    dPsdItems[i]._fixedByUser=v!=='var'&&v!=='frame';
     // O modo governa o vínculo (seletor de campo, badge de sugestão, contador da trilha), então
     // a linha inteira é re-renderizada em vez de remendada em três lugares. O foco volta pro
     // mesmo seletor porque re-render troca o DOM e jogaria o teclado pro começo do modal.
@@ -341,7 +357,7 @@ function _dPsdPulseRow(i){
   sel.classList.add('just-bound');
   sel.addEventListener('animationend',()=>sel.classList.remove('just-bound'),{once:true});
 }
-function dPsdSetVar(i,v,el){ if(dPsdItems[i]){ const clean=v.trim().replace(/[^a-zA-Z0-9_]/g,''); dPsdItems[i].varName=clean; if(el&&el.value!==clean) el.value=clean; } } // reescreve o input p/ refletir o valor sanitizado
+function dPsdSetVar(i,v,el){ if(dPsdItems[i]){ const clean=v.trim().replace(/[^a-zA-Z0-9_]/g,''); dPsdItems[i].varName=clean; dPsdItems[i].varSource='user';dPsdItems[i]._fixedByUser=false; if(el&&el.value!==clean) el.value=clean; } } // reescreve o input p/ refletir o valor sanitizado
 function dPsdSetInclude(i,on){ if(dPsdItems[i]){ dPsdItems[i].include=on; const f=document.getElementById('d-psd-search'); dPsdRenderRows(f&&f.value.trim().toLowerCase()||''); } }
 function dPsdSelectAll(){ dPsdItems.forEach(it=>{ if(!it.isMaskBase) it.include=true; }); const f=document.getElementById('d-psd-search'); dPsdRenderRows(f&&f.value.trim().toLowerCase()||''); }
 function dPsdSelectNone(){ dPsdItems.forEach(it=>{ it.include=false; }); const f=document.getElementById('d-psd-search'); dPsdRenderRows(f&&f.value.trim().toLowerCase()||''); }
@@ -451,7 +467,8 @@ function _dPsdSyncVarsFromLayers(layers){
     if(l.type==='frame'&&l.imgVar&&typeof dVars!=='undefined'&&dVars){
       const name=l.imgVar;
       if(!dVars.some(v=>v.name.toLowerCase()===name.toLowerCase())){
-        dVars.push({name, label:name.replace(/_/g,' '), type:'image', required:false});
+        const def=(typeof gFieldCanonicalDefinition==='function')?gFieldCanonicalDefinition(name,'imagem'):null;
+        dVars.push(Object.assign({name, label:(typeof gFieldLabel==='function'?gFieldLabel(name):name.replace(/_/g,' ')), type:'image', required:false},def||{},{name}));
         mudou=true;
       }
     }
@@ -524,7 +541,7 @@ async function dPsdConfirmImport(){
   _dPsdCloseReviewUI();
   dImportLayersAsArtboard(_w, _h, layers, _name, fmtChoice, _res);
   const nVar=layers.filter(l=>l.isVar).length, nTxt=layers.filter(l=>l.type==='text').length;
-  gToast('PSD importado: '+layers.length+' camadas · '+nTxt+' texto · '+nVar+' variável(is)');
+  gToast('PSD importado: '+layers.length+' camadas · '+nTxt+' texto · '+nVar+' campo'+(nVar===1?'':'s')+' preparado'+(nVar===1?'':'s'));
   _dPsdBoards=[]; _dPsdDocCanvas=null;
   dPsdItems=[]; dPsdMeta=null;
 }
@@ -849,6 +866,7 @@ function dPsdBindField(i, name){
   it.include=true; // ligar um campo é dizer "quero esta camada" — desmarcada, ela nem importaria
   it.mode=chk.mode; it.varName=v.name;
   it.varSource='user'; it.varWhy=''; // decisão humana: apaga a marca de "IA sugere" da camada
+  it._fixedByUser=false;
   _dPsdAfterMap('“'+(v.label||v.name)+'” ligado à camada “'+it.name+'”');
   _dPsdPulseRow(i);   // confirma o clique: é o único retorno que o designer tem
   return true;
@@ -860,7 +878,7 @@ function dPsdUnbindField(i){
   // veio do próprio parser), cai no modo neutro do tipo.
   const d=it._defaultMode;
   it.mode=(d && d!=='var' && d!=='frame') ? d : (it.kind==='text'?'text':(it.kind==='shape'?'shape':'raster'));
-  it.varName=''; it.varSource=''; it.varWhy='';
+  it.varName=''; it.varSource='user'; it.varWhy='';it._fixedByUser=true;
   // Recusou a sugestão: não pode voltar como "pendente" no próximo re-render.
   _dPsdAfterMap('Campo removido da camada “'+it.name+'”');
 }
@@ -873,12 +891,29 @@ function _dPsdPendingSug(it){
 }
 function dPsdAcceptSug(i){
   const it=dPsdItems[i]; if(!it||!it.varName) return;
-  it.include=true; it.mode=_dPsdModeForKind(it);
-  _dPsdAfterMap('“'+_dPsdFieldLabel(it.varName)+'” ligado à camada “'+it.name+'”');
+  dPsdAcceptCandidate(i,it.varName);
+}
+function dPsdAcceptCandidate(i,name){
+  const it=dPsdItems[i]; if(!it||!name)return;
+  const inf=it._fieldInference||{};
+  const defs=[inf.field].concat(inf.alternatives||[]).filter(Boolean);
+  const def=_dPsdFieldByName(name)||defs.find(v=>v&&v.name===name)||null;
+  if(def){
+    const chk=_dPsdBindCheck(it,def);
+    if(!chk.ok){gToast(chk.why,'error');return;}
+    it.mode=chk.mode;
+  }else it.mode=_dPsdModeForKind(it);
+  it.include=true;it.varName=name;it.varSource='user';it.varWhy='';it._fixedByUser=false;
+  it._fieldInference={name,field:def,confidence:'high',source:'user',alternatives:[],reason:'Escolha do designer'};
+  _dPsdAfterMap('“'+_dPsdFieldLabel(name)+'” definido para “'+it.name+'”');
 }
 function dPsdAcceptAllSug(){
   let n=0;
-  dPsdItems.forEach(it=>{ if(_dPsdPendingSug(it)){ it.include=true; it.mode=_dPsdModeForKind(it); n++; } });
+  dPsdItems.forEach(it=>{ if(_dPsdPendingSug(it)){
+    it.include=true;it.mode=_dPsdModeForKind(it);it.varSource='user';it.varWhy='';it._fixedByUser=false;
+    it._fieldInference=Object.assign({},it._fieldInference||{},{confidence:'high',source:'user',reason:'Escolha do designer'});
+    n++;
+  } });
   if(!n){ gToast('Nenhuma sugestão pendente'); return; }
   _dPsdAfterMap(n+(n===1?' sugestão aplicada':' sugestões aplicadas'));
   gToast(''+n+(n===1?' sugestão aplicada':' sugestões aplicadas'));
@@ -909,12 +944,27 @@ function _dPsdFieldCounts(){
 }
 function _dPsdRenderFieldRail(){
   const wrap=document.getElementById('d-psd-fields'); if(!wrap) return;
+  wrap.classList.toggle('is-decisions',!_dPsdReviewAll);
   const vars=_dPsdVarsList();
   const cover=document.getElementById('d-psd-fields-cover');
   const sugBtn=document.getElementById('d-psd-sug-all');
   const pend=dPsdItems.filter(_dPsdPendingSug).length;
+  const mapped=dPsdItems.filter(it=>it.include&&!it.isMaskBase&&(it.mode==='var'||it.mode==='frame')&&it.varName).length;
+  const fixed=dPsdItems.filter(it=>it.include&&!it.isMaskBase&&!_dPsdPendingSug(it)&&it.mode!=='var'&&it.mode!=='frame').length;
+  const head=document.querySelector('#d-psd-modal .psd-fieldbar-copy strong');
+  const acts=document.querySelector('#d-psd-modal .psd-fieldbar-acts');
+  let adv=acts&&acts.querySelector('.psd-advanced-toggle');
+  if(acts&&!adv){
+    adv=document.createElement('button');adv.type='button';adv.className='psd-sel-btn psd-advanced-toggle';
+    adv.onclick=dPsdToggleAdvanced;acts.appendChild(adv);
+  }
+  if(adv){adv.textContent=_dPsdReviewAll?'Voltar ao resumo':'Ver todas as camadas';adv.setAttribute('aria-expanded',String(_dPsdReviewAll));}
+  if(head)head.textContent=_dPsdReviewAll?'Mapeamento avançado':'Preparação da arte';
+  if(cover)cover.textContent=pend
+    ? mapped+' configurado'+(mapped===1?'':'s')+' · '+pend+(pend===1?' item precisa':' itens precisam')+' da sua ajuda'
+    : (mapped?'✓ '+mapped+' campo'+(mapped===1?' preparado':'s preparados'):'Nenhum campo identificado')+(fixed?' · '+fixed+' fixo'+(fixed===1?'':'s'):'');
   if(sugBtn){
-    sugBtn.hidden=!pend;
+    sugBtn.hidden=!_dPsdReviewAll||!pend;
     sugBtn.textContent=pend?('Aplicar '+pend+(pend===1?' sugestão':' sugestões')):'';
   }
   // Botão de IA: só aparece se existe caminho real pra IA (gAiReady). Botão que aparece e
@@ -922,13 +972,35 @@ function _dPsdRenderFieldRail(){
   const aiBtn=document.getElementById('d-psd-ai-btn');
   if(aiBtn){
     const temIA=(typeof gAiReady==='function') && gAiReady() && (typeof gAskAI==='function');
-    aiBtn.hidden=!temIA || !vars.length; // sem catálogo não há o que sugerir
+    aiBtn.hidden=!temIA || !vars.length || (!pend&&!_dPsdReviewAll); // IA resolve dúvida; não protagoniza estado pronto
     aiBtn.disabled=_dPsdAiBusy;
     // O estado "analisando" é pintado AQUI e não no handler: o handler re-renderiza a trilha,
     // o que recria este botão — patch direto lá viraria referência órfã.
     aiBtn.innerHTML=_dPsdAiBusy
       ? '<span class="psd-ai-spin" aria-hidden="true"></span>Analisando a arte…'
       : _DPSD_AI_ICON+'Mapear com IA';
+  }
+  if(!_dPsdReviewAll){
+    if(!pend){
+      wrap.innerHTML='<div class="psd-prep-ready"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg></span><div><strong>Campos preparados</strong><small>O Luma configurou o que reconheceu e manteve o restante fixo.</small></div></div>';
+      return;
+    }
+    wrap.innerHTML=dPsdItems.map((it,i)=>({it,i})).filter(o=>_dPsdPendingSug(o.it)).map(o=>{
+      const it=o.it,inf=it._fieldInference||{};
+      const defs=[inf.field].concat(inf.alternatives||[]).filter(Boolean);
+      if(!defs.length&&it.varName)defs.push(_dPsdFieldByName(it.varName)||{name:it.varName,label:_dPsdFieldLabel(it.varName)});
+      const unique=[];defs.forEach(v=>{if(v&&v.name&&!unique.some(x=>x.name===v.name))unique.push(v);});
+      const shown=(it.kind==='text'&&it.content)?it.content:it.name;
+      return '<section class="psd-decision" data-psd-decision="'+o.i+'"><span class="psd-decision-kicker">Parece ser</span>'
+        +'<strong class="psd-decision-layer">“'+_dPsdEsc(String(shown).replace(/\s+/g,' ').slice(0,70))+'”</strong>'
+        +'<div class="psd-decision-options">'+unique.map(v=>'<button type="button" data-candidate="'+_dPsdEsc(v.name)+'">'+_dPsdEsc(v.label||v.name)+'</button>').join('')+'</div>'
+        +'<small>'+(inf.reason?_dPsdEsc(inf.reason):'Escolha o significado deste conteúdo.')+'</small></section>';
+    }).join('');
+    wrap.querySelectorAll('[data-psd-decision]').forEach(sec=>{
+      const i=Number(sec.dataset.psdDecision);
+      sec.querySelectorAll('[data-candidate]').forEach(btn=>btn.addEventListener('click',()=>dPsdAcceptCandidate(i,btn.dataset.candidate)));
+    });
+    return;
   }
   if(!vars.length){
     wrap.innerHTML='<p class="psd-fields-empty">Nenhum campo no catálogo ainda — use “Criar campo…” na linha da camada.</p>';
@@ -987,7 +1059,7 @@ function dPsdFieldSelect(i, el){
   if(v==='__new__'){
     // Revela o input de nome livre que já existe na linha (visível quando o modo é var/frame)
     // e deixa o `dPsdSetVar` sanitizar. O campo novo é criado no import por _dPsdSyncVarsFromLayers.
-    it.include=true; it.mode=_dPsdModeForKind(it); it.varName='';
+    it.include=true; it.mode=_dPsdModeForKind(it); it.varName='';it.varSource='user';it._fixedByUser=false;
     _dPsdAfterMap('Digite o nome do novo campo da camada “'+it.name+'”');
     const inp=document.querySelector('#d-psd-rows [data-psd-idx="'+i+'"] .psd-var-input');
     if(inp) inp.focus(); // depois do re-render: o input de antes já é elemento órfão
@@ -995,7 +1067,7 @@ function dPsdFieldSelect(i, el){
   }
   if(_dPsdFieldByName(v)){ dPsdBindField(i, v); return; }
   // Nome fora do catálogo (a sugestão do parser): aceita e deixa o import criar o campo.
-  it.include=true; it.varName=v; it.mode=_dPsdModeForKind(it); it.varSource='user'; it.varWhy='';
+  it.include=true; it.varName=v; it.mode=_dPsdModeForKind(it); it.varSource='user'; it.varWhy='';it._fixedByUser=false;
   _dPsdAfterMap('“'+v+'” ligado à camada “'+it.name+'”');
   _dPsdPulseRow(i);
 }
@@ -1209,6 +1281,7 @@ async function dPsdMapWithAI(){
     vistos.add(i);
     it.varName=v.name; it.varSource='ia';
     it.varWhy=String((o&&o.motivo)||'').replace(/\s+/g,' ').slice(0,140);
+    it._fieldInference={name:v.name,field:v,confidence:'medium',source:'ia',alternatives:[],reason:it.varWhy||'Sugestão pela leitura visual da arte'};
     n++; // o MODO fica como está: vira sugestão pendente, o designer é quem aplica
   });
   if(!n){
