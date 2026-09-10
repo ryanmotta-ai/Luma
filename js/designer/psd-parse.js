@@ -91,28 +91,167 @@ function _dPsdFontScale(tr){
   const c=+tr[2]||0, d=+tr[3]||0, s=Math.sqrt(c*c+d*d);
   return (isFinite(s)&&s>0)?s : (Math.abs(d)||1);
 }
-// #4b — fontSize robusto e DETERMINÍSTICO: fontSize(pt) × escala(transform) × DPI(res/72),
-// aplicado de forma CONSISTENTE para box e point (antes divergiam). Só cai na caixa quando o
-// tamanho real é ausente/implausível — preservando o tamanho 1:1 do Photoshop.
-function _dPsdFontSize(t,h,content,res){
-  const s=_dPsdTextStyle(t);
-  const _tScale=_dPsdFontScale(t&&t.transform);
-  let fs=(s.fontSize||s.size||0)*_tScale;
-  // DPI: o fontSize vem em pontos; em doc hi-res (res≠72) escala p/ px. Só dobra quando o TRANSFORM
-  // ainda não trouxe a escala (tScale≈1) — senão dobraria. Antes o teto absoluto fs<200 deixava
-  // títulos grandes (ex.: 220pt a 300dpi) sem escalar, saindo 4× menores que o desenhado.
-  if(res>90 && fs>0 && _tScale<1.5) fs*=(res/72);
-  // PARÁGRAFO (box): a caixa é fixa/alta → confia sempre no tamanho real do designer.
-  if(t && t.shapeType==='box' && fs>=6 && fs<=2000) return Math.round(Math.max(8,Math.min(fs,2000)));
-  // POINT: confia no tamanho real; só ancora na caixa (bbox de glifos) se o valor for implausível.
-  const nLines=Math.max(1, String(content||'').split('\n').filter(x=>x.trim()).length);
-  const boxFs=Math.min(h/(nLines*1.25), 180); // cap 180px evita caixas altas gerarem fs gigante
-  if(fs>=4 && fs<=4000){
-    if(fs < boxFs*0.4 || fs > boxFs*2.5) fs=boxFs; // real incoerente vs bbox → usa a caixa
-    return Math.round(Math.max(8,fs));
+/* ══ ESCALA EFETIVA DE UM TEXTO — as TRÊS fontes de escala, num lugar só ══════════════════
+   O Photoshop guarda a escala de um texto em três lugares independentes, e o parser lia um:
+     1. a matriz `text.transform` — a transformação da CAMADA (o que o Ctrl+T faz);
+     2. `style.horizontalScale` / `style.verticalScale` — os campos de % do painel Caractere,
+        que o designer usa para condensar ou esticar a letra sem mudar o corpo. Default 100,
+        e o parser NUNCA os leu: um título condensado a 85% importava em 100%;
+     3. a resolução do documento — o corpo vem em PONTOS e a prancheta vive em PIXEL.
+   Devolve os dois eixos separados, porque `sx≠sy` é informação (§6 do briefing) e não pode ser
+   normalizada em corpo de fonte: achatar as duas num número é perder o estiramento. */
+function _dPsdTextScale(t){
+  const st=_dPsdTextStyle(t);
+  const tr=(t&&t.transform&&t.transform.length>=4)?t.transform:[1,0,0,1,0,0];
+  const a=+tr[0]||0,b=+tr[1]||0,c=+tr[2]||0,d=+tr[3]||0;
+  // Magnitude de cada vetor-coluna: imune a rotação e a cisalhamento, ao contrário de |a|/|d|.
+  const trX=Math.sqrt(a*a+b*b)||1, trY=Math.sqrt(c*c+d*d)||1;
+  // % do painel Caractere. `!=null` e não `||`: 0 é valor inválido, mas 100 é o default e
+  // precisa passar; e um `verticalScale:0` num arquivo torto não pode zerar o corpo.
+  const chX=(st.horizontalScale!=null&&+st.horizontalScale>0)?(+st.horizontalScale/100):1;
+  const chY=(st.verticalScale!=null&&+st.verticalScale>0)?(+st.verticalScale/100):1;
+  const sx=trX*chX, sy=trY*chY;
+  // Rotação e cisalhamento vêm da mesma matriz — quem decide o que fazer com eles é
+  // `_dPsdCapNode` (rotação → raster fiel), aqui só se mede.
+  const rot=Math.atan2(b,a)*180/Math.PI;
+  return {
+    sx, sy,
+    trX, trY, chX, chY,
+    // Tolerância de 1%: arredondamento de matriz não é estiramento intencional.
+    uniforme: Math.abs(sx-sy) <= Math.max(sx,sy)*0.01,
+    razao: sy>0 ? sx/sy : 1,
+    rotacao: Math.round(rot*100)/100
+  };
+}
+/* ══ CORPO EFETIVO EM PIXEL DE DOCUMENTO ══════════════════════════════════════════════════
+   A fórmula explícita que substitui a heurística:
+
+       corpoPx = style.fontSize × escalaY × fatorDeResolucao
+
+   `escalaY` sai de `_dPsdTextScale` (transform × painel Caractere). O terceiro fator é o que
+   não era determinístico: o corpo vem em PONTOS, a prancheta em PIXEL, e em documento hi-res
+   (300dpi) o mesmo "24 pt" do painel são 100 px. O código antigo decidia isso com um limiar —
+   `if(res>90 && _tScale<1.5) fs*=res/72` — cujo `1.5` era um palpite sobre "o transform já
+   trouxe a resolução?". Palpite errado dobrava o corpo ou o deixava 4× pequeno.
+   O DISCRIMINADOR AGORA É O PRÓPRIO ARQUIVO: `text.bounds` é a caixa do texto em text-space
+   (descritor TySh, em pontos) e o transform a leva para o espaço do documento. Se a altura
+   já mapeada explica a caixa de pixels da camada, a resolução JÁ está no transform e o fator
+   é 1; se falta justamente ~res/72, o fator é res/72.
+   ⚠ `text.bounds` é a caixa do MOTOR DE TEXTO: não cresce com sombra nem contorno, ao
+   contrário de `node.top/bottom`. É por isso que serve de régua e o bbox de pixels não serve.
+   Sem `bounds` utilizável, cai na regra anterior (res/72 quando o documento é hi-res) — que
+   é o caso dominante e agora é o FALLBACK, não a regra. */
+function _dPsdFatorResolucao(t, node, res, sy){
+  const r=+res||72;
+  const dpi=(r>90)?(r/72):1;
+  if(dpi===1) return {fator:1, fonte:'documento a 72dpi'};
+  const bb=t&&t.bounds;
+  const st=_dPsdTextStyle(t);
+  const corpo=+(st.fontSize||st.size||0);
+  if(bb && corpo>0 && node){
+    const hTexto=Math.abs((+bb.bottom||0)-(+bb.top||0));           // text-space (pontos)
+    const hPixel=Math.abs((+node.bottom||0)-(+node.top||0));        // documento (pixels)
+    if(hTexto>0.5 && hPixel>0.5){
+      // Escala real text-space → documento, medida no arquivo.
+      const medida=hPixel/hTexto;
+      // Ela combina com `sy` sozinho, ou só com `sy × dpi`? Vence a hipótese mais próxima.
+      const semDpi=Math.abs(medida-sy), comDpi=Math.abs(medida-sy*dpi);
+      return comDpi<semDpi
+        ? {fator:dpi, fonte:'bounds do motor de texto pediram res/72'}
+        : {fator:1,   fonte:'bounds do motor de texto já em pixel (transform carrega a resolução)'};
+    }
   }
-  if(h < 12) return 12; // caixa muito pequena → mínimo razoável
-  return Math.round(Math.max(8,boxFs));
+  return {fator:dpi, fonte:'sem bounds utilizável — regra res/72 do documento hi-res'};
+}
+/* ══ TRACKING → PIXEL: uma função, três consumidores ══════════════════════════════════════
+   O Photoshop mede tracking em MILÉSIMOS DE EM: `tracking:-20` é −0,02 em, e em em depende do
+   corpo. A conversão é `px = tracking/1000 × corpoPx` — e ela estava escrita duas vezes (a
+   camada e cada trecho de `_dPsdRichRuns`), com `Math.round` nas duas.
+   ⚠ Sem arredondar: em corpo pequeno, −0,4px arredondava para 0 e o aperto do designer
+   desaparecia; em corpo grande, o erro de meio pixel por letra somava na linha. Os três
+   renderizadores aceitam fracionário (`ctx.letterSpacing` e `letter-spacing` em CSS).
+   `0` é resultado legítimo e precisa ser gravado: ele impede o respiro automático que os
+   títulos nativos do Luma aplicam. */
+function _dPsdTracking(tracking, corpoPx){
+  const t=+tracking||0;
+  if(!t) return 0;
+  return Math.round((t/1000)*(+corpoPx||12)*100)/100;
+}
+/* ══ ENTRELINHA → FATOR: uma função ═══════════════════════════════════════════════════════
+   O modelo do Luma guarda entrelinha como FATOR do corpo (`l.lineHeight`), o Photoshop como
+   medida absoluta (`leading`, em pontos) ou como "Auto".
+   AUTO é o padrão do Photoshop e o caso mais comum: aí `style.leading` guarda LIXO — sobra de
+   um estado anterior do arquivo — e ler esse valor trazia entrelinhas absurdas. O fator do
+   Auto mora em `paragraphStyle.autoLeading` (1.2 no Photoshop).
+   EXPLÍCITO: `leading/fontSize`, ambos em pontos, então a razão é adimensional e a resolução
+   se cancela — nenhum fator de DPI entra aqui, e é por isso que esta função não recebe `res`.
+   O ramo antigo tinha um `leading*(res/72)` para o caso "sem fontSize", que dividia px por px;
+   virou o mesmo caminho, porque a razão não muda. */
+function _dPsdLeading(t, corpoPx){
+  const st=_dPsdTextStyle(t);
+  if(st.autoLeading===true || !st.leading){
+    const f=+_dPsdParaStyle(t).autoLeading;
+    return (isFinite(f)&&f>0.5&&f<5)?+f.toFixed(3):1.2;
+  }
+  // Razão em PONTOS quando o corpo em pontos existe (o caso normal).
+  const ptCorpo=+st.fontSize||+st.size||0;
+  if(ptCorpo>0){ const r=+st.leading/ptCorpo; return (isFinite(r)&&r>0.3&&r<6)?+r.toFixed(3):1.2; }
+  // Sem corpo em pontos: razão contra o corpo em pixel. Mesma adimensionalidade.
+  const r2=+st.leading/(+corpoPx||12);
+  return (isFinite(r2)&&r2>0.3&&r2<6)?+r2.toFixed(3):1.2;
+}
+/* ══ MÉTRICA DE TEXTO — a fonte da verdade de escala, corpo, entrelinha e tracking ════════
+   Um lugar, uma fórmula, e o mesmo caminho para point e para box (antes divergiam):
+
+       corpoPx = style.fontSize × escalaY × fatorDeResolucao
+
+   Tudo o que entra é explícito do arquivo: `style.fontSize` (pontos), `escalaY` de
+   `_dPsdTextScale` (transform × painel Caractere), e o fator de resolução decidido por
+   `_dPsdFatorResolucao` contra os `bounds` do motor de texto.
+   ⛔ NENHUM número mágico decide o corpo. A antiga cascata usava seis: o limiar `1.5` para
+   adivinhar se o transform já tinha a resolução, o `1.25` de entrelinha presumida, o teto
+   `180`, e a faixa de plausibilidade `0.4`–`2.5` que TROCAVA o corpo do designer pelo
+   estimado a partir da caixa. Esse último era o pior: um "R$" de 12px num bbox alto era
+   considerado implausível e virava outro tamanho — o Photoshop dizia um número e o Luma
+   usava outro, sem registrar.
+   A ÚNICA queda que sobrou é para quando o arquivo não traz corpo nenhum, e ela é registrada
+   em `origem` para o diagnóstico dizer que o valor é estimado e não autorado. */
+function _dPsdTextMetrics(t, node, res, content){
+  const st=_dPsdTextStyle(t);
+  const esc=_dPsdTextScale(t);
+  const corpoPt=+(st.fontSize||st.size||0);
+  let corpoPx=0, origem='', fatorRes=1, fonteRes='';
+  if(corpoPt>0){
+    const fr=_dPsdFatorResolucao(t, node, res, esc.sy);
+    fatorRes=fr.fator; fonteRes=fr.fonte;
+    corpoPx=corpoPt*esc.sy*fatorRes;
+    origem='autorado';
+  }
+  if(!(corpoPx>=1)){
+    /* Arquivo sem corpo utilizável. A estimativa pela caixa é a única saída, e fica marcada
+       como estimativa: 1.2 é o Auto do Photoshop, não um número escolhido aqui. */
+    const h=Math.max(1,Math.abs((+((node&&node.bottom))||0)-(+((node&&node.top))||0)));
+    const nLinhas=Math.max(1, String(content||'').split('\n').filter(x=>x.trim()).length);
+    corpoPx=h/(nLinhas*1.2);
+    origem='estimado pela caixa (o arquivo não trouxe corpo)';
+  }
+  // Piso 8px: abaixo disso nenhum renderizador desenha algo legível. Sem teto: um título de
+  // 220pt a 300dpi são ~917px e é isso que o designer desenhou — o teto antigo o encolhia.
+  const corpo=Math.max(8, Math.round(corpoPx));
+  return {
+    corpo,
+    corpoPt, escala:esc, fatorResolucao:fatorRes, fonteResolucao:fonteRes, origem,
+    entrelinha:_dPsdLeading(t, corpo),
+    tracking:_dPsdTracking(st.tracking, corpo),
+    // Deslocamento de baseline do painel Caractere (sobrescrito/subscrito), em pontos → px.
+    // É o que levanta os centavos em "R$ 29,90" — dado explícito que ninguém lia.
+    baselineShift:st.baselineShift ? Math.round((+st.baselineShift)*esc.sy*fatorRes*100)/100 : 0
+  };
+}
+/* Contrato antigo preservado (a suíte e `_dPsdRichRuns` chamam por este nome), agora derivado
+   da métrica única em vez de ter a sua própria cascata. */
+function _dPsdFontSize(t,h,content,res){
+  return _dPsdTextMetrics(t, {top:0,bottom:h||0}, res, content).corpo;
 }
 // Caixa de PARÁGRAFO (box text): deriva {x,y,w,h} em px ABSOLUTOS do doc — a caixa 1:1 que o
 // designer desenhou no Photoshop, para NÃO reencaixar/encolher o texto na importação.
@@ -477,19 +616,46 @@ function _dPsdBox(node){ return { x:Math.round(node.left||0), y:Math.round(node.
 // Projeta uma máscara do PSD (que vive em coords do DOC) na caixa de QUALQUER camada →
 // canvas alpha do tamanho da caixa. Genérico de propósito: a mesma máscara de um grupo
 // precisa ser reprojetada na caixa de cada filho (o Luma não tem grupo).
-function _dPsdMaskToBox(mk, b){
+/* `b` é a caixa DESTINO em coordenadas de documento. `origem` (opcional) é a caixa da camada
+   dona da máscara, também em documento: é ela que define o espaço quando o Photoshop marcou
+   a máscara como RELATIVA à camada. Sem esse parâmetro, o espaço é o do documento. */
+function _dPsdMaskToBox(mk, b, origem){
   if(!mk || mk.disabled || !mk.canvas || !b || b.w<1 || b.h<1) return null;
   const def=(mk.defaultColor!=null?mk.defaultColor:0);
-  const mx=Math.round((mk.left||0)-b.x), my=Math.round((mk.top||0)-b.y);
+  /* ESPAÇO DA MÁSCARA (§4 do briefing: "não assumir que a máscara tem a mesma origem da
+     camada"). `positionRelativeToLayer` é uma flag do próprio arquivo: quando ligada, o
+     left/top da máscara é medido a partir do canto da CAMADA, não do documento. Somar a
+     origem da camada põe os dois no mesmo espaço antes de subtrair a caixa destino. */
+  const ox=(mk.relativa&&origem)?(origem.x||0):0, oy=(mk.relativa&&origem)?(origem.y||0):0;
+  const mx=Math.round((mk.left||0)+ox-b.x), my=Math.round((mk.top||0)+oy-b.y);
   const tmp=document.createElement('canvas'); tmp.width=b.w; tmp.height=b.h;
   const tctx=tmp.getContext('2d');
   tctx.fillStyle='rgb('+def+','+def+','+def+')'; tctx.fillRect(0,0,b.w,b.h);
+  /* SUAVIZAÇÃO (feather): o cursor "Difusão" do Photoshop é um desfoque gaussiano do alpha da
+     máscara, e é exatamente o que `filter:blur()` do Canvas faz. Sem isto, toda máscara suave
+     entrava com borda dura — a diferença mais visível de uma foto recortada com difusão.
+     O raio vem em px do documento; `sigma ≈ raio/2` é a relação que o Photoshop usa entre o
+     valor do cursor e o desvio do gaussiano. */
+  const feather=+mk.feather||0;
+  if(feather>0.5){ try{ tctx.filter='blur('+(feather/2).toFixed(2)+'px)'; }catch(e){} }
   tctx.drawImage(mk.canvas, mx, my);
+  try{ tctx.filter='none'; }catch(e){}
   const id=tctx.getImageData(0,0,b.w,b.h), d=id.data;
-  for(let i=0;i<d.length;i+=4){ const lum=d[i]*.299+d[i+1]*.587+d[i+2]*.114; d[i]=0;d[i+1]=0;d[i+2]=0;d[i+3]=lum; }
+  /* DENSIDADE: o cursor "Densidade" é a OPACIDADE da máscara — 100% esconde por completo,
+     50% esconde metade. Ausente = 1 (o default). Era ignorado, então uma máscara a 50%
+     escondia o conteúdo inteiro. Entra como fator sobre o alpha, junto da luminância. */
+  const dens=(mk.density!=null && isFinite(+mk.density))?Math.max(0,Math.min(1,+mk.density)):1;
+  for(let i=0;i<d.length;i+=4){
+    const lum=d[i]*.299+d[i+1]*.587+d[i+2]*.114;
+    // Densidade < 1 levanta o piso: a área escondida deixa de ser 0 e passa a 255×(1−dens).
+    d[i]=0;d[i+1]=0;d[i+2]=0;
+    d[i+3]=(dens>=1)?lum:Math.round(lum*dens+255*(1-dens));
+  }
   tctx.putImageData(id,0,0); return tmp;
 }
-function _dPsdLayerMaskCanvas(node){ return _dPsdMaskToBox(node.mask, _dPsdBox(node)); }
+// A caixa da camada é ao mesmo tempo o destino e a ORIGEM do espaço relativo — por isso ela
+// entra duas vezes: `_dPsdMaskToBox` precisa saber de onde medir quando a máscara é relativa.
+function _dPsdLayerMaskCanvas(node){ const b=_dPsdBox(node); return _dPsdMaskToBox(node.mask, b, b); }
 // CLIPPING mask: a cobertura (alpha) da camada-base recortada na caixa do layer atual → canvas alpha
 function _dPsdClipMaskCanvas(node, base){
   if(!base || !base.canvas) return null;
@@ -514,10 +680,20 @@ function _dPsdDownscaleMaskURL(canvas, max){
     return c.toDataURL('image/png');
   }catch(e){ try{ return canvas.toDataURL('image/png'); }catch(_){ return null; } }
 }
-// Compõe TODAS as máscaras que incidem sobre a camada (multiplicando alphas) → dataURL alpha.
-// Fontes: máscara da própria camada, clipping, recorte vetorial e as máscaras dos GRUPOS-pai.
-// extra = {groupMasks:[mk…], vecCanvas}. Antes só sabia combinar camada+clipping, e a vetorial
-// era exclusiva — quem tivesse as duas perdia uma delas.
+/* Compõe as TRÊS máscaras que incidem sobre uma camada, multiplicando os alphas — elas se
+   somam em vez de uma sobrescrever a outra (antes a vetorial era exclusiva e quem tivesse as
+   duas perdia uma). Os três mecanismos são distintos e continuam distintos aqui (§3):
+     · MÁSCARA DE CAMADA (`node.mask`)  — raster, controla a visibilidade da própria camada;
+     · RECORTE VETORIAL (`vectorMask`)  — geometria Bézier, chega pronto em `extra.vecCanvas`;
+     · MÁSCARA DE RECORTE (`clipping`)  — o alpha de OUTRA camada, a base da cadeia.
+
+   ⛔ MÁSCARA DE GRUPO NÃO ENTRA AQUI — e o parâmetro `extra.groupMasks` que existia para isso
+   era CÓDIGO MORTO: `inh.masks` nascia `[]` nos dois pontos do walk e nunca recebia um push,
+   então o ramo nunca executou. Ele é da era em que o Luma não tinha grupo e a máscara do
+   grupo precisava ser reprojetada em cada filho. Hoje o grupo É uma camada (`type:'group'`
+   com `parentId`) e a máscara vive em `gd.mask`, aplicada UMA vez ao composto do grupo por
+   `_fRenderGroup` — que é mais correto que por filho: no Photoshop a máscara do grupo incide
+   sobre o resultado da composição, não sobre cada camada isolada. Removido em 10/09. */
 function _dPsdComputeMask(node, base, extra){
   try{
     extra=extra||{};
@@ -526,8 +702,6 @@ function _dPsdComputeMask(node, base, extra){
     const lm=_dPsdLayerMaskCanvas(node); if(lm) parts.push(lm);
     if(node.clipping){ const cm=_dPsdClipMaskCanvas(node, base); if(cm) parts.push(cm); }
     if(extra.vecCanvas) parts.push(extra.vecCanvas);
-    // Máscara de grupo reprojetada na caixa desta camada (uma por grupo-pai mascarado).
-    (extra.groupMasks||[]).forEach(mk=>{ const gm=_dPsdMaskToBox(mk, b); if(gm) parts.push(gm); });
     if(!parts.length) return null;
     const out=document.createElement('canvas'); out.width=b.w; out.height=b.h;
     const octx=out.getContext('2d');
@@ -592,11 +766,25 @@ function _dPsdEditableVectorPath(node, allowOpen){
   try{
     const vm=node&&node.vectorMask, b=_dPsdBox(node);
     if(!vm||vm.disable||vm.invert||!b.w||!b.h||!Array.isArray(vm.paths)||!vm.paths.length)return null;
-    let fillRule=null; const paths=[];
+    let fillRule=null; const paths=[]; let temSubtract=false;
     for(const p of vm.paths){
       if(!p||!Array.isArray(p.knots)||p.knots.length<2)return null;
       if(p.open&&!allowOpen)return null;
-      if(p.operation&&p.operation!=='combine')return null;
+      /* CAMINHO COMPOSTO — anel, letra vazada, forma com buraco (§21 do briefing).
+         O Photoshop guarda o buraco como um subcaminho com `operation:'subtract'`. Antes
+         QUALQUER operação diferente de 'combine' reprovava a forma inteira e ela caía no
+         recorte raster — então toda forma com furo perdia a geometria editável.
+         `subtract` de um subcaminho contido no outro é exatamente o que a regra de
+         preenchimento **evenodd** produz: cruzar duas bordas volta a ser "fora". Não é uma
+         aproximação, é a mesma definição — e o `evenodd` já é suportado pelos três
+         renderizadores (`gVectorPathFillRule`).
+         ⛔ `intersect` e `exclude` continuam reprovando: não têm equivalente em regra de
+         preenchimento, e fingir que têm encheria buracos ou apagaria áreas. */
+      const op=p.operation||'combine';
+      if(op!=='combine'){
+        if(op!=='subtract')return null;
+        temSubtract=true;
+      }
       const rule=p.fillRule==='even-odd'?'evenodd':'nonzero';
       if(fillRule&&fillRule!==rule)return null;
       fillRule=rule;
@@ -608,7 +796,10 @@ function _dPsdEditableVectorPath(node, allowOpen){
       });
       paths.push({closed:!p.open,knots});
     }
-    const out={fillRule:fillRule||'nonzero',paths};
+    // Um subcaminho subtraído exige evenodd para o furo aparecer, mesmo que o arquivo
+    // declarasse nonzero: com nonzero as duas bordas somam e o buraco fecha.
+    const out={fillRule:(temSubtract?'evenodd':(fillRule||'nonzero')),paths};
+    if(temSubtract) out.compound=true;   // vira motivo na revisão: geometria composta preservada
     return typeof gVectorPathValid==='function'&&gVectorPathValid(out)?out:null;
   }catch(e){ return null; }
 }
@@ -732,7 +923,14 @@ function _dPsdRichRuns(t, res, h){
         fontSize:_rfs,
         font: remap||_dPsdRobotoFont(fname),
         _fontName:fname, // nome original — permite remap posterior (upload de fonte na revisão)
-        letterSpacing: st.tracking? Math.round((st.tracking/1000)*(_rfs||12)) : 0 // tracking sobre o tamanho final do trecho
+        // Tracking pela MESMA função da camada (`_dPsdTracking`) — era a segunda cópia da
+        // fórmula 1/1000 em, e as duas arredondavam para inteiro. Sem arredondar, o aperto
+        // do designer sobrevive em corpo pequeno.
+        letterSpacing: _dPsdTracking(st.tracking, _rfs),
+        // Sobrescrito/subscrito POR TRECHO — é assim que "R$ 29,⁹⁰" é feito no Photoshop, e o
+        // render de texto rico já consome `yOffset` (png-generator). O parser nunca o gravava,
+        // então os centavos elevados voltavam para a linha do inteiro.
+        yOffset: st.baselineShift? -Math.round((+st.baselineShift)*100)/100 : 0
       });
     }
     return out.length>1?out:null;
@@ -964,7 +1162,12 @@ const _DPSD_WORKER_SRC = ""
   + "function strip(n){var o={},i;for(i=0;i<FIELDS.length;i++){o[FIELDS[i]]=n[FIELDS[i]];}"
   + "o.clippingLayer=n.clippingLayer||n.clipping;"
   + "if(n.imageData&&n.imageData.data){o._img={w:n.imageData.width,h:n.imageData.height,buf:n.imageData.data.buffer};transfers.push(n.imageData.data.buffer);}"
-  + "if(n.mask&&n.mask.imageData&&n.mask.imageData.data){o._mask={w:n.mask.imageData.width,h:n.mask.imageData.height,buf:n.mask.imageData.data.buffer,left:n.mask.left,top:n.mask.top,defaultColor:n.mask.defaultColor,disabled:n.mask.disabled};transfers.push(n.mask.imageData.data.buffer);}"
+  // A máscara atravessa o worker com TODOS os parâmetros que o Photoshop grava, não só a
+  // geometria: `userMaskDensity` (o cursor Densidade — máscara a 50% escondia 100% aqui),
+  // `userMaskFeather` (o raio de suavização — borda suave entrava dura) e
+  // `positionRelativeToLayer` (quando ligado, left/top são RELATIVOS à camada, não ao
+  // documento, e o offset era calculado no espaço errado).
+  + "if(n.mask&&n.mask.imageData&&n.mask.imageData.data){o._mask={w:n.mask.imageData.width,h:n.mask.imageData.height,buf:n.mask.imageData.data.buffer,left:n.mask.left,top:n.mask.top,defaultColor:n.mask.defaultColor,disabled:n.mask.disabled,density:n.mask.userMaskDensity,feather:n.mask.userMaskFeather,relativa:n.mask.positionRelativeToLayer,deVetor:n.mask.fromVectorData};transfers.push(n.mask.imageData.data.buffer);}"
   + "if(n.children)o.children=n.children.map(strip);return o;}"
   + "var res=(psd.imageResources&&psd.imageResources.resolutionInfo&&psd.imageResources.resolutionInfo.horizontalResolution)||72;"
   + "if(res&&res.value)res=res.value;"
@@ -992,7 +1195,12 @@ function _dPsdRebuildNode(node){
       const mc=document.createElement('canvas'); mc.width=node._mask.w; mc.height=node._mask.h;
       const mid=new ImageData(new Uint8ClampedArray(node._mask.buf), node._mask.w, node._mask.h);
       mc.getContext('2d').putImageData(mid,0,0);
-      n.mask={canvas:mc, left:node._mask.left, top:node._mask.top, defaultColor:node._mask.defaultColor, disabled:node._mask.disabled};
+      // Espelho EXATO da lista branca do worker (a divergência entre as duas já custou o
+      // `smartObject` faltando de um lado; ver _DPSD_NODE_FIELDS).
+      n.mask={canvas:mc, left:node._mask.left, top:node._mask.top,
+        defaultColor:node._mask.defaultColor, disabled:node._mask.disabled,
+        density:node._mask.density, feather:node._mask.feather,
+        relativa:node._mask.relativa, deVetor:node._mask.deVetor};
     }catch(e){}
   }
   if(node.children) n.children=node.children.map(_dPsdRebuildNode);
@@ -1163,36 +1371,130 @@ function _dPsdExactFmt(w, h){
 // Tenta mapear um nome de fonte do PSD para fontes bundled (dBuiltinFonts) ou enviadas
 // (dCustomFonts). Normaliza ambos (lowercase, só alfanum) e aceita correspondência
 // exata ou por prefixo. Retorna 'custom:Family' ou null se não encontrar.
-function _dPsdRemapFont(fontName){
-  if(!fontName) return null;
+/* ══ RESOLUÇÃO DE FONTE — quatro respostas, não um booleano ═══════════════════════════════
+   POR QUE: até 10/09 isto devolvia "achei" ou "não achei" e o item guardava um `fontRemapped`
+   booleano. Casar EXATO com uma família e casar POR PREFIXO ("ObviouslyWideBold" batendo
+   "Obviously Wide") chegavam na revisão com o mesmo selo verde "Fonte vinculada" — e são
+   coisas diferentes: a segunda é outro arquivo de fonte, com outras métricas, o que muda a
+   largura de cada linha. Sem separar, um erro de FONTE era diagnosticado como erro de
+   GEOMETRIA — e a tentação era corrigir posição para compensar tipografia, que é justamente
+   o conserto errado (§5 do briefing desta rodada).
+   Os quatro estados, em ordem de fidelidade:
+     'exact'        a família do Photoshop existe aqui, mesmo nome → métrica é a real;
+     'approximated' casou por prefixo: outra família, provavelmente da mesma linha;
+     'substituted'  não existe, mas o nome carrega o PESO (Black/Bold/Medium/Light/Thin) e a
+                    variante Roboto correspondente foi usada → peso preservado, desenho não;
+     'missing'      não existe e o nome não diz o peso → Roboto Regular, peso adivinhado.
+   Devolve {status, font, family}. `font` é o valor que vai para `l.font`, no formato que os
+   três renderizadores já entendem — nada de modelo novo. */
+function _dPsdFontResolve(fontName){
+  const nome=String(fontName||'');
+  if(!nome) return {status:'missing', font:"'Roboto'", family:'', face:_dPsdFontFace(''), pesoPedido:null, pesoUsado:400};
+  const face=_dPsdFontFace(nome);
   const norm=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
-  const t=norm(fontName); if(!t) return null;
+  const alvoCheio=norm(nome);          // "montserratsemibold"
+  const alvoFamilia=norm(face.familia); // "montserrat"
   // Fontes bundled (dBuiltinFonts) têm prioridade pois não requerem upload do usuário
   const builtin=(typeof dBuiltinFonts!=='undefined'&&dBuiltinFonts)||[];
   const custom=(typeof dCustomFonts!=='undefined'&&dCustomFonts)||[];
-  const all=[
-    ...builtin.map(f=>({name:f.family,family:f.family})),
-    ...custom
+  const todas=[
+    ...builtin.map(f=>({family:f.family, peso:f.weight||400})),
+    ...custom.map(f=>({family:f.family, peso:f.weight||400, apelido:f.name}))
   ];
-  if(!all.length) return null;
-  const exact=all.find(f=>norm(f.name)===t||norm(f.family)===t);
-  if(exact) return 'custom:'+exact.family;
-  // correspondência por prefixo (ex: "ObviouslyWideBold" bate "Obviously Wide")
-  const partial=all.find(f=>{ const fn=norm(f.name),ff=norm(f.family);
-    return t.startsWith(fn)||fn.startsWith(t)||t.startsWith(ff)||ff.startsWith(t); });
-  return partial?'custom:'+partial.family:null;
+  if(todas.length){
+    /* A FAMÍLIA vem antes do PESO, que é a ordem que a definição de APPROXIMATED pede:
+       "achou a família, mas não exatamente o mesmo peso/estilo". Casa com o nome cheio
+       (uma fonte enviada como "Montserrat SemiBold" é uma família própria aqui) ou com a
+       família limpa (o arquivo é "Montserrat" e o PSD pediu a variante SemiBold). */
+    const porNomeCheio=todas.find(f=>norm(f.family)===alvoCheio||norm(f.apelido)===alvoCheio);
+    if(porNomeCheio) return {status:'exact', font:'custom:'+porNomeCheio.family, family:porNomeCheio.family,
+      face, pesoPedido:face.peso, pesoUsado:porNomeCheio.peso};
+    const porFamilia=alvoFamilia && todas.find(f=>norm(f.family)===alvoFamilia||norm(f.apelido)===alvoFamilia);
+    if(porFamilia){
+      // Família certa. O peso bate? Sem peso declarado no nome, 400 é o que o PSD pediu.
+      const pedido=face.peso!=null?face.peso:400;
+      const bate=Math.abs((porFamilia.peso||400)-pedido)<=50;
+      return {status:bate?'exact':'approximated', font:'custom:'+porFamilia.family, family:porFamilia.family,
+        face, pesoPedido:pedido, pesoUsado:porFamilia.peso||400};
+    }
+    /* Prefixo é o último recurso e NUNCA é exato: "ObviouslyWideBold" bater "Obviously Wide"
+       é outro arquivo de fonte, com outras métricas. Dizer "vinculada" aqui era o que fazia
+       uma diferença de LARGURA parecer erro de posição. */
+    const porPrefixo=todas.find(f=>{ const ff=norm(f.family), fa=norm(f.apelido);
+      return (ff&&(alvoCheio.startsWith(ff)||ff.startsWith(alvoCheio)))
+          || (fa&&(alvoCheio.startsWith(fa)||fa.startsWith(alvoCheio))); });
+    if(porPrefixo) return {status:'approximated', font:'custom:'+porPrefixo.family, family:porPrefixo.family,
+      face, pesoPedido:face.peso, pesoUsado:porPrefixo.peso||400};
+  }
+  /* Sem família equivalente: cai no Roboto, que é a substituição CONHECIDA do Luma. Preservar
+     o peso é o que separa "substituída" (o peso do nome sobreviveu) de "ausente" (o nome não
+     declara peso, então o 400 é palpite nosso, não escolha do designer). */
+  return {status:face.pesoDeclarado?'substituted':'missing', font:_dPsdRobotoFont(nome), family:'',
+    face, pesoPedido:face.peso, pesoUsado:face.peso!=null?face.peso:400};
+}
+/* Compatibilidade: o nome antigo continua respondendo, agora derivado da resolução.
+   Devolve 'custom:Family' quando há família equivalente (exata OU por prefixo), null quando
+   não há — exatamente o contrato de antes. */
+function _dPsdRemapFont(fontName){
+  const r=_dPsdFontResolve(fontName);
+  return (r.status==='exact'||r.status==='approximated') ? r.font : null;
 }
 
 // Preserva as variantes da família Roboto já empacotadas no Luma. O fallback antigo
 // distinguia apenas Bold/Black e transformava Light/Thin/Medium em Regular.
+/* ══ NOME POSTSCRIPT → FAMÍLIA + PESO + ESTILO ════════════════════════════════════════════
+   O Photoshop entrega o nome que a fonte declara, não a família limpa:
+     Montserrat-SemiBold · Montserrat SemiBold · MontserratRoman-SemiBoldItalic ·
+     Obviously-Black · Gotham-BookItalic
+   O navegador quer as três coisas separadas: família, `font-weight` numérico, `font-style`.
+   ⛔ ANTES o peso saía de `s.includes('bold')`. Isso erra por um degrau em toda a faixa
+   intermediária, que é justamente a que o designer usa: "SemiBold" contém "bold" → 700,
+   quando SemiBold é 600; "ExtraLight" contém "light" → 300, quando é 200. Um título
+   importado nascia mais pesado do que o desenhado, e a largura de cada linha ia com ele.
+   A tabela é ordenada do MAIS ESPECÍFICO para o menos: 'extrabold' tem de ser testado antes
+   de 'bold', e 'semibold' antes dos dois — senão o substring mais curto captura primeiro. */
+const _DPSD_PESOS=[
+  [/\b(?:extra|ultra)[\s._-]*black\b|\bextrablack\b/i, 950],
+  [/\bblack\b|\bheavy\b|\bfat\b|\b900\b/i,             900],
+  [/\b(?:extra|ultra)[\s._-]*bold\b|\bextrabold\b|\bultrabold\b|\b800\b/i, 800],
+  [/\b(?:semi|demi)[\s._-]*bold\b|\bsemibold\b|\bdemibold\b|\b600\b/i,     600],
+  [/\bbold\b|\b700\b/i,                                700],
+  [/\bmedium\b|\b500\b/i,                              500],
+  [/\bbook\b|\bregular\b|\bnormal\b|\broman\b|\b400\b/i,400],
+  [/\b(?:extra|ultra)[\s._-]*light\b|\bextralight\b|\bultralight\b|\b200\b/i, 200],
+  [/\blight\b|\b300\b/i,                               300],
+  [/\bthin\b|\bhairline\b|\b100\b/i,                   100]
+];
+// Palavras que são ESTILO/PESO, não família — saem do nome para sobrar a família.
+const _DPSD_LIMPA_FAM=/[\s._-]*(?:extra|ultra|semi|demi)?[\s._-]*(?:black|heavy|fat|bold|medium|book|regular|normal|roman|light|thin|hairline|italic|oblique|it)\b/gi;
+/* Quebra o nome do Photoshop nas três informações que o navegador usa.
+   `\b` sobre o nome com separadores normalizados: "Montserrat-SemiBold" vira
+   "Montserrat SemiBold", então as bordas de palavra funcionam em PostScript e em nome legível. */
+function _dPsdFontFace(fontName){
+  const bruto=String(fontName||'');
+  // camelCase → espaço ("MontserratSemiBold" → "Montserrat Semi Bold") e separadores → espaço,
+  // para as bordas de palavra da tabela valerem em qualquer uma das quatro grafias.
+  const legivel=bruto.replace(/([a-z0-9])([A-Z])/g,'$1 $2').replace(/[._-]+/g,' ').replace(/\s+/g,' ').trim();
+  let peso=null;
+  for(const [re,w] of _DPSD_PESOS){ if(re.test(legivel)){ peso=w; break; } }
+  const italico=/\b(?:italic|oblique|it)\b/i.test(legivel);
+  const familia=legivel.replace(_DPSD_LIMPA_FAM,'').replace(/\s+/g,' ').trim();
+  return {
+    postScriptName:bruto,
+    familia:familia||legivel||'',
+    peso:peso,                 // null = o nome não declara peso (≠ 400 assumido)
+    italico:italico,
+    pesoDeclarado:peso!=null
+  };
+}
+/* Variante Roboto correspondente ao PESO pedido. O formato de retorno é o contrato que
+   `dTextFontParts` já lê ("'Roboto',600"), então nada muda nos renderizadores.
+   Antes esta função caçava substring e por isso herdava os mesmos erros de degrau. */
 function _dPsdRobotoFont(fontName){
-  const s=String(fontName||'').toLowerCase();
-  if(/black|heavy|900/.test(s)) return "'Roboto Black'";
-  if(/bold|700/.test(s)) return "'Roboto',bold";
-  if(/medium|500/.test(s)) return "'Roboto',500";
-  if(/light|300/.test(s)) return "'Roboto',300";
-  if(/thin|100/.test(s)) return "'Roboto',100";
-  return "'Roboto'";
+  const f=_dPsdFontFace(fontName);
+  if(f.peso==null) return "'Roboto'";
+  if(f.peso>=900) return "'Roboto Black'";
+  return "'Roboto',"+f.peso;
 }
 
 // Extrai o estilo DOMINANTE de um nó de texto considerando todos os styleRuns.
@@ -1331,7 +1633,12 @@ const _DPSD_CAP_NIVEIS={native:0, native_lossy:1, raster:2, unsupported:3};
    `rotulo` é PT-BR porque vai para a revisão e para o diagnóstico, não só para o console. */
 const _DPSD_CAP_MOTIVOS={
   /* ── etapa DECODE: o formato PSD já não entrega algo interpretável ── */
-  smart_object:        {nivel:'raster',       etapa:'decode',     rotulo:'Objeto inteligente — o Photoshop entrega só o composto achatado'},
+  smart_object:        {nivel:'raster',       etapa:'decode',     rotulo:'Objeto inteligente deformado — o Photoshop entrega só o composto achatado'},
+  /* Uma FOTO colocada reta (sem perspectiva, warp, rotação ou cisalhamento) é visualmente
+     uma imagem comum: o pixel continua sendo a única fonte que o ag-psd entrega, mas trocar
+     o conteúdo por outra foto reproduz o mesmo resultado. Separar os dois casos é o que
+     permite a revisão oferecer "Moldura de foto" com honestidade num, e não no outro. */
+  smart_object_substituivel:{nivel:'raster',  etapa:'decode',     rotulo:'Objeto inteligente com foto reta — o conteúdo pode ser substituído'},
   adjustment_layer:    {nivel:'raster',       etapa:'decode',     rotulo:'Camada de ajuste sem pixels próprios'},
   pattern_fill:        {nivel:'raster',       etapa:'decode',     rotulo:'Preenchimento por padrão — o Luma não tem modelo de padrão'},
   pattern_overlay:     {nivel:'raster',       etapa:'decode',     rotulo:'Sobreposição de padrão — o Luma não tem modelo de padrão'},
@@ -1360,10 +1667,20 @@ const _DPSD_CAP_MOTIVOS={
   blend_dropped:       {nivel:'native_lossy', etapa:'capacidade', rotulo:'Modo de mesclagem sem render no Luma — entrou como Normal'},
   adjust_unsupported:  {nivel:'native_lossy', etapa:'capacidade', rotulo:'Tipo de ajuste que o Luma ainda não recalcula'},
   adjust_approx:       {nivel:'native_lossy', etapa:'capacidade', rotulo:'Ajuste com matemática aproximada do Photoshop'},
-  font_missing:        {nivel:'native_lossy', etapa:'fonte',      rotulo:'Fonte do Photoshop ausente — substituída'},
+  /* Os três estados de fonte que NÃO são 'exact'. Separados de propósito: cada um tem uma
+     consequência diferente na largura da linha, e nenhum deles é erro de geometria. */
+  font_approximated:   {nivel:'native_lossy', etapa:'fonte',      rotulo:'Fonte parecida pelo nome, mas é outro arquivo — a métrica difere'},
+  font_substituted:    {nivel:'native_lossy', etapa:'fonte',      rotulo:'Fonte ausente — Roboto no mesmo peso; o desenho da letra difere'},
+  font_missing:        {nivel:'native_lossy', etapa:'fonte',      rotulo:'Fonte ausente e sem peso no nome — Roboto Regular, peso adivinhado'},
   text_multi_style:    {nivel:'native_lossy', etapa:'texto',      rotulo:'Estilos mistos reduzidos ao estilo dominante'},
   text_justify_all:    {nivel:'native_lossy', etapa:'texto',      rotulo:'Justificado total — a última linha não estica'},
   text_box_approx:     {nivel:'native_lossy', etapa:'geometria',  rotulo:'Caixa de parágrafo não derivável — usando o contorno dos glifos'},
+  /* Escala não uniforme: o painel Caractere do Photoshop condensa/estica a letra num eixo só,
+     e o modelo do Luma tem UM corpo de fonte. O corpo segue o eixo vertical e o estiramento
+     horizontal é perda conhecida — nomeada, porque compensá-la com tracking seria falseá-la
+     (tracking afasta letras; escala horizontal deforma o glifo). */
+  text_scale_nao_unif: {nivel:'native_lossy', etapa:'texto',      rotulo:'Letra condensada ou esticada num eixo só — o Luma tem um corpo de fonte'},
+  text_size_estimado:  {nivel:'native_lossy', etapa:'texto',      rotulo:'O arquivo não trouxe o corpo da fonte — estimado pela altura da caixa'},
   vector_mask_failed:  {nivel:'native_lossy', etapa:'mascara',    rotulo:'Recorte vetorial não rasterizável — forma simplificada'},
   clip_base_fallback:  {nivel:'native_lossy', etapa:'dependencia',rotulo:'Base de recorte complexa — recorte simplificado'},
   /* ── a perda que NENHUM aviso cobria (achado desta rodada) ─────────────────────────────
@@ -1374,8 +1691,27 @@ const _DPSD_CAP_MOTIVOS={
      JUSTAMENTE por causa de um efeito, perdiam o efeito em silêncio — o dado era gravado e
      ninguém o consumia. Enquanto os renderizadores não lerem efeito em imagem, a saída
      honesta é declarar a perda em vez de fingir que ela não existe (§51 do briefing). */
-  fx_only_native:      {nivel:'native_lossy', etapa:'conversao',  rotulo:'Efeitos de camada não saem em imagem fiel — só em texto ou forma'}
+  fx_only_native:      {nivel:'native_lossy', etapa:'conversao',  rotulo:'Efeito que só sai em texto ou forma — em imagem fiel ele não é aplicado'}
 };
+/* ══ CADEIA DE DIAGNÓSTICO — desligada por padrão ═════════════════════════════════════════
+   Para achar em QUE PONTO a informação divergiu, o livro-caixa de capacidade não basta: ele
+   diz o que se perdeu, não onde a caixa mudou de valor. Este é o registro por etapa:
+
+     PHOTOSHOP → decode (o que o ag-psd entregou) → normalize (o que lemos)
+     → geometry (a caixa resolvida e de ONDE ela veio) → dependencies (grupo, recorte, máscara)
+     → capability (o veredito) → convert (o tipo Luma final)
+
+   ⛔ Desligada por padrão e sem custo quando desligada: cada ponto de registro é um `if` de
+   booleano. Nada de `console.log` solto — ligar é `dPsdTrace(true)` antes de abrir o arquivo,
+   e ler é `dPsdDiagnostico()`. Não persiste: o registro morre com o item. */
+let _dPsdTraceOn=false;
+function dPsdTrace(on){ _dPsdTraceOn=(on!==false); return _dPsdTraceOn; }
+function _dPsdTrace(it, etapa, dados){
+  if(!_dPsdTraceOn || !it) return;
+  (it.trace||(it.trace=[])).push(Object.assign({etapa}, dados||{}));
+}
+// Caixa em texto curto, o formato que a cadeia usa para "de onde para onde" ficar legível.
+function _dPsdCx(b){ return b?(Math.round(b.x)+','+Math.round(b.y)+' '+Math.round(b.w)+'×'+Math.round(b.h)):'—'; }
 // Livro-caixa novo. `raster` é o que o walk consulta; `motivos` é o que a revisão explica.
 function _dPsdCapNovo(){ return {nivel:'native', raster:false, motivos:[]}; }
 /* Registra um motivo. Idempotente por código: o mesmo motivo marcado duas vezes (o walk e o
@@ -1399,12 +1735,81 @@ function _dPsdCapTem(it, code){
   const cap=it.capability||_dPsdCapItem(it);
   return !!(cap && cap.motivos.some(m=>m.code===code));
 }
+/* ══ OBJETO INTELIGENTE — a leitura que faltava ═══════════════════════════════════════════
+   `_dPsdCapNode` mandava todo smart object para raster fiel e nunca olhava o que ele é. Mas o
+   ag-psd entrega bastante: `placedLayer.type` ('raster' | 'vector' | 'image stack'), os
+   **4 cantos** da colocação em `transform` (8 números: x,y × 4), `nonAffineTransform` — que
+   só existe quando DIFERE do transform, ou seja, é a assinatura de PERSPECTIVA —, `warp`,
+   `crop` e a dimensão ORIGINAL do conteúdo (`width`/`height`).
+   Isso separa dois casos que eram um só (§13 do briefing):
+     · uma FOTO colocada reta — quadrilátero alinhado ao eixo, sem perspectiva nem warp. É o
+       hambúrguer do PSD: visualmente é uma imagem comum e continua substituível;
+     · um MOCKUP — perspectiva, rotação, cisalhamento ou warp. Aí o pixel composto é a única
+       verdade e reconstruir não faz sentido.
+   ⛔ NÃO decide campo nem modo: só descreve. Quem decide fidelidade é o estágio de
+   capacidade, e quem escolhe o vínculo é o designer na revisão (§39/§47).
+   A ordem dos cantos no `transform` do Photoshop é superior-esquerdo, superior-direito,
+   inferior-direito, inferior-esquerdo. */
+function _dPsdSmartObject(node){
+  const pl=node&&(node.placedLayer||node.smartObject);
+  if(!pl) return null;
+  const t=Array.isArray(pl.transform)&&pl.transform.length>=8?pl.transform.map(Number):null;
+  const out={
+    tipo:pl.type||'unknown',
+    larguraOriginal:+pl.width||0, alturaOriginal:+pl.height||0,
+    temCrop:!!pl.crop,
+    // `nonAffineTransform` presente ⟺ a colocação tem perspectiva (o Photoshop só grava a
+    // segunda matriz quando ela difere da afim).
+    perspectiva:!!pl.nonAffineTransform,
+    warp:false, eixoAlinhado:true, rotacao:0, cisalhado:false
+  };
+  const w=pl.warp;
+  if(w && w.style && w.style!=='none' && w.style!=='warpNone' && ((+w.value||0)!==0||(+w.perspective||0)!==0)) out.warp=true;
+  if(t){
+    const [x0,y0,x1,y1,x2,y2,x3,y3]=t;
+    // Aresta superior e aresta esquerda: num quadrilátero alinhado ao eixo, a superior é
+    // horizontal (dy≈0) e a esquerda é vertical (dx≈0).
+    const larg=Math.hypot(x1-x0,y1-y0), alt=Math.hypot(x3-x0,y3-y0);
+    const tol=Math.max(1, Math.max(larg,alt)*0.01);
+    out.eixoAlinhado=(Math.abs(y1-y0)<=tol && Math.abs(x3-x0)<=tol);
+    out.rotacao=Math.round(Math.atan2(y1-y0,x1-x0)*180/Math.PI*100)/100;
+    // Cisalhamento: as duas arestas deveriam ser perpendiculares. O produto escalar
+    // normalizado mede o desvio, e é imune a rotação (ao contrário de comparar com o eixo).
+    const dot=((x1-x0)*(x3-x0)+(y1-y0)*(y3-y0))/Math.max(1e-6,larg*alt);
+    out.cisalhado=Math.abs(dot)>0.02;
+    out.larguraColocada=Math.round(larg); out.alturaColocada=Math.round(alt);
+    // Escala da colocação: quanto do conteúdo original está sendo mostrado. É o que diz se o
+    // raster precisa de mais resolução do que a caixa da camada sugere.
+    if(out.larguraOriginal>0) out.escala=+(larg/out.larguraOriginal).toFixed(4);
+  }
+  /* SUBSTITUÍVEL = a colocação é uma imagem reta. Só nesse caso a camada é, visualmente, uma
+     foto comum — e portanto trocar o conteúdo por outra foto reproduz o mesmo resultado. */
+  out.substituivel=(out.tipo==='raster'||out.tipo==='unknown')
+    && out.eixoAlinhado && !out.perspectiva && !out.warp && !out.cisalhado;
+  return out;
+}
 /* ESTÁGIO 1 (DECODE) — o veredito que só depende do nó cru do ag-psd. É a antiga
    `_dPsdNeedsRaster`, agora devolvendo o PORQUÊ junto com o sim/não. */
 function _dPsdCapNode(node){
   const cap=_dPsdCapNovo();
   if(!node) return cap;
-  if(node.placedLayer || node.smartObject) _dPsdCapMarca(cap,'smart_object');
+  /* OBJETO INTELIGENTE: o veredito passou a depender do QUE ele é, não só de que é um.
+     Uma foto colocada reta continua raster (o ag-psd só entrega o composto achatado, então o
+     pixel é a única fonte) mas ganha o motivo `smart_object_substituivel` — que diz à revisão
+     que trocar por outra foto reproduz o mesmo resultado. Perspectiva, warp, rotação e
+     cisalhamento ganham o motivo específico: são os casos em que reconstruir não faz sentido
+     e nem substituir o conteúdo é seguro. */
+  const _so=_dPsdSmartObject(node);
+  if(_so){
+    const _det=[];
+    if(_so.perspectiva) _det.push('perspectiva');
+    if(_so.warp) _det.push('warp');
+    if(_so.cisalhado) _det.push('cisalhamento');
+    if(!_so.eixoAlinhado && Math.abs(_so.rotacao)>0.5) _det.push('rotação '+_so.rotacao+'°');
+    if(_so.tipo==='vector') _det.push('conteúdo vetorial colocado');
+    _dPsdCapMarca(cap, _so.substituivel?'smart_object_substituivel':'smart_object',
+      _det.join(' · ')||(_so.tipo||''));
+  }
   if(node.adjustment) _dPsdCapMarca(cap,'adjustment_layer');
   if(node.vectorFill && node.vectorFill.type==='pattern') _dPsdCapMarca(cap,'pattern_fill');
   let po=node.effects && node.effects.patternOverlay; if(Array.isArray(po)) po=po[0];
@@ -1455,17 +1860,38 @@ function _dPsdCapItem(it){
   if(it.multiStyle) _dPsdCapMarca(cap,'text_multi_style');
   if(it.textJustifyAll) _dPsdCapMarca(cap,'text_justify_all');
   if(it.textBoxApprox) _dPsdCapMarca(cap,'text_box_approx');
+  if(it.textScaleRazao) _dPsdCapMarca(cap,'text_scale_nao_unif', it.textScaleRazao+'% na horizontal');
+  if(it.fontSizeEstimado) _dPsdCapMarca(cap,'text_size_estimado');
   if(it.vectorMaskFailed) _dPsdCapMarca(cap,'vector_mask_failed');
-  if(it.kind==='text' && it.fontName && !it.fontRemapped && !/roboto/i.test(it.fontName)) _dPsdCapMarca(cap,'font_missing', it.fontName);
-  /* Efeito que só o texto e a forma renderizam. Vira aviso na revisão quando o modo escolhido
-     entrega a camada como imagem — a decisão de MOSTRAR é da tela (`_dPsdCapPerdeFx`), porque
-     o modo muda na revisão e o registro aqui é um fato estático da camada. */
-  if(_fx) _dPsdCapMarca(cap,'fx_only_native');
+  /* Fonte: quatro estados, quatro consequências diferentes de fidelidade. Registrar o estado
+     em vez de um "ausente" genérico é o que impede um erro de TIPOGRAFIA de ser investigado
+     como erro de POSIÇÃO — a métrica de outra família muda a largura de cada linha, e
+     compensar isso movendo x/y é o conserto errado. 'exact' não gera motivo: não há perda. */
+  if(it.kind==='text' && it.fontName && !/roboto/i.test(it.fontName)){
+    const _fs=it.fontStatus || (it.fontRemapped?'exact':'missing'); // item de fora do parse
+    if(_fs==='approximated') _dPsdCapMarca(cap,'font_approximated', it.fontName);
+    else if(_fs==='substituted') _dPsdCapMarca(cap,'font_substituted', it.fontName);
+    else if(_fs==='missing') _dPsdCapMarca(cap,'font_missing', it.fontName);
+  }
+  /* Efeito que a camada carrega E que só texto/forma renderizam. Desde 10/09 o motor Canvas,
+     o SVG e o DOM consomem SOMBRA, BRILHO e SOBREPOSIÇÃO em `type:'image'`/`'frame'` — então
+     esses três deixaram de ser perda e saíram desta conta. Continuam de fora do raster, por
+     dependerem da borda real do recorte (dilatação/erosão do alpha) e não da caixa:
+     contorno, sombra interna, brilho interno e relevo.
+     Registrar só o que REALMENTE se perde é o ponto: um aviso que descreve perda inexistente
+     ensina o designer a ignorar os avisos. */
+  if(_DPSD_FX_SO_NATIVO.some(k=>it[k])) _dPsdCapMarca(cap,'fx_only_native',
+    _DPSD_FX_SO_NATIVO.filter(k=>it[k]).map(k=>_DPSD_FX_NOME[k]||k).join(', '));
   return cap;
 }
-/* A camada, NO MODO ATUAL, vai perder os efeitos? Regra única para a revisão e para qualquer
-   diagnóstico: efeito só sai em `type:'text'` e `type:'shape'`. Os modos 'raster' e 'frame' e
-   o veredito de raster fiel todos terminam em `type:'image'`/`'frame'`. */
+/* Os efeitos que NENHUM renderizador aplica em imagem/moldura, e o nome de cada um em PT-BR
+   para o aviso dizer QUAL efeito se perde em vez de "os efeitos". Um lugar só: se um deles
+   passar a ser suportado, sai desta lista e o aviso deixa de aparecer — sem caçar condição. */
+const _DPSD_FX_SO_NATIVO=['strokeW','innerShadow','innerGlow','bevel'];
+const _DPSD_FX_NOME={strokeW:'contorno',innerShadow:'sombra interna',innerGlow:'brilho interno',bevel:'relevo'};
+/* A camada, NO MODO ATUAL, vai perder efeito? Regra única para a revisão e para o diagnóstico.
+   Os modos 'raster' e 'frame' e o veredito de raster fiel terminam todos em
+   `type:'image'`/`'frame'`, onde a lista acima não é renderizada. */
 function _dPsdCapPerdeFx(it){
   if(!it || !it.capability) return false;
   if(!it.capability.motivos.some(m=>m.code==='fx_only_native')) return false;
@@ -1534,7 +1960,6 @@ function _dPsdParseFail(node, items, n, ox, oy, err, parentName, inh){
       imgUrl:url, parseError:true, _psdNode:node };
     // A camada falhou, mas o RECORTE do grupo continua valendo — sem isto ela reaparece
     // por fora da máscara do grupo, que é pior que a falha original.
-    if(inh && inh.masks && inh.masks.length) it._groupMasks=inh.masks;
     if(inh && inh.blend) it.blendMode=inh.blend;
     // A exceção é um dado de fidelidade, não só um console.warn: entra no livro-caixa com a
     // mensagem original, para o diagnóstico dizer QUAL camada falhou e por quê.
@@ -1581,7 +2006,9 @@ function dPsdParseItems(psd, res, ox, oy){
   // Grupos do PSD viram os grupos que o Luma JÁ possui (`parentId`). Além de organização, agora
   // eles carregam composição (isolamento/opacidade/máscara/blend) no motor Canvas canônico.
   (function walk(nodes, parentOp, parentHidden, parentName, inh){
-    inh=inh||{groups:[], masks:[], blend:null, blendApprox:false};
+    // `masks` saiu de inh em 10/09: a herança de máscara de grupo nunca foi populada (ver
+    // _dPsdComputeMask) e hoje o grupo é uma camada com a própria máscara.
+    inh=inh||{groups:[], blend:null, blendApprox:false};
     // try//catch por CAMADA: uma camada quebrada vira imagem fiel (ou é pulada) em vez de
     // derrubar o PSD inteiro. O corpo abaixo mantém a indentação original de propósito —
     // re-indentar 150 linhas esconderia as mudanças reais no diff.
@@ -1601,7 +2028,7 @@ function dPsdParseItems(psd, res, ox, oy){
         const gb=_dPsdBlendMode(node.blendMode); if(gb)gd.blendMode=gb;
         Object.assign(gd,_dPsdEffects(node));
         const start=items.length;
-        const gInh={groups:inh.groups.concat([gd]),masks:[],blend:null,blendApprox:false};
+        const gInh={groups:inh.groups.concat([gd]),blend:null,blendApprox:false};
         walk(node.children,1,accHidden,node.name||parentName||'',gInh);
         const kids=items.slice(start);
         if(kids.length){
@@ -1609,7 +2036,11 @@ function dPsdParseItems(psd, res, ox, oy){
           const x1=Math.max.apply(null,kids.map(k=>k.x+k.w)), y1=Math.max.apply(null,kids.map(k=>k.y+k.h));
           gd.x=x0;gd.y=y0;gd.w=Math.max(1,x1-x0);gd.h=Math.max(1,y1-y0);
           if(node.mask&&!node.mask.disabled&&node.mask.canvas){
-            const gm=_dPsdMaskToBox(node.mask,{x:x0+ox,y:y0+oy,w:gd.w,h:gd.h});
+            // A caixa do grupo em coordenadas de DOCUMENTO (os filhos vivem em coordenadas de
+            // prancheta, daí o +ox/+oy) é destino e origem: uma máscara de grupo marcada como
+            // relativa mede a partir do canto do próprio grupo.
+            const _gb={x:x0+ox,y:y0+oy,w:gd.w,h:gd.h};
+            const gm=_dPsdMaskToBox(node.mask,_gb,_gb);
             if(gm)gd.mask=_dPsdDownscaleMaskURL(gm,Math.max(700,Math.min(1400,Math.max(gd.w,gd.h))));
           }
         }
@@ -1646,6 +2077,36 @@ function dPsdParseItems(psd, res, ox, oy){
          decide olhando SÓ o nó cru do ag-psd. Fica aqui, no nascimento do item, para que os
          motivos de decode e os de interpretação se acumulem no mesmo registro. */
       it.capability=_dPsdCapNode(node);
+      /* ETAPA 1 — DECODE: o que o ag-psd entregou, ANTES de qualquer interpretação nossa.
+         É a linha que separa "o dado veio errado" de "nós lemos errado". */
+      _dPsdTrace(it,'decode',{
+        caixaDoc:_dPsdCx({x:node.left||0,y:node.top||0,w:(node.right||0)-(node.left||0),h:(node.bottom||0)-(node.top||0)}),
+        offsetPrancheta:ox+','+oy,
+        temPixel:!!(node.canvas&&node.canvas.width),
+        temTexto:!!(node.text&&node.text.text!=null),
+        temVetor:!!(node.vectorFill||node.vectorMask||node.vectorOrigination),
+        objetoInteligente:!!(node.placedLayer||node.smartObject),
+        mesclagemCrua:String(node.blendMode||'normal'),
+        opacidade:Math.round((node.opacity!=null?node.opacity:1)*100),
+        preenchimento:node.fillOpacity!=null?Math.round(node.fillOpacity*100):100
+      });
+      /* ETAPA 4 — DEPENDÊNCIAS: as relações que precisam estar resolvidas antes de a camada ser
+         tratada como objeto independente. O recorte só ganha `clipBaseId` no pós-processamento,
+         por isso aqui aparece a intenção (`clippingLayer`) e lá o resultado. */
+      _dPsdTrace(it,'dependencias',{
+        cadeiaGrupos:(it._groupChain||[]).map(g=>g.name).join(' › ')||'—',
+        // A máscara do grupo NÃO é herdada pelo filho: ela vive na camada do grupo e incide
+        // sobre o composto. O que interessa aqui é se a camada tem máscara PRÓPRIA e de que
+        // tipo — os três mecanismos, separados (§3 do briefing).
+        mascaraDeCamada:!!(node.mask&&!node.mask.disabled&&node.mask.canvas),
+        mascaraDensidade:(node.mask&&node.mask.density!=null)?Math.round(node.mask.density*100)+'%':'100%',
+        mascaraDifusao:(node.mask&&+node.mask.feather)||0,
+        mascaraRelativa:!!(node.mask&&node.mask.relativa),
+        recorteVetorial:!!(node.vectorMask&&!node.vectorMask.disable),
+        mascaraPropria:!!(node.mask&&!node.mask.disabled&&node.mask.canvas),
+        recorteEmCima:!!it.clippingLayer,
+        mesclagemDoGrupo:inh.blend||'—'
+      });
       /* Mesclagem que o Luma reconhece mas não renderiza (ex.: 'dissolve'): `_dPsdBlendMode`
          devolve undefined DE PROPÓSITO, para o selo não prometer um modo que sai Normal. Isso
          era uma perda muda; agora ela tem nome. */
@@ -1656,7 +2117,6 @@ function dPsdParseItems(psd, res, ox, oy){
       if(inh.groups&&inh.groups.length)it._groupChain=inh.groups.slice();
       // Herança dos grupos-pai: máscaras entram na composição do pós-processamento; mesclagem
       // só se aplica quando a própria camada não define a dela (a de baixo é mais específica).
-      if(inh.masks.length) it._groupMasks=inh.masks;
       if(!it.blendMode && inh.blend){ it.blendMode=inh.blend; if(inh.blendApprox) it.groupBlendApprox=true; }
       // fillOpacity (preenchimento) ≠ opacity: PS atenua só o fill, não os efeitos. Guardado p/
       // dobrar na opacity quando não há efeitos (dItemToLayer); com efeitos, P3 rasteriza fiel.
@@ -1700,17 +2160,37 @@ function dPsdParseItems(psd, res, ox, oy){
         // node.top. Substitui a centralização genérica do editor → posição vertical 1:1 com o PS.
         it.vAlign='top';
         it.fontName=(st.font&&st.font.name)||'';
-        const _fRemap=_dPsdRemapFont(it.fontName);
-        it.font=_fRemap||_dPsdRobotoFont(it.fontName);
-        it.fontRemapped=!!_fRemap;
+        // Uma resolução, quatro respostas (exact/approximated/substituted/missing). `fontStatus`
+        // é o que o estágio de capacidade e a revisão leem; `fontRemapped` fica como o booleano
+        // que a tela e a suíte já consomem, agora DERIVADO em vez de decidido aqui.
+        const _fr=_dPsdFontResolve(it.fontName);
+        it.font=_fr.font;
+        it.fontStatus=_fr.status;
+        // Peso PEDIDO × peso USADO: dois conceitos, porque a diferença entre eles é uma causa
+        // de divergência de LARGURA que não se conserta mexendo em posição (§10 do briefing).
+        it.fontPesoPedido=_fr.pesoPedido;
+        it.fontPesoUsado=_fr.pesoUsado;
+        it.fontFamiliaPedida=_fr.face.familia;
+        it.fontRemapped=(_fr.status==='exact'||_fr.status==='approximated');
         // fontCaps: 0=normal, 1=small-caps, 2=all-caps (PS "All Caps" character style)
         if(st.fontCaps===2) it.textTransform='uppercase';
         else if(st.fontCaps===1) it.textTransform='uppercase'; // small-caps (versaletes) ≈ maiúsculas; NUNCA lowercase (invertia a caixa)
         // fauxBold: PS "Faux Bold" — eleva o peso quando a fonte não tem variante bold
         if(st.fauxBold) it.fontWeightOverride=/black|heavy|900/i.test(it.fontName)?900:700;
-        // Itálico: faux italic do PS ou variante itálica/oblíqua no nome da fonte → font-style:italic
-        if(st.fauxItalic || /italic|oblique|it[aá]lico/i.test(it.fontName)) it.italic=true;
-        it.fontSize=_dPsdFontSize(t,h,it.content,res);
+        /* Itálico: faux italic do PS, ou a variante declarada no nome PostScript. A leitura do
+           nome vem de `_dPsdFontFace` — o mesmo lugar que decide família e peso — em vez de um
+           regex próprio aqui, que era a segunda gramática de nome de fonte no arquivo.
+           ⛔ Itálico é `font-style`, não outra família: o navegador resolve pelo estilo. */
+        if(st.fauxItalic || _fr.face.italico) it.italic=true;
+        /* MÉTRICA ÚNICA: corpo, entrelinha, tracking, escala e deslocamento de baseline saem
+           todos de `_dPsdTextMetrics`, com o nó REAL como régua de resolução. Antes eram
+           quatro cálculos independentes espalhados por 15 linhas aqui, e o corpo passava a
+           altura da caixa (`h`) para uma cascata que podia trocar o valor do designer. */
+        const _tm=_dPsdTextMetrics(t, node, res, it.content);
+        it.fontSize=_tm.corpo;
+        // Corpo estimado (o arquivo não trouxe fontSize) é um dado de fidelidade, não um
+        // detalhe: o número na tela deixa de ser a escolha do designer.
+        if(_tm.origem!=='autorado') it.fontSizeEstimado=true;
         it.color=_dPsdHex(st.fillColor||st.color)||'#000000';
         it.strikethrough=st.strikethrough===true; // tachado (DE: R$..) — render já suportado
         it.underline=st.underline===true;          // sublinhado — render espelha o strikethrough
@@ -1722,20 +2202,24 @@ function dPsdParseItems(psd, res, ox, oy){
         if(_al.justifyAll) it.textJustifyAll=true;
         // `0` também é informação: impede o respiro automático usado pelos títulos nativos do
         // Luma. Sem gravá-lo, todo Roboto Black do PSD ganhava tracking extra e ficava mais largo.
-        it.letterSpacing=Math.round(((+st.tracking||0)/1000)*(it.fontSize||12)); // tracking (1/1000 em) → px, sobre o tamanho final
-        // Entrelinha. Com "Auto" ligado (st.autoLeading, o PADRÃO do Photoshop) o valor gravado em
-        // st.leading é LIXO — sobra de um estado anterior do arquivo — e lê-lo trazia entrelinhas
-        // absurdas. Auto = fator do parágrafo (paragraphStyle.autoLeading, 1.2 no PS) × o corpo.
-        if(st.autoLeading===true || !st.leading){
-          const _autoF=+_dPsdParaStyle(t).autoLeading;
-          it.lineHeight=(isFinite(_autoF)&&_autoF>0.5&&_autoF<5)?+_autoF.toFixed(3):1.2;
-        } else {
-          const fPts = st.fontSize;
-          if(fPts){ it.lineHeight=+(st.leading/fPts).toFixed(3); } // pts / pts
-          else {
-            const lPx = (res>90 && st.leading<200) ? st.leading*(res/72) : st.leading;
-            it.lineHeight=+(lPx/(it.fontSize||12)).toFixed(3); // px / px
-          }
+        it.letterSpacing=_tm.tracking;
+        it.lineHeight=_tm.entrelinha;
+        /* ⛔ O deslocamento de baseline NÃO é gravado na camada de estilo único — de propósito.
+           `node.top/bottom` é o bbox dos PIXELS, que já saiu do Photoshop com o deslocamento
+           aplicado; somá-lo de novo na geometria seria aplicar a mesma transformação duas
+           vezes (§5 do briefing). Onde ele importa de verdade é POR TRECHO, no texto rico —
+           é assim que "R$ 29,⁹⁰" é composto — e lá ele entra como `yOffset` em
+           `_dPsdRichRuns`, relativo ao bbox comum. `_tm.baselineShift` fica só no
+           diagnóstico, para explicar de onde veio a altura da caixa. */
+        /* ESCALA NÃO UNIFORME (§6): o painel Caractere do Photoshop condensa ou estica a letra
+           num eixo só, e o modelo do Luma tem UM corpo de fonte — não há como representar
+           `sx≠sy` sem uma transformação de texto que não existe. O corpo segue o eixo VERTICAL
+           (é ele que define a altura da letra) e o estiramento horizontal fica registrado como
+           perda conhecida, com o número. ⛔ Não se compensa mexendo em tracking: tracking
+           afasta letras, escala horizontal DEFORMA o glifo — são coisas diferentes. */
+        if(!_tm.escala.uniforme){
+          it.textScaleX=+( _tm.escala.razao.toFixed(4) );
+          it.textScaleRazao=Math.round(_tm.escala.razao*100);
         }
         const _runs=_dPsdRichRuns(t,res,h);
         if(_runs){
@@ -1769,11 +2253,43 @@ function dPsdParseItems(psd, res, ox, oy){
         // Tipo de caixa. Campo real do ag-psd: text.shapeType ('box'|'point'). Só PARAGRAPH (box)
         // substitui x/y/w/h pela caixa do designer; POINT mantém o bbox de glifos 1:1 (posição real).
         it.textBox=(t.shapeType==='box')?'box':'point';
+        /* ETAPA 2 — NORMALIZE: o que lemos do EngineData, antes de a geometria decidir nada.
+           Separado da geometria de propósito: corpo/entrelinha/tracking errados são erro de
+           LEITURA; caixa errada é erro de GEOMETRIA. Consertar um mexendo no outro é o
+           conserto errado, e é o que a cadeia existe para impedir. */
+        _dPsdTrace(it,'normalize',{
+          // FONTE — o que o Photoshop pediu × o que vai renderizar (§42: dois conceitos)
+          fontePedida:it.fontName||'—', familia:_fr.face.familia||'—',
+          pesoPedido:_fr.pesoPedido==null?'não declarado':_fr.pesoPedido,
+          pesoUsado:_fr.pesoUsado, italico:!!it.italic, fonteStatus:_fr.status,
+          // CORPO — a fórmula, com cada fator visível
+          corpoPt:_tm.corpoPt, escalaTransformY:+_tm.escala.trY.toFixed(4),
+          escalaPainelY:+_tm.escala.chY.toFixed(4), fatorResolucao:+_tm.fatorResolucao.toFixed(4),
+          porqueResolucao:_tm.fonteResolucao, corpoPx:_tm.corpo, origemDoCorpo:_tm.origem,
+          // Os demais atributos tipográficos
+          entrelinha:_tm.entrelinha, tracking:_tm.tracking,
+          baselineShift:_tm.baselineShift, escalaHorizontalPct:Math.round(_tm.escala.razao*100),
+          alinhamento:it.textAlign, tipoDeCaixa:t.shapeType||'—',
+          linhas:String(it.content||'').split('\n').length,
+          trechosDeEstilo:(Array.isArray(t.styleRuns)?t.styleRuns.length:1)
+        });
         if(it.textBox==='box'){
           // Caixa 1:1 do Photoshop → NÃO reencaixa/encolhe o texto na importação.
+          const _cxGlifos={x:it.x,y:it.y,w:it.w,h:it.h};
           const pb=_dPsdParagraphBox(node);
           if(pb){ it.x=Math.round(pb.x-ox); it.y=Math.round(pb.y-oy); it.w=Math.max(1,pb.w); it.h=Math.max(1,pb.h); }
-          else {
+          /* ETAPA 3 — GEOMETRIA: a distinção que o briefing pede entre *authoring bounds* (a
+             caixa que o designer desenhou) e *visual/glyph bounds* (o contorno da tinta). São
+             as duas geometrias legítimas de um texto; qual venceu, e por quê, é a informação
+             que faltava para diagnosticar "texto mudou de posição". */
+          _dPsdTrace(it,'geometria',{
+            caixaGlifos:_dPsdCx(_cxGlifos),
+            caixaAutorada:pb?_dPsdCx({x:pb.x-ox,y:pb.y-oy,w:pb.w,h:pb.h}):'não derivável',
+            venceu:pb?'caixa autorada (parágrafo do Photoshop)':'contorno dos glifos (point text)',
+            porque:pb?'boxBounds/bounds coerente com a âncora dos glifos'
+                     :'nenhum candidato passou no score — usar a caixa velha empilharia os fragmentos'
+          });
+          if(!pb){
             /* Sem caixa confiável, a geometria que sobrou é o bbox justo dos glifos — semântica
                de point text. Mantê-la como `box` fazia o Auto-layout quebrar "R$" em R + $ e
                "POR" em três linhas dentro da caixa estreita. */
@@ -1815,11 +2331,37 @@ function dPsdParseItems(psd, res, ox, oy){
           it.fill=solid || (grad && grad.stops[0] && grad.stops[0].color) || (hasStroke ? 'transparent' : '#FF9000');
           if(grad) it.gradient=grad;
           it.shapeKind=vectorPath?'path':shapeInfo.kind;
-          if(vectorPath){it.vectorPath=vectorPath;delete it.vectorMaskFailed;}
+          if(vectorPath){
+            /* `compound` é um fato da LEITURA, não do modelo: viaja no item (para a revisão
+               dizer que a geometria com furo foi preservada) e sai do caminho antes de ele
+               ser gravado na camada — o modelo persistido do Luma não ganha chave nova. */
+            if(vectorPath.compound){ it.vectorCompound=true; delete vectorPath.compound; }
+            it.vectorPath=vectorPath; delete it.vectorMaskFailed;
+          }
           it.radius=shapeInfo.radius;
+          /* ⚠ O RAIO SE CLAMPA NA CAIXA FINAL, não na do nó. `node.left/right/top/bottom`
+             inclui a expansão do TRAÇO; `_dPsdVectorShapeBox` devolve a caixa do CAMINHO, que
+             é menor, e o `Object.assign(it,vectorBox)` acima já trocou x/y/w/h por ela.
+             Calcular o clamp `min(w,h)/2` com a caixa do nó dava um teto maior que o real:
+             numa forma baixa com traço grosso, o canto arredondado saía maior do que cabe e a
+             silhueta deixava de bater com a do Photoshop. Uma linha, mas é o tipo de offset
+             duplicado que o briefing manda centralizar. */
+          const _bw=Math.max(1,+it.w||w), _bh=Math.max(1,+it.h||h);
+          if(it.radius) it.radius=Math.min(it.radius, Math.floor(Math.min(_bw,_bh)/2));
+          /* ETAPA 3 — GEOMETRIA (forma): a caixa do NÓ inclui a expansão do traço; a do
+             CAMINHO é a geometria real. Qual venceu é o que explica um contorno deslocado. */
+          _dPsdTrace(it,'geometria',{
+            caixaDoNo:_dPsdCx({x:x,y:y,w:w,h:h}),
+            caixaDoCaminho:vectorBox?_dPsdCx(vectorBox):'não exposta pelo PSD',
+            venceu:vectorBox?'caixa do caminho (sem a expansão do traço)':'caixa do nó',
+            forma:it.shapeKind, origem:vectorShape?'keyOriginType (exato)':(vectorPath?'path Bézier':'heurística de pixel'),
+            raioClampado:it.radius||0
+          });
           Object.assign(it,_dPsdEffects(node));        // sombra/glow/overlay/contorno-fx
           Object.assign(it,stroke);                    // traçado do shape (vectorStroke, incl. tracejado)
-          const _rr=_dPsdCornerRadii(node,w,h); if(_rr) it.radii=_rr; // cantos por canto
+          // Cantos por-canto: mesma correção do raio uniforme — o clamp usa a caixa FINAL do
+          // item (a do caminho, quando existe), não a do nó inflada pelo traço.
+          const _rr=_dPsdCornerRadii(node,_bw,_bh); if(_rr) it.radii=_rr;
           // Linha/divisor fino SÓ-CONTORNO: um retângulo de altura ~traço viraria uma MOLDURA de 4
           // lados no lugar de um traço único. Converte em barra sólida fina (= a linha do PSD).
           if(hasStroke && !solid && !grad && Math.min(w,h) <= Math.max(stroke.strokeW*1.5, 4)){
@@ -1912,22 +2454,63 @@ function dPsdParseItems(psd, res, ox, oy){
   out.forEach(it=>{ if(it.kind==='text'&&it.content){ const k=it.name+'|'+it.content; _soft[k]=(_soft[k]||0)+1; } });
   Object.keys(_soft).forEach(k=>{ if(_soft[k]>1) console.warn('[psd] possível layer de texto duplicada mantida (nome+conteúdo iguais, caixas diferentes):', k.split('|')[0]); });
 
-  // ag-psd entrega os filhos BASE-PRIMEIRO. Num clipping stack do Photoshop a base vem antes
-  // e as camadas recortadas vêm logo depois; portanto a busca é para TRÁS, limitada ao mesmo
-  // grupo. A busca antiga para frente usava a próxima camada solta como máscara e fazia a foto
-  // desaparecer (sobrava só o retângulo-base branco).
-  const _clipBaseIndex=(idx)=>{
-    const group=out[idx]&&out[idx].group;
-    let j=idx-1;
-    while(j>=0 && out[j].clippingLayer && out[j].group===group) j--;
-    return (j>=0 && out[j].group===group) ? j : -1;
+  /* ══ GRAFO DE DEPENDÊNCIA — as cadeias de recorte, resolvidas UMA VEZ ═════════════════════
+     No Photoshop um recorte é uma CADEIA, não uma propriedade de camada:
+
+         FORMA BASE          ← quem define o alpha
+         ↑ FOTO   recortada
+         ↑ TEXTURA recortada
+         ↑ LUZ     recortada  ← todas recortam pela MESMA base
+
+     Antes, cada camada recortada redescobria a própria base andando para trás no array. Duas
+     consequências: a relação nunca existia como dado (o conversor tinha de reinferi-la) e o
+     limite da busca era o **nome** do grupo (`out[j].group`, que é `parentName`) — então dois
+     grupos de nome igual, que é o caso comum num PSD real ("Grupo 1", "Camada 5 cópia"),
+     deixavam a busca atravessar a fronteira e uma camada podia recortar por uma base de OUTRO
+     grupo. Aqui a fronteira passa a ser a IDENTIDADE do grupo (`_groupChain`, que carrega ids
+     únicos), e a cadeia inteira é montada de uma vez.
+     ⚠ ag-psd entrega os filhos BASE-PRIMEIRO: a base vem antes e as recortadas logo depois. */
+  const _grupoId=(it)=>{
+    const c=it&&it._groupChain;
+    return (c&&c.length)?c[c.length-1].id:'';
   };
+  const _clipGroups=[];       // [{baseIdx, clipped:[idx…]}]
+  const _clipBaseDe=new Map(); // idx da recortada → idx da base
+  for(let i=0;i<out.length;i++){
+    if(!out[i].clippingLayer) continue;
+    if(_clipBaseDe.has(i)) continue;          // já pertence a uma cadeia montada
+    // Anda para trás sobre as recortadas do MESMO grupo até achar quem não é recortada.
+    const gid=_grupoId(out[i]);
+    let j=i-1;
+    while(j>=0 && out[j].clippingLayer && _grupoId(out[j])===gid) j--;
+    if(j<0 || _grupoId(out[j])!==gid) continue; // cadeia sem base no grupo → nada a recortar
+    // A cadeia é a corrida CONTÍNUA de recortadas logo acima da base.
+    const cadeia={baseIdx:j, clipped:[]};
+    for(let k=j+1;k<out.length && out[k].clippingLayer && _grupoId(out[k])===gid;k++){
+      cadeia.clipped.push(k); _clipBaseDe.set(k,j);
+    }
+    if(cadeia.clipped.length) _clipGroups.push(cadeia);
+  }
+  /* A relação passa a viajar no ITEM, para a revisão e o diagnóstico não precisarem
+     redescobri-la — e para o §1 do briefing valer: ninguém converte antes de saber quem
+     depende de quem. `clipRole` é o vocabulário: 'base' ou 'clipped'. */
+  _clipGroups.forEach(g=>{
+    out[g.baseIdx].clipRole='base';
+    out[g.baseIdx].clipChainSize=g.clipped.length;
+    g.clipped.forEach((k,ordem)=>{
+      out[k].clipRole='clipped';
+      out[k].clipChainIndex=ordem;
+      out[k].clipChainSize=g.clipped.length;
+      out[k].clipBaseName=out[g.baseIdx].name;
+    });
+  });
+  const _clipBaseIndex=(idx)=>_clipBaseDe.has(idx)?_clipBaseDe.get(idx):-1;
 
   // Resolve TODAS as máscaras de uma vez (camada + clipping + vetorial + grupos-pai), com a
   // base de clipping correta. _dPsdComputeMask multiplica os alphas, então elas se somam em
   // vez de uma sobrescrever a outra. Atribuição condicional: null não apaga o que já existe.
   for(let i=0; i<out.length; i++){
-    const _extra={ groupMasks: out[i]._groupMasks, vecCanvas: out[i]._vecMaskCanvas };
+    const _extra={ vecCanvas: out[i]._vecMaskCanvas };
     let _m=null;
     if(out[i].clippingLayer){
       const baseIdx=_clipBaseIndex(i);
@@ -1944,7 +2527,7 @@ function dPsdParseItems(psd, res, ox, oy){
       _m = _dPsdComputeMask(out[i]._psdNode, null, _extra);
     }
     if(_m) out[i].mask = _m;
-    delete out[i]._groupMasks; delete out[i]._vecMaskCanvas;
+    delete out[i]._vecMaskCanvas;
     // _psdNode NÃO é apagado aqui: o laço de clipping abaixo ainda precisa do canvas da
     // camada-base. Apagar antes matava esse caminho (base raster caía sempre em maskFallback).
   }
@@ -2003,6 +2586,19 @@ function dPsdParseItems(psd, res, ox, oy){
     }
   }
 
+  /* ETAPA 5/6 — CAPACIDADE e DEPENDÊNCIA RESOLVIDA: fecha a cadeia com o veredito e com o
+     resultado real do recorte (que só existe depois do pós-processamento acima). */
+  if(_dPsdTraceOn) out.forEach(it=>{
+    _dPsdTrace(it,'dependencias-resolvidas',{
+      mascaraComposta:!!it.mask, baseDeRecorte:it.clipBaseId||'—',
+      recorteSimplificado:!!it.maskFallback
+    });
+    _dPsdTrace(it,'capacidade',{
+      nivel:(it.capability&&it.capability.nivel)||'native',
+      motivos:((it.capability&&it.capability.motivos)||[]).map(m=>m.etapa+':'+m.code).join(' · ')||'—',
+      rasterFiel:!!it.needsRaster
+    });
+  });
   // Nó cru do ag-psd cumpriu o papel (máscaras + recorte); solta a referência antes de devolver.
   out.forEach(it=>{ delete it._psdNode; });
 
@@ -2037,6 +2633,14 @@ function _dPsdApplyFx(L, it){
   return L;
 }
 function dItemToLayer(it){
+  /* ETAPA 7 — CONVERSÃO: o último elo da cadeia. Registrado no ENTRA (não no sai) porque
+     `dItemToLayer` tem seis ramos de retorno; o par modo+veredito determina qual deles roda,
+     e é isso que responde "por que esta camada virou imagem em vez de texto". */
+  _dPsdTrace(it,'conversao',{
+    caixaFinal:_dPsdCx(it), tipoLido:it.kind, modoEscolhido:it.mode,
+    rasterFiel:!!it.needsRaster, campo:it.varName||'—',
+    perdeEfeito:_dPsdCapPerdeFx(it)
+  });
   const base={ id:_dPsdItemId(it), name:it.name, x:it.x,y:it.y,w:it.w,h:it.h, visible:it.visible, opacity:it.opacity };
   if(it._groupChain&&it._groupChain.length)base.parentId=it._groupChain[it._groupChain.length-1].id;
   /* fillOpacity SEM efeitos ≡ opacity: dobrar os dois num canal é equivalência exata, e é a
