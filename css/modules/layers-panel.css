@@ -4398,3 +4398,81 @@ body.theme-light .dpi-field-primary-action{
   margin:0;padding:0 2px;font-size:10px;line-height:1.35;color:var(--dm-orange);font-weight:650;
 }
 #d-panel-dados .dados-live:empty{display:none}
+
+/* ══ ORDEM DE PREENCHIMENTO ══ a ordem em que o franqueado será perguntado ═════════════
+   Densidade de lista de camadas, como o resto do painel: linha de 26px, sem cartão, sem
+   badge. É AJUSTE OPCIONAL — vive atrás de "Ver todos os campos" (`dPropSyncDataDisclosure`)
+   porque a ordem automática por significado já é a resposta certa para quem não mexe.
+   O texto do topo é o que diz se a ordem é do Luma ou do designer; a linha não repete isso. */
+#d-panel-dados .dpi-data-order{
+  /* 12px de recuo é o MESMO do `.field-item` (medido: cartão 1261→1588 num painel 1249→1600).
+     Com 2px a seção era 10px mais larga dos dois lados e a coluna parecia desalinhada. */
+  margin:12px 12px 4px;padding-top:10px;border-top:1px solid var(--d-border);
+}
+#d-panel-dados .dpi-order-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:7px}
+#d-panel-dados .dpi-order-head strong{font-size:10px;font-weight:750;letter-spacing:.07em;text-transform:uppercase;color:var(--d-text2)}
+#d-panel-dados .dpi-order-head small{flex:1;min-width:0;font-size:10.5px;color:var(--d-text3)}
+#d-panel-dados .dpi-order-reset{
+  border:0;background:none;padding:0;cursor:pointer;font-size:10.5px;font-weight:650;color:var(--dm-orange);
+}
+#d-panel-dados .dpi-order-reset:hover{text-decoration:underline}
+#d-panel-dados .dpi-order-list{list-style:none;margin:0;padding:0;counter-reset:ordem}
+#d-panel-dados .dpi-order-item{
+  display:flex;align-items:center;gap:7px;min-height:26px;padding:1px 4px;border-radius:5px;
+  counter-increment:ordem;transition:background var(--dur-micro) var(--ease-standard);
+}
+#d-panel-dados .dpi-order-item:hover{background:var(--d-surf2)}
+/* O número vem do contador e não do JS: reordenar não pode exigir recontar na mão. */
+#d-panel-dados .dpi-order-item::before{
+  content:counter(ordem);flex:0 0 14px;text-align:right;
+  font-size:10px;font-variant-numeric:tabular-nums;color:var(--d-text3);
+}
+#d-panel-dados .dpi-order-grip{display:flex;width:11px;color:var(--d-text3);opacity:.55}
+#d-panel-dados .dpi-order-grip svg{width:11px;height:11px}
+#d-panel-dados .dpi-order-name{
+  flex:1;min-width:0;font-size:11.5px;color:var(--d-text);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+/* As setas só aparecem no hover/foco da linha: em repouso a seção é leitura — "é nesta
+   ordem que perguntam" — e não um formulário pedindo para ser preenchido. */
+#d-panel-dados .dpi-order-moves{display:flex;gap:2px;opacity:0;transition:opacity var(--dur-micro) var(--ease-standard)}
+#d-panel-dados .dpi-order-item:hover .dpi-order-moves,
+#d-panel-dados .dpi-order-moves:focus-within{opacity:1}
+#d-panel-dados .dpi-order-moves button{
+  display:flex;align-items:center;justify-content:center;width:18px;height:18px;padding:0;
+  border:1px solid var(--d-border2);border-radius:4px;background:var(--d-surf);
+  color:var(--d-text2);cursor:pointer;
+  transition:border-color var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard);
+}
+#d-panel-dados .dpi-order-moves button svg{width:11px;height:11px}
+#d-panel-dados .dpi-order-moves button.is-down svg{transform:rotate(180deg)}
+#d-panel-dados .dpi-order-moves button:hover{border-color:var(--dm-orange);color:var(--dm-orange)}
+#d-panel-dados .dpi-order-moves button:disabled{opacity:.3;cursor:not-allowed;border-color:var(--d-border2);color:var(--d-text3)}
+body.theme-light #d-panel-dados .dpi-data-order{border-top-color:var(--gray-light)}
+body.theme-light #d-panel-dados .dpi-order-item:hover{background:var(--off-white)}
+body.theme-light #d-panel-dados .dpi-order-head strong{color:var(--text-2)}
+body.theme-light #d-panel-dados .dpi-order-head small,
+body.theme-light #d-panel-dados .dpi-order-item::before,
+body.theme-light #d-panel-dados .dpi-order-grip{color:var(--text-3)}
+body.theme-light #d-panel-dados .dpi-order-name{color:var(--text)}
+body.theme-light #d-panel-dados .dpi-order-moves button{border-color:var(--gray-mid);background:var(--white);color:var(--text-2)}
+
+/* ══ REUSO ANTES DE CRIAR ══ dentro do wizard, acima dos botões ════════════════════════
+   Não é alerta: é a saída mais barata sendo oferecida no momento em que ela ainda cabe.
+   Por isso tom de marca e não de erro — criar a duplicata continua possível, é só clicar
+   em "Criar campo" do lado. */
+#d-var-modal .dv-reuse{
+  display:flex;align-items:center;gap:10px;margin:10px 0 2px;padding:9px 11px;
+  border:1px solid var(--dm-orange-tint);border-radius:var(--r-sm,8px);
+  background:var(--dm-orange-bg);
+  animation:gFadeInUp var(--dur-fast) var(--ease-out) both;
+}
+#d-var-modal .dv-reuse-copy{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0}
+#d-var-modal .dv-reuse-copy strong{font-size:11.5px;font-weight:700;color:var(--dm-orange-d)}
+#d-var-modal .dv-reuse-copy small{font-size:10.5px;line-height:1.35;color:var(--dm-orange-d);opacity:.78}
+#d-var-modal .dv-reuse-use{
+  flex:none;padding:5px 11px;border:1px solid var(--dm-orange);border-radius:var(--r-pill);
+  background:var(--dm-orange);color:#fff;font-size:11px;font-weight:700;cursor:pointer;
+  transition:filter var(--dur-micro) var(--ease-standard);
+}
+#d-var-modal .dv-reuse-use:hover{filter:brightness(1.06)}

@@ -1618,7 +1618,9 @@ function dPropSyncDataDisclosure() {
     mapToggle.setAttribute('aria-pressed', String(active));
   }
   const show = empty || dPropDataShowInventory || !!document.getElementById('d-fields-search') && !!document.getElementById('d-fields-search').value;
-  ['.dados-toolbar','#d-fields-chipbar','#dpi-data-shortcuts','#d-fields-live','#d-fields-list'].forEach(function(selector) {
+  // `#dpi-data-order` entra na mesma cortina: a ordem de preenchimento é AJUSTE OPCIONAL
+  // (o automático já é bom), então ela vive atrás de "Ver todos os campos" como o inventário.
+  ['.dados-toolbar','#d-fields-chipbar','#dpi-data-shortcuts','#d-fields-live','#d-fields-list','#dpi-data-order'].forEach(function(selector) {
     const el = panel.querySelector(selector);
     if (el) el.hidden = !show;
   });

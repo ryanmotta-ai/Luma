@@ -2788,8 +2788,80 @@ function dFieldsRender(){
    cada campo ligado. Repor aqui, no mesmo tique, elimina o piscar — e vale para todos os
    chamadores (dFieldToggleOpen, dVarsRender, filtro, o arrasto), não só para o gesto novo.
    Idempotente: o próprio passe checa se já fez (`!end.querySelector('.dpi-field-primary-action')`). */
+/* ══ ORDEM DE PREENCHIMENTO — a única parte do contrato que o designer não via ═════════
+   O franqueado responde as perguntas numa ordem pensada (`gSortTemplateVars`: produto →
+   foto → de → por → desconto → validade → loja). Essa ordem existe desde sempre e é boa;
+   o que não existia era o designer PODER VÊ-LA. Ele arrastava campos no catálogo achando
+   que mudava a conversa, e não mudava: o peso semântico vencia a posição do array.
+   Agora a seção mostra a ordem REAL e, ao mover, fixa a decisão (`ordemManual`) — o motor
+   passa a obedecer a posição do array, que é o que já persiste.
+   ⛔ Ajuste OPCIONAL, e por isso vive junto do inventário (atrás de "Ver todos os campos"):
+   a promessa é que quem não mexe em nada continua com uma ordem boa. */
+function dFieldsOrderList(){
+  if(typeof dVars==='undefined'||!Array.isArray(dVars)) return [];
+  // Só campos EM USO: o franqueado nunca é perguntado por campo que a arte não mostra.
+  const usados=dVars.filter(v=>v&&v.name&&(typeof dVarUsage!=='function'||dVarUsage(v.name).length>0)).map(v=>v.name);
+  if(typeof gSortTemplateVars==='function') gSortTemplateVars(usados);
+  return usados;
+}
+function dFieldsOrderMove(name,dir){
+  const seq=dFieldsOrderList();
+  const i=seq.indexOf(name), j=i+dir;
+  if(i<0||j<0||j>=seq.length) return;
+  [seq[i],seq[j]]=[seq[j],seq[i]];
+  /* A decisão vira POSIÇÃO NO ARRAY porque é isso que atravessa o reload e o Supabase
+     (`ordem: i`). Os campos em uso vão para a frente na ordem escolhida; o resto do
+     catálogo mantém a ordem relativa que tinha. */
+  const usados=seq.map(n=>dVars.find(v=>v&&v.name===n)).filter(Boolean);
+  const resto=dVars.filter(v=>v&&seq.indexOf(v.name)<0);
+  dVars=usados.concat(resto);
+  dVars.forEach(v=>{ if(v) v.ordemManual=true; });
+  if(typeof dPersistVars==='function') dPersistVars();
+  dFieldsRender();
+  if(typeof gToast==='function') gToast('Ordem das perguntas atualizada');
+}
+function dFieldsOrderReset(){
+  if(typeof dVars==='undefined'||!Array.isArray(dVars)) return;
+  dVars.forEach(v=>{ if(v) delete v.ordemManual; });
+  if(typeof dPersistVars==='function') dPersistVars();
+  dFieldsRender();
+  if(typeof gToast==='function') gToast('Ordem automática restaurada');
+}
+const _D_ORD_UP='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg>';
+const _D_ORD_GRIP='<svg viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>';
+function dFieldsOrderRender(){
+  const panel=document.getElementById('d-panel-dados'); if(!panel) return;
+  let box=document.getElementById('dpi-data-order');
+  const seq=dFieldsOrderList();
+  if(seq.length<2){ if(box) box.remove(); return; }
+  if(!box){
+    box=document.createElement('section');
+    box.id='dpi-data-order'; box.className='dpi-data-order';
+    const lista=document.getElementById('d-fields-list');
+    if(lista&&lista.parentNode) lista.parentNode.insertBefore(box,lista.nextSibling);
+    else panel.appendChild(box);
+  }
+  const fixa=dVars.some(v=>v&&v.ordemManual);
+  box.innerHTML='<div class="dpi-order-head"><strong>Ordem de preenchimento</strong>'
+    +'<small>'+(fixa?'Ordem definida por você.':'Ordem automática pelo significado.')+'</small>'
+    +(fixa?'<button type="button" class="dpi-order-reset" onclick="dFieldsOrderReset()">Voltar ao automático</button>':'')
+    +'</div><ol class="dpi-order-list">'
+    +seq.map((n,k)=>{
+      const v=dVars.find(x=>x&&x.name===n)||{name:n};
+      const rot=_dEsc(v.label||((typeof gFieldLabel==='function')?gFieldLabel(n):n));
+      const nm=_dEsc(n);
+      return '<li class="dpi-order-item"><span class="dpi-order-grip" aria-hidden="true">'+_D_ORD_GRIP+'</span>'
+        +'<span class="dpi-order-name">'+rot+'</span>'
+        +'<span class="dpi-order-moves">'
+        +'<button type="button" onclick="dFieldsOrderMove(\''+nm+'\',-1)"'+(k===0?' disabled':'')+' title="Perguntar antes" aria-label="Perguntar '+rot+' antes">'+_D_ORD_UP+'</button>'
+        +'<button type="button" class="is-down" onclick="dFieldsOrderMove(\''+nm+'\',1)"'+(k===seq.length-1?' disabled':'')+' title="Perguntar depois" aria-label="Perguntar '+rot+' depois">'+_D_ORD_UP+'</button>'
+        +'</span></li>';
+    }).join('')+'</ol>';
+}
+
 function _dFieldsAfterRender(){
   dPopVarSel();
+  dFieldsOrderRender();
   if(typeof dPropEnhanceDataRows==='function') dPropEnhanceDataRows();
 }
 
@@ -3103,6 +3175,7 @@ function dFieldPickType(type, el){
   const hid=document.getElementById('dv-type'); if(hid) hid.value=type;
   document.querySelectorAll('#dv-type-grid .field-type-card').forEach(c=>c.classList.toggle('active', c===el));
   dVarTypeFields(); // revela opções (lista) / paleta (cor)
+  if(typeof dFieldReuseHint==='function') dFieldReuseHint();
 }
 function dFieldWizardGoStep(n){
   const s1=document.getElementById('dv-step-1'), s2=document.getElementById('dv-step-2');
@@ -3137,6 +3210,46 @@ function _dGuessTypeFromText(s){
 // da camada (rótulo/tipo/exemplo) e, ao confirmar, liga o campo novo à camada.
 // É o modelo mental do designer: escreve o exemplo na arte → marca como editável.
 let dVarBindAfterCreate=null;
+/* ══ REUSO ANTES DE CRIAR ═════════════════════════════════════════════════════════════
+   O `dConfirmVar` já desistia de criar quando o rótulo batia com um campo existente — mas
+   só DEPOIS do clique em "Criar campo", e o único sinal era um toast. Quem digitava "Nome
+   do produto" tinha a impressão de ter criado um campo, e recebia "Produto já existe".
+   Agora a checagem acontece ENQUANTO se digita, e o reuso é uma escolha visível.
+   ⛔ Mesmo motor (`gFieldInfer`) e mesma regra do confirm (só confiança ALTA e só campo que
+   está de fato no catálogo) — se divergirem, o aviso mente sobre o que o botão vai fazer. */
+function _dFieldReuseMatch(label, type){
+  if(!label || typeof gFieldInfer!=='function') return null;
+  const inf=gFieldInfer({layerName:label, target:(type==='image'?'imagem':'text'), fields:dVars});
+  if(!inf||!inf.field||inf.confidence!=='high') return null;
+  return (dVars.indexOf(inf.field)>=0) ? inf.field : null;
+}
+function dFieldReuseHint(){
+  const step=document.getElementById('dv-step-1');
+  const lblEl=document.getElementById('dv-label');
+  if(!step||!lblEl) return;
+  let box=document.getElementById('dv-reuse');
+  const v=_dFieldReuseMatch(lblEl.value.trim(), (document.getElementById('dv-type')||{}).value);
+  // Na EDIÇÃO não faz sentido: o campo já existe e é este.
+  if(!v || dEditingVarName){ if(box) box.remove(); return; }
+  if(!box){
+    box=document.createElement('div'); box.id='dv-reuse'; box.className='dv-reuse';
+    const acts=step.querySelector('.modal-actions');
+    if(acts) step.insertBefore(box,acts); else step.appendChild(box);
+  }
+  const rot=_dEsc(v.label||v.name);
+  box.innerHTML='<span class="dv-reuse-copy"><strong>“'+rot+'” já existe</strong>'
+    +'<small>Reutilizar mantém uma pergunta só para o franqueado.</small></span>'
+    +'<button type="button" class="dv-reuse-use" data-field="'+_dEsc(v.name)+'">Usar '+rot+'</button>';
+  box.querySelector('.dv-reuse-use').addEventListener('click',()=>dFieldReuseAccept(v.name));
+}
+function dFieldReuseAccept(name){
+  const v=dVars.find(x=>x&&x.name===name); if(!v) return;
+  const bindTo=dVarBindAfterCreate;
+  dCloseVarModal();
+  if(bindTo && typeof dLayerBindField==='function') dLayerBindField(bindTo,v.name);
+  else if(typeof gToast==='function') gToast('Usando o campo “'+(v.label||v.name)+'”');
+  if(typeof dFieldsRender==='function') dFieldsRender();
+}
 function dOpenVarModal(opts){
   opts=opts||{};
   dEditingVarName=null;
@@ -3174,7 +3287,11 @@ function dOpenVarModal(opts){
   const dt=document.getElementById('dv-details-toggle'); if(dt) dt.classList.remove('open');
   document.getElementById('dv-confirm-btn').textContent=dVarBindAfterCreate?'Criar e ligar à camada':'Criar campo';
   dFieldWizardGoStep(1);
+  const rz=document.getElementById('dv-reuse'); if(rz) rz.remove();
+  const lbl=document.getElementById('dv-label');
+  if(lbl && !lbl._dReuseOk){ lbl._dReuseOk=true; lbl.addEventListener('input',dFieldReuseHint); }
   m.classList.add('open');
+  dFieldReuseHint();                 // o rótulo pré-preenchido pela camada já pode ser um reuso
   setTimeout(()=>{const el=document.getElementById('dv-label');if(el){el.focus();el.select();}},100);
 }
 function dEditVar(i){
@@ -3205,7 +3322,7 @@ function dEditVar(i){
   m.classList.add('open');
   setTimeout(()=>{const el=document.getElementById('dv-example'); if(el) el.focus();},100);
 }
-function dCloseVarModal(){dEditingVarName=null;dVarBindAfterCreate=null;document.getElementById('dv-name').disabled=false;document.getElementById('d-var-modal').classList.remove('open');}
+function dCloseVarModal(){dEditingVarName=null;dVarBindAfterCreate=null;(function(){const r=document.getElementById('dv-reuse');if(r)r.remove();})();document.getElementById('dv-name').disabled=false;document.getElementById('d-var-modal').classList.remove('open');}
 // Lê opções (select) e paleta (color) dos campos do modal
 function dReadVarOptions(){
   return document.getElementById('dv-options').value.split('\n').map(s=>s.trim()).filter(Boolean);

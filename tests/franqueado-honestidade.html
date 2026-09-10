@@ -318,6 +318,45 @@ await test('As perguntas seguem a lógica da oferta, não a ordem das variáveis
   assert(pos('validade')<pos('logo_loja'),'a identidade da loja veio antes da oferta');
 });
 
+/* A ordem semântica é boa, mas ela NÃO pode ser inescapável: o designer que reordena na aba
+   Campos está decidindo, e decisão do designer vence automação (regra de precedência do
+   projeto). Até 10/09 o peso vencia sempre e o controle do Estúdio era inerte — reordenar
+   não mudava nada para o franqueado. Este caso trava as duas metades. */
+await test('Ordem fixada pelo designer vence o peso semântico — e o automático volta', async()=>{
+  const catalogoReal=window.dVars;
+  try{
+    // O catálogo é a fonte da posição: `gSortTemplateVars` lê `dVars` para desempatar e,
+    // quando há `ordemManual`, para MANDAR.
+    window.dVars=[
+      {name:'precoPor',label:'Preço promocional',type:'currency'},
+      {name:'produto',label:'Produto',type:'text'},
+      {name:'precoDe',label:'Preço original',type:'currency'}
+    ];
+    const semPino=['precoDe','precoPor','produto'];
+    gSortTemplateVars(semPino);
+    assert(semPino.join()==='produto,precoDe,precoPor',
+      'sem pino a ordem deixou de ser a semântica: '+semPino.join(' → '));
+
+    window.dVars.forEach(v=>v.ordemManual=true);
+    const comPino=['produto','precoDe','precoPor'];
+    gSortTemplateVars(comPino);
+    assert(comPino.join()==='precoPor,produto,precoDe',
+      'a ordem fixada pelo designer foi ignorada: '+comPino.join(' → '));
+
+    // Campo fora do catálogo não pode quebrar o sort nem sumir — vai para o fim.
+    const comOrfao=['produto','campo_orfao','precoPor'];
+    gSortTemplateVars(comOrfao);
+    assert(comOrfao.length===3 && comOrfao[2]==='campo_orfao',
+      'campo fora do catálogo bagunçou a ordem fixada: '+comOrfao.join(' → '));
+
+    window.dVars.forEach(v=>delete v.ordemManual);
+    const voltou=['precoPor','precoDe','produto'];
+    gSortTemplateVars(voltou);
+    assert(voltou.join()==='produto,precoDe,precoPor',
+      'tirar o pino não devolveu a ordem automática: '+voltou.join(' → '));
+  } finally { window.dVars=catalogoReal; }
+});
+
 await test('A pergunta só existe se o template usa o campo', async()=>{
   window.dVars=[];
   const perguntas=fBuildPerguntas(['produto','precoPor'],{camp:{}});

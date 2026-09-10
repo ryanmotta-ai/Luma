@@ -52,6 +52,8 @@
 | Canvas, zoom, pan, réguas, guias, simulação de dados, mouse | `js/designer/canvas.js` |
 | Criar/apagar/renomear camada, painel de camadas, multi-seleção | `js/designer/layers.js` |
 | Painel de propriedades (acordeão, alinhamento, sub-nav) | `js/designer/props-panel.js` |
+| Ordem em que o franqueado é perguntado (ver e fixar no Estúdio) | `js/designer/layers.js` (`dFieldsOrderRender`/`dFieldsOrderMove`) → motor `gSortTemplateVars` em `00-config.js`. ⚠ `ordemManual` faz a POSIÇÃO NO ARRAY vencer o peso semântico |
+| Reuso de campo antes de criar duplicata | `js/designer/layers.js` (`dFieldReuseHint`) — mesmo `gFieldInfer` que o `dConfirmVar` usa |
 | Template e pasta: CRUD, carregar, montar camadas, modal | `js/designer/templates.js` |
 | Publicar template (o modal de 4 abas) | `js/designer/publish.js` |
 | Caixa de seleção, handles, transform | `js/designer/selection.js` + `canvas.js` |
@@ -139,6 +141,7 @@ franqueado (o Quick Add em linguagem natural existiu e saiu em 03/09).
 | `gCampoEhLogo` | `js/00-config.js` | "Isto é um logo?" — usado pela copy do passo, pela validação do arquivo, pelo `contain` no render e pela prévia |
 | `fBuildPerguntas` | `js/franqueado/materials.js` | Monta as perguntas do chat (ordem, copy, par de preço). O `catalog.js` tinha a segunda montagem, mais pobre: a mesma arte perguntava diferente conforme a porta de entrada |
 | Smart resize | `js/core/layout.js` (`gReflowLayers:67`) | Re-ancora entre formatos por fator único. Nunca redimensione à mão |
+| Ordem das perguntas | `js/00-config.js` (`gSortTemplateVars`) | Peso semântico por conceito; `ordemManual` no catálogo faz a ordem do array vencer. Lido por `materials.js`, `catalog.js` e pelo painel Campos |
 | Solver de composição | `js/00-config.js:1745` (`gApplyRelativeAnchors`) | Âncoras relativas |
 | Julgamento de layout | `js/core/auto-layout.js` | A camada que decide, acima do solver |
 | Feature flags | `js/core/feature-flags.js` | Nenhum outro arquivo fala com a tabela de flags |
@@ -251,13 +254,13 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 74 arquivos JS (59.838 linhas, 2.367 funções) · 31 arquivos CSS (28.160 linhas) · `index.html` com 3.813 linhas e 75 `<script>`.
+**Tamanho real de hoje:** 74 arquivos JS (59.977 linhas, 2.374 funções) · 31 arquivos CSS (28.238 linhas) · `index.html` com 3.813 linhas e 75 `<script>`.
 
 ## JS — o que cada arquivo é
 
 ### js (raiz)
 
-**`js/00-config.js`** · 3301 linhas
+**`js/00-config.js`** · 3321 linhas
 Constantes globais imutaveis: HIST_KEY, CAMPS_ATIVAS, CAMPS_OUTRAS, FMTS. Deve ser carregado PRIMEIRO (todos os modulos dependem destas constantes).
 · API: gVarRegex, gValidVarName, gXmlEsc, gRoundPolyD, gRoundPolyPath2D, gVectorPathFillRule, gVectorPathValid, gTraceVectorPath, gVectorPathD, gFxOffset, gFxRgba, gGradStopsCss, gGradientCss, gGradientCanvas … (+48; 93 funções no total)
 · Estado global: _G_MEDIDA_CACHE, gLayoutVivoOff, _gCanvasWrap
@@ -462,9 +465,9 @@ Fontes customizadas enviadas pelo usuário (.ttf/.otf/.woff/.woff2).
 · Estado global: dCustomFonts
 · Depende de: 00-config.js, core/toast.js, designer/canvas.js (dRenderCanvas).
 
-**`js/designer/layers.js`** · 4382 linhas
+**`js/designer/layers.js`** · 4499 linhas
 CRUD de layers, painel lateral, props, multi-select, rename: dSelLayer, dDeselect, dRenderLayersList, dShowProps, dAddText, dAddShape, dToggleMultiSel, dRenameLayer, dAddIcon, dAddLine.
-· API: dSelLayer, dHoverLayer, dSelLayerState, dDeselect, dStartCrop, dStopCrop, dOnCropDrag, dStopCropDrag, dStartDrag, dOnDrag, dStopDrag, dStartResize, dOnResize, dStopResize … (+196; 258 funções no total)
+· API: dSelLayer, dHoverLayer, dSelLayerState, dDeselect, dStartCrop, dStopCrop, dOnCropDrag, dStopCropDrag, dStartDrag, dOnDrag, dStopDrag, dStartResize, dOnResize, dStopResize … (+202; 265 funções no total)
 · Estado global: dDragEls, dPendingIsolate, dDragMoved, dCropState, dDragCrop, dResizeEl, dResizePos, dResizeLyrX, dResizeLyrY, dResizeFs (+35)
 · Depende de: designer/canvas.js
 
@@ -495,7 +498,7 @@ Preview engine do designer: pvRender, pvRenderLayers, pvRenderLayer, dPreviewOpe
 · Estado global: pvFmt, pvDevice, pvRendering, pvRenderQueued, pvExportScale, pvExportType, pvExportQuality, dExportSelectedFmt
 · Depende de: designer/canvas.js, designer/layers.js
 
-**`js/designer/props-panel.js`** · 2380 linhas
+**`js/designer/props-panel.js`** · 2382 linhas
 Accordion, sub-nav scroll, alignment button group para o painel de props.
 · API: dPropToggleSection, dPropSaveSections, dPropRestoreSections, dPropScrollTo, dPropSetAlign, dPropSyncAlign, dPropShowSections, dPropWorkspaceMode, dPropReadWorkspaceMode, dPropSetWorkspaceMode, dToggleChrome, dPropBuildWorkspaceMode, dPropBuildEssentialChrome, dPropBuildPanelNav … (+61; 75 funções no total)
 · Estado global: dChromeOff, dPropDataProblemsOnly, dPropDataShowInventory
@@ -679,7 +682,7 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 | `css/modules/franqueado.css` | 1593 |
 | `css/modules/franqueado_effects.css` | 406 |
 | `css/modules/help-widget.css` | 1678 |
-| `css/modules/layers-panel.css` | 4401 |
+| `css/modules/layers-panel.css` | 4479 |
 | `css/modules/live-preview.css` | 930 |
 | `css/modules/panel-dock.css` | 116 |
 | `css/modules/publish-modal.css` | 628 |

@@ -961,8 +961,28 @@ function gFieldSortWeight(name, type){
 }
 
 // Ordena um array de variáveis de template respeitando a hierarquia cognitiva
+/* ⚠ ORDEM FIXADA PELO DESIGNER VENCE O PESO SEMÂNTICO — e este é o único ponto onde isso
+   se decide, porque este é o único motor de ordem (o franqueado lê daqui por
+   `materials.js` e `catalog.js`).
+   Antes de 10/09 o peso vencia sempre: mexer na ordem do catálogo no Estúdio (`dMoveVar`)
+   só tinha efeito DENTRO de um mesmo bloco de peso — o designer arrastava e nada mudava
+   para o franqueado. Controle que não controla é pior que controle nenhum.
+   O sinal é `ordemManual` em qualquer campo, e a ordem passa a ser a POSIÇÃO NO ARRAY —
+   que é o que já persiste (`_dVarToRow` grava `ordem: i` e o boot lê `.order('ordem')`).
+   Campo fora do catálogo vai para o fim, sem quebrar o sort. */
 function gSortTemplateVars(vars){
   if(!Array.isArray(vars) || vars.length <= 1) return vars;
+  const catalogo = (typeof dVars !== 'undefined' && Array.isArray(dVars)) ? dVars : null;
+  if(catalogo && catalogo.some(v => v && v.ordemManual)){
+    const pos = (n) => catalogo.findIndex(v => v && v.name === n);
+    return vars.sort((a, b) => {
+      const ia = pos(a), ib = pos(b);
+      if(ia < 0 && ib < 0) return 0;
+      if(ia < 0) return 1;
+      if(ib < 0) return -1;
+      return ia - ib;
+    });
+  }
   const getType = (n) => {
     if(typeof dVars !== 'undefined' && Array.isArray(dVars)){
       const v = dVars.find(x => x && x.name === n);
