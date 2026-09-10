@@ -481,3 +481,424 @@ repositório (confirmado também pelo estudo de 05/09). A suíte não carrega o 
 ela cobre as funções de parse, geometria de texto, alpha, raster, capacidade e o selo. Portanto
 esta rodada **não** comprova leitura binária, worker, UI de revisão nem correspondência com o
 Photoshop — nem afirma isso.
+
+---
+
+## 11. Rodada 2 (10/09) — estabilização da fidelidade
+
+Três fronteiras, escolhidas dos problemas da §3 por **impacto visual × frequência × risco de
+afetar várias artes**. A ordem saiu do diagnóstico, não da intuição: o A4 ganhou de todos porque
+atinge *toda* arte importada num preset, que é o caminho comum.
+
+### F1 · GEOMETRIA — o reflow leva toda medida em px (`A4`, `A9`)
+
+**Causa:** `gReflowLayers` escalava `fontSize`, `radius` e `strokeW` e mais nada. Toda outra
+medida em pixel que o importador grava ficava com o valor absoluto do documento original.
+
+**Regra que mudou:** a lista `_G_REFLOW_PX` passou a ser a fonte única do que acompanha a
+escala — tracking, cantos por-canto, tracejado, todas as medidas de sombra/brilho/relevo e a
+pilha `layerEffects[]`. Medido num PSD 1080×1350 → Wide (fator 0,58): tracking 12→7, cantos
+{24,24,8,8}→{14,14,5,5}, sombra blur 20→12 dist 10→6, pilha blur 30→17. O que **não** é px
+continua intacto por definição explícita: `lineHeight` (fator), ângulos, `inkBox` e
+`vectorPath` (normalizados), e o sentinela `radius:999`.
+
+`clipBaseSnapshot` passou a ser **apagado** no reflow em vez de carregado: depois de refluir ele
+nunca mais bate, e a comparação falsa fazia o motor descartar o alpha antialiasado do Photoshop.
+Sem snapshot, o render cai no vínculo vivo (`clipBaseId`), que reflui junto e continua correto.
+
+⚠️ **Raio de alcance além do PSD:** `gReflowLayers` é compartilhado. Arte não-PSD com sombra ou
+tracking definidos no Estúdio passa a ter essas medidas escaladas na troca de formato. É a
+correção de uma lacuna — que `strokeW` e `radius` já escalassem prova que a omissão dos vizinhos
+não era decisão —, mas é mudança de comportamento em arte publicada, e está dita aqui.
+
+**A9:** o clamp de raio usava a caixa do NÓ (inflada pela expansão do traço) depois de x/y/w/h
+já terem sido trocados pela caixa do CAMINHO. Passou a usar a caixa final.
+
+### F2 · EFEITO EM IMAGEM — a perda deixou de existir, não só de ser declarada (`A3`)
+
+**Causa:** `_dPsdApplyFx` copia sombra/brilho/contorno/sobreposição para camadas que a conversão
+entrega como `type:'image'`/`'frame'`, e o ramo image/frame de `fRenderOneLayer` não lia nenhum.
+**Não era um problema do PSD:** `dAddEffect()` não tem porta de tipo, então o designer podia pôr
+sombra numa foto no Estúdio e nada acontecia. E os três renderizadores **discordavam** — o SVG
+(`dSvgFx`) já aplicava efeito em imagem; o Canvas e o DOM não. O Canvas é o que o franqueado
+baixa, então o Canvas era o errado.
+
+**Regra que mudou:** o ramo image/frame passou a consumir **sombra projetada, brilho externo e
+sobreposição de cor/gradiente**, com o conteúdo desenhado num offscreen e a sombra saindo da
+**silhueta real** desse offscreen — o alpha do PNG, não a caixa da camada. É a diferença entre a
+sombra acompanhar o recorte do objeto inteligente e um retângulo de sombra em volta dele. Segue o
+*knockout* do Photoshop (o default): a sombra é subtraída da própria silhueta, então não vaza sob
+pixel semitransparente. O DOM do editor passou a mostrar sombra/brilho em imagem e moldura
+(pela caixa, via `box-shadow`) para a superfície de edição parar de esconder o efeito.
+
+**Ficaram fora, de propósito:** contorno, sombra interna, brilho interno e relevo. Todos exigem a
+borda *real* do recorte (dilatação/erosão do alpha); aproximá-los pela caixa desenharia uma
+moldura em volta de um recorte, o que altera a composição mais do que a ausência.
+
+**Consequência na honestidade:** o motivo `fx_only_native` passou a listar **quais** efeitos se
+perdem, e sombra/brilho/sobreposição saíram da conta. Um aviso que descreve perda inexistente
+ensina o designer a ignorar os avisos.
+
+**Redução de duplicação:** a cascata de silhueta (vetor → elipse → polígono → retângulo de
+cantos) existia **três vezes** dentro de `fRenderOneLayer`. Virou `fTraceLayerShape`, um motor
+único — zero cópias inline restantes.
+
+### F3 · FONTE E CADEIA DE DIAGNÓSTICO
+
+**Fonte, causa:** `_dPsdRemapFont` respondia "achei"/"não achei", e casar **exato** com uma
+família e casar **por prefixo** chegavam na revisão com o mesmo selo verde. São coisas
+diferentes: a segunda é outro arquivo de fonte, com outras métricas, o que muda a largura de cada
+linha. Sem separar, erro de FONTE era diagnosticado como erro de GEOMETRIA — e a tentação era
+compensar tipografia movendo posição, que é o conserto errado.
+
+**Regra que mudou:** `_dPsdFontResolve` devolve quatro estados — `exact` (a família existe, a
+métrica é a real), `approximated` (casou por prefixo: outra família), `substituted` (ausente, mas
+o **peso** do nome foi preservado no Roboto), `missing` (ausente e sem peso: Roboto Regular, peso
+adivinhado). Cada um é um motivo próprio na etapa `fonte`, e a revisão tem quatro selos em vez de
+dois. Enviar o arquivo da fonte na revisão promove a camada a `exact` e **remove** o motivo.
+
+**Cadeia, causa:** o livro-caixa dizia *o que* se perdeu, não *onde* a caixa mudou de valor.
+
+**O que passou a existir:** um registro por etapa em `it.trace` — `decode` (o que o ag-psd
+entregou, antes de qualquer interpretação), `normalize` (corpo, entrelinha, tracking, alinhamento,
+estado da fonte), `geometria` (**contorno dos glifos × caixa autorada**, qual venceu e por quê),
+`dependencias` (cadeia de grupos, máscaras herdadas, recorte), `dependencias-resolvidas`,
+`capacidade` e `conversao`. **Desligado por padrão** e sem custo quando desligado (um `if` de
+booleano por ponto); `dPsdTrace(true)` liga, `dPsdDiagnostico("nome")` imprime a cadeia daquela
+camada. Nada de `console.log` solto, nada persistido.
+
+### Fidelidade: o que passou a ser tratado melhor
+
+| Elemento | Antes | Agora |
+|---|---|---|
+| Objeto inteligente com sombra | sombra sumia em silêncio | sombra desenhada, seguindo o recorte real |
+| Texto que virou imagem por um efeito | perdia justamente esse efeito | sombra/brilho/sobreposição preservados |
+| Qualquer arte num preset (Story/Feed/Wide) | tracking, cantos e sombra na escala do PSD original | tudo na escala da prancheta de destino |
+| Recorte (clipping) reflowado | snapshot velho descartava o alpha do Photoshop | vínculo vivo, que reflui junto |
+| Fonte casada por prefixo | selo verde "vinculada" | "aproximada", com a métrica declarada diferente |
+| Forma com traço grosso | canto arredondado maior que a caixa real | clamp na caixa do caminho |
+| Moldura vazia | silhueta calculada por cópia própria | mesma silhueta da moldura cheia |
+
+### Raster fallback: onde passou a ser usado
+
+**Em nenhum lugar novo** — e isso é o resultado desejado. Esta rodada foi na direção oposta: três
+efeitos que forçavam a camada a ser tratada como perda passaram a ser **renderizados
+nativamente** em imagem. A política de capacidade continua sendo o único lugar que decide raster,
+e ela ficou mais precisa, não mais agressiva.
+
+### Legado que permanece
+
+| Legado | Por quê |
+|---|---|
+| `it.mode` acumulando render + significado (`A5`) | o briefing desta rodada proíbe mexer em Campos. Continua sendo a próxima fronteira estrutural |
+| Os ~12 booleanos de fidelidade e a lista `fxWarns` | transporte que os três renderizadores e a suíte já leem; derivar tudo do livro-caixa é churn que só se paga junto com o `A5` |
+| Contorno/sombra interna/brilho interno/relevo em imagem | precisam da borda real do recorte; aproximar pela caixa é pior que a ausência declarada |
+| `out.reverse()` + heurística + checkbox de z-order (`A7`) | mexer em ordem sem corpus de PSD real é apostar |
+| `_dPsdBusyUpdate` no motor, globais cruzadas (`A6`) | 5 pontos; entra junto com o contexto explícito |
+| `dPsdAbSelectPreview`, `isMaskBase` (`A10`) | morto/vestigial, sem ganho de fidelidade em remover |
+
+### As fragilidades que mais limitam fidelidade agora
+
+1. **Não existe pacote de referência** (PSD + PNG do Photoshop por prancheta). Continua sendo o
+   gargalo de *toda* afirmação de fidelidade — sem ele, z-order, cor, 16/32 bits e métrica de
+   texto seguem sem base de comparação. É a única desta lista que não é código.
+2. **`it.mode` conflaciona render e significado** (`A5`): escolher um campo troca o tipo de
+   render, e `_dPsdSuggestImgVar` pode transformar uma forma de cor sólida em moldura **durante o
+   parse**, apagando o fill.
+3. **Contorno e efeitos internos em raster**: exigem dilatação/erosão do alpha. Hoje declarados
+   como perda; é a lacuna de efeito que resta.
+4. **Cor e profundidade sem política**: o worker transporta os buffers como `Uint8ClampedArray`
+   sem tipo/profundidade. Para 16/32 bits isso não é conversão correta, e não há ICC no caminho.
+   Não medido — precisa de arquivo real.
+5. **`dPsdParseItems` com 457 linhas e doze responsabilidades** (`A8`): cada fronteira extraída
+   diminui, mas o walk ainda é o ponto onde tudo se cruza.
+
+---
+
+## 12. Rodada 3 (10/09) — texto e fontes
+
+### O pipeline de texto encontrado
+
+```
+ Photoshop
+   ↓  ag-psd: TySh (descritor) + EngineData (motor de texto), fundidos em node.text
+   ↓         · text.transform  — matriz da CAMADA
+   ↓         · text.bounds / boundingBox — caixa em TEXT-SPACE (pontos), do descritor TySh
+   ↓         · text.shapeType · pointBase · boxBounds — do cookie Photoshop do EngineData
+   ↓         · style.fontSize/leading/tracking/horizontalScale/verticalScale/baselineShift…
+   ↓         · styleRuns[] · paragraphStyle.autoLeading/justification
+   ▼
+ ramo de TEXTO do walk (psd-parse.js)
+   ├─ _dPsdFontResolve   → família · peso · estilo · status          [ETAPA fonte]
+   ├─ _dPsdTextMetrics   → corpo · entrelinha · tracking · escala    [ETAPA normalize]
+   │    └─ _dPsdTextScale + _dPsdFatorResolucao + _dPsdLeading + _dPsdTracking
+   ├─ _dPsdAlign         → alinhamento (7 valores do PS → 4 do Luma)
+   ├─ _dPsdParagraphBox  → caixa autorada × contorno dos glifos       [ETAPA geometria]
+   └─ _dPsdRichRuns      → trechos com estilo próprio (+ yOffset)
+   ▼
+ dItemToLayer  →  l.{content,font,fontSize,letterSpacing,lineHeight,textAlign,textBox,vAlign,runs}
+   ▼
+ fRenderOneLayer (Canvas, o motor) · dRenderCanvas (DOM) · dSvgText (SVG)
+```
+
+**Onde cada propriedade nasce, depois desta rodada:** corpo, entrelinha, tracking, escala e
+deslocamento de baseline saem todos de `_dPsdTextMetrics` — antes eram quatro cálculos
+independentes em 15 linhas do walk. Família, peso e estilo saem de `_dPsdFontFace`, que é a
+única gramática de nome de fonte do arquivo.
+
+### As causas de divergência, por categoria
+
+| Categoria | Causa encontrada | O que era o efeito visual |
+|---|---|---|
+| **FONTE** | peso derivado de `s.includes('bold')` | `SemiBold → 700` (é 600), `ExtraLight → 300` (é 200), `ExtraBold → 700` (é 800). Título mais pesado que o desenhado, e a largura da linha ia com ele |
+| **FONTE** | `Helvetica` (sem peso no nome) assumia 400 | palpite nosso apresentado como escolha do designer |
+| **FONTE** | casamento por prefixo marcado como resolvido | outro arquivo de fonte, com outra métrica, anunciado como "vinculada" |
+| **MÉTRICA** | `horizontalScale`/`verticalScale` **nunca lidos** | escala do painel Caractere ignorada: título condensado a 85% importava a 100% |
+| **MÉTRICA** | fator de resolução decidido por `_tScale<1.5` | palpite errado dobrava o corpo ou o deixava 4× menor |
+| **MÉTRICA** | faixa de plausibilidade `0,4×`–`2,5×` | o corpo AUTORADO era descartado e trocado pelo estimado da altura da caixa |
+| **MÉTRICA** | tracking arredondado para inteiro, em dois lugares | em corpo pequeno o aperto do designer virava `0` |
+| **GEOMETRIA** | — | (atacada na rodada 2: reflow e clamp de raio) |
+| **PARÁGRAFO** | `boxBounds` **é** entregue pelo ag-psd | confirmado: o candidato do score é real, não morto |
+| **TRANSFORM** | `sx≠sy` achatado em um número | estiramento horizontal perdido em silêncio |
+| **CAPACIDADE** | `baselineShift` nunca lido | os centavos elevados de `R$ 29,⁹⁰` caíam na linha do inteiro |
+
+### O font resolver
+
+`_dPsdFontFace(nome)` quebra o nome PostScript nas quatro grafias que o Photoshop usa
+(`Montserrat-SemiBold` · `Montserrat SemiBold` · `MontserratSemiBold` · `Montserrat_SemiBold`)
+em **família · peso · itálico**, por uma tabela ordenada do mais específico ao menos —
+`extrabold` antes de `bold`, `semibold` antes dos dois. Peso `null` quando o nome não declara,
+que é diferente de 400.
+
+`_dPsdFontResolve(nome)` decide o status **família primeiro, peso depois**, que é o que a
+definição de APPROXIMATED pede:
+
+| Status | Quando | Consequência |
+|---|---|---|
+| `exact` | família e peso disponíveis | a métrica é a real |
+| `approximated` | família encontrada, peso/estilo diferente (ou só prefixo) | o desenho da letra e a largura da linha diferem |
+| `substituted` | família ausente, **peso do nome preservado** no Roboto | peso certo, desenho diferente |
+| `missing` | ausente e sem peso no nome | Roboto Regular, peso adivinhado |
+
+A revisão mostra o par **pedido→usado** (`Montserrat SemiBold · peso 600→700`) — era a
+informação que faltava para a diferença de largura ter explicação na tela.
+
+### A fórmula do corpo
+
+```
+corpoPx = style.fontSize × escalaY × fatorDeResolucao
+escalaY = |vetor-y do transform| × verticalScale/100
+```
+
+O fator de resolução é o que deixou de ser palpite. `text.bounds` é a caixa do **motor de
+texto** em text-space — e, ao contrário de `node.top/bottom`, **não cresce com sombra nem
+contorno**. Comparar a escala medida (`altura em pixel / altura em text-space`) com `sy` e com
+`sy × res/72` diz qual das duas hipóteses o arquivo confirma. Medido:
+
+| Caso | corpo | fatores |
+|---|---|---|
+| 72dpi, transform 2×, 30pt | 60px | 30pt × 2,000 × 1,000 |
+| 300dpi, transform identidade, 24pt | 100px | 24pt × 1,000 × 4,167 |
+| 300dpi, transform **já** com a resolução | 100px | 24pt × 4,167 × 1,000 |
+| painel Caractere vertical 80%, 100pt | 80px | 100pt × 0,800 × 1,000 |
+| condensado 85% na horizontal | 100px | 100pt × 1,000 × 1,000 · **85% na horizontal registrado** |
+
+### Geometria: qual é a fonte da verdade
+
+| Conceito | Fonte da verdade |
+|---|---|
+| corpo da fonte | `style.fontSize` × escalaY × fator de resolução — **nunca** a altura da caixa |
+| posição e caixa (parágrafo) | `_dPsdParagraphBox`: `boxBounds`/`bounds` × transform, por score |
+| posição e caixa (point) | o bbox de pixels da camada — que é a área visual, por definição |
+| entrelinha | `paragraphStyle.autoLeading` (Auto) ou `leading/fontSize` em pontos |
+| tracking | `style.tracking`/1000 × corpoPx |
+| escala | transform × painel Caractere, os dois eixos separados |
+| deslocamento de baseline | `style.baselineShift`, **por trecho** (já embutido no bbox da camada) |
+
+### Hacks removidos, com a razão de cada um
+
+| Hack | Por que existia | O que entrou no lugar |
+|---|---|---|
+| `if(res>90 && _tScale<1.5) fs*=res/72` | adivinhar se o transform já trouxe a resolução | comparação com os `bounds` do motor de texto |
+| `boxFs = h/(nLines*1.25)` + faixa `0,4`–`2,5` | proteger contra corpo implausível | nada: o corpo autorado vence sempre. A estimativa só entra quando o arquivo não traz corpo, e fica **declarada** |
+| teto `Math.min(fs,2000)` / `180` | evitar corpo gigante de caixa alta | nada: 220pt a 300dpi são ~917px e é isso que o designer desenhou |
+| `Math.round` no tracking, em 2 lugares | — | `_dPsdTracking`, fracionário, um lugar |
+| `leading*(res/72)` no ramo sem fontSize | corrigir unidade | nada: a razão é adimensional, a resolução se cancela |
+| peso por `/bold|light|black/` | — | tabela `_DPSD_PESOS` |
+| regex de itálico próprio no walk | — | `_dPsdFontFace.italico` |
+
+### Hacks preservados, e por quê
+
+* **Piso de 8px no corpo** — abaixo disso nenhum renderizador desenha algo legível.
+* **O score de `_dPsdParagraphBox`** (tolerância por âncora e por corpo) — não é número mágico:
+  é o que rejeita o `boxBounds` velho compartilhado por fragmentos de preço clonados. Confirmado
+  nesta rodada que `boxBounds` **é** entregue pelo ag-psd, então o candidato é real.
+* **`vAlign:'top'` + `actualBoundingBoxAscent` no render** — é métrica real da fonte, não offset
+  mágico: alinha o topo da tinta ao `node.top` do Photoshop.
+* **Faixas de sanidade da entrelinha** (`0,3`–`6`) — protegem contra o lixo que o Photoshop
+  deixa em `style.leading` quando o Auto está ligado.
+
+### Limitações tipográficas reais
+
+| Recurso | Por quê |
+|---|---|
+| Escala não uniforme (condensar/esticar num eixo) | o modelo do Luma tem **um** corpo de fonte; não há transformação de texto. Registrado como perda, com o número |
+| Texto em curva, warp, rotação, espelho | sem matriz de transformação de texto → raster fiel |
+| Justificado total | nenhum renderizador estica a última linha |
+| Kerning por par, ligaduras, OpenType | o `ctx.letterSpacing` do Canvas é uniforme |
+| Hifenização e composição de parágrafo do Adobe | o algoritmo de quebra é outro; linhas longas podem quebrar em ponto diferente |
+| Versaletes (small caps) | aproximados por maiúsculas |
+| Trechos com FAMÍLIA diferente na mesma camada | `runs` preservam texto/cor/corpo/tracking/offset; ao virar campo editável, o estilo misto é perdido (declarado) |
+
+### Próxima prioridade tipográfica
+
+1. **Quebra de linha de parágrafo.** As quebras explícitas (`\n`) são preservadas; as quebras
+   por LARGURA são recalculadas pelo `measureText` do navegador com outra fonte e outro
+   algoritmo. Numa headline de duas linhas isso é o que mais salta. Depende de fonte exata.
+2. **Medir depois da fonte carregar.** `fRenderTemplateLayers` já espera `document.fonts.ready`,
+   mas a geometria do import é decidida no parse, antes. Hoje isso não afeta posição (o corpo é
+   autorado, não medido), e afeta a quebra por largura — que é o item 1.
+3. **Trechos com família diferente** no mesmo texto.
+4. **Kerning/ligaduras**, quando houver fonte exata.
+
+---
+
+## 13. Rodada 4 (10/09) — máscaras, recorte, objetos inteligentes e vetores
+
+### Estruturas investigadas e o que se perdia
+
+| Estrutura | Causa da perda | Onde |
+|---|---|---|
+| **Cadeia de recorte** | a fronteira da busca da base era o **nome** do grupo | dois grupos de nome igual (comum: "Grupo 1", "Camada 5 cópia") deixavam uma camada recortar por base de OUTRO grupo |
+| **Cadeia de recorte** | a relação nunca existia como dado | cada camada recortada redescobria a base andando no array; o conversor tinha de reinferi-la |
+| **Máscara de camada** | `userMaskDensity` fora da lista branca do worker | máscara a 50% de densidade escondia **100%** |
+| **Máscara de camada** | `userMaskFeather` fora da lista branca | máscara com difusão entrava com **borda dura** |
+| **Máscara de camada** | `positionRelativeToLayer` fora da lista branca | offset calculado no espaço do documento quando o arquivo dizia "relativo à camada" |
+| **Máscara de grupo** | ramo de herança era **código morto** | `inh.masks` nascia `[]` nos dois pontos do walk e nunca recebia push |
+| **Objeto inteligente** | `placedLayer` nunca lido | todo smart object era um caso só; perspectiva, warp e cisalhamento indistinguíveis de uma foto reta |
+| **Caminho composto** | `operation!=='combine'` reprovava a forma inteira | anel, letra vazada e moldura perdiam a geometria e caíam no recorte raster |
+
+### Dependency model — a cadeia como dado
+
+O recorte no Photoshop é uma **cadeia**, não uma propriedade de camada:
+
+```
+FORMA BASE          ← define o alpha, e continua visível
+↑ FOTO    recortada
+↑ TEXTURA recortada  ← todas recortam pela MESMA base
+↑ LUZ     recortada
+```
+
+Agora ela é montada **uma vez** (`_clipGroups`), com a fronteira na **identidade** do grupo
+(`_groupChain`, ids únicos) em vez do nome, e a relação viaja no item:
+
+| Campo | Significado |
+|---|---|
+| `clipRole` | `'base'` ou `'clipped'` — o papel na cadeia |
+| `clipChainSize` | quantas camadas a base recorta |
+| `clipChainIndex` | posição na cadeia |
+| `clipBaseName` | por quem esta camada é recortada |
+
+A revisão mostra os dois lados (`Base de recorte · 3` / `Recortada por "Placa"`), então a
+relação estrutural fica visível antes da importação. `clipBaseId` + `clipBaseSnapshot`
+continuam como antes: o motor Canvas redesenha o alpha da base viva a cada render.
+
+### Masks — os três mecanismos, separados
+
+`_dPsdComputeMask` compõe **três** coisas distintas, multiplicando alphas:
+
+| Mecanismo | Fonte | O que controla |
+|---|---|---|
+| Máscara de camada | `node.mask` (raster) | a visibilidade da própria camada |
+| Recorte vetorial | `node.vectorMask` (Bézier) | idem, por geometria |
+| Máscara de recorte | o alpha da camada-base | a visibilidade pela cadeia |
+
+E a **máscara de grupo deixou de estar aqui** — de propósito. O ramo `extra.groupMasks` era
+da era pré-grupo, quando a máscara do grupo precisava ser reprojetada em cada filho. Hoje o
+grupo É uma camada (`type:'group'` + `parentId`) e a máscara vive em `gd.mask`, aplicada **uma
+vez ao composto** por `_fRenderGroup` — que é mais correto: no Photoshop a máscara do grupo
+incide sobre o resultado da composição, não sobre cada camada isolada. Removido, com o motivo
+registrado no código.
+
+Os três parâmetros que passaram a atravessar o worker:
+
+* **densidade** → fator sobre o alpha, levantando o piso: `alpha = lum×d + 255×(1−d)`;
+* **difusão** → `filter:blur(raio/2)` sobre o alpha antes de compor, que é o que o gaussiano
+  do Photoshop faz;
+* **relativa à camada** → a origem da camada entra no cálculo do offset.
+
+### Smart objects — dois casos, não um
+
+`_dPsdSmartObject(node)` lê o que o ag-psd entrega e descreve **sem decidir**:
+
+| Sinal | De onde | Para quê |
+|---|---|---|
+| `tipo` | `placedLayer.type` | `raster` · `vector` · `image stack` |
+| `perspectiva` | `nonAffineTransform` existir | o Photoshop só grava a 2ª matriz quando difere da afim |
+| `eixoAlinhado` · `rotacao` · `cisalhado` | os **4 cantos** de `transform` | produto escalar normalizado das arestas: imune a rotação |
+| `warp` | `placedLayer.warp` | deformação de malha |
+| `escala` | `larguraColocada / width` original | quanto do conteúdo está sendo mostrado |
+
+O veredito resultante:
+
+* **foto colocada reta** → `smart_object_substituivel`. Continua `raster` (o ag-psd só entrega
+  o composto achatado — o pixel é a única fonte), mas a revisão pode oferecer "Moldura de
+  foto" **com honestidade**, porque trocar a foto reproduz o mesmo resultado;
+* **perspectiva / warp / rotação / cisalhamento** → `smart_object`, com o detalhe nomeado. Aí
+  nem substituir o conteúdo é seguro: a deformação não acompanharia.
+
+⛔ **O engine não escolhe o modo.** `_dPsdSmartObject` descreve, o estágio de capacidade
+classifica, e o vínculo continua sendo decisão do designer na revisão — §39 e §47 do briefing.
+
+**Limitação medida:** a resolução original do conteúdo (`placedLayer.width/height`) **não** dá
+mais resolução ao raster. O `node.canvas` que o ag-psd entrega é a camada já composta no
+tamanho do documento; os pixels do conteúdo original não vêm no arquivo por essa via. O número
+serve para descrever a escala, não para recuperar nitidez.
+
+### Vetores — o que continua nativo
+
+| Caso | Antes | Agora |
+|---|---|---|
+| retângulo, arredondado, elipse | primitiva nativa | igual (`keyOriginType`) |
+| caminho custom | `vectorPath` Bézier normalizado 0..1 | igual |
+| **subcaminho subtraído** (anel, letra vazada, moldura) | **reprovava tudo** → recorte raster | `evenodd`, geometria preservada |
+| `intersect` / `exclude` | reprovava | continua reprovando |
+| máscara vetorial invertida | reprovava | continua reprovando |
+
+`subtract` de um subcaminho contido no outro **é** a definição de `evenodd` — cruzar duas
+bordas volta a ser "fora". Não é aproximação, e o `evenodd` já era suportado pelos três
+renderizadores. `intersect` e `exclude` não têm equivalente em regra de preenchimento, e
+fingir que têm encheria buracos ou apagaria área.
+
+### Raster subtree — por que NÃO entrou
+
+O briefing pede raster por subárvore (§28). **Não implementei, e a razão é medida:** o motor
+Canvas já compõe grupo com isolamento, máscara, opacidade e blend (`_fRenderGroup`), e o
+clipping com base viva. Ou seja, a composição que justificaria achatar uma subárvore **já é
+reproduzida nativamente**. Rasterizar um grupo hoje trocaria fidelidade editável por pixels
+sem ganho visual, e custaria a estrutura que dá valor ao Luma (§31).
+
+O caso que ainda justificaria é a **combinação** que o motor não reproduz — e o estágio de
+capacidade já a detecta por camada (`fx_stack_partial`, `overlay_blend`, `gradient_style`).
+Elevar essa análise de camada para subárvore é a próxima fronteira desta camada, não desta
+rodada: exige um corpus real para saber quais combinações acontecem de fato.
+
+### Limitações reais desta camada
+
+| Recurso | Por quê |
+|---|---|
+| Conteúdo interno de objeto inteligente | o ag-psd entrega só o composto; não há árvore interna |
+| Perspectiva e warp de colocação | o modelo do Luma não tem matriz não-afim |
+| `intersect` / `exclude` entre subcaminhos | sem equivalente em regra de preenchimento |
+| Máscara vetorial invertida | idem |
+| `realMask` (máscara real do Photoshop) | lida pelo ag-psd, ainda não consumida — é a máscara resultante quando há vetorial + raster juntas |
+| Blend If (Opções de mesclagem avançadas) | sem caminho de render |
+| Grupo com blend não-pass-through sobre fundo externo | o isolamento do motor aproxima; a matemática exata do Photoshop difere |
+
+### Próximas fragilidades desta camada
+
+1. **Capacidade por subárvore** — hoje a análise é por camada. Precisa de corpus real.
+2. **`realMask`** — quando uma camada tem máscara vetorial E raster, o Photoshop grava a
+   composta; consumi-la evitaria recompor por conta.
+3. **Grupo com blend sobre o que está fora dele** — o isolamento aproxima.
+4. **Pacote de referência** — continua sendo o gargalo de toda medição de fidelidade.

@@ -254,7 +254,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 74 arquivos JS (60.217 linhas, 2.384 funções) · 31 arquivos CSS (28.238 linhas) · `index.html` com 3.813 linhas e 75 `<script>`.
+**Tamanho real de hoje:** 74 arquivos JS (61.001 linhas, 2.397 funções) · 31 arquivos CSS (28.238 linhas) · `index.html` com 3.813 linhas e 75 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -318,7 +318,7 @@ Armazenamento de imagens grandes (fundos de PSD, fotos) em IndexedDB, fora do lo
 · API: gImgHash, gIdbPut, gIdbGet, gIdbDel, gResolveImgUrl, gHydrateLayers, gHydrateFolders
 · Estado global: _gIdbPromise
 
-**`js/core/layout.js`** · 96 linhas
+**`js/core/layout.js`** · 136 linhas
 5.2 — SMART RESIZE MULTI-FORMATO (motor de layout relativo). Converte layers entre formatos sem distorcer: tamanho escala por UM fator (s = minDim destino / minDim origem) e a POSIÇÃO re-ancora por eixo (left/center/right ×…
 · API: gInferAnchor, gEnsureAnchors, gReflowLayers, gFmtKey
 · Depende de: nada (puro). Carregar antes de franqueado/ e designer/.
@@ -413,9 +413,9 @@ Drag & drop das 3 colunas do workspace do franqueado (só desktop largo).
 · Estado global: _panelOrder, _panelDrag
 · Depende de: index.html (grips + #fran-main), css/modules/panel-dock.css,
 
-**`js/franqueado/png-generator.js`** · 4653 linhas
+**`js/franqueado/png-generator.js`** · 4729 linhas
 Geracao de PNG a partir dos templates: fGenPNG, fRenderTemplateLayers, fBaixar, fOutroFormato. Sistema de nomenclatura padronizado para downloads.
-· API: fLoadLogoBranca, fMaterialSize, fExportScale, fRenderCanvasHelper, fGenPNG, fGenPDF, fPostarInstagram, fEnviarWhatsApp, fDrawDMLogo, fAdjustImageData, fRenderTemplateLayers, fRenderOneLayer, roundedRect, roundedRectPath … (+70; 149 funções no total)
+· API: fLoadLogoBranca, fMaterialSize, fExportScale, fRenderCanvasHelper, fGenPNG, fGenPDF, fPostarInstagram, fEnviarWhatsApp, fDrawDMLogo, fAdjustImageData, fRenderTemplateLayers, fTraceLayerShape, fRenderOneLayer, roundedRect … (+71; 151 funções no total)
 · Estado global: _fLogoBrancaImg, fBulkRows, _fBulkAudit, _fBulkAsyncAudit, _fBulkAuditFingerprint, _fBulkImageAudit, _fBulkAutosaveTimer, _fBulkAutosaveSeq, _fBulkGenerationState, _fBulkPreflightRunning (+38)
 · Depende de: 00-config.js, 01-state.js, designer/canvas.js (dRenderCanvas)
 
@@ -446,7 +446,7 @@ Sistema de pincel/borracha/carimbo: dPaintStart, dPaintMove, dPaintEnd, dStampAt
 · Estado global: dStampSource, dStampOffset, dGradStart, dBrush, dStampAligned, _dSharpenC1, _dSharpenC2, dNitidezLast, _dNitidezHinted, dFormaLast (+7)
 · Depende de: designer/canvas.js
 
-**`js/designer/canvas.js`** · 2508 linhas
+**`js/designer/canvas.js`** · 2521 linhas
 Render do canvas, zoom, pan, formato, réguas, barra contextual, smart guides, simulacao de dados e interacoes de mouse.
 · API: dSetFormat, dApplyFormat, dFitToScreen, dPositionArtboard, dZoom, dSetZoom, dSampleImg, dSetPhTest, dEscolherFotoDaMoldura, dRenderWorkspace, dABAddResizeHandles, dABToolAttach, dUpdateBrushCursor, dSetTool … (+58; 84 funções no total)
 · Estado global: dPhTestAR, dMarquee, dDrawShapeState, dABDraw, dLastClickLayerId, dLastClickTime, dPainting, dPaintLast, dSnapEnabled, dSimValues (+11)
@@ -503,16 +503,16 @@ Accordion, sub-nav scroll, alignment button group para o painel de props.
 · API: dPropToggleSection, dPropSaveSections, dPropRestoreSections, dPropScrollTo, dPropSetAlign, dPropSyncAlign, dPropShowSections, dPropWorkspaceMode, dPropReadWorkspaceMode, dPropSetWorkspaceMode, dToggleChrome, dPropBuildWorkspaceMode, dPropBuildEssentialChrome, dPropBuildPanelNav … (+61; 75 funções no total)
 · Estado global: dChromeOff, dPropDataProblemsOnly, dPropDataShowInventory
 
-**`js/designer/psd-import.js`** · 1735 linhas
+**`js/designer/psd-import.js`** · 1786 linhas
 REVISÃO e IMPORTAÇÃO do .psd — a metade do importador que é tela.
 · API: dPsdOpenReview, dPsdDiagnostico, dPsdToggleAdvanced, dPsdRenderRows, dPsdSetMode, dPsdSetVar, dPsdSetInclude, dPsdSelectAll, dPsdSelectNone, dPsdUploadFont, dPsdUpdateCount, dPsdCancel, dPsdConfirmImport, dImportLayersAsArtboard … (+21; 86 funções no total)
 · Estado global: dPsdItems, _dPsdReviewAll, _dPsdAdjustCount, _dPsdLastHoverIdx, _dPsdPreviewTimer, _dPsdDragField, _dPsdArmedField, _dPsdDragPaint, _dPsdAiBusy, _dPsdBoards (+4)
 · Depende de: designer/templates.js, core/layout.js, core/toast.js, 00-config.js.
 
-**`js/designer/psd-parse.js`** · 2149 linhas
+**`js/designer/psd-parse.js`** · 2753 linhas
 LEITURA e FIDELIDADE do .psd — a metade do importador que não toca a tela.
-· API: dLoadAgPsd, dPsdCancelLoad, dPsdDetectFmt, dPsdCapReport, dPsdParseItems, dItemToLayer, dPsdItemsToLayers
-· Estado global: _agPsdPromise, _dPsdGlobalLight, _dPsdYieldChan, _dPsdCancelled, _dPsdActiveWorker, _dPsdErrorCount
+· API: dLoadAgPsd, dPsdCancelLoad, dPsdDetectFmt, dPsdTrace, dPsdCapReport, dPsdParseItems, dItemToLayer, dPsdItemsToLayers
+· Estado global: _agPsdPromise, _dPsdGlobalLight, _dPsdYieldChan, _dPsdCancelled, _dPsdActiveWorker, _dPsdTraceOn, _dPsdErrorCount
 
 **`js/designer/publish.js`** · 1464 linhas
 Modal de publicacao de templates (4 abas): dPublishOpen, dPublishClose, dPublishSwitchTab, dPublishRender, dPublishConfirm.
