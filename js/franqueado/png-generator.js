@@ -697,6 +697,46 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp, materialOve
   return effective;
 }
 
+/* ══ SILHUETA DE UMA CAMADA — o motor único da geometria de contorno ══════════════════════
+   Traça no path atual a forma que a camada ocupa, na cascata vetor → elipse → polígono →
+   retângulo de cantos, e devolve a fill-rule a usar.
+   POR QUE EXISTE: esta cascata estava escrita TRÊS VEZES dentro de `fRenderOneLayer` — o
+   `_trace` da forma, o recorte da moldura/imagem e o placeholder da moldura vazia. Três
+   cópias da mesma geometria é como uma divergir sem ninguém notar, e foi o que aconteceu:
+   `radii` (cantos por-canto) chegou nas três, mas cada uma calculava o clamp por conta.
+   ⛔ Não faz fill, stroke nem clip — só traça. Quem chama decide o que fazer com o path.
+   `frameShape` entra no lookup porque a moldura usa esse nome para a mesma informação. */
+function fTraceLayerShape(ctx, l, x, y, w, h, scaleX){
+  const kind = l.shapeKind || l.frameShape || 'rect';
+  const vector = (kind==='path' && typeof gVectorPathValid==='function' && gVectorPathValid(l.vectorPath)) ? l.vectorPath : null;
+  if(vector){ gTraceVectorPath(ctx, vector, x, y, w, h); return (typeof gVectorPathFillRule==='function')?gVectorPathFillRule(vector):'nonzero'; }
+  if(kind==='circle' || kind==='ellipse'){ ctx.beginPath(); ctx.ellipse(x+w/2, y+h/2, w/2, h/2, 0, 0, Math.PI*2); return 'nonzero'; }
+  const pts = (typeof dShapePoints==='function') ? dShapePoints(l) : null;
+  if(pts){
+    const abs = pts.map(p=>[x+p[0]*w, y+p[1]*h]);
+    const r = Math.min((l.radius||0)*scaleX, w/2, h/2);
+    if(r>0 && typeof gRoundPolyPath2D==='function'){ gRoundPolyPath2D(ctx, abs, r); }
+    else { ctx.beginPath(); abs.forEach((p,i)=>{ i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]); }); ctx.closePath(); }
+    return 'nonzero';
+  }
+  const ru = l.radius||0, rr = l.radii;
+  roundedRectPath(ctx, x, y, w, h,
+    (rr?(+rr.tl||0):ru)*scaleX, (rr?(+rr.tr||0):ru)*scaleX,
+    (rr?(+rr.br||0):ru)*scaleX, (rr?(+rr.bl||0):ru)*scaleX);
+  return 'nonzero';
+}
+/* Silhueta em COR SÓLIDA do que foi desenhado num offscreen, respeitando o alpha real.
+   É o que permite a sombra de uma imagem seguir o RECORTE do PNG, e não a caixa da camada —
+   a diferença entre a sombra de um objeto inteligente recortado e um retângulo de sombra
+   em volta dele. `source-in` mantém só onde já havia pixel. */
+function _fSilhuetaSolida(oc, cor){
+  const s=document.createElement('canvas'); s.width=oc.width; s.height=oc.height;
+  const sx=s.getContext('2d');
+  sx.drawImage(oc,0,0);
+  sx.globalCompositeOperation='source-in';
+  sx.fillStyle=cor; sx.fillRect(0,0,s.width,s.height);
+  return s;
+}
 // Renderiza um único layer aplicando dados do franqueado
 async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
   ctx.save();
@@ -730,24 +770,12 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     const _sc=Math.min(scaleX,scaleY);
     // gradiente (l.gradient) → CanvasGradient na caixa; senão cor sólida
     const _fillStyle = (l.gradient&&l.gradient.stops&&l.gradient.stops.length&&typeof gGradientCanvas==='function') ? gGradientCanvas(ctx,l.gradient,x,y,w,h) : _fill;
-    // cantos por canto (l.radii sobrescreve l.radius uniforme) — inline p/ não depender do designer
-    const _ru=l.radius||0, _rr=l.radii;
-    const _ctl=(_rr?(+_rr.tl||0):_ru)*scaleX, _ctr=(_rr?(+_rr.tr||0):_ru)*scaleX,
-          _cbr=(_rr?(+_rr.br||0):_ru)*scaleX, _cbl=(_rr?(+_rr.bl||0):_ru)*scaleX;
-    const _pts = (kind!=='circle'&&kind!=='ellipse'&&typeof dShapePoints==='function') ? dShapePoints(l) : null;
     const _vector=(kind==='path'&&typeof gVectorPathValid==='function'&&gVectorPathValid(l.vectorPath))?l.vectorPath:null;
     const _fillRule=_vector&&typeof gVectorPathFillRule==='function'?gVectorPathFillRule(_vector):'nonzero';
     const _fxStack=Array.isArray(l.layerEffects)?l.layerEffects:[];
     const _fxOf=t=>_fxStack.filter(e=>e&&e.type===t);
-    // traça a forma no path atual (reutilizável p/ sombras/overlay/traçado)
-    const _trace = ()=>{
-      if(_vector){ gTraceVectorPath(ctx,_vector,x,y,w,h); }
-      else if(kind==='circle'||kind==='ellipse'){ ctx.beginPath(); ctx.ellipse(x+w/2,y+h/2,w/2,h/2,0,0,Math.PI*2); }
-      else if(_pts){ const abs=_pts.map(p=>[x+p[0]*w,y+p[1]*h]); const r=Math.min((l.radius||0)*scaleX,w/2,h/2);
-        if(r>0 && typeof gRoundPolyPath2D==='function'){ gRoundPolyPath2D(ctx,abs,r); }
-        else { ctx.beginPath(); abs.forEach((p,i)=>{ i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]); }); ctx.closePath(); } }
-      else { roundedRectPath(ctx,x,y,w,h,_ctl,_ctr,_cbr,_cbl); }
-    };
+    // traça a forma no path atual (reutilizável p/ sombras/overlay/traçado) — motor único: fTraceLayerShape
+    const _trace = ()=>fTraceLayerShape(ctx,l,x,y,w,h,scaleX);
     const _overlay = (l.overlay&&l.overlayColor) ? gFxRgba(l.overlayColor, l.overlayOpacity!=null?l.overlayOpacity:1) : null;
     // 1) sombra projetada + brilho externo (atrás do fill)
     // _spread(): canvas 2D não tem spread nativo. Traçar a MESMA forma com espessura 2×spread
@@ -1139,35 +1167,39 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     } else if(l.imgUrl && l.imgUrl !== '__local__' && l.imgUrl.length > 0){
       imgSource = l.imgUrl;
     }
+    /* ══ EFEITOS DE CAMADA EM IMAGEM E MOLDURA ═════════════════════════════════════════════
+       Até 10/09/2026 este ramo IGNORAVA sombra, brilho e sobreposição. O importador de PSD
+       gravava esses campos (`_dPsdApplyFx` os copia para toda camada que a conversão entrega
+       como imagem) e nenhum renderizador os lia — então objeto inteligente com sombra
+       projetada perdia a sombra, e todo texto que virou imagem fiel POR CAUSA de um efeito
+       perdia justamente esse efeito. Em silêncio.
+       Não era um problema do PSD: `dAddEffect()` não tem porta de tipo, então o designer
+       podia pôr sombra numa foto no Estúdio e não acontecia nada. E os três renderizadores
+       DISCORDAVAM — o SVG (`preview.js`, dSvgFx) já aplicava efeito em imagem; o Canvas e o
+       DOM não. O Canvas é o que o franqueado baixa, então o Canvas era o errado.
+       COMO: o conteúdo (recorte + foto) é desenhado num offscreen e a sombra sai da SILHUETA
+       REAL desse offscreen — o alpha do PNG, não a caixa da camada. É a diferença entre a
+       sombra acompanhar o recorte do objeto inteligente e um retângulo de sombra em volta.
+       Segue o padrão do Photoshop de "a camada oculta a própria sombra" (knockout, o default):
+       a sombra é subtraída da própria silhueta, então não aparece sob um pixel semitransparente.
+       ⛔ FORA daqui, de propósito: contorno, sombra interna, brilho interno e relevo. Todos
+       exigem a borda REAL do recorte (dilatação/erosão do alpha), não a caixa — aproximá-los
+       pela caixa desenharia uma moldura em volta de um recorte, que altera a composição mais
+       do que a ausência. Continuam registrados como perda pelo estágio de capacidade.
+       ⚠ O caminho novo só roda quando há efeito consumível. Sem efeito, o desenho é o mesmo
+       de antes, linha por linha — nenhuma arte sem efeito muda. */
+    const _fxSt = Array.isArray(l.layerEffects) ? l.layerEffects : [];
+    const _fxTipo = t => _fxSt.filter(e=>e && e.type===t);
+    const _temSombra = !!(l.shadow || _fxTipo('dropShadow').length);
+    const _temGlow = !!l.glow;
+    const _temOvl = !!((l.overlay && l.overlayColor) || _fxTipo('colorOverlay').length
+      || (l.gradientOverlay && l.gradientOverlay.stops && l.gradientOverlay.stops.length)
+      || _fxTipo('gradientOverlay').length);
+    const _temFxImg = _temSombra || _temGlow || _temOvl;
     if(imgSource){
       try {
         const img = await fLoadImageDataUrl(imgSource);
         if(img && img.width){
-          ctx.save();
-          ctx.beginPath();
-          const kind = l.shapeKind || l.frameShape || 'rect';
-          const _pts = (kind !== 'circle' && kind !== 'ellipse' && typeof dShapePoints === 'function') ? dShapePoints(l) : null;
-          const _vector=(kind==='path'&&typeof gVectorPathValid==='function'&&gVectorPathValid(l.vectorPath))?l.vectorPath:null;
-          if(_vector){
-            gTraceVectorPath(ctx,_vector,x,y,w,h);
-          } else if(kind === 'circle' || kind === 'ellipse'){
-            ctx.ellipse(x + w/2, y + h/2, w/2, h/2, 0, 0, Math.PI*2);
-          } else if(_pts){
-            const abs = _pts.map(p => [x + p[0]*w, y + p[1]*h]);
-            const pathRadius = Math.min((l.radius||0)*scaleX, w/2, h/2);
-            if(pathRadius > 0 && typeof gRoundPolyPath2D === 'function'){
-              gRoundPolyPath2D(ctx, abs, pathRadius);
-            } else {
-              abs.forEach((p, i) => { i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); });
-              ctx.closePath();
-            }
-          } else {
-            const _ru = l.radius || 0, _rr = l.radii;
-            const _ctl = (_rr ? (+_rr.tl||0) : _ru) * scaleX, _ctr = (_rr ? (+_rr.tr||0) : _ru) * scaleX,
-                  _cbr = (_rr ? (+_rr.br||0) : _ru) * scaleX, _cbl = (_rr ? (+_rr.bl||0) : _ru) * scaleX;
-            roundedRectPath(ctx, x, y, w, h, _ctl, _ctr, _cbr, _cbl);
-          }
-          ctx.clip(_vector?gVectorPathFillRule(_vector):'nonzero');
           const imgAR = img.width / img.height, frameAR = w / h;
           let baseW, baseH;
           /* LOGO NUNCA É CORTADO. O padrão da moldura é `cover` (o `else` abaixo), que é certo
@@ -1204,41 +1236,85 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
           if (l.filterBrightness != null && l.filterBrightness !== 0) filterStr += ` brightness(${1 + (l.filterBrightness / 100)})`;
           if (l.filterContrast != null && l.filterContrast !== 0) filterStr += ` contrast(${1 + (l.filterContrast / 100)})`;
           if (l.filterSaturate != null && l.filterSaturate !== 0) filterStr += ` saturate(${1 + (l.filterSaturate / 100)})`;
-          if (filterStr) ctx.filter = filterStr.trim();
-          
-          ctx.drawImage(img, drawX, drawY, drawW, drawH);
-          ctx.restore();
+
+          /* O conteúdo da camada — recorte pela silhueta + a foto enquadrada — desenhado num
+             contexto QUALQUER. Vira closure para poder ir ao offscreen quando há efeito, sem
+             duplicar o desenho. Sem efeito, recebe o próprio ctx e nada muda. */
+          const _pintaConteudo = (tgt)=>{
+            tgt.save();
+            tgt.clip(fTraceLayerShape(tgt, l, x, y, w, h, scaleX));
+            if(filterStr) tgt.filter = filterStr.trim();
+            tgt.drawImage(img, drawX, drawY, drawW, drawH);
+            tgt.restore();
+          };
+          if(!_temFxImg){ _pintaConteudo(ctx); }
+          else {
+            // Offscreen em resolução de DISPOSITIVO com a mesma transform: o ctx pai pode estar
+            // em 2× no download, e um offscreen em escala lógica sairia em meia escala no canto.
+            const _tf=(typeof ctx.getTransform==='function')?ctx.getTransform():{a:1,d:1};
+            const _tfS=Math.max(0.0001,Math.min(_tf.a||1,_tf.d||1));
+            const oc=document.createElement('canvas');
+            oc.width=Math.max(1,ctx.canvas.width); oc.height=Math.max(1,ctx.canvas.height);
+            const octx=oc.getContext('2d');
+            try{ octx.setTransform(_tf); }catch(e){}
+            octx.imageSmoothingEnabled=true; octx.imageSmoothingQuality='high';
+            _pintaConteudo(octx);
+            // Sobreposição de cor/gradiente: `source-atop` a mantém SÓ onde há pixel — numa foto
+            // retangular é a caixa inteira, num recorte é só o recorte, como no Photoshop.
+            const _ovl=(estilo,alfa,bm)=>{
+              octx.save();
+              octx.globalCompositeOperation='source-atop';
+              octx.globalAlpha=alfa!=null?alfa:1;
+              const co=bm&&typeof dBlendToComposite==='function'?dBlendToComposite(bm):null;
+              if(co) octx.globalCompositeOperation=co==='source-over'?'source-atop':co;
+              octx.fillStyle=estilo;
+              octx.fillRect(x,y,w,h);
+              octx.restore();
+            };
+            const _gos=_fxTipo('gradientOverlay'), _cos=_fxTipo('colorOverlay');
+            if(_gos.length && typeof gGradientCanvas==='function'){
+              _gos.forEach(e=>{ const g=e.gradient; if(!g||!g.stops||!g.stops.length)return;
+                _ovl(gGradientCanvas(octx,g,x,y,w,h), g.opacity, e.blendMode); });
+            } else if(l.gradientOverlay && l.gradientOverlay.stops && l.gradientOverlay.stops.length && typeof gGradientCanvas==='function'){
+              _ovl(gGradientCanvas(octx,l.gradientOverlay,x,y,w,h), l.gradientOverlay.opacity, l.gradientOverlay.blendMode);
+            }
+            if(_cos.length) _cos.forEach(e=>_ovl(e.color||'#000', e.opacity, e.blendMode));
+            else if(l.overlay && l.overlayColor) _ovl(gFxRgba(l.overlayColor, l.overlayOpacity!=null?l.overlayOpacity:1));
+            /* Sombra/brilho projetados pela silhueta, com knockout. `sh` recebe a silhueta COM
+               sombra e depois subtrai a própria silhueta (`destination-out`): sobra só a sombra,
+               que é o que vai ATRÁS do conteúdo. Sem o knockout, uma silhueta chapada na cor da
+               sombra apareceria sob as bordas semitransparentes do recorte. */
+            const _projeta=(cor,blur,off,bm)=>{
+              const sil=_fSilhuetaSolida(oc,cor);
+              const sh=document.createElement('canvas'); sh.width=oc.width; sh.height=oc.height;
+              const shx=sh.getContext('2d');
+              shx.shadowColor=cor; shx.shadowBlur=(blur||0)*_tfS*Math.min(scaleX,scaleY);
+              shx.shadowOffsetX=(off?off.x:0)*_tfS*scaleX; shx.shadowOffsetY=(off?off.y:0)*_tfS*scaleY;
+              shx.drawImage(sil,0,0);
+              shx.globalCompositeOperation='destination-out';
+              shx.drawImage(sil,0,0);
+              ctx.save(); ctx.setTransform(1,0,0,1,0,0);
+              const co=bm&&typeof dBlendToComposite==='function'?dBlendToComposite(bm):null;
+              if(co) ctx.globalCompositeOperation=co;
+              ctx.drawImage(sh,0,0);
+              ctx.restore();
+            };
+            const _dsFx=_fxTipo('dropShadow');
+            if(_dsFx.length) _dsFx.forEach(e=>_projeta(e.color||'rgba(0,0,0,.5)', e.blur!=null?e.blur:6, gFxOffset(e.distance!=null?e.distance:4, e.angle), e.blendMode));
+            else if(l.shadow) _projeta(l.shadowColor||'rgba(0,0,0,.5)', l.shadowBlur!=null?l.shadowBlur:6, gFxOffset(l.shadowDist!=null?l.shadowDist:4, l.shadowAngle));
+            if(l.glow) _projeta(l.glowColor||'rgba(255,255,255,.7)', l.glowSize!=null?l.glowSize:8, null);
+            // O conteúdo por cima da sombra, em coords de dispositivo (o offscreen já as tem).
+            ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.drawImage(oc,0,0); ctx.restore();
+          }
         }
       } catch(e){
         console.warn('Erro renderizando layer image:', e);
       }
     } else {
-      // Placeholder visual leve (não chamativo no PNG final)
+      // Placeholder visual leve (não chamativo no PNG final) — mesma silhueta do conteúdo,
+      // pelo motor único, para a moldura vazia ter exatamente a forma da moldura cheia.
       ctx.fillStyle = 'rgba(255,255,255,0.06)';
-      ctx.beginPath();
-      const kind = l.shapeKind || l.frameShape || 'rect';
-      const _pts = (kind !== 'circle' && kind !== 'ellipse' && typeof dShapePoints === 'function') ? dShapePoints(l) : null;
-      const _vector=(kind==='path'&&typeof gVectorPathValid==='function'&&gVectorPathValid(l.vectorPath))?l.vectorPath:null;
-      if(_vector){
-        gTraceVectorPath(ctx,_vector,x,y,w,h);
-      } else if(kind === 'circle' || kind === 'ellipse'){
-        ctx.ellipse(x + w/2, y + h/2, w/2, h/2, 0, 0, Math.PI*2);
-      } else if(_pts){
-        const abs = _pts.map(p => [x + p[0]*w, y + p[1]*h]);
-        const pathRadius = Math.min((l.radius||0)*scaleX, w/2, h/2);
-        if(pathRadius > 0 && typeof gRoundPolyPath2D === 'function'){
-          gRoundPolyPath2D(ctx, abs, pathRadius);
-        } else {
-          abs.forEach((p, i) => { i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); });
-          ctx.closePath();
-        }
-      } else {
-        const _ru = l.radius || 0, _rr = l.radii;
-        const _ctl = (_rr ? (+_rr.tl||0) : _ru) * scaleX, _ctr = (_rr ? (+_rr.tr||0) : _ru) * scaleX,
-              _cbr = (_rr ? (+_rr.br||0) : _ru) * scaleX, _cbl = (_rr ? (+_rr.bl||0) : _ru) * scaleX;
-        roundedRectPath(ctx, x, y, w, h, _ctl, _ctr, _cbr, _cbl);
-      }
-      ctx.fill(_vector?gVectorPathFillRule(_vector):'nonzero');
+      ctx.fill(fTraceLayerShape(ctx, l, x, y, w, h, scaleX));
     }
   }
   ctx.restore();

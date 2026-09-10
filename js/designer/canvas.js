@@ -1366,7 +1366,16 @@ function dRenderCanvas(){
       // (outras molduras / textos-variável), deslocando tudo. Absolute já é contexto de
       // posicionamento para os decorativos (+FOTO, X, label) abaixo.
       el.style.overflow='visible';
-      
+      /* Sombra/brilho na MOLDURA: o Canvas passou a consumi-los (png-generator, ramo
+         image/frame) e o SVG já consumia. Sem isto aqui, o editor era o único que não
+         mostrava — e o designer punha uma sombra pelo fx e via nada acontecer.
+         O DOM projeta pela CAIXA (box-shadow), não pelo alpha da foto; no Canvas final a
+         sombra segue o recorte real. A prévia do Estúdio já é o motor (pvRenderViaMotor),
+         então a aproximação fica restrita à superfície de EDIÇÃO, onde o que importa é
+         enxergar que o efeito existe. */
+      const _fsFrame=(typeof dFxShadowParts==='function')?dFxShadowParts(l):[];
+      if(_fsFrame.length) el.style.boxShadow=_fsFrame.join(', ');
+
       const kind = l.shapeKind || l.frameShape || 'rect';
       let clipCss = '';
       let dashSvg = '';
@@ -1478,6 +1487,10 @@ function dRenderCanvas(){
       el.appendChild(lbl);
     }else if(l.type==='image'){
       el.style.overflow='hidden';
+      // Mesma razão da moldura: o Canvas e o SVG consomem sombra/brilho em imagem; o editor
+      // precisa mostrar que existem. É aqui que a sombra do objeto inteligente do PSD aparece.
+      const _fsImg=(typeof dFxShadowParts==='function')?dFxShadowParts(l):[];
+      if(_fsImg.length) el.style.boxShadow=_fsImg.join(', ');
       const simImg=dSimActive&&l.imgVar&&dSimValues[l.imgVar];
       if(simImg||l.imgUrl){
         if(simImg)l._simImgUrl=simImg;
