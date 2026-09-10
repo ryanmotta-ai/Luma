@@ -17,8 +17,16 @@
   <div class="summary" id="summary">Executando no motor real do navegador…</div>
   <ol id="results"></ol>
   <script src="../js/00-config.js"></script>
+  <!-- core/layout.js é parte da cadeia do import: `_dPsdReflowToFmt` e `dImportLayersAsArtboard`
+       levam as camadas do tamanho nativo do PSD para o preset escolhido por `gReflowLayers`.
+       Arquivo puro, sem efeito colateral no boot. -->
+  <script src="../js/core/layout.js"></script>
   <script src="../js/core/auto-layout.js"></script>
   <script src="../js/designer/blending.js"></script>
+  <!-- fonts.js traz o catálogo REAL (dBuiltinFonts) que `_dPsdFontResolve` consulta para
+       decidir entre fonte exata, aproximada, substituída e ausente. Só declarações: nada roda
+       no load, então entra na suíte sem efeito colateral. -->
+  <script src="../js/designer/fonts.js"></script>
   <script src="../js/designer/psd-parse.js"></script>
   <!-- O selo de fidelidade (_dPsdFidelity/_dPsdShowFidelity) mora na metade de tela do
        importador. Carrega sem efeito colateral: o arquivo só declara funções. -->
