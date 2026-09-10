@@ -197,11 +197,26 @@ function _dPsdCapMotivo(it, code){
    capacidade, dependência, texto, fonte, máscara, conversão). É o que substitui a depuração
    por tentativa e erro visual — ver a proposta de arquitetura em
    docs/PSD-ARQUITETURA-2026-09-10.md §"Diagnóstico por camada". */
-function dPsdDiagnostico(){
+function dPsdDiagnostico(nome){
+  /* Com um NOME (ou parte dele), imprime a CADEIA daquela camada — Photoshop → decode →
+     normalize → geometria → dependências → capacidade → conversão. Exige `dPsdTrace(true)`
+     ANTES de abrir o arquivo: o registro é feito durante o parse e desligado por padrão. */
+  if(nome){
+    const alvo=dPsdItems.filter(it=>it&&String(it.name||'').toLowerCase().includes(String(nome).toLowerCase()));
+    if(!alvo.length){ console.log('[psd] nenhuma camada com "'+nome+'"'); return []; }
+    alvo.forEach(it=>{
+      console.group('%c'+it.name+'%c  '+(it.kind||'?')+' → '+(it.mode||'?'),'font-weight:700','font-weight:400');
+      if(!it.trace) console.log('sem cadeia registrada — rode dPsdTrace(true) e reabra o arquivo');
+      else console.table(it.trace);
+      console.groupEnd();
+    });
+    return alvo.map(it=>({camada:it.name,cadeia:it.trace||null}));
+  }
   const rep=(typeof dPsdCapReport==='function')?dPsdCapReport(dPsdItems):[];
   if(!rep.length){ console.log('[psd] nenhuma perda registrada nas camadas desta prancheta'); return rep; }
   console.table(rep.map(r=>({camada:r.camada,tipo:r.tipo,modo:r.modo,nivel:r.nivel,
     perdeEfeitos:r.perdeEfeitos,motivos:r.motivos.join(' · ')})));
+  if(!_dPsdTraceOn) console.log('%cPara a cadeia completa de uma camada: dPsdTrace(true), reabra o PSD, e dPsdDiagnostico("nome da camada")','color:#888');
   return rep;
 }
 function dPsdToggleAdvanced(){
@@ -280,8 +295,21 @@ function dPsdRenderRows(filter){
     let fontWarn='';
     if(it.kind==='text'&&it.fontName&&!/roboto/i.test(it.fontName)){
       const fn=_dPsdEsc(it.fontName);
-      if(it.fontRemapped) fontWarn=`<span class="psd-fontok" title="Fonte '${fn}' vinculada">Fonte vinculada · ${fn}</span>`;
-      else fontWarn=`<span class="psd-fontwarn">Fonte ausente · ${fn} <label class="psd-font-upload-btn" title="Enviar '${fn}' agora">Enviar<input type="file" accept=".ttf,.otf,.woff,.woff2" style="display:none" onchange="dPsdUploadFont(${i},this)"></label></span>`;
+      /* Quatro estados, quatro selos — não "vinculada" × "ausente". Casar por PREFIXO é outro
+         arquivo de fonte com outra métrica; dizer "vinculada" ali fazia a diferença de largura
+         parecer erro de geometria. O botão de enviar aparece em tudo que não é exato, porque em
+         todos esses casos o arquivo certo resolve. */
+      const _fs=it.fontStatus || (it.fontRemapped?'exact':'missing');
+      const _envia=`<label class="psd-font-upload-btn" title="Enviar '${fn}' agora">Enviar<input type="file" accept=".ttf,.otf,.woff,.woff2" style="display:none" onchange="dPsdUploadFont(${i},this)"></label>`;
+      // O PESO é a informação que faltava no selo: "Montserrat SemiBold" pedia 600 e podia
+      // estar renderizando 700. Sem o par pedido→usado, a diferença de largura da linha não
+      // tinha explicação na tela e virava caça a erro de posição.
+      const _pp=it.fontPesoPedido, _pu=it.fontPesoUsado;
+      const _peso=(_pp!=null&&_pu!=null&&_pp!==_pu)?` · peso ${_pp}→${_pu}`:(_pu!=null?` · ${_pu}`:'');
+      if(_fs==='exact') fontWarn=`<span class="psd-fontok" title="A família e o peso do Photoshop existem aqui — a métrica é a real">Fonte exata · ${fn}${_peso}</span>`;
+      else if(_fs==='approximated') fontWarn=`<span class="psd-fontwarn" title="A família foi encontrada, mas não neste peso/estilo: o desenho da letra e a largura de cada linha diferem do Photoshop. Não é erro de posição.">Peso aproximado · ${fn}${_peso} ${_envia}</span>`;
+      else if(_fs==='substituted') fontWarn=`<span class="psd-fontwarn" title="A fonte não existe aqui; o PESO foi preservado no Roboto, o desenho da letra não. A largura da linha difere do Photoshop.">Peso preservado, fonte trocada · ${fn}${_peso} ${_envia}</span>`;
+      else fontWarn=`<span class="psd-fontwarn" title="A fonte não existe aqui e o nome não diz o peso: entrou Roboto Regular com peso adivinhado">Fonte ausente · ${fn} ${_envia}</span>`;
     }
     const opacityBadge=it.opacity<95?`<span class="psd-opacity-badge">Opacidade ${it.opacity}%</span>`:'';
     const _adjPt={'brightness/contrast':'Brilho/Contraste',levels:'Níveis',curves:'Curvas',exposure:'Exposição',vibrance:'Vibração','hue/saturation':'Matiz/Saturação',invert:'Inverter',posterize:'Posterizar',threshold:'Limiar'};
@@ -293,7 +321,18 @@ function dPsdRenderRows(filter){
     const effectsStackBadge=(it.layerEffects&&it.kind==='shape')
       ?`<span class="psd-fontok" title="Sombras, contornos e sobreposições repetidas foram preservados na ordem e podem ser editados individualmente no Estilo de Camada">${it.layerEffects.length} efeitos em pilha · editáveis</span>`:'';
     const vectorPathBadge=it.vectorPath
-      ?`<span class="psd-fontok" title="Âncoras e alças Bézier foram preservadas; a forma continua nítida ao redimensionar">Path Bézier · editável</span>`:'';
+      ?`<span class="psd-fontok" title="Âncoras e alças Bézier foram preservadas; a forma continua nítida ao redimensionar">${it.vectorCompound?'Forma com furo · editável':'Path Bézier · editável'}</span>`:'';
+    // Objeto inteligente com foto reta: a revisão pode oferecer moldura com honestidade,
+    // porque trocar a foto reproduz o mesmo resultado. Deformado, não pode.
+    const soBadge=_dPsdCapMotivo(it,'smart_object_substituivel')
+      ?`<span class="psd-fontok" title="A foto foi colocada reta no Photoshop, então substituí-la por outra reproduz o mesmo resultado. Escolha “Moldura de foto” para o franqueado poder trocar.">Objeto inteligente · foto substituível</span>`
+      :(_dPsdCapMotivo(it,'smart_object')
+        ?`<span class="psd-fontwarn" title="A colocação do objeto inteligente está deformada (${_dPsdEsc((_dPsdCapMotivo(it,'smart_object')||{}).detalhe||'')}) — o pixel composto é a única representação fiel, e trocar o conteúdo não reproduziria a deformação.">Objeto inteligente deformado</span>`:'');
+    // Papel na cadeia de recorte: a relação estrutural que o Photoshop expressa entre camadas.
+    const clipBadge=it.clipRole==='clipped'
+      ?`<span class="psd-fontok" title="Esta camada é recortada pela camada “${_dPsdEsc(it.clipBaseName||'')}”, que continua visível e define o alpha. A relação foi preservada.">Recortada por “${_dPsdEsc(String(it.clipBaseName||'').slice(0,22))}”</span>`
+      :(it.clipRole==='base'&&it.clipChainSize
+        ?`<span class="psd-fontok" title="Esta camada define o recorte de ${it.clipChainSize} camada(s) acima dela. Mudar a geometria dela muda o recorte das outras.">Base de recorte · ${it.clipChainSize}</span>`:'');
     const fxWarns=[
       it.fxSatin?'Cetim não aplicado':'',
       it.fxContour?'Contorno de efeito ignorado':'',
@@ -315,7 +354,8 @@ function dPsdRenderRows(filter){
            render da lista, e não congelado no parse;
          · mesclagem que o Luma reconhece mas não renderiza (ex.: Dissolver): entra como Normal.
            O selo "Mesclagem · x" só aparece quando há render, então isto era invisível. */
-      (typeof _dPsdCapPerdeFx==='function'&&_dPsdCapPerdeFx(it))?'Efeitos não saem em imagem fiel':'',
+      (typeof _dPsdCapPerdeFx==='function'&&_dPsdCapPerdeFx(it))
+        ?('Em imagem fiel não sai: '+_dPsdEsc((_dPsdCapMotivo(it,'fx_only_native')||{}).detalhe||'efeito de camada')):'',
       _dPsdCapMotivo(it,'blend_dropped')?('Mesclagem sem equivalente ('+_dPsdEsc(_dPsdCapMotivo(it,'blend_dropped').detalhe||'')+') → Normal'):''
     ].filter(Boolean).map(t=>`<span class="psd-fontwarn" title="O Photoshop aplica isso de um jeito que o Luma não reproduz; o resto da camada entra fiel">${t}</span>`).join('');
     const grpBlendBadge=it.groupBlendApprox?`<span class="psd-fontwarn" title="A mesclagem vinha de um grupo do Photoshop e foi aplicada camada a camada — onde as camadas do grupo se sobrepõem o resultado pode diferir do PSD">Mesclagem de grupo aproximada</span>`:'';
@@ -356,7 +396,7 @@ function dPsdRenderRows(filter){
       <span class="psd-row-ico psd-row-ico-${it.kind}">${swatch||ico[it.kind]||ico.raster}</span>
       ${thumb}
       <span class="psd-row-name" title="${_dPsdEsc(it.name)}">
-        <span class="psd-row-name-top">${_dPsdEsc(it.name)}${errBadge}${flatBadge}${multiStyleBadge}${blendBadge}${grpBlendBadge}${fxWarns}${fontWarn}${opacityBadge}${adjustmentBadge}${effectsStackBadge}${vectorPathBadge}${vecWarn}${clipWarn}${textInfoBadge}${sugBadge}</span>
+        <span class="psd-row-name-top">${_dPsdEsc(it.name)}${errBadge}${flatBadge}${multiStyleBadge}${blendBadge}${grpBlendBadge}${fxWarns}${fontWarn}${opacityBadge}${adjustmentBadge}${effectsStackBadge}${vectorPathBadge}${soBadge}${clipBadge}${vecWarn}${clipWarn}${textInfoBadge}${sugBadge}</span>
         ${groupCrumb}${textPrev}
       </span>
       ${_dPsdFieldSelHTML(it,i)}${modeSel}${varIn}</div>`;
@@ -430,7 +470,15 @@ function dPsdUploadFont(layerIdx, input){
     const fname=(dPsdItems[layerIdx]||{}).fontName||'';
     dPsdItems.forEach(it=>{
       if(it.kind!=='text') return;
-      if(it.fontName===fname){ it.font=mapped; it.fontRemapped=true; }
+      // O arquivo que o designer acabou de enviar É a fonte do Photoshop: estado 'exact', e o
+      // motivo de fonte sai do livro-caixa — a perda deixou de existir nesta camada.
+      if(it.fontName===fname){
+        it.font=mapped; it.fontRemapped=true; it.fontStatus='exact';
+        // O arquivo enviado passa a ser o peso usado: o par pedido→usado deixa de divergir e o
+        // selo para de anunciar uma diferença de peso que não existe mais.
+        it.fontPesoUsado=weight; it.fontPesoPedido=weight;
+        if(it.capability&&it.capability.motivos) it.capability.motivos=it.capability.motivos.filter(m=>m.code.indexOf('font_')!==0);
+      }
       // Texto rico: remapeia também os trechos (runs) que usam a mesma fonte
       if(Array.isArray(it.runs)) it.runs.forEach(run=>{ if(run._fontName===fname) run.font=mapped; });
     });
@@ -444,7 +492,10 @@ function dPsdUpdateCount(){
   // senão o contador podia mostrar "13/12 selecionadas".
   const n=dPsdItems.filter(it=>it.include&&!it.isMaskBase).length, total=dPsdItems.filter(it=>!it.isMaskBase).length;
   const vars=dPsdItems.filter(it=>it.include&&!it.isMaskBase&&(it.mode==='var'||it.mode==='frame')).length;
-  const pendingFonts=dPsdItems.filter(it=>it.include&&it.kind==='text'&&it.fontName&&!/roboto/i.test(it.fontName)&&!it.fontRemapped).length;
+  // "Pendente" = tudo que não é a fonte exata do Photoshop. Antes o casamento por prefixo
+  // contava como resolvido, e o designer não sabia que a métrica ainda estava diferente.
+  const pendingFonts=dPsdItems.filter(it=>it.include&&it.kind==='text'&&it.fontName
+    &&!/roboto/i.test(it.fontName)&&(it.fontStatus||(it.fontRemapped?'exact':'missing'))!=='exact').length;
   const c=document.getElementById('d-psd-count'); if(c) c.textContent=n+' camada'+(n===1?'':'s');
   const info=document.getElementById('d-psd-sel-info'); if(info) info.textContent=n+' de '+total+' selecionadas';
   const _multi=_dPsdBoards.length>1;
