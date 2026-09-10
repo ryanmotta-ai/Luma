@@ -185,6 +185,25 @@ function dPsdOpenReview(){
   modal.classList.add('open');
 }
 
+/* Um motivo do livro-caixa de capacidade desta camada, ou null. A tela LÊ o veredito do
+   estágio (psd-parse.js) — não recalcula a condição por conta própria, que era exatamente
+   como as doze verdades paralelas de fidelidade nasceram. */
+function _dPsdCapMotivo(it, code){
+  const cap=it&&it.capability;
+  return (cap&&cap.motivos&&cap.motivos.find(m=>m.code===code))||null;
+}
+/* Diagnóstico por camada no console da equipe: `dPsdDiagnostico()` lista, para a prancheta
+   aberta, o que cada camada perdeu e em QUE ETAPA isso se decidiu (decode, geometria,
+   capacidade, dependência, texto, fonte, máscara, conversão). É o que substitui a depuração
+   por tentativa e erro visual — ver a proposta de arquitetura em
+   docs/PSD-ARQUITETURA-2026-09-10.md §"Diagnóstico por camada". */
+function dPsdDiagnostico(){
+  const rep=(typeof dPsdCapReport==='function')?dPsdCapReport(dPsdItems):[];
+  if(!rep.length){ console.log('[psd] nenhuma perda registrada nas camadas desta prancheta'); return rep; }
+  console.table(rep.map(r=>({camada:r.camada,tipo:r.tipo,modo:r.modo,nivel:r.nivel,
+    perdeEfeitos:r.perdeEfeitos,motivos:r.motivos.join(' · ')})));
+  return rep;
+}
 function dPsdToggleAdvanced(){
   _dPsdReviewAll=!_dPsdReviewAll;
   dPsdRenderRows(String((document.getElementById('d-psd-search')||{}).value||'').trim().toLowerCase());
@@ -286,7 +305,18 @@ function dPsdRenderRows(filter){
       (it.layerEffects&&it.kind!=='shape')?'Pilha de efeitos → imagem fiel':'',
       it.textOnPath?'Texto em curva → imagem fiel':'',
       it.flipped?'Camada espelhada → imagem fiel':'',
-      it.textJustifyAll?'Justificado total → última linha não estica':''
+      it.textJustifyAll?'Justificado total → última linha não estica':'',
+      /* Duas perdas que existiam e NÃO tinham aviso nenhum — o livro-caixa de capacidade
+         (`it.capability`, em psd-parse.js) passou a nomeá-las:
+         · efeito de camada em algo que a conversão entrega como imagem: nenhum dos três
+           renderizadores lê sombra/brilho/contorno em `type:'image'`/`'frame'`, então o objeto
+           inteligente com sombra e o texto que virou imagem POR CAUSA de um efeito perdiam
+           esse efeito em silêncio. Depende do MODO escolhido, por isso é lido aqui, a cada
+           render da lista, e não congelado no parse;
+         · mesclagem que o Luma reconhece mas não renderiza (ex.: Dissolver): entra como Normal.
+           O selo "Mesclagem · x" só aparece quando há render, então isto era invisível. */
+      (typeof _dPsdCapPerdeFx==='function'&&_dPsdCapPerdeFx(it))?'Efeitos não saem em imagem fiel':'',
+      _dPsdCapMotivo(it,'blend_dropped')?('Mesclagem sem equivalente ('+_dPsdEsc(_dPsdCapMotivo(it,'blend_dropped').detalhe||'')+') → Normal'):''
     ].filter(Boolean).map(t=>`<span class="psd-fontwarn" title="O Photoshop aplica isso de um jeito que o Luma não reproduz; o resto da camada entra fiel">${t}</span>`).join('');
     const grpBlendBadge=it.groupBlendApprox?`<span class="psd-fontwarn" title="A mesclagem vinha de um grupo do Photoshop e foi aplicada camada a camada — onde as camadas do grupo se sobrepõem o resultado pode diferir do PSD">Mesclagem de grupo aproximada</span>`:'';
     const errBadge=it.parseError?`<span class="psd-fontwarn" title="Esta camada não pôde ser interpretada e entrou como imagem fiel do que o Photoshop compôs">Camada recuperada</span>`:'';

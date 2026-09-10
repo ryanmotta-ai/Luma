@@ -183,6 +183,97 @@
     assert(rep.exactPct===0,'nenhum pixel é idêntico, mas o relatório disse que há');
   });
 
+  /* ── Estágio de capacidade (rodada de arquitetura 10/09) ───────────────────────────────
+     A pergunta "o Luma representa esta camada?" era respondida em seis lugares, cada um
+     escrevendo o seu booleano, e a revisão remontava o veredito de doze campos soltos. Estes
+     casos travam o contrato do estágio único: o nível, o motivo NOMEADO e a etapa em que a
+     decisão aconteceu.                                                                      */
+  test('objeto inteligente decide raster no estágio de decode, com motivo',()=>{
+    const node={name:'Selo',left:0,top:0,right:80,bottom:80,smartObject:{}};
+    const cap=_dPsdCapNode(node);
+    assert(cap.raster===true,'objeto inteligente não pediu raster fiel');
+    assert(cap.nivel==='raster','o nível do veredito não é raster');
+    const m=cap.motivos.find(x=>x.code==='smart_object');
+    assert(m,'o motivo do raster não foi nomeado — voltamos ao booleano mudo');
+    assert(m.etapa==='decode','a etapa do motivo não permite classificar o defeito');
+    assert(_dPsdNeedsRaster(node)===true,'a pergunta booleana antiga deixou de ser derivada do estágio');
+  });
+
+  test('camada comum é native e não inventa motivo',()=>{
+    const cap=_dPsdCapNode({name:'Retângulo 2',left:0,top:0,right:10,bottom:10});
+    assert(cap.raster===false&&cap.nivel==='native','uma forma comum recebeu veredito de perda');
+    assert(cap.motivos.length===0,'motivo inventado numa camada sem perda');
+  });
+
+  test('fillOpacity com efeito é decidido UMA vez, no estágio, não na conversão',()=>{
+    // A mesma regra existia em dois lugares (bloco _fxUnsup e dItemToLayer) e mutava o item
+    // durante a conversão — a prévia da revisão alterava o estado que o import leria depois.
+    const comFx={n:1,name:'Placa',kind:'shape',mode:'shape',x:0,y:0,w:100,h:40,visible:true,
+      opacity:100,fillOpacity:0.2,shadow:true,shadowColor:'rgba(0,0,0,.5)',fill:'#FF9000'};
+    const cap=_dPsdCapItem(comFx);
+    assert(cap.raster===true,'fillOpacity + efeito deixou de exigir raster fiel');
+    assert(cap.motivos.some(m=>m.code==='fill_opacity_with_fx'),'a regra do fillOpacity perdeu o nome');
+    const L1=dItemToLayer(comFx);
+    assert(L1.opacity===100,'a opacidade foi dobrada num caso que o modelo não representa');
+    // Sem efeito, dobrar os dois canais num só é equivalência exata — e continua acontecendo.
+    const semFx={n:2,name:'Placa',kind:'shape',mode:'shape',x:0,y:0,w:100,h:40,visible:true,
+      opacity:100,fillOpacity:0.5,fill:'#FF9000'};
+    const L2=dItemToLayer(semFx);
+    assert(L2.opacity===50,'fillOpacity sem efeito parou de ser dobrado na opacidade');
+  });
+
+  test('efeito em camada que sai como imagem é declarado, não sumido em silêncio',()=>{
+    /* Nenhum dos três renderizadores lê sombra/brilho/contorno em type:'image'/'frame'
+       (fRenderOneLayer ramo image/frame, o DOM de canvas.js, o SVG). O parser copiava os
+       campos e ninguém os consumia: objeto inteligente com sombra perdia a sombra sem aviso. */
+    const it={n:1,name:'Selo',kind:'raster',mode:'raster',x:0,y:0,w:80,h:80,visible:true,
+      opacity:100,imgUrl:'data:image/png;base64,iVBORw0KGgo=',shadow:true,shadowColor:'rgba(0,0,0,.5)'};
+    _dPsdCapItem(it);
+    assert(it.capability.motivos.some(m=>m.code==='fx_only_native'),
+      'a perda de efeito em imagem fiel continuou sem nome');
+    assert(_dPsdCapPerdeFx(it)===true,'a revisão não teria como avisar que os efeitos não saem');
+    // A MESMA camada como forma editável renderiza o efeito — então não há perda a declarar.
+    // `capability:null` de propósito: sem isso o Object.assign compartilha o livro-caixa do
+    // item de cima e o caso testaria a referência, não a regra do modo.
+    const comoForma=Object.assign({},it,{kind:'shape',mode:'shape',fill:'#FF9000',capability:null});
+    _dPsdCapItem(comoForma);
+    assert(_dPsdCapPerdeFx(comoForma)===false,'avisou perda de efeito numa camada que renderiza efeito');
+  });
+
+  test('mesclagem sem render entra como Normal COM motivo registrado',()=>{
+    // _dPsdBlendMode devolve undefined de propósito p/ um modo sem render ('dissolve'), pra o
+    // selo não prometer o que sai Normal. Isso era uma perda muda.
+    const it=dPsdParseItems({children:[{name:'Textura',left:0,top:0,right:60,bottom:60,
+      blendMode:'dissolve',text:{text:'x',shapeType:'point',transform:[1,0,0,1,0,0],
+      style:{fontSize:20},paragraphStyle:{justification:'left'}}}],width:1080,height:1350},72,0,0)[0];
+    assert(it&&!it.blendMode,'um modo sem render passou a ser prometido no modelo');
+    assert(_dPsdCapMotivo(it,'blend_dropped'),'a mesclagem descartada não foi registrada');
+  });
+
+  test('perda conhecida não exige raster e não mente sobre o nível',()=>{
+    const it={n:1,name:'Título',kind:'text',mode:'text',content:'OFERTA',x:0,y:0,w:200,h:50,
+      visible:true,opacity:100,fontName:'Montserrat SemiBold',fxSatin:true};
+    const cap=_dPsdCapItem(it);
+    assert(cap.nivel==='native_lossy','cetim + fonte ausente não são perda de raster, mas mudam o nível');
+    assert(cap.raster===false,'uma perda que o pixel também não resolve pediu raster');
+    assert(cap.motivos.some(m=>m.code==='fx_satin'),'cetim perdeu o registro');
+    const f=cap.motivos.find(m=>m.code==='font_missing');
+    assert(f&&f.detalhe==='Montserrat SemiBold','a fonte ausente não guardou QUAL fonte faltou');
+    assert(f.etapa==='fonte','erro de fonte não é classificável separado de erro de posição');
+  });
+
+  test('diagnóstico por camada devolve etapa e motivo de cada perda',()=>{
+    const itens=[
+      {n:1,name:'Limpa',kind:'shape',mode:'shape',x:0,y:0,w:10,h:10},
+      {n:2,name:'Selo',kind:'raster',mode:'raster',x:0,y:0,w:10,h:10,glow:true}
+    ];
+    itens.forEach(_dPsdCapItem);
+    const rep=dPsdCapReport(itens);
+    assert(rep.length===1&&rep[0].camada==='Selo','o relatório não isolou a camada com perda');
+    assert(rep[0].motivos.some(m=>m.indexOf('conversao:fx_only_native')===0),
+      'o relatório não diz em que etapa a perda aconteceu');
+  });
+
   test('sem referência o selo mostra não verificado',()=>{
     const host=document.createElement('div');host.id='d-psd-modal';
     host.innerHTML='<span class="psd-fidelity-badge"><span></span>Fiel ao arquivo</span>';

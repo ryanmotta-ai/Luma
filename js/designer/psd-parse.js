@@ -11,6 +11,16 @@
  * mora em `psd-import.js`, que carrega DEPOIS deste arquivo.
  * Split feito porque o arquivo único passou de 2.400 linhas — parse e UI mudam por
  * motivos diferentes e quase nunca no mesmo commit.
+ *
+ * FRONTEIRA (10/09/2026): a pergunta "o Luma representa esta camada?" tem UM dono neste
+ * arquivo — o ESTÁGIO DE CAPACIDADE (`_dPsdCapNode` no decode, `_dPsdCapItem` depois da
+ * interpretação, `_dPsdCapPerdeFx` na conversão). Ele grava um livro-caixa por camada em
+ * `it.capability` com nível (native / native_lossy / raster / unsupported), motivo NOMEADO e
+ * a etapa em que a decisão aconteceu. Antes essa decisão vivia em seis lugares e a revisão
+ * remontava o veredito a partir de doze booleanos soltos.
+ * ⛔ Capacidade nova entra em `_DPSD_CAP_MOTIVOS` + uma linha no estágio — nunca como um
+ *    booleano novo decidido no meio do walk.
+ * Arquitetura, problemas abertos e próximas fronteiras: docs/PSD-ARQUITETURA-2026-09-10.md
  */
 
 /* ── carrega o ag-psd: vendorizado (local, offline) → fallback CDN ── */
@@ -1277,34 +1287,199 @@ function _dPsdIsFlippedLayer(node){
   }catch(e){}
   return false;
 }
-// P3 — decisão CENTRAL de fidelidade: a camada NÃO é representável de forma editável no Luma
-// e deve virar uma IMAGEM pixel-perfeita (do node.canvas que o ag-psd já compõe), mantendo o
-// visual 1:1 mesmo sem ser editável. Gatilhos determinísticos (passo 1):
-//  • smart object (placedLayer): ag-psd só entrega o composto achatado → raster fiel evita
-//    a mis-detecção como "shape sólida" e preserva o pixel.
-//  • preenchimento/sobreposição por PADRÃO (vectorFill pattern, effects.patternOverlay): não há
-//    modelo de padrão no Luma → raster do tile já renderizado.
-//  • camada de ajuste (adjustment): não tem pixels próprios; retorna true para sinalizar, mas só
-//    rasteriza se houver node.canvas (a fidelidade de COR via composite do doc é o passo 5).
-// Só força raster quando há node.canvas utilizável; senão devolve false e o fluxo normal segue.
-function _dPsdNeedsRaster(node){
-  if(!node) return false;
-  if(node.placedLayer || node.smartObject) return true;                 // smart object
-  if(node.adjustment) return true;                                      // camada de ajuste
-  if(node.vectorFill && node.vectorFill.type==='pattern') return true;  // preenchimento por padrão (PtFl)
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   ESTÁGIO DE CAPACIDADE — a ÚNICA decisão de fidelidade do importador
+   ------------------------------------------------------------------------------------------
+   POR QUE EXISTE. A pergunta "o Luma consegue representar esta camada?" era respondida em
+   seis lugares diferentes deste arquivo, cada um escrevendo o seu próprio booleano:
+   `_dPsdNeedsRaster` (gatilhos do nó cru), o bloco `_fxUnsup` no fim do walk, o par
+   fillOpacity+efeitos em `dItemToLayer` (a MESMA regra do `_fxUnsup`, escrita de novo),
+   `_dPsdAdjustmentInfo`, `_dPsdGradStyle` e `_dPsdEffects`. A revisão então remontava o
+   veredito a partir de doze campos soltos (`fxSatin`, `strokeApprox`, `gradientUnsupported`,
+   `layerEffectsApprox`, `textOnPath`, `flipped`, …). Consequências reais:
+     · não havia como responder "o dado veio errado do decoder ou nós interpretamos errado?";
+     · a regra duplicada de fillOpacity podia divergir no primeiro conserto de um dos lados;
+     · `dItemToLayer` MUTAVA `it.needsRaster` durante a conversão — e a prévia da revisão
+       chama `dItemToLayer`, então ver a prévia alterava o estado que o import leria depois;
+     · perda sem nome: a camada guardava o motivo em booleano, nunca em texto auditável.
+
+   O QUE ESTE ESTÁGIO É. Um livro-caixa por camada (`it.capability`), preenchido em três
+   momentos que já existiam no pipeline — só passaram a ter nome:
+
+     _dPsdCapNode(node)    estágio DECODE      o nó cru já obriga raster? (smart object,
+                                               padrão, rotação, espelho, warp, texto em curva)
+     _dPsdCapItem(it)      estágio CAPACIDADE  o que interpretamos é representável? (pilha de
+                                               efeitos, gradiente sem primitiva, blend de
+                                               overlay, fillOpacity com efeito, fonte ausente…)
+     _dPsdCapMarca(...)    qualquer estágio    registra um motivo nomeado, com nível e etapa
+
+   NÍVEIS (o vocabulário do §14 do briefing):
+     'native'       representável 1:1 e editável;
+     'native_lossy' representável, com uma diferença CONHECIDA e nomeada;
+     'raster'       não é representável editável — o pixel do Photoshop é a fonte fiel;
+     'unsupported'  nem editável nem rasterizável (não há pixel) — perda declarada.
+
+   ⛔ O estágio NÃO rasteriza e NÃO converte: ele só decide e explica. Quem chama é que
+   pega o pixel (`_dPsdRasterURL`) e quem converte é `dItemToLayer`. Assim a decisão fica
+   testável sem canvas e sem DOM.
+   ⛔ Os booleanos antigos continuam sendo escritos: a revisão, os testes e os três
+   renderizadores os leem. O livro-caixa é a fonte da DECISÃO; os booleanos passam a ser
+   derivados dela, não decisões paralelas.                                                */
+const _DPSD_CAP_NIVEIS={native:0, native_lossy:1, raster:2, unsupported:3};
+/* Vocabulário fechado de motivos. `etapa` responde "em que fase isto se decidiu" — é o que
+   permite classificar um defeito sem depurar por tentativa e erro (§29 do briefing).
+   `rotulo` é PT-BR porque vai para a revisão e para o diagnóstico, não só para o console. */
+const _DPSD_CAP_MOTIVOS={
+  /* ── etapa DECODE: o formato PSD já não entrega algo interpretável ── */
+  smart_object:        {nivel:'raster',       etapa:'decode',     rotulo:'Objeto inteligente — o Photoshop entrega só o composto achatado'},
+  adjustment_layer:    {nivel:'raster',       etapa:'decode',     rotulo:'Camada de ajuste sem pixels próprios'},
+  pattern_fill:        {nivel:'raster',       etapa:'decode',     rotulo:'Preenchimento por padrão — o Luma não tem modelo de padrão'},
+  pattern_overlay:     {nivel:'raster',       etapa:'decode',     rotulo:'Sobreposição de padrão — o Luma não tem modelo de padrão'},
+  rotated:             {nivel:'raster',       etapa:'geometria',  rotulo:'Camada rotacionada — o modelo do Luma não tem rotação'},
+  flipped:             {nivel:'raster',       etapa:'geometria',  rotulo:'Camada espelhada ou girada 180°'},
+  text_on_path:        {nivel:'raster',       etapa:'geometria',  rotulo:'Texto em curva (type on path)'},
+  text_warp:           {nivel:'raster',       etapa:'geometria',  rotulo:'Texto deformado (warp) — a deformação está nos pixels'},
+  /* ── etapa CAPACIDADE: interpretamos certo, mas o Luma não representa ── */
+  fx_stack_partial:    {nivel:'raster',       etapa:'capacidade', rotulo:'Parte da pilha de efeitos não tem equivalente editável'},
+  fx_stack_non_shape:  {nivel:'raster',       etapa:'capacidade', rotulo:'Pilha de efeitos múltiplos só é dinâmica em formas'},
+  gradient_style:      {nivel:'raster',       etapa:'capacidade', rotulo:'Gradiente cônico ou losango — sem primitiva no Luma'},
+  overlay_blend:       {nivel:'raster',       etapa:'capacidade', rotulo:'Sobreposição de cor com mesclagem'},
+  gradient_ovl_blend:  {nivel:'raster',       etapa:'capacidade', rotulo:'Sobreposição de gradiente com mesclagem'},
+  text_fx_unsupported: {nivel:'raster',       etapa:'capacidade', rotulo:'Efeito interno em texto (sombra interna, brilho interno, relevo ou gradiente)'},
+  fill_opacity_with_fx:{nivel:'raster',       etapa:'capacidade', rotulo:'Opacidade de preenchimento com efeitos — o modelo tem um canal só'},
+  parse_recovered:     {nivel:'raster',       etapa:'decode',     rotulo:'Camada não interpretável — recuperada do pixel composto'},
+  flattened_document:  {nivel:'raster',       etapa:'decode',     rotulo:'Arquivo sem camadas editáveis — arte achatada'},
+  /* ── perdas CONHECIDAS que não pedem raster (o pixel também não as carrega) ── */
+  fx_satin:            {nivel:'native_lossy', etapa:'capacidade', rotulo:'Cetim não tem equivalente'},
+  fx_contour:          {nivel:'native_lossy', etapa:'capacidade', rotulo:'Contorno customizado de efeito ignorado'},
+  fx_scale:            {nivel:'native_lossy', etapa:'capacidade', rotulo:'Escala de efeitos diferente de 100%'},
+  stroke_approx:       {nivel:'native_lossy', etapa:'capacidade', rotulo:'Traço com gradiente ou padrão aproximado por cor sólida'},
+  gradient_ovl_approx: {nivel:'native_lossy', etapa:'capacidade', rotulo:'Sobreposição de gradiente cônica ou losango aproximada'},
+  fx_stack_blend:      {nivel:'native_lossy', etapa:'capacidade', rotulo:'Mesclagem da pilha de efeitos aproximada'},
+  group_blend_flat:    {nivel:'native_lossy', etapa:'dependencia',rotulo:'Mesclagem de grupo aplicada camada a camada'},
+  blend_dropped:       {nivel:'native_lossy', etapa:'capacidade', rotulo:'Modo de mesclagem sem render no Luma — entrou como Normal'},
+  adjust_unsupported:  {nivel:'native_lossy', etapa:'capacidade', rotulo:'Tipo de ajuste que o Luma ainda não recalcula'},
+  adjust_approx:       {nivel:'native_lossy', etapa:'capacidade', rotulo:'Ajuste com matemática aproximada do Photoshop'},
+  font_missing:        {nivel:'native_lossy', etapa:'fonte',      rotulo:'Fonte do Photoshop ausente — substituída'},
+  text_multi_style:    {nivel:'native_lossy', etapa:'texto',      rotulo:'Estilos mistos reduzidos ao estilo dominante'},
+  text_justify_all:    {nivel:'native_lossy', etapa:'texto',      rotulo:'Justificado total — a última linha não estica'},
+  text_box_approx:     {nivel:'native_lossy', etapa:'geometria',  rotulo:'Caixa de parágrafo não derivável — usando o contorno dos glifos'},
+  vector_mask_failed:  {nivel:'native_lossy', etapa:'mascara',    rotulo:'Recorte vetorial não rasterizável — forma simplificada'},
+  clip_base_fallback:  {nivel:'native_lossy', etapa:'dependencia',rotulo:'Base de recorte complexa — recorte simplificado'},
+  /* ── a perda que NENHUM aviso cobria (achado desta rodada) ─────────────────────────────
+     `_dPsdApplyFx` copia sombra/brilho/contorno/sobreposição para camadas que a conversão
+     entrega como `type:'image'` ou `type:'frame'` — e NENHUM dos três renderizadores lê
+     efeito nesses tipos (`fRenderOneLayer` ramo image/frame, o DOM de `canvas.js`, o SVG).
+     Ou seja: objeto inteligente com sombra projetada, e todo texto que virou imagem fiel
+     JUSTAMENTE por causa de um efeito, perdiam o efeito em silêncio — o dado era gravado e
+     ninguém o consumia. Enquanto os renderizadores não lerem efeito em imagem, a saída
+     honesta é declarar a perda em vez de fingir que ela não existe (§51 do briefing). */
+  fx_only_native:      {nivel:'native_lossy', etapa:'conversao',  rotulo:'Efeitos de camada não saem em imagem fiel — só em texto ou forma'}
+};
+// Livro-caixa novo. `raster` é o que o walk consulta; `motivos` é o que a revisão explica.
+function _dPsdCapNovo(){ return {nivel:'native', raster:false, motivos:[]}; }
+/* Registra um motivo. Idempotente por código: o mesmo motivo marcado duas vezes (o walk e o
+   pós-processamento podem ver a mesma condição) não duplica a linha da revisão. */
+function _dPsdCapMarca(cap, code, detalhe){
+  if(!cap || !_DPSD_CAP_MOTIVOS[code]) return cap;
+  if(cap.motivos.some(m=>m.code===code)) return cap;
+  const def=_DPSD_CAP_MOTIVOS[code];
+  cap.motivos.push({code, nivel:def.nivel, etapa:def.etapa, rotulo:def.rotulo, detalhe:detalhe||''});
+  if(_DPSD_CAP_NIVEIS[def.nivel] > _DPSD_CAP_NIVEIS[cap.nivel]) cap.nivel=def.nivel;
+  if(def.nivel==='raster') cap.raster=true;
+  return cap;
+}
+// Garante o livro-caixa no item (itens vindos de `_dPsdParseFail`/`_dPsdFlatItem` nascem sem).
+function _dPsdCapDe(it){ if(!it.capability) it.capability=_dPsdCapNovo(); return it.capability; }
+/* "Este motivo vale para esta camada?" — a pergunta que a conversão e a revisão fazem, em vez
+   de recalcular a condição por conta própria. Item sem livro-caixa (chamada direta a
+   `dItemToLayer`, como na suíte) é avaliado na hora: a regra vale para todo caller, sempre. */
+function _dPsdCapTem(it, code){
+  if(!it) return false;
+  const cap=it.capability||_dPsdCapItem(it);
+  return !!(cap && cap.motivos.some(m=>m.code===code));
+}
+/* ESTÁGIO 1 (DECODE) — o veredito que só depende do nó cru do ag-psd. É a antiga
+   `_dPsdNeedsRaster`, agora devolvendo o PORQUÊ junto com o sim/não. */
+function _dPsdCapNode(node){
+  const cap=_dPsdCapNovo();
+  if(!node) return cap;
+  if(node.placedLayer || node.smartObject) _dPsdCapMarca(cap,'smart_object');
+  if(node.adjustment) _dPsdCapMarca(cap,'adjustment_layer');
+  if(node.vectorFill && node.vectorFill.type==='pattern') _dPsdCapMarca(cap,'pattern_fill');
   let po=node.effects && node.effects.patternOverlay; if(Array.isArray(po)) po=po[0];
-  if(po && po.enabled!==false) return true;                             // sobreposição de padrão
-  if(_dPsdIsRotatedLayer(node)) return true;                            // camada rotacionada → raster fiel (1:1)
-  if(_dPsdIsFlippedLayer(node)) return true;                            // espelhada / girada 180°
-  if(_dPsdTextOnPath(node)) return true;                                // texto em curva (type on path)
+  if(po && po.enabled!==false) _dPsdCapMarca(cap,'pattern_overlay');
+  if(_dPsdIsRotatedLayer(node)) _dPsdCapMarca(cap,'rotated');
+  if(_dPsdIsFlippedLayer(node)) _dPsdCapMarca(cap,'flipped');
+  if(_dPsdTextOnPath(node)) _dPsdCapMarca(cap,'text_on_path');
   // texto com WARP (arco/onda/bandeira/etc): a deformação faz parte dos PIXELS do node.canvas,
   // não dá pra reproduzir como texto editável → raster preserva o visual deformado 1:1.
   if(node.text && node.text.warp){
     const ws=node.text.warp.style;                       // ag-psd DECODIFICA: sem warp = 'none' (não 'warpNone')
     const bent=(node.text.warp.value||0)!==0 || (node.text.warp.perspective||0)!==0; // bend 0% = sem deformação visível
-    if(ws && ws!=='none' && ws!=='warpNone' && bent) return true;
+    if(ws && ws!=='none' && ws!=='warpNone' && bent) _dPsdCapMarca(cap,'text_warp');
   }
-  return false;
+  return cap;
+}
+/* Compatibilidade: a pergunta booleana continua respondida, agora derivada do estágio.
+   Mantida porque é o nome que a suíte e o histórico usam para este conceito. */
+function _dPsdNeedsRaster(node){ return _dPsdCapNode(node).raster; }
+/* ESTÁGIO 2 (CAPACIDADE) — o veredito sobre o que JÁ interpretamos. Recebe o item pronto
+   (kind/efeitos/texto/gradiente decididos) e devolve o livro-caixa completo.
+   ⚠ Só DECIDE: não escreve `imgUrl` nem muta `kind`/`mode` — quem chama faz isso, porque só
+   ele sabe se há `node.canvas` utilizável e qual o teto de resolução da prancheta. */
+function _dPsdCapItem(it){
+  const cap=_dPsdCapDe(it);
+  const _fx=it.shadow||it.innerShadow||it.glow||it.innerGlow||it.bevel||it.overlay||it.gradientOverlay||it.strokeW||it.layerEffects;
+  /* ── as sete condições que exigem raster fiel (eram o bloco `_fxUnsup`) ── */
+  if(it._fxOverflow) _dPsdCapMarca(cap,'fx_stack_partial');
+  if(it.layerEffects && it.kind!=='shape') _dPsdCapMarca(cap,'fx_stack_non_shape');
+  if(it.gradientUnsupported) _dPsdCapMarca(cap,'gradient_style', it.gradientUnsupported==='angle'?'cônico':'losango');
+  if(it.overlayBlend) _dPsdCapMarca(cap,'overlay_blend', it.overlayBlend);
+  if(it.gradientOverlay && it.gradientOverlay.blendMode) _dPsdCapMarca(cap,'gradient_ovl_blend', it.gradientOverlay.blendMode);
+  if(it.kind==='text' && (it.innerShadow||it.innerGlow||it.bevel||it.gradientOverlay)) _dPsdCapMarca(cap,'text_fx_unsupported');
+  /* fillOpacity ≠ opacity: o Photoshop atenua só o preenchimento, não os efeitos. Sem efeito a
+     conversão dobra os dois num canal (equivalente exato); COM efeito não é representável.
+     Esta era a regra escrita duas vezes — aqui e em `dItemToLayer` — que agora tem um dono. */
+  if(it.fillOpacity!=null && it.fillOpacity<1 && _fx) _dPsdCapMarca(cap,'fill_opacity_with_fx');
+  /* ── perdas conhecidas que o pixel também não resolve: registra, não rasteriza ── */
+  if(it.fxSatin) _dPsdCapMarca(cap,'fx_satin');
+  if(it.fxContour) _dPsdCapMarca(cap,'fx_contour');
+  if(it.fxScale) _dPsdCapMarca(cap,'fx_scale', it.fxScale+'%');
+  if(it.strokeApprox) _dPsdCapMarca(cap,'stroke_approx');
+  if(it.gradientOverlayApprox) _dPsdCapMarca(cap,'gradient_ovl_approx', it.gradientOverlayApprox==='angle'?'cônica':'losango');
+  if(it.layerEffectsApprox) _dPsdCapMarca(cap,'fx_stack_blend');
+  if(it.groupBlendApprox) _dPsdCapMarca(cap,'group_blend_flat');
+  if(it.adjustmentSupported===false) _dPsdCapMarca(cap,'adjust_unsupported', it.adjustmentType||'');
+  if(it.adjustmentApprox) _dPsdCapMarca(cap,'adjust_approx', it.adjustmentType||'');
+  if(it.multiStyle) _dPsdCapMarca(cap,'text_multi_style');
+  if(it.textJustifyAll) _dPsdCapMarca(cap,'text_justify_all');
+  if(it.textBoxApprox) _dPsdCapMarca(cap,'text_box_approx');
+  if(it.vectorMaskFailed) _dPsdCapMarca(cap,'vector_mask_failed');
+  if(it.kind==='text' && it.fontName && !it.fontRemapped && !/roboto/i.test(it.fontName)) _dPsdCapMarca(cap,'font_missing', it.fontName);
+  /* Efeito que só o texto e a forma renderizam. Vira aviso na revisão quando o modo escolhido
+     entrega a camada como imagem — a decisão de MOSTRAR é da tela (`_dPsdCapPerdeFx`), porque
+     o modo muda na revisão e o registro aqui é um fato estático da camada. */
+  if(_fx) _dPsdCapMarca(cap,'fx_only_native');
+  return cap;
+}
+/* A camada, NO MODO ATUAL, vai perder os efeitos? Regra única para a revisão e para qualquer
+   diagnóstico: efeito só sai em `type:'text'` e `type:'shape'`. Os modos 'raster' e 'frame' e
+   o veredito de raster fiel todos terminam em `type:'image'`/`'frame'`. */
+function _dPsdCapPerdeFx(it){
+  if(!it || !it.capability) return false;
+  if(!it.capability.motivos.some(m=>m.code==='fx_only_native')) return false;
+  if(it.mode==='raster' || it.mode==='frame') return true;
+  return !!it.needsRaster;
+}
+/* Resumo do livro-caixa de uma lista de itens — a bancada de diagnóstico do §29. Sem DOM: serve
+   ao console da equipe, à suíte e a qualquer relatório futuro da revisão. */
+function dPsdCapReport(items){
+  return (items||[]).filter(it=>it&&it.capability&&it.capability.motivos.length).map(it=>({
+    camada:it.name, tipo:it.kind, modo:it.mode, nivel:it.capability.nivel,
+    perdeEfeitos:_dPsdCapPerdeFx(it),
+    motivos:it.capability.motivos.map(m=>m.etapa+':'+m.code+(m.detalhe?('('+m.detalhe+')'):''))
+  }));
 }
 
 // Ajustes que o motor Canvas canônico consegue recalcular sobre a composição abaixo. Eles
@@ -1361,6 +1536,9 @@ function _dPsdParseFail(node, items, n, ox, oy, err, parentName, inh){
     // por fora da máscara do grupo, que é pior que a falha original.
     if(inh && inh.masks && inh.masks.length) it._groupMasks=inh.masks;
     if(inh && inh.blend) it.blendMode=inh.blend;
+    // A exceção é um dado de fidelidade, não só um console.warn: entra no livro-caixa com a
+    // mensagem original, para o diagnóstico dizer QUAL camada falhou e por quê.
+    _dPsdCapMarca(_dPsdCapDe(it),'parse_recovered',String((err&&err.message)||err||'').slice(0,80));
     items.push(it);
   }catch(e){}
 }
@@ -1373,11 +1551,13 @@ function _dPsdFlatItem(psd, w, h){
     if(!psd || !psd.canvas || !psd.canvas.width || !psd.canvas.height) return null;
     const url=_dPsdRasterURL(psd.canvas,{maxPx:2400,q:0.92,lossless:true});
     if(!url) return null;
-    return { n:1, name:'Arte (PSD achatado)', x:0, y:0,
+    const flat={ n:1, name:'Arte (PSD achatado)', x:0, y:0,
       w:Math.max(1, w||psd.width||psd.canvas.width),
       h:Math.max(1, h||psd.height||psd.canvas.height),
       visible:true, opacity:100, include:true, mask:null, group:'',
       kind:'raster', mode:'raster', imgUrl:url, flattened:true, _defaultMode:'raster' };
+    _dPsdCapMarca(_dPsdCapDe(flat),'flattened_document');
+    return flat;
   }catch(e){ return null; }
 }
 // ox/oy: offset de origem (usado em artboards p/ normalizar coords pra (0,0) da prancheta).
@@ -1448,6 +1628,9 @@ function dPsdParseItems(psd, res, ox, oy){
           adjustmentApprox:ai.approximate,clippingLayer:node.clippingLayer||node.clipping,
           blendMode:_dPsdBlendMode(node.blendMode),group:parentName||'',_psdNode:an};
         if(inh.groups&&inh.groups.length)ait._groupChain=inh.groups.slice();
+        // Ajuste também passa pelo estágio: 'adjust_unsupported'/'adjust_approx' viram motivo
+        // nomeado em vez de dois booleanos que só a revisão sabia traduzir.
+        _dPsdCapItem(ait);
         items.push(ait); return;
       }
       const x=Math.round((node.left||0)-ox), y=Math.round((node.top||0)-oy);
@@ -1459,6 +1642,17 @@ function dPsdParseItems(psd, res, ox, oy){
         clippingLayer: node.clippingLayer || node.clipping,
         blendMode:_dPsdBlendMode(node.blendMode),
         group:parentName||'', _psdNode:node }; // guarda p/ recorte correto
+      /* ESTÁGIO DE CAPACIDADE, parte 1 (decode) — abre o livro-caixa da camada com o que se
+         decide olhando SÓ o nó cru do ag-psd. Fica aqui, no nascimento do item, para que os
+         motivos de decode e os de interpretação se acumulem no mesmo registro. */
+      it.capability=_dPsdCapNode(node);
+      /* Mesclagem que o Luma reconhece mas não renderiza (ex.: 'dissolve'): `_dPsdBlendMode`
+         devolve undefined DE PROPÓSITO, para o selo não prometer um modo que sai Normal. Isso
+         era uma perda muda; agora ela tem nome. */
+      const _bmRaw=String(node.blendMode||'').toLowerCase();
+      if(_bmRaw && _bmRaw!=='normal' && _bmRaw!=='passthrough' && _bmRaw!=='pass through' && !it.blendMode){
+        _dPsdCapMarca(it.capability,'blend_dropped',_bmRaw);
+      }
       if(inh.groups&&inh.groups.length)it._groupChain=inh.groups.slice();
       // Herança dos grupos-pai: máscaras entram na composição do pós-processamento; mesclagem
       // só se aplica quando a própria camada não define a dela (a de baixo é mais específica).
@@ -1475,9 +1669,9 @@ function dPsdParseItems(psd, res, ox, oy){
         if(vmc) it._vecMaskCanvas=vmc;
         else { it.vectorMaskFailed=true; console.warn('[psd] vectorMask não rasterizável, importando shape simplificado:', it.name); }
       }
-      // P3: recurso não-representável editavelmente (smart object / padrão / ajuste / texto warp) →
-      // vira imagem pixel-perfeita do que o PS compôs, preservando o visual 1:1 (evita drop/mis-detecção).
-      if(_dPsdNeedsRaster(node) && node.canvas && node.canvas.width>0 && node.canvas.height>0){
+      /* Aplica o veredito de decode aberto no nascimento do item: só este ponto sabe se há
+         `node.canvas` utilizável e qual o teto de resolução da prancheta. */
+      if(it.capability.raster && node.canvas && node.canvas.width>0 && node.canvas.height>0){
         it.kind='raster'; it.mode='raster';
         // Motivo do raster que o designer NÃO adivinha olhando a lista (um texto que virou
         // imagem parece bug). Rotação/warp/smart object já se explicam pelo próprio visual.
@@ -1488,6 +1682,10 @@ function dPsdParseItems(psd, res, ox, oy){
           // node.canvas NÃO traz os efeitos de camada (são vetoriais no PS) → re-aplica os simples
           // (sombra/glow/contorno/overlay — 1º de cada) sobre o pixel, p/ a sombra do smart object etc.
           Object.assign(it,_dPsdEffects(node));
+          /* ⚠ Este ramo dá `return` — sem passar por aqui, a camada mais comum do problema
+             (objeto inteligente COM sombra) saía sem nenhum registro de capacidade, e a perda
+             de efeito em imagem fiel continuava invisível. */
+          _dPsdCapItem(it);
           items.push(it); return;
         }
         // sem raster utilizável → segue o fluxo normal (pode virar texto/shape ou ser dropado)
@@ -1672,16 +1870,22 @@ function dPsdParseItems(psd, res, ox, oy){
       // fingir que é uma faixa linear, que era o comportamento antigo e mudo).
       if(it.gradient && it.gradient.psStyle){ it.gradientUnsupported=it.gradient.psStyle; delete it.gradient.psStyle; }
       if(it.layerEffects && it.opacity<100) it.layerEffectsApprox=true;     // opacity da camada × pilha exige isolamento completo
+      /* ESTÁGIO DE CAPACIDADE, parte 2: as sete condições que exigiam raster fiel — e as
+         quinze perdas conhecidas que não pedem raster — saíram deste ponto e passaram a viver
+         em `_dPsdCapItem`. Aqui fica só a APLICAÇÃO: pegar o pixel, que é o que depende do
+         `node.canvas` e do teto da prancheta. */
+      const _cap=_dPsdCapItem(it);
       const _pn=it._psdNode;
-      if(_pn && _pn.canvas && _pn.canvas.width>0){
-        const _fxUnsup = it._fxOverflow                                   // parte da pilha não tem equivalente editável
-          || (it.layerEffects && it.kind!=='shape')                       // pilha múltipla ainda só é dinâmica em formas
-          || it.gradientUnsupported                                      // gradiente sem primitiva (cônico/losango)
-          || it.overlayBlend                                             // color overlay em multiply/screen/etc.
-          || (it.gradientOverlay && it.gradientOverlay.blendMode)        // gradient overlay com blend
-          || (it.kind==='text' && (it.innerShadow||it.innerGlow||it.bevel||it.gradientOverlay)) // efeitos que o texto não renderiza
-          || (it.fillOpacity!=null && it.fillOpacity<1 && (it.shadow||it.innerShadow||it.glow||it.innerGlow||it.bevel||it.overlay||it.gradientOverlay||it.strokeW||it.layerEffects)); // fill-opacity + efeitos
-        if(_fxUnsup){ it.needsRaster=true; if(!it.imgUrl) it.imgUrl=_dPsdRasterURL(_pn.canvas,{maxPx:_fidCap,q:0.92,lossless:true}); }
+      if(_cap.raster){
+        if(_pn && _pn.canvas && _pn.canvas.width>0){
+          it.needsRaster=true;
+          if(!it.imgUrl) it.imgUrl=_dPsdRasterURL(_pn.canvas,{maxPx:_fidCap,q:0.92,lossless:true});
+        } else {
+          /* Pediu raster fiel e NÃO existe pixel para preservar: nem editável, nem imagem.
+             É o único caso realmente `unsupported` — antes ele se confundia com `native`,
+             porque o bloco inteiro estava dentro do `if(canvas)` e nada era registrado. */
+          _cap.nivel='unsupported';
+        }
       }
       items.push(it);
       }catch(err){ _dPsdParseFail(node, items, ++n, ox, oy, err, parentName, inh); }
@@ -1791,6 +1995,9 @@ function dPsdParseItems(psd, res, ox, oy){
           } else {
             b.maskFallback = true;
           }
+          // O recorte se resolve DEPOIS do estágio de capacidade (precisa da lista inteira p/
+          // achar a base), então este motivo é marcado aqui, no ponto que realmente decide.
+          if(b.maskFallback) _dPsdCapMarca(_dPsdCapDe(b),'clip_base_fallback',base.name||'');
         }
       }
     }
@@ -1832,12 +2039,15 @@ function _dPsdApplyFx(L, it){
 function dItemToLayer(it){
   const base={ id:_dPsdItemId(it), name:it.name, x:it.x,y:it.y,w:it.w,h:it.h, visible:it.visible, opacity:it.opacity };
   if(it._groupChain&&it._groupChain.length)base.parentId=it._groupChain[it._groupChain.length-1].id;
-  // fillOpacity sem efeitos ≡ opacity; com efeitos, só o fill deveria atenuar (não os efeitos) →
-  // não é representável no modelo atual, marca p/ P3 rasterizar fiel.
-  if(it.fillOpacity!=null && it.fillOpacity<1){
-    const _hasFx=it.shadow||it.innerShadow||it.glow||it.innerGlow||it.bevel||it.overlay||it.gradientOverlay||it.strokeW||it.layerEffects;
-    if(!_hasFx) base.opacity=Math.round((it.opacity!=null?it.opacity:100)*it.fillOpacity);
-    else it.needsRaster=true;
+  /* fillOpacity SEM efeitos ≡ opacity: dobrar os dois num canal é equivalência exata, e é a
+     única coisa que a conversão decide aqui.
+     ⛔ O caso COM efeitos (não representável) NÃO se decide mais neste ponto: era a mesma regra
+     do antigo bloco `_fxUnsup`, escrita duas vezes, e mutava `it.needsRaster` DURANTE a
+     conversão — o que fazia a prévia da revisão (que chama `dItemToLayer`) alterar o estado
+     que o import leria depois. Agora quem decide é `_dPsdCapItem` (motivo
+     `fill_opacity_with_fx`), no estágio de capacidade, uma vez por camada. */
+  if(it.fillOpacity!=null && it.fillOpacity<1 && !_dPsdCapTem(it,'fill_opacity_with_fx')){
+    base.opacity=Math.round((it.opacity!=null?it.opacity:100)*it.fillOpacity);
   }
   if(it.mask) base.mask=it.mask;
   // Zona segura (assunto opaco da foto) — vale para moldura, imagem fiel e raster comum, então
