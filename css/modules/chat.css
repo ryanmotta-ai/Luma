@@ -543,6 +543,20 @@ body:not(.theme-light) .f-fit-btn{background:color-mix(in srgb,var(--dm-orange) 
   border-style:solid;
   transform:scale(1.02);
 }
+/* ── SOLTAR ARQUIVO: o alvo é a COLUNA, não a caixinha ────────────────────────────────
+   A zona de upload tem ~24px de respiro — alvo pequeno demais para um arquivo vindo do
+   desktop, e errar por 10px fazia o navegador ABRIR a imagem e abandonar a arte pela
+   metade. Agora a coluna inteira recebe, e o realce diz isso: moldura na coluna (aqui vale)
+   mais o `.drag-over` que a zona já tinha (é aqui que vai cair). Quem registra é o
+   `_fInitChatSoltarColar`, em chat.js.
+   `outline` e não `border`: borda mudaria a caixa e a conversa saltaria 4px ao arrastar. */
+#f-chat-col.f-chat-solta{
+  outline:2px dashed var(--dm-orange);
+  outline-offset:-6px;
+  background:color-mix(in srgb,var(--dm-orange) 4%,transparent);
+}
+/* A dica de colar só onde existe teclado para colar. No celular a zona já diz "Toque". */
+@media (max-width:680px){ .f-upload-cola{display:none} }
 @keyframes gSnapPulse{0%{transform:scale(1)}35%{transform:scale(0.93);box-shadow:0 0 0 0 color-mix(in srgb,var(--dm-orange) 45%,transparent)}65%{transform:scale(1.05);box-shadow:0 0 0 16px color-mix(in srgb,var(--dm-orange) 0%,transparent)}100%{transform:scale(1)}}
 .f-upload-zone.snap-pulse{animation:gSnapPulse 0.45s var(--ease-spring)}
 .f-upload-preview-pop{animation:gScaleInPunch 0.45s var(--ease-spring) forwards}
@@ -638,6 +652,7 @@ body:not(.theme-light) .f-fit-btn{background:color-mix(in srgb,var(--dm-orange) 
 .f-upload-aviso svg{flex:0 0 14px;margin-top:1px}
 
 body:not(.theme-light) .field-hint{background:var(--d-surf2);color:var(--d-text2)}
+body:not(.theme-light) #f-chat-col.f-chat-solta{background:color-mix(in srgb,var(--dm-orange) 7%,transparent)}
 body:not(.theme-light) .f-upload-zone{background:var(--d-surf);border-color:var(--d-border2)}
 body:not(.theme-light) .f-upload-zone:hover,
 body:not(.theme-light) .f-upload-zone.drag-over{background:color-mix(in srgb,var(--dm-orange) 10%,var(--d-surf));border-color:var(--dm-orange)}

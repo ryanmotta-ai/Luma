@@ -19,8 +19,13 @@
      ══════════════════════════════════════════════════════════════════════════════════════════ -->
 
 <!-- Palco mínimo: os nós que o chat e a prévia procuram por id na carga e no render. -->
+<!-- `#f-chat-col` é o alvo do soltar-arquivo (`_fInitChatSoltarColar`, chat.js). No app ele
+     envolve a conversa e a barra de resposta — aqui também, senão o drop testaria um layout
+     que não existe. -->
+<div id="f-chat-col">
 <div id="f-messages"></div>
 <input id="f-msg-box"><button id="f-snd"></button><button id="f-chat-mic"></button>
+</div>
 <span id="f-char-count"></span><div id="prog-fill"></div><div id="f-ctx-tag"></div>
 <div class="lp-stage"><div class="lp-canvas-wrap"><canvas id="lp-canvas" width="1080" height="1920"></canvas></div></div>
 <div id="lp-empty"><span id="lp-empty-title"></span><span id="lp-empty-sub"></span></div>
@@ -616,6 +621,75 @@ await test('Sheets: o celular é recusado com aviso, o desktop passa', async()=>
     assert(_fLastMaterialId===fState.material.id,'o portão barrou o desktop também');
     assert(!avisos.some(m=>/computador|monitor/i.test(m)),'o desktop levou o aviso de celular');
   } finally { window.matchMedia=mmReal; window.gToast=toastReal; _fLastMaterialId=idReal; fBulkRows=[]; }
+});
+
+/* ── 9. COLAR E ARRASTAR FOTO NO CHAT ─────────────────────────────────────────────────────
+   Pedido do Ryan (10/09). O contrato tem três partes, e as três quebram calado se alguém
+   mexer no roteamento: a foto tem de cair no campo que o chat está PEDINDO (e não em outro),
+   o gesto tem de ser RECUSADO COM AVISO quando nenhum passo pede foto, e o Ctrl+V de quem
+   está DIGITANDO não pode ser sequestrado. */
+const _pngMinimo = ()=>{
+  const b64='iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAFklEQVR42mP8z8BQz0AEYBxVSF+FAAlWBAWt6bVzAAAAAElFTkSuQmCC';
+  const bin=atob(b64), arr=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+  return new File([arr],'print.png',{type:'image/png'});
+};
+const _comArquivo = (file)=>{ const dt=new DataTransfer(); dt.items.add(file); return dt; };
+
+await test('Colar/arrastar: a foto cai no passo que pede foto, e só nele', async()=>{
+  reset();
+  document.body.classList.add('mode-franqueado');
+  const avisos=[]; const toastReal=window.gToast; window.gToast=(m)=>avisos.push(String(m));
+  try{
+    // (a) sem passo de foto na tela → recusa, avisa, e NÃO escreve nada
+    document.dispatchEvent(new ClipboardEvent('paste',{clipboardData:_comArquivo(_pngMinimo()),bubbles:true,cancelable:true}));
+    await espera(200);
+    assert(!fState.dados.foto_produto,'colou foto sem nenhum passo pedir foto');
+    assert(avisos.some(m=>/pedindo foto/i.test(m)),'recusou calado — a pessoa não soube por quê');
+
+    // (b) no passo da foto → a zona diz de que campo é, e o colar cai nela
+    irAoPasso('foto_produto');
+    await espera(60);
+    const z=document.querySelector('#f-messages .f-upload-zone[data-var]');
+    assert(z,'o passo de foto não montou zona de upload');
+    assert(z.dataset.var==='foto_produto','a zona não diz de que campo ela é');
+    const ev=new ClipboardEvent('paste',{clipboardData:_comArquivo(_pngMinimo()),bubbles:true,cancelable:true});
+    document.dispatchEvent(ev);
+    assert(ev.defaultPrevented,'o colar não foi assumido pelo chat');
+    await espera(500);
+    assert(String(fState.dados.foto_produto||'').startsWith('data:image'),
+      'a foto colada não chegou ao campo — o roteamento quebrou');
+
+    // (c) ARRASTAR na coluna faz o mesmo caminho (não é um segundo motor)
+    delete fState.dados.foto_produto;
+    document.getElementById('f-messages').innerHTML='';
+    irAoPasso('foto_produto');
+    await espera(60);
+    const col=document.getElementById('f-chat-col');
+    const over=new DragEvent('dragover',{dataTransfer:_comArquivo(_pngMinimo()),bubbles:true,cancelable:true});
+    col.dispatchEvent(over);
+    assert(over.defaultPrevented,'sem preventDefault no dragover o navegador RECUSA o drop');
+    assert(col.classList.contains('f-chat-solta'),'a coluna não se acende ao arrastar');
+    const drop=new DragEvent('drop',{dataTransfer:_comArquivo(_pngMinimo()),bubbles:true,cancelable:true});
+    col.dispatchEvent(drop);
+    assert(drop.defaultPrevented,'sem preventDefault no drop o navegador ABRE o arquivo e a sessão morre');
+    await espera(500);
+    assert(!col.classList.contains('f-chat-solta'),'o realce de arrasto ficou aceso depois de soltar');
+    assert(String(fState.dados.foto_produto||'').startsWith('data:image'),'a foto arrastada não chegou ao campo');
+
+    // (d) quem está DIGITANDO não perde o Ctrl+V
+    reset();
+    const box=document.getElementById('f-msg-box');
+    box.value='já tinha'; box.focus();
+    const dt=new DataTransfer(); dt.setData('text/plain','não deve entrar por nós');
+    const evTxt=new ClipboardEvent('paste',{clipboardData:dt,bubbles:true,cancelable:true});
+    box.dispatchEvent(evTxt);
+    assert(!evTxt.defaultPrevented,'sequestrou o Ctrl+V de quem estava digitando');
+    assert(box.value==='já tinha','escreveu por cima do que o navegador ia colar');
+  } finally {
+    window.gToast=toastReal;
+    document.body.classList.remove('mode-franqueado');
+  }
 });
 
 window.gConfirm=_gConfirmReal;

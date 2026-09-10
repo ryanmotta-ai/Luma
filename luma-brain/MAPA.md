@@ -35,6 +35,7 @@
 | Lista de materiais dentro da campanha | `js/franqueado/materials.js` |
 | As perguntas do chat, ordem dos passos, voltar, gerar arte | `js/franqueado/chat.js` |
 | Tipo de campo, máscara, validação, limite de caracteres, erro de campo | `js/franqueado/chat-input.js` (`F_FIELD_TYPES`) |
+| Colar (Ctrl/⌘+V) e arrastar arquivo para dentro do chat | `js/franqueado/chat.js` (`fReceberFotoNoChat`, `_fInitChatSoltarColar`) — duas portas para o `fProcessImageFile`, que continua o motor único de imagem |
 | Prévia ao vivo, gaveta da prévia no celular, zoom da prévia | `js/franqueado/live-preview.js` |
 | Como o PNG/JPG/PDF é desenhado e baixado | `js/franqueado/png-generator.js` |
 | Sheets / geração em massa (folha, fila de ofertas, rascunho) | `js/franqueado/png-generator.js` (`_fBulk*`, a partir da linha ~1300) |
@@ -250,15 +251,15 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 74 arquivos JS (59.514 linhas, 2.354 funções) · 32 arquivos CSS (28.450 linhas) · `index.html` com 3.833 linhas e 75 `<script>`.
+**Tamanho real de hoje:** 74 arquivos JS (59.838 linhas, 2.367 funções) · 31 arquivos CSS (28.160 linhas) · `index.html` com 3.813 linhas e 75 `<script>`.
 
 ## JS — o que cada arquivo é
 
 ### js (raiz)
 
-**`js/00-config.js`** · 3140 linhas
+**`js/00-config.js`** · 3301 linhas
 Constantes globais imutaveis: HIST_KEY, CAMPS_ATIVAS, CAMPS_OUTRAS, FMTS. Deve ser carregado PRIMEIRO (todos os modulos dependem destas constantes).
-· API: gVarRegex, gValidVarName, gXmlEsc, gRoundPolyD, gRoundPolyPath2D, gVectorPathFillRule, gVectorPathValid, gTraceVectorPath, gVectorPathD, gFxOffset, gFxRgba, gGradStopsCss, gGradientCss, gGradientCanvas … (+45; 89 funções no total)
+· API: gVarRegex, gValidVarName, gXmlEsc, gRoundPolyD, gRoundPolyPath2D, gVectorPathFillRule, gVectorPathValid, gTraceVectorPath, gVectorPathD, gFxOffset, gFxRgba, gGradStopsCss, gGradientCss, gGradientCanvas … (+48; 93 funções no total)
 · Estado global: _G_MEDIDA_CACHE, gLayoutVivoOff, _gCanvasWrap
 
 **`js/01-state.js`** · 11 linhas
@@ -374,9 +375,9 @@ F-02: tipos de campo, mascaras de input, validacao por campo. F_FIELD_TYPES defi
 · Estado global: _F_MAXLEN_MED, _fFitOpts, _fFitBusy
 · Depende de: 00-config.js
 
-**`js/franqueado/chat.js`** · 1985 linhas
+**`js/franqueado/chat.js`** · 2114 linhas
 Fluxo conversacional completo: fStartChat, fNextStep, fAddBot, fAddUser, fSend, fQR, fTyping, fGoBack, upload de imagem, confirm card, fGerarArte.
-· API: fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fShowWelcome, fStartChat, fManterValor … (+45; 79 funções no total)
+· API: fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fShowWelcome, fStartChat, fManterValor … (+46; 82 funções no total)
 · Estado global: fNextTimeout, _fArtSnapshots, _fArtCaptions, _fUndoSlot
 · Depende de: 00-config.js, 01-state.js, franqueado/chat-input.js
 
@@ -442,10 +443,10 @@ Sistema de pincel/borracha/carimbo: dPaintStart, dPaintMove, dPaintEnd, dStampAt
 · Estado global: dStampSource, dStampOffset, dGradStart, dBrush, dStampAligned, _dSharpenC1, _dSharpenC2, dNitidezLast, _dNitidezHinted, dFormaLast (+7)
 · Depende de: designer/canvas.js
 
-**`js/designer/canvas.js`** · 2494 linhas
+**`js/designer/canvas.js`** · 2508 linhas
 Render do canvas, zoom, pan, formato, réguas, barra contextual, smart guides, simulacao de dados e interacoes de mouse.
-· API: dSetFormat, dApplyFormat, dFitToScreen, dPositionArtboard, dZoom, dSetZoom, dSampleImg, dSetPhTest, dEscolherFotoDaMoldura, dRenderWorkspace, dABAddResizeHandles, dABToolAttach, dUpdateBrushCursor, dSetTool … (+55; 81 funções no total)
-· Estado global: dPhTestAR, dMarquee, dDrawShapeState, dABDraw, dLastClickLayerId, dLastClickTime, dPainting, dPaintLast, dSnapEnabled, dSimValues (+10)
+· API: dSetFormat, dApplyFormat, dFitToScreen, dPositionArtboard, dZoom, dSetZoom, dSampleImg, dSetPhTest, dEscolherFotoDaMoldura, dRenderWorkspace, dABAddResizeHandles, dABToolAttach, dUpdateBrushCursor, dSetTool … (+58; 84 funções no total)
+· Estado global: dPhTestAR, dMarquee, dDrawShapeState, dABDraw, dLastClickLayerId, dLastClickTime, dPainting, dPaintLast, dSnapEnabled, dSimValues (+11)
 · Depende de: designer/templates.js, designer/layers.js
 
 **`js/designer/color-picker.js`** · 288 linhas
@@ -461,9 +462,9 @@ Fontes customizadas enviadas pelo usuário (.ttf/.otf/.woff/.woff2).
 · Estado global: dCustomFonts
 · Depende de: 00-config.js, core/toast.js, designer/canvas.js (dRenderCanvas).
 
-**`js/designer/layers.js`** · 4408 linhas
+**`js/designer/layers.js`** · 4382 linhas
 CRUD de layers, painel lateral, props, multi-select, rename: dSelLayer, dDeselect, dRenderLayersList, dShowProps, dAddText, dAddShape, dToggleMultiSel, dRenameLayer, dAddIcon, dAddLine.
-· API: dSelLayer, dHoverLayer, dSelLayerState, dDeselect, dStartCrop, dStopCrop, dOnCropDrag, dStopCropDrag, dStartDrag, dOnDrag, dStopDrag, dStartResize, dOnResize, dStopResize … (+193; 255 funções no total)
+· API: dSelLayer, dHoverLayer, dSelLayerState, dDeselect, dStartCrop, dStopCrop, dOnCropDrag, dStopCropDrag, dStartDrag, dOnDrag, dStopDrag, dStartResize, dOnResize, dStopResize … (+196; 258 funções no total)
 · Estado global: dDragEls, dPendingIsolate, dDragMoved, dCropState, dDragCrop, dResizeEl, dResizePos, dResizeLyrX, dResizeLyrY, dResizeFs (+35)
 · Depende de: designer/canvas.js
 
@@ -494,18 +495,18 @@ Preview engine do designer: pvRender, pvRenderLayers, pvRenderLayer, dPreviewOpe
 · Estado global: pvFmt, pvDevice, pvRendering, pvRenderQueued, pvExportScale, pvExportType, pvExportQuality, dExportSelectedFmt
 · Depende de: designer/canvas.js, designer/layers.js
 
-**`js/designer/props-panel.js`** · 2358 linhas
+**`js/designer/props-panel.js`** · 2380 linhas
 Accordion, sub-nav scroll, alignment button group para o painel de props.
-· API: dPropToggleSection, dPropSaveSections, dPropRestoreSections, dPropScrollTo, dPropSetAlign, dPropSyncAlign, dPropShowSections, dPropWorkspaceMode, dPropReadWorkspaceMode, dPropSetWorkspaceMode, dToggleChrome, dPropBuildWorkspaceMode, dPropBuildEssentialChrome, dPropBuildPanelNav … (+62; 76 funções no total)
-· Estado global: dChromeOff, dPropDataProblemsOnly
+· API: dPropToggleSection, dPropSaveSections, dPropRestoreSections, dPropScrollTo, dPropSetAlign, dPropSyncAlign, dPropShowSections, dPropWorkspaceMode, dPropReadWorkspaceMode, dPropSetWorkspaceMode, dToggleChrome, dPropBuildWorkspaceMode, dPropBuildEssentialChrome, dPropBuildPanelNav … (+61; 75 funções no total)
+· Estado global: dChromeOff, dPropDataProblemsOnly, dPropDataShowInventory
 
-**`js/designer/psd-import.js`** · 1632 linhas
+**`js/designer/psd-import.js`** · 1705 linhas
 REVISÃO e IMPORTAÇÃO do .psd — a metade do importador que é tela.
-· API: dPsdOpenReview, dPsdRenderRows, dPsdSetMode, dPsdSetVar, dPsdSetInclude, dPsdSelectAll, dPsdSelectNone, dPsdUploadFont, dPsdUpdateCount, dPsdCancel, dPsdConfirmImport, dImportLayersAsArtboard, dPsdRenderPreview, dPsdHoverLayer … (+18; 82 funções no total)
-· Estado global: dPsdItems, _dPsdAdjustCount, _dPsdLastHoverIdx, _dPsdPreviewTimer, _dPsdDragField, _dPsdArmedField, _dPsdDragPaint, _dPsdAiBusy, _dPsdBoards, _dPsdBoardIdx (+3)
+· API: dPsdOpenReview, dPsdToggleAdvanced, dPsdRenderRows, dPsdSetMode, dPsdSetVar, dPsdSetInclude, dPsdSelectAll, dPsdSelectNone, dPsdUploadFont, dPsdUpdateCount, dPsdCancel, dPsdConfirmImport, dImportLayersAsArtboard, dPsdRenderPreview … (+20; 84 funções no total)
+· Estado global: dPsdItems, _dPsdReviewAll, _dPsdAdjustCount, _dPsdLastHoverIdx, _dPsdPreviewTimer, _dPsdDragField, _dPsdArmedField, _dPsdDragPaint, _dPsdAiBusy, _dPsdBoards (+4)
 · Depende de: designer/templates.js, core/layout.js, core/toast.js, 00-config.js.
 
-**`js/designer/psd-parse.js`** · 1910 linhas
+**`js/designer/psd-parse.js`** · 1939 linhas
 LEITURA e FIDELIDADE do .psd — a metade do importador que não toca a tela.
 · API: dLoadAgPsd, dPsdCancelLoad, dPsdDetectFmt, dPsdParseItems, dItemToLayer, dPsdItemsToLayers
 · Estado global: _agPsdPromise, _dPsdGlobalLight, _dPsdYieldChan, _dPsdCancelled, _dPsdActiveWorker, _dPsdErrorCount
@@ -522,10 +523,10 @@ Ferramentas avançadas de seleção inspiradas no Photoshop: 1. Object Selection
 · Estado global: dSelectionTolerance, dSelectionContiguous, dObjSelectState, dMagicWandTolerance, _dMarchingAntsCSSInjected
 · Depende de: designer/canvas.js, designer/layers.js
 
-**`js/designer/templates.js`** · 3467 linhas
+**`js/designer/templates.js`** · 3389 linhas
 Estado e CRUD de templates/pastas: dFolders, dInit, dRenderFolders, dLoadTemplateById, dBuildLayers, dLoadTemplate, dOpenNewFolder, dConfirmTemplate.
-· API: dSyncLyrCnt, dBuildMockLayersForCamp, dDefaultFolders, dBuildShowcaseLayers, dPreloadFolders, dDefaultPublishMeta, dExtractTemplateVars, dBuildLayers, dBuildBlankLayers, dBuildBlankLayersWH, dGetActiveAB, dSyncLayersToAB, dSetActiveAB, dNewArtboard … (+137; 160 funções no total)
-· Estado global: dFmt, dZoomLevel, dLayers, dSelId, dTool, dDrag, dDragSX, dDragSY, dLyrSX, dLyrSY (+39)
+· API: dSyncLyrCnt, dBuildMockLayersForCamp, dDefaultFolders, dBuildShowcaseLayers, dPreloadFolders, dDefaultPublishMeta, dExtractTemplateVars, dBuildLayers, dBuildBlankLayers, dBuildBlankLayersWH, dGetActiveAB, dSyncLayersToAB, dSetActiveAB, dNewArtboard … (+136; 159 funções no total)
+· Estado global: dFmt, dZoomLevel, dLayers, dSelId, dTool, dDrag, dDragSX, dDragSY, dLyrSX, dLyrSY (+38)
 · Depende de: 00-config.js
 
 **`js/designer/tools.js`** · 362 linhas
@@ -660,7 +661,6 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 | `css/03-fonts.css` | 60 |
 | `css/components/help-modal.css` | 719 |
 | `css/components/login.css` | 393 |
-| `css/components/pages-tray.css` | 335 |
 | `css/components/product-control.css` | 443 |
 | `css/components/pwa-install.css` | 129 |
 | `css/components/splash.css` | 143 |
@@ -671,15 +671,15 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 | `css/modules/all-tools.css` | 113 |
 | `css/modules/calendario.css` | 1544 |
 | `css/modules/catalog.css` | 299 |
-| `css/modules/chat.css` | 2770 |
+| `css/modules/chat.css` | 2785 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
-| `css/modules/designer.css` | 5753 |
+| `css/modules/designer.css` | 5715 |
 | `css/modules/feedback.css` | 199 |
 | `css/modules/franqueado.css` | 1593 |
 | `css/modules/franqueado_effects.css` | 406 |
-| `css/modules/help-widget.css` | 1694 |
-| `css/modules/layers-panel.css` | 4317 |
+| `css/modules/help-widget.css` | 1678 |
+| `css/modules/layers-panel.css` | 4401 |
 | `css/modules/live-preview.css` | 930 |
 | `css/modules/panel-dock.css` | 116 |
 | `css/modules/publish-modal.css` | 628 |

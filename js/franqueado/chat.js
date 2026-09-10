@@ -541,7 +541,7 @@ function fAddBotImageUpload(stepLabel, pergunta, canGoBack){
   const jaTemFoto = fState.dados && fState.dados[pergunta.id];
   // `jaEstava`: a imagem não acabou de ser escolhida, ela já estava no campo → "Manter", não "Usar".
   const zoneHtml = jaTemFoto ? _fUploadPreviewHTML(pergunta.id, fState.dados[pergunta.id], {jaEstava:true})
-    : `<div class="f-upload-zone" id="${uploadId}-zone" onclick="fOpenUploadPanel('${pergunta.id}','${uploadId}')">
+    : `<div class="f-upload-zone" id="${uploadId}-zone" data-var="${pergunta.id}" data-upload="${uploadId}" onclick="fOpenUploadPanel('${pergunta.id}','${uploadId}')">
       <!-- O input fica DENTRO da zona, que abre o painel no clique. O clique
            programático de fUploadPanelNewFile borbulhava até aqui e REABRIA o
            painel que acabara de fechar — por isso o stopPropagation. -->
@@ -554,7 +554,7 @@ function fAddBotImageUpload(stepLabel, pergunta, canGoBack){
         </svg>
       </div>
       <div class="f-upload-title">Toque pra enviar uma foto</div>
-      <div class="f-upload-sub">recentes, lojas salvas ou novo arquivo</div>
+      <div class="f-upload-sub">recentes, lojas salvas ou novo arquivo<span class="f-upload-cola"> · ou cole com ${_F_TECLA_COLAR}, ou arraste pra cá</span></div>
     </div>`;
   w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div>
     <div class="bbl">${stepLabel}${pergunta.texto}${fieldHint}</div>
@@ -564,18 +564,147 @@ function fAddBotImageUpload(stepLabel, pergunta, canGoBack){
   msgs.querySelectorAll('.msg').forEach(m=>m.classList.remove('active-prompt'));
   _fApplyMessageGrouping(msgs,w,'bot');
   msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;
-  // Habilita drag & drop na zona
-  const zone=document.getElementById(uploadId+'-zone');
-  if(zone){
-    zone.addEventListener('dragover',(e)=>{e.preventDefault();zone.classList.add('drag-over');});
-    zone.addEventListener('dragleave',()=>zone.classList.remove('drag-over'));
-    zone.addEventListener('drop',(e)=>{
-      e.preventDefault();zone.classList.remove('drag-over');
-      const file=e.dataTransfer.files[0];
-      if(file) fProcessImageFile(file, pergunta.id, uploadId);
-    });
-  }
+  /* ⛔ O drag & drop NÃO é registrado aqui. Ele mora em `_fInitChatSoltarColar`, na COLUNA
+     inteira do chat: uma zona de 24px de respiro é um alvo pequeno demais para um arquivo
+     vindo do desktop, e um listener por mensagem significa um listener por passo de foto,
+     todos vivos ao mesmo tempo, disputando o mesmo gesto. A zona só precisa DIZER de que
+     campo ela é — é o que os `data-var`/`data-upload` acima fazem. */
 }
+/* ══ COLAR E ARRASTAR NO CHAT ══════════════════════════════════════════════════════════
+   Pedido do Ryan (10/09): "Ctrl+C em alguma coisa e Ctrl+V no chat do Luma, e poder
+   arrastar algo pra dentro."
+
+   Um caminho só, e ele termina no motor que já existe: `fProcessImageFile` — o mesmo do
+   clique na zona e do painel de recentes. Colar e arrastar não são um segundo jeito de
+   receber foto, são duas PORTAS para o jeito que já havia (esqueleto, barra de progresso,
+   redimensionamento, extração de cor, validação de logo, "recentes"). Criar um segundo
+   caminho de imagem aqui seria o bug, não a feature (`03_ENGINEERING` §1).
+
+   Quem é o alvo? A ZONA DE UPLOAD que estiver na tela. O chat só mostra uma por vez, e ela
+   é literalmente o passo que está pedindo foto — não há o que adivinhar, nem por que
+   escrever num campo que a pessoa ainda não viu. Sem zona na tela, o gesto é recusado com
+   uma frase que diz o porquê.
+*/
+// Mac usa ⌘V. O texto da dica é o único lugar que precisa saber disso.
+const _F_TECLA_COLAR = /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent || '') ? '⌘V' : 'Ctrl+V';
+const _fSheetsAberto = () => !!document.querySelector('#f-bulk-modal.open');
+/* A zona viva: tem `data-var` (foi montada pelo passo), ainda não virou esqueleto E ESTÁ NA
+   TELA. A última condição não é preciosismo: no catálogo, no histórico e na home o chat
+   continua montado, só escondido — sem `offsetParent` o colar cairia num passo que a pessoa
+   não está vendo. `offsetParent` é null para qualquer ancestral com `display:none`. */
+function _fZonaDeFotoAtiva(){
+  const z = document.querySelector('#f-messages .f-upload-zone[data-var]:not(.f-upload-loading)');
+  return (z && z.offsetParent !== null) ? z : null;
+}
+/* Porta única de colar/arrastar. Devolve `true` quando a foto entrou — o chamador não
+   precisa saber mais nada. */
+function fReceberFotoNoChat(file){
+  const z = _fZonaDeFotoAtiva();
+  if(!z){
+    if(typeof gToast==='function') gToast('Nenhum passo está pedindo foto agora. Cole ou arraste quando o Luma pedir a imagem.');
+    return false;
+  }
+  fProcessImageFile(file, z.dataset.var, z.dataset.upload);
+  return true;
+}
+const _fArrastaArquivo = (e)=>{
+  /* `types` e não `files`: durante o arrasto o navegador ESCONDE os arquivos por privacidade
+     e só expõe a lista de tipos. Ler `files` no dragover devolve vazio e o realce nunca
+     aparece — a mesma armadilha documentada no `canvas.js` do Estúdio. */
+  const t = e.dataTransfer && e.dataTransfer.types;
+  return !!(t && Array.prototype.indexOf.call(t,'Files') >= 0);
+};
+function _fInitChatSoltarColar(){
+  const col = document.getElementById('f-chat-col');
+  if(!col || col._fSoltarOk) return;
+  col._fSoltarOk = true;
+  const realce = (liga)=>{
+    col.classList.toggle('f-chat-solta', liga);
+    const z = _fZonaDeFotoAtiva();
+    if(z) z.classList.toggle('drag-over', liga);
+  };
+  col.addEventListener('dragover', (e)=>{
+    if(!_fArrastaArquivo(e)) return;
+    e.preventDefault();                       // sem isto o navegador RECUSA o drop
+    e.dataTransfer.dropEffect = 'copy';
+    realce(true);
+  });
+  col.addEventListener('dragleave', (e)=>{
+    /* Só apaga quando o ponteiro sai da coluna DE VERDADE: cruzar uma bolha de mensagem
+       dispara `dragleave` e o realce piscaria a cada elemento atravessado. */
+    if(e.relatedTarget && col.contains(e.relatedTarget)) return;
+    realce(false);
+  });
+  col.addEventListener('drop', (e)=>{
+    if(!_fArrastaArquivo(e)) return;
+    e.preventDefault();                       // sem isto o navegador ABRE o arquivo e abandona a sessão
+    realce(false);
+    const f = (e.dataTransfer.files || [])[0];
+    if(f) fReceberFotoNoChat(f);
+  });
+}
+/* ⚠ REDE DE SEGURANÇA, e é ela que justifica o handler no documento: soltar um arquivo
+   FORA da coluna faz o navegador NAVEGAR para ele — a pessoa perde a tela com a arte
+   pela metade. Aqui só o `preventDefault` e uma frase dizendo onde soltar.
+   `defaultPrevented` desiste do que a coluna (ou o Estúdio, ou o calendário) já tratou. */
+['dragover','drop'].forEach((tipo)=>{
+  document.addEventListener(tipo, (e)=>{
+    if(e.defaultPrevented) return;
+    if(!document.body.classList.contains('mode-franqueado')) return;
+    if(_fSheetsAberto()) return;              // o Sheets tem os campos dele; não é assunto deste patch
+    /* Arquivo do computador: cair fora da coluna é mira ruim, e a frase diz onde acertar. */
+    if(_fArrastaArquivo(e)){
+      e.preventDefault();
+      if(tipo==='drop' && typeof gToast==='function')
+        gToast('Solte a foto dentro da conversa, no passo que pede a imagem.');
+      return;
+    }
+    /* IMAGEM ARRASTADA DE OUTRA ABA (Google Imagens, cardápio do concorrente): não vem
+       arquivo nenhum, vem uma URL — e o navegador NAVEGA para ela, levando embora a arte
+       pela metade. Aqui não dá para buscar a imagem: é outro domínio, o CORS barra a
+       conversão para dataURL na maioria dos sites, e um recurso que funciona em um site e
+       falha calado em nove é pior que não existir. Então o gesto é recusado dizendo o
+       porquê e o que fazer. Arrastar texto para dentro de um campo continua nativo. */
+    const alvo = e.target;
+    if(alvo && (alvo.isContentEditable || /^(INPUT|TEXTAREA)$/.test(alvo.tagName||''))) return;
+    const tipos = e.dataTransfer && e.dataTransfer.types;
+    if(!(tipos && Array.prototype.indexOf.call(tipos,'text/uri-list') >= 0)) return;
+    e.preventDefault();
+    if(tipo==='drop' && typeof gToast==='function')
+      gToast('Não consigo pegar imagem direto de um site. Salve o arquivo e arraste ele, ou cole com ' + _F_TECLA_COLAR + '.');
+  });
+});
+/* COLAR. Imagem primeiro (é o gesto do print de tela, o motivo do pedido); texto depois, e
+   só quando o foco NÃO está num campo — sequestrar o Ctrl+V de quem está digitando seria
+   pior que não ter o recurso. É a mesma guarda que o `publish.js` do Estúdio usa, e ele já
+   se desliga fora do `mode-designer` justamente para este handler existir. */
+document.addEventListener('paste', (e)=>{
+  if(!document.body.classList.contains('mode-franqueado')) return;
+  if(_fSheetsAberto()) return;
+  const cb = e.clipboardData; if(!cb) return;
+  const img = Array.from(cb.items || [])
+    .filter(i => i.kind==='file' && /^image\//.test(i.type||''))
+    .map(i => i.getAsFile()).find(Boolean);
+  if(img){ e.preventDefault(); fReceberFotoNoChat(img); return; }
+  const alvo = e.target;
+  if(alvo && (alvo.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(alvo.tagName||''))) return;
+  const box = document.getElementById('f-msg-box');
+  if(!box || box.disabled || box.offsetParent === null) return;   // chat escondido: o Ctrl+V não é nosso
+  /* Uma linha só: o campo do chat é de uma linha, e texto colado de planilha vem com
+     tabulação e quebra que viram caractere invisível dentro da arte. */
+  const txt = (cb.getData('text/plain') || '').replace(/\s+/g,' ').trim();
+  if(!txt) return;
+  e.preventDefault();
+  box.value = box.value ? (box.value + ' ' + txt) : txt;
+  box.focus();
+  /* Despacha `input` em vez de mexer no contador/prévia daqui: é o mesmo caminho da
+     digitação (máscara, limite de caracteres, prévia ao vivo), e o `fFitApply` já usa este
+     truque. Um segundo dono desse estado é o que produz contador mentindo. */
+  box.dispatchEvent(new Event('input',{bubbles:true}));
+});
+if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _fInitChatSoltarColar);
+else _fInitChatSoltarColar();
+
 function fHandleImageUpload(event, varId, uploadId){
   const file=event.target.files[0];
   if(!file) return;
