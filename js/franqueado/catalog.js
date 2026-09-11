@@ -1398,9 +1398,19 @@ function _fHomeBodyHTML(query){
     const result=fSearchCampaigns(query,[...ativas,...outras,...impl].filter(passStatus));
     const match=result.materials;
     fSearchRecord(query,result,'home');
-    if(!match.length) return _fhEmptyState('Não encontramos exatamente isso',`Nenhum resultado para “${gEsc(query)}”. Tente outro termo${_fhFilter!=='todas'?' ou remova o filtro':''}.`)+fSearchFooterHTML(query,result.suggestions);
-    return `<section class="fh-section fh-results"><div class="fh-sec" role="status"><span>Materiais para “${gEsc(query)}”</span><em>${match.length} material${match.length!==1?'is':''}</em></div>
-      <div class="f-mat-grid fh-grid">${match.map(_fHomeSearchMaterialEl).join('')}</div></section>`+fSearchFooterHTML(query,[]);
+    /* A busca procura a PEÇA. Mas campanha que combinou e ainda não tem peça publicada não
+       pode virar "não encontramos": ela existe, combina, e o material vem aí. Vira a mesma
+       prateleira "Em breve" da vitrine parada — `ghost` no card, sem clique, porque não há
+       o que abrir ainda. Um vocabulário só para a mesma verdade. */
+    const semPeca=result.semMaterial||[];
+    const breve=semPeca.length?`<section class="fh-section"><div class="fh-sec"><span>Em breve</span><em>${semPeca.length} campanha${semPeca.length!==1?'s':''} combina${semPeca.length!==1?'m':''} · material ainda não publicado</em></div>
+      <div class="camp-grid fh-grid">${semPeca.map(c=>fCampEl(c,false,true,true)).join('')}</div></section>`:'';
+    /* ⚠ As sugestões ("Talvez estas campanhas ajudem") só entram quando não há NADA — nem
+       peça, nem campanha combinando. Com o bloco "Em breve" na tela, oferecer aproximação
+       por cima seria empilhar dois consolos para uma busca que deu certo. */
+    if(!match.length) return (breve||_fhEmptyState('Não encontramos exatamente isso',`Nenhum resultado para “${gEsc(query)}”. Tente outro termo${_fhFilter!=='todas'?' ou remova o filtro':''}.`))+fSearchFooterHTML(query,breve?[]:result.suggestions);
+    return `<section class="fh-section fh-results"><div class="fh-sec" role="status"><span>Materiais para “${gEsc(query)}”</span><em>${match.length} ${match.length!==1?'materiais':'material'}</em></div>
+      <div class="f-mat-grid fh-grid">${match.map(_fHomeSearchMaterialEl).join('')}</div></section>`+breve+fSearchFooterHTML(query,[]);
   }
   fSearchRecord('',null,'home');
   // Vitrine honesta: só entra em "Prontas pra usar" quem tem material publicado

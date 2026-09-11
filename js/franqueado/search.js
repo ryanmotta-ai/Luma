@@ -119,8 +119,17 @@ function fSearchCampaigns(query,campaigns){
   materialEntries.sort((a,b)=>b.score-a.score||a.order-b.order||a.materialOrder-b.materialOrder);
   const exact=entries.filter(e=>e.complete&&e.score>0);
   const materials=materialEntries.filter(e=>e.complete&&e.score>0);
+  /* ⛔ A CAMPANHA QUE COMBINOU NÃO PODE SUMIR. Quem procura "cupom" e acerta uma campanha
+     que ainda não tem peça publicada recebia "Não encontramos exatamente isso" — a busca
+     ACHAVA e dizia que não tinha achado. O `suggestions` também não salvava: ele só nasce
+     quando NADA casou por completo (`exact.length?[]:…`), e aqui casou.
+     `semMaterial` é essa sobra: casou inteiro, mas não rendeu peça nenhuma. Quem mostra
+     decide o que fazer com ela — na home vira a prateleira "Em breve", que é o nome que a
+     própria vitrine já dá para campanha sem material. */
+  const comPeca=new Set(materials.map(e=>e.campaign.id));
   return {campaigns:exact.map(e=>e.campaign),entries:exact,
     materials,
+    semMaterial:exact.filter(e=>!comPeca.has(e.campaign.id)).map(e=>e.campaign),
     suggestions:exact.length?[]:entries.filter(e=>e.score>0&&!e.complete).slice(0,3)};
 }
 function fSearchFormatsHTML(c){

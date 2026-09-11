@@ -51,6 +51,28 @@ await test('Metadados opcionais e formato declarado legado',()=>assert(fSearchCa
 await test('Conteúdo de camada publicada disponível',()=>{dFolders[0].templates[0].layers=[{type:'text',content:'Sabor especial de cheddar'}];assert(ids('cheddar')[0]==='burger-feed');});
 await test('Expirado não entra no índice',()=>{dFolders[0].templates[0].publishMeta.validade='2000-01-01';assert(!ids('cheddar').length);delete dFolders[0].templates[0].publishMeta.validade;});
 await test('Busca antiga funciona sem metadados',()=>assert(ids('antiga')[0]==='old'));
+/* A campanha `old` casa por nome/descrição e NÃO tem material publicado (não está no
+   dFolders). Era o caso que a busca achava e negava: `materials` vazio, `suggestions` vazio
+   (porque `exact` tinha gente), e a home dizia "Não encontramos exatamente isso". */
+await test('Campanha que combina sem peça publicada não vira "nada encontrado"',()=>{
+  const r=fSearchCampaigns('cupom',camps);
+  assert(!r.materials.length,'o fixture mudou: "cupom" passou a ter peça');
+  assert(r.semMaterial.map(c=>c.id).includes('old'),'a campanha que combinou foi jogada fora');
+});
+await test('Campanha com peça não aparece duas vezes',()=>{
+  const r=fSearchCampaigns('burger stories',camps);
+  const comPeca=new Set(r.materials.map(e=>e.campaign.id));
+  assert(r.materials.length,'o fixture mudou: "burger stories" perdeu a peça');
+  assert(!r.semMaterial.some(c=>comPeca.has(c.id)),'campanha listada como peça e como "em breve"');
+});
+await test('A home mostra "Em breve" em vez de negar a busca',()=>{
+  fHomeFilter('cupom');
+  const corpo=document.getElementById('fh-body').textContent;
+  assert(corpo.includes('Em breve'),'a prateleira "Em breve" não apareceu');
+  assert(!corpo.includes('Não encontramos exatamente isso'),'a busca continua negando o que achou');
+  assert(!corpo.includes('Talvez estas campanhas ajudem'),'empilhou aproximação por cima de um acerto');
+  fHomeFilter('');
+});
 await test('Tokens sem intenção não retornam catálogo inteiro',()=>assert(!ids('quero uma campanha').length));
 await test('Busca da home mostra materiais e o rail preserva campanhas',()=>{fState.categoria='campanhas';fFilterCamps('hamburguer story');fHomeFilter('hamburguer story');assert(materialIds('hamburguer story').includes('burger-story:bs'));assert(document.getElementById('fh-body').textContent.includes('Burger'));assert(document.getElementById('fh-body').textContent.includes('Personalizar'));assert(document.getElementById('f-catalog').textContent.includes('Story'));});
 await test('Estado vazio oferece solicitação com consulta escapada',()=>{fHomeFilter('<img src=x onerror=alert(1)> açaí');assert(document.querySelector('#fh-body [data-query]'));assert(!document.querySelector('#fh-body img[src=x]'));fHomeFilter('');});
