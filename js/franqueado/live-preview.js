@@ -217,10 +217,19 @@ function _fPostedStory(slot){
      progresso e o rodapé, que é moldura pura e não afirma nada sobre ninguém.
      ⛔ SEM "há 2 h". O post não aconteceu — carimbar uma hora nele é inventar o passado. */
   const topo = p.nome ? `<div class="pst-story-top">${_fPostedAvatar(p)}<span class="pst-story-user">${gEsc(p.nome)}</span><span class="pst-grow"></span>${_PST_DOTS}${_PST_X}</div>` : '';
+  /* ⚠ UMA BARRA, E NÃO TRÊS. Três segmentos afirmam que a conta tem três stories no ar — é
+     invenção do mesmo tipo das "128 curtidas" que saíram do Feed. Um segmento é a verdade:
+     este story, tocando. E continua lendo como Instagram, que é o que a barra faz ali.
+     ⚠ O FUNDO BORRADO existe porque a peça é 9:16 (0,562) e a tela do aparelho é 0,450: a
+     arte enche a largura e sobra faixa em cima e embaixo. Preto ali é o que NENHUM celular
+     mostra — o Instagram põe uma cópia ampliada e desfocada da própria mídia. Quem preenche
+     este `div` é o `_fPostedMountArt`, com um canvas minúsculo que o CSS amplia. */
   return `<div class="pst-story">
+    <div class="pst-story-fundo" aria-hidden="true"></div>
     ${slot}
     <div class="pst-story-sombra" aria-hidden="true"></div>
-    <div class="pst-story-bars"><i class="done"></i><i class="on"></i><i></i></div>
+    <div class="pst-story-sombra-pe" aria-hidden="true"></div>
+    <div class="pst-story-bars"><i class="on"></i></div>
     ${topo}
     <div class="pst-story-bot"><div class="pst-story-input">Enviar mensagem</div>${_PST_HEART}${_PST_SEND}</div>
   </div>`;
@@ -397,6 +406,25 @@ function _fPostedMountArt(scope){
     const cv = _postedArt.canvas;
     const r = (cv.width && cv.height) ? (cv.width / cv.height) : 0;
     holder.style.aspectRatio = r ? String(Math.min(1.91, Math.max(0.8, r))) : '';
+  }
+  /* O FUNDO DO STORY. A peça 9:16 não enche a tela do aparelho, e o Instagram preenche a
+     sobra com a própria mídia ampliada e desfocada — nunca com preto.
+     ⚠ 40px de largura de propósito: o desfoque vai comer o detalhe de qualquer jeito, então
+     desenhar em tamanho grande seria pagar caro por pixel que ninguém vê. A ampliação do CSS
+     (de 40px para ~370) já é metade do borrão; o `filter:blur` só alisa o que sobrou.
+     ⚠ `drawImage` de um canvas que já existe, sem `toDataURL`: reaproveita o render, não
+     recodifica a imagem. */
+  const fundo = (scope||document).querySelector('.pst-story-fundo');
+  if(fundo){
+    try{
+      const src = _postedArt.canvas;
+      let mini = fundo.querySelector('canvas');
+      if(!mini){ mini = document.createElement('canvas'); fundo.appendChild(mini); }
+      const L = 40;
+      mini.width = L;
+      mini.height = Math.max(1, Math.round(L * (src.height/src.width) || L));
+      mini.getContext('2d').drawImage(src, 0, 0, mini.width, mini.height);
+    }catch(e){ /* fundo é acabamento: se falhar, fica o preto de antes */ }
   }
 }
 // Monta o celular inteiro. Só na ABERTURA — trocar de ambiente não passa por aqui, senão o

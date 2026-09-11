@@ -825,22 +825,43 @@ body:not(.theme-light) .posted-stage{background:var(--d-dark)}
 :is(#f-posted-modal,#lp-contextos) .pst-story{flex:1;position:relative;background:#000;overflow:hidden}
 /* O véu de cima. As barras de progresso e o nome são brancos, e sem isto eles sumiam sobre
    arte clara — que é metade das artes. Só no topo, e fraco: é legibilidade, não moldura. */
-:is(#f-posted-modal,#lp-contextos) .pst-story-sombra{position:absolute;top:0;left:0;right:0;height:130px;z-index:15;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.42),rgba(0,0,0,.18) 55%,transparent)}
+/* O FUNDO. Cópia ampliada e desfocada da própria peça, no lugar do preto — é o que o
+   Instagram faz quando a mídia não enche a tela (a peça é 0,562 e o aparelho 0,450).
+   ⚠ `scale(1.25)` antes do blur: sem a folga, o desfoque puxa transparência das bordas e
+   aparece uma moldura clara em volta. O brilho cai para a arte da frente continuar sendo a
+   coisa mais clara da tela. */
+:is(#f-posted-modal,#lp-contextos) .pst-story-fundo{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none;background:#000}
+:is(#f-posted-modal,#lp-contextos) .pst-story-fundo canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:blur(22px) brightness(.5) saturate(1.15);transform:scale(1.25)}
+:is(#f-posted-modal,#lp-contextos) .pst-story .pst-artslot{z-index:1}
+/* .55 no topo, e não .42. A conta: branco sobre véu de 42% em cima de arte CLARA dá um
+   fundo de 148 e contraste de 2,6:1 — abaixo do mínimo até para texto grande. Com 55% o
+   fundo cai para 115 e a razão sobe para 3,6:1, que com a sombra do texto fecha. Metade das
+   artes tem topo claro, então isto não é caso raro. */
+:is(#f-posted-modal,#lp-contextos) .pst-story-sombra{position:absolute;top:0;left:0;right:0;height:132px;z-index:15;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,.22) 58%,transparent)}
+/* O véu do pé, que faltava. A caixa de resposta e os dois ícones são brancos e sumiam sobre
+   arte clara — metade das artes. O do topo já existia; sem o de baixo a conta ficava pela
+   metade. */
+:is(#f-posted-modal,#lp-contextos) .pst-story-sombra-pe{position:absolute;bottom:0;left:0;right:0;height:150px;z-index:15;pointer-events:none;background:linear-gradient(0deg,rgba(0,0,0,.55),rgba(0,0,0,.22) 48%,transparent)}
 :is(#f-posted-modal,#lp-contextos) .pst-story .pst-artslot{position:absolute;inset:0}
 :is(#f-posted-modal,#lp-contextos) .pst-story-bars{position:absolute;top:52px;left:12px;right:12px;display:flex;gap:4px;z-index:20}
-:is(#f-posted-modal,#lp-contextos) .pst-story-bars i{flex:1;height:2.5px;border-radius:2px;background:rgba(255,255,255,.4);overflow:hidden}
+:is(#f-posted-modal,#lp-contextos) .pst-story-bars i{flex:1;height:2.5px;border-radius:2px;background:rgba(255,255,255,.38);overflow:hidden;box-shadow:0 0 2px rgba(0,0,0,.35)}
 :is(#f-posted-modal,#lp-contextos) .pst-story-bars i.on::before,:is(#f-posted-modal,#lp-contextos) .pst-story-bars i.done::before{content:'';display:block;height:100%;background:#fff;border-radius:2px}
+/* 64%: o story está TOCANDO. Cheia diria "acabou", vazia diria "não começou" — e nenhuma
+   das duas é o instante que este mockup retrata. */
 :is(#f-posted-modal,#lp-contextos) .pst-story-bars i.on::before{width:64%}
-:is(#f-posted-modal,#lp-contextos) .pst-story-bars i.done::before{width:100%}
 /* 64px e não 62: as barras terminam em 54,5 (topo 52 + 2,5 de altura) e o cabeçalho
    encostava nelas. Dez pixels de respiro é o que o app dá. */
 :is(#f-posted-modal,#lp-contextos) .pst-story-top{position:absolute;top:64px;left:14px;right:12px;display:flex;align-items:center;gap:9px;z-index:20;color:#fff}
-:is(#f-posted-modal,#lp-contextos) .pst-story-top .pst-av{width:30px;height:30px;box-shadow:0 0 0 1.5px rgba(255,255,255,.9)}
+/* Sem anel: o anel colorido é da BANDEJA de stories ("tem story novo"), não do visualizador.
+   Dentro do story aberto o avatar do autor é liso — quem dá contraste é o véu. */
+:is(#f-posted-modal,#lp-contextos) .pst-story-top .pst-av{width:32px;height:32px}
 :is(#f-posted-modal,#lp-contextos) .pst-story-user{font-size:13px;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.45);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:58%}
-:is(#f-posted-modal,#lp-contextos) .pst-story-top svg{width:20px;height:20px;opacity:.95}
+/* Os ícones não têm sombra própria como o texto tem. Sobre arte clara eles somem no véu —
+   um `drop-shadow` curto resolve sem escurecer a tela inteira. */
+:is(#f-posted-modal,#lp-contextos) .pst-story-top svg{width:20px;height:20px;opacity:.98;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}
 :is(#f-posted-modal,#lp-contextos) .pst-story-bot{position:absolute;bottom:24px;left:14px;right:14px;display:flex;align-items:center;gap:12px;z-index:20}
 :is(#f-posted-modal,#lp-contextos) .pst-story-input{flex:1;height:42px;border-radius:var(--r-pill);border:1.5px solid rgba(255,255,255,.6);display:flex;align-items:center;padding:0 16px;color:rgba(255,255,255,.9);font-size:13px}
-:is(#f-posted-modal,#lp-contextos) .pst-story-bot svg{width:24px;height:24px;color:#fff;flex-shrink:0}
+:is(#f-posted-modal,#lp-contextos) .pst-story-bot svg{width:25px;height:25px;color:#fff;flex-shrink:0;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}
 
 /* ══ 2 · FEED ══ */
 :is(#f-posted-modal,#lp-contextos) .pst-feed{flex:1;background:#fff;display:flex;flex-direction:column;padding-top:46px;overflow:hidden}
