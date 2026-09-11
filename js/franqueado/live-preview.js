@@ -165,6 +165,8 @@ function _fPostedLegendaAtual(){
    re-renderizar a arte. Se o ambiente na tela não for o Feed, não há nada a fazer. */
 function fPostedRepintaLegenda(){
   if(_postedCtx !== 'feed') return;
+  /* ⚠ `querySelectorAll` sem escopo: o chassi do Feed pode estar no MODAL (durante a criação)
+     ou no PALCO (estado final). Mirar só num dos dois deixava a legenda velha no outro. */
   document.querySelectorAll('.pst-feed').forEach(feed=>{
     const cap = _fPostedLegendaAtual();
     let el = feed.querySelector('.pst-feed-cap');
@@ -448,6 +450,132 @@ function _fLpSyncVerComoFica(){
   const tem = !!(fState.material && fState.material.layers && fState.material.layers.length
                  && fPostedContextForFormat(null));
   btn.hidden = !tem;
+}
+
+/* ══ A CONCLUSÃO ACONTECE DENTRO DO PALCO ══════════════════════════════════════════════════
+   A arte DESCE e sai por baixo; o contexto SOBE e ocupa o lugar dela. Os dois se cruzam
+   dentro do `.lp-stage`, que vira uma janela mascarada (`overflow:hidden`). O layout da
+   página não se mexe: a mesma região que dizia "Prévia ao vivo" passa a dizer "Como vai
+   ficar", e isso é a própria mensagem — a arte saiu da produção e entrou no uso.
+
+   ⛔ NÃO É CROSSFADE. O `opacity` acompanha, mas quem conta a história é o `translateY`:
+   sem deslocamento não existe "a arte saiu e o contexto entrou", existe "a imagem trocou".
+
+   ⛔ NÃO HÁ SEGUNDO RENDERIZADOR. O canvas que sobe dentro do celular é o MESMO objeto que
+   o `_fPostedRenderArt` produz com o `fRenderTemplateLayers` — o contexto só o enquadra.
+
+   ⚠ UMA VEZ POR CONCLUSÃO. A guarda é o `_fProntaCtxAberto` (chat.js), porque o
+   `fUpdateProg` roda em resize, em troca de legenda e a cada repintura do estado. Aqui
+   dentro, o `_lpConclusaoAtiva` protege de reentrada enquanto a animação corre.
+
+   ⚠ RESTAURAÇÃO: abrir uma arte já concluída entra no estado final DIRETO, sem coreografia
+   (`_fLpMostrarConclusao(false)`), porque a animação narra um acontecimento — e ali nada
+   acabou de acontecer. */
+
+let _lpConclusaoAtiva = false;
+
+/* O palco precisa de um lugar para o contexto morar. Criado sob demanda, uma vez. */
+function _fLpSlotContexto(){
+  const stage = document.querySelector('#f-live-preview .lp-stage');
+  if(!stage) return null;
+  let slot = document.getElementById('lp-contextos');
+  if(!slot){
+    slot = document.createElement('div');
+    slot.id = 'lp-contextos';
+    slot.setAttribute('role','group');
+    slot.setAttribute('aria-label','Visualização da arte pronta no contexto de uso');
+    stage.appendChild(slot);
+  }
+  return slot;
+}
+
+/* Pinta o ambiente atual DENTRO do palco. É o mesmo `_fPostedScreenHTML` do modal — os dois
+   usos compartilham chassi, regra de ambiente e canvas. O que muda é a caixa. */
+function _fLpPintarContexto(){
+  const slot = _fLpSlotContexto();
+  if(!slot || !_postedArt) return;
+  slot.innerHTML = `<div class="lp-ctx-phone pst-phone pst-ctx-${_postedCtx}">`
+    + `<div class="pst-island"></div>`
+    + `<div class="pst-screen">${_fPostedScreenHTML()}</div>`
+    + `</div>`;
+  _fPostedMountArt(slot);
+}
+
+/* As abas do palco. Mesma lista de ambientes do modal (`_fPostedContextsFor`). */
+function _fLpPintarAbas(){
+  const seg = document.getElementById('lp-ctx-seg');
+  if(!seg) return;
+  const ctxs = _fPostedContextsFor(fPostedContextForFormat(null));
+  seg.innerHTML = ctxs.map(c=>`<button type="button" class="pst-seg-btn${c.id===_postedCtx?' active':''}" data-ctx="${c.id}" role="radio" aria-checked="${c.id===_postedCtx}" onclick="fLpTrocarContexto('${c.id}')">${gEsc(c.label)}</button>`).join('');
+}
+
+/* Troca de ambiente JÁ no estado final: é troca de visualização, não uma nova conclusão —
+   por isso não repete a coreografia (o pedido é explícito nisso). */
+function fLpTrocarContexto(ctx){
+  if(ctx === _postedCtx) return;
+  _postedCtx = ctx;
+  _fLpPintarAbas();
+  const slot = document.getElementById('lp-contextos');
+  if(slot) slot.classList.add('lp-ctx-trocando');
+  _fLpPintarContexto();
+  if(slot) setTimeout(()=>slot.classList.remove('lp-ctx-trocando'), 260);
+}
+
+/* ── A ENTRADA ────────────────────────────────────────────────────────────────────────────
+   `anima=false` entra direto no estado final (restauração de arte já concluída). */
+async function _fLpMostrarConclusao(anima){
+  const stage = document.querySelector('#f-live-preview .lp-stage');
+  if(!stage) return;
+  const principal = (typeof fPostedContextForFormat==='function') ? fPostedContextForFormat(null) : null;
+  /* Sem ambiente honesto para esta geometria (uma faixa 1200×200, por exemplo), não há o que
+     mostrar — e inventar um chassi que não corresponde a nada seria pior que não mostrar.
+     O palco fica como está; o painel do lado já diz que a arte está pronta. */
+  if(!principal) return;
+
+  _postedCtx = principal;
+  if(!_postedArt){
+    try{ _postedArt = await _fPostedRenderArt(); }
+    catch(e){ console.warn('[conclusao] erro ao renderizar a arte:', e); }
+  }
+  if(!_postedArt) return;
+
+  _fLpPintarAbas();
+  _fLpPintarContexto();
+  /* ⚠ A legenda da IA chega DEPOIS (é async) e o contexto já estaria pintado sem ela. Uma
+     segunda passada curta pega o caso — o `fPostedRepintaLegenda` é barato (troca texto, não
+     re-renderiza a arte) e não faz nada quando o ambiente não é o Feed. */
+  setTimeout(()=>{ try{ fPostedRepintaLegenda(); }catch(e){} }, 1200);
+  document.body.classList.add('f-palco-conclusao');
+  if(!anima){ document.body.classList.add('f-palco-assentado'); return; }
+
+  /* O `f-completando` é o estado da COREOGRAFIA (a arte descendo, o contexto subindo); o
+     `f-palco-assentado` é o repouso. Separados porque o CSS precisa saber a diferença entre
+     "está acontecendo" e "aconteceu" — e porque o resize durante o repouso não pode
+     reanimar nada. */
+  document.body.classList.add('f-completando');
+  void stage.offsetWidth;                      // garante que o browser veja o estado inicial
+  requestAnimationFrame(()=>{
+    document.body.classList.add('f-palco-assentado');
+    setTimeout(()=>document.body.classList.remove('f-completando'), 900);
+  });
+}
+
+function _fLpEntrarEmConclusao(){
+  if(_lpConclusaoAtiva) return;
+  _lpConclusaoAtiva = true;
+  /* `_postedArt` velho é a arte ANTERIOR: some para o render novo entrar. */
+  _postedArt = null;
+  const reduz = window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches;
+  _fLpMostrarConclusao(!reduz);
+}
+
+/* A volta para a edição. O palco devolve a arte; nada é destruído. */
+function _fLpSairDaConclusao(){
+  _lpConclusaoAtiva = false;
+  document.body.classList.remove('f-completando','f-palco-conclusao','f-palco-assentado');
+  const slot = document.getElementById('lp-contextos');
+  if(slot) slot.innerHTML = '';
+  _postedArt = null;
 }
 
 async function fOpenPosted(){

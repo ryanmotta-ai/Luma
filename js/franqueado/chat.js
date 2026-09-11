@@ -349,23 +349,24 @@ function _fSheetSync(){
      nada além de empurrar o card de entrega para fora da vista. E o painel ganha altura,
      porque a entrega (legenda + três ações) é mais alta que uma pergunta. */
   try{ document.body.classList.toggle('f-arte-pronta', !!fState.done); }catch(e){}
-  /* ── "COMO VAI FICAR" APARECE SOZINHO ─────────────────────────────────────────────────
-     O contexto é a resposta para "terminei, como isso vai ficar?" — e essa pergunta nasce no
-     instante em que a arte fica pronta, não quando alguém acha um botão. Por isso ele ABRE
-     sozinho aqui, uma vez, na virada de `done` para true.
-     ⚠ NÃO É UM PASSO A MAIS: o "Baixar PNG" continua no painel, visível e clicável atrás do
-     contexto; quem não quer olhar fecha e baixa. O contexto existe para dar confiança ANTES
-     do download, nunca para ficar no caminho dele.
-     ⚠ `_fProntaCtxAberto` é a guarda contra reabrir: o `fUpdateProg` roda a cada passo, e sem
-     ela o modal voltaria à tela toda vez que a pessoa fechasse e o estado repintasse. Zera
-     quando o modo sai, então concluir de novo mostra de novo. */
+  /* ── A CONCLUSÃO ACONTECE NO PALCO, NÃO NUM MODAL ─────────────────────────────────────
+     Por algumas horas de 11/09 isto abria o `fOpenPosted()` sozinho — um modal por cima da
+     tela. Funcionava, mas era "abriu uma janela", e a leitura que se quer é outra: a arte
+     SAI da produção e ENTRA no contexto de uso, dentro do mesmo palco onde ela nasceu.
+     Quem conduz isso agora é o `_fLpEntrarEmConclusao` (live-preview.js).
+     ⚠ `_fProntaCtxAberto` continua sendo a guarda de UMA VEZ POR CONCLUSÃO: o `fUpdateProg`
+     roda a cada passo, a cada resize e a cada troca de legenda — sem ela a coreografia
+     recomeçaria do zero em qualquer um desses. Zera quando o modo sai, então voltar para a
+     edição e concluir de novo mostra de novo. */
   try{
-    if(fState.done && !_fProntaCtxAberto && typeof fOpenPosted==='function'
-       && typeof fPostedContextForFormat==='function' && fPostedContextForFormat(null)){
+    if(fState.done && !_fProntaCtxAberto && typeof _fLpEntrarEmConclusao==='function'){
       _fProntaCtxAberto = true;
-      setTimeout(()=>{ try{ fOpenPosted(); }catch(e){} }, 420);
+      _fLpEntrarEmConclusao();
     }
-    if(!fState.done) _fProntaCtxAberto = false;
+    if(!fState.done && _fProntaCtxAberto){
+      _fProntaCtxAberto = false;
+      if(typeof _fLpSairDaConclusao==='function') _fLpSairDaConclusao();
+    }
   }catch(e){}
 }
 
