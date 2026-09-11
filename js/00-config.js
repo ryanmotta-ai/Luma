@@ -16,12 +16,10 @@ const HIST_KEY='dm_artes_hist_v2';
    gAskAI devolve null e cada recurso cai no fallback sem dizer o motivo.
    ⚠ Formato: chave de API do Gemini hoje começa com 'AQ.' — não é mais 'AIza…'.
    Verificado por chamada real ao provedor antes de entrar aqui. */
-window.LUMA_CONFIG = window.LUMA_CONFIG || { geminiApiKey: 'AQ.Ab8RN6Ja4R95ctSYO-2rGrdj_HRiaIEeP92xdYurOlPXu2dmEA' };
-window.LUMA_GEMINI_API_KEY = window.LUMA_GEMINI_API_KEY || 'AQ.Ab8RN6Ja4R95ctSYO-2rGrdj_HRiaIEeP92xdYurOlPXu2dmEA';
-// Modelo dos 2 agentes, em UM lugar só (já divergiu entre chat.js e help-widget.js antes).
-// 'gemini-flash-latest' é APELIDO: o Google aponta pro Flash atual, então uma aposentadoria
-// de versão não quebra os agentes de novo — foi exatamente o que matou o 'gemini-1.5-flash'.
-window.LUMA_GEMINI_MODEL = window.LUMA_GEMINI_MODEL || 'gemini-flash-latest';
+window.LUMA_CONFIG = window.LUMA_CONFIG || { geminiApiKey: 'AQ.Ab8RN6K57nnQafJs2rkB_41z-6skw3EXjdngiUVSSZw0GmKVWg' };
+window.LUMA_GEMINI_API_KEY = window.LUMA_GEMINI_API_KEY || 'AQ.Ab8RN6K57nnQafJs2rkB_41z-6skw3EXjdngiUVSSZw0GmKVWg';
+// Modelo dos 2 agentes, em UM lugar só. 'gemini-3.6-flash' é estável e não sofre da oscilação de alta demanda do 3.8.
+window.LUMA_GEMINI_MODEL = window.LUMA_GEMINI_MODEL || 'gemini-3.6-flash';
 
 /* ── CAMPANHAS ──
    `cover`  = a arte 5:3 da vitrine (assets/covers/) — já existia.
