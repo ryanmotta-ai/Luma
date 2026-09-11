@@ -566,7 +566,13 @@ function fSaveAdv(val){
     fState.editIdx=null;
     const confirmMsg = document.getElementById('confirm-msg');
     if (confirmMsg) confirmMsg.remove();
-    fTyping(()=>fGerarArte());
+    /* ⚠ Era `fGerarArte()` direto aqui. Agora quem decide é o `fPosEdicao` (chat.js): na
+       criação ele conclui a arte, como sempre; na REVISÃO (depois de "Editar arte") ele
+       devolve a lista de campos, porque quem corrige o preço costuma corrigir a descrição
+       também — e re-concluir a cada campo tocaria a coreografia inteira no meio do trabalho.
+       O `typeof` é a rede para o caso de o chat.js não ter carregado: sem ele, um erro aqui
+       deixaria a resposta salva e o fluxo parado. */
+    fTyping(()=> (typeof fPosEdicao==='function' ? fPosEdicao() : fGerarArte()));
   }
   else{fTyping(()=>fNextStep());}
 }

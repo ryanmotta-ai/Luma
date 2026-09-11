@@ -210,6 +210,13 @@ function fPickLoja(lojaId){
   const _preenche=(valor,chaves)=>{ if(!valor) return; chaves.forEach(k=>{
     if(_fPergExists(k) && (fState.dados[k]==null || fState.dados[k]==='')) fState.dados[k]=valor;
   }); };
+  /* QUAL loja é esta arte. Uma linha, e ela responde a pergunta que o mockup do Instagram
+     precisa fazer depois: "de quem é este post?". Sem ela, o chassi teria que ADIVINHAR
+     entre as lojas salvas — e um nome errado no cabeçalho é tão falso quanto um inventado.
+     ⚠ Não entra no rascunho (`fSaveChatDraft` grava chaves nomeadas) nem no histórico: é
+     memória da sessão, do mesmo tipo do `_lastHistId`. Quem recarrega a página cai no
+     caminho 1 do `_fPostedPerfil` (os campos da própria arte), que é o mais preciso. */
+  fState._lojaId = lojaId;
   _preenche(loja.logo,     F_LOJA_CAMPOS.logo);
   _preenche(loja.nome,     F_LOJA_CAMPOS.nome);      // o nome da loja também é dado da loja
   _preenche(loja.whatsapp, F_LOJA_CAMPOS.whatsapp);
@@ -343,12 +350,30 @@ function _fChatAncora(msgs){
    não faz nada ensina a ignorar botão (mesma regra do `#f-undo-btn`). */
 function _fSheetSync(){
   const b=document.getElementById('f-sheet-back');
-  if(b) b.hidden = !(fState.stepIdx>0 && !fState.done && fState.editIdx===null);
+  /* ⚠ `!_fRevisando`: na revisão não existe "anterior". O `fGoBack` move o CURSOR do
+     questionário, e o questionário já acabou — o botão navegaria para uma pergunta que a
+     pessoa não pediu, com a lista aberta atrás. A saída da revisão é "Concluir alterações". */
+  if(b) b.hidden = !(fState.stepIdx>0 && !fState.done && fState.editIdx===null && !_fRevisando);
   /* Arte pronta: a caixa de resposta some. Não é estética — com `fState.done` o `fSaveAdv`
      corta na primeira linha e devolve "Quer gerar outra arte?", ou seja, digitar ali não faz
      nada além de empurrar o card de entrega para fora da vista. E o painel ganha altura,
      porque a entrega (legenda + três ações) é mais alta que uma pergunta. */
   try{ document.body.classList.toggle('f-arte-pronta', !!fState.done); }catch(e){}
+  /* ── MODO REVISÃO ──
+     `_fRevisando` é a única variável nova desta rodada, e ela se apaga SOZINHA aqui: arte
+     pronta de novo (`done`) ou fluxo reiniciado (`stepIdx<0`) encerram a revisão no mesmo
+     lugar onde ela é lida. Sem isto seriam quatro atribuições espalhadas (`fGerarArte`,
+     `fRestartArt`, `fShowWelcome`, `fStartChat`) e a quinta faltando.
+     ⚠ `f-revisao-campo` NÃO é estado novo: é `fState.editIdx !== null` visto pelo CSS. Um
+     campo de cada vez abre NO LUGAR da lista — os dois na tela seriam a mesma pergunta duas
+     vezes, que é o ruído que a lista veio tirar. */
+  try{
+    if(_fRevisando && (fState.done || fState.stepIdx < 0)) _fRevisando = false;
+    document.body.classList.toggle('f-revisao', _fRevisando);
+    document.body.classList.toggle('f-revisao-campo', _fRevisando && fState.editIdx !== null);
+    const lista = document.getElementById('f-respostas');
+    if(lista && !_fRevisando && !document.body.classList.contains('f-respostas-abertas')) lista.hidden = true;
+  }catch(e){}
   /* ── A CONCLUSÃO ACONTECE NO PALCO, NÃO NUM MODAL ─────────────────────────────────────
      Por algumas horas de 11/09 isto abria o `fOpenPosted()` sozinho — um modal por cima da
      tela. Funcionava, mas era "abriu uma janela", e a leitura que se quer é outra: a arte
@@ -370,27 +395,108 @@ function _fSheetSync(){
   }catch(e){}
 }
 
-/* ── VOLTAR PARA EDIÇÃO ──────────────────────────────────────────────────────────────────
+/* ══ EDITAR ARTE — DEPOIS DE PRONTA, EDITAR É REVER, NÃO REFAZER ═════════════════════
+   O questionário serve para CONSTRUIR a arte. Ele não serve para corrigi-la: quem clica em
+   "Editar arte" já viu o resultado e sabe o que quer mudar, e devolver essa pessoa para a
+   "Pergunta 1 de 8" é fazê-la reconfirmar sete acertos para chegar em um erro.
+   Então a volta abre a LISTA DE CAMPOS — rótulo, valor atual, lápis. O questionário já
+   cumpriu o papel dele; agora a pessoa está em modo de revisão.
+
    ⛔ NÃO É O "REFAZER", E A DIFERENÇA IMPORTA. `fRefazer` → `fAskRestartArt` → `fRestartArt`
    APAGA todas as respostas (com `gConfirm` e snapshot para desfazer). Quem só quer corrigir
    uma palavra não pode cair nisso — e trocar a semântica do Refazer em silêncio seria pior
    ainda, porque quem já conhece o botão perderia o trabalho sem aviso.
-   Esta é o caminho de volta: desliga o modo "arte pronta" e devolve a interface de criação
-   com os dados INTACTOS. Não mexe em `fState.dados`, não re-renderiza a arte, não cria
-   registro nenhum — só o `done` muda, e o `_fSheetSync` (via `fUpdateProg`) apaga a classe
-   que segura o estado final. Concluir de novo devolve o estado final, sem duplicar nada.
-   ⚠ `editIdx=null` porque o estado final pode ter sido alcançado no meio de uma edição.
-   ⚠ Este botão já nasceu e morreu uma vez hoje, como "Ajustar arte". Voltou porque sem ele o
-   único caminho de correção era o Refazer, que apaga tudo. */
+
+   ⛔ NÃO HÁ SEGUNDO FORMULÁRIO. A lista é o `#f-respostas` que o celular já usa (mesmo HTML,
+   mesmo `fRenderRespostas`), o lápis é o `fEditCampo` que já existe, e o clique direto na
+   arte continua sendo o `_fLpOnCanvasClick`. Esta rodada não criou renderizador nenhum:
+   criou um MODO, e o modo é uma classe no `<body>`.
+
+   ⚠ NADA É DESTRUÍDO. `fState.dados` não se mexe, a arte não é re-renderizada, nenhum
+   registro nasce — só o `done` cai. Concluir de novo devolve o estado final sem duplicar.
+   ⚠ Este botão já nasceu e morreu uma vez em 11/09, como "Ajustar arte". Voltou porque sem
+   ele o único caminho de correção era o Refazer, que apaga tudo. */
+let _fRevisando = false;
+
 function fVoltarParaEdicao(){
   if(!fState.done) return;
+  _fRevisando = true;
   fState.done = false;
   fState.editIdx = null;
   try{ fSaveChatDraft(); }catch(e){}
   fUpdateProg();
+  /* O palco leva ~400ms para tirar os contextos e trazer a arte de volta
+     (`_fLpSairDaConclusao`, live-preview.js). A lista entra DEPOIS: trocar o painel no meio
+     do movimento é o corte seco que esta coreografia existe para não ser.
+     ⚠ A função é idempotente e devolve a MESMA promessa que o `fUpdateProg` acima já
+     disparou (via `_fSheetSync`) — chamá-la aqui não anima duas vezes, só dá o gancho. */
+  let saida = null;
+  try{ if(typeof _fLpSairDaConclusao==='function') saida = _fLpSairDaConclusao(); }catch(e){}
+  Promise.resolve(saida).catch(()=>{}).then(()=>fAbrirRevisao());
+}
+
+/* A lista. É também o ponto de retorno de cada campo editado, por isso limpa o
+   `active-prompt`: sem isso a última pergunta respondida continuaria marcada, o CSS
+   entenderia que ainda há um campo aberto e a lista nunca voltaria. */
+function fAbrirRevisao(){
+  if(fState.done) return;
+  _fRevisando = true;
+  fState.editIdx = null;
+  const msgs=document.getElementById('f-messages');
+  if(msgs) msgs.querySelectorAll('.msg.active-prompt').forEach(m=>m.classList.remove('active-prompt'));
+  fRenderRespostas();
+  const lista=document.getElementById('f-respostas'); if(lista) lista.hidden=false;
+  /* A caixa de digitar não responde nada na lista — o alvo é o lápis. Desabilitada, o
+     celular já a esconde pela regra que existe (`#f-input-row:has(#f-msg-box:disabled)`). */
   const box=document.getElementById('f-msg-box');
-  if(box && !box.disabled){ try{ box.focus(); }catch(e){} }
-  if(typeof gToast==='function') gToast('Voltamos para a edição. Sua arte continua salva.');
+  if(box){ box.disabled=true; box.placeholder='Escolha o campo que quer corrigir'; }
+  const snd=document.getElementById('f-snd'); if(snd) snd.disabled=true;
+  const mic=document.getElementById('f-chat-mic'); if(mic) mic.disabled=true;
+  fUpdateProg();
+  try{ const sheet=document.getElementById('f-sheet'); if(sheet) sheet.scrollTop=0; }catch(e){}
+}
+
+/* Fim de UMA edição de campo. Na criação isso conclui a arte — é o que sempre fez, e o
+   `fSaveAdv`/`fConfirmarImagem` chamavam `fGerarArte` direto. Na revisão, devolve a lista:
+   quem veio corrigir o preço costuma querer corrigir a descrição também, e re-concluir a
+   cada campo tocaria a coreografia inteira entre uma correção e a outra. */
+function fPosEdicao(){
+  if(_fRevisando){ fAbrirRevisao(); return; }
+  fGerarArte();
+}
+
+/* A saída da revisão. `fGerarArte` liga o `done`, e o `_fSheetSync` apaga o modo sozinho. */
+function fConcluirRevisao(){
+  _fRevisando = false;
+  const lista=document.getElementById('f-respostas'); if(lista) lista.hidden=true;
+  fGerarArte();
+}
+
+/* A edição pela ARTE (clique no campo → `_fLpCommit`) também muda a lista. Sem isto, trocar
+   o preço na arte deixava a linha "Preço" com o valor velho: a mesma verdade em dois
+   lugares, a 200px de distância. */
+function fRevisaoRepinta(){
+  if(!_fRevisando || fState.editIdx!==null) return;
+  const lista=document.getElementById('f-respostas');
+  if(lista && !lista.hidden) fRenderRespostas();
+}
+
+/* SAÍDA DA EDIÇÃO DE UM CAMPO. Sem isto, abrir um campo na revisão é rua sem retorno: o
+   `fGoBack` se recusa a agir com `editIdx` marcado (e está certo — "anterior" não existe
+   quando se edita um campo avulso), e o passo de foto não tem nem chip.
+   ⚠ Classe própria, e NÃO o `.qr-back-wrap`: no celular aquele wrapper cai em `order:0` e
+   sobe para cima da pergunta (o painel dissolve as caixas com `display:contents`). O
+   `.fr-cancelar` tem `order` explícito no CSS. */
+function _fRevisaoSaidaDoCampo(){
+  const msg=document.querySelector('#f-messages .msg.active-prompt');
+  if(!msg) return;
+  const alvo=msg.querySelector('.msg-content') || msg.querySelector(':scope>div:not(.av)');
+  if(!alvo || alvo.querySelector('.fr-cancelar')) return;
+  const b=document.createElement('button');
+  b.type='button'; b.className='fr-cancelar';
+  b.textContent='Voltar para a lista';
+  b.onclick=()=>fAbrirRevisao();
+  alvo.appendChild(b);
 }
 
 function fSheetToggle(){
@@ -429,7 +535,9 @@ function fRenderRespostas(){
     const val = p.isImage
       ? (tem?`<img class="fr-mini" src="${gEsc(v)}" alt="">Foto enviada`:'<i>sem foto</i>')
       : (tem?gEsc(String(v)):'<i>ainda não respondido</i>');
-    return `<div class="fr-row${i===fState.stepIdx?' atual':''}">
+    /* "atual" responde "onde eu estou no fluxo?". Na revisão não existe passo atual — a
+       pessoa está na lista inteira — e marcar o último campo editado seria mentir. */
+    return `<div class="fr-row${(!_fRevisando && i===fState.stepIdx)?' atual':''}">
       <span class="fr-lbl">${gEsc(rot)}</span>
       <span class="fr-val${tem?'':' vazia'}">${val}</span>
       <button type="button" class="fr-ed" onclick="fRespostaEditar(${i})" aria-label="Alterar ${gEsc(rot)}">
@@ -437,8 +545,17 @@ function fRenderRespostas(){
       </button>
     </div>`;
   }).join('');
-  box.innerHTML=`<h3 class="fr-h">Respostas</h3>${linhas}`
-    +`<button type="button" class="fr-reset" onclick="fResetFlow()">Recomeçar esta arte</button>`;
+  /* Dois rodapés, um render. Na criação a lista é CONSULTA ("Respostas", e a saída é
+     recomeçar); na revisão ela é A TELA, e a saída é concluir de novo.
+     ⚠ A dica do clique direto só aparece no desktop: no celular a arte do topo abre a gaveta
+     de prévia (`_fLpPaintCartao`), ela não edita campo. Prometer lá seria mandar a pessoa
+     tocar numa coisa que responde outra. */
+  const dica = _fCelular() ? '' : `<p class="fr-dica">Você também pode clicar direto no campo, na arte.</p>`;
+  box.innerHTML = _fRevisando
+    ? `<h3 class="fr-h">O que você quer corrigir?</h3>${linhas}${dica}`
+      + `<button type="button" class="art-btn pri fr-ok" onclick="fConcluirRevisao()">Concluir alterações</button>`
+    : `<h3 class="fr-h">Respostas</h3>${linhas}`
+      + `<button type="button" class="fr-reset" onclick="fResetFlow()">Recomeçar esta arte</button>`;
 }
 
 /* O lápis fecha a lista antes de editar: o passo alvo abre no painel, e deixar a lista por
@@ -704,7 +821,7 @@ function fValidarLogo(url, cb){
 /* Confirmação do passo de imagem: é AQUI que o fluxo anda, e só por ação da pessoa. */
 function fConfirmarImagem(varId){
   if(!fState.dados || !fState.dados[varId]) return;
-  if(fState.editIdx !== null){ fState.editIdx=null; fTyping(()=>fGerarArte()); return; }
+  if(fState.editIdx !== null){ fState.editIdx=null; fTyping(()=>fPosEdicao()); return; }
   fTyping(()=>fNextStep());
 }
 // Pergunta especial de upload de imagem
@@ -1192,6 +1309,7 @@ function fEditCampo(idx){
     try { fUpdateInputPlaceholder(p.id); } catch(e){}
     try { fUpdateCharCount(); } catch(e){}
   }
+  if(_fRevisando) try{ _fRevisaoSaidaDoCampo(); }catch(e){}
 }
 // fEditarTudo saiu: era um TERCEIRO reset, sem confirmação e sem nenhum chamador desde que
 // o card de revisão foi removido. Restart agora tem uma porta só (fAskRestartArt).
@@ -1722,8 +1840,17 @@ function fGerarArte(){
                capacidade é o que esta regra corta. Enquanto não houver integração de verdade,
                a entrega oferece o que entrega: baixar o arquivo e copiar a legenda.
                O motor segue vivo em png-generator.js, sem chamador, de propósito. -->
-          <button type="button" class="art-btn art-voltar" onclick="fVoltarParaEdicao()" title="Voltar para a edição sem perder nada do que você já respondeu">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>Voltar para edição
+          <!-- "Editar arte", e nao "Voltar para edicao": voltar e navegacao, editar e intencao.
+               O verbo aqui fecha um par com os outros tres, e cada um responde uma vontade
+               diferente - Editar arte: quero corrigir ESTA. Refazer: quero comecar de novo.
+               Gerar em lote: quero variacoes. Baixar PNG: terminei.
+               ATENCAO: a classe continua art-voltar (sem aspas aqui de proposito: crase dentro
+               de template literal quebra o arquivo). Ela e citada em 10 regras de CSS e na
+               regua de order do celular; trocar o nome seria churn puro, sem nada em troca.
+               O icone tambem mudou: a seta de voltar dizia navegacao. Agora e o lapis, o
+               mesmo simbolo que abre cada campo na lista do outro lado do clique. -->
+          <button type="button" class="art-btn art-voltar" onclick="fVoltarParaEdicao()" title="Rever os campos desta arte sem perder nada do que voce ja respondeu">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Editar arte
           </button>
         </section>
         <!-- Gerar em lote DE VOLTA no card, a pedido do Ryan (09/09). Ele saiu na rodada de
@@ -1743,6 +1870,10 @@ function fGerarArte(){
        conversa normal ela continua lá, que é o histórico honesto do que aconteceu. */
     try{ msgs.querySelectorAll('.art-wrap').forEach(el=>{ const m=el.closest('.msg'); if(m) m.classList.add('art-superada'); }); }catch(e){}
     msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;
+    /* O CARD NOVO EXISTE A PARTIR DAQUI — e é daqui que o palco fica sabendo. O `_fSheetSync`
+       roda ANTES disto (o `fUpdateProg` é a primeira linha do `fGerarArte`), então naquele
+       momento o card ainda não estava no DOM e não havia o que sincronizar. */
+    try{ if(typeof _fLpSincronizarConclusao==='function') _fLpSincronizarConclusao(); }catch(e){}
     _legendaIA.then(sug => _fAplicarLegendaIA(previewCanvasId, sug)).catch(()=>{});
     // Renderiza canvas thumbnail real
     if(hasMaterial){

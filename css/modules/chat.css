@@ -3389,3 +3389,112 @@ body:not(.theme-light).f-arte-pronta .art-ok-sub,
 body:not(.theme-light).f-arte-pronta .caption-card-title{color:var(--d-text2)}
 body:not(.theme-light).f-arte-pronta .art-bulk-btn{background:var(--d-surf2);border-color:var(--d-border)}
 body:not(.theme-light).f-arte-pronta .art-btn.art-redo:hover{background:var(--d-surf2)}
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   MODO REVISÃO — DEPOIS DE PRONTA, EDITAR É REVER CAMPOS (2026-09-11)
+   ══════════════════════════════════════════════════════════════════════════════════════════
+   O questionário constrói a arte; ele não serve para corrigi-la. Quem clica em "Editar arte"
+   já viu o resultado e sabe o que quer mudar — devolver essa pessoa para a "Pergunta 1 de 8"
+   é fazê-la reconfirmar sete acertos para chegar em um erro. Então a volta abre a LISTA DE
+   CAMPOS: rótulo, valor atual, lápis.
+
+   ⛔ NÃO É UM PAINEL NOVO. É o `#f-respostas` que o celular já usa desde a rodada de
+   11/09 — mesmo HTML, mesmo `fRenderRespostas`. Aqui ele ganha corpo de desktop, um
+   cabeçalho que pergunta e um rodapé que conclui. O bloco do celular não foi tocado.
+
+   A ALAVANCA É `body.f-revisao`, ligada pelo `_fSheetSync` a partir do `_fRevisando` — mesmo
+   desenho do `body.f-arte-pronta` acima. `f-revisao-campo` NÃO é estado novo: é
+   `fState.editIdx !== null` visto pelo CSS, e abre um campo NO LUGAR da lista.
+
+   ⛔ NÃO É O ESTADO FINAL, e a diferença é o ponto: aqui a arte volta a ser editável, o palco
+   volta a dizer "Prévia ao vivo" e o clique direto na peça funciona. É a bancada, não a
+   vitrine. Os dois modos nunca estão ligados juntos — `fState.done` é um só.
+
+   ⚠ POR QUE `#f-sheet #f-messages` E NÃO SÓ `#f-messages`: o bloco do celular escopa tudo em
+   `body.f-mobile-chat:not(...):not(...):not(...)`, quatro classes que VENCEM um
+   `body.f-revisao` simples — e lá `#f-messages` é `display:contents`, que continuaria valendo.
+   O `#f-sheet` é o pai real no HTML, então o segundo id sobe a especificidade sem inventar
+   seletor nenhum: é só dizer onde a caixa mora. */
+
+/* ── 1. A LISTA: a conversa inteira sai de cena ── */
+body.f-revisao:not(.f-revisao-campo) #f-sheet #f-messages{display:none}
+body.f-revisao:not(.f-revisao-campo) #f-sheet #f-input-row{display:none}
+/* O rodapé do painel some nos dois sub-estados: "Anterior" não existe fora do questionário
+   (ver a guarda no `_fSheetSync`) e "Respostas" abriria a lista que já está aberta. */
+body.f-revisao #f-sheet #f-sheet-foot{display:none}
+/* ⚠ `#f-chat-head` pelo mesmo motivo do `#f-sheet` acima: o contador mora no cabeçalho, e
+   o bloco do celular o mostra com quatro classes de escopo. Aqui ele não é progresso, é
+   passado — e "1/8" ao lado de uma lista com as oito respostas preenchidas mente. */
+body.f-revisao #f-chat-head #f-mob-prog{display:none}
+
+/* ── 2. UM CAMPO DE CADA VEZ ── */
+/* A pergunta do campo toma o painel; a lista espera. Os dois na tela seriam a mesma pergunta
+   duas vezes, a 40px de distância — o ruído que a lista veio tirar. */
+body.f-revisao.f-revisao-campo #f-sheet #f-respostas{display:none}
+body.f-revisao.f-revisao-campo #f-messages>.msg:not(.active-prompt){display:none}
+
+/* ── 3. A SAÍDA DA EDIÇÃO DE UM CAMPO ── */
+/* ⚠ Classe própria, e NÃO o `.qr-back-wrap`: aquele wrapper não tem `order` e, no celular,
+   cai no 0 — iria para CIMA da pergunta (o painel dissolve as caixas com `display:contents`).
+   Ver o aviso na régua de `order` deste arquivo. */
+.fr-cancelar{
+  appearance:none;display:block;margin:14px auto 0;padding:8px 14px;
+  border:1px dashed var(--gray-mid);border-radius:var(--r-pill);background:transparent;
+  font:inherit;font-size:12.5px;font-weight:600;color:var(--text-3);cursor:pointer;
+  transition:color .12s,border-color .12s,background .12s;
+}
+.fr-cancelar:hover{color:var(--dm-orange-d);border-color:var(--dm-orange);background:var(--dm-orange-bg)}
+.fr-cancelar:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+body.f-revisao .fr-cancelar{order:6}
+body:not(.theme-light) .fr-cancelar{border-color:var(--d-border2);color:var(--d-text2)}
+
+@media (max-width:680px){
+  body.f-revisao .fr-cancelar{width:auto;margin:12px 18px 4px;min-height:var(--tap-min);font-size:13.5px}
+}
+
+/* ── 4. O CORPO DA LISTA NO DESKTOP ── */
+/* ⚠ `min-width:681px` e não uma regra solta: as `.fr-*` do celular são desenho AFINADO para o
+   polegar (alvo de 44px, 15px de valor) e moram em `max-width:680px`. Sem a barreira, estas
+   regras — que carregam o id `#f-respostas` — venceriam lá e desfariam aquilo. */
+@media (min-width:681px){
+  /* A mesma mesa off-white do estado final: sair da revisão e voltar para a arte pronta não
+     pode piscar de cor. */
+  body.f-revisao #f-chat-col{background:var(--off-white)}
+  body.f-revisao #f-respostas:not([hidden]){
+    display:flex;flex-direction:column;align-items:center;justify-content:safe center;
+    flex:1;min-height:0;overflow-y:auto;
+    padding:clamp(24px,4vh,40px) 20px;
+  }
+  /* `safe center` pelo mesmo motivo do painel de entrega: centralizado enquanto cabe, e
+     alinhado no topo quando a lista é longa — sem `safe`, o começo fica inalcançável. */
+  /* Uma coluna só, na MESMA largura do painel de entrega (380px): a ida e a volta entre os
+     dois modos não pode reposicionar o conteúdo na horizontal. */
+  body.f-revisao #f-respostas>*{width:min(100%,380px);flex:0 0 auto}
+  body.f-revisao .fr-h{margin:0 0 6px;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3)}
+  body.f-revisao .fr-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:2px 12px;padding:13px 2px;border-bottom:1px solid var(--gray-light)}
+  body.f-revisao .fr-lbl{grid-column:1;font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3)}
+  body.f-revisao .fr-val{grid-column:1;font-size:14.5px;font-weight:700;color:var(--text);overflow-wrap:anywhere;display:flex;align-items:center;gap:7px}
+  body.f-revisao .fr-val.vazia{font-weight:500;color:var(--text-3)}
+  body.f-revisao .fr-val i{font-style:italic}
+  body.f-revisao .fr-mini{width:26px;height:26px;border-radius:6px;object-fit:cover;flex-shrink:0}
+  /* O lápis é o alvo, então ele tem tamanho de alvo mesmo no mouse — 38px, e não o ícone de
+     15px nu que a linha teria se o botão fosse só o `svg`. */
+  body.f-revisao .fr-ed{grid-column:2;grid-row:1/3;width:38px;height:38px;border-radius:11px;border:1px solid var(--gray-mid);background:var(--white);color:var(--text-2);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .12s,border-color .12s,color .12s}
+  body.f-revisao .fr-ed svg{width:15px;height:15px}
+  body.f-revisao .fr-ed:hover{background:var(--dm-orange-bg);border-color:var(--dm-orange);color:var(--dm-orange-d)}
+  body.f-revisao .fr-ed:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+  /* A linha inteira responde ao ponteiro: o alvo declarado é o lápis, mas o olho mira a
+     linha, e uma linha que não reage ensina que não é clicável. */
+  body.f-revisao .fr-row:hover .fr-ed{border-color:var(--dm-orange);color:var(--dm-orange-d)}
+  body.f-revisao .fr-dica{margin:16px 0 0;font-size:12px;font-weight:500;color:var(--text-3);text-align:center;line-height:1.45}
+  body.f-revisao .fr-ok{min-height:46px;margin-top:18px;font-size:14px;font-weight:800;border-radius:12px}
+
+  /* ── TEMA ESCURO ── */
+  body:not(.theme-light).f-revisao #f-chat-col{background:var(--d-surf)}
+  body:not(.theme-light).f-revisao .fr-row{border-bottom-color:var(--d-border)}
+  body:not(.theme-light).f-revisao .fr-val{color:var(--d-text)}
+  body:not(.theme-light).f-revisao .fr-h,
+  body:not(.theme-light).f-revisao .fr-lbl,
+  body:not(.theme-light).f-revisao .fr-dica{color:var(--d-text2)}
+  body:not(.theme-light).f-revisao .fr-ed{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text2)}
+  body:not(.theme-light).f-revisao .fr-ed:hover{background:var(--d-surf3);border-color:var(--dm-orange);color:var(--dm-orange)}
+}
