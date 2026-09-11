@@ -764,17 +764,25 @@ select option{background:#222}
 
 .g-toast-item {
   pointer-events: auto;
-  background: var(--text);
-  color: #fff;
+  background: var(--white);
+  color: var(--text);
+  border: 1px solid var(--gray-mid);
   padding: 10px 20px;
   border-radius: var(--r-pill);
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 500;
-  box-shadow: 0 8px 24px rgba(0,0,0,.25);
+  box-shadow: 0 10px 28px rgba(10,10,10,.12), 0 2px 6px rgba(10,10,10,.04);
   line-height: 1.4;
   white-space: nowrap;
   animation: gToastItemIn var(--dur-base) var(--ease-spring) both;
   transition: opacity var(--dur-fast) var(--ease-in), transform var(--dur-fast) var(--ease-in);
+}
+
+body:not(.theme-light) .g-toast-item {
+  background: var(--d-surf2);
+  color: var(--d-text);
+  border-color: var(--d-border2);
+  box-shadow: 0 16px 40px rgba(0,0,0,.45);
 }
 
 .g-toast-item.hide {
@@ -783,53 +791,62 @@ select option{background:#222}
 }
 
 /* ── TOAST COM AÇÃO ("Arte reiniciada · Desfazer") ──
-   O botão precisa parecer clicável DENTRO de uma pílula escura, sem virar um segundo CTA da
-   tela. Sublinhado + peso: é um link de correção, não um botão de confirmação. O alvo tem
-   32px de altura (a pílula cresce com ele) — desfazer é a saída de emergência, não pode
-   depender de mira fina, ainda mais no celular. */
+   Componente da casa: superfície clara com elevação, texto nítido e botão
+   de ação em formato de chip/pílula da marca Delivery Much com ícone de desfazer. */
 .g-toast-item.has-acao {
   display: inline-flex; align-items: center; gap: 12px;
-  padding: 6px 8px 6px 20px;
+  padding: 6px 8px 6px 18px;
 }
-.g-toast-txt { min-width: 0 }
+.g-toast-txt { min-width: 0; font-weight: 600; }
 .g-toast-acao {
-  flex: 0 0 auto; min-height: 32px; padding: 0 12px;
-  background: transparent; border: 1px solid rgba(255,255,255,.28);
+  flex: 0 0 auto; min-height: 32px; padding: 0 14px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  background: var(--dm-orange-bg); border: 1px solid var(--dm-orange-tint);
   border-radius: var(--r-pill);
-  color: #fff; font: 700 12px 'Roboto', sans-serif; cursor: pointer;
-  text-decoration: underline; text-underline-offset: 2px;
-  transition: background var(--dur-micro) var(--ease-standard), border-color var(--dur-micro) var(--ease-standard);
+  color: var(--dm-orange-d); font: 700 12px 'Roboto', sans-serif; cursor: pointer;
+  text-decoration: none;
+  transition: background var(--dur-micro) var(--ease-standard), border-color var(--dur-micro) var(--ease-standard), color var(--dur-micro) var(--ease-standard), transform var(--dur-micro) var(--ease-spring);
 }
-.g-toast-acao:hover { background: rgba(255,255,255,.16); border-color: rgba(255,255,255,.55) }
+.g-toast-acao:hover {
+  background: var(--dm-orange); border-color: var(--dm-orange);
+  color: var(--on-orange);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--dm-orange-d) 18%, transparent);
+}
 .g-toast-acao:focus-visible { outline: 2px solid var(--dm-orange); outline-offset: 2px }
 .g-toast-acao:active { transform: scale(.96) }
 
-/* ── TOAST NO CELULAR (revisão mobile 2026-09-06) ──
-   Duas medições, no mesmo componente:
-   1. `white-space:nowrap` cortava a frase. Medido a 320px: "Não consegui carregar seu perfil
-      completo. Recarregue a página." = 421px de texto numa pílula de 288px. E o toast é o
-      ÚNICO canal de erro do chat — `fShowFieldError` (chat-input.js) manda o motivo por aqui;
-      o tremor da barra só aponta QUAL campo. Meia frase = erro sem motivo.
-   2. `bottom:24px` punha o aviso EM CIMA da barra de digitar. Medido a 320×568: toast em
-      y 507–544, `#f-input-row` em y ~510–560. Com o teclado aberto o aviso cobre justamente
-      o campo que ele está pedindo para corrigir. Dentro do chat ele sobe. */
+body:not(.theme-light) .g-toast-acao {
+  background: rgba(255, 144, 0, .14);
+  border-color: rgba(255, 144, 0, .32);
+  color: var(--dm-orange);
+}
+body:not(.theme-light) .g-toast-acao:hover {
+  background: var(--dm-orange);
+  border-color: var(--dm-orange);
+  color: var(--on-orange);
+}
+
+/* ── TOAST NO CELULAR (revisão mobile) ──
+   1. Mantém leitura de aviso sem cortar a frase.
+   2. Fica acima da barra de digitar do chat.
+   3. O balão de ação não vira um bloco preto gigante vertical:
+      mantém layout pílula horizontal equilibrado e compacto. */
 @media (max-width:680px){
-  /* `width` (não só `max-width`): o container é flex e encolhe até o min-content. Com a
-     quebra de linha ligada, medido, ele se espremia em 160px e a frase virava 5 linhas.
-     Com a largura reservada, o aviso usa o espaço e cabe em duas. */
-  #g-toast-container{width:calc(100vw - 32px);max-width:calc(100vw - 32px);align-items:center;bottom:calc(24px + var(--safe-bottom))}
-  .g-toast-item{white-space:normal;text-align:center;max-width:100%}
-  /* Com a frase em 2 linhas, ação ao lado vira 40px de texto. Empilha e ocupa a largura.
-     ⚠ `width:100%` é obrigatório: o container é flex com `align-items:center`, então a pílula
-     encolhe até o conteúdo. Medido a 390px, sem isto ela ficava com 112px de largura — a
-     frase quebrando em três linhas dentro de uma tarja fina, com o botão espremido embaixo. */
-  .g-toast-item.has-acao{flex-direction:column;gap:8px;padding:12px 16px;width:100%}
-  .g-toast-acao{width:100%;min-height:var(--tap-min,44px)}
-  /* `f-mobile-chat` sem `f-material-browser` = a conversa de verdade, a única tela do
-     franqueado com barra de digitar no rodapé (mesmo par que o help-widget já usa). */
-  /* 104px = a barra de digitar medida (69px) + folga. O `--safe-bottom` entra de novo porque
-     a barra também o reserva no próprio padding: as duas sobem juntas no iPhone. */
-  body.f-mobile-chat:not(.f-material-browser) #g-toast-container{bottom:calc(104px + var(--safe-bottom))}
+  #g-toast-container {
+    width: max-content;
+    max-width: calc(100vw - 32px);
+    align-items: center;
+    bottom: calc(20px + var(--safe-bottom));
+  }
+  .g-toast-item { white-space: normal; text-align: center; max-width: 100%; }
+  .g-toast-item.has-acao {
+    display: flex; flex-direction: row; align-items: center;
+    justify-content: space-between; gap: 10px;
+    padding: 6px 8px 6px 16px; width: auto; max-width: 100%;
+  }
+  .g-toast-item.has-acao .g-toast-txt { text-align: left; font-size: 12.5px; }
+  .g-toast-acao { width: auto; min-height: 38px; padding: 0 13px; }
+  body.f-mobile-chat:not(.f-material-browser) #g-toast-container { bottom: calc(96px + var(--safe-bottom)); }
 }
 
 /* ── DIÁLOGO DA CASA (gConfirm/gPrompt — js/core/toast.js) ──
