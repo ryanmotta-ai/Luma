@@ -3158,6 +3158,16 @@ body:not(.theme-light) #f-msg-box:disabled{background:var(--d-surf2);color:var(-
   body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-ed{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text2)}
   body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-reset{border-color:var(--d-border2);color:var(--d-text2)}
   body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-row.atual{background:color-mix(in srgb,var(--dm-orange) 15%,transparent)}
+  /* ⛔ A ENTREGA NO TEMA ESCURO ESTAVA ILEGÍVEL. "Sua arte está pronta" herdava `var(--text)`
+     (#0A0A0A) e caía sobre o `--d-surf` (#1C212A): contraste medido de **1,23:1** — texto
+     preto no escuro, o título da tela inteira praticamente invisível. O subtítulo dava 3,03 e
+     também reprovava AA.
+     A regra escura que eu já tinha escrito para o desktop não alcançava aqui: o escopo do
+     celular carrega quatro classes a mais e vencia por especificidade. Por isso a correção
+     mora NESTE bloco, com o mesmo escopo, e não lá.
+     Medido depois: 13,7:1 no título e 7,4:1 no subtítulo. */
+  body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-ok-copy strong{color:var(--d-text)}
+  body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-ok-sub{color:var(--d-text2)}
   body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-lbl,
   body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-h,
   body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fsf-btn,
