@@ -117,7 +117,7 @@ async function fAskClearHist(){
    moram no CSS (.luma-sad em franqueado.css), com prefers-reduced-motion caindo direto
    no rosto pronto — regra do motion.md: nada de ms nem cubic-bezier no JS. */
 function _fHistEmptyArtSVG(){
-  return `<svg class="luma-sad" viewBox="0 0 32 32" role="img" aria-label="A varinha do Luma faz uma carinha triste: você ainda não tem artes">
+  return `<svg class="luma-sad" viewBox="0 0 32 32" role="img" aria-label="A varinha do Luma faz uma carinha triste: você ainda não criou nenhuma arte">
     <g class="ls-face" fill="none" stroke="currentColor">
       <path class="ls-star ls-star-a" d="M12 5.5 Q12 9 15.5 9 Q12 9 12 12.5 Q12 9 8.5 9 Q12 9 12 5.5 Z" fill="currentColor" stroke="none"/>
       <path class="ls-star ls-star-b" d="M20 19.5 Q20 23 23.5 23 Q20 23 20 26.5 Q20 23 16.5 23 Q20 23 20 19.5 Z" fill="currentColor" stroke="none"/>
@@ -298,9 +298,9 @@ function fRenderHist(){
   if(!all.length){
     el.innerHTML = `<div class="f-history-shell">${pageHead}<div class="empty-state f-history-empty">
       <div class="empty-icon">${_fHistEmptyArtSVG()}</div>
-      <div class="empty-title">Sua primeira criação começa por uma campanha</div>
-      <div class="empty-text">Escolha um material, personalize com a ajuda da Luma e encontre o resultado sempre aqui.</div>
-      <button class="empty-cta" onclick="fGoToCampaigns()">Explorar campanhas</button>
+      <div class="empty-title">Você ainda não criou nenhuma arte</div>
+      <div class="empty-text">Escolha uma campanha para começar.</div>
+      <button class="empty-cta" onclick="fGoToCampaigns()">Escolher campanha</button>
     </div></div>`;
     return;
   }
