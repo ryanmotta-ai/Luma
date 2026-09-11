@@ -129,15 +129,10 @@ function fStartChatComMaterial(material){
     let recoverMsg = `Identifiquei que você tem um rascunho em andamento para a arte <strong>${gEsc(material.name)}</strong>. Deseja continuar de onde parou?`;
     fAddBot(recoverMsg, []);
 
-    const msgs = document.getElementById('f-messages');
-    const w = document.createElement('div');
-    w.className = 'msg bot';
-    w.innerHTML = `<div class="qr-wrap">
-      <div class="qr" role="button" tabindex="0" onclick="fApplyRecoverDraft(true)">Sim, continuar</div>
-      <div class="qr" role="button" tabindex="0" onclick="fApplyRecoverDraft(false)" style="background:var(--gray-light);border-color:var(--gray-mid);color:var(--text-2)">Não, começar do zero</div>
-    </div>`;
-    msgs.appendChild(w);
-    msgs.scrollTop = msgs.scrollHeight;
+    _fChipsDeFluxo(document.getElementById('f-messages'),
+      `<div class="qr" role="button" tabindex="0" onclick="fApplyRecoverDraft(true)">Sim, continuar</div>
+       <div class="qr" role="button" tabindex="0" onclick="fApplyRecoverDraft(false)" style="background:var(--gray-light);border-color:var(--gray-mid);color:var(--text-2)">Não, começar do zero</div>`);
+    _fSoChips('Continuar ou começar do zero?');
     return;
   }
 
@@ -154,6 +149,39 @@ function fStartChatComMaterial(material){
    O atalho é "só um passo no chat". Não há mais tela de gestão de loja nem de
    fotos — a aba "Minhas fotos" do painel de conta saiu em 09/09/2026. */
 function _fPergExists(id){ return (fState.camp.perguntas||[]).some(p=>p.id===id); }
+
+/* ── PERGUNTA DE FLUXO: SÓ CHIP, NADA DE DIGITAR ─────────────────────────────────────────
+   "Quer continuar o rascunho?" e "quer adiantar com os dados da loja?" se respondem por
+   botão — não existe resposta digitada para elas. A barra de digitar ficava lá do mesmo
+   jeito, e no celular ela come uma faixa inteira do painel para não servir a nada.
+   ⚠ Isto não é só estética: o `fSend` JÁ tinha uma guarda para quem digitava aqui, porque
+   `stepIdx < 0` faz o `fSaveAdv` ler `perguntas[-1].id` e estourar — a bolha do usuário
+   entrava na conversa, o erro morria no console e o chat parava. A guarda continua (rede),
+   mas agora o campo nem se oferece.
+   ⚠ Não precisa de "ligar de volta": TODO caminho que faz uma pergunta de campo define
+   `box.disabled` explicitamente (`fNextStep`, `fEditCampo`, `fGerarArte`, `fAbrirRevisao`).
+   ⚠ No celular a barra SOME — a regra `#f-input-row:has(#f-msg-box:disabled)` já existia
+   para o passo de foto. Uma regra, dois casos. */
+function _fSoChips(texto){
+  const box=document.getElementById('f-msg-box');
+  if(box){ box.disabled=true; box.placeholder=texto||'Escolha uma das opções acima'; }
+  const snd=document.getElementById('f-snd'); if(snd) snd.disabled=true;
+  const mic=document.getElementById('f-chat-mic'); if(mic) mic.disabled=true;
+}
+
+/* Os chips de uma pergunta de fluxo moram numa mensagem própria (o `fAddBot` já foi usado
+   para o texto). Ela precisa do `.msg-content` pelo mesmo motivo do `fTyping`: no celular
+   `.msg.bot>div:not(.av)` dissolve TODO filho direto, e sem o wrapper quem dissolvia era o
+   `.qr-wrap` — os chips viravam itens de flex sem `order`, caíam no 0 e apareciam ACIMA da
+   pergunta. Medido a 375px: chips em y=537, pergunta em y=625. */
+function _fChipsDeFluxo(msgs, html){
+  const w=document.createElement('div');
+  w.className='msg bot';
+  w.innerHTML=`<div class="msg-content"><div class="qr-wrap">${html}</div></div>`;
+  msgs.appendChild(w);
+  msgs.scrollTop=msgs.scrollHeight;
+  return w;
+}
 
 /* Os campos que um perfil de loja sabe responder. Nomes variam por template
    (o designer batiza o campo), então cada dado tem seus apelidos conhecidos. */
@@ -195,6 +223,7 @@ function fMaterialPreStart(material){
   </div>`;
   msgs.querySelectorAll('.msg').forEach(m=>m.classList.remove('active-prompt'));
   msgs.appendChild(w); msgs.scrollTop=msgs.scrollHeight;
+  _fSoChips('Escolha uma das opções acima');
 }
 function _fClearPreStart(){ const m=document.getElementById('prestart-msg'); if(m) m.remove(); }
 function fSkipPreStart(){ _fClearPreStart(); _fProceedMaterialStart(fState.material); }
