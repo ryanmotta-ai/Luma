@@ -2631,6 +2631,21 @@ body:not(.theme-light) .step-label{background:none;color:var(--d-text2)}
 .qr-back:hover{background:var(--dm-orange-bg);border-color:var(--dm-orange-tint);color:var(--dm-orange-d);transform:translateY(-1px)}
 .qr-back:active{transform:scale(.97)}
 .qr-back-wrap{margin-top:8px}
+/* ── CONTROLE DE PERGUNTA VELHA NÃO FICA NA CONVERSA ──
+   Cada pergunta nasce com os chips e com o "Voltar uma pergunta" dentro dela, e eles
+   ficavam lá para sempre: com 4 passos respondidos havia TRÊS botões de voltar boiando
+   entre as bolhas, um por pergunta antiga. Medido: 3 `.qr-back-wrap` para 1 prompt ativo.
+   ⛔ E NÃO ERA SÓ RUÍDO. O `fGoBack` volta UM passo a partir do ATUAL — clicar no botão de
+   uma pergunta de três passos atrás não leva àquela pergunta, leva para a anterior à de
+   agora. Era um controle que mentia sobre para onde ia. O mesmo vale para os chips velhos:
+   o `fQR` responde o passo ATUAL com a sugestão de uma pergunta que já passou.
+   ⚠ `:has(~.msg.active-prompt)` = "já veio pergunta nova depois desta", que é o mesmo
+   idioma que o painel do celular usa para esconder o passado. Ele preserva os dois casos
+   em que os chips moram numa mensagem SEM `active-prompt` própria (a recuperação de
+   rascunho): lá eles vêm DEPOIS da pergunta, então nada os esconde.
+   O histórico continua legível — some o controle, fica a conversa. */
+#f-messages>.msg:has(~.msg.active-prompt) .qr-back-wrap,
+#f-messages>.msg:has(~.msg.active-prompt) .qr-wrap{display:none}
 body:not(.theme-light) .qr-back{background:var(--d-surf);border-color:var(--d-border2);color:var(--d-text2)}
 body:not(.theme-light) .qr-back:hover{border-color:var(--dm-orange);color:var(--dm-orange)}
 
