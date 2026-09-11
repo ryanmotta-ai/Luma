@@ -1141,6 +1141,35 @@ function fSelectCamp(id){
   if(typeof gTrackEvent==='function') gTrackEvent('campanha_aberta',{camp_id:c.id, camp_name:c.name||''});
   fOpenMaterialCatalog(c);
 }
+// Resultado da busca principal: entra na campanha certa e pula a etapa de escolher a pasta.
+async function fSearchOpenMaterial(campId,materialId,searchMaterialId,card){
+  const c=fResolveCamp(campId);if(!c)return;
+  fSearchRecordOpen(c.id,searchMaterialId);
+  fExitHome();
+  if(fState.camp&&fState.camp.id!==c.id){
+    fState.stepIdx=-1;fState.dados={};fState.done=false;fState.material=null;
+  }
+  fState.camp=c;fState.materialView=false;
+  try{localStorage.setItem('__luma_camp',c.id);}catch(e){}
+  if(!fState.categoria){
+    fState.categoria=fGetCampaigns().impl.some(x=>x.id===c.id)?'implementacao':'campanhas';
+  }
+  if(typeof fApplyCampTheme==='function')fApplyCampTheme(c);
+  fRestoreCatalog();fUpdateCtx();
+  if(typeof gTrackEvent==='function')gTrackEvent('campanha_aberta',{camp_id:c.id,camp_name:c.name||''});
+  await fSelectMaterial(materialId,card);
+}
+function _fHomeSearchMaterialEl(entry){
+  const m=entry.material,c=entry.campaign;
+  const fmtId=['story','feed','wide','post'].includes(m.fmt)?m.fmt:'story';
+  const fmt={story:'Story',feed:'Feed',wide:'Post',post:'Post'}[fmtId];
+  const searchMaterialId=m.remoteId||m.id;
+  return `<button class="f-mat-card" type="button" onclick="fSearchOpenMaterial('${gEscJs(c.id)}','${gEscJs(m.id)}','${gEscJs(searchMaterialId)}',this)" aria-label="Personalizar ${gEsc(m.name)}, da campanha ${gEsc(c.name)}">
+    <div class="f-mat-preview"><div class="f-mat-thumb f-mat-thumb-${fmtId}" style="background:${gSafeColor(c.color)}">
+      <div class="f-mat-thumb-prod">${gEsc(c.previewProd||c.name)}</div><div class="f-mat-thumb-logo" aria-hidden="true"></div><div class="f-mat-thumb-tag">${gEsc(fmt)}</div>
+    </div></div><div class="f-mat-info"><div class="f-mat-info-main"><div class="f-mat-name">${gEsc(m.name)}</div><div class="f-mat-action" aria-hidden="true">Personalizar</div></div>
+    <div class="f-mat-meta"><span class="f-mat-fmt">${gEsc(fmt)}</span><span class="f-mat-validade">${gEsc(c.name)}</span></div></div></button>`;
+}
 
 /* ══════════════════════════════════════════════════════════════
    HOME DO FRANQUEADO — estado inicial em tela cheia (vitrine).
@@ -1367,12 +1396,11 @@ function _fHomeBodyHTML(query){
   };
   if(q){
     const result=fSearchCampaigns(query,[...ativas,...outras,...impl].filter(passStatus));
-    const match=result.campaigns;
+    const match=result.materials;
     fSearchRecord(query,result,'home');
     if(!match.length) return _fhEmptyState('Não encontramos exatamente isso',`Nenhum resultado para “${gEsc(query)}”. Tente outro termo${_fhFilter!=='todas'?' ou remova o filtro':''}.`)+fSearchFooterHTML(query,result.suggestions);
-    const isImpl=c=>impl.some(x=>x.id===c.id);
-    return `<section class="fh-section fh-results"><div class="fh-sec" role="status"><span>Resultados para “${gEsc(query)}”</span><em>${match.length} campanha${match.length!==1?'s':''}</em></div>
-      <div class="camp-grid fh-grid">${match.map(c=>fCampEl(c,false,!isImpl(c)&&!_fCampHasMats(c),true)).join('')}</div></section>`+fSearchFooterHTML(query,[]);
+    return `<section class="fh-section fh-results"><div class="fh-sec" role="status"><span>Materiais para “${gEsc(query)}”</span><em>${match.length} material${match.length!==1?'is':''}</em></div>
+      <div class="f-mat-grid fh-grid">${match.map(_fHomeSearchMaterialEl).join('')}</div></section>`+fSearchFooterHTML(query,[]);
   }
   fSearchRecord('',null,'home');
   // Vitrine honesta: só entra em "Prontas pra usar" quem tem material publicado

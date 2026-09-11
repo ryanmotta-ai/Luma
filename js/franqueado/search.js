@@ -56,11 +56,11 @@ function fSearchDocument(c){
     (m.layers||[]).filter(l=>l&&l.type==='text'&&l.visible!==false).forEach(l=>{
       if(l.content)fields.push({text:String(l.content).replace(/\{\{[^}]*\}\}/g,' '),weight:2});
     });
-    return {id:m.remoteId||m.id,fields};
+    return {id:m.remoteId||m.id,material:m,fields};
   });
   // Campanhas antigas sem material continuam buscáveis pelo nome/metadados.
   if(!docs.length)docs.push({id:null,fields:base.concat(declared.length?[{text:declared.join(' '),weight:9}]:[])});
-  return {campaign:c,formats,docs:docs.map(d=>({id:d.id,fields:d.fields.map(f=>({...f,tokens:fSearchTokens(f.text)}))}))};
+  return {campaign:c,formats,docs:docs.map(d=>({id:d.id,material:d.material,fields:d.fields.map(f=>({...f,tokens:fSearchTokens(f.text)}))}))};
 }
 function _fSearchTypo(a,b){
   if(a.length<5||b.length<5||Math.abs(a.length-b.length)>1)return false;
@@ -103,15 +103,24 @@ function fSearchRank(query,document){
   return best;
 }
 function fSearchCampaigns(query,campaigns){
-  const seen=new Set(), entries=[];
+  const seen=new Set(), entries=[], materialEntries=[];
   (campaigns||[]).forEach((c,order)=>{
     if(!c||seen.has(c.id))return;seen.add(c.id);
     const doc=fSearchDocument(c);if(!doc)return;
     entries.push({...fSearchRank(query,doc),campaign:c,formats:doc.formats,order});
+    // A home pesquisa a peça, não só a pasta: cada material é ranqueado com os
+    // metadados da campanha como contexto, mas nunca mistura produto/formato de peças diferentes.
+    doc.docs.filter(d=>d.material&&d.id).forEach((d,materialOrder)=>{
+      materialEntries.push({...fSearchRank(query,{campaign:c,docs:[d]}),campaign:c,
+        material:d.material,order,materialOrder});
+    });
   });
   entries.sort((a,b)=>b.score-a.score||a.order-b.order);
+  materialEntries.sort((a,b)=>b.score-a.score||a.order-b.order||a.materialOrder-b.materialOrder);
   const exact=entries.filter(e=>e.complete&&e.score>0);
+  const materials=materialEntries.filter(e=>e.complete&&e.score>0);
   return {campaigns:exact.map(e=>e.campaign),entries:exact,
+    materials,
     suggestions:exact.length?[]:entries.filter(e=>e.score>0&&!e.complete).slice(0,3)};
 }
 function fSearchFormatsHTML(c){
@@ -129,7 +138,9 @@ function fSearchRecord(query,result,source){
   const uid=typeof gCurrentUser==='function'&&gCurrentUser()?.id;
   const q=String(query||'').trim().slice(0,240), old=_fSearchContexts[source];
   if(!q){if(old)clearTimeout(old.timer);_fSearchContexts[source]=null;return;}
-  const ids=result.campaigns.map(c=>c.id), suggestions=result.suggestions.map(e=>e.campaign.id);
+  const useMaterials=source==='home'&&Array.isArray(result.materials);
+  const ids=useMaterials?result.materials.map(e=>`${e.campaign.id}:${e.material.remoteId||e.material.id}`):result.campaigns.map(c=>c.id);
+  const suggestions=result.suggestions.map(e=>e.campaign.id);
   const signature=JSON.stringify([uid,q,ids,suggestions]);
   if(old&&old.signature===signature)return;
   if(old)clearTimeout(old.timer);
@@ -145,12 +156,13 @@ function _fSearchEmit(context){
   gTrackEvent('search_performed',payload,context.search_id);
   if(!context.ids.length)gTrackEvent('search_no_results',payload);
 }
-function fSearchRecordOpen(campId){
+function fSearchRecordOpen(campId,materialId){
   const source=document.body.classList.contains('f-home-mode')?'home':'catalog', ctx=_fSearchContexts[source];
-  if(!ctx||(!ctx.ids.includes(campId)&&!ctx.suggestions.includes(campId)))return;
+  const resultId=materialId?`${campId}:${materialId}`:campId;
+  if(!ctx||(!ctx.ids.includes(resultId)&&!ctx.suggestions.includes(campId)))return;
   clearTimeout(ctx.timer);_fSearchEmit(ctx);
   if(ctx.uid!==gCurrentUser()?.id)return;
   gTrackEvent('search_result_opened',{search_id:ctx.search_id,query:ctx.query,camp_id:campId,source,
-    approximate:!ctx.ids.includes(campId),position:ctx.ids.indexOf(campId)+1,result_count:ctx.ids.length});
+    template_id:materialId||null,approximate:!ctx.ids.includes(resultId),position:ctx.ids.indexOf(resultId)+1,result_count:ctx.ids.length});
   _fSearchContexts[source]=null;
 }

@@ -3398,8 +3398,17 @@ function fBulkRemoveCard(index){
      acontece igual — só depois de 160ms, ou na hora se o aparelho pede menos movimento. */
   const tr = document.querySelector(`.f-bulk-grade .f-bulk-of[data-row="${index}"]`);
   const semMovimento = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  /* A linha some por IDENTIDADE, nunca pela posição: o `index` viaja numa closure de 160ms e
+     nesse meio-tempo outro clique pode ter tirado uma linha de cima. Excluir a 1ª e a 2ª
+     ofertas em sequência rápida apagava a 1ª e a 3ª — o splice(1) do segundo timeout caía
+     no array JÁ re-indexado pelo primeiro. Dois cliques na MESMA linha tinham o mesmo efeito
+     (dois splices, duas ofertas a menos). O indexOf resolve os dois: some quem foi clicado, e
+     quem já saiu não leva ninguém junto (`03_ENGINEERING` §3 — estado por ID, não por posição). */
+  const alvo = fBulkRows[index];
   const remover = () => {
-    fBulkRows.splice(index,1);
+    const i = fBulkRows.indexOf(alvo);
+    if(i < 0) return; // esta linha já saiu num clique anterior
+    fBulkRows.splice(i,1);
     const st=document.getElementById('f-bulk-status');
     if(st)st.textContent=fBulkRows.length?`${fBulkRows.length} linha(s) carregada(s)`:'';
     fBulkRenderPreview();

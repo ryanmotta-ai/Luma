@@ -208,7 +208,7 @@ async function gDoLogin(e) {
 
   const res = await gLogin(email, pass);
   if(res.ok) {
-    if(typeof gOnLoginSuccess === 'function') gOnLoginSuccess();
+    if(typeof gOnLoginSuccess === 'function') await gOnLoginSuccess();
   } else {
     errEl.textContent = res.error;
     errEl.style.display = 'block';

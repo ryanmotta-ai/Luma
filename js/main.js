@@ -182,7 +182,7 @@ window.addEventListener('luma:feature-flags-changed', ()=>{
 /* ══ INIT Lógica de Inicialização Global e Auth Gate ══ */
 
 // Função chamada após um login bem-sucedido ou quando a sessão já está ativa
-function gOnLoginSuccess() {
+async function gOnLoginSuccess() {
   if(typeof fFeedbackFlush==='function')fFeedbackFlush().catch(()=>{});
   // Saída do login. Se o login estava VISÍVEL (usuário clicou Entrar), toca a tela
   // de transição de marca; o app monta por baixo enquanto o laranja cobre. No boot
@@ -250,12 +250,26 @@ function gOnLoginSuccess() {
   // Deleções que falharam em sessões anteriores re-tentam ANTES dos pulls (anti-ressurreição)
   if (typeof gFlushPendingDeletes === 'function') { try { gFlushPendingDeletes(); } catch(e){} }
   if (typeof dSyncVarsFromBackend === 'function') dSyncVarsFromBackend();
-  if (typeof dSyncFoldersFromBackend === 'function') Promise.resolve(dSyncFoldersFromBackend()).then(()=>{ _fhRefresh(); _restoreCamp(); }).catch(()=>{});
-  else _restoreCamp(); // sem sync (offline): tenta com o catálogo local
+  // Se há campanha salva, a splash só abre depois deste pull: entre o welcome e o
+  // restore a prévia dizia "Sua arte nasce aqui", como se o usuário tivesse saído.
+  // Falha remota ainda tenta o cache local — offline não pode prender o boot vazio.
+  let _foldersReady;
+  if (typeof dSyncFoldersFromBackend === 'function') {
+    _foldersReady=Promise.resolve(dSyncFoldersFromBackend())
+      .then(()=>{ _fhRefresh(); _restoreCamp(); })
+      .catch(()=>{ _restoreCamp(); });
+  } else {
+    _restoreCamp(); // sem sync (offline): tenta com o catálogo local
+    _foldersReady=Promise.resolve();
+  }
   if (typeof dSyncFontsFromBackend === 'function') dSyncFontsFromBackend();
   if (typeof dSyncSnippetsFromBackend === 'function') dSyncSnippetsFromBackend();
   if (typeof dSyncLibFromBackend === 'function') dSyncLibFromBackend();
   if (typeof fSyncArtesFromBackend === 'function') Promise.resolve(fSyncArtesFromBackend()).then(_fhRefresh).catch(()=>{});
+
+  // Não segura Estúdio/Academia por uma campanha que não será restaurada.
+  if(_bootCamp && !document.body.classList.contains('mode-designer') && !document.body.classList.contains('mode-academia')
+     && !document.body.classList.contains('mode-calendario')) await _foldersReady;
 }
 
 // Inicializa a aba no startup e checa a autenticação
@@ -280,7 +294,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('g-login-screen').style.display = 'flex';
   } else {
     // Usuário logado, init normal
-    gOnLoginSuccess();
+    await gOnLoginSuccess();
   }
   // Boot decidido (login exibido ou home renderizada) → libera o splash pra sair. Em rede lenta,
   // o splash segura até aqui (mín. 2.8s / teto 9s) em vez de revelar o app meio-carregado.
