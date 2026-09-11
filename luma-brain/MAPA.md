@@ -254,7 +254,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 74 arquivos JS (61.271 linhas, 2.406 funções) · 31 arquivos CSS (28.851 linhas) · `index.html` com 3.857 linhas e 75 `<script>`.
+**Tamanho real de hoje:** 74 arquivos JS (61.360 linhas, 2.409 funções) · 31 arquivos CSS (28.932 linhas) · `index.html` com 3.857 linhas e 75 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -344,7 +344,7 @@ Credenciais do projeto Supabase. PREENCHA com a Project URL e a anon key. A anon
 Cria o client Supabase global `window.sb`, usado pela auth e pela camada de persistência (fase 5.1).
 · API: gSupabase, gHasBackend, gPendingDeletes, gRemoteDelete, gIsPendingDelete, gFlushPendingDeletes
 
-**`js/core/toast.js`** · 198 linhas
+**`js/core/toast.js`** · 202 linhas
 gToast(msg) — exibe notificacao flutuante de 2.8s.
 · API: gToast, gEsc, gEscJs, gSafeColor, gNormBusca, gBtnLoading, gConfirm, gPrompt, gWarnImagesNotPersisted
 · Depende de: nada (usa apenas o DOM).
@@ -365,9 +365,9 @@ F-02: tipos de campo, mascaras de input, validacao por campo. F_FIELD_TYPES defi
 · API: fMaxLenDaCaixa, fGetFieldType, fCleanTextNumber, fApplyMask, fValidate, fShowFieldError, fAttachInputGuard, fUpdateCharCount, fFitTextWithAI, fFitApply, fSaveAdv, fInitSmartInputFormatter
 · Depende de: 00-config.js
 
-**`js/franqueado/chat.js`** · 2316 linhas
+**`js/franqueado/chat.js`** · 2361 linhas
 Fluxo conversacional completo: fStartChat, fNextStep, fAddBot, fAddUser, fSend, fQR, fTyping, fGoBack, upload de imagem, confirm card, fGerarArte.
-· API: fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fSheetToggle, fToggleRespostas, fRenderRespostas … (+50; 89 funções no total)
+· API: fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fVoltarParaEdicao, fSheetToggle, fToggleRespostas … (+51; 90 funções no total)
 · Depende de: 00-config.js, 01-state.js, franqueado/chat-input.js
 
 **`js/franqueado/feedback.js`** · 334 linhas
@@ -379,9 +379,9 @@ Historico de artes do franqueado: fGetHist, fSaveHist, fAddHist, fMarkHistBaixad
 · API: fGetHist, fSaveHist, fPushArtesToBackend, fMarkBaixadaBackend, fSyncArtesFromBackend, fClearHist, fAddHist, fMarkHistBaixada, fUpdateHistBadge, fFormatHistDate
 · Depende de: 00-config.js (HIST_KEY), 01-state.js (fState)
 
-**`js/franqueado/live-preview.js`** · 2277 linhas
+**`js/franqueado/live-preview.js`** · 2317 linhas
 Preview lateral em tempo real (fUpdateLivePreview) e modal de preview multi-formato (fOpenPreview, fClosePreview, fStartFromPreview).
-· API: fOpenPreview, fStartFromPreview, fClosePreview, fPostedSetCtx, fPostedCloseQR, fPostedOpenQR, fPostedCopyQRLink, fPostedContextForFormat, fOpenPosted, fClosePosted, fUpdateLivePreview, fLpSizeCanvas, fLpRefit, fLpZoomStep … (+17; 108 funções no total)
+· API: fOpenPreview, fStartFromPreview, fClosePreview, fPostedRepintaLegenda, fPostedSetCtx, fPostedCloseQR, fPostedOpenQR, fPostedCopyQRLink, fPostedContextForFormat, fOpenPosted, fClosePosted, fUpdateLivePreview, fLpSizeCanvas, fLpRefit … (+18; 110 funções no total)
 · Depende de: 00-config.js, 01-state.js
 
 **`js/franqueado/materials.js`** · 830 linhas
@@ -630,7 +630,7 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 | `css/modules/all-tools.css` | 113 |
 | `css/modules/calendario.css` | 1544 |
 | `css/modules/catalog.css` | 299 |
-| `css/modules/chat.css` | 3398 |
+| `css/modules/chat.css` | 3407 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
 | `css/modules/designer.css` | 5715 |
@@ -639,10 +639,10 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 | `css/modules/franqueado_effects.css` | 406 |
 | `css/modules/help-widget.css` | 1678 |
 | `css/modules/layers-panel.css` | 4479 |
-| `css/modules/live-preview.css` | 930 |
+| `css/modules/live-preview.css` | 985 |
 | `css/modules/panel-dock.css` | 116 |
 | `css/modules/publish-modal.css` | 628 |
-| `css/modules/toolbar.css` | 1017 |
+| `css/modules/toolbar.css` | 1034 |
 | `css/modules/topbar.css` | 217 |
 | `css/modules/upload-panel.css` | 106 |
 

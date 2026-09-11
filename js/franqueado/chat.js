@@ -322,6 +322,9 @@ function fUpdateProg(){
    refatorei os 6 (fora do escopo desta rodada); código novo usa esta. */
 function _fCelular(){ return !!(window.matchMedia && matchMedia('(max-width:680px)').matches); }
 
+/* Já mostramos o "Como vai fica" desta conclusão? (ver o bloco no `_fSheetSync`) */
+let _fProntaCtxAberto = false;
+
 /* ── ONDE A CONVERSA ANCORA DEPOIS DE UMA MENSAGEM NOVA ──
    Desktop: no FIM, como todo chat — a mensagem nova chega por baixo.
    Celular: no COMEÇO, e do `#f-sheet`. Duas diferenças, uma por motivo:
@@ -346,16 +349,48 @@ function _fSheetSync(){
      nada além de empurrar o card de entrega para fora da vista. E o painel ganha altura,
      porque a entrega (legenda + três ações) é mais alta que uma pergunta. */
   try{ document.body.classList.toggle('f-arte-pronta', !!fState.done); }catch(e){}
+  /* ── "COMO VAI FICAR" APARECE SOZINHO ─────────────────────────────────────────────────
+     O contexto é a resposta para "terminei, como isso vai ficar?" — e essa pergunta nasce no
+     instante em que a arte fica pronta, não quando alguém acha um botão. Por isso ele ABRE
+     sozinho aqui, uma vez, na virada de `done` para true.
+     ⚠ NÃO É UM PASSO A MAIS: o "Baixar PNG" continua no painel, visível e clicável atrás do
+     contexto; quem não quer olhar fecha e baixa. O contexto existe para dar confiança ANTES
+     do download, nunca para ficar no caminho dele.
+     ⚠ `_fProntaCtxAberto` é a guarda contra reabrir: o `fUpdateProg` roda a cada passo, e sem
+     ela o modal voltaria à tela toda vez que a pessoa fechasse e o estado repintasse. Zera
+     quando o modo sai, então concluir de novo mostra de novo. */
+  try{
+    if(fState.done && !_fProntaCtxAberto && typeof fOpenPosted==='function'
+       && typeof fPostedContextForFormat==='function' && fPostedContextForFormat(null)){
+      _fProntaCtxAberto = true;
+      setTimeout(()=>{ try{ fOpenPosted(); }catch(e){} }, 420);
+    }
+    if(!fState.done) _fProntaCtxAberto = false;
+  }catch(e){}
 }
 
-/* O "Ajustar arte" nasceu e saiu na mesma rodada (pedido do Ryan, 11/09): a entrega ficou com
-   Baixar, Publicar, Copiar legenda e Refazer, e mais um botão ali era ruído na única tela em
-   que o caminho precisa ser óbvio. A função `fAjustarArte` foi embora junto — sem o botão ela
-   não tinha chamador, e código sem porta é dívida nascendo.
-   ⚠ QUEM PRECISA CORRIGIR ALGO hoje tem dois caminhos, e nenhum deles é "voltar ao chat":
-   a EDIÇÃO DIRETA na arte (clique num campo → `lp-edit-pop`, que continua ativa no estado
-   final) e o REFAZER, que é destrutivo e pergunta antes. Se um dia o caminho de volta não
-   destrutivo fizer falta, ele é `fState.done=false` + `fUpdateProg()`. */
+/* ── VOLTAR PARA EDIÇÃO ──────────────────────────────────────────────────────────────────
+   ⛔ NÃO É O "REFAZER", E A DIFERENÇA IMPORTA. `fRefazer` → `fAskRestartArt` → `fRestartArt`
+   APAGA todas as respostas (com `gConfirm` e snapshot para desfazer). Quem só quer corrigir
+   uma palavra não pode cair nisso — e trocar a semântica do Refazer em silêncio seria pior
+   ainda, porque quem já conhece o botão perderia o trabalho sem aviso.
+   Esta é o caminho de volta: desliga o modo "arte pronta" e devolve a interface de criação
+   com os dados INTACTOS. Não mexe em `fState.dados`, não re-renderiza a arte, não cria
+   registro nenhum — só o `done` muda, e o `_fSheetSync` (via `fUpdateProg`) apaga a classe
+   que segura o estado final. Concluir de novo devolve o estado final, sem duplicar nada.
+   ⚠ `editIdx=null` porque o estado final pode ter sido alcançado no meio de uma edição.
+   ⚠ Este botão já nasceu e morreu uma vez hoje, como "Ajustar arte". Voltou porque sem ele o
+   único caminho de correção era o Refazer, que apaga tudo. */
+function fVoltarParaEdicao(){
+  if(!fState.done) return;
+  fState.done = false;
+  fState.editIdx = null;
+  try{ fSaveChatDraft(); }catch(e){}
+  fUpdateProg();
+  const box=document.getElementById('f-msg-box');
+  if(box && !box.disabled){ try{ box.focus(); }catch(e){} }
+  if(typeof gToast==='function') gToast('Voltamos para a edição. Sua arte continua salva.');
+}
 
 function fSheetToggle(){
   const aberto = document.body.classList.toggle('f-sheet-max');
@@ -1232,6 +1267,11 @@ function _fAplicarLegendaIA(canvasId, sug){
   }
   const selo = painel.querySelector('.caption-src');
   if(selo) selo.outerHTML = _fCaptionSrcTag(sug);   // o rótulo passa a dizer a verdade
+  /* ⚠ A legenda da IA chega DEPOIS do card (é async) e NÃO passa pelo `fSetCaption` — ela
+     escreve direto na caixa. Sem esta linha, o contexto "Feed" do Ver como fica ficaria com a
+     legenda do motor local enquanto o painel já mostrava a da IA: duas legendas para a mesma
+     arte, que é exatamente o que a sincronia veio impedir. */
+  try{ if(typeof fPostedRepintaLegenda==='function') fPostedRepintaLegenda(); }catch(e){}
 }
 
 function _fCaptionSrcTag(suggestions){
@@ -1429,6 +1469,9 @@ Responda APENAS com JSON válido:
  * lista. `data-active-tab` continua sendo a fonte da verdade de qual texto está ativo
  * (usado por fCopyCaption, _fActiveCaptionText e pelo download/compartilhar).
  */
+/* ⚠ Toda troca de legenda passa por aqui (o `fCycleCaption` chama este), então este é o
+   ponto único para manter o contexto "Feed" do Ver como fica em sincronia com o painel.
+   Sem isto, trocar a sugestão mudava o texto no painel e o mockup seguia com o antigo. */
 function fSetCaption(canvasId, tabId) {
   const container = document.querySelector(`.caption-assistant-panel[data-canvas-id="${canvasId}"]`);
   const box = document.getElementById('caption-content-' + canvasId);
@@ -1441,6 +1484,8 @@ function fSetCaption(canvasId, tabId) {
   box.classList.remove('is-swapping');
   void box.offsetWidth;
   box.classList.add('is-swapping');
+  // O "Ver como fica" no ambiente Feed mostra a legenda de verdade: repinta junto.
+  try{ if(typeof fPostedRepintaLegenda==='function') fPostedRepintaLegenda(); }catch(e){}
 }
 
 /** Avança para a próxima sugestão de legenda (ciclo). */
@@ -1668,16 +1713,16 @@ function fGerarArte(){
             <button type="button" class="art-btn pri art-download" onclick="fBaixar(this,'${previewCanvasId}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="4" x2="12" y2="16"/><polyline points="18 11 12 17 6 11"/><path d="M5 20h14"/></svg>Baixar PNG</button>
             <button type="button" class="art-btn art-redo" onclick="fRefazer()" title="Reiniciar as respostas desta arte"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Refazer</button>
           </div>
-          <!-- PUBLICAR NO INSTAGRAM. O fPostarInstagram esta escrito e completo em
-               png-generator.js desde sempre (folha nativa com a legenda junto, e o fallback
-               que baixa o arquivo e abre o app) e NAO TINHA UM UNICO CHAMADOR - a funcao
-               existia e nao havia como chegar nela. Aqui ela ganha a porta.
-               Entra em LINHA PROPRIA, embaixo: a dupla Baixar/Refazer tem peso igual por
-               decisao do Ryan (09/09) e nao se mexe: sao as duas acoes DA ARTE. Publicar e
-               de outra natureza - leva a arte pra fora - e por isso nao disputa aquela linha.
-               ATENCAO: comentario DENTRO de template literal - nada de crase aqui. -->
-          <button type="button" class="art-btn art-insta" onclick="fPostarInstagram(this,'${previewCanvasId}')" title="Preparar a arte e a legenda para publicar no Instagram">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5.5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.6" cy="6.4" r="1.15" fill="currentColor" stroke="none"/></svg>Publicar no Instagram
+          <!-- ATENÇÃO: comentário DENTRO de template literal — nada de crase aqui.
+               ⛔ NÃO EXISTE "Publicar no Instagram" AQUI, e é deliberado (Ryan, 11/09).
+               O botão chegou a existir por algumas horas nesta mesma data e saiu: publicação
+               direta não existe no Luma. O fPostarInstagram faz share NATIVO do sistema, que
+               é outra coisa — mas o rótulo prometia publicar, e promessa maior que a
+               capacidade é o que esta regra corta. Enquanto não houver integração de verdade,
+               a entrega oferece o que entrega: baixar o arquivo e copiar a legenda.
+               O motor segue vivo em png-generator.js, sem chamador, de propósito. -->
+          <button type="button" class="art-btn art-voltar" onclick="fVoltarParaEdicao()" title="Voltar para a edição sem perder nada do que você já respondeu">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>Voltar para edição
           </button>
         </section>
         <!-- Gerar em lote DE VOLTA no card, a pedido do Ryan (09/09). Ele saiu na rodada de

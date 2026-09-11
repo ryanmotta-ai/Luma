@@ -3089,9 +3089,12 @@ body:not(.theme-light) #f-msg-box:disabled{background:var(--d-surf2);color:var(-
      antes de tudo — foi o que aconteceu quando o "Ajustar arte" nasceu: ele apareceu ACIMA do
      Baixar PNG, que é a ação principal. Quem entrar com botão novo aqui, numere. */
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-download{order:1}
-  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-insta{order:2}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-voltar{order:5}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-assistant-panel{order:3}
-  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-redo{order:4}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-voltar{order:4}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-redo{order:5}
+  /* Terciários também no celular: sem caixa, longe do Baixar. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-voltar{background:transparent;border-color:transparent;box-shadow:none;color:var(--text-3);font-size:13.5px;font-weight:700;min-height:38px}
 
   /* A confirmação: marca verde + duas linhas, como no mockup. */
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .bbl.art-ok{display:flex;align-items:center;gap:10px;padding:0 18px 12px;background:transparent;border:0;box-shadow:none;animation:none;max-width:none}
@@ -3114,7 +3117,7 @@ body:not(.theme-light) #f-msg-box:disabled{background:var(--d-surf2);color:var(-
      empilhar é o que faz o polegar acertar. Refazer perde a caixa porque, no celular, um
      terceiro botão desenhado ao lado de Baixar e Publicar disputa a ação que importa. */
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn{width:100%;min-height:var(--tap-min);border-radius:13px;font-size:15px;font-weight:800}
-  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-insta{margin-top:0}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-voltar{margin-top:0}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-redo{background:transparent;border-color:transparent;box-shadow:none;color:var(--text-3);font-size:13.5px;font-weight:700;min-height:38px}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-redo svg{display:none}
   /* Com a arte pronta a caixa de resposta não tem função (ver `_fSheetSync`), e o
@@ -3288,7 +3291,7 @@ body.f-arte-pronta .art-wrap .art-preview-mat{display:none}
    assunto anterior paga a menor. É a escada de espaçamento da casa (múltiplos de 2/base 4). */
 body.f-arte-pronta .art-wrap{border:0;box-shadow:none;background:transparent;margin:0;padding:0;animation:none;max-width:none;min-width:0;width:100%;display:flex;flex-flow:row wrap;gap:0;align-content:flex-start}
 /* dentro do grupo */
-body.f-arte-pronta .art-wrap .art-btn.art-insta{margin-top:9px}
+body.f-arte-pronta .art-wrap .art-btn.art-voltar{margin-top:0}
 /* abre grupo novo */
 body.f-arte-pronta .art-wrap .art-btn.art-download{margin-top:16px}
 body.f-arte-pronta .art-wrap .caption-assistant-panel{margin-top:22px}
@@ -3298,7 +3301,7 @@ body.f-arte-pronta .art-wrap .art-bulk-btn{margin-top:22px}
    mas continuam netos para o seletor, e o `>` não os alcançava. Medido: Baixar PNG e Publicar
    ficaram lado a lado, com metade da largura cada, em vez de uma linha para cada um. */
 body.f-arte-pronta .art-wrap .art-btn.art-download,
-body.f-arte-pronta .art-wrap .art-btn.art-insta,
+body.f-arte-pronta .art-wrap .art-btn.art-voltar,
 body.f-arte-pronta .art-wrap .caption-assistant-panel,
 body.f-arte-pronta .art-wrap .art-bulk-btn,
 body.f-arte-pronta .art-wrap .multi-fmt-row{flex:1 1 100%;min-width:0}
@@ -3343,7 +3346,13 @@ body.f-arte-pronta .caption-alt-btn{font-size:12px;color:var(--text-3)}
 body.f-arte-pronta .art-actions,body.f-arte-pronta .art-actions-dupla{display:contents}
 body.f-arte-pronta .art-btn{width:100%;min-height:46px;border-radius:13px;font-size:15px;font-weight:800}
 body.f-arte-pronta .art-btn.art-download{order:1}
-body.f-arte-pronta .art-btn.art-insta{order:2}
+/* Hierarquia do item 17: "Voltar para edição" é terciário e o "Refazer" é o último, porque
+   apaga tudo. Os dois dividem a fileira do fim, sem caixa, longe do Baixar PNG. */
+body.f-arte-pronta .art-btn.art-voltar{order:5}
+body.f-arte-pronta .art-btn.art-voltar{min-height:40px;margin-top:14px;font-size:13px;font-weight:700;background:transparent;border-color:transparent;box-shadow:none;color:var(--text-2);border-top:1px solid var(--gray-light);border-radius:0;padding-top:14px}
+body.f-arte-pronta .art-btn.art-voltar:hover{background:var(--gray-light);color:var(--text)}
+/* O Refazer perde a régua: ela agora abre a fileira, no Voltar. */
+body.f-arte-pronta .art-btn.art-redo{border-top:0;margin-top:0;padding-top:0}
 body.f-arte-pronta .caption-assistant-panel{order:3}
 body.f-arte-pronta .art-bulk-btn{order:4}
 body.f-arte-pronta .art-btn.art-redo{order:6}

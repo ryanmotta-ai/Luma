@@ -119,25 +119,59 @@ async function _fPostedRenderArt(){
 }
 
 /* ── Chrome de cada ambiente (recebe o slot vazio; o canvas real é encaixado depois) ── */
+/* ⛔ NENHUM CHASSI DE FEED/STORY INVENTA PERFIL (regra do Ryan, 11/09).
+   Saíram daqui: o username "sualoja", o avatar, a localização "Sua cidade", as "128 curtidas"
+   e o "agora mesmo". Eram dados que o Luma NÃO TEM — e uma prévia que inventa contagem de
+   curtidas não aumenta confiança, ensina a desconfiar do resto. Capacidade real, promessa
+   real: o que fica é a MOLDURA (barra de progresso, ícones de ação, espaço da legenda), que
+   é o que responde a pergunta "como isso vai ficar publicado".
+   ⚠ O `pst-av` e o `pst-user` continuam no CSS porque o chassi de WhatsApp ainda os usa —
+   lá o conteúdo de exemplo ficou de propósito (decisão do Ryan: é uma conversa genérica,
+   não um perfil de rede social).
+   ⚠ `_fPostedProd` perdeu o chamador aqui e segue usado pelo WhatsApp. */
 function _fPostedStory(slot){
   return `<div class="pst-story">
     ${slot}
     <div class="pst-story-bars"><i class="done"></i><i class="on"></i><i></i></div>
-    <div class="pst-story-top"><span class="pst-av"></span><span class="pst-user">sualoja</span><span class="pst-time">2 h</span><span class="pst-grow"></span>${_PST_DOTS}${_PST_X}</div>
     <div class="pst-story-bot"><div class="pst-story-input">Enviar mensagem</div>${_PST_HEART}${_PST_SEND}</div>
   </div>`;
 }
+/* A legenda do Feed é a LEGENDA DE VERDADE, a mesma que o painel mostra e que o "Copiar
+   legenda" copia — não um resumo de produto+preço montado só para o mockup. Trocar a
+   sugestão no painel repinta isto (ver `_fPostedRepintaLegenda`), então as duas nunca
+   divergem. Sem legenda ainda, o espaço dela simplesmente não aparece. */
 function _fPostedFeed(slot){
-  const prod = _fPostedProd();
-  const preco = (fState.dados && (fState.dados.precoPor || fState.dados.preco)) || '';
+  const cap = _fPostedLegendaAtual();
   return `<div class="pst-feed">
-    <div class="pst-feed-head"><span class="pst-av"></span><span class="pst-feed-id"><span class="pst-feed-user">sualoja</span><span class="pst-feed-loc">Sua cidade</span></span><span class="pst-grow"></span>${_PST_DOTS}</div>
     ${slot}
     <div class="pst-feed-actions">${_PST_HEART}${_PST_COMMENT}${_PST_SEND}<span class="pst-grow"></span>${_PST_BOOKMARK}</div>
-    <div class="pst-feed-likes">128 curtidas</div>
-    <div class="pst-feed-cap"><b>sualoja</b> ${gEsc(prod)}${preco?(' · '+gEsc(String(preco))):''} <span class="muted">... mais</span></div>
-    <div class="pst-feed-time">agora mesmo</div>
+    ${cap ? `<div class="pst-feed-cap">${gEsc(cap)}</div>` : ''}
   </div>`;
+}
+
+/* A legenda ativa, sem depender de quem chamou. O `_fActiveCaptionText` (chat.js) pede o id
+   do canvas da entrega; aqui descobrimos qual é pelo painel que está na tela — é o mesmo
+   painel que o `fCycleCaption` e o `fCopyCaption` manipulam. */
+function _fPostedLegendaAtual(){
+  try{
+    const painel = document.querySelector('.caption-assistant-panel[data-canvas-id]');
+    if(!painel) return '';
+    const id = painel.getAttribute('data-canvas-id');
+    return (typeof _fActiveCaptionText==='function') ? (_fActiveCaptionText(id)||'') : '';
+  }catch(e){ return ''; }
+}
+
+/* Chamado por quem MUDA a legenda (fSetCaption/fCycleCaption): repinta só o contexto, sem
+   re-renderizar a arte. Se o ambiente na tela não for o Feed, não há nada a fazer. */
+function fPostedRepintaLegenda(){
+  if(_postedCtx !== 'feed') return;
+  document.querySelectorAll('.pst-feed').forEach(feed=>{
+    const cap = _fPostedLegendaAtual();
+    let el = feed.querySelector('.pst-feed-cap');
+    if(!cap){ if(el) el.remove(); return; }
+    if(!el){ el = document.createElement('div'); el.className='pst-feed-cap'; feed.appendChild(el); }
+    el.textContent = cap;
+  });
 }
 function _fPostedWhats(slot){
   return `<div class="pst-wa">
@@ -162,6 +196,8 @@ function _fPostedOrder(){ return _fPostedContextsFor(fPostedContextForFormat(nul
 // Sysbar de texto claro em Story/WhatsApp (fundo escuro); escuro no Feed (fundo branco).
 function _fPostedScreenHTML(){
   const slot = '<div class="pst-artslot"></div>';
+  /* "Arte" não tem chrome NEM barra de status: é a peça sozinha, do jeito que o PNG sai. */
+  if(_postedCtx === 'artwork') return `<div class="pst-artwork">${slot}</div>`;
   const chrome = _postedCtx==='feed' ? _fPostedFeed(slot)
                : _postedCtx==='whatsapp' ? _fPostedWhats(slot)
                : _fPostedStory(slot);
@@ -395,8 +431,12 @@ function fPostedContextForFormat(fmt){
    proporção, então ele acompanha os dois casos. O que nunca acontece é uma arte de feed
    aparecer como Stories, ou vice-versa. */
 function _fPostedContextsFor(principal){
-  if(principal === 'story') return [{id:'story',label:'Stories'},{id:'whatsapp',label:'WhatsApp'}];
-  if(principal === 'feed')  return [{id:'feed',label:'Feed'},{id:'whatsapp',label:'WhatsApp'}];
+  /* ⚠ "Arte" É UM AMBIENTE, e é o último de propósito. Ele mostra a peça sem chassi nenhum —
+     e é literalmente o arquivo que o Baixar PNG entrega. Sem ele, a única forma de conferir a
+     arte limpa era fechar a prévia, o que é o oposto de "conferir antes de baixar".
+     Ele não tem `_fPosted*` próprio: o `_fPostedScreenHTML` devolve só o slot. */
+  if(principal === 'story') return [{id:'story',label:'Stories'},{id:'whatsapp',label:'WhatsApp'},{id:'artwork',label:'Arte'}];
+  if(principal === 'feed')  return [{id:'feed',label:'Feed'},{id:'whatsapp',label:'WhatsApp'},{id:'artwork',label:'Arte'}];
   return [];
 }
 

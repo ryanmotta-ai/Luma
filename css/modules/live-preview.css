@@ -927,3 +927,58 @@ body:not(.theme-light) .pst-qr-x:hover{background:var(--d-surf2);color:var(--d-t
   .lp-zoom-step{width:36px;height:38px}
   .lp-tool-text{min-height:38px}
 }
+
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   "COMO VAI FICAR" NO ESTADO FINAL (2026-09-11)
+   ══════════════════════════════════════════════════════════════════════════════════════════
+   Durante a criação o palco responde "veja o que você está construindo". Quando a arte fica
+   pronta, a pergunta muda para "tá, terminei — como isso vai ficar?", e quem responde é o
+   mesmo "Ver como fica" que até hoje só existia atrás de um botão.
+
+   ⛔ NÃO É UM SEGUNDO COMPONENTE. Os chassis, a seleção de ambiente e o encaixe da arte são
+   os `_fPosted*` de sempre (live-preview.js) — o modal continua sendo o caminho DURANTE a
+   criação. O que muda no estado final é onde ele aparece: em vez de abrir por cima, ele é o
+   conteúdo do palco. Mesmo canvas, mesmo renderizador, mesma regra de ambiente.
+
+   ⚠ O AMBIENTE "Arte" existe justamente para a arte não ficar escondida atrás de um chassi:
+   é a peça sozinha, do jeito que o PNG sai, e é o ambiente que o "Baixar PNG" entrega. */
+
+/* ── O ambiente "Arte": sem chassi, sem barra de status, sem nada ── */
+.pst-artwork{
+  width:100%;height:100%;display:flex;align-items:center;justify-content:center;
+  background:var(--off-white);
+}
+.pst-artwork .pst-artslot{display:flex;align-items:center;justify-content:center;width:100%;height:100%}
+.pst-artwork .pst-art{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}
+body:not(.theme-light) .pst-artwork{background:var(--d-surf2)}
+/* ⚠ A MOLDURA DO CELULAR FICA (decisão do Ryan, 11/09), mesmo na arte limpa: ver a peça na
+   mão é parte de responder "como vai ficar". O que sai é só a ILHA — sem barra de status
+   embaixo dela, o notch vira um retângulo preto solto no meio do fundo claro. */
+.pst-phone.pst-ctx-artwork .pst-island{display:none}
+
+/* ── A legenda do Feed agora é a legenda de verdade ──
+   Era uma linha só ("<b>sualoja</b> produto · preço ... mais"); passa a ser o texto inteiro,
+   que costuma ter 3-5 linhas. Ganha altura e rolagem própria para não empurrar a arte. */
+.pst-feed-cap{
+  white-space:pre-wrap;max-height:34%;overflow-y:auto;
+  line-height:1.45;
+}
+
+/* ── O CABEÇALHO DO "COMO VAI FICAR" NUM TELEFONE ──
+   São três abas (Stories/WhatsApp/Arte, ou Feed/WhatsApp/Arte), o título, o "Ver no celular"
+   e o fechar. Em 375px isso não cabe: medido, "WhatsApp" saía cortado e "Arte" nem aparecia —
+   ou seja, o ambiente que mostra a arte limpa ficava inalcançável justamente no aparelho.
+   ⛔ O "Ver no celular" SAI daqui, e não é corte por espaço: ele gera um QR para abrir a arte
+   NO celular. Quem está no celular já chegou. */
+@media (max-width:680px){
+  #f-posted-modal .posted-phone-btn{display:none}
+  #f-posted-modal .posted-head{gap:8px;padding:12px 10px 12px 14px;flex-wrap:wrap}
+  /* O título cede a linha para as abas quando o espaço aperta: escolher o ambiente é ação,
+     o título é rótulo. */
+  #f-posted-modal .posted-titles{flex:1 1 100%;order:0}
+  #f-posted-modal .posted-sub{display:none}
+  #f-posted-modal .posted-seg{order:1;flex:1 1 auto;justify-content:center}
+  #f-posted-modal .posted-close{order:2}
+  #f-posted-modal .pst-seg-btn{flex:1 1 0;padding-inline:10px;font-size:12px;white-space:nowrap}
+}
