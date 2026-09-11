@@ -240,6 +240,17 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
 }
 .lp-tool-left{flex:1 1 auto}
 .lp-tool-right{flex:0 0 auto;justify-content:flex-start}
+/* ── SOZINHO NA FAIXA, O GRUPO SE CENTRALIZA ──
+   O `.lp-tool-left` já cresce (`flex:1 1 auto`), mas seus filhos hugavam a borda esquerda e
+   sobrava METADE da barra vazia. Isso acontece sempre que o lado direito não tem nada
+   visível — dentro do Sheets é permanente (o "Ver como fica" não entra lá, por decisão de
+   11/09), e no fluxo normal acontece com formato sem ambiente honesto (uma faixa 1200×628).
+   ⚠ A condição é DERIVADA do que está visível, não de uma classe de modo: `[hidden]` é
+   exatamente o que o `_fLpSyncVerComoFica` e o aviso de layout usam para sumir. Uma regra
+   serve os dois casos, e um terceiro que apareça depois. */
+.lp-toolbar:not(:has(.lp-tool-right>*:not([hidden]))) .lp-tool-left{justify-content:center}
+/* E o cursor de zoom deixa de ser um tico de 178px: com a faixa só para ele, ocupa o dobro. */
+.lp-toolbar:not(:has(.lp-tool-right>*:not([hidden]))) .lp-zoom-group{max-width:330px}
 .lp-tool-left>*,.lp-tool-right>*{flex-shrink:0}
 
 /* O grupo "Auto" (chips Zoom e Layout) saiu na rodada de usabilidade de 09/2026 — com ele,

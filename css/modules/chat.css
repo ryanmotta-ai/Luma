@@ -1261,7 +1261,18 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
   background:color-mix(in srgb,var(--dm-yellow) 18%,transparent);color:var(--var-color);
   font-size:9px;font-weight:700;letter-spacing:.02em;white-space:nowrap;
 }
-.f-bulk-of-acoes{display:flex;align-items:center;gap:1px}
+/* ⚠ EM COLUNA, E NÃO EM LINHA. A conta não fechava: são três botões de 26px com 1px de
+   gap — 80px — dentro da coluna de 60px do cabeçalho (`grid-template-columns:60px …`).
+   Os 20px que sobravam vazavam para a direita e caíam EM CIMA do primeiro campo da oferta.
+   Empilhados, cada um ocupa 26px de largura e sobra folga na coluna.
+   O `gap:6px` é o respiro: com 1px eles liam como um controle só de três partes, e o alvo
+   de apagar encostava no de duplicar — vizinhança ruim para uma ação destrutiva.
+   ⚠ A pilha mede 90px e o cabeçalho inteiro 114px. Num material com MUITOS campos isso
+   não custa nada (os campos já passam disso: medido 111px com 8 campos, e a linha só
+   cresceu 3px). Num material de até 3 campos a pilha passaria a mandar na altura da
+   linha. Não otimizei para esse caso porque ele não existe hoje — os materiais com
+   camadas têm 6 e 8 campos —, mas se aparecer, é aqui que se olha. */
+.f-bulk-of-acoes{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
 
 /* ── OS CAMPOS: 12 colunas, span por semântica ────────────────────────────────────────── */
 /* ⚠ GRID FLUIDO, NÃO 12 COLUNAS FIXAS. A régua de 12 colunas com span por breakpoint de

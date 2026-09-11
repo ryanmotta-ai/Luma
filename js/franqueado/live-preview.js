@@ -816,6 +816,26 @@ async function _fLpSincronizarConclusao(){
   _fLpPintarContexto();
 }
 
+/* ══ O SHEETS TOMA O PAINEL EMPRESTADO ═══════════════════════════════════════════════════
+   Abrir o lote com a arte JÁ CONCLUÍDA levava o palco de conclusão junto: o Sheets ganhava o
+   celular, as abas Feed/WhatsApp/Arte e a barra de zoom sumida (`f-palco-conclusao` a
+   esconde). Ou seja, o mockup entrava no Sheets por uma segunda porta — a mesma coisa que o
+   `_fLpSyncVerComoFica` já barra no botão. Ali dentro não há UMA arte pronta: há a linha
+   ativa de uma planilha.
+   ⚠ A volta NÃO reanima. `_fLpMostrarConclusao(false)` porque nada acabou de acontecer — a
+   pessoa só fechou o lote e reencontra a arte onde deixou. A coreografia narra um
+   acontecimento; repeti-la aqui seria cerimônia sem fato. */
+function _fLpSuspenderConclusao(){
+  if(!_lpConclusaoAtiva) return;
+  _lpConclusaoAtiva = false;
+  _fLpLimparConclusao();
+}
+function _fLpRetomarConclusao(){
+  if(_lpConclusaoAtiva || !fState.done) return;
+  _lpConclusaoAtiva = true;
+  _fLpMostrarConclusao(false);
+}
+
 function _fLpEntrarEmConclusao(){
   if(_lpConclusaoAtiva) return;
   _lpConclusaoAtiva = true;

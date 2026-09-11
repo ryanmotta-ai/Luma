@@ -1944,6 +1944,9 @@ function _fBulkTomarPrevia(){
   const painel = document.getElementById('f-live-preview');
   const destino = document.querySelector('#f-bulk-modal .f-bulk-live');
   if(!painel || !destino || _fBulkDonoDaPrevia) return;
+  /* O palco de conclusão não vem junto: dentro do lote não existe UMA arte pronta, existe a
+     linha ativa de uma planilha. Mesma regra que já barra o "Ver como fica" aqui. */
+  try{ if(typeof _fLpSuspenderConclusao==='function') _fLpSuspenderConclusao(); }catch(e){}
   _fBulkPreviaVolta = { pai: painel.parentElement, antes: painel.nextElementSibling };
   _fBulkDadosDoChat = fState.dados;
   _fBulkDonoDaPrevia = true;
@@ -1981,6 +1984,9 @@ function _fBulkDevolverPrevia(){
     const v = _fBulkPreviaVolta;
     if(v && v.pai) v.pai.insertBefore(painel, v.antes || null);
     if(typeof fLpRefresh === 'function') fLpRefresh();
+    /* E o palco volta ao que era: quem entrou no lote com a arte pronta reencontra a arte
+       pronta. Sem coreografia — ver a nota no `_fLpRetomarConclusao`. */
+    try{ if(typeof _fLpRetomarConclusao==='function') _fLpRetomarConclusao(); }catch(e){}
   }
   _fBulkPreviaVolta = null;
 }
