@@ -1225,7 +1225,14 @@ body.f-palco-conclusao .lp-ctx-bar{animation:lpCtxBarra 320ms var(--ease-out) 62
 /* ── 5. O QUE NÃO SERVE MAIS AO PALCO ── */
 /* Zoom, ajustar e "Ver como fica" operam sobre a arte em construção. No estado final o
    "Ver como fica" virou o próprio palco, e o zoom não alcança o que está dentro do celular. */
-body.f-palco-conclusao #f-live-preview .lp-toolbar{opacity:0;pointer-events:none}
+/* ⚠ `display:none`, e NÃO `opacity:0`. Invisível, a barra continuava ocupando 51px: sobrava
+   uma faixa branca no pé do palco, exatamente onde a conclusão quer silêncio. Medido.
+   Some de vez, e os 51px vão para a `.lp-stage` (ela é `flex:1`) — o celular respira mais.
+   ⚠ A volta é de graça: o "Editar arte" tira o `f-palco-conclusao` no fim da saída
+   (`_fLpLimparConclusao`), e a barra reaparece junto com a arte pousando. Nada de JS.
+   O salto de 51px no meio da coreografia não aparece: a arte desce 790px no mesmo instante,
+   e o deslocamento de ~25px do que está centralizado no palco morre dentro desse movimento. */
+body.f-palco-conclusao #f-live-preview .lp-toolbar{display:none}
 
 /* ── 6. MENOS MOVIMENTO ── */
 /* O deslocamento grande é justamente o que esta preferência pede para cortar. O estado final
