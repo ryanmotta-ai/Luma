@@ -296,6 +296,15 @@ function fUpdateProg(){
   /* O "2/6" do celular. No desktop o número continua onde sempre esteve (o `.step-label`
      dentro do balão); aqui ele sobe pro cabeçalho porque o balão virou o painel e não abre
      com selo de sistema. O elemento existe nos dois, e o CSS decide quem o vê. */
+  /* Acessibilidade: a mudança de modo é visual e precisa ser DITA. O `#f-arte-status` é um
+     `aria-live="polite"` que só existe para isto — anuncia uma vez, quando o modo entra. */
+  try{
+    const av=document.getElementById('f-arte-status');
+    if(av){
+      const texto = fState.done ? 'Sua arte está pronta. Baixar PNG e publicar no Instagram estão disponíveis.' : '';
+      if(av.textContent !== texto) av.textContent = texto;
+    }
+  }catch(e){}
   const n=document.getElementById('f-mob-prog');
   if(n){
     const ativo = tot>0 && !!fState.material;
@@ -338,6 +347,15 @@ function _fSheetSync(){
      porque a entrega (legenda + três ações) é mais alta que uma pergunta. */
   try{ document.body.classList.toggle('f-arte-pronta', !!fState.done); }catch(e){}
 }
+
+/* O "Ajustar arte" nasceu e saiu na mesma rodada (pedido do Ryan, 11/09): a entrega ficou com
+   Baixar, Publicar, Copiar legenda e Refazer, e mais um botão ali era ruído na única tela em
+   que o caminho precisa ser óbvio. A função `fAjustarArte` foi embora junto — sem o botão ela
+   não tinha chamador, e código sem porta é dívida nascendo.
+   ⚠ QUEM PRECISA CORRIGIR ALGO hoje tem dois caminhos, e nenhum deles é "voltar ao chat":
+   a EDIÇÃO DIRETA na arte (clique num campo → `lp-edit-pop`, que continua ativa no estado
+   final) e o REFAZER, que é destrutivo e pergunta antes. Se um dia o caminho de volta não
+   destrutivo fizer falta, ele é `fState.done=false` + `fUpdateProg()`. */
 
 function fSheetToggle(){
   const aberto = document.body.classList.toggle('f-sheet-max');
@@ -1672,6 +1690,12 @@ function fGerarArte(){
         </button>
       </div>
     </div>`;
+    /* ⚠ Finalizar DE NOVO (voltar para a edição e concluir outra vez) gera um SEGUNDO card:
+       isto aqui é `appendChild`, não substituição. No estado "arte pronta" os dois ficavam em
+       cena, cada um com seu Baixar PNG — medido indo e voltando três vezes: três cards.
+       A entrega anterior vira `art-superada` e o CSS a tira de cena SÓ naquele modo; na
+       conversa normal ela continua lá, que é o histórico honesto do que aconteceu. */
+    try{ msgs.querySelectorAll('.art-wrap').forEach(el=>{ const m=el.closest('.msg'); if(m) m.classList.add('art-superada'); }); }catch(e){}
     msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;
     _legendaIA.then(sug => _fAplicarLegendaIA(previewCanvasId, sug)).catch(()=>{});
     // Renderiza canvas thumbnail real
@@ -1705,11 +1729,13 @@ function fGerarArte(){
        aparecer. Além disso ela fala de "clique em outro formato", que é a fileira de formatos
        do próprio card: no celular a orientação viria antes do olho chegar no controle.
        No desktop a conversa inteira continua em cena e a mensagem segue fazendo sentido. */
-    /* ⚠ ESTA MENSAGEM NÃO PODE EXISTIR NO CELULAR. Lá o painel mostra só a bolha
-       `.active-prompt`, e esta chega 500ms DEPOIS da entrega — ela roubaria o `active-prompt`
-       do card que acabou de nascer e o "Baixar PNG" sumiria da tela meio segundo depois de
-       aparecer. No desktop a conversa inteira continua em cena e a mensagem segue fazendo sentido. */
-    if(!_fCelular()) setTimeout(()=>fAddBot('Arte salva em <strong>Minhas artes</strong>! Clique em outro formato para gerar variações.',[]),500);
+    /* ⛔ ESTA MENSAGEM SAIU DE VEZ (11/09). Ela era um balão de chat inteiro dizendo o que o
+       card de entrega agora diz numa linha discreta ("Salva em Minhas artes", no `.art-ok-sub`),
+       e chegava 500ms DEPOIS da entrega — no estado final ela reabria a conversa que o modo
+       "arte pronta" acabou de encerrar. A parte útil ("clique em outro formato") mora na
+       própria fileira de formatos do card, ao alcance do olho.
+       ⚠ O `.art-ok-sub` deixou de ser só-celular por causa disto: ele passou a ser o ÚNICO
+       lugar que comunica a persistência. A persistência em si não mudou (ver `fSaveHist`). */
   },800);
 }
 async function fOutroFormato(id, snapId){

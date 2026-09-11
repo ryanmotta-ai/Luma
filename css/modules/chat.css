@@ -3169,3 +3169,219 @@ body:not(.theme-light) #f-msg-box:disabled{background:var(--d-surf2);color:var(-
 @media (max-width:680px) and (prefers-reduced-motion:reduce){
   #f-sheet,#f-chat-head{transition:none!important}
 }
+
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   ARTE PRONTA — O SEGUNDO MODO DA MESMA JORNADA (2026-09-11)
+   ══════════════════════════════════════════════════════════════════════════════════════════
+   Enquanto a pessoa responde, o Luma guia: a pergunta manda, a arte acompanha, e tudo na tela
+   é convite a mexer. Quando a última resposta entra, o trabalho inverte — a arte assume, e o
+   que importa é conferir, baixar e publicar. Até hoje a tela não sabia disso: continuava
+   dizendo "Prévia ao vivo", com o campo de resposta aceso e sete balões de conversa, enquanto
+   a arte já estava pronta a dois cliques de distância do botão que a entrega.
+
+   ⛔ NÃO É UMA TELA NOVA. Não há segundo DOM, segundo estado nem segundo renderizador: é a
+   MESMA coluna da prévia, o MESMO `#f-messages` e o MESMO `.art-wrap` que o `fGerarArte`
+   monta. O que muda é o que aparece e o peso de cada coisa.
+
+   A ALAVANCA É UMA SÓ: `body.f-arte-pronta`, ligada pelo `_fSheetSync` a partir de
+   `fState.done` — a mesma verdade que o resto do fluxo já consulta. Ligar e desligar o modo é
+   `fState.done` mudando; nada mais precisa saber que este arquivo existe. Por isso finalizar
+   de novo não duplica nada, e por isso sair do modo custaria uma linha se um dia for preciso.
+
+   ⚠ O celular já foi resolvido na rodada do painel conversacional (bloco "O CELULAR"). Este
+   bloco é do DESKTOP; o que vale para os dois fica fora do `@media`. */
+
+/* Texto só para leitor de tela. A base não tem uma classe global para isto — as que existem
+   são prefixadas ou escopadas — então esta é a do franqueado. */
+.f-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+/* O rótulo do cabeçalho da arte: um por modo, trocado sem JS. */
+.lp-title-pronta,.lp-title-icon .lp-ico-pronta{display:none}
+
+/* ⛔ SÓ A ÚLTIMA ENTREGA FICA EM CENA (vale nos dois layouts, por isso fora do @media).
+   Voltar para a edição e finalizar de novo gera um SEGUNDO `.art-wrap` — o `fGerarArte` faz
+   `appendChild`, ele não substitui. A regra de esconder a conversa deixava os dois passarem,
+   e o painel mostrava duas entregas empilhadas, cada uma com seu Baixar PNG. Medido indo e
+   voltando: `msgs` visíveis foi de 1 para 2.
+   ⚠ A PRIMEIRA TENTATIVA FOI CSS PURO e não funcionou: `:has(.art-wrap):has(~ .msg:has(...))`
+   é INVÁLIDO — a especificação proíbe `:has()` dentro de `:has()`, e o navegador descarta a
+   regra inteira em silêncio. Medido: as três entregas continuaram na tela, com três "Baixar
+   PNG". Quem marca a entrega superada agora é o `fGerarArte`, em uma linha.
+   Nada é apagado: a mensagem velha continua no DOM com a classe, e fora do modo "arte pronta"
+   ela reaparece com a conversa inteira, como estava. */
+body.f-arte-pronta #f-messages>.msg.art-superada{display:none}
+body.f-arte-pronta .lp-title-criando,body.f-arte-pronta .lp-title-icon .lp-ico-criando{display:none}
+body.f-arte-pronta .lp-title-pronta{display:inline}
+body.f-arte-pronta .lp-title-icon .lp-ico-pronta{display:block}
+/* O ícone deixa de ser o olho da observação e vira a marca de feito. */
+body.f-arte-pronta .lp-title-icon{background:var(--green);color:var(--white);border-color:transparent}
+
+@media (min-width:681px){
+
+  /* ── 1. A ARTE GANHA A LARGURA QUE O CHAT NÃO PRECISA MAIS ──
+     Uma variável, e o layout inteiro reage: o painel é o slot 2 do panel-dock e a arte é o
+     slot 1 (`flex:1`), então apertar o slot 2 alarga a arte sozinho — e o próprio dock já
+     anima `flex-basis`/`width` em mola, que é a transição do item "a arte ganha destaque".
+     De ~32% para ~26%: em 1440px são 979px → 1065px de arte. Não é um número escolhido a
+     dedo, é o mínimo em que o painel ainda cabe sem apertar a legenda. */
+  body.panel-dock-active:not(.f-history-mode).f-arte-pronta #f-chat-col[data-panel-slot="2"],
+  body.panel-dock-active:not(.f-history-mode).f-arte-pronta #f-live-preview[data-panel-slot="2"],
+  body.panel-dock-active:not(.f-history-mode).f-arte-pronta #fran-left[data-panel-slot="2"]{
+    --slot2-w:clamp(340px,26%,440px);
+  }
+
+  /* ── 2. O QUE ERA CRIAÇÃO SAI DE CENA ──
+     Nada é destruído: o `#f-messages` continua com as bolhas todas e o `fState` intacto — sair
+     do modo devolve tudo. O que sai de cena é o que não serve mais a quem já terminou. */
+body.f-arte-pronta #f-messages>.msg:not(:has(.art-wrap)){display:none}   /* a conversa inteira */
+body.f-arte-pronta #f-input-row{display:none}                              /* o campo não responde mais nada */
+body.f-arte-pronta #f-mob-prog{display:none}                               /* "6/6" não é progresso, é passado */
+
+  /* A dica de EDITAR no palco da arte sai: no estado final ela convida ao modo que acabou.
+     ⚠ O clique-para-editar em si CONTINUA ATIVO — é o caminho de correção que sobrou depois
+     que o "Ajustar arte" saiu (o outro é o Refazer, destrutivo). O que some é o convite, não
+     a função. */
+body.f-arte-pronta .lp-stage-hint{display:none}
+
+  /* ── 3. O PAINEL DE CONCLUSÃO ──
+     É o `#f-chat-col` sem a conversa. O cabeçalho dele (campanha + formato) fica: o item 15
+     pede que continue claro QUAL arte está na tela. */
+/* ⚠ O fundo fica o `--off-white` do panel-dock (a regra dele é mais específica e não vou
+   brigar com ela): é a mesa. O que ganha superfície BRANCA são os blocos que pedem leitura —
+   a legenda e o cartão do lote. Sem isso o cartão do lote ficava off-white sobre off-white,
+   ou seja, invisível. */
+body.f-arte-pronta #f-chat-col{background:var(--off-white)}
+/* ⚠ `safe center` e não `center` puro. O bloco de conclusão é mais baixo que a coluna — no
+   topo, sobrava uma faixa branca grande embaixo e a tela lia como inacabada. Centralizar
+   resolve, MAS `justify-content:center` tem uma armadilha conhecida em caixa que rola: quando
+   o conteúdo passa da altura, ele transborda para CIMA e o começo fica inalcançável (não há
+   scroll negativo). O `safe` centraliza enquanto cabe e volta a alinhar no topo quando não
+   cabe — que é exatamente o comportamento que se quer numa legenda de tamanho variável. */
+body.f-arte-pronta #f-messages{padding:20px;gap:0;justify-content:safe center}
+/* O espaçador que empurra a conversa para o rodapé é de chat; aqui o conteúdo começa em cima. */
+body.f-arte-pronta #f-messages::before{display:none}
+
+  /* A mensagem da entrega deixa de ser balão e vira o corpo do painel. */
+body.f-arte-pronta .msg.bot:has(.art-wrap){max-width:100%;align-self:stretch;margin:0}
+body.f-arte-pronta .msg.bot:has(.art-wrap) .av{display:none}
+body.f-arte-pronta .msg.bot:has(.art-wrap)>div:not(.av){flex:1;min-width:0;max-width:100%}
+
+  /* ── 4. A ARTE NÃO APARECE DUAS VEZES ──
+     A peça já ocupa 74% da tela ao lado. A miniatura dentro do card era a mesma arte de novo,
+     menor, roubando a atenção da maior — e empurrando o "Baixar PNG" para fora da dobra. */
+body.f-arte-pronta .art-wrap .art-preview-mat{display:none}
+/* ⚠ O `gap` some e o respiro passa a ser POR GRUPO. Com um gap uniforme de 10px, a
+   confirmação, as duas ações principais, a legenda e as secundárias ficavam todas à mesma
+   distância umas das outras — nada se agrupava, e o olho lia sete blocos soltos em vez de
+   quatro assuntos. Agora cada bloco que ABRE um assunto paga a margem maior; quem continua o
+   assunto anterior paga a menor. É a escada de espaçamento da casa (múltiplos de 2/base 4). */
+body.f-arte-pronta .art-wrap{border:0;box-shadow:none;background:transparent;margin:0;padding:0;animation:none;max-width:none;min-width:0;width:100%;display:flex;flex-flow:row wrap;gap:0;align-content:flex-start}
+/* dentro do grupo */
+body.f-arte-pronta .art-wrap .art-btn.art-insta{margin-top:9px}
+/* abre grupo novo */
+body.f-arte-pronta .art-wrap .art-btn.art-download{margin-top:16px}
+body.f-arte-pronta .art-wrap .caption-assistant-panel{margin-top:22px}
+body.f-arte-pronta .art-wrap .art-bulk-btn{margin-top:22px}
+/* ⚠ Cada bloco pela CLASSE, e não por `.art-wrap>*`. O `display:contents` do `.art-actions`
+   e do `.art-actions-dupla` muda o LAYOUT, não o DOM: os botões viram itens flex desta caixa,
+   mas continuam netos para o seletor, e o `>` não os alcançava. Medido: Baixar PNG e Publicar
+   ficaram lado a lado, com metade da largura cada, em vez de uma linha para cada um. */
+body.f-arte-pronta .art-wrap .art-btn.art-download,
+body.f-arte-pronta .art-wrap .art-btn.art-insta,
+body.f-arte-pronta .art-wrap .caption-assistant-panel,
+body.f-arte-pronta .art-wrap .art-bulk-btn,
+body.f-arte-pronta .art-wrap .multi-fmt-row{flex:1 1 100%;min-width:0}
+
+  /* ── 5. A CONFIRMAÇÃO ──
+     "Arte salva em Minhas artes!" era um balão de chat inteiro, 500ms depois da entrega. Vira
+     uma linha sob o título: status, não evento. */
+body.f-arte-pronta .bbl.art-ok{display:flex;align-items:center;gap:11px;padding:0;background:transparent;border:0;box-shadow:none;animation:none;max-width:none}
+body.f-arte-pronta .art-ok-tick{width:26px;height:26px;flex-shrink:0;border-radius:50%;background:var(--green);color:var(--white);display:flex;align-items:center;justify-content:center}
+body.f-arte-pronta .art-ok-copy{display:flex;flex-direction:column;min-width:0}
+body.f-arte-pronta .art-ok-copy strong{font-size:17px;font-weight:800;letter-spacing:-.015em;color:var(--text)}
+body.f-arte-pronta .art-ok-sub{display:block;font-size:12.5px;font-weight:500;color:var(--text-3);margin-top:1px}
+
+  /* ── 6. A LEGENDA PERDE O CARD DENTRO DO CARD ──
+     Eram três molduras aninhadas (painel → cartão da legenda → caixa do texto) para mostrar um
+     parágrafo. Fica a moldura do texto, que é a que serve para ler; o resto vira rótulo. */
+body.f-arte-pronta .caption-assistant-panel{background:transparent;border:0;box-shadow:none;padding:0;margin:0}
+body.f-arte-pronta .caption-card-head{padding:0 0 7px;border:0;background:transparent}
+body.f-arte-pronta .caption-card-title{font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3)}
+body.f-arte-pronta .caption-card-sub{display:none}   /* "Copie e publique junto com a arte" — o botão já diz */
+/* O texto da legenda é para LER e copiar, não para espiar: sobe de 13px e ganha entrelinha.
+   A borda vinha na cor da campanha e sumia contra o branco — vira neutra, e a caixa passa a
+   ler como área de texto sobre a mesa off-white do painel. */
+body.f-arte-pronta .caption-content-box{margin:0;border-radius:12px;padding:13px 14px;background:var(--white);border:1px solid var(--gray-light);font-size:13.5px;line-height:1.55;color:var(--text-2);max-height:none}
+/* ⚠ `max-height:none` em vez do teto de 168px do desktop-em-criação. Medido: a legenda tinha
+   256px de texto em 168px de caixa e a última linha visível ficava partida ao meio — lê como
+   defeito de render, não como "tem mais abaixo". Aqui o painel inteiro é que rola, e com a
+   conversa fora de cena há altura de sobra para a legenda existir inteira. */
+body.f-arte-pronta .caption-card-foot{padding:9px 0 0;border:0;background:transparent;align-items:center}
+/* Copiar é a ação do bloco e leva a caixa; "Gerar outra" é alternativa e fica em texto. */
+body.f-arte-pronta .caption-copy-btn{min-height:36px;padding-inline:14px;border-radius:10px;font-size:12.5px}
+body.f-arte-pronta .caption-alt-btn{font-size:12px;color:var(--text-3)}
+
+  /* ── 7. A HIERARQUIA DAS AÇÕES ──
+     Baixar PNG é o caminho da V1 e fica sozinho na primeira linha, em largura cheia. Publicar
+     é o próximo passo natural e vem logo abaixo, com caixa mas sem o laranja. O resto —
+     ajustar, refazer, lote, legenda — é terciário e não disputa o olho.
+     ⚠ `display:contents` nas duas caixas intermediárias (`.art-actions` e `.art-actions-dupla`)
+     porque o "peso igual" de Baixar/Refazer é regra de DESKTOP-EM-CRIAÇÃO (pedido do Ryan em
+     09/09) e continua valendo lá; aqui o trabalho acabou e a hierarquia é outra. Com as caixas
+     dissolvidas, o `order` alcança todos os botões de uma vez. */
+body.f-arte-pronta .art-actions,body.f-arte-pronta .art-actions-dupla{display:contents}
+body.f-arte-pronta .art-btn{width:100%;min-height:46px;border-radius:13px;font-size:15px;font-weight:800}
+body.f-arte-pronta .art-btn.art-download{order:1}
+body.f-arte-pronta .art-btn.art-insta{order:2}
+body.f-arte-pronta .caption-assistant-panel{order:3}
+body.f-arte-pronta .art-bulk-btn{order:4}
+body.f-arte-pronta .art-btn.art-redo{order:6}
+/* Ajustar e Refazer: mesma fileira terciária, sem caixa, um ao lado do outro. */
+/* ⚠ Estes dois eram o SEXTO elemento no mesmo cinza `--text-3`. Eles são as únicas ações
+   daquela faixa e no cinza de rodapé pareciam desabilitados — sobem para `--text-2`.
+   A linha acima deles é o que diz "daqui para baixo é outro assunto": sem ela, Ajustar e
+   Refazer ficavam pendurados no cartão do lote. */
+/* O Refazer ficou sozinho na fileira terciária (o "Ajustar arte" saiu): ocupa a linha
+   inteira, com a régua acima dizendo "daqui para baixo é outro assunto". Continua sem caixa e
+   com o vermelho só no hover — é destrutivo, mas ninguém o chamou ainda. */
+body.f-arte-pronta .art-btn.art-redo{
+    min-height:40px;margin-top:14px;font-size:13px;font-weight:700;
+    background:transparent;border-color:transparent;box-shadow:none;color:var(--text-2);
+    border-top:1px solid var(--gray-light);border-radius:0;padding-top:14px;
+  }
+/* Refazer apaga as respostas: o vermelho aparece no hover, não em repouso — alarme
+   permanente numa ação que ninguém chamou é ruído (05_DESIGN_PHILOSOPHY). */
+body.f-arte-pronta .art-btn.art-redo:hover{background:var(--gray-light);color:var(--dm-red)}
+
+  /* Estes dois são os únicos que não pedem a linha inteira: dividem a última. */
+
+  /* ── 8. GERAR EM LOTE, DISCRETO ──
+     Continua sendo a extensão da arte atual e continua abrindo o mesmo Sheets. Só deixa de
+     ser uma faixa do tamanho de um CTA. */
+/* Era off-white sobre off-white: o cartão não existia na tela. Branco com borda o devolve
+   como superfície tocável, sem virar um CTA (o peso continua no Baixar PNG). */
+body.f-arte-pronta .art-bulk-btn{min-height:auto;padding:12px 13px;border-radius:12px;background:var(--white);border:1px solid var(--gray-light);box-shadow:none}
+body.f-arte-pronta .art-bulk-btn:hover{background:var(--white);border-color:var(--gray-mid)}
+body.f-arte-pronta .art-bulk-btn:hover{background:var(--gray-light)}
+
+  /* ── 9. A ENTRADA DO PAINEL ──
+     O modo troca; o painel não deve piscar. Um fade curto com 6px de deslocamento, escalonado
+     para o CTA chegar por último — a arte cresce ao lado enquanto isto entra. Sem confete. */
+body.f-arte-pronta .msg.bot:has(.art-wrap){animation:fArteProntaEntra var(--dur-base) var(--ease-out) both}
+}
+
+@keyframes fArteProntaEntra{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* Movimento é sinal, não enfeite. */
+@media (prefers-reduced-motion:reduce){
+  body.f-arte-pronta .msg.bot:has(.art-wrap){animation:none}
+}
+
+/* ── TEMA ESCURO ── */
+body:not(.theme-light).f-arte-pronta #f-chat-col{background:var(--d-surf)}
+body:not(.theme-light).f-arte-pronta .art-ok-copy strong{color:var(--d-text)}
+body:not(.theme-light).f-arte-pronta .art-ok-sub,
+body:not(.theme-light).f-arte-pronta .caption-card-title{color:var(--d-text2)}
+body:not(.theme-light).f-arte-pronta .art-bulk-btn{background:var(--d-surf2);border-color:var(--d-border)}
+body:not(.theme-light).f-arte-pronta .art-btn.art-redo:hover{background:var(--d-surf2)}

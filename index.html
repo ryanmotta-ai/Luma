@@ -904,6 +904,13 @@ body:not(.theme-light) input:-webkit-autofill:active {
                ⚠ `display:contents` acima de 680px (chat.css) — no desktop este elemento não
                existe para o layout, e a coluna do chat continua exatamente como era. Sem isso,
                um wrapper no meio de um flex column quebraria o `flex:1` do `#f-messages`. -->
+          <!-- A troca de modo (criando → arte pronta) é visual. Este parágrafo invisível é o
+               que a torna audível: o `fUpdateProg` escreve nele uma vez, quando o modo entra.
+               Fica FORA do `#f-messages` porque o estado final esconde as mensagens. -->
+          <!-- ⚠ `f-sr-only` e não `sr-only`: esta base NÃO tem a classe global. As que existem são
+               prefixadas (`g-help-sr-only`, `cheat-sr-only`) ou escopadas (`.dsh-search .sr-only`),
+               então um `class="sr-only"` solto não esconderia nada e o texto apareceria na tela. -->
+          <p id="f-arte-status" class="f-sr-only" role="status" aria-live="polite"></p>
           <div id="f-sheet">
           <button type="button" id="f-sheet-grip" onclick="fSheetToggle()" aria-label="Expandir ou recolher o painel" aria-expanded="false"><i aria-hidden="true"></i></button>
           <div id="f-messages"></div>
@@ -956,11 +963,17 @@ body:not(.theme-light) input:-webkit-autofill:active {
                 <span>Campanhas</span>
               </button>
               <span class="lp-head-sep" aria-hidden="true"></span>
+              <!-- DOIS RÓTULOS, UM POR MODO. "Prévia ao vivo" é verdade enquanto a pessoa
+                   responde; depois de pronta a peça não é mais prévia, é a arte — e continuar
+                   chamando de prévia é a interface dizendo "você ainda está fazendo alguma
+                   coisa". A troca é por CSS (`body.f-arte-pronta`), sem JS e sem um segundo
+                   cabeçalho: o olho vira check, "Prévia ao vivo" vira "Arte pronta". -->
               <span class="lp-title-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg class="lp-ico-criando" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg class="lp-ico-pronta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
               </span>
               <div>
-                <div class="lp-title">Prévia ao vivo</div>
+                <div class="lp-title"><span class="lp-title-criando">Prévia ao vivo</span><span class="lp-title-pronta">Arte pronta</span></div>
               </div>
             </div>
             <div class="lp-head-actions">
