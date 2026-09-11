@@ -2699,15 +2699,17 @@ body:not(.theme-light) input:-webkit-autofill:active {
          uma vez e raramente se muda, ficam num disclosure. -->
     <footer class="f-bulk-footer" id="f-bulk-actions">
 
-      <!-- A conta do que vai sair. Fica à esquerda, longe do botão, porque é informação de
-           conferência — não uma ação a ser clicada. -->
-      <!-- Duas informações, dois pesos: o PROGRESSO (quantas ofertas estão prontas) em cima,
-           porque é o que decide se o botão vai funcionar; o detalhe do ZIP embaixo, menor.
-           Nenhum dos dois é clicável — conferência não é ação. -->
-      <div class="f-bulk-footer-note">
-        <strong class="f-bulk-progresso" id="f-bulk-progresso" aria-live="polite"></strong>
-        <span>O ZIP inclui as artes organizadas por formato e um arquivo com sugestões de legenda.</span>
-      </div>
+      <!-- ⛔ O RODAPÉ DE CONFERÊNCIA SAIU (Ryan, 11/09/2026). Eram duas linhas —
+           `.f-bulk-footer-note` com o `#f-bulk-progresso` em cima e o detalhe do ZIP embaixo —
+           e elas apareciam DIZENDO A MESMA FRASE, uma em negrito com ✓ e outra em cinza.
+           O defeito era um seletor: o JS pegava `.f-bulk-footer-note span`, que casava com o
+           `<span>` de dentro do próprio `#f-bulk-progresso` (ele vinha primeiro no documento),
+           então o texto do rodapé sobrescrevia o do progresso.
+           Não foi consertado, foi removido: mesmo com o seletor certo, a contagem já é dita
+           em outros dois lugares desta tela — o `#f-bulk-status` no cabeçalho ("3 ofertas
+           para preencher") e o próprio botão ("Gerar 2 artes"). Três vezes a mesma verdade
+           é o ruído, não a informação. O `#f-bulk-status` é `aria-live`, então o leitor de
+           tela continua sendo avisado. -->
 
       <div class="f-bulk-footer-actions">
         <!-- "Legenda e cidade" REMOVIDO (Ryan, 03/09 — segunda vez que ele pede).

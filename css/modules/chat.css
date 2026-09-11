@@ -876,7 +876,6 @@ body:has(#f-bulk-modal.open) #mobile-preview-toggle{display:none!important}
 /* ── Rodapé: o que sai ── */
 /* Rodapé: a conta à esquerda (informação), as ações à direita. Os chips de formato saíram —
    com um formato só, o que restou é a leitura do que vai sair e os dois botões. */
-.f-bulk-footer-note{margin-right:auto}
 .f-bulk-post-opts{position:relative}
 .f-bulk-post-opts>summary{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border:1px solid var(--gray-mid);
   border-radius:var(--r-pill);background:var(--white);color:var(--text-2);font:700 12px/1 'Roboto',sans-serif;cursor:pointer;
@@ -1065,7 +1064,6 @@ body:not(.theme-light) .f-bulk-tb-pri{background:color-mix(in srgb,var(--dm-oran
 body:not(.theme-light) .f-bulk-tb-pri svg{color:var(--dm-orange)}
 body:not(.theme-light) .f-bulk-tb-pri:hover{background:color-mix(in srgb,var(--dm-orange) 24%,transparent);border-color:var(--dm-orange)}
 body:not(.theme-light) .f-bulk-massbar-body{background:var(--d-surf);border-color:var(--d-border2)}
-body:not(.theme-light) .f-bulk-progresso{color:var(--d-text2)}
 body:not(.theme-light) .f-bulk-sheet-title .f-bulk-status-wrap{color:var(--d-text3)}
 body:not(.theme-light) .f-bulk-alt,body:not(.theme-light) .f-bulk-massbar{background:var(--d-surf);border-color:var(--d-border2)}
 body:not(.theme-light) .f-bulk-alt>summary:hover,body:not(.theme-light) .f-bulk-massbar>summary:hover{background:var(--d-surf2)}
@@ -1469,18 +1467,6 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
 .f-bulk-progress .d-btn-sec{float:right;margin-top:10px;color:var(--dm-red)}
 
 .f-bulk-footer{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:64px;padding:10px 20px;border-top:1px solid var(--gray-light);background:var(--white);box-shadow:0 -8px 24px color-mix(in srgb,var(--text) 4%,transparent)}
-.f-bulk-footer-note{display:flex;flex-direction:column;gap:2px;max-width:520px;color:var(--text-3);font-size:10.5px;line-height:1.4}
-/* O progresso é a linha que decide se o botão funciona: 12,5px, peso alto, com o ✓ à
-   frente. O detalhe do ZIP fica abaixo, em 10,5px — informação de conferência. */
-.f-bulk-progresso{display:inline-flex;align-items:center;gap:6px;color:var(--text-2);font-size:12.5px;font-weight:750}
-.f-bulk-progresso:empty{display:none}
-.f-bulk-progresso svg{width:13px;height:13px;flex:0 0 auto;color:var(--text-3)}
-.f-bulk-progresso.is-ok{color:var(--green-text)}
-.f-bulk-progresso.is-ok svg{color:var(--green-text)}
-.f-bulk-progresso.is-zero{color:var(--text-3)}
-.f-bulk-progresso.is-trocando>span{animation:fBulkContador var(--dur-base) var(--ease-out) both}
-@keyframes fBulkContador{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){.f-bulk-progresso.is-trocando>span{animation:none}}
 .f-bulk-footer-actions{display:flex;align-items:center;gap:8px;margin-left:auto}.f-bulk-footer-actions .d-btn-pri{display:inline-flex;align-items:center;gap:7px;min-height:38px;padding:0 18px;font-weight:750}.f-bulk-footer-actions .d-btn-pri svg{width:15px;height:15px}
 /* Dentro do popover o par vira coluna: 280px não comportam dois campos lado a lado. */
 .f-bulk-post-opts-body.f-bulk-output-fields{grid-template-columns:1fr;gap:12px}
@@ -1610,7 +1596,6 @@ body:not(.theme-light) .f-bulk-tool-action{
   .f-bulk-output-config{grid-template-columns:1.2fr 1fr;align-items:start}
   .f-bulk-output-config>.f-bulk-section-heading{grid-column:1/-1}
   .f-bulk-progress{right:18px;bottom:72px;left:18px}
-  .f-bulk-footer-note{display:none}
 }
 @media(max-width:620px){
   #f-bulk-modal{padding:0}

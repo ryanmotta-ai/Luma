@@ -443,12 +443,22 @@ function _fPostedContextsFor(principal){
 }
 
 /* O botão só existe quando há ambiente honesto para esta arte. Chamado a cada repintura da
-   prévia (é lá que o material e o formato podem ter mudado). */
+   prévia (é lá que o material e o formato podem ter mudado).
+   ⛔ E NUNCA DENTRO DO SHEETS (Ryan, 11/09/2026). Quando o lote toma o painel emprestado
+   (`_fBulkTomarPrevia`), o que está ali não é UMA arte terminada: é a linha ativa de uma
+   planilha que ainda está sendo preenchida, e que vai virar dezenas de PNGs num ZIP. Um
+   mockup de Feed/Stories ali responde uma pergunta que ninguém fez — "como esta linha vai
+   ficar publicada?" — quando o Sheets nem publica: ele entrega arquivo.
+   ⚠ A guarda é o `_fBulkDonoDaPrevia` (png-generator.js), a MESMA bandeira que o
+   `fSaveChatDraft` usa para não gravar dado da planilha no rascunho do chat. Uma bandeira
+   só para "de quem é o painel agora". */
 function _fLpSyncVerComoFica(){
   const btn = document.querySelector('.lp-posted-btn');
   if(!btn) return;
-  const tem = !!(fState.material && fState.material.layers && fState.material.layers.length
-                 && fPostedContextForFormat(null));
+  const noSheets = (typeof _fBulkDonoDaPrevia !== 'undefined') && _fBulkDonoDaPrevia;
+  const tem = !noSheets
+              && !!(fState.material && fState.material.layers && fState.material.layers.length
+                    && fPostedContextForFormat(null));
   btn.hidden = !tem;
 }
 

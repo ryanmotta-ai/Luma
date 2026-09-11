@@ -2376,13 +2376,21 @@ function fStartSpeech(event, inputId){
 
 
 // Ordena variáveis pela ordem do catálogo dVars (igual ao fluxo normal)
+/* A ORDEM DOS CAMPOS É A DO MOTOR ÚNICO (`gSortTemplateVars`, 00-config.js).
+   ⛔ ESTE ERA O QUARTO LUGAR COM SUA PRÓPRIA ORDENAÇÃO. O chat pergunta na ordem semântica
+   (produto → descrição → preços → condições), o painel Campos do Estúdio mostra nela e o
+   catálogo respeita o `ordemManual` — e só o Sheets ordenava pela POSIÇÃO DA CAMADA no
+   `dVars`, que é ordem de desenho, não de leitura. Num material real de Feed isso punha
+   "Preço Promo" na primeira coluna e "Detalhes" na terceira, com dois "Campo" no fim: a
+   mesma arte, perguntada de um jeito no chat e de outro na planilha.
+   ⚠ O `gSortTemplateVars` JÁ FAZ o que este código fazia — ele cai na posição do `dVars`
+   como critério de desempate — e ainda respeita o `ordemManual` que o Estúdio grava. Trocar
+   a chamada não é só arrumar a tela: é apagar a quarta verdade.
+   ⚠ ORDEM MUDA COLUNA, NÃO DADO: as linhas do lote são objetos com chave por variável
+   (`fBulkCreateEmptyRow`), então rascunho salvo antes desta mudança continua abrindo certo. */
 function fBulkVars(){
   const vars=dExtractTemplateVars(fState.material.layers);
-  if(typeof dVars!=='undefined'&&dVars&&dVars.length){
-    const ord=n=>{const i=dVars.findIndex(v=>v.name===n);return i<0?Infinity:i;};
-    vars.sort((a,b)=>ord(a)-ord(b));
-  }
-  return vars;
+  return (typeof gSortTemplateVars==='function') ? gSortTemplateVars(vars) : vars;
 }
 // Bancos de exemplos realistas (contexto Delivery Much) — pra o modelo CSV vir
 // preenchido e o franqueado só editar, em vez de partir de uma planilha vazia.
@@ -2454,11 +2462,9 @@ function fBulkGetReadiness(keys=fBulkVars(), formatCount=null) {
 function fBulkUpdateReadiness(readiness=fBulkGetReadiness()) {
   const ready = readiness.readyRows.length;
   const errors = readiness.errorRows.length;
-  const empty = readiness.emptyRows.length;
   const total = fBulkRows.length;
   const status = document.getElementById('f-bulk-status');
   const dot = document.querySelector('.f-bulk-live-dot');
-  const footer = document.querySelector('.f-bulk-footer-note span');
   const dlBtn = document.getElementById('f-bulk-dl-btn');
 
   if (status) {
@@ -2474,38 +2480,11 @@ function fBulkUpdateReadiness(readiness=fBulkGetReadiness()) {
     dot.style.boxShadow = `0 0 0 3px color-mix(in srgb,${color} 14%,transparent)`;
   }
 
-  /* O contador de prontas: informação de conferência que antes só existia dentro de uma
-     frase sobre o ZIP. Fica no rodapé porque é lá que a decisão acontece — e à esquerda,
-     longe do botão, porque é para ler, não para clicar. */
-  const prog = document.getElementById('f-bulk-progresso');
-  if (prog) {
-    const txt = !total ? '' : (ready
-      ? `${ready} de ${total} oferta${total===1?'':'s'} pronta${total===1?'':'s'}`
-      : `Nenhuma das ${total} ofertas está pronta`);
-    if (prog.dataset.txt !== txt) {
-      prog.dataset.txt = txt;
-      prog.innerHTML = txt ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg><span>${gEsc(txt)}</span>` : '';
-      prog.classList.toggle('is-ok', ready > 0 && ready === total);
-      prog.classList.toggle('is-zero', ready === 0);
-      // Microtransição vertical quando o número vira: o olho pega a mudança sem toast.
-      prog.classList.remove('is-trocando'); void prog.offsetWidth; prog.classList.add('is-trocando');
-    }
-  }
-
-  if (footer) {
-    if (!ready && errors) {
-      footer.textContent = `Revise ${errors} linha(s) destacada(s) antes de gerar.`;
-    } else if (!ready) {
-      footer.textContent = 'Preencha pelo menos uma oferta para gerar as artes.';
-    } else {
-      // Sem seletor de formato, cada oferta pronta é UMA arte — a multiplicação sumiu junto
-      // com os chips, e anunciar "× 1 formato" seria explicar uma conta que não existe mais.
-      let text = `${ready} arte${ready===1?'':'s'} no ZIP, no formato do material`;
-      if (errors) text += ` · ${errors} oferta${errors===1?'':'s'} com erro ${errors===1?'será pulada':'serão puladas'}`;
-      else if (empty) text += ` · ${empty} oferta${empty===1?'':'s'} vazia${empty===1?'':'s'} ${empty===1?'será ignorada':'serão ignoradas'}`;
-      footer.textContent = text;
-    }
-  }
+  /* ⛔ AQUI MORAVAM O `#f-bulk-progresso` E O TEXTO DO RODAPÉ (removidos em 11/09/2026).
+     As duas linhas apareciam na tela dizendo A MESMA FRASE: o seletor do rodapé era
+     `.f-bulk-footer-note span`, que casava com o `<span>` de dentro do próprio progresso.
+     Não foram consertadas, foram removidas — a contagem já é dita no `#f-bulk-status` do
+     cabeçalho e no rótulo do botão, logo abaixo. O detalhe está no HTML (`f-bulk-footer`). */
 
   if (dlBtn) {
     /* Passou de bloqueado para liberado: o ZIP existe agora. Um pulso único marca a virada —
