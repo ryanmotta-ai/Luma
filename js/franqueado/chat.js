@@ -101,6 +101,11 @@ function fStartChatComMaterial(material){
   const _b=document.getElementById('f-msg-box'); if(_b){ _b.disabled=false; }
 
   fState.material = material;
+  /* ⚠ O cartão da arte (celular) mora FORA do `#f-messages` desde 11/09, então o
+     `innerHTML=''` logo abaixo deixou de apagá-lo. Sem esta linha ele seguiria mostrando a
+     arte do material ANTERIOR até o render novo terminar — e o render é async. O
+     `_fLpPaintCartao` o recria sozinho no primeiro render bom. */
+  try{ const _c=document.getElementById('f-chat-art'); if(_c) _c.remove(); }catch(e){}
 
   // Verifica se há rascunho salvo para esta combinação de campanha e material
   let draft = null;
@@ -288,6 +293,105 @@ function fUpdateCtx(){
 function fUpdateProg(){
   const tot=(fState.camp&&fState.camp.perguntas)?fState.camp.perguntas.length:0, done=Math.max(0,fState.stepIdx);
   const el=document.getElementById('prog-fill'); if(el) el.style.width=(tot>0?Math.round(done/tot*100):0)+'%';
+  /* O "2/6" do celular. No desktop o número continua onde sempre esteve (o `.step-label`
+     dentro do balão); aqui ele sobe pro cabeçalho porque o balão virou o painel e não abre
+     com selo de sistema. O elemento existe nos dois, e o CSS decide quem o vê. */
+  const n=document.getElementById('f-mob-prog');
+  if(n){
+    const ativo = tot>0 && !!fState.material;
+    n.hidden = !ativo;
+    n.textContent = ativo ? (fState.done ? 'pronta' : Math.min(done+1,tot)+'/'+tot) : '';
+  }
+  _fSheetSync();
+}
+
+/* ══ O CELULAR É OUTRA COMPOSIÇÃO, NÃO OUTRO FLUXO (2026-09-11) ══════════════════════════
+   A arte subiu para o topo e a conversa virou um painel embaixo dela. Nada aqui cria estado:
+   as funções abaixo leem `fState` e mexem em classe/DOM. O único estado novo é se o painel
+   de respostas está aberto — e isso é uma classe no `<body>`, não uma variável.
+   ⚠ `_fCelular()` repete o `matchMedia` que outros 6 pontos desta base já fazem inline. Não
+   refatorei os 6 (fora do escopo desta rodada); código novo usa esta. */
+function _fCelular(){ return !!(window.matchMedia && matchMedia('(max-width:680px)').matches); }
+
+/* ── ONDE A CONVERSA ANCORA DEPOIS DE UMA MENSAGEM NOVA ──
+   Desktop: no FIM, como todo chat — a mensagem nova chega por baixo.
+   Celular: no COMEÇO, e do `#f-sheet`. Duas diferenças, uma por motivo:
+   · começo, porque só a pergunta atual fica em cena — ancorar no fim corta a PRIMEIRA linha
+     quando ela é longa, e o começo da frase é o que a pessoa precisa ler (visto na
+     recuperação de rascunho, a mensagem mais longa do fluxo);
+   · o `#f-sheet`, porque o `#f-messages` virou `display:contents` para os chips poderem
+     ficar abaixo do campo — sem caixa, ele não rola mais, e `msgs.scrollTop` é no-op. */
+function _fChatAncora(msgs){
+  if(!_fCelular()){ if(msgs) msgs.scrollTop = msgs.scrollHeight; return; }
+  const sheet = document.getElementById('f-sheet');
+  if(sheet) sheet.scrollTop = 0;
+}
+
+/* Rodapé do painel: "Anterior" só existe quando o `fGoBack` de fato pode agir — botão que
+   não faz nada ensina a ignorar botão (mesma regra do `#f-undo-btn`). */
+function _fSheetSync(){
+  const b=document.getElementById('f-sheet-back');
+  if(b) b.hidden = !(fState.stepIdx>0 && !fState.done && fState.editIdx===null);
+  /* Arte pronta: a caixa de resposta some. Não é estética — com `fState.done` o `fSaveAdv`
+     corta na primeira linha e devolve "Quer gerar outra arte?", ou seja, digitar ali não faz
+     nada além de empurrar o card de entrega para fora da vista. E o painel ganha altura,
+     porque a entrega (legenda + três ações) é mais alta que uma pergunta. */
+  try{ document.body.classList.toggle('f-arte-pronta', !!fState.done); }catch(e){}
+}
+
+function fSheetToggle(){
+  const aberto = document.body.classList.toggle('f-sheet-max');
+  const g=document.getElementById('f-sheet-grip');
+  if(g) g.setAttribute('aria-expanded', aberto?'true':'false');
+}
+
+/* ── AS RESPOSTAS SÃO UMA LISTA DE CAMPOS, NÃO UMA TIMELINE ──
+   No celular só a pergunta atual fica em cena, então o histórico precisa de um lugar. Ele
+   não reproduz "Luma: qual preço? / você: R$ 39,90" — mostra rótulo e valor, que é o que a
+   pessoa quer conferir, e reforça que ela está preenchendo uma arte.
+   ⚠ Zero estado próprio: lê `fState.camp.perguntas` + `fState.dados` (a mesma verdade da
+   prévia) e o lápis chama o `fEditCampo` que já existe. */
+function fToggleRespostas(){
+  const box=document.getElementById('f-respostas'); if(!box) return;
+  const abrir = box.hidden;
+  if(abrir) fRenderRespostas();
+  box.hidden = !abrir;
+  document.body.classList.toggle('f-respostas-abertas', abrir);
+  document.body.classList.toggle('f-sheet-max', abrir);
+  const b=document.getElementById('f-sheet-hist');
+  if(b) b.setAttribute('aria-expanded', abrir?'true':'false');
+  const l=document.getElementById('f-sheet-hist-lbl');
+  if(l) l.textContent = abrir ? 'Fechar' : 'Respostas';
+}
+
+function fRenderRespostas(){
+  const box=document.getElementById('f-respostas'); if(!box) return;
+  const pergs=(fState.camp&&fState.camp.perguntas)||[];
+  const linhas=pergs.map((p,i)=>{
+    const v=fState.dados?fState.dados[p.id]:null;
+    const tem=v!=null&&v!=='';
+    const rot=(typeof gFieldLabel==='function')?gFieldLabel(p.id,p):(p.label||p.id);
+    // Foto não vira data-url na tela: vira a miniatura da própria foto + uma palavra.
+    const val = p.isImage
+      ? (tem?`<img class="fr-mini" src="${gEsc(v)}" alt="">Foto enviada`:'<i>sem foto</i>')
+      : (tem?gEsc(String(v)):'<i>ainda não respondido</i>');
+    return `<div class="fr-row${i===fState.stepIdx?' atual':''}">
+      <span class="fr-lbl">${gEsc(rot)}</span>
+      <span class="fr-val${tem?'':' vazia'}">${val}</span>
+      <button type="button" class="fr-ed" onclick="fRespostaEditar(${i})" aria-label="Alterar ${gEsc(rot)}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+      </button>
+    </div>`;
+  }).join('');
+  box.innerHTML=`<h3 class="fr-h">Respostas</h3>${linhas}`
+    +`<button type="button" class="fr-reset" onclick="fResetFlow()">Recomeçar esta arte</button>`;
+}
+
+/* O lápis fecha a lista antes de editar: o passo alvo abre no painel, e deixar a lista por
+   cima dele esconderia justamente a pergunta que o clique pediu. */
+function fRespostaEditar(i){
+  if(document.body.classList.contains('f-respostas-abertas')) fToggleRespostas();
+  fEditCampo(i);
 }
 // Boas-vindas no boot: NÃO interroga sobre campanha nenhuma — só recebe o franqueado e o convida
 // a escolher uma campanha. O chat real (fStartChat) só dispara após a escolha.
@@ -301,7 +405,7 @@ function fShowWelcome(){
      A correção é tirar a palavra, não ramificar por `matchMedia`: sem ela a frase fica
      verdadeira nos dois layouts e não há dois textos para manter em sincronia. */
   const box=document.getElementById('f-msg-box');
-  if(box){ box.disabled=true; box.placeholder='Escolha uma campanha para começar'; }
+  if(box){ box.disabled=true; box.placeholder=_fCelular()?'Escolha uma campanha':'Escolha uma campanha para começar'; }
   try{ fAddBot('Oi! Eu sou a <strong>Luma</strong>. Escolha uma campanha que eu monto a arte com você — leva ~1 minutinho.',[]); }catch(e){}
 }
 
@@ -314,7 +418,7 @@ function fStartChat(){
      voltava habilitado ainda dizendo "Escolha uma campanha para começar", com a campanha
      já escolhida: instrução falsa em cima de um campo que aceita digitação. O placeholder
      por passo é reposto depois pelo `fUpdateInputPlaceholder`. */
-  const _b=document.getElementById('f-msg-box'); if(_b){ _b.disabled=false; _b.placeholder='Digite sua resposta...'; }
+  const _b=document.getElementById('f-msg-box'); if(_b){ _b.disabled=false; _b.placeholder=_fCelular()?'Sua resposta':'Digite sua resposta...'; }
   fState.stepIdx=-1;fState.dados={};fState.done=false;fUpdateProg();
   fState.extractedColors={};
   fLpRefresh();
@@ -402,11 +506,28 @@ function fNextStep(){
   const mic=document.getElementById('f-chat-mic'); if(mic) mic.disabled=false;
   const cfg = fGetFieldType(p.id);
   const typeIcon = {price:'R$', discount:'%', code:'#', text:'Aa'}[cfg.type] || 'Aa';
-  const jaTemNota = jaTem ? ' · <strong>já preenchido</strong> — mantenha ou edite' : '';
+  /* No celular essa nota sai: o rótulo é uma linha só em maiúscula e "PREÇO PROMO · JÁ
+     PREENCHIDO — MANTENHA OU EDITE" estourava a tela (medido a 375px: cortava no meio).
+     E ela diz o que o chip "Manter “23”", logo abaixo do campo, já diz melhor — com o valor
+     de verdade dentro e um alvo de toque. No desktop o rótulo tem largura de sobra e a nota
+     continua, porque lá o chip fica longe, no meio da conversa. */
+  const jaTemNota = (jaTem && !_fCelular()) ? ' · <strong>já preenchido</strong> — mantenha ou edite' : '';
   const fieldHint = `<div class="field-hint"><span class="field-hint-type">${typeIcon}</span><span class="field-hint-text">${gEsc(cfg.label)}${jaTemNota}</span></div>`;
   
   // Sugestões ricas automáticas baseadas no tipo de dado da variável (UX do franqueado)
   let sugestoes = p.sugestoes ? p.sugestoes.slice() : [];
+
+  /* ⛔ NO CELULAR O CHIP DE CONTEÚDO SAI (pedido do Ryan, 11/09). "Combo família",
+     "Frete grátis", "X-Bacon" custavam duas linhas do painel — espaço que a ARTE usa
+     melhor — e ofereciam uma resposta antes de a pessoa pensar na dela. O campo passa a
+     ser a resposta.
+     ⚠ A LINHA É UM `= []` E NÃO UM `if` EM VOLTA DE TUDO, de propósito: os três blocos
+     logo abaixo re-derivam a lista a partir do TIPO do campo, e só disparam quando ela
+     está vazia. Ou seja, booleano (Sim/Não), seleção e paleta de cor voltam sozinhos — e
+     precisam voltar: neles o chip não é sugestão, é o único controle que responde a
+     pergunta. Quem some é só o palpite de texto livre.
+     "Manter" e "Pular" entram DEPOIS disto e também sobrevivem: falam do que já existe. */
+  if (_fCelular()) sugestoes = [];
   
   if (cfg.type === 'boolean' && (!sugestoes || !sugestoes.length)) {
     sugestoes = ['Sim', 'Não'];
@@ -436,7 +557,13 @@ function fNextStep(){
     sugestoes.push('Pular');
   }
 
-  fAddBot(`${stepLabel}${fPerguntaTexto(p)}${fieldHint}`, sugestoes, canGoBack);
+  /* ⚠ O `<span>` em volta da frase NÃO é decoração. No celular o balão é `flex-direction:
+     column` (para o rótulo do campo subir acima da pergunta), e em flex CADA `<strong>` vira
+     um item próprio e cada trecho de texto solto vira um item anônimo — em coluna, cada um
+     ganha sua própria linha. "Antes de começar a arte de <strong>X</strong>, quer adiantar?"
+     saía em três linhas, com a vírgula órfã no começo da terceira. Com a frase dentro de um
+     elemento, o flex vê UM item e a linha volta a fluir normalmente. */
+  fAddBot(`${stepLabel}<span class="perg-frase">${fPerguntaTexto(p)}</span>${fieldHint}`, sugestoes, canGoBack);
   // Atualiza placeholder do input com dica do tipo
   fUpdateInputPlaceholder(p.id);
   // Rehidrata o input com o que já existe (prévia, rascunho ou perfil da loja): o valor
@@ -531,7 +658,7 @@ function fAddBotImageUpload(stepLabel, pergunta, canGoBack){
   const msgs=document.getElementById('f-messages');
   const w=document.createElement('div');w.className='msg bot active-prompt';
   const uploadId='f-upload-'+Date.now();
-  const fieldHint = `<div class="field-hint"><span class="field-hint-type"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span><span class="field-hint-text">${gEsc(pergunta.label)} · imagem (PNG/JPG, máx 20MB)</span></div>`;
+  const fieldHint = `<div class="field-hint"><span class="field-hint-type"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span><span class="field-hint-text">${gEsc(pergunta.label)}${_fCelular()?'':' · imagem (PNG/JPG, máx 20MB)'}</span></div>`;
   let back='';
   if(canGoBack){
     back = `<div class="qr-back-wrap"><button class="qr-back" onclick="fGoBack()" title="Voltar uma pergunta"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>Voltar uma pergunta</button></div>`;
@@ -553,11 +680,15 @@ function fAddBotImageUpload(stepLabel, pergunta, canGoBack){
           <line x1="12" y1="3" x2="12" y2="15"/>
         </svg>
       </div>
-      <div class="f-upload-title">Toque pra enviar uma foto</div>
+      <!-- A copy muda no celular: a pergunta logo acima já diz "Envie a foto do produto", e
+           repetir "Toque pra enviar uma foto" aqui é a mesma frase duas vezes em 40px. No
+           telefone o título vira o RÓTULO DA AÇÃO ("Escolher foto") e o sub diz de onde a
+           foto pode vir — que é a dúvida real de quem toca. -->
+      <div class="f-upload-title">${_fCelular()?'Escolher foto':'Toque pra enviar uma foto'}</div>
       <div class="f-upload-sub">recentes, lojas salvas ou novo arquivo<span class="f-upload-cola"> · ou cole com ${_F_TECLA_COLAR}, ou arraste pra cá</span></div>
     </div>`;
   w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div>
-    <div class="bbl">${stepLabel}${pergunta.texto}${fieldHint}</div>
+    <div class="bbl">${stepLabel}<span class="perg-frase">${pergunta.texto}</span>${fieldHint}</div>
     ${zoneHtml}
     ${back}
   </div>`;
@@ -927,8 +1058,20 @@ function fUpdateInputPlaceholder(id){
   // Exemplo definido pelo designer (no campo) tem prioridade — é o que ele escolheu mostrar aqui.
   const vDef = (typeof dVars!=='undefined' && dVars) ? dVars.find(x=>x.name===id) : null;
   const ex = (vDef && vDef.example!=null && String(vDef.example).trim()!=='') ? String(vDef.example).trim() : '';
-  if(ex){ box.placeholder = 'Ex: '+ex; return; }
-  const hints = {
+  /* ── A DICA ENCOLHE NO CELULAR ──
+     A caixa tem ~250px num telefone: "Ex: 20% off ou R$ 5 off" era cortado no meio e virava
+     "Ex: 20% off ou R$ 5..." — uma dica pela metade ensina menos que nenhuma. E o prefixo
+     "Ex:" ficou redundante desde que o RÓTULO do campo subiu para cima da pergunta ("PREÇO
+     PROMOCIONAL"): quem lê o rótulo já sabe que o cinza da caixa é exemplo, não valor.
+     No desktop a caixa é larga e a frase completa continua cabendo — nada muda lá. */
+  const cel = _fCelular();
+  if(ex){ box.placeholder = cel ? ex : ('Ex: '+ex); return; }
+  const hints = cel ? {
+    price:    'R$ 9,90',
+    discount: '20% off',
+    code:     'BURGER10',
+    text:     'Sua resposta'
+  } : {
     price:    'Ex: R$ 9,90',
     discount: 'Ex: 20% off ou R$ 5 off',
     code:     'Ex: BURGER10',
@@ -950,6 +1093,10 @@ function fEditCampo(idx){
   fState.done=false;
   fState.stepIdx=idx;fState.editIdx=idx;
   fSaveChatDraft();
+  /* ⚠ `done` e `editIdx` acabaram de mudar, e o rodapé do painel (celular) lê os dois: sem
+     isto o "Anterior" some e a caixa de resposta continua escondida — justamente no caminho
+     do lápis da lista de Respostas, que é quando se edita DEPOIS da arte pronta. */
+  try{ _fSheetSync(); }catch(e){}
   const p=fState.camp.perguntas[idx];
   // Mapa próprio + `|| p.id` no fim: era o quarto lugar com sua própria tabela de rótulos, e o
   // único cujo fallback mostrava o nome da variável. Agora é o motor único (00-config.js).
@@ -1473,7 +1620,14 @@ function fGerarArte(){
       </div>`;
     }
     w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div>
-      <div class="bbl" style="padding-bottom:6px;display:inline-flex;align-items:center;gap:4px">Arte gerada! <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="color:#22c55e"><polyline points="20 6 9 17 4 12"/></svg></div>
+      <div class="bbl art-ok">
+        <span class="art-ok-tick" aria-hidden="true"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+        <span class="art-ok-copy"><strong>Sua arte está pronta</strong><!--
+          O "Salva em Minhas artes" só aparece no CELULAR (CSS). No desktop essa mesma frase
+          chega logo depois, na mensagem de rodapé do fGerarArte; no celular aquela mensagem
+          não existe (ela roubaria a cena da entrega), então a informação mora aqui.
+       --><small class="art-ok-sub">Salva em Minhas artes</small></span>
+      </div>
       <div class="art-wrap">
         <div class="art-preview-mat">${canvasBlock}</div>
         <div class="multi-fmt-row" style="${(fState.material && fState.material.fmt) ? 'display:none;' : ''}">
@@ -1496,6 +1650,17 @@ function fGerarArte(){
             <button type="button" class="art-btn pri art-download" onclick="fBaixar(this,'${previewCanvasId}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="4" x2="12" y2="16"/><polyline points="18 11 12 17 6 11"/><path d="M5 20h14"/></svg>Baixar PNG</button>
             <button type="button" class="art-btn art-redo" onclick="fRefazer()" title="Reiniciar as respostas desta arte"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Refazer</button>
           </div>
+          <!-- PUBLICAR NO INSTAGRAM. O fPostarInstagram esta escrito e completo em
+               png-generator.js desde sempre (folha nativa com a legenda junto, e o fallback
+               que baixa o arquivo e abre o app) e NAO TINHA UM UNICO CHAMADOR - a funcao
+               existia e nao havia como chegar nela. Aqui ela ganha a porta.
+               Entra em LINHA PROPRIA, embaixo: a dupla Baixar/Refazer tem peso igual por
+               decisao do Ryan (09/09) e nao se mexe: sao as duas acoes DA ARTE. Publicar e
+               de outra natureza - leva a arte pra fora - e por isso nao disputa aquela linha.
+               ATENCAO: comentario DENTRO de template literal - nada de crase aqui. -->
+          <button type="button" class="art-btn art-insta" onclick="fPostarInstagram(this,'${previewCanvasId}')" title="Preparar a arte e a legenda para publicar no Instagram">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5.5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.6" cy="6.4" r="1.15" fill="currentColor" stroke="none"/></svg>Publicar no Instagram
+          </button>
         </section>
         <!-- Gerar em lote DE VOLTA no card, a pedido do Ryan (09/09). Ele saiu na rodada de
              enxugamento e é uma ação de outra natureza (produção em escala), então volta como
@@ -1534,7 +1699,17 @@ function fGerarArte(){
        GERAÇÃO — grudado na arte, em toda arte, antes mesmo de a pessoa baixar. Virou convite
        pós-download com carência (`fFeedbackAfterDownload`, feedback.js). A feature é a mesma;
        o que mudou é quando e onde ela pede. */
-    setTimeout(()=>fAddBot('Arte salva em <strong>Minhas artes</strong>! Clique em outro formato para gerar variações.',[]),500);
+    /* ⚠ ESTA MENSAGEM NÃO PODE EXISTIR NO CELULAR. Lá o painel mostra só a bolha
+       `.active-prompt`, e esta chega 500ms DEPOIS da entrega — ela roubaria o `active-prompt`
+       do card que acabou de nascer e o "Baixar PNG" sumiria da tela meio segundo depois de
+       aparecer. Além disso ela fala de "clique em outro formato", que é a fileira de formatos
+       do próprio card: no celular a orientação viria antes do olho chegar no controle.
+       No desktop a conversa inteira continua em cena e a mensagem segue fazendo sentido. */
+    /* ⚠ ESTA MENSAGEM NÃO PODE EXISTIR NO CELULAR. Lá o painel mostra só a bolha
+       `.active-prompt`, e esta chega 500ms DEPOIS da entrega — ela roubaria o `active-prompt`
+       do card que acabou de nascer e o "Baixar PNG" sumiria da tela meio segundo depois de
+       aparecer. No desktop a conversa inteira continua em cena e a mensagem segue fazendo sentido. */
+    if(!_fCelular()) setTimeout(()=>fAddBot('Arte salva em <strong>Minhas artes</strong>! Clique em outro formato para gerar variações.',[]),500);
   },800);
 }
 async function fOutroFormato(id, snapId){
@@ -1894,7 +2069,8 @@ function fAddBot(html,qrs,canGoBack){
   w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8.01" y2="16"/><line x1="16" y1="16" x2="16.01" y2="16"/></svg></div><div class="msg-content"><div class="bbl">${html}</div>${q}${back}</div>`;
   msgs.querySelectorAll('.msg').forEach(m => m.classList.remove('active-prompt'));
   _fApplyMessageGrouping(msgs,w,'bot');
-  msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;
+  msgs.appendChild(w);
+  _fChatAncora(msgs);
 }
 
 function fGetContrastColor(hex) {

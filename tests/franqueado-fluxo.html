@@ -563,7 +563,7 @@ await test('A entrega da arte não carrega mais o feedback grudado', async()=>{
 });
 
 /* ── A ENTREGA ENXUTA ────────────────────────────────────────────────────────────────────── */
-await test('O card final prioriza Baixar PNG e não oferece rede social', async()=>{
+await test('O card final prioriza Baixar PNG; Instagram sim, WhatsApp não', async()=>{
   const fonte=String(fGerarArte);
   assert(/art-btn pri art-download/.test(fonte),'Baixar PNG não é a ação primária do card');
   /* Baixar e Refazer com o MESMO PESO (pedido do Ryan, 09/09): os dois na mesma linha, os
@@ -575,7 +575,17 @@ await test('O card final prioriza Baixar PNG e não oferece rede social', async(
   /* Procura a ENTRADA (o onclick), não o nome: o comentário do próprio código cita as
      funções para dizer que os motores continuam vivos, e um /fPostarInstagram/ solto casava
      com o comentário em vez do botão. Achado rodando o caso. */
-  assert(!/onclick="fPostarInstagram/.test(fonte),'o card ainda oferece Postar no Instagram');
+  /* ⚠ INSTAGRAM VOLTOU AO CARD (pedido do Ryan, 11/09/2026) — a asserção era o INVERSO desta
+     até hoje. O botão tinha saído na "entrega enxuta" de 09/09; a rodada de mobile pediu
+     "[Baixar PNG] [Publicar no Instagram]" no fim do fluxo, em dois esboços do pedido. Mesma
+     regra que o Gerar em lote já tinha estreado três linhas abaixo: a palavra do dono vence a
+     decisão anterior, e o teste registra a virada em vez de sumir.
+     O `fPostarInstagram` já existia inteiro em png-generator.js e não tinha NENHUM chamador —
+     o que voltou foi só a porta. */
+  assert(/onclick="fPostarInstagram/.test(fonte),'o Publicar no Instagram não está no card');
+  /* WhatsApp continua FORA: o pedido de 11/09 citou só o Instagram, e duas redes na entrega
+     recriam o menu de compartilhamento que a entrega enxuta veio matar. O motor segue vivo
+     (asserção no fim deste caso), então voltar é só uma linha no dia em que for pedido. */
   assert(!/onclick="fEnviarWhatsApp/.test(fonte),'o card ainda oferece Enviar no WhatsApp');
   // Gerar em lote VOLTOU ao card por pedido do Ryan (09/09) — ele saiu no enxugamento e a
   // palavra do dono vence a decisão anterior. É ação de outra natureza, então é faixa própria.

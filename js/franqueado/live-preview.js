@@ -1328,19 +1328,22 @@ function _fLpAbrirGaveta(){
    1. **NÃO é um segundo renderizador** — mesma lei da miniatura acima: `drawImage` do
       `#lp-canvas`, cópia de pixels do motor único. Se um dia a arte divergir da prova em tela
       cheia, o bug está no motor, nunca aqui.
-   2. **O cartão é o ÚLTIMO item flex, por `order`, não por posição no DOM.** As bolhas entram
-      por `msgs.appendChild(...)` em ~6 lugares do `chat.js`; qualquer uma delas cairia depois
-      do cartão. `order:1` (contra o `0` implícito das bolhas) resolve sem que nenhum desses
-      chamadores precise saber que o cartão existe. O CSS dá a ele `flex:1 1 auto`: ele ABSORVE
-      a sobra e ENCOLHE até o piso quando as bolhas crescem — sem uma linha de conta de altura. */
+   2. **O cartão NÃO mora mais dentro do `#f-messages` (2026-09-11).** Ele era o último item
+      flex da conversa, por `order:1`, e isso o fazia depender da altura das bolhas: o painel
+      crescia, a arte encolhia. Com a arte virando protagonista da tela, ela sobe para irmã
+      DIRETA do `#f-chat-col`, entre o cabeçalho e o painel — sua própria região, com
+      `flex:1 1 auto` contra o painel, que tem altura de conteúdo.
+      ⚠ O PREÇO DISSO: o `innerHTML=''` do `fStartChatComMaterial` deixou de apagá-lo. Sem
+      isso o cartão mostraria a arte ANTERIOR no intervalo entre trocar de material e o
+      render novo terminar (ele é async). Quem apaga agora é o próprio `fStartChatComMaterial`,
+      explicitamente — e o cartão se recria aqui no primeiro render bom. */
 function _fLpPaintCartao(src){
   if(!window.matchMedia || !matchMedia('(max-width:680px)').matches) return;
-  const msgs = document.getElementById('f-messages');
-  if(!msgs) return;
+  const col = document.getElementById('f-chat-col');
+  const sheet = document.getElementById('f-sheet');
+  if(!col || !sheet) return;
   let card = document.getElementById('f-chat-art');
   if(!card){
-    // `fStartChatComMaterial` faz `innerHTML=''` a cada arte nova, então o cartão se recria
-    // sozinho aqui em vez de depender de alguém lembrar de repô-lo.
     card = document.createElement('button');
     card.id = 'f-chat-art';
     card.type = 'button';
@@ -1356,7 +1359,9 @@ function _fLpPaintCartao(src){
       _fLpAbrirGaveta();
     });
   }
-  if(card.parentElement !== msgs) msgs.appendChild(card);
+  // Antes do painel e depois do cabeçalho — a posição no DOM É a ordem visual agora
+  // (o `order:1` que resolvia isso pelo CSS saiu junto com a mudança de caixa).
+  if(card.nextElementSibling !== sheet) col.insertBefore(card, sheet);
   const cv = card.querySelector('canvas');
   /* ⚠ O JS NÃO MEDE A CAIXA. Minha primeira versão media o cartão e cravava
      `cv.style.width/height` em pixels — e isso REALIMENTAVA o layout: a altura fixa do canvas

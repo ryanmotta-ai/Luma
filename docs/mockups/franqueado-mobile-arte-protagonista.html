@@ -175,7 +175,7 @@ h1{font-size:21px;font-weight:800;margin:0 0 4px;letter-spacing:-.02em}
 .perg-tx{font-size:17px;font-weight:700;letter-spacing:-.018em;line-height:1.28;margin:0 0 13px;color:var(--text)}
 .perg-tx .ctx{display:block;font-size:12.5px;font-weight:500;color:var(--text-3);margin-top:4px;letter-spacing:0}
 
-/* Chips (§8) */
+/* O que sobrou de chip: "Manter" e "Pular" — controle de fluxo, não sugestão de conteúdo */
 .chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
 .chip{
   appearance:none;font:inherit;font-size:13.5px;font-weight:600;
@@ -301,6 +301,10 @@ h1{font-size:21px;font-weight:800;margin:0 0 4px;letter-spacing:-.02em}
              opacity var(--dur-fast) var(--ease-in);
 }
 .screen.kb .hd{height:0;padding-top:0;padding-bottom:0;opacity:0;border-bottom-color:transparent;pointer-events:none}
+/* ⚠ A reserva do NOTCH morava no padding do cabeçalho. Sem ele, a arte subia até debaixo
+   da barra de status e encostava no canto arredondado da tela. Na implementação isto é
+   `env(safe-area-inset-top)`; aqui os 14px fixos simulam o iPhone. */
+.screen.kb .palco{padding-top:calc(14px + 12px)}
 
 /* ── Teclado simulado (§24) ── */
 .teclado{
@@ -337,7 +341,7 @@ h1{font-size:21px;font-weight:800;margin:0 0 4px;letter-spacing:-.02em}
 <body>
 <div class="pg">
   <h1>Luma no celular — a arte é o produto, a conversa é o controle</h1>
-  <p class="sub">Proposta de composição para o fluxo individual de criação em telas <b>≤ 680px</b> (o mesmo corte que o código já usa). Toque nos chips: a arte muda, o passo avança. Arraste a alça do painel.</p>
+  <p class="sub">Proposta de composição para o fluxo individual de criação em telas <b>≤ 680px</b> (o mesmo corte que o código já usa). Responda um passo: a arte muda na hora e o próximo entra. Arraste a alça do painel; abra o teclado pelos botões ao lado.</p>
 
   <div class="cols">
     <!-- ══ APARELHO ══ -->
@@ -436,9 +440,19 @@ h1{font-size:21px;font-weight:800;margin:0 0 4px;letter-spacing:-.02em}
           sem avatar repetido.
         </div>
         <div class="note" style="margin-top:13px">
-          <b>O controle segue o tipo.</b> Texto vira campo livre; escolha vira chips com
-          "digitar outra" fino; preço abre com <code>R$</code> e teclado decimal; foto
-          troca o campo por dois botões — o input não fica ocupando espaço quando não serve.
+          <b>Sem sugestão de conteúdo.</b> Os chips de valor saíram: custavam duas linhas do
+          painel e davam a resposta antes de a pessoa pensar na dela. Ficam só
+          <b>Manter</b> e <b>Pular</b>, que falam do que já existe — sem eles o fluxo trava.
+        </div>
+        <div class="note" style="margin-top:13px">
+          <b>O controle segue o tipo.</b> Texto abre campo livre; preço abre com
+          <code>R$</code> e teclado decimal; foto troca o campo por dois botões — o input
+          não fica ocupando espaço quando não serve.
+        </div>
+        <div class="note" style="margin-top:13px">
+          <b>Teclado aberto, cabeçalho fora.</b> Campanha e progresso são orientação, e
+          ninguém consulta orientação enquanto digita. São ~58px que voltam pra arte; o
+          <b>Anterior</b> do rodapé segue no lugar.
         </div>
         <div class="note" style="margin-top:13px">
           <b>Isto é um desenho, não o app.</b> A arte aqui é CSS; na implementação continua
@@ -518,19 +532,27 @@ function pintaCorpo(){
       </button>
       <button class="wide ghost" data-resp="__foto__">Usar uma foto recente</button>`;
   } else {
-    const chips = (p.chips||[]).map(c=>`<button class="chip" data-resp="${esc(c)}">${esc(c)}</button>`).join('');
-    /* §13 resposta salva: o passo que já tem valor abre com "Manter", nunca com "Pular"
-       — pular grava vazio e apagaria o que a pessoa escreveu na arte. */
+    /* ⛔ SEM SUGESTÃO DE CONTEÚDO NO CELULAR (decisão do Ryan, 11/09).
+       Os chips de valor ("Combo família", "Frete grátis", "39,90") saíram. Numa tela
+       estreita eles custavam duas linhas do painel — espaço que a ARTE usa melhor — e
+       ofereciam uma resposta antes de a pessoa pensar na dela. O campo passa a ser a
+       resposta, sempre.
+
+       ⚠ O QUE FICA NÃO É SUGESTÃO, É CONTROLE DE FLUXO, e por isso sobrevive ao corte:
+       · "Manter" — o passo que chega com valor (vindo da prévia, do rascunho ou do perfil
+         da loja) precisa de um jeito de confirmar sem redigitar. Sem ele, editar a arte
+         pela prévia vira trabalho perdido no passo seguinte.
+       · "Pular" — sem ele, campo opcional não tem saída e o fluxo trava.
+       Nenhum dos dois propõe conteúdo: os dois falam do que JÁ existe. */
     const manter = atual
       ? `<button class="chip manter" data-resp="${esc(atual)}">
            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
            Manter “${esc(atual.length>18?atual.slice(0,16)+'…':atual)}”</button>`
       : (p.opcional ? `<button class="chip ghost" data-resp="">Pular</button>` : '');
 
-    const slim = (p.chips && p.chips.length) ? ' slim' : '';
     const prefix = p.tipo==='price' ? '<span class="prefix">R$</span>' : '';
-    const campo = `
-      <div class="campo${slim}">
+    controle = `
+      <div class="campo">
         <div class="campo-box">${prefix}
           <input id="inp" type="text" inputmode="${p.tipo==='price'?'decimal':'text'}"
                  placeholder="${esc(p.ph||'Digite aqui…')}" value="${esc(atual||'')}">
@@ -538,11 +560,8 @@ function pintaCorpo(){
         <button class="campo-go" id="go" aria-label="Confirmar">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
-      </div>`;
-    /* Preço não ganha chips no lugar do teclado: o valor é sempre específico. O campo
-       vem primeiro e largo, e a sugestão (se houver) fica embaixo como atalho. */
-    controle = p.tipo==='price' ? campo + `<div class="chips" style="margin:10px 0 0">${chips}${manter}</div>`
-                                : `<div class="chips">${manter}${chips}</div>` + campo;
+      </div>
+      ${manter?`<div class="chips" style="margin:11px 0 0">${manter}</div>`:''}`;
   }
 
   corpo.innerHTML = `
