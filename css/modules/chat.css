@@ -3267,14 +3267,19 @@ body.f-arte-pronta #f-chat-col{background:var(--off-white)}
    o conteúdo passa da altura, ele transborda para CIMA e o começo fica inalcançável (não há
    scroll negativo). O `safe` centraliza enquanto cabe e volta a alinhar no topo quando não
    cabe — que é exatamente o comportamento que se quer numa legenda de tamanho variável. */
-body.f-arte-pronta #f-messages{padding:20px;gap:0;justify-content:safe center}
+body.f-arte-pronta #f-messages{
+  padding:clamp(24px,4vh,40px) 20px;
+  gap:0;
+  align-items:center;
+  justify-content:safe center;
+}
 /* O espaçador que empurra a conversa para o rodapé é de chat; aqui o conteúdo começa em cima. */
 body.f-arte-pronta #f-messages::before{display:none}
 
   /* A mensagem da entrega deixa de ser balão e vira o corpo do painel. */
-body.f-arte-pronta .msg.bot:has(.art-wrap){max-width:100%;align-self:stretch;margin:0}
+body.f-arte-pronta .msg.bot:has(.art-wrap){width:min(100%,380px);max-width:380px;align-self:center;margin:0}
 body.f-arte-pronta .msg.bot:has(.art-wrap) .av{display:none}
-body.f-arte-pronta .msg.bot:has(.art-wrap)>div:not(.av){flex:1;min-width:0;max-width:100%}
+body.f-arte-pronta .msg.bot:has(.art-wrap)>div:not(.av){flex:1;width:100%;min-width:0;max-width:100%}
 
   /* ── 4. A ARTE NÃO APARECE DUAS VEZES ──
      A peça já ocupa 74% da tela ao lado. A miniatura dentro do card era a mesma arte de novo,
@@ -3285,19 +3290,16 @@ body.f-arte-pronta .art-wrap .art-preview-mat{display:none}
    distância umas das outras — nada se agrupava, e o olho lia sete blocos soltos em vez de
    quatro assuntos. Agora cada bloco que ABRE um assunto paga a margem maior; quem continua o
    assunto anterior paga a menor. É a escada de espaçamento da casa (múltiplos de 2/base 4). */
-body.f-arte-pronta .art-wrap{border:0;box-shadow:none;background:transparent;margin:0;padding:0;animation:none;max-width:none;min-width:0;width:100%;display:flex;flex-flow:row wrap;gap:0;align-content:flex-start}
-/* dentro do grupo */
-body.f-arte-pronta .art-wrap .art-btn.art-voltar{margin-top:0}
+body.f-arte-pronta .art-wrap{border:0;box-shadow:none;background:transparent;margin:0 auto;padding:0;animation:none;max-width:380px;min-width:0;width:100%;display:flex;flex-flow:row wrap;gap:0;align-content:flex-start}
 /* abre grupo novo */
-body.f-arte-pronta .art-wrap .art-btn.art-download{margin-top:16px}
-body.f-arte-pronta .art-wrap .caption-assistant-panel{margin-top:22px}
-body.f-arte-pronta .art-wrap .art-bulk-btn{margin-top:22px}
+body.f-arte-pronta .art-wrap .art-btn.art-download{margin-top:20px}
+body.f-arte-pronta .art-wrap .caption-assistant-panel{margin-top:28px}
+body.f-arte-pronta .art-wrap .art-bulk-btn{margin-top:24px}
 /* ⚠ Cada bloco pela CLASSE, e não por `.art-wrap>*`. O `display:contents` do `.art-actions`
    e do `.art-actions-dupla` muda o LAYOUT, não o DOM: os botões viram itens flex desta caixa,
    mas continuam netos para o seletor, e o `>` não os alcançava. Medido: Baixar PNG e Publicar
    ficaram lado a lado, com metade da largura cada, em vez de uma linha para cada um. */
 body.f-arte-pronta .art-wrap .art-btn.art-download,
-body.f-arte-pronta .art-wrap .art-btn.art-voltar,
 body.f-arte-pronta .art-wrap .caption-assistant-panel,
 body.f-arte-pronta .art-wrap .art-bulk-btn,
 body.f-arte-pronta .art-wrap .multi-fmt-row{flex:1 1 100%;min-width:0}
@@ -3305,28 +3307,28 @@ body.f-arte-pronta .art-wrap .multi-fmt-row{flex:1 1 100%;min-width:0}
   /* ── 5. A CONFIRMAÇÃO ──
      "Arte salva em Minhas artes!" era um balão de chat inteiro, 500ms depois da entrega. Vira
      uma linha sob o título: status, não evento. */
-body.f-arte-pronta .bbl.art-ok{display:flex;align-items:center;gap:11px;padding:0;background:transparent;border:0;box-shadow:none;animation:none;max-width:none}
-body.f-arte-pronta .art-ok-tick{width:26px;height:26px;flex-shrink:0;border-radius:50%;background:var(--green);color:var(--white);display:flex;align-items:center;justify-content:center}
+body.f-arte-pronta .bbl.art-ok{display:flex;align-items:center;gap:12px;padding:2px 0;background:transparent;border:0;box-shadow:none;animation:none;max-width:none}
+body.f-arte-pronta .art-ok-tick{width:28px;height:28px;flex-shrink:0;border-radius:50%;background:var(--green);color:var(--white);display:flex;align-items:center;justify-content:center}
 body.f-arte-pronta .art-ok-copy{display:flex;flex-direction:column;min-width:0}
-body.f-arte-pronta .art-ok-copy strong{font-size:17px;font-weight:800;letter-spacing:-.015em;color:var(--text)}
-body.f-arte-pronta .art-ok-sub{display:block;font-size:12.5px;font-weight:500;color:var(--text-3);margin-top:1px}
+body.f-arte-pronta .art-ok-copy strong{font-size:18px;font-weight:900;letter-spacing:-.02em;color:var(--text)}
+body.f-arte-pronta .art-ok-sub{display:block;font-size:12.5px;font-weight:500;color:var(--text-3);margin-top:2px}
 
   /* ── 6. A LEGENDA PERDE O CARD DENTRO DO CARD ──
      Eram três molduras aninhadas (painel → cartão da legenda → caixa do texto) para mostrar um
      parágrafo. Fica a moldura do texto, que é a que serve para ler; o resto vira rótulo. */
 body.f-arte-pronta .caption-assistant-panel{background:transparent;border:0;box-shadow:none;padding:0;margin:0}
-body.f-arte-pronta .caption-card-head{padding:0 0 7px;border:0;background:transparent}
-body.f-arte-pronta .caption-card-title{font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3)}
+body.f-arte-pronta .caption-card-head{padding:0 0 10px;border:0;background:transparent}
+body.f-arte-pronta .caption-card-title{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3)}
 body.f-arte-pronta .caption-card-sub{display:none}   /* "Copie e publique junto com a arte" — o botão já diz */
 /* O texto da legenda é para LER e copiar, não para espiar: sobe de 13px e ganha entrelinha.
    A borda vinha na cor da campanha e sumia contra o branco — vira neutra, e a caixa passa a
    ler como área de texto sobre a mesa off-white do painel. */
-body.f-arte-pronta .caption-content-box{margin:0;border-radius:12px;padding:13px 14px;background:var(--white);border:1px solid var(--gray-light);font-size:13.5px;line-height:1.55;color:var(--text-2);max-height:none}
+body.f-arte-pronta .caption-content-box{margin:0;border-radius:12px;padding:16px;background:var(--white);border:1px solid var(--gray-light);font-size:13.5px;line-height:1.58;color:var(--text-2);max-height:none}
 /* ⚠ `max-height:none` em vez do teto de 168px do desktop-em-criação. Medido: a legenda tinha
    256px de texto em 168px de caixa e a última linha visível ficava partida ao meio — lê como
    defeito de render, não como "tem mais abaixo". Aqui o painel inteiro é que rola, e com a
    conversa fora de cena há altura de sobra para a legenda existir inteira. */
-body.f-arte-pronta .caption-card-foot{padding:9px 0 0;border:0;background:transparent;align-items:center}
+body.f-arte-pronta .caption-card-foot{padding:10px 0 0;border:0;background:transparent;align-items:center;gap:10px}
 /* Copiar é a ação do bloco e leva a caixa; "Gerar outra" é alternativa e fica em texto. */
 body.f-arte-pronta .caption-copy-btn{min-height:36px;padding-inline:14px;border-radius:10px;font-size:12.5px}
 body.f-arte-pronta .caption-alt-btn{font-size:12px;color:var(--text-3)}
@@ -3340,30 +3342,24 @@ body.f-arte-pronta .caption-alt-btn{font-size:12px;color:var(--text-3)}
      09/09) e continua valendo lá; aqui o trabalho acabou e a hierarquia é outra. Com as caixas
      dissolvidas, o `order` alcança todos os botões de uma vez. */
 body.f-arte-pronta .art-actions,body.f-arte-pronta .art-actions-dupla{display:contents}
-body.f-arte-pronta .art-btn{width:100%;min-height:46px;border-radius:13px;font-size:15px;font-weight:800}
+body.f-arte-pronta .art-btn{width:100%;min-height:48px;border-radius:12px;font-size:15px;font-weight:800}
 body.f-arte-pronta .art-btn.art-download{order:1}
-/* Hierarquia do item 17: "Voltar para edição" é terciário e o "Refazer" é o último, porque
-   apaga tudo. Os dois dividem a fileira do fim, sem caixa, longe do Baixar PNG. */
+/* "Voltar para edição" e "Refazer" são terciários e dividem a fileira do fim, sem caixa,
+   longe do Baixar PNG e depois da extensão de produção em lote. */
 body.f-arte-pronta .art-btn.art-voltar{order:5}
-body.f-arte-pronta .art-btn.art-voltar{min-height:40px;margin-top:14px;font-size:13px;font-weight:700;background:transparent;border-color:transparent;box-shadow:none;color:var(--text-2);border-top:1px solid var(--gray-light);border-radius:0;padding-top:14px}
+body.f-arte-pronta .art-btn.art-voltar{min-height:44px;margin-top:18px;font-size:12.5px;font-weight:700;background:transparent;border-color:transparent;box-shadow:none;color:var(--text-2);border-top:1px solid var(--gray-light);border-radius:0;padding:14px 8px 0}
 body.f-arte-pronta .art-btn.art-voltar:hover{background:var(--gray-light);color:var(--text)}
-/* O Refazer perde a régua: ela agora abre a fileira, no Voltar. */
-body.f-arte-pronta .art-btn.art-redo{border-top:0;margin-top:0;padding-top:0}
 body.f-arte-pronta .caption-assistant-panel{order:3}
 body.f-arte-pronta .art-bulk-btn{order:4}
 body.f-arte-pronta .art-btn.art-redo{order:6}
-/* Ajustar e Refazer: mesma fileira terciária, sem caixa, um ao lado do outro. */
-/* ⚠ Estes dois eram o SEXTO elemento no mesmo cinza `--text-3`. Eles são as únicas ações
-   daquela faixa e no cinza de rodapé pareciam desabilitados — sobem para `--text-2`.
-   A linha acima deles é o que diz "daqui para baixo é outro assunto": sem ela, Ajustar e
-   Refazer ficavam pendurados no cartão do lote. */
-/* O Refazer ficou sozinho na fileira terciária (o "Ajustar arte" saiu): ocupa a linha
-   inteira, com a régua acima dizendo "daqui para baixo é outro assunto". Continua sem caixa e
-   com o vermelho só no hover — é destrutivo, mas ninguém o chamou ainda. */
+/* A régua contínua agrupa as duas rotas de saída; o peso neutro impede que pareçam novas
+   etapas obrigatórias depois que a pessoa já concluiu a arte. */
+body.f-arte-pronta .art-wrap .art-btn.art-voltar,
+body.f-arte-pronta .art-wrap .art-btn.art-redo{flex:1 1 50%;width:auto;min-width:0}
 body.f-arte-pronta .art-btn.art-redo{
-    min-height:40px;margin-top:14px;font-size:13px;font-weight:700;
+    min-height:44px;margin-top:18px;font-size:12.5px;font-weight:700;
     background:transparent;border-color:transparent;box-shadow:none;color:var(--text-2);
-    border-top:1px solid var(--gray-light);border-radius:0;padding-top:14px;
+    border-top:1px solid var(--gray-light);border-radius:0;padding:14px 8px 0;
   }
 /* Refazer apaga as respostas: o vermelho aparece no hover, não em repouso — alarme
    permanente numa ação que ninguém chamou é ruído (05_DESIGN_PHILOSOPHY). */
@@ -3371,14 +3367,28 @@ body.f-arte-pronta .art-btn.art-redo:hover{background:var(--gray-light);color:va
 
   /* Estes dois são os únicos que não pedem a linha inteira: dividem a última. */
 
-  /* ── 8. GERAR EM LOTE, DISCRETO ──
-     Continua sendo a extensão da arte atual e continua abrindo o mesmo Sheets. Só deixa de
-     ser uma faixa do tamanho de um CTA. */
-/* Era off-white sobre off-white: o cartão não existia na tela. Branco com borda o devolve
-   como superfície tocável, sem virar um CTA (o peso continua no Baixar PNG). */
-body.f-arte-pronta .art-bulk-btn{min-height:auto;padding:12px 13px;border-radius:12px;background:var(--white);border:1px solid var(--gray-light);box-shadow:none}
-body.f-arte-pronta .art-bulk-btn:hover{background:var(--white);border-color:var(--gray-mid)}
-body.f-arte-pronta .art-bulk-btn:hover{background:var(--gray-light)}
+  /* ── 8. GERAR EM LOTE, PRESENÇA SEM VIRAR CTA ──
+     O lote é a extensão poderosa da arte pronta, mas o download ainda é a conclusão natural.
+     O peso vem da composição (área, ícone e tipografia), não de outro preenchimento laranja. */
+body.f-arte-pronta .art-bulk-btn{
+  min-height:68px;
+  padding:14px;
+  gap:12px;
+  border-radius:12px;
+  background:var(--white);
+  border:1px solid var(--dm-orange-tint);
+  box-shadow:none;
+  color:var(--text);
+  transition:transform var(--dur-micro) var(--ease-spring),background var(--dur-micro) var(--ease-standard),border-color var(--dur-micro) var(--ease-standard);
+}
+body.f-arte-pronta .art-bulk-ico{width:36px;height:36px;border-radius:10px;background:var(--dm-orange-bg);color:var(--dm-orange-text);box-shadow:none}
+body.f-arte-pronta .art-bulk-txt{gap:3px}
+body.f-arte-pronta .art-bulk-txt strong{font-size:14px;font-weight:900;letter-spacing:-.015em;color:var(--text)}
+body.f-arte-pronta .art-bulk-txt em{font-size:12px;line-height:1.35;color:var(--text-3);text-wrap:balance}
+body.f-arte-pronta .art-bulk-arrow{width:26px;height:26px;padding:6px;border-radius:var(--r-pill);background:var(--dm-orange-bg);color:var(--dm-orange-text);opacity:1;transition:transform var(--dur-micro) var(--ease-spring),background var(--dur-micro) var(--ease-standard)}
+body.f-arte-pronta .art-bulk-btn:hover{background:var(--dm-orange-bg);border-color:var(--dm-orange);transform:translateY(-1px)}
+body.f-arte-pronta .art-bulk-btn:active{transform:translateY(0) scale(.99)}
+body.f-arte-pronta .art-bulk-btn:hover .art-bulk-arrow{background:var(--white);transform:translateX(2px)}
 
   /* ── 9. A ENTRADA DO PAINEL ──
      O modo troca; o painel não deve piscar. Um fade curto com 6px de deslocamento, escalonado
@@ -3390,7 +3400,7 @@ body.f-arte-pronta .msg.bot:has(.art-wrap){animation:fArteProntaEntra var(--dur-
 
 /* Movimento é sinal, não enfeite. */
 @media (prefers-reduced-motion:reduce){
-  body.f-arte-pronta .msg.bot:has(.art-wrap){animation:none}
+  body.f-arte-pronta .msg.bot:has(.art-wrap){animation:none;opacity:1;transform:none}
 }
 
 /* ── TEMA ESCURO ── */
@@ -3398,8 +3408,18 @@ body:not(.theme-light).f-arte-pronta #f-chat-col{background:var(--d-surf)}
 body:not(.theme-light).f-arte-pronta .art-ok-copy strong{color:var(--d-text)}
 body:not(.theme-light).f-arte-pronta .art-ok-sub,
 body:not(.theme-light).f-arte-pronta .caption-card-title{color:var(--d-text2)}
-body:not(.theme-light).f-arte-pronta .art-bulk-btn{background:var(--d-surf2);border-color:var(--d-border)}
+body:not(.theme-light).f-arte-pronta .caption-content-box{background:var(--d-dark);border-color:var(--d-border2);color:var(--d-text2)}
+body:not(.theme-light).f-arte-pronta .caption-alt-btn{color:var(--d-text2)}
+body:not(.theme-light).f-arte-pronta .art-bulk-btn{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text)}
+body:not(.theme-light).f-arte-pronta .art-bulk-txt strong{color:var(--d-text)}
+body:not(.theme-light).f-arte-pronta .art-bulk-txt em{color:var(--d-text2)}
+body:not(.theme-light).f-arte-pronta .art-bulk-btn:hover{background:var(--d-surf3);border-color:var(--dm-orange)}
+body:not(.theme-light).f-arte-pronta .art-btn.art-voltar,
+body:not(.theme-light).f-arte-pronta .art-btn.art-redo{color:var(--d-text2);border-top-color:var(--d-border2)}
+body:not(.theme-light).f-arte-pronta .art-btn.art-voltar:hover{background:var(--d-surf2);color:var(--d-text)}
 body:not(.theme-light).f-arte-pronta .art-btn.art-redo:hover{background:var(--d-surf2)}
+
+
 /* ══════════════════════════════════════════════════════════════════════════════════════════
    MODO REVISÃO — DEPOIS DE PRONTA, EDITAR É REVER CAMPOS (2026-09-11)
    ══════════════════════════════════════════════════════════════════════════════════════════
