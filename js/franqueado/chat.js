@@ -2343,12 +2343,21 @@ function fAddUser(txt){
   _fApplyMessageGrouping(msgs,w,'user');
   msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;
 }
+/* ⚠ O `.msg-content` EM VOLTA DO BALÃO NÃO É ENFEITE — é o que mantém o indicador no
+   lugar no celular. Lá o painel dissolve as caixas (`display:contents`) para o `order`
+   alcançar os itens, e a regra pega TODO filho direto da mensagem: `.msg.bot>div:not(.av)`.
+   Sem o wrapper, quem dissolvia era o próprio `.bbl` — e aí o item de flex passava a ser o
+   `.typing-row`, que não tem `order` e cai no 0: os três pontinhos iam parar no CANTO
+   SUPERIOR ESQUERDO do painel, antes da alça, fora de qualquer balão. Medido a 375px:
+   `.bbl` com `display:contents` e largura 0, `.typing-row` com `order:0` em x=0.
+   Com o wrapper, quem dissolve é ele e o `.bbl` volta a ser o item — com o `order:1` que
+   toda pergunta tem. É a MESMA estrutura que o `fAddBot` monta; a divergência era o bug. */
 function fTyping(cb){
   const msgs=document.getElementById('f-messages');
   const botCircles = document.querySelectorAll('.bot-circle');
   botCircles.forEach(c => c.classList.add('thinking'));
   const w=document.createElement('div');w.className='msg bot active-prompt';w.id='typing-el';
-  w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div class="bbl"><div class="typing-row"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>`;
+  w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div class="msg-content"><div class="bbl"><div class="typing-row"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div></div>`;
   msgs.querySelectorAll('.msg').forEach(m => m.classList.remove('active-prompt'));
   msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;
   setTimeout(()=>{
