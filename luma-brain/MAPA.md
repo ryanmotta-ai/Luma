@@ -254,7 +254,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 79 arquivos JS (64.777 linhas, 2.472 funções) · 31 arquivos CSS (29.482 linhas) · `index.html` com 3.884 linhas e 80 `<script>`.
+**Tamanho real de hoje:** 79 arquivos JS (64.785 linhas, 2.471 funções) · 31 arquivos CSS (29.482 linhas) · `index.html` com 3.884 linhas e 80 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -462,9 +462,9 @@ Sistema de pincel/borracha/carimbo: dPaintStart, dPaintMove, dPaintEnd, dStampAt
 · Estado global: dStampSource, dStampOffset, dGradStart, dBrush, dStampAligned, _dSharpenC1, _dSharpenC2, dNitidezLast, _dNitidezHinted, dFormaLast (+7)
 · Depende de: designer/canvas.js
 
-**`js/designer/canvas.js`** · 2534 linhas
+**`js/designer/canvas.js`** · 2540 linhas
 Render do canvas, zoom, pan, formato, réguas, barra contextual, smart guides, simulacao de dados e interacoes de mouse.
-· API: dSetFormat, dApplyFormat, dFitToScreen, dPositionArtboard, dZoom, dSetZoom, dSampleImg, dSetPhTest, dEscolherFotoDaMoldura, dRenderWorkspace, dABAddResizeHandles, dABToolAttach, dUpdateBrushCursor, dSetTool … (+58; 84 funções no total)
+· API: dSetFormat, dApplyFormat, dFitToScreen, dPositionArtboard, dZoom, dSetZoom, dSampleImg, dSetPhTest, dEscolherFotoDaMoldura, dRenderWorkspace, dABAddResizeHandles, dUpdateBrushCursor, dSetTool, dEnsureMarqueeEl … (+57; 83 funções no total)
 · Estado global: dPhTestAR, dMarquee, dDrawShapeState, dABDraw, dLastClickLayerId, dLastClickTime, dPainting, dPaintLast, dSnapEnabled, dSimValues (+11)
 · Depende de: designer/templates.js, designer/layers.js
 
@@ -493,7 +493,7 @@ Painel lateral e biblioteca de assets: dTogglePanel, dLibRenderCats, dLibRender,
 · Estado global: dPanelOpen, dLibCats, dLibAssets, dLibActiveCat, _dResMoved, dTheme, dHistory, dHistoryIdx, dInlineEl, dInlineLayer (+1)
 · Depende de: designer/canvas.js
 
-**`js/designer/linter.js`** · 532 linhas
+**`js/designer/linter.js`** · 534 linhas
 Design System Linter & Auditor de Layout do Luma Designer. Varre as camadas em busca de erros estéticos, Safe Zones e otimizações de performance.
 · API: dRunLinter, dLinterFocusLayer, dDadoLinterAutoFix
 · Estado global: _dAiStressCases, _dAiStressLoading
