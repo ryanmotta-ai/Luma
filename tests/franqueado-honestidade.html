@@ -39,7 +39,13 @@ async function test(name,fn){total++;try{await fn();document.getElementById('res
 
 // Datas relativas ao AGORA — o ponto do teste é justamente que o número anda com o calendário.
 const dia=86400000;
-const iso=off=>new Date(Date.now()+off*dia).toISOString().slice(0,10);
+/* ⚠ DATA LOCAL, E NÃO `toISOString()`. O `toISOString` devolve UTC: em UTC-3, a partir
+   das 21h o fixture já montava o dia SEGUINTE enquanto o `fDiasRestantes` — que lê
+   `validade+'T23:59:59'` como hora LOCAL — continuava no dia de hoje. Um dia de diferença
+   derrubava 7 casos de validade/urgência TODA NOITE, e verde de manhã. Portão de CI que
+   depende da hora não é portão. */
+const iso=off=>{const d=new Date(Date.now()+off*dia);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 const mat=(id,extra)=>Object.assign({id,name:id,fmt:'story',publishMeta:{publicado:true},layers:[{type:'text',content:'oi'}]},extra||{});
 
 // Campanhas da bancada: uma abastecida, uma vazia (só capa), uma com validade curta.
