@@ -329,9 +329,15 @@ function dRenderWorkspace(){
   if(typeof dAttachMarquee==='function')dAttachMarquee();
 }
 
-// Stubs para compatibilidade com código que chama estas funções
+// Stub para compatibilidade: `dABAddResizeHandles` é chamada (linha ~1648) e nunca foi
+// implementada — a chamada existe atrás de um `typeof === 'function'`, então o no-op é o
+// contrato honesto até alguém precisar de handles de redimensionar prancheta.
+// ⚠ `dABToolAttach` MORAVA AQUI como stub vazia e foi removida: a implementação de verdade
+// está na linha ~920. Duas `function` com o mesmo nome no mesmo arquivo não dão erro — a
+// última vence —, então a ferramenta "prancheta" funcionava por SORTE DE ORDEM. Bastava
+// mover este bloco para baixo, ou partir o arquivo, para a ferramenta morrer em silêncio.
+// Achado pelo `scripts/arquitetura.js` (regra "função global declarada uma única vez").
 function dABAddResizeHandles(){}
-function dABToolAttach(){}
 
 /* ── TOOL ── */
 // Cursores customizados por ferramenta (SVG inline, estilo Photoshop). brush/eraser
