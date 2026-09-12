@@ -954,132 +954,31 @@ function _dSingularize(word){
   return word;
 }
 
-// Casa o nome normalizado de uma camada com um campo QUE JÁ EXISTE no catálogo (`dVars`).
-// Compara pela mesma normalização dos dois lados (sem acento, sem caixa, sem separador), o
-// que resolve "Preço Por" → `precoPor` e "chamada promo" → `chamada_promo`. Aceita também o
-// rótulo do campo, porque o designer costuma nomear a camada como o rótulo, não como a chave.
-// Só igualdade exata: casamento por prefixo aqui ligaria "preco_antigo" no campo "preco".
-function _dPsdCatalogMatch(clean, sing){
-  try{
-    if(typeof dVars==='undefined' || !Array.isArray(dVars) || !dVars.length) return null;
-    const norm=s=>String(s||'').trim().toLowerCase().normalize('NFD')
-      .replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
-    for(const v of dVars){
-      if(!v||!v.name) continue;
-      const n=norm(v.name), l=norm(v.label);
-      if(n===clean||n===sing||(l&&(l===clean||l===sing))) return v.name;
-      if(_dSingularize(n)===clean||_dSingularize(n)===sing) return v.name;
-    }
-  }catch(e){}
-  return null;
-}
-// #1 — sugere variável pelo nome ({{x}}) ou heurística de negócios Luma (auto:true ativa modo var por padrão)
+/* Adaptador do vocabulário do PSD para o motor semântico ÚNICO.
+   Era um resolvedor paralelo: cinco camadas de palpite (um mapa fixo de ~40 sinônimos, uma
+   lista de campos "conhecidos", um casamento com o catálogo e uma heurística de "tem R$ no
+   texto") escritas aqui, ao lado das MESMAS regras em `gFieldInfer`. Duas fontes de
+   sinônimos = duas verdades, e a daqui decidia com `confidence:'high'` por conta própria.
+   Agora existe UM lugar onde alias, conceito canônico e evidência de conteúdo moram
+   (`G_FIELD_CONCEPTS` + `gFieldInfer`, em `00-config.js`), e esta função só traduz a saída
+   para o formato que o importador consome. Sem sinal suficiente, devolve `null` — que é
+   diferente de devolver um nome inventado a partir do nome da camada, o que era o antigo
+   `return {name:clean||'variavel'}`.
+   Chamadores: o parse (aqui), o linter e a dica do painel de propriedades — todos leem
+   `.name` e já tratam ausência. */
 function _dPsdSuggestVar(name, content){
   const raw=String(name||'');
+  // `{{campo}}` escrito no nome da camada no Photoshop não é palpite, é instrução — e é o
+  // único caminho que o import honra sem nenhuma outra evidência.
   const m=raw.match(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/);
-  // `explicit`: o designer ESCREVEU {{campo}} no nome da camada no Photoshop. Não é palpite,
-  // é instrução — e é o único caminho que o import honra sozinho (ver o gate na linha ~1527).
-  if(m) return {name:m[1], auto:true, explicit:true, confidence:'high',source:'explicit',alternatives:[]};
-  // Motor semântico compartilhado: mantém esta função como adaptador do vocabulário do PSD,
-  // sem criar um segundo resolvedor no importador. `@campo` também é reconhecido aqui.
-  if(typeof gFieldInfer==='function'){
-    const inf=gFieldInfer({layerName:raw,content:content||'',target:'text'});
-    if(inf&&inf.field){
-      return {name:inf.field.name,field:inf.field,auto:inf.confidence==='high',
-        explicit:!!inf.explicit,confidence:inf.confidence,source:inf.source,
-        reason:inf.reason,alternatives:inf.alternatives||[]};
-    }
-  }
-  
-  let clean=raw.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
-  const sing=_dSingularize(clean);
-  
-  // Mapeamento específico de variáveis Luma comuns, incluindo suporte multilíngue
-  const map={
-    preco:'precoPor',
-    precopor:'precoPor',
-    precode:'precoDe',
-    preco_de:'precoDe',
-    preco_por:'precoPor',
-    valor:'precoPor',
-    promocao:'precoPor',
-    de:'precoDe',
-    por:'precoPor',
-    
-    // Inglês e sinônimos adicionais
-    price:'precoPor',
-    value:'precoPor',
-    sale:'precoPor',
-    promo:'precoPor',
-    from:'precoDe',
-    to:'precoPor',
-    price_to:'precoPor',
-    priceto:'precoPor',
-    price_from:'precoDe',
-    pricefrom:'precoDe',
-    old_price:'precoDe',
-    oldprice:'precoDe',
-    price_old:'precoDe',
-    new_price:'precoPor',
-    newprice:'precoPor',
-    price_new:'precoPor',
-    sale_price:'precoPor',
-    saleprice:'precoPor',
-    
-    product:'produto',
-    validity:'validade',
-    valid:'validade',
-    detail:'detalhes',
-    discount:'desconto',
-    off:'desconto',
-    coupon:'cupom',
-    code:'codigo',
-    gift:'brinde',
-    freebie:'brinde',
-    condition:'condicao',
-    min_order:'pedidoMin',
-    minorder:'pedidoMin',
-    neighborhood:'bairros',
-    area:'bairros',
-    offer:'oferta',
-    category:'categoria'
-  };
-  
-  // Chaves ambíguas: palavras curtas/genéricas que também aparecem em texto fixo (conectivos,
-  // rótulos). Elas SUGEREM a variável, mas NÃO ativam o modo var automático — senão uma camada
-  // chamada "de"/"por"/"off"/"area" teria seu conteúdo fixo substituído por {{var}} (perda silenciosa).
-  const AMBIGUOUS=new Set(['de','por','to','from','off','area','value','sale','promo','valor','promocao']);
-
-  // ── O CATÁLOGO REAL vem antes do mapa fixo ──
-  // Este mapa é um chute genérico sobre o vocabulário do delivery; `dVars` é o vocabulário que
-  // ESTE designer montou neste template. Uma camada "chamada_promo" não casava com o campo
-  // `chamada_promo` que já existia, e o designer religava tudo à mão na revisão. O catálogo
-  // ganha porque é a verdade do projeto — o mapa fixo continua como rede de segurança.
-  const _cat=_dPsdCatalogMatch(clean, sing);
-  if(_cat) return {name:_cat, auto: !(AMBIGUOUS.has(clean)||AMBIGUOUS.has(sing)), confidence:AMBIGUOUS.has(clean)||AMBIGUOUS.has(sing)?'medium':'high',source:'catalog',alternatives:[]};
-
-  const matchedKey = map[clean] || map[sing];
-  if(matchedKey) return {name:matchedKey, auto: !(AMBIGUOUS.has(clean)||AMBIGUOUS.has(sing))};
-
-  const known=[
-    'produto', 'precoPor', 'precoDe', 'validade', 'detalhes', 'desconto', 'cupom', 'codigo',
-    'brinde', 'condicao', 'pedidoMin', 'bairros', 'oferta', 'categoria'
-  ];
-  const hit=known.find(k=>{
-    const lower=k.toLowerCase();
-    return lower===clean || lower===sing;
-  });
-  if(hit) return {name:hit, auto:true};
-  
-  // Heurística de preço no CONTEÚDO: só SUGERE a variável (auto:false). Antes, qualquer texto com
-  // "R$ …" virava {{precoPor}} substituindo o conteúdo inteiro — destruía rodapés/disclaimers que
-  // por acaso citam um valor. O usuário promove a variável conscientemente na tela de revisão.
-  if(content && /(?:r\$|\$)\s*\d/i.test(content)){
-    if(/(?:de|from)/i.test(clean) || /(?:de|from)/i.test(sing)) return {name:'precoDe', auto:false};
-    return {name:'precoPor', auto:false};
-  }
-  
-  return {name:clean||'variavel', auto:false};
+  if(m) return {name:m[1], auto:true, explicit:true, confidence:'high', source:'explicit',
+    alternatives:[], reason:'Campo escrito no nome da camada no Photoshop'};
+  if(typeof gFieldInfer!=='function') return null;
+  const inf=gFieldInfer({layerName:raw, content:content||'', target:'text'});
+  if(!inf || !inf.field) return null;
+  return {name:inf.field.name, field:inf.field, auto:inf.confidence==='high',
+    explicit:!!inf.explicit, confidence:inf.confidence, source:inf.source,
+    reason:inf.reason, alternatives:inf.alternatives||[]};
 }
 
 // Sugere variável e modo moldura para camadas de imagem baseando-se no nome
@@ -1633,56 +1532,56 @@ const _DPSD_CAP_NIVEIS={native:0, native_lossy:1, raster:2, unsupported:3};
    `rotulo` é PT-BR porque vai para a revisão e para o diagnóstico, não só para o console. */
 const _DPSD_CAP_MOTIVOS={
   /* ── etapa DECODE: o formato PSD já não entrega algo interpretável ── */
-  smart_object:        {nivel:'raster',       etapa:'decode',     rotulo:'Objeto inteligente deformado — o Photoshop entrega só o composto achatado'},
+  smart_object:        {nivel:'raster',       etapa:'decode',     atencao:'info', visual:'preservado', rotulo:'Objeto inteligente deformado — o Photoshop entrega só o composto achatado'},
   /* Uma FOTO colocada reta (sem perspectiva, warp, rotação ou cisalhamento) é visualmente
      uma imagem comum: o pixel continua sendo a única fonte que o ag-psd entrega, mas trocar
      o conteúdo por outra foto reproduz o mesmo resultado. Separar os dois casos é o que
      permite a revisão oferecer "Moldura de foto" com honestidade num, e não no outro. */
-  smart_object_substituivel:{nivel:'raster',  etapa:'decode',     rotulo:'Objeto inteligente com foto reta — o conteúdo pode ser substituído'},
-  adjustment_layer:    {nivel:'raster',       etapa:'decode',     rotulo:'Camada de ajuste sem pixels próprios'},
-  pattern_fill:        {nivel:'raster',       etapa:'decode',     rotulo:'Preenchimento por padrão — o Luma não tem modelo de padrão'},
-  pattern_overlay:     {nivel:'raster',       etapa:'decode',     rotulo:'Sobreposição de padrão — o Luma não tem modelo de padrão'},
-  rotated:             {nivel:'raster',       etapa:'geometria',  rotulo:'Camada rotacionada — o modelo do Luma não tem rotação'},
-  flipped:             {nivel:'raster',       etapa:'geometria',  rotulo:'Camada espelhada ou girada 180°'},
-  text_on_path:        {nivel:'raster',       etapa:'geometria',  rotulo:'Texto em curva (type on path)'},
-  text_warp:           {nivel:'raster',       etapa:'geometria',  rotulo:'Texto deformado (warp) — a deformação está nos pixels'},
+  smart_object_substituivel:{nivel:'raster',  etapa:'decode',     atencao:'info', visual:'preservado', rotulo:'Objeto inteligente com foto reta — o conteúdo pode ser substituído'},
+  adjustment_layer:    {nivel:'raster',       etapa:'decode',     atencao:'info', visual:'preservado', rotulo:'Camada de ajuste sem pixels próprios'},
+  pattern_fill:        {nivel:'raster',       etapa:'decode',     atencao:'info', visual:'preservado', rotulo:'Preenchimento por padrão — o Luma não tem modelo de padrão'},
+  pattern_overlay:     {nivel:'raster',       etapa:'decode',     atencao:'info', visual:'preservado', rotulo:'Sobreposição de padrão — o Luma não tem modelo de padrão'},
+  rotated:             {nivel:'raster',       etapa:'geometria',  atencao:'info', visual:'preservado', rotulo:'Camada rotacionada — o modelo do Luma não tem rotação'},
+  flipped:             {nivel:'raster',       etapa:'geometria',  atencao:'info', visual:'preservado', rotulo:'Camada espelhada ou girada 180°'},
+  text_on_path:        {nivel:'raster',       etapa:'geometria',  atencao:'review', visual:'preservado', rotulo:'Texto em curva (type on path)'},
+  text_warp:           {nivel:'raster',       etapa:'geometria',  atencao:'review', visual:'preservado', rotulo:'Texto deformado (warp) — a deformação está nos pixels'},
   /* ── etapa CAPACIDADE: interpretamos certo, mas o Luma não representa ── */
-  fx_stack_partial:    {nivel:'raster',       etapa:'capacidade', rotulo:'Parte da pilha de efeitos não tem equivalente editável'},
-  fx_stack_non_shape:  {nivel:'raster',       etapa:'capacidade', rotulo:'Pilha de efeitos múltiplos só é dinâmica em formas'},
-  gradient_style:      {nivel:'raster',       etapa:'capacidade', rotulo:'Gradiente cônico ou losango — sem primitiva no Luma'},
-  overlay_blend:       {nivel:'raster',       etapa:'capacidade', rotulo:'Sobreposição de cor com mesclagem'},
-  gradient_ovl_blend:  {nivel:'raster',       etapa:'capacidade', rotulo:'Sobreposição de gradiente com mesclagem'},
-  text_fx_unsupported: {nivel:'raster',       etapa:'capacidade', rotulo:'Efeito interno em texto (sombra interna, brilho interno, relevo ou gradiente)'},
-  fill_opacity_with_fx:{nivel:'raster',       etapa:'capacidade', rotulo:'Opacidade de preenchimento com efeitos — o modelo tem um canal só'},
-  parse_recovered:     {nivel:'raster',       etapa:'decode',     rotulo:'Camada não interpretável — recuperada do pixel composto'},
-  flattened_document:  {nivel:'raster',       etapa:'decode',     rotulo:'Arquivo sem camadas editáveis — arte achatada'},
+  fx_stack_partial:    {nivel:'raster',       etapa:'capacidade', atencao:'info', visual:'preservado', rotulo:'Parte da pilha de efeitos não tem equivalente editável'},
+  fx_stack_non_shape:  {nivel:'raster',       etapa:'capacidade', atencao:'info', visual:'preservado', rotulo:'Pilha de efeitos múltiplos só é dinâmica em formas'},
+  gradient_style:      {nivel:'raster',       etapa:'capacidade', atencao:'info', visual:'preservado', rotulo:'Gradiente cônico ou losango — sem primitiva no Luma'},
+  overlay_blend:       {nivel:'raster',       etapa:'capacidade', atencao:'info', visual:'preservado', rotulo:'Sobreposição de cor com mesclagem'},
+  gradient_ovl_blend:  {nivel:'raster',       etapa:'capacidade', atencao:'info', visual:'preservado', rotulo:'Sobreposição de gradiente com mesclagem'},
+  text_fx_unsupported: {nivel:'raster',       etapa:'capacidade', atencao:'review', visual:'preservado', rotulo:'Efeito interno em texto (sombra interna, brilho interno, relevo ou gradiente)'},
+  fill_opacity_with_fx:{nivel:'raster',       etapa:'capacidade', atencao:'info', visual:'preservado', rotulo:'Opacidade de preenchimento com efeitos — o modelo tem um canal só'},
+  parse_recovered:     {nivel:'raster',       etapa:'decode',     atencao:'review', visual:'preservado', rotulo:'Camada não interpretável — recuperada do pixel composto'},
+  flattened_document:  {nivel:'raster',       etapa:'decode',     atencao:'review', visual:'preservado', rotulo:'Arquivo sem camadas editáveis — arte achatada'},
   /* ── perdas CONHECIDAS que não pedem raster (o pixel também não as carrega) ── */
-  fx_satin:            {nivel:'native_lossy', etapa:'capacidade', rotulo:'Cetim não tem equivalente'},
-  fx_contour:          {nivel:'native_lossy', etapa:'capacidade', rotulo:'Contorno customizado de efeito ignorado'},
-  fx_scale:            {nivel:'native_lossy', etapa:'capacidade', rotulo:'Escala de efeitos diferente de 100%'},
-  stroke_approx:       {nivel:'native_lossy', etapa:'capacidade', rotulo:'Traço com gradiente ou padrão aproximado por cor sólida'},
-  gradient_ovl_approx: {nivel:'native_lossy', etapa:'capacidade', rotulo:'Sobreposição de gradiente cônica ou losango aproximada'},
-  fx_stack_blend:      {nivel:'native_lossy', etapa:'capacidade', rotulo:'Mesclagem da pilha de efeitos aproximada'},
-  group_blend_flat:    {nivel:'native_lossy', etapa:'dependencia',rotulo:'Mesclagem de grupo aplicada camada a camada'},
-  blend_dropped:       {nivel:'native_lossy', etapa:'capacidade', rotulo:'Modo de mesclagem sem render no Luma — entrou como Normal'},
-  adjust_unsupported:  {nivel:'native_lossy', etapa:'capacidade', rotulo:'Tipo de ajuste que o Luma ainda não recalcula'},
-  adjust_approx:       {nivel:'native_lossy', etapa:'capacidade', rotulo:'Ajuste com matemática aproximada do Photoshop'},
+  fx_satin:            {nivel:'native_lossy', etapa:'capacidade', atencao:'info', visual:'aproximado', rotulo:'Cetim não tem equivalente'},
+  fx_contour:          {nivel:'native_lossy', etapa:'capacidade', atencao:'info', visual:'aproximado', rotulo:'Contorno customizado de efeito ignorado'},
+  fx_scale:            {nivel:'native_lossy', etapa:'capacidade', atencao:'info', visual:'aproximado', rotulo:'Escala de efeitos diferente de 100%'},
+  stroke_approx:       {nivel:'native_lossy', etapa:'capacidade', atencao:'info', visual:'aproximado', rotulo:'Traço com gradiente ou padrão aproximado por cor sólida'},
+  gradient_ovl_approx: {nivel:'native_lossy', etapa:'capacidade', atencao:'review', visual:'aproximado', rotulo:'Sobreposição de gradiente cônica ou losango aproximada'},
+  fx_stack_blend:      {nivel:'native_lossy', etapa:'capacidade', atencao:'info', visual:'aproximado', rotulo:'Mesclagem da pilha de efeitos aproximada'},
+  group_blend_flat:    {nivel:'native_lossy', etapa:'dependencia',atencao:'info', visual:'aproximado', rotulo:'Mesclagem de grupo aplicada camada a camada'},
+  blend_dropped:       {nivel:'native_lossy', etapa:'capacidade', atencao:'review', visual:'aproximado', rotulo:'Modo de mesclagem sem render no Luma — entrou como Normal'},
+  adjust_unsupported:  {nivel:'native_lossy', etapa:'capacidade', atencao:'review', visual:'aproximado', rotulo:'Tipo de ajuste que o Luma ainda não recalcula'},
+  adjust_approx:       {nivel:'native_lossy', etapa:'capacidade', atencao:'info', visual:'aproximado', rotulo:'Ajuste com matemática aproximada do Photoshop'},
   /* Os três estados de fonte que NÃO são 'exact'. Separados de propósito: cada um tem uma
      consequência diferente na largura da linha, e nenhum deles é erro de geometria. */
-  font_approximated:   {nivel:'native_lossy', etapa:'fonte',      rotulo:'Fonte parecida pelo nome, mas é outro arquivo — a métrica difere'},
-  font_substituted:    {nivel:'native_lossy', etapa:'fonte',      rotulo:'Fonte ausente — Roboto no mesmo peso; o desenho da letra difere'},
-  font_missing:        {nivel:'native_lossy', etapa:'fonte',      rotulo:'Fonte ausente e sem peso no nome — Roboto Regular, peso adivinhado'},
-  text_multi_style:    {nivel:'native_lossy', etapa:'texto',      rotulo:'Estilos mistos reduzidos ao estilo dominante'},
-  text_justify_all:    {nivel:'native_lossy', etapa:'texto',      rotulo:'Justificado total — a última linha não estica'},
-  text_box_approx:     {nivel:'native_lossy', etapa:'geometria',  rotulo:'Caixa de parágrafo não derivável — usando o contorno dos glifos'},
+  font_approximated:   {nivel:'native_lossy', etapa:'fonte',      atencao:'review', visual:'aproximado', rotulo:'Fonte parecida pelo nome, mas é outro arquivo — a métrica difere'},
+  font_substituted:    {nivel:'native_lossy', etapa:'fonte',      atencao:'review', visual:'aproximado', rotulo:'Fonte ausente — Roboto no mesmo peso; o desenho da letra difere'},
+  font_missing:        {nivel:'native_lossy', etapa:'fonte',      atencao:'review', visual:'aproximado', rotulo:'Fonte ausente e sem peso no nome — Roboto Regular, peso adivinhado'},
+  text_multi_style:    {nivel:'native_lossy', etapa:'texto',      atencao:'review', visual:'aproximado', rotulo:'Estilos mistos reduzidos ao estilo dominante'},
+  text_justify_all:    {nivel:'native_lossy', etapa:'texto',      atencao:'info', visual:'aproximado', rotulo:'Justificado total — a última linha não estica'},
+  text_box_approx:     {nivel:'native_lossy', etapa:'geometria',  atencao:'review', visual:'aproximado', rotulo:'Caixa de parágrafo não derivável — usando o contorno dos glifos'},
   /* Escala não uniforme: o painel Caractere do Photoshop condensa/estica a letra num eixo só,
      e o modelo do Luma tem UM corpo de fonte. O corpo segue o eixo vertical e o estiramento
      horizontal é perda conhecida — nomeada, porque compensá-la com tracking seria falseá-la
      (tracking afasta letras; escala horizontal deforma o glifo). */
-  text_scale_nao_unif: {nivel:'native_lossy', etapa:'texto',      rotulo:'Letra condensada ou esticada num eixo só — o Luma tem um corpo de fonte'},
-  text_size_estimado:  {nivel:'native_lossy', etapa:'texto',      rotulo:'O arquivo não trouxe o corpo da fonte — estimado pela altura da caixa'},
-  vector_mask_failed:  {nivel:'native_lossy', etapa:'mascara',    rotulo:'Recorte vetorial não rasterizável — forma simplificada'},
-  clip_base_fallback:  {nivel:'native_lossy', etapa:'dependencia',rotulo:'Base de recorte complexa — recorte simplificado'},
+  text_scale_nao_unif: {nivel:'native_lossy', etapa:'texto',      atencao:'review', visual:'aproximado', rotulo:'Letra condensada ou esticada num eixo só — o Luma tem um corpo de fonte'},
+  text_size_estimado:  {nivel:'native_lossy', etapa:'texto',      atencao:'review', visual:'aproximado', rotulo:'O arquivo não trouxe o corpo da fonte — estimado pela altura da caixa'},
+  vector_mask_failed:  {nivel:'native_lossy', etapa:'mascara',    atencao:'review', visual:'aproximado', rotulo:'Recorte vetorial não rasterizável — forma simplificada'},
+  clip_base_fallback:  {nivel:'native_lossy', etapa:'dependencia',atencao:'info', visual:'aproximado', rotulo:'Base de recorte complexa — recorte simplificado'},
   /* ── a perda que NENHUM aviso cobria (achado desta rodada) ─────────────────────────────
      `_dPsdApplyFx` copia sombra/brilho/contorno/sobreposição para camadas que a conversão
      entrega como `type:'image'` ou `type:'frame'` — e NENHUM dos três renderizadores lê
@@ -1691,7 +1590,12 @@ const _DPSD_CAP_MOTIVOS={
      JUSTAMENTE por causa de um efeito, perdiam o efeito em silêncio — o dado era gravado e
      ninguém o consumia. Enquanto os renderizadores não lerem efeito em imagem, a saída
      honesta é declarar a perda em vez de fingir que ela não existe (§51 do briefing). */
-  fx_only_native:      {nivel:'native_lossy', etapa:'conversao',  rotulo:'Efeito que só sai em texto ou forma — em imagem fiel ele não é aplicado'}
+  /* O ÚNICO bloqueante: a camada pediu raster fiel e não existe pixel para preservar. Nem
+     editável, nem imagem — a aparência foi perdida e o Luma não tem como recuperá-la. É a
+     diferença entre "recuperado" e "perdido" (§39), e é o que não pode ser anunciado como
+     importação bem-sucedida. */
+  sem_representacao:   {nivel:'unsupported',  etapa:'capacidade', atencao:'blocking', visual:'perdido', rotulo:'Não foi possível preservar esta camada — nem editável, nem como imagem'},
+  fx_only_native:      {nivel:'native_lossy', etapa:'conversao',  atencao:'info', visual:'aproximado', rotulo:'Efeito que só sai em texto ou forma — em imagem fiel ele não é aplicado'}
 };
 /* ══ CADEIA DE DIAGNÓSTICO — desligada por padrão ═════════════════════════════════════════
    Para achar em QUE PONTO a informação divergiu, o livro-caixa de capacidade não basta: ele
@@ -1897,6 +1801,237 @@ function _dPsdCapPerdeFx(it){
   if(!it.capability.motivos.some(m=>m.code==='fx_only_native')) return false;
   if(it.mode==='raster' || it.mode==='frame') return true;
   return !!it.needsRaster;
+}
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   ATENÇÃO — o segundo eixo, e o que separa esta rodada das anteriores
+   ------------------------------------------------------------------------------------------
+   O livro-caixa de capacidade responde COMO a camada foi convertida. Isso não é a mesma
+   pergunta que o designer faz, que é: PRECISO FAZER ALGO?
+
+   As duas se confundiam, e a confusão tem um custo concreto nos dois sentidos: uma textura
+   decorativa que virou raster fiel aparecia como aviso (trabalho inventado), e uma headline
+   com a fonte trocada aparecia com o mesmo peso de um aviso de cetim (atenção diluída).
+   `RASTER_FALLBACK` não é problema — é ferramenta de fidelidade. Fonte ausente numa headline
+   é problema, mesmo sendo `native`.
+
+   Por isso cada motivo declara os dois eixos, no MESMO lugar onde declara o nível:
+     · `atencao` : ok | info | review | blocking
+     · `visual`  : preservado | aproximado | perdido
+
+   E são independentes de propósito: `visual:'preservado'` com `atencao:'review'` é exatamente
+   o caso do texto que virou imagem — a arte está igual, mas aquela camada deixou de poder
+   ser um campo, e isso o designer precisa saber.                                            */
+const _DPSD_ATENCAO_ORDEM={ok:0, info:1, review:2, blocking:3};
+/* RELEVÂNCIA ESTRUTURAL (§12) — uma diferença numa textura de fundo não pesa como uma
+   diferença numa headline. Não é semântica de campo (isso é a fase seguinte, §13/§49): são
+   características REAIS da camada que já estão na mão.
+   `escalaTipo` é o conjunto ordenado dos corpos de fonte da arte — a mesma ideia de "degraus"
+   que o `gCompileLayoutRoles` usa. Vem calculado da própria lista de itens, então não há
+   limiar absoluto em px inventado aqui.
+   ⛔ Só ELEVA por prominência; a única redução é para letra miúda de rodapé em aviso de
+   fonte, onde a diferença de desenho realmente não muda a peça. Esconder é mais perigoso que
+   mostrar, então a redução é estreita e explícita. */
+function _dPsdAtencao(it, ctx){
+  const cap=it&&it.capability;
+  if(!cap||!cap.motivos.length) return {nivel:'ok', motivos:[]};
+  ctx=ctx||{};
+  let pior='ok'; const relevantes=[];
+  cap.motivos.forEach(m=>{
+    const def=_DPSD_CAP_MOTIVOS[m.code]||{};
+    let at=def.atencao||'info';
+    /* ELEVA: camada já vinculada a um campo é conteúdo por definição — quem ligou o campo
+       disse que aquilo varia. Sinal que JÁ existe; não é classificação nova. */
+    const temCampo=(it.mode==='var'||it.mode==='frame')&&it.varName;
+    if(at==='info' && temCampo) at='review';
+    /* ELEVA: texto no topo da escala tipográfica da arte é a headline/preço, onde qualquer
+       diferença é a primeira coisa que se vê. */
+    const esc=ctx.escalaTipo||[];
+    const grande=it.kind==='text' && esc.length>=2 && (it.fontSize||0)>=esc[0];
+    if(at==='info' && grande) at='review';
+    /* REDUZ (o único caso): aviso de FONTE em letra miúda de rodapé, sem campo ligado. O
+       desenho da letra difere, mas num regulamento de 3 linhas isso não é o que exige a
+       atenção de ninguém — e ocupar o lugar de um aviso real é o custo. */
+    if(at==='review' && def.etapa==='fonte' && !temCampo
+       && it.kind==='text' && esc.length>=3 && (it.fontSize||0)<=esc[esc.length-1]) at='info';
+    if(_DPSD_ATENCAO_ORDEM[at]>_DPSD_ATENCAO_ORDEM[pior]) pior=at;
+    if(at!=='ok') relevantes.push(Object.assign({}, m, {atencao:at, visual:def.visual||'preservado'}));
+  });
+  return {nivel:pior, motivos:relevantes};
+}
+/* CATEGORIAS DE ATENÇÃO — a tradução de motivo técnico para o que o designer lê. Uma
+   categoria agrupa os motivos que pedem a MESMA ação, e é ela que decide título, explicação
+   e botão (§26: ação contextual, não o mesmo botão para tudo).
+   ⛔ Nenhuma string aqui menciona `NATIVE_WITH_LOSS`, `raster` ou nome de código. O designer
+   entende o problema sem aprender o vocabulário do motor (§54). */
+const _DPSD_ATENCAO_CATS=[
+  {id:'fonte', codes:['font_approximated','font_substituted','font_missing'],
+   titulo:'A fonte do Photoshop não está disponível',
+   texto:it=>'“'+(it.fontName||'a fonte original')+'” não existe no Luma. O texto está usando '
+     +(it.fontPesoUsado?('um peso '+it.fontPesoUsado):'uma fonte parecida')
+     +', então a largura de cada linha pode diferir do arquivo original.',
+   acao:'fonte'},
+  {id:'texto_imagem', codes:['text_on_path','text_warp','text_fx_unsupported'],
+   titulo:'Este texto entrou como imagem',
+   texto:()=>'O Photoshop deformou este texto de um jeito que o Luma não reproduz como texto. '
+     +'A aparência foi mantida, mas ele não pode ser editado nem virar um campo do franqueado.',
+   acao:'ciente'},
+  {id:'tipografia', codes:['text_multi_style','text_box_approx','text_scale_nao_unif','text_size_estimado'],
+   titulo:'A tipografia deste texto foi adaptada',
+   texto:()=>'O Photoshop usa um recurso de texto que o Luma representa de forma aproximada. '
+     +'Vale conferir a quebra de linha e o tamanho.',
+   acao:'ver'},
+  {id:'cor', codes:['adjust_unsupported','blend_dropped','gradient_ovl_approx'],
+   titulo:'A cor deste elemento pode diferir',
+   texto:()=>'O Photoshop usa um tratamento de cor ou uma mesclagem que o Luma não reproduz '
+     +'exatamente. O resto da camada entrou fiel.',
+   acao:'ver'},
+  {id:'recorte', codes:['vector_mask_failed'],
+   titulo:'O recorte deste elemento foi simplificado',
+   texto:()=>'A forma do recorte não pôde ser preservada com precisão. Vale conferir se a '
+     +'borda está onde devia.',
+   acao:'ver'},
+  {id:'achatado', codes:['flattened_document'],
+   titulo:'O arquivo não tinha camadas editáveis',
+   texto:()=>'A arte entrou como uma imagem única, fiel ao que o Photoshop mostrava. Nada '
+     +'dentro dela pode ser editado ou virar campo.',
+   acao:'ciente'},
+  {id:'recuperada', codes:['parse_recovered'],
+   titulo:'Esta camada não pôde ser interpretada',
+   texto:()=>'O Luma não conseguiu ler a estrutura desta camada e preservou os pixels que o '
+     +'Photoshop já tinha composto. A aparência está mantida; a edição, não.',
+   acao:'ver'},
+  {id:'perdida', codes:['sem_representacao'],
+   titulo:'Não foi possível preservar este elemento',
+   texto:()=>'O Photoshop usa recursos que não puderam ser reconstruídos nem preservados como '
+     +'imagem. Esta parte da arte não está fiel ao original.',
+   acao:'ver'},
+  {id:'imagem', codes:['smart_object','smart_object_substituivel','pattern_fill','pattern_overlay',
+    'rotated','flipped','fx_stack_partial','fx_stack_non_shape','gradient_style','overlay_blend',
+    'gradient_ovl_blend','fill_opacity_with_fx','adjustment_layer'],
+   titulo:'Este elemento foi preservado como imagem',
+   texto:()=>'Ele usa recursos do Photoshop que o Luma não reproduz separadamente. A aparência '
+     +'foi mantida; ele não pode ser editado em partes.',
+   acao:'ciente'},
+  /* A única categoria que NÃO nasce do livro-caixa: existe para a divergência medida na tela
+     que NENHUMA decisão conhecida explica. Ficar calado aqui seria o pior dos mundos — a arte
+     está diferente e o motor não sabe por quê; dizer isso é mais honesto que não dizer nada. */
+  {id:'divergencia', codes:['__divergencia__'],
+   titulo:'Esta área ficou diferente do Photoshop',
+   texto:()=>'A comparação com o arquivo original acusou diferença nesta região e nenhuma '
+     +'adaptação conhecida explica isso. Vale conferir esta área na arte.',
+   acao:'ver'},
+  {id:'efeito', codes:['fx_satin','fx_contour','fx_scale','stroke_approx','fx_stack_blend',
+    'group_blend_flat','adjust_approx','text_justify_all','clip_base_fallback','fx_only_native'],
+   titulo:'Um efeito foi adaptado',
+   texto:()=>'O Photoshop aplica este efeito de um jeito que o Luma aproxima. O resto da '
+     +'camada entrou fiel.',
+   acao:'ciente'}
+];
+function _dPsdCatDe(code){
+  for(const c of _DPSD_ATENCAO_CATS){ if(c.codes.indexOf(code)>=0) return c; }
+  return null;
+}
+/* ══ IMPORT RESULT — a fonte única de verdade do que aconteceu na importação ═══════════════
+   Produzido pelo MOTOR, a partir do livro-caixa que já existe: nenhum PSD é reprocessado e a
+   tela não recalcula regra nenhuma (§46 — a engine produz o resultado exista ou não tela).
+   `pranchetas` é sempre um array, mesmo no caso de prancheta única: assim a revisão
+   multi-prancheta e a de uma só leem a MESMA estrutura (§32).
+   Cada prancheta entra como {nome, items}. `meta` traz o que a tela precisa para navegar.
+   ⛔ TRANSITÓRIO (§30): nada disto é persistido no template. Morre quando o modal fecha. */
+function dPsdImportResult(pranchetas, meta){
+  meta=meta||{};
+  const res={status:'ok', resumo:{camadas:0,native:0,lossy:0,raster:0,unsupported:0},
+    pranchetas:[], atencoes:[]};
+  (pranchetas||[]).forEach((pr,pi)=>{
+    const itens=(pr.items||[]).filter(it=>it && it.include && !it.isMaskBase);
+    /* A escala tipográfica desta prancheta: os corpos distintos, do maior para o menor. É o
+       que dá relevância estrutural sem inventar semântica — a mesma ideia dos "degraus" do
+       gCompileLayoutRoles, calculada aqui porque é aqui que a lista inteira está na mão. */
+    const escalaTipo=[...new Set(itens.filter(i=>i.kind==='text').map(i=>Math.round(i.fontSize||0)).filter(Boolean))]
+      .sort((a,b)=>b-a);
+    const ctx={escalaTipo};
+    itens.forEach(it=>{
+      res.resumo.camadas++;
+      const nivelCap=(it.capability&&it.capability.nivel)||'native';
+      if(nivelCap==='native') res.resumo.native++;
+      else if(nivelCap==='native_lossy') res.resumo.lossy++;
+      else if(nivelCap==='raster') res.resumo.raster++;
+      else res.resumo.unsupported++;
+      const at=_dPsdAtencao(it, ctx);
+      if(at.nivel==='ok') return;
+      /* UM item de atenção por CATEGORIA por camada — não um por motivo. Uma camada com
+         cetim, contorno e escala de efeito é UM aviso de "efeito adaptado", não três. */
+      const porCat=new Map();
+      at.motivos.forEach(m=>{
+        const cat=_dPsdCatDe(m.code); if(!cat) return;
+        const ja=porCat.get(cat.id);
+        if(!ja || _DPSD_ATENCAO_ORDEM[m.atencao]>_DPSD_ATENCAO_ORDEM[ja.atencao]) porCat.set(cat.id,{cat,m,atencao:m.atencao,visual:m.visual});
+      });
+      porCat.forEach(({cat,m,atencao,visual})=>{
+        res.atencoes.push({
+          id:'at-'+pi+'-'+it.n+'-'+cat.id,
+          prancheta:pi, pranchetaNome:pr.nome||meta.nome||'',
+          itemN:it.n, camada:it.name, kind:it.kind,
+          caixa:{x:it.x,y:it.y,w:it.w,h:it.h},
+          nivel:atencao, categoria:cat.id, acao:cat.acao,
+          titulo:cat.titulo, explicacao:cat.texto(it),
+          // Os dois eixos, separados (§10): a arte pode estar 100% e a edição reduzida.
+          /* Três estados, não dois: `achatada` é a camada que virou pixel fiel (a arte está
+             lá, a edição não), e `perdida` é a que não foi preservada NEM como imagem.
+             Chamar as duas de "entrou como imagem" mentiria justamente no caso pior. */
+          visual:visual,
+          editabilidade:(nivelCap==='unsupported')?'perdida':(nivelCap==='raster'?'achatada':'preservada'),
+          // O código técnico viaja para a engenharia, nunca para a tela.
+          _code:m.code, _detalhe:m.detalhe||''
+        });
+      });
+    });
+    res.pranchetas.push({nome:pr.nome||meta.nome||'', camadas:itens.length, atencoes:0, revisao:0});
+  });
+  /* DIVERGÊNCIA LIGADA A REGIÃO (§28) — a MEDIÇÃO de pixels mora na tela, porque precisa de
+     canvas e do composto do Photoshop; a EXPLICAÇÃO é do motor. Chega como
+     `meta.divergencias` = [{prancheta, itemN, pct}] e é opcional: sem ela o resultado sai
+     completo do mesmo jeito (§46 — a engine não depende da tela).
+     ⛔ Divergência com causa conhecida NÃO abre aviso novo. Ela vira o número DENTRO do aviso
+     que já existe naquela camada — senão a mesma fonte trocada apareceria duas vezes, uma
+     como decisão e outra como surpresa. Só o que nenhuma decisão explica ganha item próprio. */
+  (meta.divergencias||[]).forEach(d=>{
+    const mesmos=res.atencoes.filter(a=>a.prancheta===(d.prancheta||0) && a.itemN===d.itemN);
+    if(mesmos.length){
+      mesmos.sort((a,b)=>_DPSD_ATENCAO_ORDEM[b.nivel]-_DPSD_ATENCAO_ORDEM[a.nivel]);
+      mesmos[0].divergencia=d.pct;
+      return;
+    }
+    const cat=_dPsdCatDe('__divergencia__');
+    res.atencoes.push({
+      id:'at-'+(d.prancheta||0)+'-'+d.itemN+'-divergencia',
+      prancheta:d.prancheta||0, pranchetaNome:d.pranchetaNome||'',
+      itemN:d.itemN, camada:d.camada||'', kind:d.kind||'',
+      caixa:d.caixa||null,
+      nivel:'review', categoria:cat.id, acao:cat.acao,
+      titulo:cat.titulo, explicacao:cat.texto(),
+      visual:'aproximado', editabilidade:'preservada',
+      divergencia:d.pct, semCausa:true,
+      _code:'__divergencia__', _detalhe:d.pct+'% dos pixels da caixa'
+    });
+  });
+  /* Ordena por severidade e depois pela ordem natural: o designer resolve o que importa
+     primeiro, e a numeração "1 de N" segue essa prioridade. */
+  res.atencoes.sort((a,b)=>(_DPSD_ATENCAO_ORDEM[b.nivel]-_DPSD_ATENCAO_ORDEM[a.nivel])
+    || (a.prancheta-b.prancheta) || (a.itemN-b.itemN));
+  /* As contagens por prancheta saem da lista FINAL, não do laço: os itens de divergência
+     entram depois dele, e contar antes deixaria a aba sem o que ela mesma tem (§32 — as
+     exceções são organizadas por prancheta, e é essa conta que a aba mostra). */
+  res.pranchetas.forEach((pr,i)=>{
+    const suas=res.atencoes.filter(a=>a.prancheta===i);
+    pr.atencoes=suas.length;
+    pr.revisao=suas.filter(a=>a.nivel==='review'||a.nivel==='blocking').length;
+  });
+  res.resumo.preservadas=res.resumo.camadas-res.resumo.unsupported;
+  const revisar=res.atencoes.filter(a=>a.nivel==='review'||a.nivel==='blocking').length;
+  res.status=res.atencoes.some(a=>a.nivel==='blocking')?'bloqueado':(revisar?'atencao':'ok');
+  res.precisaRevisao=revisar;   // o número que a tela mostra: só review+blocking contam
+  return res;
 }
 /* Resumo do livro-caixa de uma lista de itens — a bancada de diagnóstico do §29. Sem DOM: serve
    ao console da equipe, à suíte e a qualquer relatório futuro da revisão. */
@@ -2231,20 +2366,22 @@ function dPsdParseItems(psd, res, ox, oy){
         }
         const _tg=_dPsdGradient(node); if(_tg) it.gradient=_tg;        // preenchimento por gradiente no texto
         Object.assign(it,_dPsdEffects(node));
-        /* ⛔ O IMPORT NÃO ADIVINHA MAIS QUAL CAMPO É A CAMADA (decisão do Ryan, 03/09).
-           `_dPsdSuggestVar` tem cinco camadas de palpite e só UMA não é chute: o `{{campo}}`
-           escrito pelo designer no nome da camada, que é instrução explícita. As outras
-           quatro — o mapa fixo (`preco`→`precoPor`, `off`→`desconto`…), a lista de campos
-           conhecidos, o casamento com o catálogo pelo nome e a heurística de conteúdo
-           ("tem R$ no texto, então é preço") — decidiam pelo designer e erravam calado:
-           um rodapé que cita um valor virava `{{precoPor}}` e o texto original ia embora.
-           Pior: quando acertavam metade, ele tinha que auditar TUDO para descobrir qual
-           metade — mais caro que ligar do zero.
-           Agora a camada nasce sem campo e quem liga é o designer, no `<select>` da linha
-           (catálogo inteiro + "Criar campo"). O motor de sugestão CONTINUA existindo e é
-           usado de propósito em outras superfícies, onde é pedido: o linter (`linter.js`),
-           a dica do painel de propriedades (`props-panel.js`) e o botão "Mapear com IA",
-           que só roda quando o designer aperta. Nada aqui roda sem ele pedir. */
+/* ── HISTÓRICO DESTA DECISÃO, porque ela mudou duas vezes ──────────────────────
+           03/09 (Ryan): o import PAROU de adivinhar campo. O motivo era real — as cinco
+           camadas de palpite do `_dPsdSuggestVar` erravam CALADO (um rodapé que cita um
+           valor virava `{{precoPor}}` e o texto original ia embora), e acertar metade era
+           pior que não acertar nada: obrigava a auditar a arte inteira para descobrir qual
+           metade estava errada.
+           HOJE (rodada 6, 10/09): volta a decidir sozinho, mas o que mudou não é a coragem
+           — é o mecanismo. Os palpites paralelos morreram (existe UM resolvedor,
+           `gFieldInfer` + a passada relacional `gFieldInferBatch`); alta confiança exige
+           sinal específico com vantagem clara sobre a segunda leitura; o texto autorado não
+           se perde mais (vira o EXEMPLO do campo, em `dLayerBindField`); e nenhuma decisão
+           fica escondida — a revisão por exceção mostra as ambíguas como pergunta e a
+           personalização da camada mostra o estado resultante de cada uma. Média confiança
+           NÃO aplica: fica pendente e vira UMA pergunta.
+           A ordem de autoridade que protege o designer: decisão dele > memória aprovada >
+           convenção `{{campo}}`/`@campo` no Photoshop > regra determinística > IA. */
         if(sv && (sv.confidence==='high'||sv.explicit)){
           it.varName=sv.name; it.mode='var'; it._fieldInference=sv;
         } else if(sv && sv.confidence==='medium'){
@@ -2424,9 +2561,12 @@ function dPsdParseItems(psd, res, ox, oy){
           if(!it.imgUrl) it.imgUrl=_dPsdRasterURL(_pn.canvas,{maxPx:_fidCap,q:0.92,lossless:true});
         } else {
           /* Pediu raster fiel e NÃO existe pixel para preservar: nem editável, nem imagem.
-             É o único caso realmente `unsupported` — antes ele se confundia com `native`,
-             porque o bloco inteiro estava dentro do `if(canvas)` e nada era registrado. */
-          _cap.nivel='unsupported';
+             É o único caso realmente `unsupported`, e o único BLOQUEANTE — a distinção do §39
+             do briefing: "native falhou mas o raster salvou" é aceitável; "native falhou e não
+             há nada confiável" é atenção alta. Antes ele se confundia com `native`, porque o
+             bloco inteiro vivia dentro do `if(canvas)` e nada era registrado. */
+          _dPsdCapMarca(_cap,'sem_representacao',
+            _cap.motivos.map(m=>m.code).filter(c=>c!=='sem_representacao').join(', '));
         }
       }
       items.push(it);
