@@ -4476,3 +4476,55 @@ body.theme-light #d-panel-dados .dpi-order-moves button{border-color:var(--gray-
   transition:filter var(--dur-micro) var(--ease-standard);
 }
 #d-var-modal .dv-reuse-use:hover{filter:brightness(1.06)}
+
+/* ══ CAMPOS DA ARTE — o resumo (nível 1) ═══════════════════════════════════════════════
+   A aba abria numa parede de cartões respondendo "quais campos o Luma conhece?". Aqui ela
+   responde "o que esta arte usa, e falta algo?" — e o inventário inteiro é nível 2.
+   A pergunta pendente fica ACIMA do resumo: ação antes de inventário (§34). */
+.fields-summary:empty{display:none}
+.fsum{display:flex;flex-direction:column;gap:7px;padding:2px 2px 8px}
+.fsum-line{margin:0;display:flex;align-items:flex-start;gap:6px;font-size:10.5px;line-height:1.45;color:var(--d-text3)}
+.fsum-line b{font-weight:700;color:var(--d-text2)}
+.fsum-line>svg{width:12px;height:12px;flex:0 0 auto;margin-top:2px;color:var(--green)}
+.fsum-line.warn>svg{color:var(--dm-orange)}
+.fsum-acts{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:2px}
+.fsum-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border:1px solid var(--d-border);
+  border-radius:8px;background:var(--d-surf2);font-size:10px;font-weight:700;color:var(--d-text2);
+  cursor:pointer;transition:border-color var(--dur-micro),color var(--dur-micro),background var(--dur-micro)}
+.fsum-btn:hover{border-color:var(--d-text3);color:var(--d-text)}
+.fsum-btn>svg{width:12px;height:12px;flex:0 0 auto}
+.fsum-btn.on{border-color:var(--dm-orange);background:rgba(255,144,0,.14);color:var(--dm-orange)}
+.fsum-link{padding:5px 2px;border:0;background:none;font-size:10px;font-weight:700;color:var(--d-text3);
+  cursor:pointer;text-decoration:underline;text-underline-offset:2px;transition:color var(--dur-micro)}
+.fsum-link:hover{color:var(--d-text)}
+/* A pergunta. É o único bloco com peso visual do painel — o resto do resumo é texto calmo. */
+.fsum-ask{display:flex;flex-direction:column;gap:6px;padding:10px 11px;margin-bottom:2px;
+  border:1px solid rgba(255,144,0,.32);border-radius:10px;background:rgba(255,144,0,.075)}
+.fsum-ask-top{margin:0;font-size:8.5px;font-weight:750;letter-spacing:.06em;text-transform:uppercase;color:var(--dm-orange)}
+.fsum-ask-q{font-size:11.5px;font-weight:700;line-height:1.35;color:var(--d-text)}
+.fsum-opts{display:flex;flex-wrap:wrap;gap:5px}
+.fsum-opt{padding:5px 9px;border:1px solid var(--d-border);border-radius:8px;background:var(--d-surf);
+  font-size:10px;font-weight:700;color:var(--d-text2);cursor:pointer;
+  transition:border-color var(--dur-micro),color var(--dur-micro),background var(--dur-micro)}
+.fsum-opt:hover{border-color:var(--d-text3);color:var(--d-text)}
+.fsum-opt.pri{border-color:var(--dm-orange);background:rgba(255,144,0,.16);color:var(--dm-orange)}
+.fsum-opt-fixo{color:var(--d-text3)}
+.fsum-ask-ver{align-self:flex-start;padding:0;border:0;background:none;font-size:9.5px;font-weight:650;
+  color:var(--d-text3);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.fsum-ask-ver:hover{color:var(--d-text)}
+.fsum-opt:focus-visible,.fsum-btn:focus-visible,.fsum-link:focus-visible,.fsum-ask-ver:focus-visible{
+  outline:2px solid var(--dm-orange);outline-offset:2px}
+
+/* ══ MOSTRAR CAMPOS NA ARTE (§41) — o contrato de editabilidade, visível ═══════════════
+   Selo por cima de cada camada ligada. Desenhado por `::before`, o que garante que ele só
+   existe no DOM do Estúdio: o PNG e o SVG saem de motores que leem `dLayers`, não este DOM.
+   A camada SELECIONADA mostra o selo mesmo com o modo desligado (§40) — quando se olha uma
+   camada, saber se ela é fixa ou editável não pode exigir outro clique. */
+.canvas-layer[data-field-label]::before{
+  content:attr(data-field-label);position:absolute;left:0;bottom:100%;z-index:6;
+  max-width:100%;padding:2px 6px;border-radius:5px 5px 0 0;
+  background:var(--var-color,#FFB900);color:#0A0A0A;
+  font:700 10px/1.3 system-ui,sans-serif;letter-spacing:.01em;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;pointer-events:none;
+}
+body.d-show-fields .canvas-layer[data-field-label]{outline:1.5px dashed var(--var-color,#FFB900);outline-offset:1px}

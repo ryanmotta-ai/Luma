@@ -2000,6 +2000,8 @@ function dLayerEmbeddedFields(l){
 // Liga a camada inteira ao campo.
 function dLayerBindField(layerId, fieldName){
   const l=dLayers.find(x=>x.id===layerId); if(!l||!fieldName) return;
+  _dFieldsSugCache=null;   // o parecer semântico mudou: esta camada saiu da fila de perguntas
+  delete l.fieldFixo;      // mostrar um campo e estar "fixa na arte" é estado impossível
   const v=dVars.find(x=>x.name===fieldName); if(!v){ gToast('Campo não encontrado'); return; }
   if(typeof dHistoryPush==='function') dHistoryPush();
   if(l.type==='image'||l.type==='frame'){ l.imgVar=fieldName; }
@@ -2042,6 +2044,7 @@ function dLayerBindField(layerId, fieldName){
 // Desvincula: texto volta a ser fixo (usa o rótulo do campo como exemplo); imagem limpa imgVar.
 function dLayerUnbindField(layerId){
   const l=dLayers.find(x=>x.id===layerId); if(!l) return;
+  _dFieldsSugCache=null;
   if(typeof dHistoryPush==='function') dHistoryPush();
   if(l.type==='image'||l.type==='frame'){ l.imgVar=''; }
   else if(l.type==='text'){
@@ -2106,7 +2109,14 @@ function dLayerUseSuggestedField(layerId,name){
 }
 function dLayerSetPersonalizable(layerId,on){
   const l=dLayers.find(x=>x.id===layerId);if(!l)return;
-  if(!on){dLayerUnbindField(layerId);if(typeof dFieldsRender==='function')dFieldsRender();return;}
+  if(!on){
+    /* "Fixo na arte" é DECISÃO EXPLÍCITA (§28), não ausência de decisão: marca a camada para
+       a inferência não voltar a propor um campo nela. É o mesmo bit que o "Manter fixo" do
+       painel Campos grava — uma decisão, um lugar. */
+    l.fieldFixo=true;
+    dLayerUnbindField(layerId);if(typeof dFieldsRender==='function')dFieldsRender();return;
+  }
+  delete l.fieldFixo;   // pediu para ser editável: a decisão anterior deixou de valer
   const inf=dLayerFieldInference(l);
   if(inf&&inf.field&&inf.confidence==='high'){dLayerUseSuggestedField(layerId,inf.field.name);return;}
   if(typeof dFieldBindPickerOpen==='function')dFieldBindPickerOpen();
@@ -2640,6 +2650,126 @@ const _D_FIELD_ARROW='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
 
 // Linha compacta (fechada: nome + tipo + status) + detalhe sob demanda
 // (aberto: exemplo, chips de uso clicáveis e ações). Acordeão de 1 aberto.
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   CAMPOS DA ARTE — o modelo mental mudou, e é isso que esta parte resolve
+   ------------------------------------------------------------------------------------------
+   A aba era um BANCO DE VARIÁVEIS: abria numa parede de cartões, com busca, chips de filtro e
+   categorias, respondendo "quais campos o Luma conhece?". A pergunta que o designer tem
+   depois de importar uma arte é outra, e é muito mais estreita:
+
+     o que o franqueado vai poder mudar aqui — e falta alguma coisa?
+
+   Então a primeira visão passa a ser um RESUMO, e o inventário inteiro vira nível 2, atrás de
+   "Ver todos os campos" (§71, divulgação progressiva). Quem não tem nada para resolver lê uma
+   linha e fecha; quem tem, resolve no topo, antes de qualquer inventário (§34).
+
+   ⛔ Nada aqui é um segundo sistema de campos. O resumo LÊ `dVars`/`dLayers`, a pergunta é
+   respondida por `dLayerUseSuggestedField`/`dLayerUnbindField` (os mesmos motores do painel
+   da camada) e o inventário continua sendo o `dFieldsRender` que já existia.
+   ⛔ A análise semântica NÃO roda a cada render (§64): fica em cache pela assinatura dos
+   vínculos, que é o que de fato a invalida.                                                 */
+let _dFieldsExpandido=false;    // false = resumo (nível 1) · true = inventário (nível 2)
+let _dFieldsMostraNaArte=false; // overlay "Mostrar campos na arte" — só no Estúdio, nunca no export
+let _dFieldsSugCache=null;      // {chave, lista} — o parecer semântico das camadas sem vínculo
+
+// Assinatura do que muda o parecer: quais camadas existem, o que cada uma já mostra, e o
+// tamanho do catálogo. Trocar de zoom, mover camada ou editar cor não invalida nada.
+function _dFieldsSugChave(){
+  return (dLayers||[]).map(l=>l.id+':'+(dLayerBoundField(l)||'')).join('|')+'#'+(dVars||[]).length;
+}
+/* As camadas que o Luma acha que significam algo e ainda não mostram campo nenhum. É a MESMA
+   passada relacional do import (`gFieldInferBatch`), agora sobre `dLayers` — o que prova que
+   o Smart Mapping não depende do PSD: aqui não existe PSD nenhum. */
+function dFieldsSugestoes(){
+  if(typeof gFieldInferBatch!=='function') return [];
+  const chave=_dFieldsSugChave();
+  if(_dFieldsSugCache && _dFieldsSugCache.chave===chave) return _dFieldsSugCache.lista;
+  const ab=(typeof dGetActiveAB==='function')?dGetActiveAB():null;
+  const livres=(dLayers||[]).filter(l=>dLayerIsBindable(l) && !dLayerBoundField(l)
+    && !l.fieldFixo && !(dLayerEmbeddedFields(l)||[]).length);
+  let lista=[];
+  try{ lista=gFieldInferBatch(livres,{fields:dVars, artboard:ab?{w:ab.w,h:ab.h}:null})||[]; }catch(e){ lista=[]; }
+  // Só o que dá para responder com um clique: sugestão sem campo proposto não é pergunta.
+  lista=lista.filter(r=>r&&r.field&&r.field.name);
+  _dFieldsSugCache={chave, lista};
+  return lista;
+}
+function dFieldsToggleTodos(){ _dFieldsExpandido=!_dFieldsExpandido; dFieldsRender(); }
+/* §41 — MOSTRAR CAMPOS NA ARTE. É a visão do contrato de editabilidade: cada camada ligada
+   ganha o rótulo do campo por cima. Overlay de AUTORIA: vive numa pseudo-elemento de CSS, o
+   que garante que não existe para o gerador de PNG nem para o export SVG (motores separados,
+   que leem `dLayers`, não o DOM do Estúdio). */
+function dFieldsToggleNaArte(){
+  _dFieldsMostraNaArte=!_dFieldsMostraNaArte;
+  document.body.classList.toggle('d-show-fields', _dFieldsMostraNaArte);
+  if(typeof dRenderCanvas==='function') dRenderCanvas();
+  dFieldsRender();
+}
+// Uma pergunta por vez, no topo, antes do inventário (§34). As opções SÃO os botões (§19).
+function _dFieldsPerguntaHTML(){
+  const sug=dFieldsSugestoes();
+  if(!sug.length) return '';
+  const r=sug[0];
+  const l=r.layer;
+  const amostra=(l.type==='text')?String(l.content||'').replace(/\s+/g,' ').trim().slice(0,38):'';
+  const nome=amostra||l.name||'esta camada';
+  const opcoes=[r.field].concat(r.alternatives||[])
+    .filter((f,i,a)=>f&&f.name&&a.findIndex(x=>x&&x.name===f.name)===i).slice(0,3);
+  const bts=opcoes.map((f,k)=>'<button type="button" class="fsum-opt'+(k===0?' pri':'')
+    +'" onclick="dLayerUseSuggestedField(\''+l.id+'\',\''+f.name+'\')">'+_dEsc(f.label||f.name)+'</button>').join('');
+  return '<div class="fsum-ask">'
+    +'<p class="fsum-ask-top">'+sug.length+(sug.length===1?' item precisa da sua ajuda':' itens precisam da sua ajuda')+'</p>'
+    +'<strong class="fsum-ask-q">“'+_dEsc(nome)+'” é qual conteúdo?</strong>'
+    +'<div class="fsum-opts">'+bts
+    +'<button type="button" class="fsum-opt fsum-opt-fixo" onclick="dFieldsManterFixo(\''+l.id+'\')">Manter fixo</button></div>'
+    +'<button type="button" class="fsum-ask-ver" onclick="dFieldFlashLayer(\''+l.id+'\')">Ver na arte</button>'
+    +'</div>';
+}
+/* "Manter fixo" é uma DECISÃO, não um "não sei": marca a camada para a inferência não voltar
+   a perguntar (§28/§11). Vive na própria camada porque é uma escolha sobre aquela camada —
+   não é um sistema de campos paralelo, é um bit de autoridade. */
+function dFieldsManterFixo(layerId){
+  const l=(dLayers||[]).find(x=>x.id===layerId); if(!l) return;
+  if(typeof dHistoryPush==='function') dHistoryPush();
+  l.fieldFixo=true;
+  _dFieldsSugCache=null;
+  if(typeof dMarkUnsaved==='function') dMarkUnsaved();
+  dFieldsRender();
+  gToast('“'+(l.name||'Camada')+'” fica fixa na arte');
+}
+// O resumo (§33): o que está pronto, o que falta, e os dois caminhos para ir mais fundo.
+function _dFieldsResumoHTML(){
+  const emUso=(dVars||[]).filter(v=>dVarUsage(v.name).length>0);
+  const dup=Object.keys(_dFieldsDup||{}).length;
+  const pergunta=_dFieldsPerguntaHTML();
+  const linha=(ok,txt)=>'<p class="fsum-line'+(ok?'':' warn')+'">'+(ok?_D_FSUM_OK:_D_FSUM_WARN)+'<span>'+txt+'</span></p>';
+  let h='<div class="fsum">'+pergunta;
+  h+=linha(true, '<b>'+emUso.length+(emUso.length===1?' campo configurado':' campos configurados')+'</b>');
+  h+=dup?linha(false, '<b>'+dup+(dup===1?' campo parecido':' campos parecidos')+'</b> com outro do catálogo')
+        :linha(true, 'Nenhum conflito');
+  h+='<div class="fsum-acts">'
+    +'<button type="button" class="fsum-btn'+(_dFieldsMostraNaArte?' on':'')+'" onclick="dFieldsToggleNaArte()">'
+      +_D_FSUM_EYE+(_dFieldsMostraNaArte?'Ocultar campos na arte':'Mostrar campos na arte')+'</button>'
+    +'<button type="button" class="fsum-link" onclick="dFieldsToggleTodos()" aria-expanded="'+(_dFieldsExpandido?'true':'false')+'">'
+      +(_dFieldsExpandido?'Recolher':'Ver todos os campos')+'</button>'
+    +'</div></div>';
+  return h;
+}
+const _D_FSUM_OK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+const _D_FSUM_WARN='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>';
+const _D_FSUM_EYE='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
+/* Pinta o resumo e esconde/mostra o inventário. O inventário continua sendo o mesmo
+   `dFieldsRender` — este passe só decide se ele está na tela. */
+function _dFieldsResumoRender(){
+  const host=document.getElementById('d-fields-summary');
+  if(host) host.innerHTML=_dFieldsResumoHTML();
+  const nivel2=['d-fields-toolbar','d-fields-chipbar','d-fields-hint','d-fields-list','d-fields-inventory'];
+  // Sem campo nenhum no catálogo o inventário É a tela (o estado de boas-vindas explica o
+  // conceito e oferece criar o primeiro) — esconder ali deixaria o painel vazio.
+  const esconde=!_dFieldsExpandido && (dVars||[]).length>0;
+  nivel2.forEach(id=>{ const el=document.getElementById(id); if(el) el.hidden=esconde; });
+}
+
 function dFieldCardHTML(v,i){
   const tm=gFieldTypeMeta(v.type);
   const usage=dFieldUsageLayers(v.name);
@@ -2708,7 +2838,7 @@ function _dFieldsRenderChipbar(counts){
   if(!cb) return;
   if(!counts){ cb.innerHTML=''; return; }
   const chip=(f,lbl,n)=>`<button class="field-chip${_dFieldsStatusFilter===f?' on':''}" onclick="dFieldSetStatusFilter('${f}')">${lbl} <span>${n}</span></button>`;
-  cb.innerHTML=chip('all','Todos',counts.total)+chip('used','Em uso',counts.used)+chip('free','Livres',counts.free);
+  cb.innerHTML=chip('all','Todos',counts.total)+chip('used','Em uso',counts.used)+chip('free','Disponíveis',counts.free);
 }
 // Rodapé de inventário: o pulso do catálogo sem contar cartão.
 // ⚠ Está OCULTO no painel Campos por `#d-panel-dados .dados-inventory{display:none!important}`
@@ -2720,7 +2850,7 @@ function _dFieldsRenderInventory(counts){
   if(!inv) return;
   if(!counts){ inv.innerHTML=''; inv.style.display='none'; return; }
   inv.style.display='';
-  inv.innerHTML=`<b>${counts.total} campo${counts.total!==1?'s':''}</b> · <span class="inv-dot used"></span> <b>${counts.used} em uso</b> · <span class="inv-dot free"></span> ${counts.free} livre${counts.free!==1?'s':''}`;
+  inv.innerHTML=`<b>${counts.total} campo${counts.total!==1?'s':''}</b> · <span class="inv-dot used"></span> <b>${counts.used} em uso</b> · <span class="inv-dot free"></span> ${counts.free} disponíve${counts.free!==1?'is':'l'}`;
 }
 
 function dFieldsRender(){
@@ -2731,7 +2861,7 @@ function dFieldsRender(){
   if(!dVars.length){
     el.innerHTML=dFieldsEmptyHTML();
     _dFieldsRenderChipbar(null); _dFieldsRenderInventory(null);
-    _dFieldsAfterRender(); return;
+    _dFieldsResumoRender(); _dFieldsAfterRender(); return;
   }
 
   const usedNames=new Set(dVars.filter(v=>dVarUsage(v.name).length>0).map(v=>v.name));
@@ -2753,9 +2883,9 @@ function dFieldsRender(){
     let msg;
     if(q) msg=`Nenhum campo encontrado.<br><button class="field-create-q" onclick="dFieldCreateFromQuery()">Criar “${_dEsc(_dFieldsQuery)}”</button>`;
     else if(_dFieldsStatusFilter==='used') msg='Nenhum campo em uso neste template ainda.';
-    else msg='Nenhum campo livre — todos estão em uso.';
+    else msg='Nenhum campo disponível — todos estão em uso.';
     el.innerHTML=`<div class="field-noresult">${msg}</div>`;
-    _dFieldsAfterRender(); return;
+    _dFieldsResumoRender(); _dFieldsAfterRender(); return;
   }
   let html='';
   const groups=[
@@ -2779,6 +2909,7 @@ function dFieldsRender(){
     </div>`;
   });
   el.innerHTML=html;
+  _dFieldsResumoRender();
   _dFieldsAfterRender();
 }
 /* Fecho de TODO render do painel Campos.

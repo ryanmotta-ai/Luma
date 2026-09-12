@@ -1160,6 +1160,19 @@ function dRenderCanvas(){
     const el=document.createElement('div');
     el.className='canvas-layer'+(l.id===dSelId?' selected':'')+(l.locked?' layer-locked':'')+(dMultiSel.includes(l.id)?' multi-sel':'');
     el.dataset.id=l.id;
+    /* §41 — MOSTRAR CAMPOS NA ARTE. O rótulo do campo viaja como ATRIBUTO e quem o desenha é
+       um `::before` de CSS, sob `body.d-show-fields`. Assim o selo existe só no DOM do
+       Estúdio: o gerador de PNG e o export SVG são motores separados que leem `dLayers`, não
+       este DOM — o overlay não tem como escapar para a arte do franqueado.
+       Também alimenta o selo discreto da camada SELECIONADA (§40), sem precisar de um
+       segundo caminho. */
+    /* Lê o MODO da classe no body, não da variável de layers.js: canvas.js carrega ANTES de
+       layers.js, e um `let` de outro script em zona morta lança ReferenceError até no
+       `typeof`. A classe é a mesma fonte de verdade que o botão alterna. */
+    if(document.body.classList.contains('d-show-fields') || l.id===dSelId){
+      const _fn=(typeof dLayerBoundField==='function')?dLayerBoundField(l):null;
+      if(_fn) el.dataset.fieldLabel=(typeof gFieldLabel==='function')?gFieldLabel(_fn):_fn;
+    }
     el.style.cssText=`left:${l.x}px;top:${l.y}px;width:${l.w}px;height:${l.h}px;position:absolute;`;
     // Máscara de camada (alpha) — espelha o PSD; aplica via CSS mask no elemento
     if(l.mask){ const mu='url("'+l.mask+'")'; el.style.webkitMaskImage=mu; el.style.maskImage=mu; el.style.webkitMaskSize=el.style.maskSize='100% 100%'; el.style.webkitMaskRepeat=el.style.maskRepeat='no-repeat'; }
