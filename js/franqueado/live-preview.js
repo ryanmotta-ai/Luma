@@ -381,8 +381,6 @@ function _fPostedHomeBar(claro){
 }
 function _fPostedScreenHTML(){
   const slot = '<div class="pst-artslot"></div>';
-  /* "Arte" não tem chrome NEM barra de status: é a peça sozinha, do jeito que o PNG sai. */
-  if(_postedCtx === 'artwork') return `<div class="pst-artwork">${slot}</div>`;
   const chrome = _postedCtx==='feed' ? _fPostedFeed(slot)
                : _postedCtx==='whatsapp' ? _fPostedWhats(slot)
                : _fPostedStory(slot);
@@ -649,12 +647,15 @@ function fPostedContextForFormat(fmt){
    proporção, então ele acompanha os dois casos. O que nunca acontece é uma arte de feed
    aparecer como Stories, ou vice-versa. */
 function _fPostedContextsFor(principal){
-  /* ⚠ "Arte" É UM AMBIENTE, e é o último de propósito. Ele mostra a peça sem chassi nenhum —
-     e é literalmente o arquivo que o Baixar PNG entrega. Sem ele, a única forma de conferir a
-     arte limpa era fechar a prévia, o que é o oposto de "conferir antes de baixar".
-     Ele não tem `_fPosted*` próprio: o `_fPostedScreenHTML` devolve só o slot. */
-  if(principal === 'story') return [{id:'story',label:'Stories'},{id:'whatsapp',label:'WhatsApp'},{id:'artwork',label:'Arte'}];
-  if(principal === 'feed')  return [{id:'feed',label:'Feed'},{id:'whatsapp',label:'WhatsApp'},{id:'artwork',label:'Arte'}];
+  /* ⛔ O AMBIENTE "Arte" SAIU (Ryan, 11/09/2026). Ele nasceu nesta mesma data para mostrar a
+     peça sem chassi — "é o arquivo que o Baixar PNG entrega" — e na prática não servia a
+     ninguém: quem abre o "Como vai ficar" quer ver a arte NUM LUGAR, e a peça limpa já está
+     no palco durante a criação inteira e na miniatura da entrega. Era uma aba para repetir
+     o que a tela ao lado já mostra.
+     Ficam os três ambientes que respondem a uma pergunta de verdade: onde isso vai ser
+     publicado. */
+  if(principal === 'story') return [{id:'story',label:'Stories'},{id:'whatsapp',label:'WhatsApp'}];
+  if(principal === 'feed')  return [{id:'feed',label:'Feed'},{id:'whatsapp',label:'WhatsApp'}];
   return [];
 }
 

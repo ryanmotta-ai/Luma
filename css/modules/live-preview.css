@@ -1100,21 +1100,10 @@ body:not(.theme-light) .pst-qr-x:hover{background:var(--d-surf2);color:var(--d-t
    criação. O que muda no estado final é onde ele aparece: em vez de abrir por cima, ele é o
    conteúdo do palco. Mesmo canvas, mesmo renderizador, mesma regra de ambiente.
 
-   ⚠ O AMBIENTE "Arte" existe justamente para a arte não ficar escondida atrás de um chassi:
-   é a peça sozinha, do jeito que o PNG sai, e é o ambiente que o "Baixar PNG" entrega. */
-
-/* ── O ambiente "Arte": sem chassi, sem barra de status, sem nada ── */
-.pst-artwork{
-  width:100%;height:100%;display:flex;align-items:center;justify-content:center;
-  background:var(--off-white);
-}
-.pst-artwork .pst-artslot{display:flex;align-items:center;justify-content:center;width:100%;height:100%}
-.pst-artwork .pst-art{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}
-body:not(.theme-light) .pst-artwork{background:var(--d-surf2)}
-/* ⚠ A MOLDURA DO CELULAR FICA (decisão do Ryan, 11/09), mesmo na arte limpa: ver a peça na
-   mão é parte de responder "como vai ficar". O que sai é só a ILHA — sem barra de status
-   embaixo dela, o notch vira um retângulo preto solto no meio do fundo claro. */
-.pst-phone.pst-ctx-artwork .pst-island{display:none}
+   ⛔ O AMBIENTE "Arte" SAIU (Ryan, 11/09/2026) e levou junto ~8 regras: `.pst-artwork`, o
+   par claro/escuro dele e o `.pst-ctx-artwork` que escondia a ilha. Ele mostrava a peça sem
+   chassi nenhum, e isso já é o que o palco mostra durante a criação inteira — uma aba para
+   repetir a tela ao lado. Ficam os ambientes que respondem "onde isso vai ser publicado". */
 
 /* ── A legenda do Feed agora é a legenda de verdade ──
    Era uma linha só ("<b>sualoja</b> produto · preço ... mais"); passa a ser o texto inteiro,
