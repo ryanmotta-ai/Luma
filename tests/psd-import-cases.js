@@ -705,6 +705,338 @@
     }finally{ host.remove(); }
   });
 
+
+  /* ── ATENÇÃO: o segundo eixo (10/09) ──────────────────────────────────────────────────
+     O livro-caixa diz COMO a camada foi convertida. Estes casos guardam a outra pergunta,
+     que é a do designer: PRECISO FAZER ALGO? As duas se confundiam, e a confusão custava nos
+     dois sentidos — textura decorativa em raster fiel virava trabalho inventado, e headline
+     com fonte trocada aparecia com o mesmo peso de um aviso de cetim. */
+  const _at=(it)=>{ it.include=(it.include!==false); if(!it.capability) _dPsdCapDe(it); return it; };
+  const _marca=(it,code,det)=>{ _dPsdCapMarca(_dPsdCapDe(it),code,det); return it; };
+
+  test('raster fiel NÃO é problema do designer',()=>{
+    // O pixel de um objeto inteligente deformado É o composto do Photoshop: a arte está igual.
+    // Chamar isso de aviso ensina o designer a ignorar avisos.
+    const it=_at({n:1,name:'Embalagem',kind:'raster',mode:'raster',x:0,y:0,w:300,h:300});
+    _marca(it,'smart_object');
+    const r=dPsdImportResult([{nome:'Arte',items:[it]}]);
+    assert(r.status==='ok','raster fiel derrubou o status da importação');
+    assert(r.precisaRevisao===0,'raster fiel entrou na conta de revisão');
+    assert(r.atencoes.length===1&&r.atencoes[0].nivel==='info',
+      'a decisão sumiu do resultado — informar COMO foi convertido continua obrigatório');
+    assert(r.resumo.raster===1&&r.resumo.native===0,'o resumo perdeu o nível de capacidade da camada');
+  });
+
+  test('texto que virou imagem PEDE atenção mesmo com a arte igual',()=>{
+    // Os dois eixos são independentes: visual preservado, editabilidade achatada. É o caso que
+    // prova por que um eixo só não serve — aquela camada deixou de poder ser um campo.
+    const it=_at({n:1,name:'Selo girado',kind:'text',mode:'raster',content:'50% OFF',x:0,y:0,w:200,h:80,fontSize:40});
+    _marca(it,'text_warp');
+    const r=dPsdImportResult([{nome:'Arte',items:[it]}]);
+    const a=r.atencoes[0];
+    assert(r.precisaRevisao===1&&a.nivel==='review','texto deformado virou imagem em silêncio');
+    assert(a.visual==='preservado','o eixo visual mentiu: a deformação está nos pixels, fiel');
+    assert(a.editabilidade==='achatada','o eixo de editabilidade não registrou a perda real');
+    assert(a.categoria==='texto_imagem','a categoria errada escolheria a ação errada');
+  });
+
+  test('prominência tipográfica eleva o aviso; letra miúda de rodapé o reduz',()=>{
+    const head=_marca(_at({n:1,name:'Headline',kind:'text',mode:'text',x:0,y:0,w:600,h:120,fontSize:96}),'fx_satin');
+    const corpo=_at({n:2,name:'Corpo',kind:'text',mode:'text',x:0,y:0,w:400,h:60,fontSize:24});
+    const rodape=_marca(_at({n:3,name:'Regulamento',kind:'text',mode:'text',x:0,y:0,w:400,h:20,fontSize:10}),'font_missing','Gotham Book');
+    const r=dPsdImportResult([{nome:'Arte',items:[head,corpo,rodape]}]);
+    const aHead=r.atencoes.find(a=>a.itemN===1), aRod=r.atencoes.find(a=>a.itemN===3);
+    assert(aHead&&aHead.nivel==='review','cetim na headline ficou no mesmo peso de cetim numa textura');
+    assert(aRod&&aRod.nivel==='info','aviso de fonte em 3 linhas de regulamento ocupou o lugar de um aviso real');
+    assert(r.precisaRevisao===1,'a conta de revisão não seguiu a relevância estrutural');
+  });
+
+  test('camada já ligada a um campo eleva qualquer adaptação',()=>{
+    // Quem ligou o campo disse que aquilo varia — o conteúdo vai mudar e a adaptação vai
+    // aparecer em toda peça da campanha. Sinal que JÁ existe, não classificação nova.
+    const solto=_marca(_at({n:1,name:'Fundo',kind:'raster',mode:'raster',x:0,y:0,w:100,h:100}),'fx_satin');
+    const campo=_marca(_at({n:2,name:'Foto',kind:'raster',mode:'frame',varName:'fotoProduto',x:0,y:0,w:100,h:100}),'fx_satin');
+    const r=dPsdImportResult([{nome:'Arte',items:[solto,campo]}]);
+    assert(r.atencoes.find(a=>a.itemN===1).nivel==='info','adaptação em camada fixa virou trabalho');
+    assert(r.atencoes.find(a=>a.itemN===2).nivel==='review','adaptação num campo do franqueado passou calada');
+  });
+
+  test('três adaptações da mesma natureza são UM aviso, não três',()=>{
+    const it=_at({n:1,name:'Placa',kind:'shape',mode:'shape',x:0,y:0,w:200,h:80});
+    _marca(it,'fx_satin'); _marca(it,'fx_contour'); _marca(it,'fx_scale');
+    const r=dPsdImportResult([{nome:'Arte',items:[it]}]);
+    assert(r.atencoes.length===1,'a mesma camada abriu '+r.atencoes.length+' avisos para a mesma ação');
+    assert(r.atencoes[0].categoria==='efeito','o agrupamento perdeu a categoria');
+  });
+
+  test('só a camada irrepresentável bloqueia, e o status diz isso',()=>{
+    const it=_at({n:1,name:'Camada exótica',kind:'raster',mode:'raster',x:0,y:0,w:100,h:100});
+    _marca(it,'sem_representacao');
+    const r=dPsdImportResult([{nome:'Arte',items:[it]}]);
+    assert(r.status==='bloqueado','a única camada que o motor não preservou não bloqueou o status');
+    assert(r.atencoes[0].nivel==='blocking','o nível bloqueante não chegou na tela');
+    assert(r.atencoes[0].visual==='perdido'&&r.atencoes[0].editabilidade==='perdida',
+      'perder tudo foi reportado como "entrou como imagem" — e não entrou nem como imagem');
+    assert(r.resumo.preservadas===0,'o resumo contou como preservada uma camada que não existe na arte');
+  });
+
+  test('divergência com causa conhecida entra no aviso; sem causa abre item próprio',()=>{
+    const comCausa=_marca(_at({n:1,name:'Título',kind:'text',mode:'text',x:0,y:0,w:400,h:90,fontSize:72,
+      fontName:'Gotham Black'}),'font_missing','Gotham Black');
+    const limpa=_at({n:2,name:'Foto',kind:'raster',mode:'raster',x:0,y:0,w:300,h:300});
+    const r=dPsdImportResult([{nome:'Arte',items:[comCausa,limpa]}],
+      {divergencias:[{prancheta:0,itemN:1,pct:41,camada:'Título',kind:'text'},
+                     {prancheta:0,itemN:2,pct:33,camada:'Foto',kind:'raster'}]});
+    const a1=r.atencoes.find(a=>a.itemN===1), a2=r.atencoes.find(a=>a.itemN===2);
+    assert(r.atencoes.filter(a=>a.itemN===1).length===1,
+      'a mesma fonte trocada apareceu duas vezes: uma como decisão, outra como surpresa');
+    assert(a1.divergencia===41,'o número medido não entrou dentro do aviso que o explica');
+    assert(a1.categoria==='fonte','a divergência roubou a categoria de quem tem a causa');
+    assert(a2&&a2.semCausa===true&&a2.categoria==='divergencia',
+      'divergência sem causa conhecida ficou muda — a arte está diferente e ninguém avisou');
+    assert(/nenhuma adaptação conhecida/i.test(a2.explicacao),'o motor inventou um culpado');
+    assert(r.pranchetas[0].revisao===2,
+      'a divergência sem causa não entrou na conta da prancheta — a aba mostraria menos do que existe');
+  });
+
+  test('resultado sem medição de pixels sai completo do mesmo jeito',()=>{
+    // A engine produz o resultado exista ou não tela: a medição precisa de canvas, o veredito não.
+    const it=_marca(_at({n:1,name:'Título',kind:'text',mode:'text',x:0,y:0,w:400,h:90,fontSize:72}),'font_substituted','Gotham');
+    const r=dPsdImportResult([{nome:'Arte',items:[it]}]);
+    assert(r.atencoes.length===1&&r.precisaRevisao===1,'sem medição o resultado veio vazio');
+    assert(r.atencoes[0].divergencia===undefined,'inventou um número de divergência que ninguém mediu');
+  });
+
+  test('multi-prancheta: cada prancheta responde pela sua conta e o item traz o endereço',()=>{
+    const a=_marca(_at({n:1,name:'Headline A',kind:'text',mode:'text',x:0,y:0,w:600,h:120,fontSize:96}),'font_missing','Gotham');
+    const b=_marca(_at({n:1,name:'Foto B',kind:'raster',mode:'raster',x:0,y:0,w:300,h:300}),'smart_object');
+    const r=dPsdImportResult([{nome:'Story',items:[a]},{nome:'Feed',items:[b]}]);
+    assert(r.pranchetas.length===2,'a estrutura multi-prancheta não é a mesma da prancheta única');
+    assert(r.pranchetas[0].atencoes===1&&r.pranchetas[1].atencoes===1,'a conta por prancheta se perdeu');
+    // A aba mostra `revisao`, não `atencoes`: a prancheta cuja única decisão é informativa
+    // não pode ganhar um número laranja dizendo que tem problema.
+    assert(r.pranchetas[0].revisao===1&&r.pranchetas[1].revisao===0,
+      'a aba da prancheta marcaria problema onde só houve uma decisão informativa');
+    assert(r.precisaRevisao===1,'a atenção informativa da segunda prancheta entrou na conta de revisão');
+    const at=r.atencoes.find(x=>x.nivel==='review');
+    assert(at.prancheta===0&&at.pranchetaNome==='Story',
+      'o item não sabe em que prancheta mora — clicar nele abriria a errada');
+  });
+
+  test('camada fora do import sai do resultado inteiro',()=>{
+    const fora={n:1,name:'Rascunho',kind:'raster',mode:'raster',x:0,y:0,w:100,h:100,include:false};
+    _dPsdCapMarca(_dPsdCapDe(fora),'sem_representacao');
+    const r=dPsdImportResult([{nome:'Arte',items:[fora]}]);
+    assert(r.status==='ok'&&!r.atencoes.length,'camada desmarcada continuou bloqueando a importação');
+    assert(r.resumo.camadas===0,'o resumo contou uma camada que não vai ser importada');
+  });
+
+  test('nenhuma explicação vaza o vocabulário do motor',()=>{
+    // O designer resolve o problema sem aprender `raster`, `native_lossy` ou nome de código.
+    const proibido=/raster|native|unsupported|capability|fallback|_[a-z]+_[a-z]+|fx_|blend_/i;
+    _DPSD_ATENCAO_CATS.forEach(c=>{
+      const txt=c.titulo+' '+c.texto({name:'x'});
+      assert(!proibido.test(txt),'a categoria "'+c.id+'" fala a língua do motor: "'+txt+'"');
+      assert(/^[A-ZÀ-Ú]/.test(c.titulo)&&c.titulo.length<=52,
+        'o título da categoria "'+c.id+'" não é uma frase curta em PT-BR: "'+c.titulo+'"');
+      assert(['fonte','ciente','ver'].indexOf(c.acao)>=0,'a categoria "'+c.id+'" não tem ação contextual');
+    });
+  });
+
+
+  test('TODO motivo do livro-caixa tem categoria de atenção — nenhum cai no vazio',()=>{
+    // _dPsdCatDe devolvendo null DESCARTA a atenção em silêncio. Um motivo novo sem categoria
+    // seria uma perda que o motor conhece e a tela nunca mostra — o pior modo de falhar.
+    const orfaos=Object.keys(_DPSD_CAP_MOTIVOS).filter(c=>!_dPsdCatDe(c));
+    assert(!orfaos.length,'motivos sem categoria (a atenção deles seria descartada calada): '+orfaos.join(', '));
+  });
+
+  test('o selo da lista lê o veredito do motor, não a flag crua da camada',()=>{
+    // A mesma condição escrita duas vezes — no estágio que decide e na tela que desenha — é
+    // como nasceram as verdades paralelas de fidelidade. A tela agora só traduz o motivo.
+    const semLivro={n:1,name:'Placa',kind:'shape',mode:'shape',x:0,y:0,w:100,h:40,fxSatin:true};
+    assert(_dPsdSelos(semLivro)==='','a tela voltou a decidir a perda por conta própria');
+    const comLivro=Object.assign({},semLivro,{capability:null});
+    _dPsdCapItem(comLivro);
+    assert(/Cetim/.test(_dPsdSelos(comLivro)),'o motivo registrado pelo estágio não chegou na lista');
+    assert(/title="Cetim não tem equivalente"/.test(_dPsdSelos(comLivro)),
+      'a explicação técnica do selo não vem do rótulo do próprio motivo');
+  });
+
+
+  /* ── SMART MAPPING: significado do conteúdo (10/09, rodada 6) ─────────────────────────
+     `gFieldInfer` olha UMA camada. Estes casos guardam a evidência que só existe ENTRE elas
+     — e a fronteira que ela não atravessa: sem discriminante, a resposta é uma pergunta, não
+     um palpite. */
+  const _L=(o)=>Object.assign({visible:true,opacity:100,w:300,h:60},o);
+  const _lote=(layers,opts)=>gFieldInferBatch(layers,Object.assign({fields:[]},opts||{}));
+  const _mapa=(r)=>{const o={};r.forEach(x=>o[x.layer.id]=x.field.name+'/'+x.confidence);return o;};
+
+  test('o par DE/POR resolve os dois preços que camada a camada ficariam ambíguos',()=>{
+    const r=_mapa(_lote([
+      _L({id:'de',type:'text',name:'Copy 3',content:'DE R$ 49,90',fontSize:32}),
+      _L({id:'por',type:'text',name:'Copy 4',content:'POR R$ 29,90',fontSize:64})
+    ]));
+    assert(r.de==='precoDe/high','o valor anterior do par não foi reconhecido: '+r.de);
+    assert(r.por==='precoPor/high','o valor que vale não foi reconhecido: '+r.por);
+  });
+
+  test('o texto tachado é o preço anterior mesmo sem a palavra "de"',()=>{
+    const r=_mapa(_lote([
+      _L({id:'a',type:'text',name:'t1',content:'R$ 49,90',fontSize:60,strikethrough:true}),
+      _L({id:'b',type:'text',name:'t2',content:'R$ 29,90',fontSize:60})
+    ]));
+    assert(r.a==='precoDe/high'&&r.b==='precoPor/high','o risco no texto deixou de ser evidência: '+JSON.stringify(r));
+  });
+
+  test('dois preços SEM discriminante viram uma pergunta com as duas leituras, não um palpite',()=>{
+    // Adivinhar aqui troca o valor que o franqueado vê na arte publicada. O custo de perguntar
+    // é um clique; o de errar é uma peça errada no ar.
+    const out=_lote([
+      _L({id:'a',type:'text',name:'t1',content:'R$ 49,90',fontSize:60}),
+      _L({id:'b',type:'text',name:'t2',content:'R$ 29,90',fontSize:60})
+    ]);
+    assert(out.length===2&&out.every(x=>x.confidence==='medium'),
+      'aplicou preço sozinho sem nenhuma evidência de qual é qual');
+    assert(out.every(x=>(x.alternatives||[]).some(a=>a.name==='precoDe')),
+      'a pergunta não oferece a segunda leitura — o designer não tem como responder');
+  });
+
+  test('preço sozinho é o preço que vale, e não é palpite',()=>{
+    // "Preço original" só existe em relação a outro preço; um valor único numa peça de oferta
+    // É o de venda. A evidência contrária continua vencendo.
+    const um=_mapa(_lote([_L({id:'a',type:'text',name:'txt',content:'R$ 19,90',fontSize:60})]));
+    assert(um.a==='precoPor/high','o preço único da arte não foi resolvido: '+um.a);
+    const risc=_mapa(_lote([_L({id:'a',type:'text',name:'txt',content:'R$ 19,90',fontSize:60,strikethrough:true})]));
+    assert(risc.a==='precoDe/high','o risco no texto perdeu para a regra do preço único: '+risc.a);
+  });
+
+  test('a regra do par NUNCA sobrescreve a convenção escrita no Photoshop',()=>{
+    // O bug que este caso trava: `@preco_original` num corpo grande e `@preco_promocional`
+    // num corpo pequeno faziam a regra de destaque tipográfico TROCAR os dois campos — a
+    // convenção explícita do designer perdia para uma heurística.
+    const r=_mapa(_lote([
+      _L({id:'a',type:'text',name:'@preco_original',content:'R$ 49,90',fontSize:80}),
+      _L({id:'b',type:'text',name:'@preco_promocional',content:'R$ 29,90',fontSize:30})
+    ]));
+    assert(r.a==='precoDe/high'&&r.b==='precoPor/high',
+      'a convenção @campo foi sobrescrita pela regra de contexto: '+JSON.stringify(r));
+  });
+
+  test('um preço explícito resolve o outro do par por complemento',()=>{
+    const r=_mapa(_lote([
+      _L({id:'a',type:'text',name:'@preco_original',content:'R$ 49,90',fontSize:32}),
+      _L({id:'b',type:'text',name:'Copy 7',content:'R$ 29,90',fontSize:32})
+    ]));
+    assert(r.a==='precoDe/high','a convenção do primeiro se perdeu');
+    assert(r.b==='precoPor/high','o complemento do par não foi deduzido: '+r.b);
+  });
+
+  test('chamada para ação continua conteúdo fixo',()=>{
+    // §11: nem todo texto vira campo. Sem evidência de personalização, ficar fixo é a
+    // resposta certa — e transformar "PEÇA AGORA" em campo é trabalho inventado.
+    const out=_lote([
+      _L({id:'a',type:'text',name:'Layer 42',content:'PEÇA AGORA',fontSize:28}),
+      _L({id:'b',type:'text',name:'Layer 43',content:'APROVEITE',fontSize:24})
+    ]);
+    assert(!out.length,'uma chamada para ação virou campo: '+JSON.stringify(_mapa(out)));
+  });
+
+  test('data com contexto de validade é validade; data solta não é',()=>{
+    const com=_mapa(_lote([_L({id:'a',type:'text',name:'Shape 12',content:'VÁLIDO ATÉ 30/09',fontSize:18})]));
+    assert(com.a==='validade/high','"válido até" no próprio texto não resolveu a data: '+com.a);
+    const sem=_lote([_L({id:'a',type:'text',name:'Layer 3',content:'30/09',fontSize:18})]);
+    assert(!sem.length||sem[0].confidence!=='high',
+      'uma data solta foi aplicada como validade sem nenhum contexto');
+  });
+
+  test('a foto principal exige a pista do Photoshop para ser automática',()=>{
+    const ab={w:1080,h:1350};
+    const img=()=>_L({id:'f',type:'image',name:'Objeto Inteligente 3',w:480,h:480});
+    const sem=_lote([img()],{artboard:ab});
+    assert(sem.length===1&&sem[0].confidence==='medium',
+      'imagem sem pista nenhuma foi ligada sozinha — o franqueado receberia pedido de foto para um grafismo');
+    const com=_lote([img()],{artboard:ab, pistas:{f:{fotoColocada:true}}});
+    assert(com[0].field.name==='foto_produto'&&com[0].confidence==='high',
+      'a pista de objeto inteligente com foto reta não virou decisão: '+JSON.stringify(_mapa(com)));
+  });
+
+  test('várias imagens candidatas não viram nenhuma decisão',()=>{
+    // §80: arte correta com menos automação é melhor que automação errada.
+    const out=_lote([
+      _L({id:'a',type:'image',name:'Img 1',w:400,h:400}),
+      _L({id:'b',type:'image',name:'Img 2',w:380,h:380})
+    ],{artboard:{w:1080,h:1350}});
+    assert(!out.length,'escolheu uma entre imagens indistinguíveis: '+JSON.stringify(_mapa(out)));
+  });
+
+  test('o mesmo campo em duas camadas com textos diferentes deixa a mais fraca em revisão',()=>{
+    const out=_lote([
+      _L({id:'a',type:'text',name:'@produto',content:'COMBO FAMÍLIA',fontSize:80}),
+      _L({id:'b',type:'text',name:'produto',content:'PIZZA GRANDE',fontSize:30})
+    ]);
+    const altas=out.filter(x=>x.field.name==='produto'&&x.confidence==='high');
+    assert(altas.length===1,'duas camadas com textos diferentes foram ligadas ao mesmo campo');
+    assert(altas[0].layer.id==='a','a evidência mais forte (convenção explícita) não venceu');
+  });
+
+  /* ── A PONTE: o resultado da análise vai para o caminho canônico, e nada mais ─────────── */
+  const _it=(o)=>Object.assign({include:true,visible:true,opacity:100,x:0,y:0,w:300,h:60},o);
+
+  test('alta confiança grava no MESMO par que um clique do designer gravaria',()=>{
+    // Zero caminho novo de persistência: `it.varName` + `it.mode` é o que `dItemToLayer` já
+    // converte em {{campo}} e o que `_dPsdSyncVarsFromLayers` já cria no catálogo.
+    const de=_it({n:1,name:'Copy 3',kind:'text',mode:'text',content:'DE R$ 49,90',fontSize:32});
+    const por=_it({n:2,name:'Copy 4',kind:'text',mode:'text',content:'POR R$ 29,90',fontSize:64});
+    const r=dPsdSmartMap([de,por],{w:1080,h:1350});
+    assert(r.aplicados===2,'o par de preços não foi aplicado: '+r.aplicados);
+    assert(de.mode==='var'&&de.varName==='precoDe','o valor anterior não virou campo');
+    assert(por.mode==='var'&&por.varName==='precoPor','o valor que vale não virou campo');
+    assert(dItemToLayer(por).content==='{{precoPor}}','a camada canônica não saiu com o campo');
+    assert(de.varSource==='auto','a origem da decisão não ficou registrada');
+  });
+
+  test('média confiança fica PENDENTE e vira uma pergunta, não um vínculo',()=>{
+    const it=_it({n:1,name:'Layer 8',kind:'text',mode:'text',content:'COMBO FAMÍLIA',fontSize:88});
+    const r=dPsdSmartMap([it],{w:1080,h:1350});
+    assert(r.aplicados===0,'aplicou uma leitura ambígua sozinho');
+    assert(_dPsdPendingSug(it),'a ambiguidade não ficou no estado pendente que a tela conhece');
+    assert(r.ambiguidades.length===1,'a pergunta não chegou ao resultado');
+    const q=r.ambiguidades[0];
+    assert(q.amostra==='COMBO FAMÍLIA','a pergunta usa o nome técnico da camada em vez do conteúdo');
+    assert(q.opcoes.length>=2&&q.opcoes.some(o=>o.name==='produto'),
+      'a pergunta não oferece as leituras: '+JSON.stringify(q.opcoes));
+    assert(it.content==='COMBO FAMÍLIA','o texto autorado foi trocado antes de o designer responder');
+  });
+
+  test('decisão do designer, memória aprovada e convenção do PSD são intocáveis',()=>{
+    const doUser=_it({n:1,name:'Copy 3',kind:'text',mode:'text',content:'DE R$ 49,90',fontSize:32,
+      varName:'precoPor',varSource:'user'});
+    const daMemoria=_it({n:2,name:'Copy 4',kind:'text',mode:'text',content:'POR R$ 29,90',fontSize:64,
+      varName:'produto',_memoryApplied:true});
+    const fixada=_it({n:3,name:'Copy 5',kind:'text',mode:'text',content:'R$ 9,90',fontSize:20,_fixedByUser:true});
+    dPsdSmartMap([doUser,daMemoria,fixada],{w:1080,h:1350});
+    assert(doUser.varName==='precoPor'&&doUser.varSource==='user','a escolha do designer foi sobrescrita');
+    assert(daMemoria.varName==='produto','a memória aprovada foi sobrescrita por uma regra');
+    assert(!fixada.varName,'uma camada que o designer tornou fixa recebeu campo de volta');
+  });
+
+  test('semântica e compatibilidade precisam concordar',()=>{
+    // §17: campo de imagem não entra numa camada de texto porque o significado parecia certo.
+    const it=_it({n:1,name:'@foto_produto',kind:'text',mode:'text',content:'Foto',fontSize:20});
+    dPsdSmartMap([it],{w:1080,h:1350});
+    assert(it.mode!=='var'||it.varName!=='foto_produto',
+      'um campo de imagem foi ligado numa camada de texto');
+  });
+
+  test('a análise roda UMA vez por camada, não a cada abertura de prancheta',()=>{
+    const it=_it({n:1,name:'Copy 4',kind:'text',mode:'text',content:'R$ 29,90',fontSize:64});
+    const a=dPsdSmartMap([it],{w:1080,h:1350});
+    const b=dPsdSmartMap([it],{w:1080,h:1350});
+    assert(a.aplicados===1,'a primeira passada não aplicou');
+    assert(b.aplicados===0&&!b.ambiguidades.length,'reprocessou a camada — trocar de aba reabriria pergunta já respondida');
+  });
+
   let passed=0;
   const falhas=[];
   for(const item of cases){
