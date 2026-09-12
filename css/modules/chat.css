@@ -2656,6 +2656,18 @@ body:not(.theme-light) .qr-back:hover{border-color:var(--dm-orange);color:var(--
    bolhas emendadas (mesma especificidade não bastaria: aqui é 0-3-0 vs 0-2-0). */
 .msg.user + .msg.bot:not(.msg-continuation){margin-top:9px}
 
+/* ── REVISÃO FACTUAL NÃO-BLOQUEANTE (§37-§40) ── */
+.art-review-badge{
+  margin:10px 0;padding:8px 12px;
+  background:var(--dm-amber-bg,#fffbeb);border:1px solid var(--dm-amber-border,#fde68a);
+  border-radius:8px;font-size:12px;color:var(--dm-amber-d,#92400e);line-height:1.4;
+}
+.art-review-badge ul{margin:4px 0 0 16px;padding:0;list-style-type:disc}
+.art-review-badge li{margin-bottom:2px}
+body:not(.theme-light) .art-review-badge{
+  background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.28);color:#fbbf24;
+}
+
 /* ── 6. O VAZIO DO DESKTOP ──
    Medido no print de 1440×900: 470px de branco entre a última bolha e a barra de
    digitar — quase metade da coluna. A conversa agora se apoia no rodapé, como

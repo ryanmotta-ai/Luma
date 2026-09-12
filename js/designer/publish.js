@@ -557,6 +557,7 @@ function dPublishRenderArtboards(){
     </div>
     <div class="pub-ab-info">
       <input class="pub-ab-name-inp" id="pub-ab-name-${ab.id}" value="${gEsc(existingName)}" placeholder="Nome do material" onclick="event.stopPropagation()" title="Nome que aparecerá no catálogo do franqueado">
+      <div class="pub-ai-chips-wrap" id="pub-ai-chips-${ab.id}"></div>
     </div>
   </div>`;
   setTimeout(()=>{
@@ -575,7 +576,69 @@ function dPublishRenderArtboards(){
       card.addEventListener('mouseenter',()=>dPubRenderPreview(ab,card));
       card.addEventListener('mouseleave',dPubHidePreview);
     }
+    if(typeof dPubSuggestMetadata==='function') dPubSuggestMetadata(ab.id);
   },0);
+}
+
+/* Sugestão de Auto-Metadata com IA (Fase 5, §23-§25).
+   Sugere nome descritivo e tags relevantes como chips clicáveis. */
+async function dPubSuggestMetadata(abId){
+  if (!window.gAI || !window.gAI.isEnabled('metadataSuggest')) return;
+  const ab = (typeof dArtboards !== 'undefined' && dArtboards ? dArtboards.find(a => a.id === abId) : null) || (typeof dGetActiveAB === 'function' ? dGetActiveAB() : null);
+  if (!ab) return;
+
+  const chipsContainer = document.getElementById('pub-ai-chips-' + abId);
+  if (!chipsContainer) return;
+
+  const layers = ab.layers || (typeof dLayers !== 'undefined' ? dLayers : []);
+  const textLayers = layers.filter(l => l && l.type === 'text' && l.content).map(l => String(l.content).slice(0, 100));
+  if (!textLayers.length) return;
+
+  const folderSel = document.getElementById('pub-folder');
+  const currentFolder = (typeof dFolders !== 'undefined' && dFolders) ? dFolders.find(f => f.id === folderSel?.value) : null;
+  const folderName = currentFolder ? currentFolder.name : '';
+
+  const res = await window.gAI.run('metadata.suggest', {
+    materialName: ab.name || 'Material',
+    campaign: folderName,
+    format: ab.fmt || (typeof dFmt !== 'undefined' ? dFmt : 'feed'),
+    texts: textLayers
+  });
+
+  if (!res || !res.ok || !res.data) return;
+  const meta = res.data;
+
+  let html = '<div class="pub-ai-suggestions" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;font-size:11px">';
+  if (meta.suggestedName && meta.suggestedName !== ab.name) {
+    const escName = gEsc(meta.suggestedName);
+    html += `<button type="button" class="pub-ai-chip pub-ai-name-chip" onclick="event.stopPropagation();dPubApplySuggestedName('${gEsc(abId)}', '${escName}')" title="Clique para adotar este nome" style="background:var(--dm-orange-bg,#fff3eb);border:1px solid var(--dm-orange-tint,#ffd2b8);color:var(--dm-orange-d,#b84000);border-radius:12px;padding:2px 8px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;font-size:11px">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      <span>Nome: ${escName}</span>
+    </button>`;
+  }
+
+  if (Array.isArray(meta.suggestedTags) && meta.suggestedTags.length) {
+    meta.suggestedTags.forEach(t => {
+      html += `<span class="pub-ai-chip" style="background:var(--d-surf,#2a2a2a);border:1px solid var(--d-border,#3a3a3a);color:var(--d-text2,#aaa);border-radius:12px;padding:2px 8px;display:inline-flex;align-items:center;gap:2px;font-size:11px">#${gEsc(t)}</span>`;
+    });
+  }
+  html += '</div>';
+  chipsContainer.innerHTML = html;
+
+  if (!dPubPermissoes._metaTags) dPubPermissoes._metaTags = {};
+  dPubPermissoes._metaTags[abId] = meta.suggestedTags || [];
+}
+
+function dPubApplySuggestedName(abId, newName){
+  const inp = document.getElementById('pub-ab-name-' + abId);
+  if (inp) {
+    inp.value = newName;
+    if (typeof dPublishQueueDraft === 'function') dPublishQueueDraft();
+    gToast('Nome sugerido aplicado!');
+    if (window.gAiTelemetry) {
+      window.gAiTelemetry.emit('ai_suggestion_accepted', { task: 'metadata.suggest' });
+    }
+  }
 }
 
 /* ── PREVIEW POPUP ── */
@@ -848,6 +911,10 @@ function dPublishConfirm(){
     tmpl.publishMeta.validade=validade;
     tmpl.publishMeta.instrucoes=instrucoes;
     tmpl.publishMeta.permissoes=JSON.parse(JSON.stringify(dPubPermissoes));
+    if (dPubPermissoes._metaTags && dPubPermissoes._metaTags[abId]) {
+      tmpl.publishMeta.tags = dPubPermissoes._metaTags[abId];
+      tmpl.tags = dPubPermissoes._metaTags[abId];
+    }
     // Vincula a arte aberta ao template publicado: republicar atualiza ESTE template.
     if(typeof dActiveTmplId!=='undefined') dActiveTmplId=tmpl.id;
     // Contrato do schema: {template_id, template_name, fmt_id, camp_id, camp_name}

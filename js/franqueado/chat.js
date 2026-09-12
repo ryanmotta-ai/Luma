@@ -847,6 +847,44 @@ function fValidarLogo(url, cb){
   im.src = url;
 }
 
+/* Validação Semântica de Imagem com Assistência de IA (Fase 4, §41-§44).
+   Combina checagem local determinística com análise visual de compatibilidade.
+   Não bloqueia: o usuário sempre pode clicar em 'Usar mesmo assim'. */
+async function fValidarImagemSemantica(varId, url, cb){
+  const ehLogo = (typeof gCampoEhLogo === 'function') && gCampoEhLogo(varId);
+  // 1. Checagem determinística local (resolução, proporção)
+  if (ehLogo && typeof fValidarLogo === 'function') {
+    fValidarLogo(url, (avisoLocal) => {
+      if (avisoLocal) cb(avisoLocal);
+    });
+  }
+
+  // 2. Análise semântica via IA Gateway
+  if (!window.gAI || !window.gAI.isEnabled('imageValidation')) return;
+
+  try {
+    const match = url && url.match(/^data:([^;]+);base64,(.+)$/);
+    if (!match) return;
+
+    const mimeType = match[1];
+    const dataBase64 = match[2];
+
+    const res = await window.gAI.run('image.validate', {
+      fieldType: ehLogo ? 'logo' : 'foto_produto',
+      imagePart: { mimeType: mimeType, data: dataBase64 }
+    });
+
+    if (res && res.ok && res.data && res.data.valid === false && res.data.confidence === 'high') {
+      const aviso = res.data.reason || (ehLogo
+        ? 'Esta imagem parece não ser um logotipo comercial.'
+        : 'Esta imagem parece não conter um prato ou produto alimentício.');
+      cb(aviso);
+    }
+  } catch(e) {
+    console.warn('[AI ImageValidate] Falha:', e);
+  }
+}
+
 /* Confirmação do passo de imagem: é AQUI que o fluxo anda, e só por ação da pessoa. */
 function fConfirmarImagem(varId){
   if(!fState.dados || !fState.dados[varId]) return;
@@ -1133,7 +1171,9 @@ function _fApplyImageToField(varId, uploadId, resizedUrl){
      (`fConfirmarImagem`, no botão do próprio preview): quem subiu o arquivo errado descobre
      aqui, olhando, e não três passos adiante. Campo de logo ainda passa pela validação
      determinística antes — o aviso repinta o preview com as duas saídas do pedido. */
-  if(typeof gCampoEhLogo==='function' && gCampoEhLogo(varId) && typeof fValidarLogo==='function'){
+  if(typeof fValidarImagemSemantica==='function'){
+    fValidarImagemSemantica(varId, resizedUrl, (aviso)=>{ if(aviso) pintaPreview(aviso); });
+  } else if(typeof gCampoEhLogo==='function' && gCampoEhLogo(varId) && typeof fValidarLogo==='function'){
     fValidarLogo(resizedUrl, (aviso)=>{ if(aviso) pintaPreview(aviso); });
   }
 }
@@ -1430,6 +1470,50 @@ function _fCaptionSrcTag(suggestions){
     : `<span class="caption-src" title="Escrito pelo motor de copy do Luma (sem IA)">${_ICO_PEN}Sugestão do Luma</span>`;
 }
 
+/* Revisão Semântica Final da Peça (Fase 3, §37-§40).
+   Conferência factual não-bloqueante entre dados da arte e legenda.
+   Não julga estética. Não bloqueia download. */
+async function _fRevisarArteIA(canvasId, dados, camp, legendaPromise){
+  if (!window.gAI || !window.gAI.isEnabled('contentReview')) return;
+  const painel = document.querySelector(`.art-wrap:has(#${canvasId})`) || (document.getElementById(canvasId) && document.getElementById(canvasId).closest('.art-wrap'));
+  if (!painel) return;
+
+  let captionText = '';
+  try {
+    const sug = await legendaPromise;
+    if (sug && sug.length) captionText = sug[0].text || '';
+  } catch(e) {}
+
+  const res = await window.gAI.run('content.review', {
+    fields: dados,
+    campaign: (camp && camp.name) ? camp.name : '',
+    caption: captionText
+  });
+
+  if (!res || !res.ok || !res.data || !Array.isArray(res.data.issues) || res.data.issues.length === 0) {
+    return;
+  }
+
+  const old = painel.querySelector('.art-review-badge');
+  if (old) old.remove();
+
+  const items = res.data.issues.map(it => `<li>${gEsc(it.message)}</li>`).join('');
+  const badgeHtml = `<div class="art-review-badge" role="alert">
+    <div style="display:flex;align-items:center;gap:6px;font-weight:600">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span>Atenção aos dados da oferta:</span>
+    </div>
+    <ul>${items}</ul>
+  </div>`;
+
+  const actionsEl = painel.querySelector('.art-actions');
+  if (actionsEl) {
+    actionsEl.insertAdjacentHTML('beforebegin', badgeHtml);
+  } else {
+    painel.insertAdjacentHTML('beforeend', badgeHtml);
+  }
+}
+
 /**
  * Agente Copywriter do Luma. Transporte e chave ficam no motor único (core/ai.js);
  * aqui vive só o PROMPT — o que a legenda tem que ser.
@@ -1529,7 +1613,6 @@ Responda APENAS com JSON válido:
 async function fFetchAICaptionSuggestions(dados, camp, formato) {
   const fallback = fGenCaptionSuggestions(dados, camp, formato);
   fallback._ia = false;   // marca a ORIGEM: a UI rotula IA x motor local (ver painel de legenda)
-  if (typeof gAskAI !== 'function' || !gAiReady()) return fallback;
 
   const prod = dados.produto || dados.item || dados.categoria || dados.oferta || (camp && camp.name) || 'Oferta especial';
   const de = dados.precoDe ? `R$ ${dados.precoDe}` : '';
@@ -1539,8 +1622,51 @@ async function fFetchAICaptionSuggestions(dados, camp, formato) {
   const campName = (camp && camp.name) ? camp.name : 'Delivery Much';
   const cidade = dados.cidade || (typeof fState !== 'undefined' && fState.dados && fState.dados.cidade) || ''
     || (typeof fCidadeAtual === 'function' ? fCidadeAtual() : '');
-  const cidadeTag = cidade.replace(/[^a-zA-Z0-9]/g, '');
   const fmtId = (formato && formato.id) || (typeof fState !== 'undefined' && fState.fmt && fState.fmt.id) || 'feed';
+
+  let blocoGirias = '';
+  try{
+    if (typeof fGiriasDaCidade === 'function') {
+      const girias = await fGiriasDaCidade(cidade);
+      if (girias && girias.length) {
+        blocoGirias = girias.map(g => `"${g.termo}"${g.significado ? ` (${g.significado})` : ''}`).join(', ');
+      }
+    }
+  }catch(e){}
+
+  // Gateway Novo e Blindado: gAI (§14, §32, §60)
+  if (window.gAI && window.gAI.isEnabled('caption')) {
+    const res = await window.gAI.run('caption.generate', {
+      produto: prod,
+      precoDe: dados.precoDe || '',
+      precoPor: dados.precoPor || dados.preco || '',
+      desconto: desc,
+      validade: val,
+      campanha: campName,
+      cidade: cidade,
+      formato: fmtId,
+      girias: blocoGirias
+    });
+    if (res && res.ok && res.data) {
+      const p = res.data.promo || res.data.caption || fallback[0].text;
+      const e = res.data.engajar || fallback[1].text;
+      const w = res.data.whatsapp || fallback[2].text;
+      const out = [
+        { id: 'promo', label: 'Promo', text: p },
+        { id: 'engajar', label: 'Engajar', text: e },
+        { id: 'whatsapp', label: 'WhatsApp', text: w }
+      ];
+      if (out[1].text === out[0].text) out[1].text = fallback[1].text;
+      if (out[2].text === out[0].text) out[2].text = fallback[2].text;
+      out._ia = true;
+      return out;
+    }
+    return fallback;
+  }
+
+  if (typeof gAskAI !== 'function' || !gAiReady()) return fallback;
+
+  const cidadeTag = cidade.replace(/[^a-zA-Z0-9]/g, '');
   const ehStory = fmtId === 'story';
 
   // Só entra no prompt o que EXISTE — campo vazio virava "por undefined" / "validade: Tempo limitado"
@@ -1562,12 +1688,12 @@ async function fFetchAICaptionSuggestions(dados, camp, formato) {
   /* O tempero local. Pesquisado uma vez por cidade (fGiriasDaCidade) e guardado; daqui em
      diante é leitura de localStorage. Sem cidade, sem IA ou sem lista confiável, o bloco
      simplesmente não existe e a legenda sai como sempre saiu. */
-  let blocoGirias = '';
+  let blocoGiriasPrompt = '';
   try{
     const girias = await fGiriasDaCidade(cidade);
     if(girias && girias.length){
       const lista = girias.map(g => `"${g.termo}"${g.significado ? ` (${g.significado})` : ''}`).join(', ');
-      blocoGirias = `\n\nJEITO DE FALAR EM ${cidade.toUpperCase()} (opcional): ${lista}.`;
+      blocoGiriasPrompt = `\n\nJEITO DE FALAR EM ${cidade.toUpperCase()} (opcional): ${lista}.`;
     }
   }catch(e){}
 
@@ -1582,8 +1708,8 @@ REGRAS OBRIGATÓRIAS:
 3. As 3 opções têm ângulos DIFERENTES entre si — não reescreva a mesma frase.
 4. ${ehStory ? 'Formato STORY: no máximo 2 linhas curtas em "promo" e "engajar" (texto que caiba num story, leitura de 2 segundos).' : 'Formato FEED: "promo" e "engajar" podem ter 2 a 4 linhas.'}
 5. ${hashtags} — só em "promo" e "engajar". A opção "whatsapp" NÃO leva hashtag.
-6. "whatsapp" é mensagem pra lista de transmissão: usa *asteriscos* pra negrito e chama pra pedir no app.${blocoGirias ? `
-7. Sobre o jeito de falar da cidade: use NO MÁXIMO UMA dessas expressões, em UMA das três opções, e só se ela couber com naturalidade na frase. Se nenhuma couber, NÃO force — gíria enfiada soa falsa e o franqueado é vizinho de quem lê. Nunca explique a expressão nem use mais de uma.` : ''}${blocoGirias}
+6. "whatsapp" é mensagem pra lista de transmissão: usa *asteriscos* pra negrito e chama pra pedir no app.${blocoGiriasPrompt ? `
+7. Sobre o jeito de falar da cidade: use NO MÁXIMO UMA dessas expressões, em UMA das três opções, e só se ela couber com naturalidade na frase. Se nenhuma couber, NÃO force — gíria enfiada soa falsa e o franqueado é vizinho de quem lê. Nunca explique a expressão nem use mais de uma.` : ''}${blocoGiriasPrompt}
 
 Responda APENAS com JSON válido:
 {"promo":"legenda que vende (foco na oferta)","engajar":"legenda que puxa comentário/marcação de amigo","whatsapp":"mensagem curta pra lista do WhatsApp com *negrito*"}`;
@@ -1670,6 +1796,9 @@ function fCopyCaption(canvasId) {
       copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:2px"><polyline points="20 6 9 17 4 12"/></svg> Copiado!`;
       
       gToast('Legenda copiada!');
+      if (caps._ia && window.gAiTelemetry) {
+        window.gAiTelemetry.emit('ai_suggestion_accepted', { task: 'caption.generate' });
+      }
       
       setTimeout(() => {
         copyBtn.classList.remove('copied');
@@ -1904,6 +2033,11 @@ function fGerarArte(){
        momento o card ainda não estava no DOM e não havia o que sincronizar. */
     try{ if(typeof _fLpSincronizarConclusao==='function') _fLpSincronizarConclusao(); }catch(e){}
     _legendaIA.then(sug => _fAplicarLegendaIA(previewCanvasId, sug)).catch(()=>{});
+    try {
+      if (typeof _fRevisarArteIA === 'function') {
+        _fRevisarArteIA(previewCanvasId, d, c, _legendaIA).catch(()=>{});
+      }
+    } catch(e) {}
     // Renderiza canvas thumbnail real
     if(hasMaterial){
       try {

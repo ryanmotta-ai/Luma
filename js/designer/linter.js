@@ -15,6 +15,42 @@
    executa nem oferece o Auto-layout — a acomodação é exclusiva do runtime do franqueado.
    ⚠ Só acusa par que NÃO se sobrepõe no estado de exemplo: selo atrás de texto é desenho do
    designer, não estrago do franqueado. Precisão acima de recall — é a doutrina do checklist. */
+let _dAiStressCases = null;
+let _dAiStressLoading = false;
+
+/* Geração de Casos de Estresse Realistas via IA (Fase 7, §52-§56).
+   Gera casos realistas para o nicho de delivery e testa contra as regras
+   determinísticas do motor geométrico do Luma. */
+async function _dLinterFetchAIStress(varsTeste){
+  if (_dAiStressLoading || !window.gAI || !window.gAI.isEnabled('stressCases')) return;
+  const fields = (varsTeste || []).filter(v => v && v.type !== 'image').map(v => ({
+    name: v.name,
+    maxLen: v.maxLen || 0
+  }));
+  if (!fields.length) return;
+
+  _dAiStressLoading = true;
+  try {
+    const res = await window.gAI.run('stress.generate', {
+      fields: fields,
+      fieldNames: fields.map(f => f.name),
+      theme: 'restaurante e delivery de comida'
+    });
+
+    if (res && res.ok && res.data && Array.isArray(res.data.cases)) {
+      _dAiStressCases = res.data.cases;
+      if (typeof dRunLinter === 'function') {
+        const container = document.getElementById('d-linter-issues');
+        if (container) dRunLinter();
+      }
+    }
+  } catch(e) {
+    console.warn('[Linter AI Stress] Falha silenciosa:', e);
+  } finally {
+    _dAiStressLoading = false;
+  }
+}
+
 function _dLinterEstresse() {
   const out = [];
   if (typeof gApplyRelativeAnchors !== 'function' || typeof gStressValues !== 'function') return out;
@@ -65,7 +101,18 @@ function _dLinterEstresse() {
 
   const exemplo = {};
   usados.forEach(vn => { exemplo[vn] = gFieldSampleValue(varsTeste.find(x => x.name === vn) || { name: vn }); });
-  const estresse = Object.assign({},exemplo,gStressValues(usados,varsTeste));
+
+  if (!_dAiStressCases && !_dAiStressLoading && window.gAI && window.gAI.isEnabled('stressCases')) {
+    _dLinterFetchAIStress(varsTeste);
+  }
+
+  let aiVals = null;
+  if (_dAiStressCases && Array.isArray(_dAiStressCases)) {
+    const lim = _dAiStressCases.find(c => c.label === 'limite') || _dAiStressCases.find(c => c.label === 'longo');
+    if (lim && lim.values) aiVals = lim.values;
+  }
+
+  const estresse = Object.assign({}, exemplo, gStressValues(usados, varsTeste), aiVals || {});
   const antes = montar(exemplo);
   const depois = montar(estresse);
 

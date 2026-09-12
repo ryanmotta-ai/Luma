@@ -8,9 +8,11 @@ const F_SEARCH_ALIASES = {
   stories:'story', status:'whatsapp', zap:'whatsapp', insta:'instagram',
   promo:'promocao', promocoes:'promocao', delivery:'entrega', frete:'entrega',
   gratis:'gratuito', gratuita:'gratuito', gratuitas:'gratuito', gratuitos:'gratuito',
-  domingo:'domingo', domingos:'domingo', lanches:'lanche', wide:'post'
+  domingo:'domingo', domingos:'domingo', lanches:'lanche', wide:'post',
+  oferta:'promocao', ofertas:'promocao', desconto:'promocao', descontos:'promocao',
+  cupom:'promocao', cupons:'promocao'
 };
-const F_SEARCH_RELATED = {lanche:['hamburguer','combo'], instagram:['story','feed'], whatsapp:['story']};
+const F_SEARCH_RELATED = {lanche:['hamburguer','combo'], instagram:['story','feed'], whatsapp:['story'], promocao:['desconto','cupom','oferta']};
 const F_SEARCH_STOP = new Set('a o as os um uma uns umas de da do das dos em no na nos nas para pra pro por com e ou ao aos que quero queria preciso gostaria algo alguma algum divulgar postar publicar campanha campanhas arte artes material materiais meu minha seu sua'.split(' '));
 const F_SEARCH_FORMATS = new Set(['story','feed','post','instagram','whatsapp']);
 function fSearchTokens(value){
@@ -81,9 +83,9 @@ function _fSearchMatch(query,word){
   if(query.length>=3&&word.startsWith(query))return .8;
   return _fSearchTypo(query,word)?.65:0;
 }
-function fSearchRank(query,document){
+function fSearchRank(query,document,semantic){
   const words=fSearchTokens(query), content=words.filter(w=>!F_SEARCH_FORMATS.has(w));
-  if(!words.length)return {score:0,complete:false,contentHits:0,matched:0,template_id:null};
+  if(!words.length && !semantic)return {score:0,complete:false,contentHits:0,matched:0,template_id:null};
   let best={score:0,complete:false,contentHits:0,matched:0,template_id:null};
   document.docs.forEach(d=>{
     let score=0,matched=0,contentHits=0;
@@ -92,26 +94,51 @@ function fSearchRank(query,document){
       d.fields.forEach(f=>f.tokens.forEach(t=>{hit=Math.max(hit,_fSearchMatch(word,t)*f.weight);}));
       if(hit){matched++;score+=hit;if(content.includes(word))contentHits++;}
     });
-    const complete=matched===words.length;
+    const complete=words.length ? (matched===words.length) : false;
     if(complete)score+=40;
     const title=fSearchTokens(document.campaign.name||document.campaign.title).join(' ');
     if(title===words.join(' '))score+=35;
     // Uma correspondência de formato sozinha não sugere pizza para quem pediu açaí.
     if(content.length&&!contentHits)score=0;
-    if(score>best.score)best={score,complete,contentHits,matched,template_id:d.id};
+
+    // Aprimoramento semântico (§17, §19, §75)
+    if(semantic && d.material){
+      if(semantic.targetFormat){
+        const fmt=F_SEARCH_ALIASES[d.material.fmt]||d.material.fmt;
+        if(fmt===semantic.targetFormat) score+=50;
+        else score-=25; // Precedência do formato pedido (§19)
+      }
+      if(Array.isArray(semantic.detectedProducts)){
+        semantic.detectedProducts.forEach(p=>{
+          d.fields.forEach(f=>f.tokens.forEach(t=>{
+            const m=_fSearchMatch(p,t);
+            if(m>0){ score+=m*f.weight*1.2; contentHits++; matched++; }
+          }));
+        });
+      }
+      if(Array.isArray(semantic.semanticTags)){
+        semantic.semanticTags.forEach(tag=>{
+          d.fields.forEach(f=>f.tokens.forEach(t=>{
+            if(t===tag){ score+=f.weight*0.8; matched++; }
+          }));
+        });
+      }
+    }
+
+    if(score>best.score)best={score,complete:complete || (score>35),contentHits,matched,template_id:d.id};
   });
   return best;
 }
-function fSearchCampaigns(query,campaigns){
+function fSearchCampaigns(query,campaigns,semantic){
   const seen=new Set(), entries=[], materialEntries=[];
   (campaigns||[]).forEach((c,order)=>{
     if(!c||seen.has(c.id))return;seen.add(c.id);
     const doc=fSearchDocument(c);if(!doc)return;
-    entries.push({...fSearchRank(query,doc),campaign:c,formats:doc.formats,order});
+    entries.push({...fSearchRank(query,doc,semantic),campaign:c,formats:doc.formats,order});
     // A home pesquisa a peça, não só a pasta: cada material é ranqueado com os
     // metadados da campanha como contexto, mas nunca mistura produto/formato de peças diferentes.
     doc.docs.filter(d=>d.material&&d.id).forEach((d,materialOrder)=>{
-      materialEntries.push({...fSearchRank(query,{campaign:c,docs:[d]}),campaign:c,
+      materialEntries.push({...fSearchRank(query,{campaign:c,docs:[d]},semantic),campaign:c,
         material:d.material,order,materialOrder});
     });
   });
@@ -131,6 +158,36 @@ function fSearchCampaigns(query,campaigns){
     materials,
     semMaterial:exact.filter(e=>!comPeca.has(e.campaign.id)).map(e=>e.campaign),
     suggestions:exact.length?[]:entries.filter(e=>e.score>0&&!e.complete).slice(0,3)};
+}
+
+let _fSearchHybridAbort = null;
+async function fSearchHybrid(query,campaigns,onResults){
+  const syncRes = fSearchCampaigns(query, campaigns);
+  if(typeof onResults === 'function') onResults(syncRes, false);
+
+  const q = String(query||'').trim();
+  if(!q || q.length < 3) return syncRes;
+
+  if(typeof window.gAI === 'object' && gAI.isReady('search.expand') && gAI.isFeatureEnabled('semanticSearch')){
+    if(_fSearchHybridAbort) {
+      try { _fSearchHybridAbort.abort(); } catch(e){}
+    }
+    _fSearchHybridAbort = new AbortController();
+
+    try {
+      const res = await gAI.run('search.expand', { query: q }, {
+        callerController: _fSearchHybridAbort,
+        ttl: 600000 // 10 min cache de query
+      });
+      if(res.ok && res.data){
+        const enhanced = fSearchCampaigns(query, campaigns, res.data);
+        enhanced._semantic = res.data;
+        if(typeof onResults === 'function') onResults(enhanced, true);
+        return enhanced;
+      }
+    } catch(e){}
+  }
+  return syncRes;
 }
 function fSearchFormatsHTML(c){
   const doc=fSearchDocument(c);

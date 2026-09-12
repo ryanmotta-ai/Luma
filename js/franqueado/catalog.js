@@ -1395,7 +1395,8 @@ function _fHomeBodyHTML(query){
     return true;
   };
   if(q){
-    const result=fSearchCampaigns(query,[...ativas,...outras,...impl].filter(passStatus));
+    const sem = (_fhSemanticResult && _fhSemanticResult.query === query) ? _fhSemanticResult.data : null;
+    const result=fSearchCampaigns(query,[...ativas,...outras,...impl].filter(passStatus), sem);
     const match=result.materials;
     fSearchRecord(query,result,'home');
     /* A busca procura a PEÇA. Mas campanha que combinou e ainda não tem peça publicada não
@@ -1538,6 +1539,8 @@ function fRenderHome(opts){
   try{ _fhSetupReveal(); }catch(e){ el.querySelectorAll('#fh-body>*').forEach(b=>b.classList.add('in')); }
   try{ _fhBindSticky(); }catch(e){}
 }
+let _fhSemanticResult = null;
+let _fhSearchTimer = null;
 function fHomeFilter(q){
   const body=document.getElementById('fh-body'); if(!body)return;
   // Busca é digitação: resultados instantâneos, sem re-rodar a cascata a cada tecla
@@ -1545,6 +1548,30 @@ function fHomeFilter(q){
   if(home) home.classList.remove('fh-anim');
   body.innerHTML=_fHomeBodyHTML(q);
   try{ _fhSetupReveal(); }catch(e){ body.querySelectorAll(':scope>*').forEach(b=>b.classList.add('in')); }
+
+  // Aprimoramento semântico com gAI (§16, §17, §21, §64)
+  clearTimeout(_fhSearchTimer);
+  const trimmed = (q||'').trim();
+  if(trimmed.length >= 3 && typeof fSearchHybrid === 'function'){
+    _fhSearchTimer = setTimeout(()=>{
+      const s = document.getElementById('fh-search');
+      if(!s || s.value.trim() !== trimmed) return;
+      const {ativas,outras,impl}=fGetCampaigns();
+      fSearchHybrid(trimmed, [...ativas,...outras,...(impl||[])], (result, isSemantic)=>{
+        if(!isSemantic) return;
+        const sNow = document.getElementById('fh-search');
+        if(!sNow || sNow.value.trim() !== trimmed) return;
+        _fhSemanticResult = { query: trimmed, data: result._semantic };
+        const curBody = document.getElementById('fh-body');
+        if(curBody) {
+          curBody.innerHTML = _fHomeBodyHTML(trimmed);
+          try{ _fhSetupReveal(); }catch(e){ curBody.querySelectorAll(':scope>*').forEach(b=>b.classList.add('in')); }
+        }
+      });
+    }, 280);
+  } else {
+    _fhSemanticResult = null;
+  }
 }
 // Re-renderiza a home quando o sync do backend traz capas/artes novas —
 // só se ela está visível e o usuário não está no meio de uma busca.

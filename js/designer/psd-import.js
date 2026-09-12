@@ -985,12 +985,18 @@ function dPsdAcceptCandidate(i,name){
     it.mode=chk.mode;
   }else it.mode=_dPsdModeForKind(it);
   it.include=true;it.varName=name;it.varSource='user';it.varWhy='';it._fixedByUser=false;
+  if(inf.source==='ia' && window.gAiTelemetry){
+    window.gAiTelemetry.emit('ai_suggestion_accepted', { task: 'psd.map' });
+  }
   it._fieldInference={name,field:def,confidence:'high',source:'user',alternatives:[],reason:'Escolha do designer'};
   _dPsdAfterMap('“'+_dPsdFieldLabel(name)+'” definido para “'+it.name+'”');
 }
 function dPsdAcceptAllSug(){
   let n=0;
   dPsdItems.forEach(it=>{ if(_dPsdPendingSug(it)){
+    if((it.varSource==='ia'||it._fieldInference?.source==='ia') && window.gAiTelemetry){
+      window.gAiTelemetry.emit('ai_suggestion_accepted', { task: 'psd.map' });
+    }
     it.include=true;it.mode=_dPsdModeForKind(it);it.varSource='user';it.varWhy='';it._fixedByUser=false;
     it._fieldInference=Object.assign({},it._fieldInference||{},{confidence:'high',source:'user',reason:'Escolha do designer'});
     n++;
@@ -1052,7 +1058,7 @@ function _dPsdRenderFieldRail(){
   // falha é pior que botão que não existe — a regra é do próprio core/ai.js.
   const aiBtn=document.getElementById('d-psd-ai-btn');
   if(aiBtn){
-    const temIA=(typeof gAiReady==='function') && gAiReady() && (typeof gAskAI==='function');
+    const temIA=(window.gAI && window.gAI.isReady('psd.map')) || ((typeof gAiReady==='function') && gAiReady() && (typeof gAskAI==='function'));
     aiBtn.hidden=!temIA || !vars.length || (!pend&&!_dPsdReviewAll); // IA resolve dúvida; não protagoniza estado pronto
     aiBtn.disabled=_dPsdAiBusy;
     // O estado "analisando" é pintado AQUI e não no handler: o handler re-renderiza a trilha,
@@ -1320,22 +1326,58 @@ function _dPsdLooksBackground(it){
 }
 async function dPsdMapWithAI(){
   if(_dPsdAiBusy) return;
-  if(typeof gAskAI!=='function'){ gToast('IA não disponível nesta sessão','error'); return; }
   const itens=dPsdItems.map((it,i)=>({it,i})).filter(o=>o.it.include && !o.it.isMaskBase);
   if(!itens.length){ gToast('Selecione ao menos uma camada','error'); return; }
-  if(!_dPsdVarsList().length){ gToast('Crie campos no catálogo antes de mapear com IA','error'); return; }
+  const vars=_dPsdVarsList();
+  if(!vars.length){ gToast('Crie campos no catálogo antes de mapear com IA','error'); return; }
   const part=_dPsdArtePart();
   if(!part){ gToast('Não foi possível preparar a imagem da arte','error'); return; }
   _dPsdAiBusy=true; _dPsdRenderFieldRail();
+  let lista=[];
   let resp=null;
-  try{
-    // cache:false — a mesma arte revisada de novo pode ter outro catálogo/seleção de camadas.
-    resp=await gAskAI('mapear-psd', _dPsdMapPrompt(itens), {parts:[part], json:true, cache:false});
-  }catch(e){ console.warn('[psd] mapeamento por IA falhou:', e); }
+
+  // Gateway Seguro gAI (§45-§51)
+  if (window.gAI && window.gAI.isEnabled('psdMapping')) {
+    const allowedFields = vars.map(v => v.name);
+    const layersPayload = itens.map(o => ({
+      id: String(o.i),
+      type: o.it.kind,
+      name: o.it.name || '',
+      content: o.it.content || '',
+      x: Math.round(o.it.x),
+      y: Math.round(o.it.y),
+      w: Math.round(o.it.w),
+      h: Math.round(o.it.h)
+    }));
+
+    const res = await window.gAI.run('psd.map', {
+      allowedFields: allowedFields,
+      layers: layersPayload,
+      imagePart: part
+    });
+
+    if (res && res.ok && res.data && Array.isArray(res.data.mappings)) {
+      resp = res.data;
+      lista = res.data.mappings.map(m => ({
+        camada: Number(m.layerId),
+        campo: m.suggestedField,
+        motivo: m.reason
+      }));
+    }
+  } else if (typeof gAskAI === 'function') {
+    try{
+      resp=await gAskAI('mapear-psd', _dPsdMapPrompt(itens), {parts:[part], json:true, cache:false});
+      const parsed=resp && (typeof gAiParseJson==='function'?gAiParseJson(resp):null);
+      lista=(parsed && Array.isArray(parsed.vinculos))?parsed.vinculos:[];
+    }catch(e){ console.warn('[psd] mapeamento por IA falhou:', e); }
+  } else {
+    _dPsdAiBusy=false; _dPsdRenderFieldRail();
+    gToast('IA não disponível nesta sessão','error');
+    return;
+  }
+
   _dPsdAiBusy=false;
   if(!dPsdMeta){ return; } // modal fechou durante a chamada
-  const parsed=resp && (typeof gAiParseJson==='function'?gAiParseJson(resp):null);
-  const lista=(parsed && Array.isArray(parsed.vinculos))?parsed.vinculos:[];
   if(!resp || !lista.length){
     _dPsdRenderFieldRail();
     gToast(resp?'A IA não encontrou campo para esta arte':'⚠ A IA não respondeu — tente de novo','error');
