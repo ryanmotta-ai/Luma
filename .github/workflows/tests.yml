@@ -1,4 +1,4 @@
-name: Regressão (Auto-layout · PSD · corpus · fuzzing)
+name: Regressão (arquitetura · Auto-layout · PSD · corpus · fuzzing)
 
 # Roda as suítes de `tests/` num Chromium headless a cada push e a cada PR.
 #
@@ -22,12 +22,16 @@ on:
       - 'js/**'
       - 'tests/**'
       - 'scripts/run-browser-tests.js'
+      - 'scripts/arquitetura.js'
+      - 'index.html'
       - '.github/workflows/tests.yml'
   pull_request:
     paths:
       - 'js/**'
       - 'tests/**'
       - 'scripts/run-browser-tests.js'
+      - 'scripts/arquitetura.js'
+      - 'index.html'
   workflow_dispatch: {}
 
 permissions:
@@ -79,6 +83,12 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y --no-install-recommends fonts-liberation fonts-dejavu-core
           fi
+
+      # Arquitetura ANTES das suítes: é barato (segundos, sem navegador) e falha por motivo
+      # diferente. Um `import` solto ou uma função global duplicada não aparecem em teste
+      # funcional — o programa continua rodando e a feature morre calada.
+      - name: Arquitetura (as leis do luma-brain como portão)
+        run: node scripts/arquitetura.js
 
       - name: Rodar as suítes
         run: node scripts/run-browser-tests.js
