@@ -179,10 +179,154 @@ window.addEventListener('luma:feature-flags-changed', ()=>{
   }
 });
 
+/* ══ DEEP LINK (Campanha / Material) ═══════════════════════════
+   Permite que links enviados no WhatsApp/Slack (?camp=... ou ?mat=...)
+   abram o Luma direto na campanha ou no material correspondente. */
+function gParseDeepLink(){
+  let camp=null, mat=null;
+  try {
+    if(window.location && window.location.search){
+      const sp = new URLSearchParams(window.location.search);
+      camp = sp.get('camp') || sp.get('c');
+      mat = sp.get('mat') || sp.get('m');
+    }
+  }catch(e){}
+
+  if(!camp && !mat && window.location && window.location.hash){
+    try {
+      const hashStr = window.location.hash.replace(/^#\/?/, '');
+      if(hashStr.includes('=')){
+        const hp = new URLSearchParams(hashStr);
+        camp = hp.get('camp') || hp.get('c');
+        mat = hp.get('mat') || hp.get('m');
+      }
+    }catch(e){}
+  }
+
+  if(!camp && !mat){
+    try {
+      const saved = sessionStorage.getItem('__luma_deep_link');
+      if(saved){
+        const parsed = JSON.parse(saved);
+        if(parsed){
+          camp = parsed.camp || null;
+          mat = parsed.mat || null;
+        }
+      }
+    }catch(e){}
+  }
+
+  if(camp && typeof camp === 'string') camp = camp.trim();
+  if(mat && typeof mat === 'string') mat = mat.trim();
+  return (camp || mat) ? { camp, mat } : null;
+}
+
+function gSaveDeepLink(dl){
+  if(!dl) return;
+  try {
+    sessionStorage.setItem('__luma_deep_link', JSON.stringify(dl));
+  }catch(e){}
+}
+
+function gClearDeepLink(){
+  try { sessionStorage.removeItem('__luma_deep_link'); }catch(e){}
+  try {
+    if(window.history && window.history.replaceState && window.location){
+      const url = new URL(window.location.href);
+      let changed = false;
+      ['camp','c','mat','m'].forEach(p => {
+        if(url.searchParams.has(p)){
+          url.searchParams.delete(p);
+          changed = true;
+        }
+      });
+      if(url.hash && /#\/?(camp|c|mat|m)=/i.test(url.hash)){
+        url.hash = '';
+        changed = true;
+      }
+      if(changed){
+        window.history.replaceState(null, '', url.pathname + (url.search ? url.search : '') + (url.hash ? url.hash : ''));
+      }
+    }
+  }catch(e){}
+}
+
+async function gApplyDeepLink(dl){
+  if(!dl || (!dl.camp && !dl.mat)) return false;
+
+  let targetMat = null;
+  let targetCampId = dl.camp || null;
+
+  // 1. Se informou material específico (mat), localiza nas pastas ou no catálogo demo
+  if(dl.mat){
+    if(typeof dFolders !== 'undefined' && Array.isArray(dFolders)){
+      for(const f of dFolders){
+        if(!f || !Array.isArray(f.templates)) continue;
+        const t = f.templates.find(x => x && (x.id === dl.mat || x.remoteId === dl.mat));
+        if(t){
+          targetMat = t;
+          if(!targetCampId) targetCampId = f.campId || f.remoteId || f.id;
+          break;
+        }
+      }
+    }
+    if(!targetMat && typeof _fFindDemoMaterial === 'function'){
+      const demo = _fFindDemoMaterial(dl.mat);
+      if(demo) targetMat = demo;
+    }
+  }
+
+  // 2. Resolve a campanha pelo id fornecido ou pelo id da pasta dona do material
+  let resolvedCamp = null;
+  if(targetCampId && typeof fResolveCamp === 'function'){
+    resolvedCamp = fResolveCamp(targetCampId);
+  }
+  if(!resolvedCamp && targetCampId && typeof dFolders !== 'undefined' && Array.isArray(dFolders)){
+    const f = dFolders.find(x => x && (x.id === targetCampId || x.remoteId === targetCampId || x.campId === targetCampId));
+    if(f){
+      resolvedCamp = {
+        id: f.campId || f.remoteId || f.id,
+        name: f.name || 'Campanha',
+        color: f.color || '#FF9000'
+      };
+    }
+  }
+
+  // 3. Executa a navegação correspondente no Franqueado
+  if(targetMat){
+    setMode('franqueado');
+    if(typeof fExitHome === 'function') fExitHome();
+    const finalCampId = (resolvedCamp && resolvedCamp.id) || targetCampId;
+    if(typeof fSearchOpenMaterial === 'function' && finalCampId){
+      await fSearchOpenMaterial(finalCampId, targetMat.id, targetMat.remoteId || targetMat.id);
+    } else {
+      if(resolvedCamp && typeof fSelectCamp === 'function') fSelectCamp(resolvedCamp.id);
+      if(typeof fSelectMaterial === 'function') await fSelectMaterial(targetMat.id);
+    }
+    gClearDeepLink();
+    return true;
+  } else if(resolvedCamp){
+    setMode('franqueado');
+    if(typeof fExitHome === 'function') fExitHome();
+    if(typeof fSelectCamp === 'function'){
+      fSelectCamp(resolvedCamp.id);
+      gClearDeepLink();
+      return true;
+    }
+  }
+
+  // Não encontrou campanha nem material
+  gClearDeepLink();
+  if(typeof gToast === 'function'){
+    gToast('Campanha ou material não encontrado ou indisponível.', 'warning');
+  }
+  return false;
+}
+
 /* ══ INIT Lógica de Inicialização Global e Auth Gate ══ */
 
 // Função chamada após um login bem-sucedido ou quando a sessão já está ativa
-function gOnLoginSuccess() {
+async function gOnLoginSuccess() {
   if(typeof fFeedbackFlush==='function')fFeedbackFlush().catch(()=>{});
   // Saída do login. Se o login estava VISÍVEL (usuário clicou Entrar), toca a tela
   // de transição de marca; o app monta por baixo enquanto o laranja cobre. No boot
@@ -230,10 +374,12 @@ function gOnLoginSuccess() {
   // opacity:0), então ao sair do login/splash cai direto na vitrine cheia — sem flash vazio.
   // Campanha aberta antes do F5 (lida ANTES do fGoHome, que só limpa em clique real de home).
   let _bootCamp=null; try{ _bootCamp=localStorage.getItem('__luma_camp'); }catch(e){}
+  const _bootDeepLink = gParseDeepLink();
   if (typeof fGoHome === 'function') fGoHome({silent:true, boot:true});
   // F5 volta pro modo onde o usuário estava (Estúdio/Academia), não sempre pra home.
   // Depois do fGoHome de propósito: a home do franqueado fica montada por trás.
-  gRestoreMode();
+  // Se houver deep link explícito, ele tem precedência sobre a restauração do modo anterior.
+  if(!_bootDeepLink) gRestoreMode();
 
   // Sincroniza variáveis e catálogo (pastas/templates) com o Supabase (offline-first).
   // Pastas (capas/materiais) e artes (rascunhos) refrescam a home quando chegam.
@@ -247,15 +393,39 @@ function gOnLoginSuccess() {
       fSelectCamp(_bootCamp); _bootCamp=null; // uma vez só
     }
   };
+
+  const _restoreDestino = async () => {
+    _fhRefresh();
+    if(_bootDeepLink){
+      const ok = await gApplyDeepLink(_bootDeepLink);
+      if(ok) return;
+    }
+    _restoreCamp();
+  };
+
   // Deleções que falharam em sessões anteriores re-tentam ANTES dos pulls (anti-ressurreição)
   if (typeof gFlushPendingDeletes === 'function') { try { gFlushPendingDeletes(); } catch(e){} }
   if (typeof dSyncVarsFromBackend === 'function') dSyncVarsFromBackend();
-  if (typeof dSyncFoldersFromBackend === 'function') Promise.resolve(dSyncFoldersFromBackend()).then(()=>{ _fhRefresh(); _restoreCamp(); }).catch(()=>{});
-  else _restoreCamp(); // sem sync (offline): tenta com o catálogo local
+  // Se há campanha salva ou deep link, a splash só abre depois deste pull: entre o welcome e o
+  // restore a prévia dizia "Sua arte nasce aqui", como se o usuário tivesse saído.
+  // Falha remota ainda tenta o cache local — offline não pode prender o boot vazio.
+  let _foldersReady;
+  if (typeof dSyncFoldersFromBackend === 'function') {
+    _foldersReady=Promise.resolve(dSyncFoldersFromBackend())
+      .then(_restoreDestino)
+      .catch(_restoreDestino);
+  } else {
+    _restoreDestino(); // sem sync (offline): tenta com o catálogo local
+    _foldersReady=Promise.resolve();
+  }
   if (typeof dSyncFontsFromBackend === 'function') dSyncFontsFromBackend();
   if (typeof dSyncSnippetsFromBackend === 'function') dSyncSnippetsFromBackend();
   if (typeof dSyncLibFromBackend === 'function') dSyncLibFromBackend();
   if (typeof fSyncArtesFromBackend === 'function') Promise.resolve(fSyncArtesFromBackend()).then(_fhRefresh).catch(()=>{});
+
+  // Não segura Estúdio/Academia por uma campanha que não será restaurada.
+  if((_bootCamp || _bootDeepLink) && !document.body.classList.contains('mode-designer') && !document.body.classList.contains('mode-academia')
+     && !document.body.classList.contains('mode-calendario')) await _foldersReady;
 }
 
 // Inicializa a aba no startup e checa a autenticação
@@ -275,14 +445,24 @@ window.addEventListener('DOMContentLoaded', async () => {
   // Checa a sessão REAL do Supabase (assíncrono) antes de decidir login vs app.
   if (typeof gLoadProfile === 'function') { try { await gLoadProfile(); } catch(e){} }
 
+  const _dlInit = gParseDeepLink();
   if (!gCurrentUser()) {
-    // Não tem sessão ativa, bloqueia a UI
+    // Não tem sessão ativa, bloqueia a UI e preserva o deep link para pós-login
+    if (_dlInit) gSaveDeepLink(_dlInit);
     document.getElementById('g-login-screen').style.display = 'flex';
   } else {
     // Usuário logado, init normal
-    gOnLoginSuccess();
+    await gOnLoginSuccess();
   }
   // Boot decidido (login exibido ou home renderizada) → libera o splash pra sair. Em rede lenta,
   // o splash segura até aqui (mín. 2.8s / teto 9s) em vez de revelar o app meio-carregado.
   if (typeof spBootReady === 'function') spBootReady();
+});
+
+// Reage a mudanças de hash caso ocorra navegação interna por âncora
+window.addEventListener('hashchange', () => {
+  const dl = gParseDeepLink();
+  if(dl && typeof gCurrentUser === 'function' && gCurrentUser()){
+    gApplyDeepLink(dl);
+  }
 });

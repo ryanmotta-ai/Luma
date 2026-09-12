@@ -117,7 +117,7 @@ async function fAskClearHist(){
    moram no CSS (.luma-sad em franqueado.css), com prefers-reduced-motion caindo direto
    no rosto pronto — regra do motion.md: nada de ms nem cubic-bezier no JS. */
 function _fHistEmptyArtSVG(){
-  return `<svg class="luma-sad" viewBox="0 0 32 32" role="img" aria-label="A varinha do Luma faz uma carinha triste: você ainda não tem artes">
+  return `<svg class="luma-sad" viewBox="0 0 32 32" role="img" aria-label="A varinha do Luma faz uma carinha triste: você ainda não criou nenhuma arte">
     <g class="ls-face" fill="none" stroke="currentColor">
       <path class="ls-star ls-star-a" d="M12 5.5 Q12 9 15.5 9 Q12 9 12 12.5 Q12 9 8.5 9 Q12 9 12 5.5 Z" fill="currentColor" stroke="none"/>
       <path class="ls-star ls-star-b" d="M20 19.5 Q20 23 23.5 23 Q20 23 20 26.5 Q20 23 16.5 23 Q20 23 20 19.5 Z" fill="currentColor" stroke="none"/>
@@ -298,9 +298,9 @@ function fRenderHist(){
   if(!all.length){
     el.innerHTML = `<div class="f-history-shell">${pageHead}<div class="empty-state f-history-empty">
       <div class="empty-icon">${_fHistEmptyArtSVG()}</div>
-      <div class="empty-title">Sua primeira criação começa por uma campanha</div>
-      <div class="empty-text">Escolha um material, personalize com a ajuda da Luma e encontre o resultado sempre aqui.</div>
-      <button class="empty-cta" onclick="fGoToCampaigns()">Explorar campanhas</button>
+      <div class="empty-title">Você ainda não criou nenhuma arte</div>
+      <div class="empty-text">Escolha uma campanha para começar.</div>
+      <button class="empty-cta" onclick="fGoToCampaigns()">Escolher campanha</button>
     </div></div>`;
     return;
   }
@@ -1141,6 +1141,35 @@ function fSelectCamp(id){
   if(typeof gTrackEvent==='function') gTrackEvent('campanha_aberta',{camp_id:c.id, camp_name:c.name||''});
   fOpenMaterialCatalog(c);
 }
+// Resultado da busca principal: entra na campanha certa e pula a etapa de escolher a pasta.
+async function fSearchOpenMaterial(campId,materialId,searchMaterialId,card){
+  const c=fResolveCamp(campId);if(!c)return;
+  fSearchRecordOpen(c.id,searchMaterialId);
+  fExitHome();
+  if(fState.camp&&fState.camp.id!==c.id){
+    fState.stepIdx=-1;fState.dados={};fState.done=false;fState.material=null;
+  }
+  fState.camp=c;fState.materialView=false;
+  try{localStorage.setItem('__luma_camp',c.id);}catch(e){}
+  if(!fState.categoria){
+    fState.categoria=fGetCampaigns().impl.some(x=>x.id===c.id)?'implementacao':'campanhas';
+  }
+  if(typeof fApplyCampTheme==='function')fApplyCampTheme(c);
+  fRestoreCatalog();fUpdateCtx();
+  if(typeof gTrackEvent==='function')gTrackEvent('campanha_aberta',{camp_id:c.id,camp_name:c.name||''});
+  await fSelectMaterial(materialId,card);
+}
+function _fHomeSearchMaterialEl(entry){
+  const m=entry.material,c=entry.campaign;
+  const fmtId=['story','feed','wide','post'].includes(m.fmt)?m.fmt:'story';
+  const fmt={story:'Story',feed:'Feed',wide:'Post',post:'Post'}[fmtId];
+  const searchMaterialId=m.remoteId||m.id;
+  return `<button class="f-mat-card" type="button" onclick="fSearchOpenMaterial('${gEscJs(c.id)}','${gEscJs(m.id)}','${gEscJs(searchMaterialId)}',this)" aria-label="Personalizar ${gEsc(m.name)}, da campanha ${gEsc(c.name)}">
+    <div class="f-mat-preview"><div class="f-mat-thumb f-mat-thumb-${fmtId}" style="background:${gSafeColor(c.color)}">
+      <div class="f-mat-thumb-prod">${gEsc(c.previewProd||c.name)}</div><div class="f-mat-thumb-logo" aria-hidden="true"></div><div class="f-mat-thumb-tag">${gEsc(fmt)}</div>
+    </div></div><div class="f-mat-info"><div class="f-mat-info-main"><div class="f-mat-name">${gEsc(m.name)}</div><div class="f-mat-action" aria-hidden="true">Personalizar</div></div>
+    <div class="f-mat-meta"><span class="f-mat-fmt">${gEsc(fmt)}</span><span class="f-mat-validade">${gEsc(c.name)}</span></div></div></button>`;
+}
 
 /* ══════════════════════════════════════════════════════════════
    HOME DO FRANQUEADO — estado inicial em tela cheia (vitrine).
@@ -1366,13 +1395,23 @@ function _fHomeBodyHTML(query){
     return true;
   };
   if(q){
-    const result=fSearchCampaigns(query,[...ativas,...outras,...impl].filter(passStatus));
-    const match=result.campaigns;
+    const sem = (_fhSemanticResult && _fhSemanticResult.query === query) ? _fhSemanticResult.data : null;
+    const result=fSearchCampaigns(query,[...ativas,...outras,...impl].filter(passStatus), sem);
+    const match=result.materials;
     fSearchRecord(query,result,'home');
-    if(!match.length) return _fhEmptyState('Não encontramos exatamente isso',`Nenhum resultado para “${gEsc(query)}”. Tente outro termo${_fhFilter!=='todas'?' ou remova o filtro':''}.`)+fSearchFooterHTML(query,result.suggestions);
-    const isImpl=c=>impl.some(x=>x.id===c.id);
-    return `<section class="fh-section fh-results"><div class="fh-sec" role="status"><span>Resultados para “${gEsc(query)}”</span><em>${match.length} campanha${match.length!==1?'s':''}</em></div>
-      <div class="camp-grid fh-grid">${match.map(c=>fCampEl(c,false,!isImpl(c)&&!_fCampHasMats(c),true)).join('')}</div></section>`+fSearchFooterHTML(query,[]);
+    /* A busca procura a PEÇA. Mas campanha que combinou e ainda não tem peça publicada não
+       pode virar "não encontramos": ela existe, combina, e o material vem aí. Vira a mesma
+       prateleira "Em breve" da vitrine parada — `ghost` no card, sem clique, porque não há
+       o que abrir ainda. Um vocabulário só para a mesma verdade. */
+    const semPeca=result.semMaterial||[];
+    const breve=semPeca.length?`<section class="fh-section"><div class="fh-sec"><span>Em breve</span><em>${semPeca.length} campanha${semPeca.length!==1?'s':''} combina${semPeca.length!==1?'m':''} · material ainda não publicado</em></div>
+      <div class="camp-grid fh-grid">${semPeca.map(c=>fCampEl(c,false,true,true)).join('')}</div></section>`:'';
+    /* ⚠ As sugestões ("Talvez estas campanhas ajudem") só entram quando não há NADA — nem
+       peça, nem campanha combinando. Com o bloco "Em breve" na tela, oferecer aproximação
+       por cima seria empilhar dois consolos para uma busca que deu certo. */
+    if(!match.length) return (breve||_fhEmptyState('Não encontramos exatamente isso',`Nenhum resultado para “${gEsc(query)}”. Tente outro termo${_fhFilter!=='todas'?' ou remova o filtro':''}.`))+fSearchFooterHTML(query,breve?[]:result.suggestions);
+    return `<section class="fh-section fh-results"><div class="fh-sec" role="status"><span>Materiais para “${gEsc(query)}”</span><em>${match.length} ${match.length!==1?'materiais':'material'}</em></div>
+      <div class="f-mat-grid fh-grid">${match.map(_fHomeSearchMaterialEl).join('')}</div></section>`+breve+fSearchFooterHTML(query,[]);
   }
   fSearchRecord('',null,'home');
   // Vitrine honesta: só entra em "Prontas pra usar" quem tem material publicado
@@ -1500,6 +1539,8 @@ function fRenderHome(opts){
   try{ _fhSetupReveal(); }catch(e){ el.querySelectorAll('#fh-body>*').forEach(b=>b.classList.add('in')); }
   try{ _fhBindSticky(); }catch(e){}
 }
+let _fhSemanticResult = null;
+let _fhSearchTimer = null;
 function fHomeFilter(q){
   const body=document.getElementById('fh-body'); if(!body)return;
   // Busca é digitação: resultados instantâneos, sem re-rodar a cascata a cada tecla
@@ -1507,6 +1548,30 @@ function fHomeFilter(q){
   if(home) home.classList.remove('fh-anim');
   body.innerHTML=_fHomeBodyHTML(q);
   try{ _fhSetupReveal(); }catch(e){ body.querySelectorAll(':scope>*').forEach(b=>b.classList.add('in')); }
+
+  // Aprimoramento semântico com gAI (§16, §17, §21, §64)
+  clearTimeout(_fhSearchTimer);
+  const trimmed = (q||'').trim();
+  if(trimmed.length >= 3 && typeof fSearchHybrid === 'function'){
+    _fhSearchTimer = setTimeout(()=>{
+      const s = document.getElementById('fh-search');
+      if(!s || s.value.trim() !== trimmed) return;
+      const {ativas,outras,impl}=fGetCampaigns();
+      fSearchHybrid(trimmed, [...ativas,...outras,...(impl||[])], (result, isSemantic)=>{
+        if(!isSemantic) return;
+        const sNow = document.getElementById('fh-search');
+        if(!sNow || sNow.value.trim() !== trimmed) return;
+        _fhSemanticResult = { query: trimmed, data: result._semantic };
+        const curBody = document.getElementById('fh-body');
+        if(curBody) {
+          curBody.innerHTML = _fHomeBodyHTML(trimmed);
+          try{ _fhSetupReveal(); }catch(e){ curBody.querySelectorAll(':scope>*').forEach(b=>b.classList.add('in')); }
+        }
+      });
+    }, 280);
+  } else {
+    _fhSemanticResult = null;
+  }
 }
 // Re-renderiza a home quando o sync do backend traz capas/artes novas —
 // só se ela está visível e o usuário não está no meio de uma busca.

@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Luma mobile — arte protagonista</title>
+<!--
+  MOCKUP — Franqueado no celular: ARTE COMO PROTAGONISTA + CONVERSA COMO CONTROLE.
+  Proposta para o pedido do Ryan (11/09/2026). NÃO é código de produção: a "arte" aqui é
+  um desenho em CSS, não o motor único (fRenderTemplateLayers). Serve para decidir a
+  COMPOSIÇÃO e o COMPORTAMENTO antes de tocar em js/ e css/.
+  Tokens copiados de css/00-tokens.css para o arquivo abrir sozinho, sem o app.
+-->
+<style>
+:root{
+  --dm-orange:#FF9000; --dm-orange-d:#F85400; --dm-orange-bg:#FFF2E0; --dm-orange-tint:#FFE0BD;
+  --dm-red:#C81818; --dm-yellow:#FFB900;
+  --white:#FFFFFF; --off-white:#FAFAFA; --gray-light:#F2F2F2; --gray-mid:#D4D4D4;
+  --text:#0A0A0A; --text-2:#3A3A3A; --text-3:#6B6B6B;
+  --green:#22C55E; --on-orange:#0A0A0A;
+  --r:10px; --r-sm:6px; --r-pill:999px;
+  --ease-standard:cubic-bezier(.2,.9,.4,1); --ease-out:cubic-bezier(.16,1,.3,1);
+  --ease-spring-soft:cubic-bezier(.22,1.2,.36,1);
+  --dur-micro:140ms; --dur-fast:180ms; --dur-base:260ms; --dur-slow:420ms;
+  --tap-min:44px;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;padding:28px 20px 60px;background:#0E1116;color:#E8EAEE;
+  font:14px/1.5 'Roboto',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+.pg{max-width:1180px;margin:0 auto}
+h1{font-size:21px;font-weight:800;margin:0 0 4px;letter-spacing:-.02em}
+.sub{color:#9AA3AF;font-size:13px;margin:0 0 26px;max-width:60ch}
+.sub b{color:var(--dm-orange);font-weight:700}
+.cols{display:flex;gap:34px;align-items:flex-start;flex-wrap:wrap}
+
+/* ══ CONTROLES DO MOCKUP (não fazem parte da interface proposta) ══ */
+.ctl{flex:1 1 300px;min-width:280px;max-width:420px}
+.ctl h2{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#6F7885;margin:22px 0 9px;font-weight:800}
+.ctl h2:first-child{margin-top:0}
+.btns{display:flex;flex-wrap:wrap;gap:7px}
+.b{
+  appearance:none;border:1px solid #262C36;background:#171B21;color:#C9D1DB;
+  font:inherit;font-size:12.5px;font-weight:600;padding:9px 13px;border-radius:var(--r);
+  cursor:pointer;transition:all var(--dur-micro) var(--ease-standard);
+}
+.b:hover{border-color:#3A424F;background:#1D222B;color:#fff}
+.b.on{background:var(--dm-orange);border-color:var(--dm-orange);color:var(--on-orange)}
+.note{font-size:12.5px;color:#8B94A1;line-height:1.62;margin:12px 0 0}
+.note code{background:#171B21;border:1px solid #262C36;border-radius:5px;padding:1px 5px;font-size:11.5px;color:#D6DCE4}
+.note b{color:#E8EAEE;font-weight:700}
+.legenda{border-left:2px solid var(--dm-orange);padding-left:13px;margin-top:20px}
+
+/* ══════════════════════════════════════════════════════════════════════
+   O APARELHO
+   ══════════════════════════════════════════════════════════════════════ */
+.phone-wrap{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:12px}
+.phone{
+  width:390px;height:844px;border-radius:46px;background:#000;padding:11px;
+  box-shadow:0 40px 90px -20px rgba(0,0,0,.8),0 0 0 2px #2A3038;
+  transition:width var(--dur-base) var(--ease-standard),height var(--dur-base) var(--ease-standard);
+}
+.phone.baixa{width:360px;height:640px}
+.screen{
+  position:relative;width:100%;height:100%;border-radius:36px;overflow:hidden;
+  background:var(--white);color:var(--text);display:flex;flex-direction:column;
+  font-family:'Roboto',-apple-system,sans-serif;
+}
+.phone-label{font-size:11.5px;color:#6F7885;font-weight:600}
+
+/* ── 1. CABEÇALHO (§5, §21) ── uma linha, nada mais ── */
+.hd{
+  flex:0 0 auto;display:flex;align-items:center;gap:10px;
+  padding:calc(10px + 14px) 12px 10px;      /* 14px = notch */
+  border-bottom:1px solid var(--gray-light);background:var(--white);z-index:3;
+}
+.hd-back{
+  appearance:none;border:0;background:transparent;color:var(--text-2);
+  width:34px;height:34px;margin-left:-4px;border-radius:var(--r-sm);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;
+}
+.hd-back:active{background:var(--gray-light)}
+.hd-t{min-width:0;flex:1}
+.hd-t strong{display:block;font-size:14px;font-weight:700;letter-spacing:-.01em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hd-t span{display:block;font-size:11px;color:var(--text-3);font-weight:500;margin-top:1px}
+.hd-prog{
+  flex:0 0 auto;display:flex;align-items:center;gap:7px;
+  font-size:12px;font-weight:800;color:var(--text-2);font-variant-numeric:tabular-nums;
+}
+.hd-bar{width:34px;height:4px;border-radius:var(--r-pill);background:var(--gray-light);overflow:hidden}
+.hd-bar i{display:block;height:100%;background:var(--dm-orange);border-radius:inherit;
+  transition:width var(--dur-slow) var(--ease-out)}
+
+/* ── 2. A ARTE (§1, §2) — o elemento dominante ── */
+.palco{
+  flex:1 1 auto;min-height:104px;position:relative;
+  display:flex;align-items:center;justify-content:center;
+  padding:14px 16px 22px;
+  background:
+    radial-gradient(circle at 1px 1px,color-mix(in srgb,var(--text) 9%,transparent) 1px,transparent 0) 0 0/14px 14px,
+    var(--off-white);
+  cursor:pointer;-webkit-tap-highlight-color:transparent;
+}
+.palco:active .arte{transform:scale(.985)}
+.palco::after{
+  content:'Toque para ampliar';
+  position:absolute;left:0;right:0;bottom:7px;text-align:center;
+  font:700 9.5px/1 'Roboto',sans-serif;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--text-3);pointer-events:none;
+}
+.arte{
+  height:100%;aspect-ratio:9/16;border-radius:9px;overflow:hidden;position:relative;
+  background:linear-gradient(160deg,#FF9000,#F85400 62%,#C81818);
+  box-shadow:0 14px 34px color-mix(in srgb,var(--dm-orange-d) 20%,transparent),
+             0 4px 12px rgba(10,10,10,.16);
+  transition:transform var(--dur-fast) var(--ease-spring-soft);
+  display:flex;flex-direction:column;
+  font-size:10px;container-type:inline-size;
+}
+.arte.pulse{animation:artePulse var(--dur-base) var(--ease-out) 1}
+@keyframes artePulse{0%{box-shadow:0 0 0 0 rgba(255,255,255,.55)}100%{box-shadow:0 0 0 12px rgba(255,255,255,0)}}
+/* Conteúdo da arte falsa — muda conforme as respostas, que é o ponto da demonstração */
+.a-top{flex:0 0 46%;margin:7% 7% 0;border-radius:7px;background:rgba(255,255,255,.16);
+  display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+.a-top.tem-foto{background:
+  radial-gradient(circle at 35% 38%,#F4C99B,transparent 55%),
+  radial-gradient(circle at 68% 62%,#C4703A,transparent 52%),#8A4A22}
+.a-top svg{width:22%;height:auto;color:rgba(255,255,255,.45)}
+.a-body{padding:6% 7% 0;color:#fff;flex:1;min-height:0}
+.a-cat{font-size:6.5cqw;font-weight:800;letter-spacing:.14em;text-transform:uppercase;opacity:.82}
+.a-prod{font-size:13cqw;font-weight:900;line-height:.96;letter-spacing:-.025em;text-transform:uppercase;margin-top:2%}
+.a-desc{font-size:6cqw;font-weight:600;opacity:.92;margin-top:3%;line-height:1.25;min-height:1.2em}
+.a-precos{position:absolute;right:7%;bottom:8%;text-align:right;color:#fff}
+.a-de{font-size:6cqw;font-weight:700;opacity:.72;text-decoration:line-through}
+.a-por{font-size:15cqw;font-weight:900;line-height:.9;letter-spacing:-.03em}
+.a-por small{font-size:.46em;font-weight:800;vertical-align:.55em;margin-right:.1em}
+.a-logo{position:absolute;left:7%;bottom:8%;width:20%;height:5%;border-radius:2px;background:rgba(255,255,255,.72)}
+.vazio{opacity:.42}
+
+/* ── 3. O BOTTOM SHEET (§3) ── */
+.sheet{
+  flex:0 0 auto;position:relative;z-index:4;
+  background:var(--white);border-top:1px solid var(--gray-light);
+  border-radius:20px 20px 0 0;
+  box-shadow:0 -10px 30px -14px rgba(10,10,10,.16),0 -1px 0 rgba(10,10,10,.03);
+  display:flex;flex-direction:column;max-height:64%;
+  transition:max-height var(--dur-base) var(--ease-standard);
+}
+.screen.sheet-max .sheet{max-height:86%}
+.grip{
+  flex:0 0 auto;padding:9px 0 5px;display:flex;justify-content:center;
+  cursor:grab;touch-action:none;-webkit-tap-highlight-color:transparent;
+}
+.grip i{display:block;width:38px;height:4px;border-radius:var(--r-pill);background:var(--gray-mid);
+  transition:background var(--dur-micro),width var(--dur-micro)}
+.grip:active i{background:var(--text-3);width:46px}
+
+.sheet-scroll{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 18px}
+
+/* A pergunta atual (§4) — rótulo, frase, controle. Nada de avatar (§29). */
+.perg{animation:pergIn var(--dur-base) var(--ease-out) both}
+@keyframes pergIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+.perg-rot{
+  display:flex;align-items:center;gap:7px;
+  font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--dm-orange-d);margin-bottom:6px;
+}
+.perg-rot .tipo{
+  display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 4px;
+  border-radius:5px;background:var(--dm-orange-bg);color:var(--dm-orange-d);
+  font-size:9px;font-weight:900;letter-spacing:0;
+}
+.perg-tx{font-size:17px;font-weight:700;letter-spacing:-.018em;line-height:1.28;margin:0 0 13px;color:var(--text)}
+.perg-tx .ctx{display:block;font-size:12.5px;font-weight:500;color:var(--text-3);margin-top:4px;letter-spacing:0}
+
+/* O que sobrou de chip: "Manter" e "Pular" — controle de fluxo, não sugestão de conteúdo */
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.chip{
+  appearance:none;font:inherit;font-size:13.5px;font-weight:600;
+  min-height:var(--tap-min);padding:0 15px;border-radius:var(--r-pill);
+  border:1px solid var(--gray-mid);background:var(--white);color:var(--text-2);
+  cursor:pointer;display:inline-flex;align-items:center;gap:6px;
+  transition:all var(--dur-micro) var(--ease-standard);
+}
+.chip:active{transform:scale(.97)}
+.chip.pri{border-color:var(--dm-orange-tint);background:var(--dm-orange-bg);color:var(--dm-orange-d);font-weight:700}
+.chip.ghost{border-style:dashed;color:var(--text-3)}
+.chip.manter{border-color:var(--green);background:color-mix(in srgb,var(--green) 10%,var(--white));color:#15803D;font-weight:700}
+
+/* Input contextual (§9) — slim quando há chips, cheio quando a resposta é livre */
+.campo{display:flex;align-items:center;gap:8px;padding:8px 0 0}
+.campo-box{
+  flex:1;display:flex;align-items:center;gap:8px;min-height:var(--tap-min);
+  border:1px solid var(--gray-mid);border-radius:14px;padding:0 6px 0 14px;background:var(--off-white);
+  transition:border-color var(--dur-micro),box-shadow var(--dur-micro);
+}
+.campo-box:focus-within{border-color:var(--dm-orange);box-shadow:0 0 0 3px color-mix(in srgb,var(--dm-orange) 18%,transparent);background:var(--white)}
+.campo-box .prefix{font-size:15px;font-weight:800;color:var(--text-3);flex-shrink:0}
+.campo-box input{
+  flex:1;min-width:0;border:0;background:transparent;outline:0;
+  font:inherit;font-size:16px;font-weight:600;color:var(--text);padding:0;
+}
+.campo-box input::placeholder{font-weight:500;color:var(--text-3)}
+.campo-go{
+  appearance:none;border:0;flex-shrink:0;width:36px;height:36px;border-radius:11px;
+  background:var(--dm-orange);color:var(--on-orange);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:transform var(--dur-micro) var(--ease-spring-soft),opacity var(--dur-micro);
+}
+.campo-go:active{transform:scale(.93)}
+
+/* Botão largo (preço, continuar, ações finais) */
+.wide{
+  appearance:none;font:inherit;width:100%;min-height:var(--tap-min);border-radius:14px;
+  font-size:15px;font-weight:800;cursor:pointer;border:1px solid transparent;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:transform var(--dur-micro) var(--ease-spring-soft),filter var(--dur-micro);
+}
+.wide:active{transform:scale(.985)}
+.wide.pri{background:var(--dm-orange);color:var(--on-orange)}
+.wide.sec{background:var(--white);border-color:var(--gray-mid);color:var(--text)}
+.wide.ghost{background:transparent;color:var(--text-3);font-weight:600;font-size:13.5px;min-height:38px}
+
+/* Rodapé do sheet: uma linha de serviço (§6, §14) */
+.sheet-foot{
+  flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:11px 18px calc(11px + 18px);   /* 18px = home indicator */
+  border-top:1px solid var(--gray-light);margin-top:12px;
+}
+.foot-b{
+  appearance:none;border:0;background:transparent;font:inherit;font-size:12.5px;font-weight:700;
+  color:var(--text-3);cursor:pointer;display:inline-flex;align-items:center;gap:5px;
+  min-height:34px;padding:0 4px;border-radius:8px;
+}
+.foot-b:active{background:var(--gray-light)}
+.foot-b.on{color:var(--dm-orange-d)}
+.foot-b svg{width:13px;height:13px}
+
+/* ── Histórico estruturado (§6, §7) ── */
+.hist{padding-top:2px;animation:pergIn var(--dur-base) var(--ease-out) both}
+.hist-h{font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin:0 0 8px}
+.hist-row{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px 10px;
+  padding:10px 0;border-bottom:1px solid var(--gray-light);
+}
+.hist-row:last-of-type{border-bottom:0}
+.hist-lbl{grid-column:1;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3)}
+.hist-val{grid-column:1;font-size:15px;font-weight:700;color:var(--text);word-break:break-word}
+.hist-val.vazia{color:var(--text-3);font-weight:500;font-style:italic}
+.hist-val .mini{display:inline-block;width:26px;height:26px;border-radius:6px;vertical-align:-8px;margin-right:6px;
+  background:radial-gradient(circle at 35% 38%,#F4C99B,transparent 55%),radial-gradient(circle at 68% 62%,#C4703A,transparent 52%),#8A4A22}
+.hist-ed{
+  grid-column:2;grid-row:1/3;appearance:none;border:1px solid var(--gray-mid);background:var(--white);
+  width:36px;height:36px;border-radius:11px;color:var(--text-2);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+.hist-ed:active{background:var(--gray-light)}
+.hist-ed svg{width:14px;height:14px}
+.hist-row.atual{background:var(--dm-orange-bg);margin-inline:-10px;padding-inline:10px;border-radius:10px;border-bottom-color:transparent}
+
+/* ── Estado final (§22, §41) ── */
+.fim-ok{
+  display:flex;align-items:center;gap:9px;margin-bottom:14px;
+  font-size:16px;font-weight:800;letter-spacing:-.015em;color:var(--text);
+}
+.fim-ok .tick{
+  width:26px;height:26px;border-radius:50%;background:var(--green);color:#fff;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  animation:tickIn var(--dur-base) var(--ease-spring-soft) both;
+}
+@keyframes tickIn{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+.fim-ok small{display:block;font-size:12px;font-weight:500;color:var(--text-3);letter-spacing:0;margin-top:1px}
+.fim-acoes{display:flex;flex-direction:column;gap:9px}
+
+/* ── Feedback curto entre perguntas (§12) ── */
+.flash{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:9;
+  display:flex;align-items:center;gap:7px;padding:9px 15px;border-radius:var(--r-pill);
+  background:rgba(10,10,10,.86);color:#fff;font-size:13px;font-weight:700;
+  backdrop-filter:blur(6px);pointer-events:none;opacity:0;
+}
+.flash.show{animation:flashGo 1100ms var(--ease-out) 1}
+@keyframes flashGo{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.86)}
+  16%{opacity:1;transform:translate(-50%,-50%) scale(1)}
+  74%{opacity:1;transform:translate(-50%,-50%) scale(1)}
+  100%{opacity:0;transform:translate(-50%,-58%) scale(1)}
+}
+
+/* ── §24 + pedido do Ryan (11/09): COM O TECLADO ABERTO, O CABEÇALHO SAI ──
+   O cabeçalho é orientação — onde estou, quanto falta. Ninguém consulta orientação
+   enquanto digita a resposta, e são ~58px que a arte usa melhor. Volta inteiro quando o
+   teclado fecha; o "Anterior" do rodapé do painel continua no lugar, então não há
+   momento em que a pessoa fique sem caminho de volta. */
+.hd{
+  overflow:hidden;
+  transition:height var(--dur-base) var(--ease-standard),
+             padding var(--dur-base) var(--ease-standard),
+             opacity var(--dur-fast) var(--ease-in);
+}
+.screen.kb .hd{height:0;padding-top:0;padding-bottom:0;opacity:0;border-bottom-color:transparent;pointer-events:none}
+/* ⚠ A reserva do NOTCH morava no padding do cabeçalho. Sem ele, a arte subia até debaixo
+   da barra de status e encostava no canto arredondado da tela. Na implementação isto é
+   `env(safe-area-inset-top)`; aqui os 14px fixos simulam o iPhone. */
+.screen.kb .palco{padding-top:calc(14px + 12px)}
+
+/* ── Teclado simulado (§24) ── */
+.teclado{
+  flex:0 0 auto;height:0;background:#D1D5DB;overflow:hidden;
+  transition:height var(--dur-base) var(--ease-standard);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;color:#6B7280;letter-spacing:.08em;text-transform:uppercase;
+}
+.screen.kb .teclado{height:290px}
+.screen.kb .palco{min-height:104px}
+
+/* ── Ampliada (§16) ── */
+.zoom{
+  position:absolute;inset:0;z-index:20;background:rgba(10,10,10,.93);
+  display:none;align-items:center;justify-content:center;padding:26px;
+}
+.screen.zoomed .zoom{display:flex;animation:pergIn var(--dur-base) var(--ease-out) both}
+.zoom .arte{height:auto;width:100%;max-height:100%}
+.zoom-x{
+  position:absolute;top:calc(14px + 10px);right:14px;width:38px;height:38px;border-radius:50%;
+  border:0;background:rgba(255,255,255,.16);color:#fff;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
+@media (max-width:900px){
+  body{padding:18px 12px 40px}
+  .phone{width:100%;max-width:390px;height:78vh}
+}
+</style>
+</head>
+<body>
+<div class="pg">
+  <h1>Luma no celular — a arte é o produto, a conversa é o controle</h1>
+  <p class="sub">Proposta de composição para o fluxo individual de criação em telas <b>≤ 680px</b> (o mesmo corte que o código já usa). Responda um passo: a arte muda na hora e o próximo entra. Arraste a alça do painel; abra o teclado pelos botões ao lado.</p>
+
+  <div class="cols">
+    <!-- ══ APARELHO ══ -->
+    <div class="phone-wrap">
+      <div class="phone" id="phone">
+        <div class="screen" id="screen">
+
+          <!-- §5 CABEÇALHO: uma linha -->
+          <header class="hd">
+            <button class="hd-back" aria-label="Voltar às campanhas">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <div class="hd-t">
+              <strong>Copa do Mundo 2026</strong>
+              <span id="hd-fmt">Story · 1080×1920</span>
+            </div>
+            <div class="hd-prog">
+              <div class="hd-bar"><i id="prog-bar" style="width:16%"></i></div>
+              <span id="prog-n">1/6</span>
+            </div>
+          </header>
+
+          <!-- §1/§2 A ARTE -->
+          <div class="palco" id="palco" role="button" tabindex="0" aria-label="Ver a arte em tela cheia">
+            <div class="arte" id="arte">
+              <div class="a-top" id="a-foto">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.8"/><path d="m5 17 4.5-4.5 3 3L16 12l3 3"/></svg>
+              </div>
+              <div class="a-body">
+                <div class="a-cat">Promoção</div>
+                <div class="a-prod" id="a-prod"><span class="vazio">Seu produto</span></div>
+                <div class="a-desc" id="a-desc"></div>
+              </div>
+              <div class="a-precos">
+                <div class="a-de" id="a-de" hidden></div>
+                <div class="a-por" id="a-por"><span class="vazio"><small>R$</small>00,00</span></div>
+              </div>
+              <div class="a-logo"></div>
+            </div>
+            <div class="flash" id="flash"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span id="flash-tx"></span></div>
+          </div>
+
+          <!-- §3 BOTTOM SHEET -->
+          <section class="sheet" id="sheet">
+            <div class="grip" id="grip" role="button" tabindex="0" aria-label="Expandir ou recolher o painel"><i></i></div>
+            <div class="sheet-scroll" id="corpo"><!-- preenchido pelo JS --></div>
+            <footer class="sheet-foot">
+              <button class="foot-b" id="btn-voltar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                Anterior
+              </button>
+              <button class="foot-b" id="btn-hist">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                <span id="hist-lbl">Respostas</span>
+              </button>
+            </footer>
+          </section>
+
+          <div class="teclado">teclado do sistema</div>
+
+          <!-- §16 AMPLIADA -->
+          <div class="zoom" id="zoom">
+            <button class="zoom-x" id="zoom-x" aria-label="Fechar">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+            </button>
+          </div>
+
+        </div>
+      </div>
+      <div class="phone-label" id="phone-label">iPhone 14 · 390 × 844</div>
+    </div>
+
+    <!-- ══ CONTROLES DO MOCKUP ══ -->
+    <div class="ctl">
+      <h2>Passos do fluxo</h2>
+      <div class="btns" id="nav"></div>
+
+      <h2>Estados da tela</h2>
+      <div class="btns">
+        <button class="b" id="t-kb">Teclado aberto</button>
+        <button class="b" id="t-sheet">Painel expandido</button>
+        <button class="b" id="t-baixa">Tela baixa (360×640)</button>
+        <button class="b" id="t-reset">Recomeçar</button>
+      </div>
+
+      <div class="legenda">
+        <div class="note">
+          <b>O que a composição diz.</b><br>
+          A arte ocupa a sobra da tela (<code>flex:1</code>) e nunca sai de cena — encolhe até
+          104px quando o teclado abre e volta quando ele fecha. O painel tem a altura do
+          <b>conteúdo</b>, com teto de 64% (86% expandido).
+        </div>
+        <div class="note" style="margin-top:13px">
+          <b>Uma pergunta por vez.</b> O histórico não some: vira a lista
+          <b>Respostas</b> no rodapé — rótulo, valor e lápis. Sem timeline de bolhas,
+          sem avatar repetido.
+        </div>
+        <div class="note" style="margin-top:13px">
+          <b>Sem sugestão de conteúdo.</b> Os chips de valor saíram: custavam duas linhas do
+          painel e davam a resposta antes de a pessoa pensar na dela. Ficam só
+          <b>Manter</b> e <b>Pular</b>, que falam do que já existe — sem eles o fluxo trava.
+        </div>
+        <div class="note" style="margin-top:13px">
+          <b>O controle segue o tipo.</b> Texto abre campo livre; preço abre com
+          <code>R$</code> e teclado decimal; foto troca o campo por dois botões — o input
+          não fica ocupando espaço quando não serve.
+        </div>
+        <div class="note" style="margin-top:13px">
+          <b>Teclado aberto, cabeçalho fora.</b> Campanha e progresso são orientação, e
+          ninguém consulta orientação enquanto digita. São ~58px que voltam pra arte; o
+          <b>Anterior</b> do rodapé segue no lugar.
+        </div>
+        <div class="note" style="margin-top:13px">
+          <b>Isto é um desenho, não o app.</b> A arte aqui é CSS; na implementação continua
+          sendo o <code>#lp-canvas</code> copiado por <code>drawImage</code> — o motor único,
+          nunca um segundo renderizador.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════════════
+   O MOCKUP É DIRIGIDO PELO MESMO FORMATO DE DADO DO APP:
+   uma lista de perguntas + um objeto de respostas. É de propósito — se a composição
+   não fecha com `fState.camp.perguntas` e `fState.dados`, ela não vale na implementação.
+   ══════════════════════════════════════════════════════════════════════════════ */
+const PERGS = [
+  {id:'produto',   rot:'Produto',            tipo:'text',  ico:'Aa', tx:'O que você vai anunciar?',
+   ph:'Ex.: X-Bacon Duplo'},
+  {id:'descricao', rot:'Descrição do produto',tipo:'text',  ico:'Aa', tx:'Quer acrescentar algum detalhe?',
+   ph:'Ex.: combo família', opcional:true},
+  {id:'foto',      rot:'Foto do produto',    tipo:'image', ico:'▣',  tx:'Adicione uma foto do produto.'},
+  {id:'precoDe',   rot:'Preço original',     tipo:'price', ico:'R$', tx:'Qual era o preço antes da promoção?',
+   ph:'0,00'},
+  {id:'precoPor',  rot:'Preço promocional',  tipo:'price', ico:'R$', tx:'Qual é o preço da oferta?',
+   ph:'0,00', ctx:d=>d.precoDe?('O preço original é R$ '+d.precoDe+'.'):''},
+  {id:'validade',  rot:'Validade',           tipo:'text',  ico:'31', tx:'Até quando vale?',
+   ph:'Ex.: só hoje', opcional:true},
+];
+
+let passo = 0;          // índice da pergunta atual; PERGS.length = entrega final
+let dados = {};         // o espelho do fState.dados
+let vendoHist = false;
+
+const $ = id => document.getElementById(id);
+const screen = $('screen'), corpo = $('corpo');
+
+/* ── A ARTE E A PERGUNTA SÃO A MESMA VERDADE (§18) ──
+   Não há estado do preview separado do estado da conversa: esta função lê `dados` e
+   pinta a arte. Mesma coisa que `fLpRefresh()` fazer no app. */
+function pintaArte(){
+  const prod = dados.produto;
+  $('a-prod').innerHTML = prod ? esc(prod) : '<span class="vazio">Seu produto</span>';
+  $('a-desc').textContent = dados.descricao || '';
+  $('a-foto').classList.toggle('tem-foto', !!dados.foto);
+  const de = $('a-de');
+  de.hidden = !dados.precoDe; de.textContent = 'DE R$ ' + (dados.precoDe||'');
+  $('a-por').innerHTML = dados.precoPor ? '<small>R$</small>'+esc(dados.precoPor)
+                                       : '<span class="vazio"><small>R$</small>00,00</span>';
+  const art = $('arte'); art.classList.remove('pulse'); void art.offsetWidth; art.classList.add('pulse');
+}
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function pintaCabecalho(){
+  const n = Math.min(passo+1, PERGS.length);
+  $('prog-n').textContent = passo>=PERGS.length ? 'pronta' : n+'/'+PERGS.length;
+  $('prog-bar').style.width = Math.round(Math.min(passo, PERGS.length)/PERGS.length*100 || 4)+'%';
+}
+
+/* ── §10 O CONTROLE SEGUE O TIPO DA PERGUNTA ── */
+function pintaCorpo(){
+  pintaCabecalho();
+  if(vendoHist){ corpo.innerHTML = htmlHist(); return; }
+  if(passo >= PERGS.length){ corpo.innerHTML = htmlFim(); return; }
+
+  const p = PERGS[passo];
+  const atual = dados[p.id];
+  const ctx = p.ctx ? p.ctx(dados) : '';
+  let controle = '';
+
+  if(p.tipo === 'image'){
+    controle = `
+      <button class="wide pri" data-resp="__foto__" style="margin-bottom:9px">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.8"/><path d="m5 17 4.5-4.5 3 3L16 12l3 3"/></svg>
+        ${atual ? 'Trocar a foto' : 'Escolher foto'}
+      </button>
+      <button class="wide ghost" data-resp="__foto__">Usar uma foto recente</button>`;
+  } else {
+    /* ⛔ SEM SUGESTÃO DE CONTEÚDO NO CELULAR (decisão do Ryan, 11/09).
+       Os chips de valor ("Combo família", "Frete grátis", "39,90") saíram. Numa tela
+       estreita eles custavam duas linhas do painel — espaço que a ARTE usa melhor — e
+       ofereciam uma resposta antes de a pessoa pensar na dela. O campo passa a ser a
+       resposta, sempre.
+
+       ⚠ O QUE FICA NÃO É SUGESTÃO, É CONTROLE DE FLUXO, e por isso sobrevive ao corte:
+       · "Manter" — o passo que chega com valor (vindo da prévia, do rascunho ou do perfil
+         da loja) precisa de um jeito de confirmar sem redigitar. Sem ele, editar a arte
+         pela prévia vira trabalho perdido no passo seguinte.
+       · "Pular" — sem ele, campo opcional não tem saída e o fluxo trava.
+       Nenhum dos dois propõe conteúdo: os dois falam do que JÁ existe. */
+    const manter = atual
+      ? `<button class="chip manter" data-resp="${esc(atual)}">
+           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+           Manter “${esc(atual.length>18?atual.slice(0,16)+'…':atual)}”</button>`
+      : (p.opcional ? `<button class="chip ghost" data-resp="">Pular</button>` : '');
+
+    const prefix = p.tipo==='price' ? '<span class="prefix">R$</span>' : '';
+    controle = `
+      <div class="campo">
+        <div class="campo-box">${prefix}
+          <input id="inp" type="text" inputmode="${p.tipo==='price'?'decimal':'text'}"
+                 placeholder="${esc(p.ph||'Digite aqui…')}" value="${esc(atual||'')}">
+        </div>
+        <button class="campo-go" id="go" aria-label="Confirmar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+      ${manter?`<div class="chips" style="margin:11px 0 0">${manter}</div>`:''}`;
+  }
+
+  corpo.innerHTML = `
+    <div class="perg">
+      <div class="perg-rot"><span class="tipo">${esc(p.ico)}</span>${esc(p.rot)}${p.opcional?' · opcional':''}</div>
+      <p class="perg-tx">${esc(p.tx)}${ctx?`<span class="ctx">${esc(ctx)}</span>`:''}</p>
+      ${controle}
+    </div>`;
+
+  const go = $('go');
+  if(go) go.onclick = ()=>{ const v=$('inp'); responde(v?v.value.trim():''); };
+  const inp = $('inp');
+  if(inp) inp.onkeydown = e => { if(e.key==='Enter') responde(inp.value.trim()); };
+}
+
+/* ── §6/§7 O HISTÓRICO É UMA LISTA DE CAMPOS, NÃO UMA TIMELINE ── */
+function htmlHist(){
+  const linhas = PERGS.map((p,i)=>{
+    const v = dados[p.id];
+    const val = p.id==='foto'
+      ? (v ? '<span class="mini"></span>Foto enviada' : '<span class="vazia">sem foto</span>')
+      : (v ? esc(v) : '<span class="vazia">não respondido</span>');
+    const pre = p.tipo==='price' && v ? 'R$ ' : '';
+    return `<div class="hist-row${i===passo?' atual':''}">
+      <div class="hist-lbl">${esc(p.rot)}</div>
+      <div class="hist-val${v?'':' vazia'}">${pre}${val}</div>
+      <button class="hist-ed" data-ir="${i}" aria-label="Alterar ${esc(p.rot)}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+      </button>
+    </div>`;
+  }).join('');
+  return `<div class="hist"><h3 class="hist-h">Respostas</h3>${linhas}</div>`;
+}
+
+/* ── §22/§41 A ENTREGA: a arte continua protagonista, o painel vira ação ── */
+function htmlFim(){
+  return `<div class="perg">
+    <div class="fim-ok">
+      <span class="tick"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+      <span>Sua arte está pronta<small>Salva em Minhas artes</small></span>
+    </div>
+    <div class="fim-acoes">
+      <button class="wide pri">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="4" x2="12" y2="16"/><polyline points="18 11 12 17 6 11"/><path d="M5 20h14"/></svg>
+        Baixar PNG
+      </button>
+      <button class="wide sec">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="2.5" width="19" height="19" rx="5.5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.6" cy="6.4" r="1.2" fill="currentColor" stroke="none"/></svg>
+        Publicar no Instagram
+      </button>
+      <button class="wide ghost" id="refazer">Refazer</button>
+    </div>
+  </div>`;
+}
+
+/* ── §12 A TRANSIÇÃO: resposta → arte muda → confirmação curta → próxima ── */
+let flashTimer = null;
+function responde(valor){
+  const p = PERGS[passo];
+  if(p.tipo !== 'image' && !valor && !p.opcional) return;   // obrigatório continua obrigatório
+  dados[p.id] = p.tipo==='image' ? true : valor;
+  pintaArte();
+  if(valor || p.tipo==='image') flash(p.tipo==='image' ? 'Foto adicionada' : p.rot+' salvo');
+  passo++;
+  vendoHist = false; sincronizaRodape();
+  setTimeout(pintaCorpo, 170);
+}
+function flash(tx){
+  const f = $('flash'); $('flash-tx').textContent = tx;
+  f.classList.remove('show'); void f.offsetWidth; f.classList.add('show');
+  clearTimeout(flashTimer); flashTimer = setTimeout(()=>f.classList.remove('show'), 1200);
+}
+
+corpo.addEventListener('click', e=>{
+  const chip = e.target.closest('[data-resp]');
+  if(chip){ responde(chip.dataset.resp); return; }
+  const ed = e.target.closest('[data-ir]');
+  if(ed){ passo = +ed.dataset.ir; vendoHist = false; sincronizaRodape(); pintaCorpo(); return; }
+  if(e.target.closest('#refazer')){ reset(); }
+});
+
+/* ── §14 Voltar não vira navegador de mensagens: é um passo, e a resposta continua lá ── */
+$('btn-voltar').onclick = ()=>{ if(passo>0){ passo--; vendoHist=false; sincronizaRodape(); pintaCorpo(); } };
+$('btn-hist').onclick = ()=>{ vendoHist = !vendoHist; sincronizaRodape(); pintaCorpo(); };
+function sincronizaRodape(){
+  $('btn-hist').classList.toggle('on', vendoHist);
+  $('hist-lbl').textContent = vendoHist ? 'Fechar' : 'Respostas';
+  $('btn-voltar').style.visibility = passo>0 && !vendoHist ? '' : 'hidden';
+  screen.classList.toggle('sheet-max', vendoHist);
+}
+
+/* ── §16 Ampliar usa a MESMA arte, e ao fechar volta pra pergunta atual ── */
+$('palco').onclick = ()=>{
+  const z = $('zoom');
+  if(!z.querySelector('.arte')) z.appendChild($('arte').cloneNode(true));
+  else z.replaceChild($('arte').cloneNode(true), z.querySelector('.arte'));
+  screen.classList.add('zoomed');
+};
+$('zoom-x').onclick = e=>{ e.stopPropagation(); screen.classList.remove('zoomed'); };
+
+/* ── §3 A ALÇA: toque alterna, arrasto acompanha e solta num dos dois estados ── */
+(function alça(){
+  const grip = $('grip'); let y0 = null, maxOld = false;
+  grip.addEventListener('pointerdown', e=>{
+    y0 = e.clientY; maxOld = screen.classList.contains('sheet-max');
+    grip.setPointerCapture(e.pointerId);
+  });
+  grip.addEventListener('pointerup', e=>{
+    if(y0 == null) return;
+    const dy = e.clientY - y0; y0 = null;
+    // < -24px sobe, > 24px desce, no meio é toque → alterna
+    if(dy < -24) screen.classList.add('sheet-max');
+    else if(dy > 24) screen.classList.remove('sheet-max');
+    else screen.classList.toggle('sheet-max', !maxOld);
+  });
+})();
+
+/* ── Controles do mockup ── */
+$('t-kb').onclick = e=>{ screen.classList.toggle('kb'); e.target.classList.toggle('on'); };
+$('t-sheet').onclick = e=>{ screen.classList.toggle('sheet-max'); e.target.classList.toggle('on'); };
+$('t-baixa').onclick = e=>{
+  const p = $('phone'); p.classList.toggle('baixa'); e.target.classList.toggle('on');
+  $('phone-label').textContent = p.classList.contains('baixa') ? 'Tela baixa · 360 × 640' : 'iPhone 14 · 390 × 844';
+};
+$('t-reset').onclick = reset;
+function reset(){ passo = 0; dados = {}; vendoHist = false; sincronizaRodape(); pintaArte(); pintaCorpo(); montaNav(); }
+
+function montaNav(){
+  $('nav').innerHTML = PERGS.map((p,i)=>`<button class="b" data-p="${i}">${i+1}. ${esc(p.rot)}</button>`).join('')
+    + `<button class="b" data-p="${PERGS.length}">✓ Entrega</button>`;
+}
+$('nav').addEventListener('click', e=>{
+  const b = e.target.closest('[data-p]'); if(!b) return;
+  passo = +b.dataset.p; vendoHist = false;
+  /* Pular direto para um passo adiantado precisa de respostas plausíveis — senão a arte
+     fica vazia e o mockup não mostra o que quer mostrar. */
+  const amostra = {produto:'X-Bacon Duplo', descricao:'Combo família', foto:true, precoDe:'39,90', precoPor:'29,90', validade:'Só hoje'};
+  PERGS.forEach((p,i)=>{ if(i < passo && dados[p.id]==null) dados[p.id] = amostra[p.id]; });
+  sincronizaRodape(); pintaArte(); pintaCorpo();
+});
+
+montaNav(); sincronizaRodape(); pintaArte(); pintaCorpo();
+</script>
+</body>
+</html>

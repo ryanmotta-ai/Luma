@@ -876,7 +876,6 @@ body:has(#f-bulk-modal.open) #mobile-preview-toggle{display:none!important}
 /* ── Rodapé: o que sai ── */
 /* Rodapé: a conta à esquerda (informação), as ações à direita. Os chips de formato saíram —
    com um formato só, o que restou é a leitura do que vai sair e os dois botões. */
-.f-bulk-footer-note{margin-right:auto}
 .f-bulk-post-opts{position:relative}
 .f-bulk-post-opts>summary{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border:1px solid var(--gray-mid);
   border-radius:var(--r-pill);background:var(--white);color:var(--text-2);font:700 12px/1 'Roboto',sans-serif;cursor:pointer;
@@ -1065,7 +1064,6 @@ body:not(.theme-light) .f-bulk-tb-pri{background:color-mix(in srgb,var(--dm-oran
 body:not(.theme-light) .f-bulk-tb-pri svg{color:var(--dm-orange)}
 body:not(.theme-light) .f-bulk-tb-pri:hover{background:color-mix(in srgb,var(--dm-orange) 24%,transparent);border-color:var(--dm-orange)}
 body:not(.theme-light) .f-bulk-massbar-body{background:var(--d-surf);border-color:var(--d-border2)}
-body:not(.theme-light) .f-bulk-progresso{color:var(--d-text2)}
 body:not(.theme-light) .f-bulk-sheet-title .f-bulk-status-wrap{color:var(--d-text3)}
 body:not(.theme-light) .f-bulk-alt,body:not(.theme-light) .f-bulk-massbar{background:var(--d-surf);border-color:var(--d-border2)}
 body:not(.theme-light) .f-bulk-alt>summary:hover,body:not(.theme-light) .f-bulk-massbar>summary:hover{background:var(--d-surf2)}
@@ -1263,7 +1261,18 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
   background:color-mix(in srgb,var(--dm-yellow) 18%,transparent);color:var(--var-color);
   font-size:9px;font-weight:700;letter-spacing:.02em;white-space:nowrap;
 }
-.f-bulk-of-acoes{display:flex;align-items:center;gap:1px}
+/* ⚠ EM COLUNA, E NÃO EM LINHA. A conta não fechava: são três botões de 26px com 1px de
+   gap — 80px — dentro da coluna de 60px do cabeçalho (`grid-template-columns:60px …`).
+   Os 20px que sobravam vazavam para a direita e caíam EM CIMA do primeiro campo da oferta.
+   Empilhados, cada um ocupa 26px de largura e sobra folga na coluna.
+   O `gap:6px` é o respiro: com 1px eles liam como um controle só de três partes, e o alvo
+   de apagar encostava no de duplicar — vizinhança ruim para uma ação destrutiva.
+   ⚠ A pilha mede 90px e o cabeçalho inteiro 114px. Num material com MUITOS campos isso
+   não custa nada (os campos já passam disso: medido 111px com 8 campos, e a linha só
+   cresceu 3px). Num material de até 3 campos a pilha passaria a mandar na altura da
+   linha. Não otimizei para esse caso porque ele não existe hoje — os materiais com
+   camadas têm 6 e 8 campos —, mas se aparecer, é aqui que se olha. */
+.f-bulk-of-acoes{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
 
 /* ── OS CAMPOS: 12 colunas, span por semântica ────────────────────────────────────────── */
 /* ⚠ GRID FLUIDO, NÃO 12 COLUNAS FIXAS. A régua de 12 colunas com span por breakpoint de
@@ -1469,18 +1478,6 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
 .f-bulk-progress .d-btn-sec{float:right;margin-top:10px;color:var(--dm-red)}
 
 .f-bulk-footer{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:64px;padding:10px 20px;border-top:1px solid var(--gray-light);background:var(--white);box-shadow:0 -8px 24px color-mix(in srgb,var(--text) 4%,transparent)}
-.f-bulk-footer-note{display:flex;flex-direction:column;gap:2px;max-width:520px;color:var(--text-3);font-size:10.5px;line-height:1.4}
-/* O progresso é a linha que decide se o botão funciona: 12,5px, peso alto, com o ✓ à
-   frente. O detalhe do ZIP fica abaixo, em 10,5px — informação de conferência. */
-.f-bulk-progresso{display:inline-flex;align-items:center;gap:6px;color:var(--text-2);font-size:12.5px;font-weight:750}
-.f-bulk-progresso:empty{display:none}
-.f-bulk-progresso svg{width:13px;height:13px;flex:0 0 auto;color:var(--text-3)}
-.f-bulk-progresso.is-ok{color:var(--green-text)}
-.f-bulk-progresso.is-ok svg{color:var(--green-text)}
-.f-bulk-progresso.is-zero{color:var(--text-3)}
-.f-bulk-progresso.is-trocando>span{animation:fBulkContador var(--dur-base) var(--ease-out) both}
-@keyframes fBulkContador{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){.f-bulk-progresso.is-trocando>span{animation:none}}
 .f-bulk-footer-actions{display:flex;align-items:center;gap:8px;margin-left:auto}.f-bulk-footer-actions .d-btn-pri{display:inline-flex;align-items:center;gap:7px;min-height:38px;padding:0 18px;font-weight:750}.f-bulk-footer-actions .d-btn-pri svg{width:15px;height:15px}
 /* Dentro do popover o par vira coluna: 280px não comportam dois campos lado a lado. */
 .f-bulk-post-opts-body.f-bulk-output-fields{grid-template-columns:1fr;gap:12px}
@@ -1610,7 +1607,6 @@ body:not(.theme-light) .f-bulk-tool-action{
   .f-bulk-output-config{grid-template-columns:1.2fr 1fr;align-items:start}
   .f-bulk-output-config>.f-bulk-section-heading{grid-column:1/-1}
   .f-bulk-progress{right:18px;bottom:72px;left:18px}
-  .f-bulk-footer-note{display:none}
 }
 @media(max-width:620px){
   #f-bulk-modal{padding:0}
@@ -2635,6 +2631,21 @@ body:not(.theme-light) .step-label{background:none;color:var(--d-text2)}
 .qr-back:hover{background:var(--dm-orange-bg);border-color:var(--dm-orange-tint);color:var(--dm-orange-d);transform:translateY(-1px)}
 .qr-back:active{transform:scale(.97)}
 .qr-back-wrap{margin-top:8px}
+/* ── CONTROLE DE PERGUNTA VELHA NÃO FICA NA CONVERSA ──
+   Cada pergunta nasce com os chips e com o "Voltar uma pergunta" dentro dela, e eles
+   ficavam lá para sempre: com 4 passos respondidos havia TRÊS botões de voltar boiando
+   entre as bolhas, um por pergunta antiga. Medido: 3 `.qr-back-wrap` para 1 prompt ativo.
+   ⛔ E NÃO ERA SÓ RUÍDO. O `fGoBack` volta UM passo a partir do ATUAL — clicar no botão de
+   uma pergunta de três passos atrás não leva àquela pergunta, leva para a anterior à de
+   agora. Era um controle que mentia sobre para onde ia. O mesmo vale para os chips velhos:
+   o `fQR` responde o passo ATUAL com a sugestão de uma pergunta que já passou.
+   ⚠ `:has(~.msg.active-prompt)` = "já veio pergunta nova depois desta", que é o mesmo
+   idioma que o painel do celular usa para esconder o passado. Ele preserva os dois casos
+   em que os chips moram numa mensagem SEM `active-prompt` própria (a recuperação de
+   rascunho): lá eles vêm DEPOIS da pergunta, então nada os esconde.
+   O histórico continua legível — some o controle, fica a conversa. */
+#f-messages>.msg:has(~.msg.active-prompt) .qr-back-wrap,
+#f-messages>.msg:has(~.msg.active-prompt) .qr-wrap{display:none}
 body:not(.theme-light) .qr-back{background:var(--d-surf);border-color:var(--d-border2);color:var(--d-text2)}
 body:not(.theme-light) .qr-back:hover{border-color:var(--dm-orange);color:var(--dm-orange)}
 
@@ -2644,6 +2655,18 @@ body:not(.theme-light) .qr-back:hover{border-color:var(--dm-orange);color:var(--
    pergunta→resposta. O `:not(.msg-continuation)` protege o encaixe negativo das
    bolhas emendadas (mesma especificidade não bastaria: aqui é 0-3-0 vs 0-2-0). */
 .msg.user + .msg.bot:not(.msg-continuation){margin-top:9px}
+
+/* ── REVISÃO FACTUAL NÃO-BLOQUEANTE (§37-§40) ── */
+.art-review-badge{
+  margin:10px 0;padding:8px 12px;
+  background:var(--dm-amber-bg,#fffbeb);border:1px solid var(--dm-amber-border,#fde68a);
+  border-radius:8px;font-size:12px;color:var(--dm-amber-d,#92400e);line-height:1.4;
+}
+.art-review-badge ul{margin:4px 0 0 16px;padding:0;list-style-type:disc}
+.art-review-badge li{margin-bottom:2px}
+body:not(.theme-light) .art-review-badge{
+  background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.28);color:#fbbf24;
+}
 
 /* ── 6. O VAZIO DO DESKTOP ──
    Medido no print de 1440×900: 470px de branco entre a última bolha e a barra de
@@ -2782,3 +2805,754 @@ body:not(.theme-light) #f-msg-box:disabled{background:var(--d-surf2);color:var(-
 /* Não há regra de celular aqui de propósito: o empréstimo NÃO acontece no telefone.
    O porquê está no `_fBulkTomarPrevia` — lá a gaveta é `position:fixed` com `!important`
    e a coluna do Sheets é a folha de edição, não uma coluna de prévia. */
+
+
+/* ═════════════════════════════════════════════════════════════════════════════════════
+   O CELULAR: A ARTE É O PRODUTO, A CONVERSA É O CONTROLE (2026-09-11)
+   ═════════════════════════════════════════════════════════════════════════════════════
+   A tela do franqueado no telefone era um chat com a arte no fim da rolagem: a peça — a
+   única coisa que ele veio fazer — disputava espaço com bolhas antigas, avatar repetido e o
+   selo "Passo 2 de 6". A composição inverte isso:
+
+        cabeçalho (1 linha)
+        A ARTE              ← região própria, absorve a sobra (flex:1)
+        O PAINEL            ← pergunta atual + resposta, altura de conteúdo
+
+   ⚠ NÃO É UM SEGUNDO FLUXO. Não há DOM paralelo, estado paralelo nem render paralelo: são
+   os MESMOS `#f-messages`, `#f-input-row` e `#f-chat-art` de sempre, recompostos. O que muda
+   é a caixa e o que fica visível. Por isso quase tudo aqui é CSS.
+
+   As três alavancas, e por que cada uma é barata:
+   1. `.active-prompt` — o `chat.js` JÁ tira essa classe de todas as bolhas e a põe na última,
+      em 5 pontos, desde muito antes desta rodada. Mostrar só ela é UMA regra.
+   2. `#f-msg-box:disabled` — o `fNextStep` JÁ desabilita a caixa no passo de imagem. A barra
+      de resposta some sozinha quando a pergunta não aceita texto.
+   3. `#f-msg-box:focus` — proxy do teclado aberto. Não precisa de `visualViewport` para
+      ESCONDER o cabeçalho: focar a caixa é exatamente o instante em que o teclado sobe, e o
+      `blur` devolve tudo sem uma linha de JS. (O `_fChatBindTeclado` continua existindo e
+      continua necessário — ele é quem RE-ANCORA a rolagem; são trabalhos diferentes.)
+
+   ⛔ Sem aninhamento CSS (`&`): esta base não usa em nenhum arquivo, e o aparelho do
+   franqueado costuma ser Android antigo. O escopo aparece inteiro em cada regra de
+   propósito — este bloco é gerado, então repetir não custa atenção de quem escreve.
+
+   O `#f-sheet` some do layout fora do celular com `display:contents` — mesmo recurso que o
+   `panel-dock.css` usa no `#f-right-body`. Sem ele, um wrapper no meio do flex column
+   quebraria o `flex:1` do `#f-messages` e o desktop iria junto. */
+
+#f-sheet{display:contents}
+/* "Salva em Minhas artes" é do CELULAR: no desktop a mensagem de rodapé do fGerarArte
+   já diz isso logo depois da entrega, e as duas juntas seriam a mesma frase duas vezes. */
+.art-ok-sub{display:none}
+#f-sheet-grip,#f-sheet-foot,#f-respostas{display:none}
+#f-mob-prog{display:none}
+
+@media (max-width:680px){
+
+  /* ── 0. A BARRA LARANJA GLOBAL SAI (pedido do Ryan, 11/09) ── */
+  /* `#global-topbar` custa `52px + safe-top` e, nesta tela, não serve a nada: trocar de área
+     (Franqueado/Calendário/Designer) e abrir a conta não são coisas que alguém faz no meio de
+     montar uma arte. É a maior faixa de pixels da tela gasta com navegação que ninguém pediu.
+     ⚠ NÃO É UMA SAÍDA FECHADA: o "←" do cabeçalho do chat (`fMobileBackToCatalog`) tira o
+     `f-mobile-chat` do body, e a barra volta inteira no catálogo. Esconder aqui não deixa
+     ninguém sem caminho.
+     ⚠ A ALTURA PRECISA VOLTAR PRA VIEW. O `#view-franqueado` nasce com
+     `calc(100dvh - 52px - safe-top)` justamente descontando a barra; sem esta linha sobrariam
+     52px de vazio no rodapé. E o notch, que era reserva da barra, passa a ser do cabeçalho. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #global-topbar{display:none}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #view-franqueado{height:100vh;height:100dvh}
+
+  /* ── 1. CABEÇALHO: UMA LINHA ── */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-chat-head{min-height:52px;padding:calc(6px + var(--safe-top)) 8px 6px;gap:8px}
+  /* O círculo do robô e o nome "Luma" saem: a pessoa sabe em que app está, e eram 46px
+     repetindo a marca em cima da arte dela. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .f-assistant-brand,
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-head-actions{display:none}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .f-session-context{flex:1;min-width:0;padding-left:0;border-left:0}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .f-session-label{display:none}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-ctx-tag{max-width:100%;font-size:12px;font-weight:700;color:var(--text)}
+  /* O contador vem do `fUpdateProg`. A BARRA de progresso NÃO mora aqui — é o `#prog-bar`
+     de 3px no topo da view, que a mesma função já pinta. Duas barras seriam a mesma verdade
+     contada duas vezes a 40px de distância, que é o ruído que esta rodada veio tirar.
+     "Recomeçar" mudou de endereço junto com o `#f-head-actions` acima: virou item do painel
+     Respostas, onde a pessoa já está revendo o que preencheu. Desfazer segue no toast. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-mob-prog{display:block;flex:0 0 auto;font-size:12px;font-weight:800;color:var(--text-3);font-variant-numeric:tabular-nums;padding-right:2px}
+
+  /* ── 2. A ARTE ── */
+  /* O cartão herda do bloco "A ARTE NA CONVERSA VIRA PALCO" (malha pontilhada + sombra de
+     marca) mais acima. Aqui ele só muda de PAPEL: era o último item de uma lista que rolava,
+     virou uma região fixa entre o cabeçalho e o painel.
+     ⚠ `order:0` DESFAZ o `order:1` daquele bloco antigo, e não é detalhe: lá o cartão era o
+     último item do `#f-messages` por ordem de flex (as bolhas entram por `appendChild` em ~6
+     pontos do chat.js e cairiam depois dele). Agora o pai é o `#f-chat-col` e a posição no
+     DOM já é a certa — com o `order:1` sobrando, a arte ia parar DEPOIS do painel, no rodapé
+     da tela. Visto no navegador antes de ser corrigido.
+     `min-height` baixo de propósito — é o piso a que a arte encolhe quando o teclado sobe.
+     Abaixo disso ela vira selo ilegível e o espaço serve melhor à pergunta. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-chat-art{order:0;flex:1 1 auto;min-height:96px;margin:0;border-radius:0;border-width:0 0 1px}
+
+  /* ── 3. O PAINEL ── */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-sheet{display:flex;flex-direction:column;flex:0 0 auto;position:relative;z-index:4;max-height:64%;overflow-y:auto;overscroll-behavior:contain;background:var(--white);border-radius:20px 20px 0 0;box-shadow:0 -12px 28px -16px rgba(10,10,10,.22),0 -1px 0 rgba(10,10,10,.04);transition:max-height var(--dur-base) var(--ease-standard)}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode).f-sheet-max #f-sheet{max-height:88%}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-sheet-grip{flex:0 0 auto;display:flex;align-items:center;justify-content:center;width:100%;min-height:26px;padding:9px 0 4px;margin:0;background:var(--white);border:0;cursor:pointer;-webkit-tap-highlight-color:transparent;position:sticky;top:0;z-index:2;border-radius:20px 20px 0 0}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-sheet-grip i{display:block;width:38px;height:4px;border-radius:var(--r-pill);background:var(--gray-mid);transition:background var(--dur-micro) var(--ease-standard),width var(--dur-micro) var(--ease-standard)}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-sheet-grip:active i{background:var(--text-3);width:46px}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-sheet-grip:focus-visible{outline:2px solid var(--dm-orange);outline-offset:-2px;border-radius:var(--r)}
+
+  /* ── 4. SÓ A PERGUNTA ATUAL ── */
+  /* Bolha com avatar e canto arredondado é linguagem de conversa. O painel não é uma
+     conversa: é o controle da arte. A pergunta vira texto, e o que sobra é hierarquia. */
+  /* ⛔ A ORDEM DO PAINEL É "PERGUNTA → CAMPO → CHIPS", E ISSO EXIGE ACHATAR AS CAIXAS.
+     Os chips ("Manter", "Pular", opções de um campo de escolha) nascem DENTRO da mensagem,
+     em `.qr-wrap`; a barra de resposta é irmã do `#f-messages`. Ou seja: no DOM os chips
+     vêm sempre ANTES do campo, e nenhum `order` alcança de um pai para o outro.
+     `display:contents` no `#f-messages`, na `.msg` e no miolo dela dissolve as três caixas —
+     a pergunta, os chips e a barra passam a ser itens diretos do `#f-sheet`, e aí um `order`
+     resolve. É o mesmo recurso que o `#f-sheet` usa para sumir no desktop.
+     ⚠ O PREÇO: o `#f-messages` deixa de ser caixa de rolagem. Quem rola passa a ser o
+     `#f-sheet`, com a alça grudada no topo e o rodapé no fim (`position:sticky`) — senão os
+     dois sairiam de cena junto com o conteúdo. E o `padding` lateral que era do `#f-messages`
+     passa a ser de cada item, porque uma caixa em `contents` não tem caixa para ter padding.
+     ⚠ `msgs.scrollTop` (8 chamadas no chat.js) vira no-op aqui: sem caixa de rolagem não há
+     o que rolar. Quem ancora agora é o `_fChatAncora`. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-messages,
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.bot,
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.bot>div:not(.av),
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.user,
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.user>div:not(.av){display:contents}
+  /* Esconder VENCE dissolver: esta regra vem depois de propósito. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-messages>.msg:has(~.msg.active-prompt){display:none}
+
+  /* A ordem visual do painel, item a item. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-sheet-grip{order:0}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .bbl{order:1}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-wrap{order:2}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-input-row{order:3}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .qr-wrap{order:4}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-respostas{order:5}
+
+  /* ══ O PASSO DE FOTO ══════════════════════════════════════════════════════════════
+     ⛔ SEM `order` EXPLÍCITO, A ZONA SUBIA PARA CIMA DA PERGUNTA. Com as caixas dissolvidas
+     em `display:contents`, todo item sem `order` cai no 0 — e o 0 vem antes do `order:1` da
+     pergunta. Medido: a caixa tracejada aparecia primeiro e o rótulo "FOTO DO PRODUTO" só
+     depois dela, no meio do painel. Estes três `order` põem o passo na mesma régua dos
+     outros: rótulo → pergunta → controle.
+
+     E o controle deixa de ser um dropzone. A caixa tracejada de 150px com ícone de 54px e
+     "arraste pra cá" é desenho de DESKTOP — no telefone não existe arrastar arquivo, e ela
+     comia metade do painel para oferecer um toque só. Vira uma linha de ação: ícone, o que
+     faz, de onde vem a foto. O `grid` monta isso SEM tocar no HTML (o `<input type=file>` é
+     `display:none` e não ocupa célula). */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .f-upload-zone,
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .f-upload-preview{order:3}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .f-upload-confirm{order:4}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .f-upload-zone{
+    margin:0 18px 14px;padding:13px 15px;gap:0 13px;
+    display:grid;grid-template-columns:auto minmax(0,1fr);
+    grid-template-areas:"ico titulo" "ico sub";
+    align-items:center;text-align:left;
+    border-width:1.5px;border-radius:15px;animation:none;
+  }
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .f-upload-icon{grid-area:ico;width:42px;height:42px;box-shadow:none;background:var(--dm-orange-bg)}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .f-upload-icon svg{width:21px;height:21px}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .f-upload-title{grid-area:titulo;align-self:end;font-size:14.5px;font-weight:700}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .f-upload-sub{grid-area:sub;align-self:start;font-size:11.5px;line-height:1.35}
+
+  /* A foto já enviada ocupa a linha inteira: o `max-width:280px` é piso de coluna larga. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .f-upload-preview{margin:0 18px;max-width:none}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .f-upload-preview img{max-height:170px}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .f-upload-confirm{margin:10px 18px 14px}
+  /* Confirmar é a ação do passo: alvo de dedo, não de mouse. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .f-upload-ok{min-height:var(--tap-min);font-size:14px;border-radius:13px}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .f-upload-confirm .f-upload-replace{min-height:var(--tap-min);padding-inline:15px;border-radius:13px}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-sheet-foot{order:6}
+
+  /* O respiro lateral era do `#f-messages`; agora é de cada item. */
+  /* ── O RITMO VERTICAL DO PAINEL ──────────────────────────────────────────────────
+     Tudo alinha em 18px da borda, e cada bloco carrega o respiro que vem DEPOIS dele:
+       rótulo →8px→ pergunta →13px→ campo →14px→ chips →16px→ rodapé
+     ⚠ O respiro lateral precisa morar na regra de MAIOR especificidade. A primeira versão
+     punha `padding-inline:18px` num `.bbl` solto e perdia para o `padding:0` da regra da
+     pergunta ativa: medido, o texto começava em x=0 enquanto o campo começava em x=18 — a
+     pergunta vazando para fora da coluna do campo.
+     ⚠ Cada bloco paga o próprio respiro de baixo em vez de um `gap` no `#f-sheet`: a alça e
+     o rodapé são `position:sticky` e um gap os afastaria das bordas que eles precisam tocar. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-wrap{padding-inline:18px}
+  /* ⛔ A REGRA É "ESCONDE O QUE VEM ANTES", NÃO "MOSTRA SÓ A `.active-prompt`".
+     A primeira versão era `:not(.active-prompt){display:none}` e parecia equivalente. NÃO É:
+     nem todo caminho do chat põe a classe na última bolha. O `fStartChatComMaterial` monta a
+     recuperação de rascunho em DUAS mensagens — a pergunta pelo `fAddBot` (que marca) e os
+     chips "Sim, continuar / Não, começar do zero" num `div` cru logo depois (que não marca).
+     Resultado medido no celular: a pergunta aparecia e as duas únicas respostas possíveis
+     sumiam da tela. A pessoa ficava presa olhando uma pergunta sem resposta.
+     `:has(~ .msg.active-prompt)` = "existe uma bolha ativa DEPOIS de mim". Esconde o
+     histórico e deixa passar a bolha ativa E tudo que vier depois dela — que é o contrato
+     que o chat realmente cumpre. */
+  /* ⚠ `align-self:stretch` é o que faz a largura existir. O `.msg.bot` nasce com
+     `align-self:flex-start` (balão de conversa encosta na esquerda e encolhe até o texto) e,
+     dentro de um flex COLUMN como o `#f-messages`, isso trava a caixa na largura do conteúdo:
+     medido, o card da entrega ficava com 196px de 375 e os botões saíam pela metade. Aqui a
+     bolha não é balão, é o corpo do painel — ocupa a linha inteira.
+     A resposta da PESSOA (`.msg.user`) segue encostada à direita: ela aparece por um instante
+     entre um passo e outro, e é do lado direito que se lê "isso fui eu que respondi". */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.bot{max-width:100%;margin:0;align-self:stretch}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.user{max-width:100%;margin:0}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.bot .av,
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .step-label,
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .qr-back-wrap{display:none}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.bot.msg-continuation{margin-left:0;max-width:100%}
+  /* ⚠ `animation:none` NÃO É SOBRA — sem ele o `box-shadow:none` desta mesma regra não
+     vale nada. A `.msg.bot.active-prompt .bbl` (bloco "A PERGUNTA ATIVA" mais acima) roda a
+     `fChatFocoEntra` com `both`, e valor de animação vence declaração normal do autor por
+     mais específica que ela seja — o halo laranja sobrevivia a tudo. Levou uma sonda no
+     navegador para achar: `font-size` desta regra aplicava e `box-shadow` não.
+     E o halo NÃO faz falta aqui: ele existe para separar a pergunta ativa do histórico de
+     bolhas, e no celular não há histórico em cena. Sem nada de que se separar, vira
+     decoração em volta do único texto da caixa.
+     `width:100%` porque a bolha encolhia para o conteúdo (medido: 163px de 375) — certo
+     para um balão de conversa, errado para o enunciado do painel. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.bot.active-prompt .bbl{background:transparent;border:0;box-shadow:none;animation:none;padding:0 18px 13px;width:100%;max-width:none;border-radius:0;font-size:16px;line-height:1.32;font-weight:700;letter-spacing:-.015em;color:var(--text)}
+  /* ⚠ O `flex-direction:column` SÓ onde há rótulo para reordenar. Ligado em todo
+     balão ele fatiava qualquer frase com `<strong>` em uma linha por pedaço (ver o
+     `perg-frase` no chat.js) — e a recuperação de rascunho, o `fEditCampo` e a
+     entrega usam `<strong>` e NÃO têm rótulo. Sem `.field-hint`, fluxo normal. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.bot.active-prompt .bbl:has(.field-hint){display:flex;flex-direction:column}
+  /* ⚠ O SELETOR É `> div:not(.av)` e não `.msg-content` de propósito: o `fAddBot` envolve o
+     conteúdo num `.msg-content`, mas o `fGerarArte` (o card da entrega) usa um `<div>` CRU.
+     Mirar só na classe deixava a entrega de fora — medido: a mensagem esticava para 339px e
+     os botões dentro dela ficavam com 196px, porque o `<div>` sem classe é item de um flex
+     row e encolhe até o conteúdo. `flex:1` resolve os dois caminhos de uma vez. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.bot>div:not(.av){flex:1;min-width:0;max-width:100%}
+  /* O rótulo do campo ("PREÇO PROMOCIONAL") nasce DEPOIS da pergunta no HTML do `fNextStep`.
+     `order:-1` o põe em cima sem que o JS precise saber — e sem um segundo markup de
+     pergunta só para o celular. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.bot.active-prompt .field-hint{order:-1;margin:0 0 8px;padding:0;background:transparent;border:0;gap:6px;align-self:flex-start}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.bot.active-prompt .field-hint-text{font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--dm-orange-d)}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.bot.active-prompt .field-hint-type{min-width:17px;height:17px;padding:0 4px;border-radius:5px;background:var(--dm-orange-bg);color:var(--dm-orange-d);font-size:9px;font-weight:900;letter-spacing:0}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .perg-ctx{font-size:12.5px;font-weight:500;color:var(--text-3);letter-spacing:0;margin-top:4px}
+  /* A resposta da pessoa aparece sozinha por um instante entre um passo e outro — é o
+     "✓ registrado" do fluxo, e não precisa de bolha grande para dizer isso. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.user.active-prompt .bbl{font-size:15px;padding:9px 14px}
+
+  /* ── 5. OS CHIPS QUE SOBRARAM ── */
+  /* Sugestão de conteúdo saiu no `fNextStep`. O que chega aqui é controle de fluxo —
+     "Manter", "Pular" — e a opção de um campo de escolha/booleano, onde o chip é o único
+     jeito de responder. Por isso o alvo CRESCE em vez de encolher.
+     "Voltar uma pergunta" (o `.qr-back-wrap` escondido acima) virou o "Anterior" do rodapé:
+     mesma ação, um lugar só, fora do caminho da leitura da pergunta. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .qr-wrap{margin:0;padding:0 18px 16px;gap:8px}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .qr{min-height:var(--tap-min);padding:0 15px;font-size:13.5px}
+
+  /* ── 6. A BARRA DE RESPOSTA ── */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-input-row{flex:0 0 auto;padding:0 18px 14px;border-top:0;background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none}
+  /* Quando a pergunta não aceita texto (passo de imagem), a barra não fica ocupando espaço.
+     Quem já desabilitava a caixa era o `fNextStep`; aqui isso vira layout, sem JS novo. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-input-row:has(#f-msg-box:disabled){display:none}
+
+  /* ── 7. O RODAPÉ DO PAINEL ── */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-sheet-foot{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 14px calc(8px + var(--safe-bottom));border-top:1px solid var(--gray-light);background:var(--white);position:sticky;bottom:0;z-index:2}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fsf-btn{appearance:none;border:0;background:transparent;font:inherit;font-size:12.5px;font-weight:700;color:var(--text-3);cursor:pointer;display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 8px;border-radius:9px}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fsf-btn svg{width:13px;height:13px;flex-shrink:0}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fsf-btn:active{background:var(--gray-light)}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fsf-btn[hidden]{display:none}
+  /* ⚠ `margin-left:auto` e não `justify-content:space-between`: o "Anterior" é escondido
+     com `[hidden]` no primeiro passo (e na arte pronta), e aí o `space-between` deixava o
+     "Respostas" sozinho à ESQUERDA — o botão pulava de lado conforme o passo. Empurrado por
+     margem, ele fica na direita sempre, com ou sem vizinho. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-sheet-hist{margin-left:auto}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-sheet-hist[aria-expanded="true"]{color:var(--dm-orange-d)}
+
+  /* ── 8. AS RESPOSTAS ── */
+  /* Não é a timeline de bolhas: é a lista dos campos da arte. Rótulo, valor, lápis. Com ela
+     aberta a pergunta sai de cena — duas leituras do mesmo dado na mesma caixa é exatamente
+     o ruído que esta rodada veio tirar. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-respostas{display:block;overflow-y:auto;padding:2px 18px 6px;min-height:0}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-respostas[hidden]{display:none}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode).f-respostas-abertas #f-messages,
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode).f-respostas-abertas #f-input-row{display:none}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-h{margin:0 0 8px;font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3)}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:3px 10px;padding:10px 0;border-bottom:1px solid var(--gray-light)}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-lbl{grid-column:1;font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3)}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-val{grid-column:1;font-size:15px;font-weight:700;color:var(--text);overflow-wrap:anywhere;display:flex;align-items:center;gap:7px}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-val.vazia{font-weight:500;color:var(--text-3)}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-val i{font-style:italic}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-mini{width:26px;height:26px;border-radius:6px;object-fit:cover;flex-shrink:0}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-ed{grid-column:2;grid-row:1/3;width:var(--tap-min);height:var(--tap-min);border-radius:12px;border:1px solid var(--gray-mid);background:var(--white);color:var(--text-2);display:flex;align-items:center;justify-content:center;cursor:pointer}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-ed svg{width:15px;height:15px}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-ed:active{background:var(--gray-light)}
+  /* O passo em que a pessoa está, para a lista responder "onde eu estou?" sem ela contar. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-row.atual{background:var(--dm-orange-bg);border-bottom-color:transparent;border-radius:11px;margin-inline:-10px;padding-inline:10px}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-reset{appearance:none;width:100%;margin:14px 0 4px;min-height:var(--tap-min);border:1px solid var(--gray-mid);border-radius:13px;background:transparent;font:inherit;font-size:13.5px;font-weight:700;color:var(--text-3);cursor:pointer}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-reset:active{background:var(--gray-light)}
+
+  /* ── 9. A ENTREGA ── */
+  /* A arte final JÁ É a região de cima. O card de entrega mostrava uma SEGUNDA cópia dela
+     logo abaixo — duas artes na mesma tela, e a menor roubando a atenção da maior. Fica só
+     o que é ação: legenda, baixar, publicar, refazer. */
+  /* A arte final JÁ É a região de cima. O card mostrava uma SEGUNDA cópia dela, mais o
+     cartão de legenda inteiro (título, sub, caixa de texto, "gerar outra") e os botões lado a
+     lado — o balão do desktop empurrado num telefone. Aqui a entrega é o que o mockup
+     aprovado mostra: uma confirmação, a ação principal, a publicação, e o refazer discreto.
+     ⛔ NADA É REMOVIDO DO HTML: o `fGerarArte` continua montando tudo (a suíte trava esse
+     contrato) e o desktop continua igual. O que muda é o que o celular MOSTRA. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-wrap .art-preview-mat,
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-wrap .multi-fmt-row{display:none}
+  /* ⚠ `.art-wrap` traz `max-width:340px` do desktop (piso de coluna larga) — sem soltar
+     isso os botões ficavam com 200px encostados na esquerda, em vez da largura do dedo.
+     `display:contents` no `.art-actions` e no `.art-actions-dupla` derruba as duas caixas
+     intermediárias e põe TODOS os botões como itens diretos desta coluna — só assim o
+     `order` consegue intercalar a legenda (que é irmã das ações, não filha) e mandar o
+     Refazer para o fim. No HTML nada muda: as duas classes continuam lá para o desktop e
+     para a suíte, que trava o `art-actions-dupla`. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-wrap{border:0;box-shadow:none;background:transparent;margin:0;animation:none;width:100%;max-width:none;min-width:0;display:flex;flex-direction:column;gap:9px}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-actions,
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-actions-dupla{display:contents}
+  /* Baixar → Publicar → Copiar legenda → Refazer. A ordem do mockup aprovado. */
+  /* ⚠ TODO botão daqui precisa de `order` EXPLÍCITO. Sem ele o item cai no 0 e vai para
+     antes de tudo — foi o que aconteceu quando o "Ajustar arte" nasceu: ele apareceu ACIMA do
+     Baixar PNG, que é a ação principal. Quem entrar com botão novo aqui, numere. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-download{order:1}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-voltar{order:5}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-assistant-panel{order:3}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-voltar{order:4}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-redo{order:5}
+  /* Terciários também no celular: sem caixa, longe do Baixar. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-voltar{background:transparent;border-color:transparent;box-shadow:none;color:var(--text-3);font-size:13.5px;font-weight:700;min-height:38px}
+
+  /* A confirmação: marca verde + duas linhas, como no mockup. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .bbl.art-ok{display:flex;align-items:center;gap:10px;padding:0 18px 12px;background:transparent;border:0;box-shadow:none;animation:none;max-width:none}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-ok-tick{width:24px;height:24px;flex-shrink:0;border-radius:50%;background:var(--green);color:var(--white);display:flex;align-items:center;justify-content:center}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-ok-copy{display:flex;flex-direction:column;min-width:0}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-ok-copy strong{font-size:16px;font-weight:800;letter-spacing:-.015em;color:var(--text)}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-ok-sub{display:block;font-size:12px;font-weight:500;color:var(--text-3);margin-top:1px}
+
+  /* A legenda perde o cartão e vira UMA ação. A função não some: o "Copiar legenda"
+     continua ali, e o Instagram já copia a legenda sozinho antes de abrir o app. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-assistant-panel{background:transparent;border:0;box-shadow:none;padding:0;margin:0}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-head,
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-content-box,
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-alt-btn{display:none}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-foot{padding:0;margin:0;border:0;gap:0}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-copy-btn{width:100%;min-height:var(--tap-min);justify-content:center;border-radius:13px;font-size:14px;margin:0}
+
+  /* Uma ação por linha. O "peso igual" de Baixar/Refazer é regra de DESKTOP (a dupla na
+     mesma linha, pedido do Ryan em 09/09) e continua lá: aqui a largura é de um dedo, e
+     empilhar é o que faz o polegar acertar. Refazer perde a caixa porque, no celular, um
+     terceiro botão desenhado ao lado de Baixar e Publicar disputa a ação que importa. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn{width:100%;min-height:var(--tap-min);border-radius:13px;font-size:15px;font-weight:800}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-voltar{margin-top:0}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-redo{background:transparent;border-color:transparent;box-shadow:none;color:var(--text-3);font-size:13.5px;font-weight:700;min-height:38px}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-redo svg{display:none}
+  /* Com a arte pronta a caixa de resposta não tem função (ver `_fSheetSync`), e o
+     painel abre mais alto porque a entrega é mais alta que uma pergunta. */
+  /* ⚠ O `fGerarArte` NÃO marca o card de entrega como `.active-prompt` (ele faz um
+     `appendChild` cru). Quem fica com a classe é a bolha "Gerando sua arte agora…" — então
+     ela, e não o card, é o piso da regra de histórico, e as duas apareciam juntas. "Gerando"
+     é aviso de processo que já terminou: na entrega fica só a mensagem que CARREGA a arte.
+     `:has(.art-wrap)` acha o card sem depender de uma classe que ele não tem. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode).f-arte-pronta #f-messages>.msg:not(:has(.art-wrap)){display:none}
+  /* Com a arte pronta o rodapé inteiro sai (pedido do Ryan, 11/09). "Anterior" já não
+     funciona (`fGoBack` recusa quando `fState.done`) e "Respostas" oferece revisar campos de
+     um trabalho que acabou — quem quer mexer usa o Refazer, que está ali em cima. A tela da
+     entrega fica com a arte e as três ações, e mais nada. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode).f-arte-pronta #f-input-row,
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode).f-arte-pronta #f-sheet-foot{display:none}
+  /* ⚠ O `--safe-bottom` morava no rodapé. Com ele fora, o "Refazer" — agora o último
+     elemento da tela — ficaria debaixo do home indicator do iPhone. O painel paga a reserva. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode).f-arte-pronta #f-sheet{max-height:72%;padding-bottom:calc(10px + var(--safe-bottom))}
+
+  /* ── 10. TECLADO ABERTO: O CABEÇALHO SAI ── */
+  /* Campanha e progresso são orientação, e ninguém consulta orientação enquanto digita a
+     resposta. São ~52px que voltam para a arte no momento em que a tela é mais apertada. O
+     "Anterior" do rodapé do painel continua no lugar — não existe instante sem caminho de
+     volta. Volta inteiro no `blur`.
+     ⚠ A reserva do NOTCH morava no padding deste cabeçalho: sem ela a arte subiria até
+     debaixo da barra de status. Por isso o palco ganha o `--safe-top` de volta. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-chat-head{overflow:hidden;transition:height var(--dur-base) var(--ease-standard),min-height var(--dur-base) var(--ease-standard),padding var(--dur-base) var(--ease-standard),opacity var(--dur-fast) var(--ease-in)}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode):has(#f-msg-box:focus) #f-chat-head{height:0;min-height:0;padding-top:0;padding-bottom:0;opacity:0;border-bottom-color:transparent;overflow:hidden;pointer-events:none}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode):has(#f-msg-box:focus) #f-chat-art{padding-top:calc(10px + var(--safe-top))}
+
+  /* ── TEMA ESCURO ── as superfícies novas precisam da família escura, como todo o resto. */
+  body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-sheet{background:var(--d-surf);box-shadow:0 -12px 28px -16px rgba(0,0,0,.55)}
+  body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-sheet-grip{background:var(--d-surf)}
+  body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-sheet-grip i{background:var(--d-border2)}
+  body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-sheet-foot{border-top-color:var(--d-border);background:var(--d-surf)}
+  body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-ctx-tag,
+  body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.bot.active-prompt .bbl,
+  body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-val{color:var(--d-text)}
+  body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-row{border-bottom-color:var(--d-border)}
+  body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-ed{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text2)}
+  body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-reset{border-color:var(--d-border2);color:var(--d-text2)}
+  body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-row.atual{background:color-mix(in srgb,var(--dm-orange) 15%,transparent)}
+  /* ⛔ A ENTREGA NO TEMA ESCURO ESTAVA ILEGÍVEL. "Sua arte está pronta" herdava `var(--text)`
+     (#0A0A0A) e caía sobre o `--d-surf` (#1C212A): contraste medido de **1,23:1** — texto
+     preto no escuro, o título da tela inteira praticamente invisível. O subtítulo dava 3,03 e
+     também reprovava AA.
+     A regra escura que eu já tinha escrito para o desktop não alcançava aqui: o escopo do
+     celular carrega quatro classes a mais e vencia por especificidade. Por isso a correção
+     mora NESTE bloco, com o mesmo escopo, e não lá.
+     Medido depois: 13,7:1 no título e 7,4:1 no subtítulo. */
+  body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-ok-copy strong{color:var(--d-text)}
+  body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-ok-sub{color:var(--d-text2)}
+  body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-lbl,
+  body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-h,
+  body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fsf-btn,
+  body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-mob-prog{color:var(--d-text2)}
+}
+
+/* Movimento é sinal, não enfeite: quem pede menos movimento não perde nada aqui — o painel
+   e o cabeçalho trocam de tamanho na hora, sem percurso. */
+@media (max-width:680px) and (prefers-reduced-motion:reduce){
+  #f-sheet,#f-chat-head{transition:none!important}
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   ARTE PRONTA — O SEGUNDO MODO DA MESMA JORNADA (2026-09-11)
+   ══════════════════════════════════════════════════════════════════════════════════════════
+   Enquanto a pessoa responde, o Luma guia: a pergunta manda, a arte acompanha, e tudo na tela
+   é convite a mexer. Quando a última resposta entra, o trabalho inverte — a arte assume, e o
+   que importa é conferir, baixar e publicar. Até hoje a tela não sabia disso: continuava
+   dizendo "Prévia ao vivo", com o campo de resposta aceso e sete balões de conversa, enquanto
+   a arte já estava pronta a dois cliques de distância do botão que a entrega.
+
+   ⛔ NÃO É UMA TELA NOVA. Não há segundo DOM, segundo estado nem segundo renderizador: é a
+   MESMA coluna da prévia, o MESMO `#f-messages` e o MESMO `.art-wrap` que o `fGerarArte`
+   monta. O que muda é o que aparece e o peso de cada coisa.
+
+   A ALAVANCA É UMA SÓ: `body.f-arte-pronta`, ligada pelo `_fSheetSync` a partir de
+   `fState.done` — a mesma verdade que o resto do fluxo já consulta. Ligar e desligar o modo é
+   `fState.done` mudando; nada mais precisa saber que este arquivo existe. Por isso finalizar
+   de novo não duplica nada, e por isso sair do modo custaria uma linha se um dia for preciso.
+
+   ⚠ O celular já foi resolvido na rodada do painel conversacional (bloco "O CELULAR"). Este
+   bloco é do DESKTOP; o que vale para os dois fica fora do `@media`. */
+
+/* Texto só para leitor de tela. A base não tem uma classe global para isto — as que existem
+   são prefixadas ou escopadas — então esta é a do franqueado. */
+.f-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+/* O rótulo do cabeçalho da arte: um por modo, trocado sem JS. */
+.lp-title-pronta,.lp-title-icon .lp-ico-pronta{display:none}
+
+/* ⛔ SÓ A ÚLTIMA ENTREGA FICA EM CENA (vale nos dois layouts, por isso fora do @media).
+   Voltar para a edição e finalizar de novo gera um SEGUNDO `.art-wrap` — o `fGerarArte` faz
+   `appendChild`, ele não substitui. A regra de esconder a conversa deixava os dois passarem,
+   e o painel mostrava duas entregas empilhadas, cada uma com seu Baixar PNG. Medido indo e
+   voltando: `msgs` visíveis foi de 1 para 2.
+   ⚠ A PRIMEIRA TENTATIVA FOI CSS PURO e não funcionou: `:has(.art-wrap):has(~ .msg:has(...))`
+   é INVÁLIDO — a especificação proíbe `:has()` dentro de `:has()`, e o navegador descarta a
+   regra inteira em silêncio. Medido: as três entregas continuaram na tela, com três "Baixar
+   PNG". Quem marca a entrega superada agora é o `fGerarArte`, em uma linha.
+   Nada é apagado: a mensagem velha continua no DOM com a classe, e fora do modo "arte pronta"
+   ela reaparece com a conversa inteira, como estava. */
+body.f-arte-pronta #f-messages>.msg.art-superada{display:none}
+body.f-arte-pronta .lp-title-criando,body.f-arte-pronta .lp-title-icon .lp-ico-criando{display:none}
+body.f-arte-pronta .lp-title-pronta{display:inline}
+body.f-arte-pronta .lp-title-icon .lp-ico-pronta{display:block}
+/* O ícone deixa de ser o olho da observação e vira a marca de feito. */
+body.f-arte-pronta .lp-title-icon{background:var(--green);color:var(--white);border-color:transparent}
+
+@media (min-width:681px){
+
+  /* ── 1. A ARTE GANHA A LARGURA QUE O CHAT NÃO PRECISA MAIS ──
+     Uma variável, e o layout inteiro reage: o painel é o slot 2 do panel-dock e a arte é o
+     slot 1 (`flex:1`), então apertar o slot 2 alarga a arte sozinho — e o próprio dock já
+     anima `flex-basis`/`width` em mola, que é a transição do item "a arte ganha destaque".
+     De ~32% para ~26%: em 1440px são 979px → 1065px de arte. Não é um número escolhido a
+     dedo, é o mínimo em que o painel ainda cabe sem apertar a legenda. */
+  body.panel-dock-active:not(.f-history-mode).f-arte-pronta #f-chat-col[data-panel-slot="2"],
+  body.panel-dock-active:not(.f-history-mode).f-arte-pronta #f-live-preview[data-panel-slot="2"],
+  body.panel-dock-active:not(.f-history-mode).f-arte-pronta #fran-left[data-panel-slot="2"]{
+    --slot2-w:clamp(340px,26%,440px);
+  }
+
+  /* ── 2. O QUE ERA CRIAÇÃO SAI DE CENA ──
+     Nada é destruído: o `#f-messages` continua com as bolhas todas e o `fState` intacto — sair
+     do modo devolve tudo. O que sai de cena é o que não serve mais a quem já terminou. */
+body.f-arte-pronta #f-messages>.msg:not(:has(.art-wrap)){display:none}   /* a conversa inteira */
+body.f-arte-pronta #f-input-row{display:none}                              /* o campo não responde mais nada */
+body.f-arte-pronta #f-mob-prog{display:none}                               /* "6/6" não é progresso, é passado */
+
+  /* A dica de EDITAR no palco da arte sai: no estado final ela convida ao modo que acabou.
+     ⚠ O clique-para-editar em si CONTINUA ATIVO — é o caminho de correção que sobrou depois
+     que o "Ajustar arte" saiu (o outro é o Refazer, destrutivo). O que some é o convite, não
+     a função. */
+body.f-arte-pronta .lp-stage-hint{display:none}
+
+  /* ── 3. O PAINEL DE CONCLUSÃO ──
+     É o `#f-chat-col` sem a conversa. O cabeçalho dele (campanha + formato) fica: o item 15
+     pede que continue claro QUAL arte está na tela. */
+/* ⚠ O fundo fica o `--off-white` do panel-dock (a regra dele é mais específica e não vou
+   brigar com ela): é a mesa. O que ganha superfície BRANCA são os blocos que pedem leitura —
+   a legenda e o cartão do lote. Sem isso o cartão do lote ficava off-white sobre off-white,
+   ou seja, invisível. */
+body.f-arte-pronta #f-chat-col{background:var(--off-white)}
+/* ⚠ `safe center` e não `center` puro. O bloco de conclusão é mais baixo que a coluna — no
+   topo, sobrava uma faixa branca grande embaixo e a tela lia como inacabada. Centralizar
+   resolve, MAS `justify-content:center` tem uma armadilha conhecida em caixa que rola: quando
+   o conteúdo passa da altura, ele transborda para CIMA e o começo fica inalcançável (não há
+   scroll negativo). O `safe` centraliza enquanto cabe e volta a alinhar no topo quando não
+   cabe — que é exatamente o comportamento que se quer numa legenda de tamanho variável. */
+body.f-arte-pronta #f-messages{
+  padding:clamp(24px,4vh,40px) 20px;
+  gap:0;
+  align-items:center;
+  justify-content:safe center;
+}
+/* O espaçador que empurra a conversa para o rodapé é de chat; aqui o conteúdo começa em cima. */
+body.f-arte-pronta #f-messages::before{display:none}
+
+  /* A mensagem da entrega deixa de ser balão e vira o corpo do painel. */
+body.f-arte-pronta .msg.bot:has(.art-wrap){width:min(100%,380px);max-width:380px;align-self:center;margin:0}
+body.f-arte-pronta .msg.bot:has(.art-wrap) .av{display:none}
+body.f-arte-pronta .msg.bot:has(.art-wrap)>div:not(.av){flex:1;width:100%;min-width:0;max-width:100%}
+
+  /* ── 4. A ARTE NÃO APARECE DUAS VEZES ──
+     A peça já ocupa 74% da tela ao lado. A miniatura dentro do card era a mesma arte de novo,
+     menor, roubando a atenção da maior — e empurrando o "Baixar PNG" para fora da dobra. */
+body.f-arte-pronta .art-wrap .art-preview-mat{display:none}
+/* ⚠ O `gap` some e o respiro passa a ser POR GRUPO. Com um gap uniforme de 10px, a
+   confirmação, as duas ações principais, a legenda e as secundárias ficavam todas à mesma
+   distância umas das outras — nada se agrupava, e o olho lia sete blocos soltos em vez de
+   quatro assuntos. Agora cada bloco que ABRE um assunto paga a margem maior; quem continua o
+   assunto anterior paga a menor. É a escada de espaçamento da casa (múltiplos de 2/base 4). */
+body.f-arte-pronta .art-wrap{border:0;box-shadow:none;background:transparent;margin:0 auto;padding:0;animation:none;max-width:380px;min-width:0;width:100%;display:flex;flex-flow:row wrap;gap:0;align-content:flex-start}
+/* abre grupo novo */
+body.f-arte-pronta .art-wrap .art-btn.art-download{margin-top:20px}
+body.f-arte-pronta .art-wrap .caption-assistant-panel{margin-top:28px}
+body.f-arte-pronta .art-wrap .art-bulk-btn{margin-top:24px}
+/* ⚠ Cada bloco pela CLASSE, e não por `.art-wrap>*`. O `display:contents` do `.art-actions`
+   e do `.art-actions-dupla` muda o LAYOUT, não o DOM: os botões viram itens flex desta caixa,
+   mas continuam netos para o seletor, e o `>` não os alcançava. Medido: Baixar PNG e Publicar
+   ficaram lado a lado, com metade da largura cada, em vez de uma linha para cada um. */
+body.f-arte-pronta .art-wrap .art-btn.art-download,
+body.f-arte-pronta .art-wrap .caption-assistant-panel,
+body.f-arte-pronta .art-wrap .art-bulk-btn,
+body.f-arte-pronta .art-wrap .multi-fmt-row{flex:1 1 100%;min-width:0}
+
+  /* ── 5. A CONFIRMAÇÃO ──
+     "Arte salva em Minhas artes!" era um balão de chat inteiro, 500ms depois da entrega. Vira
+     uma linha sob o título: status, não evento. */
+body.f-arte-pronta .bbl.art-ok{display:flex;align-items:center;gap:12px;padding:2px 0;background:transparent;border:0;box-shadow:none;animation:none;max-width:none}
+body.f-arte-pronta .art-ok-tick{width:28px;height:28px;flex-shrink:0;border-radius:50%;background:var(--green);color:var(--white);display:flex;align-items:center;justify-content:center}
+body.f-arte-pronta .art-ok-copy{display:flex;flex-direction:column;min-width:0}
+body.f-arte-pronta .art-ok-copy strong{font-size:18px;font-weight:900;letter-spacing:-.02em;color:var(--text)}
+body.f-arte-pronta .art-ok-sub{display:block;font-size:12.5px;font-weight:500;color:var(--text-3);margin-top:2px}
+
+  /* ── 6. A LEGENDA PERDE O CARD DENTRO DO CARD ──
+     Eram três molduras aninhadas (painel → cartão da legenda → caixa do texto) para mostrar um
+     parágrafo. Fica a moldura do texto, que é a que serve para ler; o resto vira rótulo. */
+body.f-arte-pronta .caption-assistant-panel{background:transparent;border:0;box-shadow:none;padding:0;margin:0}
+body.f-arte-pronta .caption-card-head{padding:0 0 10px;border:0;background:transparent}
+body.f-arte-pronta .caption-card-title{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3)}
+body.f-arte-pronta .caption-card-sub{display:none}   /* "Copie e publique junto com a arte" — o botão já diz */
+/* O texto da legenda é para LER e copiar, não para espiar: sobe de 13px e ganha entrelinha.
+   A borda vinha na cor da campanha e sumia contra o branco — vira neutra, e a caixa passa a
+   ler como área de texto sobre a mesa off-white do painel. */
+body.f-arte-pronta .caption-content-box{margin:0;border-radius:12px;padding:16px;background:var(--white);border:1px solid var(--gray-light);font-size:13.5px;line-height:1.58;color:var(--text-2);max-height:none}
+/* ⚠ `max-height:none` em vez do teto de 168px do desktop-em-criação. Medido: a legenda tinha
+   256px de texto em 168px de caixa e a última linha visível ficava partida ao meio — lê como
+   defeito de render, não como "tem mais abaixo". Aqui o painel inteiro é que rola, e com a
+   conversa fora de cena há altura de sobra para a legenda existir inteira. */
+body.f-arte-pronta .caption-card-foot{padding:10px 0 0;border:0;background:transparent;align-items:center;gap:10px}
+/* Copiar é a ação do bloco e leva a caixa; "Gerar outra" é alternativa e fica em texto. */
+body.f-arte-pronta .caption-copy-btn{min-height:36px;padding-inline:14px;border-radius:10px;font-size:12.5px}
+body.f-arte-pronta .caption-alt-btn{font-size:12px;color:var(--text-3)}
+
+  /* ── 7. A HIERARQUIA DAS AÇÕES ──
+     Baixar PNG é o caminho da V1 e fica sozinho na primeira linha, em largura cheia. Publicar
+     é o próximo passo natural e vem logo abaixo, com caixa mas sem o laranja. O resto —
+     ajustar, refazer, lote, legenda — é terciário e não disputa o olho.
+     ⚠ `display:contents` nas duas caixas intermediárias (`.art-actions` e `.art-actions-dupla`)
+     porque o "peso igual" de Baixar/Refazer é regra de DESKTOP-EM-CRIAÇÃO (pedido do Ryan em
+     09/09) e continua valendo lá; aqui o trabalho acabou e a hierarquia é outra. Com as caixas
+     dissolvidas, o `order` alcança todos os botões de uma vez. */
+body.f-arte-pronta .art-actions,body.f-arte-pronta .art-actions-dupla{display:contents}
+body.f-arte-pronta .art-btn{width:100%;min-height:48px;border-radius:12px;font-size:15px;font-weight:800}
+body.f-arte-pronta .art-btn.art-download{order:1}
+/* "Voltar para edição" e "Refazer" são terciários e dividem a fileira do fim, sem caixa,
+   longe do Baixar PNG e depois da extensão de produção em lote. */
+body.f-arte-pronta .art-btn.art-voltar{order:5}
+body.f-arte-pronta .art-btn.art-voltar{min-height:44px;margin-top:18px;font-size:12.5px;font-weight:700;background:transparent;border-color:transparent;box-shadow:none;color:var(--text-2);border-top:1px solid var(--gray-light);border-radius:0;padding:14px 8px 0}
+body.f-arte-pronta .art-btn.art-voltar:hover{background:var(--gray-light);color:var(--text)}
+body.f-arte-pronta .caption-assistant-panel{order:3}
+body.f-arte-pronta .art-bulk-btn{order:4}
+body.f-arte-pronta .art-btn.art-redo{order:6}
+/* A régua contínua agrupa as duas rotas de saída; o peso neutro impede que pareçam novas
+   etapas obrigatórias depois que a pessoa já concluiu a arte. */
+body.f-arte-pronta .art-wrap .art-btn.art-voltar,
+body.f-arte-pronta .art-wrap .art-btn.art-redo{flex:1 1 50%;width:auto;min-width:0}
+body.f-arte-pronta .art-btn.art-redo{
+    min-height:44px;margin-top:18px;font-size:12.5px;font-weight:700;
+    background:transparent;border-color:transparent;box-shadow:none;color:var(--text-2);
+    border-top:1px solid var(--gray-light);border-radius:0;padding:14px 8px 0;
+  }
+/* Refazer apaga as respostas: o vermelho aparece no hover, não em repouso — alarme
+   permanente numa ação que ninguém chamou é ruído (05_DESIGN_PHILOSOPHY). */
+body.f-arte-pronta .art-btn.art-redo:hover{background:var(--gray-light);color:var(--dm-red)}
+
+  /* Estes dois são os únicos que não pedem a linha inteira: dividem a última. */
+
+  /* ── 8. GERAR EM LOTE, PRESENÇA SEM VIRAR CTA ──
+     O lote é a extensão poderosa da arte pronta, mas o download ainda é a conclusão natural.
+     O peso vem da composição (área, ícone e tipografia), não de outro preenchimento laranja. */
+body.f-arte-pronta .art-bulk-btn{
+  min-height:68px;
+  padding:14px;
+  gap:12px;
+  border-radius:12px;
+  background:var(--white);
+  border:1px solid var(--dm-orange-tint);
+  box-shadow:none;
+  color:var(--text);
+  transition:transform var(--dur-micro) var(--ease-spring),background var(--dur-micro) var(--ease-standard),border-color var(--dur-micro) var(--ease-standard);
+}
+body.f-arte-pronta .art-bulk-ico{width:36px;height:36px;border-radius:10px;background:var(--dm-orange-bg);color:var(--dm-orange-text);box-shadow:none}
+body.f-arte-pronta .art-bulk-txt{gap:3px}
+body.f-arte-pronta .art-bulk-txt strong{font-size:14px;font-weight:900;letter-spacing:-.015em;color:var(--text)}
+body.f-arte-pronta .art-bulk-txt em{font-size:12px;line-height:1.35;color:var(--text-3);text-wrap:balance}
+body.f-arte-pronta .art-bulk-arrow{width:26px;height:26px;padding:6px;border-radius:var(--r-pill);background:var(--dm-orange-bg);color:var(--dm-orange-text);opacity:1;transition:transform var(--dur-micro) var(--ease-spring),background var(--dur-micro) var(--ease-standard)}
+body.f-arte-pronta .art-bulk-btn:hover{background:var(--dm-orange-bg);border-color:var(--dm-orange);transform:translateY(-1px)}
+body.f-arte-pronta .art-bulk-btn:active{transform:translateY(0) scale(.99)}
+body.f-arte-pronta .art-bulk-btn:hover .art-bulk-arrow{background:var(--white);transform:translateX(2px)}
+
+  /* ── 9. A ENTRADA DO PAINEL ──
+     O modo troca; o painel não deve piscar. Um fade curto com 6px de deslocamento, escalonado
+     para o CTA chegar por último — a arte cresce ao lado enquanto isto entra. Sem confete. */
+body.f-arte-pronta .msg.bot:has(.art-wrap){animation:fArteProntaEntra var(--dur-base) var(--ease-out) both}
+}
+
+@keyframes fArteProntaEntra{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* Movimento é sinal, não enfeite. */
+@media (prefers-reduced-motion:reduce){
+  body.f-arte-pronta .msg.bot:has(.art-wrap){animation:none;opacity:1;transform:none}
+}
+
+/* ── TEMA ESCURO ── */
+body:not(.theme-light).f-arte-pronta #f-chat-col{background:var(--d-surf)}
+body:not(.theme-light).f-arte-pronta .art-ok-copy strong{color:var(--d-text)}
+body:not(.theme-light).f-arte-pronta .art-ok-sub,
+body:not(.theme-light).f-arte-pronta .caption-card-title{color:var(--d-text2)}
+body:not(.theme-light).f-arte-pronta .caption-content-box{background:var(--d-dark);border-color:var(--d-border2);color:var(--d-text2)}
+body:not(.theme-light).f-arte-pronta .caption-alt-btn{color:var(--d-text2)}
+body:not(.theme-light).f-arte-pronta .art-bulk-btn{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text)}
+body:not(.theme-light).f-arte-pronta .art-bulk-txt strong{color:var(--d-text)}
+body:not(.theme-light).f-arte-pronta .art-bulk-txt em{color:var(--d-text2)}
+body:not(.theme-light).f-arte-pronta .art-bulk-btn:hover{background:var(--d-surf3);border-color:var(--dm-orange)}
+body:not(.theme-light).f-arte-pronta .art-btn.art-voltar,
+body:not(.theme-light).f-arte-pronta .art-btn.art-redo{color:var(--d-text2);border-top-color:var(--d-border2)}
+body:not(.theme-light).f-arte-pronta .art-btn.art-voltar:hover{background:var(--d-surf2);color:var(--d-text)}
+body:not(.theme-light).f-arte-pronta .art-btn.art-redo:hover{background:var(--d-surf2)}
+
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   MODO REVISÃO — DEPOIS DE PRONTA, EDITAR É REVER CAMPOS (2026-09-11)
+   ══════════════════════════════════════════════════════════════════════════════════════════
+   O questionário constrói a arte; ele não serve para corrigi-la. Quem clica em "Editar arte"
+   já viu o resultado e sabe o que quer mudar — devolver essa pessoa para a "Pergunta 1 de 8"
+   é fazê-la reconfirmar sete acertos para chegar em um erro. Então a volta abre a LISTA DE
+   CAMPOS: rótulo, valor atual, lápis.
+
+   ⛔ NÃO É UM PAINEL NOVO. É o `#f-respostas` que o celular já usa desde a rodada de
+   11/09 — mesmo HTML, mesmo `fRenderRespostas`. Aqui ele ganha corpo de desktop, um
+   cabeçalho que pergunta e um rodapé que conclui. O bloco do celular não foi tocado.
+
+   A ALAVANCA É `body.f-revisao`, ligada pelo `_fSheetSync` a partir do `_fRevisando` — mesmo
+   desenho do `body.f-arte-pronta` acima. `f-revisao-campo` NÃO é estado novo: é
+   `fState.editIdx !== null` visto pelo CSS, e abre um campo NO LUGAR da lista.
+
+   ⛔ NÃO É O ESTADO FINAL, e a diferença é o ponto: aqui a arte volta a ser editável, o palco
+   volta a dizer "Prévia ao vivo" e o clique direto na peça funciona. É a bancada, não a
+   vitrine. Os dois modos nunca estão ligados juntos — `fState.done` é um só.
+
+   ⚠ POR QUE `#f-sheet #f-messages` E NÃO SÓ `#f-messages`: o bloco do celular escopa tudo em
+   `body.f-mobile-chat:not(...):not(...):not(...)`, quatro classes que VENCEM um
+   `body.f-revisao` simples — e lá `#f-messages` é `display:contents`, que continuaria valendo.
+   O `#f-sheet` é o pai real no HTML, então o segundo id sobe a especificidade sem inventar
+   seletor nenhum: é só dizer onde a caixa mora. */
+
+/* ── 1. A LISTA: a conversa inteira sai de cena ── */
+body.f-revisao:not(.f-revisao-campo) #f-sheet #f-messages{display:none}
+body.f-revisao:not(.f-revisao-campo) #f-sheet #f-input-row{display:none}
+/* O rodapé do painel some nos dois sub-estados: "Anterior" não existe fora do questionário
+   (ver a guarda no `_fSheetSync`) e "Respostas" abriria a lista que já está aberta. */
+body.f-revisao #f-sheet #f-sheet-foot{display:none}
+/* ⚠ `#f-chat-head` pelo mesmo motivo do `#f-sheet` acima: o contador mora no cabeçalho, e
+   o bloco do celular o mostra com quatro classes de escopo. Aqui ele não é progresso, é
+   passado — e "1/8" ao lado de uma lista com as oito respostas preenchidas mente. */
+body.f-revisao #f-chat-head #f-mob-prog{display:none}
+
+/* ── 2. UM CAMPO DE CADA VEZ ── */
+/* A pergunta do campo toma o painel; a lista espera. Os dois na tela seriam a mesma pergunta
+   duas vezes, a 40px de distância — o ruído que a lista veio tirar. */
+body.f-revisao.f-revisao-campo #f-sheet #f-respostas{display:none}
+body.f-revisao.f-revisao-campo #f-messages>.msg:not(.active-prompt){display:none}
+
+/* ── 3. A SAÍDA DA EDIÇÃO DE UM CAMPO ── */
+/* ⚠ Classe própria, e NÃO o `.qr-back-wrap`: aquele wrapper não tem `order` e, no celular,
+   cai no 0 — iria para CIMA da pergunta (o painel dissolve as caixas com `display:contents`).
+   Ver o aviso na régua de `order` deste arquivo. */
+.fr-cancelar{
+  appearance:none;display:block;margin:14px auto 0;padding:8px 14px;
+  border:1px dashed var(--gray-mid);border-radius:var(--r-pill);background:transparent;
+  font:inherit;font-size:12.5px;font-weight:600;color:var(--text-3);cursor:pointer;
+  transition:color .12s,border-color .12s,background .12s;
+}
+.fr-cancelar:hover{color:var(--dm-orange-d);border-color:var(--dm-orange);background:var(--dm-orange-bg)}
+.fr-cancelar:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+body.f-revisao .fr-cancelar{order:6}
+body:not(.theme-light) .fr-cancelar{border-color:var(--d-border2);color:var(--d-text2)}
+
+@media (max-width:680px){
+  body.f-revisao .fr-cancelar{width:auto;margin:12px 18px 4px;min-height:var(--tap-min);font-size:13.5px}
+}
+
+/* ── 4. O CORPO DA LISTA NO DESKTOP ── */
+/* ⚠ `min-width:681px` e não uma regra solta: as `.fr-*` do celular são desenho AFINADO para o
+   polegar (alvo de 44px, 15px de valor) e moram em `max-width:680px`. Sem a barreira, estas
+   regras — que carregam o id `#f-respostas` — venceriam lá e desfariam aquilo. */
+@media (min-width:681px){
+  /* A mesma mesa off-white do estado final: sair da revisão e voltar para a arte pronta não
+     pode piscar de cor. */
+  body.f-revisao #f-chat-col{background:var(--off-white)}
+  body.f-revisao #f-respostas:not([hidden]){
+    display:flex;flex-direction:column;align-items:center;justify-content:safe center;
+    flex:1;min-height:0;overflow-y:auto;
+    padding:clamp(24px,4vh,40px) 20px;
+  }
+  /* `safe center` pelo mesmo motivo do painel de entrega: centralizado enquanto cabe, e
+     alinhado no topo quando a lista é longa — sem `safe`, o começo fica inalcançável. */
+  /* Uma coluna só, na MESMA largura do painel de entrega (380px): a ida e a volta entre os
+     dois modos não pode reposicionar o conteúdo na horizontal. */
+  body.f-revisao #f-respostas>*{width:min(100%,380px);flex:0 0 auto}
+  body.f-revisao .fr-h{margin:0 0 6px;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3)}
+  body.f-revisao .fr-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:2px 12px;padding:13px 2px;border-bottom:1px solid var(--gray-light)}
+  body.f-revisao .fr-lbl{grid-column:1;font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3)}
+  body.f-revisao .fr-val{grid-column:1;font-size:14.5px;font-weight:700;color:var(--text);overflow-wrap:anywhere;display:flex;align-items:center;gap:7px}
+  body.f-revisao .fr-val.vazia{font-weight:500;color:var(--text-3)}
+  body.f-revisao .fr-val i{font-style:italic}
+  body.f-revisao .fr-mini{width:26px;height:26px;border-radius:6px;object-fit:cover;flex-shrink:0}
+  /* O lápis é o alvo, então ele tem tamanho de alvo mesmo no mouse — 38px, e não o ícone de
+     15px nu que a linha teria se o botão fosse só o `svg`. */
+  body.f-revisao .fr-ed{grid-column:2;grid-row:1/3;width:38px;height:38px;border-radius:11px;border:1px solid var(--gray-mid);background:var(--white);color:var(--text-2);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .12s,border-color .12s,color .12s}
+  body.f-revisao .fr-ed svg{width:15px;height:15px}
+  body.f-revisao .fr-ed:hover{background:var(--dm-orange-bg);border-color:var(--dm-orange);color:var(--dm-orange-d)}
+  body.f-revisao .fr-ed:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+  /* A linha inteira responde ao ponteiro: o alvo declarado é o lápis, mas o olho mira a
+     linha, e uma linha que não reage ensina que não é clicável. */
+  body.f-revisao .fr-row:hover .fr-ed{border-color:var(--dm-orange);color:var(--dm-orange-d)}
+  body.f-revisao .fr-dica{margin:16px 0 0;font-size:12px;font-weight:500;color:var(--text-3);text-align:center;line-height:1.45}
+  body.f-revisao .fr-ok{min-height:46px;margin-top:18px;font-size:14px;font-weight:800;border-radius:12px}
+
+  /* ── TEMA ESCURO ── */
+  body:not(.theme-light).f-revisao #f-chat-col{background:var(--d-surf)}
+  body:not(.theme-light).f-revisao .fr-row{border-bottom-color:var(--d-border)}
+  body:not(.theme-light).f-revisao .fr-val{color:var(--d-text)}
+  body:not(.theme-light).f-revisao .fr-h,
+  body:not(.theme-light).f-revisao .fr-lbl,
+  body:not(.theme-light).f-revisao .fr-dica{color:var(--d-text2)}
+  body:not(.theme-light).f-revisao .fr-ed{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text2)}
+  body:not(.theme-light).f-revisao .fr-ed:hover{background:var(--d-surf3);border-color:var(--dm-orange);color:var(--dm-orange)}
+}

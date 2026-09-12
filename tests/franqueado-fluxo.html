@@ -471,6 +471,11 @@ await test('Desfazer consome o slot: não dá para desfazer duas vezes o mesmo r
   _respostaConfirm=true;
   await fAskRestartArt();
   await espera(60);
+  const toastItem=document.querySelector('#g-toast-container .g-toast-item.has-acao');
+  assert(toastItem,'o toast de saída com ação não foi montado no container');
+  const btnAcao=toastItem.querySelector('.g-toast-acao');
+  assert(btnAcao && btnAcao.querySelector('svg'),'o botão do toast não carrega o ícone SVG de desfazer');
+  assert(btnAcao.textContent.trim()==='Desfazer','o botão do toast não tem o rótulo Desfazer');
   assert(fDesfazer()===true,'o primeiro desfazer falhou');
   assert(fUndoDisponivel()===false,'o slot continuou cheio depois de consumido');
   assert(fDesfazer()===false,'desfazer duas vezes seguidas deveria não ter o que fazer');
@@ -575,7 +580,14 @@ await test('O card final prioriza Baixar PNG e não oferece rede social', async(
   /* Procura a ENTRADA (o onclick), não o nome: o comentário do próprio código cita as
      funções para dizer que os motores continuam vivos, e um /fPostarInstagram/ solto casava
      com o comentário em vez do botão. Achado rodando o caso. */
-  assert(!/onclick="fPostarInstagram/.test(fonte),'o card ainda oferece Postar no Instagram');
+  /* ⚠ ESTA ASSERÇÃO JÁ FOI INVERTIDA E VOLTOU, NO MESMO DIA (11/09/2026). Pela manhã o pedido
+     era pôr "[Baixar PNG] [Publicar no Instagram]" no fim do fluxo, e o caso passou a EXIGIR
+     o botão. Horas depois o pedido mudou, e é este que vale: publicação direta não existe no
+     Luma, então a entrega não oferece nada que prometa publicar.
+     O `fPostarInstagram` faz share NATIVO do sistema (não é publicação via API), e continua
+     inteiro em png-generator.js — o que a regra barra é a PROMESSA do rótulo, não o motor.
+     Quem for reverter isto de novo: o critério é capacidade real, não vontade. */
+  assert(!/onclick="fPostarInstagram/.test(fonte),'o card promete publicar no Instagram, e isso não existe');
   assert(!/onclick="fEnviarWhatsApp/.test(fonte),'o card ainda oferece Enviar no WhatsApp');
   // Gerar em lote VOLTOU ao card por pedido do Ryan (09/09) — ele saiu no enxugamento e a
   // palavra do dono vence a decisão anterior. É ação de outra natureza, então é faixa própria.

@@ -36,6 +36,7 @@ dFolders=[
 ];
 fGetCampaigns=()=>({ativas:camps,outras:[],impl:[]});
 const ids=q=>fSearchCampaigns(q,camps).campaigns.map(c=>c.id);
+const materialIds=q=>fSearchCampaigns(q,camps).materials.map(e=>`${e.campaign.id}:${e.material.id}`);
 await test('Nome exato e acentos',()=>assert(ids('festival de hamburguer')[0]==='burger-feed'));
 await test('Linguagem natural com formato',()=>assert(ids('quero uma arte de hambúrguer para story')[0]==='burger-story'));
 await test('Não mistura produto de um material e formato de outro',()=>assert(!ids('hamburguer story').includes('mixed')));
@@ -50,11 +51,38 @@ await test('Metadados opcionais e formato declarado legado',()=>assert(fSearchCa
 await test('Conteúdo de camada publicada disponível',()=>{dFolders[0].templates[0].layers=[{type:'text',content:'Sabor especial de cheddar'}];assert(ids('cheddar')[0]==='burger-feed');});
 await test('Expirado não entra no índice',()=>{dFolders[0].templates[0].publishMeta.validade='2000-01-01';assert(!ids('cheddar').length);delete dFolders[0].templates[0].publishMeta.validade;});
 await test('Busca antiga funciona sem metadados',()=>assert(ids('antiga')[0]==='old'));
+/* A campanha `old` casa por nome e NÃO tem material publicado (não está no dFolders). Era o
+   caso que a busca achava e negava: `materials` vazio, `suggestions` vazio (porque `exact`
+   tinha gente), e a home dizia "Não encontramos exatamente isso".
+   ⚠ O TERMO É "antiga", E NÃO "cupom". Este caso nasceu com "cupom" e quebrou no mesmo dia:
+   um alias novo (`cupom`→`promocao`) fez o termo casar também com "Promoção de pizza", que
+   TEM peça — e a premissa do caso ("este termo não acha peça") morreu. "antiga" casa só com
+   o `old` pelo nome (o caso logo acima já trava isso) e não depende de tabela de sinônimo.
+   Quem for trocar: escolha um termo que exista SÓ na campanha sem peça. */
+await test('Campanha que combina sem peça publicada não vira "nada encontrado"',()=>{
+  const r=fSearchCampaigns('antiga',camps);
+  assert(!r.materials.length,'o fixture mudou: "antiga" passou a ter peça');
+  assert(r.semMaterial.map(c=>c.id).includes('old'),'a campanha que combinou foi jogada fora');
+});
+await test('Campanha com peça não aparece duas vezes',()=>{
+  const r=fSearchCampaigns('burger stories',camps);
+  const comPeca=new Set(r.materials.map(e=>e.campaign.id));
+  assert(r.materials.length,'o fixture mudou: "burger stories" perdeu a peça');
+  assert(!r.semMaterial.some(c=>comPeca.has(c.id)),'campanha listada como peça e como "em breve"');
+});
+await test('A home mostra "Em breve" em vez de negar a busca',()=>{
+  fHomeFilter('antiga');
+  const corpo=document.getElementById('fh-body').textContent;
+  assert(corpo.includes('Em breve'),'a prateleira "Em breve" não apareceu');
+  assert(!corpo.includes('Não encontramos exatamente isso'),'a busca continua negando o que achou');
+  assert(!corpo.includes('Talvez estas campanhas ajudem'),'empilhou aproximação por cima de um acerto');
+  fHomeFilter('');
+});
 await test('Tokens sem intenção não retornam catálogo inteiro',()=>assert(!ids('quero uma campanha').length));
-await test('UI home e rail usam o mesmo ranking',()=>{fState.categoria='campanhas';fFilterCamps('hamburguer story');fHomeFilter('hamburguer story');assert(document.getElementById('fh-body').textContent.includes('Burger do domingo'));assert(document.getElementById('f-catalog').textContent.includes('Story'));});
+await test('Busca da home mostra materiais e o rail preserva campanhas',()=>{fState.categoria='campanhas';fFilterCamps('hamburguer story');fHomeFilter('hamburguer story');assert(materialIds('hamburguer story').includes('burger-story:bs'));assert(document.getElementById('fh-body').textContent.includes('Burger'));assert(document.getElementById('fh-body').textContent.includes('Personalizar'));assert(document.getElementById('f-catalog').textContent.includes('Story'));});
 await test('Estado vazio oferece solicitação com consulta escapada',()=>{fHomeFilter('<img src=x onerror=alert(1)> açaí');assert(document.querySelector('#fh-body [data-query]'));assert(!document.querySelector('#fh-body img[src=x]'));fHomeFilter('');});
 await test('Debounce registra consulta final uma vez',async()=>{fSearchRecord('',null,'catalog');calls.length=0;const r=fSearchCampaigns('pizza',camps);fSearchRecord('p',r,'home');fSearchRecord('pizza',r,'home');fSearchRecord('pizza',r,'home');await sleep(750);const events=calls.filter(c=>c.name==='registrar_evento'&&c.args.p_evento==='search_performed'&&c.args.p_payload.source==='home');assert(events.length===1&&events[0].args.p_payload.query==='pizza');});
-await test('Abertura antes do debounce preserva busca e posição',async()=>{calls.length=0;document.body.classList.add('f-home-mode');fSearchRecord('burger',fSearchCampaigns('burger',camps),'home');fSearchRecordOpen('burger-story');await sleep(40);assert(calls.some(c=>c.args.p_evento==='search_result_opened'));document.body.classList.remove('f-home-mode');});
+await test('Abertura antes do debounce preserva busca e posição',async()=>{calls.length=0;document.body.classList.add('f-home-mode');fSearchRecord('burger',fSearchCampaigns('burger',camps),'home');fSearchRecordOpen('burger-story','bs');await sleep(40);const event=calls.find(c=>c.args.p_evento==='search_result_opened');assert(event&&event.args.p_payload.template_id==='bs');document.body.classList.remove('f-home-mode');});
 const host=document.getElementById('fixture');
 const snap={camp:{id:'burger-story',name:'Burger'},material:{id:'local',remoteId:'remote',name:'Story'},fmt:{id:'story'},histId:'h1',dados:{}};
 await test('Feedback positivo em um clique e ID do material remoto',async()=>{const s=fFeedbackMount(snap,host,'snap1');s.querySelector('[data-feedback=positive]').click();await sleep(30);assert(s.textContent.includes('Feedback enviado'));const row=calls.filter(c=>c.name==='submit_feedback').at(-1).args.p_feedback;assert(row.rating==='positive'&&row.template_id==='remote'&&row.camp_id==='burger-story');});

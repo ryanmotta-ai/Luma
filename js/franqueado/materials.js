@@ -793,6 +793,25 @@ async function fSelectMaterial(materialId, card){
   const lpPanel=document.getElementById('f-live-preview');
   if(lpPanel){
     lpPanel.classList.remove('lp-entrando'); void lpPanel.offsetWidth; lpPanel.classList.add('lp-entrando');
+    /* ⚠ E A CLASSE SAI QUANDO A ENTRADA TERMINA. Ela nunca saía — e a animação dela é
+       `both`, então o último quadro (`opacity:1; transform:none`) ficava CRAVADO em todo
+       filho direto do painel pelo resto da sessão. Valor animado vence declaração normal,
+       então qualquer regra posterior que mexesse em opacidade ou transform daqueles
+       elementos era silenciosamente ignorada.
+       Sintoma que denunciou: a barra de zoom/ajustar continuava visível no estado "arte
+       pronta", apesar do `body.f-palco-conclusao … .lp-toolbar{opacity:0}` em
+       live-preview.css — a regra casava e não valia nada.
+       ⚠ Não quebra a re-entrada: o `remove → reflow → add` acima é justamente o que
+       redispara a animação a cada material novo.
+       ⚠ O `animationend` BORBULHA dos filhos (a animação está em `>*`, não no painel), por
+       isso o listener mora aqui. O timeout é a rede para quando não há animação nenhuma
+       (`prefers-reduced-motion` zera a animação e o evento nunca chega). */
+    const _lpFimDaEntrada = () => {
+      lpPanel.classList.remove('lp-entrando');
+      lpPanel.removeEventListener('animationend', _lpFimDaEntrada);
+    };
+    lpPanel.addEventListener('animationend', _lpFimDaEntrada);
+    setTimeout(_lpFimDaEntrada, 900);
     // A prévia mede o palco pra encaixar o canvas — e o palco só tem a largura final quando
     // a transição termina. Mesmo par do panel-dock (render + refit) no fim do movimento,
     // mais uma chamada imediata pro caso em que não há transição nenhuma (reduced-motion,

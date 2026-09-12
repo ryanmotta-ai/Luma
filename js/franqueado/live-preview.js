@@ -75,11 +75,34 @@ const _PST_HEART = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" s
 const _PST_SEND = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>';
 const _PST_COMMENT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.4 8.4 0 01-11.9 7.6L3 21l1.9-6a8.4 8.4 0 1116.1-3.5z"/></svg>';
 const _PST_BOOKMARK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>';
+/* A barra de abas do Instagram. Ela não é enfeite: é o que faz o olho reconhecer o app
+   antes de ler qualquer coisa. Cabe porque a conta fecha — numa tela de 282×576 sobram
+   ~90px depois do cabeçalho, da arte 4:5, das ações e das duas linhas de legenda. */
+const _PST_TAB_HOME = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 10.2 12 3l9 7.2V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>';
+const _PST_TAB_SEARCH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>';
+const _PST_TAB_REELS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M3 8.5h18M8.5 3l3 5.5M15 3l3 5.5"/><path d="m10.8 12.4 4.2 2.4-4.2 2.4z" stroke-linejoin="round"/></svg>';
+const _PST_TAB_SHOP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M5 7h14l-1 13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1z"/><path d="M9 9V6a3 3 0 0 1 6 0v3"/></svg>';
 const _PST_BACK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 5l-7 7 7 7"/></svg>';
 const _PST_VIDEO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>';
 const _PST_CALL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3 19.5 19.5 0 01-6-6 19.8 19.8 0 01-3-8.6A2 2 0 014.1 2h3a2 2 0 012 1.7c.1 1 .4 1.9.7 2.8a2 2 0 01-.5 2.1L8.1 9.9a16 16 0 006 6l1.3-1.3a2 2 0 012.1-.4c.9.3 1.8.6 2.8.7a2 2 0 011.8 2z"/></svg>';
-const _PST_UP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
-const _PST_CHECK = '<svg class="pst-check" viewBox="0 0 18 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 6.5l3 3 6.5-7.5"/><path d="M7 9.5l1 1 6.5-7.5"/></svg>';
+/* A barra de digitar do WhatsApp tem quatro controles, e nenhum deles existia aqui: emoji
+   dentro do campo, clipe e camera do lado direito dele, e o microfone no botao verde. */
+const _PST_EMOJI = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M8.6 14.2a4.2 4.2 0 0 0 6.8 0"/><circle cx="9" cy="9.8" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="9.8" r="1.1" fill="currentColor" stroke="none"/></svg>';
+const _PST_CLIP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20 11.5 12.2 19.3a4.6 4.6 0 0 1-6.5-6.5l8.2-8.2a3 3 0 0 1 4.3 4.3l-8.2 8.2a1.5 1.5 0 0 1-2.1-2.1l7.4-7.4"/></svg>';
+const _PST_CAM = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 8.4A1.4 1.4 0 0 1 4.4 7h2.3l1.2-2h8.2l1.2 2h2.3A1.4 1.4 0 0 1 21 8.4v8.2a1.4 1.4 0 0 1-1.4 1.4H4.4A1.4 1.4 0 0 1 3 16.6z"/><circle cx="12" cy="12.4" r="3.4"/></svg>';
+const _PST_MIC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0"/><path d="M12 18v3.5"/></svg>';
+const _PST_VDOTS = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg>';
+const _PST_LOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4.5" y="10.5" width="15" height="10" rx="2.2"/><path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/></svg>';
+/* ⚠ UM TIQUE, E CINZA — não os dois tiques azuis de antes. Azul no WhatsApp significa que a
+   outra pessoa LEU a mensagem, e esta mensagem ainda não foi enviada: é a prévia de um envio
+   que vai acontecer. Prometer leitura é o mesmo tipo de mentira que as "128 curtidas" que
+   saíram do Feed em 11/09. Um tique cinza é "enviado", que é o estado real no instante em
+   que se aperta o botão — o único que este mockup pode afirmar. */
+const _PST_CHECK = '<svg class="pst-check" viewBox="0 0 14 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 6.5l3.2 3.2L12.5 2"/></svg>';
+/* O contato "Clientes" não tem foto — e não pode ganhar uma. O boneco cinza é o que o próprio
+   WhatsApp mostra nesse caso; o degradê da marca que estava aqui fazia uma bolha magenta que
+   não dizia nada (a conversa é genérica de propósito, decisão do Ryan em 11/09). */
+const _PST_PESSOA = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8.6" r="3.9"/><path d="M12 13.6c-4.2 0-7 2.3-7 4.6V21h14v-2.8c0-2.3-2.8-4.6-7-4.6z"/></svg>';
 
 // Barra de status do sistema (bateria/wifi/sinal). whiteText=true sobre fundo escuro.
 function _fPostedSysbar(whiteText){
@@ -91,6 +114,65 @@ function _fPostedSysbar(whiteText){
       <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="17" height="8" rx="1.5" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
     </span>
   </div>`;
+}
+
+/* ══ DE QUEM É ESTE POST ═══════════════════════════════════════════════════════════════
+   O cabeçalho do Feed e do Stories mostra a LOJA DO FRANQUEADO — logo, nome e cidade — e
+   nada além disso. A diferença para o perfil falso que saiu em 11/09 ("sualoja", avatar
+   inventado, "128 curtidas", "Sua cidade") é inteira: aquilo era dado que o Luma NÃO TEM;
+   isto é dado que o próprio franqueado deu, e que a arte já está usando.
+
+   ⛔ NUNCA CHUTA. Três caminhos, do mais preciso para o menos, e quando nenhum responde o
+   cabeçalho simplesmente NÃO APARECE — um nome errado no post é tão falso quanto um
+   inventado, e "sem cabeçalho" é uma resposta honesta que a moldura aguenta:
+     1. os CAMPOS DA PRÓPRIA ARTE, pelos apelidos do `F_LOJA_CAMPOS` (chat.js) — o motor
+        único de "o que um perfil de loja sabe responder". Se o template tem campo de logo
+        ou nome da loja, a verdade está ali e é desta arte;
+     2. a loja que o franqueado ESCOLHEU no pré-início (`fState._lojaId`);
+     3. a única loja salva — sem ambiguidade quando só existe uma.
+   ⚠ Com várias lojas salvas e nenhuma escolhida, o caminho 3 não vale: `fGetLojas()[0]` é
+   a mais recente, não a deste post. */
+function _fPostedPerfil(){
+  try{
+    const d = fState.dados || {};
+    const mapa = (typeof F_LOJA_CAMPOS !== 'undefined') ? F_LOJA_CAMPOS : null;
+    const pega = (chaves) => { for(const k of (chaves||[])){ const v = d[k]; if(v) return v; } return ''; };
+    let logo = mapa ? pega(mapa.logo) : (d.logo_loja || '');
+    let nome = mapa ? pega(mapa.nome) : '';
+    if((!logo || !nome) && typeof fGetLojas === 'function'){
+      const lojas = fGetLojas() || [];
+      const escolhida = fState._lojaId ? lojas.find(l => l && l.id === fState._lojaId) : null;
+      const l = escolhida || (lojas.length === 1 ? lojas[0] : null);
+      if(l){ logo = logo || l.logo || ''; nome = nome || l.nome || ''; }
+    }
+    const cidade = (typeof fCidadeAtual === 'function') ? fCidadeAtual() : '';
+    return { logo: String(logo||''), nome: String(nome||'').trim(), cidade: String(cidade||'').trim() };
+  }catch(e){ return { logo:'', nome:'', cidade:'' }; }
+}
+
+/* O avatar. Com logo, o logo; sem logo mas com nome, a inicial — que é dado real também.
+   ⚠ `contain` e fundo branco: logo de loja vem com margem e proporção própria, e `cover`
+   cortava a marca. Um logo cortado no perfil é pior que um logo pequeno. */
+function _fPostedAvatar(p, classe){
+  const cl = 'pst-av' + (classe ? ' ' + classe : '');
+  if(p.logo) return `<span class="${cl} tem-logo"><img src="${gEsc(p.logo)}" alt=""></span>`;
+  if(p.nome) return `<span class="${cl} inicial">${gEsc(p.nome.trim().charAt(0).toUpperCase())}</span>`;
+  /* Sem logo e sem nome, o degradê da marca vira uma bola colorida sem significado — e no
+     rodapé, onde mora a aba de perfil, ela lia como um erro de carregamento. Vira o
+     boneco neutro que todo app mostra quando não há foto. */
+  return `<span class="${cl} vazio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="8.4" r="3.6"/><path d="M4.8 20.4a7.2 7.2 0 0 1 14.4 0"/></svg></span>`;
+}
+
+/* O Instagram corta a legenda na segunda linha e oferece "mais". Cortar aqui é MAIS fiel que
+   deixar rolar: rolagem dentro de um mockup não existe em lugar nenhum do app real, e o
+   texto inteiro está no painel ao lado, a 200px daqui. Corta em palavra inteira. */
+function _fPostedCapCurta(txt, limite){
+  const t = String(txt||'').replace(/\s+/g,' ').trim();
+  if(t.length <= limite) return { texto:t, cortou:false };
+  let corte = t.slice(0, limite);
+  const esp = corte.lastIndexOf(' ');
+  if(esp > limite * 0.6) corte = corte.slice(0, esp);
+  return { texto: corte.replace(/[\s.,;:!?-]+$/,''), cortou:true };
 }
 
 // Nome do produto pra legenda/handle (dado real; cai no nome da campanha).
@@ -119,36 +201,167 @@ async function _fPostedRenderArt(){
 }
 
 /* ── Chrome de cada ambiente (recebe o slot vazio; o canvas real é encaixado depois) ── */
+/* ⛔ NENHUM CHASSI DE FEED/STORY INVENTA PERFIL (regra do Ryan, 11/09).
+   Saíram daqui: o username "sualoja", o avatar, a localização "Sua cidade", as "128 curtidas"
+   e o "agora mesmo". Eram dados que o Luma NÃO TEM — e uma prévia que inventa contagem de
+   curtidas não aumenta confiança, ensina a desconfiar do resto. Capacidade real, promessa
+   real: o que fica é a MOLDURA (barra de progresso, ícones de ação, espaço da legenda), que
+   é o que responde a pergunta "como isso vai ficar publicado".
+   ⚠ O `pst-av` e o `pst-user` continuam no CSS porque o chassi de WhatsApp ainda os usa —
+   lá o conteúdo de exemplo ficou de propósito (decisão do Ryan: é uma conversa genérica,
+   não um perfil de rede social).
+   ⚠ `_fPostedProd` perdeu o chamador aqui e segue usado pelo WhatsApp. */
 function _fPostedStory(slot){
+  const p = _fPostedPerfil();
+  /* O cabeçalho só existe com nome real (ver `_fPostedPerfil`). Sem ele ficam as barras de
+     progresso e o rodapé, que é moldura pura e não afirma nada sobre ninguém.
+     ⛔ SEM "há 2 h". O post não aconteceu — carimbar uma hora nele é inventar o passado. */
+  const topo = p.nome ? `<div class="pst-story-top">${_fPostedAvatar(p)}<span class="pst-story-user">${gEsc(p.nome)}</span><span class="pst-grow"></span>${_PST_DOTS}${_PST_X}</div>` : '';
+  /* ⚠ UMA BARRA, E NÃO TRÊS. Três segmentos afirmam que a conta tem três stories no ar — é
+     invenção do mesmo tipo das "128 curtidas" que saíram do Feed. Um segmento é a verdade:
+     este story, tocando. E continua lendo como Instagram, que é o que a barra faz ali.
+     ⚠ O FUNDO BORRADO existe porque a peça é 9:16 (0,562) e a tela do aparelho é 0,450: a
+     arte enche a largura e sobra faixa em cima e embaixo. Preto ali é o que NENHUM celular
+     mostra — o Instagram põe uma cópia ampliada e desfocada da própria mídia. Quem preenche
+     este `div` é o `_fPostedMountArt`, com um canvas minúsculo que o CSS amplia. */
   return `<div class="pst-story">
+    <div class="pst-story-fundo" aria-hidden="true"></div>
     ${slot}
-    <div class="pst-story-bars"><i class="done"></i><i class="on"></i><i></i></div>
-    <div class="pst-story-top"><span class="pst-av"></span><span class="pst-user">sualoja</span><span class="pst-time">2 h</span><span class="pst-grow"></span>${_PST_DOTS}${_PST_X}</div>
+    <div class="pst-story-sombra" aria-hidden="true"></div>
+    <div class="pst-story-sombra-pe" aria-hidden="true"></div>
+    <div class="pst-story-bars"><i class="on"></i></div>
+    ${topo}
     <div class="pst-story-bot"><div class="pst-story-input">Enviar mensagem</div>${_PST_HEART}${_PST_SEND}</div>
   </div>`;
 }
+/* A legenda do Feed é a LEGENDA DE VERDADE, a mesma que o painel mostra e que o "Copiar
+   legenda" copia — não um resumo de produto+preço montado só para o mockup. Trocar a
+   sugestão no painel repinta isto (ver `_fPostedRepintaLegenda`), então as duas nunca
+   divergem. Sem legenda ainda, o espaço dela simplesmente não aparece. */
 function _fPostedFeed(slot){
-  const prod = _fPostedProd();
-  const preco = (fState.dados && (fState.dados.precoPor || fState.dados.preco)) || '';
+  const p = _fPostedPerfil();
+  const cap = _fPostedLegendaAtual();
+  /* Cabeçalho: logo, nome e cidade da loja DESTE post. Some inteiro quando o Luma não sabe
+     de quem é — ver `_fPostedPerfil`. A localização fica na segunda linha, como no app. */
+  const head = p.nome ? `<div class="pst-feed-head">
+      ${_fPostedAvatar(p)}
+      <span class="pst-feed-id"><span class="pst-feed-user">${gEsc(p.nome)}</span>${p.cidade?`<span class="pst-feed-loc">${gEsc(p.cidade)}</span>`:''}</span>
+      <span class="pst-grow"></span>${_PST_DOTS}
+    </div>` : '';
+  /* A legenda vem com o handle na frente e corta na segunda linha, com "mais" — é assim que
+     o Feed mostra. O limite desconta o nome porque ele ocupa a mesma linha. */
+  /* 74 e nao 92: medido no chassi. A linha util tem 256px e cabem ~45 caracteres em 13px,
+     entao duas linhas sao ~90 — menos o nome em negrito na frente e os 7 do " … mais" no
+     fim. Com 92 a legenda quebrava para TRES linhas e comia altura da arte. */
+  const limite = Math.max(30, 74 - (p.nome ? p.nome.length + 1 : 0));
+  const c = _fPostedCapCurta(cap, limite);
+  const legenda = cap ? `<div class="pst-feed-cap">${p.nome?`<b>${gEsc(p.nome)}</b> `:''}${gEsc(c.texto)}${c.cortou?`<span class="muted"> … mais</span>`:''}</div>` : '';
+  /* A barra de abas fecha a tela. Na bolinha de perfil vai a marca da REDE (pedido do Ryan,
+     11/09) — e não o logo da loja, que já está no cabeçalho do post. Duas vezes o mesmo logo
+     na mesma tela é repetição; a Delivery Much ali diz "esta é uma loja da rede", que é a
+     informação que faltava. Escolhi a DM e não o Luma porque o Luma é a ferramenta que fez a
+     arte, não a marca que aparece para o cliente final. */
+  const abas = `<nav class="pst-feed-tabs" aria-hidden="true">
+      ${_PST_TAB_HOME}${_PST_TAB_SEARCH}${_PST_TAB_REELS}${_PST_TAB_SHOP}
+      <span class="pst-av pst-tab-perfil pst-tab-dm" role="img" aria-label="Delivery Much"></span>
+    </nav>`;
   return `<div class="pst-feed">
-    <div class="pst-feed-head"><span class="pst-av"></span><span class="pst-feed-id"><span class="pst-feed-user">sualoja</span><span class="pst-feed-loc">Sua cidade</span></span><span class="pst-grow"></span>${_PST_DOTS}</div>
+    ${head}
     ${slot}
     <div class="pst-feed-actions">${_PST_HEART}${_PST_COMMENT}${_PST_SEND}<span class="pst-grow"></span>${_PST_BOOKMARK}</div>
-    <div class="pst-feed-likes">128 curtidas</div>
-    <div class="pst-feed-cap"><b>sualoja</b> ${gEsc(prod)}${preco?(' · '+gEsc(String(preco))):''} <span class="muted">... mais</span></div>
-    <div class="pst-feed-time">agora mesmo</div>
+    ${legenda}
+    ${abas}
   </div>`;
 }
+
+/* A legenda ativa, sem depender de quem chamou. O `_fActiveCaptionText` (chat.js) pede o id
+   do canvas da entrega; aqui descobrimos qual é pelo painel que está na tela — é o mesmo
+   painel que o `fCycleCaption` e o `fCopyCaption` manipulam. */
+/* QUAL entrega está valendo. O `fGerarArte` APENDA um card novo a cada conclusão e marca o
+   anterior como `.art-superada` — então "a atual" é a última viva, e o fallback é a última do
+   documento (os dois concordam sempre). Duas coisas leem isto: a legenda do chassi e o
+   `_fLpSincronizarConclusao`, que percebe quando o palco ficou para trás. */
+function _fPostedCardAtual(){
+  const paineis = document.querySelectorAll('.caption-assistant-panel[data-canvas-id]');
+  if(!paineis.length) return null;
+  let painel = null;
+  paineis.forEach(el => { if(!el.closest('.art-superada')) painel = el; });
+  return painel || paineis[paineis.length - 1];
+}
+
+function _fPostedLegendaAtual(){
+  try{
+    const paineis = document.querySelectorAll('.caption-assistant-panel[data-canvas-id]');
+    if(!paineis.length) return '';
+    /* ⛔ NÃO É `querySelector` (o PRIMEIRO do documento). Era, e por isso o mockup e o painel
+       mostravam legendas DIFERENTES: cada conclusão APENDA um card novo (`fGerarArte` faz
+       `appendChild`, não substituição) e marca o anterior como `.art-superada`. O primeiro do
+       documento é justamente o mais velho — o card que a pessoa não está mais vendo.
+       Vale toda vez que se conclui duas vezes: "Editar arte" → corrigir → "Concluir
+       alterações". Medido: painel com a sugestão nova, celular com a antiga, lado a lado.
+       Aqui pegamos o ÚLTIMO card vivo, que é a mesma regra que o CSS usa para esconder os
+       outros. O fallback é o último do documento — os dois concordam sempre. */
+    const painel = _fPostedCardAtual();
+    if(!painel) return '';
+    const id = painel.getAttribute('data-canvas-id');
+    return (typeof _fActiveCaptionText==='function') ? (_fActiveCaptionText(id)||'') : '';
+  }catch(e){ return ''; }
+}
+
+/* Chamado por quem MUDA a legenda (fSetCaption/fCycleCaption): repinta só o contexto, sem
+   re-renderizar a arte. Se o ambiente na tela não for o Feed, não há nada a fazer. */
+function fPostedRepintaLegenda(){
+  if(_postedCtx !== 'feed') return;
+  /* ⚠ `querySelectorAll` sem escopo: o chassi do Feed pode estar no MODAL (durante a criação)
+     ou no PALCO (estado final). Mirar só num dos dois deixava a legenda velha no outro. */
+  document.querySelectorAll('.pst-feed').forEach(feed=>{
+    const cap = _fPostedLegendaAtual();
+    let el = feed.querySelector('.pst-feed-cap');
+    if(!cap){ if(el) el.remove(); return; }
+    if(!el){
+      el = document.createElement('div'); el.className='pst-feed-cap';
+      /* ANTES DA BARRA DE ABAS. Um `appendChild` aqui punha a legenda DEPOIS das abas, e a
+         primeira troca de sugestão desmontava a tela. */
+      const abas = feed.querySelector('.pst-feed-tabs');
+      if(abas) feed.insertBefore(el, abas); else feed.appendChild(el);
+    }
+    /* ⚠ MESMA MONTAGEM DO `_fPostedFeed`, e não `textContent = cap`: sem isto, trocar a
+       sugestão trocava a legenda curta com handle por um bloco de texto cru e comprido —
+       a mesma tela com duas gramáticas, dependendo de você ter clicado ou não. */
+    const p = _fPostedPerfil();
+    /* 74 e nao 92: medido no chassi. A linha util tem 256px e cabem ~45 caracteres em 13px,
+     entao duas linhas sao ~90 — menos o nome em negrito na frente e os 7 do " … mais" no
+     fim. Com 92 a legenda quebrava para TRES linhas e comia altura da arte. */
+  const limite = Math.max(30, 74 - (p.nome ? p.nome.length + 1 : 0));
+    const c = _fPostedCapCurta(cap, limite);
+    el.innerHTML = `${p.nome?`<b>${gEsc(p.nome)}</b> `:''}${gEsc(c.texto)}${c.cortou?`<span class="muted"> … mais</span>`:''}`;
+  });
+}
 function _fPostedWhats(slot){
+  /* ⛔ O TEXTO SOLTO ACIMA DA IMAGEM SAIU. Era "Chegou a oferta de hoje, olha só" — copy
+     inventada, a última que restava nos chassis depois da limpeza de 11/09. E era redundante:
+     no WhatsApp a foto vai COM legenda, numa mensagem só. É assim que a oferta é mandada.
+     ⚠ A legenda é a MESMA do Feed e do painel (`_fPostedLegendaAtual`). Corta mais tarde que
+     lá — o WhatsApp mostra ~3 linhas antes do "Ler mais", o Feed mostra 2. */
+  const cap = _fPostedLegendaAtual();
+  const c = cap ? _fPostedCapCurta(cap, 118) : null;
+  /* A hora e o selo FECHAM A ÚLTIMA LINHA da legenda (`float:right`), que é como o app
+     desenha. Sem legenda eles voltam para dentro da imagem, na pílula escura — também como
+     o app faz quando a mensagem é só a foto. */
+  const selo = `<span class="pst-meta">21:45 ${_PST_CHECK}</span>`;
+  const legenda = c ? `<div class="pst-bub-cap">${selo}${gEsc(c.texto)}${c.cortou?`<span class="pst-wa-mais"> … Ler mais</span>`:''}</div>` : '';
   return `<div class="pst-wa">
     <div class="pst-wa-bg"></div>
-    <div class="pst-wa-head">${_PST_BACK}<span class="pst-wa-av"></span><span class="pst-wa-id"><span class="pst-wa-name">Clientes</span><span class="pst-wa-status">online</span></span><span class="pst-grow"></span>${_PST_VIDEO}${_PST_CALL}</div>
+    <div class="pst-wa-head">${_PST_BACK}<span class="pst-wa-av">${_PST_PESSOA}</span><span class="pst-wa-id"><span class="pst-wa-name">Clientes</span><span class="pst-wa-status">online</span></span><span class="pst-grow"></span>${_PST_VIDEO}${_PST_CALL}${_PST_VDOTS}</div>
     <div class="pst-wa-body">
+      <div class="pst-wa-aviso">${_PST_LOCK}<span>As mensagens são protegidas com criptografia de ponta a ponta.</span></div>
       <div class="pst-wa-day">HOJE</div>
-      <div class="pst-bub out">Chegou a oferta de hoje, olha só<span class="pst-meta">21:45 ${_PST_CHECK}</span></div>
-      <div class="pst-bub-img">${slot}<div class="pst-meta-ov">21:45 ${_PST_CHECK}</div></div>
+      <div class="pst-bub-img${legenda?' com-cap':''}">${slot}${legenda||`<div class="pst-meta-ov">21:45 ${_PST_CHECK}</div>`}</div>
     </div>
-    <div class="pst-wa-input"><div class="pst-wa-field"><span class="pst-grow">Mensagem</span></div><div class="pst-wa-send">${_PST_UP}</div></div>
+    <div class="pst-wa-input">
+      <div class="pst-wa-field">${_PST_EMOJI}<span class="pst-grow">Mensagem</span>${_PST_CLIP}${_PST_CAM}</div>
+      <div class="pst-wa-send">${_PST_MIC}</div>
+    </div>
   </div>`;
 }
 
@@ -160,18 +373,57 @@ function _fPostedOrder(){ return _fPostedContextsFor(fPostedContextForFormat(nul
 // Conteúdo da TELA (sysbar + chrome do app + slot vazio da arte). Separado do chassi de
 // propósito: trocar de ambiente repinta só isto, e o celular fica parado na mão.
 // Sysbar de texto claro em Story/WhatsApp (fundo escuro); escuro no Feed (fundo branco).
+/* A barra de gesto do iOS. Estava faltando, e é o elemento que o olho mais reconhece num
+   print de iPhone depois da ilha — todo screenshot de celular moderno tem essa pílula.
+   Clara sobre fundo escuro, escura sobre claro: a mesma regra da barra de status. */
+function _fPostedHomeBar(claro){
+  return `<div class="pst-home ${claro?'dark':'light'}" aria-hidden="true"></div>`;
+}
 function _fPostedScreenHTML(){
   const slot = '<div class="pst-artslot"></div>';
   const chrome = _postedCtx==='feed' ? _fPostedFeed(slot)
                : _postedCtx==='whatsapp' ? _fPostedWhats(slot)
                : _fPostedStory(slot);
-  return _fPostedSysbar(_postedCtx!=='feed') + chrome;
+  const claro = _postedCtx!=='feed';
+  return _fPostedSysbar(claro) + chrome + _fPostedHomeBar(claro);
 }
 // Encaixa o canvas REAL no slot. É sempre o mesmo objeto DOM — só troca de pai, nunca
 // re-renderiza (render de arte é caro e o resultado não muda ao trocar de ambiente).
 function _fPostedMountArt(scope){
   const holder = (scope||document).querySelector('.pst-artslot');
-  if(holder && _postedArt && _postedArt.canvas) holder.appendChild(_postedArt.canvas);
+  if(!holder || !_postedArt || !_postedArt.canvas) return;
+  holder.appendChild(_postedArt.canvas);
+  /* NO FEED, O SLOT TEM A PROPORÇÃO DA PEÇA. Com `flex:1` ele esticava até o fim da coluna e
+     a arte 4:5 ficava com 65px de branco em cima e 72 embaixo — uma faixa que o feed real
+     nunca tem, porque lá a foto define a altura do post. Medido a 390×844.
+     ⚠ 0,8 e 1,91 são os limites REAIS do Instagram (4:5 em pé, 1.91:1 deitado). Peça fora
+     disso ganha a caixa do limite e sobra dentro dela — o app corta, e nós não: cortar aqui
+     mostraria um enquadramento que o PNG baixado não tem.
+     Story e WhatsApp não entram: lá o slot é a tela inteira e a bolha, que têm regra própria. */
+  if(_postedCtx === 'feed'){
+    const cv = _postedArt.canvas;
+    const r = (cv.width && cv.height) ? (cv.width / cv.height) : 0;
+    holder.style.aspectRatio = r ? String(Math.min(1.91, Math.max(0.8, r))) : '';
+  }
+  /* O FUNDO DO STORY. A peça 9:16 não enche a tela do aparelho, e o Instagram preenche a
+     sobra com a própria mídia ampliada e desfocada — nunca com preto.
+     ⚠ 40px de largura de propósito: o desfoque vai comer o detalhe de qualquer jeito, então
+     desenhar em tamanho grande seria pagar caro por pixel que ninguém vê. A ampliação do CSS
+     (de 40px para ~370) já é metade do borrão; o `filter:blur` só alisa o que sobrou.
+     ⚠ `drawImage` de um canvas que já existe, sem `toDataURL`: reaproveita o render, não
+     recodifica a imagem. */
+  const fundo = (scope||document).querySelector('.pst-story-fundo');
+  if(fundo){
+    try{
+      const src = _postedArt.canvas;
+      let mini = fundo.querySelector('canvas');
+      if(!mini){ mini = document.createElement('canvas'); fundo.appendChild(mini); }
+      const L = 40;
+      mini.width = L;
+      mini.height = Math.max(1, Math.round(L * (src.height/src.width) || L));
+      mini.getContext('2d').drawImage(src, 0, 0, mini.width, mini.height);
+    }catch(e){ /* fundo é acabamento: se falhar, fica o preto de antes */ }
+  }
 }
 // Monta o celular inteiro. Só na ABERTURA — trocar de ambiente não passa por aqui, senão o
 // chassi subiria com mola a cada swipe (ver _fPostedSwapScreen).
@@ -395,19 +647,285 @@ function fPostedContextForFormat(fmt){
    proporção, então ele acompanha os dois casos. O que nunca acontece é uma arte de feed
    aparecer como Stories, ou vice-versa. */
 function _fPostedContextsFor(principal){
+  /* ⛔ O AMBIENTE "Arte" SAIU (Ryan, 11/09/2026). Ele nasceu nesta mesma data para mostrar a
+     peça sem chassi — "é o arquivo que o Baixar PNG entrega" — e na prática não servia a
+     ninguém: quem abre o "Como vai ficar" quer ver a arte NUM LUGAR, e a peça limpa já está
+     no palco durante a criação inteira e na miniatura da entrega. Era uma aba para repetir
+     o que a tela ao lado já mostra.
+     Ficam os três ambientes que respondem a uma pergunta de verdade: onde isso vai ser
+     publicado. */
   if(principal === 'story') return [{id:'story',label:'Stories'},{id:'whatsapp',label:'WhatsApp'}];
   if(principal === 'feed')  return [{id:'feed',label:'Feed'},{id:'whatsapp',label:'WhatsApp'}];
   return [];
 }
 
 /* O botão só existe quando há ambiente honesto para esta arte. Chamado a cada repintura da
-   prévia (é lá que o material e o formato podem ter mudado). */
+   prévia (é lá que o material e o formato podem ter mudado).
+   ⛔ E NUNCA DENTRO DO SHEETS (Ryan, 11/09/2026). Quando o lote toma o painel emprestado
+   (`_fBulkTomarPrevia`), o que está ali não é UMA arte terminada: é a linha ativa de uma
+   planilha que ainda está sendo preenchida, e que vai virar dezenas de PNGs num ZIP. Um
+   mockup de Feed/Stories ali responde uma pergunta que ninguém fez — "como esta linha vai
+   ficar publicada?" — quando o Sheets nem publica: ele entrega arquivo.
+   ⚠ A guarda é o `_fBulkDonoDaPrevia` (png-generator.js), a MESMA bandeira que o
+   `fSaveChatDraft` usa para não gravar dado da planilha no rascunho do chat. Uma bandeira
+   só para "de quem é o painel agora". */
 function _fLpSyncVerComoFica(){
   const btn = document.querySelector('.lp-posted-btn');
   if(!btn) return;
-  const tem = !!(fState.material && fState.material.layers && fState.material.layers.length
-                 && fPostedContextForFormat(null));
+  const noSheets = (typeof _fBulkDonoDaPrevia !== 'undefined') && _fBulkDonoDaPrevia;
+  const tem = !noSheets
+              && !!(fState.material && fState.material.layers && fState.material.layers.length
+                    && fPostedContextForFormat(null));
   btn.hidden = !tem;
+}
+
+/* ══ A CONCLUSÃO ACONTECE DENTRO DO PALCO ══════════════════════════════════════════════════
+   A arte DESCE e sai por baixo; o contexto SOBE e ocupa o lugar dela. Os dois se cruzam
+   dentro do `.lp-stage`, que vira uma janela mascarada (`overflow:hidden`). O layout da
+   página não se mexe: a mesma região que dizia "Prévia ao vivo" passa a dizer "Como vai
+   ficar", e isso é a própria mensagem — a arte saiu da produção e entrou no uso.
+
+   ⛔ NÃO É CROSSFADE. O `opacity` acompanha, mas quem conta a história é o `translateY`:
+   sem deslocamento não existe "a arte saiu e o contexto entrou", existe "a imagem trocou".
+
+   ⛔ NÃO HÁ SEGUNDO RENDERIZADOR. O canvas que sobe dentro do celular é o MESMO objeto que
+   o `_fPostedRenderArt` produz com o `fRenderTemplateLayers` — o contexto só o enquadra.
+
+   ⚠ UMA VEZ POR CONCLUSÃO. A guarda é o `_fProntaCtxAberto` (chat.js), porque o
+   `fUpdateProg` roda em resize, em troca de legenda e a cada repintura do estado. Aqui
+   dentro, o `_lpConclusaoAtiva` protege de reentrada enquanto a animação corre.
+
+   ⚠ RESTAURAÇÃO: abrir uma arte já concluída entra no estado final DIRETO, sem coreografia
+   (`_fLpMostrarConclusao(false)`), porque a animação narra um acontecimento — e ali nada
+   acabou de acontecer. */
+
+let _lpConclusaoAtiva = false;
+/* Qual entrega o palco está mostrando. Sem isto ele pintava a PRIMEIRA conclusão e ficava
+   nela: concluir de novo (Editar arte → corrigir → Concluir alterações) cria um card novo,
+   mas o `_fProntaCtxAberto` — certíssimo — impede a coreografia de tocar outra vez, e junto
+   com ela não acontecia repintura nenhuma. Medido: painel com a arte e a legenda novas,
+   celular ao lado com as antigas. */
+let _lpCardPintado = null;
+
+/* O palco precisa de um lugar para o contexto morar. Criado sob demanda, uma vez. */
+function _fLpSlotContexto(){
+  const stage = document.querySelector('#f-live-preview .lp-stage');
+  if(!stage) return null;
+  let slot = document.getElementById('lp-contextos');
+  if(!slot){
+    slot = document.createElement('div');
+    slot.id = 'lp-contextos';
+    slot.setAttribute('role','group');
+    slot.setAttribute('aria-label','Visualização da arte pronta no contexto de uso');
+    stage.appendChild(slot);
+  }
+  return slot;
+}
+
+/* Pinta o ambiente atual DENTRO do palco. É o mesmo `_fPostedScreenHTML` do modal — os dois
+   usos compartilham chassi, regra de ambiente e canvas. O que muda é a caixa. */
+function _fLpPintarContexto(){
+  const slot = _fLpSlotContexto();
+  if(!slot || !_postedArt) return;
+  slot.innerHTML = `<div class="lp-ctx-phone pst-phone pst-ctx-${_postedCtx}">`
+    + `<div class="pst-island"></div>`
+    + `<div class="pst-screen">${_fPostedScreenHTML()}</div>`
+    + `</div>`;
+  _fPostedMountArt(slot);
+}
+
+/* As abas do palco. Mesma lista de ambientes do modal (`_fPostedContextsFor`). */
+function _fLpPintarAbas(){
+  const seg = document.getElementById('lp-ctx-seg');
+  if(!seg) return;
+  const ctxs = _fPostedContextsFor(fPostedContextForFormat(null));
+  seg.innerHTML = ctxs.map(c=>`<button type="button" class="pst-seg-btn${c.id===_postedCtx?' active':''}" data-ctx="${c.id}" role="radio" aria-checked="${c.id===_postedCtx}" onclick="fLpTrocarContexto('${c.id}')">${gEsc(c.label)}</button>`).join('');
+}
+
+/* Troca de ambiente JÁ no estado final: é troca de visualização, não uma nova conclusão —
+   por isso não repete a coreografia (o pedido é explícito nisso). */
+function fLpTrocarContexto(ctx){
+  if(ctx === _postedCtx) return;
+  _postedCtx = ctx;
+  _fLpPintarAbas();
+  const slot = document.getElementById('lp-contextos');
+  if(slot) slot.classList.add('lp-ctx-trocando');
+  _fLpPintarContexto();
+  if(slot) setTimeout(()=>slot.classList.remove('lp-ctx-trocando'), 260);
+}
+
+/* ── A ENTRADA ────────────────────────────────────────────────────────────────────────────
+   `anima=false` entra direto no estado final (restauração de arte já concluída). */
+async function _fLpMostrarConclusao(anima){
+  const stage = document.querySelector('#f-live-preview .lp-stage');
+  if(!stage) return;
+  const principal = (typeof fPostedContextForFormat==='function') ? fPostedContextForFormat(null) : null;
+  /* Sem ambiente honesto para esta geometria (uma faixa 1200×200, por exemplo), não há o que
+     mostrar — e inventar um chassi que não corresponde a nada seria pior que não mostrar.
+     O palco fica como está; o painel do lado já diz que a arte está pronta. */
+  if(!principal) return;
+
+  /* O contexto escolhido é memória de UI, não estado da arte. Ao concluir de novo depois de
+     uma correção, a pessoa volta para o mesmo ambiente que estava conferindo. Só cai no
+     principal quando o formato mudou e aquele ambiente deixou de ser compatível. */
+  const contextos = _fPostedContextsFor(principal);
+  if(!contextos.some(c=>c.id===_postedCtx)) _postedCtx = principal;
+  if(!_postedArt){
+    try{ _postedArt = await _fPostedRenderArt(); }
+    catch(e){ console.warn('[conclusao] erro ao renderizar a arte:', e); }
+  }
+  if(!_postedArt) return;
+
+  _fLpPintarAbas();
+  _fLpPintarContexto();
+  const _card = _fPostedCardAtual();
+  _lpCardPintado = _card ? _card.getAttribute('data-canvas-id') : null;
+  /* ⚠ A legenda da IA chega DEPOIS (é async) e o contexto já estaria pintado sem ela. Uma
+     segunda passada curta pega o caso — o `fPostedRepintaLegenda` é barato (troca texto, não
+     re-renderiza a arte) e não faz nada quando o ambiente não é o Feed. */
+  setTimeout(()=>{ try{ fPostedRepintaLegenda(); }catch(e){} }, 1200);
+  document.body.classList.add('f-palco-conclusao');
+  if(!anima){ document.body.classList.add('f-palco-assentado'); return; }
+
+  /* O `f-completando` é o estado da COREOGRAFIA (a arte descendo, o contexto subindo); o
+     `f-palco-assentado` é o repouso. Separados porque o CSS precisa saber a diferença entre
+     "está acontecendo" e "aconteceu" — e porque o resize durante o repouso não pode
+     reanimar nada. */
+  document.body.classList.add('f-completando');
+  void stage.offsetWidth;                      // garante que o browser veja o estado inicial
+  requestAnimationFrame(()=>{
+    document.body.classList.add('f-palco-assentado');
+    setTimeout(()=>document.body.classList.remove('f-completando'), 900);
+  });
+}
+
+/* CHEGOU UMA ENTREGA NOVA COM O PALCO JÁ MONTADO. Repinta a arte e o contexto no lugar,
+   SEM coreografia — o movimento narra "a arte saiu da produção e entrou no uso", e isso já
+   aconteceu; tocá-lo de novo por uma correção de preço seria cerimônia repetida.
+   ⚠ A guarda é o id do card: sem ela cada chamada renderizaria a arte outra vez.
+   ⚠ Re-renderiza a arte de propósito — quem volta para editar costuma mudar justamente o que
+   está DESENHADO na peça, e repintar só a legenda deixaria o preço velho dentro do celular. */
+async function _fLpSincronizarConclusao(){
+  if(!_lpConclusaoAtiva) return;
+  const card = _fPostedCardAtual();
+  const id = card ? card.getAttribute('data-canvas-id') : null;
+  if(!id || id === _lpCardPintado) return;
+  _lpCardPintado = id;
+  try{ _postedArt = await _fPostedRenderArt(); }
+  catch(e){ console.warn('[conclusao] erro ao repintar a arte:', e); return; }
+  if(!_postedArt) return;
+  _fLpPintarContexto();
+}
+
+/* ══ O SHEETS TOMA O PAINEL EMPRESTADO ═══════════════════════════════════════════════════
+   Abrir o lote com a arte JÁ CONCLUÍDA levava o palco de conclusão junto: o Sheets ganhava o
+   celular, as abas Feed/WhatsApp/Arte e a barra de zoom sumida (`f-palco-conclusao` a
+   esconde). Ou seja, o mockup entrava no Sheets por uma segunda porta — a mesma coisa que o
+   `_fLpSyncVerComoFica` já barra no botão. Ali dentro não há UMA arte pronta: há a linha
+   ativa de uma planilha.
+   ⚠ A volta NÃO reanima. `_fLpMostrarConclusao(false)` porque nada acabou de acontecer — a
+   pessoa só fechou o lote e reencontra a arte onde deixou. A coreografia narra um
+   acontecimento; repeti-la aqui seria cerimônia sem fato. */
+function _fLpSuspenderConclusao(){
+  if(!_lpConclusaoAtiva) return;
+  _lpConclusaoAtiva = false;
+  _fLpLimparConclusao();
+}
+function _fLpRetomarConclusao(){
+  if(_lpConclusaoAtiva || !fState.done) return;
+  _lpConclusaoAtiva = true;
+  _fLpMostrarConclusao(false);
+}
+
+function _fLpEntrarEmConclusao(){
+  if(_lpConclusaoAtiva) return;
+  _lpConclusaoAtiva = true;
+  /* `_postedArt` velho é a arte ANTERIOR: some para o render novo entrar. */
+  _postedArt = null;
+  const reduz = window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches;
+  _fLpMostrarConclusao(!reduz);
+}
+
+/* A volta é operacional, então usa os degraus `fast + micro` dos tokens: 260ms para cada
+   objeto, com 140ms de defasagem na arte = 400ms no total. O contexto sai PARA CIMA e a arte
+   limpa entra DE BAIXO — não é a conclusão tocada ao contrário. Motion em JS lê os mesmos
+   tokens do CSS; nenhum tempo ou easing nasce aqui. */
+let _lpConclusaoSaindo = null;
+function _fLpMotionMs(token){
+  const raw=getComputedStyle(document.documentElement).getPropertyValue(token).trim();
+  const n=parseFloat(raw)||0;
+  return /ms$/i.test(raw)?n:/s$/i.test(raw)?n*1000:n;
+}
+function _fLpMotionEase(token){
+  return getComputedStyle(document.documentElement).getPropertyValue(token).trim()||'linear';
+}
+function _fLpLimparConclusao(){
+  _lpCardPintado = null;
+  document.body.classList.remove('f-completando','f-palco-conclusao','f-palco-assentado');
+  const slot = document.getElementById('lp-contextos');
+  if(slot){ slot.innerHTML=''; slot.style.pointerEvents=''; }
+  _postedArt = null;
+}
+
+/* Devolve uma Promise para o chat só trocar o painel DEPOIS que a bancada reapareceu. Outros
+   chamadores antigos podem continuar ignorando o retorno: o cleanup acontece do mesmo jeito. */
+function _fLpSairDaConclusao(){
+  if(_lpConclusaoSaindo) return _lpConclusaoSaindo;
+  _lpConclusaoAtiva = false;
+
+  const reduz=window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const stage=document.querySelector('#f-live-preview .lp-stage');
+  const palcoVisivel=!!(stage&&stage.offsetParent!==null);
+  const podeAnimar=!reduz&&typeof Element!=='undefined'&&Element.prototype.animate;
+  if(!document.body.classList.contains('f-palco-conclusao')||!podeAnimar){
+    _fLpLimparConclusao();
+    return Promise.resolve();
+  }
+
+  const durBase=_fLpMotionMs('--dur-base');
+  const durMicro=_fLpMotionMs('--dur-micro');
+  const durFast=_fLpMotionMs('--dur-fast');
+  const easeIn=_fLpMotionEase('--ease-in');
+  const easeOut=_fLpMotionEase('--ease-out');
+  const animacoes=[];
+  const slot=document.getElementById('lp-contextos');
+  const wrap=document.querySelector('#f-live-preview .lp-canvas-wrap');
+  const barra=document.querySelector('#f-live-preview .lp-ctx-bar');
+  const painel=document.querySelector('#f-messages>.msg:not(.art-superada):has(.art-wrap)');
+
+  /* No celular ainda não há palco de contextos: ali só o painel final sai rápido e a arte já
+     permanece no topo. No desktop, os dois objetos contam a transição espacial completa. */
+  if(palcoVisivel&&slot){
+    slot.style.pointerEvents='none';
+    animacoes.push(slot.animate(
+      [{transform:'translateY(0)'},{transform:'translateY(-112%)'}],
+      {duration:durBase,easing:easeIn,fill:'both'}
+    ));
+  }
+  if(palcoVisivel&&wrap){
+    animacoes.push(wrap.animate(
+      [{translate:'0 118%',opacity:0},{translate:'0 0',opacity:1}],
+      {duration:durBase,delay:durMicro,easing:easeOut,fill:'both'}
+    ));
+  }
+  if(palcoVisivel&&barra){
+    animacoes.push(barra.animate(
+      [{opacity:1,transform:'translateY(0)'},{opacity:0,transform:'translateY(-6px)'}],
+      {duration:durFast,easing:easeIn,fill:'both'}
+    ));
+  }
+  if(painel){
+    animacoes.push(painel.animate(
+      [{opacity:1,transform:'translateY(0)'},{opacity:0,transform:'translateY(-6px)'}],
+      {duration:durFast,easing:easeIn,fill:'both'}
+    ));
+  }
+
+  _lpConclusaoSaindo=Promise.all(animacoes.map(a=>a.finished.catch(()=>{}))).then(()=>{
+    _fLpLimparConclusao();
+    animacoes.forEach(a=>{ try{ a.cancel(); }catch(e){} });
+  }).finally(()=>{ _lpConclusaoSaindo=null; });
+  return _lpConclusaoSaindo;
 }
 
 async function fOpenPosted(){
@@ -1328,19 +1846,22 @@ function _fLpAbrirGaveta(){
    1. **NÃO é um segundo renderizador** — mesma lei da miniatura acima: `drawImage` do
       `#lp-canvas`, cópia de pixels do motor único. Se um dia a arte divergir da prova em tela
       cheia, o bug está no motor, nunca aqui.
-   2. **O cartão é o ÚLTIMO item flex, por `order`, não por posição no DOM.** As bolhas entram
-      por `msgs.appendChild(...)` em ~6 lugares do `chat.js`; qualquer uma delas cairia depois
-      do cartão. `order:1` (contra o `0` implícito das bolhas) resolve sem que nenhum desses
-      chamadores precise saber que o cartão existe. O CSS dá a ele `flex:1 1 auto`: ele ABSORVE
-      a sobra e ENCOLHE até o piso quando as bolhas crescem — sem uma linha de conta de altura. */
+   2. **O cartão NÃO mora mais dentro do `#f-messages` (2026-09-11).** Ele era o último item
+      flex da conversa, por `order:1`, e isso o fazia depender da altura das bolhas: o painel
+      crescia, a arte encolhia. Com a arte virando protagonista da tela, ela sobe para irmã
+      DIRETA do `#f-chat-col`, entre o cabeçalho e o painel — sua própria região, com
+      `flex:1 1 auto` contra o painel, que tem altura de conteúdo.
+      ⚠ O PREÇO DISSO: o `innerHTML=''` do `fStartChatComMaterial` deixou de apagá-lo. Sem
+      isso o cartão mostraria a arte ANTERIOR no intervalo entre trocar de material e o
+      render novo terminar (ele é async). Quem apaga agora é o próprio `fStartChatComMaterial`,
+      explicitamente — e o cartão se recria aqui no primeiro render bom. */
 function _fLpPaintCartao(src){
   if(!window.matchMedia || !matchMedia('(max-width:680px)').matches) return;
-  const msgs = document.getElementById('f-messages');
-  if(!msgs) return;
+  const col = document.getElementById('f-chat-col');
+  const sheet = document.getElementById('f-sheet');
+  if(!col || !sheet) return;
   let card = document.getElementById('f-chat-art');
   if(!card){
-    // `fStartChatComMaterial` faz `innerHTML=''` a cada arte nova, então o cartão se recria
-    // sozinho aqui em vez de depender de alguém lembrar de repô-lo.
     card = document.createElement('button');
     card.id = 'f-chat-art';
     card.type = 'button';
@@ -1356,7 +1877,9 @@ function _fLpPaintCartao(src){
       _fLpAbrirGaveta();
     });
   }
-  if(card.parentElement !== msgs) msgs.appendChild(card);
+  // Antes do painel e depois do cabeçalho — a posição no DOM É a ordem visual agora
+  // (o `order:1` que resolvia isso pelo CSS saiu junto com a mudança de caixa).
+  if(card.nextElementSibling !== sheet) col.insertBefore(card, sheet);
   const cv = card.querySelector('canvas');
   /* ⚠ O JS NÃO MEDE A CAIXA. Minha primeira versão media o cartão e cravava
      `cv.style.width/height` em pixels — e isso REALIMENTAVA o layout: a altura fixa do canvas
@@ -1579,6 +2102,10 @@ function _fLpCommit(v,val,opts){
   if(mv===''||mv==null) delete fState.dados[v]; else fState.dados[v]=mv;
   try{ if(typeof fSaveChatDraft==='function') fSaveChatDraft(); }catch(e){}
   _fLpRender();
+  /* A MESMA VERDADE NOS DOIS LUGARES. No modo revisão a lista de campos está na tela ao lado
+     desta arte; sem este aviso, mudar o preço clicando na peça deixava a linha "Preço" com o
+     valor velho a 200px de distância. `fRevisaoRepinta` não faz nada fora da revisão. */
+  try{ if(typeof fRevisaoRepinta==='function') fRevisaoRepinta(); }catch(e){}
   if(antes!==undefined && String(antes)!==String(mv==null?'':mv) && typeof _fUndoRegistra==='function'){
     const rot=(typeof _fLpLabel==='function')?_fLpLabel(v):'campo';
     _fUndoRegistra('Edição de '+String(rot).toLowerCase(), ()=>{

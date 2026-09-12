@@ -440,7 +440,8 @@ function _fFitSync(box, id, cfg, len){
   let btn=document.getElementById('f-fit-btn');
   const tipoTexto = cfg.type==='text' || cfg.type==='code';
   const cabe = len>=cfg.maxLen && _fFitAttempt(box,id).length>cfg.maxLen;
-  const podeIA = typeof gAskAI==='function' && typeof gAiReady==='function' && gAiReady();
+  const podeIA = (typeof window.gAI==='object' && gAI.isReady('copy.fit'))
+    || (typeof gAskAI==='function' && typeof gAiReady==='function' && gAiReady());
   if(!(tipoTexto && cabe && podeIA)){
     if(btn) btn.remove();
     wrap.classList.remove('has-fit');
@@ -474,30 +475,26 @@ async function fFitTextWithAI(){
   _fFitBusy=true; _fFitClosePop();
   if(btn){ btn.classList.add('is-loading'); btn.disabled=true; }
 
-  const camp=(fState.camp&&fState.camp.name)||'Delivery Much';
-  const prompt=`Você encurta textos de peças de marketing do Delivery Much (delivery no interior do Brasil).
-
-TEXTO ORIGINAL (campo "${cfg.label}" da campanha "${camp}"):
-"${original}"
-
-TAREFA: reescreva em no máximo ${cfg.maxLen} caracteres, contando espaços.
-
-REGRAS:
-1. Cada opção precisa ter NO MÁXIMO ${cfg.maxLen} caracteres. Conte antes de responder.
-2. Não perca a informação principal (o produto/oferta que o texto anuncia).
-3. Não invente informação que não está no original.
-4. Sem emoji. Sem ponto final solto no fim. Português do Brasil.
-5. 3 opções DIFERENTES entre si: uma abreviando palavras longas, uma cortando o que é acessório, uma reescrevendo mais curto.
-
-Responda APENAS JSON: {"opcoes":["...","...","..."]}`;
-
-  // try/finally: gAskAI trata os proprios erros de rede, mas qualquer excecao antes dela
-  // (gImgHash na chave de cache, por exemplo) rejeitava esta funcao com _fFitBusy=true e
-  // o botao disabled -- o spinner 'Pensando...' girava pra sempre e travava o Avancar.
-  let texto=null, parsed=null;
+  let brutas = [];
   try{
-    texto=await gAskAI('encurtar', prompt, {json:true});
-    parsed=texto && (typeof gAiParseJson==='function'?gAiParseJson(texto):null);
+    if(typeof window.gAI==='object' && gAI.isReady('copy.fit')){
+      const res = await gAI.run('copy.fit', {
+        original: original,
+        maxLen: cfg.maxLen,
+        fieldName: cfg.label
+      });
+      if(res.ok && res.data && Array.isArray(res.data.suggestions)){
+        brutas = res.data.suggestions.map(s => s.text);
+      }
+    }
+    // Fallback legado se gAI não trouxe opções
+    if(!brutas.length && typeof gAskAI==='function' && gAiReady()){
+      const camp=(fState.camp&&fState.camp.name)||'Delivery Much';
+      const prompt=`Reescreva em no máximo ${cfg.maxLen} caracteres: "${original}". Responda apenas JSON: {"opcoes":["...","..."]}`;
+      const txt = await gAskAI('encurtar', prompt, {json:true});
+      const parsed = txt && (typeof gAiParseJson==='function'?gAiParseJson(txt):null);
+      if(parsed && Array.isArray(parsed.opcoes)) brutas = parsed.opcoes;
+    }
   }catch(e){
     console.warn('[Luma] encurtar falhou:', e);
   }finally{
@@ -505,15 +502,14 @@ Responda APENAS JSON: {"opcoes":["...","...","..."]}`;
     _fFitBusy=false;
   }
 
-  // Validação no CÓDIGO: modelo erra contagem de caractere com frequência.
-  const brutas=(parsed&&Array.isArray(parsed.opcoes))?parsed.opcoes:[];
+  // Validação no CÓDIGO (§31, §33): medição do Luma decide o que cabe
   _fFitOpts=brutas
     .map(s=>String(s||'').replace(/[\r\n\t]/g,' ').replace(/\s+/g,' ').trim())
     .filter(s=>s && s.length<=cfg.maxLen)
     .filter((s,i,arr)=>arr.indexOf(s)===i)
     .slice(0,3);
   if(!_fFitOpts.length){
-    gToast(parsed?'Não consegui encurtar sem perder o sentido — ajuste na mão':'A IA não respondeu agora — tente de novo','error');
+    gToast('Não conseguimos encurtar sem perder informação importante — ajuste manualmente','warning');
     return;
   }
   const wrap=document.getElementById('f-input-wrap'); if(!wrap) return;
@@ -566,7 +562,13 @@ function fSaveAdv(val){
     fState.editIdx=null;
     const confirmMsg = document.getElementById('confirm-msg');
     if (confirmMsg) confirmMsg.remove();
-    fTyping(()=>fGerarArte());
+    /* ⚠ Era `fGerarArte()` direto aqui. Agora quem decide é o `fPosEdicao` (chat.js): na
+       criação ele conclui a arte, como sempre; na REVISÃO (depois de "Editar arte") ele
+       devolve a lista de campos, porque quem corrige o preço costuma corrigir a descrição
+       também — e re-concluir a cada campo tocaria a coreografia inteira no meio do trabalho.
+       O `typeof` é a rede para o caso de o chat.js não ter carregado: sem ele, um erro aqui
+       deixaria a resposta salva e o fluxo parado. */
+    fTyping(()=> (typeof fPosEdicao==='function' ? fPosEdicao() : fGerarArte()));
   }
   else{fTyping(()=>fNextStep());}
 }

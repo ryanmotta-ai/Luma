@@ -42,7 +42,11 @@ function gToast(msg, type, helpTopic, opts){
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'g-toast-acao';
-    btn.textContent = acao.rotulo;
+    if (acao.icon === 'undo' || acao.rotulo === 'Desfazer') {
+      btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg><span>${gEsc(acao.rotulo)}</span>`;
+    } else {
+      btn.textContent = acao.rotulo;
+    }
     btn.onclick = () => {
       item.remove();                             // some antes de agir: a ação já é a resposta
       try { acao.onClick(); } catch(e){ console.warn('[Luma] ação do toast falhou:', e); }
