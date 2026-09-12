@@ -21,6 +21,25 @@ window.LUMA_GEMINI_API_KEY = window.LUMA_GEMINI_API_KEY || 'AQ.Ab8RN6K57nnQafJs2
 // Modelo dos 2 agentes, em UM lugar só. 'gemini-3.6-flash' é estável e não sofre da oscilação de alta demanda do 3.8.
 window.LUMA_GEMINI_MODEL = window.LUMA_GEMINI_MODEL || 'gemini-3.6-flash';
 
+/* ── CAMADA DE INTELIGÊNCIA (GEMINI INTELLIGENCE LAYER) ──
+   Modelos centralizados (§6) e Feature Flags individuais (§14). */
+window.AI_MODELS = window.AI_MODELS || {
+  fast: 'gemini-3.6-flash',
+  vision: 'gemini-3.6-flash',
+  reasoning: 'gemini-3.6-flash',
+  embedding: 'text-embedding-004'
+};
+window.AI_FEATURES = window.AI_FEATURES || {
+  semanticSearch: true,
+  caption: true,
+  copyFit: true,
+  contentReview: true,
+  imageValidation: true,
+  psdMapping: true,
+  materialEnrichment: true,
+  stressCases: true
+};
+
 /* ── CAMPANHAS ──
    `cover`  = a arte 5:3 da vitrine (assets/covers/) — já existia.
    `banner` = a arte LARGA (~5.5:1) que identifica a campanha à distância
