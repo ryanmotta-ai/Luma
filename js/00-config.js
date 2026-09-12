@@ -808,6 +808,177 @@ function gFieldInfer(opts){
   };
 }
 
+/* ══ SIGNIFICADO EM CONJUNTO — a passada relacional sobre as camadas do Luma ══════════════
+   `gFieldInfer` olha UMA camada. Há evidência que só existe entre elas, e é justamente a que
+   resolve o caso mais comum do delivery:
+
+     DE R$ 49,90        ← preço original
+     POR R$ 29,90       ← preço promocional
+
+   Camada por camada, os dois são "um texto com formato de preço" e param na faixa de revisão
+   — duas perguntas para o designer numa arte onde a resposta está escrita na própria arte. O
+   par é que carrega o sinal.
+
+   ⛔ Isto NÃO é um segundo resolvedor: cada camada continua passando por `gFieldInfer`, e
+   esta função só REVISA o conjunto com quatro regras nomeadas. Sem sinal discriminante, ela
+   não decide — devolve a ambiguidade que o `gFieldInfer` já tinha, e o designer responde uma
+   pergunta em vez de nenhuma resposta errada.
+   ⛔ Trabalha sobre a camada CANÔNICA do Luma (`{id,type,name,content,fontSize,…}`), não
+   sobre o item do PSD: o vínculo tem de acontecer na representação que o Estúdio edita.
+   ⛔ Estado TRANSITÓRIO. Devolve um parecer; quem grava é `dLayerBindField`/`imgVar`.
+
+   @param {Array} layers  camadas canônicas (dLayers ou o resultado de dPsdItemsToLayers)
+   @param {object} opts   {fields, artboard:{w,h}, pistas:{[layerId]:{fotoColocada}}}
+                          `pistas` é o canal para o que só o PSD sabe (§2): metadado do
+                          Photoshop entra como EVIDÊNCIA, sem o sistema de Campos passar a
+                          depender de objeto cru do ag-psd.
+   @returns {Array} [{layer, field, confidence, source, reason, alternatives, rule}] */
+const _G_PRECO_DE=/^\s*(?:de|antes|era|de\s*apenas)\b/i;
+const _G_PRECO_POR=/^\s*(?:por|agora|apenas|s[óo])\b/i;
+const _G_PRECO_RE=/(?:r\$|\$)\s*\d[\d.,]*/i;
+function gFieldInferBatch(layers, opts){
+  opts=opts||{};
+  const fields=Array.isArray(opts.fields)?opts.fields
+    :((typeof dVars!=='undefined'&&Array.isArray(dVars))?dVars:[]);
+  const ab=opts.artboard||null;
+  const lista=(layers||[]).filter(l=>l&&(l.type==='text'||l.type==='image'||l.type==='frame'));
+  const out=lista.map(l=>{
+    const isImg=(l.type==='image'||l.type==='frame');
+    const area=ab?Math.max(1,(l.w||0)*(l.h||0))/Math.max(1,(ab.w||1)*(ab.h||1)):0;
+    const inf=(typeof gFieldInfer==='function')?gFieldInfer({
+      layerName:l.name||'', content:isImg?'':(l.content||''),
+      target:isImg?'imagem':'text', fields:fields, areaRatio:area,
+      isBackground:area>=.7||/^(fundo|background|bg|base)$/i.test(String(l.name||'').trim())
+    }):null;
+    return {layer:l, field:(inf&&inf.field)||null, confidence:(inf&&inf.confidence)||'low',
+      source:(inf&&inf.source)||'none', reason:(inf&&inf.reason)||'', alternatives:(inf&&inf.alternatives)||[],
+      rule:''};
+  });
+  const _acha=(nome,target)=>fields.find(f=>f&&f.name===nome&&((target==='imagem')?f.type==='image':f.type!=='image'))
+    ||((typeof gFieldCanonicalDefinition==='function')?gFieldCanonicalDefinition(nome,target||'text'):null);
+  const _marca=(r,nome,conf,motivo,regra)=>{
+    const f=_acha(nome,'text'); if(!f) return;
+    r.field=f; r.confidence=conf; r.source='context'; r.reason=motivo; r.rule=regra; r.alternatives=[];
+  };
+
+  /* REGRA 1 e 2 — PREÇO. O caso mais comum do delivery e o que camada-por-camada não
+     resolve: dois textos com "R$" são, isoladamente, "um texto com formato de preço".
+     ⛔ NUNCA sobrescreve uma decisão de alta confiança (a convenção `@preco_original` do
+     Photoshop, por exemplo). Ela é usada como ÂNCORA: se um dos dois já está resolvido, o
+     outro é o complemento — que é mais informação, não menos.
+     A evidência tem uma ordem, da mais autoral para a mais frágil:
+       1. a palavra que o designer escreveu ("DE"/"ANTES" · "POR"/"AGORA")
+       2. o risco no texto (tachado)
+       3. o complemento de um preço já resolvido
+       4. o corpo da fonte — numa promoção o preço que vale é o que está em destaque
+     Sem nenhuma delas, os dois ficam AMBÍGUOS com as duas leituras à mão: adivinhar aqui
+     troca o valor que o franqueado vê na arte publicada. */
+  const precos=out.filter(r=>r.layer.type==='text'&&_G_PRECO_RE.test(String(r.layer.content||'')));
+  if(precos.length===1||precos.length===2){
+    const txt=r=>String(r.layer.content||'');
+    const corpo=r=>+r.layer.fontSize||0;
+    const resolvido=(r,nome)=>r&&r.confidence==='high'&&r.field&&r.field.name===nome;
+    let de=precos.find(r=>resolvido(r,'precoDe'))||null;
+    let por=precos.find(r=>resolvido(r,'precoPor'))||null;
+    const livre=r=>r&&r.confidence!=='high'&&r!==de&&r!==por;
+    let evid='';
+    if(!de){ de=precos.find(r=>livre(r)&&_G_PRECO_DE.test(txt(r)))||null; if(de) evid='a palavra que o designer escreveu ("de"/"antes")'; }
+    if(!por){ por=precos.find(r=>livre(r)&&_G_PRECO_POR.test(txt(r)))||null; if(por&&!evid) evid='a palavra que o designer escreveu ("por"/"agora")'; }
+    if(!de){ de=precos.find(r=>livre(r)&&r.layer.strikethrough)||null; if(de) evid='o texto tachado'; }
+    if(precos.length===2){
+      // Complemento: um lado resolvido define o outro.
+      if(de&&!por){ por=precos.find(r=>livre(r))||null; if(por&&!evid) evid='o outro preço do par'; }
+      else if(por&&!de){ de=precos.find(r=>livre(r))||null; if(de&&!evid) evid='o outro preço do par'; }
+      // Último recurso: o destaque tipográfico, e só com diferença de corpo relevante.
+      if(!de&&!por){
+        const ord=precos.slice().sort((a,b)=>corpo(b)-corpo(a));
+        const maior=corpo(ord[0]), menor=corpo(ord[1]);
+        if(maior>0&&menor>0&&(maior-menor)/maior>=0.15){ por=ord[0]; de=ord[1]; evid='o preço em destaque'; }
+      }
+      if(de&&por&&de!==por&&evid){
+        if(de.confidence!=='high') _marca(de,'precoDe','high','É o valor anterior do par de preços — '+evid,'par-de-precos');
+        if(por.confidence!=='high') _marca(por,'precoPor','high','É o valor que vale no par de preços — '+evid,'par-de-precos');
+      } else {
+        /* Dois preços sem nenhum discriminante: a pergunta fica com as DUAS leituras à mão,
+           em vez de duas perguntas idênticas propondo o mesmo campo. */
+        precos.filter(r=>r.confidence!=='high').forEach(r=>{
+          _marca(r,'precoPor','medium','Dois preços na arte e nada diz qual é qual','preco-ambiguo');
+          const outro=_acha('precoDe','text'); if(outro) r.alternatives=[outro];
+        });
+      }
+    } else if(precos.length===1){
+      /* Preço SOZINHO é o preço que vale. Não é palpite: "preço original" só existe em
+         relação a outro preço — um valor único numa peça de oferta é o de venda. */
+      const r=precos[0];
+      if(r.confidence!=='high'){
+        if(_G_PRECO_DE.test(txt(r))||r.layer.strikethrough)
+          _marca(r,'precoDe','high','Texto marcado como valor anterior','preco-unico');
+        else
+          _marca(r,'precoPor','high','Único preço da arte — é o valor de venda','preco-unico');
+      }
+    }
+  }
+
+  /* REGRA 3 — data com contexto de validade. "30/09" sozinho pode ser qualquer data; com
+     "válido até" ao lado (no próprio texto ou no nome da camada) é validade. */
+  out.forEach(r=>{
+    if(r.layer.type!=='text') return;
+    const t=String(r.layer.content||''), n=String(r.layer.name||'');
+    if(!/(?:^|\s)\d{1,2}[\/-]\d{1,2}(?:[\/-]\d{2,4})?(?:\s|$)/.test(t)) return;
+    if(!/(v[áa]lid|at[ée]|vencim|promo[çc]|expira)/i.test(t+' '+n)) return;
+    if(r.confidence==='high') return;
+    _marca(r,'validade','high','Data com contexto de validade no próprio texto','data-validade');
+  });
+
+  /* REGRA 4 — o mesmo campo em duas camadas com textos DIFERENTES. Repetir um campo é
+     legítimo (o nome do produto aparecendo duas vezes mostra o mesmo valor), mas quando os
+     textos autorados divergem eles não podem ser o mesmo valor — no máximo um está certo.
+     A de menor evidência volta para a faixa de revisão em vez de as duas serem aplicadas. */
+  /* REGRA 5 — a FOTO principal. Geometria sozinha não distingue foto de produto de um
+     grafismo decorativo, então a decisão automática exige a pista que o Photoshop dá: um
+     objeto inteligente com foto colocada reta (o `smart_object_substituivel` que o
+     importador já classifica) é, por construção, conteúdo substituível. Sem essa pista, a
+     imagem única e de área útil vira UMA PERGUNTA — e várias candidatas não viram nada,
+     porque errar aqui faz o franqueado receber um pedido de foto para um grafismo (§80:
+     arte correta com menos automação é melhor que automação errada). */
+  const pistas=opts.pistas||{};
+  const fotos=out.filter(r=>{
+    if(r.layer.type!=='image'&&r.layer.type!=='frame') return false;
+    if(r.confidence==='high') return false;
+    if(!ab) return false;
+    const a=Math.max(1,(r.layer.w||0)*(r.layer.h||0))/Math.max(1,(ab.w||1)*(ab.h||1));
+    return a>=0.08 && a<=0.68;
+  });
+  const comPista=fotos.filter(r=>(pistas[r.layer.id]||{}).fotoColocada);
+  const alvo=comPista.length?comPista:(fotos.length===1?fotos:[]);
+  if(alvo.length){
+    const maior=alvo.slice().sort((a,b)=>((b.layer.w||0)*(b.layer.h||0))-((a.layer.w||0)*(a.layer.h||0)))[0];
+    const f=_acha('foto_produto','imagem');
+    if(f){
+      maior.field=f; maior.source='context'; maior.alternatives=[]; maior.rule='foto-principal';
+      if(comPista.length){ maior.confidence='high'; maior.reason='Objeto inteligente com foto colocada reta — conteúdo substituível'; }
+      else { maior.confidence='medium'; maior.reason='É a única imagem de área útil da arte'; }
+    }
+  }
+
+  const porCampo=new Map();
+  out.forEach(r=>{ if(r.field&&r.confidence==='high'){ const k=r.field.name;
+    if(!porCampo.has(k)) porCampo.set(k,[]); porCampo.get(k).push(r); } });
+  const peso={context:3, explicit:3, catalog:2, 'semantic-name':2, content:1, visual:1, none:0};
+  porCampo.forEach(rs=>{
+    if(rs.length<2) return;
+    const textos=new Set(rs.map(r=>String(r.layer.content||'').trim().toLowerCase()));
+    if(textos.size<2) return;   // mesmo texto: repetição legítima do mesmo valor
+    rs.sort((a,b)=>(peso[b.source]||0)-(peso[a.source]||0));
+    rs.slice(1).forEach(r=>{
+      r.confidence='medium';
+      r.reason='Outra camada da arte tem evidência mais forte para este campo';
+      r.rule='campo-repetido';
+    });
+  });
+  return out.filter(r=>r.field&&r.confidence!=='low');
+}
+
 /* ══ RÓTULO DO CAMPO — o motor ÚNICO que decide como um campo se chama para quem lê ══════
    ⛔ NOME TÉCNICO NUNCA APARECE PARA O FRANQUEADO. O teste de usabilidade pegou o chat
    perguntando por `precoPor` e por `foto_produto`: identificador de variável virando copy.
