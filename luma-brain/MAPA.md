@@ -254,15 +254,15 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 74 arquivos JS (61.001 linhas, 2.397 funções) · 31 arquivos CSS (28.238 linhas) · `index.html` com 3.813 linhas e 75 `<script>`.
+**Tamanho real de hoje:** 74 arquivos JS (61.879 linhas, 2.424 funções) · 31 arquivos CSS (28.353 linhas) · `index.html` com 3.823 linhas e 75 `<script>`.
 
 ## JS — o que cada arquivo é
 
 ### js (raiz)
 
-**`js/00-config.js`** · 3321 linhas
+**`js/00-config.js`** · 3492 linhas
 Constantes globais imutaveis: HIST_KEY, CAMPS_ATIVAS, CAMPS_OUTRAS, FMTS. Deve ser carregado PRIMEIRO (todos os modulos dependem destas constantes).
-· API: gVarRegex, gValidVarName, gXmlEsc, gRoundPolyD, gRoundPolyPath2D, gVectorPathFillRule, gVectorPathValid, gTraceVectorPath, gVectorPathD, gFxOffset, gFxRgba, gGradStopsCss, gGradientCss, gGradientCanvas … (+48; 93 funções no total)
+· API: gVarRegex, gValidVarName, gXmlEsc, gRoundPolyD, gRoundPolyPath2D, gVectorPathFillRule, gVectorPathValid, gTraceVectorPath, gVectorPathD, gFxOffset, gFxRgba, gGradStopsCss, gGradientCss, gGradientCanvas … (+49; 94 funções no total)
 · Estado global: _G_MEDIDA_CACHE, gLayoutVivoOff, _gCanvasWrap
 
 **`js/01-state.js`** · 11 linhas
@@ -446,7 +446,7 @@ Sistema de pincel/borracha/carimbo: dPaintStart, dPaintMove, dPaintEnd, dStampAt
 · Estado global: dStampSource, dStampOffset, dGradStart, dBrush, dStampAligned, _dSharpenC1, _dSharpenC2, dNitidezLast, _dNitidezHinted, dFormaLast (+7)
 · Depende de: designer/canvas.js
 
-**`js/designer/canvas.js`** · 2521 linhas
+**`js/designer/canvas.js`** · 2534 linhas
 Render do canvas, zoom, pan, formato, réguas, barra contextual, smart guides, simulacao de dados e interacoes de mouse.
 · API: dSetFormat, dApplyFormat, dFitToScreen, dPositionArtboard, dZoom, dSetZoom, dSampleImg, dSetPhTest, dEscolherFotoDaMoldura, dRenderWorkspace, dABAddResizeHandles, dABToolAttach, dUpdateBrushCursor, dSetTool … (+58; 84 funções no total)
 · Estado global: dPhTestAR, dMarquee, dDrawShapeState, dABDraw, dLastClickLayerId, dLastClickTime, dPainting, dPaintLast, dSnapEnabled, dSimValues (+11)
@@ -465,10 +465,10 @@ Fontes customizadas enviadas pelo usuário (.ttf/.otf/.woff/.woff2).
 · Estado global: dCustomFonts
 · Depende de: 00-config.js, core/toast.js, designer/canvas.js (dRenderCanvas).
 
-**`js/designer/layers.js`** · 4499 linhas
+**`js/designer/layers.js`** · 4630 linhas
 CRUD de layers, painel lateral, props, multi-select, rename: dSelLayer, dDeselect, dRenderLayersList, dShowProps, dAddText, dAddShape, dToggleMultiSel, dRenameLayer, dAddIcon, dAddLine.
-· API: dSelLayer, dHoverLayer, dSelLayerState, dDeselect, dStartCrop, dStopCrop, dOnCropDrag, dStopCropDrag, dStartDrag, dOnDrag, dStopDrag, dStartResize, dOnResize, dStopResize … (+202; 265 funções no total)
-· Estado global: dDragEls, dPendingIsolate, dDragMoved, dCropState, dDragCrop, dResizeEl, dResizePos, dResizeLyrX, dResizeLyrY, dResizeFs (+35)
+· API: dSelLayer, dHoverLayer, dSelLayerState, dDeselect, dStartCrop, dStopCrop, dOnCropDrag, dStopCropDrag, dStartDrag, dOnDrag, dStopDrag, dStartResize, dOnResize, dStopResize … (+206; 273 funções no total)
+· Estado global: dDragEls, dPendingIsolate, dDragMoved, dCropState, dDragCrop, dResizeEl, dResizePos, dResizeLyrX, dResizeLyrY, dResizeFs (+39)
 · Depende de: designer/canvas.js
 
 **`js/designer/library.js`** · 659 linhas
@@ -503,15 +503,15 @@ Accordion, sub-nav scroll, alignment button group para o painel de props.
 · API: dPropToggleSection, dPropSaveSections, dPropRestoreSections, dPropScrollTo, dPropSetAlign, dPropSyncAlign, dPropShowSections, dPropWorkspaceMode, dPropReadWorkspaceMode, dPropSetWorkspaceMode, dToggleChrome, dPropBuildWorkspaceMode, dPropBuildEssentialChrome, dPropBuildPanelNav … (+61; 75 funções no total)
 · Estado global: dChromeOff, dPropDataProblemsOnly, dPropDataShowInventory
 
-**`js/designer/psd-import.js`** · 1786 linhas
+**`js/designer/psd-import.js`** · 2209 linhas
 REVISÃO e IMPORTAÇÃO do .psd — a metade do importador que é tela.
-· API: dPsdOpenReview, dPsdDiagnostico, dPsdToggleAdvanced, dPsdRenderRows, dPsdSetMode, dPsdSetVar, dPsdSetInclude, dPsdSelectAll, dPsdSelectNone, dPsdUploadFont, dPsdUpdateCount, dPsdCancel, dPsdConfirmImport, dImportLayersAsArtboard … (+21; 86 funções no total)
-· Estado global: dPsdItems, _dPsdReviewAll, _dPsdAdjustCount, _dPsdLastHoverIdx, _dPsdPreviewTimer, _dPsdDragField, _dPsdArmedField, _dPsdDragPaint, _dPsdAiBusy, _dPsdBoards (+4)
+· API: dPsdOpenReview, dPsdDiagnostico, dPsdToggleAdvanced, dPsdRenderRows, dPsdSetMode, dPsdSetVar, dPsdSetInclude, dPsdSelectAll, dPsdSelectNone, dPsdUploadFont, dPsdUpdateCount, dPsdCancel, dPsdConfirmImport, dImportLayersAsArtboard … (+26; 102 funções no total)
+· Estado global: dPsdItems, _dPsdReviewAll, _dPsdAdjustCount, _dPsdLastHoverIdx, _dPsdPreviewTimer, _dPsdResult, _dPsdAtIdx, _dPsdAtCiente, nada, _dPsdAtFoco (+11)
 · Depende de: designer/templates.js, core/layout.js, core/toast.js, 00-config.js.
 
-**`js/designer/psd-parse.js`** · 2753 linhas
+**`js/designer/psd-parse.js`** · 2893 linhas
 LEITURA e FIDELIDADE do .psd — a metade do importador que não toca a tela.
-· API: dLoadAgPsd, dPsdCancelLoad, dPsdDetectFmt, dPsdTrace, dPsdCapReport, dPsdParseItems, dItemToLayer, dPsdItemsToLayers
+· API: dLoadAgPsd, dPsdCancelLoad, dPsdDetectFmt, dPsdTrace, dPsdImportResult, dPsdCapReport, dPsdParseItems, dItemToLayer, dPsdItemsToLayers
 · Estado global: _agPsdPromise, _dPsdGlobalLight, _dPsdYieldChan, _dPsdCancelled, _dPsdActiveWorker, _dPsdTraceOn, _dPsdErrorCount
 
 **`js/designer/publish.js`** · 1464 linhas
@@ -677,12 +677,12 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 | `css/modules/chat.css` | 2785 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
-| `css/modules/designer.css` | 5715 |
+| `css/modules/designer.css` | 5778 |
 | `css/modules/feedback.css` | 199 |
 | `css/modules/franqueado.css` | 1593 |
 | `css/modules/franqueado_effects.css` | 406 |
 | `css/modules/help-widget.css` | 1678 |
-| `css/modules/layers-panel.css` | 4479 |
+| `css/modules/layers-panel.css` | 4531 |
 | `css/modules/live-preview.css` | 930 |
 | `css/modules/panel-dock.css` | 116 |
 | `css/modules/publish-modal.css` | 628 |

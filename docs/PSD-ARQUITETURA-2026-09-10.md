@@ -902,3 +902,478 @@ rodada: exige um corpus real para saber quais combinações acontecem de fato.
    composta; consumi-la evitaria recompor por conta.
 3. **Grupo com blend sobre o que está fora dele** — o isolamento aproxima.
 4. **Pacote de referência** — continua sendo o gargalo de toda medição de fidelidade.
+
+---
+
+## 14. Rodada 5 (10/09) — consolidação: fidelidade como propriedade explícita
+
+As quatro rodadas anteriores construíram o *conhecimento*: o estágio de capacidade sabe como
+cada camada foi convertida, a cadeia de diagnóstico sabe em que etapa cada decisão nasceu, a
+tipografia tem matemática em vez de heurística e o grafo de dependências preserva as relações
+do Photoshop. Faltava a última pergunta, que é a única que o designer faz:
+
+> **Preciso fazer alguma coisa?**
+
+Esta rodada não descobre nada novo sobre PSD. Ela separa duas perguntas que estavam
+misturadas e paga o preço dessa mistura, que era concreto **nos dois sentidos**:
+
+| Situação | Antes | Custo |
+|---|---|---|
+| Textura decorativa em raster fiel | aparecia como aviso | trabalho inventado |
+| Headline com a fonte trocada | mesmo peso de um aviso de cetim | atenção diluída |
+
+`RASTER_FALLBACK` **não é problema** — é ferramenta de fidelidade: o pixel *é* o composto do
+Photoshop. Fonte ausente numa headline **é** problema, mesmo sendo `native`.
+
+### 14.1 Os dois eixos, declarados no mesmo lugar
+
+Cada um dos 40 motivos de `_DPSD_CAP_MOTIVOS` (psd-parse.js) declara agora, ao lado do nível
+de capacidade, os dois eixos que **não** se derivam um do outro:
+
+```js
+font_missing: {nivel:'native_lossy', etapa:'fonte', atencao:'review', visual:'aproximado', rotulo:'…'}
+smart_object: {nivel:'raster',       etapa:'decode', atencao:'info',   visual:'preservado', rotulo:'…'}
+text_warp:    {nivel:'raster',       etapa:'geometria', atencao:'review', visual:'preservado', rotulo:'…'}
+```
+
+- **`atencao`** : `ok` → `info` → `review` → `blocking`
+- **`visual`** : `preservado` → `aproximado` → `perdido`
+
+A terceira linha é a prova de que um eixo só não serve: `visual:'preservado'` com
+`atencao:'review'`. A arte está **igual** — a deformação está nos pixels, fiel. Mas aquela
+camada **deixou de poder ser um campo**, e é isso que o designer precisa saber.
+
+**Perda visual e perda de editabilidade são independentes.** O item de atenção carrega as duas
+separadas (`visual` e `editabilidade`), e a tela mostra as duas como fatos distintos:
+"Arte fiel · Entrou como imagem".
+
+Editabilidade tem **três** estados, não dois: `preservada`, `achatada` (virou pixel fiel — a
+arte está lá, a edição não) e `perdida` (não foi preservada **nem** como imagem). Chamar as
+duas últimas de "entrou como imagem" mentiria justamente no caso pior.
+
+### 14.2 Relevância estrutural — sem score, sem limiar mágico
+
+`_dPsdAtencao(it, ctx)` ajusta o nível declarado usando características **reais** da camada
+que já estão na mão. Não há nota de 0 a 100, não há peso arbitrário, e não há semântica de
+campo (isso é a fase seguinte):
+
+| Ajuste | Regra | Por quê |
+|---|---|---|
+| **Eleva** | camada já ligada a um campo (`mode:'var'`/`'frame'` + `varName`) | quem ligou o campo disse que aquilo varia — a adaptação vai aparecer em toda peça da campanha |
+| **Eleva** | texto no topo da escala tipográfica da arte | headline/preço: qualquer diferença é a primeira coisa que se vê |
+| **Reduz** | aviso de **fonte** em letra miúda de rodapé, sem campo | o desenho da letra difere, mas num regulamento de 3 linhas isso não exige a atenção de ninguém |
+
+A "escala tipográfica" é o conjunto ordenado dos corpos distintos **daquela prancheta** — a
+mesma ideia de degraus que o `gCompileLayoutRoles` usa. Vem calculada da própria lista de
+itens, então nenhum limiar absoluto em px foi inventado.
+
+⛔ **Só existe UMA redução, e ela é estreita e explícita.** Esconder é mais perigoso que
+mostrar: um aviso a mais é ruído, um aviso a menos é uma peça errada publicada.
+
+### 14.3 `dPsdImportResult` — a fonte única de verdade
+
+Produzida pelo **motor**, a partir do livro-caixa que já existe. Nenhum PSD é reprocessado e a
+tela não recalcula regra nenhuma — a engine produz o resultado **exista ou não tela**.
+
+```js
+dPsdImportResult(pranchetas, meta) → {
+  status: 'ok' | 'atencao' | 'bloqueado',
+  resumo: {camadas, native, lossy, raster, unsupported, preservadas},
+  pranchetas: [{nome, camadas, atencoes, revisao}],
+  atencoes: [{id, prancheta, pranchetaNome, itemN, camada, kind, caixa,
+              nivel, categoria, acao, titulo, explicacao,
+              visual, editabilidade, divergencia?, semCausa?, _code, _detalhe}],
+  precisaRevisao: Number   // só review + blocking contam
+}
+```
+
+Decisões que valem registrar:
+
+- **`pranchetas` é sempre um array**, inclusive no caso de prancheta única: a revisão
+  multi-prancheta e a de uma só leem a **mesma** estrutura. O índice do array *é* o campo
+  `prancheta` de cada atenção, então prancheta não analisada ou fora do import entra como
+  lista **vazia** em vez de sair do array — tirar desalinharia a navegação.
+- **Um item de atenção por CATEGORIA por camada**, não um por motivo. Uma camada com cetim,
+  contorno customizado e escala de efeito é **um** aviso de "efeito adaptado", não três.
+- **`_code`/`_detalhe` viajam com prefixo `_`**: são para a engenharia. Nenhuma string que vai
+  à tela menciona `raster`, `native_lossy` ou nome de código — há um teste que garante isso.
+- **Transitório por decisão.** Nada disto é persistido no template: o template guarda camadas,
+  não o diagnóstico de quem as importou. `_dPsdAtencaoReset()` limpa tudo no fechamento, nos
+  dois caminhos de saída (importar e cancelar).
+- **As contagens por prancheta saem da lista final**, não do laço — os itens de divergência
+  entram depois dele, e contar durante o laço deixaria a aba sem o que ela mesma tem.
+
+### 14.4 Divergência ligada a região, explicada por decisão conhecida
+
+A **medição** de pixels mora na tela (`_dPsdFidelity`, precisa de canvas e do composto do
+Photoshop). A **explicação** é do motor. A ponte é `meta.divergencias`:
+
+```js
+meta.divergencias = [{prancheta, itemN, pct, camada, kind}]
+```
+
+É **opcional**: sem ela o resultado sai completo do mesmo jeito. E a regra de fusão é o que
+importa:
+
+- **Divergência com causa conhecida NÃO abre aviso novo.** Ela vira o número *dentro* do aviso
+  que já existe naquela camada (`atencao.divergencia = 41`). Senão a mesma fonte trocada
+  apareceria duas vezes: uma como decisão tomada, outra como surpresa inexplicada.
+- **Divergência que nenhuma decisão explica ganha item próprio**, com `semCausa:true` e a
+  frase honesta: *"a comparação acusou diferença nesta região e nenhuma adaptação conhecida
+  explica isso"*. Ficar calado aqui seria o pior dos mundos — a arte está diferente e o motor
+  não sabe por quê; **dizer isso é mais honesto que não dizer nada**.
+
+⛔ **Não existe auto-correção.** Onde a divergência tem causa, a causa é o estágio responsável
+(fonte, geometria, capacidade) — e é lá que se corrige, não com um empurrão compensatório na
+geometria da camada.
+
+### 14.5 Revisão como exceção — a tela
+
+`#d-psd-atencao`, ao lado da arte (a atenção aberta realça a própria região na prévia).
+
+**Zero exceção = uma linha.** Sem cartão, sem moldura, sem botão:
+
+> ✓ **Nada exige sua atenção.** 24 camadas importadas · 4 adaptações registradas (o detalhe de
+> cada uma está em "Ver todas as camadas")
+
+Um passo obrigatório de revisão que sempre diz "está tudo bem" **treina o designer a clicar
+sem ler** — e aí ele passa reto no dia em que houver algo. Se está tudo certo, o importador
+sai do caminho.
+
+**Com exceção: uma por vez, numerada.** `‹ 2 de 3 ›`, título em PT-BR, explicação em uma
+frase, o endereço (`Feed · HEADLINE` no multi-prancheta), os dois eixos como selos e a **ação
+daquela categoria**:
+
+| `acao` | Botão | Categorias |
+|---|---|---|
+| `fonte` | **Enviar a fonte** (o mesmo input que já existia na linha) | fonte aproximada, trocada, ausente |
+| `ver` | **Ver na arte** / **Abrir a prancheta** | cor, recorte, tipografia, divergência, camada recuperada |
+| `ciente` | **Entendi** | texto que virou imagem, preservado como imagem, efeito adaptado, arte achatada |
+
+"Entendi" existe em tudo que **não** é bloqueante — sem saída, o painel volta a ser um passo
+obrigatório. No caso bloqueante a saída é **resolver**, e resolver é tirar a camada do import:
+o motor não conseguiu preservá-la nem como imagem, então importar significa levar um buraco.
+
+**O CTA não é travado por um caso bloqueante.** O painel fica vermelho e explícito, e a saída
+oferecida é real (desmarcar a camada) — mas travar o botão prenderia o designer numa tela por
+causa de uma camada que ele pode legitimamente aceitar. Alarme alto, porta destrancada.
+
+**Realce persistente** (`_dPsdAtFoco`): a região explicada fica marcada na arte enquanto a
+atenção está aberta. Implementado dentro de `dPsdHoverLayer` — o único lugar que desenha o
+realce — e não em cada um dos cinco `dPsdHoverLayer(-1)` espalhados pelo arquivo.
+
+**Multi-prancheta** (§32–33): a aba de cada prancheta carrega a própria conta de exceções
+(`_pr.revisao`, só `review`+`blocking`), porque antes de importar 14 pranchetas *"quais delas
+têm problema?"* é a pergunta, e a resposta tem que estar onde o designer já olha. Prancheta
+não analisada **não recebe zero** — receber zero diria "está limpa", e ninguém leu; ela diz
+`"N pranchetas serão analisadas quando você abrir a aba"`. Clicar numa atenção de outra
+prancheta abre a prancheta certa antes de realçar.
+
+### 14.6 Simplificação: os selos da lista passaram a ler o veredito
+
+Cada selo de perda da lista de camadas era um `if` sobre a flag crua do item — `it.fxSatin`,
+`it.gradientUnsupported`, `it.parseError`, `it.maskFallback`, `it.groupBlendApprox`,
+`it.vectorMaskFailed`. A **mesma** condição vivia duas vezes: uma no estágio de capacidade,
+que decide, e outra na tela, que desenha. Foi exatamente assim que nasceram as doze verdades
+paralelas de fidelidade da rodada 1 — e é assim que elas voltam, porque quem muda a regra num
+lugar não sabe do outro.
+
+Agora existe **uma tabela**, `_DPSD_SELOS`: código do livro-caixa → palavra na tela. O motor
+diz **quais** motivos a camada tem; a tabela diz apenas **como chamá-los** em PT-BR, e o
+`title` sai do `rotulo` do próprio motivo. Saldo:
+
+- **16 condições reescritas à mão saíram**: 11 no array `fxWarns` mais os 5 selos avulsos
+  (`errBadge`, `flatBadge`, `vecWarn`, `clipWarn`, `grpBlendBadge`).
+- A tabela cobre **30 códigos**, e **12 perdas que o motor conhecia e a lista não mostrava
+  passaram a aparecer**: `sem_representacao`, `rotated`, `text_warp`, `text_fx_unsupported`,
+  `pattern_fill`, `pattern_overlay`, `overlay_blend`, `gradient_ovl_blend`,
+  `fill_opacity_with_fx`, `text_box_approx`, `text_scale_nao_unif`, `text_size_estimado`.
+- Código sem entrada na tabela **não ganha selo** — é decisão de tela (fonte e ajuste têm selo
+  próprio, mais informativo, porque carregam o par pedido→usado e o tipo do ajuste).
+- Um teste garante que a tela não volta a decidir: item com `it.fxSatin` cru e **sem** livro-caixa
+  produz selo **vazio**.
+
+### 14.7 Diagnóstico de engenharia — inalterado, e é isso que se queria
+
+O `dPsdDiagnostico()` da rodada 1 já era a bancada: `console.table` da cadeia
+`decode → normalize → geometria → dependencia → capacidade → conversao` por camada, com
+`dPsdTrace(true)` antes de abrir o arquivo. Esta rodada **não mexeu nele**, e o resultado é a
+divisão certa: a engenharia lê códigos e etapas; o designer lê frases em PT-BR. Os dois saem
+do **mesmo** livro-caixa, então não podem discordar.
+
+### 14.8 O que foi verificado
+
+| Verificação | Resultado |
+|---|---|
+| `node scripts/run-browser-tests.js` | **292 casos verdes** (era 279) |
+| Suíte do importador | **57 casos** (era 44) |
+| Todo motivo tem categoria de atenção | teste — motivo órfão teria a atenção descartada em silêncio |
+| Nenhuma explicação vaza vocabulário do motor | teste sobre as 11 categorias |
+| Selo lê o veredito, não a flag crua | teste — flag sem livro-caixa produz selo vazio |
+| Painel nos 4 estados, tema claro e escuro | Chromium sobre o `index.html` real |
+| Multi-prancheta: aba com contagem, item de outra prancheta | Chromium — `Feed 2`, `Story` sem selo, `Wide` não analisada |
+
+### Limitações reais desta camada
+
+| Limitação | Por quê |
+|---|---|
+| Prancheta não visitada não tem análise | o parse é sob demanda por desenho (um PSD de 14 pranchetas parseadas de uma vez retém GB). O painel **declara** isso em vez de assumir que está limpa |
+| Divergência sem causa não aponta culpado | o motor não sabe; inventar um seria pior. A tela pede a comparação manual |
+| A relevância não conhece semântica de campo | isso é a fase seguinte (Smart Mapping). Hoje só usa vínculo já feito e escala tipográfica |
+| `_dPsdAtCiente` não sobrevive à sessão | é diagnóstico transitório por decisão, não estado do template |
+
+### Próximas fragilidades desta camada
+
+1. **Relevância por papel semântico** — quando o Smart Mapping souber que uma camada é
+   "preço", a atenção sobre ela muda de peso sem precisar de escala tipográfica.
+2. **Divergência por região, não por caixa de camada** — hoje a culpa é atribuída à camada
+   mais ao topo cuja caixa contém o pixel; uma divergência dentro de um grupo grande herda o
+   nome do grupo.
+3. **Capacidade por subárvore** — continua sendo a fronteira da rodada 4.
+4. **Pacote de referência** — continua sendo o gargalo de toda medição de fidelidade.
+
+---
+
+## 15. Rodada 6 (10/09) — a ponte: PSD Import → Smart Mapping → Campos
+
+As cinco rodadas anteriores fizeram o importador responder **"como esta arte existe?"** com
+honestidade. Esta rodada liga esse resultado à pergunta seguinte, que é de outra natureza:
+
+> **o que este conteúdo significa?**
+
+O que o designer não devia mais fazer é o trabalho mecânico de dizer, camada por camada, que
+o texto "R$ 29,90" é o preço promocional. Ele já tomou centenas de decisões visuais no
+Photoshop; importar não pode virar uma segunda tarefa chamada "configurar o Luma".
+
+### 15.1 Responsabilidades, e por que elas não voltam a se misturar
+
+```
+PSD IMPORT      "como esta arte existe?"      psd-parse.js
+     ↓
+FIDELITY        "conseguimos preservar?"      psd-parse.js  (§6, §14)
+     ↓
+SMART MAPPING   "o que isto significa?"       00-config.js  (gFieldInfer + gFieldInferBatch)
+     ↓
+CAMPOS          "o que o franqueado muda?"    layers.js     (dVars, dLayerBindField)
+     ↓
+LAYOUT CONTRACT "até onde isso varia?"        (próxima camada — NÃO tocada aqui)
+```
+
+A fronteira que importa: **a análise semântica roda sobre a camada CANÔNICA do Luma**, nunca
+sobre o item do PSD. A ponte converte com `dItemToLayer` — o mesmo motor do import — e entrega
+as camadas ao `gFieldInferBatch`. A prova de que não há acoplamento é que a **mesma** função
+roda no Estúdio (`dFieldsSugestoes`, em `layers.js`), onde não existe PSD nenhum.
+
+O PSD ainda tem informação que só ele tem, e ela entra como **evidência**, não como
+dependência: `opts.pistas[layerId]` carrega, hoje, um único sinal — objeto inteligente com
+foto colocada reta (o `smart_object_substituivel` que a rodada 4 já classificava).
+
+### 15.2 A cadeia de decisão, e a autoridade que a limita
+
+| # | Fonte | Confiança |
+|---|---|---|
+| 1 | decisão explícita do designer (`varSource:'user'`) | **intocável** |
+| 2 | memória de importação aprovada (`_memoryApplied`) | **intocável** |
+| 3 | convenção no Photoshop (`{{campo}}` / `@campo`) | alta |
+| 4 | nome semântico da camada | alta / média |
+| 5 | conteúdo da camada (`R$ 29,90`, `30/09`) | média |
+| 6 | **contexto entre camadas** (novo nesta rodada) | alta |
+| 7 | campos existentes compatíveis | eleva a evidência |
+| 8 | IA (`dPsdMapWithAI`, só quando o designer aperta) | proposta, nunca vínculo |
+
+A IA continua sendo a **última** camada e continua opcional: o pipeline determinístico não a
+consulta, então sem serviço de IA a experiência degrada para as regras — não quebra.
+
+### 15.3 `gFieldInferBatch` — a evidência que só existe entre camadas
+
+`gFieldInfer` (que já existia e não foi reescrito) olha **uma** camada. O caso mais comum do
+delivery não se resolve assim:
+
+```
+DE R$ 49,90     ← isoladamente: "um texto com formato de preço"
+POR R$ 29,90    ← isoladamente: "um texto com formato de preço"
+```
+
+Duas perguntas ao designer numa arte onde a resposta está escrita na própria arte. A passada
+relacional adiciona **cinco regras nomeadas** — e nada mais:
+
+| Regra | O que decide | Evidência exigida |
+|---|---|---|
+| `par-de-precos` | `precoDe` × `precoPor` | a palavra do designer ("DE"/"POR"), o texto tachado, o complemento de um preço já resolvido, ou ≥15% de diferença de corpo |
+| `preco-unico` | `precoPor` | um valor único numa peça de oferta **é** o de venda: "preço original" só existe em relação a outro preço |
+| `preco-ambiguo` | pergunta com as duas leituras | dois preços e **nenhum** discriminante |
+| `data-validade` | `validade` | data **mais** contexto ("válido até", "promoção") no texto ou no nome |
+| `foto-principal` | `foto_produto` | a pista do Photoshop → alta; imagem única de área útil → **pergunta**; várias candidatas → nada |
+| `campo-repetido` | rebaixa a mais fraca | mesmo campo em duas camadas com textos **diferentes** |
+
+⛔ **Nenhuma regra sobrescreve uma decisão de alta confiança.** O bug que isso trava, e que
+existiu enquanto a regra foi escrita: `@preco_original` num corpo grande com
+`@preco_promocional` num corpo pequeno fazia o "destaque tipográfico" **trocar os dois
+campos** — a convenção explícita do designer perdendo para uma heurística. Agora um lado já
+resolvido serve de **âncora** para deduzir o outro, que é mais informação, não menos.
+
+### 15.4 Zero estrutura paralela
+
+Não existe `smartFields`, `psdVariables` nem `aiBindings`. Uma decisão de alta confiança é
+gravada exatamente onde um clique do designer gravaria:
+
+```js
+it.varName = 'precoPor';   it.mode = 'var';    // ← o par que dItemToLayer já converte
+```
+
+`dItemToLayer` transforma isso em `{{precoPor}}` (ou `imgVar`), e `_dPsdSyncVarsFromLayers` já
+cria o campo no catálogo. **Nenhum caminho novo de persistência.**
+
+Uma ambiguidade fica como **sugestão pendente** — `it.varName` sem `mode` de vínculo — que é
+o estado que `_dPsdPendingSug` já conhecia desde antes. Responder a pergunta chama
+`dPsdAcceptCandidate`, o mesmo caminho do seletor de campo da linha; "manter fixo" chama
+`dPsdUnbindField`, que já marcava `_fixedByUser`.
+
+O estado transitório (`confidence`, `source`, `reason`, `alternatives`) vive em
+`it._fieldInference` durante a preparação e **morre com o modal**. O template guarda campos,
+não o parecer de quem os ligou.
+
+### 15.5 Revisão unificada — uma tela, dois engines
+
+`_dPsdPend()` concatena duas listas que **continuam separadas**:
+
+- `_dPsdAtPend()` → fidelidade, do `dPsdImportResult` (rodada 5)
+- `_dPsdSemPend()` → semântica, **derivada** dos itens pendentes
+
+A ordem é a da degradação (§81): bloqueante → fidelidade → semântica. A arte antes do
+significado.
+
+E cada item mantém **o nome da própria categoria** no lugar de "2 problemas encontrados":
+
+```
+2 itens precisam da sua atenção
+┌────────────────────────────── 1 de 2 ─┐   ┌────────────────────────── 2 de 2 ─┐
+│ ⚠ TIPOGRAFIA                          │   │ ⚠ CONTEÚDO                        │
+│ A fonte do Photoshop não está         │   │ “COMBO FAMÍLIA” é qual conteúdo?  │
+│ disponível                            │   │                                   │
+│ [Arte aproximada] [Continua editável] │   │ [Produto] [Headline] [Manter fixo]│
+│ [Enviar a fonte] [Entendi]            │   │                                   │
+└───────────────────────────────────────┘   └───────────────────────────────────┘
+     moldura laranja: algo está errado          moldura neutra: falta uma resposta
+```
+
+Três decisões de separação que o código faz cumprir:
+
+1. **Os selos de eixo (`Arte fiel` · `Entrou como imagem`) não aparecem na pergunta
+   semântica.** Eles descrevem **conversão**; misturá-los num "isto é Produto ou Headline?"
+   seria usar um único número de confiança para duas coisas de naturezas diferentes.
+2. **"Entendi" não existe na pergunta semântica.** Ali a saída é **responder** — usar um campo
+   ou manter fixo. Um "Entendi" deixaria a pergunta sem resposta e fora da fila.
+3. **A moldura da pergunta é neutra.** Nada está errado; o Luma só precisa de uma resposta.
+
+**Resolver semântica não muda fidelidade** (§24 do briefing): `dPsdAcceptCandidate` grava
+`varName`/`mode` e nada mais — não move, não redimensiona, não readapta a camada.
+
+### 15.6 Campos da Arte — o modelo mental mudou
+
+A aba era um **banco de variáveis**: abria numa parede de cartões com busca, chips e
+categorias, respondendo "quais campos o Luma conhece?". A pergunta de quem acabou de importar
+uma arte é muito mais estreita.
+
+**Nível 1 (§33/§34)** — o que a primeira visão diz quando não há nada a resolver:
+
+```
+✓ 5 campos configurados
+✓ Nenhum conflito
+[ 👁 Mostrar campos na arte ]   Ver todos os campos
+```
+
+E quando há, a ação vem **antes** do inventário:
+
+```
+1 ITEM PRECISA DA SUA AJUDA
+“COMBO FAMÍLIA” é qual conteúdo?
+[ Produto ] [ Headline ] [ Manter fixo ]
+Ver na arte
+```
+
+**Nível 2** é o inventário que já existia (`dFieldsRender`, com busca, chips, categorias,
+detalhe, ordem de preenchimento), agora atrás de "Ver todos os campos". Nada foi removido —
+saiu do caminho principal.
+
+**`dFieldsSugestoes()`** é a mesma passada relacional, agora sobre `dLayers`, e com cache pela
+assinatura dos vínculos (§64): trocar zoom, mover camada ou editar cor não invalida nada;
+ligar ou desligar um campo invalida.
+
+### 15.7 Mostrar campos na arte (§41)
+
+O contrato de editabilidade, visível: cada camada ligada recebe o rótulo do campo por cima.
+
+```
+[Produto]
+COMBO FAMÍLIA
+[Preço promocional]
+R$ 29,90
+[Foto do produto]
+▨▨▨▨▨              SÓ HOJE  ← fixo, sem selo
+```
+
+Desenhado por um `::before` de CSS sob `body.d-show-fields`, o que **garante** que ele nunca
+sai na arte: o gerador de PNG e o export SVG são motores separados que leem `dLayers`, não o
+DOM do Estúdio. A camada **selecionada** mostra o selo mesmo com o modo desligado (§40) —
+olhar uma camada e saber se ela é fixa ou editável não pode exigir outro clique.
+
+### 15.8 Simplificação: morreu o segundo resolvedor de significado
+
+`_dPsdSuggestVar` era um resolvedor **paralelo** ao `gFieldInfer`: um mapa fixo de ~40
+sinônimos, uma lista de campos "conhecidos", um casamento com o catálogo (`_dPsdCatalogMatch`)
+e uma heurística de "tem R$ no texto, então é preço" — as mesmas regras, escritas duas vezes,
+e a daqui decidindo com `confidence:'high'` por conta própria. Duas fontes de sinônimos são
+duas verdades; §53 do briefing pede uma.
+
+Agora é um **adaptador de 12 linhas** sobre `gFieldInfer`, e sem sinal suficiente devolve
+`null` — diferente do antigo `return {name:clean||'variavel'}`, que inventava um campo a
+partir do nome da camada. Saldo: **−100 linhas** em `psd-parse.js`, um vocabulário só
+(`G_FIELD_CONCEPTS`).
+
+O comentário que registrava a decisão de 03/09 ("o import não adivinha mais qual campo é a
+camada") foi **reescrito, não apagado**: ele estava certo sobre o problema da época e agora
+diz o que mudou no mecanismo — palpites paralelos mortos, alta confiança com barra real,
+texto autorado preservado como exemplo, e nenhuma decisão escondida.
+
+### 15.9 O que foi verificado
+
+| Verificação | Resultado |
+|---|---|
+| `node scripts/run-browser-tests.js` | **308 casos verdes** (era 292) |
+| Suíte do importador | **73 casos** (era 57) |
+| PSD bem preparado (`@campo` ×5) | 5/5 automáticos, todos `explicit` — nenhuma pergunta |
+| PSD normal (sem convenção) | 3 automáticos (par de preços + validade), 2 perguntas |
+| PSD bagunçado (`Layer 42`, `Copy 8`) | fidelidade intacta, menos semântica — nada errado aplicado |
+| Convenção não é sobrescrita pelo contexto | teste — era um bug real enquanto a regra foi escrita |
+| Revisão unificada, dois tipos | Chromium — TIPOGRAFIA (1 de 2) → CONTEÚDO (2 de 2) → resolvida |
+| Campos da Arte, os dois estados | Chromium — pergunta no topo, resumo calmo depois de um clique |
+| Overlay "Mostrar campos na arte" | Chromium — selo só nas ligadas, e só no DOM do Estúdio |
+
+### Limitações reais desta camada
+
+| Limitação | Por quê |
+|---|---|
+| Conceitos fora de `G_FIELD_CONCEPTS` não são reconhecidos | "Sabor", "Brinde", "Bairros" existem em `G_FIELD_LABELS` mas não como conceito com aliases. Ampliar é uma linha por conceito, mas é decisão de vocabulário — não de engenharia |
+| Imagem sem pista do Photoshop nunca é automática | geometria não distingue foto de produto de grafismo decorativo, e errar faz o franqueado receber pedido de foto para um grafismo |
+| A relação entre camadas é de conteúdo, não de composição | proximidade, alinhamento e agrupamento **não** são usados: seria um segundo Auto-layout |
+| `l.fieldFixo` viaja no template | é uma decisão do designer sobre aquela camada, então é permanente por definição — não é estado de análise |
+| Memória de importação é por nome de camada, local ao navegador | `localStorage`, como antes; nada foi movido para o backend |
+
+### Próxima fronteira — o que ficou preparado
+
+A cadeia `Layer → Campo → Rules` está limpa e **vazia do lado das regras**, que é onde o
+Layout Contract entra:
+
+```
+Produto                    ← esta rodada entrega até aqui
+  ↓ máx. 2 linhas
+  ↓ fonte mínima X         ← próxima camada conceitual
+  ↓ empurra o preço
+```
+
+Nada de `maxLines`, `fontMin`, `push` ou `anchors` foi definido aqui, e o painel de Campos
+não ganhou nenhum controle desse tipo — de propósito. O que existe e serve de base: o campo
+canônico com tipo, o exemplo autorado (`v.example`, gravado no vínculo), o baseline de layout
+(`gStampLayoutBaseline`, que já roda em todo vínculo) e o papel semântico compilado
+(`gCompileLayoutRoles`, recompilado a cada vínculo).
