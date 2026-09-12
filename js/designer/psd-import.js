@@ -149,10 +149,15 @@ function _dPsdApplyBoardToUI(){
   _dPsdLastHoverIdx=-1;
   _dPsdReviewAll=false;
   _dPsdMemApply(dPsdItems);
+  /* SMART MAPPING — entra DEPOIS da memória de propósito: memória é decisão aprovada e a
+     inferência não a discute (§6). Idempotente por `it._smartDone`, então trocar de aba de
+     prancheta não reprocessa nem reabre ambiguidade já respondida. */
+  if(typeof dPsdSmartMap==='function') dPsdSmartMap(dPsdItems, dPsdMeta);
   dPsdRenderRows();
 }
 function dPsdOpenReview(){
   const modal=document.getElementById('d-psd-modal'); if(!modal) return;
+  _dPsdAtencaoReset();   // arquivo novo, diagnóstico novo: nada de "Entendi" herdado
   // Campo de busca (injetado dinamicamente, acima de #d-psd-rows)
   const rowsEl=document.getElementById('d-psd-rows');
   if(rowsEl&&!document.getElementById('d-psd-search')){
@@ -225,6 +230,66 @@ function dPsdToggleAdvanced(){
 }
 // Converte blend mode do ag-psd (camelCase) → CSS (kebab-case); 'normal'→'' (sem propriedade)
 function _dPsdBlendModeCSS(bm){ return bm?bm.replace(/([A-Z])/g,c=>'-'+c.toLowerCase()):''; }
+/* SELOS DA LISTA — a tela lê o veredito, não recalcula a condição
+   ------------------------------------------------------------------------------------------
+   Cada selo de perda desta lista era um `if` sobre a flag crua do item (`it.fxSatin`,
+   `it.gradientUnsupported`, `it.parseError`, `it.maskFallback`, …). A MESMA condição vivia
+   duas vezes: uma no estágio de capacidade, que decide, e outra aqui, que desenha. Foi assim
+   que nasceram as verdades paralelas de fidelidade — e é assim que elas voltam, porque quem
+   muda a regra num lugar não sabe do outro.
+   Agora existe uma tabela: código do livro-caixa → palavra na tela. O motor diz QUAIS motivos
+   a camada tem; esta tabela diz apenas como chamá-los em PT-BR. Código sem entrada aqui não
+   ganha selo — é decisão de tela (ex.: fonte e ajuste têm selo próprio, mais informativo).
+   O `title` sai do `rotulo` do próprio motivo, então a explicação técnica também tem uma
+   única origem. `quando` é para o punhado de selos que dependem do MODO escolhido agora. */
+const _DPSD_SELOS={
+  parse_recovered:      {txt:'Camada recuperada'},
+  flattened_document:   {txt:'Arte achatada'},
+  sem_representacao:    {txt:'Não foi preservada'},
+  rotated:              {txt:'Rotacionada → imagem fiel'},
+  flipped:              {txt:'Espelhada → imagem fiel'},
+  text_on_path:         {txt:'Texto em curva → imagem fiel'},
+  text_warp:            {txt:'Texto deformado → imagem fiel'},
+  text_fx_unsupported:  {txt:'Efeito interno em texto → imagem fiel'},
+  pattern_fill:         {txt:'Padrão → imagem fiel'},
+  pattern_overlay:      {txt:'Sobreposição de padrão → imagem fiel'},
+  overlay_blend:        {txt:'Sobreposição com mesclagem → imagem fiel'},
+  gradient_ovl_blend:   {txt:'Gradiente com mesclagem → imagem fiel'},
+  gradient_style:       {txt:m=>'Gradiente '+(m.detalhe||'')+' → imagem fiel'},
+  fx_stack_non_shape:   {txt:'Pilha de efeitos → imagem fiel'},
+  fill_opacity_with_fx: {txt:'Opacidade de preenchimento com efeito → imagem fiel'},
+  fx_satin:             {txt:'Cetim não aplicado'},
+  fx_contour:           {txt:'Contorno de efeito ignorado'},
+  fx_scale:             {txt:m=>'Efeitos a '+(m.detalhe||'')},
+  stroke_approx:        {txt:'Traço aproximado (cor sólida)'},
+  gradient_ovl_approx:  {txt:m=>'Sobreposição '+(m.detalhe||'')+' aproximada'},
+  fx_stack_blend:       {txt:'Mesclagem da pilha aproximada'},
+  group_blend_flat:     {txt:'Mesclagem de grupo aproximada'},
+  blend_dropped:        {txt:m=>'Mesclagem sem equivalente ('+(m.detalhe||'')+') → Normal'},
+  text_justify_all:     {txt:'Justificado total → última linha não estica'},
+  text_box_approx:      {txt:'Caixa de parágrafo aproximada'},
+  text_scale_nao_unif:  {txt:m=>'Letra deformada num eixo'+(m.detalhe?(' · '+m.detalhe):'')},
+  text_size_estimado:   {txt:'Corpo estimado pela caixa'},
+  vector_mask_failed:   {txt:'Máscara simplificada'},
+  clip_base_fallback:   {txt:'Recorte simplificado'},
+  // Depende do MODO escolhido AGORA (imagem fiel perde o efeito; forma o renderiza), então a
+  // condição não pode ser congelada no parse — é relida a cada render da lista.
+  fx_only_native:       {txt:m=>'Em imagem fiel não sai: '+(m.detalhe||'efeito de camada'),
+                         quando:it=>typeof _dPsdCapPerdeFx==='function'&&_dPsdCapPerdeFx(it)}
+};
+// Os selos de perda de UMA camada, na ordem em que os estágios os registraram.
+function _dPsdSelos(it){
+  const ms=(it&&it.capability&&it.capability.motivos)||[];
+  return ms.map(m=>{
+    const s=_DPSD_SELOS[m.code]; if(!s) return '';
+    if(s.quando && !s.quando(it)) return '';
+    const txt=(typeof s.txt==='function')?s.txt(m,it):s.txt;
+    if(!txt) return '';
+    const def=(typeof _DPSD_CAP_MOTIVOS!=='undefined'&&_DPSD_CAP_MOTIVOS[m.code])||{};
+    return '<span class="psd-fontwarn" title="'+_dPsdEsc(def.rotulo||'')
+      +(m.detalhe?(' — '+_dPsdEsc(m.detalhe)):'')+'">'+_dPsdEsc(txt)+'</span>';
+  }).join('');
+}
 function dPsdRenderRows(filter){
   const wrap=document.getElementById('d-psd-rows'); if(!wrap) return;
   const search=document.getElementById('d-psd-search');
@@ -333,36 +398,7 @@ function dPsdRenderRows(filter){
       ?`<span class="psd-fontok" title="Esta camada é recortada pela camada “${_dPsdEsc(it.clipBaseName||'')}”, que continua visível e define o alpha. A relação foi preservada.">Recortada por “${_dPsdEsc(String(it.clipBaseName||'').slice(0,22))}”</span>`
       :(it.clipRole==='base'&&it.clipChainSize
         ?`<span class="psd-fontok" title="Esta camada define o recorte de ${it.clipChainSize} camada(s) acima dela. Mudar a geometria dela muda o recorte das outras.">Base de recorte · ${it.clipChainSize}</span>`:'');
-    const fxWarns=[
-      it.fxSatin?'Cetim não aplicado':'',
-      it.fxContour?'Contorno de efeito ignorado':'',
-      it.fxScale?('Efeitos a '+it.fxScale+'%'):'',
-      it.strokeApprox?'Traço aproximado (cor sólida)':'',
-      it.gradientUnsupported?('Gradiente '+(it.gradientUnsupported==='angle'?'cônico':'losango')+' → imagem fiel'):'',
-      it.gradientOverlayApprox?('Sobreposição '+(it.gradientOverlayApprox==='angle'?'cônica':'losango')+' aproximada'):'',
-      it.layerEffectsApprox?'Mesclagem da pilha aproximada':'',
-      (it.layerEffects&&it.kind!=='shape')?'Pilha de efeitos → imagem fiel':'',
-      it.textOnPath?'Texto em curva → imagem fiel':'',
-      it.flipped?'Camada espelhada → imagem fiel':'',
-      it.textJustifyAll?'Justificado total → última linha não estica':'',
-      /* Duas perdas que existiam e NÃO tinham aviso nenhum — o livro-caixa de capacidade
-         (`it.capability`, em psd-parse.js) passou a nomeá-las:
-         · efeito de camada em algo que a conversão entrega como imagem: nenhum dos três
-           renderizadores lê sombra/brilho/contorno em `type:'image'`/`'frame'`, então o objeto
-           inteligente com sombra e o texto que virou imagem POR CAUSA de um efeito perdiam
-           esse efeito em silêncio. Depende do MODO escolhido, por isso é lido aqui, a cada
-           render da lista, e não congelado no parse;
-         · mesclagem que o Luma reconhece mas não renderiza (ex.: Dissolver): entra como Normal.
-           O selo "Mesclagem · x" só aparece quando há render, então isto era invisível. */
-      (typeof _dPsdCapPerdeFx==='function'&&_dPsdCapPerdeFx(it))
-        ?('Em imagem fiel não sai: '+_dPsdEsc((_dPsdCapMotivo(it,'fx_only_native')||{}).detalhe||'efeito de camada')):'',
-      _dPsdCapMotivo(it,'blend_dropped')?('Mesclagem sem equivalente ('+_dPsdEsc(_dPsdCapMotivo(it,'blend_dropped').detalhe||'')+') → Normal'):''
-    ].filter(Boolean).map(t=>`<span class="psd-fontwarn" title="O Photoshop aplica isso de um jeito que o Luma não reproduz; o resto da camada entra fiel">${t}</span>`).join('');
-    const grpBlendBadge=it.groupBlendApprox?`<span class="psd-fontwarn" title="A mesclagem vinha de um grupo do Photoshop e foi aplicada camada a camada — onde as camadas do grupo se sobrepõem o resultado pode diferir do PSD">Mesclagem de grupo aproximada</span>`:'';
-    const errBadge=it.parseError?`<span class="psd-fontwarn" title="Esta camada não pôde ser interpretada e entrou como imagem fiel do que o Photoshop compôs">Camada recuperada</span>`:'';
-    const flatBadge=it.flattened?`<span class="psd-fontwarn" title="O PSD não tem camadas editáveis — a arte entrou achatada, como imagem única">Arte achatada</span>`:'';
-    const vecWarn=it.vectorMaskFailed?`<span class="psd-fontwarn" title="O recorte vetorial não pôde ser rasterizado">Máscara simplificada</span>`:'';
-    const clipWarn=it.maskFallback?`<span class="psd-fontwarn" title="A forma complexa de base não pôde ser rasterizada">Recorte simplificado</span>`:'';
+    const fxWarns=_dPsdSelos(it);
     // Alinhamento em PT-BR: o valor do modelo é técnico ('left'/'justify') e não vai pra tela.
     const _alinhoPt={left:'esquerda',center:'centro',right:'direita',justify:'justificado'};
     // `${it.fontSize}px` sem guarda imprimia literalmente "undefinedpx" quando o tamanho não
@@ -396,7 +432,7 @@ function dPsdRenderRows(filter){
       <span class="psd-row-ico psd-row-ico-${it.kind}">${swatch||ico[it.kind]||ico.raster}</span>
       ${thumb}
       <span class="psd-row-name" title="${_dPsdEsc(it.name)}">
-        <span class="psd-row-name-top">${_dPsdEsc(it.name)}${errBadge}${flatBadge}${multiStyleBadge}${blendBadge}${grpBlendBadge}${fxWarns}${fontWarn}${opacityBadge}${adjustmentBadge}${effectsStackBadge}${vectorPathBadge}${soBadge}${clipBadge}${vecWarn}${clipWarn}${textInfoBadge}${sugBadge}</span>
+        <span class="psd-row-name-top">${_dPsdEsc(it.name)}${fxWarns}${multiStyleBadge}${blendBadge}${fontWarn}${opacityBadge}${adjustmentBadge}${effectsStackBadge}${vectorPathBadge}${soBadge}${clipBadge}${textInfoBadge}${sugBadge}</span>
         ${groupCrumb}${textPrev}
       </span>
       ${_dPsdFieldSelHTML(it,i)}${modeSel}${varIn}</div>`;
@@ -524,6 +560,9 @@ function dPsdUpdateCount(){
   }
   const cnt=document.getElementById('d-psd-count');
   if(cnt&&_multi) cnt.textContent='';
+  // Painel de exceções: recalcula do livro-caixa a cada mudança de estado. Não re-renderiza a
+  // lista (dPsdRenderRows chama esta função — seria laço), só o seu próprio nó.
+  _dPsdRenderAtencao();
 }
 function dPsdCancel(){
   const nBoards=_dPsdBoards.length;
@@ -572,6 +611,10 @@ function _dPsdCloseReviewUI(){
   const m=document.getElementById('d-psd-modal'); if(m) m.classList.remove('open');
   const cv=document.getElementById('d-psd-preview-canvas'); if(cv){ cv.width=0; cv.height=0; cv._renderId=(cv._renderId||0)+1; }
   const ov=document.getElementById('d-psd-preview-overlay'); if(ov){ ov.width=0; ov.height=0; }
+  // O diagnóstico é transitório por decisão (§30): sai de cena junto com a tela que o mostrava,
+  // nos DOIS caminhos de saída. Fica aqui, e não em dPsdCancel, porque importar também fecha.
+  _dPsdAtencaoReset();
+  const at=document.getElementById('d-psd-atencao'); if(at){ at.innerHTML=''; at.className='psd-atencao'; }
 }
 async function dPsdConfirmImport(){
   // ── multi-prancheta: importa TODAS as marcadas de uma vez, uma por template ──
@@ -822,6 +865,7 @@ function _dPsdShowFidelity(rep){
   if(!rep){
     badge.innerHTML='<span style="background:var(--d-text3)"></span>Não verificado';
     badge.title='Este arquivo não trouxe um composto do Photoshop para comparar — nada foi medido. Sem referência não há aprovação.';
+    _dPsdAtDiv[_dPsdBoardIdx]=[]; _dPsdRenderAtencao();
     return;
   }
   // Semáforo por token (nunca hex): verde bate, laranja merece olhada, vermelho pede ação.
@@ -834,6 +878,16 @@ function _dPsdShowFidelity(rep){
     +'É aprovação visual, não prova de igualdade exata.'
     +(rep.worst.length?(' Maior divergência: '+rep.worst.map(o=>o.name+' ('+o.pct+'%)').join(', ')+'.')
                       :' Nenhuma camada com divergência relevante.');
+  /* A medição alimenta o RESULTADO da importação: onde uma decisão conhecida responde pela
+     região, o número entra dentro daquele aviso; onde nada responde, o motor abre um item
+     próprio dizendo que não sabe a causa (dPsdImportResult). É a diferença entre "está
+     diferente" e "está diferente POR ISTO". */
+  _dPsdAtDiv[_dPsdBoardIdx]=(rep.worst||[]).map(o=>{
+    const it=dPsdItems[o.idx]||{};
+    return {itemN:it.n, camada:it.name||o.name, kind:it.kind||'', pct:o.pct,
+      caixa:{x:it.x,y:it.y,w:it.w,h:it.h}, pranchetaNome:(dPsdMeta&&dPsdMeta.name)||''};
+  }).filter(d=>d.itemN);
+  _dPsdRenderAtencao();
   // Marca as linhas direto no DOM em vez de re-renderizar a lista: dPsdRenderRows dispara
   // dPsdRenderPreview, que dispararia esta função de novo — laço infinito.
   rep.worst.forEach(o=>{
@@ -845,6 +899,362 @@ function _dPsdShowFidelity(rep){
     b.textContent='Divergência '+o.pct+'%';
     top.appendChild(b);
   });
+}
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   PONTE: PSD IMPORT → SMART MAPPING
+   ------------------------------------------------------------------------------------------
+   O importador terminou o trabalho dele: a arte existe, a fidelidade está medida e as perdas
+   estão nomeadas. Começa outra responsabilidade, que é uma pergunta diferente — não "esta
+   arte existe?", e sim "o que este conteúdo SIGNIFICA?".
+
+   Três decisões de arquitetura que valem mais que o código:
+
+   1. A análise roda sobre a CAMADA CANÔNICA DO LUMA, não sobre o item do PSD. Converte com
+      `dItemToLayer` — o mesmo motor do import — e entrega essas camadas ao `gFieldInferBatch`.
+      Assim o sistema de Campos nunca fica preso ao vocabulário do ag-psd, e a mesma análise
+      serve o Estúdio depois (onde não existe PSD nenhum).
+   2. NÃO existe estrutura paralela. Uma decisão de alta confiança é gravada exatamente onde
+      um clique do designer gravaria: `it.varName` + `it.mode` — o par que `dItemToLayer` já
+      converte em `{{campo}}`/`imgVar` e que `_dPsdSyncVarsFromLayers` já cria no catálogo.
+      Uma ambiguidade fica como SUGESTÃO PENDENTE, o estado que `_dPsdPendingSug` já conhece.
+      Zero caminho novo de persistência; zero `smartFields`.
+   3. AUTORIDADE. Decisão do designer, memória aprovada e convenção explícita do Photoshop
+      são intocáveis — a inferência só preenche o que ninguém decidiu. Uma vez que um humano
+      escolheu, o Luma não volta a mudar sozinho.
+
+   ⛔ Roda UMA vez por camada (`it._smartDone`), na preparação. Não é análise de runtime: o
+   franqueado nunca executa isto — ele consome o template já compilado.                     */
+// Converte os itens para camadas canônicas e guarda o par de volta. Texto entra SEMPRE com a
+// frase autorada: é ela que carrega a evidência ("DE R$ 49,90"), e um item já ligado
+// renderizaria `{{campo}}`, que não diz nada sobre significado.
+function _dPsdSmartLayers(items){
+  const porId=new Map(), layers=[], pistas={};
+  (items||[]).forEach(it=>{
+    if(!it || !it.include || it.isMaskBase || it._smartDone) return;
+    if(it.kind!=='text' && it.kind!=='raster' && it.kind!=='shape') return;
+    const base=(it.kind==='text')?Object.assign({},it,{mode:'text'}):it;
+    let L=null; try{ L=dItemToLayer(base); }catch(e){ L=null; }
+    if(!L || (L.type!=='text' && L.type!=='image' && L.type!=='frame')) return;
+    porId.set(L.id, it); layers.push(L);
+    /* A PISTA que só o Photoshop dá (§2): objeto inteligente com foto colocada reta já foi
+       classificado pela rodada 4 (`smart_object_substituivel`) e é a evidência que separa
+       foto de produto de grafismo decorativo. Viaja como dado de entrada da análise, não
+       como acoplamento: o `gFieldInferBatch` não sabe o que é um PSD. */
+    if(typeof _dPsdCapMotivo==='function' && _dPsdCapMotivo(it,'smart_object_substituivel'))
+      pistas[L.id]={fotoColocada:true};
+  });
+  return {porId, layers, pistas};
+}
+/* Analisa e aplica o que é seguro. Devolve {aplicados, ambiguidades} — o resultado semântico,
+   SEPARADO do resultado de fidelidade: um único número de confiança para as duas coisas
+   misturaria "a fonte não existe" com "não sei se isto é Produto ou Headline". */
+function dPsdSmartMap(items, meta){
+  const vazio={aplicados:0, ambiguidades:[]};
+  if(typeof gFieldInferBatch!=='function' || typeof dItemToLayer!=='function') return vazio;
+  const {porId, layers, pistas}=_dPsdSmartLayers(items);
+  if(!layers.length) return vazio;
+  const campos=(typeof dVars!=='undefined' && Array.isArray(dVars))?dVars:[];
+  let sug=[];
+  try{ sug=gFieldInferBatch(layers, {fields:campos, artboard:meta||null, pistas:pistas})||[]; }catch(e){ return vazio; }
+  const res={aplicados:0, ambiguidades:[]};
+  layers.forEach(L=>{ const it=porId.get(L.id); if(it) it._smartDone=true; });
+  sug.forEach(r=>{
+    const it=porId.get(r.layer.id); if(!it || !r.field) return;
+    /* AUTORIDADE — a ordem do §6: designer > memória aprovada > convenção explícita >
+       regra determinística. As três primeiras já decidiram; a inferência não discute. */
+    if(it.varSource==='user' || it.varSource==='ia' || it._memoryApplied || it._fixedByUser) return;
+    if(it._fieldInference && it._fieldInference.source==='explicit') return;
+    // Semântica e compatibilidade precisam CONCORDAR (§17): campo de imagem não entra em
+    // texto porque o significado parecia certo.
+    const chk=_dPsdBindCheck(it, r.field);
+    if(!chk.ok) return;
+    const inf={name:r.field.name, field:r.field, confidence:r.confidence,
+      source:r.source, alternatives:r.alternatives||[], reason:r.reason||''};
+    if(r.confidence==='high'){
+      it.mode=chk.mode; it.varName=r.field.name;
+      it.varSource='auto'; it.varWhy=r.reason||''; it._fieldInference=inf;
+      res.aplicados++;
+      return;
+    }
+    /* MÉDIA CONFIANÇA — fica PENDENTE e vira UMA pergunta. Aplicar aqui é o erro que custa
+       mais caro: trocar o texto que o designer escreveu por um campo errado obriga a
+       auditar a arte inteira para descobrir qual metade está errada. */
+    it.varName=r.field.name; it.varSource='auto'; it.varWhy=r.reason||'';
+    it._fieldInference=inf;
+    const opcoes=[r.field].concat(r.alternatives||[])
+      .filter((f,i,a)=>f&&f.name&&a.findIndex(x=>x&&x.name===f.name)===i).slice(0,3);
+    res.ambiguidades.push({
+      itemN:it.n, camada:it.name, kind:it.kind,
+      // O título é o CONTEÚDO, não o nome técnico da camada: é o que o designer reconhece.
+      amostra:(it.kind==='text'?String(it.content||'').replace(/\s+/g,' ').trim().slice(0,42):'')||it.name,
+      motivo:r.reason||'', regra:r.rule||'',
+      opcoes:opcoes.map(f=>({name:f.name, label:f.label||f.name}))
+    });
+  });
+  return res;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   REVISÃO POR EXCEÇÃO — a tela mostra o que exige ação, não o inventário
+   ------------------------------------------------------------------------------------------
+   O importador já sabia MUITO sobre cada camada e mostrava tudo com o mesmo peso: vinte e
+   cinco selos na linha, um número de fidelidade no topo e nenhuma frase dizendo "faça isto".
+   Ler aquilo era trabalho; e trabalho que o designer não pediu.
+
+   Aqui a divisão é a do §21: `dPsdImportResult` (no motor) responde COMO foi convertido, e
+   este painel mostra somente o subconjunto `review`/`blocking` — o que exige a atenção de
+   alguém. Uma atenção por vez, numerada (§25), com a ação daquela categoria (§26) e a região
+   realçada na arte enquanto ela está aberta (§24).
+
+   ⛔ Zero atenção = UMA LINHA, sem cartão e sem botão. Um passo obrigatório de revisão que
+   sempre diz "está tudo bem" treina o designer a clicar sem ler — e aí ele passa reto no dia
+   em que houver algo. Se está tudo certo, o importador sai do caminho.
+   ⛔ Nada aqui persiste: `_dPsdAtCiente` vale para ESTA importação. O resultado é transitório
+   por decisão (§30) — o template guarda camadas, não o diagnóstico de quem as importou.
+══════════════════════════════════════════════════════════════════════════════════════════ */
+let _dPsdResult=null;   // último ImportResult — a fonte única de verdade que o motor produziu
+let _dPsdAtIdx=0;       // qual atenção está aberta: o "k de N" da revisão sequencial
+let _dPsdAtCiente={};   // {idDaAtencao:true} — "Entendi" desta importação, nada gravado
+let _dPsdAtFoco=-1;     // camada realçada na arte pela atenção aberta (realce PERSISTENTE)
+let _dPsdAtUltimo='';   // id da atenção já pintada — o realce automático só corre quando MUDA
+let _dPsdAtDiv=[];      // divergência medida por prancheta: [prancheta][{itemN,pct,…}]
+
+// Reset por ARQUIVO: um PSD novo não herda o "Entendi" do anterior.
+function _dPsdAtencaoReset(){ _dPsdResult=null; _dPsdAtIdx=0; _dPsdAtCiente={}; _dPsdAtFoco=-1; _dPsdAtUltimo=''; _dPsdAtDiv=[]; }
+
+/* As pranchetas na forma que o motor lê. O índice do array É o `prancheta` de cada atenção,
+   então prancheta não analisada e prancheta fora do import entram como lista VAZIA em vez de
+   sair do array — tirar desalinharia a navegação.
+   Multi-prancheta: o parse é sob demanda por desenho (um PSD de 14 pranchetas parseadas de
+   uma vez retém GB). Inventar atenção para prancheta que ninguém abriu seria pior que dizer
+   que ela ainda não foi lida — e é o que o painel diz. */
+function _dPsdResultInput(){
+  if(_dPsdBoards.length>1){
+    return _dPsdBoards.map(b=>({nome:b.name, items:(b.items&&b.selected)?b.items:[]}));
+  }
+  return [{nome:(dPsdMeta&&dPsdMeta.name)||_dPsdBaseName||'', items:dPsdItems}];
+}
+function _dPsdAtPend(){
+  if(!_dPsdResult) return [];
+  return _dPsdResult.atencoes.filter(a=>(a.nivel==='review'||a.nivel==='blocking')&&!_dPsdAtCiente[a.id])
+    .map(a=>Object.assign({tipo:'fidelidade'}, a));
+}
+/* AMBIGUIDADE SEMÂNTICA — a outra lista, e ela é DERIVADA, não guardada.
+   Uma sugestão pendente (`_dPsdPendingSug`: tem campo proposto, não tem vínculo) já é o
+   estado canônico de "não sei, decide você" — o mesmo que o parse usa desde antes. Derivar
+   dele em vez de manter um array próprio significa que responder a pergunta por QUALQUER
+   caminho (o painel, a linha da lista, o seletor de campo) faz o item sair daqui sozinho.
+   ⛔ SEPARADA da fidelidade de propósito (§22): "a fonte não existe" e "não sei se isto é
+   Produto ou Headline" são problemas de naturezas diferentes. A TELA é uma; os engines não. */
+function _dPsdSemPend(){
+  const out=[];
+  const pranchetas=(_dPsdBoards.length>1)
+    ? _dPsdBoards.map((b,i)=>({i, nome:b.name, items:(b.items&&b.selected)?b.items:[]}))
+    : [{i:0, nome:(dPsdMeta&&dPsdMeta.name)||_dPsdBaseName||'', items:dPsdItems}];
+  pranchetas.forEach(pr=>{
+    (pr.items||[]).forEach(it=>{
+      if(!_dPsdPendingSug(it)) return;
+      const inf=it._fieldInference||{};
+      const opcoes=[inf.field].concat(inf.alternatives||[])
+        .filter((f,i,a)=>f&&f.name&&a.findIndex(x=>x&&x.name===f.name)===i).slice(0,3);
+      if(!opcoes.length) return;
+      const id='sem-'+pr.i+'-'+it.n;
+      if(_dPsdAtCiente[id]) return;
+      const amostra=(it.kind==='text'?String(it.content||'').replace(/\s+/g,' ').trim().slice(0,42):'')||it.name||'';
+      out.push({ tipo:'conteudo', id, nivel:'review',
+        prancheta:pr.i, pranchetaNome:pr.nome, itemN:it.n, camada:it.name, kind:it.kind,
+        titulo:'“'+amostra+'” é qual conteúdo?',
+        explicacao:inf.reason||'O Luma reconheceu um significado provável, mas não o suficiente para decidir sozinho.',
+        opcoes:opcoes.map(f=>({name:f.name, label:f.label||f.name})) });
+    });
+  });
+  return out;
+}
+/* A fila que o designer percorre. Fidelidade antes de semântica porque a ordem de degradação
+   é essa (§81): a arte vem primeiro, o significado depois. Bloqueante fura a fila. */
+function _dPsdPend(){
+  const fid=_dPsdAtPend();
+  return fid.filter(a=>a.nivel==='blocking')
+    .concat(fid.filter(a=>a.nivel!=='blocking'))
+    .concat(_dPsdSemPend());
+}
+/* Cada categoria mantém o NOME DELA na tela (§22). "2 problemas encontrados" junta coisas de
+   naturezas diferentes numa mensagem que não diz o que fazer com nenhuma delas. */
+const _DPSD_AT_KICKER={fonte:'Tipografia', tipografia:'Tipografia', texto_imagem:'Tipografia',
+  cor:'Cor', recorte:'Recorte', divergencia:'Fidelidade', achatado:'Fidelidade',
+  recuperada:'Fidelidade', perdida:'Fidelidade', imagem:'Imagem', efeito:'Efeito'};
+function _dPsdAtKicker(a){
+  if(a.tipo==='conteudo') return 'Conteúdo';
+  if(a.nivel==='blocking') return 'Precisa resolver';
+  return _DPSD_AT_KICKER[a.categoria]||'Fidelidade';
+}
+// `itemN` → índice em dPsdItems. Só resolve se a atenção é da prancheta ABERTA: as outras
+// vivem em `b.items`, e realçar no canvas de uma prancheta a caixa de outra seria mentira.
+function _dPsdAtIdxDe(a){
+  if(!a) return -1;
+  if(_dPsdBoards.length>1 && a.prancheta!==_dPsdBoardIdx) return -1;
+  return dPsdItems.findIndex(it=>it&&it.n===a.itemN);
+}
+const _DPSD_AT_VISUAL={preservado:'Arte fiel', aproximado:'Arte aproximada', perdido:'Arte diferente'};
+const _DPSD_AT_EDIT={preservada:'Continua editável', achatada:'Entrou como imagem', perdida:'Não foi preservada'};
+const _DPSD_AT_ICO={
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>',
+  alerta:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>',
+  olho:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>',
+  fonte:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M6 8V4h12v4M9 20h6"/></svg>',
+  seta:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>'
+};
+function _dPsdRenderAtencao(){
+  const wrap=document.getElementById('d-psd-atencao'); if(!wrap) return;
+  if(!dPsdItems.length){ wrap.innerHTML=''; wrap.className='psd-atencao'; return; }
+  // As divergências medidas de TODAS as pranchetas já visitadas, achatadas com o índice da
+  // prancheta que a fidelidade mediu.
+  const divs=[];
+  _dPsdAtDiv.forEach((lista,pi)=>{ (lista||[]).forEach(d=>divs.push(Object.assign({prancheta:pi},d))); });
+  _dPsdResult=dPsdImportResult(_dPsdResultInput(), {nome:_dPsdBaseName, divergencias:divs});
+  const pend=_dPsdPend();   // fidelidade + semântica: UMA fila, dois engines separados
+  const naoLidas=(_dPsdBoards.length>1)?_dPsdBoards.filter(b=>b.selected&&!b.items).length:0;
+  const nota=naoLidas?('<small class="psd-at-nota">'+naoLidas+(naoLidas===1?' prancheta será analisada':' pranchetas serão analisadas')+' quando você abrir a aba.</small>'):'';
+
+  /* ── Nada a fazer: uma linha, e o importador cala a boca ── */
+  if(!pend.length){
+    const r=_dPsdResult.resumo;
+    const adapt=_dPsdResult.atencoes.length;   // o que sobrou é `info`: como foi convertido
+    // Quantos conteúdos editáveis o Smart Mapping preparou. É a frase do §82: o designer
+    // precisa ver que o trabalho mecânico foi feito, não só que "nada deu errado".
+    const nCampos=dPsdItems.filter(it=>it.include&&!it.isMaskBase&&(it.mode==='var'||it.mode==='frame')&&it.varName).length;
+    _dPsdAtFoco=-1; _dPsdAtUltimo='';
+    wrap.className='psd-atencao psd-atencao-ok';
+    wrap.innerHTML='<p class="psd-at-linha">'+_DPSD_AT_ICO.check+'<span><strong>Arte preparada.</strong> '
+      +(nCampos?(nCampos+(nCampos===1?' conteúdo editável identificado':' conteúdos editáveis identificados')+' · '):'')
+      +r.camadas+(r.camadas===1?' camada':' camadas')
+      +(adapt?(' · '+adapt+(adapt===1?' adaptação registrada':' adaptações registradas')):'')
+      +'</span></p>'+nota;
+    return;
+  }
+
+  /* ── Uma atenção por vez ── */
+  _dPsdAtIdx=Math.max(0,Math.min(_dPsdAtIdx,pend.length-1));
+  const a=pend[_dPsdAtIdx];
+  const idx=_dPsdAtIdxDe(a);
+  const bloq=(a.nivel==='blocking');
+  const outraPr=(_dPsdBoards.length>1 && a.prancheta!==_dPsdBoardIdx);
+
+  // Ação CONTEXTUAL (§26): o botão é o da categoria, não um "OK" genérico para tudo.
+  let acoes='';
+  /* ── AMBIGUIDADE SEMÂNTICA ── as opções SÃO os botões (§19). Um clique responde a pergunta
+     e o item sai da fila: `dPsdAcceptCandidate` é o mesmo caminho canônico do seletor de
+     campo da linha, e `dPsdUnbindField` é o mesmo "tornar fixo" — nenhum caminho novo.
+     ⛔ Sem os selos de eixo visual/editabilidade: aqueles descrevem CONVERSÃO, e misturá-los
+     numa pergunta de significado é exatamente o §68. */
+  if(a.tipo==='conteudo'){
+    if(idx>=0){
+      (a.opcoes||[]).forEach((o,k)=>{
+        acoes+='<button type="button" class="psd-at-btn'+(k===0?' psd-at-btn-pri':'')
+          +'" onclick="dPsdAcceptCandidate('+idx+',\''+o.name+'\')">'+_dPsdEsc(o.label)+'</button>';
+      });
+      acoes+='<button type="button" class="psd-at-btn" onclick="dPsdUnbindField('+idx+')">Manter fixo</button>';
+    } else {
+      acoes+='<button type="button" class="psd-at-btn psd-at-btn-pri" onclick="dPsdAtencaoVer()">'
+        +_DPSD_AT_ICO.olho+'Abrir a prancheta</button>';
+    }
+  }
+  if(a.tipo!=='conteudo' && a.acao==='fonte' && idx>=0){
+    acoes+='<label class="psd-at-btn psd-at-btn-pri">'+_DPSD_AT_ICO.fonte+'Enviar a fonte'
+      +'<input type="file" accept=".ttf,.otf,.woff,.woff2" hidden onchange="dPsdUploadFont('+idx+',this)"></label>';
+  }
+  if(bloq){
+    acoes+='<button type="button" class="psd-at-btn psd-at-btn-pri" onclick="dPsdAtencaoDescartar()">Não importar esta camada</button>';
+  }
+  if(a.tipo!=='conteudo' && (a.acao==='ver'||bloq||outraPr)){
+    acoes+='<button type="button" class="psd-at-btn" onclick="dPsdAtencaoVer()">'+_DPSD_AT_ICO.olho
+      +(outraPr?'Abrir a prancheta':'Ver na arte')+'</button>';
+  }
+  // "Entendi" existe em tudo que não é bloqueante: sem saída, o painel virava um passo
+  // obrigatório — exatamente o que o §21 proíbe. Em bloqueante a saída é resolver.
+  // "Entendi" só na fidelidade: numa pergunta de significado a saída é RESPONDER (usar um
+  // campo ou manter fixo), e um "Entendi" ali deixaria a pergunta sem resposta e sem fila.
+  if(!bloq && a.tipo!=='conteudo'){
+    acoes+='<button type="button" class="psd-at-btn'+(a.acao==='ciente'?' psd-at-btn-pri':'')+'" onclick="dPsdAtencaoCiente()">Entendi</button>';
+  }
+
+  const nav=(pend.length>1)?('<div class="psd-at-nav">'
+    +'<button type="button" class="psd-at-nav-btn" onclick="dPsdAtencaoNav(-1)" aria-label="Atenção anterior">'+_DPSD_AT_ICO.seta+'</button>'
+    +'<span>'+(_dPsdAtIdx+1)+' de '+pend.length+'</span>'
+    +'<button type="button" class="psd-at-nav-btn" onclick="dPsdAtencaoNav(1)" aria-label="Próxima atenção">'+_DPSD_AT_ICO.seta+'</button>'
+    +'</div>'):'';
+
+  // Os DOIS eixos, sempre separados (§10): a arte pode estar fiel e a edição, reduzida.
+  // Só na fidelidade: eles descrevem COMO a camada foi convertida, não o que ela significa.
+  const eixos=(a.tipo==='conteudo')?'':'<span class="psd-at-eixo">'+_dPsdEsc(_DPSD_AT_VISUAL[a.visual]||a.visual)+'</span>'
+    +'<span class="psd-at-eixo">'+_dPsdEsc(_DPSD_AT_EDIT[a.editabilidade]||a.editabilidade)+'</span>'
+    // Divergência medida: entra DENTRO do aviso que a explica, não como surpresa separada.
+    +(a.divergencia?('<span class="psd-at-eixo psd-at-eixo-num">'+a.divergencia+'% dos pixels diferem</span>'):'');
+
+  /* Onde a atenção mora. No multi-prancheta o nome da prancheta é parte do endereço (§33).
+     Na pergunta de significado o CONTEÚDO já é o endereço (o título é a própria frase da
+     arte), então repetir o nome da camada só produz eco — pior quando a camada se chama
+     como um dos campos oferecidos ("Headline" · [Produto] [Headline]). */
+  const onde=(a.tipo==='conteudo' && !outraPr) ? ''
+    : '<p class="psd-at-onde">'+(outraPr?('<em>'+_dPsdEsc(a.pranchetaNome)+'</em>'+(a.tipo==='conteudo'?'':' · ')):'')
+      +(a.tipo==='conteudo'?'':_dPsdEsc(a.camada||'camada sem nome'))+'</p>';
+
+  wrap.className='psd-atencao psd-atencao-'+a.nivel+' psd-atencao-t-'+a.tipo;
+  wrap.innerHTML='<p class="psd-at-total">'+pend.length
+      +(pend.length===1?' item precisa da sua atenção':' itens precisam da sua atenção')+'</p>'
+    +'<div class="psd-at-card">'
+    +'<div class="psd-at-head"><span class="psd-at-kicker">'+_DPSD_AT_ICO.alerta
+      +_dPsdEsc(_dPsdAtKicker(a))+'</span>'+nav+'</div>'
+    +'<strong class="psd-at-titulo">'+_dPsdEsc(a.titulo)+'</strong>'
+    +'<p class="psd-at-texto">'+_dPsdEsc(a.explicacao)+'</p>'
+    +onde+(eixos?('<div class="psd-at-eixos">'+eixos+'</div>'):'')
+    +'<div class="psd-at-acoes">'+acoes+'</div>'
+    +'</div>'+nota;
+  /* Realce automático quando a atenção ABERTA muda — abrir o painel, navegar, dar baixa numa.
+     O §24 pede a região destacada na arte, e exigir um clique em "Ver na arte" só para
+     descobrir ONDE está o problema que o painel já está descrevendo é um passo a mais.
+     ⛔ Só quando MUDA: re-render por troca de modo ou de seleção não pode roubar o realce
+     que o mouse do designer está produzindo naquele instante. */
+  if(_dPsdAtUltimo!==a.id){
+    _dPsdAtUltimo=a.id; _dPsdAtFoco=idx; dPsdHoverLayer(idx);
+  }
+}
+// Realce PERSISTENTE da região explicada (§24): fica na arte enquanto a atenção está aberta.
+function _dPsdAtencaoFocar(scroll){
+  const a=_dPsdPend()[_dPsdAtIdx];
+  const i=_dPsdAtIdxDe(a);
+  _dPsdAtFoco=i;
+  dPsdHoverLayer(i);
+  if(scroll&&i>=0) _dPsdScrollToRow(i);
+}
+function dPsdAtencaoNav(d){
+  const pend=_dPsdPend(); if(!pend.length) return;
+  _dPsdAtIdx=(_dPsdAtIdx+d+pend.length)%pend.length;
+  _dPsdRenderAtencao();   // o próprio render move o realce para a atenção que abriu
+}
+function dPsdAtencaoCiente(){
+  const pend=_dPsdPend(), a=pend[_dPsdAtIdx]; if(!a) return;
+  _dPsdAtCiente[a.id]=true;
+  // Ao dar baixa na última, a numeração volta um passo em vez de estourar o fim da lista.
+  if(_dPsdAtIdx>=pend.length-1) _dPsdAtIdx=Math.max(0,pend.length-2);
+  _dPsdAtFoco=-1; dPsdHoverLayer(-1);
+  _dPsdRenderAtencao();
+}
+function dPsdAtencaoVer(){
+  const a=_dPsdPend()[_dPsdAtIdx]; if(!a) return;
+  // Item de outra prancheta abre a prancheta certa ANTES de realçar (§33).
+  if(_dPsdBoards.length>1 && a.prancheta!==_dPsdBoardIdx) dPsdBoardSelect(a.prancheta);
+  _dPsdAtencaoFocar(true);
+}
+// A saída de um caso BLOQUEANTE é resolver, e resolver aqui é tirar a camada do import: o
+// motor não conseguiu preservá-la nem como imagem, então importar significa levar um buraco.
+function dPsdAtencaoDescartar(){
+  const a=_dPsdPend()[_dPsdAtIdx]; if(!a) return;
+  const i=_dPsdAtIdxDe(a);
+  if(i<0){ if(_dPsdBoards.length>1) dPsdBoardSelect(a.prancheta); return; }
+  _dPsdAtFoco=-1;
+  dPsdSetInclude(i,false);   // re-renderiza a lista, o contador e este painel de uma vez
+  gToast('"'+(a.camada||'A camada')+'" ficou fora da importação');
 }
 // Texto multilinha nos previews: canvas fillText ignora '\n' (glifos colados numa linha).
 // Desenha linha a linha com o lineHeight do item (fallback 1.2).
@@ -874,6 +1284,11 @@ function dPsdHoverLayer(idx, bad) {
 
   const ctx = overlay.getContext('2d');
   ctx.clearRect(0, 0, overlay.width, overlay.height);
+
+  /* O realce da atenção aberta é PERSISTENTE: passar o mouse fora da arte (ou sair dela) não
+     pode apagar a região que o painel está explicando naquele instante. Feito aqui, no único
+     lugar que desenha o realce, e não em cada um dos cinco `dPsdHoverLayer(-1)` espalhados. */
+  if (idx < 0 && _dPsdAtFoco >= 0) idx = _dPsdAtFoco;
 
   if (idx >= 0 && dPsdItems[idx]) {
     const it = dPsdItems[idx];
@@ -1552,6 +1967,14 @@ function _dPsdRenderBoards(){
     +'<div class="psd-boards-track">'
     +_dPsdBoards.map((b,i)=>{
       const on=i===_dPsdBoardIdx;
+      /* A conta de exceções da prancheta na PRÓPRIA aba (§32): antes de importar 14
+         pranchetas, "quais delas têm problema?" é a pergunta, e a resposta tem que estar
+         onde o designer já olha. Prancheta não analisada não recebe zero — receber zero
+         diria "está limpa", e ninguém leu. */
+      const _pr=(_dPsdResult&&_dPsdResult.pranchetas[i])||null;
+      const _at=(b.items&&_pr&&_pr.revisao)
+        ?('<span class="psd-board-at" title="'+_pr.revisao+' ponto(s) que pedem atenção nesta prancheta">'+_pr.revisao+'</span>')
+        :'';
       // aria-controls aponta pro painel que a aba governa (a lista de camadas), e o keydown
       // vai pro _dPsdBoardsKey: setas andam entre abas, como manda o padrão de tablist.
       return '<div class="psd-board-tab'+(on?' is-active':'')+(b.selected?'':' is-off')+'" role="tab"'
@@ -1564,7 +1987,7 @@ function _dPsdRenderBoards(){
         +' aria-label="Incluir a prancheta '+_dPsdEsc(b.name)+' no import">'
         +'<span class="psd-board-box" aria-hidden="true">'+_tick+'</span></label>'
         +'<span class="psd-board-tab-copy"><strong>'+_dPsdEsc(b.name)+'</strong>'
-        +'<small>'+b.w+' × '+b.h+'</small></span></div>';
+        +'<small>'+b.w+' × '+b.h+'</small></span>'+_at+'</div>';
     }).join('')
     +'</div>';
   // Popular o destino uma vez (as pastas não mudam com o modal aberto).

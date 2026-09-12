@@ -2136,6 +2136,62 @@ body.theme-light .dp-dado-ex {
 .psd-modal .psd-preview-hint{display:flex;align-items:center;justify-content:center;gap:6px;min-height:22px;font-size:9.5px;color:var(--d-text3)}
 .psd-preview-hint svg{width:13px;height:13px;flex:0 0 auto}
 
+/* ── REVISÃO POR EXCEÇÃO — o painel que só aparece quando há o que fazer ──
+   Mora embaixo da prévia porque a atenção aberta realça a região na própria arte.
+   Estado "nada a fazer" é UMA LINHA (.psd-atencao-ok): sem moldura, sem botão, sem passo.
+   O cartão só ganha peso visual quando existe exceção — o alarme não pode ser o padrão. */
+.psd-atencao{flex:0 0 auto;display:flex;flex-direction:column;gap:6px}
+.psd-atencao:empty{display:none}
+.psd-at-linha{margin:0;display:flex;align-items:flex-start;gap:7px;font-size:9.5px;line-height:1.45;color:var(--d-text3)}
+.psd-at-linha strong{font-weight:700;color:var(--d-text2)}
+.psd-atencao-ok .psd-at-linha>svg{width:12px;height:12px;flex:0 0 auto;margin-top:1px;color:var(--green)}
+.psd-at-nota{font-size:8.5px;line-height:1.4;color:var(--d-text3)}
+/* A contagem TOTAL da fila (fidelidade + semântica). Fica fora do cartão porque conta os
+   dois tipos, enquanto o cartão fala de um item só — e cada item mantém o nome da própria
+   categoria no kicker, em vez de "2 problemas encontrados". */
+.psd-at-total{margin:0;font-size:9px;font-weight:700;color:var(--d-text2)}
+.psd-at-card{display:flex;flex-direction:column;gap:7px;padding:11px 12px;border-radius:11px;
+  border:1px solid var(--d-border2);background:var(--d-surf2);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.018),0 8px 22px rgba(0,0,0,.2)}
+.psd-atencao-review .psd-at-card{border-color:rgba(255,144,0,.34);background:rgba(255,144,0,.075)}
+.psd-atencao-blocking .psd-at-card{border-color:rgba(200,24,24,.4);background:rgba(200,24,24,.085)}
+/* Pergunta de SIGNIFICADO não é alarme de fidelidade: nada está errado, o Luma só precisa de
+   uma resposta. Moldura neutra, e vem DEPOIS das duas de cima de propósito — mesma
+   especificidade, quem decide é a ordem no arquivo. */
+.psd-atencao-t-conteudo .psd-at-card{border-color:var(--d-border2);background:var(--d-surf2)}
+.psd-atencao-t-conteudo .psd-at-kicker{color:var(--d-text3)}
+.psd-at-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.psd-at-kicker{display:inline-flex;align-items:center;gap:5px;font-size:8px;font-weight:750;
+  letter-spacing:.07em;text-transform:uppercase;color:var(--dm-orange)}
+.psd-atencao-blocking .psd-at-kicker{color:var(--dm-red)}
+.psd-at-kicker svg{width:11px;height:11px;flex:0 0 auto}
+.psd-at-nav{display:inline-flex;align-items:center;gap:2px;font-size:8.5px;font-weight:650;color:var(--d-text3)}
+.psd-at-nav>span{padding-inline:3px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.psd-at-nav-btn{display:inline-flex;align-items:center;justify-content:center;width:19px;height:19px;
+  padding:0;border:1px solid var(--d-border);border-radius:6px;background:transparent;
+  color:var(--d-text3);cursor:pointer;transition:color var(--dur-micro),border-color var(--dur-micro)}
+.psd-at-nav-btn:hover{color:var(--d-text);border-color:var(--d-text3)}
+.psd-at-nav-btn svg{width:11px;height:11px}
+.psd-at-nav-btn:first-of-type svg{transform:rotate(180deg)}
+.psd-at-titulo{font-size:11.5px;font-weight:700;line-height:1.3;color:var(--d-text)}
+.psd-at-texto{margin:0;font-size:9.5px;line-height:1.5;color:var(--d-text2)}
+.psd-at-onde{margin:0;font-size:9px;line-height:1.4;color:var(--d-text3)}
+.psd-at-onde em{font-style:normal;font-weight:700;color:var(--d-text2)}
+.psd-at-eixos{display:flex;flex-wrap:wrap;gap:4px}
+.psd-at-eixo{padding:2px 6px;border:1px solid var(--d-border);border-radius:var(--r-pill);
+  background:rgba(0,0,0,.05);font-size:8px;font-weight:650;color:var(--d-text3);white-space:nowrap}
+.psd-at-eixo-num{font-variant-numeric:tabular-nums;color:var(--dm-orange);border-color:rgba(255,144,0,.3)}
+.psd-at-acoes{display:flex;flex-wrap:wrap;gap:5px;margin-top:1px}
+.psd-at-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border:1px solid var(--d-border);
+  border-radius:8px;background:var(--d-surf);font-size:9px;font-weight:700;color:var(--d-text2);
+  cursor:pointer;transition:border-color var(--dur-micro),color var(--dur-micro),background var(--dur-micro)}
+.psd-at-btn:hover{border-color:var(--d-text3);color:var(--d-text)}
+.psd-at-btn svg{width:11px;height:11px;flex:0 0 auto}
+.psd-at-btn-pri{border-color:var(--dm-orange);background:rgba(255,144,0,.16);color:var(--dm-orange)}
+.psd-at-btn-pri:hover{border-color:var(--dm-orange);background:rgba(255,144,0,.24);color:var(--dm-orange)}
+.psd-atencao-blocking .psd-at-btn-pri{border-color:var(--dm-red);background:rgba(200,24,24,.16);color:var(--dm-red)}
+.psd-at-btn:focus-visible,.psd-at-nav-btn:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+
 .psd-modal .psd-rows-panel{padding:18px 18px 0;gap:10px;background:var(--d-surf)}
 .psd-layers-heading{padding-inline:2px}
 .psd-auto-label{padding:5px 8px;border:1px solid var(--d-border);border-radius:var(--r-pill);background:var(--d-surf2)}
@@ -5712,3 +5768,10 @@ body.d-page-locked #d-canvas-container{
   background:color-mix(in srgb,var(--dm-orange) 9%,var(--d-surf2));
   color:var(--dm-orange-text);
 }
+
+/* Conta de exceções na aba da prancheta (§32 do importador): antes de importar 14 pranchetas,
+   "quais têm problema?" é a pergunta — e a resposta fica onde o designer já olha. */
+.psd-board-at{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;
+  min-width:15px;height:15px;padding-inline:4px;border-radius:var(--r-pill);
+  background:var(--dm-orange);color:var(--on-orange);font-size:8.5px;font-weight:800;
+  font-variant-numeric:tabular-nums;line-height:1}
