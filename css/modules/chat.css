@@ -2680,6 +2680,137 @@ body:not(.theme-light) .art-review-badge{
   #f-messages::before{content:'';flex:none;margin-top:auto}
 }
 
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   FLUXO GUIADO DO FRANQUEADO — DESKTOP SOMENTE
+   ══════════════════════════════════════════════════════════════════════════════════════════
+   O gate duplo é deliberado: largura decide a experiência e `f-guided-desktop` prova que o
+   JS montou o renderer correspondente. Nada deste bloco pode ganhar a cascata no celular. */
+@media (min-width:681px){
+  body.f-guided-desktop:not(.f-arte-pronta) #f-chat-col{background:var(--off-white)}
+  body.f-guided-desktop:not(.f-arte-pronta) #f-messages{
+    justify-content:safe center;gap:0;padding:clamp(24px,5vh,52px) clamp(20px,3.2vw,48px) 20px;
+    scroll-behavior:auto;
+  }
+  body.f-guided-desktop .fg-step{
+    width:min(100%,520px);margin:auto;display:flex;flex-direction:column;align-items:stretch;
+    color:var(--text);transition:opacity var(--dur-base) var(--ease-in),transform var(--dur-base) var(--ease-in);
+    animation:gFadeInUp var(--dur-base) var(--ease-out) both;
+  }
+  body.f-guided-desktop .fg-step.is-confirmed{opacity:.35;transform:translateY(-4px)}
+  body.f-guided-desktop .fg-progress{margin:0 0 30px;font-size:12px;font-weight:750;color:var(--text-3);font-variant-numeric:tabular-nums}
+  body.f-guided-desktop .fg-kicker{margin:0 0 9px;font-size:10.5px;font-weight:850;letter-spacing:.1em;text-transform:uppercase;color:var(--dm-orange-d)}
+  body.f-guided-desktop .fg-step h2{margin:0;font-size:clamp(22px,2.1vw,30px);font-weight:900;line-height:1.14;letter-spacing:-.025em;text-wrap:balance;color:var(--text)}
+  body.f-guided-desktop .fg-step h2 strong{font-weight:900}
+  body.f-guided-desktop .fg-step .perg-ctx{display:block;margin-top:10px;font-size:13px;font-weight:550;line-height:1.45;letter-spacing:0;color:var(--text-3)}
+  body.f-guided-desktop .fg-note{margin:15px 0 0;padding:11px 13px;border-left:3px solid var(--dm-orange);border-radius:var(--r-sm);background:var(--dm-orange-bg);font-size:12.5px;line-height:1.45;color:var(--text-2)}
+  body.f-guided-desktop .fg-control{margin-top:24px}
+  body.f-guided-desktop .fg-error{margin:12px 0 0;font-size:12.5px;font-weight:650;line-height:1.4;color:var(--dm-red)}
+  body.f-guided-desktop .fg-error[hidden]{display:none}
+  body.f-guided-desktop .fg-confirm{min-height:20px;margin:12px 0 0;font-size:13px;font-weight:750;color:var(--green-text)}
+
+  /* O input continua sendo o canônico do chat: máscara, limite, preview ao vivo e Gemini
+     contextual seguem passando pelos mesmos listeners de chat-input.js. */
+  body.f-guided-desktop:not(.f-guided-no-input) #f-input-row{
+    width:min(calc(100% - 40px),520px);margin:0 auto 14px;padding:7px 7px 7px 14px;
+    border:1px solid var(--gray-mid);border-radius:14px;background:var(--white);box-shadow:var(--glass-shadow);
+    backdrop-filter:none;-webkit-backdrop-filter:none;z-index:3;
+  }
+  body.f-guided-desktop #f-input-wrap{min-width:0}
+  body.f-guided-desktop #f-msg-box{min-height:44px;padding-inline:0;border:0;background:transparent;font-size:15px;box-shadow:none}
+  body.f-guided-desktop #f-msg-box:focus{outline:0;box-shadow:none}
+  body.f-guided-desktop #f-input-row:focus-within{border-color:var(--dm-orange);box-shadow:0 0 0 3px var(--dm-orange-bg),var(--glass-shadow)}
+  body.f-guided-desktop #f-snd{width:auto;min-width:112px;height:42px;padding:0 18px;border-radius:10px;background:var(--dm-orange);color:var(--on-orange);font-size:13px;font-weight:850}
+  body.f-guided-desktop #f-snd svg{display:none}
+  body.f-guided-desktop #f-snd::after{content:attr(data-label)}
+  body.f-guided-desktop #f-snd:hover{filter:brightness(.96);transform:translateY(-1px)}
+  body.f-guided-desktop #f-snd:focus-visible{outline:2px solid var(--dm-orange);outline-offset:3px}
+  body.f-guided-desktop.f-guided-no-input #f-input-row{display:none}
+
+  body.f-guided-desktop #f-sheet-foot{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;width:min(calc(100% - 40px),520px);
+    margin:0 auto 24px;padding:0;background:transparent;border:0;flex:0 0 auto;
+  }
+  body.f-guided-desktop.f-guided-prestart #f-sheet-foot,
+  body.f-guided-desktop.f-guided-respostas #f-sheet-foot{display:none}
+  body.f-guided-desktop .fsf-btn{
+    appearance:none;display:inline-flex;align-items:center;gap:6px;min-height:38px;padding:7px 10px;
+    border:0;border-radius:9px;background:transparent;color:var(--text-3);font:700 12.5px 'Roboto',sans-serif;cursor:pointer;
+  }
+  body.f-guided-desktop .fsf-btn:hover{background:var(--white);color:var(--text)}
+  body.f-guided-desktop .fsf-btn:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+  body.f-guided-desktop .fsf-btn svg{width:13px;height:13px}
+  body.f-guided-desktop .fsf-btn[hidden]{display:none}
+
+  body.f-guided-desktop .fg-options,body.f-guided-desktop .fg-suggestions,body.f-guided-desktop .fg-decision-actions{display:flex;flex-wrap:wrap;gap:9px}
+  body.f-guided-desktop .fg-option,body.f-guided-desktop .fg-suggestions button,
+  body.f-guided-desktop .fg-primary,body.f-guided-desktop .fg-secondary,body.f-guided-desktop .fg-link,body.f-guided-desktop .fg-skip{
+    appearance:none;min-height:42px;padding:9px 15px;border:1px solid var(--gray-mid);border-radius:11px;
+    background:var(--white);color:var(--text-2);font:750 13px 'Roboto',sans-serif;cursor:pointer;
+    transition:color var(--dur-fast) var(--ease-standard),background var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard),transform var(--dur-fast) var(--ease-spring);
+  }
+  body.f-guided-desktop .fg-option:hover,body.f-guided-desktop .fg-suggestions button:hover,body.f-guided-desktop .fg-secondary:hover{border-color:var(--dm-orange);color:var(--text);transform:translateY(-1px)}
+  body.f-guided-desktop .fg-option.selected{border-color:var(--dm-orange);background:var(--dm-orange-bg);color:var(--text)}
+  body.f-guided-desktop .fg-primary{border-color:var(--dm-orange);background:var(--dm-orange);color:var(--on-orange)}
+  body.f-guided-desktop .fg-primary:hover{filter:brightness(.96);transform:translateY(-1px)}
+  body.f-guided-desktop .fg-link,body.f-guided-desktop .fg-skip{border-color:transparent;background:transparent;color:var(--text-3)}
+  body.f-guided-desktop .fg-link:hover,body.f-guided-desktop .fg-skip:hover{background:var(--gray-light);color:var(--text)}
+  body.f-guided-desktop .fg-skip{align-self:flex-start;margin-top:12px;min-height:34px;padding:6px 9px;font-size:12px}
+  body.f-guided-desktop .fg-option:focus-visible,body.f-guided-desktop .fg-suggestions button:focus-visible,
+  body.f-guided-desktop .fg-primary:focus-visible,body.f-guided-desktop .fg-secondary:focus-visible,
+  body.f-guided-desktop .fg-link:focus-visible,body.f-guided-desktop .fg-skip:focus-visible,
+  body.f-guided-desktop .fg-date:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+  body.f-guided-desktop .fg-colors .fg-option{display:inline-flex;align-items:center;gap:8px}
+  body.f-guided-desktop .fg-colors .fg-option i{width:20px;height:20px;border-radius:50%;background:var(--fg-color);border:1px solid var(--gray-mid);box-shadow:inset 0 0 0 2px var(--white)}
+  body.f-guided-desktop .fg-date-row{display:flex;align-items:center;gap:10px}
+  body.f-guided-desktop .fg-date{min-width:0;flex:1;min-height:46px;padding:9px 12px;border:1px solid var(--gray-mid);border-radius:11px;background:var(--white);color:var(--text);font:650 14px 'Roboto',sans-serif}
+  body.f-guided-desktop .fg-decision{justify-content:center;min-height:280px}
+  body.f-guided-desktop .fg-decision>p{margin:13px 0 0;max-width:45ch;font-size:14px;line-height:1.55;color:var(--text-3)}
+  body.f-guided-desktop .fg-decision-actions{margin-top:24px;align-items:center}
+
+  body.f-guided-desktop .fg-upload-zone{max-width:none;margin:0;min-height:168px}
+  body.f-guided-desktop .fg-upload-zone .f-upload-icon svg{width:28px;height:28px}
+  body.f-guided-desktop .fg-control>.f-upload-preview{max-width:none;margin:0}
+  body.f-guided-desktop .fg-control>.f-upload-confirm{max-width:none;margin:10px 0 0}
+
+  /* “Respostas” é uma projeção de fState.dados, não histórico. O Review pronto reutiliza o
+     desenho já existente; este trecho cobre a consulta durante a criação. */
+  body.f-guided-desktop.f-guided-respostas:not(.f-revisao) #f-messages,
+  body.f-guided-desktop.f-guided-respostas:not(.f-revisao) #f-input-row{display:none}
+  body.f-guided-desktop.f-guided-respostas:not(.f-revisao) #f-respostas:not([hidden]){
+    display:flex;flex-direction:column;align-items:center;justify-content:safe center;flex:1;min-height:0;overflow-y:auto;padding:clamp(24px,4vh,40px) 20px;
+  }
+  body.f-guided-desktop.f-guided-respostas:not(.f-revisao) #f-respostas>*{width:min(100%,520px)}
+  body.f-guided-desktop.f-guided-respostas:not(.f-revisao) .fr-h{margin:0 0 8px;font-size:11px;font-weight:850;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3)}
+  body.f-guided-desktop.f-guided-respostas:not(.f-revisao) .fr-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:3px 12px;padding:13px 2px;border-bottom:1px solid var(--gray-light)}
+  body.f-guided-desktop.f-guided-respostas:not(.f-revisao) .fr-lbl{grid-column:1;font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3)}
+  body.f-guided-desktop.f-guided-respostas:not(.f-revisao) .fr-val{grid-column:1;display:flex;align-items:center;gap:7px;font-size:14.5px;font-weight:700;color:var(--text);overflow-wrap:anywhere}
+  body.f-guided-desktop.f-guided-respostas:not(.f-revisao) .fr-val.vazia{font-weight:500;color:var(--text-3)}
+  body.f-guided-desktop.f-guided-respostas:not(.f-revisao) .fr-val i{font-style:italic}
+  body.f-guided-desktop.f-guided-respostas:not(.f-revisao) .fr-mini{width:26px;height:26px;border-radius:6px;object-fit:cover}
+  body.f-guided-desktop.f-guided-respostas:not(.f-revisao) .fr-ed{grid-column:2;grid-row:1/3;width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--gray-mid);border-radius:11px;background:var(--white);color:var(--text-2);cursor:pointer}
+  body.f-guided-desktop.f-guided-respostas:not(.f-revisao) .fr-ed:hover{border-color:var(--dm-orange);background:var(--dm-orange-bg);color:var(--dm-orange-d)}
+  body.f-guided-desktop.f-guided-respostas:not(.f-revisao) .fr-ed:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+  body.f-guided-desktop.f-guided-respostas:not(.f-revisao) .fr-ed svg{width:15px;height:15px}
+
+  body:not(.theme-light).f-guided-desktop:not(.f-arte-pronta) #f-chat-col{background:var(--d-surf)}
+  body:not(.theme-light).f-guided-desktop .fg-step,body:not(.theme-light).f-guided-desktop .fg-step h2{color:var(--d-text)}
+  body:not(.theme-light).f-guided-desktop .fg-progress,body:not(.theme-light).f-guided-desktop .fg-step .perg-ctx,
+  body:not(.theme-light).f-guided-desktop .fg-decision>p{color:var(--d-text2)}
+  body:not(.theme-light).f-guided-desktop:not(.f-guided-no-input) #f-input-row,
+  body:not(.theme-light).f-guided-desktop .fg-option,body:not(.theme-light).f-guided-desktop .fg-suggestions button,
+  body:not(.theme-light).f-guided-desktop .fg-secondary,body:not(.theme-light).f-guided-desktop .fg-date{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text)}
+  body:not(.theme-light).f-guided-desktop .fsf-btn:hover,body:not(.theme-light).f-guided-desktop .fg-link:hover,
+  body:not(.theme-light).f-guided-desktop .fg-skip:hover{background:var(--d-surf2);color:var(--d-text)}
+  body:not(.theme-light).f-guided-desktop.f-guided-respostas:not(.f-revisao) .fr-row{border-bottom-color:var(--d-border)}
+  body:not(.theme-light).f-guided-desktop.f-guided-respostas:not(.f-revisao) .fr-val{color:var(--d-text)}
+  body:not(.theme-light).f-guided-desktop.f-guided-respostas:not(.f-revisao) .fr-ed{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text2)}
+}
+
+@media (min-width:681px) and (prefers-reduced-motion:reduce){
+  body.f-guided-desktop .fg-step{animation:none;transition:none}
+  body.f-guided-desktop .fg-step.is-confirmed{opacity:1;transform:none}
+}
+
 /* ── 7. UM CONTROLE BRILHANTE NA BARRA, NÃO DOIS ──
    A barra tinha o "Falar" numa cápsula cinza sólida disputando com o Enviar.
    O microfone é alternativa, não a ação — fica silencioso até o hover/foco. */

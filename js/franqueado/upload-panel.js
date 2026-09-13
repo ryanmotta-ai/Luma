@@ -55,13 +55,16 @@ function _fMakeThumb(dataUrl, size, cb){
     img.src=dataUrl;
   }catch(e){ cb(null); }
 }
-// Registra uma imagem já usada nos recentes. Fire-and-forget (não bloqueia o chat).
-function fRecordRecentImg(resizedUrl, field){
+// Registra uma imagem já usada nos recentes. Fire-and-forget para quem chama, mas o
+// índice só nasce depois do commit no IDB — senão a thumb vira um card sem imagem.
+async function fRecordRecentImg(resizedUrl, field){
   if(!resizedUrl || typeof resizedUrl!=='string') return;
   if(typeof gIdbPut!=='function' || typeof indexedDB==='undefined') return; // sem idb → não guarda cru
   const key = (typeof gImgHash==='function' ? gImgHash(resizedUrl) : 'rec-'+Date.now());
   const ref = 'idb://'+key;
-  try{ gIdbPut(key, resizedUrl); }catch(e){ return; }
+  let stored=false;
+  try{ stored=await gIdbPut(key, resizedUrl); }catch(e){}
+  if(!stored) return;
   _fMakeThumb(resizedUrl, F_RECENT_THUMB, (thumb)=>{
     // Miniatura ausente ou acima do teto nao vai pro localStorage. A foto continua no
     // IndexedDB e reaproveitavel: o card so aparece com o icone em vez do preview.
@@ -70,6 +73,12 @@ function fRecordRecentImg(resizedUrl, field){
     arr.unshift({ref, thumb:th, ts:Date.now(), field:field||''});
     _fSaveRecentImgs(arr);
   });
+}
+function _fDropMissingRecentImg(ref){
+  _fSaveRecentImgs(fGetRecentImgs().filter(x=>x.ref!==ref));
+  if(typeof gToast==='function'){
+    gToast('Essa imagem não estava mais disponível e foi removida. Envie novamente.','error');
+  }
 }
 function fRemoveRecentImg(i, ev){
   if(ev){ try{ ev.stopPropagation(); }catch(e){} }
@@ -166,7 +175,7 @@ function fPickRecentImg(i){
   // Resolve a referência idb:// → dataURL real (Promise). Aplica no mesmo caminho do upload.
   Promise.resolve(typeof gResolveImgUrl==='function' ? gResolveImgUrl(entry.ref) : entry.ref)
     .then((url)=>{
-      if(!url){ if(typeof gToast==='function') gToast('Não consegui carregar essa imagem. Envie de novo.','error'); return; }
+      if(!url){ _fDropMissingRecentImg(entry.ref); return; }
       // move pro topo (recém-usada)
       const cur=fGetRecentImgs().filter(x=>x.ref!==entry.ref); cur.unshift({...entry,ts:Date.now()}); _fSaveRecentImgs(cur);
       if(typeof _fApplyImageToField==='function') _fApplyImageToField(varId, uploadId, url);

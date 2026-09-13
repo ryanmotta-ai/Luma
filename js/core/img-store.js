@@ -17,6 +17,13 @@ let _gIdbPromise = null;
 
 function _gIdbOpen(){
   if(_gIdbPromise) return _gIdbPromise;
+  // Fotos e fundos sao dados criados pelo usuario. Pede ao navegador para nao
+  // eliminar este storage sob pressao; se negar, o IndexedDB segue best-effort.
+  try{
+    if(typeof navigator!=='undefined' && navigator.storage && typeof navigator.storage.persist==='function'){
+      navigator.storage.persist().catch(()=>{});
+    }
+  }catch(e){}
   _gIdbPromise = new Promise((resolve, reject)=>{
     try{
       if(typeof indexedDB === 'undefined'){ reject(new Error('no-idb')); return; }

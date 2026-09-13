@@ -94,6 +94,13 @@ function _fChatBindTeclado(){
 }
 
 function fStartChatComMaterial(material){
+  /* A escuta é neutra enquanto a largura não cruza o breakpoint; ligada também no início
+     mobile, impede que um resize posterior deixe timeline e layout desktop misturados. */
+  try{ _fGuidedBind(); }catch(e){}
+  /* O desktop tem renderer próprio. Esta saída fica ANTES de qualquer bolha para que a
+     timeline mobile continue sendo, literalmente, o caminho antigo abaixo. */
+  if(!_fCelular()) return _fGuidedStartComMaterial(material);
+  _fGuidedDesativar();
   document.getElementById('f-messages').innerHTML='';
   // Mobile: ao começar o chat, traz o painel do chat pra frente (o layout de 2 colunas colapsa).
   try{ document.body.classList.add('f-mobile-chat'); }catch(e){}
@@ -198,6 +205,7 @@ function _fLojaServeMaterial(){
 }
 
 function fMaterialPreStart(material){
+  if(_fGuidedAtivo()) return _fGuidedMaterialPreStart(material);
   const lojas = (typeof fGetLojas==='function') ? fGetLojas() : [];
   const lojaOffer = _fLojaServeMaterial() && lojas.length;
   // Última arte: entrada mais recente do histórico com o MESMO material.
@@ -251,7 +259,10 @@ function fPickLoja(lojaId){
   _preenche(loja.whatsapp, F_LOJA_CAMPOS.whatsapp);
   _preenche(loja.cor,      F_LOJA_CAMPOS.cor);
   // Remove do fluxo tudo que já está respondido (pela loja agora ou pela prévia antes).
-  fState.camp.perguntas = (fState.camp.perguntas||[]).filter(p=>fState.dados[p.id]==null||fState.dados[p.id]==='');
+  /* No desktop guiado, campos preenchidos continuam na lista canônica: o cursor é que pula
+     decisões resolvidas. Remover a pergunta faria “4 de 6 informações” virar “0 de 2”. */
+  if(!_fGuidedAtivo())
+    fState.camp.perguntas = (fState.camp.perguntas||[]).filter(p=>fState.dados[p.id]==null||fState.dados[p.id]==='');
   if(typeof gToast==='function') gToast(`Dados de ${loja.nome||'sua loja'} aplicados`);
   fLpRefresh();
   _fProceedMaterialStart(fState.material);
@@ -261,6 +272,7 @@ function fUseLastArte(histId){
   _fClearPreStart();
   const h=(typeof fGetHist==='function') ? fGetHist().find(x=>x.id===histId) : null;
   if(!h){ _fProceedMaterialStart(fState.material); return; }
+  if(_fGuidedAtivo()) return _fGuidedUseLastArte(h);
   fState.dados={...fState.dados, ...h.dados};   // mesma regra do rascunho: mescla, não descarta o atual
   fState.stepIdx=fState.camp.perguntas.length; // pula as perguntas → confirmação
   fState.done=false; fState.editIdx=null;
@@ -269,6 +281,12 @@ function fUseLastArte(histId){
   setTimeout(()=>fGerarArte(),500);
 }
 function _fProceedMaterialStart(material){
+  if(_fGuidedAtivo()){
+    fState.stepIdx=-1; fState.done=false;
+    fUpdateProg();
+    _fGuidedAbrirProximo(0);
+    return;
+  }
   fState.stepIdx=-1; fState.done=false; fUpdateProg();
   const total = fState.camp.perguntas.length;
   let intro = total > 0
@@ -290,6 +308,10 @@ function fSelectFmt(id){
   if(!novoFmt || (fState.fmt && fState.fmt.id===novoFmt.id)) return;
   fState.fmt=novoFmt;
   fRenderFmts();fUpdateCtx();
+  if(_fGuidedAtivo() && !fState.done){
+    _fGuidedMostrarAtual();
+    return;
+  }
   // Se há dados, mantém — só reseta progresso visual; se já finalizou, regera com novo formato
   const temDados = Object.keys(fState.dados).length > 0;
   if(temDados && fState.done){
@@ -327,7 +349,10 @@ function fUpdateCtx(){
   fLpRefresh();
 }
 function fUpdateProg(){
-  const tot=(fState.camp&&fState.camp.perguntas)?fState.camp.perguntas.length:0, done=Math.max(0,fState.stepIdx);
+  const tot=(fState.camp&&fState.camp.perguntas)?fState.camp.perguntas.length:0;
+  /* Mobile continua contando o cursor. Desktop conta informação válida, porque draft,
+     reuso e edição pela arte podem preencher campos fora da ordem. */
+  const done=_fGuidedAtivo()?_fGuidedPreenchidas():Math.max(0,fState.stepIdx);
   const el=document.getElementById('prog-fill'); if(el) el.style.width=(tot>0?Math.round(done/tot*100):0)+'%';
   /* O "2/6" do celular. No desktop o número continua onde sempre esteve (o `.step-label`
      dentro do balão); aqui ele sobe pro cabeçalho porque o balão virou o painel e não abre
@@ -358,6 +383,317 @@ function fUpdateProg(){
    refatorei os 6 (fora do escopo desta rodada); código novo usa esta. */
 function _fCelular(){ return !!(window.matchMedia && matchMedia('(max-width:680px)').matches); }
 
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   DESKTOP GUIADO — O ESTADO ACUMULA; AS MENSAGENS NÃO
+   ══════════════════════════════════════════════════════════════════════════════════════════
+   A bifurcação mora numa única fronteira (`_fGuidedAtivo`). O celular continua montando
+   bolhas com fAddBot/fAddUser; o desktop pinta uma superfície pequena a partir de fState.
+   Este objeto só sabe NAVEGAÇÃO por id. Valor de arte nunca entra aqui — vive em
+   `fState.dados`, a mesma verdade que alimenta Preview, draft e PNG. */
+let _fGuidedNav={active:false,currentField:null,returnTarget:null,mode:'guided'};
+let _fGuidedTimer=null;
+let _fGuidedBound=false;
+
+function _fGuidedAtivo(){ return !!(_fGuidedNav.active && !_fCelular()); }
+function _fGuidedPerguntas(){ return (fState.camp&&fState.camp.perguntas)||[]; }
+function _fGuidedIndice(id){ return _fGuidedPerguntas().findIndex(p=>p&&p.id===id); }
+function _fGuidedCampoResolvido(p){
+  if(!p) return false;
+  const cfg=fGetFieldType(p.id);
+  if(fState.dados&&fState.dados['__skipped__'+p.id]) return !cfg.required;
+  const v=fState.dados&&fState.dados[p.id];
+  if(v==null||v==='') return false;
+  const masked=fApplyMask(p.id,String(v));
+  return !fValidate(p.id,masked);
+}
+function _fGuidedPreenchidas(){
+  return _fGuidedPerguntas().reduce((n,p)=>n+(_fGuidedCampoResolvido(p)&&!(fState.dados&&fState.dados['__skipped__'+p.id])?1:0),0);
+}
+function _fGuidedProximoIndice(inicio){
+  const ps=_fGuidedPerguntas();
+  for(let i=Math.max(0,inicio||0);i<ps.length;i++) if(!_fGuidedCampoResolvido(ps[i])) return i;
+  for(let i=0;i<Math.max(0,inicio||0);i++) if(!_fGuidedCampoResolvido(ps[i])) return i;
+  return -1;
+}
+function _fGuidedClasses(tipo){
+  const b=document.body;
+  b.classList.add('f-guided-desktop');
+  b.classList.toggle('f-guided-no-input',tipo!=='text');
+  b.classList.toggle('f-guided-prestart',tipo==='prestart');
+  b.classList.toggle('f-guided-respostas',tipo==='answers'||tipo==='review');
+  b.classList.toggle('f-guided-field-edit',_fGuidedNav.mode==='field-edit');
+}
+function _fGuidedLimparClasses(){
+  try{ document.body.classList.remove('f-guided-desktop','f-guided-no-input','f-guided-prestart','f-guided-respostas','f-guided-field-edit'); }catch(e){}
+}
+function _fGuidedDesativar(){
+  clearTimeout(_fGuidedTimer);
+  _fGuidedNav.active=false; _fGuidedNav.currentField=null; _fGuidedNav.returnTarget=null; _fGuidedNav.mode='guided';
+  _fGuidedLimparClasses();
+}
+function _fGuidedPrepararConclusao(){
+  clearTimeout(_fGuidedTimer);
+  _fGuidedLimparClasses();
+  const r=document.getElementById('f-respostas'); if(r) r.hidden=true;
+}
+function _fGuidedConfigInput(p,cfg,valor){
+  const box=document.getElementById('f-msg-box'), snd=document.getElementById('f-snd');
+  if(!box||!snd) return;
+  box.type='text'; box.disabled=false; box.value=valor||''; box.maxLength=cfg.maxLen||120;
+  box.removeAttribute('aria-describedby');
+  snd.disabled=false; snd.dataset.label=_fGuidedNav.mode==='field-edit'?'Salvar':'Continuar';
+  snd.setAttribute('aria-label',snd.dataset.label);
+  fUpdateInputPlaceholder(p.id);
+  try{ box.setSelectionRange(box.value.length,box.value.length); fUpdateCharCount(); }catch(e){}
+  requestAnimationFrame(()=>{ try{ box.focus(); }catch(e){} });
+}
+function _fGuidedDesligarInput(){
+  const box=document.getElementById('f-msg-box'), snd=document.getElementById('f-snd');
+  if(box){ box.disabled=true; box.value=''; box.removeAttribute('aria-describedby'); }
+  if(snd) snd.disabled=true;
+}
+function _fGuidedPintaProgresso(){
+  const n=document.getElementById('fg-progress-count');
+  if(n) n.textContent=_fGuidedPreenchidas()+' de '+_fGuidedPerguntas().length+' informações';
+  const el=document.getElementById('prog-fill'), tot=_fGuidedPerguntas().length;
+  if(el) el.style.width=(tot?Math.round(_fGuidedPreenchidas()/tot*100):0)+'%';
+}
+function _fGuidedSafeColor(v){ return /^#[0-9a-f]{6}$/i.test(String(v||''))?String(v):''; }
+function _fGuidedOpcoes(p,cfg){
+  let itens=Array.isArray(cfg.options)&&cfg.options.length?cfg.options.slice():(Array.isArray(p.sugestoes)?p.sugestoes.slice():[]);
+  if(cfg.type==='boolean'&&!itens.length) itens=['Sim','Não'];
+  if(cfg.type==='color'){
+    itens=Array.isArray(cfg.palette)?cfg.palette.slice():itens;
+    const foto=fState.extractedColors&&(fState.extractedColors.foto_produto||Object.values(fState.extractedColors)[0]);
+    if(foto&&!itens.includes(foto)) itens.unshift(foto);
+  }
+  return itens;
+}
+function _fGuidedControleHTML(p,cfg,valor,uploadId){
+  if(p.isImage||cfg.type==='image'){
+    if(valor) return _fUploadPreviewHTML(p.id,valor,{jaEstava:true});
+    return `<div class="f-upload-zone fg-upload-zone" id="${uploadId}-zone" data-var="${gEsc(p.id)}" data-upload="${uploadId}" onclick="fOpenUploadPanel('${gEsc(p.id)}','${uploadId}')">
+      <input type="file" id="${uploadId}-input" accept="image/png,image/jpeg,image/webp" hidden onclick="event.stopPropagation()" onchange="fHandleImageUpload(event,'${gEsc(p.id)}','${uploadId}')">
+      <div class="f-upload-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+      <div class="f-upload-title">Escolher imagem</div><div class="f-upload-sub">PNG, JPG ou WebP · até 20MB</div>
+    </div>`;
+  }
+  if(cfg.type==='date'){
+    return `<div class="fg-date-row"><input class="fg-date" id="fg-date" type="date" value="${gEsc(_fGuidedDataParaInput(valor))}" oninput="_fGuidedPreverData(this.value)" aria-label="${gEsc(cfg.label)}"><button type="button" class="fg-primary" onclick="_fGuidedEnviarData()">${_fGuidedNav.mode==='field-edit'?'Salvar':'Continuar'}</button></div>`;
+  }
+  if(cfg.type==='boolean'||cfg.type==='select'||cfg.type==='color'||p.id==='_dummy'){
+    const ops=_fGuidedOpcoes(p,cfg);
+    return `<div class="fg-options ${cfg.type==='color'?'fg-colors':''}">${ops.map(o=>{
+      const cor=cfg.type==='color'?_fGuidedSafeColor(o):'';
+      return `<button type="button" class="fg-option${String(valor)===String(o)?' selected':''}" data-value="${gEsc(String(o))}" onclick="_fGuidedEscolher(this.dataset.value)"${cor?` style="--fg-color:${cor}"`:''}>${cfg.type==='color'?`<i aria-hidden="true"></i><span>${gEsc(String(o))}</span>`:gEsc(String(o))}</button>`;
+    }).join('')}</div>`;
+  }
+  const sugestoes=_fGuidedOpcoes(p,cfg);
+  return sugestoes.length?`<div class="fg-suggestions" aria-label="Sugestões">${sugestoes.map(o=>`<button type="button" data-value="${gEsc(String(o))}" onclick="_fGuidedEscolher(this.dataset.value)">${gEsc(String(o))}</button>`).join('')}</div>`:'';
+}
+function _fGuidedMostrarCampo(idx,opts){
+  opts=opts||{};
+  const ps=_fGuidedPerguntas(), p=ps[idx]; if(!p) return _fGuidedFinalizarSePronto();
+  const cfg=fGetFieldType(p.id), valor=(fState.dados&&fState.dados[p.id])||'';
+  _fGuidedNav.currentField=p.id;
+  if(opts.edit){ _fGuidedNav.mode='field-edit'; fState.editIdx=idx; }
+  else { _fGuidedNav.mode='guided'; fState.editIdx=null; }
+  fState.stepIdx=idx; fState.done=false;
+  const msgs=document.getElementById('f-messages'), respostas=document.getElementById('f-respostas');
+  if(!msgs) return;
+  if(respostas) respostas.hidden=true;
+  document.body.classList.remove('f-respostas-abertas');
+  const hist=document.getElementById('f-sheet-hist'); if(hist)hist.setAttribute('aria-expanded','false');
+  const histLbl=document.getElementById('f-sheet-hist-lbl'); if(histLbl)histLbl.textContent='Respostas';
+  const uploadId='fg-upload-'+Date.now();
+  const controle=_fGuidedControleHTML(p,cfg,valor,uploadId);
+  const opcional=!cfg.required&&!valor?`<button type="button" class="fg-skip" onclick="_fGuidedEscolher('Pular')">Pular por enquanto</button>`:'';
+  const instrucao=idx===0&&fState.material&&fState.material.publishMeta&&fState.material.publishMeta.instrucoes
+    ? `<p class="fg-note">${gEsc(fState.material.publishMeta.instrucoes)}</p>`:'';
+  msgs.innerHTML=`<section class="fg-step" aria-labelledby="fg-title">
+    <p class="fg-progress" id="fg-progress-count">${_fGuidedPreenchidas()} de ${ps.length} informações</p>
+    <div class="fg-kicker">${gEsc(cfg.label||p.label||'Informação')}</div>
+    <h2 id="fg-title">${fPerguntaTexto(p)}</h2>
+    ${instrucao}<div class="fg-control">${controle}</div>${opcional}
+    <p class="fg-error" id="fg-field-error" role="status" aria-live="polite" hidden></p>
+    <p class="fg-confirm" id="fg-confirm" role="status" aria-live="polite"></p>
+  </section>`;
+  const textual=!(p.isImage||['image','date','boolean','select','color'].includes(cfg.type)||p.id==='_dummy');
+  _fGuidedClasses(textual?'text':'control');
+  if(textual) _fGuidedConfigInput(p,cfg,String(valor)); else _fGuidedDesligarInput();
+  fUpdateProg(); fLpRefresh();
+  try{ _fSheetSync(); }catch(e){}
+}
+function _fGuidedMostrarAtual(){
+  const idx=_fGuidedIndice(_fGuidedNav.currentField);
+  if(idx>=0) _fGuidedMostrarCampo(idx,{edit:_fGuidedNav.mode==='field-edit'});
+  else _fGuidedAbrirProximo(0);
+}
+function _fGuidedAbrirProximo(inicio){
+  const idx=_fGuidedProximoIndice(inicio);
+  if(idx<0){ _fGuidedFinalizarSePronto(); return; }
+  _fGuidedNav.returnTarget=null; _fGuidedMostrarCampo(idx);
+}
+function _fGuidedFinalizarSePronto(){
+  _fGuidedPrepararConclusao();
+  fGerarArte();
+}
+function _fGuidedErro(msg){
+  const e=document.getElementById('fg-field-error');
+  if(e){ e.textContent=msg||''; e.hidden=!msg; }
+  const box=document.getElementById('f-msg-box');
+  if(box){ if(msg) box.setAttribute('aria-describedby','fg-field-error'); else box.removeAttribute('aria-describedby'); }
+}
+function _fGuidedSalvar(raw){
+  const idx=_fGuidedIndice(_fGuidedNav.currentField), p=_fGuidedPerguntas()[idx]; if(!p) return;
+  const cfg=fGetFieldType(p.id), pulou=String(raw).toLowerCase()==='pular';
+  if(pulou&&cfg.required){ _fGuidedErro('Esta informação é necessária para gerar a arte.'); return; }
+  const valor=pulou?'':fApplyMask(p.id,String(raw||''));
+  const erro=pulou?null:fValidate(p.id,valor);
+  if(erro){ _fGuidedErro(erro); return; }
+  _fGuidedErro('');
+  fState.dados[p.id]=valor;
+  if(pulou) fState.dados['__skipped__'+p.id]=true; else delete fState.dados['__skipped__'+p.id];
+  try{ fSaveChatDraft(); }catch(e){}
+  try{ fUpdateLivePreview({animateField:p.id}); }catch(e){}
+  _fGuidedPintaProgresso();
+  const confirma=document.getElementById('fg-confirm'), step=document.querySelector('.fg-step');
+  if(confirma) confirma.textContent=(pulou?'Informação pulada':(p.isImage||cfg.type==='image')?'Imagem confirmada':(valor||'Salvo'))+' ✓';
+  if(step) step.classList.add('is-confirmed');
+  const reduz=!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
+  clearTimeout(_fGuidedTimer);
+  _fGuidedTimer=setTimeout(()=>{
+    if(_fGuidedNav.mode==='field-edit') _fGuidedRetornarDaEdicao();
+    else _fGuidedAvancar();
+  },reduz?0:260);
+}
+function _fGuidedAvancar(){
+  const atual=_fGuidedIndice(_fGuidedNav.currentField);
+  const prox=_fGuidedProximoIndice(atual+1);
+  if(prox<0) _fGuidedFinalizarSePronto(); else _fGuidedMostrarCampo(prox);
+}
+function _fGuidedEnviarTexto(){
+  const box=document.getElementById('f-msg-box'); if(!box) return;
+  _fGuidedSalvar(box.value.trim());
+}
+function _fGuidedEscolher(valor){ _fGuidedSalvar(valor); }
+function _fGuidedDataParaInput(valor){
+  const m=String(valor||'').match(/(\d{1,2})[\/-](\d{1,2})(?:[\/-](\d{4}))?/);
+  if(!m) return '';
+  const ano=m[3]||String(new Date().getFullYear());
+  return ano+'-'+String(m[2]).padStart(2,'0')+'-'+String(m[1]).padStart(2,'0');
+}
+function _fGuidedDataDoInput(valor){
+  const m=String(valor||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m?(m[3]+'/'+m[2]+'/'+m[1]):'';
+}
+function _fGuidedPreverData(valor){
+  const p=_fGuidedPerguntas()[_fGuidedIndice(_fGuidedNav.currentField)]; if(!p) return;
+  const v=_fGuidedDataDoInput(valor); if(!v) return;
+  fState.dados[p.id]=fApplyMask(p.id,v);
+  try{ fUpdateLivePreview({animateField:p.id}); fSaveChatDraft(); }catch(e){}
+  _fGuidedErro(''); _fGuidedPintaProgresso();
+}
+function _fGuidedEnviarData(){
+  const inp=document.getElementById('fg-date');
+  _fGuidedSalvar(inp?_fGuidedDataDoInput(inp.value):'');
+}
+function _fGuidedRetornarDaEdicao(){
+  const alvo=_fGuidedNav.returnTarget;
+  fState.editIdx=null; _fGuidedNav.returnTarget=null;
+  if(alvo==='review'){ fAbrirRevisao(); return; }
+  const idx=_fGuidedIndice(alvo);
+  if(idx>=0) _fGuidedMostrarCampo(idx); else _fGuidedAbrirProximo(0);
+}
+function _fGuidedDecisao(html){
+  const msgs=document.getElementById('f-messages'), respostas=document.getElementById('f-respostas'); if(!msgs) return;
+  if(respostas) respostas.hidden=true;
+  msgs.innerHTML=`<section class="fg-step fg-decision">${html}</section>`;
+  _fGuidedClasses('prestart'); _fGuidedDesligarInput();
+  try{ _fSheetSync(); }catch(e){}
+}
+function _fGuidedDraftDecision(draft,material){
+  fState._pendingDraft=draft;
+  _fGuidedDecisao(`<div class="fg-kicker">Rascunho encontrado</div><h2>Quer continuar esta arte?</h2><p>Recuperamos as informações já preenchidas em <strong>${gEsc(material.name)}</strong>.</p><div class="fg-decision-actions"><button type="button" class="fg-primary" onclick="fApplyRecoverDraft(true)">Continuar rascunho</button><button type="button" class="fg-secondary" onclick="fApplyRecoverDraft(false)">Começar do zero</button></div>`);
+}
+function _fGuidedMaterialPreStart(material){
+  const lojas=(typeof fGetLojas==='function')?fGetLojas():[];
+  const lojaOffer=_fLojaServeMaterial()&&lojas.length;
+  let ultima=null; try{ ultima=(typeof fGetHist==='function')?fGetHist().find(h=>h.materialId===material.id):null; }catch(e){}
+  if(!lojaOffer&&!ultima){ _fProceedMaterialStart(material); return; }
+  let acoes='';
+  if(lojaOffer) acoes+=lojas.map(l=>`<button type="button" class="fg-secondary" data-loja-id="${gEsc(l.id)}" onclick="fPickLoja(this.dataset.lojaId)">Usar ${gEsc(l.nome||'minha loja')}</button>`).join('');
+  if(ultima) acoes+=`<button type="button" class="fg-secondary" onclick="fUseLastArte(${Number(ultima.id)})">Usar informações da última arte</button>`;
+  acoes+='<button type="button" class="fg-primary" onclick="fSkipPreStart()">Começar do zero</button>';
+  _fGuidedDecisao(`<div class="fg-kicker">Vamos adiantar?</div><h2>Vamos montar sua arte</h2><p>Leva menos de um minuto. Posso aproveitar informações que você já usou.</p><div class="fg-decision-actions">${acoes}</div>`);
+}
+function _fGuidedUseLastArte(h){
+  const ids=new Set(_fGuidedPerguntas().map(p=>p.id));
+  Object.keys((h&&h.dados)||{}).forEach(k=>{
+    if(ids.has(k)||(/^__fit__/.test(k)&&ids.has(k.slice(7)))) fState.dados[k]=h.dados[k];
+  });
+  fState.stepIdx=-1; fState.done=false; fState.editIdx=null;
+  try{ fSaveChatDraft(); fLpRefresh(); }catch(e){}
+  const n=_fGuidedPreenchidas(), falta=_fGuidedPerguntas().length-n;
+  _fGuidedDecisao(`<div class="fg-kicker">Informações reaproveitadas</div><h2>Usamos sua última arte</h2><p><strong>${n}</strong> ${n===1?'informação foi recuperada':'informações foram recuperadas'}.${falta?` Ainda ${falta===1?'falta uma decisão':'faltam '+falta+' decisões'}.`:' Já temos tudo para gerar.'}</p><div class="fg-decision-actions"><button type="button" class="fg-primary" onclick="_fGuidedAbrirProximo(0)">Continuar</button></div>`);
+}
+function _fGuidedStartComMaterial(material){
+  _fGuidedNav.active=true; _fGuidedNav.currentField=null; _fGuidedNav.returnTarget=null; _fGuidedNav.mode='guided';
+  _fRevisando=false;
+  try{ document.body.classList.add('f-mobile-chat'); }catch(e){} // deixa resize desktop→mobile coerente
+  const msgs=document.getElementById('f-messages'); if(msgs) msgs.innerHTML='';
+  const respostas=document.getElementById('f-respostas'); if(respostas) respostas.hidden=true;
+  fState.material=material; fState.stepIdx=-1; fState.done=false; fState.editIdx=null; fState.extractedColors={};
+  try{ const c=document.getElementById('f-chat-art'); if(c)c.remove(); fAttachInputGuard(); _fGuidedBind(); }catch(e){}
+  let draft=null;
+  try{
+    const saved=localStorage.getItem('luma_chat_draft'), parsed=saved?JSON.parse(saved):null;
+    if(parsed&&parsed.materialId===material.id&&parsed.campId===fState.camp.id&&Object.keys(parsed.dados||{}).length) draft=parsed;
+  }catch(e){}
+  fLpRefresh(); fUpdateProg();
+  if(draft){ _fGuidedDraftDecision(draft,material); return; }
+  fMaterialPreStart(material);
+}
+function _fGuidedPreviewChooser(vars){
+  const botoes=vars.map(v=>`<button type="button" class="fg-secondary" data-field-id="${gEsc(v)}" onclick="_fGuidedEditarPorId(this.dataset.fieldId)">${gEsc(gFieldLabel(v))}</button>`).join('');
+  _fGuidedDecisao(`<div class="fg-kicker">Editar pela arte</div><h2>O que você quer alterar aqui?</h2><div class="fg-decision-actions">${botoes}<button type="button" class="fg-link" onclick="_fGuidedMostrarAtual()">Cancelar</button></div>`);
+}
+function _fGuidedEditarPorId(id){ const i=_fGuidedIndice(id); if(i>=0) fEditCampo(i); }
+function _fGuidedPreviewCapture(ev){
+  if(!_fGuidedAtivo()||fState.done||!ev.target||ev.target.id!=='lp-canvas') return;
+  if(typeof _lpFraming!=='undefined'&&_lpFraming) return;
+  if(typeof _fLpArtCoords!=='function'||typeof _fLpLayerAt!=='function'||typeof _fLpLayerVars!=='function') return;
+  const pt=_fLpArtCoords(ev), l=pt&&_fLpLayerAt(pt.x,pt.y); if(!l) return;
+  const vars=_fLpLayerVars(l).filter(v=>_fGuidedIndice(v)>=0&&(!window._fLpPerm||_fLpPerm(v).editable));
+  if(!vars.length) return;
+  ev.preventDefault(); ev.stopImmediatePropagation();
+  if(vars.length===1) _fGuidedEditarPorId(vars[0]); else _fGuidedPreviewChooser(vars);
+}
+function _fGuidedResize(ev){
+  if(!fState.material||fState.done) return;
+  if(ev.matches&&_fGuidedNav.active){
+    _fGuidedNav.active=false; _fGuidedLimparClasses();
+    const idx=_fGuidedIndice(_fGuidedNav.currentField), msgs=document.getElementById('f-messages'); if(msgs)msgs.innerHTML='';
+    fState.editIdx=null; _fRevisando=false;
+    if(idx>=0){ fState.stepIdx=idx-1; fNextStep(); }
+    else fStartChatComMaterial(fState.material);
+  }else if(!ev.matches&&!_fGuidedNav.active){
+    _fGuidedNav.active=true; _fGuidedNav.mode='guided'; _fGuidedNav.returnTarget=null;
+    const idx=_fGuidedIndice(_fGuidedNav.currentField);
+    if(idx>=0) _fGuidedMostrarCampo(idx); else _fGuidedAbrirProximo(0);
+  }
+}
+function _fGuidedBind(){
+  if(_fGuidedBound) return; _fGuidedBound=true;
+  document.addEventListener('click',_fGuidedPreviewCapture,true);
+  const box=document.getElementById('f-msg-box');
+  if(box) box.addEventListener('input',()=>{ if(_fGuidedAtivo()){ _fGuidedErro(''); _fGuidedPintaProgresso(); } });
+  if(window.matchMedia){
+    const mq=matchMedia('(max-width:680px)');
+    if(mq.addEventListener) mq.addEventListener('change',_fGuidedResize); else if(mq.addListener) mq.addListener(_fGuidedResize);
+  }
+}
+
 /* Já mostramos o "Como vai fica" desta conclusão? (ver o bloco no `_fSheetSync`) */
 let _fProntaCtxAberto = false;
 
@@ -382,7 +718,9 @@ function _fSheetSync(){
   /* ⚠ `!_fRevisando`: na revisão não existe "anterior". O `fGoBack` move o CURSOR do
      questionário, e o questionário já acabou — o botão navegaria para uma pergunta que a
      pessoa não pediu, com a lista aberta atrás. A saída da revisão é "Concluir alterações". */
-  if(b) b.hidden = !(fState.stepIdx>0 && !fState.done && fState.editIdx===null && !_fRevisando);
+  if(b) b.hidden = _fGuidedAtivo()
+    ? !(_fGuidedIndice(_fGuidedNav.currentField)>0 && !fState.done && !_fRevisando && !document.body.classList.contains('f-guided-respostas'))
+    : !(fState.stepIdx>0 && !fState.done && fState.editIdx===null && !_fRevisando);
   /* Arte pronta: a caixa de resposta some. Não é estética — com `fState.done` o `fSaveAdv`
      corta na primeira linha e devolve "Quer gerar outra arte?", ou seja, digitar ali não faz
      nada além de empurrar o card de entrega para fora da vista. E o painel ganha altura,
@@ -401,7 +739,9 @@ function _fSheetSync(){
     document.body.classList.toggle('f-revisao', _fRevisando);
     document.body.classList.toggle('f-revisao-campo', _fRevisando && fState.editIdx !== null);
     const lista = document.getElementById('f-respostas');
-    if(lista && !_fRevisando && !document.body.classList.contains('f-respostas-abertas')) lista.hidden = true;
+    if(lista && !_fRevisando
+      && !document.body.classList.contains('f-respostas-abertas')
+      && !document.body.classList.contains('f-guided-respostas')) lista.hidden = true;
   }catch(e){}
   /* ── A CONCLUSÃO ACONTECE NO PALCO, NÃO NUM MODAL ─────────────────────────────────────
      Por algumas horas de 11/09 isto abria o `fOpenPosted()` sozinho — um modal por cima da
@@ -469,6 +809,15 @@ function fVoltarParaEdicao(){
    entenderia que ainda há um campo aberto e a lista nunca voltaria. */
 function fAbrirRevisao(){
   if(fState.done) return;
+  if(_fGuidedAtivo()){
+    _fRevisando=true; _fGuidedNav.mode='review'; _fGuidedNav.returnTarget='review';
+    fState.editIdx=null;
+    const msgs=document.getElementById('f-messages'); if(msgs) msgs.innerHTML='';
+    fRenderRespostas();
+    const lista=document.getElementById('f-respostas'); if(lista) lista.hidden=false;
+    _fGuidedClasses('review'); _fGuidedDesligarInput(); fUpdateProg();
+    return;
+  }
   _fRevisando = true;
   fState.editIdx = null;
   const msgs=document.getElementById('f-messages');
@@ -490,12 +839,22 @@ function fAbrirRevisao(){
    quem veio corrigir o preço costuma querer corrigir a descrição também, e re-concluir a
    cada campo tocaria a coreografia inteira entre uma correção e a outra. */
 function fPosEdicao(){
+  if(_fGuidedAtivo()){
+    _fGuidedRetornarDaEdicao();
+    return;
+  }
   if(_fRevisando){ fAbrirRevisao(); return; }
   fGerarArte();
 }
 
 /* A saída da revisão. `fGerarArte` liga o `done`, e o `_fSheetSync` apaga o modo sozinho. */
 function fConcluirRevisao(){
+  if(_fGuidedAtivo()){
+    _fRevisando=false; _fGuidedNav.mode='guided'; _fGuidedNav.returnTarget=null;
+    const lista=document.getElementById('f-respostas'); if(lista) lista.hidden=true;
+    _fGuidedPrepararConclusao(); fGerarArte();
+    return;
+  }
   _fRevisando = false;
   const lista=document.getElementById('f-respostas'); if(lista) lista.hidden=true;
   fGerarArte();
@@ -542,6 +901,18 @@ function fSheetToggle(){
    prévia) e o lápis chama o `fEditCampo` que já existe. */
 function fToggleRespostas(){
   const box=document.getElementById('f-respostas'); if(!box) return;
+  if(_fGuidedAtivo()){
+    const abrir=!document.body.classList.contains('f-guided-respostas');
+    if(abrir){
+      fRenderRespostas(); box.hidden=false; _fGuidedClasses('answers');
+    }else{
+      box.hidden=true; document.body.classList.remove('f-guided-respostas'); _fGuidedMostrarAtual();
+    }
+    const b=document.getElementById('f-sheet-hist'); if(b)b.setAttribute('aria-expanded',abrir?'true':'false');
+    const l=document.getElementById('f-sheet-hist-lbl'); if(l)l.textContent=abrir?'Fechar':'Respostas';
+    try{ _fSheetSync(); }catch(e){}
+    return;
+  }
   const abrir = box.hidden;
   if(abrir) fRenderRespostas();
   box.hidden = !abrir;
@@ -583,6 +954,8 @@ function fRenderRespostas(){
   box.innerHTML = _fRevisando
     ? `<h3 class="fr-h">O que você quer corrigir?</h3>${linhas}${dica}`
       + `<button type="button" class="art-btn pri fr-ok" onclick="fConcluirRevisao()">Concluir alterações</button>`
+    : _fGuidedAtivo()
+      ? `<h3 class="fr-h">Respostas</h3>${linhas}`
     : `<h3 class="fr-h">Respostas</h3>${linhas}`
       + `<button type="button" class="fr-reset" onclick="fResetFlow()">Recomeçar esta arte</button>`;
 }
@@ -590,12 +963,20 @@ function fRenderRespostas(){
 /* O lápis fecha a lista antes de editar: o passo alvo abre no painel, e deixar a lista por
    cima dele esconderia justamente a pergunta que o clique pediu. */
 function fRespostaEditar(i){
+  if(_fGuidedAtivo()){
+    document.body.classList.remove('f-guided-respostas');
+    const box=document.getElementById('f-respostas'); if(box)box.hidden=true;
+    const hist=document.getElementById('f-sheet-hist'); if(hist)hist.setAttribute('aria-expanded','false');
+    const histLbl=document.getElementById('f-sheet-hist-lbl'); if(histLbl)histLbl.textContent='Respostas';
+    fEditCampo(i); return;
+  }
   if(document.body.classList.contains('f-respostas-abertas')) fToggleRespostas();
   fEditCampo(i);
 }
 // Boas-vindas no boot: NÃO interroga sobre campanha nenhuma — só recebe o franqueado e o convida
 // a escolher uma campanha. O chat real (fStartChat) só dispara após a escolha.
 function fShowWelcome(){
+  _fGuidedDesativar();
   const msgs=document.getElementById('f-messages'); if(msgs) msgs.innerHTML='';
   fState.stepIdx=-1; fState.dados={}; fState.done=false; fState.material=null;
   try{ fUpdateProg(); }catch(e){}
@@ -670,6 +1051,11 @@ function fPerguntaTexto(p){
 }
 
 function fNextStep(){
+  if(_fGuidedAtivo()){
+    const atual=_fGuidedIndice(_fGuidedNav.currentField);
+    _fGuidedAbrirProximo(atual>=0?atual+1:0);
+    return;
+  }
   fState.stepIdx++;fUpdateProg();
   const pergs=fState.camp.perguntas;
   if(fState.stepIdx>=pergs.length){fGerarArte();return;}
@@ -888,6 +1274,10 @@ async function fValidarImagemSemantica(varId, url, cb){
 /* Confirmação do passo de imagem: é AQUI que o fluxo anda, e só por ação da pessoa. */
 function fConfirmarImagem(varId){
   if(!fState.dados || !fState.dados[varId]) return;
+  if(_fGuidedAtivo()){
+    _fGuidedSalvar(fState.dados[varId]);
+    return;
+  }
   if(fState.editIdx !== null){ fState.editIdx=null; fTyping(()=>fPosEdicao()); return; }
   fTyping(()=>fNextStep());
 }
@@ -1082,11 +1472,13 @@ function fHandleImageUpload(event, varId, uploadId){
 function fProcessImageFile(file, varId, uploadId){
   // Valida tipo e tamanho
   if(!file.type.startsWith('image/')){
-    fShowFieldError('Esse arquivo não é uma imagem.');
+    if(_fGuidedAtivo()) _fGuidedErro('Esse arquivo não é uma imagem.');
+    else fShowFieldError('Esse arquivo não é uma imagem.');
     return;
   }
   if(file.size > 20*1024*1024){
-    fShowFieldError(`Imagem muito grande (${(file.size/1024/1024).toFixed(1)}MB). Máximo 20MB.`);
+    const msg=`Imagem muito grande (${(file.size/1024/1024).toFixed(1)}MB). Máximo 20MB.`;
+    if(_fGuidedAtivo()) _fGuidedErro(msg); else fShowFieldError(msg);
     return;
   }
   // M1.2: feedback de processamento — skeleton + barra de progresso enquanto lê/redimensiona
@@ -1101,7 +1493,8 @@ function fProcessImageFile(file, varId, uploadId){
   reader.onprogress=(ev)=>{ if(_bar&&ev.lengthComputable){_bar.style.width=Math.round(ev.loaded/ev.total*70)+'%';} };
   // Falha de leitura: restaura a zona clicável (com o input) em vez de travar no skeleton.
   reader.onerror=()=>{
-    fShowFieldError('Não consegui ler essa imagem. Tente outra.');
+    if(_fGuidedAtivo()) _fGuidedErro('Não consegui ler essa imagem. Tente outra.');
+    else fShowFieldError('Não consegui ler essa imagem. Tente outra.');
     const zEl=document.getElementById(uploadId+'-zone');
     if(zEl){
       zEl.classList.remove('f-upload-loading');
@@ -1255,6 +1648,12 @@ function fReplaceImage(varId, btn){
 
 // F-07: volta uma pergunta no fluxo do chat
 function fGoBack(){
+  if(_fGuidedAtivo()){
+    if(fState.done||_fRevisando||document.body.classList.contains('f-guided-respostas')) return;
+    const idx=_fGuidedIndice(_fGuidedNav.currentField);
+    if(idx>0){ _fGuidedNav.returnTarget=null; _fGuidedMostrarCampo(idx-1); }
+    return;
+  }
   if(fState.stepIdx <= 0 || fState.done || fState.editIdx !== null) return;
   const msgs = document.getElementById('f-messages');
   // Remove primeiro as bolhas transitórias (erro/typing) — elas é que quebravam a contagem
@@ -1325,6 +1724,13 @@ function fMostrarConfirm(){
   fGerarArte();
 }
 function fEditCampo(idx){
+  if(_fGuidedAtivo()){
+    const p=_fGuidedPerguntas()[idx]; if(!p) return;
+    const retorno=_fRevisando?'review':_fGuidedNav.currentField;
+    _fGuidedNav.returnTarget=retorno; _fGuidedNav.mode='field-edit';
+    _fGuidedMostrarCampo(idx,{edit:true});
+    return;
+  }
   /* ⚠ `done` PRECISA CAIR AQUI. Com a arte já gerada, `fSaveAdv` corta na primeira linha
      ("Quer gerar outra arte?") e a resposta da edição nunca era salva — o campo abria, a
      pessoa digitava e nada acontecia. O `fReplaceImage` já zerava `done` na mão antes de
@@ -1853,6 +2259,7 @@ function _fCopyText(text){
 }
 
 function fGerarArte(){
+  if(_fGuidedAtivo()) _fGuidedPrepararConclusao();
   fState.done=true;fUpdateProg();
   fClearChatDraft();
   fState.editIdx=null;
@@ -2294,6 +2701,7 @@ function _fSnapshotArte(){
     material: fState.material,           // referência: o material é imutável nesta sessão
     fmt: fState.fmt,
     camp: fState.camp,                   // carrega as `perguntas` — o fPickLoja as filtra
+    guidedNav: Object.assign({}, _fGuidedNav),
     extractedColors: Object.assign({}, fState.extractedColors || {}),
     // A CONVERSA também é estado: sem ela o chat volta vazio com a prévia cheia — as duas
     // metades contando histórias diferentes, que é o defeito que a rodada anterior matou.
@@ -2313,6 +2721,7 @@ function _fRestauraArte(s){
   fState.material = s.material;
   fState.fmt = s.fmt;
   fState.camp = s.camp;
+  if(s.guidedNav) _fGuidedNav = Object.assign({active:false,currentField:null,returnTarget:null,mode:'guided'}, s.guidedNav);
   fState.extractedColors = s.extractedColors;
   _fArtSnapshots = s.snapshots;
   _fArtCaptions = s.captions;
@@ -2326,6 +2735,7 @@ function _fRestauraArte(s){
   try{ fUpdateProg(); }catch(e){}
   try{ fUpdateCtx(); }catch(e){}
   try{ fLpRefresh(); }catch(e){}
+  if(s.guidedNav && !_fCelular() && _fGuidedNav.active && !fState.done) _fGuidedMostrarAtual();
   if(msgs) msgs.scrollTop = msgs.scrollHeight;
 }
 
@@ -2362,6 +2772,15 @@ function fRestartArt(opts){
   fUpdateProg();
   try{ fLpRefresh(); }catch(e){}
   clearTimeout(fNextTimeout);
+  if(_fGuidedAtivo()){
+    _fGuidedNav.currentField=null; _fGuidedNav.returnTarget=null; _fGuidedNav.mode='guided';
+    _fGuidedAbrirProximo(0);
+    if(antes){
+      _fUndoRegistra('Refazer arte', ()=>_fRestauraArte(antes));
+      if(typeof gToast==='function') gToast('Arte reiniciada.',null,null,{acao:{rotulo:'Desfazer',onClick:fDesfazer}});
+    }
+    return;
+  }
   if(fState.camp && fState.camp.perguntas && fState.camp.perguntas.length){
     fAddBot(`Vamos refazer a arte da <strong>${gEsc(fState.camp.name||'campanha')}</strong>.`,[]);
     fNextTimeout = setTimeout(()=>fNextStep(), 500);
@@ -2516,6 +2935,9 @@ function fAddUser(txt){
    Com o wrapper, quem dissolve é ele e o `.bbl` volta a ser o item — com o `order:1` que
    toda pergunta tem. É a MESMA estrutura que o `fAddBot` monta; a divergência era o bug. */
 function fTyping(cb){
+  /* A microconfirmação do desktop vive no próprio campo. Criar o balão de três pontos aqui
+     reconstruiria justamente a timeline que o renderer guiado elimina. */
+  if(_fGuidedAtivo()){ setTimeout(cb,0); return; }
   const msgs=document.getElementById('f-messages');
   const botCircles = document.querySelectorAll('.bot-circle');
   botCircles.forEach(c => c.classList.add('thinking'));
@@ -2557,6 +2979,10 @@ function fSend(){
   // histórico e as artes já geradas continuam visíveis e baixáveis.
   if(typeof gFeatureCan==='function' && !gFeatureCan('franqueado.chat','create')){
     if(typeof gFeatureBlockedFeedback==='function') gFeatureBlockedFeedback('franqueado.chat');
+    return;
+  }
+  if(_fGuidedAtivo()){
+    _fGuidedEnviarTexto();
     return;
   }
   const b=document.getElementById('f-msg-box');
@@ -2626,6 +3052,19 @@ function fClearChatDraft() {
 }
 
 function fApplyRecoverDraft(confirm) {
+  if(_fGuidedAtivo()){
+    const draft=fState._pendingDraft; delete fState._pendingDraft;
+    if(confirm&&draft){
+      fState.dados=Object.assign({},fState.dados||{},draft.dados||{});
+      fState.extractedColors=draft.extractedColors||{};
+      try{ fSaveChatDraft(); fLpRefresh(); }catch(e){}
+      _fGuidedAbrirProximo(0);
+    }else{
+      fClearChatDraft(); fState.stepIdx=-1; fState.dados={}; fState.done=false; fState.extractedColors={};
+      fLpRefresh(); fMaterialPreStart(fState.material);
+    }
+    return;
+  }
   const qrWrap = document.querySelector('.qr-wrap');
   if (qrWrap && qrWrap.parentElement) qrWrap.parentElement.remove();
   
