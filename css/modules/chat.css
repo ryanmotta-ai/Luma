@@ -2712,12 +2712,15 @@ body:not(.theme-light) .art-review-badge{
      contextual seguem passando pelos mesmos listeners de chat-input.js. */
   body.f-guided-desktop:not(.f-guided-no-input) #f-input-row{
     width:min(calc(100% - 40px),520px);margin:0 auto 14px;padding:7px 7px 7px 14px;
-    border:1px solid var(--gray-mid);border-radius:14px;background:var(--white);box-shadow:var(--glass-shadow);
+    border:1px solid var(--gray-mid);border-radius:var(--r);background:var(--white);box-shadow:var(--glass-shadow);
     backdrop-filter:none;-webkit-backdrop-filter:none;z-index:3;
   }
   body.f-guided-desktop #f-input-wrap{min-width:0}
-  body.f-guided-desktop #f-msg-box{min-height:44px;padding-inline:0;border:0;background:transparent;font-size:15px;box-shadow:none}
+  /* A barra já é a superfície do conjunto: o input não desenha uma segunda pílula dentro dela. */
+  body.f-guided-desktop #f-input-wrap #f-msg-box{appearance:none;min-height:44px;padding-inline:0;border:0;border-radius:0;background:transparent;font-size:15px;box-shadow:none}
   body.f-guided-desktop #f-msg-box:focus{outline:0;box-shadow:none}
+  /* O foco continua visível na barra externa; o outline global no input duplicaria o contorno. */
+  body.f-guided-desktop #f-input-wrap #f-msg-box:focus-visible{outline:0!important}
   body.f-guided-desktop #f-input-row:focus-within{border-color:var(--dm-orange);box-shadow:0 0 0 3px var(--dm-orange-bg),var(--glass-shadow)}
   body.f-guided-desktop #f-snd{width:auto;min-width:112px;height:42px;padding:0 18px;border-radius:10px;background:var(--dm-orange);color:var(--on-orange);font-size:13px;font-weight:850}
   body.f-guided-desktop #f-snd svg{display:none}
@@ -3378,6 +3381,9 @@ body:not(.theme-light) #f-msg-box:disabled{background:var(--d-surf2);color:var(-
    Nada é apagado: a mensagem velha continua no DOM com a classe, e fora do modo "arte pronta"
    ela reaparece com a conversa inteira, como estava. */
 body.f-arte-pronta #f-messages>.msg.art-superada{display:none}
+/* O desktop guiado pinta a pergunta como `.fg-step`, não como `.msg`; ela também é passado
+   quando a entrega entra em cena e não pode vazar para cima do botão de download. */
+body.f-arte-pronta #f-messages>.fg-step{display:none}
 body.f-arte-pronta .lp-title-criando,body.f-arte-pronta .lp-title-icon .lp-ico-criando{display:none}
 body.f-arte-pronta .lp-title-pronta{display:inline}
 body.f-arte-pronta .lp-title-icon .lp-ico-pronta{display:block}
