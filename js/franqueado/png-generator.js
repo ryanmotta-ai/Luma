@@ -4063,7 +4063,7 @@ function fBulkAutoCategorize(prodName) {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   MOTOR DE COPY COMBINATÓRIO v2 — Tom de Voz Delivery Much
+   MOTOR DE COPY COMBINATÓRIO v3 — Tom de Voz Delivery Much
    Simples, amigável, direto. Zero emojis. Linguagem do cotidiano.
    ══════════════════════════════════════════════════════════════════ */
 
@@ -4297,17 +4297,53 @@ function _fCopySegment(prod) {
   return map[cat] || 'universal';
 }
 
-/* Sorteia N itens unicos de um array */
-function _fPickRandom(arr, n) {
-  if (!arr || arr.length === 0) return [];
-  const shuffled = arr.slice().sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, Math.min(n, shuffled.length));
+/* O motor v2 sorteava entre frases boas e ruins com a mesma chance. O v3 mantém os bancos,
+   mas usa uma ordem estável para que os mesmos fatos produzam a melhor combinação — e para
+   que uma regressão de copy possa ser reproduzida no teste em vez de depender de sorte. */
+function _fCopyHash(str) {
+  let h = 2166136261;
+  const s = String(str || '');
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
 }
 
-/* Sorteia 1 item de um array */
-function _fPick1(arr) {
-  if (!arr || arr.length === 0) return '';
-  return arr[Math.floor(Math.random() * arr.length)];
+function _fCopyPickStable(arr, seed, n) {
+  if (!arr || !arr.length) return n ? [] : '';
+  const ranked = arr.slice().sort((a, b) => _fCopyHash(seed + '|' + a) - _fCopyHash(seed + '|' + b));
+  return n ? ranked.slice(0, Math.min(n, ranked.length)) : ranked[0];
+}
+
+/* Artigo preso ao placeholder erra assim que o produto troca de gênero ("o pizza", "no
+   porção"). O produto continua podendo trazer seu próprio artigo no nome; o molde é que não
+   pode adivinhar gênero. */
+function _fCopyTplNeutro(tpl) {
+  return !/\b(?:o|a|no|na|do|da)\s+\{prod\}/i.test(String(tpl || ''));
+}
+
+function _fCopyTplTemFatos(tpl, facts) {
+  if (!facts.hasPrice && tpl.includes('{por}')) return false;
+  if (!facts.hasSavings && (tpl.includes('{de}') || tpl.includes('{economiaReais}') || tpl.includes('{economiaPct}'))) return false;
+  if (!facts.formattedVal && tpl.includes('{val}')) return false;
+  if (!facts.descClean && tpl.includes('{desconto}')) return false;
+  return _fCopyTplNeutro(tpl);
+}
+
+function _fCopyPairScore(pair, facts) {
+  const target = facts.isStory ? 72 : (facts.isWpp ? 125 : 150);
+  const max = facts.isStory ? 118 : (facts.isWpp ? 220 : 260);
+  let score = facts.segmentHook ? 28 : 0;
+  score -= Math.abs(pair.len - target) * 0.08;
+  if (pair.len > max) score -= (pair.len - max) * 2;
+  if (facts.hasPrice && pair.body.includes(facts.por)) score += 18;
+  if (facts.hasSavings && pair.body.includes(facts.de) && pair.body.includes(facts.por)) score += 16;
+  if (facts.descClean && pair.body.includes(facts.descClean)) score += 12;
+  if (facts.formattedVal && pair.body.includes(facts.formattedVal)) score += 8;
+  /* O hash só desempata; relevância e fidelidade continuam valendo mais que variedade. */
+  score += (_fCopyHash(facts.seed + '|' + pair.hook + '|' + pair.tpl) % 1000) / 10000;
+  return score;
 }
 
 /* Interpola placeholders {prod}, {por}, {de}, {val}, {desconto}, {economiaReais}, {economiaPct} */
@@ -4323,16 +4359,30 @@ function _fInterpolate(template, data) {
 }
 
 /* Monta UMA copy completa. mode: 'promo' | 'engajar' | 'whatsapp' */
-function _fAssembleCopy(prod, de, por, val, desc, mode, segment, used, forceShort = false) {
+function _fAssembleCopy(prod, de, por, val, desc, mode, segment, used, format) {
   const B = _COPY_BLOCKS;
   const isWpp = mode === 'whatsapp';
+  const isStory = /^stor(?:y|ies)$/i.test(String(format || ''));
+  const cleanProd = String(prod || '').trim() || 'Oferta especial';
+  const cleanDe = String(de || '').trim();
+  const cleanPor = String(por || '').trim();
 
   // Escolher body baseado nos dados disponíveis + economia calculada
   let bodyPool;
-  const numDe = fParsePriceNumber(de);
-  const numPor = fParsePriceNumber(por);
-  const hasPrice = /\d/.test(String(por || ''));   // vazio/sem dígito → sem preço real
+  const numDe = fParsePriceNumber(cleanDe);
+  const numPor = fParsePriceNumber(cleanPor);
+  const hasPrice = /\d/.test(cleanPor);   // vazio/sem dígito → sem preço real
   const hasSavings = hasPrice && numDe > 0 && numPor > 0 && numDe > numPor;
+
+  // Validade ausente continua ausente. O motor não transforma falta de dado em urgência.
+  let formattedVal = _fFormatValidity(val);
+  formattedVal = String(formattedVal || '').replace(/^v[áa]lid[oa]\s+/i, '');
+  if (formattedVal && /^[A-ZÀ-Ü]/.test(formattedVal)) formattedVal = formattedVal.charAt(0).toLowerCase() + formattedVal.slice(1);
+  const diff = numDe - numPor;
+  const economiaReais = hasSavings ? fFormatPriceNumber(diff) : '';
+  const pct = hasSavings ? Math.round((diff / numDe) * 100) : 0;
+  const economiaPct = hasSavings ? (pct + '%') : '';
+  const descClean = String(desc || '').trim().replace(/\s*off\.?\s*$/i, '');
 
   if (desc && /\d+\s*%/.test(desc)) {
     bodyPool = B.bodies.comPercentual;
@@ -4341,98 +4391,62 @@ function _fAssembleCopy(prod, de, por, val, desc, mode, segment, used, forceShor
     if (!bodyPool.length) bodyPool = B.bodies.semPreco;
   } else if (!hasPrice) {
     bodyPool = B.bodies.semPreco;                  // sem preço → não promete valor (fica no app)
-  } else if (de && de !== '—' && de.trim() && numDe > 0) {
+  } else if (hasSavings) {
     bodyPool = B.bodies.comDesconto;
-    if (!hasSavings) {
-      bodyPool = bodyPool.filter(tpl => !tpl.includes('{economiaReais}') && !tpl.includes('{economiaPct}'));
-    }
   } else {
+    // "De" igual/menor que "por" não é desconto: mencionar o par criaria uma promoção falsa.
     bodyPool = B.bodies.semDesconto;
   }
+  const facts = { hasPrice, hasSavings, formattedVal, descClean };
+  bodyPool = bodyPool.filter(tpl => _fCopyTplTemFatos(tpl, facts));
+  if (!bodyPool.length) bodyPool = B.bodies.semPreco.filter(_fCopyTplNeutro);
   // Dedup de CORPO entre as 3 opções (cai no pool cheio se esgotar)
   const _availBodies = bodyPool.filter(t => !used.bodies.has(t));
   bodyPool = _availBodies.length ? _availBodies : bodyPool;
-  
-  // Validade entra no MEIO da frase ("Válido {val}.") → tira um "válido" que o franqueado já
-  // digitou (senão saía "Válido válido só hoje") e baixa a 1ª letra quando é palavra
-  // ("Esta semana" → "esta semana"; datas/números ficam como estão).
-  let formattedVal = _fFormatValidity(val);
-  formattedVal = String(formattedVal || '').replace(/^v[áa]lid[oa]\s+/i, '');
-  if (formattedVal && /^[A-ZÀ-Ü]/.test(formattedVal)) formattedVal = formattedVal.charAt(0).toLowerCase() + formattedVal.slice(1);
-  const diff = numDe - numPor;
-  const economiaReais = hasSavings ? fFormatPriceNumber(diff) : '';
-  const pct = hasSavings ? Math.round((diff / numDe) * 100) : 0;
-  const economiaPct = hasSavings ? (pct + '%') : '';
-
-  // Desconto sem o "off" digitado — os templates já trazem "OFF"/"de desconto"
-  // (senão saía "20% off OFF"). Mesma família do "Válido válido".
-  const descClean = String(desc || '').trim().replace(/\s*off\.?\s*$/i, '');
 
   // WhatsApp: *negrito* REAL do app nos valores que vendem (produto, preços, desconto).
   const _b = isWpp ? (s => s ? '*' + s + '*' : s) : (s => s);
   const data = {
-    prod: _b(prod),
-    de: _b(de),
-    por: _b(por),
+    prod: _b(cleanProd),
+    de: _b(cleanDe),
+    por: _b(cleanPor),
     val: formattedVal,
     desconto: _b(descClean),
     economiaReais: _b(economiaReais),
     economiaPct: _b(economiaPct)
   };
   
-  // Escolher pool de hooks: mistura segmento-específico + universal
+  // Story tem duas linhas úteis (oferta + ação); um gancho extra seria uma terceira legenda.
   const segHooks = B.hooks[segment] || [];
-  const allHooks = segHooks.concat(B.hooks.universal);
+  const allHooks = isStory && !isWpp ? [''] : segHooks.concat(B.hooks.universal);
   const availHooks = allHooks.filter(h => !used.hooks.has(h));
   const hooksToUse = availHooks.length > 0 ? availHooks : allHooks;
 
-  let hook = '';
-  let body = '';
-  let bodyTpl = '';
+  const seed = [cleanProd, cleanDe, cleanPor, formattedVal, descClean, mode, segment, format].join('|');
+  const pairs = [];
+  hooksToUse.forEach(hook => bodyPool.forEach(tpl => {
+    const body = _fInterpolate(tpl, data).replace(/\s+([.,!?])/g, '$1').replace(/\s{2,}/g, ' ').trim();
+    const pair = { hook, tpl, body, len: hook.length + (hook ? 2 : 0) + body.length };
+    pair.score = _fCopyPairScore(pair, {
+      isStory, isWpp, hasPrice, hasSavings, formattedVal, descClean,
+      por: data.por, de: data.de, segmentHook: !!hook && segHooks.includes(hook), seed
+    });
+    pairs.push(pair);
+  }));
+  pairs.sort((a, b) => b.score - a.score);
+  const chosenPair = pairs[0];
+  const hook = chosenPair ? chosenPair.hook : '';
+  const body = chosenPair ? chosenPair.body : cleanProd;
+  const bodyTpl = chosenPair ? chosenPair.tpl : '';
 
-  if (forceShort) {
-    // Busca a combinação (hook + body) <= 120 caracteres
-    const validPairs = [];
-    const allPairs = [];
-
-    for (let h of hooksToUse) {
-      for (let bTpl of bodyPool) {
-        const bText = _fInterpolate(bTpl, data);
-        const totalLen = h.length + 2 + bText.length;
-        const pair = { hook: h, tpl: bTpl, body: bText, len: totalLen };
-        allPairs.push(pair);
-        if (totalLen <= 120) {
-          validPairs.push(pair);
-        }
-      }
-    }
-
-    let chosenPair;
-    if (validPairs.length > 0) {
-      chosenPair = _fPick1(validPairs);
-    } else {
-      // Fallback para a mais curta possível
-      allPairs.sort((x, y) => x.len - y.len);
-      chosenPair = allPairs[0];
-    }
-
-    hook = chosenPair.hook;
-    body = chosenPair.body;
-    bodyTpl = chosenPair.tpl;
-  } else {
-    hook = _fPick1(hooksToUse);
-    bodyTpl = _fPick1(bodyPool);
-    body = _fInterpolate(bodyTpl, data);
-  }
-
-  used.hooks.add(hook);
+  if (hook) used.hooks.add(hook);
   used.bodies.add(bodyTpl);
   
   // CTA sem repetir entre as opções
   const _pickCta = (type) => {
     const pool = B.ctas[type] || [];
     const avail = pool.filter(c => !used.ctas.has(c));
-    const c = _fPick1(avail.length ? avail : pool);
+    const c = _fCopyPickStable(avail.length ? avail : pool, seed + '|' + type);
     used.ctas.add(c);
     return c;
   };
@@ -4443,7 +4457,7 @@ function _fAssembleCopy(prod, de, por, val, desc, mode, segment, used, forceShor
   // WHATSAPP: mensagem, não legenda — sem hashtags (ruído no app), CTA de resposta direta.
   // Diagramação de mensagem: gancho / corpo (+validade) / CTA, blocos separados por linha vazia.
   if (isWpp) {
-    const wLines = [hook, '', body];
+    const wLines = hook ? [hook, '', body] : [body];
     if (valLine) wLines.push(valLine);
     wLines.push('', _pickCta('whatsapp'));
     return wLines.join('\n');
@@ -4451,8 +4465,14 @@ function _fAssembleCopy(prod, de, por, val, desc, mode, segment, used, forceShor
 
   // FEED: CTA coerente com a aba — "Promo" vende (pedido), "Engajar" conversa (marca/salva/comenta).
   const cta = _pickCta(mode === 'engajar' ? 'engajamento' : 'delivery');
+
+  // Story é leitura de dois golpes: fato da oferta e ação. Hashtag e gancho virariam ruído.
+  if (isStory) {
+    const offerLine = [body, valLine].filter(Boolean).join(' ');
+    return [offerLine, cta].filter(Boolean).join('\n');
+  }
   
-  // Hashtags: 2 universais + 2-3 do segmento + hashtags locais (cidade).
+  // Hashtags: marca + até 2 do segmento + 1 local. Mais que isso vira bloco genérico.
   /* A cidade vem do `fCidadeAtual()` (chat.js) e não mais de um input próprio do Sheets.
      Ele é o getter canônico e JÁ lia o `luma_bulk_city` que aquele input gravava — mais a
      cidade da própria arte e a chave do perfil, e ainda aprende quando a cidade aparece
@@ -4461,19 +4481,14 @@ function _fAssembleCopy(prod, de, por, val, desc, mode, segment, used, forceShor
   const city = (typeof fCidadeAtual === 'function') ? fCidadeAtual() : '';
   
   const segTags = B.hashtags[segment] || [];
-  const uniTags = _fPickRandom(B.hashtags.universal, 2);
-  const specTags = _fPickRandom(segTags, 3);
-  let allTagsList = uniTags.concat(specTags);
+  const fallbackTags = B.hashtags.universal.filter(t => t !== '#deliverymuch');
+  const specTags = _fCopyPickStable(segTags.length ? segTags : fallbackTags, seed + '|tags', 2);
+  let allTagsList = ['#deliverymuch'].concat(specTags);
   
   if (city) {
     const cleanCity = _fSanitizeHashtagPart(city);
     if (cleanCity) {
-      const localTags = [
-        `#deliverymuch${cleanCity}`,
-        `#${cleanCity}`,
-        `#delivery${cleanCity}`
-      ];
-      allTagsList = allTagsList.concat(localTags);
+      allTagsList.push(`#deliverymuch${cleanCity}`);
     }
   }
   
@@ -4502,9 +4517,9 @@ function fBuildCopy(prod, de, por, val, desc, format, ctxName) {
   //   engajar  → legenda de feed com CTA de engajamento garantido (marca/comenta/salva), hashtags
   //   whatsapp → MENSAGEM: *negrito* real do WhatsApp, sem hashtags, CTA de resposta direta
   return {
-    op1: _fAssembleCopy(prod, de, por, val, desc, 'promo', segment, used, true),
-    op2: _fAssembleCopy(prod, de, por, val, desc, 'engajar', segment, used, false),
-    op3: _fAssembleCopy(prod, de, por, val, desc, 'whatsapp', segment, used, false),
+    op1: _fAssembleCopy(prod, de, por, val, desc, 'promo', segment, used, format),
+    op2: _fAssembleCopy(prod, de, por, val, desc, 'engajar', segment, used, format),
+    op3: _fAssembleCopy(prod, de, por, val, desc, 'whatsapp', segment, used, format),
   };
 }
 
@@ -4600,16 +4615,9 @@ function _fGetDayOfWeekName(dayIndex) {
 }
 
 function _fFormatValidity(val) {
-  const day = new Date().getDay();
   let computedVal = val ? String(val).trim() : '';
   
-  if (!computedVal) {
-    if (day === 5 || day === 6 || day === 0) {
-      return 'neste fim de semana';
-    } else {
-      return 'por tempo limitado';
-    }
-  }
+  if (!computedVal) return '';
   
   const dateRegex = /\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/;
   const match = computedVal.match(dateRegex);
