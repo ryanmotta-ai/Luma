@@ -121,6 +121,16 @@ function setMode(m){
     // trabalho não salvo). Só o foco do painel volta pra casa.
     if(typeof dActivatePanel==='function') dActivatePanel('campaigns');
   }
+  // Simétrico ao de cima: voltar ao Franqueado SEM campanha aberta cai na home (a vitrine),
+  // não no workspace de 3 colunas pedindo "escolha uma campanha".
+  // `f-home-mode` é a classe que diz "franqueado sem campanha". O gRestoreMode a remove de
+  // propósito no F5 — senão a vitrine cobriria o Estúdio — mas nada a devolvia, então o
+  // estado (fState.camp=null) e a classe ficavam divergentes e a aba abria o workspace vazio.
+  // Com campanha aberta nada muda: voltar do Estúdio devolve a pessoa à arte onde estava.
+  if(m==='franqueado' && typeof fState!=='undefined' && fState && !fState.camp
+     && !document.body.classList.contains('f-home-mode') && typeof fGoHome==='function'){
+    fGoHome({silent:true});
+  }
   // Lembra o modo p/ o F5 voltar onde estava (restaurado no boot por gRestoreMode).
   try{ localStorage.setItem('__luma_mode', m); }catch(e){}
 }
