@@ -254,7 +254,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 79 arquivos JS (65.245 linhas, 2.512 funções) · 31 arquivos CSS (29.619 linhas) · `index.html` com 3.884 linhas e 80 `<script>`.
+**Tamanho real de hoje:** 79 arquivos JS (65.276 linhas, 2.512 funções) · 31 arquivos CSS (29.625 linhas) · `index.html` com 3.884 linhas e 80 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -269,7 +269,7 @@ Constantes globais imutaveis: HIST_KEY, CAMPS_ATIVAS, CAMPS_OUTRAS, FMTS. Deve s
 Estado global do franqueado: fState. Deve ser carregado apos 00-config.js.
 · Estado global: fState
 
-**`js/main.js`** · 474 linhas
+**`js/main.js`** · 477 linhas
 Bootstrap: setMode (troca entre franqueado/designer) e chamadas de inicializacao. Deve ser carregado por ULTIMO (apos todos os modulos).
 · API: dUpdateTabPill, gModeAllowed, gFirstAllowedMode, gGoHome, setMode, gRestoreMode, gApplyModeAccess, gParseDeepLink, gSaveDeepLink, gClearDeepLink, gApplyDeepLink, gOnLoginSuccess
 
@@ -354,8 +354,8 @@ Gerador de QR Code (modo byte, correção nível M) em Canvas — vanilla, zero 
 **`js/core/sound.js`** · 161 linhas
 Motor de Sound Design Sintetizado (Web Audio API) do Luma. Zero dependências de rede, 0 KB de arquivo MP3, latência zero (0ms). Oferece feedback tátil elegante para momentos de conquista e utilidade: 1.…
 
-**`js/core/splash.js`** · 89 linhas
-Controla a splash screen de entrada do Luma. Exibe a animação completa uma vez por dia e usa uma passagem curta nos demais acessos. O boot acontece por baixo: a splash só cobre trabalho real e nunca o cria. Exporta…
+**`js/core/splash.js`** · 117 linhas
+Controla a splash screen de entrada do Luma. Exibe a animação completa uma vez por dia e usa uma passagem curta nos demais acessos. O boot acontece por baixo: a splash só cobre trabalho real e nunca o cria. A barra de…
 · Depende de: nada (roda antes de qualquer módulo).
 
 **`js/core/supabase-config.example.js`** · 16 linhas
@@ -677,13 +677,13 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 |---|---|
 | `css/00-tokens.css` | 268 |
 | `css/01-reset.css` | 27 |
-| `css/02-animations.css` | 179 |
+| `css/02-animations.css` | 172 |
 | `css/03-fonts.css` | 60 |
 | `css/components/help-modal.css` | 719 |
 | `css/components/login.css` | 393 |
 | `css/components/product-control.css` | 443 |
 | `css/components/pwa-install.css` | 129 |
-| `css/components/splash.css` | 143 |
+| `css/components/splash.css` | 156 |
 | `css/components/topbar.css` | 455 |
 | `css/components/tutorial.css` | 740 |
 | `css/components/user-profile.css` | 1130 |
