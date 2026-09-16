@@ -3121,14 +3121,14 @@
       const passos=c.actions.filter(a=>a.id==='shrink-text');
       assert(passos.every(a=>a.params.de>a.params.para),'um degrau da corrida não reduziu');
       assert(c.actionSignatures.length===c.actions.length,'o histórico de assinaturas se perdeu');
-      /* A corrida faz N movimentos caberem em UM degrau de profundidade — então a sequência é
-         sempre mais longa que a profundidade. Comparar com o número de encolhimentos só valia
-         quando a corrida era a única coisa no rastro; hoje ela convive com quebra, entrelinha e
-         escala, e cada uma dessas gasta um degrau legítimo. */
-      assert(c.depth<c.actions.length,'a corrida não encurtou profundidade nenhuma em ['+seq(c)+']');
       // Nenhum piso pulado.
       passos.forEach(a=>assert(a.params.para>=a.params.piso,'a corrida cruzou o piso'));
     });
+    /* ⚠ REPETIR NÃO É CORRER. Dois encolhimentos podem vir de duas expansões distintas — a
+       corrida para assim que a causa atacada some, e a profundidade seguinte reataca. O que a
+       corrida promete é que ALGUÉM cabe N movimentos num degrau só; é isso que se cobra. */
+    assert(corridas.some(c=>c.actions.length>c.depth),
+      'nenhuma sequência encurtou profundidade: a corrida monotônica não está rodando');
     assert(G_ACAO_MONOTONICA['shrink-text'],'encolher deveria ser monotônica');
     assert(!G_ACAO_MONOTONICA['compress-gap'],'o respiro tem um degrau só: não é corrida');
   });
@@ -3461,6 +3461,272 @@
     assert(msSettle<400,'assentar levou '+msSettle.toFixed(1)+'ms em 344 camadas');
     assert(msCausa<400,'detectar+agrupar levou '+msCausa.toFixed(1)+'ms');
     assert(msBusca<4000,'a busca levou '+msBusca.toFixed(1)+'ms ('+r.diagnostics.generated+' candidatos)');
+  });
+
+  /* ══ EMERGENCY PARITY + MULTI-CAUSE SEARCH (Fase 5.9) ════════════════════════════════════
+     Dois buracos, dois mecanismos. O primeiro: a escada desce até o piso de EMERGÊNCIA quando
+     ninguém mais tem folga normal, e a busca parava no piso normal — declarava "sem saída" onde
+     o motor continuava. O segundo: com várias causas ao mesmo tempo, o beam enchia com oito
+     ramos da MESMA causa e os caminhos cruzados morriam antes de nascer. */
+
+  // Arte que resolve NO NORMAL, com dano real. O selo protegido é o obstáculo.
+  const arteN=()=>[
+    text('titulo',60,60,420,80,'{{titulo}}',{fontSize:44,name:'Titulo'}),
+    text('rodape',60,420,420,40,'CONSULTE',{fontSize:20,name:'Descrição'}),
+    shape('selo',60,220,420,160,{shapeKind:'circle',layoutRole:'protected'})
+  ];
+  // A MESMA arte com o corpo maior e o selo mais perto: o normal esgota e só a emergência fecha.
+  const arteE=()=>[
+    text('titulo',60,60,420,80,'{{titulo}}',{fontSize:56,name:'Titulo'}),
+    text('rodape',60,420,420,40,'CONSULTE',{fontSize:20,name:'Descrição'}),
+    shape('selo',60,180,420,200,{shapeKind:'circle',layoutRole:'protected'})
+  ];
+  // Duas colunas independentes: duas causas simultâneas que não se explicam uma pela outra.
+  const arteDuas=()=>[
+    text('tA',40,40,300,70,'{{a}}',{fontSize:44,name:'Titulo A'}),
+    shape('sA',40,180,300,120,{layoutRole:'protected'}),
+    text('tB',600,40,300,70,'{{b}}',{fontSize:44,name:'Titulo B'}),
+    shape('sB',600,180,300,120,{layoutRole:'protected'})
+  ];
+  const D_N={titulo:'Combo artesanal da casa com borda recheada'};
+  const D_E={titulo:'Combo artesanal da casa com borda recheada e bebida gelada'};
+  const D_2={a:'Combo artesanal da casa com borda recheada',
+             b:'Pizza grande com borda recheada e refrigerante'};
+  const CV_P={w:560,h:520}, CV_2={w:960,h:420};
+
+  test('modo: normal resolve → emergência NÃO roda',()=>{
+    const {r}=busca(arteN(),D_N,CV_P);
+    assert(r.original.diagnostics.problemas>0,'o cenário perdeu o sentido: arte sem dano');
+    assert(r.solved.length>0,'o normal deveria resolver esta arte');
+    assert(r.diagnostics.modo==='normal','entrou em emergência com solução normal na mão');
+    assert(r.diagnostics.emergencia===null,'a busca de emergência rodou sem necessidade');
+    assert(r.diagnostics.firstSolvedMode==='normal','a solução foi marcada como emergência');
+    [].concat(r.solved,r.partial).forEach(c=>{
+      assert(c.searchMode==='normal','candidato de emergência num caso resolvido no normal');
+      c.actions.forEach(a=>assert(!a.params||a.params.modo!=='emergency',
+        'ação de emergência num caso normal: '+a.id));
+    });
+  });
+
+  test('modo: normal esgota → emergência começa e resolve',()=>{
+    const {r}=busca(arteE(),D_E,CV_P);
+    assert(r.diagnostics.emergencia,'o normal esgotou e a emergência não foi tentada');
+    assert(r.solved.length>0,'nem a emergência resolveu: '+JSON.stringify(r.diagnostics.bloqueios));
+    assert(r.diagnostics.firstSolvedMode==='emergency','a solução não foi marcada como emergência');
+    r.solved.forEach(c=>assert(c.searchMode==='emergency','solução de emergência sem o modo'));
+    // A ordem importa: o normal inteiro rodou ANTES.
+    assert(r.diagnostics.generated>r.diagnostics.emergencia.generated,
+      'a emergência gerou tudo: o normal não chegou a ser tentado');
+  });
+
+  test('modo: o piso de emergência é o do solver, e a hierarquia continua valendo',()=>{
+    const layers=arteE(), C=ctxB(layers,D_E,CV_P);
+    const clones=layers.map(l=>Object.assign({},l));
+    gStampPisosHierarquia(clones,CV_P);
+    const t=clones.find(l=>l.id==='titulo');
+    assert(gLayoutPisoDoModo(clones,t,'normal')===gLayoutPisoFonte(t,false),
+      'o piso normal não é o do solver');
+    /* Emergência = piso de legibilidade do motor MAIS o piso de hierarquia EXTERNO. A segunda
+       parcela é a trava que impede o título de passar por baixo de quem ficou parado. */
+    const legivel=gLayoutPisoFonte(t,true);
+    const hier=gLayoutPisoHierarquiaExterno(clones,t,[t.id],false);
+    assert(gLayoutPisoDoModo(clones,t,'emergency')===Math.max(legivel,hier),
+      'o piso de emergência não é o do solver');
+    assert(gLayoutPisoDoModo(clones,t,'emergency')<=gLayoutPisoDoModo(clones,t,'normal')
+        || hier>legivel,'a emergência ficou mais apertada que o normal sem hierarquia mandando');
+    // A capacidade de emergência tem porta PRÓPRIA — nunca se mistura com a normal.
+    const em=gLayoutCanEmergencyShrink(C,'titulo',clones);
+    const normalCap=gLayoutCapability(C,'titulo','canShrinkFont');
+    assert(em.motivo!==normalCap.motivo||em.piso!==normalCap.piso,
+      'a capacidade de emergência devolveu exatamente a normal');
+    assert(gElasticityLevel(C.elasticity.get('titulo').fontShrink)>0,
+      'o cenário perdeu o sentido: elasticidade já proíbe encolher');
+  });
+
+  test('modo: nenhuma sequência cruza o piso de emergência',()=>{
+    const {r}=busca(arteE(),D_E,CV_P);
+    const clones=arteE().map(l=>Object.assign({},l));
+    gStampPisosHierarquia(clones,CV_P);
+    const corpoFinal=(c,id)=>{
+      const l=c.layers.find(x=>x.id===id);
+      return l?gLayoutCorpoAtual(l):null;
+    };
+    let conferiu=0;
+    [].concat(r.solved,r.partial).forEach(c=>{
+      c.actions.filter(a=>a.id==='shrink-text').forEach(a=>{
+        assert(a.params.para>=a.params.piso,'a ação cruzou o próprio piso');
+        conferiu++;
+      });
+      /* O que vale de verdade é o ESTADO FINAL: nenhuma camada pode terminar abaixo do piso de
+         legibilidade do motor, tenha chegado lá por um degrau ou por sete. */
+      clones.filter(l=>l.type==='text').forEach(l=>{
+        const fim=corpoFinal(c,l.id);
+        if(fim==null) return;
+        assert(fim>=gLayoutPisoFonte(l,true),
+          'a camada '+l.id+' terminou em '+fim+', abaixo do piso de legibilidade do motor');
+      });
+      // Emergência não vira licença: protegida continua intocável.
+      assert(c.changedIds.indexOf('selo')<0,'a emergência mexeu na camada protegida');
+    });
+    assert(conferiu>0,'o cenário perdeu o sentido: nenhum encolhimento a conferir');
+  });
+
+  test('modo: emergência não compra imunidade — protegida segue intocável',()=>{
+    const layers=[
+      text('travado',60,60,420,90,'{{campo}}',{fontSize:56,layoutRole:'protected',name:'Campo'}),
+      shape('selo',60,200,420,200,{shapeKind:'circle',layoutRole:'protected'})
+    ];
+    const C=ctxB(layers,{campo:'Um valor muito maior do que cabia na caixa desenhada'},CV_P);
+    ['normal','emergency'].forEach(m=>{
+      const em=gLayoutCanEmergencyShrink(C,'travado',layers);
+      assert(!em.permitido&&em.motivo==='protegida',
+        'a emergência liberou uma camada protegida ('+m+'): '+em.motivo);
+    });
+    const r=gSearchLayoutCandidates({ctx:C,base:layers});
+    [].concat(r.solved,r.partial).forEach(c=>assert(c.changedIds.indexOf('travado')<0,
+      'candidato válido mexeu na camada protegida'));
+  });
+
+  test('modo: o searchMode entra na assinatura quando é emergência',()=>{
+    const layers=arteE();
+    const n=gLayoutCandidateSignature({layers:layers,solveState:{},searchMode:'normal'});
+    const e=gLayoutCandidateSignature({layers:layers,solveState:{},searchMode:'emergency'});
+    assert(n!==e,'candidato normal e de emergência com a mesma geometria colidiram');
+    /* ⚠ O normal NÃO entra na conta: a assinatura de tudo o que já existia continua idêntica.
+       Modo é exceção, não parte da identidade de todo estado. */
+    assert(gLayoutCandidateSignature({layers:layers,solveState:{}})===n,
+      'o modo normal virou parte da assinatura de todo candidato');
+  });
+
+  test('causa: o beam mantém representantes de mais de uma causa',()=>{
+    const {r}=busca(arteDuas(),D_2,CV_2);
+    assert(r.original.causasAtivas.length>=2,
+      'o cenário perdeu o sentido: '+JSON.stringify(r.original.causasAtivas));
+    const porDepth=r.diagnostics.porDepth||[];
+    const comDuas=porDepth.filter(d=>d.causasNoBeam>=2);
+    assert(comDuas.length>0,'o beam nunca carregou duas causas ao mesmo tempo: '
+      +JSON.stringify(porDepth.map(d=>d.causasNoBeam)));
+    // As duas causas foram atacadas de verdade — não só observadas.
+    const atacadas=new Set([].concat(r.solved,r.partial).map(c=>c.diagnostics.causaAtacada));
+    assert(atacadas.size>=2,'a busca só atacou uma causa: '+[...atacadas].join(','));
+    assert(G_SEARCH_LIMITES.beamWidth===8,'a largura do beam mudou');
+    assert(G_SEARCH_LIMITES.maxDepth===8,'a profundidade máxima mudou');
+  });
+
+  test('causa: o rodízio do beam não deixa uma causa tomar a fronteira',()=>{
+    /* Direto na régua: dez candidatos da causa A, um da B. Sem rodízio a B não entra. */
+    const faz=(k,causa,dano)=>({ depth:1, signature:'s'+k, actions:[],
+      diagnostics:{ causaAtacada:causa, causas:1, problemasDepois:1, danoDepois:dano } });
+    const lista=[];
+    for(let k=0;k<10;k++) lista.push(faz(k,'c:A',10+k));
+    lista.push(faz(99,'c:B',500));
+    const beam=_gBeamPorCausa(lista,8);
+    assert(beam.length===8,'o beam mudou de largura: '+beam.length);
+    assert(beam.some(c=>c.diagnostics.causaAtacada==='c:B'),
+      'a causa com dano maior foi excluída da fronteira pelo volume da outra');
+    assert(beam.filter(c=>c.diagnostics.causaAtacada==='c:A').length===7,
+      'o rodízio não distribuiu as vagas');
+    // Determinístico: a mesma entrada, a mesma fronteira.
+    assert(_gBeamPorCausa(lista,8).map(c=>c.signature).join()===beam.map(c=>c.signature).join(),
+      'o rodízio do beam não é determinístico');
+  });
+
+  test('causa: resolver A e depois atacar B é um caminho vivo',()=>{
+    const {r}=busca(arteDuas(),D_2,CV_2);
+    const cruzados=[].concat(r.solved,r.partial)
+      .filter(c=>(c.causasTocadas||[]).length>=2);
+    assert(cruzados.length>0,'nenhuma sequência atacou duas causas: as combinações cruzadas '
+      +'continuam morrendo antes de nascer');
+    // E a cobertura causal é diagnóstico, não nota.
+    [].concat(r.solved,r.partial).forEach(c=>{
+      assert(Array.isArray(c.causasAtivas)&&Array.isArray(c.causasResolvidas)
+          &&Array.isArray(c.causasReduzidas)&&Array.isArray(c.causasReabertas),
+        'falta a cobertura causal no candidato');
+      c.causasResolvidas.forEach(k=>assert(c.causasAtivas.indexOf(k)<0,
+        'uma causa foi dada como resolvida e continua ativa: '+k));
+    });
+  });
+
+  test('causa: as causas saem do ESTADO atual, nunca congeladas no candidato',()=>{
+    const {r}=busca(arteDuas(),D_2,CV_2);
+    const fundos=[].concat(r.solved,r.partial).filter(c=>c.depth>=2);
+    assert(fundos.length,'a busca não chegou à segunda profundidade');
+    /* Se a causa ficasse congelada, o filho reatacaria sempre a mesma; aqui pelo menos um filho
+       de profundidade 2 ataca uma causa diferente da que o pai atacou. */
+    const mudouDeCausa=fundos.some(c=>{
+      const usadas=c.causasTocadas||[];
+      return usadas.length>=2;
+    });
+    assert(mudouDeCausa,'nenhum ramo trocou de causa entre um passo e o seguinte');
+  });
+
+  test('causa: causa reaberta é diagnosticada, não proibida',()=>{
+    /* Trocar um dano por outro às vezes é o caminho. O que não pode é ficar invisível. */
+    const {r}=busca(arteE(),D_E,CV_P);
+    const todos=[].concat(r.solved,r.partial);
+    todos.forEach(c=>{
+      assert(Array.isArray(c.causasReabertas),'falta o diagnóstico de causa reaberta');
+      c.causasReabertas.forEach(k=>assert(c.causasAtivas.indexOf(k)>=0,
+        'uma causa foi marcada como reaberta sem estar ativa: '+k));
+    });
+    // Reabrir não invalida: um candidato com causa reaberta pode seguir sendo `partial`.
+    const reabriu=todos.filter(c=>c.causasReabertas.length);
+    reabriu.forEach(c=>assert(c.status!=='invalid','causa reaberta virou candidato inválido'));
+  });
+
+  test('modo: a busca de emergência continua determinística',()=>{
+    const congelado=JSON.stringify(arteE());
+    const a=busca(arteE(),D_E,CV_P).r, b=busca(arteE(),D_E,CV_P).r;
+    assert(JSON.stringify(arteE())===congelado,'a busca mutou a base');
+    const chapa=(r)=>[].concat(r.solved,r.partial,r.invalid)
+      .map(c=>c.depth+':'+c.searchMode+':'+seq(c)+':'+c.signature).join('|');
+    assert(chapa(a)===chapa(b),'duas buscas iguais deram candidatos diferentes');
+    assert(a.diagnostics.emergencia.generated===b.diagnostics.emergencia.generated,
+      'a contagem da emergência é instável');
+  });
+
+  test('modo: nenhum critério estético entra na escalada nem no rodízio',()=>{
+    const {r}=busca(arteE(),D_E,CV_P);
+    [].concat(r.solved,r.partial,r.invalid).forEach(c=>{
+      ['nota','score','beleza','estetica','ranking','preferencia'].forEach(k=>
+        assert(!(k in c)&&!(k in c.diagnostics),'apareceu critério estético: '+k));
+    });
+    // O que decide o rodízio é fato: causa atacada, causas vivas, problemas, dano, profundidade.
+    const fonte=String(_gBeamPorCausa);
+    ['beleza','estetic','semantic','papel','hierarquia','preferenc'].forEach(k=>
+      assert(fonte.toLowerCase().indexOf(k)<0,'o beam consultou critério subjetivo: '+k));
+  });
+
+  test('modo: o custo da emergência escala com a arte',()=>{
+    /* A pergunta do §17: quanto custa ENTRAR em emergência? O fallback é uma segunda busca
+       completa, então o pior caso é o dobro do normal mais a profundidade extra que o piso
+       novo abre. É isso que se mede — e o caso normal nunca paga por ele. */
+    [58,172,344].forEach(n=>{
+      const L=arteGrande(n), cv={w:1080,h:40+Math.ceil(n/6)*72+200};
+      const C=gBuildOperationalContext(L,cv,{dados:{}});
+      const t0=performance.now();
+      const r=gSearchLayoutCandidates({ctx:C,base:L});
+      const ms=performance.now()-t0;
+      const de=r.diagnostics.emergencia;
+      avisos.push(n+' camadas: total '+ms.toFixed(1)+'ms · normal '
+        +(r.diagnostics.generated-(de?de.generated:0))+' cands · emergência '
+        +(de?de.generated+' cands':'não rodou'));
+      assert(ms<5000,'a busca com fallback levou '+ms.toFixed(1)+'ms em '+n+' camadas');
+    });
+  });
+
+  test('modo: emergência custa, e o custo é medido',()=>{
+    const medir=(L,d,cv)=>{
+      const C=ctxB(L,d,cv);
+      const t0=performance.now(); const r=gSearchLayoutCandidates({ctx:C,base:L});
+      return { ms:performance.now()-t0, r };
+    };
+    const n=medir(arteN(),D_N,CV_P), e=medir(arteE(),D_E,CV_P);
+    avisos.push('emergência: normal '+n.ms.toFixed(1)+'ms ('+n.r.diagnostics.generated+' cands, '
+      +(n.r.diagnostics.emergencia?'com':'sem')+' fallback) · com fallback '+e.ms.toFixed(1)+'ms ('
+      +e.r.diagnostics.generated+' cands, emerg '+e.r.diagnostics.emergencia.generated+')');
+    assert(!n.r.diagnostics.emergencia,'o caso normal pagou o custo da emergência');
+    assert(e.ms<1500,'o fallback de emergência levou '+e.ms.toFixed(1)+'ms');
   });
 
   let passed=0;

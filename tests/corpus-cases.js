@@ -57,6 +57,10 @@
   const usarCampos=(campos)=>{ window.dVars=(campos||[]).map(c=>Object.assign({type:'text'},c)); };
 
   const clonar=(ls)=>ls.map(l=>JSON.parse(JSON.stringify(l)));
+  /* COBERTURA Search × Solver (Fase 5.9). A pergunta: quando o motor acha saída segura, a busca
+     acha uma equivalente em capacidade? E quantas vezes ela precisou do piso de emergência? */
+  const _cobertura={ total:0, solverSolved:0, searchSolved:0, normal:0, emergencia:0,
+                     soSolver:[], soBusca:[] };
   const solve=(fx,dados,opts)=>gApplyRelativeAnchors(clonar(fx.layers),dados,{},
     Object.assign({fitText:true,canvas:fx.canvas,scope:'franqueado'},opts||{}));
   const geo=(out)=>out.filter(l=>l&&l.type==='text').map(l=>{
@@ -207,14 +211,34 @@
            um defeito na arquitetura nova jamais reprove o portão do solver atual. */
         if(typeof gShadowLayoutSearch==='function'){
           const sh=gShadowLayoutSearch(clonar(fx.layers),dados,fx.canvas);
+          _cobertura.total++;
+          if(sh.solverSolved) _cobertura.solverSolved++;
+          if(sh.solved){ _cobertura.searchSolved++;
+            if(sh.firstSolvedMode==='emergency') _cobertura.emergencia++;
+            else _cobertura.normal++; }
+          if(sh.cobertura==='so-solver') _cobertura.soSolver.push(chave);
+          if(sh.cobertura==='so-busca') _cobertura.soBusca.push(chave);
+          /* ⛔ ESTA É ASSERÇÃO, e é a única direção que não pode falhar em silêncio: a busca
+             APROVAR o que o solver reprova. Cobertura a menos é lacuna a fechar e sai como
+             nota; cobertura a mais é arte insegura passando, e isso é vermelho. */
+          /* ⛔ A ASSERÇÃO DE SEGURANÇA, e é a única direção que não pode falhar em silêncio: uma
+             solução da busca que o MOTOR reprovaria. `so-busca` sozinho não é isso — pode ser a
+             busca achando saída onde a escada fixa desistiu, e aí é cobertura a mais. O que
+             vale é o veredito de `gLayoutCamadaReprovada` sobre a composição resultante. */
+          assert(!(sh.solucoesInseguras||[]).length,
+            'a busca declarou resolvida uma composição que o motor reprova em '+chave+': '
+            +(sh.solucoesInseguras||[]).join(' / '));
           avisos.push('shadow '+chave+' → '+(sh.erro?('ERRO '+sh.erro)
             :('solver='+(sh.solverSolved?'solved':'unsafe')+'('+(sh.solverVoltas||0)+'v)'
-              +' busca='+(sh.solved?'solved@d'+sh.firstSolvedDepth:'nenhum')
+              +' busca='+(sh.solved?'solved@d'+sh.firstSolvedDepth+'/'+sh.firstSolvedMode:'nenhum')
               +' cob='+sh.cobertura
               +' · '+sh.problemas+' probs'+(sh.tipos.length?' ['+sh.tipos.join(',')+']':'')
               +' · '+sh.gerados+' cands ('+sh.solved+'s/'+sh.partial+'p)'
               +' · dmax'+sh.profundidade+' · '+sh.ms+'ms'
               +(sh.causas&&sh.causas.length?' · causas '+sh.causas.join('+'):'')
+              +(sh.emergenciaRodou?' · EMERG '+sh.emergencia.gerados+' cands d'+sh.emergencia.profundidade
+                +(Object.keys(sh.emergencia.bloqueios).length?' bloq '+JSON.stringify(sh.emergencia.bloqueios):''):'')
+              +(sh.causasReabertas?' · '+sh.causasReabertas+' reabriram causa':'')
               +(sh.bloqueios&&Object.keys(sh.bloqueios).length?' · SEM AÇÃO '+JSON.stringify(sh.bloqueios):'')
               +(sh.acoesNaSolucao?' · ['+sh.acoesNaSolucao.join('→')+']'
                 :(sh.restante?' · restou ['+sh.restante.tipos.join(',')+'] em '+sh.restante.causas+' causa(s) após ['+sh.restante.acoes.join('→')+']':'')))));
@@ -317,5 +341,10 @@
     console.log(json);
   }
   document.title=(failed?'FALHOU':'OK')+' — Corpus ('+passed+'/'+cases.length+')';
+  if(_cobertura.total) avisos.push('COBERTURA Search × Solver: solver resolve '
+    +_cobertura.solverSolved+'/'+_cobertura.total+' · busca resolve '+_cobertura.searchSolved
+    +' ('+_cobertura.normal+' no normal, '+_cobertura.emergencia+' só em emergência)'
+    +' · so-solver '+(_cobertura.soSolver.length?_cobertura.soSolver.join(','):'nenhum')
+    +' · so-busca '+(_cobertura.soBusca.length?_cobertura.soBusca.join(','):'nenhum'));
   window.__lumaTest={passed:passed,total:cases.length,failures:falhas,perf:perf,notas:avisos};
 })();

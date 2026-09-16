@@ -1983,6 +1983,34 @@ function gLayoutCorpoAtual(l){
   return (l && l._tetoFonte != null) ? l._tetoFonte : ((l && l.fontSize) || 24);
 }
 
+/* ══ PISO DE HIERARQUIA EXTERNO — o que impede a arte de inverter na emergência ══
+   No degrau de emergência (`gLayoutPisoFonte(l,true)`) o piso de hierarquia autoral sai de cena:
+   a escala proporcional protege a ordem DENTRO do grupo que desce junto. Mas quem está FORA do
+   grupo não desce — e sem esta trava um texto do componente passava por baixo de um texto menor
+   que ficou parado: a arte saía com o produto menor que o preço (comprovado no corpus,
+   `promo-preco-circulo · extremo`).
+
+   O piso é o maior corpo ATUAL entre os textos que eram MENORES no desenho e não estão no grupo.
+   Vivia como closure dentro de `gApplyRelativeAnchors`; a busca de candidatos precisa da MESMA
+   conta para que o `shrink-text` de emergência não aprove o que o motor recusa.
+
+   @param {Set|Array} idsGrupo quem desce junto (não entra como piso)
+   @param {boolean} precoNaoEhPiso escada travada: o preço imune deixa de contar como piso */
+function gLayoutPisoHierarquiaExterno(camadas, alvo, idsGrupo, precoNaoEhPiso){
+  if(!alvo) return 0;
+  const grupo = (idsGrupo instanceof Set) ? idsGrupo : new Set(idsGrupo || []);
+  let piso = 0;
+  (camadas || []).forEach(o => {
+    if(!o || o === alvo || o.type !== 'text') return;
+    if(typeof _gLayoutVisivel === 'function' && !_gLayoutVisivel(o)) return;
+    if(grupo.has(o.id)) return;
+    if((o.fontSize || 24) >= (alvo.fontSize || 24)) return;
+    if(precoNaoEhPiso && typeof _gLayoutPrecoImune === 'function' && _gLayoutPrecoImune(o)) return;
+    piso = Math.max(piso, gLayoutCorpoAtual(o));
+  });
+  return piso;
+}
+
 function gLayoutPisoFonte(l, emergencia){
   const legivel = (l && l._pisoLegivel) || 0;
   // Emergência (escala proporcional do componente): a hierarquia já está protegida pela escala
@@ -3269,17 +3297,9 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
            passava por baixo de um texto menor que ficou parado: a arte saía com o produto
            menor que o preço. Comprovado pelo corpus (`promo-preco-circulo · extremo`).
            O piso aqui é o maior corpo ATUAL entre os que eram menores e não estão descendo. */
-        const _pisoHierExterno=(l)=>{
-          let piso=0;
-          cloned.forEach(o=>{
-            if(!o||o===l||o.type!=='text'||!_gLayoutVisivel(o)||ids.has(o.id))return;
-            if((o.fontSize||24)>=(l.fontSize||24))return;
-            // Escada travada: o preço imune deixa de ser piso (ver `_precoNaoEhPiso` acima).
-            if(_precoNaoEhPiso&&_gLayoutPrecoImune(o))return;
-            piso=Math.max(piso,_atual(o));
-          });
-          return piso;
-        };
+        // A régua única (`gLayoutPisoHierarquiaExterno`, no alto deste arquivo): a busca de
+        // candidatos consulta a MESMA conta antes de autorizar um encolhimento de emergência.
+        const _pisoHierExterno=(l)=>gLayoutPisoHierarquiaExterno(cloned,l,ids,_precoNaoEhPiso);
         const grupo=[];
         textosComponente.forEach(l=>{
           const alvo=Math.max(_pisoEmergenciaDe(l),_pisoHierExterno(l),Math.floor((l.fontSize||24)*escalaGlobal));
