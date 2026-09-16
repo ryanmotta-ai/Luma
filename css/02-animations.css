@@ -69,13 +69,6 @@
   0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--dm-orange) 45%,transparent)}
   100%{box-shadow:0 0 0 12px color-mix(in srgb,var(--dm-orange) 0%,transparent)}
 }
-/* Splash — preenchimento da barra de progresso de entrada */
-@keyframes spBarFill{
-  0%{width:0%}
-  60%{width:70%}
-  85%{width:90%}
-  100%{width:100%}
-}
 /* Motion de feedback no canvas */
 @keyframes gCanvasPulse{
   0%{transform:scale(1.02);filter:drop-shadow(0 0 10px color-mix(in srgb,var(--dm-orange) 35%,transparent))}

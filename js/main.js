@@ -400,6 +400,7 @@ async function gOnLoginSuccess() {
   };
 
   const _restoreDestino = async () => {
+    if (typeof spStep === 'function') spStep('Montando sua tela…');
     _fhRefresh();
     if(_bootDeepLink){
       const ok = await gApplyDeepLink(_bootDeepLink);
@@ -431,6 +432,7 @@ async function gOnLoginSuccess() {
   // Não segura Estúdio/Academia por uma campanha que não será restaurada.
   if((_bootCamp || _bootDeepLink) && !document.body.classList.contains('mode-designer') && !document.body.classList.contains('mode-academia')
      && !document.body.classList.contains('mode-calendario')) await _foldersReady;
+  if (typeof spStep === 'function') spStep('Quase lá…');
 }
 
 // Inicializa a aba no startup e checa a autenticação
@@ -449,6 +451,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // Checa a sessão REAL do Supabase (assíncrono) antes de decidir login vs app.
   if (typeof gLoadProfile === 'function') { try { await gLoadProfile(); } catch(e){} }
+  if (typeof spStep === 'function') spStep('Carregando seu catálogo…');
 
   const _dlInit = gParseDeepLink();
   if (!gCurrentUser()) {

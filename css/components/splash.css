@@ -7,7 +7,7 @@
  * Disclaimer "Um produto [DM]".
  *
  * A preferência de reduzir movimento troca toda a coreografia por fade curto.
- * Keyframes globais: gFadeIn, spBarFill.
+ * Keyframes globais: gFadeIn.
  * Depende de: 00-tokens.css, 02-animations.css
  */
 
@@ -69,7 +69,10 @@
 }
 @keyframes spSheen{ from{ transform:translateX(-200%); } to{ transform:translateX(320%); } }
 
-/* ── Barra de progresso com brilho ── */
+/* ── Barra de progresso com brilho ──
+   A largura vem do JS (spStep/spBootReady em core/splash.js), NÃO de animação. Antes era
+   `spBarFill 700ms forwards`: enchia sempre em 700ms, com o boot ainda correndo por baixo.
+   A transição abaixo é só o amaciamento entre uma etapa e a seguinte. */
 .sp-bar-wrap{
   width:150px; height:2px; margin-top:40px;
   background:rgba(255,255,255,.22); border-radius:2px; overflow:hidden;
@@ -81,7 +84,7 @@
   background:linear-gradient(90deg,#FFE7C2,#FFFFFF);
   border-radius:2px;
   box-shadow:0 0 12px rgba(255,255,255,.85);
-  animation:spBarFill 700ms cubic-bezier(.45,.05,.2,1) 200ms forwards !important;
+  transition:width 320ms cubic-bezier(.45,.05,.2,1);
 }
 
 .sp-status{
@@ -140,3 +143,13 @@
   .sp-bar-wrap{width:132px;margin-top:32px}
   .sp-disclaimer{bottom:calc(18px + var(--safe-bottom))}
 }
+
+/* ── Boot ainda correndo (body.g-boot) ──
+   A marca entra no parse e sai no spBootReady. Enquanto a splash cobre a tela ela não muda
+   nada — quem a torna útil é o único caminho em que o app aparece com trabalho em voo: o
+   teto de tempo (SP_MAX) revelando um boot que não terminou. Aí o workspace fica inerte em
+   vez de aceitar clique numa tela meio-montada, que é o que produzia a prévia quebrada.
+   Não esconde nem esmaece: sumir com a interface no boot lento assusta mais do que informa. */
+body.g-boot #fran-main{pointer-events:none}
+body.g-boot #fran-main,
+body.g-boot #fran-main *{cursor:progress}
