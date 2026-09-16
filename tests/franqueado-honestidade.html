@@ -328,6 +328,15 @@ await test('As perguntas seguem a lógica da oferta, não a ordem das variáveis
   assert(pos('precoPor')<pos('desconto'),'o desconto veio antes do preço');
   assert(pos('desconto')<pos('detalhes'),'a descrição voltou a vir antes da oferta');
   assert(pos('detalhes')<pos('validade'),'a validade veio antes da descrição');
+
+  /* O "Gerar em lote" é OUTRA tela lendo o MESMO ordenador (`fBulkVars` → `gSortTemplateVars`),
+     e o código conta que ela já teve ordenação própria uma vez — ordenava pela posição da
+     camada, que é ordem de desenho, não de leitura. Este é o conjunto exato de colunas que o
+     Ryan mandou em 16/09/2026, da esquerda para a direita: uploads primeiro, texto depois. */
+  const lote=['detalhes','foto_produto','preco_original','preco_promo','logo_loja','produto'];
+  gSortTemplateVars(lote);
+  assert(lote.join()==='foto_produto,logo_loja,produto,preco_original,preco_promo,detalhes',
+    'as colunas do Gerar em lote saíram fora da ordem de preenchimento: '+lote.join(' → '));
 });
 
 /* A ordem semântica é boa, mas ela NÃO pode ser inescapável: o designer que reordena na aba
