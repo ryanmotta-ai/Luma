@@ -595,14 +595,6 @@ function dStudioRememberRecent(folder,tmpl){
   dStudioRecentWrite([item,...dStudioRecentRead().filter(r=>r&&r.key!==key)]);
 }
 
-function dStudioResolveRecent(item){
-  if(!item) return null;
-  const folder=dFolders.find(f=>f.id===item.folderId||(item.folderRemoteId&&f.remoteId===item.folderRemoteId));
-  if(!folder) return null;
-  const tmpl=(folder.templates||[]).find(t=>t.id===item.templateId||(item.templateRemoteId&&t.remoteId===item.templateRemoteId));
-  return tmpl?{folder:folder,tmpl:tmpl,openedAt:item.openedAt||0}:null;
-}
-
 function dStudioRelativeTime(value){
   const elapsed=Math.max(0,Date.now()-(+value||0));
   const min=Math.floor(elapsed/60000);
@@ -688,6 +680,9 @@ function dStudioHomeMaterialEntries(){
   })).sort((a,b)=>(b.openedAt||0)-(a.openedAt||0));
 }
 
+// O CARD DE MATERIAL — um componente só para as duas listas. "Recentes" e a biblioteca
+// mostram o MESMO material com o MESMO dado; o que muda entre elas é a densidade, e
+// densidade é CSS (.dsh-recent-card / .dsh-all-card). Duas montagens seriam duas verdades.
 function dStudioHomeMaterialCard(entry,key,options){
   const t=entry.tmpl,f=entry.folder,status=dStudioTemplateStatus(t);
   const preset=DFMT_SIZES[t.fmt]||{w:t.w||1080,h:t.h||1920};
@@ -697,24 +692,29 @@ function dStudioHomeMaterialCard(entry,key,options){
   const orientation=width>height?'landscape':(width===height?'square':'portrait');
   const displayName=String(t.name||'').trim()==='Novo projeto'?'Novo material':(t.name||'Material sem nome');
   const thumbId='dsh-thumb-'+key;
-  const thumb=blank
-    ?'<span class="dsh-blank-preview" aria-hidden="true"><span class="dsh-blank-sheet '+orientation+'"><i></i></span><span>Material em branco</span></span>'
-    :'<span class="dsh-thumb-fallback" aria-hidden="true"><span>'+gEsc(String(f.name||'L').charAt(0).toUpperCase())+'</span></span>';
+  // Enquanto não há arte para mostrar, o card mostra a FOLHA na proporção real do
+  // material e diz o que ela é. A inicial da campanha ("M" num quadrado bege) parecia
+  // defeito de carregamento; a folha é proposital e some quando a prévia real chega.
+  const thumb='<span class="dsh-thumb-ghost" aria-hidden="true"><span class="dsh-blank-sheet '+orientation+'"><i></i></span>'+
+    '<em>'+(blank?'Material em branco':width+' × '+height)+'</em></span>';
   const openedAt=Number(entry.openedAt);
   const hasOpenedAt=Number.isFinite(openedAt)&&openedAt>0;
-  const datetime=hasOpenedAt?new Date(openedAt).toISOString():'';
   const time=hasOpenedAt
-    ?'<time datetime="'+datetime+'">'+dStudioRelativeTime(openedAt)+'</time>'
-    :'<span class="dsh-card-size">'+width+' × '+height+'</span>';
-  const allClass=options&&options.all?' dsh-all-card':'';
-  const search=gEsc(displayName+' '+(f.name||'')+' '+width+' '+height);
+    ?'<time datetime="'+new Date(openedAt).toISOString()+'">'+dStudioRelativeTime(openedAt)+'</time>'
+    :'';
+  const allClass=options&&options.all?'dsh-all-card':'dsh-recent-card';
+  // O tamanho entra nas três grafias porque a pessoa digita o que ela LÊ no card
+  // ("1080 × 1350"), não os dois números soltos — buscar pelo que está escrito falhava.
+  const search=gEsc(displayName+' '+(f.name||'')+' '+width+' '+height+' '+width+'x'+height+' '+width+' × '+height);
 
-  return '<article class="dsh-material-card dsh-recent-card '+(blank?'is-blank ':'')+allClass+'" '+
+  return '<article class="dsh-material-card '+allClass+(blank?' is-blank':'')+'" '+
       'data-search="'+search+'" data-campaign="'+gEsc(f.id)+'" data-status="'+status.kind+'">'+
     '<button type="button" class="dsh-card-open" onclick="dStudioHomeOpenMaterial(\''+gEsc(f.id)+'\',\''+gEsc(t.id)+'\',this)" aria-label="Abrir '+gEsc(displayName)+'">'+
-      '<span class="dsh-thumb" id="'+thumbId+'">'+thumb+'</span>'+
-      '<span class="dsh-card-copy"><strong title="'+gEsc(displayName)+'">'+gEsc(displayName)+'</strong><span>'+gEsc(f.name)+' · '+width+' × '+height+'</span></span>'+
-      '<span class="dsh-card-meta"><span class="dsh-status '+status.kind+'"><i></i>'+status.label+'</span>'+time+'</span>'+
+      '<span class="dsh-thumb" id="'+thumbId+'">'+thumb+'<span class="dsh-card-hint" aria-hidden="true">Abrir</span></span>'+
+      '<span class="dsh-card-body">'+
+        '<span class="dsh-card-copy"><strong title="'+gEsc(displayName)+'">'+gEsc(displayName)+'</strong><span>'+gEsc(f.name)+' · '+width+' × '+height+'</span></span>'+
+        '<span class="dsh-card-meta"><span class="dsh-status '+status.kind+'"><i></i>'+status.label+'</span>'+time+'</span>'+
+      '</span>'+
     '</button>'+
     '<button type="button" class="dsh-card-menu" onclick="event.stopPropagation();dTemplateMenuOpen(event,\''+gEsc(f.id)+'\',\''+gEsc(t.id)+'\')" aria-label="Mais ações para '+gEsc(displayName)+'" title="Mais ações">'+
       '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>'+
@@ -722,15 +722,41 @@ function dStudioHomeMaterialCard(entry,key,options){
   '</article>';
 }
 
+// O rascunho local não é um material do catálogo: ele vive em dLayers/dFmt, restaurados
+// do localStorage no boot. Este objeto sintético existe só para o mesmo motor de prévia
+// (dStudioRenderThumb → dRenderTemplateToDOM) desenhar a retomada — sem inventar imagem e
+// sem duplicar estado: são as camadas que o editor já tem na mão.
+function dStudioDraftTemplate(){
+  const board=(typeof dArtboards!=='undefined'&&dArtboards&&dArtboards[0])||null;
+  const preset=DFMT_SIZES[dFmt]||{w:(board&&board.w)||1080,h:(board&&board.h)||1920};
+  return {
+    id:'draft-local',fmt:dFmt,
+    w:(board&&board.w)||preset.w,h:(board&&board.h)||preset.h,
+    bg:(typeof dCanvasBg!=='undefined'?dCanvasBg:''),layers:dLayers
+  };
+}
+
+// "Ver todos" não abre outra tela: leva o olho até a biblioteca e deixa o cursor na
+// busca, que é o que a pessoa faz em seguida. Zero estado novo.
+function dStudioHomeFocusLibrary(){
+  const lib=document.getElementById('dsh-library');
+  const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(lib) lib.scrollIntoView({behavior:reduce?'auto':'smooth',block:'start'});
+  const input=document.getElementById('dsh-search-input');
+  if(input) setTimeout(()=>input.focus(),reduce?0:280);
+}
+
 function dStudioHomeRender(){
   const home=document.getElementById('d-studio-home');
   if(!home) return;
   const selectedFolder=dFolders.find(f=>f.id===dActiveTmplFolderId)||dFolders[0]||{};
   const selected=selectedFolder.id||'';
-  // "Continue editando" saiu daqui (2026-09-16): dStudioHomeMaterialEntries() já ordena
-  // por último aberto, então a faixa de recentes repetia, sem busca e sem filtro, os
-  // primeiros cards de "Todos os materiais". Uma lista só — a de cima é a mais recente.
+  // UMA fonte de verdade para as duas listas: dStudioHomeMaterialEntries() já devolve o
+  // inventário ordenado por último aberto. "Recentes" é um RECORTE dela (o que esta
+  // máquina já abriu), não uma segunda lista montada de outro jeito.
   const all=dStudioHomeMaterialEntries();
+  const recent=all.filter(entry=>entry.openedAt>0).slice(0,4);
+  const recentCards=recent.map((entry,index)=>dStudioHomeMaterialCard(entry,'recent-'+index)).join('');
   const allCards=all.map((entry,index)=>dStudioHomeMaterialCard(entry,'all-'+index,{all:true})).join('');
 
   // O botão visual "Salvar em" saiu daqui (2026-07-31): escolher a campanha duas
@@ -775,25 +801,91 @@ function dStudioHomeRender(){
     '<svg class="dsh-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>'+
   '</button>';
 
-  const recover=dStudioRecoveredWork?'<button type="button" class="dsh-recover" onclick="dStudioRecoverLocal()"><span class="dsh-recover-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></span><span><strong>Continuar trabalho não salvo</strong></span><svg class="dsh-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>':'';
+  const ARROW='<svg class="dsh-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>';
+
+  // HERO — a entrada. Eyebrow, promessa e nada mais: a decisão vem logo abaixo.
+  // (O eyebrow e o título desta seção eram `content:` de CSS até 2026-09-16 — texto
+  // fora do DOM não é lido por leitor de tela nem encontrado por Ctrl+F.)
+  const hero='<header class="dsh-hero">'+
+    '<span class="dsh-eyebrow"><i></i>Estúdio Luma</span>'+
+    '<h1 id="dsh-title" tabindex="-1">Crie seu próximo material.</h1>'+
+    '<p>Comece do zero ou traga uma peça do seu fluxo de design.</p>'+
+  '</header>';
+
+  // CRIAR (protagonista) + IMPORTAR (duas portas secundárias, no mesmo bloco).
+  const start='<section class="dsh-start" aria-labelledby="dsh-start-title">'+
+    '<h2 id="dsh-start-title" class="dsh-sr">Criar ou importar</h2>'+
+    '<div class="dsh-start-grid">'+
+      '<button type="button" class="dsh-create" onclick="dStudioHomeNew()">'+
+        '<span class="dsh-create-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span>'+
+        '<span class="dsh-create-copy"><strong>Criar material</strong><span>Comece com uma tela limpa.</span></span>'+
+        '<span class="dsh-format-stack" aria-hidden="true"><i></i><i></i><i></i></span>'+
+        '<span class="dsh-create-go" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>'+
+      '</button>'+
+      '<div class="dsh-imports">'+
+        '<h3 class="dsh-imports-label">Importar</h3>'+
+        '<button type="button" class="dsh-import" onclick="dStudioHomeImport(\'psd\')">'+
+          '<span class="dsh-import-badge ps">Ps</span>'+
+          '<span class="dsh-import-copy"><strong>Photoshop</strong><small>PSD com camadas editáveis.</small></span>'+ARROW+
+        '</button>'+
+        '<button type="button" class="dsh-import" onclick="dStudioHomeImport(\'svg\')">'+
+          '<span class="dsh-import-badge ai">Ai</span>'+
+          '<span class="dsh-import-copy"><strong>SVG / Illustrator</strong><small>Vetores editáveis.</small></span>'+ARROW+
+        '</button>'+
+      '</div>'+
+    '</div>'+
+  '</section>';
+
+  // RETOMAR — só existe quando existe rascunho. Não é aviso: é um material com prévia
+  // REAL (as camadas restauradas) e uma ação. Sem horário porque o rascunho local não
+  // guarda um: inventar "há 12 min" seria mentir sobre o único dado que não temos.
+  const draft=dStudioRecoveredWork?dStudioDraftTemplate():null;
+  const resumeSection=draft
+    ?'<section class="dsh-resume" aria-labelledby="dsh-resume-title">'+
+      '<div class="dsh-section-heading"><div class="dsh-title-line"><h2 id="dsh-resume-title">Retomar</h2></div></div>'+
+      '<div class="dsh-resume-card">'+
+        '<span class="dsh-thumb dsh-resume-thumb" id="dsh-thumb-draft"><span class="dsh-thumb-ghost" aria-hidden="true"><span class="dsh-blank-sheet '+(draft.w>draft.h?'landscape':(draft.w===draft.h?'square':'portrait'))+'"><i></i></span></span></span>'+
+        '<span class="dsh-resume-copy"><strong>Trabalho não salvo</strong><span>Continue de onde você parou · '+draft.w+' × '+draft.h+'</span></span>'+
+        '<button type="button" class="dsh-resume-cta" onclick="dStudioRecoverLocal()">Continuar'+ARROW+'</button>'+
+      '</div>'+
+    '</section>'
+    :'';
+
+  // RECENTES — o recorte curto, quatro no máximo. Some quando não há nada aberto nesta
+  // máquina: bloco vazio é ruído, e a biblioteca logo abaixo já responde "cadê os meus".
+  const recentSection=recent.length
+    ?'<section class="dsh-continue" aria-labelledby="dsh-recents-title">'+
+      '<div class="dsh-section-heading">'+
+        '<div class="dsh-title-line"><h2 id="dsh-recents-title">Recentes</h2></div>'+
+        (all.length>recent.length?'<button type="button" class="dsh-link" onclick="dStudioHomeFocusLibrary()">Ver todos'+ARROW+'</button>':'')+
+      '</div>'+
+      '<div class="dsh-recent-grid">'+recentCards+'</div>'+
+    '</section>'
+    :'';
+
   const empty='<div class="dsh-empty"><span class="dsh-empty-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H10l2 2h5.5A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5z"/><path d="M9 12h6M12 9v6"/></svg></span><strong>Seus materiais aparecerão aqui</strong><span>Crie um material ou importe um arquivo para começar.</span></div>';
-  home.innerHTML='<div class="dsh-shell">'+
-    '<div class="dsh-intro"><header class="dsh-hero"><h1 id="dsh-title" tabindex="-1">Crie seu próximo material.</h1></header></div>'+
-    recover+
-    '<section class="dsh-start" aria-labelledby="dsh-start-title"><div class="dsh-section-heading dsh-start-heading"><h2 id="dsh-start-title">Criar ou importar</h2>'+saveFolderBtn+'</div>'+
-    '<div class="dsh-actions">'+
-      '<button type="button" class="dsh-start-card dsh-start-create" onclick="dStudioHomeNew()"><span class="dsh-action-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><span class="dsh-action-copy"><strong>Criar material</strong><span>Comece com uma tela limpa.</span></span><svg class="dsh-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>'+
-      '<button type="button" class="dsh-start-card" onclick="dStudioHomeImport(\'psd\')"><span class="dsh-action-icon ps"><strong>Ps</strong></span><span class="dsh-action-copy"><strong>Photoshop</strong><span>PSD com camadas editáveis.</span></span><svg class="dsh-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>'+
-      '<button type="button" class="dsh-start-card" onclick="dStudioHomeImport(\'svg\')"><span class="dsh-action-icon ai"><strong>Ai</strong></span><span class="dsh-action-copy"><strong>SVG / Illustrator</strong><span>Vetores editáveis.</span></span><svg class="dsh-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>'+
-    '</div></section>'+
-    '<section class="dsh-library" aria-labelledby="dsh-library-title"><div class="dsh-section-heading dsh-library-heading"><div class="dsh-title-line"><h2 id="dsh-library-title">Todos os materiais</h2><small class="dsh-count" id="dsh-all-visible">'+all.length+(all.length===1?' material':' materiais')+'</small></div>'+
-      '<div class="dsh-library-tools"><label class="dsh-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><span class="sr-only">Buscar materiais</span><input type="search" value="'+gEsc(dStudioHomeSearchQuery)+'" placeholder="Buscar materiais" oninput="dStudioHomeSetFilter(\'search\',this.value)"></label>'+
-      campaignFilterBtn+statusFilterBtn+'</div></div>'+
-      '<div class="dsh-all-grid" id="dsh-all-grid">'+(allCards||empty)+'</div>'+
-      '<div class="dsh-filter-empty" id="dsh-filter-empty" hidden><strong>Nenhum material encontrado</strong><span>Tente outro nome, campanha ou status.</span></div>'+
-    '</section>'+
-  '</div>';
-  const thumbTasks=all.map((entry,index)=>({tmpl:entry.tmpl,hostId:'dsh-thumb-all-'+index}));
+
+  // BIBLIOTECA — o inventário. Aqui a densidade sobe e busca/filtros ganham a linha.
+  const library='<section class="dsh-library" id="dsh-library" aria-labelledby="dsh-library-title">'+
+    '<div class="dsh-section-heading dsh-library-heading">'+
+      '<div class="dsh-title-line"><h2 id="dsh-library-title">Todos os materiais</h2><small class="dsh-count" id="dsh-all-visible">'+all.length+(all.length===1?' material':' materiais')+'</small></div>'+
+      '<div class="dsh-library-tools">'+
+        '<label class="dsh-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>'+
+        '<span class="dsh-sr">Buscar materiais</span>'+
+        '<input type="search" id="dsh-search-input" value="'+gEsc(dStudioHomeSearchQuery)+'" placeholder="Buscar por nome, campanha ou tamanho" oninput="dStudioHomeSetFilter(\'search\',this.value)"></label>'+
+        campaignFilterBtn+statusFilterBtn+
+      '</div>'+
+    '</div>'+
+    '<div class="dsh-all-grid" id="dsh-all-grid">'+(allCards||empty)+'</div>'+
+    '<div class="dsh-filter-empty" id="dsh-filter-empty" hidden><strong>Nenhum material encontrado</strong><span>Tente outro nome, campanha ou status.</span></div>'+
+  '</section>';
+
+  home.innerHTML='<div class="dsh-shell">'+hero+start+saveFolderBtn+resumeSection+recentSection+library+'</div>';
+
+  const thumbTasks=[];
+  if(draft) thumbTasks.push({tmpl:draft,hostId:'dsh-thumb-draft'});
+  recent.forEach((entry,index)=>thumbTasks.push({tmpl:entry.tmpl,hostId:'dsh-thumb-recent-'+index}));
+  all.forEach((entry,index)=>thumbTasks.push({tmpl:entry.tmpl,hostId:'dsh-thumb-all-'+index}));
   dStudioObserveHomeThumbs(thumbTasks);
   dStudioHomeApplyFilters();
 }
@@ -942,12 +1034,21 @@ function dStudioSelectStatusFilter(val){
 // desenha. Quem já tem layers em memória desenha no mesmo tick, sem rede.
 async function dStudioRenderThumb(tmpl,hostId){
   if(!tmpl) return;
-  if(tmpl._needsLayersFetch) await dEnsureTemplateLayers(tmpl);
+  if(tmpl._needsLayersFetch){
+    const waiting=document.getElementById(hostId);
+    if(waiting) waiting.classList.add('is-loading'); // pulso enquanto a arte não chega
+    await dEnsureTemplateLayers(tmpl);
+    if(waiting) waiting.classList.remove('is-loading');
+  }
   if(!Array.isArray(tmpl.layers)||!tmpl.layers.length||tmpl._needsLayersFetch||!dStudioHasMeaningfulLayers(tmpl.layers)) return;
   const host=document.getElementById(hostId);if(!host)return;
   const size=DFMT_SIZES[tmpl.fmt]||{w:tmpl.w||1080,h:tmpl.h||1920};
   const canvas=document.createElement('span');canvas.className='dsh-thumb-canvas';
-  canvas.style.width=size.w+'px';canvas.style.height=size.h+'px';host.innerHTML='';host.appendChild(canvas);
+  canvas.style.width=size.w+'px';canvas.style.height=size.h+'px';
+  // Tira só o que a prévia substitui. Era `innerHTML=''`, que levava junto a pista
+  // "Abrir" do hover — ela sumia exatamente nos cards que tinham arte para mostrar.
+  host.querySelectorAll('.dsh-thumb-ghost,.dsh-thumb-canvas').forEach(old=>old.remove());
+  host.appendChild(canvas);
   dRenderTemplateToDOM(canvas,tmpl);
   requestAnimationFrame(()=>{
     const scale=Math.min(host.clientWidth/size.w,host.clientHeight/size.h);
@@ -1010,16 +1111,6 @@ function dStudioHomeImport(kind){
   dActiveTmplFolderId=folder.id;dImportToFolder(folder.id,kind);
 }
 
-async function dStudioOpenRecent(index,card){
-  const entry=dStudioRecentRead().map(dStudioResolveRecent).filter(Boolean)[index];
-  if(!entry){gToast('Este material não está mais disponível','error');dStudioHomeRender();return;}
-  if(card){card.classList.add('is-opening');card.setAttribute('aria-busy','true');}
-  const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if(!reduce)await new Promise(resolve=>setTimeout(resolve,120));
-  await dLoadTemplate(entry.tmpl,entry.folder);
-  if(card&&document.contains(card)){card.classList.remove('is-opening');card.removeAttribute('aria-busy');}
-}
-
 function dStudioRecoverLocal(){
   dStudioRecoveredWork=false;dActiveTmplId=null;dActiveTmplFolderId=null;
   const name=document.getElementById('dt-project-name');if(name)name.textContent='Trabalho recuperado';
@@ -1029,8 +1120,14 @@ function dStudioRecoverLocal(){
 
 function dStudioHomeOpen(options){
   if(!(options&&options.initial)&&dActiveTmplId&&typeof dSave==='function'&&dSave({silent:true})===false) return;
-  dStudioHomeEnsure();dStudioHomeRender();document.body.classList.add('d-studio-home-open');
+  dStudioHomeEnsure();
+  // A classe entra ANTES do render — e não depois, como estava. O observer das prévias
+  // mede o card para saber se ele entrou na tela, e card dentro de container
+  // `display:none` mede zero: nenhum card jamais "entrava", então nenhuma prévia era
+  // desenhada. Era a segunda causa do quadro vazio, junto com a falta de layers.
+  document.body.classList.add('d-studio-home-open');
   const home=document.getElementById('d-studio-home');if(home)home.setAttribute('aria-hidden','false');
+  dStudioHomeRender();
   requestAnimationFrame(()=>{const title=document.getElementById('dsh-title');if(title)title.focus();});
 }
 
